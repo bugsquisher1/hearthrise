@@ -22,7 +22,7 @@ const cases = {
     for (const f of files) {
       const src = code(readFileSync(join(dir, f), 'utf8'));
       for (const [re, what] of FORBIDDEN) if (re.test(src)) bad.push(f + ' uses ' + what);
-      for (const m of src.matchAll(/from\s+'(\.[^']*)'/g)) if (!/\?v=\d+$/.test(m[1])) bad.push(f + ' imports ' + m[1] + ' with no ?v=');
+      for (const m of src.matchAll(/from\s+'(\.[^']*)'/g)) if (!/\?v=\d[\d.]*$/.test(m[1])) bad.push(f + ' imports ' + m[1] + ' with no ?v=');
     }
     return bad.length ? bad.join('; ') : null;
   },

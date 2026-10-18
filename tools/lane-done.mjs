@@ -32,30 +32,27 @@ import { scopedProofs } from './guard-anchors.mjs';
 const CHAIN = ['supabase', 'tests/sql', 'tests/schema-apply-order.json', 'tests/schema-drift.baseline.json'];
 const STEPS = [
   ['bash', ['./bump-version.sh', '--check']],
-  ['node', ['tests/monolith-ratchet.mjs']],
   ['node', ['tests/comment-ratio-ratchet.mjs']],
-  ['node', ['tests/test-file-ratchet.mjs']],
+  // The rebuilt client (2026-10-17): its module cap, its session rules, its
+  // whole RPC surface. Pure node, under two seconds together.
+  ['node', ['tests/client-module-size.mjs']],
+  ['node', ['tests/session-core.mjs']],
+  ['node', ['tests/session-core.mjs', '--mutate']],
+  ['node', ['tests/client-intent-surface.mjs']],
   ['node', ['tests/patch-chain-guard.mjs']],
   ['node', ['tests/no-client-xp-mint.mjs']],
-  ['node', ['tests/property-gate-census.mjs']],
   ['node', ['tests/dead-exports.mjs']],
   ['node', ['tests/dead-css.mjs']],
-  ['node', ['tests/market-price-source.mjs']],
   // Web storage only through src/platform/storage.js (W4.1). Milliseconds.
   ['node', ['tests/platform-seam.mjs']],
   ['node', ['tests/window-globals-exist.mjs']],
-  ['node', ['tests/no-duplicate-toplevel-fns.mjs']],
   ['node', ['tests/token-single-source.mjs']],
   ['node', ['tests/css-literal-ratchet.mjs']],
   ['node', ['tests/breakpoint-guard.mjs']],
-  ['node', ['tests/modal-primitive-census.mjs']],
   // The server projects it, the client must not keep its own copy (Tyler, 2026-09-14).
   // Text-only here; the executed hr_state_of key set is pinned in the db-replay-3 job
   // (split from db-replay 2026-09-20, then from db-replay-2 2026-09-26).
   ['node', ['tests/no-client-copy-of-projection.mjs']],
-  // The client predicts nothing new from 2026-09-16 (LIVE_WORLD_BRIEF.md): the
-  // world tick + push channel is the path, not one more predicted field.
-  ['node', ['tests/no-new-prediction.mjs']],
   // The chain must rebuild at EVERY hour of the day, not just at whatever
   // o'clock the runner started (measured: two GitHub runs red inside
   // [00:00, 00:05) on commits whose 00:21Z sibling was green). It is the only
@@ -94,24 +91,14 @@ const STEPS = [
   // Shipped copy promises no retired capability (local save, offline mode, save files). ~600 ms.
   ['node', ['tests/retired-capability-copy.mjs']],
   ['node', ['tests/retired-capability-copy.mjs', '--selftest']],
-  // The quest/goal reward catalogue parity. Seconds, no network. (The goals-surface
-  // WEEK-1..9 guard left with the this-week card, 2026-10-14 demolition.)
+  // The quest/goal reward catalogue parity (data <-> chain-end SQL). Seconds, no network.
   ['node', ['tests/quest-reward-parity.mjs']],
   ['node', ['tests/quest-reward-parity.mjs', '--selftest']],
-  // W0: the goals board stays cut and the one daily list reads the server. Milliseconds.
-  ['node', ['tests/goal-board-gone.mjs']],
-  ['node', ['tests/goal-board-gone.mjs', '--selftest']],
   ['node', ['tests/ci-shape.mjs']],
   ['node', ['tests/guard-hygiene.mjs']],
   // A new guard's mutant replay must declare its scope (upTo / fullChain) where
   // the guard is written, not after a newer migration blinds it in CI.
   ['node', ['tests/replay-scope-guard.mjs']],
-  // Suite isolation. ONLY the mutation proof is run here: the plain run is RED on
-  // today's tree for real reasons (873 unrestored `G` writes across 72 fields — see
-  // `node tests/snapshot-allowlist-guard.mjs --report`), and a runner that is red for
-  // somebody else's debt teaches every lane to ignore it. The census runs in CI as a
-  // named continue-on-error step; when it is green, add the plain run here too.
-  ['node', ['tests/snapshot-allowlist-guard.mjs', '--selftest']],
 ];
 const argv = process.argv.slice(2);
 const FAIL_FAST = argv.includes('--fail-fast');

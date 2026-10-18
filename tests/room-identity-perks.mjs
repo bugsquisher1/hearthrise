@@ -23,6 +23,7 @@
 // ============================================================================
 import { pathToFileURL } from 'node:url';
 import { normalisePerkState, permanentBonus } from '../src/core/perks.js';
+import { isMain } from './_is-main.mjs';
 
 /* The ruling's tables, restated as literals. They are NOT derived from
    ROOM_PERKS — a ladder read out of the file it is grading proves nothing. */
@@ -77,7 +78,7 @@ export async function roomIdentityPerksGuard() {
   return problems;
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
+if (isMain(import.meta.url)) {
   const ps = await roomIdentityPerksGuard();
   if (ps.length) {
     console.log('room identity perks — FAILED:');

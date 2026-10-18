@@ -109,6 +109,7 @@ import { readFileSync, writeFileSync, readdirSync, existsSync, mkdtempSync, mkdi
 import { join, normalize } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { isMain } from './_is-main.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const MIGRATIONS = join(ROOT, 'supabase', 'migrations');
@@ -853,6 +854,6 @@ function selftest() {
   return bad ? 1 : 0;
 }
 
-if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tests/patch-chain-guard.mjs')) {
+if (isMain(import.meta.url)) {
   process.exit(process.argv.includes('--selftest') ? selftest() : run(process.argv.slice(2)));
 }

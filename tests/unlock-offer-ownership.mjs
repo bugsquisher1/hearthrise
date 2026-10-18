@@ -48,6 +48,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, ROOT } from './schema-replay.mjs';
+import { isMain } from './_is-main.mjs';
 
 const SHOP = '2026-08-16-unlock-offers.generated.sql';
 const GOLD = '2026-08-19-gold-spend-slices-2-3.sql';
@@ -125,8 +126,7 @@ export async function unlockOfferOwnershipGuard() {
   return [...problems];
 }
 
-const RUN_DIRECTLY = !!process.argv[1]
-  && process.argv[1].replace(/\\/g, '/').endsWith('tests/unlock-offer-ownership.mjs');
+const RUN_DIRECTLY = isMain(import.meta.url);
 if (RUN_DIRECTLY) {
 const selftest = process.argv.includes('--selftest');
 if (selftest) {

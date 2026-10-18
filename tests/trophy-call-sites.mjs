@@ -26,9 +26,9 @@
 // seams for a holder of the TOP trophy and the TOP charm rank, with a weapon
 // the monster is weak to, and asserts:
 //
-//   C1  the Fight screen (getPlayerCombatRolls) and the loot preview
-//       (getWeaknessInfo), against the REAL src/core-bridge.js, quote exactly
-//       the drop and damage multipliers the hunt engine's ctx pays.
+//   C1  [retired 2026-10-17 with the old client: the Fight screen and the loot
+//       preview (src/legacy.js, src/core-bridge.js) are deleted; the new screens
+//       re-earn the arm when they quote a multiplier]
 //   C2  the hunt engine's seam (accrual.js memberSide's `rollsVs` /
 //       `weakness`, lifted out of the shipped file and executed) quotes the
 //       same numbers as the core — AWAY-1's "one engine" at the seam.
@@ -44,8 +44,8 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { readFile } from 'node:fs/promises';
-import { join, normalize, dirname } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { join, normalize } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { MONSTERS } from '../src/data/monsters.js';
 import { ITEMS } from '../src/data/items.js';
@@ -55,9 +55,7 @@ import { charmIndex, killsByClass } from '../src/core/charms.js';
 import { playerCombatRolls, monsterCombatRolls, weaknessInfo, equipmentStats } from '../src/core/combat.js';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
-const LEGACY = join(ROOT, 'src', 'legacy.js');
 const ACCRUAL = join(ROOT, 'supabase', 'functions', 'hr-accrue', 'accrual.js');
-const BRIDGE = join(ROOT, 'src', 'core-bridge.js');
 
 const SELFTEST = process.argv.slice(2).includes('--selftest');
 
@@ -73,17 +71,6 @@ function lift(src, open, close, what) {
   if (i < 0 || j < 0) throw new Harness(`${what}: anchors moved (open ${i}, close ${j})`);
   if (src.indexOf(open, i + 1) >= 0) throw new Harness(`${what}: the open anchor matches more than once`);
   return src.slice(i, j);
-}
-
-/** Load a client module that carries `?v=NNN` import specifiers, under Node. */
-async function loadClient(absPath) {
-  const src = await readFile(absPath, 'utf8');
-  const dir = dirname(absPath);
-  const rewritten = src.replace(
-    /(from\s+['"])(\.[^'"]*?)(\?v=\d+)?(['"])/g,
-    (_m, a, spec, _v, b) => a + pathToFileURL(join(dir, spec)).href + b,
-  );
-  return import('data:text/javascript;base64,' + Buffer.from(rewritten).toString('base64'));
 }
 
 // ── THE FIXTURE: a top-rung trophy, a top-rank charm, a matching weapon ─────
@@ -103,7 +90,7 @@ const EQ = equipmentStats(EQUIPMENT, ITEMS);
 const PAID = weaknessInfo(ROW, EQ);
 const OWN_DROP = Number(ROW && ROW.dropBonus) > 0 ? Number(ROW.dropBonus) : 1;
 
-async function run(legacySrc, accrualSrc, C) {
+async function run(accrualSrc) {
   // C4 — NON-VACUITY, first: every arm below is about a holder of the ladder.
   ok(TROPHIES && TROPHIES[MON_ID] === MAX_TROPHY_STAGE,
     `C4: the fixture holds trophy stage ${TROPHIES && TROPHIES[MON_ID]}, not ${MAX_TROPHY_STAGE}`);
@@ -114,28 +101,6 @@ async function run(legacySrc, accrualSrc, C) {
   const withId = Object.keys(MONSTERS).filter((k) => typeof MONSTERS[k].id === 'string' && MONSTERS[k].id);
   ok(withId.length === 0, `C4: ${withId.length} roster row(s) now carry .id (e.g. "${withId[0]}")`);
   ok(monsterIdIn(MONSTERS, ROW) === MON_ID, 'C4: monsterIdIn no longer resolves a roster row by identity');
-
-  // ── THE CLIENT SEAMS, against the REAL core-bridge ────────────────────────
-  globalThis.window = {
-    G: { equipment: EQUIPMENT, skills: {}, enchant: null },
-    MONSTERS,
-    ITEMS,
-    HearthriseTrophies: { indexForCombat: () => TROPHIES },
-    HearthriseCharms: { indexForCombat: () => CHARMS },
-    HearthriseCore: C,
-  };
-  const rollsSrc = lift(legacySrc, 'function getPlayerCombatRolls(m,eq=getEquipmentStats()){',
-    '\n/* Wave 5c: armour SET bonus.', 'getPlayerCombatRolls');
-  const weakSrc = lift(legacySrc, 'function getWeaknessInfo(m,eq=getEquipmentStats(),C=window.HearthriseCore,id=null){',
-    /* close anchor = the next function; the ELEMENTS v1 comment that used to
-       follow it left with the enchant (demolition D2). */
-    '\nfunction getPreferredSlot(def){', 'getWeaknessInfo');
-  // eslint-disable-next-line no-new-func
-  const client = new Function('getEquipmentStats', 'getArmorSetBonus',
-    `${rollsSrc}\n${weakSrc}\n; return { getPlayerCombatRolls, getWeaknessInfo };`)(() => EQ, () => null);
-
-  const fight = client.getPlayerCombatRolls(ROW);
-  const preview = client.getWeaknessInfo(ROW);
 
   // ── THE ENGINE SEAM, lifted out of accrual.js memberSide (lane S1) ───────
   const ctxSrc = lift(accrualSrc, '  const rollsVs = (m) =>', '  /* ⟦end engine seam⟧ */', 'hunt engine seam');
@@ -157,19 +122,8 @@ return { playerRolls: rollsVs, weakness };`,
   ok(engRolls && engRolls.weak && near(engRolls.weak.dropMult, engWeak && engWeak.dropMult),
     `C2: the engine rolls maxHit off drop ${engRolls && engRolls.weak && engRolls.weak.dropMult} and pays ${engWeak && engWeak.dropMult}`);
 
-  // C1 — the Fight screen and the loot preview quote the number the engine pays.
-  ok(fight && fight.weak && near(fight.weak.dropMult, engWeak.dropMult) && near(fight.weak.damageMult, engWeak.damageMult),
-    `C1: the Fight screen quotes drop ${fight && fight.weak && fight.weak.dropMult} / damage ${fight && fight.weak && fight.weak.damageMult} `
-    + `while the hunt engine pays ${engWeak.dropMult} / ${engWeak.damageMult} for the same kill (src/legacy.js getPlayerCombatRolls)`);
-  ok(fight && engRolls && fight.maxHit === engRolls.maxHit && near(fight.accuracy, engRolls.accuracy),
-    `C1: the Fight screen rolls maxHit ${fight && fight.maxHit} / accuracy ${fight && fight.accuracy} against the engine's `
-    + `${engRolls && engRolls.maxHit} / ${engRolls && engRolls.accuracy}`);
-  ok(preview && near(preview.dropMult, engWeak.dropMult) && near(preview.damageMult, engWeak.damageMult),
-    `C1: the loot preview (getWeaknessInfo) quotes drop ${preview && preview.dropMult} / damage ${preview && preview.damageMult} `
-    + `while the hunt engine pays ${engWeak.dropMult} / ${engWeak.damageMult}`);
-
   // C3 — no ladder in the number, on any seam.
-  for (const [who, w] of [['the core', PAID], ['the engine', engWeak], ['the Fight screen', fight && fight.weak], ['the loot preview', preview]]) {
+  for (const [who, w] of [['the core', PAID], ['the engine', engWeak]]) {
     ok(w && near(w.dropMult, OWN_DROP),
       `C3: ${who} quotes drop ${w && w.dropMult} for a stage-${MAX_TROPHY_STAGE} trophy holder; the row's own is ${OWN_DROP} — a ladder prices a fight again`);
     ok(w && !(Number(w.charmDropMult) > 1) && !(Number(w.trophyStage) > 0) && !(Number(w.trophyDropMult) > 1),
@@ -181,21 +135,6 @@ return { playerRolls: rollsVs, weakness };`,
 // ── MUTATIONS ───────────────────────────────────────────────────────────────
 const TROPHY_LIFT = '(1 + 0.05 * Number(((C.trophies && C.trophies()) || {})[C.monsterId(m)] || 0))';
 const MUTATIONS = {
-  client_prices_the_trophy: {
-    what: 'the Fight screen prices the held trophy stage into its drop rate again (the F4 two-numbers defect, client side)',
-    file: 'legacy',
-    find: '  return C.combat.playerCombatRolls(m, { ...C.combatCtx(eq, _set), monsterId: C.monsterId(m) });',
-    repl: `  const _r = C.combat.playerCombatRolls(m, { ...C.combatCtx(eq, _set), monsterId: C.monsterId(m) }); return { ..._r, weak: { ..._r.weak, dropMult: _r.weak.dropMult * ${TROPHY_LIFT} } };`,
-    expect: 'C1',
-  },
-  preview_reports_a_charm: {
-    what: 'the loot preview reports a charm lift the engine does not pay (combat-render.js would name it on the panel)',
-    file: 'legacy',
-    find: '  return C.combat.weaknessInfo(m,eq,',
-    repl: '  return ((w) => ({ ...w, charmDropMult: 1.1 }))(C.combat.weaknessInfo(m,eq,',
-    tail: true,
-    expect: 'C3',
-  },
   engine_prices_the_trophy: {
     what: 'accrual.js prices a ladder into ctx.weakness again — the server pays a number the Fight screen does not quote',
     file: 'accrual',
@@ -211,10 +150,10 @@ const MUTATIONS = {
     expect: 'C2',
   },
   control_comment_only: {
-    what: 'NEGATIVE CONTROL — an inert comment at the client call must move nothing',
-    file: 'legacy',
-    find: '  const _set=(typeof getArmorSetBonus===\'function\')?getArmorSetBonus():null;\n  return C.combat.playerCombatRolls(',
-    repl: '  const _set=(typeof getArmorSetBonus===\'function\')?getArmorSetBonus():null; /* control */\n  return C.combat.playerCombatRolls(',
+    what: 'NEGATIVE CONTROL — an inert comment at the engine seam must move nothing',
+    file: 'accrual',
+    find: '  const weakness = (m) => weaknessInfo(m, eq);',
+    repl: '  const weakness = (m) => weaknessInfo(m, eq); /* control */',
     expect: null,
   },
 };
@@ -230,38 +169,30 @@ function plant(base, m) {
 }
 
 const main = async () => {
-  const legacySrc = (await readFile(LEGACY, 'utf8')).replace(/\r\n/g, '\n');
   const accrualSrc = (await readFile(ACCRUAL, 'utf8')).replace(/\r\n/g, '\n');
 
-  globalThis.window = { G: {}, MONSTERS, ITEMS };
-  await loadClient(BRIDGE);                     // publishes window.HearthriseCore
-  const C = globalThis.window.HearthriseCore;
-  if (!C || typeof C.combatCtx !== 'function' || typeof C.monsterId !== 'function') {
-    throw new Harness('core-bridge did not publish combatCtx/monsterId');
-  }
-
   if (!SELFTEST) {
-    failed = await run(legacySrc, accrualSrc, C);
+    failed = await run(accrualSrc);
     if (failed) {
       console.error(`\ntrophy-call-sites: RED — ${failed} finding(s).`);
       process.exit(1);
     }
     console.log(`trophy-call-sites: green — for a stage-${MAX_TROPHY_STAGE} trophy and top-charm holder with a matched `
-      + `${WEAPON}, the Fight screen, the loot preview and the hunt engine quote ONE drop rate (x${PAID.dropMult}, the row's own) `
+      + `${WEAPON}, the core and the hunt engine quote ONE drop rate (x${PAID.dropMult}, the row's own) `
       + `and ONE damage multiplier (x${PAID.damageMult}); no seam names a ladder lift.`);
     return;
   }
 
   let missed = 0;
   for (const [name, m] of Object.entries(MUTATIONS)) {
-    const base = m.file === 'legacy' ? legacySrc : accrualSrc;
+    const base = accrualSrc;
     const mutated = plant(base, m);
     failed = 0;
     const seen = [];
     const realError = console.error;
     console.error = (line) => { seen.push(String(line)); };
     try {
-      await run(m.file === 'legacy' ? mutated : legacySrc, m.file === 'accrual' ? mutated : accrualSrc, C);
+      await run(mutated);
     } catch (e) {
       seen.push(`threw: ${e && e.message}`); failed++;
     } finally {

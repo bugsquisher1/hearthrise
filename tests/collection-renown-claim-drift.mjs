@@ -35,38 +35,9 @@ import { dirname, join } from 'node:path';
 import { COLLECTION_MILESTONES, MONSTER_TOTAL } from '../src/data/collection-milestones.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { ITEMS } from '../src/data/items.js';
+import { isMain } from './_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-
-/* Split a `[ {…}, {…} ]` array body into its TOP-LEVEL `{…}` objects, honouring
-   nested braces (the rows carry `test: function(s){ … }`). */
-function topLevelObjects(arrayBody) {
-  const out = [];
-  let depth = 0, start = -1;
-  for (let i = 0; i < arrayBody.length; i++) {
-    const c = arrayBody[i];
-    if (c === '{') { if (depth === 0) start = i; depth++; }
-    else if (c === '}') { depth--; if (depth === 0 && start >= 0) { out.push(arrayBody.slice(start, i + 1)); start = -1; } }
-  }
-  return out;
-}
-
-/* Extract the `reward: { … }` object's gold/gems from one row. */
-function rewardOf(row) {
-  const at = row.indexOf('reward:');
-  if (at < 0) return { gold: 0, gems: 0 };
-  const open = row.indexOf('{', at);
-  let depth = 0, end = -1;
-  for (let i = open; i < row.length; i++) {
-    if (row[i] === '{') depth++;
-    else if (row[i] === '}' && --depth === 0) { end = i; break; }
-  }
-  const rw = row.slice(open, end + 1);
-  return {
-    gold: Number((rw.match(/\bgold:\s*(\d+)/) || [])[1] || 0),
-    gems: Number((rw.match(/\bgems:\s*(\d+)/) || [])[1] || 0),
-  };
-}
 
 /* THE CHAIN-END SQL: the LAST file in schema-apply-order.json `order` that
    restates hr_claim_milestone__ungated — never a filename sort, never a
@@ -84,26 +55,6 @@ export async function chainEndMilestoneSql(orderOverride) {
   return end;
 }
 
-/* Parse the authored MILESTONES rows as DATA: {id, label, domain, goal, gold, gems}. */
-export function parseClientMilestones(cl) {
-  const msAt = cl.indexOf('var MILESTONES');
-  if (msAt < 0) return null;
-  const open = cl.indexOf('[', msAt);
-  let depth = 0, end = -1;
-  for (let i = open; i < cl.length; i++) {
-    if (cl[i] === '[') depth++;
-    else if (cl[i] === ']' && --depth === 0) { end = i; break; }
-  }
-  return topLevelObjects(cl.slice(open, end + 1)).map((row) => ({
-    id: (row.match(/\bid:\s*'([a-zA-Z0-9_]+)'/) || [])[1] || null,
-    label: (row.match(/\blabel:\s*'([^']*)'/) || [])[1] || null,
-    domain: (row.match(/\bdomain:\s*'([a-z]+)'/) || [])[1] || null,
-    goal: (m => (m ? Number(m[1]) : null))(row.match(/\bgoal:\s*(\d+)/)),
-    test: /\btest:\s*function/.test(row),
-    ...rewardOf(row),
-  }));
-}
-
 /* The SQL CASE arms as data. */
 export function parseSqlArms(sql) {
   const out = {};
@@ -118,7 +69,7 @@ export function parseSqlArms(sql) {
 const ORIGINAL_FOUR = new Set(['hunter10', 'hunterAll', 'collect50', 'collect100']);
 
 /* The collection half, pure over its inputs so --selftest can mutate each. */
-export function checkCollection({ catalogue, monsterTotal, monsters, clientSrc, chainEnd, items = ITEMS }) {
+export function checkCollection({ catalogue, monsterTotal, monsters, chainEnd, items = ITEMS }) {
   const problems = [];
   const ok = (cond, msg) => { if (!cond) problems.push(msg); };
   const catIds = Object.keys(catalogue);
@@ -131,32 +82,8 @@ export function checkCollection({ catalogue, monsterTotal, monsters, clientSrc, 
   ok(catalogue.hunterAll && catalogue.hunterAll.threshold === monsterTotal,
     `hunterAll.threshold=${catalogue.hunterAll && catalogue.hunterAll.threshold} != MONSTER_TOTAL ${monsterTotal}`);
 
-  // ── (2) collection-log.js authored MILESTONES, as data, both directions ──
-  const rows = parseClientMilestones(clientSrc);
-  ok(!!rows, 'CONTROL: MILESTONES could not be located in collection-log.js.');
-  if (rows) {
-    ok(rows.length === catIds.length,
-      `CONTROL: MILESTONES yielded ${rows.length} rows; the catalogue has ${catIds.length}.`);
-    const seen = new Set();
-    for (const r of rows) {
-      ok(!!r.id, 'a MILESTONES row has no id.');
-      if (!r.id) continue;
-      ok(!seen.has(r.id), `MILESTONES row '${r.id}' appears twice.`);
-      seen.add(r.id);
-      ok(!r.test, `MILESTONES row '${r.id}' carries a test function — earned is decided by ONE function over server counts.`);
-      ok(!!r.label, `MILESTONES row '${r.id}' has no label.`);
-      const cat = catalogue[r.id];
-      ok(!!cat, `MILESTONES row '${r.id}' is ABSENT from collection-milestones.js COLLECTION_MILESTONES.`);
-      if (!cat) continue;
-      ok(r.domain === cat.domain, `collection '${r.id}' client domain='${r.domain}' != catalogue '${cat.domain}'`);
-      ok(r.goal === cat.threshold, `collection '${r.id}' client goal=${r.goal} != catalogue threshold ${cat.threshold}`);
-      ok(cat.gold === r.gold, `collection '${r.id}' client gold=${r.gold} != catalogue ${cat.gold}`);
-      ok((cat.gems || 0) === r.gems, `collection '${r.id}' client gems=${r.gems} != catalogue ${cat.gems || 0}`);
-    }
-    for (const id of catIds) ok(seen.has(id), `catalogue milestone '${id}' has no authored MILESTONES row in collection-log.js.`);
-    const hAll = rows.find((r) => r.id === 'hunterAll');
-    ok(hAll && hAll.goal === monCount, `client hunterAll goal=${hAll && hAll.goal} != monsters.js count ${monCount}`);
-  }
+  // (2, the client's MILESTONES rows in src/features/collection-log.js, retired with the
+  //  old client on 2026-10-17: the catalogue and the SQL are the two sides now.)
 
   // ── (3) the chain-end SQL CASE, both directions ─────────────────────────
   ok(!!chainEnd, 'CONTROL: no file in schema-apply-order.json `order` restates hr_claim_milestone__ungated.');
@@ -211,7 +138,6 @@ export async function collectionRenownClaimDriftGuard() {
     catalogue: COLLECTION_MILESTONES,
     monsterTotal: MONSTER_TOTAL,
     monsters: MONSTERS,
-    clientSrc: await readFile(join(ROOT, 'src', 'features', 'collection-log.js'), 'utf8'),
     chainEnd: await chainEndMilestoneSql(),
   }));
 
@@ -224,7 +150,6 @@ async function selftest() {
     catalogue: COLLECTION_MILESTONES,
     monsterTotal: MONSTER_TOTAL,
     monsters: MONSTERS,
-    clientSrc: await readFile(join(ROOT, 'src', 'features', 'collection-log.js'), 'utf8'),
     chainEnd: await chainEndMilestoneSql(),
   };
   const baseRed = checkCollection(base);
@@ -259,9 +184,8 @@ async function selftest() {
     const nBop = pool.length - 125 + 1;
     const b = { ...base, monsters };
     return [
-      [`collect125 = ${over} = pool+1 (catalogue, client and SQL together — unreachable; ${label})`,
+      [`collect125 = ${over} = pool+1 (catalogue and SQL together — unreachable; ${label})`,
         () => ({ ...b, catalogue: cat({ collect125: { threshold: over } }),
-          clientSrc: sub(b.clientSrc, 'goal: 125,', `goal: ${over},`),
           chainEnd: { ...b.chainEnd, sql: b.chainEnd.sql.replace('v_thresh := 125;', `v_thresh := ${over};`) } })],
       [`collect125 reachable only through BoP drops (${nBop} = pool-125+1 ids flagged bop; ${label})`,
         () => {
@@ -280,15 +204,8 @@ async function selftest() {
     ...reachArms(stripped, 'roster without salvage rows'),
     ['drop the hunter40 SQL arm',
       () => ({ ...base, chainEnd: { ...base.chainEnd, sql: base.chainEnd.sql.replace(/\n\s*when 'hunter40'[^\n]*/, '') } })],
-    ['hunter40 gold 9000 in the client rows only',
-      () => ({ ...base, clientSrc: sub(base.clientSrc, "domain: 'monsters', goal: 40,  reward: { gold: 8000 }", "domain: 'monsters', goal: 40,  reward: { gold: 9000 }") })],
-    ['hunter40 goal 45 in the client rows only',
-      () => ({ ...base, clientSrc: sub(base.clientSrc, "domain: 'monsters', goal: 40,", "domain: 'monsters', goal: 45,") })],
-    ['collect75 domain monsters in the client rows only',
-      () => ({ ...base, clientSrc: sub(base.clientSrc, "label: 'Curator',             domain: 'items',", "label: 'Curator',             domain: 'monsters',") })],
-    ['collect75 gems 5 (catalogue, client and SQL together — a new gem faucet)',
+    ['collect75 gems 5 (catalogue and SQL together — a new gem faucet)',
       () => ({ ...base, catalogue: cat({ collect75: { gems: 5 } }),
-        clientSrc: sub(base.clientSrc, 'reward: { gold: 10000 }', 'reward: { gold: 10000, gems: 5 }'),
         chainEnd: { ...base.chainEnd, sql: base.chainEnd.sql.replace(/(when 'collect75'[^\n]*v_gems := )0;/, '$15;') } })],
     ['an older file picked as the chain end (2026-08-22)',
       async () => ({ ...base, chainEnd: await chainEndMilestoneSql(order.slice(0, order.indexOf('2026-08-22-collection-claim.sql') + 1)) })],
@@ -296,7 +213,6 @@ async function selftest() {
       async () => ({ ...base, chainEnd: await chainEndMilestoneSql([]) })],
     ['hunter60 gold 7000 everywhere (ladder gold not increasing)',
       () => ({ ...base, catalogue: cat({ hunter60: { gold: 7000 } }),
-        clientSrc: sub(base.clientSrc, 'reward: { gold: 15000 } }', 'reward: { gold: 7000 } }'),
         chainEnd: { ...base.chainEnd, sql: base.chainEnd.sql.replace("v_thresh := 60;  v_gold := 15000;", "v_thresh := 60;  v_gold := 7000;") } })],
   ];
   let missed = 0;
@@ -310,13 +226,13 @@ async function selftest() {
   return 0;
 }
 
-if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith('collection-renown-claim-drift.mjs')) {
+if (isMain(import.meta.url)) {
   if (process.argv.includes('--selftest')) {
     selftest().then((c) => process.exit(c), (e) => { console.error('harness:', e); process.exit(2); });
   } else {
     collectionRenownClaimDriftGuard().then((p) => {
       if (p.length) { console.log('collection-renown-claim-drift — FAILED:'); for (const x of p) console.log(`  ✗ ${x}`); process.exit(1); }
-      console.log('collection-renown-claim-drift — data modules, client rows, and the chain-end migration SQL all agree; ladders ascend and are reachable.');
+      console.log('collection-renown-claim-drift — the data modules and the chain-end migration SQL agree; ladders ascend and are reachable.');
     });
   }
 }

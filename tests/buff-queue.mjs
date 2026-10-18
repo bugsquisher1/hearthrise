@@ -148,6 +148,7 @@ import { GATHER_CATALOGUES } from '../supabase/functions/hr-accrue/tick-gather.j
    guard can see the two halves of the feature drift apart. */
 import { eatDelta, resolveFood, runEat } from '../supabase/functions/hr-accrue/eat.js';
 import { deltaClosesWindow } from '../supabase/functions/hr-accrue/intents.js';
+import { isMain } from './_is-main.mjs';
 
 /* ── THE FINAL-BODY RULE, AFTER THE RESTATEMENT (2026-09-14) ────────────
    Every anchor below that edits hr_apply's BODY now names MIG_APPLY. hr_apply is
@@ -1543,17 +1544,13 @@ async function run(mutate, blind) {
   ok(wr === 0, `[12] ${wr} client write grants on hr_item_buffs — the price list would be editable`);
 
   // ── [13] THE SHADOW COPY IS GONE ─────────────────────────────────────────
-  const resSrc = await readFile(join(ROOT, 'src', 'net', 'client-state.js'), 'utf8');
-  const resArr = /RESIDUE_FIELDS\s*=\s*(?:Object\.freeze\()?\[([\s\S]*?)\n\]/.exec(resSrc);
-  ok(!!resArr, '[13] could not read RESIDUE_FIELDS out of src/net/client-state.js — the collision check '
-    + 'did NOT run');
-  if (resArr) {
-    const names = new Set([...resArr[1].matchAll(/^\s*'([A-Za-z_][A-Za-z0-9_]*)',/gm)].map((m) => m[1]));
-    ok(names.size > 20, `[13] RESIDUE_FIELDS scan found only ${names.size} names — the scan has drifted`);
-    ok(!names.has('buffs'),
-      '[13] `buffs` is STILL in RESIDUE_FIELDS while the server denies it — the server refuses the WHOLE '
-      + 'patch on a forbidden key, so every residue field would stop saving for every player');
-  }
+  /* The client's residue allowlist is src/session/residue.js since the client
+     reset (2026-10-17); it must never carry the server-owned queue. */
+  const { RESIDUE_FIELDS: resNames } = await import(pathToFileURL(join(ROOT, 'src', 'session', 'residue.js')).href);
+  ok(Array.isArray(resNames) && resNames.length > 0, '[13] could not read RESIDUE_FIELDS out of src/session/residue.js — the collision check did NOT run');
+  ok(!resNames.includes('buffs'),
+    '[13] `buffs` is in RESIDUE_FIELDS while the server denies it — the server strips it from every patch, '
+    + 'so the client would believe it saved a queue the server never kept');
   await db.exec(`select set_config('request.jwt.claim.sub', '${U}', false)`);
   await db.exec('set role authenticated');
   let put = null; let putOk = null;
@@ -1810,8 +1807,7 @@ export async function buffQueueGuard() { failed = 0; await run(); return failed;
 
 // ── CLI ────────────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
-const RUN_DIRECTLY = !!process.argv[1]
-  && process.argv[1].replace(/\\/g, '/').endsWith('tests/buff-queue.mjs');
+const RUN_DIRECTLY = isMain(import.meta.url);
 
 if (RUN_DIRECTLY) {
   try {

@@ -1,8 +1,4 @@
 {
-  "rawReads": {
-    "heroSlotsUnlocked": 0,
-    "unlockedRecipes": 0
-  },
   "projection": {
     "top": [
       "bank",

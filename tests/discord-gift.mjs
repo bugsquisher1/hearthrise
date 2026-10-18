@@ -84,23 +84,11 @@ function nodeCode(week) {
   return c;
 }
 
-/* D-CLIENT: what crosses the wire, what the sheet may write, the display copy
-   of the amount, and the operator tool's one query. */
+/* D-CLIENT: the operator tool's one query. (The claim transport and the invite
+   sheet lived in the client deleted on 2026-10-17; the new client sends no claim.) */
 async function clientScan(override = {}) {
   const read = async (f) => (f in override ? override[f] : await readFile(join(ROOT, f), 'utf8'));
   const bad = [];
-  const gc = await read('src/net/goal-claim.js');
-  const m = gc.match(/claimDiscordGift: function \(code\) \{([^\n]*)\}/);
-  if (!m) bad.push('goal-claim.js has no one-line claimDiscordGift(code)');
-  else if (!/call\('hr_claim_discord_gift', \{ p_slot: activeSlot\(\), p_code: String\(code \|\| ''\) \}\)/.test(m[1])) {
-    bad.push(`claimDiscordGift sends more than (p_slot, p_code): ${m[1].trim()}`);
-  }
-  const dc = (await read('src/features/discord-invite.js'))
-    .replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
-  if (/\.gems\s*(=|\+=|-=)|\bG\.gems\b/.test(dc)) bad.push('discord-invite.js writes or reads G.gems');
-  const shown = (dc.match(/var GIFT_GEMS = (\d+);/) || [])[1];
-  const paid = (SQL.match(/c_gift_gems constant integer := (\d+);/) || [])[1];
-  if (!shown || !paid || shown !== paid) bad.push(`the invite copy says ${shown} gems, the server pays ${paid}`);
   const tool = await read('tools/discord-gift-code.mjs');
   const sends = tool.match(/JSON\.stringify\(\{ query: (\w+) \}\)/g) || [];
   if (sends.length !== 1 || !/const QUERY = 'select public\.hr_discord_code_current\(\) as r';/.test(tool)) {
@@ -205,20 +193,11 @@ const MUTANTS = [
 ];
 
 async function scanMutants() {
-  const gc = await readFile(join(ROOT, 'src/net/goal-claim.js'), 'utf8');
-  const dc = await readFile(join(ROOT, 'src/features/discord-invite.js'), 'utf8');
   const tool = await readFile(join(ROOT, 'tools/discord-gift-code.mjs'), 'utf8');
   const one = (src, a) => { if (src.split(a).length !== 2) { console.error(`harness: client mutant anchor moved: ${a}`); process.exit(2); } };
-  const a = "p_code: String(code || '') }); },", b = 'status.textContent = r.text;', c = 'var GIFT_GEMS = 25;';
   const d = "const QUERY = 'select public.hr_discord_code_current() as r';";
-  [[gc, a], [dc, b], [dc, c], [tool, d]].forEach(([s, x]) => one(s, x));
+  [[tool, d]].forEach(([s, x]) => one(s, x));
   return [
-    { name: 'clientSendsAmount', why: 'the transport sends a gem amount with the code',
-      over: { 'src/net/goal-claim.js': gc.replace(a, () => "p_code: String(code || ''), p_gems: 25 }); },") } },
-    { name: 'sheetPaysLocally', why: 'the sheet adds the gift to G.gems itself',
-      over: { 'src/features/discord-invite.js': dc.replace(b, () => b + ' window.G.gems += 25;') } },
-    { name: 'copyDrifts', why: 'the invite promises a different amount than the server pays',
-      over: { 'src/features/discord-invite.js': dc.replace(c, () => 'var GIFT_GEMS = 50;') } },
     { name: 'toolWrites', why: 'the operator tool sends a write',
       over: { 'tools/discord-gift-code.mjs': tool.replace(d, () => "const QUERY = 'update public.player_state set gems = gems + 1';") } },
   ];

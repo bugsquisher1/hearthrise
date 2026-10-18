@@ -14,10 +14,10 @@
 // `trophyRows ?? []` UNCONDITIONALLY — so the key was PRESENT and EMPTY.
 //
 // An empty array is a CLAIM: "the server holds no trophies for you". null is
-// not: "the server did not say". src/render/bestiary-trophies.js reads exactly
-// that distinction — `hasTrophyKey: Array.isArray(src.trophies)` — and the
-// claimed set it gates the Claim button on is built only from rows that were
-// sent. So the degradation path produced a panel that re-offers Claim on a
+// not: "the server did not say". The client must keep exactly that distinction:
+// since the client reset (2026-10-17) it keeps the envelope WHOLE
+// (src/session/envelope.js), so an absent key stays absent and an empty list
+// stays an empty list. So the degradation path produced a panel that re-offers Claim on a
 // trophy the server holds and a badge reading "not claimed yet", against a
 // server that answers `already_owned`. CLAUDE.md §6: the browser never says one
 // thing while the server says another.
@@ -39,7 +39,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { readFile } from 'node:fs/promises';
-import { join, normalize, dirname } from 'node:path';
+import { join, normalize } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { killsByClass } from '../src/core/charms.js';
@@ -48,7 +48,7 @@ import { MONSTERS } from '../src/data/monsters.js';
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const INDEX_TS = join(ROOT, 'supabase', 'functions', 'hr-accrue', 'index.ts');
 const CLAIM_JS = join(ROOT, 'supabase', 'functions', 'hr-accrue', 'trophy-claim.js');
-const MIRROR_JS = join(ROOT, 'src', 'render', 'bestiary-trophies.js');
+const ENVELOPE_JS = join(ROOT, 'src', 'session', 'envelope.js');
 
 const argv = process.argv.slice(2);
 const SELFTEST = argv.includes('--selftest');
@@ -86,32 +86,13 @@ function liftEmit(src) {
   `);
 }
 
-/** Load a client module that carries `?v=NNN` import specifiers, under Node. */
-async function loadClient(absPath) {
-  const src = await readFile(absPath, 'utf8');
-  const dir = dirname(absPath);
-  // Rewrite each relative specifier to an ABSOLUTE file URL with the cache
-  // buster stripped, so the data-URL module resolves its siblings. The ?v= rule
-  // is CLAUDE.md §5's and is not this guard's to have an opinion about.
-  const rewritten = src.replace(
-    /(from\s+['"])(\.[^'"]*?)(\?v=\d+)?(['"])/g,
-    (_m, a, spec, _v, b) => a + pathToFileURL(join(dir, spec)).href + b,
-  );
-  return import('data:text/javascript;base64,' + Buffer.from(rewritten).toString('base64'));
-}
-
-/** A minimal window/G for the mirror. It reads both lazily; nothing else. */
-function stubGlobals() {
-  globalThis.window = { MONSTERS, G: {} };
-  return globalThis.window.G;
-}
-
 const BY_ID = { goblin: 21000, slime: 40 };
-const envelopeFor = (block) => ({ ok: true, bestiary: block });
+const envelopeFor = (block) => ({ ok: true, version: 1, state: {}, bestiary: block });
 
-async function run(indexSrc, mirrorPath) {
+async function run(indexSrc, envelopePath) {
   const emit = liftEmit(indexSrc);
-  const mirror = await loadClient(mirrorPath);
+  const E = await import(pathToFileURL(envelopePath).href + '?t=' + Date.now());
+  const kept = (block) => { const r = E.applyEnvelope(null, envelopeFor(block)); return r.record ? r.record.data.bestiary : undefined; };
 
   // ── W1 — THE DEGRADATION PATH. trophyRows null ⇒ NO `trophies` KEY. ───────
   const degraded = emit(null, BY_ID, killsByClass, MONSTERS);
@@ -142,26 +123,18 @@ async function run(indexSrc, mirrorPath) {
      && held.trophies[0].monster === 'goblin' && held.trophies[0].stage === 4,
     'W3: the surviving row is not the server\'s (goblin, 4) — the wire renamed or re-derived it');
 
-  // ── W4 — THE CONSUMER, EXECUTED. The distinction reaches the panel. ──────
-  stubGlobals();
-  mirror.noteEnvelope(envelopeFor(degraded));
-  ok(window.G._bestiaryTrophies && window.G._bestiaryTrophies.hasTrophyKey === false,
-    'W4: after the 42883 path the mirror records hasTrophyKey TRUE — the panel can no longer tell '
-    + '"trophies are unavailable on this server" from "you have none", which the mirror\'s own comment '
-    + 'names as the reason the flag exists');
-
-  stubGlobals();
-  mirror.noteEnvelope(envelopeFor(none));
-  ok(window.G._bestiaryTrophies && window.G._bestiaryTrophies.hasTrophyKey === true,
-    'W4: a server that answered with an empty list did not read as "answered"');
-
-  stubGlobals();
-  mirror.noteEnvelope(envelopeFor(held));
-  ok(mirror.isClaimed('goblin', 4) === true,
-    'W4: the server holds (goblin, 4) and the mirror answers "not claimed" — the Claim button would '
-    + 'be live on a trophy the server refuses with already_owned');
-  ok(mirror.isClaimable('goblin', 4) === false,
-    'W4: a trophy the server has already written is still offered as claimable');
+  // ── W4 — THE CONSUMER, EXECUTED. The distinction reaches the client's record. ──
+  const k1 = kept(degraded);
+  ok(k1 && !('trophies' in k1),
+    'W4: after the 42883 path the client record holds a `trophies` key — the client can no longer tell '
+    + '"trophies are unavailable on this server" from "you have none"');
+  const k2 = kept(none);
+  ok(k2 && Array.isArray(k2.trophies) && k2.trophies.length === 0,
+    'W4: a server that answered with an empty list did not reach the record as "answered, none"');
+  const k3 = kept(held);
+  ok(k3 && Array.isArray(k3.trophies) && k3.trophies.some((t) => t.monster === 'goblin' && t.stage === 4),
+    'W4: the server holds (goblin, 4) and the client record does not — a Claim would be offered on a '
+    + 'trophy the server refuses with already_owned');
 
   // ── W5 — THE OTHER EMIT SITE AGREES. Two sites that disagree is how one rots.
   const claimSrc = await readFile(CLAIM_JS, 'utf8');
@@ -190,11 +163,11 @@ const MUTATIONS = {
     repl: '        ...(claimed.length ? { trophies: claimed } : {}),',
     expect: 'W2',
   },
-  mirror_presence_is_assumed: {
-    what: 'the mirror stops reading whether the key was SENT and hard-codes "answered"',
-    file: 'mirror',
-    find: '    hasTrophyKey: Array.isArray(src.trophies),',
-    repl: '    hasTrophyKey: true,',
+  client_fills_the_key: {
+    what: 'the client applier fills a missing trophies key with [] — "did not say" becomes "none"',
+    file: 'envelope',
+    find: "if (!META.includes(k) && k !== 'client_state') data[k] = copy(env[k]);",
+    repl: "if (!META.includes(k) && k !== 'client_state') data[k] = copy(k === 'bestiary' ? Object.assign({ trophies: [] }, env[k]) : env[k]);",
     expect: 'W4',
   },
   control_comment_only: {
@@ -210,25 +183,25 @@ const main = async () => {
   const indexSrc = await readFile(INDEX_TS, 'utf8');
 
   if (!SELFTEST) {
-    failed = await run(indexSrc, MIRROR_JS);
+    failed = await run(indexSrc, ENVELOPE_JS);
     if (failed) {
       console.error(`\ntrophy-wire-shape: RED — ${failed} finding(s). See docs/planning/SEC_BESTIARY_TROPHY_2026-09-22.md F3.`);
       process.exit(1);
     }
     console.log('trophy-wire-shape: green — the trophies key is ABSENT when hr_trophy_of did not answer '
-      + 'and PRESENT with the server\'s own list otherwise, the counters ride either way, the mirror '
+      + 'and PRESENT with the server\'s own list otherwise, the counters ride either way, the client '
       + 'keeps "unavailable" and "none" apart, and both emit sites drop rather than fake.');
     return;
   }
 
   // ── SELFTEST ─────────────────────────────────────────────────────────────
   let missed = 0;
-  const mirrorSrc = await readFile(MIRROR_JS, 'utf8');
-  const tmp = join(ROOT, 'src', 'render', '.trophy-wire-shape.mutant.js');
-  const { writeFile, unlink } = await import('node:fs/promises');
+  const envSrc = await readFile(ENVELOPE_JS, 'utf8');
+  const { writeFile, mkdtemp, cp, rm } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os');
 
   for (const [name, m] of Object.entries(MUTATIONS)) {
-    const base = m.file === 'index' ? indexSrc : mirrorSrc;
+    const base = m.file === 'index' ? indexSrc : envSrc;
     if (base.split(m.find).length - 1 !== 1) {
       console.error(`  HARNESS: anchor for ${name} matched ${base.split(m.find).length - 1} times (need 1)`);
       process.exit(2);
@@ -241,13 +214,16 @@ const main = async () => {
     console.error = (line) => { seen.push(String(line)); };
     try {
       if (m.file === 'index') {
-        await run(mutated, MIRROR_JS);
+        await run(mutated, ENVELOPE_JS);
       } else {
-        // The mirror imports siblings by relative path, so the mutant is
-        // written NEXT TO IT and removed in the finally — a data URL cannot
-        // resolve `../data/bestiary.js`.
-        await writeFile(tmp, mutated);
-        try { await run(indexSrc, tmp); } finally { await unlink(tmp).catch(() => {}); }
+        // The applier imports its sibling by relative path, so the mutant runs
+        // from a temp copy of src/session (never the tree).
+        const dir = await mkdtemp(join(tmpdir(), 'hr-trophy-wire-'));
+        try {
+          await cp(join(ROOT, 'src', 'session'), dir, { recursive: true });
+          await writeFile(join(dir, 'envelope.js'), mutated);
+          await run(indexSrc, join(dir, 'envelope.js'));
+        } finally { await rm(dir, { recursive: true, force: true }); }
       }
     } finally {
       console.error = realError;

@@ -108,6 +108,7 @@
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, normalize, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isMain } from './_is-main.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const BASELINE = join(ROOT, 'tests', 'comment-ratio-ratchet.baseline.json');
@@ -536,8 +537,10 @@ function selftest() {
     ['PAYING THE DEBT: 300 comment lines deleted', 'comment lines fell', (m) => {
       const r = pick(m, victim); r.comment = bp.comment - 300; r.ratio = ratioOf(r);
     }],
-    ['PAYING THE DEBT: every b-number line removed from the biggest file', 'b-number lines fell', (m) => {
-      pick(m, victim).bnum = 0;
+    ['PAYING THE DEBT: every b-number line removed from the pinned file that has the most', 'b-number lines fell', (m) => {
+      /* The pinned file with the most build-number lines (the biggest file may have none). */
+      const [f] = Object.entries(base.files).sort((a, b) => b[1].bnum - a[1].bnum)[0];
+      pick(m, f).bnum = 0;
     }],
     /* THE RE-SPECIFICATION, AS AN ASSERTION. An EXTRACTION takes a code-dense
        unit out of a pinned file: 1,044 lines leave, 326 of them comments. The
@@ -602,6 +605,6 @@ function selftest() {
   return bad ? 1 : 0;
 }
 
-if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tests/comment-ratio-ratchet.mjs')) {
+if (isMain(import.meta.url)) {
   process.exit(process.argv.includes('--selftest') ? selftest() : run(process.argv.slice(2)));
 }

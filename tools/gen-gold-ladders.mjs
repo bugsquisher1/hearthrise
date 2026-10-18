@@ -17,12 +17,11 @@
 // gate, which is bookkeeping.
 //
 // ── THE DRIFT GUARD ─────────────────────────────────────────────────────
-// The manifest carries constants (HIRE_COSTS, the bank curve, the flat farm
-// price, the tier gates). This tool RE-DERIVES every one of them from the live
-// game sources — src/features/workers.js HIRE_COSTS, src/legacy.js BANK_SPACE
-// and PLOT_BUILDINGS, src/features/homestead.js TIERS — and FAILS if the
-// manifest has drifted from them. So a balance change to any of those without a
-// matching manifest edit stops the build, exactly like gen-shops/gen-perks.
+// The manifest (src/data/gold-ladders.js) is the only copy of the prices since
+// the client reset (2026-10-17). What is still RE-DERIVED is the shape the
+// property ladder imposes (src/data/homestead-tiers.js): the worker and plot
+// caps and each rung's tier gate. A ladder edit that disagrees with the tiers
+// stops the build.
 //
 // PURE ESM, Node only. Writes one file.
 // ════════════════════════════════════════════════════════════════════════
@@ -32,17 +31,18 @@ import { createHash } from 'node:crypto';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { sliceLiteral, makeDie } from './lib/slice-literal.mjs';
+import { makeDie } from './lib/slice-literal.mjs';
+import { PROPERTY_TIERS } from '../src/data/homestead-tiers.js';
 import {
   GOLD_LADDER_OFFERS, GOLD_LADDER_UNLOCKS,
-  WORKER_HIRE_COSTS, FARM_LAND_GOLD, FARM_LAND_ITEMS,
-  BANK_BASE, BANK_GROWTH, BANK_RUNGS, bankRungPrice,
+  WORKER_HIRE_COSTS, FARM_LAND_GOLD,
+  bankRungPrice,
 } from '../src/data/gold-ladders.js';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const OUT = join(ROOT, 'supabase', 'migrations', '2026-08-19-gold-spend-slices-2-3.sql');
 const die = makeDie('gen-gold-ladders');
-const read = (rel) => readFile(join(ROOT, rel), 'utf8');
+
 
 const argv = process.argv.slice(2);
 const CHECK = argv.includes('--check');
@@ -51,27 +51,22 @@ const REPORT = argv.includes('--report');
 // ── DRIFT GUARD — the manifest must equal the live game sources ─────────────
 const eq = (a, b, what) => { if (JSON.stringify(a) !== JSON.stringify(b)) die(`${what} DRIFT: manifest ${JSON.stringify(a)} != game data ${JSON.stringify(b)}`); };
 
-const TIERS = sliceLiteral(await read('src/features/homestead.js'), 'var TIERS = [', 'homestead.js', die);
-const HIRE = sliceLiteral(await read('src/features/workers.js'), 'var HIRE_COSTS = [', 'workers.js', die);
-const legacy = await read('src/legacy.js');
-const BANK_SPACE = sliceLiteral(legacy, 'var BANK_SPACE = {', 'legacy.js', die);
-const PLOT_BUILDINGS = sliceLiteral(legacy, 'const PLOT_BUILDINGS={', 'legacy.js', die);
+/* The property ladder lives in src/data/homestead-tiers.js since the client
+   reset (2026-10-17). The old drift checks against the client's own copies of
+   HIRE_COSTS, BANK_SPACE and PLOT_BUILDINGS retired with that client: the
+   manifest (src/data/gold-ladders.js) is the only copy of those prices now. */
+const TIERS = PROPERTY_TIERS;
 
 // worker/plot caps and gates, re-derived from TIERS
 const firstTierWith = (key, n) => { for (let t = 0; t < TIERS.length; t++) if ((TIERS[t][key] || 0) >= n) return t; return die(`no tier grants ${n} ${key}`); };
 
-eq(WORKER_HIRE_COSTS, HIRE, 'HIRE_COSTS');
-eq(FARM_LAND_GOLD, PLOT_BUILDINGS.farm_plot.cost.gold, 'farm plot gold');
-eq(FARM_LAND_ITEMS.normal_log, PLOT_BUILDINGS.farm_plot.cost.normal_log, 'farm plot log');
-eq(BANK_BASE, BANK_SPACE.gold.base, 'bank base');
-eq(BANK_GROWTH, BANK_SPACE.gold.growth, 'bank growth');
 // The worker ladder cannot ask for more workers than the castle grants, ditto plots.
 eq(GOLD_LADDER_UNLOCKS.find((u) => u.unlock_id === 'worker_hire').max_value, TIERS[TIERS.length - 1].workers, 'worker cap');
 eq(GOLD_LADDER_UNLOCKS.find((u) => u.unlock_id === 'plot:farm_land').max_value, TIERS[TIERS.length - 1].plots, 'plot cap');
 
 for (const r of GOLD_LADDER_OFFERS) {
   if (r.unlock_id === 'worker_hire') {
-    eq(r.gold, HIRE[r.value - 1], `worker rung ${r.value} price`);
+    eq(r.gold, WORKER_HIRE_COSTS[r.value - 1], `worker rung ${r.value} price`);
     eq(r.req_property_tier, firstTierWith('workers', r.value), `worker rung ${r.value} tier gate`);
   } else if (r.unlock_id === 'plot:farm_land') {
     eq(r.gold, FARM_LAND_GOLD, `farm rung ${r.value} price`);

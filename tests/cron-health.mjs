@@ -49,6 +49,7 @@
 //     and this file cannot answer it.
 // ════════════════════════════════════════════════════════════════════════
 import { bootReplay, LAST_PATCHED } from './schema-replay.mjs';
+import { isMain } from './_is-main.mjs';
 
 const MIG = '2026-09-03-cron-health-generalized.sql';
 
@@ -580,8 +581,7 @@ export async function cronHealthGuard() {
 
 // ── main ────────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
-const RUN_DIRECTLY = !!process.argv[1]
-  && process.argv[1].replace(/\\/g, '/').endsWith('tests/cron-health.mjs');
+const RUN_DIRECTLY = isMain(import.meta.url);
 if (RUN_DIRECTLY) {
   if (argv.includes('--list')) {
     for (const [id, m] of Object.entries(MUTATIONS)) console.log(`${id.padEnd(26)} ${m.why}`);

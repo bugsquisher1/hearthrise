@@ -70,6 +70,7 @@ import { ITEMS } from '../src/data/items.js';
 import { ROOM_PERKS } from '../src/data/perks.js';
 import { mulberry32, rngFrom } from '../src/core/rng.js';
 import { xpForLevel } from '../src/core/xp.js';
+import { isMain } from './_is-main.mjs';
 
 const USER = '00000000-0000-4000-c000-a5a5a5a5a5a5';
 
@@ -927,7 +928,7 @@ export async function artisanProgressGuard() {
   return problems.slice();
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
+if (isMain(import.meta.url)) {
   if (process.argv.includes('--mutate')) {
     console.log('artisan progress model — mutation run (every line must read RED):');
     const clean = await mutate();

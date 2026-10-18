@@ -16,7 +16,7 @@
   var BUILD = (function () {
     var tags = document.querySelectorAll('link[href*="?v="], script[src*="?v="]');
     for (var i = 0; i < tags.length; i++) {
-      var m = (tags[i].href || tags[i].src || '').match(/\?v=(\d+)/);
+      var m = (tags[i].href || tags[i].src || '').match(/\?v=(\d[\d.]*)/);
       if (m) return m[1];
     }
     return '0';

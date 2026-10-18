@@ -44,7 +44,7 @@ import { bootReplay } from './schema-replay.mjs';
    draft does not quietly stop biting: the restatement's §0 pin refuses a body it
    cannot name and the arm reads "THE REPO CANNOT REBUILD THE DATABASE". */
 import { HR_STATE_OF_FINAL, HR_STATE_OF_S3_BLIND } from './hr-state-of-final-body.mjs';
-import { growthHours, isReady } from '../src/core/farm.js';
+import { growthHours } from '../src/core/farm.js';
 
 const ROOT = new URL('../', import.meta.url);
 const mod = (p) => new URL(p, ROOT).href;
@@ -56,21 +56,6 @@ const uidFor = (n) => `000000f2-0000-0000-0000-0000000000${n}`;
 const uuid = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
   const r = (Math.random() * 16) | 0; return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
 });
-
-/* reconcileFarm is ARM-GATED on window.HearthriseCapstone.isBlobRetired() and
-   promotes a ready plot via window.HearthriseFarm.isReady — both read off
-   `window` at CALL time. Stub them LOCALLY around the client block only: PGlite
-   also probes `window`, and a partial global stub breaks bootReplay. */
-function withArmedClient(crops, fn) {
-  const had = Object.prototype.hasOwnProperty.call(globalThis, 'window');
-  const prev = globalThis.window;
-  globalThis.window = {
-    HearthriseCapstone: { isBlobRetired: () => true },
-    HearthriseFarm: { isReady: (p) => isReady(p, crops, Date.now()) },
-  };
-  try { return fn(); }
-  finally { if (had) globalThis.window = prev; else delete globalThis.window; }
-}
 
 /* ── THE GATE-BLIND PAIR ───────────────────────────────────────────────────
    Every mutation below is ALSO run with the migration's own Sec 2 commit gate
@@ -286,63 +271,25 @@ async function runAll(db) {
      `the fixture is NON-VACUOUS: four waterings (${srvHours.toFixed(3)}h) must be worth more than one `
      + `(${srvOneWatering.toFixed(3)}h), or the agreement check below could not tell them apart`);
 
-  // ── THE CLIENT — a FRESH G, exactly what the blob-retired reload produces ──
-  let A2;
-  try {
-    const src = await readFile(new URL('src/net/accrue.js', ROOT), 'utf8');
-    const m = src.match(/item-authority\.js\?v=(\d+)/);
-    A2 = await import(mod('src/net/accrue.js' + (m ? `?v=${m[1]}` : '')));
-  } catch (e) {
-    ok(false, 'could not load accrue.js, so the CLIENT half did not run: ' + (e && e.message));
-    return;
-  }
-  ok(typeof A2.reconcileFarm === 'function', 'accrue.js exports reconcileFarm');
-
-  // The REAL crop hours, read from the same catalogue the server used — so
-  // isReady() on the rebuilt plot is the game's own question, not a stub's.
-  const crops = { [crop]: { hours: baseH } };
-  withArmedClient(crops, () => {
-    const G = {};                              // no farmPlots, no plotLevels — a reload
-    const r = A2.reconcileFarm(G, env, { authoritative: true });
-    ok(r && r.mode === 'server', `reconcileFarm ran armed (mode ${r && r.mode})`);
-
-    // Q-2
-    ok(G.plotLevels === 3, `G.plotLevels = 3 after reload — NOT the Lv 1 fail-safe (got ${G.plotLevels})`);
-
-    // Q-5
-    const plot = G.farmPlots && G.farmPlots[0];
-    ok(!!plot, 'reconcileFarm rebuilt the plot');
-    ok(Array.isArray(plot && plot.waterings) && plot.waterings.length === 4,
-       `the rebuilt plot carries all FOUR waterings (got ${plot && JSON.stringify(plot.waterings)})`);
-
-    // THE AGREEMENT. Same instant on both sides, so the only variable is the
-    // watering history. 1e-3 h = 3.6 s of tolerance for the clock between the
-    // two reads and for numeric/float formatting — not for a missing watering,
-    // which is worth up to two whole hours.
-    const nowMs = Date.parse(nowIso);
-    const cliHours = plot ? growthHours(plot, nowMs) : NaN;
-    ok(Math.abs(cliHours - srvHours) < 1e-3,
-       `the client's growthHours (${cliHours.toFixed(4)}h) AGREES with hr_farm_growth_hours `
-       + `(${srvHours.toFixed(4)}h) — Q-5 fixed`);
-
-    // FAIL-CLOSED, both directions.
-    const G2 = {};
-    const noArr = { ...env, farm: env.farm.map((p) => { const q = { ...p }; delete q.waterings; return q; }) };
-    A2.reconcileFarm(G2, noArr, { authoritative: true });
-    ok(((G2.farmPlots[0] || {}).waterings || []).length === 1,
-       'a server predating the projection degrades to the single watered_at, NOT to an empty history');
-
-    const G3 = {};
-    const junk = { ...env, farm: env.farm.map((p) => ({ ...p, waterings: ['nope', null, (p.waterings || [p.watered_at])[0]] })) };
-    A2.reconcileFarm(G3, junk, { authoritative: true });
-    ok(((G3.farmPlots[0] || {}).waterings || []).length === 1,
-       'unparseable waterings are DROPPED, never defaulted to now() (which would mint a bonus)');
-
-    const G4 = { plotLevels: 4 };
-    A2.reconcileFarm(G4, { ...env, state: { ...env.state, plot_level: undefined } }, { authoritative: true });
-    ok(G4.plotLevels === 4,
-       'an envelope without plot_level leaves G.plotLevels UNTOUCHED (never invented, never reset)');
-  });
+  // ── THE CLIENT — the envelope the rebuilt client keeps, read by the core ──
+  // Since the client reset (2026-10-17) the client keeps the envelope WHOLE
+  // (src/session/envelope.js): the plot it shows is env.farm[0] as projected,
+  // and its growth is src/core/farm.js growthHours over that row.
+  const E = await import(new URL('src/session/envelope.js', ROOT).href);
+  const rec = E.applyEnvelope(null, env).record;
+  ok(!!rec && rec.data.state && rec.data.state.plot_level === 3,
+     `the client record carries state.plot_level 3 after a reload (got ${rec && rec.data.state && rec.data.state.plot_level})`);
+  const p = rec && Array.isArray(rec.data.farm) ? rec.data.farm[0] : null;
+  ok(!!p && Array.isArray(p.waterings) && p.waterings.length === 4,
+     `the client record carries all FOUR waterings (got ${p && JSON.stringify(p.waterings)})`);
+  // THE AGREEMENT. Same instant on both sides, so the only variable is the
+  // watering history (1e-3 h = 3.6 s of tolerance; a missing watering is hours).
+  const nowMs = Date.parse(nowIso);
+  const plot = p ? { cropId: p.crop, plantedAt: Date.parse(p.planted_at), waterings: (Array.isArray(p.waterings) ? p.waterings : [p.watered_at]).map((w) => Date.parse(w)) } : null;
+  const cliHours = plot ? growthHours(plot, nowMs) : NaN;
+  ok(Math.abs(cliHours - srvHours) < 1e-3,
+     `the client's growthHours (${cliHours.toFixed(4)}h) AGREES with hr_farm_growth_hours `
+     + `(${srvHours.toFixed(4)}h) — Q-5 fixed`);
 }
 
 const argv = process.argv.slice(2);

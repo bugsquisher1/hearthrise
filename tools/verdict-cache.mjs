@@ -32,6 +32,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname, relative, resolve, normalize } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { isMain } from '../tests/_is-main.mjs';
 
 export const ROOT = normalize(join(dirname(fileURLToPath(import.meta.url)), '..'));
 const SKIP_DIRS = new Set(['node_modules', '.git', '.pglite-cache', '.ci-local']);
@@ -167,7 +168,7 @@ function selftest() {
   return fails.length ? 1 : 0;
 }
 
-if (process.argv[1]?.replace(/\\/g, '/').endsWith('tools/verdict-cache.mjs')) {
+if (isMain(import.meta.url)) {
   if (process.argv.includes('--selftest')) process.exit(selftest());
   console.log('usage: node tools/verdict-cache.mjs --selftest   (the cache is used by tools/lane-done.mjs)');
 }

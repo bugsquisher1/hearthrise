@@ -1725,6 +1725,14 @@ The world plan (§2 Home) and the W4 brief say "the template follows `state.plot
 
 ---
 
+## 2026-10-17 — SEMANTIC (open): the client reset (`lane/w1-client-reset`) retires client guards that CLAUDE.md and the realtime publication still name
+**Lane:** `lane/w1-client-reset` (systems-engineer). No git hunk.
+
+1. **`chat_messages` stays in the realtime publication with no client subscriber.** The old chat UI was deleted with `src/legacy.js`. `tests/realtime-cost.mjs` carries a dated `PENDING_CONSUMERS` entry (`chat_messages` until 2026-10-31, owner: the chat window, week plan item 13); R3 goes red on its own after that date. The alternative is a lane-C migration that drops the table from the publication. **Coordinator to pick** (the dated exemption is a sunset, not a loosening; nothing else in the guard changed).
+2. **CLAUDE.md §4 lists `property-gate-census` and `no-duplicate-toplevel-fns` among lane-done's guards.** Both are retired (they read the old client: property gates in legacy.js, duplicate top-level functions across classic scripts that no longer exist). `tools/lane-done.mjs` gained `client-module-size`, `session-core` (+`--mutate`) and `client-intent-surface`. **Coordinator:** update the §4 list.
+3. **The visual gate's tool is gone.** `tests/visual-qa.mjs` and its gate drove old-client screens. The new client has `tests/client-boot.mjs` (real Chromium, stubbed SDK) but no screenshot set; the §3.3 visual gate needs a new visual pass over play.html before the next UI release.
+4. **Known limitation:** `src/world/world-boot.js` still probes optional `window.*` hooks of the old client (combat observer, tab switch); they are absent and inert. Removed when the hunt view is rebuilt.
+
 ## 2026-10-17 — SEMANTIC (open): lane H2 targeting + role AI vs H1 / H4 / S1 (hunt core)
 **Lane:** `lane/h2-targeting` (systems-engineer), on `lane/h1-movement` @b262e1f29. No git hunk expected.
 

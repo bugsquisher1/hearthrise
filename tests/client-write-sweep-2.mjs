@@ -43,6 +43,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { bootReplay } from './schema-replay.mjs';
+import { isMain as isEntryModule } from './_is-main.mjs';
 
 const MIG = '2026-08-16-client-write-grant-sweep-2.sql';
 const PRED = '2026-08-16-client-write-grant-sweep.sql';
@@ -792,8 +793,7 @@ const main = async () => {
 
 /* ⚠ MAIN-ONLY. This module is IMPORTED by tests/run-smoke.mjs, and a top-level
    run on import would boot a second PostgreSQL nobody asked for. */
-const isMain = import.meta.url
-  === (await import('node:url')).pathToFileURL(process.argv[1] || '').href;
+const isMain = isEntryModule(import.meta.url);
 if (isMain) {
   main().then((c) => process.exit(c)).catch((e) => {
     console.error(e.harness || e.replay ? e.message : e);

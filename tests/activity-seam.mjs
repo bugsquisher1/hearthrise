@@ -1,664 +1,133 @@
 // ============================================================================
-// tests/activity-seam.mjs — THE LINK BETWEEN THE TWO HALVES OF ONE CONTRACT.
+// tests/activity-seam.mjs — THE ACTIVITY INTENT REFUSES WHAT THE ENGINE CANNOT PAY.
 //
-// ── WHY THIS FILE EXISTS ────────────────────────────────────────────────────
-// b347 wired the client half of the activity intent: four call sites in
-// src/legacy.js, all combat, matching the server's `SETTABLE_KINDS` of
-// `['idle','combat']` exactly. Correct, complete, and shipped.
+// The client half of this seam (src/net/activity.js, its declaration sites in
+// src/legacy.js and their downgrade) was deleted with the old client on
+// 2026-10-17. The SERVER half stays, because it is a lockout, not a display
+// bug: if `set_activity` lets the pointer hold a bench the accrual engine
+// cannot price, the engine refuses the COLLECT with `unpayable_bench`, which
+// refuses every later SWITCH, and the player is stuck on that bench until a
+// deploy. artisan-accrual's M8 (set_activity accepts an unpayable bench) is
+// caught here and nowhere else.
 //
-// The very next merge taught the accrual engine to pay gathering.
-// `PAYABLE_KINDS` gained `'gather'`; `SETTABLE_KINDS` is DERIVED from it, so it
-// grew in the same edit, exactly as its author intended. The server half was
-// finished. Nobody added a client call site, because nothing said one was
-// missing — the two lists live in different files, in different runtimes, under
-// different review, and neither could see the other.
+//   S3  the data's gather index and the engine's GATHER_NODES have identical
+//       keys and skills. A node the data lists and the engine cannot price
+//       accrues nothing for the whole absence.
+//   S6  an unpayable artisan recipe is refused 409 `activity_unsupported` ON
+//       SHAPE (before any database statement); a payable one is not.
+//   S6d the same, driven with the cooking settlement DISARMED through
+//       artisan-sim's test seam, in a child process (catalogue.js fixes
+//       ARTISAN_RECIPES_PAYABLE at load), so S6 is never vacuous while every
+//       recipe happens to be payable.
 //
-// Tyler ran the first switch-on test. He started woodcutting, left for a few
-// minutes, and came back to a stopped run. The server's own records:
-//
-//     player_state  slot 0 → active_kind 'idle', gold 500, version 0
-//     player_intents        → 0 rows
-//     rate counters         → 7 accrue, 7 load
-//
-// Seven accruals against a pointer that had never been set. Nothing was broken;
-// the client simply never said the words.
-//
-// ⚠ THE LESSON IS NOT "REMEMBER THE CLIENT NEXT TIME." It is that a contract
-//   split across two files with no mechanical link between them WILL be
-//   half-shipped, and that the only fix which survives a busy week is a build
-//   failure. This file is that failure.
-//
-// ── WHAT IT ASSERTS, AND WHY EACH HALF IS NEEDED ────────────────────────────
-//   S1  the server's SETTABLE_KINDS and the client's ACTIVITY_KINDS are the
-//       SAME SET. Widening one without the other fails the build, by name.
-//   S2  every settable kind has a real declaration CALL SITE in src/legacy.js.
-//       S1 alone would pass a client that can declare `gather` and never does —
-//       which is a different way to ship exactly the same outage.
-//   S3  the client's gather index and the accrual engine's GATHER_NODES have
-//       identical keys. A node the client can start and the server cannot price
-//       is an activity that accrues nothing, silently.
-//   S4  a game activity that is NOT settable is downgraded to `idle`, never
-//       dropped. Silence leaves the server paying for the previous activity.
-//   S5  `activity_unsupported` is treated as ANSWERED — no retry loop.
-//
-// S2 is a source scan, which this repo is rightly suspicious of. It is here
-// because it is the cheapest thing that fails on the exact mutation that caused
-// b348 (delete the declaration from `startSkill`), and it is NOT the only
-// guard: `src/features/smoke-test.js` B348-2/3/4 drives the real player gesture
-// in a real browser and asserts the bytes that leave it. Source scan catches
-// "nobody wrote it"; the browser test catches "it is written and unreachable".
-//
-// Node-only. Imported by tests/run-smoke.mjs, so it gates every push.
+// Node-only, no network. `runAll()` is imported by artisan-accrual's proof.
 // ============================================================================
 
-import { readFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { isMain } from './_is-main.mjs';
 
 const ROOT = new URL('../', import.meta.url);
-/* readFile takes a PATH; import() takes a URL. On Windows the two are not
-   interchangeable — a `fileURLToPath` result starts `R:\` and the ESM loader
-   refuses it as "protocol 'r:'". Two accessors, named for what they feed. */
-const at = (p) => fileURLToPath(new URL(p, ROOT));
 const mod = (p) => new URL(p, ROOT).href;
 
 const problems = [];
 const fail = (m) => problems.push(m);
 
-/** Set equality, reported as the DIFFERENCE — "not equal" is not a diagnosis. */
 function diff(a, b) {
   const A = new Set(a); const B = new Set(b);
-  return {
-    onlyA: [...A].filter((x) => !B.has(x)),
-    onlyB: [...B].filter((x) => !A.has(x)),
-  };
+  return { onlyA: [...A].filter((x) => !B.has(x)), onlyB: [...B].filter((x) => !A.has(x)) };
 }
+
+const USER = '00000000-0000-4000-8000-000000000056';
+const KEY = '00000000-0000-4000-8000-000000000001';
+const NO_DB = async () => { throw new Error('reached the database — an unpayable bench must be refused on shape'); };
 
 export async function runAll() {
   problems.length = 0;
-
-  let server; let client; let catalogue; let skillSim; let gathering;
+  let server; let catalogue; let skillSim; let gathering; let artisan; let recipes;
   try {
-    [server, client, catalogue, skillSim, gathering] = await Promise.all([
+    [server, catalogue, skillSim, gathering, artisan, recipes] = await Promise.all([
       import(mod('supabase/functions/hr-accrue/set-activity.js')),
-      import(mod('src/net/activity.js')),
       import(mod('supabase/functions/hr-accrue/catalogue.js')),
       import(mod('src/core/skill-sim.js')),
       import(mod('src/data/gathering.js')),
+      import(mod('src/core/artisan-sim.js')),
+      import(mod('src/data/recipes.js')),
     ]);
   } catch (e) {
     fail('the activity seam could not be loaded, so NOTHING below ran: ' + (e && e.message));
     return problems;
   }
 
-  const settable = server.SETTABLE_KINDS;
-  const declarable = client.ACTIVITY_KINDS;
-
-  /* ── S1 ─────────────────────────────────────────────────────────────────
-     The two lists are one contract. Reported as a difference in BOTH
-     directions, because the two failures need opposite fixes: a kind the
-     server can set and the client cannot declare is b348 (an activity the
-     server will never be told about); a kind the client declares and the
-     server cannot set is a guaranteed 409 on a real player gesture. */
-  const d1 = diff(settable, declarable);
-  for (const k of d1.onlyA) {
-    fail(`ACTIVITY SEAM: the server can SET '${k}' (SETTABLE_KINDS in `
-      + `supabase/functions/hr-accrue/set-activity.js) and the client cannot DECLARE it `
-      + `(ACTIVITY_KINDS in src/net/activity.js). This is the b348 outage exactly: the engine will pay `
-      + `'${k}' and no client gesture can ever tell it the player is doing it, so player_state sits at `
-      + `idle and every away grant is zero. Add '${k}' to ACTIVITY_KINDS and wire a declaration site.`);
-  }
-  for (const k of d1.onlyB) {
-    fail(`ACTIVITY SEAM: the client declares '${k}' and the server's SETTABLE_KINDS does not accept it — `
-      + `every real player gesture for '${k}' spends an intent key and a rate budget to earn a 409 `
-      + `activity_unsupported. Either widen PAYABLE_KINDS (with a simulation) or route '${k}' through `
-      + `declarationFor's downgrade instead of declaring it.`);
-  }
-
-  /* ── S2: THE CALL SITES ─────────────────────────────────────────────────
-     A declarable kind nobody declares is the same outage wearing a different
-     hat. Scanned rather than executed here; B348-3 in the browser suite drives
-     the gesture. `idle` is exempt from needing its own gesture only in the
-     sense that it is a STOP — it is still required to appear, because a seam
-     that can start and never stop pays for abandoned activities forever. */
-  let legacy = '';
-  try { legacy = await readFile(at('src/legacy.js'), 'utf8'); }
-  catch (e) { fail('src/legacy.js could not be read: ' + (e && e.message)); return problems; }
-
-  for (const kind of settable) {
-    /* Deliberately narrow: a LITERAL kind at a real call site. A computed kind
-       would slip past this, which is why B348-3 exists — but a literal is what
-       every site in this file actually uses, and matching it means the mutation
-       "delete the declaration" is caught rather than argued about. */
-    const re = new RegExp(`declareActivity\\(\\s*['"]${kind}['"]`);
-    if (!re.test(legacy)) {
-      fail(`ACTIVITY SEAM: no site in src/legacy.js declares '${kind}'. The client is ALLOWED to declare `
-        + `it (ACTIVITY_KINDS) and the server is waiting to be told (SETTABLE_KINDS), and no player gesture `
-        + `ever says it. That is b348: woodcutting ran for minutes while player_intents held 0 rows.`);
-    }
-  }
-  /* The DOWNGRADE has a call site too, or `artisan` is silent again — and
-     silence is the mis-payment, not the neutral option. Redundant with the loop
-     above while `artisan` is settable, and kept anyway: it is the assertion
-     that survives `artisan` being pulled back out of PAYABLE_KINDS, which is
-     precisely the moment the silence would return unnoticed. */
-  if (!/declareActivity\(\s*['"]artisan['"]/.test(legacy)) {
-    fail('ACTIVITY SEAM: nothing in src/legacy.js declares `artisan`. An artisan run that says nothing '
-      + 'leaves the server\'s pointer on the PREVIOUS activity, so a player who chops oak and then cooks '
-      + 'is paid for oak for as long as they cook. Whether the declaration reaches the server as `artisan` '
-      + 'or is downgraded to `idle` is `declarationFor`\'s decision; the call site has to exist either way.');
-  }
-
-  /* ── S2b: THE OTHER HALF OF THE SEAM — CAN THE RECONCILE REPRESENT IT? ──
-     b520 (Paione, live 2026-09-07): "when I log out doing any quarry granite or
-     rubble, when I log back in it says I am idle." The realm was right —
-     `active_kind='artisan'`, `active_id='quarry_granite'`, 24 `craft` ledger
-     rows in three days — and `reconcileActivityPointer` had a `combat` branch, a
-     `gather` branch and nothing for `artisan`, so the boot resume handed the
-     server's pointer to a function that could not represent it.
-
-     THAT IS THE THIRD TIME. b347 wired `combat` only; b348 paid for `gather`
-     with a switch-on test that recorded zero intents; b356 put `artisan` on the
-     wire and this branch was missed again. S1/S2 above check that a settable
-     kind can be DECLARED and has a call site — the outbound half — and every one
-     of those passed while the INBOUND half was missing. A seam has two
-     directions and this file only ever guarded one.
-
-     Deliberately the same narrow shape as S2: a literal kind compared inside
-     `reconcileActivityPointer`. A computed kind would slip past, which is what
-     the browser suite's B348-7 / B520-1 drive; a literal is what every branch in
-     that function actually uses, so the mutation "delete the branch" is caught
-     rather than argued about. `idle` is exempt: it is the function's fallthrough
-     and is asserted by name below rather than as a payable kind. */
-  const reconcileBody = (() => {
-    const i = legacy.indexOf('function reconcileActivityPointer(');
-    if (i === -1) return null;
-    /* To the end of the function: the next top-level `\n}` after the opening. */
-    const end = legacy.indexOf('\nwindow.reconcileActivityPointer=', i);
-    return end === -1 ? legacy.slice(i) : legacy.slice(i, end);
-  })();
-  if (!reconcileBody) {
-    fail('ACTIVITY SEAM S2b: `reconcileActivityPointer` could not be found in src/legacy.js. That is the '
-      + 'function the server\'s answer lands in — without it the client cannot be corrected by any '
-      + 'envelope, and this guard cannot see whether it represents the kinds the server can set.');
-  } else {
-    for (const kind of settable) {
-      if (kind === 'idle') continue;
-      const re = new RegExp(`kind\\s*===\\s*['"]${kind}['"]`);
-      if (!re.test(reconcileBody)) {
-        fail(`ACTIVITY SEAM S2b: \`reconcileActivityPointer\` in src/legacy.js has no branch for '${kind}'. `
-          + `The server can SET that kind, the client DECLARES it (S1/S2 above are green) — and when the `
-          + `envelope says the player is doing it, the one function whose contract is "the envelope is the `
-          + `truth" falls through and applies nothing. Live symptom: the activity strip reads `
-          + `"Idle — pick an activity" over a run the server is settling and paying (b520, artisan). Add `
-          + `the branch, resolving the id through the SAME index the accrual engine reads.`);
-      }
-    }
-    if (!/kind\s*===\s*['"]idle['"]/.test(reconcileBody)) {
-      fail('ACTIVITY SEAM S2b: `reconcileActivityPointer` no longer handles `idle`, so a server that says '
-        + '"you stopped" cannot stop the client. That is the b519 phantom loop: a run the server does not '
-        + 'own kept painting client-authored items and XP for four minutes.');
-    }
-  }
-
-  /* ── S6: THE PER-RECIPE DOWNGRADE (b356) ────────────────────────────────
-     `artisan` is settable and 261 of its 290 recipes are payable. The COOKING
-     bench is held back because `noBurn`'s Kitchen rung is READ from server
-     state but still WRITTEN by the client, so a server night would burn what
-     the player's Range protects. That exclusion has to hold on BOTH sides or
-     it is not an exclusion:
-       · the CLIENT must not declare an unpayable recipe (it declares `idle`,
-         which collects the real window and stops the meter);
-       · the SERVER must not accept one (refused on shape, so the pointer can
-         never come to hold it and the engine's `unpayable_bench` refusal can
-         never lock a player out of switching).
-     Driven off the DATA, never off the name "cooking", so the day the gate
-     opens this section follows it with no edit. */
-  let artisan;
-  let recipes;
-  try {
-    [artisan, recipes] = await Promise.all([
-      import(mod('src/core/artisan-sim.js')),
-      import(mod('src/data/recipes.js')),
-    ]);
-  } catch (e) {
-    fail('the artisan payability model could not be loaded, so S6 did not run: ' + (e && e.message));
-    return problems;
-  }
+  /* ── S6 — the per-recipe refusal, through the REAL intent, no database. */
   const idx = artisan.indexArtisanRecipes(recipes.ARTISAN_RECIPES);
   const blocked = Object.keys(idx).filter((id) => !artisan.recipePayable(idx, id));
   const payable = Object.keys(idx).filter((id) => artisan.recipePayable(idx, id));
-
-  /* CONTROLS FIRST. With every recipe payable — or none — the two loops below
-     would pass for the wrong reason, and this gate is supposed to be a
-     temporary exclusion rather than a permanent one. */
-  if (!payable.length) {
-    fail('ACTIVITY SEAM S6: NO artisan recipe is payable, so `artisan` is in PAYABLE_KINDS and pays '
-      + 'nothing at all — every declaration is downgraded to `idle` and the widening bought nothing.');
-  }
+  if (!payable.length) fail('S6: NO artisan recipe is payable, so `artisan` pays nothing at all.');
   if (blocked.length) {
-    const b = blocked[0];
-    const d = client.declarationFor('artisan', b);
-    if (!d || d.kind !== 'idle' || d.id !== null) {
-      fail(`ACTIVITY SEAM S6: declarationFor('artisan', '${b}') produced ${JSON.stringify(d)}. `
-        + `That recipe's bench is not payable (blocked by \`${artisan.benchBlockedBy(idx[b].skill)}\`), so `
-        + 'declaring it spends a key and a rate budget to earn a 409 AND leaves the server\'s pointer on '
-        + 'the previous activity — the b348 mis-payment with an extra round trip. It must declare `idle`.');
-    }
-    const w = JSON.parse(client.buildActivityRequest({ kind: 'idle', id: null, intentId: 'k' }).init.body);
-    if (w.activity.kind !== 'idle' || w.activity.id !== null) {
-      fail('ACTIVITY SEAM S6: a stop no longer builds as {idle,null}, so the downgrade above has nowhere '
-        + 'to land.');
-    }
-    /* THE SERVER HALF, through the REAL intent. No database, no exec — the
-       refusal is on shape, which is the property being asserted. */
-    const refused = await server.runSetActivity({
-      exec: async () => { throw new Error('S6: an unpayable bench reached the DATABASE — it must be '
-        + 'refused on shape, before any statement, or it costs a rate budget and a state read'); },
-      user: '00000000-0000-4000-8000-0000000000s6'.replace('s6', '56'),
-      slot: 0, intentId: '00000000-0000-4000-8000-000000000001',
-      activity: { kind: 'artisan', id: b },
-    });
-    if (refused.status !== 409 || refused.body.error !== 'activity_unsupported') {
-      fail(`ACTIVITY SEAM S6: set_activity answered ${refused.status} ${JSON.stringify(refused.body)} for `
-        + `an unpayable recipe. It must be 409 activity_unsupported: if the pointer can hold it, the `
-        + 'engine refuses the COLLECT with `unpayable_bench`, which refuses the SWITCH, and the player is '
-        + 'locked on that bench until a deploy.');
+    const r = await server.runSetActivity({ exec: NO_DB, user: USER, slot: 0, intentId: KEY,
+      activity: { kind: 'artisan', id: blocked[0] } });
+    if (r.status !== 409 || !r.body || r.body.error !== 'activity_unsupported') {
+      fail(`S6: set_activity answered ${r.status} ${JSON.stringify(r.body)} for the unpayable '${blocked[0]}'. `
+        + 'It must be 409 activity_unsupported, or the pointer holds a bench the engine refuses — the switch lockout.');
     }
   }
-  /* …AND A PAYABLE ONE IS NOT DOWNGRADED. Without this, "downgrade everything"
-     passes S6 and pays nothing — the failure S6 exists to prevent. */
+  /* CONTROL: a payable recipe is NOT refused on shape (it reaches the database). */
+  if (payable.length) {
+    let reached = false;
+    await server.runSetActivity({ exec: async () => { reached = true; throw new Error('stop here'); },
+      user: USER, slot: 0, intentId: KEY, activity: { kind: 'artisan', id: payable[0] } }).catch(() => null);
+    if (!reached) fail(`S6 CONTROL: the payable '${payable[0]}' was refused on shape — "refuse everything" would pass S6 and pay nothing.`);
+  }
+
+  /* ── S6d — the gate CLOSED: the cooking settlement disarmed in a child, so
+     catalogue.js computes ARTISAN_RECIPES_PAYABLE with an unpayable bench. */
   {
-    const p = payable[0];
-    const d = client.declarationFor('artisan', p);
-    if (!d || d.kind !== 'artisan' || d.id !== p) {
-      fail(`ACTIVITY SEAM S6 CONTROL: declarationFor('artisan', '${p}') produced ${JSON.stringify(d)} for a `
-        + 'PAYABLE recipe. The downgrade is refusing everything, so the 261 recipes the engine can price '
-        + 'would all report `idle` and pay nothing.');
-    }
-    const w = JSON.parse(client.buildActivityRequest({ kind: 'artisan', id: p, intentId: 'k' }).init.body);
-    if (w.activity.kind !== 'artisan' || w.activity.id !== p) {
-      fail(`ACTIVITY SEAM S6 CONTROL: buildActivityRequest rewrote a payable artisan declaration as `
-        + JSON.stringify(w.activity));
+    const probe = `const s = await import(${JSON.stringify(mod('src/core/artisan-sim.js'))});`
+      + 's.__setCookingSettlementArm(false);'
+      + `const R = await import(${JSON.stringify(mod('src/data/recipes.js'))});`
+      + 'const idx = s.indexArtisanRecipes(R.ARTISAN_RECIPES);'
+      + 'const shut = Object.keys(idx).find((id) => !s.recipePayable(idx, id)) || null;'
+      + 'if (!shut) { console.log(JSON.stringify({ shut: null })); process.exit(0); }'
+      + `const a = await import(${JSON.stringify(mod('supabase/functions/hr-accrue/set-activity.js'))});`
+      + 'let reached = false; let r = null;'
+      + "try { r = await a.runSetActivity({ exec: async () => { reached = true; throw new Error('reached the database'); },"
+      + ` user: '${USER}', slot: 0, intentId: '${KEY}', activity: { kind: 'artisan', id: shut } }); } catch { r = null; }`
+      + 'console.log(JSON.stringify({ shut, reached, status: r && r.status, error: r && r.body && r.body.error }));';
+    const r = spawnSync(process.execPath, ['--input-type=module', '-e', probe], { encoding: 'utf8' });
+    let got = null;
+    try { got = JSON.parse(String(r.stdout || '').trim().split('\n').pop()); } catch { got = null; }
+    if (!got) fail(`S6d: the disarmed probe did not answer (${String(r.stderr || '').trim().slice(0, 160)})`);
+    else if (!got.shut) fail('S6d: with the cooking settlement disarmed no recipe is unpayable — the refusal is untestable.');
+    else if (got.reached || got.status !== 409 || got.error !== 'activity_unsupported') {
+      fail(`S6d: with its bench unpayable, set_activity answered ${JSON.stringify(got)}. It must be 409 `
+        + 'activity_unsupported, or the pointer can hold a bench the engine refuses — the switch lockout.');
     }
   }
 
-  /* ── S6d (b569): BOTH HALVES, DRIVEN WITH THE GATE CLOSED. Since the cooking
-     settlement was armed `blocked` is empty, so the S6 block above holds nothing —
-     and artisan-accrual's M8 (set_activity accepts an unpayable bench) and M10
-     (the client stops downgrading) both SLIPPED on origin/main. The exclusion still
-     guards every BENCH_DESTRUCTIVE_KEYS bench whose key is not server-owned, so
-     it is driven through artisan-sim's own test seam, disarmed:
-       · CLIENT — on the instance src/net/activity.js imports (its `?v=` URL is a
-         distinct module), always reset;
-       · SERVER — in a child process, because catalogue.js fixes
-         ARTISAN_RECIPES_PAYABLE at load: the seam is set before set-activity.js
-         is imported, and the real intent must refuse on shape. */
-  {
-    const actSrc = await readFile(at('src/net/activity.js'), 'utf8');
-    const q = (/from '\.\.\/core\/artisan-sim\.js(\?[^']*)?'/.exec(actSrc) || [])[1] || '';
-    const clientSim = await import(mod('src/core/artisan-sim.js' + q));
-    let shut = null;
-    clientSim.__setCookingSettlementArm(false);
-    try {
-      shut = Object.keys(idx).find((id) => !clientSim.recipePayable(idx, id)) || null;
-      if (!shut) {
-        fail('ACTIVITY SEAM S6d: with the cooking settlement disarmed no recipe is unpayable — the '
-          + 'per-recipe downgrade is untestable');
-      } else {
-        const d = client.declarationFor('artisan', shut);
-        if (!d || d.kind !== 'idle' || d.id !== null) {
-          fail(`ACTIVITY SEAM S6d: with its bench unpayable, declarationFor('artisan', '${shut}') produced `
-            + `${JSON.stringify(d)}. It must declare \`idle\` — declaring it earns a 409 and leaves the server `
-            + 'paying for the previous activity (b348).');
-        }
-      }
-    } finally { clientSim.__setCookingSettlementArm(null); }
-    if (shut) {
-      const probe = `const s = await import(${JSON.stringify(mod('src/core/artisan-sim.js'))});`
-        + 's.__setCookingSettlementArm(false);'
-        + `const a = await import(${JSON.stringify(mod('supabase/functions/hr-accrue/set-activity.js'))});`
-        + "const r = await a.runSetActivity({ exec: async () => { throw new Error('reached the database'); },"
-        + " user: '00000000-0000-4000-8000-000000000056', slot: 0,"
-        + " intentId: '00000000-0000-4000-8000-000000000001',"
-        + ` activity: { kind: 'artisan', id: ${JSON.stringify(shut)} } });`
-        + 'console.log(JSON.stringify({ status: r.status, error: r.body && r.body.error }));';
-      const r = spawnSync(process.execPath, ['--input-type=module', '-e', probe], { encoding: 'utf8' });
-      let got = null;
-      try { got = JSON.parse(String(r.stdout || '').trim().split('\n').pop()); } catch { got = null; }
-      if (!got || got.status !== 409 || got.error !== 'activity_unsupported') {
-        fail(`ACTIVITY SEAM S6d: with its bench unpayable, set_activity answered ${JSON.stringify(got)} for `
-          + `'${shut}' (${String(r.stderr || '').trim().slice(0, 120)}). It must be 409 activity_unsupported, `
-          + 'or the pointer can hold a bench the engine refuses — the switch lockout.');
-      }
-    }
-  }
-
-  /* ── S3: ONE CATALOGUE, TWO READERS ─────────────────────────────────────
-     The client resolves a node id to a skill through `indexGatherNodes` over
-     TREES/ROCKS/FISH_SPOTS (src/core-bridge.js), which is the same function
-     over the same three arrays that supabase/functions/hr-accrue/catalogue.js
-     uses. This asserts the RESULT, so a mapping that drifts on either side —
-     a new tree array, a renamed rock — fails here rather than in a player's
-     night. */
-  const clientIdx = skillSim.indexGatherNodes({
+  /* ── S3 — one gather catalogue, two readers. */
+  const dataIdx = skillSim.indexGatherNodes({
     woodcutting: gathering.TREES, mining: gathering.ROCKS, fishing: gathering.FISH_SPOTS,
   });
-  const d3 = diff(Object.keys(clientIdx), Object.keys(catalogue.GATHER_NODES));
+  const d3 = diff(Object.keys(dataIdx), Object.keys(catalogue.GATHER_NODES));
   if (d3.onlyA.length || d3.onlyB.length) {
-    fail('ACTIVITY SEAM: the client gather index and the accrual engine\'s GATHER_NODES disagree — '
-      + `client-only [${d3.onlyA.join(', ')}], engine-only [${d3.onlyB.join(', ')}]. A node the client can `
-      + 'start and the engine cannot price accrues NOTHING for the whole absence, and the refusal is a '
-      + '409 the player never sees.');
+    fail(`S3: the data's gather index and the engine's GATHER_NODES disagree — data-only [${d3.onlyA.join(', ')}], `
+      + `engine-only [${d3.onlyB.join(', ')}].`);
   }
-  for (const id of Object.keys(clientIdx)) {
-    const a = clientIdx[id]; const b = catalogue.GATHER_NODES[id];
-    if (b && a.skill !== b.skill) {
-      fail(`ACTIVITY SEAM: '${id}' is ${a.skill} on the client and ${b.skill} in the accrual engine — the `
-        + 'two would credit different skills for the same swing.');
-    }
+  for (const id of Object.keys(dataIdx)) {
+    const b = catalogue.GATHER_NODES[id];
+    if (b && dataIdx[id].skill !== b.skill) fail(`S3: '${id}' is ${dataIdx[id].skill} in the data and ${b.skill} in the engine.`);
   }
-  if (!Object.keys(clientIdx).length) {
-    fail('ACTIVITY SEAM: the gather index is EMPTY, so S3 compared nothing and would pass whatever broke.');
-  }
-
-  /* ── S4: NOT SETTABLE ≠ NOT DECLARED ────────────────────────────────────
-     Every kind the GAME can do must produce a declaration. The ones the engine
-     cannot price produce `idle` — which is a real statement ("stop the meter"),
-     not an omission. */
-  for (const kind of client.GAME_ACTIVITY_KINDS) {
-    const d = client.declarationFor(kind, kind === 'idle' ? null : 'some_id');
-    if (!d) {
-      fail(`ACTIVITY SEAM: declarationFor('${kind}') produced nothing. A game activity with no declaration `
-        + 'leaves the server\'s pointer on the previous one, and the server then pays for something the '
-        + 'player stopped doing.');
-      continue;
-    }
-    const expected = declarable.indexOf(kind) === -1 ? 'idle' : kind;
-    if (d.kind !== expected) {
-      fail(`ACTIVITY SEAM: declarationFor('${kind}') declares '${d.kind}', expected '${expected}'.`);
-    }
-  }
-  if (client.declarationFor('not_a_kind', 'x') !== null) {
-    fail('ACTIVITY SEAM: a kind the game cannot do was accepted and downgraded to a stop — that hides a '
-      + 'client bug behind a legitimate-looking declaration.');
-  }
-  /* The wire builder is the last gate: it may only ever emit a declarable kind.
-     Driven with a kind the GAME has and this build cannot declare — derived
-     from the two lists rather than named, so it follows a widening instead of
-     going vacuous after one. (`farm` is the fallback when the two lists
-     coincide: an unknown kind must fall to `idle` too.) */
-  const undeclarable = client.GAME_ACTIVITY_KINDS.find((k) => declarable.indexOf(k) === -1) || 'farm';
-  const wire = JSON.parse(client.buildActivityRequest({ kind: undeclarable, id: 'some_id', intentId: 'k' }).init.body);
-  if (wire.activity.kind !== 'idle' || wire.activity.id !== null) {
-    fail(`ACTIVITY SEAM: buildActivityRequest emitted ${JSON.stringify(wire.activity)} for the `
-      + `non-declarable kind '${undeclarable}' — the request body must only ever carry a kind from `
-      + 'ACTIVITY_KINDS.');
-  }
-  for (const kind of declarable) {
-    const w = JSON.parse(client.buildActivityRequest({ kind, id: 'oak_tree', intentId: 'k' }).init.body);
-    if (w.activity.kind !== kind) {
-      fail(`ACTIVITY SEAM: buildActivityRequest rewrote a DECLARABLE '${kind}' as '${w.activity.kind}'. `
-        + 'It used to read `o.kind === \'combat\' ? \'combat\' : \'idle\'`, which silently turns every new '
-        + 'kind into a STOP — worse than not sending it, because the server acts on it.');
-    }
-  }
-
-  /* ── S5: A NAMED REFUSAL IS AN ANSWER ───────────────────────────────────
-     `activity_unsupported` is refused on SHAPE, before any database work, so
-     the client knows the outcome exactly. Retrying it would spin against a
-     verdict that cannot change, and a rejected key stays rejected for 25 hours
-     anyway. */
-  const unsupported = { outcome: 'refused', reason: 'activity_unsupported' };
-  if (client.shouldRetryActivity(unsupported, 1, 2) !== false) {
-    fail('ACTIVITY SEAM: `activity_unsupported` is being retried. It is an ANSWER — refused on shape before '
-      + 'any database work — and the verdict cannot change without a deploy; a retry loop here burns the '
-      + '30/min budget for nothing.');
-  }
-  if (client.isAnswered('refused') !== true) {
-    fail('ACTIVITY SEAM: a refusal is not classified as ANSWERED, so its key would be reused — and hr_apply '
-      + 'hands the stored refusal back to every later call presenting it, for up to 25 hours.');
-  }
-  /* CONTROL: the two outcomes that MUST retry still do, or the check above
-     passes because retrying was switched off wholesale. */
-  if (client.shouldRetryActivity({ outcome: 'unreachable' }, 1, 2) !== true
-      || client.shouldRetryActivity({ outcome: 'refused', reason: 'version_conflict' }, 1, 2) !== true) {
-    fail('ACTIVITY SEAM: retry has been disabled wholesale — S5 would then pass for the wrong reason.');
-  }
-
-  /* ── S7: A TAP CONVERGES TO THE PLAYER'S INTENT, NOT THE SERVER'S OLD
-         POINTER (Q-3) ─────────────────────────────────────────────────────
-     Driven, not scanned: the real `declareActivity` over a fake transport, in
-     Node, which is what the module's header promises ("no fetch seam — `fetch`
-     resolves at call time, so a test's override IS the transport"). */
-  await convergeGuards(client);
-
+  if (!Object.keys(dataIdx).length) fail('S3: the gather index is EMPTY, so S3 compared nothing.');
   return problems;
 }
 
-/* ── THE FAKE TRANSPORT ─────────────────────────────────────────────────────
-   ONE `fetch` answers BOTH verbs, because the recovery's correctness is an
-   ORDERING between them — set_activity, then accrue, then set_activity — and a
-   per-module stub could not see it. The accrue module is imported through the
-   SAME specifier activity.js uses (version query read out of the source, so a
-   `bump-version.sh` run cannot silently give this file a second module
-   instance whose config the seam under test never sees). */
-async function convergeGuards(client) {
-  let accrual;
-  let ver;
-  try {
-    const src = await readFile(at('src/net/activity.js'), 'utf8');
-    const m = src.match(/from\s+'\.\/accrue\.js\?v=(\d+)'/);
-    if (!m) {
-      fail('ACTIVITY SEAM S7: src/net/activity.js no longer imports ./accrue.js?v=NNN, so this guard '
-        + 'cannot load the SAME accrual module instance the seam holds and did not run.');
-      return;
-    }
-    ver = m[1];
-    accrual = await import(mod('src/net/accrue.js?v=' + ver));
-  } catch (e) {
-    fail('ACTIVITY SEAM S7: the accrual module could not be loaded: ' + (e && e.message));
-    return;
-  }
-
-  const URL_BASE = 'https://s7.invalid';
-  const ENV = (kind, id, version) => ({
-    version, now: new Date().toISOString(),
-    state: { active_kind: kind, active_id: id },
-    skills: {}, inventory: {},
-    activity: { kind, id },
-  });
-  /* The live shape: 409 + stage:'collect'. It CARRIES the envelope
-     (intents.js §"WHICH REFUSALS CARRY STATE"), which is exactly why the old
-     code reconciled the pointer back to the server's old activity. */
-  const COLLECT_REFUSAL = { status: 409,
-    body: { ok: false, error: 'uncollectable_window', stage: 'collect', ...ENV('gather', 'fishing_shrimp', 1) } };
-  const SWITCHED = { status: 200, body: { ok: true, ...ENV('combat', 'goblin', 2) } };
-  const ACCRUED_NOTHING = { status: 200, body: { ok: true, accrued: false, reason: 'none' } };
-
-  /** Runs one tap against a scripted server. Returns everything observable. */
-  async function tap(answer) {
-    const calls = [];
-    const reconciles = [];
-    const notices = [];
-    const realFetch = globalThis.fetch;
-    /* THE CIRCUIT BREAKER. An unbounded recovery is a real mutation of this
-       code (make it recursive) and without this the guard OOMs instead of
-       reporting — a test that hangs is a test nobody trusts. Eight is far
-       above the three calls the contract allows for one gesture. */
-    const CEILING = 8;
-    globalThis.fetch = async (url, init) => {
-      const body = JSON.parse(init.body);
-      const verb = body.verb || 'accrue';
-      calls.push({ verb, intentId: body.intentId || null, activity: body.activity || null });
-      if (calls.length > CEILING) return { status: 200, ok: true, json: async () => SWITCHED.body };
-      const a = answer(verb, calls.length);
-      return {
-        status: a.status, ok: a.status === 200,
-        json: async () => a.body,
-      };
-    };
-    client.resetActivity();
-    accrual.resetAccrualGate();
-    client.setActivityHooks({
-      onEnvelope: () => null,
-      onReconcile: (act) => { reconciles.push({ ...act }); return act; },
-      onNotify: (text) => { notices.push(text); return true; },
-      onOutcome: () => null,
-    });
-    client.configureActivity({ url: URL_BASE, apiKey: 'k', authToken: 't', slot: 0 });
-    accrual.configureAccrual({ url: URL_BASE, apiKey: 'k', authToken: 't', slot: 0 });
-    let verdict = null;
-    let state = null;
-    try {
-      verdict = await client.declareActivity('combat', 'goblin');
-      /* READ BEFORE THE TEARDOWN. `resetActivity()` clears exactly the fields
-         these assertions are about. */
-      state = client.getActivityState();
-    } finally {
-      globalThis.fetch = realFetch;
-      client.setActivityHooks({ onEnvelope: null, onReconcile: null, onNotify: null, onOutcome: null });
-      client.configureActivity(null);
-      accrual.configureAccrual(null);
-      client.resetActivity();
-    }
-    if (calls.length > CEILING) {
-      fail(`ACTIVITY SEAM S7: ONE tap sent ${calls.length}+ requests — the recovery is unbounded. It is `
-        + 'allowed exactly one extra declaration per gesture (plus the accrue kick); anything more spends '
-        + 'the 30/min activity budget in a loop against a verdict the switch cannot change.');
-    }
-    return { verdict, calls, reconciles, notices, state: state || {} };
-  }
-
-  const CANON = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-  /* ── S7-A: THE REFUSED COLLECT IS RECOVERED AND THE SWITCH LANDS ─────── */
-  {
-    const r = await tap((verb, n) => {
-      if (verb === 'accrue') return ACCRUED_NOTHING;
-      return n === 1 ? COLLECT_REFUSAL : SWITCHED;
-    });
-    const verbs = r.calls.map((c) => c.verb).join(' → ');
-    if (verbs !== 'set_activity → accrue → set_activity') {
-      fail(`ACTIVITY SEAM S7-A: one tap produced [${verbs}]. The contract's recovery for a refused `
-        + 'COLLECT is "run the `accrue` verb, then retry the switch WITH A NEW KEY" — the client must '
-        + 'AWAIT the accrual and re-declare exactly once. Firing the accrual and stopping there is the '
-        + 'Q-3 live bug: the gesture converges on the SERVER\'s old pointer and the player, who tapped '
-        + 'Cooking off an active fish, spends the session fishing.');
-    }
-    const ids = r.calls.filter((c) => c.verb === 'set_activity').map((c) => c.intentId);
-    if (ids.length === 2 && ids[0] === ids[1]) {
-      fail('ACTIVITY SEAM S7-A: the re-declaration reused the refused intent key. A refusal is an ANSWER '
-        + '— hr_apply records the DECISION under the key outside the protected block and hands it back '
-        + 'for 25 hours, so the retry would be answered with the same refusal forever.');
-    }
-    for (const k of ids) {
-      if (!CANON.test(String(k))) {
-        fail(`ACTIVITY SEAM S7-A: intent key '${k}' is not a canonical v4 uuid — the server refuses it `
-          + '400 missing_intent_id before any database work.');
-      }
-    }
-    if (!r.verdict || r.verdict.outcome !== 'switched') {
-      fail('ACTIVITY SEAM S7-A: the gesture ended as ' + JSON.stringify(r.verdict && r.verdict.outcome)
-        + ', expected `switched`. It must converge to what the PLAYER tapped.');
-    }
-    if (!r.state.confirmed || r.state.confirmed.kind !== 'combat' || r.state.confirmed.id !== 'goblin') {
-      fail('ACTIVITY SEAM S7-A: the confirmed pointer is ' + JSON.stringify(r.state.confirmed)
-        + ', expected combat:goblin.');
-    }
-    const undone = r.reconciles.filter((a) => a.kind === 'gather');
-    if (undone.length) {
-      fail('ACTIVITY SEAM S7-A: the pointer was reconciled back to the server\'s OLD activity '
-        + `(${JSON.stringify(undone[0])}) while the player's tap was still pending. legacy.js's `
-        + '`reconcileActivityPointer` calls `startSkill` on that, which ACTIVELY UNDOES the tap. The '
-        + 'reconcile for a collect refusal the client is about to retry must be HELD until the recovery '
-        + 'has finished (and then fired if it failed) — never dropped, never fired early.');
-    }
-    if (r.notices.length) {
-      fail('ACTIVITY SEAM S7-A: the player was told the switch failed (' + JSON.stringify(r.notices)
-        + ') on a switch that SUCCEEDED.');
-    }
-  }
-
-  /* ── S7-B: ONE RETRY, NOT A LOOP — AND THE PLAYER IS TOLD ────────────── */
-  {
-    const r = await tap((verb) => (verb === 'accrue' ? ACCRUED_NOTHING : COLLECT_REFUSAL));
-    const verbs = r.calls.map((c) => c.verb).join(' → ');
-    if (verbs !== 'set_activity → accrue → set_activity') {
-      fail(`ACTIVITY SEAM S7-B: a server that refuses every collect produced [${verbs}]. The bound is `
-        + 'ONE retry per gesture: a second collect refusal must END the gesture. Looping it is precisely '
-        + 'what `shouldRetryActivity` excludes collect refusals to prevent, and re-creating the loop in '
-        + 'the recovery is the same bug in a new place — it spends the 30/min activity budget against a '
-        + 'verdict only the accrue verb can change.');
-    }
-    if (r.notices.length !== 1) {
-      fail(`ACTIVITY SEAM S7-B: the player was notified ${r.notices.length} times, expected exactly 1. `
-        + 'A switch that silently does not happen costs an idle player the whole session; two toasts for '
-        + 'one tap is its own bug.');
-    }
-    if (r.notices.length && !/switch/i.test(r.notices[0])) {
-      fail('ACTIVITY SEAM S7-B: the notice does not say the switch failed: ' + JSON.stringify(r.notices[0]));
-    }
-    const truth = r.reconciles.filter((a) => a.kind === 'gather' && a.id === 'fishing_shrimp');
-    if (!truth.length) {
-      fail('ACTIVITY SEAM S7-B: the gesture failed and the pointer was NEVER reconciled to the server\'s '
-        + 'truth. Holding the reconcile is only allowed while the retry is in flight — once the retry is '
-        + 'spent, the client shows what the server says. Keeping the optimistic guess is the one thing a '
-        + 'client is never allowed to do.');
-    }
-    if (r.state.deferredReconcile) {
-      fail('ACTIVITY SEAM S7-B: a held reconcile outlived the gesture ('
-        + JSON.stringify(r.state.deferredReconcile) + ') — it would fire against a later tap.');
-    }
-  }
-
-  /* ── S7-C: THE ACCRUAL ITSELF FAILED — DO NOT SPEND A KEY ON A DOOMED
-         RETRY, AND STILL TELL THE PLAYER ──────────────────────────────── */
-  {
-    const r = await tap((verb) => (verb === 'accrue'
-      ? { status: 500, body: { ok: false, error: 'server_error' } }
-      : COLLECT_REFUSAL));
-    const verbs = r.calls.map((c) => c.verb).join(' → ');
-    if (verbs !== 'set_activity → accrue') {
-      fail(`ACTIVITY SEAM S7-C: the accrual FAILED and the client still produced [${verbs}]. The window `
-        + 'is still unpriced, so the switch is still refusable — re-declaring buys a second 409.');
-    }
-    if (r.notices.length !== 1) {
-      fail(`ACTIVITY SEAM S7-C: the player was notified ${r.notices.length} times, expected exactly 1 — `
-        + 'an unrecoverable switch is the case they most need to be told about.');
-    }
-    if (!r.reconciles.some((a) => a.kind === 'gather')) {
-      fail('ACTIVITY SEAM S7-C: the held reconcile was never flushed, so the screen kept the optimistic '
-        + 'guess after the client had given up on it.');
-    }
-  }
-
-  /* ── S7-D: THE COLLECT EXCLUSION IN `shouldRetryActivity` IS UNTOUCHED ─
-     The recovery is deliberately NOT a retry policy. If the exclusion is ever
-     loosened, the transport loops the refusal AND the recovery re-declares on
-     top of it. */
-  if (client.shouldRetryActivity({ outcome: 'refused', reason: 'uncollectable_window', stage: 'collect' }, 1, 2)
-      !== false) {
-    fail('ACTIVITY SEAM S7-D: `shouldRetryActivity` now retries a collect refusal. That exclusion is '
-      + 'load-bearing — the recovery above already re-declares ONCE after the accrue verb, so a transport '
-      + 'loop on top of it multiplies the gesture.');
-  }
-}
-
-export function summary(settable, declarable) {
-  return `${settable.length} settable kinds, ${declarable.length} declarable`;
-}
-
-/* ── STANDALONE ─────────────────────────────────────────────────────────────
-   `node tests/activity-seam.mjs`. run-smoke.mjs imports `runAll` and reports it
-   as one of its own checks; this block only runs when the file is the entry
-   point, so the two cannot diverge. */
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+if (isMain(import.meta.url)) {
   const found = await runAll();
   if (found.length) {
     for (const p of found) console.error('FAIL: ' + p + '\n');
     console.error(`activity-seam: ${found.length} problem(s)`);
     process.exit(1);
   }
-  console.log('activity-seam: OK (S1-S7)');
+  console.log('activity-seam: OK (S3, S6, S6d)');
 }

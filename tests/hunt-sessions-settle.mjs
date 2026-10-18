@@ -148,6 +148,9 @@ async function loadEdge(root) {
     IN: await import(u(join(FN, 'intents.js'))),
     TK: await import(u(join(FN, 'tick.js'))),
     HSD: await import(u('src/data/hunt-sessions.js')),
+    /* The client's envelope applier is read from the REAL tree (the mutant copies
+       hold only the edge, src/core and src/data). */
+    ENV: await import(pathToFileURL(join(ROOT, 'src', 'session', 'envelope.js')).href),
     CD: await import(u('src/data/consumables.js')),
     SB: await import(u('src/data/supply-basics.js')),
     TUN: await import(u('src/data/hunt-tuning.js')),
@@ -506,6 +509,16 @@ const ENGINE_ARMS = {
     else if (k.hunt.stamina !== 3600000 - k.hunt.paid_ms + k.hunt.down_ms) {
       problems.push(`a pool of 1 h after ${k.hunt.paid_ms} ms paid and ${k.hunt.down_ms} ms down is ${k.hunt.stamina} — a knockout does not rest`);
     }
+    /* The client (src/session/envelope.js): the server's pool, REPLACED by each
+       envelope — never kept past one that no longer states it. */
+    const pool = { ms: 1234, at: new Date(T0).toISOString(), max_ms: cap.free, hunting: true };
+    const r1 = M.ENV.applyEnvelope({ version: 0, data: { stamina: { ms: 1 } }, residue: {} },
+      { ok: true, version: 1, state: {}, stamina: pool }).record;
+    if (!r1 || JSON.stringify(r1.data.stamina) !== JSON.stringify(pool)) {
+      problems.push(`the client did not take the server's pool: ${JSON.stringify(r1 && r1.data.stamina)}`);
+    }
+    const r2 = M.ENV.applyEnvelope(r1, { ok: true, version: 2, state: {} }).record;
+    if (r2 && 'stamina' in r2.data) problems.push('the client kept a pool the next envelope no longer states');
     return problems;
   },
 

@@ -14,13 +14,13 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_ROLES, CHALLENGE } from '../../data/hunt-roles.js?v=592';
-import { MONSTERS } from '../../data/monsters.js?v=592';
-import { DEFAULT_TARGET_MODE } from '../../data/rule-subjects.js?v=592';
-import { elementPermille } from '../combat.js?v=592';
-import { cheb, dist2, los } from './grid.js?v=592';
-import { unitById, leaderOf } from './movement.js?v=592';
-import { makeEvent } from './events.js?v=592';
+import { HUNT_ROLES, CHALLENGE } from '../../data/hunt-roles.js?v=0.1.0';
+import { MONSTERS } from '../../data/monsters.js?v=0.1.0';
+import { DEFAULT_TARGET_MODE } from '../../data/rule-subjects.js?v=0.1.0';
+import { elementPermille } from '../combat.js?v=0.1.0';
+import { cheb, dist2, los } from './grid.js?v=0.1.0';
+import { unitById, leaderOf } from './movement.js?v=0.1.0';
+import { makeEvent } from './events.js?v=0.1.0';
 
 /* chalMs: ms until the unit's Challenge is ready. leaderLast: the leader's last target (TG-04). */
 export const PERSISTED = Object.freeze({

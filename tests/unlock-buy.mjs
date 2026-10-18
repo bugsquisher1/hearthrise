@@ -47,6 +47,7 @@ import { ITEMS } from '../src/data/items.js';
 import { recipeInputs } from '../src/core/artisan.js';
 import { mulberry32, rngFrom } from '../src/core/rng.js';
 import { xpForLevel } from '../src/core/xp.js';
+import { isMain as isEntryModule } from './_is-main.mjs';
 /* A mutant replays UP TO the newest file this guard stands on, never past it, so a
    newer migration's lock or self-check cannot refuse first: the newest file it names;
    its arms buy through the hr_unlock_buy signature and catalogue as of there.
@@ -1220,7 +1221,7 @@ export async function unlockBuyGuard() {
 // ── CLI ─────────────────────────────────────────────────────────────────
 // ⚠ EVERYTHING BELOW IS MAIN-ONLY. This module is IMPORTED by run-smoke, and a
 //   top-level run on import would boot a second PostgreSQL nobody asked for.
-const isMain = import.meta.url === pathToFileURL(process.argv[1] || '').href;
+const isMain = isEntryModule(import.meta.url);
 if (isMain) {
   if (has('list')) {
     for (const [id, m] of Object.entries(MUTATIONS)) {

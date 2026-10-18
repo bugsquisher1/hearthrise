@@ -169,6 +169,7 @@ import { createHash } from 'node:crypto';
 import { readFile, readdir, writeFile, mkdir } from 'node:fs/promises';
 import { dirname, join, normalize, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const FUNCTIONS = join(ROOT, 'supabase', 'functions');
@@ -217,7 +218,7 @@ function vendorFor(absPath) {
    an asset URL. Total and mechanical, so `packed === strip(disk)` is a property
    `--check` can assert rather than a claim it has to take on faith. */
 export function stripVersionQueries(src) {
-  return src.replace(/(from\s*['"]\.[^'"]*?)\?v=\d+(['"])/g, '$1$2');
+  return src.replace(/(from\s*['"]\.[^'"]*?)\?v=\d[\d.]*(['"])/g, '$1$2');
 }
 
 /* THE GUARD THE FAILED DEPLOY BOUGHT. Broader than the transform, deliberately:
@@ -232,7 +233,7 @@ export function stripVersionQueries(src) {
    straight past a specifier-shaped regex: `const V = '?v=328'` followed by
    an `import()` of a template literal ending in that constant, which is exactly
    what tests/conservation-fuzz.mjs was doing, frozen three builds back. */
-const PACKED_QUERY_RE = /['"](\.[^'"]*\?v=\d+|\?v=\d+)['"]/g;
+const PACKED_QUERY_RE = /['"](\.[^'"]*\?v=\d[\d.]*|\?v=\d[\d.]*)['"]/g;
 
 export function versionQueriesIn(src) {
   const out = [];
@@ -647,8 +648,7 @@ export async function runAll() {
 // ── CLI ──────────────────────────────────────────────────────────────────────
 // (`process.argv[1] || ''` — it is undefined under `node -e`, and this module
 //  must be importable from any host, not only from a script on disk.)
-if (import.meta.url === new URL(`file://${(process.argv[1] || '').split(sep).join('/')}`).href
-    || process.argv[1]?.endsWith('pack-edge.mjs')) {
+if (isMain(import.meta.url)) {
   const args = process.argv.slice(2);
   const fn = args.find((a) => !a.startsWith('--'));
   const outIdx = args.indexOf('--out');

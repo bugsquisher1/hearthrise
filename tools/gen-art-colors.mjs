@@ -35,10 +35,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { PALETTE, MATERIALS, CONTOUR, COLOUR_TOKENS, COLOUR_TOKEN_EXEMPT } from './lib/art-palette.mjs';
+import { isMain } from '../tests/_is-main.mjs';
 
 // CLI-only when run directly; importable as a library so tests/art-palette.mjs
 // can prove coverage without shelling out.
-const IS_CLI = process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tools/gen-art-colors.mjs');
+const IS_CLI = isMain(import.meta.url);
 const argv = IS_CLI ? process.argv.slice(2) : [];
 const flag = (n, d = '') => {
   const i = argv.indexOf(`--${n}`);

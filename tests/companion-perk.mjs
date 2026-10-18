@@ -36,6 +36,7 @@ import { pathToFileURL } from 'node:url';
 import { COMPANIONS } from '../src/data/companions.js';
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
+import { isMain } from './_is-main.mjs';
 
 // Best-in-slot from the LIVE catalogue (the accrual-engine harness's own
 // pickEquipment) so the fixture actually kills — an invented item would test the
@@ -155,7 +156,7 @@ for (const p of [undefined, null, {}, { ok: true }, { ok: true, companion: null 
 }
 
 // Self-run when invoked directly; imported by run-smoke.mjs otherwise.
-if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
+if (isMain(import.meta.url)) {
   const problems = companionPerkGuard();
   if (problems.length) {
     console.error('COMPANION-PERK FAILED:\n' + problems.map((p) => '  ✗ ' + p).join('\n'));

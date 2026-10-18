@@ -14,7 +14,7 @@
 // makes it loud: every `window.Hearthrise<Name>` READ under src/** must have a
 // matching ASSIGNMENT (`HearthriseName =` on any receiver, or `HearthriseName:` as a
 // publish-map key — main.js publishes several through Object.assign(window, {...}))
-// somewhere in src/** or old-client.html. Comments and the KNOWN_ABSENT allowlist are the
+// somewhere in src/** or a root *.html page. Comments and the KNOWN_ABSENT allowlist are the
 // only exemptions, and each allowlist entry carries its reason.
 //
 // Run GREEN:  node tests/window-globals-exist.mjs
@@ -33,19 +33,8 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url));
 /* Reads that are SUPPOSED to have no assignment. Each needs a reason; a stale
    exemption hides the next typo, so keep this list at three-ish entries. */
 const KNOWN_ABSENT = {
-  HearthriseLicence: 'AWAY-HONEST asserts the retired away-gate API is ABSENT — the read IS the assertion',
-  HearthriseRecipes: 'optional namespace with an explicit `|| window` fallback in the suite',
-  HearthrisePostSignup: 'W0-INTRO-1 asserts the cut post-signup welcome is ABSENT — the read IS the assertion',
-  HearthriseBetaBanner: 'W0-INTRO-1 asserts the cut open-beta welcome card is ABSENT — the read IS the assertion',
-  HearthriseTelemetry: 'optional analytics sink; client-state.js guards with `if (T && typeof T.event === "function")`',
-  /* DEMOLISHED 2026-10-14. Each read survives only in a C2/B1-owned file (net/accrue,
-     net/record, combat-screens, render/hunt-panel) that the demolition lane may not
-     touch; the same names are on tests/demolition-absence.mjs's shrink-only ALLOW
-     list, which goes red if any of them spreads. Delete each row with its read. */
-  HearthriseCharms: 'demolished (charms); read left in combat-screens.js (B1) — demolition-absence ALLOW',
-  HearthriseRenown: 'demolished (renown); read left in net/accrue.js (C2) — demolition-absence ALLOW',
-  HearthriseDaily: 'demolished (dailies); read left in net/record.js (C2) — demolition-absence ALLOW',
-  HearthriseMuster: 'demolished (muster); read left in render/hunt-panel.js (B1) — demolition-absence ALLOW',
+  /* EMPTY since the client reset (2026-10-17): every entry named a read in the
+     deleted client or its in-page suite. */
 };
 
 const NAME = /\bwindow\.(Hearthrise[A-Za-z0-9_]*)/g;
@@ -78,7 +67,7 @@ function walk(dir, out = []) {
 }
 
 export function census(overlay = {}) {
-  const files = [...walk(join(ROOT, 'src')), join(ROOT, 'old-client.html')];
+  const files = [...walk(join(ROOT, 'src')), ...readdirSync(ROOT).filter((n) => n.endsWith('.html')).map((n) => join(ROOT, n))];
   const reads = new Map();       // name -> [ 'file:line', ... ]
   const assigns = new Map();     // name -> [ 'file:line', ... ]
   for (const f of files) {
@@ -115,14 +104,11 @@ export function dangling(overlay = {}) {
 const argv = process.argv.slice(2);
 
 if (argv.includes('--selftest')) {
-  /* MUTATION: plant the exact b511 typo back into the real caller and require RED. */
-  const rel = 'src/net/dungeon-scrip-record.js';
+  /* MUTATION: the b511 shape — a read of a misspelt global — planted into a real
+     client module (its original caller was deleted with the old client). */
+  const rel = 'src/app/boot.js';
   const real = readFileSync(join(ROOT, rel), 'utf8');
-  const mutated = real.replace(/window\.HearthriseAccrual/g, 'window.HearthriseAccrue');
-  if (mutated === real) {
-    console.error('x selftest could not plant the mutation — dungeon-scrip-record.js no longer reads window.HearthriseAccrual');
-    process.exit(1);
-  }
+  const mutated = real + '\nconst __b511Probe = window.HearthriseAccrue;\n';
   const base = dangling().dangling;
   if (base.length) {
     console.error('x selftest cannot run: the guard is already RED — ' + base.map((d) => d.name).join(', '));
@@ -149,12 +135,12 @@ if (argv.includes('--list')) {
   }
 }
 
-console.log(`window-globals-exist: ${reads.size} names READ, ${assigns.size} names ASSIGNED across src/** + old-client.html`
+console.log(`window-globals-exist: ${reads.size} names READ, ${assigns.size} names ASSIGNED across src/** + the root pages`
   + ` (${Object.keys(KNOWN_ABSENT).length} intentional absences allowlisted).`);
 
 if (bad.length) {
   for (const d of bad) {
-    console.error(`x window.${d.name} is READ but never assigned anywhere in src/** or old-client.html`);
+    console.error(`x window.${d.name} is READ but never assigned anywhere in src/** or a root *.html page`);
     for (const s of d.sites.slice(0, 6)) console.error(`    ${s}`);
   }
   console.error(`\n${bad.length} dangling window global(s). A misspelt global is silently undefined — the`

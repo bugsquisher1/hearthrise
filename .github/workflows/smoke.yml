@@ -225,92 +225,26 @@ jobs:
           npm install --no-audit --no-fund
           npx playwright install --with-deps chromium
 
-      - name: Smoke suite (headless)
-        # THE IN-PAGE BUDGET IS NOT THE JOB TIMEOUT. run-smoke.mjs caps the
-        # page.evaluate at HR_SUITE_TIMEOUT_MS (default 120_000). CI ran with
-        # the default while every local run used 300_000, so from b488 the
-        # in-page step timed out here and passed on a dev machine -- a red
-        # build with no failing assertion in it. The suite has since grown to
-        # 1134 tests and a shared runner is slower than the machine that
-        # wrote them, so this is set explicitly and generously. Only the wall
-        # clock flexes; every assertion still has to pass.
-        env:
-          HR_SUITE_TIMEOUT_MS: '600000'
+      # The node guard suite (server, engine, economy, catalogue, secret,
+      # supply-chain, migration and edge-payload checks). Until the client reset
+      # (2026-10-17) this step also booted the old client and ran its in-page
+      # suite; both are deleted.
+      - name: Smoke suite (node guards)
         run: node tests/run-smoke.mjs
 
-      # REACHABILITY'S MUTATION PROOF, ADOPTED (b569). The plain guard runs inside
-      # run-smoke; --mutate was registered nowhere and was RED on origin/main: M2
-      # (the rail re-inflated) ESCAPED because the rail had gained 220px of
-      # slack, so the plant never pushed Settings below the fold. Re-sized to
-      # today's slack (measured in Chromium). 12 plants; ~111 s locally.
-      - name: Reachability — mutation proof (12 planted layout defects)
-        if: ${{ !cancelled() }}
-        run: node tests/reachability.mjs --mutate
-
-      # ICON BOOT-ORDER — THE MUTATION PROOF, AND THE LOAD CONTROL.
-      # run-smoke.mjs already runs this guard's base pass; what it cannot run is
-      # the proof that the guard still BITES. --selftest plants three defects and
-      # requires each to be caught: an icon path written after first paint
-      # (property A), a neutered __hrRepaintActive (property B), and a suppressed
-      # __hrFirstPaint marker (the "cannot observe" branch). Its fourth control
-      # is a clean run under artificial CPU load — 4 busy workers plus main-
-      # thread jank — which is exactly the condition the pre-b517 5 ms polling
-      # hook lost first paint in (measured 2/3 loaded runs vs 0/3 idle), turning
-      # a guard precondition into a red suite and blocking the gate for every
-      # later build. The load control is what stops that regressing.
-      - name: Icon boot-order — mutations caught, and green under CPU load
-        if: ${{ !cancelled() }}
-        run: node tests/icon-boot-order.mjs --selftest
-
-      # BOOT BUDGET — THE PLAYER DOES NOT DOWNLOAD THE TEST SUITE (b535).
-      # main.js imported src/features/smoke-test.js statically, so 3.75 MB of
-      # test code — 36% of all the JavaScript a cold boot delivers — was paid by
-      # every player before the account gate was usable ("it takes long to
-      # start", Paione, 2026-09-11). It is a dynamic import now, and this boots a
-      # real Chromium to hold all four: a player boot never fetches the
-      # suite (BOOT-1), and a harness boot does and publishes it (BOOT-2) —
-      # without which every runner here would silently fall through to
-      # legacy.js block 29's ~40-test v1 __smokeTest and report a green that
-      # means nothing; every page runner pins the ESM suite by its signature
-      # (BOOT-3); and Ctrl+Shift+T still fetches it on demand (BOOT-4), because a
-      # dynamic import is one keystroke away from a dead control. It lives in
-      # THIS family because it needs the Chromium
-      # installed above; client-guards installs no browser. Measured 41 s + 71 s for
-      # the two commands (5 cold boots + 2 throttled, then 2 controls + 4 mutated) on
-      # the dev machine: ~2 min on a ~15.5 min family, so the 30 min budget stands.
-      - name: Boot budget - the player never downloads the test suite
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/boot-budget.mjs
-          node tests/boot-budget.mjs --selftest
-
-      # Needs the Chromium installed above. The gate half is a pure function and
-      # is proven by --selftest without a browser, so a Chromium problem shows up
-      # as exit 2 (harness) rather than as a visual verdict. The SWEEP half is
-      # proven by visual-qa --selftest, which boots one page and plants a broken
-      # value on the Boss-of-the-Day card: b536 went red on "22:56:23RevenantUndead"
-      # — text no player could see — and narrowing a detector is how a guard
-      # quietly stops biting, so the narrowing carries its own mutation proof.
-      # One extra page boot, measured 5 s on the dev machine (the gate below boots
-      # the same page 2x and walks 24 screens), on a family budgeted for 30 min.
-      #
-      # THE TAP-TARGET RATCHET (b554) rides the same three commands at no extra
-      # boot: the gate also fails when any screen's count of controls under a
-      # 44px HIT AREA at 852x393 rises above tests/small-target-ratchet.baseline.json
-      # (all 13 screens at 0 today; was 116). `visual-qa-gate --selftest` proves the
-      # ratchet (over its ceiling, an unnamed or unmeasured screen = red) and
-      # `visual-qa --selftest` proves the detector in the browser (a 20px button
-      # counts; the same button with a 44px ::after does not; two overlapping hit
-      # boxes cannot both claim 44px; a transient toast is looked through).
-      # _chrome.mjs (b561) is the one HR_CHROME resolver for the page runners.
-      - name: Presentation floor - visual QA gate (P0 / new P1 / tap-target ratchet)
+      # THE NEW CLIENT, BOOTED (2026-10-17). play.html in a real Chromium with
+      # supabase-js and the two REST paths stubbed: sign-in, the characters
+      # screen, the World pane + shell for a character, a second character
+      # beside it, sign-out clearing every session copy, the reset link and the
+      # closed-game notice; plus the static notice page at /. --mutate plants
+      # five defects and requires each to go red.
+      - name: Client boot (play.html, index.html)
         if: ${{ !cancelled() }}
         run: |
           node tests/_chrome.mjs
           node tests/_chrome.mjs --selftest
-          node tests/visual-qa-gate.mjs --selftest
-          node tests/visual-qa.mjs --selftest
-          node tests/visual-qa-gate.mjs
+          node tests/client-boot.mjs
+          node tests/client-boot.mjs --mutate
 
       # A failing run is far easier to diagnose with the page state attached.
       - name: Upload failure artifacts
@@ -2350,11 +2284,6 @@ jobs:
       # hunt-sessions-db D1 (the functions are dropped). Deliberately
       # unregistered, not forgotten.)
 
-      - name: Dungeon scrip reload — report #3, scrip survives reload not reset to 0
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/dungeon-scrip-reload.mjs
-          node tests/dungeon-scrip-reload.mjs --selftest
 
       # THE TWO SERVER-OWNED FARM FACTS THAT WERE LOST ON RELOAD (Q-2 + Q-5,
       # supabase/migrations/2026-09-06-state-of-farm-projection.sql). hr_state_of
@@ -2943,57 +2872,8 @@ jobs:
           node tests/arm-flag-honesty.mjs --selftest
           node tests/arm-flag-honesty.mjs
 
-      # SUITE ISOLATION: what a test writes to `G`, restoreG must put back.
-      # ~1,200 in-page tests share ONE live window.G and isolation is a hand-
-      # written allowlist inside snapshotG(). b252 wrote G.activeAction, which
-      # the allowlist did not name, and ~2,000 later registrations inherited a
-      # topbar reading "Cooking — shrimp"; the cause was 26,000 lines above the
-      # first test that noticed. SNAP-2 is the same defect one layer down —
-      # JSON.stringify DROPS undefined, so a bare `traits: G.traits` protects
-      # nothing on a character who has never bought a trait, which is why F7-1
-      # fails when it runs after B495-4.
-      - name: Suite isolation — snapshotG allowlist mutation proof
-        run: node tests/snapshot-allowlist-guard.mjs --selftest
 
-      # ⚠ continue-on-error IS DELIBERATE AND IS NOT PERMANENT. The plain run is
-      # still RED ON TODAY'S TREE FOR REAL REASONS — 263 SNAP-1 writes across 41
-      # fields — and allowlisting them to get a green tick would make this guard
-      # the masked skip it was written to end (CLAUDE.md §2: guards are never
-      # loosened to get green). The census is the deliverable until the offenders
-      # are fixed.
-      # BATCH 1 (SNAP-2) IS DONE, 2026-09-13: 566 write(s) across 26 field(s) → 0.
-      #   NOT by 26 `?? null` operators — every one of those 26 is absent for a
-      #   reason that names the correct restore value as ABSENT, and a guessed
-      #   empty is worse than the leak (`skills: {}` is a level-1 character).
-      #   `sealSnapshot()` in src/features/smoke-test.js stores the SNAP_ABSENT
-      #   sentinel for an undefined value and `restoreG()` `delete`s that key, so
-      #   value AND own-property presence round-trip for every field at once with
-      #   no empty to choose. The guard now reads that seal as a structural answer
-      #   to SNAP-2 (rule readSeal, three parts, each one mutation-proved by
-      #   M7/M8/M9 above) and the in-page `SNAP-2` ratchet proves the property at
-      #   RUNTIME over every field the list names, pinning the 13 pre-seal
-      #   `?? <empty>` entries by exact value so that count can only fall.
-      # TODO(Coordinator): batch 2 is SNAP-1 and needs a decision per field (the
-      #   seal makes each fix a one-line addition with no empty to choose):
-      #   G.monsterHp/monsterMaxHp ×73, G.lastOfflineSummary ×22, G.combatLog ×12,
-      #   G.streak, G.dailyReward, G.collection, G.enchant, G.entitlements,
-      #   G.settings, and the `_`-scratch family.
-      #   When the plain run is green on the tree, DELETE continue-on-error and
-      #   this comment, and add the plain run to tools/lane-done.mjs.
-      - name: Suite isolation — the leak census (RED BY TRUTH, see TODO)
-        continue-on-error: true
-        run: |
-          node tests/snapshot-allowlist-guard.mjs --report
-          node tests/snapshot-allowlist-guard.mjs
 
-      # DUPLICATE TOP-LEVEL FUNCTIONS: two declarations of one name in one scope
-      # means the later hoists over the earlier and the earlier body is dead code
-      # that can be edited, reviewed and shipped while changing nothing. Also
-      # pins the eight legitimate cross-IIFE name collisions so a NEW one is loud.
-      - name: Duplicate top-level fns — no dead twin in src/legacy.js
-        run: |
-          node tests/no-duplicate-toplevel-fns.mjs --selftest
-          node tests/no-duplicate-toplevel-fns.mjs
 
       # QUEST ITEM REWARDS: THE SAME NUMBER IN ALL THREE PLACES.
       # Every quest item reward used to be PHANTOM — QUEST_DEFS authored it,
@@ -3015,8 +2895,6 @@ jobs:
           node tests/quest-reward-parity.mjs --selftest
           # W0: the old goals board stays cut (client, residue and chain) and
           # the one daily list counts nothing in the browser.
-          node tests/goal-board-gone.mjs
-          node tests/goal-board-gone.mjs --selftest
 
       # DEMOLITION ABSENCE (2026-10-14 clean slate). Clans, raids, the party,
       # muster, rally, world events, renown, dailies, login streaks, deeds,
@@ -3046,52 +2924,8 @@ jobs:
         run: |
           node tests/item-flavour-coverage.mjs
           node tests/item-flavour-coverage.mjs --selftest
-          node tests/lore-notes.mjs
-          node tests/lore-notes.mjs --selftest
-          node tests/lifetime-tally.mjs
-          node tests/lifetime-tally.mjs --selftest
 
-      # SKILL GUIDE COVERAGE — every skill says what it is for, and every
-      # "Next:" it promises is one the server will honour (no scroll-gated
-      # recipe, plot tier named). Client-only; SKG-12 keeps both files out of
-      # hr-accrue. --selftest plants one defect per SKG id.
-      # tests/standings.mjs rides here: one unique crown per skill board, client-only (STAND-1..4).
-      - name: Skill guide coverage - every skill has a line and an honest ladder
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/skill-guide-coverage.mjs
-          node tests/skill-guide-coverage.mjs --selftest
-          node tests/standings.mjs
-          node tests/standings.mjs --selftest
-      # THE HEARTH CODEX — every glossary sentence is bound to the engine or the
-      # SQL authority. Client-only (src/data/codex.js is outside the hr-accrue
-      # pack, CODEX-8), so milliseconds. --selftest plants ten defects (a slowed
-      # away rate, a named cap raiser, a digit, "twelve", an unclaimed sentence,
-      # a static import, a fake opener, a missing bind, "double", a G read).
-      - name: Hearth Codex claims - the glossary cannot drift from the game
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/codex-claims.mjs
-          node tests/codex-claims.mjs --selftest
-      # THE AWAY LIMIT — the client may promise only the hours hr_offline_cap_ms
-      # pays (renown/property hours were retired). Client + SQL text, milliseconds.
-      # --selftest plants eight defects (M1-M8) and one exact renown match.
-      - name: Offline cap honesty - no away hours the server does not pay
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/offline-cap-honesty.mjs
-          node tests/offline-cap-honesty.mjs --selftest
 
-      # BLESSINGS PROMISE NOTHING THE REALM DOES NOT PAY (b560, CONFLICTS 2026-09-28).
-      # hr-accrue's bonusFor has no blessing layer, so no getBonus layer, pool
-      # magnitude, calendar-amount reader or "blessing pays/speeds" sentence may
-      # ship in client code. --selftest: eleven plants RED, comments and five
-      # negative controls GREEN, a missing world-events.js reported.
-      - name: Blessing promise honesty - no blessing effect the server does not pay
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/blessing-promise-honesty.mjs
-          node tests/blessing-promise-honesty.mjs --selftest
 
       # THE PLOT-TIER PRICE — the client and the server may never disagree.
       # b510 re-priced the farm plot tier in GOLD behind a farming level after
@@ -3129,21 +2963,6 @@ jobs:
           node tests/recovery-relief-guard.mjs
           node tests/recovery-relief-guard.mjs --selftest
 
-      # A DEATH THE PLAYER WATCHED IS STILL THE SERVER'S.
-      # b509's Recovery Rule held away and not live: the attended death called
-      # stopCombat(), which declares `idle`, and hr_apply stamps
-      # `accrued_to = now()` on any activity delta - so the window the death was
-      # in was closed before anything simulated it. Measured on the QA account:
-      # recovering_until NULL, hp 12/12, no deaths row, no ledger row, while the
-      # sheet counted down from a rung the client had invented out of a LIFETIME
-      # death tally. This guard drives the client fall-state machine headlessly
-      # (up -> pending -> recovering/unconfirmed) and source-scans the three
-      # places the bug can come back. 9 mutations, no credentials, milliseconds.
-      - name: Attended fall - the client asks, the server answers, nobody invents a timer
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/attended-fall.mjs
-          node tests/attended-fall.mjs --selftest
 
       # W0 COHERENCE AUDIT, TOP-10 #7 / #8 + THE RUNECRAFTING RULING.
       # An empty bow/staff slot is "run dry" (never better than running out),
@@ -3191,21 +3010,7 @@ jobs:
           node tests/css-literal-ratchet.mjs --report
           node tests/css-literal-ratchet.mjs --selftest
 
-      # Progressive reveal: every rail pane, war card, skill and Home card the
-      # one-spine reveal gates has a row in src/data/reveals.js (an unrowed
-      # surface would vanish for every player), and the predicate keeps its
-      # fresh / full / unknown / monotonic contract.
-      - name: Progressive reveal - every surface has a reveal row
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/reveal-coverage.mjs
-          node tests/reveal-coverage.mjs --selftest
 
-      - name: The pointer bar - every route opens an open door, no step needs what comes later
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/spine.mjs
-          node tests/spine.mjs --selftest
 
       - name: Presentation floor - one set of breakpoints
         if: ${{ !cancelled() }}
@@ -3222,14 +3027,6 @@ jobs:
           node tests/copy-lint.mjs --report
           node tests/copy-lint.mjs --selftest
 
-      # Every full-screen layer is a sheet (.hr-scrim/.hr-sheet), or is counted:
-      # a ratchet on the modal class that let the welcome-back card outgrow the
-      # screen with nothing to scroll. The count may only fall.
-      - name: Presentation floor - full-screen layers use the sheet primitive
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/modal-primitive-census.mjs --report
-          node tests/modal-primitive-census.mjs --selftest
 
       # slice 5 step 1 - src/styles/tokens.css is the single source of design
       # tokens. Before it, 367 token declarations lived in four sheets at four
@@ -3243,25 +3040,7 @@ jobs:
           node tests/token-single-source.mjs --report
           node tests/token-single-source.mjs --selftest
 
-      # PACK 1 (First Steps) - the first-five-minutes copy may not lie. The eight
-      # screen primers (src/data/screen-primers.js) are real panels, digit-free,
-      # frozen, out of the edge bundle, and tied to the flags they describe (the
-      # web-beta purchase refusal, CLAN_LAUNCHED); the tour carries none of the
-      # retired sentences. --selftest plants one defect per rule in a temp copy.
-      - name: Copy truth - screen primers and the tour
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/screen-primers.mjs
-          node tests/screen-primers.mjs --selftest
 
-      # b573 First Steps (src/data/coach.js): every step finishes on a server
-      # fact, names only real ids, has no Next button unless it is an info card,
-      # and the walk-through from the real start kit never points at a shut door.
-      - name: Copy truth - First Steps is doable and server-judged
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/coach-rows.mjs
-          node tests/coach-rows.mjs --selftest
 
       # slice 3 — deletions proven dead (derived censuses, never hand-pinned).
       # Appended at the END of the file on purpose: slice 2 is appending its own
@@ -3272,14 +3051,6 @@ jobs:
           node tests/dead-exports.mjs --selftest
           node tests/dead-exports.mjs
 
-      # Live-world program: client prediction is being RETIRED (docs/planning/
-      # CLIENT_PREDICTION_RETIREMENT.md). This ratchet freezes the count of predict call
-      # sites and reconcilers so no new one lands while the tick service is built.
-      - name: Live world - no new client prediction
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/no-new-prediction.mjs
-          node tests/no-new-prediction.mjs --selftest
 
       - name: Cleanup slice 3 - dead CSS class census
         if: ${{ !cancelled() }}
@@ -3287,15 +3058,6 @@ jobs:
           node tests/dead-css.mjs --selftest
           node tests/dead-css.mjs
 
-      # MARKET PRICE SOURCE (b559): no market price statistic is authored by the
-      # browser — no Math.random, no local price series, no retired phrases.
-      - name: Market price source - no client-authored price statistic
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/market-price-source.mjs --selftest
-          node tests/market-price-source.mjs
-          node tests/market-prices.mjs --mutate
-          node tests/market-prices.mjs
 
       # PLATFORM SEAM (W4.1, Steam/mobile shells): shipped src reaches web storage
       # only through src/platform/storage.js, which loads first; the tab id stays in
@@ -3341,16 +3103,6 @@ jobs:
           node tests/supplies-catalogue.mjs --selftest
           node tests/supplies-catalogue.mjs
 
-      # NO CLIENT FARM MINT (cleanup slice 4, b514): plantCrop / waterPlot /
-      # waterAllPlots / harvestPlot / upgradePlot may only SEND AN INTENT. Their
-      # client-authored twins — the yield roll, the perennial ladder, the seed
-      # debit, the watering window, the deed/gold spend, the plot_level write —
-      # had survived the b454 cutover unreachable for 60 builds and are now
-      # deleted. This is what stops them returning a line at a time.
-      - name: No client farm mint — the farm gestures author nothing
-        run: |
-          node tests/no-client-farm-mint.mjs --selftest
-          node tests/no-client-farm-mint.mjs
 
       # NO CLIENT XP MINT (b521): the same shape as the farm guard, one rung up.
       # buryBones() was `removeItem + addXp('prayer', …)` with no intent, no RPC
@@ -3365,36 +3117,7 @@ jobs:
           node tests/no-client-xp-mint.mjs --selftest
           node tests/no-client-xp-mint.mjs
 
-      # NO UPWARD MERGE (b568, CLAUDE.md §6). Every two-sided Math.max in the
-      # envelope-reconcile layer (src/net) is classified or red, and the real
-      # reconcileInventory is driven: bag 33 + envelope 23 reads 23 on every
-      # branch, the armed bag drops what the projection omits, a prediction
-      # never reaches gateItemCount, the bag ships armed. --selftest plants five
-      # defects in a copy of src/ (merge max, completeness gate, stage off,
-      # skills max, equip re-coupling) and needs each red, the control green.
-      - name: No upward merge — the browser never ratchets a server number up
-        run: |
-          node tests/no-upward-merge.mjs --selftest
-          node tests/no-upward-merge.mjs
 
-      # THE FRAME GATE (M5, docs/design/LIVE_COUNTERS_PUSH.md §7). Before it, the
-      # client had NO whole-envelope version gate: isEnvelopeApplicable asked
-      # only that `version` be a finite number, and the monotonic rule lived in
-      # ONE place for ONE field (gold.js's `lastVersion`). That is survivable
-      # under request/response and is a silent rewind of hp, the bag, the
-      # activity pointer and every buff clock under a push stream. The rule is
-      # now one floor, strictly greater, whole-frame-or-nothing, committed by
-      # all three appliers (accrue / gold / activity).
-      # Base AND selftest, per C4: a selftest-only registration cannot tell a
-      # caught defect from a guard that is broken at rest. --selftest plants
-      # five defects — `>=` restored, a per-key merge below the gate, gold.js
-      # growing its floor back, the activity applier not committing, and the
-      # frame gate moved into classifyAccrueResponse (which would halt the
-      # accrual loop on three duplicates) — and requires each one caught.
-      - name: Envelope frame gate — one monotonic frame, whole frame or nothing
-        run: |
-          node tests/envelope-frame-gate.mjs --selftest
-          node tests/envelope-frame-gate.mjs
 
       # GUARD ANCHORS (b569). tools/lane-done.mjs re-runs the --selftest/--mutate
       # of every guard whose mutants anchor on a file the lane changed (and the
@@ -3408,53 +3131,9 @@ jobs:
           node tools/guard-anchors.mjs --selftest
           node tools/guard-anchors.mjs
 
-      # FRAME DROP STREAK (SEC_PUSH_CHANNEL_M5_2026-09-23.md S3). The gate's two
-      # failure directions are not symmetric: a floor that is too LOW heals on
-      # the next frame; one that is too HIGH refuses every frame including the
-      # `hello` that is the only documented healer, so the healer is gated by
-      # the thing it heals. A client in that state looks IDENTICAL to a quiet
-      # one — in the browser, in a bug report and in vitals.mjs, which CLAUDE.md
-      # §3.4 gives two days to notice. This guard pins detection: all three
-      # appliers count their refusals, a landed frame clears the streak, and —
-      # D4 — the applier itself never fails open below a stuck floor. The cure
-      # (a deliberate reset + one re-read) is live.js, pinned by the step below.
-      # Base AND mutate, per C4: five planted defects, each required caught.
-      - name: Frame drop streak — a refused client must be able to say so
-        run: |
-          node tests/frame-drop-streak.mjs --mutate
-          node tests/frame-drop-streak.mjs
 
-      # LIVE FRAME SUBSCRIBE (M5 client half, src/net/live.js). The push
-      # channel's router: own PRIVATE topic, frames gated by classifyFrame and
-      # written by applyEnvelopeState (replaced, never merged), the HTTP answer
-      # behind a frame keeps its receipt once, reconnect backs off and re-reads,
-      # the stuck-high floor heals, inventory waits for the ABSOLUTE flip, and
-      # frame_push off is today's game. --selftest patches temp COPIES (never the
-      # tree) with fourteen planted defects, each required caught by name.
-      - name: Live frame subscribe — the push channel's client half
-        run: |
-          node tests/live-frame-subscribe.mjs --selftest
-          node tests/live-frame-subscribe.mjs
 
-      # NO DUPLICATE RPC CALLERS (b514): a RATCHET. The six hand-rolled
-      # rpc(name, body) copies stay six (HearthriseRpc is the DECISION, not a
-      # transport — folding them is the wrong abstraction), and the mayCall
-      # adoption floor may rise but never fall. Adopting it in the other five was
-      # tried and turned b340/F5 red: hr_clan_browser is legitimately session-free.
-      - name: RPC callers — the copies do not grow and the b349 guard floor holds
-        run: |
-          node tests/no-duplicate-rpc-callers.mjs --selftest
-          node tests/no-duplicate-rpc-callers.mjs
 
-      # NO BLOB BRANCHES (b514 froze it at 13, b515 emptied it): a RATCHET AT
-      # ZERO. The b353 kill switch is retired, so isBlobRetired() is the constant
-      # BLOB_RETIRED and every fork — dormant client-authored half included — is
-      # deleted. A1: no isBlobRetired() conditional survives under src/. A2: the
-      # premise re-checked the other way — it must never AND the switch again.
-      - name: Blob-retire forks — the census is empty, and the premise re-checked
-        run: |
-          node tests/no-blob-branches.mjs --selftest
-          node tests/no-blob-branches.mjs
 
       # slice 3 (b515) - the window.Hearthrise* census. A misspelt global is silently
       # undefined, so the feature behind it is DEAD rather than loudly broken:
@@ -3465,18 +3144,7 @@ jobs:
           node tests/window-globals-exist.mjs --selftest
           node tests/window-globals-exist.mjs
 
-      # ORPHAN ADOPTED. The sign-up door rules (emailRedirectTo, the resend, the
-      # refusal vocabulary, the invite link) live as pure functions in
-      # src/net/signup-door.js and are graded against 21 mutations. beta-2 lost
-      # 11 of 49 sign-ups at the email wall to three defects, none of which is
-      # visible from the DOM. Nothing ran this file.
-      - name: Sign-up door — every mutation caught
-        if: ${{ !cancelled() }}
-        run: node tests/signup-door.mjs --selftest
 
-      - name: Sign-up door — base run
-        if: ${{ !cancelled() }}
-        run: node tests/signup-door.mjs
 
       # ── CLEANUP SLICE 1b: THE DEBT RATCHETS ─────────────────────────────
       # Four numbers that CLEANUP_PROGRAM's scoreboard tracked and nothing
@@ -3492,18 +3160,6 @@ jobs:
       # and each prints the target list for the slice that pays it. All four are
       # pure text scans: credential-free, database-free, milliseconds.
 
-      # THE MONOLITH MAY ONLY SHRINK, AND src/render MAY ONLY GROW. Five
-      # ratchets (lines, top-level fns, the `const f = () =>` dodge, render file
-      # count, render lines); the render pair are FLOORS, because an extraction
-      # that gets reverted is worse than one that never happened. --selftest
-      # plants each defect twice — once as a bent number to prove the comparator
-      # and once as REAL TEXT in a temp tree to prove the reader — and requires
-      # the three debt-payments to be notes rather than failures.
-      - name: Monolith ratchet — legacy.js down, src/render up
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/monolith-ratchet.mjs --selftest
-          node tests/monolith-ratchet.mjs --report
 
       # THE NARRATIVE MAY NOT OUTGROW THE CODE. src/net/record.js is 1,145
       # comment lines over 655 code lines. The comments here are unusually good,
@@ -3566,18 +3222,6 @@ jobs:
           node tests/hr-state-of-final-body.mjs
           node tests/hr-state-of-final-body.mjs --selftest
 
-      # THE SUITE MAY GROW; THE COST PER TEST MAY NOT. smoke-test.js tripled in
-      # four weeks. Ratchets lines-per-test and direct-G.*-seeds-per-test, with a
-      # FLOOR under the test count so the ratios cannot be satisfied by deleting
-      # tests. Measured over a CORPUS (smoke-test.js + src/features/smoke/**), so
-      # slice 6's pure-move split leaves every number identical and arrives at a
-      # green build — a guard that goes red on the refactor it was written to
-      # protect is a guard that gets switched off.
-      - name: Test-file ratchet — lines and seeds per test may not rise
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/test-file-ratchet.mjs --selftest
-          node tests/test-file-ratchet.mjs --report
 
       # THE META-GUARD. Every tests/*.mjs must be registered here, invoked by
       # run-smoke.mjs, chained from another guard, or listed in
@@ -3644,15 +3288,7 @@ jobs:
           node tests/w0f-fun-content.mjs
           node tests/w0f-fun-content.mjs --selftest
 
-      # Dead-end copy (src/data/signposts.js): every key used, doors real,
-      # lengths and placeholders sane, never packed into the edge (SIGN-7).
-      - name: Signposts - mutation proof
-        if: ${{ !cancelled() }}
-        run: node tests/signposts.mjs --selftest
 
-      - name: Signposts - base run
-        if: ${{ !cancelled() }}
-        run: node tests/signposts.mjs
 
       # World art (lane W2): every committed world atlas keeps one scale and stands
       # on the floor - class body budget, locked palette, shared 64x64 character
@@ -3681,17 +3317,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/pixel-icons.mjs
 
-      # Settle-before-mutate, client half (SEC_SETTLE_BEFORE_MUTATE_F2F3 row 1b):
-      # every client-direct sender of the twelve settle-gated RPCs goes through
-      # src/net/settle-first.js, and every claim/shop surface carries the
-      # boot-settle latch. --selftest plants eleven defects + one silent control.
-      - name: Settle-first callers - mutation proof
-        if: ${{ !cancelled() }}
-        run: node tests/settle-first-callers.mjs --selftest
 
-      - name: Settle-first callers - base run
-        if: ${{ !cancelled() }}
-        run: node tests/settle-first-callers.mjs
 
       # The World pane renders server state and writes nothing but G._world:
       # no engine imports, no server calls, no simulate*, no Math.random /
@@ -3743,6 +3369,61 @@ jobs:
       - name: World town and home - base run
         if: ${{ !cancelled() }}
         run: node tests/world-town-home.mjs
+
+      # The World shell (src/shell/*, not mounted until the cutover): the window
+      # manager (cap of 3, 60% dock, Esc, focus, phone sheet, keys, motion, inset)
+      # and the HUD contract (defaults, per-size-class layout, reset) on the pure
+      # modules; --selftest plants 11 defects into a temp copy.
+      - name: World shell core - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/shell-core.mjs --selftest
+
+      - name: World shell core - base run
+        if: ${{ !cancelled() }}
+        run: node tests/shell-core.mjs
+
+      # Every shell window/widget row has a renderer and every renderer a row.
+      - name: World shell renderers - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/shell-renderers.mjs --selftest
+
+      - name: World shell renderers - base run
+        if: ${{ !cancelled() }}
+        run: node tests/shell-renderers.mjs
+
+      # The `hudLayout` residue is display-only: read by the HUD and the residue
+      # store alone, and the HUD talks to no server.
+      - name: HUD layout display-only - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/hud-layout-display-only.mjs --selftest
+
+      - name: HUD layout display-only - base run
+        if: ${{ !cancelled() }}
+        run: node tests/hud-layout-display-only.mjs
+
+      # THE REBUILT CLIENT (2026-10-17). session-core: one rule per session law
+      # (envelope replace, frame order, residue allowlist, per-character
+      # isolation, the concurrent cap, sign-out clears every copy, the tab id,
+      # honest sign-up copy, channel re-join/hello). client-intent-surface: the
+      # client's whole RPC surface, pinned. client-module-size: no module over
+      # 600 lines. Each with its mutation proof. Pure node, seconds.
+      - name: Client session rules
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/session-core.mjs
+          node tests/session-core.mjs --mutate
+
+      - name: Client intent surface
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/client-intent-surface.mjs
+          node tests/client-intent-surface.mjs --selftest
+
+      - name: Client module size
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/client-module-size.mjs
+          node tests/client-module-size.mjs --selftest
 
       - name: Guard hygiene — no orphans, no vacuous selftests
         if: ${{ !cancelled() }}

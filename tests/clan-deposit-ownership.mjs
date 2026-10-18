@@ -41,6 +41,7 @@
 //   · Production's ACL. §2(f)/(g) of the migration assert it at apply time.
 // ════════════════════════════════════════════════════════════════════════
 import { bootReplay } from './schema-replay.mjs';
+import { isMain } from './_is-main.mjs';
 
 const MIG = '2026-08-18-clan-deposit-ownership.sql';
 const problems = [];
@@ -322,7 +323,7 @@ export async function clanDepositOwnershipGuard() {
 // ── CLI ─────────────────────────────────────────────────────────────────
 // ⚠ GATED. tests/run-smoke.mjs IMPORTS this module for the guard above, and an
 //   ungated top-level `process.exit` would end the whole suite at the import.
-if (process.argv[1]?.endsWith('clan-deposit-ownership.mjs')) {
+if (isMain(import.meta.url)) {
   const arg = process.argv.find((a) => a.startsWith('--mutate='));
   if (process.argv.includes('--list')) {
     for (const [id, m] of Object.entries(MUTATIONS)) console.log(`${id.padEnd(26)} ${m.why}`);

@@ -71,6 +71,7 @@ import { BUFFS_DEF } from '../src/core/buffs.js';
 import { styleNeedsAmmo } from '../src/core/ammo.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
 import { SHOP_OFFERS } from '../src/data/shops.js';
+import { isMain as isEntryModule } from './_is-main.mjs';
 
 /* The rulings' own lists, typed once here so the data can be held to them. */
 /* 'vigour' LEFT the end order (designer ruling, 2026-10-14 loop check) and
@@ -384,7 +385,7 @@ function selftest() {
   process.exit(missed ? 1 : 0);
 }
 
-const isMain = process.argv[1] && fileURLToPath(import.meta.url) === join(process.argv[1]);
+const isMain = isEntryModule(import.meta.url);
 if (isMain) {
   try {
     if (process.argv.includes('--selftest') || process.argv.includes('--mutate')) selftest();

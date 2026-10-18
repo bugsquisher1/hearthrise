@@ -28,6 +28,7 @@
 import { readFile } from 'node:fs/promises';
 import { join, normalize } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { isMain } from './_is-main.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const MIG = (f) => join(ROOT, 'supabase', 'migrations', f);
@@ -323,7 +324,7 @@ export async function autoEatAuthorityGuard() {
   return problems.slice();
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
+if (isMain(import.meta.url)) {
   const ps = await autoEatAuthorityGuard();
   if (ps.length) {
     console.log('auto-eat authority guard — FAILED:');

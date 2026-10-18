@@ -37,6 +37,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { bootReplay, LAST_PATCHED } from './schema-replay.mjs';
+import { isMain as isEntryModule } from './_is-main.mjs';
 
 const MIG = '2026-08-16-client-write-grant-sweep-5.sql';
 
@@ -436,8 +437,7 @@ const main = async () => {
   return r.fails ? 1 : 0;
 };
 
-const isMain = import.meta.url
-  === (await import('node:url')).pathToFileURL(process.argv[1] || '').href;
+const isMain = isEntryModule(import.meta.url);
 if (isMain) {
   main().then((c) => process.exit(c)).catch((e) => {
     console.error(e.harness || e.replay ? e.message : e);

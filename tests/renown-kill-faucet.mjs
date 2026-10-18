@@ -59,6 +59,7 @@
 import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
 import { bootReplay } from './schema-replay.mjs';
+import { isMain } from './_is-main.mjs';
 
 const MIG = '2026-09-02-renown-kill-faucet.sql';
 
@@ -758,7 +759,7 @@ async function selftest(observe) {
   return bad;
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (isMain(import.meta.url)) {
   const arg = process.argv[2] || '';
   (async () => {
     if (arg === '--list') {

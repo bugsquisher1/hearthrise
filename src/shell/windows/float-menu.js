@@ -1,7 +1,8 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/shell/windows/float-menu.js — ONE CONTEXT MENU PER PAGE, BESIDE WHAT IT IS FOR.
 //
-// The bag's right-click / long-press menu floats at page level (like the
+// The bag's right-click / long-press menu (and the players' and monsters' one,
+// src/shell/context-menu.js) floats at page level (like the
 // tooltip), so no window's scroll box clips it and no window's slide-in
 // transform moves it. The owner hands it the menu's markup, where to stand,
 // what to do with a press, and what to do when it closes. It closes on Esc, on
@@ -42,12 +43,13 @@ function menuEl(doc) {
  * @param {Document} doc
  * @param {string} html            its buttons carry data-hs-act
  * @param {{x:number, y:number}} at
- * @param {{onAct:(action:string, ev:Event, btn:Element)=>void, onClose:()=>void, alive:()=>boolean}} owner
+ * @param {{onAct:(action:string, ev:Event, btn:Element)=>void, onClose:()=>void, alive:()=>boolean, label?:string}} owner
  */
 export function openFloatMenu(doc, html, at, owner) {
   if (OWNER && OWNER !== owner) { const o = OWNER; OWNER = null; o.onClose(); }
   const el = menuEl(doc);
   el.innerHTML = html;
+  el.setAttribute('aria-label', owner.label || 'Item actions');
   el.classList.add('is-on');
   OWNER = owner;
   const view = doc.defaultView;

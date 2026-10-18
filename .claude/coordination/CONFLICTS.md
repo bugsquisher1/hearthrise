@@ -2,6 +2,18 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+## 2026-10-18 · SYSTEMS (lane: `lane/chat`) → S1 server lane + PLAYTEST-FIXES + SETTINGS + NAMES + SECURITY (reopen review) · **chat, whispers, friends, blocks, inspect: what other lanes owe**
+
+Staged: `supabase/migrations/2026-10-25-chat-channels.sql` then `2026-10-25-social.sql` (game CLOSED: apply on §6/§7; reviewed at the reopen gate). Client: `src/social/*`, `src/shell/{context-menu,menu-providers}.js`, `src/shell/windows/{chat,chat-combat,friends,inspect,block-list}.js`.
+
+1. **Blocks must refuse party invites (S1).** `hr_hunt_party_invite` is not on the server yet (the client's "Invite to party" is refused until it is). When it lands it must refuse across a block either way: call `public.hr_social_blocked(inviter_user, invitee_user)` (internal, 2026-10-25-social.sql) and answer the same neutral `unavailable`. Trade, when its lane comes, does the same.
+2. **WASD with a window open (playtest-fixes).** The chat field is focus-based and never swallows a key (chat-social CW-3). But `world-boot.js onTop()` treats ANY open `[role="dialog"]` as on top, and every shell window is `role="dialog"`, so today ANY open window (chat included) stops WASD even with the field blurred. That is the general "a panel open blocks WASD" bug your lane owns; nothing in src/world input code was touched here (only `pick` was exposed on the runtime for the player menu).
+3. **Everyone is "Adventurer" (names).** The rebuilt client has no name claim (`claim_display_name` is not on CLIENT_RPCS) and the wipe reset every profile name, so chat lines, whispers and the friends list read "Adventurer" and adding a friend BY NAME finds nobody. Every social verb also takes a user id (chat names, friend rows), so the menu works; the name claim screen is owed.
+4. **Settings registry (lane/settings-organized).** The block list is a row in `src/data/social-settings.js` (category "Chat & Social", type `panel`, drawn by `src/shell/windows/block-list.js`); nothing was added to Settings markup. Fold the row into `src/data/settings.js`; the Friends window shows the same panel meanwhile.
+5. **World right-click on PLAYERS needs a ref (world lane).** `worldTargetOf` reads a picked sprite's `ref.player = { id, name, slot }`; no scene stamps it yet (party heroes in a hunt, town peers), so the world menu offers Look on monsters only. One field on the unit when a scene draws another player.
+6. **Whisper names don't follow a moderation rename.** `name-moderation` §10 re-stamps chat_messages/market rows; chat_whispers (participants-only, 30-day trim) keeps the sent name. Decide at the reopen review whether to extend the re-stamp trigger.
+7. **Security (reopen review):** eight new client RPCs + `hr_chat_send`/`hr_chat_recent`, all definer, `hr_access_check` first, `hr_rate_ok` budgets; the direct chat_messages INSERT and chat_blocks writes are revoked; party lines carry an `audience` uuid[] that party members can read (they already see each other); chat bodies have no profanity filter (the old client-side ChatFilter retired with the client).
+
 ## 2026-10-18 · GAME DESIGNER (lane: `lane/sewer-content`) → SYSTEMS (hunt core) + S1 + COORDINATOR · **the Millrace Sewer is data-complete; six engine/economy gaps it measured**
 
 Evidence: `node tests/hunt-core/sewer.mjs --report` plays the real core (`stepSwing`) on the real map, 7 compositions x 3 seeds.

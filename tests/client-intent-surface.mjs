@@ -32,7 +32,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const CLIENT_DIRS = ['src/app', 'src/session', 'src/shell', 'src/net', 'src/world', 'src/platform', 'src/render', 'src/hunt-view'];
+const CLIENT_DIRS = ['src/app', 'src/session', 'src/shell', 'src/net', 'src/world', 'src/platform', 'src/render', 'src/hunt-view', 'src/social'];
 const LINK = 'src/session/server.js';
 
 /* The client's whole RPC surface, each with what it is for. */
@@ -62,6 +62,18 @@ export const CLIENT_RPCS = Object.freeze({
   hr_hunt_party_decline: 'decline an invite to this character by its id (CharacterSession.answerInvite)',
   hr_hunt_party_start: 'the leader starts the party hunt, each member on its own saved setup (CharacterSession.startPartyHunt)',
   hr_hunt_restart: 'go back to the hunt that just ended on that session’s own setup (CharacterSession.restartHunt)',
+  /* The social side (2026-10-25-chat-channels.sql, 2026-10-25-social.sql): a slot, a channel KIND, a body,
+     a target (a user id or a claimed name) and a yes/no — never a name, level, zone or role of the sender. */
+  hr_chat_send: 'post a line to global / local / party; the server names the sender and the channel (ChatStore.send)',
+  hr_chat_recent: 'the chat history and the channels to listen to, a read (ChatStore.refresh)',
+  hr_whisper_send: 'a private line to one player; refused across a block (WhisperStore.send)',
+  hr_whispers_recent: 'the recent whispers to and from this account, a read (WhisperStore.load)',
+  hr_block_set: 'block or unblock a player (BlockStore.set)',
+  hr_friend_request: 'ask a player to be friends (FriendStore.request)',
+  hr_friend_answer: 'accept or decline a friend ask made to this account (FriendStore.answer)',
+  hr_friend_remove: 'end a friendship or withdraw an ask (FriendStore.remove)',
+  hr_social_state: 'friends, asks and blocks, and this account’s presence stamp, a read (SocialSession.reread)',
+  hr_inspect: 'another player’s worn items, a read (inspectOf)',
 });
 
 /* The engine's item intents the client may send, each with the ONLY fields it may carry. */

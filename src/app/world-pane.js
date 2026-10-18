@@ -5,7 +5,8 @@
 // CharacterSession: the World engine (src/world/world-boot.js, loaded on first
 // mount) reads that character's view (src/app/world-view.js) every frame, and
 // the shell (src/shell/shell.js) lays its windows and widgets over it with the
-// HUD layout kept in that character's residue. Every server answer the
+// HUD layout kept in that character's residue; a right-click on a unit opens
+// the shell's player / monster menu. Every server answer the
 // character applies re-syncs the frame and repaints the widgets. Nothing here
 // sends an intent or writes a number.
 // ════════════════════════════════════════════════════════════════════════
@@ -13,6 +14,7 @@
 import { worldViewOf } from './world-view.js?v=0.2.0';
 import { mountShell } from '../shell/shell.js?v=0.2.0';
 import { logFor } from '../hunt-view/combat-log.js?v=0.2.0';
+import { worldTargetOf } from '../shell/menu-providers.js?v=0.2.0';
 
 const PANE_HTML = '<div class="world-chrome">'
   + '<span class="world-title">World</span>'
@@ -66,6 +68,8 @@ export async function mountWorldPane(host, character, o) {
   const inHunt = () => !!character.read('hunt') || !!view()._huntId;
   const shell = mountShell(stage, { character, screen: opts.screen || doc.body, inHunt, peers: opts.peers, account: opts.account,
     alerts: opts.alerts, goTo: opts.goTo });
+  /* A right-click or long press on a unit in the World opens the shell's player menu (a window or widget over it keeps its own). */
+  if (runtime) shell.menu.attach(stage, (e) => (e.target.closest('[data-hs-win],[data-hs-widget]') ? null : worldTargetOf(runtime.pick(e.clientX, e.clientY))));
   const offInset = shell.onInset((inset) => { if (runtime) runtime.setInset(inset); });
   const offChar = character.subscribe(() => { if (runtime) runtime.sync(); shell.paint(); });
 

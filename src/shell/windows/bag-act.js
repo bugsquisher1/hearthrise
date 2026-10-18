@@ -26,6 +26,7 @@ import { gold } from '../../render/format.js?v=0.2.0';
 import { itemName } from '../widgets/bits.js?v=0.2.0';
 import { showTip, hideTip } from './item-tip.js?v=0.2.0';
 import { openFloatMenu, closeFloatMenu } from './float-menu.js?v=0.2.0';
+import { linkInChat, chatOpen } from './chat.js?v=0.2.0';
 import { stateOf, scratchOf, prefsOf, seenOf, confirmFor, junkOf } from './bag-state.js?v=0.2.0';
 import { skillsOf } from '../../session/item-sections.js?v=0.2.0';
 
@@ -130,6 +131,7 @@ function openMenu(ctx, body, st, id, at, repaint) {
   h += item('m-sell', locked ? 'Sell (unlock it first)' : 'Sell…', !locked && !!st.shop && st.shop.bids.has(id));
   h += item('m-lock', locked ? 'Unlock' : 'Lock', !!st.rules);
   h += item('m-select', sc.sel.has(id) ? 'Unselect' : 'Select', true);
+  h += item('m-link', 'Link in chat', !!(ctx.account && ctx.account.social));
   h += '<span class="hw-menu-sub">On pickup</span><span class="hw-menu-rules" role="group" aria-label="On pickup">'
     + RULE_WORDS.map(([v, w]) => item('m-rule', w, !!st.rules, ' data-rule="' + v + '" aria-pressed="' + ((st.rules && (st.rules.loot[id] || 'keep')) === v) + '"')).join('') + '</span>';
   openFloatMenu(ctx.doc, h, at, {
@@ -224,6 +226,7 @@ export function actBag(ctx, body, action, ev, t, repaint) {
     if (type === 'pointerup' || type === 'pointercancel' || type === 'dragend') { clearTimeout(sc.press); return false; }
     if (type !== 'click') return false;
     if (sc.pressed) { sc.pressed = false; return true; }
+    if (ev.shiftKey && chatOpen(ctx) && linkInChat(ctx, id)) return true;   // Shift+click links it into an open chat
     if (ev.shiftKey) rangeSel(st, id);
     else if (ev.ctrlKey || ev.metaKey || sc.sel.size) toggleSel(sc, id);
     sc.cursor = id;
@@ -260,6 +263,7 @@ export function actBag(ctx, body, action, ev, t, repaint) {
     case 'm-sell': askSell(st, [id], 'Sell', repaint); return true;
     case 'm-lock': doLock(ctx, st, id, repaint); return true;
     case 'm-select': toggleSel(sc, id); sc.menu = null; repaint(); return true;
+    case 'm-link': linkInChat(ctx, id); closeMenu(ctx, st); return true;
     case 'm-rule': doRule(ctx, st, id, t.getAttribute('data-rule'), repaint); return true;
     default: return false;
   }

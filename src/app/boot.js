@@ -29,6 +29,8 @@ import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.0';
 import { mountWorldPane } from './world-pane.js?v=0.2.0';
 import { mountCharacterStrip } from './character-strip.js?v=0.2.0';
 import { createAlertCenter } from '../shell/alerts.js?v=0.2.0';
+import { createSocialRealtime } from '../social/realtime.js?v=0.2.0';
+import { SocialSession } from '../social/social-session.js?v=0.2.0';
 import { escapeHtml as esc } from '../utils/dom.js?v=0.2.0';
 
 const DISCORD = 'https://discord.gg/eJrUSUJM3M';
@@ -96,12 +98,14 @@ function startApp(win) {
     if (!auth.userId()) { showAuth('sign-in'); return; }
     if (account) return;
     const server = createServerLink({ url: SUPABASE_CONFIG.url, anonKey: SUPABASE_CONFIG.anonKey, token: auth.token });
-    account = new AccountSession({ auth, server, tab: HS.session, channel: channelFor(client, auth) });
+    account = new AccountSession({ auth, server, tab: HS.session, channel: channelFor(client, auth),
+      social: (acc) => new SocialSession({ account: acc, realtime: createSocialRealtime(client, auth.token) }) });
     account.subscribe((why) => {
       if (why === 'closed-game') showClosed();
       else if (why === 'viewed' && strip) showPane();
     });
     alerts = createAlertCenter(account);
+    account.social.chat.followAlerts(alerts);   // the alerts are also the chat's System lines
     await showCharacters();
   }
 

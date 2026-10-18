@@ -281,6 +281,19 @@ jobs:
           node tests/party-ui.mjs
           node tests/party-ui.mjs --mutate
 
+      # THE CHAT WINDOW AND THE SOCIAL SIDE (2026-10-18, lane/chat): lines are
+      # the server's rows (time, name, level, the weapon's role), one intent
+      # per send naming no sender fact, the server's channels, unread dots,
+      # whispers, blocks, item links from the catalogue, the one player menu
+      # at page level, and typing that never reaches the World's walk keys.
+      # The server half runs in the two 2026-10-25 migrations' self-checks.
+      # --mutate plants eighteen defects.
+      - name: Chat and social (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/chat-social.mjs
+          node tests/chat-social.mjs --mutate
+
       # A failing run is far easier to diagnose with the page state attached.
       - name: Upload failure artifacts
         if: failure()

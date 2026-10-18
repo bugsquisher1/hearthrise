@@ -22,6 +22,10 @@
 //   findItems(q)  where an item is across this account's characters
 //                 (hr_account_items: bag, bank and worn, read by the server)
 //   signOut()     close every character, then auth.signOut() (every copy)
+//   social        the account's chat, whispers, friends and blocks: what the
+//                 `social` factory made for it (src/social/social-session.js,
+//                 handed in by src/app/boot.js), started once a character is
+//                 open, ended on sign-out
 // ════════════════════════════════════════════════════════════════════════
 
 import { SESSION_CONFIG } from './config.js?v=0.2.0';
@@ -59,6 +63,7 @@ export class AccountSession {
    * @param {Function} [o.channel] (topic, onMessage, onStatus) => leave
    * @param {object} [o.config]
    * @param {object} [o.timers]    { setTimer, clearTimer } for tests
+   * @param {(account: AccountSession) => object} [o.social]  makes this account's social side
    */
   constructor(o) {
     this.auth = o.auth;
@@ -72,6 +77,7 @@ export class AccountSession {
     this.closedGame = false;
     this._limit = null;
     this.viewed = null;
+    this.social = o.social ? o.social(this) : null;
   }
 
   get userId() { return this.auth.userId(); }
@@ -149,6 +155,7 @@ export class AccountSession {
     cs.connect();
     if (this.viewed === null) this.viewed = slot;
     this._emit('opened', slot);
+    if (this.social) this.social.start();
     return { ok: true, session: cs };
   }
 
@@ -186,6 +193,7 @@ export class AccountSession {
   /** Close every character, then forget the login everywhere on this device. */
   async signOut() {
     for (const slot of Array.from(this._chars.keys())) this.close(slot);
+    if (this.social) { this.social.destroy(); this.social = null; }
     await this.auth.signOut();
     this._emit('signed-out');
     this._listeners.clear();

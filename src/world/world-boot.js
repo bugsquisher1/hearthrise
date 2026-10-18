@@ -421,6 +421,7 @@ export async function bootWorld(panel, opts) {
     step: () => step(0),
     stats: () => Object.assign({ running, frames, scene: scene && scene.map, kind: scene && scene.kind, hunt: lastHunt, walk: walkStats() }, backend.snapshot()),
     screenOf: (x, y) => backend.screenOf(x, y),
+    pick: (x, y) => backend.pick(x, y),
     /**
      * The shell's docked windows: the strips of the stage they cover, in CSS px
      * ({left, right, top, bottom}; null when none). The camera frames the rest

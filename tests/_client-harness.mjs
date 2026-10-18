@@ -42,7 +42,10 @@ export function serve(overrides) {
    (like the real one) plus one `sb-*` copy, so sign-out must clear what the client really leaves. */
 export const SDK_STUB = `(function () {
   var UID = '${UID}';
-  window.__hub = { channels: {}, send: function (topic, payload) { var c = this.channels[topic]; if (c) c.cb({ payload: payload }); } };
+  window.__hub = { channels: {}, pg: [], send: function (topic, payload) { var c = this.channels[topic]; if (c) c.cb({ payload: payload }); },
+    /* A postgres_changes INSERT, delivered to every binding on that table whose col=eq.val filter the row matches. */
+    row: function (table, row) { var n = 0; this.pg.forEach(function (b) {
+      var m = /^([a-z_]+)=eq\\.(.*)$/.exec(b.filter || ''); if (b.table === table && (!m || String(row[m[1]]) === m[2])) { n++; b.cb({ new: row }); } }); return n; } };
   window.supabase = { createClient: function (url, key, opts) {
     var st = opts.auth.storage, sk = opts.auth.storageKey, cbs = [];
     function read() { var v = st.getItem(sk); return v ? JSON.parse(v) : null; }
@@ -67,11 +70,14 @@ export const SDK_STUB = `(function () {
       },
       realtime: { setAuth: function () {} },
       channel: function (topic) {
-        var ch = { topic: topic, on: function (t, f, cb) { window.__hub.channels[topic] = { cb: cb }; return ch; },
+        var ch = { topic: topic, on: function (t, f, cb) {
+            if (t === 'postgres_changes') window.__hub.pg.push({ topic: topic, table: f.table, filter: f.filter, cb: cb });
+            else window.__hub.channels[topic] = { cb: cb };
+            return ch; },
           subscribe: function (cb) { setTimeout(function () { cb('SUBSCRIBED'); }, 0); return ch; } };
         return ch;
       },
-      removeChannel: function (ch) { delete window.__hub.channels[ch.topic]; },
+      removeChannel: function (ch) { delete window.__hub.channels[ch.topic]; window.__hub.pg = window.__hub.pg.filter(function (b) { return b.topic !== ch.topic; }); },
     };
   } };
 })();`;

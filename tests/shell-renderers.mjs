@@ -76,7 +76,7 @@ if (process.argv.includes('--selftest')) {
     let i = 0;
     for (const m of MUTANTS) {
       const base = join(tmp, String(i++));
-      for (const d of ['src/data', 'src/shell', 'src/utils', 'src/session', 'src/render', 'src/hunt-view', 'src/core']) { mkdirSync(join(base, d), { recursive: true }); cpSync(join(ROOT, d), join(base, d), { recursive: true }); }
+      for (const d of ['src/data', 'src/shell', 'src/utils', 'src/session', 'src/render', 'src/hunt-view', 'src/core', 'src/social']) { mkdirSync(join(base, d), { recursive: true }); cpSync(join(ROOT, d), join(base, d), { recursive: true }); }
       const p = join(base, m.file), src = readFileSync(p, 'utf8');
       if (!src.includes(m.from)) { console.error('selftest anchor missing for: ' + m.name); process.exit(2); }
       writeFileSync(p, src.replace(m.from, m.to));

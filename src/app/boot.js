@@ -16,15 +16,15 @@
 // hr_closed); the first such answer replaces everything with the closed notice.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPABASE_CONFIG, createSupabaseClient } from '../net/supabase-bootstrap.js?v=590';
-import { createAuth } from '../net/auth.js?v=590';
-import { SESSION_CONFIG } from '../session/config.js?v=590';
-import { createServerLink } from '../session/server.js?v=590';
-import { AccountSession } from '../session/account-session.js?v=590';
-import { FRAME_EVENT } from '../session/character-session.js?v=590';
-import { renderAuthScreen } from './sign-in.js?v=590';
-import { mountWorldPane } from './world-pane.js?v=590';
-import { escapeHtml as esc } from '../utils/dom.js?v=590';
+import { SUPABASE_CONFIG, createSupabaseClient } from '../net/supabase-bootstrap.js?v=591';
+import { createAuth } from '../net/auth.js?v=591';
+import { SESSION_CONFIG } from '../session/config.js?v=591';
+import { createServerLink } from '../session/server.js?v=591';
+import { AccountSession } from '../session/account-session.js?v=591';
+import { FRAME_EVENT } from '../session/character-session.js?v=591';
+import { renderAuthScreen } from './sign-in.js?v=591';
+import { mountWorldPane } from './world-pane.js?v=591';
+import { escapeHtml as esc } from '../utils/dom.js?v=591';
 
 const DISCORD = 'https://discord.gg/eJrUSUJM3M';
 

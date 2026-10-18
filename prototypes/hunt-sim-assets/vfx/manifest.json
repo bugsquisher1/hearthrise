@@ -489,14 +489,14 @@
    "additive": true,
    "image_id": "9c5c881b-374d-4129-9c3a-c31b51a68c92"
   },
-  "cast_paladin_aim_glint": {
+  "cast_ranger_aim_glint": {
    "frames": [
-    "cast_paladin_aim_glint/0.png",
-    "cast_paladin_aim_glint/1.png",
-    "cast_paladin_aim_glint/2.png",
-    "cast_paladin_aim_glint/3.png",
-    "cast_paladin_aim_glint/4.png",
-    "cast_paladin_aim_glint/5.png"
+    "cast_ranger_aim_glint/0.png",
+    "cast_ranger_aim_glint/1.png",
+    "cast_ranger_aim_glint/2.png",
+    "cast_ranger_aim_glint/3.png",
+    "cast_ranger_aim_glint/4.png",
+    "cast_ranger_aim_glint/5.png"
    ],
    "frame_count": 6,
    "fps": 9,

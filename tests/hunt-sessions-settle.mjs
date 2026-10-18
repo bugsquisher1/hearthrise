@@ -590,13 +590,20 @@ const ENGINE_ARMS = {
   QUIVER: async (M) => {
     const problems = [];
     /* The bar holds one ability that looses no shot, so every arrow is a basic's. */
-    const out = runCut(M, () => [memberIn(M, 'a', { role: 'ranger', bar: ['hunters_mark'], bag: { bronze_arrows: { loaded: 40, left: 40, essential: true } },
-      equipment: { weapon: 'oak_shortbow', ammo: 'bronze_arrows' }, empty: 'end', level: 30 })], 1800000, []);
+    const ranger = (ammo, n) => () => [memberIn(M, 'a', { role: 'ranger', bar: ['hunters_mark'], bag: { [ammo]: { loaded: n, left: n, essential: true } },
+      equipment: { weapon: 'oak_shortbow', ammo }, empty: 'end', level: 30 })];
+    const out = runCut(M, ranger('barbed_arrows', 40), 1800000, []);
     const r = out.outs.flatMap((o) => o.members);
-    const used = r.reduce((a, x) => a + (x.hunt.uses.bronze_arrows || 0), 0);
+    const used = r.reduce((a, x) => a + (x.hunt.uses.barbed_arrows || 0), 0);
     const end = r.find((x) => x.hunt.ended);
     if (used !== 40) problems.push(`a 40-arrow bag loosed ${used} arrows`);
     if (!end || end.hunt.ended.reason !== 'ammo_out') problems.push(`the dry quiver ended ${JSON.stringify(end && end.hunt.ended)}, not ammo_out`);
+    /* THE FREE RUNG (ammoPerShot 0): one Bronze Arrow in the bag shoots all window and is never spent. */
+    const free = runCut(M, ranger('bronze_arrows', 1), 600000, []);
+    const f = free.outs.flatMap((o) => o.members);
+    const shots = free.outs.reduce((a, o) => a + o.events.filter((e) => e.type === 'dmg' && e.ability === 'basic').length, 0);
+    if (f.some((x) => (x.hunt.uses.bronze_arrows || 0) > 0)) problems.push('the free rung was spent from the bag');
+    if (!(shots > 10)) problems.push(`one free arrow shot ${shots} basics in ten minutes — the free rung does not shoot`);
     return problems;
   },
 
@@ -1313,6 +1320,8 @@ const MUTANTS = [
     from: '      const standing = !!u && u.alive;', to: '      const standing = !!u;' },
   { arm: 'QUIVER', name: '[C2 ammoGuard] a shot is loosed but its arrow is never taken from the bag', file: 'src/core/hunt/abilities.js',
     from: '    if (!takeLine(h.hs, l, sc.atMs)) { h.hs.goldOut = true; return false; }\n  }\n  return true;', to: '  }\n  return true;' },
+  { arm: 'QUIVER', name: 'the free rung is spent like a paid one', file: 'src/core/hunt/abilities.js',
+    from: "    if (l.source === 'own' && ammoPerShot(ITEMS[l.id]) === 0) return true;\n", to: '' },
   { arm: 'QUIVER', name: 'a ranged basic swings without a shot', file: 'src/core/hunt/damage.js',
     from: '    if (shoots && !payBasic(inst, u, { ammo: true }, sc)) continue;', to: '' },
   { arm: 'QUIVER', name: '[C2 skipFoodDebit] a carried use is not debited', file: 'src/core/action-rules.js',

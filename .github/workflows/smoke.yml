@@ -2237,20 +2237,6 @@ jobs:
       - name: Install node modules (no browser)
         run: npm install --no-audit --no-fund
 
-      # HUNT SESSIONS, the engine half (ruling HR-2026-10-14 §4, lane E). Pure
-      # src/core, no DB. TICK-1: N ten-second ticks equal one span byte for byte
-      # (session, bag, tally, events, ledger-shaped fx) through falls, knock-outs,
-      # arrows and a Feast; BOTH-PATH: settles cut where a connected client's
-      # presses cut them write what the bare world tick writes; TICK-MANUAL: a
-      # press equals its matching rule; BAG: loaded = used + left; HEAL: "*heal"
-      # covers the missing HP before it saves gold; END: END_ORDER; BUFF: the SQL
-      # segment rule. --mutate plants eight defects, each red on its named arm.
-      - name: Hunt sessions — one swing clock, action bar, bag, end order
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/hunt-session-engine.mjs
-          node tests/hunt-session-engine.mjs --mutate
-
       # THE HUNT CORE (HUNT_SCREEN_SPEC §1.6): every tests/hunt-core/*.mjs —
       # grid, the one leash, movement, the event schema, the persisted world,
       # stepSwing inside the one loop (split-parity with the world re-decoded

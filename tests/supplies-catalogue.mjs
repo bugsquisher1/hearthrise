@@ -26,16 +26,20 @@
 //   B2 every crafted ARROW from tier 2 up has a shop version, NO rune has one
 //      (the rune system is being replaced — designer review K10, 2026-10-15),
 //      and every monster tier has exactly one shop heal and one shop drink
-//   L1 ONE consumable cooldown lane (Combat Design Bible v1.4); the ability
-//      lanes are reserved, with no cooldown until they ship
+//   L1 ONE food-and-drink lane at 1 s (HUNT_SCREEN_SPEC §3.4 #3, consumables.js
+//      laneMs; lane S1 retired the C2 2 s copy); the ability lanes are abilities.js's
 //   B4 no GOLD offer on a counter (src/data/shops.js) sells a heal or a drink
 //      for less gold per point than the shop's per-use basic of that tier
 //      (master plan row 2: the Counter's seed.cooked_* sold food ~4x cheaper
 //      per HP than the basic, so the per-use price meant nothing)
 //   B3 a bigger shop heal or drink never costs less per point than a smaller
-//   R1 the rule vocabulary is exactly the rulings', and frozen
-//   R2 the default preset is food at HP <= 50% and drink at mana <= 40%, bag
-//      first then shop, nothing parked, inside the vocabulary
+//   R1 the hero settings (target modes, stances, action-set limits, role
+//      defaults) are frozen, and the action set is 5 presets of 20 ability slots
+//   R2 the default hero eats under 50% HP and drinks under 30% mana
+//      (consumables.js, ASSUMED by lane H4), own stock first, then the store
+//      (SUPPLY_SOURCE mine + ON_EMPTY switch, Tyler 10-16). Lane S1 retired the
+//      C2 conditional supply bar (rule subjects, presets of supply slots): hunts
+//      are idle and the bar is ability ids (Tyler 10-16)
 //   H1 every hunt walks 10..300 s in whole ticks; every monster tier has a walk
 //   G1 every hunt has a melee, ranged and magic bag and every monster tier a
 //      bag; lines are packed supplies of the right kind; no parked buffs
@@ -54,11 +58,11 @@ import {
 } from '../src/data/supplies.js';
 import { BASIC_SUPPLIES, BASIC_INDEX, BASIC_EFFECT_SHARE, BASIC_AMMO_PREMIUM, basicFor } from '../src/data/supply-basics.js';
 import { DRINK_ITEMS, DRINK_RECIPES, DRINK_DESC } from '../src/data/drinks.js';
+import { TARGET_MODES, HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from '../src/data/rule-subjects.js';
+import { CONSUMABLE_RULES } from '../src/data/consumables.js';
+import { ABILITY_LANES } from '../src/data/abilities.js';
 import {
-  RULE_SUBJECTS, RULE_OPERATORS, COOLDOWN_LANES, LANE_OF_KIND, ACTION_SET_LIMITS, HEAL_ANY, SLOT_TARGETS, DEFAULT_PRESET, parseSubject,
-} from '../src/data/rule-subjects.js';
-import {
-  SESSION_LIMITS, END_ORDER, END_CARD_COPY, END_REASON_COPY, TIMELINE_COPY, EVENT_COPY,
+  SUPPLY_SOURCE, ON_EMPTY, SESSION_LIMITS, END_ORDER, END_CARD_COPY, END_REASON_COPY, TIMELINE_COPY, EVENT_COPY,
 } from '../src/data/hunt-sessions.js';
 import { HUNTS, TRAINING_TRAVEL_S, trainingHunt } from '../src/data/hunts.js';
 import { CROPS } from '../src/data/gathering.js';
@@ -69,7 +73,6 @@ import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
 import { SHOP_OFFERS } from '../src/data/shops.js';
 
 /* The rulings' own lists, typed once here so the data can be held to them. */
-const RULING_SUBJECTS = ['self_hp_pct', 'self_mana_pct', 'buff_left_s', 'buff_missing', 'bag_left', 'session_minutes'];
 /* 'vigour' LEFT the end order (designer ruling, 2026-10-14 loop check) and
    'stamina' took its place (Tyler, same day: "steal the stamina system, 1:1
    like Huntera"); `gold_out` follows the bag's own ends (Tyler, same day: a
@@ -77,10 +80,6 @@ const RULING_SUBJECTS = ['self_hp_pct', 'self_mana_pct', 'buff_left_s', 'buff_mi
 const RULING_END_ORDER = ['falls', 'heals_out', 'ammo_out', 'gold_out', 'stamina', 'hours', 'left', 'changed', 'server'];
 /* vigour_low -> stamina_low (master plan row 4); `cover` = sell-to-cover (row 3). */
 const RULING_EVENTS = ['entered', 'level_up', 'rare_drop', 'fall', 'slot_dry', 'stamina_low', 'cover', 'ended'];
-/* The 4th column: is the slot ON for a new character? The shop slots are OFF
-   (master plan row 25: gold moves only through a slot the player switched on). */
-const RULING_PRESET = [['*heal', 'self_hp_pct', 50, true], ['*heal_shop', 'self_hp_pct', 50, false],
-  ['*mana', 'self_mana_pct', 40, true], ['*mana_shop', 'self_mana_pct', 40, false]];
 const PER_USE_KINDS = ['heal', 'mana', 'ammo'];   // buff is parked
 /* `activity`: the server's name for what the character resumes after an
    automatic end ("fishing at Shrimp Spot", Tyler 2026-10-14). */
@@ -99,20 +98,6 @@ function deepFrozen(o) {
 
 function crafted(sources, id) {
   return (sources.get(id) || []).some((l) => l === 'shop' || l.startsWith('made by '));
-}
-
-/** Validate one condition against the vocabulary. Returns an error string or null. */
-function conditionError(c, supplies) {
-  const { base, param } = parseSubject(c && c.subject);
-  const sub = own(RULE_SUBJECTS, base) ? RULE_SUBJECTS[base] : null;
-  if (!sub) return `subject '${c && c.subject}' is not in the allowed list`;
-  if (sub.param === null && param !== null) return `subject '${base}' takes no parameter`;
-  if (sub.param === 'buff' && !COMBAT_BUFF_TYPES.includes(param)) return `'${c.subject}' names no combat buff type`;
-  if (sub.param === 'item' && !(param in supplies)) return `'${c.subject}' names no supply`;
-  if (sub.range === null) return ('op' in c || 'value' in c) ? `'${base}' takes no operator or value` : null;
-  if (!own(RULE_OPERATORS, c.op)) return `operator '${c.op}' is not <= or >=`;
-  if (!Number.isInteger(c.value) || c.value < sub.range[0] || c.value > sub.range[1]) return `value ${c.value} is outside ${sub.range.join('..')}`;
-  return null;
 }
 
 /** What one point (or one shot) of a partner costs at book value. */
@@ -241,30 +226,17 @@ function checkBasics(d, f) {
 }
 
 function checkRules(d, f) {
-  if (JSON.stringify(Object.keys(d.subjects)) !== JSON.stringify(RULING_SUBJECTS)) f('R1', `subjects ${Object.keys(d.subjects).join(',')} are not the rulings' ${RULING_SUBJECTS.join(',')}`);
-  if (JSON.stringify(Object.keys(RULE_OPERATORS)) !== '["<=",">="]') f('R1', 'operators are not exactly <= and >=');
-  if (JSON.stringify(Object.keys(COOLDOWN_LANES)) !== '["consumable","offense","heal_spell"]'
-    || COOLDOWN_LANES.consumable.ms !== 2000 || COOLDOWN_LANES.consumable.active !== true
-    || COOLDOWN_LANES.offense.active !== false || COOLDOWN_LANES.heal_spell.active !== false) f('L1', 'the cooldown lanes are not one consumable lane at 2 s plus the reserved offense and heal_spell');
-  if (['heal', 'mana', 'buff'].some((k) => LANE_OF_KIND[k] !== 'consumable')) f('L1', 'a heal, a drink or a buff food fires on a lane other than the consumable one');
-  for (const [name, o] of Object.entries({ RULE_SUBJECTS: d.subjects, RULE_OPERATORS, COOLDOWN_LANES, ACTION_SET_LIMITS, SLOT_TARGETS, DEFAULT_PRESET: d.preset })) {
+  /* L1: the ONE food-and-drink lane (spec §3.4 #3 picks 1 s; consumables.js is its one source). */
+  if (d.consumable.laneMs !== 1000) f('L1', `the food-and-drink lane is ${d.consumable.laneMs} ms, not the spec's 1 s`);
+  if (!(ABILITY_LANES.offense > 0 && ABILITY_LANES.heal > 0)) f('L1', 'the ability lanes are not abilities.js offense + heal');
+  for (const [name, o] of Object.entries({ TARGET_MODES: d.targets, HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS, CONSUMABLE_RULES: d.consumable })) {
     if (!deepFrozen(o)) f('R1', `${name} is not frozen all the way down`);
   }
-  /* 20 slots: Huntera's bar, two rows of ten (Tyler 2026-10-14). */
-  if (ACTION_SET_LIMITS.presets !== 5 || ACTION_SET_LIMITS.slots !== 20 || ACTION_SET_LIMITS.conditions !== 3) f('R1', 'action-set limits are not 5 presets, 20 slots, 3 conditions');
-  if (SLOT_TARGETS[HEAL_ANY].kind !== 'heal' || SLOT_TARGETS[HEAL_ANY].from !== 'bag') f('R1', `${HEAL_ANY} is not "cheapest heal in the bag"`);
-
-  const preset = d.preset;
-  if (!preset.slots.length || preset.slots.length > ACTION_SET_LIMITS.slots) f('R2', 'default preset slot count out of range');
-  preset.slots.forEach((slot, i) => {
-    const target = own(SLOT_TARGETS, slot.item) ? SLOT_TARGETS[slot.item].kind
-      : own(BASIC_INDEX, slot.item) ? BASIC_INDEX[slot.item].kind : (SUPPLIES[slot.item] || {}).kind;
-    if (target !== 'heal' && target !== 'mana') f('R2', `slot ${i} fires '${slot.item}', which is not a heal or a drink (buffs are parked)`);
-    if (slot.conditions.length > ACTION_SET_LIMITS.conditions) f('R2', `slot ${i} has more than ${ACTION_SET_LIMITS.conditions} conditions`);
-    for (const c of slot.conditions) { const e = conditionError(c, SUPPLIES); if (e) f('R2', `slot ${i}: ${e}`); }
-  });
-  const shape = preset.slots.map((s) => [s.item, (s.conditions[0] || {}).subject, (s.conditions[0] || {}).value, s.on === true]);
-  if (JSON.stringify(shape) !== JSON.stringify(RULING_PRESET)) f('R2', `the default preset is ${JSON.stringify(shape)}, not food at HP <= 50% and drink at mana <= 40%, bag then shop (shop slots off)`);
+  /* 20 slots: Huntera's bar, two rows of ten (Tyler 2026-10-14); the bar holds ability ids. */
+  if (ACTION_SET_LIMITS.presets !== 5 || ACTION_SET_LIMITS.slots !== 20) f('R1', 'action-set limits are not 5 presets of 20 slots');
+  /* R2: the default hero. */
+  if (d.consumable.foodBelowPct !== 50 || d.consumable.drinkBelowPct !== 30) f('R2', `the default hero eats under ${d.consumable.foodBelowPct}% and drinks under ${d.consumable.drinkBelowPct}%, not 50% / 30%`);
+  if (d.supply.default !== 'mine' || d.onEmpty.default !== 'switch') f('R2', `the default supply is ${d.supply.default} + ${d.onEmpty.default}, not own stock first then the store`);
 }
 
 function checkHuntsAndGuides(d, f) {
@@ -342,13 +314,11 @@ export function check(d) {
 
 const REAL = () => ({
   rows: SUPPLY_ROWS, items: ITEMS, drinks: DRINK_ITEMS, drinkRecipes: DRINK_RECIPES, basics: BASIC_SUPPLIES,
-  combatBuffs: COMBAT_BUFF_TYPES, subjects: RULE_SUBJECTS, preset: DEFAULT_PRESET, hunts: HUNTS, guides: BAG_GUIDE_BY_HUNT,
+  combatBuffs: COMBAT_BUFF_TYPES, targets: TARGET_MODES, consumable: CONSUMABLE_RULES, supply: SUPPLY_SOURCE, onEmpty: ON_EMPTY,
+  hunts: HUNTS, guides: BAG_GUIDE_BY_HUNT,
   limits: SESSION_LIMITS, endOrder: END_ORDER, endCopy: END_REASON_COPY, checkValues: true, offers: SHOP_OFFERS,
 });
 
-function presetWith(cond) {
-  return Object.freeze({ name: 'p', slots: Object.freeze([Object.freeze({ item: HEAL_ANY, on: true, conditions: Object.freeze([Object.freeze(cond)]) })]) });
-}
 const withBasic = (d, id, patch) => { d.basics = d.basics.map((b) => (b.id === id ? { ...b, ...patch } : b)); };
 
 function selftest() {
@@ -374,12 +344,10 @@ function selftest() {
     ['B3', 'a big shop heal cheaper per point than a small one', (d) => { withBasic(d, 'salted_lobster', { price: 200 }); }],
     ['M1', 'a drink batch that vends over 5x its crop', (d) => { d.drinks = { ...d.drinks, turnip_juice: { ...d.drinks.turnip_juice, v: 100 } }; }],
     ['M1', 'a staged drink with no recipe', (d) => { d.drinkRecipes = d.drinkRecipes.filter((r) => r.output !== 'pumpkin_cider'); }],
-    ['R2', 'a rule subject outside the list', (d) => { d.preset = presetWith({ subject: 'enemy_hp_pct', op: '<=', value: 50 }); }],
-    ['R2', 'a parked buff in the default preset', (d) => {
-      d.preset = Object.freeze({ ...DEFAULT_PRESET, slots: Object.freeze([...DEFAULT_PRESET.slots, Object.freeze({ item: 'vegetable_stew', on: true, conditions: Object.freeze([]) })]) });
-    }],
-    ['R1', 'an extra subject in the vocabulary', (d) => { d.subjects = Object.freeze({ ...RULE_SUBJECTS, enemy_hp_pct: RULE_SUBJECTS.self_hp_pct }); }],
-    ['R2', 'a value outside the subject range', (d) => { d.preset = presetWith({ subject: 'self_mana_pct', op: '<=', value: 150 }); }],
+    ['L1', 'the food lane back at the C2 2 s', (d) => { d.consumable = Object.freeze({ ...CONSUMABLE_RULES, laneMs: 2000 }); }],
+    ['R1', 'a target-mode table left unfrozen', (d) => { d.targets = { ...TARGET_MODES }; }],
+    ['R2', 'the default hero eats only under 30%', (d) => { d.consumable = Object.freeze({ ...CONSUMABLE_RULES, foodBelowPct: 30 }); }],
+    ['R2', 'a hunt stops for lack of stock by default', (d) => { d.onEmpty = { ...ON_EMPTY, default: 'end' }; }],
     ['S2', 'raw food listed as a heal', (d) => { d.rows = [...d.rows, ['heal', 'trout', true]]; }],
     ['S5', 'a supply item left off the list', (d) => { d.rows = d.rows.filter((r) => r[1] !== 'cooked_trout'); }],
     ['S6', 'whetstones made essential', (d) => { d.rows = d.rows.map((r) => (r[1] === 'iron_whetstone' ? ['ammo', r[1], true] : r)); }],
@@ -428,7 +396,7 @@ if (isMain) {
     }
     const n = (k) => SUPPLY_ROWS.filter((r) => r[0] === k).length;
     console.log(`supplies-catalogue: OK — ${SUPPLY_ROWS.length} packed supplies (${n('heal')} heal, ${n('ammo')} ammo, ${n('buff')} parked buff) `
-      + `+ ${MANA_SUPPLY_ROWS.length} staged drinks; ${BASIC_SUPPLIES.length} shop supplies paid per use; ${RULING_SUBJECTS.length} rule subjects; `
+      + `+ ${MANA_SUPPLY_ROWS.length} staged drinks; ${BASIC_SUPPLIES.length} shop supplies paid per use; ${Object.keys(TARGET_MODES).length} target modes; `
       + `default preset valid; ${HUNTS.length} hunts with walks and melee/ranged/magic bags; `
       + `${END_ORDER.length} end reasons and ${RULING_EVENTS.length} timeline events with copy`);
   } catch (e) {

@@ -8,21 +8,18 @@
 // ARMS
 //   G1  the generated catalogue matches src/data/hunts.js (gen-hunts --check)
 //   G2  the generator REFUSES an unknown monster id (and the other shapes)
-//   W1  weighted pick over N=120,000 lands within 1 percentage point of w/Σw
-//   W2  a one-spawn hunt draws NOTHING from the rng (training stays byte-identical)
-//   P1  THE MIX, ON A HUNT SESSION (lane C2: a fight is a session, one engine
-//       whether watched or not — its split-settle parity is
-//       hunt-sessions-settle TICK-1): a mixed hunt fights more than one
-//       spawn, spawns only, and the same seed replays identically
-//   S1  SERVER: computeAccrual on a hunt session accrues, files a bestiary op
-//       per monster it fought (only spawns), carries the fight on a spawn, and
-//       is deterministic per seed (S2, the attended top-up, left with it)
-//   R1  REGRESSION: a training fight (monster pointer) prices byte-identically
-//       with and without the hunt seam (no `hunt` in ctx, no extra draw)
+//   S1  SERVER: a hunt instance on the hunt's spawns (tests/hunt-fixture.mjs
+//       huntAccrual) accrues, files a bestiary op per monster it fought (only
+//       spawns, at least two), and is deterministic per seed
 //   C1  the chain replays with both files and a SECOND apply is byte-identical
 //   K1  SECURITY C3: a hunt row journals `km` (kills by monster, spawns only,
-//       summing to `kills`); a training row carries none
-//   F1  a FORGED fight checkpoint on a non-spawn is never resumed on a hunt
+//       summing to `kills`)
+//   RETIRED with the single-foe path (lane S1): W1/W2 (pickSpawn's weighted
+//   draw — a hunt GROUND places its spawns, src/data/hunt-grounds.js), P1/R1
+//   (the mixed single-foe span and the training seam — every fight is an
+//   instance; split parity is hunt-sessions-settle TICK-1) and F1 (the fight
+//   checkpoint — the world carries its units, hunt-sessions-settle VALUE
+//   refuses a world of the wrong shape or swing).
 //   X1  --mutate only: the C2 spawn gate and the C3 rally pricing, each
 //       removed from its migration, make that file's executed §4 raise
 //   B1  the band floor is SQL's: the start-gate migration refuses below band
@@ -35,19 +32,15 @@ import { fileURLToPath } from 'node:url';
 import { HUNTS, HUNT_INDEX } from '../src/data/hunts.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { ITEMS } from '../src/data/items.js';
-import { pickSpawn } from '../src/core/hunt-spawn.js';
-import { simulateSpan } from '../src/core/combat-sim.js';
-import { COMBAT_BALANCE } from '../src/core/combat.js';
-import { createRng } from '../src/core/rng.js';
 import { huntRows } from '../tools/gen-hunts.mjs';
-import { computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
-import { huntOn, huntAccrualInput } from './hunt-fixture.mjs';
+import * as ACCRUAL from '../supabase/functions/hr-accrue/accrual.js';
+import { huntAccrual } from './hunt-fixture.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MUTATE = process.argv.includes('--mutate');
 
 /* ── THE SUBJECTS, injectable so --mutate can plant a defect in each ─────── */
-const REAL = { pickSpawn, huntRows };
+const REAL = { huntRows };
 
 function run(S) {
   const red = [];
@@ -67,98 +60,30 @@ function run(S) {
   try { S.huntRows(HUNTS, MONSTERS); } catch (e) { shipped = false; ok('G2', false, `shipped data refused: ${e.message}`); }
   ok('G2', shipped, 'CONTROL');
 
-  // W1
-  const N = 120000;
-  for (const h of HUNTS) {
-    const rng = createRng(1234);
-    const got = Object.create(null);
-    for (let i = 0; i < N; i++) { const m = S.pickSpawn(h.spawns, rng); got[m] = (got[m] || 0) + 1; }
-    const tot = h.spawns.reduce((a, s) => a + s.w, 0);
-    for (const s of h.spawns) {
-      const p = (got[s.monster] || 0) / N;
-      ok('W1', Math.abs(p - s.w / tot) < 0.01, `${h.id}/${s.monster}: ${p.toFixed(4)} vs ${(s.w / tot).toFixed(4)}`);
-    }
-    ok('W1', Object.keys(got).every((m) => h.spawns.some((s) => s.monster === m)), `${h.id} picked a non-spawn`);
-  }
-
-  // W2
-  let draws = 0;
-  const counting = { int() { draws++; return 1; }, next() { draws++; return 0; }, chance() { draws++; return false; } };
-  ok('W2', S.pickSpawn([{ monster: 'rat', w: 7 }], counting) === 'rat' && draws === 0,
-    `a one-spawn pick drew ${draws} time(s)`);
-
-  // P1 — the mix, on a hunt session, one seed.
+  // S1 — the server engine.
   const hunt = HUNT_INDEX.mill_cellar;
-  const TICK = COMBAT_BALANCE.tickMs; const TICKS = 3000;
-  const fresh = () => ({ activeMonster: hunt.spawns[0].monster, monsterHp: 0, monsterMaxHp: 0,
-    playerHp: 400, playerMaxHp: 400, gold: 0, stats: {}, skills: {} });
-  const T0 = Date.UTC(2026, 9, 20, 1, 0, 0);
-  const ctxFor = (tally, withHunt = true) => ({
-    fromMs: T0, toMs: T0 + TICKS * TICK,
-    tickMs: TICK, monsters: MONSTERS, items: ITEMS, ...(withHunt ? { hunt } : {}),
-    bonus: () => 0, style: null,
-    playerRolls: () => ({ accuracy: 0.9, maxHit: 6, critChance: 0.05 }),
-    monsterRolls: () => ({ accuracy: 0, maxHit: 0 }),   // no deaths
-    weakness: () => ({ dropMult: 1 }),
-    fx: {
-      addItem(id, q) { tally.items[id] = (tally.items[id] || 0) + q; },
-      addXp(sk, a) { tally.xp[sk] = (tally.xp[sk] || 0) + a; },
-      recordKill(id) { tally.kills[id] = (tally.kills[id] || 0) + 1; },
-    },
-  });
-  const spanOf = (seed, mk = fresh, withHunt = true) => {
-    const t = { items: {}, xp: {}, kills: {} }; const st = mk(); const c = ctxFor(t, withHunt);
-    huntOn(st, c, { seed, fromMs: T0, pull: { size: 1, respawnMs: 0 } });
-    const sum = simulateSpan(st, c);
-    return { t, st, sum };
-  };
-  const pA = spanOf(77); const pB = spanOf(77);
-  const norm = (o) => JSON.stringify(Object.keys(o).sort().map((k) => [k, o[k]]));
-  ok('P1', norm(pA.t.kills) === norm(pB.t.kills) && pA.st.gold === pB.st.gold && norm(pA.t.xp) === norm(pB.t.xp)
-    && norm(pA.t.items) === norm(pB.t.items), 'the same seed did not replay the same hunt span');
-  ok('P1', Object.keys(pA.t.kills).length >= 2 && pA.sum.kills > 50,
-    `the mixed hunt fought ${JSON.stringify(pA.t.kills)} (${pA.sum.kills} kills) — not a mix`);
-  ok('P1', Object.keys(pA.t.kills).every((m) => hunt.spawns.some((s) => s.monster === m)), 'a non-spawn was fought');
-
-  // S1 — the server engine, AWAY.
   const NOW = Date.UTC(2026, 9, 20, 9, 0, 0); const FROM = NOW - 4 * 3600000;
   const skills = { attack: 200000, strength: 200000, defense: 200000, hitpoints: 200000 };
-  const srv = (over) => computeAccrual(huntAccrualInput({
+  const srv = (over) => huntAccrual({
     userId: '00000000-0000-4000-8000-0000000c1a01', slot: 0, nowMs: NOW, accruedToMs: FROM, activeSinceMs: FROM,
-    activeKind: 'combat', activeId: 'mill_cellar', capMs: 12 * 3600000, seed: 4242,
-    hp: 99, maxHp: 99, gold: 0, skills, equipment: {}, items: ITEMS, monsters: MONSTERS, fight: {}, ...over,
-  }, { seed: 4242 }));
+    activeKind: 'combat', activeId: 'mill_cellar', seed: 4242,
+    hp: 99, maxHp: 99, gold: 0, skills, equipment: {}, items: ITEMS, monsters: MONSTERS, ...over,
+  }, { seed: 4242 });
   const a1 = srv({}); const a2 = srv({});
-  ok('S1', a1.accrued === true, `a hunt pointer did not accrue: ${a1.reason}`);
+  ok('S1', a1.accrued === true, `a hunt did not accrue: ${a1.reason}`);
   if (a1.accrued) {
     const bops = (a1.delta.progress || []).filter((p) => String(p.key).startsWith('ev:kill_monster:'));
     const ids = bops.map((p) => p.key.slice('ev:kill_monster:'.length));
-    ok('S1', ids.length >= 2 && ids.every((m) => hunt.spawns.some((s) => s.monster === m)),
+    ok('S1', ids.length >= 2 && ids.every((m) => hunt.spawns.some((x) => x.monster === m)),
       `bestiary ops ${JSON.stringify(ids)} (want >= 2, spawns only)`);
     ok('S1', !ids.includes('mill_cellar'), 'the area id was filed as a bestiary row');
-    ok('S1', !a1.delta.fight || !a1.delta.fight.monster || hunt.spawns.some((s) => s.monster === a1.delta.fight.monster),
-      `fight carried on a non-spawn ${JSON.stringify(a1.delta.fight)}`);
     ok('S1', JSON.stringify(a1.delta) === JSON.stringify(a2.delta), 'the same seed did not replay the same delta');
-    ok('S1', a1.huntKills && Object.keys(a1.huntKills).length >= 2, `huntKills ${JSON.stringify(a1.huntKills)}`);
   }
-  const unk = srv({ activeId: 'not_a_hunt' });
-  ok('S1', unk.accrued === false, 'an unknown combat pointer accrued');
+  let unknown = false;
+  try { srv({ activeId: 'not_a_hunt' }); } catch { unknown = true; }
+  ok('S1', unknown, 'an unknown hunt id was fought');
 
-  // R1 — training is unchanged by the seam.
-  const t1 = srv({ activeId: 'rat' });
-  ok('R1', t1.accrued === true && t1.huntKills === undefined, 'a training window grew a huntKills key');
-  {
-    const rat = () => Object.assign(fresh(), { activeMonster: 'rat' });
-    const plain = spanOf(5, rat, false);
-    const t2 = { items: {}, xp: {}, kills: {} }; const s2 = rat(); const c2 = ctxFor(t2, false);
-    c2.hunt = { spawns: [{ monster: 'rat', w: 1 }] };
-    huntOn(s2, c2, { seed: 5, fromMs: T0, pull: { size: 1, respawnMs: 0 } });
-    simulateSpan(s2, c2);
-    ok('R1', JSON.stringify([plain.st.gold, plain.t]) === JSON.stringify([s2.gold, t2]) && Object.keys(plain.t.kills).join() === 'rat',
-      'a one-spawn hunt priced differently from the plain training fight');
-  }
-
-  for (const r of serverArms(computeAccrual)) red.push(r);
+  for (const r of serverArms(ACCRUAL)) red.push(r);
 
   // B1
   const gate = readFileSync(join(ROOT, 'supabase', 'migrations', '2026-10-20-hunts-start-gate.sql'), 'utf8');
@@ -169,17 +94,17 @@ function run(S) {
 
 /* K1 / K2 / F1 — the server engine's hunt journal and its forged-fight guard.
    Injectable so --mutate can run them against a planted temp copy. */
-function serverArms(CA) {
+function serverArms(engine) {
   const red = [];
   const ok = (id, cond, msg) => { if (!cond) red.push(`${id}: ${msg}`); };
   const hunt = HUNT_INDEX.mill_cellar;
   const NOW = Date.UTC(2026, 9, 20, 9, 0, 0); const FROM = NOW - 2 * 3600000;
   const skills = { attack: 200000, strength: 200000, defense: 200000, hitpoints: 200000 };
-  const srv = (over) => CA(huntAccrualInput({
+  const srv = (over) => huntAccrual({
     userId: '00000000-0000-4000-8000-0000000c1a02', slot: 0, nowMs: NOW, accruedToMs: FROM, activeSinceMs: FROM,
-    activeKind: 'combat', activeId: 'mill_cellar', capMs: 12 * 3600000, seed: 99,
-    hp: 99, maxHp: 99, gold: 0, skills, equipment: {}, items: ITEMS, monsters: MONSTERS, fight: {}, ...over,
-  }, { seed: 99 }));
+    activeKind: 'combat', activeId: 'mill_cellar', seed: 99,
+    hp: 99, maxHp: 99, gold: 0, skills, equipment: {}, items: ITEMS, monsters: MONSTERS, ...over,
+  }, { seed: 99, engine });
   // K1
   const h = srv({});
   const meta = h.accrued ? h.delta.journal.meta : {};
@@ -188,14 +113,6 @@ function serverArms(CA) {
   ok('K1', h.accrued && sum === meta.kills && sum > 0, `km ${JSON.stringify(km)} does not sum to kills ${meta.kills}`);
   ok('K1', Object.keys(km).length >= 2 && Object.keys(km).every((m) => hunt.spawns.some((sp) => sp.monster === m)),
     `km ${JSON.stringify(km)} — want >= 2 spawns, spawns only`);
-  const t = srv({ activeId: 'rat' });
-  ok('K1', t.accrued && !('km' in t.delta.journal.meta), 'a training row carries km');
-  // F1 — a goblin checkpoint at 1 HP on a hunt that has no goblins.
-  const forged = srv({ fight: { monster: 'goblin', hp: 1, kills: 0 } });
-  const fk = forged.accrued ? (forged.delta.journal.meta.km || {}) : {};
-  ok('F1', forged.accrued && !('goblin' in fk)
-    && !(forged.delta.progress || []).some((op) => op.key === 'ev:kill_monster:goblin'),
-    `a forged non-spawn checkpoint was fought: km ${JSON.stringify(fk)}`);
   return red;
 }
 
@@ -260,53 +177,20 @@ async function chainArm() {
 if (!MUTATE) {
   const red = [...run(REAL), ...(await chainArm())];
   if (red.length) { console.error('hunts-c1 RED\n  ' + red.join('\n  ')); process.exit(1); }
-  console.log('hunts-c1: G1 G2 W1 W2 P1 S1 R1 K1 F1 B1 C1 green');
+  console.log('hunts-c1: G1 G2 S1 K1 B1 C1 green');
 } else {
   const MUTANTS = {
-    'uniform pick (ignores weights)': { ...REAL, pickSpawn: (sp, rng) => (sp.length === 1 ? sp[0].monster : sp[rng.int(0, sp.length - 1)].monster) },
-    'one-spawn draws': { ...REAL, pickSpawn: (sp, rng) => { rng.int(1, 2); return REAL.pickSpawn(sp, rng); } },
     'generator admits unknown ids': { ...REAL, huntRows: () => [] },
   };
   let escaped = 0;
-  /* THE ENGINE PLANT: a copy of src/ in the OS temp dir whose resolveKill
-     ignores ctx.hunt. P1's "a mix was fought" must go red on it. Never the tree. */
-  {
-    const { mkdtempSync, cpSync, rmSync, writeFileSync } = await import('node:fs');
-    const { tmpdir } = await import('node:os');
-    const { pathToFileURL } = await import('node:url');
-    const dir = mkdtempSync(join(tmpdir(), 'hunts-c1-'));
-    try {
-      cpSync(join(ROOT, 'src'), join(dir, 'src'), { recursive: true });
-      const f = join(dir, 'src', 'core', 'hunt', 'world-step.js');
-      const src = readFileSync(f, 'utf8');
-      const anchor = 'const nextId = (ctx.hunt && ctx.hunt.spawns) ? pickSpawn(ctx.hunt.spawns, rng) : id;';
-      if (src.split(anchor).length !== 2) throw new Error('engine plant anchor moved');
-      writeFileSync(f, src.replace(anchor, 'const nextId = id;'));
-      const E = await import(pathToFileURL(join(dir, 'src', 'core', 'combat-sim.js')).href);
-      const t = { items: {}, xp: {}, kills: {} };
-      const st = { activeMonster: 'rat', monsterHp: 0, monsterMaxHp: 0, playerHp: 400, playerMaxHp: 400, gold: 0, stats: {}, skills: {} };
-      const ctx = { fromMs: 0, toMs: COMBAT_BALANCE.tickMs * 500, tickMs: COMBAT_BALANCE.tickMs, monsters: MONSTERS,
-        hunt: HUNT_INDEX.mill_cellar, bonus: () => 0, playerRolls: () => ({ accuracy: 0.9, maxHit: 6, critChance: 0 }),
-        monsterRolls: () => ({ accuracy: 0, maxHit: 0 }), weakness: () => ({ dropMult: 1 }),
-        fx: { recordKill(id) { t.kills[id] = (t.kills[id] || 0) + 1; } } };
-      huntOn(st, ctx, { seed: 77, fromMs: 0, pull: { size: 1, respawnMs: 0 } });
-      E.simulateSpan(st, ctx);
-      const caught = Object.keys(t.kills).length < 2;
-      console.log(`  ${caught ? 'caught ' : 'ESCAPED'} engine ignores ctx.hunt (P1 mix)`);
-      if (!caught) escaped++;
-    } finally { rmSync(dir, { recursive: true, force: true }); }
-  }
   {
     const { mkdtempSync, cpSync, rmSync, writeFileSync } = await import('node:fs');
     const { tmpdir } = await import('node:os');
     const { pathToFileURL } = await import('node:url');
     const PLANTS = [
-      { name: 'forged non-spawn checkpoint resumed (huntSpawns bypassed)', arm: 'F1',
-        file: 'supabase/functions/hr-accrue/accrual.js',
-        from: '(fight0 && huntSpawns(hunt, fight0.monster)) ? fight0.monster', to: '(fight0 && fight0.monster) ? fight0.monster' },
       { name: 'hunt row journals no km', arm: 'K1',
         file: 'supabase/functions/hr-accrue/accrual.js',
-        from: '...(hunt && summary.kills > 0 ? { km: bestiary.counts() } : {}),', to: '' },
+        from: '...(summary.kills > 0 ? { km: s.bestiary.counts() } : {}),', to: '' },
     ];
     for (const pl of PLANTS) {
       const dir = mkdtempSync(join(tmpdir(), 'hunts-c1-'));
@@ -318,12 +202,12 @@ if (!MUTATE) {
         if (src.split(pl.from).length !== 2) throw new Error(`plant anchor moved: ${pl.name}`);
         writeFileSync(f, src.replace(pl.from, pl.to));
         const A = await import(pathToFileURL(join(dir, 'supabase/functions/hr-accrue/accrual.js')).href);
-        const red = serverArms(A.computeAccrual).filter((r) => r.startsWith(pl.arm));
+        const red = serverArms(A).filter((r) => r.startsWith(pl.arm));
         console.log(`  ${red.length ? 'caught ' : 'ESCAPED'} ${pl.name}${red.length ? ` (${pl.arm})` : ''}`);
         if (!red.length) escaped++;
       } finally { rmSync(dir, { recursive: true, force: true }); }
     }
-    const control = serverArms(computeAccrual);
+    const control = serverArms(ACCRUAL);
     if (control.length) { console.log(`  CONTROL RED: ${control[0]}`); escaped++; }
   }
   escaped += await sqlMutants();

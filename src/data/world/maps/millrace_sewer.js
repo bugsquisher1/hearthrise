@@ -123,5 +123,5 @@ export default Object.freeze({
   stations: Object.freeze({}),
   exits: Object.freeze([{ x: 0, y: 21, to: 'mill_cellar' }]),
   start: Object.freeze([1, 21]),
-  maskHash: 'ad6e51f5',
+  maskHash: 'cb4d8232',
 });

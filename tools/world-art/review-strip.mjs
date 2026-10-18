@@ -8,7 +8,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { decodePNG, encodePNG, createImage, blit, scaleNearest } from './png.mjs';
-import { FACINGS } from '../../src/data/world/art-budget.js';
+import { FACINGS, CLASSES } from '../../src/data/world/art-budget.js';
 import { ROOT } from './build.mjs';
 import { isMain } from '../../tests/_is-main.mjs';
 
@@ -18,7 +18,7 @@ function frames(id, facing) {
   if (!set) throw new Error(id + ': no sidecar under art/world/*');
   const sc = JSON.parse(readFileSync(join(ROOT, 'art/world', set, id + '.json'), 'utf8'));
   const im = decodePNG(readFileSync(join(ROOT, 'art/world', set, id + '.png')));
-  const [fw, fh] = sc.class === 'character' || sc.class === 'beast' ? [64, 64] : [48, 48];
+  const [fw, fh] = (CLASSES[sc.class] && CLASSES[sc.class].frame) || [48, 48];
   const walk = sc.anims.find((a) => a.name === 'walk');
   const row = walk && sc.anims.length > 1 ? FACINGS.length + FACINGS.indexOf(facing) : FACINGS.indexOf(facing);
   const n = (walk || sc.anims[0]).dirs[facing];

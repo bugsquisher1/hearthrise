@@ -1,0 +1,35 @@
+{
+  "id": "mb_reeds",
+  "class": "decal",
+  "style": "s1",
+  "material": "foliage",
+  "source": "mb_reeds.png",
+  "frame": [
+    32,
+    32
+  ],
+  "anchor_px": [
+    16,
+    31
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "07f3c1ea-31ba-4dee-95bb-3a281c3b3f62",
+    "name": "S1 mb_reeds"
+  },
+  "notes": "Ported from PixelLab object 07f3c1ea-31ba-4dee-95bb-3a281c3b3f62 (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

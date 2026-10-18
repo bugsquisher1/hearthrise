@@ -1,0 +1,35 @@
+{
+  "id": "cw_copper_vein",
+  "class": "bulky",
+  "style": "s1",
+  "material": "stone",
+  "source": "cw_copper_vein.png",
+  "frame": [
+    32,
+    39
+  ],
+  "anchor_px": [
+    16,
+    38
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "0a05c1ce-96df-44d7-a678-49210793a006",
+    "name": "S1 cw_copper_vein"
+  },
+  "notes": "Ported from PixelLab object 0a05c1ce-96df-44d7-a678-49210793a006 (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

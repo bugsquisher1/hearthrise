@@ -1,0 +1,35 @@
+{
+  "id": "mb_hollow_oak",
+  "class": "sapling",
+  "style": "s1",
+  "material": "foliage",
+  "source": "mb_hollow_oak.png",
+  "frame": [
+    64,
+    87
+  ],
+  "anchor_px": [
+    32,
+    86
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "a00b5c79-dea3-4172-b32d-509181818c38",
+    "name": "S1 mb_hollow_oak"
+  },
+  "notes": "Ported from PixelLab object a00b5c79-dea3-4172-b32d-509181818c38 (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

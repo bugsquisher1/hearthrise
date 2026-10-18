@@ -1,0 +1,35 @@
+{
+  "id": "cw_ore_stain",
+  "class": "decal",
+  "style": "s1",
+  "material": "stone",
+  "source": "cw_ore_stain.png",
+  "frame": [
+    32,
+    32
+  ],
+  "anchor_px": [
+    16,
+    31
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "6c3d21f1-b4ae-4a6a-b65a-1fd58633a3e7",
+    "name": "S1 cw_ore_stain"
+  },
+  "notes": "Ported from PixelLab object 6c3d21f1-b4ae-4a6a-b65a-1fd58633a3e7 (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

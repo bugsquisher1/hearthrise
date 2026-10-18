@@ -292,9 +292,14 @@ export function lintMap(row, tables) {
   }
   if (row.outdoor) {
     const trees = map.objects.filter((o) => treeClasses.includes(o.cls));
+    /* a painted wood (a material marked `trees`) stands for the trees of any window it reaches */
+    const woodIn = (wx, wy, ww, wh) => {
+      for (let y = wy; y < wy + wh; y++) for (let x = wx; x < wx + ww; x++) if ((materials[map.ground[y * w + x]] || {}).trees) return true;
+      return false;
+    };
     const ww = Math.min(TREE_WINDOW, w), wh = Math.min(TREE_WINDOW, h);
     for (let wy = 0; wy + wh <= h; wy++) for (let wx = 0; wx + ww <= w; wx++) {
-      if (!trees.some((t) => t.x >= wx && t.x < wx + ww && t.y >= wy && t.y < wy + wh)) {
+      if (!trees.some((t) => t.x >= wx && t.x < wx + ww && t.y >= wy && t.y < wy + wh) && !woodIn(wx, wy, ww, wh)) {
         bad('L-TREES', 'no tree in the ' + ww + 'x' + wh + ' window at ' + wx + ',' + wy); wy = h; break;
       }
     }

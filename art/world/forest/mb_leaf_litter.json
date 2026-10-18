@@ -1,0 +1,35 @@
+{
+  "id": "mb_leaf_litter",
+  "class": "decal",
+  "style": "s1",
+  "material": "foliage",
+  "source": "mb_leaf_litter.png",
+  "frame": [
+    32,
+    32
+  ],
+  "anchor_px": [
+    16,
+    31
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "aa638851-830b-46a1-aa70-7fbd3d8913f4",
+    "name": "S1 mb_leaf_litter"
+  },
+  "notes": "Ported from PixelLab object aa638851-830b-46a1-aa70-7fbd3d8913f4 (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

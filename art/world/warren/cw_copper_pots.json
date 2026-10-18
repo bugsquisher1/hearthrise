@@ -1,0 +1,35 @@
+{
+  "id": "cw_copper_pots",
+  "class": "bulky",
+  "style": "s1",
+  "material": "unit",
+  "source": "cw_copper_pots.png",
+  "frame": [
+    32,
+    29
+  ],
+  "anchor_px": [
+    16,
+    28
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "455c430c-8f73-4b4f-9c8d-8559d06b0022",
+    "name": "S1 cw_copper_pots"
+  },
+  "notes": "Ported from PixelLab object 455c430c-8f73-4b4f-9c8d-8559d06b0022 (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

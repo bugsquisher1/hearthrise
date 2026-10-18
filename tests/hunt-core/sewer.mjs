@@ -183,11 +183,16 @@ const cases = {
       for (const d of m.drops) if (!M.ITEMS[d.id]) return id + ' drops unknown item ' + d.id;
     }
     /* every monster a pocket spawns has walk art that exists */
+    /* a monster drawn with a sim unit (HUNT_WALK_ART) needs that unit in the PixelLab manifest; one ported
+       straight into the world atlases (the cellar's Hive Wasp, the 10-18 grounds) needs its own 8-facing walk there */
     const units = JSON.parse(readFileSync(join(M.root, 'prototypes/hunt-sim-assets/manifest.json'), 'utf8')).units;
+    const atlas = {};
+    for (const set of M.sets.ATLAS_SETS) Object.assign(atlas, JSON.parse(readFileSync(join(M.root, 'assets/world/atlas-' + set + '.json'), 'utf8')).sprites);
+    const walks = (id) => !!(atlas[id] && atlas[id].anims.walk && ['s', 'e', 'n', 'w', 'se', 'sw', 'ne', 'nw'].every((d) => (atlas[id].anims.walk.dirs[d] || []).length));
     for (const g of Object.values(M.grounds.HUNT_GROUNDS)) {
       for (const p of g.pockets) for (const s of p.spawns) {
         const key = M.art.HUNT_WALK_ART[s.monster];
-        if (!key || !units[key]) return g.id + ': ' + s.monster + ' has no walk art in the PixelLab manifest';
+        if (key ? !units[key] : !walks(s.monster)) return g.id + ': ' + s.monster + ' has no walk art (PixelLab manifest or a loaded atlas)';
       }
     }
     return M.MONSTERS.rat_king.drops.some((d) => d.id === 'crown_shard') ? null : 'the Rat King does not drop the Crown Shard';
@@ -266,9 +271,9 @@ const mutants = [
   { name: 'a sewer spawn moved into the wall', case: 'sewer-on-the-map',
     edits: [['src/data/hunt-grounds.js', "['drain_rat', 7, 4], ['drain_rat', 8, 3]", "['drain_rat', 7, 1], ['drain_rat', 8, 3]"]] },
   { name: 'a sewer monster with no walk art', case: 'formation-rows',
-    edits: [['src/data/monster-art.js', "kobold_tosher: 'kobold', ", '']] },
+    edits: [['src/data/monster-art.js', "kobold_tosher: 'kobold', ", "kobold_tosher: 'kobold_unported', "]] },
   { name: 'the Rat King loses his boss flag', case: 'formation-rows',
-    edits: [['src/data/monsters.js', 'formation: true, boss: true,', 'formation: true,']] },
+    edits: [['src/data/monsters.js', "family: 'Vermin', formation: true, boss: true,", "family: 'Vermin', formation: true,"]] },
   { name: 'the cellar pocket holds a monster a fresh hero cannot kill', case: 'cellar-solo-first-kill',
     edits: [['src/data/hunt-grounds.js', "pocket([15, 5, 21, 10], ['rat', 18, 7], ['rat', 19, 6]),", "pocket([15, 5, 21, 10], ['rat_king', 18, 7]),"]] },
   { name: 'the party scale is flat', case: 'party-scale',

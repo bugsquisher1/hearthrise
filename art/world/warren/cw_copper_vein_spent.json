@@ -1,0 +1,35 @@
+{
+  "id": "cw_copper_vein_spent",
+  "class": "decal",
+  "style": "s1",
+  "material": "stone",
+  "source": "cw_copper_vein_spent.png",
+  "frame": [
+    32,
+    48
+  ],
+  "anchor_px": [
+    16,
+    47
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "b070bbfe-b594-49a2-a06e-761ecd08bb3d",
+    "name": "S1 cw_copper_vein_spent"
+  },
+  "notes": "Ported from PixelLab object b070bbfe-b594-49a2-a06e-761ecd08bb3d (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

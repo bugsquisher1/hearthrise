@@ -1,0 +1,35 @@
+{
+  "id": "cw_plank_bridge",
+  "class": "span",
+  "style": "s1",
+  "material": "wood",
+  "source": "cw_plank_bridge.png",
+  "frame": [
+    48,
+    96
+  ],
+  "anchor_px": [
+    24,
+    95
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "c84e6ae2-d7d5-4dd4-b1e9-c5e4d2de0cd7",
+    "name": "S1 cw_plank_bridge"
+  },
+  "notes": "Ported from PixelLab object c84e6ae2-d7d5-4dd4-b1e9-c5e4d2de0cd7 (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

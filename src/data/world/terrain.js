@@ -4,7 +4,8 @@
 // The art (frames, footprints, classes, shadows) lives in the atlas manifests;
 // this file only says what the art does not:
 //   MATERIALS   what a legend character means. `solid` blocks walking; `wall`
-//               names the wall kit a solid material is faced with
+//               names the wall kit a solid material is faced with; `trees` marks a painted
+//               wood (the outdoor tree lint counts its tiles as trees)
 //               (<wall>_wall, <wall>_cap, <wall>_cap_h, <wall>_cap_w). A `flat`
 //               solid (water) carries no kit and is never drawn as a raised wall.
 //   OPEN_CLASSES  art classes that never block a step (lying flat, small, hung
@@ -26,9 +27,17 @@ export const MATERIALS = Object.freeze({
   /* Sewage (the Millrace Sewer's channel): it blocks a step but is FLAT, so no wall kit is
      drawn over it and it hides nothing behind it; the water is in the Sewer's painted ground. */
   sewage: Object.freeze({ solid: true, flat: true }),
+  /* The Meadowbrook Thicket (2026-10-18): the thicket blocks a step and a shot and IS trees (the
+     L-TREES lint counts it: a painted wood needs no tree sprite in every window); the brook, with
+     its grassy banks, is flat water like the sewage. The Coppercap Warrens' chasm is flat too. */
+  thicket: Object.freeze({ solid: true, trees: true }),
+  brook: Object.freeze({ solid: true, flat: true }),
+  chasm: Object.freeze({ solid: true, flat: true }),
 });
 
-export const OPEN_CLASSES = Object.freeze(['decal', 'small', 'loot', 'hanging', 'roof', 'wallcap']);
+/* 'span' (a bridge laid over water or a gap) is walked ON: it never blocks the step it covers (2026-10-18:
+   the Sewer's grate bridge sealed its own 1-tile choke in the client mask until this). */
+export const OPEN_CLASSES = Object.freeze(['decal', 'small', 'loot', 'hanging', 'roof', 'wallcap', 'span']);
 export const TREE_CLASSES = Object.freeze(['tree', 'sapling']);
 
 const light = (radius, tint) => Object.freeze({ radius, tint });

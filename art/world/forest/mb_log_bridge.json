@@ -1,0 +1,35 @@
+{
+  "id": "mb_log_bridge",
+  "class": "span",
+  "style": "s1",
+  "material": "wood",
+  "source": "mb_log_bridge.png",
+  "frame": [
+    160,
+    48
+  ],
+  "anchor_px": [
+    80,
+    47
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "dc989bc9-74a8-4d06-8beb-caee8a9010e5",
+    "name": "S1 mb_log_bridge"
+  },
+  "notes": "Ported from PixelLab object dc989bc9-74a8-4d06-8beb-caee8a9010e5 (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

@@ -1,0 +1,35 @@
+{
+  "id": "cw_throne",
+  "class": "wreck",
+  "style": "s1",
+  "material": "wood",
+  "source": "cw_throne.png",
+  "frame": [
+    48,
+    55
+  ],
+  "anchor_px": [
+    24,
+    54
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "d4d1095d-f5a8-4148-91f9-c58bb2e45c79",
+    "name": "S1 cw_throne"
+  },
+  "notes": "Ported from PixelLab object d4d1095d-f5a8-4148-91f9-c58bb2e45c79 (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

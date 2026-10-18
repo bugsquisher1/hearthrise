@@ -26,7 +26,17 @@
 // a heal point at tier 1, so an entry-level melee hunt on basics roughly
 // breaks even against gold plus common drops, rising to 24 g a point at tier 6
 // (a small heal cannot carry tiers 5-6, so the bigger ones may cost more per
-// point). A basic drink costs the same per mana point as the heal of its tier.
+// point).
+//
+// DRINKS ARE PRICED FOR THE ABILITY BAR (designer, 2026-10-17, measured on the
+// S1 instance engine). A drink is not a danger cost like food: every hero's bar
+// spends mana all hunt, so the store sells it at about 1.2-1.4x the crafted
+// drink's book value a point (1.0 g at tier 1 rising to 3.5 g at tier 6; B1 and
+// B3 hold). Measured, a fresh melee hero (Bronze Sword, 0 gold, the kit's 20
+// cooked shrimp, mill_cellar fixture, 1 h): it drinks 101 Thin Turnip Juice an
+// hour against 691 g of coins and 793 g of common drops. At the old 90 g (15 g a
+// point, the heal's rate) that was 9,090 g an hour and the hunt ended gold_out
+// at 1:54; at 6 g it is 606 g an hour and the hunt runs the full hour.
 //
 // The server catalogue (lane C) is generated from BASIC_SUPPLIES; the client
 // shows `price` on the slot. tests/supplies-catalogue.mjs proves every rule
@@ -54,12 +64,12 @@ export const BASIC_SUPPLIES = Object.freeze([
   heal('salted_lobster', 'Salted Lobster', 'cooked_lobster', 18, 325, [3]),
   heal('salted_swordfish', 'Salted Swordfish', 'cooked_swordfish', 24, 505, [4, 5]),
   heal('salted_shark', 'Salted Shark', 'cooked_shark', 33, 790, [6]),
-  mana('thin_turnip_juice', 'Thin Turnip Juice', 'turnip_juice', 6, 90, [1]),
-  mana('thin_carrot_juice', 'Thin Carrot Juice', 'carrot_juice', 10, 160, [2]),
-  mana('thin_tomato_juice', 'Thin Tomato Juice', 'tomato_juice', 18, 325, [3]),
-  mana('thin_pumpkin_cider', 'Thin Pumpkin Cider', 'pumpkin_cider', 24, 505, [4]),
-  mana('thin_goldenroot_tea', 'Thin Goldenroot Tea', 'goldenroot_tea', 33, 790, [5]),
-  mana('thin_emberfruit_cordial', 'Thin Emberfruit Cordial', 'emberfruit_cordial', 40, 960, [6]),
+  mana('thin_turnip_juice', 'Thin Turnip Juice', 'turnip_juice', 6, 6, [1]),
+  mana('thin_carrot_juice', 'Thin Carrot Juice', 'carrot_juice', 10, 11, [2]),
+  mana('thin_tomato_juice', 'Thin Tomato Juice', 'tomato_juice', 18, 27, [3]),
+  mana('thin_pumpkin_cider', 'Thin Pumpkin Cider', 'pumpkin_cider', 24, 48, [4]),
+  mana('thin_goldenroot_tea', 'Thin Goldenroot Tea', 'goldenroot_tea', 33, 83, [5]),
+  mana('thin_emberfruit_cordial', 'Thin Emberfruit Cordial', 'emberfruit_cordial', 40, 140, [6]),
   shot('plain_barbed_arrows', 'Plain Barbed Arrows', 'barbed_arrows', 2),
   shot('plain_steel_arrows', 'Plain Steel Arrows', 'steel_arrows', 4),
   shot('plain_mithril_arrows', 'Plain Mithril Arrows', 'mithril_arrows', 8),

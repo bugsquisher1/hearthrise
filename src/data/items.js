@@ -182,6 +182,12 @@ export const ITEMS={
   wheat_seed:{n:'Wheat Seed',icon:'🌱',v:15,seed:'wheat'},potato_seed:{n:'Potato Seed',icon:'🌱',v:20,seed:'potato'},
   tomato_seed:{n:'Tomato Seed',icon:'🌱',v:30,seed:'tomato'},pumpkin_seed:{n:'Pumpkin Seed',icon:'🌱',v:50,seed:'pumpkin'},
   bronze_sword:{n:'Bronze Sword',icon:'⚔️',v:50,type:'weapon',slot:'weapon',weaponType:'sword',atkB:4,strB:3},
+  /* THE PREMIUM LOGIN REWARD (Tyler 2026-10-17: "it starts as a single training
+     weapon"; src/data/premium.js PREMIUM_LOGIN_REWARD). Source: that claim. Use:
+     worn as a sword (Melee). Weaker than the Bronze Sword on purpose, so a paid
+     daily gift never out-hits the free kit, and bop + v:0 (the Hearthfind
+     pattern) so a daily claim mints no gold and never reaches the market. */
+  oak_practice_blade:{n:'Oak Practice Blade',icon:'🗡️',v:0,bop:true,type:'weapon',slot:'weapon',weaponType:'sword',atkB:2,strB:1},
   iron_sword:{n:'Iron Sword',icon:'⚔️',v:200,type:'weapon',slot:'weapon',weaponType:'sword',atkB:7,strB:6},
   steel_sword:{n:'Steel Sword',icon:'⚔️',v:800,type:'weapon',slot:'weapon',weaponType:'sword',atkB:12,strB:10},
   rune_sword:{n:'Rune Sword',icon:'⚔️',v:5000,type:'weapon',slot:'weapon',weaponType:'sword',atkB:25,strB:20},

@@ -22,13 +22,15 @@
 // weapon"). One claim a UTC day per premium character, refused for a free one
 // (`premium_required`). The count of claimed days, `player_state.login_days`,
 // ONLY GOES UP: a missed day pauses it, never resets it (Tyler 2026-10-17), and
-// a milestone keyed on it can never be lost. `item` is the reward; it is null
-// until the training-weapon row exists, because no item may ship without a
-// source AND a use (CLAUDE.md §3.5, the catalogue-coherence guard) and the
-// training activity that would use it (hunt-sessions.js RESUMABLE_KINDS
-// `training`, reserved) is not built. With `item: null` a premium claim pays
-// nothing and still counts its day. Filling `item` is this one edit plus a
-// regenerated catalogue; the claim verify prices exactly what this row says.
+// a milestone keyed on it can never be lost. `item` is the reward: the Oak
+// Practice Blade (designer, 2026-10-17). No training weapon existed, so it was
+// added with a source (this claim, catalogue-coherence.js PREMIUM_SOURCES) and a
+// use available today (it is a sword: worn in the weapon slot, Melee). It is
+// weaker than the free kit's Bronze Sword so a paid gift never out-hits free
+// play, and bop + v:0 so a daily claim mints no gold and never reaches the
+// market. The training activity (hunt-sessions.js RESUMABLE_KINDS `training`,
+// reserved) is its second use when it is built. Retuning `item` is this edit
+// plus `node tools/gen-hunt-sessions.mjs`; the claim verify prices this row.
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
@@ -42,7 +44,7 @@ export const PREMIUM_PERKS = Object.freeze({
 
 export const PREMIUM_LOGIN_REWARD = Object.freeze({
   /* An src/data/items.js id, or null (pays nothing; see the header). */
-  item: null,
+  item: 'oak_practice_blade',
   qty: 1,
 });
 

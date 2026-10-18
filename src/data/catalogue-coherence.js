@@ -32,6 +32,7 @@ import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=592';
 import { SKILLS_DEF } from './skills.js?v=592';
 import { SHOP_OFFERS } from './shops.js?v=592';
 import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=592';
+import { PREMIUM_LOGIN_REWARD } from './premium.js?v=592';
 import { HEARTHFIND_ITEMS } from './hearthfind.js?v=592';
 import { EFFECT_KINDS } from './item-effects.js?v=592';
 import { MONSTERS } from './monsters.js?v=592';
@@ -169,6 +170,8 @@ export function itemSources() {
   addSet(m, Object.keys(START_INVENTORY), 'start kit');
   addSet(m, Object.values(START_EQUIPMENT).filter(Boolean), 'start kit');
   addSet(m, HEARTHFIND_ITEMS, 'hearthfind');
+  /* The premium daily login claim (hr_login_claim pays this row, generated from premium.js). */
+  if (PREMIUM_LOGIN_REWARD.item) push(m, PREMIUM_LOGIN_REWARD.item, 'premium login reward');
   for (const id of Object.keys(CODED_SOURCES)) push(m, id, CODED_SOURCES[id].label);
   return m;
 }

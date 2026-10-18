@@ -6,9 +6,9 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 2ece39f562c95e2ee47f9f62f45dcab4028b15ac2c2f05c5a5d31aa61a6eb159
---   rows: 470 items (14 untradeable) ·
---         268 item-slot pairs · 15 equip slots ·
+--   catalogue digest: f3c681a6efcc85250cb8e03426b58e9cdd2e527676dc6bc6e98a9525bcfec324
+--   rows: 471 items (15 untradeable) ·
+--         269 item-slot pairs · 15 equip slots ·
 --         15 skills · 9 crops · 267 activities ·
 --         0 runes
 --
@@ -440,6 +440,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('normal_plank','Normal Plank',true,null,18,null,null,null,false),
   ('oak_log','Oak Log',true,null,20,null,null,null,false),
   ('oak_plank','Oak Plank',true,null,55,null,null,null,false),
+  ('oak_practice_blade','Oak Practice Blade',false,'weapon',0,null,null,null,false),
   ('oak_rod','Oak Rod',true,'tool',300,null,null,null,false),
   ('oak_staff','Oak Staff',true,'weapon',300,'magic',15,null,false),
   ('packlord_band','Packlord''s Band',true,'jewelry',420,'defense',22,null,false),
@@ -794,6 +795,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('mithril_warhammer','weapon'),
   ('mithril_whetstone','ammo'),
   ('nightstalker_pelt','body'),
+  ('oak_practice_blade','weapon'),
   ('oak_staff','weapon'),
   ('packlord_band','ring1'),
   ('packlord_band','ring2'),
@@ -1260,7 +1262,7 @@ insert into public.hr_start_equipment (equip_slot, item_id) values
 -- (no tag:'rune' items authored yet — hr_runes seeded empty)
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '2ece39f562c95e2ee47f9f62f45dcab4028b15ac2c2f05c5a5d31aa61a6eb159', now())
+  values (true, 'f3c681a6efcc85250cb8e03426b58e9cdd2e527676dc6bc6e98a9525bcfec324', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1288,10 +1290,10 @@ do $$
 declare v_bad int; v_n int;
 begin
   select count(*) into v_n from public.hr_items;
-  if v_n <> 470 then raise exception 'hr_items has % rows, generator emitted 470', v_n; end if;
+  if v_n <> 471 then raise exception 'hr_items has % rows, generator emitted 471', v_n; end if;
   select count(*) into v_n from public.hr_items where not tradeable;
-  if v_n <> 14 then
-    raise exception 'untradeable count is %, generator emitted 14', v_n;
+  if v_n <> 15 then
+    raise exception 'untradeable count is %, generator emitted 15', v_n;
   end if;
   select count(*) into v_n from public.hr_activities;
   if v_n <> 267 then raise exception 'hr_activities has % rows, expected 267', v_n; end if;
@@ -1448,7 +1450,7 @@ begin
   ) src where not exists (select 1 from public.hr_items i where i.item_id = src.id);
   if v_bad > 0 then raise exception '% grant-source row(s) name an item missing from hr_items', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 2ece39f562c95e2ee47f9f62f45dcab4028b15ac2c2f05c5a5d31aa61a6eb159',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest f3c681a6efcc85250cb8e03426b58e9cdd2e527676dc6bc6e98a9525bcfec324',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

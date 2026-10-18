@@ -97,7 +97,7 @@ function fight(monsters, monsterId) {
     playerHp: maxHp, playerMaxHp: maxHp, gold: 0, skills, stats: {}, inventory: {} };
   const ctx = {
     fromMs: 0, toMs: 3600000, tickMs: swingIntervalMs(eq, style),
-    monsters, items: ITEMS, bonus: () => 0, style, activeBuffCount: 0,
+    monsters, items: ITEMS, eq, bonus: () => 0, style, activeBuffCount: 0,
     playerRolls: (mm) => playerCombatRolls(mm, { eq, equipment: EQ, items: ITEMS, skills, bonus: () => 0,
       profile: DEFAULT_PROFILE, style }),
     monsterRolls: (mm) => monsterCombatRolls(mm, { eq, skills, bonus: () => 0 }),

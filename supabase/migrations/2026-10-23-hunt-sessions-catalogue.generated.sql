@@ -8,7 +8,7 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: dd21ff0920a4d496dcc94752f24b1fcef8e4b9f684e42dd2466a5ab68598fb21
+--   digest: 3a805721e9cf249a05dab73a1a3df7e1c0a71ff48dbd27cb053fac5cdce6f67e
 --   52 supplies, 98 hunts (named + training), 29 limits, 9 end reasons,
 --   460 vendor values, 17 store supplies paid per use, 5 target modes,
 --   3 lanes, 14 abilities, 11 action-set options, 0 hunt grounds
@@ -232,12 +232,12 @@ insert into public.hr_hunt_basic_supplies (basic_id, kind, partner, heals, mana,
   ('salted_shrimp', 'heal', 'cooked_shrimp', 6, 0, 90, '{1}'::int[]),
   ('salted_swordfish', 'heal', 'cooked_swordfish', 24, 0, 505, '{4,5}'::int[]),
   ('salted_trout', 'heal', 'cooked_trout', 10, 0, 160, '{2}'::int[]),
-  ('thin_carrot_juice', 'mana', 'carrot_juice', 0, 10, 160, '{2}'::int[]),
-  ('thin_emberfruit_cordial', 'mana', 'emberfruit_cordial', 0, 40, 960, '{6}'::int[]),
-  ('thin_goldenroot_tea', 'mana', 'goldenroot_tea', 0, 33, 790, '{5}'::int[]),
-  ('thin_pumpkin_cider', 'mana', 'pumpkin_cider', 0, 24, 505, '{4}'::int[]),
-  ('thin_tomato_juice', 'mana', 'tomato_juice', 0, 18, 325, '{3}'::int[]),
-  ('thin_turnip_juice', 'mana', 'turnip_juice', 0, 6, 90, '{1}'::int[]);
+  ('thin_carrot_juice', 'mana', 'carrot_juice', 0, 10, 11, '{2}'::int[]),
+  ('thin_emberfruit_cordial', 'mana', 'emberfruit_cordial', 0, 40, 140, '{6}'::int[]),
+  ('thin_goldenroot_tea', 'mana', 'goldenroot_tea', 0, 33, 83, '{5}'::int[]),
+  ('thin_pumpkin_cider', 'mana', 'pumpkin_cider', 0, 24, 48, '{4}'::int[]),
+  ('thin_tomato_juice', 'mana', 'tomato_juice', 0, 18, 27, '{3}'::int[]),
+  ('thin_turnip_juice', 'mana', 'turnip_juice', 0, 6, 6, '{1}'::int[]);
 delete from public.hr_hunt_cover_items;
 -- (no item is flagged junk: sell-to-cover is inert until one is)
 delete from public.hr_hunt_lanes;
@@ -429,6 +429,7 @@ insert into public.hr_hunt_weapons (item_id, weapon_type) values
   ('maple_staff', 'magic'),
   ('mithril_sword', 'sword'),
   ('mithril_warhammer', 'hammer'),
+  ('oak_practice_blade', 'sword'),
   ('oak_staff', 'magic'),
   ('rat_stick', 'hammer'),
   ('rune_sword', 'sword'),
@@ -465,7 +466,7 @@ insert into public.hr_hunt_weapon_roles (weapon_type, roles) values
 delete from public.hr_hunt_world_shape;
 insert into public.hr_hunt_world_shape (id, version, shape) values (true, 1, 3852601081);
 delete from public.hr_premium_login_reward;
-insert into public.hr_premium_login_reward (id, item_id, qty) values (true, null, 1);
+insert into public.hr_premium_login_reward (id, item_id, qty) values (true, 'oak_practice_blade', 1);
 delete from public.hr_hunt_travel;
 insert into public.hr_hunt_travel (hunt_id, travel_s, training, tier) values
   ('adept', 80, true, 4),
@@ -1120,7 +1121,7 @@ begin
      or (select count(*) from public.hr_hunt_ground_spawns) <> 0
      or (select count(*) from public.hr_hunt_world_shape) <> 1
      or (select count(*) from public.hr_premium_login_reward) <> 1
-     or (select count(*) from public.hr_hunt_weapons) <> 48
+     or (select count(*) from public.hr_hunt_weapons) <> 49
      or (select count(*) from public.hr_hunt_weapon_roles) <> 11
      or (select count(*) from public.hr_hunt_end_reasons where resumes) <> 7 then
     raise exception 'hunt-session catalogue row counts moved from the generator''s'; end if;

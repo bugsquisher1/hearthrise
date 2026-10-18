@@ -14,6 +14,15 @@
 // browser never says one thing while the server says another). This guard
 // keeps the promise withdrawn until a server layer exists to back it.
 //
+// 2026-10-17: the demolition (092dde442) DELETED world-events.js, and
+// tests/demolition-absence.mjs DA-2 keeps it deleted. Its three file rules
+// stay armed for any file at that path (a calendar that comes back is graded
+// the moment it lands); the reader and copy rules grade every shipped file,
+// and the blind control now asks for the vocabulary they read (a shipped file
+// that still says "blessing"), not for a file that no longer exists. The
+// guard had also never run on Windows: its isMain compared a file:// URL with
+// a backslash path, so it exited 0 having scanned nothing.
+//
 // RULES (comments stripped, strings kept — tests/retired-capability-copy.mjs's
 // prepare()):
 //   layer      world-events.js wraps or reads getBonus
@@ -26,6 +35,7 @@
 
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { prepare, loadFiles } from './retired-capability-copy.mjs';
 
 const WE = 'src/features/world-events.js';
@@ -62,13 +72,16 @@ export function scanText(rel, src) {
 export function scanAll(files) {
   const problems = files.flatMap((f) => scanText(f.rel, f.text));
   if (files.length < 50) problems.push(`only ${files.length} files scanned — the walk is broken`);
-  if (!files.some((f) => f.rel === WE)) problems.push(`${WE} was not scanned — the guard is blind`);
+  if (!files.some((f) => f.rel !== WE && /\bblessings?\b/i.test(prepare(f.text)))) {
+    problems.push('no scanned file says "blessing" — the reader and copy rules have no subject, the guard is blind');
+  }
   return problems;
 }
 
 async function selftest(root) {
   const files = await loadFiles(root);
-  const we = files.find((f) => f.rel === WE);
+  /* world-events.js is deleted: its rules are probed on a stand-in module at its path. */
+  const we = { rel: WE, text: "export const POOL = [{ id: 'harvest', name: 'Harvest Moon', desc: 'The fields are bright tonight.' }];\n" };
   const home = files.find((f) => f.rel === 'src/features/home-dashboard.js');
   const fails = [];
   const probe = (name, rel, text, wantRed) => {
@@ -99,11 +112,13 @@ async function selftest(root) {
     "the realm's blessing is at its limit", 'Food buffs pay while you play.', 'Might blessing']) {
     probe(`(c) negative control "${ok}"`, home.rel, home.text + `\nvar __m = ${JSON.stringify(ok)};\n`, false);
   }
-  if (!scanAll(files.filter((f) => f.rel !== WE)).some((p) => /blind/.test(p))) fails.push('(d) a missing world-events.js was not reported');
+  const mute = files.map((f) => ({ ...f, text: f.text.replace(/blessings?/gi, 'x') }));
+  if (!scanAll(mute).some((p) => /blind/.test(p))) fails.push('(d) a walk with no blessing vocabulary was not reported blind');
+  if (scanAll(files).some((p) => /blind/.test(p))) fails.push('(d) CONTROL: the real walk reads as blind');
   return fails;
 }
 
-const isMain = import.meta.url === `file://${process.argv[1]}`;
+const isMain = !!process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
   const root = process.cwd();
   if (process.argv.includes('--selftest')) {

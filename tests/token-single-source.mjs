@@ -77,6 +77,7 @@ const COMPONENT_SCOPED = {
   '--cs-bleed': 'clan-seat scene bleed; local to .hr-cs',
   '--cs-inset': 'clan-seat scene inset; local to .hr-cs',
   '--tier-tint': 'combat scrim tint, one value per [data-foe-tier]; varies per element',
+  '--pocket-rar': 'the rarity colour of one pocket, slot or tooltip name, set by its .rar-* class from the --rar-* tokens; varies per element',
 };
 
 /* Root-level dials WRITTEN BY JS, never declared in CSS. */

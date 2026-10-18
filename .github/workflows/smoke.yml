@@ -258,6 +258,18 @@ jobs:
           node tests/hunt-screen.mjs
           node tests/hunt-screen.mjs --mutate
 
+      # THE ALPHA WINDOWS (2026-10-18, week plan 16a + QoL 2/5): Bag, Gear,
+      # Skills, Shop, Hunt prep and Find on the fixture envelope. Built once and
+      # patched in place; the server's counts win; every action one intent with
+      # its controls off until the server answers; a locked stack never reaches
+      # a bulk sale; a sale and the one-tap refill show their total first; the
+      # new sections missing fail safe. --mutate plants nine defects.
+      - name: Alpha windows (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/alpha-windows.mjs
+          node tests/alpha-windows.mjs --mutate
+
       # A failing run is far easier to diagnose with the page state attached.
       - name: Upload failure artifacts
         if: failure()

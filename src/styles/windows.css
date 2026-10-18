@@ -1,0 +1,263 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   src/styles/windows.css — the alpha windows: Bag (a satchel), Gear (a paper
+   doll), Skills and Shop (ledgers), Hunt prep and Find (WORLD_SHELL §4,
+   ART_DIRECTION §7, §8, §9, §12). Tokens only, not one colour literal.
+   Pockets and slots are SUNK into the window, never framed; gear pockets carry
+   their rarity as a 2 px border plus rank pips (colour is never the only cue);
+   the selection is a neutral --ink outline (gold is the primary action).
+   Icons render at the one density: 32 art px at ×2 = 64 px, pixelated.
+   One text style (§10): --f-label headings, --f-ui body, never under --t-micro.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── The window objects ── */
+.hs-win.is-satchel { background: var(--sc-top-1); }
+.hs-win.is-satchel .hs-win-body { margin: 6px; padding: 8px 8px 10px; border: 1px dashed var(--sc-stitch); border-radius: var(--r); }
+.hs-win .hh-empty.is-on { display: block; margin: 8px 2px; font-size: var(--t-micro); }
+.hw-pane { display: none; }
+.hw-pane.is-on { display: block; }
+
+/* ── Shared: tabs, the capacity line, ledgers, the primary action, confirmations ── */
+.hw-tabs { display: flex; gap: 2px; margin-bottom: 8px; }
+.hw-tab { border: 0; background: none; padding: 4px 10px; min-height: 32px; font-family: var(--f-ui); font-size: var(--t-small); color: var(--ink-3); cursor: pointer; border-bottom: 2px solid transparent; }
+.hw-tab:hover { color: var(--ink); }
+.hw-tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--gold); }
+.hw-tab:focus-visible, .hw-cat:focus-visible, .hw-mi:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
+.hw-cap { display: flex; justify-content: space-between; gap: 8px; margin: 0 2px 8px; font-size: var(--t-micro); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.hw-cap:empty { display: none; }
+.hw-ico { width: 64px; height: 64px; display: grid; place-items: center; flex: none; }
+.hw-ico .hh-icon { width: 64px; height: 64px; }
+.hw-ico .hh-icon.is-glyph .hs-glyph { width: 32px; height: 32px; }
+.hw-ledger { margin: 0 0 6px; padding: 0; list-style: none; }
+.hw-ledger-head { display: none; margin: 10px 2px 4px; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
+.hw-ledger-head.is-on { display: block; }
+.hw-line { display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 2px 0; border-top: 1px solid var(--line-soft); }
+.hw-line .hw-ico { width: 40px; height: 40px; }
+.hw-line .hw-ico .hh-icon { width: 32px; height: 32px; }
+.hw-line-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.hw-line-name b { font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hw-line-name small { font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.hw-line.is-short .hw-line-name small { color: var(--red); }
+.hw-primary {
+  display: none; min-height: 36px; padding: 0 16px;
+  border: 1px solid var(--gold-3); border-radius: var(--r);
+  background: var(--gold); color: var(--bg-0);
+  font-family: var(--f-label); font-weight: 700; font-size: var(--t-small); white-space: nowrap; cursor: pointer;
+}
+.hw-primary.is-on { display: inline-block; }
+.hw-primary:hover:not(:disabled) { background: var(--gold-2); }
+.hw-primary:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
+.hw-primary:disabled { opacity: .5; cursor: default; }
+.hw-tools, .hw-bulk { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.hw-bulk { display: none; padding: 6px 8px; background: var(--surf-sunken); border-radius: var(--r-sm); }
+.hw-bulk.is-on { display: flex; }
+.hw-selcount { flex: 1; font-weight: 700; font-variant-numeric: tabular-nums; }
+.hw-tools [data-hs-act="sell-cat"] { display: none; }
+.hw-tools [data-hs-act="sell-cat"].is-on { display: inline-block; }
+.hw-confirm { display: none; margin-top: 8px; padding: 8px 10px; background: var(--bg-1); border-left: 2px solid var(--gold); }
+.hw-confirm.is-on { display: block; }
+.hw-confirm-q { margin: 0; font-weight: 700; color: var(--ink); }
+.hw-confirm-note { margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
+.hw-confirm-note:empty { display: none; }
+.hw-confirm-do { display: flex; gap: 6px; margin-top: 8px; }
+.hw-confirm-do .hw-primary { display: inline-block; }
+.hs-win .hh-intent-msg { margin-top: 6px; }
+.is-pending .hh-intent-msg { color: var(--ink-2); }
+.hw-search { flex: 1; display: flex; align-items: center; gap: 6px; padding-left: 6px; border: 1px solid var(--line-soft); border-radius: var(--r-sm); background: var(--bg-1); color: var(--ink-3); }
+.hw-search .hs-glyph { width: 16px; height: 16px; }
+.hw-search .hw-q { flex: 1; width: auto; min-width: 0; border: 0; background: none; }
+
+/* ── The bag ── */
+.hw-bag { outline: none; }
+.hw-bag:focus-visible { outline: 1px dashed var(--aqua-2); outline-offset: 2px; }
+.hw-find { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+.hw-sort { display: flex; align-items: center; gap: 4px; font-size: var(--t-micro); color: var(--ink-3); }
+.hw-cats { display: flex; flex-wrap: wrap; gap: 2px; margin-bottom: 8px; }
+.hw-cat { min-height: 28px; padding: 0 8px; border: 0; border-bottom: 2px solid transparent; background: none; font-family: var(--f-ui); font-size: var(--t-micro); color: var(--ink-3); cursor: pointer; }
+.hw-cat:hover { color: var(--ink); }
+.hw-cat[aria-pressed="true"] { color: var(--ink); border-bottom-color: var(--gold); }
+.hw-pockets { display: grid; grid-template-columns: repeat(auto-fill, 68px); gap: 4px; margin: 0; padding: 0; list-style: none; }
+.hw-pocket {
+  position: relative; width: 68px; height: 68px; padding: 2px;
+  display: grid; place-items: center;
+  background: var(--surf-sunken); box-shadow: var(--surf-sunken-edge);
+  border: 2px solid transparent; border-radius: var(--r-sm);
+  cursor: pointer; user-select: none;
+}
+.hw-pocket:hover { border-color: var(--line); }
+.hw-pocket:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 1px; }
+.hw-pocket.is-cur { outline: 2px solid var(--ink); outline-offset: 1px; }
+.hw-pocket[aria-selected="true"] { background: var(--gold-bg); }
+.hw-pocket[aria-selected="true"]::after { content: ''; position: absolute; left: 3px; top: 3px; width: 10px; height: 10px; border: 2px solid var(--ink); background: var(--gold); }
+.hw-pocket.is-drop, .hw-slot.is-drop { border-color: var(--gold-2); }
+.rar-common { --pocket-rar: var(--rar-common); }
+.rar-uncommon { --pocket-rar: var(--rar-uncommon); }
+.rar-rare { --pocket-rar: var(--rar-rare); }
+.rar-epic { --pocket-rar: var(--rar-epic); }
+.rar-legendary { --pocket-rar: var(--rar-legendary); }
+.rar-mythic { --pocket-rar: var(--rar-mythic); }
+.rar-unique { --pocket-rar: var(--rar-unique); }
+.hw-pocket.is-gear, .hw-slot[class*="rar-"] { border-color: var(--pocket-rar, var(--line-soft)); }
+.hw-pocket.rar-mythic, .hw-pocket.rar-unique, .hw-slot.rar-mythic, .hw-slot.rar-unique { border-style: double; border-width: 3px; }
+.hw-pips { position: absolute; left: 4px; bottom: 3px; display: flex; gap: 2px; }
+.hw-pips i { width: 4px; height: 4px; background: var(--pocket-rar, var(--ink-3)); }
+.hw-count {
+  position: absolute; right: 4px; bottom: 2px;
+  font-size: var(--t-micro); font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; color: var(--ink);
+  text-shadow: 0 1px 0 var(--world-shadow), 1px 0 0 var(--world-shadow), -1px 0 0 var(--world-shadow), 0 -1px 0 var(--world-shadow);
+}
+.hw-new { display: none; position: absolute; left: 3px; top: 2px; font-style: normal; font-size: var(--t-micro); font-weight: 800; line-height: 1; color: var(--gold-2);
+  text-shadow: 0 1px 0 var(--world-shadow), 1px 0 0 var(--world-shadow), -1px 0 0 var(--world-shadow), 0 -1px 0 var(--world-shadow); }
+.hw-pocket.is-new .hw-new { display: block; }
+.hw-pocket[aria-selected="true"] .hw-new { display: none; }
+.hw-lock { display: none; position: absolute; right: 3px; top: 3px; color: var(--ink-2); }
+.hw-lock .hs-glyph { width: 14px; height: 14px; }
+.hw-pocket.is-locked .hw-lock { display: block; }
+.hw-barkey { position: absolute; left: 4px; bottom: 2px; font-size: var(--t-micro); font-weight: 700; line-height: 1; color: var(--ink-2); }
+.hw-barkey:empty { display: none; }
+.hw-pick { display: none; align-items: center; gap: 8px; min-height: 56px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line-soft); }
+.hw-pick.is-on { display: flex; }
+.hw-pick-ico { width: 40px; height: 40px; display: grid; place-items: center; }
+.hw-pick-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.hw-pick-name b { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hw-pick-name small { font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.hw-keys { margin: 8px 2px 0; font-size: var(--t-micro); color: var(--ink-3); line-height: 1.35; }
+.hw-loot { margin: 0; padding: 0; list-style: none; }
+.hw-loot-row { display: flex; align-items: center; gap: 8px; min-height: 52px; border-top: 1px solid var(--line-soft); }
+.hw-loot-row .hw-ico { width: 40px; height: 40px; }
+.hw-loot-row .hw-ico .hh-icon { width: 32px; height: 32px; }
+.hw-loot-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.hw-loot-name small { font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.hw-loot-note { margin: 8px 2px 0; font-size: var(--t-micro); color: var(--ink-3); }
+
+/* ── The context menu: a plain list beside the stack ── */
+.hw-menu {
+  display: none; position: fixed; z-index: 40; min-width: 200px; padding: 4px;
+  font-family: var(--f-ui); font-size: var(--t-small); color: var(--ink);
+  background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--r);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--world-shadow) 55%, transparent);
+}
+.hw-menu.is-on { display: flex; flex-direction: column; }
+.hw-menu-title { padding: 4px 8px 6px; font-family: var(--f-label); font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); border-bottom: 1px solid var(--line-soft); }
+.hw-mi { min-height: 34px; padding: 0 10px; text-align: left; border: 0; border-radius: var(--r-sm); background: none; font-family: var(--f-ui); font-size: var(--t-small); color: var(--ink); cursor: pointer; }
+.hw-mi:hover:not(:disabled) { background: var(--surf-panel); }
+.hw-mi:disabled { color: var(--ink-3); cursor: default; }
+.hw-mi[aria-pressed="true"] { color: var(--gold-2); }
+.hw-menu-sub { padding: 6px 8px 2px; font-size: var(--t-micro); color: var(--ink-3); border-top: 1px solid var(--line-soft); }
+.hw-menu-rules { display: flex; flex-direction: column; }
+
+/* ── The tooltip ── */
+.hw-tip {
+  display: none; position: fixed; z-index: 50; width: 280px; padding: 8px 10px; pointer-events: none;
+  background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--r);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--world-shadow) 55%, transparent);
+  font-family: var(--f-ui); font-size: var(--t-micro); color: var(--ink-2); line-height: 1.35;
+}
+.hw-tip.is-on { display: block; }
+.hw-tip-name { display: block; font-size: var(--t-small); color: var(--ink); }
+.hw-tip-name[class*="rar-"] { color: var(--pocket-rar); }
+.hw-tip-kind { display: block; color: var(--ink-3); }
+.hw-tip-flavour { display: block; margin-top: 4px; color: var(--ink-2); }
+.hw-tip-stats { display: grid; grid-template-columns: 1fr auto; gap: 0 8px; margin: 6px 0 0; }
+.hw-tip-stats dt { color: var(--ink-2); }
+.hw-tip-stats dd { margin: 0; font-weight: 700; color: var(--ink); text-align: right; font-variant-numeric: tabular-nums; }
+.hw-tip-cmp { margin: 6px 0 0; color: var(--ink-3); }
+.hw-tip-delta { margin: 0; padding: 0; list-style: none; font-weight: 700; font-variant-numeric: tabular-nums; }
+.hw-tip-delta .is-gain { color: var(--green); }
+.hw-tip-delta .is-loss { color: var(--red); }
+.hw-tip-need { margin: 6px 0 0; color: var(--ink-2); }
+.hw-tip-need.is-short { color: var(--red); }
+.hw-tip-line { margin: 6px 0 0; }
+.hw-tip-line small { display: block; font-family: var(--f-label); font-weight: 700; letter-spacing: .04em; color: var(--ink-3); }
+
+/* ── The gear: a paper doll ── */
+.hw-doll { display: grid; grid-template-columns: 68px minmax(0, 1fr) 68px; grid-template-rows: repeat(4, 72px); gap: 4px 8px; }
+.hw-slot {
+  position: relative; width: 68px; height: 68px; padding: 0;
+  display: grid; place-items: center;
+  background: var(--surf-sunken); box-shadow: var(--surf-sunken-edge);
+  border: 2px solid transparent; border-radius: var(--r-sm); cursor: pointer;
+}
+.hw-slot:hover { border-color: var(--line); }
+.hw-slot:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 1px; }
+.hw-slot.is-open { outline: 2px solid var(--ink); outline-offset: 1px; }
+.hw-slot .hw-ico { position: absolute; top: 0; left: 0; width: 64px; height: 64px; }
+.hw-ghost { display: none; color: var(--ink-3); opacity: .4; margin-bottom: 12px; }
+.hw-ghost .hs-glyph { width: 28px; height: 28px; }
+.hw-slot.is-empty .hw-ghost { display: block; }
+.hw-slot-label { position: absolute; left: 0; right: 0; bottom: 3px; text-align: center; font-size: var(--t-micro); line-height: 1; color: var(--ink-3); opacity: 0; }
+.hw-slot.is-empty .hw-slot-label { opacity: .9; }
+.at-l1 { grid-area: 1 / 1; } .at-l2 { grid-area: 2 / 1; } .at-l3 { grid-area: 3 / 1; } .at-l4 { grid-area: 4 / 1; }
+.at-r1 { grid-area: 1 / 3; } .at-r2 { grid-area: 2 / 3; } .at-r3 { grid-area: 3 / 3; } .at-r4 { grid-area: 4 / 3; }
+/* Below the doll: the hands (weapon, offhand, ammo, belt), then the rings and the companion. */
+.hw-doll { grid-auto-rows: 72px; }
+.hw-doll .at-b1 { grid-area: 5 / 1; } .hw-doll .at-b2 { grid-area: 5 / 2; justify-self: start; } .hw-doll .at-b3 { grid-area: 5 / 2; justify-self: end; } .hw-doll .at-b4 { grid-area: 5 / 3; }
+.hw-doll .at-b5 { grid-area: 6 / 1; } .hw-doll .at-b6 { grid-area: 6 / 2; justify-self: center; } .hw-doll .at-b7 { grid-area: 6 / 3; }
+.hw-plinth { grid-area: 1 / 2 / 5 / 3; position: relative; align-self: stretch; border-radius: var(--r-lg); background: var(--panel-floor-1); overflow: visible; }
+.hw-hero { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); display: block; image-rendering: pixelated; background-repeat: no-repeat; }
+.hw-role { margin: 10px 2px 0; font-weight: 700; color: var(--ink); }
+.hw-totals { display: flex; justify-content: space-between; margin: 8px 2px 0; padding-top: 8px; border-top: 1px solid var(--line-soft); }
+.hw-totals div { display: flex; flex-direction: column; }
+.hw-totals dt { font-size: var(--t-micro); color: var(--ink-3); }
+.hw-totals dd { margin: 0; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+.hw-slotline { display: none; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line-soft); }
+.hw-slotline.is-on { display: block; }
+.hw-slothead { margin: 0 2px 4px; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
+.hw-worn { display: none; align-items: center; gap: 8px; min-height: 44px; }
+.hw-worn.is-on { display: flex; }
+.hw-worn .hw-ico, .hw-fit .hw-ico { width: 40px; height: 40px; }
+.hw-worn .hw-ico .hh-icon, .hw-fit .hw-ico .hh-icon { width: 32px; height: 32px; }
+.hw-worn-name { flex: 1; font-weight: 700; color: var(--ink); }
+.hw-fits { margin: 0; padding: 0; list-style: none; }
+.hw-fit { display: flex; align-items: center; gap: 8px; min-height: 48px; border-top: 1px solid var(--line-soft); }
+.hw-fit-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.hw-fit-delta { font-size: var(--t-micro); font-weight: 700; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.hw-fit-delta .is-gain { color: var(--green); }
+.hw-fit-delta .is-loss { color: var(--red); }
+.hw-fit-need { font-size: var(--t-micro); color: var(--red); }
+.hw-fit-need:empty { display: none; }
+
+/* ── The skills: a ledger, one ruled line per skill ── */
+.hw-skill-group { margin-bottom: 6px; }
+.hw-skill-head { margin: 8px 2px 2px; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
+.hw-skill-list { margin: 0; padding: 0; list-style: none; }
+.hw-skill { display: flex; gap: 10px; padding: 6px 0; border-top: 1px solid var(--line-soft); }
+.hw-skill-glyph { width: 28px; flex: none; color: var(--ink-2); padding-top: 2px; }
+.hw-skill-glyph .hs-glyph { width: 22px; height: 22px; }
+.hw-skill-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.hw-skill-top { display: flex; justify-content: space-between; gap: 8px; }
+.hw-skill-name { color: var(--ink); }
+.hw-skill-lv { color: var(--gold-2); font-variant-numeric: tabular-nums; }
+.hw-skill-bar { position: relative; display: block; height: 6px; background: var(--surf-sunken); box-shadow: var(--surf-sunken-edge); }
+.hw-skill-fill { position: absolute; top: 0; left: 0; bottom: 0; width: 0; background: var(--gold); }
+.hw-skill-xp { font-size: var(--t-micro); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.hw-skill-use { font-size: var(--t-micro); color: var(--ink-2); line-height: 1.3; }
+.hw-skill-next { font-size: var(--t-micro); color: var(--ink-3); }
+.hw-skill-next:empty { display: none; }
+
+/* ── The shop and hunt prep ── */
+.hw-qty { width: 64px; }
+.hw-target { display: flex; align-items: center; gap: 4px; font-size: var(--t-micro); color: var(--ink-3); }
+.hw-add { display: flex; gap: 6px; align-items: center; margin-top: 8px; }
+.hw-add .hh-select { flex: 1; min-width: 0; }
+.hw-add .hw-preset-name { flex: 1; width: auto; }
+.hw-refill { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line-soft); }
+.hw-refill-what { margin: 0; font-size: var(--t-micro); color: var(--ink-2); }
+.hw-ready { margin: 0 0 6px; padding: 0; list-style: none; }
+.hw-ready-row { padding: 6px 0 8px; border-top: 1px solid var(--line-soft); }
+.hw-ready-line { margin: 0; color: var(--red); }
+.hw-ready-row.is-ready .hw-ready-line { color: var(--green); }
+.hw-checks { margin: 4px 0 0; padding: 0 0 0 14px; font-size: var(--t-micro); color: var(--ink-2); }
+.hw-check.is-short { color: var(--red); }
+.hw-ready-fix { display: none; margin-top: 6px; }
+.hw-ready-fix.is-on { display: inline-block; }
+
+/* ── Phone, landscape: the one sheet; the same density, tighter rhythm ── */
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .hs-win.is-satchel .hs-win-body { margin: 0; padding: 6px 8px 8px; border: 0; }
+  .hw-keys { display: none; }
+  .hw-tab { min-height: 36px; }
+  .hw-cat { min-height: 36px; }
+  .hw-mi { min-height: 40px; }
+  .hw-doll { grid-template-rows: repeat(4, 70px); grid-auto-rows: 70px; }
+  .hw-tip { width: 240px; }
+}

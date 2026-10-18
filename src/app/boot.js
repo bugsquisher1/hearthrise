@@ -139,7 +139,8 @@ function startApp(win) {
     root.appendChild(strip);
     root.appendChild(main);
     const cs = account.character(shown);
-    if (cs) pane = await mountWorldPane(main, cs, { screen: root });
+    const acc = account;
+    if (cs) pane = await mountWorldPane(main, cs, { screen: root, account: acc, peers: () => (acc ? acc.characters() : [cs]) });
   }
 
   root.addEventListener('click', (e) => {

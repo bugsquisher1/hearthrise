@@ -746,6 +746,17 @@ body[data-theme="hearthlight"] {
   --world-bubble-ink:    #1c1712;
   --world-walk-mark:     rgba(242, 234, 216, .7);
   --world-hud-bg:        rgba(11, 12, 15, .88);   /* the HUD plate over the canvas is UI chrome: charcoal */
+  /* THE RARITY LADDER (ART_DIRECTION §8): world-palette colours, so the light
+     column over a drop and the pocket's border in the bag are one colour.
+     Epic is the proposed arcane ramp (Asset Director). Colour is never the only
+     cue: a framed pocket also carries rank pips. */
+  --rar-common:          #aaa49a;   /* stone 5 */
+  --rar-uncommon:        #73944c;   /* leaf 6 */
+  --rar-rare:            #4fa8e8;   /* frost 1 */
+  --rar-epic:            #9b72d0;   /* arcane 1 (proposed) */
+  --rar-legendary:       #f2a03a;   /* torch 1 */
+  --rar-mythic:          #c23a2a;   /* blood 2 */
+  --rar-unique:          #e8c547;   /* gold */
   /* a sprite no shipped atlas carries yet */
   --world-stub-missing:  #8a6238;
   --world-stub-line:     rgba(0, 0, 0, .45);

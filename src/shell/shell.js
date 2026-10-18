@@ -20,8 +20,12 @@
 // BUILT ONCE (its HTML is the skeleton, written when the box is created) and
 // then only patched in place (src/render/paint.js): on every envelope, and at
 // DISPLAY_TICK_MS for clocks and the timeline. `.act(ctx, el, action, ev)`
-// receives the box's [data-hs-act] clicks and changes. A plain renderer keeps
-// the old contract (its HTML replaces the box when it differs).
+// receives the box's [data-hs-act] clicks and changes. A renderer that lists
+// more DOM events in `.events` (input, keydown, contextmenu, the pointer and
+// drag events, mouseover) gets those too, and only those: a renderer that did
+// not ask never sees a keydown. An act that returns true has consumed the
+// event (it is not passed on to the window keys or the World). A plain
+// renderer keeps the old contract (its HTML replaces the box when it differs).
 //
 // Mounted by src/app/world-pane.js over one character's World.
 // ════════════════════════════════════════════════════════════════════════
@@ -36,6 +40,9 @@ import { escapeHtml as esc } from '../utils/dom.js?v=0.1.0';
 
 /* The components' display clock: session timers and the timeline's due events (parity SH-05, DOM 4 Hz). */
 const DISPLAY_TICK_MS = 250;
+/* The DOM events a renderer may opt into with `.events` (click and change always reach `.act`). */
+const EXTRA_EVENTS = Object.freeze(['input', 'keydown', 'contextmenu', 'pointerdown', 'pointerup', 'pointercancel',
+  'dragstart', 'dragover', 'dragleave', 'drop', 'dragend', 'mouseover', 'mouseout']);
 
 /**
  * @param {HTMLElement} root   the World's box; the shell fills it
@@ -43,6 +50,8 @@ const DISPLAY_TICK_MS = 250;
  * @param {object} o.character   the CharacterSession this shell belongs to (its HUD layout is that character's residue)
  * @param {HTMLElement} [o.screen]    the whole-screen box (strip included) for screen widgets; default body
  * @param {() => boolean} [o.inHunt]   true while a hunt runs ('hunt' widgets)
+ * @param {() => object[]} [o.peers]   every CharacterSession this account has open (hunt prep reads each one)
+ * @param {object} [o.account]         the AccountSession (the item finder's account-wide read)
  * @param {Window} [o.host]            defaults to window
  */
 export function mountShell(root, o) {
@@ -83,6 +92,8 @@ export function mountShell(root, o) {
   const insetListeners = new Set();
   const ctx = {
     wm, hud, refresh, doc, get glyphs() { return host.HR_GLYPHS || {}; }, character: opts.character || null,
+    peers: () => (opts.peers ? opts.peers() : (opts.character ? [opts.character] : [])),
+    account: opts.account || null,
     isPhone: () => phoneMq.matches,
     now: () => host.performance.now(),
     show(id) { if (hud.row(id)) hud.setVisible(id, true); else wm.open(id); },
@@ -208,6 +219,18 @@ export function mountShell(root, o) {
     return true;
   }
 
+  /* Opt-in events: routed only to a renderer whose `.events` names the type. */
+  function onExtra(e) {
+    const t = e.target && e.target.closest ? e.target.closest('[data-hs-act]') : null;
+    const box = t && t.closest('[data-hs-widget],[data-hs-win]');
+    if (!box) return;
+    const id = box.getAttribute('data-hs-widget') || box.getAttribute('data-hs-win');
+    const render = box.hasAttribute('data-hs-widget') ? WIDGET_RENDERERS[id] : WINDOW_RENDERERS[id];
+    if (!render || !render.act || !Array.isArray(render.events) || !render.events.includes(e.type)) return;
+    const where = box.hasAttribute('data-hs-widget') ? box : box.querySelector('[data-hs-body]');
+    if (render.act(ctx, where, t.getAttribute('data-hs-act'), e, t) === true) { e.preventDefault(); e.stopPropagation(); }
+  }
+
   /* ── Input ── */
   function onClick(e) {
     if (onAct(e)) return;
@@ -250,6 +273,7 @@ export function mountShell(root, o) {
 
   shell.addEventListener('click', onClick);
   screen.addEventListener('click', onClick);
+  for (const type of EXTRA_EVENTS) { shell.addEventListener(type, onExtra); screen.addEventListener(type, onExtra); }
   shell.addEventListener('input', onInput);
   shell.addEventListener('change', onInput);
   layer.addEventListener('pointerdown', onPointerDown);

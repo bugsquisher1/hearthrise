@@ -2,6 +2,27 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+## 2026-10-18 · SYSTEMS (lane: `lane/alpha-windows`) → BACKEND (server lane) + GAME DESIGNER + SECURITY (reopen review) + COORDINATOR · **ALPHA WINDOWS: the server shapes the Bag, Shop and Hunt prep are built against**
+
+The client (Bag, Gear, Skills, Shop, Hunt prep, Find) uses what hr_state_of projects today (`inventory`, `equipment`, `skills`, `state.gold`) and the engine's existing verbs (`equip`, `vendor_sell_many`, `shop_buy`, `eat`). Everything below is built against `tests/fixtures/alpha-envelope.json`; until it lands each control **fails safe** (off, with a line saying so), never a client fallback. Readers: `src/session/item-sections.js`; intents: `src/session/character-session.js`.
+
+1. **Section `bag_rules`** (per character): `{ locked: [item_id], loot: { item_id: 'keep'|'sell'|'ignore' }, restock: { item_id: 1..1000 } }`. Table suggestion: `player_item_rules(user_id, slot, item_id, locked bool, loot_rule text check (keep|sell|ignore), restock int check 0..1000)`, RLS self-only, no client write policy.
+2. **RPCs** (each `{ok}` / `{ok:false, error}`, idempotent on `p_idem`, journalled):
+   - `hr_item_lock(p_slot int, p_item text, p_locked bool, p_idem uuid)`.
+   - `hr_loot_rule_set(p_slot, p_item, p_rule text, p_idem)`; **the hunt settle applies it on pickup**: `sell` credits the vendor bid instead of the item (same `vendorPriceOf`, same day budget as `vendor_sell`), `ignore` leaves it, `keep` (default) bags it.
+   - `hr_restock_set(p_slot, p_targets jsonb {item: 0..1000}, p_idem)` (0 deletes; ≤ 32 rows; only items a supply offer sells).
+   - `hr_shop_refill(p_slot, p_quote_total int, p_idem)` — **the one-tap refill (Tyler 10-18, never automatic)**: buys `max(0, target − have)` of each target at the server's offer price in ONE `hr_apply`; refuses `quote_changed` when its own total ≠ `p_quote_total`, `insufficient_gold` under the lock. **Money surface → in the reopen Security review.**
+   - `hr_hunt_preset_save(p_slot, p_preset 0..7, p_name text ≤ 24, p_idem)` — snapshots, server-side, the active action set index, `player_equipment` and the restock targets. `hr_hunt_preset_apply(p_slot, p_preset, p_idem)` — wears the gear from the bag (the equip verb's collect-first rule applies), switches the set and the targets; refuses by name what it cannot do.
+   - `hr_account_items(p_query text 2..40) → {ok, rows:[{slot, name, item, qty, where: 'bag'|'bank'|'worn'}]}` — a read over the caller's own characters, matching catalogue names server-side.
+3. **Section `shop`**: `{ offers: [{offer, item, kind: 'food'|'drink'|'ammo', price}], bids: { item: gold each, for every bag item }, refill: { lines: [{item, offer, have, target, buy, gold}], total } | null }`. **Catalogue gap (Designer + Backend):** `shop_buy` sells no food or drink today (SHOP_OFFERS has `seed.*`/`equip.*` only); supply offers (`supply.<item>`, the basic supplies' prices) must become catalogue rows so `shop_buy` accepts them.
+4. **`hunt.loot`**: `[{item, count}]`, this session's pickups, for EVERY character (the analyzer's loot list is premium-only; the bag's "This hunt" tab falls back to it).
+5. **Section `hunt_presets`**: `[{preset, name, action_set, gear: {slot: item}, restock: {item: n}}]`.
+6. **Section `role`**: `{id, weapon}` — the hunt role the worn weapon gives. **Data conflict (Game Designer):** `items.js` weaponType is `sword|hammer|ranged|magic` while `hunt-roles.js` WEAPON_ROLES keys are `shield|dual_axe|club|bow|crossbow|staff`, and no item has the `shield` slot, so no catalogue weapon maps to a role. The Gear window shows the server's `role`, else the party row's, else says the server has not named one.
+7. **Server must enforce locks:** `vendor_sell` / `vendor_sell_many` refuse a locked item (`item_locked`). The client never names one (tests/alpha-windows.mjs AW-5), but the client is not the authority.
+8. **Guard change (Coordinator/Security FYI):** `tests/client-intent-surface.mjs` IS-2 now also allows the ONE `accrue(body)` in `CharacterSession.edgeIntent`, whose body `src/session/edge-intents.js` builds; new IS-5 pins its table to 4 verbs with names/counts only (no price/gold/total field), and refuses an unpinned or unused verb. Selftest: 13/13 cases, 5 new.
+9. **Copy (Game Designer):** `src/data/skill-guide.js` (what each skill is for / where trained) is Systems' plain-words draft; rule on the wording.
+10. **Residue:** `bagSeen` (the "new" marks) and `bagView` (category + sort) added to `RESIDUE_FIELDS`; display only, gate and spend nothing.
+
 ## 2026-10-14 · SYSTEMS (lane: `lane/demo-shell`, D1) → C2 (net/accrue) + D2 (data) + COORDINATOR · **INTEGRATION: the inventory-authority arm gate asks for the deleted dungeon registry**
 
 **The conflict.** D1 deleted `src/dungeons.js`, the only publisher of `window.DUNGEONS`. `src/net/accrue.js` (C2's file) refuses to arm inventory authority without it — `markInventoryAuthorityLive` throws and `maybeAutoArm` returns false (accrue.js ~2336/2439/2639) — so the production auto-arm would silently stop making the bag absolute (BANK-1, SERVER-OWNED-1/2, INV-STAGE-*, B568-3..6 went red in-page).

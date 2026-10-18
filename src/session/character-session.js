@@ -17,6 +17,12 @@
 //   setHuntOptions(p, o) the hunt settings INTENT (hr_action_set_options); the
 //                      new settings arrive only in the re-read envelope
 //   leaveHunt()        the leave INTENT (hr_hunt_leave), re-read the same way
+//   edgeIntent(v, f)   an item intent through the engine (equip, sell, buy, eat;
+//                      src/session/edge-intents.js): names and counts only
+//   lockItem / setLootRule / setRestock / refill / savePreset / applyPreset
+//                      the bag rules, the one-tap refill and the hunt presets
+//                      (CONFLICTS.md 2026-10-18 alpha windows: the server lane
+//                      adds them); each is one intent, re-read the same way
 //   timeline           the settle responses' visual timeline (src/hunt-view/
 //                      timeline.js): tracks and events, never the record
 //   subscribe(fn)      fn(session, why) after every applied change
@@ -30,9 +36,13 @@ import { applyEnvelope, applyFrame, withResidue } from './envelope.js?v=0.1.0';
 import { createTimeline } from '../hunt-view/timeline.js?v=0.1.0';
 import { RESIDUE_FIELDS, sanitizeResidueField } from './residue.js?v=0.1.0';
 import { SESSION_CONFIG } from './config.js?v=0.1.0';
+import { edgeBody } from './edge-intents.js?v=0.1.0';
 
 export const FRAME_EVENT = 'frame';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const ITEM = /^[a-z0-9_]{1,64}$/;
+const LOOT_RULES = Object.freeze(['keep', 'sell', 'ignore']);
+const RESTOCK_MAX = 1000;
 
 /** The private push topic hr_frame_topic spells for (uid, slot), or null. Pure. */
 export function frameTopic(uid, slot, maxSlot = SESSION_CONFIG.maxSlot) {
@@ -136,6 +146,65 @@ export class CharacterSession {
   async leaveHunt() {
     if (this._closed) return { ok: false, error: 'closed' };
     return this._settled(await this._server.rpc('hr_hunt_leave', { p_slot: this.slot, p_idem: newIdem() }));
+  }
+
+  /**
+   * An item intent through the engine. The body carries names and counts only
+   * (EDGE_INTENTS); the price, the stock and the result are the server's, and
+   * the screen changes only from the re-read envelope.
+   */
+  async edgeIntent(verb, fields) {
+    if (this._closed) return { ok: false, error: 'closed' };
+    const body = edgeBody(this.slot, verb, fields, newIdem());
+    if (!body) return { ok: false, error: 'bad_intent' };
+    return this._settled(await this._server.accrue(body));
+  }
+
+  /** Lock (or unlock) an item so no bulk sale can take it; the server keeps the lock. */
+  async lockItem(item, locked) {
+    if (this._closed || !ITEM.test(String(item))) return { ok: false, error: 'bad_intent' };
+    return this._settled(await this._server.rpc('hr_item_lock', { p_slot: this.slot, p_item: item, p_locked: locked === true, p_idem: newIdem() }));
+  }
+
+  /** What the server does with this item when a hunt picks it up: keep, sell at the shop, or leave it. */
+  async setLootRule(item, rule) {
+    if (this._closed || !ITEM.test(String(item)) || !LOOT_RULES.includes(rule)) return { ok: false, error: 'bad_intent' };
+    return this._settled(await this._server.rpc('hr_loot_rule_set', { p_slot: this.slot, p_item: item, p_rule: rule, p_idem: newIdem() }));
+  }
+
+  /** The remembered restock targets, { item: count } (0 forgets one). Counts only, never a price. */
+  async setRestock(targets) {
+    if (this._closed || !targets || typeof targets !== 'object') return { ok: false, error: 'bad_intent' };
+    const out = {};
+    for (const [k, n] of Object.entries(targets)) {
+      if (!ITEM.test(k) || !Number.isInteger(n) || n < 0 || n > RESTOCK_MAX) return { ok: false, error: 'bad_intent' };
+      out[k] = n;
+    }
+    if (!Object.keys(out).length || Object.keys(out).length > 32) return { ok: false, error: 'bad_intent' };
+    return this._settled(await this._server.rpc('hr_restock_set', { p_slot: this.slot, p_targets: out, p_idem: newIdem() }));
+  }
+
+  /**
+   * The ONE-TAP REFILL: the server buys up to every restock target at its own
+   * prices. `quoted` is the total the player was shown (the server's own
+   * quote); the server refuses `quote_changed` rather than charge another sum.
+   */
+  async refill(quoted) {
+    if (this._closed || !Number.isSafeInteger(quoted) || quoted < 0) return { ok: false, error: 'bad_intent' };
+    return this._settled(await this._server.rpc('hr_shop_refill', { p_slot: this.slot, p_quote_total: quoted, p_idem: newIdem() }));
+  }
+
+  /** Save the current action set, gear and restock targets as a hunt preset (the server snapshots its own state). */
+  async savePreset(preset, name) {
+    const n = String(name || '').trim().slice(0, 24);
+    if (this._closed || !Number.isInteger(preset) || preset < 0 || preset > 7 || !n) return { ok: false, error: 'bad_intent' };
+    return this._settled(await this._server.rpc('hr_hunt_preset_save', { p_slot: this.slot, p_preset: preset, p_name: n, p_idem: newIdem() }));
+  }
+
+  /** Put a saved preset back on: its gear from the bag, its action set and its restock targets. */
+  async applyPreset(preset) {
+    if (this._closed || !Number.isInteger(preset) || preset < 0 || preset > 7) return { ok: false, error: 'bad_intent' };
+    return this._settled(await this._server.rpc('hr_hunt_preset_apply', { p_slot: this.slot, p_preset: preset, p_idem: newIdem() }));
   }
 
   /* An intent's answer: on ok the whole character is re-read, so the screen shows the server's result. */

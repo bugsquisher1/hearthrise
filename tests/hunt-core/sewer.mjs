@@ -79,12 +79,12 @@ function session(M, p) {
   });
 }
 
-/** Play the sewer for `swings` with `party`; answers what happened, pocket by pocket. */
-function playSewer(M, party, swings, seed) {
-  const ground = M.grounds.HUNT_GROUNDS.millrace_sewer;
+/** Play a ground for `swings` with `party`; answers what happened, pocket by pocket. */
+function playSewer(M, party, swings, seed, groundId) {
+  const ground = M.grounds.HUNT_GROUNDS[groundId || 'millrace_sewer'];
   const grid = gridOf(M, ground.map);
   const world = M.hs.newHuntWorld(ground, grid, party.map((p) => ({ role: p.role, maxHp: M.roles.HUNT_ROLES[p.role].hp,
-    acc: 850, maxHit: p.maxHit, def: 0, element: p.element })));
+    acc: p.acc || 850, maxHit: p.maxHit, def: 0, element: p.element })));
   const heroes = {};
   party.forEach((p, i) => {
     const u = world.units[i];
@@ -210,6 +210,14 @@ const cases = {
     if (r.wipes) return r.wipes + ' wipe(s) in a full-party loop';
     return null;
   },
+  'cellar-solo-first-kill': (M) => {
+    /* Tutorial step 2 on the real core: a fresh hero (a weak swing: 60% to hit, max 2) alone in the cellar
+       ground kills a rat inside two minutes and is never knocked out. */
+    const r = playSewer(M, [{ role: 'tank', maxHit: 2, acc: 600, element: '', bar: [] }], 60, 1, 'mill_cellar');
+    console.log('    cellar solo: pulls ' + r.pulls.map((p) => p.pocket + '@' + Math.round(p.at / 1000) + 's').join(' ') + ' | kills ' + JSON.stringify(r.kills) + ' | falls ' + r.falls);
+    if (!(r.kills.rat >= 1)) return 'a fresh hero killed no rat in the cellar in two minutes';
+    return r.falls ? 'a fresh hero was knocked out in the cellar' : null;
+  },
   'tutorial-walk-through': (M) => {
     const bad = M.tut.validate();
     if (bad.length) return bad.join('; ');
@@ -260,6 +268,8 @@ const mutants = [
     edits: [['src/data/monster-art.js', "kobold_tosher: 'kobold', ", '']] },
   { name: 'the Rat King loses his boss flag', case: 'formation-rows',
     edits: [['src/data/monsters.js', 'formation: true, boss: true,', 'formation: true,']] },
+  { name: 'the cellar pocket holds a monster a fresh hero cannot kill', case: 'cellar-solo-first-kill',
+    edits: [['src/data/hunt-grounds.js', "pocket([15, 5, 21, 10], ['rat', 18, 7], ['rat', 19, 6]),", "pocket([15, 5, 21, 10], ['rat_king', 18, 7]),"]] },
   { name: 'the party scale is flat', case: 'party-scale',
     edits: [['src/data/hunt-grounds.js', 'perHeroPermille: 150', 'perHeroPermille: 0']] },
   { name: 'the tutorial sends a fresh character to the sewer first', case: 'tutorial-walk-through',

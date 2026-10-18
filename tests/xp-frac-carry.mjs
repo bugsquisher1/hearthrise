@@ -32,10 +32,12 @@
 //       delta folded as tick-contract folds it): identical XP and remainders.
 //       Then a CHAINED world tick against the accrue path chained through a
 //       simulated hr_apply + hr_state_of round trip, window by window.
-//   X4  DRAWS ARE UNCHANGED. The seeded hit/drop draw sequence of a fight is
-//       byte-identical whatever the XP sink does (carry, per-grant floor, none),
-//       AND equal to the digest measured on the pre-change engine (set/b565,
-//       3ea45544) — the carry consumes no draw.
+//   X4  DRAWS ARE UNCHANGED. A seeded hunt (lane S1: an instance on a slime
+//       pocket, the ONE engine) is byte-identical — every step, every event —
+//       whatever the XP sink does (carry, per-grant floor, none): the carry
+//       consumes no draw. Pinned too, so a change that moves the slime fight
+//       re-measures it deliberately (re-measured lane S1 on the instance engine;
+//       the single-foe engine the b565 pin was taken on is deleted).
 //   X7  THE NO-RESCALE RULING (c), 2026-10-08: constants 4 / 1.33 / 0.39 pinned;
 //       1.33 per 1-damage hit; 100 x 1.33 -> 51 r 0.87; 100 x 10.6 at +2% -> 1081
 //       (floor: 1000); 1 x N == N x 1. (The night ratios (6)/(7) and X8, the
@@ -60,6 +62,8 @@ import { readFile, writeFile, cp, mkdtemp } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fixtureGround, FIXTURE_GRID, FIXTURE_INSTANCE, huntSessionFor, secretOf } from './hunt-fixture.mjs';
+import { seederFor } from '../supabase/functions/hr-accrue/hunt-seed.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MUTATE = process.argv.includes('--mutate');
@@ -74,15 +78,15 @@ const OWN_SQL = '2026-10-09-xp-frac-carry.sql';
    2.4 s): the same span now holds 1.2x the swings, so 3976 -> 4765 draws and
    588 -> 703 kills. The property this pins — the XP sink never moves a draw —
    is the carry/floor/none equality just below, unchanged. */
-const PRE_CHANGE_DRAWS = { n: 4765, hash: '29651c1', kills: 703,
-  items: '{"bones":216,"slime_gel":650,"sticky_core":17}' };
+const PRE_CHANGE_DRAWS = { n: 4478, hash: 'e45ff458', kills: 687,
+  items: '{"bones":213,"slime_gel":633,"sticky_core":18}' };   // re-measured lane S1 (instance engine; n = events)
 /* AND A LEVELLING HERO (every combat skill at 5, 30 minutes): the DRAW STREAM is
    pinned (count + hash), the outcomes deliberately are not. Measured on both
    trees: the same 2,360 draws, but 131 -> 130 kills — the carry pays the XP the
    floor used to eat, a level arrives at a different swing, and the same number
    rolled against a different accuracy is a different hit. That is XP moving a
    level, never XP moving a draw. */
-const PRE_CHANGE_DRAWS_L5 = { n: 2840, hash: '7a2d23c4' };   // re-measured 2026-10-15: §9 took the Trophy Room's +2% combat XP out of the fixture, so levels land on other swings (was 2846 / 81c8474)
+const PRE_CHANGE_DRAWS_L5 = { n: 2418, hash: '188cef06' };   // re-measured lane S1 on the instance engine (was 2840 / 7a2d23c4 on the single-foe span)
 
 const JS_MUTANTS = [
   { name: 'floor before multiplier', arm: 'X1', file: 'src/core/progression.js',
@@ -126,6 +130,7 @@ const SQL_MUTANTS = [
 
 async function load(base) {
   const at = (p) => import(pathToFileURL(join(base, p)).href);
+  const spawn = await at('src/core/hunt-spawn.js');
   const [prog, acc, cmb, sim, rng, env, shadow, contract, monsters, items, xp, styles] = await Promise.all([
     at('src/core/progression.js'), at('supabase/functions/hr-accrue/accrual.js'),
     at('src/core/combat.js'), at('src/core/combat-sim.js'), at('src/core/rng.js'),
@@ -140,7 +145,7 @@ async function load(base) {
   const cat = await at('supabase/functions/hr-accrue/catalogue.js');
   const gatherFixture = JSON.parse(await readFile(join(ROOT, 'services', 'world-tick', 'fixtures', 'gather-sessions.json'), 'utf8')).sessions[0];
   const residueSrc = await readFile(join(base, 'src', 'net', 'client-state.js'), 'utf8');
-  return { prog, acc, cmb, sim, rng, env, shadow, contract, MONSTERS: monsters.MONSTERS, ITEMS: items.ITEMS,
+  return { prog, acc, cmb, sim, rng, env, shadow, contract, spawn, MONSTERS: monsters.MONSTERS, ITEMS: items.ITEMS,
     xp, styles, pacing, buffs, tick, tg, gatherFixture, residueSrc, GATHER_NODES: cat.GATHER_NODES };
 }
 
@@ -297,32 +302,23 @@ async function runArms(L) {
     ok('X2', m && m.hp === 8, `the slime is not the 8-HP monster this arm is about (${m && m.hp})`);
     const run = (boost) => {
       const skills = maxed(L);
-      const xs = { skills: { ...skills }, xpFrac: {} };
-      const { ctx } = attendedCtx(L, { skills, boost, rng: L.rng.createRng(SEED), xpState: xs });
-      const st = { activeMonster: 'slime', monsterHp: 8, monsterMaxHp: 8, playerHp: 990, playerMaxHp: 990,
-        stats: {}, inventory: {}, skills, deathsTodayBefore: 0, deathsLifetimeBefore: 0, consecFalls: 0, recoveringUntilMs: 0 };
-      let kills = 0;
-      for (let i = 0; i < 100000 && kills < 100; i++) {
-        const r = L.sim.stepSwing(null, Object.assign({}, ctx, { state: st }));
-        if (r.outcome === 'kill') kills++;
-        if (r.outcome === 'death' || r.outcome === 'stop') break;
-      }
+      const h = slimeHunt(L, { skills, boost, spanMs: 3600000 });
       const gained = {};
-      for (const k of Object.keys(xs.skills)) gained[k] = xs.skills[k] - (skills[k] || 0);
-      return { kills, gained };
+      for (const k of Object.keys(h.xs.skills)) gained[k] = h.xs.skills[k] - (skills[k] || 0);
+      return { kills: h.kills, gained };
     };
     const bare = run(null);
     const rung2 = run(BOOST);
-    ok('X2', bare.kills === 100 && rung2.kills === 100, `the fixtures ran ${bare.kills}/${rung2.kills} kills, not 100`);
+    ok('X2', bare.kills >= 100 && rung2.kills === bare.kills, `the fixtures ran ${bare.kills}/${rung2.kills} kills (want the same 100+)`);
     let tested = 0;
     for (const k of Object.keys(bare.gained)) {
       const need = Math.floor(0.02 * bare.gained[k]);
       if (need > 0) tested++;
       ok('X2', rung2.gained[k] - bare.gained[k] >= need,
-        `${k}: +2% paid ${rung2.gained[k] - bare.gained[k]} extra over 100 slime kills (bare ${bare.gained[k]}), `
+        `${k}: +2% paid ${rung2.gained[k] - bare.gained[k]} extra over ${bare.kills} slime kills (bare ${bare.gained[k]}), `
         + `under floor(2%) = ${need} — the multiplier is being floored away per grant`);
     }
-    ok('X2', tested >= 2, `only ${tested} skill(s) earned 50+ XP over 100 kills — the bound tests nothing`);
+    ok('X2', tested >= 2, `only ${tested} skill(s) earned 50+ XP over ${bare.kills} kills — the bound tests nothing`);
   }
 
   // X3 ─ AWAY-1 parity, XP and remainder: one span == world tick == chained accrue.
@@ -526,32 +522,38 @@ function sortKeys(m) { const o = {}; for (const k of Object.keys(m).sort()) o[k]
 /* The seeded draw log of a maxed hitter's 30-minute slime fight, under a chosen
    XP sink. FNV-1a over every drawn double's bits, plus the kill count and the
    items rolled — the hit and drop sequences. */
-function drawDigest(L, sink, level) {
-  const skills = level ? Object.fromEntries(Object.keys(maxed(L)).map((k) => [k, L.xp.xpForLevel(level)])) : maxed(L);
-  const base = L.rng.createRng(SEED);
-  let h = 0x811c9dc5; let n = 0;
-  const buf = new DataView(new ArrayBuffer(8));
-  const src = () => {
-    const v = base.next(); n++;
-    buf.setFloat64(0, v);
-    for (let i = 0; i < 8; i++) { h ^= buf.getUint8(i); h = Math.imul(h, 0x01000193) >>> 0; }
-    return v;
-  };
-  const rng = L.rng.rngFrom(src);
+/* ONE HERO ON A SLIME POCKET, the ONE engine (src/core/combat-sim.js
+   simulateHuntInstance, loaded from the tree under test), the fx sink the
+   attended context builds. `sink`: 'carry' (grantXp), 'floor' or 'none'. */
+function slimeHunt(L, { skills, boost, sink, spanMs }) {
   const xs = { skills: { ...skills }, xpFrac: {} };
-  const { ctx, tickMs } = attendedCtx(L, { skills, perks: null, rng, xpState: xs });
-  if (sink !== 'carry') {
-    ctx.fx.addXp = sink === 'none' ? () => {} : (sk, amt) => {
-      xs.skills[sk] = (xs.skills[sk] || 0) + Math.floor(Number(amt) || 0);
-    };
+  const { ctx } = attendedCtx(L, { skills, boost, rng: null, xpState: xs });
+  if (sink && sink !== 'carry') {
+    ctx.fx.addXp = sink === 'none' ? () => {} : (sk, amt) => { xs.skills[sk] = (xs.skills[sk] || 0) + Math.floor(Number(amt) || 0); };
   }
   const items = {};
   ctx.fx.addItem = (id, q) => { items[id] = (items[id] || 0) + q; };
-  const st = { activeMonster: 'slime', monsterHp: 8, monsterMaxHp: 8, playerHp: 990, playerMaxHp: 990,
-    stats: {}, inventory: {}, skills, deathsTodayBefore: 0, deathsLifetimeBefore: 0, consecFalls: 0, recoveringUntilMs: 0 };
-  let kills = 0;
-  for (let i = 0; i < Math.floor(1800000 / tickMs); i++) if (L.sim.stepSwing(null, Object.assign({}, ctx, { state: st })).outcome === 'kill') kills++;
-  return { n, hash: h.toString(16), kills, items: JSON.stringify(sortKeys(items)) };
+  const slime = L.MONSTERS.slime;
+  const state = { skills: xs.skills, playerHp: 990, playerMaxHp: 990, stats: {}, gold: 0, recoveringUntilMs: 0 };
+  const hero = L.spawn.heroSetup({ weaponType: 'sword', options: {}, bar: [], partyRoles: [] });
+  const member = { key: 'x', seat: 0, unitId: null, hs: huntSessionFor({ fromMs: FROM, onEmpty: 'end' }), state, fx: ctx.fx,
+    style: ctx.style, bonus: ctx.bonus, weakness: (m) => ctx.weakness(m),
+    snapshot: () => { const rr = ctx.playerRolls(slime); return { acc: Math.round(rr.accuracy * 1000), maxHit: Math.max(1, rr.maxHit), def: 99 }; },
+    hero: { role: hero.role, maxMana: hero.maxMana, settings: hero.settings, bar: [], actionSet: 'hunt', range: hero.range, ammo: null } };
+  const sim = L.sim.simulateHuntInstance({ world: null, nextSwingAtMs: FROM, members: [member] }, {
+    toMs: FROM + spanMs, tickMs: 2000, seed: seederFor(secretOf(SEED), FIXTURE_INSTANCE),
+    ground: fixtureGround(['slime'], {}), grid: FIXTURE_GRID, monsters: L.MONSTERS });
+  return { xs, items, sim, kills: sim.members.x.kills };
+}
+
+/* X4's digest: the whole fight (every step and event), FNV-1a, and its size. */
+function drawDigest(L, sink, level) {
+  const skills = level ? Object.fromEntries(Object.keys(maxed(L)).map((k) => [k, L.xp.xpForLevel(level)])) : maxed(L);
+  const run = slimeHunt(L, { skills, sink, spanMs: 1800000 });
+  const text = JSON.stringify([run.sim.track, run.sim.events]);
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return { n: run.sim.events.length, hash: h.toString(16), kills: run.kills, items: JSON.stringify(sortKeys(run.items)) };
 }
 
 /* X6 — A SECOND APPLY IS A NO-OP. The chain is replayed (the file's own §4

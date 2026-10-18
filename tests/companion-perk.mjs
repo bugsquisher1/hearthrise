@@ -27,7 +27,7 @@
 import { computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
 import { onTrainingHunt } from './hunt-fixture.mjs';
 /* Lane C2: combat accrues only on a hunt session — the fixture runs as a training hunt. */
-const computeAccrualOnHunt = (inp) => computeAccrual(onTrainingHunt(inp));
+const computeAccrualOnHunt = (inp) => onTrainingHunt(inp);   // a fight is a hunt instance (lane S1); anything else is computeAccrual
 import {
   companionKeyBonus, companionXpToReach, companionLevelFromXp,
   COMPANION_KEYS, COMPANION_MAX_LEVEL,

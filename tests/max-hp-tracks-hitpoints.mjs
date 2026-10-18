@@ -42,8 +42,8 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ROOT, bootReplay } from './schema-replay.mjs';
-import { computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
-import { onTrainingHunt } from './hunt-fixture.mjs';
+
+import { huntAccrual } from './hunt-fixture.mjs';
 import { xpForLevel } from '../src/core/xp.js';
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
@@ -174,7 +174,7 @@ function offlineDeltaContract() {
   const fromMs = Date.UTC(2026, 2, 14, 12, 0, 0);
   const hpXp = xpForLevel(11) - 1;             // one XP short of the next level
   /* Lane C2: a fight is a hunt session; the food rides the bag (Auto-Eat is gone). */
-  const r = computeAccrual(onTrainingHunt({
+  const r = huntAccrual({
     userId: '00000000-0000-4000-8000-0000000000aa',
     slot: 0, nowMs: fromMs + 3600000, accruedToMs: fromMs, activeSinceMs: fromMs,
     activeKind: 'combat', activeId: MONSTER, capMs: 3600000, seed: 0x5eed0006,
@@ -185,7 +185,7 @@ function offlineDeltaContract() {
     },
     equipment: {}, items: ITEMS, monsters: MONSTERS,
     inventory: FOOD ? { [FOOD]: 100000 } : {},
-  }, { food: FOOD, foodQty: 100000 }));
+  }, { food: FOOD, foodQty: 100000 });
   ok(r && r.accrued === true, `MHP-9 FIXTURE: the offline span did not accrue (${r && r.reason})`);
   if (!r || !r.accrued) return;
   const crossed = (r.levelUps || []).filter((l) => l && l.skill === 'hitpoints');

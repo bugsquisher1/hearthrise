@@ -202,6 +202,7 @@ const cases = {
   },
   'gather-nodes': (M) => {
     const rows = Object.fromEntries([...M.gathering.TREES.map((r) => [r.id, ['woodcutting', r]]), ...M.gathering.ROCKS.map((r) => [r.id, ['mining', r]])]);
+    const spr = sprites(M);
     for (const id of NEW) {
       const g = M.grounds.HUNT_GROUNDS[id];
       const h = M.hunts.HUNT_INDEX[id];
@@ -214,6 +215,7 @@ const cases = {
         if (r[0] !== nd.skill || nd.tool.skill !== nd.skill || nd.tool.required) return id + ': node ' + nd.id + ' skill or tool is wrong';
         if (r[1].req > h.band[1] + 20) return id + ': node ' + nd.id + ' needs ' + r[1].req + ', over the band top + 20';
         if (!m.row.objects.some((o) => o.id === nd.sprite && o.x === nd.x && o.y === nd.y)) return id + ': node ' + nd.id + ' has no ' + nd.sprite + ' on the map at its tile';
+        if (!spr[nd.spent]) return id + ': node ' + nd.id + "'s spent sprite " + nd.spent + ' is in no loaded atlas';
       }
       /* the top share: the gap is refKillMs x s/(1-s); a pocket's nodes must hold that many actions */
       const s = g.gather.shares[g.gather.shares.length - 1] / 1000;

@@ -132,8 +132,10 @@ const REQUIRED = {
     ['goblin_digger', 'warren', 'vermin'], ['hobgoblin_foreman', 'warren', 'character'], ['chief_coppercap', 'warren', 'brute']]
     .map(([id, set, cls]) => [id, { set, class: cls, anims: ['idle', 'walk', 'attack'], dirs: FACINGS, also: { death: UNIT } }])),
   // their gather nodes (hunt-grounds.js GROUND_NODE_KINDS): a full and a spent sprite each
-  ...Object.fromEntries(['mb_hollow_oak', 'cw_copper_vein', 'cw_iron_vein', 'cw_coal_seam', 'cw_gold_seam']
-    .map((id) => [id, { set: id.startsWith('mb_') ? 'forest' : 'warren', class: id.startsWith('mb_') ? 'sapling' : 'bulky', anims: ['idle'], dirs: PROP }])),
+  ...Object.fromEntries([['mb_hollow_oak', 'sapling'], ['mb_hollow_oak_stump', 'wreck'], ['mb_oak_stump', 'wreck'], ['mb_pine_stump', 'decal'],
+    ['cw_copper_vein', 'bulky'], ['cw_iron_vein', 'bulky'], ['cw_coal_seam', 'bulky'], ['cw_gold_seam', 'bulky'], ['cw_copper_vein_spent', 'decal'],
+    ['cw_iron_vein_spent', 'clutter'], ['cw_coal_seam_spent', 'clutter'], ['cw_gold_seam_spent', 'clutter']]
+    .map(([id, cls]) => [id, { set: id.startsWith('mb_') ? 'forest' : 'warren', class: cls, anims: ['idle'], dirs: PROP }])),
 };
 // every reachable map's ground: one painted style-1 ground each (tools/world-art/port-pixellab.mjs)
 const REQUIRED_TERRAIN = { sewer_ground: 'sewer', cellar_ground: 'mill', common_ground: 'common', cottage_ground: 'cottage',

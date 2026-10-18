@@ -188,7 +188,8 @@ function main() {
   } else if (cmd === 'unit') {
     /* --dir DIR --class C --object OBJ_ID [--hover N]: an 8-direction Pro Flash object (a monster
        or an NPC). DIR holds its rotations as <facing>.png (south, east, …, the PixelLab names)
-       and, when it walks, walk/<facing>/<i>.png. idle is the rotation, walk the clip. Each clip
+       and, when it walks, walk/<facing>/<i>.png (attack/ and death/ the same way: the blow, the fall,
+       and a one-frame corpse from the fall's end). idle is the rotation, walk the clip. Each clip
        facing is moved by whole pixels so its lowest foot stands on the class anchor (a flier's
        hovers `hover` px above it), exactly as port-hunt-sim.mjs seats the sim's units. */
     const cls = CLASSES[o.class];
@@ -207,6 +208,9 @@ function main() {
       const have = FACINGS.filter((d) => clipOf(name, d).length);
       if (have.includes('s')) anims.push({ name, fps: 10, loop: false, frames: Object.fromEntries(have.map((d) => [d, clipOf(name, d)])) });
     }
+    /* the body left lying (choreo.js `corpse`, after `death`): the fall's last frame, held */
+    const death = anims.find((a) => a.name === 'death');
+    if (death) anims.push({ name: 'corpse', fps: 0, loop: false, frames: Object.fromEntries(Object.entries(death.frames).map(([d, f]) => [d, [f[f.length - 1]]])) });
     const facingsOf = (a) => FACINGS.filter((d) => a.frames[d] && a.frames[d].length);
     const cols = Math.max(...anims.map((a) => Math.max(...facingsOf(a).map((d) => a.frames[d].length))));
     const sheet = createImage(cols * fw, anims.reduce((n, a) => n + facingsOf(a).length, 0) * fh);

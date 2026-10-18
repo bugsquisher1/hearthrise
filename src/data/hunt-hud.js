@@ -7,6 +7,8 @@
 //                roleForWeapon), never the outfit (parity PP-02).
 //   HOTKEYS      the Settings window's hotkeys list beyond the window keys
 //                (parity SH-10), display only. Hunts are idle, so no key casts.
+//   WEAPON_WORDS each weapon TYPE (hunt-roles.js WEAPON_ROLES keys) in words,
+//                for the party board and the party finder's filter
 //   BAR_SLOTS    the bottom bar's tablets: rows x columns (parity BB-02, the
 //                action set's 20 slots, rule-subjects ACTION_SET_LIMITS).
 // ════════════════════════════════════════════════════════════════════════
@@ -24,5 +26,14 @@ export const ROLE_GLYPH = Object.freeze({
 export const HOTKEYS = Object.freeze([
   Object.freeze({ key: 'Esc', does: 'Close the top window; with none open, open Settings' }),
 ]);
+
+export const WEAPON_WORDS = Object.freeze({
+  shield: 'Shield',
+  dual_axe: 'Two axes',
+  club: 'Club',
+  bow: 'Bow',
+  crossbow: 'Crossbow',
+  staff: 'Staff',
+});
 
 export const BAR_SLOTS = Object.freeze({ rows: 2, cols: 10 });

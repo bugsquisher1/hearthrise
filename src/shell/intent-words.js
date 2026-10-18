@@ -30,6 +30,21 @@ const WORDS = Object.freeze({
   not_for_bar: 'Only food, drinks and ammo go on the action bar.',
   hunt_open: 'Not while a hunt is running.',
   closed: 'This character is closed.',
+  /* The party (S1 hr_hunt_party_* and this lane's asks). */
+  no_ground: 'That hunt is not open to parties yet.',
+  already_in_party: 'This character is already in a party. Leave it first.',
+  party_full: 'That party is full.',
+  no_party: 'That party is gone.',
+  not_leader: 'Only the party leader can do that.',
+  bad_seat: 'That seat is empty now.',
+  member_hunting: 'Not while that member is hunting.',
+  party_hunt_mismatch: 'Your party hunts somewhere else.',
+  party_hunt: 'A party hunts one ground. Leave the party to change it.',
+  no_such_name: 'No character goes by that name.',
+  not_ready: 'Not everyone in the party is ready.',
+  no_stamina: 'No stamina left: rest first.',
+  hunts_paused: 'Hunts are paused for a moment.',
+  bad_weapon: 'The server does not know that weapon.',
 });
 
 /** The plain-words reason for a refusal code. */

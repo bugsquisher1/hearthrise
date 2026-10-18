@@ -30,6 +30,10 @@ export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'shop', label: 'Shop', key: 'v', glyph: 'navStore', width: 420, object: 'ledger' }),
   Object.freeze({ id: 'hunt-prep', label: 'Hunt prep', key: 'p', glyph: 'uiCheck', width: 420, object: 'plain' }),
   Object.freeze({ id: 'find', label: 'Find an item', key: 'f', glyph: 'uiSearch', width: 380, object: 'plain' }),
+  /* Week plan step 16 + QoL 3: the party, and every open character on one screen (opened from the
+     character strip's "All characters", so it takes no launcher icon). */
+  Object.freeze({ id: 'hunt-party', label: 'Party', key: 'y', glyph: 'uiPeople', width: 440, object: 'plain' }),
+  Object.freeze({ id: 'characters', label: 'All characters', key: 'o', glyph: 'navProfile', width: 460, object: 'ledger', launcher: false }),
   Object.freeze({ id: 'hud', label: 'HUD layout', key: 'u', glyph: 'uiSettings', width: 380, object: 'plain', launcher: false }),
   Object.freeze({ id: 'hunt-settings', label: 'Hunt settings', key: 'j', glyph: 'uiTarget', width: 440, object: 'plain' }),
   Object.freeze({ id: 'chat', label: 'Chat', key: 'enter', glyph: 'uiChat', width: 400, object: 'plain' }),

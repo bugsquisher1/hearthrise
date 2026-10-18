@@ -29,6 +29,8 @@ const PANE_HTML = '<div class="world-chrome">'
  * @param {HTMLElement} [o.screen]      the whole-screen box for the shell's screen widgets
  * @param {() => object[]} [o.peers]    the account's open characters (hunt prep, the item finder)
  * @param {object} [o.account]          the AccountSession
+ * @param {object} [o.alerts]           the account's alert centre
+ * @param {Function} [o.goTo]           (slot, window?) show another open character
  * @returns {Promise<{runtime: object|null, shell: object, destroy(): void}>}
  */
 export async function mountWorldPane(host, character, o) {
@@ -62,7 +64,8 @@ export async function mountWorldPane(host, character, o) {
   }
 
   const inHunt = () => !!character.read('hunt') || !!view()._huntId;
-  const shell = mountShell(stage, { character, screen: opts.screen || doc.body, inHunt, peers: opts.peers, account: opts.account });
+  const shell = mountShell(stage, { character, screen: opts.screen || doc.body, inHunt, peers: opts.peers, account: opts.account,
+    alerts: opts.alerts, goTo: opts.goTo });
   const offInset = shell.onInset((inset) => { if (runtime) runtime.setInset(inset); });
   const offChar = character.subscribe(() => { if (runtime) runtime.sync(); shell.paint(); });
 

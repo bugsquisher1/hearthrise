@@ -101,6 +101,18 @@ function sanitizeBagView(v) {
   return out;
 }
 
+export const ALERTS_SEEN_MAX = 64;
+const ALERT_ID = /^[a-z]{1,8}:[A-Za-z0-9_:.-]{1,120}$/;
+
+/** The alerts' display state: the kinds switched off, and the event ids already shown (newest last). */
+function sanitizeAlerts(v) {
+  const out = {};
+  if (!isObj(v)) return out;
+  if (Array.isArray(v.off)) out.off = v.off.filter((id) => typeof id === 'string' && ID.test(id)).slice(0, 16);
+  if (Array.isArray(v.seen)) out.seen = v.seen.filter((id) => typeof id === 'string' && ALERT_ID.test(id)).slice(-ALERTS_SEEN_MAX);
+  return out;
+}
+
 /** field -> sanitizer. The keys ARE the allowlist. */
 const SANITIZERS = Object.freeze({
   hudLayout: sanitizeHudLayout,     // display preference: the HUD layout; gates and spends nothing
@@ -108,6 +120,7 @@ const SANITIZERS = Object.freeze({
   combatLog: sanitizeCombatLog,     // display preference: the combat log's filters; gates and spends nothing
   bagSeen: sanitizeBagSeen,         // display state: which bag stacks carry the "new" mark; gates and spends nothing
   bagView: sanitizeBagView,         // display preference: the bag's category and sort; gates and spends nothing
+  alerts: sanitizeAlerts,           // display state: which alert kinds show and which events were shown; gates and spends nothing
 });
 
 export const RESIDUE_FIELDS = Object.freeze(Object.keys(SANITIZERS));

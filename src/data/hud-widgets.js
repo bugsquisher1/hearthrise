@@ -27,6 +27,13 @@ export const HUD_WIDGETS = Object.freeze([
     min: Object.freeze([320, 40]), opacity: 1, visible: true, removable: false, when: 'always',
     phone: Object.freeze({}),
   }),
+  /* QoL 7: what happened to which character, with the next action (src/shell/alerts.js). The left
+     middle is the one edge no hunt panel holds; a screen widget, so it never moves the camera. */
+  Object.freeze({
+    id: 'alerts', label: 'Alerts', layer: 'screen', anchor: 'ml', dx: 12, dy: 0,
+    min: Object.freeze([240, 8]), opacity: 1, visible: true, removable: true, when: 'always',
+    phone: Object.freeze({ dx: 4 }),
+  }),
   /* The hunt screen (HUNT_SCREEN_SPEC §1.4): built once, patched in place. */
   Object.freeze({
     id: 'hunt-topbar', label: 'Hunt bar (top)', layer: 'world', anchor: 'tc', dx: 0, dy: 8,

@@ -51,6 +51,7 @@ export function createTimeline(o) {
   const seen = new Set();            // event keys, insertion order (bounded)
   const queue = [];                  // events not yet played, ascending atMs
   const listeners = new Set();
+  const arrivals = new Set();        // told of each NEW event at ingest (the alerts), before playback
 
   function measure(serverNowMs, clientNowMs) {
     if (!isInt(serverNowMs) || !Number.isFinite(clientNowMs)) return;
@@ -113,8 +114,10 @@ export function createTimeline(o) {
       remember(k);
       let i = queue.length;
       while (i > 0 && queue[i - 1].atMs > ev.atMs) i--;
-      queue.splice(i, 0, Object.freeze(Object.assign({ key: k }, ev)));
+      const fresh = Object.freeze(Object.assign({ key: k }, ev));
+      queue.splice(i, 0, fresh);
       ne++;
+      for (const fn of Array.from(arrivals)) fn(fresh);
     }
     return { steps: ns, events: ne };
   }
@@ -183,5 +186,7 @@ export function createTimeline(o) {
     units: () => Array.from(steps.keys()),
     pending: () => queue.length,
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
+    /** fn(event) once per NEW event as it ARRIVES (T1 de-duplicated), whether or not anything plays it. */
+    onArrive(fn) { arrivals.add(fn); return () => arrivals.delete(fn); },
   };
 }

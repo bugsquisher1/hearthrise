@@ -54,6 +54,8 @@ const EXTRA_EVENTS = Object.freeze(['input', 'keydown', 'contextmenu', 'pointerd
  * @param {() => boolean} [o.inHunt]   true while a hunt runs ('hunt' widgets)
  * @param {() => object[]} [o.peers]   every CharacterSession this account has open (hunt prep reads each one)
  * @param {object} [o.account]         the AccountSession (the item finder's account-wide read)
+ * @param {object} [o.alerts]          the account's alert centre (src/shell/alerts.js)
+ * @param {(slot: number, win?: string|null) => void} [o.goTo]  show another open character (and open a window there)
  * @param {Window} [o.host]            defaults to window
  */
 export function mountShell(root, o) {
@@ -96,6 +98,8 @@ export function mountShell(root, o) {
     wm, hud, refresh, doc, get glyphs() { return host.HR_GLYPHS || {}; }, character: opts.character || null,
     peers: () => (opts.peers ? opts.peers() : (opts.character ? [opts.character] : [])),
     account: opts.account || null,
+    alerts: opts.alerts || null,
+    goTo: opts.goTo || null,
     isPhone: () => phoneMq.matches,
     now: () => host.performance.now(),
     show(id) { if (hud.row(id)) hud.setVisible(id, true); else wm.open(id); },

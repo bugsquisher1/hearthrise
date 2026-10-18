@@ -10,6 +10,7 @@ import { DRINK_ITEMS } from '../../data/drinks.js?v=0.1.0';
 import { MONSTERS } from '../../data/monsters.js?v=0.1.0';
 import { ABILITIES } from '../../data/abilities.js?v=0.1.0';
 import { PIXEL_DIR } from '../../data/item-art.js?v=0.1.0';
+import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.1.0';
 import { glyphSvg } from '../launcher.js?v=0.1.0';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.1.0';
 import { text, style, attr } from '../../render/paint.js?v=0.1.0';
@@ -60,4 +61,11 @@ export function panelHtml(cls, title, controls, body) {
   return '<section class="hh-panel ' + cls + '" aria-label="' + esc(title) + '">'
     + '<header class="hh-panel-head"><h2 class="hh-panel-title">' + esc(title) + '</h2>' + (controls || '') + '</header>'
     + '<div class="hh-panel-body">' + body + '</div></section>';
+}
+
+/** A role glyph box: its icon rewritten only when the role changes (the role comes from the weapon). */
+export function patchRoleGlyph(el, role, glyphs) {
+  if (!el || el.getAttribute('data-role') === String(role)) return;
+  el.innerHTML = glyphSvg(glyphs, ROLE_GLYPH[role] || 'uiPeople');
+  el.setAttribute('data-role', String(role));
 }

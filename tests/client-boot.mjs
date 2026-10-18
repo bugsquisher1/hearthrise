@@ -34,8 +34,9 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 
+/* account.max_concurrent is the server's concurrent limit (AccountSession.limit): without it one character plays. */
 function envelope(slot, version, extra) {
-  return Object.assign({ ok: true, version, now: '2026-10-17T00:00:00Z', state: { active_kind: 'idle', gold: 0 }, skills: {}, inventory: {}, hero_slots: [0, 1] }, extra || {});
+  return Object.assign({ ok: true, version, now: '2026-10-17T00:00:00Z', state: { active_kind: 'idle', gold: 0 }, skills: {}, inventory: {}, hero_slots: [0, 1], account: { max_concurrent: 4 } }, extra || {});
 }
 
 const HUNT = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));

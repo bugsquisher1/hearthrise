@@ -199,14 +199,13 @@ export const HEARTHFIND_INDEX = indexHearthfind(HEARTHFIND_TABLE);
  * hearthfind can never be purchasable or boostable, and the cheapest way to
  * keep that true forever is for the roll to take no modifier argument at all.
  */
-export function rollHearthfind(index, kind, id, rng, yieldMult) {
+export function rollHearthfind(index, kind, id, rng) {
   const idx = index || HEARTHFIND_INDEX;
   if (typeof kind !== 'string' || typeof id !== 'string') return null;
   const row = Object.prototype.hasOwnProperty.call(idx, key(kind, id)) ? idx[key(kind, id)] : null;
   if (!row) return null;                       // ← no row, no draw. See the header.
   if (!rng || typeof rng.chance !== 'function') return null;
-  /* yieldMult: a party-scaled kill's yield share (hunt-rewards.js); absent = the whole roll. */
-  if (!rng.chance((yieldMult == null ? 1 : yieldMult) / row.oneIn)) return null;
+  if (!rng.chance(1 / row.oneIn)) return null;
   return { item: row.item, kind: row.kind, id: row.id, oneIn: row.oneIn };
 }
 
@@ -218,7 +217,7 @@ export function rollHearthfind(index, kind, id, rng, yieldMult) {
 export function resolveHearthfind(state, kind, id, ctx) {
   const c = ctx || {};
   if (c.hearthfind === false) return null;     // an explicit opt-out for unit tests
-  const found = rollHearthfind(c.hearthfind || HEARTHFIND_INDEX, kind, id, c.rng, c.yieldMult);
+  const found = rollHearthfind(c.hearthfind || HEARTHFIND_INDEX, kind, id, c.rng);
   if (!found) return null;
   state.stats = state.stats || {};
   state.stats.hearthfinds = (state.stats.hearthfinds || 0) + 1;

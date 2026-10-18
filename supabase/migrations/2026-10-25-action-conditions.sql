@@ -120,7 +120,7 @@ insert into public.hr_hunt_condition_metrics (metric, kind, ops, lo, hi, subject
   ('enemies_in_aoe', 'count', array['lt', 'lte', 'gt', 'gte', 'eq', 'ne']::text[], 0, 25, '{}'::text[], true, '{}'::text[]),
   ('target_is_boss', 'bool', array['eq']::text[], null, null, '{}'::text[], false, '{}'::text[]),
   ('item_qty', 'count', array['lt', 'lte', 'gt', 'gte', 'eq', 'ne']::text[], 0, 100000, array['item', 'food', 'drink', 'ammo']::text[], false, '{}'::text[]),
-  ('effect_missing', 'effect', array['has_effect', 'lacks_effect']::text[], null, null, array['target', 'self']::text[], false, array['bleed']::text[])
+  ('effect_missing', 'effect', array['has_effect', 'lacks_effect']::text[], null, null, array['target', 'self', 'ally']::text[], false, array['bleed']::text[])
 -- ⟦/metrics⟧
 ;
 delete from public.hr_hunt_action_ids;
@@ -203,7 +203,7 @@ insert into public.hr_hunt_role_rules (role, ord, slot) values
 delete from public.hr_hunt_condition_limits;
 insert into public.hr_hunt_condition_limits (key, value) values
 -- ⟦limits⟧
-  ('max_conditions', 3),
+  ('max_conditions', 4),
   ('max_stop_rules', 3),
   ('stop_hold_max_ms', 600000),
   ('stop_hold_step_ms', 100)
@@ -1006,7 +1006,7 @@ begin
         ('[{"action":{"type":"ability","id":"power_strike"},"conditions":[{"metric":"self_hp_pct","op":"lt","value":101}]}]'::jsonb, 'bad_value'),
         ('[{"action":{"type":"ability","id":"power_strike"},"conditions":[{"metric":"self_hp_pct","op":"lt","value":5.5}]}]'::jsonb, 'bad_value'),
         ('[{"action":{"type":"ability","id":"power_strike"},"conditions":[{"metric":"ally_hp_pct","op":"lt","value":5,"subject":"boss"}]}]'::jsonb, 'bad_subject'),
-        ('[{"action":{"type":"ability","id":"power_strike"},"conditions":[{"metric":"self_hp_pct","op":"lt","value":1},{"metric":"self_hp_pct","op":"lt","value":2},{"metric":"self_hp_pct","op":"lt","value":3},{"metric":"self_hp_pct","op":"lt","value":4}]}]'::jsonb, 'too_many_conditions'),
+        ('[{"action":{"type":"ability","id":"power_strike"},"conditions":[{"metric":"self_hp_pct","op":"lt","value":1},{"metric":"self_hp_pct","op":"lt","value":2},{"metric":"self_hp_pct","op":"lt","value":3},{"metric":"self_hp_pct","op":"lt","value":4},{"metric":"self_hp_pct","op":"lt","value":5}]}]'::jsonb, 'too_many_conditions'),
         ('[{"action":{"type":"consume","id":"iron_arrows"}}]'::jsonb, 'bad_action'),
         ('[{"action":{"type":"ability","id":"power_strike"},"join":"xor"}]'::jsonb, 'bad_join'),
         ('[{"action":{"type":"ability","id":"power_strike"},"when":1}]'::jsonb, 'bad_slot')) c(slots, err) loop

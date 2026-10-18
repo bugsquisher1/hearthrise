@@ -42,7 +42,9 @@
 import { HUNT_ROLES } from './hunt-roles.js?v=0.1.0';
 import { STATUSES } from './statuses.js?v=0.1.0';
 
-export const MAX_CONDITIONS = 3;
+/* Four, so a heal can say "HP at or below 75%, and Trapped, and Paralyzed, and mana at or below 50%"
+   (Tyler's Huntera reference, 2026-10-18). The `pass` bitmask is one bit a condition. */
+export const MAX_CONDITIONS = 4;
 export const MAX_STOP_RULES = 3;
 /* A stop rule's hold, in ms: whole sub-steps, at most ten minutes. */
 export const STOP_HOLD_MS = Object.freeze({ min: 0, max: 600000, step: 100 });
@@ -75,7 +77,9 @@ export const METRICS = Object.freeze([
   Object.freeze({ id: 'item_qty', label: 'Left in the bag', value: 'count', ops: NUM, range: Object.freeze([0, 100000]),
     subject: Object.freeze({ item: 'of this slot’s item', food: 'of food', drink: 'of drink', ammo: 'of the loaded ammo' }) }),
   Object.freeze({ id: 'effect_missing', label: 'An effect', value: 'effect', ops: Object.freeze(['has_effect', 'lacks_effect']),
-    subject: Object.freeze({ target: 'on my target', self: 'on me' }) }),
+    /* Whose effect: my target, me, or the ally this slot's conditions picked (its heal target; else the lowest ally).
+       The effect ids are the status registry's (statuses.js), never invented here. */
+    subject: Object.freeze({ target: 'on my target', self: 'on me', ally: 'on the ally I would heal' }) }),
 ]);
 
 /* What a slot can do: the action types and where each type's ids come from. */

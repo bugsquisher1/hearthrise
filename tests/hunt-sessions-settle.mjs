@@ -1457,7 +1457,7 @@ const MUTANTS = [
   { arm: 'QUIVER', name: 'the free rung is spent like a paid one', file: 'src/core/hunt/abilities.js',
     from: "    if (l.source === 'own' && ammoPerShot(itemRow(h, l.id)) === 0) return true;\n", to: '' },
   { arm: 'QUIVER', name: 'a ranged basic swings without a shot', file: 'src/core/hunt/damage.js',
-    from: '    if (shoots && !payBasic(inst, u, { ammo: true }, sc)) continue;', to: '' },
+    from: '    if (shot.pick.ammo !== null && !payBasic(inst, u, { ammo: shot.pick.ammo }, sc)) continue;', to: '' },
   { arm: 'QUIVER', name: '[C2 skipFoodDebit] a carried use is not debited', file: 'src/core/action-rules.js',
     from: '  l.left = int(l.left, 0) - 1;', to: '  l.left = int(l.left, 0);' },
   { arm: 'WORLD-BOUND', name: 'the world bound is lifted', file: 'src/data/hunt-tuning.js',

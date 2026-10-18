@@ -358,8 +358,10 @@ const EVAL = Object.freeze({
     return heroesOf(cx.inst).filter((a) => int(a.maxHp) > 0 && int(a.hp) * 100 < pct * int(a.maxHp)).length;
   },
   effect_missing: (cx, c) => {
-    const who = (c.subject || 'target') === 'self' ? cx.u
-      : (Number.isInteger(cx.u.target) ? cx.inst.world.units.find((x) => x.id === cx.u.target) : null);
+    const s = c.subject || 'target';
+    const who = s === 'self' ? cx.u
+      : s === 'ally' ? (cx.ally || allyOf(cx, 'lowest', 'hp'))
+        : (Number.isInteger(cx.u.target) ? cx.inst.world.units.find((x) => x.id === cx.u.target) : null);
     return who && Array.isArray(who.statuses) ? who.statuses.map((st) => st.s) : [];
   },
 });

@@ -77,7 +77,12 @@ function payKill(present, killer, kind, ctx, yieldPm) {
   for (const m of present) countKill(m, kind);
   /* THE HEARTHFIND: LAST, after every other draw this kill makes, for the hero
      who landed it. The grant is hr_apply's, from its own catalogue. */
-  const roll = { rng, fx: lead.fx, hearthfind: ctx.hearthfind, yieldMult: y };
+  /* A scaled kill's Hearthfind is THINNED, never boosted, and never inside the roll
+     (tests/hearthfind-mint-guard.mjs: rollHearthfind takes no modifier): a kill paying
+     y < 1 of its yield first passes a y chance, then makes the untouched roll, so the
+     find lands at y / oneIn. A full-yield kill draws exactly as before. */
+  if (y < 1 && !rng.chance(y)) return;
+  const roll = { rng, fx: lead.fx, hearthfind: ctx.hearthfind };
   resolveHearthfind(lead.state, 'monster', kind, roll);
 }
 

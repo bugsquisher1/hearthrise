@@ -181,7 +181,9 @@ function pickShot(inst, u, h, t, sc) {
     const id = slot.action.id;
     if (id === 'loaded') {
       const shoots = !!h && (u.role === 'ranger' || ((u.role === 'mage' || u.role === 'healer') && !!h.ammo));
-      return { ammo: shoots ? (h.ammo || '') : null, size: 1, aim: t };
+      /* A bow or crossbow with nothing loaded has no shot: no swing (the lane waits, no_stock). */
+      if (shoots && !h.ammo) return { why: 'no_stock' };
+      return { ammo: shoots ? h.ammo : null, size: 1, aim: t };
     }
     if (row.melee || !h) return null;
     const l = resolveLine(h.hs, id, 1);

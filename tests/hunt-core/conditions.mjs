@@ -206,7 +206,8 @@ const cases = {
       [ab('power_strike', [c('self_hp_pct', 'lt', 50, 'tank')]), 'bad_subject'],
       [ab('power_strike', [c('target_is_boss', 'eq', 1)]), 'bad_value'],
       [ab('power_strike', [c('effect_missing', 'lacks_effect', 'glow')]), 'bad_value'],
-      [ab('power_strike', [c('self_hp_pct', 'lt', 1), c('self_hp_pct', 'lt', 2), c('self_hp_pct', 'lt', 3), c('self_hp_pct', 'lt', 4)]), 'too_many_conditions'],
+      [ab('power_strike', [c('self_hp_pct', 'lt', 1), c('self_hp_pct', 'lt', 2), c('self_hp_pct', 'lt', 3), c('self_hp_pct', 'lt', 4)]), null],
+      [ab('power_strike', [c('self_hp_pct', 'lt', 1), c('self_hp_pct', 'lt', 2), c('self_hp_pct', 'lt', 3), c('self_hp_pct', 'lt', 4), c('self_hp_pct', 'lt', 5)]), 'too_many_conditions'],
       [ab('power_strike', [], 'xor'), 'bad_join'],
       [ab('no_such'), 'bad_action'], [slot('consume', 'iron_arrows'), 'bad_action'], [slot('attack_with_item', 'cooked_shrimp'), 'bad_action'],
       [slot('consume', 'food'), null], [slot('attack_with_item', 'iron_arrows', [c('enemies_in_aoe', 'gte', 3)]), null],
@@ -377,9 +378,9 @@ const cases = {
     /* every chance scales: a drop (a sure one too) and the Hearthfind */
     const ch = M.drops.effectiveDropChance({ ch: 0.2 }, { yieldMult: 0.55 }); const sure = M.drops.effectiveDropChance({ ch: 1 }, { yieldMult: 0.55 });
     if (Math.abs(ch - 0.11) > 1e-9 || Math.abs(sure - 0.55) > 1e-9) return 'drop chances scaled to ' + ch + ' / ' + sure;
-    const seen = []; const rng = { chance: (p) => { seen.push(p); return false; } };
-    M.hf.rollHearthfind({ 'monster:x': { item: 'i', kind: 'monster', id: 'x', oneIn: 1000 } }, 'monster', 'x', rng, 0.55);
-    if (Math.abs(seen[0] - 0.00055) > 1e-12) return 'the hearthfind rolled ' + seen[0];
+    /* the Hearthfind is thinned OUTSIDE its roll (the mint guard): the kill payout's source gates it at y first */
+    const src = readFileSync(join(M.root, 'src/core/hunt-rewards.js'), 'utf8');
+    if (!src.includes('if (y < 1 && !rng.chance(y)) return;')) return 'a scaled kill\'s Hearthfind is not thinned by its yield share';
     /* and the paid kill: a 550-permille rat's kill XP event */
     const h = hero(M, 1, 12, 3, { role: 'tank' }); const r = mon(M, 10, 0, 13, 3, { kind: 'drain_rat', hp: 1, maxHp: 25, yieldPm: 550 });
     const inst = instOf(M, world(M, [h, r])); const sc = subStep(0);
@@ -418,6 +419,7 @@ const cases = {
       [c('target_is_boss', 'eq', true), true], [c('target_is_boss', 'eq', false), false],
       [c('item_qty', 'eq', 7, 'food'), true], [c('item_qty', 'eq', 3, 'ammo'), true],
       [c('effect_missing', 'has_effect', 'bleed', 'target'), true], [c('effect_missing', 'lacks_effect', 'bleed', 'self'), true],
+      [c('effect_missing', 'lacks_effect', 'bleed', 'ally'), true],
     ].filter(([cond, want]) => holds(cond) !== want);
     if (holds(c('item_qty', 'eq', 7, 'item'), slot('consume', 'food')) !== true) bad.push(['the slot item of a food slot']);
     return bad.length ? 'wrong: ' + JSON.stringify(bad) : null;

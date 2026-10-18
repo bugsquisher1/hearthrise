@@ -1,0 +1,35 @@
+{
+  "id": "counter",
+  "class": "station",
+  "style": "s1",
+  "material": "wood",
+  "source": "counter.png",
+  "frame": [
+    42,
+    34
+  ],
+  "anchor_px": [
+    21,
+    33
+  ],
+  "footprint": [
+    2,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro_flash",
+    "image": "67cfb83c-474e-5587-8f10-9f73ac2209ed",
+    "cell": 14
+  },
+  "notes": "Cell 14 of a 4x4 style-1 prop sheet (PixelLab image 67cfb83c-474e-5587-8f10-9f73ac2209ed, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled."
+}

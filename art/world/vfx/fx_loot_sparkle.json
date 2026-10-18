@@ -1,6 +1,7 @@
 {
   "id": "fx_loot_sparkle",
   "class": "vfx",
+  "style": "s1",
   "material": "light",
   "source": "fx_loot_sparkle.png",
   "frame": [

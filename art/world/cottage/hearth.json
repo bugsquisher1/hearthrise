@@ -1,0 +1,35 @@
+{
+  "id": "hearth",
+  "class": "fixture",
+  "style": "s1",
+  "material": "stone",
+  "source": "hearth.png",
+  "frame": [
+    36,
+    45
+  ],
+  "anchor_px": [
+    18,
+    44
+  ],
+  "footprint": [
+    2,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro_flash",
+    "image": "67cfb83c-474e-5587-8f10-9f73ac2209ed",
+    "cell": 4
+  },
+  "notes": "Cell 4 of a 4x4 style-1 prop sheet (PixelLab image 67cfb83c-474e-5587-8f10-9f73ac2209ed, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled."
+}

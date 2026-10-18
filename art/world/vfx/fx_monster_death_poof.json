@@ -1,6 +1,7 @@
 {
   "id": "fx_monster_death_poof",
   "class": "vfx",
+  "style": "s1",
   "material": "light",
   "source": "fx_monster_death_poof.png",
   "frame": [

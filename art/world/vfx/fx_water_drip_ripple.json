@@ -1,6 +1,7 @@
 {
   "id": "fx_water_drip_ripple",
   "class": "vfx",
+  "style": "s1",
   "material": "light",
   "source": "fx_water_drip_ripple.png",
   "frame": [

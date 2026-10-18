@@ -1,6 +1,7 @@
 {
   "id": "fx_cast_druid_motes",
   "class": "vfx",
+  "style": "s1",
   "material": "light",
   "source": "fx_cast_druid_motes.png",
   "frame": [

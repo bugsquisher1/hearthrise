@@ -1,6 +1,7 @@
 {
   "id": "outfit_brute",
   "class": "character",
+  "style": "s1",
   "material": "unit",
   "source": "outfit_brute.png",
   "anchor_px": [

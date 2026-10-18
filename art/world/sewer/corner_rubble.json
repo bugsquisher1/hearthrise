@@ -1,0 +1,35 @@
+{
+  "id": "corner_rubble",
+  "class": "decal",
+  "style": "s1",
+  "material": "stone",
+  "source": "corner_rubble.png",
+  "frame": [
+    48,
+    48
+  ],
+  "anchor_px": [
+    24,
+    47
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "7f3ed6b9-efa1-49bb-a954-b114f174c9b4",
+    "name": "S1 corner rubble"
+  },
+  "notes": "Ported from PixelLab object 7f3ed6b9-efa1-49bb-a954-b114f174c9b4 (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

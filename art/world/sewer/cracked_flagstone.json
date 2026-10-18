@@ -1,0 +1,35 @@
+{
+  "id": "cracked_flagstone",
+  "class": "decal",
+  "style": "s1",
+  "material": "terrain",
+  "source": "cracked_flagstone.png",
+  "frame": [
+    48,
+    32
+  ],
+  "anchor_px": [
+    24,
+    31
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "7a2458a4-7a46-4394-bbe2-ecd157ce288a",
+    "name": "S1 cracked flagstone decal"
+  },
+  "notes": "Ported from PixelLab object 7a2458a4-7a46-4394-bbe2-ecd157ce288a (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

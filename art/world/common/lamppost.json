@@ -1,0 +1,35 @@
+{
+  "id": "lamppost",
+  "class": "fixture",
+  "style": "s1",
+  "material": "light",
+  "source": "lamppost.png",
+  "frame": [
+    32,
+    42
+  ],
+  "anchor_px": [
+    16,
+    41
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "0711b801-fcf2-4c31-b414-7ed14ce67209",
+    "name": "S1 lantern post"
+  },
+  "notes": "Ported from PixelLab object 0711b801-fcf2-4c31-b414-7ed14ce67209 (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

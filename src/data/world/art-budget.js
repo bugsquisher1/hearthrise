@@ -66,6 +66,9 @@ export const CLASSES = Object.freeze({
   fixture: row({ body: [16, 72], measure: 'h', contact: 'post', shadow: 'cast', layer: 'prop' }),
   tree: row({ body: [96, 128], measure: 'h', canopy: [64, 96], contact: 'post', shadow: 'cast', layer: 'unit' }),
   sapling: row({ body: [60, 100], measure: 'h', contact: 'post', shadow: 'cast', layer: 'unit' }),
+  // A whole building drawn as one style-1 sprite, roof and front wall (a closed facade: the
+  // smithy, the mill, a neighbour's cottage). Its footprint is the ground it covers.
+  building: row({ body: [80, 160], measure: 'h', contact: 'touch', shadow: null, layer: 'unit' }),
   door: row({ body: [48, 48], measure: 'h', contact: 'solid', shadow: null, layer: 'wall' }),
   wall: row({ frame: [32, 60], anchor: [16, 59], body: [56, 60], measure: 'h', face: 48, cap: [8, 12], contact: 'wall', shadow: 'cast', layer: 'wall' }),
   wallend: row({ frame: [12, 60], anchor: [6, 59], body: [56, 60], measure: 'h', contact: 'wall', shadow: 'cast', layer: 'wall' }),
@@ -73,6 +76,10 @@ export const CLASSES = Object.freeze({
   wallcap: row({ body: [8, 32], measure: 'max', contact: 'raised', shadow: null, layer: 'wall' }),
   roof: row({ body: [16, 256], measure: 'h', contact: 'raised', shadow: null, layer: 'roof' }),
   decal: row({ body: [2, 64], measure: 'max', raw: true, contact: 'flat', shadow: null, layer: 'decal' }),
+  // A span laid flat over water or a gap (the Sewer's iron grate bridge): a decal several tiles long.
+  span: row({ body: [64, 160], measure: 'max', raw: true, contact: 'flat', shadow: null, layer: 'decal' }),
+  // Wreckage wider than a crate (the Sewer's collapsed cart): something of it reaches the floor.
+  wreck: row({ body: [28, 44], measure: 'h', maxW: 64, contact: 'touch', shadow: 'ellipse', layer: 'prop' }),
   hanging: row({ body: [6, 40], measure: 'h', raw: true, contact: 'raised', shadow: null, layer: 'wall' }),
   // A combat effect (a slash, a heal, a cast): one non-directional clip in its own cropped
   // frame (the sidecar's `frame`), its anchor the point it centres on (the target's chest,

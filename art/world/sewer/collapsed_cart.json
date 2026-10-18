@@ -1,0 +1,35 @@
+{
+  "id": "collapsed_cart",
+  "class": "wreck",
+  "style": "s1",
+  "material": "wood",
+  "source": "collapsed_cart.png",
+  "frame": [
+    64,
+    42
+  ],
+  "anchor_px": [
+    32,
+    41
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "18a72ca3-3022-4331-813c-3bd076dfbff3",
+    "name": "S1 collapsed cart"
+  },
+  "notes": "Ported from PixelLab object 18a72ca3-3022-4331-813c-3bd076dfbff3 (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

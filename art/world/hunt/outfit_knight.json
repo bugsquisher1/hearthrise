@@ -1,6 +1,7 @@
 {
   "id": "outfit_knight",
   "class": "character",
+  "style": "s1",
   "material": "unit",
   "source": "outfit_knight.png",
   "anchor_px": [

@@ -1,6 +1,7 @@
 {
   "id": "kobold_tosher",
   "class": "character",
+  "style": "s1",
   "material": "unit",
   "source": "kobold_tosher.png",
   "anchor_px": [

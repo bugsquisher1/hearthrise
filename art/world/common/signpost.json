@@ -1,0 +1,35 @@
+{
+  "id": "signpost",
+  "class": "fixture",
+  "style": "s1",
+  "material": "wood",
+  "source": "signpost.png",
+  "frame": [
+    28,
+    36
+  ],
+  "anchor_px": [
+    14,
+    35
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro_flash",
+    "image": "5cc294af-490c-5e25-acb8-a6f79dd5f016",
+    "cell": 5
+  },
+  "notes": "Cell 5 of a 4x4 style-1 prop sheet (PixelLab image 5cc294af-490c-5e25-acb8-a6f79dd5f016, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled."
+}

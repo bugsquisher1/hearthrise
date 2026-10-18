@@ -1,0 +1,35 @@
+{
+  "id": "mill",
+  "class": "building",
+  "style": "s1",
+  "material": "stone",
+  "source": "mill.png",
+  "frame": [
+    192,
+    140
+  ],
+  "anchor_px": [
+    96,
+    139
+  ],
+  "footprint": [
+    4,
+    4
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "5a8d2838-3364-433b-8997-0ea4a8f5e94a",
+    "name": "S1 Common mill"
+  },
+  "notes": "Ported from PixelLab object 5a8d2838-3364-433b-8997-0ea4a8f5e94a (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

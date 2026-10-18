@@ -1,6 +1,7 @@
 {
   "id": "fx_crossbow_bolt_projectile",
   "class": "vfx",
+  "style": "s1",
   "material": "light",
   "source": "fx_crossbow_bolt_projectile.png",
   "frame": [

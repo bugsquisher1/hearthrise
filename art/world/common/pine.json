@@ -1,0 +1,35 @@
+{
+  "id": "pine",
+  "class": "sapling",
+  "style": "s1",
+  "material": "foliage",
+  "source": "pine.png",
+  "frame": [
+    64,
+    92
+  ],
+  "anchor_px": [
+    32,
+    91
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "aff6bff0-64f1-45ba-9be5-87ab20aabc80",
+    "name": "S1 pine"
+  },
+  "notes": "Ported from PixelLab object aff6bff0-64f1-45ba-9be5-87ab20aabc80 (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

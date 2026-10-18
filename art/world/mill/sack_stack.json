@@ -1,0 +1,35 @@
+{
+  "id": "sack_stack",
+  "class": "bulky",
+  "style": "s1",
+  "material": "wood",
+  "source": "sack_stack.png",
+  "frame": [
+    34,
+    35
+  ],
+  "anchor_px": [
+    17,
+    34
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro_flash",
+    "image": "d5e90ad6-7b7b-5187-8e70-986b0315a20a",
+    "cell": 1
+  },
+  "notes": "Cell 1 of a 4x4 style-1 prop sheet (PixelLab image d5e90ad6-7b7b-5187-8e70-986b0315a20a, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled."
+}

@@ -1,6 +1,7 @@
 {
   "id": "outfit_sorcerer",
   "class": "character",
+  "style": "s1",
   "material": "unit",
   "source": "outfit_sorcerer.png",
   "anchor_px": [

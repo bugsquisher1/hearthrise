@@ -1,6 +1,7 @@
 {
   "id": "outfit_druid",
   "class": "character",
+  "style": "s1",
   "material": "unit",
   "source": "outfit_druid.png",
   "anchor_px": [

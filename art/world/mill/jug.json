@@ -1,0 +1,35 @@
+{
+  "id": "jug",
+  "class": "clutter",
+  "style": "s1",
+  "material": "stone",
+  "source": "jug.png",
+  "frame": [
+    18,
+    22
+  ],
+  "anchor_px": [
+    9,
+    21
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro_flash",
+    "image": "4be24e7a-2037-5e9d-895a-148f18fc1f7a",
+    "cell": 14
+  },
+  "notes": "Cell 14 of a 4x4 style-1 prop sheet (PixelLab image 4be24e7a-2037-5e9d-895a-148f18fc1f7a, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled."
+}

@@ -31,6 +31,7 @@ import { ySort } from './zsort.js?v=0.1.0';
 import { heroBuilding } from './roofs.js?v=0.1.0';
 import { ellipseShadow, castMatrix } from './shadows.js?v=0.1.0';
 import { vertexGrid, tileKey } from './wang.js?v=0.1.0';
+import { OUTFITS } from '../../data/hunt-outfits.js?v=0.1.0';
 
 /** Wall height: rock tops and capstones are raised by it. */
 export const WALL_FACE_PX = 48;
@@ -50,7 +51,10 @@ export function groundTiles(map, book, tables, T) {
   const terr = book.terrains[map.groundTerrain];
   const upper = terr ? terr.upper : null;
   const fill = terr && terr.kind === 'fill' ? terr.cycle || [1, 1] : null;
-  const solid = (x, y) => { const m = tables.materials[map.ground[y * map.w + x]]; return !!(m && m.solid); };
+  /* A PAINTED ground (a whole map stitched from PixelLab, port-pixellab.mjs) covers every cell,
+     rock and water included: its walls are in the paint, so nothing is void. */
+  const painted = !!(terr && terr.painted);
+  const solid = (x, y) => { const m = tables.materials[map.ground[y * map.w + x]]; return !painted && !!(m && m.solid); };
   const g = vertexGrid((x, y) => map.ground[y * map.w + x] === upper, map.w, map.h);
   for (let y = 0; y < map.h; y++) {
     for (let x = 0; x < map.w; x++) {
@@ -62,6 +66,7 @@ export function groundTiles(map, book, tables, T) {
     }
   }
   for (const b of map.buildings) {
+    if (b.painted) continue;
     const f = book.terrains[b.floor];
     if (!f) continue;
     const [cols, rows] = f.cycle || [1, 1];
@@ -117,8 +122,9 @@ export function composeFrame(map, book, state, view, tables, T) {
   }
 
   // Rock: a face where you can stand south of it; otherwise a raised void top
-  // with a capstone on every edge that meets the floor.
-  const solid = (x, y) => { const m = tables.materials[map.ground[y * map.w + x]]; return !!(m && m.solid); };
+  // with a capstone on every edge that meets the floor. A painted ground draws its own.
+  const paintedGround = !!(book.terrains[map.groundTerrain] && book.terrains[map.groundTerrain].painted);
+  const solid = (x, y) => { const m = tables.materials[map.ground[y * map.w + x]]; return !paintedGround && !!(m && m.solid); };
   const floorAt = (x, y) => x >= 0 && y >= 0 && x < map.w && y < map.h && !solid(x, y);
   for (let y = 0; y < map.h; y++) {
     for (let x = 0; x < map.w; x++) {
@@ -135,6 +141,8 @@ export function composeFrame(map, book, state, view, tables, T) {
   }
 
   for (const b of map.buildings) {
+    /* A painted building's walls are in the ground art and it has no roof: nothing to draw. */
+    if (b.painted) continue;
     const { x: x0, y: y0 } = b.rect, x1 = b.rect.x + b.rect.w - 1, y1 = b.rect.y + b.rect.h - 1;
     const doorX = (b.doors.find((d) => d.y === y1) || {}).x;
     const alpha = state.roofAlpha && b.id in state.roofAlpha ? state.roofAlpha[b.id] : (b.id === heroId ? 0 : 1);
@@ -217,7 +225,8 @@ export function composeFrame(map, book, state, view, tables, T) {
   /* The tile a tap sent the hero to, while it walks there. */
   const mark = state.mark ? { x: (state.mark.x + 0.5) * T, y: (state.mark.y + 1) * T - 7 } : null;
   if (hero) {
-    const h = unit(Object.assign({ id: 'hero', anim: 'idle', dir: 's' }, hero, {
+    /* The hero is drawn in its style-1 outfit (src/world/hero-look.js); the knight's when none is named. */
+    const h = unit(Object.assign({ id: OUTFITS.knight, anim: 'idle', dir: 's' }, hero, {
       plate: hero.plate || (state.name ? { text: state.name, kind: 'self' } : null) }), true);
     if (map.light === 'cellar') points.push({ x: h.cx, y: h.foot - 18, r: HERO_LIGHT_TILES * T, tint: 'hero' });
   }

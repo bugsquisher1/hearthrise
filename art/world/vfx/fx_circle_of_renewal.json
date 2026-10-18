@@ -1,6 +1,7 @@
 {
   "id": "fx_circle_of_renewal",
   "class": "vfx",
+  "style": "s1",
   "material": "light",
   "source": "fx_circle_of_renewal.png",
   "frame": [

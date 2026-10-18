@@ -22,7 +22,10 @@
 //               chimney: x|null, closed?: true, roof:{ rect:[x,y,w,h], kind } }]
 //             rect includes the walls; doors and windows sit on the south
 //             (front) row; a `closed` building is a facade — its doors block
-//             a step, so nobody walks in and it needs no inside wall kit
+//             a step, so nobody walks in and it needs no inside wall kit;
+//             a `painted: true` building is drawn by a painted ground (its
+//             walls and floor are in the art, it has no roof): it keeps the
+//             rect, doors and blocking, and needs no kit, floor or roof
 //   path      [[x,y], …] corner waypoints of a CLOSED loop of straight 8-way legs
 //   spawns [[x,y]], stations { name: [x,y] }, exits [{ x, y, to }], start [x,y]
 //   focus     [x,y] (optional) the tile a walked map's camera leans toward, so
@@ -96,8 +99,9 @@ export function compileMap(row, tables) {
         if (onEdge(r, x, y) && (closed || !doors.some((d) => d.x === x && d.y === y))) mask[y * w + x] = 1;
       }
     }
+    const painted = b.painted === true;
     return { id: b.id, rect: r, wall: b.wall, floor: b.floor, doors, windows: b.windows || [], chimney: b.chimney == null ? null : b.chimney,
-      closed, roof: { rect: rectOf(b.roof.rect), kind: b.roof.kind } };
+      closed, painted, roof: painted ? null : { rect: rectOf(b.roof.rect), kind: b.roof.kind } };
   });
   const objects = [], lit = [];
   for (const o of row.objects || []) {
@@ -144,6 +148,7 @@ function bodyOverlap(w, h, objects, buildings, sprites) {
     boxes.push({ x, y, w: s.frame[0], h: s.frame[1], row: o.y + o.fh - 1, over: false, home: null });
   }
   for (const b of buildings) {
+    if (b.painted) continue;   // its walls are ground art, its roof is open sky: nothing stands over a unit
     const { x: x0, y: y0 } = b.rect, x1 = x0 + b.rect.w - 1, y1 = y0 + b.rect.h - 1;
     const wall = rec(b.wall + '_wall'), roof = rec(b.roof.kind);
     const wallUp = wall ? wall.anchor[1] : 59, roofH = roof ? roof.frame[1] : T;
@@ -172,7 +177,8 @@ const WHOLE = (v) => Number.isInteger(v);
  *   L-ROWS  equal widths, every char in the legend, every legend id a material
  *   L-WHOLE objects are { id, x, y } on whole tiles, in bounds, a real sprite
  *   L-SPACE no two solid objects share a tile; nothing stands on rock or in a
- *           wall, except a hung sprite on a wall face
+ *           wall, except a hung sprite on a wall face (and flat art on a flat
+ *           solid: a lantern sunk in the sewage)
  *   L-BUILD building rect in bounds, >= 3x3, on open ground, not overlapping
  *   L-DOOR  doors on the rect's edge (not a corner) with open ground both sides
  *   L-ROOF  the roof is exactly the building's footprint
@@ -206,7 +212,7 @@ export function lintMap(row, tables) {
   const inside = (x, y) => WHOLE(x) && WHOLE(y) && x >= 0 && y >= 0 && x < w && y < h;
   for (const b of row.buildings || []) {
     if (!Array.isArray(b.rect) || b.rect.length !== 4 || !b.rect.every(WHOLE)) { bad('L-WHOLE', 'building ' + b.id + ' rect is not four whole numbers'); return out; }
-    if (!b.roof || !Array.isArray(b.roof.rect) || b.roof.rect.join() !== b.rect.join()) bad('L-ROOF', 'building ' + b.id + ' roof ' + JSON.stringify(b.roof && b.roof.rect) + ' is not its footprint ' + JSON.stringify(b.rect));
+    if (b.painted !== true && (!b.roof || !Array.isArray(b.roof.rect) || b.roof.rect.join() !== b.rect.join())) bad('L-ROOF', 'building ' + b.id + ' roof ' + JSON.stringify(b.roof && b.roof.rect) + ' is not its footprint ' + JSON.stringify(b.rect));
   }
   for (const o of row.objects || []) {
     const extra = Object.keys(o).filter((k) => k !== 'id' && k !== 'x' && k !== 'y');
@@ -248,7 +254,9 @@ export function lintMap(row, tables) {
       const k = x + ',' + y;
       if (solid) { if (taken.has(k)) bad('L-SPACE', o.id + ' and ' + taken.get(k) + ' share tile ' + k); taken.set(k, o.id); }
       if (hung && wallFace(x, y)) continue;
-      if (solidAt(x, y)) bad('L-SPACE', o.id + ' stands on solid ground at ' + k);
+      /* flat art may lie on a flat solid (a lantern sunk in the sewage channel); nothing stands on rock */
+      const flatOnFlat = !solid && !!(materials[map.ground[y * w + x]] || {}).flat;
+      if (solidAt(x, y) && !flatOnFlat) bad('L-SPACE', o.id + ' stands on solid ground at ' + k);
       if (B.some((b) => onEdge(b.rect, x, y))) bad('L-SPACE', o.id + ' stands in a wall at ' + k);
     }
     if (solid && !treeClasses.includes(o.cls)) {
@@ -278,6 +286,7 @@ export function lintMap(row, tables) {
     }
   }
   for (const b of B) {
+    if (b.painted) continue;
     const kit = ['_wall', '_wall_door'].concat(b.windows.length ? ['_wall_window'] : [], b.closed ? [] : ['_cap', '_stub', '_end']);
     for (const k of kit) if (!sprites[b.wall + k]) bad('L-KIT', 'building ' + b.id + ' needs ' + b.wall + k + (b.closed ? '' : ' (it can be walked into)') + ', which no atlas carries');
   }

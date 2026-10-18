@@ -1,6 +1,7 @@
 {
   "id": "fx_level_up",
   "class": "vfx",
+  "style": "s1",
   "material": "light",
   "source": "fx_level_up.png",
   "frame": [

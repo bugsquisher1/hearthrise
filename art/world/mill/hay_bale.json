@@ -1,0 +1,41 @@
+{
+  "id": "hay_bale",
+  "class": "clutter",
+  "style": "s1",
+  "material": "wood",
+  "source": "hay_bale.png",
+  "frame": [
+    22,
+    24
+  ],
+  "anchor_px": [
+    11,
+    22
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "overhang_px": [
+    0,
+    0,
+    1,
+    0
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro_flash",
+    "image": "4be24e7a-2037-5e9d-895a-148f18fc1f7a",
+    "cell": 8
+  },
+  "notes": "Cell 8 of a 4x4 style-1 prop sheet (PixelLab image 4be24e7a-2037-5e9d-895a-148f18fc1f7a, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled."
+}

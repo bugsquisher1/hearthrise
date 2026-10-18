@@ -1,0 +1,35 @@
+{
+  "id": "bucket",
+  "class": "bulky",
+  "style": "s1",
+  "material": "wood",
+  "source": "bucket.png",
+  "frame": [
+    18,
+    26
+  ],
+  "anchor_px": [
+    9,
+    25
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro_flash",
+    "image": "4be24e7a-2037-5e9d-895a-148f18fc1f7a",
+    "cell": 15
+  },
+  "notes": "Cell 15 of a 4x4 style-1 prop sheet (PixelLab image 4be24e7a-2037-5e9d-895a-148f18fc1f7a, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled."
+}

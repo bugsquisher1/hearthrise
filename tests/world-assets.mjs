@@ -23,11 +23,17 @@
 // It also rebuilds every set from art/world/** in memory and fails on drift, so
 // an atlas cannot be hand-edited past the pipeline (tools/world-art/build.mjs).
 //
-// The content contract the world renderer builds against is pinned too: the hero
-// idles, walks and attacks in four directions; the hunt outfits and the Rat King
-// idle and walk in all eight; rat, slime and hive wasp walk,
-// attack, flinch and leave a corpse in four; the town has its four stations and
-// its crier, the house one piece per room, and each set its floor.
+// The content contract the world renderer builds against is pinned too: the hunt
+// outfits (the hero everywhere, src/world/hero-look.js), the Rat King and every
+// monster of the two hunting grounds idle and walk in all eight facings; the town
+// has its stations, its crier and its two buildings, the house one piece per room,
+// and each reachable map its painted ground.
+//
+// ONE STYLE (Tyler 2026-10-18, tools/world-art/style1.mjs): every sidecar of a set
+// the renderer loads is style 1 with a style-1 source, no retired pre-style-1 set
+// (hero, cellar, town, home) is loaded or left in the tree, no art sits in a set
+// nobody loads, and everything a player can reach names a sprite or ground some
+// loaded style-1 set carries. --selftest plants each kind of old asset.
 //
 // --selftest plants the five defects the feedback named into REAL shipped sprites
 // — a floated chest, a 50 px hero, an off-palette pixel, a baked shadow, an
@@ -36,7 +42,7 @@
 // fade through blank frames, never be blank in all of them); the clean sprites and a palette-preserving
 // recolour must stay silent (a guard red on clean art proves nothing).
 //
-// mutant-anchors: assets/world/ art/world/ tools/world-art/ src/data/world/
+// mutant-anchors: assets/world/ art/world/ tools/world-art/ src/data/world/ src/data/hunt-outfits.js
 //
 // Exit: 0 green · 1 a finding, drift, or a mutant escaped · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
@@ -49,32 +55,58 @@ import { measureFrame } from '../tools/world-art/measure.mjs';
 import { ROOT, ART_DIR, OUT_DIR, checkAll, spriteFromAtlas, terrainFromAtlas } from '../tools/world-art/build.mjs';
 import { CLASSES, MANIFEST_VERSION, FACINGS } from '../src/data/world/art-budget.js';
 import { PALETTE_ID } from '../tools/world-art/palette.mjs';
+import { style1Findings, reachableRefs, RETIRED_SETS } from '../tools/world-art/style1.mjs';
+import { readSidecars, listSets } from '../tools/world-art/build.mjs';
+import { ATLAS_SETS } from '../src/data/world/atlas-sets.js';
+import { WORLD_MAPS } from '../src/data/world/maps/index.js';
+import { ROOM_LAYOUTS, TROPHY_MOUNT_SPRITES } from '../src/data/world/house-layouts.js';
+import { PEER_LOOKS, CRIER_SPRITE } from '../src/data/world/stations.js';
+import { OUTFITS } from '../src/data/hunt-outfits.js';
+import { HUNT_INDEX } from '../src/data/hunts.js';
+import { HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
+
+/* ONE STYLE (tools/world-art/style1.mjs): what the renderer loads, what is in the tree, and
+   everything a player can reach, read from the shipped data. */
+function style1Input(root = ROOT, over = {}) {
+  const built = existsSync(join(root, OUT_DIR)) ? readdirSync(join(root, OUT_DIR)).map((f) => (f.match(/^atlas-(.+)\.json$/) || [])[1]).filter(Boolean) : [];
+  const atlasSets = over.atlasSets || ATLAS_SETS;
+  const sidecars = {};
+  for (const set of listSets(root)) sidecars[set] = readSidecars(root, set);
+  return {
+    atlasSets, artSets: listSets(root), builtSets: built, sidecars,
+    refs: reachableRefs({ maps: over.maps || WORLD_MAPS, layouts: ROOM_LAYOUTS, trophySprites: TROPHY_MOUNT_SPRITES, peerLooks: PEER_LOOKS,
+      crier: CRIER_SPRITE, outfits: Object.values(OUTFITS), huntIndex: HUNT_INDEX, grounds: HUNT_GROUNDS }),
+  };
+}
 
 // What the hunt (W3) and the town/home scenes (W4) are built against. A prop needs
 // its one idle frame; a unit every listed clip in all four facings.
 const UNIT = ['s', 'e', 'n', 'w'], PROP = ['s'];
 const REQUIRED = {
-  hero: { set: 'hero', class: 'character', anims: ['idle', 'walk', 'attack'], dirs: UNIT },
-  rat: { set: 'cellar', class: 'critter', anims: ['walk', 'attack', 'hit', 'corpse'], dirs: UNIT },
-  slime: { set: 'cellar', class: 'critter', anims: ['walk', 'attack', 'hit', 'corpse'], dirs: UNIT },
-  hive_wasp: { set: 'cellar', class: 'flier', anims: ['walk', 'attack', 'hit', 'corpse'], dirs: UNIT },
-  // town stations: combat at the mill hatch, gather at the woodpile, artisan at the anvil,
-  // away/idle on benches; the crier speaks from the notice board
-  hatch: { set: 'town', class: 'decal', anims: ['idle'], dirs: PROP },
-  woodpile: { set: 'town', class: 'fixture', anims: ['idle'], dirs: PROP },
-  anvil: { set: 'town', class: 'bulky', anims: ['idle'], dirs: PROP },
-  bench: { set: 'town', class: 'bench', anims: ['idle'], dirs: PROP },
-  noticeboard: { set: 'town', class: 'fixture', anims: ['idle'], dirs: PROP },
-  npc_crier: { set: 'town', class: 'character', anims: ['idle'], dirs: UNIT },
+  // the Mill Cellar's three: rat and slime wear the Sewer's style-1 art, the hive wasp is its own
+  rat: { set: 'hunt', class: 'vermin', anims: ['idle', 'walk'], dirs: FACINGS },
+  slime: { set: 'hunt', class: 'vermin', anims: ['idle', 'walk'], dirs: FACINGS },
+  hive_wasp: { set: 'mill', class: 'vermin_flier', anims: ['idle', 'walk'], dirs: FACINGS },
+  loot_bag: { set: 'mill', class: 'clutter', anims: ['idle'], dirs: PROP },
+  // town stations: combat at the mill hatch, gather at the woodpile, artisan at the anvil;
+  // the crier speaks from the notice board
+  hatch: { set: 'common', class: 'decal', anims: ['idle'], dirs: PROP },
+  woodpile: { set: 'common', class: 'fixture', anims: ['idle'], dirs: PROP },
+  anvil: { set: 'common', class: 'bulky', anims: ['idle'], dirs: PROP },
+  noticeboard: { set: 'common', class: 'fixture', anims: ['idle'], dirs: PROP },
+  npc_crier: { set: 'common', class: 'character', anims: ['idle'], dirs: UNIT },
+  smithy: { set: 'common', class: 'building', anims: ['idle'], dirs: PROP },
+  mill: { set: 'common', class: 'building', anims: ['idle'], dirs: PROP },
   // one piece per house room (kitchen, forge, library, trophy, workshop, shrine) + the bed
-  hearth: { set: 'home', class: 'fixture', anims: ['idle'], dirs: PROP },
-  forge: { set: 'home', class: 'fixture', anims: ['idle'], dirs: PROP },
-  bookshelf: { set: 'home', class: 'fixture', anims: ['idle'], dirs: PROP },
-  display_case: { set: 'home', class: 'fixture', anims: ['idle'], dirs: PROP },
-  workbench: { set: 'home', class: 'station', anims: ['idle'], dirs: PROP },
-  altar: { set: 'home', class: 'fixture', anims: ['idle'], dirs: PROP },
-  bed: { set: 'home', class: 'bed', anims: ['idle'], dirs: PROP },
-  // the live hunt (src/hunt-view/scene.js): every outfit and the Rat King walk in all eight facings
+  hearth: { set: 'cottage', class: 'fixture', anims: ['idle'], dirs: PROP },
+  forge: { set: 'cottage', class: 'fixture', anims: ['idle'], dirs: PROP },
+  bookshelf: { set: 'cottage', class: 'fixture', anims: ['idle'], dirs: PROP },
+  display_case: { set: 'cottage', class: 'station', anims: ['idle'], dirs: PROP },
+  workbench: { set: 'cottage', class: 'station', anims: ['idle'], dirs: PROP },
+  altar: { set: 'cottage', class: 'fixture', anims: ['idle'], dirs: PROP },
+  bed: { set: 'cottage', class: 'bed', anims: ['idle'], dirs: PROP },
+  // the live hunt (src/hunt-view/scene.js) and every walked map's hero (src/world/hero-look.js):
+  // every outfit and the Rat King walk in all eight facings
   ...Object.fromEntries(['outfit_knight', 'outfit_berserker', 'outfit_brute', 'outfit_ranger', 'outfit_sorcerer', 'outfit_witch', 'outfit_dawnward', 'outfit_druid']
     .map((id) => [id, { set: 'hunt', class: 'character', anims: ['idle', 'walk'], dirs: FACINGS }])),
   rat_king: { set: 'hunt', class: 'beast', anims: ['idle', 'walk'], dirs: FACINGS },
@@ -83,7 +115,8 @@ const REQUIRED = {
   culvert_bat: { set: 'hunt', class: 'vermin_flier', anims: ['idle', 'walk'], dirs: FACINGS },
   kobold_tosher: { set: 'hunt', class: 'character', anims: ['idle', 'walk'], dirs: FACINGS },
 };
-const REQUIRED_TERRAIN = { cellar_earth: 'cellar', town_ground: 'town', plank_floor: 'home' };
+// every reachable map's ground: one painted style-1 ground each (tools/world-art/port-pixellab.mjs)
+const REQUIRED_TERRAIN = { sewer_ground: 'sewer', cellar_ground: 'mill', common_ground: 'common', cottage_ground: 'cottage' };
 
 function loadAtlases(root = ROOT) {
   const dir = join(root, OUT_DIR);
@@ -123,6 +156,7 @@ function guard() {
     const m = atlases.find((a) => a.manifest.set === set);
     if (!m || !m.manifest.terrain[id]) fails.push(`content: no terrain "${id}" in set ${set}`);
   }
+  for (const f of style1Findings(style1Input())) fails.push(`style-1: [${f.rule}] ${f.detail}`);
   const { findings, drift } = checkAll(ROOT);
   for (const f of findings) fails.push(`source: [${f.rule}] ${f.id}: ${f.detail}`);
   for (const d of drift) fails.push(`drift: ${d}`);
@@ -149,7 +183,9 @@ function recolourOne(img, rgb) {
   return out;
 }
 function bakeShadow(img, anchorY) {
-  const out = cloneImage(img);
+  /* A style-1 prop's frame ends on its contact row: grow it 4 rows, as an exporter would to fit the shadow. */
+  const out = createImage(img.width, Math.max(img.height, anchorY + 5));
+  blit(out, img, 0, 0, img.width, img.height, 0, 0);
   const m = measureFrame(img);
   const cx = (m.box.x0 + m.box.x1) / 2 + 2, cy = anchorY + 1, rx = m.box.w / 2 + 1, ry = 3;
   const [r, g, b] = hex('#17141a');
@@ -220,6 +256,28 @@ function selftest(atlases) {
     if (rules.has(rule)) console.log(`  ✓ ${name}: caught by [${rule}]`);
     else { escaped++; console.log(`  ✗ ${name}: NOT caught by [${rule}] (rules hit: ${[...rules].join(', ') || 'none'})`); }
   }
+  // ONE STYLE: each planted old asset must be caught by its own rule; the shipped input stays silent.
+  const clean = style1Findings(style1Input());
+  if (clean.length) { console.error('world-assets --selftest: harness — the shipped world is not clean style 1: ' + clean.map((f) => f.detail).join('; ')); process.exit(2); }
+  const s1 = (name, rule, input) => {
+    const rules = new Set(style1Findings(input).map((f) => f.rule));
+    if (rules.has(rule)) console.log(`  ✓ ${name}: caught by [${rule}]`);
+    else { escaped++; console.log(`  ✗ ${name}: NOT caught by [${rule}] (rules hit: ${[...rules].join(', ') || 'none'})`); }
+  };
+  const oldSidecar = (inp) => { const set = inp.atlasSets.find((x) => (inp.sidecars[x] || []).length); const sc = inp.sidecars[set][0];
+    inp.sidecars[set] = inp.sidecars[set].concat([{ id: 'barrel_old', class: 'barrel', material: 'wood', source: 'barrel_old.png', pixellab: { tool: 'create_1_direction_object', id: 'b90e189e' } }]);
+    return sc; };
+  { const inp = style1Input(); oldSidecar(inp); s1('a pre-style-1 sidecar (no style mark) in a loaded set', 's1-source', inp); }
+  { const inp = style1Input(); const set = inp.atlasSets[0]; inp.sidecars[set] = inp.sidecars[set].map((sc, i) => (i ? sc : Object.assign({}, sc, { style: 's1', pixellab: undefined, notes: 'hand' }))); s1('a style mark with no style-1 source', 's1-source', inp); }
+  { const maps = WORLD_MAPS.map((m) => (m.id === 'mill_cellar' ? Object.assign({}, m, { objects: m.objects.concat([{ id: 'barrel_old', x: 10, y: 6 }]) }) : m));
+    s1('an old sprite id placed on a reachable map', 's1-ref', style1Input(ROOT, { maps })); }
+  { const maps = WORLD_MAPS.map((m) => (m.id === 'town_common' ? Object.assign({}, m, { ground: 'town_ground' }) : m)); s1('a map on the old town ground', 's1-ref', style1Input(ROOT, { maps })); }
+  { const maps = WORLD_MAPS.map((m) => (m.id === 'home_cottage' ? Object.assign({}, m, { buildings: m.buildings.map((b) => Object.assign({}, b, { painted: false, roof: { rect: b.rect, kind: 'roof_wood' } })) }) : m));
+    s1('a building drawn with the old wall kit', 's1-ref', style1Input(ROOT, { maps })); }
+  s1('the retired hero set loaded again', 's1-retired', style1Input(ROOT, { atlasSets: ATLAS_SETS.concat(['hero']) }));
+  { const inp = style1Input(); inp.artSets = inp.artSets.concat(['oldkit']); s1('old art parked in a set nobody loads', 's1-orphan', inp); }
+  { const inp = style1Input(); inp.builtSets = inp.builtSets.concat([RETIRED_SETS[0]]); s1('a retired atlas left in assets/world', 's1-retired', inp); }
+
   // Drift, end to end: a copy of the tree with one atlas pixel edited by hand must
   // fail the rebuild comparison the plain run makes (checkAll), not just a hash.
   const tmp = mkdtempSync(join(tmpdir(), 'world-assets-'));
@@ -236,7 +294,7 @@ function selftest(atlases) {
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
-  console.log(escaped ? `world-assets --selftest: RED — ${escaped} planted defect(s) escaped` : `world-assets --selftest: all ${mutants.length + 1} planted defects caught; ${controls.length} clean controls silent`);
+  console.log(escaped ? `world-assets --selftest: RED — ${escaped} planted defect(s) escaped` : `world-assets --selftest: all ${mutants.length + 9} planted defects caught; ${controls.length + 1} clean controls silent`);
   process.exit(escaped ? 1 : 0);
 }
 

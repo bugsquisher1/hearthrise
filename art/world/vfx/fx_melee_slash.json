@@ -1,6 +1,7 @@
 {
   "id": "fx_melee_slash",
   "class": "vfx",
+  "style": "s1",
   "material": "light",
   "source": "fx_melee_slash.png",
   "frame": [

@@ -1,6 +1,7 @@
 {
   "id": "outfit_berserker",
   "class": "character",
+  "style": "s1",
   "material": "unit",
   "source": "outfit_berserker.png",
   "anchor_px": [

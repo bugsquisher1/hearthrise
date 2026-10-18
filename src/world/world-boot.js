@@ -48,6 +48,7 @@ import { huntOf } from '../session/hunt-sections.js?v=0.1.0';
 import { createWalkScene } from './walk-scene.js?v=0.1.0';
 import { homeMapFor } from './home-scene.js?v=0.1.0';
 import { runAction } from './steer-local.js?v=0.1.0';
+import { heroSprite } from './hero-look.js?v=0.1.0';
 
 /* THE KEYS (desktop): WASD and the arrows, by physical key (e.code, so a
    non-QWERTY layout walks with the same hand). Two held at once walk the
@@ -236,12 +237,13 @@ export async function bootWorld(panel, opts) {
     const snap = obs ? obs.snapshot() : bareSnapshot(G);
     const hs = hunt.state(snap, now, name);
     lastHunt = { foe: hs.foe, down: hs.down, floats: hs.floats.length, units: hs.units.map((u) => u.id), hero: hs.hero };
-    return { hero: hs.hero, units: hs.units, floats: hs.floats };
+    /* The staged fight draws your hero in the same outfit the live hunt and the town do. */
+    return { hero: hs.hero && Object.assign({}, hs.hero, { id: heroSprite(character) }), units: hs.units, floats: hs.floats };
   }
 
   function walkState(G, map, now) {
     if (!walk || walk.map !== map) {
-      walk = createWalkScene(map, { at: heroPosOn(G, map.id), sprites, openClasses: OPEN_CLASSES, maps: ROW_OF });
+      walk = createWalkScene(map, { at: heroPosOn(G, map.id), sprites, openClasses: OPEN_CLASSES, maps: ROW_OF, heroSprite: () => heroSprite(character) });
       if (keys.size) walk.drive(keyVector(), now);   // keys still held across a scene change keep walking
     }
     const f = walk.frame(readEnv(G, map.kind), now);

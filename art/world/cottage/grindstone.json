@@ -1,0 +1,41 @@
+{
+  "id": "grindstone",
+  "class": "clutter",
+  "style": "s1",
+  "material": "stone",
+  "source": "grindstone.png",
+  "frame": [
+    20,
+    23
+  ],
+  "anchor_px": [
+    10,
+    19
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "overhang_px": [
+    0,
+    0,
+    3,
+    0
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro_flash",
+    "image": "75c00296-12b9-53b7-8ee5-8dd2f3c64a64",
+    "cell": 11
+  },
+  "notes": "Cell 11 of a 4x4 style-1 prop sheet (PixelLab image 75c00296-12b9-53b7-8ee5-8dd2f3c64a64, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled."
+}

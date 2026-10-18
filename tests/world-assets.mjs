@@ -60,7 +60,6 @@ import { readSidecars, listSets } from '../tools/world-art/build.mjs';
 import { ATLAS_SETS } from '../src/data/world/atlas-sets.js';
 import { WORLD_MAPS } from '../src/data/world/maps/index.js';
 import { ROOM_LAYOUTS, TROPHY_MOUNT_SPRITES } from '../src/data/world/house-layouts.js';
-import { PEER_LOOKS, CRIER_SPRITE } from '../src/data/world/stations.js';
 import { OUTFITS } from '../src/data/hunt-outfits.js';
 import { HUNT_INDEX } from '../src/data/hunts.js';
 import { HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
@@ -85,8 +84,8 @@ function style1Input(root = ROOT, over = {}) {
   for (const set of listSets(root)) sidecars[set] = readSidecars(root, set);
   return {
     atlasSets, artSets: listSets(root), builtSets: built, sidecars, code: over.code || codeRefs(root),
-    refs: reachableRefs({ maps: over.maps || WORLD_MAPS, layouts: ROOM_LAYOUTS, trophySprites: TROPHY_MOUNT_SPRITES, peerLooks: PEER_LOOKS,
-      crier: CRIER_SPRITE, outfits: Object.values(OUTFITS), huntIndex: HUNT_INDEX, grounds: HUNT_GROUNDS }),
+    refs: reachableRefs({ maps: over.maps || WORLD_MAPS, layouts: ROOM_LAYOUTS, trophySprites: TROPHY_MOUNT_SPRITES, peerLooks: Object.values(OUTFITS),
+      crier: 'npc_crier', outfits: Object.values(OUTFITS), huntIndex: HUNT_INDEX, grounds: HUNT_GROUNDS }),
   };
 }
 

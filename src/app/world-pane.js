@@ -71,7 +71,8 @@ export async function mountWorldPane(host, character, o) {
   let runtime = null;
   try {
     const { bootWorld } = await import('../world/world-boot.js?v=0.2.0');
-    runtime = await bootWorld(pane, { view, character, emit });
+    const town = opts.account && typeof opts.account.townOf === 'function' ? opts.account.townOf(character.slot) : null;
+    runtime = await bootWorld(pane, { view, character, emit, town });
     runtime.sync();
   } catch (e) {
     console.error('[world] the world failed to load', e);

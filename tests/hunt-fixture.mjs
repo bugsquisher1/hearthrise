@@ -21,13 +21,13 @@
 //                             answers { accrued, reason?, delta, hunt, summary,
 //                             events, levelUps, maxHp, world }. A non-combat
 //                             input goes to computeAccrual untouched.
-//   huntSpan(state, ctx, opts) a direct engine caller: the test's own state, fx,
+//   huntSpan(state, ctx, opts) a direct engine caller (opts.windowMs cuts it into windows): the test's own state, fx,
 //                             rolls and perks as ONE member of an instance, run
 //                             through simulateHuntInstance over [ctx.fromMs,
 //                             ctx.toMs); answers the member's summary
 //                             { ticks, kills, deaths, deathLog, … }.
 //
-// opts: { seed, food, foodQty, bag, fallsLimit, hoursLimit, respawnMs, count,
+// opts: { seed, food, foodQty, bag, fallsLimit, hoursLimit, respawnMs, count, engine,
 //         onEmpty, stamina }
 //   food/foodQty   loaded into the session bag (own stock; a hero eats under
 //                  its food threshold)
@@ -43,7 +43,7 @@ import { simulateHuntInstance } from '../src/core/combat-sim.js';
 import { heroSetup } from '../src/core/hunt-spawn.js';
 import { makeGrid } from '../src/core/hunt/grid.js';
 
-import { COMBAT_BALANCE } from '../src/core/combat.js';
+import { COMBAT_BALANCE, prayerWardPct } from '../src/core/combat.js';
 import { COMBAT_STYLES } from '../src/core/styles.js';
 import { SESSION_LIMITS } from '../src/data/hunt-sessions.js';
 import { HUNT_INDEX } from '../src/data/hunts.js';
@@ -106,8 +106,10 @@ export function huntSessionFor(opts) {
  *        hearthfindReady, recoveringUntilMs, … } (computeAccrual's names).
  */
 export function huntAccrual(inp, opts) {
-  if (!inp || inp.activeKind !== 'combat') return computeAccrual(inp);
   const o = opts || {};
+  /* opts.engine: a loaded copy of accrual.js (a mutation harness); the shipped one by default. */
+  const eng = o.engine || { accrueHunt, computeAccrual };
+  if (!inp || inp.activeKind !== 'combat') return eng.computeAccrual(inp);
   const fromMs = Math.floor(Number(inp.accruedToMs) || 0);
   const toMs = Math.floor(Number(inp.nowMs) || 0);
   const monsters = inp.monsters || MONSTERS;
@@ -126,7 +128,7 @@ export function huntAccrual(inp, opts) {
     recoveringUntilMs: inp.recoveringUntilMs ?? 0, deathsTodayBefore: 0, deathsLifetimeBefore: 0,
     hearthfindReady: inp.hearthfindReady === true, perks: inp.perks || null, hero,
   };
-  const out = accrueHunt({
+  const out = eng.accrueHunt({
     instance: { id: FIXTURE_INSTANCE, nextSwingAtMs: fromMs, world: null },
     window: { fromMs, toMs }, secret: secretOf(o.seed ?? inp.seed ?? 1),
     ground: fixtureGround(ids, o), grid: FIXTURE_GRID, items: inp.items || {}, monsters, members: [member],
@@ -159,7 +161,8 @@ export function huntSpan(state, ctx, opts) {
   const rolls = (st) => {
     const r = ctx.playerRolls ? ctx.playerRolls(row) : { accuracy: 0.8, maxHit: 5 };
     const def = ctx.def ?? Math.floor(Number(levelsOf(st.skills || {}).defense) || 1);
-    return { acc: Math.round(r.accuracy * 1000), maxHit: Math.max(1, Math.floor(r.maxHit)), def };
+    return { acc: Math.round(r.accuracy * 1000), maxHit: Math.max(1, Math.floor(r.maxHit)), def,
+      ward: Math.floor(ctx.ward ?? prayerWardPct(st.skills || {})) };
   };
   const hero = heroSetup({ weaponType: o.weaponType || 'sword', options: o.options || {}, bar: o.bar || [], partyRoles: [] });
   const member = {
@@ -169,10 +172,20 @@ export function huntSpan(state, ctx, opts) {
       bar: hero.bar, actionSet: hero.actionSet, range: hero.range, ammo: o.ammo || null,
       foodBelowPct: hero.foodBelowPct, drinkBelowPct: hero.drinkBelowPct },
   };
-  const sim = simulateHuntInstance({ world: null, nextSwingAtMs: fromMs, members: [member] }, {
-    toMs: Math.floor(Number(ctx.toMs) || 0), tickMs: ctx.tickMs || COMBAT_BALANCE.tickMs,
+  /* opts.windowMs: the span cut into windows of that length, the world and the
+     member carried across each cut the way the settle carries them (TICK-1). */
+  const toMs = Math.floor(Number(ctx.toMs) || 0);
+  const step = Math.max(0, Math.floor(Number(o.windowMs) || 0));
+  const base = { tickMs: ctx.tickMs || COMBAT_BALANCE.tickMs,
     seed: seederFor(secretOf(o.seed ?? 1), FIXTURE_INSTANCE), ground: fixtureGround([id], o), grid: FIXTURE_GRID,
-    monsters, hearthfind: ctx.hearthfind, ...(ctx.xpMultOf ? { xpMultOf: ctx.xpMultOf } : {}),
-  });
-  return { ...sim.members.fixture, hs, swings: sim.swings, world: sim.world };
+    monsters, hearthfind: ctx.hearthfind, ...(ctx.xpMultOf ? { xpMultOf: ctx.xpMultOf } : {}) };
+  let world = null; let next = fromMs; let sim = null; let swings = 0; let kills = 0; let deaths = 0; let ticks = 0; let taken = 0;
+  for (let t = step ? Math.min(toMs, fromMs + step) : toMs; ; t = Math.min(toMs, t + step)) {
+    sim = simulateHuntInstance({ world, nextSwingAtMs: next, members: [member] }, { ...base, toMs: t });
+    world = sim.world; next = sim.nextSwingAtMs; swings += sim.swings;
+    const f = sim.members.fixture; kills += f.kills; deaths += f.deaths; ticks += f.ticks;
+    for (const e of sim.events) if (e.type === 'dmg' && e.t === member.unitId) taken += e.amount;
+    if (t >= toMs || hs.endedReason) break;
+  }
+  return { ...sim.members.fixture, kills, deaths, ticks, taken, hs, swings, world, events: sim.events };
 }

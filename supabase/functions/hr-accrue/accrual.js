@@ -85,7 +85,7 @@
 
 import {
   DEFAULT_PROFILE, swingIntervalMs, COMBAT_BALANCE,
-  equipmentStats, armorSetBonus, playerCombatRolls, weaknessInfo,
+  equipmentStats, armorSetBonus, playerCombatRolls, weaknessInfo, prayerWardPct,
 } from '../../../src/core/combat.js';
 /* THE ONE COMBAT LOOP (src/core/combat-sim.js simulateHuntInstance): a fight is a
    hunt instance, solo or party, priced only by accrueHunt below. */
@@ -1293,7 +1293,7 @@ function heroSnapshot(state, c) {
   const roll = playerCombatRolls(NEUTRAL_FOE, { eq: c.eq, equipment: c.equipment, items: c.items, skills: state.skills,
     bonus: c.bonus, setBonus: c.setBonus, profile: c.profile, style: c.style });
   const def = Math.floor((Number(levelsOf(state.skills).defense) || 1) + (Number(c.eq.defB) || 0) + (Number(c.bonus('defense')) || 0));
-  return { acc: Math.round(roll.accuracy * 1000), maxHit: Math.max(1, Math.floor(roll.maxHit)), def };
+  return { acc: Math.round(roll.accuracy * 1000), maxHit: Math.max(1, Math.floor(roll.maxHit)), def, ward: Math.floor(prayerWardPct(state.skills)) };
 }
 
 /* ONE MEMBER'S SIDE OF THE SPAN: its state, its value sinks and the counters

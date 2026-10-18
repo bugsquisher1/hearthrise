@@ -77,7 +77,7 @@ function heroOf(m) {
    the next swing however the window was cut. Max HP is raise-only. */
 function syncUnit(u, m) {
   const snap = m.snapshot(m.state);
-  u.acc = snap.acc; u.maxHit = snap.maxHit; u.def = snap.def;
+  u.acc = snap.acc; u.maxHit = snap.maxHit; u.def = snap.def; u.ward = snap.ward || 0;
   u.maxHp = Math.max(u.maxHp, m.state.playerMaxHp);
   if (m.hero.settings) {
     const s = m.hero.settings;
@@ -127,7 +127,7 @@ function endMember(m, why, atMs, world, out) {
  *        playerMaxHp, stats, gold (a delta), recoveringUntilMs }, hero { role,
  *        maxMana, element, settings, bar, actionSet, range, ammo, foodBelowPct,
  *        drinkBelowPct }, snapshot(state) → { acc, maxHit, def }, style,
- *        bonus(key), weakness(row) → { dropMult }, fx }
+ *        bonus(key), weakness(row) → { dropMult }, fx }; snapshot may add ward (Prayer %)
  * @param ctx  { toMs, tickMs (COMBAT_BALANCE.tickMs), seed(domain, index), ground, grid, monsters?,
  *        hearthfind? (an indexed Hearthfind table; the catalogue's when absent), xpMultOf?(unitId) }
  * @returns { world, nextSwingAtMs, swings, track, events, kinds, members: { [key]: summary } }

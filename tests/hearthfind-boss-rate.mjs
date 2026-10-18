@@ -49,7 +49,6 @@
 
 import { HEARTHFIND_TABLE, HEARTHFIND_HOURS_MIN, HEARTHFIND_HOURS_MAX } from '../src/data/hearthfind.js';
 import { deriveOneIn, derivedHours, actionsPerHour } from '../src/core/hearthfind.js';
-import { simulateSpan } from '../src/core/combat-sim.js';
 import { huntSpan } from './hunt-fixture.mjs';
 import { createRng } from '../src/core/rng.js';
 import { MONSTERS } from '../src/data/monsters.js';

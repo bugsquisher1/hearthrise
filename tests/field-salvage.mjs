@@ -49,7 +49,6 @@ import { BOSSES } from '../src/data/bosses.js';
 import { HEARTHFIND_TABLE } from '../src/data/hearthfind.js';
 import { effectiveDropChance } from '../src/core/drops.js';
 import { lootKey } from '../src/core/goals.js';
-import { simulateSpan } from '../src/core/combat-sim.js';
 import {
   playerCombatRolls, monsterCombatRolls, weaknessInfo, equipmentStats,
   swingIntervalMs, DEFAULT_PROFILE,

@@ -39,7 +39,6 @@ import { BOSS_TROPHIES, bossTrophiesHeld } from '../src/data/boss-forge.js';
 import { CHAMPION_ITEMS, CHAMPION_BY_TIER } from '../src/data/champions.js';
 import { auditRoster, TIER_BANDS } from '../src/data/monster-classes.js';
 import { DROP_BAND_MAX, effectiveDropChance } from '../src/core/drops.js';
-import { simulateSpan } from '../src/core/combat-sim.js';
 import { createRng } from '../src/core/rng.js';
 import {
   playerCombatRolls, monsterCombatRolls, weaknessInfo, equipmentStats,

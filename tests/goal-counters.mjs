@@ -74,6 +74,8 @@ const SEED = 0x9021;
    for a copy of accrual.js with a real defect planted; a JS mutant needs the
    same treatment the SQL arms get from bootReplay's patches. */
 let computeAccrualFn = computeAccrual;
+/* The loaded engine MODULE a mutant runs (its accrueHunt prices the fight); null = the shipped one. */
+let engineMod = null;
 /* src/core/goals.js, likewise — M7-M9 plant defects in the contract module
    itself, and the engine mutants must then load THAT copy, so both are
    rebound through one loader. */
@@ -173,10 +175,10 @@ const goalOps = (delta) => opsOf(delta).filter((o) => {
 const findOp = (delta, kind, type) =>
   opsOf(delta).find((o) => o.kind === kind && o.key === `${GOAL_KEY_PREFIX}${type}`) || null;
 
-/* A fight is a hunt session (closed rebuild, lane C2): the night rides a
-   training hunt on the monster (tests/hunt-fixture.mjs). */
+/* A fight is a hunt INSTANCE (lane S1): the night is one instance window on a
+   fixture ground of the monster (tests/hunt-fixture.mjs huntAccrual). */
 function combatNight(over) {
-  return computeAccrualFn(huntAccrualInput({
+  return huntAccrual({
     userId: USER, slot: 0,
     nowMs: NOW_MS, accruedToMs: NOW_MS - 2 * HOUR, activeSinceMs: NOW_MS - 2 * HOUR,
     activeKind: 'combat', activeId: MONSTER,
@@ -187,7 +189,7 @@ function combatNight(over) {
     equipment: {}, inventory: {},
     items: ITEMS, monsters: MONSTERS, nodes: GATHER_INDEX,
     ...over,
-  }, { seed: SEED }));
+  }, { seed: SEED, engine: engineMod || undefined });
 }
 
 function gatherNight(over) {
@@ -271,8 +273,8 @@ async function runOn(db, patches) {
   // goal type must be countable. Each with a positive control, because a scan
   // that stopped matching would report a clean bill on a broken contract.
   {
-    /* hunt/world-step.js: H1 moved the kill emits out of combat-sim.js's swing (2026-10-17). */
-    const coreFiles = ['combat-sim.js', 'hunt/world-step.js', 'skill-sim.js', 'artisan-sim.js', 'farm.js', 'bounty.js'];
+    /* hunt-rewards.js: lane S1 moved the kill emits out of the world step into the payer (2026-10-17). */
+    const coreFiles = ['combat-sim.js', 'hunt-rewards.js', 'skill-sim.js', 'artisan-sim.js', 'farm.js', 'bounty.js'];
     const emitted = new Set();
     let sites = 0;
     for (const f of coreFiles) {
@@ -1010,8 +1012,9 @@ const MUTATIONS = [
      immediately after each goalProgressOps push, so the distinctive text that
      FOLLOWS the line is its own comment rather than the bestiary / delta. The
      mutation is unchanged — delete the push, keep everything after it. */
+  /* Re-anchored lane S1: the combat delta is accrueHunt's memberDelta. */
   { name: 'M3 combat: the goal ops never reach the delta',
-    file: 'accrual', from: "  for (const op of goalProgressOps(goals, credit.toMs, events)) progress.push(op);\n",
+    file: 'accrual', from: "  for (const op of goalProgressOps(s.goals, toMs, events)) progress.push(op);\n",
     to: "" },
   { name: 'M4 gather: the goal ops never reach the delta',
     file: 'accrual', from: "  for (const op of goalProgressOps(goals, nowMs, events)) progress.push(op);\n  /* THE MODAL-GOAL DAILY COUNTERS (b461). `perSkill` is core's own",
@@ -1040,8 +1043,9 @@ const MUTATIONS = [
     file: 'goals', from: "               add: clamp(type, daily[type], 'daily'), state: 'active' });",
     to: "               add: clamp(type, daily[type], 'daily'), state: 'claimed' });" },
   { name: 'M12 combat: the COLLECTION listener is removed (loot vanishes from the log)',
-    file: 'accrual', from: "      bag[id] = (bag[id] || 0) + n;\n      collection.record(id, n);\n",
-    to: "      bag[id] = (bag[id] || 0) + n;\n" },
+    /* Re-anchored lane S1: the combat loot sink is accrueHunt's memberSide addItem. */
+    file: 'accrual', from: "      if (hs.cover[id]) hs.cover[id].avail += n;\n      collection.record(id, n);\n",
+    to: "      if (hs.cover[id]) hs.cover[id].avail += n;\n" },
   /* W0: a STATE goal type is legal only while goal-catalogue.js declares it. Drop
      the declaration and the authored 'property' step must turn G2(b) red. */
   { name: 'M14 catalogue: the property STATE goal type is undeclared',
@@ -1052,8 +1056,9 @@ const MUTATIONS = [
   { name: 'M15 goals: an authored event type (harvest) is missing from GOAL_EVENTS',
     file: 'goals', from: "  'harvest',    // farm\n", to: "" },
   { name: 'M13 combat: the collection ops never reach the delta',
-    file: 'accrual', from: "  for (const op of collectionProgressOps(collection, events)) progress.push(op);\n\n  /* THE SESSION IS SETTLED",
-    to: "\n  /* THE SESSION IS SETTLED" },
+    /* Re-anchored lane S1 (memberDelta). */
+    file: 'accrual', from: "  for (const op of collectionProgressOps(s.collection, events)) progress.push(op);\n",
+    to: "" },
 ];
 
 const ENGINE_PATH = join(ROOT, 'supabase', 'functions', 'hr-accrue', 'accrual.js');
@@ -1114,7 +1119,7 @@ async function loadMutant(m) {
     const gm = await import(goalsUrl);
     const em = await import(pathToFileURL(engineFile).href);
     if (typeof em.computeAccrual !== 'function') throw new Error('MUTATION HARNESS: no computeAccrual export');
-    return { engine: em.computeAccrual, goals: gm };
+    return { engine: em.computeAccrual, mod: em, goals: gm };
   } finally {
     await unlink(goalsFile).catch(() => {});
     await unlink(engineFile).catch(() => {});
@@ -1130,11 +1135,12 @@ async function mutate() {
     problems = [];
     const loaded = await loadMutant(m);   // THROWS on a failed plant, deliberately
     computeAccrualFn = loaded.engine;
+    engineMod = loaded.mod || null;
     goalsMod = loaded.goals;
     if (loaded.stateTypes) stateGoalTypes = loaded.stateTypes;
     try { await run(null); }
     catch (e) { problems.push(`threw: ${String(e?.message || e).split('\n')[0]}`); }
-    finally { computeAccrualFn = realEngine; goalsMod = realGoals; stateGoalTypes = STATE_GOAL_TYPES; }
+    finally { computeAccrualFn = realEngine; engineMod = null; goalsMod = realGoals; stateGoalTypes = STATE_GOAL_TYPES; }
     const rssMb = process.memoryUsage().rss / 1048576;
     if (rssMb > RUN_RSS_CEILING_MB) {
       escapes.push(`RSS ${rssMb.toFixed(0)} MB after ${m.name.split(' ')[0]} exceeds ${RUN_RSS_CEILING_MB} MB — an arm is leaking its database`);

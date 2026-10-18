@@ -45,7 +45,6 @@ import {
   HEARTHFIND_TABLE, HEARTHFIND_ITEMS, HEARTHFIND_HOURS_MIN, HEARTHFIND_HOURS_MAX,
 } from '../src/data/hearthfind.js';
 import { indexHearthfind, rollHearthfind, deriveOneIn } from '../src/core/hearthfind.js';
-import { simulateSpan } from '../src/core/combat-sim.js';
 import { huntSpan } from './hunt-fixture.mjs';
 import { mulberry32, rngFrom } from '../src/core/rng.js';
 import { ITEMS } from '../src/data/items.js';
@@ -303,8 +302,7 @@ async function runAll(mut) {
       fx: { mark() { tick++; }, addItem() {}, addXp() {},
             onHearthfind(f) { finds.push({ ...f, tick, kill: state.stats.kills || 0 }); } },
     };
-    huntOn(state, boostedCtx, { seed: 31337, fromMs: 0, pull: { size: 1, respawnMs: 0 } });
-    simulateSpan(state, boostedCtx);
+    huntSpan(state, boostedCtx, { seed: 31337 });
     ok(JSON.stringify(plain.finds) === JSON.stringify(finds),
       `a x3 weakness + a 500% dropRate buff + a x2 featured boss changed the hearthfind stream `
       + `(${JSON.stringify(plain.finds)} vs ${JSON.stringify(finds)}). A hearthfind must never be `
@@ -314,8 +312,8 @@ async function runAll(mut) {
   // ── ROLL-5  ONE ROLL SITE PER ENGINE, NONE OUTSIDE src/core. ────────────
   {
     const read = (rel) => readFile(new URL(rel, import.meta.url), 'utf8').catch(() => '');
-    /* The combat engine is the loop (combat-sim.js) plus its swing (hunt/world-step.js). */
-    const combat = (await read('../src/core/combat-sim.js')) + (await read('../src/core/hunt/world-step.js'));
+    /* The combat engine is the loop (combat-sim.js), its swing (hunt/world-step.js) and its payer (hunt-rewards.js, lane S1). */
+    const combat = (await read('../src/core/combat-sim.js')) + (await read('../src/core/hunt/world-step.js')) + (await read('../src/core/hunt-rewards.js'));
     const skill = await read('../src/core/skill-sim.js');
     const legacy = await read('../src/legacy.js');
     const count = (s, re) => (s.match(re) || []).length;

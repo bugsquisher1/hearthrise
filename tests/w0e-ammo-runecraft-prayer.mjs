@@ -103,8 +103,9 @@ const MUTATIONS = {
     file: 'supabase/functions/hr-accrue/accrual.js',
     why: 'the hunt engine prices monster swings without the Prayer level, so the ward pays on the '
        + 'live swing and not in a hunt settle (AWAY-1 broken)',
-    find: '    monsterRolls(m) { return monsterCombatRolls(m, { eq, skills: state.skills, bonus }); },',
-    repl: '    monsterRolls(m) { return monsterCombatRolls(m, { eq, skills: { ...state.skills, prayer: 0 }, bonus }); },',
+    /* Re-anchored lane S1: the hunt hero's snapshot carries the ward onto its unit. */
+    find: 'def, ward: Math.floor(prayerWardPct(state.skills)) };',
+    repl: 'def, ward: 0 };',
   },
 };
 
@@ -151,13 +152,14 @@ export async function runAll({ mutate } = {}) {
     const { PRAYER_WARDS, PRAYER_WARD_MAX_PCT } = await imp('src/data/skills.js');
     const { TREES, ROCKS, FISH_SPOTS } = await imp('src/data/gathering.js');
     const C = await imp('src/core/combat.js');
-    const SIM = await imp('src/core/combat-sim.js');
+
     const AMMO = await imp('src/core/ammo.js');
     const { createRng } = await imp('src/core/rng.js');
     const { resolveStyle } = await imp('src/core/styles.js');
     const { xpForLevel } = await imp('src/core/xp.js');
     const { indexArtisanRecipes } = await imp('src/core/artisan-sim.js');
-    const { computeAccrual } = await imp('supabase/functions/hr-accrue/accrual.js');
+    const ACC = await imp('supabase/functions/hr-accrue/accrual.js');
+    const { computeAccrual } = ACC;
 
     const ARTISAN_INDEX = indexArtisanRecipes(ARTISAN_RECIPES);
     const GATHER_INDEX = {};
@@ -181,7 +183,10 @@ export async function runAll({ mutate } = {}) {
     const STAFF = Object.keys(ITEMS).find((id) => ITEMS[id] && ITEMS[id].weaponType === 'magic');
     const TARGET = MONSTERS.goblin ? 'goblin' : Object.keys(MONSTERS)[0];
 
-    /* ── THE ATTENDED COLUMN: the live loop, one stepSwing per swing ── */
+    /* ── THE ATTENDED COLUMN: the instance engine at the viewed character's
+       cadence — the span cut into one window per swing, the world and the
+       session carried across every cut (tests/hunt-fixture.mjs huntSpan).
+       Supplies are the session BAG (the fixture's `inventory`, loaded). ── */
     function attended({ equipment, inventory, skills, ticks, monsterId, seed }) {
       const items = ITEMS; const bonus = () => 0;
       const eq = C.equipmentStats(equipment, items);
@@ -192,31 +197,18 @@ export async function runAll({ mutate } = {}) {
           ? { type: 'magic', accuracySkill: 'magic', damageSkill: 'magic', accuracyBonusField: 'magicAtkB', strengthBonusField: 'magicStrB' }
           : Object.assign({}, C.DEFAULT_PROFILE, { type: eq.weaponType || 'sword' });
       const setBonus = C.armorSetBonus(equipment, items);
-      const G = {
-        activeMonster: monsterId || TARGET, monsterHp: 0, monsterMaxHp: 0,
-        playerHp: 1e9, playerMaxHp: 1e9, gold: 0, skills: { ...skills }, stats: {},
-        inventory: { ...(inventory || {}) }, equipment: { ...equipment }, ammoCarry: {},
-      };
-      let kills = 0; let taken = 0; const spent = {};
+      const G = { activeMonster: monsterId || TARGET, playerHp: 1e6, playerMaxHp: 1e6, gold: 0, skills: { ...skills }, stats: {} };
+      const bag = {};
+      for (const [id, q] of Object.entries(inventory || {})) bag[id] = { loaded: q };
       const ctx = {
-        away: false, rng: createRng(seed || SEED), monsters: MONSTERS, items, bonus, style,
+        fromMs: FROM_MS, toMs: FROM_MS + ticks * 2000, monsters: MONSTERS, items, bonus, style,
         playerRolls: (m) => C.playerCombatRolls(m, { eq, equipment, items, skills: G.skills, bonus, setBonus, profile, style }),
-        monsterRolls: (m) => C.monsterCombatRolls(m, { eq, skills: G.skills, bonus }),
         weakness: (m) => C.weaknessInfo(m, eq),
-        fx: {
-          addXp() {}, addItem() {}, addGold() {},
-          removeItem(id, q) { spent[id] = (spent[id] || 0) + q; G.inventory[id] = Math.max(0, (G.inventory[id] || 0) - q); },
-        },
+        fx: { addXp() {}, addItem() {} },
       };
-      for (let i = 0; i < ticks; i++) {
-        if (!G.monsterHp || G.monsterHp <= 0) {
-          const m = MONSTERS[G.activeMonster]; G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
-        }
-        const r = SIM.stepSwing(null, Object.assign({}, ctx, { state: G }));
-        if (r.outcome === SIM.OUTCOME.KILL) kills++;
-        if (typeof r.mDmg === 'number') taken += r.mDmg;
-      }
-      return { kills, taken, spent };
+      const out = huntSpan(G, ctx, { seed: seed || SEED, bag, ammo: equipment.ammo || null,
+        weaponType: eq.weaponType || 'sword', windowMs: 2000 });
+      return { kills: out.kills, taken: out.taken, spent: { ...out.hs.tally.supplies } };
     }
 
     /* ── THE SERVER COLUMN: hr-accrue's engine. A fight rides a hunt session
@@ -237,8 +229,7 @@ export async function runAll({ mutate } = {}) {
       if ((o.kind || 'combat') !== 'combat') return computeAccrual(inp);
       const bag = {};
       for (const [id, q] of Object.entries(o.inventory || {})) bag[id] = { loaded: q };
-      return huntAccrual({ ...inp, inventory: {} },
-        { seed: o.seed || SEED, bag, pull: { size: 1, respawnMs: 0 } });
+      return huntAccrual({ ...inp, inventory: {} }, { seed: o.seed || SEED, bag, engine: ACC });
     };
 
     const RANGED = { attack: 0, hitpoints: MAX_XP, defense: MAX_XP, ranged: MAX_XP, magic: 0, prayer: 0 };
@@ -411,7 +402,8 @@ export async function runAll({ mutate } = {}) {
       const HP = 5e6;
       const aw0 = away({ id: FOE, equipment: melee, skills: body(0), hp: HP });
       const aw9 = away({ id: FOE, equipment: melee, skills: body(MAX_XP), hp: HP });
-      const lost = (r) => (r.accrued ? HP - r.delta.hp : NaN);
+      /* HP lost = the blows the hunt's analyzer tally counts taken (regen out of a fight refills the bar). */
+      const lost = (r) => (r.accrued && r.analyzer ? Number(r.analyzer.taken.total) : NaN);
       ok(aw0.accrued && aw9.accrued, `P3 HUNT: a fixture accrued nothing (${aw0.reason}/${aw9.reason})`);
       ok(band(lost(aw9) / lost(aw0)),
         `P3 HUNT: Prayer 99 lost ${(lost(aw9) / lost(aw0)).toFixed(3)} of Prayer 1's HP (want ~${(1 - ward).toFixed(2)})`);
@@ -456,11 +448,8 @@ export async function runAll({ mutate } = {}) {
           weakness: (mm) => C.weaknessInfo(mm, eq),
           fx: { addXp() {}, addItem() {}, addGold() {}, removeItem() {} },
         };
-        huntOn(G, ctx, { seed: SEED, fromMs: FROM_MS });
-        for (let t = FROM_MS; t < FROM_MS + 2 * 3600000; t += 10000) {
-          SIM.simulateSpan(G, Object.assign({}, ctx, { fromMs: t, toMs: t + 10000 }));
-        }
-        return HP - G.playerHp;
+        /* Blows taken, counted from the world events (regen out of a fight refills HP). */
+        return huntSpan(G, { ...ctx, fromMs: FROM_MS, toMs: FROM_MS + 2 * 3600000 }, { seed: SEED, windowMs: 10000 }).taken;
       };
       const tk0 = tickLost(0); const tk9 = tickLost(MAX_XP);
       ok(tk0 > 500, `P5 fixture: the tick chain took only ${tk0} damage from ${FOE}`);

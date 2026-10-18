@@ -35,6 +35,8 @@ import { makeEvent } from './events.js?v=590';
 import { landHit } from './damage.js?v=590';
 import { applyStatus, statusRow } from './status.js?v=590';
 import { markHealed } from './consumables.js?v=590';
+import { ammoPerShot } from '../ammo.js?v=590';
+import { ITEMS } from '../../data/items.js?v=590';
 
 export const PERSISTED = Object.freeze({
   unit: Object.freeze([['mana', 'int'], ['maxMana', 'int'], ['manaMilli', 'int'], ['lanes', 'json'], ['cds', 'json'],
@@ -93,7 +95,9 @@ function suppliesFor(h, row) {
     if (!l.id || l.why) return { why: 'no_rune', short: l.why === 'gold_short' };
     lines.push(l);
   }
-  if (row.ammo > 0) {
+  /* The free rung (ammoPerShot 0): a loaded stack of it never depletes, so a cast needs no shot lines. */
+  const freeShot = !!h.ammo && ammoPerShot(ITEMS[h.ammo]) === 0 && int(h.hs.bag && h.hs.bag[h.ammo] && h.hs.bag[h.ammo].left) > 0;
+  if (row.ammo > 0 && !freeShot) {
     if (!h.ammo) return { why: 'no_ammo' };
     /* Own shots first, the rest from the store shot behind the line (one resolver). */
     const line = h.hs.bag && h.hs.bag[h.ammo];
@@ -232,6 +236,9 @@ export function payBasic(inst, hero, cost, sc) {
     const h = inst.heroes && inst.heroes[hero.id];
     const l = h && h.ammo ? resolveLine(h.hs, h.ammo, 1) : { why: 'none' };
     if (!l.id || l.why) { if (l.why === 'gold_short') h.hs.goldOut = true; return false; }
+    /* THE FREE RUNG (src/core/ammo.js ammoPerShot 0, the tier-1 rung of every
+       ladder): a loaded stack of it looses its shot and never depletes. */
+    if (l.source === 'own' && ammoPerShot(ITEMS[l.id]) === 0) return true;
     if (!takeLine(h.hs, l, sc.atMs)) { h.hs.goldOut = true; return false; }
   }
   return true;

@@ -1231,7 +1231,7 @@ const MUTANTS = [
   { arm: 'QUIVER', name: '[C2 ammoGuard] a shot is loosed but its arrow is never taken from the bag', file: 'src/core/hunt/abilities.js',
     from: '    if (!takeLine(h.hs, l, sc.atMs)) { h.hs.goldOut = true; return false; }\n  }\n  return true;', to: '  }\n  return true;' },
   { arm: 'QUIVER', name: 'a ranged basic swings without a shot', file: 'src/core/hunt/damage.js',
-    from: "    if (supplied && u.role === 'ranger' && !payBasic(inst, u, { ammo: true }, sc)) continue;", to: '' },
+    from: '    if (shoots && !payBasic(inst, u, { ammo: true }, sc)) continue;', to: '' },
   { arm: 'QUIVER', name: '[C2 skipFoodDebit] a carried use is not debited', file: 'src/core/action-rules.js',
     from: '  l.left = int(l.left, 0) - 1;', to: '  l.left = int(l.left, 0);' },
   { arm: 'WORLD-BOUND', name: 'the world bound is lifted', file: 'src/data/hunt-tuning.js',

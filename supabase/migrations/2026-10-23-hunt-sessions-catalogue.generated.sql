@@ -8,7 +8,7 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 31949744ee19df0222e2d2be090368c2d19b8ace3d82f82a71be3ceba03ed4da
+--   digest: dd21ff0920a4d496dcc94752f24b1fcef8e4b9f684e42dd2466a5ab68598fb21
 --   52 supplies, 98 hunts (named + training), 29 limits, 9 end reasons,
 --   460 vendor values, 17 store supplies paid per use, 5 target modes,
 --   3 lanes, 14 abilities, 11 action-set options, 0 hunt grounds
@@ -463,7 +463,7 @@ insert into public.hr_hunt_weapon_roles (weapon_type, roles) values
   ('staff', array['mage', 'healer']::text[]),
   ('sword', array['melee_dps']::text[]);
 delete from public.hr_hunt_world_shape;
-insert into public.hr_hunt_world_shape (id, version, shape) values (true, 1, 2395093220);
+insert into public.hr_hunt_world_shape (id, version, shape) values (true, 1, 3852601081);
 delete from public.hr_premium_login_reward;
 insert into public.hr_premium_login_reward (id, item_id, qty) values (true, null, 1);
 delete from public.hr_hunt_travel;

@@ -32,10 +32,10 @@ import { fallen } from './pull-cycle.js?v=590';
 import { shareKillXp } from './xp-share.js?v=590';
 import { payBasic } from './abilities.js?v=590';
 
-/* stance: the hero's setting. acc (permille), maxHit, def, element: its combat snapshot.
+/* stance: the hero's setting. acc (permille), maxHit, def, ward (the Prayer ward, %), element: its combat snapshot.
    swingLeftMs: ms until the unit may swing again. */
 export const PERSISTED = Object.freeze({
-  unit: Object.freeze([['stance', 'str'], ['acc', 'int'], ['maxHit', 'int'], ['def', 'int'], ['element', 'str'], ['swingLeftMs', 'int']]),
+  unit: Object.freeze([['stance', 'str'], ['acc', 'int'], ['maxHit', 'int'], ['def', 'int'], ['ward', 'int'], ['element', 'str'], ['swingLeftMs', 'int']]),
   world: Object.freeze([]),
   pack: Object.freeze([]),
 });
@@ -106,17 +106,22 @@ export function resolveAttacks(inst, sc) {
     if (u.side === 'mon') {
       if (cheb(u, t) > 1 || !atRest(u)) continue;
       const row = MONSTERS[u.kind];
-      swing(inst, sc, u, t, monsterAccuracy(row, t.def), monsterMaxHit(row));
+      /* THE PRAYER WARD (combat.js monsterCombatRolls' rule): a share of blows turned aside, after the clamp. */
+      const landed = monsterAccuracy(row, t.def);
+      swing(inst, sc, u, t, t.ward > 0 ? landed * (1 - t.ward / 100) : landed, monsterMaxHit(row));
       continue;
     }
     const row = roleOf(u);
     if (!row || (row.melee && !atRest(u)) || !inRange(inst, u, t)) continue;
-    /* A RANGED BASIC LOOSES ONE SHOT of the loaded ammo, own first then the store
-       (abilities.payBasic, the one supply resolver): no shot, no swing. Only a
-       hero the settle supplies (inst.heroes) carries a quiver; a bare fixture
-       unit swings free. */
+    /* A RANGED BASIC LOOSES ONE SHOT of the loaded ammo, and a caster's basic
+       burns one of the RUNE loaded in its ammo slot (W0: runes are the mage's
+       ammo, the same slot and per-shot rule; spec §3.4 #8), own first then the
+       store (abilities.payBasic, the one supply resolver): no shot, no swing. A
+       caster with no rune loaded swings on its mana alone. Only a hero the
+       settle supplies (inst.heroes) carries a quiver; a bare fixture unit swings free. */
     const supplied = !!(inst.heroes && inst.heroes[u.id]);
-    if (supplied && u.role === 'ranger' && !payBasic(inst, u, { ammo: true }, sc)) continue;
+    const shoots = supplied && (u.role === 'ranger' || ((u.role === 'mage' || u.role === 'healer') && !!inst.heroes[u.id].ammo));
+    if (shoots && !payBasic(inst, u, { ammo: true }, sc)) continue;
     swing(inst, sc, u, t, u.acc / 1000, Math.max(1, u.maxHit));
     if (inst.world.leader === u.id) inst.world.leaderLast = t.id;
     peel(inst, sc, u);

@@ -61,7 +61,7 @@ function heroUnit(id, h, partyRoles, tile) {
   const [x, y] = tile;
   return makeUnit({ id, side: 'hero', kind: h.role, pocket: null, alive: true, hp: h.hp ?? h.maxHp, maxHp: h.maxHp,
     x, y, fx: x, fy: y, speed: HUNT_ROLES[h.role].speed, role: h.role, dist: s.dist, chase: s.chase, tmode: s.tmode,
-    stance: s.stance, acc: h.acc, maxHit: h.maxHit, def: h.def || 0, element: h.element || '',
+    stance: s.stance, acc: h.acc, maxHit: h.maxHit, def: h.def || 0, ward: h.ward || 0, element: h.element || '',
     mana: h.mana ?? h.maxMana ?? 0, maxMana: h.maxMana || 0 });
 }
 

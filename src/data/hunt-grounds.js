@@ -19,35 +19,8 @@
 //     leashMargin tiles a pack may step past its room (LE-05/08); absent =
 //                 HUNT_TUNING.leashMarginDefault. Read ONLY via leashMarginOf.
 //
-// THE GROUNDS (week plan item 17, 2026-10-18). Two, played in this order by a
-// new character (src/data/hunt-tutorial.js):
-//   mill_cellar     the tutorial room under the mill: two small packs of the
-//                   cellar's own Giant Rats and a Slime, one hero, short respawn.
-//   millrace_sewer  the first party ground. Six pockets on the sim's route
-//                   (prototypes/hunt-sim/sim.js CONFIG, the measured layout):
-//                   NW rats, SW slimes, channel bats, NE spiders + bats (the
-//                   elite pocket), SE kobolds, and the Rat King with two rats.
-// Coordinates are the world maps' tiles (src/data/world/maps/*.js); every spawn
-// and seat stands on open floor there (tests/hunt-core/sewer.mjs).
-//
-// THE SEWER'S CREATURES (monsters.js, `formation: true`). Names come from the work
-// done down there: the Drain Rat, the Sump Slime, the Culvert Bat (roosts over the
-// channel, fast enough to reach the backline), the Cistern Spider (the elite pocket's
-// anchor), the Kobold Tosher (picks the outfalls for scrap) and the Rat King (a knot
-// of rats under a crown hammered from drain grates). hp/atk/def/xp/speed are the hunt
-// sim's measured rows (prototypes/hunt-sim/BALANCE_RULINGS.md, rounds 1-2 and the
-// 10-16 party test). ECONOMY (Tyler 2026-10-14: coin + common drops pay the supplies,
-// the rares are the profit): coin and drop chances put a full party's coin + commons
-// within ~6% of its measured supply bill at the ruled prices, and the rares (the Crown
-// Shard first) add ~19% (tests/hunt-core/sewer.mjs --report). The coin is final in the
-// rows: no engine multiplies it again (parity DM-16).
-//
-// PARTY SCALING (BALANCE_RULINGS 2026-10-16, the party-size test): a fixed pack
-// is trivial for four heroes and lethal at the boss for one, so a pack's HP is
-// scaled by its instance's party size, `packScalePermille` below. A solo Healer
-// gets an element floor so an immune first room is not a wall. Both are DATA;
-// the engine reads them through the two helpers (systems handoff: pull-cycle
-// spawnPack and damage.hurt apply them).
+// The table is empty until the sewer content lane (week plan item 17) adds
+// the first ground; the core is proven on tests/hunt-core/fixtures/h1.js.
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
@@ -56,64 +29,7 @@ import { HUNT_TUNING } from './hunt-tuning.js?v=0.1.0';
 import { HUNT_INDEX } from './hunts.js?v=0.1.0';
 import { MONSTERS } from './monsters.js?v=0.1.0';
 
-const pocket = (room, ...spawns) => Object.freeze({ room: Object.freeze(room),
-  spawns: Object.freeze(spawns.map(([monster, x, y]) => Object.freeze({ monster, x, y }))) });
-
-export const HUNT_GROUNDS = Object.freeze({
-  mill_cellar: Object.freeze({
-    id: 'mill_cellar', hunt: 'mill_cellar', map: 'mill_cellar',
-    /* the foot of the stair under the arch */
-    start: Object.freeze([[12, 4], [11, 4], [13, 4], [12, 5]]),
-    pockets: Object.freeze([
-      pocket([15, 5, 21, 10], ['rat', 18, 7], ['rat', 19, 6]),
-      pocket([4, 5, 10, 10], ['rat', 7, 8], ['slime', 8, 6]),
-    ]),
-    route: Object.freeze([0, 1]),
-    respawnMs: 30000, pullDist: 1.5,
-  }),
-  millrace_sewer: Object.freeze({
-    id: 'millrace_sewer', hunt: 'millrace_sewer', map: 'millrace_sewer',
-    /* the west mouth, where the cellar's drain comes out */
-    start: Object.freeze([[1, 21], [0, 21], [1, 22], [2, 21]]),
-    pockets: Object.freeze([
-      pocket([3, 2, 12, 10], ['drain_rat', 7, 4], ['drain_rat', 8, 3], ['drain_rat', 9, 4], ['drain_rat', 8, 5]),
-      pocket([2, 27, 13, 34], ['sump_slime', 6, 31], ['sump_slime', 7, 30], ['sump_slime', 8, 31]),
-      pocket([26, 24, 37, 34], ['culvert_bat', 30, 27], ['culvert_bat', 31, 29]),
-      pocket([38, 2, 48, 12], ['cistern_spider', 41, 5], ['cistern_spider', 43, 5], ['culvert_bat', 42, 4], ['culvert_bat', 44, 6]),
-      pocket([40, 30, 50, 37], ['kobold_tosher', 43, 35], ['kobold_tosher', 44, 34], ['kobold_tosher', 45, 35]),
-      pocket([51, 17, 57, 29], ['rat_king', 55, 23], ['drain_rat', 54, 21], ['drain_rat', 54, 25]),
-    ]),
-    route: Object.freeze([0, 1, 2, 3, 4, 5]),
-    respawnMs: 90000, pullDist: 1.5,
-  }),
-});
-
-/* THE PARTY SCALE (BALANCE_RULINGS 2026-10-16): pack HP x (base + perHero x party
-   size), in permille, party size clamped to 1..maxHeroes. 550 solo, 700 a pair,
-   850 three, 1000 a full party; the Rat King scales the same way. The numbers are
-   the ruling's; the measured verdict behind them is the 10-16 party-size table. */
-export const PARTY_SCALE = Object.freeze({ basePermille: 400, perHeroPermille: 150, maxHeroes: 4 });
-
-/* THE SOLO HEALER FLOOR (same ruling): in a party of one Healer, the Healer's blows
-   are worth at least this much (permille) whatever the target's element profile, so
-   a Healer alone can still clear a first room that is immune to her one element. */
-export const SOLO_HEALER_FLOOR = Object.freeze({ role: 'healer', elementPermille: 500 });
-
-/** The HP scale (permille) for a pack in an instance of `partySize` heroes. */
-export function packScalePermille(partySize) {
-  const n = Math.min(PARTY_SCALE.maxHeroes, Math.max(1, Math.floor(Number(partySize) || 1)));
-  return PARTY_SCALE.basePermille + PARTY_SCALE.perHeroPermille * n;
-}
-
-/** A spawned monster's HP for `partySize`: the row's HP scaled, never below 1. */
-export function scaledHp(row, partySize) {
-  return Math.max(1, Math.floor(((row && row.hp) || 1) * packScalePermille(partySize) / 1000));
-}
-
-/** The element value (permille) a hero's blow lands at, after the solo Healer floor. */
-export function elementWithFloor(permille, role, partySize) {
-  return role === SOLO_HEALER_FLOOR.role && partySize === 1 ? Math.max(permille, SOLO_HEALER_FLOOR.elementPermille) : permille;
-}
+export const HUNT_GROUNDS = Object.freeze({});
 
 const ID = /^[a-z0-9_]{1,40}$/;
 const MAX_SEATS = 5;

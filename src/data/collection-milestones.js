@@ -35,9 +35,7 @@
 /* W0 (2026-10-10): 108 -> 113 — the five field champions are monsters, and
    "Bestiary Master" means every one. Raised in lockstep with the hunterAll arm
    restated in supabase/migrations/2026-10-16-w0f-fun-content.sql §3. */
-/* 2026-10-18: 113 -> 119 — the Millrace Sewer's six formation rows (monsters.js).
-   The SQL hunterAll arm is restated by the S1 catalogue regen (lane C). */
-export const MONSTER_TOTAL = 119;
+export const MONSTER_TOTAL = 113;
 
 /* LEDGER OF FIRSTS (2026-09-27, pack 3): 4 rungs → 11. Every rung added by
    that pack is GOLD-ONLY (no new premium faucet; the drift guard pins gems 0

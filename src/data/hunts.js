@@ -68,20 +68,6 @@ export const HUNTS = Object.freeze([
     spawns: [{ monster: 'hobgoblin', w: 4 }, { monster: 'gnoll', w: 4 }, { monster: 'stag', w: 2 }],
     family: 'Humanoid', art: 'hobgoblin', travelS: 60, pull: 5, respawnMs: 54000,
   },
-  /* THE FIRST PARTY GROUND (week plan item 17, 2026-10-18). The mill race runs
-     under the town here; its rats are the ones that climb into the Mill Cellar.
-     A walked ground: its rooms, packs and route are src/data/hunt-grounds.js
-     `millrace_sewer`, and its map is src/data/world/maps/millrace_sewer.js. The
-     weights below are the pockets' head-count (the Rat King, a boss, is never a
-     weighted spawn; he holds the last room). Floor 4: a fresh character (combat 3)
-     earns the door in the Mill Cellar first. */
-  {
-    id: 'millrace_sewer', name: 'Millrace Sewer', theme: 'The mill race runs under the town here. The rats answer to someone.',
-    band: [4, 40],
-    spawns: [{ monster: 'drain_rat', w: 6 }, { monster: 'sump_slime', w: 3 }, { monster: 'culvert_bat', w: 4 },
-      { monster: 'cistern_spider', w: 2 }, { monster: 'kobold_tosher', w: 3 }],
-    family: 'Vermin', art: 'drain_rat', travelS: 30, pull: 4, respawnMs: 90000,
-  },
 ]);
 
 /** Null-prototype index by id: `HUNT_INDEX['constructor']` is undefined. */

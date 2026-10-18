@@ -153,35 +153,6 @@ export const TIER_BANDS = Object.freeze({
   6: { hp: [340, 520], atk: [55, 105], def: [30, 62], xp: [800, 1250], gpLo: [200, 320], gpHi: [420, 700] },
 });
 
-/* ── THE FORMATION BANDS (2026-10-18, sewer content lane) ──────────────────
-   A `formation: true` row is tuned for a party of up to four in the hunt engine
-   (src/core/hunt/*), where the party deals about 18 damage a second, not for
-   the single-hero idle tick the TIER_BANDS above measure. Its band is the
-   envelope of the hunt-sim's MEASURED tier-1 rows (prototypes/hunt-sim/
-   BALANCE_RULINGS.md, rounds 1-2 and the 2026-10-16 party test: normal pockets
-   clear in 6-29 s, the Rat King in about 55 s, no full-party wipe), widened by
-   about 10% each way. `boss` is the band a formation boss is held to instead.
-   Only tier 1 exists until the second ground is played. */
-export const FORMATION_BANDS = Object.freeze({
-  1: Object.freeze({
-    hp: [40, 100], atk: [4, 15], def: [0, 7], xp: [20, 120], gpLo: [1, 20], gpHi: [3, 50],
-    boss: Object.freeze({ hp: [400, 1200], atk: [15, 25], def: [0, 8], xp: [400, 900], gpLo: [20, 80], gpHi: [40, 160] }),
-  }),
-});
-
-/** The band a formation row of `tier` is held to for `stat` (`boss` picks the boss band), or null. */
-export function formationBand(tier, stat, boss) {
-  const t = FORMATION_BANDS[tier];
-  const b = t && (boss ? t.boss : t);
-  return (b && b[stat]) || null;
-}
-
-/** True when `n` is inside the formation band for `stat`. */
-export function inFormationBand(tier, stat, n, boss) {
-  const b = formationBand(tier, stat, boss);
-  return !!b && Number(n) >= b[0] && Number(n) <= b[1];
-}
-
 export const TIERS = Object.freeze([1, 2, 3, 4, 5, 6]);
 
 /** Design floor: every tier must offer targets from at least this many classes. */
@@ -369,24 +340,7 @@ export function auditRoster(MONSTERS) {
     /* A champion is checked against championBand instead, and must not also
        claim to be a boss (two flags, two sets of rules — pick one). */
     const champ = m.champion === true;
-    const form = m.formation === true;
     if (champ && m.boss) problems.push(id + ': a champion cannot also be a boss');
-    if (champ && form) problems.push(id + ': a champion cannot also be a formation row');
-    if (form) {
-      if (!FORMATION_BANDS[m.tier]) { problems.push(id + ': formation tier ' + m.tier + ' has no band'); return; }
-      ['hp', 'atk', 'def', 'xp'].forEach((k) => {
-        if (!inFormationBand(m.tier, k, m[k], m.boss)) {
-          problems.push(id + ': T' + m.tier + ' formation' + (m.boss ? ' boss ' : ' ') + k + '=' + m[k] + ' outside band ['
-            + formationBand(m.tier, k, m.boss).join(',') + ']');
-        }
-      });
-      if (!Array.isArray(m.gp) || m.gp.length !== 2 || m.gp[0] > m.gp[1]) problems.push(id + ': gp must be [lo,hi] with lo<=hi');
-      else {
-        if (!inFormationBand(m.tier, 'gpLo', m.gp[0], m.boss)) problems.push(id + ': T' + m.tier + ' formation gp lo=' + m.gp[0] + ' outside band');
-        if (!inFormationBand(m.tier, 'gpHi', m.gp[1], m.boss)) problems.push(id + ': T' + m.tier + ' formation gp hi=' + m.gp[1] + ' outside band');
-      }
-      return;
-    }
     // …and it must actually be a step up: tougher than any ordinary row of its tier.
     if (champ && TIER_BANDS[m.tier] && !(Number(m.hp) > TIER_BANDS[m.tier].hp[1])) {
       problems.push(id + ': champion hp ' + m.hp + ' is not above its tier ceiling ' + TIER_BANDS[m.tier].hp[1]);

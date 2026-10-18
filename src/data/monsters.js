@@ -658,33 +658,6 @@ export const MONSTERS = {
     hp: 360, atk: 70, def: 38, xp: 880, gp: [210, 430],
     drops: [{ id: 'troll_hide', ch: 1 }, { id: 'big_bones', ch: 1 }, { id: 'mithril_ore', ch: .5 }, { id: 'frostfin', ch: .5 },
       { id: 'jarls_rimetorc', ch: .0048, champion: true }] },
-
-  /* ══ The Millrace Sewer: FORMATION rows (a party of up to four, FORMATION_BANDS).
-     Numbers, names and economy: the src/data/hunt-grounds.js header. ══════════ */
-  drain_rat: { name: 'Drain Rat', icon: '🐀', tier: 1, cls: 'vermin', family: 'Vermin', formation: true,
-    hp: 45, atk: 5, def: 0, xp: 24, gp: [1, 4], speed: 3400,
-    drops: [{ id: 'rat_tail', ch: .7 }, { id: 'bones', ch: .35 }, { id: 'small_fang', ch: .06 }] },
-  sump_slime: { name: 'Sump Slime', icon: '🟢', tier: 1, cls: 'vermin', family: 'Vermin', formation: true,
-    /* one override (element): the sump shrugs off every element. */
-    elementWeak: null, elementImmune: ['ember', 'frost', 'poison'],
-    hp: 50, atk: 4, def: 0, xp: 22, gp: [1, 3], speed: 2400,
-    drops: [{ id: 'slime_gel', ch: .8 }, { id: 'bones', ch: .25 }, { id: 'sticky_core', ch: .02 }] },
-  culvert_bat: { name: 'Culvert Bat', icon: '🦇', tier: 1, cls: 'vermin', family: 'Vermin', formation: true,
-    hp: 70, atk: 9, def: 1, xp: 45, gp: [3, 9], speed: 4400,
-    drops: [{ id: 'bat_wing', ch: .5 }, { id: 'bones', ch: .5 }, { id: 'night_fang', ch: .025 }] },
-  cistern_spider: { name: 'Cistern Spider', icon: '🕷️', tier: 1, cls: 'vermin', family: 'Vermin', formation: true,
-    /* one override (element): venomous, so poison is a resist, not an immunity. */
-    elementResist: ['poison'], elementImmune: [],
-    hp: 90, atk: 13, def: 6, xp: 110, gp: [10, 26], speed: 3600,
-    drops: [{ id: 'silk_thread', ch: .2 }, { id: 'venom_sac', ch: .1 }, { id: 'spider_eye', ch: .035 }] },
-  kobold_tosher: { name: 'Kobold Tosher', icon: '🦎', tier: 1, cls: 'humanoid', family: 'Humanoid', formation: true,
-    hp: 55, atk: 7, def: 1, xp: 30, gp: [2, 6], speed: 3200,
-    drops: [{ id: 'bones', ch: 1 }, { id: 'bone_chips', ch: .3 }, { id: 'copper_ore', ch: .18 }] },
-  rat_king: { name: 'Rat King', icon: '👑', tier: 1, cls: 'vermin', family: 'Vermin', formation: true, boss: true,
-    /* one override (element): fire glances off the knot; frost is the exam's answer. */
-    elementResist: ['ember'],
-    hp: 600, atk: 20, def: 4, xp: 600, gp: [30, 60], speed: 2800,
-    drops: [{ id: 'rat_tail', ch: 1 }, { id: 'bones', ch: 1 }, { id: 'crown_shard', ch: .15 }] },
 };
 
 /* SEAL: write each class's profile onto its members, so `m.weaponWeak` is a

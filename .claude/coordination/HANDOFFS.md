@@ -3335,10 +3335,3 @@ re-lock. (4) At the cutover the iron 9-slices (prototypes/world-shell/samples/ma
 docs/PIXELLAB_WORKFLOW.md §5 is the exact batch (R0 preflight, R1 south walk, R2 diagonals, R3 rat and slime
 readability, R4 loot bag; about 30–90 generations, most in R3). The edit-first rows are free. NOW-10 needs a yes:
 hide the action bar in town on the phone (WORLD_SHELL §2 says `when: always`); it takes 21% of the phone there.
-## 2026-10-18 · game-designer -> asset-director · the sewer atlas (lane/sewer-content)
-src/data/world/maps/millrace_sewer.js is the sim's walkable grid (60x40) on the shipped cellar kit: water draws
-as the void (material `sewage`, flat), nests are straw + bones, the bridge is bare flagstone. Build
-art/world/sewer/ -> atlas-sewer from the PixelLab kit (docs/design/PIXELLAB_STYLE1_KIT.md): cut-wall tileset
-b342fc89 (floor/wall), water e0c9621c, wall torch 55753820, rat nest bde80354, bones 2e4f8622, bridge 61da1673,
-barrels 5e8f62c3, moss decal 3ae7a8a6. Then swap only `ground` and object ids in the map row (never the grid,
-L-HASH pins it). Walk art per monster: src/data/monster-art.js HUNT_WALK_ART -> prototypes/hunt-sim-assets.

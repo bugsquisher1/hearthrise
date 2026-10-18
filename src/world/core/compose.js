@@ -121,9 +121,7 @@ export function composeFrame(map, book, state, view, tables, T) {
   for (let y = 0; y < map.h; y++) {
     for (let x = 0; x < map.w; x++) {
       if (!solid(x, y) || !near(x * T, y * T - 2 * T, T, 3 * T)) continue;
-      const mat = tables.materials[map.ground[y * map.w + x]];
-      if (mat.flat) continue;
-      const kit = mat.wall;
+      const kit = tables.materials[map.ground[y * map.w + x]].wall;
       if (floorAt(x, y + 1)) { place(map.faces[x + ',' + y] || kit + '_wall', x, y, { i: x % 4, bias: -0.5, kind: 'wall' }); continue; }
       raised.push({ id: 'void', set: null, x: x * T, y: y * T - WALL_FACE_PX, w: T, h: T, row: y * T + T - 1, seq: seq++, alpha: 1, kind: 'void' });
       if (floorAt(x, y - 1)) place(kit + '_cap_h', x, y, { lift: CAP_H_LIFT, raised: true, shadow: false, bias: 1 });

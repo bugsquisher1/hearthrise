@@ -10,8 +10,8 @@
 //   Add a friend   by claimed name (the server resolves it; a block refuses it)
 //   Asks for you   Accept / Decline
 //   Your asks      Withdraw
-//   Blocked        the block list with Unblock (./block-list.js, the
-//                  `blocked-players` settings row)
+//   Blocked        the block list with Unblock (./block-list.js; Settings'
+//                  `social.blocked` row opens this window)
 // Every button is ONE rpc and stays off until the server answered.
 // ════════════════════════════════════════════════════════════════════════
 import { CHAT_REFUSALS } from '../../data/chat-channels.js?v=0.2.0';

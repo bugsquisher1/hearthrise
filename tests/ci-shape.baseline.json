@@ -315,6 +315,8 @@
     "node tests/shell-core.mjs": "client-guards",
     "node tests/shell-renderers.mjs --selftest": "client-guards",
     "node tests/shell-renderers.mjs": "client-guards",
+    "node tests/settings-registry.mjs --selftest": "client-guards",
+    "node tests/settings-registry.mjs": "client-guards",
     "node tests/hud-layout-display-only.mjs --selftest": "client-guards",
     "node tests/hud-layout-display-only.mjs": "client-guards",
     "node tests/session-core.mjs": "client-guards",

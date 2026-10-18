@@ -5,8 +5,9 @@
 // CharacterSession: the World engine (src/world/world-boot.js, loaded on first
 // mount) reads that character's view (src/app/world-view.js) every frame, and
 // the shell (src/shell/shell.js) lays its windows and widgets over it with the
-// HUD layout kept in that character's residue; a right-click on a unit opens
-// the shell's player / monster menu. Every server answer the
+// HUD layout kept in that character's residue. A tap the World names (a
+// hunt's entrance, a station) opens its window here; a right-click on a unit
+// opens the shell's player / monster menu. Every server answer the
 // character applies re-syncs the frame and repaints the widgets. Nothing here
 // sends an intent or writes a number.
 // ════════════════════════════════════════════════════════════════════════
@@ -14,6 +15,7 @@
 import { worldViewOf } from './world-view.js?v=0.2.0';
 import { mountShell } from '../shell/shell.js?v=0.2.0';
 import { logFor } from '../hunt-view/combat-log.js?v=0.2.0';
+import { pickHunt } from '../shell/windows/hunts.js?v=0.2.0';
 import { worldTargetOf } from '../shell/menu-providers.js?v=0.2.0';
 
 const PANE_HTML = '<div class="world-chrome">'
@@ -54,10 +56,20 @@ export async function mountWorldPane(host, character, o) {
      window is shut: BEFORE the World boots, because the World plays the timeline from its first frame. */
   logFor(character);
 
+  /* What a tap in the World names, and the window it opens (the World itself knows no window). */
+  let shell = null;
+  const SHOWS = { entrance: (d) => { pickHunt(character, d.hunt); return 'hunts'; }, station: () => 'skills-trade' };
+  function emit(kind, detail) {
+    const to = shell && SHOWS[kind] ? SHOWS[kind](detail || {}) : null;
+    if (!to) return false;
+    if (shell.wm.isOpen(to)) shell.refresh(to); else shell.open(to);
+    return true;
+  }
+
   let runtime = null;
   try {
     const { bootWorld } = await import('../world/world-boot.js?v=0.2.0');
-    runtime = await bootWorld(pane, { view, character });
+    runtime = await bootWorld(pane, { view, character, emit });
     runtime.sync();
   } catch (e) {
     console.error('[world] the world failed to load', e);
@@ -66,7 +78,7 @@ export async function mountWorldPane(host, character, o) {
   }
 
   const inHunt = () => !!character.read('hunt') || !!view()._huntId;
-  const shell = mountShell(stage, { character, screen: opts.screen || doc.body, inHunt, peers: opts.peers, account: opts.account,
+  shell = mountShell(stage, { character, screen: opts.screen || doc.body, inHunt, peers: opts.peers, account: opts.account,
     alerts: opts.alerts, goTo: opts.goTo });
   /* A right-click or long press on a unit in the World opens the shell's player menu (a window or widget over it keeps its own). */
   if (runtime) shell.menu.attach(stage, (e) => (e.target.closest('[data-hs-win],[data-hs-widget]') ? null : worldTargetOf(runtime.pick(e.clientX, e.clientY))));

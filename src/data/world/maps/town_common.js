@@ -57,5 +57,5 @@ export default Object.freeze({
   exits: Object.freeze([{ x: 15, y: 6, to: 'mill_cellar' }]),
   start: Object.freeze([11, 9]),
   focus: Object.freeze([11, 7]),
-  maskHash: '82526f23',
+  maskHash: '6f677c65',
 });

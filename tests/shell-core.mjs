@@ -143,11 +143,17 @@ async function runTests(mods) {
   });
   t('W8 keys are ignored while typing or with a modifier', () => {
     const { wm } = harness(WM);
-    for (const tag of ['INPUT', 'TEXTAREA', 'SELECT']) ok(!wm.handleKey(key('b', { target: { tagName: tag } })), tag + ' must swallow the key');
+    for (const tag of ['INPUT', 'TEXTAREA']) ok(!wm.handleKey(key('b', { target: { tagName: tag } })), tag + ' must swallow the key');
+    ok(!wm.handleKey(key('b', { target: { tagName: 'INPUT', type: 'search' } })), 'a search box must swallow the key');
     ok(!wm.handleKey(key('b', { target: { tagName: 'DIV', isContentEditable: true } })), 'contenteditable');
     ok(!wm.handleKey(key('b', { ctrlKey: true })), 'Ctrl+B');
     ok(!wm.handleKey(key('Escape', { isComposing: true })), 'IME composition');
     eq(wm.openIds(), [], 'nothing opened');
+    /* The one key rule (src/utils/dom.js, Tyler 10-18): only typing takes a key. A focused checkbox or
+       button never does, and a select takes only its arrows. */
+    ok(wm.handleKey(key('b', { target: { tagName: 'INPUT', type: 'checkbox' } })), 'a focused checkbox must not swallow B');
+    ok(wm.handleKey(key('b', { target: { tagName: 'SELECT' } })), 'a focused select must not swallow B');
+    wm.close('bag');
     ok(!wm.handleKey(key('1')), 'digits belong to the action bar');
   });
   t('W9 close waits 120 ms for the slide-out; reduced motion does not', () => {
@@ -318,7 +324,9 @@ const MUTANTS = [
   { test: 'W3', file: WM_FILE, from: 'for (const r of rows.values()) if (r.escape) return openWindow(r.id);', to: '' },
   { test: 'W4', file: WM_FILE, from: "if (open[open.length - 1] !== id) { open.splice(open.indexOf(id), 1); open.push(id); emit(); }", to: '' },
   { test: 'W5', file: WM_FILE, from: 'if (isPhone()) for (const other of open.slice()) drop(other);', to: '' },
-  { test: 'W8', file: WM_FILE, from: "return /^(input|textarea|select)$/i.test(t.tagName || '');", to: 'return false;' },
+  { test: 'W8', file: WM_FILE, from: 'return keyBelongsToField(ev.target, ev.key);', to: 'return false;' },
+  { test: 'W8', file: 'src/utils/dom.js', from: "  if (tag === 'select') return /^Arrow/.test(String(key || ''));", to: "  if (tag === 'select') return true;" },
+  { test: 'W8', file: 'src/utils/dom.js', from: '  return TEXT_TYPES.has(type);', to: '  return true;' },
   { test: 'W9', file: WM_FILE, from: 'if (reducedMotion()) { drop(id); emit(); return true; }', to: '' },
   { test: 'H2', file: HUD_FILE, from: 'const clampOpacity = (v) => Math.max(OPACITY_MIN, Math.min(OPACITY_MAX, Number(v)));', to: 'const clampOpacity = (v) => Number(v);' },
   { test: 'H3', file: HUD_FILE, from: 'if (!row.removable) L.visible = true;', to: '' },

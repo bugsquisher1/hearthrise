@@ -16,7 +16,9 @@
 //                      once, one hr_put_client_state follows per burst
 //   setHuntOptions(p, o) the hunt settings INTENT (hr_action_set_options); the
 //                      new settings arrive only in the re-read envelope
+//   enterHunt(h, b, p) the go-hunting INTENT (hr_hunt_enter), re-read the same way
 //   leaveHunt()        the leave INTENT (hr_hunt_leave), re-read the same way
+//   moveStorage(i,n,d) the home storage INTENT (hr_bank_move), re-read the same way
 //   edgeIntent(v, f)   an item intent through the engine (equip, sell, buy, eat;
 //                      src/session/edge-intents.js): names and counts only
 //   lockItem / setLootRule / setRestock / refill / savePreset / applyPreset
@@ -149,6 +151,27 @@ export class CharacterSession {
   async setHuntOptions(preset, opts) {
     if (this._closed) return { ok: false, error: 'closed' };
     return this._settled(await this._server.rpc('hr_action_set_options', { p_slot: this.slot, p_preset: preset, p_opts: opts, p_idem: newIdem() }));
+  }
+
+  /**
+   * Go hunting (hr_hunt_enter): this character alone (a party of one), or its
+   * party's ground when it is in one. `bag` is what to carry, [{ item, qty }] of
+   * this character's own supplies (src/shell/hunt-list.js packFor); `preset` the
+   * action set it fights with. The server checks the level band, the stamina,
+   * the stock and the activity, and the hunt shows only from the re-read.
+   */
+  async enterHunt(hunt, bag, preset) {
+    const lines = Array.isArray(bag) ? bag : [];
+    if (this._closed || !HUNT_ID.test(String(hunt)) || !Number.isInteger(preset) || preset < 0 || preset > 7 || lines.length > 10
+      || !lines.every((l) => l && ITEM.test(String(l.item)) && Number.isInteger(l.qty) && l.qty >= 1 && l.qty <= 100000)) return { ok: false, error: 'bad_intent' };
+    return this._settled(await this._server.rpc('hr_hunt_enter', { p_slot: this.slot, p_hunt: hunt,
+      p_bag: lines.map((l) => ({ item: l.item, qty: l.qty })), p_preset: preset, p_falls: null, p_hours: null, p_idem: newIdem() }));
+  }
+
+  /** Move a stack between the bag and the home storage (hr_bank_move): `dir` is 'deposit' or 'withdraw'. */
+  async moveStorage(item, qty, dir) {
+    if (this._closed || !ITEM.test(String(item)) || !Number.isSafeInteger(qty) || qty < 1 || qty > 1000000 || (dir !== 'deposit' && dir !== 'withdraw')) return { ok: false, error: 'bad_intent' };
+    return this._settled(await this._server.rpc('hr_bank_move', { p_slot: this.slot, p_item: item, p_qty: qty, p_dir: dir, p_idem: newIdem() }));
   }
 
   /** Leave the hunt (hr_hunt_leave): the server settles and ends it; the re-read shows the summary. */

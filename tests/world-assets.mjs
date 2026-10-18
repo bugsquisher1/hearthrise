@@ -288,7 +288,7 @@ function selftest(atlases) {
   s1('the retired hero set loaded again', 's1-retired', style1Input(ROOT, { atlasSets: ATLAS_SETS.concat(['hero']) }));
   { const inp = style1Input(); inp.artSets = inp.artSets.concat(['oldkit']); s1('old art parked in a set nobody loads', 's1-orphan', inp); }
   { const inp = style1Input(); inp.builtSets = inp.builtSets.concat([RETIRED_SETS[0]]); s1('a retired atlas left in assets/world', 's1-retired', inp); }
-  s1('a window loading the retired hero atlas itself', 's1-code', style1Input(ROOT, { code: codeRefs(ROOT).concat([{ file: 'src/shell/windows/gear.js', sets: codeSets("const p = atlasPaths('hero');") }]) }));
+  s1('a window loading the retired hero atlas itself', 's1-code', style1Input(ROOT, { code: codeRefs(ROOT).concat([{ file: 'src/shell/windows/inventory/doll.js', sets: codeSets("const p = atlasPaths('hero');") }]) }));
   s1('a literal path to a retired atlas', 's1-code', style1Input(ROOT, { code: [{ file: 'src/x.js', sets: codeSets("fetch('assets/world/atlas-town.json')") }] }));
 
   // Drift, end to end: a copy of the tree with one atlas pixel edited by hand must

@@ -124,6 +124,9 @@ function patchOut(root, ctx, sc) {
     },
   });
   prop(root.querySelector('[data-hs-act="create"]'), 'disabled', sc.pending);
+  /* The Hunts window's "With a party" names its ground once; the player's own pick wins after that. */
+  const ground = root.querySelector('[data-hs-act="create-hunt"]');
+  if (sc.hunt && ctx.doc.activeElement !== ground) { ground.value = sc.hunt; sc.hunt = null; }
   patchFinder(root, ctx, sc);
 }
 

@@ -1,27 +1,23 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/data/social-settings.js — THE SOCIAL SIDE'S SETTINGS, AS REGISTRY ROWS.
+// src/data/social-settings.js — THE SOCIAL SIDE'S ROWS IN THE SETTINGS REGISTRY.
 //
-// The settings window is becoming a categorised registry (src/data/settings.js,
-// lane/settings-organized: rows { id, category, label, help, type, default,
-// scope }). Until it lands on this base, the social side keeps its rows here
-// for the integrator to fold in under "Chat & Social"; nothing is wedged into
-// the Settings markup. A row of type 'panel' is drawn by the module it names
-// (`panel`), which owns its reads and its intents; the Friends window shows the
-// same panel today, so every row here is reachable before the fold.
-//   blocked-players   the account's block list, each with Unblock
-//                     (src/shell/windows/block-list.js; hr_block_set). Server
-//                     state, so scope 'account' and no client default.
+// Spread into SETTINGS by src/data/settings.js (category chat_social, "Chat &
+// Social"); the Settings window draws them like any row and holds no logic of
+// the social side. A row that needs a panel of its own is an action row that
+// OPENS the window owning that panel:
+//   social.blocked   Blocked players: opens Friends, whose block list
+//                    (src/shell/windows/block-list.js) lists each block with
+//                    Unblock — ONE hr_block_set. Server state (chat_blocks), so
+//                    nothing is kept in residue and nothing has a client default.
 // ════════════════════════════════════════════════════════════════════════
 
 export const SOCIAL_SETTINGS = Object.freeze([
   Object.freeze({
-    id: 'blocked-players',
-    category: 'Chat & Social',
+    id: 'social.blocked',
+    category: 'chat_social',
     label: 'Blocked players',
     help: 'You see nothing they say, and they cannot message you, ask to be friends or inspect you.',
-    type: 'panel',
-    default: null,
-    scope: 'account',
-    panel: 'src/shell/windows/block-list.js',
+    type: 'action',
+    open: 'friends',
   }),
 ]);

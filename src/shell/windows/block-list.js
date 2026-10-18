@@ -1,9 +1,9 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/shell/windows/block-list.js — THE PLAYERS YOU BLOCKED, WITH UNBLOCK.
 //
-// One panel, the `blocked-players` row of src/data/social-settings.js (its
-// label and help are read from there). Shown in the Friends window today; the
-// settings registry draws the same panel once it lands. The list is the
+// One panel in the Friends window; Settings reaches it through the
+// `social.blocked` row of src/data/social-settings.js (its label and help are
+// read from there, so the words are written once). The list is the
 // account's blocks as hr_social_state answered them (src/social/blocks.js);
 // Unblock is ONE hr_block_set, off until the server answered. The server
 // enforces the block itself: their lines and whispers never reach you, and
@@ -13,7 +13,7 @@ import { SOCIAL_SETTINGS } from '../../data/social-settings.js?v=0.2.0';
 import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.0';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.0';
 
-const ROW = SOCIAL_SETTINGS.find((r) => r.id === 'blocked-players');
+const ROW = SOCIAL_SETTINGS.find((r) => r.id === 'social.blocked');
 const PENDING = new WeakSet();   // the hosts with an Unblock in flight
 
 export function blocksHtml() {

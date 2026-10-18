@@ -42,6 +42,9 @@ export const CLIENT_RPCS = Object.freeze({
   hr_put_client_state: 'the allowlisted display residue (CharacterSession.flushResidue)',
   hr_action_set_options: 'the per-hero hunt settings intent, catalogue-validated and refused not clamped (CharacterSession.setHuntOptions)',
   hr_hunt_leave: 'leave the running hunt; the server settles and ends it (CharacterSession.leaveHunt)',
+  /* Tyler's first playtest (10-18): going hunting and the home storage, both live, reviewed server verbs. */
+  hr_hunt_enter: 'go hunting with names and counts of own supplies; band, stamina and stock are the server’s (CharacterSession.enterHunt)',
+  hr_bank_move: 'move a stack between the bag and the home storage, value-neutral (CharacterSession.moveStorage)',
   /* The alpha windows (2026-10-18; CONFLICTS.md): staged for the server lane, refused as http_404 until it lands. */
   hr_item_lock: 'lock or unlock an item so no bulk sale can name it (CharacterSession.lockItem)',
   hr_loot_rule_set: 'keep / sell / ignore an item on pickup, applied by the server (CharacterSession.setLootRule)',
@@ -157,10 +160,10 @@ if (process.argv.includes('--selftest')) {
     ['a new RPC the list does not name', plant('src/app/boot.js', "server.rpc('hr_vendor_sell', { p_item: 'ore', p_qty: 9 });"), 'IS-1'],
     ['the edge sent an amount', plant('src/session/character-session.js', 'this._server.accrue({ slot: this.slot, gold: 500 });'), 'IS-2'],
     ['the edge sent a hand-built body outside the builder', plant('src/app/boot.js', 'server.accrue(body);'), 'IS-2'],
-    ['an engine intent the pin does not name', plant('src/shell/windows/bag-act.js', "cs.edgeIntent('grant_gold', { qty: 5 });"), 'IS-5'],
+    ['an engine intent the pin does not name', plant('src/shell/windows/inventory/actions.js', "cs.edgeIntent('grant_gold', { qty: 5 });"), 'IS-5'],
     ['the builder grew a price field', { ...real, [EDGE]: real[EDGE].replace("shop_buy: Object.freeze(['offer', 'qty']),", "shop_buy: Object.freeze(['offer', 'qty', 'price']),") }, 'IS-5'],
     ['the builder grew a verb', { ...real, [EDGE]: real[EDGE].replace("eat: Object.freeze(['item']),", "eat: Object.freeze(['item']),\n  market_buy: Object.freeze(['listing', 'qty']),") }, 'IS-5'],
-    ['a pinned engine intent nobody sends', { ...real, 'src/shell/windows/bag-act.js': real['src/shell/windows/bag-act.js'].split("edgeIntent('eat'").join("edgeIntentX('eat'") }, 'IS-5'],
+    ['a pinned engine intent nobody sends', { ...real, 'src/shell/windows/inventory/actions.js': real['src/shell/windows/inventory/actions.js'].split("edgeIntent('eat'").join("edgeIntentX('eat'") }, 'IS-5'],
     ['a second fetch', plant('src/app/world-pane.js', "fetch('/rest/v1/rpc/hr_load');"), 'IS-3'],
     ['a table read through supabase-js', plant('src/app/boot.js', "client.from('player_state').select('*');"), 'IS-3'],
     ['an RPC through supabase-js', plant('src/app/boot.js', "client.rpc('hr_load', { p_slot: 0 });"), 'IS-3'],

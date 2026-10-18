@@ -18,24 +18,25 @@ import { renderChat } from './windows/chat.js?v=0.2.0';
 import { renderFriends } from './windows/friends.js?v=0.2.0';
 import { renderInspect } from './windows/inspect.js?v=0.2.0';
 import { renderSettings } from './windows/settings.js?v=0.2.0';
-import { renderBag } from './windows/bag.js?v=0.2.0';
-import { renderGear } from './windows/gear.js?v=0.2.0';
-import { renderSkills } from './windows/skills.js?v=0.2.0';
+import { renderInventory } from './windows/inventory/index.js?v=0.2.0';
+import { renderCombatSkills, renderTradeSkills } from './windows/skills.js?v=0.2.0';
+import { renderHunts } from './windows/hunts.js?v=0.2.0';
+import { renderStorage } from './windows/storage.js?v=0.2.0';
 import { renderShop } from './windows/shop.js?v=0.2.0';
 import { renderHuntPrep } from './windows/hunt-prep.js?v=0.2.0';
-import { renderFind } from './windows/find.js?v=0.2.0';
 import { renderParty } from './windows/party.js?v=0.2.0';
 import { renderCharacters } from './windows/characters.js?v=0.2.0';
 import { renderAlerts } from './widgets/alerts.js?v=0.2.0';
 
 /* A renderer with `.patch` is a component: built once, then patched in place (src/shell/shell.js). */
 export const WINDOW_RENDERERS = Object.freeze({
-  bag: renderBag,
-  gear: renderGear,
-  skills: renderSkills,
+  hunts: renderHunts,
+  inventory: renderInventory,
+  'skills-combat': renderCombatSkills,
+  'skills-trade': renderTradeSkills,
+  storage: renderStorage,
   shop: renderShop,
   'hunt-prep': renderHuntPrep,
-  find: renderFind,
   'hunt-party': renderParty,
   characters: renderCharacters,
   hud: renderHudSettings,

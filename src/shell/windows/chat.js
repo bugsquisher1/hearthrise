@@ -16,9 +16,10 @@
 // the player scrolled up; then a "New messages" pill brings them down.
 //
 // THE INPUT: its placeholder says who you are talking to. Enter sends (ONE
-// rpc; Send stays off until the server answers), Esc leaves the field. While
-// the field has focus the World's walk keys do nothing (it ignores keys typed
-// into a field); the moment it loses focus they walk again.
+// rpc; Send stays off until the server answers), Esc leaves the field. The
+// field never swallows a key: whether a key belongs to it is the one rule,
+// keyBelongsToField (src/utils/dom.js), which the World and the window keys
+// read too — so W types while the field has focus and walks once it is left.
 // ════════════════════════════════════════════════════════════════════════
 import { CHAT_TABS, WHISPER, CHAT_REFUSALS } from '../../data/chat-channels.js?v=0.2.0';
 import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.0';
@@ -30,7 +31,7 @@ import { showTip, hideTip } from './item-tip.js?v=0.2.0';
 import { rarityOf } from '../bag-model.js?v=0.2.0';
 import { glyphSvg } from '../launcher.js?v=0.2.0';
 import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.0';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.0';
+import { escapeHtml as esc, keyBelongsToField } from '../../utils/dom.js?v=0.2.0';
 import { playerTargetOf } from '../context-menu.js?v=0.2.0';
 
 const STATE = new WeakMap();
@@ -195,6 +196,7 @@ renderChat.act = function actChat(ctx, body, action, ev, t) {
   if (actCombat(ctx, body.querySelector('.hc-pane.is-combat'), action, ev, t)) return true;
   if (action === 'draft') {
     if (type === 'input' && social) { social.chat.setDraft(t.value); st.msg = ''; return false; }
+    if (type === 'keydown' && !keyBelongsToField(t, ev.key)) return false;   // the one key rule (src/utils/dom.js)
     if (type === 'keydown' && ev.key === 'Enter' && !ev.isComposing) { doSend(ctx, body, st); return true; }
     if (type === 'keydown' && ev.key === 'Escape') { t.blur(); return true; }
     return false;

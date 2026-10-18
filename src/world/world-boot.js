@@ -22,10 +22,11 @@
 //
 // THE TOWN AND THE HOME (lane W4) otherwise, as the viewer picks: walk-scene.js
 // draws them from what the client holds from the server, read here into one
-// `env` per frame. A tap walks the local hero (display only: G._world.pos) or
-// opens an existing screen; no tap sends an intent (steer-local.js runAction).
-// On a desktop WASD / the arrows walk the same feet (8 ways, stop on key-up);
-// never while a field has focus or a dialog is open, and never sent either.
+// `env` per frame. A tap on the canvas walks the local hero (display only:
+// G._world.pos) or names what it hit for the pane (opts.emit: a hunt's entrance,
+// a station); no tap sends an intent (steer-local.js runAction). On a desktop
+// WASD / the arrows walk the same feet (8 ways, stop on key-up); never while a
+// text field has focus, and never sent either.
 // A fight on a hunt no map renders shows the viewer's town or home with a slim
 // banner that names the fight and offers the hunt that IS in the World.
 // ════════════════════════════════════════════════════════════════════════
@@ -49,6 +50,7 @@ import { createWalkScene } from './walk-scene.js?v=0.2.0';
 import { homeMapFor } from './home-scene.js?v=0.2.0';
 import { runAction } from './steer-local.js?v=0.2.0';
 import { heroSprite } from '../session/hero-look.js?v=0.2.0';
+import { keyBelongsToField } from '../utils/dom.js?v=0.2.0';
 
 /* THE KEYS (desktop): WASD and the arrows, by physical key (e.code, so a
    non-QWERTY layout walks with the same hand). Two held at once walk the
@@ -57,25 +59,10 @@ const WALK_KEYS = Object.freeze({
   KeyW: [0, -1], ArrowUp: [0, -1], KeyS: [0, 1], ArrowDown: [0, 1],
   KeyA: [-1, 0], ArrowLeft: [-1, 0], KeyD: [1, 0], ArrowRight: [1, 0],
 });
-/* Keys belong to whatever is typed into or open on top: never walk while a field has focus or a dialog shows. */
-const TYPING = 'input, textarea, select, [contenteditable=""], [contenteditable="true"]';
-const ON_TOP = '.modal.show, .qm-overlay, .hr-sheet, #hr-bug-modal, [role="dialog"]:not(.hr-coach-card), [role="alertdialog"]';
-
-/**
- * Is this dialog OPEN, not merely in the DOM? A closed sheet is often kept and
- * hidden by its scrim's opacity 0 and pointer-events none (the item detail and
- * enchant sheets, .inv-detail without .show): it still has layout boxes, so a
- * box test alone counted it as open and left the keys dead for good after the
- * player's first item detail. Open = laid out, not see-through or hidden, and
- * taking the pointer.
- */
-function isOpen(el) {
-  if (!el.getClientRects().length) return false;
-  if (typeof el.checkVisibility === 'function'
-    && !el.checkVisibility({ opacityProperty: true, visibilityProperty: true, checkOpacity: true, checkVisibilityCSS: true })) return false;
-  const cs = el.ownerDocument.defaultView.getComputedStyle(el);
-  return cs.pointerEvents !== 'none' && cs.visibility !== 'hidden';
-}
+/* THE INPUT RULES (Tyler 10-18). Keys: the World's unless a text field has them (dom.js
+   keyBelongsToField). Presses: the shell's windows sit inside the stage, so the World
+   acts only on a press whose target IS its canvas, never one on a window or widget. */
+const onWorld = (e) => !!(e && e.target && e.target.classList && e.target.classList.contains('world-canvas'));
 
 const ROWS = new Map(WORLD_MAPS.map((m) => [m.id, m]));
 const ROW_OF = Object.fromEntries(WORLD_MAPS.map((m) => [m.id, m]));
@@ -97,7 +84,7 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&
  * A FIGHT THE WORLD HAS NO MAP FOR (Ridge Camp, say): the town or home stays on
  * screen as the viewer picked, and one slim line over it names where the hero
  * really is and offers the hunt that IS in the World. Null when the scene
- * speaks for itself. Its button only navigates (Adventures, the hunt picked).
+ * speaks for itself. Its button only names that hunt's entrance (the pane opens Hunts on it).
  * @param {object} G  read only
  * @param {{kind: string}} sc  the scene showing
  * @param {(id: string) => string} monsterName
@@ -156,6 +143,8 @@ function createEnvReader(win) {
  *        (src/app/world-view.js): the server's fight pointer and Analyzer plus the
  *        character's own `_world` display scratch. There is no global state to fall back to.
  * @param {object} [opts.character]  that CharacterSession: its sections and timeline drive the live hunt
+ * @param {(kind: string, detail: object) => boolean} [opts.emit]  what a tap names: 'entrance' {hunt},
+ *        'station' {skill}, 'room' {room}, 'house' {room}; true when the pane opened something
  */
 export async function bootWorld(panel, opts) {
   const win = window, doc = document;
@@ -302,45 +291,28 @@ export async function bootWorld(panel, opts) {
     frames++;
   }
 
-  /* NAVIGATION ONLY: Adventures, on the War Table's Hunts with hunt `id` picked. */
-  function openHunt(id) {
-    if (typeof win.showTab !== 'function') return false;
-    win.showTab('combat');
-    const CS = win.HearthriseCombatScreens;
-    return !!(CS && typeof CS.showHunt === 'function' && CS.showHunt(id));
-  }
+  /* The World knows no window: it names what was tapped and the pane opens one. */
+  const emit = (kind, detail) => (typeof opts.emit === 'function' ? opts.emit(kind, detail) === true : false);
 
-  /* Where a tap goes. Every way out is a screen the game already has. */
+  /* Where a tap goes: the hero's feet, the scene picker, or a named thing for the pane. */
   const nav = {
     walk: () => true,
-    hunt: (id) => openHunt(id),
-    skill(id) {
-      if (typeof win.showTab !== 'function') return false;
-      win.showTab('skills');
-      if (typeof win.openSkillDetail === 'function') win.openSkillDetail(id);
-      return true;
-    },
-    room(id) {
-      const H = win.HearthriseHomestead;
-      return !!(H && typeof H.openRoom === 'function' && H.openRoom(id));
-    },
-    house() {
-      if (typeof win.showTab !== 'function') return false;
-      win.showTab('house');
-      return true;
-    },
+    hunt: (id) => emit('entrance', { hunt: id }),
+    skill: (id) => emit('station', { skill: id }),
+    room: (id) => emit('room', { room: id }),
+    house: (id) => emit('house', { room: id }),
     scene(choice) { setChoice(view(), choice); if (running) step(0); return true; },
   };
 
   function onTap(e) {
-    if (!walk || !scene || scene.kind === 'hunt') return;
-    if (e.target && e.target.closest && e.target.closest('.world-idle')) return;   // the banner's own button
+    if (!walk || !scene || scene.kind === 'hunt' || !onWorld(e)) return;
     const pick = backend.pick(e.clientX, e.clientY);
     if (!pick) return;
     runAction(walk.tap(pick, Date.now()), nav);
   }
   function onHover(e) {
     if (!walk || !scene || scene.kind === 'hunt' || e.pointerType === 'touch') return;
+    if (!onWorld(e)) { stage.classList.remove('is-hot'); return; }
     const pick = backend.pick(e.clientX, e.clientY);
     const act = pick && walk.peek(pick);
     stage.classList.toggle('is-hot', !!act && act.kind !== 'walk');
@@ -356,19 +328,18 @@ export async function bootWorld(panel, opts) {
   function steerKeys() { if (walk) walk.drive(keyVector(), Date.now()); }
   /** Let go of every walk key (focus left, the pane closed, a field or dialog took the keys). */
   function letGo() { if (!keys.size) return; keys.clear(); steerKeys(); }
-  const onTop = () => Array.from(doc.querySelectorAll(ON_TOP)).some(isOpen);
   function onKeyDown(e) {
     if (!WALK_KEYS[e.code] || e.ctrlKey || e.metaKey || e.altKey) return;
     if (!live() || !walk || !scene || scene.kind === 'hunt') return;
     const t = e.target;
-    if ((t && t.closest && t.closest(TYPING)) || onTop()) { letGo(); return; }
+    if (keyBelongsToField(t, e.code)) { letGo(); return; }
     e.preventDefault();   // the arrows would scroll the page
     if (keys.has(e.code)) return;   // auto-repeat
     keys.add(e.code);
     steerKeys();
   }
   function onKeyUp(e) { if (keys.delete(e.code)) steerKeys(); }
-  function onFocusIn(e) { if (e.target && e.target.closest && e.target.closest(TYPING)) letGo(); }
+  function onFocusIn(e) { if (keyBelongsToField(e.target, '')) letGo(); }
 
   const live = () => panel.classList.contains('active') && !doc.hidden;
   function frame(t) {
@@ -397,7 +368,7 @@ export async function bootWorld(panel, opts) {
     }
   }
   function onGo(e) {
-    if (e.target && e.target.closest && e.target.closest('[data-world-go]') && OPEN_HUNT) openHunt(OPEN_HUNT.id);
+    if (e.target && e.target.closest && e.target.closest('[data-world-go]') && OPEN_HUNT) emit('entrance', { hunt: OPEN_HUNT.id });
   }
   function onChoice(e) {
     const b = e.target && e.target.closest && e.target.closest('[data-world-choice]');

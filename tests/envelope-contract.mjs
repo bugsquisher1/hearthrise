@@ -46,6 +46,7 @@ export const PENDING = Object.freeze({
   hunt_presets: 'alpha hunt presets (gear + restock per preset)',
   role: 'the worn weapon\'s role as a section (roleIdOf falls back to the party seat, which IS contracted)',
   party_invites: 'party invites (hr_hunt_party_invite, next server lane)',
+  imbuements: 'per worn piece, its imbuement slots and what fills them (ruling D v2; the Inventory Advanced view, CONFLICTS.md 2026-10-18 playtest)',
 });
 
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
@@ -124,11 +125,15 @@ function contract(R, cs, body, tl) {
   need('state', R.PS.assignmentOf(cs).kind === 'hunting', 'assignmentOf reads ' + JSON.stringify(R.PS.assignmentOf(cs)));
   need('bank', body.bank !== undefined && (body.bank === null || typeof body.bank === 'object'), 'bank is ' + typeof body.bank);
   need('hero_slots', Array.isArray(body.hero_slots), 'hero_slots is not an array');
+  // the Inventory's capacity bar, its Advanced view's effects and the Storage window (playtest 10-18)
+  need('state', R.IS.bagCapOf(cs) !== null, 'bagCapOf reads no state.bank_cap');
+  need('buffs', Array.isArray(body.buffs) && Array.isArray(R.IS.buffsOf(cs)), 'buffsOf reads ' + JSON.stringify(body.buffs).slice(0, 160));
+  need('bank', body.bank === null || Array.isArray(R.IS.bankOf(cs)), 'bankOf reads ' + JSON.stringify(body.bank).slice(0, 160));
   return out;
 }
 /* The envelope keys CONTRACT covers (with the settle-response keys). */
 export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events', 'hunt_server_now_ms', 'hunt_settings', 'hunt_analyzer',
-  'party', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'hero_slots']);
+  'party', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots']);
 
 /* Every section key a client reader reads, from the source. */
 export function clientReadKeys(root) {

@@ -60,14 +60,17 @@ export function cleanInset(inset) {
  */
 function axis(t, k, v, a, b, lo, hi, m) {
   const u = Math.max(1, v - a - b), span = hi - lo;
+  const keep = Math.min(m, u / 2);
+  const hold = (c) => (k != null ? Math.min(k - keep, Math.max(k + keep - u, c)) : c);
   let c;
   if (span <= u) c = lo + (span - u) / 2;
   else {
-    c = t - u / 2;
-    if (k != null) {
-      const keep = Math.min(m, u / 2);
-      c = Math.min(k - keep, Math.max(k + keep - u, c));
-    }
+    c = hold(t - u / 2);
+    /* NO VOID (Tyler 10-18): a docked window is shorter than the World, so what
+       lies under it shows around it. A world at least as long as the WHOLE view
+       keeps the whole view on it, covered strips included; only the hero may
+       pull it past (standing within a window's width of the far edge). */
+    if (span >= v) c = hold(Math.min(hi - u - b, Math.max(lo + a, c)));
     c = Math.min(hi - u, Math.max(lo, c));
   }
   return c - a;

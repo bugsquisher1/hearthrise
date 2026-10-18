@@ -148,6 +148,7 @@ import { GATHER_CATALOGUES } from '../supabase/functions/hr-accrue/tick-gather.j
    guard can see the two halves of the feature drift apart. */
 import { eatDelta, resolveFood, runEat } from '../supabase/functions/hr-accrue/eat.js';
 import { deltaClosesWindow } from '../supabase/functions/hr-accrue/intents.js';
+import { isMain } from './_is-main.mjs';
 
 /* ── THE FINAL-BODY RULE, AFTER THE RESTATEMENT (2026-09-14) ────────────
    Every anchor below that edits hr_apply's BODY now names MIG_APPLY. hr_apply is
@@ -1806,8 +1807,7 @@ export async function buffQueueGuard() { failed = 0; await run(); return failed;
 
 // ── CLI ────────────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
-const RUN_DIRECTLY = !!process.argv[1]
-  && process.argv[1].replace(/\\/g, '/').endsWith('tests/buff-queue.mjs');
+const RUN_DIRECTLY = isMain(import.meta.url);
 
 if (RUN_DIRECTLY) {
   try {

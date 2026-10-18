@@ -59,6 +59,7 @@
 
 import { bootReplay } from './schema-replay.mjs';
 import { deriveCatalogueRows } from '../tools/catalogue-rows.mjs';
+import { isMain } from './_is-main.mjs';
 
 /* The fields compared per table. Adding a column to a catalogue table means
    adding it HERE too, or the new column is unguarded and silently driftable —
@@ -278,7 +279,7 @@ async function selftest() {
   return bad;
 }
 
-if (process.argv[1]?.endsWith('catalogue-literal-drift.mjs')) {
+if (isMain(import.meta.url)) {
   const argv = process.argv.slice(2);
   const fail = (e) => {
     process.stderr.write(`ERROR: ${e && e.message || e}\n`);

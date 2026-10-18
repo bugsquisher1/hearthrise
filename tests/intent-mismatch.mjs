@@ -51,6 +51,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, ROOT } from './schema-replay.mjs';
 import { walletFixture } from './wallet-fixture.mjs';
+import { isMain } from './_is-main.mjs';
 /* A mutant replays UP TO the newest file this guard stands on, never past it, so a
    newer migration's lock or self-check cannot refuse first: the newest file it names;
    its arms drive bodies that file restated. (tests/schema-replay.mjs
@@ -625,8 +626,7 @@ export async function intentMismatchGuard() {
 
 // ── main (only when run directly; run-smoke imports the guard above) ─────
 const argv = process.argv.slice(2);
-const RUN_DIRECTLY = !!process.argv[1]
-  && process.argv[1].replace(/\\/g, '/').endsWith('tests/intent-mismatch.mjs');
+const RUN_DIRECTLY = isMain(import.meta.url);
 if (RUN_DIRECTLY) {
   if (argv.includes('--list')) {
     for (const [id, m] of Object.entries(MUTATIONS)) console.log(`${id.padEnd(26)} ${m.why}`);

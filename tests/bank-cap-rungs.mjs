@@ -60,6 +60,7 @@ import { join } from 'node:path';
 import { bootReplay, LAST_PATCHED, ROOT, manifest } from './schema-replay.mjs';
 import { BANK_STACKS_PER_RUNG, BANK_RUNGS, BANK_LADDER } from '../src/data/gold-ladders.js';
 import { START_CURRENCY } from '../src/data/start-kit.js';
+import { isMain } from './_is-main.mjs';
 
 const MIG = '2026-09-06-bank-cap-tracks-rungs.sql';
 
@@ -386,8 +387,7 @@ export async function bankCapRungsGuard() {
 }
 
 const argv = process.argv.slice(2);
-const RUN_DIRECTLY = !!process.argv[1]
-  && process.argv[1].replace(/\\/g, '/').endsWith('tests/bank-cap-rungs.mjs');
+const RUN_DIRECTLY = isMain(import.meta.url);
 if (RUN_DIRECTLY) {
   if (argv.includes('--list')) {
     for (const [id, m] of Object.entries(MUTATIONS)) console.log(`${id.padEnd(34)} ${m.why}`);

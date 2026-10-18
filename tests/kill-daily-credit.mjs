@@ -122,6 +122,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { fileURLToPath } from 'node:url';
 import { bootReplay } from './schema-replay.mjs';
+import { isMain } from './_is-main.mjs';
 
 const MIG = '2026-09-01-kill-daily-credit.sql';
 /* The AUTHORING migration for hr_goal_rewards + hr_claim_goal. The b493 XP
@@ -1024,7 +1025,7 @@ async function selftest() {
   return bad;
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (isMain(import.meta.url)) {
   const arg = process.argv[2] || '';
   (async () => {
     if (arg === '--list') {

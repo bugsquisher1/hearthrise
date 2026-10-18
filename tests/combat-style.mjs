@@ -55,6 +55,7 @@ import { onTrainingHunt } from './hunt-fixture.mjs';
 const computeAccrualOnHunt = (inp) => computeAccrual(onTrainingHunt(inp));
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
+import { isMain as isEntryModule } from './_is-main.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const MIG = join(ROOT, 'supabase', 'migrations', '2026-08-24-combat-style.sql');
@@ -735,8 +736,7 @@ export async function combatStyleGuard({ mutation = null, skipRuntime = false } 
   return problems.slice();
 }
 
-const isMain = process.argv[1]
-  && normalize(process.argv[1]) === normalize(fileURLToPath(import.meta.url));
+const isMain = isEntryModule(import.meta.url);
 if (isMain) {
   const argv = process.argv.slice(2);
   if (argv.includes('--list')) {

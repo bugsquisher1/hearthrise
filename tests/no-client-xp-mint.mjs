@@ -73,6 +73,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join, relative, sep } from 'node:path';
+import { isMain as isEntryModule } from './_is-main.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
@@ -502,8 +503,7 @@ async function selftest() {
 }
 
 const argv = process.argv.slice(2);
-const isMain = process.argv[1]
-  && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '/').split('/').pop());
+const isMain = isEntryModule(import.meta.url);
 if (isMain) {
   if (argv.includes('--selftest')) await selftest();
   const { sites, unclassified, stale, direct, writes, allowed } = audit(loadSrc());

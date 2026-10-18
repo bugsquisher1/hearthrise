@@ -71,6 +71,7 @@ import {
    expectation, not turn the guard red. */
 import { workerTickMs } from '../src/core/workers.js';
 import { parseIntent, readSlot, MAX_SLOT, INTENT_KEYS } from '../supabase/functions/hr-accrue/request.js';
+import { isMain } from './_is-main.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const FN_DIR = join(ROOT, 'supabase', 'functions', 'hr-accrue');
@@ -2420,12 +2421,12 @@ async function fuseSizingOnly(part) {
 }
 
 const FUSE_ARG = process.argv.find((a) => a === '--fuse-only' || a.startsWith('--fuse-only='));
-if (import.meta.url === pathToFileURL(process.argv[1] || '').href && FUSE_ARG) {
+if (isMain(import.meta.url) && FUSE_ARG) {
   const found = await fuseSizingOnly(FUSE_ARG.split('=')[1] || null);
   for (const p of found) console.log('  x ' + p);
   console.log(found.length ? 'Accrual engine fuse sizing — FAILED' : 'Accrual engine fuse sizing — green');
   process.exit(found.length ? 1 : 0);
-} else if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
+} else if (isMain(import.meta.url)) {
   const found = await runAll();
   if (found.length) {
     console.log('Accrual engine guard — FAILED:');

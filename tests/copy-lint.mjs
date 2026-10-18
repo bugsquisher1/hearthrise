@@ -43,6 +43,7 @@ import { readFileSync, readdirSync, statSync, mkdtempSync, rmSync, writeFileSync
 import { join, normalize, relative, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { isMain } from './_is-main.mjs';
 
 const HERE_ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const argv = process.argv.slice(2);
@@ -336,7 +337,7 @@ async function selftest() {
   return bad ? 1 : 0;
 }
 
-if (process.argv[1] && normalize(process.argv[1]) === normalize(fileURLToPath(import.meta.url))) {
+if (isMain(import.meta.url)) {
   try {
     process.exit(argv.includes('--selftest') ? await selftest()
       : argv.includes('--prune-names') ? pruneNames(HERE_ROOT)

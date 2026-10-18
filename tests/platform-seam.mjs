@@ -39,6 +39,7 @@ import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import { strip as stripJs } from './_js-strip.mjs';
+import { isMain } from './_is-main.mjs';
 
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 const SEAM = 'src/platform/storage.js';
@@ -236,7 +237,7 @@ function selftest() {
   console.log(`✓ platform-seam --selftest: all ${cases.length} cases behave (non-vacuous)`);
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+if (isMain(import.meta.url)) {
   if (process.argv.includes('--selftest')) selftest();
   else {
     const problems = check(loadTree());

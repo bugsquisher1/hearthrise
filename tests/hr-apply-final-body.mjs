@@ -64,6 +64,7 @@ import { readFile } from 'node:fs/promises';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { bootReplay, LAST_PATCHED } from './schema-replay.mjs';
+import { isMain } from './_is-main.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 
@@ -311,7 +312,7 @@ end $probe$;`);
   return 0;
 }
 
-const RUN_DIRECTLY = process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tests/hr-apply-final-body.mjs');
+const RUN_DIRECTLY = isMain(import.meta.url);
 if (RUN_DIRECTLY) {
   main().then((c) => process.exit(c)).catch((e) => {
     if (e && e.harness) { console.error(`hr-apply-final-body: HARNESS — ${e.message}`); process.exit(2); }

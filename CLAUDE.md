@@ -51,12 +51,12 @@ Player-visible bugs first, in the order a player meets them. No new feature trac
 
 | Lane | What | Gates, in order |
 |---|---|---|
-| **A. Bug** | player-visible fix, client and/or edge, no DB body change | merge alone → visual pass on touched screens only if a rendered surface changed (+combat & inventory if CSS moved) → edge deploy if `supabase/functions/**` moved → bump → push `release/<build>` and `main` → GitHub run (the in-page suite runs there) → report. A red is fixed forward within the hour. Target ≤60 min from branch landing. |
-| **B. Feature / multi-file** | features, refactors, content batches, multi-surface changes | merge the ready set → visual gate on the ASSEMBLED branch, touched screens only (922×423, screenshots READ; +combat & inventory if CSS moved; buttons stay off until the server confirms) → bump → push `release/<build>` → GitHub green (the in-page suite runs there) → push `main` → report |
+| **A. Bug** | player-visible fix, client and/or edge, no DB body change | merge alone → visual pass on touched screens only if a rendered surface changed (+combat & inventory if CSS moved) → edge deploy if `supabase/functions/**` moved → bump → push `release/vX.Y.Z` and `main` → GitHub run (the in-page suite runs there) → report. A red is fixed forward within the hour. Target ≤60 min from branch landing. |
+| **B. Feature / multi-file** | features, refactors, content batches, multi-surface changes | merge the ready set → visual gate on the ASSEMBLED branch, touched screens only (922×423, screenshots READ; +combat & inventory if CSS moved; buttons stay off until the server confirms) → bump → push `release/vX.Y.Z` → GitHub green (the in-page suite runs there) → push `main` → report |
 | **C. DB / economy** | any migration or RPC body change | author + §4 self-check + `schema-drift` replay + `apply-order-honesty` → **Security GO** → Coordinator applies (one file; landed body md5s match the review) → `live-hash-drift --live --write` + apply-order note flipped to APPLIED, in ONE Coordinator commit (the authoring lane re-pins `restore-census` in its own commit when it adds a table or changes seeded rows) → edge deploy if the engine moved → THEN the client half ships via A or B. The apply always precedes the client push that needs it. No separate post-apply verification agent: the migration's §4 self-check runs inside the apply and rolls it back on failure. |
 
 Every lane:
-- **The record gate is the GitHub matrix (14 jobs) on `release/<build>` (and `next` for staging), not Tyler's PC (2026-10-14: `run-ci-local` is not a gate, only a way to reproduce a GitHub red; no local in-page suite unless `supabase/functions/**` changed, in which case ONE local run precedes the edge deploy, because GitHub's payload guard can only pass after it).** Before pushing, run locally only the guards the diff touches (selftests, replay guards for changed migrations) — a GitHub red costs a fix lane plus a full CI cycle.
+- **The record gate is the GitHub matrix (14 jobs) on `release/vX.Y.Z` (and `next` for staging), not Tyler's PC (2026-10-14: `run-ci-local` is not a gate, only a way to reproduce a GitHub red; no local in-page suite unless `supabase/functions/**` changed, in which case ONE local run precedes the edge deploy, because GitHub's payload guard can only pass after it).** Before pushing, run locally only the guards the diff touches (selftests, replay guards for changed migrations) — a GitHub red costs a fix lane plus a full CI cycle.
 - **Stream mode:** while OBS is live (`node ~/Huntera-Stream/obs-status.mjs` → `"streaming":true`), no heavy local work (no run-ci-local, full suites or multi-lane browser fan-outs). Dispatch `isolation:"remote"` lanes and rely on GitHub. Applies, edge deploys, Discord posts, the play gate and pushes stay local.
 - **The Coordinator never resolves a conflict by hand.** Integration is `git merge` with zero conflict hunks or nothing; a conflicting branch goes back to its lane, which merges main into itself, re-tests and reports.
 - **One run at a time.** Merge the ready set, push it, let ONE GitHub run judge it, bisect only if red.
@@ -68,8 +68,8 @@ Every lane:
 - **Push = live** (Pages deploys `main`). The Coordinator runs `git push` itself. Once Pages serves the new `BUILD.cache`, the day's ONE Discord note goes out via `node tools/post-changelog.mjs <file>` (dry-run first; 2000-char cap).
 
 ### 3.3a Release mechanics
-- Ready branches assemble on `set/b<NNN>` (never local `main`), pushed to `next` as it grows. Local `main` equals `origin/main` between releases; docs-only commits go through a separate main checkout.
-- A release: bump → ONE CHANGELOG entry in player-facing words → push `release/b<NNN>` → GitHub green → push `main`.
+- Ready branches assemble on `set/vX.Y.Z` (never local `main`), pushed to `next` as it grows. Local `main` equals `origin/main` between releases; docs-only commits go through a separate main checkout.
+- A release: bump → ONE CHANGELOG entry in player-facing words → push `release/vX.Y.Z` → GitHub green → push `main`.
 - Lane C applies don't wait for a release: a reviewed migration applies when ready; its client half rides the next release. The apply-order note, live-hash baseline and census re-pin land the same day.
 
 ### 3.3b Cadence: ship continuously while nobody plays (Tyler, 2026-10-10)
@@ -97,7 +97,7 @@ The 2026-10-14 lightening is for a beta nobody plays. Before EA: the full mutati
 
 ## 4. Testing discipline
 
-- **A lane is done only when `node tools/lane-done.mjs` is green in its worktree** (debt ratchets, no-client-xp-mint, property-gate-census, dead-exports, window-globals-exist, no-duplicate-toplevel-fns, token-single-source, css-literal-ratchet, ci-shape, guard-hygiene, `bump-version.sh --check`). Paydown happens in the lane that wrote the code.
+- **A lane is done only when `node tools/lane-done.mjs` is green in its worktree** (debt ratchets, client-module-size, session-core (+--mutate), client-intent-surface, no-client-xp-mint, dead-exports, dead-css, window-globals-exist, token-single-source, css-literal-ratchet, breakpoint-guard, ci-shape, guard-hygiene, `bump-version.sh --check`). Paydown happens in the lane that wrote the code.
 - **Claims are gated on exit codes.** `( cmd || echo RED )` returns 0; run the guard, branch on `$?`, then write "green".
 - **Every fix and feature ships with its test in the same commit.** Bug → a regression in `src/features/smoke-test.js` that fails without the fix. Feature → a happy-path test that plays it. Details in `TESTING.md`.
 - **Both paths:** anything touching combat, death, activity, accrual or receipts ships an ATTENDED and an AWAY test.
@@ -111,7 +111,7 @@ The 2026-10-14 lightening is for a beta nobody plays. Before EA: the full mutati
 
 ## 5. Build & ship mechanics
 
-- The cache buster lives in three places that must agree: `src/build-info.js` (`BUILD.cache`), every `?v=NNN` in `index.html`, every `?v=NNN` on ESM imports under `src/**`. **Run `./bump-version.sh <NNN>`**, then bump the date in `build-info.js` and add the CHANGELOG entry (`## v0.9.2-beta build NNN — YYYY-MM-DD (Title)`, above the previous build).
+- **Versions are semver (Tyler 2026-10-17; build numbers `bNNN` are retired).** The version string is the cache buster, in three places that must agree: `src/build-info.js` (`BUILD.version` and `BUILD.cache`, both `'X.Y.Z'`), every `?v=X.Y.Z` in the root `*.html` pages, every `?v=X.Y.Z` on ESM imports under `src/**`. **Run `./bump-version.sh X.Y.Z`**, then bump the date in `build-info.js` and add the CHANGELOG entry (`## vX.Y.Z — YYYY-MM-DD (Title)`, above the previous one). Patch per release, minor per milestone, 1.0.0 reserved for full release. Release branches are `release/vX.Y.Z`.
 - Never add a bare relative import under `src/**`; never add a `?v=` outside `src/**` (Supabase's bundler treats it as a literal path). `versionQueryGuard()` in `tools/pack-edge.mjs` enforces both.
 - The service worker derives its cache name from the `?v=`; the b124 kill-switch in `<head>` purges mismatched caches. Never reintroduce a fixed cache name.
 - `run-ci-local.mjs` parses `.github/workflows/smoke.yml`, so new guards are registered THERE. `--all` adds the in-page suite.

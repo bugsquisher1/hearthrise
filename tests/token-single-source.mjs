@@ -64,6 +64,7 @@ import { readFileSync, writeFileSync, readdirSync, mkdtempSync, cpSync, rmSync, 
 import { join, normalize, relative, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { isMain } from './_is-main.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const BASELINE = join(ROOT, 'tests', 'token-single-source.baseline.json');
@@ -343,7 +344,7 @@ function selftest() {
   return 0;
 }
 
-if (process.argv[1] && normalize(process.argv[1]) === normalize(fileURLToPath(import.meta.url))) {
+if (isMain(import.meta.url)) {
   const argv = process.argv.slice(2);
   process.exit(argv.includes('--selftest') ? selftest() : run(argv));
 }

@@ -45,6 +45,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isMain as isEntryModule } from './_is-main.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const SRC = join(ROOT, 'src');
@@ -188,7 +189,7 @@ function selftest() {
 
 // ── CLI ─────────────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
-const isMain = process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '/').split('/').pop());
+const isMain = isEntryModule(import.meta.url);
 if (isMain) {
   if (argv.includes('--selftest')) selftest();
   const { findings, flags } = auditSources(loadSrc());

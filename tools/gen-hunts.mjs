@@ -26,6 +26,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 import { HUNTS } from '../src/data/hunts.js';
 import { MONSTERS } from '../src/data/monsters.js';
+import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const OUT = join(ROOT, 'supabase', 'migrations', '2026-10-20-hunts-catalogue.generated.sql');
@@ -179,7 +180,7 @@ function selftest() {
   console.log('gen-hunts --selftest: every refusal bites; shipped data passes');
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
+if (isMain(import.meta.url)) {
   if (process.argv.includes('--selftest')) {
     selftest();
   } else {

@@ -30,6 +30,7 @@
 
 import { join } from 'node:path';
 import { bootChain, ROOT } from './pglite-chain.mjs';
+import { isMain } from './_is-main.mjs';
 
 const MIG = join(ROOT, 'supabase', 'migrations', '2026-08-27-clan-economy-sinks.sql');
 
@@ -249,7 +250,7 @@ async function run() {
 }
 
 // CLI: node tests/clan-economy-sinks.mjs
-if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith('clan-economy-sinks.mjs')) {
+if (isMain(import.meta.url)) {
   run().then(({ out }) => {
     let bad = 0;
     for (const r of out) {

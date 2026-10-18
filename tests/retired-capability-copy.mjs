@@ -26,6 +26,7 @@
 import { readFile, readdir } from 'node:fs/promises';
 import { join, relative, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { isMain as isEntryModule } from './_is-main.mjs';
 
 const RETIRED = [
   { id: 'local-save', why: 'there is no local save; the server is the only copy',
@@ -172,7 +173,7 @@ async function selftest(root) {
   return fails;
 }
 
-const isMain = import.meta.url === pathToFileURL(process.argv[1] || '').href;
+const isMain = isEntryModule(import.meta.url);
 if (isMain) {
   const root = process.cwd();
   if (process.argv.includes('--selftest')) {

@@ -25,6 +25,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { isMain } from './_is-main.mjs';
 
 const ROOT = new URL('../', import.meta.url);
 const mod = (p) => new URL(p, ROOT).href;
@@ -121,7 +122,7 @@ export async function runAll() {
   return problems;
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+if (isMain(import.meta.url)) {
   const found = await runAll();
   if (found.length) {
     for (const p of found) console.error('FAIL: ' + p + '\n');

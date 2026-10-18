@@ -35,6 +35,7 @@ import { benchPayable } from '../src/core/artisan-sim.js';
 import { COMPANIONS } from '../src/data/companions.js';
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
+import { isMain } from './_is-main.mjs';
 
 const FROM_MS = Date.UTC(2026, 2, 14, 20, 0, 0);
 const NOW_MS = FROM_MS + 12 * 3600000;
@@ -200,7 +201,7 @@ export function companionXpGuard() {
   return problems;
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
+if (isMain(import.meta.url)) {
   const problems = companionXpGuard();
   if (problems.length) {
     console.error('COMPANION-XP FAILED:\n' + problems.map((p) => '  ✗ ' + p).join('\n'));

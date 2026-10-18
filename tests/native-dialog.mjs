@@ -46,6 +46,7 @@
 
 import { readFile, readdir } from 'node:fs/promises';
 import { join, relative, sep } from 'node:path';
+import { isMain } from './_is-main.mjs';
 
 /* A bare `confirm(`/`prompt(`/`alert(` or an explicit `window.`-prefixed one.
    `[^.\w$]` before the name rejects `x.confirm(` and `myConfirm(` alike; the
@@ -191,7 +192,7 @@ export default nativeDialogGuard;
 /* Standalone:
      node tests/native-dialog.mjs            (expect green)
      node tests/native-dialog.mjs --mutate   (expect green — the mutant died) */
-if (process.argv[1]?.endsWith('native-dialog.mjs')) {
+if (isMain(import.meta.url)) {
   const { fileURLToPath } = await import('node:url');
   const { normalize } = await import('node:path');
   const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));

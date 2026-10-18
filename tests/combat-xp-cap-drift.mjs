@@ -24,6 +24,7 @@ import {
   COMBAT_XP_SETTLE_FIRST_MS, combatXpCreditRefusal,
 } from '../src/core/combat-xp-cap.js';
 import { KILL_TIME_SQL_CONSTANTS } from '../src/core/kill-time.js';
+import { isMain } from './_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SQL = join(ROOT, 'supabase', 'migrations', '2026-08-31-combat-xp-credit.sql');
@@ -95,8 +96,7 @@ export async function combatXpCapDriftGuard() {
   return { ok: true, checks: 'combat-xp cap SQL⟷core bind green' };
 }
 
-if (import.meta.url === `file://${process.argv[1]}`.replace(/\\/g, '/')
-    || process.argv[1] === fileURLToPath(import.meta.url)) {
+if (isMain(import.meta.url)) {
   combatXpCapDriftGuard().then((r) => { console.log(r.checks); })
     .catch((e) => { console.error(e.message); process.exit(1); });
 }

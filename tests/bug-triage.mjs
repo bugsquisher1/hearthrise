@@ -39,6 +39,7 @@ import { readFile } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isMain } from './_is-main.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const MIG = (f) => join(ROOT, 'supabase', 'migrations', f);
@@ -617,7 +618,7 @@ export async function bugTriageGuard() {
 }
 
 // ── CLI ────────────────────────────────────────────────────────────────────
-if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith('bug-triage.mjs')) {
+if (isMain(import.meta.url)) {
   let code = 0;
   try {
     process.stdout.write('── the relay writes the row\n');

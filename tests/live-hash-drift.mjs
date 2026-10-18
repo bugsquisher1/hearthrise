@@ -125,6 +125,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { ROOT, bootReplay, manifest } from './schema-replay.mjs';
+import { isMain } from './_is-main.mjs';
 
 const MIGDIR = join(ROOT, 'supabase', 'migrations');
 const BASELINE = join(ROOT, 'tests', 'live-hash-drift.baseline.json');
@@ -1784,8 +1785,7 @@ async function main() {
   }
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)
-    || process.argv[1]?.endsWith('live-hash-drift.mjs')) {
+if (isMain(import.meta.url)) {
   main().catch((e) => {
     console.error(e.message);
     process.exit(e.harness ? 2 : 1);

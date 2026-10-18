@@ -77,20 +77,7 @@ export * as artisanSim from './artisan-sim.js?v=590';
    is a fraction OF (`workerAnchorMs` = the PACED action interval) belong in one
    place. They were previously two mirrored copies and, respectively, nowhere. */
 export * as workers from './workers.js?v=590';
-/* THE HUNT (docs/design/HUNTS_AND_ANALYZER.md). The stance table, the stop
-   predicate and the Vigour arithmetic — the three rules a hunt adds to the
-   activity pointer that already existed. Exported here for the same reason
-   `away` is: BOTH runtimes read them through the one engine, and a stance
-   preset or a stop predicate with two copies would disagree about when a
-   player's night ended. A stance NEVER carries a multiplier (§2.2). */
-export * as hunt from './hunt.js?v=590';
-/* M8 — THE PARTY SPLIT (WORLD_TICK_DESIGN.md §18, slice S3). Pure arithmetic
-   over one settled window's per-member damage: the two share vectors, the
-   XP-only floor, the damage-weighted item lottery and the frozen seven-key
-   `journal.meta.party` object. It is a SEPARATE module from hunt.js for the
-   same reason bane.js is separate from combat.js — the one rule that matters
-   (gold and the lottery follow raw damage with NO floor, S-5) needs a file
-   header to live in, and a settle that imported it from a hunting module would
-   invite a second copy of the floor. It imports VIGOUR_DRY_MULT rather than
-   retyping 0.25. */
+/* THE PARTY SPLIT (lane S1; HUNT_SCREEN_SPEC §5). A hunt instance's loot split
+   by value: gold even with the remainder to the first seat, items round-robin.
+   src/core/hunt-rewards.js is its one caller; solo is a party of one. */
 export * as partySplit from './party-split.js?v=590';

@@ -88,7 +88,6 @@ export async function loadWorld() {
   const codex = await imp('src/data/codex.js');
   return {
     away: { ...(await imp('src/core/away.js')) },
-    hunt: { ...(await imp('src/core/hunt.js')) },
     xp: { ...(await imp('src/core/xp.js')) },
     combat: { ...(await imp('src/core/combat.js')) },
     workers: { ...(await imp('src/core/workers.js')) },
@@ -352,7 +351,7 @@ async function run() {
 
 async function selftest() {
   const base = await loadWorld();
-  const clone = () => ({ ...base, away: { ...base.away }, hunt: { ...base.hunt }, src: { ...base.src },
+  const clone = () => ({ ...base, away: { ...base.away }, src: { ...base.src },
     entries: base.entries.map((e) => ({ ...e, claims: e.claims.map((c) => ({ ...c })) })) });
   const byId = (w, id) => w.entries.find((e) => e.id === id);
   let bad = 0;

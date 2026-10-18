@@ -890,11 +890,10 @@ export const STATELESS_REFUSALS = Object.freeze([
   INTENT_ERRORS.BAD_ACTIVITY,
   INTENT_ERRORS.ACTIVITY_UNSUPPORTED,
   INTENT_ERRORS.UNKNOWN_ACTIVITY,
-  /* The hunt's three, for the identical reason as the three above them: each is
-     answered from src/core/hunt.js before the rate gate and before any database
-     work, so reading a state envelope for one would be exactly the database work
-     the shape check exists to avoid. */
-  /* hunt_required is answered on SHAPE (a `combat` declaration), before any database work. */
+  /* hunt_required, for the identical reason as the three above it: it is answered
+     on SHAPE (a `combat` declaration) before the rate gate and before any
+     database work, so reading a state envelope for it would be exactly the
+     database work the shape check exists to avoid. */
   INTENT_ERRORS.HUNT_REQUIRED,
   INTENT_ERRORS.RATE_LIMITED,
   /* closed is the rate gate's refusal, renamed: the same no-state read. */

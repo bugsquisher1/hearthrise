@@ -364,8 +364,8 @@ export function buildActivityRequest(opts) {
            value it does not own on every declaration — which is how a stale
            client value ends up overwriting a server one.
 
-           NOT VALIDATED HERE. The bounds are src/core/hunt.js's and the
-           catalogue is the server's; a client that pre-refused its own request
+           NOT VALIDATED HERE. The bounds are the server's, and the
+           catalogue too; a client that pre-refused its own request
            would be a second copy of both, and the refusal a player needs to
            see ('there is no such stance') comes back BY NAME from the intent
            layer before any database work. */

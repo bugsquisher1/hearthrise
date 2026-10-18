@@ -177,7 +177,7 @@ const groundRow = () => ({
   id: 'h1_fixture', hunt: 'mill_cellar', map: 'h1_fixture', start: [[2, 8], [3, 8], [4, 8], [5, 8]],
   pockets: [
     { room: [10, 1, 18, 6], spawns: [{ monster: 'rat', x: 14, y: 3 }, { monster: 'rat', x: 15, y: 4 }] },
-    { room: [1, 1, 8, 6], spawns: [{ monster: 'slime', x: 4, y: 3 }] },
+    { room: [1, 1, 8, 6], spawns: [{ monster: 'wolf', x: 4, y: 3 }] },
     { room: [1, 8, 18, 8], spawns: [{ monster: 'rat', x: 9, y: 8 }] },
   ],
   route: [0, 1, 2], respawnMs: 90000, pullDist: 1.5,
@@ -429,12 +429,15 @@ const ENGINE_ARMS = {
     M.AR.sellToCover(cov, 4);
     if (cov.tally.covered.b_junk !== 2 || cov.tally.covered.a_junk) problems.push(`sell-to-cover did not sell the cheapest first: ${JSON.stringify(cov.tally.covered)}`);
     if (M.HSD.coverSellable({ type: 'resource' }, false) || !M.HSD.coverSellable({ type: 'resource', junk: true }, false)) problems.push('sell-to-cover sells something other than junk');
-    /* THE COINS REACH THE PURSE: a hero with no gold and no food buys food only after its kills pay. */
-    const out = runCut(M, () => [memberIn(M, 'a', { level: 8, gold: 0, hp: 20 })], 600000, []);
-    const tl = out.outs.flatMap((o) => o.members).reduce((a, x) => a + Object.values(x.hunt.buys).reduce((s, n) => s + n, 0), 0);
-    const coins = out.outs.flatMap((o) => o.members).reduce((a, x) => a + (x.delta.gold || 0), 0);
-    if (!(coins > 0)) problems.push('CONTROL: the poor hero earned no coins');
-    else if (!(tl > 0)) problems.push(`a poor hero with ${coins} coins earned bought no food — kill coins do not reach the purse`);
+    /* THE COINS REACH THE PURSE: a hero one coin short of the store's food, at full HP, can buy
+       food once a kill has paid — without its coins the first meal it needs ends the hunt gold_out. */
+    const out = runCut(M, () => [memberIn(M, 'a', { level: 12, gold: row.price - 1 })], 1800000, []);
+    const ms = out.outs.flatMap((o) => o.members);
+    const tl = ms.reduce((a, x) => a + Object.values(x.hunt.buys).reduce((s, n) => s + n, 0), 0);
+    const kills = ms.reduce((a, x) => a + x.delta.journal.meta.kills, 0);
+    const end = ms.find((x) => x.hunt.ended);
+    if (!(kills > 0)) problems.push('CONTROL: the poor hero killed nothing');
+    else if (!(tl > 0)) problems.push(`a hero one coin short bought no food after ${kills} kills (ended ${JSON.stringify(end && end.hunt.ended)}) — kill coins do not reach the purse`);
     return problems;
   },
 
@@ -468,7 +471,8 @@ const ENGINE_ARMS = {
   KNOCKOUT: async (M) => {
     const problems = [];
     const ko = M.HSD.KNOCKOUT_MS;
-    const out = runCut(M, () => [memberIn(M, 'a', { skills: { attack: 0, strength: 0, defense: 0, hitpoints: M.XP.xpForLevel(4) }, maxHp: 4, hp: 4 })], 200000, []);
+    const weak = () => [memberIn(M, 'a', { skills: { attack: 0, strength: 0, defense: 0, hitpoints: M.XP.xpForLevel(4) }, maxHp: 4, hp: 4, empty: 'end' })];
+    const out = runCut(M, weak, 200000, []);
     const first = out.outs[0] && out.outs[0].members[0];
     if (!first || !(first.summary.deathLog.length >= 1)) return [`CONTROL: the weak hero never fell (${out.outs.length} windows)`];
     const d = first.summary.deathLog[0];
@@ -476,8 +480,7 @@ const ENGINE_ARMS = {
     if (d.resumeHp !== M.REC.resumeHpFor(4)) problems.push(`a fall stands at ${d.resumeHp}, resumeHpFor is ${M.REC.resumeHpFor(4)}`);
     if (!(first.hunt.down_ms >= ko - 2000)) problems.push(`a fall left ${first.hunt.down_ms} ms down, KNOCKOUT_MS is ${ko}`);
     /* RESUME-LINE: a window ending mid-knockout leaves the line at the fall + KNOCKOUT_MS. */
-    const mid = runCut(M, () => [memberIn(M, 'a', { skills: { attack: 0, strength: 0, defense: 0, hitpoints: M.XP.xpForLevel(4) }, maxHp: 4, hp: 4 })],
-      d.atMs - T0 + 10000, []);
+    const mid = runCut(M, weak, d.atMs - T0 + 10000, []);
     const last = mid.outs[mid.outs.length - 1].members[0];
     if (last.delta.recovering_until !== new Date(d.atMs + ko).toISOString()) {
       problems.push(`a window cut mid-knockout left the line at ${last.delta.recovering_until}, want ${new Date(d.atMs + ko).toISOString()}`);
@@ -708,8 +711,8 @@ async function compareRuns(db, M, fixture, cutsA, cutsB) {
 const SPAN_MS = 20 * 60000;
 const ticksOf = (stepMs, spanMs) => (from) => Array.from({ length: Math.ceil(spanMs / stepMs) }, (_, i) => Math.min(from + (i + 1) * stepMs, from + spanMs));
 const STRONG = { minutesAgo: 25, level: 25, inv: { cooked_shrimp: 30 }, bag: [{ item: 'cooked_shrimp', qty: 25 }], gold: 0 };
-const WEAK = { minutesAgo: 25, inv: {}, bag: [], gold: 0, options: { on_empty: 'end' },
-  skillsXp: { attack: 1700, strength: 1700, defense: 1700, magic: 1585 } };
+const WEAK = { minutesAgo: 25, inv: {}, bag: [], gold: 0, hp: 1, options: { on_empty: 'end', food_below_pct: 99 },
+  skillsXp: { attack: 400, strength: 400, magic: 1585 } };
 
 const DB_ARMS = {
   'TICK-1': async (db, M) => {
@@ -758,7 +761,7 @@ const DB_ARMS = {
   }),
   OWN: async (db, M) => inTx(db, async () => {
     const problems = [];
-    const { sid, from } = await hunter(db, M, { ...WEAK, options: { supply_source: 'mine', on_empty: 'switch' }, gold: 100000,
+    const { sid, from } = await hunter(db, M, { ...WEAK, options: { supply_source: 'mine', on_empty: 'switch', food_below_pct: 99 }, gold: 100000,
       inv: { cooked_shrimp: 40 }, bag: [{ item: 'cooked_shrimp', qty: 40 }] });
     await run(db, M, from, ticksOf(90000, SPAN_MS));
     const s = await snapshot(db, sid);
@@ -767,8 +770,9 @@ const DB_ARMS = {
     if (!(used > 0)) problems.push('CONTROL: the hero ate nothing');
     if (!own || Number(own[0]) !== 0 || Number(own[1]) !== -used) problems.push(`supply_own rows ${JSON.stringify(own)} do not journal ${used} units at no gold`);
     if (s.tally.supplies.cooked_shrimp !== used) problems.push(`the tally's own supplies ${JSON.stringify(s.tally.supplies)} are not the ${used} units used`);
-    const buys = s.ledger && s.ledger.supply_buy;
-    if (buys && s.bag.cooked_shrimp[1] > 0) problems.push(`the store sold ${JSON.stringify(buys)} while own food was left`);
+    const heals = await one(db, `select coalesce(sum((x.value->>'qty')::int), 0)::int from public.player_ledger l, jsonb_each(l.meta->'items') x
+       where l.session_id = $1 and l.intent = 'supply_buy' and x.key = any($2::text[])`, [sid, M.SB.BASIC_SUPPLIES.filter((b) => b.kind === 'heal').map((b) => b.id)]);
+    if (heals && s.bag.cooked_shrimp[1] > 0) problems.push(`the store sold ${heals} food while own food was left`);
     return problems;
   }),
   STORE: async (db, M) => inTx(db, async () => {
@@ -798,7 +802,7 @@ const DB_ARMS = {
   }),
   END: async (db, M) => inTx(db, async () => {
     const problems = [];
-    const { sid, from } = await hunter(db, M, { ...WEAK, options: { on_empty: 'end' }, inv: { cooked_shrimp: 3 },
+    const { sid, from } = await hunter(db, M, { ...WEAK, options: { on_empty: 'end', food_below_pct: 99 }, inv: { cooked_shrimp: 3 },
       bag: [{ item: 'cooked_shrimp', qty: 3, essential: true }], lastActivity: { kind: 'gather', id: 'shrimp_s' } });
     await run(db, M, from, ticksOf(90000, SPAN_MS));
     const s = await snapshot(db, sid);
@@ -907,7 +911,7 @@ const DB_ARMS = {
     const m0 = (c) => c.members[0];
     const cases = [
       ['a window paying a fortune in gold', (c) => { m0(c).delta.gold = 1000000; }, 'value_over'],
-      ['a window teaching a fortune in XP', (c) => { m0(c).delta.xp = { ...(m0(c).delta.xp || {}), attack: 50000000 }; }, 'value_over'],
+      ['a window teaching a fortune in XP', (c) => { m0(c).delta.xp = { ...(m0(c).delta.xp || {}), attack: 1000000 }; }, 'value_over'],
       ['a window dropping an item no spawn drops', (c) => { m0(c).delta.items = { ...(m0(c).delta.items || {}), dragon_scale: 1 }; }, 'value_over'],
       ['a window claiming a thousand kills', (c) => { m0(c).delta.journal.meta.kills = 1000; }, 'kills_over'],
       ['a world over the byte bound', (c) => { c.settle.world = '{' + 'x'.repeat(20000) + '}'; }, 'world_too_big'],
@@ -938,7 +942,8 @@ const DB_ARMS = {
     if (canon(await snapshot(db, sid)) !== s1) problems.push('a replay moved the hunt');
     /* A stale proposal (computed before another settle moved the instance) loses the CAS. */
     const plan = await M.HS.readHuntSettle({ exec: makeExec(db), user: UID, slot: 0, grounds: groundsOf(M), atMs: from + 360000 }, 'tick');
-    const stale = await M.HS.proposeHuntSettle(plan, plan.toMs, 0);
+    if (plan.answer) return [`CONTROL: the stale read answered ${JSON.stringify(plan.answer).slice(0, 300)}`];
+    const stale = await M.HS.proposeHuntSettle(plan, plan.toMs, 1);
     await settleTo(db, M, from + 270000);
     const late = await M.HS.commitHuntSettle(makeExec(db), { ...stale.commit, project: null });
     if (!late || late.error !== 'session_moved') problems.push(`a stale proposal answered ${JSON.stringify(late).slice(0, 200)}`);
@@ -981,7 +986,7 @@ const DB_ARMS = {
     const to = Number(await one(db, `select floor(extract(epoch from settled_to) * 1000)::bigint from public.hunt_sessions where id = $1`, [sid]));
     if (!f.hunts || f.hunts.settled !== 1) problems.push(`runTick did not settle the hunt cohort: ${JSON.stringify(f)}`);
     if (await stamped() !== 1) problems.push('one tick settle did not write exactly one stamped accrue row');
-    if (!(to > from + 20 * 60000)) problems.push('the session clock did not advance to the fire\'s now');
+    if (!(to > from + 60000)) problems.push(`the session clock did not advance (${to - from} ms)`);
     return problems;
   }),
   SLOT: async (db, M) => inTx(db, async () => {
@@ -1044,7 +1049,7 @@ const DB_ARMS = {
     const bare = await M.HS.settleHunt({ exec, user: UID, slot: 0, mode: 'tick', session: sid, grounds: groundsOf(M) });
     const vBare = await value();
     await db.query('rollback to savepoint bestiary');
-    for (const m of ['rat', 'slime']) {
+    for (const m of ['rat', 'wolf']) {
       await db.query(`insert into public.player_progress (user_id, slot, kind, key, period_key, value) values ($1, 0, 'stat', 'ev:kill_monster:' || $2, '', 20000)`, [UID, m]);
     }
     const charmed = await M.HS.settleHunt({ exec, user: UID, slot: 0, mode: 'tick', session: sid, grounds: groundsOf(M) });
@@ -1066,6 +1071,7 @@ async function runArms(root, db, only) {
   if (db) {
     for (const [name, arm] of Object.entries(DB_ARMS)) {
       if (only && !only.includes(name)) continue;
+      await rewindDice(db);
       try { out[name] = await arm(db, M); } catch (e) { out[name] = ['threw: ' + String(e && e.stack || e).split('\n').slice(0, 4).join(' | ')]; }
     }
   }

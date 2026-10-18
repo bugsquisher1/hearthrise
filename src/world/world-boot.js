@@ -59,15 +59,9 @@ const WALK_KEYS = Object.freeze({
   KeyW: [0, -1], ArrowUp: [0, -1], KeyS: [0, 1], ArrowDown: [0, 1],
   KeyA: [-1, 0], ArrowLeft: [-1, 0], KeyD: [1, 0], ArrowRight: [1, 0],
 });
-/* THE KEYS belong to the World unless the player is typing (src/utils/dom.js
-   keyBelongsToField, the one rule the window shortcuts use too): an open window,
-   a menu or a confirmation never takes them; the shell's windows are not modal. */
-
-/* THE ONE INPUT RULE FOR THE POINTER (Tyler 10-18: "clicking into the inventory also
-   clicks onto the map and moves the character"): the shell lays its windows and
-   widgets inside the World's stage, so their presses bubble through it. The World
-   acts only on a press whose target IS its canvas; anything drawn over the canvas
-   (a window, a widget, a menu, a tooltip, the idle banner) is not the World. */
+/* THE INPUT RULES (Tyler 10-18). Keys: the World's unless a text field has them (dom.js
+   keyBelongsToField). Presses: the shell's windows sit inside the stage, so the World
+   acts only on a press whose target IS its canvas, never one on a window or widget. */
 const onWorld = (e) => !!(e && e.target && e.target.classList && e.target.classList.contains('world-canvas'));
 
 const ROWS = new Map(WORLD_MAPS.map((m) => [m.id, m]));
@@ -149,9 +143,8 @@ function createEnvReader(win) {
  *        (src/app/world-view.js): the server's fight pointer and Analyzer plus the
  *        character's own `_world` display scratch. There is no global state to fall back to.
  * @param {object} [opts.character]  that CharacterSession: its sections and timeline drive the live hunt
- * @param {(kind: string, detail: object) => boolean} [opts.emit]  what a tap names, for the pane:
- *        'entrance' {hunt} (a hunt's door), 'station' {skill}, 'room' {room}, 'house' {room};
- *        true when the pane opened something
+ * @param {(kind: string, detail: object) => boolean} [opts.emit]  what a tap names: 'entrance' {hunt},
+ *        'station' {skill}, 'room' {room}, 'house' {room}; true when the pane opened something
  */
 export async function bootWorld(panel, opts) {
   const win = window, doc = document;
@@ -298,9 +291,7 @@ export async function bootWorld(panel, opts) {
     frames++;
   }
 
-  /* WHAT THE WORLD SAYS WHEN IT IS TAPPED. The World knows no window: it names what
-     was tapped (opts.emit(kind, detail)) and the pane decides which window that opens
-     (src/app/world-pane.js). 'entrance' {hunt} is a hunt's door or hatch. */
+  /* The World knows no window: it names what was tapped and the pane opens one. */
   const emit = (kind, detail) => (typeof opts.emit === 'function' ? opts.emit(kind, detail) === true : false);
 
   /* Where a tap goes: the hero's feet, the scene picker, or a named thing for the pane. */

@@ -163,7 +163,7 @@ async function checks(overrides) {
 const MUTANTS = [
   ['the notice page boots the app', 'index.html', '</body>', '<script type="module" src="src/app/boot.js?v=1"></script></body>'],
   ['sign-out leaves the session copies', 'src/net/auth.js', '      for (const k of store.keys()) if (k === cfg.authKey', '      for (const k of []) if (k === cfg.authKey'],
-  ['the world pane never mounts the shell', 'src/app/world-pane.js', "const shell = mountShell(stage, {", "const shell = { onInset: () => () => {}, paint() {}, destroy() {} }; void ({"],
+  ['the world pane never mounts the shell', 'src/app/world-pane.js', "  shell = mountShell(stage, {", "  shell = { onInset: () => () => {}, paint() {}, destroy() {} }; void ({"],
   ['the recovery link is ignored', 'src/app/boot.js', [["if (ev === 'recovery') showAuth('set-password');", "if (ev === 'nothing') showAuth('set-password');"],
     ['const recovering = /type=recovery/.test(win.location.hash);', 'const recovering = false;']]],
   ['the hunt panels never mount', 'src/data/hud-widgets.js', 'min: Object.freeze([320, 64]), opacity: 1, visible: true', 'min: Object.freeze([320, 64]), opacity: 1, visible: false'],

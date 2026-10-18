@@ -430,6 +430,16 @@ async function checks(overrides, shots) {
         const mv = sent(s, 'hr_bank_move');
         if (mv.length !== 1 || mv[0].body.p_item !== 'oak_logs' || mv[0].body.p_qty !== 12 || mv[0].body.p_dir !== 'withdraw') fails.push('AW-16 a storage press sent ' + JSON.stringify(mv.map((c) => c.body)));
         if (shots) await shot(page, 'alpha-1440x900-storage');
+        /* AW-17 (desktop) neither skills window scrolls; an unlock names each thing and what it is for (Tyler 10-18:
+           "and 1 more" made the smithing tools read as weapon crafting). */
+        for (const [key, id] of [['k', 'skills-combat'], ['g', 'skills-trade']]) {
+          await openWin(page, key, id);
+          await page.waitForTimeout(300);
+          const m = await page.evaluate((w) => { const b = document.querySelector('[data-hs-win="' + w + '"] .hs-win-body'); return { sh: b.scrollHeight, ch: b.clientHeight }; }, id);
+          if (m.sh > m.ch + 1) fails.push('AW-17 ' + id + ' at 1440x900 scrolls (' + m.sh + ' > ' + m.ch + ')');
+        }
+        const smith = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="skills-trade"] .hw-skill')).map((li) => li.textContent).find((t) => /^Smithing/.test(t.trim())) || '');
+        if (!/Next at level \d+: .*Bronze Axe \(woodcutting tool\)/.test(smith) || /and 1 more/.test(smith)) fails.push('AW-17 the smithing unlock does not say what it is: ' + JSON.stringify(smith));
       }
       if (errors.length) fails.push('AW-13 console errors in town: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();

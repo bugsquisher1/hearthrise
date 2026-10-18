@@ -256,7 +256,7 @@
 /* ── The skills: two ledgers, two compact entries to a row ── */
 .hw-skill-group { margin-bottom: 2px; }
 .hw-skill-head { margin: 2px 2px 1px; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
-.hw-skill-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; margin: 0; padding: 0; list-style: none; }
+.hw-skill-list { display: grid; grid-template-columns: 1fr; gap: 0 12px; margin: 0; padding: 0; list-style: none; }
 .hw-skill { min-width: 0; display: flex; flex-direction: column; gap: 1px; padding: 3px 0 4px; border-top: 1px solid var(--line-soft); }
 .hw-skill-top { display: flex; align-items: center; gap: 6px; }
 .hw-skill-glyph { flex: none; display: grid; place-items: center; width: 18px; color: var(--ink-2); }
@@ -267,7 +267,9 @@
 .hw-skill-bar { position: relative; display: block; flex: 1; min-width: 24px; height: 4px; background: var(--bg-1); box-shadow: var(--hw-well); }
 .hw-skill-fill { position: absolute; top: 0; left: 0; bottom: 0; width: 0; background: var(--gold-3); }
 .hw-skill-xp { flex: none; }
-.hw-skill-xp, .hw-skill-next { font-size: var(--t-micro); line-height: 1.2; color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hw-skill-xp, .hw-skill-next { font-size: var(--t-micro); line-height: 1.2; color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; overflow: hidden; text-overflow: ellipsis; }
+.hw-skill-xp { white-space: nowrap; }
+.hw-skill-next { white-space: normal; color: var(--ink-2); }
 .hw-skill-next:empty { display: none; }
 
 /* ── The shop and hunt prep ── */
@@ -294,6 +296,13 @@
   .hw-tab { min-height: 36px; }
   .hw-cat { min-height: 36px; flex: none; }
   .hw-cats { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  /* The phone has no height to spare: two skills to a row; the XP to go and the unlock share one line
+     (all of the unlock in the tooltip). */
+  .hw-skill-list { grid-template-columns: 1fr 1fr; }
+  .hw-skill { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 6px; row-gap: 2px; }
+  .hw-skill-top, .hw-skill-bar { grid-column: 1 / -1; }
+  .hw-skill-mid { display: contents; }
+  .hw-skill-next { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
   .hw-mi { min-height: 40px; }
   .hw-tip { width: 240px; }
 }

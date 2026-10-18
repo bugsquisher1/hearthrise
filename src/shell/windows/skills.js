@@ -25,28 +25,34 @@ import { whole } from '../../render/format.js?v=0.2.0';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.0';
 import { glyphSvg } from '../launcher.js?v=0.2.0';
 import { itemName } from '../widgets/bits.js?v=0.2.0';
+import { itemUse, nodeUse } from '../../data/item-uses.js?v=0.2.0';
 
 
 let UNLOCKS = null;
-/* skill -> [[level, what]] ascending, from every catalogue row that names a skill requirement. */
+/* skill -> [[level, name, use]] ascending, from every catalogue row that names a skill requirement;
+   the use is the row's own kind in words (src/data/item-uses.js). */
 function unlocks() {
   if (UNLOCKS) return UNLOCKS;
   UNLOCKS = new Map();
-  const add = (skill, lv, what) => { if (!(lv > 1) || !what) return; if (!UNLOCKS.has(skill)) UNLOCKS.set(skill, []); UNLOCKS.get(skill).push([lv, what]); };
-  for (const [skill, list] of Object.entries(ARTISAN_RECIPES)) for (const r of list || []) add(skill, r.req, r.output ? itemName(r.output) : r.name);
-  for (const [nodes, skill] of [[TREES, 'woodcutting'], [ROCKS, 'mining'], [FISH_SPOTS, 'fishing']]) for (const n of nodes) add(skill, n.req, n.name);
-  for (const c of Object.values(CROPS)) if (c) add('farming', c.req || c.lv, c.prod ? itemName(c.prod) : c.name);
-  for (const [id, it] of Object.entries(ITEMS)) if (it.reqSkill && SKILLS_DEF[it.reqSkill]) add(it.reqSkill, it.reqLv, it.n || id);
+  const add = (skill, lv, what, use) => { if (!(lv > 1) || !what) return; if (!UNLOCKS.has(skill)) UNLOCKS.set(skill, []); UNLOCKS.get(skill).push([lv, what, use || '']); };
+  for (const [skill, list] of Object.entries(ARTISAN_RECIPES)) for (const r of list || []) add(skill, r.req, r.output ? itemName(r.output) : r.name, r.output ? itemUse(r.output) : '');
+  for (const [nodes, skill] of [[TREES, 'woodcutting'], [ROCKS, 'mining'], [FISH_SPOTS, 'fishing']]) for (const n of nodes) add(skill, n.req, n.name, nodeUse(skill));
+  for (const c of Object.values(CROPS)) if (c) add('farming', c.req || c.lv, c.prod ? itemName(c.prod) : c.name, nodeUse('farming'));
+  for (const [id, it] of Object.entries(ITEMS)) if (it.reqSkill && SKILLS_DEF[it.reqSkill]) add(it.reqSkill, it.reqLv, it.n || id, itemUse(id));
   for (const l of UNLOCKS.values()) l.sort((a, b) => a[0] - b[0]);
   return UNLOCKS;
 }
 
-/** The next thing this skill opens above `level`: "Oak Tree at 15", or ''. */
+const UNLOCKS_NAMED = 3;
+/** What this skill opens next above `level`: "Next at level 3: Bronze Axe (woodcutting tool), Bronze Pickaxe (mining tool)", or ''. */
 function nextUnlock(skill, level) {
-  const next = (unlocks().get(skill) || []).find(([lv]) => lv > level);
+  const list = unlocks().get(skill) || [];
+  const next = list.find(([lv]) => lv > level);
   if (!next) return '';
-  const same = (unlocks().get(skill) || []).filter(([lv]) => lv === next[0]).length;
-  return next[1] + (same > 1 ? ' and ' + (same - 1) + ' more' : '') + ' at level ' + next[0];
+  const seen = new Set();
+  const at = list.filter(([lv, name]) => lv === next[0] && !seen.has(name) && seen.add(name));
+  const named = at.slice(0, UNLOCKS_NAMED).map(([, name, use]) => (use ? name + ' (' + use + ')' : name));
+  return 'Next at level ' + next[0] + ': ' + named.join(', ') + (at.length > UNLOCKS_NAMED ? ' and ' + (at.length - UNLOCKS_NAMED) + ' more' : '');
 }
 
 /** Progress inside the current level, 0..1, from the server's XP and level. */
@@ -95,8 +101,8 @@ function skillsWindow(groups) {
           text(li.querySelector('.hw-skill-xp'), r.level >= MAX_LEVEL ? 'Mastered' : whole(Math.max(0, xpForLevel(r.level + 1) - r.xp)) + ' XP to ' + (r.level + 1));
           const next = nextUnlock(id, r.level);
           const nx = li.querySelector('.hw-skill-next');
-          text(nx, next ? 'Next: ' + next : '');
-          attr(nx, 'title', next ? 'Next: ' + next : null);
+          text(nx, next);
+          attr(nx, 'title', next || null);
         },
       });
     }

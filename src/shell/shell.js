@@ -10,11 +10,13 @@
 // another; a body re-renders on refresh(id). The World never pauses: windows
 // are not modal and have no backdrop.
 //
-// THE CAMERA INSET: every change to the covered right-edge rect is handed to
-// onInset(fn) subscribers and dispatched as `hearthrise:shell-inset` on the
-// host, so the World can call its engine's setInset({right}) and keep the hero
-// and the target in the uncovered part. World-layer widgets centre in the same
-// uncovered rect.
+// THE CAMERA INSET: every change to the World edges the shell covers — the
+// docked windows' right strip AND each docked HUD widget's edge (the bottom
+// bar, the top bar, the side panels; hud.js hudInsetOf) — is handed to
+// onInset(fn) subscribers as {left, right, top, bottom} and dispatched as
+// `hearthrise:shell-inset` on the host, so the World calls its engine's
+// setInset and frames the hero and the target in the uncovered part.
+// World-layer widgets centre beside the docked windows.
 //
 // COMPONENTS (the hunt panels): a renderer that carries a `.patch(el, ctx)` is
 // BUILT ONCE (its HTML is the skeleton, written when the box is created) and
@@ -33,7 +35,7 @@ import { MOBILE_QUERY } from '../world/core/camera.js?v=0.1.0';
 import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.1.0';
 import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.1.0';
 import { createWindowManager, DOCK_EDGE } from './window-manager.js?v=0.1.0';
-import { createHud, residueStore, placeWidget } from './hud.js?v=0.1.0';
+import { createHud, residueStore, placeWidget, hudInsetOf } from './hud.js?v=0.1.0';
 import { keyLabel, glyphSvg } from './launcher.js?v=0.1.0';
 import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.1.0';
 import { escapeHtml as esc } from '../utils/dom.js?v=0.1.0';
@@ -180,14 +182,32 @@ export function mountShell(root, o) {
         if (hit && hit.right + DOCK_EDGE + r.width <= b.right) e.style.left = Math.round(hit.right - b.left + DOCK_EDGE) + 'px';
       }
     }
+    publishInset();
   }
 
-  function onWm(ev) {
+  /* The World edges the docked windows AND the docked HUD widgets cover ({left, right, top, bottom}),
+     published only when they change, so the camera frames the playable area beside them. */
+  let lastInset = '';
+  function insetNow() {
+    const b = shell.getBoundingClientRect();
+    const widgets = [];
+    for (const el of worldHud.querySelectorAll('[data-hs-widget]')) {
+      const r = el.getBoundingClientRect();
+      widgets.push({ anchor: hud.layoutOf(el.getAttribute('data-hs-widget')).anchor, rect: { left: r.left - b.left, top: r.top - b.top, width: r.width, height: r.height } });
+    }
+    return hudInsetOf(widgets, { width: b.width, height: b.height }, wm.inset().right);
+  }
+  function publishInset() {
+    const inset = insetNow();
+    const sig = JSON.stringify(inset);
+    if (sig === lastInset) return;
+    lastInset = sig;
+    for (const fn of insetListeners) fn(inset);
+    host.dispatchEvent(new host.CustomEvent('hearthrise:shell-inset', { detail: inset }));
+  }
+  function onWm() {
     paintWindows();
     paintWidgets();
-    if (!ev.insetChanged) return;
-    for (const fn of insetListeners) fn(ev.inset);
-    host.dispatchEvent(new host.CustomEvent('hearthrise:shell-inset', { detail: ev.inset }));
   }
   const offWm = wm.subscribe(onWm);
   /* A reset or a size-class reload moves every line of the HUD layout window too. */
@@ -290,7 +310,7 @@ export function mountShell(root, o) {
     refresh,
     /** Repaint the widgets and patch the open component windows (every applied envelope). */
     paint() { paintWidgets(); for (const id of wm.openIds()) if (WINDOW_RENDERERS[id] && WINDOW_RENDERERS[id].patch) refresh(id); },
-    inset: () => wm.inset(),
+    inset: () => insetNow(),
     onInset(fn) { insetListeners.add(fn); return () => insetListeners.delete(fn); },
     destroy() {
       offWm(); offHud();

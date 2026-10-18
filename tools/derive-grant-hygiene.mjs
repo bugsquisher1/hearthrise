@@ -360,6 +360,18 @@ export const LINKS = [
     target: '2026-10-23-hunt-world-state.sql',
     patchIds: ['hunt_instance'],
   },
+  /* Link 20 (lane character-window, 2026-10-25) — THE CHARACTER SHEET.
+     2026-10-25-character-sheet.sql grants hr_engine EXECUTE on the two
+     functions the `sheet` verb needs: hr_character_sheet_inputs (the md5 of
+     the sheet's inputs) and hr_character_sheet_put (a compare-and-set of
+     display data). Two entries at the HEAD of c_engine_allow, an INSERTION,
+     so its declared-removals list in tests/run-sql-tests.mjs PART 1f-ii is
+     EMPTY. Its base is link 19's TARGET. It is the new last toucher. */
+  {
+    base: '2026-10-23-hunt-world-state.sql',
+    target: '2026-10-25-character-sheet.sql',
+    patchIds: ['character_sheet'],
+  },
 ];
 
 const OPEN = 'create or replace function public.hr_assert_grant_hygiene(';
@@ -393,6 +405,28 @@ export function innerBody(block) {
    already authorised for." Both justifications below re-derive that claim
    rather than asserting it — see the migration header for the long form. */
 export const PATCHES = [
+  {
+    id: 'character_sheet',
+    name: 'the c_engine_allow array head (link 20)',
+    find: '  c_engine_allow constant text[] := array[\n',
+    add: `    -- ── ADDED 2026-10-25 — THE CHARACTER SHEET (lane character-window) ──
+    -- At the HEAD, an INSERTION: it removes nothing, so PART 1f-ii grades this
+    -- link with an EMPTY declared-removals list. Each claim re-derived:
+    --
+    -- read-only (STABLE): the md5 of the character's skill levels, worn set,
+    -- combat style, active buffs and hr_perks_of — values hr_state_of and
+    -- hr_perks_of already answer the engine. Target (p_user, p_slot), the
+    -- hr_state_of pair.
+    'hr_character_sheet_inputs(uuid,integer)',
+    -- SELF-VALIDATING: writes ONE display row (hr_character_sheets) for the
+    -- (p_user, p_slot) the engine already reads, only when the fingerprint it
+    -- is handed equals the current one, bounded (an object, <= 2 KB). No fight,
+    -- price, gate or other player reads the row; it moves no value. Answers
+    -- hr_state_of, which the engine already holds.
+    'hr_character_sheet_put(uuid,integer,text,jsonb)',
+`,
+    where: 'after',
+  },
   {
     id: 'hunt_instance',
     name: 'the c_engine_allow array head (link 19)',

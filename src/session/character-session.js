@@ -28,6 +28,7 @@
 //   createParty / joinParty / leaveParty / kickSeat / inviteByName /
 //   answerInvite / startPartyHunt / restartHunt
 //                      the party and hunt-again intents, re-read the same way;
+//   saveOutfit(o, c)   the outfit INTENT (hr_outfit_set), re-read the same way
 //   findParties        the party finder, a read whose rows are never the record
 //   timeline           the settle responses' visual timeline (src/hunt-view/
 //                      timeline.js): tracks and events, never the record
@@ -291,6 +292,22 @@ export class CharacterSession {
   async restartHunt(session) {
     if (this._closed || !UUID.test(String(session))) return { ok: false, error: 'bad_intent' };
     return this._settled(await this._server.rpc('hr_hunt_restart', { p_slot: this.slot, p_session: session, p_idem: newIdem() }));
+  }
+
+  /**
+   * Wear an outfit (or null: the role's own look) with a dye index per region.
+   * ONE intent (hr_outfit_set): the server checks ownership, the regions and the
+   * dyes; the window shows the new look only from the re-read envelope.
+   */
+  async saveOutfit(outfit, colors) {
+    if (this._closed) return { ok: false, error: 'closed' };
+    if (outfit !== null && !HUNT_ID.test(String(outfit))) return { ok: false, error: 'bad_intent' };
+    const c = {};
+    for (const [k, v] of Object.entries(colors && typeof colors === 'object' ? colors : {})) {
+      if (!/^[a-z]{1,16}$/.test(k) || !Number.isInteger(v) || v < 0 || v > 63) return { ok: false, error: 'bad_intent' };
+      c[k] = v;
+    }
+    return this._settled(await this._server.rpc('hr_outfit_set', { p_slot: this.slot, p_outfit: outfit, p_colors: c, p_idem: newIdem() }));
   }
 
   /**

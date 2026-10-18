@@ -27,22 +27,34 @@ function loadImage(doc, src) {
  * @returns {Promise<{book: object, images: {[set: string]: HTMLImageElement}}>}
  */
 export async function loadAtlases(o) {
-  /* A module specifier resolves against THIS module's URL, an image against the
-     document: both are made absolute from the document so assets/ is the site's. */
-  const url = (path) => new URL(path + '?v=' + o.version, o.doc.baseURI).href;
   const manifests = {}, images = {};
   await Promise.all(ATLAS_SETS.map(async (set) => {
-    const p = atlasPaths(set);
     try {
-      const [m, img] = await Promise.all([
-        import(url(p.manifest), { with: { type: 'json' } }).then((mod) => mod.default),
-        loadImage(o.doc, url(p.image)),
-      ]);
-      manifests[set] = m;
-      images[set] = img;
+      const a = await loadAtlasSet(o, set);
+      manifests[set] = a.manifest;
+      images[set] = a.image;
     } catch (e) {
       console.warn('[world] atlas "' + set + '" did not load; its sprites draw as stubs', e && e.message);
     }
   }));
   return { book: createBook(manifests), images };
+}
+
+/**
+ * ONE set: its manifest and decoded image (the Character window's outfit
+ * preview reads the `hunt` set this way). Rejects when either fails.
+ * @param {{doc: Document, version: number|string}} o
+ * @param {string} set
+ * @returns {Promise<{manifest: object, image: HTMLImageElement}>}
+ */
+export async function loadAtlasSet(o, set) {
+  /* A module specifier resolves against THIS module's URL, an image against the
+     document: both are made absolute from the document so assets/ is the site's. */
+  const url = (path) => new URL(path + '?v=' + o.version, o.doc.baseURI).href;
+  const p = atlasPaths(set);
+  const [manifest, image] = await Promise.all([
+    import(url(p.manifest), { with: { type: 'json' } }).then((mod) => mod.default),
+    loadImage(o.doc, url(p.image)),
+  ]);
+  return { manifest, image };
 }

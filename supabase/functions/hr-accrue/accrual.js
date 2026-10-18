@@ -1289,11 +1289,22 @@ export function encodeWorld(world) { return JSON.stringify(encodeWorldRow(world)
    and the hero's defence as a monster swing reads it. From server-owned gear
    and skills, through the SAME combat.js functions every fight is priced by. */
 const NEUTRAL_FOE = Object.freeze({});
-function heroSnapshot(state, c) {
+export function heroSnapshot(state, c) {
   const roll = playerCombatRolls(NEUTRAL_FOE, { eq: c.eq, equipment: c.equipment, items: c.items, skills: state.skills,
     bonus: c.bonus, setBonus: c.setBonus, profile: c.profile, style: c.style });
   const def = Math.floor((Number(levelsOf(state.skills).defense) || 1) + (Number(c.eq.defB) || 0) + (Number(c.bonus('defense')) || 0));
   return { acc: Math.round(roll.accuracy * 1000), maxHit: Math.max(1, Math.floor(roll.maxHit)), def, ward: Math.floor(prayerWardPct(state.skills)) };
+}
+
+/* THE LOADOUT a hero fights with: the worn set's stats, its armour-set bonus,
+   the stat profile its weapon family reads and THE PLAYER'S CHOSEN STYLE, from
+   server state (hr_set_style validated it). One assembly for the hunt member
+   and the character sheet (./character-sheet.js), so the sheet shows the
+   numbers a fight is priced by. */
+export function loadoutOf(equipment, combatStyle, items) {
+  const eq = equipmentStats(equipment, items);
+  return { eq, setBonus: armorSetBonus(equipment, items), profile: deriveProfile(eq.weaponType),
+    style: resolveStyle(eq.weaponType, normaliseStyleKeys({ ...(combatStyle || {}) })) };
 }
 
 /* ONE MEMBER'S SIDE OF THE SPAN: its state, its value sinks and the counters
@@ -1302,11 +1313,7 @@ function heroSnapshot(state, c) {
 function memberSide(mi, ctx) {
   const items = ctx.items;
   const equipment = mi.equipment || {};
-  const eq = equipmentStats(equipment, items);
-  const setBonus = armorSetBonus(equipment, items);
-  const profile = deriveProfile(eq.weaponType);
-  /* THE PLAYER'S CHOSEN STYLE, from server state (hr_set_style validated it). */
-  const style = resolveStyle(eq.weaponType, normaliseStyleKeys({ ...(mi.combatStyle || {}) }));
+  const { eq, setBonus, profile, style } = loadoutOf(equipment, mi.combatStyle, items);
   const maxHp = Math.max(1, nat(mi.maxHp, 10));
   const skills0 = {};
   for (const k in (mi.skills || {})) skills0[k] = nat(mi.skills[k], 0);

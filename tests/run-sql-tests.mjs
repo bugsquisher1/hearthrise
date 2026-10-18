@@ -632,6 +632,9 @@ const ALSO_LINTED = [
   '2026-10-23-hunt-analyzer-v2.sql',
   '2026-10-23-hunt-world-state.sql',
   '2026-10-23-hunt-party.sql',
+  /* THE CHARACTER WINDOW (lane character-window, 2026-10-25): the outfit write,
+     the sheet's engine pair and link 20 of HR_GRANT_HYGIENE_CHAIN. */
+  '2026-10-25-character-sheet.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────
@@ -961,6 +964,11 @@ const HR_GRANT_HYGIENE_CHAIN = [
   // (hr_hunt_engine_read / hr_hunt_apply keep their stale TEXT entries, as
   // link 18 kept hr_attended_kills': the file drops both functions.)
   '2026-10-23-hunt-world-state.sql',
+  // link 20 (lane character-window) — the character sheet's two engine grants
+  // (hr_character_sheet_inputs, hr_character_sheet_put), INSERTED at the head of
+  // c_engine_allow, so its declared-removals list stays EMPTY. Its base is link
+  // 19's TARGET. It is the new last toucher.
+  '2026-10-25-character-sheet.sql',
 ];
 
 const HR_RATE_GATE_CHAIN = [

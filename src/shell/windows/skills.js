@@ -1,10 +1,12 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/shell/windows/skills.js — THE SKILLS: TWO LEDGERS (WORLD_SHELL §4).
 //
-// Two windows from one ledger (Tyler 10-18: split so neither needs a scroll
-// bar): Combat skills, and Gathering and crafting. skillsWindow(groups) makes
-// each from its SKILLS_DEF categories, so a new skill joins the window of its
-// category with nothing else to edit. One compact entry per skill, two to a
+// One ledger, two homes (Tyler 10-18: split so neither needs a scroll bar):
+// the Gathering and crafting window, and the combat skills inside the
+// Character window (src/shell/windows/character/sheet.js), beside the combat
+// numbers they make. skillsWindow(groups) makes each from its SKILLS_DEF
+// categories, so a new skill joins the ledger of its category with nothing
+// else to edit. One compact entry per skill, two to a
 // row: its glyph and name, the server's level, the progress to the next level
 // on the shared XP curve (src/core/xp.js, the curve hr_level_from_xp uses), the
 // XP still to go, and its NEXT UNLOCK (the lowest recipe, node or gear
@@ -110,6 +112,8 @@ function skillsWindow(groups) {
   return render;
 }
 
-export const renderCombatSkills = skillsWindow([['combat', 'Combat']]);
+/* The combat ledger is the Character window's (src/shell/windows/character/sheet.js): the
+   combat skills sit beside the numbers they make. */
+export const combatLedger = skillsWindow([['combat', 'Combat skills']]);
 export const renderTradeSkills = skillsWindow([['gather', 'Gathering'], ['artisan', 'Crafting']]);
 

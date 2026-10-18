@@ -1,0 +1,87 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   src/styles/character.css — the Character window (src/shell/windows/character/*):
+   the Character sheet, the Outfit tab, the Deaths tab. A character sheet reads
+   like a ledger, not a dashboard: ruled lines and two columns, no cards, no
+   frame on every control (ART_DIRECTION §7). Tokens only, not one colour
+   literal; gold is the one primary action (Save) and the selected tab. Sprites
+   draw on canvases at a whole-number scale with smoothing off.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.hw-cs-pane { display: none; }
+.hw-cs-pane.is-on { display: block; }
+.hw-cs canvas { image-rendering: pixelated; }
+
+/* ── The Character tab ── */
+.hw-cs-who { display: flex; align-items: center; gap: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--line-soft); }
+.hw-cs-portrait { flex: none; width: 64px; height: 64px; background: var(--bg-1); box-shadow: var(--hw-well); }
+.hw-cs-id { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.hw-cs-name { font-family: var(--f-label); font-size: var(--t-lead); color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hw-cs-role, .hw-cs-level { font-size: var(--t-micro); color: var(--ink-2); }
+.hw-cs-level { color: var(--gold-2); font-variant-numeric: lining-nums tabular-nums; }
+.hw-cs-vitals { flex: none; display: grid; grid-template-columns: auto auto; gap: 0 12px; margin: 0; }
+.hw-cs-line { display: none; justify-content: space-between; gap: 8px; min-height: 22px; align-items: baseline; }
+.hw-cs-line.is-on { display: flex; }
+.hw-cs-line dt { font-size: var(--t-micro); color: var(--ink-3); }
+.hw-cs-line dd { margin: 0; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; text-align: right; }
+.hw-cs-vitals .hw-cs-line { justify-content: flex-start; }
+.hw-cs-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; margin-top: 6px; }
+.hw-cs-col { min-width: 0; }
+.hw-cs-head { display: none; margin: 8px 2px 2px; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
+.hw-cs-head:first-child, .hw-cs-head.is-on { display: block; }
+.hw-cs-list { margin: 0; }
+.hw-cs-list .hw-cs-line { border-top: 1px solid var(--line-soft); padding: 2px 0; }
+.hw-cs-total dt { color: var(--ink-2); font-weight: 700; }
+.hw-cs-total dd { color: var(--gold-2); font-weight: 700; }
+.hw-cs-note { display: none; margin: 4px 2px; font-size: var(--t-micro); color: var(--ink-3); }
+.hw-cs-note.is-on { display: block; }
+.hw-cs-best { display: none; align-items: center; gap: 8px; padding: 4px 0; border-top: 1px solid var(--line-soft); }
+.hw-cs-best.is-on { display: flex; }
+.hw-cs-btext { flex: none; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
+
+/* ── The Outfit tab ── */
+.hw-cs-outfit { display: grid; grid-template-columns: 200px 1fr; gap: 12px; }
+.hw-of-stage { position: relative; width: 192px; height: 192px; background: var(--bg-1); box-shadow: var(--hw-well); }
+.hw-of-preview { display: block; width: 192px; height: 192px; }
+.hw-of-turn { position: absolute; right: 4px; bottom: 4px; }
+.hw-of-name { margin: 6px 2px; font-family: var(--f-label); color: var(--ink); }
+.hw-of-dye { display: none; }
+.hw-of-dye.is-on { display: block; }
+.hw-of-regions { display: flex; gap: 2px; border-bottom: 1px solid var(--line-soft); }
+.hw-of-swatches { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; margin-top: 6px; }
+.hw-of-swatch { aspect-ratio: 1; min-height: 20px; border: 0; padding: 0; cursor: pointer; box-shadow: var(--hw-well); }
+.hw-of-swatch[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: 1px; }
+.hw-of-swatch:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 1px; }
+.hw-of-save { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.hw-of-save .hw-primary { display: inline-block; }
+.hw-of-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 6px; }
+.hw-of-tools .hw-search { flex: 1 1 160px; }
+.hw-of-tools input[type="search"] { flex: 1; min-width: 0; min-height: 30px; border: 0; background: none; color: var(--ink); font: inherit; font-size: var(--t-small); }
+.hw-of-owned { flex: none; font-size: var(--t-micro); color: var(--ink-2); }
+.hw-of-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 4px; margin: 0; padding: 0; list-style: none; }
+.hw-of-card { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 4px 2px; border: 0; background: var(--bg-1); box-shadow: var(--hw-well); color: var(--ink); font: inherit; font-size: var(--t-micro); cursor: pointer; }
+.hw-of-card:hover { background: var(--bg-2); }
+.hw-of-card:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
+.hw-of-card[aria-pressed="true"] { box-shadow: inset 0 0 0 2px var(--ink); }
+.hw-of-card.is-locked canvas { opacity: .5; }
+.hw-of-face { width: 64px; height: 64px; }
+.hw-of-mark { min-height: 1.2em; color: var(--ink-3); }
+.hw-of-card.is-worn .hw-of-mark { color: var(--gold-2); }
+
+/* ── The Deaths tab ── */
+.hw-dl-list { margin: 0; padding: 0; list-style: none; }
+.hw-dl-row { border-top: 1px solid var(--line-soft); }
+.hw-dl-head { width: 100%; display: grid; grid-template-columns: 1.4fr 1.2fr 1fr auto; gap: 8px; align-items: baseline; min-height: 36px; padding: 2px; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.hw-dl-head:hover { background: var(--bg-1); }
+.hw-dl-head:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
+.hw-dl-where, .hw-dl-when { font-size: var(--t-micro); color: var(--ink-2); }
+.hw-dl-xp { font-size: var(--t-micro); color: var(--red); font-variant-numeric: lining-nums tabular-nums; }
+.hw-dl-more { display: none; margin: 0 2px 6px; font-size: var(--t-micro); color: var(--ink-2); }
+.hw-dl-row.is-open .hw-dl-more { display: block; }
+
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .hw-cs-who { flex-wrap: wrap; }
+  .hw-cs-vitals { flex-basis: 100%; }
+  .hw-cs-cols { grid-template-columns: 1fr; }
+  .hw-cs-outfit { grid-template-columns: 1fr; }
+  .hw-dl-head { grid-template-columns: 1fr 1fr; }
+}

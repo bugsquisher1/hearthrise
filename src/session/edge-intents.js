@@ -8,6 +8,7 @@
 //   vendor_sell_many  { lines: [{ item, qty }] }                       sell stacks to the shop
 //   shop_buy          { offer, qty }                                   buy a server-priced offer
 //   eat               { item }                                         eat one food now
+//   sheet             {}                                               compute the character sheet
 // EDGE_INTENTS lists them with the ONLY fields each may carry. Every field is a
 // NAME or a COUNT; no field is a price, a total or a balance, so a body built
 // here can never tell the server what something costs. edgeBody refuses an
@@ -21,6 +22,8 @@ export const EDGE_INTENTS = Object.freeze({
   vendor_sell_many: Object.freeze(['lines']),
   shop_buy: Object.freeze(['offer', 'qty']),
   eat: Object.freeze(['item']),
+  /* The character sheet: the slot and nothing else (hr-accrue character-sheet.js). */
+  sheet: Object.freeze([]),
 });
 
 /* The engine's own bounds (request.js MAX_SELL_LINES, MAX_QTY, CATALOGUE_ID_RE, OFFER shape). */

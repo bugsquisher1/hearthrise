@@ -270,6 +270,17 @@ jobs:
           node tests/alpha-windows.mjs
           node tests/alpha-windows.mjs --mutate
 
+      # THE CHARACTER WINDOW (2026-10-25): the sheet's numbers come only from
+      # the server's character_sheet section (a stale one shows none and asks
+      # the engine once per version); nothing the engine lacks is drawn; Save is
+      # ONE hr_outfit_set; the death log is the server's; the trade skills hold
+      # no combat skill and each unlock names its kind. --mutate plants ten.
+      - name: Character window (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/character-window.mjs
+          node tests/character-window.mjs --mutate
+
       # THE PARTY UI (2026-10-18, week plan 16 + QoL 3/7): the character strip,
       # the command centre, the Party window and the alert lines on the party
       # fixture. One alert per event id (a re-read or a reload repeats none);

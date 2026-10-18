@@ -13,7 +13,7 @@
 // the character's envelope is tests/fixtures/alpha-envelope.json.
 //   AW-0  PURE: every SKILLS_DEF skill has a guide row; edgeBody refuses a price
 //         field and an unknown verb; a bulk-sale plan never names a locked stack
-//   AW-1  Hunts, Inventory, both Skills windows, Storage, Shop and Hunt prep open from
+//   AW-1  Hunts, Inventory, Character, Gathering and crafting, Storage, Shop and Hunt prep open from
 //         their keys and the launcher row, with zero console errors
 //   AW-2  PATCH IN PLACE: a new envelope changes a pocket's count on the SAME node,
 //         and an idle display tick writes nothing to the bag
@@ -52,8 +52,9 @@
 //         Inventory and Storage
 //   AW-16 no void: with a window docked the whole town view stays on the map; a
 //         Storage press from town moves the whole stack with ONE hr_bank_move
-//   AW-17 the skills are two windows and neither scrolls at 922x423; a character that
-//         has never fought sees the pointer to Hunts
+//   AW-17 the skills are two ledgers (the combat one inside the Character window,
+//         tests/character-window.mjs) and Gathering and crafting does not scroll at
+//         922x423; a character that has never fought sees the pointer to Hunts
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { launchOptions } from './_chrome.mjs';
@@ -75,7 +76,7 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 const ITEM_RPCS = ['hr_item_lock', 'hr_loot_rule_set', 'hr_restock_set', 'hr_shop_refill', 'hr_hunt_preset_save', 'hr_hunt_preset_apply', 'hr_action_set_options', 'hr_hunt_enter', 'hr_bank_move'];
 /* The windows a player opens from the launcher row, with their keys (src/data/shell-windows.js). */
-const WINDOWS = [['h', 'hunts'], ['b', 'inventory'], ['k', 'skills-combat'], ['g', 'skills-trade'], ['t', 'storage'], ['v', 'shop'], ['p', 'hunt-prep']];
+const WINDOWS = [['h', 'hunts'], ['b', 'inventory'], ['c', 'character'], ['g', 'skills-trade'], ['t', 'storage'], ['v', 'shop'], ['p', 'hunt-prep']];
 
 function scripted() {
   /* Like the real server, the residue a put stores comes back in every later envelope (client_state). */
@@ -432,7 +433,7 @@ async function checks(overrides, shots) {
         if (shots) await shot(page, 'alpha-1440x900-storage');
         /* AW-17 (desktop) neither skills window scrolls; an unlock names each thing and what it is for (Tyler 10-18:
            "and 1 more" made the smithing tools read as weapon crafting). */
-        for (const [key, id] of [['k', 'skills-combat'], ['g', 'skills-trade']]) {
+        for (const [key, id] of [['g', 'skills-trade']]) {
           await openWin(page, key, id);
           await page.waitForTimeout(300);
           const m = await page.evaluate((w) => { const b = document.querySelector('[data-hs-win="' + w + '"] .hs-win-body'); return { sh: b.scrollHeight, ch: b.clientHeight }; }, id);
@@ -452,7 +453,7 @@ async function checks(overrides, shots) {
         const ptr = await page.evaluate(() => { const p = document.querySelector('.hs-pointer'); return p ? p.textContent : null; });
         if (!ptr || !/Open Hunts/.test(ptr)) fails.push('AW-17 a fresh character sees no pointer to Hunts: ' + JSON.stringify(ptr));
         if (shots) await shot(page, 'alpha-922x423-first-minute');
-        for (const [key, id] of [['k', 'skills-combat'], ['g', 'skills-trade']]) {
+        for (const [key, id] of [['g', 'skills-trade']]) {
           if (!(await openWin(page, key, id))) { fails.push('AW-17 ' + id + ' did not open'); continue; }
           await page.waitForTimeout(300);
           const m = await page.evaluate((w) => { const b = document.querySelector('[data-hs-win="' + w + '"] .hs-win-body'); return { sh: b.scrollHeight, ch: b.clientHeight, n: b.querySelectorAll('.hw-skill').length }; }, id);
@@ -500,7 +501,7 @@ const MUTANTS = [
   ['the mill hatch opens nothing', 'src/world/world-boot.js', "    hunt: (id) => emit('entrance', { hunt: id }),", '    hunt: () => false,'],
   ['a hunt carries the whole stack past its restock target', 'src/shell/hunt-list.js', 'restock[r.id] > 0 ? Math.min(r.qty, restock[r.id]) : r.qty', 'r.qty'],
   ['a storage press moves one at a time', 'src/shell/windows/storage.js', 'const qty = ev.shiftKey ? 1 : row.qty;', 'const qty = 1;'],
-  ['the skills are one window again', 'src/shell/windows/skills.js', "export const renderCombatSkills = skillsWindow([['combat', 'Combat']]);", "export const renderCombatSkills = skillsWindow([['combat', 'Combat'], ['gather', 'Gathering'], ['artisan', 'Crafting']]);"],
+  ['the skills are one window again', 'src/shell/windows/skills.js', "export const renderTradeSkills = skillsWindow([['gather', 'Gathering'], ['artisan', 'Crafting']]);", "export const renderTradeSkills = skillsWindow([['combat', 'Combat'], ['gather', 'Gathering'], ['artisan', 'Crafting']]);"],
   ['a new player gets no pointer to Hunts', 'src/shell/launcher.js', "+ pointerFor(ctx, open) + '</nav>'", "+ '</nav>'"],
   ['edgeBody lets an unlisted field through', 'src/session/edge-intents.js', '  for (const k of Object.keys(fields)) if (!allowed.includes(k)) return null;\n', ''],
 ];

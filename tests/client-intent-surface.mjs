@@ -65,6 +65,7 @@ export const CLIENT_RPCS = Object.freeze({
   hr_hunt_party_decline: 'decline an invite to this character by its id (CharacterSession.answerInvite)',
   hr_hunt_party_start: 'the leader starts the party hunt, each member on its own saved setup (CharacterSession.startPartyHunt)',
   hr_hunt_restart: 'go back to the hunt that just ended on that session’s own setup (CharacterSession.restartHunt)',
+  hr_outfit_set: 'wear an owned outfit with a dye index per region; cosmetic, the server checks ownership (CharacterSession.saveOutfit)',
 });
 
 /* The engine's item intents the client may send, each with the ONLY fields it may carry. */
@@ -73,6 +74,8 @@ export const CLIENT_EDGE_INTENTS = Object.freeze({
   vendor_sell_many: ['lines'],
   shop_buy: ['offer', 'qty'],
   eat: ['item'],
+  /* the Character window's ask: the slot only; the engine computes the sheet (hr-accrue character-sheet.js) */
+  sheet: [],
 });
 const EDGE = 'src/session/edge-intents.js';
 const VALUE_FIELD = /price|gold|cost|total|amount|ask/i;

@@ -1,0 +1,30 @@
+{
+  "id": "fx_cast_druid_motes",
+  "class": "vfx",
+  "material": "light",
+  "source": "fx_cast_druid_motes.png",
+  "frame": [
+    24,
+    12
+  ],
+  "anchor_px": [
+    12,
+    6
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "blend": "add",
+  "anims": [
+    {
+      "name": "play",
+      "fps": 4,
+      "loop": true,
+      "dirs": {
+        "s": 8
+      }
+    }
+  ],
+  "notes": "Ported from prototypes/hunt-sim-assets/vfx/cast_druid_motes by tools/world-art/port-hunt-sim.mjs: frames unscaled, anchor as the sim drew it."
+}

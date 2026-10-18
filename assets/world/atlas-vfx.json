@@ -1,0 +1,531 @@
+{
+  "version": 1,
+  "set": "vfx",
+  "palette": "hr-world-56-v2",
+  "T": 32,
+  "image": "atlas-vfx.png",
+  "size": [512,316],
+  "pixels": "6f019d3183b2987c0143b0ab882260b858b861bd24c5dd632c92ee176a33e4a7",
+  "sprites": {
+    "fx_arcane_barrier": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [37,37],
+      "anchor": [18,18],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 26,
+      "contact": [0,35],
+      "shadow": null,
+      "blend": "add",
+      "anims": {
+        "play": {
+          "fps": 7,
+          "loop": true,
+          "dirs": {
+            "s": [[395,65],[433,65],[471,65],[0,117],[38,117],[76,117],[114,117],[152,117]]
+          }
+        }
+      }
+    },
+    "fx_cast_druid_motes": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [24,12],
+      "anchor": [12,6],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 4,
+      "contact": [23,23],
+      "shadow": null,
+      "blend": "add",
+      "anims": {
+        "play": {
+          "fps": 4,
+          "loop": true,
+          "dirs": {
+            "s": [[296,286],[321,286],[346,286],[371,286],[396,286],[421,286],[446,286],[471,286]]
+          }
+        }
+      }
+    },
+    "fx_cast_knight_shield_bash": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [25,20],
+      "anchor": [12,11],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 14,
+      "contact": [5,18],
+      "shadow": null,
+      "blend": "add",
+      "anims": {
+        "play": {
+          "fps": 16,
+          "loop": false,
+          "dirs": {
+            "s": [[230,219],[256,219],[282,219],[308,219],[334,219],[360,219],[386,219],[412,219]]
+          }
+        }
+      }
+    },
+    "fx_cast_ranger_aim_glint": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [12,10],
+      "anchor": [5,7],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 4,
+      "contact": [2,7],
+      "shadow": null,
+      "blend": "add",
+      "anims": {
+        "play": {
+          "fps": 9,
+          "loop": false,
+          "dirs": {
+            "s": [[310,302],[323,302],[336,302],[349,302],[362,302],[375,302]]
+          }
+        }
+      }
+    },
+    "fx_cast_sorcerer_runes": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [29,15],
+      "anchor": [14,6],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 13,
+      "contact": [0,28],
+      "shadow": null,
+      "blend": "add",
+      "anims": {
+        "play": {
+          "fps": 4,
+          "loop": true,
+          "dirs": {
+            "s": [[0,286],[30,286],[60,286],[90,286],[120,286],[150,286],[180,286],[210,286]]
+          }
+        }
+      }
+    },
+    "fx_challenge_taunt": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [46,64],
+      "anchor": [23,55],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 51,
+      "contact": [15,30],
+      "shadow": null,
+      "anims": {
+        "play": {
+          "fps": 9,
+          "loop": false,
+          "dirs": {
+            "s": [[0,0],[47,0],[94,0],[141,0],[188,0],[235,0],[282,0],[329,0]]
+          }
+        }
+      }
+    },
+    "fx_circle_of_renewal": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [38,17],
+      "anchor": [19,9],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 16,
+      "contact": [0,37],
+      "shadow": null,
+      "anims": {
+        "play": {
+          "fps": 5,
+          "loop": true,
+          "dirs": {
+            "s": [[0,268],[39,268],[78,268],[117,268],[156,268],[195,268],[234,268],[273,268]]
+          }
+        }
+      }
+    },
+    "fx_crossbow_bolt_impact": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [23,20],
+      "anchor": [10,10],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 6,
+      "contact": [6,14],
+      "shadow": null,
+      "blend": "add",
+      "anims": {
+        "play": {
+          "fps": 16,
+          "loop": false,
+          "dirs": {
+            "s": [[438,219],[462,219],[486,219],[0,247],[24,247]]
+          }
+        }
+      }
+    },
+    "fx_crossbow_bolt_projectile": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [13,4],
+      "anchor": [11,2],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 4,
+      "contact": [1,12],
+      "shadow": null,
+      "anims": {
+        "play": {
+          "fps": 12,
+          "loop": true,
+          "dirs": {
+            "s": [[388,302],[402,302],[388,302],[402,302]]
+          }
+        }
+      }
+    },
+    "fx_fire_rune_burst": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [56,30],
+      "anchor": [28,15],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 22,
+      "contact": [0,55],
+      "shadow": null,
+      "blend": "add",
+      "anims": {
+        "play": {
+          "fps": 9,
+          "loop": false,
+          "dirs": {
+            "s": [[444,155],[0,188],[57,188],[114,188],[171,188],[228,188],[285,188],[342,188]]
+          }
+        }
+      }
+    },
+    "fx_flame_volley_puff": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [19,20],
+      "anchor": [10,12],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 4,
+      "contact": [8,11],
+      "shadow": null,
+      "blend": "add",
+      "anims": {
+        "play": {
+          "fps": 12,
+          "loop": false,
+          "dirs": {
+            "s": [[48,247],[68,247],[88,247],[108,247],[128,247],[148,247]]
+          }
+        }
+      }
+    },
+    "fx_frost_lance_shatter": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [38,51],
+      "anchor": [20,18],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 16,
+      "contact": [12,27],
+      "shadow": null,
+      "blend": "add",
+      "anims": {
+        "play": {
+          "fps": 12,
+          "loop": false,
+          "dirs": {
+            "s": [[376,0],[415,0],[454,0],[0,65],[39,65],[78,65],[117,65],[156,65]]
+          }
+        }
+      }
+    },
+    "fx_hunters_mark": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [22,10],
+      "anchor": [11,5],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 10,
+      "contact": [0,21],
+      "shadow": null,
+      "anims": {
+        "play": {
+          "fps": 5,
+          "loop": true,
+          "dirs": {
+            "s": [[0,302],[23,302],[46,302],[69,302],[92,302],[115,302],[138,302],[161,302]]
+          }
+        }
+      }
+    },
+    "fx_level_up": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [24,42],
+      "anchor": [12,37],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 10,
+      "contact": [4,19],
+      "shadow": null,
+      "blend": "add",
+      "anims": {
+        "play": {
+          "fps": 8,
+          "loop": false,
+          "dirs": {
+            "s": [[195,65],[220,65],[245,65],[270,65],[295,65],[320,65],[345,65],[370,65]]
+          }
+        }
+      }
+    },
+    "fx_loot_sparkle": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [19,20],
+      "anchor": [8,13],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 6,
+      "contact": [5,10],
+      "shadow": null,
+      "blend": "add",
+      "anims": {
+        "play": {
+          "fps": 12,
+          "loop": false,
+          "dirs": {
+            "s": [[168,247],[188,247],[208,247],[228,247],[248,247],[268,247],[288,247],[148,247]]
+          }
+        }
+      }
+    },
+    "fx_melee_slash": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [16,25],
+      "anchor": [1,12],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 8,
+      "contact": [2,12],
+      "shadow": null,
+      "blend": "add",
+      "anims": {
+        "play": {
+          "fps": 16,
+          "loop": false,
+          "dirs": {
+            "s": [[145,219],[162,219],[179,219],[196,219],[213,219]]
+          }
+        }
+      }
+    },
+    "fx_monster_death_poof": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [23,18],
+      "anchor": [12,11],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 4,
+      "contact": [13,14],
+      "shadow": null,
+      "anims": {
+        "play": {
+          "fps": 10,
+          "loop": false,
+          "dirs": {
+            "s": [[308,247],[332,247],[356,247],[380,247],[404,247],[428,247],[452,247],[476,247]]
+          }
+        }
+      }
+    },
+    "fx_nature_heal_motes": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [18,33],
+      "anchor": [9,24],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 6,
+      "contact": [6,11],
+      "shadow": null,
+      "blend": "add",
+      "anims": {
+        "play": {
+          "fps": 8,
+          "loop": false,
+          "dirs": {
+            "s": [[190,117],[209,117],[228,117],[247,117],[266,117],[285,117],[304,117],[323,117]]
+          }
+        }
+      }
+    },
+    "fx_natures_wrath": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [40,32],
+      "anchor": [20,25],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 4,
+      "contact": [9,31],
+      "shadow": null,
+      "anims": {
+        "play": {
+          "fps": 7,
+          "loop": false,
+          "dirs": {
+            "s": [[342,117],[383,117],[424,117],[465,117],[0,155],[41,155],[82,155],[123,155]]
+          }
+        }
+      }
+    },
+    "fx_power_strike": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [34,31],
+      "anchor": [15,19],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 9,
+      "contact": [0,10],
+      "shadow": null,
+      "blend": "add",
+      "anims": {
+        "play": {
+          "fps": 16,
+          "loop": false,
+          "dirs": {
+            "s": [[164,155],[199,155],[234,155],[269,155],[304,155],[339,155],[374,155],[409,155]]
+          }
+        }
+      }
+    },
+    "fx_torch_flame_loop": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [6,15],
+      "anchor": [3,14],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 10,
+      "contact": [0,5],
+      "shadow": null,
+      "blend": "add",
+      "anims": {
+        "play": {
+          "fps": 12,
+          "loop": true,
+          "dirs": {
+            "s": [[240,286],[247,286],[254,286],[261,286],[268,286],[275,286],[282,286],[289,286]]
+          }
+        }
+      }
+    },
+    "fx_water_drip_ripple": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [20,10],
+      "anchor": [10,5],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 8,
+      "contact": [0,19],
+      "shadow": null,
+      "anims": {
+        "play": {
+          "fps": 7,
+          "loop": true,
+          "dirs": {
+            "s": [[184,302],[205,302],[226,302],[247,302],[268,302],[289,302],[226,302],[247,302]]
+          }
+        }
+      }
+    },
+    "fx_water_drop_splash": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [21,16],
+      "anchor": [10,9],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 4,
+      "contact": [7,12],
+      "shadow": null,
+      "anims": {
+        "play": {
+          "fps": 11,
+          "loop": false,
+          "dirs": {
+            "s": [[312,268],[334,268],[356,268],[378,268],[400,268],[422,268],[444,268],[466,268]]
+          }
+        }
+      }
+    },
+    "fx_x_slash": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [28,27],
+      "anchor": [14,14],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 5,
+      "contact": [0,6],
+      "shadow": null,
+      "anims": {
+        "play": {
+          "fps": 14,
+          "loop": false,
+          "dirs": {
+            "s": [[399,188],[428,188],[457,188],[0,219],[29,219],[58,219],[87,219],[116,219]]
+          }
+        }
+      }
+    }
+  },
+  "terrain": {}
+}

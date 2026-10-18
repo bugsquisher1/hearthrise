@@ -1,0 +1,30 @@
+{
+  "id": "fx_nature_heal_motes",
+  "class": "vfx",
+  "material": "light",
+  "source": "fx_nature_heal_motes.png",
+  "frame": [
+    18,
+    33
+  ],
+  "anchor_px": [
+    9,
+    24
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "blend": "add",
+  "anims": [
+    {
+      "name": "play",
+      "fps": 8,
+      "loop": false,
+      "dirs": {
+        "s": 8
+      }
+    }
+  ],
+  "notes": "Ported from prototypes/hunt-sim-assets/vfx/nature_heal_motes by tools/world-art/port-hunt-sim.mjs: frames unscaled, anchor as the sim drew it."
+}

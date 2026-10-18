@@ -19,7 +19,7 @@
 //     hover_px?, shadow?, anims: [{ name, fps, loop, hit?, dirs: { s: n, e: n, … } }],
 //     pixellab: { the generation request }, notes? }
 //   The source sheet holds one row per (anim, dir), anims in sidecar order and dirs
-//   in s,e,n,w order, frames left to right at the frame size.
+//   in FACINGS order (s,e,n,w, then se,sw,ne,nw), frames left to right at the frame size.
 // Terrain sidecar: { id, class: 'terrain', material, source, lower, upper,
 //   tiles: { NWNESWSE: [[col, row], …] }, pixellab } — T×T cells of the source.
 //
@@ -32,7 +32,7 @@ import { lock } from './lock.mjs';
 import { measureFrame, contactSpans } from './measure.mjs';
 import { validateSprite, validateTerrain, validateAtlasSize, referenceFrames } from './validate.mjs';
 import { pack } from './pack.mjs';
-import { CLASSES, DIRS, T, SHADOW, MANIFEST_VERSION, atlasPaths } from '../../src/data/world/art-budget.js';
+import { CLASSES, FACINGS, T, SHADOW, MANIFEST_VERSION, atlasPaths } from '../../src/data/world/art-budget.js';
 import { PALETTE_ID } from './palette.mjs';
 import { isMain as isEntryModule } from '../../tests/_is-main.mjs';
 
@@ -62,7 +62,7 @@ export function framesOf(sc, sheet) {
   const problems = [];
   let row = 0;
   for (const a of sc.anims) {
-    for (const d of DIRS) {
+    for (const d of FACINGS) {
       const n = a.dirs[d];
       if (!n) continue;
       if ((row + 1) * fh > sheet.height || n * fw > sheet.width) problems.push({ rule: 'source', id: sc.id, detail: `${a.name}/${d}: row ${row} x ${n} frames of ${fw}x${fh} does not fit the ${sheet.width}x${sheet.height} source` });
@@ -140,13 +140,14 @@ export function buildSet(root, set) {
     const anims = {};
     for (const a of sc.anims) {
       const dirs = {};
-      for (const d of DIRS) if (a.dirs[d]) dirs[d] = Array.from({ length: a.dirs[d] }, (_, i) => packed.rects.get(`${sc.id}:${a.name}:${d}:${i}`));
+      for (const d of FACINGS) if (a.dirs[d]) dirs[d] = Array.from({ length: a.dirs[d] }, (_, i) => packed.rects.get(`${sc.id}:${a.name}:${d}:${i}`));
       anims[a.name] = { fps: a.fps || 0, loop: !!a.loop, ...(a.hit !== undefined ? { hit: a.hit } : {}), dirs };
     }
     manifest.sprites[sc.id] = {
       class: sc.class, layer: cls.layer || 'prop', frame, anchor: sc.anchor_px, footprint: sp.footprint,
       overhang: sp.overhang, hover: sp.hover, height: median(ms.map((m) => m.mass.h)),
-      contact: contactOf(sc, ms[0]), shadow: cls.contact ? shadowOf(sc, cls, refs) : null, anims,
+      contact: contactOf(sc, ms[0]), shadow: cls.contact ? shadowOf(sc, cls, refs) : null,
+      ...(sc.blend === 'add' ? { blend: 'add' } : {}), anims,
     };
   }
   for (const { sc, tiles } of terrains.sort((a, b) => (a.sc.id < b.sc.id ? -1 : 1))) {
@@ -163,7 +164,7 @@ export function spriteFromAtlas(manifest, atlas, id) {
   const [fw, fh] = s.frame;
   const frames = [];
   for (const [anim, a] of Object.entries(s.anims)) {
-    for (const d of DIRS) (a.dirs[d] || []).forEach(([x, y], i) => frames.push({ anim, dir: d, i, img: crop(atlas, x, y, fw, fh) }));
+    for (const d of FACINGS) (a.dirs[d] || []).forEach(([x, y], i) => frames.push({ anim, dir: d, i, img: crop(atlas, x, y, fw, fh) }));
   }
   return { id, class: s.class, anchor: s.anchor, footprint: s.footprint, overhang: s.overhang, hover: s.hover, frames };
 }

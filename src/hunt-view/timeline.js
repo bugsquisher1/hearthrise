@@ -59,6 +59,22 @@ export function createTimeline(o) {
   /** The server instant the screen shows at client time `now`. */
   function serverAt(now) { return offset === null ? null : now - offset - cfg.delayMs; }
 
+  /* Each step carries the unit's ODOMETER `d` (tiles walked up to the end of this step)
+     and its HEADING (hx, hy: the last step that moved, this one included), both derived
+     from the steps alone, so a walk cycle and a facing are functions of time that a
+     later batch can extend but never rewind. Recomputed from an out-of-order insert on;
+     trimming the oldest steps keeps every kept step's values. */
+  function derive(a, from) {
+    for (let k = Math.max(0, from); k < a.length; k++) {
+      const s = a[k], p = a[k - 1];
+      const dx = p ? s.x - p.x : 0, dy = p ? s.y - p.y : 0;
+      s.d = (p ? p.d : 0) + Math.hypot(dx, dy);
+      const moved = dx !== 0 || dy !== 0;
+      s.hx = moved ? dx : p ? p.hx : 0;
+      s.hy = moved ? dy : p ? p.hy : 1;
+    }
+  }
+
   function addStep(u, x, y, atMs) {
     if (![u, x, y, atMs].every(isInt)) return false;
     let a = steps.get(u);
@@ -66,7 +82,8 @@ export function createTimeline(o) {
     if (a.some((s) => s.atMs === atMs)) return false;
     let i = a.length;
     while (i > 0 && a[i - 1].atMs > atMs) i--;
-    a.splice(i, 0, { x, y, atMs });
+    a.splice(i, 0, { x, y, atMs, d: 0, hx: 0, hy: 1 });
+    derive(a, i);
     if (a.length > cfg.maxSteps) a.splice(0, a.length - cfg.maxSteps);
     return true;
   }
@@ -100,7 +117,11 @@ export function createTimeline(o) {
     return { steps: ns, events: ne };
   }
 
-  /** Where unit `u` stands at client time `now`: {x, y, moving} in tiles, or null. */
+  /**
+   * Where unit `u` stands at client time `now`, or null: {x, y, moving} in tiles, plus
+   * `d` (its odometer, tiles walked: a walk cycle's frame is a function of it) and
+   * (hx, hy), the heading of its latest move (a held unit keeps facing that way).
+   */
   function positionAt(u, now) {
     const a = steps.get(u);
     const t = serverAt(now);
@@ -108,11 +129,16 @@ export function createTimeline(o) {
     let i = a.length - 1;
     while (i > 0 && a[i].atMs > t) i--;
     const cur = a[i];
-    if (cur.atMs > t || i === 0) return { x: cur.x, y: cur.y, moving: false };
+    if (cur.atMs > t || i === 0) return { x: cur.x, y: cur.y, moving: false, d: cur.d, hx: cur.hx, hy: cur.hy };
     const prev = a[i - 1];
     const f = Math.min(1, (t - cur.atMs) / cfg.tileMs);
-    return { x: prev.x + (cur.x - prev.x) * f, y: prev.y + (cur.y - prev.y) * f, moving: f < 1 };
+    const moving = f < 1 && (cur.x !== prev.x || cur.y !== prev.y);
+    return { x: prev.x + (cur.x - prev.x) * f, y: prev.y + (cur.y - prev.y) * f, moving,
+      d: prev.d + (cur.d - prev.d) * f, hx: cur.hx, hy: cur.hy };
   }
+
+  /** The client time a server instant plays at (null before the first batch). */
+  function clientAt(serverMs) { return offset === null || !Number.isFinite(serverMs) ? null : serverMs + offset + cfg.delayMs; }
 
   /**
    * The snapshot's pose: every unit whose timeline ends somewhere else gets one
@@ -147,7 +173,9 @@ export function createTimeline(o) {
   }
 
   return {
-    ingest, reconcile, advance, positionAt,
+    ingest, reconcile, advance, positionAt, clientAt,
+    /** How long a unit takes to roll one tile (ms): the walk speed the playback assumes. */
+    tileMs: cfg.tileMs,
     units: () => Array.from(steps.keys()),
     pending: () => queue.length,
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },

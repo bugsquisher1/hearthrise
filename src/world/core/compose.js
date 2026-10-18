@@ -36,6 +36,8 @@ import { vertexGrid, tileKey } from './wang.js?v=0.1.0';
 export const WALL_FACE_PX = 48;
 const CAP_DX = 10, CAP_H_LIFT = 68;
 const HERO_LIGHT_TILES = 4.5;
+/* A corpse sorts beneath everything standing (VW-03): its row is lowered by this many art px. */
+const UNDER = 1 << 20;
 
 /**
  * The static ground: [{ set, sx, sy, x, y }] tiles and [{ x, y }] void cells, art px.
@@ -168,7 +170,7 @@ export function composeFrame(map, book, state, view, tables, T) {
 
   for (const o of map.objects) place(o.id, o.x, o.y, { fp: [o.fw, o.fh] });
 
-  const plates = [], bars = [], floats = [], bubbles = [], points = map.lights.map((l) => ({ x: l.x * T, y: l.y * T, r: l.radius * T, tint: l.tint }));
+  const plates = [], bars = [], floats = [], bubbles = [], badges = [], effects = [], points = map.lights.map((l) => ({ x: l.x * T, y: l.y * T, r: l.radius * T, tint: l.tint }));
   let target = null;
   /* Where a placed thing's head is: the anchor column and the row its art's height reaches. */
   const head = (d) => {
@@ -182,16 +184,24 @@ export function composeFrame(map, book, state, view, tables, T) {
     const d = place(o.id, o.x, o.y, { ref: o.ref });
     if (o.plate) { const hd = head(d); plates.push({ text: o.plate.text, kind: o.plate.kind, x: hd.cx, y: hd.top, alpha: 1 }); }
   }
-  /* A unit: { id, x, y, anim, dir, diag, age (ms into the clip), alpha, plate:{text,kind,alpha?}, bar, target }.
+  /* A unit: { id, x, y, anim, dir, diag, age (ms into the clip) | frame (the clip frame itself, a
+     walk chosen by distance), alpha, grey (0..1 toward its corpse tone), flash, under (drawn
+     beneath the standing: a corpse), plate:{text,kind,alpha?}, bar, barKind, mana, badge, target }.
      dir is the cardinal; diag the diagonal of a diagonal step, drawn when the clip has it (core/facing.js). */
   function unit(u, isHero) {
     const anim = u.anim || 'idle';
     const dir = book.facing(u.id, anim, u.dir || 's', u.diag);
-    const i = clipFrame(book, u.id, anim, dir, u.age == null ? state.t || 0 : u.age);
-    const d = place(u.id, u.x, u.y, { anim, dir, i, kind: 'unit', alpha: u.alpha, ref: u.ref });
+    const i = Number.isInteger(u.frame) ? u.frame : clipFrame(book, u.id, anim, dir, u.age == null ? state.t || 0 : u.age);
+    const d = place(u.id, u.x, u.y, { anim, dir, i, kind: 'unit', alpha: u.alpha, ref: u.ref, bias: u.under ? -UNDER : 0, shadow: u.under ? false : undefined });
+    if (u.grey) d.grey = Math.max(0, Math.min(1, u.grey));
+    if (u.flash) d.flash = true;
     const { cx, foot, top } = head(d);
     if (u.plate) plates.push({ text: u.plate.text, kind: u.plate.kind, x: cx, y: top - (u.bar == null ? 0 : 4), alpha: u.plate.alpha != null ? u.plate.alpha : u.alpha == null ? 1 : u.alpha });
-    if (u.bar != null) bars.push({ x: cx, y: top - 2, w: 18, pct: Math.max(0, Math.min(1, u.bar)), kind: isHero ? 'hero' : 'foe' });
+    if (u.bar != null) {
+      const pct = Math.max(0, Math.min(1, u.bar));
+      bars.push({ x: cx, y: top - 2, w: 18, pct, kind: u.barKind === 'pct' ? barTone(pct) : isHero ? 'hero' : 'foe', mana: u.mana == null ? null : Math.max(0, Math.min(1, u.mana)) });
+      if (u.badge) badges.push({ x: cx + 11, y: top - 4, n: u.badge });
+    } else if (u.badge) badges.push({ x: cx + 11, y: top - 4, n: u.badge });
     if (u.target) target = { x: cx - 15, y: top - 2, w: 30, h: foot - top + 6 };
     return { cx, foot, top };
   }
@@ -214,12 +224,32 @@ export function composeFrame(map, book, state, view, tables, T) {
      caller passes their age so the same list draws the same frame anywhere. */
   for (const f of state.floats || []) {
     const k = Math.max(0, Math.min(1, f.age / (f.life || 1000)));
-    floats.push({ text: f.text, kind: f.kind, x: (f.x + 0.5) * T, y: f.y * T - 6 - 14 * k, alpha: k < 0.66 ? 1 : (1 - k) / 0.34 });
+    floats.push({ text: f.text, kind: f.kind, big: !!f.big, x: (f.x + 0.5) * T + (f.dx || 0), y: f.y * T - 6 + (f.dy || 0) - 14 * k, alpha: k < 0.66 ? 1 : (1 - k) / 0.34 });
+  }
+  /* EFFECTS ({ id, x, y in tiles, age ms, lift, on, angle? }): a vfx clip centred at its anchor
+     `lift` x the art height of sprite `on` (a flier's hover added) above the tile's foot row;
+     a one-shot past its last frame is not drawn. */
+  for (const e of state.fx || []) {
+    const s = book.sprite(e.id);
+    const clip = s.anims && s.anims.play;
+    if (!clip) continue;
+    const n = book.frames(e.id, 'play', 's');
+    const i = Math.floor((Math.max(0, e.age) * (clip.fps || 1)) / 1000);
+    if (!clip.loop && i >= n) continue;
+    const f = book.frame(e.id, 'play', 's', i);
+    const host = e.on ? book.sprite(e.on) : null;
+    const up = host ? (host.height || 20) * (e.lift || 0) + (host.class === 'flier' ? host.hover || 0 : 0) : 20 * (e.lift || 0);
+    const px = Math.round((e.x + 0.5) * T), py = Math.round((e.y + 1) * T - 1 - up);
+    effects.push({ id: e.id, set: f.set, sx: f.sx, sy: f.sy, w: f.w, h: f.h, x: px - f.ax, y: py - f.ay, cx: px, cy: py, ax: f.ax, ay: f.ay,
+      blend: s.blend === 'add' ? 'add' : 'over', angle: Number.isFinite(e.angle) ? e.angle : 0 });
   }
   const roofs = map.buildings.map((b) => ({ id: b.id, alpha: state.roofAlpha && b.id in state.roofAlpha ? state.roofAlpha[b.id] : (b.id === heroId ? 0 : 1) }));
   return { heroBuilding: heroId, decals, shadows, sprites: ySort(stand), raised: ySort(raised), roofs, lights: { kind: map.light, vignette: map.outdoor, points },
-    plates, bars, floats, target, bubbles, mark };
+    plates, bars, floats, target, bubbles, mark, badges, fx: effects };
 }
+
+/* VW-07: an HP bar's tone by how full it is. */
+function barTone(pct) { return pct > 0.6 ? 'high' : pct > 0.3 ? 'mid' : 'low'; }
 
 /**
  * The frame of a clip `age` ms in: looping clips cycle at their fps; a one-shot

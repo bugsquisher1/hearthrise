@@ -3484,6 +3484,16 @@ jobs:
           node tests/hunt-view-core.mjs
           node tests/hunt-view-core.mjs --mutate
 
+      # The live hunt in the World pane: a new envelope never restarts an
+      # animation, each event plays once, units stay inside their track, the
+      # same instant draws the same at any frame rate, every event type mapped
+      # to the shipped vfx atlas.
+      - name: Hunt scene
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/hunt-scene.mjs
+          node tests/hunt-scene.mjs --mutate
+
       - name: Client intent surface
         if: ${{ !cancelled() }}
         run: |

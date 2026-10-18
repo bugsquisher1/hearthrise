@@ -1,0 +1,29 @@
+{
+  "id": "fx_water_drip_ripple",
+  "class": "vfx",
+  "material": "light",
+  "source": "fx_water_drip_ripple.png",
+  "frame": [
+    20,
+    10
+  ],
+  "anchor_px": [
+    10,
+    5
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "play",
+      "fps": 7,
+      "loop": true,
+      "dirs": {
+        "s": 8
+      }
+    }
+  ],
+  "notes": "Ported from prototypes/hunt-sim-assets/vfx/water_drip_ripple by tools/world-art/port-hunt-sim.mjs: frames unscaled, anchor as the sim drew it."
+}

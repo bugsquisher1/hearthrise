@@ -20,7 +20,11 @@
         "s": 1,
         "e": 1,
         "n": 1,
-        "w": 1
+        "w": 1,
+        "se": 1,
+        "sw": 1,
+        "ne": 1,
+        "nw": 1
       }
     },
     {
@@ -31,9 +35,13 @@
         "s": 8,
         "e": 8,
         "n": 8,
-        "w": 8
+        "w": 8,
+        "se": 8,
+        "sw": 8,
+        "ne": 8,
+        "nw": 8
       }
     }
   ],
-  "notes": "Ported from prototypes/hunt-sim-assets/rat_king (PixelLab style-1, 2026-10-15) by tools/world-art/port-hunt-sim.mjs: four of eight facings, foot anchor moved onto the class anchor by whole pixels."
+  "notes": "Ported from prototypes/hunt-sim-assets/rat_king (PixelLab style-1, 2026-10-15) by tools/world-art/port-hunt-sim.mjs: eight facings, foot anchor moved onto the class anchor by whole pixels."
 }

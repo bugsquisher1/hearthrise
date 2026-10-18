@@ -1,0 +1,30 @@
+{
+  "id": "fx_flame_volley_puff",
+  "class": "vfx",
+  "material": "light",
+  "source": "fx_flame_volley_puff.png",
+  "frame": [
+    19,
+    20
+  ],
+  "anchor_px": [
+    10,
+    12
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "blend": "add",
+  "anims": [
+    {
+      "name": "play",
+      "fps": 12,
+      "loop": false,
+      "dirs": {
+        "s": 6
+      }
+    }
+  ],
+  "notes": "Ported from prototypes/hunt-sim-assets/vfx/flame_volley_puff by tools/world-art/port-hunt-sim.mjs: frames unscaled, anchor as the sim drew it."
+}

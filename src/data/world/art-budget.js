@@ -32,6 +32,10 @@ export const T = 32;
 export const TOLERANCE = 0.10;
 export const ATLAS_MAX = 2048;
 export const DIRS = Object.freeze(['s', 'e', 'n', 'w']);
+// Every facing a clip may carry: the four cardinals every unit has (DIRS), then the
+// four diagonals an 8-way walk adds. A source sheet lays its rows in THIS order,
+// skipping the facings a sidecar does not declare, so a four-facing sheet is unchanged.
+export const FACINGS = Object.freeze(['s', 'e', 'n', 'w', 'se', 'sw', 'ne', 'nw']);
 
 // Runtime ellipse: w = min(0.8 × footprint width × T, 1.1 × mass width), h = 0.35 w,
 // offset (+2, +2), all composited once at --world-shadow-alpha. Fliers' shadows sit
@@ -67,6 +71,11 @@ export const CLASSES = Object.freeze({
   roof: row({ body: [16, 256], measure: 'h', contact: 'raised', shadow: null, layer: 'roof' }),
   decal: row({ body: [2, 64], measure: 'max', raw: true, contact: 'flat', shadow: null, layer: 'decal' }),
   hanging: row({ body: [6, 40], measure: 'h', raw: true, contact: 'raised', shadow: null, layer: 'wall' }),
+  // A combat effect (a slash, a heal, a cast): one non-directional clip in its own cropped
+  // frame (the sidecar's `frame`), its anchor the point it centres on (the target's chest,
+  // a projectile's tip). It never touches the floor and casts no shadow; frames may be
+  // blank (an effect fades in and out). `blend` 'add' draws it additively (light), else over.
+  vfx: row({ body: [2, 72], measure: 'max', raw: true, contact: 'raised', shadow: null, layer: 'fx', blank: true }),
 });
 
 // Terrain is T×T, fully opaque. kind 'wang16': corner tiles keyed NW NE SW SE,
@@ -85,7 +94,8 @@ export const WANG_KEYS = Object.freeze(Array.from({ length: 16 }, (_, i) => i.to
 //                    overhang:[t,r,b,l], hover, height, contact:[x0,x1],
 //                    shadow: null | {kind:'ellipse', w, h, dx, dy}
 //                                 | {kind:'cast', height, base:[x0,x1]},
-//                    anims: { name: { fps, loop, hit?, dirs: { s|e|n|w: [[x,y], …] } } } } }
+//                    blend?: 'add' (vfx class: drawn additively),
+//                    anims: { name: { fps, loop, hit?, dirs: { s|e|n|w|se|sw|ne|nw: [[x,y], …] } } } } }
 //            Frame rects are [x, y] + the sprite's frame size. A non-directional
 //            sprite has only 's'; a renderer falls back to 's' for a missing dir.
 //            The anchor is the contact point: draw the frame at

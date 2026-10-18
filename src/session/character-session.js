@@ -19,6 +19,7 @@
 //   leaveHunt()        the leave INTENT (hr_hunt_leave), re-read the same way
 //   timeline           the settle responses' visual timeline (src/hunt-view/
 //                      timeline.js): tracks and events, never the record
+//   now()              the display clock the timeline plays on
 //   subscribe(fn)      fn(session, why) after every applied change
 //   close()            leave the topic, cancel timers, forget the record
 //
@@ -88,6 +89,9 @@ export class CharacterSession {
     this.timeline = createTimeline();
     this.receivedAt = null;
   }
+
+  /** The display clock (ms) this character's timeline plays on: every view of it reads this one. */
+  now() { return this._now(); }
 
   /** The frozen record { version, data, residue }, or null before the first answer. */
   get record() { return this._record; }

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // tools/world-art/port-hunt-sim.mjs — the hunt sim's walk cycles → world-art sources.
 //
-//   node tools/world-art/port-hunt-sim.mjs            write art/world/hunt/<id>.{png,json}
+//   node tools/world-art/port-hunt-sim.mjs            write art/world/hunt/<id>.{png,json} and art/world/vfx/<id>.{png,json}
 //   node tools/world-art/port-hunt-sim.mjs --report   measure what the port would produce; write nothing
 //
 // The sim's art (prototypes/hunt-sim-assets, PixelLab style-1, 48x48 frames, 8 facings,
@@ -9,7 +9,7 @@
 // the sim code: each unit becomes one source sheet + sidecar in the world-art format
 // (tools/world-art/build.mjs), so the normal pipeline locks it to the palette, checks it
 // against the budget (src/data/world/art-budget.js) and packs a versioned atlas.
-//   - facings: the pipeline's four (s, e, n, w) out of the sim's eight
+//   - facings: all eight of the sim's (the pipeline's FACINGS: s, e, n, w, then the diagonals)
 //   - anims: idle (the sim's one idle frame per facing, where it has one) and walk
 //   - the frame is the class frame; the sim's foot anchor is moved onto the class anchor
 //     by whole pixels (no scaling: ART_DIRECTION §2, integer scales only)
@@ -17,13 +17,17 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { decodePNG, encodePNG, createImage, blit } from './png.mjs';
-import { CLASSES, DIRS } from '../../src/data/world/art-budget.js';
+import { CLASSES, FACINGS } from '../../src/data/world/art-budget.js';
 import { ROOT } from './build.mjs';
 import { isMain } from '../../tests/_is-main.mjs';
 
 const SRC = 'prototypes/hunt-sim-assets';
 const OUT = 'art/world/hunt';
-const FACING = Object.freeze({ s: 'south', e: 'east', n: 'north', w: 'west' });
+const VFX_SRC = 'prototypes/hunt-sim-assets/vfx';
+const VFX_OUT = 'art/world/vfx';
+/* An effect's world sprite id: its sim name under the fx_ prefix, so no effect can collide with a prop. */
+export const vfxId = (name) => 'fx_' + name;
+const FACING = Object.freeze({ s: 'south', e: 'east', n: 'north', w: 'west', se: 'south-east', sw: 'south-west', ne: 'north-east', nw: 'north-west' });
 
 /* sim unit id → { id: world sprite id, class }. Heroes are outfits (a role comes from the weapon). */
 export const UNITS = Object.freeze({
@@ -31,6 +35,9 @@ export const UNITS = Object.freeze({
   ranger: { id: 'outfit_ranger', class: 'character' },
   sorcerer: { id: 'outfit_sorcerer', class: 'character' },
   berserker: { id: 'outfit_berserker', class: 'character' },
+  witch: { id: 'outfit_witch', class: 'character' },
+  dawnward: { id: 'outfit_dawnward', class: 'character' },
+  brute: { id: 'outfit_brute', class: 'character' },
   rat_king: { id: 'rat_king', class: 'beast' },
 });
 
@@ -66,7 +73,7 @@ export function portUnit(simId, manifest) {
   const dx = ax - sx, dy = ay - sy;
   const flier = row.class === 'flier';
   const walk = {}, idle = {};
-  for (const d of DIRS) {
+  for (const d of FACINGS) {
     const list = u.directions[FACING[d]];
     if (!list || !list.length) return { error: simId + ': no ' + FACING[d] + ' walk' };
     walk[d] = list;
@@ -74,12 +81,12 @@ export function portUnit(simId, manifest) {
     idle[d] = existsSync(join(ROOT, SRC, ip)) ? [ip] : [list[0]];
   }
   const anims = [{ name: 'idle', fps: 5, loop: true, frames: idle }, { name: 'walk', fps: u.fps || 10, loop: true, frames: walk }];
-  const rows = anims.length * DIRS.length;
-  const cols = Math.max(...anims.map((a) => Math.max(...DIRS.map((d) => a.frames[d].length))));
+  const rows = anims.length * FACINGS.length;
+  const cols = Math.max(...anims.map((a) => Math.max(...FACINGS.map((d) => a.frames[d].length))));
   const sheet = createImage(cols * fw, rows * fh);
   let r = 0;
   for (const a of anims) {
-    for (const d of DIRS) {
+    for (const d of FACINGS) {
       /* One vertical offset per (anim, facing): the clip's lowest foot lands on the anchor
          row (VW-12, the lowest-opaque-row fallback), so a walk keeps its bob above it. */
       const imgs = a.frames[d].map(load);
@@ -96,8 +103,32 @@ export function portUnit(simId, manifest) {
   const sidecar = {
     id: row.id, class: row.class, material: 'unit', source: row.id + '.png', anchor_px: [ax, ay], footprint: [1, 1],
     ...(row.class === 'flier' ? { hover_px: Math.max(cls.hover[0], Math.min(cls.hover[1], ay - sy - 0)) } : {}),
-    anims: anims.map((a) => ({ name: a.name, fps: a.fps, loop: a.loop, dirs: Object.fromEntries(DIRS.map((d) => [d, a.frames[d].length])) })),
-    notes: 'Ported from ' + SRC + '/' + simId + ' (PixelLab style-1, ' + manifest.generated + ') by tools/world-art/port-hunt-sim.mjs: four of eight facings, foot anchor moved onto the class anchor by whole pixels.',
+    anims: anims.map((a) => ({ name: a.name, fps: a.fps, loop: a.loop, dirs: Object.fromEntries(FACINGS.map((d) => [d, a.frames[d].length])) })),
+    notes: 'Ported from ' + SRC + '/' + simId + ' (PixelLab style-1, ' + manifest.generated + ') by tools/world-art/port-hunt-sim.mjs: eight facings, foot anchor moved onto the class anchor by whole pixels.',
+  };
+  return { sheet, sidecar };
+}
+
+/**
+ * One sim effect (vfx/manifest.json row) as { sheet, sidecar }, or { error }. The frames are
+ * already cropped to one union box and share the manifest anchor, so the sheet is the
+ * frames left to right, unscaled; the clip is non-directional ('s' only).
+ */
+export function portVfx(name, e) {
+  if (!e || !Array.isArray(e.frames) || !e.frames.length || !Array.isArray(e.size) || !Array.isArray(e.anchor)) return { error: name + ': not a vfx manifest row' };
+  const [fw, fh] = e.size;
+  const sheet = createImage(fw * e.frames.length, fh);
+  for (let i = 0; i < e.frames.length; i++) {
+    const img = decodePNG(readFileSync(join(ROOT, VFX_SRC, e.frames[i])));
+    if (img.width !== fw || img.height !== fh) return { error: name + ': frame ' + i + ' is ' + img.width + 'x' + img.height + ', the row says ' + fw + 'x' + fh };
+    blit(sheet, img, 0, 0, fw, fh, i * fw, 0);
+  }
+  const id = vfxId(name);
+  const sidecar = {
+    id, class: 'vfx', material: 'light', source: id + '.png', frame: [fw, fh], anchor_px: [e.anchor[0], e.anchor[1]], footprint: [1, 1],
+    ...(e.additive ? { blend: 'add' } : {}),
+    anims: [{ name: 'play', fps: e.fps, loop: !!e.loop, dirs: { s: e.frames.length } }],
+    notes: 'Ported from ' + VFX_SRC + '/' + name + ' by tools/world-art/port-hunt-sim.mjs: frames unscaled, anchor as the sim drew it.',
   };
   return { sheet, sidecar };
 }
@@ -117,6 +148,17 @@ function main() {
       writeFileSync(join(ROOT, OUT, r.sidecar.id + '.json'), JSON.stringify(r.sidecar, null, 2) + '\n');
     }
     console.log('  ✓ ' + simId + ' → ' + r.sidecar.id + ' (' + r.sidecar.class + ', ' + r.sheet.width + 'x' + r.sheet.height + ')');
+  }
+  const fx = JSON.parse(readFileSync(join(ROOT, VFX_SRC, 'manifest.json'), 'utf8')).effects || {};
+  if (!report && !only) mkdirSync(join(ROOT, VFX_OUT), { recursive: true });
+  for (const name of only ? [] : Object.keys(fx).sort()) {
+    const r = portVfx(name, fx[name]);
+    if (r.error) { console.log('  ✗ ' + r.error); bad++; continue; }
+    if (!report) {
+      writeFileSync(join(ROOT, VFX_OUT, r.sidecar.source), encodePNG(r.sheet));
+      writeFileSync(join(ROOT, VFX_OUT, r.sidecar.id + '.json'), JSON.stringify(r.sidecar, null, 2) + '\n');
+    }
+    console.log('  ✓ vfx ' + name + ' → ' + r.sidecar.id + ' (' + r.sheet.width + 'x' + r.sheet.height + ')');
   }
   process.exit(bad ? 1 : 0);
 }

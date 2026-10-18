@@ -39,6 +39,7 @@ const STEPS = [
   ['node', ['tests/session-core.mjs']],
   ['node', ['tests/session-core.mjs', '--mutate']],
   ['node', ['tests/hunt-view-core.mjs']],
+  ['node', ['tests/hunt-scene.mjs']],
   ['node', ['tests/client-intent-surface.mjs']],
   ['node', ['tests/patch-chain-guard.mjs']],
   ['node', ['tests/no-client-xp-mint.mjs']],

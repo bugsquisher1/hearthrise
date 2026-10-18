@@ -16,7 +16,8 @@
 //   contact       too little of the sprite rests on the floor (it floats)
 //   iso-corner    the sprite is drawn corner-on (isometric), not top-down
 //   feet / hover  a unit frame leaves the shared anchor / a flier is not hovering
-//   empty         a frame with no pixels
+//   empty         a frame with no pixels (a class with `blank` may fade through
+//                 empty frames, never be empty in all of them)
 import { CLASSES, TOLERANCE, T, WANG_KEYS, ATLAS_MAX } from '../../src/data/world/art-budget.js';
 import { inPalette } from './lock.mjs';
 import { measureFrame, countBelow, contactSpans, isoCorner } from './measure.mjs';
@@ -77,12 +78,13 @@ export function validateSprite(sp) {
     colourFindings(id, f, out);
     const m = measureFrame(f.img);
     meas.set(f, m);
-    if (m.empty) { out.push({ rule: 'empty', id, detail: `${label(f)} has no pixels` }); continue; }
+    if (m.empty) { if (!cls.blank) out.push({ rule: 'empty', id, detail: `${label(f)} has no pixels` }); continue; }
     if (cls.contact !== 'raised') {
       const below = countBelow(m.mask, f.img.width, f.img.height, ay + over[2]);
       if (below) out.push({ rule: 'below-anchor', id, detail: `${label(f)}: ${below} pixels below the contact row ${ay}${over[2] ? ` + overhang ${over[2]}` : ''} (a baked shadow or ground patch)` });
     }
   }
+  if (cls.blank && sp.frames.every((f) => meas.get(f).empty)) out.push({ rule: 'empty', id, detail: 'every frame is blank' });
   const refs = referenceFrames(sp.frames).filter((f) => !meas.get(f).empty);
   if (!refs.length) return out;
 

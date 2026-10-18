@@ -1,0 +1,29 @@
+{
+  "id": "fx_monster_death_poof",
+  "class": "vfx",
+  "material": "light",
+  "source": "fx_monster_death_poof.png",
+  "frame": [
+    23,
+    18
+  ],
+  "anchor_px": [
+    12,
+    11
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "play",
+      "fps": 10,
+      "loop": false,
+      "dirs": {
+        "s": 8
+      }
+    }
+  ],
+  "notes": "Ported from prototypes/hunt-sim-assets/vfx/monster_death_poof by tools/world-art/port-hunt-sim.mjs: frames unscaled, anchor as the sim drew it."
+}

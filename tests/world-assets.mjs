@@ -24,14 +24,16 @@
 // an atlas cannot be hand-edited past the pipeline (tools/world-art/build.mjs).
 //
 // The content contract the world renderer builds against is pinned too: the hero
-// idles, walks and attacks in four directions; rat, slime and hive wasp walk,
+// idles, walks and attacks in four directions; the hunt outfits and the Rat King
+// idle and walk in all eight; rat, slime and hive wasp walk,
 // attack, flinch and leave a corpse in four; the town has its four stations and
 // its crier, the house one piece per room, and each set its floor.
 //
 // --selftest plants the five defects the feedback named into REAL shipped sprites
 // — a floated chest, a 50 px hero, an off-palette pixel, a baked shadow, an
 // isometric-corner chest — plus an edited atlas pixel (drift), and requires each
-// to be caught BY ITS NAMED RULE; the clean sprites and a palette-preserving
+// to be caught BY ITS NAMED RULE (and an all-blank effect by [empty]: an effect may
+// fade through blank frames, never be blank in all of them); the clean sprites and a palette-preserving
 // recolour must stay silent (a guard red on clean art proves nothing).
 //
 // mutant-anchors: assets/world/ art/world/ tools/world-art/ src/data/world/
@@ -45,7 +47,7 @@ import { decodePNG, encodePNG, pixelHash, cloneImage, createImage, blit, scaleNe
 import { validateSprite, validateTerrain, validateAtlasSize, referenceFrames, bodyOf } from '../tools/world-art/validate.mjs';
 import { measureFrame } from '../tools/world-art/measure.mjs';
 import { ROOT, ART_DIR, OUT_DIR, checkAll, spriteFromAtlas, terrainFromAtlas } from '../tools/world-art/build.mjs';
-import { CLASSES, MANIFEST_VERSION } from '../src/data/world/art-budget.js';
+import { CLASSES, MANIFEST_VERSION, FACINGS } from '../src/data/world/art-budget.js';
 import { PALETTE_ID } from '../tools/world-art/palette.mjs';
 
 // What the hunt (W3) and the town/home scenes (W4) are built against. A prop needs
@@ -72,6 +74,10 @@ const REQUIRED = {
   workbench: { set: 'home', class: 'station', anims: ['idle'], dirs: PROP },
   altar: { set: 'home', class: 'fixture', anims: ['idle'], dirs: PROP },
   bed: { set: 'home', class: 'bed', anims: ['idle'], dirs: PROP },
+  // the live hunt (src/hunt-view/scene.js): every outfit and the Rat King walk in all eight facings
+  ...Object.fromEntries(['outfit_knight', 'outfit_berserker', 'outfit_brute', 'outfit_ranger', 'outfit_sorcerer', 'outfit_witch', 'outfit_dawnward']
+    .map((id) => [id, { set: 'hunt', class: 'character', anims: ['idle', 'walk'], dirs: FACINGS }])),
+  rat_king: { set: 'hunt', class: 'beast', anims: ['idle', 'walk'], dirs: FACINGS },
 };
 const REQUIRED_TERRAIN = { cellar_earth: 'cellar', town_ground: 'town', plank_floor: 'home' };
 
@@ -185,10 +191,10 @@ function selftest(atlases) {
     for (const { manifest: m, atlas } of atlases) for (const [id, s] of Object.entries(m.sprites)) if (s.class === cls) return spriteFromAtlas(m, atlas, id);
     return null;
   };
-  const chest = find('box'), hero = find('character');
-  if (!chest || !hero) { console.error('world-assets --selftest: harness — needs a shipped box-class sprite and a character'); process.exit(2); }
+  const chest = find('box'), hero = find('character'), fx = find('vfx');
+  if (!chest || !hero || !fx) { console.error('world-assets --selftest: harness — needs a shipped box-class sprite, a character and a vfx'); process.exit(2); }
   const ay = chest.anchor[1];
-  const controls = [['clean chest', chest], ['clean hero', hero],
+  const controls = [['clean chest', chest], ['clean hero', hero], ['clean effect (blank frames allowed)', mapFrames(fx, (img, f) => (f.i === 0 ? createImage(img.width, img.height) : img))],
     ['palette-preserving recolour', mapFrames(chest, (img) => recolourOne(img, hex('#0b0a0c')))]];
   for (const [name, sp] of controls) {
     const f = validateSprite(sp);
@@ -200,6 +206,7 @@ function selftest(atlases) {
     ['off-palette pixel', 'palette', mapFrames(chest, (img) => recolourOne(img, hex('#ff00ff')))],
     ['baked shadow under the chest', 'below-anchor', mapFrames(chest, (img) => bakeShadow(img, ay))],
     ['isometric-corner chest', 'iso-corner', mapFrames(chest, (img) => isoCorner(img))],
+    ['an effect with every frame blank', 'empty', mapFrames(fx, (img) => createImage(img.width, img.height))],
   ];
   let escaped = 0;
   for (const [name, rule, sp] of mutants) {
@@ -223,7 +230,7 @@ function selftest(atlases) {
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
-  console.log(escaped ? `world-assets --selftest: RED — ${escaped} planted defect(s) escaped` : `world-assets --selftest: all 6 planted defects caught; ${controls.length} clean controls silent`);
+  console.log(escaped ? `world-assets --selftest: RED — ${escaped} planted defect(s) escaped` : `world-assets --selftest: all ${mutants.length + 1} planted defects caught; ${controls.length} clean controls silent`);
   process.exit(escaped ? 1 : 0);
 }
 

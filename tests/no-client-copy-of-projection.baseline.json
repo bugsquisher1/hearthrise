@@ -1,6 +1,7 @@
 {
   "projection": {
     "top": [
+      "account",
       "bank",
       "bounty",
       "buffs",

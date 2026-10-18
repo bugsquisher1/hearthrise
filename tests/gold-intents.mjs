@@ -1315,7 +1315,8 @@ async function run(mutate) {
     const { ITEMS } = await import('../src/data/items.js');
     /* PRODUCTION'S hr_items is the FORWARD catalogue's delete+insert (gen-catalogues OUT),
        not the frozen 08-11 root this slice boots; its rows are loaded into a temp copy. */
-    const fwd = await readFile(join(ROOT, 'supabase', 'migrations', '2026-10-24-sewer-catalogue.generated.sql'), 'utf8');
+    const { CATALOGUE_SQL: FWD } = await import('./items-catalogue.mjs');
+    const fwd = await readFile(join(ROOT, FWD), 'utf8');
     const at = fwd.indexOf('insert into public.hr_items ');
     const stmt = at < 0 ? '' : fwd.slice(at, fwd.indexOf(';\n', at) + 1);
     await db.exec('create temp table g16_items (like public.hr_items including defaults)');

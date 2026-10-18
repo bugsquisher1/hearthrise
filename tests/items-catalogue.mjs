@@ -40,11 +40,29 @@
 // ============================================================================
 
 import { readFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { join, normalize } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
-export const CATALOGUE_SQL = join('supabase', 'migrations', '2026-08-11-catalogue.generated.sql');
+/* THE CATALOGUE THE CHAIN ENDS WITH. Every generated catalogue replaces hr_items whole
+   (`delete from public.hr_items;` then the insert), so the server's item allowlist is the LAST
+   such file in tests/schema-apply-order.json. Until 2026-10-18 this read the frozen 08-11 root and
+   went red on the first item a forward catalogue added (crown_shard, iron_bolts,
+   oak_practice_blade); gold-intents G16 had the same hard-coded name. '' (no such file) is read
+   as unreadable, which the guard reports, never as green. */
+export function lastItemsCatalogue(root = ROOT) {
+  const order = JSON.parse(readFileSync(join(root, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+  let last = '';
+  for (const file of order) {
+    const rel = join('supabase', 'migrations', file);
+    let text = '';
+    try { text = readFileSync(join(root, rel), 'utf8'); } catch { continue; }
+    if (text.includes('delete from public.hr_items;') && text.includes('insert into public.hr_items (')) last = rel;
+  }
+  return last;
+}
+export const CATALOGUE_SQL = lastItemsCatalogue();
 
 /**
  * The item ids the generated migration actually INSERTS into hr_items.
@@ -116,7 +134,7 @@ export async function itemsCatalogueGuard(opts) {
       + '. Under the absolute envelope (live-settlement.md §5.3) an item the server does not know is '
       + 'OMITTED from every envelope, and omission means zero — so the first settle after any player picks '
       + 'one up DELETES IT FROM THEIR BAG. Regenerate with `node tools/gen-catalogues.mjs --write` and '
-      + 're-apply supabase/migrations/2026-08-11-catalogue.generated.sql BEFORE this build reaches clients.');
+      + `apply ${CATALOGUE_SQL} BEFORE this build reaches clients.`);
   }
   return {
     problems,

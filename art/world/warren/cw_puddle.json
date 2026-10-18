@@ -1,0 +1,35 @@
+{
+  "id": "cw_puddle",
+  "class": "decal",
+  "style": "s1",
+  "material": "stone",
+  "source": "cw_puddle.png",
+  "frame": [
+    32,
+    32
+  ],
+  "anchor_px": [
+    16,
+    31
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "3a99e5cf-1abe-4a40-bf4d-c7782d785cd4",
+    "name": "S1 cw_puddle"
+  },
+  "notes": "Ported from PixelLab object 3a99e5cf-1abe-4a40-bf4d-c7782d785cd4 (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

@@ -97,6 +97,18 @@ export default Object.freeze({
     /* P5 Fern Hollow */
     { id: 'mb_fern', x: 6, y: 28 }, { id: 'mb_fern', x: 18, y: 30 }, { id: 'mb_fern', x: 14, y: 37 }, { id: 'mushrooms', x: 5, y: 34 },
     { id: 'mb_fallen_log', x: 16, y: 28 }, { id: 'mb_flowers', x: 12, y: 36 },
+    /* the edge scatter: trees and undergrowth along the thicket */
+    { id: 'bush', x: 14, y: 1 }, { id: 'bush', x: 18, y: 1 }, { id: 'bush', x: 9, y: 2 }, { id: 'pine', x: 46, y: 2 },
+    { id: 'bush', x: 20, y: 7 }, { id: 'rocks', x: 38, y: 7 }, { id: 'pine', x: 57, y: 9 }, { id: 'bush', x: 42, y: 11 },
+    { id: 'oak', x: 45, y: 11 }, { id: 'rocks', x: 50, y: 15 }, { id: 'rocks', x: 20, y: 17 }, { id: 'pine', x: 36, y: 20 },
+    { id: 'oak', x: 57, y: 21 }, { id: 'rocks', x: 45, y: 24 }, { id: 'bush', x: 6, y: 27 }, { id: 'rocks', x: 16, y: 27 },
+    { id: 'pine', x: 44, y: 28 }, { id: 'oak', x: 52, y: 28 }, { id: 'pine', x: 38, y: 34 }, { id: 'rocks', x: 10, y: 37 },
+    { id: 'oak', x: 45, y: 37 }, { id: 'rocks', x: 15, y: 38 }, { id: 'bush', x: 51, y: 38 },
+    /* the edge scatter: flowers, leaves and ferns in the grass */
+    { id: 'mb_flowers', x: 53, y: 2 }, { id: 'mb_flowers', x: 21, y: 3 }, { id: 'mb_flowers', x: 41, y: 3 }, { id: 'mb_leaf_litter', x: 46, y: 5 },
+    { id: 'mb_leaf_litter', x: 55, y: 6 }, { id: 'mb_flowers', x: 9, y: 7 }, { id: 'mb_fern', x: 44, y: 10 }, { id: 'mb_fern', x: 49, y: 17 },
+    { id: 'mb_fern', x: 38, y: 20 }, { id: 'mb_fern', x: 50, y: 20 }, { id: 'mb_flowers', x: 7, y: 21 }, { id: 'mb_flowers', x: 6, y: 34 },
+    { id: 'mb_fern', x: 50, y: 36 }, { id: 'mb_flowers', x: 52, y: 37 },
   ]),
   buildings: Object.freeze([]),
   path: Object.freeze([[7, 17], [11, 17], [11, 21], [7, 21]]),
@@ -111,5 +123,5 @@ export default Object.freeze({
   stations: Object.freeze({}),
   exits: Object.freeze([{ x: 0, y: 19, to: 'town_common' }]),
   start: Object.freeze([1, 19]),
-  maskHash: '23eb55a7',
+  maskHash: '7244ac16',
 });

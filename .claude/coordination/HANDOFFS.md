@@ -3351,3 +3351,20 @@ art/world/sewer/ -> atlas-sewer from the PixelLab kit (docs/design/PIXELLAB_STYL
 b342fc89 (floor/wall), water e0c9621c, wall torch 55753820, rat nest bde80354, bones 2e4f8622, bridge 61da1673,
 barrels 5e8f62c3, moss decal 3ae7a8a6. Then swap only `ground` and object ids in the map row (never the grid,
 L-HASH pins it). Walk art per monster: src/data/monster-art.js HUNT_WALK_ART -> prototypes/hunt-sim-assets.
+
+## 2026-10-18 · game-designer -> systems-engineer + backend (gathering, density) · two new walked grounds (lane/hunts-forest-cave)
+meadowbrook_thicket (wood, band 5-15, 2 seats) and coppercap_warrens (ore, band 32-50, 4 seats) ship as data in
+src/data/hunt-grounds.js. INERT until the engine reads them; today's engine spawns each pocket's `spawns` only.
+(1) DENSITY SLIDER: `density {solo, perHero, max:8}`; the level IS the pull size. densityCapFor(ground, n) is the
+cap; packAt(ground, p, L) is the pack (pocket.pack[0..L), 8 rows on the ring round `pocket.pull`; the tank stands
+on `pull`, 3x3 clear, guarded). spawnPack must read packAt, and the settle's kill bound (gen-hunt-sessions
+hr_hunt_ground_spawns counts `p.spawns`) must count the FULL pack or a level-8 pull is refused.
+(2) GATHER SLIDER: `gather {refKillMs, shares:[0,250,500,750] permille, nodes:[{id,node,x,y,pocket}]}`;
+gatherNodesOf(ground) resolves GROUND_NODE_KINDS {skill, tier, tool:{skill, required:false}, charges, respawnMs,
+sprite, spent}. Spec gap = refKillMs x s/(1-s); node req/xp/ms/product stay in gathering.js. The node tiles are
+props on the map (they block a step client-side; the server grid ignores props, hunt-ground.js open item).
+(3) Monsters cannot shoot: the workbook's Goblin Archer waits on monster ranged attacks (shipped as a melee Skulker).
+(4) Regens for the integrator: gen-hunts, gen-hunt-sessions (grounds + kill bounds, the cellar's new Hive Wasp),
+gen-catalogues (10 monsters; hunterAll 119 -> 129 in SQL), then pack-edge (the edge imports the maps and grounds).
+(5) terrain.js OPEN_CLASSES gains 'span': the Sewer's grate bridge was sealing its own 1-tile choke in the client
+mask (sewer maskHash ad6e51f5 -> cb4d8232); the server grid never saw props, so no server behaviour moved.

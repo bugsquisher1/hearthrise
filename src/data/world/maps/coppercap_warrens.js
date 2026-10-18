@@ -98,6 +98,16 @@ export default Object.freeze({
     { id: 'corner_rubble', x: 26, y: 26 }, { id: 'mushrooms', x: 31, y: 34 }, { id: 'exposed_dirt', x: 33, y: 31 },
     /* P5 the Chief's Hall: the cart at the ramp foot, his throne between the gold */
     { id: 'cw_mine_cart', x: 6, y: 26 }, { id: 'cw_throne', x: 2, y: 32 }, { id: 'cw_copper_pots', x: 12, y: 27 }, { id: 'bones', x: 6, y: 36 },
+    /* the floor scatter: stalagmites and spoil along the walls */
+    { id: 'sack_pile', x: 51, y: 3 }, { id: 'cw_stalagmite', x: 36, y: 5 }, { id: 'cw_stalagmite', x: 54, y: 5 }, { id: 'cw_stalagmite', x: 11, y: 6 },
+    { id: 'cw_stalagmite', x: 31, y: 8 }, { id: 'cw_stalagmite', x: 26, y: 11 }, { id: 'cw_stalagmite', x: 7, y: 12 }, { id: 'cw_stalagmite', x: 56, y: 15 },
+    { id: 'cw_stalagmite', x: 47, y: 25 }, { id: 'cw_stalagmite', x: 11, y: 26 }, { id: 'cw_stalagmite', x: 14, y: 29 }, { id: 'cw_stalagmite', x: 31, y: 29 },
+    { id: 'sack_pile', x: 48, y: 30 }, { id: 'cw_stalagmite', x: 14, y: 34 }, { id: 'sack_pile', x: 35, y: 35 }, { id: 'cw_stalagmite', x: 9, y: 36 },
+    { id: 'cw_stalagmite', x: 28, y: 36 }, { id: 'cw_stalagmite', x: 32, y: 36 },
+    /* the floor scatter: rubble, seep puddles and copper stains */
+    { id: 'cw_rubble', x: 9, y: 7 }, { id: 'cw_puddle', x: 19, y: 10 }, { id: 'cw_puddle', x: 37, y: 12 }, { id: 'cw_puddle', x: 49, y: 12 },
+    { id: 'cw_puddle', x: 52, y: 15 }, { id: 'cw_ore_stain', x: 49, y: 17 }, { id: 'cw_rubble', x: 56, y: 17 }, { id: 'cw_puddle', x: 52, y: 27 },
+    { id: 'cw_ore_stain', x: 13, y: 29 }, { id: 'cw_puddle', x: 34, y: 29 }, { id: 'cw_rubble', x: 6, y: 34 }, { id: 'cw_ore_stain', x: 50, y: 36 },
   ]),
   buildings: Object.freeze([]),
   path: Object.freeze([[27, 9], [31, 9], [31, 11], [27, 11]]),
@@ -112,5 +122,5 @@ export default Object.freeze({
   stations: Object.freeze({}),
   exits: Object.freeze([{ x: 9, y: 0, to: 'town_common' }]),
   start: Object.freeze([9, 1]),
-  maskHash: '41807174',
+  maskHash: 'cdf4eb8a',
 });

@@ -1,0 +1,35 @@
+{
+  "id": "cw_stalagmite",
+  "class": "bulky",
+  "style": "s1",
+  "material": "stone",
+  "source": "cw_stalagmite.png",
+  "frame": [
+    32,
+    39
+  ],
+  "anchor_px": [
+    16,
+    38
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "c088c353-0132-45e8-9b53-9530c1817e2f",
+    "name": "S1 cw_stalagmite"
+  },
+  "notes": "Ported from PixelLab object c088c353-0132-45e8-9b53-9530c1817e2f (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

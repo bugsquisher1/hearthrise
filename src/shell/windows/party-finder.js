@@ -21,10 +21,14 @@ import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.0';
 
 const SCRATCH = new WeakMap();
 
-/** The Party window's scratch for one character: the intent in flight and the finder's last answer. */
+/**
+ * The Party window's scratch for one character: the intent in flight, the
+ * finder's last answer, and `hunt`, a ground another window asked "Make a
+ * party" to start on (applied once, then the player's own pick wins).
+ */
 export function partyScratch(cs) {
   let s = SCRATCH.get(cs);
-  if (!s) { s = { pending: false, msg: '', found: null, findMsg: '', weapon: undefined }; SCRATCH.set(cs, s); }
+  if (!s) { s = { pending: false, msg: '', found: null, findMsg: '', weapon: undefined, hunt: null }; SCRATCH.set(cs, s); }
   return s;
 }
 

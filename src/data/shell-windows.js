@@ -17,19 +17,26 @@
 //   launcher false keeps a window off the icon row (reached from another window)
 //   escape   true on at most one row: Esc with nothing open opens it (Settings)
 //
-// The rest of the spec's catalogue (Homestead H, Bestiary L, Market M) lands
+// The rest of the spec's catalogue (Homestead, Bestiary L, Market M) lands
 // with its renderer: a launcher never opens a window that does not exist yet
-// (§1). Chat opens on its Combat tab. Hunt prep and Find are reached from the
-// launcher row too: one gesture from anywhere, never buried in another window.
+// (§1). Chat opens on its Combat tab.
+//
+// Tyler's first playtest (10-18) shaped the row: Hunts comes first (going
+// hunting must be obvious from the first minute; a hunt's door in the World
+// opens it too); the bag and the gear are ONE Inventory window (the paper doll
+// beside the item grid); the skills are two windows, combat and the rest, so
+// neither scrolls; Storage is reachable anywhere; and finding an item is the
+// search inside Inventory and Storage, not a window of its own.
 // ════════════════════════════════════════════════════════════════════════
 
 export const SHELL_WINDOWS = Object.freeze([
-  Object.freeze({ id: 'bag', label: 'Bag', key: 'b', glyph: 'navInventory', width: 420, object: 'satchel' }),
-  Object.freeze({ id: 'gear', label: 'Gear', key: 'c', glyph: 'navCharacter', width: 380, object: 'doll' }),
-  Object.freeze({ id: 'skills', label: 'Skills', key: 'k', glyph: 'navSkills', width: 380, object: 'ledger' }),
+  Object.freeze({ id: 'hunts', label: 'Hunts', key: 'h', glyph: 'uiMap', width: 440, object: 'plain' }),
+  Object.freeze({ id: 'inventory', label: 'Inventory', key: 'b', glyph: 'navInventory', width: 452, object: 'satchel' }),
+  Object.freeze({ id: 'skills-combat', label: 'Combat skills', key: 'k', glyph: 'navCombat', width: 380, object: 'ledger' }),
+  Object.freeze({ id: 'skills-trade', label: 'Gathering and crafting', key: 'g', glyph: 'uiPickaxe', width: 380, object: 'ledger' }),
+  Object.freeze({ id: 'storage', label: 'Storage', key: 't', glyph: 'uiChest', width: 452, object: 'satchel' }),
   Object.freeze({ id: 'shop', label: 'Shop', key: 'v', glyph: 'navStore', width: 420, object: 'ledger' }),
   Object.freeze({ id: 'hunt-prep', label: 'Hunt prep', key: 'p', glyph: 'uiCheck', width: 420, object: 'plain' }),
-  Object.freeze({ id: 'find', label: 'Find an item', key: 'f', glyph: 'uiSearch', width: 380, object: 'plain' }),
   /* Week plan step 16 + QoL 3: the party, and every open character on one screen (opened from the
      character strip's "All characters", so it takes no launcher icon). */
   Object.freeze({ id: 'hunt-party', label: 'Party', key: 'y', glyph: 'uiPeople', width: 440, object: 'plain' }),

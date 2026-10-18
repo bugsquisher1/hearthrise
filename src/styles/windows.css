@@ -1,18 +1,16 @@
 /* ══════════════════════════════════════════════════════════════════════════
-   src/styles/windows.css — the alpha windows: Bag (a satchel), Gear (a paper
-   doll), Skills and Shop (ledgers), Hunt prep and Find (WORLD_SHELL §4,
+   src/styles/windows.css — the alpha windows: Inventory (the paper doll beside
+   the bag), Storage, Hunts, Skills and Shop (ledgers), Hunt prep (WORLD_SHELL §4,
    ART_DIRECTION §7, §8, §9, §12). Tokens only, not one colour literal.
    Pockets and slots are SUNK into the window, never framed; gear pockets carry
    their rarity as a 2 px border plus rank pips (colour is never the only cue);
    the selection is a neutral --ink outline (gold is the primary action).
-   Icons render at the one density: 32 art px at ×2 = 64 px, pixelated.
+   Item icons render at ×1 in 36 px pockets (Tyler 10-18); ledgers keep 32 px.
    One text style (§10): --f-label headings, --f-ui body, never under --t-micro.
    ══════════════════════════════════════════════════════════════════════════ */
 
 /* ── The window objects ── */
 .hs-win { --hw-well: inset 2px 2px 0 color-mix(in srgb, var(--world-shadow) 70%, transparent), inset -1px -1px 0 color-mix(in srgb, var(--hl) 14%, transparent); }
-.hs-win.is-satchel { background: var(--sc-top-1); }
-.hs-win.is-satchel .hs-win-body { margin: 6px; padding: 8px 8px 10px; border: 1px dashed var(--sc-stitch); border-radius: var(--r); }
 .hs-win .hh-empty.is-on { display: block; margin: 8px 2px; font-size: var(--t-micro); }
 .hw-pane { display: none; }
 .hw-pane.is-on { display: block; }
@@ -68,18 +66,21 @@
 .hw-search .hs-glyph { width: 16px; height: 16px; }
 .hw-search .hw-q { flex: 1; width: auto; min-width: 0; border: 0; background: none; }
 
-/* ── The bag ── */
-.hw-bag { outline: none; }
-.hw-bag:focus-visible { outline: 1px dashed var(--aqua-2); outline-offset: 2px; }
+/* ── The item grid ── */
 .hw-find { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
 .hw-sort { display: flex; align-items: center; gap: 4px; font-size: var(--t-micro); color: var(--ink-3); }
 .hw-cats { display: flex; flex-wrap: wrap; margin-bottom: 8px; background: var(--bg-1); box-shadow: var(--hw-well); }
 .hw-cat { min-height: 30px; padding: 0 8px; border: 0; border-bottom: 2px solid transparent; background: none; font-family: var(--f-ui); font-weight: 700; font-size: var(--t-micro); color: var(--ink-2); cursor: pointer; }
 .hw-cat:hover { color: var(--ink); }
 .hw-cat[aria-pressed="true"] { color: var(--gold-2); background: var(--bg-3); border-bottom-color: var(--gold); }
-.hw-pockets { display: grid; grid-template-columns: repeat(auto-fill, 68px); gap: 4px; margin: 0; padding: 0; list-style: none; }
+/* Pockets and slots: 36 px, the 32 px pixel icon at ×1 inside a 2 px sunk rim (Tyler 10-18:
+   "the items are far too big"; Huntera-like density, our own iron and slate). */
+.hw-pockets { display: grid; grid-template-columns: repeat(auto-fill, 36px); gap: 2px; margin: 0; padding: 0; list-style: none; }
+.hw-pocket .hw-ico, .hw-slot .hw-ico { width: 32px; height: 32px; }
+.hw-pocket .hw-ico .hh-icon, .hw-slot .hw-ico .hh-icon { width: 32px; height: 32px; }
+.hw-pocket .hw-ico .hh-icon.is-glyph .hs-glyph, .hw-slot .hw-ico .hh-icon.is-glyph .hs-glyph { width: 20px; height: 20px; }
 .hw-pocket {
-  position: relative; width: 68px; height: 68px; padding: 2px;
+  position: relative; width: 36px; height: 36px; padding: 0;
   display: grid; place-items: center;
   background: var(--bg-1); box-shadow: var(--hw-well);
   border: 2px solid transparent; border-radius: 0;
@@ -88,8 +89,7 @@
 .hw-pocket:hover { background: var(--bg-2); }
 .hw-pocket:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 1px; }
 .hw-pocket.is-cur { outline: 2px solid var(--ink); outline-offset: 1px; }
-.hw-pocket[aria-selected="true"] { background: var(--gold-bg); }
-.hw-pocket[aria-selected="true"]::after { content: ''; position: absolute; left: 3px; top: 3px; width: 10px; height: 10px; border: 2px solid var(--ink); background: var(--gold); }
+.hw-pocket[aria-selected="true"] { background: var(--gold-bg); box-shadow: inset 0 0 0 2px var(--ink); }
 .hw-pocket.is-drop, .hw-slot.is-drop { border-color: var(--gold-2); }
 .rar-common { --pocket-rar: var(--rar-common); }
 .rar-uncommon { --pocket-rar: var(--rar-uncommon); }
@@ -100,21 +100,20 @@
 .rar-unique { --pocket-rar: var(--rar-unique); }
 .hw-pocket.is-gear, .hw-slot[class*="rar-"] { border-color: var(--pocket-rar, var(--line-soft)); }
 .hw-pocket.rar-mythic, .hw-pocket.rar-unique, .hw-slot.rar-mythic, .hw-slot.rar-unique { border-style: double; border-width: 3px; }
-.hw-pips { position: absolute; left: 4px; bottom: 3px; display: flex; gap: 2px; }
-.hw-pips i { width: 4px; height: 4px; background: var(--pocket-rar, var(--ink-3)); }
+.hw-pips { position: absolute; left: 1px; bottom: 1px; display: flex; gap: 1px; }
+.hw-pips i { width: 2px; height: 2px; background: var(--pocket-rar, var(--ink-3)); }
 .hw-count {
-  position: absolute; right: 4px; bottom: 2px;
+  position: absolute; right: 0; bottom: -1px;
   font-size: var(--t-micro); font-weight: 800; line-height: 1; font-variant-numeric: lining-nums tabular-nums; color: var(--ink);
-  paint-order: stroke fill; -webkit-text-stroke: 3px var(--bg-0);
+  paint-order: stroke fill; -webkit-text-stroke: 3px var(--bg-0); pointer-events: none;
 }
-.hw-new { display: none; position: absolute; left: 3px; top: 2px; font-style: normal; font-size: var(--t-micro); font-weight: 800; line-height: 1; color: var(--gold-2);
-  paint-order: stroke fill; -webkit-text-stroke: 3px var(--bg-0); }
+.hw-new { display: none; position: absolute; right: 1px; top: 1px; width: 6px; height: 6px; background: var(--gold-2); box-shadow: 0 0 0 1px var(--bg-0); }
 .hw-pocket.is-new .hw-new { display: block; }
 .hw-pocket[aria-selected="true"] .hw-new { display: none; }
-.hw-lock { display: none; position: absolute; right: 3px; top: 3px; color: var(--ink-2); }
-.hw-lock .hs-glyph { width: 14px; height: 14px; }
+.hw-lock { display: none; position: absolute; left: 1px; bottom: 3px; color: var(--ink-2); }
+.hw-lock .hs-glyph { width: 12px; height: 12px; }
 .hw-pocket.is-locked .hw-lock { display: block; }
-.hw-barkey { position: absolute; left: 4px; bottom: 2px; font-size: var(--t-micro); font-weight: 700; line-height: 1; color: var(--gold-2); paint-order: stroke fill; -webkit-text-stroke: 3px var(--bg-0); }
+.hw-barkey { position: absolute; left: 1px; top: -1px; font-size: var(--t-micro); font-weight: 700; line-height: 1; color: var(--gold-2); paint-order: stroke fill; -webkit-text-stroke: 3px var(--bg-0); }
 .hw-barkey:empty { display: none; }
 .hw-pick { display: none; align-items: center; gap: 8px; min-height: 56px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line-soft); }
 .hw-pick.is-on { display: flex; }
@@ -171,10 +170,33 @@
 .hw-tip-line { margin: 6px 0 0; }
 .hw-tip-line small { display: block; font-family: var(--f-label); font-weight: 700; letter-spacing: .04em; color: var(--ink-3); }
 
-/* ── The gear: a paper doll ── */
-.hw-doll { display: grid; grid-template-columns: 68px minmax(0, 1fr) 68px; grid-template-rows: repeat(4, 72px); gap: 4px 8px; }
+/* ── The Inventory (src/shell/windows/inventory/*): the doll beside the grid, one iron-and-slate window ── */
+.hw-inv { outline: none; }
+.hw-inv:focus-visible { outline: 1px dashed var(--aqua-2); outline-offset: 2px; }
+.hw-inv-cols { display: flex; align-items: flex-start; gap: 10px; }
+.hw-inv-grid { flex: 1; min-width: 0; min-height: 186px; padding: 4px; background: var(--surf-sunken); box-shadow: var(--hw-well); }
+.hw-cats.is-off, .hw-tools.is-off { display: none; }
+.hw-inv-foot { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: var(--t-micro); color: var(--ink-2); }
+.hw-capacity { display: none; flex: 1; min-width: 0; align-items: center; gap: 6px; }
+.hw-capacity.is-on { display: flex; }
+.hw-capbar { position: relative; flex: 1; height: 6px; background: var(--bg-1); box-shadow: var(--hw-well); }
+.hw-capfill { position: absolute; top: 0; left: 0; bottom: 0; width: 0; background: var(--gold-3); }
+.hw-capacity.is-full .hw-capfill { background: var(--red); }
+.hw-captext { font-size: var(--t-micro); white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
+.hw-adv-toggle { display: flex; align-items: center; gap: 4px; white-space: nowrap; cursor: pointer; }
+.hw-gold { margin-left: auto; color: var(--gold-2); font-weight: 800; white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
+.hw-tools .hw-value { margin-left: auto; font-size: var(--t-micro); color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; }
+.hw-elsewhere { display: none; margin-top: 6px; }
+.hw-elsewhere.is-on { display: block; }
+.hw-advanced { display: none; margin-top: 8px; padding-top: 4px; border-top: 1px solid var(--line-soft); }
+.hw-advanced.is-on { display: block; }
+.hw-imbue { display: none; }
+.hw-imbue.is-on { display: block; }
+
+/* The paper doll: three across, five down, in the shape of a body. */
+.hw-doll { flex: none; display: grid; grid-template-columns: repeat(3, 36px); grid-auto-rows: 36px; gap: 4px; padding: 4px; background: var(--surf-sunken); box-shadow: var(--hw-well); }
 .hw-slot {
-  position: relative; width: 68px; height: 68px; padding: 0;
+  position: relative; width: 36px; height: 36px; padding: 0;
   display: grid; place-items: center;
   background: var(--bg-1); box-shadow: var(--hw-well);
   border: 2px solid transparent; border-radius: 0; cursor: pointer;
@@ -183,35 +205,25 @@
 .hw-slot.is-empty { background: var(--bg-0); }
 .hw-slot:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 1px; }
 .hw-slot.is-open { outline: 2px solid var(--ink); outline-offset: 1px; }
-.hw-slot .hw-ico { position: absolute; top: 0; left: 0; width: 64px; height: 64px; }
-.hw-ghost { display: none; color: var(--ink-3); opacity: .4; margin-bottom: 12px; }
-.hw-ghost .hs-glyph { width: 28px; height: 28px; }
+.hw-ghost { display: none; color: var(--ink-3); opacity: .45; }
+.hw-ghost .hs-glyph { width: 18px; height: 18px; }
 .hw-slot.is-empty .hw-ghost { display: block; }
-.hw-slot-label { position: absolute; left: 0; right: 0; bottom: 3px; text-align: center; font-size: var(--t-micro); line-height: 1; color: var(--ink-3); opacity: 0; }
-.hw-slot.is-empty .hw-slot-label { opacity: .9; }
-.at-l1 { grid-area: 1 / 1; } .at-l2 { grid-area: 2 / 1; } .at-l3 { grid-area: 3 / 1; } .at-l4 { grid-area: 4 / 1; }
-.at-r1 { grid-area: 1 / 3; } .at-r2 { grid-area: 2 / 3; } .at-r3 { grid-area: 3 / 3; } .at-r4 { grid-area: 4 / 3; }
-/* Below the doll: the hands (weapon, offhand, ammo, belt), then the rings and the companion. */
-.hw-doll { grid-auto-rows: 72px; }
-.hw-doll .at-b1 { grid-area: 5 / 1; } .hw-doll .at-b2 { grid-area: 5 / 2; justify-self: start; } .hw-doll .at-b3 { grid-area: 5 / 2; justify-self: end; } .hw-doll .at-b4 { grid-area: 5 / 3; }
-.hw-doll .at-b5 { grid-area: 6 / 1; } .hw-doll .at-b6 { grid-area: 6 / 2; justify-self: center; } .hw-doll .at-b7 { grid-area: 6 / 3; }
-.hw-plinth { grid-area: 1 / 2 / 5 / 3; position: relative; align-self: stretch; border-radius: var(--r-lg); background: var(--panel-floor-1); overflow: visible; }
-.hw-hero { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); display: block; image-rendering: pixelated; background-repeat: no-repeat; }
-.hw-role { margin: 10px 2px 0; font-weight: 700; color: var(--ink); }
-.hw-totals { display: flex; justify-content: space-between; margin: 8px 2px 0; padding-top: 8px; border-top: 1px solid var(--line-soft); }
+.hw-slot.is-empty .hw-ico { display: none; }
+.hw-role { margin: 4px 2px 0; font-weight: 700; color: var(--ink); }
+.hw-totals { display: flex; justify-content: space-between; margin: 6px 2px 0; }
 .hw-totals div { display: flex; flex-direction: column; }
 .hw-totals dt { font-size: var(--t-micro); color: var(--ink-3); }
 .hw-totals dd { margin: 0; font-weight: 800; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
-.hw-slotline { display: none; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line-soft); }
+.hw-slotline { display: none; margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--line-soft); }
 .hw-slotline.is-on { display: block; }
 .hw-slothead { margin: 0 2px 4px; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
-.hw-worn { display: none; align-items: center; gap: 8px; min-height: 44px; }
+.hw-worn { display: none; align-items: center; gap: 8px; min-height: 40px; }
 .hw-worn.is-on { display: flex; }
-.hw-worn .hw-ico, .hw-fit .hw-ico { width: 40px; height: 40px; }
+.hw-worn .hw-ico, .hw-fit .hw-ico { width: 36px; height: 36px; }
 .hw-worn .hw-ico .hh-icon, .hw-fit .hw-ico .hh-icon { width: 32px; height: 32px; }
 .hw-worn-name { flex: 1; font-weight: 700; color: var(--ink); }
 .hw-fits { margin: 0; padding: 0; list-style: none; }
-.hw-fit { display: flex; align-items: center; gap: 8px; min-height: 48px; border-top: 1px solid var(--line-soft); }
+.hw-fit { display: flex; align-items: center; gap: 8px; min-height: 44px; border-top: 1px solid var(--line-soft); }
 .hw-fit-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .hw-fit-delta { font-size: var(--t-micro); font-weight: 700; color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
 .hw-fit-delta .is-gain { color: var(--green); }
@@ -219,22 +231,43 @@
 .hw-fit-need { font-size: var(--t-micro); color: var(--red); }
 .hw-fit-need:empty { display: none; }
 
-/* ── The skills: a ledger, one ruled line per skill ── */
-.hw-skill-group { margin-bottom: 6px; }
-.hw-skill-head { margin: 8px 2px 2px; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
-.hw-skill-list { margin: 0; padding: 0; list-style: none; }
-.hw-skill { display: flex; gap: 10px; padding: 6px 0; border-top: 1px solid var(--line-soft); }
-.hw-skill-glyph { width: 28px; flex: none; color: var(--ink-2); padding-top: 2px; }
-.hw-skill-glyph .hs-glyph { width: 22px; height: 22px; }
-.hw-skill-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-.hw-skill-top { display: flex; justify-content: space-between; gap: 8px; }
-.hw-skill-name { color: var(--ink); }
+/* ── Storage (src/shell/windows/storage.js): the same pockets, two grids ── */
+.hw-store .hw-pockets { min-height: 36px; padding: 4px; background: var(--surf-sunken); box-shadow: var(--hw-well); }
+.hw-store.is-off .hw-pocket { cursor: default; opacity: .6; }
+.hw-store-n { font-family: var(--f-ui); font-weight: 400; letter-spacing: 0; color: var(--ink-3); }
+.hw-store-note { margin: 0 2px 4px; }
+
+/* ── Hunts (src/shell/windows/hunts.js): one ruled line per ground; the picked one carries Enter ── */
+.hw-hunts-now { margin: 0 2px 6px; }
+.hw-hunt-list { margin: 0; padding: 0; list-style: none; }
+.hw-hunt { display: flex; align-items: flex-start; gap: 10px; padding: 8px 6px; border-top: 1px solid var(--line-soft); border-left: 2px solid transparent; cursor: pointer; }
+.hw-hunt:hover { background: var(--bg-1); }
+.hw-hunt.is-picked { border-left-color: var(--gold); background: var(--bg-1); }
+.hw-hunt-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.hw-hunt-name { color: var(--ink); }
+.hw-hunt-theme { font-size: var(--t-micro); color: var(--ink-2); line-height: 1.3; }
+.hw-hunt-band, .hw-hunt-facts { font-size: var(--t-micro); color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; }
+.hw-hunt-band.is-short { color: var(--red); }
+.hw-hunt-pack { font-size: var(--t-micro); color: var(--ink-2); }
+.hw-hunt-pack:empty { display: none; }
+.hw-hunt-do { flex: none; display: flex; flex-direction: column; align-items: stretch; gap: 4px; }
+.hw-hunt-do .hw-primary.is-on { display: inline-block; }
+
+/* ── The skills: two ledgers, two compact entries to a row ── */
+.hw-skill-group { margin-bottom: 2px; }
+.hw-skill-head { margin: 2px 2px 1px; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
+.hw-skill-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; margin: 0; padding: 0; list-style: none; }
+.hw-skill { min-width: 0; display: flex; flex-direction: column; gap: 1px; padding: 3px 0 4px; border-top: 1px solid var(--line-soft); }
+.hw-skill-top { display: flex; align-items: center; gap: 6px; }
+.hw-skill-glyph { flex: none; display: grid; place-items: center; width: 18px; color: var(--ink-2); }
+.hw-skill-glyph .hs-glyph { width: 16px; height: 16px; }
+.hw-skill-name { flex: 1; min-width: 0; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hw-skill-lv { color: var(--gold-2); font-variant-numeric: lining-nums tabular-nums; }
-.hw-skill-bar { position: relative; display: block; height: 6px; background: var(--bg-1); box-shadow: var(--hw-well); }
+.hw-skill-mid { display: flex; align-items: center; gap: 6px; }
+.hw-skill-bar { position: relative; display: block; flex: 1; min-width: 24px; height: 4px; background: var(--bg-1); box-shadow: var(--hw-well); }
 .hw-skill-fill { position: absolute; top: 0; left: 0; bottom: 0; width: 0; background: var(--gold-3); }
-.hw-skill-xp { font-size: var(--t-micro); color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; }
-.hw-skill-use { font-size: var(--t-micro); color: var(--ink-2); line-height: 1.3; }
-.hw-skill-next { font-size: var(--t-micro); color: var(--ink-3); }
+.hw-skill-xp { flex: none; }
+.hw-skill-xp, .hw-skill-next { font-size: var(--t-micro); line-height: 1.2; color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hw-skill-next:empty { display: none; }
 
 /* ── The shop and hunt prep ── */
@@ -257,12 +290,11 @@
 
 /* ── Phone, landscape: the one sheet; the same density, tighter rhythm ── */
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
-  .hs-win.is-satchel .hs-win-body { margin: 0; padding: 6px 8px 8px; border: 0; }
   .hw-keys { display: none; }
   .hw-tab { min-height: 36px; }
-  .hw-cat { min-height: 36px; }
+  .hw-cat { min-height: 36px; flex: none; }
+  .hw-cats { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
   .hw-mi { min-height: 40px; }
-  .hw-doll { grid-template-rows: repeat(4, 70px); grid-auto-rows: 70px; }
   .hw-tip { width: 240px; }
 }
 

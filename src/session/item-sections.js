@@ -12,7 +12,9 @@
 //   inventory  { item: qty }        the bag
 //   equipment  { equip_slot: item } the worn set
 //   skills     { skill: { xp, level } }
-//   state.gold
+//   state.gold, state.bank_cap (the bag's stack cap)
+//   bank       { item: qty }        the home storage (hr_bank_move)
+//   buffs      [{ type, magnitude, until, remaining_ms }]
 // What the alpha-windows server lane adds (CONFLICTS.md, 2026-10-18; the
 // fixture is tests/fixtures/alpha-envelope.json):
 //   bag_rules     { locked: [item], loot: { item: keep|sell|ignore }, restock: { item: n } }
@@ -142,4 +144,48 @@ export function presetsOf(cs) {
 export function roleOf(cs) {
   const r = read(cs, 'role');
   return isObj(r) && str(r.id, 32) ? { id: r.id, weapon: str(r.weapon) } : null;
+}
+
+/** `bank` (hr_state_of; written only by hr_bank_move): the home storage, [{ id, qty }], or null. */
+export function bankOf(cs) {
+  const b = read(cs, 'bank');
+  if (!isObj(b)) return null;
+  const items = [];
+  for (const [id, n] of Object.entries(b)) if (ID.test(id) && count(n) && n > 0) items.push({ id, qty: n });
+  return items;
+}
+
+/** `state.bank_cap`: how many stacks the bag holds (hr_apply's and hr_bank_move's bag fuse), or null. */
+export function bagCapOf(cs) {
+  const st = read(cs, 'state');
+  return isObj(st) && count(st.bank_cap) ? st.bank_cap : null;
+}
+
+/** `buffs` (hr_state_of, the consumable queue): the live ones, [{ type, magnitude, msLeft }], soonest first. */
+export function buffsOf(cs) {
+  const b = read(cs, 'buffs');
+  if (!Array.isArray(b)) return null;
+  return b.slice(0, 32).filter((x) => isObj(x) && str(x.type, 32) && Number.isFinite(x.magnitude) && count(x.remaining_ms) && x.remaining_ms > 0)
+    .map((x) => ({ type: x.type, magnitude: x.magnitude, msLeft: x.remaining_ms }));
+}
+
+const IMBUE_KINDS = Object.freeze(['keen', 'life_leech', 'mana_leech', 'ward', 'element_ward']);
+
+/**
+ * `imbuements` (ruling D v2; NOT on the server yet): per worn slot, how many
+ * imbuement slots the piece has and what fills them,
+ *   { equip_slot: { slots: 0..3, filled: [{ kind, ms_left }] } }.
+ * Null while the server sends none: the Inventory then shows nothing for it.
+ */
+export function imbuementsOf(cs) {
+  const m = read(cs, 'imbuements');
+  if (!isObj(m)) return null;
+  const out = {};
+  for (const [slot, v] of Object.entries(m)) {
+    if (!/^[a-z0-9_]{1,32}$/.test(slot) || !isObj(v) || !Number.isInteger(v.slots) || v.slots < 0 || v.slots > 3) continue;
+    const filled = (Array.isArray(v.filled) ? v.filled : []).slice(0, v.slots)
+      .filter((f) => isObj(f) && IMBUE_KINDS.includes(f.kind) && count(f.ms_left) !== null).map((f) => ({ kind: f.kind, msLeft: f.ms_left }));
+    out[slot] = { slots: v.slots, filled };
+  }
+  return Object.keys(out).length ? out : null;
 }

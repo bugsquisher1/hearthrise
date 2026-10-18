@@ -229,6 +229,22 @@ function check(M) {
         ok('C7', !bad && n > 100, stage + ' ' + id + ': the hero on ' + JSON.stringify(bad) + ' stands under the docked window');
       }
     }
+    /* C8 NO VOID (Tyler 10-18: "a black area to the right where the camera goes off the map").
+       A docked window is shorter than the World, so the strip under it shows around it: on a
+       map at least as big as the whole view, the WHOLE view stays on the map for every hero
+       tile but the ones within the window's width of the far edge (there the hero wins, C7). */
+    for (const [stage, vw, vh] of [['922x423 phone', 834 / 2, 277 / 2], ['1440x900 desktop', 1240 / 2, 693 / 2]]) {
+      const m = compiled('town_common'), f = m.focus;
+      if (m.w * T < vw || m.h * T < vh) continue;
+      let bad = null, n = 0;
+      for (let y = 0; y < m.h && !bad; y++) for (let x = 0; x < m.w - Math.ceil(dock.right / T) - 2 && !bad; x++) {
+        const look = f ? { x: x + (f[0] - x) * 0.5, y: y + (f[1] - y) * 0.5 } : { x, y };
+        const fv = M.camera.frameView(look, vw, vh, m, 2, T, { inset: dock, keep: { x, y } });
+        n++;
+        if (fv.cam.x < -0.5 || fv.cam.y < -0.5 || fv.cam.x + vw > m.w * T + 0.5 || fv.cam.y + vh > m.h * T + 0.5) bad = [x, y, fv.cam];
+      }
+      ok('C8', !bad && n > 100, stage + ' town_common: with a window docked, the hero on ' + JSON.stringify(bad) + ' shows the void past the map edge');
+    }
     const cellar = compiled('mill_cellar'), fr = cellar.frame;
     const bo = openOf(M.camera.frameView({ x: 10, y: 6 }, 1680 / 2, 873 / 2, cellar, 2, T, { inset: dock, keep: { x: 10, y: 6 } }), 1680 / 2, 873 / 2);
     ok('C7', Math.abs(bo.x + bo.w / 2 - (fr.x + fr.w / 2) * T) <= 0.5 && Math.abs(bo.y + bo.h / 2 - (fr.y + fr.h / 2) * T) <= 0.5,
@@ -266,7 +282,7 @@ function check(M) {
       ['a walled-off strip of a walked map', 'L-REACH', 'home_cottage', (r) => { r.objects.push({ id: 'bush', x: 1, y: 11 }); }],
       ['an enterable building with no inside wall kit', 'L-KIT', '_kit_town', (r) => { delete r.buildings[0].closed; }],
       ['a focus off the map', 'L-WHOLE', 'town_common', (r) => { r.focus = [40, 7]; }],
-      ['a station hidden behind the well', 'L-COVER', 'town_common', (r) => { r.stations = Object.assign({}, r.stations, { combat: [15, 7] }); }],
+      ['a station hidden behind the well', 'L-COVER', 'town_common', (r) => { r.stations = Object.assign({}, r.stations, { combat: [14, 7] }); }],
     ];
     for (const [what, code, id, edit] of want) ok('L1', plant(id, edit).includes(code), 'the lint did not reject ' + what + ' with ' + code);
   });

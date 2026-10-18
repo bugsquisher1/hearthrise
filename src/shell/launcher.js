@@ -7,6 +7,10 @@
 // exist, and it is the `launchers` HUD widget, which can never be hidden.
 // ════════════════════════════════════════════════════════════════════════
 import { escapeHtml as esc } from '../utils/dom.js?v=0.2.0';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.0';
+import { HUNT_TUTORIAL } from '../data/hunt-tutorial.js?v=0.2.0';
+import { skillsOf } from '../session/item-sections.js?v=0.2.0';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.0';
 
 /** The chip text for a row's shortcut key: 'b' -> 'B', 'enter' -> 'Enter'. */
 export function keyLabel(key) {
@@ -20,6 +24,22 @@ export function glyphSvg(glyphs, key, cls) {
   return d ? '<svg class="' + (cls || 'hs-glyph') + '" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path d="' + esc(d) + '"/></svg>' : '';
 }
 
+/**
+ * THE FIRST-MINUTE POINTER (Tyler 10-18: "I'm confused right away"). A
+ * character that has never fought (every combat skill at 0 XP, as the server
+ * says) and is not hunting gets one line under the Hunts icon: the first hunt
+ * tutorial card's words. It goes the moment the first kill pays XP, or while
+ * Hunts is open. Display only; it reads the server's skills and hunt.
+ */
+function pointerFor(ctx, open) {
+  const cs = ctx.character;
+  if (!cs || open.has('hunts') || huntOf(cs)) return '';
+  const sk = skillsOf(cs);
+  if (!sk || Object.keys(SKILLS_DEF).some((id) => SKILLS_DEF[id].cat === 'combat' && sk[id] && sk[id].xp > 0)) return '';
+  const card = HUNT_TUTORIAL[0];
+  return '<p class="hs-pointer" role="note"><b>' + esc(card.title) + '</b> ' + esc(card.text) + '</p>';
+}
+
 /** The `launchers` widget body: one button per window row that has a launcher. */
 export function renderLaunchers(ctx) {
   const open = new Set(ctx.wm.openIds());
@@ -30,5 +50,5 @@ export function renderLaunchers(ctx) {
       + ' aria-pressed="' + on + '" aria-label="' + esc(r.label) + ' (' + esc(key) + ')"'
       + ' data-tip="' + esc(r.label) + '" data-key="' + esc(key) + '">' + glyphSvg(ctx.glyphs, r.glyph) + '</button>';
   });
-  return '<nav class="hs-launchers" aria-label="Windows">' + buttons.join('') + '</nav>';
+  return '<nav class="hs-launchers" aria-label="Windows">' + buttons.join('') + pointerFor(ctx, open) + '</nav>';
 }

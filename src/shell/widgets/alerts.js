@@ -16,7 +16,7 @@ import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.0';
 import { glyphSvg } from '../launcher.js?v=0.2.0';
 import { refusalWords } from '../intent-words.js?v=0.2.0';
 
-const OPENS = Object.freeze({ bag: 'bag', shop: 'shop', show: null });
+const OPENS = Object.freeze({ bag: 'inventory', shop: 'shop', show: null });
 
 /** The skeleton (built once). */
 export function renderAlerts() {

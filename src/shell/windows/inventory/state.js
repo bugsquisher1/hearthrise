@@ -1,40 +1,51 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/shell/windows/bag-state.js — THE BAG WINDOW'S READING OF ONE CHARACTER.
+// src/shell/windows/inventory/state.js — THE INVENTORY'S READING OF ONE CHARACTER.
 //
-// What the bag draws, gathered in one place for its skeleton, its patch and
-// its actions (bag.js, bag-act.js):
-//   from the server   the bag, the worn set, the bag rules, the shop's bids,
-//                     the action bar, this hunt's loot (src/session/*-sections.js)
-//   residue           the remembered category and sort, the "new" marks
+// What the Inventory draws, gathered in one place for its skeleton, its patch
+// and its actions (index.js, grid.js, doll.js, actions.js):
+//   from the server   the bag, its stack cap, the gold, the worn set, the bag
+//                     rules, the shop's bids, the action bar, this hunt's loot
+//                     (src/session/*-sections.js)
+//   residue           the remembered category, sort and Advanced view, and the
+//                     "new" marks
 //   scratch           the search text, the selection, the cursor, the open
-//                     menu and confirmation, an intent in flight. Display
-//                     only: nothing reads it but this window, nothing spends it.
+//                     menu, the open doll slot and the confirmation, an intent
+//                     in flight. Display only: nothing reads it but this
+//                     window, nothing spends it.
 // ════════════════════════════════════════════════════════════════════════
-import { bagOf, rulesOf, shopOf, equipmentOf, huntLootOf } from '../../session/item-sections.js?v=0.2.0';
-import { settingsOf, analyzerOf } from '../../session/hunt-sections.js?v=0.2.0';
-import { BAG_CATS, BAG_SORTS, view, kindOf, equipSlotFor, sellPlan, junkIds } from '../bag-model.js?v=0.2.0';
-import { barKind, barIndexOf } from '../bar-assign.js?v=0.2.0';
-import { itemName } from '../widgets/bits.js?v=0.2.0';
+import { bagOf, bagCapOf, goldOf, rulesOf, shopOf, equipmentOf, huntLootOf } from '../../../session/item-sections.js?v=0.2.0';
+import { settingsOf, analyzerOf } from '../../../session/hunt-sections.js?v=0.2.0';
+import { BAG_CATS, BAG_SORTS, view, kindOf, equipSlotFor, sellPlan, junkIds } from '../../bag-model.js?v=0.2.0';
+import { barKind, barIndexOf } from '../../bar-assign.js?v=0.2.0';
+import { itemName } from '../../widgets/bits.js?v=0.2.0';
 
 const SCRATCH = new WeakMap();
 const CAT_IDS = new Set(BAG_CATS.map(([id]) => id));
 const SORT_IDS = new Set(BAG_SORTS.map(([id]) => id));
 
-/** This character's bag scratch (made on first use). */
+/** This character's Inventory scratch (made on first use). */
 export function scratchOf(cs) {
   let s = SCRATCH.get(cs);
   if (!s) {
-    s = { tab: 'bag', query: '', sel: new Set(), cursor: null, anchor: null, menu: null, confirm: null,
+    s = { tab: 'bag', query: '', sel: new Set(), cursor: null, anchor: null, menu: null, confirm: null, slot: null,
       pending: false, msg: '', shownNew: new Set(), press: null, pressed: false };
     SCRATCH.set(cs, s);
   }
   return s;
 }
 
-/** The remembered category and sort (residue `bagView`), falling back to All / Type. */
+/** The remembered category, sort and Advanced view (residue `bagView`), falling back to All / Type / off. */
 export function prefsOf(cs) {
   const v = cs && cs.record && cs.record.residue ? cs.record.residue.bagView : null;
-  return { cat: v && CAT_IDS.has(v.cat) ? v.cat : 'all', sort: v && SORT_IDS.has(v.sort) ? v.sort : 'type' };
+  return { cat: v && CAT_IDS.has(v.cat) ? v.cat : 'all', sort: v && SORT_IDS.has(v.sort) ? v.sort : 'type', advanced: !!(v && v.advanced === true) };
+}
+
+/** Write one remembered preference, keeping the others. */
+export function setPref(cs, key, value) {
+  const p = prefsOf(cs);
+  p[key] = value;
+  if (!p.advanced) delete p.advanced;
+  cs.setResidue('bagView', p);
 }
 
 /** The "new" marks (residue `bagSeen`); null when this character has never had any. */
@@ -43,7 +54,7 @@ export function seenOf(cs) {
   return r && r.bagSeen && typeof r.bagSeen === 'object' ? r.bagSeen : null;
 }
 
-/** Everything the bag window draws for this character, read once per paint. */
+/** Everything the Inventory draws for this character, read once per paint. */
 export function stateOf(ctx) {
   const cs = ctx.character;
   const items = bagOf(cs);
@@ -56,8 +67,8 @@ export function stateOf(ctx) {
   const stored = seenOf(cs);
   const seen = stored || Object.fromEntries(list.map((r) => [r.id, [r.qty, 0]]));
   const shown = view(list, { cat: prefs.cat, query: sc.query, sort: prefs.sort, bids: shop ? shop.bids : null, seen });
-  return { cs, items: list, loaded: !!items, rules: rulesOf(cs), shop, eq: equipmentOf(cs) || {}, bar: settingsOf(cs),
-    prefs, sc, seen, unmarked: !stored, shown, qty: new Map(list.map((r) => [r.id, r.qty])) };
+  return { cs, items: list, loaded: !!items, cap: bagCapOf(cs), gold: goldOf(cs), rules: rulesOf(cs), shop, eq: equipmentOf(cs) || {},
+    bar: settingsOf(cs), prefs, sc, seen, unmarked: !stored, shown, qty: new Map(list.map((r) => [r.id, r.qty])) };
 }
 
 /** This hunt's pickups: the server's hunt loot, else the analyzer's loot list, else null. */

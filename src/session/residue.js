@@ -98,6 +98,7 @@ function sanitizeBagView(v) {
   if (!isObj(v)) return out;
   if (typeof v.cat === 'string' && ID.test(v.cat)) out.cat = v.cat;
   if (typeof v.sort === 'string' && ID.test(v.sort)) out.sort = v.sort;
+  if (v.advanced === true) out.advanced = true;
   return out;
 }
 
@@ -119,7 +120,7 @@ const SANITIZERS = Object.freeze({
   combatText: sanitizeCombatText,   // display preference: which floating numbers show; gates and spends nothing
   combatLog: sanitizeCombatLog,     // display preference: the combat log's filters; gates and spends nothing
   bagSeen: sanitizeBagSeen,         // display state: which bag stacks carry the "new" mark; gates and spends nothing
-  bagView: sanitizeBagView,         // display preference: the bag's category and sort; gates and spends nothing
+  bagView: sanitizeBagView,         // display preference: the Inventory's category, sort and Advanced view; gates and spends nothing
   alerts: sanitizeAlerts,           // display state: which alert kinds show and which events were shown; gates and spends nothing
 });
 

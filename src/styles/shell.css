@@ -27,6 +27,15 @@
 .hs-launchers { display: flex; align-items: stretch; height: 40px; padding-left: 10px; background: var(--bg-1); border-left: 1px solid var(--line-soft); }
 .hs-launch { position: relative; width: 40px; height: 100%; padding: 0; display: grid; place-items: center; border: 0; background: none; cursor: pointer; color: var(--ink-3); font: inherit; }
 .hs-launch:hover, .hs-launch:focus-visible { color: var(--ink); }
+/* The first-minute pointer (launcher.js): one line hanging under the Hunts icon, the first in the row. */
+.hs-launchers { position: relative; }
+.hs-pointer {
+  position: absolute; top: calc(100% + 8px); left: 10px; z-index: 5; width: 260px; margin: 0; padding: 6px 10px;
+  background: var(--modal-bg); border-left: 2px solid var(--gold); box-shadow: 0 6px 16px color-mix(in srgb, var(--world-shadow) 50%, transparent);
+  font-size: var(--t-micro); line-height: 1.35; color: var(--ink-2); pointer-events: none;
+}
+.hs-pointer b { display: block; color: var(--gold-2); }
+.hs-pointer::before { content: ''; position: absolute; top: -6px; left: 14px; border: 6px solid transparent; border-top: 0; border-bottom-color: var(--gold); }
 .hs-launch:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -4px; }
 .hs-launch.is-open { color: var(--gold-2); }
 .hs-launch.is-open::after { content: ''; position: absolute; left: 10px; right: 10px; bottom: 0; height: 2px; background: var(--gold); }

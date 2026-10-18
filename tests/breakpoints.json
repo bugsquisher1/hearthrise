@@ -11,17 +11,28 @@
     },
     "recommendation": "document the 1024px form; converge the 900px and 640px rules onto it"
   },
-  "measured": "2026-09-07",
+  "measured": "2026-10-15",
   "canonical": [
     {
       "query": "(max-width: 540px), (max-height: 540px) and (max-width: 1024px)",
-      "count": 25,
+      "count": 35,
       "files": {
-        "audit-overrides.css": 7,
-        "board-and-shop.css": 2,
+        "art-direction.css": 2,
+        "audit-overrides.css": 5,
+        "board-and-shop.css": 1,
+        "climb-marks.css": 1,
+        "coach.css": 1,
         "combat-hud.css": 1,
+        "combat-screens.css": 2,
         "homestead-rooms.css": 1,
-        "theme-cozy.css": 14
+        "legacy.css": 1,
+        "lucky-finds.css": 1,
+        "market.css": 3,
+        "menu-journal.css": 1,
+        "primers.css": 1,
+        "spine-pointer.css": 1,
+        "theme-cozy.css": 12,
+        "world.css": 1
       },
       "spellings": [
         "(max-width: 540px), (max-height: 540px) and (max-width: 1024px)"
@@ -33,37 +44,40 @@
       "files": {
         "art-direction.css": 1,
         "audit-overrides.css": 2,
-        "board-and-shop.css": 1,
-        "clan-seat.css": 2,
+        "climb-marks.css": 1,
+        "coach.css": 1,
         "combat-screens.css": 1,
         "homestead-rooms.css": 1,
-        "legacy.css": 2
+        "legacy.css": 2,
+        "room-modal.css": 1
       },
       "spellings": [
         "(prefers-reduced-motion: reduce)"
       ]
     },
     {
-      "query": "(max-width: 900px), (max-height: 540px) and (max-width: 1024px)",
+      "query": "(max-height: 540px) and (orientation: landscape) and (max-width: 1024px)",
       "count": 8,
       "files": {
-        "board-and-shop.css": 1,
-        "combat-hud.css": 1,
-        "legacy.css": 6
-      },
-      "spellings": [
-        "(max-width: 900px), (max-height: 540px) and (max-width: 1024px)"
-      ]
-    },
-    {
-      "query": "(max-height: 540px) and (orientation: landscape) and (max-width: 1024px)",
-      "count": 6,
-      "files": {
         "art-direction.css": 1,
-        "theme-cozy.css": 5
+        "menu-journal.css": 1,
+        "theme-cozy.css": 5,
+        "tokens.css": 1
       },
       "spellings": [
         "(max-height: 540px) and (orientation: landscape) and (max-width: 1024px)"
+      ]
+    },
+    {
+      "query": "(max-width: 900px), (max-height: 540px) and (max-width: 1024px)",
+      "count": 7,
+      "files": {
+        "board-and-shop.css": 1,
+        "combat-hud.css": 1,
+        "legacy.css": 5
+      },
+      "spellings": [
+        "(max-width: 900px), (max-height: 540px) and (max-width: 1024px)"
       ]
     },
     {
@@ -85,7 +99,7 @@
       "files": {
         "art-direction.css": 1,
         "audit-overrides.css": 1,
-        "clan-seat.css": 2
+        "room-modal.css": 2
       },
       "spellings": [
         "(max-height: 540px)"
@@ -218,16 +232,6 @@
       ]
     },
     {
-      "query": "(max-width: 540px)",
-      "count": 1,
-      "files": {
-        "legacy.css": 1
-      },
-      "spellings": [
-        "(max-width: 540px)"
-      ]
-    },
-    {
       "query": "(max-width: 640px)",
       "count": 1,
       "files": {
@@ -241,7 +245,7 @@
       "query": "(max-width: 640px), (max-height: 540px) and (max-width: 1024px)",
       "count": 1,
       "files": {
-        "clan-seat.css": 1
+        "room-modal.css": 1
       },
       "spellings": [
         "(max-width: 640px), (max-height: 540px) and (max-width: 1024px)"

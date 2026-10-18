@@ -51,6 +51,34 @@ export const TARGET_MODES = Object.freeze({
 });
 export const DEFAULT_TARGET_MODE = 'nearest';
 
+/* ── PER-HERO HUNT SETTINGS (HUNT_SCREEN_SPEC §3.7; the party hunt core reads them) ──
+   Read by src/core/hunt/{targeting,roles,damage}.js. Server storage of these keys is
+   the settings lane's (`hr_action_set_options` options jsonb); nothing here is generated
+   yet. Every number is ASSUMED (spec §5 #13). */
+
+/* FIGHT STANCES, in permille of damage dealt and taken (Offensive +10% / +10%,
+   Defensive -10% / -15%). One table; src/core/hunt/damage.js hurt() is its only reader. */
+export const HUNT_STANCES = Object.freeze({
+  offensive: Object.freeze({ dealt: 1100, taken: 1100, label: 'Offensive' }),
+  balanced: Object.freeze({ dealt: 1000, taken: 1000, label: 'Balanced' }),
+  defensive: Object.freeze({ dealt: 900, taken: 850, label: 'Defensive' }),
+});
+export const DEFAULT_STANCE = 'balanced';
+
+/* DISTANCE: the tiles a hero keeps from its own target (ranged) or kites at (chase off). */
+export const HERO_DISTANCE = Object.freeze({ min: 1, max: 8 });
+
+/* PER-ROLE DEFAULTS (RO-15; the sim's HERO_SETTINGS rows). `chase: false` with
+   `dist > 1` is KITING (RO-09). A party with no Melee hero sets every ranged hero's
+   chase off (RO-14, src/core/hunt/roles.js defaultSettings). */
+export const ROLE_DEFAULTS = Object.freeze({
+  tank: Object.freeze({ dist: 1, tmode: 'nearest', stance: 'balanced', chase: true }),
+  melee_dps: Object.freeze({ dist: 1, tmode: 'follow', stance: 'offensive', chase: true }),
+  ranger: Object.freeze({ dist: 3, tmode: 'follow', stance: 'balanced', chase: true }),
+  healer: Object.freeze({ dist: 5, tmode: 'follow', stance: 'balanced', chase: true }),
+  mage: Object.freeze({ dist: 6, tmode: 'follow', stance: 'balanced', chase: true }),
+});
+
 /* HOW MANY FOES ONE PULL BRINGS, per action set (Huntera's pull count; it
    replaces the stance pull size). Stored, read and clamped by the settle; the
    single-target engine fights one at a time until the combat redesign. */

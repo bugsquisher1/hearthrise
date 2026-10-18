@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 592 — 2026-10-17 (New hunting engine)
+
+**Hunting gets its new engine.** Heroes move, hold their spots, pull and kite as a party; bleeds, food, drink and XP sharing all run on the server. You'll see it when the game opens.
+
 ## v0.9.2-beta build 591 — 2026-10-17 (Coming soon)
 
 **Hearthrise is coming soon.** The site now shows a short coming-soon page while the game is in development. Discord gets the opening date first.

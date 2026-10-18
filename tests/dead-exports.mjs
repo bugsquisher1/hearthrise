@@ -212,7 +212,13 @@ function census(sources) {
 // a regression and names itself. Kept-with-reason exports are NOT listed here:
 // they are not dead by the definition above (dynamic reach / edge-vendored),
 // so the derivation already excludes them and no hand-pin exists to rot.
-const ALLOW = new Set([]);
+/* playStreakKnown: src/net/accrue.js is the C2 lane's file; its one consumer
+   (src/render/streak-chip.js) was demolished on 2026-10-14 and the C2 follow-on
+   deletes the export with the streak projection (plan §2, Phase 2). */
+/* serverAutoEats: same file, same lane. Its one consumer was the EAT-RESTOCK-6 in-page
+   test of the client auto-eat intent, which left with the Auto-Eat client surface
+   (Tyler, 2026-10-14: Auto-Eat is moot); C2 deletes it with the engine-side eating. */
+const ALLOW = new Set(['playStreakKnown', 'serverAutoEats']);
 
 function run() {
   const sources = corpus();

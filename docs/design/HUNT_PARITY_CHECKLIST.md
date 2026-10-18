@@ -7,13 +7,13 @@ Game Designer, 2026-10-17. Built from evidence, read 10-17 at `origin/main` 7bec
 
 Spec: `docs/design/HUNT_SCREEN_SPEC.md`. Week plan step 19: a QA agent plays the real game beside the sim, row by row. A missing row is a P1.
 
-**ROW TOTALS: 351 rows.** Rows citing the sim code 239 · citing a 10-15..10-17 ruling 120 · citing a HUD ref 40 (a row can cite more than one). Status: TODO 285 · LIVE-SERVER 10 · DEV-ONLY 12 · DO-NOT-PORT 4 · SUPERSEDED 8 · NOT-HUNT 29 · ASK-TYLER 3.
+**ROW TOTALS: 351 rows.** Rows citing the sim code 239 · citing a 10-15..10-17 ruling 120 · citing a HUD ref 40 (a row can cite more than one). Status: TODO 285 · LIVE-SERVER 10 · DEV-ONLY 12 · DO-NOT-PORT 4 · SUPERSEDED 8 · NOT-HUNT 29 · NOT-BUILT 3.
 
 **Keys.**
 - Paths: `core/` = `src/core/hunt/`; `view/` = `src/hunt-view/`; `wdg/` = `src/shell/widgets/`; `win/` = `src/shell/windows/`; `ses/` = `src/session/`; `data/` = `src/data/`; `edge/` = `supabase/functions/hr-accrue/`.
 - Tests: `hc/<module>#<case>` = `tests/hunt-core/<module>.mjs`; `hv/<module>#<case>` = `tests/hunt-view/<module>.mjs`; `sql§4 <topic>` = the §4 self-check block of that lane-C migration; `visual <screen>` = the visual gate at 922x423 + desktop.
 - Owner: **S-edge** = server, pure core run by the edge settle; **S-pg** = server, Postgres RPC/table; **C** = client display only; **D** = data rows (server catalogue via P1).
-- Status: **TODO** = to build; **LIVE-SERVER** = exists on the C2 server, extend or verify; **DEV-ONLY** = sim tool, not rebuilt; **DO-NOT-PORT** = sim behaviour a ruling forbids; **SUPERSEDED** = a later ruling replaced it; **NOT-HUNT** = a real ruling owned by another lane, listed so nothing is lost; **ASK-TYLER** = purpose unknown, do not build yet.
+- Status: **TODO** = to build; **LIVE-SERVER** = exists on the C2 server, extend or verify; **DEV-ONLY** = sim tool, not rebuilt; **DO-NOT-PORT** = sim behaviour a ruling forbids; **SUPERSEDED** = a later ruling replaced it; **NOT-HUNT** = a real ruling owned by another lane, listed so nothing is lost; **ASK-TYLER** = purpose unknown, do not build yet. **NOT-BUILT** = in a reference screenshot but its purpose is unknown, so it is left out (Tyler 10-17: unknown reference elements are not built and are not open questions).
 - Sim role ids map to roles: `knight` = Melee tank, `berserker` = Melee DPS, `ranger` = Ranger, `sorcerer` = Mage, `druid` = Healer (Tyler 10-16, no vocations).
 
 ---
@@ -423,7 +423,7 @@ Spec: `docs/design/HUNT_SCREEN_SPEC.md`. Week plan step 19: a QA agent plays the
 | AW-11 | Fold sections, keep the scroll | ui.js:240-253; ref 18 (chevrons) | wdg/analyzer.js | C | none | hv/analyzer#fold-keeps-scroll | TODO |
 | AW-12 | Keyed rows: add once, update, drop | ui.js:254-264 | wdg/analyzer.js via paint.js `rows` | C | none | hv/analyzer#keyed-rows | TODO |
 | AW-13 | Number formats (1,234 / 1.2k / kk / hh:mm:ss / gp) | ui.js:11-13, :281 | src/render/format (shared) | C | none | hv/format#each | TODO |
-| AW-14 | Expand ">" button | ref 18 | wdg/analyzer.js | C | none | none | ASK-TYLER |
+| AW-14 | Expand ">" button | ref 18 | wdg/analyzer.js | C | none | none | NOT-BUILT (ref element, purpose unknown; Tyler 10-17) |
 | AW-15 | Hidden for free characters (premium only) | T10-17 L187 | wdg/analyzer.js | C | `premium` section | hv/analyzer#hidden-when-free | TODO |
 
 ## 25. Top bar — `wdg/hunt-topbar.js`
@@ -432,8 +432,8 @@ Spec: `docs/design/HUNT_SCREEN_SPEC.md`. Week plan step 19: a QA agent plays the
 |---|---|---|---|---|---|---|---|
 | TB-01 | Hunt details button (opens the analyzer) | ui.js:116; ref 20 | wdg/hunt-topbar.js | C | none | hv/topbar#details-opens-analyzer | TODO |
 | TB-02 | Leave hunt → paused end, summary shown | ui.js:118-121; ref 20 | wdg/hunt-topbar.js → `hr_hunt_leave` | S-pg, C | END_CARD_COPY | sql§4 leave-settles | LIVE-SERVER |
-| TB-03 | "Ready in" timer (sim guess: next pack respawn) | ui.js:297-298; ref 20; T10-16 L128 | wdg/hunt-topbar.js | C | none | none | ASK-TYLER |
-| TB-04 | "»" buttons beside Ready in and Leave hunt | ref 20 | wdg/hunt-topbar.js | C | none | none | ASK-TYLER |
+| TB-03 | "Ready in" timer (sim guess: next pack respawn) | ui.js:297-298; ref 20; T10-16 L128 | wdg/hunt-topbar.js | C | none | none | NOT-BUILT (ref element, purpose unknown; Tyler 10-17) |
+| TB-04 | "»" buttons beside Ready in and Leave hunt | ref 20 | wdg/hunt-topbar.js | C | none | none | NOT-BUILT (ref element, purpose unknown; Tyler 10-17) |
 | TB-05 | Viewing label + switch hint | ui.js:299 | ses/character-strip.js | C | none | hv/strip#viewing-label | TODO |
 | TB-06 | Sim status line (run, phase, pocket, time, speed) | sim.js:1041-1045 | none | C | none | none (dev) | DEV-ONLY |
 

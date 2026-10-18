@@ -1,0 +1,72 @@
+// tests/hunt-core/fixtures/h4.js — lane H4's fixtures: a hero with a supply session, a fight to cast into,
+// and a sub-step driver for consumables.js / abilities.js. Built on fixtures/h1.js (spec §1.6).
+import { hero, mon, world, instOf, subStep, loadCore, plant, makeReport, ROOT } from './h1.js';
+
+export const STORE_FOOD = 'salted_shrimp';
+export const STORE_DRINK = 'thin_turnip_juice';
+
+/** A member's hunt session: `bag` lines, the tier-1 store rows, a purse and the supplies choice. */
+export function supplySession(M, o) {
+  const x = o || {};
+  return M.AR.newHuntSession({
+    id: 'h4', huntFromMs: 0, bag: x.bag || {},
+    slots: x.slots || [{ item: '*heal_shop', on: true, conditions: [] }, { item: '*mana_shop', on: true, conditions: [] },
+      ...(x.shot ? [{ item: x.shot, on: true, conditions: [] }] : [])],
+    basics: {
+      [STORE_FOOD]: { kind: 'heal', price: 15, heals: 6, mana: 0, partner: 'cooked_shrimp' },
+      [STORE_DRINK]: { kind: 'mana', price: 15, heals: 0, mana: 6, partner: 'turnip_juice' },
+      ...(x.shot ? { [x.shot]: { kind: 'ammo', price: 2, heals: 0, mana: 0, partner: x.ammo } } : {}),
+    },
+    shop: { heal: STORE_FOOD, mana: STORE_DRINK }, purse: x.purse ?? 100000, goldFloor: x.goldFloor ?? 0,
+    supplySource: x.supplySource || 'mine', onEmpty: x.onEmpty || 'switch',
+  });
+}
+
+/** A one-hero world (plus `mons`), its inst with the hero's injected context, and a recording sub-step. */
+export function oneHero(M, heroOver, ctx, mons) {
+  const h = hero(M, 1, 12, 3, Object.assign({ hp: 100, maxHp: 100, mana: 100, maxMana: 100 }, heroOver || {}));
+  const w = world(M, [h, ...(mons || []).map((m, i) => mon(M, 10 + i, 0, m.x, m.y, Object.assign({ target: 1 }, m)))]);
+  const inst = instOf(M, w);
+  inst.heroes = { 1: Object.assign({ hs: supplySession(M), bar: [], actionSet: 'hunt', range: 1 }, ctx || {}) };
+  return { h, w, inst, sc: subStep(0) };
+}
+
+/** Run `hook` for n sub-steps of 100 ms from `from`. */
+export function steps(inst, sc, hook, n, from) {
+  for (let i = 0; i < n; i++) { sc.atMs = (from || 0) + i * 100; hook(inst, sc); }
+}
+
+/** A seeded swing stream for casts that roll. */
+export const rngOf = (M, seed) => M.rng.createRng(M.rng.hashSeed('h4', seed));
+
+/** The data modules this lane owns, imported as the SAME instances the core reads (the build's ?v=). */
+export async function loadData(M) {
+  const { readFileSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  const { pathToFileURL } = await import('node:url');
+  const v = '?v=' + (/cache:\s*(\d+)/.exec(readFileSync(join(M.root, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+  const imp = (p) => import(pathToFileURL(join(M.root, p)).href + v);
+  return { CD: await imp('src/data/consumables.js'), AD: await imp('src/data/abilities.js') };
+}
+
+/** fixtures/h1.js `suite`, with this lane's data modules on M (M.CD, M.AD). */
+export async function suiteH4(name, cases, mutants) {
+  const R = makeReport(name);
+  const load = async (root) => { const M = await loadCore(root); return Object.assign(M, await loadData(M)); };
+  const M = await load(ROOT);
+  for (const [cn, fn] of Object.entries(cases)) {
+    let why = null;
+    try { why = fn(M); } catch (e) { why = 'threw ' + (e && e.stack || e); }
+    R.ok(!why, cn + ': ' + why);
+  }
+  for (const mu of mutants || []) {
+    const p = plant(mu.edits);
+    try {
+      let why = null;
+      try { why = cases[mu.case](await load(p.root)); } catch (e) { why = 'threw ' + e.message; }
+      R.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
+    } finally { p.done(); }
+  }
+  if (!R.fails.length) console.log('  ' + Object.keys(cases).length + ' cases, ' + (mutants || []).length + ' mutants caught');
+  R.finish();
+}

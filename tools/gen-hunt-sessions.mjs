@@ -48,7 +48,11 @@
 // Vigour's place in the end order; the pool's cap is a limits row), so
 // the generator now writes 2026-10-22-hunt-sessions-catalogue.generated.sql,
 // which the replay applies after C1's and which rewrites every table wholesale.
-// The next data move after C2 applies starts a new dated file the same way.
+// The next data move after C2 applies starts a new dated file the same way:
+// the 2026-10-14 demolition deleted monster drops (keys, seals, tomes, essences,
+// scrolls) that hr_hunt_kill_bounds and hr_hunt_vendor_value still named, so
+// the generator writes 2026-10-23-demolition-hunt-catalogue.generated.sql,
+// applied after the demolition catalogue regen (Security N2, 2026-10-15).
 //
 //   Regenerate:  node tools/gen-hunt-sessions.mjs
 //   Verify:      node tools/gen-hunt-sessions.mjs --check     (exit 1 on drift)
@@ -80,7 +84,7 @@ import { COMBAT_BALANCE } from '../src/core/combat.js';
 import { HIT_XP_PER_DAMAGE, HIT_HP_XP_PER_DAMAGE } from '../src/core/styles.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-export const OUT_NAME = '2026-10-22-hunt-sessions-catalogue.generated.sql';
+export const OUT_NAME = '2026-10-23-demolition-hunt-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -389,7 +393,7 @@ export function render(src) {
 --   ${r.basics.length} shop supplies paid per use, ${r.slotTargets.length} slot targets, ${r.slotKinds.length} slot kinds,
 --   ${r.targets.length} target modes
 --
--- SUPERSEDES 2026-10-21-hunt-sessions-catalogue.generated.sql (applied; history,
+-- SUPERSEDES 2026-10-22-hunt-sessions-catalogue.generated.sql (applied; history,
 -- never regenerated): every table below is rewritten wholesale.
 --
 -- Read by the hunt-session RPCs (2026-10-21-hunt-sessions.sql). Server-only:

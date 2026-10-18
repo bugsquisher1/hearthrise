@@ -17,12 +17,12 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { levelOf } from './xp.js?v=591';
-import { PRAYER_WARDS, PRAYER_WARD_MAX_PCT } from '../data/skills.js?v=591';
+import { levelOf } from './xp.js?v=592';
+import { PRAYER_WARDS, PRAYER_WARD_MAX_PCT } from '../data/skills.js?v=592';
 import {
   baneIndex, baneMultFor, classOfMonster, MAX_COMBINED_DAMAGE_MULT,
-} from './bane.js?v=591';
-import { elementMultFor, MAX_TOTAL_DAMAGE_MULT } from './elements.js?v=591';
+} from './bane.js?v=592';
+import { elementMultFor, MAX_TOTAL_DAMAGE_MULT } from './elements.js?v=592';
 /* The bestiary CHARM and TROPHY combat multipliers are gone (closed rebuild,
    demolition safety review item 9: trophies stay as claims and display; the
    ladders no longer price a fight). A monster's drops are its own row's. */
@@ -345,8 +345,7 @@ export function playerCombatRolls(monster, ctx) {
   const accLvl = levelOf(skills, profile.accuracySkill);
   const dmgLvl = levelOf(skills, profile.damageSkill);
 
-  const mTier = (monster && monster.tier) || 1;
-  const defScore = ((monster && monster.def) || 0) * (ACC_DEF_MUL[mTier] || 1);
+  const defScore = monsterDefScore(monster);
 
   let accuracy = 0.55 + (((accLvl + accBonus) - defScore) * 0.01);
   accuracy *= (style.accuracyMod || 1);
@@ -384,7 +383,7 @@ export function playerCombatRolls(monster, ctx) {
 
      One expression, both engines: supabase/functions/hr-accrue/accrual.js
      imports THIS file, so the away replay follows with no second edit. */
-  maxHit = Math.max(1, maxHit - Math.floor(defScore * COMBAT_BALANCE.monsterDefenseDamageReduction));
+  maxHit = Math.max(1, maxHit - defenceReduction(monster));
   maxHit = Math.max(1, Math.floor(maxHit * (style.damageMod || 1)));
   maxHit = Math.max(1, Math.floor(maxHit * (weak.damageMult || 1)));
 
@@ -416,14 +415,10 @@ export function prayerWardPct(skills) {
 
 export function monsterCombatRolls(monster, ctx) {
   const c = ctx || {};
-  const b = COMBAT_BALANCE;
   const eq = c.eq || {};
   const bonus = typeof c.bonus === 'function' ? c.bonus : () => 0;
   const playerDefense = levelOf(c.skills || {}, 'defense') + (eq.defB || 0) + (bonus('defense') || 0);
-  const landed = clamp(
-    b.monsterBaseAccuracy + ((((monster && monster.atk) || 1) - playerDefense) * b.monsterAccuracyPerPoint),
-    b.monsterMinAccuracy, b.monsterMaxAccuracy,
-  );
+  const landed = monsterAccuracy(monster, playerDefense);
   /* THE PRAYER WARD (W0, Top-10 #8). Applied AFTER the clamp, as a share of
      blows turned aside, so expected damage taken falls by exactly `ward`% at
      every monster size and the min-accuracy floor cannot swallow it. This is
@@ -432,8 +427,46 @@ export function monsterCombatRolls(monster, ctx) {
      away and tick apply the same ward from the same skills map. No RNG draw. */
   const ward = prayerWardPct(c.skills);
   const accuracy = ward > 0 ? landed * (1 - ward / 100) : landed;
-  const maxHit = Math.max(1, Math.floor(((monster && monster.atk) || 1) * b.monsterAttackDamageScale));
-  return { accuracy, maxHit };
+  return { accuracy, maxHit: monsterMaxHit(monster) };
+}
+
+/* ── THE PIECES OF A MONSTER'S DEFENCE AND SWING ──
+   One expression each, shared by the rolls above and the party hunt's one
+   hurt() (src/core/hunt/damage.js), so the two cannot price a blow differently. */
+
+function monsterDefScore(monster) {
+  const mTier = (monster && monster.tier) || 1;
+  return ((monster && monster.def) || 0) * (ACC_DEF_MUL[mTier] || 1);
+}
+
+/** Whole points of damage a monster's defence takes off every blow it is dealt. */
+export function defenceReduction(monster) {
+  return Math.floor(monsterDefScore(monster) * COMBAT_BALANCE.monsterDefenseDamageReduction);
+}
+
+/** A monster's chance to land a blow on a hero of `playerDefense` (before any Prayer ward). */
+export function monsterAccuracy(monster, playerDefense) {
+  const b = COMBAT_BALANCE;
+  return clamp(b.monsterBaseAccuracy + ((((monster && monster.atk) || 1) - playerDefense) * b.monsterAccuracyPerPoint),
+    b.monsterMinAccuracy, b.monsterMaxAccuracy);
+}
+
+/** A monster's largest blow. */
+export function monsterMaxHit(monster) {
+  return Math.max(1, Math.floor(((monster && monster.atk) || 1) * COMBAT_BALANCE.monsterAttackDamageScale));
+}
+
+/**
+ * What one blow of `element` is worth against `monster`, in PERMILLE: 0 when the
+ * monster is immune (TG-03: it is still attacked when it is the only target, and
+ * takes nothing), the weakness bonus when it is weak (elements.js elementMultFor,
+ * the one weakness reader), 1000 otherwise. Resist has no number of its own until
+ * the one resist table lands (ARCHITECTURE_CONTRACTS §1.5).
+ */
+export function elementPermille(monster, element) {
+  if (!monster || !element) return 1000;
+  if (Array.isArray(monster.elementImmune) && monster.elementImmune.includes(element)) return 0;
+  return Math.round(elementMultFor(monster, element) * 1000);
 }
 
 // ── Seeded resolution helpers (the pieces combatTick spends RNG on) ──────

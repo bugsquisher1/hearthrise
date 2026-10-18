@@ -7,7 +7,7 @@
 //
 // The World pane's hunt (src/world/{choreo,hunt-scene,hunt-chrome}.js) is fed
 // by beats (src/world/beat.js: one per swing, a fight diff). These run the REAL
-// engine's attended tick (src/core/combat-sim.js simulateTick, the same code
+// engine's attended tick (src/core/hunt/world-step.js stepSwing, the same code
 // the live tick calls) against the Mill Cellar map and assert the plan's
 // choreography and fences (world-slice-plan §2):
 //   H1 ATTENDED: at every swing, for tickMs 600..3600, the shown foe IS
@@ -76,7 +76,7 @@ function fight(M, o) {
   };
   const tick = () => {
     const b = M.obs.fightOf(G);
-    M.sim.simulateTick(G, ctx);
+    M.sim.stepSwing(null, Object.assign({}, ctx, { state: G }));
     return M.obs.beatOf(b, M.obs.fightOf(G), { at: 0, tickMs: o.tickMs, crit: !!G._lastPlayerCrit, wasDown: false, downAfter: false });
   };
   return { G, drops, tick };

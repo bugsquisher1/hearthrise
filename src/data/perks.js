@@ -17,8 +17,8 @@
 //   copy therefore makes the two sides wrong TOGETHER — caught at the build
 //   gate — rather than wrong APART, which nothing would catch.
 //
-//   perk digest: 2a2e902622cd33bcf4aec421ae065ca15ea9ddc0a9d6e09e80c8cc4028053139
-//   8 rooms x 5 rungs = 40 rung payloads · keys: allXP, buffDuration, combatXP, cookSpeed, craftSave, craftSpeed, farmYield, noBurn, prayerSpeed, smithSpeed, yield_cooking, yield_smithing
+//   perk digest: b4b0c0d4181a5764da6d86209609e653020996e7e50ecce8b3ca4b67aa078845
+//   8 rooms x 5 rungs = 40 rung payloads · keys: buffDuration, cookSpeed, craftSave, craftSpeed, noBurn, prayerSpeed, smithSpeed
 //
 // THE SHAPE
 //   ROOM_PERKS[roomId][level - 1]  →  { bonusKey: magnitude, … }
@@ -45,32 +45,32 @@ export const ROOM_PERKS = Object.freeze({
     {"buffDuration":1},
   ],
   forge: [
-    {"smithSpeed":0.02,"yield_smithing":0.01},
-    {"smithSpeed":0.04,"yield_smithing":0.02},
-    {"smithSpeed":0.06,"yield_smithing":0.04},
-    {"smithSpeed":0.08,"yield_smithing":0.06},
-    {"smithSpeed":0.1,"yield_smithing":0.08},
+    {"smithSpeed":0.02},
+    {"smithSpeed":0.04},
+    {"smithSpeed":0.06},
+    {"smithSpeed":0.08},
+    {"smithSpeed":0.1},
   ],
   garden: [
-    {"farmYield":1},
-    {"farmYield":2},
-    {"farmYield":4},
-    {"farmYield":6},
-    {"farmYield":8},
+    {},
+    {},
+    {},
+    {},
+    {},
   ],
   kitchen: [
     {"cookSpeed":0.02,"noBurn":0.13},
     {"cookSpeed":0.04,"noBurn":0.19},
     {"cookSpeed":0.06,"noBurn":0.25},
-    {"cookSpeed":0.08,"noBurn":0.25,"yield_cooking":0.04},
-    {"cookSpeed":0.1,"noBurn":0.25,"yield_cooking":0.08},
+    {"cookSpeed":0.08,"noBurn":0.25},
+    {"cookSpeed":0.1,"noBurn":0.25},
   ],
   library: [
-    {"allXP":0.01},
-    {"allXP":0.02},
-    {"allXP":0.03},
-    {"allXP":0.04},
-    {"allXP":0.05},
+    {},
+    {},
+    {},
+    {},
+    {},
   ],
   shrine: [
     {"prayerSpeed":0.02},
@@ -80,11 +80,11 @@ export const ROOM_PERKS = Object.freeze({
     {"prayerSpeed":0.1},
   ],
   trophy: [
-    {"combatXP":0.01},
-    {"combatXP":0.02},
-    {"combatXP":0.03},
-    {"combatXP":0.04},
-    {"combatXP":0.05},
+    {},
+    {},
+    {},
+    {},
+    {},
   ],
   workshop: [
     {"craftSpeed":0.02,"craftSave":0.01},
@@ -100,13 +100,13 @@ export const ROOM_PERKS = Object.freeze({
    flat quantum). Carried here so nothing has to extract the same table twice
    for the sake of two fields. `null` = that rung pays none. */
 export const ROOM_RUNG_EXTRAS = Object.freeze({
-  library: [null, null, null, {"rested":800}, {"rested":1600,"restedCap":120}],
+
 });
 
 /* Every bonus key any rung can pay, sorted. Exported so a consumer can assert
    it knows what each one MEANS rather than silently forwarding a new one. */
-export const ROOM_PERK_KEYS = Object.freeze(["allXP","buffDuration","combatXP","cookSpeed","craftSave","craftSpeed","farmYield","noBurn","prayerSpeed","smithSpeed","yield_cooking","yield_smithing"]);
+export const ROOM_PERK_KEYS = Object.freeze(["buffDuration","cookSpeed","craftSave","craftSpeed","noBurn","prayerSpeed","smithSpeed"]);
 
 /* The digest of the extracted payload. tools/gen-perks.mjs --check recomputes
    it; a mismatch names which side moved. */
-export const PERK_DIGEST = '2a2e902622cd33bcf4aec421ae065ca15ea9ddc0a9d6e09e80c8cc4028053139';
+export const PERK_DIGEST = 'b4b0c0d4181a5764da6d86209609e653020996e7e50ecce8b3ca4b67aa078845';

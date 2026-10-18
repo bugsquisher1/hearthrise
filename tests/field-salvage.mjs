@@ -27,7 +27,6 @@
 //        lucky — and a salvage-SHAPED row (own-tier small-slot generated armour)
 //        never ships without the flag, because the flag is what stops the
 //        client's own dice showing it (src/features/lucky-finds.js);
-//   (f)  pickProofItem (bounty proof) is unchanged by the salvage row.
 //
 // BOTH PATHS (lane C2: a hunt is one engine whether a client watches or not):
 // the hunt span credits the wild_boar piece through fx.addItem, and
@@ -45,13 +44,10 @@ import { ITEMS } from '../src/data/items.js';
 import { GEAR_ITEMS } from '../src/data/gear-tiers.js';
 import { effectsAreLive } from '../src/data/item-effects.js';
 import { pathFor } from '../src/data/item-art.js';
-import { DUNGEONS, QM_STOCK } from '../src/data/dungeons.js';
 import { SHOP_OFFERS } from '../src/data/shops.js';
 import { BOSSES } from '../src/data/bosses.js';
-import { RAID_BOSSES } from '../src/data/raid-bosses.js';
 import { HEARTHFIND_TABLE } from '../src/data/hearthfind.js';
 import { effectiveDropChance } from '../src/core/drops.js';
-import { pickProofItem } from '../src/core/bounty.js';
 import { lootKey } from '../src/core/goals.js';
 import { simulateSpan } from '../src/core/combat-sim.js';
 import {
@@ -189,10 +185,8 @@ function check(monsters) {
       ok(effectsAreLive(it), 'a', `${tag}: item declares a dormant effect`);
       ok(!!pathFor(d.id), 'a', `${tag}: item has no art in item-art.js`);
       ok(!luckyItems.has(d.id), 'a', `${tag}: item is a lucky find`);
-      ok(!QM_STOCK.some((q) => q.id === d.id), 'a', `${tag}: item is Quartermaster stock`);
-      ok(!Object.values(DUNGEONS).some((dg) => mentions(dg.loot, d.id)), 'a', `${tag}: item is dungeon loot`);
       ok(!shopGranted(d.id), 'a', `${tag}: item is granted by a shop offer (shops.js)`);
-      ok(!mentions(BOSSES, d.id) && !mentions(RAID_BOSSES, d.id), 'a', `${tag}: item is boss/raid loot`);
+      ok(!mentions(BOSSES, d.id), 'a', `${tag}: item is boss loot`);
       for (const [oid, om] of Object.entries(monsters)) {
         (om.drops || []).forEach((od, oi) => {
           if (od && od.id === d.id && !(oid === mid && oi === i)) ok(false, 'a', `${tag}: item is also a drop of ${oid}[${oi}]`);
@@ -214,10 +208,6 @@ function check(monsters) {
       ok(!d.lucky, 'e', `${tag}: a row is both salvage and lucky`);
       ok(!seenItems.has(d.id), 'e', `${tag}: item already used by the salvage row on ${seenItems.get(d.id)}`);
       seenItems.set(d.id, mid);
-      /* (f) the bounty proof item */
-      const stripped = { ...monsters, [mid]: { ...m, drops: drops.filter((x) => !x.salvage) } };
-      ok(pickProofItem(mid, monsters, ITEMS) === pickProofItem(mid, stripped, ITEMS), 'f',
-        `${tag}: the salvage row changes the bounty proof item`);
       /* (d) the hours, measured */
       if (m.tier < 1 || m.tier > 6) { ok(false, 'd', `${tag}: no measurement loadout for tier ${m.tier}`); continue; }
       const got = measureFight(monsters, mid);

@@ -16,12 +16,13 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { SUPPLIES, HEAL_ORDER } from '../data/supplies.js?v=591';
+import { SUPPLIES, HEAL_ORDER } from '../data/supplies.js?v=592';
 import { RULE_SUBJECTS, COOLDOWN_LANES, LANE_OF_KIND, HEAL_ANY, parseSubject, TARGET_MODES, DEFAULT_TARGET_MODE,
-  SLOT_TARGETS } from '../data/rule-subjects.js?v=591';
-import { END_ORDER, SESSION_LIMITS, DEATH_XP_LOSS, STAMINA_MAX_MS, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY } from '../data/hunt-sessions.js?v=591';
-import { applyBuffSegment } from './buffs.js?v=591';
-import { levelFromXp, xpForLevel, MAX_LEVEL } from './xp.js?v=591';
+  SLOT_TARGETS } from '../data/rule-subjects.js?v=592';
+import { END_ORDER, SESSION_LIMITS, DEATH_XP_LOSS, STAMINA_MAX_MS, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY } from '../data/hunt-sessions.js?v=592';
+import { applyBuffSegment } from './buffs.js?v=592';
+import { CONSUMABLES, CONSUMABLE_KINDS } from '../data/consumables.js?v=592';
+import { levelFromXp, xpForLevel, MAX_LEVEL } from './xp.js?v=592';
 
 const HEAL_RANK = new Map(HEAL_ORDER.map((id, i) => [id, i]));
 const int = (v, d) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? n : d; };
@@ -182,6 +183,67 @@ function barBuys(hs, kind) {
     const b = id ? basicOf(hs, id) : null;
     return !!(b && b.kind === kind);
   });
+}
+
+/* ── THE ONE SUPPLY RESOLVER (architecture contracts §1.2 / S5; HUNT_SCREEN_SPEC
+   §3.4, §3.8) ──────────────────────────────────────────────────────────────
+   `resolveLine(hs, want, need)` answers which line ONE use of a supply comes
+   from: the hero's OWN carried line first (already owned, so it moves no gold),
+   then the STORE at catalogue price — only on the player's own choice
+   (storeAllowed), only through a line the bar shows the price of (master plan
+   row 1; hr_hunt_apply refuses `not_on_bar`), and only while the purse can pay
+   (`gold_short` otherwise: the caller marks goldOut and the hunt ends gold_out).
+   `want` is a consumable kind ('heal' food, 'mana' drink) or an item id (a rune,
+   an arrow). `takeLine` spends the answer: an own line through spendFromBag, a
+   store line through buyFromShop — the two doors every supply already uses, so
+   the tally (`supplies` own units, `bought` store uses) is the ledger split
+   supply_own / supply_buy reads. Food and drink (src/core/hunt/consumables.js)
+   and runes and ammo (src/core/hunt/abilities.js) all resolve here. */
+function pickOwn(hs, kind, need) {
+  if (kind === 'heal') return pickHeal(hs, need);
+  /* A drink: the smallest line that covers the need, else the largest; ties by id. */
+  let cover = null; let big = null;
+  for (const id of Object.keys((hs && hs.bag) || {}).sort()) {
+    const c = CONSUMABLES[id];
+    if (!c || c.source !== 'own' || CONSUMABLE_KINDS[c.kind].supply !== kind || leftOf(hs, id) <= 0) continue;
+    if (c.amount >= need && (!cover || c.amount < CONSUMABLES[cover].amount)) cover = id;
+    if (!big || c.amount > CONSUMABLES[big].amount) big = id;
+  }
+  return cover || big;
+}
+const shownOnBar = (hs, id) => (Array.isArray(hs.slots) ? hs.slots : []).some((sl) => sl && sl.on && shopIdOf(hs, sl.item) === id);
+export function resolveLine(hs, want, need) {
+  if (!hs) return { why: 'none' };
+  if (want === 'heal' || want === 'mana') {
+    const own = pickOwn(hs, want, Math.max(1, int(need, 1)));
+    if (own) return { id: own, source: 'own', price: 0 };
+    const id = (hs.shop && hs.shop[want]) || null;
+    const b = id ? basicOf(hs, id) : null;
+    if (!b || b.kind !== want) return { why: 'none' };
+    if (!storeAllowed(hs, want)) return { why: 'store_off' };
+    if (!shownOnBar(hs, id)) return { why: 'not_on_bar' };
+    return canAfford(hs, b.price) ? { id, source: 'store', price: b.price } : { why: 'gold_short', id };
+  }
+  if (leftOf(hs, want) > 0) return { id: want, source: 'own', price: 0 };
+  const shot = shopShotFor(hs, want);
+  if (!shot) return { why: 'none' };
+  return canAfford(hs, shot.price) ? { id: shot.id, source: 'store', price: shot.price } : { why: 'gold_short', id: shot.id };
+}
+/** Spend ONE use of a resolved line; true when it was paid for (own or store). */
+export function takeLine(hs, line, atMs) {
+  if (!line || !line.id) return false;
+  return line.source === 'own' ? spendFromBag(hs, line.id, 1, atMs) === 1 : buyFromShop(hs, line.id, 1) === 1;
+}
+/** What one use of a resolved food or drink restores: an own line by its item, a store
+    line by the SERVER's catalogue row (hs.basics), never the client's copy. */
+export function lineAmount(hs, line) {
+  if (!line || !line.id) return 0;
+  if (line.source === 'store') {
+    const b = basicOf(hs, line.id);
+    return b ? Math.max(0, int(b.kind === 'mana' ? b.mana : b.heals, 0)) : 0;
+  }
+  const c = CONSUMABLES[line.id];
+  return c && c.source === 'own' ? c.amount : 0;
 }
 
 /* ── THE "*heal" RULE (Game Designer balance note, lane E) ──────────────────

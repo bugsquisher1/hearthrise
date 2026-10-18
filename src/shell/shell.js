@@ -18,14 +18,14 @@
 //
 // Mounted by src/app/world-pane.js over one character's World.
 // ════════════════════════════════════════════════════════════════════════
-import { MOBILE_QUERY } from '../world/core/camera.js?v=591';
-import { SHELL_WINDOWS } from '../data/shell-windows.js?v=591';
-import { HUD_WIDGETS } from '../data/hud-widgets.js?v=591';
-import { createWindowManager, DOCK_EDGE } from './window-manager.js?v=591';
-import { createHud, residueStore, placeWidget } from './hud.js?v=591';
-import { keyLabel, glyphSvg } from './launcher.js?v=591';
-import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=591';
-import { escapeHtml as esc } from '../utils/dom.js?v=591';
+import { MOBILE_QUERY } from '../world/core/camera.js?v=592';
+import { SHELL_WINDOWS } from '../data/shell-windows.js?v=592';
+import { HUD_WIDGETS } from '../data/hud-widgets.js?v=592';
+import { createWindowManager, DOCK_EDGE } from './window-manager.js?v=592';
+import { createHud, residueStore, placeWidget } from './hud.js?v=592';
+import { keyLabel, glyphSvg } from './launcher.js?v=592';
+import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=592';
+import { escapeHtml as esc } from '../utils/dom.js?v=592';
 
 /**
  * @param {HTMLElement} root   the World's box; the shell fills it

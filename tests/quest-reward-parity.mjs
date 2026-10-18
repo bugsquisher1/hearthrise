@@ -283,7 +283,7 @@ const MUTATIONS = [
   { name: 'xp: catalogue XP emptied (the client stops claiming hundred_kills)',
     apply: (s, cat) => ({ QUEST_REWARDS: { ...cat, hundred_kills: { ...cat.hundred_kills, xp: {} } } }) },
   { name: 'road: chain-end seed row removed (road_cook pays gold only)',
-    apply: (s) => ({ sql: s.sql.replace("  ('road_cook',    '{\"oak_rod\": 1}'),\n", '') }) },
+    apply: (s) => ({ sql: s.sql.replace("  ('road_cook',    '{\"lobster\": 3}'),\n", '') }) },
 ];
 
 async function selftest() {

@@ -23,12 +23,36 @@
 // ============================================================
 
 import { readdir, readFile } from 'node:fs/promises';
-import { join, normalize } from 'node:path';
+import { dirname, join, normalize, relative, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const CORE_DIR = join(ROOT, 'src', 'core');
+const DATA_DIR = join(ROOT, 'src', 'data');
+
+/* Every .js under src/core, recursively, as a posix path relative to it. The
+   hunt engine lives in src/core/hunt/ (H1-H5, 2026-10-17) and is the same
+   shared, vendored core: it is scanned by the same rules, not skipped. */
+async function coreFiles(dir = CORE_DIR) {
+  const out = [];
+  for (const e of await readdir(dir, { withFileTypes: true })) {
+    const p = join(dir, e.name);
+    if (e.isDirectory()) out.push(...await coreFiles(p));
+    else if (e.name.endsWith('.js')) out.push(relative(CORE_DIR, p).split(sep).join('/'));
+  }
+  return out.sort();
+}
+
+/* A core import is lawful iff it is a relative path to a plain [\w-]+.js file
+   that resolves inside src/core/** or src/data/** — never src/features, the
+   legacy monolith, the network layer or a bare package. */
+export function lawfulImport(fromRel, spec) {
+  const bare = spec.replace(/\?v=\d+$/, '');
+  if (!/^\.\.?\//.test(bare) || !/(^|\/)[\w-]+\.js$/.test(bare)) return false;
+  const to = normalize(join(CORE_DIR, dirname(fromRel), bare));
+  return [CORE_DIR, DATA_DIR].some((d) => to.startsWith(d + sep));
+}
 
 /* Banned in src/core. Each entry is [regex, why] — the "why" is what the
    failure prints, because a guard that only says "forbidden" teaches nobody. */
@@ -73,7 +97,7 @@ export async function corePurityGuard() {
   const problems = [];
   let names = [];
   try {
-    names = (await readdir(CORE_DIR)).filter((n) => n.endsWith('.js')).sort();
+    names = await coreFiles();
   } catch {
     return ['could not read src/core — the shared simulation core is missing'];
   }
@@ -91,8 +115,8 @@ export async function corePurityGuard() {
        src/features or src/legacy.js would drag the browser back in. */
     for (const spec of raw.matchAll(/from\s+['"]([^'"]+)['"]/g)) {
       const s = spec[1];
-      if (!/^\.\/[\w-]+\.js(\?v=\d+)?$/.test(s) && !/^\.\.\/data\/[\w-]+\.js(\?v=\d+)?$/.test(s)) {
-        problems.push(`src/core/${name}: imports "${s}" — core may only import ./core siblings or ../data`);
+      if (!lawfulImport(name, s)) {
+        problems.push(`src/core/${name}: imports "${s}" — core may only import src/core/** or src/data/**`);
       }
       /* CLAUDE.md cache-buster rule: every ESM import specifier carries ?v= */
       if (!/\?v=\d+/.test(s)) problems.push(`src/core/${name}: import "${s}" has no ?v= cache buster`);
@@ -432,49 +456,6 @@ export async function coreAnchorGuard() {
       aBonus += r.toolDoubles;
     }
     if (aBonus !== 1) problems.push(`a 10% artisan tool over 10 crafts must pay exactly 1 extra, paid ${aBonus}`);
-
-    /* ── Phase A: the bounty board ────────────────────────────────────── */
-    const bty = await load('bounty.js');
-    if (bty.unlockedTier(11) !== 1 || bty.unlockedTier(12) !== 2 || bty.unlockedTier(70) !== 6) problems.push('the bounty tier ladder drifted');
-    if (bty.unlockedTypes(4).length !== 1 || bty.unlockedTypes(40).length !== 6) problems.push('the bounty type ladder drifted');
-    const rw = bty.bountyRewards(3, 'proof', 'hard');
-    if (rw.gold !== 2500 || rw.marks !== 32 || rw.xp !== 281) problems.push('bounty rewards drifted: ' + JSON.stringify(rw));
-    if (bty.bountyRewards(1, 'cull', 'easy').marks < 1) problems.push('a bounty must always pay at least 1 Mark');
-
-    const mons = {
-      rat: { name: 'Rat', tier: 1, weaponWeak: 'sword', xp: 10, drops: [{ id: 'tail', ch: 0.4 }] },
-      goblin: { name: 'Goblin', tier: 1, weaponWeak: 'neutral', xp: 12, drops: [{ id: 'ear', ch: 0.3 }] },
-      ogre: { name: 'Ogre', tier: 2, weaponWeak: 'hammer', xp: 40, drops: [{ id: 'tusk', ch: 0.2 }] },
-      king: { name: 'King', tier: 3, boss: true, weaponWeak: 'sword', xp: 900, drops: [] },
-    };
-    const bItems = { tail: { n: 'Tail' }, ear: { n: 'Ear' }, tusk: { n: 'Tusk' } };
-    const boardCtx = (seed) => ({
-      monsters: mons, items: bItems, combatLevel: 30, bountyLevel: 20,
-      ownedTypes: new Set(['sword', 'hammer']), rng: createRng(seed), now: 1_700_000_000_000,
-    });
-    const b1 = JSON.stringify(bty.generateBountyBoard(boardCtx(4242)).board);
-    const b2 = JSON.stringify(bty.generateBountyBoard(boardCtx(4242)).board);
-    const b3 = JSON.stringify(bty.generateBountyBoard(boardCtx(4243)).board);
-    /* THE point of the extraction: the board used to stamp Date.now() and
-       Math.random() into every id, so no two runs could ever agree. */
-    if (b1 !== b2) problems.push('the same seed produced a different bounty board — the board is not replayable');
-    if (b1 === b3) problems.push('a different seed produced the same board — the seed is being ignored');
-    const board = bty.generateBountyBoard(boardCtx(4242)).board;
-    if (board.length !== 3) problems.push('the board must always offer three bounties');
-    if (board.some((b) => mons[b.target].boss)) problems.push('a normal bounty must never target a boss');
-    if (board.some((b) => !(b.required > 0))) problems.push('a bounty with no target count is instantly complete');
-    if (new Set(board.map((b) => b.target)).size !== 3) problems.push('the three offers must name three different monsters');
-    /* Never offer a weapon bounty the player cannot satisfy. */
-    const poor = bty.generateBountyBoard(Object.assign(boardCtx(4242), { ownedTypes: new Set(['sword']) })).board;
-    for (const b of poor) {
-      if (b.type === 'weapon' && b.requiredWeaponType !== 'neutral' && b.requiredWeaponType !== 'sword') {
-        problems.push('offered a weapon bounty for a weapon the player does not own');
-      }
-    }
-    if (bty.pickProofItem('rat', mons, bItems) !== 'tail') problems.push('pickProofItem no longer picks the commonest non-equipment drop');
-    if (bty.pickProofItem('king', mons, bItems) !== null) problems.push('a drop-less monster must yield no proof item');
-    const owned = bty.ownedWeaponTypes({ bow: 1 }, {}, { bow: { type: 'weapon', weaponType: 'ranged' } });
-    if (!owned.has('ranged') || !owned.has('sword')) problems.push('ownedWeaponTypes must include the bag AND the always-available sword');
 
     const toolsMod = await load('tools.js');
     const toolItems = {

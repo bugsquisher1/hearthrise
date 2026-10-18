@@ -52,7 +52,6 @@ import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { ARTISAN_RECIPES } from '../src/data/recipes.js';
 import { START_INVENTORY } from '../src/data/start-kit.js';
-import { DUNGEONS, QM_STOCK } from '../src/data/dungeons.js';
 
 let failed = 0;
 const ok = (cond, msg) => { if (!cond) { failed++; console.error(`  FAIL  ${msg}`); } };
@@ -316,7 +315,8 @@ async function runAll(mut) {
   // ── ROLL-5  ONE ROLL SITE PER ENGINE, NONE OUTSIDE src/core. ────────────
   {
     const read = (rel) => readFile(new URL(rel, import.meta.url), 'utf8').catch(() => '');
-    const combat = await read('../src/core/combat-sim.js');
+    /* The combat engine is the loop (combat-sim.js) plus its swing (hunt/world-step.js). */
+    const combat = (await read('../src/core/combat-sim.js')) + (await read('../src/core/hunt/world-step.js'));
     const skill = await read('../src/core/skill-sim.js');
     /* The client's own modules (the rebuilt client, 2026-10-17): none may roll. */
     const { readdirSync } = await import('node:fs');
@@ -335,7 +335,7 @@ async function runAll(mut) {
     ok(clientFiles >= 10, `CONTROL: only ${clientFiles} client modules were read — the scan below is vacuous`);
     const count = (s, re) => (s.match(re) || []).length;
     ok(count(combat, /resolveHearthfind\s*\(/g) === 1,
-      `combat-sim.js has ${count(combat, /resolveHearthfind\s*\(/g)} hearthfind roll sites — exactly one`);
+      `the combat engine has ${count(combat, /resolveHearthfind\s*\(/g)} hearthfind roll sites — exactly one`);
     ok(count(skill, /resolveHearthfind\s*\(/g) === 1,
       `skill-sim.js has ${count(skill, /resolveHearthfind\s*\(/g)} hearthfind roll sites — exactly one`);
     ok(!/rollHearthfind|resolveHearthfind/.test(client),
@@ -371,10 +371,6 @@ async function runAll(mut) {
       for (const r of list) if (V.ids.includes(r.out || r.id)) faucets.push(`recipe ${r.id}`);
     }
     for (const id of Object.keys(START_INVENTORY)) if (V.ids.includes(id)) faucets.push(`start kit ${id}`);
-    for (const [did, d] of Object.entries(DUNGEONS)) {
-      for (const l of (d.loot || [])) if (V.ids.includes(l.id)) faucets.push(`dungeon loot ${did}`);
-    }
-    for (const o of QM_STOCK) if (V.ids.includes(o.id)) faucets.push(`quartermaster ${o.id}`);
     ok(faucets.length === 0,
       `a hearthfind trophy is reachable from ${faucets.length} other faucet(s): ${faucets.join(', ')}. `
       + 'The hearthfind arm of hr_apply must be the ONLY door, or an item can exist with no ledger '

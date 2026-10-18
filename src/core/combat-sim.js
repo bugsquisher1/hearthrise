@@ -38,361 +38,52 @@
 // away combat span, Auto-Eat, the Recovery ladder, the Retreat and the Boss of
 // the Day were deleted outright with the closed rebuild (lane C2).
 //
+// ONE SWING is `stepSwing` (src/core/hunt/world-step.js): the instance
+// world's sub-steps, then the session hero's swing. This file keeps the loop
+// round it — the absolute swing clock, the end checks, stamina, the knockout
+// window and the tally (HUNT_SCREEN_SPEC §1.1 engine contract #1).
+//
 // Everything impure is INJECTED, which is what keeps this file runnable in
 // Deno with no browser:
-//   • `ctx.rng` / `ctx.swingSeed(i)` — src/core/rng.js contract; a session's
-//                               swing seed is the edge's keyed HMAC
+//   • `ctx.swingSeed(i)`      — the edge's keyed HMAC per swing (src/core/rng.js)
 //   • `ctx.bonus(key)`        — the perk stack
 //   • `ctx.playerRolls(m)` / `ctx.monsterRolls(m)` / `ctx.weakness(m)`
-//   • `ctx.fx`                — the effect sink. Missing handlers are no-ops,
-//                               so a bare `simulateTick(state,{...})` in a test
-//                               simulates without side effects.
+//   • `ctx.fx`                — the effect sink; missing handlers are no-ops
+//   • `ctx.ground` / `ctx.grid` — the hunt ground row and its grid, when the
+//                               session carries a world (`hs.world`)
 //
-// `state` is the player-state object. It is MUTATED in place — the same
-// convention src/core/progression.js `grantXp` established, because the
-// alternative is copying a 40-field save 18,000 times per replay.
+// `state` is the player-state object, MUTATED in place (the convention
+// src/core/progression.js `grantXp` set: copying a 40-field save per swing
+// is the alternative).
 //
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit } from './combat.js?v=591';
-import { rollDropTable } from './drops.js?v=591';
-import { resolveHearthfind } from './hearthfind.js?v=591';
-import { hitXpRoute, killXpRoute } from './styles.js?v=591';
-import { applyGoldFind } from './pacing.js?v=591';
-import { resumeHpFor } from './recovery.js?v=591';
-/* HUNT SESSIONS (ruling HR-2026-10-14): the action bar replaces Auto-Eat when
-   `state.huntSession` is present, and `simulateSpan` then walks the session's
-   absolute swing clock (`simulateHuntSpan` below). */
-import { runActionBar, spendFromBag, endReasonAt, deathXpLoss, staminaStep, shopShotFor, buyFromShop,
-  floorOf, coverValue } from './action-rules.js?v=591';
-import { KNOCKOUT_MS } from '../data/hunt-sessions.js?v=591';
-import { BASIC_EFFECT_SHARE } from '../data/supply-basics.js?v=591';
-import { createRng } from './rng.js?v=591';
-import { pickSpawn } from './hunt-spawn.js?v=591';
-import { tickBuffs, pruneBuffs, hasActiveBuff } from './buffs.js?v=591';
-/* THE CONSUMPTION SEAM (design item E1). The arithmetic lives in ./ammo.js and
-   is imported rather than restated — one field, one carry, one guard. Nothing
-   below branches on `ctx.away`, which is what keeps the AWAY-1 parity property
-   true of the quiver as well as of the XP. */
-import { spendForSwings, applyAmmoMult, readAmmo } from './ammo.js?v=591';
+import { COMBAT_BALANCE } from './combat.js?v=592';
+import { resumeHpFor } from './recovery.js?v=592';
+import { runActionBar, endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=592';
+import { createRng } from './rng.js?v=592';
+import { tickBuffs, pruneBuffs, hasActiveBuff } from './buffs.js?v=592';
+import { stepSwing, OUTCOME, fxOf, call } from './hunt/world-step.js?v=592';
+import { makeEvent } from './hunt/events.js?v=592';
 
-
-function fxOf(ctx) { return (ctx && ctx.fx) || {}; }
-function call(fx, name, ...args) {
-  const f = fx[name];
-  return typeof f === 'function' ? f(...args) : undefined;
-}
-
-/* Outcomes, named so a caller never compares against a bare string. */
-export const OUTCOME = {
-  HIT: 'hit', KILL: 'kill', DEATH: 'death', STOP: 'stop',
-};
+/* The swing's outcomes and its kill / death hand-offs live with the swing;
+   published here too, because this module is the engine's front door
+   (src/core/index.js `combatSim`). */
+export { stepSwing, OUTCOME, resolveKill, resolveDeath } from './hunt/world-step.js?v=592';
 
 /* WHY A COMBAT SPAN STOPPED BEFORE THE ABSENCE DID — the same contract
-   src/core/skill-sim.js and src/core/artisan-sim.js already publish under this
-   name, and for the same reason: STATED by the simulation, never inferred by a
-   renderer. `null` means "it ran the whole window", which is the ordinary night
-   and is NOT the same thing as `paidMs < awayMs` (flooring a tick count already
-   makes that true on a perfectly honest night).
-   Imported by accrual.js as `COMBAT_STOP`, beside `STOP_REASON` (skill) and
-   `ARTISAN_STOP`, so three tables with one shape cannot be confused for one. */
+   src/core/skill-sim.js and src/core/artisan-sim.js publish under this name.
+   `null` means "it ran the whole window". Imported by accrual.js as
+   `COMBAT_STOP`. */
 export const STOP_REASON = Object.freeze({});
 
 /**
- * Resolve a KILL: gold, drops, kill XP, and every counter a kill feeds.
- *
- * This is the function `killMonster()` in legacy.js became, and the one
- * the away replay reaches through the same wrapped `window.killMonster`,
- * so the five feature modules hooked onto that name observe an away kill
- * exactly as they observe a live one.
- *
- * PRESENTATION IS NOT HERE. No toast, no combat-log line, no repaint —
- * those arrive through `fx.onKill` / `fx.onDrop`, which the client makes
- * silent while away (a 12-hour replay would otherwise queue several
- * hundred "Defeated Slime" toasts and repaint the topbar for each one).
- */
-export function resolveKill(state, m, ctx) {
-  const fx = fxOf(ctx);
-  const rng = ctx.rng;
-  const id = state.activeMonster;
-  const bonus = typeof ctx.bonus === 'function' ? ctx.bonus : () => 0;
-
-  const gp = applyGoldFind(rng.int(m.gp[0], m.gp[1]), bonus);
-  state.gold = (state.gold || 0) + gp;
-  call(fx, 'onLoot', gp, m, ctx);
-  state.stats = state.stats || {};
-  state.stats.kills = (state.stats.kills || 0) + 1;
-  state.combatKillsThisFoe = (state.combatKillsThisFoe || 0) + 1;
-
-
-  const dropMult = (typeof ctx.weakness === 'function' ? ctx.weakness(m, id) : { dropMult: 1 }).dropMult;
-  /* THE BALANCE ASSERTION the designer asked for (ruling, "Balance risk"):
-     rollDropTable applies `min(0.95, ch x dropMult x (1+dropBuff))` — the cap
-     is AFTER every multiplier, and a guaranteed drop (ch >= 1) is returned
-     untouched. Enforced in src/core/drops.js and asserted in the suite. */
-  const rolled = rollDropTable(m.drops, {
-    dropMult,
-    dropBuff: bonus('dropRate'),
-  }, rng);
-
-  for (const ev of rolled.events) {
-    call(fx, 'addItem', ev.id, 1);
-    if (ev.rare) state.stats.rareDrops = (state.stats.rareDrops || 0) + 1;
-    call(fx, 'onDrop', ev, m, ctx);
-  }
-
-  /* The five away omissions the ruling names. They are BASE rewards, so
-     they run unconditionally — there is no `if (!away)` anywhere below. */
-  call(fx, 'recordKill', id, rolled.dropped);
-  call(fx, 'rollKillDeed', m);
-  for (const g of killXpRoute(ctx.style, m.xp, 1)) call(fx, 'addXp', g.skill, g.amount);
-  call(fx, 'updateDaily', 'kill_any', 1);
-  call(fx, 'updateQuest', 'kill_any', 1, { target: id });
-  call(fx, 'updateQuest', 'kill_monster', 1, { target: id });
-  call(fx, 'handleBountyKill', id, m);
-
-  /* THE HEARTHFIND (Feature Slate §2). LAST, after every other draw this kill
-     makes, so a monster with no table row is byte-identical to its
-     pre-Hearthfind self and one WITH a row cannot shift its own gold or drops.
-     Nothing scales it — no dropMult, no dropRate buff, no featured multiplier
-     — because "never boostable by anything paid" is cheapest to keep true by
-     giving the roll no modifier to take. The GRANT is not here: hr_apply looks
-     the pair up in its own catalogue and writes the item, the ledger row and
-     the world_finds row itself. */
-  const found = resolveHearthfind(state, 'monster', id, ctx);
-
-  const info = { gp, monster: m, monsterId: id, drops: rolled.dropped, events: rolled.events };
-  if (found) info.hearthfind = found;
-  call(fx, 'onKill', info, ctx);
-
-  /* RESPAWN. A training fight respawns the same foe (the behaviour both loops
-     had). A HUNT (lane C1, src/data/hunts.js) rolls the next foe from its
-     weighted spawns on THIS engine's seeded rng, after every other draw this
-     kill made — one function, not branched on `ctx.away`, so the attended tick
-     and the away span roll the same sequence (AWAY-1). A one-spawn hunt draws
-     nothing. An id the roster does not know keeps the current foe. */
-  const nextId = (ctx.hunt && ctx.hunt.spawns) ? pickSpawn(ctx.hunt.spawns, rng) : id;
-  const next = (nextId !== id && ctx.monsters && ctx.monsters[nextId]) || null;
-  if (next) {
-    state.activeMonster = nextId;
-    state.combatKillsThisFoe = 0;
-  }
-  state.monsterHp = (next || m).hp;
-  state.monsterMaxHp = (next || m).hp;
-  return info;
-}
-
-/**
- * Resolve a DEATH. One rule (master plan row 16; ruling S/U): a fall is a flat
- * KNOCKOUT_MS knockout and the character gets up at `resumeHpFor(maxHp)` — 40%,
- * never a free heal. The Recovery ladder, the Retreat and the bounty streak
- * left with the away model (closed rebuild, lane C2). `stats.deaths` counts the
- * fall; the two durable death counters ride the info for the death rows.
- *
- * This function only REPORTS the knockout; the caller that owns a timeline
- * (`simulateHuntSpan`) turns it into an absolute recovery line.
- */
-export function resolveDeath(state, ctx) {
-  const fx = fxOf(ctx);
-  state.stats = state.stats || {};
-  const soFar = Math.floor(Number(state.stats.deaths) || 0);
-  const base = (v) => { const n = Math.floor(Number(v)); return isFinite(n) && n >= 0 ? n : 0; };
-  const todayBefore = base(state.deathsTodayBefore) + soFar;
-  const lifeBefore  = base(state.deathsLifetimeBefore) + soFar;
-  state.stats.deaths = soFar + 1;
-  state.playerHp = resumeHpFor(state.playerMaxHp);
-  state.monsterHp = 0;
-  const info = {
-    died: true,
-    recoverMs: KNOCKOUT_MS,
-    deathsToday: todayBefore + 1,
-    deathsLifetime: lifeBefore + 1,
-    nextRecoverMs: KNOCKOUT_MS,
-    resumeHp: state.playerHp,
-  };
-  call(fx, 'onDeath', ctx, info);
-  return info;
-}
-
-/**
- * ONE tick. `ctx.away` decides scope and presentation; nothing else differs.
- *
- * Draw order is fixed and load-bearing — it is what makes a seeded fight
- * replay identically through both paths, and what the parity test asserts:
- *   1. player swing   (rollAttack: up to 2 draws)
- *   2. crit           (1 draw, only on a landed hit)
- *   3. [kill] gold    (1 draw) then the drop table (1 draw per row)
- *   4. monster swing  (rollAttack: up to 2 draws)
- *
- * ⚠ THE AMMO SPEND DRAWS NOTHING, AND THAT IS A CONTRACT. `spendForSwings` is
- *   a deterministic carry, never a dice roll (src/core/ammo.js §2.1). If it
- *   ever consumed a draw it would shift every roll after it and the parity
- *   test would be comparing two different fights — which is also why a
- *   "20% chance to consume" model was rejected in favour of `ammoPerShot: 0.2`.
- */
-/* A HUNT'S QUIVER IS ITS BAG. `spendForSwings` runs unchanged over a view
-   whose inventory is the bag line of the equipped ammo, and its one
-   `removeItem` lands in the bag (spendFromBag) instead of the inventory. The
-   carry object is the state's own, so the fractional carry survives swings. */
-/* THE SHOP SHOT (Tyler 2026-10-14; supply-basics.js): when the equipped arrow
-   or rune has a shop shot behind it (same partner), the quiver is the bag line
-   FIRST and then whatever the purse can buy, shot by shot — only on the
-   player's own choice (Store Supplies, or Switch on empty: storeAllowed) —
-   and a shop shot fires at BASIC_EFFECT_SHARE of its crafted partner's ammo
-   bonus (`shop` on the answer; action-rules.js buyFromShop). A style that
-   needs its ammo and can neither draw nor buy a shot marks the session goldOut
-   — the hunt ends `gold_out` at the next boundary. */
-function spendFromQuiver(state, hunt, ctx) {
-  const ammoId = (state.equipment && state.equipment.ammo) || null;
-  const line = ammoId && hunt.bag ? hunt.bag[ammoId] : null;
-  if (!state.ammoCarry || typeof state.ammoCarry !== 'object') state.ammoCarry = {};
-  const bagLeft = line ? Math.max(0, Math.floor(Number(line.left) || 0)) : 0;
-  const shot = ammoId ? shopShotFor(hunt, ammoId) : null;
-  const price = shot ? shot.price : 0;
-  /* What the purse can buy with the floor kept, counting the loot it could sell. */
-  const buyable = price > 0
-    ? Math.floor(Math.max(0, Math.floor(Number(hunt.purse) || 0) + coverValue(hunt) - floorOf(hunt)) / price) : 0;
-  const view = { equipment: state.equipment, ammoCarry: state.ammoCarry,
-    inventory: ammoId ? { [ammoId]: bagLeft + buyable } : {} };
-  const atMs = Number(ctx.atMs) || 0;
-  const opts = { items: ctx.items, weaponType: ctx.weaponType, fx: { removeItem: (id, n) => {
-    const fromBag = spendFromBag(hunt, id, Math.min(n, bagLeft), atMs);
-    if (n - fromBag > 0 && shot) buyFromShop(hunt, shot.id, n - fromBag);
-  } } };
-  if (price > 0 && bagLeft + buyable <= 0) {
-    const info = readAmmo(view, opts);
-    if (info.needed && info.spends && info.perShot > 0) hunt.goldOut = true;
-  }
-  const out = spendForSwings(view, 1, opts);
-  /* A swing loosed with the carried line empty and the store behind it is a
-     SHOP SHOT (decided before the draw, so every cut of the window agrees). */
-  out.shop = !!shot && bagLeft <= 0 && buyable > 0;
-  return out;
-}
-
-export function simulateTick(state, ctx) {
-  const fx = fxOf(ctx);
-  const monsters = ctx.monsters || {};
-  const id = state.activeMonster;
-  if (!id) return { outcome: OUTCOME.STOP, reason: 'no-target' };
-  const m = monsters[id];
-  if (!m) { state.activeMonster = null; return { outcome: OUTCOME.STOP, reason: 'unknown-monster' }; }
-
-  /* ── E1: THE ARROW IS SPENT ON THE SWING ──────────────────────────────
-     Hit or miss, kill or not (R3). That is what makes the burn a pure
-     function of time, which is what makes the pre-flight projection and the
-     away card's dry-out line the same expression evaluated at two moments —
-     `consumablesPerHour` / `dryAtMs` in ./ammo.js. Spending on HITS would make
-     the rate a function of the monster's defence and the player's accuracy, so
-     a high-accuracy build would be CHEAPER to run and the projection could not
-     be computed before the target was chosen.
-
-     Charged BEFORE the roll and applied to it, because `startMult` is the
-     supply state the swing is loosed at: the swing that spends the LAST arrow
-     is a supplied swing and hits at full strength; the next one is weak.
-
-     No-ammo loadouts are byte-identical to the pre-E1 engine — `applyAmmoMult`
-     returns its input unchanged at a multiplier of 1, and `spendForSwings`
-     returns without touching `state` when the slot is empty or the rung free. */
-  const hunt = state.huntSession || null;
-  const supply = hunt ? spendFromQuiver(state, hunt, ctx) : spendForSwings(state, 1, ctx);
-
-  const roll = ctx.playerRolls(m, supply && supply.shop ? { ammoShare: BASIC_EFFECT_SHARE } : undefined);
-  let pDmg = rollAttack(ctx.rng, roll.accuracy, applyAmmoMult(roll.maxHit, supply.startMult));
-
-  /* CRITS APPLY AWAY (the ruling reverses the old behaviour). Crit is gear —
-     `critB` from equipment plus the armour-set bonus — so it is a permanent
-     property and omitting it away was a hidden, gear-scaled penalty of ~7.5%
-     typical and up to 30% at the 0.60 cap. The `damage_crit` FOOD buff is
-     excluded away, and needs no code here: it arrives through `bonus('crit')`
-     on the buff channel, which src/core/away.js closes. */
-  let didCrit = false;
-  if (pDmg > 0 && rollCrit(ctx.rng, roll.critChance)) {
-    pDmg = applyCrit(pDmg, COMBAT_BALANCE.critMult);
-    didCrit = true;
-    state.stats = state.stats || {};
-    state.stats.crits = (state.stats.crits || 0) + 1;
-  }
-  state._lastPlayerCrit = didCrit;
-  /* XP IS EARNED ON DAMAGE DEALT (design ruling). The swing may roll
-     past the foe's remaining HP — overkill, crits included — but only the
-     HP it actually removed pays hit XP, styled and hitpoints alike. Without
-     the clamp a maxed hitter earned ~4 XP per wasted point on a slime. */
-  const hpBefore = Math.max(0, state.monsterHp);
-  const xpDmg = Math.min(pDmg, hpBefore);
-  state.monsterHp = Math.max(0, state.monsterHp - pDmg);
-  call(fx, 'onSwing', m, pDmg, didCrit, ctx);
-
-  if (xpDmg > 0) {
-    for (const g of hitXpRoute(ctx.style, xpDmg)) call(fx, 'addXp', g.skill, g.amount);
-  }
-
-  if (state.monsterHp <= 0) {
-    /* Through `fx.killMonster` when the caller supplies one, because on the
-       client that name carries five wrappers (dungeon keys, companions,
-       pets, collection log, chronicle) that an away kill must also trigger.
-       Falling back to resolveKill keeps this file usable bare, in Deno and
-       in tests. */
-    const info = typeof fx.killMonster === 'function' ? fx.killMonster(m) : resolveKill(state, m, ctx);
-    return { outcome: OUTCOME.KILL, crit: didCrit, pDmg, kill: info || null, supply };
-  }
-
-  const mr = ctx.monsterRolls(m);
-  const mDmg = rollAttack(ctx.rng, mr.accuracy, mr.maxHit);
-  state.playerHp = Math.max(0, state.playerHp - mDmg);
-  call(fx, 'onMonsterSwing', m, mDmg, ctx);
-
-  /* THE ACTION BAR is the only eater (Auto-Eat left with the away model): a
-     fight outside a hunt session eats nothing. */
-  const ate = hunt ? runActionBar(state, ctx) : false;
-
-  if (state.playerHp <= 0) {
-    /* `recoverMs` rides the outcome for the same reason `supply` does: the span
-       needs it to know how many ticks this character is Knocked Out for, and a
-       caller that re-derived it would be a second copy of the first-death
-       grace. */
-    const d = resolveDeath(state, ctx);
-    /* `retreat` / `foodless` / `consecFalls` ride the outcome for the same
-       reason `recoverMs` does: the span has to know whether THIS fall ended the
-       run, and a caller that re-derived it would be a second copy of the rule.
-       The attended tick reads `retreat` too (legacy.js COMBAT_FX.onDeath), so
-       both paths branch off one boolean computed in one place. */
-    return { outcome: OUTCOME.DEATH, crit: didCrit, pDmg, mDmg, ate, supply, recoverMs: d.recoverMs };
-  }
-  /* `supply` rides on EVERY outcome, kill included, because the span's
-     `consumed` tally is built from it and an arrow spent on a killing blow is
-     still an arrow. Returned rather than accumulated into `state`: the client's
-     `state` IS `G`, and a new top-level G field would be a save-allowlist
-     question for a number that is only ever a per-span readout. */
-  return { outcome: OUTCOME.HIT, crit: didCrit, pDmg, mDmg, ate, supply };
-}
-
-/**
- * Simulate a SPAN of elapsed time — the accrual path.
- *
- * @param ctx  everything simulateTick wants, plus:
- *   fromMs, toMs   the span. Server-authoritative timestamps: the accrual
- *                  engine passes `server_last_seen` and `now()`, and the
- *                  client clock is never consulted for authority.
- *   tickMs         the swing interval. Pass `combatTickMs()` — the same
- *                  number live play uses, gear speed and weapon family
- *                  included. The old away loop used the flat 2.4s constant.
- *                  CLAMPED to `COMBAT_BALANCE.minTickMs` (600ms); a hostile
- *                  or garbage value cannot inflate the tick budget.
- *   minTickMs      optional, explicit opt-in to a finer floor. Absent, zero,
- *                  negative or non-numeric = the real floor. Never plumb a
- *                  client-supplied value into this.
- *   botdFor(atMs)  builds the featured-boss resolver for a segment.
- *   capped         did the caller clamp this span at the offline cap?
- *   fx.segment(atMs, run)  optional: lets the caller pin its ambient
- *                  "which instant are we simulating" before running a
- *                  segment's ticks, so a nested wrapped killMonster
- *                  resolves the right day's boss.
- *
- * @returns the welcome-back summary. Every field the ruling's "player-facing
- *          honesty" clause requires is in here, so no renderer has to guess
- *          — and none of them can invent a bonus that was not applied.
+ * The swing interval of a span: `ctx.tickMs` (the server derives it from
+ * server-owned equipment), CLAMPED to `COMBAT_BALANCE.minTickMs` (600 ms) so a
+ * hostile or garbage value cannot inflate the swing budget. `minTickMs` is an
+ * explicit opt-in to a finer floor; absent, zero, negative or non-numeric =
+ * the real floor. Never plumb a client-supplied value into either.
  */
 export function resolveTickMs(ctx) {
   const req = Number((ctx || {}).tickMs);
@@ -473,14 +164,14 @@ function tallyFx(fx, hs, events, clock) {
       return call(fx, 'onLoot', gp, ...rest);
     },
     onDrop(ev, ...rest) {
-      if (ev && ev.rare) events.push({ type: 'rare_drop', atMs: clock.atMs, item: ev.id });
+      if (ev && ev.rare) events.push(makeEvent('rare_drop', clock.atMs, { item: ev.id }));
       return call(fx, 'onDrop', ev, ...rest);
     },
   });
 }
 
 /**
- * A HUNT SESSION'S SPAN (ruling HR-2026-10-14 §2/§4). The same simulateTick,
+ * A HUNT SESSION'S SPAN (ruling HR-2026-10-14 §2/§4). One `stepSwing` per swing,
  * driven by the session's ABSOLUTE swing clock instead of a per-window tick
  * budget: a swing happens at `hs.nextSwingAtMs` if that instant is inside
  * [.., toMs), and the clock then advances by one swing interval. Every swing
@@ -493,6 +184,11 @@ function tallyFx(fx, hs, events, clock) {
  * nothing and RESTS stamina one interval → otherwise one swing (stamina DRAINS
  * one interval), the action bar inside it → the buff queue drains one
  * interval. Vigour plays no part in a hunt (2026-10-14 rulings).
+ *
+ * THE WORLD (`hs.world`, a decoded world-state.js world, when the session has
+ * one) steps at EVERY boundary past the end checks — knocked out and between
+ * pulls too, with no hero swing — so the instance never pauses for one hero.
+ * Its track and events ride out as `huntTrack` / `huntWorldEvents`.
  */
 function simulateHuntSpan(state, ctx) {
   const hs = state.huntSession;
@@ -517,6 +213,11 @@ function simulateHuntSpan(state, ctx) {
     const q = Array.isArray(state.buffs) && state.buffs.length ? state.buffs : null;
     if (q) for (const t of tickBuffs(q, tickMs, { away: false, active: true }).expired) buffsExpired.push(t);
   };
+  const huntTrack = []; const huntWorldEvents = [];
+  const swingCtxOf = (atMs, swing, fight) => Object.assign({}, ctx, { atMs, fx, state, fight, swingMs: tickMs,
+    rng: createRng(swingSeedOf(ctx, swing)) });
+  const keep = (r) => { for (const t of r.track) huntTrack.push(t); for (const e of r.events) huntWorldEvents.push(e); return r; };
+  const worldOnly = (atMs, swing) => { if (hs.world) keep(stepSwing(hs.world, swingCtxOf(atMs, swing, false))); };
 
   while (!hs.endedReason && state.activeMonster && hs.nextSwingAtMs < toMs) {
     const atMs = hs.nextSwingAtMs;
@@ -525,7 +226,7 @@ function simulateHuntSpan(state, ctx) {
     if (why) {
       hs.endedReason = why;
       hs.endedAtMs = atMs;
-      events.push({ type: 'ended', atMs, reason: why });
+      events.push(makeEvent('ended', atMs, { reason: why }));
       break;
     }
     const swing = hs.swingIndex;
@@ -536,6 +237,7 @@ function simulateHuntSpan(state, ctx) {
       recoverMs += tickMs;
       hs.tally.downMs += tickMs;
       if (hs.staminaMs !== null && hs.staminaMs !== undefined) hs.staminaMs = staminaStep(hs.staminaMs, tickMs, false);
+      worldOnly(atMs, swing);
       continue;
     }
     if (hs.staminaMs !== null && hs.staminaMs !== undefined) hs.staminaMs = staminaStep(hs.staminaMs, tickMs, true);
@@ -557,6 +259,7 @@ function simulateHuntSpan(state, ctx) {
         drain();
         hs.tally.paidMs += tickMs;
         hs.tally.waitMs = (Number(hs.tally.waitMs) || 0) + tickMs;
+        worldOnly(atMs, swing);
         continue;
       }
       pl.left = pl.size;
@@ -565,12 +268,11 @@ function simulateHuntSpan(state, ctx) {
     }
     if (typeof fx.mark === 'function') fx.mark(atMs);
     const facing = state.activeMonster;
-    const swingCtx = Object.assign({}, ctx, { atMs, fx,
-      rng: createRng(swingSeedOf(ctx, swing)) });
+    const swingCtx = swingCtxOf(atMs, swing, true);
     const buffLive = hasActiveBuff(state.buffs);
-    const r = (typeof fx.segment === 'function')
-      ? (() => { let out; fx.segment(atMs, () => { out = simulateTick(state, swingCtx); }); return out; })()
-      : simulateTick(state, swingCtx);
+    const r = keep((typeof fx.segment === 'function')
+      ? (() => { let out; fx.segment(atMs, () => { out = stepSwing(hs.world || null, swingCtx); }); return out; })()
+      : stepSwing(hs.world || null, swingCtx));
     const sup = r.supply;
     if (sup && sup.spent > 0) consumed[sup.id] = (consumed[sup.id] || 0) + sup.spent;
     ticks++;
@@ -600,7 +302,7 @@ function simulateHuntSpan(state, ctx) {
       for (const k in xpLost) state.skills[k] = (Number(state.skills[k]) || 0) - xpLost[k];
       for (const k in xpLost) xpLostTotal[k] = (xpLostTotal[k] || 0) + xpLost[k];
       deathLog.push({ atMs: fellAtMs, monster: facing, recoverMs: rec, resumeHp: state.playerHp, xpLost });
-      events.push({ type: 'fall', atMs: fellAtMs, monster: facing, xpLost });
+      events.push(makeEvent('fall', fellAtMs, { monster: facing, xpLost }));
       continue;
     }
     if (r.outcome === OUTCOME.STOP) break;
@@ -618,7 +320,7 @@ function simulateHuntSpan(state, ctx) {
     const why = endReasonAt(hs, hs.nextSwingAtMs) || 'gold_out';
     hs.endedReason = why;
     hs.endedAtMs = hs.nextSwingAtMs;
-    events.push({ type: 'ended', atMs: hs.nextSwingAtMs, reason: why });
+    events.push(makeEvent('ended', hs.nextSwingAtMs, { reason: why }));
   }
   if (buffsExpired.length && Array.isArray(state.buffs)) state.buffs = pruneBuffs(state.buffs);
   /* An ENDED hunt leaves no knockout behind: the character walks home (a flat
@@ -641,6 +343,8 @@ function simulateHuntSpan(state, ctx) {
     consumed: Object.assign({}, consumed),
     huntEnded: hs.endedReason ? { reason: hs.endedReason, atMs: hs.endedAtMs } : null,
     huntEvents: events,
+    huntTrack,
+    huntWorldEvents,
     /* Every fall's XP debit, summed per skill (already taken off state.skills). */
     xpLost: xpLostTotal,
   };
@@ -661,6 +365,6 @@ export function simulateSpan(state, ctx) {
   return {
     kills: 0, foodEaten: 0, crits: 0, ticks: 0, deaths: 0, recoverMs: 0, died: false, survivedMs: 0,
     recoverRemainingMs: 0, deathLog: [], recoverLadder: [], stoppedBy: null, buffPaidMs: 0, buffsExpired: [],
-    consumed: {}, huntEnded: null, huntEvents: [], xpLost: {},
+    consumed: {}, huntEnded: null, huntEvents: [], huntTrack: [], huntWorldEvents: [], xpLost: {},
   };
 }

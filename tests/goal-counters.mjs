@@ -58,7 +58,7 @@ import {
 } from '../src/core/goals.js';
 /* W0: quest types that read a server STATE (not an ev: counter) — client-only, so
    they live in the data catalogue rather than the edge-packed goals module. */
-import { STATE_GOAL_TYPES, QUEST_REWARDS, DAILY_TASK_REWARDS } from '../src/data/goal-catalogue.js';
+import { STATE_GOAL_TYPES, QUEST_REWARDS } from '../src/data/goal-catalogue.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { ITEMS } from '../src/data/items.js';
 import { TREES, ROCKS, FISH_SPOTS } from '../src/data/gathering.js';
@@ -271,7 +271,8 @@ async function runOn(db, patches) {
   // goal type must be countable. Each with a positive control, because a scan
   // that stopped matching would report a clean bill on a broken contract.
   {
-    const coreFiles = ['combat-sim.js', 'skill-sim.js', 'artisan-sim.js', 'farm.js', 'bounty.js'];
+    /* hunt/world-step.js: H1 moved the kill emits out of combat-sim.js's swing (2026-10-17). */
+    const coreFiles = ['combat-sim.js', 'hunt/world-step.js', 'skill-sim.js', 'artisan-sim.js', 'farm.js', 'bounty.js'];
     const emitted = new Set();
     let sites = 0;
     for (const f of coreFiles) {
@@ -293,12 +294,11 @@ async function runOn(db, patches) {
     }
 
     /* The authored side: the server catalogue the claims grade against
-       (src/data/goal-catalogue.js QUEST_REWARDS checkKey / DAILY_TASK_REWARDS
-       type). It was the old client's QUEST_DEFS + DAILY_TASK_POOL until the
-       client reset (2026-10-17); the catalogue is the only authored copy now. */
+       (src/data/goal-catalogue.js QUEST_REWARDS checkKey). It was the old client's
+       QUEST_DEFS until the client reset (2026-10-17); the dailies left with the
+       2026-10-14 demolition. The catalogue is the only authored copy now. */
     const authored = [
       ['QUEST_REWARDS', Object.values(QUEST_REWARDS).map((r) => String(r.checkKey || ''))],
-      ['DAILY_TASK_REWARDS', Object.values(DAILY_TASK_REWARDS).map((r) => 'ev:' + String(r.type || ''))],
     ];
     const stateTypes = (stateGoalTypes && typeof stateGoalTypes === 'object') ? stateGoalTypes : {};
     for (const [name, keys] of authored) {
@@ -313,7 +313,7 @@ async function runOn(db, patches) {
       }
     }
     // No authored goal may be target-scoped: the counter key carries no target.
-    for (const [id, r] of [...Object.entries(QUEST_REWARDS), ...Object.entries(DAILY_TASK_REWARDS)]) {
+    for (const [id, r] of Object.entries(QUEST_REWARDS)) {
       ok(!('target' in r),
         `G2(c): '${id}' authors a goal with a \`target\` — the counter key shape is 'ev:<type>' and `
         + 'carries no target, so that goal would read a count of EVERY kill. Extend the key shape first.');

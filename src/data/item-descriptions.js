@@ -3,11 +3,11 @@
 // voice, original IP. Surfaced in the item detail/tooltip (the "what is it" line).
 // SAFE TO EXTEND: an item with no entry here just shows no flavour line — nothing breaks.
 
-import { WAVE3_DESC } from './wave3-uniques.js?v=591';
-import { SLOT_DESC } from './slot-ladders.js?v=591';
-import { LIB2_DESC } from './library2-items.js?v=591';
-import { BOSS_FORGE_DESC } from './boss-forge.js?v=591';
-import { CHAMPION_DESC } from './champions.js?v=591';
+import { WAVE3_DESC } from './wave3-uniques.js?v=592';
+import { SLOT_DESC } from './slot-ladders.js?v=592';
+import { LIB2_DESC } from './library2-items.js?v=592';
+import { BOSS_FORGE_DESC } from './boss-forge.js?v=592';
+import { CHAMPION_DESC } from './champions.js?v=592';
 
 export const ITEM_DESC = {
   ...WAVE3_DESC, // b247: the 14 Wave-3 unique item flavour lines
@@ -25,7 +25,6 @@ export const ITEM_DESC = {
   'adept_pants': 'An adept\'s robe bottoms, finer cloth woven for a caster growing into their craft',
   'alpha_cloak': 'Alpha-beast pelt worn as a cape, warding blows and sharpening the strike',
   'alpha_fang': 'The great fang of a pack alpha, a rare and coveted trophy',
-  'alpha_pattern': 'A stitched pattern for tailoring the fearsome Alpha Cloak',
   'ancient_claw': 'A colossal claw from something ancient, a formidable crafting trophy',
   'ancient_fragment': 'A worn shard of some forgotten relic, sought by scholars and collectors',
   'ancient_rune': 'A rune of the old tongue, humming with power, a key arcane reagent',
@@ -36,7 +35,6 @@ export const ITEM_DESC = {
   'apprentice_helmet': 'A plain cloth hat, a first-year mage\'s humble start toward real arcane power',
   'apprentice_pants': 'Plain apprentice robe bottoms, humble cloth worn while a mage learns to channel',
   'apprentice_staff': 'Plain apprentice staff for channeling a first spark of magic',
-  'arcane_tome': 'A humming tome whose pages unbar the Haunted Archive',
   'archmage_belt': 'An archmage\'s sash, cloth cinched round one who has mastered the arcane craft',
   'archmage_body': 'An archmage\'s robe top, cloth thick with a mastery few casters ever reach',
   'archmage_boots': 'An archmage\'s slippers, cloth footing fit for one who has mastered the arcane craft',
@@ -57,7 +55,6 @@ export const ITEM_DESC = {
   'boarhide_helmet': 'A boarhide coif, tough and bristled, a rugged ranger\'s steady ward',
   'boarhide_pants': 'Boarhide chaps, tough and broken-in, built for a ranger who never stops moving',
   'bone_chips': 'Splinters of shattered bone, ground into meal for crafting',
-  'bone_key': 'A key carved from bone that opens the Crypt of Bones',
   'bone_needle': 'A simple bone needle, a novice crafter\'s first honest stitch',
   'bones': 'Bare bones left by common beasts, buried to honour the dead and earn favour',
   'bronze_axe': 'Cast-bronze felling axe, a woodcutter\'s first honest tool',
@@ -75,13 +72,11 @@ export const ITEM_DESC = {
   'brute_plate': 'A slab of bony plating shed by a brute, rough armouring scrap',
   'burnt_food': 'Charred and inedible, worth only a coin or two at the vendor',
   'captain_medal': 'A medal torn from a slain captain, a proud trophy of battle',
-  'captain_recipe': 'Instructions for smithing the wicked Captain\'s Ribblade',
   'captains_ribblade': 'Wicked bone-hilted blade wrested from a fallen captain, keen for the kill',
   'carrot': 'A crisp orange root, sweet and plain, the field\'s steady staple',
   'carrot_seed': 'Carrot seed for a quick, reliable root off the early plot',
   'carrot_stew': 'A slow-simmered pot of carrots and roots that warms you and coaxes richer harvests',
   'chief_blade': 'Crude but vicious blade torn from a goblin chief\'s own hand',
-  'chief_blade_recipe': 'A war-torn scroll teaching how to forge the Chief\'s Blade',
   'choirbone': 'A bone that sings when struck, a signature relic of the Hunt',
   'choirbone_gauntlets': 'Gauntlets carved from choirbone, warding hands only the Hunt can grant',
   'coal': 'Black coal, the fuel that feeds every smelting fire',
@@ -135,8 +130,6 @@ export const ITEM_DESC = {
   'dragonhide_gloves': 'Dragonhide vambraces, scale-hard and precise, the grip of a ranger who fears no beast',
   'dragonhide_helmet': 'A dragon-scaled coif, near as tough as plate and worn by rangers who hunt the deepest game',
   'dragonhide_pants': 'Dragonhide chaps, scaled tough as old plate, built for a ranger who fears nothing that flies',
-  'dragonsbane_key': 'A dread key that unlocks the lair of the Ancient Wyrm',
-  'dungeon_scrip': 'Stamped chits the Quartermaster honours, paid out for every stretch of dark a delver clears',
   'duskwood_bow': 'Duskwood bow, the strongest bow a bowyer can string',
   'duskwood_log': 'A near-black duskwood log, the finest wood a woodcutter can fell',
   'duskwood_plank': 'A dusk-dark plank, the finest timber a crafter can shape',
@@ -162,12 +155,8 @@ export const ITEM_DESC = {
      bites harder on a monster weak to that element (core/elements.js, +15%
      clamped) — because a player reading the Runecrafting bench is deciding
      between this and a staff rune, and flavour alone cannot settle that. */
-  'ember_essence': 'A mote of caught fire, hot through the pouch, waiting for a stone to hold it',
-  'ember_rune': 'Spent to brand a weapon with ember — the brand bites harder on anything that fears fire',
   'emberheart': 'A coal that has burned since before the first hearth was laid, and will outlast the last',
   'fishers_pie': 'A laden pie of goldgill, wheat and potato, a fisher\'s feast that hardens every blow you land',
-  'frost_essence': 'A bead of held cold that frosts the air around it and will not thaw',
-  'frost_rune': 'Spent to brand a weapon with frost, aching cold through a glove — and colder on anything that fears it',
   'gold_amulet': 'A gold amulet set with a ruby, worn by the battle-hardened for sharper attack and sturdier guard',
   'gold_ring': 'A gold band set for a seasoned hand, lending real weight to attack and strength',
   'goldgill': 'A golden-gilled fish from the eddy\'s swirl, raw and prized, richer fare once it meets the pan',
@@ -177,23 +166,16 @@ export const ITEM_DESC = {
   'leather_pants': 'Simple tanned-leather chaps, light guard for legs that need to stay quick',
   'lexarch_seal': 'The Archivist\'s own wax seal, kept as proof a delver cleared the Haunted Archive\'s stacks',
   'pikeperch': 'A lean river pike pulled from the reed pools, raw and firm, plain fare until it meets the fire',
-  'poison_essence': 'Distilled venom sealed in wax, because nothing else will hold it for long',
-  'poison_rune': 'Spent to brand a weapon with poison, cut on stone nothing will grow on — and worse for anything already frail',
   'emberfruit': 'A hot-hued fruit from volcanic loam that smoulders in the hand, warm and valuable',
   'emberfruit_seed': 'Emberfruit seed whose fiery yield feeds the richer recipes',
   'emberstone_ore': 'Glowing emberstone ore, deep rock that forges into Emberforged bars',
-  'farm_deed': 'A landholder\'s deed spent to enrich your soil so new crops will grow',
   'field_cookbook': 'A hunter\'s cookbook for laying out the Hunter\'s Feast',
   'field_ration': 'A dense travel loaf packed for the march, refined food the castle accepts',
-  'forge_blueprint_t2': 'Plans to expand your forge to its second, hotter tier',
-  'forge_blueprint_t3': 'Master plans to raise your forge to its mightiest third tier',
   /* "Deep Seam" — the nine verdite rows (alphabetical, like the rest). */
   'flux_salt': 'Bitter grey crust scraped from a deep pocket, the flux that makes verdite pour clean',
   'fox_companion': 'A loyal fox at your side, lending a little strength and lore',
   'frostfin': 'A pale fish from ice-water depths, raw and chill, steadies you when cooked',
-  'gemcutter_note': 'A gemcutter\'s jottings for crafting the Dragon Gem Earrings',
   'goblin_ear': 'A severed goblin ear, grisly proof of the kill, worth a few coins',
-  'goblin_seal': 'A stamped seal that grants passage into the Goblin Warcamp',
   'goblin_totem': 'A crude idol carved by goblin shamans, a warcamp trophy',
   'gold_bar': 'A gleaming gold bar, worked into rings and fine jewellery',
   'gold_ore': 'Gleaming gold ore, smelted into bars for fine jewellery',
@@ -224,12 +206,8 @@ export const ITEM_DESC = {
   'iron_sword': 'Honest iron blade, the balanced workhorse of any young fighter',
   'iron_warhammer': 'Heavy iron warhammer built to stave in armour by main force',
   'keystone': 'A cut masonry keystone, the crowning block of any great vault',
-  'kitchen_blueprint_t2': 'Plans to raise your kitchen to its second and larger tier',
-  'kitchen_blueprint_t3': 'Master plans to build your kitchen to its finest third tier',
   'leather_boots': 'Simple tanned-leather boots, light footing with a hint of speed',
   'leather_gloves': 'Tanned-leather gloves for a surer grip and a little cover',
-  'library_blueprint_t2': 'Plans to grow your library into its larger second tier',
-  'library_blueprint_t3': 'Master plans to build your library to its grandest third tier',
   'lich_soul': 'The bound soul-wisp of a lich, cold and murmuring, high sorcery reagent',
   'lich_soul_soup': 'A cold, uncanny broth brewed from bound souls that sharpens your nose for gold',
   'lobster': 'A heavy-clawed catch from the deep rocks, raw and cold, worth cooking with care',
@@ -264,7 +242,6 @@ export const ITEM_DESC = {
   'oak_plank': 'A solid oak plank, dependable timber for crafted goods',
   'oak_rod': 'Sturdy oak rod that lands bigger catches from deeper water',
   'oak_staff': 'Sturdy oak staff that steadies a growing mage\'s arcane power',
-  'obsidian_sigil': 'A dark sigil that breaks the seal on the Obsidian Keep',
   'plague_ichor': 'Vile ichor drawn from a diseased host, a caustic reagent',
   'potato': 'A firm, starchy tuber dug from the dirt, plain and filling',
   'potato_seed': 'Potato seed, a hearty tuber that keeps the larder stocked',
@@ -332,7 +309,6 @@ export const ITEM_DESC = {
   'sorcerer_helmet': 'A sorcerer\'s cloth hat, richly woven for one who commands the arcane at will',
   'sorcerer_pants': 'A sorcerer\'s robe bottoms, richly woven cloth for a caster near the ladder\'s peak',
   'soul_recipe': 'A dread scroll for brewing the Lich\'s soul-thick soup',
-  'spellstone_diagram': 'An arcane diagram for setting the Spellstone Ring',
   'spider_eye': 'The glassy eye of a great spider, an unsettling alchemy reagent',
   'steel_axe': 'Tempered steel edge for the seasoned woodcutter\'s daily haul',
   'steel_bar': 'Iron and coal forged to steel, reliable mid-tier smithing stock',
@@ -365,8 +341,6 @@ export const ITEM_DESC = {
   'tomato_soup': 'A bright red bowl of simmered tomatoes, homely warmth that draws better loot',
   'traveler_cape': 'Worn traveler\'s cape that eases the road and sharpens what you learn',
   'troll_hide': 'Thick, warty hide of a troll, tough stock for sturdy leatherwork',
-  'trophy_blueprint_t2': 'Plans to expand your trophy hall to its second tier',
-  'trophy_blueprint_t3': 'Master plans to raise your trophy hall to its third tier',
   'trout': 'A speckled river fish, raw and slick, a plain meal once set over the coals',
   'turnip': 'A pale, earthy root pulled straight from the soil, the humble first harvest of any plot',
   'turnip_mash': 'Turnips boiled soft and mashed with butter, the first proper dish any new cook masters',
@@ -384,7 +358,6 @@ export const ITEM_DESC = {
   'void_chitin': 'A plate of chitin from a void-touched horror, rare armouring stock',
   'void_core': 'The collapsed heart of a void-beast, a dense, humming crafting relic',
   'void_essence': 'Distilled nothingness, a rare material for the darkest crafting',
-  'void_fragment': 'A shard of nothing that tears open the way to the Voidbringer',
   'voidhide_belt': 'A voidhide belt, dark and near-silent, the last brace a ranger will ever need',
   'voidhide_body': 'A void-dark jerkin, the finest ranger\'s cover, quiet and near weightless in the hand',
   'voidhide_boots': 'Voidhide boots, silent as falling shadow, the surest step a ranger can own',

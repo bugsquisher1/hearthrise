@@ -1,111 +1,26 @@
 // ============================================================
-// src/data/stonecraft.js — RUNECRAFTING + STONEMASON, as data.
+// src/data/stonecraft.js — RUNECRAFTING (and the whetstone/blank items), as data.
 //
-// docs/design/consumable-economy.md, rulings R1-R10. Two of the three new
-// artisan skills; Fletching is sequenced separately and owns the `fletch_*`
-// rows in slot-ladders.js — NOTHING in this file touches them.
+// docs/design/consumable-economy.md, rulings R1-R10. Fletching owns the
+// `fletch_*` rows in slot-ladders.js — NOTHING in this file touches them.
 //
-// R6: both are ARTISAN skills, and that is a scope finding rather than a taste
-// call. The gathering engine branches on three skill ids in ~14 sites of the
-// 9k-line monolith; the artisan engine is generic over `ARTISAN_RECIPES[skill]`
-// and `resolveArtisanAction(recipe, {skillId})`. A fourth gathering table is
-// CODE. A fourth artisan lane is DATA — which is this file.
+// R6: Runecrafting is an ARTISAN skill: the artisan engine is generic over
+// `ARTISAN_RECIPES[skill]`, so a lane is DATA — which is this file.
 //
+// DEMOLITION (designer ruling, 2026-10-14): the Stonemason skill was CUT and
+// each of its outputs moved to the skill that consumes it — whetstones are
+// smithed (src/data/recipes.js), the fine and deep blanks are cut here from
+// Rune Essence, and the keystone is crafted. Quarried stone, blocks and ashlar
+// were deleted. Enchant v1 went too, and with it the three elemental runes.
+//
+// Runecrafting is playable at level 1 with NOTHING else trained: it mines its
+// own essence, cuts its own blanks, and the Local Shop also stocks Blank Runes
+// (above book value, so there is no vendor arbitrage).
+//
+// E1, the per-swing ammo spend, LANDED 2026-08-31 — `simulateTick` charges
+// `spendForSwings` every swing, so runes burn at 1/cast and whetstones at
+// 0.02/swing on both the live and the away path.
 // ══════════════════════════════════════════════════════════════════════════
-// b432 · THE RUNECRAFTING COHERENCE RULING (Designer, delegated authority)
-//
-// Tyler, verbatim: "it doesn't look like you ever fixed runecrafting to make
-// more sense." Four things were wrong at once, and none of them was a bug in
-// any one file — they were four correct decisions that never met each other:
-//
-//   1. RUNECRAFTING DID NOT MAKE THE RUNES THE GAME USES. Elements v1 shipped
-//      `ember_rune` / `frost_rune` / `poison_rune` — the ones you spend to
-//      brand a weapon, worth +15% against a monster weak to that element — as
-//      CRAFTING recipes at level 25, in a Crafting lane literally labelled
-//      "Runes". Fixed: all three now live in `runecrafting` below, at 25.
-//
-//   2. THE SKILL COULD NOT BE STARTED. Every rung wanted a Blank Rune and the
-//      only blank in the game came from Stonemason 8, so a player who picked
-//      Runecrafting first met eleven actions and could do none of them. Fixed
-//      twice over: `cut_rune_blanks` drops to Stonemason 4, and the Local Shop
-//      counter stocks Blank Runes (×50 for 400 g — above their 5 g book value,
-//      so there is no vendor arbitrage and the mason lane stays the cheap
-//      route). Runecrafting is now playable at level 1 with NOTHING else
-//      trained.
-//
-//   3. ONE RUNE IDEA, NOT THREE. The catalogue carried `air_rune`-`blood_rune`
-//      (staff runes), `ember_rune`-`poison_rune` (enchanting runes) AND a
-//      dormant `rune_of_ember` / `rune_of_frost` / `rune_of_poison` trio that
-//      was the SECOND authoring of the same three elements. The trio is
-//      retired (library2-items.js) and its painted art moves to the live ids.
-//
-//   4. THE SCREEN NOW SAYS WHAT THE TWO LANES ARE FOR. `ARTISAN_CATEGORIES`
-//      gives Runecrafting "Staff Runes" and "Weapon Enchants", so the answer
-//      to *what do I make, from what, and why* is on the screen rather than in
-//      this comment.
-//
-// WHAT WAS EXPLICITLY NOT IN THIS RULING: E1, the per-swing ammo spend. It
-// LANDED 2026-08-31 — `simulateTick` charges `spendForSwings` every swing, so
-// runes burn at 1/cast and whetstones at 0.02/swing on both the live and the
-// away path. The item copy below still does not promise a burn, because the
-// empty-quiver indicator (§14, Art Director) does not exist yet; the mechanic
-// is real, the wording is held until the surface can show it.
-// ══════════════════════════════════════════════════════════════════════════
-//
-// R8: STONEMASON NEEDS NO WORKBENCH, and it already has none: homestead.js's
-// `hasWorkbench()` reads "skills without a workbench room pass". So the ruling
-// is satisfied structurally, with zero edits, and the b213/b227 cost-deadlock
-// class is impossible for the whole stone chain: `ashlar` can be required by a
-// property tier because nothing about producing it depends on owning one.
-//
-// ══════════════════════════════════════════════════════════════════════════
-// §8.4 RULED: WHERE THE STONE COMES FROM — THE QUARRY LANE (P2), NOT A
-//             MINING BY-PRODUCT (P1).
-//
-// The design doc left this open and recommended P1 (`byprod:` on every ROCKS
-// row + one line in `doSkillAction`). I hold the delegated design authority
-// here and I am ruling for P2, the input-free Stonemason lane. Four reasons,
-// in the order they mattered:
-//
-//   1. SERVER AUTHORITY DECIDES IT. P1 edits `resolveGatherAction`, which is
-//      vendored into `supabase/functions/hr-accrue/` and covered by a pinned
-//      payload hash. P2 is legal server-side TODAY: 'artisan' became a
-//      PAYABLE_KIND in b356, and an input-free recipe needs no engine change
-//      at all (`recipeInputs({})` is `{}`, `missingInput` returns null, and
-//      Prayer's bury actions already ship the mirror case with `output: null`).
-//      A content skill must not be the thing that re-pins the combat engine.
-//
-//   2. THE NEW-PLAYER WALL. With P1, a player who opens Stonemason without a
-//      mining history finds an empty skill and a homework assignment. With P2
-//      they press "Quarry Rubble" and are a mason ten seconds later. Round 2
-//      is a WIPE — every player meets this skill at level 1 — so day-one
-//      reachability is the single most consequential property it has.
-//
-//   3. TIME IS THE HONEST PRICE OF A CASTLE. P1 makes stone a free rider on
-//      an activity the player was doing anyway, which means castle goods cost
-//      no time that was not already spent. Quarrying is a CHOICE with an
-//      opportunity cost, and the castle ladder is the better for it.
-//
-//   4. IT DOES NOT DUPLICATE THE MINING FANTASY, which was the doc's stated
-//      objection to P2. Mining pulls METAL out of a seam for the forge;
-//      quarrying cuts BUILDING STONE for the wall. Different verb, different
-//      product, different consumer — and the two never compete for a rung,
-//      because a quarry rung is not in `ROCKS` and therefore cannot disturb
-//      the b226 "every gathering rung is strictly better" invariant.
-//
-// The cost of the ruling, stated rather than glossed: a lane that mints from
-// nothing is a FAUCET, so every quarried stone is flagged `raw: true` in
-// items.js and the vendor bids VENDOR_RAW_RATE (0.20). Measured at the top
-// rung that is ~9,000 g/h of vendor value, against a Dawnstone miner's
-// comparable figure — i.e. it is priced as what it is, a gathering rate.
-// A smoke guard asserts the flag on every input-free artisan output, so a
-// future quarry rung cannot be added without it.
-//
-// P1 remains available later as a pure CONVENIENCE (a mining by-product that
-// tops up the same items), and it composes with this lane rather than
-// replacing it. It is a better second change than it would have been a first.
-// ══════════════════════════════════════════════════════════════════════════
-//
 // ══════════════════════════════════════════════════════════════════════════
 // WHY THE BATCHES ARE ~50 AND NOT ~500 — THE CLAMP IS A DESIGN INPUT
 //
@@ -187,32 +102,9 @@ const FREE = 0;
    ITEMS
    ══════════════════════════════════════════════════════════════════════════ */
 export const STONECRAFT_ITEMS = {
-  /* ══ QUARRIED STONE — the roots of the whole chain (§8.4 ruling above) ═══
-     Three grades, one per Stonemason band. Priced as gathered material: the
-     vendor bids 20% of `v` because items.js flags all three `raw`, so the
-     player market is the better price for them — which is exactly the role
-     b226 assigned to raw materials. */
-  rubble:  { n: 'Rubble',        icon: '🪨', v: 6,  tier: 1, rarity: 'common' },
-  granite: { n: 'Granite Stone', icon: '🪨', v: 22, tier: 3, rarity: 'uncommon' },
-  basalt:  { n: 'Basalt Stone',  icon: '🪨', v: 60, tier: 5, rarity: 'rare' },
-
-  /* ══ STONE BLOCKS — the intermediate every Stonemason lane runs on ═══════
-     Not a sink and not a reward: the common trunk. Whetstones, blank runes
-     and castle goods all branch off these three, which is what stops the
-     skill being four unrelated ladders sharing a name. (b374: the item id
-     stays `dressed_block` so no catalogue/art re-key is needed — only the
-     display name drops the "dressed" jargon Tyler flagged.) */
-  dressed_block: { n: 'Stone Block', icon: '🧱', v: 22,  tier: 1, rarity: 'common' },
-  granite_block: { n: 'Granite Block', icon: '🧱', v: 85,  tier: 3, rarity: 'uncommon' },
-  basalt_block:  { n: 'Basalt Block',  icon: '🧱', v: 230, tier: 5, rarity: 'rare' },
-
-  /* ══ RUNE BLANKS — the Stonemason→Runecrafting seam ═════════════════════
-     THE DEPENDENCY IS THE POINT, and it is stated plainly rather than hidden:
-     magic's supply crosses TWO artisan skills where ranged's crosses one.
-     That is paid for by magic's 2,520 ms cast interval — it burns 16% fewer
-     consumables per hour than a bow at identical item values (§6.2). The
-     deeper chain buys the cheaper burn. */
-  /* W0: Runecrafting's own blank stock, mined on its bench (RAW_QUARRIED).
+  /* ══ RUNE BLANKS — Runecrafting supplies itself: essence → blanks → runes.
+     (The Stonemason seam was cut in the 2026-10-14 demolition.)
+     W0: Runecrafting's own blank stock, mined on its bench (RAW_QUARRIED).
      v 15 keeps the essence->blank cuts at 3.0x/3.3x vendor, 1.0x/1.1x book. */
   rune_essence:    { n: 'Rune Essence',    icon: '🪨', v: 15, tier: 1, rarity: 'common' },
   rune_blank:      { n: 'Blank Rune',      icon: '⬜', v: 3,  tier: 1, rarity: 'common' },
@@ -272,28 +164,6 @@ export const STONECRAFT_ITEMS = {
   rune_whetstone:    { n: 'Rune Whetstone',     icon: '🪨', v: 365, type: 'ammo', slot: 'ammo', tier: 6, rarity: AMMO_RARITY[5], reqSkill: 'attack', reqLv: AMMO_REQ_LV[5], strB: AMMO_STAT[5], ammoPerShot: 0.02 },
   dawn_whetstone:    { n: 'Dawnsteel Whetstone',icon: '🪨', v: 990, type: 'ammo', slot: 'ammo', tier: 7, rarity: AMMO_RARITY[6], reqSkill: 'attack', reqLv: AMMO_REQ_LV[6], strB: AMMO_STAT[6], ammoPerShot: 0.02 },
 
-  /* ══ CASTLE — the other half of Stonemason, and why Tyler wanted it ══════
-     `tag: 'castle'` puts these in the derived Castle Stores lane and in the
-     Storehouse deposit filter, through `isCastleGood()` — one predicate, two
-     readers, no drift.
-
-     `ashlar` is the PERSONAL capstone good, sitting beside `timber_beam`
-     (Crafting) and `iron_fitting` (Smithing) so the three artisan pillars each
-     contribute exactly one material to the property ladder. It is wired into
-     Stonecross Manor / Ironvale Keep / Hearthrise Castle in homestead.js —
-     tiers whose names have promised cut stone since launch and whose costs
-     were logs and ore.
-
-     `keystone` is ADOPTED from Crafting, recipe and cost unchanged (it is
-     defined in items.js and its recipe id `craft_keystone` is preserved, so
-     clan-seat.js's material route to it still resolves). A keystone is the
-     single most masonic object in architecture and it had the same story as
-     the `fletch_*` rows: written where a skill existed, waiting for the skill
-     that should own it.
-
-     The clan twin, `vaultstone`, was cut in W0 (2026-10-10): it waited on
-     castle tiers that were never tuned, so it had no source and no use. */
-  ashlar: { n: 'Ashlar', icon: '🧱', v: 1500, tier: 3, tag: 'castle' },
 };
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -313,20 +183,12 @@ export const STONECRAFT_RECIPES = {
        strictly better on BOTH axes a player cares about — more runes per
        action AND more runes per blank. Seven rungs across 1-88 is a rung every
        twelve levels, which reads thin; interleaved with the Deepbinds it is a
-       rung every ~8, which is the density pacing-overhaul asks for.
-
-       (The doc's other thickener — the three enchanting runes — is PHASE TWO,
-       explicitly gated on "once we get more robust monsters". The staff ladder
-       is the phase-two thickener I would reach for next: `WEAPON_FAMILIES` in
-       gear-tiers.js already carries `skill:` on every family and the generator
-       ignores it, so moving staves to Runecrafting is a two-line generator
-       change expressed as data. Left alone here because that same field routes
-       BOWS to Fletching and that agent owns the change.) */
+       rung every ~8, which is the density pacing-overhaul asks for. */
     /* W0 RUNECRAFTING RULING (2026-10-09): the first rung makes a SPENT rune
        (Earth, at 1); air runes are kit + shop only; the skill mines its own
        essence (a bench row paid to Mining, the quarry pattern: a level-1 ROCKS
        node would break the one-node-per-level bench gate) and cuts its own
-       blanks. Elements stay at 25; fine/deep blanks stay with Stonemason. */
+       blanks. */
     { id: 'cut_rune_blanks',    name: 'Cut Blank Runes',      icon: '⬜', inputs: { rune_essence: 4 },            output: 'rune_blank', outputQty: 12, xp: 8,   req: 1,  ms: 2800 },
     { id: 'bind_earth_runes',   name: 'Bind Earth Runes',     icon: '🌍', inputs: { rune_blank: 6 },              output: 'earth_rune', outputQty: 45, xp: 12,  req: 1,  ms: 3400 },
     { id: 'split_rune_blanks',  name: 'Split Blank Runes',    icon: '⬜', inputs: { rune_essence: 6 },            output: 'rune_blank', outputQty: 6,  xp: 40,  req: 12, ms: 3000 },
@@ -340,146 +202,11 @@ export const STONECRAFT_RECIPES = {
     { id: 'bind_blood_runes',   name: 'Bind Blood Runes',     icon: '🩸', inputs: { deep_rune_blank: 6 },         output: 'blood_rune', outputQty: 58, xp: 2200,req: 88, ms: 4400 },
     { id: 'deepbind_blood',     name: 'Deepbind Blood Runes', icon: '🩸', inputs: { deep_rune_blank: 7 },         output: 'blood_rune', outputQty: 68, xp: 2900,req: 93, ms: 4600 },
 
-    /* ══ THE ENCHANTING RUNES — ADOPTED FROM CRAFTING (b432, Designer) ══════
-       Tyler: "it doesn't look like you ever fixed runecrafting to make more
-       sense." He is right, and this is the centre of it. Elements v1 shipped
-       the three runes the game ACTUALLY uses — you spend one to brand a weapon
-       with an element, and `elementMultFor()` pays +15% against a monster weak
-       to it — and it shipped them as CRAFTING recipes at level 25, in a lane
-       Crafting called "Runes", while the skill named Runecrafting made a
-       different set of runes entirely. A player opening Runecrafting therefore
-       found a skill that does not make runes, and a player who wanted a rune
-       found it under a skill that is not called Runecrafting.
-
-       RULING: RUNECRAFTING OWNS EVERY RUNE IN THE GAME. The three binds move
-       here with their essence inputs UNCHANGED, so nobody's supply chain moves
-       and the enchant flow keeps working end to end.
-
-       WHAT DID CHANGE, AND WHY IT IS WORTH THE FOUR EXTRA STONES: every rune
-       in this skill is now bound onto a BLANK RUNE. That gives the whole bench
-       one grammar a player can state in a sentence — *a blank, plus something
-       to write on it, makes a rune* — instead of two unrelated recipe shapes
-       filed under one name. It also means the on-ramp (Blank Runes, stocked by
-       the Local Shop) feeds the ENTIRE skill rather than half of it.
-
-       ALL THREE SIT AT 25, AND THAT IS DELIBERATE. Their three essences drop
-       from perfectly parallel sources — tier 3/4/5 monsters at 0.08/0.09/0.10
-       apiece (Fire Devil · Horned Demon · Chained Demon; Centipede · Winter
-       Wolf · Frost Giant; Venom Spider · Carnivorous Plant · Carrion Swarm) —
-       so a level ladder between them would be a fiction, and a fiction that
-       tells the player ember is "better" than frost when the whole point of
-       the element axis is that the right one depends on what you are fighting.
-       Three rungs at one level is a CHOICE, not a ladder. The gate itself is
-       unchanged in spirit: it was Crafting 25 and it is Runecrafting 25, so no
-       live player is pushed further from a feature they already had.
-
-       XP sits between `deepbind_earth` (req 24) and `bind_water` (req 30) on
-       this skill's own curve — 150/3200ms = 0.047 book-xp/ms against their
-       0.029 and 0.051 — so adopting them neither creates a trap rung nor an
-       XP exploit. It cannot be one anyway: four essences per craft against a
-       ~0.09 drop rate is roughly 45 kills for ONE rune. */
-    { id: 'bind_ember_rune',  name: 'Bind Ember Rune',  icon: '🔴', inputs: { rune_blank: 4, ember_essence: 4,  magic_essence: 1 }, output: 'ember_rune',  outputQty: 1, xp: 150, req: 25, ms: 3200 },
-    { id: 'bind_frost_rune',  name: 'Bind Frost Rune',  icon: '🔵', inputs: { rune_blank: 4, frost_essence: 4,  magic_essence: 1 }, output: 'frost_rune',  outputQty: 1, xp: 150, req: 25, ms: 3200 },
-    { id: 'bind_poison_rune', name: 'Bind Poison Rune', icon: '🟣', inputs: { rune_blank: 4, poison_essence: 4, magic_essence: 1 }, output: 'poison_rune', outputQty: 1, xp: 150, req: 25, ms: 3200 },
-  ],
-
-  stonemason: [
-    /* ── THE QUARRY LANE — ROCK GATHERING, PAID TO MINING (b374, Tyler).
-       Input-free by design: this is where stone enters the game. Tyler's
-       ruling: "gathering the rocks should be mining, refining them is the
-       stonemason part." So every quarry rung carries `xpSkill: 'mining'` — the
-       action still lives on the Stonemason bench (it MUST stay an artisan lane,
-       because a stone node in ROCKS would disturb the b226 "every mining rung
-       strictly better" invariant that guards the ore ladder), but the XP it
-       pays goes to Mining.
-
-       The xp values were RE-TUNED for Mining's curve, not Stonemason's: each
-       quarry rung now sits BELOW the comparable Mining ore rung's xp/second, so
-       quarrying is a SUPPLY activity and never the optimal way to train Mining
-       (rubble 1.7 · granite 3.3 · basalt 4.5 xp/s effective, against ore's
-       4.4-9.3). Stonemason no longer earns anything from quarrying — it earns
-       from DRESSING (below), which is exactly the "refining is the stonemason
-       part" split. Its earliest XP is `dress_rubble` (Cut Stone Block, req 1),
-       reachable from an
-       empty bag by quarrying rubble first, so the skill is not stranded. */
-    { id: 'quarry_rubble',  name: 'Quarry Rubble',  icon: '🪨', inputs: {}, output: 'rubble',  outputQty: 5, xp: 7,  req: 1,  ms: 2600, xpSkill: 'mining' },
-    { id: 'quarry_granite', name: 'Quarry Granite', icon: '🪨', inputs: {}, output: 'granite', outputQty: 3, xp: 22, req: 30, ms: 4200, xpSkill: 'mining' },
-    { id: 'quarry_basalt',  name: 'Quarry Basalt',  icon: '🪨', inputs: {}, output: 'basalt',  outputQty: 2, xp: 43, req: 70, ms: 6000, xpSkill: 'mining' },
-
-    /* ── THE BLOCK LANE. The common trunk — everything else branches here.
-       This is the "refining" half that pays Stonemason. Renamed b374 (Tyler:
-       "wtf is dress") — the action makes a Stone/Granite/Basalt Block. */
-    { id: 'dress_rubble',  name: 'Cut Stone Block',   icon: '🧱', inputs: { rubble: 4 },  output: 'dressed_block', outputQty: 2, xp: 16,   req: 1,  ms: 2400 },
-    { id: 'dress_granite', name: 'Cut Granite Block', icon: '🧱', inputs: { granite: 4 }, output: 'granite_block', outputQty: 2, xp: 195,  req: 30, ms: 3400 },
-    { id: 'dress_basalt',  name: 'Cut Basalt Block',  icon: '🧱', inputs: { basalt: 4 },  output: 'basalt_block',  outputQty: 2, xp: 900, req: 70, ms: 4600 },
-
-    /* ── THE BLANK LANE — Runecrafting's supply. Two rungs on the base blank
-       (the second is strictly better per block AND per action), then one per
-       stone grade. `magic_essence` enters at the DEEP blank and nowhere below
-       it: gating low-tier runes on a combat drop would make magic circular in
-       the bad direction — you would need runes to farm the thing that makes
-       runes. From the deep blank up the loop is the GOOD kind: kill mages,
-       bind their essence, cast at mages. Sized at 1 essence per 20 blanks so a
-       full capped night of tier-6 casting costs ~115 essence, against a drop
-       rate of 0.40-0.80 per wizard kill over thousands of kills. */
-    /* b432 — `cut_rune_blanks` DROPS FROM req 8 TO req 4. It was the wall in
-       Tyler's complaint: Runecrafting's every rung wanted a Blank Rune, and the
-       only source of one was level EIGHT of a different skill, so a player who
-       picked Runecrafting first opened a bench of eleven actions and could
-       perform none of them, forever. Four is the smallest number that keeps the
-       opening ladder in order (dress at 1, blanks at 4, whetstones at 6) and it
-       is about two minutes of dressing rather than a session. The GOLD route —
-       Blank Runes on the Local Shop counter — closes the same hole for a player
-       who never wants to be a mason at all; this closes it for the one who
-       simply has not got there yet.
-       SELF-SUPPLY RULING (game-designer, 2026-09-13): 4 → 1, finishing what b432
-       started. `bind_air_runes` is Runecrafting's FIRST rung (level 1) and eats 6
-       blanks, so with the cutter at 4 the game's one total, checkable content
-       property — no rung may ask for a material its own level cannot make — could
-       never reach zero, and DEEPSEAM-5 stayed a ratchet nobody could read. The
-       only thing 4 ever bought was tidiness in the mason's opening order; nothing
-       is lost by spending it, because the MATERIAL still sequences the two rungs
-       (a blank costs 2 dressed blocks, and dressing is the level-1 rung), and the
-       gold route stays the lazy route at 400 g per 50. A player who picks
-       Runecrafting first is now self-supplying at level 1 of both skills. */
-    /* W0: the two base blank cuts moved to Runecrafting (from essence). */
-    { id: 'cut_fine_blanks',   name: 'Cut Fine Blank Runes', icon: '🔲', inputs: { granite_block: 2, dressed_block: 2 },     output: 'fine_rune_blank', outputQty: 14, xp: 400, req: 38, ms: 3400 },
-    { id: 'cut_deep_blanks',   name: 'Cut Deep Blank Runes', icon: '🔳', inputs: { basalt_block: 3, magic_essence: 1 },      output: 'deep_rune_blank', outputQty: 20, xp: 1500, req: 74, ms: 4000 },
-
-    /* ── THE WHETSTONE LANE — melee's supply. Batches of 10 against a burn of
-       ~30/hour, so one action covers twenty minutes of swinging. Every rung's
-       `batch x v` sits at 1.8-1.95x its input value, just inside the
-       anti-faucet rule: an earlier instinct of v=200 on the steel rung would
-       have been a 3.03x gold printer, and the constraint caught it, which is
-       why it is written down as arithmetic rather than as a table. */
-    { id: 'grind_coarse_whetstone',  name: 'Grind Coarse Whetstones',   icon: '🪨', inputs: { dressed_block: 1 },                      output: 'coarse_whetstone',  outputQty: 10, xp: 19,    req: 6,  ms: 2600 },
-    { id: 'grind_copper_whetstone',  name: 'Grind Copper Whetstones',   icon: '🪨', inputs: { dressed_block: 2, copper_bar: 1 },       output: 'copper_whetstone',  outputQty: 10, xp: 70,   req: 16, ms: 2900 },
-    { id: 'grind_iron_whetstone',    name: 'Grind Iron Whetstones',     icon: '🪨', inputs: { dressed_block: 3, iron_bar: 2 },         output: 'iron_whetstone',    outputQty: 10, xp: 168,   req: 31, ms: 3200 },
-    { id: 'grind_steel_whetstone',   name: 'Grind Steel Whetstones',    icon: '🪨', inputs: { granite_block: 3, steel_bar: 2 },        output: 'steel_whetstone',   outputQty: 10, xp: 500,  req: 46, ms: 3600 },
-    { id: 'grind_mithril_whetstone', name: 'Grind Mithril Whetstones',  icon: '🪨', inputs: { granite_block: 4, mithril_bar: 1 },      output: 'mithril_whetstone', outputQty: 10, xp: 1000,  req: 61, ms: 4000 },
-    { id: 'grind_rune_whetstone',    name: 'Grind Rune Whetstones',     icon: '🪨', inputs: { basalt_block: 3, rune_bar: 1 },          output: 'rune_whetstone',    outputQty: 10, xp: 1600,  req: 76, ms: 4400 },
-    { id: 'grind_dawn_whetstone',    name: 'Grind Dawnsteel Whetstones',icon: '🪨', inputs: { basalt_block: 4, dawn_bar: 1 },          output: 'dawn_whetstone',    outputQty: 10, xp: 3000, req: 91, ms: 4800 },
-
-    /* ── THE CASTLE LANE. `craft_keystone` is adopted here from Crafting with
-       its id, inputs, xp and req UNCHANGED — see the item note above. */
-    { id: 'cut_ashlar',    name: 'Cut Ashlar', icon: '🧱', inputs: { granite_block: 4, iron_fitting: 1 },                              output: 'ashlar',   outputQty: 1, xp: 680, req: 45, ms: 5200 },
-    { id: 'craft_keystone',name: 'Set Keystone', icon: '🧱', inputs: { timber_beam: 3, iron_fitting: 3, ancient_fragment: 2, cracked_spellstone: 1 }, output: 'keystone', outputQty: 1, xp: 900, req: 60, ms: 6500 },
+    /* ── THE GRADED BLANKS (designer ruling, demolition 2026-10-14). The
+       Stonemason bench was cut, so the fine and deep blanks are cut here from
+       Rune Essence like the base blank. `magic_essence` still enters at the
+       DEEP blank and nowhere below it. Numbers UNVERIFIED until a sim run. */
+    { id: 'cut_fine_blanks',    name: 'Cut Fine Blank Runes', icon: '🔲', inputs: { rune_essence: 6, coal: 3 },                     output: 'fine_rune_blank', outputQty: 14, xp: 400,  req: 38, ms: 3400 },
+    { id: 'cut_deep_blanks',    name: 'Cut Deep Blank Runes', icon: '🔳', inputs: { fine_rune_blank: 14, coal: 4, magic_essence: 2 }, output: 'deep_rune_blank', outputQty: 20, xp: 1500, req: 74, ms: 4000 },
   ],
 };
-
-/* ══════════════════════════════════════════════════════════════════════════
-   FLAVOUR LIVES IN library2-items.js — `STONECRAFT_DESC` IS RETIRED (b432).
-
-   It was 24 hand-written lines with NO IMPORTER. `src/data/item-descriptions.js`
-   composes ITEM_DESC from WAVE3_DESC + SLOT_DESC + LIB2_DESC and never from
-   this file, and LIB2_DESC happened to carry a line for all 24 of the same ids
-   — so every word here was shadowed from the day it was written, and a
-   designer editing it (as this desk did, first pass) changes nothing a player
-   can read. Verified by measurement rather than by reading the imports:
-   `itemDesc('air_rune')` in the live page returned the LIB2_DESC line.
-
-   Same class of defect as the duplicate `rune_of_*` items this change retires,
-   and it is left as a comment rather than silently deleted because the next
-   person to want Stonemason flavour will look HERE first. The live copy — and
-   the mechanic-first rewrite of the seven staff runes — is in LIB2_DESC.
-   ══════════════════════════════════════════════════════════════════════════ */

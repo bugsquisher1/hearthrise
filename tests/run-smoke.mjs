@@ -29,7 +29,6 @@ import { goalCountersGuard } from './goal-counters.mjs';
 import { inventoryCompleteGuard } from './inventory-complete-probe.mjs';
 import { goalCatalogueDriftGuard } from './goal-catalogue-drift.mjs';
 import { collectionRenownClaimDriftGuard } from './collection-renown-claim-drift.mjs';
-import { bountyDriftGuard } from './bounty-drift.mjs';
 import { unlockBuyGuard } from './unlock-buy.mjs';
 import { marketV2Guard } from './market-v2.mjs';
 import { marketIntentGuard } from './market-intent.mjs';
@@ -48,9 +47,7 @@ import { clanDepositOwnershipGuard } from './clan-deposit-ownership.mjs';
 import { clanEconomySinksGuard } from './clan-economy-sinks.mjs';
 import { feastCatalogueDriftGuard } from './clan-feast-catalogue-drift.mjs';
 import { rpcGateBucketGuard } from './rpc-gate-bucket-guard.mjs';
-import { traitBuyGuard } from './trait-buy.mjs';
 import { heroSlotBuyGuard } from './hero-slot-buy.mjs';
-import { bountyDifficultyCountGuard } from './bounty-difficulty-count.mjs';
 import { combatStyleGuard } from './combat-style.mjs';
 import { accrueEnvelopeAwayGuard } from './accrue-envelope-away.mjs';
 import { unlockOfferOwnershipGuard } from './unlock-offer-ownership.mjs';
@@ -621,19 +618,6 @@ async function catalogueDriftPreflight() {
   return 1;
 }
 
-// The bounty monster→tier catalogue is generated from src/data/monsters.js. A
-// stale one credits a bounty at the wrong tier's reward, so --check gates it.
-async function bountyMonsterPreflight() {
-  const gen = join(ROOT, 'tools', 'gen-bounty-monsters.mjs');
-  try { await stat(gen); } catch { return 0; }
-  const { spawnSync } = await import('node:child_process');
-  const r = spawnSync(process.execPath, [gen, '--check'], { encoding: 'utf8' });
-  const out = ((r.stdout || '') + (r.stderr || '')).trim();
-  if (r.status === 0) { console.log(`Bounty catalogue preflight: ${out || 'in sync'}`); return 0; }
-  console.error(`\nBounty catalogue preflight FAILED — src/data/monsters.js no longer matches the generated SQL.\n${out}\n`);
-  return 1;
-}
-
 // The farm-gate catalogues (hr_crops.regrow_limit, hr_crop_plot_tier,
 // hr_plot_tier, hr_farm_yield_perk) are generated from src/core/farm.js +
 // src/data/gathering.js + perks + companions. A stale one lets the server gate
@@ -647,22 +631,6 @@ async function farmCataloguePreflight() {
   const out = ((r.stdout || '') + (r.stderr || '')).trim();
   if (r.status === 0) { console.log(`Farm catalogue preflight: ${out || 'in sync'}`); return 0; }
   console.error(`\nFarm catalogue preflight FAILED — src/core/farm.js / gathering.js no longer matches the generated SQL.\n${out}\n`);
-  return 1;
-}
-
-// The raid-chest reward catalogue (hr_hunt_boss_reward) is generated from
-// src/data/raid-bosses.js. It is what raid_claim reads to mint the Hunt chest
-// materials + signature into player_inventory. A stale one mints the wrong
-// materials (real player item gain/loss under the inventory flip), so --check
-// gates it exactly like the farm catalogues.
-async function raidBossRewardPreflight() {
-  const gen = join(ROOT, 'tools', 'gen-raid-boss-rewards.mjs');
-  try { await stat(gen); } catch { return 0; }
-  const { spawnSync } = await import('node:child_process');
-  const r = spawnSync(process.execPath, [gen, '--check'], { encoding: 'utf8' });
-  const out = ((r.stdout || '') + (r.stderr || '')).trim();
-  if (r.status === 0) { console.log(`Raid boss-reward preflight: ${out || 'in sync'}`); return 0; }
-  console.error(`\nRaid boss-reward preflight FAILED — src/data/raid-bosses.js no longer matches the generated SQL.\n${out}\n`);
   return 1;
 }
 
@@ -879,9 +847,7 @@ const run = async () => {
   if (await itemArtPreflight()) process.exit(1);
   if (await artPalettePreflight()) process.exit(1);
   if (await catalogueDriftPreflight()) process.exit(1);
-  if (await bountyMonsterPreflight()) process.exit(1);
   if (await farmCataloguePreflight()) process.exit(1);
-  if (await raidBossRewardPreflight()) process.exit(1);
   if (await itemsCataloguePreflight()) process.exit(1);
   if (await recipeYieldPreflight()) process.exit(1);
   if (await unlockModelPreflight()) process.exit(1);
@@ -1098,46 +1064,6 @@ const run = async () => {
         + 'and the credit RPC SQL all agree on every threshold + gold + gems.');
     }
 
-    /* ── The bounty economy drift guard (server-owned bounty turn-in) ─────
-       The kill-driven bounty (type 'cull') turn-in now credits server-owned
-       gold + Bounty Marks (hr_accept_bounty / hr_claim_bounty). This binds the
-       reward, required-kill range and tier-unlock ladder in src/core/bounty.js
-       to the CASE constants the migration credits from, so a player can never be
-       shown one bounty reward and paid another. The monster→tier catalogue is
-       bound separately by the generator's --check below. */
-    const bntProblems = await bountyDriftGuard();
-    if (bntProblems.length) {
-      console.log('\nBounty drift guard — FAILED:');
-      for (const p of bntProblems) console.log(`  ✗ ${p}`);
-      exitCode = 1;
-    } else {
-      console.log('\nBounty drift guard — bounty.js reward/range/tier tables and the credit RPC SQL agree.');
-    }
-
-    /* ── b497 · THE DIFFICULTY SCALES THE KILL COUNT (designer ruling) ─────
-       The b489 inversion: bountyCount read (type, tier) only, so the board's
-       EASY and NORMAL slots drew from the same range while the reward table
-       already paid easy 0.85x — Easy was strictly the best-paying contract on
-       the board. The ruling scales the COUNT (0.90/1.00/1.20/1.50) so
-       gold-per-kill rises with commitment. The guard above binds the tables
-       statically; this one asks the DATABASE, because both sides of a static
-       comparison are JavaScript and a Postgres/JS rounding disagreement would
-       be invisible to it. It replays the chain into PGlite and drives a real
-       signed-in accept at every difficulty: the range round-trips, an
-       out-of-range request clamps to the SCALED bounds, 'elite' is still
-       refused (Security 2026-08-23), and gold-per-kill is monotonic at all six
-       tiers. `--selftest` plants six real defects; every one must read RED. */
-    const bntCountProblems = await bountyDifficultyCountGuard();
-    if (bntCountProblems.length) {
-      console.log('\nBounty difficulty count — FAILED:');
-      for (const p of bntCountProblems) console.log(`  ✗ ${p}`);
-      exitCode = 1;
-    } else {
-      console.log('\nBounty difficulty count — Postgres and bounty.js agree on all 24 scaled ranges '
-        + 'and the first-contract bracket; the accept clamps to the scaled bounds, elite stays '
-        + 'refused, and gold-per-kill rises with difficulty at every tier.');
-    }
-
     /* ── The kill-credit plausibility-cap drift guard (bug #5) ──────────────
        hr_bounty_kill_cap reproduces src/core/kill-time.js in SQL so
        hr_credit_kills can clamp a client's claimed kills to the physical maximum
@@ -1195,25 +1121,6 @@ const run = async () => {
       exitCode = 1;
     } else {
       console.log('\nRoom identity perks guard — Forge yield_smithing / Workshop craftSave pay from rung 1; ceiling still 8%.');
-    }
-
-    /* ── The dungeon key-drop fold guard (settlement increment 1) ────────────
-       Proves the BoP dungeon keys are FOLDED into MONSTERS[*].drops at the frozen
-       former-KEY_DROPS rates, that the client-side killMonster key wrapper stays
-       deleted (a re-introduction double-drops live + diverges from away — an
-       AWAY-1 break), that all six keys classify serverOwnedItem (so the accrual
-       engine settles them and the inventory flip preserves them), and — on a
-       seed where the key actually drops — that resolveKill is byte-identical live
-       vs away for the key. Mutation-proven: remove a key / drift a rate / re-add
-       the wrapper / add a stray key each turns it red (tests/dungeon-key-drops.mjs). */
-    const { dungeonKeyDropsGuard } = await import('./dungeon-key-drops.mjs');
-    const keyDropProblems = await dungeonKeyDropsGuard();
-    if (keyDropProblems.length) {
-      console.log('\nDungeon key-drop fold — FAILED:');
-      for (const p of keyDropProblems) console.log(`  ✗ ${p}`);
-      exitCode = 1;
-    } else {
-      console.log('\nDungeon key-drop fold — OK: keys settle server-side via monsters.js drops; no client mint; AWAY-1 parity holds.');
     }
 
     /* ── The artisan accrual guard (b356) ───────────────────────────────
@@ -1742,38 +1649,8 @@ const run = async () => {
       exitCode = e.harness ? 2 : 1;
     }
 
-    /* ── The b497 goal-gold retune guard ─────────────────────────────────
-       The Designer's balance ruling re-prices THREE server surfaces that live
-       in three different places: five rows of hr_goal_rewards, four CASE arms
-       inside hr_claim_daily__ungated and one inside hr_claim_quest__ungated.
-       Editing the AUTHORING migrations makes a rebuild correct and does nothing
-       to a database that already has the old bodies installed, so the repo-side
-       drift guards are blind to whether the FORWARD migration actually works.
-       This one replays the chain with the authoring files reverted to the
-       pre-ruling numbers — the shape production is in — makes the migration do
-       real work, and then PLAYS it: a real player refused at 59 logs, paid 300
-       at 60, paid the LOWERED 150 for three plantings, refused the onboarding
-       quest at 5 harvests and paid at 6. It also proves the file re-applies as a
-       no-op on both a transitioned and a rebuilt database, and REFUSES each of
-       the three surfaces when it is drifted underneath it.
-       `--selftest` plants six real defects; every one must read RED. */
-    try {
-      const { goalGoldRetuneGuard } = await import('./goal-gold-retune.mjs');
-      const ggrProblems = await goalGoldRetuneGuard();
-      if (ggrProblems.length) {
-        console.log('\nGoal-gold retune guard — FAILED:');
-        for (const p of ggrProblems) console.log(`  ✗ ${p}`);
-        exitCode = 1;
-      } else {
-        console.log('\nGoal-gold retune guard — the pre-ruling database transitions on all three '
-          + 'surfaces, re-applies as a no-op, refuses a drifted surface, and pays a real player the '
-          + `ruled amounts.\n  ${ggrProblems.coverage}`);
-      }
-    } catch (e) {
-      console.log('\nGoal-gold retune guard — FAILED:\n' + String(e.message || e));
-      exitCode = e.harness ? 2 : 1;
-    }
-
+    /* The b497 goal-gold retune guard (tests/goal-gold-retune.mjs) was deleted with
+       daily quests in the 2026-10-14 demolition; its migration stays in the chain. */
     /* ── The kill → DAILY-goal credit guard (live report #41 residual) ───
        Daily AND weekly kill goals grade on player_progress(kind='daily',
        key='ev:kill_any', period=<utc day key>), whose only writer was the
@@ -1841,30 +1718,6 @@ const run = async () => {
     } catch (e) {
       console.log('\nRenown kill-faucet guard — FAILED:\n' + String(e.message || e));
       exitCode = e.harness ? 2 : 1;
-    }
-
-    /* ── The permanent-TRAIT purchase guard (b46x) ───────────────────────
-       Under the live marks arm legacy.js buyTrait() failed closed with no
-       server verb behind it, so AUTO-EAT — the purchase the death sheet
-       teaches on a player's FIRST death — could not be bought at all. The
-       guard drives a real player through the real rate-gated hr_trait_buy on
-       a fully replayed PGlite chain: unknown trait, prerequisite, short
-       marks (and that the refusal is NOT cached under its key), the debit,
-       the ownership row hr_auto_eat_tier reads, auto-eat switched on through
-       its single writer at the tier-clamped threshold, the idempotent replay,
-       already_owned, one ledger row per purchase and the envelope projection.
-       It also BINDS legacy.js TRAITS to public.hr_traits in both directions,
-       so a price that differs by one Mark fails the build by name.
-       `--selftest` plants ten real defects; every one must read RED. */
-    const traitBuyProblems = await traitBuyGuard();
-    if (traitBuyProblems.length) {
-      console.log('\nPermanent-trait purchase — FAILED:');
-      for (const p of traitBuyProblems) console.log(`  ✗ ${p}`);
-      exitCode = 1;
-    } else {
-      console.log('\nTrait-buy guard — server-priced, prerequisite-gated, debited exactly once, '
-        + 'idempotent on replay, already_owned refused, refusals not cached, auto-eat enabled '
-        + 'through its single writer, ownership projected on the envelope.');
     }
 
     /* ── The HERO-SLOT purchase guard (2026-09-08) ───────────────────────

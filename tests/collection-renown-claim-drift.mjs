@@ -16,11 +16,9 @@
 //   0 gems; every threshold is reachable (items ≤ distinct MONSTERS drops
 //   that are not bind-on-pickup — a BoP key never makes a rung reachable,
 //   monsters ≤ MONSTER_TOTAL). `--selftest` plants each defect and must see red.
-//   RENOWN
-//     (1) src/data/renown-ranks.js                 — the single source
-//     (2) src/features/renown.js RANKS             — what the player SEES
-//     (3) supabase/migrations/2026-08-22-renown-claim.sql — what the server
-//         CREDITS (the embedded CASE catalogue).
+//   RENOWN — retired with renown in the 2026-10-14 demolition (its catalogue,
+//     src/data/renown-ranks.js, was deleted). The file keeps its name and its
+//     exported guard because tests/run-smoke.mjs imports them.
 //
 // A drift means a player is shown one gold/gem number and credited another, or
 // a milestone/rank threshold the server verifies against differs from the one
@@ -35,7 +33,6 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 import { COLLECTION_MILESTONES, MONSTER_TOTAL } from '../src/data/collection-milestones.js';
-import { RENOWN_RANK_REWARDS } from '../src/data/renown-ranks.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { ITEMS } from '../src/data/items.js';
 
@@ -136,33 +133,12 @@ export function checkCollection({ catalogue, monsterTotal, monsters, chainEnd, i
 
 export async function collectionRenownClaimDriftGuard() {
   const problems = [];
-  const ok = (cond, msg) => { if (!cond) problems.push(msg); };
-
   problems.push(...checkCollection({
     catalogue: COLLECTION_MILESTONES,
     monsterTotal: MONSTER_TOTAL,
     monsters: MONSTERS,
     chainEnd: await chainEndMilestoneSql(),
   }));
-
-  // (RENOWN (2), the client's RANKS rows in src/features/renown.js, retired with the old client.)
-
-  // ── RENOWN (3) renown-claim.sql CASE ─────────────────────────────────────
-  const rSql = await readFile(join(ROOT, 'supabase', 'migrations', '2026-08-22-renown-claim.sql'), 'utf8');
-  for (const [id, cat] of Object.entries(RENOWN_RANK_REWARDS)) {
-    const re = new RegExp(
-      `when\\s+'${id}'\\s+then\\s+v_min\\s*:=\\s*(\\d+);\\s*v_gold\\s*:=\\s*(\\d+);\\s*v_gems\\s*:=\\s*(\\d+);`);
-    const m = rSql.match(re);
-    ok(!!m, `SQL hr_claim_rank is missing/misshapen CASE arm for rank '${id}'.`);
-    if (m) {
-      ok(Number(m[1]) === cat.min, `SQL renown '${id}' min ${m[1]} != catalogue ${cat.min}`);
-      ok(Number(m[2]) === cat.gold, `SQL renown '${id}' gold ${m[2]} != catalogue ${cat.gold}`);
-      ok(Number(m[3]) === (cat.gems || 0), `SQL renown '${id}' gems ${m[3]} != catalogue ${cat.gems || 0}`);
-    }
-  }
-  // peasant (no reward) must NOT be a claimable arm.
-  ok(!/when\s+'peasant'\s+then/.test(rSql),
-    'SQL hr_claim_rank has a peasant arm — peasant has no reward and must fall through to unknown_rank.');
 
   return problems;
 }

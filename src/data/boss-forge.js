@@ -32,11 +32,10 @@
 //      item or a market speculation on power. Holding one (bag or depot) is
 //      hanging it; the count is read from the server-projected bag and depot.
 //
-// PURE DATA. Merged into ITEMS (items.js), ARTISAN_RECIPES (recipes.js) and
-// ITEM_DESC (item-descriptions.js). The server half is
-// supabase/migrations/2026-10-16-w0f-fun-content.sql (hr_items, hr_item_slots,
-// hr_activities) and the recipe input maps reach the realm through the edge
-// payload, which imports recipes.js. Guarded by tests/w0f-fun-content.mjs.
+// PURE DATA. Merged into ITEMS (items.js) and ITEM_DESC (item-descriptions.js).
+// The three boss-forge RECIPES were deleted with crafted gear (demolition,
+// 2026-10-14); the items stay until the new roster replaces the catalogue.
+// Guarded by tests/w0f-fun-content.mjs.
 // ════════════════════════════════════════════════════════════════════════
 
 export const BOSS_FORGE_ITEMS = {
@@ -58,23 +57,6 @@ export const BOSS_FORGE_ITEMS = {
     defB: 30, magicAtkB: 62, magicStrB: 42, atkB: -23, rangeAtkB: -18,
     rarity: 'unique', reqSkill: 'defense', reqLv: 90,
   },
-};
-
-/* The recipes. Bench levels sit at the top of each bench (Dawnsteel Platebody
-   forges at Smithing 98, the Voidhide/Voidweave bodies at Crafting 94), and
-   each consumes its Dawnsteel-tier twin's own wood or metal so the piece is
-   SELF-SUPPLIED at its level (the 2026-09-13 self-supply ruling). */
-export const BOSS_FORGE_RECIPES = {
-  smithing: [
-    { id: 'forge_elderscale_platebody', name: 'Forge Elderscale Platebody', icon: '🛡️',
-      inputs: { elderscale_heart: 1, dawn_bar: 6 }, output: 'elderscale_platebody', xp: 4200, req: 97, ms: 6800 },
-  ],
-  crafting: [
-    { id: 'craft_riftmaw_carapace', name: 'Stitch Riftmaw Carapace', icon: '🎽',
-      inputs: { riftmaw_husk: 3, duskwood_plank: 4, shadow_thread: 4 }, output: 'riftmaw_carapace', xp: 3600, req: 95, ms: 6400 },
-    { id: 'weave_voidheart_robe', name: 'Weave Voidheart Robe', icon: '🧥',
-      inputs: { void_essence: 2, duskwood_plank: 3, magic_essence: 6 }, output: 'voidheart_robe', xp: 3600, req: 95, ms: 6400 },
-  ],
 };
 
 export const BOSS_FORGE_DESC = {

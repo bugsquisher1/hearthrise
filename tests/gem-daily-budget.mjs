@@ -55,6 +55,12 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, LAST_PATCHED, ROOT } from './schema-replay.mjs';
 
+/* THE SUBJECT IS RETIRED AT CHAIN END (2026-10-23-demolition-bounty-gems-close.sql,
+   BETA_PLAN K4/K37). That file drops the bounty RPCs and makes hr_wallet_credit
+   refuse every gem, so the property graded here exists only on the chain that
+   ENDS before it. The plain run therefore stops at the last file before the
+   retirement; tests/bounty-gems-close.mjs grades the chain end (gone, refused). */
+const RETIRED_AFTER = '2026-10-23-demolition-hero-slots-gold.sql';
 const MIGFILE = join(ROOT, 'supabase', 'migrations', '2026-08-15-gem-daily-budget.sql');
 const MUTATE = process.argv.includes('--mutate');
 
@@ -343,7 +349,7 @@ try {
   console.log(`gem daily budget — ceiling ${GEM_CEIL.toLocaleString()}/account-day, `
     + `per-call clamp ${GEM_CLAMP.toLocaleString()}, gold control ${GOLD_CEIL.toLocaleString()}`);
 
-  const { db } = await bootReplay();
+  const { db } = await bootReplay({ upTo: RETIRED_AFTER });
   const H = await harness(db);
   grade(await acceptance(H, 'CLEAN CHAIN'));
 
@@ -371,7 +377,7 @@ try {
     for (const [name, m] of Object.entries(REDS)) {
       console.log(`\n── RED ${name}`);
       console.log(`     ${m.what}`);
-      const boot = await bootReplay();
+      const boot = await bootReplay({ upTo: RETIRED_AFTER });
       await boot.db.exec(await m.sql(boot.db));
       const H2 = await harness(boot.db);
       const before = failures;

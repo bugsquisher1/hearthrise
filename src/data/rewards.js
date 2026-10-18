@@ -34,15 +34,16 @@
 
    THE NUMBERS, MEASURED ON PRODUCTION (Security review, 2026-10-10): the
    median first week earns about 950 gold from play and 450 from the daily
-   quests. Week one below pays 1,000 gold (60, 80, 100, 130, 160, 200, 270), so
+   quests. Week one below pays 1,000 gold (60, 80, 100, 130, 160, 200, 300), so
    logging in never out-earns playing, plus 25 cooked shrimp and 10 cooked
    herring for Auto-Eat, 25 turnip and 10 carrot seeds for the plots (turnip is
-   farming 1, carrot farming 10), one Bone Key (the first dungeon, the Crypt of
-   Bones, opens at combat 25) and 2 gems.
+   farming 1, carrot farming 10) and 2 gems.
 
    `items` are SUPPLIES: they scale with the week multiplier like gold does.
-   `keys` and `gems` are FIXED: one Bone Key a week, never three, because a key
-   is a dungeon run and the multiplier is a loyalty bonus, not a loot table.
+   `keys` and `gems` are FIXED: the multiplier is a loyalty bonus, not a loot
+   table. No day pays a key since the dungeons were cut (2026-10-15, Security R2:
+   the Bone Key left hr_items, so a day 7 that paid it failed with unknown_item;
+   it was worth 0 and bound on pickup, so day 7 keeps its gold and gems only).
    And they pay only when the BONUS IS DUE (loginBonusDue): a STRAIGHT arrival
    (the last claim was yesterday) AND no keys or gems paid by a login claim in
    the six server days before today — the server reads that from player_ledger
@@ -52,25 +53,31 @@
    in 28 days against a daily player's 4), and "skip two, then day 6 and day 7"
    re-took day 7's key every four days (90 keys a year against 52).
    Every id is a real ITEMS row; tests/login-reward.mjs asserts it. */
+/* THE LOGIN REWARD IS OFF (Tyler, 2026-10-17). The daily login reward is
+   PREMIUM-ONLY, and for now it is just a training weapon. Premium is not on
+   the server yet (lane S1 adds it and authors that reward), so every day pays
+   NOTHING: no gold, no supplies, no key, no gem. The server agrees and goes
+   further: hr_login_claim_verify refuses every claim login_reward_off
+   (2026-10-23-demolition-login-catalogue.sql), journalled in hr_rejections.
+   The paid cycle above is history; nothing here may pay until S1 rules it. */
 export const DAILY_LOGIN_CYCLE = Object.freeze([
-  Object.freeze({ gold: 60, items: Object.freeze({ cooked_shrimp: 10 }) }),
-  Object.freeze({ gold: 80, items: Object.freeze({ turnip_seed: 10 }) }),
-  Object.freeze({ gold: 100, items: Object.freeze({ cooked_shrimp: 15 }) }),
-  Object.freeze({ gold: 130, items: Object.freeze({ carrot_seed: 10 }) }),
-  Object.freeze({ gold: 160, items: Object.freeze({ cooked_herring: 10 }) }),
-  Object.freeze({ gold: 200, items: Object.freeze({ turnip_seed: 15 }) }),
-  Object.freeze({ gold: 270, gems: 2, keys: Object.freeze({ bone_key: 1 }) }),   // Day 7
+  Object.freeze({}),
+  Object.freeze({}),
+  Object.freeze({}),
+  Object.freeze({}),
+  Object.freeze({}),
+  Object.freeze({}),
+  Object.freeze({}),
 ]);
 
 /** Each COMPLETED week scales gold and supplies by this much again... */
 export const DAILY_LOGIN_WEEK_BONUS = 0.5;
 
 /* ...up to x3, reached in week five (x1, x1.5, x2, x2.5, x3). The old cap was
-   x26, a fuse rather than a dial; this one is the dial. At the cap the richest
-   claim is day 7: 810 gold, one Bone Key, 2 gems; a capped week pays 3,000
-   gold. The SERVER re-derives this price and refuses any other
-   (2026-10-16-login-reward.sql, hr_login_price), so this number and that one
-   are bound by tests/login-reward.mjs, which runs both over every streak. */
+   x26, a fuse rather than a dial; this one is the dial. With the reward off every
+   streak prices 0. The SERVER holds its own copy of the cycle (hr_login_price,
+   generated from this file into 2026-10-23-demolition-login-catalogue.sql)
+   and refuses every claim; tests/login-reward-off.mjs binds the two. */
 export const DAILY_LOGIN_MAX_WEEK_MULT = 3;
 
 export const DAILY_LOGIN_CYCLE_DAYS = DAILY_LOGIN_CYCLE.length;

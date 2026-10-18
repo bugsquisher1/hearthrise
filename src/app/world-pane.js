@@ -10,8 +10,8 @@
 // sends an intent or writes a number.
 // ════════════════════════════════════════════════════════════════════════
 
-import { worldViewOf } from './world-view.js?v=591';
-import { mountShell } from '../shell/shell.js?v=591';
+import { worldViewOf } from './world-view.js?v=592';
+import { mountShell } from '../shell/shell.js?v=592';
 
 const PANE_HTML = '<div class="world-chrome">'
   + '<span class="world-title">World</span>'
@@ -45,7 +45,7 @@ export async function mountWorldPane(host, character, o) {
 
   let runtime = null;
   try {
-    const { bootWorld } = await import('../world/world-boot.js?v=591');
+    const { bootWorld } = await import('../world/world-boot.js?v=592');
     runtime = await bootWorld(pane, { view });
     runtime.sync();
   } catch (e) {

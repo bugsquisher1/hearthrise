@@ -880,7 +880,8 @@ async function compareRuns(db, M, fixture, cutsA, cutsB) {
     await db.query('savepoint c2_runs');
     const a = await run(cutsA);
     await db.query('rollback to savepoint c2_runs');
-    const b = await run(cutsB);
+    /* cutsB may read A's snapshot (BOTH-PATH places cuts inside A's recovery windows). */
+    const b = await run((f) => cutsB(f, a));
     return { a, b, sid, from };
   });
 }
@@ -976,9 +977,16 @@ const DB_ARMS = {
   },
   'BOTH-PATH': async (db, M) => {
     /* The connected client cuts the timeline wherever it presses — odd
-       instants, two within a second, one that lands on a swing boundary. */
-    const odd = (from) => [37123, 131000, 132000, 300000, 348411, 349000, 600000, 777777, 901001, 1200000, 1500000, SPAN_MS]
-      .map((d) => from + d);
+       instants, two within a second, one that lands on a swing boundary —
+       AND twice inside every recovery window the tick run fell into, so a
+       carried recovery line is read back by a settle whatever instant the
+       dice put the falls at (P0 x H merge, 2026-10-17: with the falls moved,
+       the fixed list alone cut no window and carrierOneTickLate stayed green). */
+    const fallsOf = (snap) => (snap?.events || []).filter((e) => e[0] === 'fall').map((e) => new Date(e[1]).getTime());
+    const odd = (from, a) => [...new Set([37123, 131000, 132000, 300000, 348411, 349000, 600000, 777777, 901001, 1200000, 1500000, SPAN_MS]
+      .map((d) => from + d)
+      .concat(fallsOf(a).flatMap((t) => [t + 17123, t + 41007]).filter((t) => t > from && t < from + SPAN_MS)))]
+      .sort((x, y) => x - y);
     const gather = await one(db, `select activity_id from public.hr_activities where kind = 'gather'
                                      and (req_lv is null or req_lv <= 1) order by activity_id limit 1`);
     const r = await compareRuns(db, M, { ...WEAK, mode: { target: 'weakest', pull: 3 }, lastActivity: { kind: 'gather', id: gather } },
@@ -991,6 +999,7 @@ const DB_ARMS = {
       problems.push(`CONTROL: the automatic end did not resume ${gather} (pointer ${r.a.active}, ${JSON.stringify(r.a.resume)})`);
     }
     if (!((r.a.deaths || []).length > 0)) problems.push('CONTROL: the weak fixture never fell — the arm proves nothing about deaths');
+    if (!(fallsOf(r.a).length > 0)) problems.push('CONTROL: no fall event carries an instant — no cut lands inside a recovery window');
     if (!Object.values(r.a.death_xp || {}).some((v) => Number(v) > 0)) {
       problems.push('CONTROL: the weak fixture\'s falls cost no XP — the death-XP half of the arm proves nothing');
     }
@@ -1821,7 +1830,7 @@ const MUTANTS = [
     to: "    if (b.kind === 'ammo') return { why: 'not_fireable' };\n" },
   { arm: 'BUY-RULE', name: 'a dry purse ends nothing', file: 'src/core/action-rules.js',
     from: '  gold_out: (hs) => hs.goldOut === true,', to: '  gold_out: () => false,' },
-  { arm: 'BUY-RULE', name: 'a priced arrow is never bought', file: 'src/core/combat-sim.js',
+  { arm: 'BUY-RULE', name: 'a priced arrow is never bought', file: 'src/core/hunt/world-step.js',
     from: '    if (n - fromBag > 0 && shot) buyFromShop(hunt, shot.id, n - fromBag);', to: '' },
   { arm: 'BUY-RULE', name: 'the floor is ignored', file: 'src/core/action-rules.js',
     from: 'export function floorOf(hs) { return Math.max(0, int(hs && hs.goldFloor, GOLD_FLOOR.default)); }',
@@ -1829,7 +1838,7 @@ const MUTANTS = [
   { arm: 'BUY-RULE', name: 'sell-to-cover sells the dearest loot first', file: 'src/core/action-rules.js',
     from: '    .sort((a, b) => (hs.cover[a].unit - hs.cover[b].unit) || (a < b ? -1 : 1));',
     to: '    .sort((a, b) => (hs.cover[b].unit - hs.cover[a].unit) || (a < b ? -1 : 1));' },
-  { arm: 'STAMINA', name: 'a hunt knockout costs no time (a free stand-up)', file: 'src/core/combat-sim.js',
+  { arm: 'STAMINA', name: 'a hunt knockout costs no time (a free stand-up)', file: 'src/core/hunt/world-step.js',
     from: '    recoverMs: KNOCKOUT_MS,\n', to: '    recoverMs: 0,\n' },
   { arm: 'BUY-RULE', name: 'kill coins never reach the purse', file: 'src/core/combat-sim.js',
     from: "      hs.purse = Math.max(0, Math.floor(Number(hs.purse) || 0)) + Math.max(0, Math.floor(Number(gp) || 0));", to: '' },
@@ -1917,7 +1926,7 @@ const MUTANTS = [
     to: "  const perks = await readTickPerks(exec, user, slot);\n  const [bk] = await exec('select coalesce(sum(kills), 0)::int as n from public.hr_bestiary_of($1::uuid, $2::int)', [user, slot]);\n  const ladder = Number(bk && bk.n) > 0;",
     also: [['      secret: salt, pressAtMs: press ? press.at : null,', '      secret: salt, pressAtMs: press ? press.at : null, ladder,'],
       ['    monsters: MONSTERS,\n    nodes: GATHER_NODES,', "    monsters: o.ladder ? Object.fromEntries(Object.entries(MONSTERS).map(([k, v]) => [k, { ...v, drops: (v.drops || []).map((d) => ({ ...d, ch: Math.min(1, d.ch * 1.5) })) }])) : MONSTERS,\n    nodes: GATHER_NODES,"]] },
-  { arm: 'QUIVER', name: '[accrual-engine ammoGuard] a shot is loosed but its arrow is never taken from the bag', file: 'src/core/combat-sim.js',
+  { arm: 'QUIVER', name: '[accrual-engine ammoGuard] a shot is loosed but its arrow is never taken from the bag', file: 'src/core/hunt/world-step.js',
     from: '    const fromBag = spendFromBag(hunt, id, Math.min(n, bagLeft), atMs);', to: '    const fromBag = Math.min(n, bagLeft);' },
 ];
 

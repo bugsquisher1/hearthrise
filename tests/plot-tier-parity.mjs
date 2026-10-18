@@ -405,6 +405,15 @@ try {
     console.log('\nevery planted defect was caught by its NAMED assertion; every control stayed silent.');
   }
 
+  /* The authored copies agreeing is not the database charging them (Security R1,
+     2026-10-15: a refill that named only deed_cost sold every tier for 0 gold).
+     The replay probe drives the real RPC on the replayed chain. */
+  if (!argv.includes('--selftest')) {
+    const { spawnSync } = await import('node:child_process');
+    const r = spawnSync(process.execPath, [join(ROOT, 'tests', 'plot-tier-price-replay.mjs')]
+      .concat(argv.includes('--mutate') ? ['--mutate'] : []), { stdio: 'inherit' });
+    if (r.status !== 0) throw fail('REPLAY', `tests/plot-tier-price-replay.mjs exited ${r.status}`);
+  }
   console.log('plot-tier-parity: GREEN');
 } catch (e) {
   if (e.harness) { console.error(`HARNESS: ${e.message}`); process.exit(2); }

@@ -11,8 +11,8 @@
 // the form fields; `onSignedIn` is called once the account is signed in.
 // ════════════════════════════════════════════════════════════════════════
 
-import { escapeHtml as esc } from '../utils/dom.js?v=591';
-import { MIN_PASSWORD } from '../net/auth.js?v=591';
+import { escapeHtml as esc } from '../utils/dom.js?v=592';
+import { MIN_PASSWORD } from '../net/auth.js?v=592';
 
 const FIELD = {
   email: '<label class="auth-field"><span>Email</span><input name="email" type="email" autocomplete="email" required></label>',

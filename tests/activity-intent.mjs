@@ -58,6 +58,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootChain, ROOT } from './pglite-chain.mjs';
 import { computeAccrualInputParity } from './accrual-engine.mjs';
+import { ARTISAN_RECIPES } from '../src/data/recipes.js';
 
 const MIG = (f) => join(ROOT, 'supabase', 'migrations', f);
 const FN = (f) => join(ROOT, 'supabase', 'functions', 'hr-accrue', f);
@@ -933,7 +934,11 @@ async function run(mutate) {
        rather than an absent one. */
     const topSmith = (await db.query(
       `select activity_id, req_lv from public.hr_activities
-        where kind = 'artisan' and req_skill = 'smithing' order by req_lv desc limit 1`)).rows[0];
+        where kind = 'artisan' and req_skill = 'smithing' and activity_id = any($1::text[])
+        order by req_lv desc limit 1`,
+      /* Only recipes the edge still knows: this hand chain stops before the
+         demolition's catalogue regen, so hr_activities still lists deleted gear. */
+      [ARTISAN_RECIPES.smithing.map((x) => x.id)])).rows[0];
     ok(!!topSmith && Number(topSmith.req_lv) > 20,
       `A3c GATE: the catalogue's highest smithing recipe is ${JSON.stringify(topSmith)} — with the `
       + 'probe at smithing 1,000 XP (level ~10) there is nothing here the gate can refuse');

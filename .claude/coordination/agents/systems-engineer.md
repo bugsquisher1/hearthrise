@@ -4112,3 +4112,46 @@ activity bar and the topbar.
 2. *Edge-bundled data files are frozen by the payload hash.* Editing a header comment in `src/data/shops.js` changes the deployed sha. Generator inputs that lived in legacy.js moved to a new non-bundled file (`src/data/homestead-tiers.js`).
 3. *`import.meta.url === \`file://${argv[1]}\`` never matches on Windows* — retired-capability-copy printed nothing and exited 0 locally. Use `pathToFileURL(argv[1]).href`.
 4. *Meta-guards anchor on real files:* guard-anchors' incident proof moved from envelope-frame-gate/gold.js to no-client-copy-of-projection/envelope.js; it is derived, so it follows the next move.
+
+## 2026-10-14 — lane D3, demolition keep-strip (`lane/demo-keep-strip`)
+
+Removed every read of a deleted system from the KEEP files D3 owns; new `src/net/hr-clock.js`
+(server clock from the envelope's `now`, no RPC) and `src/render/room-modal.js` (moved verbatim
+out of clan-seat-ui.js — the homestead's room modal lived inside the clan seat).
+
+1. *A shared component inside a deleted feature is the trap the inventory did not list.*
+   HearthriseRoomModal (homestead, combat-render, legacy) and the castle-good glyphs lived in
+   clan-seat-ui.js; deleting that file whole would have broken the Homestead. Grep every
+   whole-file delete for `window.X =` publishers before deleting it.
+2. *Reader-first demolition moves the red into the data owner's guards.* Removing a reader makes
+   its data row dead (reveal-coverage R4, signposts SIGN-1, dead-exports). Pay it in the same
+   commit, even across a lane boundary, or the lane cannot be green.
+3. *A pinned hash from the old module is the cheapest byte-identity proof.* perk-channel P10
+   hashes makeBonus over 81 kept inputs x 16 keys; run it once against origin/main's perks.js
+   (hash green, CONTROL red) before trusting it.
+4. *Lockstep client/server bindings cannot be split by lane.* Hero-slot gold prices and the
+   plot-tier deed column are bound to SQL catalogues (hero-slot-buy, plot-tier-parity); their
+   client half waits for M2 rather than landing red.
+
+## 2026-10-14 — lane D1, demolition shell (`lane/demo-shell`)
+
+Deleted the client half of clans/raids/party/muster/rally/events/renown/dailies/streaks/deeds/
+bounty/marks/traits/dungeons/Quartermaster/gem unlocks/themes/IAP/Hearth Token/charms/Ledger/
+companions/pets/BotD/night plan/enchant/Stonemason and the Auto-Eat surface; legacy.js 16,396 →
+13.2k lines; new standing guard `tests/demolition-absence.mjs` (shrink-only ALLOW for C2/B1 reads).
+
+1. *A deleted feature file can host a live counter.* companions.js's harvestPlot wrapper was the
+   only writer of `stats.cropsHarvested` (the Home "Harvest" tile). The fix was not to re-home the
+   wrapper but to read the server's `ev:harvest` projection (`stats.harvested`). Grep a deleted
+   file's `window.X = function` wrappers, not just its publishers.
+2. *Deleting an override exposes what it covered.* clans.js re-routed `NetClient.leaderboard`
+   through hr_leaderboard; with clans gone the pre-Supabase mock (eight invented players) became
+   the fallback again. Delete the mock with the override.
+3. *An in-page suite the set never ran is debt the next lane inherits.* D2/D3 merged data and UI
+   cuts without touching src/features/smoke; ~200 tests went red at once. Re-point the test in
+   the commit that moves its subject, same as a guard.
+4. *A dead-css guard that counts string prefixes misses whole families.* `'qm-' +` anywhere kept
+   every `.qm-*` rule alive; a per-class sweep over the demolished prefixes removed ~240 more.
+5. *Crossings found, not fixed (not mine):* accrue.js still refuses to arm inventory authority
+   without `window.DUNGEONS` (C2); D2 left gear items with no recipe (b243/b247/LUCKY-7) and
+   `bone_key`/`oak_rod` unclassified in item-authority.

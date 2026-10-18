@@ -19,7 +19,6 @@
 //       Vigour were deleted with the closed rebuild, lane C2);
 //   (e) >= 4 lucky rows per tier T1-T6, unique items, lucky row LAST;
 //   (f) item.tier is the monster's tier or one above it;
-//   (g) pickProofItem (bounty proof) is unchanged by the lucky row.
 //
 // BOTH PATHS (lane C2: a hunt is one engine whether a client watches or not):
 // the hunt span itself (simulateSpan on the session) and the real server
@@ -36,13 +35,10 @@ import { MONSTERS } from '../src/data/monsters.js';
 import { ITEMS } from '../src/data/items.js';
 import { effectsAreLive } from '../src/data/item-effects.js';
 import { pathFor } from '../src/data/item-art.js';
-import { DUNGEONS, QM_STOCK } from '../src/data/dungeons.js';
 import { SHOP_OFFERS } from '../src/data/shops.js';
 import { BOSSES } from '../src/data/bosses.js';
-import { RAID_BOSSES } from '../src/data/raid-bosses.js';
 import { HEARTHFIND_TABLE } from '../src/data/hearthfind.js';
 import { effectiveDropChance } from '../src/core/drops.js';
-import { pickProofItem } from '../src/core/bounty.js';
 import { lootKey } from '../src/core/goals.js';
 import { simulateSpan } from '../src/core/combat-sim.js';
 import {
@@ -165,10 +161,8 @@ function check(monsters) {
     ok(!it.hearthfind, 'a', `${tag}: item is a Hearthfind`);
     ok(it.tier !== 8, 'a', `${tag}: item is tier 8`);
     ok(it.rarity !== 'unique', 'a', `${tag}: item is rarity 'unique' (its sink is the forge, not a drop)`);
-    ok(!QM_STOCK.some((q) => q.id === d.id), 'a', `${tag}: item is Quartermaster stock`);
-    ok(!Object.values(DUNGEONS).some((dg) => mentions(dg.loot, d.id)), 'a', `${tag}: item is dungeon loot`);
     ok(!shopGranted(d.id), 'a', `${tag}: item is granted by a shop offer (shops.js)`);
-    ok(!mentions(BOSSES, d.id) && !mentions(RAID_BOSSES, d.id), 'a', `${tag}: item is boss/raid loot`);
+    ok(!mentions(BOSSES, d.id), 'a', `${tag}: item is boss loot`);
     ok(!!pathFor(d.id), 'a', `${tag}: item has no art in item-art.js`);
     for (const [oid, om] of Object.entries(monsters)) {
       (om.drops || []).forEach((od, oi) => {
@@ -193,10 +187,6 @@ function check(monsters) {
     perTier[m.tier] = (perTier[m.tier] || 0) + 1;
     /* (f) the tier rule */
     ok(it.tier === m.tier || it.tier === m.tier + 1, 'f', `${tag}: item tier ${it.tier} is not T${m.tier} or T${m.tier + 1}`);
-    /* (g) the bounty proof item */
-    const stripped = { ...monsters, [mid]: { ...m, drops: m.drops.filter((x) => !x.lucky) } };
-    ok(pickProofItem(mid, monsters, ITEMS) === pickProofItem(mid, stripped, ITEMS), 'g',
-      `${tag}: the lucky row changes the bounty proof item`);
     /* (d) the hours, measured */
     if (m.tier < 1 || m.tier > 6) { ok(false, 'd', `${tag}: no measurement loadout for tier ${m.tier}`); continue; }
     const got = measureFight(monsters, mid);

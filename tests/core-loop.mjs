@@ -124,7 +124,12 @@ import { HUNTS } from '../src/data/hunts.js';
 import { START_KIT } from '../src/data/start-kit.js';
 import { combatLevel, xpForLevel } from '../src/core/xp.js';
 import { BASIC_INDEX } from '../src/data/supply-basics.js';
-import { STAMINA_MAX_MS, DEFAULT_RESUME } from '../src/data/hunt-sessions.js';
+import { STAMINA_MAX_MS as STAMINA_CAPS, DEFAULT_RESUME } from '../src/data/hunt-sessions.js';
+import { HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
+/* A free character's pool (lane S1: the cap is per character, free 8 h / premium 12 h). */
+const STAMINA_MAX_MS = STAMINA_CAPS.free;
+/* The hunts a character can enter: lane S1 fights only on a ground. */
+const GROUNDED = new Set(Object.values(HUNT_GROUNDS).map((g) => g.hunt));
 
 const FN = (f) => join(ROOT, 'supabase', 'functions', 'hr-accrue', f);
 const SEED = 0x10091;
@@ -151,7 +156,8 @@ const MUTATIONS = {
   hunt_drops_nothing: {
     file: 'accrual.js', by: 'LOOP-1 step 6',
     why: 'kills stop dropping loot server-side: the hunt pays XP and nothing to sell',
-    find: '      itemDelta[id] = (itemDelta[id] || 0) + n;\n      bag[id] = (bag[id] || 0) + n;\n      collection.record(id, n);',
+    /* Re-anchored lane S1: the hunt's loot sink is accrual.js memberSide addItem. */
+    find: '      itemDelta[id] = (itemDelta[id] || 0) + n;\n      hs.tally.loot[id] = (hs.tally.loot[id] || 0) + n;',
     repl: '      return;',
   },
   sell_pays_nothing: {
@@ -174,17 +180,17 @@ const MUTATIONS = {
     repl: '    if (fits) {',
   },
   bag_ignored: {
-    /* Re-pointed lane C2: with the dry-supply choice defaulting to 'end' (designer
-       review item b) no shop heal covers an ignored bag, so the FIRST loop that
-       hunts on packed food (LOOP-1) already goes red at the leave — its packed
-       shrimp never left the bag. LOOP-3 step 5 still goes red later. */
-    file: '../../../src/core/action-rules.js', by: 'LOOP-1 step 7',
-    why: 'the "*heal" bag slot never finds a packed heal: the packed food is never eaten',
-    find: '    const id = pickHeal(v.hs, v.maxHp - v.hp);\n    return id ?',
-    repl: '    const id = null;\n    return id ?',
+    /* Re-pointed lane S1: the one supply resolver (action-rules.js resolveLine)
+       never reaches the bag, so the packed food is never eaten and the store
+       feeds the hero instead — LOOP-3 step 5's "the bag is spent first". */
+    file: '../../../src/core/action-rules.js', by: 'LOOP-3 step 5',
+    why: 'the resolver never picks a packed heal: the packed food is never eaten',
+    find: '    const own = pickOwn(hs, want, Math.max(1, int(need, 1)));',
+    repl: '    const own = null;',
   },
   stamina_never_ends: {
-    file: '../../../src/core/action-rules.js', by: 'LOOP-5 step 2',
+    /* Lane S1: a fresh character's night now ends on stamina (its eight hours), so LOOP-4 goes red first. */
+    file: '../../../src/core/action-rules.js', by: 'LOOP-4 step 2',
     why: 'an empty stamina pool ends nothing: a hunt runs forever and the day never turns',
     find: "  stamina: (hs) => hs.staminaMs !== null && hs.staminaMs !== undefined && !(Number(hs.staminaMs) > 0),",
     repl: '  stamina: () => false,',
@@ -240,6 +246,8 @@ async function makeServer(db, M) {
        and data_type='timestamp with time zone' order by ordinal_position`, [t])).map((r) => r.c);
   const tsCols = await colsOf('player_state');
   const huntCols = await colsOf('hunt_sessions');
+  /* Lane S1: a hunt's clock is its INSTANCE's too (hunt_instances.settled_to / next_swing_at). */
+  const instCols = await colsOf('hunt_instances');
   if (!tsCols.includes('accrued_to')) {
     throw Object.assign(new Error('player_state has no accrued_to: the harness cannot pass time'), { harness: true });
   }
@@ -269,6 +277,11 @@ async function makeServer(db, M) {
       if (huntCols.length) {
         const hs = huntCols.map((c) => `${c} = ${c} - make_interval(secs => $2)`).join(', ');
         await q(`update public.hunt_sessions set ${hs} where user_id = $1 and slot = 0`, [uid, secs]);
+      }
+      if (instCols.length) {
+        const is = instCols.map((c) => `${c} = ${c} - make_interval(secs => $2)`).join(', ');
+        await q(`update public.hunt_instances set ${is} where id in (select instance_id from public.hunt_sessions
+                   where user_id = $1 and slot = 0 and ended_at is null)`, [uid, secs]);
       }
       await q(`update public.hr_return_anchor set real_return_at = real_return_at - make_interval(secs => $2)
                 where user_id = $1 and slot = 0`, [uid, secs]);
@@ -509,6 +522,9 @@ function makePlayer(S, uid) {
     /** Leave the hunt: settle first (so it closes at once), then the RPC. */
     async leave(t) {
       await S.huntSettle(uid);
+      /* A hunt that ended on its own (stamina, gold, falls) has already walked home: nothing to leave. */
+      const open = await S.session(uid);
+      if (open && open.ended_at) { t.note(`already ended ${open.end_reason}`); p.env = p.seen = await readBack(S, uid, t, 'leave', null); return { ok: true, ended: open.end_reason }; }
       const r = await S.rpc(uid, 'select public.hr_hunt_leave(0, $1::uuid) r', [uuid()]);
       t.ok(r && r.ok === true, `hr_hunt_leave refused: ${brief(r)}`);
       if (r.pending) await S.huntSettle(uid);
@@ -731,22 +747,19 @@ async function loop2(S, M, tag, rows) {
 
   await step(2, 'pick a hunt for my level', async (t) => {
     const cl = combatOf(p.env);
-    const fit = HUNTS.filter((h) => h.band[0] <= cl && cl <= h.band[1]).sort((a, b) => b.band[0] - a.band[0]);
+    const fit = HUNTS.filter((h) => GROUNDED.has(h.id) && h.band[0] <= cl && cl <= h.band[1]).sort((a, b) => b.band[0] - a.band[0]);
     t.ok(fit.length > 0, `no named hunt's band holds combat ${cl} (${HUNTS.map((h) => `${h.id}[${h.band}]`).join(' ')})`);
     hunt = fit[0];
     t.note(`${hunt.id} [${hunt.band}] (${fit.length} of ${HUNTS.length} hunts fit combat ${cl})`);
   });
 
   await step(3, 'switch the shop heal on', async (t) => {
-    /* A new bar has the shop slot OFF (master plan row 25); the player turns it
-       on and the hunt pays the NPC per use (row 1). */
-    const bar = [{ item: '*heal_shop', on: true, conditions: [{ subject: 'self_hp_pct', op: '<=', value: 50 }] }];
-    const put = await S.rpc(p.uid, 'select public.hr_action_set_put(0, 0, $1, $2::jsonb, $3::uuid) r', ['shop', JSON.stringify(bar), uuid()]);
-    t.ok(put && put.ok === true, `the bar was refused: ${brief(put)}`);
+    /* Lane S1: hunts are idle and the bar is ability ids; the supply setting is
+       the hero's option (spec §3.8). */
     /* …and chooses "Use Store Supplies" (Master Design Reference §4): the store
        is never used without the player's choice. */
     const pick = await S.rpc(p.uid, `select public.hr_action_set_options(0, 0, '{"supply_source":"store"}'::jsonb, $1::uuid) r`, [uuid()]);
-    t.ok(pick && pick.ok === true && pick.supply_source === 'store', `the supplies choice was refused: ${brief(pick)}`);
+    t.ok(pick && pick.ok === true && pick.options && pick.options.supply_source === 'store', `the supplies choice was refused: ${brief(pick)}`);
     food = { item: '*heal_shop' };
   });
 
@@ -833,20 +846,16 @@ async function loop3(S, M, tag, rows) {
   });
 
   await step(5, 'the bag is spent before the shop bills a coin', async (t) => {
-    /* The default bar: the bag's heal first, the shop's after it — switched ON. */
-    const bar = [{ item: '*heal', on: true, conditions: [{ subject: 'self_hp_pct', op: '<=', value: 50 }] },
-      { item: '*heal_shop', on: true, conditions: [{ subject: 'self_hp_pct', op: '<=', value: 50 }] }];
-    const put = await S.rpc(p.uid, 'select public.hr_action_set_put(0, 0, $1, $2::jsonb, $3::uuid) r', ['bag then shop', JSON.stringify(bar), uuid()]);
-    t.ok(put && put.ok === true, `the bar was refused: ${brief(put)}`);
     /* "Use My Supplies, Switch to Store Supplies when they run out" (MDR §4). */
     const pick = await S.rpc(p.uid, `select public.hr_action_set_options(0, 0, '{"supply_source":"mine","on_empty":"switch"}'::jsonb, $1::uuid) r`, [uuid()]);
-    t.ok(pick && pick.ok === true && pick.on_empty === 'switch', `the supplies choice was refused: ${brief(pick)}`);
+    t.ok(pick && pick.ok === true && pick.options && pick.options.on_empty === 'switch', `the supplies choice was refused: ${brief(pick)}`);
     const packed = inv(p.env, 'cooked_shrimp');
-    await p.enter(t, 'goblin_warren', { cooked_shrimp: packed });
+    await p.enter(t, 'mill_cellar', { cooked_shrimp: packed });
     const h = await p.hunt(t, 30);
     const s1 = h.session || {};
     const used = num((s1.tally && s1.tally.supplies && s1.tally.supplies.cooked_shrimp) || 0);
-    const bought = Object.values((s1.tally && s1.tally.bought) || {}).reduce((a, n) => a + num(n), 0);
+    /* The bag's HEAL is spent before the shop's heal (a drink has no bag line to spend first). */
+    const bought = Object.entries((s1.tally && s1.tally.bought) || {}).filter(([id]) => BASIC_INDEX[id] && BASIC_INDEX[id].kind === 'heal').reduce((a, [, n]) => a + num(n), 0);
     t.ok(used > 0, `a 30-minute hunt with ${packed} cooked shrimp packed ate none of them`);
     const left = (await S.q('select coalesce(sum(qty_left), 0)::int n from public.hunt_bag where session_id = $1 and item_id = $2', [s1.id, 'cooked_shrimp']))[0].n;
     t.ok(bought === 0 || num(left) === 0, `the shop billed ${bought} use(s) while ${left} cooked shrimp were still in the bag`);
@@ -937,7 +946,7 @@ async function loop5(S, M, tag, rows) {
   });
 
   await step(2, 'hunt until stamina ends the day', async (t) => {
-    const top = HUNTS.filter((h) => h.band[0] <= combatOf(p.env)).sort((a, b) => b.band[0] - a.band[0])[0];
+    const top = HUNTS.filter((h) => GROUNDED.has(h.id) && h.band[0] <= combatOf(p.env)).sort((a, b) => b.band[0] - a.band[0])[0];
     await p.enter(t, top.id, { cooked_shark: 1500 });
     day = await p.hunt(t, 13 * 60);
     const sess = day.session || {};

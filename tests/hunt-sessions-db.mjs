@@ -108,7 +108,9 @@ async function installGrounds(db) {
   const { rows, spawns } = GEN.groundRows({ db_mill_cellar: room('mill_cellar', 'rat'), db_goblin_warren: room('goblin_warren', 'goblin') });
   for (const g of rows) {
     await db.query(`insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn_ms, seats) values ($1,$2,$3,$4,$5,$6)
-                    on conflict (hunt_id) do nothing`, [g.hunt, g.ground, g.pockets, g.spawns, g.respawn, g.seats]);
+                    on conflict (hunt_id) do update set ground_id = excluded.ground_id, pockets = excluded.pockets, spawns = excluded.spawns,
+                      respawn_ms = excluded.respawn_ms, seats = excluded.seats`, [g.hunt, g.ground, g.pockets, g.spawns, g.respawn, g.seats]);
+    await db.query('delete from public.hr_hunt_ground_spawns where hunt_id = $1', [g.hunt]);
   }
   for (const x of spawns) await db.query('insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values ($1,$2,$3) on conflict do nothing', [x.hunt, x.monster, x.n]);
 }

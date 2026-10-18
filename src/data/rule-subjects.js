@@ -45,12 +45,17 @@ export const HERO_DISTANCE = Object.freeze({ min: 1, max: 8 });
 /* PER-ROLE DEFAULTS (RO-15; the sim's HERO_SETTINGS rows). `chase: false` with
    `dist > 1` is KITING (RO-09). A party with no Melee hero sets every ranged hero's
    chase off (RO-14, src/core/hunt/roles.js defaultSettings). */
+/* drinkBelowPct: a role's default drink threshold (the hero's own option wins).
+   The melee roles' basic swing needs no mana and their abilities regenerate it,
+   so by default they never BUY a drink (ASSUMED, lane S1 2026-10-18: a fresh
+   Bronze-Sword tank otherwise spent its starting gold on 90 g drinks and ended
+   gold_out in minutes; CONFLICTS). The casters drink at 30%. */
 export const ROLE_DEFAULTS = Object.freeze({
-  tank: Object.freeze({ dist: 1, tmode: 'nearest', stance: 'balanced', chase: true }),
-  melee_dps: Object.freeze({ dist: 1, tmode: 'follow', stance: 'offensive', chase: true }),
-  ranger: Object.freeze({ dist: 3, tmode: 'follow', stance: 'balanced', chase: true }),
-  healer: Object.freeze({ dist: 5, tmode: 'follow', stance: 'balanced', chase: true }),
-  mage: Object.freeze({ dist: 6, tmode: 'follow', stance: 'balanced', chase: true }),
+  tank: Object.freeze({ dist: 1, tmode: 'nearest', stance: 'balanced', chase: true, drinkBelowPct: 0 }),
+  melee_dps: Object.freeze({ dist: 1, tmode: 'follow', stance: 'offensive', chase: true, drinkBelowPct: 0 }),
+  ranger: Object.freeze({ dist: 3, tmode: 'follow', stance: 'balanced', chase: true, drinkBelowPct: 30 }),
+  healer: Object.freeze({ dist: 5, tmode: 'follow', stance: 'balanced', chase: true, drinkBelowPct: 30 }),
+  mage: Object.freeze({ dist: 6, tmode: 'follow', stance: 'balanced', chase: true, drinkBelowPct: 30 }),
 });
 
 /* An action set: up to `presets` per character, each a bar of up to `slots`

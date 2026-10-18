@@ -396,7 +396,7 @@ const ENGINE_ARMS = {
     const lo = memberIn(M, 'a', { skills: { attack: 50000, strength: 50000, defense: 50000, hitpoints: lv6 }, maxHp: 5, hp: 5 });
     const up = M.AC.accrueHunt(instIn(M, [lo], 600000)).members[0];
     if (!(M.XP.levelFromXp(lv6 + ((up.delta.xp || {}).hitpoints || 0)) >= 6)) problems.push('CONTROL: the hitpoints level-up never happened');
-    else if (up.maxHp !== 6) problems.push(`a hitpoints level-up to 6 left max HP at ${up.maxHp}`);
+    else if (up.maxHp !== M.XP.levelFromXp(lv6 + ((up.delta.xp || {}).hitpoints || 0))) problems.push(`a hitpoints level-up to ${M.XP.levelFromXp(lv6 + ((up.delta.xp || {}).hitpoints || 0))} left max HP at ${up.maxHp}`);
     return problems;
   },
 
@@ -556,6 +556,13 @@ const ENGINE_ARMS = {
     const tl = ms.reduce((a, x) => a + Object.values(x.hunt.buys).reduce((s, n) => s + n, 0), 0);
     const kills = ms.reduce((a, x) => a + x.delta.journal.meta.kills, 0);
     const end = ms.find((x) => x.hunt.ended);
+    /* A DRINK THE PURSE CANNOT BUY ONLY GOES WITHOUT: a broke hero that wants to drink
+       but never needs food hunts on (spec §3.4 #7); only an unaffordable FOOD ends gold_out.
+       And a melee hero's default buys no drink at all (ROLE_DEFAULTS drinkBelowPct 0). */
+    const thirsty = runCut(M, () => [memberIn(M, 'a', { level: 40, gold: 0, options: { drink_below_pct: 99 } })], 600000, []);
+    const tEnd = thirsty.outs.flatMap((o) => o.members).find((x) => x.hunt.ended);
+    if (tEnd && tEnd.hunt.ended.reason === 'gold_out') problems.push('a broke hero that only wanted a drink ended gold_out');
+    if (M.SPAWN.heroSetup({ weaponType: 'sword', options: {}, bar: [], partyRoles: ['tank'] }).drinkBelowPct !== 0) problems.push('a tank buys drinks by default');
     if (!(kills > 0)) problems.push('CONTROL: the poor hero killed nothing');
     else if (!(tl > 0)) problems.push(`a hero one coin short bought no food after ${kills} kills (ended ${JSON.stringify(end && end.hunt.ended)}) — kill coins do not reach the purse`);
     return problems;
@@ -698,7 +705,9 @@ async function installGround(db) {
   const { rows, spawns } = GEN.groundRows({ h1_fixture: groundRow() });
   for (const g of rows) {
     await db.query(`insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn_ms, seats) values ($1,$2,$3,$4,$5,$6)
-                    on conflict (hunt_id) do nothing`, [g.hunt, g.ground, g.pockets, g.spawns, g.respawn, g.seats]);
+                    on conflict (hunt_id) do update set ground_id = excluded.ground_id, pockets = excluded.pockets, spawns = excluded.spawns,
+                      respawn_ms = excluded.respawn_ms, seats = excluded.seats`, [g.hunt, g.ground, g.pockets, g.spawns, g.respawn, g.seats]);
+    await db.query('delete from public.hr_hunt_ground_spawns where hunt_id = $1', [g.hunt]);
   }
   for (const s of spawns) await db.query('insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values ($1,$2,$3) on conflict do nothing', [s.hunt, s.monster, s.n]);
 }
@@ -1358,6 +1367,8 @@ const MUTANTS = [
     from: '      hs.purse = Math.max(0, Math.floor(Number(hs.purse) || 0)) + g;', to: '' },
   { arm: 'SUPPLY-RULE', name: '[C2 own first] the resolver reaches for the store before the own stack', file: 'src/core/action-rules.js',
     from: "    const own = pickOwn(hs, want, Math.max(1, int(need, 1)));", to: "    const own = storeAllowed(hs, want) ? null : pickOwn(hs, want, Math.max(1, int(need, 1)));" },
+  { arm: 'SUPPLY-RULE', name: 'an unaffordable drink ends the hunt gold_out', file: 'src/core/hunt/consumables.js',
+    from: "if (w.why === 'gold_short') { if (kind === 'food') hero.hs.goldOut = true; continue; }", to: "if (w.why === 'gold_short') { hero.hs.goldOut = true; continue; }" },
   { arm: 'SPLIT', name: 'the remainder of a split is lost', file: 'src/core/party-split.js',
     from: '  out[0] += t - each * k;', to: '' },
   { arm: 'SPLIT', name: 'every item goes to the first hero', file: 'src/core/party-split.js',

@@ -114,7 +114,10 @@ export function consume(inst, sc) {
     /* Drink first (spec §3.4 #4), then food; one use per lane. */
     for (const kind of ['drink', 'food']) {
       const w = wants(u, hero, kind, sc.atMs);
-      if (w.why === 'gold_short') { hero.hs.goldOut = true; continue; }
+      /* A FOOD the purse cannot buy ends the hunt gold_out (a hero cannot heal);
+         a DRINK it cannot buy only goes without (mana feeds abilities, and a basic
+         swing needs none): a hunt never stops for a drink (spec §3.4 #7). */
+      if (w.why === 'gold_short') { if (kind === 'food') hero.hs.goldOut = true; continue; }
       if (w.line && use(u, hero, kind, w.line, sc)) break;
     }
   }

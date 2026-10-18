@@ -23,6 +23,9 @@
 //   hunt.loot     [{ item, count }]  what this hunt has picked up (not premium-gated)
 //   hunt_presets  [{ preset, name, action_set, gear: { slot: item }, restock: { item: n } }]
 //   role          { id, weapon }      the hunt role the worn weapon gives
+// The Services window's (lane S2, 2026-10-25-stamina-refill.sql / -blessings.sql):
+//   stamina_refill { available, why, restore_ms, price, n, per_day }  the next refill, priced
+//   blessings      { held: [tier], permille, free_until, tiers: [{ tier, permille, price, held }] }
 // ════════════════════════════════════════════════════════════════════════
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -93,7 +96,7 @@ export function rulesOf(cs) {
   return { locked, loot, restock };
 }
 
-const KINDS = Object.freeze(['food', 'drink', 'ammo']);
+const KINDS = Object.freeze(['food', 'drink', 'ammo', 'tool']);
 
 function lineOf(l) {
   if (!isObj(l) || !ID.test(String(l.item)) || count(l.have) === null || count(l.target) === null || count(l.buy) === null || count(l.gold) === null) return null;
@@ -188,4 +191,31 @@ export function imbuementsOf(cs) {
     out[slot] = { slots: v.slots, filled };
   }
   return Object.keys(out).length ? out : null;
+}
+
+const WHY = Object.freeze(['stamina_full', 'refill_limit']);
+
+/** `stamina_refill`: the next stamina purchase as the server prices it, or null (control off). */
+export function staminaRefillOf(cs) {
+  const q = read(cs, 'stamina_refill');
+  if (!isObj(q) || typeof q.available !== 'boolean' || count(q.n) === null || count(q.per_day) === null) return null;
+  if (q.available && (!count(q.price) || !count(q.restore_ms))) return null;
+  return {
+    available: q.available, why: q.available ? null : (WHY.includes(q.why) ? q.why : 'unavailable'),
+    price: q.available ? q.price : null, restoreMs: q.available ? q.restore_ms : null,
+    n: q.n, perDay: q.per_day, boughtToday: Math.max(0, q.n - 1),
+  };
+}
+
+/** `blessings`: the held tiers and every tier's price at this character's level, or null. */
+export function blessingsOf(cs) {
+  const b = read(cs, 'blessings');
+  if (!isObj(b) || !Array.isArray(b.tiers) || count(b.permille) === null) return null;
+  const tiers = [];
+  for (const t of b.tiers.slice(0, 9)) {
+    if (!isObj(t) || !Number.isInteger(t.tier) || t.tier < 1 || count(t.price) === null || count(t.permille) === null) continue;
+    tiers.push({ tier: t.tier, permille: t.permille, price: t.price, held: t.held === true });
+  }
+  tiers.sort((a, c) => a.tier - c.tier);
+  return { tiers, permille: b.permille, freeUntil: Number.isInteger(b.free_until) ? b.free_until : null };
 }

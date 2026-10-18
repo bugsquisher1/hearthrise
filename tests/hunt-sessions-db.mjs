@@ -66,9 +66,6 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MUTATE = process.argv.includes('--mutate');
 const MIG = '2026-10-21-hunt-sessions.sql';
 const CAT = '2026-10-21-hunt-sessions-catalogue.generated.sql';
-/* The FORWARD catalogue the generator writes today (lane C2): C1's is applied
-   history and is superseded wholesale by this one, later in the chain. */
-const { OUT_NAME: CAT_NOW } = await import('../tools/gen-hunt-sessions.mjs');
 const MIG_TEXT = readFileSync(join(ROOT, 'supabase', 'migrations', MIG), 'utf8').replace(/\r\n/g, '\n');
 const UID = '00000000-0000-4000-8000-0000000c1d01';
 /* Lane C2's file that flips the kill switch on; K1 reads which side of it the chain stopped. */
@@ -352,7 +349,7 @@ const ARMS = {
    reads a dropped name planted on the chain, a second apply of the file REFUSES
    ("still read by"). Rolled back. */
 const DROP = '2026-10-22-hunt-sessions-delete-away.sql';
-const STAGED = [CAT_NOW, '2026-10-23-character-premium.sql', '2026-10-23-premium-login-reward.sql', '2026-10-23-hunt-settings-options.sql',
+const STAGED = ['2026-10-23-hunt-sessions-catalogue.generated.sql', '2026-10-23-character-premium.sql', '2026-10-23-premium-login-reward.sql', '2026-10-23-hunt-settings-options.sql',
   '2026-10-23-hunt-supply-ledger.sql', '2026-10-23-hunt-analyzer-v2.sql', '2026-10-23-hunt-world-state.sql', '2026-10-23-hunt-party.sql'];
 async function d1(db) {
   const red = [];
@@ -513,9 +510,16 @@ async function a2(db) {
   return red;
 }
 
-async function c1(db) {
+async function c1() {
   const red = [];
-  const { inventory } = await import('./schema-replay.mjs');
+  const { inventory, bootReplay: boot } = await import('./schema-replay.mjs');
+  /* ON THE CHAIN ENDING AT THE LAST STAGED FILE (lane S2, 2026-10-18). The 2026-10-25
+     files restate or extend bodies these files own (hr_hunt_enter, hr_hunt_apply_member,
+     hr_hunt_party_view / _finder, hr_hunt_section_view), so a CHAIN-END re-apply of an S1
+     file correctly puts its own pre-S2 body back. Idempotence is a property of a file over
+     the state IT produced (tests/bounty-abandon-fee.mjs B1, the same move), so it is
+     measured there; the chain end is graded by tests/alpha-server.mjs A-IDEM. */
+  const { db } = await boot({ upTo: STAGED[STAGED.length - 1] });
   const snap = async () => JSON.stringify([await inventory(db),
     await q(db, `select p.oid::regprocedure::text f, md5(p.prosrc) h, p.proacl::text acl from pg_proc p join pg_namespace n on n.oid = p.pronamespace
                  where n.nspname = 'public' and (p.proname like 'hr_hunt%' or p.proname in ('hr_rpc_gate', 'hr_mark_seen',
@@ -535,6 +539,7 @@ async function c1(db) {
     }
   }
   if (await snap() !== before) red.push('C1: a second apply changed the schema, a body, an ACL, a catalogue row or the baseline');
+  await db.close?.();
   return red;
 }
 
@@ -559,20 +564,23 @@ const BODY_MUTANTS = [
   { name: 'leave forgets to return the bag', arm: 'B1', fn: 'hr_hunt_close',
     from: "        on conflict (user_id, slot, item_id) do update set qty = pi.qty + excluded.qty;\n      perform public.hr_hunt_ledger_pair",
     to: "        on conflict (user_id, slot, item_id) do update set qty = pi.qty;\n      perform public.hr_hunt_ledger_pair" },
-  { name: 'enter ignores an already-open session', arm: 'S1', fn: 'hr_hunt_enter',
-    from: '  if v_s.id is not null then\n    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object(\'ok\', false, \'error\', \'hunt_open\', \'session\', v_s.id)); end if;',
+  /* hr_hunt_enter is the client door over hr_hunt_enter_for since 2026-10-25-party-invites.sql
+     (lane S2: one entry body for enter, the party start and hunt again), so the entry
+     mutants plant into that body; the arms still enter through hr_hunt_enter. */
+  { name: 'enter ignores an already-open session', arm: 'S1', fn: 'hr_hunt_enter_for',
+    from: '  if v_s.id is not null then\n    return jsonb_build_object(\'ok\', false, \'error\', \'hunt_open\', \'session\', v_s.id); end if;',
     to: '' },
-  { name: 'enter trusts the client qty', arm: 'F1', fn: 'hr_hunt_enter',
+  { name: 'enter trusts the client qty', arm: 'F1', fn: 'hr_hunt_enter_for',
     from: '    if coalesce(v_have, 0) < (v_line->>\'qty\')::bigint then', to: '    if false then' },
-  { name: 'enter admits unknown bag keys (a client time)', arm: 'F1', fn: 'hr_hunt_enter',
+  { name: 'enter admits unknown bag keys (a client time)', arm: 'F1', fn: 'hr_hunt_enter_for',
     from: "k not in ('item', 'qty', 'essential'))", to: "k not in ('item', 'qty', 'essential', 'at'))" },
   { name: 'settle trusts a future window', arm: 'F1', fn: 'hr_hunt_settle_session',
     from: "  if v_to > now() + c_skew then perform public.hr_reject('window_in_future'); end if;", to: '' },
   { name: 'a settle refusal RETURNS instead of raising (hr_apply value kept)', arm: 'R1', fn: 'hr_hunt_settle_session',
     from: "    perform public.hr_reject('session_moved', jsonb_build_object('swing_index', v_s.swing_index)); end if;",
     to: "    return jsonb_build_object('ok', false, 'error', 'session_moved'); end if;" },
-  { name: 'enter ignores the kill switch', arm: 'K1', fn: 'hr_hunt_enter',
-    from: "  if not coalesce((select enabled from public.hr_hunt_config where id), false) then\n    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'hunts_paused')); end if;\n  if p_hunt is null",
+  { name: 'enter ignores the kill switch', arm: 'K1', fn: 'hr_hunt_enter_for',
+    from: "  if not coalesce((select enabled from public.hr_hunt_config where id), false) then\n    return jsonb_build_object('ok', false, 'error', 'hunts_paused'); end if;\n  if p_hunt is null",
     to: "  if p_hunt is null" },
   { name: 'the fold reads past the high-water mark (double count)', arm: 'T1', fn: 'hr_hunt_settle_session',
     from: "    from public.player_ledger l where l.session_id = p_session and l.id > v_hwm and l.at >= v_fold_from;",
@@ -606,7 +614,7 @@ const TEXT_MUTANTS = [
 const { bootReplay } = await import('./schema-replay.mjs');
 const { db } = await bootReplay({});
 if (!MUTATE) {
-  const red = [...(await g1(db)), ...(await runArms(db)), ...(await d1(db)), ...(await a1(db)), ...(await a2(db)), ...(await c1(db))];
+  const red = [...(await g1(db)), ...(await runArms(db)), ...(await d1(db)), ...(await a1(db)), ...(await a2(db)), ...(await c1())];
   await db.close?.();
   if (red.length) { console.error('hunt-sessions-db RED\n  ' + red.join('\n  ')); process.exit(1); }
   console.log('hunt-sessions-db: G1 K1 R1 B1 S1 F1 T1 D1 A1 A2 C1 green');

@@ -632,6 +632,8 @@ const ALSO_LINTED = [
   '2026-10-23-hunt-analyzer-v2.sql',
   '2026-10-23-hunt-world-state.sql',
   '2026-10-23-hunt-party.sql',
+  /* LANE S2 (2026-10-18): the S2 settle hooks restate hr_apply whole (HR_APPLY_CHAIN's last link). */
+  '2026-10-25-settle-hooks.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────
@@ -682,6 +684,12 @@ const HR_APPLY_CHAIN = [
      tests/chain-removals/2026-10-22-hunt-sessions-delete-away.mjs, classified
      there line class by line class. */
   '2026-10-22-hunt-sessions-delete-away.sql',
+  /* LANE S2 — THE SETTLE HOOKS (the S2 architecture check: no body patched at
+     apply time). The chain-end body read back with pg_get_functiondef by
+     tools/build-settle-hooks.mjs, plus ONE inserted block: a vendor_sell(_many)
+     debit of a locked item is refused item_locked (hook hr_item_locked).
+     INSERTIONS ONLY, so it declares no removals. It is the new last toucher. */
+  '2026-10-25-settle-hooks.sql',
 ];
 
 // ── THE hr_state_of DERIVATION CHAIN ─────────────────────────────────────

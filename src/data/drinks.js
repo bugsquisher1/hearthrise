@@ -3,12 +3,10 @@
 // 2026-10-14: "food restores HP, drinks restore mana, both made by Cooking;
 // drinks come from Farming crops"; Game Designer, lane D)
 //
-// STAGED, NOT LIVE. Nothing in the engine reads `mana` yet, and the W0 rule
-// (src/data/item-effects.js) is that an item which needs an engine is authored
-// in the same change as its engine. So these rows are NOT spread into ITEMS and
-// the recipes are NOT in ARTISAN_RECIPES. The lane that ships mana merges both
-// (items.js `...DRINK_ITEMS`, recipes.js cooking `...DRINK_RECIPES`) and moves
-// src/data/supplies.js MANA_SUPPLY_ROWS into SUPPLY_ROWS in the same commit.
+// LIVE (lane S2, 2026-10-18): the hunt's mana engine drinks them (src/core/hunt/
+// consumables.js), so they are spread into ITEMS (items.js), their recipes into
+// Cooking (recipes.js), their rows into SUPPLY_ROWS (supplies.js) and their
+// flavour lines into ITEM_DESC; the shop sells them as supply.* offers.
 //
 // THE LADDER. One drink per hunt tier, each from one Farming crop, made three
 // at a time because crops are slow (a turnip plot takes four hours) and a mage

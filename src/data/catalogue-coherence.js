@@ -196,6 +196,7 @@ export function itemUses() {
     if (EQUIP_TYPES[it.type] || it.slot) push(m, id, 'worn');
     if (it.type === 'tool' && it.toolSkill && SKILLS_DEF[it.toolSkill]) push(m, id, it.toolSkill + ' tool');
     if (Number(it.heals) > 0 || it.buff) push(m, id, 'eaten');
+    if (Number(it.mana) > 0) push(m, id, 'drunk for mana on a hunt');
   }
   for (const id of Object.keys(CODED_USES)) push(m, id, CODED_USES[id].label);
   return m;

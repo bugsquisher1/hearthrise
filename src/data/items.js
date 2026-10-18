@@ -8,6 +8,7 @@ import { LIB2_ITEMS } from './library2-items.js?v=0.2.0';
 import { STONECRAFT_ITEMS } from './stonecraft.js?v=0.2.0';
 import { BOSS_FORGE_ITEMS } from './boss-forge.js?v=0.2.0';
 import { CHAMPION_ITEMS } from './champions.js?v=0.2.0';
+import { DRINK_ITEMS } from './drinks.js?v=0.2.0';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×
@@ -38,6 +39,8 @@ export const ITEMS={
      and the five field champions' relics (src/data/champions.js). New ids only. */
   ...BOSS_FORGE_ITEMS,
   ...CHAMPION_ITEMS,
+  /* The six mana drinks (src/data/drinks.js), live with the hunt's mana engine (lane S2, 2026-10-18). */
+  ...DRINK_ITEMS,
 
   /* ── Gathering tools (b201, SYS-3) — OSRS-style tool ladder. ──
      type:'tool' + toolSkill + toolTier + toolSpeed. The best owned tool

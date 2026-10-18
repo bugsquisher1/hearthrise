@@ -293,6 +293,29 @@ export class CharacterSession {
     return this._settled(await this._server.rpc('hr_hunt_restart', { p_slot: this.slot, p_session: session, p_idem: newIdem() }));
   }
 
+  /* ── Services (lane S2): each sends the QUOTE the player was shown (the server's own price from
+     the `stamina_refill` / `blessings` sections); the server refuses `quote_changed` rather than
+     charge another sum. Never a price of the client's own. ── */
+
+  /** Buy the next stamina refill at the server's quoted price. */
+  async buyStamina(quotedPrice) {
+    if (this._closed || !Number.isSafeInteger(quotedPrice) || quotedPrice < 1) return { ok: false, error: 'bad_intent' };
+    return this._settled(await this._server.rpc('hr_stamina_refill', { p_slot: this.slot, p_price: quotedPrice, p_idem: newIdem() }));
+  }
+
+  /** Buy one blessing tier at the server's quoted price (0 under the free level). */
+  async buyBlessing(tier, quotedPrice) {
+    if (this._closed || !Number.isInteger(tier) || tier < 1 || tier > 9 || !Number.isSafeInteger(quotedPrice) || quotedPrice < 0) return { ok: false, error: 'bad_intent' };
+    return this._settled(await this._server.rpc('hr_blessing_buy', { p_slot: this.slot, p_tier: tier, p_price: quotedPrice, p_idem: newIdem() }));
+  }
+
+  /** Claim this character's own name (the server checks the rules and that nobody else has it). */
+  async setName(name) {
+    const n = String(name || '').trim().replace(/\s+/g, ' ');
+    if (this._closed || n.length < 3 || n.length > 20) return { ok: false, error: 'bad_name' };
+    return this._settled(await this._server.rpc('hr_character_name_set', { p_slot: this.slot, p_name: n, p_idem: newIdem() }));
+  }
+
   /**
    * The party finder: open parties with a free seat, optionally on one hunt and
    * only those with no member of a weapon type ("a party that needs a bow").

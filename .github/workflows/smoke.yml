@@ -270,6 +270,16 @@ jobs:
           node tests/alpha-windows.mjs
           node tests/alpha-windows.mjs --mutate
 
+      # THE SERVICES WINDOW (lane S2, 2026-10-18): stamina at the server's quoted
+      # price after a confirmation, blessings only in order at their prices, the
+      # name change, every control off while in flight, missing sections fail
+      # safe. --mutate plants five defects.
+      - name: Services window (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/services-window.mjs
+          node tests/services-window.mjs --mutate
+
       # THE PARTY UI (2026-10-18, week plan 16 + QoL 3/7): the character strip,
       # the command centre, the Party window and the alert lines on the party
       # fixture. One alert per event id (a re-read or a reload repeats none);
@@ -1861,9 +1871,12 @@ jobs:
   # ~30 s = ~1130 s (18.8 min). Budget = x2 = 37.7, rounded up to 38.
   # + progress-coalesce's mutant-control re-run (2026-10-08, measured locally
   # 37 s) = ~1167 s (19.5 min). Budget = x2 = 38.9, rounded up to 39.
+  # + lane S2 (2026-10-18, measured locally template-warm): gen-alpha-catalogue
+  # --check/--selftest ~2 s, alpha-server 14 s plain + 35 s mutate (~60 s each
+  # cold) = ~1290 s (21.5 min). Budget = x2 = 43.
   db-replay-7:
     runs-on: ubuntu-latest
-    timeout-minutes: 39
+    timeout-minutes: 43
 
     steps:
       - uses: actions/checkout@v4
@@ -1936,6 +1949,25 @@ jobs:
         run: |
           node tests/companion-equip-version-bump.mjs
           node tests/companion-equip-version-bump.mjs --mutate
+
+      # LANE S2 (2026-10-25-*.sql): the alpha windows' and the party UI's server
+      # half. The catalogue (supply offers, stamina refill, blessings) is GENERATED
+      # from src/data; on the real chain every S2 file re-applies byte-identically,
+      # the edge shop_buy and the SQL refill price one offer alike, a locked item is
+      # refused at the REAL vendor_sell_many, the loot filter and a blessed death run
+      # in the REAL settle (tick and player door), a mid-hunt stamina refill raises
+      # the pool the next settles read, and the leader's one start enters each member
+      # with its own bag. --mutate plants twelve defects, each red on its arm.
+      - name: Lane S2 server — locks, loot filter, refill, stamina, blessings, party start
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-alpha-catalogue.mjs --check
+          node tools/gen-alpha-catalogue.mjs --selftest
+          node tests/alpha-server.mjs
+          node tests/alpha-server.mjs --mutate
+          node tools/build-settle-hooks.mjs --check
+          node tests/settle-hooks.mjs
+          node tests/settle-hooks.mjs --mutate
 
       # THE CONTROL HALF OF A MUTATION PROOF. Every registered guard is re-run
       # with HR_MUTANT_CONTROL=1 (nothing planted, scope kept); any arm that

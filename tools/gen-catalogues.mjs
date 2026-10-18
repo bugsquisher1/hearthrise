@@ -39,7 +39,10 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
 /* SEWER CONTENT (lane S1 merge, 2026-10-18): 2026-10-23-demolition-catalogue.generated.sql is
    APPLIED history; the six Sewer monsters, crown_shard / iron_bolts and their activities land in
    this forward file, the same full delete+insert replace. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2026-10-24-sewer-catalogue.generated.sql');
+/* THE DRINKS (lane S2, 2026-10-18): 2026-10-24-sewer-catalogue.generated.sql is APPLIED history;
+   the six mana drinks (hr_items) and their Cooking recipes (hr_activities) land in this forward
+   file, the same full delete+insert replace. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2026-10-25-drinks-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already

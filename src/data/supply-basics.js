@@ -87,3 +87,47 @@ export const BASIC_INDEX = Object.freeze(BASIC_SUPPLIES.reduce((acc, b) => { acc
 export function basicFor(kind, huntTier) {
   return BASIC_SUPPLIES.find((b) => b.kind === kind && b.tiers.includes(huntTier)) || null;
 }
+
+// ── THE SHOP'S PACKABLE SUPPLIES (lane S2, 2026-10-18; Coordinator ruling: the designer's prices) ──
+// The Bag's one-tap refill (Tyler 10-18: the player presses once, the server
+// buys up to each restock target and shows the total first; never automatic)
+// needs things a player can PACK, so the shop also sells the CRAFTED partner of
+// each basic row as an ordinary item (`supply.<item>`, bought through shop_buy
+// or the refill): food restores HP, drink restores mana (the only mana source).
+// A basic stays per use, the floor nobody is ever without. THE PRICE IS THE
+// DESIGNER'S RATE ABOVE, per point: ceil(basic price x the item's own heal or
+// mana / the basic's), and a shot is a shot (an arrow costs its basic's per-shot
+// price). tools/gen-alpha-catalogue.mjs refuses any row off that rule, and
+// tests/alpha-server.mjs A-DATA proves buy-then-vendor always loses (the
+// vendor pays at most half the cheapest shop price, catalogue.js
+// SHOP_BUYBACK_RATE). Every supply row has a basic. THE TIER-1 GATHERING TOOLS (Tyler
+// 10-18: the shop sells the Bronze Axe and Bronze Pickaxe; better tiers stay
+// smithing-only) are kind 'tool' with no basic, priced SHOP_TOOL_PREMIUM x book
+// value, so the vendor's buy-back (at most half) never moves and buy-then-sell loses.
+// The server catalogue (hr_shop_supply_offers) is generated from these rows;
+// src/data/shops.js lists them as `supply.*` offers.
+export const SHOP_TOOL_PREMIUM = 2;
+const sell = (item, kind, basic, price) => Object.freeze({ offer: 'supply.' + item, item, kind, basic, price });
+
+export const SUPPLY_SHOP_OFFERS = Object.freeze([
+  sell('cooked_shrimp', 'food', 'salted_shrimp', 19),
+  sell('cooked_trout', 'food', 'salted_trout', 56),
+  sell('cooked_lobster', 'food', 'salted_lobster', 250),
+  sell('cooked_swordfish', 'food', 'salted_swordfish', 576),
+  sell('cooked_shark', 'food', 'salted_shark', 924),
+  sell('turnip_juice', 'drink', 'thin_turnip_juice', 8),
+  sell('carrot_juice', 'drink', 'thin_carrot_juice', 16),
+  sell('tomato_juice', 'drink', 'thin_tomato_juice', 38),
+  sell('pumpkin_cider', 'drink', 'thin_pumpkin_cider', 64),
+  sell('goldenroot_tea', 'drink', 'thin_goldenroot_tea', 111),
+  sell('emberfruit_cordial', 'drink', 'thin_emberfruit_cordial', 189),
+  sell('barbed_arrows', 'ammo', 'plain_barbed_arrows', 2),
+  sell('iron_bolts', 'ammo', 'plain_iron_bolts', 2),
+  sell('steel_arrows', 'ammo', 'plain_steel_arrows', 4),
+  sell('mithril_arrows', 'ammo', 'plain_mithril_arrows', 8),
+  sell('rune_arrows', 'ammo', 'plain_rune_arrows', 12),
+  sell('emberhead_arrows', 'ammo', 'plain_emberhead_arrows', 18),
+  sell('dawnpoint_arrows', 'ammo', 'plain_dawnpoint_arrows', 24),
+  sell('bronze_axe', 'tool', null, 120),
+  sell('bronze_pickaxe', 'tool', null, 120),
+]);

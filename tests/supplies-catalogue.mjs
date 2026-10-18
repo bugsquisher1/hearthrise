@@ -149,11 +149,13 @@ function checkPacked(d, f) {
 
 function checkDrinks(d, f) {
   const crops = new Set(Object.values(CROPS).map((c) => c.prod));
-  for (const [kind, id, essential] of MANA_SUPPLY_ROWS) {
+  /* Every drink, staged or live (lane S2 moved all six into SUPPLY_ROWS), is held to the same rules. */
+  const staged = new Set(MANA_SUPPLY_ROWS.map((r) => r[1]));
+  for (const [kind, id, essential] of [...MANA_SUPPLY_ROWS, ...d.rows.filter((r) => r[0] === 'mana')]) {
     const it = d.drinks[id];
-    if (!it) { f('M1', `staged mana row '${id}' has no drink in src/data/drinks.js`); continue; }
+    if (!it) { f('M1', `mana row '${id}' has no drink in src/data/drinks.js`); continue; }
     if (kind !== 'mana' || supplyKindOf(it) !== 'mana' || essential !== false) f('M1', `'${id}' is not a non-essential mana supply`);
-    if (own(ITEMS, id) && !d.rows.some((r) => r[1] === id)) f('M1', `'${id}' is in ITEMS but still staged: move it into SUPPLY_ROWS`);
+    if (staged.has(id) && own(ITEMS, id) && !d.rows.some((r) => r[1] === id)) f('M1', `'${id}' is in ITEMS but still staged: move it into SUPPLY_ROWS`);
     if (!own(DRINK_DESC, id)) f('M1', `'${id}' has no flavour line`);
     const r = d.drinkRecipes.find((x) => x.output === id);
     if (!r) { f('M1', `'${id}' has no Cooking recipe`); continue; }

@@ -21,6 +21,7 @@ import { renderCombatSkills, renderTradeSkills } from './windows/skills.js?v=0.2
 import { renderHunts } from './windows/hunts.js?v=0.2.0';
 import { renderStorage } from './windows/storage.js?v=0.2.0';
 import { renderShop } from './windows/shop.js?v=0.2.0';
+import { renderServices } from './windows/services.js?v=0.2.0';
 import { renderHuntPrep } from './windows/hunt-prep.js?v=0.2.0';
 import { renderParty } from './windows/party.js?v=0.2.0';
 import { renderCharacters } from './windows/characters.js?v=0.2.0';
@@ -34,6 +35,7 @@ export const WINDOW_RENDERERS = Object.freeze({
   'skills-trade': renderTradeSkills,
   storage: renderStorage,
   shop: renderShop,
+  services: renderServices,
   'hunt-prep': renderHuntPrep,
   'hunt-party': renderParty,
   characters: renderCharacters,

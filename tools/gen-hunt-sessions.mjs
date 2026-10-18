@@ -59,8 +59,10 @@
 // are history; lane S1's data moves (the bar retired, abilities and grounds
 // catalogued, food and drink on one 1 s lane, the switch default, premium's
 // stamina caps, the party size, the world's shape) start
-// 2026-10-23-hunt-sessions-catalogue.generated.sql, which the replay applies
-// after the P0 files and which rewrites every table it names wholesale.
+// 2026-10-23-hunt-sessions-catalogue.generated.sql (APPLIED 2026-10-18, history).
+// Lane S2's drinks (six packable mana supplies, kind 'mana') start the forward
+// file 2026-10-25-hunt-sessions-catalogue.generated.sql, which rewrites every
+// table it names wholesale and widens hr_hunt_supplies' kind to 'mana'.
 //
 //   Regenerate:  node tools/gen-hunt-sessions.mjs
 //   Verify:      node tools/gen-hunt-sessions.mjs --check     (exit 1 on drift)
@@ -110,7 +112,7 @@ export const WORLD_FIELDS_READ = Object.freeze({
     'role', 'dist', 'chase', 'tmode', 'stance']),
   world: Object.freeze(['leader']),
 });
-export const OUT_NAME = '2026-10-23-hunt-sessions-catalogue.generated.sql';
+export const OUT_NAME = '2026-10-25-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -205,7 +207,7 @@ export function catalogueRows(src = {}) {
   const supplies = Object.keys(S.supplies).sort().map((id) => {
     const s = S.supplies[id];
     if (!ID.test(id) || !own(S.items, id)) throw new Error(`supply ${id} is not a catalogued item id`);
-    if (!['heal', 'buff', 'ammo'].includes(s.kind)) throw new Error(`supply ${id} has kind ${s.kind}`);
+    if (!['heal', 'mana', 'buff', 'ammo'].includes(s.kind)) throw new Error(`supply ${id} has kind ${s.kind}`);
     if (s.kind === 'heal' && !(whole(s.heals) && s.heals > 0)) throw new Error(`heal ${id} heals ${s.heals}`);
     const bt = s.kind === 'buff' ? (s.buff && s.buff.type) : null;
     if (s.kind === 'buff' && !S.buffTypes.includes(bt)) throw new Error(`buff ${id} has no combat buff type (${bt})`);
@@ -483,8 +485,9 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- SUPERSEDES 2026-10-23-demolition-hunt-catalogue.generated.sql (applied; history,
--- never regenerated): every table below is rewritten wholesale. The C2 bar's
+-- SUPERSEDES 2026-10-23-hunt-sessions-catalogue.generated.sql (applied; history,
+-- never regenerated): every table below is rewritten wholesale, and the six
+-- drinks join hr_hunt_supplies as kind 'mana' (lane S2). The C2 bar's
 -- tables (rule subjects, buff types, slot kinds and targets, the default slot
 -- preset) are no longer written; 2026-10-23-hunt-settings-options.sql drops them.
 --
@@ -495,15 +498,25 @@ export function render(src) {
 
 create table if not exists public.hr_hunt_supplies (
   item_id   text primary key check (item_id ~ '^[a-z0-9_]{1,64}$'),
-  kind      text not null check (kind in ('heal', 'buff', 'ammo')),
+  kind      text not null check (kind in ('heal', 'mana', 'buff', 'ammo')),
   essential boolean not null,
   heals     int  not null check (heals >= 0),
   buff_type text,
   constraint hr_hunt_supplies_shape_ck check (
     (kind = 'heal' and heals > 0 and buff_type is null)
+    or (kind = 'mana' and heals = 0 and buff_type is null)
     or (kind = 'buff' and heals = 0 and buff_type is not null)
     or (kind = 'ammo' and heals = 0 and buff_type is null))
 );
+-- An existing table (created by an applied catalogue) learns kind 'mana'.
+alter table public.hr_hunt_supplies drop constraint if exists hr_hunt_supplies_kind_check;
+alter table public.hr_hunt_supplies add constraint hr_hunt_supplies_kind_check check (kind in ('heal', 'mana', 'buff', 'ammo'));
+alter table public.hr_hunt_supplies drop constraint if exists hr_hunt_supplies_shape_ck;
+alter table public.hr_hunt_supplies add constraint hr_hunt_supplies_shape_ck check (
+    (kind = 'heal' and heals > 0 and buff_type is null)
+    or (kind = 'mana' and heals = 0 and buff_type is null)
+    or (kind = 'buff' and heals = 0 and buff_type is not null)
+    or (kind = 'ammo' and heals = 0 and buff_type is null));
 create table if not exists public.hr_hunt_travel (
   hunt_id  text primary key check (hunt_id ~ '^[a-z0-9_]{1,64}$'),
   travel_s int  not null check (travel_s between 10 and 300 and travel_s % 10 = 0),

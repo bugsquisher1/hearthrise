@@ -36,6 +36,8 @@ export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'skills-trade', label: 'Gathering and crafting', key: 'g', glyph: 'uiPickaxe', width: 380, object: 'ledger' }),
   Object.freeze({ id: 'storage', label: 'Storage', key: 't', glyph: 'uiChest', width: 452, object: 'satchel' }),
   Object.freeze({ id: 'shop', label: 'Shop', key: 'v', glyph: 'navStore', width: 420, object: 'ledger' }),
+  /* Lane S2: stamina refills, blessings and the character's name, each priced by the server. */
+  Object.freeze({ id: 'services', label: 'Services', key: 'r', glyph: 'uiHourglass', width: 400, object: 'ledger' }),
   Object.freeze({ id: 'hunt-prep', label: 'Hunt prep', key: 'p', glyph: 'uiCheck', width: 420, object: 'plain' }),
   /* Week plan step 16 + QoL 3: the party, and every open character on one screen (opened from the
      character strip's "All characters", so it takes no launcher icon). */

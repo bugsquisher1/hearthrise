@@ -19,6 +19,7 @@
 import { SLOT_RECIPES } from './slot-ladders.js?v=0.2.0';
 import { ITEMS, foodClassOf } from './items.js?v=0.2.0';
 import { STONECRAFT_RECIPES } from './stonecraft.js?v=0.2.0';
+import { DRINK_RECIPES } from './drinks.js?v=0.2.0';
 const BASE_RECIPES = {
   cooking: [
     // Fish — original starter chain
@@ -320,7 +321,7 @@ const BASE_RECIPES = {
 const byReq = (list) => list.slice().sort((a, b) => (a.req || 0) - (b.req || 0));
 
 export const ARTISAN_RECIPES = {
-  cooking:  byReq(BASE_RECIPES.cooking),
+  cooking:  byReq(BASE_RECIPES.cooking.concat(DRINK_RECIPES)),
   smithing: byReq(BASE_RECIPES.smithing),
   crafting: byReq(BASE_RECIPES.crafting.concat(SLOT_RECIPES.crafting)),
   prayer:   BASE_RECIPES.prayer,

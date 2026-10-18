@@ -18,16 +18,16 @@
 // never merged; every action is ONE intent with the controls off until the
 // server answers (bag-act.js). Desktop window or the phone's sheet.
 // ════════════════════════════════════════════════════════════════════════
-import { BAG_CATS, BAG_SORTS, kindOf, rarityOf, isNew, bagValue } from '../bag-model.js?v=0.1.0';
-import { barIndexOf, barKeyLabel } from '../bar-assign.js?v=0.1.0';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.1.0';
-import { whole, short, gold } from '../../render/format.js?v=0.1.0';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.1.0';
-import { glyphSvg } from '../launcher.js?v=0.1.0';
-import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.1.0';
-import { stateOf, primaryOf, junkOf, confirmWords, huntLoot } from './bag-state.js?v=0.1.0';
-import { actBag, commitSeen, BAG_EVENTS } from './bag-act.js?v=0.1.0';
-import { closeFloatMenu } from './float-menu.js?v=0.1.0';
+import { BAG_CATS, BAG_SORTS, kindOf, rarityOf, isNew, bagValue } from '../bag-model.js?v=0.2.0';
+import { barIndexOf, barKeyLabel } from '../bar-assign.js?v=0.2.0';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.0';
+import { whole, short, gold } from '../../render/format.js?v=0.2.0';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.0';
+import { glyphSvg } from '../launcher.js?v=0.2.0';
+import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.0';
+import { stateOf, primaryOf, junkOf, confirmWords, huntLoot } from './bag-state.js?v=0.2.0';
+import { actBag, commitSeen, BAG_EVENTS } from './bag-act.js?v=0.2.0';
+import { closeFloatMenu } from './float-menu.js?v=0.2.0';
 
 const PIPS = Object.freeze({ common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 4, mythic: 5, unique: 5 });
 const RULES = Object.freeze([['keep', 'Keep'], ['sell', 'Sell at the shop'], ['ignore', 'Leave it']]);

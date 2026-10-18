@@ -12,9 +12,9 @@
 // place (src/render/paint.js) on any character's change, a switch, or an
 // alert. Every number is the server's (src/shell/command-model.js).
 // ════════════════════════════════════════════════════════════════════════
-import { summaryOf } from '../shell/command-model.js?v=0.1.0';
-import { rows, text, cls, attr, style, element } from '../render/paint.js?v=0.1.0';
-import { patchRoleGlyph } from '../shell/widgets/bits.js?v=0.1.0';
+import { summaryOf } from '../shell/command-model.js?v=0.2.0';
+import { rows, text, cls, attr, style, element } from '../render/paint.js?v=0.2.0';
+import { patchRoleGlyph } from '../shell/widgets/bits.js?v=0.2.0';
 
 const STRIP_HTML = '<ol class="char-tabs"></ol>'
   + '<span class="char-strip-tools">'

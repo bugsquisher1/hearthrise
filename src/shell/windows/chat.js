@@ -10,11 +10,11 @@
 // Built once; lines are keyed rows (an event id is one line), patched in place;
 // the list keeps its scroll unless the player was already at the bottom.
 // ════════════════════════════════════════════════════════════════════════
-import { LOG_TYPES } from '../../data/combat-text.js?v=0.1.0';
-import { logFor } from '../../hunt-view/combat-log.js?v=0.1.0';
-import { huntOf } from '../../session/hunt-sections.js?v=0.1.0';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.1.0';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.1.0';
+import { LOG_TYPES } from '../../data/combat-text.js?v=0.2.0';
+import { logFor } from '../../hunt-view/combat-log.js?v=0.2.0';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.0';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.0';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.0';
 
 const TABS = Object.freeze([['combat', 'Combat']]);
 

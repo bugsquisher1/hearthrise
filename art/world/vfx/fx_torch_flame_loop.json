@@ -1,6 +1,7 @@
 {
   "id": "fx_torch_flame_loop",
   "class": "vfx",
+  "style": "s1",
   "material": "light",
   "source": "fx_torch_flame_loop.png",
   "frame": [

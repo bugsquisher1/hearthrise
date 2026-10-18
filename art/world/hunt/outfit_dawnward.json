@@ -1,6 +1,7 @@
 {
   "id": "outfit_dawnward",
   "class": "character",
+  "style": "s1",
   "material": "unit",
   "source": "outfit_dawnward.png",
   "anchor_px": [

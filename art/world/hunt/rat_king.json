@@ -1,6 +1,7 @@
 {
   "id": "rat_king",
   "class": "beast",
+  "style": "s1",
   "material": "unit",
   "source": "rat_king.png",
   "anchor_px": [

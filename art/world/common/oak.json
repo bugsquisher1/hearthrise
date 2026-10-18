@@ -1,0 +1,35 @@
+{
+  "id": "oak",
+  "class": "sapling",
+  "style": "s1",
+  "material": "foliage",
+  "source": "oak.png",
+  "frame": [
+    64,
+    90
+  ],
+  "anchor_px": [
+    32,
+    89
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "d3c23a6b-f6ca-42ff-9af5-d9aa56ecfeac",
+    "name": "S1 oak"
+  },
+  "notes": "Ported from PixelLab object d3c23a6b-f6ca-42ff-9af5-d9aa56ecfeac (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

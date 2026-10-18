@@ -71,7 +71,25 @@ function check(M) {
   const tables = { materials: M.terrain.MATERIALS, sprites: book.sprites, openClasses: M.terrain.OPEN_CLASSES,
     treeClasses: M.terrain.TREE_CLASSES, lights: M.terrain.LIGHTS, terrains: book.terrains };
   const rows = Object.fromEntries(M.maps.WORLD_MAPS.map((m) => [m.id, m]));
-  const compiled = (id) => M.mapc.compileMap(rows[id], tables);
+  /* KIT FIXTURES: the shipped town and home draw their buildings as whole style-1 sprites or
+     paint them into the ground, so the engine's wall-kit buildings (wall slices, roofs fading
+     over the one you stand in, the inside view) are proven on these planted rows: the real
+     maps with their old kit buildings back, the kit pieces drawn as stubs (no atlas carries
+     them; the draw ORDER and placement are what is under test, not pixels). */
+  const kitTown = Object.assign({}, rows.town_common, {
+    objects: rows.town_common.objects.filter((o) => !['smithy', 'mill', 'water_trough'].includes(o.id)),
+    buildings: [
+      { id: 'smithy', rect: [1, 1, 7, 5], wall: 'timber', floor: 'plank_floor', doors: [[4, 5]], windows: [2, 6], chimney: 6, closed: true, roof: { rect: [1, 1, 7, 5], kind: 'roof_wood' } },
+      { id: 'mill', rect: [13, 0, 6, 5], wall: 'stone_house', floor: 'plank_floor', doors: [[16, 4]], windows: [14, 17], chimney: 14, closed: true, roof: { rect: [13, 0, 6, 5], kind: 'roof_slate' } },
+    ] });
+  const kitHome = Object.assign({}, rows.home_cottage, {
+    objects: rows.home_cottage.objects.filter((o) => o.id !== 'neighbour_cottage'),
+    buildings: [
+      { id: 'cottage', rect: [2, 1, 12, 10], wall: 'plank', floor: 'plank_floor', doors: [[8, 10]], windows: [], chimney: null, roof: { rect: [2, 1, 12, 10], kind: 'roof_wood' } },
+      { id: 'neighbour', rect: [16, 1, 5, 5], wall: 'timber', floor: 'plank_floor', doors: [[18, 5]], windows: [17, 20], chimney: 19, closed: true, roof: { rect: [16, 1, 5, 5], kind: 'roof_slate' } },
+    ] });
+  const fixtures = { _kit_town: kitTown, _kit_home: kitHome };
+  const compiled = (id) => M.mapc.compileMap(rows[id] || fixtures[id], tables);
   const frame = (id, hero, extra = {}, view) => {
     const b = M.nullb.createNullBackend({ book, tables, view });
     b.mount(); b.setMap(compiled(id)); b.sync(Object.assign({ hero, name: 'Hero', t: 0 }, extra));
@@ -79,14 +97,16 @@ function check(M) {
   };
   const wide = { w: 60 * T, h: 40 * T };
   const at = (list, pred) => list.findIndex(pred);
-  const heroIdx = (f) => at(f.sprites, (s) => s.id === 'hero');
+  /* the hero is drawn in its style-1 outfit; the knight's when the state names none (src/session/hero-look.js) */
+  const HERO = 'outfit_knight';
+  const heroIdx = (f) => at(f.sprites, (s) => s.id === HERO);
   const firstAt = (f, pred) => at(f.sprites, pred);
 
   fam('Z', () => {
     const millFace = (d) => d.kind === 'wall' && d.ty === 4 && d.tx >= 13 && d.tx <= 18;
-    const north = frame('town_common', { x: 12, y: 3 }, {}, wide);
+    const north = frame('_kit_town', { x: 12, y: 3 }, {}, wide);
     ok('Z1', firstAt(north, millFace) >= 0 && heroIdx(north) < firstAt(north, millFace), 'a hero north of the mill\'s front row must draw BEHIND its wall slices');
-    const beside = frame('town_common', { x: 12, y: 4 }, {}, wide);
+    const beside = frame('_kit_town', { x: 12, y: 4 }, {}, wide);
     ok('Z1', heroIdx(beside) > at(beside.sprites, (d, i) => millFace(d) && !beside.sprites.slice(i + 1).some(millFace)), 'a hero beside a wall slice on the same row must draw in front of all of them');
     const oak = (f) => at(f.sprites, (d) => d.id === 'oak');
     const n = frame('town_common', { x: 9, y: 2 }), s = frame('town_common', { x: 9, y: 4 });
@@ -105,14 +125,14 @@ function check(M) {
   fam('R', () => {
     const roofOf = (f, id) => f.roofs.find((r) => r.id === id);
     const slices = (f, id) => f.raised.filter((d) => d.kind === 'roof' && d.building === id).length;
-    const out = frame('town_common', { x: 11, y: 9 }, {}, wide);
+    const out = frame('_kit_town', { x: 11, y: 9 }, {}, wide);
     ok('R1', out.heroBuilding === null && roofOf(out, 'smithy').alpha === 1 && roofOf(out, 'mill').alpha === 1 && slices(out, 'smithy') > 0 && slices(out, 'mill') > 0,
       'outside, both roofs must be drawn');
-    const inSmithy = frame('town_common', { x: 3, y: 3 }, {}, wide);
+    const inSmithy = frame('_kit_town', { x: 3, y: 3 }, {}, wide);
     ok('R1', inSmithy.heroBuilding === 'smithy' && slices(inSmithy, 'smithy') === 0 && slices(inSmithy, 'mill') > 0, 'inside the smithy, only the smithy roof lifts');
-    const peer = frame('town_common', { x: 11, y: 9 }, { peers: [{ x: 3, y: 3 }, { x: 15, y: 2 }] }, wide);
+    const peer = frame('_kit_town', { x: 11, y: 9 }, { peers: [{ x: 3, y: 3 }, { x: 15, y: 2 }] }, wide);
     ok('R2', slices(peer, 'smithy') > 0 && slices(peer, 'mill') > 0 && peer.heroBuilding === null, 'a PEER inside a building must never lift its roof');
-    const inside = frame('home_cottage', { x: 6, y: 7 }, {}, wide);
+    const inside = frame('_kit_home', { x: 6, y: 7 }, {}, wide);
     const southRow = inside.sprites.filter((d) => d.ty === 10 && d.tx > 2 && d.tx < 13 && (d.kind === 'stub' || d.kind === 'wall' || d.kind === 'door'));
     ok('R3', southRow.length === 9 && southRow.every((d) => d.id === 'plank_stub') && !southRow.some((d) => d.tx === 8),
       'inside, the cottage\'s south wall is plank_stub with the doorway open (' + southRow.map((d) => d.id + '@' + d.tx).join(' ') + ')');
@@ -120,6 +140,10 @@ function check(M) {
     const front = inside.sprites.filter((d) => d.ty === 5 && d.tx >= 16 && d.tx <= 20 && d.kind === 'wall').map((d) => d.id);
     ok('R3', front.length === 5 && front.includes('timber_wall_door') && front.includes('timber_wall_window'), 'the neighbour shows its front face while you are in your cottage (' + front.join(' ') + ')');
     const st = M.roofs.stepAlpha;
+    /* R5 a PAINTED building (the shipped cottage: walls and floor in the ground art) draws no kit and no roof */
+    const painted = frame('home_cottage', { x: 6, y: 7 }, {}, wide);
+    ok('R5', !painted.sprites.some((d) => d.kind === 'wall' || d.kind === 'stub' || d.kind === 'door') && !painted.raised.some((d) => d.kind === 'roof' && d.building === 'cottage'),
+      'a painted building must draw no wall slice, stub, door or roof (its walls are the ground art)');
     ok('R4', st(1, 0, 75) === 0.5 && st(1, 0, 150) === 0 && st(1, 0, 900) === 0 && st(0, 1, 75) === 0.5 && M.roofs.ROOF_FADE_MS === 150, 'the roof fade is 150 ms linear and clamps');
   });
 
@@ -128,18 +152,28 @@ function check(M) {
     ok('S1', e.cx === 103 && e.cy === 55 && e.w === 24 && e.h === 8, 'the ellipse sits on the contact point as the stills place it (got ' + JSON.stringify(e) + ')');
     const f = frame('mill_cellar', { x: 10, y: 7 });
     const hero = f.sprites[heroIdx(f)];
-    const hs = book.sprite('hero');
+    const hs = book.sprite(HERO);
     ok('S1', f.shadows.some((s) => s.type === 'ellipse' && s.w === hs.shadow.w && s.cx === hero.x + hs.anchor[0] + hs.shadow.dx - 2), 'the hero\'s shadow must be its manifest ellipse at its contact point');
     const [x0, y0] = M.shadows.castPoint(50, 100, 100), [x1, y1] = M.shadows.castPoint(50, 90, 100), [x2, y2] = M.shadows.castPoint(50, 80, 100);
     ok('S2', x0 === 50 && y0 === 100 && x1 > 50 && y1 > 100 && Math.abs((x2 - 50) - 2 * (x1 - 50)) < 1e-9 && Math.abs((y2 - 100) - 2 * (y1 - 100)) < 1e-9,
       'a cast shadow keeps its foot and falls down-right in proportion to height');
     const [a, b, c, d, ee, ff] = M.shadows.castMatrix(100);
     ok('S2', Math.abs(a * 50 + c * 80 + ee - x2) < 1e-9 && Math.abs(b * 50 + d * 80 + ff - y2) < 1e-9, 'castMatrix must be castPoint as a canvas transform');
-    ok('S2', f.shadows.some((s) => s.type === 'cast'), 'the cellar\'s wall faces and brazier must cast');
+    ok('S2', frame('town_common', { x: 11, y: 9 }, {}, wide).shadows.some((s) => s.type === 'cast'), 'the Common\'s trees and lamps must cast');
     ok('S3', (M.canvasSrc.match(/drawImage\(shade\.c/g) || []).length === 1 && /source-in/.test(M.canvasSrc), 'every shadow must go into ONE mask, flattened to one tone, composited once');
-    const torch = f.sprites.concat(f.raised).find((dd) => dd.id === 'wall_torch' && dd.tx === 6);
-    const ts = book.sprite('wall_torch');
-    ok('S4', torch && torch.y === 2 * T + T - 1 - ts.anchor[1] - ts.hover, 'a hung sprite is drawn its hover above the floor line');
+    /* the style-1 torches hang at hover 0 (their image already sits where PixelLab hangs it), so the
+       rule is proven on the shipped torch planted with a hover */
+    const man = JSON.parse(JSON.stringify(M.manifests));
+    const tset = Object.keys(man).find((k) => man[k].sprites.wall_torch);
+    man[tset].sprites.wall_torch.hover = 12;
+    const hung = M.bookm.createBook(man);
+    const hTables = Object.assign({}, tables, { sprites: hung.sprites });
+    const hb = M.nullb.createNullBackend({ book: hung, tables: hTables });
+    hb.mount(); hb.setMap(M.mapc.compileMap(rows.mill_cellar, hTables)); hb.sync({ hero: { x: 10, y: 7 }, name: 'Hero', t: 0 });
+    const hf = hb.snapshot().last;
+    const torch = hf.sprites.concat(hf.raised).find((dd) => dd.id === 'wall_torch' && dd.tx === 6);
+    const ts = hung.sprite('wall_torch');
+    ok('S4', torch && ts.hover === 12 && torch.y === 2 * T + T - 1 - ts.anchor[1] - ts.hover, 'a hung sprite is drawn its hover above the floor line');
   });
 
   fam('C', () => {
@@ -215,7 +249,7 @@ function check(M) {
     for (const m of M.maps.WORLD_MAPS) for (const p of M.mapc.lintMap(m, tables)) ok('L0', false, p.code + ' ' + p.msg);
     for (const [kind, id] of Object.entries(M.maps.SCENE_MAPS)) ok('L0', rows[id] && rows[id].kind === kind, 'SCENE_MAPS.' + kind + ' is not a ' + kind + ' map');
     for (const m of M.maps.WORLD_MAPS) for (const h of m.hunts) ok('L0', !!M.hunts.HUNT_INDEX[h], m.id + ' renders unknown hunt ' + h);
-    const plant = (id, edit) => { const r = JSON.parse(JSON.stringify(rows[id])); edit(r); return M.mapc.lintMap(r, tables).map((p) => p.code); };
+    const plant = (id, edit) => { const r = JSON.parse(JSON.stringify(rows[id] || fixtures[id])); edit(r); return M.mapc.lintMap(r, tables).map((p) => p.code); };
     const want = [
       ['a fractional object', 'L-WHOLE', 'mill_cellar', (r) => { r.objects[1].x = 4.5; }],
       ['an object offset (ox)', 'L-WHOLE', 'mill_cellar', (r) => { r.objects[1].ox = 4; }],
@@ -224,13 +258,13 @@ function check(M) {
       ['a path across rock', 'L-PATH', 'mill_cellar', (r) => { r.path = [[6, 5], [20, 5], [20, 13], [6, 13]]; }],
       ['a door on a corner', 'L-DOOR', 'home_cottage', (r) => { r.buildings[0].doors = [[13, 10]]; }],
       ['a door off the edge', 'L-DOOR', 'home_cottage', (r) => { r.buildings[0].doors = [[8, 5]]; }],
-      ['a roof that is not the footprint', 'L-ROOF', 'home_cottage', (r) => { r.buildings[0].roof.rect = [2, 1, 12, 9]; }],
+      ['a roof that is not the footprint', 'L-ROOF', '_kit_home', (r) => { r.buildings[0].roof.rect = [2, 1, 12, 9]; }],
       ['a stale mask hash', 'L-HASH', 'mill_cellar', (r) => { r.rows[10] = '###...#................#'; }],
       ['furniture north of a south wall', 'L-NORTH', 'home_cottage', (r) => { r.objects.find((o) => o.id === 'table').y = 9; }],
       ['an outdoor map with a treeless window', 'L-TREES', 'town_common', (r) => { r.objects = r.objects.filter((o) => o.id !== 'oak'); }],
-      ['a barrel on rock', 'L-SPACE', 'mill_cellar', (r) => { r.objects.push({ id: 'barrel', x: 1, y: 7 }); }],
+      ['a barrel on rock', 'L-SPACE', 'mill_cellar', (r) => { r.objects.push({ id: 'barrels', x: 1, y: 7 }); }],
       ['a walled-off strip of a walked map', 'L-REACH', 'home_cottage', (r) => { r.objects.push({ id: 'bush', x: 1, y: 11 }); }],
-      ['an enterable building with no inside wall kit', 'L-KIT', 'town_common', (r) => { delete r.buildings[0].closed; }],
+      ['an enterable building with no inside wall kit', 'L-KIT', '_kit_town', (r) => { delete r.buildings[0].closed; }],
       ['a focus off the map', 'L-WHOLE', 'town_common', (r) => { r.focus = [40, 7]; }],
       ['a station hidden behind the well', 'L-COVER', 'town_common', (r) => { r.stations = Object.assign({}, r.stations, { combat: [15, 7] }); }],
     ];
@@ -264,8 +298,10 @@ function check(M) {
     for (const id of Object.keys(rows)) {
       const g = M.compose.groundTiles(compiled(id), book, tables, T);
       const m = compiled(id);
-      const open = m.ground.filter((mat) => !tables.materials[mat].solid).length;
-      ok('W2', g.tiles.filter((t) => t.set).length >= open && g.voids.length === m.ground.length - open, id + ': the ground must cover every open tile with art and every rock tile with void');
+      /* A painted ground (port-pixellab.mjs) is art under every cell, rock included: no void at all. */
+      const painted = !!(book.terrains[m.groundTerrain] && book.terrains[m.groundTerrain].painted);
+      const open = painted ? m.ground.length : m.ground.filter((mat) => !tables.materials[mat].solid).length;
+      ok('W2', g.tiles.filter((t) => t.set).length >= open && g.voids.length === m.ground.length - open, id + ': the ground must cover every open tile with art and every rock tile with void' + (painted ? ' (painted: every tile with art)' : ''));
     }
     /* A fill floor (one periodic field, e.g. the cellar's flat earth) is laid in its cycle order, never hashed into seams. */
     for (const id of Object.keys(rows)) {
@@ -276,7 +312,7 @@ function check(M) {
       const bad = M.compose.groundTiles(m, book, tables, T).tiles.filter((t) => { const w = want(t.x / T, t.y / T); return !w || w.sx !== t.sx || w.sy !== t.sy; });
       ok('W3', bad.length === 0, id + ': ' + bad.length + ' fill tiles are out of their ' + cols + 'x' + rws + ' cycle');
     }
-    ok('W3', (book.terrains[compiled('mill_cellar').groundTerrain] || {}).kind === 'fill', 'the Mill Cellar floor must be the flat cellar_earth fill (the flagstone Wang patch reads as a raised slab)');
+    ok('W3', (book.terrains[compiled('mill_cellar').groundTerrain] || {}).kind === 'fill', 'the Mill Cellar floor must be a fill (its painted style-1 ground), never a Wang patch that reads as a raised slab');
   });
 
   fam('G', () => {
@@ -288,7 +324,7 @@ function check(M) {
       'anything else shows the viewer\'s choice of town or home');
     const miss = book.frame('no_such_sprite');
     ok('G2', miss.set === '' && miss.w === M.bookm.STUB_SPRITE.frame[0] && book.sprite('no_such_sprite') === M.bookm.STUB_SPRITE, 'a sprite no atlas carries must resolve to the stub record and frame');
-    const lost = M.bookm.createBook({ hero: M.manifests.hero });
+    const lost = M.bookm.createBook({ hunt: M.manifests.hunt });
     const stubTables = Object.assign({}, tables, { sprites: new Proxy(lost.sprites, { get: (t, k) => t[k] || M.bookm.STUB_SPRITE }) });
     let drawn = null;
     try {
@@ -296,7 +332,7 @@ function check(M) {
       b.mount(); b.setMap(M.mapc.compileMap(rows.mill_cellar, stubTables)); b.sync({ hero: { x: 10, y: 7 }, t: 0 });
       drawn = b.snapshot().last;
     } catch (e) { drawn = null; }
-    ok('G2', drawn && drawn.sprites.some((d) => d.set === '') && drawn.sprites.some((d) => d.set === 'hero'), 'with an atlas missing, the scene must still compose (stubs for its sprites, real art for the rest)');
+    ok('G2', drawn && drawn.sprites.some((d) => d.set === '') && drawn.sprites.some((d) => d.set === 'hunt'), 'with an atlas missing, the scene must still compose (stubs for its sprites, real art for the rest)');
     const order = ['list.decals', 'shadows(g, list', 'list.sprites', 'list.raised', 'light(g, list', 'ctx.drawImage(comp.c', 'overlay(list'];
     const draw = M.canvasSrc.slice(M.canvasSrc.indexOf('function draw('));
     const pos = order.map((k) => draw.indexOf(k));
@@ -305,7 +341,7 @@ function check(M) {
   return fails;
 }
 
-const COPY = ['src/world', 'src/data/world', 'src/data/hunts.js', 'src/build-info.js', 'assets/world'];
+const COPY = ['src/world', 'src/data/world', 'src/data/hunts.js', 'src/data/hunt-outfits.js', 'src/build-info.js', 'assets/world'];
 function copyTree() {
   const dir = mkdtempSync(join(tmpdir(), 'world-core-'));
   for (const p of COPY) {
@@ -345,7 +381,7 @@ const MUTANTS = [
   ['C7', 'a small room centred in the whole stage, not the uncovered part', 'src/world/core/camera.js', [['if (span <= u) c = lo + (span - u) / 2;', 'if (span <= u) c = lo + (span - v) / 2 + a;']]],
   ['C2', 'the camera rounded to art pixels', 'src/world/core/camera.js', [['const cx = Math.round(cam.x * z), cy', 'const cx = Math.round(cam.x) * z, cy']]],
   ['L1', 'the lint accepts offsets', 'src/world/core/map-compile.js', [["k !== 'id' && k !== 'x' && k !== 'y'", "k !== 'id' && k !== 'x' && k !== 'y' && k !== 'ox'"]]],
-  ['L0', 'a map row edited without its hash', 'src/data/world/maps/mill_cellar.js', [["    '###....................#',\n", "    '###.......#............#',\n"]]],
+  ['L0', 'a map row edited without its hash', 'src/data/world/maps/mill_cellar.js', [["    '###...................##',\n", "    '###.......#...........##',\n"]]],
   ['P1', 'diagonals cut corners', 'src/world/core/path.js', [['if (dx && dy) return walkable', 'if (false) return walkable']]],
   ['W1', 'a lone tile stops melting', 'src/world/core/wang.js', [['up >= 3 ? 1 : 0', 'up >= 1 ? 1 : 0']]],
   ['W3', 'a fill floor hashed into seams', 'src/world/core/compose.js', [['const n = fill ? (y % fill[1]) * fill[0] + (x % fill[0]) : x * 7 + y * 13;', 'const n = x * 7 + y * 13;']]],

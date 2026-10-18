@@ -1,0 +1,35 @@
+{
+  "id": "drowned_lantern",
+  "class": "decal",
+  "style": "s1",
+  "material": "light",
+  "source": "drowned_lantern.png",
+  "frame": [
+    32,
+    32
+  ],
+  "anchor_px": [
+    16,
+    31
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "3c5f8950-df76-4b37-8f0f-c389ac1b0c1b",
+    "name": "S1 drowned lantern"
+  },
+  "notes": "Ported from PixelLab object 3c5f8950-df76-4b37-8f0f-c389ac1b0c1b (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

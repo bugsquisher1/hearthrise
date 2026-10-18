@@ -1,0 +1,35 @@
+{
+  "id": "exposed_dirt",
+  "class": "decal",
+  "style": "s1",
+  "material": "terrain",
+  "source": "exposed_dirt.png",
+  "frame": [
+    48,
+    32
+  ],
+  "anchor_px": [
+    24,
+    31
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "2d72ee22-e9b4-471d-bd34-44c1d489067a",
+    "name": "S1 exposed dirt decal"
+  },
+  "notes": "Ported from PixelLab object 2d72ee22-e9b4-471d-bd34-44c1d489067a (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

@@ -4,27 +4,12 @@
 //   node tools/world-art/registry.mjs > table.md
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { ATLAS_SETS } from '../../src/data/world/atlas-sets.js';
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
-const SETS = ['hero', 'cellar', 'town', 'home'];
-// Decisions (Art Director, 2026-10-15; the R1/R3/R4 batch results landed the same day). Default: retain.
-const D = {
-  hero: ['edit', 'R1a done 2026-10-15: the south walk lifts both feet (free hand edit, 0 gens, saved to walk group `e0833032`); open: 4 diagonal facings (idle, walk; R2), no hit clip; approved: pending Tyler'],
-  rat: ['edit', 'R3 done 2026-10-15: body edge 2.36 → 4.03:1 (min 3.76 over the 27 east frames), silhouette IoU ≥ 0.985, edit_image `4ef84f2b` + `f6a044fa`, 20 gens; open: idle is 1 still frame; approved: pending Tyler'],
-  slime: ['edit', 'R3 done 2026-10-15: body edge 2.59 → 4.33:1 (min 3.68 over the 27 east frames), silhouette IoU ≥ 0.978, edit_image `99916c7b` + `5436c660`, 20 gens; open: idle is 1 still frame; approved: pending Tyler'],
-  loot_bag: ['replace', 'R4 done 2026-10-15: a 14×14 tied burlap sack drawn by hand in palette (0 gens), body edge 1.06 → 3.21:1, lands beside the corpse; approved: pending Tyler'],
-  hive_wasp: ['retain', 'body edge 4.67:1; idle is 1 still frame (add a wing-buzz idle later)'],
-  npc_crier: ['edit', 'one still frame; needs a 4-frame idle (town life)'],
-  npc_smith: ['edit', 'one still frame; needs a hammer loop (town life)'],
-  peer_knight: ['edit', 'one still frame per facing; needs idle + walk to be a real peer'],
-  peer_mage: ['edit', 'one still frame per facing; needs idle + walk'],
-  peer_ranger: ['edit', 'one still frame per facing; needs idle + walk'],
-  wall_torch: ['edit', 'still flame; needs a 4-frame flicker'],
-  brazier: ['edit', 'still flame; needs a 4-frame flicker'],
-  waterwheel: ['edit', 'still; needs a turning loop (the town\'s one big motion)'],
-  well: ['retain', ''],
-  cellar_floor: ['retain', 'unused today: the hunt floor is the flat cellar_earth fill (the flagstone patch read as a raised slab)'],
-  town_ground: ['edit', 'one cobble fill with no wear, no edging and no square border: the "bland" town (after playable)'],
-};
+const SETS = ATLAS_SETS;
+// Decisions (Art Director). Default: retain. The 2026-10-15 rows were for the pre-style-1 sets, retired
+// 2026-10-18 (tools/world-art/style1.mjs); every shipped asset is style 1 and starts at retain.
+const D = {};
 const rows = [];
 for (const set of SETS) {
   const man = JSON.parse(readFileSync(ROOT + 'assets/world/atlas-' + set + '.json'));

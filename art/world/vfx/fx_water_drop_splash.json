@@ -1,6 +1,7 @@
 {
   "id": "fx_water_drop_splash",
   "class": "vfx",
+  "style": "s1",
   "material": "light",
   "source": "fx_water_drop_splash.png",
   "frame": [

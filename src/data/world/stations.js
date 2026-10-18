@@ -16,6 +16,8 @@
 // intent — every action is navigation to a screen that already exists.
 // ════════════════════════════════════════════════════════════════════════
 
+import { OUTFITS } from '../hunt-outfits.js?v=0.1.0';
+
 export const STATION_FALLBACK = 'idle';
 
 /** A hero left alone this long walks to its activity's station. */
@@ -28,8 +30,9 @@ export const TAP_OPENS = Object.freeze({
 
 /* Until the server derives a look from gear (the W5 presence view's `look`),
    a peer's sprite is picked from these by a hash of their name, so the same
-   name always wears the same one. */
-export const PEER_LOOKS = Object.freeze(['peer_knight', 'peer_mage', 'peer_ranger']);
+   name always wears the same one. They are the hunt's style-1 outfits
+   (src/data/hunt-outfits.js): a peer in town looks as it does in a hunt. */
+export const PEER_LOOKS = Object.freeze(Object.values(OUTFITS));
 
 /** The sprite that voices the crier feed: its latest line floats over it. */
 export const CRIER_SPRITE = 'npc_crier';

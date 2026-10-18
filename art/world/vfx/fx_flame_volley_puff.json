@@ -1,6 +1,7 @@
 {
   "id": "fx_flame_volley_puff",
   "class": "vfx",
+  "style": "s1",
   "material": "light",
   "source": "fx_flame_volley_puff.png",
   "frame": [

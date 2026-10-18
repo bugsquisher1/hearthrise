@@ -47,7 +47,7 @@
 //     looked janky)
 //   D EIGHT FACINGS (ART_ROADMAP NOW-3): a diagonal step (tap, keys, or the
 //     hunt hero facing its foe) carries its diagonal; art with that facing draws
-//     it, the shipped four-facing art draws the cardinal facingFor/dirOf chose,
+//     it (the shipped style-1 outfits walk in eight), four-facing art draws the cardinal facingFor/dirOf chose,
 //     and a diagonal asked for with no art falls to its nearest cardinal
 // --selftest copies the closure to a temp dir, plants one defect per family,
 // and requires that family to go red after a clean control.
@@ -101,26 +101,28 @@ function check(M) {
     return b.snapshot().last;
   };
   const slices = (f, id) => f.raised.filter((d) => d.kind === 'roof' && d.building === id).length;
+  /* the hero is drawn in its style-1 outfit, the knight's when the state names none */
+  const HERO = 'outfit_knight';
   const dist2 = (a, b) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2;
 
   fam('R', () => {
+    /* The shipped cottage is PAINTED (style 1: its floor and brick walls are the ground art) and
+       has no roof; the neighbour's house, the smithy and the mill are whole building sprites. */
     const out = frame(cottage, { hero: { x: 15, y: 12 } });
-    ok('R', out.heroBuilding === null && slices(out, 'cottage') > 0 && slices(out, 'neighbour') > 0, 'outside, both home roofs must be drawn');
+    ok('R', out.heroBuilding === null && slices(out, 'cottage') === 0 && out.sprites.some((d) => d.id === 'neighbour_cottage'), 'outside, the cottage draws no roof (it is painted) and the neighbour\'s house stands');
     const inside = frame(cottage, { hero: { x: 7, y: 4 } });
-    ok('R', inside.heroBuilding === 'cottage' && slices(inside, 'cottage') === 0 && slices(inside, 'neighbour') > 0,
-      'inside the cottage its roof must be gone and the neighbour\'s must stay');
-    const south = inside.sprites.filter((d) => d.ty === 10 && d.tx > 2 && d.tx < 13 && ['stub', 'wall', 'door'].includes(d.kind));
-    ok('R', south.length && south.every((d) => d.kind === 'stub') && !south.some((d) => d.tx === 8), 'inside, the south wall must be the stub kit with the doorway open');
-    const peerIn = frame(cottage, { hero: { x: 15, y: 12 }, units: [{ id: 'peer_knight', x: 7, y: 4 }] });
-    ok('R', peerIn.heroBuilding === null && slices(peerIn, 'cottage') > 0, 'a PEER inside the cottage must never lift its roof');
-    const townPeer = frame(town, { hero: { x: 11, y: 9 }, units: [{ id: 'peer_mage', x: 3, y: 3 }, { id: 'peer_ranger', x: 15, y: 2 }] });
-    ok('R', slices(townPeer, 'smithy') > 0 && slices(townPeer, 'mill') > 0, 'peers inside the smithy and the mill must not lift either roof');
+    ok('R', inside.heroBuilding === 'cottage' && slices(inside, 'cottage') === 0, 'inside the cottage the hero is in it, and nothing lifts');
+    const kit = inside.sprites.filter((d) => ['stub', 'wall', 'door'].includes(d.kind));
+    ok('R', kit.length === 0, 'the painted cottage must draw no wall kit inside or out: ' + kit.map((d) => d.id + '@' + d.tx + ',' + d.ty).join(' '));
+    const peerIn = frame(cottage, { hero: { x: 15, y: 12 }, units: [{ id: M.stations.PEER_LOOKS[0], x: 7, y: 4 }] });
+    ok('R', peerIn.heroBuilding === null, 'a PEER inside the cottage must never count as the hero being in it');
+    const onSprite = (p) => town.objects.some((o) => M.book.sprite(o.id).class === 'building' && p.x >= o.x && p.y >= o.y && p.x < o.x + o.fw && p.y < o.y + o.fh);
     const placed = M.town.placePeers(town, Array.from({ length: 40 }, (_, i) => ({ name: 'p' + i, kind: ['combat', 'gather', 'artisan', 'idle'][i % 4] })));
     const inCottage = (p) => p.x >= 2 && p.y >= 1 && p.x < 14 && p.y < 11;
     const home = M.town.placePeers(cottage, Array.from({ length: 5 }, (_, i) => ({ name: 'h' + i, kind: 'idle' })));
     ok('R', home.length === 5 && !home.some(inCottage), 'a peer is never placed inside a building, even beside a station that is: ' + JSON.stringify(home.map((p) => [p.x, p.y])));
-    ok('R', placed.length === 40 && placed.every((p) => !town.buildings.some((b) => p.x >= b.rect.x && p.y >= b.rect.y && p.x < b.rect.x + b.rect.w && p.y < b.rect.y + b.rect.h)),
-      'forty peers must all be placed, none inside a building');
+    ok('R', placed.length === 40 && placed.every((p) => !onSprite(p) && !town.buildings.some((b) => p.x >= b.rect.x && p.y >= b.rect.y && p.x < b.rect.x + b.rect.w && p.y < b.rect.y + b.rect.h)),
+      'forty peers must all be placed, none inside a building or on the smithy or the mill');
   });
 
   /* C — IN THE CLEAR, read off the DRAWN frame (compose.js is the oracle, not the
@@ -359,7 +361,7 @@ function check(M) {
     ok('M', dirs.size === 1 && dirs.has('s'), 'a walk mostly south must face the camera all the way, through its diagonal steps; faced ' + [...dirs].join(','));
     ok('M', z === 2 || z === 3, 'the densities are x2 and x3, got ' + z);
     ok('M', steps.length > 20 && steps.every((d) => d >= 1 && d <= z), 'at 60 fps the hero must move 1..' + z + ' device px down the screen every frame (never stall, never jump): ' + steps.join(' '));
-    const clip = M.book.sprite('hero').anims.walk;
+    const clip = M.book.sprite(HERO).anims.walk;
     const frameAt = (age) => Math.floor((age * clip.fps) / 1000) % clip.dirs.s.length;
     ok('M', first && first.age != null && frameAt(first.age) === 0, 'a walk must start on its clip\'s first frame, started on ' + (first && first.age != null ? frameAt(first.age) : 'a wall-clock frame'));
     ok('M', last && last.age != null && phases.every((a, i) => !i || a >= phases[i - 1]), 'the walk clip must advance with the distance walked');
@@ -373,22 +375,27 @@ function check(M) {
   fam('D', () => {
     const MARK = 100000, DIAG = ['se', 'sw', 'ne', 'nw'];
     const man = JSON.parse(JSON.stringify(M.manifests));
-    const heroSet = Object.keys(man).find((k) => man[k].sprites && man[k].sprites.hero);
-    for (const a of Object.values(man[heroSet].sprites.hero.anims)) DIAG.forEach((d, k) => { a.dirs[d] = a.dirs.s.map(([sx, sy]) => [sx, sy + (k + 1) * MARK]); });
+    /* The shipped hero (its style-1 outfit) walks in eight; "four" is that outfit with its diagonals taken out. */
+    const heroSet = Object.keys(man).find((k) => man[k].sprites && man[k].sprites[HERO]);
+    for (const a of Object.values(man[heroSet].sprites[HERO].anims)) DIAG.forEach((d, k) => { a.dirs[d] = a.dirs.s.map(([sx, sy]) => [sx, sy + (k + 1) * MARK]); });
     const eight = M.bookm.createBook(man);
+    const man4 = JSON.parse(JSON.stringify(M.manifests));
+    for (const a of Object.values(man4[heroSet].sprites[HERO].anims)) for (const d of DIAG) delete a.dirs[d];
+    const four = M.bookm.createBook(man4);
     /* the facing the hero is DRAWN in, read back off the compose list by its frame */
     const drawn = (book, hero) => {
       const b = M.nullb.createNullBackend({ book, tables: M.tables, view: { w: 60 * T, h: 40 * T } });
       b.mount(); b.setMap(town); b.sync({ name: 'Tyler', t: 0, hero: Object.assign({}, hero, { x: 11, y: 9, anim: 'walk', age: 0 }) });
-      const d = b.snapshot().last.sprites.find((s) => s.id === 'hero');
-      return ['n', 'e', 's', 'w'].concat(DIAG).find((f) => { const want = book.frame('hero', 'walk', f, 0); return book.sprites.hero.anims.walk.dirs[f] && want.sx === d.sx && want.sy === d.sy; });
+      const d = b.snapshot().last.sprites.find((s) => s.id === HERO);
+      return ['n', 'e', 's', 'w'].concat(DIAG).find((f) => { const want = book.frame(HERO, 'walk', f, 0); return book.sprites[HERO].anims.walk.dirs[f] && want.sx === d.sx && want.sy === d.sy; });
     };
     ok('D', M.facing.diagonalOf(1, 1) === 'se' && M.facing.diagonalOf(-1, -1) === 'nw' && M.facing.diagonalOf(2, -1) === 'ne' && M.facing.diagonalOf(3, 1) === null && M.facing.diagonalOf(0, 1) === null,
       'diagonalOf must name the diagonal of a diagonal heading and nothing for one nearer an axis');
     ok('D', drawn(eight, { dir: 's', diag: 'se' }) === 'se' && drawn(eight, { dir: 'w', diag: 'nw' }) === 'nw', 'with diagonal art, a diagonal step must DRAW its diagonal: ' + drawn(eight, { dir: 's', diag: 'se' }));
-    ok('D', drawn(M.book, { dir: 's', diag: 'se' }) === 's' && drawn(M.book, { dir: 'e', diag: 'ne' }) === 'e',
-      'with four facings, a diagonal step must draw the cardinal facingFor chose (s, e), got ' + drawn(M.book, { dir: 's', diag: 'se' }) + ', ' + drawn(M.book, { dir: 'e', diag: 'ne' }));
-    ok('D', drawn(M.book, { dir: 'nw' }) === 'n', 'a diagonal asked for with no art must fall back to its nearest cardinal, got ' + drawn(M.book, { dir: 'nw' }));
+    ok('D', drawn(four, { dir: 's', diag: 'se' }) === 's' && drawn(four, { dir: 'e', diag: 'ne' }) === 'e',
+      'with four facings, a diagonal step must draw the cardinal facingFor chose (s, e), got ' + drawn(four, { dir: 's', diag: 'se' }) + ', ' + drawn(four, { dir: 'e', diag: 'ne' }));
+    ok('D', drawn(four, { dir: 'nw' }) === 'n', 'a diagonal asked for with no art must fall back to its nearest cardinal, got ' + drawn(four, { dir: 'nw' }));
+    ok('D', drawn(M.book, { dir: 's', diag: 'se' }) === 'se', 'the shipped hero outfit walks its diagonals, got ' + drawn(M.book, { dir: 's', diag: 'se' }));
     /* the feet: a held diagonal steps with its diagonal; a straight step clears it */
     const st = M.steer.createSteer(town, [11, 9]);
     let t = 1e12;
@@ -404,7 +411,7 @@ function check(M) {
     ws.drive([1, 1], t);
     const f = ws.frame(ENV(), t + 60);
     ok('D', f.hero.diag === 'se' && drawn(eight, f.hero) === 'se', 'a walk scene must hand the diagonal to the draw: ' + JSON.stringify(f.hero));
-    ok('D', drawn(M.book, f.hero) === f.hero.dir, 'the same frame over the shipped four-facing art must draw ' + f.hero.dir);
+    ok('D', drawn(four, f.hero) === f.hero.dir, 'the same frame over four-facing art must draw ' + f.hero.dir);
     /* the hunt: the hero facing its foe on a diagonal carries that diagonal (monsters stay east/west: H8) */
     const cellar = M.mapc.compileMap(M.rows.mill_cellar, M.tables);
     let diagonals = 0;
@@ -431,7 +438,7 @@ function check(M) {
   return fails;
 }
 
-const COPY = ['src/world', 'src/data/world', 'src/data/hunts.js', 'src/data/perks.js', 'src/build-info.js', 'assets/world', 'src/session'];
+const COPY = ['src/world', 'src/data/world', 'src/data/hunts.js', 'src/data/hunt-outfits.js', 'src/data/perks.js', 'src/build-info.js', 'assets/world', 'src/session'];
 function copyTree() {
   const dir = mkdtempSync(join(tmpdir(), 'world-town-home-'));
   for (const p of COPY) {

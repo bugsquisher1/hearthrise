@@ -1,0 +1,35 @@
+{
+  "id": "smithy",
+  "class": "building",
+  "style": "s1",
+  "material": "wood",
+  "source": "smithy.png",
+  "frame": [
+    224,
+    160
+  ],
+  "anchor_px": [
+    112,
+    159
+  ],
+  "footprint": [
+    4,
+    4
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "97b35d71-fdf1-4fe6-9c47-28098b2a73cd",
+    "name": "S1 Common smithy"
+  },
+  "notes": "Ported from PixelLab object 97b35d71-fdf1-4fe6-9c47-28098b2a73cd (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

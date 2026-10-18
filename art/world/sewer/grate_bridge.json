@@ -1,0 +1,35 @@
+{
+  "id": "grate_bridge",
+  "class": "span",
+  "style": "s1",
+  "material": "stone",
+  "source": "grate_bridge.png",
+  "frame": [
+    160,
+    64
+  ],
+  "anchor_px": [
+    80,
+    63
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "61da1673-b961-4746-861c-04a56bca0077",
+    "name": "S1 iron grate bridge, long"
+  },
+  "notes": "Ported from PixelLab object 61da1673-b961-4746-861c-04a56bca0077 (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

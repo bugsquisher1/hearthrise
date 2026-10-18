@@ -1,0 +1,35 @@
+{
+  "id": "fence",
+  "class": "bench",
+  "style": "s1",
+  "material": "wood",
+  "source": "fence.png",
+  "frame": [
+    32,
+    24
+  ],
+  "anchor_px": [
+    16,
+    23
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "997c2c21-b760-4ffb-a4c5-48cf1e311751",
+    "name": "S1 fence"
+  },
+  "notes": "Ported from PixelLab object 997c2c21-b760-4ffb-a4c5-48cf1e311751 (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

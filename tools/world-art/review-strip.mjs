@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 // tools/world-art/review-strip.mjs - the mandatory walk check as a picture.
 //   node tools/world-art/review-strip.mjs <sprite id> [out dir] [facing]
-// Writes <out>/<id>_<facing>_walk.png: row 1 the reference knight's walk, row 2 the sprite's walk, both
-// from the built art/world/hunt sheets (character frames 64x64), every frame at x3 on a flat ground colour,
-// a one-pixel guide on the anchor row. Read it before calling a re-cut done.
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+// Writes <out>/<id>_<facing>_walk.png: row 1 the reference knight's walk, row 2 the sprite's walk (its
+// idle frame when it has no walk: an NPC), both from the art/world/<set> source sheets (any set),
+// every frame at x3 on a flat ground colour, a one-pixel guide on the anchor row. Read it before
+// calling a re-cut done.
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { decodePNG, encodePNG, createImage, blit, scaleNearest } from './png.mjs';
 import { FACINGS } from '../../src/data/world/art-budget.js';
@@ -13,11 +14,14 @@ import { isMain } from '../../tests/_is-main.mjs';
 
 const K = 3;
 function frames(id, facing) {
-  const sc = JSON.parse(readFileSync(join(ROOT, 'art/world/hunt', id + '.json'), 'utf8'));
-  const im = decodePNG(readFileSync(join(ROOT, 'art/world/hunt', id + '.png')));
+  const set = readdirSync(join(ROOT, 'art/world')).find((d) => existsSync(join(ROOT, 'art/world', d, id + '.json')));
+  if (!set) throw new Error(id + ': no sidecar under art/world/*');
+  const sc = JSON.parse(readFileSync(join(ROOT, 'art/world', set, id + '.json'), 'utf8'));
+  const im = decodePNG(readFileSync(join(ROOT, 'art/world', set, id + '.png')));
   const [fw, fh] = sc.class === 'character' || sc.class === 'beast' ? [64, 64] : [48, 48];
-  const row = sc.anims.length > 1 ? FACINGS.length + FACINGS.indexOf(facing) : FACINGS.indexOf(facing);
-  const n = sc.anims.find((a) => a.name === 'walk').dirs[facing];
+  const walk = sc.anims.find((a) => a.name === 'walk');
+  const row = walk && sc.anims.length > 1 ? FACINGS.length + FACINGS.indexOf(facing) : FACINGS.indexOf(facing);
+  const n = (walk || sc.anims[0]).dirs[facing];
   return { fw, fh, anchor: sc.anchor_px, list: Array.from({ length: n }, (_, i) => { const f = createImage(fw, fh); blit(f, im, i * fw, row * fh, fw, fh, 0, 0); return f; }) };
 }
 

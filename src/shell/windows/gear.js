@@ -1,7 +1,8 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/shell/windows/gear.js — THE GEAR: A PAPER DOLL (WORLD_SHELL §4, ART_DIRECTION §8, §12).
 //
-// The hero's own world sprite at the one pixel density (×2) on a plinth, the
+// The hero's own world sprite (its style-1 hunt outfit, src/session/hero-look.js: the same
+// look as in town and in a hunt) at the one pixel density (×2) on a plinth, the
 // worn slots around it in body order (the left column head to legs, the right
 // ears to feet, the hands and rings below), each framed in its piece's rarity.
 // Under the doll: the hunt ROLE the worn weapon gives (the server's, Tyler
@@ -17,6 +18,7 @@ import { ITEMS } from '../../data/items.js?v=0.1.0';
 import { EQUIP_SLOT_META, expandItemSlot } from '../../data/gathering.js?v=0.1.0';
 import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.1.0';
 import { atlasPaths } from '../../data/world/art-budget.js?v=0.1.0';
+import { heroSprite } from '../../session/hero-look.js?v=0.1.0';
 import { equipmentOf, bagOf, skillsOf, roleOf, shopOf } from '../../session/item-sections.js?v=0.1.0';
 import { partyOf } from '../../session/hunt-sections.js?v=0.1.0';
 import { rows, text, cls, attr, prop, style, element } from '../../render/paint.js?v=0.1.0';
@@ -41,17 +43,19 @@ const TOTALS = Object.freeze([['atkB', 'Attack'], ['strB', 'Strength'], ['defB',
 const SCRATCH = new WeakMap();
 const DENSITY = 2;
 
-let HERO = null;   // { image, size, frames, fps } once the manifest has loaded
+/* The outfits are the `hunt` atlas set's (tools/world-art/port-hunt-sim.mjs). */
+const OUTFIT_SET = 'hunt';
+let HERO = null;   // { image, size, sprites } once the manifest has loaded
 let heroLoading = null;
 function loadHero(doc) {
   if (HERO || heroLoading || !doc || !doc.baseURI) return;
-  const p = atlasPaths('hero');
+  const p = atlasPaths(OUTFIT_SET);
   /* The build's cache-buster is this module's own ?v= (bump-version.sh keeps every one equal). */
   const v = new URL(import.meta.url).searchParams.get('v') || '';
   const url = (path) => new URL(path + '?v=' + v, doc.baseURI).href;
   heroLoading = import(url(p.manifest), { with: { type: 'json' } }).then((mod) => {
-    const m = mod.default, idle = m.sprites.hero.anims.idle;
-    HERO = { image: url('assets/world/' + m.image), size: m.size, frames: idle.dirs.s, fps: idle.fps, frame: m.sprites.hero.frame };
+    const m = mod.default;
+    HERO = { image: url('assets/world/' + m.image), size: m.size, sprites: m.sprites };
   }).catch(() => { /* the doll keeps its empty plinth */ });
 }
 
@@ -116,12 +120,14 @@ renderGear.patch = function patchGear(body, ctx) {
   }
   /* The hero on the plinth: the idle south clip at the one density. */
   const hero = root.querySelector('.hw-hero');
-  if (HERO) {
-    const f = HERO.frames[Math.floor(ctx.now() / (1000 / HERO.fps)) % HERO.frames.length];
+  const look = HERO && HERO.sprites[heroSprite(cs)];
+  if (look) {
+    const idle = look.anims.idle, frames = idle.dirs.s;
+    const f = frames[Math.floor(ctx.now() / (1000 / (idle.fps || 1))) % frames.length];
     style(hero, 'background-image', 'url("' + HERO.image + '")');
     style(hero, 'background-size', (HERO.size[0] * DENSITY) + 'px ' + (HERO.size[1] * DENSITY) + 'px');
-    style(hero, 'width', (HERO.frame[0] * DENSITY) + 'px');
-    style(hero, 'height', (HERO.frame[1] * DENSITY) + 'px');
+    style(hero, 'width', (look.frame[0] * DENSITY) + 'px');
+    style(hero, 'height', (look.frame[1] * DENSITY) + 'px');
     style(hero, 'background-position', (-f[0] * DENSITY) + 'px ' + (-f[1] * DENSITY) + 'px');
   }
   text(root.querySelector('.hw-role'), roleWords(cs, eq));

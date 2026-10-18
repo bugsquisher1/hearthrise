@@ -1,6 +1,7 @@
 {
   "id": "fx_cast_knight_shield_bash",
   "class": "vfx",
+  "style": "s1",
   "material": "light",
   "source": "fx_cast_knight_shield_bash.png",
   "frame": [

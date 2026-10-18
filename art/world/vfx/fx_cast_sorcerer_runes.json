@@ -1,6 +1,7 @@
 {
   "id": "fx_cast_sorcerer_runes",
   "class": "vfx",
+  "style": "s1",
   "material": "light",
   "source": "fx_cast_sorcerer_runes.png",
   "frame": [

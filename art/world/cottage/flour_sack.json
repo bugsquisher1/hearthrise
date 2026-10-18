@@ -1,0 +1,35 @@
+{
+  "id": "flour_sack",
+  "class": "clutter",
+  "style": "s1",
+  "material": "wood",
+  "source": "flour_sack.png",
+  "frame": [
+    20,
+    24
+  ],
+  "anchor_px": [
+    10,
+    23
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro_flash",
+    "image": "75c00296-12b9-53b7-8ee5-8dd2f3c64a64",
+    "cell": 5
+  },
+  "notes": "Cell 5 of a 4x4 style-1 prop sheet (PixelLab image 75c00296-12b9-53b7-8ee5-8dd2f3c64a64, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled."
+}

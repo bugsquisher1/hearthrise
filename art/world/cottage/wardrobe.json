@@ -1,0 +1,35 @@
+{
+  "id": "wardrobe",
+  "class": "fixture",
+  "style": "s1",
+  "material": "wood",
+  "source": "wardrobe.png",
+  "frame": [
+    30,
+    45
+  ],
+  "anchor_px": [
+    15,
+    44
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro_flash",
+    "image": "67cfb83c-474e-5587-8f10-9f73ac2209ed",
+    "cell": 1
+  },
+  "notes": "Cell 1 of a 4x4 style-1 prop sheet (PixelLab image 67cfb83c-474e-5587-8f10-9f73ac2209ed, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled."
+}

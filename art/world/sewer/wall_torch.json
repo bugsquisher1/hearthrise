@@ -1,0 +1,35 @@
+{
+  "id": "wall_torch",
+  "class": "hanging",
+  "style": "s1",
+  "material": "light",
+  "source": "wall_torch.png",
+  "frame": [
+    32,
+    48
+  ],
+  "anchor_px": [
+    16,
+    47
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "55753820-4968-44d1-a5f7-c75da45bb5ff",
+    "name": "S1 sewer wall torch"
+  },
+  "notes": "Ported from PixelLab object 55753820-4968-44d1-a5f7-c75da45bb5ff (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

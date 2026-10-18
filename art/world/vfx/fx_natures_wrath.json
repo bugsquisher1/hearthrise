@@ -1,6 +1,7 @@
 {
   "id": "fx_natures_wrath",
   "class": "vfx",
+  "style": "s1",
   "material": "light",
   "source": "fx_natures_wrath.png",
   "frame": [

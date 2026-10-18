@@ -10,4 +10,4 @@
 // A new set is one row here; nothing else changes.
 // ════════════════════════════════════════════════════════════════════════
 
-export const ATLAS_SETS = Object.freeze(['hero', 'cellar', 'town', 'home', 'hunt', 'vfx']);
+export const ATLAS_SETS = Object.freeze(['hunt', 'vfx', 'sewer', 'mill', 'common', 'cottage']);

@@ -1,6 +1,7 @@
 {
   "id": "fx_hunters_mark",
   "class": "vfx",
+  "style": "s1",
   "material": "light",
   "source": "fx_hunters_mark.png",
   "frame": [

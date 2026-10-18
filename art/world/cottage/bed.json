@@ -1,0 +1,35 @@
+{
+  "id": "bed",
+  "class": "bed",
+  "style": "s1",
+  "material": "wood",
+  "source": "bed.png",
+  "frame": [
+    26,
+    40
+  ],
+  "anchor_px": [
+    13,
+    39
+  ],
+  "footprint": [
+    1,
+    2
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro_flash",
+    "image": "67cfb83c-474e-5587-8f10-9f73ac2209ed",
+    "cell": 0
+  },
+  "notes": "Cell 0 of a 4x4 style-1 prop sheet (PixelLab image 67cfb83c-474e-5587-8f10-9f73ac2209ed, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled."
+}

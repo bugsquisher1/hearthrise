@@ -1,6 +1,7 @@
 {
   "id": "drain_rat",
   "class": "vermin",
+  "style": "s1",
   "material": "unit",
   "source": "drain_rat.png",
   "anchor_px": [

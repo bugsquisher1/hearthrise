@@ -25,6 +25,7 @@ async function load(root) {
   M.maps = await imp('src/data/world/maps/index.js');
   M.terrain = await imp('src/data/world/terrain.js');
   M.mapc = await imp('src/world/core/map-compile.js');
+  M.sets = await imp('src/data/world/atlas-sets.js');
   M.classes = await imp('src/data/monster-classes.js');
   M.tut = await imp('src/data/hunt-tutorial.js');
   M.kit = await imp('src/data/start-kit.js');
@@ -39,12 +40,12 @@ async function load(root) {
 }
 
 /* The walkable mask of a world map (sprites are not needed: only solid MATERIALS and solid props block,
-   and the sewer and cellar props that block are in the cellar atlas manifest). */
+   read from every atlas the renderer loads). */
 function maskOf(M, mapId) {
   const row = M.maps.WORLD_MAPS.find((m) => m.id === mapId);
   if (!row) return null;
   const sprites = {};
-  for (const set of ['cellar', 'town', 'hero', 'home']) {
+  for (const set of M.sets.ATLAS_SETS) {
     Object.assign(sprites, JSON.parse(readFileSync(join(M.root, 'assets/world/atlas-' + set + '.json'), 'utf8')).sprites);
   }
   const map = M.mapc.compileMap(row, { materials: M.terrain.MATERIALS, sprites, openClasses: M.terrain.OPEN_CLASSES, lights: {} });

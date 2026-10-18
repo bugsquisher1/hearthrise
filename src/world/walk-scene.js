@@ -19,6 +19,7 @@ import { townState, stationOf } from './town-scene.js?v=0.1.0';
 import { furnish, maskWith } from './home-scene.js?v=0.1.0';
 import { T } from './core/grid.js?v=0.1.0';
 import { pickFacing } from './core/facing.js?v=0.1.0';
+import { OUTFITS } from '../data/hunt-outfits.js?v=0.1.0';
 
 /* How far a walked map's camera leans from the hero toward the map's `focus`:
    halfway keeps the hero on screen anywhere on a town-sized map and the plaza
@@ -28,7 +29,7 @@ const CAMERA_LEAN = 0.5;
 /* ONE WALK CYCLE PER TILE. The hero's walk clip is played by DISTANCE, not by
    the clock: its frame comes from the tiles walked since it last stood still,
    so every walk starts on the clip's first frame and the feet keep pace with
-   the ground. Measured on atlas-hero walk e/w (2026-10-14): a planted foot
+   the ground. Measured on the pre-style-1 hero's walk e/w (2026-10-14): a planted foot
    travels about 11-12 art px per step, ~24 per two-step cycle, so one cycle per
    tile (32 px) slides the feet a little; the clip's authored 10 fps at
    WALK_TILES_PER_S slid them 82 px per cycle, over three times the stride. */
@@ -39,8 +40,9 @@ const onPixel = (v) => Math.round(v * T) / T;
 
 /**
  * @param {object} map  compileMap() output (kind 'town' or 'home')
- * @param {{at?: [number, number]|null, sprites: object, openClasses: string[], maps: object}} o
- *   at: where the hero stood last on this map; maps: map rows by id (exits)
+ * @param {{at?: [number, number]|null, sprites: object, openClasses: string[], maps: object, heroSprite?: () => string}} o
+ *   at: where the hero stood last on this map; maps: map rows by id (exits);
+ *   heroSprite: the hero's outfit sprite id (src/session/hero-look.js), read every frame
  */
 export function createWalkScene(map, o) {
   const steer = createSteer(map, o.at || map.start);
@@ -90,13 +92,15 @@ export function createWalkScene(map, o) {
          pixel at a time while the hero jumped a whole art pixel (z device px):
          on screen the hero stepped 0, 1, 3, 4 px on alternate frames. */
       const hx = onPixel(at.x), hy = onPixel(at.y);
-      const clip = o.sprites.hero && o.sprites.hero.anims && o.sprites.hero.anims.walk;
+      const heroId = (o.heroSprite && o.heroSprite()) || OUTFITS.knight;
+      const look = o.sprites[heroId];
+      const clip = look && look.anims && look.anims.walk;
       const shown = clip && clip.dirs ? clip.dirs[pickFacing(clip.dirs, at.dir, at.diag)] : null;
       const fps = (clip && clip.fps) || 10, n = (shown && shown.length) || 1;
       /* walking: the age at which the clip shows the frame for the distance covered; standing: time since it stopped */
       const age = at.moving ? ((at.walked / WALK_CYCLE_TILES) * n * 1000) / fps : steer.restMs(now);
       return {
-        hero: { x: hx, y: hy, dir: at.dir, diag: at.diag, anim: at.moving ? 'walk' : 'idle', age },
+        hero: { id: heroId, x: hx, y: hy, dir: at.dir, diag: at.diag, anim: at.moving ? 'walk' : 'idle', age },
         camera: f ? { x: hx + (f[0] - hx) * CAMERA_LEAN, y: hy + (f[1] - hy) * CAMERA_LEAN } : null,
         units: cast.units, bubbles: cast.bubbles, props,
         mark: goal && goal.byTap ? { x: goal.x, y: goal.y } : null,

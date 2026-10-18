@@ -1,6 +1,7 @@
 {
   "id": "culvert_bat",
   "class": "vermin_flier",
+  "style": "s1",
   "material": "unit",
   "source": "culvert_bat.png",
   "anchor_px": [

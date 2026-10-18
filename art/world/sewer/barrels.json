@@ -1,0 +1,35 @@
+{
+  "id": "barrels",
+  "class": "bulky",
+  "style": "s1",
+  "material": "wood",
+  "source": "barrels.png",
+  "frame": [
+    48,
+    28
+  ],
+  "anchor_px": [
+    24,
+    27
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "5e8f62c3-8d7d-43fc-b573-c39b1512c53e",
+    "name": "S1 barrels pair"
+  },
+  "notes": "Ported from PixelLab object 5e8f62c3-8d7d-43fc-b573-c39b1512c53e (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

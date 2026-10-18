@@ -1,6 +1,7 @@
 {
   "id": "outfit_ranger",
   "class": "character",
+  "style": "s1",
   "material": "unit",
   "source": "outfit_ranger.png",
   "anchor_px": [

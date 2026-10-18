@@ -187,3 +187,15 @@ Prompt templates (copy, fill the brackets):
   - the feet do not lift in turn;
   - the body height is more than 2 px off the knight's body without its plume.
 - **Icons redone:** `basic_ranger` (crossbow), `frost_lance` (a flying icicle, not a sword), and `fire_rune` and `frost_rune` (large rune stones). Also a new `drink_cup` (a steaming tea mug), the drink consumable. All use the same pixen frame prompt, seed 7, 32×32.
+
+## 8. The world in style 1 (2026-10-18)
+Every map a player reaches draws only style-1 art (Tyler 10-18). `tests/world-assets.mjs` fails on anything else (`tools/world-art/style1.mjs`: a sidecar needs `style: "s1"` and a PixelLab or hunt-sim source; every reachable sprite and ground must be in a loaded style-1 set; the pre-style-1 sets `hero cellar town home` are retired).
+- **Painted grounds** (`tools/world-art/port-pixellab.mjs map`): a Map Workshop map stitched from full-scale `view_map` renders into one `fill` terrain marked `painted`. The walls are in the paint, so the engine draws no wall kit or void over it. The map row's walkable grid must match the painted map's (floor `w`/`a` open, wall `t`/`o` rock, water solid).
+  - Sewer `d9c3544c` (row 13 x18-23 repainted as floor for the §4b three-high link); its props are `c8ed5928`'s at the same cells.
+  - Mill Cellar `a055f449`: the cut-wall tileset `b342fc89`, one room x3-21 y3-11.
+  - The Common `53d53262`: Greenhaven grass, dirt lanes, a cobbled square.
+  - Your Cottage `d6574fe2`: three new pro tilesets, plank ↔ wall top `b58b217e` (plank base `0ac282e1`), grass ↔ wall top `f33a5d00`, grass ↔ plank `189272a0`. A one-tile wall cannot be drawn at its inside south corners or at a doorway (three terrains meet), so those three spots are Pro Flash inpaints of the render.
+- **Prop sheets** (`port-pixellab.mjs sheet`): one `create_image_pro_flash` call makes a 4x4 grid on a transparent canvas, with a kit prop as the style image. **Use 128x128 with 32 px cells** for props at tile scale (6 gen for 16). A 256x256 sheet with 64 px cells draws props about 1.4x too big for the hero; only its tall furniture and fixtures passed the budget. Items are cut by blob, not by cell.
+- **Buildings** (smithy `97b35d71`, the mill with its wheel `5a8d2838`, the neighbour's cottage `98b4dbc9`): one Pro Flash object each, class `building`, a closed facade standing on its footprint.
+- **Units**: NPCs crier `9fee956c` and smith `d014b3d6` (8 rotations, idle only); hive wasp `1c4dd534` (8 rotations plus a 6-frame v3 flight). The Mill Cellar's rat and slime wear the Sewer's giant rat and slime art.
+- **Hero**: the world draws your hero in its hunt outfit (`src/session/hero-look.js` → `outfitSprite`), and town peers wear the outfits too. There is no other hero sprite.

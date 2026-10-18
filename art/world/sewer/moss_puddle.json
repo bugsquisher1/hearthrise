@@ -1,0 +1,35 @@
+{
+  "id": "moss_puddle",
+  "class": "decal",
+  "style": "s1",
+  "material": "terrain",
+  "source": "moss_puddle.png",
+  "frame": [
+    64,
+    48
+  ],
+  "anchor_px": [
+    32,
+    47
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "3ae7a8a6-ced2-4efc-9864-03fbce3fd00c",
+    "name": "S1 moss puddle patch"
+  },
+  "notes": "Ported from PixelLab object 3ae7a8a6-ced2-4efc-9864-03fbce3fd00c (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

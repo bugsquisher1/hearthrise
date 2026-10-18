@@ -25,7 +25,7 @@ export default Object.freeze({
   hunts: Object.freeze(['millrace_sewer']),
   outdoor: false,
   light: 'cellar',
-  ground: 'cellar_floor',
+  ground: 'sewer_ground',
   legend: Object.freeze({ '#': 'rock', '.': 'flagstone', '~': 'sewage' }),
   rows: Object.freeze([
     '############################################################',
@@ -71,30 +71,44 @@ export default Object.freeze({
   ]),
   faces: Object.freeze([]),
   objects: Object.freeze([
-    /* entrance and west hall */
-    { id: 'wall_torch', x: 2, y: 20 }, { id: 'wall_torch', x: 7, y: 12 }, { id: 'brazier', x: 14, y: 24 },
-    { id: 'puddle', x: 9, y: 23 }, { id: 'pebbles', x: 4, y: 22 },
-    /* NW room: the rats' nest */
-    { id: 'wall_torch', x: 5, y: 1 }, { id: 'wall_torch', x: 10, y: 1 }, { id: 'barrel_old', x: 3, y: 2 },
-    { id: 'straw', x: 11, y: 3 }, { id: 'bones', x: 4, y: 8 }, { id: 'puddle', x: 6, y: 9 },
-    /* SW room: the sump */
-    { id: 'wall_torch', x: 4, y: 27 }, { id: 'puddle', x: 5, y: 32 }, { id: 'puddle', x: 6, y: 33 },
-    { id: 'straw', x: 12, y: 29 }, { id: 'bones', x: 3, y: 33 },
-    /* the channel hall */
-    { id: 'wall_torch', x: 33, y: 10 }, { id: 'brazier', x: 27, y: 17 }, { id: 'puddle', x: 30, y: 30 },
-    { id: 'puddle', x: 36, y: 28 }, { id: 'pebbles', x: 25, y: 9 }, { id: 'bone', x: 29, y: 3 },
-    /* east junction hall */
-    { id: 'wall_torch', x: 42, y: 16 }, { id: 'barrel_old', x: 47, y: 28 }, { id: 'puddle', x: 45, y: 20 },
-    /* NE room: the spiders' web */
-    { id: 'wall_torch', x: 40, y: 2 }, { id: 'wall_torch', x: 46, y: 2 }, { id: 'bones', x: 47, y: 9 },
-    { id: 'skull', x: 43, y: 11 },
-    /* SE room: the toshers' scrap */
-    { id: 'wall_torch', x: 48, y: 30 }, { id: 'crate', x: 50, y: 37 }, { id: 'bones', x: 49, y: 36 },
-    { id: 'straw', x: 41, y: 36 },
-    /* the Rat King's room: two nests, two barrels, the bones of what came before */
-    { id: 'wall_torch', x: 54, y: 17 }, { id: 'barrel', x: 57, y: 19 }, { id: 'barrel_banded', x: 57, y: 28 },
-    { id: 'straw', x: 51, y: 19 }, { id: 'bones', x: 52, y: 19 }, { id: 'straw', x: 54, y: 28 },
-    { id: 'rat_skull', x: 53, y: 28 }, { id: 'bones', x: 51, y: 28 },
+    /* Every prop stands where PixelLab map c8ed5928 places it (the units left out): the same cell,
+       the same pixels (tools/world-art/port-pixellab.mjs). */
+    /* the walls: torches, outflow pipes, chains, fallen masonry */
+    { id: 'wall_torch', x: 5, y: 1 }, { id: 'wall_torch', x: 11, y: 1 }, { id: 'wall_torch', x: 2, y: 20 },
+    { id: 'wall_torch', x: 4, y: 27 }, { id: 'wall_torch', x: 26, y: 1 }, { id: 'wall_torch', x: 40, y: 2 },
+    { id: 'wall_torch', x: 45, y: 2 }, { id: 'wall_torch', x: 41, y: 30 }, { id: 'wall_torch', x: 52, y: 17 },
+    { id: 'pipe_outflow', x: 27, y: 1 }, { id: 'pipe_outflow', x: 33, y: 10 }, { id: 'pipe_outflow', x: 5, y: 20 }, { id: 'pipe_outflow', x: 41, y: 19 },
+    { id: 'hanging_chains', x: 35, y: 10 }, { id: 'hanging_chains', x: 55, y: 17 }, { id: 'hanging_chains', x: 7, y: 27 },
+    { id: 'wall_chunk', x: 8, y: 1 }, { id: 'wall_chunk', x: 29, y: 1 }, { id: 'wall_chunk', x: 48, y: 30 }, { id: 'wall_chunk', x: 20, y: 13 },
+    /* the channel: the one bridge, two lanterns lost in the sewage */
+    { id: 'grate_bridge', x: 33, y: 24 }, { id: 'drowned_lantern', x: 33, y: 19 }, { id: 'drowned_lantern', x: 27, y: 9 },
+    /* what stands on the floor */
+    { id: 'brazier', x: 7, y: 14 },
+    { id: 'barrels', x: 36, y: 32 }, { id: 'barrels', x: 7, y: 24 }, { id: 'barrels', x: 55, y: 21 }, { id: 'barrels', x: 55, y: 29 },
+    { id: 'collapsed_cart', x: 48, y: 35 }, { id: 'collapsed_cart', x: 11, y: 16 },
+    /* nests by the packs, the Rat King's two, and the bones of what came before */
+    { id: 'rat_nest', x: 11, y: 5 }, { id: 'rat_nest', x: 11, y: 29 }, { id: 'rat_nest', x: 41, y: 33 },
+    { id: 'rat_nest', x: 54, y: 27 }, { id: 'rat_nest', x: 51, y: 19 },
+    { id: 'bones', x: 46, y: 4 }, { id: 'bones', x: 51, y: 28 },
+    { id: 'corner_rubble', x: 3, y: 2 }, { id: 'corner_rubble', x: 31, y: 2 }, { id: 'corner_rubble', x: 2, y: 33 },
+    { id: 'corner_rubble', x: 50, y: 36 }, { id: 'corner_rubble', x: 57, y: 18 }, { id: 'corner_rubble', x: 15, y: 25 },
+    /* floor wear, clustered by the walls and the water (about 16% of the floor) */
+    { id: 'moss_puddle', x: 25, y: 7 }, { id: 'moss_puddle', x: 30, y: 20 }, { id: 'moss_puddle', x: 30, y: 29 }, { id: 'moss_puddle', x: 36, y: 18 },
+    { id: 'moss_puddle', x: 3, y: 33 }, { id: 'moss_puddle', x: 47, y: 26 }, { id: 'moss_puddle', x: 13, y: 24 }, { id: 'moss_puddle', x: 3, y: 29 },
+    { id: 'moss_puddle', x: 12, y: 28 }, { id: 'moss_puddle', x: 8, y: 33 }, { id: 'moss_puddle', x: 4, y: 3 }, { id: 'moss_puddle', x: 24, y: 3 },
+    { id: 'moss_puddle', x: 36, y: 11 }, { id: 'moss_puddle', x: 38, y: 3 }, { id: 'moss_puddle', x: 40, y: 9 }, { id: 'moss_puddle', x: 4, y: 10 },
+    { id: 'moss_puddle', x: 31, y: 22 }, { id: 'moss_puddle', x: 35, y: 12 }, { id: 'moss_puddle', x: 35, y: 25 }, { id: 'moss_puddle', x: 24, y: 14 },
+    { id: 'cracked_flagstone', x: 48, y: 9 }, { id: 'cracked_flagstone', x: 36, y: 33 }, { id: 'cracked_flagstone', x: 37, y: 27 },
+    { id: 'cracked_flagstone', x: 29, y: 23 }, { id: 'cracked_flagstone', x: 26, y: 28 }, { id: 'cracked_flagstone', x: 6, y: 34 },
+    { id: 'cracked_flagstone', x: 12, y: 2 }, { id: 'cracked_flagstone', x: 21, y: 15 }, { id: 'cracked_flagstone', x: 28, y: 2 },
+    { id: 'cracked_flagstone', x: 6, y: 16 }, { id: 'cracked_flagstone', x: 8, y: 13 }, { id: 'cracked_flagstone', x: 40, y: 36 },
+    { id: 'cracked_flagstone', x: 35, y: 31 }, { id: 'cracked_flagstone', x: 7, y: 2 },
+    { id: 'exposed_dirt', x: 42, y: 26 }, { id: 'exposed_dirt', x: 42, y: 17 }, { id: 'exposed_dirt', x: 31, y: 18 }, { id: 'exposed_dirt', x: 47, y: 17 },
+    { id: 'exposed_dirt', x: 46, y: 31 }, { id: 'exposed_dirt', x: 44, y: 37 }, { id: 'exposed_dirt', x: 24, y: 9 }, { id: 'exposed_dirt', x: 47, y: 22 },
+    { id: 'exposed_dirt', x: 56, y: 24 }, { id: 'exposed_dirt', x: 4, y: 22 }, { id: 'exposed_dirt', x: 3, y: 7 }, { id: 'exposed_dirt', x: 40, y: 25 },
+    { id: 'exposed_dirt', x: 15, y: 24 },
+    { id: 'floor_grate', x: 50, y: 33 }, { id: 'floor_grate', x: 24, y: 17 }, { id: 'floor_grate', x: 28, y: 33 }, { id: 'floor_grate', x: 24, y: 2 },
+    { id: 'floor_grate', x: 40, y: 32 },
   ]),
   buildings: Object.freeze([]),
   path: Object.freeze([[7, 17], [12, 17], [12, 22], [7, 22]]),
@@ -109,5 +123,5 @@ export default Object.freeze({
   stations: Object.freeze({}),
   exits: Object.freeze([{ x: 0, y: 21, to: 'mill_cellar' }]),
   start: Object.freeze([1, 21]),
-  maskHash: 'd869c0f6',
+  maskHash: 'ad6e51f5',
 });

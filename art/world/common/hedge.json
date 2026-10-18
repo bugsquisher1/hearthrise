@@ -1,0 +1,35 @@
+{
+  "id": "hedge",
+  "class": "bush",
+  "style": "s1",
+  "material": "foliage",
+  "source": "hedge.png",
+  "frame": [
+    38,
+    25
+  ],
+  "anchor_px": [
+    19,
+    24
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro_flash",
+    "image": "5cc294af-490c-5e25-acb8-a6f79dd5f016",
+    "cell": 6
+  },
+  "notes": "Cell 6 of a 4x4 style-1 prop sheet (PixelLab image 5cc294af-490c-5e25-acb8-a6f79dd5f016, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled."
+}

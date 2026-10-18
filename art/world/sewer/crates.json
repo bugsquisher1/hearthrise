@@ -1,0 +1,35 @@
+{
+  "id": "crates",
+  "class": "bulky",
+  "style": "s1",
+  "material": "wood",
+  "source": "crates.png",
+  "frame": [
+    32,
+    31
+  ],
+  "anchor_px": [
+    16,
+    30
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "862bbc25-0d61-45be-a55f-0a2853b3dbe4",
+    "name": "S1 crates (stacked)"
+  },
+  "notes": "Ported from PixelLab object 862bbc25-0d61-45be-a55f-0a2853b3dbe4 (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

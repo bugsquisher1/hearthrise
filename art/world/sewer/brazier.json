@@ -1,0 +1,35 @@
+{
+  "id": "brazier",
+  "class": "station",
+  "style": "s1",
+  "material": "light",
+  "source": "brazier.png",
+  "frame": [
+    32,
+    30
+  ],
+  "anchor_px": [
+    16,
+    29
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "919538c5-164c-4320-8187-c740af7297c6",
+    "name": "S1 sewer brazier"
+  },
+  "notes": "Ported from PixelLab object 919538c5-164c-4320-8187-c740af7297c6 (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

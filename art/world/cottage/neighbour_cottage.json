@@ -1,0 +1,35 @@
+{
+  "id": "neighbour_cottage",
+  "class": "building",
+  "style": "s1",
+  "material": "wood",
+  "source": "neighbour_cottage.png",
+  "frame": [
+    160,
+    138
+  ],
+  "anchor_px": [
+    80,
+    137
+  ],
+  "footprint": [
+    3,
+    3
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "98b4dbc9-6c8c-43d9-9b7c-07b4c79607f7",
+    "name": "S1 neighbour cottage"
+  },
+  "notes": "Ported from PixelLab object 98b4dbc9-6c8c-43d9-9b7c-07b4c79607f7 (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

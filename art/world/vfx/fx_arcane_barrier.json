@@ -1,6 +1,7 @@
 {
   "id": "fx_arcane_barrier",
   "class": "vfx",
+  "style": "s1",
   "material": "light",
   "source": "fx_arcane_barrier.png",
   "frame": [

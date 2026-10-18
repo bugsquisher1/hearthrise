@@ -1,0 +1,35 @@
+{
+  "id": "floor_grate",
+  "class": "decal",
+  "style": "s1",
+  "material": "stone",
+  "source": "floor_grate.png",
+  "frame": [
+    32,
+    32
+  ],
+  "anchor_px": [
+    16,
+    31
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "6419fce6-d6b5-4aa0-944d-2e06bbf8d80d",
+    "name": "S1 floor grate decal"
+  },
+  "notes": "Ported from PixelLab object 6419fce6-d6b5-4aa0-944d-2e06bbf8d80d (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+}

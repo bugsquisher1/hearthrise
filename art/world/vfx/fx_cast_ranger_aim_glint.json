@@ -1,6 +1,7 @@
 {
   "id": "fx_cast_ranger_aim_glint",
   "class": "vfx",
+  "style": "s1",
   "material": "light",
   "source": "fx_cast_ranger_aim_glint.png",
   "frame": [

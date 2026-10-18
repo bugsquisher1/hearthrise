@@ -47,8 +47,10 @@ export const UNITS = Object.freeze({
      at their full 48 px art in the vermin classes. */
   druid: { id: 'outfit_druid', class: 'character', fit: { stretch: [27, 2] } },
   kobold: { id: 'kobold_tosher', class: 'character', fit: { stretch: [29, 3] } },
-  giant_rat: { id: 'drain_rat', class: 'vermin' },
-  slime: { id: 'sump_slime', class: 'vermin' },
+  /* `also`: the Mill Cellar's rat and slime (src/data/hunts.js mill_cellar) wear the same style-1
+     art as the Sewer's: one look per creature family, no pre-style-1 critter left in the world. */
+  giant_rat: { id: 'drain_rat', class: 'vermin', also: ['rat'] },
+  slime: { id: 'sump_slime', class: 'vermin', also: ['slime'] },
   venom_spider: { id: 'cistern_spider', class: 'vermin' },
   giant_bat: { id: 'culvert_bat', class: 'vermin_flier' },
 });
@@ -133,7 +135,7 @@ export function portUnit(simId, manifest) {
     }
   }
   const sidecar = {
-    id: row.id, class: row.class, material: 'unit', source: row.id + '.png', anchor_px: [ax, ay], footprint: [1, 1],
+    id: row.id, class: row.class, style: 's1', material: 'unit', source: row.id + '.png', anchor_px: [ax, ay], footprint: [1, 1],
     ...(row.class.endsWith('flier') ? { hover_px: HOVER } : {}),
     anims: anims.map((a) => ({ name: a.name, fps: a.fps, loop: a.loop, dirs: Object.fromEntries(FACINGS.map((d) => [d, a.frames[d].length])) })),
     notes: 'Ported from ' + SRC + '/' + simId + ' (PixelLab style-1, ' + manifest.generated + ') by tools/world-art/port-hunt-sim.mjs: eight facings, foot anchor moved onto the class anchor by whole pixels.',
@@ -157,7 +159,7 @@ export function portVfx(name, e) {
   }
   const id = vfxId(name);
   const sidecar = {
-    id, class: 'vfx', material: 'light', source: id + '.png', frame: [fw, fh], anchor_px: [e.anchor[0], e.anchor[1]], footprint: [1, 1],
+    id, class: 'vfx', style: 's1', material: 'light', source: id + '.png', frame: [fw, fh], anchor_px: [e.anchor[0], e.anchor[1]], footprint: [1, 1],
     ...(e.additive ? { blend: 'add' } : {}),
     anims: [{ name: 'play', fps: e.fps, loop: !!e.loop, dirs: { s: e.frames.length } }],
     notes: 'Ported from ' + VFX_SRC + '/' + name + ' by tools/world-art/port-hunt-sim.mjs: frames unscaled, anchor as the sim drew it.',
@@ -176,8 +178,11 @@ function main() {
     const r = portUnit(simId, manifest);
     if (r.error) { console.log('  ✗ ' + r.error); bad++; continue; }
     if (!report) {
-      writeFileSync(join(ROOT, OUT, r.sidecar.source), encodePNG(r.sheet));
-      writeFileSync(join(ROOT, OUT, r.sidecar.id + '.json'), JSON.stringify(r.sidecar, null, 2) + '\n');
+      for (const id of [r.sidecar.id].concat(UNITS[simId].also || [])) {
+        const sc = Object.assign({}, r.sidecar, { id, source: id + '.png' });
+        writeFileSync(join(ROOT, OUT, sc.source), encodePNG(r.sheet));
+        writeFileSync(join(ROOT, OUT, id + '.json'), JSON.stringify(sc, null, 2) + '\n');
+      }
     }
     console.log('  ✓ ' + simId + ' → ' + r.sidecar.id + ' (' + r.sidecar.class + ', ' + r.sheet.width + 'x' + r.sheet.height + ')');
   }

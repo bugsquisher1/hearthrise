@@ -1,6 +1,7 @@
 {
   "id": "fx_challenge_taunt",
   "class": "vfx",
+  "style": "s1",
   "material": "light",
   "source": "fx_challenge_taunt.png",
   "frame": [

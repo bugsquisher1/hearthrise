@@ -153,7 +153,7 @@ export function buildSet(root, set) {
   for (const { sc, tiles } of terrains.sort((a, b) => (a.sc.id < b.sc.id ? -1 : 1))) {
     const out = {};
     for (const k of Object.keys(tiles).sort()) out[k] = tiles[k].map((_, i) => packed.rects.get(`${sc.id}:${k}:${i}`));
-    manifest.terrain[sc.id] = { kind: sc.kind || 'wang16', lower: sc.lower, upper: sc.upper, ...(sc.cycle ? { cycle: sc.cycle } : {}), tiles: out };
+    manifest.terrain[sc.id] = { kind: sc.kind || 'wang16', lower: sc.lower, upper: sc.upper, ...(sc.cycle ? { cycle: sc.cycle } : {}), ...(sc.painted ? { painted: true } : {}), tiles: out };
   }
   return { set, findings, manifest, atlas: packed.image, sprites };
 }

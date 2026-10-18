@@ -1,6 +1,7 @@
 {
   "id": "fx_fire_rune_burst",
   "class": "vfx",
+  "style": "s1",
   "material": "light",
   "source": "fx_fire_rune_burst.png",
   "frame": [

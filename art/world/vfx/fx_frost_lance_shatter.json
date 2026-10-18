@@ -1,6 +1,7 @@
 {
   "id": "fx_frost_lance_shatter",
   "class": "vfx",
+  "style": "s1",
   "material": "light",
   "source": "fx_frost_lance_shatter.png",
   "frame": [

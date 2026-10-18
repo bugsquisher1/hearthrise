@@ -1,0 +1,35 @@
+{
+  "id": "swords_wall",
+  "class": "hanging",
+  "style": "s1",
+  "material": "stone",
+  "source": "swords_wall.png",
+  "frame": [
+    42,
+    41
+  ],
+  "anchor_px": [
+    21,
+    40
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro_flash",
+    "image": "0fcfb18e-ff36-539a-ad0a-a7eb20e1df6c",
+    "cell": 2
+  },
+  "notes": "Cell 2 of a 4x4 style-1 prop sheet (PixelLab image 0fcfb18e-ff36-539a-ad0a-a7eb20e1df6c, style image a Map Workshop prop of the kit), cut to its opaque box by tools/world-art/port-pixellab.mjs; pixels unscaled."
+}

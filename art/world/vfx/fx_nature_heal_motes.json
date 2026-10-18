@@ -1,6 +1,7 @@
 {
   "id": "fx_nature_heal_motes",
   "class": "vfx",
+  "style": "s1",
   "material": "light",
   "source": "fx_nature_heal_motes.png",
   "frame": [

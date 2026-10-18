@@ -24,8 +24,7 @@ export const MATERIALS = Object.freeze({
   planks: Object.freeze({ solid: false }),
   rock: Object.freeze({ solid: true, wall: 'stone' }),
   /* Sewage (the Millrace Sewer's channel): it blocks a step but is FLAT, so no wall kit is
-     drawn over it and it hides nothing behind it. It draws as the void until the sewer
-     atlas ships its water terrain (asset handoff, 2026-10-18). */
+     drawn over it and it hides nothing behind it; the water is in the Sewer's painted ground. */
   sewage: Object.freeze({ solid: true, flat: true }),
 });
 
@@ -36,7 +35,7 @@ const light = (radius, tint) => Object.freeze({ radius, tint });
 export const LIGHTS = Object.freeze({
   wall_torch: light(5, 'torch'),
   brazier: light(4, 'brazier'),
-  lantern_post: light(3, 'torch'),
+  lamppost: light(3, 'torch'),
   candle: light(1.5, 'torch'),
   hearth: light(4.5, 'hearth'),
   forge: light(3, 'hearth'),

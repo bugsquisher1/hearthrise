@@ -1,6 +1,7 @@
 {
   "id": "fx_power_strike",
   "class": "vfx",
+  "style": "s1",
   "material": "light",
   "source": "fx_power_strike.png",
   "frame": [

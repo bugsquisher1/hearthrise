@@ -87,6 +87,7 @@ import { runShopBuy } from './shop-buy.js';
 import { runVendorSell, runVendorSellMany } from './vendor-sell.js';
 import { runUnlockBuy } from './unlock-buy.js';
 import { runTrophyClaim } from './trophy-claim.js';
+import { runSheet } from './character-sheet.js';
 import { runMarketList, runMarketCancel, runMarketBuy } from './market.js';
 import { runEquip } from './equip.js';
 import { runEat } from './eat.js';
@@ -587,6 +588,19 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         verb: intent.verb,
         bucket: rateBucketFor(intent.verb),
         intentId: intent.intentId,
+      });
+      return await reply(out.body, out.status);
+    }
+
+    /* ── THE CHARACTER SHEET (./character-sheet.js) ─────────────────────────
+       The slot and nothing else. The engine's own snapshot over server state,
+       stored compare-and-set against the SQL fingerprint of its inputs. */
+    if (intent.verb === 'sheet') {
+      const out = await runSheet({
+        exec,
+        user,                       // the VERIFIED subject, never a body field
+        slot,
+        bucket: rateBucketFor(intent.verb),
       });
       return await reply(out.body, out.status);
     }

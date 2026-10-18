@@ -916,3 +916,16 @@ body[data-theme-palette="iron"] {
   --green: #8ca85a;
   --world-hud-bg: rgba(18, 19, 21, .88);
 }
+
+/* THE OUTFIT DYES (src/data/outfits.js DYE_COUNT; the server's hr_outfit_dyes,
+   2026-10-25-character-sheet.sql). Index N is --dye-N. Each is a colour of the
+   world palette (art/world/palette.json), so a dyed outfit stays inside it;
+   recolouring keeps each pixel's value and takes the dye's hue and saturation.
+   tests/character-window.mjs CW-D1/D2 hold these equal to the server's rows
+   and the palette. Theme-independent: a dye is a colour of the cloth. */
+:root {
+  --dye-0: #2f2723;  --dye-1: #6a6865;  --dye-2: #e6dcbc;  --dye-3: #8a6440;
+  --dye-4: #a8743a;  --dye-5: #5e1a1f;  --dye-6: #c23a2a;  --dye-7: #f2a03a;
+  --dye-8: #e8c547;  --dye-9: #6b7a38;  --dye-10: #3d6234; --dye-11: #7ccf4a;
+  --dye-12: #4f7a80; --dye-13: #2b4a6a; --dye-14: #4fa8e8; --dye-15: #5c6c7a;
+}

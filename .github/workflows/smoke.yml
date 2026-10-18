@@ -280,6 +280,24 @@ jobs:
           node tests/services-window.mjs
           node tests/services-window.mjs --mutate
 
+      # THE CHARACTER WINDOW (2026-10-25): the outfit catalogue is GENERATED
+      # (gen-outfits --check); one XP formula, the sheet reads only what its
+      # fingerprint covers, every put carries the engine version
+      # (character-sheet-core); the sheet's numbers come only from the server's
+      # section, after this opening's ask (a stale one shows none); nothing the
+      # engine lacks is drawn; Save is ONE hr_outfit_set; the death log is the
+      # server's; the trade skills hold no combat skill and each unlock names
+      # its kind.
+      - name: Character window (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-outfits.mjs --check
+          node tools/gen-outfits.mjs --selftest
+          node tests/character-sheet-core.mjs
+          node tests/character-sheet-core.mjs --mutate
+          node tests/character-window.mjs
+          node tests/character-window.mjs --mutate
+
       # THE PARTY UI (2026-10-18, week plan 16 + QoL 3/7): the character strip,
       # the command centre, the Party window and the alert lines on the party
       # fixture. One alert per event id (a re-read or a reload repeats none);

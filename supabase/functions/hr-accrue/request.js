@@ -154,7 +154,12 @@ export const VERBS = Object.freeze(
     /* HUNT SESSIONS (ruling HR-2026-10-14, lanes C2 / S1). `hunt_settle`
        carries the slot and nothing else, and runs the ONE hunt settle the world
        tick runs (./hunt-settle.js). Hunts are idle: no press verb. */
-    'hunt_settle']);
+    'hunt_settle',
+    /* THE CHARACTER SHEET (lane character-window, 2026-10-25). `sheet` carries
+       the slot and nothing else: the engine computes the combat numbers from
+       server state and stores them compare-and-set (./character-sheet.js). It
+       moves no value. */
+    'sheet']);
 export const DEFAULT_VERB = 'accrue';
 
 /** The catalogue's activity vocabulary — the `kind` column of `hr_activities`

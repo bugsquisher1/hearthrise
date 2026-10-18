@@ -578,6 +578,12 @@ export const INTENT_REGISTRY = Object.freeze({
      `collectsFirst: false`: it IS the settle. Hunts are idle (Tyler
      2026-10-16): the C2 `hunt_use` press verb was retired with the bar. */
   hunt_settle: Object.freeze({ bucket: 'accrue', needsKey: false, collectsFirst: false }),
+  /* THE CHARACTER SHEET (./character-sheet.js) — a READ that stores display
+     data compare-and-set. The `accrue` budget (a window opening or a changed
+     loadout asks once). No key: a repeat computes the same sheet from the same
+     inputs, and the put is a no-op unless the inputs still match.
+     `collectsFirst: false`: it moves no value, so there is nothing to price. */
+  sheet: Object.freeze({ bucket: 'accrue', needsKey: false, collectsFirst: false }),
 });
 
 /** The registry columns every row must carry, exported so the guard reads the

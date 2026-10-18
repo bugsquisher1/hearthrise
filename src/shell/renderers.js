@@ -19,7 +19,8 @@ import { renderFriends } from './windows/friends.js?v=0.2.0';
 import { renderInspect } from './windows/inspect.js?v=0.2.0';
 import { renderSettings } from './windows/settings.js?v=0.2.0';
 import { renderInventory } from './windows/inventory/index.js?v=0.2.0';
-import { renderCombatSkills, renderTradeSkills } from './windows/skills.js?v=0.2.0';
+import { renderTradeSkills } from './windows/skills.js?v=0.2.0';
+import { renderCharacter } from './windows/character/index.js?v=0.2.0';
 import { renderHunts } from './windows/hunts.js?v=0.2.0';
 import { renderStorage } from './windows/storage.js?v=0.2.0';
 import { renderShop } from './windows/shop.js?v=0.2.0';
@@ -34,7 +35,7 @@ import { renderHuntSummary } from './windows/hunt-summary.js?v=0.2.0';
 export const WINDOW_RENDERERS = Object.freeze({
   hunts: renderHunts,
   inventory: renderInventory,
-  'skills-combat': renderCombatSkills,
+  character: renderCharacter,
   'skills-trade': renderTradeSkills,
   storage: renderStorage,
   shop: renderShop,

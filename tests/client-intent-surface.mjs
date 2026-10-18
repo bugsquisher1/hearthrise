@@ -85,6 +85,7 @@ export const CLIENT_RPCS = Object.freeze({
   /* Town presence (2026-10-25-town-walk.sql): this character's own tile, goal tile and facing, catalogue-bounded; never a user or a time. */
   hr_town_move: 'where this character stands and walks to in a town, or a null map to leave; display presence (TownPresence.publish)',
   hr_town_walkers: 'who stands on a town map now, as the server names them, a read (TownPresence.read)',
+  hr_outfit_set: 'wear an owned outfit with a dye index per region; cosmetic, the server checks ownership (CharacterSession.saveOutfit)',
 });
 
 /* The engine's item intents the client may send, each with the ONLY fields it may carry. */
@@ -93,6 +94,8 @@ export const CLIENT_EDGE_INTENTS = Object.freeze({
   vendor_sell_many: ['lines'],
   shop_buy: ['offer', 'qty'],
   eat: ['item'],
+  /* the Character window's ask: the slot only; the engine computes the sheet (hr-accrue character-sheet.js) */
+  sheet: [],
 });
 const EDGE = 'src/session/edge-intents.js';
 const VALUE_FIELD = /price|gold|cost|total|amount|ask/i;

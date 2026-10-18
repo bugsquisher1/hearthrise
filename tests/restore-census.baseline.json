@@ -495,13 +495,27 @@
   "display_names",
   "hearthfind_log",
   "hr_combat_xp_credit_log",
+  "hr_discord_gift_claims",
   "hr_kill_credit_log",
+  "hr_name_holds",
+  "hr_return_anchor",
+  "hunt_bag",
+  "hunt_parties",
+  "hunt_party_members",
+  "hunt_session_events",
+  "hunt_session_tally",
+  "hunt_sessions",
+  "party",
+  "party_hunt_roster_log",
+  "party_member",
+  "player_action_sets",
   "player_bank",
   "player_cosmetics",
   "player_equipment",
   "player_farm",
   "player_inventory",
   "player_ledger",
+  "player_outfits",
   "player_progress",
   "player_skills",
   "player_state",
@@ -574,7 +588,8 @@
   "hr_access_allowlist": "Closed mode's admitted accounts. Player-scoped by user_id, but it holds no value a player earned: it is an operator's access list, and losing every row closes the game to the testers (fail-closed) until an operator re-adds them. Nothing a player owns, ranks or trades is derived from it.",
   "hunt_party_invites": "Ephemeral party invites (an hour at most, used up by accept / decline). Player-scoped by to_user / from_user, but they hold no value: losing every row costs pending invites only, and the parties themselves (hunt_parties, restore_only) are untouched.",
   "social_presence": "A presence stamp, not progress: one row per account saying when its client last polled hr_social_state. Every row is rewritten within 30 s of the player being online again, and the only thing it answers is a friend's online dot. Losing every row costs nobody anything.",
-  "town_positions": "A display position, not progress: one row per account saying which town tile its hero stands on. Every row is rewritten within 10 s of the player being in town again and older than 30 s is never read. Losing every row costs nobody anything."
+  "town_positions": "A display position, not progress: one row per account saying which town tile its hero stands on. Every row is rewritten within 10 s of the player being in town again and older than 30 s is never read. Losing every row costs nobody anything.",
+  "hr_character_sheets": "Derived, display-only: every row is recomputed by the hr-accrue sheet verb from the character's skills, gear, style, buffs and perks (which ARE restored), and is shown only while its input fingerprint matches. Losing every row costs one recompute each, never a value."
  },
  "tables": {
   "account_gem_grants": {
@@ -786,6 +801,16 @@
    "class": "seeded",
    "replay": 1,
    "note": "The catalogue digest row — the generator's own fingerprint, written `on conflict do update` so the repo always wins and a rebuild is always self-consistent. Rebuilt from repo."
+  },
+  "hr_character_sheet_engine": {
+   "class": "regenerated",
+   "note": "OPERATIONAL STAMP (2026-10-25-character-sheet.sql): the payload hash of the engine that wrote the latest character sheet. Empty after a restore means no sheet is fresh until the next sheet verb records its engine, which every Character window opening does; nothing is lost.",
+   "replay": 0
+  },
+  "hr_character_sheets": {
+   "class": "regenerated",
+   "note": "DERIVED DISPLAY DATA (2026-10-25-character-sheet.sql): the engine sheet verb recomputes a row from server state whenever its input fingerprint moves, and the view never shows a stale one. Empty after a restore costs one recompute per character; nothing is lost.",
+   "replay": 0
   },
   "hr_client_rpc_baseline": {
    "class": "seeded",
@@ -1131,6 +1156,16 @@
    "class": "restore_only",
    "wiped_at_cutover": false,
    "note": "MODERATION STATE - the fold keys of names a moderator took back (hr_mod_force_rename). One row per moderation. A rebuild returns it EMPTY, after which every moderated name (and its spacing/leet variants) becomes claimable again by anyone. Written only by hr_mod_force_rename; no client grant. Not gold, but a player-scoped row whose loss re-publishes abuse, so it is restored like player value."
+  },
+  "hr_outfit_dyes": {
+   "class": "seeded",
+   "replay": 16,
+   "note": "The outfit dye list (2026-10-25-character-sheet.sql, equal to the --dye-N tokens; CW-D1/D2). Rebuilt from repo, never restored; nothing player-owned."
+  },
+  "hr_outfits": {
+   "class": "seeded",
+   "replay": 8,
+   "note": "The outfit catalogue (2026-10-25-character-sheet.sql, mirrors src/data/outfits.js; tests/character-window.mjs CW-D1): id, premium, the regions its masks define. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_plot_tier": {
    "class": "seeded",
@@ -1509,6 +1544,11 @@
   "player_ledger_rollup": {
    "class": "operational",
    "note": "Aggregates written by hr_ledger_prune as it deletes aged ledger rows. Derived — but NOT re-derivable once the source rows are pruned. Losing it loses history beyond the ledger window, never live state. Empty today because nothing has aged past 90 days yet."
+  },
+  "player_outfits": {
+   "class": "restore_only",
+   "wiped_at_cutover": false,
+   "note": "PLAYER CHOICE: the outfit each character wears and its region dyes (2026-10-25-character-sheet.sql; written only by hr_outfit_set). Cosmetic, but a player would miss it after a restore: restored with the character."
   },
   "player_progress": {
    "class": "restore_only",

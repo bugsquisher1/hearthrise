@@ -167,12 +167,35 @@ function contract(R, cs, body, tl) {
   const bl = R.IS.blessingsOf(cs);
   need('blessings', !!bl && isNum(bl.permille) && bl.tiers.length === 3 && bl.freeUntil !== null && bl.tiers.every((t) => isNum(t.price) && isNum(t.permille)),
     'blessingsOf yields ' + JSON.stringify(bl) + ' from ' + JSON.stringify(body.blessings));
+  // the Character window (2026-10-25-character-sheet.sql): before any `sheet` call the sheet is not fresh
+  const csh = R.CS.characterSheetOf(cs);
+  need('character_sheet', !!csh && csh.level !== null && csh.maxHp !== null && !!csh.bestiary && csh.bestiary.total > 0,
+    'characterSheetOf yields ' + JSON.stringify(csh) + ' from ' + JSON.stringify(body.character_sheet));
+  const of = R.CS.outfitOf(cs);
+  need('outfit', !!of && of.owned.has('knight') && of.owned.has('witch'), 'outfitOf (a premium character) yields ' + JSON.stringify(of && [...of.owned]) + ' from ' + JSON.stringify(body.outfit));
+  need('death_log', Array.isArray(R.CS.deathLogOf(cs)), 'deathLogOf reads no death_log: ' + JSON.stringify(body.death_log));
+  return out;
+}
+
+/* The `sheet` verb's answer: the engine's numbers, fresh, and a fall the server kept. */
+function sheetContract(R, cs, body) {
+  const out = [];
+  const need = (sec, cond, msg) => { if (!cond) out.push({ sec, msg }); };
+  const sh = R.CS.characterSheetOf(cs);
+  const c = sh && sh.combat;
+  need('character_sheet', !!sh && sh.fresh && !!c && !!c.damage && c.damage.max >= 1 && c.defence !== null && c.accuracyPct !== null
+    && c.critPct !== null && c.maxMana !== null && !!c.role,
+    'after the sheet verb characterSheetOf yields ' + JSON.stringify(sh) + ' from ' + JSON.stringify(body.character_sheet));
+  const dl = R.CS.deathLogOf(cs);
+  need('death_log', !!dl && dl.length === 1 && dl[0].monster === 'rat' && dl[0].xp === 5 && !!dl[0].hunt,
+    'deathLogOf yields ' + JSON.stringify(dl) + ' from ' + JSON.stringify(body.death_log));
   return out;
 }
 /* The envelope keys CONTRACT covers (with the settle-response keys). */
 export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events', 'hunt_server_now_ms', 'hunt_settings', 'hunt_analyzer',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
-  'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'stamina_refill', 'blessings']);
+  'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'stamina_refill', 'blessings',
+  'character_sheet', 'outfit', 'death_log']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -222,6 +245,7 @@ async function readers(root) {
   return {
     HS: await import(u('src/session/hunt-sections.js')), IS: await import(u('src/session/item-sections.js')),
     PS: await import(u('src/session/party-sections.js')), ACC: await import(u('src/session/account-session.js')),
+    CS: await import(u('src/session/character-sections.js')),
     CFG: await import(u('src/session/config.js')), CSN: await import(u('src/session/character-session.js')),
     M: await import(u('src/data/monsters.js')),
   };
@@ -246,7 +270,10 @@ async function realBody(db, M, H) {
   return { v, h, poses };
 }
 
-async function check(db, M, H, R) {
+/* The engine's `sheet` verb module from `root` (the edge mutants load a mutated copy). */
+const loadSheet = (root) => import(pathToFileURL(join(root, FN, 'character-sheet.js')).href);
+
+async function check(db, M, H, R, SH) {
   const problems = [];
   await H.inTx(db, async () => {
     const { v, poses } = await realBody(db, M, H);
@@ -258,6 +285,14 @@ async function check(db, M, H, R) {
     const cs = new R.CSN.CharacterSession({ slot: 0, uid: H.UIDS[0], server: {}, now: () => 1e6 });
     if (!cs._take(body, 'settle')) { problems.push({ sec: 'CONTROL', msg: 'the client refused the envelope: ' + cs.lastVerdict }); return; }
     problems.push(...contract(R, cs, body, cs.timeline));
+    /* A fall the server keeps, then the Character window's ONE ask through the player door. */
+    await db.query(`insert into public.hunt_session_events (session_id, user_id, slot, type, at, data)
+                    select h.id, h.user_id, h.slot, 'fall', h.settled_to, '{"monster": "rat", "xp": 5, "xp_lost": {"attack": 5}}'::jsonb
+                      from public.hunt_sessions h where h.user_id = $1 and h.slot = 0 order by h.entered_at desc limit 1`, [H.UIDS[0]]);
+    const sv = await SH.runSheet({ exec: H.makeExec(db), user: H.UIDS[0], slot: 0, bucket: 'accrue' });
+    if (!sv || sv.status !== 200 || !sv.body || sv.body.ok !== true || !cs._take(sv.body, 'sheet')) {
+      problems.push({ sec: 'character_sheet', msg: 'the sheet verb answered ' + JSON.stringify(sv && { status: sv.status, error: sv.body && sv.body.error }) + ' / ' + cs.lastVerdict });
+    } else problems.push(...sheetContract(R, cs, sv.body));
     /* Across the run, some pose holds a monster, named by kind, read by huntOf as a monster. */
     const mons = poses.flatMap((hs) => { const u = R.HS.huntOf({ read: (k) => (k === 'hunt' ? hs : undefined) }); return u ? Array.from(u.units.values()).filter((x) => x.side === 'monster') : []; });
     if (!mons.length || !mons.every((x) => x.kind && R.M.MONSTERS[x.kind])) problems.push({ sec: 'hunt', msg: 'no pose over six minutes shows a monster huntOf can name: ' + JSON.stringify(mons.slice(0, 3)) });
@@ -297,10 +332,16 @@ const DB_MUTANTS = [
   ['party_invites', 'public.hr_party_invites_view(uuid,integer)', "'from', public.hr_character_name(", "'sender', public.hr_character_name("],
   ['stamina_refill', 'public.hr_stamina_refill_quote(uuid,integer)', "'restore_ms', v_min * 60000,", "'restore', v_min * 60000,"],
   ['blessings', 'public.hr_blessings_view(uuid,integer)', "'tiers', coalesce(", "'tier_list', coalesce("],
+  ['character_sheet', 'public.hr_character_sheet_view(uuid,integer)', "'slain', (select", "'killed', (select"],
+  ['character_sheet', 'public.hr_character_sheet_view(uuid,integer)', "'combat', case when v_fresh", "'sheet', case when v_fresh"],
+  ['character_sheet', 'public.hr_character_sheet_inputs(uuid,integer)', "'buffs', coalesce((select", "'buffs', clock_timestamp()::text, 'b', coalesce((select"],
+  ['outfit', 'public.hr_outfit_view(uuid,integer)', "'owned', to_jsonb(v_owned)", "'have', to_jsonb(v_owned)"],
+  ['death_log', 'public.hr_death_log_view(uuid,integer)', "'monster', nullif(", "'killer', nullif("],
 ];
 const EDGE_MUTANTS = [
   ['hunt_track', join(FN, 'hunt-track.js'), '    hunt_track: pb.steps.map(', '    track: pb.steps.map('],
   ['hunt_server_now_ms', join(FN, 'hunt-track.js'), '    hunt_server_now_ms: Math.floor(', '    server_now_ms: Math.floor('],
+  ['character_sheet', join(FN, 'character-sheet.js'), '    damage: { min: 1, max: snap.maxHit },', '    dmg: { min: 1, max: snap.maxHit },'],
 ];
 
 async function main() {
@@ -311,8 +352,9 @@ async function main() {
   await H.pinDice(db);
   const R = await readers(H.ROOT);
   const M = await H.loadEdge(H.ROOT);
+  const SH = await loadSheet(H.ROOT);
   if (!MUTATE) {
-    const p = await check(db, M, H, R);
+    const p = await check(db, M, H, R, SH);
     for (const x of p) console.error('✗ ' + x.sec + ': ' + x.msg);
     if (p.length) { console.log('envelope-contract: ' + p.length + ' problem(s)'); process.exit(1); }
     console.log('envelope-contract: green — ' + CONTRACT_KEYS.length + ' keys read by the client from the real settle body ('
@@ -320,7 +362,7 @@ async function main() {
     process.exit(0);
   }
   let bad = 0;
-  const control = await check(db, M, H, R);
+  const control = await check(db, M, H, R, SH);
   if (control.length) { console.error('✗ CONTROL red, no mutant proves anything: ' + control.map((x) => x.sec + ' ' + x.msg).join(' | ')); process.exit(1); }
   for (const [sec, fn, find, repl] of DB_MUTANTS) {
     const def = String(await H.one(db, 'select pg_get_functiondef($1::regprocedure)', [fn])).split(String.fromCharCode(13)).join('');
@@ -329,7 +371,7 @@ async function main() {
     try {
       await db.exec(def.replace(find, repl));
       await db.query('savepoint m');
-      const p = await check(db, M, H, R);
+      const p = await check(db, M, H, R, SH);
       if (p.some((x) => x.sec === sec)) console.log('✓ ' + sec + ' goes red on: ' + fn + ' ' + find.trim() + ' -> ' + repl.trim());
       else { console.error('✗ ' + sec + ' MISSED: ' + fn + ' ' + find.trim() + ' -> ' + repl.trim() + (p.length ? ' (other reds: ' + p.map((x) => x.sec).join(',') + ')' : '')); bad++; }
     } finally { await db.query('rollback'); }
@@ -344,7 +386,7 @@ async function main() {
       if (!src.includes(find)) { console.error('✗ ' + sec + ' edge mutant anchor not in ' + file); bad++; continue; }
       writeFileSync(p0, src.replace(find, repl));
       const Mm = await H.loadEdge(dir);
-      const p = await check(db, Mm, H, R);
+      const p = await check(db, Mm, H, R, await loadSheet(dir));
       if (p.some((x) => x.sec === sec)) console.log('✓ ' + sec + ' goes red on: ' + file + ' ' + find.trim() + ' -> ' + repl.trim());
       else { console.error('✗ ' + sec + ' MISSED: ' + file + ' ' + find.trim()); bad++; }
     } finally { rmSync(dir, { recursive: true, force: true }); }

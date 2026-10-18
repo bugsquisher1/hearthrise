@@ -120,7 +120,8 @@ async function checks(overrides, shots) {
         const a = FIXTURE.hunt_analyzer.hero;
         const got = await page.evaluate(() => Object.fromEntries(Array.from(document.querySelectorAll('[data-sec="totals"] dd')).map((d) => [d.getAttribute('data-stat'), d.textContent])));
         const n = (v) => v.toLocaleString('en-US');
-        const want = { kills: n(a.kills), xp: n(a.xp), gold: n(a.gold) + ' gp', waste: n(a.waste) + ' gp', balance: n(a.balance) + ' gp' };
+        const xpSum = Object.values(a.xp).reduce((x, y) => x + y, 0); /* the server sends XP per skill */
+        const want = { kills: n(a.kills), xp: n(xpSum), gold: n(a.gold) + ' gp', waste: n(a.waste) + ' gp', balance: n(a.balance) + ' gp' };
         for (const k of Object.keys(want)) if (got[k] !== want[k]) fails.push('HS-4 analyzer ' + k + ' shows "' + got[k] + '"; the server sent ' + want[k]);
         /* Idle: display ticks with nothing new write nothing but the running session clocks. */
         const idle = await page.evaluate(async () => {

@@ -8,8 +8,8 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: cb91a2ed8ad63a43093f354f5a720e4a54b11d0333c2b05d3b85cc5deb35fcb7
---   53 supplies, 104 hunts (named + training), 30 limits, 9 end reasons,
+--   digest: 287efb1b87c71f1a1c771075e3ea8290663c0b8cf19771fac00d1267d5ceab85
+--   53 supplies, 104 hunts (named + training), 32 limits, 9 end reasons,
 --   462 vendor values, 18 store supplies paid per use, 5 target modes,
 --   3 lanes, 14 abilities, 11 action-set options, 2 hunt grounds
 --
@@ -98,8 +98,11 @@ create table if not exists public.hr_hunt_set_options (
   limit_key text check (limit_key is null or limit_key ~ '^[a-z0-9_]{1,64}$'),
   vals      text[],
   check ((kind = 'limit') = (limit_key is not null)),
-  check ((kind = 'enum') = (vals is not null))
+  check ((kind = 'enum') = (vals is not null)),
+  dflt      jsonb
 );
+-- The value an unset option takes (null = the role's default for its party).
+alter table public.hr_hunt_set_options add column if not exists dflt jsonb;
 -- A per-hero switch is an option too (chase on / off): kind 'bool'.
 alter table public.hr_hunt_set_options drop constraint if exists hr_hunt_set_options_kind_check;
 alter table public.hr_hunt_set_options add constraint hr_hunt_set_options_kind_check
@@ -113,7 +116,14 @@ create table if not exists public.hr_hunt_abilities (
   mana        int  not null check (mana >= 0),
   rune        text check (rune is null or rune ~ '^[a-z0-9_]{1,64}$'),
   ammo        int  not null check (ammo >= 0),
-  active      boolean not null
+  active      boolean not null,
+  ord         int  not null default 0 check (ord >= 0)
+);
+alter table public.hr_hunt_abilities add column if not exists ord int not null default 0;
+-- EACH ROLE'S ABILITY DISCIPLINE (hunt-roles.js HUNT_ROLES): the default bar.
+create table if not exists public.hr_hunt_roles (
+  role       text primary key check (role ~ '^[a-z0-9_]{1,64}$'),
+  discipline text not null check (discipline ~ '^[a-z0-9_]{1,64}$')
 );
 -- WHERE A HUNT IS FOUGHT (hunt-grounds.js): a hunt with no row here cannot be
 -- entered (no_ground) and its settle has nothing to step. The spawns bound the
@@ -161,7 +171,7 @@ create table if not exists public.hr_hunt_weapon_roles (
 do $$
 declare v_t text;
 begin
-  foreach v_t in array array['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns', 'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_weapons', 'hr_hunt_weapon_roles'] loop
+  foreach v_t in array array['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns', 'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_weapons', 'hr_hunt_weapon_roles', 'hr_hunt_roles'] loop
     execute format('alter table public.%I enable row level security', v_t);
     execute format('revoke all on public.%I from public, anon, authenticated, service_role', v_t);
   end loop;
@@ -250,18 +260,18 @@ insert into public.hr_hunt_lanes (lane, ms, active) values
   ('heal', 1000, true),
   ('offense', 2000, true);
 delete from public.hr_hunt_set_options;
-insert into public.hr_hunt_set_options (opt, kind, limit_key, vals) values
-  ('action_set', 'enum', null, array['hunt', 'mana_train', 'boss']::text[]),
-  ('chase', 'bool', null, null),
-  ('distance', 'limit', 'distance', null),
-  ('drink_below_pct', 'limit', 'threshold_pct', null),
-  ('food_below_pct', 'limit', 'threshold_pct', null),
-  ('gold_floor', 'limit', 'gold_floor', null),
-  ('on_empty', 'enum', null, array['switch', 'end']::text[]),
-  ('role', 'enum', null, array['mage', 'healer']::text[]),
-  ('stance', 'enum', null, array['offensive', 'balanced', 'defensive']::text[]),
-  ('supply_source', 'enum', null, array['mine', 'store']::text[]),
-  ('target_mode', 'target', null, null);
+insert into public.hr_hunt_set_options (opt, kind, limit_key, vals, dflt) values
+  ('action_set', 'enum', null, array['hunt', 'mana_train', 'boss']::text[], '"hunt"'::jsonb),
+  ('chase', 'bool', null, null, null),
+  ('distance', 'limit', 'distance', null, null),
+  ('drink_below_pct', 'limit', 'threshold_pct', null, '30'::jsonb),
+  ('food_below_pct', 'limit', 'threshold_pct', null, '50'::jsonb),
+  ('gold_floor', 'limit', 'gold_floor', null, null),
+  ('on_empty', 'enum', null, array['switch', 'end']::text[], '"switch"'::jsonb),
+  ('role', 'enum', null, array['mage', 'healer']::text[], null),
+  ('stance', 'enum', null, array['offensive', 'balanced', 'defensive']::text[], null),
+  ('supply_source', 'enum', null, array['mine', 'store']::text[], '"mine"'::jsonb),
+  ('target_mode', 'target', null, null, null);
 delete from public.hr_hunt_kill_bounds;
 insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) values
   ('adept', 122, 1307, '{"magic_essence":1,"rune_frag":1,"cracked_spellstone":1,"warlock_gloves":1}'::jsonb),
@@ -391,21 +401,21 @@ insert into public.hr_hunt_target_modes (mode) values
   ('strongest'),
   ('weakest');
 delete from public.hr_hunt_abilities;
-insert into public.hr_hunt_abilities (ability_id, disciplines, lane, cd_ms, mana, rune, ammo, active) values
-  ('arcane_barrier', array['destruction']::text[], 'heal', 20000, 30, null, 0, true),
-  ('challenge', array['shield']::text[], 'offense', 8000, 0, null, 0, true),
-  ('circle_of_renewal', array['restoration']::text[], 'heal', 12000, 50, null, 0, true),
-  ('cleave', array['dual_axe']::text[], 'offense', 6000, 8, null, 0, true),
-  ('fireball', array['destruction']::text[], 'offense', 8000, 25, 'fire_rune', 0, true),
-  ('flame_strike', array['shield']::text[], 'offense', 8000, 10, 'fire_rune', 0, true),
-  ('flame_volley', array['ranged']::text[], 'offense', 10000, 15, 'fire_rune', 3, true),
-  ('frost_lance', array['destruction']::text[], 'offense', 6000, 20, 'frost_rune', 0, false),
-  ('greater_mend', array['restoration']::text[], 'heal', 2000, 25, null, 0, true),
-  ('hunters_mark', array['ranged']::text[], 'offense', 12000, 8, null, 0, true),
-  ('natures_wrath', array['restoration']::text[], 'offense', 10000, 30, null, 0, true),
-  ('power_strike', array['dual_axe', 'shield']::text[], 'offense', 6000, 6, null, 0, true),
-  ('precision_shot', array['ranged']::text[], 'offense', 6000, 6, null, 1, true),
-  ('rend', array['dual_axe']::text[], 'offense', 6000, 8, 'life_rune', 0, false);
+insert into public.hr_hunt_abilities (ability_id, disciplines, lane, cd_ms, mana, rune, ammo, active, ord) values
+  ('arcane_barrier', array['destruction']::text[], 'heal', 20000, 30, null, 0, true, 10),
+  ('challenge', array['shield']::text[], 'offense', 8000, 0, null, 0, true, 0),
+  ('circle_of_renewal', array['restoration']::text[], 'heal', 12000, 50, null, 0, true, 12),
+  ('cleave', array['dual_axe']::text[], 'offense', 6000, 8, null, 0, true, 3),
+  ('fireball', array['destruction']::text[], 'offense', 8000, 25, 'fire_rune', 0, true, 8),
+  ('flame_strike', array['shield']::text[], 'offense', 8000, 10, 'fire_rune', 0, true, 1),
+  ('flame_volley', array['ranged']::text[], 'offense', 10000, 15, 'fire_rune', 3, true, 6),
+  ('frost_lance', array['destruction']::text[], 'offense', 6000, 20, 'frost_rune', 0, false, 9),
+  ('greater_mend', array['restoration']::text[], 'heal', 2000, 25, null, 0, true, 11),
+  ('hunters_mark', array['ranged']::text[], 'offense', 12000, 8, null, 0, true, 5),
+  ('natures_wrath', array['restoration']::text[], 'offense', 10000, 30, null, 0, true, 13),
+  ('power_strike', array['dual_axe', 'shield']::text[], 'offense', 6000, 6, null, 0, true, 2),
+  ('precision_shot', array['ranged']::text[], 'offense', 6000, 6, null, 1, true, 7),
+  ('rend', array['dual_axe']::text[], 'offense', 6000, 8, 'life_rune', 0, false, 4);
 delete from public.hr_hunt_ground_spawns;
 delete from public.hr_hunt_grounds;
 insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn_ms, seats) values
@@ -484,6 +494,13 @@ insert into public.hr_hunt_weapon_roles (weapon_type, roles) values
   ('shield', array['tank']::text[]),
   ('staff', array['mage', 'healer']::text[]),
   ('sword', array['tank']::text[]);
+delete from public.hr_hunt_roles;
+insert into public.hr_hunt_roles (role, discipline) values
+  ('healer', 'restoration'),
+  ('mage', 'destruction'),
+  ('melee_dps', 'dual_axe'),
+  ('ranger', 'ranged'),
+  ('tank', 'shield');
 delete from public.hr_hunt_world_shape;
 insert into public.hr_hunt_world_shape (id, version, shape, fields) values (true, 1, 3852601081, '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"chalMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"downMs":28,"deadMs":29,"hpMilli":30,"stance":31,"acc":32,"maxHit":33,"def":34,"ward":35,"element":36,"swingLeftMs":37,"mana":38,"maxMana":39,"manaMilli":40,"lanes":41,"cds":42,"shield":43,"markBy":44,"markUntil":45,"vulnUntil":46,"statuses":47,"laneAt":48,"otHp":49,"otMana":50,"healedAt":51},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"phase":5,"routeIdx":6,"phaseMs":7,"regroupNext":8,"runs":9,"nextId":10,"xpGroup":11}}'::jsonb);
 delete from public.hr_premium_login_reward;
@@ -613,7 +630,9 @@ insert into public.hr_hunt_limits (key, value) values
   ('magic_xp_permille', 1500),
   ('mana_burst_max', 320),
   ('mana_per_min_max', 3320),
+  ('mana_regen_pct_min', 25),
   ('max_concurrent', 4),
+  ('ooc_regen_permille_s', 60),
   ('party_max', 4),
   ('presets', 5),
   ('sessions_kept', 20),
@@ -1135,7 +1154,7 @@ declare v_role text; v_t text;
 begin
   if (select count(*) from public.hr_hunt_supplies) <> 53
      or (select count(*) from public.hr_hunt_travel) <> 104
-     or (select count(*) from public.hr_hunt_limits) <> 30
+     or (select count(*) from public.hr_hunt_limits) <> 32
      or (select count(*) from public.hr_hunt_end_reasons) <> 9
      or (select count(*) from public.hr_hunt_vendor_value) <> 462
      or (select count(*) from public.hr_hunt_basic_supplies) <> 18
@@ -1153,11 +1172,12 @@ begin
      or (select count(*) from public.hr_premium_login_reward) <> 1
      or (select count(*) from public.hr_hunt_weapons) <> 49
      or (select count(*) from public.hr_hunt_weapon_roles) <> 11
+     or (select count(*) from public.hr_hunt_roles) <> 5
      or (select count(*) from public.hr_hunt_end_reasons where resumes) <> 7 then
     raise exception 'hunt-session catalogue row counts moved from the generator''s'; end if;
   -- The world fields the party section reads by name are all there, at the generator's positions.
   if (select fields from public.hr_hunt_world_shape) is distinct from '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"chalMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"downMs":28,"deadMs":29,"hpMilli":30,"stance":31,"acc":32,"maxHit":33,"def":34,"ward":35,"element":36,"swingLeftMs":37,"mana":38,"maxMana":39,"manaMilli":40,"lanes":41,"cds":42,"shield":43,"markBy":44,"markUntil":45,"vulnUntil":46,"statuses":47,"laneAt":48,"otHp":49,"otMana":50,"healedAt":51},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"phase":5,"routeIdx":6,"phaseMs":7,"regroupNext":8,"runs":9,"nextId":10,"xpGroup":11}}'::jsonb
-     or exists (select 1 from unnest(array['id', 'side', 'alive', 'hp', 'maxHp', 'target', 'mana', 'maxMana', 'downMs', 'otHp', 'otMana']) n
+     or exists (select 1 from unnest(array['id', 'side', 'kind', 'alive', 'x', 'y', 'hp', 'maxHp', 'target', 'mana', 'maxMana', 'shield', 'downMs', 'otHp', 'otMana', 'role', 'dist', 'chase', 'tmode', 'stance']) n
                  where not ((select fields->'unit' from public.hr_hunt_world_shape) ? n)) then
     raise exception 'hr_hunt_world_shape.fields is not world-state.js FIELDS'; end if;
   -- ONE consumable lane, at the data file's ms (the food-lane ruling, spec §3.4 #3).
@@ -1190,11 +1210,11 @@ begin
     raise exception 'a ground spawns a monster with no kill bound'; end if;
   -- No client role reads or writes any of them; no policy exists.
   foreach v_role in array array['anon', 'authenticated'] loop
-    foreach v_t in array array['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns', 'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_weapons', 'hr_hunt_weapon_roles'] loop
+    foreach v_t in array array['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns', 'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_weapons', 'hr_hunt_weapon_roles', 'hr_hunt_roles'] loop
       if has_table_privilege(v_role, 'public.' || v_t, 'select,insert,update,delete,truncate') then
         raise exception '% holds a privilege on %', v_role, v_t; end if;
     end loop;
   end loop;
-  if exists (select 1 from pg_policies where schemaname = 'public' and tablename in ('hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns', 'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_weapons', 'hr_hunt_weapon_roles')) then
+  if exists (select 1 from pg_policies where schemaname = 'public' and tablename in ('hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value', 'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes', 'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns', 'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_weapons', 'hr_hunt_weapon_roles', 'hr_hunt_roles')) then
     raise exception 'a policy exists on the hunt-session catalogue'; end if;
 end $$;

@@ -9,8 +9,11 @@
 // did not send it or sent something malformed. Null always means "show
 // nothing", never "show a default": a missing number is not invented.
 //
-// The shapes below are the client's reading of the spec while the S1 server
-// lane finishes the sections; tests/fixtures/hunt-envelope.json is the fixture.
+// The shapes below are the SERVER's (lane S1: hr_hunt_section_view,
+// hr_hunt_settings_view, hr_hunt_analyzer_view, hr_hunt_party_view,
+// hr_stamina_view, hr_premium_view); tests/envelope-contract.mjs feeds the real
+// projections through these readers, and tests/fixtures/hunt-envelope.json
+// follows the same shapes.
 // A field this reader does not know is ignored; a field it needs and cannot
 // read makes that ROW null, not the whole section.
 // ════════════════════════════════════════════════════════════════════════
@@ -133,25 +136,42 @@ export function isPremium(cs) {
   return !!p && p.active === true;
 }
 
-/** `stamina`: time left and the cap, ms. */
+/** `stamina` (hr_stamina_view { ms, at, max_ms, hunting }): the pool at `at` and the cap, ms. */
 export function staminaOf(cs) {
   const s = section(cs, 'stamina');
-  if (!s || num(s.ms_left) === null) return null;
-  return { msLeft: s.ms_left, capMs: num(s.cap_ms) };
+  if (!s || num(s.ms) === null) return null;
+  const at = typeof s.at === 'string' ? Date.parse(s.at) : NaN;
+  return { msLeft: s.ms, capMs: num(s.max_ms), atMs: Number.isFinite(at) ? at : null, hunting: bool(s.hunting) };
 }
 
+/* A per-skill XP object summed (the analyzer's totals), or the number itself; null when neither. */
+const total = (v) => {
+  if (num(v) !== null) return v;
+  if (!isObj(v)) return null;
+  let t = 0;
+  for (const n of Object.values(v)) if (num(n) !== null) t += n;
+  return t;
+};
+/* { item: count } as rows, largest first (ties by id). */
+const rowsOf = (o, fn) => Object.entries(counts(o)).filter(([k]) => str(k)).sort((x, y) => y[1] - x[1] || (x[0] < y[0] ? -1 : 1)).slice(0, 100).map(fn);
+
+/* One analyzer view (hr_hunt_analyzer: kills, xp {skill: n}, raw_xp {skill: n}, gold, waste, balance,
+   per_hour, supplies { own: {item: n}, store: {item: n}, store_gold }, loot {item: n}, taken / dealt
+   { total, byMonster | byAbility, byElement }). */
 function viewOf(v) {
   if (!isObj(v)) return null;
   const ph = isObj(v.per_hour) ? v.per_hour : {};
-  const lines = (a, fn) => list(a, fn, 100);
+  const sup = isObj(v.supplies) ? v.supplies : {};
+  const tk = isObj(v.taken) ? v.taken : {};
+  const dl = isObj(v.dealt) ? v.dealt : {};
   return {
-    kills: num(v.kills), xp: num(v.xp), rawXp: num(v.raw_xp), gold: num(v.gold), waste: num(v.waste), balance: num(v.balance),
-    perHour: { xp: num(ph.xp), rawXp: num(ph.raw_xp), gold: num(ph.gold), waste: num(ph.waste), balance: num(ph.balance) },
-    supplies: lines(v.supplies, (s) => (isObj(s) && str(s.item) && (s.source === 'own' || s.source === 'store')
-      ? { item: s.item, source: s.source, count: num(s.count), gold: num(s.gold) } : null)),
-    loot: lines(v.loot, (l) => (isObj(l) && str(l.item) ? { item: l.item, count: num(l.count), value: num(l.value) } : null)),
-    takenByMonster: counts(v.taken && v.taken.by_monster), takenByElement: counts(v.taken && v.taken.by_element),
-    dealtByAbility: counts(v.dealt && v.dealt.by_ability), dealtByElement: counts(v.dealt && v.dealt.by_element),
+    kills: num(v.kills), xp: total(v.xp), rawXp: total(v.raw_xp), gold: num(v.gold), waste: num(v.waste), balance: num(v.balance),
+    perHour: { xp: total(ph.xp), rawXp: total(ph.raw_xp), gold: num(ph.gold), waste: num(ph.waste), balance: num(ph.balance) },
+    supplies: rowsOf(sup.own, ([item, n]) => ({ item, source: 'own', count: n, gold: 0 }))
+      .concat(rowsOf(sup.store, ([item, n]) => ({ item, source: 'store', count: n, gold: null }))),
+    loot: rowsOf(v.loot, ([item, n]) => ({ item, count: n, value: null })),
+    takenByMonster: counts(tk.byMonster), takenByElement: counts(tk.byElement),
+    dealtByAbility: counts(dl.byAbility), dealtByElement: counts(dl.byElement),
   };
 }
 
@@ -161,5 +181,9 @@ export function analyzerOf(cs) {
   if (!a) return null;
   const hero = viewOf(a.hero);
   if (!hero) return null;
-  return { sessionMs: num(a.session_ms), nextLevelMs: num(a.next_level_ms), ended: bool(a.ended), hero, party: viewOf(a.party) };
+  /* The next level: the soonest ETA of the hero's own skills (hours, from the server). */
+  let next = null;
+  if (isObj(a.hero.skills)) for (const k of Object.values(a.hero.skills)) if (isObj(k) && num(k.eta_h) !== null && (next === null || k.eta_h * 3600000 < next)) next = Math.round(k.eta_h * 3600000);
+  const sess = isObj(a.session) ? a.session : {};
+  return { sessionMs: num(a.hunt_ms), nextLevelMs: next, ended: typeof sess.ended_at === 'string', hero, party: viewOf(a.party) };
 }

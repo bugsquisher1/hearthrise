@@ -2091,6 +2091,20 @@ jobs:
           node tests/hunt-sessions-settle.mjs
           node tests/hunt-sessions-settle.mjs --closed
           node tests/hunt-sessions-settle.mjs --mutate
+      # THE ENVELOPE CONTRACT (2026-10-18; two server-vs-client shape mismatches in a
+      # row — party seats vs members, the raw world vs huntOf — are a CLASS): a
+      # premium two-hero party settled through the player door on the replayed
+      # chain, its body handed to the real CharacterSession, every client
+      # section reader required to yield the fields its widget draws (hunt,
+      # timeline, settings, analyzer, party, stamina, premium, account, bag,
+      # gear, skills, state), and every read('k') in src/ either contracted or
+      # PENDING with an owner. --mutate renames one field per server producer
+      # (and the settle response's timeline keys) and each must go red.
+      - name: Envelope contract — the real projections through the client's readers
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/envelope-contract.mjs
+          node tests/envelope-contract.mjs --mutate
   artisan-selftest:
     runs-on: ubuntu-latest
     timeout-minutes: 56

@@ -172,6 +172,8 @@
     "node tests/hunt-sessions-settle.mjs": "db-replay-8",
     "node tests/hunt-sessions-settle.mjs --closed": "db-replay-8",
     "node tests/hunt-sessions-settle.mjs --mutate": "db-replay-8",
+    "node tests/envelope-contract.mjs": "db-replay-8",
+    "node tests/envelope-contract.mjs --mutate": "db-replay-8",
     "node tests/artisan-accrual.mjs --selftest": "artisan-selftest",
     "node tests/utc-midnight-replay.mjs": "utc-midnight-replay",
     "node tests/utc-midnight-replay.mjs --selftest": "utc-midnight-replay",

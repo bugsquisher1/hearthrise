@@ -38,7 +38,7 @@ export function tabSessionId(tab, cfg = SESSION_CONFIG, make) {
 }
 
 /** `account.max_concurrent`, the server's concurrent-play limit, from one read key, or null when unstated. Pure. */
-function accountLimitOf(read) {
+export function accountLimitOf(read) {
   const a = read('account');
   return a && typeof a === 'object' && Number.isInteger(a.max_concurrent) && a.max_concurrent >= 1 && a.max_concurrent <= 8 ? a.max_concurrent : null;
 }

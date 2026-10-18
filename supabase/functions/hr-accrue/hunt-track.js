@@ -56,3 +56,19 @@ export function huntPlayback(track, events, fromMs, toMs) {
     cut: { steps: Math.max(0, t.length - MAX_STEPS), events: Math.max(0, e.length - MAX_EVENTS) },
   };
 }
+
+/**
+ * The settle RESPONSE's timeline keys, in the shape the client reads (src/session/envelope.js
+ * TIMELINE_KEYS, src/hunt-view/timeline.js ingest): `hunt_track` [{ u, x, y, atMs }],
+ * `hunt_events` (each with its stable id), `hunt_server_now_ms` (the database clock the window
+ * was read at, so the client measures its offset), and `hunt_cut` (what the bound dropped).
+ */
+export function huntTimeline(track, events, fromMs, toMs, serverNowMs) {
+  const pb = huntPlayback(track, events, fromMs, toMs);
+  return {
+    hunt_track: pb.steps.map(([u, x, y, atMs]) => ({ u, x, y, atMs })),
+    hunt_events: pb.events,
+    hunt_server_now_ms: Math.floor(Number(serverNowMs) || 0),
+    hunt_cut: pb.cut,
+  };
+}

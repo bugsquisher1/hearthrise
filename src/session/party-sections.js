@@ -6,9 +6,12 @@
 // holds; null means "show nothing / keep the control off", never a default.
 //
 // What the S1 server projects (supabase/migrations/2026-10-23-hunt-party.sql,
-// hr_hunt_party_view, on lane/s1-hunt-server):
-//   party   { id, hunt, max, leader: seat, me: seat,
-//             seats: [{ seat, weapon, role, name, hunting, hp, max_hp, dealt, healed }] }
+// hr_hunt_party_view; ONE shape, also read by hunt-sections.js partyOf):
+//   party   { id, hunt, max, open, leader: unit, self: unit, leader_seat, self_seat,
+//             members: [{ unit, seat, hunting, name, level, weapon, role_pick, hp, hp_max, mana,
+//                         mana_max, dealt, healed, dps, hps, down, eating, drinking, aggro }] }
+//   (a solo hunt is a party of one with id null: no party membership here)
+// The finder's answer (hr_hunt_party_finder) keeps its own { seats: [{ seat, weapon, role, name }] }.
 // What this lane asks the server for (CONFLICTS.md 2026-10-18 party UI; the
 // fixture is tests/fixtures/party-envelope.json):
 //   party_invites  [{ id, party, hunt, from }]      invites to THIS character
@@ -40,24 +43,25 @@ function read(cs, key) {
 function seatOf(s) {
   if (!isObj(s) || seatNo(s.seat) === null) return null;
   const w = weapon(s.weapon);
+  const pick = typeof s.role_pick === 'string' ? s.role_pick : typeof s.role === 'string' ? s.role : null;
   return {
-    seat: s.seat, name: name(s.name), weapon: w, role: roleForWeapon(w, typeof s.role === 'string' ? s.role : null),
-    hunting: s.hunting === true, hp: num(s.hp), hpMax: num(s.max_hp), dealt: num(s.dealt), healed: num(s.healed),
+    seat: s.seat, name: name(s.name), weapon: w, role: roleForWeapon(w, pick),
+    hunting: s.hunting === true, hp: num(s.hp), hpMax: num(s.hp_max), dealt: num(s.dealt), healed: num(s.healed),
   };
 }
 
 /** `party` as S1 projects it: this character's own party, or null when it is in none. */
 export function partyMembershipOf(cs) {
   const p = read(cs, 'party');
-  if (!isObj(p) || typeof p.id !== 'string' || !UUID.test(p.id) || !Array.isArray(p.seats)) return null;
-  const seats = p.seats.slice(0, 8).map(seatOf).filter(Boolean).sort((a, b) => a.seat - b.seat);
-  const me = seatNo(p.me);
+  if (!isObj(p) || typeof p.id !== 'string' || !UUID.test(p.id) || !Array.isArray(p.members)) return null;
+  const seats = p.members.slice(0, 8).map(seatOf).filter(Boolean).sort((a, b) => a.seat - b.seat);
+  const me = seatNo(p.self_seat);
   if (me === null || !seats.some((s) => s.seat === me)) return null;
   const max = Number.isInteger(p.max) && p.max >= 1 && p.max <= 8 ? p.max : null;
   return {
     id: p.id, hunt: typeof p.hunt === 'string' && HUNT.test(p.hunt) ? p.hunt : null, max,
-    leader: seatNo(p.leader), me, seats,
-    isLeader: seatNo(p.leader) === me,
+    leader: seatNo(p.leader_seat), me, seats,
+    isLeader: seatNo(p.leader_seat) === me,
     anyHunting: seats.some((s) => s.hunting),
     full: max !== null && seats.length >= max,
   };

@@ -1,5 +1,5 @@
 {
-  "_note": "The hunt screen's fixture envelope (HUNT_SCREEN_SPEC §1.5). The client's reading of the S1 shapes while that lane finishes; src/session/hunt-sections.js reads exactly these fields. Used by tests/hunt-screen.mjs and tests/client-boot.mjs.",
+  "_note": "The hunt screen's fixture envelope (HUNT_SCREEN_SPEC §1.5). The SERVER's S1 shapes (tests/envelope-contract.mjs feeds the real ones through the same readers); src/session/hunt-sections.js reads these fields. Used by tests/hunt-screen.mjs and tests/client-boot.mjs.",
   "ok": true,
   "version": 7,
   "now": "2026-10-17T12:00:00Z",
@@ -235,17 +235,22 @@
     "premium_until": "2026-11-17T00:00:00Z"
   },
   "stamina": {
-    "ms_left": 27780000,
-    "cap_ms": 43200000
+    "ms": 27780000,
+    "at": "2026-10-17T12:00:00Z",
+    "max_ms": 43200000,
+    "hunting": true
   },
   "hunt_analyzer": {
-    "session_ms": 2016000,
-    "next_level_ms": 4912000,
-    "ended": false,
+    "hunt_ms": 2016000,
+    "wall_ms": 2016000,
     "hero": {
       "kills": 164,
-      "xp": 16311,
-      "raw_xp": 6471,
+      "xp": {
+        "hitpoints": 16311
+      },
+      "raw_xp": {
+        "hitpoints": 6471
+      },
       "gold": 2996,
       "waste": 768,
       "balance": 2228,
@@ -256,61 +261,63 @@
         "waste": 1371,
         "balance": 3979
       },
-      "supplies": [
-        {
-          "item": "wheat_bread",
-          "source": "own",
-          "count": 12,
-          "gold": 0
+      "supplies": {
+        "own": {
+          "wheat_bread": 12
         },
-        {
-          "item": "wheat_bread",
-          "source": "store",
-          "count": 4,
-          "gold": 480
+        "store": {
+          "wheat_bread": 4,
+          "goldenroot_tea": 3
         },
-        {
-          "item": "goldenroot_tea",
-          "source": "store",
-          "count": 3,
-          "gold": 258
-        }
-      ],
-      "loot": [
-        {
-          "item": "rat_tail",
-          "count": 31,
-          "value": 310
-        },
-        {
-          "item": "slime_gel",
-          "count": 12,
-          "value": 96
-        }
-      ],
+        "store_gold": 738
+      },
+      "loot": {
+        "rat_tail": 31,
+        "slime_gel": 12
+      },
+      "loot_value": 406,
+      "gold_basis": "vendor_value",
       "taken": {
-        "by_monster": {
+        "total": 850,
+        "byMonster": {
           "rat": 640,
           "slime": 210
         },
-        "by_element": {
+        "byElement": {
           "physical": 850
         }
       },
       "dealt": {
-        "by_ability": {
+        "total": 11500,
+        "byAbility": {
           "basic": 9100,
           "power_strike": 2400
         },
-        "by_element": {
+        "byElement": {
           "physical": 11500
+        }
+      },
+      "healed": {
+        "total": 0,
+        "bySource": {}
+      },
+      "skills": {
+        "hitpoints": {
+          "xp": 16311,
+          "level": 24,
+          "per_hour": 29124,
+          "eta_h": 1.3644444444444443
         }
       }
     },
     "party": {
       "kills": 164,
-      "xp": 30120,
-      "raw_xp": 12900,
+      "xp": {
+        "hitpoints": 30120
+      },
+      "raw_xp": {
+        "hitpoints": 12900
+      },
       "gold": 5992,
       "waste": 1210,
       "balance": 4782,
@@ -321,37 +328,43 @@
         "waste": 2160,
         "balance": 8540
       },
-      "supplies": [
-        {
-          "item": "wheat_bread",
-          "source": "own",
-          "count": 20,
-          "gold": 0
-        }
-      ],
-      "loot": [
-        {
-          "item": "rat_tail",
-          "count": 62,
-          "value": 620
-        }
-      ],
+      "supplies": {
+        "own": {
+          "wheat_bread": 20
+        },
+        "store": {},
+        "store_gold": 0
+      },
+      "loot": {
+        "rat_tail": 62
+      },
+      "loot_value": 620,
+      "gold_basis": "vendor_value",
       "taken": {
-        "by_monster": {
+        "total": 1200,
+        "byMonster": {
           "rat": 1200
         },
-        "by_element": {
+        "byElement": {
           "physical": 1200
         }
       },
       "dealt": {
-        "by_ability": {
+        "total": 18000,
+        "byAbility": {
           "basic": 18000
         },
-        "by_element": {
+        "byElement": {
           "physical": 18000
         }
+      },
+      "healed": {
+        "total": 0,
+        "bySource": {}
       }
+    },
+    "session": {
+      "ended_at": null
     }
   },
   "hunt_server_now_ms": 1760702400000,

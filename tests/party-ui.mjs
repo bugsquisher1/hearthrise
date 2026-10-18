@@ -150,8 +150,8 @@ async function pureRules(M, base) {
   });
 
   await t('PR-1', async () => {
-    const seats = [{ seat: 0, weapon: 'staff', role: 'healer' }, { seat: 1, weapon: 'staff', role: 'tank' }, { seat: 2, weapon: 'bow', role: 'tank' }, { seat: 3, weapon: 'sword', role: 'tank' }];
-    const cs = { read: (k) => (k === 'party' ? { id: '11111111-0000-4000-8000-00000000000a', hunt: 'mill_cellar', max: 4, leader: 0, me: 0, seats } : undefined) };
+    const members = [{ seat: 0, weapon: 'staff', role_pick: 'healer' }, { seat: 1, weapon: 'staff', role_pick: 'tank' }, { seat: 2, weapon: 'bow', role_pick: 'tank' }, { seat: 3, weapon: 'no_such_weapon', role_pick: 'tank' }];
+    const cs = { read: (k) => (k === 'party' ? { id: '11111111-0000-4000-8000-00000000000a', hunt: 'mill_cellar', max: 4, leader_seat: 0, self_seat: 0, members } : undefined) };
     const p = M.PS.partyMembershipOf(cs);
     const roles = p ? p.seats.map((s) => String(s.role)).join(',') : 'none';
     if (roles !== 'healer,mage,ranger,null') return 'seat roles read ' + roles + ', want healer,mage,ranger,null';
@@ -271,7 +271,7 @@ async function pageRules(overrides, shots) {
       await pushEnvelope(page, s, 0);
       if ((await lines()) !== 'fall,rare') fails.push('UI-2 [' + tag + '] after a re-read the alert lines are [' + (await lines()) + ']');
       /* UI-3: the Party window for the leader, between hunts (nobody hunting: Start is on). */
-      for (const seat of s.env[0].party.seats) seat.hunting = false;
+      for (const m of s.env[0].party.members) { m.hunting = false; m.unit = null; }
       await pushEnvelope(page, s, 0);
       if (!(await openWin(page, 'y', 'hunt-party'))) fails.push('UI-3 [' + tag + '] Y did not open the Party window');
       else {

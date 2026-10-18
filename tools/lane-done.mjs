@@ -41,6 +41,9 @@ const STEPS = [
   ['node', ['tests/hunt-view-core.mjs']],
   ['node', ['tests/hunt-scene.mjs']],
   ['node', ['tests/client-intent-surface.mjs']],
+  // The envelope contract (2026-10-18): every section the client reads, from the REAL
+  // projections on PGlite through the real readers. ~1 min (one replay).
+  ['node', ['tests/envelope-contract.mjs']],
   ['node', ['tests/patch-chain-guard.mjs']],
   ['node', ['tests/no-client-xp-mint.mjs']],
   ['node', ['tests/dead-exports.mjs']],

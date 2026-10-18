@@ -106,8 +106,17 @@ begin
     raise exception 'PRECONDITION: hunt_instances, hr_hunt_grounds or hr_hunt_world_shape is absent — apply the S1 catalogue first';
   end if;
   if public.hr_hunt_limit('world_max_bytes') is null or public.hr_hunt_limit('swing_interval_ms') is null
-     or public.hr_hunt_limit('mana_per_min_max') is null then
+     or public.hr_hunt_limit('mana_per_min_max') is null
+     or public.hr_hunt_limit('mana_regen_pct_min') is null or public.hr_hunt_limit('ooc_regen_permille_s') is null then
     raise exception 'PRECONDITION: the S1 limits rows are absent';
+  end if;
+  -- The envelope views read the generated field map, role disciplines, option defaults and bar order.
+  if to_regclass('public.hr_hunt_roles') is null or not exists (select 1 from information_schema.columns
+       where table_schema = 'public' and table_name = 'hr_hunt_set_options' and column_name = 'dflt')
+     or not exists (select 1 from information_schema.columns
+       where table_schema = 'public' and table_name = 'hr_hunt_abilities' and column_name = 'ord')
+     or not exists (select 1 from public.hr_hunt_world_shape where fields ? 'unit') then
+    raise exception 'PRECONDITION: the S1 catalogue (hr_hunt_roles, set-option defaults, ability order, world field map) is absent';
   end if;
   if to_regprocedure('public.hr_hunt_tally_ok(jsonb,text[])') is null
      or to_regprocedure('public.hr_hunt_supply_of(uuid,integer,integer)') is null
@@ -196,25 +205,205 @@ returns jsonb language sql stable set search_path = public, pg_catalog as $$
 $$;
 revoke execute on function public.hr_hunt_view(uuid) from public, anon, authenticated, service_role, hr_engine, hr_tick;
 
--- The `hunt` envelope section: the open (or newest) session, and while it is
--- open the instance's POSE — its world at the last boundary (spec §1.5); a
--- reload re-poses from it. The track and events of a window are the settle
--- RESPONSE's only, never stored.
+-- The `hunt` envelope section, in the shape the hunt screen reads (spec §1.5;
+-- src/session/hunt-sections.js huntOf): the open (or newest) session and, while
+-- it is open, the viewed hero's vitals and the instance's POSE — its world at the
+-- last boundary, decoded BY FIELD NAME (hr_hunt_world_shape.fields, generated
+-- from world-state.js FIELDS) into {at_ms, units[{u, side, kind, boss, alive, x,
+-- y, hp, hp_max}]}; a reload re-poses from it. A pose of any other shape is not
+-- read (no pose, no invented vitals). The track and events of a window are the
+-- settle RESPONSE's only, never stored.
+--   hero.level   the combat level (hr_bounty_combat_level)
+--   hero.xp_pct  progress through the current Hitpoints level, the one skill every
+--                combat role trains (ASSUMED, designer to rule)
+--   hero.hp_regen / mana_regen  per minute: HP out of combat (hunt-tuning.js
+--                oocRegenPermillePerS), mana always (abilities.js manaRegenPctPerMin)
 create or replace function public.hr_hunt_section_view(p_user uuid, p_slot int)
-returns jsonb language sql stable set search_path = public, pg_catalog as $$
-  select case when s.id is null then null else jsonb_build_object(
+returns jsonb language plpgsql stable security definer set search_path = public, pg_catalog as $$
+declare
+  s       public.hunt_sessions%rowtype;
+  i       public.hunt_instances%rowtype;
+  ps      public.player_state%rowtype;
+  v_shape public.hr_hunt_world_shape%rowtype;
+  v_wj    jsonb;
+  v_uf    jsonb;
+  v_units jsonb := '[]'::jsonb;
+  v_me    jsonb;
+  v_u     jsonb;
+  v_side  text;
+  v_kind  text;
+  v_pose  jsonb;
+  v_hpx   bigint;
+  v_lv    int;
+  v_lo    bigint;
+  v_hi    bigint;
+  v_hpmax numeric;
+  v_mpmax numeric;
+begin
+  select * into s from public.hunt_sessions h where h.user_id = p_user and h.slot = p_slot
+   order by (h.ended_at is null) desc, h.entered_at desc, h.id limit 1;
+  if s.id is null then return null; end if;
+  select * into i from public.hunt_instances where id = s.instance_id;
+  select * into ps from public.player_state where user_id = p_user and slot = p_slot;
+  select * into v_shape from public.hr_hunt_world_shape where id;
+  if s.ended_at is null and i.world is not null then
+    begin
+      v_wj := i.world::jsonb;
+    exception when others then
+      v_wj := null;
+    end;
+  end if;
+  if v_wj is not null and jsonb_typeof(v_wj) = 'object' and v_shape.id
+     and (v_wj->>'v') = v_shape.version::text and (v_wj->>'s') = v_shape.shape::text
+     and jsonb_typeof(v_wj->'u') = 'array' then
+    v_uf := v_shape.fields->'unit';
+    for v_u in select e from jsonb_array_elements(v_wj->'u') e loop
+      v_side := case when v_u->>((v_uf->>'side')::int) = 'hero' then 'hero' else 'monster' end;
+      v_kind := v_u->>((v_uf->>'kind')::int);
+      v_units := v_units || jsonb_build_array(jsonb_strip_nulls(jsonb_build_object(
+        'u', v_u->((v_uf->>'id')::int), 'side', v_side,
+        'kind', case when v_side = 'monster' then v_kind end,
+        'boss', case when v_side = 'monster' then exists (select 1 from public.hr_activities a
+                                                            where a.kind = 'combat' and a.activity_id = v_kind and a.is_boss) end,
+        'alive', v_u->((v_uf->>'alive')::int),
+        'x', v_u->((v_uf->>'x')::int), 'y', v_u->((v_uf->>'y')::int),
+        'hp', v_u->((v_uf->>'hp')::int), 'hp_max', v_u->((v_uf->>'maxHp')::int))));
+      if v_side = 'hero' and s.unit_id is not null and (v_u->>((v_uf->>'id')::int))::int = s.unit_id then v_me := v_u; end if;
+    end loop;
+    v_pose := jsonb_build_object('at_ms', floor(extract(epoch from i.settled_to) * 1000)::bigint,
+                                 'world_swing', i.world_swing, 'units', v_units);
+  end if;
+  -- Hitpoints progress through its current level.
+  v_hpx := coalesce((select xp from public.player_skills where user_id = p_user and slot = p_slot and skill_id = 'hitpoints'), 0);
+  v_lv := public.hr_level_from_xp(v_hpx);
+  v_lo := coalesce((select xt.xp from public.hr_xp_table xt where xt.level = v_lv), 0);
+  v_hi := (select xt.xp from public.hr_xp_table xt where xt.level = v_lv + 1);
+  v_hpmax := coalesce((v_me->>((v_uf->>'maxHp')::int))::numeric, ps.max_hp);
+  v_mpmax := (v_me->>((v_uf->>'maxMana')::int))::numeric;
+  return jsonb_build_object(
+    'session_id', s.id, 'hunt_id', s.hunt_id, 'ended', s.ended_at is not null,
+    'hero', jsonb_build_object(
+      'unit', s.unit_id,
+      'name', coalesce((select pr.display_name from public.profiles pr where pr.id = p_user), 'Adventurer'),
+      'level', public.hr_bounty_combat_level(p_user, p_slot),
+      'hp', coalesce(v_me->((v_uf->>'hp')::int), to_jsonb(ps.hp)),
+      'hp_max', to_jsonb(v_hpmax),
+      'mana', v_me->((v_uf->>'mana')::int), 'mana_max', to_jsonb(v_mpmax),
+      'hp_regen', floor(v_hpmax * public.hr_hunt_limit('ooc_regen_permille_s') * 60 / 1000)::bigint,
+      'mana_regen', case when v_mpmax is not null then floor(v_mpmax * public.hr_hunt_limit('mana_regen_pct_min') / 100)::bigint end,
+      'shield', v_me->((v_uf->>'shield')::int),
+      'xp_pct', case when v_hi is not null and v_hi > v_lo then round(least(1, greatest(0, (v_hpx - v_lo)::numeric / (v_hi - v_lo))), 4) end,
+      'falls', s.falls),
+    'pose', v_pose,
+    'loot', coalesce((select jsonb_agg(jsonb_build_object('item', l.key, 'count', floor(l.value::numeric)::bigint) order by l.key)
+                        from public.hunt_session_tally t, jsonb_each_text(coalesce(t.loot, '{}'::jsonb)) l
+                       where t.session_id = s.id and l.value ~ '^[0-9]+(\.[0-9]+)?$' and l.value::numeric >= 1), '[]'::jsonb),
     'session', public.hr_hunt_view(s.id),
-    'pose', case when s.ended_at is null and i.world is not null then i.world::jsonb end,
-    'instance', jsonb_build_object('id', i.id, 'kind', i.kind, 'world_swing', i.world_swing, 'settled_to', i.settled_to)) end
-    from (select 1) one
-    left join lateral (select * from public.hunt_sessions h where h.user_id = p_user and h.slot = p_slot
-                        order by (h.ended_at is null) desc, h.entered_at desc, h.id limit 1) s on true
-    left join public.hunt_instances i on i.id = s.instance_id
-$$;
+    'instance', jsonb_build_object('id', i.id, 'kind', i.kind, 'world_swing', i.world_swing, 'settled_to', i.settled_to));
+end $$;
 revoke execute on function public.hr_hunt_section_view(uuid, int) from public, anon, authenticated, service_role;
 insert into public.hr_state_sections (key, fn, note) values
-  ('hunt', 'hr_hunt_section_view', '2026-10-23-hunt-world-state.sql: the open (or newest) session and its instance pose')
+  ('hunt', 'hr_hunt_section_view', '2026-10-23-hunt-world-state.sql: the open (or newest) session, the viewed hero''s vitals and the decoded instance pose')
   on conflict (key) do update set fn = excluded.fn, note = excluded.note;
+
+-- The `hunt_settings` section, in the shape the settings window reads (spec
+-- §1.5; src/session/hunt-sections.js settingsOf), RESTATED here (after the
+-- world column) from 2026-10-23-hunt-settings-options.sql: the running preset's
+-- EFFECTIVE settings — the stored option, else (while hunting) the value on the
+-- hero's unit (its role's default for this party, roles.js), else the option's
+-- generated default (hr_hunt_set_options.dflt), else null — and its bar as
+-- slots: the stored ability ids of the role's discipline, else the whole
+-- discipline in abilities.js order (hunt-spawn.js heroSetup's rule). `bar` and
+-- `options` stay as stored (what hr_action_set_put / _options write).
+create or replace function public.hr_hunt_settings_view(p_user uuid, p_slot int)
+returns jsonb language plpgsql stable security definer set search_path = public, pg_catalog as $$
+declare
+  s       public.hunt_sessions%rowtype;
+  a       public.player_action_sets%rowtype;
+  i       public.hunt_instances%rowtype;
+  v_shape public.hr_hunt_world_shape%rowtype;
+  v_preset int;
+  v_opt   jsonb;
+  v_wj    jsonb;
+  v_uf    jsonb;
+  v_me    jsonb;
+  v_unit  jsonb := '{}'::jsonb;
+  v_role  text;
+  v_disc  text;
+  v_bar   text[];
+  v_slots jsonb;
+  v_presets jsonb;
+  v_eff   jsonb := '{}'::jsonb;
+  v_o     record;
+  v_val   jsonb;
+begin
+  select * into s from public.hunt_sessions h where h.user_id = p_user and h.slot = p_slot and h.ended_at is null
+   order by h.entered_at desc limit 1;
+  v_preset := coalesce(s.preset, 0);
+  select * into a from public.player_action_sets x where x.user_id = p_user and x.slot = p_slot and x.preset = v_preset;
+  v_opt := coalesce(a.options, '{}'::jsonb);
+  -- The hunting hero's unit: its role and the settings the engine runs it on.
+  if s.id is not null and s.unit_id is not null then
+    select * into i from public.hunt_instances where id = s.instance_id;
+    select * into v_shape from public.hr_hunt_world_shape where id;
+    begin
+      v_wj := i.world::jsonb;
+    exception when others then
+      v_wj := null;
+    end;
+    if v_wj is not null and jsonb_typeof(v_wj) = 'object' and v_shape.id and jsonb_typeof(v_wj->'u') = 'array'
+       and (v_wj->>'v') = v_shape.version::text and (v_wj->>'s') = v_shape.shape::text then
+      v_uf := v_shape.fields->'unit';
+      select e into v_me from jsonb_array_elements(v_wj->'u') e
+       where e->>((v_uf->>'side')::int) = 'hero' and (e->>((v_uf->>'id')::int))::int = s.unit_id limit 1;
+      if v_me is not null then
+        v_role := v_me->>((v_uf->>'role')::int);
+        v_unit := jsonb_build_object('distance', v_me->((v_uf->>'dist')::int), 'chase', v_me->((v_uf->>'chase')::int),
+                                     'target_mode', v_me->((v_uf->>'tmode')::int), 'stance', v_me->((v_uf->>'stance')::int));
+      end if;
+    end if;
+  end if;
+  -- Not hunting: the role the worn weapon gives (a staff's pick kept when it allows it).
+  if v_role is null or v_role = '' then
+    select case when v_opt->>'role' = any (w.roles) then v_opt->>'role' else w.roles[1] end into v_role
+      from public.hr_hunt_weapon_roles w where w.weapon_type = public.hr_hunt_weapon_of(p_user, p_slot);
+  end if;
+  for v_o in select o.opt, o.dflt from public.hr_hunt_set_options o order by o.opt loop
+    v_val := coalesce(v_opt->v_o.opt, v_unit->v_o.opt, v_o.dflt);
+    v_eff := v_eff || jsonb_build_object(v_o.opt, v_val);
+  end loop;
+  select r.discipline into v_disc from public.hr_hunt_roles r where r.role = v_role;
+  select array_agg(x.id order by x.n) into v_bar
+    from (select e.value #>> '{}' as id, e.ordinality as n
+            from jsonb_array_elements(case when jsonb_typeof(a.slots) = 'array' then a.slots else '[]'::jsonb end) with ordinality e) x
+    join public.hr_hunt_abilities ab on ab.ability_id = x.id and v_disc = any (ab.disciplines);
+  if v_bar is null then
+    select array_agg(ab.ability_id order by ab.ord) into v_bar from public.hr_hunt_abilities ab where v_disc = any (ab.disciplines);
+  end if;
+  select coalesce(jsonb_agg(jsonb_build_object(
+           'action', jsonb_build_object('type', 'ability', 'id', ab.ability_id),
+           'conditions', '[]'::jsonb, 'join', 'and', 'mana', ab.mana,
+           'usable', ab.active and (ab.rune is null or exists (select 1 from public.player_inventory pi
+                       where pi.user_id = p_user and pi.slot = p_slot and pi.item_id = ab.rune and pi.qty > 0)))
+           order by b.n), '[]'::jsonb)
+    into v_slots
+    from unnest(coalesce(v_bar, '{}'::text[])) with ordinality b(id, n)
+    join public.hr_hunt_abilities ab on ab.ability_id = b.id;
+  select coalesce(jsonb_agg(jsonb_build_object('preset', x.preset, 'name', x.name) order by x.preset), '[]'::jsonb) into v_presets
+    from public.player_action_sets x where x.user_id = p_user and x.slot = p_slot;
+  if not exists (select 1 from jsonb_array_elements(v_presets) e where (e->>'preset')::int = v_preset) then
+    v_presets := v_presets || jsonb_build_array(jsonb_build_object('preset', v_preset, 'name', 'Preset ' || (v_preset + 1)));
+  end if;
+  return jsonb_build_object(
+    'preset', v_preset, 'presets', v_presets, 'role', v_role,
+    'target_mode', v_eff->'target_mode', 'stance', v_eff->'stance', 'distance', v_eff->'distance', 'chase', v_eff->'chase',
+    'food_pct', v_eff->'food_below_pct', 'drink_pct', v_eff->'drink_below_pct',
+    'supply_source', v_eff->'supply_source', 'on_empty', v_eff->'on_empty', 'action_set', v_eff->'action_set',
+    'gold_floor', v_eff->'gold_floor',
+    'slots', v_slots,
+    'bar', coalesce(a.slots, '[]'::jsonb), 'options', v_opt);
+end $$;
+revoke execute on function public.hr_hunt_settings_view(uuid, int) from public, anon, authenticated, service_role;
 
 -- END A SESSION (C1's body, restated: no presses; the hero leaves its unit).
 -- Leftovers go back to inventory as matched pairs (unless the bag moves on with

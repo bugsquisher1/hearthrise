@@ -46,9 +46,10 @@
 -- ── THE `party` AND `account` SECTIONS ─────────────────────────────────────
 -- hr_hunt_party_view(user, slot): the shape the hunt screen's party panel reads
 -- (spec §1.5; src/session/hunt-sections.js partyOf): {id, hunt, max, open,
--- leader, self, members[{unit, seat, hunting, name, level, weapon, role_pick,
+-- leader, self, leader_seat, self_seat, members[{unit, seat, hunting, name, level, weapon, role_pick,
 -- hp, hp_max, mana, mana_max, dealt, healed, dps, hps, down, eating, drinking,
--- aggro}]}; leader / self / unit are the instance world's unit ids and the
+-- aggro}]}; leader / self / unit are the instance world's unit ids (the hunt
+-- panel), leader_seat / self_seat the party seats (the party window), and the
 -- vitals come off its pose by field name. A solo hunt is a party of one.
 -- Peer data reaches a member only through THIS instance-scoped view, never in
 -- another player's envelope. hr_account_view: {max_concurrent}, the server's
@@ -544,6 +545,8 @@ declare
   v_vit   jsonb := '{}'::jsonb;
   v_lead  int;
   v_self  int;
+  v_sseat int;
+  v_lseat int;
   v_mem   jsonb := '[]'::jsonb;
   v_r     record;
   v_u     jsonb;
@@ -627,7 +630,8 @@ begin
       left join public.hunt_session_tally t on t.session_id = v_r.sid
      where ps.user_id = v_r.user_id and ps.slot = v_r.slot;
     if v_u is not null then v_mem := v_mem || jsonb_build_array(v_u); end if;
-    if v_r.user_id = p_user and v_r.slot = p_slot then v_self := v_r.unit_id; end if;
+    if v_r.user_id = p_user and v_r.slot = p_slot then v_self := v_r.unit_id; v_sseat := v_r.seat; end if;
+    if v_pid is null or (v_r.user_id = v_p.leader_user and v_r.slot = v_p.leader_slot) then v_lseat := v_r.seat; end if;
   end loop;
 
   -- The leader: the pose's pull leader, else the party leader's unit, else (solo) self.
@@ -641,7 +645,7 @@ begin
     'id', v_pid, 'hunt', coalesce(v_p.hunt_id, v_own.hunt_id),
     'max', coalesce(v_p.max_size::int, 1),
     'open', v_pid is not null and jsonb_array_length(v_mem) < v_p.max_size,
-    'leader', v_lead, 'self', v_self, 'members', v_mem);
+    'leader', v_lead, 'self', v_self, 'leader_seat', v_lseat, 'self_seat', v_sseat, 'members', v_mem);
 end $$;
 revoke execute on function public.hr_hunt_party_view(uuid, int) from public, anon, authenticated, service_role;
 insert into public.hr_state_sections (key, fn, note) values
@@ -697,7 +701,7 @@ begin
     for v_i in 2 .. 4 loop
       perform set_config('request.jwt.claim.sub', v_u[v_i]::text, true);
       v := public.hr_hunt_party_join(0, v_pid, ('000000c0-0000-4000-a000-00005e1a050' || v_i)::uuid);
-      if coalesce(v->>'ok', '') <> 'true' or (v->'party'->>'me')::int <> v_i - 1 then raise exception 'VERIFY(a): join % answered %', v_i, v; end if;
+      if coalesce(v->>'ok', '') <> 'true' or (v->'party'->>'self_seat')::int is distinct from v_i - 1 then raise exception 'VERIFY(a): join % answered %', v_i, v; end if;
     end loop;
     perform set_config('request.jwt.claim.sub', v_u[5]::text, true);
     v := public.hr_hunt_party_join(0, v_pid, '000000c0-0000-4000-a000-00005e1a0505');
@@ -712,7 +716,7 @@ begin
     if v->>'error' is distinct from 'not_leader' then raise exception 'VERIFY(c): a non-leader kick answered %', v; end if;
     perform set_config('request.jwt.claim.sub', v_u[1]::text, true);
     v := public.hr_hunt_party_kick(0, 3, '000000c0-0000-4000-a000-00005e1a0512');
-    if coalesce(v->>'ok', '') <> 'true' or jsonb_array_length(v->'party'->'seats') <> 3 then raise exception 'VERIFY(c): the kick answered %', v; end if;
+    if coalesce(v->>'ok', '') <> 'true' or jsonb_array_length(v->'party'->'members') is distinct from 3 then raise exception 'VERIFY(c): the kick answered %', v; end if;
     if jsonb_array_length(public.hr_hunt_party_finder(0, v_hunt, (select w.weapon_type from public.hr_hunt_weapon_roles w
            where not exists (select 1 from public.hunt_party_members m where m.party_id = v_pid and m.weapon_type = w.weapon_type)
            order by w.weapon_type limit 1))->'parties') <> 1
@@ -760,10 +764,11 @@ begin
     if (v->'account'->>'max_concurrent')::int is distinct from public.hr_hunt_limit('max_concurrent') then
       raise exception 'VERIFY(g): the account section is %', v->'account'; end if;
     v := v->'party';
-    if v ? 'seats' or v ? 'me' or jsonb_array_length(v->'members') <> 3
-       or (v->'members'->0->>'seat')::int <> 0 or (v->'members'->0->>'hunting')::boolean is distinct from true
+    if v is null or v ? 'seats' or v ? 'me' or jsonb_array_length(v->'members') is distinct from 3 or (v->>'self_seat')::int is distinct from 0
+       or (v->>'leader_seat')::int is distinct from 0
+       or (v->'members'->0->>'seat')::int is distinct from 0 or (v->'members'->0->>'hunting')::boolean is distinct from true
        or (v->'members'->2->>'hunting')::boolean is distinct from false or ((v->'members'->2) ? 'unit') is distinct from true
-       or v->'members'->2->'hp' <> 'null'::jsonb or not (v->'members'->0 ? 'role_pick') or (v->>'open')::boolean is distinct from true then
+       or (v->'members'->2->'hp') is distinct from 'null'::jsonb or not coalesce(v->'members'->0 ? 'role_pick', false) or (v->>'open')::boolean is distinct from true then
       raise exception 'VERIFY(g): the party section is %', v; end if;
     raise exception using errcode = 'HR860', message = 'hunt-party §5 complete - rolling back';
   exception when sqlstate 'HR860' then

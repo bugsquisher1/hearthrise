@@ -27,7 +27,9 @@
 //   hr_hunt_lanes          the cooldown lanes, ONE source each: consumables.js
 //                          CONSUMABLE_RULES.laneMs (food and drink, `consumable`)
 //                          and abilities.js ABILITY_LANES (`offense`, `heal`)
-//   hr_hunt_abilities      abilities.js ABILITIES (the bar's vocabulary)
+//   hr_hunt_abilities      abilities.js ABILITIES (the bar's vocabulary; `ord` = its order there,
+//                          the default bar's order)
+//   hr_hunt_roles          hunt-roles.js HUNT_ROLES: each role's ability discipline
 //   hr_hunt_set_options    hunt-sessions.js ACTION_SET_OPTIONS (target / limit / enum / bool)
 //   hr_hunt_grounds        hunt-grounds.js HUNT_GROUNDS: per hunt, its ground, seats,
 //   hr_hunt_ground_spawns  pockets, respawn and every spawn (the settle's kill bound)
@@ -101,9 +103,11 @@ import { HIT_XP_PER_DAMAGE, HIT_HP_XP_PER_DAMAGE } from '../src/core/styles.js';
 import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-/** The world fields SQL reads by name (hr_hunt_party_view, 2026-10-23-hunt-party.sql). */
+/** The world fields SQL reads by name (hr_hunt_section_view / hr_hunt_settings_view, 2026-10-23-hunt-world-state.sql;
+    hr_hunt_party_view, 2026-10-23-hunt-party.sql). */
 export const WORLD_FIELDS_READ = Object.freeze({
-  unit: Object.freeze(['id', 'side', 'alive', 'hp', 'maxHp', 'target', 'mana', 'maxMana', 'downMs', 'otHp', 'otMana']),
+  unit: Object.freeze(['id', 'side', 'kind', 'alive', 'x', 'y', 'hp', 'maxHp', 'target', 'mana', 'maxMana', 'shield', 'downMs', 'otHp', 'otMana',
+    'role', 'dist', 'chase', 'tmode', 'stance']),
   world: Object.freeze(['leader']),
 });
 export const OUT_NAME = '2026-10-23-hunt-sessions-catalogue.generated.sql';
@@ -153,7 +157,7 @@ export function catalogueRows(src = {}) {
     basics: BASIC_SUPPLIES, huntTiers: BAG_GUIDE_BY_HUNT, drinks: DRINK_ITEMS,
     targetModes: TARGET_MODES, defaultTarget: DEFAULT_TARGET_MODE,
     resumable: RESUMABLE_KINDS, resumeAfter: RESUME_AFTER_END,
-    consumableLaneMs: CONSUMABLE_RULES.laneMs, abilityLanes: ABILITY_LANES, abilities: ABILITIES,
+    consumableLaneMs: CONSUMABLE_RULES.laneMs, foodBelowPct: CONSUMABLE_RULES.foodBelowPct, drinkBelowPct: CONSUMABLE_RULES.drinkBelowPct, abilityLanes: ABILITY_LANES, abilities: ABILITIES,
     grounds: HUNT_GROUNDS, worldMaxBytes: HUNT_TUNING.worldMaxBytes, partyMax: PARTY.maxSize,
     maxConcurrent: SESSION_CONFIG.maxConcurrentCharacters, maxSlot: SESSION_CONFIG.maxSlot,
     loginReward: PREMIUM_LOGIN_REWARD, worldVersion: WORLD_VERSION, worldShape: SHAPE, worldFields: WORLD_FIELDS,
@@ -234,6 +238,7 @@ export function catalogueRows(src = {}) {
   const staminaPremium = Number(st.premium) / 60000;
   /* THE ABILITIES (the bar's vocabulary) and the largest per-cast shot count. */
   const lanesIn = { consumable: S.consumableLaneMs, ...S.abilityLanes };
+  const abilityOrder = Object.keys(S.abilities);
   const abilities = Object.keys(S.abilities).sort().map((id) => {
     const a = S.abilities[id];
     if (!ID.test(id) || a.id !== id) throw new Error(`ability ${id} is not a [a-z0-9_] id matching its key`);
@@ -242,7 +247,7 @@ export function catalogueRows(src = {}) {
     if (!(whole(a.mana) && a.mana >= 0) || !(whole(a.ammo) && a.ammo >= 0)) throw new Error(`ability ${id} mana / ammo`);
     /* An INACTIVE row may wait on a rune that is not a supply yet (abilities.js header). */
     if (a.active && a.rune !== null && !(own(S.supplies, a.rune))) throw new Error(`ability ${id} names rune ${a.rune}, which is no supply`);
-    return { id, disciplines: [...a.disciplines].sort(), lane: a.lane, cd: a.cdMs, mana: a.mana, rune: a.rune, ammo: a.ammo, active: a.active === true };
+    return { id, ord: abilityOrder.indexOf(id), disciplines: [...a.disciplines].sort(), lane: a.lane, cd: a.cdMs, mana: a.mana, rune: a.rune, ammo: a.ammo, active: a.active === true };
   });
   const lim = {
     presets: S.setLimits.presets, slots: S.setLimits.slots,
@@ -262,6 +267,9 @@ export function catalogueRows(src = {}) {
     threshold_pct_min: S.thresholds.min, threshold_pct_max: S.thresholds.max,
     party_max: S.partyMax,
     max_concurrent: S.maxConcurrent,
+    /* The hero's regen rates the hunt section shows (abilities.js / hunt-tuning.js, one source). */
+    mana_regen_pct_min: S.manaRegenPct,
+    ooc_regen_permille_s: HUNT_TUNING.oocRegenPermillePerS,
     world_max_bytes: S.worldMaxBytes,
     ability_ammo_max: Math.max(0, ...abilities.map((a) => a.ammo)),
     /* THE MAGIC-XP BLAST RADIUS (the value bound): Magic XP is paid per mana
@@ -333,8 +341,12 @@ export function catalogueRows(src = {}) {
   if (!(whole(lim.swing_interval_ms) && lim.swing_interval_ms >= 600)) {
     throw new Error(`the swing interval ${S.swingIntervalMs} is not a whole number of ms >= 600`);
   }
-  const setOptions = Object.keys(S.setOptions).sort().map((k) => {
-    const o = S.setOptions[k];
+  /* The default a setting takes when the hero never set it: the data row's own, else the
+     engine's (consumables.js thresholds); null = the role's default for its party (roles.js). */
+  const THRESHOLD_DEFAULT = { food_below_pct: S.foodBelowPct, drink_below_pct: S.drinkBelowPct };
+  const dfltOf = (k, o) => (o.default !== undefined ? o.default : own(THRESHOLD_DEFAULT, k) ? THRESHOLD_DEFAULT[k] : null);
+  const setOptions = Object.keys(S.setOptions).sort().map((k) => ({ ...setOption(k, S.setOptions[k]), dflt: dfltOf(k, S.setOptions[k]) }));
+  function setOption(k, o) {
     if (!ID.test(k)) throw new Error(`action-set option ${k} is not [a-z0-9_]{1,64}`);
     if (o.kind === 'enum') {
       if (!Array.isArray(o.values) || !o.values.length || !o.values.every((v) => ID.test(v))) throw new Error(`option ${k}: an enum needs [a-z0-9_] values`);
@@ -346,7 +358,7 @@ export function catalogueRows(src = {}) {
     }
     if (o.kind === 'target' || o.kind === 'bool') return { k, kind: o.kind, limit: null, values: null };
     throw new Error(`option ${k}: unknown kind ${o.kind}`);
-  });
+  }
   const targets = Object.keys(S.targetModes).sort().map((m) => {
     if (!ID.test(m)) throw new Error(`target mode ${m} is not [a-z0-9_]{1,64}`);
     return { m };
@@ -405,6 +417,11 @@ export function catalogueRows(src = {}) {
     return { t, roles };
   });
   if (!own(S.weaponRoles, 'neutral')) throw new Error('WEAPON_ROLES has no neutral row (an unarmed hero)');
+  const roleRows = Object.keys(S.roles).sort().map((role) => {
+    const d = S.roles[role].discipline;
+    if (!ID.test(role) || !ID.test(String(d)) || !abilities.some((a) => a.disciplines.includes(d))) throw new Error(`role ${role} has discipline ${d}, which no ability holds`);
+    return { role, d };
+  });
   const lr = S.loginReward || {};
   if (lr.item !== null && !(ID.test(String(lr.item)) && own(S.items, lr.item))) throw new Error(`PREMIUM_LOGIN_REWARD.item ${lr.item} is no item`);
   if (!(whole(lr.qty) && lr.qty >= 1 && lr.qty <= 10)) throw new Error(`PREMIUM_LOGIN_REWARD.qty ${lr.qty} is not 1..10`);
@@ -415,7 +432,7 @@ export function catalogueRows(src = {}) {
   for (const n of WORLD_FIELDS_READ.world) if (!own(worldFields.world, n)) throw new Error(`world field ${n} (read by the party section) is not persisted`);
   return { supplySource, onEmpty, lanes, setOptions, killBounds, supplies, travel, lim, ends, vendor, targets, resumable, basics,
     cover, resume, eventTypes, abilities, grounds, groundSpawns, world: { v: S.worldVersion, shape: S.worldShape, fields: worldFields },
-    login: { item: lr.item ?? null, qty: lr.qty }, weapons, weaponRoles,
+    login: { item: lr.item ?? null, qty: lr.qty }, weapons, weaponRoles, roleRows,
     defaultTarget: S.defaultTarget, slotsMax: S.setLimits.slots };
 }
 
@@ -429,11 +446,12 @@ export function render(src) {
   const boundValues = r.killBounds.map((b) => `  (${sq(b.id)}, ${b.gold}, ${b.xp}, ${sq(JSON.stringify(b.drops))}::jsonb)`).join(',\n');
   const laneValues = r.lanes.map((x) => `  (${sq(x.l)}, ${x.ms}, true)`).join(',\n');
   const optionValues = r.setOptions.map((x) => `  (${sq(x.k)}, ${sq(x.kind)}, ${x.limit ? sq(x.limit) : 'null'}, `
-    + `${x.values ? `array[${x.values.map(sq).join(', ')}]::text[]` : 'null'})`).join(',\n');
+    + `${x.values ? `array[${x.values.map(sq).join(', ')}]::text[]` : 'null'}, ${x.dflt === null ? 'null' : sq(JSON.stringify(x.dflt)) + '::jsonb'})`).join(',\n');
+  const roleValues = r.roleRows.map((x) => `  (${sq(x.role)}, ${sq(x.d)})`).join(',\n');
   const targetValues = r.targets.map((x) => `  (${sq(x.m)})`).join(',\n');
   const resumeList = r.resumable.map(sq).join(', ');
   const abilityValues = r.abilities.map((a) => `  (${sq(a.id)}, array[${a.disciplines.map(sq).join(', ')}]::text[], ${sq(a.lane)}, ${a.cd}, `
-    + `${a.mana}, ${a.rune ? sq(a.rune) : 'null'}, ${a.ammo}, ${a.active})`).join(',\n');
+    + `${a.mana}, ${a.rune ? sq(a.rune) : 'null'}, ${a.ammo}, ${a.active}, ${a.ord})`).join(',\n');
   const groundValues = r.grounds.map((g) => `  (${sq(g.hunt)}, ${sq(g.ground)}, ${g.pockets}, ${g.spawns}, ${g.respawn}, ${g.seats})`).join(',\n');
   const weaponValues = r.weapons.map((w) => `  (${sq(w.id)}, ${sq(w.t)})`).join(',\n');
   const weaponRoleValues = r.weaponRoles.map((w) => `  (${sq(w.t)}, array[${w.roles.map(sq).join(', ')}]::text[])`).join(',\n');
@@ -448,7 +466,7 @@ export function render(src) {
   const CATALOGUE = ['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value',
     'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes',
     'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns',
-    'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_weapons', 'hr_hunt_weapon_roles'];
+    'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_weapons', 'hr_hunt_weapon_roles', 'hr_hunt_roles'];
   const tableList = CATALOGUE.map(sq).join(', ');
   return `-- ════════════════════════════════════════════════════════════════════════
 -- Hearthrise — THE HUNT SESSION CATALOGUE  (GENERATED — DO NOT EDIT)
@@ -550,8 +568,11 @@ create table if not exists public.hr_hunt_set_options (
   limit_key text check (limit_key is null or limit_key ~ '^[a-z0-9_]{1,64}$'),
   vals      text[],
   check ((kind = 'limit') = (limit_key is not null)),
-  check ((kind = 'enum') = (vals is not null))
+  check ((kind = 'enum') = (vals is not null)),
+  dflt      jsonb
 );
+-- The value an unset option takes (null = the role's default for its party).
+alter table public.hr_hunt_set_options add column if not exists dflt jsonb;
 -- A per-hero switch is an option too (chase on / off): kind 'bool'.
 alter table public.hr_hunt_set_options drop constraint if exists hr_hunt_set_options_kind_check;
 alter table public.hr_hunt_set_options add constraint hr_hunt_set_options_kind_check
@@ -565,7 +586,14 @@ create table if not exists public.hr_hunt_abilities (
   mana        int  not null check (mana >= 0),
   rune        text check (rune is null or rune ~ '^[a-z0-9_]{1,64}$'),
   ammo        int  not null check (ammo >= 0),
-  active      boolean not null
+  active      boolean not null,
+  ord         int  not null default 0 check (ord >= 0)
+);
+alter table public.hr_hunt_abilities add column if not exists ord int not null default 0;
+-- EACH ROLE'S ABILITY DISCIPLINE (hunt-roles.js HUNT_ROLES): the default bar.
+create table if not exists public.hr_hunt_roles (
+  role       text primary key check (role ~ '^[a-z0-9_]{1,64}$'),
+  discipline text not null check (discipline ~ '^[a-z0-9_]{1,64}$')
 );
 -- WHERE A HUNT IS FOUGHT (hunt-grounds.js): a hunt with no row here cannot be
 -- entered (no_ground) and its settle has nothing to step. The spawns bound the
@@ -632,7 +660,7 @@ delete from public.hr_hunt_lanes;
 insert into public.hr_hunt_lanes (lane, ms, active) values
 ${laneValues};
 delete from public.hr_hunt_set_options;
-insert into public.hr_hunt_set_options (opt, kind, limit_key, vals) values
+insert into public.hr_hunt_set_options (opt, kind, limit_key, vals, dflt) values
 ${optionValues};
 delete from public.hr_hunt_kill_bounds;
 insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) values
@@ -641,7 +669,7 @@ delete from public.hr_hunt_target_modes;
 insert into public.hr_hunt_target_modes (mode) values
 ${targetValues};
 delete from public.hr_hunt_abilities;
-insert into public.hr_hunt_abilities (ability_id, disciplines, lane, cd_ms, mana, rune, ammo, active) values
+insert into public.hr_hunt_abilities (ability_id, disciplines, lane, cd_ms, mana, rune, ammo, active, ord) values
 ${abilityValues};
 delete from public.hr_hunt_ground_spawns;
 delete from public.hr_hunt_grounds;
@@ -655,6 +683,9 @@ ${weaponValues};
 delete from public.hr_hunt_weapon_roles;
 insert into public.hr_hunt_weapon_roles (weapon_type, roles) values
 ${weaponRoleValues};
+delete from public.hr_hunt_roles;
+insert into public.hr_hunt_roles (role, discipline) values
+${roleValues};
 delete from public.hr_hunt_world_shape;
 insert into public.hr_hunt_world_shape (id, version, shape, fields) values (true, ${r.world.v}, ${r.world.shape}, ${sq(JSON.stringify(r.world.fields))}::jsonb);
 delete from public.hr_premium_login_reward;
@@ -721,6 +752,7 @@ begin
      or (select count(*) from public.hr_premium_login_reward) <> 1
      or (select count(*) from public.hr_hunt_weapons) <> ${r.weapons.length}
      or (select count(*) from public.hr_hunt_weapon_roles) <> ${r.weaponRoles.length}
+     or (select count(*) from public.hr_hunt_roles) <> ${r.roleRows.length}
      or (select count(*) from public.hr_hunt_end_reasons where resumes) <> ${r.ends.filter((e) => e.resumes).length} then
     raise exception 'hunt-session catalogue row counts moved from the generator''s'; end if;
   -- The world fields the party section reads by name are all there, at the generator's positions.

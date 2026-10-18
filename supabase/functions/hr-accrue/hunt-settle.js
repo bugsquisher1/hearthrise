@@ -51,7 +51,7 @@ import { engineInputsFromEnvelope } from './envelope.js';
 import { intentIdFor } from './intents.js';
 import { readTickPerks } from './tick-reads.js';
 import { huntGroundOf } from './hunt-ground.js';
-import { huntPlayback } from './hunt-track.js';
+import { huntTimeline } from './hunt-track.js';
 import { ITEMS } from '../../../src/data/items.js';
 import { MONSTERS } from '../../../src/data/monsters.js';
 import { equipmentStats } from '../../../src/core/combat.js';
@@ -195,7 +195,7 @@ async function settleOnce(o, mode) {
         status: 200,
         body: { ...(res.state || {}), ok: true, settled: !replayed, hunt_settle: own.hunt_settle || null,
           session: own.session || null, instance: res.instance || null,
-          ...(o.project === true ? { hunt_playback: huntPlayback(p.out.track, p.out.events, fromMs, p.out.settledTo) } : {}),
+          ...(o.project === true ? huntTimeline(p.out.track, p.out.events, fromMs, p.out.settledTo, plan.nowMs) : {}),
           ...(degraded ? { degraded } : {}) },
       };
     }
@@ -266,7 +266,7 @@ export async function readHuntSettle(o, mode) {
   }
   const toMs = Number.isFinite(Number(o.atMs)) ? Math.min(nowMs, Math.floor(Number(o.atMs))) : nowMs;
   if (!(toMs > fromMs)) return notDue;
-  return { env, inst, members, where, fromMs, toMs };
+  return { env, inst, members, where, fromMs, toMs, nowMs };
 }
 
 /* (2) THE PROPOSAL: the engine over [fromMs, toMs) and every member's keyed
@@ -372,7 +372,7 @@ export function parseHunts(raw) {
 /* ── THE PLAYER DOOR (index.ts) ──────────────────────────────────────────────
    `hunt_settle`. The body is `{status, body}`; the envelope on a success is the
    caller's post-settle hr_state_of plus `session` (hr_hunt_view) and the
-   window's playback buffer (./hunt-track.js). */
+   window's timeline (./hunt-track.js huntTimeline: hunt_track, hunt_events, hunt_server_now_ms). */
 export async function runHuntVerb(o) {
   const v = await settleHunt({
     exec: o.exec, user: o.user, slot: o.slot, mode: 'settle', bucket: o.bucket, project: true,

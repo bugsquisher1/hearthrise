@@ -133,6 +133,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createHmac } from 'node:crypto';
 import { SHIM_CRYPTO, SHIM_VAULT, SHIM_NET } from './world-tick-token-shims.mjs';
+import { isMain } from './_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MUTATE = process.argv.includes('--mutate');
@@ -1370,7 +1371,7 @@ const MUTANTS = [
   { arm: 'TICK-2', name: '[C2 absence watermark] the window starts at a presence watermark', file: join(FN, 'accrual.js'),
     from: 'const fromMs = Math.floor(nat(w.fromMs, -1));', to: 'const fromMs = Math.floor(nat(inp.accruedToMs, nat(w.fromMs, -1)));' },
   { arm: 'TICK-2', name: '[C2 F11 / no_topup] a deleted read returns to the hunt settle', file: join(FN, 'hunt-settle.js'),
-    from: "import { huntPlayback } from './hunt-track.js';", to: "import { huntPlayback } from './hunt-track.js';\nexport const ATTENDED_READ = 'select * from public.hr_attended_kills($1, $2, $3)';" },
+    from: "import { huntTimeline } from './hunt-track.js';", to: "import { huntTimeline } from './hunt-track.js';\nexport const ATTENDED_READ = 'select * from public.hr_attended_kills($1, $2, $3)';" },
   { arm: 'BUFF', name: 'the hunt never re-measures the buff queue (a buff never pays)', file: 'src/core/combat-sim.js',
     from: "      if (typeof m.buffsAt === 'function') m.buffsAt(atMs);\n", to: '' },
   { arm: 'BUFF', name: '[C2 buff queue at the read clock] the queue is measured once, at the window start', file: join(FN, 'accrual.js'),
@@ -1678,4 +1679,8 @@ async function main() {
   process.exit(bad ? 1 : 0);
 }
 
-main();
+/* The PGlite harness, for tests/envelope-contract.mjs (the real projections fed to the client's readers). */
+export const HARNESS = Object.freeze({ ROOT, UIDS, STRONG, loadEdge, pinDice, hunter, character, settleTo, run, ticksOf,
+  one, q, inTx, makeExec, groundsOf });
+
+if (isMain(import.meta.url)) main();

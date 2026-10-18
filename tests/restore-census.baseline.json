@@ -932,13 +932,18 @@
   },
   "hr_hunt_limits": {
    "class": "seeded",
-   "replay": 30,
+   "replay": 32,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): the session limits (presets, slots, conditions, bag lines, falls and hours ranges, cooldowns, vigour_low threshold, sessions kept). Every RPC reads them; a missing key fails the RPC closed. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_resumable_kinds": {
    "class": "seeded",
    "replay": 3,
    "note": "Generated catalogue (2026-10-22-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check): the activity kinds an automatic hunt end may resume (hunt-sessions.js RESUMABLE_KINDS). Rebuilt from repo, never restored."
+  },
+  "hr_hunt_roles": {
+   "class": "seeded",
+   "replay": 5,
+   "note": "Generated catalogue (2026-10-23-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check from src/data): role -> ability discipline (src/data/hunt-roles.js HUNT_ROLES), the default bar of hr_hunt_settings_view. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_set_options": {
    "class": "seeded",

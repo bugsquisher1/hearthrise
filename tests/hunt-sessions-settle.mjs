@@ -31,6 +31,8 @@
 //              pickSpawn, the single-foe swing, the hs.pull cycle, presses,
 //              src/core/hunt.js (STANCES / Vigour) — and combat-sim.js < 600 lines.
 //   MAXHP      a hitpoints level-up never LOWERS max HP (the FX-4 root cause).
+//   WEAKNESS   a basic swing is priced against its monster (accuracy over its
+//              defence, the weapon weakness paid): a hammer on an ooze out-hits neutral.
 //   BUFF       a hunt READS the timed buff queue (fires none): a live buff pays,
 //              an expired one does not, one ending mid-window pays the same cut or not.
 //   STAMINA-RULE  the pool drains 1:1 hunting, rests 1:1 to the character's
@@ -412,6 +414,31 @@ const ENGINE_ARMS = {
     const cut = runCut(M, mk20(mid), 900000, [T0 + 100000, T0 + 290000, T0 + 310000, T0 + 600000]);
     const sum = (o) => canon({ k: kills(o), g: o.outs.reduce((a, x) => a + (x.members[0].delta.gold || 0), 0), w: o.world });
     if (sum(one) !== sum(cut)) problems.push(`a buff ending mid-window paid differently cut and uncut ${firstDiff(sum(one), sum(cut))}`);
+    return problems;
+  },
+
+  /* WEAKNESS: a basic swing is priced AGAINST its monster (accrual.js rollsVs =
+     combat.js playerCombatRolls): a hammer on an ooze (weak to hammer, 33 HP)
+     lands blows above what the unit's neutral max hit allows after the ooze's
+     defence — the x1.2 the Fight screen quotes is paid. A level-60 hero, so no
+     level-up moves its max hit inside the window; an empty bar, so every blow is
+     a basic swing (abilities price their own hits). */
+  WEAKNESS: async (M) => {
+    const problems = [];
+    const ground = { id: 'ooze_room', hunt: 'mill_cellar', map: 'ooze_room', start: [[2, 8]],
+      pockets: [{ room: [10, 1, 18, 6], spawns: [{ monster: 'ooze', x: 14, y: 3 }, { monster: 'ooze', x: 15, y: 4 }] }],
+      route: [0], respawnMs: 2000, pullDist: 1.5 };
+    const mem = memberIn(M, 'a', { level: 60, empty: 'end', equipment: { weapon: 'stone_maul' }, weaponType: 'hammer',
+      options: { stance: 'balanced' } });
+    mem.hero = { ...mem.hero, bar: [] };
+    const o = M.AC.accrueHunt(instIn(M, [mem], 300000, { ground }));
+    if (!o.accrued || !o.world) return [`CONTROL: the hammer hunt settled nothing (${o.reason})`];
+    const hero = M.WS.decode(JSON.parse(o.world)).units.find((x) => x.side === 'hero');
+    const blows = o.events.filter((e) => e.type === 'dmg' && e.u === hero.id && e.ability === 'basic');
+    const top = blows.reduce((a, e) => Math.max(a, e.amount), 0);
+    const neutral = hero.maxHit - M.C.defenceReduction(M.MONSTERS.ooze);
+    if (!(blows.length > 30)) problems.push(`CONTROL: only ${blows.length} basic blows on the oozes`);
+    else if (!(top > neutral)) problems.push(`a hammer's best blow on an ooze is ${top}, never above the neutral ${neutral} — the weapon weakness is not paid`);
     return problems;
   },
 
@@ -1209,6 +1236,11 @@ const MUTANTS = [
   { arm: 'MAXHP', name: 'a hitpoints level-up sets max HP to the level', file: join(FN, 'accrual.js'),
     from: "if (ev.type === 'levelup' && ev.skill === 'hitpoints' && ev.to > state.playerMaxHp) state.playerMaxHp = ev.to;",
     to: "if (ev.type === 'levelup' && ev.skill === 'hitpoints') state.playerMaxHp = ev.to;" },
+  { arm: 'WEAKNESS', name: 'a basic swing is priced on the neutral snapshot (the matched weapon pays nothing)', file: 'src/core/hunt/damage.js',
+    from: "    const vs = supplied && t.side === 'mon' && typeof inst.heroes[u.id].rollsVs === 'function'",
+    to: "    const vs = false && supplied && t.side === 'mon' && typeof inst.heroes[u.id].rollsVs === 'function'" },
+  { arm: 'WEAKNESS', name: 'the settle hands the swing no per-monster rolls', file: 'src/core/combat-sim.js',
+    from: ' range: m.hero.range, rollsVs: m.rollsVs,', to: ' range: m.hero.range,' },
   { arm: 'STAMINA-RULE', name: 'a swing does not drain the pool', file: 'src/core/action-rules.js',
     from: '  if (hunting) return Math.max(0, v - d);', to: '  if (hunting) return v;' },
   { arm: 'STAMINA-RULE', name: 'an empty pool ends nothing', file: 'src/core/action-rules.js',

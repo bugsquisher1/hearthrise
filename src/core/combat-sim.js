@@ -127,7 +127,8 @@ function endMember(m, why, atMs, world, out) {
  *        playerMaxHp, stats, gold (a delta), recoveringUntilMs }, hero { role,
  *        maxMana, element, settings, bar, actionSet, range, ammo, foodBelowPct,
  *        drinkBelowPct }, snapshot(state) → { acc, maxHit, def }, style,
- *        bonus(key), weakness(row) → { dropMult }, fx, buffsAt?(atMs) (re-measures the timed
+ *        bonus(key), weakness(row) → { dropMult }, rollsVs?(row) → playerCombatRolls
+ *        against that monster (a basic swing's accuracy and weapon weakness), fx, buffsAt?(atMs) (re-measures the timed
  *        buff queue the member's bonus reads, at each of its boundaries) }; snapshot may add ward
  * @param ctx  { toMs, tickMs (COMBAT_BALANCE.tickMs), seed(domain, index), ground, grid, monsters?,
  *        hearthfind? (an indexed Hearthfind table; the catalogue's when absent), xpMultOf?(unitId) }
@@ -191,7 +192,7 @@ export function simulateHuntInstance(inst, ctx) {
       for (const m of members) {
         if (m.left || m.unitId === null) continue;
         byUnit.set(m.unitId, m);
-        heroes[m.unitId] = { hs: m.hs, bar: m.hero.bar, actionSet: m.hero.actionSet, range: m.hero.range,
+        heroes[m.unitId] = { hs: m.hs, bar: m.hero.bar, actionSet: m.hero.actionSet, range: m.hero.range, rollsVs: m.rollsVs,
           ammo: m.hero.ammo, foodBelowPct: m.hero.foodBelowPct, drinkBelowPct: m.hero.drinkBelowPct };
       }
       const r = stepSwing(world, { atMs, swingMs: tick, rng: createRng(seedOf(ctx, 's', sw)),

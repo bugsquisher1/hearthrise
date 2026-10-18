@@ -122,7 +122,14 @@ export function resolveAttacks(inst, sc) {
     const supplied = !!(inst.heroes && inst.heroes[u.id]);
     const shoots = supplied && (u.role === 'ranger' || ((u.role === 'mage' || u.role === 'healer') && !!inst.heroes[u.id].ammo));
     if (shoots && !payBasic(inst, u, { ammo: true }, sc)) continue;
-    swing(inst, sc, u, t, u.acc / 1000, Math.max(1, u.maxHit));
+    /* AGAINST THIS MONSTER (the settle's rollsVs, combat.js playerCombatRolls):
+       the accuracy over its defence with the weapon weakness, and the weakness's
+       damage factor on the unit's max hit (its defence is hurt()'s, once). A
+       bare fixture unit swings on its snapshot. */
+    const vs = supplied && t.side === 'mon' && typeof inst.heroes[u.id].rollsVs === 'function'
+      ? inst.heroes[u.id].rollsVs(MONSTERS[t.kind]) : null;
+    swing(inst, sc, u, t, vs ? vs.accuracy : u.acc / 1000,
+      vs ? Math.max(1, Math.floor(Math.max(1, u.maxHit) * ((vs.weak && vs.weak.damageMult) || 1))) : Math.max(1, u.maxHit));
     if (inst.world.leader === u.id) inst.world.leaderLast = t.id;
     peel(inst, sc, u);
   }

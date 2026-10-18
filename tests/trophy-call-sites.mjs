@@ -29,7 +29,7 @@
 //   C1  the Fight screen (getPlayerCombatRolls) and the loot preview
 //       (getWeaknessInfo), against the REAL src/core-bridge.js, quote exactly
 //       the drop and damage multipliers the hunt engine's ctx pays.
-//   C2  the hunt engine's ctx (accrual.js accrueCombat's `playerRolls` /
+//   C2  the hunt engine's seam (accrual.js memberSide's `rollsVs` /
 //       `weakness`, lifted out of the shipped file and executed) quotes the
 //       same numbers as the core — AWAY-1's "one engine" at the seam.
 //   C3  NO LADDER IN THE NUMBER: for a stage-max trophy and a top-rank charm
@@ -137,13 +137,14 @@ async function run(legacySrc, accrualSrc, C) {
   const fight = client.getPlayerCombatRolls(ROW);
   const preview = client.getWeaknessInfo(ROW);
 
-  // ── THE ENGINE SEAM, lifted out of accrual.js accrueCombat ───────────────
-  const ctxSrc = lift(accrualSrc, '    playerRolls(m, o) {', '\n    fx,\n  };\n\n  // ── (4) Run the ONE span', 'hunt ctx');
+  // ── THE ENGINE SEAM, lifted out of accrual.js memberSide (lane S1) ───────
+  const ctxSrc = lift(accrualSrc, '  const rollsVs = (m) =>', '  /* ⟦end engine seam⟧ */', 'hunt engine seam');
   // eslint-disable-next-line no-new-func
   const engine = new Function(
     'eq', 'equipment', 'items', 'state', 'bonus', 'setBonus', 'profile', 'style',
     'playerCombatRolls', 'monsterCombatRolls', 'weaknessInfo',
-    `return {\n${ctxSrc}\n};`,
+    `${ctxSrc}
+return { playerRolls: rollsVs, weakness };`,
   )(EQ, EQUIPMENT, ITEMS, { skills: {} }, 0, null, undefined, undefined,
     playerCombatRolls, monsterCombatRolls, weaknessInfo);
   const engRolls = engine.playerRolls(ROW);
@@ -152,7 +153,7 @@ async function run(legacySrc, accrualSrc, C) {
   // C2 — the engine's ctx quotes the core's number.
   ok(engWeak && near(engWeak.dropMult, PAID.dropMult) && near(engWeak.damageMult, PAID.damageMult),
     `C2: the hunt engine's ctx.weakness pays drop ${engWeak && engWeak.dropMult} / damage ${engWeak && engWeak.damageMult} `
-    + `against the core's ${PAID.dropMult} / ${PAID.damageMult} — accrual.js accrueCombat must call weaknessInfo(m, eq)`);
+    + `against the core's ${PAID.dropMult} / ${PAID.damageMult} — accrual.js memberSide must call weaknessInfo(m, eq)`);
   ok(engRolls && engRolls.weak && near(engRolls.weak.dropMult, engWeak && engWeak.dropMult),
     `C2: the engine rolls maxHit off drop ${engRolls && engRolls.weak && engRolls.weak.dropMult} and pays ${engWeak && engWeak.dropMult}`);
 
@@ -198,15 +199,15 @@ const MUTATIONS = {
   engine_prices_the_trophy: {
     what: 'accrual.js prices a ladder into ctx.weakness again — the server pays a number the Fight screen does not quote',
     file: 'accrual',
-    find: '    weakness(m) { return weaknessInfo(m, eq); },',
-    repl: '    weakness(m) { const w = weaknessInfo(m, eq); return { ...w, dropMult: w.dropMult * 1.1845 }; },',
+    find: '  const weakness = (m) => weaknessInfo(m, eq);',
+    repl: '  const weakness = (m) => { const w = weaknessInfo(m, eq); return { ...w, dropMult: w.dropMult * 1.1845 }; };',
     expect: 'C2',
   },
   engine_drops_the_loadout: {
     what: 'accrual.js prices the weakness without the equipped loadout — the matched weapon pays no damage on the server',
     file: 'accrual',
-    find: '    weakness(m) { return weaknessInfo(m, eq); },',
-    repl: '    weakness(m) { return weaknessInfo(m, null); },',
+    find: '  const weakness = (m) => weaknessInfo(m, eq);',
+    repl: '  const weakness = (m) => weaknessInfo(m, null);',
     expect: 'C2',
   },
   control_comment_only: {

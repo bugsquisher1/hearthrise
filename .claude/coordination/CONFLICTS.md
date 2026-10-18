@@ -1742,7 +1742,7 @@ The world plan (§2 Home) and the W4 brief say "the template follows `state.plot
 - **Designer (balance, ASSUMED values):**
   1. A fresh melee hero with no gold ends `gold_out` within minutes: the default `switch` buys tier-1 drinks at 90 g for its ability mana (seen on a fixture hunt: about 8 minutes). Price, mana costs or the drink threshold.
   2. `WEAPON_ROLES` interim map: sword / hammer / neutral → melee_dps, ranged → ranger, magic → mage or healer.
-  3. Hunts read no timed buff (spec §3.4 #1: food is HP, drink is mana), so drop-rate / XP buffs and buff-borne perks do not apply in a hunt.
+  3. A hunt READS the timed buff queue (re-measured at every swing boundary) but fires none: buff foods stay parked (spec §3.4 #1). A damage / drop / XP elixir eaten outside the hunt pays inside it.
   4. A caster's basic burns the rune loaded in its ammo slot (the W0 rule kept so Runecrafting has a hunt consumer); a staff basic's mana cost (AB-12) is not wired. The free rung (`ammoPerShot 0`) never depletes. Fractional whetstones are not consumed in a hunt.
   5. The Prayer ward is on the hero unit (a monster's accuracy x (1 - ward)), so Prayer keeps its consumer.
   6. Four balance-measurement guards are red under the instance engine and need a re-measure and re-pin: `field-salvage` (d), `lucky-finds` (d), `w0f-fun-content` (champ), `hearthfind-boss-rate` (elk_king 111/h vs pin 106, grim_reaper 139 vs 128, dragon 100 vs 95). Cause: abilities, one food per 6 s, eat under 50%.

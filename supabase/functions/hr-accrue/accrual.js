@@ -1381,12 +1381,19 @@ function memberSide(mi, ctx) {
   };
   const h = mi.hero || {};
   const snapCtx = { eq, equipment, items, bonus, setBonus, profile, style };
+  /* THE ENGINE SEAM a blow is priced through (tests/trophy-call-sites.mjs lifts
+     and executes these two lines): the hero's rolls AGAINST the monster it
+     swings at — accuracy over the monster's defence and the weapon weakness —
+     and the weakness the drops and damage read. */
+  const rollsVs = (m) => playerCombatRolls(m, { eq, equipment, items, skills: state.skills, bonus, setBonus, profile, style });
+  const weakness = (m) => weaknessInfo(m, eq);
+  /* ⟦end engine seam⟧ */
   return {
     mi, hs, state, fx, style, eq, skills0, xpFrac0, catalogue: items, goals, bestiary, collection, itemDelta, events, xpGained, finds,
     member: {
       key: mi.key, seat: mi.seat, unitId: Number.isInteger(mi.unitId) ? mi.unitId : null, hs, state, fx, style,
       buffsAt: (atMs) => { state.buffs = buffQueueFromServer(buffRows, atMs); },
-      bonus, weakness: (row) => weaknessInfo(row, eq),
+      bonus, weakness, rollsVs,
       snapshot: (st) => heroSnapshot(st, snapCtx),
       hero: { role: h.role, maxMana: h.maxMana, element: h.element || '', settings: h.settings || null,
         bar: h.bar || [], actionSet: h.actionSet || 'hunt', range: h.range || 1, ammo: equipment.ammo || null,

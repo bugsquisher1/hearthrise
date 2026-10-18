@@ -7,7 +7,7 @@
 //   node tests/hunt-screen.mjs --shots <dir>  also write the visual-gate screenshots
 //                                             (1440x900 and 922x423)
 //
-// mutant-anchors: src/render/paint.js src/shell/shell.js src/shell/widgets/ src/shell/windows/ src/session/hunt-sections.js src/data/combat-text.js
+// mutant-anchors: src/render/paint.js src/shell/shell.js src/shell/widgets/ src/shell/windows/ src/session/hunt-sections.js src/data/combat-text.js src/data/condition-metrics.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character's envelope is tests/fixtures/hunt-envelope.json.
@@ -26,6 +26,10 @@
 //         regular monsters; every other float type on for both
 //   HS-6  the combat log (Chat, Combat tab) shows each server event once, even
 //         when the next envelope restates the same events
+//   HS-7  THE SLOT EDITOR: a bar slot opens it on that slot; its metric picker is
+//         the registry (src/data/condition-metrics.js); Save sends ONE intent with
+//         the whole bar; the list keeps the server's slot until the re-read
+//         envelope; a server validation error shows on its slot and condition
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { launchOptions } from './_chrome.mjs';
@@ -213,6 +217,53 @@ async function checks(overrides, shots) {
       await ctx.close();
     }
 
+    { // HS-7 the slot editor: registry pickers, one whole-bar intent, off until confirmed, refusals inline
+      const { ctx, page, s, up } = await open();
+      if (up) {
+        await page.click('.hb-slot[data-slot="2"]');
+        const opened = await wait(page, () => document.querySelector('[data-hs-win="hunt-settings"] .hx-form.is-on'), null, 3000);
+        if (!opened) fails.push('HS-7 pressing a bar slot did not open its editor');
+        else {
+          const picks = await page.evaluate(async () => {
+            const reg = await import('/src/data/condition-metrics.js?v=0.1.0');
+            const shown = Array.from(document.querySelectorAll('.hx-cond[data-cond="0"] [data-f="metric"] option')).map((o) => o.value);
+            return { ok: JSON.stringify(shown) === JSON.stringify(reg.METRICS.map((m) => m.id)), shown, title: document.querySelector('.hx-title').textContent };
+          });
+          if (!picks.ok) fails.push('HS-7 the metric picker is not the registry: ' + picks.shown.join(','));
+          if (picks.title !== 'Slot 3') fails.push('HS-7 the editor opened on "' + picks.title + '", not slot 3');
+          await page.selectOption('.hx-cond[data-cond="0"] [data-f="op"]', 'lt');
+          await page.fill('.hx-cond[data-cond="0"] [data-f="value"]', '40');
+          await page.dispatchEvent('.hx-cond[data-cond="0"] [data-f="value"]', 'change');
+          const before = 'IF My HP % at or below 50% THEN Eat or drink: Wheat Bread';   // the server's slot 3, as the fixture holds it
+          s.env.hunt_settings.slots[2].conditions = [{ metric: 'self_hp_pct', op: 'lt', value: 40 }];
+          await page.click('.hx-form [data-x="save"]');
+          const mid = await page.evaluate(() => ({ off: Array.from(document.querySelectorAll('.hx-bar button, .hx-bar select')).every((b) => b.disabled),
+            sum: document.querySelectorAll('.hx-row')[2].querySelector('.hx-sum').textContent }));
+          if (!mid.off) fails.push('HS-7 the editor stayed on while its intent was in flight');
+          if (mid.sum !== before) fails.push('HS-7 the list showed the edit before the server confirmed it');
+          const sent = s.calls.filter((c) => c.name === 'hr_action_set_options').map((c) => c.body.p_opts);
+          const sl = sent[0] && sent[0].slots;
+          if (sent.length !== 1 || !Array.isArray(sl) || sl.length !== 20 || JSON.stringify(sl[2].conditions) !== '[{"metric":"self_hp_pct","op":"lt","value":40}]'
+            || JSON.stringify(sl[0]) !== JSON.stringify({ action: FIXTURE.hunt_settings.slots[0].action, conditions: FIXTURE.hunt_settings.slots[0].conditions, join: 'and' })) {
+            fails.push('HS-7 the save sent ' + JSON.stringify(sent).slice(0, 300));
+          }
+          const done = await wait(page, () => /below 40%/.test(document.querySelectorAll('.hx-row')[2].querySelector('.hx-sum').textContent)
+            && !document.querySelector('.hx-form').classList.contains('is-on'), null, 3000);
+          if (!done) fails.push('HS-7 after the server confirmed, the slot did not show the server’s new test');
+          /* A refusal: shown inline on the slot and condition the server names; the server's bar stays. */
+          s.optionsReply = { ok: false, error: 'bad_value', slot: 0, condition: 0 };
+          await page.click('.hx-row:nth-child(1) [data-x="edit"]');
+          await page.click('.hx-form [data-x="save"]');
+          const shown = await wait(page, () => document.querySelector('.hx-row:nth-child(1)').classList.contains('is-error')
+            && document.querySelector('.hx-cond[data-cond="0"]').classList.contains('is-error')
+            && document.querySelector('.hx-form .hh-intent-msg').textContent.length > 0, null, 3000);
+          if (!shown) fails.push('HS-7 a server validation error was not shown on its slot and condition');
+          if (shots) await page.screenshot({ path: join(shots, 'hunt-1440x900-slot-editor.png') });
+        }
+      } else fails.push('HS-7 the screen did not mount');
+      await ctx.close();
+    }
+
     if (shots) { // the phone size class
       const { ctx, page, up } = await open({ viewport: { width: 922, height: 423 } });
       if (up) {
@@ -239,6 +290,9 @@ const MUTANTS = [
   ['controls stay on while an intent is in flight', 'src/shell/widgets/settings-intent.js', "prop(el, 'disabled', pending || v === null);", "prop(el, 'disabled', v === null);"],
   ['the analyzer ignores the premium gate', 'src/shell/widgets/analyzer.js', 'const premium = isPremium(ctx.character);', 'const premium = true;'],
   ['the analyzer keeps the last numbers when the section goes', 'src/session/hunt-sections.js', "  const a = section(cs, 'hunt_analyzer');\n", "  const a = section(cs, 'hunt_analyzer') || globalThis.__lastA;\n  globalThis.__lastA = a;\n"],
+  ['the metric picker is a hard-coded list', 'src/shell/windows/bar-editor.js', "aria-label=\"Test ' + (i + 1) + '\">' + options(METRICS.map((m) => [m.id, m.label]))", "aria-label=\"Test ' + (i + 1) + '\">' + options([['self_hp_pct', 'My HP %'], ['self_mana_pct', 'My mana %']])"],
+  ['the slot list shows the draft before the server confirms', 'src/shell/windows/bar-editor.js', "text(li.querySelector('.hx-sum'), slotWords(r.sl.empty ? null : wireSlot(r.sl)));", "text(li.querySelector('.hx-sum'), slotWords(s.open === r.i && s.draft ? s.draft : r.sl.empty ? null : wireSlot(r.sl)));"],
+  ['a server validation error is not shown inline', 'src/shell/windows/bar-editor.js', '  else { s.error = r;', '  else { s.error = null;'],
   ['the bleed badge defaults on for regular monsters', 'src/data/combat-text.js', "label: 'Bleed stack count', on: on(false, true)", "label: 'Bleed stack count', on: on(true, true)"],
 ];
 

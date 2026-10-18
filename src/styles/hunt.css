@@ -169,6 +169,33 @@
 .he-label small { display: block; font-size: var(--t-micro); color: var(--ink-3); }
 .he-unit { color: var(--ink-3); }
 .he-form .hh-intent-msg { margin-top: 6px; }
+.he-editor.is-empty .hx-bar { display: none; }
+
+/* ── The bar's slot editor: a priority list, then "IF … THEN …" for the open slot ── */
+.hx-bar { margin-top: 10px; }
+.hx-slots { margin: 0; padding: 0; list-style: none; }
+.hx-row { display: flex; align-items: center; gap: 6px; min-height: 36px; border-top: 1px solid var(--line-soft); }
+.hx-row .hh-seg { min-width: 30px; padding: 0 6px; }
+.hx-n { width: 22px; flex: none; text-align: right; font-weight: 700; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.hx-sum { flex: 1; min-width: 0; font-size: var(--t-micro); color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hx-row.is-empty .hx-sum { color: var(--ink-3); }
+.hx-row.is-folded { display: none; }
+.hx-row.is-open { background: var(--surf-panel); }
+.hx-row.is-open .hx-n { color: var(--gold-2); }
+.hx-row.is-error .hx-sum, .hx-cond.is-error .hx-kw { color: var(--red); }
+.hx-form { display: none; margin: 8px 0 0; padding: 8px; border: 1px solid var(--line); }
+.hx-form.is-on { display: flex; flex-direction: column; gap: 6px; }
+.hx-title { margin: 0; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); color: var(--gold-2); letter-spacing: .04em; }
+.hx-cond { display: none; flex-wrap: wrap; align-items: center; gap: 4px; }
+.hx-cond.is-on { display: flex; }
+.hx-cond.is-error { outline: 1px solid var(--red); outline-offset: 2px; }
+.hx-cond [data-f="subject"], .hx-cond [data-f="value"], .hx-cond [data-f="effect"] { display: none; }
+.hx-cond [data-f="subject"].is-on, .hx-cond [data-f="value"].is-on, .hx-cond [data-f="effect"].is-on { display: inline-block; }
+.hx-kw { width: 40px; flex: none; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); color: var(--gold); }
+.hx-then { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.hx-more summary { cursor: pointer; font-size: var(--t-micro); color: var(--ink-3); }
+.hx-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.hh-tool.is-primary { color: var(--gold-2); border-color: var(--gold); }
 
 /* ── Chat: the Combat tab ── */
 .hc-chat { display: flex; flex-direction: column; min-height: 260px; }

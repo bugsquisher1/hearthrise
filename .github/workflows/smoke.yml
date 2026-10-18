@@ -251,7 +251,7 @@ jobs:
       # the fixture envelope. Built once and patched in place; edits are intents
       # with the controls off until the server confirms; the analyzer shows only
       # the server's section and only for premium; the bleed badge defaults;
-      # each log line once. --mutate plants seven defects.
+      # each log line once. --mutate plants ten defects; HS-7 is the bar slot editor.
       - name: Hunt screen panels (play.html)
         if: ${{ !cancelled() }}
         run: |

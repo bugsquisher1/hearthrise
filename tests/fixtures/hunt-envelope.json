@@ -4,83 +4,412 @@
   "version": 7,
   "now": "2026-10-17T12:00:00Z",
   "name": "Tyler",
-  "state": { "active_kind": "combat", "active_id": "mill_cellar", "gold": 1200 },
+  "state": {
+    "active_kind": "combat",
+    "active_id": "mill_cellar",
+    "gold": 1200
+  },
   "skills": {},
   "inventory": {},
-  "hero_slots": [0, 1],
+  "hero_slots": [
+    0,
+    1
+  ],
   "hunt": {
     "session_id": "5d1c0f2e-0000-4000-8000-000000000001",
     "hunt_id": "mill_cellar",
     "ended": false,
-    "hero": { "unit": 1, "name": "Tyler", "level": 24, "hp": 180, "hp_max": 220, "mana": 40, "mana_max": 60,
-              "hp_regen": 2, "mana_regen": 1, "shield": 0, "xp_pct": 0.62, "falls": 0 },
-    "pose": { "at_ms": 1760702400000, "units": [
-      { "u": 1, "side": "hero", "x": 10, "y": 8 },
-      { "u": 2, "side": "hero", "x": 8, "y": 9 },
-      { "u": 101, "side": "monster", "kind": "rat", "x": 11, "y": 8 },
-      { "u": 102, "side": "monster", "kind": "slime", "x": 12, "y": 9 },
-      { "u": 103, "side": "monster", "kind": "hive_wasp", "boss": true, "x": 13, "y": 7 }
-    ] }
+    "hero": {
+      "unit": 1,
+      "name": "Tyler",
+      "level": 24,
+      "hp": 180,
+      "hp_max": 220,
+      "mana": 40,
+      "mana_max": 60,
+      "hp_regen": 2,
+      "mana_regen": 1,
+      "shield": 0,
+      "xp_pct": 0.62,
+      "falls": 0
+    },
+    "pose": {
+      "at_ms": 1760702400000,
+      "units": [
+        {
+          "u": 1,
+          "side": "hero",
+          "x": 10,
+          "y": 8
+        },
+        {
+          "u": 2,
+          "side": "hero",
+          "x": 8,
+          "y": 9
+        },
+        {
+          "u": 101,
+          "side": "monster",
+          "kind": "rat",
+          "x": 11,
+          "y": 8
+        },
+        {
+          "u": 102,
+          "side": "monster",
+          "kind": "slime",
+          "x": 12,
+          "y": 9
+        },
+        {
+          "u": 103,
+          "side": "monster",
+          "kind": "hive_wasp",
+          "boss": true,
+          "x": 13,
+          "y": 7
+        }
+      ]
+    }
   },
   "hunt_settings": {
     "preset": 0,
-    "presets": [ { "preset": 0, "name": "Hunt" }, { "preset": 1, "name": "Mana train" } ],
-    "target_mode": "nearest", "stance": "balanced", "distance": 1, "chase": true,
-    "food_pct": 50, "drink_pct": 30, "supply_source": "mine", "on_empty": "switch",
+    "presets": [
+      {
+        "preset": 0,
+        "name": "Hunt"
+      },
+      {
+        "preset": 1,
+        "name": "Mana train"
+      }
+    ],
+    "target_mode": "nearest",
+    "stance": "balanced",
+    "distance": 1,
+    "chase": true,
+    "food_pct": 50,
+    "drink_pct": 30,
+    "supply_source": "mine",
+    "on_empty": "switch",
     "slots": [
-      { "item": "basic", "usable": true },
-      { "item": "power_strike", "usable": true, "mana": 6 },
-      { "item": "flame_strike", "usable": false, "mana": 10 },
-      { "item": "wheat_bread", "usable": true, "count": 14, "threshold_pct": 50 },
-      { "item": "goldenroot_tea", "usable": true, "count": 6, "threshold_pct": 30 },
-      { "item": "fire_rune", "usable": true, "count": 40 },
-      null, null, null, null, null, null, null, null, null, null, null, null, null, null
+      {
+        "action": {
+          "type": "ability",
+          "id": "power_strike"
+        },
+        "conditions": [
+          {
+            "metric": "enemies_in_aoe",
+            "op": "lte",
+            "value": 1
+          }
+        ],
+        "join": "and",
+        "usable": true,
+        "mana": 6
+      },
+      {
+        "action": {
+          "type": "ability",
+          "id": "flame_strike"
+        },
+        "conditions": [
+          {
+            "metric": "target_is_boss",
+            "op": "eq",
+            "value": true
+          }
+        ],
+        "join": "and",
+        "usable": false,
+        "mana": 10
+      },
+      {
+        "action": {
+          "type": "consume",
+          "id": "wheat_bread"
+        },
+        "conditions": [
+          {
+            "metric": "self_hp_pct",
+            "op": "lte",
+            "value": 50
+          }
+        ],
+        "join": "and",
+        "usable": true,
+        "count": 14
+      },
+      {
+        "action": {
+          "type": "consume",
+          "id": "goldenroot_tea"
+        },
+        "conditions": [
+          {
+            "metric": "self_mana_pct",
+            "op": "lte",
+            "value": 30
+          }
+        ],
+        "join": "and",
+        "usable": true,
+        "count": 6
+      },
+      {
+        "action": {
+          "type": "attack_with_item",
+          "id": "fire_rune"
+        },
+        "conditions": [
+          {
+            "metric": "item_qty",
+            "op": "gt",
+            "value": 0,
+            "subject": "item"
+          }
+        ],
+        "join": "and",
+        "usable": true,
+        "count": 40
+      },
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
     ]
   },
   "party": {
-    "leader": 1, "self": 1, "open": true,
+    "leader": 1,
+    "self": 1,
+    "open": true,
     "members": [
-      { "unit": 1, "name": "Tyler", "level": 24, "weapon": "shield", "hp": 180, "hp_max": 220, "mana": 40, "mana_max": 60,
-        "stamina_ms": 27780000, "dealt": 2300, "healed": 0, "dps": 12, "hps": 0, "aggro": true },
-      { "unit": 2, "name": "Mira", "level": 22, "weapon": "bow", "hp": 120, "hp_max": 150, "mana": 70, "mana_max": 100,
-        "stamina_ms": 27720000, "dealt": 2900, "healed": 0, "dps": 15, "hps": 0 }
+      {
+        "unit": 1,
+        "name": "Tyler",
+        "level": 24,
+        "weapon": "shield",
+        "hp": 180,
+        "hp_max": 220,
+        "mana": 40,
+        "mana_max": 60,
+        "stamina_ms": 27780000,
+        "dealt": 2300,
+        "healed": 0,
+        "dps": 12,
+        "hps": 0,
+        "aggro": true
+      },
+      {
+        "unit": 2,
+        "name": "Mira",
+        "level": 22,
+        "weapon": "bow",
+        "hp": 120,
+        "hp_max": 150,
+        "mana": 70,
+        "mana_max": 100,
+        "stamina_ms": 27720000,
+        "dealt": 2900,
+        "healed": 0,
+        "dps": 15,
+        "hps": 0
+      }
     ]
   },
-  "premium": { "active": true, "premium_until": "2026-11-17T00:00:00Z" },
-  "stamina": { "ms_left": 27780000, "cap_ms": 43200000 },
+  "premium": {
+    "active": true,
+    "premium_until": "2026-11-17T00:00:00Z"
+  },
+  "stamina": {
+    "ms_left": 27780000,
+    "cap_ms": 43200000
+  },
   "hunt_analyzer": {
-    "session_ms": 2016000, "next_level_ms": 4912000, "ended": false,
+    "session_ms": 2016000,
+    "next_level_ms": 4912000,
+    "ended": false,
     "hero": {
-      "kills": 164, "xp": 16311, "raw_xp": 6471, "gold": 2996, "waste": 768, "balance": 2228,
-      "per_hour": { "xp": 29124, "raw_xp": 11556, "gold": 5350, "waste": 1371, "balance": 3979 },
+      "kills": 164,
+      "xp": 16311,
+      "raw_xp": 6471,
+      "gold": 2996,
+      "waste": 768,
+      "balance": 2228,
+      "per_hour": {
+        "xp": 29124,
+        "raw_xp": 11556,
+        "gold": 5350,
+        "waste": 1371,
+        "balance": 3979
+      },
       "supplies": [
-        { "item": "wheat_bread", "source": "own", "count": 12, "gold": 0 },
-        { "item": "wheat_bread", "source": "store", "count": 4, "gold": 480 },
-        { "item": "goldenroot_tea", "source": "store", "count": 3, "gold": 258 }
+        {
+          "item": "wheat_bread",
+          "source": "own",
+          "count": 12,
+          "gold": 0
+        },
+        {
+          "item": "wheat_bread",
+          "source": "store",
+          "count": 4,
+          "gold": 480
+        },
+        {
+          "item": "goldenroot_tea",
+          "source": "store",
+          "count": 3,
+          "gold": 258
+        }
       ],
-      "loot": [ { "item": "rat_tail", "count": 31, "value": 310 }, { "item": "slime_gel", "count": 12, "value": 96 } ],
-      "taken": { "by_monster": { "rat": 640, "slime": 210 }, "by_element": { "physical": 850 } },
-      "dealt": { "by_ability": { "basic": 9100, "power_strike": 2400 }, "by_element": { "physical": 11500 } }
+      "loot": [
+        {
+          "item": "rat_tail",
+          "count": 31,
+          "value": 310
+        },
+        {
+          "item": "slime_gel",
+          "count": 12,
+          "value": 96
+        }
+      ],
+      "taken": {
+        "by_monster": {
+          "rat": 640,
+          "slime": 210
+        },
+        "by_element": {
+          "physical": 850
+        }
+      },
+      "dealt": {
+        "by_ability": {
+          "basic": 9100,
+          "power_strike": 2400
+        },
+        "by_element": {
+          "physical": 11500
+        }
+      }
     },
     "party": {
-      "kills": 164, "xp": 30120, "raw_xp": 12900, "gold": 5992, "waste": 1210, "balance": 4782,
-      "per_hour": { "xp": 53780, "raw_xp": 23030, "gold": 10700, "waste": 2160, "balance": 8540 },
-      "supplies": [ { "item": "wheat_bread", "source": "own", "count": 20, "gold": 0 } ],
-      "loot": [ { "item": "rat_tail", "count": 62, "value": 620 } ],
-      "taken": { "by_monster": { "rat": 1200 }, "by_element": { "physical": 1200 } },
-      "dealt": { "by_ability": { "basic": 18000 }, "by_element": { "physical": 18000 } }
+      "kills": 164,
+      "xp": 30120,
+      "raw_xp": 12900,
+      "gold": 5992,
+      "waste": 1210,
+      "balance": 4782,
+      "per_hour": {
+        "xp": 53780,
+        "raw_xp": 23030,
+        "gold": 10700,
+        "waste": 2160,
+        "balance": 8540
+      },
+      "supplies": [
+        {
+          "item": "wheat_bread",
+          "source": "own",
+          "count": 20,
+          "gold": 0
+        }
+      ],
+      "loot": [
+        {
+          "item": "rat_tail",
+          "count": 62,
+          "value": 620
+        }
+      ],
+      "taken": {
+        "by_monster": {
+          "rat": 1200
+        },
+        "by_element": {
+          "physical": 1200
+        }
+      },
+      "dealt": {
+        "by_ability": {
+          "basic": 18000
+        },
+        "by_element": {
+          "physical": 18000
+        }
+      }
     }
   },
   "hunt_server_now_ms": 1760702400000,
   "hunt_track": [
-    { "u": 101, "x": 11, "y": 8, "atMs": 1760702399000 },
-    { "u": 2, "x": 8, "y": 9, "atMs": 1760702399200 }
+    {
+      "u": 101,
+      "x": 11,
+      "y": 8,
+      "atMs": 1760702399000
+    },
+    {
+      "u": 2,
+      "x": 8,
+      "y": 9,
+      "atMs": 1760702399200
+    }
   ],
   "hunt_events": [
-    { "id": "s1:1", "type": "dmg", "atMs": 1760702399100, "u": 1, "t": 101, "amount": 12 },
-    { "id": "s1:2", "type": "dmg", "atMs": 1760702399300, "u": 101, "t": 1, "amount": 4 },
-    { "id": "s1:3", "type": "eat", "atMs": 1760702399500, "u": 1, "item": "wheat_bread", "source": "own" },
-    { "id": "s1:4", "type": "kill", "atMs": 1760702399700, "u": 2, "t": 102, "loot": { "slime_gel": 1 } },
-    { "id": "s1:5", "type": "xp", "atMs": 1760702399700, "u": 1, "amount": 3 }
+    {
+      "id": "s1:1",
+      "type": "dmg",
+      "atMs": 1760702399100,
+      "u": 1,
+      "t": 101,
+      "amount": 12
+    },
+    {
+      "id": "s1:2",
+      "type": "dmg",
+      "atMs": 1760702399300,
+      "u": 101,
+      "t": 1,
+      "amount": 4
+    },
+    {
+      "id": "s1:3",
+      "type": "eat",
+      "atMs": 1760702399500,
+      "u": 1,
+      "item": "wheat_bread",
+      "source": "own"
+    },
+    {
+      "id": "s1:4",
+      "type": "kill",
+      "atMs": 1760702399700,
+      "u": 2,
+      "t": 102,
+      "loot": {
+        "slime_gel": 1
+      }
+    },
+    {
+      "id": "s1:5",
+      "type": "xp",
+      "atMs": 1760702399700,
+      "u": 1,
+      "amount": 3
+    }
   ]
 }

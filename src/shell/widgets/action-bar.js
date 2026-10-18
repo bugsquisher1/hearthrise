@@ -5,8 +5,9 @@
 //   vitals   HP and mana with their regen per second, level and XP, stamina
 //            time left — every number from the `hunt` and `stamina` sections
 //   tablets  the active action set's 20 slots, ten either side of the emblem:
-//            an icon, mana cost top-left, count top-right, the threshold
-//            badge; a slot the server marks unusable is greyed and struck
+//            an icon, mana cost top-left, count top-right, the first
+//            condition's percent; a slot the server marks unusable is greyed
+//            and struck; a press opens the slot editor on that slot
 //   plaque   the action set's name, target, stance, chase and distance — each
 //            change an INTENT through settings-intent.js, the controls off
 //            until the server has confirmed. The full editor (thresholds,
@@ -22,12 +23,16 @@ import { glyphSvg } from '../launcher.js?v=0.1.0';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.1.0';
 import { gaugeHtml, patchGauge, itemIconHtml, itemName, abilityName } from './bits.js?v=0.1.0';
 import { ITEMS } from '../../data/items.js?v=0.1.0';
+import { METRICS } from '../../data/condition-metrics.js?v=0.1.0';
+import { openSlot } from '../windows/bar-editor.js?v=0.1.0';
+
+const METRIC_KIND = new Map(METRICS.map((m) => [m.id, m.value]));
 import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, patchControls, sendOption } from './settings-intent.js?v=0.1.0';
 
 const HALF = (BAR_SLOTS.rows * BAR_SLOTS.cols) / 2;
 
 function slotHtml(i) {
-  return '<li class="hb-slot is-empty" data-slot="' + i + '"><span class="hb-slot-ico"></span>'
+  return '<li class="hb-slot is-empty" data-slot="' + i + '" data-hs-act="slot" role="button" tabindex="0"><span class="hb-slot-ico"></span>'
     + '<small class="hb-mana"></small><small class="hb-count"></small><small class="hb-thr"></small></li>';
 }
 
@@ -72,7 +77,8 @@ function patchSlot(li, s, glyphs) {
   cls(li, 'is-off', !s.empty && !s.usable);
   text(li.querySelector('.hb-mana'), !s.empty && s.mana ? s.mana : '');
   text(li.querySelector('.hb-count'), !s.empty && s.count !== null ? whole(s.count) : '');
-  text(li.querySelector('.hb-thr'), !s.empty && s.threshold !== null ? s.threshold + '%' : '');
+  const c = !s.empty && s.conditions[0];
+  text(li.querySelector('.hb-thr'), c && typeof c.value === 'number' && METRIC_KIND.get(c.metric) === 'pct' ? c.value + '%' : '');
 }
 
 renderActionBar.patch = function patchActionBar(el, ctx) {
@@ -98,6 +104,8 @@ renderActionBar.patch = function patchActionBar(el, ctx) {
 
 renderActionBar.act = function actActionBar(ctx, el, action, ev, t) {
   if (action === 'editor' && ev.type === 'click') { ctx.show('hunt-settings'); return; }
+  /* A slot opens the editor on that slot (BB-18): the bar is configured, never pressed. */
+  if (action === 'slot' && ev.type === 'click') { openSlot(ctx.character, Number(t.getAttribute('data-slot'))); ctx.show('hunt-settings'); return; }
   if (action !== 'opt') return;
   /* A select reports on change; a button on click. */
   if ((t.tagName === 'SELECT') !== (ev.type === 'change')) return;

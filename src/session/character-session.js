@@ -142,7 +142,11 @@ export class CharacterSession {
   async _settled(ans) {
     if (this._closed) return { ok: false, error: 'closed' };
     if (ans.ok && ans.body && ans.body.ok === true) { await this.load(); return { ok: true }; }
-    return { ok: false, error: (ans.body && typeof ans.body.error === 'string' && ans.body.error) || ans.error || 'refused' };
+    const b = ans.body && typeof ans.body === 'object' ? ans.body : {};
+    /* The server's validation detail (which slot, which condition, which field) goes back to the editor as sent. */
+    return { ok: false, error: (typeof b.error === 'string' && b.error) || ans.error || 'refused',
+      slot: Number.isInteger(b.slot) ? b.slot : null, condition: Number.isInteger(b.condition) ? b.condition : null,
+      field: typeof b.field === 'string' ? b.field.slice(0, 32) : null };
   }
 
   _answerFailed(ans) {

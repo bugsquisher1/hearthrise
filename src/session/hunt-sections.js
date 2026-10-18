@@ -62,13 +62,34 @@ export function huntOf(cs) {
   };
 }
 
+const ACTION = /^(ability|consume|attack_with_item)$/;
+const JOIN = /^(and|or)$/;
+
+function conditionOf(c) {
+  if (!isObj(c) || !str(c.metric) || !str(c.op)) return null;
+  const v = c.value;
+  const value = typeof v === 'number' && Number.isFinite(v) ? v : typeof v === 'boolean' ? v : str(v);
+  return { metric: c.metric, op: c.op, value, subject: str(c.subject) };
+}
+
+/* One bar slot: the server's action + conditions (the wire shape the editor sends back,
+   src/data/condition-metrics.js), plus its display fields (usable, mana, count). */
 function slotOf(s) {
-  if (!isObj(s)) return { empty: true };
-  if (!str(s.item)) return { empty: true };
+  if (!isObj(s) || !isObj(s.action) || !ACTION.test(String(s.action.type)) || !str(s.action.id)) return { empty: true };
+  const conditions = list(s.conditions, conditionOf, 3);
   return {
-    empty: false, item: s.item, usable: s.usable !== false,
-    mana: int(s.mana), count: int(s.count), threshold: int(s.threshold_pct),
+    empty: false, item: s.action.id, action: { type: s.action.type, id: s.action.id },
+    conditions, join: JOIN.test(String(s.join)) ? s.join : 'and',
+    usable: s.usable !== false, mana: int(s.mana), count: int(s.count),
   };
+}
+
+/** A slot back in the wire shape (null = empty), for an intent that restates the bar. */
+export function wireSlot(s) {
+  if (!s || s.empty) return null;
+  return { action: { type: s.action.type, id: s.action.id },
+    conditions: s.conditions.map((c) => Object.assign({ metric: c.metric, op: c.op, value: c.value }, c.subject ? { subject: c.subject } : {})),
+    join: s.join };
 }
 
 /** `hunt_settings`: the per-hero options of the active preset, and its bar. */

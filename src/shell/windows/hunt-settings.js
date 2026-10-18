@@ -7,12 +7,14 @@
 // intent (settings-intent.js) and the editor's controls stay off until the
 // server has answered and the re-read envelope replaced the section (HS-07).
 // A desktop window; on a phone the shell shows it as the one full-height sheet
-// with big touch targets (HS-08).
+// with big touch targets (HS-08). Below the options, the bar's slot editor
+// (bar-editor.js): "IF [test] THEN [action]" per slot, in priority order.
 // ════════════════════════════════════════════════════════════════════════
 import { SUPPLY_SOURCE, ON_EMPTY } from '../../data/hunt-sessions.js?v=0.1.0';
 import { settingsOf } from '../../session/hunt-sections.js?v=0.1.0';
 import { text, cls } from '../../render/paint.js?v=0.1.0';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.1.0';
+import { barEditorHtml, patchBarEditor, actBarEditor } from './bar-editor.js?v=0.1.0';
 import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, patchControls, sendOption, SUPPLY_LABEL, ON_EMPTY_LABEL } from '../widgets/settings-intent.js?v=0.1.0';
 
 const opts = (modes, labels) => modes.map((m) => '<option value="' + esc(m) + '">' + esc(labels[m] || m) + '</option>').join('');
@@ -34,7 +36,7 @@ export function renderHuntSettings() {
     + row('Supplies', '<select class="hh-select" data-opt="supply_source" data-hs-act="opt">' + opts(SUPPLY_SOURCE.modes, SUPPLY_LABEL) + '</select>')
     + row('When my bag runs out', '<select class="hh-select" data-opt="on_empty" data-hs-act="opt">' + opts(ON_EMPTY.modes, ON_EMPTY_LABEL) + '</select>')
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p>'
-    + '</div></div>';
+    + '</div>' + barEditorHtml() + '</div>';
 }
 
 renderHuntSettings.patch = function patchHuntSettings(body, ctx) {
@@ -43,12 +45,14 @@ renderHuntSettings.patch = function patchHuntSettings(body, ctx) {
   cls(ed, 'is-empty', !s);
   const set = s && s.presets.find((p) => p.preset === s.preset);
   text(body.querySelector('.he-set'), set ? set.name : s ? 'Set ' + (s.preset + 1) : '');
-  patchControls(ed, ctx.character);
+  patchControls(ed.querySelector('.he-form'), ctx.character);
+  patchBarEditor(body, ctx);
 };
 
 renderHuntSettings.act = function actHuntSettings(ctx, body, action, ev, t) {
+  if (action === 'bar' || action === 'bar-f') { actBarEditor(ctx, body, action, ev, t, () => renderHuntSettings.patch(body, ctx)); return; }
   if (action !== 'opt') return;
   const isField = t.tagName === 'SELECT' || t.tagName === 'INPUT';
   if (isField !== (ev.type === 'change')) return;
-  sendOption(ctx, body.querySelector('.he-editor'), t, () => renderHuntSettings.patch(body, ctx));
+  sendOption(ctx, body.querySelector('.he-form'), t, () => renderHuntSettings.patch(body, ctx));
 };

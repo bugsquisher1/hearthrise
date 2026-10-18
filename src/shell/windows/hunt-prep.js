@@ -76,7 +76,7 @@ renderHuntPrep.patch = function patchHuntPrep(body, ctx) {
     key: (p) => String(p.preset),
     build: (p) => element(ctx.doc, '<li class="hw-line"><span class="hw-line-name"><b></b><small></small></span>'
       + '<button type="button" class="hh-tool" data-hs-act="save-over" data-preset="' + p.preset + '">Save here</button>'
-      + '<button type="button" class="hw-primary is-on" data-hs-act="apply" data-preset="' + p.preset + '">Use</button></li>'),
+      + '<button type="button" class="hh-tool hw-use" data-hs-act="apply" data-preset="' + p.preset + '">Use</button></li>'),
     patch: (li, p) => {
       text(li.querySelector('b'), p.name);
       const gearN = Object.keys(p.gear).length, rs = Object.keys(p.restock).length;

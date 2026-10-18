@@ -49,6 +49,8 @@ async function load(root) {
   M.acc = await raw('supabase/functions/hr-accrue/accrual.js');
   M.hg = await raw('supabase/functions/hr-accrue/hunt-ground.js');
   M.heroSetup = (await raw('src/core/hunt-spawn.js')).heroSetup;
+  M.drops = await imp('src/core/drops.js');
+  M.hf = await imp('src/core/hearthfind.js');
   return M;
 }
 
@@ -358,6 +360,54 @@ const cases = {
     sc.atMs = 600; M.cond.checkStopRules(inst, sc);
     return h.ruleWait === null ? null : 'a wait on a removed rule survived: ' + JSON.stringify(h.ruleWait);
   },
+  /* SCALING IS PAID IN REWARD (designer ruling 2026-10-18): a monster at s/1000 HP pays s/1000 of its row's kill yield,
+     so the yield per HP dealt (and with kill speed set by HP, the yield per hour) is the same for 1, 2, 3 or 4 heroes. */
+  'yield-scale': (M) => {
+    const row = M.MONSTERS.drain_rat;
+    for (const n of [1, 2, 3, 4]) {
+      const w = M.spawn.newHuntWorld(openGround([{ monster: 'drain_rat', x: 16, y: 5 }]), openGrid(M),
+        Array.from({ length: n }, () => ({ role: 'tank', maxHp: 100, acc: 900, maxHit: 5, def: 1 })));
+      const m = w.units.find((u) => u.side === 'mon');
+      const pm = M.grounds.yieldPermille(n);
+      if (m.yieldPm !== pm) return n + ' heroes: the monster pays ' + m.yieldPm + ' permille, the ruling says ' + pm;
+      /* per HP dealt: the kill XP it pays over its HP, against the row's, within one XP of rounding */
+      const xp = Math.round(row.xp * m.yieldPm / 1000);
+      if (Math.abs(xp / m.maxHp - row.xp / row.hp) > 1 / m.maxHp + 1e-9) return n + ' heroes: ' + xp + ' XP for ' + m.maxHp + ' HP vs ' + row.xp + ' for ' + row.hp;
+    }
+    /* every chance scales: a drop (a sure one too) and the Hearthfind */
+    const ch = M.drops.effectiveDropChance({ ch: 0.2 }, { yieldMult: 0.55 }); const sure = M.drops.effectiveDropChance({ ch: 1 }, { yieldMult: 0.55 });
+    if (Math.abs(ch - 0.11) > 1e-9 || Math.abs(sure - 0.55) > 1e-9) return 'drop chances scaled to ' + ch + ' / ' + sure;
+    const seen = []; const rng = { chance: (p) => { seen.push(p); return false; } };
+    M.hf.rollHearthfind({ 'monster:x': { item: 'i', kind: 'monster', id: 'x', oneIn: 1000 } }, 'monster', 'x', rng, 0.55);
+    if (Math.abs(seen[0] - 0.00055) > 1e-12) return 'the hearthfind rolled ' + seen[0];
+    /* and the paid kill: a 550-permille rat's kill XP event */
+    const h = hero(M, 1, 12, 3, { role: 'tank' }); const r = mon(M, 10, 0, 13, 3, { kind: 'drain_rat', hp: 1, maxHp: 25, yieldPm: 550 });
+    const inst = instOf(M, world(M, [h, r])); const sc = subStep(0);
+    M.damage.landHit(inst, sc, h, r, 50, null, null);
+    const paid = sc.events.filter((e) => e.type === 'xp' || e.type === 'xp_group').map((e) => e.amount);
+    M.xpshare.flushXpGroup(inst, sc);
+    const all = sc.events.filter((e) => e.type === 'xp').reduce((a, e) => a + e.amount, 0);
+    return all === Math.round(row.xp * 0.55) ? null : 'a 550-permille kill paid ' + all + ' XP (' + JSON.stringify(paid) + '), want ' + Math.round(row.xp * 0.55);
+  },
+  /* THE KING NEEDS A PARTY: a solo route never includes a minParty pocket; a pair walks it. */
+  'solo-route': (M) => {
+    for (const g of Object.values(M.grounds.HUNT_GROUNDS)) {
+      const solo = M.grounds.routeFor(g, 1);
+      if (solo.some((i) => (g.pockets[i].minParty || 1) > 1)) return g.id + ': the solo route walks a party-only pocket';
+    }
+    const sewer = M.grounds.HUNT_GROUNDS.millrace_sewer;
+    const king = sewer.pockets.findIndex((p) => p.minParty);
+    if (king < 0 || !M.grounds.routeFor(sewer, 2).includes(king)) return 'the King\'s pocket is not on a pair\'s route';
+    /* A solo hero that cannot fall walks the real sewer until its route loops twice. */
+    const { ground, grid } = M.hg.huntGroundOf('millrace_sewer');
+    const w = M.spawn.newHuntWorld(ground, grid, [{ role: 'tank', maxHp: 1e7, hp: 1e7, acc: 1000, maxHit: 400, def: 50 }]);
+    const pulls = [];
+    for (let i = 0; i < 1500 && w.runs < 2; i++) {
+      const r = M.worldstep.stepSwing(w, { ground, grid, heroes: {}, swingMs: 2000, atMs: T0 + i * 2000, rng: M.rng.createRng(M.rng.hashSeed('route', i)) });
+      for (const e of r.events) if (e.type === 'pull') pulls.push(e.pocket);
+    }
+    return w.runs >= 2 && !pulls.includes(king) ? null : 'a solo hunt pulled ' + pulls.join(',') + ' (runs ' + w.runs + ')';
+  },
   'metrics-misc': (M) => {
     const h = hero(M, 1, 12, 3, { target: 10 });
     const boss = mon(M, 10, 0, 13, 3, { kind: 'rat_king', target: 1, statuses: [{ s: 'bleed', src: 1, left: 1000, next: 1000, scale: 1000 }] });
@@ -593,6 +643,9 @@ const mutants = [
   { name: 'target_is_boss reads the wrong flag', case: 'metrics-misc', edits: [['src/core/hunt/conditions.js', 'MONSTERS[t.kind].boss === true', 'MONSTERS[t.kind].formation === false']] },
   { name: 'the id is the slot position', case: 'stable-ids', edits: [['src/core/hunt/conditions.js', '  for (const s of list) if (keep(s)) out.push({ rule: s.id, slot: s });', '  list.forEach((s, i) => { if (keep(s)) out.push({ rule: \'p\' + i, slot: s }); });']] },
   { name: 'a bar edit keeps a dropped rule\'s state', case: 'rekey', edits: [['src/core/hunt/conditions.js', '    for (const [id, ms] of Object.entries(u.ruleHold)) if (ids.has(id)) hold[id] = int(ms);', '    for (const [id, ms] of Object.entries(u.ruleHold)) hold[id] = int(ms);']] },
+  { name: 'a scaled kill pays its row\'s whole XP', case: 'yield-scale', edits: [['src/core/hunt/damage.js', 'xp: Math.round((MONSTERS[target.kind].xp * yieldOf(target)) / 1000) }', 'xp: MONSTERS[target.kind].xp }']] },
+  { name: 'a sure drop ignores the yield share', case: 'yield-scale', edits: [['src/core/drops.js', '  if (row.ch >= 1) return Math.min(1, row.ch * y);', '  if (row.ch >= 1) return row.ch;']] },
+  { name: 'a solo hero walks the King\'s hall', case: 'solo-route', edits: [['src/core/hunt/pull-cycle.js', 'const routeOf = (inst) => routeFor(inst.ground, partySize(inst));', 'const routeOf = (inst) => inst.ground.route;']] },
   { name: 'a wait is reported every sub-step', case: 'rule-wait', edits: [['src/core/hunt/conditions.js', '  if (cur[lane] === key) return;\n', '']] },
   { name: 'a stop rule ignores its hold', case: 'stop-rule', edits: [['src/core/hunt/conditions.js', '      if (t.pass && hold[r.id] >= int(r.forMs)) {', '      if (t.pass) {']] },
   { name: 'the span never ends a met stop rule', case: 'stop-rule-span', edits: [['src/core/combat-sim.js', " || typeof m.hs.ruleStop === 'string' ||", ' ||'], ['src/core/action-rules.js', "  rule: (hs) => typeof hs.ruleStop === 'string' && hs.ruleStop.length > 0,", '  rule: () => false,']] },

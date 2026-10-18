@@ -871,7 +871,7 @@
   },
   "hr_hunt_action_ids": {
    "class": "seeded",
-   "replay": 50,
+   "replay": 51,
    "note": "Catalogue (2026-10-25-action-conditions.sql §1, rows pinned equal to src/data by tests/hunt-core/conditions.mjs sql-rows): the consume and attack_with_item ids a slot may name (condition-metrics.js CONSUME_KINDS, consumables.js own rows, supplies.js ammo). Rebuilt from repo, never restored; nothing player-owned. If it came back empty every conditional bar edit is refused (catalogue_missing / bad_metric), loud, never a wrong grant."
   },
   "hr_hunt_basic_supplies": {
@@ -896,7 +896,7 @@
   },
   "hr_hunt_condition_metrics": {
    "class": "seeded",
-   "replay": 8,
+   "replay": 9,
    "note": "Catalogue (2026-10-25-action-conditions.sql §1, rows pinned equal to src/data by tests/hunt-core/conditions.mjs sql-rows): the condition metrics a bar slot or stop rule may test (src/data/condition-metrics.js METRICS). Rebuilt from repo, never restored; nothing player-owned. If it came back empty every conditional bar edit is refused (catalogue_missing / bad_metric), loud, never a wrong grant."
   },
   "hr_hunt_config": {

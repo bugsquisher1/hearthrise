@@ -43,6 +43,8 @@ export const PERSISTED = Object.freeze({
   pack: Object.freeze([]),
 });
 
+/** The permille of its row's kill yield a monster pays (pull-cycle.js spawnPack stamps it; unstamped = all). */
+export const yieldOf = (m) => (Number.isInteger(m && m.yieldPm) && m.yieldPm > 0 ? m.yieldPm : 1000);
 const stanceOf = (u) => HUNT_STANCES[u && u.stance] || HUNT_STANCES[DEFAULT_STANCE];
 
 /**
@@ -88,7 +90,7 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
   if (r.killed) {
     sc.emit(makeEvent('kill', sc.atMs, { u, t: target.id }));
     fallen(inst, target, sc);
-    if (target.side === 'mon') shareKillXp(inst, { t: target.id, u, xp: MONSTERS[target.kind].xp }, sc);
+    if (target.side === 'mon') shareKillXp(inst, { t: target.id, u, xp: Math.round((MONSTERS[target.kind].xp * yieldOf(target)) / 1000) }, sc);
   }
   return r;
 }

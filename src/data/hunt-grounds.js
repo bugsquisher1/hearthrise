@@ -242,6 +242,7 @@ export function validate() {
   const out = [];
   for (const [key, row] of Object.entries(HUNT_GROUNDS)) {
     if (row.id !== key) out.push(key + ': row id ' + row.id + ' does not match its key');
+    if (row.partyScale !== true) out.push(key + ': a shipped ground carries partyScale: true (designer ruling 2026-10-18)');
     out.push(...validateGround(row));
   }
   return out;

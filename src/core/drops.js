@@ -46,11 +46,13 @@ export function formatDropOdds(ch) {
  */
 export function effectiveDropChance(row, mods) {
   const m = mods || {};
-  if (row.ch >= 1) return row.ch;
+  /* yieldMult: the kill's yield share (a party-scaled monster pays its HP share of every chance, a sure drop included). */
+  const y = m.yieldMult == null ? 1 : m.yieldMult;
+  if (row.ch >= 1) return Math.min(1, row.ch * y);
   const dropMult = m.dropMult == null ? 1 : m.dropMult;
   const dropBuff = m.dropBuff || 0;
   const featured = m.featuredMult == null ? 1 : m.featuredMult;
-  return Math.min(0.95, row.ch * dropMult * (1 + dropBuff) * featured);
+  return Math.min(0.95, row.ch * dropMult * (1 + dropBuff) * featured * y);
 }
 
 /**

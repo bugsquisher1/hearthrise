@@ -8,7 +8,7 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: e8b882b9fac0f383b5257ea9b642fb0d600e8c824a9402fba7ec8d2491a8f580
+--   digest: 78fb4fa35b5b4c320440572c35f95738567641420d3fb62ec3306a870fbf2c3e
 --   53 supplies, 104 hunts (named + training), 36 limits, 10 end reasons,
 --   462 vendor values, 18 store supplies paid per use, 5 target modes,
 --   3 lanes, 14 abilities, 13 action-set options, 2 hunt grounds
@@ -504,7 +504,7 @@ insert into public.hr_hunt_roles (role, discipline) values
   ('ranger', 'ranged'),
   ('tank', 'shield');
 delete from public.hr_hunt_world_shape;
-insert into public.hr_hunt_world_shape (id, version, shape, fields) values (true, 1, 4292689966, '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"chalMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"downMs":28,"deadMs":29,"hpMilli":30,"stance":31,"acc":32,"maxHit":33,"def":34,"ward":35,"element":36,"swingLeftMs":37,"mana":38,"maxMana":39,"manaMilli":40,"lanes":41,"cds":42,"shield":43,"markBy":44,"markUntil":45,"vulnUntil":46,"statuses":47,"laneAt":48,"otHp":49,"otMana":50,"healedAt":51,"ruleHold":52,"ruleWait":53},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"phase":5,"routeIdx":6,"phaseMs":7,"regroupNext":8,"runs":9,"nextId":10,"density":11,"xpGroup":12}}'::jsonb);
+insert into public.hr_hunt_world_shape (id, version, shape, fields) values (true, 1, 4092411505, '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"chalMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"downMs":28,"deadMs":29,"hpMilli":30,"yieldPm":31,"stance":32,"acc":33,"maxHit":34,"def":35,"ward":36,"element":37,"swingLeftMs":38,"mana":39,"maxMana":40,"manaMilli":41,"lanes":42,"cds":43,"shield":44,"markBy":45,"markUntil":46,"vulnUntil":47,"statuses":48,"laneAt":49,"otHp":50,"otMana":51,"healedAt":52,"ruleHold":53,"ruleWait":54},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"phase":5,"routeIdx":6,"phaseMs":7,"regroupNext":8,"runs":9,"nextId":10,"density":11,"xpGroup":12}}'::jsonb);
 delete from public.hr_premium_login_reward;
 insert into public.hr_premium_login_reward (id, item_id, qty) values (true, 'oak_practice_blade', 1);
 delete from public.hr_hunt_travel;
@@ -1183,7 +1183,7 @@ begin
      or (select count(*) from public.hr_hunt_end_reasons where resumes) <> 8 then
     raise exception 'hunt-session catalogue row counts moved from the generator''s'; end if;
   -- The world fields the party section reads by name are all there, at the generator's positions.
-  if (select fields from public.hr_hunt_world_shape) is distinct from '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"chalMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"downMs":28,"deadMs":29,"hpMilli":30,"stance":31,"acc":32,"maxHit":33,"def":34,"ward":35,"element":36,"swingLeftMs":37,"mana":38,"maxMana":39,"manaMilli":40,"lanes":41,"cds":42,"shield":43,"markBy":44,"markUntil":45,"vulnUntil":46,"statuses":47,"laneAt":48,"otHp":49,"otMana":50,"healedAt":51,"ruleHold":52,"ruleWait":53},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"phase":5,"routeIdx":6,"phaseMs":7,"regroupNext":8,"runs":9,"nextId":10,"density":11,"xpGroup":12}}'::jsonb
+  if (select fields from public.hr_hunt_world_shape) is distinct from '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"chalMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"downMs":28,"deadMs":29,"hpMilli":30,"yieldPm":31,"stance":32,"acc":33,"maxHit":34,"def":35,"ward":36,"element":37,"swingLeftMs":38,"mana":39,"maxMana":40,"manaMilli":41,"lanes":42,"cds":43,"shield":44,"markBy":45,"markUntil":46,"vulnUntil":47,"statuses":48,"laneAt":49,"otHp":50,"otMana":51,"healedAt":52,"ruleHold":53,"ruleWait":54},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"phase":5,"routeIdx":6,"phaseMs":7,"regroupNext":8,"runs":9,"nextId":10,"density":11,"xpGroup":12}}'::jsonb
      or exists (select 1 from unnest(array['id', 'side', 'kind', 'alive', 'x', 'y', 'hp', 'maxHp', 'target', 'mana', 'maxMana', 'shield', 'downMs', 'otHp', 'otMana', 'role', 'dist', 'chase', 'tmode', 'stance']) n
                  where not ((select fields->'unit' from public.hr_hunt_world_shape) ? n)) then
     raise exception 'hr_hunt_world_shape.fields is not world-state.js FIELDS'; end if;

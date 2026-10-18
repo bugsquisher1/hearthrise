@@ -167,7 +167,7 @@ const MUTANTS = [
   ['the recovery link is ignored', 'src/app/boot.js', [["if (ev === 'recovery') showAuth('set-password');", "if (ev === 'nothing') showAuth('set-password');"],
     ['const recovering = /type=recovery/.test(win.location.hash);', 'const recovering = false;']]],
   ['the hunt panels never mount', 'src/data/hud-widgets.js', 'min: Object.freeze([320, 64]), opacity: 1, visible: true', 'min: Object.freeze([320, 64]), opacity: 1, visible: false'],
-  ['the closed answer is ignored', 'src/app/boot.js', "account.subscribe((why) => { if (why === 'closed-game') showClosed(); });", ''],
+  ['the closed answer is ignored', 'src/app/boot.js', "if (why === 'closed-game') showClosed();", "if (why === 'never') showClosed();"],
 ];
 
 async function main() {

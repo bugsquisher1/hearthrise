@@ -558,7 +558,8 @@ const ENGINE_ARMS = {
        food once a kill has paid — without its coins the first meal it needs ends the hunt gold_out. */
     const out = runCut(M, () => [memberIn(M, 'a', { level: 12, gold: row.price - 1 })], 1800000, []);
     const ms = out.outs.flatMap((o) => o.members);
-    const tl = ms.reduce((a, x) => a + Object.values(x.hunt.buys).reduce((s, n) => s + n, 0), 0);
+    /* FOOD buys only: a 6 g store drink is affordable from the purse alone (designer 2026-10-17), so a drink buy proves nothing about the coins. */
+    const tl = ms.reduce((a, x) => a + ((x.hunt.buys || {})[t.shop.heal] || 0), 0);
     const kills = ms.reduce((a, x) => a + x.delta.journal.meta.kills, 0);
     const end = ms.find((x) => x.hunt.ended);
     if (!(kills > 0)) problems.push('CONTROL: the poor hero killed nothing');

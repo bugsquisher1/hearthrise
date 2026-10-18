@@ -31,7 +31,7 @@ const WORDS = Object.freeze({
   hunt_open: 'Not while a hunt is running.',
   closed: 'This character is closed.',
   /* The party (S1 hr_hunt_party_* and this lane's asks). */
-  no_ground: 'That hunt is not open to parties yet.',
+  no_ground: 'That hunt is not open yet.',
   already_in_party: 'This character is already in a party. Leave it first.',
   party_full: 'That party is full.',
   no_party: 'That party is gone.',
@@ -45,6 +45,18 @@ const WORDS = Object.freeze({
   no_stamina: 'No stamina left: rest first.',
   hunts_paused: 'Hunts are paused for a moment.',
   bad_weapon: 'The server does not know that weapon.',
+  /* Going hunting (hr_hunt_enter) and the storage (hr_bank_move). */
+  activity_locked: 'Your combat level is too low for that hunt yet.',
+  activity_running: 'Your hero is busy with something else. Stop it first.',
+  unknown_hunt: 'The server does not know that hunt.',
+  unknown_preset: 'That action set is gone. Pick another in Hunt settings.',
+  unknown_supply: 'One of the things packed is not a hunt supply.',
+  bad_bag: 'The packed supplies were not valid, so nothing was sent.',
+  too_many_lines: 'Too many kinds of supplies packed.',
+  rate_limited: 'Too fast. Wait a moment and try again.',
+  bank_full: 'Your storage is full.',
+  bag_full: 'Your bag is full. Make room first.',
+  insufficient_bank: 'Your storage no longer has that many.',
 });
 
 /** The plain-words reason for a refusal code. */

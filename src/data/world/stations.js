@@ -10,7 +10,7 @@
 //
 // TAP_OPENS: a placed sprite the player can tap, and the existing screen it
 // opens. Exits are not listed: an object standing on a map exit opens that
-// exit (a hunt map opens Adventures on its hunt; a town/home map switches the
+// exit (a hunt map names its hunt and the pane opens Hunts on it; a town/home map switches the
 // scene), so a new hatch is a map row, not a row here.
 // Display data only: nothing here is a server number, and no tap sends an
 // intent — every action is navigation to a screen that already exists.

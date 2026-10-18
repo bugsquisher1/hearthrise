@@ -28,7 +28,7 @@ import { ITEMS } from '../../data/items.js?v=0.2.0';
 import { METRICS } from '../../data/condition-metrics.js?v=0.2.0';
 import { openSlot } from '../windows/bar-editor.js?v=0.2.0';
 import { assignToBar, barKind } from '../bar-assign.js?v=0.2.0';
-import { DRAG_TYPE } from '../windows/bag-act.js?v=0.2.0';
+import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.0';
 import { refusalWords } from '../intent-words.js?v=0.2.0';
 
 const METRIC_KIND = new Map(METRICS.map((m) => [m.id, m.value]));

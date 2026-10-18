@@ -132,7 +132,8 @@ Every widget and window is ONE component. The shell picks the desktop window or 
 | `hunt` | `hr_hunt_view(session)` | `cs.state.hunt` | session, own hero HP/mana/falls/knockout, the instance pose at the last boundary (decoded `world`), settings echo |
 | `hunt_analyzer` | `hr_hunt_analyzer` v2 | `cs.state.hunt_analyzer` | the existing key (`hydrateHunt` in `src/net/accrue.js`); null for a character with no premium or no hunt, and null REPLACES |
 | `hunt_settings` | `hr_action_set_options` read | `cs.state.hunt_settings` | the per-hero options of the active preset |
-| `party` | `hr_party_view` (NEW) | `cs.state.party` | own membership + instance-scoped peers (HP, per-member dealt/healed for the party panel) |
+| `party` | `hr_hunt_party_view` | `cs.state.party` | `{id, hunt, max, open, leader, self, members[{unit, seat, hunting, name, level, weapon, role_pick, hp, hp_max, mana, mana_max, dealt, healed, dps, hps, down, eating, drinking, aggro}]}`: own membership + instance-scoped peers; `leader`/`self`/`unit` are world unit ids, the vitals come off the pose by field name (`hr_hunt_world_shape.fields`); a solo hunt is a party of one |
+| `account` | `hr_account_view` | `cs.state.account` | `{max_concurrent}`: characters one login may play at once (`session/config.js` maxConcurrentCharacters, the generated `max_concurrent` limit row) |
 | `premium` | `hr_premium_view` (NEW) | `cs.state.premium` | `premium_until`; read-only |
 | `stamina` | `hr_stamina_view` (C2, live) | `cs.state.stamina` | cap now follows `premium` |
 | `hunt_track`, `hunt_events` | the settle RESPONSE only | playback buffer | NOT `hr_state_of` sections and not stored in Postgres: transient, size-bounded, sent to the viewed character's settle caller. A reload re-poses from `hunt.pose`. |

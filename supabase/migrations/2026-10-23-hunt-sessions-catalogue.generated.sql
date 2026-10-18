@@ -8,8 +8,8 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 3723d94051e03013c09de5a8a3f5a431c60fbbbb8c30106790ec46828c7b4473
---   53 supplies, 104 hunts (named + training), 29 limits, 9 end reasons,
+--   digest: cb91a2ed8ad63a43093f354f5a720e4a54b11d0333c2b05d3b85cc5deb35fcb7
+--   53 supplies, 104 hunts (named + training), 30 limits, 9 end reasons,
 --   462 vendor values, 18 store supplies paid per use, 5 target modes,
 --   3 lanes, 14 abilities, 11 action-set options, 2 hunt grounds
 --
@@ -137,8 +137,10 @@ create table if not exists public.hr_hunt_ground_spawns (
 create table if not exists public.hr_hunt_world_shape (
   id      boolean primary key default true check (id),
   version int    not null check (version >= 1),
-  shape   bigint not null check (shape between 0 and 4294967295)
+  shape   bigint not null check (shape between 0 and 4294967295),
+  fields  jsonb  not null default '{}'::jsonb check (jsonb_typeof(fields) = 'object')
 );
+alter table public.hr_hunt_world_shape add column if not exists fields jsonb not null default '{}'::jsonb;
 -- THE PREMIUM DAILY LOGIN REWARD (premium.js): the item a claim pays (null =
 -- nothing yet) and how many.
 create table if not exists public.hr_premium_login_reward (
@@ -483,7 +485,7 @@ insert into public.hr_hunt_weapon_roles (weapon_type, roles) values
   ('staff', array['mage', 'healer']::text[]),
   ('sword', array['tank']::text[]);
 delete from public.hr_hunt_world_shape;
-insert into public.hr_hunt_world_shape (id, version, shape) values (true, 1, 3852601081);
+insert into public.hr_hunt_world_shape (id, version, shape, fields) values (true, 1, 3852601081, '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"chalMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"downMs":28,"deadMs":29,"hpMilli":30,"stance":31,"acc":32,"maxHit":33,"def":34,"ward":35,"element":36,"swingLeftMs":37,"mana":38,"maxMana":39,"manaMilli":40,"lanes":41,"cds":42,"shield":43,"markBy":44,"markUntil":45,"vulnUntil":46,"statuses":47,"laneAt":48,"otHp":49,"otMana":50,"healedAt":51},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"phase":5,"routeIdx":6,"phaseMs":7,"regroupNext":8,"runs":9,"nextId":10,"xpGroup":11}}'::jsonb);
 delete from public.hr_premium_login_reward;
 insert into public.hr_premium_login_reward (id, item_id, qty) values (true, 'oak_practice_blade', 1);
 delete from public.hr_hunt_travel;
@@ -611,6 +613,7 @@ insert into public.hr_hunt_limits (key, value) values
   ('magic_xp_permille', 1500),
   ('mana_burst_max', 320),
   ('mana_per_min_max', 3320),
+  ('max_concurrent', 4),
   ('party_max', 4),
   ('presets', 5),
   ('sessions_kept', 20),
@@ -1132,7 +1135,7 @@ declare v_role text; v_t text;
 begin
   if (select count(*) from public.hr_hunt_supplies) <> 53
      or (select count(*) from public.hr_hunt_travel) <> 104
-     or (select count(*) from public.hr_hunt_limits) <> 29
+     or (select count(*) from public.hr_hunt_limits) <> 30
      or (select count(*) from public.hr_hunt_end_reasons) <> 9
      or (select count(*) from public.hr_hunt_vendor_value) <> 462
      or (select count(*) from public.hr_hunt_basic_supplies) <> 18
@@ -1152,6 +1155,11 @@ begin
      or (select count(*) from public.hr_hunt_weapon_roles) <> 11
      or (select count(*) from public.hr_hunt_end_reasons where resumes) <> 7 then
     raise exception 'hunt-session catalogue row counts moved from the generator''s'; end if;
+  -- The world fields the party section reads by name are all there, at the generator's positions.
+  if (select fields from public.hr_hunt_world_shape) is distinct from '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"chalMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"downMs":28,"deadMs":29,"hpMilli":30,"stance":31,"acc":32,"maxHit":33,"def":34,"ward":35,"element":36,"swingLeftMs":37,"mana":38,"maxMana":39,"manaMilli":40,"lanes":41,"cds":42,"shield":43,"markBy":44,"markUntil":45,"vulnUntil":46,"statuses":47,"laneAt":48,"otHp":49,"otMana":50,"healedAt":51},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"phase":5,"routeIdx":6,"phaseMs":7,"regroupNext":8,"runs":9,"nextId":10,"xpGroup":11}}'::jsonb
+     or exists (select 1 from unnest(array['id', 'side', 'alive', 'hp', 'maxHp', 'target', 'mana', 'maxMana', 'downMs', 'otHp', 'otMana']) n
+                 where not ((select fields->'unit' from public.hr_hunt_world_shape) ? n)) then
+    raise exception 'hr_hunt_world_shape.fields is not world-state.js FIELDS'; end if;
   -- ONE consumable lane, at the data file's ms (the food-lane ruling, spec §3.4 #3).
   if (select ms from public.hr_hunt_lanes where lane = 'consumable') is distinct from 1000 then
     raise exception 'the consumable lane is not consumables.js laneMs'; end if;

@@ -20,7 +20,8 @@
 //                          STAMINA_MAX_MS { free, premium } (as `stamina_free_min` /
 //                          `stamina_premium_min`) + DEATH_XP_LOSS (`death_xp_permille`)
 //                          + VALUE_HEADROOM, COMBAT_BALANCE.tickMs (`swing_interval_ms`),
-//                          party.js PARTY.maxSize (`party_max`), hunt-tuning.js
+//                          party.js PARTY.maxSize (`party_max`), session/config.js
+//                          maxConcurrentCharacters (`max_concurrent`), hunt-tuning.js
 //                          worldMaxBytes (`world_max_bytes`), abilities.js' largest
 //                          per-cast ammo (`ability_ammo_max`)
 //   hr_hunt_lanes          the cooldown lanes, ONE source each: consumables.js
@@ -31,7 +32,8 @@
 //   hr_hunt_grounds        hunt-grounds.js HUNT_GROUNDS: per hunt, its ground, seats,
 //   hr_hunt_ground_spawns  pockets, respawn and every spawn (the settle's kill bound)
 //   hr_hunt_world_shape    world-state.js WORLD_VERSION + SHAPE (a world encoded under
-//                          any other field list is refused by the settle)
+//                          any other field list is refused by the settle) + FIELDS as
+//                          name -> column index, so SQL reads a unit's field by name
 //   hr_hunt_cover_items    hunt-sessions.js coverSellable over every common monster drop
 //                          (>= 5%) the vendor buys: what sell-to-cover may sell
 //   hr_hunt_end_reasons    hunt-sessions.js END_ORDER (reason, position) + RESUME_AFTER_END
@@ -90,14 +92,20 @@ import { HUNT_XP } from '../src/data/hunt-xp.js';
 import { HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
 import { HUNT_TUNING } from '../src/data/hunt-tuning.js';
 import { PARTY } from '../src/data/party.js';
+import { SESSION_CONFIG } from '../src/session/config.js';
 import { PREMIUM_LOGIN_REWARD } from '../src/data/premium.js';
-import { WORLD_VERSION, SHAPE } from '../src/core/hunt/world-state.js';
+import { WORLD_VERSION, SHAPE, FIELDS as WORLD_FIELDS } from '../src/core/hunt/world-state.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
 import { COMBAT_BALANCE } from '../src/core/combat.js';
 import { HIT_XP_PER_DAMAGE, HIT_HP_XP_PER_DAMAGE } from '../src/core/styles.js';
 import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+/** The world fields SQL reads by name (hr_hunt_party_view, 2026-10-23-hunt-party.sql). */
+export const WORLD_FIELDS_READ = Object.freeze({
+  unit: Object.freeze(['id', 'side', 'alive', 'hp', 'maxHp', 'target', 'mana', 'maxMana', 'downMs', 'otHp', 'otMana']),
+  world: Object.freeze(['leader']),
+});
 export const OUT_NAME = '2026-10-23-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -147,7 +155,8 @@ export function catalogueRows(src = {}) {
     resumable: RESUMABLE_KINDS, resumeAfter: RESUME_AFTER_END,
     consumableLaneMs: CONSUMABLE_RULES.laneMs, abilityLanes: ABILITY_LANES, abilities: ABILITIES,
     grounds: HUNT_GROUNDS, worldMaxBytes: HUNT_TUNING.worldMaxBytes, partyMax: PARTY.maxSize,
-    loginReward: PREMIUM_LOGIN_REWARD, worldVersion: WORLD_VERSION, worldShape: SHAPE,
+    maxConcurrent: SESSION_CONFIG.maxConcurrentCharacters, maxSlot: SESSION_CONFIG.maxSlot,
+    loginReward: PREMIUM_LOGIN_REWARD, worldVersion: WORLD_VERSION, worldShape: SHAPE, worldFields: WORLD_FIELDS,
     roles: HUNT_ROLES, weaponRoles: WEAPON_ROLES, manaRegenPct: ABILITY_RULES.manaRegenPctPerMin, magicXpPermille: HUNT_XP.magicXpPermillePerMana, ...src,
   };
   /* THE STORE (Tyler 2026-10-14): each row is gold per use, never an item. */
@@ -252,6 +261,7 @@ export function catalogueRows(src = {}) {
     distance_min: S.distance.min, distance_max: S.distance.max,
     threshold_pct_min: S.thresholds.min, threshold_pct_max: S.thresholds.max,
     party_max: S.partyMax,
+    max_concurrent: S.maxConcurrent,
     world_max_bytes: S.worldMaxBytes,
     ability_ammo_max: Math.max(0, ...abilities.map((a) => a.ammo)),
     /* THE MAGIC-XP BLAST RADIUS (the value bound): Magic XP is paid per mana
@@ -277,6 +287,9 @@ export function catalogueRows(src = {}) {
     throw new Error(`THRESHOLD_PCT ${JSON.stringify(S.thresholds)}`);
   }
   if (!(whole(lim.party_max) && lim.party_max >= 1 && lim.party_max <= 5)) throw new Error(`PARTY.maxSize ${S.partyMax} is not 1..5`);
+  if (!(whole(lim.max_concurrent) && lim.max_concurrent >= 1 && lim.max_concurrent <= S.maxSlot + 1)) {
+    throw new Error(`maxConcurrentCharacters ${S.maxConcurrent} is not 1..${S.maxSlot + 1} (one per slot at most)`);
+  }
   /* SELL-TO-COVER: every common (>= 5%) monster drop the rule admits and the vendor buys. */
   const dropIds = new Set();
   for (const m of Object.values(S.monsters)) {
@@ -395,8 +408,13 @@ export function catalogueRows(src = {}) {
   const lr = S.loginReward || {};
   if (lr.item !== null && !(ID.test(String(lr.item)) && own(S.items, lr.item))) throw new Error(`PREMIUM_LOGIN_REWARD.item ${lr.item} is no item`);
   if (!(whole(lr.qty) && lr.qty >= 1 && lr.qty <= 10)) throw new Error(`PREMIUM_LOGIN_REWARD.qty ${lr.qty} is not 1..10`);
+  /* The world's field positions by name (the party section reads a unit's vitals off the pose). */
+  const fieldIdx = (part) => Object.fromEntries((S.worldFields[part] || []).map(([n], i) => [n, i]));
+  const worldFields = { unit: fieldIdx('unit'), world: fieldIdx('world') };
+  for (const n of WORLD_FIELDS_READ.unit) if (!own(worldFields.unit, n)) throw new Error(`world unit field ${n} (read by the party section) is not persisted`);
+  for (const n of WORLD_FIELDS_READ.world) if (!own(worldFields.world, n)) throw new Error(`world field ${n} (read by the party section) is not persisted`);
   return { supplySource, onEmpty, lanes, setOptions, killBounds, supplies, travel, lim, ends, vendor, targets, resumable, basics,
-    cover, resume, eventTypes, abilities, grounds, groundSpawns, world: { v: S.worldVersion, shape: S.worldShape },
+    cover, resume, eventTypes, abilities, grounds, groundSpawns, world: { v: S.worldVersion, shape: S.worldShape, fields: worldFields },
     login: { item: lr.item ?? null, qty: lr.qty }, weapons, weaponRoles,
     defaultTarget: S.defaultTarget, slotsMax: S.setLimits.slots };
 }
@@ -571,8 +589,10 @@ create table if not exists public.hr_hunt_ground_spawns (
 create table if not exists public.hr_hunt_world_shape (
   id      boolean primary key default true check (id),
   version int    not null check (version >= 1),
-  shape   bigint not null check (shape between 0 and 4294967295)
+  shape   bigint not null check (shape between 0 and 4294967295),
+  fields  jsonb  not null default '{}'::jsonb check (jsonb_typeof(fields) = 'object')
 );
+alter table public.hr_hunt_world_shape add column if not exists fields jsonb not null default '{}'::jsonb;
 -- THE PREMIUM DAILY LOGIN REWARD (premium.js): the item a claim pays (null =
 -- nothing yet) and how many.
 create table if not exists public.hr_premium_login_reward (
@@ -636,7 +656,7 @@ delete from public.hr_hunt_weapon_roles;
 insert into public.hr_hunt_weapon_roles (weapon_type, roles) values
 ${weaponRoleValues};
 delete from public.hr_hunt_world_shape;
-insert into public.hr_hunt_world_shape (id, version, shape) values (true, ${r.world.v}, ${r.world.shape});
+insert into public.hr_hunt_world_shape (id, version, shape, fields) values (true, ${r.world.v}, ${r.world.shape}, ${sq(JSON.stringify(r.world.fields))}::jsonb);
 delete from public.hr_premium_login_reward;
 insert into public.hr_premium_login_reward (id, item_id, qty) values (true, ${r.login.item ? sq(r.login.item) : 'null'}, ${r.login.qty});
 delete from public.hr_hunt_travel;
@@ -703,6 +723,11 @@ begin
      or (select count(*) from public.hr_hunt_weapon_roles) <> ${r.weaponRoles.length}
      or (select count(*) from public.hr_hunt_end_reasons where resumes) <> ${r.ends.filter((e) => e.resumes).length} then
     raise exception 'hunt-session catalogue row counts moved from the generator''s'; end if;
+  -- The world fields the party section reads by name are all there, at the generator's positions.
+  if (select fields from public.hr_hunt_world_shape) is distinct from ${sq(JSON.stringify(r.world.fields))}::jsonb
+     or exists (select 1 from unnest(array[${WORLD_FIELDS_READ.unit.map(sq).join(', ')}]) n
+                 where not ((select fields->'unit' from public.hr_hunt_world_shape) ? n)) then
+    raise exception 'hr_hunt_world_shape.fields is not world-state.js FIELDS'; end if;
   -- ONE consumable lane, at the data file's ms (the food-lane ruling, spec §3.4 #3).
   if (select ms from public.hr_hunt_lanes where lane = 'consumable') is distinct from ${r.lanes.find((x) => x.l === 'consumable').ms} then
     raise exception 'the consumable lane is not consumables.js laneMs'; end if;
@@ -762,6 +787,8 @@ function selftest() {
     'vigour back in the end order': () => ({ endOrder: [...END_ORDER, 'vigour'] }),
     'a death XP loss that is not a whole permille': () => ({ deathXpLoss: 0.0205 }),
     'a death XP loss of nothing': () => ({ deathXpLoss: 0 }),
+    'more characters at once than slots': () => ({ maxConcurrent: SESSION_CONFIG.maxSlot + 2 }),
+    'a world without the mana field the party section reads': () => ({ worldFields: { unit: WORLD_FIELDS.unit.filter(([n]) => n !== 'mana'), world: WORLD_FIELDS.world } }),
     'a stamina cap that is not a whole minute': () => ({ stamina: { free: 8 * 3600000 + 1, premium: 12 * 3600000 } }),
     'a premium cap below the free cap': () => ({ stamina: { free: 12 * 3600000, premium: 8 * 3600000 } }),
     'no stamina cap': () => ({ stamina: { free: 0, premium: 0 } }),

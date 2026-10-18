@@ -932,7 +932,7 @@
   },
   "hr_hunt_limits": {
    "class": "seeded",
-   "replay": 29,
+   "replay": 30,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): the session limits (presets, slots, conditions, bag lines, falls and hours ranges, cooldowns, vigour_low threshold, sessions kept). Every RPC reads them; a missing key fails the RPC closed. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_resumable_kinds": {
@@ -1162,7 +1162,7 @@
   },
   "hr_state_sections": {
    "class": "seeded",
-   "replay": 6,
+   "replay": 7,
    "note": "The X7 state-section registry (2026-10-23-character-premium.sql and the S1 files): one row per hr_state_of section and its projector. Seeded by the migrations that register a section; rebuilt from repo, never restored."
   },
   "hr_tick_cohort": {

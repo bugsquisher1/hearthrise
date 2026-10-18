@@ -89,6 +89,11 @@
 //   PARTY      two characters in one party hunt ONE instance: one world, both
 //              paid, kills journalled each, gold split; a settle missing a
 //              member is refused member_set.
+//   PARTY-VIEW the real `party` section of a settled two-hero hunt, read by the
+//              client's own reader (src/session/hunt-sections.js partyOf), yields
+//              both members the party panel draws: unit (= the session's world
+//              unit), name, role, HP / mana off the pose, dealt, DPS; leader and
+//              self are units; `account.max_concurrent` is the server config.
 //   VALUE      every bound refuses a forgery and moves nothing: gold / XP /
 //              item (value_over), kills (kills_over), the world's size, shape and
 //              swing, the store without consent (store_off), the lane caps
@@ -1137,6 +1142,35 @@ const DB_ARMS = {
     if (units.size !== 2 || units.has(null)) problems.push(`the members' units are ${[...units]}`);
     return problems;
   }),
+  'PARTY-VIEW': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const { partyOf } = await import(pathToFileURL(join(ROOT, 'src/session/hunt-sections.js')).href);
+    const { SESSION_CONFIG } = await import(pathToFileURL(join(ROOT, 'src/session/config.js')).href);
+    const h = await hunter(db, M, { party: [{ ...STRONG }, { ...STRONG }] });
+    await run(db, M, h.from, ticksOf(90000, 6 * 60000));
+    const env = await one(db, 'select public.hr_state_of($1::uuid, 0)', [UIDS[0]]);
+    const cs = { read: (k) => env[k] };
+    const a = await snapshot(db, h.sids[0], UIDS[0]); const b = await snapshot(db, h.sids[1], UIDS[1]);
+    const p = partyOf(cs);
+    if (!p) return [`the client reads no party out of the server's section: ${JSON.stringify(env.party).slice(0, 300)}`];
+    const units = [a.session.unit, b.session.unit];
+    if (p.members.length !== 2 || p.members.map((m) => m.unit).join() !== units.join()) problems.push(`the panel's members are units ${p.members.map((m) => m.unit)}, the sessions' are ${units}`);
+    if (p.self !== a.session.unit) problems.push(`self is ${p.self}, the viewer's unit is ${a.session.unit}`);
+    if (!units.includes(p.leader)) problems.push(`the leader ${p.leader} is no member's unit`);
+    for (const m of p.members) {
+      const miss = ['hp', 'hpMax', 'mana', 'manaMax', 'dealt', 'healed', 'level'].filter((k) => m[k] === null || m[k] === undefined);
+      if (miss.length) problems.push(`member ${m.unit} has no ${miss.join(', ')}`);
+      if (!m.name || !m.role) problems.push(`member ${m.unit} has name ${m.name} / role ${m.role}`);
+      if (!(m.hpMax > 0) || m.hp > m.hpMax) problems.push(`member ${m.unit} HP ${m.hp} / ${m.hpMax}`);
+    }
+    if (!p.members.some((m) => m.dealt > 0 && m.dps > 0)) problems.push(`no member dealt anything over six minutes: ${JSON.stringify(p.members.map((m) => [m.dealt, m.dps]))}`);
+    const acc = env.account;
+    if (!acc || acc.max_concurrent !== SESSION_CONFIG.maxConcurrentCharacters) problems.push(`account is ${JSON.stringify(acc)}, the config says ${SESSION_CONFIG.maxConcurrentCharacters}`);
+    /* A solo hunt is a party of one. */
+    const soloEnv = await one(db, 'select public.hr_hunt_party_view($1::uuid, 0)', [UIDS[2]]);
+    if (soloEnv !== null) problems.push(`a character with no hunt and no party has a party section: ${JSON.stringify(soloEnv).slice(0, 200)}`);
+    return problems;
+  }),
   VALUE: async (db, M) => inTx(db, async () => {
     const problems = [];
     const { from } = await hunter(db, M, { ...STRONG, options: { on_empty: 'end', supply_source: 'mine' },
@@ -1502,6 +1536,12 @@ const DB_MUTANTS = [
     find: "        values (p_user, p_slot, 'hunt', 'supply_buy', -v_cost, -v_units,", replace: "        values (p_user, p_slot, 'hunt', 'supply_bought', -v_cost, -v_units," },
   { arm: 'PARTY', name: 'a settle of some members lands', fn: AI,
     find: "    return jsonb_build_object('ok', false, 'error', 'member_set');", replace: "    null;" },
+  { arm: 'PARTY-VIEW', name: 'the party section keeps the old seats key for HP max', fn: 'public.hr_hunt_party_view(uuid,integer)',
+    find: "'hp_max', case when", replace: "'max_hp', case when" },
+  { arm: 'PARTY-VIEW', name: 'the party section does not name the world unit', fn: 'public.hr_hunt_party_view(uuid,integer)',
+    find: "'unit', v_r.unit_id,", replace: "'unit_id', v_r.unit_id," },
+  { arm: 'PARTY-VIEW', name: 'the vitals are not read off the pose', fn: 'public.hr_hunt_party_view(uuid,integer)',
+    find: "'mana', v_v->'mana',", replace: "'mana', null::jsonb," },
   { arm: 'REPLAY', name: 'the instance CAS is gone', fn: AI,
     find: '  if v_i.world_swing <> p_world_from then', replace: '  if false then' },
   { arm: 'TICK-1', name: '[C2 instance unmoved] the instance swing counter is not written', fn: AI,

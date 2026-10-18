@@ -43,12 +43,16 @@
 -- opens a solo session; hr_hunt_open_session is the one session inserter.
 -- RETIRED with their last reader: hr_hunt_preset_slots, hr_hunt_default_preset.
 --
--- ── THE `party` SECTION ──────────────────────────────────────────────────────
--- hr_hunt_party_view(user, slot): the character's own membership and its party's
--- seats — display name, weapon type, role, and for a hunting member its HP and
--- the dealt / healed totals the party panel's DPS / HPS reads (spec §5 #16).
+-- ── THE `party` AND `account` SECTIONS ─────────────────────────────────────
+-- hr_hunt_party_view(user, slot): the shape the hunt screen's party panel reads
+-- (spec §1.5; src/session/hunt-sections.js partyOf): {id, hunt, max, open,
+-- leader, self, members[{unit, seat, hunting, name, level, weapon, role_pick,
+-- hp, hp_max, mana, mana_max, dealt, healed, dps, hps, down, eating, drinking,
+-- aggro}]}; leader / self / unit are the instance world's unit ids and the
+-- vitals come off its pose by field name. A solo hunt is a party of one.
 -- Peer data reaches a member only through THIS instance-scoped view, never in
--- another player's envelope.
+-- another player's envelope. hr_account_view: {max_concurrent}, the server's
+-- characters-at-once config (the generated `max_concurrent` limit row).
 --
 -- ── EXPLOIT SURFACE ─────────────────────────────────────────────────────────
 -- A party moves no value by itself: every coin, item and XP a party hunt pays
@@ -73,6 +77,9 @@ begin
   if public.hr_hunt_limit('party_max') is null or to_regclass('public.hr_hunt_weapons') is null then
     raise exception 'PRECONDITION: the S1 catalogue (party_max, hr_hunt_weapons) is absent'; end if;
   if to_regclass('public.profiles') is null then raise exception 'PRECONDITION: public.profiles is absent'; end if;
+  if public.hr_hunt_limit('max_concurrent') is null or not exists (select 1 from information_schema.columns
+       where table_schema = 'public' and table_name = 'hr_hunt_world_shape' and column_name = 'fields') then
+    raise exception 'PRECONDITION: the S1 catalogue (max_concurrent, hr_hunt_world_shape.fields) is absent'; end if;
 end $mig$;
 
 -- ── §1 THE TABLES ────────────────────────────────────────────────────────────
@@ -514,34 +521,143 @@ grant  execute on function public.hr_hunt_change(int, text, uuid) to authenticat
 drop function if exists public.hr_hunt_preset_slots(uuid, int, int);
 drop table if exists public.hr_hunt_default_preset;
 
--- ── §4 THE `party` SECTION ───────────────────────────────────────────────────
+-- ── §4 THE `party` AND `account` SECTIONS ────────────────────────────────────
+-- `party` is the shape the hunt screen's party panel reads (spec §1.5): a solo
+-- hunt is a party of one, so an open session with no party answers a party of
+-- the character alone. leader / self and every member's `unit` are UNIT ids in
+-- the instance world (hunt_sessions.unit_id, null until its first settle). The
+-- vitals (hp, mana, down, eating, drinking, aggro) are read off the instance
+-- pose BY NAME (hr_hunt_world_shape.fields, generated from world-state.js
+-- FIELDS) and only when the pose is of the catalogue's shape; otherwise they are
+-- null, never invented. dps / hps = the session's dealt / healed over its hunted
+-- seconds. Peer data reaches a member only through this instance-scoped view.
 create or replace function public.hr_hunt_party_view(p_user uuid, p_slot int)
-returns jsonb language sql stable security definer set search_path = public, pg_catalog as $$
-  select case when p.id is null then null else jsonb_build_object(
-    'id', p.id, 'hunt', p.hunt_id, 'max', p.max_size,
-    'leader', (select m.seat from public.hunt_party_members m where m.party_id = p.id
-                and m.user_id = p.leader_user and m.slot = p.leader_slot),
-    'me', (select m.seat from public.hunt_party_members m where m.party_id = p.id and m.user_id = p_user and m.slot = p_slot),
-    'seats', (select jsonb_agg(jsonb_build_object(
-                'seat', m.seat, 'weapon', m.weapon_type,
-                'role', (select w.roles[1] from public.hr_hunt_weapon_roles w where w.weapon_type = m.weapon_type),
-                'name', coalesce((select pr.display_name from public.profiles pr where pr.id = m.user_id), 'Adventurer'),
-                'hunting', h.id is not null,
-                'hp', case when h.id is not null then ps.hp end, 'max_hp', case when h.id is not null then ps.max_hp end,
-                'dealt', case when h.id is not null then coalesce((t.dealt->>'total')::bigint, 0) end,
-                'healed', case when h.id is not null then coalesce((t.healed->>'total')::bigint, 0) end)
-                order by m.seat)
-                from public.hunt_party_members m
-                join public.player_state ps on ps.user_id = m.user_id and ps.slot = m.slot
-                left join public.hunt_sessions h on h.user_id = m.user_id and h.slot = m.slot and h.ended_at is null and h.instance_id = p.id
-                left join public.hunt_session_tally t on t.session_id = h.id
-               where m.party_id = p.id)) end
-    from (select 1) one
-    left join public.hunt_parties p on p.id = public.hr_hunt_party_of(p_user, p_slot)
-$$;
+returns jsonb language plpgsql stable security definer set search_path = public, pg_catalog as $$
+declare
+  v_pid   uuid := public.hr_hunt_party_of(p_user, p_slot);
+  v_p     public.hunt_parties%rowtype;
+  v_own   public.hunt_sessions%rowtype;
+  v_inst  uuid;
+  v_shape public.hr_hunt_world_shape%rowtype;
+  v_wj    jsonb;
+  v_uf    jsonb;
+  v_vit   jsonb := '{}'::jsonb;
+  v_lead  int;
+  v_self  int;
+  v_mem   jsonb := '[]'::jsonb;
+  v_r     record;
+  v_u     jsonb;
+  v_id    int;
+  v_t     int;
+  v_v     jsonb;
+  v_secs  numeric;
+begin
+  select * into v_own from public.hunt_sessions h
+   where h.user_id = p_user and h.slot = p_slot and h.ended_at is null order by h.entered_at desc limit 1;
+  if v_pid is null and v_own.id is null then return null; end if;
+  if v_pid is not null then
+    select * into v_p from public.hunt_parties where id = v_pid;
+    v_inst := v_pid;
+  else
+    v_inst := v_own.instance_id;
+  end if;
+
+  -- The pose's hero vitals by unit id, and which heroes a living monster is on.
+  select * into v_shape from public.hr_hunt_world_shape where id;
+  begin
+    select i.world::jsonb into v_wj from public.hunt_instances i where i.id = v_inst;
+  exception when others then
+    v_wj := null;
+  end;
+  if v_wj is not null and jsonb_typeof(v_wj) = 'object' and v_shape.id
+     and (v_wj->>'v') = v_shape.version::text and (v_wj->>'s') = v_shape.shape::text then
+    v_uf := v_shape.fields->'unit';
+    if jsonb_typeof(v_wj->'w'->((v_shape.fields->'world'->>'leader')::int)) = 'number' then
+      v_lead := (v_wj->'w'->>((v_shape.fields->'world'->>'leader')::int))::int;
+    end if;
+    for v_u in select e from jsonb_array_elements(case when jsonb_typeof(v_wj->'u') = 'array' then v_wj->'u' else '[]'::jsonb end) e loop
+      v_id := (v_u->>((v_uf->>'id')::int))::int;
+      if v_u->>((v_uf->>'side')::int) = 'hero' then
+        v_v := jsonb_build_object(
+          'hp', v_u->((v_uf->>'hp')::int), 'hp_max', v_u->((v_uf->>'maxHp')::int),
+          'mana', v_u->((v_uf->>'mana')::int), 'mana_max', v_u->((v_uf->>'maxMana')::int),
+          'down', coalesce((v_u->>((v_uf->>'downMs')::int))::bigint, 0) > 0 or (v_u->>((v_uf->>'alive')::int)) = 'false',
+          'eating', jsonb_typeof(v_u->((v_uf->>'otHp')::int)) = 'array',
+          'drinking', jsonb_typeof(v_u->((v_uf->>'otMana')::int)) = 'array');
+        v_vit := v_vit || jsonb_build_object(v_id::text, coalesce(v_vit->(v_id::text), '{}'::jsonb) || v_v);
+      elsif (v_u->>((v_uf->>'alive')::int)) = 'true' and jsonb_typeof(v_u->((v_uf->>'target')::int)) = 'number' then
+        v_t := (v_u->>((v_uf->>'target')::int))::int;
+        v_vit := v_vit || jsonb_build_object(v_t::text, coalesce(v_vit->(v_t::text), '{}'::jsonb) || jsonb_build_object('aggro', true));
+      end if;
+    end loop;
+  end if;
+
+  for v_r in
+    select m.user_id, m.slot, m.seat::int as seat, m.weapon_type as weapon, h.id as sid, h.unit_id, h.preset,
+           h.hunt_from, h.settled_to
+      from public.hunt_party_members m
+      left join public.hunt_sessions h on h.user_id = m.user_id and h.slot = m.slot and h.ended_at is null and h.instance_id = v_pid
+     where v_pid is not null and m.party_id = v_pid
+    union all
+    select p_user, p_slot, 0, public.hr_hunt_weapon_of(p_user, p_slot), v_own.id, v_own.unit_id, v_own.preset,
+           v_own.hunt_from, v_own.settled_to
+     where v_pid is null
+     order by 3
+  loop
+    v_v := case when v_r.unit_id is not null then coalesce(v_vit->(v_r.unit_id::text), '{}'::jsonb) else '{}'::jsonb end;
+    v_secs := greatest(0, extract(epoch from (v_r.settled_to - v_r.hunt_from)));
+    select jsonb_build_object(
+        'unit', v_r.unit_id, 'seat', v_r.seat, 'hunting', v_r.sid is not null,
+        'name', coalesce((select pr.display_name from public.profiles pr where pr.id = v_r.user_id), 'Adventurer'),
+        'level', public.hr_bounty_combat_level(v_r.user_id, v_r.slot),
+        'weapon', v_r.weapon,
+        'role_pick', (select a.options->>'role' from public.player_action_sets a
+                       where a.user_id = v_r.user_id and a.slot = v_r.slot and a.preset = coalesce(v_r.preset, 0)),
+        'hp', case when v_r.sid is not null then coalesce(v_v->'hp', to_jsonb(ps.hp)) end,
+        'hp_max', case when v_r.sid is not null then coalesce(v_v->'hp_max', to_jsonb(ps.max_hp)) end,
+        'mana', v_v->'mana', 'mana_max', v_v->'mana_max',
+        'dealt', case when v_r.sid is not null then coalesce((t.dealt->>'total')::bigint, 0) end,
+        'healed', case when v_r.sid is not null then coalesce((t.healed->>'total')::bigint, 0) end,
+        'dps', case when v_r.sid is not null and v_secs > 0 then round(coalesce((t.dealt->>'total')::numeric, 0) / v_secs, 1) end,
+        'hps', case when v_r.sid is not null and v_secs > 0 then round(coalesce((t.healed->>'total')::numeric, 0) / v_secs, 1) end,
+        'down', coalesce((v_v->>'down')::boolean, false), 'eating', coalesce((v_v->>'eating')::boolean, false),
+        'drinking', coalesce((v_v->>'drinking')::boolean, false), 'aggro', coalesce((v_v->>'aggro')::boolean, false))
+      into v_u
+      from public.player_state ps
+      left join public.hunt_session_tally t on t.session_id = v_r.sid
+     where ps.user_id = v_r.user_id and ps.slot = v_r.slot;
+    if v_u is not null then v_mem := v_mem || jsonb_build_array(v_u); end if;
+    if v_r.user_id = p_user and v_r.slot = p_slot then v_self := v_r.unit_id; end if;
+  end loop;
+
+  -- The leader: the pose's pull leader, else the party leader's unit, else (solo) self.
+  if v_lead is null then
+    v_lead := case when v_pid is null then v_self
+                   else (select h.unit_id from public.hunt_sessions h
+                          where h.user_id = v_p.leader_user and h.slot = v_p.leader_slot and h.ended_at is null
+                            and h.instance_id = v_pid) end;
+  end if;
+  return jsonb_build_object(
+    'id', v_pid, 'hunt', coalesce(v_p.hunt_id, v_own.hunt_id),
+    'max', coalesce(v_p.max_size::int, 1),
+    'open', v_pid is not null and jsonb_array_length(v_mem) < v_p.max_size,
+    'leader', v_lead, 'self', v_self, 'members', v_mem);
+end $$;
 revoke execute on function public.hr_hunt_party_view(uuid, int) from public, anon, authenticated, service_role;
 insert into public.hr_state_sections (key, fn, note) values
-  ('party', 'hr_hunt_party_view', '2026-10-23-hunt-party.sql: own membership and the instance-scoped seats (name, weapon, role, HP, dealt, healed)')
+  ('party', 'hr_hunt_party_view', '2026-10-23-hunt-party.sql: own membership (a solo hunt is a party of one) and the instance-scoped members (unit, name, level, weapon, role pick, HP, mana, dealt, healed, DPS, HPS, down, eating, drinking, aggro)')
+  on conflict (key) do update set fn = excluded.fn, note = excluded.note;
+
+-- `account`: the account-wide server config the client's AccountSession reads:
+-- how many characters one login may play at once (session/config.js
+-- maxConcurrentCharacters, generated as the `max_concurrent` limit row).
+create or replace function public.hr_account_view(p_user uuid, p_slot int)
+returns jsonb language sql stable security definer set search_path = public, pg_catalog as $$
+  select jsonb_build_object('max_concurrent', public.hr_hunt_limit('max_concurrent'))
+$$;
+revoke execute on function public.hr_account_view(uuid, int) from public, anon, authenticated, service_role;
+insert into public.hr_state_sections (key, fn, note) values
+  ('account', 'hr_account_view', '2026-10-23-hunt-party.sql: the account-wide server config the client reads (max_concurrent)')
   on conflict (key) do update set fn = excluded.fn, note = excluded.note;
 
 -- ── §5 SELF-CHECK (CLAUDE.md §4), EXECUTED, every probe rolled back ──────────
@@ -638,10 +754,16 @@ begin
                                      and not exists (select 1 from public.hr_hunt_grounds g where g.hunt_id = t.hunt_id) order by t.hunt_id limit 1),
                               '[]'::jsonb, 0, null, null, '000000c0-0000-4000-a000-00005e1a0541');
     if v->>'error' is distinct from 'no_ground' then raise exception 'VERIFY(f): a groundless hunt answered %', v; end if;
-    -- (g) the section: seats, names from profiles, the hunting flag.
-    v := public.hr_state_of(v_u[1], 0)->'party';
-    if (v->>'leader')::int <> 0 or (v->>'me')::int <> 0 or jsonb_array_length(v->'seats') <> 3
-       or (v->'seats'->0->>'hunting')::boolean is distinct from true or (v->'seats'->2->>'hunting')::boolean is distinct from false then
+    -- (g) the section in the party panel's shape: members by seat, names from
+    -- profiles, the hunting flag; the account section carries the config.
+    v := public.hr_state_of(v_u[1], 0);
+    if (v->'account'->>'max_concurrent')::int is distinct from public.hr_hunt_limit('max_concurrent') then
+      raise exception 'VERIFY(g): the account section is %', v->'account'; end if;
+    v := v->'party';
+    if v ? 'seats' or v ? 'me' or jsonb_array_length(v->'members') <> 3
+       or (v->'members'->0->>'seat')::int <> 0 or (v->'members'->0->>'hunting')::boolean is distinct from true
+       or (v->'members'->2->>'hunting')::boolean is distinct from false or ((v->'members'->2) ? 'unit') is distinct from true
+       or v->'members'->2->'hp' <> 'null'::jsonb or not (v->'members'->0 ? 'role_pick') or (v->>'open')::boolean is distinct from true then
       raise exception 'VERIFY(g): the party section is %', v; end if;
     raise exception using errcode = 'HR860', message = 'hunt-party §5 complete - rolling back';
   exception when sqlstate 'HR860' then
@@ -655,6 +777,7 @@ begin
     if has_table_privilege(v_role, 'public.hunt_parties', 'select,insert,update,delete')
        or has_table_privilege(v_role, 'public.hunt_party_members', 'select,insert,update,delete')
        or has_function_privilege(v_role, 'public.hr_hunt_party_view(uuid,integer)', 'execute')
+       or has_function_privilege(v_role, 'public.hr_account_view(uuid,integer)', 'execute')
        or has_function_privilege(v_role, 'public.hr_hunt_open_session(uuid,integer,text,uuid,integer,integer,integer,uuid,timestamp with time zone,integer)', 'execute') then
       raise exception 'VERIFY(h): % reaches a party table or internal', v_role; end if;
   end loop;

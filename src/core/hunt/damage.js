@@ -142,7 +142,7 @@ export function resolveAttacks(inst, sc) {
     /* THE ATTACK ITEM (conditions.js): the first attack_with_item slot whose conditions
        pass and that has a shot to loose picks the ammo and, by its footprint, the aim;
        none eligible = the loaded ammo at the target (the lane's default). */
-    const shot = supplied ? pickShot(inst, u, h) : null;
+    const shot = supplied ? pickShot(inst, u, h, sc) : null;
     if (shot) {
       if (!payBasic(inst, u, { ammo: shot.pick.id }, sc)) continue;
       const aim = shot.pick.aim;
@@ -177,7 +177,7 @@ function blow(inst, sc, u, h, t) {
 
 /* The attack slot a hero's swing takes now: { pick: { id, size, aim }, rule, mask } or null.
    Only a ranged hero (or a caster) looses an item; a slot with no stock or no aim falls back. */
-function pickShot(inst, u, h) {
+function pickShot(inst, u, h, sc) {
   const row = roleOf(u);
   if (!row || row.melee) return null;
   const rows = slotsFor(h, 'attack');
@@ -185,9 +185,9 @@ function pickShot(inst, u, h) {
   return pickSlot(inst, u, h, rows, (slot, cx) => {
     const id = slot.action.id;
     const l = resolveLine(h.hs, id, 1);
-    if (!l.id || l.why) return null;
+    if (!l.id || l.why) return { why: l.why === 'gold_short' ? 'gold_short' : 'no_stock' };
     const size = footprintOf(slot, h);
     const aim = cx.aim && cx.aim.alive ? cx.aim : (bestAim(inst, u, row.range, size) || {}).aim;
-    return aim && inRange(inst, u, aim) ? { id, size, aim } : null;
-  });
+    return aim && inRange(inst, u, aim) ? { id, size, aim } : { why: 'out_of_range' };
+  }, sc, 'attack');
 }

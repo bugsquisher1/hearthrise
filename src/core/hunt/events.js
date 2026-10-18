@@ -57,6 +57,8 @@ export const EVENT_TYPES = Object.freeze({
   /* conditions.js / damage.js: a stop rule met; an attack item's shot (the decision: its rule id and the conditions that passed) */
   rule_stop: Object.freeze(['u', 'rule']),
   shot: Object.freeze(['u', 't', 'item', 'rule']),
+  /* a rule whose conditions held but whose action could not happen (why: conditions.js WAIT_WHY) */
+  rule_wait: Object.freeze(['u', 't', 'rule', 'why']),
 });
 
 const isPrim = (v) => v === null || ['string', 'number', 'boolean'].includes(typeof v);

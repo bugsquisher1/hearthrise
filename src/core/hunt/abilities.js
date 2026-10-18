@@ -144,16 +144,21 @@ export function gateOf(hero, h, row, atMs) {
 export function firstUsable(inst, hero, sc) {
   const h = hero && inst.heroes && inst.heroes[hero.id];
   if (!h || !h.hs) return null;
-  /* Evaluated only while its lane is free: a slot whose lane, cooldown or mana is shut is not even tested. */
-  const rows = slotsFor(h, 'ability').filter((r) => !gateOf(hero, h, ABILITIES[r.slot.action.id], sc.atMs));
+  /* Evaluated only while its LANE is free: a slot whose lane is shut is not even tested.
+     One whose conditions pass but that waits on its cooldown, mana, stock or a target
+     in reach is the lane's `rule_wait` (conditions.js noteWait). */
+  const rows = slotsFor(h, 'ability').filter((r) => gateOf(hero, h, ABILITIES[r.slot.action.id], sc.atMs) !== 'lane');
   const got = pickSlot(inst, hero, h, rows, (slot, cx) => {
     const row = ABILITIES[slot.action.id];
+    const gate = gateOf(hero, h, row, sc.atMs);
+    if (gate === 'cooldown' || gate === 'mana') return { why: gate };
+    if (gate) return null;
     const t = targetFor(inst, hero, h, row, sc, cx);
-    if (!t) return null;
+    if (!t) return { why: cx && (cx.ally || cx.aim) ? 'out_of_range' : 'no_target', t: cx && cx.ally ? cx.ally.id : undefined };
     const s = suppliesFor(h, row);
-    if (s.why) { if (s.short) h.hs.goldOut = true; return null; }
+    if (s.why) { if (s.short) h.hs.goldOut = true; return { why: s.short ? 'gold_short' : 'no_stock' }; }
     return { row, target: t, lines: s.lines };
-  });
+  }, sc, 'ability');
   return got ? Object.assign(got.pick, { rule: got.rule, mask: got.mask }) : null;
 }
 

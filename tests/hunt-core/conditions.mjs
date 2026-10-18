@@ -301,6 +301,21 @@ const cases = {
     return after.length && after.every((s) => s.item === 'bronze_arrows' && s.rule === 1) ? null
       : 'once the 3x3 stack was empty the next slot did not take over: ' + JSON.stringify(after.slice(0, 3));
   },
+  /* The death explanation's input: a rule whose conditions held but that could not fire says why, ONCE. */
+  'rule-wait': (M) => {
+    const h = hero(M, 1, 12, 3, { role: 'tank', hp: 30, maxHp: 100, mana: 0, maxMana: 100 });
+    const inst = instOf(M, world(M, [h, mon(M, 10, 0, 13, 3, { target: 1, hp: 500, maxHp: 500 })]));
+    inst.heroes = { 1: heroRow(M, { slots: rows([ab('power_strike', [c('self_hp_pct', 'lt', 50)])]) }) };
+    const sc = subStep(0); sc.rng = M.rng.createRng(2);
+    for (let i = 0; i < 30; i++) { sc.atMs = i * 100; M.abilities.castAbilities(inst, sc); }
+    const waits = sc.events.filter((e) => e.type === 'rule_wait');
+    if (waits.length !== 1 || waits[0].rule !== 0 || waits[0].why !== 'mana' || waits[0].u !== 1) return 'waits ' + JSON.stringify(waits);
+    h.mana = 100; sc.atMs = 3000; M.abilities.castAbilities(inst, sc);
+    if (!sc.events.some((e) => e.type === 'cast' && e.rule === 0) || h.ruleWait !== null) return 'the rule fired but its wait was not cleared: ' + JSON.stringify(h.ruleWait);
+    for (let i = 0; i < 30; i++) { sc.atMs = 3100 + i * 100; M.abilities.castAbilities(inst, sc); }
+    const cd = sc.events.filter((e) => e.type === 'rule_wait').slice(1);
+    return cd.length === 1 && cd[0].why === 'cooldown' ? null : 'after the cast the waits were ' + JSON.stringify(cd);
+  },
   'metrics-misc': (M) => {
     const h = hero(M, 1, 12, 3, { target: 10 });
     const boss = mon(M, 10, 0, 13, 3, { kind: 'rat_king', target: 1, statuses: [{ s: 'bleed', src: 1, left: 1000, next: 1000, scale: 1000 }] });
@@ -532,8 +547,9 @@ const mutants = [
   { name: 'the ally subject is ignored (lowest is healed)', case: 'ally-subject', edits: [['src/core/hunt/abilities.js', '      if (cx && cx.ally) return ok(cx.ally) ? cx.ally : null;\n', '']] },
   { name: 'an explicit consume slot keeps the default threshold', case: 'consume-slot', edits: [['src/core/hunt/conditions.js', '  const conds = slot.conditions.length ? slot.conditions : defaultConditions(slot, h);', '  const conds = defaultConditions(slot, h).length ? defaultConditions(slot, h) : slot.conditions;']] },
   { name: 'an area shot spends one unit per monster hit', case: 'attack-item', edits: [['src/core/hunt/damage.js', '      for (const m of hits) if (m.alive) blow(inst, sc, u, h, m);', '      for (const m of hits) { if (m !== aim) payBasic(inst, u, { ammo: shot.pick.id }, sc); if (m.alive) blow(inst, sc, u, h, m); }']] },
-  { name: 'an empty attack stack does not fall back', case: 'attack-item', edits: [['src/core/hunt/damage.js', '    if (!l.id || l.why) return null;\n    const size', '    if (!l.id) return { id, size: 1, aim: cx.aim || u };\n    const size']] },
+  { name: 'an empty attack stack does not fall back', case: 'attack-item', edits: [['src/core/hunt/damage.js', "    if (!l.id || l.why) return { why: l.why === 'gold_short' ? 'gold_short' : 'no_stock' };\n    const size", '    if (!l.id) return { id, size: 1, aim: cx.aim || u };\n    const size']] },
   { name: 'target_is_boss reads the wrong flag', case: 'metrics-misc', edits: [['src/core/hunt/conditions.js', 'MONSTERS[t.kind].boss === true', 'MONSTERS[t.kind].formation === false']] },
+  { name: 'a wait is reported every sub-step', case: 'rule-wait', edits: [['src/core/hunt/conditions.js', '  if (cur[lane] === key) return;\n', '']] },
   { name: 'a stop rule ignores its hold', case: 'stop-rule', edits: [['src/core/hunt/conditions.js', '      if (t.pass && hold[i] >= int(r.forMs)) {', '      if (t.pass) {']] },
   { name: 'the span never ends a met stop rule', case: 'stop-rule-span', edits: [['src/core/combat-sim.js', ' || Number.isInteger(m.hs.ruleStop) ||', ' ||'], ['src/core/action-rules.js', '  rule: (hs) => Number.isInteger(hs.ruleStop),', '  rule: () => false,']] },
   { name: 'the density pick is not clamped', case: 'density', edits: [['src/data/hunt-grounds.js', '  return Math.max(0, Math.min(max, pick, DENSITY_PICK.max));', '  return Math.max(0, Math.min(pick, DENSITY_PICK.max));']] },
@@ -542,7 +558,7 @@ const mutants = [
   { name: 'the solo healer floor is never applied', case: 'healer-floor', edits: [['src/core/hunt/damage.js', '    ? elementWithFloor(elementOn(target, element), source.role, partySize(inst)) : elementOn(target, element);', '    ? elementOn(target, element) : elementOn(target, element);']] },
   { name: 'the druid heals whoever is lowest', case: 'ally-subject', edits: [['src/core/hunt/conditions.js', '  if (subject && subject !== \'lowest\') return all.find((a) => a.role === subject) || null;\n', '']] },
   { name: 'an attack slot ignores its conditions', case: 'party-acceptance', edits: [['src/core/hunt/damage.js', '  return pickSlot(inst, u, h, rows, (slot, cx) => {', '  return pickSlot(inst, u, h, rows.map((r) => ({ rule: r.rule, slot: Object.assign({}, r.slot, { conditions: [] }) })), (slot, cx) => {']] },
-  { name: 'the stop-rule hold is not persisted (a cut resets it)', case: 'stop-rule-span', edits: [['src/core/hunt/conditions.js', "  unit: Object.freeze([['ruleHold', 'json']]),", '  unit: Object.freeze([]),']] },
+  { name: 'the stop-rule hold is not persisted (a cut resets it)', case: 'stop-rule-span', edits: [['src/core/hunt/conditions.js', "  unit: Object.freeze([['ruleHold', 'json'], ['ruleWait', 'json']]),", "  unit: Object.freeze([['ruleWait', 'json']]),"]] },
   { name: 'the healer\'s default rule set has no attack-when-safe rule', case: 'healer-default-rules',
     edits: [['src/data/rule-subjects.js', "    slot('natures_wrath', [{ metric: 'ally_hp_pct', op: 'gte', value: 70, subject: 'lowest' }])]),", '  ]),']] },
   { name: 'monsters do not fill the diagonal tiles of the box', case: 'full-box', edits: [['src/core/hunt/roles.js', '      if ((!dx && !dy) || !walkable(inst.grid, x, y)', '      if ((!dx && !dy) || (dx && dy) || !walkable(inst.grid, x, y)']] },

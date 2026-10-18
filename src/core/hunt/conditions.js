@@ -56,9 +56,10 @@ import { ROLE_RULES } from '../../data/rule-subjects.js?v=0.1.0';
 import { cheb, dist2, los } from './grid.js?v=0.1.0';
 import { makeEvent } from './events.js?v=0.1.0';
 
-/* ruleHold: ms each stop rule has held, by rule index (null = none held). */
+/* ruleHold: ms each stop rule has held, by rule index (null = none held).
+   ruleWait: the last `rule_wait` reported, per lane ('rule:why'), so it is reported once. */
 export const PERSISTED = Object.freeze({
-  unit: Object.freeze([['ruleHold', 'json']]),
+  unit: Object.freeze([['ruleHold', 'json'], ['ruleWait', 'json']]),
   world: Object.freeze([]),
   pack: Object.freeze([]),
 });
@@ -404,14 +405,34 @@ export function testSlot(inst, u, h, slot) {
  * and for which `act(slot, cx, row)` answers a pick (non-null) wins. Answers
  * { pick, rule, mask } or null. `act` says whether the action can happen now.
  */
-export function pickSlot(inst, u, h, rows, act) {
+export function pickSlot(inst, u, h, rows, act, sc, lane) {
+  let wait = null;
   for (const row of rows) {
     const t = testSlot(inst, u, h, row.slot);
     if (!t.pass) continue;
     const pick = act(row.slot, t.cx, row);
-    if (pick) return { pick, rule: row.rule, mask: t.mask };
+    if (pick && !pick.why) {
+      if (lane && u.ruleWait && u.ruleWait[lane]) { const w = Object.assign({}, u.ruleWait); delete w[lane]; u.ruleWait = Object.keys(w).length ? w : null; }
+      return { pick, rule: row.rule, mask: t.mask };
+    }
+    if (pick && pick.why && !wait) wait = { rule: row.rule, why: pick.why, t: pick.t };
   }
+  if (wait && sc && lane) noteWait(u, lane, wait, sc);
   return null;
+}
+
+/* WHY A RULE WAITS (the death explanation reads it: "the heal rule was waiting for
+   mana"). The highest-priority slot of a lane whose conditions passed but whose
+   action could not happen is reported ONCE per (lane, rule, why): the unit keeps its
+   last report per lane (`ruleWait`, persisted, so a settle cut never repeats one),
+   and a lane that fires clears it. Bounded: one event per change, never per sub-step. */
+export const WAIT_WHY = Object.freeze(['mana', 'cooldown', 'no_stock', 'no_target', 'out_of_range', 'gold_short', 'busy']);
+function noteWait(u, lane, wait, sc) {
+  const key = wait.rule + ':' + wait.why;
+  const cur = u.ruleWait && typeof u.ruleWait === 'object' ? u.ruleWait : {};
+  if (cur[lane] === key) return;
+  u.ruleWait = Object.assign({}, cur, { [lane]: key });
+  sc.emit(makeEvent('rule_wait', sc.atMs, { u: u.id, t: Number.isInteger(wait.t) ? wait.t : u.id, rule: wait.rule, why: wait.why }));
 }
 
 /* ── STOP RULES ───────────────────────────────────────────────────────── */

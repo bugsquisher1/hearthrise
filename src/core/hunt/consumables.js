@@ -126,9 +126,10 @@ export function consume(inst, sc) {
       /* A FOOD the purse cannot buy ends the hunt gold_out (a hero cannot heal);
          a DRINK it cannot buy only goes without (mana feeds abilities, and a basic
          swing needs none): a hunt never stops for a drink (spec §3.4 #7). */
-      if (w.why === 'gold_short') { if (w.kind === 'food') hero.hs.goldOut = true; return null; }
-      return w.line ? w : null;
-    });
+      if (w.why === 'gold_short') { if (w.kind === 'food') hero.hs.goldOut = true; return { why: 'gold_short' }; }
+      if (w.line) return w;
+      return { why: w.why === 'ticking' || w.why === 'healed' ? 'busy' : 'no_stock' };
+    }, sc, 'consume');
     if (got) use(u, hero, got.pick.kind, got.pick.line, sc, got);
   }
 }

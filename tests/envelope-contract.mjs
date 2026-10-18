@@ -79,6 +79,12 @@ function contract(R, cs, body, tl) {
     'the timeline holds no steps from hunt_track: ' + JSON.stringify(body.hunt_track && body.hunt_track.slice(0, 2)));
   need('hunt_events', Array.isArray(body.hunt_events) && body.hunt_events.length > 0 && body.hunt_events.every((e) => typeof e.id === 'string' && Number.isSafeInteger(e.atMs)),
     'hunt_events is not [{id, type, atMs}]');
+  /* The decision events the hunt summary reads (lane action-engine): a rule id on the events a slot decided, and
+     every rule_wait as { u, t, rule, why }. */
+  const evs = Array.isArray(body.hunt_events) ? body.hunt_events : [];
+  need('hunt_events', evs.some((e) => ['cast', 'eat', 'drink', 'shot'].includes(e.type) && Number.isInteger(e.rule))
+    && evs.filter((e) => e.type === 'rule_wait').every((e) => [e.u, e.t, e.rule].every(Number.isInteger) && typeof e.why === 'string'),
+    'hunt_events carry no slot decision with a rule id, or a rule_wait is malformed: ' + JSON.stringify(evs.filter((e) => e.type === 'cast' || e.type === 'rule_wait').slice(0, 3)));
   need('hunt_server_now_ms', Number.isSafeInteger(body.hunt_server_now_ms) && body.hunt_server_now_ms > 0, 'hunt_server_now_ms is ' + body.hunt_server_now_ms);
   // hunt_settings
   const s = R.HS.settingsOf(cs);

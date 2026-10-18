@@ -133,7 +133,7 @@ const mutants = [
   { name: 'an empty stack stops eating (the store never takes over)', case: 'never-stops-when-out',
     edits: [['src/core/action-rules.js', "    if (!storeAllowed(hs, want)) return { why: 'store_off' };", "    if (hs) return { why: 'store_off' };"]] },
   { name: 'a store use the purse cannot pay ends nothing', case: 'never-stops-when-out',
-    edits: [['src/core/hunt/consumables.js', "      if (w.why === 'gold_short') { if (w.kind === 'food') hero.hs.goldOut = true; return null; }", "      if (w.why === 'gold_short') return null;"]] },
+    edits: [['src/core/hunt/consumables.js', "      if (w.why === 'gold_short') { if (w.kind === 'food') hero.hs.goldOut = true; return { why: 'gold_short' }; }", "      if (w.why === 'gold_short') return { why: 'gold_short' };"]] },
   { name: 'food and drink each keep their own lane', case: 'one-shared-lane',
     edits: [['src/core/hunt/consumables.js', '    if (int(u.laneAt) > sc.atMs) continue;\n    const hero = heroes', '    const hero = heroes']] },
   { name: 'food eats at its threshold, not under it', case: 'thresholds',

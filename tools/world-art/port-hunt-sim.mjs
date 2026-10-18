@@ -19,6 +19,7 @@ import { join } from 'node:path';
 import { decodePNG, encodePNG, createImage, blit } from './png.mjs';
 import { CLASSES, DIRS } from '../../src/data/world/art-budget.js';
 import { ROOT } from './build.mjs';
+import { isMain } from '../../tests/_is-main.mjs';
 
 const SRC = 'prototypes/hunt-sim-assets';
 const OUT = 'art/world/hunt';
@@ -119,4 +120,4 @@ function main() {
   }
   process.exit(bad ? 1 : 0);
 }
-if (process.argv[1] && process.argv[1].endsWith('port-hunt-sim.mjs')) main();
+if (isMain(import.meta.url)) main();

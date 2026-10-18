@@ -48,8 +48,10 @@ export const WEAPON_ROLES = Object.freeze({
      content of week plan item 16 has not landed). A sword, a two-handed hammer
      or no weapon fights as Melee DPS, a `ranged` weapon as a Ranger, a `magic`
      one as a staff. ASSUMED; the Game Designer re-homes these when the shield /
-     axes / club / bow / staff rows exist (CONFLICTS 2026-10-17, S1). */
-  sword: Object.freeze(['melee_dps']),
+     axes / club / bow / staff rows exist (CONFLICTS 2026-10-17, S1).
+     A SWORD IS A TANK (Game Designer, sewer-content lane, 2026-10-18): the start
+     kit's Bronze Sword holds the line, so a fresh character can clear the cellar. */
+  sword: Object.freeze(['tank']),
   hammer: Object.freeze(['melee_dps']),
   neutral: Object.freeze(['melee_dps']),
   ranged: Object.freeze(['ranger']),

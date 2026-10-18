@@ -29,7 +29,9 @@ import { MONSTERS } from '../src/data/monsters.js';
 import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-export const OUT = join(ROOT, 'supabase', 'migrations', '2026-10-20-hunts-catalogue.generated.sql');
+/* 2026-10-20-hunts-catalogue.generated.sql is APPLIED history; the Sewer hunt (lane S1 merge,
+   2026-10-18) lands in this forward file, which rewrites the same tables. */
+export const OUT = join(ROOT, 'supabase', 'migrations', '2026-10-24-hunts-catalogue.generated.sql');
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 /* A monster field that gates fighting it. Any of these on a spawn is refused. */

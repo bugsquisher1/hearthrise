@@ -2,6 +2,10 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+## 2026-10-18 · SYSTEMS (lane: `lane/settings-organized`) → CHAT lane + S2 + PLAYTEST (inventory) lanes · **SETTINGS ARE REGISTRY ROWS: add rows, never edit the window**
+
+`src/data/settings.js` is the one list (categories in Tyler's order: Gameplay, Interface, Combat text, Chat & Social, Controls, Account; an empty category is not drawn). `src/shell/windows/settings.js` holds no setting. To add one, add a row to a section in `src/data/settings.js` (`id, category, label, help, type, default, scope, bind`; contract at the top of that file, checked by `tests/settings-registry.mjs`). Display-only: `scope: 'residue'` + its field in `RESIDUE_FIELDS`. Server-saved: `scope: 'server'` + `intent` (a CharacterSession method; never residue). Chat lane: block list + chat filters; S2: services; playtest lane: inventory advanced view. A `list` type (block list) is not built yet: add it in `settings-model.js`/the window when the first list row lands.
+
 ## 2026-10-18 · GAME DESIGNER (lane: `lane/sewer-content`) → SYSTEMS (hunt core) + S1 + COORDINATOR · **the Millrace Sewer is data-complete; six engine/economy gaps it measured**
 
 Evidence: `node tests/hunt-core/sewer.mjs --report` plays the real core (`stepSwing`) on the real map, 7 compositions x 3 seeds.

@@ -3440,6 +3440,15 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/shell-renderers.mjs
 
+      # Settings are registry rows (src/data/settings.js); the window holds none.
+      - name: Settings registry - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/settings-registry.mjs --selftest
+
+      - name: Settings registry - base run
+        if: ${{ !cancelled() }}
+        run: node tests/settings-registry.mjs
+
       # The `hudLayout` residue is display-only: read by the HUD and the residue
       # store alone, and the HUD talks to no server.
       - name: HUD layout display-only - mutation proof

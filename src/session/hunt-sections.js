@@ -106,6 +106,10 @@ export function settingsOf(cs) {
     targetMode: str(s.target_mode), stance: str(s.stance), distance: int(s.distance),
     chase: typeof s.chase === 'boolean' ? s.chase : null,
     foodPct: int(s.food_pct), drinkPct: int(s.drink_pct), supplySource: str(s.supply_source), onEmpty: str(s.on_empty),
+    /* Monster density (the pick; the settle clamps it to the ground) and the gathering share (INERT until gathering lands). */
+    density: int(s.density), gatherShare: int(s.gather_share), gatherInert: s.gather_inert === true,
+    stopRules: list(s.stop_rules, (r) => (isObj(r) && Array.isArray(r.conditions) ? { conditions: list(r.conditions, conditionOf, 3), join: JOIN.test(String(r.join)) ? r.join : 'and', forMs: int(r.forMs) || 0 } : null), 3),
+    grounds: list(s.grounds, (g) => str(g), 32),
     slots: Array.isArray(s.slots) ? s.slots.slice(0, 20).map(slotOf) : [],
   };
 }

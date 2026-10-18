@@ -1396,7 +1396,7 @@ function memberSide(mi, ctx) {
       bonus, weakness, rollsVs,
       snapshot: (st) => heroSnapshot(st, snapCtx),
       hero: { role: h.role, maxMana: h.maxMana, element: h.element || '', settings: h.settings || null,
-        slots: h.slots || [], stopRules: h.stopRules || [], density: h.density || 1,
+        slots: h.slots || [], stopRules: h.stopRules || [], density: h.density || 0,
         actionSet: h.actionSet || 'hunt', range: h.range || 1, ammo: equipment.ammo || null,
         foodBelowPct: h.foodBelowPct, drinkBelowPct: h.drinkBelowPct },
     },

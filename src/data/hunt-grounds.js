@@ -44,10 +44,13 @@
 //
 // PARTY SCALING (BALANCE_RULINGS 2026-10-16, the party-size test): a fixed pack
 // is trivial for four heroes and lethal at the boss for one, so a pack's HP is
-// scaled by its instance's party size, `packScalePermille` below. A solo Healer
-// gets an element floor so an immune first room is not a wall. Both are DATA;
-// the engine reads them through the two helpers (systems handoff: pull-cycle
-// spawnPack and damage.hurt apply them).
+// scaled by its instance's party size, `packScalePermille` below, on every ground
+// whose row says `partyScale: true` (the two grounds the party test measured;
+// lane action-engine wired it 2026-10-18: pull-cycle spawnPack via packHpFor).
+// A ground opts in by its row so the measured kill rates of the fixture rooms
+// the drop odds are pinned on do not move until the Designer rules them. A solo
+// Healer gets an element floor so an immune first room is not a wall (every
+// ground; damage.hurt via elementWithFloor). Both are DATA.
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
@@ -69,9 +72,9 @@ export const HUNT_GROUNDS = Object.freeze({
       pocket([4, 5, 10, 10], ['rat', 7, 8], ['slime', 8, 6]),
     ]),
     route: Object.freeze([0, 1]),
-    respawnMs: 30000, pullDist: 1.5,
-    /* the tutorial room stays one pack deep: its lesson is the pull, not the crowd */
-    densityMax: Object.freeze([1, 1, 1, 1]),
+    respawnMs: 30000, pullDist: 1.5, partyScale: true,
+    /* the tutorial room allows the full box and no more: its lesson is the pull */
+    densityMax: Object.freeze([8, 8, 8, 8]),
   }),
   millrace_sewer: Object.freeze({
     id: 'millrace_sewer', hunt: 'millrace_sewer', map: 'millrace_sewer',
@@ -86,8 +89,8 @@ export const HUNT_GROUNDS = Object.freeze({
       pocket([51, 17, 57, 29], ['rat_king', 55, 23], ['drain_rat', 54, 21], ['drain_rat', 54, 25]),
     ]),
     route: Object.freeze([0, 1, 2, 3, 4, 5]),
-    respawnMs: 90000, pullDist: 1.5,
-    densityMax: Object.freeze([2, 2, 3, 3]),
+    respawnMs: 90000, pullDist: 1.5, partyScale: true,
+    densityMax: Object.freeze([8, 8, 10, 12]),
   }),
 });
 
@@ -102,26 +105,34 @@ export const PARTY_SCALE = Object.freeze({ basePermille: 400, perHeroPermille: 1
    a Healer alone can still clear a first room that is immune to her one element. */
 export const SOLO_HEALER_FLOOR = Object.freeze({ role: 'healer', elementPermille: 500 });
 
-/* MONSTER DENSITY (Tyler 2026-10-18): a hero picks how many copies of each pack it
-   pulls (1 = the room as built). The server stores the pick inside DENSITY_PICK and
-   the settle CLAMPS it to the ground's `densityMax` for the party's size (a row's
-   array, one entry per party size 1..4, ASSUMED: the designer tunes them); a party
-   takes the smallest pick among its members. A row with no array allows 1. */
-export const DENSITY_PICK = Object.freeze({ min: 1, max: 4 });
+/* MONSTER DENSITY (Tyler 2026-10-18): a hero picks how many monsters a pull brings
+   (0 = the room as built). The server stores the pick inside DENSITY_PICK and the
+   settle CLAMPS it to the ground's `densityMax` for the party's size (a row's array,
+   one entry per party size 1..4); a party takes the smallest pick among its members.
+   EVERY ground's max is at least DENSITY_FULL_BOX (Tyler: "a full box", all 8 tiles
+   round the tank taken); a row may allow more. The values above 8 are ASSUMED. */
+export const DENSITY_FULL_BOX = 8;
+export const DENSITY_PICK = Object.freeze({ min: 0, max: 16 });
 
 /** The density an instance spawns at: the members' smallest pick, clamped to the ground's max for its size. */
 export function densityFor(ground, partySize, picks) {
   const n = Math.min(PARTY_SCALE.maxHeroes, Math.max(1, Math.floor(Number(partySize) || 1)));
-  const max = Array.isArray(ground && ground.densityMax) ? ground.densityMax[n - 1] : 1;
+  const max = Array.isArray(ground && ground.densityMax) ? ground.densityMax[n - 1] : DENSITY_FULL_BOX;
   const want = (picks || []).filter(Number.isInteger);
-  const pick = want.length ? Math.min(...want) : 1;
-  return Math.max(1, Math.min(max || 1, pick, DENSITY_PICK.max));
+  const pick = want.length ? Math.min(...want) : 0;
+  return Math.max(0, Math.min(max, pick, DENSITY_PICK.max));
 }
 
 /** The HP scale (permille) for a pack in an instance of `partySize` heroes. */
 export function packScalePermille(partySize) {
   const n = Math.min(PARTY_SCALE.maxHeroes, Math.max(1, Math.floor(Number(partySize) || 1)));
   return PARTY_SCALE.basePermille + PARTY_SCALE.perHeroPermille * n;
+}
+
+/** The HP a monster of `row` spawns with on `ground` for `partySize`: scaled where the ground
+    opts in (`partyScale: true`, the grounds the 10-16 party test measured), else the row's own. */
+export function packHpFor(ground, row, partySize) {
+  return ground && ground.partyScale === true ? scaledHp(row, partySize) : Math.max(1, (row && row.hp) || 1);
 }
 
 /** A spawned monster's HP for `partySize`: the row's HP scaled, never below 1. */
@@ -182,9 +193,10 @@ export function validateGround(row, refs) {
     bad('respawnMs must be a positive whole number of ' + HUNT_TUNING.stepMs + ' ms sub-steps');
   }
   if (!(typeof row.pullDist === 'number' && row.pullDist > 0 && row.pullDist <= 8)) bad('pullDist must be in (0, 8]');
+  if (row.partyScale !== undefined && typeof row.partyScale !== 'boolean') bad('partyScale must be true or false');
   if (row.densityMax !== undefined && !(Array.isArray(row.densityMax) && row.densityMax.length === PARTY_SCALE.maxHeroes
-    && row.densityMax.every((v, i) => Number.isInteger(v) && v >= 1 && v <= DENSITY_PICK.max && (i === 0 || v >= row.densityMax[i - 1])))) {
-    bad('densityMax must be ' + PARTY_SCALE.maxHeroes + ' whole numbers 1..' + DENSITY_PICK.max + ', never falling as the party grows');
+    && row.densityMax.every((v, i) => Number.isInteger(v) && v >= DENSITY_FULL_BOX && v <= DENSITY_PICK.max && (i === 0 || v >= row.densityMax[i - 1])))) {
+    bad('densityMax must be ' + PARTY_SCALE.maxHeroes + ' whole numbers ' + DENSITY_FULL_BOX + '..' + DENSITY_PICK.max + ' (at least a full box), never falling as the party grows');
   }
   if (row.leashMargin !== undefined && !(Number.isInteger(row.leashMargin) && row.leashMargin >= 0 && row.leashMargin <= 8)) {
     bad('leashMargin must be an integer 0..8');

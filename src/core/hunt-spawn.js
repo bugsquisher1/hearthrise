@@ -50,7 +50,7 @@ export function heroSetup(o) {
     slots: heroSlots(o.bar, role, (id) => allowed.includes(id)),
     stopRules: stops.map((r) => ({ conditions: r.conditions, join: r.join === 'or' ? 'or' : 'and', forMs: r.forMs || 0 })),
     /* MONSTER DENSITY: the stored pick; the span clamps it to the ground (hunt-grounds.js densityFor). */
-    density: Number.isInteger(opt.density) ? opt.density : 1,
+    density: Number.isInteger(opt.density) ? opt.density : 0,
     /* THE GATHERING SHARE: stored, INERT until the gathering engine lands (hunt-sessions.js GATHER_SHARE). */
     gatherShare: Number.isInteger(opt.gather_share) ? opt.gather_share : 0, gatherInert: true,
     actionSet: pick('action_set', 'hunt'),

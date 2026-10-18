@@ -4179,3 +4179,10 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
    repo files with node or the Edit tool.
 4. *A scene that reads the snapshot lazily stays right under any caller.* Events delivered by the
    shell's display tick were staged against an empty read until the scene pulled readHunt itself.
+
+
+## 2026-10-18 · lane/action-engine (conditional action engine, solo healer P1, density)
+1. *A P1 reproduced in the sim may not reproduce in the engine.* The solo-healer wall was an element immunity; the settle sends element '' so the real engine never met it. The acceptance runs both elements, and a mutant of the shipped engine proves it can go red.
+2. *Defaults belong in the one system.* Eat-at / drink-at, an ability's whenBelowPct and areaMin became DEFAULT CONDITIONS of slots, so there is one decision path and the editor shows them as slots.
+3. *A rule id must be what the player sees.* Defaults are placed in the first empty tablet on both sides (engine placeDefaults, SQL settings view), so a decision event's rule id is the tablet index.
+4. *HP scaling moves every pinned kill rate.* Re-pin with the rate measured and the ruled hours kept, never the other way round.

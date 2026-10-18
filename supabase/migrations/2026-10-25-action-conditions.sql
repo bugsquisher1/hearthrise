@@ -23,7 +23,8 @@
 --      `grounds` (written to options) — each through its own check; the rest
 --      as before. `density` and `gather_share` are option ROWS (the regenerated
 --      2026-10-23-hunt-sessions-catalogue.generated.sql), validated in their
---      generated range; the SETTLE clamps density to the ground for the party
+--      generated range (density 0..16: the pack size, 0 = as built); the SETTLE clamps
+--      it to the ground for the party (every ground allows at least the full box of 8)
 --      (src/data/hunt-grounds.js densityFor); gather_share is stored and INERT
 --      until the gathering engine lands.
 --   §4 hr_action_set_copy (NEW client verb): copy every action set of one of
@@ -236,7 +237,7 @@ begin
   return null;
 end $$;
 
--- A condition list and its join: null = accepted, else { error, cond? }.
+-- A condition list and its join: null = accepted, else { error, condition? }.
 create or replace function public.hr_hunt_conds_check(p_conds jsonb, p_join jsonb, p_stop boolean)
 returns jsonb language plpgsql stable set search_path = public, pg_catalog as $$
 declare
@@ -250,7 +251,7 @@ begin
     return jsonb_build_object('error', 'bad_join'); end if;
   for v_e in select value from jsonb_array_elements(coalesce(p_conds, '[]'::jsonb)) loop
     v_why := public.hr_hunt_cond_check(v_e, p_stop);
-    if v_why is not null then return jsonb_build_object('error', v_why, 'cond', v_i); end if;
+    if v_why is not null then return jsonb_build_object('error', v_why, 'condition', v_i); end if;
     v_i := v_i + 1;
   end loop;
   return null;
@@ -288,7 +289,7 @@ begin
 end $$;
 
 -- THE BAR CHECK, RESTATED: {ok:true, slots} (canonical, empty tablets kept as null), or
--- {ok:false, error, at, cond?}. Read by hr_action_set_put and hr_action_set_options.
+-- {ok:false, error, slot | rule, condition?}. Read by hr_action_set_put and hr_action_set_options.
 create or replace function public.hr_hunt_bar_check(p_slots jsonb)
 returns jsonb language plpgsql stable set search_path = public, pg_catalog as $$
 declare
@@ -302,14 +303,14 @@ begin
     return jsonb_build_object('ok', false, 'error', 'too_many_slots', 'max', v_max); end if;
   for v_e in select value from jsonb_array_elements(p_slots) loop
     v_r := public.hr_hunt_slot_check(v_e);
-    if not (v_r->>'ok')::boolean then return v_r || jsonb_build_object('at', v_i); end if;
+    if not (v_r->>'ok')::boolean then return v_r || jsonb_build_object('slot', v_i); end if;
     v_out := v_out || jsonb_build_array(v_r->'slot');
     v_i := v_i + 1;
   end loop;
   return jsonb_build_object('ok', true, 'slots', v_out);
 end $$;
 
--- STOP RULES: {ok:true, rules} canonical ({ conditions, join, forMs }), or {ok:false, error, at, cond?}.
+-- STOP RULES: {ok:true, rules} canonical ({ conditions, join, forMs }), or {ok:false, error, slot | rule, condition?}.
 create or replace function public.hr_hunt_stop_rules_check(p_rules jsonb)
 returns jsonb language plpgsql stable set search_path = public, pg_catalog as $$
 declare
@@ -324,13 +325,13 @@ begin
   for v_e in select value from jsonb_array_elements(p_rules) loop
     if jsonb_typeof(v_e) <> 'object' or exists (select 1 from jsonb_object_keys(v_e) k where k not in ('conditions', 'join', 'forMs'))
        or jsonb_typeof(v_e->'conditions') is distinct from 'array' or jsonb_array_length(v_e->'conditions') = 0 then
-      return jsonb_build_object('ok', false, 'error', 'bad_stop_rule', 'at', v_i); end if;
+      return jsonb_build_object('ok', false, 'error', 'bad_stop_rule', 'rule', v_i); end if;
     v_f := case when v_e ? 'forMs' and jsonb_typeof(v_e->'forMs') = 'number' then (v_e->>'forMs')::numeric
                 when v_e ? 'forMs' then -1 else 0 end;
     if v_f < 0 or v_f > v_hmax or v_f <> trunc(v_f) or mod(v_f, v_step) <> 0 then
-      return jsonb_build_object('ok', false, 'error', 'bad_hold', 'at', v_i); end if;
+      return jsonb_build_object('ok', false, 'error', 'bad_hold', 'rule', v_i); end if;
     v_r := public.hr_hunt_conds_check(v_e->'conditions', v_e->'join', true);
-    if v_r is not null then return jsonb_build_object('ok', false, 'at', v_i) || v_r; end if;
+    if v_r is not null then return jsonb_build_object('ok', false, 'rule', v_i) || v_r; end if;
     v_out := v_out || jsonb_build_array(jsonb_build_object('conditions', v_e->'conditions',
       'join', coalesce(v_e->>'join', 'and'), 'forMs', v_f::bigint));
     v_i := v_i + 1;
@@ -1009,7 +1010,7 @@ begin
        or v->'options'->'stop_rules'->0->>'forMs' <> '30000' or v->'options'->'grounds' <> '["millrace_sewer"]'::jsonb then
       raise exception 'VERIFY(c): stop rules / grounds / density / gather share answered %', v; end if;
     for v_case in select * from (values
-        ('{"density": 5}'::jsonb, 'bad_density'), ('{"density": 0}'::jsonb, 'bad_density'), ('{"gather_share": 101}'::jsonb, 'bad_gather_share'),
+        ('{"density": 17}'::jsonb, 'bad_density'), ('{"density": -1}'::jsonb, 'bad_density'), ('{"gather_share": 101}'::jsonb, 'bad_gather_share'),
         ('{"stop_rules": [{"conditions": [{"metric": "enemies_in_aoe", "op": "gte", "value": 2}]}]}'::jsonb, 'bad_metric'),
         ('{"stop_rules": [{"conditions": [{"metric": "self_hp_pct", "op": "lt", "value": 2}], "forMs": 150}]}'::jsonb, 'bad_hold'),
         ('{"grounds": ["atlantis"]}'::jsonb, 'bad_grounds')) c(opts, err) loop

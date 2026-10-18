@@ -4,9 +4,12 @@
 // One sub-step hook, `consume(inst, sc)`, for every living hero:
 //   1. its over-time halves tick (one tick a CONSUMABLE_RULES.overTimeTickMs);
 //   2. while the ONE food-and-drink lane is locked, nothing more;
-//   3. under the drink threshold (and no drink still ticking) it DRINKS;
-//   4. else under the food threshold, with no heal in the last noHealWindowMs
-//      (and no food still ticking), it EATS.
+//   3. its consume SLOTS are walked in order (conditions.js): the first whose
+//      conditions pass and that has something to use fires. With no consume
+//      slot on its bar the defaults stand: drink under drink_below_pct, then
+//      eat under food_below_pct (the eat-at / drink-at options ARE these slots'
+//      values: one system). A drink waits while one still ticks; food also
+//      waits noHealWindowMs after a heal landed.
 // Food restores HP and drink restores mana, never both (no potions). Each use
 // lands instantPct now and the rest over overTimeMs, in whole ticks; the last
 // tick carries the remainder, so a use restores exactly its amount (capped at
@@ -19,7 +22,7 @@
 // with nothing to eat simply keeps fighting: running out never stops a hunt.
 //
 // INJECTED, never read from a global: `inst.heroes[unitId]` (from the settle's
-// swingCtx.heroes) = { hs, foodBelowPct, drinkBelowPct } — `hs` is that
+// swingCtx.heroes) = { hs, slots, foodBelowPct, drinkBelowPct } — `hs` is that
 // member's hunt session (bag, shop, purse, tally; the server's rows). A hero
 // with no entry has no supplies and eats nothing.
 //

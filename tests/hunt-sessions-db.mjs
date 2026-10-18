@@ -353,7 +353,9 @@ const ARMS = {
    ("still read by"). Rolled back. */
 const DROP = '2026-10-22-hunt-sessions-delete-away.sql';
 const STAGED = [CAT_NOW, '2026-10-23-character-premium.sql', '2026-10-23-premium-login-reward.sql', '2026-10-23-hunt-settings-options.sql',
-  '2026-10-23-hunt-supply-ledger.sql', '2026-10-23-hunt-analyzer-v2.sql', '2026-10-23-hunt-world-state.sql', '2026-10-23-hunt-party.sql'];
+  '2026-10-23-hunt-supply-ledger.sql', '2026-10-23-hunt-analyzer-v2.sql', '2026-10-23-hunt-world-state.sql', '2026-10-23-hunt-party.sql',
+  /* lane action-engine: restates hr_hunt_bar_check / _settle_session / _open_session / _settings_view after them */
+  '2026-10-25-action-conditions.sql'];
 async function d1(db) {
   const red = [];
   const cols = await one(db, `select count(*)::int from information_schema.columns where table_schema = 'public'

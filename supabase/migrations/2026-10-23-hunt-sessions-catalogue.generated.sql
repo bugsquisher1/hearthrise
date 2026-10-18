@@ -8,7 +8,7 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: a46c63922afbaf339b6dfdc1a89e198984a4a4f33def8d9e3bcb9d44f2a750b4
+--   digest: 382699b0954a8cd517c2bf05696a2e806ed756a6917a67ab686dd0d07ec773e5
 --   53 supplies, 104 hunts (named + training), 36 limits, 10 end reasons,
 --   462 vendor values, 18 store supplies paid per use, 5 target modes,
 --   3 lanes, 14 abilities, 13 action-set options, 2 hunt grounds
@@ -263,7 +263,7 @@ delete from public.hr_hunt_set_options;
 insert into public.hr_hunt_set_options (opt, kind, limit_key, vals, dflt) values
   ('action_set', 'enum', null, array['hunt', 'mana_train', 'boss']::text[], '"hunt"'::jsonb),
   ('chase', 'bool', null, null, null),
-  ('density', 'limit', 'density', null, '1'::jsonb),
+  ('density', 'limit', 'density', null, '0'::jsonb),
   ('distance', 'limit', 'distance', null, null),
   ('drink_below_pct', 'limit', 'threshold_pct', null, '30'::jsonb),
   ('food_below_pct', 'limit', 'threshold_pct', null, '50'::jsonb),
@@ -618,8 +618,8 @@ insert into public.hr_hunt_limits (key, value) values
   ('ability_ammo_max', 3),
   ('bag_lines', 10),
   ('death_xp_permille', 20),
-  ('density_max', 4),
-  ('density_min', 1),
+  ('density_max', 16),
+  ('density_min', 0),
   ('distance_max', 8),
   ('distance_min', 1),
   ('falls_default', 3),

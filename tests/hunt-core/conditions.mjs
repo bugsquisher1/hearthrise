@@ -67,7 +67,7 @@ function openGrid(M) {
 }
 function openGround(spawns, o) {
   return Object.assign({ id: 'ae_room', hunt: 'mill_cellar', map: 'ae_room', start: [[2, 5], [2, 6], [3, 5], [3, 6]],
-    pockets: [{ room: [8, 1, 22, 10], spawns }], route: [0], respawnMs: 3000, pullDist: 1.5, densityMax: [4, 4, 4, 4] }, o || {});
+    pockets: [{ room: [8, 1, 22, 10], spawns }], route: [0], respawnMs: 3000, pullDist: 1.5, densityMax: [12, 12, 12, 12], partyScale: true }, o || {});
 }
 /* A 3 x 3 block of `monster` round (16, 5), plus a straggler at (20, 9). */
 const BLOCK = (monster) => [[15, 4], [16, 4], [17, 4], [15, 5], [16, 5], [17, 5], [15, 6], [16, 6], [17, 6], [20, 9]]
@@ -93,7 +93,7 @@ function member(M, key, role, o) {
       updateQuest(t) { if (t === 'kill') kills.push(1); } },
     _loot: loot,
     hero: { role, maxMana: R.mana, element: '', settings: null, slots: rows(x.slots || []), stopRules: x.stopRules || [],
-      density: x.density ?? 1, actionSet: 'hunt', range: R.range, ammo: x.ammo || null },
+      density: x.density ?? 0, actionSet: 'hunt', range: R.range, ammo: x.ammo || null },
   };
 }
 
@@ -106,7 +106,7 @@ function party(M, o) {
     member(M, 'b-ranger', 'ranger', { seat: 1, ammo: 'bronze_arrows', maxHit: 4,
       bag: { bronze_arrows: { loaded: 50 }, [HAVOC]: { loaded: x.havoc ?? 6 }, [BURST]: { loaded: 500 } },
       slots: [slot('attack_with_item', HAVOC, [c('enemies_in_aoe', 'gte', 4)]), slot('attack_with_item', BURST, [c('enemies_in_aoe', 'gte', 2)])] }),
-    member(M, 'c-druid', 'healer', { seat: 2, maxHit: 2, slots: [ab('greater_mend', [c('ally_hp_pct', 'lt', 80, 'tank')])] }),
+    member(M, 'c-druid', 'healer', { seat: 2, maxHit: 2, slots: [ab('greater_mend', [c('ally_hp_pct', 'lt', 80, 'tank')])], stopRules: x.druidStop }),
     member(M, 'd-sorc', 'mage', { seat: 3, maxHit: 2, bag: { fire_rune: { loaded: 300 } }, slots: [ab('fireball', [c('enemies_in_aoe', 'gte', 3)])] }),
   ];
 }
@@ -131,9 +131,9 @@ function runParty(M, cuts, o) {
 }
 
 /* A FRESH CHARACTER on the REAL settle (accrueHunt) at a real ground: the start kit's skills and food, a staff. */
-function freshHealer(M, huntId, minutes, seed) {
+function freshHealer(M, huntId, minutes, seed, options, element) {
   const { ground, grid } = M.hg.huntGroundOf(huntId);
-  const hero = M.heroSetup({ weaponType: M.ITEMS.apprentice_staff.weaponType, options: { role: 'healer' }, bar: [], partyRoles: [] });
+  const hero = M.heroSetup({ weaponType: M.ITEMS.apprentice_staff.weaponType, options: Object.assign({ role: 'healer' }, options || {}), bar: [], partyRoles: [] });
   const from = T0; const to = from + minutes * 60000;
   const food = Object.keys(M.kit.START_INVENTORY).find((id) => M.SUP.SUPPLIES[id] && M.SUP.SUPPLIES[id].kind === 'heal');
   const member0 = { key: 'h', user: 'u', slot: 0, seat: 0, unitId: null, sessionId: 's', version: 1, huntId,
@@ -141,7 +141,7 @@ function freshHealer(M, huntId, minutes, seed) {
       bag: { [food]: { loaded: M.kit.START_INVENTORY[food] }, air_rune: { loaded: M.kit.START_INVENTORY.air_rune } },
       staminaMs: 8 * 3600000, staminaMaxMs: 8 * 3600000 },
     skills: Object.assign({}, M.kit.START_SKILL_XP), hp: M.kit.START_CURRENCY.hp, maxHp: M.kit.START_CURRENCY.maxHp, gold: M.kit.START_CURRENCY.gold,
-    equipment: { weapon: 'apprentice_staff', ammo: 'air_rune' }, inventory: {}, hero };
+    equipment: { weapon: 'apprentice_staff', ammo: 'air_rune' }, inventory: {}, hero: Object.assign({}, hero, { element: element || '' }) };
   const secret = String(BigInt.asIntN(64, BigInt(seed) * 2654435761n + 1n));
   const out = M.acc.accrueHunt({ instance: { id: '00000000-0000-4000-8000-0000000000ae', nextSwingAtMs: from, world: null },
     window: { fromMs: from, toMs: to }, secret, ground, grid, items: M.ITEMS, monsters: M.MONSTERS, members: [member0] });
@@ -211,7 +211,7 @@ const cases = {
       if ((p && p.error) !== (err || undefined) && !(err === null && p === null)) return JSON.stringify(s) + ' answered ' + JSON.stringify(p) + ', not ' + err;
     }
     if ((M.cond.barProblem(Array(21).fill(null), 20) || {}).error !== 'too_many_slots') return 'a 21-slot bar was taken';
-    if ((M.cond.barProblem([null, ab('nope')], 20) || {}).at !== 1) return 'a bar refusal does not name its slot';
+    if ((M.cond.barProblem([null, ab('nope')], 20) || {}).slot !== 1) return 'a bar refusal does not name its slot';
     const S = M.cond.stopRulesProblem;
     if (S([{ conditions: [c('self_mana_pct', 'lt', 20)], forMs: 30000 }]) !== null) return 'a valid stop rule was refused';
     if ((S([{ conditions: [c('enemies_in_aoe', 'gte', 2)] }]) || {}).error !== 'bad_metric') return 'a stop rule took a slot-only metric';
@@ -331,26 +331,55 @@ const cases = {
     if (r.hs.ruleStop !== 0 || !sc.events.some((e) => e.type === 'rule_stop' && e.rule === 0)) return 'the rule did not fire at 1000 ms held';
     return M.AR.endReasonAt(r.hs, 2000) === 'rule' ? null : 'the end order does not end a met stop rule: ' + M.AR.endReasonAt(r.hs, 2000);
   },
+  /* The Druid's stop rule (always true, held 5 s) ends ITS hunt `rule`, the others hunt on; cut into windows
+     every 2 s (shorter than the hold) the instance is identical, so the hold survives a settle cut. */
   'stop-rule-span': (M) => {
-    const ms = party(M);
-    ms[2].hero.stopRules = [{ conditions: [c('self_mana_pct', 'lt', 101)], join: 'and', forMs: 4000 }];
-    const ground = openGround(BLOCK('drain_rat'));
-    const r = M.cs.simulateHuntInstance({ world: null, nextSwingAtMs: T0, members: ms },
-      { toMs: T0 + 20000, tickMs: 2000, seed: (d, i) => M.rng.hashSeed('ae', d, i), monsters: M.MONSTERS, items: itemsWith(M), ground, grid: openGrid(M) });
-    const e = r.members['c-druid'].huntEnded;
-    return e && e.reason === 'rule' && r.members['a-knight'].huntEnded === null ? null : 'the druid ended ' + JSON.stringify(e);
+    const o = { spanMs: 20000, druidStop: [{ conditions: [c('self_mana_pct', 'lt', 101)], join: 'and', forMs: 5000 }] };
+    const whole = runParty(M, [], o);
+    const cut = runParty(M, [2000, 4000, 6000, 8000, 10000, 12000], o);
+    const e = whole.ended.find((x) => x.reason === 'rule');
+    if (!e || whole.ended.length !== 1) return 'the druid did not end alone on its rule: ' + JSON.stringify(whole.ended);
+    if (!whole.members.find((m) => m.key === 'c-druid').hs.endedReason) return 'the druid\'s session is not ended';
+    return whole.key === cut.key ? null : 'a settle cut changed when the stop rule fired: ' + JSON.stringify(cut.ended);
   },
   density: (M) => {
     const g = M.grounds.HUNT_GROUNDS.millrace_sewer;
-    const got = [M.grounds.densityFor(g, 1, [4]), M.grounds.densityFor(g, 3, [4]), M.grounds.densityFor(g, 4, [3, 1]), M.grounds.densityFor(g, 1, [])].join();
-    if (got !== '2,3,1,1') return 'densityFor answered ' + got + ' (want an over-max pick clamped to 2 solo, 3 for three; a party takes its smallest pick)';
+    const got = [M.grounds.densityFor(g, 1, [16]), M.grounds.densityFor(g, 3, [16]), M.grounds.densityFor(g, 4, [12, 9]), M.grounds.densityFor(g, 1, [])].join();
+    if (got !== '8,10,9,0') return 'densityFor answered ' + got + ' (want an over-max pick clamped to 8 solo, 10 for three; a party takes its smallest pick; none = as built)';
+    for (const row of Object.values(M.grounds.HUNT_GROUNDS)) {
+      if (!row.densityMax || row.densityMax.some((v) => v < M.grounds.DENSITY_FULL_BOX)) return row.id + ' allows less than a full box: ' + row.densityMax;
+    }
     const pack = (d) => {
       const w = M.spawn.newHuntWorld(openGround(BLOCK('rat').slice(0, 4)), openGrid(M), [{ role: 'tank', maxHp: 100, acc: 900, maxHit: 5, def: 1, density: d }]);
       return w.units.filter((u) => u.side === 'mon').map((u) => u.x + ',' + u.y).join(' ');
     };
-    const one = pack(1).split(' ').length; const two = pack(2).split(' ').length;
-    if (one !== 4 || two !== 8) return 'density 1 / 2 spawned ' + one + ' / ' + two + ' monsters, want 4 / 8';
-    return pack(2) === pack(2) ? null : 'a density-2 pack is not placed deterministically';
+    const one = pack(0).split(' ').length; const two = pack(8).split(' ').length;
+    if (one !== 4 || two !== 8) return 'density 0 / 8 spawned ' + one + ' / ' + two + ' monsters, want 4 (as built) / 8';
+    return pack(8) === pack(8) ? null : 'a density-8 pack is not placed deterministically';
+  },
+  /* Tyler 2026-10-18: a FULL BOX. At density 8 the pack fills all eight tiles round a tank that holds still. */
+  'full-box': (M) => {
+    const ground = openGround([{ monster: 'drain_rat', x: 18, y: 5 }], { start: [[14, 5]], partyScale: false });
+    const grid = openGrid(M);
+    const w = M.spawn.newHuntWorld(ground, grid, [{ role: 'tank', maxHp: 1000000, hp: 1000000, acc: 0, maxHit: 1, def: 0, density: 8,
+      settings: { chase: false, dist: 1 } }]);
+    const mons = w.units.filter((u) => u.side === 'mon');
+    if (mons.length !== 8) return 'density 8 spawned ' + mons.length;
+    /* Already pulled: the pack is on the tank, which holds (chase off, distance 1). */
+    const tank = w.units.find((u) => u.side === 'hero');
+    w.phase = 'fight'; w.packs[0].aggro = true; w.packs[0].holder = tank.id;
+    for (const m of mons) { m.hp = m.maxHp = 1000000; m.target = tank.id; }
+    for (let s = 0; s < 20; s++) M.worldstep.stepSwing(w, { ground, grid, heroes: {}, swingMs: 2000, atMs: T0 + s * 2000, rng: M.rng.createRng(M.rng.hashSeed('box', s)) });
+    const k = w.units.find((u) => u.side === 'hero');
+    if (k.x !== 14 || k.y !== 5) return 'the tank moved to ' + k.x + ',' + k.y;
+    const around = [];
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      if (!dx && !dy) continue;
+      around.push(w.units.some((u) => u.side === 'mon' && u.alive && u.x === k.x + dx && u.y === k.y + dy) ? 1 : 0);
+    }
+    const n = around.reduce((a, b) => a + b, 0);
+    return n === 8 && w.units.filter((u) => u.side === 'mon' && u.alive).every((m) => m.target === k.id) ? null
+      : 'after 40 s only ' + n + ' of the 8 tiles round the tank hold a monster (' + around.join('') + ')';
   },
   'party-scale': (M) => {
     const hp = (n) => {
@@ -360,7 +389,11 @@ const cases = {
     };
     const got = [1, 2, 4].map(hp).join();
     const want = [1, 2, 4].map((n) => M.grounds.scaledHp(M.MONSTERS.drain_rat, n)).join();
-    return got === want && hp(1) < M.MONSTERS.drain_rat.hp ? null : 'packs spawned at ' + got + ' HP, the party scale says ' + want;
+    if (got !== want || !(hp(1) < M.MONSTERS.drain_rat.hp)) return 'packs spawned at ' + got + ' HP, the party scale says ' + want;
+    const flat = M.spawn.newHuntWorld(openGround([{ monster: 'drain_rat', x: 16, y: 5 }], { partyScale: false }), openGrid(M),
+      [{ role: 'tank', maxHp: 100, acc: 900, maxHit: 5, def: 1 }]).units.find((u) => u.side === 'mon').maxHp;
+    if (flat !== M.MONSTERS.drain_rat.hp) return 'a ground that does not opt in scaled its pack to ' + flat;
+    return ['mill_cellar', 'millrace_sewer'].every((g) => M.grounds.HUNT_GROUNDS[g].partyScale === true) ? null : 'the cellar and the sewer do not opt in to the party scale';
   },
   'healer-floor': (M) => {
     /* A fixture immunity: the monster rows are the designer's, so the immune element is planted on the unit's kind row copy. */
@@ -394,6 +427,8 @@ const cases = {
     const rm = whole.members.find((m) => m.key === 'b-ranger');
     if (havoc.length !== 6 || rm.hs.bag[HAVOC].left !== 0) return 'the 5x5 slot shot ' + havoc.length + ' of 6, ' + rm.hs.bag[HAVOC].left + ' left';
     if (!burst.length || 500 - rm.hs.bag[BURST].left !== burst.length) return 'the 3x3 slot shot ' + burst.length + ' and spent ' + (500 - rm.hs.bag[BURST].left);
+    /* Each shot's footprint IS the metric it was chosen on: a 5x5 at 4+, a 3x3 at 2+. */
+    if (havoc.some((e) => e.hits < 4) || burst.some((e) => e.hits < 2)) return 'a shot fired under its threshold: ' + JSON.stringify(shots.filter((e) => e.hits < (e.item === HAVOC ? 4 : 2)).slice(0, 2));
     if (!havoc.some((e) => e.hits >= 4) || havoc.some((e) => e.rule !== 0)) return 'the 5x5 shots did not hit 4+ under rule 0: ' + JSON.stringify(havoc.slice(0, 2));
     const lastHavoc = havoc[havoc.length - 1].atMs;
     if (!burst.some((e) => e.atMs > lastHavoc && e.rule === 1)) return 'the 3x3 slot never took over after the 5x5 ran out';
@@ -411,20 +446,49 @@ const cases = {
     return monKills > 0 && tallied === monKills * whole.members.length ? null
       : 'kills: ' + monKills + ' monster kill events, tallies sum ' + tallied + ' over ' + whole.members.length + ' members';
   },
+  /* Both with today's neutral staff blow and with the Healer's POISON (the sim's element, which the element-id
+     unification will land: every cellar and first-sewer monster is poison-immune, so only the floor lets her kill). */
   'solo-healer': (M) => {
-    for (const seed of [1, 2]) {
-      const cellar = freshHealer(M, 'mill_cellar', 10, seed);
+    for (const [seed, el] of [[1, ''], [2, ''], [1, 'poison'], [2, 'poison']]) {
+      const tag = 'seed ' + seed + (el ? ' (' + el + ')' : '');
+      const cellar = freshHealer(M, 'mill_cellar', 10, seed, null, el);
       const ce = cellar.events;
-      if (ce.some((e) => e.type === 'wipe') || cellar.members[0].hunt.falls) return 'seed ' + seed + ': a fresh solo healer fell in the cellar';
-      if (ce.filter((e) => e.type === 'pull').length < 2 || !ce.some((e) => e.type === 'kill')) return 'seed ' + seed + ': the cellar was not cleared';
-      const sewer = freshHealer(M, 'millrace_sewer', 10, seed);
+      const spawned = M.grounds.HUNT_GROUNDS.mill_cellar.pockets.reduce((a, p) => a + p.spawns.length, 0);
+      if (ce.some((e) => e.type === 'wipe') || cellar.members[0].hunt.falls) return tag + ': a fresh solo healer fell in the cellar';
+      if (!ce.some((e) => e.type === 'pull' && e.pocket === 1) || ce.filter((e) => e.type === 'kill').length < spawned) return tag + ': the cellar was not cleared';
+      const sewer = freshHealer(M, 'millrace_sewer', 10, seed, null, el);
       const pulls = sewer.events.filter((e) => e.type === 'pull');
       const second = pulls.find((e) => e.pocket !== 0);
-      if (!second) return 'seed ' + seed + ': the sewer\'s first pocket was never cleared in 10 minutes';
+      if (!second) return tag + ': the sewer\'s first pocket was never cleared in 10 minutes';
       const fell = sewer.events.find((e) => e.type === 'wipe' && e.atMs < second.atMs);
-      if (fell) return 'seed ' + seed + ': the healer fell in the sewer\'s first pocket at ' + (fell.atMs - T0) + ' ms';
+      if (fell) return tag + ': the healer fell in the sewer\'s first pocket at ' + (fell.atMs - T0) + ' ms';
     }
     return null;
+  },
+  /* The SETTLE clamps an over-max pick (the stored 4) to the ground's solo max (the sewer's 2): its first pocket spawns twice. */
+  /* Tyler P1: the Healer's default rule set (an empty bar) heals first and attacks only when nobody needs healing. */
+  'healer-default-rules': (M) => {
+    const setup = M.heroSetup({ weaponType: 'magic', options: { role: 'healer' }, bar: [], partyRoles: [] });
+    const run = (allyHp) => {
+      const d = hero(M, 1, 6, 3, { role: 'healer', hp: 135, maxHp: 135, mana: 300, maxMana: 300 });
+      const k = hero(M, 2, 8, 3, { role: 'tank', hp: allyHp, maxHp: 100 });
+      const ms = [[9, 3], [10, 3]].map(([x, y], i) => mon(M, 10 + i, 0, x, y, { target: 2, hp: 500, maxHp: 500 }));
+      const inst = instOf(M, world(M, [d, k, ...ms]));
+      inst.heroes = { 1: heroRow(M, { range: 7, slots: setup.slots }) };
+      const sc = subStep(0); sc.rng = M.rng.createRng(5);
+      M.abilities.castAbilities(inst, sc);
+      return sc.events.filter((e) => e.type === 'cast').map((e) => e.ability).join();
+    };
+    const safe = run(95); const hurt = run(60);
+    return safe === 'natures_wrath' && hurt === 'greater_mend' ? null : 'with the tank at 95% the healer cast ' + (safe || 'nothing') + '; at 60% ' + (hurt || 'nothing');
+  },
+  'density-settle': (M) => {
+    const out = freshHealer(M, 'millrace_sewer', 1, 1, { density: 16 });
+    const w = M.worldstate.decode(JSON.parse(out.world));
+    const max = M.grounds.HUNT_GROUNDS.millrace_sewer.densityMax[0];
+    const born = M.grounds.HUNT_GROUNDS.millrace_sewer.pockets.map((_, p) => w.units.filter((u) => u.side === 'mon' && u.pocket === p).length);
+    if (w.density !== max) return 'the settle ran density ' + w.density + ' for a stored 16 on a solo sewer hunt (max ' + max + ')';
+    return born.every((n) => n <= max) && born[1] === max ? null : 'packs spawned ' + born + ', want at most ' + max + ' and a full pocket 1';
   },
   'sql-rows': (M) => {
     let sql;
@@ -472,15 +536,20 @@ const mutants = [
   { name: 'target_is_boss reads the wrong flag', case: 'metrics-misc', edits: [['src/core/hunt/conditions.js', 'MONSTERS[t.kind].boss === true', 'MONSTERS[t.kind].formation === false']] },
   { name: 'a stop rule ignores its hold', case: 'stop-rule', edits: [['src/core/hunt/conditions.js', '      if (t.pass && hold[i] >= int(r.forMs)) {', '      if (t.pass) {']] },
   { name: 'the span never ends a met stop rule', case: 'stop-rule-span', edits: [['src/core/combat-sim.js', ' || Number.isInteger(m.hs.ruleStop) ||', ' ||'], ['src/core/action-rules.js', '  rule: (hs) => Number.isInteger(hs.ruleStop),', '  rule: () => false,']] },
-  { name: 'the density pick is not clamped', case: 'density', edits: [['src/data/hunt-grounds.js', '  return Math.max(1, Math.min(max || 1, pick, DENSITY_PICK.max));', '  return Math.max(1, Math.min(pick, DENSITY_PICK.max));']] },
-  { name: 'density does not reach the pack', case: 'density', edits: [['src/core/hunt/pull-cycle.js', '  const copies = Math.max(1, Math.floor(Number(w.density) || 1));', '  const copies = 1;']] },
-  { name: 'packs spawn at full HP whatever the party', case: 'party-scale', edits: [['src/core/hunt/pull-cycle.js', '      const hp = scaledHp(row, heroes);', '      const hp = row.hp;']] },
+  { name: 'the density pick is not clamped', case: 'density', edits: [['src/data/hunt-grounds.js', '  return Math.max(0, Math.min(max, pick, DENSITY_PICK.max));', '  return Math.max(0, Math.min(pick, DENSITY_PICK.max));']] },
+  { name: 'density does not reach the pack', case: 'density', edits: [['src/core/hunt/pull-cycle.js', '  const size = want > 0 ? want : pocket.spawns.length;', '  const size = pocket.spawns.length;']] },
+  { name: 'packs spawn at full HP whatever the party', case: 'party-scale', edits: [['src/data/hunt-grounds.js', '  return ground && ground.partyScale === true ? scaledHp(row, partySize) : Math.max(1, (row && row.hp) || 1);', '  return Math.max(1, (row && row.hp) || 1);']] },
   { name: 'the solo healer floor is never applied', case: 'healer-floor', edits: [['src/core/hunt/damage.js', '    ? elementWithFloor(elementOn(target, element), source.role, partySize(inst)) : elementOn(target, element);', '    ? elementOn(target, element) : elementOn(target, element);']] },
-  { name: 'the druid heals whoever is lowest', case: 'party-acceptance', edits: [['src/core/hunt/conditions.js', '  if (subject && subject !== \'lowest\') return all.find((a) => a.role === subject) || null;\n', '']] },
+  { name: 'the druid heals whoever is lowest', case: 'ally-subject', edits: [['src/core/hunt/conditions.js', '  if (subject && subject !== \'lowest\') return all.find((a) => a.role === subject) || null;\n', '']] },
   { name: 'an attack slot ignores its conditions', case: 'party-acceptance', edits: [['src/core/hunt/damage.js', '  return pickSlot(inst, u, h, rows, (slot, cx) => {', '  return pickSlot(inst, u, h, rows.map((r) => ({ rule: r.rule, slot: Object.assign({}, r.slot, { conditions: [] }) })), (slot, cx) => {']] },
-  { name: 'the stop-rule hold is not persisted (a cut resets it)', case: 'party-acceptance', edits: [['src/core/hunt/conditions.js', "  unit: Object.freeze([['ruleHold', 'json']]),", '  unit: Object.freeze([]),']] },
-  { name: 'the healer\'s default rule set has no attack-when-safe rule', case: 'solo-healer',
+  { name: 'the stop-rule hold is not persisted (a cut resets it)', case: 'stop-rule-span', edits: [['src/core/hunt/conditions.js', "  unit: Object.freeze([['ruleHold', 'json']]),", '  unit: Object.freeze([]),']] },
+  { name: 'the healer\'s default rule set has no attack-when-safe rule', case: 'healer-default-rules',
     edits: [['src/data/rule-subjects.js', "    slot('natures_wrath', [{ metric: 'ally_hp_pct', op: 'gte', value: 70, subject: 'lowest' }])]),", '  ]),']] },
+  { name: 'monsters do not fill the diagonal tiles of the box', case: 'full-box', edits: [['src/core/hunt/roles.js', '      if ((!dx && !dy) || !walkable(inst.grid, x, y)', '      if ((!dx && !dy) || (dx && dy) || !walkable(inst.grid, x, y)']] },
+  { name: 'the settle never clamps the stored pick', case: 'density-settle', edits: [['src/core/combat-sim.js', '      world.density = densityFor(ctx.ground,', '      world.density = Math.max(...members.map((m) => m.hero.density), 1) || densityFor(ctx.ground,']] },
+  { name: 'the solo healer fights unscaled packs with no floor (the P1 as it shipped)', case: 'solo-healer',
+    edits: [['src/data/hunt-grounds.js', '  return ground && ground.partyScale === true ? scaledHp(row, partySize) : Math.max(1, (row && row.hp) || 1);', '  return Math.max(1, (row && row.hp) || 1);'],
+      ['src/core/hunt/damage.js', '    ? elementWithFloor(elementOn(target, element), source.role, partySize(inst)) : elementOn(target, element);', '    ? elementOn(target, element) : elementOn(target, element);']] },
   { name: 'a migration row drifts from the registry', case: 'sql-rows', edits: [['src/data/condition-metrics.js', "label: 'My target is a boss', value: 'bool', ops: Object.freeze(['eq'])", "label: 'My target is a boss', value: 'bool', ops: Object.freeze(['eq', 'ne'])"]] },
 ];
 

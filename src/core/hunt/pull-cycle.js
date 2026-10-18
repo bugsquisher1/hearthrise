@@ -28,7 +28,7 @@ import { KNOCKOUT_MS } from '../../data/hunt-sessions.js?v=0.1.0';
 import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js?v=0.1.0';
 import { AI_REPATH_MS } from '../../data/hunt-roles.js?v=0.1.0';
 import { resumeHpFor } from '../recovery.js?v=0.1.0';
-import { scaledHp } from '../../data/hunt-grounds.js?v=0.1.0';
+import { packHpFor } from '../../data/hunt-grounds.js?v=0.1.0';
 import { cheb, dist2, freeNear, tileKey } from './grid.js?v=0.1.0';
 import { inArea, resetPack } from './leash.js?v=0.1.0';
 import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy } from './movement.js?v=0.1.0';
@@ -55,27 +55,30 @@ const heroes = (inst) => inst.world.units.filter((u) => u.side === 'hero');
 export const partySize = (inst) => inst.world.units.filter((u) => u.side === 'hero').length;
 
 /**
- * Spawn pocket `p`'s pack (PC-02). Each monster's HP is the party scale's
- * (hunt-grounds.js scaledHp: 550 / 700 / 850 / 1000 permille for 1-4 heroes) at
- * the size the instance has WHEN the pack spawns; a hero joining later meets the
+ * Spawn pocket `p`'s pack (PC-02). On a ground that opts in (`partyScale`) each
+ * monster's HP is the party scale's (hunt-grounds.js packHpFor: 550 / 700 / 850 /
+ * 1000 permille for 1-4 heroes) at the size the instance has WHEN the pack spawns; a hero joining later meets the
  * next respawn at the new size. The DENSITY (world.density, the settle's
- * clamped pick: hunt-grounds.js densityFor) spawns every spawn row that many
- * times, each copy on the first free tile near its row's own (row order, then
- * copy order: deterministic).
+ * clamped pick: hunt-grounds.js densityFor) is the pack's SIZE: that many
+ * monsters, the pocket's spawn rows taken in order and round again (0 = the
+ * pocket as built), each on the first free tile near its row's own spot
+ * (deterministic). A full box is 8: every tile round the tank.
  */
 export function spawnPack(inst, p, sc) {
   const w = inst.world;
   const pocket = inst.ground.pockets[p];
   const heroes = partySize(inst);
-  const copies = Math.max(1, Math.floor(Number(w.density) || 1));
+  const want = Math.floor(Number(w.density) || 0);
+  const size = want > 0 ? want : pocket.spawns.length;
   occupancy(inst);
   const taken = (x, y) => inst.occ.mon.has(tileKey(inst.grid, x, y)) || inst.occ.hero.has(tileKey(inst.grid, x, y)) || !inArea(inst, p, x, y);
-  for (let c = 0; c < copies; c++) {
-    for (const s of pocket.spawns) {
+  for (let i = 0; i < size; i++) {
+    {
+      const s = pocket.spawns[i % pocket.spawns.length];
       const at = freeNear(inst.grid, s.x, s.y, 3, taken);
       const row = MONSTERS[s.monster];
       if (!at || !row) continue;
-      const hp = scaledHp(row, heroes);
+      const hp = packHpFor(inst.ground, row, heroes);
       const u = inst.makeUnit({ id: w.nextId, side: 'mon', kind: s.monster, pocket: p, alive: true, hp, maxHp: hp,
         target: null, home: at, x: at[0], y: at[1], fx: at[0], fy: at[1], speed: monsterSpeedOf(row) });
       w.nextId += 1;

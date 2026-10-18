@@ -193,6 +193,31 @@ async function checks(overrides, shots) {
       await ctx.close();
     }
 
+    { // HS-8 the density and gathering sliders (action engine, Tyler 2026-10-18): the server's values, one intent, off until confirmed
+      const { ctx, page, s, up } = await open();
+      if (up) {
+        await page.click('.hb-slot[data-slot="2"]');
+        const W = '[data-hs-win="hunt-settings"]';
+        const there = await wait(page, (w) => document.querySelector(w + ' input[data-opt="density"]') && document.querySelector(w + ' input[data-opt="gather_share"]'), W, 3000);
+        if (!there) fails.push('HS-8 the hunt settings window has no density / gathering slider');
+        else {
+          const shown = await page.evaluate((w) => ({ d: document.querySelector(w + ' input[data-opt="density"]').value,
+            g: document.querySelector(w + ' input[data-opt="gather_share"]').value, hint: document.querySelector(w + ' .he-form').innerText }), W);
+          if (shown.d !== '1' || shown.g !== '0') fails.push('HS-8 the sliders do not show the server’s values: ' + JSON.stringify(shown).slice(0, 120));
+          if (!/arrives/.test(shown.hint)) fails.push('HS-8 the gathering slider does not say it is not live yet');
+          s.env.hunt_settings.density = 3;
+          await page.evaluate((w) => { const el = document.querySelector(w + ' input[data-opt="density"]'); el.value = '3'; el.dispatchEvent(new Event('change', { bubbles: true })); }, W);
+          const mid = await page.evaluate((w) => document.querySelector(w + ' input[data-opt="density"]').disabled, W);
+          if (!mid) fails.push('HS-8 the density slider stayed on while its intent was in flight');
+          const sent = s.calls.filter((c) => c.name === 'hr_action_set_options').map((c) => c.body.p_opts);
+          if (sent.length !== 1 || JSON.stringify(sent[0]) !== '{"density":3}') fails.push('HS-8 the slider sent ' + JSON.stringify(sent));
+          const done = await wait(page, (w) => { const el = document.querySelector(w + ' input[data-opt="density"]'); return !el.disabled && el.value === '3'; }, W, 3000);
+          if (!done) fails.push('HS-8 after the server confirmed, the slider did not show the server’s density');
+        }
+      } else fails.push('HS-8 the screen did not mount');
+      await ctx.close();
+    }
+
     { // HS-4 no section / free character; HS-5 badge defaults
       const { ctx, page, s, up } = await open();
       if (up) {

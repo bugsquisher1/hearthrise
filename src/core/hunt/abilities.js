@@ -3,7 +3,9 @@
 //
 // Hunts are idle (Tyler 2026-10-16): there is no press path. Each sub-step,
 // every living hero in a fight regenerates mana, then fires the FIRST usable
-// ability in its bar order (AB-10). An ability is usable when:
+// ability SLOT in its bar order (AB-10; the condition engine,
+// src/core/hunt/conditions.js: a slot whose conditions fail falls through to
+// the next). An ability is usable when:
 //   it is active and its action set does not skip it (AB-11),
 //   its own cooldown and its lane are ready (AB-01/02),
 //   the hero has the mana (AB-12), its rune and its shots resolve — own line
@@ -20,8 +22,9 @@
 // the fields damage.js reads: `markBy`/`markUntil`, `vulnUntil`, `shield`.
 // Magic XP is H5's: each `cast` event carries `mana` and `magicXpMult`.
 //
-// INJECTED: `inst.heroes[unitId]` = { hs, bar: [abilityId…], actionSet,
-// range (tiles; 1 = Melee), ammo (the loaded ammo item id) }. A hero with no
+// INJECTED: `inst.heroes[unitId]` = { hs, slots (conditions.js heroSlots rows)
+// or bar (ability ids, the shorthand), actionSet, range (tiles; 1 = Melee),
+// ammo (the loaded ammo item id), items? (the server's item catalogue) }. A hero with no
 // entry fires nothing. Draws: the swing's stream `sc.rng`, heroes in id order,
 // one `int` per hit roll (spec §1.1 #3).
 //

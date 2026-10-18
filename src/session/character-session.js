@@ -151,6 +151,17 @@ export class CharacterSession {
     return this._settled(await this._server.rpc('hr_action_set_options', { p_slot: this.slot, p_preset: preset, p_opts: opts, p_idem: newIdem() }));
   }
 
+  /**
+   * Copy THIS character's hunt settings (every action set: bar, stop rules, options)
+   * onto another of the account's characters (hr_action_set_copy). The other
+   * character's own session re-reads them; nothing changes here.
+   * @returns {Promise<{ok: boolean, error?: string}>}
+   */
+  async copyHuntSettingsTo(toSlot) {
+    if (this._closed) return { ok: false, error: 'closed' };
+    return this._settled(await this._server.rpc('hr_action_set_copy', { p_from: this.slot, p_to: toSlot, p_idem: newIdem() }));
+  }
+
   /** Leave the hunt (hr_hunt_leave): the server settles and ends it; the re-read shows the summary. */
   async leaveHunt() {
     if (this._closed) return { ok: false, error: 'closed' };

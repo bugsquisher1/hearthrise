@@ -87,7 +87,7 @@ export function normalizeSlot(s) {
 /* ── VALIDATION (the server's hr_hunt_bar_check / hr_hunt_stop_rules_check, mirrored) ── */
 
 /** The item kind an action id names, or null: abilities by row, food/drink by kind or item, ammo by supply row. */
-export function actionKnown(type, id) {
+function actionKnown(type, id) {
   if (type === 'ability') return !!ABILITIES[id];
   if (type === 'consume') return Object.prototype.hasOwnProperty.call(CONSUME_KINDS, id) || !!(CONSUMABLES[id] && CONSUMABLES[id].source === 'own');
   if (type === 'attack_with_item') return !!(SUPPLIES[id] && SUPPLIES[id].kind === 'ammo');
@@ -95,7 +95,7 @@ export function actionKnown(type, id) {
 }
 
 /** Why a condition is refused, or null. `stop` = in a stop rule (no slot to read). */
-export function conditionProblem(c, stop) {
+function conditionProblem(c, stop) {
   if (!isObj(c)) return 'bad_condition';
   const extra = Object.keys(c).filter((k) => !['metric', 'op', 'value', 'subject'].includes(k));
   if (extra.length) return 'bad_condition';
@@ -119,7 +119,7 @@ function conditionsProblem(conds, join, stop) {
   if (join !== undefined && !JOINS.includes(join)) return { error: 'bad_join' };
   for (let i = 0; i < list.length; i++) {
     const why = conditionProblem(list[i], stop);
-    if (why) return { error: why, cond: i };
+    if (why) return { error: why, condition: i };
   }
   return null;
 }
@@ -139,7 +139,7 @@ export function barProblem(slots, max) {
   if (slots.length > max) return { error: 'too_many_slots' };
   for (let i = 0; i < slots.length; i++) {
     const p = slotProblem(slots[i]);
-    if (p) return Object.assign({ at: i }, p);
+    if (p) return Object.assign({ slot: i }, p);
   }
   return null;
 }
@@ -150,12 +150,12 @@ export function stopRulesProblem(rules) {
   if (rules.length > MAX_STOP_RULES) return { error: 'too_many_stop_rules' };
   for (let i = 0; i < rules.length; i++) {
     const r = rules[i];
-    if (!isObj(r) || Object.keys(r).some((k) => !['conditions', 'join', 'forMs'].includes(k))) return { error: 'bad_stop_rule', at: i };
-    if (!Array.isArray(r.conditions) || !r.conditions.length) return { error: 'bad_stop_rule', at: i };
+    if (!isObj(r) || Object.keys(r).some((k) => !['conditions', 'join', 'forMs'].includes(k))) return { error: 'bad_stop_rule', rule: i };
+    if (!Array.isArray(r.conditions) || !r.conditions.length) return { error: 'bad_stop_rule', rule: i };
     const f = r.forMs === undefined ? 0 : r.forMs;
-    if (!Number.isInteger(f) || f < STOP_HOLD_MS.min || f > STOP_HOLD_MS.max || f % STOP_HOLD_MS.step) return { error: 'bad_hold', at: i };
+    if (!Number.isInteger(f) || f < STOP_HOLD_MS.min || f > STOP_HOLD_MS.max || f % STOP_HOLD_MS.step) return { error: 'bad_hold', rule: i };
     const p = conditionsProblem(r.conditions, r.join, true);
-    if (p) return Object.assign({ at: i }, p);
+    if (p) return Object.assign({ rule: i }, p);
   }
   return null;
 }

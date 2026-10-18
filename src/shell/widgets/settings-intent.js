@@ -13,7 +13,8 @@
 // Controls are marked `data-opt="<key>"`; buttons carry `data-val`.
 // ════════════════════════════════════════════════════════════════════════
 import { TARGET_MODES, HUNT_STANCES, HERO_DISTANCE } from '../../data/rule-subjects.js?v=0.1.0';
-import { SUPPLY_SOURCE, ON_EMPTY } from '../../data/hunt-sessions.js?v=0.1.0';
+import { SUPPLY_SOURCE, ON_EMPTY, GATHER_SHARE } from '../../data/hunt-sessions.js?v=0.1.0';
+import { DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.1.0';
 import { settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.1.0';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.1.0';
 import { text, attr, prop, cls } from '../../render/paint.js?v=0.1.0';
@@ -26,6 +27,8 @@ const REFUSAL = Object.freeze({
   rate_limited: 'Too many changes at once. Try again in a moment.',
   settle_first: 'The hunt is catching up. Try again in a few seconds.',
   bad_option: 'The server does not take this setting yet.',
+  bad_density: 'That density is out of range.',
+  bad_gather_share: 'That share is out of range.',
   network: 'No connection. Your settings are unchanged.',
 });
 
@@ -73,7 +76,8 @@ export function patchControls(root, cs) {
 
 function valueOf(s, key) {
   const map = { target_mode: s.targetMode, stance: s.stance, distance: s.distance, chase: s.chase,
-    food_pct: s.foodPct, drink_pct: s.drinkPct, supply_source: s.supplySource, on_empty: s.onEmpty };
+    food_pct: s.foodPct, drink_pct: s.drinkPct, supply_source: s.supplySource, on_empty: s.onEmpty,
+    density: s.density, gather_share: s.gatherShare };
   const v = map[key];
   return v === undefined ? null : v;
 }
@@ -89,9 +93,16 @@ function optionFor(el, cs) {
   }
   if (key === 'chase') return s.chase === null ? null : { chase: !s.chase };
   if (key === 'stance') return el.getAttribute('data-val') === s.stance ? null : { stance: el.getAttribute('data-val') };
+  /* The section says food_pct / drink_pct; the option rows the server stores are food_below_pct / drink_below_pct. */
   if (key === 'food_pct' || key === 'drink_pct') {
     const n = Math.round(Number(el.value));
-    return Number.isInteger(n) && n >= 1 && n <= 99 ? { [key]: n } : null;
+    return Number.isInteger(n) && n >= 1 && n <= 99 && n !== valueOf(s, key) ? { [key === 'food_pct' ? 'food_below_pct' : 'drink_below_pct']: n } : null;
+  }
+  /* The two sliders: the server refuses a value outside its rows' range and clamps density to the ground. */
+  if (key === 'density' || key === 'gather_share') {
+    const n = Math.round(Number(el.value));
+    const r = key === 'density' ? DENSITY_PICK : GATHER_SHARE;
+    return Number.isInteger(n) && n >= r.min && n <= r.max && n !== valueOf(s, key) ? { [key]: n } : null;
   }
   if (key === 'target_mode' || key === 'supply_source' || key === 'on_empty') {
     const ok = key === 'target_mode' ? TARGET_MODES[el.value] : (key === 'on_empty' ? ON_EMPTY : SUPPLY_SOURCE).modes.includes(el.value);

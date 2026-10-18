@@ -102,7 +102,7 @@ export const ACTION_SET_OPTIONS = Object.freeze({
   on_empty: Object.freeze({ kind: 'enum', values: ON_EMPTY.modes, default: ON_EMPTY.default }),
   gold_floor: Object.freeze({ kind: 'limit', limit: 'gold_floor' }),
   /* hunt-grounds.js DENSITY_PICK; the settle clamps it to the ground's max for the party (densityFor). */
-  density: Object.freeze({ kind: 'limit', limit: 'density', default: 1 }),
+  density: Object.freeze({ kind: 'limit', limit: 'density', default: 0 }),
   /* GATHER_SHARE: stored, inert. */
   gather_share: Object.freeze({ kind: 'limit', limit: 'gather_share', default: GATHER_SHARE.default }),
 });

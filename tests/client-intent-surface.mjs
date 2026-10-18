@@ -41,6 +41,7 @@ export const CLIENT_RPCS = Object.freeze({
   hr_create_character: 'make the character in an owned slot (AccountSession.create)',
   hr_put_client_state: 'the allowlisted display residue (CharacterSession.flushResidue)',
   hr_action_set_options: 'the per-hero hunt settings intent, catalogue-validated and refused not clamped (CharacterSession.setHuntOptions)',
+  hr_action_set_copy: 'copy one character\'s hunt settings onto another of the caller\'s characters; moves no value (CharacterSession.copyHuntSettingsTo)',
   hr_hunt_leave: 'leave the running hunt; the server settles and ends it (CharacterSession.leaveHunt)',
   /* The alpha windows (2026-10-18; CONFLICTS.md): staged for the server lane, refused as http_404 until it lands. */
   hr_item_lock: 'lock or unlock an item so no bulk sale can name it (CharacterSession.lockItem)',

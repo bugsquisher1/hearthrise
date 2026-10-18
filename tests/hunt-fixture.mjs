@@ -174,7 +174,7 @@ export function huntSpan(state, ctx, opts) {
     key: 'fixture', seat: 0, unitId: null, hs, state, fx: ctx.fx || {}, style,
     bonus: ctx.bonus || (() => 0), weakness: ctx.weakness || (() => ({ dropMult: 1 })), snapshot: rolls,
     hero: { role: hero.role, maxMana: hero.maxMana, element: hero.element || '', settings: hero.settings,
-      bar: hero.bar, actionSet: hero.actionSet, range: hero.range, ammo: o.ammo || null,
+      slots: hero.slots, stopRules: hero.stopRules, density: hero.density, actionSet: hero.actionSet, range: hero.range, ammo: o.ammo || null,
       foodBelowPct: hero.foodBelowPct, drinkBelowPct: hero.drinkBelowPct },
   };
   /* opts.windowMs: the span cut into windows of that length, the world and the

@@ -15,6 +15,7 @@
 import { HUNT_STANCES } from './rule-subjects.js?v=0.1.0';
 import { WEAPON_ROLES } from './hunt-roles.js?v=0.1.0';
 import { ACTION_SET_SKIPS } from './abilities.js?v=0.1.0';
+import { DENSITY_PICK } from './hunt-grounds.js?v=0.1.0';
 
 /* Falls ends the hunt after that many knock-outs (replaces Retreat): THREE,
    for everyone (master plan row 16, 2026-10-14 — rulings S and U), so the
@@ -66,6 +67,12 @@ export const ON_EMPTY = Object.freeze({ modes: Object.freeze(['switch', 'end']),
    (spec §3.4 #4; the defaults are consumables.js CONSUMABLE_RULES). */
 export const THRESHOLD_PCT = Object.freeze({ min: 1, max: 99 });
 
+/* THE GATHERING SHARE (Tyler 2026-10-18): the percent of a hunt's time a hero spends
+   gathering on the ground (0 = fight only). STORED AND VALIDATED ONLY: INERT until the
+   gathering engine lands (a later lane); no engine reads it yet (heroSetup carries it
+   as `gatherShare` with `gatherInert: true`, and the settings window says so). */
+export const GATHER_SHARE = Object.freeze({ min: 0, max: 100, default: 0, inert: true });
+
 /* THE ACTION SET'S OPTIONS, ONE JSON OBJECT (architecture contracts S4; spec
    §3.7 per-hero settings). An action set is keyed (user, slot, preset), so
    "per hero" is per character. hr_action_set_options(slot, preset, p_opts,
@@ -94,6 +101,10 @@ export const ACTION_SET_OPTIONS = Object.freeze({
   supply_source: Object.freeze({ kind: 'enum', values: SUPPLY_SOURCE.modes, default: SUPPLY_SOURCE.default }),
   on_empty: Object.freeze({ kind: 'enum', values: ON_EMPTY.modes, default: ON_EMPTY.default }),
   gold_floor: Object.freeze({ kind: 'limit', limit: 'gold_floor' }),
+  /* hunt-grounds.js DENSITY_PICK; the settle clamps it to the ground's max for the party (densityFor). */
+  density: Object.freeze({ kind: 'limit', limit: 'density', default: 1 }),
+  /* GATHER_SHARE: stored, inert. */
+  gather_share: Object.freeze({ kind: 'limit', limit: 'gather_share', default: GATHER_SHARE.default }),
 });
 
 /* THE VALUE BOUND'S HEADROOM (Security GO item 3, 2026-10-15). A settle's
@@ -161,10 +172,12 @@ export const STAMINA_MAX_MS = Object.freeze({ free: 8 * 3600000, premium: 12 * 3
 /* Checked in this order on every swing; the first that holds ends the hunt.
    Stamina sits where Vigour stood (Vigour ends no hunt — designer ruling,
    2026-10-14 loop check). `gold_out` (Tyler, same day): an NPC basic supply
-   the purse cannot pay ends the hunt at the next boundary. The server reads
+   the purse cannot pay ends the hunt at the next boundary. `rule` (Tyler
+   2026-10-18, the action engine): one of the hero's own stop rules held for its
+   hold time (src/core/hunt/conditions.js checkStopRules). The server reads
    this list as hr_hunt_end_reasons and as hunt_sessions.end_reason's CHECK
    (tools/gen-hunt-sessions.mjs). */
-export const END_ORDER = Object.freeze(['falls', 'heals_out', 'ammo_out', 'gold_out', 'stamina', 'hours', 'left', 'changed', 'server']);
+export const END_ORDER = Object.freeze(['falls', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'left', 'changed', 'server']);
 
 /* WHICH ENDS SEND THE CHARACTER BACK TO WHAT THEY WERE DOING (Tyler
    2026-10-14): every AUTOMATIC end. A hunt the player left or changed is the
@@ -173,7 +186,7 @@ export const END_ORDER = Object.freeze(['falls', 'heals_out', 'ammo_out', 'gold_
    (player_state.last_activity_kind / _id), if that is still allowed; else
    idle in town. A data row so Huntera-style combat training can take its
    place later without touching the settle. */
-export const RESUME_AFTER_END = Object.freeze(['falls', 'heals_out', 'ammo_out', 'gold_out', 'stamina', 'hours', 'server']);
+export const RESUME_AFTER_END = Object.freeze(['falls', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'server']);
 
 /* The non-hunt activity kinds a character's "last activity" may name. `training`
    is RESERVED for the combat redesign (train a chosen combat skill in town while
@@ -201,6 +214,7 @@ export const END_REASON_COPY = Object.freeze({
   heals_out: Object.freeze({ one: 'You ran out of healing food, so you headed home.' }),
   ammo_out: Object.freeze({ one: 'You ran out of {item}, so you headed home.' }),
   gold_out: Object.freeze({ one: 'You ran out of gold for supplies — the hunt ended.' }),
+  rule: Object.freeze({ one: 'One of your stop rules was met, so you headed home.' }),
   stamina: Object.freeze({ one: 'Out of stamina, so you headed home. It rests back 1:1 while you are not hunting.' }),
   hours: Object.freeze({ one: 'Your 1-hour limit was up, so you headed home.', other: 'Your {n}-hour limit was up, so you headed home.' }),
   left: Object.freeze({ one: 'You left the hunt and walked home.' }),

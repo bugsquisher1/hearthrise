@@ -22,7 +22,8 @@ const cases = {
     if (!firstPull(M, inst)) return 'no pull in 40 s';
     const k = M.movement.unitById(inst, 2);
     if (!M.leash.inArea(inst, 0, k.x, k.y)) return 'the pull started with the leader outside the pack area';
-    const pack = w.units.filter((u) => u.side === 'mon' && u.pocket === 0);
+    /* (the living ones: since the party scale a 2-hero pack can lose a monster in the pull's own sub-step) */
+    const pack = w.units.filter((u) => u.side === 'mon' && u.pocket === 0 && u.alive);
     if (!pack.length || pack.some((m) => m.target !== 2)) return 'not every monster of the pocket targets the leader';
     return w.phase === 'fight' && w.packs[0].aggro && w.packs[0].holder === 2 ? null : 'the pack is not held by the leader';
   },

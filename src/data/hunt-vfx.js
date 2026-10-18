@@ -43,7 +43,7 @@ export const EVENT_FX = Object.freeze({
   rare_drop: row({ fx: 'fx_loot_sparkle', at: 'viewed', lift: CHEST }),
   ended: null, fall: null, slot_dry: null, pack_reset: null, pull: null, respawn: null, wipe: null,
   target: null, miss: null, immune: null, status_on: null, status_off: null,
-  eat: null, drink: null, xp: null, xp_group: null,
+  eat: null, drink: null, xp: null, xp_group: null, rule_stop: null, shot: null,
 });
 
 /* The twinkle a kill that dropped loot leaves on the body (FX-06). */

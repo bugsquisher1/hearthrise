@@ -86,12 +86,12 @@ import { DRINK_ITEMS } from '../src/data/drinks.js';
 import { ACTION_SET_LIMITS, TARGET_MODES, DEFAULT_TARGET_MODE, HERO_DISTANCE } from '../src/data/rule-subjects.js';
 import { SESSION_LIMITS, END_ORDER, STAMINA_LOW_MIN, SESSIONS_KEPT, DEATH_XP_LOSS, STAMINA_MAX_MS,
   RESUMABLE_KINDS, RESUME_AFTER_END, KNOCKOUT_MS, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY, ACTION_SET_OPTIONS, VALUE_HEADROOM,
-  DEFAULT_RESUME, EVENT_COPY, THRESHOLD_PCT, coverSellable } from '../src/data/hunt-sessions.js';
+  DEFAULT_RESUME, EVENT_COPY, THRESHOLD_PCT, GATHER_SHARE, coverSellable } from '../src/data/hunt-sessions.js';
 import { CONSUMABLE_RULES } from '../src/data/consumables.js';
 import { ABILITIES, ABILITY_LANES, ABILITY_RULES } from '../src/data/abilities.js';
 import { HUNT_ROLES, WEAPON_ROLES } from '../src/data/hunt-roles.js';
 import { HUNT_XP } from '../src/data/hunt-xp.js';
-import { HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
+import { HUNT_GROUNDS, DENSITY_PICK } from '../src/data/hunt-grounds.js';
 import { HUNT_TUNING } from '../src/data/hunt-tuning.js';
 import { PARTY } from '../src/data/party.js';
 import { SESSION_CONFIG } from '../src/session/config.js';
@@ -265,6 +265,8 @@ export function catalogueRows(src = {}) {
     stamina_free_min: staminaFree, stamina_premium_min: staminaPremium,
     distance_min: S.distance.min, distance_max: S.distance.max,
     threshold_pct_min: S.thresholds.min, threshold_pct_max: S.thresholds.max,
+    density_min: DENSITY_PICK.min, density_max: DENSITY_PICK.max,
+    gather_share_min: GATHER_SHARE.min, gather_share_max: GATHER_SHARE.max,
     party_max: S.partyMax,
     max_concurrent: S.maxConcurrent,
     /* The hero's regen rates the hunt section shows (abilities.js / hunt-tuning.js, one source). */

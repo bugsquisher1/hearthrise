@@ -16,7 +16,7 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-export const EVENT_VERSION = 1;
+export const EVENT_VERSION = 2;
 
 /* type → its required fields. `u` acts, `t` is acted on (unit ids). */
 export const EVENT_TYPES = Object.freeze({
@@ -54,6 +54,9 @@ export const EVENT_TYPES = Object.freeze({
   xp: Object.freeze(['u', 'amount']),
   xp_group: Object.freeze(['amount']),
   level: Object.freeze(['u', 'skill', 'level']),
+  /* conditions.js / damage.js: a stop rule met; an attack item's shot (the decision: its rule id and the conditions that passed) */
+  rule_stop: Object.freeze(['u', 'rule']),
+  shot: Object.freeze(['u', 't', 'item', 'rule']),
 });
 
 const isPrim = (v) => v === null || ['string', 'number', 'boolean'].includes(typeof v);

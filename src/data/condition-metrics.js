@@ -1,29 +1,51 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/data/condition-metrics.js — WHAT A BAR SLOT'S CONDITION CAN TEST.
+// src/data/condition-metrics.js — WHAT A BAR SLOT OR A STOP RULE CAN TEST.
 //
-// FIXTURE ROWS (2026-10-18). The conditional action engine's server lane owns
-// this file and replaces it whole with the registry the server validates
-// against; until then these rows are examples so the slot editor is built
-// once against the agreed shape. The editor renders its metric, operator and
-// value pickers from METRICS and OPERATORS only, never a hard-coded set. Every
-// number here is an example, not a balance value.
+// THE REGISTRY of the conditional action engine (Tyler 2026-10-18; lane
+// action-engine). The server validates every stored slot and stop rule against
+// these rows (supabase/migrations/2026-10-25-action-conditions.sql
+// hr_hunt_condition_metrics, pinned equal by tests/hunt-core/conditions.mjs);
+// the engine evaluates them in src/core/hunt/conditions.js (one evaluator per
+// row, pinned the same way); the bar editor renders its pickers from METRICS
+// and OPERATORS only. A new test is a ROW here plus its evaluator, never a
+// body edit on the server.
 //
-// A slot (hunt_settings.slots[i]):
+// A SLOT (hunt_settings.slots[i], player_action_sets.slots):
 //   { action: { type: 'ability'|'consume'|'attack_with_item', id },
 //     conditions: [ { metric, op, value, subject? } ]   (at most MAX_CONDITIONS)
 //     join: 'and'|'or' }
-// Slot order IS priority: the first eligible slot fires, the next is the fallback.
+// Slot order IS priority: the first slot whose conditions pass AND whose action
+// can happen fires; the next one is the fallback. A slot with no conditions
+// takes its action's DEFAULT conditions (an ability's own trigger, the hero's
+// eat-at / drink-at for food and drink: src/core/hunt/conditions.js).
 //
-// A metric row:
+// A STOP RULE (player_action_sets.options.stop_rules[i]):
+//   { conditions: [ … ], join, forMs }
+// The hunt ends `rule` (src/data/hunt-sessions.js END_ORDER) once the
+// conditions have held for forMs without a break.
+//
+// A METRIC ROW:
 //   id       the wire name
-//   label    what the editor shows ("My HP %")
-//   value    'pct' | 'count' | 'bool' | 'effect' | 'item' — which value picker
+//   label    what the editor shows
+//   value    'pct' | 'count' | 'bool' | 'effect' — which value picker
 //   ops      the operators it takes (keys of OPERATORS)
-//   range    [min, max] for a number value
-//   subject  optional: the subject choices ('role' | 'lowest' ...) and their labels
+//   range    [min, max] for a number value (inclusive, whole)
+//   subject  optional: the subject choices and their labels; the first is the default
+//   slotOnly true = reads the slot's own action (its footprint or its item), so a
+//            stop rule may not use it
+//
+// Every number here is a bound, not a balance value.
+//
+// PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
+import { HUNT_ROLES } from './hunt-roles.js?v=0.1.0';
+import { STATUSES } from './statuses.js?v=0.1.0';
+
 export const MAX_CONDITIONS = 3;
+export const MAX_STOP_RULES = 3;
+/* A stop rule's hold, in ms: whole sub-steps, at most ten minutes. */
+export const STOP_HOLD_MS = Object.freeze({ min: 0, max: 600000, step: 100 });
 
 export const OPERATORS = Object.freeze({
   eq: Object.freeze({ label: 'is' }),
@@ -37,17 +59,21 @@ export const OPERATORS = Object.freeze({
 });
 
 const NUM = Object.freeze(['lt', 'lte', 'gt', 'gte', 'eq', 'ne']);
+/* "Whose": the lowest ally, or the first hero of a role (by unit id). */
+const ALLY = Object.freeze(Object.assign({ lowest: 'the lowest ally' },
+  Object.fromEntries(Object.entries(HUNT_ROLES).map(([id, r]) => [id, 'the ' + r.label]))));
 
 export const METRICS = Object.freeze([
-  Object.freeze({ id: 'self_hp_pct', label: 'My HP %', value: 'pct', ops: NUM, range: Object.freeze([1, 99]) }),
-  Object.freeze({ id: 'self_mana_pct', label: 'My mana %', value: 'pct', ops: NUM, range: Object.freeze([1, 99]) }),
-  Object.freeze({ id: 'ally_hp_pct', label: 'An ally’s HP %', value: 'pct', ops: NUM, range: Object.freeze([1, 99]),
-    subject: Object.freeze({ role: 'of a role', lowest: 'the lowest ally' }) }),
-  Object.freeze({ id: 'enemies_in_aoe', label: 'Monsters in range of an area attack', value: 'count', ops: NUM, range: Object.freeze([1, 8]) }),
+  Object.freeze({ id: 'self_hp_pct', label: 'My HP %', value: 'pct', ops: NUM, range: Object.freeze([0, 100]) }),
+  Object.freeze({ id: 'self_mana_pct', label: 'My mana %', value: 'pct', ops: NUM, range: Object.freeze([0, 100]) }),
+  Object.freeze({ id: 'ally_hp_pct', label: 'An ally’s HP %', value: 'pct', ops: NUM, range: Object.freeze([0, 100]), subject: ALLY }),
+  Object.freeze({ id: 'ally_mana_pct', label: 'An ally’s mana %', value: 'pct', ops: NUM, range: Object.freeze([0, 100]), subject: ALLY }),
+  Object.freeze({ id: 'enemies_in_aoe', label: 'Monsters the area would hit', value: 'count', ops: NUM, range: Object.freeze([0, 25]), slotOnly: true }),
   Object.freeze({ id: 'target_is_boss', label: 'My target is a boss', value: 'bool', ops: Object.freeze(['eq']) }),
-  Object.freeze({ id: 'item_qty', label: 'Left in the bag', value: 'count', ops: NUM, range: Object.freeze([0, 1000]),
-    subject: Object.freeze({ item: 'of the slot’s item' }) }),
-  Object.freeze({ id: 'effect_missing', label: 'An effect on me', value: 'effect', ops: Object.freeze(['has_effect', 'lacks_effect']) }),
+  Object.freeze({ id: 'item_qty', label: 'Left in the bag', value: 'count', ops: NUM, range: Object.freeze([0, 100000]),
+    subject: Object.freeze({ item: 'of this slot’s item', food: 'of food', drink: 'of drink', ammo: 'of the loaded ammo' }) }),
+  Object.freeze({ id: 'effect_missing', label: 'An effect', value: 'effect', ops: Object.freeze(['has_effect', 'lacks_effect']),
+    subject: Object.freeze({ target: 'on my target', self: 'on me' }) }),
 ]);
 
 /* What a slot can do: the action types and where each type's ids come from. */
@@ -56,3 +82,32 @@ export const ACTION_TYPES = Object.freeze({
   consume: Object.freeze({ label: 'Eat or drink', from: 'supplies' }),
   attack_with_item: Object.freeze({ label: 'Attack with an item', from: 'ammo' }),
 });
+
+/* A consume slot may name a KIND (the best line of it: own first, then the store)
+   instead of one item. */
+export const CONSUME_KINDS = Object.freeze({ food: 'heal', drink: 'mana' });
+
+/* The effect ids an `effect` value may name. */
+export const EFFECT_IDS = Object.freeze(Object.keys(STATUSES));
+
+/** Every problem with the registry, as strings. Empty = valid. */
+export function validate() {
+  const out = [];
+  const seen = new Set();
+  const KINDS = ['pct', 'count', 'bool', 'effect'];
+  for (const m of METRICS) {
+    const at = 'metric ' + m.id + ': ';
+    if (!/^[a-z_]{1,32}$/.test(m.id) || seen.has(m.id)) out.push(at + 'bad or duplicate id');
+    seen.add(m.id);
+    if (!KINDS.includes(m.value)) out.push(at + 'unknown value kind ' + m.value);
+    if (!m.ops.length || !m.ops.every((o) => OPERATORS[o])) out.push(at + 'an unknown operator');
+    const numeric = m.value === 'pct' || m.value === 'count';
+    if (numeric !== !!m.range) out.push(at + 'a number value has a range, nothing else does');
+    if (m.range && !(m.range.length === 2 && m.range.every(Number.isInteger) && m.range[0] <= m.range[1])) out.push(at + 'range is [min, max]');
+    if (m.value === 'bool' && m.ops.join() !== 'eq') out.push(at + 'a bool takes eq only');
+    if (m.value === 'effect' && m.ops.some((o) => !o.endsWith('_effect'))) out.push(at + 'an effect takes has_effect / lacks_effect only');
+    if (m.subject && !Object.keys(m.subject).every((k) => /^[a-z_]{1,32}$/.test(k))) out.push(at + 'bad subject key');
+  }
+  if (!EFFECT_IDS.length) out.push('no effect ids');
+  return out;
+}

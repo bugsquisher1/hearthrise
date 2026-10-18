@@ -8,7 +8,7 @@
 // A swing is swingMs / HUNT_TUNING.stepMs sub-steps. Each sub-step runs the
 // modules in ONE fixed order (WS-02):
 //   trail → respawn → phase AI (pull cycle, targets, roles, follow) →
-//   movement → leash resets → attacks → status ticks → consumables → corpses →
+//   movement → leash resets → attacks → status ticks → consumables → stop rules → corpses →
 //   the closed "+XP" group
 // Every hook takes (inst, sc): `inst` = { world, ground, grid, occ }, `sc` =
 // { atMs, dtMs, swing, rng, emit(event), track(step) }. Draws come from
@@ -36,6 +36,7 @@ import { castAbilities } from './abilities.js?v=0.1.0';
 import { tickStatuses } from './status.js?v=0.1.0';
 import { consume } from './consumables.js?v=0.1.0';
 import { flushXpGroup } from './xp-share.js?v=0.1.0';
+import { checkStopRules } from './conditions.js?v=0.1.0';
 
 /** How many sub-steps one swing of `swingMs` is; refuses a swing that is not a whole number of them. */
 export function substepsOf(swingMs) {
@@ -56,6 +57,7 @@ const SUBSTEP = Object.freeze([
   resolveAttacks, castAbilities,
   tickStatuses,
   consume,
+  checkStopRules,
   clearCorpses,
   flushXpGroup,
 ]);

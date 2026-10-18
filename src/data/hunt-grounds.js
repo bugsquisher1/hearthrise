@@ -70,6 +70,8 @@ export const HUNT_GROUNDS = Object.freeze({
     ]),
     route: Object.freeze([0, 1]),
     respawnMs: 30000, pullDist: 1.5,
+    /* the tutorial room stays one pack deep: its lesson is the pull, not the crowd */
+    densityMax: Object.freeze([1, 1, 1, 1]),
   }),
   millrace_sewer: Object.freeze({
     id: 'millrace_sewer', hunt: 'millrace_sewer', map: 'millrace_sewer',
@@ -85,6 +87,7 @@ export const HUNT_GROUNDS = Object.freeze({
     ]),
     route: Object.freeze([0, 1, 2, 3, 4, 5]),
     respawnMs: 90000, pullDist: 1.5,
+    densityMax: Object.freeze([2, 2, 3, 3]),
   }),
 });
 
@@ -98,6 +101,22 @@ export const PARTY_SCALE = Object.freeze({ basePermille: 400, perHeroPermille: 1
    are worth at least this much (permille) whatever the target's element profile, so
    a Healer alone can still clear a first room that is immune to her one element. */
 export const SOLO_HEALER_FLOOR = Object.freeze({ role: 'healer', elementPermille: 500 });
+
+/* MONSTER DENSITY (Tyler 2026-10-18): a hero picks how many copies of each pack it
+   pulls (1 = the room as built). The server stores the pick inside DENSITY_PICK and
+   the settle CLAMPS it to the ground's `densityMax` for the party's size (a row's
+   array, one entry per party size 1..4, ASSUMED: the designer tunes them); a party
+   takes the smallest pick among its members. A row with no array allows 1. */
+export const DENSITY_PICK = Object.freeze({ min: 1, max: 4 });
+
+/** The density an instance spawns at: the members' smallest pick, clamped to the ground's max for its size. */
+export function densityFor(ground, partySize, picks) {
+  const n = Math.min(PARTY_SCALE.maxHeroes, Math.max(1, Math.floor(Number(partySize) || 1)));
+  const max = Array.isArray(ground && ground.densityMax) ? ground.densityMax[n - 1] : 1;
+  const want = (picks || []).filter(Number.isInteger);
+  const pick = want.length ? Math.min(...want) : 1;
+  return Math.max(1, Math.min(max || 1, pick, DENSITY_PICK.max));
+}
 
 /** The HP scale (permille) for a pack in an instance of `partySize` heroes. */
 export function packScalePermille(partySize) {
@@ -163,6 +182,10 @@ export function validateGround(row, refs) {
     bad('respawnMs must be a positive whole number of ' + HUNT_TUNING.stepMs + ' ms sub-steps');
   }
   if (!(typeof row.pullDist === 'number' && row.pullDist > 0 && row.pullDist <= 8)) bad('pullDist must be in (0, 8]');
+  if (row.densityMax !== undefined && !(Array.isArray(row.densityMax) && row.densityMax.length === PARTY_SCALE.maxHeroes
+    && row.densityMax.every((v, i) => Number.isInteger(v) && v >= 1 && v <= DENSITY_PICK.max && (i === 0 || v >= row.densityMax[i - 1])))) {
+    bad('densityMax must be ' + PARTY_SCALE.maxHeroes + ' whole numbers 1..' + DENSITY_PICK.max + ', never falling as the party grows');
+  }
   if (row.leashMargin !== undefined && !(Number.isInteger(row.leashMargin) && row.leashMargin >= 0 && row.leashMargin <= 8)) {
     bad('leashMargin must be an integer 0..8');
   }

@@ -40,6 +40,7 @@ import { resumeHpFor } from './recovery.js?v=0.1.0';
 import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.1.0';
 import { createRng } from './rng.js?v=0.1.0';
 import { KNOCKOUT_MS } from '../data/hunt-sessions.js?v=0.1.0';
+import { densityFor } from '../data/hunt-grounds.js?v=0.1.0';
 import { stepSwing } from './hunt/world-step.js?v=0.1.0';
 import { makeEvent } from './hunt/events.js?v=0.1.0';
 import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.1.0';
@@ -68,7 +69,7 @@ function seedOf(ctx, domain, index) {
 function heroOf(m) {
   const snap = m.snapshot(m.state);
   return Object.assign({ role: m.hero.role, maxHp: m.state.playerMaxHp, hp: m.state.playerHp,
-    maxMana: m.hero.maxMana, element: m.hero.element || '', settings: m.hero.settings }, snap);
+    maxMana: m.hero.maxMana, element: m.hero.element || '', settings: m.hero.settings, density: m.hero.density }, snap);
 }
 
 /* The settings and combat snapshot the settle writes onto a member's unit
@@ -109,7 +110,7 @@ function endMember(m, why, atMs, world, out) {
   const hs = m.hs;
   hs.endedReason = why;
   hs.endedAtMs = atMs;
-  out.events.push(makeEvent('ended', atMs, { reason: why }));
+  out.events.push(makeEvent('ended', atMs, { reason: why, ...(why === 'rule' ? { rule: hs.ruleStop } : {}) }));
   const u = world && m.unitId !== null ? world.units.find((x) => x.id === m.unitId) : null;
   /* An ENDED hunt leaves no knockout behind: the character walks home, up. */
   if (u) m.state.playerHp = u.alive ? u.hp : resumeHpFor(m.state.playerMaxHp);
@@ -125,12 +126,12 @@ function endMember(m, why, atMs, world, out) {
  *        m = { key, seat, unitId (int or null: not in the world yet), hs
  *        (action-rules.js newHuntSession), state { skills, playerHp,
  *        playerMaxHp, stats, gold (a delta), recoveringUntilMs }, hero { role,
- *        maxMana, element, settings, bar, actionSet, range, ammo, foodBelowPct,
+ *        maxMana, element, settings, slots (hunt-spawn heroSetup), stopRules, density, actionSet, range, ammo, foodBelowPct,
  *        drinkBelowPct }, snapshot(state) → { acc, maxHit, def }, style,
  *        bonus(key), weakness(row) → { dropMult }, rollsVs?(row) → playerCombatRolls
  *        against that monster (a basic swing's accuracy and weapon weakness), fx, buffsAt?(atMs) (re-measures the timed
  *        buff queue the member's bonus reads, at each of its boundaries) }; snapshot may add ward
- * @param ctx  { toMs, tickMs (COMBAT_BALANCE.tickMs), seed(domain, index), ground, grid, monsters?,
+ * @param ctx  { toMs, tickMs (COMBAT_BALANCE.tickMs), seed(domain, index), ground, grid, monsters?, items? (the server's item catalogue: an attack item's footprint),
  *        hearthfind? (an indexed Hearthfind table; the catalogue's when absent), xpMultOf?(unitId) }
  * @returns { world, nextSwingAtMs, swings, track, events, kinds, members: { [key]: summary } }
  */
@@ -192,9 +193,14 @@ export function simulateHuntInstance(inst, ctx) {
       for (const m of members) {
         if (m.left || m.unitId === null) continue;
         byUnit.set(m.unitId, m);
-        heroes[m.unitId] = { hs: m.hs, bar: m.hero.bar, actionSet: m.hero.actionSet, range: m.hero.range, rollsVs: m.rollsVs,
-          ammo: m.hero.ammo, foodBelowPct: m.hero.foodBelowPct, drinkBelowPct: m.hero.drinkBelowPct };
+        heroes[m.unitId] = { hs: m.hs, slots: m.hero.slots, bar: m.hero.bar, stopRules: m.hero.stopRules, actionSet: m.hero.actionSet,
+          range: m.hero.range, rollsVs: m.rollsVs, ammo: m.hero.ammo, items: ctx.items || null,
+          foodBelowPct: m.hero.foodBelowPct, drinkBelowPct: m.hero.drinkBelowPct };
       }
+      /* MONSTER DENSITY for the packs that spawn from here: the standing members' smallest
+         pick, clamped to the ground for the party's size (hunt-grounds.js densityFor). */
+      world.density = densityFor(ctx.ground, world.units.filter((u) => u.side === 'hero').length,
+        members.filter((m) => !m.left && m.unitId !== null).map((m) => m.hero.density));
       const r = stepSwing(world, { atMs, swingMs: tick, rng: createRng(seedOf(ctx, 's', sw)),
         ground: ctx.ground, grid: ctx.grid, heroes, ...(typeof ctx.xpMultOf === 'function' ? { xpMultOf: ctx.xpMultOf } : {}) });
       seen();
@@ -226,7 +232,7 @@ export function simulateHuntInstance(inst, ctx) {
   for (const m of members) {
     if (m.left || m.unitId === null) continue;
     const next = m.hs.nextSwingAtMs;
-    if (m.hs.goldOut === true || endReasonAt(m.hs, next) === 'falls') {
+    if (m.hs.goldOut === true || Number.isInteger(m.hs.ruleStop) || endReasonAt(m.hs, next) === 'falls') {
       endMember(m, endReasonAt(m.hs, next) || 'gold_out', next, world, out.get(m.key));
     }
   }

@@ -25,19 +25,20 @@
 //   F1  FORGED INPUT REFUSED: a qty above stock, a client time in the bag, a
 //       fractional qty, a window in the future, a use above what is left — each
 //       refused, and nothing moved
-//   P1  A PRESS ONLY RE-ORDERS: a press writes no bag / ledger / tally row; a
-//       settle can drop a queued press but never add one; a window's heal uses
-//       are capped by the cooldown with or without presses queued
+//   (P1, "a press only re-orders", RETIRED lane S1: hunts are idle, hr_hunt_use
+//       and hunt_sessions.presses are dropped; the per-window food-lane cap is
+//       hr_hunt_apply_member's, hunt-sessions-settle VALUE)
 //   T1  TALLY = Σ LEDGER over two settles: coins, xp, loot, supplies, kills and
 //       deaths equal the session's stamped ledger rows, each row folded once
 //   D1  THE AWAY MODEL, DELETED OUTRIGHT on the chain (closed rebuild): the
 //       Auto-Eat / receipt / Vigour / stance / attended-credit objects are
 //       gone, consec_falls and hr_offline_cap_ms stay for their later owners,
 //       and a planted reader makes a second apply of the delete file refuse
-//   C1  a SECOND apply of the hunt-session files, in chain order (C1's
-//       catalogue, C1's file, the C2 forward catalogue that supersedes C1's
-//       rows, and C2's settle file, which edits four C1 bodies), is
-//       byte-identical (schema inventory, function bodies + ACLs, catalogue rows)
+//   C1  a SECOND apply of the STAGED hunt files, in chain order (lane S1: the
+//       forward catalogue, premium, the login reward, settings, the supply
+//       ledger, the analyzer, the world state and the party), is byte-identical
+//       (schema inventory, function bodies + ACLs, catalogue rows). Every own
+//       use is journalled `supply_own` (lane S1), the C1/C2 `hunt_consume`'s heir.
 //   A1  CLOSED MODE REACHES THE SIX UNGATED RPCs (Security R3): hr_load,
 //       hr_create_character, hr_clan_browser, hr_companion_equip,
 //       hr_companion_grant and hr_rest each refuse a non-allowlisted caller
@@ -68,7 +69,6 @@ const CAT = '2026-10-21-hunt-sessions-catalogue.generated.sql';
 /* The FORWARD catalogue the generator writes today (lane C2): C1's is applied
    history and is superseded wholesale by this one, later in the chain. */
 const { OUT_NAME: CAT_NOW } = await import('../tools/gen-hunt-sessions.mjs');
-const SETTLE = '2026-10-22-hunt-sessions-settle.sql';
 const MIG_TEXT = readFileSync(join(ROOT, 'supabase', 'migrations', MIG), 'utf8').replace(/\r\n/g, '\n');
 const UID = '00000000-0000-4000-8000-0000000c1d01';
 /* Lane C2's file that flips the kill switch on; K1 reads which side of it the chain stopped. */
@@ -89,6 +89,7 @@ async function probe(db) {
   // The switch ships OFF (Security item 1); every arm opens it inside its own
   // rolled-back transaction. K1 proves the shipped value and the refusal.
   await db.query(`update public.hr_hunt_config set enabled = true where id`);
+  await installGrounds(db);
   await db.query(`insert into auth.users (id) values ($1)`, [UID]);
   await db.query(`select set_config('request.jwt.claim.sub', $1, true)`, [UID]);
   const r = await call(db, 'hr_create_character', [0]);
@@ -96,6 +97,20 @@ async function probe(db) {
   await db.query(`delete from public.player_inventory where user_id = $1 and slot = 0`, [UID]);
   await db.query(`insert into public.player_inventory (user_id, slot, item_id, qty)
                   values ($1, 0, 'cooked_shrimp', 20), ($1, 0, 'bronze_arrows', 50)`, [UID]);
+}
+/* THE FIXTURE GROUNDS (lane S1: a hunt is entered only on a ground, and none
+   ships before the sewer content lane): one small room per hunt the arms walk,
+   built by the generator's own row builder. */
+async function installGrounds(db) {
+  const GEN = await import('../tools/gen-hunt-sessions.mjs');
+  const room = (hunt, monster) => ({ id: 'db_' + hunt, hunt, map: 'db_' + hunt, start: [[1, 1]],
+    pockets: [{ room: [3, 1, 6, 3], spawns: [{ monster, x: 4, y: 2 }] }], route: [0], respawnMs: 60000, pullDist: 1.5 });
+  const { rows, spawns } = GEN.groundRows({ db_mill_cellar: room('mill_cellar', 'rat'), db_goblin_warren: room('goblin_warren', 'goblin') });
+  for (const g of rows) {
+    await db.query(`insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn_ms, seats) values ($1,$2,$3,$4,$5,$6)
+                    on conflict (hunt_id) do nothing`, [g.hunt, g.ground, g.pockets, g.spawns, g.respawn, g.seats]);
+  }
+  for (const x of spawns) await db.query('insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values ($1,$2,$3) on conflict do nothing', [x.hunt, x.monster, x.n]);
 }
 const inv = (db, item) => one(db, `select coalesce((select qty from public.player_inventory where user_id = $1 and slot = 0 and item_id = $2), 0)::int`, [UID, item]);
 const bagLeft = (db, sid, item) => one(db, `select coalesce((select qty_left from public.hunt_bag where session_id = $1 and item_id = $2), 0)::int`, [sid, item]);
@@ -215,15 +230,15 @@ const ARMS = {
     const drift = await q(db, `select x.session_id, x.item_id, x.j, coalesce(b.qty_left, 0) as left
         from (select session_id, item_id, sum(q) as j from (
                 select session_id, item_id, qty as q from public.player_ledger
-                 where user_id = $1 and kind = 'hunt' and meta->>'side' = 'bag' and item_id is not null
+                 where user_id = $1 and kind = 'hunt' and meta->>'side' = 'bag' and item_id is not null and intent <> 'supply_own'
                 union all
                 select l.session_id, i.key, -(i.value::bigint) from public.player_ledger l, jsonb_each_text(l.meta->'items') i
-                 where l.user_id = $1 and l.kind = 'hunt' and l.intent = 'hunt_consume') u group by 1, 2) x
+                 where l.user_id = $1 and l.kind = 'hunt' and l.intent = 'supply_own') u group by 1, 2) x
         left join public.hunt_bag b on b.session_id = x.session_id and b.item_id = x.item_id
        where x.j <> coalesce(b.qty_left, 0)`, [UID]);
     if (drift.length) red.push(`B1: bag side of the journal <> the bag: ${JSON.stringify(drift)}`);
     const pairs = await q(db, `select intent, sum(qty)::int as net from public.player_ledger
-        where user_id = $1 and kind = 'hunt' and intent <> 'hunt_consume' group by intent having sum(qty) <> 0`, [UID]);
+        where user_id = $1 and kind = 'hunt' and intent not in ('supply_own', 'supply_buy') group by intent having sum(qty) <> 0`, [UID]);
     if (pairs.length) red.push(`B1: pairs do not cancel: ${JSON.stringify(pairs)}`);
     const shrimp = await inv(db, 'cooked_shrimp'); const arrows = await inv(db, 'bronze_arrows');
     if (shrimp + 4 !== 20 || arrows + 20 !== 50) red.push(`B1: inventory + consumed: shrimp ${shrimp}+4, arrows ${arrows}+20`);
@@ -283,35 +298,6 @@ const ARMS = {
     if (await bagLeft(db, sid, 'cooked_shrimp') !== 6 || await inv(db, 'cooked_shrimp') !== 14) red.push('F1: a refusal moved the bag');
   },
 
-  async P1(db, red) {
-    await probe(db);
-    await db.query(`insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, 'hunters_feast', 3)`, [UID]);
-    const e = await enter(db, [{ item: 'cooked_shrimp', qty: 15 }, { item: 'hunters_feast', qty: 3 }]);
-    const sid = e.session.id;
-    const before = await one(db, `select count(*)::int from public.player_ledger where user_id = $1`, [UID]);
-    const p = await call(db, 'hr_hunt_use', [0, 0, idem()]);
-    if (p?.ok !== true) return red.push(`P1: a press answered ${JSON.stringify(p)}`);
-    const after = await one(db, `select count(*)::int from public.player_ledger where user_id = $1`, [UID]);
-    if (after !== before || await bagLeft(db, sid, 'cooked_shrimp') !== 15) red.push('P1: a press moved value');
-    const from = await startHunting(db, sid);
-    const grow = await settle(db, sid, { swing_from: 0, swing_to: 4, to: at(from, 10), next_swing_at: at(from, 11), presses_left: [0, 0] });
-    if (grow?.error !== 'bad_presses') red.push(`P1: a settle that invents a press answered ${JSON.stringify(grow)}`);
-    // 10 s admits floor(10000 / 2000) + 1 = 6 heals, presses or not.
-    const over = await settle(db, sid, { swing_from: 0, swing_to: 4, to: at(from, 10), next_swing_at: at(from, 11),
-      uses: { cooked_shrimp: 7 }, presses_left: [] });
-    if (over?.error !== 'too_many_uses') red.push(`P1: 7 heals in 10 s with a press queued answered ${JSON.stringify(over)}`);
-    const ok = await settle(db, sid, { swing_from: 0, swing_to: 4, to: at(from, 10), next_swing_at: at(from, 11),
-      uses: { cooked_shrimp: 6 }, presses_left: [] });
-    if (ok?.ok !== true) red.push(`P1: 6 heals in 10 s answered ${JSON.stringify(ok)}`);
-    /* ONE CONSUMABLE LANE (Combat Design Bible v1.4): heals and buff foods share
-       the 2 s lane, so 4 heals + 3 feasts in 10 s (7 > 6) is over the cap that
-       two separate lanes would each have admitted. */
-    const both = await settle(db, sid, { swing_from: 4, swing_to: 8, to: at(from, 20), next_swing_at: at(from, 21),
-      uses: { cooked_shrimp: 4, hunters_feast: 3 }, presses_left: [] });
-    if (both?.error !== 'too_many_uses') red.push(`P1: 4 heals + 3 buff foods in 10 s answered ${JSON.stringify(both)} — not ONE consumable lane`);
-    const left = await one(db, `select jsonb_array_length(presses) from public.hunt_sessions where id = $1`, [sid]);
-    if (left !== 0) red.push(`P1: the consumed press is still queued (${left})`);
-  },
 
   async T1(db, red) {
     await probe(db);
@@ -340,8 +326,8 @@ const ARMS = {
     const loot = Object.fromEntries((await q(db, `select x.key, sum(x.value::numeric)::int as v from public.player_ledger l,
         jsonb_each_text(coalesce(l.meta->'delta'->'i', '{}')) x where l.session_id = $1 group by 1`, [sid])).map((r) => [r.key, r.v]));
     const sup = Object.fromEntries((await q(db, `select i.key, sum(i.value::numeric)::int as v from public.player_ledger l,
-        jsonb_each_text(l.meta->'items') i where l.session_id = $1 and l.intent = 'hunt_consume' group by 1`, [sid])).map((r) => [r.key, r.v]));
-    const rows = await one(db, `select count(*)::int from public.player_ledger where session_id = $1 and intent = 'hunt_consume'`, [sid]);
+        jsonb_each_text(l.meta->'items') i where l.session_id = $1 and l.intent = 'supply_own' group by 1`, [sid])).map((r) => [r.key, r.v]));
+    const rows = await one(db, `select count(*)::int from public.player_ledger where session_id = $1 and intent = 'supply_own'`, [sid]);
     if (rows !== 2) red.push(`T1: ${rows} consumption rows for two settles (want one per settle)`);
     const num = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, Number(v)]).sort());
     const eq = (a, b) => JSON.stringify(num(a)) === JSON.stringify(num(b));
@@ -364,8 +350,9 @@ const ARMS = {
    reads a dropped name planted on the chain, a second apply of the file REFUSES
    ("still read by"). Rolled back. */
 const DROP = '2026-10-22-hunt-sessions-delete-away.sql';
-const DROP_TEXT = readFileSync(join(ROOT, 'supabase', 'migrations', DROP), 'utf8').replace(/\r\n/g, '\n');
-async function d1(db, text = DROP_TEXT) {
+const STAGED = [CAT_NOW, '2026-10-23-character-premium.sql', '2026-10-23-premium-login-reward.sql', '2026-10-23-hunt-settings-options.sql',
+  '2026-10-23-hunt-supply-ledger.sql', '2026-10-23-hunt-analyzer-v2.sql', '2026-10-23-hunt-world-state.sql', '2026-10-23-hunt-party.sql'];
+async function d1(db) {
   const red = [];
   const cols = await one(db, `select count(*)::int from information_schema.columns where table_schema = 'public'
       and table_name = 'player_state' and column_name in ('auto_eat_enabled', 'auto_eat_food', 'auto_eat_pct',
@@ -386,16 +373,9 @@ async function d1(db, text = DROP_TEXT) {
   if (!(await one(db, `select to_regprocedure('public.hr_offline_cap_ms(uuid,integer)') is not null`))) {
     red.push('D1: hr_offline_cap_ms was dropped; gather and artisan still read it until lane G');
   }
-  await db.query('begin');
-  try {
-    await db.exec(`create function public.hr__d1_reader() returns jsonb language plpgsql as $f$
-                   begin return public.hr_vigour_of(gen_random_uuid(), 0); end $f$`);
-    let refused = null;
-    try { await db.exec(text); } catch (e) { refused = String(e.message); }
-    if (!refused || !/still read by/.test(refused)) {
-      red.push(`D1: the delete file applied over a planted reader (${refused ? refused.slice(0, 120) : 'it applied'})`);
-    }
-  } finally { await db.query('rollback'); }
+  /* (The fence half — a second apply of this file over a planted reader refuses —
+     RETIRED lane S1: the file is applied history whose §0 names hr_hunt_apply,
+     which lane S1 drops, so no database re-runs it; see C1.) */
   return red;
 }
 
@@ -431,8 +411,8 @@ async function g1(db) {
   const rows = (await q(db, 'select reason from public.hr_hunt_end_reasons order by ord')).map((r) => r.reason);
   if (JSON.stringify(rows) !== JSON.stringify([...END_ORDER])) red.push(`G1: hr_hunt_end_reasons on the chain ${JSON.stringify(rows)} <> END_ORDER`);
   /* THE BAR'S SIZE IS DATA (ACTION_SET_LIMITS.slots, 20 since 2026-10-14): ONE
-     length wall on the stored bar and ONE on the queued presses, each at it. */
-  for (const [table, col] of [['player_action_sets', 'slots'], ['hunt_sessions', 'presses']]) {
+     length wall on the stored bar (the queued presses left with the press, lane S1). */
+  for (const [table, col] of [['player_action_sets', 'slots']]) {
     const walls = await q(db, `select pg_get_constraintdef(c.oid) d from pg_constraint c
         where c.conrelid = $1::regclass and c.contype = 'c' and pg_get_constraintdef(c.oid) like $2`,
       ['public.' + table, `%jsonb_array_length(${col})%`]);
@@ -544,10 +524,10 @@ async function c1(db) {
     await q(db, `select proname, identity_args, grantee from public.hr_client_rpc_baseline order by 1, 2, 3`),
     await q(db, `select pg_get_constraintdef(oid) d from pg_constraint where conname = 'player_ledger_kind_check'`)]);
   const before = await snap();
-  /* The value bound splices hr_hunt_apply AFTER the settle file restates it, so
-     a second apply of the settle file is only byte-identical once the bound is
-     re-applied after it, exactly as the apply order runs them. */
-  for (const f of [CAT_NOW, SETTLE, DROP, UNGATED, '2026-10-22-hunt-sessions-value-bound.sql']) {
+  /* The STAGED files (lane S1), in apply order. The C2 files are applied
+     history: their §0 preconditions name objects lane S1 drops (hr_hunt_apply),
+     so re-running them after it is not a property any database will exercise. */
+  for (const f of STAGED) {
     try { await db.exec(readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8')); } catch (e) {
       red.push(`C1: a second apply of ${f} raised: ${String(e.message).split('\n')[0]}`);
     }
@@ -592,16 +572,6 @@ const BODY_MUTANTS = [
   { name: 'enter ignores the kill switch', arm: 'K1', fn: 'hr_hunt_enter',
     from: "  if not coalesce((select enabled from public.hr_hunt_config where id), false) then\n    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'hunts_paused')); end if;\n  if p_hunt is null",
     to: "  if p_hunt is null" },
-  { name: 'settle ignores the cooldown cap', arm: 'P1', fn: 'hr_hunt_settle_session',
-    from: '    if v_heals + v_buffs > v_win / v_cd_cons + 1 then', to: '    if false then' },
-  { name: 'settle caps heals and buffs as two lanes', arm: 'P1', fn: 'hr_hunt_settle_session',
-    from: '    if v_heals + v_buffs > v_win / v_cd_cons + 1 then', to: '    if v_heals > v_win / v_cd_cons + 1 or v_buffs > v_win / v_cd_cons + 1 then' },
-  { name: 'settle accepts invented presses', arm: 'P1', fn: 'hr_hunt_settle_session',
-    from: "      if v_j >= jsonb_array_length(v_stored) then perform public.hr_reject('bad_presses'); end if;\n      v_keep := v_keep || jsonb_build_array(v_stored->v_j);",
-    to: "      v_keep := v_keep || jsonb_build_array(jsonb_build_object('slot', (p_delta->'presses_left'->>v_i)::int));" },
-  { name: 'a press consumes from the bag', arm: 'P1', fn: 'hr_hunt_use',
-    from: '  update public.hunt_sessions\n     set presses = presses ||',
-    to: "  update public.hunt_bag set qty_left = qty_left - 1 where session_id = v_s.id and qty_left > 0 and item_id = (select item_id from public.hunt_bag where session_id = v_s.id and qty_left > 0 order by item_id limit 1);\n  update public.hunt_sessions\n     set presses = presses ||" },
   { name: 'the fold reads past the high-water mark (double count)', arm: 'T1', fn: 'hr_hunt_settle_session',
     from: "    from public.player_ledger l where l.session_id = p_session and l.id > v_hwm and l.at >= v_fold_from;",
     to: "    from public.player_ledger l where l.session_id = p_session and l.id > 0 and l.at >= v_fold_from;" },
@@ -637,7 +607,7 @@ if (!MUTATE) {
   const red = [...(await g1(db)), ...(await runArms(db)), ...(await d1(db)), ...(await a1(db)), ...(await a2(db)), ...(await c1(db))];
   await db.close?.();
   if (red.length) { console.error('hunt-sessions-db RED\n  ' + red.join('\n  ')); process.exit(1); }
-  console.log('hunt-sessions-db: G1 K1 R1 B1 S1 F1 P1 T1 D1 A1 A2 C1 green');
+  console.log('hunt-sessions-db: G1 K1 R1 B1 S1 F1 T1 D1 A1 A2 C1 green');
 } else {
   let escaped = 0;
   const control = await runArms(db);
@@ -655,15 +625,6 @@ if (!MUTATE) {
     const mine = red.filter((r) => r.startsWith(m.arm));
     console.log(`  ${mine.length ? 'caught ' : 'ESCAPED'} ${m.name}${mine.length ? ` (${mine[0].slice(0, 90)})` : ''}`);
     if (!mine.length) escaped++;
-  }
-  /* D1 bites: the drop file with its reader scan blinded applies over a planted reader. */
-  {
-    const anchor = "  if v_readers is not null then\n";
-    if (DROP_TEXT.split(anchor).length !== 2) throw new Error('D1 mutant anchor moved');
-    const red = await d1(db, DROP_TEXT.replace(anchor, '  if false then\n'));
-    const caught = red.some((r) => r.startsWith('D1'));
-    console.log(`  ${caught ? 'caught ' : 'ESCAPED'} D1: the drop file's reader scan blinded${caught ? ` (${red[0].slice(0, 90)})` : ''}`);
-    if (!caught) escaped++;
   }
   /* A1 bites: hr_rest re-created WITHOUT the access line (the body the
      ungated file spliced, one line removed) must be red. Rolled back. */
@@ -685,12 +646,13 @@ if (!MUTATE) {
   /* A2 bites: hr_engine_closed answers false for everyone (the bare 429 back). */
   {
     let red = [];
+    const shipped = String(await one(db, `select pg_get_functiondef('public.hr_engine_closed(uuid,integer,text)'::regprocedure)`)).replace(/\r/g, '');
     try {
       await db.exec(`create or replace function public.hr_engine_closed(p_user uuid, p_slot int, p_verb text)
         returns boolean language plpgsql volatile security definer set search_path = public as $$ begin return false; end $$;`);
       red = await a2(db);
     } finally {
-      await db.exec(readFileSync(join(ROOT, 'supabase', 'migrations', SETTLE), 'utf8'));   // restore (idempotent file)
+      await db.exec(shipped);   // restore the shipped body
     }
     const caught = red.some((r) => r.startsWith('A2'));
     console.log(`  ${caught ? 'caught ' : 'ESCAPED'} A2: hr_engine_closed never says closed${caught ? ` (${red[0].slice(0, 90)})` : ''}`);

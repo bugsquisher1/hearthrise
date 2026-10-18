@@ -352,10 +352,16 @@ const ARMS = {
    reads a dropped name planted on the chain, a second apply of the file REFUSES
    ("still read by"). Rolled back. */
 const DROP = '2026-10-22-hunt-sessions-delete-away.sql';
-const STAGED = [CAT_NOW, '2026-10-23-character-premium.sql', '2026-10-23-premium-login-reward.sql', '2026-10-23-hunt-settings-options.sql',
-  '2026-10-23-hunt-supply-ledger.sql', '2026-10-23-hunt-analyzer-v2.sql', '2026-10-23-hunt-world-state.sql', '2026-10-23-hunt-party.sql',
-  /* lane action-engine: restates hr_hunt_bar_check / _settle_session / _open_session / _settings_view after them */
-  '2026-10-25-action-conditions.sql'];
+/* Two passes, each on the chain ending at its own last file (integration v0.2.1): the S1 files over
+   the state THEY produced (their own 10-23 catalogue: a later catalogue adds grounds, the Warrens at
+   band 32, that an S1 self-check picks alphabetically and cannot enter), then the forward catalogue
+   and the action engine over theirs. */
+const STAGED = Object.freeze([
+  ['2026-10-23-hunt-sessions-catalogue.generated.sql', '2026-10-23-character-premium.sql', '2026-10-23-premium-login-reward.sql', '2026-10-23-hunt-settings-options.sql',
+    '2026-10-23-hunt-supply-ledger.sql', '2026-10-23-hunt-analyzer-v2.sql', '2026-10-23-hunt-world-state.sql', '2026-10-23-hunt-party.sql'],
+  /* lane action-engine: restates hr_hunt_bar_check / _settle_session / _open_session / _settings_view after the forward catalogue */
+  [CAT_NOW, '2026-10-25-action-conditions.sql'],
+]);
 async function d1(db) {
   const red = [];
   const cols = await one(db, `select count(*)::int from information_schema.columns where table_schema = 'public'
@@ -524,7 +530,8 @@ async function c1() {
      file correctly puts its own pre-S2 body back. Idempotence is a property of a file over
      the state IT produced (tests/bounty-abandon-fee.mjs B1, the same move), so it is
      measured there; the chain end is graded by tests/alpha-server.mjs A-IDEM. */
-  const { db } = await boot({ upTo: STAGED[STAGED.length - 1] });
+  for (const pass of STAGED) {
+  const { db } = await boot({ upTo: pass[pass.length - 1] });
   const snap = async () => JSON.stringify([await inventory(db),
     await q(db, `select p.oid::regprocedure::text f, md5(p.prosrc) h, p.proacl::text acl from pg_proc p join pg_namespace n on n.oid = p.pronamespace
                  where n.nspname = 'public' and (p.proname like 'hr_hunt%' or p.proname in ('hr_rpc_gate', 'hr_mark_seen',
@@ -538,13 +545,14 @@ async function c1() {
   /* The STAGED files (lane S1), in apply order. The C2 files are applied
      history: their §0 preconditions name objects lane S1 drops (hr_hunt_apply),
      so re-running them after it is not a property any database will exercise. */
-  for (const f of STAGED) {
+  for (const f of pass) {
     try { await db.exec(readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8')); } catch (e) {
       red.push(`C1: a second apply of ${f} raised: ${String(e.message).split('\n')[0]}`);
     }
   }
-  if (await snap() !== before) red.push('C1: a second apply changed the schema, a body, an ACL, a catalogue row or the baseline');
+  if (await snap() !== before) red.push('C1: a second apply of ' + pass.join(' + ') + ' changed the schema, a body, an ACL, a catalogue row or the baseline');
   await db.close?.();
+  }
   return red;
 }
 

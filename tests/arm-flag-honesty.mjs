@@ -178,7 +178,7 @@ function selftest() {
   if (!ok) { bad++; console.log(`      ${flags.length} flag(s), findings: ${findings.join(' | ')}`); }
   // …and the vacuity control: the real tree must actually contain flags.
   const real = auditSources(loadSrc());
-  const seen = real.flags.length >= 9;   // 9 since the client reset (2026-10-17) deleted its flags
+  const seen = real.flags.length >= 7;   // 7: the client reset (2026-10-17) and the P0 demolition (b592) deleted the rest
   console.log(`  ${seen ? '✓' : '✗'} not vacuous: ${real.flags.length} real arm flag(s) found under src/`);
   if (!seen) bad++;
   if (bad) { console.error(`arm-flag-honesty --selftest: ${bad} control(s) failed.`); process.exit(1); }

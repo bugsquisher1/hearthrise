@@ -204,16 +204,23 @@ function selfCheckOff(file) {
   return [m[1] + '\n' + m[2], m[1] + '\ncreate or replace function pg_temp.s2_selfcheck_off() returns void language plpgsql as $' + m[3] + '$'];
 }
 
+/* A fight's dice depend on the wall clock as well as the seed (the arrival is stamped from
+   now()), so a window that did not set up the case (too few falls or pickups) is re-dealt
+   from a fresh seed, up to ATTEMPTS times; only a CONTROL that holds every time is reported.
+   A real problem is never retried away: the first attempt that sets the case up is judged. */
+const ATTEMPTS = 6;
 async function runArms(db, ctx, only) {
   const out = [];
   for (const [name, fn] of Object.entries(ARMS)) {
     if (only && !only.includes(name)) continue;
-    await db.query('begin');
-    /* Every arm starts its dice at the same place (the harness's uuid sequence), whatever ran before. */
-    await db.query("select setval('public.hr_test_uuid_seq', 1000, false)");
     let problems;
-    try { problems = await fn(db, ctx); } catch (e) { problems = ['HARNESS: ' + String(e.message).slice(0, 400)]; }
-    finally { await db.query('rollback'); }
+    for (let a = 0; a < ATTEMPTS; a++) {
+      await db.query('begin');
+      await db.query('select setval($1, $2, false)', ['public.hr_test_uuid_seq', 1000 + a * 997]);
+      try { problems = await fn(db, ctx); } catch (e) { problems = ['HARNESS: ' + String(e.message).slice(0, 400)]; }
+      finally { await db.query('rollback'); }
+      if (!(problems.length === 1 && problems[0].startsWith('CONTROL'))) break;
+    }
     out.push({ name, problems });
   }
   return out;

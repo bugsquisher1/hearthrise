@@ -5,7 +5,7 @@
   "T": 32,
   "image": "atlas-warren.png",
   "size": [2048,1124],
-  "pixels": "6ac6d6cd03983c085e437ef285075267c3a2497f86e69ae78bbc02c52505630e",
+  "pixels": "25cca7da40218c544f708e6d26ee11f68c65c865e6fbed6284084932e1884da2",
   "sprites": {
     "chief_coppercap": {
       "class": "brute",

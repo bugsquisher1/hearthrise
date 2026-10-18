@@ -65,6 +65,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { readFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { createServer } from 'node:net';
 import { bootChain, ROOT } from './pglite-chain.mjs';
@@ -1314,7 +1315,16 @@ async function run(mutate) {
   {
     const { ITEMS } = await import('../src/data/items.js');
     const rows = (await db.query('select item_id from public.hr_items')).rows.map((r) => r.item_id);
-    const known = new Set(rows);
+    /* This slice's chain carries the ROOT catalogue (2026-08-11, frozen); the
+       server's CURRENT hr_items is gen-catalogues' forward file, a full replace of
+       the same table, which this slim chain cannot apply (it needs later tables).
+       So its hr_items rows are read off the file the generator's --check binds. */
+    const fwd = readFileSync(MIG('2026-10-24-sewer-catalogue.generated.sql'), 'utf8');
+    const at = fwd.indexOf('insert into public.hr_items (');
+    const block = at < 0 ? '' : fwd.slice(at, fwd.indexOf(';\n', at));
+    const current = [...block.matchAll(/^\s*\('([a-z0-9_]+)',/gm)].map((m) => m[1]);
+    ok(current.length > 100, `G16-CONTROL: the forward catalogue's hr_items block holds ${current.length} rows`);
+    const known = new Set([...rows, ...current]);
     ok(rows.length > 100, `G16-CONTROL: hr_items holds ${rows.length} rows — the catalogue is not the generated one`);
     const missing = Object.keys(ITEMS).filter((id) => !known.has(id)).slice(0, 5);
     ok(missing.length === 0,

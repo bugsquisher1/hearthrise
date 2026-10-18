@@ -4155,3 +4155,20 @@ companions/pets/BotD/night plan/enchant/Stonemason and the Auto-Eat surface; leg
 5. *Crossings found, not fixed (not mine):* accrue.js still refuses to arm inventory authority
    without `window.DUNGEONS` (C2); D2 left gear items with no recipe (b243/b247/LUCKY-7) and
    `bone_key`/`oak_rod` unclassified in item-authority.
+
+
+## 2026-10-18 — lane/hunt-scene: the hunt lives in the World pane
+
+src/hunt-view/scene.js plays the character's timeline; 8-facing pipeline (FACINGS); vfx class + set;
+guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
+
+1. *A new subscriber to a shared timeline is an ordering hazard.* The World now advances the
+   timeline from its first frame, so the combat log (subscribed after the World booted) missed
+   the first events. hunt-screen HS-6 caught it; the log now subscribes before the World boots.
+2. *Make animation a function of time and the server's data, never of frames drawn.* The walk
+   frame comes from an odometer stored on each track step and effects start at clientAt(atMs);
+   the 30-vs-144 fps rule then compares whole frames byte for byte.
+3. *Python text-mode writes on Windows turn LF into CRLF.* Mutant anchors stopped matching; edit
+   repo files with node or the Edit tool.
+4. *A scene that reads the snapshot lazily stays right under any caller.* Events delivered by the
+   shell's display tick were staged against an empty read until the scene pulled readHunt itself.

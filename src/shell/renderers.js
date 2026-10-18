@@ -21,6 +21,7 @@ import { renderGear } from './windows/gear.js?v=0.1.0';
 import { renderSkills } from './windows/skills.js?v=0.1.0';
 import { renderShop } from './windows/shop.js?v=0.1.0';
 import { renderHuntPrep } from './windows/hunt-prep.js?v=0.1.0';
+import { renderHuntSummary } from './windows/hunt-summary.js?v=0.1.0';
 import { renderFind } from './windows/find.js?v=0.1.0';
 
 /* A renderer with `.patch` is a component: built once, then patched in place (src/shell/shell.js). */
@@ -30,6 +31,7 @@ export const WINDOW_RENDERERS = Object.freeze({
   skills: renderSkills,
   shop: renderShop,
   'hunt-prep': renderHuntPrep,
+  'hunt-summary': renderHuntSummary,
   find: renderFind,
   hud: renderHudSettings,
   'hunt-settings': renderHuntSettings,

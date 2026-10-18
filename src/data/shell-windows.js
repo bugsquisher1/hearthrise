@@ -29,6 +29,7 @@ export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'skills', label: 'Skills', key: 'k', glyph: 'navSkills', width: 380, object: 'ledger' }),
   Object.freeze({ id: 'shop', label: 'Shop', key: 'v', glyph: 'navStore', width: 420, object: 'ledger' }),
   Object.freeze({ id: 'hunt-prep', label: 'Hunt prep', key: 'p', glyph: 'uiCheck', width: 420, object: 'plain' }),
+  Object.freeze({ id: 'hunt-summary', label: 'Hunt summary', key: 'y', glyph: 'uiCheck', width: 420, object: 'ledger', launcher: false }),
   Object.freeze({ id: 'find', label: 'Find an item', key: 'f', glyph: 'uiSearch', width: 380, object: 'plain' }),
   Object.freeze({ id: 'hud', label: 'HUD layout', key: 'u', glyph: 'uiSettings', width: 380, object: 'plain', launcher: false }),
   Object.freeze({ id: 'hunt-settings', label: 'Hunt settings', key: 'j', glyph: 'uiTarget', width: 440, object: 'plain' }),

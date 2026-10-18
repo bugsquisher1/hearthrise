@@ -71,6 +71,8 @@ function sanitizeCombatLog(v) {
   return out;
 }
 
+import { sanitizeSummaries } from './hunt-summaries.js?v=0.1.0';
+
 const ITEM_ID = /^[a-z0-9_]{1,64}$/;
 export const BAG_SEEN_MAX = 512;
 
@@ -107,6 +109,7 @@ const SANITIZERS = Object.freeze({
   combatText: sanitizeCombatText,   // display preference: which floating numbers show; gates and spends nothing
   combatLog: sanitizeCombatLog,     // display preference: the combat log's filters; gates and spends nothing
   bagSeen: sanitizeBagSeen,         // display state: which bag stacks carry the "new" mark; gates and spends nothing
+  huntSummaries: sanitizeSummaries, // display state: the last few hunts' summary cards (src/hunt-view/summary-model.js); gates and spends nothing
   bagView: sanitizeBagView,         // display preference: the bag's category and sort; gates and spends nothing
 });
 

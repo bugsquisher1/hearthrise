@@ -847,7 +847,8 @@ async function loop3(S, M, tag, rows) {
 
   await step(5, 'the bag is spent before the shop bills a coin', async (t) => {
     /* "Use My Supplies, Switch to Store Supplies when they run out" (MDR §4). */
-    const pick = await S.rpc(p.uid, `select public.hr_action_set_options(0, 0, '{"supply_source":"mine","on_empty":"switch"}'::jsonb, $1::uuid) r`, [uuid()]);
+    /* (food_below_pct 99: the hero eats on any wound, so the order — bag before store — is what is graded, not the dice) */
+    const pick = await S.rpc(p.uid, `select public.hr_action_set_options(0, 0, '{"supply_source":"mine","on_empty":"switch","food_below_pct":99}'::jsonb, $1::uuid) r`, [uuid()]);
     t.ok(pick && pick.ok === true && pick.options && pick.options.on_empty === 'switch', `the supplies choice was refused: ${brief(pick)}`);
     const packed = inv(p.env, 'cooked_shrimp');
     await p.enter(t, 'mill_cellar', { cooked_shrimp: packed });
@@ -1012,6 +1013,15 @@ async function main() {
     return 2;
   }
   console.log(`CORE LOOP — the chain replayed in ${((Date.now() - t0) / 1000).toFixed(1)} s\n`);
+  /* PINNED DICE (lane S1): a hunt's swings are seeded by hr_seed(instance id) and the
+     instance id is a gen_random_uuid, so every run rolled a different hunt and a
+     marginal step (LOOP-2's break-even hour) could flip. A fixed PRNG secret and a
+     counting uuid make every run roll the same dice (the clean run, then each mutant
+     in order). */
+  await db.query(`update public.hr_server_secrets set secret = sha256(convert_to('core-loop:fixed-prng:1', 'utf8')) where name = 'prng'`);
+  await db.exec(`create sequence if not exists public.hr_test_uuid_seq;
+    create or replace function pg_catalog.gen_random_uuid() returns uuid language sql volatile as
+      $f$ select ('00000000-0000-4000-8000-' || lpad(to_hex(nextval('public.hr_test_uuid_seq')), 12, '0'))::uuid $f$;`);
 
   /* THE CLEAN RUN ALWAYS RUNS FIRST: a proof that never sees green cannot tell
      a caught dead end from its own corpse (guard-hygiene RULE 3). */

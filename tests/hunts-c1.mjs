@@ -154,7 +154,8 @@ async function chainArm() {
              where n.nspname = 'public' and p.proname in ('hr_apply', 'hr_hunt_gate', 'hr_rally_points_of') order by 1`),
     await q('select * from public.hr_hunts order by 1'), await q('select * from public.hr_hunt_spawns order by 1, 2')]);
   const before = await snap();
-  for (const f of ['2026-10-20-hunts-catalogue.generated.sql', '2026-10-20-hunts-start-gate.sql', '2026-10-20-hunts-rally-kills.sql']) {
+  /* the CURRENT hunts catalogue (the 10-20 file is applied history its forward file supersedes) */
+  for (const f of ['2026-10-24-hunts-catalogue.generated.sql', '2026-10-20-hunts-start-gate.sql', '2026-10-20-hunts-rally-kills.sql']) {
     try { await db.exec(readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8')); } catch (e) {
       red.push(`C1: a second apply of ${f} raised: ${String(e.message).split(String.fromCharCode(10))[0]}`);
     }

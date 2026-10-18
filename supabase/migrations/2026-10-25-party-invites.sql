@@ -51,7 +51,8 @@
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
 -- Drop the five verbs (+ baseline rows), the section row + view, the table and
 -- hr_hunt_enter_for; re-apply hr_hunt_enter from 2026-10-23-hunt-party.sql.
--- ORDER: after 2026-10-25-blessings.sql (last S2 file). No begin/commit.
+-- ORDER: after 2026-10-25-blessings.sql (last S2 file) and 2026-10-25-hunt-floor-warning.sql
+-- (integration v0.2.1: enter answers below_range, the floor is a warning). No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS AND THE PIN ─────────────────────────────────────────────
@@ -59,8 +60,9 @@ do $mig$
 declare v_md5 text;
 begin
   if to_regprocedure('public.hr_character_by_name(text)') is null or to_regclass('public.player_hunt_active') is null
-     or to_regclass('public.player_item_rules') is null or to_regprocedure('public.hr_hunt_party_join(integer,uuid,uuid)') is null then
-    raise exception 'PRECONDITION: apply the S2 files (account-items, hunt-presets, bag-rules) and the S1 party first'; end if;
+     or to_regclass('public.player_item_rules') is null or to_regprocedure('public.hr_hunt_party_join(integer,uuid,uuid)') is null
+     or to_regprocedure('public.hr_hunt_below_range(uuid,integer,text)') is null then
+    raise exception 'PRECONDITION: apply the S2 files (account-items, hunt-presets, bag-rules), the S1 party and 2026-10-25-hunt-floor-warning.sql first'; end if;
   -- THE PIN: the installed hr_hunt_enter is S1's (2026-10-23-hunt-party.sql) or this
   -- file's own wrapper; anything else moved meanwhile and is refused, never clobbered.
   select md5(prosrc) into v_md5 from pg_proc where oid = 'public.hr_hunt_enter(integer,text,jsonb,integer,integer,integer,uuid)'::regprocedure;
@@ -192,8 +194,11 @@ begin
   perform public.hr_hunt_point(v_uid, p_slot, p_hunt);
   update public.hunt_sessions set version = version + 1 where id = v_id;
 
+  -- THE FLOOR IS A WARNING (Tyler 2026-10-18; 2026-10-25-hunt-floor-warning.sql): admitted under
+  -- band[0] within the margin, the answer says so and the picker warns.
   return jsonb_build_object('ok', true, 'session_id', v_id, 'session', public.hr_hunt_view(v_id),
-                            'version', (select version from public.player_state where user_id = v_uid and slot = p_slot));
+                            'version', (select version from public.player_state where user_id = v_uid and slot = p_slot),
+                            'below_range', public.hr_hunt_below_range(v_uid, p_slot, p_hunt));
 end $$;
 revoke execute on function public.hr_hunt_enter_for(uuid, int, text, jsonb, int, int, int) from public, anon, authenticated, service_role;
 
@@ -215,7 +220,8 @@ begin
   if not public.hr_rpc_gate('hunt') then return jsonb_build_object('ok', false, 'error', 'rate_limited'); end if;
   v_r := public.hr_hunt_enter_for(v_uid, p_slot, p_hunt, p_bag, p_preset, p_falls, p_hours);
   if coalesce(v_r->>'ok', 'false') <> 'true' then return public.hr_note_rejection(c_verb, p_slot, v_r); end if;
-  v_r := jsonb_build_object('ok', true, 'session', v_r->'session', 'version', v_r->'version');
+  v_r := jsonb_build_object('ok', true, 'session', v_r->'session', 'version', v_r->'version',
+                            'below_range', coalesce((v_r->>'below_range')::boolean, false));
   insert into public.player_intents (user_id, intent_id, slot, intent, result, at)
     values (v_uid, p_idem, p_slot, c_verb, v_r, now()) on conflict (user_id, intent_id) do nothing;
   return v_r;
@@ -486,7 +492,9 @@ do $$
 declare
   v_u constant uuid[] := array['000000c0-0000-0000-0000-00005e300001', '000000c0-0000-0000-0000-00005e300002',
                                '000000c0-0000-0000-0000-00005e300003']::uuid[];
-  v_hunt text := (select g.hunt_id from public.hr_hunt_grounds g order by g.hunt_id limit 1);
+  -- the lowest-band ground (integration v0.2.1: alphabetical order picked a band-32 ground once the Warrens landed)
+  v_hunt text := (select g.hunt_id from public.hr_hunt_grounds g left join public.hr_hunts h on h.hunt_id = g.hunt_id
+                   order by coalesce(h.band_min, 0), g.hunt_id limit 1);
   v_food text := (select o.item_id from public.hr_shop_supply_offers o join public.hr_hunt_supplies s on s.item_id = o.item_id
                    where s.kind = 'heal' order by o.price limit 1);
   v jsonb; v_i int; v_pid uuid; v_sid uuid; v_sid0 uuid; v_inv uuid; v_role text; v_probe boolean := false;
@@ -518,6 +526,9 @@ begin
     v := public.hr_hunt_enter(0, v_hunt, jsonb_build_array(jsonb_build_object('item', v_food, 'qty', 4)), 0, null, null, '000000c0-0000-4000-a000-00005e300102');
     if coalesce(v->>'ok', '') <> 'true' or (select qty from public.player_inventory where user_id = v_u[1] and item_id = v_food) <> 6 then
       raise exception 'VERIFY(a): the solo enter answered %', v; end if;
+    -- the answer carries the floor warning, the server's own word (hr_hunt_below_range).
+    if jsonb_typeof(v->'below_range') is distinct from 'boolean' or (v->>'below_range')::boolean <> public.hr_hunt_below_range(v_u[1], 0, v_hunt) then
+      raise exception 'VERIFY(a): the solo enter carries no honest below_range: %', v; end if;
     v := public.hr_hunt_enter(0, v_hunt, '[]'::jsonb, 0, null, null, '000000c0-0000-4000-a000-00005e300102');
     if coalesce(v->>'ok', '') <> 'true' or (select count(*) from public.hunt_sessions where user_id = v_u[1]) <> 1 then
       raise exception 'VERIFY(a): a replayed enter answered % or opened a second session', v; end if;

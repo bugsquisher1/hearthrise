@@ -14,7 +14,8 @@
 // a long gap) jumps. A walker the server stops naming is gone on the next
 // answer; a reported tile inside a hedge or a building stands on the nearest
 // open tile instead (the server does not hold the collision mask).
-// Each peer wears its role's style-1 outfit (src/data/hunt-outfits.js, the one
+// Each peer wears the outfit its character chose (the server's walker.outfit,
+// else its role's style-1 outfit; src/data/hunt-outfits.js, the one
 // the hunt draws it in), carries a nameplate (name · level) and is stamped
 // ref.player so a right-click opens the shared player menu for that account.
 // PURE: no DOM, no window, no G — the caller passes the walkers and the clock.
@@ -82,7 +83,7 @@ export function createTownCast(map, o) {
       const units = [];
       for (const p of people.values()) {
         const at = p.steer.step(now);
-        const id = outfitSprite(null, p.w.role);
+        const id = outfitSprite(p.w.outfit, p.w.role);
         const { anim, age } = walkClip(o.sprites[id], at, p.steer.restMs(now), pickFacing);
         units.push({
           id, x: onPixel(at.x), y: onPixel(at.y), dir: at.moving ? at.dir : p.dir, diag: at.moving ? at.diag : null, anim, age,

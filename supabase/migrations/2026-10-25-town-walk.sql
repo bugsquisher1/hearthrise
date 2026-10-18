@@ -6,8 +6,9 @@
 -- Andy can't see each other"). The game is CLOSED: applies on its passing §6
 -- (tools/apply-migration.mjs, one file, never inside begin/commit, never
 -- 00:00–00:10 UTC); Security reviews it with every closed-mode surface at the
--- reopen gate. ORDER: right after 2026-10-25-social.sql (§0 refuses without its
--- block and name helpers). No edge. No value moves.
+-- reopen gate. ORDER: after 2026-10-25-social.sql (§0 refuses without its block
+-- and name helpers) and 2026-10-25-character-sheet.sql (a walker carries the
+-- outfit its character chose, player_outfits). No edge. No value moves.
 --
 -- ── WHICH PRESENCE THIS EXTENDS (one system, not a third) ────────────────────
 -- "Who is in town" is 2026-09-13-town-presence.sql: the town_presence flag,
@@ -83,6 +84,10 @@ begin
      or to_regprocedure('public.hr_rate_ok(uuid,text,integer,interval)') is null or to_regprocedure('public.hr_flag_on(text)') is null
      or to_regprocedure('public.hr_town_zone()') is null or to_regclass('public.hunt_sessions') is null then
     raise exception 'town-walk §0: the chat, closed-mode, rate, town-presence or hunt-session helpers are absent';
+  end if;
+  -- A walker wears its own outfit (integration v0.2.1): the Character window's store, read once.
+  if to_regclass('public.player_outfits') is null or to_regprocedure('public.hr_outfit_owned(uuid,integer)') is null then
+    raise exception 'town-walk §0: apply 2026-10-25-character-sheet.sql first (player_outfits, hr_outfit_owned)';
   end if;
   if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'player_state' and column_name = 'presence_quiet') then
     raise exception 'town-walk §0: player_state.presence_quiet is absent (2026-09-13-town-presence.sql)';
@@ -195,6 +200,10 @@ begin
              'name', public.hr_social_name(w.user_id),
              'level', public.hr_bounty_combat_level(w.user_id, w.slot),
              'role', public.hr_chat_role_pick(w.user_id, w.slot),
+             -- THE OUTFIT the character chose (player_outfits, written only by hr_outfit_set),
+             -- null when none or no longer owned (a lapsed premium outfit), as hr_outfit_view reads it.
+             'outfit', case when po.outfit_id is not null and po.outfit_id = any (public.hr_outfit_owned(w.user_id, w.slot))
+                            then jsonb_build_object('id', po.outfit_id, 'colors', coalesce(po.colors, '{}'::jsonb)) end,
              'x', w.x, 'y', w.y, 'gx', w.gx, 'gy', w.gy, 'dir', w.dir,
              'age_ms', greatest(0, floor(extract(epoch from (now() - w.at)) * 1000))::int
            ) order by w.at desc)
@@ -209,7 +218,8 @@ begin
                                 where h.user_id = c.user_id and h.slot = c.slot and h.ended_at is null)
                and not public.hr_social_blocked(v_uid, c.user_id)
                and public.hr_admitted(c.user_id)
-             order by c.at desc limit c_cap) w), '[]'::jsonb));
+             order by c.at desc limit c_cap) w
+      left join public.player_outfits po on po.user_id = w.user_id and po.slot = w.slot), '[]'::jsonb));
 end $$;
 
 -- ── §5 GRANTS AND THE BASELINE ──────────────────────────────────────────────
@@ -237,7 +247,7 @@ declare
   v_c constant uuid := '000000c0-0000-0000-0000-00000c4a9003';
   v_x constant uuid := '000000c0-0000-0000-0000-00000c4a9004';   -- NOT allowlisted
   v jsonb; v_w jsonb; v_err text; v_u uuid; v_flag boolean;
-  c_keys constant text := 'age_ms,dir,gx,gy,id,level,name,role,slot,x,y';
+  c_keys constant text := 'age_ms,dir,gx,gy,id,level,name,outfit,role,slot,x,y';
 begin
   begin
     insert into public.hr_flags (key, enabled, note) values ('closed_mode', true, 'town-walk §6')
@@ -272,6 +282,16 @@ begin
     -- EXACTLY the allowlisted keys.
     if (select string_agg(k, ',' order by k) from jsonb_object_keys(v_w->0) k) <> c_keys then
       raise exception 'town-walk §6(a): a walker carries keys %', (select string_agg(k, ',' order by k) from jsonb_object_keys(v_w->0) k); end if;
+    -- (a2) the walker wears the outfit its character chose (player_outfits), none before it chose.
+    if jsonb_typeof(v_w->0->'outfit') is distinct from 'null' then
+      raise exception 'town-walk §6(a2): a character that chose nothing walks in %', v_w->0->'outfit'; end if;
+    insert into public.player_outfits (user_id, slot, outfit_id, colors)
+      select v_a, 0, o.outfit_id, '{}'::jsonb from public.hr_outfits o where not o.premium order by o.sort, o.outfit_id limit 1
+    on conflict (user_id, slot) do update set outfit_id = excluded.outfit_id, colors = excluded.colors;
+    v := public.hr_town_walkers('town_common');
+    if v->'walkers'->0->'outfit'->>'id' is distinct from (select outfit_id from public.player_outfits where user_id = v_a and slot = 0)
+       or (select outfit_id from public.player_outfits where user_id = v_a and slot = 0) is null then
+      raise exception 'town-walk §6(a2): a''s chosen outfit reads %', v->'walkers'->0->'outfit'; end if;
 
     -- (b) the floor: an immediate second publish writes nothing.
     v := public.hr_town_move(0, 'town_common', 13, 9, 13, 9, 's');

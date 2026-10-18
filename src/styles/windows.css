@@ -248,6 +248,8 @@
 .hw-hunt-theme { font-size: var(--t-micro); color: var(--ink-2); line-height: 1.3; }
 .hw-hunt-band, .hw-hunt-facts { font-size: var(--t-micro); color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; }
 .hw-hunt-band.is-short { color: var(--red); }
+.hw-hunt-warn { font-size: var(--t-micro); color: var(--red); }
+.hw-hunt-warn:empty { display: none; }
 .hw-hunt-pack { font-size: var(--t-micro); color: var(--ink-2); }
 .hw-hunt-pack:empty { display: none; }
 .hw-hunt-do { flex: none; display: flex; flex-direction: column; align-items: stretch; gap: 4px; }

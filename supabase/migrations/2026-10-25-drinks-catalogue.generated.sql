@@ -6,10 +6,10 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: b7cc7a5e5663bfd103e3fabdac11d75705fe97bd6eaf789602e70ab9a5c95db5
+--   catalogue digest: 4aa7194b772bf779bfb04c884fd8eff7ae9f962bda94c01b164d09f3ba7cc3f2
 --   rows: 479 items (15 untradeable) ·
 --         270 item-slot pairs · 15 equip slots ·
---         15 skills · 9 crops · 281 activities ·
+--         15 skills · 9 crops · 291 activities ·
 --         0 runes
 --
 -- APPLY ORDER: 2026-08-11-player-state.sql → THIS FILE → 2026-08-11-apply-engine.sql
@@ -1104,12 +1104,14 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('combat','barrow_knight',null,null,148,false),
   ('combat','bear',null,null,140,false),
   ('combat','bog_vine',null,null,70,false),
+  ('combat','briarcoat_wolf',null,null,16,false),
   ('combat','broodmother',null,null,402,true),
   ('combat','carnivorous_plant',null,null,138,false),
   ('combat','carrion_swarm',null,null,198,false),
   ('combat','cave_wyrm',null,null,158,false),
   ('combat','centipede',null,null,60,false),
   ('combat','chained_demon',null,null,240,false),
+  ('combat','chief_coppercap',null,null,1100,true),
   ('combat','cistern_spider',null,null,90,false),
   ('combat','clay_golem',null,null,78,false),
   ('combat','conjurer',null,null,110,false),
@@ -1119,6 +1121,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('combat','dark_wizard',null,null,28,false),
   ('combat','death_knight',null,null,260,false),
   ('combat','deserter',null,null,57,false),
+  ('combat','dire_gray',null,null,28,false),
   ('combat','dire_wolf',null,null,62,false),
   ('combat','draconia',null,null,484,true),
   ('combat','dragon',null,null,520,true),
@@ -1143,12 +1146,19 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('combat','gnoll_packlord',null,null,62,false),
   ('combat','goblin',null,null,15,false),
   ('combat','goblin_brute',null,null,68,false),
+  ('combat','goblin_digger',null,null,240,false),
+  ('combat','goblin_scavenger',null,null,150,false),
+  ('combat','goblin_skulker',null,null,170,false),
   ('combat','goblin_warlord',null,null,125,false),
   ('combat','grave_banshee',null,null,194,false),
+  ('combat','gray_whelp',null,null,9,false),
+  ('combat','gray_wolf',null,null,14,false),
+  ('combat','grayjaw',null,null,35,false),
   ('combat','grim_reaper',null,null,388,true),
   ('combat','hellhound',null,null,122,false),
   ('combat','hive_wasp',null,null,8,false),
   ('combat','hobgoblin',null,null,34,false),
+  ('combat','hobgoblin_foreman',null,null,300,false),
   ('combat','ice_elemental',null,null,128,false),
   ('combat','imp',null,null,10,false),
   ('combat','iron_colossus',null,null,518,true),
@@ -1285,7 +1295,7 @@ insert into public.hr_start_equipment (equip_slot, item_id) values
 -- (no tag:'rune' items authored yet — hr_runes seeded empty)
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, 'b7cc7a5e5663bfd103e3fabdac11d75705fe97bd6eaf789602e70ab9a5c95db5', now())
+  values (true, '4aa7194b772bf779bfb04c884fd8eff7ae9f962bda94c01b164d09f3ba7cc3f2', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1319,7 +1329,7 @@ begin
     raise exception 'untradeable count is %, generator emitted 15', v_n;
   end if;
   select count(*) into v_n from public.hr_activities;
-  if v_n <> 281 then raise exception 'hr_activities has % rows, expected 281', v_n; end if;
+  if v_n <> 291 then raise exception 'hr_activities has % rows, expected 291', v_n; end if;
 
   -- MONSTER HP. The count is asserted for the same reason auto_eatable's is: a
   -- re-apply against a database that created hr_activities before the column
@@ -1327,8 +1337,8 @@ begin
   -- does not fail — it makes hr_apply's carried-fight clamp ADMIT ANYTHING,
   -- which is the "assertion that asserts nothing" family in SQL form.
   select count(*) into v_n from public.hr_activities where kind = 'combat' and max_hp is not null;
-  if v_n <> 119 then
-    raise exception 'combat activities with a max_hp: %, generator emitted 119 — '
+  if v_n <> 129 then
+    raise exception 'combat activities with a max_hp: %, generator emitted 129 — '
       'hr_apply''s carried-fight clamp would be vacuous for the rest', v_n;
   end if;
   -- ...and the converse, so a non-combat row can never acquire a fight ceiling
@@ -1340,8 +1350,8 @@ begin
   -- a database that created hr_activities before is_boss existed must not leave
   -- every combat row FALSE, which would silently zero the renown bossKill term.
   select count(*) into v_n from public.hr_activities where kind = 'combat' and is_boss;
-  if v_n <> 15 then
-    raise exception 'combat activities flagged is_boss: %, generator emitted 15 — '
+  if v_n <> 16 then
+    raise exception 'combat activities flagged is_boss: %, generator emitted 16 — '
       'the renown bossKill term would be mis-scored', v_n;
   end if;
   -- ...and no non-combat row may be a boss (a gather node flagged boss would
@@ -1473,7 +1483,7 @@ begin
   ) src where not exists (select 1 from public.hr_items i where i.item_id = src.id);
   if v_bad > 0 then raise exception '% grant-source row(s) name an item missing from hr_items', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest b7cc7a5e5663bfd103e3fabdac11d75705fe97bd6eaf789602e70ab9a5c95db5',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 4aa7194b772bf779bfb04c884fd8eff7ae9f962bda94c01b164d09f3ba7cc3f2',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

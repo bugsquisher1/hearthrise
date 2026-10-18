@@ -52,6 +52,15 @@ export function bandWords(r, level) {
   return Number.isInteger(level) ? band + ', you are ' + level : band;
 }
 
+/** Words on a hunt ABOVE the character's level, or null. The floor is a warning (Tyler 10-18):
+    under band[0] the server admits and warns; SESSION_LIMITS.belowRangeRefuse or more under, it refuses.
+    Display only: nothing reads it to gate a press, the server decides. */
+export const ABOVE_LEVEL_WORDS = 'This hunt is above your level, expect losses.';
+export function rangeWords(r, level) {
+  if (!Number.isInteger(level) || level >= r.band[0]) return null;
+  return r.band[0] - level >= SESSION_LIMITS.belowRangeRefuse ? 'You are too far below this hunt to enter it yet.' : ABOVE_LEVEL_WORDS;
+}
+
 /** Who may come: "1 hero" or "1 to 4 heroes". */
 export function heroWords(r) {
   return r.heroes > 1 ? 'Alone or with up to ' + (r.heroes - 1) + ' more' : 'One hero';

@@ -32,7 +32,7 @@ import { fileURLToPath } from 'node:url';
 import { HUNTS, HUNT_INDEX } from '../src/data/hunts.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { ITEMS } from '../src/data/items.js';
-import { huntRows } from '../tools/gen-hunts.mjs';
+import { huntRows, OUT_NAME as HUNTS_NOW } from '../tools/gen-hunts.mjs';
 import * as ACCRUAL from '../supabase/functions/hr-accrue/accrual.js';
 import { huntAccrual } from './hunt-fixture.mjs';
 
@@ -154,8 +154,9 @@ async function chainArm() {
              where n.nspname = 'public' and p.proname in ('hr_apply', 'hr_hunt_gate', 'hr_rally_points_of') order by 1`),
     await q('select * from public.hr_hunts order by 1'), await q('select * from public.hr_hunt_spawns order by 1, 2')]);
   const before = await snap();
-  /* the CURRENT hunts catalogue (the 10-20 file is applied history its forward file supersedes) */
-  for (const f of ['2026-10-24-hunts-catalogue.generated.sql', '2026-10-20-hunts-start-gate.sql', '2026-10-20-hunts-rally-kills.sql']) {
+  /* the CURRENT hunts catalogue (the earlier ones are applied history its forward file supersedes),
+     then the gate, the rally pricing and the gate's chain-end restatement (the floor is a warning) */
+  for (const f of [HUNTS_NOW, '2026-10-20-hunts-start-gate.sql', '2026-10-20-hunts-rally-kills.sql', '2026-10-25-hunt-floor-warning.sql']) {
     try { await db.exec(readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8')); } catch (e) {
       red.push(`C1: a second apply of ${f} raised: ${String(e.message).split(String.fromCharCode(10))[0]}`);
     }

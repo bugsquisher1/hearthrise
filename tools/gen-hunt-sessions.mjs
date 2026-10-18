@@ -273,6 +273,8 @@ export function catalogueRows(src = {}) {
     density_min: DENSITY_PICK.min, density_max: DENSITY_PICK.max,
     gather_share_min: GATHER_SHARE.min, gather_share_max: GATHER_SHARE.max,
     party_max: S.partyMax,
+    /* The level floor is a warning: refused only this many levels under band[0] (Tyler 10-18). */
+    below_range_refuse: S.sessionLimits.belowRangeRefuse,
     max_concurrent: S.maxConcurrent,
     /* The hero's regen rates the hunt section shows (abilities.js / hunt-tuning.js, one source). */
     mana_regen_pct_min: S.manaRegenPct,
@@ -300,6 +302,9 @@ export function catalogueRows(src = {}) {
   if (!(lim.distance_min >= 1 && lim.distance_min <= lim.distance_max)) throw new Error(`HERO_DISTANCE ${JSON.stringify(S.distance)}`);
   if (!(lim.threshold_pct_min >= 1 && lim.threshold_pct_min <= lim.threshold_pct_max && lim.threshold_pct_max <= 99)) {
     throw new Error(`THRESHOLD_PCT ${JSON.stringify(S.thresholds)}`);
+  }
+  if (!(whole(lim.below_range_refuse) && lim.below_range_refuse >= 1 && lim.below_range_refuse <= 100)) {
+    throw new Error(`SESSION_LIMITS.belowRangeRefuse ${S.sessionLimits.belowRangeRefuse} is not 1..100`);
   }
   if (!(whole(lim.party_max) && lim.party_max >= 1 && lim.party_max <= 5)) throw new Error(`PARTY.maxSize ${S.partyMax} is not 1..5`);
   if (!(whole(lim.max_concurrent) && lim.max_concurrent >= 1 && lim.max_concurrent <= S.maxSlot + 1)) {

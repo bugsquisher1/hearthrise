@@ -14,8 +14,8 @@
 //                    keepaliveMs standing (also while the page is hidden), and
 //                    one leave (null map) on show(null) or destroy().
 //   hr_town_walkers  every pollMs while a town is shown: the people there as the
-//                    server names them (id, slot, name, level, role, tiles,
-//                    facing). Self, quiet characters, hunters and blocks either
+//                    server names them (id, slot, name, level, role, outfit,
+//                    tiles, facing). Self, quiet characters, hunters and blocks either
 //                    way are the server's to remove; a block made on this device
 //                    hides that player here at once too (`hidden`).
 // The list is REPLACED by each answer, never merged; an answer older than
@@ -26,6 +26,7 @@ import { TOWN_PRESENCE, TOWN_DIRS } from '../data/town-presence.js?v=0.2.0';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAP_ID = /^[a-z0-9_]{1,40}$/;
 const ROLE = /^[a-z_]{1,32}$/;
+const OUTFIT = /^[a-z0-9_]{1,32}$/;
 const tile = (v) => Number.isInteger(v) && v >= 0 && v <= 255;
 
 /** One walker as the server sent it, validated, or null. Pure. */
@@ -36,6 +37,8 @@ export function walkerOf(w) {
     id: w.id.toLowerCase(), slot: Number.isInteger(w.slot) ? w.slot : null, name: w.name.slice(0, 24),
     level: Number.isInteger(w.level) && w.level >= 0 ? w.level : null,
     role: typeof w.role === 'string' && ROLE.test(w.role) ? w.role : null,
+    /* the outfit its character chose (player_outfits via hr_town_walkers), or null: the role's then */
+    outfit: w.outfit && typeof w.outfit === 'object' && typeof w.outfit.id === 'string' && OUTFIT.test(w.outfit.id) ? w.outfit.id : null,
     x: w.x, y: w.y, gx: w.gx, gy: w.gy, dir: w.dir,
   });
 }

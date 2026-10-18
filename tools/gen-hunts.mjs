@@ -29,9 +29,11 @@ import { MONSTERS } from '../src/data/monsters.js';
 import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-/* 2026-10-20-hunts-catalogue.generated.sql is APPLIED history; the Sewer hunt (lane S1 merge,
-   2026-10-18) lands in this forward file, which rewrites the same tables. */
-export const OUT = join(ROOT, 'supabase', 'migrations', '2026-10-24-hunts-catalogue.generated.sql');
+/* 2026-10-20 and 2026-10-24-hunts-catalogue.generated.sql are APPLIED history (the Sewer hunt
+   landed in the 10-24 one); the Meadowbrook Thicket and the Coppercap Warrens (lane
+   hunts-forest-cave, integration v0.2.1) land in this forward file, which rewrites the same tables. */
+export const OUT_NAME = '2026-10-25-hunts-catalogue.generated.sql';
+export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 /* A monster field that gates fighting it. Any of these on a spawn is refused. */
@@ -190,7 +192,7 @@ if (isMain(import.meta.url)) {
     if (process.argv.includes('--check')) {
       const have = await readFile(OUT, 'utf8').catch(() => '');
       if (have.replace(/\r\n/g, '\n') !== wanted) {
-        console.error('gen-hunts --check FAILED: 2026-10-20-hunts-catalogue.generated.sql is stale. Run: node tools/gen-hunts.mjs');
+        console.error('gen-hunts --check FAILED: ' + OUT_NAME + ' is stale. Run: node tools/gen-hunts.mjs');
         process.exit(1);
       }
       console.log('gen-hunts --check: catalogue matches src/data/hunts.js');

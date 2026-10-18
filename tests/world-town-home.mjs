@@ -163,6 +163,10 @@ function check(M) {
     const wren = by(u0, A);
     ok('T', !!wren && wren.id === 'outfit_druid' && u0.filter((u) => u.id === 'outfit_knight').length === 2,
       'a walker wears its role\'s style-1 outfit (healer: druid; tank and none: knight), got ' + u0.map((u) => u.id).join(','));
+    /* the outfit its character chose wins over its role's (hr_town_walkers' outfit, integration v0.2.1) */
+    const dressed = M.town.createTownCast(town, { sprites: M.book.sprites })
+      .frame([WALKER({ id: A, name: 'Wren', level: 12, role: 'tank', outfit: 'witch', x: 5, y: 9, gx: 5, gy: 9 })], t0);
+    ok('T', dressed.length === 1 && dressed[0].id === 'outfit_witch', 'a walker whose character chose the witch outfit must wear it, got ' + dressed.map((u) => u.id).join(','));
     ok('T', !!wren && wren.plate.text === 'Wren · 12' && u0.some((u) => u.plate.text === 'Ilsa') && wren.plate.kind === 'peer', 'a plate is the name and the level: ' + u0.map((u) => u.plate.text).join(' / '));
     ok('T', !!wren && wren.ref.player.name === 'Wren' && wren.ref.player.slot === 0, 'a peer is stamped with the server\'s id, name and slot for the player menu');
     ok('T', !!wren && wren.x === 5 && wren.y === 9, 'a new walker is drawn on its reported tile first, got ' + (wren && [wren.x, wren.y]));
@@ -464,7 +468,8 @@ const MUTANTS = [
   ['T', 'a peer never walks: it stands on each answer\'s tile', 'src/world/town-scene.js', [["if (!p.goal || p.goal[0] !== goal[0] || p.goal[1] !== goal[1]) { p.goal = goal; p.steer.walkTo(goal, now, false); }", 'p.goal = goal;']]],
   ['T', 'a re-aim restarts the walk clip', 'src/world/town-scene.js', [['const { anim, age } = walkClip(o.sprites[id], at, p.steer.restMs(now), pickFacing);', "const { anim } = walkClip(o.sprites[id], at, p.steer.restMs(now), pickFacing); const age = p.steer.restMs(now);"]]],
   ['T', 'a walker the server stopped naming stays', 'src/world/town-scene.js', [['if (!live.has(id)) people.delete(id);', 'void live;']]],
-  ['T', 'peers wear one outfit', 'src/world/town-scene.js', [['const id = outfitSprite(null, p.w.role);', "const id = outfitSprite(null, 'tank');"]]],
+  ['T', 'peers wear one outfit', 'src/world/town-scene.js', [['const id = outfitSprite(p.w.outfit, p.w.role);', "const id = outfitSprite(null, 'tank');"]]],
+  ['T', 'a peer ignores the outfit its character chose', 'src/world/town-scene.js', [['const id = outfitSprite(p.w.outfit, p.w.role);', 'const id = outfitSprite(null, p.w.role);']]],
   ['T', 'a peer is not stamped for the player menu', 'src/world/town-scene.js', [['ref: { player: { id: p.w.id, name: p.w.name, slot: p.w.slot } },', 'ref: null,']]],
   ['F', 'furniture merged across envelopes', 'src/world/home-scene.js', [['export function furnish(mapId, rooms, trophies, nameOf) {', 'const KEPT = new Map();\nexport function furnish(mapId, rooms, trophies, nameOf) {\n  const out0 = furnish0(mapId, rooms, trophies, nameOf);\n  for (const p of out0) if (p.ref && p.ref.room) KEPT.set(p.id + p.x + "," + p.y, p);\n  return out0.filter((p) => !(p.ref && p.ref.room)).concat([...KEPT.values()]);\n}\nfunction furnish0(mapId, rooms, trophies, nameOf) {']]],
   ['F', 'a room with a rung missing from its layout', 'src/data/world/house-layouts.js', [[", [p('basket', 6, 3)]]),", ']),']]],

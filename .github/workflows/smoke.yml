@@ -3525,6 +3525,17 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/settings-registry.mjs
 
+      # A hunt's level floor is a warning (Tyler 10-18): the picker warns, the
+      # server refuses only 15+ levels under it (the data margin), and the
+      # enter answer's below_range reaches the window.
+      - name: Hunt floor warning - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/hunt-floor-warning.mjs --selftest
+
+      - name: Hunt floor warning - base run
+        if: ${{ !cancelled() }}
+        run: node tests/hunt-floor-warning.mjs
+
       # The end-of-hunt summary and the death explanation: names the killing
       # blows, an event id counts once, Hunt again is ONE hr_hunt_enter with
       # the same settings, the stored history is bounded.

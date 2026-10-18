@@ -8,16 +8,19 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 0724fab78b6bdb3f00f82cbdf2ef21cc88490aef5828d791a19d0cfdc0c3538c
---   59 supplies, 104 hunts (named + training), 32 limits, 9 end reasons,
+--   digest: 404cd29dba97dd0233c01e296e05f35a3a5f209168fdaa6f98c0a0bd2ca3ae07
+--   59 supplies, 115 hunts (named + training), 37 limits, 10 end reasons,
 --   468 vendor values, 18 store supplies paid per use, 5 target modes,
---   3 lanes, 14 abilities, 11 action-set options, 2 hunt grounds
+--   3 lanes, 14 abilities, 13 action-set options, 4 hunt grounds
 --
 -- SUPERSEDES 2026-10-23-hunt-sessions-catalogue.generated.sql (applied; history,
 -- never regenerated): every table below is rewritten wholesale, and the six
 -- drinks join hr_hunt_supplies as kind 'mana' (lane S2). The C2 bar's
 -- tables (rule subjects, buff types, slot kinds and targets, the default slot
 -- preset) are no longer written; 2026-10-23-hunt-settings-options.sql drops them.
+-- The action engine (lane action-engine) adds END_ORDER's rule, the density /
+-- gather_share options and the world's ruleHold + density. Apply before
+-- 2026-10-25-action-conditions.sql.
 --
 -- Server-only: RLS on, NO policy, no client grant (the client reads src/data).
 -- Idempotent: delete + insert; nothing references these rows by foreign key.
@@ -280,9 +283,11 @@ delete from public.hr_hunt_set_options;
 insert into public.hr_hunt_set_options (opt, kind, limit_key, vals, dflt) values
   ('action_set', 'enum', null, array['hunt', 'mana_train', 'boss']::text[], '"hunt"'::jsonb),
   ('chase', 'bool', null, null, null),
+  ('density', 'limit', 'density', null, '0'::jsonb),
   ('distance', 'limit', 'distance', null, null),
   ('drink_below_pct', 'limit', 'threshold_pct', null, '30'::jsonb),
   ('food_below_pct', 'limit', 'threshold_pct', null, '50'::jsonb),
+  ('gather_share', 'limit', 'gather_share', null, '0'::jsonb),
   ('gold_floor', 'limit', 'gold_floor', null, null),
   ('on_empty', 'enum', null, array['switch', 'end']::text[], '"switch"'::jsonb),
   ('role', 'enum', null, array['mage', 'healer']::text[], null),
@@ -302,25 +307,28 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('barrow_knight', 104, 1663, '{"big_bones":1,"steel_bar":1,"iron_fitting":1,"ancient_fragment":1,"mithril_gauntlets":1}'::jsonb),
   ('bear', 95, 1582, '{"bear_pelt":1,"bear_claw":1,"big_bones":1,"raw_bear_meat":1}'::jsonb),
   ('bog_vine', 42, 758, '{"willow_log":1,"silk_thread":1,"moonbloom":1,"steel_gauntlets":1}'::jsonb),
+  ('briarcoat_wolf', 5, 163, '{"wolf_pelt":1,"raw_wolf_meat":1,"bones":1}'::jsonb),
   ('broodmother', 572, 4876, '{"silk_thread":1,"spider_eye":1,"void_chitin":1,"swarm_heart":1,"shadow_thread":1,"chitinweave_cloak":1}'::jsonb),
   ('carnivorous_plant', 100, 1546, '{"maple_log":1,"moonbloom":1,"goldenroot":1,"emberfruit":1}'::jsonb),
   ('carrion_swarm', 236, 2408, '{"plague_ichor":1,"swarm_heart":1,"venom_sac":1}'::jsonb),
   ('cave_wyrm', 102, 1753, '{"dragon_scale":1,"iron_ore":1,"mithril_ore":1,"coal":1,"snakeskin_gloves":1}'::jsonb),
   ('centipede', 40, 658, '{"void_chitin":1,"venom_sac":1,"iron_ore":1,"coal":1}'::jsonb),
   ('chained_demon', 254, 2842, '{"demon_shard":1,"hell_ember":1,"death_steel":1,"iron_fitting":1,"yew_staff":1}'::jsonb),
-  ('cistern_spider', 26, 950, '{"silk_thread":1,"venom_sac":1,"spider_eye":1}'::jsonb),
+  ('chief_coppercap', 172, 11463, '{"big_bones":1,"gold_ore":1,"goblin_totem":1,"war_crown":1}'::jsonb),
+  ('cistern_spider', 50, 950, '{"silk_thread":1,"venom_sac":1,"spider_eye":1}'::jsonb),
   ('clay_golem', 40, 828, '{"iron_ore":1,"iron_fitting":1,"coal":1,"steel_boots":1}'::jsonb),
   ('conjurer', 118, 1339, '{"magic_essence":1,"hell_ember":1,"rune_frag":1,"warlock_boots":1}'::jsonb),
-  ('culvert_bat', 9, 699, '{"bat_wing":1,"bones":1,"night_fang":1}'::jsonb),
+  ('culvert_bat', 21, 699, '{"bat_wing":1,"bones":1,"night_fang":1}'::jsonb),
   ('cutpurse', 6, 113, '{"rat_tail":1,"copper_ore":1,"bones":1,"apprentice_gloves":1}'::jsonb),
   ('cyclops', 246, 2977, '{"troll_hide":1,"big_bones":1,"warlord_badge":1,"steel_bar":1,"rune_boots":1}'::jsonb),
   ('dark_wizard', 25, 317, '{"magic_essence":1,"rune_frag":1,"bones":1,"dark_sigil":1}'::jsonb),
   ('death_knight', 260, 3046, '{"big_bones":1,"death_steel":1,"captains_ribblade":1}'::jsonb),
   ('deserter', 46, 644, '{"iron_bar":1,"steel_bar":1,"iron_fitting":1,"bones":1,"maple_bow":1}'::jsonb),
+  ('dire_gray', 14, 300, '{"wolf_pelt":1,"raw_wolf_meat":1,"bones":1,"dire_fang":1}'::jsonb),
   ('dire_wolf', 40, 679, '{"wolf_pelt":1,"dire_fang":1,"alpha_fang":1,"raw_wolf_meat":1,"boarhide_boots":1}'::jsonb),
   ('draconia', 646, 5714, '{"dragon_bones":1,"dragon_scale":1,"dragon_gem":1,"ancient_claw":1,"dragonrib_bow":1}'::jsonb),
   ('dragon', 700, 6102, '{"dragon_bones":1,"dragon_scale":1,"dragon_gem":1,"ancient_claw":1,"marrow_cookbook":1}'::jsonb),
-  ('drain_rat', 4, 444, '{"rat_tail":1,"bones":1,"small_fang":1}'::jsonb),
+  ('drain_rat', 10, 444, '{"rat_tail":1,"bones":1,"small_fang":1}'::jsonb),
   ('drake', 240, 2756, '{"dragon_scale":1,"dragon_bones":1,"mithril_ore":1,"steel_bar":1,"yew_bow":1}'::jsonb),
   ('drowned_dead', 96, 1459, '{"grave_dust":1,"big_bones":1,"lobster":1,"abyssal_pearl":1}'::jsonb),
   ('dryad', 232, 2620, '{"yew_log":1,"moonbloom":1,"runewood_log":1,"goldenroot":1}'::jsonb),
@@ -341,17 +349,24 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('gnoll_packlord', 40, 671, '{"bones":1,"goblin_ear":1,"wolf_pelt":1,"iron_ore":1,"packlord_band":1}'::jsonb),
   ('goblin', 8, 153, '{"goblin_ear":1,"bones":1,"bronze_sword":1,"goblin_totem":1}'::jsonb),
   ('goblin_brute', 42, 740, '{"goblin_ear":1,"brute_plate":1,"steel_sword":1,"goblin_totem":1}'::jsonb),
+  ('goblin_digger', 31, 2460, '{"copper_ore":1,"coal":1,"bones":1,"goblin_ear":1}'::jsonb),
+  ('goblin_scavenger', 23, 1540, '{"goblin_ear":1,"copper_ore":1,"bones":1,"coal":1}'::jsonb),
+  ('goblin_skulker', 27, 1757, '{"goblin_ear":1,"bones":1,"iron_ore":1,"goblin_totem":1}'::jsonb),
   ('goblin_warlord', 100, 1417, '{"brute_plate":1,"warlord_badge":1,"steel_helm":1,"warlords_torc":1}'::jsonb),
   ('grave_banshee', 286, 2456, '{"wraith_veil":1,"grave_dust":1,"vamp_dust":1,"ancient_rune":1,"wraithsilk_shroud":1}'::jsonb),
+  ('gray_whelp', 3, 90, '{"raw_wolf_meat":1,"bones":1,"small_fang":1}'::jsonb),
+  ('gray_wolf', 5, 142, '{"raw_wolf_meat":1,"wolf_pelt":1,"bones":1,"small_fang":1,"bronze_boots":1}'::jsonb),
+  ('grayjaw', 16, 382, '{"wolf_pelt":1,"bones":1,"dire_fang":1,"alpha_fang":1}'::jsonb),
   ('grim_reaper', 668, 4836, '{"lich_soul":1,"death_steel":1,"hollow_sigil":1,"big_bones":1,"vamp_dust":1}'::jsonb),
   ('hellhound', 130, 1469, '{"demon_shard":1,"hell_ember":1,"big_bones":1,"coal":1}'::jsonb),
   ('hive_wasp', 4, 83, '{"venom_sac":1,"silk_thread":1,"small_fang":1,"leather_helmet":1}'::jsonb),
   ('hobgoblin', 22, 356, '{"goblin_ear":1,"iron_ore":1,"iron_sword":1,"goblin_totem":1,"rat_stick":1}'::jsonb),
+  ('hobgoblin_foreman', 54, 3119, '{"big_bones":1,"iron_ore":1,"coal":1,"goblin_totem":1}'::jsonb),
   ('ice_elemental', 100, 1465, '{"frostfin":1,"magic_essence":1,"mithril_ore":1}'::jsonb),
   ('imp', 6, 104, '{"demon_shard":1,"coal":1,"rune_frag":1,"apprentice_boots":1}'::jsonb),
   ('iron_colossus', 544, 5908, '{"rune_bar":1,"mithril_bar":1,"keystone":1,"iron_fitting":1,"death_steel":1}'::jsonb),
   ('kobold', 6, 122, '{"goblin_totem":1,"bones":1,"bone_chips":1,"copper_ore":1,"banded_signet":1}'::jsonb),
-  ('kobold_tosher', 6, 544, '{"bones":1,"bone_chips":1,"copper_ore":1}'::jsonb),
+  ('kobold_tosher', 14, 544, '{"bones":1,"bone_chips":1,"copper_ore":1}'::jsonb),
   ('lesser_demon', 140, 1740, '{"demon_shard":1,"rune_frag":1,"hell_ember":1}'::jsonb),
   ('lich', 500, 4066, '{"lich_soul":1,"ancient_rune":1,"vamp_dust":1,"hollow_sigil":1,"soul_recipe":1}'::jsonb),
   ('locust_swarm', 13, 261, '{"wheat":1,"silk_thread":1,"venom_sac":1,"studded_belt":1}'::jsonb),
@@ -371,7 +386,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('panther', 210, 2433, '{"shadow_pelt":1,"razor_claw":1,"ruby":1,"raw_panther_meat":1,"panthers_eye_pendant":1}'::jsonb),
   ('plague_swarm', 82, 1143, '{"plague_ichor":1,"venom_sac":1,"swarm_heart":1,"field_cookbook":1}'::jsonb),
   ('rat', 4, 90, '{"rat_tail":1,"small_fang":1,"wheat":1,"bones":1}'::jsonb),
-  ('rat_king', 60, 6198, '{"rat_tail":1,"bones":1,"crown_shard":1}'::jsonb),
+  ('rat_king', 132, 6198, '{"rat_tail":1,"bones":1,"crown_shard":1}'::jsonb),
   ('revenant', 512, 5215, '{"big_bones":1,"death_steel":1,"ancient_rune":1,"grave_dust":1,"ember_gauntlets":1}'::jsonb),
   ('rock_troll', 48, 790, '{"troll_hide":1,"iron_ore":1,"coal":1,"big_bones":1,"steel_belt":1}'::jsonb),
   ('salamander', 17, 292, '{"dragon_scale":1,"coal":1,"bones":1,"studded_gloves":1}'::jsonb),
@@ -386,7 +401,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('stone_golem', 15, 361, '{"copper_ore":1,"iron_ore":1,"coal":1,"iron_gauntlets":1}'::jsonb),
   ('stonejaw', 586, 5600, '{"war_crown":1,"captain_medal":1,"death_steel":1,"warlord_badge":1}'::jsonb),
   ('storm_elemental', 548, 4743, '{"magic_essence":1,"ancient_rune":1,"dawnstone_ore":1,"rune_bar":1,"runewood_staff":1}'::jsonb),
-  ('sump_slime', 3, 489, '{"slime_gel":1,"bones":1,"sticky_core":1}'::jsonb),
+  ('sump_slime', 8, 489, '{"slime_gel":1,"bones":1,"sticky_core":1}'::jsonb),
   ('the_silence', 614, 4567, '{"void_chitin":1,"void_core":1,"shadow_thread":1,"hollow_sigil":1}'::jsonb),
   ('the_unlit', 698, 5988, '{"void_core":1,"void_chitin":1,"hollow_sigil":1,"ancient_rune":1,"dawnstone_ore":1}'::jsonb),
   ('treant', 528, 5837, '{"duskwood_log":1,"runewood_log":1,"timber_beam":1,"moonbloom":1,"yew_log":1}'::jsonb),
@@ -436,9 +451,22 @@ insert into public.hr_hunt_abilities (ability_id, disciplines, lane, cd_ms, mana
 delete from public.hr_hunt_ground_spawns;
 delete from public.hr_hunt_grounds;
 insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn_ms, seats) values
-  ('mill_cellar', 'mill_cellar', 2, 4, 30000, 4),
+  ('coppercap_warrens', 'coppercap_warrens', 6, 18, 90000, 4),
+  ('meadowbrook_thicket', 'meadowbrook_thicket', 6, 13, 60000, 2),
+  ('mill_cellar', 'mill_cellar', 2, 5, 30000, 4),
   ('millrace_sewer', 'millrace_sewer', 6, 19, 90000, 4);
 insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values
+  ('coppercap_warrens', 'chief_coppercap', 1),
+  ('coppercap_warrens', 'goblin_digger', 5),
+  ('coppercap_warrens', 'goblin_scavenger', 9),
+  ('coppercap_warrens', 'goblin_skulker', 2),
+  ('coppercap_warrens', 'hobgoblin_foreman', 1),
+  ('meadowbrook_thicket', 'briarcoat_wolf', 2),
+  ('meadowbrook_thicket', 'dire_gray', 1),
+  ('meadowbrook_thicket', 'gray_whelp', 4),
+  ('meadowbrook_thicket', 'gray_wolf', 5),
+  ('meadowbrook_thicket', 'grayjaw', 1),
+  ('mill_cellar', 'hive_wasp', 1),
   ('mill_cellar', 'rat', 3),
   ('mill_cellar', 'slime', 1),
   ('millrace_sewer', 'cistern_spider', 2),
@@ -519,7 +547,7 @@ insert into public.hr_hunt_roles (role, discipline) values
   ('ranger', 'ranged'),
   ('tank', 'shield');
 delete from public.hr_hunt_world_shape;
-insert into public.hr_hunt_world_shape (id, version, shape, fields) values (true, 1, 3852601081, '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"chalMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"downMs":28,"deadMs":29,"hpMilli":30,"stance":31,"acc":32,"maxHit":33,"def":34,"ward":35,"element":36,"swingLeftMs":37,"mana":38,"maxMana":39,"manaMilli":40,"lanes":41,"cds":42,"shield":43,"markBy":44,"markUntil":45,"vulnUntil":46,"statuses":47,"laneAt":48,"otHp":49,"otMana":50,"healedAt":51},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"phase":5,"routeIdx":6,"phaseMs":7,"regroupNext":8,"runs":9,"nextId":10,"xpGroup":11}}'::jsonb);
+insert into public.hr_hunt_world_shape (id, version, shape, fields) values (true, 1, 4092411505, '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"chalMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"downMs":28,"deadMs":29,"hpMilli":30,"yieldPm":31,"stance":32,"acc":33,"maxHit":34,"def":35,"ward":36,"element":37,"swingLeftMs":38,"mana":39,"maxMana":40,"manaMilli":41,"lanes":42,"cds":43,"shield":44,"markBy":45,"markUntil":46,"vulnUntil":47,"statuses":48,"laneAt":49,"otHp":50,"otMana":51,"healedAt":52,"ruleHold":53,"ruleWait":54},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"phase":5,"routeIdx":6,"phaseMs":7,"regroupNext":8,"runs":9,"nextId":10,"density":11,"xpGroup":12}}'::jsonb);
 delete from public.hr_premium_login_reward;
 insert into public.hr_premium_login_reward (id, item_id, qty) values (true, 'oak_practice_blade', 1);
 delete from public.hr_hunt_travel;
@@ -534,6 +562,7 @@ insert into public.hr_hunt_travel (hunt_id, travel_s, training, tier) values
   ('bear', 80, true, 4),
   ('bog_vine', 60, true, 3),
   ('bramble_edge', 30, false, 1),
+  ('briarcoat_wolf', 20, true, 1),
   ('carnivorous_plant', 80, true, 4),
   ('carrion_swarm', 100, true, 5),
   ('cave_wyrm', 80, true, 4),
@@ -542,12 +571,14 @@ insert into public.hr_hunt_travel (hunt_id, travel_s, training, tier) values
   ('cistern_spider', 20, true, 1),
   ('clay_golem', 60, true, 3),
   ('conjurer', 80, true, 4),
+  ('coppercap_warrens', 60, false, 4),
   ('culvert_bat', 20, true, 1),
   ('cutpurse', 20, true, 1),
   ('cyclops', 100, true, 5),
   ('dark_wizard', 40, true, 2),
   ('death_knight', 100, true, 5),
   ('deserter', 60, true, 3),
+  ('dire_gray', 40, true, 2),
   ('dire_wolf', 60, true, 3),
   ('drain_rat', 20, true, 1),
   ('drake', 100, true, 5),
@@ -566,12 +597,19 @@ insert into public.hr_hunt_travel (hunt_id, travel_s, training, tier) values
   ('gnoll', 40, true, 2),
   ('goblin', 20, true, 1),
   ('goblin_brute', 60, true, 3),
+  ('goblin_digger', 60, true, 3),
+  ('goblin_scavenger', 60, true, 3),
+  ('goblin_skulker', 60, true, 3),
   ('goblin_warlord', 80, true, 4),
   ('goblin_warren', 30, false, 1),
   ('grave_banshee', 100, true, 5),
+  ('gray_whelp', 20, true, 1),
+  ('gray_wolf', 20, true, 1),
+  ('grayjaw', 40, true, 2),
   ('hellhound', 80, true, 4),
   ('hive_wasp', 20, true, 1),
   ('hobgoblin', 40, true, 2),
+  ('hobgoblin_foreman', 60, true, 3),
   ('ice_elemental', 80, true, 4),
   ('imp', 20, true, 1),
   ('kobold', 20, true, 1),
@@ -582,6 +620,7 @@ insert into public.hr_hunt_travel (hunt_id, travel_s, training, tier) values
   ('magma_elemental', 100, true, 5),
   ('mammoth', 100, true, 5),
   ('mandrake', 20, true, 1),
+  ('meadowbrook_thicket', 40, false, 1),
   ('mill_cellar', 20, false, 1),
   ('millrace_sewer', 30, false, 1),
   ('minotaur', 80, true, 4),
@@ -632,12 +671,17 @@ delete from public.hr_hunt_limits;
 insert into public.hr_hunt_limits (key, value) values
   ('ability_ammo_max', 3),
   ('bag_lines', 10),
+  ('below_range_refuse', 15),
   ('death_xp_permille', 20),
+  ('density_max', 16),
+  ('density_min', 0),
   ('distance_max', 8),
   ('distance_min', 1),
   ('falls_default', 3),
   ('falls_max', 3),
   ('falls_min', 3),
+  ('gather_share_max', 100),
+  ('gather_share_min', 0),
   ('gold_floor_default', 300),
   ('gold_floor_max', 100000),
   ('gold_floor_min', 0),
@@ -668,11 +712,12 @@ insert into public.hr_hunt_end_reasons (reason, ord, resumes) values
   ('heals_out', 2, true),
   ('ammo_out', 3, true),
   ('gold_out', 4, true),
-  ('stamina', 5, true),
-  ('hours', 6, true),
-  ('left', 7, false),
-  ('changed', 8, false),
-  ('server', 9, true);
+  ('rule', 5, true),
+  ('stamina', 6, true),
+  ('hours', 7, true),
+  ('left', 8, false),
+  ('changed', 9, false),
+  ('server', 10, true);
 delete from public.hr_hunt_resumable_kinds;
 insert into public.hr_hunt_resumable_kinds (kind) values
   ('gather'),
@@ -681,7 +726,7 @@ insert into public.hr_hunt_resumable_kinds (kind) values
 -- hunt_sessions.end_reason's CHECK is END_ORDER (the generator owns it).
 alter table public.hunt_sessions drop constraint if exists hunt_sessions_end_reason_check;
 alter table public.hunt_sessions add constraint hunt_sessions_end_reason_check
-  check (end_reason in ('falls', 'heals_out', 'ammo_out', 'gold_out', 'stamina', 'hours', 'left', 'changed', 'server'));
+  check (end_reason in ('falls', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'left', 'changed', 'server'));
 -- The bar's size is ACTION_SET_LIMITS.slots (Huntera's two rows of ten).
 alter table public.player_action_sets drop constraint if exists player_action_sets_slots_check;
 alter table public.player_action_sets add constraint player_action_sets_slots_check
@@ -1176,9 +1221,9 @@ do $$
 declare v_role text; v_t text;
 begin
   if (select count(*) from public.hr_hunt_supplies) <> 59
-     or (select count(*) from public.hr_hunt_travel) <> 104
-     or (select count(*) from public.hr_hunt_limits) <> 32
-     or (select count(*) from public.hr_hunt_end_reasons) <> 9
+     or (select count(*) from public.hr_hunt_travel) <> 115
+     or (select count(*) from public.hr_hunt_limits) <> 37
+     or (select count(*) from public.hr_hunt_end_reasons) <> 10
      or (select count(*) from public.hr_hunt_vendor_value) <> 468
      or (select count(*) from public.hr_hunt_basic_supplies) <> 18
      or (select count(*) from public.hr_hunt_cover_items) <> 0
@@ -1186,20 +1231,20 @@ begin
      or (select count(*) from public.hr_hunt_target_modes) <> 5
      or (select count(*) from public.hr_hunt_resumable_kinds) <> 3
      or (select count(*) from public.hr_hunt_lanes) <> 3
-     or (select count(*) from public.hr_hunt_set_options) <> 11
-     or (select count(*) from public.hr_hunt_kill_bounds) <> 119
+     or (select count(*) from public.hr_hunt_set_options) <> 13
+     or (select count(*) from public.hr_hunt_kill_bounds) <> 129
      or (select count(*) from public.hr_hunt_abilities) <> 14
-     or (select count(*) from public.hr_hunt_grounds) <> 2
-     or (select count(*) from public.hr_hunt_ground_spawns) <> 8
+     or (select count(*) from public.hr_hunt_grounds) <> 4
+     or (select count(*) from public.hr_hunt_ground_spawns) <> 19
      or (select count(*) from public.hr_hunt_world_shape) <> 1
      or (select count(*) from public.hr_premium_login_reward) <> 1
      or (select count(*) from public.hr_hunt_weapons) <> 49
      or (select count(*) from public.hr_hunt_weapon_roles) <> 11
      or (select count(*) from public.hr_hunt_roles) <> 5
-     or (select count(*) from public.hr_hunt_end_reasons where resumes) <> 7 then
+     or (select count(*) from public.hr_hunt_end_reasons where resumes) <> 8 then
     raise exception 'hunt-session catalogue row counts moved from the generator''s'; end if;
   -- The world fields the party section reads by name are all there, at the generator's positions.
-  if (select fields from public.hr_hunt_world_shape) is distinct from '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"chalMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"downMs":28,"deadMs":29,"hpMilli":30,"stance":31,"acc":32,"maxHit":33,"def":34,"ward":35,"element":36,"swingLeftMs":37,"mana":38,"maxMana":39,"manaMilli":40,"lanes":41,"cds":42,"shield":43,"markBy":44,"markUntil":45,"vulnUntil":46,"statuses":47,"laneAt":48,"otHp":49,"otMana":50,"healedAt":51},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"phase":5,"routeIdx":6,"phaseMs":7,"regroupNext":8,"runs":9,"nextId":10,"xpGroup":11}}'::jsonb
+  if (select fields from public.hr_hunt_world_shape) is distinct from '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"chalMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"downMs":28,"deadMs":29,"hpMilli":30,"yieldPm":31,"stance":32,"acc":33,"maxHit":34,"def":35,"ward":36,"element":37,"swingLeftMs":38,"mana":39,"maxMana":40,"manaMilli":41,"lanes":42,"cds":43,"shield":44,"markBy":45,"markUntil":46,"vulnUntil":47,"statuses":48,"laneAt":49,"otHp":50,"otMana":51,"healedAt":52,"ruleHold":53,"ruleWait":54},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"phase":5,"routeIdx":6,"phaseMs":7,"regroupNext":8,"runs":9,"nextId":10,"density":11,"xpGroup":12}}'::jsonb
      or exists (select 1 from unnest(array['id', 'side', 'kind', 'alive', 'x', 'y', 'hp', 'maxHp', 'target', 'mana', 'maxMana', 'shield', 'downMs', 'otHp', 'otMana', 'role', 'dist', 'chase', 'tmode', 'stance']) n
                  where not ((select fields->'unit' from public.hr_hunt_world_shape) ? n)) then
     raise exception 'hr_hunt_world_shape.fields is not world-state.js FIELDS'; end if;

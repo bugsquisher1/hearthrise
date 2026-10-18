@@ -334,6 +334,8 @@
     "node tests/shell-renderers.mjs": "client-guards",
     "node tests/settings-registry.mjs --selftest": "client-guards",
     "node tests/settings-registry.mjs": "client-guards",
+    "node tests/hunt-floor-warning.mjs --selftest": "client-guards",
+    "node tests/hunt-floor-warning.mjs": "client-guards",
     "node tests/hunt-summary.mjs --selftest": "client-guards",
     "node tests/hunt-summary.mjs": "client-guards",
     "node tests/hud-layout-display-only.mjs --selftest": "client-guards",

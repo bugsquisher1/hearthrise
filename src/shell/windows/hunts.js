@@ -13,7 +13,9 @@
 // primary, Enter, and says what the hunt will carry from the bag (the player's
 // remembered restock targets). "With a party" opens the Party window on that
 // ground. Enter is ONE hr_hunt_enter; the server checks the band, the stamina
-// and the stock, and the hunt shows only from the re-read envelope.
+// and the stock, and the hunt shows only from the re-read envelope. A hunt above
+// the character's level says so ("expect losses"); the floor is a warning, and
+// only the server refuses (Tyler 10-18: 15 or more levels under it).
 // ════════════════════════════════════════════════════════════════════════
 import { combatLevel } from '../../core/xp.js?v=0.2.0';
 import { huntOf, settingsOf } from '../../session/hunt-sections.js?v=0.2.0';
@@ -24,7 +26,7 @@ import { whole } from '../../render/format.js?v=0.2.0';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.0';
 import { itemName } from '../widgets/bits.js?v=0.2.0';
 import { runIntent } from '../intent-words.js?v=0.2.0';
-import { huntRows, densityWords, bandWords, heroWords, packFor } from '../hunt-list.js?v=0.2.0';
+import { huntRows, densityWords, bandWords, rangeWords, heroWords, packFor, ABOVE_LEVEL_WORDS } from '../hunt-list.js?v=0.2.0';
 import { partyScratch } from './party-finder.js?v=0.2.0';
 
 const SCRATCH = new WeakMap();
@@ -60,7 +62,7 @@ export function renderHunts() {
 function lineHtml(r) {
   return '<li class="hw-hunt" role="option" data-hs-act="pick" data-hunt="' + esc(r.hunt) + '" tabindex="-1">'
     + '<span class="hw-hunt-main"><b class="hw-hunt-name">' + esc(r.name) + '</b><small class="hw-hunt-theme">' + esc(r.theme) + '</small>'
-    + '<small class="hw-hunt-band"></small><small class="hw-hunt-facts">' + esc(heroWords(r) + ' · ' + densityWords(r)) + '</small>'
+    + '<small class="hw-hunt-band"></small><small class="hw-hunt-warn"></small><small class="hw-hunt-facts">' + esc(heroWords(r) + ' · ' + densityWords(r)) + '</small>'
     + '<small class="hw-hunt-pack"></small></span>'
     + '<span class="hw-hunt-do"><button type="button" class="hh-tool hw-hunt-enter" data-hs-act="enter" data-hunt="' + esc(r.hunt) + '">Enter</button>'
     + '<button type="button" class="hh-tool" data-hs-act="party" data-hunt="' + esc(r.hunt) + '">With a party</button></span></li>';
@@ -89,6 +91,8 @@ renderHunts.patch = function patchHunts(body, ctx) {
       const band = li.querySelector('.hw-hunt-band');
       text(band, bandWords(r, level));
       cls(band, 'is-short', short);
+      /* the floor is a warning (Tyler 10-18): words only, Enter stays the server's to refuse */
+      text(li.querySelector('.hw-hunt-warn'), rangeWords(r, level) || '');
       text(li.querySelector('.hw-hunt-pack'), on ? packWords(pack) : '');
       const enter = li.querySelector('.hw-hunt-enter');
       cls(enter, 'hw-primary', on);
@@ -112,7 +116,7 @@ renderHunts.act = function actHunts(ctx, body, action, ev, t) {
     sc.pick = hunt;
     const s = settingsOf(cs);
     const lines = packFor(bagOf(cs), rulesOf(cs));
-    runIntent(sc, repaint, () => cs.enterHunt(hunt, lines, s ? s.preset : 0), 'Setting off for ' + huntName(hunt) + '…', () => 'On the way to ' + huntName(hunt) + '.');
+    runIntent(sc, repaint, () => cs.enterHunt(hunt, lines, s ? s.preset : 0), 'Setting off for ' + huntName(hunt) + '…', (res) => 'On the way to ' + huntName(hunt) + '.' + (res && res.belowRange ? ' ' + ABOVE_LEVEL_WORDS : ''));
     return true;
   }
   if (action === 'party') {

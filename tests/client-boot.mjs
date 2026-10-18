@@ -34,8 +34,9 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 
+/* account.max_concurrent is the server's concurrent limit (AccountSession.limit): without it one character plays. */
 function envelope(slot, version, extra) {
-  return Object.assign({ ok: true, version, now: '2026-10-17T00:00:00Z', state: { active_kind: 'idle', gold: 0 }, skills: {}, inventory: {}, hero_slots: [0, 1] }, extra || {});
+  return Object.assign({ ok: true, version, now: '2026-10-17T00:00:00Z', state: { active_kind: 'idle', gold: 0 }, skills: {}, inventory: {}, hero_slots: [0, 1], account: { max_concurrent: 4 } }, extra || {});
 }
 
 const HUNT = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
@@ -166,7 +167,7 @@ const MUTANTS = [
   ['the recovery link is ignored', 'src/app/boot.js', [["if (ev === 'recovery') showAuth('set-password');", "if (ev === 'nothing') showAuth('set-password');"],
     ['const recovering = /type=recovery/.test(win.location.hash);', 'const recovering = false;']]],
   ['the hunt panels never mount', 'src/data/hud-widgets.js', 'min: Object.freeze([320, 64]), opacity: 1, visible: true', 'min: Object.freeze([320, 64]), opacity: 1, visible: false'],
-  ['the closed answer is ignored', 'src/app/boot.js', "account.subscribe((why) => { if (why === 'closed-game') showClosed(); });", ''],
+  ['the closed answer is ignored', 'src/app/boot.js', "if (why === 'closed-game') showClosed();", "if (why === 'never') showClosed();"],
 ];
 
 async function main() {

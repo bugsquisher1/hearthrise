@@ -270,6 +270,17 @@ jobs:
           node tests/alpha-windows.mjs
           node tests/alpha-windows.mjs --mutate
 
+      # THE PARTY UI (2026-10-18, week plan 16 + QoL 3/7): the character strip,
+      # the command centre, the Party window and the alert lines on the party
+      # fixture. One alert per event id (a re-read or a reload repeats none);
+      # every party control one intent naming slot, ids or a seat, off until
+      # the server answered; roles from the weapon. --mutate plants eleven.
+      - name: Party UI (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/party-ui.mjs
+          node tests/party-ui.mjs --mutate
+
       # A failing run is far easier to diagnose with the page state attached.
       - name: Upload failure artifacts
         if: failure()

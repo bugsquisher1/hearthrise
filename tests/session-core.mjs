@@ -21,7 +21,11 @@
 //          channel is left and re-joined after a backoff
 //   CHAN-2 a frame that skips versions asks for one hello (the gap is closed, not guessed)
 //   HELLO-1 an idle settle answer ({accrued:false}) is never applied as the character: the full read follows
-//   ACC-1  at most maxConcurrentCharacters open; close frees a place
+//   ACC-1  at most the server's concurrent limit open (within the tab's ceiling); close frees a place
+//   ACC-4  the limit is the SERVER's (account.max_concurrent): a smaller one holds, an unstated one
+//          allows one character, a larger one is capped by the tab's ceiling
+//   VIEW-2 switching the viewed character touches no CharacterSession: records, statuses, topics,
+//          listeners and the server calls of every character are exactly as before
 //   ACC-2  the roster is the server's owned slots (hero_slots), bounded
 //   ACC-3  the closed-game answer (403 hr_closed) is noticed, never retried as play
 //   OUT-1  sign-out clears every copy of the session (device + tab, sb-*, retired keys, tab id) and closes every character
@@ -222,16 +226,54 @@ async function rules(M) {
     const auth = { userId: () => UID, token: () => 'jwt', signOut: async () => { auth.out = true; } };
     return new A.AccountSession({ auth, server: srv, tab, channel: fakeHub().channel, timers, config: o.config });
   };
+  const said = (n) => ({ account: { max_concurrent: n } });
   await t('ACC-1', async () => {
     const max = CFG.SESSION_CONFIG.maxConcurrentCharacters;
     const by = {};
-    for (let s = 0; s <= max; s++) by[s] = env(1);
+    for (let s = 0; s <= max; s++) by[s] = env(1, said(max));
     const acc = mkAccount(fakeServer(by));
     for (let s = 0; s < max; s++) if (!(await acc.open(s)).ok) return 'could not open character ' + s;
     const over = await acc.open(max);
     if (over.ok || over.reason !== 'limit') return 'opened more than ' + max;
     acc.close(0);
     return (await acc.open(max)).ok || 'closing did not free a place';
+  });
+  await t('ACC-4', async () => {
+    const two = mkAccount(fakeServer({ 0: env(1, said(2)), 1: env(1, said(2)), 2: env(1, said(2)) }));
+    if (!(await two.open(0)).ok || !(await two.open(1)).ok) return 'the server allowed two and two did not open';
+    const third = await two.open(2);
+    if (third.ok || third.reason !== 'limit') return 'a third opened over the server limit of two';
+    const none = mkAccount(fakeServer({ 0: env(1), 1: env(1) }));
+    if (!(await none.open(0)).ok) return 'with no stated limit the first character did not open';
+    if ((await none.open(1)).ok) return 'with no stated limit a second character opened: a client number unlocked it';
+    const max = CFG.SESSION_CONFIG.maxConcurrentCharacters;
+    const by = {};
+    for (let s = 0; s <= max; s++) by[s] = env(1, said(8));
+    const big = mkAccount(fakeServer(by));
+    for (let s = 0; s < max; s++) await big.open(s);
+    if ((await big.open(max)).ok) return 'a server limit above the tab ceiling opened past it';
+    const ro = mkAccount(fakeServer({ 0: env(1, said(3)) }));
+    await ro.roster();
+    return ro.limit() === 3 || 'the roster read did not take the server limit (' + ro.limit() + ')';
+  });
+  await t('VIEW-2', async () => {
+    const srv = fakeServer({ 0: env(1, said(4)), 1: env(1, said(4)), 2: env(1, said(4)) });
+    const hub = fakeHub();
+    const auth = { userId: () => UID, token: () => 'jwt', signOut: async () => {} };
+    const acc = new A.AccountSession({ auth, server: srv, tab: memStore(), channel: hub.channel, timers });
+    for (const s of [0, 1, 2]) await acc.open(s);
+    const heard = [];
+    for (const cs of acc.characters()) cs.subscribe((c, why) => heard.push(c.slot + ':' + why));
+    const before = acc.characters().map((cs) => [cs.slot, cs.record, cs.status, cs._listeners.size]);
+    const topics = Array.from(hub.topics.keys()).sort().join();
+    const calls = srv.calls.length;
+    if (!acc.view(1) || acc.viewed !== 1 || !acc.view(2) || !acc.view(0) || acc.viewed !== 0) return 'view() did not move the pointer';
+    if (acc.view(9)) return 'view() moved to a character that is not open';
+    const after = acc.characters().map((cs) => [cs.slot, cs.record, cs.status, cs._listeners.size]);
+    if (after.length !== 3 || after.some((a, i) => a.some((v, j) => v !== before[i][j]))) return 'a switch changed a character (record, status or listeners)';
+    if (Array.from(hub.topics.keys()).sort().join() !== topics) return 'a switch left or joined a topic';
+    if (srv.calls.length !== calls) return 'a switch sent ' + (srv.calls.length - calls) + ' server call(s)';
+    return heard.length === 0 || 'a switch made characters emit: ' + heard.join(',');
   });
   await t('ACC-2', async () => {
     const acc = mkAccount(fakeServer({ 0: env(1, { hero_slots: [0, 2, 99, -1, 'x'] }), 2: env(1) }));
@@ -256,7 +298,7 @@ async function rules(M) {
     let signedOut = false;
     const client = { auth: { signOut: async () => { signedOut = true; }, onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }), getSession: async () => ({ data: { session: null } }) } };
     const auth = AU.createAuth({ client, device, tab, redirectTo: 'https://x/' });
-    const srv = fakeServer({ 0: env(1), 1: env(1) });
+    const srv = fakeServer({ 0: env(1, said(2)), 1: env(1, said(2)) });
     const acc = new A.AccountSession({ auth: Object.assign(auth, { userId: () => UID }), server: srv, tab, channel: fakeHub().channel, timers });
     const c0 = (await acc.open(0)).session, c1 = (await acc.open(1)).session;
     await acc.signOut();
@@ -310,7 +352,11 @@ const MUTANTS = [
   ['no state accepted', 'src/session/envelope.js', "if (!isObj(env.state)) return keep('incomplete');", ''],
   ['residue unfiltered', 'src/session/residue.js', '  for (const f of RESIDUE_FIELDS) if (Object.prototype.hasOwnProperty.call(bag, f)) out[f] = sanitizeResidueField(f, bag[f]);', '  Object.assign(out, bag);'],
   ['one topic for every slot', 'src/session/character-session.js', "return 'hr:' + uid.toLowerCase() + ':' + slot;", "return 'hr:' + uid.toLowerCase();"],
-  ['limit off by one', 'src/session/account-session.js', 'if (this._chars.size >= this.config.maxConcurrentCharacters)', 'if (this._chars.size > this.config.maxConcurrentCharacters)'],
+  ['limit off by one', 'src/session/account-session.js', 'if (this._chars.size >= this.limit())', 'if (this._chars.size > this.limit())'],
+  ['the client ceiling stands in for the server', 'src/session/account-session.js', 'return Math.min(this.config.maxConcurrentCharacters, this._limit === null ? 1 : this._limit);', 'return this.config.maxConcurrentCharacters;'],
+  ['the server limit is ignored above one', 'src/session/account-session.js', 'return Math.min(this.config.maxConcurrentCharacters, this._limit === null ? 1 : this._limit);', 'return Math.min(this.config.maxConcurrentCharacters, this._limit === null ? 1 : this.config.maxConcurrentCharacters);'],
+  ['a switch re-reads the viewed character', 'src/session/account-session.js', "    this.viewed = slot;\n    this._emit('viewed', slot);", "    this.viewed = slot;\n    this._chars.get(slot).load();\n    this._emit('viewed', slot);"],
+  ['a switch closes the others', 'src/session/account-session.js', "    this.viewed = slot;\n    this._emit('viewed', slot);", "    this.viewed = slot;\n    for (const c of this._chars.values()) if (c.slot !== slot) c._leave && (c._leave(), c._leave = null);\n    this._emit('viewed', slot);"],
   ['sign-out keeps sb-* keys', 'src/net/auth.js', " || k.startsWith('sb-')", ''],
   ['sign-out keeps the tab id', 'src/net/auth.js', '    if (o.tab) o.tab.remove(cfg.tabKey);\n', ''],
   ['sign-out leaves characters open', 'src/session/account-session.js', '    for (const slot of Array.from(this._chars.keys())) this.close(slot);\n', ''],
@@ -335,7 +381,7 @@ async function main() {
   if (!mutate) {
     const fails = [...await rules(await load(ROOT)), ...await viewRules(ROOT)];
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (19 rules)');
+    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (21 rules)');
     process.exit(fails.length ? 1 : 0);
   }
   let bad = 0;

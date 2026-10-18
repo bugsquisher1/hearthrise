@@ -50,6 +50,18 @@ export const CLIENT_RPCS = Object.freeze({
   hr_hunt_preset_save: 'snapshot the action set, gear and restock targets as a setup (CharacterSession.savePreset)',
   hr_hunt_preset_apply: 'put a saved setup back on (CharacterSession.applyPreset)',
   hr_account_items: 'where an item is across this account, a read (AccountSession.findItems)',
+  /* The party (S1, 2026-10-23-hunt-party.sql): slot + party id or seat only; no user id crosses. */
+  hr_hunt_party_create: 'open a party on a hunt ground, this character leads (CharacterSession.createParty)',
+  hr_hunt_party_join: 'take a free seat in an open party by its id (CharacterSession.joinParty)',
+  hr_hunt_party_leave: 'leave this character’s party (CharacterSession.leaveParty)',
+  hr_hunt_party_kick: 'the leader removes the member in a seat (CharacterSession.kickSeat)',
+  hr_hunt_party_finder: 'open parties with a free seat, by hunt and missing weapon type, a read (CharacterSession.findParties)',
+  /* The party UI's asks (CONFLICTS.md 2026-10-18 party UI): staged, refused as http_404 until the server lands them. */
+  hr_hunt_party_invite: 'invite a character by its display name; the server resolves it (CharacterSession.inviteByName)',
+  hr_hunt_party_accept: 'accept an invite to this character by its id (CharacterSession.answerInvite)',
+  hr_hunt_party_decline: 'decline an invite to this character by its id (CharacterSession.answerInvite)',
+  hr_hunt_party_start: 'the leader starts the party hunt, each member on its own saved setup (CharacterSession.startPartyHunt)',
+  hr_hunt_restart: 'go back to the hunt that just ended on that session’s own setup (CharacterSession.restartHunt)',
 });
 
 /* The engine's item intents the client may send, each with the ONLY fields it may carry. */

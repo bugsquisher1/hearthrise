@@ -11,6 +11,8 @@
     "node tests/hunt-screen.mjs --mutate": "in-page",
     "node tests/alpha-windows.mjs": "in-page",
     "node tests/alpha-windows.mjs --mutate": "in-page",
+    "node tests/party-ui.mjs": "in-page",
+    "node tests/party-ui.mjs --mutate": "in-page",
     "node tests/pglite-template.mjs --verify --for=db-replay": "db-replay",
     "node tests/schema-drift.mjs": "db-replay",
     "node tests/schema-drift.mjs --mutate": "db-replay",

@@ -99,23 +99,55 @@
 
 .char-strip {
   display: flex;
+  align-items: stretch;
   gap: 0.25rem;
-  padding: 0.25rem 0.5rem;
+  padding: 0 0.5rem;
   background: var(--bg-1);
   border-bottom: 1px solid var(--line);
   flex-shrink: 0;
 }
+/* One tab per open character (src/app/character-strip.js): role, name, doing, three thin bars, the alert badge. */
+.char-tabs { display: flex; gap: 2px; margin: 0; padding: 0; list-style: none; min-width: 0; flex: 0 1 auto; overflow: hidden; }
+.char-tab-row { display: flex; min-width: 0; }
 .char-tab {
-  font: inherit;
-  font-size: 0.85rem;
+  position: relative;
+  display: flex; align-items: center; gap: 6px;
+  min-width: 0; max-width: 250px;
+  font: inherit; font-size: 0.85rem; text-align: left;
   color: var(--ink-2);
   background: none;
   border: 0;
   border-bottom: 2px solid transparent;
-  padding: 0.35rem 0.6rem;
+  padding: 4px 8px 3px;
   cursor: pointer;
 }
-.char-tab.is-shown { color: var(--gold); border-bottom-color: var(--gold); }
+.char-tab:hover { color: var(--ink); background: var(--bg-2); }
+.char-tab:focus-visible, .char-tool:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
+.char-tab.is-shown { color: var(--gold-2); border-bottom-color: var(--gold); }
+.char-roleglyph { width: 22px; height: 22px; flex: none; display: grid; place-items: center; color: var(--ink-3); }
+.char-tab.is-shown .char-roleglyph { color: var(--gold-2); }
+.char-roleglyph .hs-glyph { width: 18px; height: 18px; fill: currentColor; }
+.char-tab-main { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
+.char-tab-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.char-tab-doing { font-size: var(--t-micro); color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.char-tab.is-hunting .char-tab-doing { color: var(--ink-2); }
+.char-bars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; width: 96px; }
+.char-bar { position: relative; display: block; height: 3px; background: var(--bg-0); overflow: hidden; }
+.char-bar > i { position: absolute; top: 0; left: 0; bottom: 0; width: 0; background: var(--ink-3); }
+.char-bar.is-hp > i { background: var(--hud-fill-hp); }
+.char-bar.is-mana > i { background: var(--gem); }
+.char-bar.is-stamina > i { background: var(--hud-fill-stamina); }
+.char-badge { display: none; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--red); color: var(--bg-0); font-size: var(--t-micro); font-weight: 700; line-height: 18px; text-align: center; }
+.char-badge.is-on { display: inline-block; }
+.char-strip-tools { display: flex; align-items: stretch; flex: none; }
+.char-tool { font: inherit; font-size: 0.85rem; color: var(--ink-3); background: none; border: 0; padding: 0 0.6rem; cursor: pointer; }
+.char-tool:hover { color: var(--ink); }
+/* The landscape phone keeps the strip to one line: the bars and the doing line fold away, the badge stays. */
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .char-tab { max-width: 130px; padding: 2px 6px; }
+  .char-tab-doing, .char-bars { display: none; }
+  .char-tool { padding: 0 0.4rem; font-size: var(--t-micro); }
+}
 .game { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
 .game #panel-world { flex: 1; min-height: 0; padding: 8px; }
 /* In a hunt the top bar carries the ground's name and clock, so the pane's own

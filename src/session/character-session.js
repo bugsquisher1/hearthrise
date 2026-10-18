@@ -23,6 +23,10 @@
 //                      the bag rules, the one-tap refill and the hunt presets
 //                      (CONFLICTS.md 2026-10-18 alpha windows: the server lane
 //                      adds them); each is one intent, re-read the same way
+//   createParty / joinParty / leaveParty / kickSeat / inviteByName /
+//   answerInvite / startPartyHunt / restartHunt
+//                      the party and hunt-again intents, re-read the same way;
+//   findParties        the party finder, a read whose rows are never the record
 //   timeline           the settle responses' visual timeline (src/hunt-view/
 //                      timeline.js): tracks and events, never the record
 //   now()              the display clock the timeline plays on
@@ -42,6 +46,7 @@ import { edgeBody } from './edge-intents.js?v=0.1.0';
 export const FRAME_EVENT = 'frame';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ITEM = /^[a-z0-9_]{1,64}$/;
+const HUNT_ID = /^[a-z0-9_]{1,64}$/;
 const LOOT_RULES = Object.freeze(['keep', 'sell', 'ignore']);
 const RESTOCK_MAX = 1000;
 
@@ -209,6 +214,74 @@ export class CharacterSession {
   async applyPreset(preset) {
     if (this._closed || !Number.isInteger(preset) || preset < 0 || preset > 7) return { ok: false, error: 'bad_intent' };
     return this._settled(await this._server.rpc('hr_hunt_preset_apply', { p_slot: this.slot, p_preset: preset, p_idem: newIdem() }));
+  }
+
+  /* ── The party (S1 hr_hunt_party_*; the invite, start and restart verbs are this lane's asks, CONFLICTS.md
+     2026-10-18 party UI). Each is one intent naming THIS character's slot and ids or a seat; no user id, no
+     number of the server's crosses. The party changes on screen only from the re-read envelope. ── */
+
+  /** Open a party on a hunt (this character takes seat 0 and leads it). */
+  async createParty(hunt) {
+    if (this._closed || !HUNT_ID.test(String(hunt))) return { ok: false, error: 'bad_intent' };
+    return this._settled(await this._server.rpc('hr_hunt_party_create', { p_slot: this.slot, p_hunt: hunt, p_idem: newIdem() }));
+  }
+
+  /** Take a free seat in an open party (the finder's row, or one of this account's own parties). */
+  async joinParty(party) {
+    if (this._closed || !UUID.test(String(party))) return { ok: false, error: 'bad_intent' };
+    return this._settled(await this._server.rpc('hr_hunt_party_join', { p_slot: this.slot, p_party: party, p_idem: newIdem() }));
+  }
+
+  /** Leave this character's party (the server hands the lead on, or closes the last seat). */
+  async leaveParty() {
+    if (this._closed) return { ok: false, error: 'closed' };
+    return this._settled(await this._server.rpc('hr_hunt_party_leave', { p_slot: this.slot, p_idem: newIdem() }));
+  }
+
+  /** The leader removes the member in a SEAT. */
+  async kickSeat(seat) {
+    if (this._closed || !Number.isInteger(seat) || seat < 0 || seat > 7) return { ok: false, error: 'bad_intent' };
+    return this._settled(await this._server.rpc('hr_hunt_party_kick', { p_slot: this.slot, p_seat: seat, p_idem: newIdem() }));
+  }
+
+  /** Invite a character by the name players see; the server finds it, or refuses `no_such_name`. */
+  async inviteByName(name) {
+    const n = String(name || '').trim().slice(0, 40);
+    if (this._closed || n.length < 2) return { ok: false, error: 'bad_intent' };
+    return this._settled(await this._server.rpc('hr_hunt_party_invite', { p_slot: this.slot, p_name: n, p_idem: newIdem() }));
+  }
+
+  /** Answer an invite to this character: accept takes the seat, decline forgets it. */
+  async answerInvite(invite, accept) {
+    if (this._closed || !UUID.test(String(invite))) return { ok: false, error: 'bad_intent' };
+    const args = { p_slot: this.slot, p_invite: invite, p_idem: newIdem() };
+    return this._settled(await (accept === true ? this._server.rpc('hr_hunt_party_accept', args) : this._server.rpc('hr_hunt_party_decline', args)));
+  }
+
+  /** The leader starts the party's hunt: every member enters with its own saved setup, or the server says who is not ready. */
+  async startPartyHunt() {
+    if (this._closed) return { ok: false, error: 'closed' };
+    return this._settled(await this._server.rpc('hr_hunt_party_start', { p_slot: this.slot, p_idem: newIdem() }));
+  }
+
+  /** Go back to the hunt that just ended, with the same setup it ran on (the server reads that session's own). */
+  async restartHunt(session) {
+    if (this._closed || !UUID.test(String(session))) return { ok: false, error: 'bad_intent' };
+    return this._settled(await this._server.rpc('hr_hunt_restart', { p_slot: this.slot, p_session: session, p_idem: newIdem() }));
+  }
+
+  /**
+   * The party finder: open parties with a free seat, optionally on one hunt and
+   * only those with no member of a weapon type ("a party that needs a bow").
+   * A READ: the rows are the server's answer, never part of the record.
+   */
+  async findParties(hunt, weaponType) {
+    if (this._closed) return { ok: false, error: 'closed' };
+    if ((hunt !== null && !HUNT_ID.test(String(hunt))) || (weaponType !== null && !HUNT_ID.test(String(weaponType)))) return { ok: false, error: 'bad_intent' };
+    const ans = await this._server.rpc('hr_hunt_party_finder', { p_slot: this.slot, p_hunt: hunt, p_weapon: weaponType });
+    if (this._closed) return { ok: false, error: 'closed' };
+    if (ans.ok && ans.body && ans.body.ok === true) return { ok: true, body: ans.body };
+    return { ok: false, error: (ans.body && typeof ans.body.error === 'string' && ans.body.error) || ans.error || 'refused' };
   }
 
   /* An intent's answer: on ok the whole character is re-read, so the screen shows the server's result. */

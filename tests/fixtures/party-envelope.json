@@ -1,0 +1,707 @@
+{
+  "_note": "The party UI fixture (week plan 16, QoL 3 + 7): two of one account's characters. Slot 0 (Tyler) leads a party in the S1 shape (2026-10-23-hunt-party.sql hr_hunt_party_view: id, hunt, max, leader/me as seats, seats[]) while hunting, was knocked out once and has a rare drop in its timeline; slot 1 (Druid) idles in town with an invite. account.max_concurrent and party_invites are this lane's server asks (CONFLICTS.md 2026-10-18 party UI). Readers: src/session/party-sections.js.",
+  "characters": {
+    "0": {
+      "ok": true,
+      "version": 7,
+      "now": "2026-10-17T12:00:00Z",
+      "name": "Tyler",
+      "state": {
+        "active_kind": "combat",
+        "active_id": "millrace_sewer",
+        "gold": 5200
+      },
+      "skills": {
+        "attack": {
+          "xp": 4700,
+          "level": 20,
+          "frac": 0
+        },
+        "strength": {
+          "xp": 4500,
+          "level": 20,
+          "frac": 0
+        },
+        "defense": {
+          "xp": 3973,
+          "level": 19,
+          "frac": 0
+        },
+        "hitpoints": {
+          "xp": 7100,
+          "level": 24,
+          "frac": 0
+        },
+        "prayer": {
+          "xp": 120,
+          "level": 2,
+          "frac": 0
+        },
+        "magic": {
+          "xp": 0,
+          "level": 1,
+          "frac": 0
+        },
+        "ranged": {
+          "xp": 400,
+          "level": 5,
+          "frac": 0
+        },
+        "woodcutting": {
+          "xp": 1500,
+          "level": 12,
+          "frac": 0
+        },
+        "mining": {
+          "xp": 800,
+          "level": 8,
+          "frac": 0
+        },
+        "fishing": {
+          "xp": 300,
+          "level": 4,
+          "frac": 0
+        },
+        "farming": {
+          "xp": 0,
+          "level": 1,
+          "frac": 0
+        },
+        "cooking": {
+          "xp": 1200,
+          "level": 11,
+          "frac": 0
+        },
+        "crafting": {
+          "xp": 90,
+          "level": 2,
+          "frac": 0
+        },
+        "smithing": {
+          "xp": 0,
+          "level": 1,
+          "frac": 0
+        },
+        "runecrafting": {
+          "xp": 0,
+          "level": 1,
+          "frac": 0
+        }
+      },
+      "inventory": {
+        "rat_tail": 31,
+        "slime_gel": 12,
+        "bones": 8,
+        "sticky_core": 1,
+        "wolf_pelt": 3,
+        "wheat_bread": 14,
+        "cooked_shrimp": 5,
+        "goldenroot_tea": 6,
+        "fire_rune": 40,
+        "bronze_arrows": 120,
+        "bronze_sword": 1,
+        "steel_sword": 1,
+        "iron_helm": 1,
+        "iron_platebody": 1,
+        "shortbow": 1,
+        "normal_log": 40,
+        "copper_ore": 10
+      },
+      "hero_slots": [
+        0,
+        1
+      ],
+      "hunt": {
+        "session_id": "5d1c0f2e-0000-4000-8000-000000000001",
+        "hunt_id": "millrace_sewer",
+        "ended": false,
+        "hero": {
+          "unit": 1,
+          "name": "Tyler",
+          "level": 24,
+          "hp": 180,
+          "hp_max": 220,
+          "mana": 40,
+          "mana_max": 60,
+          "hp_regen": 2,
+          "mana_regen": 1,
+          "shield": 0,
+          "xp_pct": 0.62,
+          "falls": 1
+        },
+        "pose": {
+          "at_ms": 1760702400000,
+          "units": [
+            {
+              "u": 1,
+              "side": "hero",
+              "x": 10,
+              "y": 8
+            },
+            {
+              "u": 2,
+              "side": "hero",
+              "x": 8,
+              "y": 9
+            },
+            {
+              "u": 101,
+              "side": "monster",
+              "kind": "rat",
+              "x": 11,
+              "y": 8
+            },
+            {
+              "u": 102,
+              "side": "monster",
+              "kind": "slime",
+              "x": 12,
+              "y": 9
+            },
+            {
+              "u": 103,
+              "side": "monster",
+              "kind": "hive_wasp",
+              "boss": true,
+              "x": 13,
+              "y": 7
+            }
+          ]
+        },
+        "loot": [
+          {
+            "item": "rat_tail",
+            "count": 31
+          },
+          {
+            "item": "slime_gel",
+            "count": 12
+          },
+          {
+            "item": "sticky_core",
+            "count": 1
+          }
+        ]
+      },
+      "hunt_settings": {
+        "preset": 0,
+        "presets": [
+          {
+            "preset": 0,
+            "name": "Hunt"
+          },
+          {
+            "preset": 1,
+            "name": "Mana train"
+          }
+        ],
+        "target_mode": "nearest",
+        "stance": "balanced",
+        "distance": 1,
+        "chase": true,
+        "food_pct": 50,
+        "drink_pct": 30,
+        "supply_source": "mine",
+        "on_empty": "switch",
+        "slots": [
+          {
+            "action": {
+              "type": "ability",
+              "id": "power_strike"
+            },
+            "conditions": [
+              {
+                "metric": "enemies_in_aoe",
+                "op": "lte",
+                "value": 1
+              }
+            ],
+            "join": "and",
+            "usable": true,
+            "mana": 6
+          },
+          {
+            "action": {
+              "type": "ability",
+              "id": "flame_strike"
+            },
+            "conditions": [
+              {
+                "metric": "target_is_boss",
+                "op": "eq",
+                "value": true
+              }
+            ],
+            "join": "and",
+            "usable": false,
+            "mana": 10
+          },
+          {
+            "action": {
+              "type": "consume",
+              "id": "wheat_bread"
+            },
+            "conditions": [
+              {
+                "metric": "self_hp_pct",
+                "op": "lte",
+                "value": 50
+              }
+            ],
+            "join": "and",
+            "usable": true,
+            "count": 14
+          },
+          {
+            "action": {
+              "type": "consume",
+              "id": "goldenroot_tea"
+            },
+            "conditions": [
+              {
+                "metric": "self_mana_pct",
+                "op": "lte",
+                "value": 30
+              }
+            ],
+            "join": "and",
+            "usable": true,
+            "count": 6
+          },
+          {
+            "action": {
+              "type": "attack_with_item",
+              "id": "fire_rune"
+            },
+            "conditions": [
+              {
+                "metric": "item_qty",
+                "op": "gt",
+                "value": 0,
+                "subject": "item"
+              }
+            ],
+            "join": "and",
+            "usable": true,
+            "count": 40
+          },
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ]
+      },
+      "party": {
+        "id": "aaaaaaaa-0000-4000-8000-000000000001",
+        "hunt": "millrace_sewer",
+        "max": 4,
+        "leader": 0,
+        "me": 0,
+        "seats": [
+          {
+            "seat": 0,
+            "weapon": "shield",
+            "role": "tank",
+            "name": "Tyler",
+            "hunting": true,
+            "hp": 180,
+            "max_hp": 220,
+            "dealt": 2300,
+            "healed": 0
+          },
+          {
+            "seat": 1,
+            "weapon": "bow",
+            "role": "ranger",
+            "name": "Mira",
+            "hunting": true,
+            "hp": 120,
+            "max_hp": 150,
+            "dealt": 1900,
+            "healed": 0
+          }
+        ]
+      },
+      "premium": {
+        "active": true,
+        "premium_until": "2026-11-17T00:00:00Z"
+      },
+      "stamina": {
+        "ms_left": 27780000,
+        "cap_ms": 43200000
+      },
+      "hunt_analyzer": {
+        "session_ms": 2016000,
+        "next_level_ms": 4912000,
+        "ended": false,
+        "hero": {
+          "kills": 164,
+          "xp": 16311,
+          "raw_xp": 6471,
+          "gold": 2996,
+          "waste": 768,
+          "balance": 2228,
+          "per_hour": {
+            "xp": 29124,
+            "raw_xp": 11556,
+            "gold": 5350,
+            "waste": 1371,
+            "balance": 3979
+          },
+          "supplies": [
+            {
+              "item": "wheat_bread",
+              "source": "own",
+              "count": 12,
+              "gold": 0
+            },
+            {
+              "item": "wheat_bread",
+              "source": "store",
+              "count": 4,
+              "gold": 480
+            },
+            {
+              "item": "goldenroot_tea",
+              "source": "store",
+              "count": 3,
+              "gold": 258
+            }
+          ],
+          "loot": [
+            {
+              "item": "rat_tail",
+              "count": 31,
+              "value": 310
+            },
+            {
+              "item": "slime_gel",
+              "count": 12,
+              "value": 96
+            }
+          ],
+          "taken": {
+            "by_monster": {
+              "rat": 640,
+              "slime": 210
+            },
+            "by_element": {
+              "physical": 850
+            }
+          },
+          "dealt": {
+            "by_ability": {
+              "basic": 9100,
+              "power_strike": 2400
+            },
+            "by_element": {
+              "physical": 11500
+            }
+          }
+        },
+        "party": {
+          "kills": 164,
+          "xp": 30120,
+          "raw_xp": 12900,
+          "gold": 5992,
+          "waste": 1210,
+          "balance": 4782,
+          "per_hour": {
+            "xp": 53780,
+            "raw_xp": 23030,
+            "gold": 10700,
+            "waste": 2160,
+            "balance": 8540
+          },
+          "supplies": [
+            {
+              "item": "wheat_bread",
+              "source": "own",
+              "count": 20,
+              "gold": 0
+            }
+          ],
+          "loot": [
+            {
+              "item": "rat_tail",
+              "count": 62,
+              "value": 620
+            }
+          ],
+          "taken": {
+            "by_monster": {
+              "rat": 1200
+            },
+            "by_element": {
+              "physical": 1200
+            }
+          },
+          "dealt": {
+            "by_ability": {
+              "basic": 18000
+            },
+            "by_element": {
+              "physical": 18000
+            }
+          }
+        }
+      },
+      "hunt_server_now_ms": 1760702400000,
+      "hunt_track": [
+        {
+          "u": 101,
+          "x": 11,
+          "y": 8,
+          "atMs": 1760702399000
+        },
+        {
+          "u": 2,
+          "x": 8,
+          "y": 9,
+          "atMs": 1760702399200
+        }
+      ],
+      "hunt_events": [
+        {
+          "id": "s1:1",
+          "type": "dmg",
+          "atMs": 1760702399100,
+          "u": 1,
+          "t": 101,
+          "amount": 12
+        },
+        {
+          "id": "s1:2",
+          "type": "dmg",
+          "atMs": 1760702399300,
+          "u": 101,
+          "t": 1,
+          "amount": 4
+        },
+        {
+          "id": "s1:3",
+          "type": "eat",
+          "atMs": 1760702399500,
+          "u": 1,
+          "item": "wheat_bread",
+          "source": "own"
+        },
+        {
+          "id": "s1:4",
+          "type": "kill",
+          "atMs": 1760702399700,
+          "u": 2,
+          "t": 102,
+          "loot": {
+            "slime_gel": 1
+          }
+        },
+        {
+          "id": "s1:5",
+          "type": "xp",
+          "atMs": 1760702399700,
+          "u": 1,
+          "amount": 3
+        },
+        {
+          "id": "s1:9",
+          "type": "rare_drop",
+          "atMs": 1760702399800,
+          "u": 1,
+          "item": "sticky_core"
+        }
+      ],
+      "equipment": {
+        "weapon": "iron_sword",
+        "boots": "leather_boots",
+        "ring1": "copper_ring"
+      },
+      "bag_rules": {
+        "locked": [
+          "bronze_sword",
+          "sticky_core"
+        ],
+        "loot": {
+          "rat_tail": "sell",
+          "slime_gel": "sell",
+          "sticky_core": "sell",
+          "bones": "keep"
+        },
+        "restock": {
+          "wheat_bread": 20,
+          "goldenroot_tea": 10
+        }
+      },
+      "shop": {
+        "offers": [
+          {
+            "offer": "supply.wheat_bread",
+            "item": "wheat_bread",
+            "kind": "food",
+            "price": 130
+          },
+          {
+            "offer": "supply.cooked_shrimp",
+            "item": "cooked_shrimp",
+            "kind": "food",
+            "price": 24
+          },
+          {
+            "offer": "supply.goldenroot_tea",
+            "item": "goldenroot_tea",
+            "kind": "drink",
+            "price": 95
+          },
+          {
+            "offer": "supply.bronze_arrows",
+            "item": "bronze_arrows",
+            "kind": "ammo",
+            "price": 2
+          },
+          {
+            "offer": "supply.fire_rune",
+            "item": "fire_rune",
+            "kind": "ammo",
+            "price": 9
+          }
+        ],
+        "bids": {
+          "rat_tail": 6,
+          "slime_gel": 5,
+          "bones": 1,
+          "sticky_core": 35,
+          "wolf_pelt": 7,
+          "wheat_bread": 24,
+          "cooked_shrimp": 3,
+          "goldenroot_tea": 17,
+          "fire_rune": 1,
+          "bronze_sword": 10,
+          "steel_sword": 160,
+          "iron_helm": 30,
+          "iron_platebody": 80,
+          "shortbow": 18,
+          "normal_log": 1,
+          "copper_ore": 2
+        },
+        "refill": {
+          "lines": [
+            {
+              "item": "wheat_bread",
+              "offer": "supply.wheat_bread",
+              "have": 14,
+              "target": 20,
+              "buy": 6,
+              "gold": 780
+            },
+            {
+              "item": "goldenroot_tea",
+              "offer": "supply.goldenroot_tea",
+              "have": 6,
+              "target": 10,
+              "buy": 4,
+              "gold": 380
+            }
+          ],
+          "total": 1160
+        }
+      },
+      "hunt_presets": [
+        {
+          "preset": 0,
+          "name": "Cellar rats",
+          "action_set": 0,
+          "gear": {
+            "weapon": "iron_sword",
+            "boots": "leather_boots"
+          },
+          "restock": {
+            "wheat_bread": 20,
+            "goldenroot_tea": 10
+          }
+        }
+      ],
+      "role": {
+        "id": "melee_dps",
+        "weapon": "sword"
+      },
+      "account": {
+        "max_concurrent": 4
+      },
+      "party_invites": []
+    },
+    "1": {
+      "ok": true,
+      "version": 1,
+      "now": "2026-10-17T12:00:00Z",
+      "name": "Druid",
+      "state": {
+        "active_kind": "idle",
+        "gold": 800,
+        "hp": 135,
+        "max_hp": 135,
+        "mana": 300,
+        "max_mana": 300
+      },
+      "skills": {},
+      "inventory": {
+        "wheat_bread": 4,
+        "goldenroot_tea": 0
+      },
+      "hero_slots": [
+        0,
+        1
+      ],
+      "equipment": {
+        "weapon": "oak_staff"
+      },
+      "role": {
+        "id": "healer",
+        "weapon": "staff"
+      },
+      "stamina": {
+        "ms_left": 28800000,
+        "cap_ms": 28800000
+      },
+      "premium": {
+        "active": false
+      },
+      "bag_rules": {
+        "locked": [],
+        "loot": {},
+        "restock": {
+          "wheat_bread": 20,
+          "goldenroot_tea": 10
+        }
+      },
+      "shop": {
+        "offers": [],
+        "bids": {
+          "wheat_bread": 2
+        },
+        "refill": null
+      },
+      "account": {
+        "max_concurrent": 4
+      },
+      "party_invites": [
+        {
+          "id": "bbbbbbbb-0000-4000-8000-000000000002",
+          "party": "cccccccc-0000-4000-8000-000000000003",
+          "hunt": "millrace_sewer",
+          "from": "Mira"
+        }
+      ]
+    }
+  }
+}

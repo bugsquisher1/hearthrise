@@ -265,3 +265,71 @@
   .hw-doll { grid-template-rows: repeat(4, 70px); grid-auto-rows: 70px; }
   .hw-tip { width: 240px; }
 }
+
+/* ── The party (src/shell/windows/party.js): seats as a ledger, the leader's crown, the finder ── */
+.hw-party .hw-party-in { display: none; }
+.hw-party.is-in .hw-party-in { display: block; }
+.hw-party.is-in .hw-party-out { display: none; }
+.hw-party-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0 2px 4px; }
+.hw-party-title { font-family: var(--f-label); font-weight: 700; color: var(--ink); }
+.hw-party-sub { font-size: var(--t-micro); color: var(--ink-3); }
+.hw-seats { margin: 0; padding: 0; list-style: none; }
+.hw-roleglyph { width: 32px; height: 32px; display: grid; place-items: center; flex: none; color: var(--ink-2); background: var(--bg-1); box-shadow: var(--hw-well); }
+.hw-roleglyph .hs-glyph { width: 20px; height: 20px; }
+.hw-seat.is-self .hw-roleglyph { color: var(--gold-2); }
+.hw-crown { display: none; color: var(--gold); }
+.hw-crown.is-on { display: inline-flex; }
+.hw-crown .hs-glyph { width: 16px; height: 16px; }
+.hw-seat-state { font-size: var(--t-micro); color: var(--ink-3); min-width: 4.5em; text-align: right; }
+.hw-kick { display: none; }
+.hw-kick.is-on { display: inline-block; }
+.hw-party .hw-tools .hw-primary:not(.is-on) { display: none; }
+.hw-find-party .hh-select { flex: 1 1 0; }
+.hw-add .hw-invite-name { flex: 1; width: auto; min-width: 0; }
+.hw-found-roles { display: flex; gap: 2px; }
+.hw-found-roles .hw-roleglyph { width: 24px; height: 24px; }
+.hw-found-roles .hw-roleglyph .hs-glyph { width: 14px; height: 14px; }
+
+/* ── The command centre (src/shell/windows/characters.js): one ledger row per character ── */
+.hw-chars { margin: 0; padding: 0; list-style: none; }
+.hw-char { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; border-top: 1px solid var(--line-soft); }
+.hw-char.is-shown .hw-roleglyph { color: var(--gold-2); }
+.hw-char-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.hw-char-line { display: flex; align-items: baseline; gap: 8px; margin: 0; }
+.hw-char-name { font-weight: 700; color: var(--ink); white-space: nowrap; }
+.hw-char-doing { flex: 1; min-width: 0; font-size: var(--t-micro); color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hw-badge { display: none; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--red); color: var(--bg-0); font-size: var(--t-micro); font-weight: 700; line-height: 18px; text-align: center; }
+.hw-badge.is-on { display: inline-block; }
+.hw-char-gauges { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.hw-char-gauges .hh-gauge { height: 16px; }
+.hw-char-gauges .hh-gauge-text { line-height: 16px; }
+.hw-char-facts { display: flex; flex-wrap: wrap; gap: 2px 12px; margin: 0; font-size: var(--t-micro); color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; }
+.hw-char-ready { color: var(--green); }
+.hw-char-ready.is-short { color: var(--red); }
+.hw-command .hw-tools .hw-primary:not(.is-on) { display: none; }
+.hw-alert-kinds { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; margin: 0; padding: 0; list-style: none; }
+.hw-alert-kinds .hs-glyph { width: 16px; height: 16px; vertical-align: -3px; }
+
+/* ── The alert lines (src/shell/widgets/alerts.js): newest on top; with none, not there at all ── */
+.hs-widget.is-alerts:has(.hw-alerts.is-empty) { pointer-events: none; }
+.hw-alerts.is-empty { display: none; }
+.hw-alert-list { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; width: 360px; max-width: calc(100vw - 24px); }
+.hw-alert {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 4px 4px 8px;
+  background: var(--world-hud-bg); border-left: 2px solid var(--ink-3);
+  font-size: var(--t-small); color: var(--ink);
+}
+.hw-alert[data-kind="rare"] { border-left-color: var(--gold); }
+.hw-alert[data-kind="fall"] { border-left-color: var(--red); }
+.hw-alert-glyph { display: grid; place-items: center; flex: none; color: var(--ink-2); }
+.hw-alert[data-kind="rare"] .hw-alert-glyph { color: var(--gold-2); }
+.hw-alert-glyph .hs-glyph { width: 18px; height: 18px; }
+.hw-alert-text { flex: 1; min-width: 0; margin: 0; }
+.hw-alert-do { flex: none; color: var(--gold-2); }
+.hw-alert-x { flex: none; }
+.hw-alert-x .hs-glyph { width: 14px; height: 14px; }
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .hw-alert-list { width: 300px; }
+  .hw-alert { font-size: var(--t-micro); padding: 2px 2px 2px 6px; }
+}

@@ -8,12 +8,12 @@
 // from the envelopes of the characters open on this page (their bag, bank and
 // worn set), and the window says which it is showing. Read only.
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, element } from '../../render/paint.js?v=0.1.0';
-import { whole } from '../../render/format.js?v=0.1.0';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.1.0';
-import { glyphSvg } from '../launcher.js?v=0.1.0';
-import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.1.0';
-import { nameOf } from '../../session/item-sections.js?v=0.1.0';
+import { rows, text, cls, element } from '../../render/paint.js?v=0.2.0';
+import { whole } from '../../render/format.js?v=0.2.0';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.0';
+import { glyphSvg } from '../launcher.js?v=0.2.0';
+import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.0';
+import { nameOf } from '../../session/item-sections.js?v=0.2.0';
 
 const WHERE = Object.freeze({ bag: 'in the bag', bank: 'in the bank', worn: 'worn' });
 const DEBOUNCE_MS = 300;

@@ -9,18 +9,18 @@
 // from the catalogue rows). Every level and XP number is the envelope's
 // `skills`, replaced on each envelope; the window sends nothing.
 // ════════════════════════════════════════════════════════════════════════
-import { SKILLS_DEF } from '../../data/skills.js?v=0.1.0';
-import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.1.0';
-import { ARTISAN_RECIPES } from '../../data/recipes.js?v=0.1.0';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from '../../data/gathering.js?v=0.1.0';
-import { ITEMS } from '../../data/items.js?v=0.1.0';
-import { xpForLevel, MAX_LEVEL } from '../../core/xp.js?v=0.1.0';
-import { skillsOf } from '../../session/item-sections.js?v=0.1.0';
-import { rows, text, cls, style, attr, element } from '../../render/paint.js?v=0.1.0';
-import { whole } from '../../render/format.js?v=0.1.0';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.1.0';
-import { glyphSvg } from '../launcher.js?v=0.1.0';
-import { itemName } from '../widgets/bits.js?v=0.1.0';
+import { SKILLS_DEF } from '../../data/skills.js?v=0.2.0';
+import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.0';
+import { ARTISAN_RECIPES } from '../../data/recipes.js?v=0.2.0';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from '../../data/gathering.js?v=0.2.0';
+import { ITEMS } from '../../data/items.js?v=0.2.0';
+import { xpForLevel, MAX_LEVEL } from '../../core/xp.js?v=0.2.0';
+import { skillsOf } from '../../session/item-sections.js?v=0.2.0';
+import { rows, text, cls, style, attr, element } from '../../render/paint.js?v=0.2.0';
+import { whole } from '../../render/format.js?v=0.2.0';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.0';
+import { glyphSvg } from '../launcher.js?v=0.2.0';
+import { itemName } from '../widgets/bits.js?v=0.2.0';
 
 const GROUPS = Object.freeze([['combat', 'Combat'], ['gather', 'Gathering'], ['artisan', 'Making']]);
 

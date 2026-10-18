@@ -10,11 +10,11 @@
 //
 //   readinessOf(cs) → { name, ready, checks: [{ id, ok, text }], short: [words] }
 // ════════════════════════════════════════════════════════════════════════
-import { settingsOf, staminaOf } from '../session/hunt-sections.js?v=0.1.0';
-import { bagOf, equipmentOf, rulesOf, shopOf, goldOf, nameOf } from '../session/item-sections.js?v=0.1.0';
-import { kindOf } from './bag-model.js?v=0.1.0';
-import { itemName } from './widgets/bits.js?v=0.1.0';
-import { whole } from '../render/format.js?v=0.1.0';
+import { settingsOf, staminaOf } from '../session/hunt-sections.js?v=0.2.0';
+import { bagOf, equipmentOf, rulesOf, shopOf, goldOf, nameOf } from '../session/item-sections.js?v=0.2.0';
+import { kindOf } from './bag-model.js?v=0.2.0';
+import { itemName } from './widgets/bits.js?v=0.2.0';
+import { whole } from '../render/format.js?v=0.2.0';
 
 const PLURAL = Object.freeze({ food: 'food', drink: 'drinks', ammo: 'ammo' });
 

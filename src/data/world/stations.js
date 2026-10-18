@@ -16,7 +16,7 @@
 // intent — every action is navigation to a screen that already exists.
 // ════════════════════════════════════════════════════════════════════════
 
-import { OUTFITS } from '../hunt-outfits.js?v=0.1.0';
+import { OUTFITS } from '../hunt-outfits.js?v=0.2.0';
 
 export const STATION_FALLBACK = 'idle';
 

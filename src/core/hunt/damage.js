@@ -21,16 +21,16 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { MONSTERS } from '../../data/monsters.js?v=0.1.0';
-import { HUNT_STANCES, DEFAULT_STANCE } from '../../data/rule-subjects.js?v=0.1.0';
-import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js?v=0.1.0';
-import { cheb } from './grid.js?v=0.1.0';
-import { atRest, unitById } from './movement.js?v=0.1.0';
-import { makeEvent } from './events.js?v=0.1.0';
-import { roleOf, elementOn, inRange, peel } from './targeting.js?v=0.1.0';
-import { fallen } from './pull-cycle.js?v=0.1.0';
-import { shareKillXp } from './xp-share.js?v=0.1.0';
-import { payBasic } from './abilities.js?v=0.1.0';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.0';
+import { HUNT_STANCES, DEFAULT_STANCE } from '../../data/rule-subjects.js?v=0.2.0';
+import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js?v=0.2.0';
+import { cheb } from './grid.js?v=0.2.0';
+import { atRest, unitById } from './movement.js?v=0.2.0';
+import { makeEvent } from './events.js?v=0.2.0';
+import { roleOf, elementOn, inRange, peel } from './targeting.js?v=0.2.0';
+import { fallen } from './pull-cycle.js?v=0.2.0';
+import { shareKillXp } from './xp-share.js?v=0.2.0';
+import { payBasic } from './abilities.js?v=0.2.0';
 
 /* stance: the hero's setting. acc (permille), maxHit, def, ward (the Prayer ward, %), element: its combat snapshot.
    swingLeftMs: ms until the unit may swing again. */

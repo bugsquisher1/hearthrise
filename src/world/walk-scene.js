@@ -13,13 +13,13 @@
 // A hero left standing IDLE_TO_STATION_MS walks to its activity's station.
 // PURE: no DOM, no window, no G — world-boot.js reads those and passes `env`.
 // ════════════════════════════════════════════════════════════════════════
-import { IDLE_TO_STATION_MS, TAP_OPENS } from '../data/world/stations.js?v=0.1.0';
-import { createSteer, tapAction } from './steer-local.js?v=0.1.0';
-import { townState, stationOf } from './town-scene.js?v=0.1.0';
-import { furnish, maskWith } from './home-scene.js?v=0.1.0';
-import { T } from './core/grid.js?v=0.1.0';
-import { pickFacing } from './core/facing.js?v=0.1.0';
-import { OUTFITS } from '../data/hunt-outfits.js?v=0.1.0';
+import { IDLE_TO_STATION_MS, TAP_OPENS } from '../data/world/stations.js?v=0.2.0';
+import { createSteer, tapAction } from './steer-local.js?v=0.2.0';
+import { townState, stationOf } from './town-scene.js?v=0.2.0';
+import { furnish, maskWith } from './home-scene.js?v=0.2.0';
+import { T } from './core/grid.js?v=0.2.0';
+import { pickFacing } from './core/facing.js?v=0.2.0';
+import { OUTFITS } from '../data/hunt-outfits.js?v=0.2.0';
 
 /* How far a walked map's camera leans from the hero toward the map's `focus`:
    halfway keeps the hero on screen anywhere on a town-sized map and the plaza

@@ -10,13 +10,13 @@
 //                     the shell's own (src/data/hunt-hud.js HOTKEYS). Hunts are
 //                     idle: no key casts anything.
 // ════════════════════════════════════════════════════════════════════════
-import { FLOAT_TYPES } from '../../data/combat-text.js?v=0.1.0';
-import { SHELL_WINDOWS } from '../../data/shell-windows.js?v=0.1.0';
-import { HOTKEYS } from '../../data/hunt-hud.js?v=0.1.0';
-import { floatShown, withFloat } from '../../hunt-view/float-prefs.js?v=0.1.0';
-import { keyLabel } from '../launcher.js?v=0.1.0';
-import { prop } from '../../render/paint.js?v=0.1.0';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.1.0';
+import { FLOAT_TYPES } from '../../data/combat-text.js?v=0.2.0';
+import { SHELL_WINDOWS } from '../../data/shell-windows.js?v=0.2.0';
+import { HOTKEYS } from '../../data/hunt-hud.js?v=0.2.0';
+import { floatShown, withFloat } from '../../hunt-view/float-prefs.js?v=0.2.0';
+import { keyLabel } from '../launcher.js?v=0.2.0';
+import { prop } from '../../render/paint.js?v=0.2.0';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.0';
 
 const TARGETS = Object.freeze([['regular', 'Monsters'], ['boss', 'Bosses']]);
 

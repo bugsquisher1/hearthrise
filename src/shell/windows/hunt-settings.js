@@ -10,12 +10,12 @@
 // with big touch targets (HS-08). Below the options, the bar's slot editor
 // (bar-editor.js): "IF [test] THEN [action]" per slot, in priority order.
 // ════════════════════════════════════════════════════════════════════════
-import { SUPPLY_SOURCE, ON_EMPTY } from '../../data/hunt-sessions.js?v=0.1.0';
-import { settingsOf } from '../../session/hunt-sections.js?v=0.1.0';
-import { text, cls } from '../../render/paint.js?v=0.1.0';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.1.0';
-import { barEditorHtml, patchBarEditor, actBarEditor } from './bar-editor.js?v=0.1.0';
-import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, patchControls, sendOption, SUPPLY_LABEL, ON_EMPTY_LABEL } from '../widgets/settings-intent.js?v=0.1.0';
+import { SUPPLY_SOURCE, ON_EMPTY } from '../../data/hunt-sessions.js?v=0.2.0';
+import { settingsOf } from '../../session/hunt-sections.js?v=0.2.0';
+import { text, cls } from '../../render/paint.js?v=0.2.0';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.0';
+import { barEditorHtml, patchBarEditor, actBarEditor } from './bar-editor.js?v=0.2.0';
+import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, patchControls, sendOption, SUPPLY_LABEL, ON_EMPTY_LABEL } from '../widgets/settings-intent.js?v=0.2.0';
 
 const opts = (modes, labels) => modes.map((m) => '<option value="' + esc(m) + '">' + esc(labels[m] || m) + '</option>').join('');
 const row = (label, control, hint) => '<div class="he-row"><span class="he-label">' + label + (hint ? '<small>' + hint + '</small>' : '') + '</span>' + control + '</div>';

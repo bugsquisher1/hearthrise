@@ -16,11 +16,11 @@
 // the moment that envelope arrived (display only; the next envelope replaces
 // it). The view, tab and folds are display scratch on the panel.
 // ════════════════════════════════════════════════════════════════════════
-import { analyzerOf, isPremium } from '../../session/hunt-sections.js?v=0.1.0';
-import { rows, text, cls, attr, element } from '../../render/paint.js?v=0.1.0';
-import { whole, gold, clock } from '../../render/format.js?v=0.1.0';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.1.0';
-import { panelHtml, itemIconHtml, itemName, monsterName, abilityName, elementName } from './bits.js?v=0.1.0';
+import { analyzerOf, isPremium } from '../../session/hunt-sections.js?v=0.2.0';
+import { rows, text, cls, attr, element } from '../../render/paint.js?v=0.2.0';
+import { whole, gold, clock } from '../../render/format.js?v=0.2.0';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.0';
+import { panelHtml, itemIconHtml, itemName, monsterName, abilityName, elementName } from './bits.js?v=0.2.0';
 
 const TABS = Object.freeze([['session', 'Session'], ['taken', 'Taken'], ['dealt', 'Dealt']]);
 

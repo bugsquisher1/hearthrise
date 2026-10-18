@@ -7,59 +7,94 @@
   background: var(--bg-0);
   color: var(--ink);
   font-family: var(--f-ui);
+  /* Alegreya Sans defaults to old-style figures; a HUD of counts and clocks
+     reads in lining ones (a "1" that is not a small "i"). */
+  font-variant-numeric: lining-nums;
 }
 .app.is-auth { min-height: 100vh; display: grid; place-items: center; }
 .app.is-game { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
-.auth { width: 100%; display: grid; place-items: center; padding: 1.5rem; box-sizing: border-box; }
-.auth-card {
-  width: min(26rem, 100%);
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  padding: 1.75rem 1.5rem;
-  background: var(--bg-1);
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
+/* ── The account screens: the crest and the name beside one iron-framed form.
+   The crest is painted art: 1:1 (311x384) on desktop, exactly 1:2 on the
+   phone size class, never at a fraction between. ── */
+.auth {
+  width: 100%; box-sizing: border-box;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 20px 56px;
+  padding: 24px;
 }
-.auth-title { margin: 0; font-family: var(--f-display); font-size: 1.4rem; color: var(--gold); }
-.auth-lead { margin: 0; color: var(--ink-2); line-height: 1.45; }
-.auth-field { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.95rem; color: var(--ink-2); }
+.auth-brand { display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 0; }
+.auth-crest { display: block; width: 311px; height: 384px; }
+.auth-name {
+  margin: 0;
+  font-family: var(--f-display); font-weight: 700; font-size: var(--t-h2);
+  letter-spacing: .12em; color: var(--gold-2);
+}
+.auth-card {
+  width: min(26rem, 100%); box-sizing: border-box;
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 18px 22px 20px;
+  background: var(--modal-bg); background-clip: padding-box;
+  border: 8px solid transparent; border-radius: 0;
+  border-image: url('../../assets/ui/frame-iron.png') 4 / 8px stretch;
+  image-rendering: pixelated;
+}
+.auth-card > * { image-rendering: auto; }
+.auth-title { margin: 0; font-family: var(--f-label); font-weight: 700; font-size: var(--t-lead); letter-spacing: .04em; color: var(--ink); }
+.auth-lead { margin: 0; font-size: var(--t-small); color: var(--ink-2); line-height: 1.4; }
+.auth-field { display: flex; flex-direction: column; gap: 4px; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
 .auth-field input {
-  font: inherit;
+  font-family: var(--f-ui); font-weight: 400; font-size: var(--t-body); letter-spacing: 0;
+  min-height: 40px; box-sizing: border-box;
   color: var(--ink);
   background: var(--bg-0);
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line-soft);
   border-radius: var(--r-sm);
-  padding: 0.55rem 0.65rem;
+  box-shadow: var(--surf-sunken-edge);
+  padding: 0 10px;
 }
+.auth-field input:hover { border-color: var(--line); }
 .auth-field input:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
-.auth-message { margin: 0; min-height: 1.3em; color: var(--red); line-height: 1.4; }
+.auth-message { margin: 0; min-height: 1.3em; font-size: var(--t-small); color: var(--red); line-height: 1.3; }
+.auth-message:empty { min-height: 0; }
 .auth-message.is-good { color: var(--green); }
 .auth-submit {
-  font: inherit;
-  font-weight: 700;
+  font-family: var(--f-ui); font-weight: 700; font-size: var(--t-body);
+  min-height: 42px;
   color: var(--bg-0);
   background: var(--gold);
   border: 0;
-  border-radius: var(--r);
-  padding: 0.6rem 1rem;
+  border-radius: var(--r-sm);
+  padding: 0 18px;
   cursor: pointer;
 }
+.auth-submit:hover:not(:disabled) { background: var(--gold-2); }
+.auth-submit:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .auth-submit:disabled { opacity: 0.6; cursor: progress; }
-.auth-links { margin: 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
+.auth-links { margin: 0; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; padding-top: 10px; border-top: 1px solid var(--line-soft); }
 .auth-link {
-  font: inherit;
+  font-family: var(--f-ui); font-size: var(--t-small);
   color: var(--gold-2);
   background: none;
   border: 0;
-  padding: 0;
+  padding: 2px 0;
   cursor: pointer;
-  text-decoration: underline;
+  text-decoration: none;
+}
+.auth-link:hover, .auth-link:focus-visible { text-decoration: underline; text-underline-offset: 3px; }
+.auth-link:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
+
+/* Landscape phone: the crest (1:2) beside the form, both inside 423 px with no scroll. */
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .auth { flex-wrap: nowrap; gap: 40px; padding: 8px 16px; }
+  .auth-crest { width: 156px; height: 192px; }
+  .auth-card { gap: 8px; padding: 10px 18px 12px; }
+  .auth-field input { min-height: 36px; }
+  .auth-submit { min-height: 40px; }
+  .auth-links { padding-top: 6px; }
 }
 
-.char-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
-.char-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.char-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.char-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 48px; border-top: 1px solid var(--line-soft); }
 .char-name { font-weight: 700; }
 
 .char-strip {
@@ -83,3 +118,6 @@
 .char-tab.is-shown { color: var(--gold); border-bottom-color: var(--gold); }
 .game { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
 .game #panel-world { flex: 1; min-height: 0; padding: 8px; }
+/* In a hunt the top bar carries the ground's name and clock, so the pane's own
+   title row would only repeat it and cost the stage a line. */
+.app.is-game:has(.ht-bar) #panel-world .world-chrome { display: none; }

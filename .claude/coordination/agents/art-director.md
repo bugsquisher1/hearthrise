@@ -2922,3 +2922,13 @@ the 68 px ruling, Cinzel in the strip): audit the prototype against the latest r
 (3) Drawing a sample from the shipped atlases on a canvas (combat.js) is cheap and honest: "before" is the
 engine's own overlay rules, so the comparison is fair. (4) A sample can show a bug the engine hides: the loot
 bag lands on the corpse (choreo.js) and disappears.
+
+## 2026-10-18 — visual gate, hunt screen (lane/hunt-screen-art from lane/hunt-screen @7c7605ce0)
+Before/after in art/review/hunt-screen/. Lessons: (1) tests/hunt-screen.mjs stubs Google Fonts to empty, so
+its --shots render Segoe/Georgia fallbacks; judge with the fonts loaded (they do load headless). (2) play.html
+never loaded Alegreya Sans SC, so every --f-label heading was plain Alegreya Sans: check document.fonts, not
+the token. (3) Alegreya's default old-style figures make a HUD of numbers look small and jumpy: lining-nums.
+(4) A "well" on a plate the same value as --bg-0 is invisible: lift the well to --bg-1 and cut it with a dark
+upper-left and lit lower-right inset edge. (5) Widget min widths (hud-widgets.js min) beat content shrinking;
+right-align the bar inside its box instead. Open, needs art: the hearth emblem is a CSS circle (wants a pixel
+medallion from the iron ramp).

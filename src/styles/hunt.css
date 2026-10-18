@@ -19,30 +19,43 @@
 .hh-panel-head { display: flex; align-items: center; gap: 6px; min-height: 32px; padding: 2px 6px; border-bottom: 1px solid var(--line); }
 .hh-panel-title { flex: 1; margin: 0; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
 .hh-panel-body { padding: 6px 8px 8px; }
+/* Controls carry no box of their own (containment is earned, §9):
+   · .hh-tool is a text command. Quiet ink, a panel wash on hover, and when it
+     is a toggle the pressed one is gold with a 2 px gold underline, the same
+     mark the launcher row and the character strip use for "this one".
+   · .hh-seg is a choice sunk into a well: the well is the group (.hh-segs,
+     .hh-step) or, for a lone toggle like Chase, the button itself. The pressed
+     choice is lifted one rung (--bg-3) and underlined gold.
+   · Inputs keep the one hairline: a field has to read as a place to type. */
 .hh-tool, .hh-seg {
   min-height: 30px; padding: 0 10px;
-  border: 1px solid var(--line-soft); border-radius: var(--r-sm);
+  border: 0; border-bottom: 2px solid transparent; border-radius: 0;
   background: none; color: var(--ink-2);
   font-family: var(--f-ui); font-weight: 700; font-size: var(--t-micro);
+  font-variant-numeric: lining-nums;
   cursor: pointer;
 }
-.hh-tool:hover:not(:disabled), .hh-seg:hover:not(:disabled) { color: var(--ink); border-color: var(--line); }
+.hh-tool:hover:not(:disabled), .hh-seg:hover:not(:disabled) { color: var(--ink); background: var(--surf-panel); }
 .hh-tool:focus-visible, .hh-seg:focus-visible, .hh-select:focus-visible, .hh-num:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 1px; }
-.hh-tool[aria-pressed="true"], .hh-seg[aria-pressed="true"] { color: var(--gold-2); border-color: var(--gold); }
+.hh-tool[aria-pressed="true"], .hh-seg[aria-pressed="true"] { color: var(--gold-2); border-bottom-color: var(--gold); }
 .hh-tool:disabled, .hh-seg:disabled, .hh-select:disabled, .hh-num:disabled { opacity: .5; cursor: default; }
 .hh-tool .hs-glyph { width: 18px; height: 18px; }
 .hh-tool { white-space: nowrap; }
+.hh-tool:has(.hs-glyph) { display: inline-grid; place-items: center; min-width: 32px; padding: 0 6px; color: var(--ink-3); }
 .hh-select, .hh-num {
   min-height: 30px; padding: 0 6px;
   border: 1px solid var(--line-soft); border-radius: var(--r-sm);
-  background: var(--bg-1); color: var(--ink);
-  font-family: var(--f-ui); font-size: var(--t-micro);
+  background: var(--bg-0); color: var(--ink);
+  font-family: var(--f-ui); font-size: var(--t-micro); font-variant-numeric: lining-nums;
 }
 .hh-num { width: 64px; }
-.hh-segs { display: inline-flex; gap: 2px; }
-.hh-step { display: inline-flex; align-items: center; gap: 2px; }
+.hh-segs, .hh-step, .hh-seg { background: var(--bg-1); box-shadow: inset 1px 1px 0 color-mix(in srgb, var(--world-shadow) 70%, transparent), inset -1px -1px 0 color-mix(in srgb, var(--hl) 10%, transparent); }
+.hh-segs .hh-seg, .hh-step .hh-seg { background: none; box-shadow: none; }
+.hh-segs .hh-seg[aria-pressed="true"], .hh-seg[aria-pressed="true"], .hh-seg[aria-pressed="true"]:hover:not(:disabled) { background: var(--bg-3); }
+.hh-segs { display: inline-flex; }
+.hh-step { display: inline-flex; align-items: center; }
 .hh-step .hh-seg { min-width: 30px; padding: 0; }
-.hh-step-val { min-width: 24px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
+.hh-step-val { min-width: 24px; text-align: center; font-weight: 700; font-variant-numeric: lining-nums tabular-nums; }
 .hh-intent-msg { margin: 0; min-height: 0; font-size: var(--t-micro); color: var(--ink-3); }
 .hh-intent-msg:empty { display: none; }
 .is-pending .hh-intent-msg { color: var(--ink-2); }
@@ -51,18 +64,19 @@
 .hh-icon.is-glyph .hs-glyph { width: 20px; height: 20px; color: var(--ink-3); }
 
 /* ── Gauges: a sunk bar with its number on it ── */
-.hh-gauge { position: relative; display: block; height: 16px; background: var(--bg-0); border: 1px solid var(--line-soft); overflow: hidden; }
+/* The track is the same well as a bar slot, so an empty stretch still reads as a bar. */
+.hh-gauge { position: relative; display: block; height: 18px; background: var(--bg-1); box-shadow: inset 1px 1px 0 color-mix(in srgb, var(--world-shadow) 70%, transparent), inset -1px -1px 0 color-mix(in srgb, var(--hl) 12%, transparent); overflow: hidden; }
 .hh-gauge-fill { position: absolute; top: 0; left: 0; bottom: 0; width: 0; background: var(--ink-3); }
-.hh-gauge.is-hp .hh-gauge-fill { background: var(--red); }
+.hh-gauge.is-hp .hh-gauge-fill { background: var(--hud-fill-hp); }
 .hh-gauge.is-mana .hh-gauge-fill { background: var(--gem); }
-.hh-gauge.is-stamina .hh-gauge-fill { background: var(--green); }
-.hh-gauge.is-xp .hh-gauge-fill { background: var(--gold); }
-.hh-gauge-text { position: relative; display: block; padding: 0 6px; font-style: normal; font-size: var(--t-micro); line-height: 14px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hh-gauge.is-stamina .hh-gauge-fill { background: var(--hud-fill-stamina); }
+.hh-gauge.is-xp .hh-gauge-fill { background: var(--gold-3); }
+.hh-gauge-text { position: relative; display: block; padding: 0 6px; font-style: normal; font-size: var(--t-micro); line-height: 18px; font-weight: 700; color: var(--ink); paint-order: stroke fill; -webkit-text-stroke: 3px var(--bg-0); font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
 
 /* ── Top bar ── */
 .ht-bar { display: flex; align-items: center; gap: 8px; padding: 4px 6px 4px 10px; background: var(--world-hud-bg); border: 4px solid transparent; border-image: url('../../assets/ui/frame-iron-thin.png') 2 / 4px stretch; image-rendering: pixelated; }
-.ht-ground { font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--gold-2); }
-.ht-clock { font-variant-numeric: tabular-nums; color: var(--ink-2); font-size: var(--t-micro); }
+.ht-ground { font-family: var(--f-label); font-weight: 700; font-size: var(--t-small); letter-spacing: .04em; color: var(--gold-2); white-space: nowrap; }
+.ht-clock { font-variant-numeric: lining-nums tabular-nums; color: var(--ink-2); font-size: var(--t-micro); white-space: nowrap; padding-right: 4px; margin-right: 2px; border-right: 1px solid var(--line-soft); }
 .ht-bar .hh-intent-msg { max-width: 220px; }
 
 /* ── Party board ── */
@@ -89,7 +103,7 @@
 .hp-stats { display: none; grid-template-columns: auto 1fr auto 1fr; gap: 0 6px; margin: 2px 0 0; font-size: var(--t-micro); }
 .hp-party.is-expanded .hp-stats { display: grid; }
 .hp-stats dt { color: var(--ink-3); }
-.hp-stats dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+.hp-stats dd { margin: 0; font-weight: 700; font-variant-numeric: lining-nums tabular-nums; }
 .hp-foot { margin: 8px 0 0; padding-top: 6px; border-top: 1px solid var(--line-soft); font-size: var(--t-micro); color: var(--ink-3); }
 .hp-party.is-empty .hp-foot { display: none; }
 
@@ -106,10 +120,13 @@
 .ha-main { display: flex; flex-direction: column; min-height: 0; }
 .ha-clocks { display: flex; justify-content: space-around; margin-bottom: 6px; text-align: center; }
 .ha-clocks small { display: block; font-family: var(--f-label); font-size: var(--t-micro); color: var(--ink-3); letter-spacing: .04em; }
-.ha-clocks b { font-variant-numeric: tabular-nums; }
-.ha-tabs, .hc-tabs { display: flex; gap: 2px; margin-bottom: 6px; }
-.ha-tab { flex: 1; min-height: 30px; border: 1px solid var(--line-soft); border-radius: var(--r-sm); background: none; color: var(--ink-3); font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); cursor: pointer; }
-.ha-tab[aria-selected="true"] { color: var(--gold-2); border-color: var(--gold); }
+.ha-clocks b { font-variant-numeric: lining-nums tabular-nums; }
+.ha-tabs, .hc-tabs { display: flex; gap: 2px; margin-bottom: 6px; border-bottom: 1px solid var(--line-soft); }
+.ha-tab { flex: 1; min-height: 30px; margin-bottom: -1px; padding: 0 10px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--ink-3); font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; cursor: pointer; }
+.hc-tabs .ha-tab { flex: none; }
+.ha-tab:hover { color: var(--ink); }
+.ha-tab:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
+.ha-tab[aria-selected="true"] { color: var(--gold-2); border-bottom-color: var(--gold); }
 .ha-scroll { overflow: auto; min-height: 0; }
 .ha-sec { border-top: 1px solid var(--line-soft); }
 .ha-sec-head { margin: 0; }
@@ -123,14 +140,14 @@
 .ha-analyzer[data-tab="dealt"] .ha-sec:not([data-tab="dealt"]) { display: none; }
 .ha-stats { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; margin: 0 0 6px; }
 .ha-stats dt { color: var(--ink-2); }
-.ha-stats dd { margin: 0; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.ha-stats dd { margin: 0; font-weight: 700; text-align: right; font-variant-numeric: lining-nums tabular-nums; }
 .ha-stats dd.is-loss { color: var(--red); }
 .ha-list { margin: 0 0 6px; padding: 0; list-style: none; }
 .ha-line { display: flex; align-items: center; gap: 6px; min-height: 32px; }
 .ha-ico:empty { display: none; }
 .ha-name { flex: 1; min-width: 0; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ha-count { color: var(--ink-3); font-variant-numeric: tabular-nums; }
-.ha-val { font-weight: 700; font-variant-numeric: tabular-nums; }
+.ha-count { color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; }
+.ha-val { font-weight: 700; font-variant-numeric: lining-nums tabular-nums; }
 .ha-none { display: none; margin: 0 0 6px; color: var(--ink-3); }
 .ha-none.is-on { display: block; }
 
@@ -139,15 +156,22 @@
 .hb-vitals { width: 190px; display: flex; flex-direction: column; gap: 3px; }
 .hb-vital { display: flex; align-items: center; gap: 4px; }
 .hb-vital .hh-gauge { flex: 1; }
-.hb-regen { width: 26px; font-size: var(--t-micro); color: var(--green); font-variant-numeric: tabular-nums; }
+.hb-regen { width: 26px; font-size: var(--t-micro); color: var(--green); font-variant-numeric: lining-nums tabular-nums; }
 .hb-tablet { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(5, 40px); grid-auto-rows: 40px; gap: 3px; }
-.hb-slot { position: relative; display: grid; place-items: center; background: var(--bg-0); border: 1px solid var(--line-soft); }
-.hb-slot.is-empty { border-style: dashed; }
+/* A slot is a well cut into the plate: dark on its upper-left inner edge, lit
+   on its lower-right one (the light comes from the upper left, §2). Filled and
+   empty share the well; an empty one is only darker. */
+.hb-slot { position: relative; display: grid; place-items: center; cursor: pointer;
+  background: var(--bg-1);
+  box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--world-shadow) 70%, transparent), inset -1px -1px 0 color-mix(in srgb, var(--hl) 14%, transparent); }
+.hb-slot:hover { background: var(--bg-2); }
+.hb-slot:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 1px; }
+.hb-slot.is-empty { background: var(--bg-0); }
 .hb-slot.is-off .hb-slot-ico { opacity: .35; }
 .hb-slot.is-off::after { content: ''; position: absolute; left: 4px; right: 4px; top: 50%; height: 2px; background: var(--red); transform: rotate(-35deg); }
 .hb-slot-ico .hs-glyph { width: 22px; height: 22px; color: var(--ink-2); }
-.hb-slot small { position: absolute; font-size: var(--t-micro); font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; paint-order: stroke; -webkit-text-stroke: 3px var(--bg-0); }
-.hb-mana { top: 1px; left: 2px; color: var(--gem); }
+.hb-slot small { position: absolute; font-size: var(--t-micro); font-weight: 700; line-height: 1; font-variant-numeric: lining-nums tabular-nums; paint-order: stroke; -webkit-text-stroke: 3px var(--bg-0); }
+.hb-mana { top: 1px; left: 2px; color: var(--hud-mana-ink); }
 .hb-count { top: 1px; right: 2px; color: var(--ink); }
 .hb-thr { bottom: 1px; right: 2px; color: var(--gold-2); }
 .hb-emblem { position: relative; width: 64px; height: 64px; flex: none; display: grid; place-items: center; border-radius: 50%; background: var(--bg-1); border: 3px solid var(--gold); color: var(--gold); }
@@ -175,8 +199,8 @@
 .hx-bar { margin-top: 10px; }
 .hx-slots { margin: 0; padding: 0; list-style: none; }
 .hx-row { display: flex; align-items: center; gap: 6px; min-height: 36px; border-top: 1px solid var(--line-soft); }
-.hx-row .hh-seg { min-width: 30px; padding: 0 6px; }
-.hx-n { width: 22px; flex: none; text-align: right; font-weight: 700; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.hx-row .hh-seg { min-width: 30px; padding: 0 6px; background: none; box-shadow: none; color: var(--ink-3); }
+.hx-n { width: 22px; flex: none; text-align: right; font-weight: 700; color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; }
 .hx-sum { flex: 1; min-width: 0; font-size: var(--t-micro); color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hx-row.is-empty .hx-sum { color: var(--ink-3); }
 .hx-row.is-folded { display: none; }
@@ -195,7 +219,8 @@
 .hx-then { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .hx-more summary { cursor: pointer; font-size: var(--t-micro); color: var(--ink-3); }
 .hx-actions { display: flex; gap: 6px; flex-wrap: wrap; }
-.hh-tool.is-primary { color: var(--gold-2); border-color: var(--gold); }
+.hh-tool.is-primary { padding: 0 14px; background: var(--gold); color: var(--bg-0); }
+.hh-tool.is-primary:hover:not(:disabled) { background: var(--gold-2); color: var(--bg-0); }
 
 /* ── Chat: the Combat tab ── */
 .hc-chat { display: flex; flex-direction: column; min-height: 260px; }
@@ -238,4 +263,10 @@
   .he-row { min-height: 52px; }
   .he-editor .hh-seg, .he-editor .hh-select, .he-editor .hh-num { min-height: 44px; }
   .ht-bar { gap: 6px; padding: 2px 4px; }
+  /* The side sheet halves the stage: the top bar (anchored right) would run
+     under the party board, so it drops the ground's name and keeps the clock
+     and its two commands. The sheet's own world is the name. */
+  .app:has(.hs-win:not(.is-leaving)) .ht-ground { display: none; }
+  .ht-bar .hh-tool { padding: 0 8px; }
+  .ht-bar { width: fit-content; margin-left: auto; }
 }

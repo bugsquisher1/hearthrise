@@ -41,7 +41,11 @@ if (SQL.indexOf(SELF) < 0) { console.error('harness: no §4 marker'); process.ex
     makes it another name (the b569 party UI branches on that code). */
 export function tableReads(src) {
   const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:\\])\/\/.*$/gm, '$1');
-  return [...code.matchAll(/(?<![A-Za-z0-9_])party_hunt(?![a-z_])/g)].map((m) => code.slice(Math.max(0, m.index - 30), m.index + 20));
+  /* Real read SHAPES only: .from('party_hunt'), /rest/v1/party_hunt, and SQL
+     from/join/update/into [public.]party_hunt. A bare word (an object key in a
+     refusal-code -> message map) is not a read. */
+  const SHAPE = /\.from\(\s*['"`]party_hunt['"`]\s*\)|\/rest\/v1\/party_hunt(?![A-Za-z0-9_])|\b(?:from|join|update|into)\s+(?:public\.)?party_hunt(?![A-Za-z0-9_])/gi;
+  return [...code.matchAll(SHAPE)].map((m) => code.slice(Math.max(0, m.index - 30), m.index + 20));
 }
 async function walk(dir, out = []) {
   for (const e of await readdir(dir, { withFileTypes: true })) {
@@ -107,8 +111,8 @@ const MUTANTS = [
     src: "const r = await sql`select stopped_by from public.party_hunt where id = ${id}`;\n" },
 ];
 /* The scanner's negative control: the refusal CODE is not a table read. */
-if (tableReads("if (code === 'no_party_hunt') refresh();\n").length) {
-  console.error('harness: tableReads flags the refusal code no_party_hunt as a table read'); process.exit(2);
+if (tableReads("if (code === 'no_party_hunt') refresh();\nconst W = { party_hunt: 'A party hunts one ground.' };\n").length) {
+  console.error('harness: tableReads flags the refusal code or a string-only word-map key as a table read'); process.exit(2);
 }
 console.log('\nparty-hunt-select-lockdown --mutate: every mutant must go RED on its named arm');
 const control = await tryApply(db, SQL);

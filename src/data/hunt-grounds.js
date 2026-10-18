@@ -30,6 +30,18 @@
 // Coordinates are the world maps' tiles (src/data/world/maps/*.js); every spawn
 // and seat stands on open floor there (tests/hunt-core/sewer.mjs).
 //
+// THE SEWER'S CREATURES (monsters.js, `formation: true`). Names come from the work
+// done down there: the Drain Rat, the Sump Slime, the Culvert Bat (roosts over the
+// channel, fast enough to reach the backline), the Cistern Spider (the elite pocket's
+// anchor), the Kobold Tosher (picks the outfalls for scrap) and the Rat King (a knot
+// of rats under a crown hammered from drain grates). hp/atk/def/xp/speed are the hunt
+// sim's measured rows (prototypes/hunt-sim/BALANCE_RULINGS.md, rounds 1-2 and the
+// 10-16 party test). ECONOMY (Tyler 2026-10-14: coin + common drops pay the supplies,
+// the rares are the profit): coin and drop chances put a full party's coin + commons
+// within ~6% of its measured supply bill at the ruled prices, and the rares (the Crown
+// Shard first) add ~19% (tests/hunt-core/sewer.mjs --report). The coin is final in the
+// rows: no engine multiplies it again (parity DM-16).
+//
 // PARTY SCALING (BALANCE_RULINGS 2026-10-16, the party-size test): a fixed pack
 // is trivial for four heroes and lethal at the boss for one, so a pack's HP is
 // scaled by its instance's party size, `packScalePermille` below. A solo Healer

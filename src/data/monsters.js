@@ -659,52 +659,29 @@ export const MONSTERS = {
     drops: [{ id: 'troll_hide', ch: 1 }, { id: 'big_bones', ch: 1 }, { id: 'mithril_ore', ch: .5 }, { id: 'frostfin', ch: .5 },
       { id: 'jarls_rimetorc', ch: .0048, champion: true }] },
 
-  /* ══ The Millrace Sewer — the first party hunting ground ══════════════
-     NAMING VOICE: the sewer is the mill race run underground, and its names
-     come from the work done down there: the drain, the culvert, the sump, the
-     cistern, and the toshers who scavenge the outfalls. No creature here is
-     named for a mood.
-     FORMATION ROWS (`formation: true`): tuned for a party of up to four in the
-     hunt engine (src/core/hunt/*), not for the single-hero idle tick, so they
-     are checked against FORMATION_BANDS (monster-classes.js), never the idle
-     TIER_BANDS. hp/atk/def/xp/speed are the hunt-sim's measured rows
-     (prototypes/hunt-sim/BALANCE_RULINGS.md, rounds 1-2 and the 10-16 party
-     test). ECONOMY (Tyler 2026-10-14: coin + common drops pay the supplies,
-     the rares are the profit): gp and the drop chances are set so a full
-     party's coin + commons land within ~5% of its measured supply bill at the
-     ruled prices, and the rares add ~20% (tests/hunt-core/sewer.mjs --report).
-     The coin is final HERE: no engine multiplies it again (parity DM-16).
-     Every footprint is one tile
-     (spec §3.1 #3). The pockets they stand in: src/data/hunt-grounds.js. */
+  /* ══ The Millrace Sewer: FORMATION rows (a party of up to four, FORMATION_BANDS).
+     Numbers, names and economy: the src/data/hunt-grounds.js header. ══════════ */
   drain_rat: { name: 'Drain Rat', icon: '🐀', tier: 1, cls: 'vermin', family: 'Vermin', formation: true,
-    /* the sewer's commonest mouth: it lives through the opening burst, so the
-       formation forms before the first kill. */
     hp: 45, atk: 5, def: 0, xp: 24, gp: [1, 4], speed: 3400,
     drops: [{ id: 'rat_tail', ch: .7 }, { id: 'bones', ch: .35 }, { id: 'small_fang', ch: .06 }] },
   sump_slime: { name: 'Sump Slime', icon: '🟢', tier: 1, cls: 'vermin', family: 'Vermin', formation: true,
-    /* one override (element): what pools in the sump shrugs off every element,
-       so the pocket rewards a plain blade or bolt. */
+    /* one override (element): the sump shrugs off every element. */
     elementWeak: null, elementImmune: ['ember', 'frost', 'poison'],
     hp: 50, atk: 4, def: 0, xp: 22, gp: [1, 3], speed: 2400,
     drops: [{ id: 'slime_gel', ch: .8 }, { id: 'bones', ch: .25 }, { id: 'sticky_core', ch: .02 }] },
   culvert_bat: { name: 'Culvert Bat', icon: '🦇', tier: 1, cls: 'vermin', family: 'Vermin', formation: true,
-    /* roosts in the culvert mouths over the channel; fast enough to reach the backline. */
     hp: 70, atk: 9, def: 1, xp: 45, gp: [3, 9], speed: 4400,
     drops: [{ id: 'bat_wing', ch: .5 }, { id: 'bones', ch: .5 }, { id: 'night_fang', ch: .025 }] },
   cistern_spider: { name: 'Cistern Spider', icon: '🕷️', tier: 1, cls: 'vermin', family: 'Vermin', formation: true,
-    /* one override (element): it is venomous, so poison is a resist, not an
-       immunity. It anchors the toughest pocket of the loop. */
+    /* one override (element): venomous, so poison is a resist, not an immunity. */
     elementResist: ['poison'], elementImmune: [],
     hp: 90, atk: 13, def: 6, xp: 110, gp: [10, 26], speed: 3600,
     drops: [{ id: 'silk_thread', ch: .2 }, { id: 'venom_sac', ch: .1 }, { id: 'spider_eye', ch: .035 }] },
   kobold_tosher: { name: 'Kobold Tosher', icon: '🦎', tier: 1, cls: 'humanoid', family: 'Humanoid', formation: true,
-    /* kobolds who pick the outfalls for scrap metal; they carry what they find. */
     hp: 55, atk: 7, def: 1, xp: 30, gp: [2, 6], speed: 3200,
     drops: [{ id: 'bones', ch: 1 }, { id: 'bone_chips', ch: .3 }, { id: 'copper_ore', ch: .18 }] },
   rat_king: { name: 'Rat King', icon: '👑', tier: 1, cls: 'vermin', family: 'Vermin', formation: true, boss: true,
-    /* one override (element): a knot of rats under a crown hammered from drain
-       grates. Fire glances off the knot (resist), poison is nothing to it (the
-       class's immunity), frost is the answer: the exam on the sewer's lesson. */
+    /* one override (element): fire glances off the knot; frost is the exam's answer. */
     elementResist: ['ember'],
     hp: 600, atk: 20, def: 4, xp: 600, gp: [30, 60], speed: 2800,
     drops: [{ id: 'rat_tail', ch: 1 }, { id: 'bones', ch: 1 }, { id: 'crown_shard', ch: .15 }] },

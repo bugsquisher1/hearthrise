@@ -1313,7 +1313,14 @@ async function run(mutate) {
   //         hr_apply's hr_items lookup — and only one of them may ever be live.
   {
     const { ITEMS } = await import('../src/data/items.js');
-    const rows = (await db.query('select item_id from public.hr_items')).rows.map((r) => r.item_id);
+    /* PRODUCTION'S hr_items is the FORWARD catalogue's delete+insert (gen-catalogues OUT),
+       not the frozen 08-11 root this slice boots; its rows are loaded into a temp copy. */
+    const fwd = await readFile(join(ROOT, 'supabase', 'migrations', '2026-10-23-demolition-catalogue.generated.sql'), 'utf8');
+    const at = fwd.indexOf('insert into public.hr_items ');
+    const stmt = at < 0 ? '' : fwd.slice(at, fwd.indexOf(';\n', at) + 1);
+    await db.exec('create temp table g16_items (like public.hr_items including defaults)');
+    if (stmt) await db.exec(stmt.replace('insert into public.hr_items ', 'insert into pg_temp.g16_items '));
+    const rows = (await db.query('select item_id from pg_temp.g16_items')).rows.map((r) => r.item_id);
     const known = new Set(rows);
     ok(rows.length > 100, `G16-CONTROL: hr_items holds ${rows.length} rows — the catalogue is not the generated one`);
     const missing = Object.keys(ITEMS).filter((id) => !known.has(id)).slice(0, 5);

@@ -48,7 +48,7 @@ import { huntOf } from '../session/hunt-sections.js?v=0.1.0';
 import { createWalkScene } from './walk-scene.js?v=0.1.0';
 import { homeMapFor } from './home-scene.js?v=0.1.0';
 import { runAction } from './steer-local.js?v=0.1.0';
-import { heroSprite } from './hero-look.js?v=0.1.0';
+import { heroSprite } from '../session/hero-look.js?v=0.1.0';
 
 /* THE KEYS (desktop): WASD and the arrows, by physical key (e.code, so a
    non-QWERTY layout walks with the same hand). Two held at once walk the

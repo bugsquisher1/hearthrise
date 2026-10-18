@@ -42,7 +42,7 @@ const onPixel = (v) => Math.round(v * T) / T;
  * @param {object} map  compileMap() output (kind 'town' or 'home')
  * @param {{at?: [number, number]|null, sprites: object, openClasses: string[], maps: object, heroSprite?: () => string}} o
  *   at: where the hero stood last on this map; maps: map rows by id (exits);
- *   heroSprite: the hero's outfit sprite id (src/world/hero-look.js), read every frame
+ *   heroSprite: the hero's outfit sprite id (src/session/hero-look.js), read every frame
  */
 export function createWalkScene(map, o) {
   const steer = createSteer(map, o.at || map.start);

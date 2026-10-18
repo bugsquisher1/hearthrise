@@ -24,7 +24,7 @@
 // an atlas cannot be hand-edited past the pipeline (tools/world-art/build.mjs).
 //
 // The content contract the world renderer builds against is pinned too: the hunt
-// outfits (the hero everywhere, src/world/hero-look.js), the Rat King and every
+// outfits (the hero everywhere, src/session/hero-look.js), the Rat King and every
 // monster of the two hunting grounds idle and walk in all eight facings; the town
 // has its stations, its crier and its two buildings, the house one piece per room,
 // and each reachable map its painted ground.
@@ -116,7 +116,7 @@ const REQUIRED = {
   workbench: { set: 'cottage', class: 'station', anims: ['idle'], dirs: PROP },
   altar: { set: 'cottage', class: 'fixture', anims: ['idle'], dirs: PROP },
   bed: { set: 'cottage', class: 'bed', anims: ['idle'], dirs: PROP },
-  // the live hunt (src/hunt-view/scene.js) and every walked map's hero (src/world/hero-look.js):
+  // the live hunt (src/hunt-view/scene.js) and every walked map's hero (src/session/hero-look.js):
   // every outfit and the Rat King walk in all eight facings
   ...Object.fromEntries(['outfit_knight', 'outfit_berserker', 'outfit_brute', 'outfit_ranger', 'outfit_sorcerer', 'outfit_witch', 'outfit_dawnward', 'outfit_druid']
     .map((id) => [id, { set: 'hunt', class: 'character', anims: ['idle', 'walk'], dirs: FACINGS }])),

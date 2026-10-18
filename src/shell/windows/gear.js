@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/shell/windows/gear.js — THE GEAR: A PAPER DOLL (WORLD_SHELL §4, ART_DIRECTION §8, §12).
 //
-// The hero's own world sprite (its style-1 hunt outfit, src/world/hero-look.js: the same
+// The hero's own world sprite (its style-1 hunt outfit, src/session/hero-look.js: the same
 // look as in town and in a hunt) at the one pixel density (×2) on a plinth, the
 // worn slots around it in body order (the left column head to legs, the right
 // ears to feet, the hands and rings below), each framed in its piece's rarity.
@@ -18,7 +18,7 @@ import { ITEMS } from '../../data/items.js?v=0.1.0';
 import { EQUIP_SLOT_META, expandItemSlot } from '../../data/gathering.js?v=0.1.0';
 import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.1.0';
 import { atlasPaths } from '../../data/world/art-budget.js?v=0.1.0';
-import { heroSprite } from '../../world/hero-look.js?v=0.1.0';
+import { heroSprite } from '../../session/hero-look.js?v=0.1.0';
 import { equipmentOf, bagOf, skillsOf, roleOf, shopOf } from '../../session/item-sections.js?v=0.1.0';
 import { partyOf } from '../../session/hunt-sections.js?v=0.1.0';
 import { rows, text, cls, attr, prop, style, element } from '../../render/paint.js?v=0.1.0';

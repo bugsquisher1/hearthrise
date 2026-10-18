@@ -97,7 +97,7 @@ function check(M) {
   };
   const wide = { w: 60 * T, h: 40 * T };
   const at = (list, pred) => list.findIndex(pred);
-  /* the hero is drawn in its style-1 outfit; the knight's when the state names none (src/world/hero-look.js) */
+  /* the hero is drawn in its style-1 outfit; the knight's when the state names none (src/session/hero-look.js) */
   const HERO = 'outfit_knight';
   const heroIdx = (f) => at(f.sprites, (s) => s.id === HERO);
   const firstAt = (f, pred) => at(f.sprites, pred);

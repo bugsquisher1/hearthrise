@@ -225,7 +225,7 @@ export function composeFrame(map, book, state, view, tables, T) {
   /* The tile a tap sent the hero to, while it walks there. */
   const mark = state.mark ? { x: (state.mark.x + 0.5) * T, y: (state.mark.y + 1) * T - 7 } : null;
   if (hero) {
-    /* The hero is drawn in its style-1 outfit (src/world/hero-look.js); the knight's when none is named. */
+    /* The hero is drawn in its style-1 outfit (src/session/hero-look.js); the knight's when none is named. */
     const h = unit(Object.assign({ id: OUTFITS.knight, anim: 'idle', dir: 's' }, hero, {
       plate: hero.plate || (state.name ? { text: state.name, kind: 'self' } : null) }), true);
     if (map.light === 'cellar') points.push({ x: h.cx, y: h.foot - 18, r: HERO_LIGHT_TILES * T, tint: 'hero' });

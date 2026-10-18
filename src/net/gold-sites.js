@@ -462,11 +462,11 @@ export const GOLD_SITE_LEDGER = Object.freeze({
   /* H1/H5 (2026-10-17): resolveKill moved out of src/core/combat-sim.js into the
      world hunt's swing; it and the per-hero tally live in src/core/hunt/** —
      the same shared engine, vendored into hr-accrue. */
-  'src/core/hunt/world-step.js#resolveKill': {
+  'src/core/hunt-rewards.js#payKill': {
     kind: 'server', status: 'none',
-    why: 'THE SHARED SIMULATION, world-hunt half. src/core/hunt/world-step.js is vendored into '
-      + 'the Edge Function and prices a world kill on the SERVER; the settle re-bounds it '
-      + '(hr_hunt_apply value bound). It is the code that already moved.',
+    why: 'THE SHARED SIMULATION, the payer of a hunt instance kill (lane S1). src/core/hunt-rewards.js is '
+      + 'vendored into the Edge Function and splits each kill\'s gold on the SERVER; the settle re-bounds it '
+      + '(hr_hunt_apply_member value bound). It is the code that already moved.',
   },
   'src/core/hunt/tally.js#tallyEvents': {
     kind: 'server', status: 'none',

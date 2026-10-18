@@ -30,6 +30,8 @@
 //         corpse sorted beneath the standing, HP bars only when not full
 //   SC-7  FLOAT TOGGLES: the bleed badge shows over a boss and not over a
 //         regular monster by default; a hidden float type never shows
+//   SC-8  BOUNDED: a unit the pose stops listing is forgotten once its corpse
+//         time has passed, so a long hunt's frame does not grow with its kills
 // ════════════════════════════════════════════════════════════════════════
 import { mkdtempSync, cpSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -256,6 +258,24 @@ async function rules(M) {
     ok('SC-6', late.floats.some((x) => x.kind === 'xp' && x.text === '+3 XP' && x.big), 'the viewed hero\'s share of the kill floats big: ' + JSON.stringify(late.floats));
   }
 
+  { // SC-8: bounded over a long hunt
+    const clock = { t: C0 };
+    const first = envelope(7, S0);
+    const later = envelope(8, S0 + 60000);
+    later.hunt.pose.at_ms = S0 + 60000;
+    later.hunt.pose.units = later.hunt.pose.units.filter((p) => p.u !== 101);
+    const cs = session(M, clock, [first, later]);
+    await cs.load();
+    const v = viewer(M, cs);
+    v.at(at(S0 + 500));
+    const before = cs.timeline.units().includes(101);
+    clock.t = C0 + 60000;
+    await cs.load();
+    const f = v.at(at(S0 + 60000));
+    ok('SC-8', before && !cs.timeline.units().includes(101) && !f.units.some((d) => d.unit === 101) && cs.timeline.units().includes(103),
+      'a unit gone from the pose must be forgotten after its corpse time: ' + JSON.stringify(cs.timeline.units()));
+  }
+
   { // SC-7: a hidden type never shows
     const clock = { t: C0 };
     const body = envelope(7, S0);
@@ -282,6 +302,7 @@ const MUTANTS = [
   ['a corpse stands among the living', 'src/world/core/compose.js', "bias: u.under ? -UNDER : 0,", 'bias: 0,'],
   ['the bleed badge ignores the toggle', 'src/hunt-view/scene.js', "(hero || read.shown('bleed_badge', isBoss(u)))", '(true)'],
   ['a float ignores its toggle', 'src/hunt-view/scene.js', '    if (!read.shown(type, isBoss(u))) return;\n', ''],
+  ['a gone unit is kept for ever', 'src/hunt-view/timeline.js', 'if (!listed.has(u) && a[a.length - 1].atMs < pose.at_ms - cfg.forgetMs) steps.delete(u);', ''],
   ['bars from the events, not the snapshot', 'src/hunt-view/scene.js', 'const hp = hero ? m && m.hp : (read.units.get(u) || {}).hp;', 'const hp = 1;'],
 ];
 

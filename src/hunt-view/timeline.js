@@ -22,14 +22,16 @@
 //   T4 a snapshot pose that disagrees with where the timeline left a unit adds
 //      ONE walking step toward it (reconcile gently); it never teleports a unit
 //      that is mid-step and never rewrites a step already played.
-//   T5 bounded: at most `maxSteps` per unit and `maxEvents` remembered ids.
+//   T5 bounded: at most `maxSteps` per unit and `maxEvents` remembered ids, and
+//      a unit the snapshot's pose no longer lists is forgotten once its last step
+//      is `forgetMs` behind the pose (a corpse has lain; a respawn is a new id).
 //
 // Rendering, simulation and persistence run on independent clocks: the caller
 // asks positionAt()/advance() with its own frame clock; the server ticks at its
 // own cadence; nothing here waits on the 10 s world tick.
 // ════════════════════════════════════════════════════════════════════════
 
-const DEFAULTS = Object.freeze({ delayMs: 600, tileMs: 312, skew: 0.1, maxSteps: 64, maxEvents: 4096 });
+const DEFAULTS = Object.freeze({ delayMs: 600, tileMs: 312, skew: 0.1, maxSteps: 64, maxEvents: 4096, forgetMs: 15000 });
 
 const isInt = (v) => Number.isSafeInteger(v);
 
@@ -148,6 +150,8 @@ export function createTimeline(o) {
   function reconcile(pose) {
     if (!pose || !isInt(pose.at_ms) || !Array.isArray(pose.units)) return 0;
     let n = 0;
+    const listed = new Set(pose.units.map((p) => p && p.u));
+    for (const [u, a] of steps) if (!listed.has(u) && a[a.length - 1].atMs < pose.at_ms - cfg.forgetMs) steps.delete(u);
     for (const p of pose.units) {
       if (!p || ![p.u, p.x, p.y].every(isInt)) continue;
       const a = steps.get(p.u);

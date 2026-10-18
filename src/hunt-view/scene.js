@@ -34,7 +34,7 @@ export const SCENE_TIMING = Object.freeze({
   floatMs: 1000,        // a floating number's life
   faceMs: 700,          // a standing attacker faces its target this long after a swing
 });
-const MAX_FX = 96, MAX_FLOATS = 64, MAX_KEYS = 4096;
+const MAX_FX = 96, MAX_FLOATS = 64, MAX_KEYS = 4096, PRUNE_AT = 512;
 /* FX-01: a target's numbers cycle through four offsets so a burst never stacks into one;
    an ability's name sits above them (FX-03) and the big numbers higher still (FX-02). */
 const OFFSETS = Object.freeze([[0, 0], [7, -4], [-7, -4], [0, -9]]);
@@ -254,7 +254,13 @@ export function createHuntScene(o) {
     read = fresh();
     let hero = null;
     const units = [];
-    for (const u of tl.units()) {
+    const ids = tl.units();
+    /* S4: per-unit state never outlives the unit's track (a long hunt respawns thousands). */
+    if (flash.size + dead.size + swing.size + bleed.size + cycle.size + target.size > PRUNE_AT) {
+      const live = new Set(ids);
+      for (const m of [flash, dead, swing, bleed, cycle, target]) for (const k of m.keys()) if (!live.has(k)) m.delete(k);
+    }
+    for (const u of ids) {
       const d = unitAt(u, now);
       if (!d) continue;
       if (u === read.viewed) hero = d;

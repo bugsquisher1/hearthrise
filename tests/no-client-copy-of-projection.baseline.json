@@ -16,12 +16,18 @@
       "farm",
       "gem_unlocks",
       "hero_slots",
+      "hunt",
+      "hunt_analyzer",
+      "hunt_settings",
       "inventory",
       "inventory_complete",
+      "login",
       "must_rename",
       "now",
       "ok",
+      "party",
       "place",
+      "premium",
       "progress",
       "progress_truncated",
       "renown_high",
@@ -67,5 +73,5 @@
       "workers_accrued_to"
     ]
   },
-  "generatedAt": "2026-10-15"
+  "generatedAt": "2026-10-18"
 }

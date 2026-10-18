@@ -86,6 +86,16 @@ const TOP = {
   now:                 { kind: 'meta', why: 'the server clock; the client clock is never authority' },
   place:               { kind: 'reconciled', client: [], reader: ['src/net/town.js', 'res.place'], why: 'town presence, read straight off the envelope' },
   progress:            { kind: 'reconciled', client: [], reader: ['src/net/accrue.js', 'reconcileEventCounters'], why: 'player_progress rows → the goal/daily counters' },
+  /* LANE S1 (2026-10-23-*): the X7 state sections. NO client field holds any of
+     them yet — the readers are the client rebuild's (week plan), owed with it —
+     so there is no copy to drift; each is server-only until a reader is mapped
+     here as `reconciled`. */
+  hunt:                { kind: 'meta', why: 'S1: the hunt section (session, instance pose, bag, tally); no client reader yet — owed by the client rebuild' },
+  hunt_settings:       { kind: 'meta', why: 'S1: per-hero options and bar; no client reader yet — owed by the client rebuild' },
+  hunt_analyzer:       { kind: 'meta', why: 'S1: the premium analyzer; no client reader yet — owed by the client rebuild' },
+  party:               { kind: 'meta', why: 'S1: the hunt party seats; no client reader yet — owed by the client rebuild' },
+  premium:             { kind: 'meta', why: 'S1: the character\'s premium window; no client reader yet — nothing client-side gates on it' },
+  login:               { kind: 'meta', why: 'S1: the premium login streak and today\'s claim; no client reader yet — the claim is hr_login_claim\'s alone' },
   stamina:             { kind: 'reconciled', client: ['_stamina'], reader: ['src/net/accrue.js', 'hydrateHunt'], why: 'THE HUNT STAMINA POOL (2026-10-22-hunt-sessions-settle.sql §4c): scratch, replaced by every envelope; the server gates hr_hunt_enter itself' },
   must_rename:         { kind: 'reconciled', client: [], reader: ['src/features/identity.js', 'noteEnvelope'], why: 'the moderator\'s flag (2026-10-11-name-moderation.sql); REPLACED by every envelope that carries it, held only in identity.js\'s closure, never in G or the residue — it opens the non-dismissable rename sheet' },
   progress_truncated:  { kind: 'meta', why: 'the 1000-row cap flag for `progress`' },

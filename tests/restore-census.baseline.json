@@ -33,7 +33,7 @@
   "Classifications are AUTHORED, never generated — deciding what a restore owes",
   "a table is a judgement, and --write preserves whatever is already here."
  ],
- "generated": "2026-10-17",
+ "generated": "2026-10-18",
  "production": {
   "measured": "2026-08-30",
   "project": "nezapsylztqbbwuwembx (hearthrise-testing, Postgres 17.6, us-west-2, Micro compute)",
@@ -520,7 +520,9 @@
   "hunt_bag",
   "hunt_session_tally",
   "hunt_session_events",
-  "player_action_sets"
+  "player_action_sets",
+  "hunt_parties",
+  "hunt_party_members"
  ],
  "_player_value_tables_why": [
   "THE CLASS OF THESE IS NOT NEGOTIABLE: restore_only, always. They hold a",
@@ -748,7 +750,7 @@
   },
   "hr_client_rpc_baseline": {
    "class": "seeded",
-   "replay": 98,
+   "replay": 103,
    "note": "The approved client-callable RPC list: 51 rows on 2026-08-15, 72 on 2026-08-30, 73 since 2026-09-08-hero-slot-buy.sql §9 registered hr_buy_hero_slot(p_slot_id integer, p_slot integer, p_idem uuid) for `authenticated` with a delete-then-insert, so a re-apply cannot double it; production measured at 73 rows carrying that exact row on 2026-09-04. 74 IN THE REPLAY SINCE 2026-09-06-recovering-until.sql §5b registered hr_rest(p_slot integer, p_intent_id uuid) for `authenticated` — the Recovery Rule's food-for-a-knockout relief valve, granted in §5 of the same file and deliberately revoked from hr_engine. STAGED, NOT APPLIED: this row is a REPLAY-ONLY count today and production is expected to stay one lower until the Coordinator applies that migration, at which point the two converge with no further re-baseline. §5b derives identity_args from pg_proc via to_regprocedure (a retyped signature silences nothing, because check (2) joins on it) and deletes any row bearing a stale signature first, so a re-apply can neither double the row nor leave an approval for a shape that no longer exists. hr_assert_grant_hygiene check (2) raises on any grant not recorded here, nightly on cron. A rebuild that seeded a different set would make that detector wrong in both directions — silently permitting an unreviewed grant, or crying about a reviewed one. 77 IN THE REPLAY SINCE 2026-09-13-town-presence.sql §12 registered the three Week-1 live-system verbs for `authenticated` — hr_heartbeat(p_slot integer), hr_set_presence_quiet(p_slot integer, p_quiet boolean) and hr_town_of(p_zone text) — with the same delete-then-insert, so a re-apply cannot double them. APPLIED 2026-09-13 (town-presence): production and replay converged at 77. 78 IN THE REPLAY SINCE 2026-09-13-world-finds-projection.sql §5 registered hr_world_finds_of(p_limit integer) for `authenticated` — the projected Hearthfind board, which closes the named pre-launch P2 by minting the finder's display name server-side (NULL for a presence_quiet finder) so that world_finds.user_id could be revoked from anon and authenticated — with the same delete-then-insert keyed on (proname, grantee), so a re-apply can neither double the row nor leave an approval for a shape that no longer exists. APPLIED 2026-09-13 08:14 UTC (world-finds-projection): production and replay converged at 78. This row is the APPROVAL for the grant, in the same migration as the grant: hr_assert_grant_hygiene check (2) raises nightly on any client-executable function this table does not list, so a rebuild that seeded a different set would make that detector wrong in both directions — silently permitting an unreviewed grant, or crying about a reviewed one. 80 IN THE REPLAY SINCE 2026-09-14-gem-unlock-buy.sql section 6b and 2026-09-14-recipe-learn.sql section 4d registered hr_buy_gem_unlock(p_unlock_id text, p_slot integer, p_idem uuid) and hr_recipe_learn(p_item text, p_slot integer, p_idem uuid) for `authenticated`, each with the same delete-then-insert keyed on (proname, grantee), so a re-apply can neither double a row nor leave an approval for a shape that no longer exists. STAGED, NOT APPLIED: both rows are REPLAY-ONLY today and production is expected to stay at 78 until the Coordinator applies the two migrations, at which point the counts converge with no further re-baseline. This entry was updated BY HAND rather than with --write, deliberately: --write would also re-pin every other table's row count from this branch's replay, which is not this lane's to certify. 87 since 2026-09-23-m8-parties-s1-3-client-surface.sql registered the six client-callable M8 slice-1 party functions (hr_party_view + the five membership verbs) for `authenticated`, also with a delete-then-insert so a re-apply converges rather than skipping a row whose argued claim has since been rewritten. 89 since 2026-09-24-m8-parties-s4-3-client-surface.sql registered the two M8 slice-4 hunt verbs — hr_party_hunt_start(p_slot integer, p_active_id text, p_stance text, p_stop jsonb, p_idem uuid) and hr_party_hunt_stop(p_slot integer, p_idem uuid) — for `authenticated`, with the same delete-then-insert, and that file's §3(a) asserts each row's identity_args EQUALS the installed pg_get_function_arguments, so a retyped signature is red at apply time rather than an approval for a shape nobody granted. STAGED, NOT APPLIED: both rows are REPLAY-ONLY today and production is expected to stay at 87 until the Coordinator applies the S4 three, at which point the counts converge with no further re-baseline. 90 IN THE REPLAY SINCE 2026-10-15-party-hunt-view.sql §6 registered hr_party_hunt_view(p_slot integer) for authenticated (Game Designer A1, the member-only read of the party hunt) and rewrote the hr_party_view row's note (A2: share_bp/xp/gold retired), both delete-then-insert keyed on (proname, grantee) with identity_args derived from pg_get_function_identity_arguments. STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. Updated BY HAND, not --write, for the reason above. 91 IN THE REPLAY SINCE 2026-10-18-discord-gift.sql §7 registered hr_claim_discord_gift(p_slot integer, p_code text) for authenticated (delete-then-insert keyed on (proname, grantee)). STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. Updated BY HAND. 98 IN THE REPLAY SINCE 2026-10-22-hunt-sessions-drop-away.sql §3 dropped hr_set_auto_eat and hr_credit_kills and deleted their two `authenticated` rows (hunt sessions retire auto-eat and the attended kill credit; ruling HR-2026-10-14 §3). STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it."
   },
   "hr_client_write_baseline": {
@@ -862,6 +864,11 @@
    "replay": 4,
    "note": "The hero-slot PRICE LADDER — four authored rows (slot_id 1..4 = the 2nd..5th character; 200/500/900/1500 gems; premium_waived on 1..3 only), refilled wholesale by 2026-09-08-hero-slot-buy.sql §1 with `delete` then `insert`, so this file owns the whole table and a rebuild reproduces it byte-for-byte. NOT player value and deliberately NOT in player_value_tables: it carries no user_id and no per-player row — ownership of a bought slot lives in player_progress (kind='flag', period_key='', key='character_slot:<n>') and in player_state.slot, both already classified restore_only, and hr_hero_slots_of joins this catalogue to those rows. If it came back empty the loss is bounded and LOUD, not silent: hr_buy_hero_slot answers `unknown_slot` for every slot and hr_hero_slots_of grants nothing, so every account is capped at its free slot 0 until the catalogue is reseeded — the cap is data, by design (the migration's own header: 'the cap is data, not a constant somebody has to remember to move'). Nobody is overcharged and no entitlement is destroyed. Content additionally cross-guarded against src/multi-character.js SLOT_COSTS_GEMS and src/data/shops.js by tests/hero-slot-buy.mjs. Production measured 2026-09-04: 4 rows, byte-equal to the seed. Rebuilt from repo, never restored."
   },
+  "hr_hunt_abilities": {
+   "class": "seeded",
+   "replay": 14,
+   "note": "Generated catalogue (2026-10-23-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check from src/data): the hunt abilities (lane, cooldown, mana, rune / ammo cost) the bar check and the instance settle read. Rebuilt from repo, never restored; nothing player-owned."
+  },
   "hr_hunt_basic_supplies": {
    "class": "seeded",
    "replay": 17,
@@ -876,11 +883,6 @@
    "class": "seeded",
    "replay": 6,
    "note": "Hand-seeded by 2026-08-08-hunt.sql: the hunt boss definitions. Rebuilt from repo, never restored."
-  },
-  "hr_hunt_buff_types": {
-   "class": "seeded",
-   "replay": 7,
-   "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): the combat buff types a buff_left_s / buff_missing condition may name (src/data/supplies.js COMBAT_BUFF_TYPES). Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_config": {
    "class": "operator_tunable",
@@ -903,15 +905,20 @@
    "replay": 0,
    "note": "Generated catalogue (2026-10-22-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check): the sell-to-cover stock — junk-flagged items only, EMPTY today (cover is inert). Rebuilt from repo, never restored."
   },
-  "hr_hunt_default_preset": {
-   "class": "seeded",
-   "replay": 1,
-   "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): the action bar a character has before saving one (DEFAULT_PRESET: cheapest heal at HP <= 50%). Rebuilt from repo, never restored; nothing player-owned."
-  },
   "hr_hunt_end_reasons": {
    "class": "seeded",
    "replay": 9,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): END_ORDER (src/data/hunt-sessions.js): the reasons the settle applier may end a hunt with. Rebuilt from repo, never restored; nothing player-owned."
+  },
+  "hr_hunt_ground_spawns": {
+   "class": "seeded",
+   "replay": 0,
+   "note": "Generated catalogue (2026-10-23-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check from src/data): each ground's monsters and counts, the kill bound's spawn term. Rebuilt from repo, never restored; nothing player-owned."
+  },
+  "hr_hunt_grounds": {
+   "class": "seeded",
+   "replay": 0,
+   "note": "Generated catalogue (2026-10-23-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check from src/data): one row per hunt ground (pockets, spawns, respawn, seats) from src/data/hunt-grounds.js; empty until the content lane ships a ground, and every enter answers no_ground until then. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_kill_bounds": {
    "class": "seeded",
@@ -925,7 +932,7 @@
   },
   "hr_hunt_limits": {
    "class": "seeded",
-   "replay": 23,
+   "replay": 29,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): the session limits (presets, slots, conditions, bag lines, falls and hours ranges, cooldowns, vigour_low threshold, sessions kept). Every RPC reads them; a missing key fails the RPC closed. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_resumable_kinds": {
@@ -933,25 +940,10 @@
    "replay": 3,
    "note": "Generated catalogue (2026-10-22-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check): the activity kinds an automatic hunt end may resume (hunt-sessions.js RESUMABLE_KINDS). Rebuilt from repo, never restored."
   },
-  "hr_hunt_rule_subjects": {
-   "class": "seeded",
-   "replay": 6,
-   "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): the action-bar condition vocabulary and each value range (src/data/rule-subjects.js). hr_action_set_put refuses anything not listed. Rebuilt from repo, never restored; nothing player-owned."
-  },
   "hr_hunt_set_options": {
    "class": "seeded",
-   "replay": 5,
+   "replay": 11,
    "note": "Generated catalogue (2026-10-22-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check): the action-set option keys and their domains (hunt-sessions.js ACTION_SET_OPTIONS), read by hr_action_set_options. Rebuilt from repo, never restored."
-  },
-  "hr_hunt_slot_kinds": {
-   "class": "seeded",
-   "replay": 2,
-   "note": "Generated catalogue (2026-10-22-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check): what an action-bar slot may hold (rule-subjects.js SLOT_KINDS; spell reserved). Rebuilt from repo, never restored."
-  },
-  "hr_hunt_slot_targets": {
-   "class": "seeded",
-   "replay": 4,
-   "note": "Generated catalogue (2026-10-22-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check): the bar's named targets (*heal, *heal_shop, …; rule-subjects.js SLOT_TARGETS). Rebuilt from repo, never restored."
   },
   "hr_hunt_spawns": {
    "class": "seeded",
@@ -971,7 +963,7 @@
   },
   "hr_hunt_target_modes": {
    "class": "seeded",
-   "replay": 4,
+   "replay": 5,
    "note": "Generated catalogue (2026-10-22-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check): the action set's target modes (rule-subjects.js TARGET_MODES; follow is party-only). Rebuilt from repo, never restored."
   },
   "hr_hunt_tiers": {
@@ -988,6 +980,21 @@
    "class": "seeded",
    "replay": 460,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): the vendor bid per item (vendorPriceOf), read only by hr_hunt_analyzer for Gold-at-vendor-value and Waste. Moves no value. Rebuilt from repo, never restored; nothing player-owned."
+  },
+  "hr_hunt_weapon_roles": {
+   "class": "seeded",
+   "replay": 11,
+   "note": "Generated catalogue (2026-10-23-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check from src/data): weapon type -> role (src/data/hunt-roles.js WEAPON_ROLES). Rebuilt from repo, never restored; nothing player-owned."
+  },
+  "hr_hunt_weapons": {
+   "class": "seeded",
+   "replay": 48,
+   "note": "Generated catalogue (2026-10-23-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check from src/data): weapon item -> weapon type, the role a hero plays (hr_hunt_weapon_of). Rebuilt from repo, never restored; nothing player-owned."
+  },
+  "hr_hunt_world_shape": {
+   "class": "seeded",
+   "replay": 1,
+   "note": "Generated catalogue (2026-10-23-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check from src/data): the ONE world-state shape fingerprint (src/core/hunt/world-state.js) hr_hunt_apply_instance holds a stored world to. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunts": {
    "class": "seeded",
@@ -1065,6 +1072,11 @@
    "class": "seeded",
    "replay": 5,
    "note": "Generated farm catalogue (tools/gen-farm-catalogues.mjs --check): the farm plot tier ladder and its unlock costs. Rebuilt from repo, never restored."
+  },
+  "hr_premium_login_reward": {
+   "class": "seeded",
+   "replay": 1,
+   "note": "Generated catalogue (2026-10-23-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check from src/data): the premium daily login reward (src/data/premium.js); null item until the designer adds one. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_qm_offers": {
    "class": "seeded",
@@ -1147,6 +1159,11 @@
    "class": "seeded",
    "replay": 1,
    "note": "Generated from src/data/start-kit.js — the XP a fresh character starts each skill at. Rebuilt from repo, never restored."
+  },
+  "hr_state_sections": {
+   "class": "seeded",
+   "replay": 6,
+   "note": "The X7 state-section registry (2026-10-23-character-premium.sql and the S1 files): one row per hr_state_of section and its projector. Seeded by the migrations that register a section; rebuilt from repo, never restored."
   },
   "hr_tick_cohort": {
    "class": "operator_tunable",
@@ -1253,6 +1270,16 @@
    "class": "restore_only",
    "wiped_at_cutover": false,
    "note": "PLAYER VALUE (2026-10-22-hunt-sessions-settle.sql, architecture contracts S1). The spawn-cycle state of each hunting-ground instance — foes of the current pull still standing and when the next pull is due — one row per solo session (id = the session id) today, shared by a party's sessions later. An OPEN hunt's settle re-proves every window's kills against it, so a rebuild that returned it empty would leave open sessions with no instance (hr_hunt_apply answers no_instance) until they end. Written only by hr_hunt_apply (and the solo trigger at enter); RLS on, no policy, no client grant."
+  },
+  "hunt_parties": {
+   "class": "restore_only",
+   "wiped_at_cutover": false,
+   "note": "PLAYER STATE — one row per open hunt party (its hunt, leader, size). Written only by the hr_hunt_party_* verbs; RLS own-read, no client write. A rebuild that returned it empty disbands every party: membership only, no value (each member's hunt and bag are its own hunt_sessions row)."
+  },
+  "hunt_party_members": {
+   "class": "restore_only",
+   "wiped_at_cutover": false,
+   "note": "PLAYER STATE — one row per character in a party (seat, weapon type). Written only by the hr_hunt_party_* verbs; RLS own-read, no client write. Losing it leaves each member hunting its own shared instance until it re-forms; no value moves."
   },
   "hunt_session_events": {
    "class": "restore_only",

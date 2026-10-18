@@ -48,10 +48,10 @@ async function asAuth(db, uid, sql, params) {
 /* Measured on the replay (pinned dice): falls 3 times in one 20-minute window and picks up six
    priced item kinds (bones, wheat, rat_tail, wolf_pelt, small_fang, raw_wolf_meat). */
 const FALLER = { minutesAgo: 25, inv: {}, bag: [], gold: 0, hp: 10, options: { on_empty: 'end', food_below_pct: 99 },
-  skillsXp: { attack: 400, strength: 400, magic: 1585 } };
-/* Measured: buys store food from a 200 g purse until it runs short, and sell-to-cover then
-   sells its bones (bones flagged a cover item by the arm, at 1 g). */
-const COVERER = { minutesAgo: 25, inv: {}, bag: [], gold: 200, skillsXp: { attack: 400, strength: 400, magic: 1585 },
+  skillsXp: { attack: 800, strength: 800, magic: 1585 } };
+/* Measured: buys store food from a 100 g purse until it runs short, and sell-to-cover then
+   sells its bones (bones flagged a cover item by the arm, at 1 g). Dice rewound per arm (runArms). */
+const COVERER = { minutesAgo: 25, inv: {}, bag: [], gold: 100, skillsXp: { attack: 400, strength: 400, magic: 1585 },
   options: { supply_source: 'store', on_empty: 'end', food_below_pct: 99, gold_floor: 0 } };
 
 async function snap(H, db, uid, sid) {
@@ -67,6 +67,8 @@ const ARMS = {
     const p = [];
     const uid = H.UIDS[0];
     const h = await H.hunter(db, M, FALLER);
+    /* The most falls a hunt may take: the window keeps hunting (and picking up) past the third. */
+    await db.query("update public.hunt_sessions set falls_limit = public.hr_hunt_limit('falls_max') where id = $1", [h.sid]);
     const start = await snap(H, db, uid, h.sid);
     const lid = Number(await H.one(db, 'select coalesce(max(id), 0) from public.player_ledger'));
     const once = async (capture) => {
@@ -98,6 +100,8 @@ const ARMS = {
     await once(raws);
     const B = await snap(H, db, uid, h.sid);
     const rows = await H.q(db, 'select intent, gold, gold_in, meta from public.player_ledger where user_id = $1 and id > $2 order by id', [uid, lid]);
+    const dx = raws[0] || [];
+    if (dx.length < 2) return [`CONTROL: the window held ${dx.length} falls (need 2)`];
     /* The fight is the window's own: the pickups do not depend on the hooks. */
     if (JSON.stringify(B.loot) !== JSON.stringify(A.loot)) p.push('the pickups moved with the hooks: ' + JSON.stringify({ A: A.loot, B: B.loot }));
     /* LOOT + LOCK. */
@@ -116,8 +120,6 @@ const ARMS = {
     const sum = rows.reduce((a, r) => a + Number(r.gold || 0), 0);
     if (sum !== B.gold - start.gold) p.push(`the purse moved ${B.gold - start.gold}, the ledger journals ${sum}`);
     /* BLESSINGS: tier 2's protection on the first fall only; 1-2 used up, 3 kept. */
-    const dx = raws[0] || [];
-    if (dx.length < 2) p.push(`CONTROL: the window held ${dx.length} falls (need 2)`);
     const want = {};
     dx.forEach((f, j) => { for (const [k, n] of Object.entries(f)) if (Number(n) > 0) want[k] = (want[k] || 0) + (j === 0 ? Number(n) - Math.floor(Number(n) * pm2 / 1000) : Number(n)); });
     const debit = rows.filter((r) => r.intent === 'death_xp');
@@ -207,6 +209,8 @@ async function runArms(db, ctx, only) {
   for (const [name, fn] of Object.entries(ARMS)) {
     if (only && !only.includes(name)) continue;
     await db.query('begin');
+    /* Every arm starts its dice at the same place (the harness's uuid sequence), whatever ran before. */
+    await db.query("select setval('public.hr_test_uuid_seq', 1000, false)");
     let problems;
     try { problems = await fn(db, ctx); } catch (e) { problems = ['HARNESS: ' + String(e.message).slice(0, 400)]; }
     finally { await db.query('rollback'); }

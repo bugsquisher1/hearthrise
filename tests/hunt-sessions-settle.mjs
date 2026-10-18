@@ -1530,7 +1530,8 @@ const DB_MUTANTS = [
   { arm: 'VALUE', name: '[C2 silent store] a store buy lands on a hero that chose end', fn: AM,
     find: "      if not (v_supply->>'supply_source' = 'store' or v_supply->>'on_empty' = 'switch') then", replace: '      if false then' },
   { arm: 'VALUE', name: '[C2 two lanes] the food lane cap admits ten times its uses', fn: AM,
-    find: '       > v_win / v_cons + 1', replace: '       > 10 * v_win / v_cons + 1' },
+    /* (the line restated in 2026-10-25-settle-hooks.sql, own drinks on the same lane) */
+    find: "(v_ukind->>'mana')::bigint, 0) > v_win / v_cons + 1", replace: "(v_ukind->>'mana')::bigint, 0) > 10 * v_win / v_cons + 1" },
   { arm: 'STORE', name: '[C2 one gold] the applier prices a use at one gold', fn: AM,
     find: '      v_cost := v_cost + v_n * v_price;', replace: '      v_cost := v_cost + v_n;' },
   { arm: 'STORE', name: 'a store use is not journalled', fn: AM,

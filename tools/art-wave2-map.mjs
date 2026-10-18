@@ -13,6 +13,7 @@
 import fs from 'fs';
 import path from 'path';
 import url from 'url';
+import { isMain } from '../tests/_is-main.mjs';
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
@@ -43,7 +44,7 @@ export function hdr(file) {
   return { w: b.readUInt32BE(16), h: b.readUInt32BE(20), depth: b[24], ct: b[25], bytes: b.length };
 }
 
-if (import.meta.url === url.pathToFileURL(process.argv[1] || '').href) {
+if (isMain(import.meta.url)) {
   const rows = listSources().map((f) => ({ f, id: idFor(f), ...hdr(path.join(SRC, f)) }));
   const byId = {};
   rows.forEach((r) => { (byId[r.id] = byId[r.id] || []).push(r.f); });

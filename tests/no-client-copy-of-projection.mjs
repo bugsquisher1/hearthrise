@@ -41,6 +41,7 @@ import { readFileSync, writeFileSync, existsSync, mkdtempSync, cpSync, rmSync } 
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { isMain } from './_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const BASELINE = join(ROOT, 'tests', 'no-client-copy-of-projection.baseline.json');
@@ -193,7 +194,7 @@ async function selftest() {
   return 0;
 }
 
-const INVOKED_DIRECTLY = process.argv[1] && fileURLToPath(import.meta.url) === join(process.argv[1]);
+const INVOKED_DIRECTLY = isMain(import.meta.url);
 if (INVOKED_DIRECTLY) {
   const argv = process.argv.slice(2);
   process.exitCode = argv.includes('--selftest') ? await selftest() : await main(argv);

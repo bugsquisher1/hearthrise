@@ -27,6 +27,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isMain } from './_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const WANT_MS = 2000;
@@ -138,7 +139,7 @@ function mutate() {
   console.log(`✓ basic-attack-interval --mutate: ${MUTANTS.length}/${MUTANTS.length} killed`);
 }
 
-if (process.argv[1] && relative(process.argv[1], fileURLToPath(import.meta.url)) === '') {
+if (isMain(import.meta.url)) {
   if (process.argv.includes('--mutate')) mutate();
   else {
     const red = check();

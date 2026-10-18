@@ -46,6 +46,7 @@
 import { readFile } from 'node:fs/promises';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isMain } from './_is-main.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const MIGDIR = join(ROOT, 'supabase', 'migrations');
@@ -172,8 +173,7 @@ export async function rpcGateBucketGuard() {
 }
 
 // Standalone: node tests/rpc-gate-bucket-guard.mjs
-if (import.meta.url === `file://${process.argv[1]?.replace(/\\/g, '/')}`
-    || process.argv[1]?.endsWith('rpc-gate-bucket-guard.mjs')) {
+if (isMain(import.meta.url)) {
   rpcGateBucketGuard().then(
     (r) => {
       const via = r.spliced.length ? ` (${r.spliced.length} added by splice: ${r.spliced.join(', ')})` : '';

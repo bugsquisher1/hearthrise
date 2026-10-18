@@ -54,6 +54,7 @@
 import { readFile } from 'node:fs/promises';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isMain } from './_is-main.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 
@@ -317,7 +318,7 @@ async function selftest() {
   return missed ? 1 : 0;
 }
 
-if (process.argv[1]?.endsWith('quest-reward-parity.mjs')) {
+if (isMain(import.meta.url)) {
   const arg = process.argv[2] || '';
   const run = arg === '--list' ? list().then(() => 0)
     : (arg === '--selftest' || arg === '--mutate') ? selftest()

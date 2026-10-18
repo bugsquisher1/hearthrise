@@ -53,6 +53,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { fileURLToPath } from 'node:url';
 import { bootReplay } from './schema-replay.mjs';
+import { isMain } from './_is-main.mjs';
 
 const MIG = '2026-10-10-quest-xp-absence-pay.sql';
 
@@ -480,7 +481,7 @@ export async function run(mutate) {
   return { problems: problems.map((p) => 'quest-xp-absence-pay: ' + p), obs };
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (isMain(import.meta.url)) {
   const arg = process.argv.slice(2);
   const one = (arg.find((a) => a.startsWith('--mutate=')) || '').split('=')[1];
   if (arg.includes('--list')) {

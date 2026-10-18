@@ -33,6 +33,7 @@
 
 import { webcrypto } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
+import { isMain } from './_is-main.mjs';
 
 import {
   verifyJwt, assertClaims, bearerOf, splitJwt, gotrueIntrospector, _resetJwtCaches,
@@ -287,7 +288,7 @@ export async function runAll() {
   return { problems: problems.slice(), note };
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
+if (isMain(import.meta.url)) {
   const { problems: found, note } = await runAll();
   if (found.length) {
     console.log('JWT verification guard — FAILED:');

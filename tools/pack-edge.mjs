@@ -169,6 +169,7 @@ import { createHash } from 'node:crypto';
 import { readFile, readdir, writeFile, mkdir } from 'node:fs/promises';
 import { dirname, join, normalize, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const FUNCTIONS = join(ROOT, 'supabase', 'functions');
@@ -647,8 +648,7 @@ export async function runAll() {
 // ── CLI ──────────────────────────────────────────────────────────────────────
 // (`process.argv[1] || ''` — it is undefined under `node -e`, and this module
 //  must be importable from any host, not only from a script on disk.)
-if (import.meta.url === new URL(`file://${(process.argv[1] || '').split(sep).join('/')}`).href
-    || process.argv[1]?.endsWith('pack-edge.mjs')) {
+if (isMain(import.meta.url)) {
   const args = process.argv.slice(2);
   const fn = args.find((a) => !a.startsWith('--'));
   const outIdx = args.indexOf('--out');

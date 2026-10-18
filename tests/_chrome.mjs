@@ -11,6 +11,7 @@
 import { existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { isMain } from './_is-main.mjs';
 
 export function chromePath(env = process.env, exists = existsSync) {
   const p = env.HR_CHROME;
@@ -48,7 +49,7 @@ function selftest() {
   process.exit(fails.length ? 1 : 0);
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+if (isMain(import.meta.url)) {
   if (process.argv.includes('--selftest')) selftest();
   const o = launchOptions();
   console.log(`✓ chromium: ${o.executablePath || "Playwright's default"}`);

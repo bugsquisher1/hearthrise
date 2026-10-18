@@ -51,6 +51,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { implementsFlag } from '../tests/guard-hygiene.mjs';
 import { parseWorkflow, flatSteps } from '../tests/run-ci-local.mjs';
+import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = normalize(join(dirname(fileURLToPath(import.meta.url)), '..'));
 const PROOF_FLAGS = ['--selftest', '--mutate'];
@@ -576,7 +577,7 @@ async function selftest() {
 }
 
 // ── CLI ────────────────────────────────────────────────────────────────────
-if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
+if (isMain(import.meta.url)) {
   const argv = process.argv.slice(2);
   if (argv.includes('--selftest')) {
     await selftest();

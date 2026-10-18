@@ -51,6 +51,7 @@ import { readFile } from 'node:fs/promises';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { pack } from '../tools/pack-edge.mjs';
+import { isMain } from './_is-main.mjs';
 import {
   withCors, corsHeaders, isAllowedOrigin, ALLOWED_ORIGINS,
 } from '../supabase/functions/hr-accrue/cors.js';
@@ -324,7 +325,7 @@ export async function runAll() {
   return { problems, note };
 }
 
-if (process.argv[1] && process.argv[1].endsWith('cors-preflight.mjs')) {
+if (isMain(import.meta.url)) {
   const { problems, note } = await runAll();
   /* `process.exitCode`, never `process.exit()` — see the note at the bottom of
      tests/run-smoke.mjs. On Node 24 / win32, exiting explicitly from a process

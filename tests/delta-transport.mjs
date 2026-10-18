@@ -112,6 +112,7 @@ import { pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 import { createServer } from 'node:net';
 import { bootReplay, ROOT } from './schema-replay.mjs';
+import { isMain as isEntryModule } from './_is-main.mjs';
 
 const MIG = (f) => join(ROOT, 'supabase', 'migrations', f);
 const FN = (f) => join(ROOT, 'supabase', 'functions', 'hr-accrue', f);
@@ -1102,7 +1103,7 @@ export async function runAll() {
 }
 
 // ── CLI ─────────────────────────────────────────────────────────────────
-const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+const isMain = isEntryModule(import.meta.url);
 if (isMain) {
   if (has('list')) {
     for (const [id, m] of Object.entries(MUTATIONS)) console.log(`  ${id.padEnd(26)} ${m.why}`);

@@ -66,6 +66,7 @@ import { indexGatherNodes } from '../src/core/skill-sim.js';
 import { MIN_ACTION_MS } from '../src/core/pacing.js';
 import { xpForLevel } from '../src/core/xp.js';
 import { huntAccrualInput } from './hunt-fixture.mjs';
+import { isMain } from './_is-main.mjs';
 
 const USER = '00000000-0000-4000-c000-9081a1c00000';
 const SEED = 0x9021;
@@ -1133,7 +1134,7 @@ export async function goalCountersGuard() {
   return problems.slice();
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
+if (isMain(import.meta.url)) {
   if (process.argv.includes('--mutate')) {
     console.log('goal counters — mutation run (every line must read RED):');
     const clean = await mutate();

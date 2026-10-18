@@ -32,6 +32,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, ROOT } from './schema-replay.mjs';
 import { ACCRUE_MIN_MS, inventoryBaselineComplete } from '../supabase/functions/hr-accrue/accrual.js';
+import { isMain } from './_is-main.mjs';
 
 const USER = '00000000-0000-4000-8000-000000000b01';
 let PROBLEMS = null;   // when non-null (guard mode), failures are collected not printed
@@ -140,7 +141,7 @@ export async function inventoryCompleteGuard() {
   return out;
 }
 
-const SELF = import.meta.url.endsWith((process.argv[1] || '').replace(/\\/g, '/').split('/').pop());
+const SELF = isMain(import.meta.url);
 if (SELF) {
   main()
     .then(() => {

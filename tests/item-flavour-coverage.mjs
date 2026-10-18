@@ -36,6 +36,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join, normalize } from 'node:path';
+import { isMain } from './_is-main.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const DESC_PATH = join(ROOT, 'src', 'data', 'item-descriptions.js');
@@ -273,7 +274,7 @@ function selftest() {
   return bad ? 1 : 0;
 }
 
-const invoked = process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tests/item-flavour-coverage.mjs');
+const invoked = isMain(import.meta.url);
 if (invoked) {
   if (process.argv.includes('--selftest')) {
     process.exit(selftest());

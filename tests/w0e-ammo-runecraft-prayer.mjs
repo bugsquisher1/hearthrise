@@ -35,6 +35,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { join, normalize } from 'node:path';
 import { tmpdir } from 'node:os';
 import { huntOn, huntAccrualInput } from './hunt-fixture.mjs';
+import { isMain as isEntryModule } from './_is-main.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 
@@ -512,7 +513,7 @@ const main = async () => {
   return r.fails ? 1 : 0;
 };
 
-const isMain = import.meta.url === pathToFileURL(process.argv[1] || '').href;
+const isMain = isEntryModule(import.meta.url);
 if (isMain) {
   main().then((c) => process.exit(c)).catch((e) => {
     console.error(e.harness ? e.message : e);

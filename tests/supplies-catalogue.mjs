@@ -67,6 +67,7 @@ import { BUFFS_DEF } from '../src/core/buffs.js';
 import { styleNeedsAmmo } from '../src/core/ammo.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
 import { SHOP_OFFERS } from '../src/data/shops.js';
+import { isMain as isEntryModule } from './_is-main.mjs';
 
 /* The rulings' own lists, typed once here so the data can be held to them. */
 const RULING_SUBJECTS = ['self_hp_pct', 'self_mana_pct', 'buff_left_s', 'buff_missing', 'bag_left', 'session_minutes'];
@@ -416,7 +417,7 @@ function selftest() {
   process.exit(missed ? 1 : 0);
 }
 
-const isMain = process.argv[1] && fileURLToPath(import.meta.url) === join(process.argv[1]);
+const isMain = isEntryModule(import.meta.url);
 if (isMain) {
   try {
     if (process.argv.includes('--selftest') || process.argv.includes('--mutate')) selftest();

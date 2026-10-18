@@ -36,6 +36,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isMain as isEntryModule } from './_is-main.mjs';
 import {
   itemSources, itemUses, skillConsumers, deadEffectKinds, obtainableItemIds,
   CODED_SOURCES, CODED_USES, ENGINE_SKILL_CONSUMERS, AWAITING_ROSTER,
@@ -205,7 +206,7 @@ function mutate() {
   process.exit(bad ? 1 : 0);
 }
 
-const isMain = process.argv[1] && fileURLToPath(import.meta.url) === join(process.argv[1]);
+const isMain = isEntryModule(import.meta.url);
 if (isMain) {
   try {
     if (process.argv.includes('--mutate') || process.argv.includes('--selftest')) mutate();

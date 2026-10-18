@@ -3340,3 +3340,6 @@ hide the action bar in town on the phone (WORLD_SHELL §2 says `when: always`); 
 The bottom bar's hearth emblem (src/shell/widgets/action-bar.js .hb-emblem) is a CSS circle with a 3 px gold
 border, the last web mark on the HUD. Wanted: a 32x32 art-px (64 px at x2) pixel medallion in the iron ramp with
 a gold rim, lit upper-left, hollow centre for the level number; in assets/ui/ beside frame-iron*.png.
+
+## 2026-10-18 asset-director: DONE hunt HUD emblem and the six held sprites
+assets/ui/emblem-hearth.png (32x32 art px, drawn by tools/make-hud-emblem.mjs from the iron/bronze/gold ramps, lit upper-left, hollow centre) replaces the CSS circle in src/styles/hunt.css (x2 desktop, x1 on the phone). Druid is now the healer default. The six HELD units are re-cut in tools/world-art/port-hunt-sim.mjs (druid/kobold stretched 2-3 waist rows; rat, slime, spider, bat halved 2:1). Art-director: the halved monsters read at the cellar tier scale; a larger "vermin" class (body 28-40, frame 48) would keep the full 48 px art if you want them bigger.

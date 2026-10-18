@@ -6,8 +6,8 @@
 // has one (`party.members[].outfit`); until it does, a hero wears its role's
 // default. Every outfit ships its own walk: none borrows another's art (VW-13).
 // Sprites: the `hunt` atlas set (art/world/hunt, tools/world-art/port-hunt-sim.mjs).
-// The druid outfit is HELD for the art budget (port-hunt-sim HELD), so no role
-// defaults to it yet.
+// The druid is the healer's default: a green hooded caster, so the first solo-healer
+// hunt reads as a healer (the witch stays a wearable outfit).
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
@@ -20,6 +20,7 @@ export const OUTFITS = Object.freeze({
   sorcerer: 'outfit_sorcerer',
   witch: 'outfit_witch',
   dawnward: 'outfit_dawnward',
+  druid: 'outfit_druid',
 });
 
 /* role (src/data/hunt-roles.js) → the outfit it wears when the server names none. */
@@ -28,7 +29,7 @@ export const ROLE_OUTFIT = Object.freeze({
   melee_dps: 'berserker',
   ranger: 'ranger',
   mage: 'sorcerer',
-  healer: 'witch',
+  healer: 'druid',
 });
 
 /** The sprite id a hero is drawn with: its named outfit when known, else its role's, else the tank's. */

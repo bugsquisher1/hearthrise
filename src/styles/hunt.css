@@ -174,8 +174,8 @@
 .hb-mana { top: 1px; left: 2px; color: var(--hud-mana-ink); }
 .hb-count { top: 1px; right: 2px; color: var(--ink); }
 .hb-thr { bottom: 1px; right: 2px; color: var(--gold-2); }
-.hb-emblem { position: relative; width: 64px; height: 64px; flex: none; display: grid; place-items: center; border-radius: 50%; background: var(--bg-1); border: 3px solid var(--gold); color: var(--gold); }
-.hb-emblem-glyph { width: 30px; height: 30px; fill: currentColor; opacity: .5; }
+.hb-emblem { position: relative; width: 64px; height: 64px; flex: none; display: grid; place-items: center; background: url('../../assets/ui/emblem-hearth.png') center / 100% 100% no-repeat; image-rendering: pixelated; color: var(--gold); }
+.hb-emblem-glyph { width: 22px; height: 22px; fill: currentColor; opacity: .5; }
 .hb-level { position: absolute; font-family: var(--f-label); font-size: var(--t-small); color: var(--ink); }
 .hb-plaque { width: 250px; display: flex; flex-direction: column; gap: 4px; }
 .hb-row { display: flex; align-items: center; gap: 6px; }
@@ -256,7 +256,8 @@
   .hb-regen { display: none; }
   .hb-tablet { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 40px; grid-template-rows: 40px; overflow-x: auto; overscroll-behavior-x: contain; }
   .hb-tablet:last-of-type { display: none; }
-  .hb-emblem { width: 48px; height: 48px; }
+  .hb-emblem { width: 32px; height: 32px; }
+  .hb-emblem-glyph { display: none; }
   .hb-plaque { width: auto; }
   .hb-plaque > .hb-row:not(:first-child), .hb-plaque .hb-label, .hb-set { display: none; }
   .hb-plaque .hh-tool { min-height: 44px; min-width: 44px; }

@@ -19,8 +19,11 @@ import { join } from 'node:path';
 import { decodePNG, encodePNG, createImage, blit } from './png.mjs';
 import { CLASSES, FACINGS } from '../../src/data/world/art-budget.js';
 import { ROOT } from './build.mjs';
+import { measureFrame } from './measure.mjs';
 import { isMain } from '../../tests/_is-main.mjs';
 
+/* How far a bat hovers above its anchor, art px (the flier class allows 6-16). */
+const HOVER = 10;
 const SRC = 'prototypes/hunt-sim-assets';
 const OUT = 'art/world/hunt';
 const VFX_SRC = 'prototypes/hunt-sim-assets/vfx';
@@ -39,19 +42,52 @@ export const UNITS = Object.freeze({
   dawnward: { id: 'outfit_dawnward', class: 'character' },
   brute: { id: 'outfit_brute', class: 'character' },
   rat_king: { id: 'rat_king', class: 'beast' },
+  /* The six units the first port HELD (see HELD): each is re-cut here, never rescaled by a fraction.
+     druid / kobold are 31 px of body against a 32.4 floor: `stretch` repeats the waist row, so the
+     figure is 2 art px taller. The rat, slime and spider are 30-37 px against a 22 ceiling: `half` is
+     an exact 2:1 reduction (a 2x2 block keeps its majority colour, ties its darkest), the same pixel
+     size as the rest of the world, at the cellar tier's scale. */
+  druid: { id: 'outfit_druid', class: 'character', fit: { stretch: [27, 2] } },
+  kobold: { id: 'kobold_tosher', class: 'character', fit: { stretch: [29, 3] } },
+  giant_rat: { id: 'drain_rat', class: 'critter', fit: { half: true } },
+  slime: { id: 'sump_slime', class: 'critter', fit: { half: true } },
+  venom_spider: { id: 'cistern_spider', class: 'critter', fit: { half: true } },
+  giant_bat: { id: 'culvert_bat', class: 'flier', fit: { half: true } },
 });
+
+/** A 2:1 reduction: each 2x2 block is opaque when 2+ of its pixels are, in its commonest colour (ties: darkest). */
+export function halve(img, px = 0, py = 0) {
+  const w = (img.width - px) >> 1, h = (img.height - py) >> 1, out = createImage(w, h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const seen = new Map();
+    for (let j = 0; j < 2; j++) for (let i = 0; i < 2; i++) {
+      const o = ((y * 2 + j + py) * img.width + x * 2 + i + px) * 4;
+      if (img.data[o + 3] < 128) continue;
+      const k = img.data[o] + ',' + img.data[o + 1] + ',' + img.data[o + 2];
+      seen.set(k, (seen.get(k) || 0) + 1);
+    }
+    let n = 0; for (const c of seen.values()) n += c;
+    if (n < 2) continue;
+    const lum = (k) => k.split(',').reduce((a, v) => a + +v, 0);
+    const best = [...seen.entries()].sort((a, b) => b[1] - a[1] || lum(a[0]) - lum(b[0]))[0][0].split(',').map(Number);
+    out.data.set([best[0], best[1], best[2], 255], (y * w + x) * 4);
+  }
+  return out;
+}
+
+/** Repeat row `at` n more times (everything below moves down n): a taller body, no scaling. */
+export function stretch(img, at, n) {
+  const out = createImage(img.width, img.height + n);
+  blit(out, img, 0, 0, img.width, at, 0, 0);
+  for (let k = 0; k <= n; k++) blit(out, img, 0, at, img.width, 1, 0, at + k);
+  blit(out, img, 0, at + 1, img.width, img.height - at - 1, 0, at + n + 1);
+  return out;
+}
 
 /* Measured 2026-10-17 by `build.mjs --report --set hunt` and HELD for the Asset Director: each
    breaks the budget its world class sets, and the fix is the art's or the class table's, never a
    rescale here (integer scales only). Re-run --report after the art or the class row changes. */
-export const HELD = Object.freeze({
-  druid: 'character body 31 px; the class allows 32.4-44',
-  giant_rat: 'critter body 36 px; the class allows 10.8-22 (a beast-sized rat needs a size ruling)',
-  slime: 'critter body 30 px; feet drift between idle and walk',
-  kobold: 'critter body 31 px; a humanoid below the character band',
-  venom_spider: 'critter body 37 px; feet drift between idle and walk',
-  giant_bat: 'flier hover and below-anchor rows do not match its manifest foot anchor',
-});
+export const HELD = Object.freeze({});
 
 function load(p) { return decodePNG(readFileSync(join(ROOT, SRC, p))); }
 
@@ -69,7 +105,10 @@ export function portUnit(simId, manifest) {
   const cls = CLASSES[row.class];
   const [fw, fh] = cls.frame;
   const [ax, ay] = cls.anchor;
-  const [sx, sy] = u.foot_anchor;
+  const fit = row.fit || {};
+  const [fx, fy] = u.foot_anchor;
+  const sx = fit.half ? fx >> 1 : fx, sy = fit.half ? fy >> 1 : fit.stretch ? fy + fit.stretch[1] : fy;
+  const prep = (img) => (fit.half ? halve(img) : fit.stretch ? stretch(img, fit.stretch[0], fit.stretch[1]) : img);
   const dx = ax - sx, dy = ay - sy;
   const flier = row.class === 'flier';
   const walk = {}, idle = {};
@@ -89,20 +128,31 @@ export function portUnit(simId, manifest) {
     for (const d of FACINGS) {
       /* One vertical offset per (anim, facing): the clip's lowest foot lands on the anchor
          row (VW-12, the lowest-opaque-row fallback), so a walk keeps its bob above it. */
-      const imgs = a.frames[d].map(load);
-      const lowest = Math.max(...imgs.map(lowestRow));
-      const rowDy = flier ? dy : ay - lowest;
-      imgs.forEach((img, i) => {
-        const frame = createImage(fw, fh);   // clipped to its own frame: nothing spills into a neighbour
-        blit(frame, img, 0, 0, img.width, img.height, dx, rowDy, true);
-        blit(sheet, frame, 0, 0, fw, fh, i * fw, r * fh);
-      });
+      const raw = a.frames[d].map(load);
+      /* A halved clip tries the four 2x2 block phases and keeps the one whose frames stand
+         best on the anchor (a thin leg survives or not by which rows it falls into). */
+      let best = null;
+      for (const [px, py] of fit.half ? [[0, 0], [1, 0], [0, 1], [1, 1]] : [[0, 0]]) {
+        const imgs = raw.map((img) => (fit.half ? halve(img, px, py) : prep(img)));
+        const lowest = Math.max(...imgs.map(lowestRow));
+        const rowDy = flier ? ay - HOVER - lowest : ay - lowest;
+        const frames = imgs.map((img) => {
+          const frame = createImage(fw, fh);   // clipped to its own frame: nothing spills into a neighbour
+          blit(frame, img, 0, 0, img.width, img.height, dx, rowDy, true);
+          return frame;
+        });
+        let bad = 0;
+        if (fit.half && !flier) frames.forEach((f, i) => { const m = measureFrame(f); if (!m.empty && m.foot < ay - (i === 0 ? 1 : 4)) bad++; });
+        if (!best || bad < best.bad) best = { bad, frames };
+        if (!bad) break;
+      }
+      best.frames.forEach((frame, i) => blit(sheet, frame, 0, 0, fw, fh, i * fw, r * fh));
       r++;
     }
   }
   const sidecar = {
     id: row.id, class: row.class, material: 'unit', source: row.id + '.png', anchor_px: [ax, ay], footprint: [1, 1],
-    ...(row.class === 'flier' ? { hover_px: Math.max(cls.hover[0], Math.min(cls.hover[1], ay - sy - 0)) } : {}),
+    ...(row.class === 'flier' ? { hover_px: HOVER } : {}),
     anims: anims.map((a) => ({ name: a.name, fps: a.fps, loop: a.loop, dirs: Object.fromEntries(FACINGS.map((d) => [d, a.frames[d].length])) })),
     notes: 'Ported from ' + SRC + '/' + simId + ' (PixelLab style-1, ' + manifest.generated + ') by tools/world-art/port-hunt-sim.mjs: eight facings, foot anchor moved onto the class anchor by whole pixels.',
   };

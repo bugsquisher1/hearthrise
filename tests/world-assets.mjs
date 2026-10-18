@@ -75,9 +75,13 @@ const REQUIRED = {
   altar: { set: 'home', class: 'fixture', anims: ['idle'], dirs: PROP },
   bed: { set: 'home', class: 'bed', anims: ['idle'], dirs: PROP },
   // the live hunt (src/hunt-view/scene.js): every outfit and the Rat King walk in all eight facings
-  ...Object.fromEntries(['outfit_knight', 'outfit_berserker', 'outfit_brute', 'outfit_ranger', 'outfit_sorcerer', 'outfit_witch', 'outfit_dawnward']
+  ...Object.fromEntries(['outfit_knight', 'outfit_berserker', 'outfit_brute', 'outfit_ranger', 'outfit_sorcerer', 'outfit_witch', 'outfit_dawnward', 'outfit_druid']
     .map((id) => [id, { set: 'hunt', class: 'character', anims: ['idle', 'walk'], dirs: FACINGS }])),
   rat_king: { set: 'hunt', class: 'beast', anims: ['idle', 'walk'], dirs: FACINGS },
+  // the Millrace Sewer's six (src/data/monsters.js: the sprite id is the monster id)
+  ...Object.fromEntries(['drain_rat', 'sump_slime', 'cistern_spider'].map((id) => [id, { set: 'hunt', class: 'critter', anims: ['idle', 'walk'], dirs: FACINGS }])),
+  culvert_bat: { set: 'hunt', class: 'flier', anims: ['idle', 'walk'], dirs: FACINGS },
+  kobold_tosher: { set: 'hunt', class: 'character', anims: ['idle', 'walk'], dirs: FACINGS },
 };
 const REQUIRED_TERRAIN = { cellar_earth: 'cellar', town_ground: 'town', plank_floor: 'home' };
 

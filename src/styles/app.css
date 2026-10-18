@@ -15,15 +15,15 @@
 .app.is-game { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
 /* ── The account screens: the crest and the name beside one iron-framed form.
-   The crest is painted art: shown at 1:1 (384 px tall) where there is room and
-   exactly 1:2 (192) where there is not, never at a fraction between. ── */
+   The crest is painted art: 1:1 (311x384) on desktop, exactly 1:2 on the
+   phone size class, never at a fraction between. ── */
 .auth {
   width: 100%; box-sizing: border-box;
   display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 20px 56px;
   padding: 24px;
 }
 .auth-brand { display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 0; }
-.auth-crest { display: block; width: 156px; height: 192px; }
+.auth-crest { display: block; width: 311px; height: 384px; }
 .auth-name {
   margin: 0;
   font-family: var(--f-display); font-weight: 700; font-size: var(--t-h2);
@@ -83,13 +83,10 @@
 .auth-link:hover, .auth-link:focus-visible { text-decoration: underline; text-underline-offset: 3px; }
 .auth-link:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
 
-/* A tall screen gives the crest its full 1:1. */
-@media (min-height: 760px) and (min-width: 900px) {
-  .auth-crest { width: 311px; height: 384px; }
-}
 /* Landscape phone: the crest (1:2) beside the form, both inside 423 px with no scroll. */
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
   .auth { flex-wrap: nowrap; gap: 40px; padding: 8px 16px; }
+  .auth-crest { width: 156px; height: 192px; }
   .auth-card { gap: 8px; padding: 10px 18px 12px; }
   .auth-field input { min-height: 36px; }
   .auth-submit { min-height: 40px; }

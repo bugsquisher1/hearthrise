@@ -20,6 +20,7 @@ import { renderBag } from './windows/bag.js?v=0.2.0';
 import { renderGear } from './windows/gear.js?v=0.2.0';
 import { renderSkills } from './windows/skills.js?v=0.2.0';
 import { renderShop } from './windows/shop.js?v=0.2.0';
+import { renderServices } from './windows/services.js?v=0.2.0';
 import { renderHuntPrep } from './windows/hunt-prep.js?v=0.2.0';
 import { renderFind } from './windows/find.js?v=0.2.0';
 import { renderParty } from './windows/party.js?v=0.2.0';
@@ -32,6 +33,7 @@ export const WINDOW_RENDERERS = Object.freeze({
   gear: renderGear,
   skills: renderSkills,
   shop: renderShop,
+  services: renderServices,
   'hunt-prep': renderHuntPrep,
   find: renderFind,
   'hunt-party': renderParty,

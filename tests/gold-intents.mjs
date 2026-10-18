@@ -564,11 +564,13 @@ async function run(mutate) {
       carrot_seed: 5, potato_seed: 10, pumpkin_seed: 25, turnip_seed: 2,
       wheat_seed: 7, tomato_seed: 15, stone_maul: 70, shortbow: 60, apprentice_staff: 60,
       rune_blank: 3, goldenroot_seed: 75, emberfruit_seed: 150,
-      /* Master plan row 2 (lane C2): the Counter no longer SELLS cooked food,
-         so there is no shop round-trip for the b565 cap to close and the plain
-         sell rate applies (0.6 × value: 240 / 55 / 18, was capped 200 / 45 / 15).
-         A cooked food back on the Counter re-caps it and turns this red. */
-      cooked_lobster: 240, cooked_trout: 55, cooked_shrimp: 18,
+      /* Lane S2 (Coordinator ruling, 2026-10-18): cooked food is back on the shop
+         as `supply.*` offers at the designer's rate (salted price a point x the
+         food's heal: shrimp 19, trout 56, lobster 250), so the b565 cap applies
+         again: floor(0.5 x the shop price) = 9 / 28 / 125 (was 18 / 55 / 240 while
+         the Counter sold none, master plan row 2). Taking food off the shop again,
+         or a price change, turns this red. */
+      cooked_lobster: 125, cooked_trout: 28, cooked_shrimp: 9,
     };
     const offRuling = Object.keys(BUYBACK_EXPECT)
       .filter((id) => cat.vendorPriceOf(ITEMS, id) !== BUYBACK_EXPECT[id])

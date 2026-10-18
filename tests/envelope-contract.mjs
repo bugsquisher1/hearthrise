@@ -138,13 +138,13 @@ function contract(R, cs, body, tl) {
   const inv = R.PS.invitesOf(cs);
   need('party_invites', Array.isArray(inv) && inv.length === 1 && inv[0].from === SEED.inviter && inv[0].hunt !== null,
     'invitesOf yields ' + JSON.stringify(inv) + ' from ' + JSON.stringify(body.party_invites));
-  /* No client reader yet (the refill and blessing buttons are the client lane's): the raw shape the RPCs quote from. */
-  const sr = body.stamina_refill;
-  need('stamina_refill', !!sr && typeof sr.available === 'boolean' && isNum(sr.n) && isNum(sr.per_day) && (sr.available ? isNum(sr.price) && isNum(sr.restore_ms) : typeof sr.why === 'string'),
-    'stamina_refill is ' + JSON.stringify(sr));
-  const bl = body.blessings;
-  need('blessings', !!bl && Array.isArray(bl.held) && isNum(bl.permille) && Array.isArray(bl.tiers) && bl.tiers.length === 3 && bl.tiers.every((t) => isNum(t.price) && isNum(t.permille)),
-    'blessings is ' + JSON.stringify(bl));
+  /* The Services window's readers (src/session/item-sections.js). */
+  const sr = R.IS.staminaRefillOf(cs);
+  need('stamina_refill', !!sr && isNum(sr.n) && isNum(sr.perDay) && (sr.available ? isNum(sr.price) && isNum(sr.restoreMs) : typeof sr.why === 'string'),
+    'staminaRefillOf yields ' + JSON.stringify(sr) + ' from ' + JSON.stringify(body.stamina_refill));
+  const bl = R.IS.blessingsOf(cs);
+  need('blessings', !!bl && isNum(bl.permille) && bl.tiers.length === 3 && bl.freeUntil !== null && bl.tiers.every((t) => isNum(t.price) && isNum(t.permille)),
+    'blessingsOf yields ' + JSON.stringify(bl) + ' from ' + JSON.stringify(body.blessings));
   return out;
 }
 /* The envelope keys CONTRACT covers (with the settle-response keys). */

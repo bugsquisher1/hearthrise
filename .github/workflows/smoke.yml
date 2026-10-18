@@ -270,6 +270,16 @@ jobs:
           node tests/alpha-windows.mjs
           node tests/alpha-windows.mjs --mutate
 
+      # THE SERVICES WINDOW (lane S2, 2026-10-18): stamina at the server's quoted
+      # price after a confirmation, blessings only in order at their prices, the
+      # name change, every control off while in flight, missing sections fail
+      # safe. --mutate plants five defects.
+      - name: Services window (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/services-window.mjs
+          node tests/services-window.mjs --mutate
+
       # THE PARTY UI (2026-10-18, week plan 16 + QoL 3/7): the character strip,
       # the command centre, the Party window and the alert lines on the party
       # fixture. One alert per event id (a re-read or a reload repeats none);
@@ -1955,6 +1965,9 @@ jobs:
           node tools/gen-alpha-catalogue.mjs --selftest
           node tests/alpha-server.mjs
           node tests/alpha-server.mjs --mutate
+          node tools/build-settle-hooks.mjs --check
+          node tests/settle-hooks.mjs
+          node tests/settle-hooks.mjs --mutate
 
       # THE CONTROL HALF OF A MUTATION PROOF. Every registered guard is re-run
       # with HR_MUTANT_CONTROL=1 (nothing planted, scope kept); any arm that

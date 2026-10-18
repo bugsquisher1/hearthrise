@@ -62,6 +62,10 @@ export const CLIENT_RPCS = Object.freeze({
   hr_hunt_party_decline: 'decline an invite to this character by its id (CharacterSession.answerInvite)',
   hr_hunt_party_start: 'the leader starts the party hunt, each member on its own saved setup (CharacterSession.startPartyHunt)',
   hr_hunt_restart: 'go back to the hunt that just ended on that session’s own setup (CharacterSession.restartHunt)',
+  /* Lane S2's Services window: each sends the server's own QUOTE (refused quote_changed otherwise), never a price of its own. */
+  hr_stamina_refill: 'buy the next stamina refill at the quoted price (CharacterSession.buyStamina)',
+  hr_blessing_buy: 'buy one blessing tier at the quoted price, 0 under the free level (CharacterSession.buyBlessing)',
+  hr_character_name_set: 'claim this character’s own name, checked by the server (CharacterSession.setName)',
 });
 
 /* The engine's item intents the client may send, each with the ONLY fields it may carry. */

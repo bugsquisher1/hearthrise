@@ -27,7 +27,7 @@ import { runIntent } from '../intent-words.js?v=0.2.0';
 import { showTip, hideTip } from './item-tip.js?v=0.2.0';
 
 const TABS = Object.freeze([['buy', 'Buy'], ['sell', 'Sell'], ['refill', 'Refill']]);
-const KIND_WORDS = Object.freeze({ food: 'Food', drink: 'Drinks', ammo: 'Ammo' });
+const KIND_WORDS = Object.freeze({ food: 'Food', drink: 'Drinks', ammo: 'Ammo', tool: 'Tools' });
 const QTYS = Object.freeze([1, 5, 10, 25, 50, 100]);
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { tab: 'buy', qty: {}, confirm: null, pending: false, msg: '', add: null }; SCRATCH.set(cs, s); } return s; };
@@ -141,7 +141,7 @@ function patchRefill(root, st, ctx) {
   cls(root.querySelector('.hw-targets-none'), 'is-on', !targets.length);
   /* Supplies the shop sells and no target names yet. */
   const sel = root.querySelector('[data-hs-act="add-item"]');
-  const addable = (st.shop ? st.shop.offers : []).filter((o) => !(st.rules && st.rules.restock[o.item]));
+  const addable = (st.shop ? st.shop.offers : []).filter((o) => o.kind !== 'tool' && !(st.rules && st.rules.restock[o.item]));
   const sig = addable.map((o) => o.item).join(',');
   if (sel.getAttribute('data-sig') !== sig) {
     attr(sel, 'data-sig', sig);

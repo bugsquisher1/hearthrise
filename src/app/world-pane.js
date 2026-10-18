@@ -60,6 +60,8 @@ export async function mountWorldPane(host, character, o) {
   let shell = null;
   const SHOWS = { entrance: (d) => { pickHunt(character, d.hunt); return 'hunts'; }, station: () => 'skills-trade' };
   function emit(kind, detail) {
+    /* The World's entity context (a right-click or long press on a unit): the shell's one player / monster menu. */
+    if (kind === 'entity') { const t = shell && worldTargetOf(detail); return !!t && shell.menu.open(t, { x: detail.x, y: detail.y }); }
     const to = shell && SHOWS[kind] ? SHOWS[kind](detail || {}) : null;
     if (!to) return false;
     if (shell.wm.isOpen(to)) shell.refresh(to); else shell.open(to);
@@ -80,8 +82,6 @@ export async function mountWorldPane(host, character, o) {
   const inHunt = () => !!character.read('hunt') || !!view()._huntId;
   shell = mountShell(stage, { character, screen: opts.screen || doc.body, inHunt, peers: opts.peers, account: opts.account,
     alerts: opts.alerts, goTo: opts.goTo });
-  /* A right-click or long press on a unit in the World opens the shell's player menu (a window or widget over it keeps its own). */
-  if (runtime) shell.menu.attach(stage, (e) => (e.target.closest('[data-hs-win],[data-hs-widget]') ? null : worldTargetOf(runtime.pick(e.clientX, e.clientY))));
   const offInset = shell.onInset((inset) => { if (runtime) runtime.setInset(inset); });
   const offChar = character.subscribe(() => { if (runtime) runtime.sync(); shell.paint(); });
 

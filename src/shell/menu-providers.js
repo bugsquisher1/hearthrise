@@ -16,7 +16,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { MONSTERS } from '../data/monsters.js?v=0.2.0';
 import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.0';
-import { CHAT_REFUSALS } from '../data/chat-channels.js?v=0.2.0';
+import { refusalWords } from './intent-words.js?v=0.2.0';
 import { monsterName } from './widgets/bits.js?v=0.2.0';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -35,16 +35,19 @@ function lookText(id) {
 
 /**
  * The target under a World pick ({ hits: [{ id, ref }] }), top-most first: a
- * unit whose ref names a player, else a monster the bestiary knows, else null.
+ * unit whose ref names a player (ref.player, stamped from the server's party /
+ * town data), else a monster the bestiary knows (ref.monster), else null — the
+ * ground opens nothing.
  */
 export function worldTargetOf(pick) {
   if (!pick || !Array.isArray(pick.hits)) return null;
   for (const h of pick.hits) {
     const p = h && h.ref && h.ref.player;
-    if (p && typeof p.id === 'string' && UUID.test(p.id)) {
-      return { kind: 'player', id: p.id, name: typeof p.name === 'string' ? p.name.slice(0, 24) : 'Adventurer', slot: Number.isInteger(p.slot) ? p.slot : null };
+    if (p && typeof p.name === 'string' && p.name) {
+      return { kind: 'player', id: typeof p.id === 'string' && UUID.test(p.id) ? p.id : null, name: p.name.slice(0, 24), slot: Number.isInteger(p.slot) ? p.slot : null };
     }
-    if (h && MONSTERS[h.id]) return { kind: 'monster', id: h.id, title: monsterName(h.id) };
+    const mon = h && h.ref && typeof h.ref.monster === 'string' ? h.ref.monster : h && h.id;
+    if (MONSTERS[mon]) return { kind: 'monster', id: mon, title: monsterName(mon) };
   }
   return null;
 }
@@ -61,7 +64,7 @@ export function menuProvidersOf(ctx) {
         when: (t) => t.kind === 'player' && !self(t) && !!t.name && t.name !== 'Adventurer' && !!cs && typeof cs.inviteByName === 'function',
         run: async (t) => {
           const r = await cs.inviteByName(t.name);
-          return r.ok ? { say: 'Invite sent to ' + t.name + '.' } : { say: CHAT_REFUSALS[r.error] || 'The invite did not go through.' };
+          return r.ok ? { say: 'Invite sent to ' + t.name + '.' } : { say: refusalWords(r.error) };
         },
       },
     },

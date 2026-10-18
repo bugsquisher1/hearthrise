@@ -7,7 +7,7 @@
 // a bank. Hovering an item opens the shared item tooltip (./item-tip.js).
 // Nothing here can change anything.
 // ════════════════════════════════════════════════════════════════════════
-import { CHAT_REFUSALS } from '../../data/chat-channels.js?v=0.2.0';
+import { refusalWords } from '../intent-words.js?v=0.2.0';
 import { EQUIP_SLOT_META } from '../../data/gathering.js?v=0.2.0';
 import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.0';
 import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.0';
@@ -33,7 +33,7 @@ renderInspect.patch = function patchInspect(body, ctx) {
     patch: () => {},
   });
   text(body.querySelector('.hi-msg'), !v ? 'Right-click a player and pick Inspect gear.'
-    : v.pending ? 'Looking…' : v.error ? CHAT_REFUSALS[v.error] || 'The server would not show that.' : !v.gear.length ? 'Nothing worn.' : '');
+    : v.pending ? 'Looking…' : v.error ? refusalWords(v.error) : !v.gear.length ? 'Nothing worn.' : '');
 };
 
 renderInspect.events = Object.freeze(['mouseover', 'mouseout']);

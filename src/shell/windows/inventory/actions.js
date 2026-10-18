@@ -30,7 +30,6 @@ import { gold } from '../../../render/format.js?v=0.2.0';
 import { itemName } from '../../widgets/bits.js?v=0.2.0';
 import { showTip, hideTip } from '../item-tip.js?v=0.2.0';
 import { openFloatMenu, closeFloatMenu } from '../float-menu.js?v=0.2.0';
-import { linkInChat, chatOpen } from '../chat.js?v=0.2.0';
 import { stateOf, scratchOf, seenOf, confirmFor, junkOf, setPref } from './state.js?v=0.2.0';
 import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.0';
 import { askElsewhere } from './elsewhere.js?v=0.2.0';
@@ -41,6 +40,10 @@ export const INVENTORY_EVENTS = Object.freeze(['input', 'keydown', 'contextmenu'
 /** A bag stack in a drag (the action bar and the doll read it). */
 export const DRAG_TYPE = 'application/x-hearthrise-item';
 const LONG_PRESS_MS = 500;
+/* "Link in chat": the item's id goes into the account's chat draft (ctx.account.social, src/social/chat-store.js
+   addLink — the name and rarity render from the catalogue) and the chat shows. False when chat is not connected. */
+const linkInChat = (ctx, id) => { const s = ctx.account && ctx.account.social; if (!s || !s.chat.addLink(id)) return false; ctx.show('chat'); return true; };
+const chatOpen = (ctx) => ctx.wm.openIds().includes('chat');
 const RULE_WORDS = Object.freeze([['keep', 'Keep'], ['sell', 'Sell at the shop'], ['ignore', 'Leave it']]);
 
 /** Commit the "new" marks the player has now seen (the residue write is deferred out of the paint). */

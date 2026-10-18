@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-10-18",
- "digest": "66f9825c0e34112617c0879af000ff1e9f201e744a155da9c78cd190ff7d5411",
+ "digest": "384f016b1cd63bc460f540eee375e2e6aae127b016d7729e75b52dffd5f8b0a2",
  "counts": {
   "relations": 192,
-  "functions": 455,
+  "functions": 456,
   "policies": 127,
   "indexes": 272,
   "triggers": 35,
@@ -592,6 +592,7 @@
    "hr_social_doing(p_user uuid)",
    "hr_social_friends(p_a uuid, p_b uuid)",
    "hr_social_name(p_user uuid)",
+   "hr_social_party_view(p_user uuid, p_slot integer)",
    "hr_social_person(p_user uuid)",
    "hr_social_resolve(p_target text)",
    "hr_social_state(p_slot integer)",

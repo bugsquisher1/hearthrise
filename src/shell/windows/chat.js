@@ -21,7 +21,8 @@
 // keyBelongsToField (src/utils/dom.js), which the World and the window keys
 // read too — so W types while the field has focus and walks once it is left.
 // ════════════════════════════════════════════════════════════════════════
-import { CHAT_TABS, WHISPER, CHAT_REFUSALS } from '../../data/chat-channels.js?v=0.2.0';
+import { CHAT_TABS, WHISPER } from '../../data/chat-channels.js?v=0.2.0';
+import { refusalWords } from '../intent-words.js?v=0.2.0';
 import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.0';
 import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.0';
 import { isWhisperTab } from '../../social/whispers.js?v=0.2.0';
@@ -183,7 +184,7 @@ async function doSend(ctx, body, st) {
   const r = await store.send(st.tab, textNow, social.chat.draft.links);
   st.sending = false;
   if (r.ok) { social.chat.draft = { text: '', links: [], rev: social.chat.draft.rev + 1 }; st.jump = true; }
-  else st.msg = CHAT_REFUSALS[r.error] || 'The server did not take that message. Try again.';
+  else st.msg = refusalWords(r.error);
   renderChat.patch(body, ctx);
 }
 
@@ -219,19 +220,3 @@ renderChat.act = function actChat(ctx, body, action, ev, t) {
   }
   return false;
 };
-
-/**
- * Put a catalogue item's link into the chat input and show the chat (the bag's
- * "Link in chat" and its Shift+click while the chat is open). Only the item id
- * travels; the name and rarity render from the catalogue. False when the chat
- * is not connected or the line already holds the most links it may.
- */
-export function linkInChat(ctx, id) {
-  const social = socialOf(ctx);
-  if (!social || !social.chat.addLink(id)) return false;
-  ctx.show('chat');
-  return true;
-}
-
-/** Is the chat window open (the bag's Shift+click links into it then)? */
-export const chatOpen = (ctx) => ctx.wm.openIds().includes('chat');

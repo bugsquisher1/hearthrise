@@ -287,7 +287,7 @@ jobs:
       # whispers, blocks, item links from the catalogue, the one player menu
       # at page level, and typing that never reaches the World's walk keys.
       # The server half runs in the two 2026-10-25 migrations' self-checks.
-      # --mutate plants eighteen defects.
+      # A right-click on the World opens the same menu. --mutate plants 23.
       - name: Chat and social (play.html)
         if: ${{ !cancelled() }}
         run: |

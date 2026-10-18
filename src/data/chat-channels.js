@@ -35,21 +35,8 @@ export const CHAT_LIMITS = Object.freeze({
   linesPerTab: 200,      // kept in memory per tab; older lines drop off the top
   whisperTabsMax: 6,     // open conversations; the oldest quiet one closes first
   friendsPollMs: 30000,  // hr_social_state (also the presence stamp, floor 20 s server-side)
-});
-
-/* The words for a refusal the server sends back, in plain English. */
-export const CHAT_REFUSALS = Object.freeze({
-  empty: 'Type something first.',
-  too_long: 'That message is too long.',
-  too_many_links: 'Link at most three items in one message.',
-  bad_link: 'One of those item links is not a real item.',
-  rate_limited: 'Slow down a little, then try again.',
-  no_party: 'You are not in a party.',
-  no_character: 'Pick a character first.',
-  no_player: 'No player by that name.',
-  self: 'That is you.',
-  unavailable: 'You cannot message that player.',
-  already_friends: 'You are already friends.',
-  too_many: 'Your list is full.',
-  no_request: 'That request has gone.',
+  /* Realtime postgres_changes bindings one client may hold at once (src/social/realtime.js):
+     global, system, the zone, the party and the whispers are five. Each binding is a filter the
+     Realtime poller evaluates per write for this client, so the ceiling is a cost bound, not a feature. */
+  realtimeBindingsMax: 5,
 });

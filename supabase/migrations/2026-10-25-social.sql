@@ -23,6 +23,14 @@
 --   social_presence  when an account last had the game open (server clock),
 --                    stamped by hr_social_state's poll (floor 20 s). No grant.
 --
+-- DECIDED (architecture check, 2026-10-18): whispers stay a SEPARATE table from
+-- chat_messages. The privacy model differs — a whisper is readable by exactly
+-- its two participants and refused across a block either way, a chat line is
+-- public to its channel (or its party audience) — and so do the RLS, the
+-- realtime filter (to_id vs channel) and the retention (30 vs 60 days). Do not
+-- "unify" them into one table with a channel prefix: that is the old design
+-- ('whisper:<a>:<b>' channels inside chat_messages), retired here on purpose.
+--
 -- ── THE RPCs (definer; hr_access_check first; hr_rate_ok budgets) ──────────
 -- A target is p_target: a user id (from a chat line or the friends list) or a
 -- claimed display name (resolved through display_names). Nothing else about the
@@ -77,8 +85,9 @@ begin
     raise exception 'social §0: apply 2026-10-25-chat-channels.sql first';
   end if;
   if to_regclass('public.display_names') is null or to_regclass('public.player_equipment') is null
-     or to_regclass('public.chat_blocks') is null or to_regprocedure('public.hr_canon_display_name(text)') is null then
-    raise exception 'social §0: display_names / player_equipment / chat_blocks / hr_canon_display_name absent';
+     or to_regclass('public.chat_blocks') is null or to_regprocedure('public.hr_canon_display_name(text)') is null
+     or to_regclass('public.hr_state_sections') is null then
+    raise exception 'social §0: display_names / player_equipment / chat_blocks / hr_canon_display_name / hr_state_sections absent';
   end if;
 end $mig$;
 
@@ -436,6 +445,26 @@ begin
                         from public.player_equipment e where e.user_id = v_t and e.slot = v_slot), '[]'::jsonb));
 end $$;
 
+-- ── §6b2 THE PARTY'S PEOPLE: AN ENVELOPE SECTION (hr_state_sections) ────────
+-- Who sits in each seat of this character's open party, as the player menu
+-- targets them: [{ seat, user, slot, name }]. The World stamps it on the party
+-- members' sprites (src/hunt-view/scene.js), so a right-click on another hero
+-- opens Inspect / Message / Add friend / Block for THAT account. The ids are
+-- the server's; a party member already sees the others (hr_hunt_party_view),
+-- and the account id is what every chat line already carries (from_id).
+-- A section row, never an hr_state_of body edit (architecture contracts X7).
+create or replace function public.hr_social_party_view(p_user uuid, p_slot int)
+returns jsonb language sql stable set search_path = public, pg_catalog as $$
+  select coalesce((select jsonb_agg(jsonb_build_object('seat', m.seat, 'user', m.user_id, 'slot', m.slot,
+                                                       'name', public.hr_social_name(m.user_id)) order by m.seat)
+                     from public.hunt_party_members m
+                    where m.party_id = public.hr_hunt_party_of(p_user, p_slot)), '[]'::jsonb)
+$$;
+revoke execute on function public.hr_social_party_view(uuid, int) from public, anon, authenticated, service_role;
+insert into public.hr_state_sections (key, fn, note) values
+  ('party_people', 'hr_social_party_view', '2026-10-25-social.sql: who sits in each seat of this character''s party (seat, user, slot, name), the player menu''s targets')
+  on conflict (key) do update set fn = excluded.fn, note = excluded.note;
+
 -- ── §6c GRANTS AND THE BASELINE ──────────────────────────────────────────────
 do $mig$
 declare f text;
@@ -602,6 +631,15 @@ begin
     v_err := null;
     begin perform public.hr_whisper_send(0, v_a::text, 'hi'); exception when sqlstate 'PGRST' then v_err := sqlerrm; end;
     if v_err is null then raise exception 'social §7(g): hr_whisper_send admitted a closed caller'; end if;
+    -- (h0) the party_people section: the seats of this character's party with the server's ids.
+    insert into public.hunt_parties (id, hunt_id, leader_user, leader_slot, max_size)
+      values ('000000c0-0000-4000-a000-00000c4a8101', 'socialprobe', v_a, 0, 4);
+    insert into public.hunt_party_members (party_id, user_id, slot, seat, weapon_type) values
+      ('000000c0-0000-4000-a000-00000c4a8101', v_a, 0, 0, 'neutral'), ('000000c0-0000-4000-a000-00000c4a8101', v_b, 0, 1, 'neutral');
+    v := public.hr_state_of(v_a, 0)->'party_people';
+    if jsonb_array_length(coalesce(v, '[]')) <> 2 or (v->1->>'user')::uuid <> v_b or (v->1->>'seat')::int <> 1 or v->1->>'name' <> 'Social2' then
+      raise exception 'social §7(h0): party_people is %', v; end if;
+    if jsonb_array_length(public.hr_social_party_view(v_c, 0)) <> 0 then raise exception 'social §7(h0): a non-member sees the party'; end if;
     raise exception using errcode = 'HR871', message = 'social §7 complete - rolling back';
   exception when sqlstate 'HR871' then
     null;

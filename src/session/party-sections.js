@@ -67,6 +67,22 @@ export function partyMembershipOf(cs) {
   };
 }
 
+/**
+ * `party_people` (2026-10-25-social.sql hr_social_party_view): who sits in each
+ * seat of this character's party, with the SERVER's account id, as the player
+ * menu targets them: Map(seat -> { id, slot, name }). Empty when the server sends none.
+ */
+export function partyPeopleOf(cs) {
+  const v = read(cs, 'party_people');
+  const out = new Map();
+  if (!Array.isArray(v)) return out;
+  for (const p of v.slice(0, 8)) {
+    if (!isObj(p) || seatNo(p.seat) === null || typeof p.user !== 'string' || !UUID.test(p.user)) continue;
+    out.set(p.seat, { id: p.user, slot: Number.isInteger(p.slot) ? p.slot : null, name: name(p.name) });
+  }
+  return out;
+}
+
 /** `party_invites`: invites waiting for THIS character, or null when the server sends none. */
 export function invitesOf(cs) {
   const v = read(cs, 'party_invites');

@@ -56,7 +56,11 @@
 -- ── COST (100x players) ─────────────────────────────────────────────────────
 -- A send is two UNLOGGED counter upserts, four point reads and one insert. The
 -- party audience is ≤ 5 uuids. History reads use chat_messages_channel_idx.
--- Retention stays the nightly trim-chat-messages job (60 days).
+-- Retention stays the nightly trim-chat-messages job (60 days): scheduled by
+-- 2026-08-11-chat-name-authority.sql (cron '15 3 * * *'), kept by the
+-- closed-rebuild wipe (chat_messages is wiped, its job is not), and pinned in
+-- tests/restore-census.baseline.json "cron". Whispers are a separate table on
+-- purpose (2026-10-25-social.sql header) with their own 30-day job.
 --
 -- REVERSIBILITY: drop the two functions and the hr_chat_* helpers; re-create
 -- the insert policy from supabase/schema.sql and `grant insert on
@@ -191,7 +195,7 @@ begin
     v_channel := public.hr_chat_zone_of(v_uid, p_slot);
   else
     v_pid := public.hr_hunt_party_of(v_uid, p_slot);
-    if v_pid is null then return jsonb_build_object('ok', false, 'error', 'no_party'); end if;
+    if v_pid is null then return jsonb_build_object('ok', false, 'error', 'not_in_party'); end if;
     v_channel := 'party:' || v_pid::text;
     select array_agg(distinct m.user_id) into v_aud from public.hunt_party_members m where m.party_id = v_pid;
   end if;
@@ -286,7 +290,7 @@ begin
     if public.hr_chat_send(0, 'global', '   ')->>'error' is distinct from 'empty'
        or public.hr_chat_send(0, 'global', repeat('a', 241))->>'error' is distinct from 'too_long'
        or public.hr_chat_send(0, 'shout', 'hi')->>'error' is distinct from 'bad_channel'
-       or public.hr_chat_send(0, 'party', 'hi')->>'error' is distinct from 'no_party'
+       or public.hr_chat_send(0, 'party', 'hi')->>'error' is distinct from 'not_in_party'
        or public.hr_chat_send(0, 'global', 'look [[item:no_such_item_zz]]')->>'error' is distinct from 'bad_link'
        or public.hr_chat_send(0, 'global', 'look [[item:Bad]]')->>'error' is distinct from 'bad_link' then
       raise exception 'chat-channels §6(b): a bad body was not refused as itself'; end if;

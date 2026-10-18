@@ -7,7 +7,7 @@
 //   node tests/chat-social.mjs --mutate       every planted defect must turn a rule RED
 //   node tests/chat-social.mjs --shots <dir>  also write the visual-gate screenshots (1440x900, 922x423)
 //
-// mutant-anchors: src/social/ src/shell/context-menu.js src/shell/menu-providers.js src/shell/windows/chat.js src/shell/windows/friends.js
+// mutant-anchors: src/social/ src/shell/context-menu.js src/shell/menu-providers.js src/shell/windows/chat.js src/shell/windows/friends.js src/hunt-view/scene.js src/session/party-sections.js src/world/world-boot.js
 // mutant-writes-tree: no — pure mutants plant into a temp copy of src/, page mutants into served overrides
 //
 // The server half of every rule (the sender's name, level and role stamped by
@@ -39,6 +39,11 @@
 //   CW-2  [page] an unread dot on a tab that got a line, cleared when shown
 //   CW-3  [page] typing in the field never gets past it to the World's walk keys;
 //         once blurred (Esc), W reaches the page again; Enter sends ONE intent
+//   CW-5  [page] a right-click on the World's canvas: a party member opens the player menu
+//         under that player's name (the server's party_people id: Message, Add friend,
+//         Block), a monster opens Look, the ground opens nothing, the viewed hero no menu
+//   RT-1  the realtime bindings one client holds are capped by CHAT_LIMITS.realtimeBindingsMax
+//   WT-1  a World pick becomes a stamped player, a monster, or nothing
 //   CW-4  [page] the right-click menu on a name opens at page level with Inspect,
 //         Message, Add friend, Invite to party, Block (no Trade); a press on it never reaches the World;
 //         Inspect shows the worn items; zero console errors throughout
@@ -63,9 +68,10 @@ const row = (o) => Object.assign({ id: '00000000-0000-4000-8000-' + String(++seq
 
 async function load(base) {
   const u = (p) => pathToFileURL(join(base, p)).href;
-  const [lines, store, wh, menu, prov, friends, fwin] = await Promise.all(['src/social/chat-lines.js', 'src/social/social-session.js',
-    'src/social/whispers.js', 'src/shell/context-menu.js', 'src/shell/menu-providers.js', 'src/social/friends.js', 'src/shell/windows/friends.js'].map((p) => import(u(p))));
-  return { lines, store, wh, menu, prov, friends, fwin };
+  const [lines, store, wh, menu, prov, friends, fwin, rt, chans] = await Promise.all(['src/social/chat-lines.js', 'src/social/social-session.js',
+    'src/social/whispers.js', 'src/shell/context-menu.js', 'src/shell/menu-providers.js', 'src/social/friends.js', 'src/shell/windows/friends.js',
+    'src/social/realtime.js', 'src/data/chat-channels.js'].map((p) => import(u(p))));
+  return { lines, store, wh, menu, prov, friends, fwin, rt, chans };
 }
 
 /* ── PURE ── */
@@ -182,6 +188,33 @@ async function pureRules(M) {
     if (mon !== 'look') fail('MN-1 a monster gets ' + mon);
     soc.destroy();
   }
+  // RT-1: the realtime bindings per client are capped by the data value, across chat and whispers
+  {
+    const bound = [];
+    const client = { realtime: { setAuth: () => {} }, removeChannel: (ch) => { ch.gone = true; },
+      channel: (topic) => { const ch = { topic, on: (t, f) => { bound.push({ ch, filter: f.filter }); return ch; }, subscribe: () => ch }; return ch; } };
+    const live = () => bound.filter((b) => !b.ch.gone).length;
+    const r = M.rt.createSocialRealtime(client, () => 'jwt');
+    const cap = M.chans.CHAT_LIMITS.realtimeBindingsMax;
+    const leave = r.chat(['global', 'system', 'local:town', PARTY, 'local:a', 'local:b', 'local:c'], () => {});
+    if (live() !== cap || r.bindings() !== cap) fail('RT-1 seven channels took ' + live() + ' bindings (cap ' + cap + ')');
+    r.whispers(UID, () => {});
+    if (live() !== cap) fail('RT-1 a whisper subscription past the cap took a binding (' + live() + ')');
+    leave();
+    r.whispers(UID, () => {});
+    if (live() !== 1 || r.bindings() !== 1) fail('RT-1 after leaving, the whispers binding did not land alone (' + live() + ')');
+    if (cap < 5) fail('RT-1 the cap ' + cap + ' cannot hold global, system, zone, party and whispers');
+  }
+  // WT-1: what the World picked becomes a target: a stamped player, a monster, or nothing for the ground
+  {
+    const mon = Object.keys((await import(pathToFileURL(join(ROOT, 'src/data/monsters.js')).href)).MONSTERS)[0];
+    const p = M.prov.worldTargetOf({ hits: [{ id: 'hero_look', ref: { player: { id: OTHER, name: 'Mira', slot: 0 } } }, { id: mon, ref: { monster: mon } }] });
+    const m = M.prov.worldTargetOf({ hits: [{ id: 'art_x', ref: { monster: mon } }] });
+    const g = M.prov.worldTargetOf({ hits: [{ id: 'grass', ref: null }] });
+    if (!p || p.kind !== 'player' || p.id !== OTHER || p.name !== 'Mira') fail('WT-1 a stamped hero reads ' + JSON.stringify(p));
+    if (!m || m.kind !== 'monster' || m.id !== mon) fail('WT-1 a monster reads ' + JSON.stringify(m));
+    if (g !== null) fail('WT-1 the ground reads ' + JSON.stringify(g));
+  }
   // FR-1
   {
     const f = new M.friends.FriendStore({ account: { server: {} }, reread: async () => {} });
@@ -200,6 +233,14 @@ async function pureRules(M) {
 /* ── THE PAGE ── */
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 
+/* The fixture as the S1 server sends it: members carry their seat, and party_people names each seat's account. */
+function env() {
+  const e = clone(FIXTURE);
+  e.party.members.forEach((m, i) => { m.seat = i; });
+  e.party_people = [{ seat: 0, user: UID, slot: 0, name: 'Tyler' }, { seat: 1, user: OTHER, slot: 0, name: 'Mira' }];
+  return e;
+}
+
 async function stub(page, s) {
   await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
   await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
@@ -208,8 +249,8 @@ async function stub(page, s) {
     const body = JSON.parse(r.request().postData() || '{}');
     s.calls.push({ name, body });
     const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
-    if (name === 'hr_load') return json(Object.assign(clone(FIXTURE), { version: ++s.version }));
-    if (name === 'hr-accrue') return json(Object.assign({ accrued: true }, clone(FIXTURE), { version: ++s.version }));
+    if (name === 'hr_load') return json(Object.assign(env(), { version: ++s.version }));
+    if (name === 'hr-accrue') return json(Object.assign({ accrued: true }, env(), { version: ++s.version }));
     if (name === 'hr_chat_recent') return json({ ok: true, zone: ZONE, party: null, lines: [row({ body: 'welcome back', created_at: '2026-10-18T08:00:00Z' })] });
     if (name === 'hr_chat_send') return json({ ok: true, line: row({ from_id: UID, from_name: 'Quill', body: body.p_body, from_weapon: 'staff', from_role: 'healer' }) });
     if (name === 'hr_social_state') return json({ ok: true, friends: [], incoming: [], outgoing: [], blocks: [] });
@@ -290,6 +331,31 @@ async function pageRules(overrides, shots) {
       await page.keyboard.press('w');
       const blurred = await page.evaluate(() => ({ active: document.activeElement && document.activeElement.className, keys: window.__keys.slice() }));
       if (/hc-field/.test(blurred.active || '') || !blurred.keys.some((k) => k.k === 'w' && !k.field)) fails.push('CW-3 [' + tag + '] after Esc, W did not reach the page: ' + JSON.stringify(blurred));
+      // CW-5: right-click on the World's canvas — a party member (Mira, stamped from party_people), a monster, the ground
+      const scan = await page.evaluate(() => {
+        const cv = document.querySelector('.world-canvas');
+        if (!cv) return null;
+        const r = cv.getBoundingClientRect();
+        const seen = {};
+        let ground = 0;
+        for (let y = r.top + 6; y < r.bottom; y += 10) for (let x = r.left + 6; x < r.right; x += 10) {
+          cv.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: x, clientY: y }));
+          const m = document.querySelector('.hw-menu.is-on');
+          if (!m) { ground++; continue; }
+          const title = m.querySelector('.hw-menu-title').textContent;
+          seen[title] = Array.from(m.querySelectorAll('.hw-mi')).map((b) => b.textContent).join('|');
+          document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+        }
+        return { seen, ground };
+      });
+      if (!scan) fails.push('CW-5 [' + tag + '] no world canvas');
+      else {
+        if (scan.seen.Mira !== 'Inspect gear|Message|Add friend|Invite to party|Block') fails.push('CW-5 [' + tag + '] right-click on Mira gave ' + JSON.stringify(scan.seen));
+        const looks = Object.entries(scan.seen).filter(([, v]) => v === 'Look');
+        if (!looks.length) fails.push('CW-5 [' + tag + '] no monster answered Look: ' + JSON.stringify(scan.seen));
+        if (!scan.ground) fails.push('CW-5 [' + tag + '] every point opened a menu (the ground must open nothing)');
+        if (scan.seen.Tyler) fails.push('CW-5 [' + tag + '] the viewed hero opened a player menu on itself: ' + scan.seen.Tyler);
+      }
       // CW-4
       const nameBox = await page.$('[data-hs-win="chat"] .hc-log.is-talk.is-on .hc-name[data-hs-player-id]');
       if (!nameBox) fails.push('CW-4 [' + tag + '] no name to right-click');
@@ -336,6 +402,8 @@ const PURE_MUTANTS = [
   ['a hidden row is listed', 'src/shell/context-menu.js', "if (row.hidden || !row.targets.includes(target.kind)) continue;", "if (!row.targets.includes(target.kind)) continue;"],
   ['you can block yourself', 'src/social/social-session.js', "const other = (t) => t.kind === 'player' && !!t.id && !this.isSelf(t);", "const other = (t) => t.kind === 'player' && !!t.id;"],
   ['a friend reads online when offline', 'src/social/friends.js', "online: f.online === true,", "online: true,"],
+  ['the realtime bindings are not capped', 'src/social/realtime.js', "        .slice(0, Math.max(0, CHAT_LIMITS.realtimeBindingsMax - held()));", ";"],
+  ['the ground opens a menu', 'src/shell/menu-providers.js', "    if (MONSTERS[mon]) return { kind: 'monster', id: mon, title: monsterName(mon) };", "    return { kind: 'monster', id: mon, title: String(mon) };"],
 ];
 const PAGE_MUTANTS = [
   ['the level is dropped from a line', 'src/shell/windows/chat.js', "(l.level !== null ? esc(l.level) : '')", "''"],
@@ -343,6 +411,9 @@ const PAGE_MUTANTS = [
   ['the field swallows every key', 'src/shell/windows/chat.js', "    if (type === 'keydown' && ev.key === 'Escape') { t.blur(); return true; }\n    return false;",
     "    if (type === 'keydown' && ev.key === 'Escape') { t.blur(); return true; }\n    if (type === 'keydown') { t.value += ev.key; ev.preventDefault(); return true; }\n    return false;"],
   ['Esc keeps the focus', 'src/shell/windows/chat.js', "ev.key === 'Escape') { t.blur(); return true; }", "ev.key === 'Escape') { return true; }"],
+  ['a party member is not stamped', 'src/hunt-view/scene.js', "        out.ref = { player: { id: who ? who.id : null, name: (who && who.name) || m.name, slot: who ? who.slot : null } };", "        void who;"],
+  ['the server ids are not read', 'src/session/party-sections.js', "    out.set(p.seat, { id: p.user, slot: Number.isInteger(p.slot) ? p.slot : null, name: name(p.name) });", "    void p;"],
+  ['the World names nothing on a right-click', 'src/world/world-boot.js', "if (pick) emit('entity', { hits: pick.hits, x, y }); }", "void pick; }"],
   ['the menu is drawn inside the World', 'src/shell/windows/float-menu.js', "  doc.body.appendChild(el);\n  return el;", "  (doc.querySelector('.world-stage') || doc.body).appendChild(el);\n  return el;"],
 ];
 

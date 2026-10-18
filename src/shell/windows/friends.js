@@ -14,7 +14,7 @@
 //                  `social.blocked` row opens this window)
 // Every button is ONE rpc and stays off until the server answered.
 // ════════════════════════════════════════════════════════════════════════
-import { CHAT_REFUSALS } from '../../data/chat-channels.js?v=0.2.0';
+import { refusalWords } from '../intent-words.js?v=0.2.0';
 import { huntName } from '../../session/party-sections.js?v=0.2.0';
 import { menuProvidersOf } from '../menu-providers.js?v=0.2.0';
 import { entriesFor } from '../context-menu.js?v=0.2.0';
@@ -91,7 +91,7 @@ async function settle(ctx, body, st, p, done) {
   renderFriends.patch(body, ctx);
   const r = await p;
   st.pending = false;
-  st.msg = r && r.ok === false ? CHAT_REFUSALS[r.error] || 'That did not work. Try again.' : r && typeof r.say === 'string' ? r.say : done || '';
+  st.msg = r && r.ok === false ? refusalWords(r.error) : r && typeof r.say === 'string' ? r.say : done || '';
   renderFriends.patch(body, ctx);
 }
 

@@ -107,6 +107,12 @@ function contract(R, cs, body, tl) {
   const pm = R.PS.partyMembershipOf(cs);
   need('party', !!pm && pm.seats.length === 2 && pm.me !== null && pm.leader !== null && pm.isLeader,
     'partyMembershipOf yields ' + JSON.stringify(pm && { seats: pm.seats.length, me: pm.me, leader: pm.leader }));
+  // party_people: the player menu's targets, one per seat of the real party, with the server's account ids (2026-10-25-social.sql)
+  const pp = R.PS.partyPeopleOf(cs);
+  need('party_people', Array.isArray(body.party_people) && pp.size === body.party_people.length && !!pm && pp.size === pm.seats.length
+    && pm.seats.every((x) => pp.has(x.seat)) && p && p.members.every((x) => pp.has(x.seat)),
+    'partyPeopleOf yields ' + JSON.stringify(Array.from(pp.entries())) + ' from ' + JSON.stringify(body.party_people).slice(0, 200)
+    + ' for seats ' + JSON.stringify(pm && pm.seats.map((x) => x.seat)) + ' / members ' + JSON.stringify(p && p.members.map((x) => x.seat)));
   // stamina + premium + account
   const st = R.HS.staminaOf(cs);
   need('stamina', !!st && isNum(st.msLeft) && isNum(st.capMs), 'staminaOf yields ' + JSON.stringify(st) + ' from ' + JSON.stringify(body.stamina));
@@ -133,7 +139,7 @@ function contract(R, cs, body, tl) {
 }
 /* The envelope keys CONTRACT covers (with the settle-response keys). */
 export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events', 'hunt_server_now_ms', 'hunt_settings', 'hunt_analyzer',
-  'party', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots']);
+  'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots']);
 
 /* Every section key a client reader reads, from the source. */
 export function clientReadKeys(root) {

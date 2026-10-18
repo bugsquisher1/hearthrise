@@ -6,10 +6,10 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: f3c681a6efcc85250cb8e03426b58e9cdd2e527676dc6bc6e98a9525bcfec324
---   rows: 471 items (15 untradeable) ·
---         269 item-slot pairs · 15 equip slots ·
---         15 skills · 9 crops · 267 activities ·
+--   catalogue digest: 46e67e29d3f47657fc0912f2c5f06a2227c54209c3ece90e97e14890554610cc
+--   rows: 473 items (15 untradeable) ·
+--         270 item-slot pairs · 15 equip slots ·
+--         15 skills · 9 crops · 275 activities ·
 --         0 runes
 --
 -- APPLY ORDER: 2026-08-11-player-state.sql → THIS FILE → 2026-08-11-apply-engine.sql
@@ -281,6 +281,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('copper_whetstone','Copper Whetstone',true,'ammo',15,'attack',15,null,false),
   ('cracked_spellstone','Cracked Spellstone',true,null,260,null,null,null,false),
   ('crown_of_the_fallen_king','Crown of the Fallen King',true,'armor',17000,'defense',85,null,false),
+  ('crown_shard','Crown Shard',true,null,150,null,null,null,false),
   ('dark_sigil','Dark Sigil',true,null,180,null,null,null,false),
   ('dawn_axe','Dawnsteel Axe',true,'tool',55000,null,null,null,false),
   ('dawn_bar','Dawnsteel Bar',true,null,4200,null,null,null,false),
@@ -383,6 +384,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('iron_axe','Iron Axe',true,'tool',250,null,null,null,false),
   ('iron_bar','Iron Bar',true,null,90,null,null,null,false),
   ('iron_belt','Iron Belt',true,'armor',105,'defense',15,null,false),
+  ('iron_bolts','Iron Bolts',true,'ammo',1,'ranged',15,null,false),
   ('iron_boots','Iron Boots',true,'armor',105,'defense',15,null,false),
   ('iron_fitting','Iron Fitting',true,null,480,null,null,null,false),
   ('iron_gauntlets','Iron Gauntlets',true,'armor',90,'defense',15,null,false),
@@ -764,6 +766,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('hunter_necklace','necklace'),
   ('iron_arrows','ammo'),
   ('iron_belt','belt'),
+  ('iron_bolts','ammo'),
   ('iron_boots','boots'),
   ('iron_gauntlets','gloves'),
   ('iron_helm','helmet'),
@@ -1027,6 +1030,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','fletch_bronze_arrows','crafting',5,null,false),
   ('artisan','fletch_dawnpoint_arrows','crafting',91,null,false),
   ('artisan','fletch_emberhead_arrows','crafting',78,null,false),
+  ('artisan','fletch_iron_bolts','crafting',18,null,false),
   ('artisan','fletch_mithril_arrows','crafting',48,null,false),
   ('artisan','fletch_rune_arrows','crafting',63,null,false),
   ('artisan','fletch_steel_arrows','crafting',33,null,false),
@@ -1052,6 +1056,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','grind_rune_whetstone','smithing',65,null,false),
   ('artisan','grind_steel_whetstone','smithing',35,null,false),
   ('artisan','offer_ancient_claw','prayer',92,null,false),
+  ('artisan','offer_crown_shard','prayer',10,null,false),
   ('artisan','offer_razor_claw','prayer',52,null,false),
   ('artisan','purge_void_chitin','prayer',99,null,false),
   ('artisan','release_lich_soul','prayer',86,null,false),
@@ -1093,8 +1098,10 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('combat','cave_wyrm',null,null,158,false),
   ('combat','centipede',null,null,60,false),
   ('combat','chained_demon',null,null,240,false),
+  ('combat','cistern_spider',null,null,90,false),
   ('combat','clay_golem',null,null,78,false),
   ('combat','conjurer',null,null,110,false),
+  ('combat','culvert_bat',null,null,70,false),
   ('combat','cutpurse',null,null,11,false),
   ('combat','cyclops',null,null,256,false),
   ('combat','dark_wizard',null,null,28,false),
@@ -1103,6 +1110,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('combat','dire_wolf',null,null,62,false),
   ('combat','draconia',null,null,484,true),
   ('combat','dragon',null,null,520,true),
+  ('combat','drain_rat',null,null,45,false),
   ('combat','drake',null,null,234,false),
   ('combat','drowned_dead',null,null,130,false),
   ('combat','dryad',null,null,222,false),
@@ -1133,6 +1141,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('combat','imp',null,null,10,false),
   ('combat','iron_colossus',null,null,518,true),
   ('combat','kobold',null,null,12,false),
+  ('combat','kobold_tosher',null,null,55,false),
   ('combat','lesser_demon',null,null,150,false),
   ('combat','lich',null,null,350,true),
   ('combat','locust_swarm',null,null,25,false),
@@ -1152,6 +1161,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('combat','panther',null,null,205,false),
   ('combat','plague_swarm',null,null,100,false),
   ('combat','rat',null,null,9,false),
+  ('combat','rat_king',null,null,600,true),
   ('combat','revenant',null,null,448,false),
   ('combat','rock_troll',null,null,72,false),
   ('combat','salamander',null,null,27,false),
@@ -1166,6 +1176,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('combat','stone_golem',null,null,35,false),
   ('combat','stonejaw',null,null,478,true),
   ('combat','storm_elemental',null,null,392,false),
+  ('combat','sump_slime',null,null,50,false),
   ('combat','the_silence',null,null,364,false),
   ('combat','the_unlit',null,null,508,true),
   ('combat','treant',null,null,512,true),
@@ -1262,7 +1273,7 @@ insert into public.hr_start_equipment (equip_slot, item_id) values
 -- (no tag:'rune' items authored yet — hr_runes seeded empty)
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, 'f3c681a6efcc85250cb8e03426b58e9cdd2e527676dc6bc6e98a9525bcfec324', now())
+  values (true, '46e67e29d3f47657fc0912f2c5f06a2227c54209c3ece90e97e14890554610cc', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1290,13 +1301,13 @@ do $$
 declare v_bad int; v_n int;
 begin
   select count(*) into v_n from public.hr_items;
-  if v_n <> 471 then raise exception 'hr_items has % rows, generator emitted 471', v_n; end if;
+  if v_n <> 473 then raise exception 'hr_items has % rows, generator emitted 473', v_n; end if;
   select count(*) into v_n from public.hr_items where not tradeable;
   if v_n <> 15 then
     raise exception 'untradeable count is %, generator emitted 15', v_n;
   end if;
   select count(*) into v_n from public.hr_activities;
-  if v_n <> 267 then raise exception 'hr_activities has % rows, expected 267', v_n; end if;
+  if v_n <> 275 then raise exception 'hr_activities has % rows, expected 275', v_n; end if;
 
   -- MONSTER HP. The count is asserted for the same reason auto_eatable's is: a
   -- re-apply against a database that created hr_activities before the column
@@ -1304,8 +1315,8 @@ begin
   -- does not fail — it makes hr_apply's carried-fight clamp ADMIT ANYTHING,
   -- which is the "assertion that asserts nothing" family in SQL form.
   select count(*) into v_n from public.hr_activities where kind = 'combat' and max_hp is not null;
-  if v_n <> 113 then
-    raise exception 'combat activities with a max_hp: %, generator emitted 113 — '
+  if v_n <> 119 then
+    raise exception 'combat activities with a max_hp: %, generator emitted 119 — '
       'hr_apply''s carried-fight clamp would be vacuous for the rest', v_n;
   end if;
   -- ...and the converse, so a non-combat row can never acquire a fight ceiling
@@ -1317,8 +1328,8 @@ begin
   -- a database that created hr_activities before is_boss existed must not leave
   -- every combat row FALSE, which would silently zero the renown bossKill term.
   select count(*) into v_n from public.hr_activities where kind = 'combat' and is_boss;
-  if v_n <> 14 then
-    raise exception 'combat activities flagged is_boss: %, generator emitted 14 — '
+  if v_n <> 15 then
+    raise exception 'combat activities flagged is_boss: %, generator emitted 15 — '
       'the renown bossKill term would be mis-scored', v_n;
   end if;
   -- ...and no non-combat row may be a boss (a gather node flagged boss would
@@ -1450,7 +1461,7 @@ begin
   ) src where not exists (select 1 from public.hr_items i where i.item_id = src.id);
   if v_bad > 0 then raise exception '% grant-source row(s) name an item missing from hr_items', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest f3c681a6efcc85250cb8e03426b58e9cdd2e527676dc6bc6e98a9525bcfec324',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 46e67e29d3f47657fc0912f2c5f06a2227c54209c3ece90e97e14890554610cc',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

@@ -5,7 +5,8 @@
 // this file only says what the art does not:
 //   MATERIALS   what a legend character means. `solid` blocks walking; `wall`
 //               names the wall kit a solid material is faced with
-//               (<wall>_wall, <wall>_cap, <wall>_cap_h, <wall>_cap_w).
+//               (<wall>_wall, <wall>_cap, <wall>_cap_h, <wall>_cap_w). A `flat`
+//               solid (water) carries no kit and is never drawn as a raised wall.
 //   OPEN_CLASSES  art classes that never block a step (lying flat, small, hung
 //               on a wall, drawn above everything). Every other placed sprite
 //               is solid on its footprint.
@@ -22,6 +23,10 @@ export const MATERIALS = Object.freeze({
   cobble: Object.freeze({ solid: false }),
   planks: Object.freeze({ solid: false }),
   rock: Object.freeze({ solid: true, wall: 'stone' }),
+  /* Sewage (the Millrace Sewer's channel): it blocks a step but is FLAT, so no wall kit is
+     drawn over it and it hides nothing behind it. It draws as the void until the sewer
+     atlas ships its water terrain (asset handoff, 2026-10-18). */
+  sewage: Object.freeze({ solid: true, flat: true }),
 });
 
 export const OPEN_CLASSES = Object.freeze(['decal', 'small', 'loot', 'hanging', 'roof', 'wallcap']);

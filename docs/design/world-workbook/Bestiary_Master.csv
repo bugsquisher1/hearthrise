@@ -1,0 +1,301 @@
+Creature ID,Creature,Family,Hunt ID,Primary hunt,Region,Suggested hunt level,Entry level,Group fit,Creature tier in family
+CR-001,Gray Wolf,Wild Beasts,H-001,Meadowbrook Thicket,Greenhaven Frontier,1–15,1,Solo,1
+CR-002,Dire Wolf,Wild Beasts,H-001,Meadowbrook Thicket,Greenhaven Frontier,1–15,1,Solo,2
+CR-003,Cliff Sparrow,Winged Creatures,H-001,Meadowbrook Thicket,Greenhaven Frontier,1–15,1,Solo,1
+CR-004,Cave Beetle,Insectoids,H-001,Meadowbrook Thicket,Greenhaven Frontier,1–15,1,Solo,1
+CR-005,Thorn Sprout,Verdant Horrors,H-001,Meadowbrook Thicket,Greenhaven Frontier,1–15,1,Solo,1
+CR-006,Roadside Thief,Outlaws and Renegades,H-002,Old Mill Road,Greenhaven Frontier,6–25,6,Solo,1
+CR-007,Forest Poacher,Outlaws and Renegades,H-002,Old Mill Road,Greenhaven Frontier,6–25,6,Solo,2
+CR-008,Cave Goblin,Goblinoids,H-002,Old Mill Road,Greenhaven Frontier,6–25,6,Solo,1
+CR-009,Animated Broom,Constructs and Automata,H-002,Old Mill Road,Greenhaven Frontier,6–25,6,Solo,1
+CR-010,Shadowfang Wolf,Wild Beasts,H-002,Old Mill Road,Greenhaven Frontier,6–25,6,Solo,3
+CR-011,Walking Vine,Verdant Horrors,H-003,Mosslight Glade,Greenhaven Frontier,15–33,15,Solo,2
+CR-012,Briarling,Verdant Horrors,H-003,Mosslight Glade,Greenhaven Frontier,15–33,15,Solo,3
+CR-013,Mischief Sprite,Fey and Enchanted,H-003,Mosslight Glade,Greenhaven Frontier,15–33,15,Solo,1
+CR-014,Pixie Trickster,Fey and Enchanted,H-003,Mosslight Glade,Greenhaven Frontier,15–33,15,Solo,2
+CR-015,Carrion Crow,Winged Creatures,H-003,Mosslight Glade,Greenhaven Frontier,15–33,15,Solo,2
+CR-016,Mudskipper,Aquatic Beasts,H-004,Pebblebrook Bank,Greenhaven Frontier,23–42,23,Solo,1
+CR-017,River Snapper,Aquatic Beasts,H-004,Pebblebrook Bank,Greenhaven Frontier,23–42,23,Solo,2
+CR-018,Marsh Lizard,Reptilians,H-004,Pebblebrook Bank,Greenhaven Frontier,23–42,23,Solo,1
+CR-019,Forest Spider,Insectoids,H-004,Pebblebrook Bank,Greenhaven Frontier,23–42,23,Solo,2
+CR-020,Sporeling,Fungal Creatures,H-004,Pebblebrook Bank,Greenhaven Frontier,23–42,23,Solo,1
+CR-021,Goblin Scavenger,Goblinoids,H-005,Coppercap Warrens,Greenhaven Frontier,32–50,32,Party,2
+CR-022,Goblin Archer,Goblinoids,H-005,Coppercap Warrens,Greenhaven Frontier,32–50,32,Party,3
+CR-023,Hobgoblin,Goblinoids,H-005,Coppercap Warrens,Greenhaven Frontier,32–50,32,Party,4
+CR-024,Tunnel Ratling,Deep Dwellers,H-005,Coppercap Warrens,Greenhaven Frontier,32–50,32,Party,1
+CR-025,Giant Ant,Insectoids,H-005,Coppercap Warrens,Greenhaven Frontier,32–50,32,Party,3
+CR-026,Cave Mushroom,Fungal Creatures,H-006,Forgotten Rootcellar,Greenhaven Frontier,40–50,40,Party,2
+CR-027,Puffcap,Fungal Creatures,H-006,Forgotten Rootcellar,Greenhaven Frontier,40–50,40,Party,3
+CR-028,Blind Cavekin,Deep Dwellers,H-006,Forgotten Rootcellar,Greenhaven Frontier,40–50,40,Party,2
+CR-029,Risen Corpse,Restless Dead,H-006,Forgotten Rootcellar,Greenhaven Frontier,40–50,40,Party,1
+CR-030,Wild Boar,Wild Beasts,H-006,Forgotten Rootcellar,Greenhaven Frontier,40–50,40,Party,4
+CR-031,Sand Skink,Reptilians,H-007,Briarfen Marsh,Thornwild Expanse,40–62,40,Solo,2
+CR-032,Stoneback Tortoise,Reptilians,H-007,Briarfen Marsh,Thornwild Expanse,40–62,40,Solo,3
+CR-033,Venom Wasp,Insectoids,H-007,Briarfen Marsh,Thornwild Expanse,40–62,40,Solo,4
+CR-034,Giant Crab,Aquatic Beasts,H-007,Briarfen Marsh,Thornwild Expanse,40–62,40,Solo,3
+CR-035,Rotcap,Fungal Creatures,H-007,Briarfen Marsh,Thornwild Expanse,40–62,40,Solo,4
+CR-036,Root Crawler,Verdant Horrors,H-008,Thornveil Grove,Thornwild Expanse,48–78,48,Solo,4
+CR-037,Thornlash,Verdant Horrors,H-008,Thornveil Grove,Thornwild Expanse,48–78,48,Solo,5
+CR-038,Moon Moth,Fey and Enchanted,H-008,Thornveil Grove,Thornwild Expanse,48–78,48,Solo,3
+CR-039,Thorn Fairy,Fey and Enchanted,H-008,Thornveil Grove,Thornwild Expanse,48–78,48,Solo,4
+CR-040,Ironhide Boar,Wild Beasts,H-008,Thornveil Grove,Thornwild Expanse,48–78,48,Solo,5
+CR-041,Razorbeak,Winged Creatures,H-009,Moonshade Canopy,Thornwild Expanse,62–92,62,Solo,3
+CR-042,Giant Vulture,Winged Creatures,H-009,Moonshade Canopy,Thornwild Expanse,62–92,62,Solo,4
+CR-043,Woodland Satyr,Fey and Enchanted,H-009,Moonshade Canopy,Thornwild Expanse,62–92,62,Solo,5
+CR-044,Thornback Bear,Wild Beasts,H-009,Moonshade Canopy,Thornwild Expanse,62–92,62,Solo,6
+CR-045,Barkhide Guardian,Verdant Horrors,H-009,Moonshade Canopy,Thornwild Expanse,62–92,62,Solo,6
+CR-046,Mycelium Crawler,Fungal Creatures,H-010,Fungalfall Hollow,Thornwild Expanse,76–107,76,Party,5
+CR-047,Spore Toad,Fungal Creatures,H-010,Fungalfall Hollow,Thornwild Expanse,76–107,76,Party,6
+CR-048,Glowshroom Beast,Fungal Creatures,H-010,Fungalfall Hollow,Thornwild Expanse,76–107,76,Party,7
+CR-049,Blood Tick,Insectoids,H-010,Fungalfall Hollow,Thornwild Expanse,76–107,76,Party,5
+CR-050,Burrow Stalker,Deep Dwellers,H-010,Fungalfall Hollow,Thornwild Expanse,76–107,76,Party,3
+CR-051,Crystal Crawler,Deep Dwellers,H-011,Blackroot Burrows,Thornwild Expanse,91–120,91,Party,4
+CR-052,Pale Hunter,Deep Dwellers,H-011,Blackroot Burrows,Thornwild Expanse,91–120,91,Party,5
+CR-053,Webspinner,Insectoids,H-011,Blackroot Burrows,Thornwild Expanse,91–120,91,Party,6
+CR-054,Goblin Shaman,Goblinoids,H-011,Blackroot Burrows,Thornwild Expanse,91–120,91,Party,5
+CR-055,Goblin Berserker,Goblinoids,H-011,Blackroot Burrows,Thornwild Expanse,91–120,91,Party,6
+CR-056,Glimmer Fox,Fey and Enchanted,H-012,Sunken Druid Circle,Thornwild Expanse,104–120,104,Party,6
+CR-057,Vine Strangler,Verdant Horrors,H-012,Sunken Druid Circle,Thornwild Expanse,104–120,104,Party,7
+CR-058,Elder Treant,Verdant Horrors,H-012,Sunken Druid Circle,Thornwild Expanse,104–120,104,Party,8
+CR-059,Bloodthorn Bloom,Verdant Horrors,H-012,Sunken Druid Circle,Thornwild Expanse,104–120,104,Party,9
+CR-060,Ironclaw Scorpion,Insectoids,H-012,Sunken Druid Circle,Thornwild Expanse,104–120,104,Party,7
+CR-061,Ember Wisp,Flameborn,H-013,Cindertrail Ravine,Ashfall Highlands,100–134,100,Solo,1
+CR-062,Cinderling,Flameborn,H-013,Cindertrail Ravine,Ashfall Highlands,100–134,100,Solo,2
+CR-063,Venomfang Viper,Reptilians,H-013,Cindertrail Ravine,Ashfall Highlands,100–134,100,Solo,4
+CR-064,Cave Bear,Wild Beasts,H-013,Cindertrail Ravine,Ashfall Highlands,100–134,100,Solo,7
+CR-065,Ridge Marauder,Savage Tribes,H-013,Cindertrail Ravine,Ashfall Highlands,100–134,100,Solo,1
+CR-066,Tusk Raider,Savage Tribes,H-014,Dustwind Pass,Ashfall Highlands,112–158,112,Solo,2
+CR-067,Boneclub Brute,Savage Tribes,H-014,Dustwind Pass,Ashfall Highlands,112–158,112,Solo,3
+CR-068,Bandit Scout,Outlaws and Renegades,H-014,Dustwind Pass,Ashfall Highlands,112–158,112,Solo,3
+CR-069,Stormhawk,Winged Creatures,H-014,Dustwind Pass,Ashfall Highlands,112–158,112,Solo,5
+CR-070,Razorclaw Lynx,Wild Beasts,H-014,Dustwind Pass,Ashfall Highlands,112–158,112,Solo,8
+CR-071,Deepstone Miner,Deep Dwellers,H-015,Scoria Tunnels,Ashfall Highlands,134–178,134,Solo,6
+CR-072,Gloomstalker,Deep Dwellers,H-015,Scoria Tunnels,Ashfall Highlands,134–178,134,Solo,7
+CR-073,Training Dummy,Constructs and Automata,H-015,Scoria Tunnels,Ashfall Highlands,134–178,134,Solo,2
+CR-074,Ash Crawler,Flameborn,H-015,Scoria Tunnels,Ashfall Highlands,134–178,134,Solo,3
+CR-075,Tunnel Mantis,Insectoids,H-015,Scoria Tunnels,Ashfall Highlands,134–178,134,Solo,8
+CR-076,Dragon Hatchling,Dragonkin,H-016,Wyvern Roost,Ashfall Highlands,154–201,154,Party,1
+CR-077,Lesser Drake,Dragonkin,H-016,Wyvern Roost,Ashfall Highlands,154–201,154,Party,2
+CR-078,Ashfeather Raven,Winged Creatures,H-016,Wyvern Roost,Ashfall Highlands,154–201,154,Party,6
+CR-079,Static Wisp,Stormbound,H-016,Wyvern Roost,Ashfall Highlands,154–201,154,Party,1
+CR-080,Giant Cobra,Reptilians,H-016,Wyvern Roost,Ashfall Highlands,154–201,154,Party,5
+CR-081,Hill Brute,Giants and Colossi,H-017,Stonebreaker Camp,Ashfall Highlands,177–220,177,Party,1
+CR-082,Cave Giant,Giants and Colossi,H-017,Stonebreaker Camp,Ashfall Highlands,177–220,177,Party,2
+CR-083,Wasteland Hunter,Savage Tribes,H-017,Stonebreaker Camp,Ashfall Highlands,177–220,177,Party,4
+CR-084,Hobgoblin Captain,Goblinoids,H-017,Stonebreaker Camp,Ashfall Highlands,177–220,177,Party,7
+CR-085,Highway Robber,Outlaws and Renegades,H-017,Stonebreaker Camp,Ashfall Highlands,177–220,177,Party,4
+CR-086,Fire Imp,Flameborn,H-018,Ashen Caldera,Ashfall Highlands,196–220,196,Party,4
+CR-087,Burning Hound,Flameborn,H-018,Ashen Caldera,Ashfall Highlands,196–220,196,Party,5
+CR-088,Forest Wyvern,Dragonkin,H-018,Ashen Caldera,Ashfall Highlands,196–220,196,Party,3
+CR-089,Stone Giant,Giants and Colossi,H-018,Ashen Caldera,Ashfall Highlands,196–220,196,Party,3
+CR-090,Lesser Fiend,Infernal,H-018,Ashen Caldera,Ashfall Highlands,196–220,196,Party,1
+CR-091,Snow Sprite,Frostborn,H-019,Whitepine Expanse,Frostveil Reach,180–228,180,Solo,1
+CR-092,Ice Beetle,Frostborn,H-019,Whitepine Expanse,Frostveil Reach,180–228,180,Solo,2
+CR-093,Dusk Prowler,Wild Beasts,H-019,Whitepine Expanse,Frostveil Reach,180–228,180,Solo,9
+CR-094,Moonwing Owl,Winged Creatures,H-019,Whitepine Expanse,Frostveil Reach,180–228,180,Solo,7
+CR-095,Dream Weaver,Fey and Enchanted,H-019,Whitepine Expanse,Frostveil Reach,180–228,180,Solo,7
+CR-096,Frost Wolf,Frostborn,H-020,Glacial Burrows,Frostveil Reach,197–262,197,Solo,3
+CR-097,Brood Widow,Insectoids,H-020,Glacial Burrows,Frostveil Reach,197–262,197,Solo,9
+CR-098,Cavern Mystic,Deep Dwellers,H-020,Glacial Burrows,Frostveil Reach,197–262,197,Solo,8
+CR-099,Winter Wisp,Frostborn,H-020,Glacial Burrows,Frostveil Reach,197–262,197,Solo,4
+CR-100,Fungal Brute,Fungal Creatures,H-020,Glacial Burrows,Frostveil Reach,197–262,197,Solo,8
+CR-101,Thunder Moth,Stormbound,H-021,Aurora Cliffs,Frostveil Reach,228–290,228,Solo,2
+CR-102,Bonewing Bat,Winged Creatures,H-021,Aurora Cliffs,Frostveil Reach,228–290,228,Solo,8
+CR-103,Screech Harpy,Winged Creatures,H-021,Aurora Cliffs,Frostveil Reach,228–290,228,Solo,9
+CR-104,Glacial Spider,Frostborn,H-021,Aurora Cliffs,Frostveil Reach,228–290,228,Solo,5
+CR-105,Icebound Revenant,Frostborn,H-021,Aurora Cliffs,Frostveil Reach,228–290,228,Solo,6
+CR-106,Frostfang Yeti,Frostborn,H-022,Icebound Ruins,Frostveil Reach,256–323,256,Party,7
+CR-107,Rotting Walker,Restless Dead,H-022,Icebound Ruins,Frostveil Reach,256–323,256,Party,2
+CR-108,Lost Soul,Spectral Entities,H-022,Icebound Ruins,Frostveil Reach,256–323,256,Party,1
+CR-109,Clockwork Rat,Constructs and Automata,H-022,Icebound Ruins,Frostveil Reach,256–323,256,Party,3
+CR-110,Living Spell,Arcane Aberrations,H-022,Icebound Ruins,Frostveil Reach,256–323,256,Party,1
+CR-111,Crystal Golem,Frostborn,H-023,Yeti Crossing,Frostveil Reach,289–350,289,Party,8
+CR-112,Forest Giant,Giants and Colossi,H-023,Yeti Crossing,Frostveil Reach,289–350,289,Party,4
+CR-113,Ironback Giant,Giants and Colossi,H-023,Yeti Crossing,Frostveil Reach,289–350,289,Party,5
+CR-114,Elder Stag,Wild Beasts,H-023,Yeti Crossing,Frostveil Reach,289–350,289,Party,10
+CR-115,Blizzard Stalker,Frostborn,H-023,Yeti Crossing,Frostveil Reach,289–350,289,Party,9
+CR-116,Frozen Colossus,Frostborn,H-024,Crown of Winter,Frostveil Reach,316–350,316,Party,10
+CR-117,Winter Guardian,Frostborn,H-024,Crown of Winter,Frostveil Reach,316–350,316,Party,11
+CR-118,Ash Drake,Dragonkin,H-024,Crown of Winter,Frostveil Reach,316–350,316,Party,4
+CR-119,Sparkling,Stormbound,H-024,Crown of Winter,Frostveil Reach,316–350,316,Party,3
+CR-120,Eternal Frostlord,Frostborn,H-024,Crown of Winter,Frostveil Reach,316–350,316,Party,12
+CR-121,Reef Stalker,Aquatic Beasts,H-025,Saltwind Shoals,Sunken Coast,300–356,300,Solo,4
+CR-122,Razorfin,Aquatic Beasts,H-025,Saltwind Shoals,Sunken Coast,300–356,300,Solo,5
+CR-123,Cloud Talon,Winged Creatures,H-025,Saltwind Shoals,Sunken Coast,300–356,300,Solo,10
+CR-124,Swamp Crocodile,Reptilians,H-025,Saltwind Shoals,Sunken Coast,300–356,300,Solo,6
+CR-125,Rogue Archer,Outlaws and Renegades,H-025,Saltwind Shoals,Sunken Coast,300–356,300,Solo,5
+CR-126,Giant Eel,Aquatic Beasts,H-026,Drowned Mangroves,Sunken Coast,320–396,320,Solo,6
+CR-127,Hollowwood Stalker,Verdant Horrors,H-026,Drowned Mangroves,Sunken Coast,320–396,320,Solo,10
+CR-128,Rotspore Horror,Fungal Creatures,H-026,Drowned Mangroves,Sunken Coast,320–396,320,Solo,9
+CR-129,Basilisk,Reptilians,H-026,Drowned Mangroves,Sunken Coast,320–396,320,Solo,7
+CR-130,Chitin Guardian,Insectoids,H-026,Drowned Mangroves,Sunken Coast,320–396,320,Solo,10
+CR-131,Tidehunter,Aquatic Beasts,H-027,Coral Labyrinth,Sunken Coast,356–430,356,Solo,7
+CR-132,Deepwater Angler,Aquatic Beasts,H-027,Coral Labyrinth,Sunken Coast,356–430,356,Solo,8
+CR-133,Spineback Drake,Reptilians,H-027,Coral Labyrinth,Sunken Coast,356–430,356,Solo,8
+CR-134,Hive Devourer,Insectoids,H-027,Coral Labyrinth,Sunken Coast,356–430,356,Solo,11
+CR-135,Storm Serpent,Stormbound,H-027,Coral Labyrinth,Sunken Coast,356–430,356,Solo,4
+CR-136,Coral Horror,Aquatic Beasts,H-028,Tidebreak Caverns,Sunken Coast,390–468,390,Party,9
+CR-137,Underdeep Guardian,Deep Dwellers,H-028,Tidebreak Caverns,Sunken Coast,390–468,390,Party,9
+CR-138,Crystal Maw,Deep Dwellers,H-028,Tidebreak Caverns,Sunken Coast,390–468,390,Party,10
+CR-139,Wandering Spirit,Spectral Entities,H-028,Tidebreak Caverns,Sunken Coast,390–468,390,Party,2
+CR-140,Myconid Shaman,Fungal Creatures,H-028,Tidebreak Caverns,Sunken Coast,390–468,390,Party,10
+CR-141,Abyssal Shark,Aquatic Beasts,H-029,Blackwater Trench,Sunken Coast,428–500,428,Party,10
+CR-142,Dreadfin,Aquatic Beasts,H-029,Blackwater Trench,Sunken Coast,428–500,428,Party,11
+CR-143,Crystal Serpent,Reptilians,H-029,Blackwater Trench,Sunken Coast,428–500,428,Party,9
+CR-144,Frost Drake,Dragonkin,H-029,Blackwater Trench,Sunken Coast,428–500,428,Party,5
+CR-145,Mountain Gryphon,Winged Creatures,H-029,Blackwater Trench,Sunken Coast,428–500,428,Party,11
+CR-146,Lightning Lynx,Stormbound,H-030,Leviathan Shelf,Sunken Coast,460–500,460,Party,5
+CR-147,Leviathan Spawn,Aquatic Beasts,H-030,Leviathan Shelf,Sunken Coast,460–500,460,Party,12
+CR-148,Frost Giant,Giants and Colossi,H-030,Leviathan Shelf,Sunken Coast,460–500,460,Party,6
+CR-149,Thunder Roc,Stormbound,H-030,Leviathan Shelf,Sunken Coast,460–500,460,Party,6
+CR-150,Bloodmane Lion,Wild Beasts,H-030,Leviathan Shelf,Sunken Coast,460–500,460,Party,11
+CR-151,Grave Crawler,Restless Dead,H-031,Weeping Graveyard,Hollowgrave Dominion,450–520,450,Solo,3
+CR-152,Skeletal Warrior,Restless Dead,H-031,Weeping Graveyard,Hollowgrave Dominion,450–520,450,Solo,4
+CR-153,Restless Shade,Spectral Entities,H-031,Weeping Graveyard,Hollowgrave Dominion,450–520,450,Solo,3
+CR-154,Whispering Ghost,Spectral Entities,H-031,Weeping Graveyard,Hollowgrave Dominion,450–520,450,Solo,4
+CR-155,Feral Thrall,Bloodbound,H-031,Weeping Graveyard,Hollowgrave Dominion,450–520,450,Solo,1
+CR-156,Skeletal Archer,Restless Dead,H-032,Plagueward Streets,Hollowgrave Dominion,475–570,475,Solo,5
+CR-157,Plaguebearer,Restless Dead,H-032,Plagueward Streets,Hollowgrave Dominion,475–570,475,Solo,6
+CR-158,Blood Bat,Bloodbound,H-032,Plagueward Streets,Hollowgrave Dominion,475–570,475,Solo,2
+CR-159,Mercenary Sellsword,Outlaws and Renegades,H-032,Plagueward Streets,Hollowgrave Dominion,475–570,475,Solo,6
+CR-160,Blightcap Colossus,Fungal Creatures,H-032,Plagueward Streets,Hollowgrave Dominion,475–570,475,Solo,11
+CR-161,Crypt Knight,Restless Dead,H-033,Gloam Catacombs,Hollowgrave Dominion,520–612,520,Solo,7
+CR-162,Crimson Acolyte,Bloodbound,H-033,Gloam Catacombs,Hollowgrave Dominion,520–612,520,Solo,3
+CR-163,Phantom Archer,Spectral Entities,H-033,Gloam Catacombs,Hollowgrave Dominion,520–612,520,Solo,5
+CR-164,Deep King,Deep Dwellers,H-033,Gloam Catacombs,Hollowgrave Dominion,520–612,520,Solo,11
+CR-165,Copper Sentinel,Constructs and Automata,H-033,Gloam Catacombs,Hollowgrave Dominion,520–612,520,Solo,4
+CR-166,Night Stalker,Bloodbound,H-034,Bloodglass Chapel,Hollowgrave Dominion,562–660,562,Party,4
+CR-167,Bloodletter,Bloodbound,H-034,Bloodglass Chapel,Hollowgrave Dominion,562–660,562,Party,5
+CR-168,Hemomancer,Bloodbound,H-034,Bloodglass Chapel,Hollowgrave Dominion,562–660,562,Party,6
+CR-169,Mourning Banshee,Spectral Entities,H-034,Bloodglass Chapel,Hollowgrave Dominion,562–660,562,Party,6
+CR-170,Horned Imp,Infernal,H-034,Bloodglass Chapel,Hollowgrave Dominion,562–660,562,Party,2
+CR-171,Dread Apparition,Spectral Entities,H-035,The Mourning Court,Hollowgrave Dominion,610–700,610,Party,7
+CR-172,Soul Harvester,Spectral Entities,H-035,The Mourning Court,Hollowgrave Dominion,610–700,610,Party,8
+CR-173,Bone Reaver,Restless Dead,H-035,The Mourning Court,Hollowgrave Dominion,610–700,610,Party,8
+CR-174,Mana Leech,Arcane Aberrations,H-035,The Mourning Court,Hollowgrave Dominion,610–700,610,Party,2
+CR-175,Star Wisp,Astral Beings,H-035,The Mourning Court,Hollowgrave Dominion,610–700,610,Party,1
+CR-176,Deathbound Champion,Restless Dead,H-036,Crownless Necropolis,Hollowgrave Dominion,650–700,650,Party,9
+CR-177,Grave Warden,Restless Dead,H-036,Crownless Necropolis,Hollowgrave Dominion,650–700,650,Party,10
+CR-178,Crimson Knight,Bloodbound,H-036,Crownless Necropolis,Hollowgrave Dominion,650–700,650,Party,7
+CR-179,Wailing Horror,Spectral Entities,H-036,Crownless Necropolis,Hollowgrave Dominion,650–700,650,Party,9
+CR-180,Sanguine Widow,Bloodbound,H-036,Crownless Necropolis,Hollowgrave Dominion,650–700,650,Party,8
+CR-181,Magma Slime,Flameborn,H-037,Sootspire Fields,Emberdeep,650–734,650,Solo,6
+CR-182,Flame Wraith,Flameborn,H-037,Sootspire Fields,Emberdeep,650–734,650,Solo,7
+CR-183,Hellhound,Infernal,H-037,Sootspire Fields,Emberdeep,650–734,650,Solo,3
+CR-184,Dreadscale Monitor,Reptilians,H-037,Sootspire Fields,Emberdeep,650–734,650,Solo,10
+CR-185,War Drummer,Savage Tribes,H-037,Sootspire Fields,Emberdeep,650–734,650,Solo,5
+CR-186,Ember Fiend,Infernal,H-038,Infernal Kennels,Emberdeep,680–794,680,Solo,4
+CR-187,Soul Tormentor,Infernal,H-038,Infernal Kennels,Emberdeep,680–794,680,Solo,5
+CR-188,Cinder Golem,Flameborn,H-038,Infernal Kennels,Emberdeep,680–794,680,Solo,8
+CR-189,Royal Basilisk,Reptilians,H-038,Infernal Kennels,Emberdeep,680–794,680,Solo,11
+CR-190,Ancient Fangbeast,Wild Beasts,H-038,Infernal Kennels,Emberdeep,680–794,680,Solo,12
+CR-191,Inferno Stalker,Flameborn,H-039,Smoldering Forge,Emberdeep,734–845,734,Solo,9
+CR-192,Living Armor,Constructs and Automata,H-039,Smoldering Forge,Emberdeep,734–845,734,Solo,5
+CR-193,Iron Automaton,Constructs and Automata,H-039,Smoldering Forge,Emberdeep,734–845,734,Solo,6
+CR-194,Ashen Giant,Giants and Colossi,H-039,Smoldering Forge,Emberdeep,734–845,734,Solo,7
+CR-195,Molten Behemoth,Flameborn,H-039,Smoldering Forge,Emberdeep,734–845,734,Solo,10
+CR-196,Infernal Brute,Infernal,H-040,Ashmouth Depths,Emberdeep,785–902,785,Party,6
+CR-197,Abyssal Temptress,Infernal,H-040,Ashmouth Depths,Emberdeep,785–902,785,Party,7
+CR-198,Totem Shaman,Savage Tribes,H-040,Ashmouth Depths,Emberdeep,785–902,785,Party,6
+CR-199,Storm Wyvern,Dragonkin,H-040,Ashmouth Depths,Emberdeep,785–902,785,Party,6
+CR-200,Bloodtusk Berserker,Savage Tribes,H-040,Ashmouth Depths,Emberdeep,785–902,785,Party,7
+CR-201,Doom Herald,Infernal,H-041,Hellbrand Citadel,Emberdeep,842–950,842,Party,8
+CR-202,Hellfire Reaver,Infernal,H-041,Hellbrand Citadel,Emberdeep,842–950,842,Party,9
+CR-203,Bloodfiend,Bloodbound,H-041,Hellbrand Citadel,Emberdeep,842–950,842,Party,9
+CR-204,Bone Colossus,Restless Dead,H-041,Hellbrand Citadel,Emberdeep,842–950,842,Party,11
+CR-205,Tempest Spirit,Stormbound,H-041,Hellbrand Citadel,Emberdeep,842–950,842,Party,7
+CR-206,Pyre Guardian,Flameborn,H-042,Pyreheart Core,Emberdeep,890–950,890,Party,11
+CR-207,Heart of the Inferno,Flameborn,H-042,Pyreheart Core,Emberdeep,890–950,890,Party,12
+CR-208,Infernal Warlord,Infernal,H-042,Pyreheart Core,Emberdeep,890–950,890,Party,10
+CR-209,Venom Drake,Dragonkin,H-042,Pyreheart Core,Emberdeep,890–950,890,Party,7
+CR-210,Vampire Noble,Bloodbound,H-042,Pyreheart Core,Emberdeep,890–950,890,Party,10
+CR-211,Smuggler Enforcer,Outlaws and Renegades,H-043,Broken Ramparts,Shattered Kingdoms,900–1012,900,Solo,7
+CR-212,Renegade Mage,Outlaws and Renegades,H-043,Broken Ramparts,Shattered Kingdoms,900–1012,900,Solo,8
+CR-213,Skullcrusher,Savage Tribes,H-043,Broken Ramparts,Shattered Kingdoms,900–1012,900,Solo,8
+CR-214,Goblin Bombardier,Goblinoids,H-043,Broken Ramparts,Shattered Kingdoms,900–1012,900,Solo,8
+CR-215,Mechanical Hound,Constructs and Automata,H-043,Broken Ramparts,Shattered Kingdoms,900–1012,900,Solo,7
+CR-216,Warhide Champion,Savage Tribes,H-044,Warhowl Barracks,Shattered Kingdoms,940–1092,940,Solo,9
+CR-217,Tribal Chieftain,Savage Tribes,H-044,Warhowl Barracks,Shattered Kingdoms,940–1092,940,Solo,10
+CR-218,Goblin Beastmaster,Goblinoids,H-044,Warhowl Barracks,Shattered Kingdoms,940–1092,940,Solo,9
+CR-219,Hobgoblin Warlord,Goblinoids,H-044,Warhowl Barracks,Shattered Kingdoms,940–1092,940,Solo,10
+CR-220,Blackguard Knight,Outlaws and Renegades,H-044,Warhowl Barracks,Shattered Kingdoms,940–1092,940,Solo,9
+CR-221,Bronze Guardian,Constructs and Automata,H-045,Ironmarch Foundry,Shattered Kingdoms,1012–1160,1012,Solo,8
+CR-222,Runic Sentinel,Constructs and Automata,H-045,Ironmarch Foundry,Shattered Kingdoms,1012–1160,1012,Solo,9
+CR-223,Arcane Slime,Arcane Aberrations,H-045,Ironmarch Foundry,Shattered Kingdoms,1012–1160,1012,Solo,3
+CR-224,Mountain Colossus,Giants and Colossi,H-045,Ironmarch Foundry,Shattered Kingdoms,1012–1160,1012,Solo,8
+CR-225,Goblin War Chief,Goblinoids,H-045,Ironmarch Foundry,Shattered Kingdoms,1012–1160,1012,Solo,11
+CR-226,Assassin Master,Outlaws and Renegades,H-046,The Fallen Palace,Shattered Kingdoms,1080–1236,1080,Party,10
+CR-227,Bandit Commander,Outlaws and Renegades,H-046,The Fallen Palace,Shattered Kingdoms,1080–1236,1080,Party,11
+CR-228,Bloodlord,Bloodbound,H-046,The Fallen Palace,Shattered Kingdoms,1080–1236,1080,Party,11
+CR-229,Spectral Knight,Spectral Entities,H-046,The Fallen Palace,Shattered Kingdoms,1080–1236,1080,Party,10
+CR-230,Savage Warmaster,Savage Tribes,H-046,The Fallen Palace,Shattered Kingdoms,1080–1236,1080,Party,11
+CR-231,Rune Giant,Giants and Colossi,H-047,Titanfall Steps,Shattered Kingdoms,1156–1300,1156,Party,9
+CR-232,Elder Titan,Giants and Colossi,H-047,Titanfall Steps,Shattered Kingdoms,1156–1300,1156,Party,10
+CR-233,Ironhide Dragon,Dragonkin,H-047,Titanfall Steps,Shattered Kingdoms,1156–1300,1156,Party,8
+CR-234,Stormcaller,Stormbound,H-047,Titanfall Steps,Shattered Kingdoms,1156–1300,1156,Party,8
+CR-235,Astral Moth,Astral Beings,H-047,Titanfall Steps,Shattered Kingdoms,1156–1300,1156,Party,2
+CR-236,High Warchief,Savage Tribes,H-048,Warlord Throne,Shattered Kingdoms,1220–1300,1220,Party,12
+CR-237,Underking,Goblinoids,H-048,Warlord Throne,Shattered Kingdoms,1220–1300,1220,Party,12
+CR-238,Worldbreaker,Giants and Colossi,H-048,Warlord Throne,Shattered Kingdoms,1220–1300,1220,Party,11
+CR-239,Exiled War Prince,Outlaws and Renegades,H-048,Warlord Throne,Shattered Kingdoms,1220–1300,1220,Party,12
+CR-240,Siege Construct,Constructs and Automata,H-048,Warlord Throne,Shattered Kingdoms,1220–1300,1220,Party,10
+CR-241,Lumen Spirit,Astral Beings,H-049,Lumen Gardens,Astral Frontier,1200–1340,1200,Solo,3
+CR-242,Celestial Watcher,Astral Beings,H-049,Lumen Gardens,Astral Frontier,1200–1340,1200,Solo,4
+CR-243,Fey Duelist,Fey and Enchanted,H-049,Lumen Gardens,Astral Frontier,1200–1340,1200,Solo,8
+CR-244,Moonlit Dryad,Fey and Enchanted,H-049,Lumen Gardens,Astral Frontier,1200–1340,1200,Solo,9
+CR-245,Ancient Grovekeeper,Verdant Horrors,H-049,Lumen Gardens,Astral Frontier,1200–1340,1200,Solo,11
+CR-246,Dawn Herald,Astral Beings,H-050,Starglass Observatory,Astral Frontier,1250–1440,1250,Solo,5
+CR-247,Starbound Sentinel,Astral Beings,H-050,Starglass Observatory,Astral Frontier,1250–1440,1250,Solo,6
+CR-248,Spellbound Eye,Arcane Aberrations,H-050,Starglass Observatory,Astral Frontier,1250–1440,1250,Solo,4
+CR-249,Runic Horror,Arcane Aberrations,H-050,Starglass Observatory,Astral Frontier,1250–1440,1250,Solo,5
+CR-250,Charged Golem,Stormbound,H-050,Starglass Observatory,Astral Frontier,1250–1440,1250,Solo,9
+CR-251,Mana Elemental,Arcane Aberrations,H-051,Runescar Archive,Astral Frontier,1340–1525,1340,Solo,6
+CR-252,Arcane Mimic,Arcane Aberrations,H-051,Runescar Archive,Astral Frontier,1340–1525,1340,Solo,7
+CR-253,Clockwork Juggernaut,Constructs and Automata,H-051,Runescar Archive,Astral Frontier,1340–1525,1340,Solo,11
+CR-254,Ethereal Executioner,Spectral Entities,H-051,Runescar Archive,Astral Frontier,1340–1525,1340,Solo,11
+CR-255,Cyclone Horror,Stormbound,H-051,Runescar Archive,Astral Frontier,1340–1525,1340,Solo,10
+CR-256,Radiant Seraph,Astral Beings,H-052,Heavenfall Terrace,Astral Frontier,1425–1620,1425,Party,7
+CR-257,Astral Protector,Astral Beings,H-052,Heavenfall Terrace,Astral Frontier,1425–1620,1425,Party,8
+CR-258,Sky Tyrant,Winged Creatures,H-052,Heavenfall Terrace,Astral Frontier,1425–1620,1425,Party,12
+CR-259,Enchanted Guardian,Fey and Enchanted,H-052,Heavenfall Terrace,Astral Frontier,1425–1620,1425,Party,10
+CR-260,Thunder Titan,Stormbound,H-052,Heavenfall Terrace,Astral Frontier,1425–1620,1425,Party,11
+CR-261,Comet Herald,Astral Beings,H-053,Celestial Crucible,Astral Frontier,1520–1700,1520,Party,9
+CR-262,Spell Devourer,Arcane Aberrations,H-053,Celestial Crucible,Astral Frontier,1520–1700,1520,Party,8
+CR-263,Unstable Experiment,Arcane Aberrations,H-053,Celestial Crucible,Astral Frontier,1520–1700,1520,Party,9
+CR-264,Obsidian Dragon,Dragonkin,H-053,Celestial Crucible,Astral Frontier,1520–1700,1520,Party,9
+CR-265,Worldroot Sentinel,Verdant Horrors,H-053,Celestial Crucible,Astral Frontier,1520–1700,1520,Party,12
+CR-266,Celestial Arbiter,Astral Beings,H-054,Astral Dominion,Astral Frontier,1600–1700,1600,Party,10
+CR-267,Starforged Titan,Astral Beings,H-054,Astral Dominion,Astral Frontier,1600–1700,1600,Party,11
+CR-268,Runebound Guardian,Arcane Aberrations,H-054,Astral Dominion,Astral Frontier,1600–1700,1600,Party,10
+CR-269,Twilight Archfey,Fey and Enchanted,H-054,Astral Dominion,Astral Frontier,1600–1700,1600,Party,11
+CR-270,Elder Flame Dragon,Dragonkin,H-054,Astral Dominion,Astral Frontier,1600–1700,1600,Party,10
+CR-271,Void Mite,Voidspawn,H-055,Fractured Approach,The Endless Rift,1600+,1600,Solo,1
+CR-272,Rift Crawler,Voidspawn,H-055,Fractured Approach,The Endless Rift,1600+,1600,Solo,2
+CR-273,Ancient Below,Deep Dwellers,H-055,Fractured Approach,The Endless Rift,1600+,1600,Solo,12
+CR-274,Broodmother,Insectoids,H-055,Fractured Approach,The Endless Rift,1600+,1600,Solo,12
+CR-275,Primordial Wyrm,Reptilians,H-055,Fractured Approach,The Endless Rift,1600+,1600,Solo,12
+CR-276,Hollowling,Voidspawn,H-056,Hollow Meridian,The Endless Rift,1700+,1700,Solo,3
+CR-277,Void Leech,Voidspawn,H-056,Hollow Meridian,The Endless Rift,1700+,1700,Solo,4
+CR-278,Lord of Lost Souls,Spectral Entities,H-056,Hollow Meridian,The Endless Rift,1700+,1700,Solo,12
+CR-279,Mana Colossus,Arcane Aberrations,H-056,Hollow Meridian,The Endless Rift,1700+,1700,Solo,11
+CR-280,Crimson Patriarch,Bloodbound,H-056,Hollow Meridian,The Endless Rift,1700+,1700,Solo,12
+CR-281,Rift Stalker,Voidspawn,H-057,Nullstone Labyrinth,The Endless Rift,1850+,1850,Solo,5
+CR-282,Reality Eater,Voidspawn,H-057,Nullstone Labyrinth,The Endless Rift,1850+,1850,Solo,6
+CR-283,Grand Automaton,Constructs and Automata,H-057,Nullstone Labyrinth,The Endless Rift,1850+,1850,Solo,12
+CR-284,Undying King,Restless Dead,H-057,Nullstone Labyrinth,The Endless Rift,1850+,1850,Solo,12
+CR-285,Spore Sovereign,Fungal Creatures,H-057,Nullstone Labyrinth,The Endless Rift,1850+,1850,Solo,12
+CR-286,Hollow Watcher,Voidspawn,H-058,Unmaking Chasm,The Endless Rift,2050+,2050,Party,7
+CR-287,Null Reaver,Voidspawn,H-058,Unmaking Chasm,The Endless Rift,2050+,2050,Party,8
+CR-288,Ancient Sky Dragon,Dragonkin,H-058,Unmaking Chasm,The Endless Rift,2050+,2050,Party,11
+CR-289,Pit Tyrant,Infernal,H-058,Unmaking Chasm,The Endless Rift,2050+,2050,Party,11
+CR-290,Avatar of the Tempest,Stormbound,H-058,Unmaking Chasm,The Endless Rift,2050+,2050,Party,12
+CR-291,Abyss Watcher,Voidspawn,H-059,Riftborn Apex,The Endless Rift,2300+,2300,Party,9
+CR-292,Void Devourer,Voidspawn,H-059,Riftborn Apex,The Endless Rift,2300+,2300,Party,10
+CR-293,Titan of the First Age,Giants and Colossi,H-059,Riftborn Apex,The Endless Rift,2300+,2300,Party,12
+CR-294,Sovereign of the Glade,Fey and Enchanted,H-059,Riftborn Apex,The Endless Rift,2300+,2300,Party,12
+CR-295,Primordial Dragon,Dragonkin,H-059,Riftborn Apex,The Endless Rift,2300+,2300,Party,12
+CR-296,Rift Colossus,Voidspawn,H-060,The Last Threshold,The Endless Rift,2600+,2600,Party,11
+CR-297,Unmaker,Voidspawn,H-060,The Last Threshold,The Endless Rift,2600+,2600,Party,12
+CR-298,Astral Sovereign,Astral Beings,H-060,The Last Threshold,The Endless Rift,2600+,2600,Party,12
+CR-299,Arcane Cataclysm,Arcane Aberrations,H-060,The Last Threshold,The Endless Rift,2600+,2600,Party,12
+CR-300,Archfiend,Infernal,H-060,The Last Threshold,The Endless Rift,2600+,2600,Party,12

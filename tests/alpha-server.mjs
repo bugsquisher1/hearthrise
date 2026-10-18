@@ -140,6 +140,8 @@ const ARMS = {
     const g0 = await gold(H, db, uid);
     const r1 = await sell();
     if (!r1.body || r1.body.error !== 'item_locked') p.push('vendor_sell_many of a locked item answered ' + JSON.stringify(r1.body && { ok: r1.body.ok, error: r1.body.error }));
+    const r0 = await X.VS.runVendorSell({ exec, user: uid, slot: 0, intentId: idem(), item, qty: 1 });
+    if (!r0.body || r0.body.error !== 'item_locked') p.push('vendor_sell of a locked item answered ' + JSON.stringify(r0.body && { ok: r0.body.ok, error: r0.body.error }));
     if (await qty(H, db, uid, item) !== 5 || await gold(H, db, uid) !== g0) p.push('a refused locked sale moved the bag or the purse');
     await asAuth(db, uid, 'select public.hr_item_lock(0, $1, false, $2::uuid)', [item, idem()]);
     const r2 = await sell();

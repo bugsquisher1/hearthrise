@@ -384,7 +384,9 @@ begin
   if v_t.user_id is null then return public.hr_note_rejection('hunt_party_invite', p_slot, jsonb_build_object('ok', false, 'error', 'no_such_name')); end if;
   if exists (select 1 from public.hunt_party_members m where m.party_id = v_pid and m.user_id = v_t.user_id and m.slot = v_t.slot) then
     return public.hr_note_rejection('hunt_party_invite', p_slot, jsonb_build_object('ok', false, 'error', 'already_member')); end if;
-  delete from public.hunt_party_invites i where i.party_id = v_pid and i.created_at <= now() - public.hr_party_invite_ttl();
+  -- Expired invites are pruned where they are next touched: this party's, and the invitee's.
+  delete from public.hunt_party_invites i where i.created_at <= now() - public.hr_party_invite_ttl()
+     and (i.party_id = v_pid or (i.to_user = v_t.user_id and i.to_slot = v_t.slot));
   if (select count(*) from public.hunt_party_invites i where i.party_id = v_pid
         and not (i.to_user = v_t.user_id and i.to_slot = v_t.slot)) >= c_max_open then
     return public.hr_note_rejection('hunt_party_invite', p_slot, jsonb_build_object('ok', false, 'error', 'too_many_invites', 'max', c_max_open)); end if;

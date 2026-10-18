@@ -23,7 +23,7 @@
 
 import { MONSTERS } from '../../data/monsters.js?v=592';
 import { HUNT_STANCES, DEFAULT_STANCE } from '../../data/rule-subjects.js?v=592';
-import { COMBAT_BALANCE, rollAttack, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js?v=592';
+import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js?v=592';
 import { cheb } from './grid.js?v=592';
 import { atRest, unitById } from './movement.js?v=592';
 import { makeEvent } from './events.js?v=592';
@@ -69,7 +69,7 @@ export function hurt(inst, target, amount, source, element, ability) {
  * monster). `dmg` names its ability ('basic' for a swing) and element (null for none),
  * which the analyzer tally reads. abilities.js lands its hits here too.
  */
-export function landHit(inst, sc, source, target, amount, element, ability) {
+export function landHit(inst, sc, source, target, amount, element, ability, crit) {
   if (!target || !target.alive) return { dmg: 0, absorbed: 0, killed: false };
   const r = hurt(inst, target, amount, source, element, ability);
   /* A status tick whose source has left the world lands with no dealer (u null). */
@@ -77,7 +77,7 @@ export function landHit(inst, sc, source, target, amount, element, ability) {
   if (r.immune) sc.emit(makeEvent('immune', sc.atMs, { u, t: target.id }));
   else {
     sc.emit(makeEvent('dmg', sc.atMs, { u, t: target.id, amount: r.dmg,
-      ability: (ability && ability.id) || 'basic', element: element || null }));
+      ability: (ability && ability.id) || 'basic', element: element || null, ...(crit ? { crit: true } : {}) }));
   }
   if (r.killed) {
     sc.emit(makeEvent('kill', sc.atMs, { u, t: target.id }));
@@ -88,11 +88,16 @@ export function landHit(inst, sc, source, target, amount, element, ability) {
 }
 
 /* One swing of `u` at `t`: miss → a miss event; a hit → landHit. Two draws at most (rollAttack). */
-function swing(inst, sc, u, t, accuracy, maxHit) {
+/* A CRIT is gear (critB + the set bonus + a crit buff, combat.js playerCombatRolls
+   critChance): rolled only on a landed hero blow and only when the chance is
+   above zero, so a hero with no crit draws no extra number. */
+function swing(inst, sc, u, t, accuracy, maxHit, critChance) {
   u.swingLeftMs = COMBAT_BALANCE.tickMs;
-  const amount = rollAttack(sc.rng, accuracy, maxHit);
+  let amount = rollAttack(sc.rng, accuracy, maxHit);
   if (amount <= 0) { sc.emit(makeEvent('miss', sc.atMs, { u: u.id, t: t.id })); return null; }
-  return landHit(inst, sc, u, t, amount, u.side === 'hero' ? u.element : null, null);
+  const crit = critChance > 0 && rollCrit(sc.rng, critChance);
+  if (crit) amount = applyCrit(amount, COMBAT_BALANCE.critMult);
+  return landHit(inst, sc, u, t, amount, u.side === 'hero' ? u.element : null, null, crit);
 }
 
 /** Attack hook: every living unit whose swing is due swings, in id order. */
@@ -129,7 +134,8 @@ export function resolveAttacks(inst, sc) {
     const vs = supplied && t.side === 'mon' && typeof inst.heroes[u.id].rollsVs === 'function'
       ? inst.heroes[u.id].rollsVs(MONSTERS[t.kind]) : null;
     swing(inst, sc, u, t, vs ? vs.accuracy : u.acc / 1000,
-      vs ? Math.max(1, Math.floor(Math.max(1, u.maxHit) * ((vs.weak && vs.weak.damageMult) || 1))) : Math.max(1, u.maxHit));
+      vs ? Math.max(1, Math.floor(Math.max(1, u.maxHit) * ((vs.weak && vs.weak.damageMult) || 1))) : Math.max(1, u.maxHit),
+      vs ? Number(vs.critChance) || 0 : 0);
     if (inst.world.leader === u.id) inst.world.leaderLast = t.id;
     peel(inst, sc, u);
   }

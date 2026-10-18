@@ -87,8 +87,8 @@ const ENGINE = join(ROOT, 'src', 'core', 'hearthfind.js');
    multiplier proves nothing if the CALLER computes one and smuggles it in
    through `index` or through a hand-built row. */
 const CALL_SITES = [
-  /* the combat engine's kill hand-off lives with its swing (src/core/hunt/world-step.js) */
-  ['src/core/hunt/world-step.js', join(ROOT, 'src', 'core', 'hunt', 'world-step.js')],
+  /* the combat engine's kill hand-off lives with its payer (src/core/hunt-rewards.js, lane S1) */
+  ['src/core/hunt-rewards.js', join(ROOT, 'src', 'core', 'hunt-rewards.js')],
   ['src/core/skill-sim.js', join(ROOT, 'src', 'core', 'skill-sim.js')],
 ];
 

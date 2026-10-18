@@ -109,7 +109,7 @@ const mutants = [
   { name: 'the target\'s stance is ignored', case: 'stance-dealt-and-taken', edits: [[D, '  n = Math.floor((n * stanceOf(target).taken) / 1000);\n', '']] },
   { name: 'the shield is ignored', case: 'shield-absorbs-first', edits: [[D, '  if (absorbed) target.shield -= absorbed;', '  if (false) target.shield -= absorbed;']] },
   { name: 'no minimum', case: 'min-1', edits: [[D, '  n = Math.max(1, n);', '  n = Math.max(0, n);']] },
-  { name: 'dmg forgets its ability', case: 'kill-hand-off', edits: [[D, "      ability: (ability && ability.id) || 'basic', element: element || null }));", '      element: element || null }));']] },
+  { name: 'dmg forgets its ability', case: 'kill-hand-off', edits: [[D, "      ability: (ability && ability.id) || 'basic', element: element || null, ...(crit ? { crit: true } : {}) }));", '      element: element || null, ...(crit ? { crit: true } : {}) }));']] },
   { name: 'a fallen hero is not knocked out', case: 'kill-hand-off', edits: [['src/core/hunt/pull-cycle.js', '  u.downMs = KNOCKOUT_MS;', '  u.downMs = 0;']] },
   { name: 'Melee swings on the move', case: 'ranged-fires-on-move', edits: [[D, '    if (!row || (row.melee && !atRest(u)) || !inRange(inst, u, t)) continue;', '    if (!row || !inRange(inst, u, t)) continue;']] },
   { name: 'no swing interval', case: 'swing-every-interval', edits: [[D, '  u.swingLeftMs = COMBAT_BALANCE.tickMs;', '  u.swingLeftMs = 0;']] },

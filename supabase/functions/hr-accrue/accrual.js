@@ -1513,6 +1513,7 @@ function memberDelta(s, summary, fromMs, toMs, tickMs) {
   for (const op of recipeOps) progress.push(op);
   const stat = (key, n) => { if (n > 0) progress.push({ kind: 'stat', key, period: '', add: Math.floor(n), state: 'active' }); };
   stat('kills', stats.kills);
+  stat('crits', stats.crits);
   stat('deaths', stats.deaths);
   /* THE SECOND DEATHS ROW — the same integer under today's UTC period key. */
   const deathsN = Math.floor(Number(stats.deaths) || 0);

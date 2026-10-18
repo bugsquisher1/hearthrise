@@ -9,7 +9,8 @@
 //
 //   xp     kill XP (xp-share.js already split it per hero) along the hero's
 //          combat-style route (styles.js killXpRoute)
-//   dmg    hit XP for every point of HP a hero removed from a monster
+//   dmg    hit XP for every point of HP a hero removed from a monster, and the
+//          lifetime crit count for a crit blow
 //          (styles.js hitXpRoute: "XP is earned on damage dealt")
 //   cast   Magic XP for the mana an ability spent (xp-share.js magicXpFor)
 //   kill   of a MONSTER: its gold and drops on the instance's `r` stream —
@@ -72,7 +73,8 @@ function payKill(present, killer, kind, ctx) {
   for (const m of present) countKill(m, kind);
   /* THE HEARTHFIND: LAST, after every other draw this kill makes, for the hero
      who landed it. The grant is hr_apply's, from its own catalogue. */
-  resolveHearthfind(lead.state, 'monster', kind, { rng, fx: lead.fx, hearthfind: ctx.hearthfind });
+  const roll = { rng, fx: lead.fx, hearthfind: ctx.hearthfind };
+  resolveHearthfind(lead.state, 'monster', kind, roll);
 }
 
 /**
@@ -98,6 +100,7 @@ export function rewardSwing(members, events, world, ctx) {
         const m = members.get(ev.u);
         const t = unitOf(ev.t);
         if (m && t && t.side === 'mon' && ev.amount > 0) for (const g of hitXpRoute(m.style, ev.amount)) call(m.fx, 'addXp', g.skill, g.amount);
+        if (m && ev.crit === true) { m.state.stats = m.state.stats || {}; m.state.stats.crits = (m.state.stats.crits || 0) + 1; }
         break;
       }
       case 'cast': {

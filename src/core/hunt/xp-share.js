@@ -46,7 +46,7 @@ const xpOf = (kill) => {
  * THE SPLIT. `heroes` are the living heroes (objects with an integer `id`).
  * Answers { [id]: { xp, raw } }; nobody alive is nobody paid.
  */
-export function splitKillXp(xp, heroes, sc) {
+function splitKillXp(xp, heroes, sc) {
   const out = {};
   if (!heroes.length || xp <= 0) return out;
   const raw = xp / heroes.length;

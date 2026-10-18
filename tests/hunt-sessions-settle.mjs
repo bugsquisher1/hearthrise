@@ -33,6 +33,7 @@
 //   MAXHP      a hitpoints level-up never LOWERS max HP (the FX-4 root cause).
 //   WEAKNESS   a basic swing is priced against its monster (accuracy over its
 //              defence, the weapon weakness paid): a hammer on an ooze out-hits neutral.
+//   CRIT       crit is gear and buffs: crit blows land and journal the lifetime `crits`.
 //   BUFF       a hunt READS the timed buff queue (fires none): a live buff pays,
 //              an expired one does not, one ending mid-window pays the same cut or not.
 //   STAMINA-RULE  the pool drains 1:1 hunting, rests 1:1 to the character's
@@ -439,6 +440,24 @@ const ENGINE_ARMS = {
     const neutral = hero.maxHit - M.C.defenceReduction(M.MONSTERS.ooze);
     if (!(blows.length > 30)) problems.push(`CONTROL: only ${blows.length} basic blows on the oozes`);
     else if (!(top > neutral)) problems.push(`a hammer's best blow on an ooze is ${top}, never above the neutral ${neutral} — the weapon weakness is not paid`);
+    return problems;
+  },
+
+  /* CRIT: crit is gear and buffs (playerCombatRolls critChance): a hero with a
+     crit buff lands crit blows (above its max hit) and the window journals them
+     as the lifetime `crits` stat; a hero with none draws no crit. */
+  CRIT: async (M) => {
+    const problems = [];
+    const iso = (ms) => new Date(ms).toISOString();
+    const mk = (buffs) => { const m = memberIn(M, 'a', { level: 20, empty: 'end', extra: { buffs } }); m.hero = { ...m.hero, bar: [] }; return () => [m]; };
+    const crit = runCut(M, mk([{ type: 'damage_crit', magnitude: 50, until: iso(T0 + 3600000), from: iso(T0 - 1000) }]), 600000, []);
+    const none = runCut(M, mk(null), 600000, []);
+    const statOf = (o) => o.outs.reduce((a, x) => a + ((x.members[0].delta.progress || []).filter((p) => p.kind === 'stat' && p.key === 'crits' && p.period === '')
+      .reduce((s, p) => s + p.add, 0)), 0);
+    const flagged = (o) => o.outs.reduce((a, x) => a + x.events.filter((e) => e.type === 'dmg' && e.crit === true).length, 0);
+    if (!(flagged(crit) > 5)) problems.push(`a +50% crit buff landed ${flagged(crit)} crit blows in ten minutes`);
+    if (statOf(crit) !== flagged(crit)) problems.push(`the window journalled ${statOf(crit)} crits for ${flagged(crit)} crit blows`);
+    if (flagged(none) !== 0 || statOf(none) !== 0) problems.push(`a hero with no crit chance critted ${flagged(none)} times`);
     return problems;
   },
 
@@ -1241,6 +1260,10 @@ const MUTANTS = [
     to: "    const vs = false && supplied && t.side === 'mon' && typeof inst.heroes[u.id].rollsVs === 'function'" },
   { arm: 'WEAKNESS', name: 'the settle hands the swing no per-monster rolls', file: 'src/core/combat-sim.js',
     from: ' range: m.hero.range, rollsVs: m.rollsVs,', to: ' range: m.hero.range,' },
+  { arm: 'CRIT', name: 'a hero blow never crits', file: 'src/core/hunt/damage.js',
+    from: '      vs ? Number(vs.critChance) || 0 : 0);', to: '      0);' },
+  { arm: 'CRIT', name: 'a crit is not journalled as the lifetime stat', file: join(FN, 'accrual.js'),
+    from: "  stat('crits', stats.crits);\n", to: '' },
   { arm: 'STAMINA-RULE', name: 'a swing does not drain the pool', file: 'src/core/action-rules.js',
     from: '  if (hunting) return Math.max(0, v - d);', to: '  if (hunting) return v;' },
   { arm: 'STAMINA-RULE', name: 'an empty pool ends nothing', file: 'src/core/action-rules.js',

@@ -62,7 +62,7 @@ export const ROLE_DEFAULTS = Object.freeze({
    70%, so its mana goes to Greater Mend first; its free basic attack never
    waits. The server projects these as the default bar (hr_hunt_role_rules,
    2026-10-25-action-conditions.sql, pinned equal by tests/hunt-core/conditions.mjs). */
-const slot = (id, conditions, join) => Object.freeze({ action: Object.freeze({ type: 'ability', id }),
+const slot = (id, conditions, join) => Object.freeze({ id: 'd_' + id, action: Object.freeze({ type: 'ability', id }),
   conditions: Object.freeze((conditions || []).map((c) => Object.freeze(c))), join: join || 'and' });
 export const ROLE_RULES = Object.freeze({
   tank: Object.freeze([slot('challenge'), slot('flame_strike'), slot('power_strike')]),

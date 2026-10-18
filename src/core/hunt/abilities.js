@@ -91,7 +91,7 @@ function targetFor(inst, hero, h, row, sc, cx) {
       if (cx && cx.ally) return ok(cx.ally) ? cx.ally : null;
       return living(inst, 'hero').filter(ok).sort((a, b) => (pct(a) - pct(b)) || (a.id - b.id))[0] || null;
     }
-    case 'party': return living(inst, 'hero').filter((a) => pct(a) < row.whenBelowPct).length >= row.minHurt ? hero : null;
+    case 'party': return living(inst, 'hero').some((a) => pct(a) < 100) ? hero : null;
     default: return null;
   }
 }
@@ -159,7 +159,7 @@ export function firstUsable(inst, hero, sc) {
     if (s.why) { if (s.short) h.hs.goldOut = true; return { why: s.short ? 'gold_short' : 'no_stock' }; }
     return { row, target: t, lines: s.lines };
   }, sc, 'ability');
-  return got ? Object.assign(got.pick, { rule: got.rule, mask: got.mask }) : null;
+  return got ? Object.assign(got.pick, { rule: got.rule, mask: got.mask, label: got.label }) : null;
 }
 
 /* Heal `t` by up to `n`, capped at its missing HP (AB-09). */
@@ -227,7 +227,7 @@ export function fire(inst, u, pick, sc) {
   const gold = pick.lines.reduce((a, l) => a + l.price, 0);
   const source = pick.lines.some((l) => l.source === 'store') ? 'store' : 'own';
   sc.emit(makeEvent('cast', sc.atMs, { u: u.id, ability: row.id, t: pick.target.id, mana: row.mana, magicXpMult: row.magicXpMult, source, gold,
-    ...(Number.isInteger(pick.rule) ? { rule: pick.rule, pass: pick.mask } : {}) }));
+    ...(typeof pick.rule === 'string' ? { rule: pick.rule, rule_label: pick.label, pass: pick.mask } : {}) }));
   effect(inst, u, row, pick.target, sc);
   return true;
 }

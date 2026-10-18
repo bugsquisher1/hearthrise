@@ -68,6 +68,8 @@ export const METRICS = Object.freeze([
   Object.freeze({ id: 'self_mana_pct', label: 'My mana %', value: 'pct', ops: NUM, range: Object.freeze([0, 100]) }),
   Object.freeze({ id: 'ally_hp_pct', label: 'An ally’s HP %', value: 'pct', ops: NUM, range: Object.freeze([0, 100]), subject: ALLY }),
   Object.freeze({ id: 'ally_mana_pct', label: 'An ally’s mana %', value: 'pct', ops: NUM, range: Object.freeze([0, 100]), subject: ALLY }),
+  Object.freeze({ id: 'allies_below', label: 'Allies under', value: 'count', ops: NUM, range: Object.freeze([0, 5]),
+    subject: Object.freeze({ under_50: 'half health', under_60: '60% health', under_70: '70% health', under_80: '80% health', under_90: '90% health' }) }),
   Object.freeze({ id: 'enemies_in_aoe', label: 'Monsters the area would hit', value: 'count', ops: NUM, range: Object.freeze([0, 25]), slotOnly: true }),
   Object.freeze({ id: 'target_is_boss', label: 'My target is a boss', value: 'bool', ops: Object.freeze(['eq']) }),
   Object.freeze({ id: 'item_qty', label: 'Left in the bag', value: 'count', ops: NUM, range: Object.freeze([0, 100000]),
@@ -86,6 +88,10 @@ export const ACTION_TYPES = Object.freeze({
 /* A consume slot may name a KIND (the best line of it: own first, then the store)
    instead of one item. */
 export const CONSUME_KINDS = Object.freeze({ food: 'heal', drink: 'mana' });
+
+/* An attack slot may name the hero's LOADED ammo (its equipped ammo slot) instead of
+   one item: the attack lane's default (the plain basic attack). */
+export const ATTACK_KINDS = Object.freeze({ loaded: 'the loaded ammo' });
 
 /* The effect ids an `effect` value may name. */
 export const EFFECT_IDS = Object.freeze(Object.keys(STATUSES));
@@ -106,7 +112,7 @@ export function validate() {
     if (m.range && !(m.range.length === 2 && m.range.every(Number.isInteger) && m.range[0] <= m.range[1])) out.push(at + 'range is [min, max]');
     if (m.value === 'bool' && m.ops.join() !== 'eq') out.push(at + 'a bool takes eq only');
     if (m.value === 'effect' && m.ops.some((o) => !o.endsWith('_effect'))) out.push(at + 'an effect takes has_effect / lacks_effect only');
-    if (m.subject && !Object.keys(m.subject).every((k) => /^[a-z_]{1,32}$/.test(k))) out.push(at + 'bad subject key');
+    if (m.subject && !Object.keys(m.subject).every((k) => /^[a-z0-9_]{1,32}$/.test(k))) out.push(at + 'bad subject key');
   }
   if (!EFFECT_IDS.length) out.push('no effect ids');
   return out;

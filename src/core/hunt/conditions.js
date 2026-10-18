@@ -46,7 +46,7 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random. Draws nothing.
 // ============================================================
 
-import { METRICS, OPERATORS, MAX_CONDITIONS, MAX_STOP_RULES, STOP_HOLD_MS, ACTION_TYPES, CONSUME_KINDS, EFFECT_IDS } from '../../data/condition-metrics.js?v=0.1.0';
+import { METRICS, OPERATORS, MAX_CONDITIONS, MAX_STOP_RULES, STOP_HOLD_MS, ACTION_TYPES, CONSUME_KINDS, ATTACK_KINDS, EFFECT_IDS } from '../../data/condition-metrics.js?v=0.1.0';
 import { ABILITIES, ABILITY_RULES } from '../../data/abilities.js?v=0.1.0';
 import { CONSUMABLES, CONSUMABLE_RULES } from '../../data/consumables.js?v=0.1.0';
 import { SUPPLIES } from '../../data/supplies.js?v=0.1.0';
@@ -56,8 +56,9 @@ import { ROLE_RULES } from '../../data/rule-subjects.js?v=0.1.0';
 import { cheb, dist2, los } from './grid.js?v=0.1.0';
 import { makeEvent } from './events.js?v=0.1.0';
 
-/* ruleHold: ms each stop rule has held, by rule index (null = none held).
-   ruleWait: the last `rule_wait` reported, per lane ('rule:why'), so it is reported once. */
+/* ruleHold: ms each stop rule has held, by its stable rule id (null = none held).
+   ruleWait: the last `rule_wait` reported, per lane ('ruleId:why'), so it is reported once.
+   Both are keyed by STABLE rule id, never by position. */
 export const PERSISTED = Object.freeze({
   unit: Object.freeze([['ruleHold', 'json'], ['ruleWait', 'json']]),
   world: Object.freeze([]),
@@ -73,11 +74,15 @@ export const LANE_OF = Object.freeze({ ability: 'ability', consume: 'consume', a
 
 /* ── THE SLOT, NORMALISED ─────────────────────────────────────────────── */
 
+/* A stable rule id: [a-z0-9_], at most 24. */
+const RULE_ID = /^[a-z0-9_]{1,24}$/;
+
 /** A stored slot in the engine's shape: an ability id is a slot with no conditions; null / junk is null. */
 export function normalizeSlot(s) {
-  if (typeof s === 'string') return { action: { type: 'ability', id: s }, conditions: [], join: 'and' };
+  if (typeof s === 'string') return { id: null, action: { type: 'ability', id: s }, conditions: [], join: 'and' };
   if (!isObj(s) || !isObj(s.action)) return null;
   return {
+    id: typeof s.id === 'string' && RULE_ID.test(s.id) ? s.id : null,
     action: { type: String(s.action.type), id: String(s.action.id) },
     conditions: Array.isArray(s.conditions) ? s.conditions.map((c) => (isObj(c) ? { metric: c.metric, op: c.op, value: c.value,
       ...(c.subject !== undefined && c.subject !== null ? { subject: c.subject } : {}) } : null)) : [],
@@ -91,7 +96,7 @@ export function normalizeSlot(s) {
 function actionKnown(type, id) {
   if (type === 'ability') return !!ABILITIES[id];
   if (type === 'consume') return Object.prototype.hasOwnProperty.call(CONSUME_KINDS, id) || !!(CONSUMABLES[id] && CONSUMABLES[id].source === 'own');
-  if (type === 'attack_with_item') return !!(SUPPLIES[id] && SUPPLIES[id].kind === 'ammo');
+  if (type === 'attack_with_item') return Object.prototype.hasOwnProperty.call(ATTACK_KINDS, id) || !!(SUPPLIES[id] && SUPPLIES[id].kind === 'ammo');
   return false;
 }
 
@@ -129,7 +134,8 @@ function conditionsProblem(conds, join, stop) {
 export function slotProblem(s) {
   if (s === null || typeof s === 'string') return s === null || ABILITIES[s] ? null : { error: 'bad_action' };
   if (!isObj(s) || !isObj(s.action)) return { error: 'bad_action' };
-  if (Object.keys(s).some((k) => !['action', 'conditions', 'join'].includes(k))) return { error: 'bad_slot' };
+  if (Object.keys(s).some((k) => !['id', 'action', 'conditions', 'join'].includes(k))) return { error: 'bad_slot' };
+  if (s.id !== undefined && !(typeof s.id === 'string' && RULE_ID.test(s.id))) return { error: 'bad_slot' };
   if (!ACTION_TYPES[s.action.type] || typeof s.action.id !== 'string' || !actionKnown(s.action.type, s.action.id)) return { error: 'bad_action' };
   return conditionsProblem(s.conditions, s.join, false);
 }
@@ -151,7 +157,7 @@ export function stopRulesProblem(rules) {
   if (rules.length > MAX_STOP_RULES) return { error: 'too_many_stop_rules' };
   for (let i = 0; i < rules.length; i++) {
     const r = rules[i];
-    if (!isObj(r) || Object.keys(r).some((k) => !['conditions', 'join', 'forMs'].includes(k))) return { error: 'bad_stop_rule', rule: i };
+    if (!isObj(r) || Object.keys(r).some((k) => !['id', 'conditions', 'join', 'forMs'].includes(k))) return { error: 'bad_stop_rule', rule: i };
     if (!Array.isArray(r.conditions) || !r.conditions.length) return { error: 'bad_stop_rule', rule: i };
     const f = r.forMs === undefined ? 0 : r.forMs;
     if (!Number.isInteger(f) || f < STOP_HOLD_MS.min || f > STOP_HOLD_MS.max || f % STOP_HOLD_MS.step) return { error: 'bad_hold', rule: i };
@@ -163,11 +169,40 @@ export function stopRulesProblem(rules) {
 
 /* ── THE SLOTS A HERO FIGHTS WITH ─────────────────────────────────────── */
 
-/* The defaults a lane takes when the bar holds no slot for it. */
+/* THE STABLE RULE ID (Coordinator architecture check, 2026-10-18). A rule is known
+   by an id stored WITH its slot, never by its position: the server stamps it on
+   save from the slot's content (hr_hunt_slot_check: 'r' + md5, a repeat of the same
+   content suffixed _2, _3 …), so a reorder or a copy keeps every id and an edit
+   changes only the edited slot's. Priority is still slot order. A slot that
+   reaches the engine unstamped (a test fixture) takes ruleIdOf, the same rule over
+   an FNV-1a content hash. Defaults carry fixed ids (d_…). */
+export function ruleIdOf(slot, prefix) {
+  const text = JSON.stringify([slot.action ? [slot.action.type, slot.action.id] : null, slot.conditions || [], slot.join || 'and', slot.forMs ?? null]);
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return (prefix || 'e') + h.toString(16).padStart(8, '0');
+}
+/* Ids made unique in order: the second copy of the same content is _2, and so on. */
+function uniqueIds(list, prefix) {
+  const seen = Object.create(null);
+  return list.map((s) => {
+    if (!s) return s;
+    const base = s.id || ruleIdOf(s, prefix);
+    seen[base] = (seen[base] || 0) + 1;
+    return Object.assign({}, s, { id: seen[base] > 1 ? base + '_' + seen[base] : base });
+  });
+}
+
+/* The defaults a lane takes when the bar holds no slot for it: drink-at then eat-at
+   (tablets, like a stored slot), and the basic attack with the loaded ammo, the
+   attack lane's LAST resort after every attack slot (never a tablet). */
 const DEFAULT_CONSUME = Object.freeze([
-  Object.freeze({ action: Object.freeze({ type: 'consume', id: 'drink' }), conditions: Object.freeze([]), join: 'and' }),
-  Object.freeze({ action: Object.freeze({ type: 'consume', id: 'food' }), conditions: Object.freeze([]), join: 'and' }),
+  Object.freeze({ id: 'd_drink', action: Object.freeze({ type: 'consume', id: 'drink' }), conditions: Object.freeze([]), join: 'and' }),
+  Object.freeze({ id: 'd_food', action: Object.freeze({ type: 'consume', id: 'food' }), conditions: Object.freeze([]), join: 'and' }),
 ]);
+const DEFAULT_ATTACK = Object.freeze({ id: 'd_attack', action: Object.freeze({ type: 'attack_with_item', id: 'loaded' }), conditions: Object.freeze([]), join: 'and' });
+/* The attack lane's default as a row (a bare fixture unit's only one). */
+export const DEFAULT_ATTACK_ROW = Object.freeze({ rule: DEFAULT_ATTACK.id, slot: DEFAULT_ATTACK });
 
 /**
  * WHERE A LANE'S DEFAULTS STAND on the bar: each fills the first EMPTY (null)
@@ -188,35 +223,29 @@ export function placeDefaults(list, defaults) {
  * empty tablet), then, for each lane the stored bar leaves empty, that lane's
  * defaults (placeDefaults). `allowed(abilityId)` filters abilities to the hero's
  * discipline (hunt-spawn.js); `role` names its ROLE_RULES row. Answers
- * [{ rule, slot }] in priority order: the rule id is the slot's position.
+ * [{ rule, slot }] in priority order, `rule` the slot's STABLE id (above).
  */
 export function heroSlots(stored, role, allowed) {
   const keep = (s) => !!s && !slotProblem(s) && (s.action.type !== 'ability' || !allowed || allowed(s.action.id));
-  let list = (Array.isArray(stored) ? stored : []).map((raw) => normalizeSlot(raw));
+  let list = uniqueIds((Array.isArray(stored) ? stored : []).map((raw) => normalizeSlot(raw)), 'e');
   const has = (lane) => list.some((s) => keep(s) && LANE_OF[s.action.type] === lane);
   if (!has('ability')) list = placeDefaults(list, (ROLE_RULES[role] || []).map(normalizeSlot).filter(keep));
   if (!has('consume')) list = placeDefaults(list, DEFAULT_CONSUME.map(normalizeSlot));
   const out = [];
-  list.forEach((s, i) => { if (keep(s)) out.push({ rule: i, slot: s }); });
+  for (const s of list) if (keep(s)) out.push({ rule: s.id, slot: s });
+  out.push(DEFAULT_ATTACK_ROW);
   return out;
 }
 
-/**
- * The rows `h` carries for one lane: its `slots` (heroSlots' rows, what the
- * settle injects), else its `bar` (the shorthand: ability ids, each a slot with
- * no conditions). Either way the consumable lane falls back to its defaults.
- */
+/** A hero's stop rules with their stable ids (the server's, else the content hash). */
+export function heroStopRules(rules) {
+  return uniqueIds((Array.isArray(rules) ? rules : []).map((r) => ({ id: typeof r.id === 'string' && RULE_ID.test(r.id) ? r.id : null,
+    conditions: r.conditions, join: r.join === 'or' ? 'or' : 'and', forMs: Number.isInteger(r.forMs) ? r.forMs : 0 })), 's');
+}
+
+/** The rows `h` carries for one lane (heroSlots' rows, what the settle injects). */
 export function slotsFor(h, lane) {
-  if (!h) return [];
-  let rows = Array.isArray(h.slots)
-    ? h.slots.map((r, i) => (r && r.slot ? r : { rule: i, slot: normalizeSlot(r) }))
-    : (Array.isArray(h.bar) ? h.bar : []).map((id, i) => ({ rule: i, slot: normalizeSlot(id) }));
-  rows = rows.filter((r) => r.slot);
-  if (lane === 'consume' && !rows.some((r) => r.slot.action.type === 'consume')) {
-    const base = Array.isArray(h.slots) ? h.slots.length : Array.isArray(h.bar) ? h.bar.length : 0;
-    rows = DEFAULT_CONSUME.map((s, i) => ({ rule: base + i, slot: normalizeSlot(s) }));
-  }
-  return rows.filter((r) => LANE_OF[r.slot.action.type] === lane);
+  return (h && Array.isArray(h.slots) ? h.slots : []).filter((r) => r && r.slot && LANE_OF[r.slot.action.type] === lane);
 }
 
 /* ── THE FOOTPRINT ────────────────────────────────────────────────────── */
@@ -324,6 +353,10 @@ const EVAL = Object.freeze({
     if (s === 'ammo') return cx.h && cx.h.ammo ? leftOf(hs, cx.h.ammo) : 0;
     return kindLeft(hs, s);
   },
+  allies_below: (cx, c) => {
+    const pct = Number(String(c.subject || 'under_50').slice(6)) || 50;
+    return heroesOf(cx.inst).filter((a) => int(a.maxHp) > 0 && int(a.hp) * 100 < pct * int(a.maxHp)).length;
+  },
   effect_missing: (cx, c) => {
     const who = (c.subject || 'target') === 'self' ? cx.u
       : (Number.isInteger(cx.u.target) ? cx.inst.world.units.find((x) => x.id === cx.u.target) : null);
@@ -374,6 +407,7 @@ export function defaultConditions(slot, h) {
     if (row.target === 'self') return [{ metric: 'self_hp_pct', op: 'lt', value: row.whenBelowPct }];
     if (row.target === 'ally') return [{ metric: 'ally_hp_pct', op: 'lt', value: row.whenBelowPct, subject: 'lowest' }];
     if (row.target === 'area') return [{ metric: 'enemies_in_aoe', op: 'gte', value: ABILITY_RULES.areaMin }];
+    if (row.target === 'party') return [{ metric: 'allies_below', op: 'gte', value: row.minHurt, subject: 'under_' + row.whenBelowPct }];
     return [];
   }
   if (a.type === 'consume') {
@@ -413,9 +447,9 @@ export function pickSlot(inst, u, h, rows, act, sc, lane) {
     const pick = act(row.slot, t.cx, row);
     if (pick && !pick.why) {
       if (lane && u.ruleWait && u.ruleWait[lane]) { const w = Object.assign({}, u.ruleWait); delete w[lane]; u.ruleWait = Object.keys(w).length ? w : null; }
-      return { pick, rule: row.rule, mask: t.mask };
+      return { pick, rule: row.rule, mask: t.mask, label: row.slot.action.id };
     }
-    if (pick && pick.why && !wait) wait = { rule: row.rule, why: pick.why, t: pick.t };
+    if (pick && pick.why && !wait) wait = { rule: row.rule, why: pick.why, t: pick.t, label: row.slot.action.id };
   }
   if (wait && sc && lane) noteWait(u, lane, wait, sc);
   return null;
@@ -432,7 +466,25 @@ function noteWait(u, lane, wait, sc) {
   const cur = u.ruleWait && typeof u.ruleWait === 'object' ? u.ruleWait : {};
   if (cur[lane] === key) return;
   u.ruleWait = Object.assign({}, cur, { [lane]: key });
-  sc.emit(makeEvent('rule_wait', sc.atMs, { u: u.id, t: Number.isInteger(wait.t) ? wait.t : u.id, rule: wait.rule, why: wait.why }));
+  sc.emit(makeEvent('rule_wait', sc.atMs, { u: u.id, t: Number.isInteger(wait.t) ? wait.t : u.id, rule: wait.rule, rule_label: wait.label, why: wait.why }));
+}
+
+/* THE BAR OR THE STOP RULES CHANGED MID-HUNT: the persisted state is keyed by stable
+   rule id, so a rule that is still there keeps its hold and its wait (wherever it
+   moved on the bar) and an id that is gone is dropped. */
+function rekey(u, h) {
+  if (u.ruleWait && typeof u.ruleWait === 'object') {
+    const ids = new Set((Array.isArray(h.slots) ? h.slots : []).map((r) => r && r.rule));
+    const w = {};
+    for (const [lane, key] of Object.entries(u.ruleWait)) if (ids.has(String(key).slice(0, String(key).lastIndexOf(':')))) w[lane] = key;
+    u.ruleWait = Object.keys(w).length ? w : null;
+  }
+  if (u.ruleHold && typeof u.ruleHold === 'object') {
+    const ids = new Set((Array.isArray(h.stopRules) ? h.stopRules : []).map((r) => r.id));
+    const hold = {};
+    for (const [id, ms] of Object.entries(u.ruleHold)) if (ids.has(id)) hold[id] = int(ms);
+    u.ruleHold = Object.keys(hold).length ? hold : null;
+  }
 }
 
 /* ── STOP RULES ───────────────────────────────────────────────────────── */
@@ -440,8 +492,10 @@ function noteWait(u, lane, wait, sc) {
 /**
  * Stop-rule hook, every sub-step: each living hero's stop rules are tested; a
  * rule that holds adds the sub-step to its hold, one that breaks resets it; a
- * hold that reaches forMs marks the session (`hs.ruleStop` = the rule index) and
- * the span ends the hunt `rule` at the hero's next boundary.
+ * hold that reaches forMs marks the session (`hs.ruleStop` = the rule's stable id)
+ * and the span ends the hunt `rule` at the hero's next boundary. Holds are keyed
+ * by rule id (`ruleHold` { id: ms }); first the state is re-keyed to the hero's
+ * current bar and stop rules (rekey).
  */
 export function checkStopRules(inst, sc) {
   const heroes = inst.heroes || null;
@@ -449,19 +503,20 @@ export function checkStopRules(inst, sc) {
   for (const u of inst.world.units) {
     if (u.side !== 'hero' || !u.alive) continue;
     const h = heroes[u.id];
-    const rules = h && Array.isArray(h.stopRules) ? h.stopRules : null;
-    if (!rules || !rules.length || !h.hs || Number.isInteger(h.hs.ruleStop)) continue;
-    const hold = Array.isArray(u.ruleHold) ? u.ruleHold.slice(0, rules.length) : [];
-    for (let i = 0; i < rules.length; i++) {
-      const r = rules[i];
+    if (!h) continue;
+    rekey(u, h);
+    const rules = Array.isArray(h.stopRules) ? h.stopRules : null;
+    if (!rules || !rules.length || !h.hs || typeof h.hs.ruleStop === 'string') continue;
+    const hold = Object.assign({}, u.ruleHold || {});
+    for (const r of rules) {
       const t = testSlot(inst, u, h, { action: { type: 'stop', id: '' }, conditions: r.conditions, join: r.join === 'or' ? 'or' : 'and' });
-      hold[i] = t.pass ? int(hold[i]) + sc.dtMs : 0;
-      if (t.pass && hold[i] >= int(r.forMs)) {
-        h.hs.ruleStop = i;
-        sc.emit(makeEvent('rule_stop', sc.atMs, { u: u.id, rule: i, pass: t.mask }));
+      if (t.pass) hold[r.id] = int(hold[r.id]) + sc.dtMs; else delete hold[r.id];
+      if (t.pass && hold[r.id] >= int(r.forMs)) {
+        h.hs.ruleStop = r.id;
+        sc.emit(makeEvent('rule_stop', sc.atMs, { u: u.id, rule: r.id, pass: t.mask }));
         break;
       }
     }
-    u.ruleHold = hold.some((v) => v > 0) ? hold.map(int) : null;
+    u.ruleHold = Object.keys(hold).length ? hold : null;
   }
 }

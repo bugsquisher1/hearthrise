@@ -130,7 +130,7 @@ const mutants = [
   { name: 'an immune target is skipped even alone', case: 'immune-target-still-hit-when-only-one',
     edits: [[T, 'return inR.find((m) => elementOn(m, u.element) > 0) || inR[0] || null;', 'return inR.find((m) => elementOn(m, u.element) > 0) || null;']] },
   { name: 'the leader\'s target is not remembered', case: 'follow-uses-leader-last',
-    edits: [['src/core/hunt/damage.js', 'if (inst.world.leader === u.id) inst.world.leaderLast = t.id;', '']] },
+    edits: [['src/core/hunt/damage.js', 'if (inst.world.leader === u.id) inst.world.leaderLast = aim.id;', '']] },
   { name: 'a fallen target is kept', case: 'monster-retargets-on-death', edits: [[T, 'if (!t || !t.alive) retarget(', 'if (!t) retarget(']] },
   { name: 'peel ignores the roll', case: 'peel-seeded', edits: [[T, ' || sc.rng.int(1, 1000) > row.peel) return null;', ') return null;']] },
   { name: 'every role peels', case: 'peel-seeded', edits: [[T, "if (!row || !row.peel || !k || k === hero) return null;", 'if (!row || !k || k === hero) return null;']] },

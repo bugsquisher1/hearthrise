@@ -18,7 +18,7 @@ const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-
 export async function loadCore(root) {
   const imp = (p) => import(pathToFileURL(join(root, p)).href + V);
   const names = ['grid', 'leash', 'movement', 'events', 'world-state', 'world-step', 'targeting', 'roles', 'pull-cycle',
-    'damage', 'abilities', 'status', 'consumables', 'xp-share', 'tally'];
+    'damage', 'abilities', 'status', 'consumables', 'xp-share', 'tally', 'conditions'];
   const mods = await Promise.all(names.map((n) => imp('src/core/hunt/' + n + '.js')));
   /* M.worldstate, M.movement, … and M.hunt['pull-cycle'] for every module by its file name. */
   const M = Object.fromEntries(names.map((n, i) => [n.replace('-', ''), mods[i]]));
@@ -132,7 +132,8 @@ export function member(M, key, o) {
     bonus: () => 0, weakness: () => ({ dropMult: 1 }),
     snapshot: () => ({ acc: x.acc ?? 900, maxHit: x.maxHit ?? 9, def: x.def ?? 1 }),
     fx: x.fx || {},
-    hero: { role: x.role || 'melee_dps', maxMana: 60, element: '', settings: null, bar: x.bar || [], actionSet: 'hunt', range: 1,
+    /* THE BAR SHORTHAND (fixtures only): ability ids, each a slot with no conditions, through the engine's heroSlots. */
+    hero: { role: x.role || 'melee_dps', maxMana: 60, element: '', settings: null, slots: M.conditions.heroSlots(x.bar || [], null), actionSet: 'hunt', range: 1,
       ammo: null },
   };
 }

@@ -116,6 +116,7 @@ insert into public.hr_hunt_condition_metrics (metric, kind, ops, lo, hi, subject
   ('self_mana_pct', 'pct', array['lt', 'lte', 'gt', 'gte', 'eq', 'ne']::text[], 0, 100, '{}'::text[], false, '{}'::text[]),
   ('ally_hp_pct', 'pct', array['lt', 'lte', 'gt', 'gte', 'eq', 'ne']::text[], 0, 100, array['lowest', 'tank', 'melee_dps', 'ranger', 'mage', 'healer']::text[], false, '{}'::text[]),
   ('ally_mana_pct', 'pct', array['lt', 'lte', 'gt', 'gte', 'eq', 'ne']::text[], 0, 100, array['lowest', 'tank', 'melee_dps', 'ranger', 'mage', 'healer']::text[], false, '{}'::text[]),
+  ('allies_below', 'count', array['lt', 'lte', 'gt', 'gte', 'eq', 'ne']::text[], 0, 5, array['under_50', 'under_60', 'under_70', 'under_80', 'under_90']::text[], false, '{}'::text[]),
   ('enemies_in_aoe', 'count', array['lt', 'lte', 'gt', 'gte', 'eq', 'ne']::text[], 0, 25, '{}'::text[], true, '{}'::text[]),
   ('target_is_boss', 'bool', array['eq']::text[], null, null, '{}'::text[], false, '{}'::text[]),
   ('item_qty', 'count', array['lt', 'lte', 'gt', 'gte', 'eq', 'ne']::text[], 0, 100000, array['item', 'food', 'drink', 'ammo']::text[], false, '{}'::text[]),
@@ -141,6 +142,7 @@ insert into public.hr_hunt_action_ids (type, id) values
   ('attack_with_item', 'iron_arrows'),
   ('attack_with_item', 'iron_bolts'),
   ('attack_with_item', 'iron_whetstone'),
+  ('attack_with_item', 'loaded'),
   ('attack_with_item', 'mithril_arrows'),
   ('attack_with_item', 'mithril_whetstone'),
   ('attack_with_item', 'rune_arrows'),
@@ -180,21 +182,21 @@ insert into public.hr_hunt_action_ids (type, id) values
 delete from public.hr_hunt_role_rules;
 insert into public.hr_hunt_role_rules (role, ord, slot) values
 -- ⟦role-rules⟧
-  ('healer', 0, '{"action":{"type":"ability","id":"greater_mend"},"conditions":[],"join":"and"}'::jsonb),
-  ('healer', 1, '{"action":{"type":"ability","id":"circle_of_renewal"},"conditions":[],"join":"and"}'::jsonb),
-  ('healer', 2, '{"action":{"type":"ability","id":"natures_wrath"},"conditions":[{"metric":"ally_hp_pct","op":"gte","value":70,"subject":"lowest"}],"join":"and"}'::jsonb),
-  ('mage', 0, '{"action":{"type":"ability","id":"fireball"},"conditions":[],"join":"and"}'::jsonb),
-  ('mage', 1, '{"action":{"type":"ability","id":"frost_lance"},"conditions":[],"join":"and"}'::jsonb),
-  ('mage', 2, '{"action":{"type":"ability","id":"arcane_barrier"},"conditions":[],"join":"and"}'::jsonb),
-  ('melee_dps', 0, '{"action":{"type":"ability","id":"power_strike"},"conditions":[],"join":"and"}'::jsonb),
-  ('melee_dps', 1, '{"action":{"type":"ability","id":"cleave"},"conditions":[],"join":"and"}'::jsonb),
-  ('melee_dps', 2, '{"action":{"type":"ability","id":"rend"},"conditions":[],"join":"and"}'::jsonb),
-  ('ranger', 0, '{"action":{"type":"ability","id":"hunters_mark"},"conditions":[],"join":"and"}'::jsonb),
-  ('ranger', 1, '{"action":{"type":"ability","id":"flame_volley"},"conditions":[],"join":"and"}'::jsonb),
-  ('ranger', 2, '{"action":{"type":"ability","id":"precision_shot"},"conditions":[],"join":"and"}'::jsonb),
-  ('tank', 0, '{"action":{"type":"ability","id":"challenge"},"conditions":[],"join":"and"}'::jsonb),
-  ('tank', 1, '{"action":{"type":"ability","id":"flame_strike"},"conditions":[],"join":"and"}'::jsonb),
-  ('tank', 2, '{"action":{"type":"ability","id":"power_strike"},"conditions":[],"join":"and"}'::jsonb)
+  ('healer', 0, '{"id":"d_greater_mend","action":{"type":"ability","id":"greater_mend"},"conditions":[],"join":"and"}'::jsonb),
+  ('healer', 1, '{"id":"d_circle_of_renewal","action":{"type":"ability","id":"circle_of_renewal"},"conditions":[],"join":"and"}'::jsonb),
+  ('healer', 2, '{"id":"d_natures_wrath","action":{"type":"ability","id":"natures_wrath"},"conditions":[{"metric":"ally_hp_pct","op":"gte","value":70,"subject":"lowest"}],"join":"and"}'::jsonb),
+  ('mage', 0, '{"id":"d_fireball","action":{"type":"ability","id":"fireball"},"conditions":[],"join":"and"}'::jsonb),
+  ('mage', 1, '{"id":"d_frost_lance","action":{"type":"ability","id":"frost_lance"},"conditions":[],"join":"and"}'::jsonb),
+  ('mage', 2, '{"id":"d_arcane_barrier","action":{"type":"ability","id":"arcane_barrier"},"conditions":[],"join":"and"}'::jsonb),
+  ('melee_dps', 0, '{"id":"d_power_strike","action":{"type":"ability","id":"power_strike"},"conditions":[],"join":"and"}'::jsonb),
+  ('melee_dps', 1, '{"id":"d_cleave","action":{"type":"ability","id":"cleave"},"conditions":[],"join":"and"}'::jsonb),
+  ('melee_dps', 2, '{"id":"d_rend","action":{"type":"ability","id":"rend"},"conditions":[],"join":"and"}'::jsonb),
+  ('ranger', 0, '{"id":"d_hunters_mark","action":{"type":"ability","id":"hunters_mark"},"conditions":[],"join":"and"}'::jsonb),
+  ('ranger', 1, '{"id":"d_flame_volley","action":{"type":"ability","id":"flame_volley"},"conditions":[],"join":"and"}'::jsonb),
+  ('ranger', 2, '{"id":"d_precision_shot","action":{"type":"ability","id":"precision_shot"},"conditions":[],"join":"and"}'::jsonb),
+  ('tank', 0, '{"id":"d_challenge","action":{"type":"ability","id":"challenge"},"conditions":[],"join":"and"}'::jsonb),
+  ('tank', 1, '{"id":"d_flame_strike","action":{"type":"ability","id":"flame_strike"},"conditions":[],"join":"and"}'::jsonb),
+  ('tank', 2, '{"id":"d_power_strike","action":{"type":"ability","id":"power_strike"},"conditions":[],"join":"and"}'::jsonb)
 -- ⟦/role-rules⟧
 ;
 -- condition-metrics.js MAX_CONDITIONS / MAX_STOP_RULES / STOP_HOLD_MS (pinned by the same test).
@@ -268,12 +270,12 @@ begin
   if jsonb_typeof(p_s) = 'string' then
     if not exists (select 1 from public.hr_hunt_abilities a where a.ability_id = p_s #>> '{}') then
       return jsonb_build_object('ok', false, 'error', 'bad_action'); end if;
-    return jsonb_build_object('ok', true, 'slot', jsonb_build_object('action', jsonb_build_object('type', 'ability', 'id', p_s #>> '{}'),
-      'conditions', '[]'::jsonb, 'join', 'and'));
+    v_r := jsonb_build_object('action', jsonb_build_object('type', 'ability', 'id', p_s #>> '{}'), 'conditions', '[]'::jsonb, 'join', 'and');
+    return jsonb_build_object('ok', true, 'slot', v_r || jsonb_build_object('id', 'r' || substr(md5(v_r::text), 1, 8)));
   end if;
   if jsonb_typeof(p_s) <> 'object' or jsonb_typeof(p_s->'action') is distinct from 'object' then
     return jsonb_build_object('ok', false, 'error', 'bad_action'); end if;
-  if exists (select 1 from jsonb_object_keys(p_s) k where k not in ('action', 'conditions', 'join')) then
+  if exists (select 1 from jsonb_object_keys(p_s) k where k not in ('id', 'action', 'conditions', 'join')) then
     return jsonb_build_object('ok', false, 'error', 'bad_slot'); end if;
   v_type := p_s->'action'->>'type'; v_id := p_s->'action'->>'id';
   if jsonb_typeof(p_s->'action'->'id') is distinct from 'string' or v_type is null
@@ -285,8 +287,11 @@ begin
     return jsonb_build_object('ok', false, 'error', 'bad_action'); end if;
   v_r := public.hr_hunt_conds_check(p_s->'conditions', p_s->'join', false);
   if v_r is not null then return jsonb_build_object('ok', false) || v_r; end if;
-  return jsonb_build_object('ok', true, 'slot', jsonb_build_object('action', jsonb_build_object('type', v_type, 'id', v_id),
-    'conditions', coalesce(p_s->'conditions', '[]'::jsonb), 'join', coalesce(p_s->>'join', 'and')));
+  -- THE STABLE RULE ID is the server's, from the slot's CONTENT (never the client's value,
+  -- never its position): a reorder or a copy keeps it, an edit changes it.
+  v_r := jsonb_build_object('action', jsonb_build_object('type', v_type, 'id', v_id),
+    'conditions', coalesce(p_s->'conditions', '[]'::jsonb), 'join', coalesce(p_s->>'join', 'and'));
+  return jsonb_build_object('ok', true, 'slot', v_r || jsonb_build_object('id', 'r' || substr(md5(v_r::text), 1, 8)));
 end $$;
 
 -- THE BAR CHECK, RESTATED: {ok:true, slots} (canonical, empty tablets kept as null), or
@@ -295,7 +300,7 @@ create or replace function public.hr_hunt_bar_check(p_slots jsonb)
 returns jsonb language plpgsql stable set search_path = public, pg_catalog as $$
 declare
   v_max int := public.hr_hunt_limit('slots');
-  v_out jsonb := '[]'::jsonb; v_e jsonb; v_i int := 0; v_r jsonb;
+  v_out jsonb := '[]'::jsonb; v_e jsonb; v_i int := 0; v_r jsonb; v_id text; v_n int;
 begin
   if v_max is null then return jsonb_build_object('ok', false, 'error', 'bad_slots', 'why', 'catalogue_missing'); end if;
   if p_slots is null or jsonb_typeof(p_slots) <> 'array' then
@@ -305,6 +310,13 @@ begin
   for v_e in select value from jsonb_array_elements(p_slots) loop
     v_r := public.hr_hunt_slot_check(v_e);
     if not (v_r->>'ok')::boolean then return v_r || jsonb_build_object('slot', v_i); end if;
+    -- A repeat of the same content takes the next suffix (_2, _3 ...), in bar order.
+    if jsonb_typeof(v_r->'slot') = 'object' then
+      v_id := v_r->'slot'->>'id';
+      select count(*)::int into v_n from jsonb_array_elements(v_out) e
+       where jsonb_typeof(e) = 'object' and (e->>'id' = v_id or e->>'id' like v_id || '\_%');
+      if v_n > 0 then v_r := jsonb_set(v_r, '{slot,id}', to_jsonb(v_id || '_' || (v_n + 1))); end if;
+    end if;
     v_out := v_out || jsonb_build_array(v_r->'slot');
     v_i := v_i + 1;
   end loop;
@@ -324,7 +336,7 @@ begin
   if p_rules is null or jsonb_typeof(p_rules) <> 'array' then return jsonb_build_object('ok', false, 'error', 'bad_stop_rules'); end if;
   if jsonb_array_length(p_rules) > v_max then return jsonb_build_object('ok', false, 'error', 'too_many_stop_rules', 'max', v_max); end if;
   for v_e in select value from jsonb_array_elements(p_rules) loop
-    if jsonb_typeof(v_e) <> 'object' or exists (select 1 from jsonb_object_keys(v_e) k where k not in ('conditions', 'join', 'forMs'))
+    if jsonb_typeof(v_e) <> 'object' or exists (select 1 from jsonb_object_keys(v_e) k where k not in ('id', 'conditions', 'join', 'forMs'))
        or jsonb_typeof(v_e->'conditions') is distinct from 'array' or jsonb_array_length(v_e->'conditions') = 0 then
       return jsonb_build_object('ok', false, 'error', 'bad_stop_rule', 'rule', v_i); end if;
     v_f := case when v_e ? 'forMs' and jsonb_typeof(v_e->'forMs') = 'number' then (v_e->>'forMs')::numeric
@@ -333,8 +345,11 @@ begin
       return jsonb_build_object('ok', false, 'error', 'bad_hold', 'rule', v_i); end if;
     v_r := public.hr_hunt_conds_check(v_e->'conditions', v_e->'join', true);
     if v_r is not null then return jsonb_build_object('ok', false, 'rule', v_i) || v_r; end if;
-    v_out := v_out || jsonb_build_array(jsonb_build_object('conditions', v_e->'conditions',
-      'join', coalesce(v_e->>'join', 'and'), 'forMs', v_f::bigint));
+    v_r := jsonb_build_object('conditions', v_e->'conditions', 'join', coalesce(v_e->>'join', 'and'), 'forMs', v_f::bigint);
+    v_r := v_r || jsonb_build_object('id', 's' || substr(md5(v_r::text), 1, 8)
+      || case when exists (select 1 from jsonb_array_elements(v_out) o where o->>'id' = 's' || substr(md5(v_r::text), 1, 8))
+              then '_' || v_i::text else '' end);
+    v_out := v_out || jsonb_build_array(v_r);
     v_i := v_i + 1;
   end loop;
   return jsonb_build_object('ok', true, 'rules', v_out);
@@ -912,9 +927,9 @@ begin
   end if;
   if not exists (select 1 from jsonb_array_elements(v_list) e where e->'action'->>'type' = 'consume') then
     v_def := v_def || jsonb_build_array(
-      jsonb_build_object('action', jsonb_build_object('type', 'consume', 'id', 'drink'), 'join', 'and',
+      jsonb_build_object('id', 'd_drink', 'action', jsonb_build_object('type', 'consume', 'id', 'drink'), 'join', 'and',
         'conditions', jsonb_build_array(jsonb_build_object('metric', 'self_mana_pct', 'op', 'lt', 'value', v_eff->'drink_below_pct'))),
-      jsonb_build_object('action', jsonb_build_object('type', 'consume', 'id', 'food'), 'join', 'and',
+      jsonb_build_object('id', 'd_food', 'action', jsonb_build_object('type', 'consume', 'id', 'food'), 'join', 'and',
         'conditions', jsonb_build_array(jsonb_build_object('metric', 'self_hp_pct', 'op', 'lt', 'value', v_eff->'food_below_pct'))));
   end if;
   for v_d in select value from jsonb_array_elements(v_def) loop
@@ -1001,6 +1016,17 @@ begin
     end loop;
     if (select jsonb_array_length(slots) from public.player_action_sets where user_id = v_uid and slot = 0 and preset = 0) <> 5 then
       raise exception 'VERIFY(b): a refused bar moved the stored one'; end if;
+    -- (b2) STABLE RULE IDS: a reorder keeps every id, an edit changes only the edited slot's,
+    --      a repeat is unique, a client-sent id is ignored.
+    declare v_a jsonb; v_b jsonb; v_c jsonb;
+    begin
+      v_a := public.hr_hunt_bar_check('["cleave", {"action": {"type": "ability", "id": "power_strike"}, "conditions": [{"metric": "self_hp_pct", "op": "lt", "value": 50}]}, "cleave"]'::jsonb)->'slots';
+      v_b := public.hr_hunt_bar_check('[{"id": "forged", "action": {"type": "ability", "id": "power_strike"}, "conditions": [{"metric": "self_hp_pct", "op": "lt", "value": 50}]}, null, "cleave"]'::jsonb)->'slots';
+      v_c := public.hr_hunt_bar_check('["cleave", {"action": {"type": "ability", "id": "power_strike"}, "conditions": [{"metric": "self_hp_pct", "op": "lt", "value": 60}]}, "cleave"]'::jsonb)->'slots';
+      if v_b->0->>'id' <> v_a->1->>'id' or v_b->2->>'id' <> v_a->0->>'id' or v_a->0->>'id' = v_a->2->>'id'
+         or v_c->0->>'id' <> v_a->0->>'id' or v_c->2->>'id' <> v_a->2->>'id' or v_c->1->>'id' = v_a->1->>'id' then
+        raise exception 'VERIFY(b2): rule ids are not stable: % / % / %', v_a, v_b, v_c; end if;
+    end;
     -- (c) stop rules, grounds, density and the gathering share.
     v := public.hr_action_set_options(0, 0, jsonb_build_object(
            'stop_rules', jsonb_build_array(jsonb_build_object('conditions', jsonb_build_array(

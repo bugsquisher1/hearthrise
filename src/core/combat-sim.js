@@ -193,7 +193,7 @@ export function simulateHuntInstance(inst, ctx) {
       for (const m of members) {
         if (m.left || m.unitId === null) continue;
         byUnit.set(m.unitId, m);
-        heroes[m.unitId] = { hs: m.hs, slots: m.hero.slots, bar: m.hero.bar, stopRules: m.hero.stopRules, actionSet: m.hero.actionSet,
+        heroes[m.unitId] = { hs: m.hs, slots: m.hero.slots, stopRules: m.hero.stopRules, actionSet: m.hero.actionSet,
           range: m.hero.range, rollsVs: m.rollsVs, ammo: m.hero.ammo, items: ctx.items || null,
           foodBelowPct: m.hero.foodBelowPct, drinkBelowPct: m.hero.drinkBelowPct };
       }
@@ -232,7 +232,7 @@ export function simulateHuntInstance(inst, ctx) {
   for (const m of members) {
     if (m.left || m.unitId === null) continue;
     const next = m.hs.nextSwingAtMs;
-    if (m.hs.goldOut === true || Number.isInteger(m.hs.ruleStop) || endReasonAt(m.hs, next) === 'falls') {
+    if (m.hs.goldOut === true || typeof m.hs.ruleStop === 'string' || endReasonAt(m.hs, next) === 'falls') {
       endMember(m, endReasonAt(m.hs, next) || 'gold_out', next, world, out.get(m.key));
     }
   }

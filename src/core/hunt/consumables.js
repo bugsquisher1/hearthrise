@@ -87,7 +87,7 @@ function use(u, hero, kind, line, sc, d) {
   u.laneAt = sc.atMs + R.laneMs;
   sc.emit(makeEvent(kind === 'drink' ? 'drink' : 'eat', sc.atMs,
     { u: u.id, item: line.id, source: line.source, gold: line.price, amount, landed,
-      ...(d && Number.isInteger(d.rule) ? { rule: d.rule, pass: d.mask } : {}) }));
+      ...(d && typeof d.rule === 'string' ? { rule: d.rule, rule_label: d.label, pass: d.mask } : {}) }));
   return true;
 }
 

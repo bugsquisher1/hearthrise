@@ -36,6 +36,7 @@ async function load(root) {
   M.ws = await imp('src/core/hunt/world-step.js');
   M.basics = await imp('src/data/supply-basics.js');
   M.art = await imp('src/data/monster-art.js');
+  M.cond = await imp('src/core/hunt/conditions.js');
   return M;
 }
 
@@ -90,7 +91,7 @@ function playSewer(M, party, swings, seed, groundId) {
   party.forEach((p, i) => {
     const u = world.units[i];
     u.mana = u.maxMana = M.roles.HUNT_ROLES[p.role].mana;
-    heroes[u.id] = { hs: session(M, p), bar: p.bar, actionSet: 'hunt', range: M.roles.HUNT_ROLES[p.role].range, ammo: p.ammo || null };
+    heroes[u.id] = { hs: session(M, p), slots: M.cond.heroSlots(p.bar, null), actionSet: 'hunt', range: M.roles.HUNT_ROLES[p.role].range, ammo: p.ammo || null };
   });
   const out = { pulls: [], kills: {}, wipes: 0, falls: 0, kingDead: false, swings: 0, loops: 0 };
   let pullAt = null;

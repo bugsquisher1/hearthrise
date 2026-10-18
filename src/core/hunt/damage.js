@@ -31,7 +31,7 @@ import { roleOf, elementOn, inRange, peel, engaged } from './targeting.js?v=0.1.
 import { fallen, partySize } from './pull-cycle.js?v=0.1.0';
 import { shareKillXp } from './xp-share.js?v=0.1.0';
 import { payBasic } from './abilities.js?v=0.1.0';
-import { slotsFor, pickSlot, bestAim, footprintOf, inFootprint } from './conditions.js?v=0.1.0';
+import { slotsFor, pickSlot, bestAim, footprintOf, inFootprint, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.1.0';
 import { resolveLine } from '../action-rules.js?v=0.1.0';
 import { elementWithFloor } from '../../data/hunt-grounds.js?v=0.1.0';
 
@@ -131,35 +131,28 @@ export function resolveAttacks(inst, sc) {
     }
     const row = roleOf(u);
     if (!row || (row.melee && !atRest(u)) || !inRange(inst, u, t)) continue;
-    /* A RANGED BASIC LOOSES ONE SHOT of the loaded ammo, and a caster's basic
-       burns one of the RUNE loaded in its ammo slot (W0: runes are the mage's
-       ammo, the same slot and per-shot rule; spec §3.4 #8), own first then the
-       store (abilities.payBasic, the one supply resolver): no shot, no swing. A
-       caster with no rune loaded swings on its mana alone. Only a hero the
-       settle supplies (inst.heroes) carries a quiver; a bare fixture unit swings free. */
-    const supplied = !!(inst.heroes && inst.heroes[u.id]);
-    const h = supplied ? inst.heroes[u.id] : null;
-    /* THE ATTACK ITEM (conditions.js): the first attack_with_item slot whose conditions
-       pass and that has a shot to loose picks the ammo and, by its footprint, the aim;
-       none eligible = the loaded ammo at the target (the lane's default). */
-    const shot = supplied ? pickShot(inst, u, h, sc) : null;
-    if (shot) {
-      if (!payBasic(inst, u, { ammo: shot.pick.id }, sc)) continue;
-      const aim = shot.pick.aim;
-      /* ONE unit a shot, whatever it hits: the aim first, then every other engaged monster in the footprint by id. */
-      const hits = [aim].concat(engaged(inst).filter((m) => m !== aim && inFootprint(aim, shot.pick.size, m)).sort((a, b) => a.id - b.id));
-      sc.emit(makeEvent('shot', sc.atMs, { u: u.id, t: aim.id, item: shot.pick.id, rule: shot.rule, pass: shot.mask, hits: hits.length }));
-      restart(u);
-      for (const m of hits) if (m.alive) blow(inst, sc, u, h, m);
-      if (inst.world.leader === u.id) inst.world.leaderLast = aim.id;
-      peel(inst, sc, u);
-      continue;
+    /* THE ATTACK LANE, ONE PATH (conditions.js). The first attack slot whose
+       conditions pass and that has a shot picks the item and, by its footprint, the
+       aim; the lane's last slot is its default, d_attack: the LOADED ammo at the
+       target. A ranged basic looses one shot of it and a caster's basic burns one
+       of the rune in its ammo slot (W0: runes are the mage's ammo, spec §3.4 #8),
+       own first then the store (abilities.payBasic, the one supply resolver): no
+       shot, no swing. A caster with no rune loaded, and any melee hero, swings
+       with nothing to pay. A bare fixture unit (no settle entry) runs the default
+       with no supplies at all. ONE unit a shot, whatever it hits. */
+    const h = (inst.heroes && inst.heroes[u.id]) || null;
+    const shot = pickShot(inst, u, h, t, sc);
+    if (!shot) continue;
+    if (shot.pick.ammo !== null && !payBasic(inst, u, { ammo: shot.pick.ammo }, sc)) continue;
+    const aim = shot.pick.aim;
+    const hits = [aim].concat(engaged(inst).filter((m) => m !== aim && inFootprint(aim, shot.pick.size, m)).sort((a, b) => a.id - b.id));
+    /* The decision event: only a player's (or role) slot, never the default swing every 2 s. */
+    if (shot.rule !== DEFAULT_ATTACK_ROW.rule) {
+      sc.emit(makeEvent('shot', sc.atMs, { u: u.id, t: aim.id, item: shot.pick.ammo || '', rule: shot.rule, rule_label: shot.label, pass: shot.mask, hits: hits.length }));
     }
-    const shoots = supplied && (u.role === 'ranger' || ((u.role === 'mage' || u.role === 'healer') && !!h.ammo));
-    if (shoots && !payBasic(inst, u, { ammo: true }, sc)) continue;
     restart(u);
-    blow(inst, sc, u, h, t);
-    if (inst.world.leader === u.id) inst.world.leaderLast = t.id;
+    for (const m of hits) if (m.alive) blow(inst, sc, u, h, m);
+    if (inst.world.leader === u.id) inst.world.leaderLast = aim.id;
     peel(inst, sc, u);
   }
 }
@@ -175,19 +168,24 @@ function blow(inst, sc, u, h, t) {
     vs ? Number(vs.critChance) || 0 : 0);
 }
 
-/* The attack slot a hero's swing takes now: { pick: { id, size, aim }, rule, mask } or null.
-   Only a ranged hero (or a caster) looses an item; a slot with no stock or no aim falls back. */
-function pickShot(inst, u, h, sc) {
+/* The attack slot a hero's swing takes now: { pick: { ammo (an item id, or null =
+   nothing to pay), size, aim }, rule, mask, label } or null. An item slot is a ranged
+   hero's or a caster's; one with no stock or no aim falls back to the next. */
+function pickShot(inst, u, h, t, sc) {
   const row = roleOf(u);
-  if (!row || row.melee) return null;
-  const rows = slotsFor(h, 'attack');
-  if (!rows.length) return null;
+  if (!row) return null;
+  const rows = h ? slotsFor(h, 'attack') : [DEFAULT_ATTACK_ROW];
   return pickSlot(inst, u, h, rows, (slot, cx) => {
     const id = slot.action.id;
+    if (id === 'loaded') {
+      const shoots = !!h && (u.role === 'ranger' || ((u.role === 'mage' || u.role === 'healer') && !!h.ammo));
+      return { ammo: shoots ? (h.ammo || '') : null, size: 1, aim: t };
+    }
+    if (row.melee || !h) return null;
     const l = resolveLine(h.hs, id, 1);
     if (!l.id || l.why) return { why: l.why === 'gold_short' ? 'gold_short' : 'no_stock' };
     const size = footprintOf(slot, h);
     const aim = cx.aim && cx.aim.alive ? cx.aim : (bestAim(inst, u, row.range, size) || {}).aim;
-    return aim && inRange(inst, u, aim) ? { id, size, aim } : { why: 'out_of_range' };
+    return aim && inRange(inst, u, aim) ? { ammo: id, size, aim } : { why: 'out_of_range' };
   }, sc, 'attack');
 }

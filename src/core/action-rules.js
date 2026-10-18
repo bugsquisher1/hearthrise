@@ -240,7 +240,7 @@ const END_CHECKS = Object.freeze({
   ammo_out: (hs) => essentialOut(hs, 'ammo'),
   gold_out: (hs) => hs.goldOut === true,
   /* A stop rule met (conditions.js checkStopRules); like goldOut, a flag of this span, never stored. */
-  rule: (hs) => Number.isInteger(hs.ruleStop),
+  rule: (hs) => typeof hs.ruleStop === 'string' && hs.ruleStop.length > 0,
   stamina: (hs) => hs.staminaMs !== null && hs.staminaMs !== undefined && !(Number(hs.staminaMs) > 0),
   hours: (hs, t) => Number(hs.hoursLimit) > 0 && t - hs.huntFromMs >= Number(hs.hoursLimit) * 3600000,
   left: (hs, t) => at(hs.leaveAtMs, t),

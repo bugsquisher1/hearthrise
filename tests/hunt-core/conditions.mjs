@@ -54,10 +54,13 @@ async function load(root) {
 
 /* ── FIXTURES ─────────────────────────────────────────────────────────── */
 
-const slot = (type, id, conditions, join) => ({ action: { type, id }, conditions: conditions || [], join: join || 'and' });
+/* A slot; `rid` stamps its stable rule id the way the server does on save (absent = the engine's content hash). */
+const slot = (type, id, conditions, join, rid) => Object.assign(rid ? { id: rid } : {}, { action: { type, id }, conditions: conditions || [], join: join || 'and' });
 const c = (metric, op, value, subject) => Object.assign({ metric, op, value }, subject ? { subject } : {});
-const ab = (id, conds, join) => slot('ability', id, conds, join);
-const rows = (list) => list.map((s, i) => ({ rule: i, slot: s }));
+const ab = (id, conds, join, rid) => slot('ability', id, conds, join, rid);
+/* A bar as the engine runs it (heroSlots of the module under test: the lanes' defaults included). */
+let CUR = null;
+const rows = (list) => CUR.cond.heroSlots(list, null);
 
 /* An open 24 x 12 room walled round; seats on the west, one big pocket in the east. */
 function openGrid(M) {
@@ -92,7 +95,7 @@ function member(M, key, role, o) {
     fx: { addXp() {}, addItem(id, n) { loot.push([id, n]); }, onLoot() {}, onDrop() {}, updateDaily() {},
       updateQuest(t) { if (t === 'kill') kills.push(1); } },
     _loot: loot,
-    hero: { role, maxMana: R.mana, element: '', settings: null, slots: rows(x.slots || []), stopRules: x.stopRules || [],
+    hero: { role, maxMana: R.mana, element: '', settings: null, slots: rows(x.slots || []), stopRules: M.cond.heroStopRules(x.stopRules || []),
       density: x.density ?? 0, actionSet: 'hunt', range: R.range, ammo: x.ammo || null },
   };
 }
@@ -105,7 +108,7 @@ function party(M, o) {
     member(M, 'a-knight', 'tank', { seat: 0, hp: 160, def: 2, maxHit: 5 }),
     member(M, 'b-ranger', 'ranger', { seat: 1, ammo: 'bronze_arrows', maxHit: 4,
       bag: { bronze_arrows: { loaded: 50 }, [HAVOC]: { loaded: x.havoc ?? 6 }, [BURST]: { loaded: 500 } },
-      slots: [slot('attack_with_item', HAVOC, [c('enemies_in_aoe', 'gte', 4)]), slot('attack_with_item', BURST, [c('enemies_in_aoe', 'gte', 2)])] }),
+      slots: [slot('attack_with_item', HAVOC, [c('enemies_in_aoe', 'gte', 4)], 'and', 'havoc'), slot('attack_with_item', BURST, [c('enemies_in_aoe', 'gte', 2)], 'and', 'burst')] }),
     member(M, 'c-druid', 'healer', { seat: 2, maxHit: 2, slots: [ab('greater_mend', [c('ally_hp_pct', 'lt', 80, 'tank')])], stopRules: x.druidStop }),
     member(M, 'd-sorc', 'mage', { seat: 3, maxHit: 2, bag: { fire_rune: { loaded: 300 } }, slots: [ab('fireball', [c('enemies_in_aoe', 'gte', 3)])] }),
   ];
@@ -158,6 +161,7 @@ export function metricRowsSql(M) {
 export function actionIdRowsSql(M) {
   const ids = [];
   for (const k of Object.keys(M.CM.CONSUME_KINDS)) ids.push(['consume', k]);
+  for (const k of Object.keys(M.CM.ATTACK_KINDS)) ids.push(['attack_with_item', k]);
   for (const r of Object.values(M.CD.CONSUMABLES)) if (r.source === 'own') ids.push(['consume', r.id]);
   for (const s of Object.values(M.SUP.SUPPLIES)) if (s.kind === 'ammo') ids.push(['attack_with_item', s.id]);
   return ids.sort((a, b) => (a[0] + ':' + a[1] < b[0] + ':' + b[1] ? -1 : 1)).map(([t, i]) => '  (' + q(t) + ', ' + q(i) + ')').join(',\n');
@@ -245,13 +249,13 @@ const cases = {
     const run = (hp) => {
       const h = hero(M, 1, 12, 3, { role: 'tank', hp, maxHp: 100, mana: 100, maxMana: 100 });
       const inst = instOf(M, world(M, [h, mon(M, 10, 0, 13, 3, { target: 1, hp: 500, maxHp: 500 })]));
-      inst.heroes = { 1: heroRow(M, { slots: rows([ab('power_strike', [c('self_hp_pct', 'lt', 50)]), ab('cleave')]) }) };
+      inst.heroes = { 1: heroRow(M, { slots: rows([ab('power_strike', [c('self_hp_pct', 'lt', 50)], 'and', 'ps'), ab('cleave', [], 'and', 'cl')]) }) };
       const sc = subStep(0); sc.rng = M.rng.createRng(7);
       M.abilities.castAbilities(inst, sc);
       return sc.events.filter((e) => e.type === 'cast').map((e) => e.ability + '#' + e.rule + ':' + e.pass).join();
     };
     const a = run(40); const b = run(90);
-    return a === 'power_strike#0:1' && b === 'cleave#1:0' ? null : 'at 40% fired ' + a + ', at 90% fired ' + b;
+    return a === 'power_strike#ps:1' && b === 'cleave#cl:0' ? null : 'at 40% fired ' + a + ', at 90% fired ' + b;
   },
   join: (M) => {
     const h = hero(M, 1, 12, 3, { hp: 40, maxHp: 100, mana: 90, maxMana: 100 });
@@ -286,10 +290,10 @@ const cases = {
     };
     const bag = { cooked_shrimp: { loaded: 3 }, cooked_trout: { loaded: 0 } };
     if (run(85, [], bag) !== '') return 'the default eat-at (50%) ate at 85%';
-    if (run(85, [slot('consume', 'food', [c('self_hp_pct', 'lt', 90)])], bag) !== 'cooked_shrimp#0') return 'an eat slot at 90% did not eat at 85%';
+    if (run(85, [slot('consume', 'food', [c('self_hp_pct', 'lt', 90)], 'and', 'f90')], bag) !== 'cooked_shrimp#f90') return 'an eat slot at 90% did not eat at 85%';
     /* An empty item falls back to the next slot. */
-    const fb = run(40, [slot('consume', 'cooked_trout'), slot('consume', 'cooked_shrimp')], bag);
-    return fb === 'cooked_shrimp#1' ? null : 'an empty trout slot fell back to ' + (fb || 'nothing');
+    const fb = run(40, [slot('consume', 'cooked_trout', [], 'and', 'tr'), slot('consume', 'cooked_shrimp', [], 'and', 'sh')], bag);
+    return fb === 'cooked_shrimp#sh' ? null : 'an empty trout slot fell back to ' + (fb || 'nothing');
   },
   'attack-item': (M) => {
     const r = runShots(M, { burst: 4 });
@@ -298,23 +302,61 @@ const cases = {
     if (!r.shots.some((s) => s.hits > 1)) return 'no area shot hit more than one monster';
     if (r.dmgPerShot.some((n, i) => n !== r.shots[i].hits)) return 'a shot did not roll once per monster in its footprint: ' + JSON.stringify(r.dmgPerShot);
     const after = r.shots.slice(4);
-    return after.length && after.every((s) => s.item === 'bronze_arrows' && s.rule === 1) ? null
+    return after.length && after.every((s) => s.item === 'bronze_arrows' && s.rule === 'bz') ? null
       : 'once the 3x3 stack was empty the next slot did not take over: ' + JSON.stringify(after.slice(0, 3));
   },
   /* The death explanation's input: a rule whose conditions held but that could not fire says why, ONCE. */
   'rule-wait': (M) => {
     const h = hero(M, 1, 12, 3, { role: 'tank', hp: 30, maxHp: 100, mana: 0, maxMana: 100 });
     const inst = instOf(M, world(M, [h, mon(M, 10, 0, 13, 3, { target: 1, hp: 500, maxHp: 500 })]));
-    inst.heroes = { 1: heroRow(M, { slots: rows([ab('power_strike', [c('self_hp_pct', 'lt', 50)])]) }) };
+    inst.heroes = { 1: heroRow(M, { slots: rows([ab('power_strike', [c('self_hp_pct', 'lt', 50)], 'and', 'ps')]) }) };
     const sc = subStep(0); sc.rng = M.rng.createRng(2);
     for (let i = 0; i < 30; i++) { sc.atMs = i * 100; M.abilities.castAbilities(inst, sc); }
     const waits = sc.events.filter((e) => e.type === 'rule_wait');
-    if (waits.length !== 1 || waits[0].rule !== 0 || waits[0].why !== 'mana' || waits[0].u !== 1) return 'waits ' + JSON.stringify(waits);
+    if (waits.length !== 1 || waits[0].rule !== 'ps' || waits[0].rule_label !== 'power_strike' || waits[0].why !== 'mana' || waits[0].u !== 1) return 'waits ' + JSON.stringify(waits);
     h.mana = 100; sc.atMs = 3000; M.abilities.castAbilities(inst, sc);
-    if (!sc.events.some((e) => e.type === 'cast' && e.rule === 0) || h.ruleWait !== null) return 'the rule fired but its wait was not cleared: ' + JSON.stringify(h.ruleWait);
+    if (!sc.events.some((e) => e.type === 'cast' && e.rule === 'ps') || h.ruleWait !== null) return 'the rule fired but its wait was not cleared: ' + JSON.stringify(h.ruleWait);
     for (let i = 0; i < 30; i++) { sc.atMs = 3100 + i * 100; M.abilities.castAbilities(inst, sc); }
     const cd = sc.events.filter((e) => e.type === 'rule_wait').slice(1);
     return cd.length === 1 && cd[0].why === 'cooldown' ? null : 'after the cast the waits were ' + JSON.stringify(cd);
+  },
+  /* STABLE RULE IDS: a reorder keeps every rule's id; an edit changes only the edited slot's; a repeat is unique. */
+  'stable-ids': (M) => {
+    const A = ab('power_strike', [c('self_hp_pct', 'lt', 50)]); const B = ab('cleave'); const C2 = slot('consume', 'food', [c('self_hp_pct', 'lt', 40)]);
+    const ids = (list) => Object.fromEntries(M.cond.heroSlots(list, null).filter((r) => !r.rule.startsWith('d_')).map((r) => [r.slot.action.id + JSON.stringify(r.slot.conditions), r.rule]));
+    const one = ids([A, B, C2]); const re = ids([C2, null, B, A]);
+    if (JSON.stringify(Object.entries(one).sort()) !== JSON.stringify(Object.entries(re).sort())) return 'a reorder changed ids: ' + JSON.stringify([one, re]);
+    const A2 = ab('power_strike', [c('self_hp_pct', 'lt', 60)]);
+    const ed = ids([A2, B, C2]);
+    const same = Object.keys(ed).filter((k) => one[k] === ed[k]);
+    if (same.length !== 2 || Object.values(ed).includes(one[Object.keys(one)[0]])) return 'an edit to one slot moved other ids: ' + JSON.stringify([one, ed]);
+    const dup = M.cond.heroSlots([B, B], null).filter((r) => r.slot.action.id === 'cleave').map((r) => r.rule);
+    if (dup.length !== 2 || dup[0] === dup[1]) return 'two identical slots share an id: ' + dup;
+    /* A stamped id wins over the hash, so the server's id is what the engine reports. */
+    return M.cond.heroSlots([ab('cleave', [], 'and', 'srv1')], null)[0].rule === 'srv1' ? null : 'the stored id was not kept';
+  },
+  /* THE BAR / STOP RULES CHANGE MID-HUNT: state keyed by id survives a move, an id that is gone is dropped. */
+  'rekey': (M) => {
+    const h = hero(M, 1, 12, 3, { mana: 10, maxMana: 100 });
+    const inst = instOf(M, world(M, [h]));
+    const keep = { id: 'keep', conditions: [c('self_mana_pct', 'lt', 20)], forMs: 60000 };
+    const gone = { id: 'gone', conditions: [c('self_mana_pct', 'lt', 30)], forMs: 60000 };
+    const r = heroRow(M, { slots: rows([ab('cleave', [], 'and', 'w1'), ab('power_strike', [], 'and', 'w2')]), stopRules: M.cond.heroStopRules([keep, gone]) });
+    inst.heroes = { 1: r };
+    h.ruleWait = { ability: 'w1:mana', consume: 'zz:busy' };
+    const sc = subStep(0);
+    for (let i = 0; i < 5; i++) { sc.atMs = i * 100; M.cond.checkStopRules(inst, sc); }
+    if (!h.ruleHold || h.ruleHold.keep !== 500 || h.ruleHold.gone !== 500) return 'holds before the edit ' + JSON.stringify(h.ruleHold);
+    if (!h.ruleWait || h.ruleWait.ability !== 'w1:mana' || h.ruleWait.consume) return 'a wait on a rule that is not on the bar survived: ' + JSON.stringify(h.ruleWait);
+    /* The player reorders the stop rules, drops one, and moves w1 to the end of the bar. */
+    r.stopRules = M.cond.heroStopRules([keep]);
+    r.slots = rows([ab('power_strike', [], 'and', 'w2'), ab('cleave', [], 'and', 'w1')]);
+    sc.atMs = 500; M.cond.checkStopRules(inst, sc);
+    if (!h.ruleHold || h.ruleHold.keep !== 600 || 'gone' in h.ruleHold) return 'after the edit holds are ' + JSON.stringify(h.ruleHold);
+    if (!h.ruleWait || h.ruleWait.ability !== 'w1:mana') return 'the moved rule lost its wait: ' + JSON.stringify(h.ruleWait);
+    r.slots = rows([ab('power_strike', [], 'and', 'w2')]);
+    sc.atMs = 600; M.cond.checkStopRules(inst, sc);
+    return h.ruleWait === null ? null : 'a wait on a removed rule survived: ' + JSON.stringify(h.ruleWait);
   },
   'metrics-misc': (M) => {
     const h = hero(M, 1, 12, 3, { target: 10 });
@@ -333,17 +375,17 @@ const cases = {
   'stop-rule': (M) => {
     const h = hero(M, 1, 12, 3, { mana: 10, maxMana: 100 });
     const inst = instOf(M, world(M, [h]));
-    const r = heroRow(M, { stopRules: [{ conditions: [c('self_mana_pct', 'lt', 20)], join: 'and', forMs: 1000 }] });
+    const r = heroRow(M, { stopRules: M.cond.heroStopRules([{ id: 'low_mana', conditions: [c('self_mana_pct', 'lt', 20)], join: 'and', forMs: 1000 }]) });
     inst.heroes = { 1: r };
     const sc = subStep(0);
     for (let i = 0; i < 5; i++) { sc.atMs = i * 100; M.cond.checkStopRules(inst, sc); }
     h.mana = 50; sc.atMs = 500; M.cond.checkStopRules(inst, sc);
-    if (h.ruleHold !== null || Number.isInteger(r.hs.ruleStop)) return 'a break did not reset the hold: ' + JSON.stringify(h.ruleHold);
+    if (h.ruleHold !== null || typeof r.hs.ruleStop === 'string') return 'a break did not reset the hold: ' + JSON.stringify(h.ruleHold);
     h.mana = 10;
     for (let i = 0; i < 9; i++) { sc.atMs = 600 + i * 100; M.cond.checkStopRules(inst, sc); }
-    if (Number.isInteger(r.hs.ruleStop)) return 'the rule fired after 900 ms of a 1000 ms hold';
+    if (typeof r.hs.ruleStop === 'string') return 'the rule fired after 900 ms of a 1000 ms hold';
     sc.atMs = 1500; M.cond.checkStopRules(inst, sc);
-    if (r.hs.ruleStop !== 0 || !sc.events.some((e) => e.type === 'rule_stop' && e.rule === 0)) return 'the rule did not fire at 1000 ms held';
+    if (r.hs.ruleStop !== 'low_mana' || !sc.events.some((e) => e.type === 'rule_stop' && e.rule === 'low_mana')) return 'the rule did not fire at 1000 ms held';
     return M.AR.endReasonAt(r.hs, 2000) === 'rule' ? null : 'the end order does not end a met stop rule: ' + M.AR.endReasonAt(r.hs, 2000);
   },
   /* The Druid's stop rule (always true, held 5 s) ends ITS hunt `rule`, the others hunt on; cut into windows
@@ -444,9 +486,9 @@ const cases = {
     if (!burst.length || 500 - rm.hs.bag[BURST].left !== burst.length) return 'the 3x3 slot shot ' + burst.length + ' and spent ' + (500 - rm.hs.bag[BURST].left);
     /* Each shot's footprint IS the metric it was chosen on: a 5x5 at 4+, a 3x3 at 2+. */
     if (havoc.some((e) => e.hits < 4) || burst.some((e) => e.hits < 2)) return 'a shot fired under its threshold: ' + JSON.stringify(shots.filter((e) => e.hits < (e.item === HAVOC ? 4 : 2)).slice(0, 2));
-    if (!havoc.some((e) => e.hits >= 4) || havoc.some((e) => e.rule !== 0)) return 'the 5x5 shots did not hit 4+ under rule 0: ' + JSON.stringify(havoc.slice(0, 2));
+    if (!havoc.some((e) => e.hits >= 4) || havoc.some((e) => e.rule !== 'havoc')) return 'the 5x5 shots did not hit 4+ under rule havoc: ' + JSON.stringify(havoc.slice(0, 2));
     const lastHavoc = havoc[havoc.length - 1].atMs;
-    if (!burst.some((e) => e.atMs > lastHavoc && e.rule === 1)) return 'the 3x3 slot never took over after the 5x5 ran out';
+    if (!burst.some((e) => e.atMs > lastHavoc && e.rule === 'burst')) return 'the 3x3 slot never took over after the 5x5 ran out';
     const heals = ev.filter((e) => e.type === 'heal' && e.u === druid);
     if (!heals.length || heals.some((e) => e.t !== knight)) return 'the druid healed ' + JSON.stringify(heals.map((e) => e.t)) + ' (the knight is ' + knight + ')';
     const casts = ev.filter((e) => e.type === 'cast' && e.u === sorc && e.ability === 'fireball');
@@ -526,7 +568,7 @@ function runShots(M, o) {
   inst.heroes = { 1: heroRow(M, { range: 7, ammo: 'bronze_arrows',
     items: Object.assign({}, M.ITEMS, { iron_arrows: { ...M.ITEMS.iron_arrows, area: 3 } }),
     session: { bag: { iron_arrows: { loaded: o.burst }, bronze_arrows: { loaded: 50 } } },
-    slots: rows([slot('attack_with_item', 'iron_arrows', [c('enemies_in_aoe', 'gte', 2)]), slot('attack_with_item', 'bronze_arrows')]) }) };
+    slots: rows([slot('attack_with_item', 'iron_arrows', [c('enemies_in_aoe', 'gte', 2)], 'and', 'b3'), slot('attack_with_item', 'bronze_arrows', [], 'and', 'bz')]) }) };
   const sc = subStep(0); sc.rng = M.rng.createRng(11);
   h.target = 11;
   for (let i = 0; i < 160; i++) { sc.atMs = i * 100; M.damage.resolveAttacks(inst, sc); }
@@ -546,12 +588,14 @@ const mutants = [
   { name: 'or is read as and', case: 'join', edits: [['src/core/hunt/conditions.js', "(slot.join === 'or' ? mask !== 0 : mask === all)", '(mask === all)']] },
   { name: 'the ally subject is ignored (lowest is healed)', case: 'ally-subject', edits: [['src/core/hunt/abilities.js', '      if (cx && cx.ally) return ok(cx.ally) ? cx.ally : null;\n', '']] },
   { name: 'an explicit consume slot keeps the default threshold', case: 'consume-slot', edits: [['src/core/hunt/conditions.js', '  const conds = slot.conditions.length ? slot.conditions : defaultConditions(slot, h);', '  const conds = defaultConditions(slot, h).length ? defaultConditions(slot, h) : slot.conditions;']] },
-  { name: 'an area shot spends one unit per monster hit', case: 'attack-item', edits: [['src/core/hunt/damage.js', '      for (const m of hits) if (m.alive) blow(inst, sc, u, h, m);', '      for (const m of hits) { if (m !== aim) payBasic(inst, u, { ammo: shot.pick.id }, sc); if (m.alive) blow(inst, sc, u, h, m); }']] },
+  { name: 'an area shot spends one unit per monster hit', case: 'attack-item', edits: [['src/core/hunt/damage.js', '    for (const m of hits) if (m.alive) blow(inst, sc, u, h, m);', '    for (const m of hits) { if (m !== aim && shot.pick.ammo) payBasic(inst, u, { ammo: shot.pick.ammo }, sc); if (m.alive) blow(inst, sc, u, h, m); }']] },
   { name: 'an empty attack stack does not fall back', case: 'attack-item', edits: [['src/core/hunt/damage.js', "    if (!l.id || l.why) return { why: l.why === 'gold_short' ? 'gold_short' : 'no_stock' };\n    const size", '    if (!l.id) return { id, size: 1, aim: cx.aim || u };\n    const size']] },
   { name: 'target_is_boss reads the wrong flag', case: 'metrics-misc', edits: [['src/core/hunt/conditions.js', 'MONSTERS[t.kind].boss === true', 'MONSTERS[t.kind].formation === false']] },
+  { name: 'the id is the slot position', case: 'stable-ids', edits: [['src/core/hunt/conditions.js', '  for (const s of list) if (keep(s)) out.push({ rule: s.id, slot: s });', '  list.forEach((s, i) => { if (keep(s)) out.push({ rule: \'p\' + i, slot: s }); });']] },
+  { name: 'a bar edit keeps a dropped rule\'s state', case: 'rekey', edits: [['src/core/hunt/conditions.js', '    for (const [id, ms] of Object.entries(u.ruleHold)) if (ids.has(id)) hold[id] = int(ms);', '    for (const [id, ms] of Object.entries(u.ruleHold)) hold[id] = int(ms);']] },
   { name: 'a wait is reported every sub-step', case: 'rule-wait', edits: [['src/core/hunt/conditions.js', '  if (cur[lane] === key) return;\n', '']] },
-  { name: 'a stop rule ignores its hold', case: 'stop-rule', edits: [['src/core/hunt/conditions.js', '      if (t.pass && hold[i] >= int(r.forMs)) {', '      if (t.pass) {']] },
-  { name: 'the span never ends a met stop rule', case: 'stop-rule-span', edits: [['src/core/combat-sim.js', ' || Number.isInteger(m.hs.ruleStop) ||', ' ||'], ['src/core/action-rules.js', '  rule: (hs) => Number.isInteger(hs.ruleStop),', '  rule: () => false,']] },
+  { name: 'a stop rule ignores its hold', case: 'stop-rule', edits: [['src/core/hunt/conditions.js', '      if (t.pass && hold[r.id] >= int(r.forMs)) {', '      if (t.pass) {']] },
+  { name: 'the span never ends a met stop rule', case: 'stop-rule-span', edits: [['src/core/combat-sim.js', " || typeof m.hs.ruleStop === 'string' ||", ' ||'], ['src/core/action-rules.js', "  rule: (hs) => typeof hs.ruleStop === 'string' && hs.ruleStop.length > 0,", '  rule: () => false,']] },
   { name: 'the density pick is not clamped', case: 'density', edits: [['src/data/hunt-grounds.js', '  return Math.max(0, Math.min(max, pick, DENSITY_PICK.max));', '  return Math.max(0, Math.min(pick, DENSITY_PICK.max));']] },
   { name: 'density does not reach the pack', case: 'density', edits: [['src/core/hunt/pull-cycle.js', '  const size = want > 0 ? want : pocket.spawns.length;', '  const size = pocket.spawns.length;']] },
   { name: 'packs spawn at full HP whatever the party', case: 'party-scale', edits: [['src/data/hunt-grounds.js', '  return ground && ground.partyScale === true ? scaledHp(row, partySize) : Math.max(1, (row && row.hp) || 1);', '  return Math.max(1, (row && row.hp) || 1);']] },
@@ -596,6 +640,7 @@ const only = process.argv.slice(2).filter((a) => !a.startsWith('-'));
 for (const [cn, fn] of Object.entries(cases)) {
   if (only.length && !only.includes(cn)) continue;
   let why = null;
+  CUR = M;
   try { why = fn(M); } catch (e) { why = 'threw ' + (e && e.stack || e); }
   R.ok(!why, cn + ': ' + why);
 }
@@ -606,6 +651,7 @@ if (!process.argv.includes('--no-mutate')) {
     try {
       let why = null;
       const PM = await load(p.root);
+      CUR = PM;
       try { why = cases[mu.case](PM); } catch (e) { why = 'threw ' + e.message; }
       R.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
     } finally { p.done(); }

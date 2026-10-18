@@ -11,7 +11,7 @@ import { ABILITIES } from '../data/abilities.js?v=0.1.0';
 import { makeUnit, makeWorld } from './hunt/world-state.js?v=0.1.0';
 import { spawnPack, PHASE } from './hunt/pull-cycle.js?v=0.1.0';
 import { pickLeader, defaultSettings } from './hunt/roles.js?v=0.1.0';
-import { heroSlots, stopRulesProblem } from './hunt/conditions.js?v=0.1.0';
+import { heroSlots, heroStopRules, stopRulesProblem } from './hunt/conditions.js?v=0.1.0';
 
 /** The named hunt a combat pointer names, or null (a monster id / unknown). */
 export function huntFor(activeId) {
@@ -48,7 +48,7 @@ export function heroSetup(o) {
        hero's discipline can act on, then each empty lane's defaults (ROLE_RULES,
        drink-at then eat-at). */
     slots: heroSlots(o.bar, role, (id) => allowed.includes(id)),
-    stopRules: stops.map((r) => ({ conditions: r.conditions, join: r.join === 'or' ? 'or' : 'and', forMs: r.forMs || 0 })),
+    stopRules: heroStopRules(stops),
     /* MONSTER DENSITY: the stored pick; the span clamps it to the ground (hunt-grounds.js densityFor). */
     density: Number.isInteger(opt.density) ? opt.density : 0,
     /* THE GATHERING SHARE: stored, INERT until the gathering engine lands (hunt-sessions.js GATHER_SHARE). */

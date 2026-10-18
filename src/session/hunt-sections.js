@@ -82,7 +82,8 @@ function slotOf(s) {
   if (!isObj(s) || !isObj(s.action) || !ACTION.test(String(s.action.type)) || !str(s.action.id)) return { empty: true };
   const conditions = list(s.conditions, conditionOf, 3);
   return {
-    empty: false, item: s.action.id, action: { type: s.action.type, id: s.action.id },
+    /* `id`: the rule's STABLE id (the server's; the hunt summary names a decision by it). */
+    empty: false, id: str(s.id), item: s.action.id, action: { type: s.action.type, id: s.action.id },
     conditions, join: JOIN.test(String(s.join)) ? s.join : 'and',
     usable: s.usable !== false, mana: int(s.mana), count: int(s.count),
   };

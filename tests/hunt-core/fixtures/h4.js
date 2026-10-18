@@ -27,7 +27,11 @@ export function oneHero(M, heroOver, ctx, mons) {
   const h = hero(M, 1, 12, 3, Object.assign({ hp: 100, maxHp: 100, mana: 100, maxMana: 100 }, heroOver || {}));
   const w = world(M, [h, ...(mons || []).map((m, i) => mon(M, 10 + i, 0, m.x, m.y, Object.assign({ target: 1 }, m)))]);
   const inst = instOf(M, w);
-  inst.heroes = { 1: Object.assign({ hs: supplySession(M), bar: [], actionSet: 'hunt', range: 1 }, ctx || {}) };
+  /* THE BAR SHORTHAND (fixtures only): `bar` (ability ids) becomes the hero's slots through the engine's heroSlots. */
+  const row = Object.assign({ hs: supplySession(M), actionSet: 'hunt', range: 1 }, ctx || {});
+  if (!row.slots) row.slots = M.conditions.heroSlots(row.bar || [], null);
+  delete row.bar;
+  inst.heroes = { 1: row };
   return { h, w, inst, sc: subStep(0) };
 }
 

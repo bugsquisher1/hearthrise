@@ -6,11 +6,11 @@
   "schema change was intended — the diff of this file is the review surface.",
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
- "generated": "2026-10-18",
- "digest": "1640239e0bff5a62e1489300742797e96901caf3f17cf70d871ee1b87bd583f4",
+ "generated": "2026-10-19",
+ "digest": "7ce946352456c0c7551799a2ab61c3934a570cbec43b972c2cff0ced121908b1",
  "counts": {
   "relations": 213,
-  "functions": 508,
+  "functions": 509,
   "policies": 128,
   "indexes": 298,
   "triggers": 35,
@@ -445,6 +445,7 @@
    "hr_hunt_active_set(p_user uuid, p_slot integer)",
    "hr_hunt_admit(p_user uuid, p_slot integer, p_hunt text)",
    "hr_hunt_analyzer(p_slot integer, p_session uuid)",
+   "hr_hunt_analyzer_basic(p_a jsonb)",
    "hr_hunt_analyzer_of(p_user uuid, p_slot integer, p_session uuid)",
    "hr_hunt_analyzer_view(p_user uuid, p_slot integer)",
    "hr_hunt_apply_instance(p_instance uuid, p_world_from bigint, p_settle jsonb, p_members jsonb, p_project_user uuid, p_project_slot integer)",

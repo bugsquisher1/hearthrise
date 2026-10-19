@@ -94,6 +94,24 @@ export function placeWidget(L, box, size) {
 }
 
 /**
+ * WIDGETS NEVER OVERLAP (Tyler 10-19: at 1440x900 with a window docked the hunt bar ran under the
+ * analyzer). A centred widget `r` takes the left closest to where it was that clears every
+ * edge-anchored widget in its row by `gap`; when no left clears them all (the row is too narrow),
+ * it takes the one that hits the fewest (nearest wins a tie) and those it still hits step down
+ * below it. Rects are {left, top, width, height} in the box's px. Pure.
+ * @returns {{left: number, push: {i: number, top: number}[]}}  `i` indexes `edges`
+ */
+export function clearOfEdges(r, edges, boxWidth, gap) {
+  const row = edges.map((q, i) => ({ q, i })).filter(({ q }) => q.top < r.top + r.height && q.top + q.height > r.top);
+  const hits = (x) => row.filter(({ q }) => !(x + r.width + gap <= q.left || q.left + q.width + gap <= x));
+  const xs = [r.left].concat(row.map(({ q }) => q.left + q.width + gap), row.map(({ q }) => q.left - gap - r.width))
+    .filter((x) => x >= 0 && x + r.width <= boxWidth)
+    .sort((a, b) => hits(a).length - hits(b).length || Math.abs(a - r.left) - Math.abs(b - r.left));
+  const left = xs.length ? xs[0] : r.left;
+  return { left: Math.round(left), push: hits(left).map(({ i }) => ({ i, top: Math.round(r.top + r.height + gap) })) };
+}
+
+/**
  * The World edges the docked HUD widgets cover, so the camera frames the
  * playable area above and beside them (the bottom bar must not sit over the
  * bottom row of a hunt). Each widget is { anchor, rect } in the World box's

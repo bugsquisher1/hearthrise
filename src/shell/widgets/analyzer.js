@@ -12,10 +12,8 @@
 // balance. The server's `premium` section adds the rest — next-level ETA, raw
 // XP, waste, damage taken and dealt (the two tabs) and the party breakdown. A
 // free character's premium nodes are hidden AND never written, and one quiet
-// line says "More detail with premium." No upsell beyond that line. (Until the
-// server's projection sends free characters their basic block, a free
-// character's analyzer waits: 2026-10-23-hunt-analyzer-v2.sql projects it only
-// for premium.)
+// line says "More detail with premium." No upsell beyond that line. The server
+// sends a free character only the basic block (2026-10-26-hunt-analyzer-basic.sql).
 //
 //   This hero / Party   which of the server's two views is shown (AW-04)
 //   Session / Taken / Dealt   the three tabs (AW-05)

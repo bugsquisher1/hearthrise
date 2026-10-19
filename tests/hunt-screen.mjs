@@ -209,6 +209,8 @@ async function checks(overrides, shots) {
           await page.evaluate((w) => { const el = document.querySelector(w + ' input[data-opt="density"]'); el.value = '3'; el.dispatchEvent(new Event('change', { bubbles: true })); }, W);
           const mid = await page.evaluate((w) => document.querySelector(w + ' input[data-opt="density"]').disabled, W);
           if (!mid) fails.push('HS-8 the density slider stayed on while its intent was in flight');
+          /* the intent leaves on a microtask after the change: wait for it (up to 3 s), never assume it already left */
+          for (let i = 0; i < 60 && !s.calls.some((c) => c.name === 'hr_action_set_options'); i++) await new Promise((r) => setTimeout(r, 50));
           const sent = s.calls.filter((c) => c.name === 'hr_action_set_options').map((c) => c.body.p_opts);
           if (sent.length !== 1 || JSON.stringify(sent[0]) !== '{"density":3}') fails.push('HS-8 the slider sent ' + JSON.stringify(sent));
           const done = await wait(page, (w) => { const el = document.querySelector(w + ' input[data-opt="density"]'); return !el.disabled && el.value === '3'; }, W, 3000);

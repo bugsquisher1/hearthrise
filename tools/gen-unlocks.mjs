@@ -81,8 +81,10 @@ import { ITEMS } from '../src/data/items.js';
 import { ROOM_PERKS } from '../src/data/perks.js';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
-/* DEMOLITION REGEN (2026-10-14): a new superseding file; 2026-08-16-unlocks.generated.sql stays in the chain. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2026-10-23-demolition-unlocks.generated.sql');
+/* A REGEN IS A NEW DATED FILE, never a rewrite of an applied one: 2026-08-16-unlocks.generated.sql and
+   2026-10-23-demolition-unlocks.generated.sql (APPLIED 2026-10-17) stay in the chain byte-identical.
+   2026-10-26: hero slot 1 became a starter (2026-10-26-hero-slots-start-two.sql), so character_slot:1 left the shop. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2026-10-26-unlocks-slot-starter.generated.sql');
 
 const argv = process.argv.slice(2);
 const CHECK = argv.includes('--check');

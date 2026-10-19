@@ -71,8 +71,10 @@ import {
 } from '../supabase/functions/hr-accrue/unlock-catalogue.js';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
-/* DEMOLITION REGEN (2026-10-14): a new superseding file; 2026-08-16-unlock-offers.generated.sql stays in the chain. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2026-10-23-demolition-unlock-offers.generated.sql');
+/* A REGEN IS A NEW DATED FILE, never a rewrite of an applied one: 2026-08-16-unlock-offers.generated.sql and
+   2026-10-23-demolition-unlock-offers.generated.sql (APPLIED 2026-10-17) stay in the chain byte-identical.
+   2026-10-26: hero slot 1 became a starter, so its refused character_slot.1 row left the shop. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2026-10-26-unlock-offers-slot-starter.generated.sql');
 const die = makeDie('gen-unlock-offers');
 
 const argv = process.argv.slice(2);

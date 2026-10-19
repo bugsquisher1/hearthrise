@@ -59,6 +59,7 @@ import {
   COMBAT_BALANCE, DEFAULT_PROFILE,
 } from '../src/core/combat.js';
 import { xpForLevel, skillXpForLevel, charXpForLevel } from '../src/core/xp.js';
+import { vitalsOf } from '../src/core/vitals.js';
 
 let failed = 0;
 const ok = (cond, msg) => { if (!cond) { failed++; console.error(`  FAIL  ${msg}`); } };
@@ -83,9 +84,12 @@ function measure(monsterId) {
   /* The hunt engine's ONE interval (accrual.js accrueHunt): gear and style no
      longer move a hunt's swing (Tyler 2026-10-14, MDR §2). */
   const tickMs = COMBAT_BALANCE.tickMs;
+  const HERO_HP = vitalsOf({ levelXp: charXpForLevel(LEVEL), skills, equipment: EQUIPMENT, items: ITEMS }).maxHp;
   const state = {
     activeMonster: monsterId, monsterHp: m.hp, monsterMaxHp: m.hp,
-    playerHp: 990, playerMaxHp: 990, levelXp: charXpForLevel(LEVEL),
+    /* The core rebuild: max HP is DERIVED from the Level and the armour worn (src/core/vitals.js), never typed
+       (the old 990 was the 99-Hitpoints-era pool, a tenth of a Level 90's). */
+    playerHp: HERO_HP, playerMaxHp: HERO_HP, levelXp: charXpForLevel(LEVEL),
     gold: 0, skills, stats: {}, inventory: {},
   };
   const ctx = {

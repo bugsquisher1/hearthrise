@@ -6,9 +6,9 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 2c27f2378096d749b419a5d65c706b138d2b9af3906a3ae85b161b46e83fa6fb
---   rows: 479 items (15 untradeable) ·
---         270 item-slot pairs · 15 equip slots ·
+--   catalogue digest: c79e1df592c14f8d5a798ebc68ea4a91af79d0ec95f7a6f3b559a8d334014792
+--   rows: 491 items (15 untradeable) ·
+--         282 item-slot pairs · 15 equip slots ·
 --         13 skills · 9 crops · 290 activities ·
 --         0 runes
 --
@@ -213,7 +213,9 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('apprentice_gloves','Apprentice Gloves',true,'armor',30,'defense',1,null,false,'light'),
   ('apprentice_helmet','Apprentice Hat',true,'armor',50,'defense',1,null,false,'light'),
   ('apprentice_pants','Apprentice Robe Bottom',true,'armor',90,'defense',1,null,false,'light'),
+  ('apprentice_primer','Apprentice Primer',true,'offhand',50,'magic',1,null,false,null),
   ('apprentice_staff','Apprentice Staff',true,'weapon',80,'magic',1,null,false,null),
+  ('apprentice_wand','Apprentice Wand',true,'weapon',55,'magic',1,null,false,null),
   ('archmage_belt','Archmage Sash',true,'armor',7280,'defense',75,null,false,'light'),
   ('archmage_body','Archmage Robe Top',true,'armor',27300,'defense',75,null,false,'light'),
   ('archmage_boots','Archmage Slippers',true,'armor',7280,'defense',75,null,false,'light'),
@@ -434,7 +436,9 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('maple_log','Maple Log',true,null,80,null,null,null,false,null),
   ('maple_plank','Maple Plank',true,null,240,null,null,null,false,null),
   ('maple_rod','Maple Rod',true,'tool',1000,null,null,null,false,null),
+  ('maple_spellbook','Maplebound Spellbook',true,'offhand',1200,'magic',45,null,false,null),
   ('maple_staff','Maple Staff',true,'weapon',1500,'magic',45,null,false,null),
+  ('maple_wand','Maple Wand',true,'weapon',1350,'magic',45,null,false,null),
   ('marrow_cookbook','Marrow Cookbook',true,null,0,null,null,null,false,null),
   ('mirewort_drops','Mirewort Drops',true,'jewelry',800,'defense',38,null,false,null),
   ('mithril_arrows','Mithril Arrows',true,'ammo',4,'ranged',45,null,false,null),
@@ -463,7 +467,9 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('oak_plank','Oak Plank',true,null,55,null,null,null,false,null),
   ('oak_practice_blade','Oak Practice Blade',false,'weapon',0,null,null,null,false,null),
   ('oak_rod','Oak Rod',true,'tool',300,null,null,null,false,null),
+  ('oak_spellbook','Oakboard Spellbook',true,'offhand',105,'magic',15,null,false,null),
   ('oak_staff','Oak Staff',true,'weapon',300,'magic',15,null,false,null),
+  ('oak_wand','Oak Wand',true,'weapon',115,'magic',15,null,false,null),
   ('packlord_band','Packlord''s Band',true,'jewelry',420,'defense',22,null,false,null),
   ('panthers_eye_pendant','Panther''s Eye Pendant',true,'jewelry',13600,'melee',68,null,false,null),
   ('pikeperch','Raw Pikeperch',true,null,27,null,null,96,true,null),
@@ -511,10 +517,12 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('rune_warhammer','Rune Warhammer',true,'weapon',4950,'melee',60,null,false,null),
   ('rune_whetstone','Rune Whetstone',true,'ammo',365,'melee',75,null,false,null),
   ('runewood_bow','Runewood Bow',true,'weapon',13650,'ranged',75,null,false,null),
+  ('runewood_codex','Runewood Codex',true,'offhand',10400,'magic',75,null,false,null),
   ('runewood_log','Runewood Log',true,null,480,null,null,null,false,null),
   ('runewood_plank','Runewood Plank',true,null,1150,null,null,null,false,null),
   ('runewood_rod','Runewood Rod',true,'tool',9500,null,null,null,false,null),
   ('runewood_staff','Runewood Staff',true,'weapon',13000,'magic',75,null,false,null),
+  ('runewood_wand','Runewood Wand',true,'weapon',11700,'magic',75,null,false,null),
   ('scholar_belt','Scholar Sash',true,'armor',280,'defense',30,null,false,'light'),
   ('scholar_body','Scholar Robe Top',true,'armor',1050,'defense',30,null,false,'light'),
   ('scholar_boots','Scholar Slippers',true,'armor',280,'defense',30,null,false,'light'),
@@ -650,7 +658,9 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('willow_longbow','Willow Longbow',true,'weapon',525,'ranged',30,null,false,null),
   ('willow_plank','Willow Plank',true,null,120,null,null,null,false,null),
   ('willow_rod','Willow Rod',true,'tool',80,null,null,null,false,null),
+  ('willow_spellbook','Willowleaf Spellbook',true,'offhand',400,'magic',30,null,false,null),
   ('willow_staff','Willow Staff',true,'weapon',500,'magic',30,null,false,null),
+  ('willow_wand','Willow Wand',true,'weapon',450,'magic',30,null,false,null),
   ('wolf_pelt','Wolf Pelt',true,null,35,null,null,null,false,null),
   ('wolfbone_torc','Wolfbone Torc',true,'jewelry',260,'defense',16,null,false,null),
   ('woolen_cloak','Woollen Cloak',true,'armor',145,'defense',12,null,false,null),
@@ -670,7 +680,9 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('yew_log','Yew Log',true,null,200,null,null,null,false,null),
   ('yew_plank','Yew Plank',true,null,520,null,null,null,false,null),
   ('yew_rod','Yew Rod',true,'tool',3500,null,null,null,false,null),
-  ('yew_staff','Yew Staff',true,'weapon',4500,'magic',60,null,false,null);
+  ('yew_spellbook','Yewclasp Spellbook',true,'offhand',3600,'magic',60,null,false,null),
+  ('yew_staff','Yew Staff',true,'weapon',4500,'magic',60,null,false,null),
+  ('yew_wand','Yew Wand',true,'weapon',4050,'magic',60,null,false,null);
 
 insert into public.hr_item_slots (item_id, equip_slot) values
   ('abyssal_greaves','pants'),
@@ -689,7 +701,9 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('apprentice_gloves','gloves'),
   ('apprentice_helmet','helmet'),
   ('apprentice_pants','pants'),
+  ('apprentice_primer','shield'),
   ('apprentice_staff','weapon'),
+  ('apprentice_wand','weapon'),
   ('archmage_belt','belt'),
   ('archmage_body','body'),
   ('archmage_boots','boots'),
@@ -807,7 +821,9 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('leather_pants','pants'),
   ('longbow','weapon'),
   ('maple_bow','weapon'),
+  ('maple_spellbook','shield'),
   ('maple_staff','weapon'),
+  ('maple_wand','weapon'),
   ('mirewort_drops','earrings'),
   ('mithril_arrows','ammo'),
   ('mithril_belt','belt'),
@@ -821,7 +837,9 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('mithril_whetstone','ammo'),
   ('nightstalker_pelt','body'),
   ('oak_practice_blade','weapon'),
+  ('oak_spellbook','shield'),
   ('oak_staff','weapon'),
+  ('oak_wand','weapon'),
   ('packlord_band','ring1'),
   ('packlord_band','ring2'),
   ('panthers_eye_pendant','necklace'),
@@ -844,7 +862,9 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('rune_warhammer','weapon'),
   ('rune_whetstone','ammo'),
   ('runewood_bow','weapon'),
+  ('runewood_codex','shield'),
   ('runewood_staff','weapon'),
+  ('runewood_wand','weapon'),
   ('scholar_belt','belt'),
   ('scholar_body','body'),
   ('scholar_boots','boots'),
@@ -929,7 +949,9 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('whispering_codex','weapon'),
   ('widows_fang','weapon'),
   ('willow_longbow','weapon'),
+  ('willow_spellbook','shield'),
   ('willow_staff','weapon'),
+  ('willow_wand','weapon'),
   ('wolfbone_torc','necklace'),
   ('woolen_cloak','cape'),
   ('wraithglass_drops','earrings'),
@@ -942,7 +964,9 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('wyvernhide_helmet','helmet'),
   ('wyvernhide_pants','pants'),
   ('yew_bow','weapon'),
-  ('yew_staff','weapon');
+  ('yew_spellbook','shield'),
+  ('yew_staff','weapon'),
+  ('yew_wand','weapon');
 
 insert into public.hr_equip_slots (equip_slot, ord) values
   ('helmet',0),
@@ -1823,7 +1847,7 @@ insert into public.hr_feast_foods (item_id, heals) values
 on conflict (item_id) do update set heals = excluded.heals;
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '2c27f2378096d749b419a5d65c706b138d2b9af3906a3ae85b161b46e83fa6fb', now())
+  values (true, 'c79e1df592c14f8d5a798ebc68ea4a91af79d0ec95f7a6f3b559a8d334014792', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1851,7 +1875,7 @@ do $$
 declare v_bad int; v_n int;
 begin
   select count(*) into v_n from public.hr_items;
-  if v_n <> 479 then raise exception 'hr_items has % rows, generator emitted 479', v_n; end if;
+  if v_n <> 491 then raise exception 'hr_items has % rows, generator emitted 491', v_n; end if;
   select count(*) into v_n from public.hr_items where not tradeable;
   if v_n <> 15 then
     raise exception 'untradeable count is %, generator emitted 15', v_n;
@@ -2011,7 +2035,7 @@ begin
   ) src where not exists (select 1 from public.hr_items i where i.item_id = src.id);
   if v_bad > 0 then raise exception '% grant-source row(s) name an item missing from hr_items', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 2c27f2378096d749b419a5d65c706b138d2b9af3906a3ae85b161b46e83fa6fb',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest c79e1df592c14f8d5a798ebc68ea4a91af79d0ec95f7a6f3b559a8d334014792',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

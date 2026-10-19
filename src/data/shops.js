@@ -115,6 +115,20 @@ export const SHOP_OFFERS = [
     repeatable: true,
   },
   {
+    id: "equip.apprentice_wand", table: "equip",
+    name: "Apprentice Wand",
+    cost: [{ kind: "currency", id: "gold", amount: 100 }],
+    grant: [{ kind: "item", id: "apprentice_wand", amount: 1 }],
+    repeatable: true,
+  },
+  {
+    id: "equip.apprentice_primer", table: "equip",
+    name: "Apprentice Primer",
+    cost: [{ kind: "currency", id: "gold", amount: 90 }],
+    grant: [{ kind: "item", id: "apprentice_primer", amount: 1 }],
+    repeatable: true,
+  },
+  {
     id: "equip.bronze_belt", table: "equip",
     name: "Bronze Belt",
     cost: [{ kind: "currency", id: "gold", amount: 300 }],

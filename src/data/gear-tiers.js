@@ -84,14 +84,43 @@ export const WEAPON_FAMILIES = [
     names: ['Shortbow', 'Longbow', 'Willow Longbow', 'Maple Bow', 'Yew Bow', 'Runewood Bow', 'Duskwood Bow'],
     ids:   ['shortbow', 'longbow', 'willow_longbow', 'maple_bow', 'yew_bow', 'runewood_bow', 'duskwood_bow'],
   },
+  /* MAGE = WAND + SPELLBOOK, HEALER = STAFF (Tyler 2026-10-19). Both are weaponType
+     'magic' (the combat style: Magic accuracy and damage, the weakness triangle); the
+     ROLE is the item's `discipline` (src/data/hunt-roles.js HUNT_ROLES: destruction =
+     Mage, restoration = Healer). A staff is two-handed: no off-hand beside it. */
   {
     key: 'staff', label: 'Staff', weaponType: 'magic', skill: 'crafting', mat: 'plank',
+    discipline: 'restoration', twoHanded: true,
     atk: [3, 6, 10, 15, 21, 28, 36], str: [5, 9, 14, 21, 29, 38, 49],
     vmul: 100, lvOff: 6, planks: 2, essence: 1,
     names: ['Apprentice Staff', 'Oak Staff', 'Willow Staff', 'Maple Staff', 'Yew Staff', 'Runewood Staff', 'Duskwood Staff'],
     ids:   ['apprentice_staff', 'oak_staff', 'willow_staff', 'maple_staff', 'yew_staff', 'runewood_staff', 'duskwood_staff'],
   },
+  /* The Mage's wand: one hand, so a spellbook rides in the off-hand. Alone it hits a
+     little under the staff; with its tier's spellbook it out-damages the staff by about
+     a third (the Mage deals damage, the Healer heals). Six tiers: a Duskwood wand waits
+     for tier-7 content (an item ships only with a source). */
+  {
+    key: 'wand', label: 'Wand', weaponType: 'magic', skill: 'crafting', mat: 'plank',
+    discipline: 'destruction',
+    atk: [4, 7, 12, 18, 25, 33], str: [4, 8, 13, 19, 27, 35],
+    vmul: 90, lvOff: 6, planks: 1, essence: 1,
+    names: ['Apprentice Wand', 'Oak Wand', 'Willow Wand', 'Maple Wand', 'Yew Wand', 'Runewood Wand'],
+    ids:   ['apprentice_wand', 'oak_wand', 'willow_wand', 'maple_wand', 'yew_wand', 'runewood_wand'],
+  },
 ];
+
+/* ── The off-hand SPELLBOOK (Tyler 2026-10-19: Mage = wand + spellbook). Worn in the
+   `shield` slot (src/data/gathering.js EQUIP_SLOTS, labelled Offhand). Fixed stats
+   (gear ruling): Magic accuracy and damage, a little defence. Gated on Magic like the
+   wand it pairs with (the defence-only gate is ARMOUR's; a book is not armour).
+   Six tiers, the same rungs as the wand. */
+export const SPELLBOOKS = Object.freeze({
+  magicAtk: [1, 2, 4, 6, 8, 11], magicStr: [2, 3, 5, 8, 11, 15], def: [1, 2, 3, 5, 7, 9],
+  vmul: 80,
+  names: ['Apprentice Primer', 'Oakboard Spellbook', 'Willowleaf Spellbook', 'Maplebound Spellbook', 'Yewclasp Spellbook', 'Runewood Codex'],
+  ids:   ['apprentice_primer', 'oak_spellbook', 'willow_spellbook', 'maple_spellbook', 'yew_spellbook', 'runewood_codex'],
+});
 
 const round5 = (n) => Math.max(1, Math.round(n / 5) * 5);
 
@@ -185,9 +214,9 @@ export const GEAR_ITEMS = (() => {
     });
   });
 
-  // Weapons — every family at every tier.
+  // Weapons — every family at every tier it names.
   WEAPON_FAMILIES.forEach((fam) => {
-    MATERIAL_TIERS.forEach((mat, i) => {
+    MATERIAL_TIERS.slice(0, fam.ids.length).forEach((mat, i) => {
       const item = {
         n: fam.names[i],
         icon: fam.weaponType === 'ranged' ? '🏹' : fam.weaponType === 'magic' ? '🪄' : fam.weaponType === 'hammer' ? '🔨' : '⚔️',
@@ -207,8 +236,21 @@ export const GEAR_ITEMS = (() => {
       // so the combat engine rolls them against the right stats.
       if (fam.weaponType === 'ranged') { item.rangeAtkB = fam.atk[i]; item.rangeStrB = fam.str[i]; }
       if (fam.weaponType === 'magic')  { item.magicAtkB = fam.atk[i]; item.magicStrB = fam.str[i]; }
+      if (fam.discipline) item.discipline = fam.discipline;
+      if (fam.twoHanded) item.twoHanded = true;
       out[fam.ids[i]] = item;
     });
+  });
+
+  // Spellbooks — the Mage's off-hand, one per wand tier.
+  SPELLBOOKS.ids.forEach((id, i) => {
+    const mat = MATERIAL_TIERS[i];
+    out[id] = {
+      n: SPELLBOOKS.names[i], icon: '📕', v: round5(SPELLBOOKS.vmul * mat.value),
+      type: 'offhand', slot: 'shield', offhand: 'spellbook', discipline: 'destruction',
+      magicAtkB: SPELLBOOKS.magicAtk[i], magicStrB: SPELLBOOKS.magicStr[i], defB: SPELLBOOKS.def[i],
+      rarity: mat.rarity, tier: mat.tier, reqSkill: 'magic', reqLv: mat.smith,
+    };
   });
 
   return out;

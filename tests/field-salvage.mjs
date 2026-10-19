@@ -75,7 +75,7 @@ const LOADOUT = Object.freeze({
   4: { level: 48, metal: 'mithril' }, 5: { level: 63, metal: 'rune' }, 6: { level: 80, metal: 'ember' },
 });
 const FIXTURE_EXCLUDED = Object.freeze(['goblin', 'slime', 'rat', 'dark_wizard', 'wolf', 'the_silence', 'weak_skeleton']);
-const GEAR_TYPES = Object.freeze(['weapon', 'armor', 'jewelry']);
+const GEAR_TYPES = Object.freeze(['weapon', 'armor', 'jewelry', 'offhand']);  // + offhand: the spellbook (2026-10-19)
 const MAX_DROP_BUFF_PCT = Math.max(0, ...Object.values(ITEMS)
   .map((it) => (it && it.buff && it.buff.type === 'drop_rate') ? Number(it.buff.magnitude) || 0 : 0));
 

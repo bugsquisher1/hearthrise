@@ -66,7 +66,7 @@ const LOADOUT = Object.freeze({
 /* The seeded-fixture monsters (designer's exclusion list): fixtures across the
    suite pin their exact streams, and an extra draw would move them. */
 const FIXTURE_EXCLUDED = Object.freeze(['goblin', 'slime', 'rat', 'dark_wizard', 'wolf', 'the_silence', 'weak_skeleton']);
-const GEAR_TYPES = Object.freeze(['weapon', 'armor', 'jewelry']);
+const GEAR_TYPES = Object.freeze(['weapon', 'armor', 'jewelry', 'offhand']);  // + offhand: the spellbook (2026-10-19)
 /* The best drop_rate buff anything in the catalogue can put on a player. */
 const MAX_DROP_BUFF_PCT = Math.max(0, ...Object.values(ITEMS)
   .map((it) => (it && it.buff && it.buff.type === 'drop_rate') ? Number(it.buff.magnitude) || 0 : 0));

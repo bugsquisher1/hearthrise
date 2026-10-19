@@ -210,7 +210,7 @@ export const MONSTERS = {
   dark_wizard: { name: 'Dark Wizard', icon: '🧙', tier: 2, cls: 'human', family: 'Human',
     dropBonus: 1.15,
     hp: 28, atk: 12, def: 1, xp: 55, gp: [10, 25],
-    drops: [{ id: 'magic_essence', ch: .4 }, { id: 'rune_frag', ch: .2 }, { id: 'bones', ch: .6 }, { id: 'dark_sigil', ch: .015 }] },
+    drops: [{ id: 'magic_essence', ch: .4 }, { id: 'rune_frag', ch: .2 }, { id: 'bones', ch: .6 }, { id: 'dark_sigil', ch: .015 }, { id: 'oak_wand', ch: .003 }, { id: 'oak_spellbook', ch: .003 }] },
   /* FOLD-33: `cultist` merged INTO `dark_wizard` above via MONSTER_ALIAS. Two
      Tier-2 robed Human casters, both magic-styled; the Human class carries
      eleven casters across six tiers and this is the one pair where the
@@ -289,7 +289,7 @@ export const MONSTERS = {
     dropBonus: 1.15,
     hp: 58, atk: 24, def: 5, xp: 135, gp: [24, 60],
     drops: [{ id: 'magic_essence', ch: .55 }, { id: 'rune_frag', ch: .35 }, { id: 'cracked_spellstone', ch: .025 },
-      { id: 'scholar_gloves', ch: .0035, salvage: true }] },
+      { id: 'willow_wand', ch: .001 }, { id: 'willow_spellbook', ch: .001 }, { id: 'scholar_gloves', ch: .0035, salvage: true }] },
   deserter: { name: 'Deserter', icon: '🗡️', tier: 3, cls: 'human', family: 'Human',
     /* one override (weapon): he wears real plate — the first monster where
        your weapon choice is about HIS kit, not his species. */
@@ -380,14 +380,14 @@ export const MONSTERS = {
     /* the `magic_essence` faucet at the tier Runecrafting actually needs it. */
     hp: 106, atk: 37, def: 13, xp: 318, gp: [56, 122],
     drops: [{ id: 'magic_essence', ch: .9 }, { id: 'rune_frag', ch: .5 }, { id: 'cracked_spellstone', ch: .04 },
-      { id: 'warlock_gloves', ch: .003, salvage: true }] },
+      { id: 'maple_wand', ch: .0015 }, { id: 'warlock_gloves', ch: .003, salvage: true }] },
   conjurer: { name: 'Conjurer', icon: '🔮', tier: 4, cls: 'human', family: 'Human',
     /* one override (element): he casts what he is immune to — the first
        "bring the other element" lesson. */
     elementImmune: ['ember'],
     hp: 110, atk: 36, def: 14, xp: 312, gp: [54, 118],
     drops: [{ id: 'magic_essence', ch: .7 }, { id: 'hell_ember', ch: .03 }, { id: 'rune_frag', ch: .45 },
-      { id: 'warlock_boots', ch: .003, salvage: true }] },
+      { id: 'maple_spellbook', ch: .0014 }, { id: 'warlock_boots', ch: .003, salvage: true }] },
   wraith: { name: 'Wraith', icon: '👻', tier: 4, cls: 'undead', family: 'Undead',
     hp: 112, atk: 38, def: 20, xp: 310, gp: [55, 115],
     drops: [{ id: 'grave_dust', ch: .7 }, { id: 'wraith_veil', ch: .2 }, { id: 'vamp_dust', ch: .12 }, { id: 'ancient_rune', ch: .04 },
@@ -490,11 +490,11 @@ export const MONSTERS = {
     dropBonus: 1.15,
     hp: 215, atk: 72, def: 22, xp: 680, gp: [145, 310],
     drops: [{ id: 'magic_essence', ch: .8 }, { id: 'ancient_rune', ch: .22 }, { id: 'hollow_sigil', ch: .018 },
-      { id: 'sorcerer_gloves', ch: .0025, salvage: true }] },
+      { id: 'yew_wand', ch: .001 }, { id: 'sorcerer_gloves', ch: .0025, salvage: true }] },
   astrologer: { name: 'Astrologer', icon: '🔭', tier: 5, cls: 'human', family: 'Human',
     hp: 196, atk: 70, def: 22, xp: 662, gp: [140, 296],
     drops: [{ id: 'magic_essence', ch: .75 }, { id: 'ancient_rune', ch: .2 }, { id: 'rune_frag', ch: .6 }, { id: 'ruby', ch: .04 },
-      { id: 'sorcerer_boots', ch: .0025, salvage: true }] },
+      { id: 'yew_spellbook', ch: .0012 }, { id: 'sorcerer_boots', ch: .0025, salvage: true }] },
   bandit_lord: { name: 'Bandit Lord', icon: '🪙', tier: 5, cls: 'human', family: 'Human',
     hp: 212, atk: 65, def: 27, xp: 612, gp: [126, 262],
     drops: [{ id: 'gold_ore', ch: .5 }, { id: 'gold_bar', ch: .25 }, { id: 'ruby', ch: .05 }, { id: 'captain_medal', ch: .08 },
@@ -563,10 +563,10 @@ export const MONSTERS = {
     drops: [{ id: 'war_crown', ch: .12 }, { id: 'captain_medal', ch: .45 }, { id: 'death_steel', ch: .3 }, { id: 'warlord_badge', ch: .8 }] },
   necromancer: { name: 'Necromancer', icon: '🕯️', tier: 6, cls: 'human', family: 'Human', boss: true,
     hp: 356, atk: 100, def: 34, xp: 1195, gp: [302, 650],
-    drops: [{ id: 'lich_soul', ch: .4 }, { id: 'ancient_rune', ch: .35 }, { id: 'hollow_sigil', ch: .05 }, { id: 'grave_dust', ch: 1 }, { id: 'soul_recipe', ch: .015 }] },
+    drops: [{ id: 'lich_soul', ch: .4 }, { id: 'ancient_rune', ch: .35 }, { id: 'hollow_sigil', ch: .05 }, { id: 'grave_dust', ch: 1 }, { id: 'soul_recipe', ch: .015 }, { id: 'runewood_wand', ch: .0015 }] },
   lich: { name: 'Ancient Lich', icon: '☠️', tier: 6, cls: 'undead', family: 'Undead', boss: true,
     hp: 350, atk: 55, def: 30, xp: 800, gp: [200, 500],
-    drops: [{ id: 'lich_soul', ch: .8 }, { id: 'ancient_rune', ch: .3 }, { id: 'vamp_dust', ch: .30 }, { id: 'hollow_sigil', ch: .025 }, { id: 'soul_recipe', ch: .01 }] },
+    drops: [{ id: 'lich_soul', ch: .8 }, { id: 'ancient_rune', ch: .3 }, { id: 'vamp_dust', ch: .30 }, { id: 'hollow_sigil', ch: .025 }, { id: 'soul_recipe', ch: .01 }, { id: 'runewood_codex', ch: .0013 }] },
   revenant: { name: 'Revenant', icon: '🦴', tier: 6, cls: 'undead', family: 'Undead',
     /* the `big_bones` endgame faucet, and Prayer's best customer. */
     hp: 448, atk: 86, def: 50, xp: 1035, gp: [252, 512],

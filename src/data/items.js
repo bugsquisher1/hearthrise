@@ -762,6 +762,9 @@ Object.keys(GEAR_ITEMS).forEach((id) => {
   if (live.rarity == null) live.rarity = generated.rarity;
   if (live.reqSkill == null) live.reqSkill = generated.reqSkill;
   if (live.reqLv == null) live.reqLv = generated.reqLv;
+  /* The weapon's role and hands (Tyler 2026-10-19: Healer = staff, Mage = wand + spellbook). */
+  if (live.discipline == null && generated.discipline) live.discipline = generated.discipline;
+  if (live.twoHanded == null && generated.twoHanded) live.twoHanded = true;
 });
 
 /* ══════════════════════════════════════════════════════════════════════

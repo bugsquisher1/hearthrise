@@ -8,9 +8,9 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 629c0ab5bba7be0f5108489f1b4371244117543c9e1c68e90b4ac17f3cb4f6ca
+--   digest: 066ccbd0fb80ec19348d79cce7ffaf5a3e27bbcb19828c1e8fd0b9813e711500
 --   59 supplies, 115 hunts (named + training), 52 limits, 11 end reasons,
---   468 vendor values, 18 store supplies paid per use, 5 target modes,
+--   480 vendor values, 18 store supplies paid per use, 5 target modes,
 --   3 lanes, 14 abilities, 13 action-set options, 4 hunt grounds
 --
 -- SUPERSEDES 2026-10-25-hunt-sessions-catalogue.generated.sql (applied; history,
@@ -296,12 +296,12 @@ insert into public.hr_hunt_set_options (opt, kind, limit_key, vals, dflt) values
   ('target_mode', 'target', null, null, null);
 delete from public.hr_hunt_kill_bounds;
 insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) values
-  ('adept', 122, 477, '{"magic_essence":1,"rune_frag":1,"cracked_spellstone":1,"warlock_gloves":1}'::jsonb),
+  ('adept', 122, 477, '{"magic_essence":1,"rune_frag":1,"cracked_spellstone":1,"maple_wand":1,"warlock_gloves":1}'::jsonb),
   ('air_elemental', 19, 79, '{"magic_essence":1,"rune_frag":1,"normal_log":1,"adept_gloves":1}'::jsonb),
   ('ancient_bear', 500, 1790, '{"bear_pelt":1,"ancient_claw":1,"alpha_cloak":1,"raw_bear_meat":1}'::jsonb),
-  ('archmage', 310, 1003, '{"magic_essence":1,"ancient_rune":1,"hollow_sigil":1,"sorcerer_gloves":1}'::jsonb),
+  ('archmage', 310, 1003, '{"magic_essence":1,"ancient_rune":1,"hollow_sigil":1,"yew_wand":1,"sorcerer_gloves":1}'::jsonb),
   ('ashwing', 656, 1913, '{"dragon_bones":1,"dragon_scale":1,"hell_ember":1,"ember_bar":1,"dragon_gem":1}'::jsonb),
-  ('astrologer', 296, 956, '{"magic_essence":1,"ancient_rune":1,"rune_frag":1,"ruby":1,"sorcerer_boots":1}'::jsonb),
+  ('astrologer', 296, 956, '{"magic_essence":1,"ancient_rune":1,"rune_frag":1,"ruby":1,"yew_spellbook":1,"sorcerer_boots":1}'::jsonb),
   ('bandit_lord', 262, 930, '{"gold_ore":1,"gold_bar":1,"ruby":1,"captain_medal":1,"rune_gauntlets":1}'::jsonb),
   ('barrow_king', 200, 828, '{"big_bones":1,"steel_bar":1,"iron_fitting":1,"ancient_fragment":1,"barrowking_mantle":1}'::jsonb),
   ('barrow_knight', 104, 504, '{"big_bones":1,"steel_bar":1,"iron_fitting":1,"ancient_fragment":1,"mithril_gauntlets":1}'::jsonb),
@@ -317,11 +317,11 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('chief_coppercap', 172, 9570, '{"big_bones":1,"gold_ore":1,"goblin_totem":1,"war_crown":1}'::jsonb),
   ('cistern_spider', 50, 839, '{"silk_thread":1,"venom_sac":1,"spider_eye":1}'::jsonb),
   ('clay_golem', 40, 217, '{"iron_ore":1,"iron_fitting":1,"coal":1,"steel_boots":1}'::jsonb),
-  ('conjurer', 118, 477, '{"magic_essence":1,"hell_ember":1,"rune_frag":1,"warlock_boots":1}'::jsonb),
+  ('conjurer', 118, 477, '{"magic_essence":1,"hell_ember":1,"rune_frag":1,"maple_spellbook":1,"warlock_boots":1}'::jsonb),
   ('culvert_bat', 21, 393, '{"bat_wing":1,"bones":1,"night_fang":1}'::jsonb),
   ('cutpurse', 6, 27, '{"rat_tail":1,"copper_ore":1,"bones":1,"apprentice_gloves":1}'::jsonb),
   ('cyclops', 246, 972, '{"troll_hide":1,"big_bones":1,"warlord_badge":1,"steel_bar":1,"rune_boots":1}'::jsonb),
-  ('dark_wizard', 25, 97, '{"magic_essence":1,"rune_frag":1,"bones":1,"dark_sigil":1}'::jsonb),
+  ('dark_wizard', 25, 97, '{"magic_essence":1,"rune_frag":1,"bones":1,"dark_sigil":1,"oak_wand":1,"oak_spellbook":1}'::jsonb),
   ('death_knight', 260, 1010, '{"big_bones":1,"death_steel":1,"captains_ribblade":1}'::jsonb),
   ('deserter', 46, 198, '{"iron_bar":1,"steel_bar":1,"iron_fitting":1,"bones":1,"maple_bow":1}'::jsonb),
   ('dire_gray', 14, 221, '{"wolf_pelt":1,"raw_wolf_meat":1,"bones":1,"dire_fang":1}'::jsonb),
@@ -368,7 +368,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('kobold', 6, 28, '{"goblin_totem":1,"bones":1,"bone_chips":1,"copper_ore":1,"banded_signet":1}'::jsonb),
   ('kobold_tosher', 14, 275, '{"bones":1,"bone_chips":1,"copper_ore":1}'::jsonb),
   ('lesser_demon', 140, 565, '{"demon_shard":1,"rune_frag":1,"hell_ember":1}'::jsonb),
-  ('lich', 500, 1325, '{"lich_soul":1,"ancient_rune":1,"vamp_dust":1,"hollow_sigil":1,"soul_recipe":1}'::jsonb),
+  ('lich', 500, 1325, '{"lich_soul":1,"ancient_rune":1,"vamp_dust":1,"hollow_sigil":1,"soul_recipe":1,"runewood_codex":1}'::jsonb),
   ('locust_swarm', 13, 65, '{"wheat":1,"silk_thread":1,"venom_sac":1,"studded_belt":1}'::jsonb),
   ('lynx', 44, 191, '{"wolf_pelt":1,"razor_claw":1,"raw_wolf_meat":1,"bones":1,"boarhide_gloves":1}'::jsonb),
   ('magma_elemental', 242, 919, '{"hell_ember":1,"emberstone_ore":1,"coal":1,"ember_bar":1}'::jsonb),
@@ -378,7 +378,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('mire_witch', 90, 413, '{"magic_essence":1,"rune_frag":1,"cracked_spellstone":1,"mirewort_drops":1}'::jsonb),
   ('mountain_ram', 42, 205, '{"wolf_pelt":1,"bear_claw":1,"bones":1,"raw_wolf_meat":1,"boarhide_belt":1}'::jsonb),
   ('mountain_troll', 108, 553, '{"troll_hide":1,"big_bones":1,"bear_pelt":1,"iron_warhammer":1,"trollhide_cape":1}'::jsonb),
-  ('necromancer', 650, 1729, '{"lich_soul":1,"ancient_rune":1,"hollow_sigil":1,"grave_dust":1,"soul_recipe":1}'::jsonb),
+  ('necromancer', 650, 1729, '{"lich_soul":1,"ancient_rune":1,"hollow_sigil":1,"grave_dust":1,"soul_recipe":1,"runewood_wand":1}'::jsonb),
   ('nightmare', 20, 88, '{"demon_shard":1,"coal":1,"bones":1,"adept_boots":1}'::jsonb),
   ('ogre', 110, 530, '{"troll_hide":1,"big_bones":1,"brute_plate":1,"raw_bear_meat":1,"mithril_belt":1}'::jsonb),
   ('old_tusker', 15, 79, '{"bones":1,"raw_wolf_meat":1,"wolf_pelt":1,"small_fang":1,"tusker_charm":1}'::jsonb),
@@ -412,7 +412,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('void_parasite', 420, 1410, '{"void_chitin":1,"plague_ichor":1,"void_core":1,"archmage_boots":1}'::jsonb),
   ('war_king', 520, 1680, '{"captain_medal":1,"war_crown":1,"chief_blade":1}'::jsonb),
   ('warband_captain', 225, 885, '{"warlord_badge":1,"captain_medal":1,"rune_sword":1}'::jsonb),
-  ('warlock', 60, 222, '{"magic_essence":1,"rune_frag":1,"cracked_spellstone":1,"scholar_gloves":1}'::jsonb),
+  ('warlock', 60, 222, '{"magic_essence":1,"rune_frag":1,"cracked_spellstone":1,"willow_wand":1,"willow_spellbook":1,"scholar_gloves":1}'::jsonb),
   ('watchknight', 98, 508, '{"steel_bar":1,"iron_fitting":1,"steel_helm":1,"brute_plate":1}'::jsonb),
   ('water_elemental', 16, 80, '{"trout":1,"herring":1,"magic_essence":1,"adept_belt":1}'::jsonb),
   ('weak_skeleton', 7, 33, '{"bones":1,"bone_chips":1,"ancient_fragment":1}'::jsonb),
@@ -479,6 +479,7 @@ delete from public.hr_hunt_weapons;
 insert into public.hr_hunt_weapons (item_id, weapon_type) values
   ('alphaheart_longbow', 'ranged'),
   ('apprentice_staff', 'magic'),
+  ('apprentice_wand', 'magic'),
   ('ashcrown_greatsword', 'sword'),
   ('bramble_blade', 'sword'),
   ('bronze_sword', 'sword'),
@@ -503,15 +504,18 @@ insert into public.hr_hunt_weapons (item_id, weapon_type) values
   ('longbow', 'ranged'),
   ('maple_bow', 'ranged'),
   ('maple_staff', 'magic'),
+  ('maple_wand', 'magic'),
   ('mithril_sword', 'sword'),
   ('mithril_warhammer', 'hammer'),
   ('oak_practice_blade', 'sword'),
   ('oak_staff', 'magic'),
+  ('oak_wand', 'magic'),
   ('rat_stick', 'hammer'),
   ('rune_sword', 'sword'),
   ('rune_warhammer', 'hammer'),
   ('runewood_bow', 'ranged'),
   ('runewood_staff', 'magic'),
+  ('runewood_wand', 'magic'),
   ('shortbow', 'ranged'),
   ('steel_sword', 'sword'),
   ('steel_warhammer', 'hammer'),
@@ -524,8 +528,10 @@ insert into public.hr_hunt_weapons (item_id, weapon_type) values
   ('widows_fang', 'sword'),
   ('willow_longbow', 'ranged'),
   ('willow_staff', 'magic'),
+  ('willow_wand', 'magic'),
   ('yew_bow', 'ranged'),
-  ('yew_staff', 'magic');
+  ('yew_staff', 'magic'),
+  ('yew_wand', 'magic');
 delete from public.hr_hunt_weapon_roles;
 insert into public.hr_hunt_weapon_roles (weapon_type, roles) values
   ('bow', array['ranger']::text[]),
@@ -783,7 +789,9 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('apprentice_gloves', 30),
   ('apprentice_helmet', 50),
   ('apprentice_pants', 90),
+  ('apprentice_primer', 45),
   ('apprentice_staff', 60),
+  ('apprentice_wand', 50),
   ('archmage_belt', 7280),
   ('archmage_body', 27300),
   ('archmage_boots', 7280),
@@ -999,7 +1007,9 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('maple_log', 16),
   ('maple_plank', 240),
   ('maple_rod', 1000),
+  ('maple_spellbook', 1200),
   ('maple_staff', 1500),
+  ('maple_wand', 1350),
   ('mirewort_drops', 800),
   ('mithril_arrows', 4),
   ('mithril_axe', 3200),
@@ -1026,7 +1036,9 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('oak_log', 4),
   ('oak_plank', 55),
   ('oak_rod', 300),
+  ('oak_spellbook', 105),
   ('oak_staff', 300),
+  ('oak_wand', 115),
   ('packlord_band', 420),
   ('panthers_eye_pendant', 13600),
   ('pikeperch', 5),
@@ -1074,10 +1086,12 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('rune_warhammer', 4950),
   ('rune_whetstone', 365),
   ('runewood_bow', 13650),
+  ('runewood_codex', 10400),
   ('runewood_log', 96),
   ('runewood_plank', 1150),
   ('runewood_rod', 9500),
   ('runewood_staff', 13000),
+  ('runewood_wand', 11700),
   ('scholar_belt', 280),
   ('scholar_body', 1050),
   ('scholar_boots', 280),
@@ -1211,7 +1225,9 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('willow_longbow', 525),
   ('willow_plank', 120),
   ('willow_rod', 80),
+  ('willow_spellbook', 400),
   ('willow_staff', 500),
+  ('willow_wand', 450),
   ('wolf_pelt', 7),
   ('wolfbone_torc', 260),
   ('woolen_cloak', 145),
@@ -1230,7 +1246,9 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('yew_log', 40),
   ('yew_plank', 520),
   ('yew_rod', 3500),
-  ('yew_staff', 4500);
+  ('yew_spellbook', 3600),
+  ('yew_staff', 4500),
+  ('yew_wand', 4050);
 
 -- ── SELF-CHECK (CLAUDE.md §4): the rows the generator wrote, and nothing more ──
 do $$
@@ -1240,7 +1258,7 @@ begin
      or (select count(*) from public.hr_hunt_travel) <> 115
      or (select count(*) from public.hr_hunt_limits) <> 52
      or (select count(*) from public.hr_hunt_end_reasons) <> 11
-     or (select count(*) from public.hr_hunt_vendor_value) <> 468
+     or (select count(*) from public.hr_hunt_vendor_value) <> 480
      or (select count(*) from public.hr_hunt_basic_supplies) <> 18
      or (select count(*) from public.hr_hunt_cover_items) <> 0
      or (select count(*) from public.hr_hunt_travel where tier is null) <> 0
@@ -1254,7 +1272,7 @@ begin
      or (select count(*) from public.hr_hunt_ground_spawns) <> 19
      or (select count(*) from public.hr_hunt_world_shape) <> 1
      or (select count(*) from public.hr_premium_login_reward) <> 1
-     or (select count(*) from public.hr_hunt_weapons) <> 49
+     or (select count(*) from public.hr_hunt_weapons) <> 55
      or (select count(*) from public.hr_hunt_weapon_roles) <> 11
      or (select count(*) from public.hr_hunt_roles) <> 5
      or (select count(*) from public.hr_hunt_end_reasons where resumes) <> 9 then

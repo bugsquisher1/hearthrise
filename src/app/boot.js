@@ -82,7 +82,7 @@ function startApp(win) {
     clear();
     root.className = 'app is-auth';
     root.innerHTML = '<main class="auth">' + AUTH_BRAND + '<div class="auth-card">'
-      + '<h1 class="auth-title">Hearthrise is closed while we rebuild it.</h1>'
+      + '<h1 class="auth-title">Hearthrise is a new game in development. Follow Discord for the first playtest.</h1>'
       + '<p class="auth-lead">Your account is not on the list for this test. Discord gets the date first.</p>'
       + '<p class="auth-links"><a class="auth-link" href="' + DISCORD + '" rel="noopener">Join the Discord</a>'
       + '<button type="button" class="auth-link" data-app="sign-out">Sign out</button></p></div></main>';

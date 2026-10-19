@@ -489,8 +489,7 @@ export function createCanvasBackend(o) {
       return {
         map: map && map.id, z, dpr, size: [W, H], frames, msAvg, msLast, inset: Object.assign({}, inset),
         heroBuilding: last ? last.heroBuilding : null,
-        /* the owned names drawn last frame, in CLIENT px (a test aims a right-click at one) */
-        names: canvas ? plateHits.map((q) => {
+        names: canvas ? plateHits.map((q) => {   // in CLIENT px, for a test aiming a right-click
           const r = canvas.getBoundingClientRect(), sx = r.width / W, sy = r.height / H;
           return { name: q.ref.player ? q.ref.player.name : null, l: r.left + q.l * sx, r: r.left + q.r * sx, t: r.top + q.t * sy, b: r.top + q.b * sy };
         }) : [],

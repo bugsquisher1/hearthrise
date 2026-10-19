@@ -198,7 +198,7 @@ async function pureRules(M, base) {
   });
 
   await t('PR-1', async () => {
-    const members = [{ seat: 0, weapon: 'staff', role_pick: 'healer' }, { seat: 1, weapon: 'staff', role_pick: 'tank' }, { seat: 2, weapon: 'bow', role_pick: 'tank' }, { seat: 3, weapon: 'no_such_weapon', role_pick: 'tank' }];
+    const members = [{ seat: 0, weapon: 'staff', role_pick: 'healer' }, { seat: 1, weapon: 'wand', role_pick: 'tank' }, { seat: 2, weapon: 'bow', role_pick: 'tank' }, { seat: 3, weapon: 'no_such_weapon', role_pick: 'tank' }];
     const cs = { read: (k) => (k === 'party' ? { id: '11111111-0000-4000-8000-00000000000a', hunt: 'mill_cellar', max: 4, leader_seat: 0, self_seat: 0, members } : undefined) };
     const p = M.PS.partyMembershipOf(cs);
     const roles = p ? p.seats.map((s) => String(s.role)).join(',') : 'none';
@@ -209,6 +209,27 @@ async function pureRules(M, base) {
       && /(?:WEAPON_ROLES\s*=|function\s+roleForWeapon\b|['"]?bow['"]?\s*:\s*\[?\s*['"]ranger['"])/.test(readFileSync(join(base, p2), 'utf8'))) copies.push(p2); } };
     for (const d of ['src/app', 'src/session', 'src/shell']) walk(d);
     return !copies.length || 'a weapon-to-role table outside src/data/hunt-roles.js: ' + copies.join(', ');
+  });
+
+  /* PR-2 (Tyler 2026-10-19): Mage = wand + spellbook, Healer = staff. Every wand plays Mage and every staff
+     Healer, the spellbook changes no role, and the server's weapon rows (hr_hunt_weapons, generated) carry
+     the same key the engine and the client resolve. */
+  await t('PR-2', async () => {
+    const { ITEMS } = await import(pathToFileURL(join(base, 'src/data/items.js')).href);
+    const R = M.ROLES;
+    const role = (id) => R.roleForWeapon(R.roleWeaponOf(ITEMS[id]), 'tank');
+    const wands = Object.keys(ITEMS).filter((id) => ITEMS[id].slot === 'weapon' && ITEMS[id].discipline === 'destruction');
+    const staves = Object.keys(ITEMS).filter((id) => ITEMS[id].slot === 'weapon' && ITEMS[id].discipline === 'restoration');
+    if (wands.length < 6 || staves.length < 7) return `want the wand and staff ladders, got ${wands.length} wands, ${staves.length} staves`;
+    const bad = [...wands.filter((id) => role(id) !== 'mage'), ...staves.filter((id) => role(id) !== 'healer')];
+    if (bad.length) return 'wrong role for ' + bad.map((id) => id + '=' + role(id)).join(', ');
+    if (R.roleWeaponOf(null) !== 'neutral' || role('apprentice_primer') === 'mage' && ITEMS.apprentice_primer.slot === 'weapon') return 'the spellbook or bare hands resolve wrong';
+    const sql = readFileSync(join(base, 'supabase/migrations/2026-10-27-hunt-sessions-catalogue.generated.sql'), 'utf8');
+    for (const id of [...wands, ...staves]) {
+      const m = new RegExp(`\\('${id}', '([a-z_]+)'\\)`).exec(sql);
+      if (!m || m[1] !== R.roleWeaponOf(ITEMS[id])) return `hr_hunt_weapons says ${id} is ${m && m[1]}, the engine says ${R.roleWeaponOf(ITEMS[id])}`;
+    }
+    return true;
   });
   return fails;
 }

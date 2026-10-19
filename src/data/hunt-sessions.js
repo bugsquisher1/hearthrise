@@ -91,7 +91,9 @@ export const ACTION_SET_OPTIONS = Object.freeze({
   stance: Object.freeze({ kind: 'enum', values: Object.freeze(Object.keys(HUNT_STANCES)) }),
   distance: Object.freeze({ kind: 'limit', limit: 'distance' }),
   chase: Object.freeze({ kind: 'bool' }),
-  /* A staff plays Mage or Healer (hunt-roles.js WEAPON_ROLES); any other weapon ignores it. */
+  /* The role pick. Since Tyler's 2026-10-19 ruling (wand = Mage, staff = Healer) no weapon plays two
+     roles, so every weapon ignores it (roleForWeapon); the option and its role_pick plumbing are a cut
+     still owed (CORE_MODEL.md §11). */
   role: Object.freeze({ kind: 'enum', values: WEAPON_ROLES.staff }),
   food_below_pct: Object.freeze({ kind: 'limit', limit: 'threshold_pct' }),
   drink_below_pct: Object.freeze({ kind: 'limit', limit: 'threshold_pct' }),

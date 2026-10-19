@@ -94,7 +94,7 @@ import { SESSION_LIMITS, END_ORDER, STAMINA_LOW_MIN, SESSIONS_KEPT, DEATH_XP_LOS
   DEFAULT_RESUME, EVENT_COPY, THRESHOLD_PCT, GATHER_SHARE, coverSellable } from '../src/data/hunt-sessions.js';
 import { CONSUMABLE_RULES } from '../src/data/consumables.js';
 import { ABILITIES, ABILITY_LANES, ABILITY_RULES } from '../src/data/abilities.js';
-import { HUNT_ROLES, WEAPON_ROLES } from '../src/data/hunt-roles.js';
+import { HUNT_ROLES, WEAPON_ROLES, roleWeaponOf } from '../src/data/hunt-roles.js';
 import { HUNT_XP } from '../src/data/hunt-xp.js';
 import { HUNT_GROUNDS, DENSITY_PICK } from '../src/data/hunt-grounds.js';
 import { HUNT_TUNING } from '../src/data/hunt-tuning.js';
@@ -431,7 +431,7 @@ export function catalogueRows(src = {}) {
      equippable weapon's type, and the roles a type plays (the first the default).
      The party finder filters on the type; the party view shows the role. */
   const weapons = Object.keys(S.items).sort().filter((id) => S.items[id].slot === 'weapon').map((id) => {
-    const t = S.items[id].weaponType;
+    const t = roleWeaponOf(S.items[id]);   // a magic weapon by its discipline: wand (Mage) / staff (Healer)
     if (!ID.test(String(t)) || !own(S.weaponRoles, t)) throw new Error(`weapon ${id} has type ${t}, which plays no role (hunt-roles.js WEAPON_ROLES)`);
     return { id, t };
   });

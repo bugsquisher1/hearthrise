@@ -32,7 +32,7 @@
 // ============================================================================
 
 import { ITEMS } from '../../../src/data/items.js';
-import { HUNT_ROLES, roleForWeapon } from '../../../src/data/hunt-roles.js';
+import { HUNT_ROLES, roleForWeapon, roleWeaponOf } from '../../../src/data/hunt-roles.js';
 import { playerCombatRolls } from '../../../src/core/combat.js';
 import { vitalsOf } from '../../../src/core/vitals.js';
 import { buffQueueFromServer } from '../../../src/core/buffs.js';
@@ -87,7 +87,7 @@ export function characterSheetOf(env, perks, nowMs) {
   const bonus = bonusFor(perkState, liveBuffHost(() => buffs));
   const snap = heroSnapshot({ skills }, { eq, equipment, items: ITEMS, bonus, setBonus, profile });
   const roll = playerCombatRolls(NEUTRAL_FOE, { eq, equipment, items: ITEMS, skills, bonus, setBonus, profile });
-  const role = roleForWeapon(eq.weaponType || 'neutral', null);
+  const role = roleForWeapon(roleWeaponOf(ITEMS[equipment.weapon]) || 'neutral', null);
   const row = role ? HUNT_ROLES[role] : null;
   /* The XP parts grantXp pays with; the lasting ones (no buff layer) split perks from food and drink. */
   const now = xpMultiplierParts(bonus);

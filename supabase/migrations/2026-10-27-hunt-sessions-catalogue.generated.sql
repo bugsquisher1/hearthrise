@@ -8,7 +8,7 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 066ccbd0fb80ec19348d79cce7ffaf5a3e27bbcb19828c1e8fd0b9813e711500
+--   digest: 70a5b4c7251fad82e355eceffae2a69ce68d187b5d8de0915abe03c528c7018c
 --   59 supplies, 115 hunts (named + training), 52 limits, 11 end reasons,
 --   480 vendor values, 18 store supplies paid per use, 5 target modes,
 --   3 lanes, 14 abilities, 13 action-set options, 4 hunt grounds
@@ -290,7 +290,7 @@ insert into public.hr_hunt_set_options (opt, kind, limit_key, vals, dflt) values
   ('gather_share', 'limit', 'gather_share', null, '0'::jsonb),
   ('gold_floor', 'limit', 'gold_floor', null, null),
   ('on_empty', 'enum', null, array['switch', 'end']::text[], '"switch"'::jsonb),
-  ('role', 'enum', null, array['mage', 'healer']::text[], null),
+  ('role', 'enum', null, array['healer']::text[], null),
   ('stance', 'enum', null, array['offensive', 'balanced', 'defensive']::text[], null),
   ('supply_source', 'enum', null, array['mine', 'store']::text[], '"mine"'::jsonb),
   ('target_mode', 'target', null, null, null);
@@ -478,8 +478,8 @@ insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values
 delete from public.hr_hunt_weapons;
 insert into public.hr_hunt_weapons (item_id, weapon_type) values
   ('alphaheart_longbow', 'ranged'),
-  ('apprentice_staff', 'magic'),
-  ('apprentice_wand', 'magic'),
+  ('apprentice_staff', 'staff'),
+  ('apprentice_wand', 'wand'),
   ('ashcrown_greatsword', 'sword'),
   ('bramble_blade', 'sword'),
   ('bronze_sword', 'sword'),
@@ -487,12 +487,12 @@ insert into public.hr_hunt_weapons (item_id, weapon_type) values
   ('chief_blade', 'sword'),
   ('dawn_sword', 'sword'),
   ('dawn_warhammer', 'hammer'),
-  ('demoncaller_staff', 'magic'),
+  ('demoncaller_staff', 'wand'),
   ('dragonfang_pike', 'sword'),
   ('dragonrend_greatblade', 'sword'),
   ('dragonrib_bow', 'ranged'),
   ('duskwood_bow', 'ranged'),
-  ('duskwood_staff', 'magic'),
+  ('duskwood_staff', 'staff'),
   ('ember_sword', 'sword'),
   ('ember_warhammer', 'hammer'),
   ('emberfang_blade', 'sword'),
@@ -503,35 +503,35 @@ insert into public.hr_hunt_weapons (item_id, weapon_type) values
   ('lazlos_maul', 'hammer'),
   ('longbow', 'ranged'),
   ('maple_bow', 'ranged'),
-  ('maple_staff', 'magic'),
-  ('maple_wand', 'magic'),
+  ('maple_staff', 'staff'),
+  ('maple_wand', 'wand'),
   ('mithril_sword', 'sword'),
   ('mithril_warhammer', 'hammer'),
   ('oak_practice_blade', 'sword'),
-  ('oak_staff', 'magic'),
-  ('oak_wand', 'magic'),
+  ('oak_staff', 'staff'),
+  ('oak_wand', 'wand'),
   ('rat_stick', 'hammer'),
   ('rune_sword', 'sword'),
   ('rune_warhammer', 'hammer'),
   ('runewood_bow', 'ranged'),
-  ('runewood_staff', 'magic'),
-  ('runewood_wand', 'magic'),
+  ('runewood_staff', 'staff'),
+  ('runewood_wand', 'wand'),
   ('shortbow', 'ranged'),
   ('steel_sword', 'sword'),
   ('steel_warhammer', 'hammer'),
   ('stone_maul', 'hammer'),
   ('verdite_blade', 'sword'),
-  ('void_censer', 'magic'),
-  ('voidmaw_scepter', 'magic'),
+  ('void_censer', 'wand'),
+  ('voidmaw_scepter', 'wand'),
   ('wartusk_cleaver', 'sword'),
-  ('whispering_codex', 'magic'),
+  ('whispering_codex', 'wand'),
   ('widows_fang', 'sword'),
   ('willow_longbow', 'ranged'),
-  ('willow_staff', 'magic'),
-  ('willow_wand', 'magic'),
+  ('willow_staff', 'staff'),
+  ('willow_wand', 'wand'),
   ('yew_bow', 'ranged'),
-  ('yew_staff', 'magic'),
-  ('yew_wand', 'magic');
+  ('yew_staff', 'staff'),
+  ('yew_wand', 'wand');
 delete from public.hr_hunt_weapon_roles;
 insert into public.hr_hunt_weapon_roles (weapon_type, roles) values
   ('bow', array['ranger']::text[]),
@@ -539,12 +539,12 @@ insert into public.hr_hunt_weapon_roles (weapon_type, roles) values
   ('crossbow', array['ranger']::text[]),
   ('dual_axe', array['melee_dps']::text[]),
   ('hammer', array['melee_dps']::text[]),
-  ('magic', array['mage', 'healer']::text[]),
   ('neutral', array['melee_dps']::text[]),
   ('ranged', array['ranger']::text[]),
   ('shield', array['tank']::text[]),
-  ('staff', array['mage', 'healer']::text[]),
-  ('sword', array['tank']::text[]);
+  ('staff', array['healer']::text[]),
+  ('sword', array['tank']::text[]),
+  ('wand', array['mage']::text[]);
 delete from public.hr_hunt_roles;
 insert into public.hr_hunt_roles (role, discipline) values
   ('healer', 'restoration'),

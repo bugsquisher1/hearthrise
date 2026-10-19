@@ -54,7 +54,7 @@ import { huntGroundOf } from './hunt-ground.js';
 import { huntTimeline } from './hunt-track.js';
 import { ITEMS } from '../../../src/data/items.js';
 import { MONSTERS } from '../../../src/data/monsters.js';
-import { equipmentStats } from '../../../src/core/combat.js';
+import { roleWeaponOf } from '../../../src/data/hunt-roles.js';
 import { heroSetup } from '../../../src/core/hunt-spawn.js';
 
 /* THE PLAYER DOOR'S FLOOR (hunt_settle, a hunter's accrue, a purchase's
@@ -296,7 +296,9 @@ async function memberInput(exec, m, inst) {
   const nowMs = Math.floor(Number(m.session.settled_to_ms) || 0);
   const e = engineInputsFromEnvelope(env, nowMs);
   const perks = await readTickPerks(exec, m.user, m.slot);
-  const weaponType = equipmentStats(e.equipment || {}, ITEMS).weaponType || 'neutral';
+  /* The ROLE key (hunt-roles.js roleWeaponOf: a magic weapon by its discipline), the same key
+     hr_hunt_weapons holds; the combat style stays equipmentStats' weaponType in the engine. */
+  const weaponType = roleWeaponOf(ITEMS[(e.equipment || {}).weapon]) || 'neutral';
   const options = (m.session.options && typeof m.session.options === 'object') ? m.session.options : {};
   const pre = heroSetup({ weaponType, options, bar: m.session.bar, partyRoles: null });
   return {

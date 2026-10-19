@@ -295,7 +295,7 @@ const MUTANTS = [
   ['the walk frame counts frames drawn', 'src/hunt-view/scene.js', 'const frame = moving ? Math.floor((p.d * walk.fps * tl.tileMs) / 1000) : 0;', 'globalThis.__n = (globalThis.__n || 0) + 1;\n    const frame = moving ? globalThis.__n % 6 : 0;'],
   ['an event plays twice', 'src/hunt-view/scene.js', '    if (!ev || keys.has(ev.key)) return false;\n', '    if (!ev) return false;\n'],
   ['an effect starts when it is delivered', 'src/hunt-view/scene.js', 'const start = tl.clientAt(ev.atMs) ?? now;', 'const start = now;'],
-  ['playback runs ahead of the track', 'src/hunt-view/timeline.js', 'const f = Math.min(1, (t - cur.atMs) / cfg.tileMs);', 'const f = (t - cur.atMs + 200) / cfg.tileMs;'],
+  ['playback runs ahead of the track', 'src/hunt-view/timeline.js', 'const f = Math.min(1, (t - cur.atMs) / (cur.dur || cfg.tileMs));', 'const f = (t - cur.atMs + 200) / (cur.dur || cfg.tileMs);'],
   ['an event type left unmapped', 'src/data/hunt-vfx.js', '  eat: null, drink: null,', '  drink: null,'],
   ['an effect the atlas lacks', 'src/data/hunt-vfx.js', "heal: row({ fx: 'fx_nature_heal_motes'", "heal: row({ fx: 'fx_heal_glow'"],
   ['the diagonal is dropped', 'src/hunt-view/scene.js', 'const diag = ax && ay && ', 'const diag = false && '],
@@ -304,7 +304,7 @@ const MUTANTS = [
   ['the bleed badge ignores the toggle', 'src/hunt-view/scene.js', "(hero || read.shown('bleed_badge', isBoss(u)))", '(true)'],
   ['a float ignores its toggle', 'src/hunt-view/scene.js', '    if (!read.shown(type, isBoss(u))) return;\n', ''],
   ['a gone unit is kept for ever', 'src/hunt-view/timeline.js', 'if (!listed.has(u) && a[a.length - 1].atMs < pose.at_ms - cfg.forgetMs) steps.delete(u);', ''],
-  ['bars from the events, not the snapshot', 'src/hunt-view/scene.js', 'const hp = hero ? m && m.hp : (read.units.get(u) || {}).hp;', 'const hp = 1;'],
+  ['bars from the events, not the snapshot', 'src/hunt-view/scene.js', 'const hp = hero ? m && m.hp : played ? played.hp : (read.units.get(u) || {}).hp;', 'const hp = 1;'],
 ];
 
 async function main() {

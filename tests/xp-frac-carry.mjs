@@ -82,7 +82,9 @@ const OWN_SQL = '2026-10-09-xp-frac-carry.sql';
    is the carry/floor/none equality just below, unchanged. */
 /* RE-MEASURED core rebuild (2026-10-19): the events now name deaths, Melee and Level XP routes and
    regenPm, so the hash moved; the draws (4478), kills (687) and drops are unchanged. */
-const PRE_CHANGE_DRAWS = { n: 4478, hash: 'dd9336ef', kills: 687,
+/* RE-MEASURED option B (2026-10-19): the track now places every standing unit at a window's start and each
+   respawn (anchor steps for the live view), so the hash moved; draws (4478), kills and drops are unchanged. */
+const PRE_CHANGE_DRAWS = { n: 4478, hash: '439f106a', kills: 687,
   items: '{"bones":213,"slime_gel":633,"sticky_core":18}' };   // re-measured lane S1 (instance engine; n = events)
 /* AND A LEVELLING HERO (every combat skill at 5, 30 minutes): the DRAW STREAM is
    pinned (count + hash), the outcomes deliberately are not. Measured on both
@@ -90,7 +92,7 @@ const PRE_CHANGE_DRAWS = { n: 4478, hash: 'dd9336ef', kills: 687,
    floor used to eat, a level arrives at a different swing, and the same number
    rolled against a different accuracy is a different hit. That is XP moving a
    level, never XP moving a draw. */
-const PRE_CHANGE_DRAWS_L5 = { n: 2374, hash: '16337378' };   // re-measured core rebuild 2026-10-19 (Melee/Defense at 5 on the uncapped curve)   // re-measured lane S1 on the instance engine (was 2840 / 7a2d23c4 on the single-foe span)
+const PRE_CHANGE_DRAWS_L5 = { n: 2374, hash: '9aabde49' };   // re-measured option B 2026-10-19 (anchor steps; draws unchanged)   // re-measured core rebuild 2026-10-19 (Melee/Defense at 5 on the uncapped curve)   // re-measured lane S1 on the instance engine (was 2840 / 7a2d23c4 on the single-foe span)
 
 const JS_MUTANTS = [
   { name: 'floor before multiplier', arm: 'X1', file: 'src/core/progression.js',

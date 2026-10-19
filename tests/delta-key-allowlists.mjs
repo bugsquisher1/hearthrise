@@ -576,7 +576,7 @@ async function main() {
       src: { contract: src.contract.replace("export const ABSOLUTE_MAP = Object.freeze(['xp_frac']);", "export const ABSOLUTE_MAP = Object.freeze([]);") } },
     { name: 'a dormant key\'s column appears', arms: /^KE:/,
       plant: async () => { await db.exec('alter table public.player_state add column ammo_carry numeric'); return async () => { await db.exec('alter table public.player_state drop column ammo_carry'); }; } },
-    { name: 'the single-writer scan is narrowed to nothing', arms: /^KW:/,
+    { party: true, name: 'the single-writer scan is narrowed to nothing', arms: /^KW:/,
       frac: fracSql.map((s) => s.replace("then regexp_replace(p.prosrc, 'c_delta_ok\\s+constant\\s+text\\[\\]\\s*:=\\s*array\\[[^]]*\\];', '')", "then ''")) },
   ];
   let survived = 0;

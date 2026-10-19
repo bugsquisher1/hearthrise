@@ -5170,8 +5170,8 @@ scores as (
            + least(greatest(coalesce(c.treasury, 0), 0), 999999999)::bigint,
          null::timestamptz
   from public.clans c
-  -- NOTE: no 'renown' branch and no 'bosses' branch (2026-08-18-leaderboard-server-source.sql's header:
-  -- neither has a server source, so neither ranks anybody).
+  -- NOTE: no 'renown' branch and no 'bosses' branch.
+  -- (2026-08-18-leaderboard-server-source.sql's header: neither has a server source, so neither ranks anybody.)
 )
 select board, subject_id, name, clan_name, score, saved_at,
        row_number() over (partition by board order by score desc, subject_id) as rank

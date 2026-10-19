@@ -105,9 +105,19 @@ alter table public.player_state drop column if exists combat_style;
 alter table public.player_state drop column if exists max_hp;
 alter table public.hr_start_kit drop column if exists max_hp;
 -- The two generated CHECKs are re-added by 2026-10-27-hunt-sessions-catalogue.generated.sql (END_ORDER,
--- EVENT_COPY); dropped here so the rows can move to the new names in between.
-alter table public.hunt_sessions drop constraint if exists hunt_sessions_end_reason_check;
-alter table public.hunt_session_events drop constraint if exists hunt_session_events_type_check;
+-- EVENT_COPY); dropped here so the rows can move to the new names in between. Only the OLD constraint
+-- (it still names 'falls' / 'fall') is dropped, so a second apply leaves the catalogue's new one alone.
+do $drop$
+begin
+  if exists (select 1 from pg_constraint c where c.conrelid = 'public.hunt_sessions'::regclass
+              and c.conname = 'hunt_sessions_end_reason_check' and pg_get_constraintdef(c.oid) like '%''falls''%') then
+    alter table public.hunt_sessions drop constraint hunt_sessions_end_reason_check;
+  end if;
+  if exists (select 1 from pg_constraint c where c.conrelid = 'public.hunt_session_events'::regclass
+              and c.conname = 'hunt_session_events_type_check' and pg_get_constraintdef(c.oid) like '%''fall''::%') then
+    alter table public.hunt_session_events drop constraint hunt_session_events_type_check;
+  end if;
+end $drop$;
 update public.hunt_sessions set end_reason = 'died' where end_reason = 'falls';
 alter table public.hunt_sessions drop column if exists falls;
 alter table public.hunt_sessions drop column if exists falls_limit;

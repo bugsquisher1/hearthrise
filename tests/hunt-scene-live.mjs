@@ -70,35 +70,83 @@ async function load(base) {
 
 /* ── THE WINDOWS: the shipped engine on the shipped ground, cut at the player door's cadence. ── */
 const T0 = Date.parse(LIVE.hunt.session.hunt_from);
-function windows(M, spanMs) {
+function engineServer(M) {
   const where = M.HG.huntGroundOf('mill_cellar');
   const basics = {};
   for (const b of M.SB.BASIC_SUPPLIES) basics[b.id] = { kind: b.kind, price: b.price, heals: b.heals || 0, mana: b.mana || 0, partner: b.partner };
   const L = LIVE.level.level;
   const skills = { melee: LIVE.skills.melee.xp, defense: LIVE.skills.defense.xp, ranged: 0, magic: 0 };
+  const hero = M.SPAWN.heroSetup({ weaponType: 'sword', options: {}, bar: [], partyRoles: ['tank'] });
   const m = {
     key: 'live', user: 'live', slot: 0, seat: 0, unitId: null, sessionId: 's-live', version: 1, huntId: 'mill_cellar',
     huntSession: { id: 's-live', instanceId: 'i-live', huntFromMs: T0, nextSwingAtMs: T0, swingIndex: 0, bag: {},
       staminaMs: 8 * 3600000, staminaMaxMs: 8 * 3600000, basics, shop: { heal: M.SB.basicFor('heal', 1).id, mana: M.SB.basicFor('mana', 1).id },
       goldFloor: 0, supplySource: 'mine', onEmpty: 'switch', cover: {} },
     skills, levelXp: M.XP.charXpForLevel(L), xpFrac: null, hp: LIVE.state.hp, gold: 0, equipment: clone(LIVE.equipment),
-    inventory: {}, deathsTodayBefore: 0, deathsLifetimeBefore: 0, hearthfindReady: false, perks: null,
-    hero: M.SPAWN.heroSetup({ weaponType: 'sword', options: {}, bar: [], partyRoles: ['tank'] }),
+    inventory: {}, deathsTodayBefore: 0, deathsLifetimeBefore: 0, hearthfindReady: false, perks: null, hero,
   };
-  const poll = M.CFG.SESSION_CONFIG.huntPollMs;
-  let world = null; let next = T0; const out = [];
-  for (let from = T0; from < T0 + spanMs; from += poll) {
-    const to = from + poll;
-    const r = M.AC.accrueHunt({ instance: { id: 'i-live', nextSwingAtMs: next, world }, window: { fromMs: from, toMs: to },
-      secret: '-4611686018427387904', ground: where.ground, grid: where.grid, items: M.ITEMS, monsters: M.MONSTERS, members: [m] });
-    if (!r.accrued) continue;
-    world = r.world; next = r.settledTo;
-    const h = r.members[0].hunt;
-    m.huntSession = Object.assign({}, m.huntSession, { swingIndex: h.swing_to, nextSwingAtMs: Date.parse(h.next_swing_at), staminaMs: h.stamina });
-    m.unitId = h.unit_id; m.hp = r.members[0].delta.hp;
-    out.push({ at: r.settledTo, unit: h.unit_id, tl: M.HT.huntTimeline(r.track, r.events, from, r.settledTo, r.settledTo) });
+  let world = null, next = T0, from = T0;
+  const run = (to, mem) => M.AC.accrueHunt({ instance: { id: 'i-live', nextSwingAtMs: next, world }, window: { fromMs: from, toMs: to },
+    secret: '-4611686018427387904', ground: where.ground, grid: where.grid, items: M.ITEMS, monsters: M.MONSTERS, members: [mem] });
+  const copy = () => Object.assign(JSON.parse(JSON.stringify(m)), { hero });
+  return {
+    get from() { return from; },
+    get unit() { return m.unitId; },
+    /* THE PLAYER DOOR'S SETTLE: commit [settled_to, to]. */
+    commit(to) {
+      const r = run(to, m);
+      if (!r.accrued) return null;
+      const tl = M.HT.huntTimeline(r.track, r.events, from, r.settledTo, to, r.units);
+      world = r.world; next = r.settledTo; from = r.settledTo;
+      const h = r.members[0].hunt;
+      m.huntSession = Object.assign({}, m.huntSession, { swingIndex: h.swing_to, nextSwingAtMs: Date.parse(h.next_swing_at), staminaMs: h.stamina });
+      m.unitId = h.unit_id; m.hp = r.members[0].delta.hp;
+      return tl;
+    },
+    /* THE WATCH'S PEEK: the same window, never committed. */
+    peek(to) {
+      const r = run(to, copy());
+      return r.accrued ? M.HT.huntTimeline(r.track, r.events, from, r.settledTo, to, r.units) : null;
+    },
+  };
+}
+
+/* The live loop the client runs while watched: a hunt_watch every huntWatchMs answered as the edge
+   answers it (a peek below the 15 s floor, a commit past it), frames at 60 Hz. */
+async function playWatched(M, book, spanMs, onFrame) {
+  const srv = engineServer(M);
+  const OFF = 1000000;            // client clock = server clock - OFF (any constant)
+  const clock = { t: T0 - 500 - OFF };
+  const env = () => { const e = Object.assign(clone(LIVE), { now: new Date(clock.t + OFF).toISOString() }); e.hunt.pose = null; e.hunt.hero.unit = 1; return e; };
+  let version = LIVE.version;
+  const server = {
+    rpc: async () => ({ ok: true, body: env() }),
+    accrue: async (body) => {
+      const s = clock.t + OFF;
+      if (!body || body.verb !== 'hunt_watch') return { ok: true, body: { ok: true, accrued: false } };
+      if (s - srv.from >= 15000) {
+        const tl = srv.commit(s);
+        return { ok: true, body: Object.assign(env(), { version: ++version, settled: true }, tl || {}) };
+      }
+      return { ok: true, body: Object.assign({ ok: true, settled: false, watch: true }, srv.peek(s) || { hunt_server_now_ms: s }) };
+    },
+  };
+  const cs = new M.C.CharacterSession({ slot: 0, uid: '11111111-2222-3333-4444-555555555555', server, setTimer: () => 0, clearTimer: () => {}, now: () => clock.t });
+  await cs.load();
+  cs.setWatched(true);
+  const scene = M.S.createHuntScene({ timeline: cs.timeline, book, read: () => M.S.readHunt(cs) });
+  const played = [];
+  cs.timeline.subscribe((ev) => { played.push(ev.atMs); scene.onEvent(ev, cs.now()); });
+  const watchMs = M.CFG.SESSION_CONFIG.huntWatchMs;
+  let nextPoll = T0 + watchMs;
+  for (let s = T0 - 500; s < T0 + spanMs; s += 1000 / 60) {
+    clock.t = s - OFF;
+    if (s >= nextPoll) { nextPoll += watchMs; await cs.watch(); }
+    played.length = 0;
+    cs.timeline.advance(clock.t);
+    const f = scene.frame(clock.t);
+    onFrame({ s, f, cs, played });
   }
-  return out;
 }
 
 /* A CharacterSession over a scripted server: hr_load answers `env()`, accrue the queued settle answer (or the floor). */
@@ -137,49 +185,43 @@ async function nodeRules(M) {
     ok('LV-1', mons.every((p) => f.units.some((d) => d.unit === p.u)), `the pose's monsters are not drawn (${f.units.length} of ${mons.length})`);
   }
 
-  { // LV-2
-    const wins = windows(M, 160000);
-    const poll = M.CFG.SESSION_CONFIG.huntPollMs;
-    ok('LV-2', wins.length >= 8 && wins.some((w) => w.tl.hunt_track.length > 4), `the engine produced ${wins.length} windows, too few to judge playback`);
-    const OFF = 1000000;            // client clock = server clock - OFF (any constant)
-    const clock = { t: T0 - OFF };
-    /* The recorded pose is another minute of another run: this run's poses come from its own windows. */
-    const env = () => { const e = Object.assign(clone(LIVE), { now: new Date(clock.t + OFF).toISOString() }); e.hunt.pose = null; return e; };
-    const queue = [];
-    const cs = session(M, clock, env, queue);
-    await cs.load();
-    const scene = M.S.createHuntScene({ timeline: cs.timeline, book, read: () => M.S.readHunt(cs) });
-    let delivered = 0;
-    const burst = []; let worst = [];
-    cs.timeline.subscribe((ev) => { delivered++; burst.push(ev.atMs); scene.onEvent(ev, cs.now()); });
-    const unit = wins[0].unit;
-    let wi = 0, prev = null, frames = 0, moving = 0, maxStep = 0, maxBurst = 0;
-    const end = T0 + wins.length * poll;
-    for (let s = T0 + 1; s < end; s += 1000 / 60) {
-      clock.t = s - OFF;
-      while (wi < wins.length && wins[wi].at <= s) {          // the answer to the poll at the window's end
-        const w = wins[wi++];
-        queue.push(Object.assign(env(), { accrued: true, version: LIVE.version + wi }, w.tl));
-        await cs.hello();
-      }
-      const before = delivered; burst.length = 0;
-      cs.timeline.advance(clock.t);
-      const p = cs.timeline.positionAt(unit, clock.t);
-      scene.frame(clock.t);
-      const spread = burst.length ? Math.max(...burst) - Math.min(...burst) : 0;   // server ms one frame played at once
-      if (spread > maxBurst) { maxBurst = spread; worst = burst.slice(); }
-      if (p && prev) {
-        const step = Math.hypot(p.x - prev.x, p.y - prev.y);
-        maxStep = Math.max(maxStep, step);
-        if (step > 1e-6) moving++;
-      }
-      if (p) { prev = p; frames++; }
-    }
-    ok('LV-2', frames > 600, `the hero was drawn in only ${frames} frames`);
+  { // LV-1 (from Enter), LV-2, LV-5
+    const delay = M.CFG.SESSION_CONFIG.huntPlaybackDelayMs, watchMs = M.CFG.SESSION_CONFIG.huntWatchMs;
+    let prev = null, frames = 0, moving = 0, maxStep = 0, maxBurst = 0, firstDrawn = null, firstMove = null;
+    const kinds = new Set(); let barsSeen = 0, badBars = 0, emptyFrames = 0;
+    const warn = console.warn; let unnamed = 0; console.warn = () => { unnamed++; };
+    try {
+      await playWatched(M, book, 160000, ({ s, f, cs, played }) => {
+        const h = f.hero;
+        if (h && firstDrawn === null) firstDrawn = s;
+        if (h && prev) {
+          const step = Math.hypot(h.x - prev.x, h.y - prev.y);
+          maxStep = Math.max(maxStep, step);
+          if (step > 1e-6) { moving++; if (firstMove === null) firstMove = s; }
+        }
+        if (h) { prev = h; frames++; } else if (s > T0) emptyFrames++;
+        const spread = played.length ? Math.max(...played) - Math.min(...played) : 0;
+        maxBurst = Math.max(maxBurst, spread);
+        for (const d of f.units) {
+          kinds.add(d.id);
+          if (d.bar !== undefined && d.bar !== null) {
+            barsSeen++;
+            const hp = cs.timeline.hpAt(d.unit, cs.now());
+            if (!hp || !(d.bar > 0) || Math.abs(d.bar - hp.hp / hp.maxHp) > 1e-9) badBars++;
+          }
+        }
+      });
+    } finally { console.warn = warn; }
+    ok('LV-1', firstDrawn !== null && firstDrawn - (T0 - 500) <= 1000, `after Enter the hero was first drawn ${firstDrawn === null ? 'never' : (firstDrawn - T0 + 500) + ' ms'} after (budget 1000 ms; the entrance stands in until the first window)`);
+    ok('LV-2', firstMove !== null && firstMove - T0 <= delay + watchMs + 1000, `the hero first moved ${firstMove === null ? 'never' : (firstMove - T0) + ' ms'} after the hunt began (near-live budget ${delay + watchMs + 1000} ms)`);
+    ok('LV-2', emptyFrames === 0, `${emptyFrames} frame(s) drew no hero after the hunt began`);
     ok('LV-2', maxStep <= BUDGET.maxStepTiles, `a frame moved the hero ${maxStep.toFixed(2)} tiles (a teleport; budget ${BUDGET.maxStepTiles})`);
     ok('LV-2', moving / Math.max(1, frames) >= BUDGET.minMovingShare, `the hero moved in ${moving} of ${frames} frames (a slideshow)`);
-    ok('LV-2', maxBurst <= BUDGET.maxEventSpreadMs, `one frame played ${maxBurst} ms of the server's events at once (a window's blows in a burst)`);
-    console.log(`  LV-2 playback: ${frames} frames, hero moving in ${(100 * moving / Math.max(1, frames)).toFixed(1)}%, max step ${maxStep.toFixed(3)} tiles, widest frame of events ${maxBurst} ms of server time (${worst.length} events)`);
+    ok('LV-2', maxBurst <= BUDGET.maxEventSpreadMs, `one frame played ${maxBurst} ms of the server's events at once (a burst)`);
+    ok('LV-5', unnamed === 0, `${unnamed} unit(s) had no sprite (drawn as nothing; was a brown stub box)`);
+    ok('LV-5', kinds.size >= 2, `only ${[...kinds].join(', ')} monsters were drawn over the run (the pose was withheld: kinds must come from the unit book)`);
+    ok('LV-5', barsSeen > 0 && badBars === 0, `${badBars} of ${barsSeen} monster bars were not the HP at the instant shown (a grey empty bar)`);
+    console.log(`  LV-2 watched: first drawn ${firstDrawn - T0 + 500} ms after Enter, first move ${firstMove - T0} ms after the hunt began, hero moving in ${(100 * moving / Math.max(1, frames)).toFixed(1)}% of ${frames} frames, max step ${maxStep.toFixed(3)} tiles, widest event frame ${maxBurst} ms; monsters ${[...kinds].join('/')}, ${barsSeen} bars`);
   }
 
   { // LV-3
@@ -224,14 +266,17 @@ async function pageRules(M) {
   const { chromium } = await import('playwright');
   const { launchOptions } = await import('./_chrome.mjs');
   const H = await import('./_client-harness.mjs');
-  const wins = windows(M, 200000);
-  const poll = M.CFG.SESSION_CONFIG.huntPollMs;
+  /* The page's server: the shipped engine on the real ground, answering hunt_watch like the edge
+     (a peek below the floor, a commit past it), its clock mapped onto the page's. */
+  const srv = engineServer(M);
   const start = Date.now();
   let version = LIVE.version;
-  const shift = (ms) => ms - T0 + start - 2 * poll;       // the engine's clock mapped onto the page's
-  const envNow = () => { const e = clone(LIVE); e.version = ++version; e.now = new Date().toISOString(); e.hunt.pose.at_ms = Date.now() - 1000; return e; };
-  const shiftTl = (tl) => ({ hunt_track: tl.hunt_track.map((s) => ({ ...s, atMs: shift(s.atMs) })),
-    hunt_events: tl.hunt_events.map((ev) => ({ ...ev, atMs: shift(ev.atMs) })), hunt_server_now_ms: Date.now() });
+  const shift = (ms) => ms - T0 + start;
+  const engNow = () => T0 + (Date.now() - start);
+  const envNow = () => { const e = clone(LIVE); e.version = ++version; e.now = new Date().toISOString(); e.hunt.pose = null; return e; };
+  const shiftTl = (tl) => (tl ? { hunt_track: tl.hunt_track.map((x) => ({ ...x, atMs: shift(x.atMs) })),
+    hunt_events: tl.hunt_events.map((ev) => ({ ...ev, atMs: shift(ev.atMs) })), hunt_units: tl.hunt_units,
+    hunt_from_ms: shift(tl.hunt_from_ms), hunt_server_now_ms: Date.now() } : { hunt_server_now_ms: Date.now() });
   const { server, port } = await H.serve({});
   const browser = await chromium.launch(launchOptions({ headless: true }));
   try {
@@ -246,11 +291,11 @@ async function pageRules(M) {
       const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
       if (name === 'hr_load') return json(envNow());
       if (name === 'hr-accrue') {
-        const due = wins.filter((w) => shift(w.at) <= Date.now() && !w.sent);
-        if (!due.length) return json({ ok: true, accrued: false });
-        for (const w of due) w.sent = true;
-        const tl = due.map((w) => shiftTl(w.tl));
-        return json(Object.assign(envNow(), { accrued: true, hunt_track: tl.flatMap((t) => t.hunt_track), hunt_events: tl.flatMap((t) => t.hunt_events), hunt_server_now_ms: Date.now() }));
+        const body = JSON.parse(r.request().postData() || '{}');
+        if (body.verb !== 'hunt_watch') return json({ ok: true, accrued: false });
+        const e = engNow();
+        if (e - srv.from >= 15000) return json(Object.assign(envNow(), { settled: true }, shiftTl(srv.commit(e))));
+        return json(Object.assign({ ok: true, settled: false, watch: true }, shiftTl(srv.peek(e))));
       }
       return json({ ok: true });
     });
@@ -291,7 +336,11 @@ async function pageRules(M) {
 /* ── --mutate: each planted defect must turn its rule RED (node rules). ── */
 const MUTANTS = [
   ['a read carries no clock (LV-1)', 'src/session/character-session.js', '      if (Number.isSafeInteger(ms)) this.timeline.ingest({ serverNowMs: ms }, this._now());', '', /^LV-1/],
-  ['the scene plays 600 ms behind a 16 s cadence (LV-2)', 'src/session/config.js', '  huntPlaybackDelayMs: 19000,', '  huntPlaybackDelayMs: 600,', /^LV-2/],
+  ['no entrance stand-in before the first window (LV-1)', 'src/hunt-view/scene.js', '    if (!hero && read.viewed !== null && read.entrance) hero = unitAt(read.viewed, now, read.entrance);', '', /^LV-1/],
+  ['the scene plays 600 ms behind a 2 s watch (LV-2)', 'src/session/config.js', '  huntPlaybackDelayMs: 3500,', '  huntPlaybackDelayMs: 600,', /^LV-2/],
+  ['the viewed hunt is not watched (16 s polls; LV-2)', 'src/session/character-session.js', '    this._watched = on === true;', '    this._watched = false;', /^LV-2/],
+  ['a monster the snapshot dropped is unnamed (LV-5)', 'src/hunt-view/scene.js', "(typeof tl.kindOf === 'function' ? tl.kindOf(u) : null)", 'null', /^LV-5/],
+  ["a monster's bar is the snapshot's HP (LV-5)", 'src/hunt-view/scene.js', "const played = hero || typeof tl.hpAt !== 'function' ? null : tl.hpAt(u, now);", 'const played = null;', /^LV-5/],
   ['the per-minute figure printed as /s (LV-3)', 'src/shell/widgets/action-bar.js', 'regen(hero.hpPerS)', 'regen(hero.hpPerS * 60)', /^LV-3/],
   ['HP regen at the resting rate (LV-3)', 'src/session/hunt-sections.js', '* VITALS.inFightRegenPermillePerS *', '* 60 *', /^LV-3/],
 ];

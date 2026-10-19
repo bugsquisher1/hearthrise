@@ -1418,7 +1418,7 @@ export function accrueHunt(inp) {
     worldSwingFrom, worldSwingTo: sim.world ? sim.world.swing : worldSwingFrom,
     settledTo: sim.nextSwingAtMs,
     tickMs,
-    track: sim.track, events: sim.events,
+    track: sim.track, events: sim.events, units: sim.units,
     members: out,
   };
 }

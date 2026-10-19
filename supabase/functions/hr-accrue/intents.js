@@ -578,6 +578,12 @@ export const INTENT_REGISTRY = Object.freeze({
      `collectsFirst: false`: it IS the settle. Hunts are idle (Tyler
      2026-10-16): the C2 `hunt_use` press verb was retired with the bar. */
   hunt_settle: Object.freeze({ bucket: 'accrue', needsKey: false, collectsFirst: false }),
+  /* `hunt_watch` — the VIEWED character's near-live picture (2026-10-19): polled every ~2 s, it
+     settles exactly like hunt_settle once the floor has passed and, below it, answers the
+     uncommitted timeline of the owed window (writes nothing, moves no value). Its own `watch`
+     bucket (hr_rate_gate, 45 a minute per account) so a 2 s poll never spends the accrue budget
+     and a forged faster poll is refused, not simulated. No key, no collect: hunt_settle's reasons. */
+  hunt_watch: Object.freeze({ bucket: 'watch', needsKey: false, collectsFirst: false }),
   /* THE CHARACTER SHEET (./character-sheet.js) — a READ that stores display
      data compare-and-set. The `accrue` budget (a window opening or a changed
      loadout asks once). No key: a repeat computes the same sheet from the same

@@ -65,6 +65,14 @@ import { heroSetup } from '../../../src/core/hunt-spawn.js';
    held back. */
 export const HUNT_SETTLE_MIN_MS = 15000;
 
+/* THE WATCH (hunt_watch, the VIEWED character's near-live picture): below the floor the door
+   PRICES NOTHING AND WRITES NOTHING, but answers the timeline of [settled_to, now] the engine
+   will commit at the next settle (the engine is window-cut invariant: the same seed per swing
+   gives the same steps and events however the windows are cut; tests/hunt-watch.mjs). Bounded
+   by its own rate bucket (hr_rate_gate 'watch') and this window: a peek never simulates more
+   than the floor plus one poll. */
+export const HUNT_WATCH_MAX_MS = HUNT_SETTLE_MIN_MS + 5000;
+
 /* hr_apply clamps the degrade ladder can escape by asking for less. A hunt
    halves its WINDOW (fewer swings), never its rates. */
 export const HUNT_DEGRADABLE = Object.freeze([
@@ -174,6 +182,14 @@ async function settleOnce(o, mode) {
   const { env, fromMs } = plan;
   let toMs = plan.toMs;
   let degraded = 0;
+  if (plan.peek) {
+    /* THE WATCH'S PEEK: the proposal, never committed. Only the timeline and the server clock
+       go back (no envelope: nothing changed, the client keeps the record it holds). */
+    const p = await proposeHuntSettle(plan, toMs, 0);
+    return { outcome: 'nothing', reason: 'watch', status: 200,
+      body: { ok: true, settled: false, watch: true,
+        ...huntTimeline(p.out.accrued ? p.out.track : [], p.out.accrued ? p.out.events : [], fromMs, toMs, plan.nowMs, p.out.accrued ? p.out.units : null) } };
+  }
   for (;;) {
     const p = await proposeHuntSettle(plan, toMs, degraded);
     if (!p.out.accrued) {
@@ -192,7 +208,7 @@ async function settleOnce(o, mode) {
         status: 200,
         body: { ...(res.state || {}), ok: true, settled: !replayed, hunt_settle: own.hunt_settle || null,
           session: own.session || null, instance: res.instance || null,
-          ...(o.project === true ? huntTimeline(p.out.track, p.out.events, fromMs, p.out.settledTo, plan.nowMs) : {}),
+          ...(o.project === true ? huntTimeline(p.out.track, p.out.events, fromMs, p.out.settledTo, plan.nowMs, p.out.units) : {}),
           ...(degraded ? { degraded } : {}) },
       };
     }
@@ -248,7 +264,8 @@ export async function readHuntSettle(o, mode) {
   if (!(nowMs > fromMs)) return notDue;
   const minMs = Number.isFinite(Number(o.minWindowMs)) ? Math.max(0, Number(o.minWindowMs))
     : (mode === 'settle' ? HUNT_SETTLE_MIN_MS : 0);
-  if (!pending && nowMs - fromMs < minMs) {
+  const peek = !pending && nowMs - fromMs < minMs;
+  if (peek && o.watch !== true) {
     return { answer: { outcome: 'nothing', reason: 'below_min_span', status: 200,
       body: { ok: true, settled: false, reason: 'below_min_span', ...env } } };
   }
@@ -261,9 +278,10 @@ export async function readHuntSettle(o, mode) {
     m.hero = heroSetup({ weaponType: m._weaponType, options: m._options, bar: m._bar, partyRoles });
     if (!m.hero) return { answer: { outcome: 'refused', reason: 'no_role', ...refusal(409, 'no_role') } };
   }
-  const toMs = Number.isFinite(Number(o.atMs)) ? Math.min(nowMs, Math.floor(Number(o.atMs))) : nowMs;
+  let toMs = Number.isFinite(Number(o.atMs)) ? Math.min(nowMs, Math.floor(Number(o.atMs))) : nowMs;
+  if (peek) toMs = Math.min(toMs, fromMs + HUNT_WATCH_MAX_MS);
   if (!(toMs > fromMs)) return notDue;
-  return { env, inst, members, where, fromMs, toMs, nowMs };
+  return { env, inst, members, where, fromMs, toMs, nowMs, peek };
 }
 
 /* (2) THE PROPOSAL: the engine over [fromMs, toMs) and every member's keyed
@@ -374,6 +392,7 @@ export function parseHunts(raw) {
 export async function runHuntVerb(o) {
   const v = await settleHunt({
     exec: o.exec, user: o.user, slot: o.slot, mode: 'settle', bucket: o.bucket, project: true,
+    watch: o.verb === 'hunt_watch',
   });
   return { status: v.status, body: { ...v.body, verb: o.verb } };
 }

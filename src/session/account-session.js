@@ -119,8 +119,14 @@ export class AccountSession {
   view(slot) {
     if (!this._chars.has(slot) || this.viewed === slot) return this.viewed === slot;
     this.viewed = slot;
+    this._syncWatch();
     this._emit('viewed', slot);
     return true;
+  }
+
+  /* Only the viewed character's hunt is WATCHED (near-live, CharacterSession.setWatched). */
+  _syncWatch() {
+    for (const [s, cs] of this._chars) if (typeof cs.setWatched === 'function') cs.setWatched(s === this.viewed);
   }
 
   subscribe(fn) { this._listeners.add(fn); return () => this._listeners.delete(fn); }
@@ -176,6 +182,7 @@ export class AccountSession {
       hidden: (id) => !!(this.social && this.social.blocks && this.social.blocks.has(id)),
       timers: this._timers.setInterval ? { setTimer: this._timers.setInterval, clearTimer: this._timers.clearInterval } : null }));
     if (this.viewed === null) this.viewed = slot;
+    this._syncWatch();
     this._emit('opened', slot);
     if (this.social) this.social.start();
     return { ok: true, session: cs };
@@ -210,6 +217,7 @@ export class AccountSession {
     if (town) { this._towns.delete(slot); town.destroy(); }
     cs.close();
     if (this.viewed === slot) this.viewed = this._chars.size ? this.characters()[0].slot : null;
+    this._syncWatch();
     this._emit('closed', slot);
     return true;
   }

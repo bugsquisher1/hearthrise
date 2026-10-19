@@ -160,19 +160,50 @@ export class CharacterSession {
   /* THE HUNT RE-READ: armed by every applied answer while a hunt is open, never twice. */
   _armHuntPoll() {
     if (this._closed || this._huntTimer || !this._huntOpen()) return;
-    this._huntTimer = this._setTimer(() => { this._huntTimer = null; this._huntPoll(); }, SESSION_CONFIG.huntPollMs);
+    const ms = this._watched && !this._watchBackoff ? SESSION_CONFIG.huntWatchMs : SESSION_CONFIG.huntPollMs;
+    this._huntTimer = this._setTimer(() => { this._huntTimer = null; this._huntPoll(); }, ms);
   }
 
   async _huntPoll() {
     if (this._closed || !this._huntOpen()) return;
-    try { await this.hello(); } catch (e) { /* the next ask retries */ }
+    try { if (this._watched && !this._watchBackoff) await this.watch(); else { this._watchBackoff = false; await this.hello(); } } catch (e) { /* the next ask retries */ }
     this._armHuntPoll();
+  }
+
+  /**
+   * Is this the character on screen? The viewed one's hunt is WATCHED: asked every huntWatchMs
+   * (near-live picture); every other open character keeps the huntPollMs settle.
+   */
+  setWatched(on) {
+    const was = this._watched === true;
+    this._watched = on === true;
+    if (this._watched && !was && this._huntTimer) { this._clearTimer(this._huntTimer); this._huntTimer = null; }
+    if (this._watched && !was) this._armHuntPoll();
+  }
+
+  /** One hunt_watch: the owed window's timeline (nothing committed), or a settle's whole answer. */
+  async watch() {
+    if (this._closed) return false;
+    const verb = 'hunt_watch', fields = {};
+    const body = edgeBody(this.slot, verb, fields, newIdem());
+    if (!body) return false;
+    const ans = await this._server.accrue(body);
+    if (this._closed) return false;
+    const b = ans && ans.ok && ans.body && typeof ans.body === 'object' ? ans.body : null;
+    if (b && b.ok === true && b.watch === true) { this._play(b); this._emit('watch'); return true; }
+    if (b && b.ok === true && b.state) return this._take(b, 'watch');
+    /* refused (rate-limited, no hunt, an old engine): one ordinary settle next, then watch again */
+    this._watchBackoff = true;
+    if (b && b.ok === true) return this.load();
+    this._answerFailed(ans);
+    return false;
   }
 
   /* The answer's timeline goes to the playback buffer; the snapshot's pose reconciles it gently. */
   _play(body) {
     if (Array.isArray(body.hunt_track) || Array.isArray(body.hunt_events)) {
-      this.timeline.ingest({ track: body.hunt_track, events: body.hunt_events, serverNowMs: body.hunt_server_now_ms }, this._now());
+      this.timeline.ingest({ track: body.hunt_track, events: body.hunt_events, serverNowMs: body.hunt_server_now_ms,
+        units: body.hunt_units, fromMs: body.hunt_from_ms }, this._now());
     } else {
       /* A plain read (hr_load, or an accrue the settle floor answered without a window) still
          carries the server's clock (`now`): measure it, or a hunt seen only through reads has no

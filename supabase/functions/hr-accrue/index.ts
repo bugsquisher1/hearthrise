@@ -580,7 +580,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
        and nothing else: no time, no HP, no count, no item. It runs the ONE hunt
        settle (./hunt-settle.js) the world tick runs, through
        hr_hunt_apply_instance. Hunts are idle: there is no press verb. */
-    if (intent.verb === 'hunt_settle') {
+    if (intent.verb === 'hunt_settle' || intent.verb === 'hunt_watch') {
       const out = await runHuntVerb({
         exec,
         user,                       // the VERIFIED subject, never a body field

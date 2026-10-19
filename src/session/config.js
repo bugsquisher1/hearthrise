@@ -32,11 +32,14 @@ export const SESSION_CONFIG = Object.freeze({
       (hunt-settle.js HUNT_SETTLE_MIN_MS, 15 s) so each ask pays a window; the world tick only flushes a
       session owed 90 s or more, so without this an attended hunt shows nothing for a minute and a half. */
   huntPollMs: 16000,
-  /** How far behind the server the hunt scene plays (src/hunt-view/timeline.js delayMs). A window's
-      track and events arrive once per settle (every huntPollMs, the player door's floor), and they
-      describe the PAST huntPollMs; played 600 ms behind, a whole window landed in the past at once and
-      the scene jumped to its end and froze until the next one (the v0.2.7 "slideshow"). Behind by one
-      poll plus slack, every step and blow of every window plays at its own instant. The snapshot's
-      numbers (HP, loot, the bar) stay live; only the moving picture is buffered. */
-  huntPlaybackDelayMs: 19000,
+  /** THE VIEWED character's hunt asks this often instead (hr-accrue `hunt_watch`): below the settle
+      floor the engine answers the owed window's timeline without committing anything (its own
+      per-character rate bucket, 40 a minute), past it it settles. So the picture is near-live. */
+  huntWatchMs: 2000,
+  /** How far behind the server the hunt scene plays (src/hunt-view/timeline.js delayMs): one watch
+      poll plus slack. A window's track and events describe the PAST poll; played closer than a poll
+      behind, each would land in the past at once and the scene would jump and freeze (the v0.2.7
+      "slideshow", 600 ms behind a 16 s cadence); played a 16 s poll behind (v0.2.8) the hero stood
+      still for 20 s after Enter. The snapshot's numbers (HP, loot, the bar) stay live. */
+  huntPlaybackDelayMs: 3500,
 });

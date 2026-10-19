@@ -155,6 +155,9 @@ export const VERBS = Object.freeze(
        carries the slot and nothing else, and runs the ONE hunt settle the world
        tick runs (./hunt-settle.js). Hunts are idle: no press verb. */
     'hunt_settle',
+    /* THE WATCH (2026-10-19): `hunt_watch`, the viewed character's near-live picture. The slot and
+       nothing else; below the floor it answers the uncommitted timeline and writes nothing. */
+    'hunt_watch',
     /* THE CHARACTER SHEET (lane character-window, 2026-10-25). `sheet` carries
        the slot and nothing else: the engine computes the combat numbers from
        server state and stores them compare-and-set (./character-sheet.js). It

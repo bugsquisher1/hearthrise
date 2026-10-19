@@ -30,6 +30,8 @@ export const EDGE_INTENTS = Object.freeze({
   sheet: Object.freeze([]),
   /* Bury (and the other Prayer offerings) is the artisan recipe; idle stops it. */
   set_activity: Object.freeze(['activity']),
+  /* The viewed character's near-live hunt: the slot and nothing else (hr-accrue hunt_watch). */
+  hunt_watch: Object.freeze([]),
 });
 
 /* The engine's own bounds (request.js MAX_SELL_LINES, MAX_QTY, CATALOGUE_ID_RE, OFFER shape). */

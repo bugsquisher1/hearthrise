@@ -98,6 +98,8 @@ export const CLIENT_EDGE_INTENTS = Object.freeze({
   sheet: [],
   /* the Inventory's Bury: an artisan recipe by id, or idle to stop; the engine collects before it switches (hr-accrue set-activity.js) */
   set_activity: ['activity'],
+  /* the viewed character's near-live hunt: the slot only (hr-accrue hunt_watch; writes nothing below the settle floor) */
+  hunt_watch: [],
 });
 const EDGE = 'src/session/edge-intents.js';
 const VALUE_FIELD = /price|gold|cost|total|amount|ask/i;
@@ -142,7 +144,7 @@ export function check(files) {
         && /constbody=edgeBody\(this\.slot,verb,fields,newIdem\(\)\);if\(!body\)return/.test(code.replace(/\s+/g, ''));
       if (arg !== '{slot:this.slot}' && !built) problems.push(`IS-2 ${f} sends the edge ${m[1].trim()} — the client may name its slot, or an edgeBody-built item intent, and nothing else`);
     }
-    for (const m of code.matchAll(/\bedgeIntent\(\s*'([a-z_]+)'/g)) {
+    for (const m of code.matchAll(/\b(?:edgeIntent\(\s*|const verb = )'([a-z_]+)'/g)) {
       edgeCalled.add(m[1]);
       if (!Object.prototype.hasOwnProperty.call(CLIENT_EDGE_INTENTS, m[1])) problems.push(`IS-5 ${f} sends the engine intent ${m[1]}, which is not on CLIENT_EDGE_INTENTS`);
     }

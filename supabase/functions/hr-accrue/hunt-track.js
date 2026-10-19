@@ -63,9 +63,13 @@ export function huntPlayback(track, events, fromMs, toMs) {
  * `hunt_events` (each with its stable id), `hunt_server_now_ms` (the database clock the window
  * was read at, so the client measures its offset), and `hunt_cut` (what the bound dropped).
  */
-export function huntTimeline(track, events, fromMs, toMs, serverNowMs) {
+export function huntTimeline(track, events, fromMs, toMs, serverNowMs, units) {
   const pb = huntPlayback(track, events, fromMs, toMs);
   return {
+    /* the window's monsters, { id: [kind, maxHp, hp at the window's start or spawn] }, and that
+       start: named, sized and filled even after the snapshot drops them */
+    hunt_units: units && typeof units === 'object' ? units : {},
+    hunt_from_ms: pb.from,
     hunt_track: pb.steps.map(([u, x, y, atMs]) => ({ u, x, y, atMs })),
     hunt_events: pb.events,
     hunt_server_now_ms: Math.floor(Number(serverNowMs) || 0),

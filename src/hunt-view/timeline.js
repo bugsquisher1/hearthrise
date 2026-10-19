@@ -22,6 +22,11 @@
 //   T4 a snapshot pose that disagrees with where the timeline left a unit adds
 //      ONE walking step toward it (reconcile gently); it never teleports a unit
 //      that is mid-step and never rewrites a step already played.
+//   T6 the UNIT BOOK: each batch's `units` ({ id: [kind, maxHp, hp at the batch's start] },
+//      the settle answer's hunt_units) names and sizes a monster for as long as it plays, and its
+//      bar at the instant shown is that start HP moved by the dmg / heal events at or before the
+//      instant (hpAt): the HP of the moment drawn, never the snapshot's later number.
+//   T7 a step that does not move the unit (an anchor on the tile it already holds) adds nothing.
 //   T5 bounded: at most `maxSteps` per unit and `maxEvents` remembered ids, and
 //      a unit the snapshot's pose no longer lists is forgotten once its last step
 //      is `forgetMs` behind the pose (a corpse has lain; a respawn is a new id).
@@ -52,6 +57,7 @@ export function createTimeline(o) {
   const queue = [];                  // events not yet played, ascending atMs
   const listeners = new Set();
   const arrivals = new Set();        // told of each NEW event at ingest (the alerts), before playback
+  const book = new Map();            // unit -> { kind, maxHp, bases: [[atMs, hp]], deltas: [[atMs, d]] } (T6)
 
   function measure(serverNowMs, clientNowMs) {
     if (!isInt(serverNowMs) || !Number.isFinite(clientNowMs)) return;
@@ -85,6 +91,7 @@ export function createTimeline(o) {
     if (a.some((s) => s.atMs === atMs)) return false;
     let i = a.length;
     while (i > 0 && a[i - 1].atMs > atMs) i--;
+    if (i > 0 && a[i - 1].x === x && a[i - 1].y === y) return false;   // T7: holds its tile already
     a.splice(i, 0, { x, y, atMs, d: 0, hx: 0, hy: 1 });
     derive(a, i);
     if (a.length > cfg.maxSteps) a.splice(0, a.length - cfg.maxSteps);
@@ -102,9 +109,33 @@ export function createTimeline(o) {
    * @param {number} clientNowMs  the caller's clock
    * @returns {{steps: number, events: number}} what was new
    */
+  function noteUnits(units, fromMs) {
+    if (!units || typeof units !== 'object' || !isInt(fromMs)) return;
+    for (const [k, v] of Object.entries(units)) {
+      const u = Number(k);
+      if (!isInt(u) || !Array.isArray(v) || typeof v[0] !== 'string' || !isInt(v[1]) || v[1] <= 0) continue;
+      let r = book.get(u);
+      if (!r) { r = { kind: v[0], maxHp: v[1], bases: [], deltas: [] }; book.set(u, r); }
+      if (isInt(v[2]) && !r.bases.some((x) => x[0] === fromMs)) {
+        r.bases.push([fromMs, Math.max(0, Math.min(v[1], v[2]))]);
+        r.bases.sort((x, y) => x[0] - y[0]);
+        if (r.bases.length > 8) r.bases.splice(0, r.bases.length - 8);
+      }
+    }
+    if (book.size > cfg.maxEvents) for (const u of book.keys()) { if (book.size <= cfg.maxEvents) break; if (!steps.has(u)) book.delete(u); }
+  }
+  function noteDelta(ev) {
+    const r = book.get(ev.t);
+    if (!r || !Number.isFinite(ev.amount)) return;
+    const d = ev.type === 'heal' ? ev.amount : -ev.amount;
+    r.deltas.push([ev.atMs, d]);
+    if (r.deltas.length > 512) r.deltas.splice(0, r.deltas.length - 512);
+  }
+
   function ingest(batch, clientNowMs) {
     const b = batch && typeof batch === 'object' ? batch : {};
     measure(b.serverNowMs, clientNowMs);
+    noteUnits(b.units, b.fromMs);
     let ns = 0, ne = 0;
     for (const s of Array.isArray(b.track) ? b.track : []) if (s && addStep(s.u, s.x, s.y, s.atMs)) ns++;
     for (const ev of Array.isArray(b.events) ? b.events : []) {
@@ -116,6 +147,7 @@ export function createTimeline(o) {
       while (i > 0 && queue[i - 1].atMs > ev.atMs) i--;
       const fresh = Object.freeze(Object.assign({ key: k }, ev));
       queue.splice(i, 0, fresh);
+      if (ev.type === 'dmg' || ev.type === 'heal' || ev.type === 'status_tick') noteDelta(fresh);
       ne++;
       for (const fn of Array.from(arrivals)) fn(fresh);
     }
@@ -179,8 +211,23 @@ export function createTimeline(o) {
     return n;
   }
 
+  /** The unit's kind from the book (T6), or null. */
+  function kindOf(u) { const r = book.get(u); return r ? r.kind : null; }
+  /** { hp, maxHp } of a booked unit at the server instant shown at client time `now` (T6), or null. */
+  function hpAt(u, now) {
+    const r = book.get(u);
+    const t = serverAt(now);
+    if (!r || t === null || !r.bases.length) return null;
+    let base = null;
+    for (const x of r.bases) if (x[0] <= t) base = x;
+    if (!base) base = r.bases[0];
+    let hp = base[1];
+    for (const [at, d] of r.deltas) if (at >= base[0] && at <= t) hp += d;
+    return { hp: Math.max(0, Math.min(r.maxHp, hp)), maxHp: r.maxHp };
+  }
+
   return {
-    ingest, reconcile, advance, positionAt, clientAt,
+    ingest, reconcile, advance, positionAt, clientAt, kindOf, hpAt,
     /** How long a unit takes to roll one tile (ms): the walk speed the playback assumes. */
     tileMs: cfg.tileMs,
     units: () => Array.from(steps.keys()),

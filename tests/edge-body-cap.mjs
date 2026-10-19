@@ -13,7 +13,7 @@
 //   BC-1  a streamed body past MAX_BODY_BYTES (no Content-Length) is refused, not buffered
 //   BC-2  a declared Content-Length past it is refused before a byte is read
 //   BC-3  a body at the cap, and an ordinary intent, are read whole and parsed
-//   BC-4  index.ts reads the body only through readBodyCapped (no req.json / req.text)
+//   BC-4  index.ts reads the body only through readBodyBytes at MAX_INTENT_BYTES (no req.json / req.text)
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, mkdtempSync, cpSync, writeFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -32,29 +32,29 @@ async function rules(base) {
   const fails = [];
   const ok = (cond, msg) => { if (!cond) fails.push(msg); };
   const R = await import(pathToFileURL(join(base, FN, 'request.js')).href);
-  const max = R.MAX_BODY_BYTES;
+  const max = R.MAX_INTENT_BYTES;
   ok(max === 65536, `BC-0 the cap is ${max}, want 65536`);
   const big = new Uint8Array(max + 1).fill(32);
-  const a = await R.readBodyCapped(new Request('http://x/', { method: 'POST', body: streamOf(big, 4096), duplex: 'half' }));
-  ok(a.tooLarge === true, 'BC-1 a streamed body one byte past the cap was read: ' + JSON.stringify(Object.keys(a)));
+  const a = await R.readBodyBytes(new Request('http://x/', { method: 'POST', body: streamOf(big, 4096), duplex: 'half' }), max);
+  ok(a === null, 'BC-1 a streamed body one byte past the cap was read (' + (a && a.byteLength) + ' bytes)');
   /* As the platform hands it over (a Node Request may not carry a caller's Content-Length): headers + stream. */
   const lying = { headers: new Headers({ 'content-length': String(max + 10) }),
     body: new ReadableStream({ pull(c) { c.close(); } }) };
-  const b = await R.readBodyCapped(lying);
-  ok(b.tooLarge === true && lying.body.locked === false, 'BC-2 a declared oversize body was read (or not refused)');
-  const at = await R.readBodyCapped(new Request('http://x/', { method: 'POST', body: streamOf(new Uint8Array(max).fill(32), 8192), duplex: 'half' }));
-  ok(at.text !== undefined && at.text.length === max, 'BC-3 a body exactly at the cap was not read whole');
-  const intent = await R.readBodyCapped(new Request('http://x/', { method: 'POST', body: JSON.stringify({ slot: 0, verb: 'hunt_settle' }) }));
-  ok(R.bodyJson(intent.text).verb === 'hunt_settle', 'BC-3 an ordinary intent was not parsed');
+  const b = await R.readBodyBytes(lying, max);
+  ok(b === null && lying.body.locked === false, 'BC-2 a declared oversize body was read (or not refused)');
+  const at = await R.readBodyBytes(new Request('http://x/', { method: 'POST', body: streamOf(new Uint8Array(max).fill(32), 8192), duplex: 'half' }), max);
+  ok(at instanceof Uint8Array && at.byteLength === max, 'BC-3 a body exactly at the cap was not read whole');
+  const intent = await R.readBodyBytes(new Request('http://x/', { method: 'POST', body: JSON.stringify({ slot: 0, verb: 'hunt_settle' }) }), max);
+  ok(R.bodyJson(intent).verb === 'hunt_settle', 'BC-3 an ordinary intent was not parsed');
   const src = readFileSync(join(base, FN, 'index.ts'), 'utf8');
-  ok(!/\breq\.(json|text|arrayBuffer|formData|blob)\s*\(/.test(src) && /readBodyCapped\(req\)/.test(src), 'BC-4 index.ts reads the body outside readBodyCapped');
+  ok(!/\breq\.(json|text|arrayBuffer|formData|blob)\s*\(/.test(src) && /readBodyBytes\(req, MAX_INTENT_BYTES\)/.test(src), 'BC-4 index.ts reads the body outside the capped reader');
   return fails;
 }
 
 const MUTANTS = [
-  ['the stream is not counted (BC-1)', 'request.js', '      if (n > max) {', '      if (false) {', /^BC-1/],
-  ['the declared length is trusted to read on (BC-2)', 'request.js', '  if (Number.isFinite(declared) && declared > max) return { tooLarge: true };', '', /^BC-2/],
-  ['index.ts reads req.json() again (BC-4)', 'index.ts', '  const raw = await readBodyCapped(req);', '  const raw = { text: JSON.stringify(await req.json().catch(() => ({}))) };', /^BC-4/],
+  ['the stream is not counted (BC-1)', 'request.js', '      if (n > limit) {', '      if (false) {', /^BC-1/],
+  ['the declared length is trusted to read on (BC-2)', 'request.js', '  if (Number.isFinite(declared) && declared > limit) return null;', '', /^BC-2/],
+  ['index.ts reads req.json() again (BC-4)', 'index.ts', '  const bytes = await readBodyBytes(req, MAX_INTENT_BYTES);', '  const bytes = new TextEncoder().encode(JSON.stringify(await req.json().catch(() => ({}))));', /^BC-4/],
 ];
 
 async function main() {

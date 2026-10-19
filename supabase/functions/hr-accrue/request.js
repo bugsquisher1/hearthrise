@@ -128,20 +128,30 @@ export const VERBS = Object.freeze(
     'sheet']);
 export const DEFAULT_VERB = 'accrue';
 
-/* THE BODY CAP (Security, reopen review 2026-10-19). No verb's body comes near it (the largest is a
-   64-line bulk sale, a few KB); a larger one is refused before it is parsed, so a client cannot make
-   the engine buffer or JSON-parse an arbitrarily large payload. */
-export const MAX_BODY_BYTES = 65536;
+/* THE BODY CAP (Security, reopen review 2026-10-19). A player intent is read through the ONE bounded
+   reader below and refused past MAX_INTENT_BYTES: no verb's body comes near it (the largest is a 64-line
+   bulk sale, a few KB), and index.ts used to `req.json()` a body of any size. */
+export const MAX_INTENT_BYTES = 65536;
 
 /**
- * The request body as text, read through its stream and counted, or { tooLarge: true } past `max`
- * bytes (a declared Content-Length over it is refused before reading). Never throws.
- * @param {Request} req
+ * THE ONE BOUNDED READ of a request body (the player intent here, the world tick's body in ./tick.js):
+ * its BYTES, or `null` past `limit` (a declared Content-Length over it is refused before a byte is read;
+ * a streamed body is counted as it arrives and cancelled the moment it passes) or unreadable. A
+ * Request-like without a stream falls back to the whole-body read, still bounded. Never throws.
  */
-export async function readBodyCapped(req, max = MAX_BODY_BYTES) {
+export async function readBodyBytes(req, limit) {
   const declared = Number(req.headers && req.headers.get ? req.headers.get('content-length') : NaN);
-  if (Number.isFinite(declared) && declared > max) return { tooLarge: true };
-  if (!req.body) return { text: '' };
+  if (Number.isFinite(declared) && declared > limit) return null;
+  if (!req.body || typeof req.body.getReader !== 'function') {
+    try {
+      if (typeof req.text === 'function') {
+        const b = new TextEncoder().encode(await req.text());
+        return b.byteLength > limit ? null : b;
+      }
+      if (typeof req.json === 'function') return new TextEncoder().encode(JSON.stringify(await req.json()));
+      return null;
+    } catch { return null; }
+  }
   const reader = req.body.getReader();
   const chunks = [];
   let n = 0;
@@ -150,22 +160,20 @@ export async function readBodyCapped(req, max = MAX_BODY_BYTES) {
       const { done, value } = await reader.read();
       if (done) break;
       n += value.byteLength;
-      if (n > max) { try { await reader.cancel(); } catch { /* already closed */ } return { tooLarge: true }; }
+      if (n > limit) { try { await reader.cancel(); } catch { /* closed */ } return null; }
       chunks.push(value);
     }
-  } catch {
-    return { text: '' };
-  }
+  } catch { return null; }
   const buf = new Uint8Array(n);
   let at = 0;
   for (const c of chunks) { buf.set(c, at); at += c.byteLength; }
-  return { text: new TextDecoder().decode(buf) };
+  return buf;
 }
 
-/** The capped body parsed as JSON; anything unparseable is `{}` (parseIntent then refuses it by field). */
-export function bodyJson(text) {
-  if (!text) return {};
-  try { return JSON.parse(text); } catch { return {}; }
+/** Bytes parsed as JSON; empty or unparseable is `{}` (parseIntent then refuses it field by field). */
+export function bodyJson(bytes) {
+  if (!(bytes instanceof Uint8Array) || bytes.byteLength === 0) return {};
+  try { return JSON.parse(new TextDecoder().decode(bytes)); } catch { return {}; }
 }
 
 /** The catalogue's activity vocabulary — the `kind` column of `hr_activities`

@@ -73,6 +73,7 @@
 // (not under src/**).
 // ============================================================================
 
+import { readBodyBytes } from './request.js';
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 
 import {
@@ -277,46 +278,8 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
    with a real `Request`; `body` may be absent (a Response-less stub), in which
    case there is nothing to read and `{}` is the honest answer. */
 export async function readTickBytes(req, limit = MAX_BODY_BYTES) {
-  const declared = Number(req.headers && req.headers.get
-    ? req.headers.get('content-length') : NaN);
-  if (Number.isFinite(declared) && declared > limit) return null;
-  if (!req.body || typeof req.body.getReader !== 'function') {
-    /* No stream to meter (a stub, or a runtime that buffered it already). Fall
-       back to the whole-body read, still bounded by the length check above, and
-       still returned as BYTES — `text()` then `TextEncoder` round-trips through
-       the same UTF-8 the sender used, which is what the mac is computed over. */
-    try {
-      if (typeof req.text === 'function') {
-        const t = await req.text();
-        const b = new TextEncoder().encode(t);
-        return b.byteLength > limit ? null : b;
-      }
-      if (typeof req.json === 'function') {
-        /* Last resort, for a stub that offers only `json()`: re-serialise. The
-           bytes are then OURS rather than the sender's, so `tickBodyAuthOk`
-           will refuse unless they happen to match — which is the safe
-           direction, and the reason the real runtime never lands here. */
-        return new TextEncoder().encode(JSON.stringify(await req.json()));
-      }
-      return null;
-    } catch { return null; }
-  }
-  const reader = req.body.getReader();
-  const chunks = [];
-  let n = 0;
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      n += value.byteLength;
-      if (n > limit) { await reader.cancel(); return null; }
-      chunks.push(value);
-    }
-  } catch { return null; }
-  const buf = new Uint8Array(n);
-  let at = 0;
-  for (const c of chunks) { buf.set(c, at); at += c.byteLength; }
-  return buf;
+  /* The ONE bounded reader (./request.js readBodyBytes): the player intent is read by it too. */
+  return readBodyBytes(req, limit);
 }
 
 /* The parse, SEPARATED FROM THE READ so that authentication can sit between

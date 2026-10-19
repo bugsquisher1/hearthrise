@@ -80,7 +80,7 @@ import { engineInputsFromEnvelope } from './envelope.js';
    never runs for a hunter. */
 import { runHuntVerb, settleHunt, HUNT_OPEN_SQL } from './hunt-settle.js';
 import { verifyJwt, bearerOf, gotrueIntrospector } from './jwt.js';
-import { parseIntent, readBodyCapped, bodyJson } from './request.js';
+import { parseIntent, readBodyBytes, bodyJson, MAX_INTENT_BYTES } from './request.js';
 import { frameSelfMarker } from './frame-self.js';
 import { intentIdFor, isKnownVerb, INTENT_ERRORS, rateBucketFor } from './intents.js';
 import { runSetActivity } from './set-activity.js';
@@ -322,9 +322,9 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
      that a Node test can execute. See ./request.js. Four fields come back and
      every one of them is a name or a selector; none is a value any progression
      number is computed from. */
-  const raw = await readBodyCapped(req);
-  if (raw.tooLarge) return json({ ok: false, error: 'body_too_large' }, 413);
-  const intent = parseIntent(bodyJson(raw.text));
+  const bytes = await readBodyBytes(req, MAX_INTENT_BYTES);
+  if (bytes === null) return json({ ok: false, error: 'body_too_large' }, 413);
+  const intent = parseIntent(bodyJson(bytes));
   const slot = intent.slot;
 
   /* An UNKNOWN verb is refused, never defaulted to `accrue`. An ABSENT verb IS

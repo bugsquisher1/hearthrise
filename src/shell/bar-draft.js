@@ -172,14 +172,50 @@ export function emptyOpen(cs, repaint, onOk) {
   sendBar(cs, bar, repaint, () => { closeSlot(cs); if (onOk) onOk(); });
 }
 
-/** Drag a slot to another place on the bar: it moves there and the slots between shift (one intent). */
-export function placeSlot(cs, from, to, repaint) {
-  const bar = serverBar(cs);
-  if (!bar || !(from >= 0 && from < SLOTS) || !(to >= 0 && to < SLOTS) || from === to || !bar[from]) return false;
-  const [x] = bar.splice(from, 1);
-  bar.splice(to, 0, x);
-  sendBar(cs, bar, repaint, () => closeSlot(cs));
-  return true;
+/* THE THREE DROPS (Tyler 10-19: a drag never moves anything it was not told to).
+   Each is a pure plan over the server's bar, then ONE intent; nothing on screen
+   moves until the re-read envelope says so. A plan is null when it cannot apply. */
+const inRange = (i) => Number.isInteger(i) && i >= 0 && i < SLOTS;
+
+/** Onto an EMPTY slot: the action moves there; its old slot empties. */
+export function movePlan(bar, from, to) {
+  if (!bar || !inRange(from) || !inRange(to) || from === to || !bar[from] || bar[to]) return null;
+  const out = bar.slice();
+  out[to] = out[from]; out[from] = null;
+  return out;
+}
+
+/** Swap: the dragged action and the target change places; nothing else moves. */
+export function swapPlan(bar, from, to) {
+  if (!bar || !inRange(from) || !inRange(to) || from === to || !bar[from] || !bar[to]) return null;
+  const out = bar.slice();
+  [out[from], out[to]] = [out[to], out[from]];
+  return out;
+}
+
+/**
+ * Insert here: the dragged action takes the target slot; the target and the slots
+ * after it shift one place later, up to the first empty slot (its old slot counts,
+ * once emptied). With no empty slot after the target there is no room: null.
+ */
+export function insertPlan(bar, from, to) {
+  if (!bar || !inRange(from) || !inRange(to) || from === to || !bar[from] || !bar[to]) return null;
+  const out = bar.slice();
+  const x = out[from];
+  out[from] = null;
+  let k = to;
+  while (k < SLOTS && out[k]) k++;
+  if (k >= SLOTS) return null;
+  for (let j = k; j > to; j--) out[j] = out[j - 1];
+  out[to] = x;
+  return out;
+}
+
+/** Send a drop's plan (ONE intent); resolves to the server's answer, or { ok:false } when the plan cannot apply. */
+export function sendPlan(cs, plan, repaint) {
+  const bar = plan(serverBar(cs));
+  if (!bar) return Promise.resolve({ ok: false, error: 'no_room' });
+  return sendBar(cs, bar, repaint, () => closeSlot(cs));
 }
 
 /** Move slot `i` one place earlier (by -1) or later (+1) on the server; an open slot's draft follows it. */

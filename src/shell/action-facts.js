@@ -183,3 +183,54 @@ export function conflictsOf(wires, set) {
   });
   return out;
 }
+
+/**
+ * WHY A SLOT CANNOT FIRE NOW, from the server's own facts and the catalogue
+ * rules the server applies (hr_hunt_settings_view `usable`: the ability is
+ * active, of the worn weapon's discipline, its rune in the bag; a consume or
+ * attack slot: stock, or the store behind it under the supply setting):
+ *   { code, text, glyph, strike }   or null when nothing stops it.
+ * `strike` = the server would not fire it at all; a reason without strike
+ * (mana short) only waits. Order: the first rule that fails is the one named.
+ */
+export function reasonOf(sl, set, bag, hero) {
+  if (!sl || sl.empty) return null;
+  const a = sl.action;
+  if (a.type === 'ability') {
+    const r = ABILITIES[a.id];
+    if (!r) return { code: 'unknown', text: 'The server does not know this ability.', glyph: 'uiLock', strike: true };
+    if (!r.active) return { code: 'inactive', text: 'Not in the game yet: ' + abilityName(a.id) + ' waits on its rune.', glyph: 'uiLock', strike: true };
+    const role = set && set.role && HUNT_ROLES[set.role] ? HUNT_ROLES[set.role] : null;
+    if (!role) return { code: 'weapon', text: 'No weapon worn: abilities come from the weapon you wield. Needs ' + weaponsFor(r.disciplines[0]) + '.', glyph: 'uiLock', strike: true };
+    if (!r.disciplines.includes(role.discipline)) return { code: 'weapon', text: 'Your weapon can’t use this. Needs ' + weaponsFor(r.disciplines[0]) + '.', glyph: 'uiLock', strike: true };
+    if (r.rune && !((bag || []).some((l) => l.id === r.rune && l.qty > 0))) return { code: 'rune', text: 'Needs a ' + itemName(r.rune) + ' in the bag for each cast; you have none.', glyph: 'uiChest', strike: true };
+    if (sl.usable === false) return { code: 'server', text: 'The server says this cannot fire now.', glyph: 'uiLock', strike: true };
+    if (hero && Number.isFinite(hero.mana) && r.mana > hero.mana) return { code: 'mana', text: 'Needs ' + r.mana + ' mana, you have ' + Math.floor(hero.mana) + '.', glyph: 'uiPotion', strike: false };
+    return null;
+  }
+  if (sl.usable === false) return { code: 'server', text: 'The server says this cannot fire now.', glyph: 'uiLock', strike: true };
+  const n = Number.isInteger(sl.count) && !own(CONSUME_KINDS, a.id) && !own(ATTACK_KINDS, a.id) ? sl.count : carried(a, bag);
+  if (n === null || n > 0) return null;
+  const st = storeOf(a);
+  const storeOn = !!set && (set.supplySource === 'store' || set.onEmpty === 'switch');
+  if (st && storeOn) return null;
+  if (st) return { code: 'store_off', text: 'Out of stock, and your supply setting keeps the store off (Hunt settings, When my bag runs out).', glyph: 'uiChest', strike: true };
+  return { code: 'stock', text: 'Out of stock and no store fallback' + (a.type === 'consume' ? ': choose Any food or Any drink to buy as used.' : '.'), glyph: 'uiChest', strike: true };
+}
+
+/**
+ * The earlier slot sharing this ability's cooldown group (the catalogue's `lane`,
+ * src/data/abilities.js ABILITY_LANES — the group the engine locks after a cast),
+ * in words, or null. Not a stop: this slot still fires while that one cools down.
+ */
+export function sharedCooldownOf(wires, i) {
+  const b = wires[i];
+  const rb = b && b.action.type === 'ability' ? ABILITIES[b.action.id] : null;
+  if (!rb) return null;
+  for (let k = 0; k < i; k++) {
+    const a = wires[k];
+    const ra = a && a.action.type === 'ability' ? ABILITIES[a.action.id] : null;
+    if (ra && ra.lane === rb.lane) return 'Shares a cooldown with ' + abilityName(a.action.id) + ' (slot ' + (k + 1) + '), which fires first when both are ready.';
+  }
+  return null;
+}

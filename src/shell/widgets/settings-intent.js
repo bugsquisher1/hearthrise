@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/shell/widgets/settings-intent.js — HUNT SETTINGS ARE INTENTS (parity HS-01..HS-09).
 //
-// The bar's control plaque and the hunt settings window share these controls.
+// The action bar's control panel (target, stance, chase, distance) is built from these.
 // Every control SHOWS the server's `hunt_settings` section and nothing else.
 // A change is an INTENT: the controls of that panel go disabled at once, one
 // hr_action_set_options call is sent (CharacterSession.setHuntOptions), and
@@ -13,13 +13,9 @@
 // Controls are marked `data-opt="<key>"`; buttons carry `data-val`.
 // ════════════════════════════════════════════════════════════════════════
 import { TARGET_MODES, HUNT_STANCES, HERO_DISTANCE } from '../../data/rule-subjects.js?v=0.2.6';
-import { SUPPLY_SOURCE, ON_EMPTY } from '../../data/hunt-sessions.js?v=0.2.6';
 import { settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.6';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.6';
 import { text, attr, prop, cls } from '../../render/paint.js?v=0.2.6';
-
-export const SUPPLY_LABEL = Object.freeze({ mine: 'Use my own supplies', store: 'Buy from the store' });
-export const ON_EMPTY_LABEL = Object.freeze({ switch: 'Buy from the store', end: 'End the hunt' });
 
 /* Words for the server's refusal codes; anything else reads as a plain "not saved". */
 const REFUSAL = Object.freeze({
@@ -72,8 +68,7 @@ export function patchControls(root, cs) {
 }
 
 function valueOf(s, key) {
-  const map = { target_mode: s.targetMode, stance: s.stance, distance: s.distance, chase: s.chase,
-    food_pct: s.foodPct, drink_pct: s.drinkPct, supply_source: s.supplySource, on_empty: s.onEmpty };
+  const map = { target_mode: s.targetMode, stance: s.stance, distance: s.distance, chase: s.chase };
   const v = map[key];
   return v === undefined ? null : v;
 }
@@ -89,15 +84,7 @@ function optionFor(el, cs) {
   }
   if (key === 'chase') return s.chase === null ? null : { chase: !s.chase };
   if (key === 'stance') return el.getAttribute('data-val') === s.stance ? null : { stance: el.getAttribute('data-val') };
-  /* The section says food_pct / drink_pct; the option rows the server stores are food_below_pct / drink_below_pct. */
-  if (key === 'food_pct' || key === 'drink_pct') {
-    const n = Math.round(Number(el.value));
-    return Number.isInteger(n) && n >= 1 && n <= 99 && n !== valueOf(s, key) ? { [key === 'food_pct' ? 'food_below_pct' : 'drink_below_pct']: n } : null;
-  }
-  if (key === 'target_mode' || key === 'supply_source' || key === 'on_empty') {
-    const ok = key === 'target_mode' ? TARGET_MODES[el.value] : (key === 'on_empty' ? ON_EMPTY : SUPPLY_SOURCE).modes.includes(el.value);
-    return ok && el.value !== valueOf(s, key) ? { [key]: el.value } : null;
-  }
+  if (key === 'target_mode') return TARGET_MODES[el.value] && el.value !== s.targetMode ? { target_mode: el.value } : null;
   return null;
 }
 

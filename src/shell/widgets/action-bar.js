@@ -31,8 +31,8 @@ import { glyphSvg } from '../launcher.js?v=0.2.6';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.6';
 import { actionIconHtml } from './bits.js?v=0.2.6';
 import { hubHtml, patchHub } from './vitals-hub.js?v=0.2.6';
-import { openSlot, storeOf, placeSlot } from '../bar-draft.js?v=0.2.6';
-import { actionName, factsOf, carried, supplyLines, setupWords, conflictsOf } from '../action-facts.js?v=0.2.6';
+import { openSlot, sendPlan, movePlan, swapPlan, insertPlan, serverBar } from '../bar-draft.js?v=0.2.6';
+import { actionName, factsOf, carried, supplyLines, setupWords, conflictsOf, reasonOf, sharedCooldownOf } from '../action-facts.js?v=0.2.6';
 import { resetConfigureView } from '../windows/configure-action.js?v=0.2.6';
 import { assignToBar, barKind } from '../bar-assign.js?v=0.2.6';
 import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.6';
@@ -43,11 +43,12 @@ const SLOT_DRAG = 'application/x-hr-bar-slot';
 const LONG_PRESS_MS = 450;
 const KINDS = new Set(Object.keys(CONSUME_KINDS).concat(Object.keys(ATTACK_KINDS)));
 const PRESS = new WeakMap();   // the bar element -> { timer, held }
+const DROP = new WeakMap();    // the bar element -> { from, to, off } while the drop menu is open
 
 function slotHtml(i) {
   return '<li class="hb-slot is-empty" data-slot="' + i + '" data-hs-act="slot" role="button" tabindex="0" aria-label="Slot ' + (i + 1) + '">'
     + '<span class="hb-slot-ico"></span><small class="hb-n">' + (i + 1) + '</small><small class="hb-count"></small><b class="hb-warn" aria-hidden="true">!</b>'
-    + '<span class="hb-plus" aria-hidden="true">+</span></li>';
+    + '<span class="hb-why" aria-hidden="true"></span><span class="hb-plus" aria-hidden="true">+</span></li>';
 }
 
 /** The skeleton (built once). */
@@ -65,30 +66,40 @@ export function renderActionBar(ctx) {
     + hubHtml(g)
     + '<ol class="hb-slots" aria-label="Slots 6 to 10 and 16 to 20">' + side(true) + '</ol>'
     + '<div class="hb-plaque">'
-    + '<span class="hb-label">Action set</span><b class="hb-set"></b>'
-    + '<span class="hb-tools"><button type="button" class="hh-tool" data-hs-act="editor" aria-label="Hunt settings">' + glyphSvg(g, 'uiSettings') + '</button>'
-    + '<button type="button" class="hh-tool" data-hs-act="setups" aria-label="Saved setups">' + glyphSvg(g, 'uiCheck') + '</button></span>'
+    + '<div class="hb-pl-row"><span class="hb-label">Action set</span><b class="hb-set"></b>'
+    + '<button type="button" class="hh-tool" data-hs-act="setups" aria-label="Saved setups: switch or save">' + glyphSvg(g, 'uiCheck') + '</button></div>'
+    + '<label class="hb-pl-row"><span class="hb-label">Target</span><select class="hh-select" data-opt="target_mode" data-hs-act="opt" aria-label="Target">' + targetOptionsHtml() + '</select></label>'
+    + '<div class="hb-pl-row"><span class="hh-segs hb-stance" role="group" aria-label="Stance">' + stanceButtonsHtml() + '</span></div>'
+    + '<div class="hb-pl-row"><button type="button" class="hh-seg" data-opt="chase" data-hs-act="opt" aria-pressed="false" title="With chase off, the hero keeps its distance">Chase</button>'
+    + '<span class="hb-label">Distance</span>' + distanceHtml() + '</div>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>'
     + '<div class="hb-tip" role="tooltip"></div>'
+    + '<div class="hb-drop" role="menu" aria-label="Drop the action"><b class="hb-drop-t"></b>'
+    + '<button type="button" class="hh-tool" role="menuitem" data-hs-act="drop" data-x="swap"></button>'
+    + '<button type="button" class="hh-tool" role="menuitem" data-hs-act="drop" data-x="insert">Insert here (shift the rest)</button>'
+    + '<button type="button" class="hh-tool" role="menuitem" data-hs-act="drop" data-x="cancel">Cancel</button></div>'
     + '</div>';
 }
 
-function patchSlot(li, s, w, ctx, bag, conflict) {
+function patchSlot(li, s, w, ctx, bag, conflict, why) {
   const key = s.empty ? '' : s.action.type + ':' + s.action.id;
   if (li.getAttribute('data-item') !== key) {
     attr(li, 'data-item', key);
     li.querySelector('.hb-slot-ico').innerHTML = s.empty ? '' : actionIconHtml(ctx.glyphs, s.action);
     attr(li, 'draggable', s.empty ? null : 'true');
   }
-  const st = s.empty ? null : storeOf(s.action);
   /* The count: the server's own count for a slot naming one item; a kind's (Any food) is its lines in the server's bag. */
   const n = s.empty || s.action.type === 'ability' ? null : Number.isInteger(s.count) && !KINDS.has(s.action.id) ? s.count : carried(s.action, bag);
-  const out = !s.empty && ((n !== null && n <= 0 && !st) || s.usable === false);
+  /* WHY it cannot fire (action-facts.js reasonOf): struck when the server would not fire it, a glyph either way. */
+  const out = !!why && why.strike;
   cls(li, 'is-empty', s.empty);
   cls(li, 'is-off', out);
+  cls(li, 'is-wait', !!why && !why.strike);
   cls(li, 'is-blocked', !!conflict);
+  const g = li.querySelector('.hb-why');
+  if (g.getAttribute('data-for') !== (why ? why.code : '')) { g.innerHTML = why ? glyphSvg(ctx.glyphs, why.glyph) : ''; attr(g, 'data-for', why ? why.code : ''); }
   text(li.querySelector('.hb-count'), n ? whole(n) : '');
-  attr(li, 'aria-label', 'Slot ' + (li.getAttribute('data-slot') * 1 + 1) + ': ' + (s.empty ? 'empty, press to configure' : actionName(s.action) + (out ? ', cannot fire now' : '') + (conflict ? ', never fires' : '')));
+  attr(li, 'aria-label', 'Slot ' + (li.getAttribute('data-slot') * 1 + 1) + ': ' + (s.empty ? 'empty, press to configure' : actionName(s.action) + (why ? ': ' + why.text : '') + (conflict ? ', never fires' : '')));
 }
 
 /* The tooltip's lines for slot i (Tyler's spec): what the action is, then its setup and any conflict. */
@@ -98,11 +109,18 @@ function tipHtml(i, ctx) {
   if (!s || s.empty) return '<b>Slot ' + (i + 1) + '</b><p>Empty. Press to choose a spell, rune or item for it.</p>';
   const w = wireSlot(s);
   const f = factsOf(s.action);
-  const conflict = conflictsOf(Array.from({ length: SLOTS }, (_, k) => wireSlot(set.slots[k])), set).get(i);
-  const lines = [f.cost ? (f.cost.includes('mana') ? 'Cost: ' + f.cost : f.cost) : null, f.type, f.cooldown].concat(f.effect, supplyLines(s.action, set, bagOf(ctx.character))).filter(Boolean);
+  const wires = Array.from({ length: SLOTS }, (_, k) => wireSlot(set.slots[k]));
+  const conflict = conflictsOf(wires, set).get(i);
+  const h = huntOf(ctx.character);
+  const bag = bagOf(ctx.character);
+  const why = reasonOf(s, set, bag, h && !h.ended ? h.hero : null);
+  const shared = sharedCooldownOf(wires, i);
+  const lines = [f.cost ? (f.cost.includes('mana') ? 'Cost: ' + f.cost : f.cost) : null, f.type, f.cooldown].concat(f.effect, supplyLines(s.action, set, bag)).filter(Boolean);
   return '<b>' + esc(actionName(s.action)) + '</b><small class="hb-tip-n">Slot ' + (i + 1) + '</small>'
+    + (why ? '<p class="is-warn is-why">' + esc(why.text) + '</p>' : '')
     + lines.map((l) => '<p>' + esc(l) + '</p>').join('')
     + '<hr><p class="is-setup">' + esc(setupWords(w, set)) + '</p>'
+    + (shared ? '<p class="is-setup">' + esc(shared) + '</p>' : '')
     + (conflict ? '<p class="is-warn">' + esc(conflict.why) + '</p>' : '');
 }
 
@@ -126,9 +144,11 @@ renderActionBar.patch = function patchActionBar(el, ctx) {
   const wires = slots.map((x) => wireSlot(x));
   const conflicts = s ? conflictsOf(wires, s) : new Map();
   const bag = bagOf(cs);
+  const hero = h && !h.ended ? h.hero : null;
   for (const li of el.querySelectorAll('.hb-slot')) {
     const i = Number(li.getAttribute('data-slot'));
-    patchSlot(li, slots[i] || { empty: true }, wires[i], ctx, bag, conflicts.get(i));
+    const sl = slots[i] || { empty: true };
+    patchSlot(li, sl, wires[i], ctx, bag, conflicts.get(i), reasonOf(sl, s, bag, hero));
   }
   const set = s && s.presets.find((p) => p.preset === s.preset);
   text(el.querySelector('.hb-set'), set ? set.name : s ? 'Set ' + (s.preset + 1) : '–');
@@ -152,7 +172,11 @@ function dropOnSlot(ctx, el, ev, t) {
   const repaint = () => renderActionBar.patch(el, ctx);
   if (fromSlot) {
     const from = Number(ev.dataTransfer.getData(SLOT_DRAG));
-    if (placeSlot(ctx.character, from, to, repaint)) text(msg, 'Moving it…');
+    const bar = serverBar(ctx.character);
+    if (!bar || from === to || !bar[from]) return true;
+    /* Onto an empty slot it just moves; onto an action, the player chooses: swap or insert. */
+    if (!bar[to]) runDrop(ctx, el, (b) => movePlan(b, from, to));
+    else openDropMenu(ctx, el, t, from, to, bar);
     return true;
   }
   const id = ev.dataTransfer.getData(DRAG_TYPE);
@@ -160,6 +184,41 @@ function dropOnSlot(ctx, el, ev, t) {
   text(msg, 'Putting it on the bar…');
   assignToBar(ctx.character, id, to).then((r) => { text(msg, r.ok ? '' : refusalWords(r.error)); repaint(); });
   return true;
+}
+
+/* One drop's intent; the status line says it is on its way and clears on the server's answer (or says why not). */
+function runDrop(ctx, el, plan) {
+  const msg = el.querySelector('.hb-plaque .hh-intent-msg');
+  text(msg, 'Moving it…');
+  sendPlan(ctx.character, plan, () => renderActionBar.patch(el, ctx))
+    .then((r) => { text(msg, r.ok ? '' : r.error === 'no_room' ? 'No empty slot after it to shift into.' : refusalWords(r.error)); renderActionBar.patch(el, ctx); });
+}
+
+/* THE DROP MENU (Tyler 10-19): dropped onto an action, the dragged action's name, Swap with <target>,
+   Insert here (shift the rest) — off when there is no empty slot to shift into — and Cancel; Escape or a
+   press anywhere else cancels. Nothing moves until the server confirms the one intent a choice sends. */
+function openDropMenu(ctx, el, li, from, to, bar) {
+  closeDropMenu(el);
+  const menu = el.querySelector('.hb-drop');
+  text(menu.querySelector('.hb-drop-t'), actionName(bar[from].action));
+  text(menu.querySelector('[data-x="swap"]'), 'Swap with ' + actionName(bar[to].action));
+  menu.querySelector('[data-x="insert"]').disabled = !insertPlan(bar, from, to);
+  const b = el.querySelector('.hb-bar').getBoundingClientRect(), r = li.getBoundingClientRect();
+  menu.style.left = Math.round(Math.max(0, Math.min(b.width - 240, r.left - b.left - 90))) + 'px';
+  cls(menu, 'is-on', true);
+  const doc = ctx.doc;
+  const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeDropMenu(el); } };
+  const onDown = (e) => { if (!menu.contains(e.target)) closeDropMenu(el); };
+  doc.addEventListener('keydown', onKey, true);
+  doc.addEventListener('pointerdown', onDown, true);
+  DROP.set(el, { from, to, off: () => { doc.removeEventListener('keydown', onKey, true); doc.removeEventListener('pointerdown', onDown, true); } });
+  menu.querySelector('[data-x="swap"]').focus();
+}
+function closeDropMenu(el) {
+  const d = DROP.get(el);
+  if (d) d.off();
+  DROP.delete(el);
+  cls(el.querySelector('.hb-drop'), 'is-on', false);
 }
 
 function openOn(ctx, i) {
@@ -172,6 +231,14 @@ function openOn(ctx, i) {
 renderActionBar.act = function actActionBar(ctx, el, action, ev, t) {
   if (action === 'editor' && ev.type === 'click') { ctx.show('hunt-settings'); return; }
   if (action === 'setups' && ev.type === 'click') { ctx.show('hunt-prep'); return; }
+  if (action === 'drop' && ev.type === 'click') {
+    const d = DROP.get(el);
+    const x = t.getAttribute('data-x');
+    closeDropMenu(el);
+    if (d && x === 'swap') runDrop(ctx, el, (b) => swapPlan(b, d.from, d.to));
+    else if (d && x === 'insert') runDrop(ctx, el, (b) => insertPlan(b, d.from, d.to));
+    return;
+  }
   if (action !== 'slot') return;
   const i = Number(t.getAttribute('data-slot'));
   const press = PRESS.get(el) || { timer: null, held: false };

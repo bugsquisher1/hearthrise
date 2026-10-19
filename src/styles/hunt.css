@@ -220,14 +220,8 @@
 .hb-socket-ico .hs-glyph { width: 16px; height: 16px; color: var(--ink-3); }
 .hb-socket-k { font-size: var(--t-micro); color: var(--ink-2); white-space: nowrap; }
 
-/* ── Hunt settings editor ── */
-.he-editor.is-empty .he-none { display: block; }
-.he-editor.is-empty .he-form { display: none; }
-.he-row { display: flex; align-items: center; gap: 10px; min-height: 44px; border-top: 1px solid var(--line-soft); }
-.he-label { flex: 1; color: var(--ink-2); }
-.he-label small { display: block; font-size: var(--t-micro); color: var(--ink-3); }
+/* ── A unit after a number field (Configure action) ── */
 .he-unit { color: var(--ink-3); }
-.he-form .hh-intent-msg { margin-top: 6px; }
 
 /* ── Configure action: kind, the choices beside what the pick does, its conditions ── */
 .hc-cfg .hc-none { display: none; }
@@ -395,8 +389,6 @@
   .hb-plaque .hb-label, .hb-set { display: none; }
   .hb-tools { flex-direction: column; }
   .hb-plaque .hh-tool { min-height: 36px; min-width: 40px; }
-  .he-row { min-height: 52px; }
-  .he-editor .hh-seg, .he-editor .hh-select, .he-editor .hh-num { min-height: 44px; }
   .hc-cfg .hh-seg, .hc-cfg .hh-select, .hc-cfg .hh-num, .hc-cfg .hh-tool { min-height: 40px; }
   .hc-list { max-height: 140px; }
   .ht-bar { gap: 6px; padding: 2px 4px; }

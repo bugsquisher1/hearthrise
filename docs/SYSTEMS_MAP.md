@@ -9,19 +9,28 @@ Whether a system or content row *should* exist is `docs/DESIGN_STANDARDS.md` (th
 
 ---
 
-## The one thing that trips everyone up: data is authored ONCE, then merged
+## Data is authored ONCE, in `src/data/*.js`
 
-`src/legacy.js` (the classic-script engine) declares `const ITEMS / MONSTERS / …`
-at top level and publishes them as `window.__LEGACY_INLINE`. `src/main.js` then
-**merges the ESM `src/data/*` modules into those exact objects** via
-`unifyObject` / `unifyArray` (main.js:51–72), so both sides are one identity.
+`src/data/*.js` is pure ESM, imported by the client, by `src/core/*` and by the
+`hr-accrue` Edge Function. The server's SQL catalogues are GENERATED from it
+(`node tools/gen-catalogues.mjs`, `tools/gen-hunts.mjs`, `tools/gen-hunt-sessions.mjs`)
+and drift guards bind the copies. Never keep a second hand-written copy of game data.
 
-- **Author content in `src/data/*.js`.** Hand-authored entries there win over
-  generated ones (they're spread first; later same-id entries override).
-- A change to an ESM module needs a `?v=` bump to load (module cache) — just run
-  `./bump-version.sh <N>` (see `CLAUDE.md` → Build + ship).
-- Never re-declare content inside `legacy.js` — that shadows the merge and is the
-  historical "data double-copy" trap (fixed b215; a guard test asserts identity).
+- A change to an ESM module needs a `?v=` bump to load (module cache) — run
+  `./bump-version.sh X.Y.Z` (see `CLAUDE.md` §5).
+- A row the server pays or checks (drops, prices, items, hunts) is a lane C
+  change: regenerate the catalogue, apply it, redeploy `hr-accrue` if the engine
+  reads it (CLAUDE.md §3.3).
+- Game rules (what a system does) are Tyler's rulings
+  (`~/.claude/projects/R--the-game-the-game/memory/rulings-of-record.md`); this
+  map says only where the rows live. Some tables below still carry pre-rebuild
+  rows; the catalogue-coherence guard decides what is reachable.
+
+### 0. Hunts — data
+`src/data/hunts.js` (grounds: level floor, monster family and spawn weights,
+density steps), `src/data/hunt-grounds.js` (pockets, route), `src/data/hunt-sessions.js`
+and `hunt-tuning.js` (engine values), `src/data/monsters.js` (stats and drops).
+Regenerate with `node tools/gen-hunts.mjs` and `node tools/gen-hunt-sessions.mjs`.
 
 ---
 
@@ -46,15 +55,15 @@ at top level and publishes them as `window.__LEGACY_INLINE`. `src/main.js` then
   restricts nobody and is the data form of "belongs to this skill", which is what
   keeps the server column non-NULL so there is one shape to read. A NULL pair is
   a gate that exists only in the browser — see `EQUIP-REQLV-1`.
-- `bop:true` = bind-on-pickup (untradeable — market + sell both block it).
+- `bop:true` = bind-on-pickup (untradeable — trade and sell both block it).
 - Consumable/material: `heals`, `buff*`, `tag`, `tier`, `rarity`.
-- **Icons:** emoji `icon` is the last-resort fallback; real art is mapped in
-  `legacy.js` `LOCAL_ITEM_ICON` (painted PNGs). New items are art-backlog targets.
+- **Icons:** emoji `icon` is the last-resort fallback; real art is mapped by
+  `src/data/item-art.js`. New items are art-backlog targets.
 
 ### 3. Recipes (cooking / smithing / crafting / prayer / runecrafting / stonemason) — data
 `src/data/recipes.js` → `ARTISAN_RECIPES[skill]` (array of `{id, name, input,
 secondary?, output, xp, req, ms, gated?}`). One engine runs them all
-(`doArtisanAction` in legacy.js). Category lanes derive automatically via
+(`src/core/artisan.js`). Category lanes derive automatically via
 `recipeCategory()` — you don't hand-tag lanes.
 - **To add a recipe:** add a row; ensure its `input`/`secondary` are obtainable
   (the reachability guard, below, enforces this). Then run
@@ -104,27 +113,21 @@ Rungs 40–99 are the 2026-09-12 ruling; before it the bench stopped at 35 and h
 no action for 64 levels. The ladder is asserted strictly increasing and
 reaching 99 by `PRAYER-LADDER-1` in the in-page suite.
 
-**Prayer wards (W0, 2026-10-10).** `PRAYER_WARDS` in `src/data/skills.js`
-(`{lv, pct}` rows, capped by `PRAYER_WARD_MAX_PCT`) is read by
-`prayerWardPct()` inside `monsterCombatRolls` (src/core/combat.js): the monster's
-landed-hit chance is multiplied by `1 - pct/100` after its clamp. That one
-function prices every monster swing on the live tick, the away accrual and the
-world tick, so a row edit moves all three (edge redeploy). Guard:
-`tests/w0e-ammo-runecraft-prayer.mjs`.
+**Prayer wards (W0, 2026-10-10)** — `PRAYER_WARDS` in `src/data/skills.js`, read by
+`src/core/combat.js`, cut monster hit chance. This CONTRADICTS the current ruling
+(Prayer raises HP and mana regeneration rates only, Tyler 2026-10-14) and is owed
+removal; do not build on it.
 
 **Runecrafting supplies itself (W0).** `mine_rune_essence` (input-free,
 `xpSkill: 'mining'`, the quarry pattern) → `cut_rune_blanks` / `split_rune_blanks`
 (essence → blanks) → `bind_earth_runes` at level 1. Air runes (the free tier-1
-rung) are starter kit + shop only. Fine/deep blanks stay on Stonemason.
-
-**Ammo (W0).** `AMMO_EMPTY_SLOT_IS_DRY` (src/core/ammo.js) makes an empty
-bow/staff slot fight at x0.25; the free tier-1 rung of every ladder is in
-`START_INVENTORY` and `SEED_SHOP`; the combat rail marks the slot `hr-ammo-dry`.
+rung) are starter kit + shop only.
 
 ### 4. Gathering nodes — data
 `src/data/gathering.js` → `TREES` / `ROCKS` / `FISH_SPOTS` (arrays of
-`{id,name,icon,req,xp,ms,prod,qty}`) and `CROPS` (farming). Add a row = a new
-node. `prod` must be a real item id.
+`{id,name,icon,req,xp,ms,prod,qty}`) and `CROPS`. Add a row = a new
+node. Mining and Woodcutting are gathered passively during hunts (first tiers at
+the town edge); the gathering engine is not shipped yet. `prod` must be a real item id.
 
 A new node's `xp`/`ms` are not free: two standing in-page guards measure the
 whole table. `b226: every gathering rung is strictly faster XP/sec` forbids a
@@ -153,14 +156,10 @@ multi-input shape:
 | 52 | `cook_river_chowder` | silverfin 2 + potato 2 + carrot 1 | `river_chowder` | 30 | 198 |
 | 56 | `cook_fishers_pie` | goldgill 2 + wheat 3 + potato 1 | `fishers_pie` | 34 (Feast) | 218 |
 
-⚠ **A NEW COOKED FOOD IS THREE SERVER ROWS, NOT ONE.** `hr_activities` (the
-tile can be started), `hr_items.heals` + `auto_eatable` (the AUTO-EAT POOL —
-a food that exists only client-side heals nothing away) and `hr_feast_foods`
-(the Tavern's heal). The first two come from `tools/gen-catalogues.mjs`; the
-third is a hand seed kept honest by `tests/clan-feast-catalogue-drift.mjs`,
-which reads EVERY migration that seeds the table in apply order — so add the
-rows in a NEW migration, never by editing an applied one. Played end to end by
-`REEDTIDE-1` in the in-page suite.
+⚠ **Food and drink are supplies used by action-bar slots** (food restores HP,
+drink restores mana, 50% at once and 50% over 6 s; no potions). A new one is an
+item row plus its consumable row (`src/data/consumables.js`, `drinks.js`) and the
+regenerated catalogues; store-sold basics live in `src/data/shops.js`.
 
 **Mining (b545 "Deep Seam", 2026-09-13)** — the Mining 15 → 60 ore silence (coal
 is a reagent, Rich Coal is more coal and Gold makes jewellery only, so nothing
@@ -187,7 +186,7 @@ bar silence and the Defence 30 → 45 WIELD hole:
 
 ⚠ **A NEW EQUIPPABLE IS THREE SERVER FACTS, NOT ONE.** `hr_activities` (the tile
 can be started), `hr_items.req_skill` + `req_lv` (the EQUIP gate hr_apply
-re-checks — a tradeable piece with a NULL gate is the market selling power to a
+re-checks — a tradeable piece with a NULL gate is trade selling power to a
 level-1 account) and `hr_item_slots` (a piece with no pair cannot be worn at
 all). All three come from `tools/gen-catalogues.mjs`, plus the patch migration
 `2026-09-13-deep-seam.sql`. Played end to end by `DEEPSEAM-1..6`.
@@ -211,7 +210,7 @@ between its steel and mithril twin — asserted by `DEEPSEAM-3`.
 | 82 | `ancient_runewood_tree` | Ancient Runewood | `runewood_log` | 1–2 | 168 | 12200 |
 
 Server half = the `hr_activities` rows (`2026-09-26-timberline.sql`; the level
-gate for `hr_apply` and `hr_worker_assign`); xp/ms/yield ride the edge payload.
+gate for `hr_apply`); xp/ms/yield ride the edge payload.
 Played by `TIMBERLINE-1..4` in-page and `TIMBERLINE-S1` in `tests/accrual-engine.mjs`.
 
 **Fishing and Mining (Deep Waters)** — a new stand every 5-8 levels from 40 to
@@ -227,10 +226,9 @@ catch (cooked fish vend at full value); the veins pay 1–2.
 | 67 | `deep_mithril_vein` | Deep Mithril Vein | `mithril_ore` | 1–2 | 118 | 9300 |
 | 82 | `deep_ember_vein` | Deep Ember Vein | `emberstone_ore` | 1–2 | 157 | 11200 |
 
-Heal climb (same number in `items.js`, `hr_items.heals` and `hr_feast_foods`):
+Heal climb (same number in `items.js` and `hr_items.heals`):
 Cooked Lobster 25 < Swordfish 32 < Frostfin 38 < Shark 44 < Moonfish 50 (was
-22/28/42/38). Moonfish 50 is above Dragon Stew 45 and equal to Lich Soul Soup
-50, and is now the auto-eat fallback (biggest healer) — ruled in `items.js`.
+22/28/42/38).
 Server half = `2026-09-26-deep-waters.sql` (6 activity rows + 4 heals in both
 tables); xp/ms/yield ride the edge payload. Played by `DEEPWATERS-1..5` in-page
 and `DEEPWATERS-S1`/`-S2` in `tests/accrual-engine.mjs`.
@@ -239,16 +237,12 @@ and `DEEPWATERS-S1`/`-S2` in `tests/accrual-engine.mjs`.
 `src/data/monsters.js` → `MONSTERS`. Drops live inline:
 `drops:[{id, ch}]` (ch = 0..1 chance). Add a drop = add to the array; the id must
 exist in `ITEMS`.
-Hunter's note per monster: `src/data/monster-notes.js` (client-only display, never edge-imported); FIELDNOTES-1 requires exactly one per MONSTERS id, so a new monster ships with its note.
-Dead-end copy: `src/data/signposts.js` (client-only, rendered by `src/features/signposts.js` as `window.HearthriseSignposts`) — empty bag classes, bench stalls, farm seeds, War Table locks, the Bounty strip; tests/signposts.mjs SIGN-1..5 and SIGN-7 (never edge-packed).
-Companion, rank and trophy-stage lore: `src/data/lore-notes.js` (client-only display, never edge-imported), guarded by `tests/lore-notes.mjs`.
-
 ⚠ **A drop row is a SERVER FAUCET** (hr-accrue mints it into a tradeable
 inventory), so it ships in lane C order: **Security GO → hr-accrue edge deploy →
 then the client**. The client must never show a drop the deployed engine cannot
 roll. **Lucky finds** (`{id, ch, lucky:true}`, always the LAST row) are announced
-by the SERVER only — the settle's `away.events` `rare_drop` — never by the
-client's own dice (`src/features/lucky-finds.js`); their rules (item, faucet cap,
+by the SERVER only — the hunt settle's `rare_drop` event — never by the
+client's own dice; their rules (item, faucet cap,
 4-30 measured hours, tier) are `tests/lucky-finds.mjs`.
 **Field salvage** (`{id, ch, salvage:true}`, LAST row, at most one per monster,
 never beside a lucky row) is the same server-revealed contract one band commoner:
@@ -258,37 +252,10 @@ row / 5% all-gear faucet caps, 0.5-10 measured hours, both paths) are
 `tests/field-salvage.mjs`. A salvage-shaped row without the flag is a guard red,
 because the flag is what silences the client's dice.
 
-### 6. Dungeon / boss loot — data
-`src/dungeons.js` → `DUNGEONS[id].loot:[{id, qty:[min,max], chance}]`, plus
-`.boss:{name,title}`. Signature gear = `bop:true` in items.js; the loot row is
-just data. (See b268 boss ecosystem for the pattern.)
-
 ### 7. Shops / other faucets — data
-Seed shop (`SEED_SHOP`), store traits, board tasks, etc. are data tables in
-`legacy.js` / feature files. A drop that has **no** faucet will fail the
+The store (food, drink, runes, ammo, starter tools) is `src/data/shops.js`;
+own stock is spent first, then the store at store price. A drop that has **no** faucet will fail the
 reachability guard — wire it into a drop table, recipe, or shop.
-
-### 8. Quests (server-paid) — data in THREE places + one SQL arm
-`legacy.js` `QUEST_DEFS` rows `{id, chain?, type, mirror?, label, goal, reward:{gold?, item?, qty?, combatXp?}, note}`.
-- **`chain`** — absent = the first day ("Your first day" card on Home). `chain:'road'` =
-  **Journeyman's Road** (content pack 7: `road_forge`, `road_craft`, `road_cook`,
-  `road_gather`, `road_hunt`, `road_harvest`), drawn by its own Home card only once the
-  first day is done (`home-dashboard.js` `chainModel`/`roadModel`, `CHAIN_CARDS`). A new
-  quest line = a new `chain` value + a `CHAIN_CARDS` row.
-- **`mirror`** — the row READS a projected server counter instead of counting events.
-  Every server-paid lifetime quest must mirror one: `accrue.js` `EVENT_COUNTER_PROJECTION`
-  maps the server's lifetime `ev:<type>` rows onto `G.stats` leaves —
-  `ev:harvest→harvested`, `ev:planted→planted`, and the dedicated road leaves
-  `ev:gather→evGather`, `ev:cooked→evCooked`, `ev:smithed→evSmithed`,
-  `ev:crafted→evCrafted`, `ev:kill_any→evKillAny` (`hundred_kills` reads `evKillAny`
-  too). Never project onto a stats field another system reads; add a new leaf. Readers:
-  `MIRRORED_QUEST_SOURCES` (legacy.js).
-- **Reward** — `src/data/goal-catalogue.js` `QUEST_REWARDS[id] = {checkKey, goal, gold, items}`
-  plus the chain-end SQL (`hr_claim_quest__ungated` CASE arm + `hr_quest_rewards` row;
-  today `supabase/migrations/2026-09-28-journeymans-road.sql`). Adding a paid quest is a
-  lane-C change: new migration restating the body, Security GO before apply.
-  `tests/quest-reward-parity.mjs` + `tests/goal-catalogue-drift.mjs` bind all copies at the
-  chain end of `tests/schema-apply-order.json`.
 
 ---
 
@@ -296,31 +263,14 @@ reachability guard — wire it into a drop table, recipe, or shop.
 
 | You get… | From | So you don't have to… |
 |---|---|---|
-| Rarity band + frame CSS class | `window.itemRarity(id)` / `RARITY.classFor(id)` (`src/features/rarity.js`) | label items by hand |
-| Bonus fusion / power budget | `getBonus()` + `src/features/power-budget.js` | balance stacked % bonuses |
-| Safe id renames / removals | `window.ITEM_ALIAS` + `remapItemIds` (legacy.js:728) | migrate saves manually |
 | Where every item comes from / who uses it | `src/data/catalogue-coherence.js` (`itemSources`, `itemUses`, `obtainableItemIds`, `skillConsumers`) | hand-audit the catalogue |
-| Item → source / used-in | `src/features/item-index.js` | write reverse lookups |
-| Player glossary (Hearth Codex) | `src/data/codex.js` rows, each sentence bound to a predicate in `tests/codex-claims.mjs` | write help copy that can drift from the engine |
 
 ---
 
-## The guards that verify your content (smoke suite: `node tests/run-smoke.mjs`)
+## The guards that verify your content
 
-- **Progression reachability** (`b243: PROGRESSION IS REACHABLE`, smoke-test.js) —
-  seeds obtainable roots, closes over recipes, and **fails if any non-exempt item
-  has no source or a broken recipe chain.** This is your safety net: add a recipe
-  whose input is unobtainable and the suite goes red.
-- **Data identity** — asserts ESM data actually reached the engine (no double-copy).
-- **Currency-leak guards** — assert no drop/recipe/shop mints `hearth_token`.
 - **Catalogue coherence** (`tests/catalogue-coherence.mjs`, W0.4) — every item has a
-  source AND a use, every declared effect is live, every skill has a consumer, the
-  Local Shop sells starter gear only, and the Collection Log counts only what can be
-  obtained. Author an item with no faucet, or one nothing spends, and CI goes red.
-- **Screen primers** (`src/data/screen-primers.js`, one `{title, body}` row per
-  panel id; client-only, never edge-imported) — `tests/screen-primers.mjs` G1-G8
-  (real panel id, lengths, no digits/markup, unique, frozen, flag-tied copy) and
-  PRIMER-1..3 in-page. A new screen gets its primer by adding a row.
+  source AND a use, every declared effect is live, and every skill has a consumer. Author an item with no faucet, or one nothing spends, and CI goes red.
 - **Every fix/feature ships with its own test** (`CLAUDE.md` → Testing discipline).
 
 ---
@@ -331,12 +281,13 @@ reachability guard — wire it into a drop table, recipe, or shop.
 - **One special weapon/armour** → an `items.js` entry (+ a recipe row or a drop row).
 - **New recipe** → an `ARTISAN_RECIPES[skill]` row; make sure inputs are obtainable.
 - **New gathering resource** → a `TREES/ROCKS/FISH_SPOTS` row + its product item.
-- **Skill guide text** (the Skills header's flavour line and "Good for") → a `SKILL_GUIDE` row in `src/data/skill-guide.js` — client-only, NOT vendored into hr-accrue; the "Next:" ladder derives itself from the catalogues (`src/render/skill-guide.js`), so a new node/recipe/gear row appears there with no edit. Guard: `tests/skill-guide-coverage.mjs`; plus its `title` (the Hero class name; heroClass in `src/render/skill-guide.js`).
-- **New monster drop / boss loot** → a `drops`/`loot` row referencing an existing item id.
+- **New monster drop** → a `drops` row referencing an existing item id (lane C: a server faucet).
+- **New hunt** → a `hunts.js` row (+ `hunt-grounds.js` pockets/route, monsters), then regenerate.
 - **Route an orphan drop into gear** → give it a recipe or a use; the reachability
-  guard confirms it's no longer a dead end (see wave3-uniques.js for the pattern).
-- **Genuinely new mechanic** (not items/recipes) → *then* write a feature module in
-  `src/features/`, wire it in `main.js`, and ship it with a smoke test.
+  coherence guard confirms it's no longer a dead end.
+- **Genuinely new mechanic** (not rows) → only for new state + rules + lifecycle: its
+  own home after an architecture check (data in `src/data`, logic in `src/core`,
+  server in an RPC/edge verb, client in `src/session` + `src/shell`), shipped with its test.
 
 ---
 

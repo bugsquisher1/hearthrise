@@ -99,7 +99,7 @@ The 2026-10-14 lightening is for a beta nobody plays. Before EA: the full mutati
 
 - **A lane is done only when `node tools/lane-done.mjs` is green in its worktree** (debt ratchets, client-module-size, session-core (+--mutate), client-intent-surface, no-client-xp-mint, dead-exports, dead-css, window-globals-exist, token-single-source, css-literal-ratchet, breakpoint-guard, ci-shape, guard-hygiene, `bump-version.sh --check`). Paydown happens in the lane that wrote the code.
 - **Claims are gated on exit codes.** `( cmd || echo RED )` returns 0; run the guard, branch on `$?`, then write "green".
-- **Every fix and feature ships with its test in the same commit.** Bug → a regression in `src/features/smoke-test.js` that fails without the fix. Feature → a happy-path test that plays it. Details in `TESTING.md`.
+- **Every fix and feature ships with its test in the same commit.** Bug → a regression test under `tests/` (the owning module's test file) that fails without the fix. Feature → a happy-path test that plays it. Details in `TESTING.md`.
 - **Both paths:** anything touching combat, death, hunt sessions, stamina or supplies ships a test with the hunt viewed and one with the browser closed (the hunt keeps running on the server).
 - **A guard that has never been red is not a guard:** every standing guard carries `--selftest`/`--mutate` proof. Mutate the caller; one sample is not a verdict.
 - **Second breakage = missing test.** Add the test before fixing again.

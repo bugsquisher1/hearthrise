@@ -12,7 +12,7 @@
 //
 // The fixture is tests/fixtures/party-envelope.json (S1's `party` shape plus this lane's asks).
 // (The 4-character limit and "a switch disturbs nobody" are session rules: tests/session-core.mjs ACC-4, VIEW-2.)
-//   AL-1  ONE ALERT PER EVENT ID: a rare drop and a knock-out alert once each; a re-read,
+//   AL-1  ONE ALERT PER EVENT ID: a rare drop and a death alert (the hunt ending `died`) once each; a re-read,
 //         a re-sent event, a reload (the ids come back in the residue) add none; a NEW
 //         event id adds exactly one; a kind switched off adds none
 //   PI-1  PARTY CONTROLS ARE INTENT-ONLY: each party verb is ONE rpc naming only the slot,
@@ -101,20 +101,24 @@ async function pureRules(M, base) {
     const cs = (await acc.open(0)).session;
     if (!cs) return 'the fixture character did not open';
     const kinds = () => centre.list().map((a) => a.kind).sort().join(',');
-    if (kinds() !== 'fall,rare') return 'the first read raised [' + kinds() + '], want [fall,rare]';
+    if (kinds() !== 'rare') return 'the first read raised [' + kinds() + '], want [rare]';
     await cs.load(); await cs.hello(); await cs.load();
-    if (centre.list().length !== 2) return 'a re-read repeated an alert: ' + kinds();
+    if (centre.list().length !== 1) return 'a re-read repeated an alert: ' + kinds();
     cs.timeline.ingest({ events: srv.env[0].hunt_events, serverNowMs: srv.env[0].hunt_server_now_ms }, 0);
-    if (centre.list().length !== 2) return 'a re-sent event raised an alert again';
+    if (centre.list().length !== 1) return 'a re-sent event raised an alert again';
     await cs.flushResidue();
     /* A reload: a new account session over the same server, whose envelope carries the stored ids. */
     const acc2 = account(M, srv);
     const centre2 = M.AL.createAlertCenter(acc2);
     const cs2 = (await acc2.open(0)).session;
     if (centre2.list().length) return 'a reload repeated ' + centre2.list().map((a) => a.id).join(', ');
-    srv.env[0].hunt.hero.falls = 2;
+    /* The hero dies: the hunt ends `died` (CORE_MODEL.md §6) and ONE death alert says where. */
+    srv.env[0].hunt.ended = true;
+    srv.env[0].hunt.session = Object.assign({}, srv.env[0].hunt.session, { end_reason: 'died', ended_at: '2026-10-17T12:30:00Z', phase: 'ended' });
     await cs2.load(); await cs2.load();
-    if (centre2.list().length !== 1 || centre2.list()[0].kind !== 'fall') return 'a new knock-out raised ' + centre2.list().length + ' alert(s)';
+    if (centre2.list().length !== 1 || centre2.list()[0].kind !== 'death' || !/died in .* and returned to town/.test(centre2.list()[0].text)) return 'a death raised ' + JSON.stringify(centre2.list().map((a) => [a.kind, a.text]));
+    srv.env[0].hunt.ended = false;
+    srv.env[0].hunt.session = Object.assign({}, srv.env[0].hunt.session, { end_reason: null, ended_at: null, phase: 'hunting' });
     M.AL.setAlertShown(cs2, 'rare', false);
     cs2.timeline.ingest({ events: [{ id: 's1:99', type: 'rare_drop', atMs: 1760702399900, u: 1, item: 'rat_tail' }] }, 0);
     if (centre2.list().length !== 1) return 'a kind switched off still raised an alert';
@@ -298,7 +302,7 @@ async function pageRules(overrides, shots) {
       const tabs = await page.evaluate(() => Array.from(document.querySelectorAll('.char-tab[data-app="show"]')).map((b) => ({ slot: b.getAttribute('data-slot'),
         name: b.querySelector('.char-tab-name').textContent, doing: b.querySelector('.char-tab-doing').textContent, badge: b.querySelector('.char-badge').textContent, on: b.classList.contains('is-shown') })));
       const t0 = tabs.find((x) => x.slot === '0'), t1 = tabs.find((x) => x.slot === '1');
-      if (!t0 || t0.name !== 'Tyler' || t0.doing !== 'Hunting in Millrace Sewer' || t0.badge !== '2') fails.push('UI-1 [' + tag + '] tab 0 reads ' + JSON.stringify(t0));
+      if (!t0 || t0.name !== 'Tyler' || t0.doing !== 'Hunting in Millrace Sewer' || t0.badge !== '1') fails.push('UI-1 [' + tag + '] tab 0 reads ' + JSON.stringify(t0));
       if (!t1 || t1.name !== 'Druid' || t1.doing !== 'In town, idle' || !t1.on) fails.push('UI-1 [' + tag + '] tab 1 reads ' + JSON.stringify(t1));
       const loads = s.calls.length;
       await page.click('.char-tab[data-slot="0"]');
@@ -310,10 +314,10 @@ async function pageRules(overrides, shots) {
       /* UI-2: each alert once; a re-read does not repeat them; dismiss removes one. */
       const lines = () => page.evaluate(() => Array.from(document.querySelectorAll('.hw-alert')).map((li) => li.getAttribute('data-kind')).sort().join(','));
       await wait(page, () => document.querySelectorAll('.hw-alert').length >= 2, null, 3000);
-      if ((await lines()) !== 'fall,rare') fails.push('UI-2 [' + tag + '] the alert lines are [' + (await lines()) + '], want [fall,rare]');
+      if ((await lines()) !== 'rare') fails.push('UI-2 [' + tag + '] the alert lines are [' + (await lines()) + '], want [rare]');
       await shot('strip-alerts');
       await pushEnvelope(page, s, 0);
-      if ((await lines()) !== 'fall,rare') fails.push('UI-2 [' + tag + '] after a re-read the alert lines are [' + (await lines()) + ']');
+      if ((await lines()) !== 'rare') fails.push('UI-2 [' + tag + '] after a re-read the alert lines are [' + (await lines()) + ']');
       /* UI-3: the Party window for the leader, between hunts (nobody hunting: Start is on). */
       for (const m of s.env[0].party.members) { m.hunting = false; m.unit = null; }
       await pushEnvelope(page, s, 0);

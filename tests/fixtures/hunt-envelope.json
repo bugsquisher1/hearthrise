@@ -7,7 +7,8 @@
   "state": {
     "active_kind": "combat",
     "active_id": "mill_cellar",
-    "gold": 1200
+    "gold": 1200,
+    "level_xp": 21591
   },
   "skills": {},
   "inventory": {},
@@ -30,8 +31,7 @@
       "hp_regen": 2,
       "mana_regen": 1,
       "shield": 0,
-      "xp_pct": 0.62,
-      "falls": 0
+      "xp_pct": 0.62
     },
     "pose": {
       "at_ms": 1760702400000,
@@ -250,12 +250,8 @@
     "wall_ms": 2016000,
     "hero": {
       "kills": 164,
-      "xp": {
-        "hitpoints": 16311
-      },
-      "raw_xp": {
-        "hitpoints": 6471
-      },
+      "xp": {},
+      "raw_xp": {},
       "gold": 2996,
       "waste": 768,
       "balance": 2228,
@@ -306,23 +302,12 @@
         "total": 0,
         "bySource": {}
       },
-      "skills": {
-        "hitpoints": {
-          "xp": 16311,
-          "level": 24,
-          "per_hour": 29124,
-          "eta_h": 1.3644444444444443
-        }
-      }
+      "skills": {}
     },
     "party": {
       "kills": 164,
-      "xp": {
-        "hitpoints": 30120
-      },
-      "raw_xp": {
-        "hitpoints": 12900
-      },
+      "xp": {},
+      "raw_xp": {},
       "gold": 5992,
       "waste": 1210,
       "balance": 4782,

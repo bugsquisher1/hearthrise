@@ -981,7 +981,7 @@ async function run(mutate) {
   /* ── A3d. BURYING BONES PAYS PRAYER (Tyler live, v0.2.1: "can't bury bones") ─
      The Inventory's Bury is THIS intent and nothing else: set_activity
      artisan:bury_bones, then the switch back to idle collects. Prayer XP comes
-     from the server's recipe row (4.5 a bone), the bones leave the server's bag,
+     from the server's recipe row (PRAYER_BURY), the bones leave the server's bag,
      and the tables a reload reads (player_skills, player_inventory) say so. */
   {
     await db.query(
@@ -1005,8 +1005,12 @@ async function run(mutate) {
       `select qty from public.player_inventory where user_id = $1 and slot = 0 and item_id = 'bones'`, [UID])).rows[0]?.qty ?? 0);
     ok(bones === 0, `A3d: ${bones} bones are still in the server bag after 30 s of burying six`);
     const gained = (await skillXp(db, UID, 'prayer')) - prayerBefore;
-    /* 4.5 a bone through the pacing dial (pacedXp), at least 1 a bone: never 0, never above the raw 27. */
-    ok(gained >= 6 && gained <= 27, `A3d: burying six bones paid ${gained} Prayer XP (expected 6..27: 4.5 a bone, paced)`);
+    /* A bone pays PRAYER_BURY.xpPerBone (15.6: the authored 40 through the pacing dial, the core rebuild's
+       Prayer curve). This replay's chain may predate the carried remainder, so the window floors each grant
+       (6 x 15 = 90) or carries it (floor of 6 x 15.6 = 93): never less, never more. */
+    const { PRAYER_BURY } = await import('../src/data/core-model.js');
+    const lo = 6 * Math.floor(PRAYER_BURY.xpPerBone); const hi = Math.floor(6 * PRAYER_BURY.xpPerBone);
+    ok(gained >= lo && gained <= hi, `A3d: burying six bones paid ${gained} Prayer XP (expected ${lo}..${hi}: ${PRAYER_BURY.xpPerBone} a bone)`);
     const after = await state(db, UID);
     ok(after.active_kind === 'idle', `A3d: after the stop the pointer is ${after.active_kind}, not idle — hr_hunt_enter would refuse activity_running`);
   }

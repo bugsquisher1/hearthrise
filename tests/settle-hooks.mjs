@@ -12,11 +12,11 @@
 // Each hook has its own arm in tests/alpha-server.mjs; this guard runs them
 // TOGETHER in one real settle (the edge's propose + commit, tick mode), so an
 // ordering or interaction defect between them cannot hide:
-//   H-ALL          one 20-minute window with falls and pickups. Tiers 1-2
-//                  bought before the window, tier 3 bought during it; three
-//                  picked-up items ruled sell / ignore / sell-but-LOCKED. Then:
-//                  the first fall keeps loss − floor(loss x tier-2 permille),
-//                  later falls are whole, tiers 1-2 are used up and tier 3 is
+//   H-ALL          one 20-minute window with pickups and the hunt's one death
+//                  (the core rebuild). Tiers 1-2 bought before the window, tier 3
+//                  bought during it; three picked-up items ruled sell / ignore /
+//                  sell-but-LOCKED. Then: the death keeps loss − floor(loss x
+//                  tier-2 permille), tiers 1-2 are used up and tier 3 is
 //                  kept; the sold item is gone for units x the bid (one
 //                  loot_sell row, gold_in stamped), the ignored one is gone,
 //                  the locked one is kept; the pickups (tally loot) equal an
@@ -45,13 +45,13 @@ async function asAuth(db, uid, sql, params) {
   finally { await db.exec('reset role'); }
 }
 
-/* Measured on the replay (pinned dice): falls 3 times in one 20-minute window and picks up six
-   priced item kinds (bones, wheat, rat_tail, wolf_pelt, small_fang, raw_wolf_meat). */
-const FALLER = { minutesAgo: 25, inv: {}, bag: [], gold: 0, hp: 10, options: { on_empty: 'end', food_below_pct: 99 },
-  skillsXp: { attack: 800, strength: 800, magic: 1585 } };
+/* The settle harness's mixed ground: the rats and wolf of pockets 0-1 pay the pickups, the ghouls of pocket 2
+   kill a Level-5 hero part-way into its Level and skills (so the death has a price), all inside one window. */
+const FALLER = { minutesAgo: 25, inv: {}, bag: [], gold: 0, hp: 20, options: { on_empty: 'end', food_below_pct: 99 },
+  level: 5, levelXpOver: 800, skillsXp: { melee: 400, defense: 400 } };
 /* Measured: buys store food from a 100 g purse until it runs short, and sell-to-cover then
    sells its bones (bones flagged a cover item by the arm, at 1 g). Dice rewound per arm (runArms). */
-const COVERER = { minutesAgo: 25, inv: {}, bag: [], gold: 100, skillsXp: { attack: 400, strength: 400, magic: 1585 },
+const COVERER = { minutesAgo: 25, inv: {}, bag: [], gold: 100, level: 3,
   options: { supply_source: 'store', on_empty: 'end', food_below_pct: 99, gold_floor: 0 } };
 
 async function snap(H, db, uid, sid) {
@@ -66,9 +66,7 @@ const ARMS = {
   'H-ALL': async (db, { H, M }) => {
     const p = [];
     const uid = H.UIDS[0];
-    const h = await H.hunter(db, M, FALLER);
-    /* The most falls a hunt may take: the window keeps hunting (and picking up) past the third. */
-    await db.query("update public.hunt_sessions set falls_limit = public.hr_hunt_limit('falls_max') where id = $1", [h.sid]);
+    const h = await H.hunter(db, M, { ...FALLER, row: H.mixedRow });
     const start = await snap(H, db, uid, h.sid);
     const lid = Number(await H.one(db, 'select coalesce(max(id), 0) from public.player_ledger'));
     const once = async (capture) => {
@@ -101,7 +99,7 @@ const ARMS = {
     const B = await snap(H, db, uid, h.sid);
     const rows = await H.q(db, 'select intent, gold, gold_in, meta from public.player_ledger where user_id = $1 and id > $2 order by id', [uid, lid]);
     const dx = raws[0] || [];
-    if (dx.length < 2) return [`CONTROL: the window held ${dx.length} falls (need 2)`];
+    if (dx.length !== 1) return [`CONTROL: the window held ${dx.length} deaths (need the hunt's one)`];
     /* The fight is the window's own: the pickups do not depend on the hooks. */
     if (JSON.stringify(B.loot) !== JSON.stringify(A.loot)) p.push('the pickups moved with the hooks: ' + JSON.stringify({ A: A.loot, B: B.loot }));
     /* LOOT + LOCK. */
@@ -119,9 +117,9 @@ const ARMS = {
     /* EVERY COIN JOURNALLED. */
     const sum = rows.reduce((a, r) => a + Number(r.gold || 0), 0);
     if (sum !== B.gold - start.gold) p.push(`the purse moved ${B.gold - start.gold}, the ledger journals ${sum}`);
-    /* BLESSINGS: tier 2's protection on the first fall only; 1-2 used up, 3 kept. */
+    /* BLESSINGS: tier 2's protection on the death; 1-2 used up, 3 kept. */
     const want = {};
-    dx.forEach((f, j) => { for (const [k, n] of Object.entries(f)) if (Number(n) > 0) want[k] = (want[k] || 0) + (j === 0 ? Number(n) - Math.floor(Number(n) * pm2 / 1000) : Number(n)); });
+    for (const [k, n] of Object.entries(dx[0])) if (Number(n) > 0) want[k] = Number(n) - Math.floor(Number(n) * pm2 / 1000);
     const debit = rows.filter((r) => r.intent === 'death_xp');
     const got = debit.length === 1 ? debit[0].meta.xp : null;
     for (const [k, v] of Object.entries(want)) if (!got || Number(got[k] || 0) !== v) p.push(`death_xp ${JSON.stringify(got)}, want ${JSON.stringify(want)}`);
@@ -181,19 +179,22 @@ async function coverArm(db, { H, M }, forged) {
   return p;
 }
 
-/* Each mutant: file, [find, replace], the arm that must go red (the file's self-check is turned off). */
+/* Each mutant: file, [find, replace], the arm that must go red (the file's self-check is turned off).
+   hr_hunt_apply_member and hr_hunt_member_read are RESTATED by the core rebuild (2026-10-27-core-bodies.sql):
+   their hooks are planted in the bodies that run. */
+const BODIES = '2026-10-27-core-bodies.sql';
 const MUTANTS = [
-  { arm: 'H-ALL', file: HOOKS, why: 'the settle skips the loot filter',
+  { arm: 'H-ALL', file: BODIES, why: 'the settle skips the loot filter',
     find: "  v_loot := public.hr_hunt_loot_rules(p_user, p_slot, p_session, p_intent, p_delta->'items', v_to);", repl: '  v_loot := null;' },
-  { arm: 'H-ALL', file: HOOKS, why: 'the settle skips the blessing',
+  { arm: 'H-ALL', file: BODIES, why: 'the settle skips the blessing',
     find: '    v_bless := public.hr_blessing_take(p_user, p_slot, p_session, v_dx, v_s.settled_to);', repl: '    v_bless := null;' },
   { arm: 'H-ALL', file: '2026-10-25-blessings.sql', why: 'a tier bought during the window covers it',
     find: '   where b.user_id = p_user and b.slot = p_slot and b.bought_at <= p_from', repl: '   where b.user_id = p_user and b.slot = p_slot' },
   { arm: 'H-ALL', file: '2026-10-25-bag-rules.sql', why: 'the loot filter sells a locked item',
     find: "       and r.loot_rule in ('sell', 'ignore') and not r.locked", repl: "       and r.loot_rule in ('sell', 'ignore')" },
-  { arm: 'H-COVER', file: HOOKS, why: 'the read offers a locked item to sell-to-cover',
+  { arm: 'H-COVER', file: BODIES, why: 'the read offers a locked item to sell-to-cover',
     find: '                where not public.hr_item_locked(p_s.user_id, p_s.slot, c.item_id)), \'{}\'::jsonb))', repl: "                where true), '{}'::jsonb))" },
-  { arm: 'H-COVER-FORGED', file: HOOKS, why: 'the member settle takes a cover line naming a locked item',
+  { arm: 'H-COVER-FORGED', file: BODIES, why: 'the member settle takes a cover line naming a locked item',
     find: "      if public.hr_item_locked(p_user, p_slot, v_k) then perform public.hr_reject('item_locked', jsonb_build_object('item', v_k)); end if;", repl: '' },
 ];
 

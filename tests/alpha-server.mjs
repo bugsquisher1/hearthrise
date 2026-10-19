@@ -26,8 +26,9 @@
 //             player door): sell = picked-up units x the vendor bid, as gold,
 //             the pickups still tallied; ignore leaves them; a locked item is kept;
 //   A-BLESS-AWAY / A-BLESS-ATTENDED  a blessed death in the REAL settle: the
-//             window's first fall keeps loss − floor(loss x permille / 1000),
-//             later falls are whole, the tiers are used up, the saving journalled;
+//             death (one a hunt since the core rebuild) keeps loss − floor(loss x
+//             permille / 1000) of its Level and skill price, the tiers are used up,
+//             the saving journalled;
 //   A-STAMINA a refill bought DURING a hunt (attended) raises the pool at the
 //             session's settled_to, and the next settles run past the old end;
 //   A-PARTY   invite by name -> accept -> the leader's one start enters both
@@ -73,7 +74,11 @@ const qty = async (H, db, uid, item) => Number(await H.one(db, 'select coalesce(
 
 // ═══════════════════════════════════════════════════════════════════════
 const ARMS = {
-  'A-IDEM': async (db) => {
+  'A-IDEM': async (db0) => {
+    /* At the S2 files' OWN position (a boot up to the last of them): the core rebuild later drops columns
+       the S2 catalogues name (hr_start_kit.max_hp), so a chain-end re-apply is refused for that reason. */
+    const { db } = await bootReplay({ upTo: S2_FILES[S2_FILES.length - 1] });
+    try {
     const bodies = async () => JSON.stringify((await db.query(`select p.oid::regprocedure::text as f, md5(p.prosrc) as h, coalesce(p.proacl::text, '') as acl
       from pg_proc p where p.pronamespace = 'public'::regnamespace order by 1`)).rows);
     const rows = async () => JSON.stringify([(await db.query('select key, fn, note from public.hr_state_sections order by key')).rows,
@@ -85,6 +90,7 @@ const ARMS = {
     }
     const after = JSON.stringify([await inventory(db), await bodies(), await rows()]);
     return before === after ? [] : ['a second apply of the S2 files moved the schema, a body, a section row or a baseline row'];
+    } finally { await db.close().catch(() => {}); }
   },
 
   'A-DATA': async (db, { H, M, X }) => {
@@ -114,9 +120,8 @@ const ARMS = {
     /* In rising order of purchases made today: the ledger is append-only, so each case adds rows. */
     let made = 0;
     for (const [lv, cur, bought, prem] of [[1, 0, 0, false], [3, 479, 0, false], [10, 360, 1, false], [50, 300, 2, true], [3, 400, 5, false]]) {
-      const xp = M.XP.xpForLevel(lv);
-      await db.query(`insert into public.player_skills (user_id, slot, skill_id, xp) select $1, 0, s, $2 from unnest(array['attack','strength','defense','hitpoints']) s
-                       on conflict (user_id, slot, skill_id) do update set xp = excluded.xp`, [uid, xp]);
+      /* The refill is priced on the character's LEVEL (Level XP, kills only — the core rebuild). */
+      await db.query('update public.player_state set level_xp = $2 where user_id = $1 and slot = 0', [uid, M.XP.charXpForLevel(lv)]);
       await db.query(`update public.player_state set premium_until = case when $3 then now() + interval '1 day' end, stamina_ms = $2::bigint * 60000, stamina_at = now()
                        where user_id = $1 and slot = 0`, [uid, cur, prem]);
       for (; made < bought; made++) await db.query("insert into public.player_ledger (user_id, slot, kind, intent, gold, meta) values ($1, 0, 'shop', 'stamina_refill:1', -1, '{}')", [uid]);
@@ -297,17 +302,17 @@ async function lootArm(db, { H, M }, attended) {
   return p;
 }
 
-/* A BLESSED DEATH IN THE SETTLE: every tier held since before the hunt; the first fall keeps the unprotected share. */
+/* A BLESSED DEATH IN THE SETTLE: every tier held since before the hunt; the death (one a hunt, the core
+   rebuild) keeps only the unprotected share of its Level and skill price. The doomed hero is the settle
+   harness's DOOMED (a Level-5 hero part-way into its Level and skills, on the ghoul ground). */
 async function blessArm(db, { H, M }, attended) {
   const p = [];
   const uid = H.UIDS[0];
-  const h = await H.hunter(db, M, { ...H.STRONG, inv: {}, bag: [], gold: 0, hp: 1, level: undefined,
-    options: { on_empty: 'end', food_below_pct: 99 }, skillsXp: { attack: 400, strength: 450, magic: 1585 }, minutesAgo: 25 });
+  const h = await H.hunter(db, M, H.DOOMED);
   await db.query(`insert into public.player_blessings (user_id, slot, tier, paid, bought_at) select $1, 0, t.tier, 0, now() - interval '2 days'
                    from public.hr_blessing_tiers t`, [uid]);
   const pm = Number(await H.one(db, 'select max(permille) from public.hr_blessing_tiers'));
   const raws = [];
-  /* Away: ONE 20-minute window, so it holds several falls (only the first is protected). */
   for (const t of H.ticksOf(attended ? 90000 : 20 * 60000, 20 * 60000)(h.from)) {
     if (attended) {
       const v = await M.HS.settleHunt({ exec: H.makeExec(db), user: uid, slot: 0, mode: 'settle', bucket: null, project: true,
@@ -319,34 +324,28 @@ async function blessArm(db, { H, M }, attended) {
       if (!r.res || r.res.ok !== true) { p.push('a settle with blessings held was refused: ' + JSON.stringify(r.res).slice(0, 300)); break; }
     }
   }
-  const falls = await H.q(db, "select data from public.hunt_session_events where session_id = $1 and type = 'fall' order by id", [h.sid]);
-  if (!falls.length) return ['CONTROL: the weak hero never fell'];
+  const deaths = await H.q(db, "select data from public.hunt_session_events where session_id = $1 and type = 'death' order by id", [h.sid]);
+  if (deaths.length !== 1) return [`CONTROL: the doomed hero died ${deaths.length} time(s), want once`];
   const used = await H.q(db, "select meta from public.player_ledger where user_id = $1 and intent = 'blessing_used'", [uid]);
-  if (used.length !== 1) p.push(`${used.length} blessing_used rows (want 1: the first fall uses every tier)`);
+  if (used.length !== 1) p.push(`${used.length} blessing_used rows (want 1: the death uses every tier)`);
   if (Number(await H.one(db, 'select count(*) from public.player_blessings where user_id = $1', [uid])) !== 0) p.push('the blessings were not used up');
   const saved = (used[0] && used[0].meta.saved) || {};
-  const first = falls[0].data.xp_lost || {};
-  for (const [k, kept] of Object.entries(first)) {
-    const raw = Number(kept) + Number(saved[k] || 0);
-    if (Number(saved[k] || 0) !== Math.floor(raw * pm / 1000)) p.push(`${k}: the first fall saved ${saved[k] || 0} of ${raw}, not floor(${raw} x ${pm}/1000)`);
+  const kept = deaths[0].data.xp_lost || {};
+  for (const [k, n] of Object.entries(kept)) {
+    const raw = Number(n) + Number(saved[k] || 0);
+    if (Number(saved[k] || 0) !== Math.floor(raw * pm / 1000)) p.push(`${k}: the death saved ${saved[k] || 0} of ${raw}, not floor(${raw} x ${pm}/1000)`);
   }
-  if (!Object.values(saved).some((n) => Number(n) > 0)) p.push('the blessing saved no XP: ' + JSON.stringify({ first, saved }));
+  if (!Object.values(saved).some((n) => Number(n) > 0)) p.push('the blessing saved no XP: ' + JSON.stringify({ kept, saved }));
   if (!attended) {
-    if (!raws.some((d) => d.length >= 2)) p.push('CONTROL: no settled window held two falls (only the first may be protected)');
-    /* Window by window: the debit is the blessed first fall + every later fall whole. */
+    /* The debit journalled is exactly the death's unprotected share. */
+    const dx = raws.find((d) => d.length);
     const rows = await H.q(db, "select meta->'xp' as xp from public.player_ledger where session_id = $1 and intent = 'death_xp' order by id", [h.sid]);
-    let blessed = false; let i = 0;
-    for (const dx of raws) {
-      if (!dx.length) continue;
+    if (!dx) p.push('CONTROL: no settled window carried the death');
+    else {
       const want = {};
-      dx.forEach((f, j) => { for (const [k, n] of Object.entries(f)) {
-        const v = !blessed && j === 0 ? Number(n) - Math.floor(Number(n) * pm / 1000) : Number(n);
-        if (Number(n) > 0) want[k] = (want[k] || 0) + v;
-      } });
-      blessed = true;
-      if (!Object.keys(want).length) continue;
-      const got = rows[i++] ? rows[i - 1].xp : null;
-      for (const [k, v] of Object.entries(want)) if (Number((got || {})[k] || 0) !== v) p.push(`window ${i}: ${k} debited ${JSON.stringify(got)}, want ${JSON.stringify(want)}`);
+      for (const [k, n] of Object.entries(dx[0])) if (Number(n) > 0) want[k] = Number(n) - Math.floor(Number(n) * pm / 1000);
+      const got = rows[0] ? rows[0].xp : null;
+      for (const [k, v] of Object.entries(want)) if (v > 0 && Number((got || {})[k] || 0) !== v) p.push(`${k} debited ${JSON.stringify(got)}, want ${JSON.stringify(want)}`);
     }
   }
   return p;
@@ -359,7 +358,9 @@ const MUTANTS = [
   { arm: 'A-LOCK', file: '2026-10-25-settle-hooks.sql', why: 'hr_apply no longer refuses a locked sale',
     find: "        if v_n < 0 and coalesce(v_this_intent, '') ~ '^vendor_sell(_many)?(:|$)' and public.hr_item_locked(v_uid, v_slot, k) then",
     repl: "        if false and coalesce(v_this_intent, '') ~ '^vendor_sell(_many)?(:|$)' and public.hr_item_locked(v_uid, v_slot, k) then" },
-  { arm: 'A-LOOT-AWAY', file: '2026-10-25-settle-hooks.sql', why: 'the settle no longer runs the loot filter',
+  /* hr_hunt_apply_member and hr_hunt_party_start are RESTATED by the core rebuild (2026-10-27-core-bodies.sql):
+     their mutants are planted in the bodies that run. */
+  { arm: 'A-LOOT-AWAY', file: '2026-10-27-core-bodies.sql', why: 'the settle no longer runs the loot filter',
     find: "  v_loot := public.hr_hunt_loot_rules(p_user, p_slot, p_session, p_intent, p_delta->'items', v_to);", repl: '  v_loot := null;' },
   { arm: 'A-LOOT-ATTENDED', file: '2026-10-25-bag-rules.sql', why: 'a sale pays twice the vendor bid',
     find: '      v_gold := v_gold + v_q * v_r.unit;', repl: '      v_gold := v_gold + 2 * v_q * v_r.unit;' },
@@ -369,18 +370,21 @@ const MUTANTS = [
     find: "  l as (select t.*, greatest(0, t.target - t.have) as buy from t)", repl: "  l as (select t.*, greatest(0, t.target - t.have - 1) as buy from t)" },
   { arm: 'A-DATA', file: '2026-10-25-alpha-catalogue.generated.sql', why: 'the SQL catalogue drifts from the edge price',
     find: "  ('supply.cooked_shrimp', 'cooked_shrimp', 'food', 19),", repl: "  ('supply.cooked_shrimp', 'cooked_shrimp', 'food', 18)," },
-  { arm: 'A-DATA', file: '2026-10-25-stamina-refill.sql', why: 'the SQL refill skips the escalation',
+  /* hr_stamina_refill_quote is RESTATED by the core rebuild (2026-10-27-core-bodies.sql: priced on Level):
+     the mutant is planted in the body that runs. */
+  { arm: 'A-DATA', file: '2026-10-27-core-bodies.sql', why: 'the SQL refill skips the escalation',
     find: '* (r.step_den + r.step_num * (v_n - 1)) * v_min)', repl: '* (r.step_den) * v_min)' },
   { arm: 'A-STAMINA', file: '2026-10-25-stamina-refill.sql', why: 'the refill charges and never writes the pool',
     find: "   where user_id = v_uid and slot = p_slot;\n  return jsonb_build_object('ok', true, 'version', v_a->'version', 'gold', -p_price,",
     repl: "   where false;\n  return jsonb_build_object('ok', true, 'version', v_a->'version', 'gold', -p_price," },
-  { arm: 'A-BLESS-AWAY', file: '2026-10-25-settle-hooks.sql', why: 'the death no longer applies blessings',
+  /* hr_hunt_apply_member is RESTATED by the core rebuild: the hook call is planted in the body that runs. */
+  { arm: 'A-BLESS-AWAY', file: '2026-10-27-core-bodies.sql', why: 'the death no longer applies blessings',
     find: '    v_bless := public.hr_blessing_take(p_user, p_slot, p_session, v_dx, v_s.settled_to);', repl: '    v_bless := null;' },
-  { arm: 'A-BLESS-AWAY', file: '2026-10-25-blessings.sql', why: 'every fall of the window is protected, not the first',
-    find: "  v_dx := jsonb_set(p_dx, '{0}', v_first);", repl: "  v_dx := (select jsonb_agg(v_first) from jsonb_array_elements(p_dx));" },
+  /* ('every fall of the window is protected, not the first' RETIRED with the core rebuild: a hunt holds one death,
+     so there is no second death for the mutant to protect.) */
   { arm: 'A-BLESS-ATTENDED', file: '2026-10-25-blessings.sql', why: 'a death does not use the blessings up',
     find: '  delete from public.player_blessings where user_id = p_user and slot = p_slot and tier = any (v_tiers);', repl: '  perform 1;' },
-  { arm: 'A-PARTY', file: '2026-10-25-party-invites.sql', why: "the shared start loads the leader's bag into every member",
+  { arm: 'A-PARTY', file: '2026-10-27-core-bodies.sql', why: "the shared start loads the leader's bag into every member",
     find: 'public.hr_hunt_saved_bag(v_m.user_id, v_m.slot),', repl: 'public.hr_hunt_saved_bag(v_uid, p_slot),' },
 ];
 

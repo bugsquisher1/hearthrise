@@ -55,7 +55,7 @@ function contract(R, cs, body, tl) {
   const h = R.HS.huntOf(cs);
   need('hunt', !!h, 'huntOf reads no hunt (the screen says "Not in a hunt."): ' + JSON.stringify(body.hunt).slice(0, 240));
   if (h) {
-    const m = missing(h, ['sessionId', 'huntId']).concat(missing(h.hero, ['unit', 'name', 'level', 'hp', 'hpMax', 'mana', 'manaMax', 'hpRegen', 'manaRegen', 'xpPct', 'falls']).map((k) => 'hero.' + k));
+    const m = missing(h, ['sessionId', 'huntId']).concat(missing(h.hero, ['unit', 'name', 'level', 'hp', 'hpMax', 'mana', 'manaMax', 'hpRegen', 'manaRegen', 'xpPct', 'regenPm']).map((k) => 'hero.' + k));
     need('hunt', !m.length, 'huntOf misses ' + m.join(', '));
     const units = Array.from(h.units.values());
     need('hunt', units.some((u) => u.side === 'hero') && units.every((u) => u.side === 'hero' || u.kind), 'the pose has no hero, or a monster with no kind: ' + JSON.stringify(units.slice(0, 4)));
@@ -128,7 +128,7 @@ function contract(R, cs, body, tl) {
   need('inventory', Array.isArray(bag), 'bagOf reads no inventory');
   need('equipment', R.IS.equipmentOf(cs) !== null, 'equipmentOf reads no equipment');
   const sk = R.IS.skillsOf(cs);
-  need('skills', !!sk && Object.keys(sk).length >= 4 && !!sk.hitpoints, 'skillsOf yields ' + JSON.stringify(sk).slice(0, 160) + ' from ' + JSON.stringify(body.skills).slice(0, 160));
+  need('skills', !!sk && Object.keys(sk).length >= 4 && !!sk.melee, 'skillsOf yields ' + JSON.stringify(sk).slice(0, 160) + ' from ' + JSON.stringify(body.skills).slice(0, 160));
   need('state', R.IS.goldOf(cs) !== null, 'goldOf reads no state.gold');
   const v = R.PS.vitalsOf(cs);
   need('state', !missing(v, ['hp', 'hpMax', 'mana', 'manaMax', 'staminaMs', 'staminaCapMs']).length, 'vitalsOf misses ' + missing(v, ['hp', 'hpMax', 'mana', 'manaMax', 'staminaMs', 'staminaCapMs']).join(', '));
@@ -285,9 +285,9 @@ async function check(db, M, H, R, SH) {
     const cs = new R.CSN.CharacterSession({ slot: 0, uid: H.UIDS[0], server: {}, now: () => 1e6 });
     if (!cs._take(body, 'settle')) { problems.push({ sec: 'CONTROL', msg: 'the client refused the envelope: ' + cs.lastVerdict }); return; }
     problems.push(...contract(R, cs, body, cs.timeline));
-    /* A fall the server keeps, then the Character window's ONE ask through the player door. */
+    /* A death the server keeps (the hunt's one, the core rebuild), then the Character window's ONE ask through the player door. */
     await db.query(`insert into public.hunt_session_events (session_id, user_id, slot, type, at, data)
-                    select h.id, h.user_id, h.slot, 'fall', h.settled_to, '{"monster": "rat", "xp": 5, "xp_lost": {"attack": 5}}'::jsonb
+                    select h.id, h.user_id, h.slot, 'death', h.settled_to, '{"monster": "rat", "xp": 5, "xp_lost": {"level": 5, "melee": 3}}'::jsonb
                       from public.hunt_sessions h where h.user_id = $1 and h.slot = 0 order by h.entered_at desc limit 1`, [H.UIDS[0]]);
     const sv = await SH.runSheet({ exec: H.makeExec(db), user: H.UIDS[0], slot: 0, bucket: 'accrue' });
     if (!sv || sv.status !== 200 || !sv.body || sv.body.ok !== true || !cs._take(sv.body, 'sheet')) {

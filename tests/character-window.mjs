@@ -27,7 +27,7 @@
 //         sends exactly ONE hr_outfit_set naming it, the worn mark stays on the
 //         server's outfit until the re-read; a premium outfit not owned can be
 //         tried on and never saved
-//   CW-5  THE DEATH LOG is the server's rows: who felled the hero, where, the XP
+//   CW-5  THE DEATH LOG is the server's rows: who killed the hero, where, the XP
 //   CW-6  THE SKILLS: Gathering and crafting lists no combat skill; the combat
 //         ledger is the Character window's; an unlock line names each thing and
 //         its kind ("Bronze Axe (woodcutting tool)")
@@ -45,13 +45,15 @@ const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeo
 
 /* The three sections, as hr_character_sheet_view / hr_outfit_view / hr_death_log_view answer them. */
 const COMBAT = { role: 'melee_dps', weapon_type: 'sword', max_mana: 60, move_speed: 3200, damage: { min: 1, max: 17 },
-  accuracy_pct: 74.5, crit_pct: 4.5, defence: 23, ward_pct: 0, set: null, xp: { gear: 0, perks: 0.02, buffs: 0, combat: 0 } };
+  accuracy_pct: 74.5, crit_pct: 4.5, defence: 23, regen_pct: 101.9, set: null, xp: { perks: 0.02, buffs: 0, combat: 0 } };
 function withSections(env, o = {}) {
+  /* The Level is read off state.level_xp on the shared curve (321,000 = Level 21, CORE_MODEL.md §2). */
+  env.state = Object.assign({}, env.state, { level_xp: 321000 });
   env.character_sheet = { level: 21, max_hp: 24, bestiary: { slain: 7, total: 119 }, fresh: o.fresh !== false,
     combat: o.fresh === false ? null : Object.assign(clone(COMBAT), o.combat || {}), computed_at: '2026-10-18T10:00:00Z' };
   if (o.dropMana && env.character_sheet.combat) delete env.character_sheet.combat.max_mana;
   env.outfit = { worn: 'berserker', colors: {}, owned: ['knight', 'berserker', 'ranger', 'sorcerer', 'druid'] };
-  env.death_log = [{ id: 901, at: '2026-10-18T09:30:00Z', hunt: 'mill_cellar', monster: 'rat_king', xp: 140, xp_lost: { attack: 90, strength: 50 } },
+  env.death_log = [{ id: 901, at: '2026-10-18T09:30:00Z', hunt: 'mill_cellar', monster: 'rat_king', xp: 140, xp_lost: { level: 90, melee: 50 } },
     { id: 877, at: '2026-10-17T20:00:00Z', hunt: 'mill_cellar', monster: 'rat', xp: 0, xp_lost: null }];
   return env;
 }
@@ -164,16 +166,17 @@ async function checks(overrides, shots) {
         if (tabs.join('|') !== 'Character|Outfit|Deaths') fails.push('CW-1 the tabs are ' + tabs.join('|'));
         /* CW-2: exactly the section's numbers. */
         const L = await lines(page);
-        const want = { Damage: '1–17', 'Hit chance': '74.5% against no armour', 'Critical chance': '4.5%', Defence: '23', 'Max mana': '60', 'Max health': '24', 'Home and renown': '+2%', Total: '+2%' };
+        const want = { Damage: '1–17', 'Hit chance': '74.5% against no armour', 'Critical chance': '4.5%', Defence: '23', 'Max mana': '60', 'Max health': '24',
+          Regeneration: '101.9% of the base rate (Prayer)', 'Home and renown': '+2%', Total: '+2%' };
         for (const [k, v] of Object.entries(want)) if (L[k] !== v) fails.push('CW-2 ' + k + ' reads ' + JSON.stringify(L[k]) + ', the server sent ' + v);
         if ('Prayer ward' in L || 'Gear' in L || 'Food and drink' in L) fails.push('CW-3 a zero line is drawn: ' + JSON.stringify(L));
-        const level = await page.evaluate(() => document.querySelector('[data-hs-win="character"] .hw-cs-level').textContent);
-        if (level !== 'Combat level 21') fails.push('CW-2 the level reads ' + JSON.stringify(level));
+        const level = await page.evaluate(() => document.querySelector('[data-hs-win="character"] .hw-cs-lv').textContent);
+        if (level !== 'Level 21') fails.push('CW-2 the level reads ' + JSON.stringify(level));
         const words = await page.evaluate(() => document.querySelector('[data-hs-win="character"]').textContent);
         for (const w of ['Leech', 'Protection', 'Proficiency', 'Mount']) if (words.includes(w)) fails.push('CW-3 the window draws a "' + w + '" line the engine does not have');
         if (!/7 of 119 creatures slain/.test(words)) fails.push('CW-2 the bestiary line is missing');
         const combatSkills = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="character"] .hw-skill-name')).map((b) => b.textContent));
-        if (!combatSkills.includes('Attack') || combatSkills.includes('Mining')) fails.push('CW-6 the Character window\'s skills are ' + combatSkills.join(','));
+        if (!combatSkills.includes('Melee') || combatSkills.includes('Attack') || combatSkills.includes('Mining')) fails.push('CW-6 the Character window\'s skills are ' + combatSkills.join(','));
         if (sheetAsks(s).length !== 1) fails.push('CW-3 one opening asked the engine ' + sheetAsks(s).length + ' time(s), not once');
         if (shots) await shot(page, 'character-1440x900-sheet');
         /* CW-2b: a new envelope replaces the numbers on the same node. */
@@ -205,18 +208,18 @@ async function checks(overrides, shots) {
         await page.click('[data-hs-win="character"] .hw-tab[data-tab="deaths"]');
         await page.waitForTimeout(300);
         const rows = await page.evaluate(() => Array.from(document.querySelectorAll('.hw-dl-head')).map((b) => ({ by: b.querySelector('.hw-dl-by').textContent, where: b.querySelector('.hw-dl-where').textContent, xp: b.querySelector('.hw-dl-xp').textContent, ev: b.getAttribute('data-event') })));
-        if (rows.length !== 2 || rows[0].by !== 'Felled by Rat King' || rows[0].where !== 'Mill Cellar' || rows[0].xp !== '140 XP lost' || rows[0].ev !== '901' || rows[1].xp !== 'No XP lost')
+        if (rows.length !== 2 || rows[0].by !== 'Killed by Rat King' || rows[0].where !== 'Died in Mill Cellar and returned to town' || rows[0].xp !== '140 XP lost' || rows[0].ev !== '901' || rows[1].xp !== 'No XP lost')
           fails.push('CW-5 the death rows are ' + JSON.stringify(rows));
         await page.click('.hw-dl-head[data-event="901"]');
         await page.waitForTimeout(150);
         const more = await page.evaluate(() => document.querySelector('.hw-dl-row.is-open .hw-dl-more').textContent);
-        if (!/90 Attack XP, 50 Strength XP/.test(more)) fails.push('CW-5 the open row says ' + JSON.stringify(more));
+        if (!/90 Level XP, 50 Melee XP/.test(more)) fails.push('CW-5 the open row says ' + JSON.stringify(more));
         if (shots) await shot(page, 'character-1440x900-deaths');
         /* CW-6: Gathering and crafting has no combat skill; the unlock names its kind. */
         await openWin(page, 'g', 'skills-trade');
         await page.waitForTimeout(300);
         const trade = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="skills-trade"] .hw-skill')).map((li) => li.textContent));
-        if (trade.some((t) => /^\s*(Attack|Strength|Defense|Hitpoints|Prayer|Magic|Ranged)/.test(t))) fails.push('CW-6 Gathering and crafting lists a combat skill');
+        if (trade.some((t) => /^\s*(Melee|Defense|Prayer|Magic|Ranged)/.test(t))) fails.push('CW-6 Gathering and crafting lists a combat skill');
         const wc = trade.find((t) => /^\s*Smithing/.test(t)) || '';
         if (!/Next at level \d+: .*\((woodcutting|mining) tool\)/.test(wc)) fails.push('CW-6 the smithing unlock does not name its kind: ' + JSON.stringify(wc));
       }

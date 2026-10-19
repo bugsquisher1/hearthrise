@@ -216,6 +216,12 @@ const rowWith = (monster, over) => () => {
 const groundWith = (M, monster, over) => ({ ground: rowWith(monster, over)(), grid: gridOf(M) });
 /* Ghouls: a low hero dies there (the DEATH arms). */
 const deadlyRow = rowWith('ghoul');
+/* The fixture's rats and wolf in pockets 0-1 (pickups), ghouls in pocket 2 (the death): one window holds
+   both (tests/settle-hooks.mjs H-ALL). */
+const mixedRow = () => {
+  const g = groundRow();
+  return { ...g, pockets: g.pockets.map((p, i) => (i === 2 ? { ...p, spawns: p.spawns.map((s) => ({ ...s, monster: 'ghoul' })) } : p)) };
+};
 /* The DB arms' settles play the ground installGround last put in the catalogue. */
 let fixtureRow = groundRow;
 const groundsOf = (M) => ({ mill_cellar: { ground: fixtureRow(), grid: gridOf(M) } });
@@ -830,7 +836,7 @@ async function character(db, M, uid, o) {
 
 /* A hunter: one character (or, with o.party, every character of a party) on mill_cellar `minutesAgo` minutes ago. */
 async function hunter(db, M, o) {
-  await installGround(db, o.deadly ? deadlyRow : groundRow);
+  await installGround(db, o.row || (o.deadly ? deadlyRow : groundRow));
   await db.query('update public.hr_hunt_config set enabled = true where id');
   const who = o.party ? o.party : [o];
   for (let i = 0; i < who.length; i++) await character(db, M, UIDS[i], who[i]);
@@ -1738,7 +1744,7 @@ async function main() {
 }
 
 /* The PGlite harness, for tests/envelope-contract.mjs (the real projections fed to the client's readers). */
-export const HARNESS = Object.freeze({ ROOT, UIDS, STRONG, loadEdge, pinDice, hunter, character, settleTo, run, ticksOf,
+export const HARNESS = Object.freeze({ ROOT, UIDS, STRONG, DOOMED, mixedRow, loadEdge, pinDice, hunter, character, settleTo, run, ticksOf,
   one, q, inTx, makeExec, groundsOf });
 
 if (isMain(import.meta.url)) main();

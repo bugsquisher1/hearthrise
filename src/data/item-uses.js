@@ -17,7 +17,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { ITEMS } from './items.js?v=0.2.2';
+import { ITEMS } from './items.js?v=0.2.4';
 
 /* The ammo noun (the last word of the item's name) and what fires it. */
 const AMMO_FOR = Object.freeze({ arrows: 'bows', bolts: 'crossbows', rune: 'staves', runes: 'staves', whetstone: 'blades', whetstones: 'blades' });

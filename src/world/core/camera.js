@@ -51,6 +51,24 @@ export function cleanInset(inset) {
   return { left: v('left'), right: v('right'), top: v('top'), bottom: v('bottom') };
 }
 
+/* A window opening or closing changes the inset at once; the CAMERA eases to its new place over
+   this long (Tyler 10-18: the World snapped a whole dock width in one frame). The camera, not the
+   inset, is eased: the framing rules (centre, follow, keep the hero, no void) are not linear in the
+   inset, so an eased inset still jumps where a rule switches over. */
+export const INSET_EASE_MS = 200;
+
+/**
+ * The camera `ms` after an inset change moved it from `from` toward `to` (art px): an ease-out
+ * cubic, exactly `to` from INSET_EASE_MS on, and `to` at once with no `from` or no finite `ms`. Pure.
+ */
+export function easedCam(from, to, ms) {
+  if (!from || !Number.isFinite(ms)) return to;
+  const k = Math.max(0, Math.min(1, ms / INSET_EASE_MS));
+  if (k >= 1) return to;
+  const e = 1 - Math.pow(1 - k, 3);
+  return { x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e };
+}
+
 /*
  * One camera axis. The view is `v` long with `a` covered before and `b` after;
  * the world (or the room) spans [lo, hi]. A span that fits the uncovered part is
@@ -116,7 +134,8 @@ export function frameView(look, vw, vh, map, z, T, o = {}) {
   const mid = (p) => (p ? { x: (p.x + 0.5) * T, y: (p.y + 0.5) * T } : null);
   const target = mid(look) || { x: bounds.x + bounds.w / 2, y: bounds.y + bounds.h / 2 };
   const inset = cleanInset(o.inset);
-  const cam = follow(target, { w: vw, h: vh }, bounds, inset, mid(o.keep), T);
+  /* o.from / o.sinceMs: where the camera stood when the inset last changed, and how long ago (easedCam). */
+  const cam = easedCam(o.from, follow(target, { w: vw, h: vh }, bounds, inset, mid(o.keep), T), o.sinceMs);
   const plan = blitPlan(cam, z, T);
   const open = { x: cam.x + inset.left, y: cam.y + inset.top, w: Math.max(1, vw - inset.left - inset.right), h: Math.max(1, vh - inset.top - inset.bottom) };
   return { cam, plan, open, view: { ox: plan.ox, oy: plan.oy, w: Math.ceil(vw) + 2 * T + 1, h: Math.ceil(vh) + 2 * T + 1 } };

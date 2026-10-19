@@ -45,7 +45,7 @@ One module per responsibility. Each file stays under about 600 lines. No module 
 Every file imports with `?v=NNN` (CLAUDE.md §5), takes its instance as an argument, and reads no `Date.now`, `Math.random`, DOM, `window` or `G` (guard `tests/hunt-core/purity.mjs`, mutant: add `Math.random()` to any module → red). The edge packs it (`tools/pack-edge.mjs versionQueryGuard`).
 
 **The engine contract (SE 10-17, replaces the earlier ASSUMED line).**
-1. **One loop.** `simulateHuntSpan` in `src/core/combat-sim.js` KEEPS the swing-boundary loop it has today: the absolute clock `hs.nextSwingAtMs`, the END_ORDER checks, stamina drain/rest, the knockout window, the `fx` ledger hooks. `world-step.stepSwing` REPLACES the single-foe `simulateTick` call inside that loop. There is no second loop and no `ctx.away` (AWAY-1, AWAY-12).
+1. **One loop.** `simulateHuntSpan` in `src/core/combat-sim.js` KEEPS the swing-boundary loop it has today: the absolute clock `hs.nextSwingAtMs`, the END_ORDER checks, stamina drain/rest, the death check (a death ends that hero's hunt), the `fx` ledger hooks. `world-step.stepSwing` REPLACES the single-foe `simulateTick` call inside that loop. There is no second loop and no `ctx.away` (AWAY-1, AWAY-12).
 2. **Sub-steps.** One swing = `swing_interval_ms / STEP_MS` sub-steps, `STEP_MS = 100` (`src/data/hunt-tuning.js`). `validate()` refuses an interval that is not a whole multiple. Every clock is integer ms, absolute or swing-relative; a position is a tile plus integer progress ms, never a float that is persisted.
 3. **Dice.** Each swing draws from the streams `seed(domain, swing)` (`src/core/action-rules.js seedLabel`, contract S2): `s` for hits, misses, damage and peel rolls; `c:<lane>` per cast lane; `r` for the party loot roll; `g` for gather. Within a swing, draws go in a fixed order (phase, then unit id ascending). No per-sub-step HMAC. A new domain is an edit to `SEED_DOMAIN`, never an inline label.
 4. **Windows end on a swing boundary** (already true: the loop stops at the first `nextSwingAtMs >= toMs`). The whole world at that boundary (unit tiles and progress, monster HP, statuses and over-time effects, lane next-ready, spot claims, phase, pocket index, pack and respawn timers, corpses) is `world-state.encode`d into `hunt_instances.world jsonb` + `world_swing`, written only by `hr_hunt_apply` under the instance lock and version CAS. It replaces `hunt_instances.pull_left`/`respawn_at` (one place for the cycle). Each hero's HP, mana, falls and knockout stay on its own `hunt_sessions` row, because that is what each character's envelope projects. Byte bound: `octet_length(world) <= 16384` (ASSUMED value; a CHECK plus `world-state.validate`).
@@ -129,7 +129,7 @@ Every widget and window is ONE component. The shell picks the desktop window or 
 
 | Section | Producer (server) | Client key | Replaces / notes |
 |---|---|---|---|
-| `hunt` | `hr_hunt_section_view` | `cs.state.hunt` | `{session_id, hunt_id, ended, hero{unit, name, level, hp, hp_max, mana, mana_max, hp_regen, mana_regen, shield, xp_pct, falls}, pose{at_ms, world_swing, units[{u, side, kind, boss, alive, x, y, hp, hp_max}]}, loot[{item, count}], session, instance}`; the pose is the world decoded by field name; `level` the combat level; `xp_pct` progress through the current Hitpoints level (ASSUMED); regen per minute (HP out of combat) |
+| `hunt` | `hr_hunt_section_view` | `cs.state.hunt` | `{session_id, hunt_id, ended, hero{unit, name, level, hp, hp_max, mana, mana_max, hp_regen, mana_regen, shield, xp_pct}, pose{at_ms, world_swing, units[{u, side, kind, boss, alive, x, y, hp, hp_max}]}, loot[{item, count}], session, instance}`; the pose is the world decoded by field name; `level` the combat level; `xp_pct` progress through the current Hitpoints level (ASSUMED); regen per minute (HP out of combat) |
 | `hunt_analyzer` | `hr_hunt_analyzer_view` (v2) | `cs.state.hunt_analyzer` | `{hunt_ms, wall_ms, hero, party, session, recent, unseen}`, each view `{kills, xp{skill}, raw_xp{skill}, gold, waste, balance, per_hour, supplies{own, store, store_gold}, loot{item}, loot_value, taken{total, byMonster, byElement}, dealt{total, byAbility, byElement}, healed, skills{skill: {xp, level, per_hour, eta_h}}}`; null for a character with no premium or no hunt, and null REPLACES |
 | `hunt_settings` | `hr_hunt_settings_view` | `cs.state.hunt_settings` | `{preset, presets[{preset, name}], role, target_mode, stance, distance, chase, food_pct, drink_pct, supply_source, on_empty, action_set, gold_floor, slots[{action{type, id}, conditions, join, mana, usable}], bar, options}`: EFFECTIVE values (stored option, else the hunting unit's role default, else the generated default) |
 | `party` | `hr_hunt_party_view` | `cs.state.party` | `{id, hunt, max, open, leader, self, members[{unit, seat, hunting, name, level, weapon, role_pick, hp, hp_max, mana, mana_max, dealt, healed, dps, hps, down, eating, drinking, aggro}]}`: own membership + instance-scoped peers; `leader`/`self`/`unit` are world unit ids, the vitals come off the pose by field name (`hr_hunt_world_shape.fields`); a solo hunt is a party of one |
@@ -241,9 +241,9 @@ Inputs, outputs, envelope section, tests. "inst" = one hunt instance (solo or pa
 13. **Monsters can switch targets.** DECIDED (Tyler 10-16). The cause is a peel roll: a hero's attack can draw a queued monster onto that hero. Chance per role is a data row (Healer 0.18, others 0). ASSUMED (sim `sim.js:773-776`).
 14. **The tank auto-casts Challenge** whenever any engaged monster on screen is not targeting him. It pulls every such monster back. No player input. DECIDED (Tyler 10-16). "On screen" = engaged and within 6 tiles. ASSUMED (sim tooltip `ui.js:48`). Challenge cooldown 8 s. ASSUMED (sim data).
 15. **A monster whose target died** retargets the leader. ASSUMED (sim `sim.js:748`).
-16. **Deaths.** A hero at 0 HP is knocked out for `KNOCKOUT_MS` (60 s, `src/data/hunt-sessions.js:36`, DECIDED by C2 data), not the sim's 8 s. Checked against C2: consistent. The knockout runs on the swing clock (60 000 is 30 swings of 2.0 s; the generator refuses a `KNOCKOUT_MS` that is not a whole number of swings), `hr_hunt_apply` already refuses any other value (`bad_knockout`), and the hero stands up at 40% HP (`src/core/recovery.js resumeHpFor`). It is per member session: one hero down does not stop the others. If the leader falls, the party wipes: the pack resets and heals, everyone returns to the entrance. ASSUMED (sim `sim.js:377-383`). A wipe charges a fall (and `DEATH_XP_LOSS`) only to heroes that reached 0 HP, so the 3-falls limit counts each character's own knockouts (SE 10-17). A death is never a free heal (CLAUDE.md §6).
+16. **Deaths.** A hero at 0 HP dies: their hunt ends and they go back to town. No knockouts, no falls, no resume, no respawn at the entrance. A death costs 2% XP (blessings reduce the loss) and never de-levels. DECIDED (Tyler 10-19; replaces the 10-17 `KNOCKOUT_MS` / 3-falls design, so `KNOCKOUT_MS`, `resumeHpFor` and the falls counter go). What one member's death does to the rest of a party is NOT ruled: ask Tyler, do not assume.
 17. **Pack respawn** is a per-hunt value (sim 90 s, ASSUMED). A pack never respawns while its pocket is mid-fight. ASSUMED (sim).
-18. **Regroup.** After a pull, the party waits until every hero is up and within 7 tiles of the leader. ASSUMED (sim).
+18. **Regroup.** After a pull, the party waits until every hero in the hunt is within 7 tiles of the leader. ASSUMED.
 
 ### 3.3 Status effects (`status.js`)
 
@@ -259,7 +259,7 @@ Inputs, outputs, envelope section, tests. "inst" = one hunt instance (solo or pa
 1. **Food restores HP. Drink restores mana. No potions.** DECIDED (Tyler 10-16).
 2. **50% instantly, 50% over 6 s.** DECIDED (Tyler 10-16 for the split; week plan item 7 for 6 s).
 3. **One shared consumable lane** (1 s). ASSUMED (Bible §9.1 PROPOSED).
-4. **When.** Drink under the drink threshold first. Eat under the food threshold when no heal landed in the last 2 s. One over-time effect of each kind at a time. Thresholds are per-hero settings; defaults 30% mana, 50% HP. ASSUMED.
+4. **When.** Eating and drinking are action-bar slots with conditions in the one conditional action engine (Tyler 10-18): there are no separate food/drink thresholds. The default food and drink slots carry the conditions mana < 30% and HP < 50%; one over-time effect of each kind at a time. Default numbers ASSUMED.
 5. **Own stock first, free.** A hero's own carried stack is already owned, so using it costs no gold. DECIDED (Tyler 10-16).
 6. **Then store-bought, at store price**, from the `supply-basics.js` row for the hunt tier. DECIDED (Tyler 10-16).
 7. **A hunt never stops for lack of stock.** DECIDED (Tyler 10-16, which postdates the 10-14/10-15 "store is never used silently" text in `hunt-sessions.js:45-55`). Checked against C2 (SE 10-17): C2 already has the exact mechanism, `supply_source: mine` + `on_empty: switch` = own stock first, then the store (rules 5-6). The change is DATA ONLY: `ON_EMPTY.default` becomes `'switch'` in `src/data/hunt-sessions.js:57`, the generator re-emits the column default in a NEW dated catalogue file (P1: never rewrite `2026-10-22-...generated.sql:572`), and `hr_hunt_default_preset` follows. Both enum values stay: `end` is now an explicit per-hero opt-in, so `heals_out`/`ammo_out` stay in `END_ORDER` and are reachable only under `end`. When gold cannot pay the store price, the C2 gold floor, sell-to-cover and `gold_out` still apply, unchanged. Test: `consumables#default-preset-never-ends-on-empty` (attended and away) plus C2's existing `on_dry=end buys 0` mutant. Logged in CONFLICTS (2026-10-17).
@@ -286,7 +286,7 @@ Inputs, outputs, envelope section, tests. "inst" = one hunt instance (solo or pa
 
 ### 3.7 Per-hero hunt settings
 
-Each hero has: action set, target mode, stance, distance (1-8), chase on/off, food threshold, drink threshold, supply source. Stored server-side in `player_action_sets` options (`hr_action_set_options`, `p_opts jsonb`). Refused, never clamped. DECIDED (week plan item 9); the 1-8 range and thresholds ASSUMED. Stances: Offensive (+10% dealt, +10% taken), Balanced, Defensive (-10% dealt, -15% taken). ASSUMED numbers. Action sets: Hunt, Mana train (skip rune abilities), Boss (skip area abilities). ASSUMED presets.
+Each hero has: action set, target mode, stance, distance (1-8), chase on/off, supply source (target, stance, chase and distance live in the action-set settings; density does NOT: it is chosen per hunt on the hunt picker, Tyler 10-19). Stored server-side in `player_action_sets` options (`hr_action_set_options`, `p_opts jsonb`). Refused, never clamped. DECIDED (week plan item 9); the 1-8 range ASSUMED. Stances: Offensive (+10% dealt, +10% taken), Balanced, Defensive (-10% dealt, -15% taken). ASSUMED numbers. Action sets: Hunt, Mana train (skip rune abilities), Boss (skip area abilities). ASSUMED presets.
 
 ### 3.8 Own/store supply ledger
 
@@ -298,7 +298,7 @@ Every consumable, rune and ammo use is a ledger line: `supply_own` (moves a unit
 2. Any role mix (4 tanks is allowed). DECIDED (Tyler 10-16).
 3. Loot is split evenly by value. DECIDED (week plan item 9). Mechanism ASSUMED: gold and the vendor value of loot are pooled per instance and split evenly; items go round-robin by a server-seeded roll (contract §1.10 `party_roll`).
 4. The party finder filters by weapon type. DECIDED (Tyler 10-16).
-5. Each player controls one hero. DECIDED (Tyler 10-15). One player may run up to 4 of their own characters at once (§3.10).
+5. One account per player; it may play up to 4 of its own characters at once, free (§3.10). DECIDED (Tyler 10-17; replaces 10-15 "each player controls one hero").
 6. Heroes are tracked by unit id, never by kind, so duplicates work. DECIDED (Tyler 10-16).
 
 ### 3.10 Characters and premium
@@ -318,6 +318,8 @@ Every consumable, rune and ammo use is a ledger line: `supply_own` (moves a unit
 5. The combat log is a tab in the chat window, from server events, filterable by type and by hero vs party. DECIDED (Tyler 10-16).
 6. Mobile: world fills the screen, slim top strip, compact bottom bar with one swipeable slot row, panels as one-at-a-time slide-out sheets, a full-screen settings editor. Desktop ships first; mobile must not break. DECIDED (Tyler 10-16).
 7. "Ready in" (Huntera ref 20) is NOT built until Tyler says what it does. DECIDED (Tyler 10-16: never build a ref element without knowing its purpose). The sim's guess (next pack respawn, `ui.js:297-298`) is ASSUMED.
+8. **The action bar** (Tyler 10-18/19, function only): 2 rows x 10 slots; a filled slot shows its icon and ONE corner count; disabled or out of stock = a diagonal strike; empty = "+", which opens the centred "Configure action" modal (tabs Spells | Runes | Items, a Details | Preview pane, Ignored monsters, conditions, Enabled, Save). A slot = one action + up to 3 conditions (all must match; none = always); slot order = priority. Visible in town and configurable anywhere; action sets get real save/name/rename/delete/switch. DECIDED.
+9. **Density** = spawn population, a stepped control on the hunt picker before Enter, remembered per ground; higher = more mobs per spawn; every hunt's max is at least 8 (a full box round the tank). Not pull size and not an action-set setting. DECIDED (Tyler 10-18/19).
 
 ---
 
@@ -334,7 +336,7 @@ Starting kit = what C2 grants on `hr_hunt_enter` (a session row, a bag, the defa
 | 5 Supplies | own stack from the bag; store row for the tier | the bag came in at step 1; store rows exist | `supply-basics.js` (YES); own food/drink rows (ham, tea: NO) |
 | 6 Kill | XP, gold, loot events | `damage` + `xp` from step 4 hits | drops (`items.js` mostly YES; `crown_shard`, `life_rune`: NO) |
 | 7 End pull | no engaged monsters | step 6 killed the last | respawn value (NEW) |
-| 8 Regroup | all heroes up, within 7 tiles | knockouts end after `KNOCKOUT_MS` (YES) | none new |
+| 8 Regroup | every hero still in the hunt, within 7 tiles | a dead hero has already left for town | none new |
 | 9 Next pocket | pocket index + 1, loop at the end | route order in data | route (NEW) |
 | 10 Settle | track, events, tally | the edge settle runs every window | C2 settle (YES) |
 
@@ -353,7 +355,7 @@ Gaps the walk-through found: the sewer ground row, the Rat King, `life_rune`, `c
 7. Challenge radius 6 tiles; cooldown 8 s.
 8. Leader death = wipe; regroup within 7 tiles; pack respawn 90 s.
 9. Bleed tick 1-3 every 1 s; skill factor 0.004; tiers 1.00/1.10/1.20.
-10. Consumable lane 1 s; thresholds 30% mana / 50% HP; 2 s no-heal window.
+10. Consumable lane 1 s; default food/drink slot conditions 30% mana / 50% HP; 2 s no-heal window.
 11. RESOLVED (SE 10-17, §3.4 #7): `ON_EMPTY.default = 'switch'` is a data change C2 already supports; `end` stays as an opt-in; `gold_out` unchanged.
 12. Base XP share split among living heroes; "Raw XP/h" = before multipliers.
 13. Distance 1-8; stance numbers; the three action-set presets; the five target modes.

@@ -20,10 +20,10 @@
 //      resolution so text stays crisp.
 // Colours come from --world-* tokens through `css` (the caller's token reader).
 // ════════════════════════════════════════════════════════════════════════
-import { T } from '../core/grid.js?v=0.2.2';
-import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.2';
-import { composeFrame, groundTiles } from '../core/compose.js?v=0.2.2';
-import { paintStub } from '../stub-atlas.js?v=0.2.2';
+import { T } from '../core/grid.js?v=0.2.4';
+import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.4';
+import { composeFrame, groundTiles } from '../core/compose.js?v=0.2.4';
+import { paintStub } from '../stub-atlas.js?v=0.2.4';
 
 const CHUNK = 16 * T;
 const LIGHT_BANDS = 4;   // stepped pools: pixel-art light, no airbrush
@@ -42,7 +42,12 @@ export function createCanvasBackend(o) {
   let host = null, canvas = null, ctx = null, ro = null, onResize = null;
   let map = null, ground = null, chunks = new Map();
   let z = 2, dpr = 1, W = 1, H = 1, dirty = true, inset = cleanInset(null);
+  /* The camera's ease after an inset change (camera.js easedCam): where it stood, and when. */
+  let lastCam = null, camFrom = null, insetSince = -Infinity;
+  const reduceMotion = () => !!(win.matchMedia && win.matchMedia('(prefers-reduced-motion: reduce)').matches);
   let frames = 0, msAvg = 0, msLast = 0, last = null, lastView = null;
+  /* The names drawn last frame that belong to someone, in canvas px: a press on a name picks its owner. */
+  let plateHits = [];
 
   const sizeTo = (c, w, h) => { if (c.width !== w) c.width = w; if (c.height !== h) c.height = h; };
 
@@ -311,6 +316,7 @@ export function createCanvasBackend(o) {
     /* Names never print over each other: yours first, then each plate that would
        touch one already placed steps up a line until it is clear. */
     const placed = [];
+    plateHits = [];
     for (const p of list.plates.slice().sort((a, b) => (b.kind === 'self') - (a.kind === 'self'))) {
       const px = font(p.kind === 'self' ? 5 : 4.5);
       ctx.font = '700 ' + px + 'px ' + (css('--f-ui') || 'sans-serif');
@@ -323,6 +329,7 @@ export function createCanvasBackend(o) {
       let y = y0;
       for (let k = 0; k < 6 && placed.some((q) => x - half < q.r && x + half > q.l && y - px < q.b && y > q.t); k++) y -= px + 2;
       placed.push({ l: x - half, r: x + half, t: y - px, b: y });
+      if (p.ref) plateHits.push({ l: x - half, r: x + half, t: y - px, b: y, id: p.id, ref: p.ref });
       ctx.strokeStyle = tone('plate-line');
       ctx.strokeText(p.text, x, y);
       ctx.fillStyle = tone('plate-' + (p.kind || 'self'));
@@ -368,7 +375,9 @@ export function createCanvasBackend(o) {
        uncovered, and keeps the hero in that part. */
     const k = dpr / z;
     const fv = frameView(state.camera || state.hero, W / z, H / z, map, z, T,
-      { inset: { left: inset.left * k, right: inset.right * k, top: inset.top * k, bottom: inset.bottom * k }, keep: state.hero });
+      { inset: { left: inset.left * k, right: inset.right * k, top: inset.top * k, bottom: inset.bottom * k }, keep: state.hero,
+        from: camFrom, sinceMs: t0 - insetSince });
+    lastCam = fv.cam;
     const { view, plan } = fv;
     sizeTo(comp.c, view.w, view.h);
     const list = composeFrame(map, book, state, view, tables, T);
@@ -433,6 +442,7 @@ export function createCanvasBackend(o) {
       ground = groundTiles(m, book, tables, T);
       chunks = new Map();
       last = null;
+      lastCam = camFrom = null;   // a new map never eases in from the old one
     },
     sync(state) { if (map && canvas) draw(state); },
     /**
@@ -440,7 +450,13 @@ export function createCanvasBackend(o) {
      * px ({left, right, top, bottom}; null uncovers it). The camera frames the
      * rest, so the hero is never under a window; the art still draws there.
      */
-    setInset(o) { inset = cleanInset(o); },
+    setInset(o) {
+      const next = cleanInset(o);
+      if (next.left === inset.left && next.right === inset.right && next.top === inset.top && next.bottom === inset.bottom) return;
+      camFrom = reduceMotion() ? null : lastCam;
+      insetSince = win.performance.now();
+      inset = next;
+    },
     /**
      * What is under a client point in the last frame: { tile: [x, y], hits } —
      * hits are the drawn props, units and decals there, top-most first. Under a
@@ -452,9 +468,14 @@ export function createCanvasBackend(o) {
       const [X, Y] = p;
       const under = (d) => X >= d.x && X < d.x + d.w && Y >= d.y && Y < d.y + d.h;
       const roofed = last.raised.some((d) => d.kind === 'roof' && d.alpha > 0.5 && under(d));
-      const hits = roofed ? [] : last.sprites.filter(under).reverse().concat(last.decals.filter(under).reverse())
+      /* A name sits over everything (the overlay): a press on it is a press on its owner, top-most. */
+      const r = canvas.getBoundingClientRect();
+      const cx = (clientX - r.left) * (W / r.width), cy = (clientY - r.top) * (H / r.height);
+      const named = plateHits.filter((q) => cx >= q.l && cx <= q.r && cy >= q.t && cy <= q.b).reverse()
+        .map((q) => ({ id: q.id, tx: null, ty: null, ref: q.ref }));
+      const hits = named.concat(roofed ? [] : last.sprites.filter(under).reverse().concat(last.decals.filter(under).reverse())
         .filter((d) => d.kind !== 'wall' && d.kind !== 'stub' && d.kind !== 'door')
-        .map((d) => ({ id: d.id, tx: d.tx, ty: d.ty, ref: d.ref }));
+        .map((d) => ({ id: d.id, tx: d.tx, ty: d.ty, ref: d.ref })));
       return { tile: [Math.floor(X / T), Math.floor(Y / T)], hits };
     },
     /** The client point over the middle of tile (x, y) in the last frame, or null. */
@@ -468,6 +489,10 @@ export function createCanvasBackend(o) {
       return {
         map: map && map.id, z, dpr, size: [W, H], frames, msAvg, msLast, inset: Object.assign({}, inset),
         heroBuilding: last ? last.heroBuilding : null,
+        names: canvas ? plateHits.map((q) => {   // in CLIENT px, for a test aiming a right-click
+          const r = canvas.getBoundingClientRect(), sx = r.width / W, sy = r.height / H;
+          return { name: q.ref.player ? q.ref.player.name : null, l: r.left + q.l * sx, r: r.left + q.r * sx, t: r.top + q.t * sy, b: r.top + q.b * sy };
+        }) : [],
         sprites: last ? last.sprites.length : 0,
         stubbed: last ? last.sprites.concat(last.raised).filter((d) => d.kind !== 'void' && !(d.set && images[d.set])).map((d) => d.id) : [],
         roofs: last ? last.roofs : [],
@@ -478,6 +503,7 @@ export function createCanvasBackend(o) {
       if (onResize) win.removeEventListener('resize', onResize);
       if (canvas) canvas.remove();
       host = canvas = ctx = ro = onResize = map = last = lastView = ground = null;
+      plateHits = [];
       chunks = new Map();
     },
   };

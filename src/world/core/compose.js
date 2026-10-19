@@ -27,11 +27,11 @@
 // by `state.roofAlpha` (roofs.js) over whichever variant is showing.
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { ySort } from './zsort.js?v=0.2.2';
-import { heroBuilding } from './roofs.js?v=0.2.2';
-import { ellipseShadow, castMatrix } from './shadows.js?v=0.2.2';
-import { vertexGrid, tileKey } from './wang.js?v=0.2.2';
-import { OUTFITS } from '../../data/hunt-outfits.js?v=0.2.2';
+import { ySort } from './zsort.js?v=0.2.4';
+import { heroBuilding } from './roofs.js?v=0.2.4';
+import { ellipseShadow, castMatrix } from './shadows.js?v=0.2.4';
+import { vertexGrid, tileKey } from './wang.js?v=0.2.4';
+import { OUTFITS } from '../../data/hunt-outfits.js?v=0.2.4';
 
 /** Wall height: rock tops and capstones are raised by it. */
 export const WALL_FACE_PX = 48;
@@ -192,7 +192,7 @@ export function composeFrame(map, book, state, view, tables, T) {
      you own): { id, x, y, ref, plate:{text,kind} }, placed exactly like objects. */
   for (const o of state.props || []) {
     const d = place(o.id, o.x, o.y, { ref: o.ref });
-    if (o.plate) { const hd = head(d); plates.push({ text: o.plate.text, kind: o.plate.kind, x: hd.cx, y: hd.top, alpha: 1 }); }
+    if (o.plate) { const hd = head(d); plates.push({ text: o.plate.text, kind: o.plate.kind, x: hd.cx, y: hd.top, alpha: 1, id: o.id, ref: o.ref || null }); }
   }
   /* A unit: { id, x, y, anim, dir, diag, age (ms into the clip) | frame (the clip frame itself, a
      walk chosen by distance), alpha, grey (0..1 toward its corpse tone), flash, under (drawn
@@ -206,7 +206,8 @@ export function composeFrame(map, book, state, view, tables, T) {
     if (u.grey) d.grey = Math.max(0, Math.min(1, u.grey));
     if (u.flash) d.flash = true;
     const { cx, foot, top } = head(d);
-    if (u.plate) plates.push({ text: u.plate.text, kind: u.plate.kind, x: cx, y: top - (u.bar == null ? 0 : 4), alpha: u.plate.alpha != null ? u.plate.alpha : u.alpha == null ? 1 : u.alpha });
+    if (u.plate) plates.push({ text: u.plate.text, kind: u.plate.kind, x: cx, y: top - (u.bar == null ? 0 : 4), alpha: u.plate.alpha != null ? u.plate.alpha : u.alpha == null ? 1 : u.alpha,
+      /* the plate names its owner, so a right-click on the NAME picks the unit too */ id: u.id, ref: u.ref || null });
     if (u.bar != null) {
       const pct = Math.max(0, Math.min(1, u.bar));
       bars.push({ x: cx, y: top - 2, w: 18, pct, kind: u.barKind === 'pct' ? barTone(pct) : isHero ? 'hero' : 'foe', mana: u.mana == null ? null : Math.max(0, Math.min(1, u.mana)) });

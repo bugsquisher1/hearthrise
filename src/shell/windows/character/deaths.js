@@ -9,13 +9,13 @@
 // lands on this base (.claude/coordination/CONFLICTS.md, 2026-10-25).
 // Nothing here is the client's: no fall is counted or priced in the browser.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNTS } from '../../../data/hunts.js?v=0.2.2';
-import { SKILLS_DEF } from '../../../data/skills.js?v=0.2.2';
-import { deathLogOf } from '../../../session/character-sections.js?v=0.2.2';
-import { rows, text, cls, attr, element } from '../../../render/paint.js?v=0.2.2';
-import { whole } from '../../../render/format.js?v=0.2.2';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.2';
-import { monsterName } from '../../widgets/bits.js?v=0.2.2';
+import { HUNTS } from '../../../data/hunts.js?v=0.2.4';
+import { SKILLS_DEF } from '../../../data/skills.js?v=0.2.4';
+import { deathLogOf } from '../../../session/character-sections.js?v=0.2.4';
+import { rows, text, cls, attr, element } from '../../../render/paint.js?v=0.2.4';
+import { whole } from '../../../render/format.js?v=0.2.4';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.4';
+import { monsterName } from '../../widgets/bits.js?v=0.2.4';
 
 const HUNT_NAME = new Map(HUNTS.map((h) => [h.id, h.name]));
 

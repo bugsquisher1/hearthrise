@@ -114,7 +114,7 @@ Start by evaluating whether typical melee/ranged hunting earns roughly **10–25
 - Healing and buffs must satisfy meaningful eligibility rules (e.g., avoid endlessly healing full-HP targets solely for XP).
 - Avoid allowing expensive-cast spam to bypass mana/cooldown constraints.
 - Rune-consuming abilities still receive mana-based Magic XP only for qualifying mana spent; rune cost by itself does not train Magic.
-- Mana regeneration, potions, and Prayer can indirectly increase casting uptime; model their economic and balance effects.
+- Mana regeneration, drinks, and Prayer can indirectly increase casting uptime; model their economic and balance effects.
 - Define a deterministic rounding/accumulation rule for fractional XP to prevent losses or rounding exploits (**OPEN**).
 
 ## 6. Health, mana, and armor weight
@@ -276,7 +276,7 @@ The game should maintain explicit, inspectable data for ability availability, ma
 7. What exactly determines armor weight for mixed equipment?
 8. Which of the proposed elemental rune families ship first, and which core spells consume them?
 9. When and how does post-hunt bone sacrifice occur; are bones tradable?
-10. What are Prayer's regeneration curve and acceptable impact on potion use and Magic XP?
+10. What are Prayer's regeneration curve and acceptable impact on food/drink use and Magic XP?
 11. What are offline hunt limits, server simulation semantics, and safe inventory/XP transaction boundaries?
 
 ## 14. Recommended phased workflow for Claude
@@ -402,7 +402,7 @@ When this option is selected, show a second choice:
 
 ### Core identities and classless principle
 
-**CONFIRMED:** There are no vocations. The equipped weapon determines available discipline abilities. The four primary loadout identities are **Destruction Magic** (Sorcerer-style high damage and AoE), **Restoration Magic** (healing/support with weaker offensive spells), **Melee** (frontline damage and enemy threat control), and **Ranged** (precision / priority-target damage). These are weapon roles, not locked character classes. A character with trained Magic can switch from solo Destruction to group Restoration without relearning a second Magic skill.
+**CONFIRMED:** There are no vocations. The equipped weapon determines available discipline abilities. The four primary loadout identities are **Destruction Magic** (Mage: high damage and AoE), **Restoration Magic** (healing/support with weaker offensive spells), **Melee** (frontline damage and enemy threat control), and **Ranged** (precision / priority-target damage). These are weapon roles, not locked character classes. A character with trained Magic can switch from solo Destruction to group Restoration without relearning a second Magic skill.
 
 **CONFIRMED:** Every loadout has access to a **universal self-heal** using mana and the independent healing cooldown lane. This ability is not counted against the six candidate discipline abilities. Restoration has stronger self-healing and is the only initial discipline proposed to heal/shield allies. Actual self-heal floor, Magic scaling, mana cost, and Magic XP weighting remain **OPEN**. Self-heal must require missing HP and never award XP on invalid/full-health casts.
 
@@ -443,7 +443,7 @@ When this option is selected, show a second choice:
 
 ## 18. Revised universal rune families and tier scaling — NEW IN v1.4
 
-**CONFIRMED:** Rune *types* stay consistent across compatible disciplines. A Fire Rune can empower a Sorcerer's Fireball, Melee Flame Strike, or Ranged Flame Volley. An elemental rune's tier is an **input-quality choice**, not a separate spell unlock for the core set.
+**CONFIRMED:** Rune *types* stay consistent across compatible disciplines. A Fire Rune can empower a Mage's Fireball, Melee Flame Strike, or Ranged Flame Volley. An elemental rune's tier is an **input-quality choice**, not a separate spell unlock for the core set.
 
 **CONFIRMED:** Existing core rune-consuming abilities remain the same ability at all compatible tiers. Higher rune tiers increase **numerical damage, healing, or shield strength only**. They do **not** increase AoE radius, number of targets, duration, debuff percentage, status effect count, range, cooldown speed, or basic-attack speed. They do not introduce stuns, interrupts, or cast times. Rune tier improvements should not bypass existing ability targeting or cooldown lanes.
 

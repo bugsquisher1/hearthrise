@@ -17,11 +17,11 @@
 // at page level — a press on it never reaches the World; the click a long
 // press leaves behind is swallowed too.
 // ════════════════════════════════════════════════════════════════════════
-import { MENU_ENTRIES } from '../data/social-menu.js?v=0.2.2';
-import { refusalWords } from './intent-words.js?v=0.2.2';
-import { openFloatMenu, closeFloatMenu } from './windows/float-menu.js?v=0.2.2';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.2';
-import { attr } from '../render/paint.js?v=0.2.2';
+import { MENU_ENTRIES } from '../data/social-menu.js?v=0.2.4';
+import { refusalWords } from './intent-words.js?v=0.2.4';
+import { openFloatMenu, closeFloatMenu } from './windows/float-menu.js?v=0.2.4';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.4';
+import { attr } from '../render/paint.js?v=0.2.4';
 
 const LONG_PRESS_MS = 500;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

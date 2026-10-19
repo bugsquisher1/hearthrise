@@ -17,17 +17,17 @@
 // action is ONE intent with the controls off until the server answers
 // (actions.js). Patched in place (src/render/paint.js).
 // ════════════════════════════════════════════════════════════════════════
-import { BAG_CATS, BAG_SORTS, isNew, bagValue } from '../../bag-model.js?v=0.2.2';
-import { barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.2';
-import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.2';
-import { whole, gold } from '../../../render/format.js?v=0.2.2';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.2';
-import { glyphSvg } from '../../launcher.js?v=0.2.2';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.2';
-import { primaryOf, junkOf, confirmWords, huntLoot } from './state.js?v=0.2.2';
-import { pocketHtml, patchCount } from './pockets.js?v=0.2.2';
-import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.2';
-import { buryLine, buryBlock, buryingOf, buryRecipeOf } from './bury.js?v=0.2.2';
+import { BAG_CATS, BAG_SORTS, isNew, bagValue } from '../../bag-model.js?v=0.2.4';
+import { barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.4';
+import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.4';
+import { whole, gold } from '../../../render/format.js?v=0.2.4';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.4';
+import { glyphSvg } from '../../launcher.js?v=0.2.4';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.4';
+import { primaryOf, junkOf, confirmWords, huntLoot } from './state.js?v=0.2.4';
+import { pocketHtml, patchCount } from './pockets.js?v=0.2.4';
+import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.4';
+import { buryLine, buryBlock, buryingOf, buryRecipeOf } from './bury.js?v=0.2.4';
 
 const RULES = Object.freeze([['keep', 'Keep'], ['sell', 'Sell at the shop'], ['ignore', 'Leave it']]);
 export const KEYS = '/ search · arrows move · Enter use · Space select · Delete sell · L lock · Ctrl+A select all';

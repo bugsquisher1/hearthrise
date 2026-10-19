@@ -5,6 +5,22 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.4 — 2026-10-19 (Steady windows)
+
+**Windows behave.** The X closes a window without shuffling the others, and windows reopen where you left them.
+
+**The camera holds still.** Opening, closing or clicking inside a window no longer jumps the view; it eases over smoothly.
+
+**Right-click works,** on players and on their names.
+
+**No false supply warnings.** When the store pays per use, you won't be told you're out of food or drink, and heroes without mana never hear about drinks.
+
+**Clearer hunt status.** The Hunts window says when you've arrived, and the party window's notes follow the hunting ground you pick.
+
+## v0.2.3 — 2026-10-19 (Stay where I put you)
+
+**Your hero stays put.** After you walk somewhere and stop, your hero no longer wanders off on its own. Starting a new activity still walks it to the right spot.
+
 ## v0.2.2 — 2026-10-19 (Hunts that run)
 
 **Hunts play out while you watch.** Your hunting ground now shows the fight as it happens: packs, pulls, kills and loot keep updating instead of sitting still.

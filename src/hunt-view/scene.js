@@ -213,7 +213,6 @@ export function createHuntScene(o) {
         }
       }
     }
-    if (hero && m && m.down) { grey = 1; alpha = 0.55; under = true; }
     /* Facing: the way it walks; standing, toward what it last swung at; else its last heading. */
     let hx = p.hx, hy = p.hy;
     const s = swing.get(u);

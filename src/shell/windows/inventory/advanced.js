@@ -23,7 +23,7 @@ import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.2';
 import { itemName } from '../../widgets/bits.js?v=0.2.2';
 import { DOLL } from './doll.js?v=0.2.2';
 
-const TOTALS = Object.freeze([['atkB', 'Attack'], ['strB', 'Strength'], ['defB', 'Defense'], ['rangeAtkB', 'Ranged'], ['magicAtkB', 'Magic']]);
+const TOTALS = Object.freeze([['atkB', 'Melee accuracy'], ['strB', 'Melee damage'], ['defB', 'Defense'], ['rangeAtkB', 'Ranged'], ['magicAtkB', 'Magic']]);
 const IMBUE_WORDS = Object.freeze({ keen: 'Keen', life_leech: 'Life Leech', mana_leech: 'Mana Leech', ward: 'Ward', element_ward: 'Element Ward' });
 const SLOT_LABEL = new Map(DOLL.map(([s, l]) => [s, l]));
 

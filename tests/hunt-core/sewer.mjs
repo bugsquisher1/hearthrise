@@ -214,10 +214,11 @@ const cases = {
     return null;
   },
   'sewer-full-party-loop': (M) => {
-    /* At Level 16, the middle of the Sewer's band (CORE_NUMBERS Q9: 8-25). Measured 2026-10-19 on the rebuilt
-       core: L16 / L20 / L25 clear the route with no death; at L12 the party loses a hero at the Cistern Spider
-       (level 20), which is the band's "expect losses below the monster" shape, handed to the designer. */
-    const r = playSewer(M, PARTY, 600, 1, 'millrace_sewer', 16);
+    /* The mechanics claim (route order, the boss dies, nobody dies) at Level 30. Measured 2026-10-19 on the
+       designer's CORE_NUMBERS (monster damage x12, ability heals and shields still FLAT, its line 99): L30 / L40
+       clear with no death; L12-L25 lose a hero (L12 at the Cistern Spider, L16-L25 to the Rat King), so the
+       band's top half needs the abilities pass before a band-level claim can stand here (handed to the designer). */
+    const r = playSewer(M, PARTY, 600, 1, 'millrace_sewer', 30);
     const order = r.pulls.map((p) => p.pocket).join(',');
     console.log('    full party: pulls ' + r.pulls.map((p) => p.pocket + '@' + Math.round(p.at / 1000) + 's' + (p.clearS != null ? '/' + p.clearS + 's' : '')).join(' ')
       + ' | loop ' + r.swings * 2 + 's | falls ' + r.falls + ' wipes ' + r.wipes

@@ -1,11 +1,11 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/hunt-view/death-explain.js — WHY A HERO FELL, IN PLAIN WORDS (QoL 8).
+// src/hunt-view/death-explain.js — WHY A HERO DIED, IN PLAIN WORDS (QoL 8).
 //
 // PURE. From the last EXPLAIN_WINDOW_MS of the server's event timeline
-// (src/core/hunt/events.js: dmg, heal, eat, drink, slot_dry, fall, wipe) it
+// (src/core/hunt/events.js: dmg, heal, eat, drink, slot_dry, death, wipe) it
 // answers the player's question "what just happened?":
 //
-//   "Knight fell: 3 Rat King hits (42, 38, 51), no heal for 6 s, Druid at
+//   "Knight died: 3 Rat King hits (42, 38, 51), no heal for 6 s, Druid at
 //    4 mana; heal rule 'Knight below 50%' was waiting for mana."
 //
 // It READS events, it authors nothing: every number is one the server sent,
@@ -109,7 +109,7 @@ function explainFall(events, fall, who) {
   const killer = typeof fall.monster === 'string' ? spell(fall.monster) : null;
 
   const lines = [];
-  lines.push(who.name + ' fell: ' + parts.join(', ') + (rules.length ? '; ' + rules.join('; ') : '') + '.');
+  lines.push(who.name + ' died: ' + parts.join(', ') + (rules.length ? '; ' + rules.join('; ') : '') + '.');
   if (killingBlow) lines.push('The killing blow was ' + killingBlow.amount + ' from ' + killingBlow.by + '.');
   else if (killer) lines.push('The killing blow came from a ' + killer + '.');
 
@@ -121,17 +121,17 @@ function explainFall(events, fall, who) {
 }
 
 /**
- * Explain every fall in the retained events whose time is inside the last
+ * Explain every death in the retained events whose time is inside the last
  * `sinceMs` window (or all of them), oldest first; a `wipe` is the party
- * falling together, so a wipe reads as one lead line over each hero's story.
+ * dying together, so a wipe reads as one lead line over each hero's story.
  * @param {object[]} events
- * @param {{whoOf: (unit: number, fall: object) => object, since?: number}} o
- * @returns {{kind: 'none'|'fall'|'wipe', wipe: boolean, falls: object[]}}
+ * @param {{whoOf: (unit: number, death: object) => object, since?: number}} o
+ * @returns {{kind: 'none'|'death'|'wipe', wipe: boolean, deaths: object[]}}
  */
 export function explainDeaths(events, o) {
   const since = Number.isInteger(o.since) ? o.since : -Infinity;
-  const falls = events.filter((e) => e.type === 'fall' && Number.isInteger(e.u) && e.atMs >= since).sort((a, b) => a.atMs - b.atMs);
+  const deaths = events.filter((e) => e.type === 'death' && Number.isInteger(e.u) && e.atMs >= since).sort((a, b) => a.atMs - b.atMs);
   const wipe = events.some((e) => e.type === 'wipe' && e.atMs >= since);
-  const out = falls.map((f) => explainFall(events, f, o.whoOf(f.u, f)));
-  return { kind: wipe ? 'wipe' : out.length ? 'fall' : 'none', wipe, falls: out };
+  const out = deaths.map((f) => explainFall(events, f, o.whoOf(f.u, f)));
+  return { kind: wipe ? 'wipe' : out.length ? 'death' : 'none', wipe, deaths: out };
 }

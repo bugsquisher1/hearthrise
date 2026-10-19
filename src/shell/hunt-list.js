@@ -7,7 +7,7 @@
 //   huntRows()          [{ hunt, name, theme, band, heroes, packs, packMin,
 //                          packMax, respawnS, boss }] in band order
 //   densityWords(row)   "2 packs of 2 · back in 30 s"
-//   bandWords(row, lv)  "Combat level 0 to 10" (+ ", you are 3" when known)
+//   bandWords(row, lv)  "Level 1 to 8" (+ ", you are 3" when known)
 //   packFor(bag, rules) what the hunt carries: the bag's own hunt supplies,
 //                        each up to its remembered restock target (all of it
 //                        when it has none), at most the server's line cap
@@ -48,7 +48,7 @@ export function densityWords(r) {
 
 /** The ground's level band in words, and where the character stands when its level is known. */
 export function bandWords(r, level) {
-  const band = 'Combat level ' + r.band[0] + ' to ' + r.band[1];
+  const band = 'Level ' + r.band[0] + ' to ' + r.band[1];
   return Number.isInteger(level) ? band + ', you are ' + level : band;
 }
 

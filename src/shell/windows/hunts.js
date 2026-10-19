@@ -8,7 +8,7 @@
 // (src/app/world-pane.js turns the World's `entrance` into pickHunt + open).
 //
 // One ruled line per hunt ground (src/shell/hunt-list.js, from the data rows):
-// its name and theme, its combat-level band against the character's own level,
+// its name and theme, its Level band against the character's own Level,
 // who may come, and how crowded it is. The picked line carries the window's one
 // primary, Enter, and says what the hunt will carry from the bag (the player's
 // remembered restock targets). "With a party" opens the Party window on that
@@ -17,9 +17,9 @@
 // the character's level says so ("expect losses"); the floor is a warning, and
 // only the server refuses (Tyler 10-18: 15 or more levels under it).
 // ════════════════════════════════════════════════════════════════════════
-import { combatLevel } from '../../core/xp.js?v=0.2.2';
 import { huntOf, settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.2';
-import { bagOf, rulesOf, skillsOf } from '../../session/item-sections.js?v=0.2.2';
+import { bagOf, rulesOf } from '../../session/item-sections.js?v=0.2.2';
+import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.2';
 import { huntName } from '../../session/party-sections.js?v=0.2.2';
 import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.2';
 import { whole } from '../../render/format.js?v=0.2.2';
@@ -39,11 +39,10 @@ export function pickHunt(cs, hunt) {
   if (huntRows().some((r) => r.hunt === hunt)) { sc.pick = hunt; sc.msg = ''; }
 }
 
-/* The server's combat skills as the shared curve reads them (xp by skill), or null. */
+/* The character's Level (the server's Level XP on the shared curve), or null. */
 function levelOf(cs) {
-  const sk = skillsOf(cs);
-  if (!sk) return null;
-  return combatLevel(Object.fromEntries(Object.entries(sk).map(([id, r]) => [id, r.xp])));
+  const lv = levelRowOf(cs);
+  return lv ? lv.level : null;
 }
 
 function packWords(lines) {

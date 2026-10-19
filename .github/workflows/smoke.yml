@@ -2167,6 +2167,21 @@ jobs:
           node tests/hunt-sessions-settle.mjs
           node tests/hunt-sessions-settle.mjs --closed
           node tests/hunt-sessions-settle.mjs --mutate
+      # THE CORE MODEL (docs/design/CORE_MODEL.md, 2026-10-19): the Level curve, the
+      # combat skills' uncapped curve, max HP / mana, Prayer's regen and monster levels
+      # agree in JS and SQL on every boundary (core-curves, PGlite replay); the Level
+      # curve stays inside the designer's hours (level-curve); a buried bone pays
+      # exactly its Prayer XP through the real edge accrual (bury-rate). Each carries
+      # its own --selftest / --mutate proof.
+      - name: Core model — curves JS = SQL, Level hours, bury rate
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/core-curves.mjs
+          node tests/core-curves.mjs --selftest
+          node tests/level-curve.mjs
+          node tests/level-curve.mjs --selftest
+          node tests/bury-rate.mjs
+          node tests/bury-rate.mjs --mutate
       # THE ENVELOPE CONTRACT (2026-10-18; two server-vs-client shape mismatches in a
       # row — party seats vs members, the raw world vs huntOf — are a CLASS): a
       # premium two-hero party settled through the player door on the replayed

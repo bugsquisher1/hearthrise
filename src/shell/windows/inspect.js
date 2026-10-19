@@ -25,7 +25,7 @@ renderInspect.patch = function patchInspect(body, ctx) {
   const v = social && social.inspected;
   const ready = !!(v && v.gear);
   text(body.querySelector('.hi-who'), v ? v.name || 'A player' : 'Nobody yet');
-  text(body.querySelector('.hi-line'), ready ? 'Combat level ' + (v.level === null ? '?' : v.level) + (v.role && HUNT_ROLES[v.role] ? ' · ' + HUNT_ROLES[v.role].label : '') : '');
+  text(body.querySelector('.hi-line'), ready ? 'Level ' + (v.level === null ? '?' : v.level) + (v.role && HUNT_ROLES[v.role] ? ' · ' + HUNT_ROLES[v.role].label : '') : '');
   rows(body.querySelector('.hi-gear'), ready ? v.gear : [], {
     key: (g) => g.slot + ':' + g.item,
     build: (g) => element(ctx.doc, '<li class="hi-item" data-hs-act="item" data-item="' + esc(g.item) + '" tabindex="0">' + itemIconHtml(ctx.glyphs, g.item)

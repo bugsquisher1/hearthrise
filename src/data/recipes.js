@@ -20,6 +20,7 @@ import { SLOT_RECIPES } from './slot-ladders.js?v=0.2.2';
 import { ITEMS, foodClassOf } from './items.js?v=0.2.2';
 import { STONECRAFT_RECIPES } from './stonecraft.js?v=0.2.2';
 import { DRINK_RECIPES } from './drinks.js?v=0.2.2';
+import { riteXp } from './core-model.js?v=0.2.2';
 const BASE_RECIPES = {
   cooking: [
     // Fish — original starter chain
@@ -286,8 +287,9 @@ const BASE_RECIPES = {
      The XP curve steps ~1.4x per rung against ms that grows only 2.2 s → 3.8 s,
      which is the standard artisan shape: the later rungs are worth more per
      action AND per hour, but each one costs a rarer drop. Levels are the
-     Designer's (ruling 2026-09-12, final); nothing here is derived, so retuning
-     is a data edit plus a catalogue regenerate.
+     Designer's (ruling 2026-09-12, final). The XP is each rite's 2026-09-12 ladder
+     value through riteXp() (src/data/core-model.js PRAYER_BURY, the core rebuild's
+     Prayer curve, 2026-10-19), so retuning is a data edit plus a catalogue regenerate.
 
      ⚠ ADDING A ROW HERE MOVES THE SERVER. tools/gen-catalogues.mjs emits one
      `hr_activities` row per recipe (kind 'artisan', req_skill = the bench, req_lv
@@ -297,19 +299,19 @@ const BASE_RECIPES = {
      PAYLOAD, which imports this file (supabase/functions/hr-accrue/catalogue.js),
      so hr-accrue must be redeployed at the same cut. */
   prayer: [
-    {id:'bury_bones',     name:'Bury Bones',         icon:'🦴', input:'bones',         output:null, xp:4.5, req:1,  ms:1200},
-    {id:'bury_big',       name:'Bury Big Bones',     icon:'🦴', input:'big_bones',     output:null, xp:15,  req:15, ms:1500},
-    {id:'bury_dragon',    name:'Bury Dragon Bones',  icon:'🦴', input:'dragon_bones',  output:null, xp:72,  req:35, ms:2000},
-    {id:'bury_bone_chips',        name:'Sift Bone Chips',          icon:'🦴',  input:'bone_chips',   output:null, xp:105,  req:40, ms:2200},
-    {id:'consecrate_grave_dust',  name:'Consecrate Grave Dust',    icon:'⚱️',  input:'grave_dust',   output:null, xp:155,  req:46, ms:2400},
-    {id:'offer_razor_claw',       name:'Offer Razor Claw',         icon:'爪',  input:'razor_claw',   output:null, xp:212,  req:52, ms:2500},
-    {id:'scatter_vamp_dust',      name:'Scatter Vampire Dust',     icon:'💜',  input:'vamp_dust',    output:null, xp:295,  req:58, ms:2600},
-    {id:'banish_demon_shard',     name:'Banish Demon Shard',       icon:'🔴',  input:'demon_shard',  output:null, xp:420,  req:65, ms:2800},
-    {id:'unbind_wraith_veil',     name:'Unbind Wraith Veil',       icon:'👻',  input:'wraith_veil',  output:null, xp:600,  req:72, ms:3000},
-    {id:'consecrate_dragon_scale',name:'Consecrate Dragon Scale',  icon:'🐲',  input:'dragon_scale', output:null, xp:855,  req:79, ms:3200},
-    {id:'release_lich_soul',      name:'Release Lich Soul',        icon:'☠️',  input:'lich_soul',    output:null, xp:1210, req:86, ms:3400},
-    {id:'offer_ancient_claw',     name:'Offer Ancient Claw',       icon:'爪',  input:'ancient_claw', output:null, xp:1700, req:92, ms:3600},
-    {id:'purge_void_chitin',      name:'Purge Void Chitin',        icon:'🪲',  input:'void_chitin',  output:null, xp:2400, req:99, ms:3800},
+    {id:'bury_bones',     name:'Bury Bones',         icon:'🦴', input:'bones',         output:null, xp:riteXp(4.5), req:1,  ms:1200},
+    {id:'bury_big',       name:'Bury Big Bones',     icon:'🦴', input:'big_bones',     output:null, xp:riteXp(15),  req:15, ms:1500},
+    {id:'bury_dragon',    name:'Bury Dragon Bones',  icon:'🦴', input:'dragon_bones',  output:null, xp:riteXp(72),  req:35, ms:2000},
+    {id:'bury_bone_chips',        name:'Sift Bone Chips',          icon:'🦴',  input:'bone_chips',   output:null, xp:riteXp(105),  req:40, ms:2200},
+    {id:'consecrate_grave_dust',  name:'Consecrate Grave Dust',    icon:'⚱️',  input:'grave_dust',   output:null, xp:riteXp(155),  req:46, ms:2400},
+    {id:'offer_razor_claw',       name:'Offer Razor Claw',         icon:'爪',  input:'razor_claw',   output:null, xp:riteXp(212),  req:52, ms:2500},
+    {id:'scatter_vamp_dust',      name:'Scatter Vampire Dust',     icon:'💜',  input:'vamp_dust',    output:null, xp:riteXp(295),  req:58, ms:2600},
+    {id:'banish_demon_shard',     name:'Banish Demon Shard',       icon:'🔴',  input:'demon_shard',  output:null, xp:riteXp(420),  req:65, ms:2800},
+    {id:'unbind_wraith_veil',     name:'Unbind Wraith Veil',       icon:'👻',  input:'wraith_veil',  output:null, xp:riteXp(600),  req:72, ms:3000},
+    {id:'consecrate_dragon_scale',name:'Consecrate Dragon Scale',  icon:'🐲',  input:'dragon_scale', output:null, xp:riteXp(855),  req:79, ms:3200},
+    {id:'release_lich_soul',      name:'Release Lich Soul',        icon:'☠️',  input:'lich_soul',    output:null, xp:riteXp(1210), req:86, ms:3400},
+    {id:'offer_ancient_claw',     name:'Offer Ancient Claw',       icon:'爪',  input:'ancient_claw', output:null, xp:riteXp(1700), req:92, ms:3600},
+    {id:'purge_void_chitin',      name:'Purge Void Chitin',        icon:'🪲',  input:'void_chitin',  output:null, xp:riteXp(2400), req:99, ms:3800},
   ]
 };
 

@@ -150,10 +150,10 @@ export function bagValue(items, bids) {
 
 /* Stat keys in reading order, with their words; `pct` values are fractions. */
 const STATS = Object.freeze([
-  ['atkB', 'Attack'], ['strB', 'Strength'], ['defB', 'Defense'],
+  ['atkB', 'Melee accuracy'], ['strB', 'Melee damage'], ['defB', 'Defense'],
   ['rangeAtkB', 'Ranged accuracy'], ['rangeStrB', 'Ranged damage'],
   ['magicAtkB', 'Magic accuracy'], ['magicStrB', 'Magic damage'],
-  ['critB', 'Critical chance', 'pct'], ['spdB', 'Speed', 'pct'], ['xpB', 'XP', 'pct'],
+  ['critB', 'Critical chance', 'pct'],
 ]);
 
 const statValue = (it, k) => (it && Number.isFinite(it[k]) ? it[k] : 0);

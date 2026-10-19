@@ -53,8 +53,8 @@ export function summariesOf(cs) {
   return r && Array.isArray(r.huntSummaries) ? r.huntSummaries : [];
 }
 
-/** The newest falls of the current hunt, explained (memoised on what the recorder holds). */
-export function liveFalls(a) {
+/** The newest deaths of the current hunt, explained (memoised on what the recorder holds). */
+export function liveDeaths(a) {
   const evs = a.rec.events();
   const sig = evs.length + ':' + (evs.length ? evs[evs.length - 1].atMs : 0);
   if (a.liveSig !== sig) { a.liveSig = sig; a.live = explainDeaths(evs, { whoOf }); }
@@ -79,8 +79,8 @@ export function attach(cs) {
     if (a.done.has(s.id)) return;
     a.done.add(s.id);
     if (summariesOf(cs).some((x) => x.id === s.id)) return;
-    const ex = a.sid === s.id ? explainDeaths(a.rec.events(), { whoOf }) : { falls: [] };
-    const deaths = ex.falls.map((f) => f.lines.join(' '));
+    const ex = a.sid === s.id ? explainDeaths(a.rec.events(), { whoOf }) : { deaths: [] };
+    const deaths = ex.deaths.map((f) => f.lines.join(' '));
     a.fresh = s.id;
     cs.setResidue('huntSummaries', withSummary(summariesOf(cs), buildSummary(s, analyzerOf(cs), deaths)));
   });

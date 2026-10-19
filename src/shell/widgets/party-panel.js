@@ -45,8 +45,7 @@ function patchMember(el, m, party, glyphs) {
   text(el.querySelector('.hp-role'), role ? role.label : 'No weapon');
   text(el.querySelector('.hp-lv'), m.level === null ? '' : 'Lv ' + m.level);
   cls(el.querySelector('.hp-lead'), 'is-on', m.unit === party.leader);
-  text(el.querySelector('.hp-state'), m.down ? 'Down' : m.eating ? 'Eating' : m.drinking ? 'Drinking' : m.aggro ? 'Targeted' : '');
-  cls(el, 'is-down', m.down);
+  text(el.querySelector('.hp-state'), m.eating ? 'Eating' : m.drinking ? 'Drinking' : m.aggro ? 'Targeted' : '');
   cls(el, 'is-self', m.unit === party.self);
   markPlayer(el, m.unit === party.self ? null : { name: m.name });   // the player menu (src/shell/context-menu.js)
   patchGauge(el.querySelector('.is-hp'), m.hp, m.hpMax, m.hp === null ? '–' : whole(m.hp) + ' / ' + whole(m.hpMax));

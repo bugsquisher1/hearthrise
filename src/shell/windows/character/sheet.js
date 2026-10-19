@@ -2,7 +2,8 @@
 // src/shell/windows/character/sheet.js — THE CHARACTER TAB: WHO YOU ARE, IN NUMBERS.
 //
 // The portrait (the hero's own outfit sprite), the name, the role the worn
-// weapon gives and the combat level; the vitals; the combat skills (the
+// weapon gives and the Level with its progress bar (Level comes from kills
+// only and is NOT a skill, CORE_MODEL.md §1); the vitals; the combat skills (the
 // shared ledger, src/shell/windows/skills.js); the combat numbers the hunt
 // engine prices a swing with; the bestiary; the experience bonuses by source.
 //
@@ -14,7 +15,7 @@
 // XP bar) have no line at all.
 // ════════════════════════════════════════════════════════════════════════
 import { HUNT_ROLES } from '../../../data/hunt-roles.js?v=0.2.2';
-import { characterSheetOf } from '../../../session/character-sections.js?v=0.2.2';
+import { characterSheetOf, levelOf } from '../../../session/character-sections.js?v=0.2.2';
 import { nameOf, bagCapOf } from '../../../session/item-sections.js?v=0.2.2';
 import { staminaOf } from '../../../session/hunt-sections.js?v=0.2.2';
 import { vitalsOf, roleIdOf } from '../../../session/party-sections.js?v=0.2.2';
@@ -24,9 +25,12 @@ import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.2';
 import { combatLedger } from '../skills.js?v=0.2.2';
 
 /* [key, label] of each number line; a line shows only when its value exists. */
-const VITALS = Object.freeze([['hp', 'Max health'], ['mana', 'Max mana'], ['speed', 'Speed'], ['cap', 'Capacity'], ['stamina', 'Stamina']]);
-const COMBAT = Object.freeze([['damage', 'Damage'], ['accuracy', 'Hit chance'], ['crit', 'Critical chance'], ['defence', 'Defence'], ['ward', 'Prayer ward']]);
-const XP_SOURCES = Object.freeze([['gear', 'Gear'], ['perks', 'Home and renown'], ['buffs', 'Food and drink'], ['combat', 'Combat skills only']]);
+const VITALS = Object.freeze([['hp', 'Max health'], ['mana', 'Max mana'], ['regen', 'Regeneration'], ['speed', 'Speed'], ['cap', 'Capacity'], ['stamina', 'Stamina']]);
+const COMBAT = Object.freeze([['damage', 'Damage'], ['accuracy', 'Hit chance'], ['crit', 'Critical chance'], ['defence', 'Defence']]);
+const XP_SOURCES = Object.freeze([['perks', 'Home and renown'], ['buffs', 'Food and drink'], ['combat', 'Combat skills only']]);
+/* What Level is, for its tooltip (CORE_MODEL.md §1-2). */
+const LEVEL_TIP = 'Level rises only from monsters you defeat. Each Level adds max health and max mana; '
+  + 'heavy armour adds more health, light armour more mana. Dying costs a little Level XP, never a Level.';
 
 const lineHtml = ([k, l], kind) => '<div class="hw-cs-line" data-' + kind + '="' + k + '"><dt>' + esc(l) + '</dt><dd></dd></div>';
 const signedPct = (f) => (f > 0 ? '+' : '') + (Math.round(f * 1000) / 10) + '%';
@@ -35,7 +39,10 @@ const signedPct = (f) => (f > 0 ? '+' : '') + (Math.round(f * 1000) / 10) + '%';
 export function sheetHtml() {
   return '<section class="hw-cs-sheet">'
     + '<header class="hw-cs-who"><canvas class="hw-cs-portrait" width="64" height="64" aria-hidden="true"></canvas>'
-    + '<div class="hw-cs-id"><b class="hw-cs-name"></b><span class="hw-cs-role"></span><span class="hw-cs-level"></span></div>'
+    + '<div class="hw-cs-id"><b class="hw-cs-name"></b><span class="hw-cs-role"></span>'
+    + '<span class="hw-cs-level" title="' + esc(LEVEL_TIP) + '"><b class="hw-cs-lv"></b>'
+    + '<span class="hw-skill-bar" role="meter" aria-label="Level progress" aria-valuemin="0" aria-valuemax="100"><i class="hw-skill-fill"></i></span>'
+    + '<small class="hw-cs-lvxp"></small></span></div>'
     + '<dl class="hw-cs-vitals">' + VITALS.map((r) => lineHtml(r, 'vital')).join('') + '</dl></header>'
     + '<div class="hw-cs-cols"><div class="hw-cs-col">' + combatLedger() + '</div>'
     + '<div class="hw-cs-col">'
@@ -70,11 +77,20 @@ export function patchSheet(body, ctx, drawPortrait, asked) {
   text(root.querySelector('.hw-cs-name'), nameOf(cs) || '');
   const role = (c && c.role) || roleIdOf(cs);
   text(root.querySelector('.hw-cs-role'), role && HUNT_ROLES[role] ? HUNT_ROLES[role].label : '');
-  text(root.querySelector('.hw-cs-level'), sh && sh.level !== null ? 'Combat level ' + sh.level : '');
-  /* Vitals: the server's max HP, the engine's max mana and walk speed, the bag's spaces, the stamina pool. */
+  /* Level: the server's Level XP on the shared curve, with the XP across this Level. */
+  const lv = levelOf(cs);
+  const lvEl = root.querySelector('.hw-cs-level');
+  cls(lvEl, 'is-on', !!lv);
+  text(lvEl.querySelector('.hw-cs-lv'), lv ? 'Level ' + lv.level : '');
+  const lf = lv && lv.need > 0 ? Math.max(0, Math.min(1, lv.into / lv.need)) : 0;
+  style(lvEl.querySelector('.hw-skill-fill'), 'width', (Math.round(lf * 1000) / 10) + '%');
+  attr(lvEl.querySelector('.hw-skill-bar'), 'aria-valuenow', Math.round(lf * 100));
+  text(lvEl.querySelector('.hw-cs-lvxp'), lv ? whole(lv.need - lv.into) + ' XP to Level ' + (lv.level + 1) : '');
+  /* Vitals: the server's max HP, the engine's max mana, regeneration and walk speed, the bag's spaces, the stamina pool. */
   const hpMax = sh && sh.maxHp !== null ? sh.maxHp : v.hpMax;
   line(root, '[data-vital="hp"]', hpMax !== null ? whole(hpMax) : null);
   line(root, '[data-vital="mana"]', c && c.maxMana !== null ? whole(c.maxMana) : null);
+  line(root, '[data-vital="regen"]', c && c.regenPct !== null ? c.regenPct + '% of the base rate (Prayer)' : null);
   line(root, '[data-vital="speed"]', c && c.moveSpeed !== null ? (Math.round(c.moveSpeed / 100) / 10) + ' tiles a second' : null);
   line(root, '[data-vital="cap"]', cap !== null ? whole(cap) + ' bag spaces' : null);
   line(root, '[data-vital="stamina"]', st ? hoursMinutes(st.msLeft) : null);
@@ -84,7 +100,6 @@ export function patchSheet(body, ctx, drawPortrait, asked) {
   line(root, '[data-combat="accuracy"]', c && c.accuracyPct !== null ? c.accuracyPct + '% against no armour' : null);
   line(root, '[data-combat="crit"]', c && c.critPct !== null ? c.critPct + '%' : null);
   line(root, '[data-combat="defence"]', c && c.defence !== null ? whole(c.defence) : null);
-  line(root, '[data-combat="ward"]', c && c.wardPct ? c.wardPct + '% of blows turned aside' : null);
   const wait = root.querySelector('.hw-cs-wait');
   text(wait, !sh ? '' : c ? '' : 'Working out your combat numbers…');
   cls(wait, 'is-on', !!sh && !c);

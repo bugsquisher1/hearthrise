@@ -146,10 +146,10 @@ function freshHealer(M, huntId, minutes, seed, options, element) {
   const from = T0; const to = from + minutes * 60000;
   const food = Object.keys(M.kit.START_INVENTORY).find((id) => M.SUP.SUPPLIES[id] && M.SUP.SUPPLIES[id].kind === 'heal');
   const member0 = { key: 'h', user: 'u', slot: 0, seat: 0, unitId: null, sessionId: 's', version: 1, huntId,
-    huntSession: { id: 's', instanceId: 'i', huntFromMs: from, nextSwingAtMs: from, swingIndex: 0, fallsLimit: 9, onEmpty: 'switch',
+    huntSession: { id: 's', instanceId: 'i', huntFromMs: from, nextSwingAtMs: from, swingIndex: 0, onEmpty: 'switch',
       bag: { [food]: { loaded: M.kit.START_INVENTORY[food] }, air_rune: { loaded: M.kit.START_INVENTORY.air_rune } },
       staminaMs: 8 * 3600000, staminaMaxMs: 8 * 3600000 },
-    skills: Object.assign({}, M.kit.START_SKILL_XP), hp: M.kit.START_CURRENCY.hp, maxHp: M.kit.START_CURRENCY.maxHp, gold: M.kit.START_CURRENCY.gold,
+    skills: Object.assign({}, M.kit.START_SKILL_XP), levelXp: 0, hp: M.kit.START_CURRENCY.hp, gold: M.kit.START_CURRENCY.gold,
     equipment: { weapon: 'apprentice_staff', ammo: 'air_rune' }, inventory: {}, hero: Object.assign({}, hero, { element: element || '' }) };
   const secret = String(BigInt.asIntN(64, BigInt(seed) * 2654435761n + 1n));
   const out = M.acc.accrueHunt({ instance: { id: '00000000-0000-4000-8000-0000000000ae', nextSwingAtMs: from, world: null },
@@ -568,7 +568,7 @@ const cases = {
       const cellar = freshHealer(M, 'mill_cellar', 10, seed, null, el);
       const ce = cellar.events;
       const spawned = M.grounds.HUNT_GROUNDS.mill_cellar.pockets.reduce((a, p) => a + p.spawns.length, 0);
-      if (ce.some((e) => e.type === 'wipe') || cellar.members[0].hunt.falls) return tag + ': a fresh solo healer fell in the cellar';
+      if (ce.some((e) => e.type === 'wipe') || ce.some((e) => e.type === 'death')) return tag + ': a fresh solo healer died in the cellar';
       if (!ce.some((e) => e.type === 'pull' && e.pocket === 1) || ce.filter((e) => e.type === 'kill').length < spawned) return tag + ': the cellar was not cleared';
       const sewer = freshHealer(M, 'millrace_sewer', 10, seed, null, el);
       const pulls = sewer.events.filter((e) => e.type === 'pull');

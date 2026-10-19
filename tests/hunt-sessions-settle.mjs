@@ -30,7 +30,8 @@
 //              one-path table): runActionBar, pickHeal, spendFromBag,
 //              pickSpawn, the single-foe swing, the hs.pull cycle, presses,
 //              src/core/hunt.js (STANCES / Vigour) — and combat-sim.js < 600 lines.
-//   MAXHP      a hitpoints level-up never LOWERS max HP (the FX-4 root cause).
+//   MAXHP      a Level gained in the window raises max HP from the next swing, and never
+//              lowers it (max HP is derived from Level and armour, src/core/vitals.js).
 //   WEAKNESS   a basic swing is priced against its monster (accuracy over its
 //              defence, the weapon weakness paid): a hammer on an ooze out-hits neutral.
 //   CRIT       crit is gear and buffs: crit blows land and journal the lifetime `crits`.
@@ -51,23 +52,26 @@
 //   SPLIT      party-split.js: gold even with the remainder to the first, items
 //              round-robin; a two-hero hunt pays both, neither more than its
 //              share plus the remainders.
-//   KNOCKOUT   a fall downs the hero KNOCKOUT_MS on the world's clock (whole
-//              swings, every one of them down, stamina resting), it stands at
-//              resumeHpFor (never a free heal), and the recovery line a window
-//              leaves is the fall + KNOCKOUT_MS.
+//   DEATH      a killed hero DIES (Tyler 2026-10-19): one death row, no recovery
+//              line, the hunt ends `died` at its next boundary, the hero walks home
+//              at full HP, the death is priced on its Level and combat skills; the
+//              same death cut into windows (ATTENDED) as in one span (AWAY).
+//   PARTY-DEATH  one member dies: every other member ends `party_member_died` at its
+//              own boundary and pays nothing for it.
 //   QUIVER     every ranged basic looses one shot of the loaded ammo; a
 //              40-arrow bag under `end` fires 40 and ends ammo_out.
 //   WORLD-BOUND  a four-hero party's world stays inside world_max_bytes on the
 //              compact form; world-state refuses one past it.
 //   FENCE      a hunter is never priced by the old path (hunt_open), a combat
 //              pointer with no hunt by nothing (hunt_required).
-//   DEATHXP-RULE  a fall costs DEATH_XP_LOSS of the level gap, never a de-level.
+//   DEATHXP-RULE  a death costs DEATH_XP_LOSS of the total Level XP (DEATH_XP_BASE) and of
+//              each combat skill's progress, never a level.
 // ARMS (DATABASE — the replayed chain)
 //   TICK-1     N tick windows (90 s) and odd cuts == ONE window, through the
 //              database: the character, the session, the bag, the tally, the
 //              ledger sums, the timeline, and the instance WORLD itself.
-//   BOTH-PATH  a hunt with falls settled at a player's irregular instants
-//              (inside the knockouts) writes what the tick's windows write.
+//   BOTH-PATH  a hunt with a death settled at a player's irregular instants writes
+//              what the tick's windows write.
 //   PARITY     the tick door, the player's door and the composed pieces write
 //              the same rows for one window.
 //   OWN        own food is eaten first: one supply_own row a settle, gold 0, the
@@ -81,7 +85,7 @@
 //              8 h, premium 12 h at the window); a tampered pool is refused.
 //   RESUME     an automatic end resumes the last activity after the walk home;
 //              a level-locked one leaves the character idle.
-//   DEATHXP    falls state their price; one death_xp row; bank = start +
+//   DEATHXP    the death states its price; one death_xp row; bank = start +
 //              gains − price; an over-charge is refused.
 //   TALLY      tally = Σ ledger rows stamped with the session.
 //   ANALYZER   dealt / taken / healed persisted per session from the engine's
@@ -166,7 +170,7 @@ async function loadEdge(root) {
     PS: await import(u('src/core/party-split.js')),
     WS: await import(u('src/core/hunt/world-state.js')),
     GRID: await import(u('src/core/hunt/grid.js')),
-    REC: await import(u('src/core/recovery.js')),
+    VIT: await import(u('src/core/vitals.js')),
     XP: await import(u('src/core/xp.js')),
     C: await import(u('src/core/combat.js')),
     MONSTERS: (await import(u('src/data/monsters.js'))).MONSTERS,
@@ -203,7 +207,19 @@ const groundRow = () => ({
 });
 const gridOf = (M) => M.GRID.makeGrid(GROUND_MAP[0].length, GROUND_MAP.length,
   (x, y) => GROUND_MAP[y][x] === '.', (x, y) => GROUND_MAP[y][x] === '#');
-const groundsOf = (M) => ({ mill_cellar: { ground: groundRow(), grid: gridOf(M) } });
+/* The fixture ground with every spawn one monster: the cellar's rats never threaten a hero in its
+   band (CORE_NUMBERS Q9), so the arms that need a fight with a cost name a harder monster. */
+const rowWith = (monster, over) => () => {
+  const g = groundRow();
+  return { ...g, ...(over || {}), pockets: g.pockets.map((p) => ({ ...p, spawns: p.spawns.map((s) => ({ ...s, monster })) })) };
+};
+const groundWith = (M, monster, over) => ({ ground: rowWith(monster, over)(), grid: gridOf(M) });
+/* Ghouls: a low hero dies there (the DEATH arms). */
+const deadlyRow = rowWith('ghoul');
+/* The DB arms' settles play the ground installGround last put in the catalogue. */
+let fixtureRow = groundRow;
+const groundsOf = (M) => ({ mill_cellar: { ground: fixtureRow(), grid: gridOf(M) } });
+const deadlyOf = (M) => ({ ground: deadlyRow(), grid: gridOf(M) });
 
 // ═══════════════════════════════════════════════════════════════════════
 // ENGINE ARMS (no database)
@@ -221,18 +237,18 @@ const tier1 = (M) => {
 function memberIn(M, key, o) {
   const x = o || {};
   const t = tier1(M);
-  const lv = (n) => M.XP.xpForLevel(n);
-  const skills = x.skills || { attack: lv(x.level || 20), strength: lv(x.level || 20), defense: lv(x.level || 20), hitpoints: lv(x.level || 20) };
-  const maxHp = x.maxHp ?? M.XP.levelFromXp(skills.hitpoints);
+  /* A hero at Level `level` (default 20) with every combat skill at that level (the designer's fit). */
+  const L = x.level || 20;
+  const skills = x.skills || Object.fromEntries(['melee', 'ranged', 'magic', 'defense'].map((k) => [k, M.XP.skillXpForLevel(k, L)]));
   const role = x.role || 'melee_dps';
   return {
     key, user: key, slot: 0, seat: x.seat || 0, unitId: x.unitId ?? null, sessionId: 's-' + key, version: 1, huntId: 'mill_cellar',
     huntSession: { id: 's-' + key, instanceId: IID, huntFromMs: T0, nextSwingAtMs: T0, swingIndex: 0,
       bag: x.bag || {}, staminaMs: x.stamina ?? 12 * 3600000, staminaMaxMs: x.staminaMax ?? 12 * 3600000,
       basics: t.basics, shop: t.shop, goldFloor: x.floor ?? 0, supplySource: x.source || 'mine', onEmpty: x.empty || 'switch',
-      cover: x.cover || {}, fallsLimit: 3 },
-    skills, xpFrac: null, hp: x.hp ?? maxHp, maxHp, gold: x.gold ?? 0, equipment: x.equipment || {}, combatStyle: null,
-    inventory: {}, recoveringUntilMs: 0, deathsTodayBefore: 0, deathsLifetimeBefore: 0, hearthfindReady: false, perks: null,
+      cover: x.cover || {} },
+    skills, levelXp: x.levelXp ?? M.XP.charXpForLevel(L), xpFrac: null, hp: x.hp ?? 1e9, gold: x.gold ?? 0, equipment: x.equipment || {},
+    inventory: {}, deathsTodayBefore: 0, deathsLifetimeBefore: 0, hearthfindReady: false, perks: null,
     hero: M.SPAWN.heroSetup({ weaponType: x.weaponType || ({ melee_dps: 'hammer', ranger: 'ranged', mage: 'magic', healer: 'magic' }[role] || 'sword'),
       options: Object.assign({}, x.options || {}, role === 'healer' ? { role: 'healer' } : {}), bar: x.bar || [], partyRoles: x.partyRoles || [role] }),
     ...(x.extra || {}),
@@ -243,13 +259,13 @@ function instIn(M, members, spanMs, extra) {
     secret: SECRET, ...groundsOf(M).mill_cellar, items: M.ITEMS, monsters: M.MONSTERS, members }, extra || {});
 }
 /* Run an instance over [T0, T0 + span) cut at `cuts`, carrying the world and every session like the database does. */
-function runCut(M, mk, spanMs, cuts) {
+function runCut(M, mk, spanMs, cuts, over) {
   const members = mk();
   const edges = [T0, ...cuts.filter((c) => c > T0 && c < T0 + spanMs).sort((a, b) => a - b), T0 + spanMs];
   let world = null; let next = T0;
   const outs = [];
   for (let i = 1; i < edges.length; i++) {
-    const out = M.AC.accrueHunt(instIn(M, members, 0, { instance: { id: IID, nextSwingAtMs: next, world },
+    const out = M.AC.accrueHunt(instIn(M, members, 0, { ...(over || {}), instance: { id: IID, nextSwingAtMs: next, world },
       window: { fromMs: edges[i - 1], toMs: edges[i] } }));
     if (!out.accrued) continue;
     outs.push(out);
@@ -258,11 +274,12 @@ function runCut(M, mk, spanMs, cuts) {
       const m = members.find((x) => x.key === p.key);
       const h = p.hunt;
       m.huntSession = Object.assign({}, m.huntSession, { swingIndex: h.swing_to, nextSwingAtMs: Date.parse(h.next_swing_at),
-        falls: h.falls, staminaMs: h.stamina, down: h.down,
+        staminaMs: h.stamina,
         bag: Object.fromEntries(Object.entries(m.huntSession.bag).map(([id, l]) => [id, { ...l, left: (l.left ?? l.loaded) - (h.uses[id] || 0) }])) });
       m.unitId = h.unit_id;
       m.hp = p.delta.hp;
       for (const [k, v] of Object.entries(p.delta.xp || {})) m.skills = { ...m.skills, [k]: (m.skills[k] || 0) + v };
+      m.levelXp += p.delta.level_xp || 0;
       m.gold += p.delta.gold || 0;
       if (h.ended) m.ended = h.ended;
     }
@@ -278,7 +295,7 @@ const ENGINE_ARMS = {
     const gone = new RegExp(['hr_attended_kills', 'hr_credit_kills', 'ATTENDED_MAX_FIDELITY', 'attendedKillCap',
       'away-receipt', 'withAwayReceipt', 'receiptRescue', 'last_away_receipt', 'hr_vigour_of', 'vigourCharge',
       'VIGOUR_', 'autoEatEnabled', 'resolveAutoEat', 'auto_eat_', 'huntStance', 'hunt_stance', 'evaluateStop',
-      'consec_falls', 'retreatAtFall', 'killBonusesFor', 'charmIndex', 'killsByClass', 'trophyIndex',
+      'consec_falls', 'recovering_until', 'recoveringUntil', 'KNOCKOUT_MS', 'resumeHpFor', 'fallsLimit', 'down_ms', 'retreatAtFall', 'killBonusesFor', 'charmIndex', 'killsByClass', 'trophyIndex',
       'readTickBestiary', 'companionXpBacked', 'COMPANION_XP_SERVER_BACKED', 'partyIntentFence', 'tick-party',
       'tick-combat', 'claim-reward', 'dungeon-settle', 'quartermaster-buy', 'runEnchant', 'hunt_use', 'barSlot',
       'hr_hunt_apply\\(', 'hr_hunt_engine_read'].join('|'));
@@ -359,8 +376,8 @@ const ENGINE_ARMS = {
     try {
       M.CS.simulateHuntInstance({ world: null, nextSwingAtMs: T0, members: [] }, { toMs: T0 + 10000, tickMs: 2000 });
       const m = memberIn(M, 'a');
-      const fake = { key: 'a', seat: 0, unitId: null, hs: M.AR.newHuntSession(m.huntSession), state: { skills: {}, playerHp: 10, playerMaxHp: 10, stats: {} },
-        hero: m.hero, snapshot: () => ({ acc: 500, maxHit: 2, def: 1 }), style: null, bonus: () => 0, weakness: () => ({ dropMult: 1 }), fx: {} };
+      const fake = { key: 'a', seat: 0, unitId: null, hs: M.AR.newHuntSession(m.huntSession), state: { skills: {}, levelXp: 0, playerHp: 150, playerMaxHp: 150, playerMaxMana: 100, regenPm: 1000, stats: {} },
+        hero: m.hero, snapshot: () => ({ acc: 500, maxHit: 2, def: 1 }), family: 'sword', bonus: () => 0, weakness: () => ({ dropMult: 1 }), fx: {} };
       M.CS.simulateHuntInstance({ world: null, nextSwingAtMs: T0, members: [fake] }, { toMs: T0 + 10000, tickMs: 2000, ...groundsOf(M).mill_cellar });
     } catch { unseeded = true; }
     if (!unseeded) problems.push('an UNSEEDED instance swing ran — the engine must refuse a swing with no ctx.seed');
@@ -393,21 +410,19 @@ const ENGINE_ARMS = {
 
   MAXHP: async (M) => {
     const problems = [];
-    const lv6 = M.XP.xpForLevel(6) - 1;
-    const m = memberIn(M, 'a', { skills: { attack: 50000, strength: 50000, defense: 50000, hitpoints: lv6 }, maxHp: 10, hp: 10 });
+    /* A Level-5 hero one XP short of Level 6 levels up on its first kills: max HP leaves at Level 6's (or the
+       Level reached), never lower than it entered; nothing worn, so the heavy share is 0. */
+    const near = M.XP.charXpForLevel(6) - 1;
+    const m = memberIn(M, 'a', { level: 5, levelXp: near });
     const out = M.AC.accrueHunt(instIn(M, [m], 600000));
     const r = out.members && out.members[0];
     if (!r) return [`CONTROL: the window settled nothing (${out.reason})`];
-    if (!(r.maxHp >= 10)) problems.push(`max HP fell to ${r.maxHp} on a hitpoints level-up — raise-only`);
-    if (!(r.delta.xp && r.delta.xp.hitpoints > 0)) problems.push('CONTROL: no hitpoints XP was earned');
-    /* RAISED on a level-up: a hero at max HP 5 that reaches hitpoints 6 inside the window leaves at 6. */
-    const lo = memberIn(M, 'a', { skills: { attack: 50000, strength: 50000, defense: 50000, hitpoints: lv6 }, maxHp: 5, hp: 5 });
-    const up = M.AC.accrueHunt(instIn(M, [lo], 600000)).members[0];
-    /* The level REACHED, not a literal 6: a hero the store keeps in mana (cheap drinks,
-       designer 2026-10-17) hunts the whole window and may level past 6. */
-    const reached = M.XP.levelFromXp(lv6 + ((up.delta.xp || {}).hitpoints || 0));
-    if (!(reached >= 6)) problems.push('CONTROL: the hitpoints level-up never happened');
-    else if (up.maxHp !== reached) problems.push(`a hitpoints level-up to ${reached} left max HP at ${up.maxHp}`);
+    if (!(r.delta.level_xp > 0)) problems.push('CONTROL: no Level XP was earned');
+    const reached = M.XP.charLevelFromXp(near + (r.delta.level_xp || 0));
+    if (!(reached >= 6)) problems.push('CONTROL: the Level-up never happened');
+    else if (r.maxHp !== M.VIT.maxHpFor(reached, 0)) problems.push(`a Level-up to ${reached} left max HP at ${r.maxHp}, vitals.js says ${M.VIT.maxHpFor(reached, 0)}`);
+    if (!(r.maxHp >= M.VIT.maxHpFor(5, 0))) problems.push(`max HP fell to ${r.maxHp} — raise-only`);
+    if (r.levelUps.filter((u) => u.skill === 'level').length !== reached - 5) problems.push(`the Level-ups ${JSON.stringify(r.levelUps)} are not the ${reached - 5} crossed`);
     return problems;
   },
 
@@ -417,19 +432,21 @@ const ENGINE_ARMS = {
   BUFF: async (M) => {
     const problems = [];
     const iso = (ms) => new Date(ms).toISOString();
-    const mk = (buffs) => () => [memberIn(M, 'a', { level: 5, empty: 'end', extra: { buffs } })];
+    /* A Level-50 hero on a Rat King ground: every kill takes many swings, so damage (not the respawn
+       clock) sets the pace; the cellar's rats die to one swing either way. */
+    const KING = groundWith(M, 'rat_king');
+    const mk = (buffs) => () => [memberIn(M, 'a', { level: 50, empty: 'end', extra: { buffs } })];
     const kills = (o) => o.outs.reduce((a, x) => a + x.members[0].delta.journal.meta.kills, 0);
-    const bare = runCut(M, mk(null), 900000, []);
-    const live = runCut(M, mk([{ type: 'damage', magnitude: 200, until: iso(T0 + 3600000), from: iso(T0 - 1000) }]), 900000, []);
-    const dead = runCut(M, mk([{ type: 'damage', magnitude: 200, until: iso(T0 - 1000), from: iso(T0 - 600000) }]), 900000, []);
+    const bare = runCut(M, mk(null), 900000, [], KING);
+    const live = runCut(M, mk([{ type: 'damage', magnitude: 200, until: iso(T0 + 3600000), from: iso(T0 - 1000) }]), 900000, [], KING);
+    const dead = runCut(M, mk([{ type: 'damage', magnitude: 200, until: iso(T0 - 1000), from: iso(T0 - 600000) }]), 900000, [], KING);
     const dealt = (o) => o.outs.reduce((x, w) => x + Number(((w.members[0].analyzer || {}).dealt || {}).total || 0), 0);
     if (!(dealt(live) > dealt(bare) * 1.5)) problems.push(`a live +200% damage buff dealt ${dealt(live)} against ${dealt(bare)} without — a hunt does not read the buff queue`);
     if (canon(dead.outs.map((o) => o.members[0].delta)) !== canon(bare.outs.map((o) => o.members[0].delta))) problems.push('a buff that ended before the window changed it');
     const mid = [{ type: 'damage', magnitude: 200, until: iso(T0 + 300000), from: iso(T0 - 1000) }];
-    /* A hero that outlives the buff (level 20), so a queue frozen at a window's start shows. */
-    const mk20 = (buffs) => () => [memberIn(M, 'a', { level: 20, empty: 'end', extra: { buffs } })];
-    const one = runCut(M, mk20(mid), 900000, []);
-    const cut = runCut(M, mk20(mid), 900000, [T0 + 100000, T0 + 290000, T0 + 310000, T0 + 600000]);
+    /* The same hero outlives the buff, so a queue frozen at a window's start shows. */
+    const one = runCut(M, mk(mid), 900000, [], KING);
+    const cut = runCut(M, mk(mid), 900000, [T0 + 100000, T0 + 290000, T0 + 310000, T0 + 600000], KING);
     const sum = (o) => canon({ k: kills(o), g: o.outs.reduce((a, x) => a + (x.members[0].delta.gold || 0), 0), w: o.world });
     if (sum(one) !== sum(cut)) problems.push(`a buff ending mid-window paid differently cut and uncut ${firstDiff(sum(one), sum(cut))}`);
     return problems;
@@ -507,13 +524,11 @@ const ENGINE_ARMS = {
     if (!r || !r.hunt.ended || r.hunt.ended.reason !== 'stamina' || r.hunt.swing_to !== 5) {
       problems.push(`a five-swing pool ended ${JSON.stringify(r && r.hunt.ended)} after ${r && r.hunt.swing_to} swings, not stamina after 5`);
     }
-    /* A KNOCKED-OUT hero RESTS: over a window with falls, the pool = start − paid + down (under the cap). */
-    const ko = runCut(M, () => [memberIn(M, 'a', { stamina: 3600000, staminaMax: cap.free, empty: 'end',
-      skills: { attack: 0, strength: 0, defense: 0, hitpoints: M.XP.xpForLevel(4) }, maxHp: 4, hp: 4 })], 600000, []);
-    const k = ko.outs[0] && ko.outs[0].members[0];
-    if (!k || !(k.hunt.down_ms > 0)) problems.push('CONTROL: the weak hero was never knocked out');
-    else if (k.hunt.stamina !== 3600000 - k.hunt.paid_ms + k.hunt.down_ms) {
-      problems.push(`a pool of 1 h after ${k.hunt.paid_ms} ms paid and ${k.hunt.down_ms} ms down is ${k.hunt.stamina} — a knockout does not rest`);
+    /* EVERY SWING OF A HUNT DRAINS (no knockout to rest in): the pool = start − paid. */
+    const all = runCut(M, () => [memberIn(M, 'a', { stamina: 3600000, staminaMax: cap.free })], 600000, []);
+    const k = all.outs[0] && all.outs[0].members[0];
+    if (!k || k.hunt.stamina !== Math.max(0, 3600000 - k.hunt.paid_ms) || 'down_ms' in k.hunt) {
+      problems.push(`a pool of 1 h after ${k && k.hunt.paid_ms} ms paid is ${k && k.hunt.stamina} (or the proposal still carries down_ms)`);
     }
     /* The client (src/session/envelope.js): the server's pool, REPLACED by each
        envelope — never kept past one that no longer states it. */
@@ -561,8 +576,9 @@ const ENGINE_ARMS = {
     if (cov.tally.covered.b_junk !== 2 || cov.tally.covered.a_junk) problems.push(`sell-to-cover did not sell the cheapest first: ${JSON.stringify(cov.tally.covered)}`);
     if (M.HSD.coverSellable({ type: 'resource' }, false) || !M.HSD.coverSellable({ type: 'resource', junk: true }, false)) problems.push('sell-to-cover sells something other than junk');
     /* THE COINS REACH THE PURSE: a hero one coin short of the store's food, at full HP, can buy
-       food once a kill has paid — without its coins the first meal it needs ends the hunt gold_out. */
-    const out = runCut(M, () => [memberIn(M, 'a', { level: 12, gold: row.price - 1 })], 1800000, []);
+       food once a kill has paid — without its coins the first meal it needs ends the hunt gold_out.
+       Drain rats (Level 10) bite a Level-9 hero hard enough to need food, after a few kills; the cellar's rats never do. */
+    const out = runCut(M, () => [memberIn(M, 'a', { level: 9, gold: row.price - 1, options: { drink_below_pct: 0 } })], 1800000, [], groundWith(M, 'drain_rat'));
     const ms = out.outs.flatMap((o) => o.members);
     /* FOOD buys only: a 6 g store drink is affordable from the purse alone (designer 2026-10-17), so a drink buy proves nothing about the coins. */
     const tl = ms.reduce((a, x) => a + ((x.hunt.buys || {})[t.shop.heal] || 0), 0);
@@ -574,22 +590,23 @@ const ENGINE_ARMS = {
     const thirsty = runCut(M, () => [memberIn(M, 'a', { level: 40, gold: 0, options: { drink_below_pct: 99 } })], 600000, []);
     const tEnd = thirsty.outs.flatMap((o) => o.members).find((x) => x.hunt.ended);
     if (tEnd && tEnd.hunt.ended.reason === 'gold_out') problems.push('a broke hero that only wanted a drink ended gold_out');
-    if (!(kills > 0)) problems.push('CONTROL: the poor hero killed nothing');
+    if (!(kills > 0)) problems.push(`CONTROL: the poor hero killed nothing (${JSON.stringify(end && end.hunt.ended)}, ${ms.length} windows, ${JSON.stringify(ms.map((x) => x.hunt.buys))})`);
     else if (!(tl > 0)) problems.push(`a hero one coin short bought no food after ${kills} kills (ended ${JSON.stringify(end && end.hunt.ended)}) — kill coins do not reach the purse`);
     return problems;
   },
 
   /* ECON-1 (designer 2026-10-17, Tyler's rule: gold + common drops pay the supplies,
-     profit comes from rares). A FRESH melee hero (Bronze Sword, Hitpoints 10, 0 gold,
-     the kit's 20 cooked shrimp) hunts the mill_cellar fixture for an hour on the store's
-     drinks: it never ends gold_out, and the coins its kills drop pay every drink it buys.
-     At the old 90 g Thin Turnip Juice it ended gold_out at 1:54. */
+     profit comes from rares). A melee hero at the bottom of the sewer's band (Level 8,
+     Bronze Sword, 0 gold, the kit's 20 cooked shrimp) hunts drain rats for an hour on the
+     store's drinks: it never ends gold_out, and the coins its kills drop pay every drink it
+     buys. At the old 90 g Thin Turnip Juice it ended gold_out at 1:54. (Core rebuild: the
+     cellar's rats cost a hero in its band no supplies at all, so the cellar proves nothing.) */
   'ECON-1': async (M) => {
     const problems = [];
-    const fresh = () => [memberIn(M, 'a', { skills: { hitpoints: M.XP.xpForLevel(10) }, gold: 0,
+    const fresh = () => [memberIn(M, 'a', { level: 8, gold: 0,
       bag: { cooked_shrimp: { loaded: 20 } }, equipment: { weapon: 'bronze_sword' } })];
     const cuts = Array.from({ length: 5 }, (_, i) => T0 + (i + 1) * 600000);
-    const out = runCut(M, fresh, 3600000, cuts);
+    const out = runCut(M, fresh, 3600000, cuts, groundWith(M, 'drain_rat'));
     const ms = out.outs.flatMap((o) => o.members);
     const price = (id) => (M.SB.BASIC_INDEX[id] || {}).price || 0;
     let drinks = 0; let drinkGold = 0; let coins = 0; let kills = 0;
@@ -633,35 +650,50 @@ const ENGINE_ARMS = {
     return problems;
   },
 
-  KNOCKOUT: async (M) => {
+  DEATH: async (M) => {
     const problems = [];
-    const ko = M.HSD.KNOCKOUT_MS;
-    const weak = () => [memberIn(M, 'a', { skills: { attack: 0, strength: 0, defense: 0, hitpoints: M.XP.xpForLevel(4) }, maxHp: 4, hp: 4, empty: 'end' })];
-    const out = runCut(M, weak, 200000, []);
-    const first = out.outs[0] && out.outs[0].members[0];
-    if (!first || !(first.summary.deathLog.length >= 1)) return [`CONTROL: the weak hero never fell (${out.outs.length} windows)`];
-    const d = first.summary.deathLog[0];
-    if (d.recoverMs !== ko || first.delta.deaths[0].recovery_ms !== ko) problems.push(`a fall downs for ${d.recoverMs}, KNOCKOUT_MS is ${ko}`);
-    if (d.resumeHp !== M.REC.resumeHpFor(4)) problems.push(`a fall stands at ${d.resumeHp}, resumeHpFor is ${M.REC.resumeHpFor(4)}`);
-    if (!(first.hunt.down_ms >= ko - 2000)) problems.push(`a fall left ${first.hunt.down_ms} ms down, KNOCKOUT_MS is ${ko}`);
-    /* RESUME-LINE: a window ending mid-knockout leaves the line at the fall + KNOCKOUT_MS. */
-    const mid = runCut(M, weak, d.atMs - T0 + 10000, []);
-    const last = mid.outs[mid.outs.length - 1].members[0];
-    if (last.delta.recovering_until !== new Date(d.atMs + ko).toISOString()) {
-      problems.push(`a window cut mid-knockout left the line at ${last.delta.recovering_until}, want ${new Date(d.atMs + ko).toISOString()}`);
+    /* A Level-10 hero at 20 HP, nothing to eat, no store (end): it dies to the fixture's foes. */
+    const S5 = (k) => M.XP.skillXpForLevel(k, 5) + 400;
+    const weak = () => [memberIn(M, 'a', { level: 5, levelXp: M.XP.charXpForLevel(5) + 800, skills: { melee: S5('melee'), defense: S5('defense') }, hp: 5, empty: 'end' })];
+    const away = runCut(M, weak, 600000, [], deadlyOf(M));
+    const ms = away.outs.flatMap((o) => o.members);
+    const dead = ms.find((x) => x.summary.deathLog.length);
+    if (!dead) return [`CONTROL: the weak hero never died (${away.outs.length} windows)`];
+    const d = dead.summary.deathLog[0];
+    if (ms.reduce((a, x) => a + x.summary.deathLog.length, 0) !== 1) problems.push('the hero died more than once in one hunt');
+    if (!dead.delta.deaths || dead.delta.deaths.length !== 1 || 'recovery_ms' in dead.delta.deaths[0] || 'resume_hp' in dead.delta.deaths[0]) {
+      problems.push(`the death row is ${JSON.stringify(dead.delta.deaths)} (one row, no recovery fields)`);
     }
-    /* The stand-up is never a free heal: a 20-HP hero's HP one swing after it stands is
-       resumeHpFor(20) give or take one swing of regen, never its max. */
-    const big = () => [memberIn(M, 'a', { skills: { attack: 0, strength: 0, defense: 0, hitpoints: M.XP.xpForLevel(20) }, maxHp: 20, hp: 20, empty: 'end' })];
-    const b0 = runCut(M, big, 900000, []).outs[0];
-    const bf = b0 && b0.members[0].summary.deathLog[0];
-    if (!bf) problems.push('CONTROL: the 20-HP hero never fell');
-    else {
-      const stood = runCut(M, big, bf.atMs - T0 + ko + 2000, []).outs;
-      const hp = stood[stood.length - 1].members[0].delta.hp;
-      const r20 = M.REC.resumeHpFor(20);
-      if (!(hp <= r20 + 3)) problems.push(`a 20-HP hero stood up at ${hp} HP, resumeHpFor is ${r20} — a free heal`);
+    if ('recovering_until' in dead.delta) problems.push('a death still stamps a recovery line');
+    if (!dead.hunt.ended || dead.hunt.ended.reason !== 'died') problems.push(`the death ended the hunt ${JSON.stringify(dead.hunt.ended)}, not died`);
+    else if (Date.parse(dead.hunt.ended.at) !== Math.ceil((d.atMs - T0) / 2000) * 2000 + T0 && Date.parse(dead.hunt.ended.at) !== Math.floor((d.atMs - T0) / 2000) * 2000 + T0 + 2000) {
+      problems.push(`the hunt ended at ${dead.hunt.ended.at}, not the boundary after the death (${new Date(d.atMs).toISOString()})`);
     }
+    if (dead.delta.hp !== dead.maxHp) problems.push(`a dead hero came home at ${dead.delta.hp} of ${dead.maxHp} HP — back in town at full`);
+    const loss = dead.hunt.death_xp && dead.hunt.death_xp[0];
+    if (!loss || !(loss.level > 0) || !(loss.melee > 0)) problems.push(`the death cost ${JSON.stringify(loss)}, not the Level and the combat skills`);
+    /* ATTENDED: the same hunt cut at odd instants (one of them inside the death's swing) dies the same way. */
+    const cutAt = [T0 + 7001, T0 + 33333, d.atMs - 700, d.atMs + 500, d.atMs + 1999];
+    const att = runCut(M, weak, 600000, cutAt, deadlyOf(M));
+    const am = att.outs.flatMap((o) => o.members);
+    const ad = am.find((x) => x.summary.deathLog.length);
+    const sig = (x) => x && canon({ at: x.summary.deathLog[0].atMs, m: x.summary.deathLog[0].monster, end: x.hunt.ended, dx: x.hunt.death_xp });
+    if (sig(ad) !== sig(dead)) problems.push(`the attended cut died differently from one span ${firstDiff(sig(dead) || '', sig(ad) || '')}`);
+    return problems;
+  },
+
+  'PARTY-DEATH': async (M) => {
+    const problems = [];
+    const roles = ['melee_dps', 'melee_dps'];
+    const out = runCut(M, () => [memberIn(M, 'a', { seat: 0, level: 1, skills: {}, hp: 5, empty: 'end', partyRoles: roles }),
+      memberIn(M, 'b', { seat: 1, level: 60, partyRoles: roles })], 600000, [], deadlyOf(M));
+    const ms = out.outs.flatMap((o) => o.members);
+    const endOf = (k) => (ms.find((x) => x.key === k && x.hunt.ended) || {}).hunt;
+    const a = endOf('a'); const b = endOf('b');
+    if (!a || a.ended.reason !== 'died') return [`CONTROL: the weak member ended ${JSON.stringify(a && a.ended)}`];
+    if (!b || b.ended.reason !== 'party_member_died') problems.push(`the survivor ended ${JSON.stringify(b && b.ended)}, not party_member_died`);
+    else if (b.ended.at !== a.ended.at) problems.push(`the two ends are ${a.ended.at} / ${b.ended.at}, not one boundary`);
+    if (ms.some((x) => x.key === 'b' && (x.summary.deathLog.length || (x.hunt.death_xp || []).length))) problems.push('the survivor paid for a death it did not have');
     return problems;
   },
 
@@ -712,11 +744,15 @@ const ENGINE_ARMS = {
 
   'DEATHXP-RULE': async (M) => {
     const problems = [];
-    const f = M.AR.deathXpLossFor; const L = M.XP.xpForLevel;
-    if (f(L(10)) !== 0) problems.push('a fall at a level floor costs XP');
-    const gap = L(11) - L(10);
-    if (f(L(11) - 1) !== Math.floor(gap * M.HSD.DEATH_XP_LOSS)) problems.push('a fall does not cost DEATH_XP_LOSS of the gap');
-    if (f(L(10) + 3) !== 3) problems.push('a fall de-levels');
+    const lv = M.AR.levelDeathLoss; const sk = M.AR.skillDeathLoss; const C = M.XP.charXpForLevel; const S = (l) => M.XP.skillXpForLevel('melee', l);
+    const f = M.HSD.DEATH_XP_LOSS;
+    if (lv(C(10)) !== 0) problems.push('a death at a Level floor costs Level XP');
+    const x = C(11) - 1;
+    if (lv(x, f, 'total') !== Math.min(Math.floor(x * f), x - C(10))) problems.push('a death does not cost DEATH_XP_LOSS of the TOTAL Level XP');
+    if (lv(x, f, 'level') !== Math.min(Math.floor((C(11) - C(10)) * f), x - C(10))) problems.push('the `level` base does not cost a share of the Level span');
+    if (lv(C(10) + 3) !== 3) problems.push('a death de-levels the Level');
+    if (sk('melee', S(10)) !== 0 || sk('melee', S(10) + 1000) !== Math.floor(1000 * f)) problems.push('a skill does not lose DEATH_XP_LOSS of its progress');
+    if (sk('melee', S(11) - 1) > S(11) - 1 - S(10)) problems.push('a skill loses a level');
     return problems;
   },
 };
@@ -738,9 +774,10 @@ async function inTx(db, fn) {
 }
 
 /* The fixture ground's catalogue rows (the generator's own row builder). */
-async function installGround(db) {
+async function installGround(db, row = groundRow) {
+  fixtureRow = row;
   const GEN = await import(pathToFileURL(join(ROOT, 'tools', 'gen-hunt-sessions.mjs')).href);
-  const { rows, spawns } = GEN.groundRows({ h1_fixture: groundRow() });
+  const { rows, spawns } = GEN.groundRows({ h1_fixture: row() });
   for (const g of rows) {
     await db.query(`insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn_ms, seats) values ($1,$2,$3,$4,$5,$6)
                     on conflict (hunt_id) do update set ground_id = excluded.ground_id, pockets = excluded.pockets, spawns = excluded.spawns,
@@ -769,12 +806,16 @@ async function character(db, M, uid, o) {
   for (const [item, qty] of Object.entries(o.inv || {})) {
     await db.query('insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, $2, $3) on conflict (user_id, slot, item_id) do update set qty = excluded.qty', [uid, item, qty]);
   }
-  if (o.level) { const xp = M.XP.xpForLevel(o.level); await admin(db, uid, { xp: { attack: xp, strength: xp, defense: xp, hitpoints: xp } }); }
+  if (o.level) {
+    await admin(db, uid, { xp: Object.fromEntries(['melee', 'ranged', 'magic', 'defense'].map((k) => [k, M.XP.skillXpForLevel(k, o.level)])) });
+    /* Level XP is credited only by the hunt settle (kills only): a fixture sets it directly. */
+    await db.query('update public.player_state set level_xp = $2 where user_id = $1 and slot = 0', [uid, M.XP.charXpForLevel(o.level) + (o.levelXpOver || 0)]);
+  }
   if (o.skillsXp) await admin(db, uid, { xp: o.skillsXp });
   if (o.gold != null) {
     await db.query('update public.player_state set gold = $2 where user_id = $1 and slot = 0', [uid, o.gold]);
   }
-  if (o.hp) await db.query('update public.player_state set hp = least(max_hp, $2) where user_id = $1 and slot = 0', [uid, o.hp]);
+  if (o.hp) await db.query('update public.player_state set hp = $2 where user_id = $1 and slot = 0', [uid, o.hp]);
   if (o.options) {
     await asUser(db, uid);
     const r = await one(db, 'select public.hr_action_set_options(0, 0, $1::jsonb, $2::uuid)', [JSON.stringify(o.options), idem()]);
@@ -789,7 +830,7 @@ async function character(db, M, uid, o) {
 
 /* A hunter: one character (or, with o.party, every character of a party) on mill_cellar `minutesAgo` minutes ago. */
 async function hunter(db, M, o) {
-  await installGround(db);
+  await installGround(db, o.deadly ? deadlyRow : groundRow);
   await db.query('update public.hr_hunt_config set enabled = true where id');
   const who = o.party ? o.party : [o];
   for (let i = 0; i < who.length; i++) await character(db, M, UIDS[i], who[i]);
@@ -806,7 +847,7 @@ async function hunter(db, M, o) {
   const sids = [];
   for (let i = 0; i < who.length; i++) {
     await asUser(db, UIDS[i]);
-    const e = await one(db, `select public.hr_hunt_enter(0, 'mill_cellar', $1::jsonb, 0, null, null, $2::uuid)`, [JSON.stringify(who[i].bag || []), idem()]);
+    const e = await one(db, `select public.hr_hunt_enter(0, 'mill_cellar', $1::jsonb, 0, null, $2::uuid)`, [JSON.stringify(who[i].bag || []), idem()]);
     if (!e || e.ok !== true) throw new Error('enter refused: ' + JSON.stringify(e));
     sids.push(e.session.id);
   }
@@ -851,14 +892,14 @@ async function run(db, M, from, cuts, o) {
 async function snapshot(db, sid, uid = UID) {
   return one(db, `
     select jsonb_build_object(
-      'gold', ps.gold, 'hp', ps.hp, 'max_hp', ps.max_hp, 'recovering_until', ps.recovering_until,
+      'gold', ps.gold, 'hp', ps.hp, 'level_xp', ps.level_xp,
       'active', ps.active_kind || ':' || coalesce(ps.active_id, ''), 'stamina', ps.stamina_ms, 'stamina_at', ps.stamina_at,
       'skills', (select jsonb_object_agg(skill_id, jsonb_build_array(xp, xp_frac)) from public.player_skills where user_id = $1 and slot = 0),
       'inv', (select jsonb_object_agg(item_id, qty) from public.player_inventory where user_id = $1 and slot = 0),
       'stats', (select jsonb_object_agg(kind || ':' || key || ':' || period_key, value) from public.player_progress
                  where user_id = $1 and slot = 0 and kind <> 'daily'),
       'session', (select jsonb_build_object('swing', swing_index, 'next', next_swing_at, 'settled_to', settled_to,
-                    'falls', falls, 'down', down, 'unit', unit_id, 'ended_at', ended_at, 'end_reason', end_reason)
+                    'unit', unit_id, 'ended_at', ended_at, 'end_reason', end_reason)
                     from public.hunt_sessions h where h.id = $2),
       'instance', (select jsonb_build_object('world_swing', i.world_swing, 'world', md5(coalesce(i.world, '')), 'settled_to', i.settled_to)
                      from public.hunt_sessions h join public.hunt_instances i on i.id = h.instance_id where h.id = $2),
@@ -866,10 +907,10 @@ async function snapshot(db, sid, uid = UID) {
       'tally', (select to_jsonb(t) - 'updated_at' - 'ledger_hwm' - 'raw_xp' from public.hunt_session_tally t where session_id = $2),
       'ledger', (select jsonb_object_agg(intent, s) from (select l.intent, jsonb_build_array(sum(coalesce(l.gold, 0)), sum(coalesce(l.qty, 0))) s
                    from public.player_ledger l where l.session_id = $2 and l.kind = 'hunt' group by l.intent) x),
-      'deaths', (select jsonb_agg(jsonb_build_array(meta->>'monster', meta->>'recovery_ms', meta->>'resume_hp') order by id)
+      'deaths', (select jsonb_agg(jsonb_build_array(meta->>'monster', meta->>'deaths_today', meta->>'food_in_bag') order by id)
                    from public.player_ledger where session_id = $2 and kind = 'combat' and intent = 'death'),
       'events', (select jsonb_agg(jsonb_build_array(type, at, data) order by at, type, data::text)
-                   from public.hunt_session_events where session_id = $2 and type in ('fall', 'slot_dry', 'ended')),
+                   from public.hunt_session_events where session_id = $2 and type in ('death', 'slot_dry', 'ended')),
       'death_xp', (select jsonb_object_agg(k, v) from (select x.key k, sum((x.value #>> '{}')::bigint) v
                      from public.player_ledger l, jsonb_each(l.meta->'xp') x
                     where l.session_id = $2 and l.kind = 'hunt' and l.intent = 'death_xp' group by 1) d))
@@ -891,8 +932,10 @@ async function compareRuns(db, M, fixture, cutsA, cutsB) {
 const SPAN_MS = 20 * 60000;
 const ticksOf = (stepMs, spanMs) => (from) => Array.from({ length: Math.ceil(spanMs / stepMs) }, (_, i) => Math.min(from + (i + 1) * stepMs, from + spanMs));
 const STRONG = { minutesAgo: 25, level: 25, inv: { cooked_shrimp: 30 }, bag: [{ item: 'cooked_shrimp', qty: 25 }], gold: 100000 };
-const WEAK = { minutesAgo: 25, inv: {}, bag: [], gold: 0, hp: 1, options: { on_empty: 'end', food_below_pct: 99 },
-  skillsXp: { attack: 400, strength: 450, magic: 1585 } };
+const WEAK = { minutesAgo: 25, inv: {}, bag: [], gold: 0, hp: 20, options: { on_empty: 'end', food_below_pct: 99 },
+  level: 10 };
+/* A Level-5 hero part-way into its Level and skills, on the ghoul ground: it dies, and the death has a price. */
+const DOOMED = { ...WEAK, deadly: true, level: 5, levelXpOver: 800, skillsXp: { melee: 400, defense: 400 } };
 
 const DB_ARMS = {
   'TICK-1': async (db, M) => {
@@ -906,32 +949,18 @@ const DB_ARMS = {
   },
   'BOTH-PATH': async (db, M) => {
     const problems = [];
-    /* AWAY = the tick's 90 s windows; ATTENDED = a player's irregular instants, two of them INSIDE each knockout of the away run. */
+    /* AWAY = the tick's 90 s windows; ATTENDED = a player's irregular instants, two of them around the death. */
     const attended = (from, a) => {
-      const falls = ((a[0] && a[0].events) || []).filter((e) => e[0] === 'fall').map((e) => Date.parse(e[1]));
+      const deaths = ((a[0] && a[0].events) || []).filter((e) => e[0] === 'death').map((e) => Date.parse(e[1]));
       const cuts = [from + 7001, from + 33333];
-      for (const t of falls) cuts.push(t + 1500, t + 31234);
+      for (const t of deaths) cuts.push(t - 1500, t + 1500);
       cuts.push(from + SPAN_MS);
       return [...new Set(cuts)].filter((t) => t > from && t <= from + SPAN_MS).sort((x, y) => x - y);
     };
-    const { a, b, h: hA } = await compareRuns(db, M, WEAK, ticksOf(90000, SPAN_MS), attended);
-    if (!((a[0].deaths || []).length >= 1)) problems.push(`CONTROL: the weak hero never fell (${JSON.stringify(a[0].tally)})`);
+    const { a, b } = await compareRuns(db, M, DOOMED, ticksOf(90000, SPAN_MS), attended);
+    if (!((a[0].deaths || []).length === 1)) problems.push(`CONTROL: the weak hero did not die exactly once (${JSON.stringify(a[0].deaths)})`);
+    if (a[0].session.end_reason !== 'died') problems.push(`the death ended the hunt ${a[0].session.end_reason}, not died`);
     if (canon(a) !== canon(b)) problems.push(`a hunt settled at a player's instants wrote different rows from the tick's ${firstDiff(canon(a), canon(b))}`);
-    /* THE CARRIED LINE: two settles inside one knockout (the second has no fall of its own)
-       leave player_state.recovering_until at the fall + KNOCKOUT_MS, read back between them. */
-    const fall = ((a[0] && a[0].events) || []).find((e) => e[0] === 'fall');
-    if (fall) {
-      await inTx(db, async () => {
-        await rewindDice(db);
-        const h = await hunter(db, M, WEAK);
-        const at = Date.parse(fall[1]) - hA.from + h.from;   // the same fall on this transaction's clock
-        await settleTo(db, M, at + 1500);
-        await settleTo(db, M, at + 31234);
-        const line = await one(db, `select floor(extract(epoch from recovering_until) * 1000)::bigint from public.player_state where user_id = $1 and slot = 0`, [UID]);
-        if (Number(line) !== at + M.HSD.KNOCKOUT_MS) problems.push(`the line carried across two settles in one knockout is ${line}, want ${at + M.HSD.KNOCKOUT_MS}`);
-        if (!h.sid) problems.push('CONTROL: no hunt');
-      });
-    }
     return problems;
   },
   PARITY: async (db, M) => inTx(db, async () => {
@@ -1004,13 +1033,35 @@ const DB_ARMS = {
     if (!s.session.ended_at) return [`CONTROL: the hunt did not end (${JSON.stringify(s.session)})`];
     if (s.session.end_reason !== 'heals_out') problems.push(`a dry essential heal line ended ${s.session.end_reason}, not heals_out`);
     if (s.bag.cooked_shrimp[1] !== 0) problems.push('heals_out ended a hunt with food left');
-    /* With nothing essential to run out of, the falls limit ends it — at exactly the limit. */
+    /* With nothing essential to run out of, the first death ends it: `died`, home at full HP, resuming. */
     await db.query('rollback'); await db.query('begin');
-    const f = await hunter(db, M, WEAK);
+    const f = await hunter(db, M, { ...DOOMED, lastActivity: { kind: 'gather', id: 'shrimp_s' } });
     await run(db, M, f.from, ticksOf(90000, SPAN_MS));
     const sf = await snapshot(db, f.sid);
-    const lim = await one(db, 'select falls_limit from public.hunt_sessions where id = $1', [f.sid]);
-    if (sf.session.end_reason !== 'falls' || sf.session.falls !== lim) problems.push(`a hero with no essential line ended ${sf.session.end_reason} after ${sf.session.falls} falls (limit ${lim})`);
+    const maxHp = Number(await one(db, `select (public.hr_vitals_of($1::uuid, 0)->>'max_hp')::int`, [UID]));
+    if (sf.session.end_reason !== 'died' || (sf.deaths || []).length !== 1) problems.push(`a hero with no essential line ended ${sf.session.end_reason} after ${(sf.deaths || []).length} death(s)`);
+    if (sf.hp !== maxHp) problems.push(`a dead hero is home at ${sf.hp} of ${maxHp} HP, not full`);
+    if (sf.active !== 'gather:shrimp_s') problems.push(`a death resumed ${sf.active}, not the last activity`);
+    /* A died end with no death journalled is refused. */
+    await db.query('rollback'); await db.query('begin');
+    const g = await hunter(db, M, STRONG);
+    const t = await settleTo(db, M, g.from + 120000, { tamper: (c) => { c.members[0].hunt.ended = { reason: 'died', at: c.members[0].hunt.to }; } });
+    if (!t.res || t.res.error !== 'end_not_proven') problems.push(`a died end with no death answered ${JSON.stringify(t.res).slice(0, 200)}`);
+    /* A death journalled with the hunt left running is refused: the death owes its end. */
+    await db.query('rollback'); await db.query('begin');
+    const k = await hunter(db, M, DOOMED);
+    let owed = null;
+    for (const at of ticksOf(90000, SPAN_MS)(k.from)) {
+      let hit = false;
+      const x = await settleTo(db, M, at, { tamper: (c) => {
+        const mh = c.members[0];
+        if ((mh.delta.deaths || []).length) { hit = true; mh.hunt.ended = null; }
+      } });
+      if (hit) { owed = x.res; break; }
+      if (!x.res || x.res.ok !== true) break;
+    }
+    if (!owed) problems.push('CONTROL: no window carried the death');
+    else if (owed.error !== 'end_missing') problems.push(`a death with the hunt left running answered ${JSON.stringify(owed).slice(0, 200)}`);
     return problems;
   }),
   STAMINA: async (db, M) => inTx(db, async () => {
@@ -1041,36 +1092,40 @@ const DB_ARMS = {
   }),
   DEATHXP: async (db, M) => inTx(db, async () => {
     const problems = [];
-    const { sid, from } = await hunter(db, M, WEAK);
+    const { sid, from } = await hunter(db, M, DOOMED);
     const x0 = await one(db, `select jsonb_object_agg(skill_id, xp) from public.player_skills where user_id = $1 and slot = 0`, [UID]);
+    const l0 = Number(await one(db, 'select level_xp from public.player_state where user_id = $1 and slot = 0', [UID]));
     await run(db, M, from, ticksOf(90000, SPAN_MS));
     const s = await snapshot(db, sid);
-    const falls = (s.events || []).filter((e) => e[0] === 'fall');
-    if (!falls.length) return ['CONTROL: the weak hero never fell'];
-    for (const f of falls) if (!f[2] || f[2].xp_lost === undefined) problems.push(`a fall event states no price: ${JSON.stringify(f)}`);
+    const deaths = (s.events || []).filter((e) => e[0] === 'death');
+    if (deaths.length !== 1) return [`CONTROL: the weak hero died ${deaths.length} time(s)`];
+    if (!deaths[0][2] || deaths[0][2].xp_lost === undefined) problems.push(`the death event states no price: ${JSON.stringify(deaths[0])}`);
     const price = s.death_xp || {};
-    if (!(Object.values(price).reduce((a, n) => a + Number(n), 0) > 0)) problems.push(`${falls.length} falls cost no XP`);
+    if (!(Number(price.level) > 0)) problems.push(`the death cost no Level XP: ${JSON.stringify(price)}`);
+    if (Number(s.level_xp) !== l0 + Number(s.tally.xp.level || 0) - Number(price.level || 0)) {
+      problems.push(`Level XP ${s.level_xp} != start ${l0} + gains ${s.tally.xp.level || 0} - price ${price.level}`);
+    }
     for (const [k, v] of Object.entries(price)) {
+      if (k === 'level') continue;
       const gained = s.tally.xp[k] || 0;
       const now = s.skills[k][0];
       if (now !== Math.floor(x0[k] + gained) - v && Math.abs(now - (x0[k] + gained - v)) > 1) problems.push(`${k}: bank ${now} != start ${x0[k]} + gains ${gained} - price ${v}`);
     }
-    /* AN OVER-CHARGE: the first fall's window re-proposed with one XP more than its permille share of
-       strength's level gap (strength sits mid-level, so only the share bound can refuse it). */
+    /* AN OVER-CHARGE: the death's window re-proposed with one Level XP more than its permille share. */
     await db.query('rollback'); await db.query('begin');
-    const o = await hunter(db, M, WEAK);
+    const o = await hunter(db, M, DOOMED);
     let refused = null;
     for (const t of ticksOf(90000, SPAN_MS)(o.from)) {
       let hit = false;
       const x = await settleTo(db, M, t, { tamper: (c) => {
         const dx = c.members[0].hunt.death_xp;
-        if (dx.length) { hit = true; dx[0] = { ...dx[0], strength: Math.floor((M.XP.xpForLevel(6) - M.XP.xpForLevel(5)) * M.HSD.DEATH_XP_LOSS) + 1 }; }
+        if (dx.length) { hit = true; dx[0] = { ...dx[0], level: (dx[0].level || 0) + 1 }; }
       } });
       if (hit) { refused = x.res; break; }
       if (!x.res || x.res.ok !== true) break;
     }
-    if (!refused) problems.push('CONTROL: no window with a fall to over-charge');
-    else if (refused.error !== 'death_xp_over') problems.push(`a fall charged one XP over its share answered ${JSON.stringify(refused).slice(0, 200)}`);
+    if (!refused) problems.push('CONTROL: no window with a death to over-charge');
+    else if (refused.error !== 'death_xp_over') problems.push(`a death charged over its share answered ${JSON.stringify(refused).slice(0, 200)}`);
     return problems;
   }),
   TALLY: async (db, M) => inTx(db, async () => {
@@ -1183,7 +1238,9 @@ const DB_ARMS = {
     const m0 = (c) => c.members[0];
     const cases = [
       ['a window paying a fortune in gold', (c) => { m0(c).delta.gold = 1000000; }, 'value_over'],
-      ['a window teaching a fortune in XP', (c) => { m0(c).delta.xp = { ...(m0(c).delta.xp || {}), attack: 1000000 }; }, 'value_over'],
+      ['a window teaching a fortune in XP', (c) => { m0(c).delta.xp = { ...(m0(c).delta.xp || {}), melee: 1000000 }; }, 'value_over'],
+      ['a window teaching a fortune in Level XP', (c) => { m0(c).delta.level_xp = 1000000; }, 'value_over'],
+      ['a died end with no death', endAt('died'), 'end_not_proven'],
       ['a window dropping an item no spawn drops', (c) => { m0(c).delta.items = { ...(m0(c).delta.items || {}), dragon_scale: 1 }; }, 'value_over'],
       ['a window claiming a thousand kills', (c) => { m0(c).delta.journal.meta.kills = 1000; }, 'kills_over'],
       ['a world over the byte bound', (c) => { c.settle.world = '{' + 'x'.repeat(20000) + '}'; }, 'world_too_big'],
@@ -1287,7 +1344,7 @@ const DB_ARMS = {
       await db.query("update public.player_state set active_kind = 'idle', active_id = null where user_id = $1 and slot = $2", [UID, s]);
     }
     await db.query('update public.hr_hunt_config set enabled = true where id');
-    const e = await one(db, `select public.hr_hunt_enter(1, 'mill_cellar', '[]'::jsonb, 0, null, null, $1::uuid)`, [idem()]);
+    const e = await one(db, `select public.hr_hunt_enter(1, 'mill_cellar', '[]'::jsonb, 0, null, $1::uuid)`, [idem()]);
     if (!e || e.ok !== true) { problems.push(`CONTROL: the slot-1 hunt was refused: ${JSON.stringify(e)}`); return problems; }
     const sid = e.session.id;
     const t = "date_trunc('second', now() - interval '10 minutes')";
@@ -1309,16 +1366,11 @@ const DB_ARMS = {
     return problems;
   }),
   XPDOOR: async (db, M) => inTx(db, async () => {
+    /* The client combat-XP door was deleted outright with the core rebuild (2026-10-27-core-schema.sql):
+       no client verb mints skill XP; only the hunt settle pays it. */
     const problems = [];
-    const { sid } = await hunter(db, M, STRONG);
-    const skills = async () => canon(await one(db, `select jsonb_object_agg(skill_id, jsonb_build_array(xp, xp_frac)) from public.player_skills where user_id = $1 and slot = 0`, [UID]));
-    const before = await skills();
-    await asUser(db, UID);
-    const r = await one(db, `select public.hr_credit_combat_xp(0, $1::jsonb, $2)`, [JSON.stringify({ attack: 400, hitpoints: 130 }), idem()]);
-    await db.query(`select set_config('request.jwt.claim.sub', '', true)`);
-    if (!r || r.ok !== false || r.error !== 'hunt_open') problems.push(`a hunter's combat-XP credit answered ${JSON.stringify(r)}`);
-    if (await skills() !== before) problems.push('a hunter\'s combat-XP credit moved a skill');
-    if (!sid) problems.push('CONTROL: no hunt');
+    if (await one(db, `select to_regprocedure('public.hr_credit_combat_xp(integer,jsonb,text)') is not null`)) problems.push('hr_credit_combat_xp still exists');
+    if (await one(db, `select exists (select 1 from public.hr_client_rpc_baseline where proname = 'hr_credit_combat_xp')`)) problems.push('the client baseline still names hr_credit_combat_xp');
     return problems;
   }),
   BESTIARY: async (db, M) => inTx(db, async () => {
@@ -1387,9 +1439,10 @@ const MUTANTS = [
     to: "  if (typeof f !== 'function') return 0;" },
   { arm: 'ONE-PATH', name: 'a press path returns to the settle', file: join(FN, 'hunt-settle.js'),
     from: '    cover: (h.cover && typeof h.cover === \'object\') ? h.cover : {},', to: '    cover: (h.cover && typeof h.cover === \'object\') ? h.cover : {},\n    presses: h.presses || [],' },
-  { arm: 'MAXHP', name: 'a hitpoints level-up sets max HP to the level', file: join(FN, 'accrual.js'),
-    from: "if (ev.type === 'levelup' && ev.skill === 'hitpoints' && ev.to > state.playerMaxHp) state.playerMaxHp = ev.to;",
-    to: "if (ev.type === 'levelup' && ev.skill === 'hitpoints') state.playerMaxHp = ev.to;" },
+  { arm: 'MAXHP', name: 'a Level-up never raises max HP', file: join(FN, 'accrual.js'),
+    from: '      if (charLevelFromXp(state.levelXp) > lv0) applyVitals(state, equipment, items);', to: '' },
+  { arm: 'MAXHP', name: 'max HP is not raise-only (a vitals read may lower it)', file: join(FN, 'accrual.js'),
+    from: '  state.playerMaxHp = Math.max(state.playerMaxHp || 0, v.maxHp);', to: '  state.playerMaxHp = v.maxHp - 1;' },
   { arm: 'ECON-1', name: 'the T1 store drink back at 90 g (the heal\'s 15 g a point): a fresh melee hero ends gold_out', file: 'src/data/supply-basics.js',
     from: "'turnip_juice', 6, 6, [1]", to: "'turnip_juice', 6, 90, [1]" },
   { arm: 'WEAKNESS', name: 'a basic swing is priced on the neutral snapshot (the matched weapon pays nothing)', file: 'src/core/hunt/damage.js',
@@ -1409,8 +1462,6 @@ const MUTANTS = [
     from: "  stamina: (hs) => hs.staminaMs !== null && hs.staminaMs !== undefined && !(Number(hs.staminaMs) > 0),", to: '  stamina: () => false,' },
   { arm: 'STAMINA-RULE', name: 'resting lowers a pool above the cap (a lapse eats banked stamina)', file: 'src/core/action-rules.js',
     from: '  return Math.max(v, Math.min(Math.floor(Number(maxMs) || 0), v + d));', to: '  return Math.min(Math.floor(Number(maxMs) || 0), v + d);' },
-  { arm: 'STAMINA-RULE', name: '[C2 knockout rests] a knocked-out hero drains its pool', file: 'src/core/combat-sim.js',
-    from: '        m.hs.staminaMs = staminaStep(m.hs.staminaMs, tick, standing, m.hs.staminaMaxMs);', to: '        m.hs.staminaMs = staminaStep(m.hs.staminaMs, tick, true, m.hs.staminaMaxMs);' },
   { arm: 'STAMINA', name: '[C2 reads no pool] the settle reads no pool', file: join(FN, 'hunt-settle.js'),
     from: '    staminaMs: num(h.stamina_ms),', to: '    staminaMs: null,' },
   { arm: 'SUPPLY-RULE', name: '[C2 shop never buys] the store never sells', file: 'src/core/action-rules.js',
@@ -1444,14 +1495,18 @@ const MUTANTS = [
     from: '  return (((o + Math.floor(Number(k))) % m) + m) % m;', to: '  return 0;' },
   { arm: 'SPLIT', name: 'only the killer counts the kill', file: 'src/core/hunt-rewards.js',
     from: '  for (const m of present) countKill(m, kind);', to: '  countKill(lead, kind);' },
-  { arm: 'KNOCKOUT', name: '[C2 free stand-up] a fall downs the hero for no time', file: 'src/core/hunt/pull-cycle.js',
-    from: '  u.downMs = KNOCKOUT_MS;', to: '  u.downMs = 0;' },
-  { arm: 'KNOCKOUT', name: '[probe-bar freeHeal, b509] the stand-up after a fall heals to full', file: 'src/core/hunt/pull-cycle.js',
-    from: '      if (h.downMs === 0) { h.alive = true; h.hp = resumeHpFor(h.maxHp); h.hpMilli = 0; }', to: '      if (h.downMs === 0) { h.alive = true; h.hp = h.maxHp; h.hpMilli = 0; }' },
-  { arm: 'KNOCKOUT', name: '[resume-alignment] the recovery line is stamped a swing late', file: 'src/core/combat-sim.js',
-    from: '  m.state.recoveringUntilMs = f.atMs + KNOCKOUT_MS;', to: '  m.state.recoveringUntilMs = f.atMs + KNOCKOUT_MS + 2000;' },
-  { arm: 'KNOCKOUT', name: '[C2 knockout ignored] a knocked-out hero is paid as hunting', file: 'src/core/combat-sim.js',
-    from: '      const standing = !!u && u.alive;', to: '      const standing = !!u;' },
+  { arm: 'DEATH', name: 'a death does not end the hunt', file: 'src/core/action-rules.js',
+    from: '  died: (hs) => hs.died === true,', to: '  died: () => false,' },
+  { arm: 'DEATH', name: 'a dead hero walks home at 0 HP', file: 'src/core/combat-sim.js',
+    from: '  if (u) m.state.playerHp = u.alive ? u.hp : m.state.playerMaxHp;', to: '  if (u) m.state.playerHp = u.alive ? u.hp : 0;' },
+  { arm: 'DEATH', name: 'a death row carries a recovery clock again', file: join(FN, 'accrual.js'),
+    from: '      monster: String(d.monster || \'\'),\n      deaths_today:', to: '      monster: String(d.monster || \'\'),\n      recovery_ms: 60000,\n      deaths_today:' },
+  { arm: 'DEATH', name: 'a death costs nothing', file: 'src/core/combat-sim.js',
+    from: '  const xpLost = deathXpLoss(m.state);', to: '  const xpLost = {};' },
+  { arm: 'DEATH', name: 'a dead hero gets back up (the hunt goes on)', file: 'src/core/hunt/pull-cycle.js',
+    from: "  if (u.side === 'mon') { u.deadMs = 0; return; }\n  u.spot = null;", to: "  if (u.side === 'mon') { u.deadMs = 0; return; }\n  u.alive = true; u.hp = 1; u.spot = null;" },
+  { arm: 'PARTY-DEATH', name: 'a party death leaves the survivor hunting', file: 'src/core/combat-sim.js',
+    from: '        for (const other of members) if (other !== m && !other.left && !other.hs.died) other.hs.partyDied = true;\n', to: '' },
   { arm: 'QUIVER', name: '[C2 ammoGuard] a shot is loosed but its arrow is never taken from the bag', file: 'src/core/hunt/abilities.js',
     from: '    if (!takeLine(h.hs, l, sc.atMs)) { h.hs.goldOut = true; return false; }\n  }\n  return true;', to: '  }\n  return true;' },
   { arm: 'QUIVER', name: 'the free rung is spent like a paid one', file: 'src/core/hunt/abilities.js',
@@ -1464,12 +1519,14 @@ const MUTANTS = [
     from: '  worldMaxBytes: 16384,', to: '  worldMaxBytes: 16384000,' },
   { arm: 'FENCE', name: 'the engine prices a hunter on the old path', file: join(FN, 'accrual.js'),
     from: '  if (inp.huntOpen === true) return { accrued: false, reason: SKIP.HUNT_OPEN };', to: '' },
-  { arm: 'DEATHXP-RULE', name: 'a fall takes the whole gap, de-levelling', file: 'src/core/action-rules.js',
-    from: '  return Math.max(0, Math.min(Math.floor(gap * f), x - floor));', to: '  return Math.max(0, Math.floor(gap * f));' },
-  { arm: 'DEATHXP', name: '[C2 a fall costs nothing] a fall prices nothing', file: 'src/core/combat-sim.js',
-    from: '  const xpLost = deathXpLoss(m.state.skills, m.style);', to: '  const xpLost = {};' },
-  { arm: 'END', name: '[C2 retreatGuard] the falls limit ends nothing', file: 'src/core/action-rules.js',
-    from: '  falls: (hs) => int(hs.falls, 0) >= int(hs.fallsLimit, SESSION_LIMITS.falls.default),', to: '  falls: () => false,' },
+  { arm: 'DEATHXP-RULE', name: 'a death takes Level XP below the Level floor (de-levelling)', file: 'src/core/action-rules.js',
+    from: '  return Math.max(0, Math.min(Math.floor(of * f), x - floor));', to: '  return Math.max(0, Math.floor(of * f));' },
+  { arm: 'DEATHXP-RULE', name: 'the total base is read as the Level span', file: 'src/core/action-rules.js',
+    from: "  const of = base === 'level' ? charXpForLevel(lv + 1) - floor : x;", to: '  const of = charXpForLevel(lv + 1) - floor;' },
+  { arm: 'DEATHXP', name: 'a death prices nothing', file: 'src/core/combat-sim.js',
+    from: '  const xpLost = deathXpLoss(m.state);', to: '  const xpLost = {};' },
+  { arm: 'END', name: 'a death ends nothing (the hunt runs on to another end)', file: 'src/core/action-rules.js',
+    from: '  died: (hs) => hs.died === true,', to: '  died: () => false,' },
   { arm: 'END', name: '[C2 dry heal line] a dry essential heal line under end ends nothing', file: 'src/core/action-rules.js',
     from: "  heals_out: (hs) => essentialOut(hs, 'heal'),", to: '  heals_out: () => false,' },
   { arm: 'TICK-1', name: '[combat-parity relabelSeed] each window re-labels its swings from zero', file: 'src/core/combat-sim.js',
@@ -1482,12 +1539,8 @@ const MUTANTS = [
   { arm: 'TICK-1', name: '[C2 knocked-out foe carried] the world is not carried across a settle', file: join(FN, 'hunt-settle.js'),
     from: '    instance: { id: String(inst.id), nextSwingAtMs: Number(inst.next_swing_at_ms), world: inst.world || null },',
     to: '    instance: { id: String(inst.id), nextSwingAtMs: Number(inst.next_swing_at_ms), world: null },' },
-  { arm: 'MAXHP', name: '[maxhp-carry H1] a hitpoints level-up inside the window never raises max HP', file: join(FN, 'accrual.js'),
-    from: "if (ev.type === 'levelup' && ev.skill === 'hitpoints' && ev.to > state.playerMaxHp) state.playerMaxHp = ev.to;",
-    to: "if (ev.type === 'levelup' && ev.skill === 'hitpoints' && false) state.playerMaxHp = ev.to;" },
-  { arm: 'BOTH-PATH', name: '[resume-alignment carrierOneTickLate] the carried recovery line drifts a tick per settle', file: join(FN, 'envelope.js'),
-    from: '? (st.recovering_until ? new Date(st.recovering_until).getTime() : 0) : null,',
-    to: '? (st.recovering_until ? new Date(st.recovering_until).getTime() + 2000 : 0) : null,' },
+  { arm: 'BOTH-PATH', name: 'the death hint is dropped (the death event lands on whichever window edge settled it)', file: join(FN, 'accrual.js'),
+    from: "    else if (e.type === 'death') hints.death.push(Math.floor(e.atMs));", to: "    else if (e.type === 'death') hints.death.length = 0;" },
   { arm: 'PARITY', name: '[combat-parity wallclock] the tick door ends its window on a wall-clock grid', file: join(FN, 'hunt-settle.js'),
     from: "  const toMs = Number.isFinite(Number(o.atMs)) ? Math.min(nowMs, Math.floor(Number(o.atMs))) : nowMs;",
     to: "  const toMs = Number.isFinite(Number(o.atMs)) ? Math.min(nowMs, Math.floor(Number(o.atMs))) : (mode === 'tick' ? nowMs - (nowMs % 90000) : nowMs);" },
@@ -1507,7 +1560,7 @@ const MUTANTS = [
     from: '  if (body.hunts.length) {', to: '  if (false) {' },
   { arm: 'BESTIARY', name: '[bestiary-parity] the settle reads hr_bestiary_of and a ladder prices the hunt again', file: join(FN, 'hunt-settle.js'),
     from: '  const perks = await readTickPerks(exec, m.user, m.slot);',
-    to: "  const perks = await readTickPerks(exec, m.user, m.slot);\n  const [bk] = await exec(\"select coalesce(sum(value), 0)::bigint as n from public.player_progress where user_id = $1 and slot = $2 and kind = 'stat' and key like 'ev:kill_monster:%'\", [m.user, m.slot]);\n  if (Number(bk && bk.n) > 0) e.skills = { ...e.skills, attack: (Number(e.skills.attack) || 0) * 4 };" },
+    to: "  const perks = await readTickPerks(exec, m.user, m.slot);\n  const [bk] = await exec(\"select coalesce(sum(value), 0)::bigint as n from public.player_progress where user_id = $1 and slot = $2 and kind = 'stat' and key like 'ev:kill_monster:%'\", [m.user, m.slot]);\n  if (Number(bk && bk.n) > 0) e.skills = { ...e.skills, melee: (Number(e.skills.melee) || 0) * 4 };" },
 ];
 
 /* DB mutants: planted in a LIVE function body of the booted chain, the arm run, the body restored. */
@@ -1558,12 +1611,18 @@ const DB_MUTANTS = [
     find: '       set dealt = public.hr_hunt_tally_add(t.dealt, coalesce(p_analyzer->\'dealt\', \'{}\'::jsonb)),', replace: '       set dealt = t.dealt,' },
   { arm: 'ANALYZER', name: 'a free character reads the analyzer', fn: 'public.hr_hunt_analyzer(integer,uuid)',
     find: '  if not public.hr_premium_active(v_uid, p_slot, now()) then', replace: '  if false then' },
-  { arm: 'DEATHXP', name: 'the applier stops bounding a fall\'s price', fn: AM,
-    find: '                  > floor((public.hr_xp_for_level(v_lv + 1) - public.hr_xp_for_level(v_lv)) * v_rate / 1000.0)) then', replace: '                  > 1000000000) then' },
-  { arm: 'DEATHXP', name: 'the fall price is never debited', fn: AM,
-    find: '      update public.player_skills set xp = xp - v_n where user_id = p_user and slot = p_slot and skill_id = v_k;', replace: '      null;' },
-  { arm: 'STAMINA', name: 'the applier stops bounding the pool', fn: AM,
-    find: '  if v_e < greatest(0, v_s0 - v_paid) or v_e > greatest(0, v_s0 - v_paid + v_down) or v_e > greatest(v_s0, v_cap) then', replace: '  if v_e < 0 then' },
+  { arm: 'DEATHXP', name: 'the applier stops bounding the Level\'s death price', fn: AM,
+    find: '        if v_n > floor(v_lxb * v_rate / 1000.0) or v_cur - v_n < v_xfloor then', replace: '        if false then' },
+  { arm: 'DEATHXP', name: 'the Level\'s death price is never debited', fn: AM,
+    find: '        update public.player_state set level_xp = level_xp - v_n where user_id = p_user and slot = p_slot;', replace: '        null;' },
+  { arm: 'STAMINA', name: 'the applier stops proving the pool', fn: AM,
+    find: '  if v_e <> greatest(0, v_s0 - v_paid) then', replace: '  if v_e < 0 then' },
+  { arm: 'VALUE', name: 'the Level XP bound is gone', fn: AM,
+    find: "  if jsonb_typeof(p_delta->'level_xp') = 'number' and (p_delta->>'level_xp')::numeric > v_kills * v_vb_xp * v_vb_h then", replace: '  if false then' },
+  { arm: 'VALUE', name: 'a died end is proven without a death', fn: SS,
+    find: "      when 'died' then v_deaths >= 1", replace: "      when 'died' then true" },
+  { arm: 'END', name: 'a journalled death owes no end', fn: SS,
+    find: '    if v_deaths >= 1\n       or', replace: '    if false\n       or' },
   { arm: 'VALUE', name: 'a stamina end is proven on any pool', fn: SS,
     find: "                                     where ps.user_id = p_user and ps.slot = p_slot), 1) <= 0", replace: "                                     where ps.user_id = p_user and ps.slot = p_slot), 1) >= 0" },
   { arm: 'STAMINA', name: 'the premium cap is everyone\'s', fn: 'public.hr_stamina_cap(uuid,integer,timestamp with time zone)',
@@ -1574,8 +1633,6 @@ const DB_MUTANTS = [
   { arm: 'VALUE', name: 'a heals_out end is proven on a full bag', fn: SS,
     find: "      when 'heals_out' then not exists (select 1 from public.hunt_bag b join public.hr_hunt_supplies p on p.item_id = b.item_id",
     replace: "      when 'heals_out' then true or not exists (select 1 from public.hunt_bag b join public.hr_hunt_supplies p on p.item_id = b.item_id" },
-  { arm: 'XPDOOR', name: "[combat-xp-settle-split] a hunter's client credit pays beside the settle again", fn: 'public.hr_credit_combat_xp(integer,jsonb,text)',
-    find: '    case when public.hr_hunt_open_of(auth.uid(), coalesce(p_slot, 0)) is not null', replace: '    case when false' },
   { arm: 'TICK-0', name: 'the cron queues its hunts body with no selectors', fn: 'public.hr_tick_cron_run()',
     find: "'hunts', v_hunts)::text);", replace: "'hunts', '[]'::jsonb)::text);" },
 ];

@@ -10,7 +10,7 @@
 //   kindWords(id)   "Weapon · Tier 1 · Common", "Food · heals 18 health"
 //   sourcesOf(id)   ["Dropped by Slime and Giant Rat", "Made with Cooking"]
 //   usesOf(id)      ["Used in Cooking: Wheat Bread", "Eat to heal 18 health"]
-//   needOf(id, sk)  "Needs Attack 30 (you have 20)", against the server's level
+//   needOf(id, sk)  "Needs Melee 30 (you have 20)", against the server's level
 //   flavourOf(id)   the item's one-line description, or ''
 // ════════════════════════════════════════════════════════════════════════
 import { ITEMS } from '../data/items.js?v=0.2.2';

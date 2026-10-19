@@ -1,13 +1,12 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/shell/windows/character/deaths.js — THE DEATHS TAB: EVERY FALL THE SERVER KEPT.
+// src/shell/windows/character/deaths.js — THE DEATHS TAB: EVERY DEATH THE SERVER KEPT.
 //
-// The server's death log (the `death_log` section: the falls of the hunts it
-// keeps, newest first): when, where, what felled the hero and the XP the fall
-// cost, as the settle priced it. A row opens to the cost by skill. Each row
-// carries the fall's server event id (data-event) so the death explanation
-// (src/hunt-view/death-explain.js, lane hunt-summary) opens from it once that
-// lands on this base (.claude/coordination/CONFLICTS.md, 2026-10-25).
-// Nothing here is the client's: no fall is counted or priced in the browser.
+// The server's death log (the `death_log` section, newest first): when, where,
+// what killed the hero and the XP the death cost, as the settle priced it. A
+// death ends its hunt and sends the hero back to town (CORE_MODEL.md §4). A row
+// opens to the cost by Level and skill. Each row carries the death's server
+// event id (data-event) for the death explanation (src/hunt-view/death-explain.js).
+// Nothing here is the client's: no death is counted or priced in the browser.
 // ════════════════════════════════════════════════════════════════════════
 import { HUNTS } from '../../../data/hunts.js?v=0.2.2';
 import { SKILLS_DEF } from '../../../data/skills.js?v=0.2.2';
@@ -32,7 +31,7 @@ function whenWords(atMs, nowMs) {
 /** The Deaths tab's skeleton. */
 export function deathsHtml() {
   return '<section class="hw-cs-deaths"><ul class="hw-dl-list"></ul>'
-    + '<p class="hh-empty hw-dl-none">No falls on record. The server keeps the falls of your recent hunts.</p></section>';
+    + '<p class="hh-empty hw-dl-none">No deaths on record. The server keeps the deaths of your recent hunts.</p></section>';
 }
 
 /** Patch the Deaths tab. */
@@ -47,13 +46,13 @@ export function patchDeaths(body, ctx, sc) {
       + '<p class="hw-dl-more"></p></li>'),
     patch: (li, r) => {
       const open = sc.openDeath === r.id;
-      text(li.querySelector('.hw-dl-by'), r.monster ? 'Felled by ' + monsterName(r.monster) : 'Fell');
-      text(li.querySelector('.hw-dl-where'), r.hunt ? HUNT_NAME.get(r.hunt) || r.hunt : '');
+      text(li.querySelector('.hw-dl-by'), r.monster ? 'Killed by ' + monsterName(r.monster) : 'Died');
+      text(li.querySelector('.hw-dl-where'), r.hunt ? 'Died in ' + (HUNT_NAME.get(r.hunt) || r.hunt) + ' and returned to town' : '');
       text(li.querySelector('.hw-dl-when'), whenWords(r.atMs, now));
       text(li.querySelector('.hw-dl-xp'), r.xp === null ? '' : r.xp > 0 ? whole(r.xp) + ' XP lost' : 'No XP lost');
       attr(li.querySelector('.hw-dl-head'), 'aria-expanded', String(open));
-      const lost = Object.entries(r.xpLost).map(([k, n]) => whole(n) + ' ' + ((SKILLS_DEF[k] && SKILLS_DEF[k].name) || k) + ' XP');
-      text(li.querySelector('.hw-dl-more'), open ? (lost.length ? 'The fall took ' + lost.join(', ') + '.' : 'The fall cost no XP.') + ' ' + new Date(r.atMs).toLocaleString() : '');
+      const lost = Object.entries(r.xpLost).map(([k, n]) => whole(n) + ' ' + (k === 'level' ? 'Level' : (SKILLS_DEF[k] && SKILLS_DEF[k].name) || k) + ' XP');
+      text(li.querySelector('.hw-dl-more'), open ? (lost.length ? 'Dying cost ' + lost.join(', ') + '.' : 'Dying cost no XP.') + ' ' + new Date(r.atMs).toLocaleString() : '');
       cls(li, 'is-open', open);
     },
   });

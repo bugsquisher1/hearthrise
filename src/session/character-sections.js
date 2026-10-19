@@ -6,14 +6,19 @@
 // the server did not send it. Null means "show nothing", never a default, and
 // a number the server did not send is never invented (CLAUDE.md §6).
 //
-// What 2026-10-25-character-sheet.sql projects (hr_state_sections rows):
+// What 2026-10-27-core-bodies.sql projects (hr_state_sections rows):
 //   character_sheet { level, max_hp, bestiary: { slain, total }, fresh,
 //                     combat: <the engine's sheet while fresh, else null>, computed_at }
-//     combat        { role, weapon_type, max_mana, move_speed, damage: { min, max },
-//                     accuracy_pct, crit_pct, defence, ward_pct, set, xp: { gear, perks, buffs, combat } }
+//     combat        { role, weapon_type, level, max_hp, max_mana, regen_pct, move_speed,
+//                     damage: { min, max }, accuracy_pct, crit_pct, defence, set,
+//                     xp: { perks, buffs, combat } }
 //   outfit          { worn: id | null, colors: { region: dye index }, owned: [id] }
 //   death_log       [{ id, at, hunt, monster, xp, xp_lost }] newest first
+//   state.level_xp  the character's Level XP (kills only, CORE_MODEL.md §1): the Level and
+//                   its progress are read off it on the shared curve (src/core/xp.js, the
+//                   curve hr_char_level uses), never counted in the browser.
 // ════════════════════════════════════════════════════════════════════════
+import { charLevelFromXp, charXpForLevel } from '../core/xp.js?v=0.2.2';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -35,8 +40,8 @@ function combatOf(c) {
     role: id(c.role), weaponType: id(c.weapon_type),
     maxMana: nat(c.max_mana), moveSpeed: nat(c.move_speed),
     damage: nat(d.min) !== null && nat(d.max) !== null ? { min: d.min, max: d.max } : null,
-    accuracyPct: num(c.accuracy_pct), critPct: num(c.crit_pct), defence: int(c.defence), wardPct: nat(c.ward_pct),
-    xp: { gear: num(x.gear), perks: num(x.perks), buffs: num(x.buffs), combat: num(x.combat) },
+    accuracyPct: num(c.accuracy_pct), critPct: num(c.crit_pct), defence: int(c.defence), regenPct: num(c.regen_pct),
+    xp: { perks: num(x.perks), buffs: num(x.buffs), combat: num(x.combat) },
   };
 }
 
@@ -51,6 +56,16 @@ export function characterSheetOf(cs) {
     fresh: s.fresh === true,
     combat: s.fresh === true ? combatOf(s.combat) : null,
   };
+}
+
+/** The Level, from the server's `state.level_xp`: { xp, level, into, need } (need = XP across this Level), or null. */
+export function levelOf(cs) {
+  const st = read(cs, 'state');
+  const xp = isObj(st) ? nat(st.level_xp) : null;
+  if (xp === null) return null;
+  const level = charLevelFromXp(xp);
+  const lo = charXpForLevel(level);
+  return { xp, level, into: xp - lo, need: charXpForLevel(level + 1) - lo };
 }
 
 /** `outfit`: { worn, colors, owned: Set }, or null. */

@@ -197,7 +197,7 @@ export class CharacterSession {
     if (this._closed || !HUNT_ID.test(String(hunt)) || !Number.isInteger(preset) || preset < 0 || preset > 7 || lines.length > 10
       || !lines.every((l) => l && ITEM.test(String(l.item)) && Number.isInteger(l.qty) && l.qty >= 1 && l.qty <= 100000)) return { ok: false, error: 'bad_intent' };
     return this._settled(await this._server.rpc('hr_hunt_enter', { p_slot: this.slot, p_hunt: hunt,
-      p_bag: lines.map((l) => ({ item: l.item, qty: l.qty })), p_preset: preset, p_falls: null, p_hours: null, p_idem: newIdem() }));
+      p_bag: lines.map((l) => ({ item: l.item, qty: l.qty })), p_preset: preset, p_hours: null, p_idem: newIdem() }));
   }
 
   /** Move a stack between the bag and the home storage (hr_bank_move): `dir` is 'deposit' or 'withdraw'. */
@@ -239,7 +239,7 @@ export class CharacterSession {
     if (this._closed) return { ok: false, error: 'closed' };
     if (!a || !ITEM.test(String(a.hunt)) || !Number.isInteger(a.preset) || !Array.isArray(a.bag)) return { ok: false, error: 'bad_intent' };
     return this._settled(await this._server.rpc('hr_hunt_enter', { p_slot: this.slot, p_hunt: a.hunt, p_bag: a.bag, p_preset: a.preset,
-      p_falls: Number.isInteger(a.falls) ? a.falls : null, p_hours: Number.isInteger(a.hours) ? a.hours : null, p_idem: newIdem() }));
+      p_hours: Number.isInteger(a.hours) ? a.hours : null, p_idem: newIdem() }));
   }
 
   /**

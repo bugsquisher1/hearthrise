@@ -7,7 +7,7 @@
 //   rare    a `rare_drop` event as it ARRIVES in the character's timeline
 //           (timeline.onArrive, so a character that is not on screen still
 //           tells), id = the server's own event id
-//   fall    the hunt hero's `falls` count rising, id = session + count
+//   death   the hunt section ending `died` / `party_member_died`, id = session
 //   low     a restock target under LOW_SUPPLY_PCT of itself, or a bar supply
 //           at zero, while hunting; id = session + item
 //   ended   the hunt section saying `ended`, id = session
@@ -20,6 +20,7 @@
 // intent (CharacterSession.restartHunt) like every other.
 // ════════════════════════════════════════════════════════════════════════
 import { ALERT_INDEX, LOW_SUPPLY_PCT } from '../data/alerts.js?v=0.2.2';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.2';
 import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.2';
 import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.2';
 import { bagOf, rulesOf, nameOf } from '../session/item-sections.js?v=0.2.2';
@@ -73,9 +74,12 @@ function candidatesOf(cs) {
   if (!h) return [];
   const out = [];
   const where = huntName(h.huntId);
-  if (h.hero.falls > 0) out.push({ id: 'fall:' + h.sessionId + ':' + h.hero.falls, kind: 'fall', session: h.sessionId,
-    text: who(cs) + ' was knocked out in ' + where + (h.hero.falls > 1 ? ' (' + h.hero.falls + ' times this hunt).' : '.') });
-  if (h.ended) out.push({ id: 'ended:' + h.sessionId, kind: 'ended', session: h.sessionId, text: who(cs) + '’s hunt in ' + where + ' has ended.' });
+  /* A death ends the hunt (CORE_MODEL.md §4): the death alert stands in for the ended one. */
+  if (h.ended && h.endReason === 'died') out.push({ id: 'death:' + h.sessionId, kind: 'death', session: h.sessionId,
+    text: END_REASON_COPY.died.one.replace('{name}', who(cs)).replace('{ground}', where) });
+  else if (h.ended && h.endReason === 'party_member_died') out.push({ id: 'death:' + h.sessionId, kind: 'death', session: h.sessionId,
+    text: 'A party member died in ' + where + ', so ' + who(cs) + '’s party returned to town.' });
+  else if (h.ended) out.push({ id: 'ended:' + h.sessionId, kind: 'ended', session: h.sessionId, text: who(cs) + '’s hunt in ' + where + ' has ended.' });
   else for (const l of lowItems(cs)) {
     out.push({ id: 'low:' + h.sessionId + ':' + l.item, kind: 'low', session: h.sessionId, item: l.item,
       text: who(cs) + ' is ' + (l.have === 0 ? 'out of ' : 'low on ') + itemName(l.item) + (l.target ? ' (' + whole(l.have) + ' of ' + whole(l.target) + ').' : '.') });

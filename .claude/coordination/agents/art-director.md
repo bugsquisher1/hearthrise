@@ -2932,3 +2932,10 @@ the token. (3) Alegreya's default old-style figures make a HUD of numbers look s
 upper-left and lit lower-right inset edge. (5) Widget min widths (hud-widgets.js min) beat content shrinking;
 right-align the bar inside its box instead. Open, needs art: the hearth emblem is a CSS circle (wants a pixel
 medallion from the iron ramp).
+
+## 2026-10-19 — lane/a-caster-vfx: wand and staff basic attacks get a bolt and a hit
+Lessons: (1) the style-1 guard rejects hand-drawn art by design, so "port the sim's bolts" was impossible as asked:
+the sim drew them in canvas code. Cutting frames of a shipped style-1 effect (DERIVED_VFX) keeps provenance honest.
+(2) In-world "arcane" is frost blue: the palette has no arcane ramp, so the sorcerer's runes lock to frost. (3) A data
+row the renderer ignores is not a fix; HIT_FX.role is read today, PROJECTILE.role waits on scene.js (handoff).
+(4) Basic attacks are the most frequent effect in the game: the impacts run 2 frames at 16 fps (125 ms).

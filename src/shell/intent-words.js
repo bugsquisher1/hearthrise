@@ -52,6 +52,14 @@ const WORDS = Object.freeze({
   no_stamina: 'No stamina left: rest first.',
   hunts_paused: 'Hunts are paused for a moment.',
   bad_weapon: 'The server does not know that weapon.',
+  /* The one-way party flow (2026-10-28-party-flow.sql). */
+  party_hunting: 'Not while your party is hunting. Wait until everyone is back in town.',
+  already_member: 'They are already in your party.',
+  too_many_invites: 'Too many invites are waiting. Wait for answers first.',
+  invite_expired: 'That invite has run out.',
+  no_invite: 'That invite has gone.',
+  already_hunting: 'Everyone in the party is already hunting.',
+  away: 'They are away from the game.',
   /* Going hunting (hr_hunt_enter) and the storage (hr_bank_move). */
   activity_locked: 'Your combat level is too low for that hunt yet.',
   activity_running: 'Your hero is busy with something else (burying, say). Stop it in the Inventory first.',
@@ -85,6 +93,26 @@ export function refusalWords(code) {
   return WORDS[code] || 'Not done: the server refused it.';
 }
 
+/* Why one seat held the party's start back, after its name. */
+const SEAT_WORDS = Object.freeze({
+  away: 'is away', no_stamina: 'has no stamina left', hunt_open: 'is in another hunt', activity_running: 'is busy in town',
+  insufficient_item: 'is short of supplies', activity_locked: 'is too low a level for that hunt', hunts_paused: 'cannot go while hunts are paused',
+});
+
+/**
+ * A refused intent in plain words, with the server's detail when it sent one. A start that waited names every seat that
+ * was not ready ("Nobody went in: Mira is away; Oren has no stamina left."); an
+ * own character the server named says who. Pure.
+ */
+export function refusalText(r) {
+  const seats = r && Array.isArray(r.seats) ? r.seats : [];
+  if (r && r.error === 'not_ready' && seats.length) {
+    return 'Nobody went in: ' + seats.map((x) => x.name + ' ' + (SEAT_WORDS[x.error] || 'is not ready')).join('; ') + '.';
+  }
+  if (r && r.error === 'member_hunting' && r.name) return r.name + ' is hunting. Invite them once that hunt ends.';
+  return refusalWords(r && r.error);
+}
+
 /**
  * Run one intent for a window: its controls go off at once (`sc.pending`),
  * `busy` shows while the server works, and the answer's words replace it.
@@ -103,7 +131,7 @@ export async function runIntent(sc, repaint, send, busy, done) {
   let r;
   try { r = await send(); } catch (e) { r = { ok: false, error: 'network' }; }
   sc.pending = false;
-  sc.msg = r.ok ? (done ? done(r) : '') : refusalWords(r.error);
+  sc.msg = r.ok ? (done ? done(r) : '') : refusalText(r);
   repaint();
   return r;
 }

@@ -17,6 +17,8 @@ export const MENU_ENTRIES = Object.freeze([
   Object.freeze({ id: 'friend-add', label: 'Add friend', provider: 'friends', targets: Object.freeze(['player']) }),
   Object.freeze({ id: 'friend-remove', label: 'Remove friend', provider: 'friends', targets: Object.freeze(['player']) }),
   Object.freeze({ id: 'party-invite', label: 'Invite to party', provider: 'party', targets: Object.freeze(['player']) }),
+  /* One of your own characters (its strip tab) that sits in a party: that character leaves it. */
+  Object.freeze({ id: 'party-leave', label: 'Leave party', provider: 'party', targets: Object.freeze(['player']) }),
   /* Trade moves gold and items between players: it gets its own server lane and the Security review first. */
   Object.freeze({ id: 'trade', label: 'Trade', provider: 'trade', targets: Object.freeze(['player']), hidden: true }),
   Object.freeze({ id: 'block', label: 'Block', provider: 'blocks', targets: Object.freeze(['player']) }),

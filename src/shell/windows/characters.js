@@ -5,10 +5,11 @@
 // per open character (src/shell/command-model.js): role, name, HP / mana /
 // stamina, what it is doing, its bag's worth, whether it is ready to hunt, its
 // party and its waiting alerts, with Show to switch the screen to it (the
-// others keep running on the server). Below, the party commands across the
-// account — start each party one of these characters leads, leave every party
-// — each one intent per character, off until the server answered. Last, which
-// alerts the character on screen raises (display-only residue).
+// others keep running on the server). Below, how many of them are partied and
+// where the party controls live (PARTY_SPEC §2, one way to do each thing: the
+// Party panel's Leave, the strip's right-click, the Hunts window's Start with
+// party). Last, which alerts the character on screen raises (display-only
+// residue).
 // Built once, patched in place.
 // ════════════════════════════════════════════════════════════════════════
 import { ALERT_KINDS } from '../../data/alerts.js?v=0.2.8';
@@ -20,9 +21,6 @@ import { gold, whole, hoursMinutes } from '../../render/format.js?v=0.2.8';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.8';
 import { gaugeHtml, patchGauge, patchRoleGlyph } from '../widgets/bits.js?v=0.2.8';
 import { glyphSvg } from '../launcher.js?v=0.2.8';
-import { refusalWords } from '../intent-words.js?v=0.2.8';
-
-const SCRATCH = { pending: false, msg: '' };
 
 /** The skeleton (built once per opening). */
 export function renderCharacters(ctx) {
@@ -30,12 +28,10 @@ export function renderCharacters(ctx) {
     + '<ul class="hw-chars"></ul>'
     + '<h3 class="hw-ledger-head is-on">Parties</h3>'
     + '<p class="hs-note hw-parties-line"></p>'
-    + '<div class="hw-tools"><button type="button" class="hw-primary" data-hs-act="start-all">Start the party hunt</button>'
-    + '<button type="button" class="hh-tool" data-hs-act="leave-all">Leave every party</button></div>'
     + '<h3 class="hw-ledger-head is-on hw-alerts-head"></h3>'
     + '<ul class="hw-alert-kinds">' + ALERT_KINDS.map((k) => '<li><label class="hs-hudset-show">'
       + '<input type="checkbox" data-hs-act="alert-kind" data-kind="' + esc(k.id) + '"> ' + glyphSvg(ctx.glyphs, k.glyph) + ' ' + esc(k.label) + '</label></li>').join('') + '</ul>'
-    + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
+    + '</div>';
 }
 
 function charRow(ctx) {
@@ -70,18 +66,6 @@ function patchRow(li, x, ctx) {
   text(show, x.slot === ctx.character.slot ? 'On screen' : 'Show');
 }
 
-/* The parties this account's characters lead that could start now, and the characters that could leave one. */
-function partyPlan(peers) {
-  const leads = [], leavers = [];
-  for (const cs of peers) {
-    const x = summaryOf(cs);
-    if (!x.party) continue;
-    if (x.party.isLeader && !x.party.anyHunting) leads.push(cs);
-    if (!x.party.seats.some((s) => s.seat === x.party.me && s.hunting)) leavers.push(cs);
-  }
-  return { leads, leavers };
-}
-
 renderCharacters.patch = function patchCharacters(body, ctx) {
   const root = body.querySelector('.hw-command');
   const peers = ctx.peers();
@@ -90,43 +74,16 @@ renderCharacters.patch = function patchCharacters(body, ctx) {
     build: () => charRow(ctx),
     patch: (li, x) => patchRow(li, x, ctx),
   });
-  const plan = partyPlan(peers);
   const inParty = peers.filter((cs) => summaryOf(cs).party).length;
-  text(root.querySelector('.hw-parties-line'), inParty ? inParty + ' of your ' + peers.length + ' characters ' + (inParty === 1 ? 'is' : 'are') + ' in a party.'
-    : 'None of your characters is in a party. Open Party (Y) to make or find one.');
-  const start = root.querySelector('[data-hs-act="start-all"]');
-  cls(start, 'is-on', plan.leads.length > 0);
-  prop(start, 'disabled', SCRATCH.pending);
-  prop(root.querySelector('[data-hs-act="leave-all"]'), 'disabled', SCRATCH.pending || !plan.leavers.length);
+  text(root.querySelector('.hw-parties-line'), (inParty ? inParty + ' of your ' + peers.length + ' characters ' + (inParty === 1 ? 'is' : 'are') + ' in a party. '
+    : 'None of your characters is in a party. ') + 'Right-click a player, or one of your character tabs, to invite. Party (Y) finds open parties.');
   text(root.querySelector('.hw-alerts-head'), 'Alerts from ' + summaryOf(ctx.character).name);
   for (const box of root.querySelectorAll('[data-hs-act="alert-kind"]')) prop(box, 'checked', alertShown(ctx.character, box.getAttribute('data-kind')));
-  text(root.querySelector('.hh-intent-msg'), SCRATCH.msg);
 };
 
-/* One intent per character, in turn; the first refusal is what the line says. */
-async function each(list, send, busy, done, repaint) {
-  if (SCRATCH.pending || !list.length) return;
-  SCRATCH.pending = true;
-  SCRATCH.msg = busy;
-  repaint();
-  let refused = null;
-  for (const cs of list) {
-    let r;
-    try { r = await send(cs); } catch (e) { r = { ok: false, error: 'network' }; }
-    if (!r.ok && !refused) refused = r.error;
-  }
-  SCRATCH.pending = false;
-  SCRATCH.msg = refused ? refusalWords(refused) : done;
-  repaint();
-}
-
 renderCharacters.act = function actCharacters(ctx, body, action, ev, t) {
-  const repaint = () => renderCharacters.patch(body, ctx);
   if (action === 'alert-kind' && ev.type === 'change') { setAlertShown(ctx.character, t.getAttribute('data-kind'), t.checked); return true; }
   if (ev.type !== 'click') return false;
   if (action === 'show') { if (ctx.goTo) ctx.goTo(Number(t.getAttribute('data-slot'))); return true; }
-  const plan = partyPlan(ctx.peers());
-  if (action === 'start-all') { each(plan.leads, (cs) => cs.startPartyHunt(), 'Starting…', 'The party is on its way.', repaint); return true; }
-  if (action === 'leave-all') { each(plan.leavers, (cs) => cs.leaveParty(), 'Leaving…', 'Your characters left their parties.', repaint); return true; }
   return false;
 };

@@ -27,7 +27,7 @@ import { AccountSession } from '../session/account-session.js?v=0.2.8';
 import { FRAME_EVENT } from '../session/character-session.js?v=0.2.8';
 import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.8';
 import { mountWorldPane } from './world-pane.js?v=0.2.8';
-import { mountCharacterStrip } from './character-strip.js?v=0.2.8';
+import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.8';
 import { createAlertCenter } from '../shell/alerts.js?v=0.2.8';
 import { createSocialRealtime } from '../social/realtime.js?v=0.2.8';
 import { SocialSession } from '../social/social-session.js?v=0.2.8';
@@ -176,6 +176,9 @@ function startApp(win) {
       peers: () => (acc ? acc.characters() : [cs]) });
     if (seq !== paneSeq) { p.destroy(); return; }
     pane = Object.assign(p, { slot: cs.slot });
+    /* The strip's tabs open the viewed shell's one player menu (Invite to party / Leave party for own characters). */
+    const nav = root.querySelector('nav.char-strip');
+    if (nav && p.shell && p.shell.menu) p.shell.menu.attach(nav, stripTargetOf);
     if (strip) strip.patch();
     if (want) pane.shell.open(want);
   }

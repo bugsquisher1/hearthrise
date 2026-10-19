@@ -64,7 +64,10 @@ export const CLIENT_RPCS = Object.freeze({
   hr_hunt_party_invite: 'invite a character by its display name; the server resolves it (CharacterSession.inviteByName)',
   hr_hunt_party_accept: 'accept an invite to this character by its id (CharacterSession.answerInvite)',
   hr_hunt_party_decline: 'decline an invite to this character by its id (CharacterSession.answerInvite)',
-  hr_hunt_party_start: 'the leader starts the party hunt, each member on its own saved setup (CharacterSession.startPartyHunt)',
+  hr_hunt_party_start: 'the leader picks the ground and starts the party hunt, each member on its own saved setup, all or none (party-intents.js startPartyHunt)',
+  /* The one-way party flow (2026-10-28-party-flow.sql): an own character by slot, the leader's disband; slot only, no user id. */
+  hr_hunt_party_invite_own: 'seat one of this account’s own characters, by slot, in this character’s party at once (party-intents.js inviteOwn)',
+  hr_hunt_party_disband: 'the leader closes its party in town (party-intents.js disbandParty)',
   hr_hunt_restart: 'go back to the hunt that just ended on that session’s own setup (CharacterSession.restartHunt)',
   /* Lane S2's Services window: each sends the server's own QUOTE (refused quote_changed otherwise), never a price of its own. */
   hr_stamina_refill: 'buy the next stamina refill at the quoted price (CharacterSession.buyStamina)',

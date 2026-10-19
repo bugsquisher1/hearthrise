@@ -222,14 +222,15 @@ const ARMS = {
     const ok = async (uid, sql, params) => { const r = await asAuth(db, uid, sql, params); if (!r || r.ok !== true) throw new Error(sql.slice(7, 40) + ' refused: ' + JSON.stringify(r)); return r; };
     await ok(a, 'select public.hr_character_name_set(0, $1, $2::uuid)', ['Party Leader', idem()]);
     await ok(b, 'select public.hr_character_name_set(0, $1, $2::uuid)', ['Party Member', idem()]);
-    const pid = (await ok(a, "select public.hr_hunt_party_create(0, 'mill_cellar', $1::uuid)", [idem()])).party.id;
+    /* The first invite makes the party (2026-10-28-party-flow.sql): the inviter leads, the ground is picked at Start. */
     await ok(a, 'select public.hr_hunt_party_invite(0, $1, $2::uuid)', ['party member', idem()]);
+    const pid = await H.one(db, 'select public.hr_hunt_party_of($1, 0)', [a]);
     const inv = await H.one(db, "select public.hr_state_of($1, 0)->'party_invites'", [b]);
     if (!Array.isArray(inv) || inv.length !== 1 || inv[0].from !== 'Party Leader') return ['the invitee sees ' + JSON.stringify(inv)];
     await ok(b, 'select public.hr_hunt_party_accept(0, $1::uuid, $2::uuid)', [inv[0].id, idem()]);
     await ok(a, 'select public.hr_restock_set(0, $1::jsonb, $2::uuid)', [JSON.stringify({ [food]: 12 }), idem()]);
     await ok(b, 'select public.hr_restock_set(0, $1::jsonb, $2::uuid)', [JSON.stringify({ [food]: 7 }), idem()]);
-    const st = await ok(a, 'select public.hr_hunt_party_start(0, $1::uuid)', [idem()]);
+    const st = await ok(a, "select public.hr_hunt_party_start(0, 'mill_cellar', $1::uuid)", [idem()]);
     if (st.entered !== 2) p.push('the start entered ' + st.entered);
     const bags = await H.q(db, `select h.user_id, b.qty_loaded from public.hunt_sessions h join public.hunt_bag b on b.session_id = h.id
                                  where h.instance_id = $1 and h.ended_at is null and b.item_id = $2`, [pid, food]);
@@ -358,7 +359,7 @@ const MUTANTS = [
   { arm: 'A-LOCK', file: '2026-10-25-settle-hooks.sql', why: 'hr_apply no longer refuses a locked sale',
     find: "        if v_n < 0 and coalesce(v_this_intent, '') ~ '^vendor_sell(_many)?(:|$)' and public.hr_item_locked(v_uid, v_slot, k) then",
     repl: "        if false and coalesce(v_this_intent, '') ~ '^vendor_sell(_many)?(:|$)' and public.hr_item_locked(v_uid, v_slot, k) then" },
-  /* hr_hunt_apply_member and hr_hunt_party_start are RESTATED by the core rebuild (2026-10-27-core-bodies.sql):
+  /* hr_hunt_apply_member is RESTATED by the core rebuild (2026-10-27-core-bodies.sql):
      their mutants are planted in the bodies that run. */
   { arm: 'A-LOOT-AWAY', file: '2026-10-27-core-bodies.sql', why: 'the settle no longer runs the loot filter',
     find: "  v_loot := public.hr_hunt_loot_rules(p_user, p_slot, p_session, p_intent, p_delta->'items', v_to);", repl: '  v_loot := null;' },
@@ -384,7 +385,8 @@ const MUTANTS = [
      so there is no second death for the mutant to protect.) */
   { arm: 'A-BLESS-ATTENDED', file: '2026-10-25-blessings.sql', why: 'a death does not use the blessings up',
     find: '  delete from public.player_blessings where user_id = p_user and slot = p_slot and tier = any (v_tiers);', repl: '  perform 1;' },
-  { arm: 'A-PARTY', file: '2026-10-27-core-bodies.sql', why: "the shared start loads the leader's bag into every member",
+  /* hr_hunt_party_start is RESTATED by 2026-10-28-party-flow.sql (the ground picked at Start): the mutant is planted in the body that runs. */
+  { arm: 'A-PARTY', file: '2026-10-28-party-flow.sql', why: "the shared start loads the leader's bag into every member",
     find: 'public.hr_hunt_saved_bag(v_m.user_id, v_m.slot),', repl: 'public.hr_hunt_saved_bag(v_uid, p_slot),' },
 ];
 

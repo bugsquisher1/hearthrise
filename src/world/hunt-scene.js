@@ -13,7 +13,7 @@
 // here: a predicted kill leaves a bag, and the bag says nothing.
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { createChoreo, hash32 } from './choreo.js?v=0.2.1';
+import { createChoreo, hash32 } from './choreo.js?v=0.2.3';
 
 /**
  * @param {object} map  compileMap() output for a hunt map

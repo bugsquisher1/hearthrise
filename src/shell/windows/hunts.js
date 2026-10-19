@@ -25,18 +25,18 @@
 // press is ONE hr_action_set_options. The server keeps ONE pick per action set
 // today, not one per ground, so the line says it carries to the next hunt.
 // ════════════════════════════════════════════════════════════════════════
-import { combatLevel } from '../../core/xp.js?v=0.2.1';
-import { huntOf, settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.1';
-import { bagOf, rulesOf, skillsOf } from '../../session/item-sections.js?v=0.2.1';
-import { huntName } from '../../session/party-sections.js?v=0.2.1';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.1';
-import { whole } from '../../render/format.js?v=0.2.1';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.1';
-import { itemName } from '../widgets/bits.js?v=0.2.1';
-import { runIntent } from '../intent-words.js?v=0.2.1';
-import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.1';
-import { huntRows, densityWords, bandWords, rangeWords, groupWords, recommendedHunt, heroWords, packFor, ABOVE_LEVEL_WORDS } from '../hunt-list.js?v=0.2.1';
-import { partyScratch } from './party-finder.js?v=0.2.1';
+import { combatLevel } from '../../core/xp.js?v=0.2.3';
+import { huntOf, settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.3';
+import { bagOf, rulesOf, skillsOf } from '../../session/item-sections.js?v=0.2.3';
+import { huntName } from '../../session/party-sections.js?v=0.2.3';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.3';
+import { whole } from '../../render/format.js?v=0.2.3';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.3';
+import { itemName } from '../widgets/bits.js?v=0.2.3';
+import { runIntent } from '../intent-words.js?v=0.2.3';
+import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.3';
+import { huntRows, densityWords, bandWords, rangeWords, groupWords, recommendedHunt, heroWords, packFor, ABOVE_LEVEL_WORDS } from '../hunt-list.js?v=0.2.3';
+import { partyScratch } from './party-finder.js?v=0.2.3';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pick: null, pending: false, msg: '' }; SCRATCH.set(cs, s); } return s; };

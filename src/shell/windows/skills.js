@@ -15,15 +15,15 @@
 // entry's tooltip. Every level and XP number is the envelope's `skills`,
 // replaced on each envelope; the windows send nothing.
 // ════════════════════════════════════════════════════════════════════════
-import { SKILLS_DEF } from '../../data/skills.js?v=0.2.1';
-import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.1';
-import { xpForLevel, MAX_LEVEL } from '../../core/xp.js?v=0.2.1';
-import { nextUnlock } from '../../data/skill-unlocks.js?v=0.2.1';
-import { skillsOf } from '../../session/item-sections.js?v=0.2.1';
-import { rows, text, cls, style, attr, element } from '../../render/paint.js?v=0.2.1';
-import { whole } from '../../render/format.js?v=0.2.1';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.1';
-import { glyphSvg } from '../launcher.js?v=0.2.1';
+import { SKILLS_DEF } from '../../data/skills.js?v=0.2.3';
+import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.3';
+import { xpForLevel, MAX_LEVEL } from '../../core/xp.js?v=0.2.3';
+import { nextUnlock } from '../../data/skill-unlocks.js?v=0.2.3';
+import { skillsOf } from '../../session/item-sections.js?v=0.2.3';
+import { rows, text, cls, style, attr, element } from '../../render/paint.js?v=0.2.3';
+import { whole } from '../../render/format.js?v=0.2.3';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.3';
+import { glyphSvg } from '../launcher.js?v=0.2.3';
 
 /** Progress inside the current level, 0..1, from the server's XP and level. */
 function levelProgress(xp, level) {

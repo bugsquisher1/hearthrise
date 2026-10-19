@@ -96,7 +96,8 @@ export const GUARDED = [
   'public.hr_farm_upgrade_plot(int,uuid,int)',
   'public.hr_farm_water(int,int,uuid)',
   'public.hr_put_client_state__ungated(int,jsonb,uuid)',
-  'public.hr_set_style__ungated(text,text,int,uuid)',
+  /* hr_set_style__ungated left the chain end with the combat styles (2026-10-27-core-schema.sql, the
+     core rebuild): a dropped body has no replay to guard; that file's §4 proves it does not resolve. */
   'public.hr_trait_buy__ungated(text,int,uuid)',
   'public.hr_worker_assign(int,text,text,text,uuid)',
   'public.hr_worker_hire(int,uuid)',

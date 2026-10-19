@@ -202,6 +202,14 @@ for (let lv = 1; ; lv++) {
 }
 if (skillCurve.length < 200) die(`the skill curve stops at level ${skillCurve.length}: too short for an uncapped skill`);
 
+/* THE FEAST HEAL VALUES (public.hr_feast_foods, 2026-08-27-clan-economy-sinks.sql): every cooked or
+   prepared food's heals (foodClass healing|buff, heals > 0 — tests/clan-feast-catalogue-drift.mjs's own
+   rule), upserted, because the core rebuild moved every food heal x12 (CORE_NUMBERS Q3). */
+const feastFoods = Object.entries(ITEMS)
+  .filter(([, d]) => d && (d.foodClass === 'healing' || d.foodClass === 'buff') && Number(d.heals) > 0)
+  .map(([id, d]) => ({ item_id: id, heals: Number(d.heals) }))
+  .sort((a, b) => (a.item_id < b.item_id ? -1 : 1));
+
 const startKit = {
   gold: START_CURRENCY.gold, gems: START_CURRENCY.gems,
   hearth_tokens: START_CURRENCY.hearthTokens,
@@ -540,6 +548,11 @@ ${valuesBlock(startEquipment, (r) => `  (${q(r.equip_slot)},${q(r.item_id)})`)};
 
 ${runes.length ? `insert into public.hr_runes (rune_id, element) values
 ${valuesBlock(runes, (r) => `  (${q(r.rune_id)},${q(r.element)})`)};` : '-- (no tag:\'rune\' items authored yet — hr_runes seeded empty)'}
+
+-- The feast heal values (the clan feast's table), from the same items.js heals.
+insert into public.hr_feast_foods (item_id, heals) values
+${valuesBlock(feastFoods, (r) => `  (${q(r.item_id)},${n(r.heals)})`)}
+on conflict (item_id) do update set heals = excluded.heals;
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
   values (true, ${q(DIGEST)}, now())

@@ -1784,6 +1784,44 @@ insert into public.hr_start_equipment (equip_slot, item_id) values
 
 -- (no tag:'rune' items authored yet — hr_runes seeded empty)
 
+-- The feast heal values (the clan feast's table), from the same items.js heals.
+insert into public.hr_feast_foods (item_id, heals) values
+  ('baked_potato',240),
+  ('bear_claw_pie',384),
+  ('carrot_stew',288),
+  ('cooked_bear_meat',156),
+  ('cooked_copper_crab',216),
+  ('cooked_frostfin',456),
+  ('cooked_goldgill',276),
+  ('cooked_herring',72),
+  ('cooked_lobster',300),
+  ('cooked_moonfish',600),
+  ('cooked_panther_meat',108),
+  ('cooked_pikeperch',192),
+  ('cooked_shark',528),
+  ('cooked_shrimp',96),
+  ('cooked_silverfin',252),
+  ('cooked_swordfish',384),
+  ('cooked_trout',168),
+  ('cooked_wolf_meat',72),
+  ('dragon_stew',540),
+  ('ember_tart',360),
+  ('fishers_pie',408),
+  ('goldenroot_roast',312),
+  ('hunters_feast',420),
+  ('lich_soul_soup',600),
+  ('moonbloom_elixir',480),
+  ('pumpkin_pie',420),
+  ('river_chowder',360),
+  ('roasted_carrot',60),
+  ('roasted_pumpkin',264),
+  ('tomato_soup',336),
+  ('turnip_mash',60),
+  ('vegetable_stew',288),
+  ('void_banquet',720),
+  ('wheat_bread',216)
+on conflict (item_id) do update set heals = excluded.heals;
+
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
   values (true, '2c27f2378096d749b419a5d65c706b138d2b9af3906a3ae85b161b46e83fa6fb', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;

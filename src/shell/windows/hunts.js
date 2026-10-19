@@ -17,17 +17,17 @@
 // the character's level says so ("expect losses"); the floor is a warning, and
 // only the server refuses (Tyler 10-18: 15 or more levels under it).
 // ════════════════════════════════════════════════════════════════════════
-import { combatLevel } from '../../core/xp.js?v=0.2.3';
-import { huntOf, settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.3';
-import { bagOf, rulesOf, skillsOf } from '../../session/item-sections.js?v=0.2.3';
-import { huntName } from '../../session/party-sections.js?v=0.2.3';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.3';
-import { whole } from '../../render/format.js?v=0.2.3';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.3';
-import { itemName } from '../widgets/bits.js?v=0.2.3';
-import { runIntent } from '../intent-words.js?v=0.2.3';
-import { huntRows, densityWords, bandWords, rangeWords, groupWords, recommendedHunt, heroWords, packFor, ABOVE_LEVEL_WORDS } from '../hunt-list.js?v=0.2.3';
-import { partyScratch } from './party-finder.js?v=0.2.3';
+import { combatLevel } from '../../core/xp.js?v=0.2.4';
+import { huntOf, settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.4';
+import { bagOf, rulesOf, skillsOf } from '../../session/item-sections.js?v=0.2.4';
+import { huntName } from '../../session/party-sections.js?v=0.2.4';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.4';
+import { whole } from '../../render/format.js?v=0.2.4';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.4';
+import { itemName } from '../widgets/bits.js?v=0.2.4';
+import { runIntent } from '../intent-words.js?v=0.2.4';
+import { huntRows, densityWords, bandWords, rangeWords, groupWords, recommendedHunt, heroWords, packFor, ABOVE_LEVEL_WORDS } from '../hunt-list.js?v=0.2.4';
+import { partyScratch } from './party-finder.js?v=0.2.4';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pick: null, pending: false, msg: '' }; SCRATCH.set(cs, s); } return s; };

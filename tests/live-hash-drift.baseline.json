@@ -16,18 +16,18 @@
   "the change was intended. Never edit a hash by hand to make a build green —",
   "a red hash is the check working."
  ],
- "generated": "2026-10-18",
+ "generated": "2026-10-19",
  "project": "nezapsylztqbbwuwembx",
  "postgres": {
   "production": "17.x",
   "replay": "PGlite (PG18) — see tests/schema-replay.mjs"
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
- "live_measured": "2026-10-18",
- "replay_ms": 4284,
+ "live_measured": "2026-10-19",
+ "replay_ms": 3736,
  "counts": {
-  "tracked_names": 119,
-  "entries": 97
+  "tracked_names": 130,
+  "entries": 108
  },
  "functions": [
   {
@@ -44,7 +44,7 @@
    "live": {
     "md5": "cdc1b5f4b58dee8b424780b5005619b8",
     "norm_len": 413,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -68,7 +68,7 @@
    "live": {
     "md5": "d98d063119f063168df46d40d5599b01",
     "norm_len": 409,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -91,7 +91,7 @@
    "live": {
     "md5": "6640ef9bd32a23de2d0e5e0118eadc71",
     "norm_len": 450,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -113,7 +113,7 @@
    "live": {
     "md5": "2e37a2335545b5ffd30740e1a4068a6b",
     "norm_len": 4642,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -136,12 +136,36 @@
    "live": {
     "md5": "1a83c74b90f9a75ca24d661ec4f5ca06",
     "norm_len": 615,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
     "md5": "1a83c74b90f9a75ca24d661ec4f5ca06",
     "norm_len": 615,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_action_set_options(p_slot integer, p_preset integer, p_opts jsonb, p_idem uuid)",
+   "name": "hr_action_set_options",
+   "tracked_by": [
+    "chain"
+   ],
+   "touched_by": [
+    "2026-10-22-hunt-sessions-settle.sql",
+    "2026-10-23-hunt-settings-options.sql",
+    "2026-10-25-action-conditions.sql"
+   ],
+   "live": {
+    "md5": "1ce652a8a919c1ebe16514d1dd451921",
+    "norm_len": 5498,
+    "measured": "2026-10-19",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "1ce652a8a919c1ebe16514d1dd451921",
+    "norm_len": 5498,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -190,17 +214,18 @@
     "2026-10-16-login-reward.sql",
     "2026-10-19-account-wallet.sql",
     "2026-10-20-hunts-start-gate.sql",
-    "2026-10-22-hunt-sessions-delete-away.sql"
+    "2026-10-22-hunt-sessions-delete-away.sql",
+    "2026-10-25-settle-hooks.sql"
    ],
    "live": {
-    "md5": "c959096bd33d32da37e443872a1b8823",
-    "norm_len": 134607,
-    "measured": "2026-10-18",
+    "md5": "e73ce3e87ab7d84fac474e85be3bcfc8",
+    "norm_len": 134904,
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "c959096bd33d32da37e443872a1b8823",
-    "norm_len": 134607,
+    "md5": "e73ce3e87ab7d84fac474e85be3bcfc8",
+    "norm_len": 134904,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -234,17 +259,18 @@
     "2026-10-06-world-tick-parity-probe.sql",
     "2026-10-10-world-tick-presence-horizon.sql",
     "2026-10-22-hunt-sessions-settle.sql",
-    "2026-10-23-hunt-world-state.sql"
+    "2026-10-23-hunt-world-state.sql",
+    "2026-10-25-character-sheet.sql"
    ],
    "live": {
-    "md5": "4f2520cab8ac01a0744db57bf82f404c",
-    "norm_len": 46956,
-    "measured": "2026-10-18",
+    "md5": "9532365a3a7283d74cd28e7778f18b75",
+    "norm_len": 47909,
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "4f2520cab8ac01a0744db57bf82f404c",
-    "norm_len": 46956,
+    "md5": "9532365a3a7283d74cd28e7778f18b75",
+    "norm_len": 47909,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -264,12 +290,34 @@
    "live": {
     "md5": "5c64b584891d147ef358577681ce7b3a",
     "norm_len": 7349,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
     "md5": "5c64b584891d147ef358577681ce7b3a",
     "norm_len": 7349,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_blessing_take(p_user uuid, p_slot integer, p_session uuid, p_dx jsonb, p_from timestamp with time zone)",
+   "name": "hr_blessing_take",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-25-blessings.sql"
+   ],
+   "live": {
+    "md5": "912137f4e77fb3cd8086bca04007d2fa",
+    "norm_len": 1875,
+    "measured": "2026-10-19",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "912137f4e77fb3cd8086bca04007d2fa",
+    "norm_len": 1875,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -287,7 +335,7 @@
    "live": {
     "md5": "da760f3bbaa87bf4b3f82631607f3969",
     "norm_len": 9753,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -312,12 +360,34 @@
    "live": {
     "md5": "96a3e4e424e0cf602055d0baff659361",
     "norm_len": 6551,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
     "md5": "96a3e4e424e0cf602055d0baff659361",
     "norm_len": 6551,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_character_name(p_user uuid, p_slot integer)",
+   "name": "hr_character_name",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-25-account-items.sql"
+   ],
+   "live": {
+    "md5": "57e74ca36e7df49c16b75cdacb64907b",
+    "norm_len": 489,
+    "measured": "2026-10-19",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "57e74ca36e7df49c16b75cdacb64907b",
+    "norm_len": 489,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -335,7 +405,7 @@
    "live": {
     "md5": "d224c6aca56fe2ca59263d3320c7ee3e",
     "norm_len": 955,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -362,7 +432,7 @@
    "live": {
     "md5": "1ebc67d277b42a65fef6441b8394893d",
     "norm_len": 4483,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -385,7 +455,7 @@
    "live": {
     "md5": "d02168a968f90dea57b096bc46764842",
     "norm_len": 980,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -407,16 +477,17 @@
     "2026-09-27-ledger-of-firsts.sql",
     "2026-10-16-w0f-fun-content.sql",
     "2026-10-19-account-wallet.sql",
-    "2026-10-24-hunterall-119.sql"
+    "2026-10-24-hunterall-119.sql",
+    "2026-10-25-hunterall-129.sql"
    ],
    "live": {
-    "md5": "980276a91bdf793761d1c5bd59aa845b",
+    "md5": "945758692f7afe596d5016a53f42aff9",
     "norm_len": 4176,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "980276a91bdf793761d1c5bd59aa845b",
+    "md5": "945758692f7afe596d5016a53f42aff9",
     "norm_len": 4176,
     "source": "computed-from-replay"
    },
@@ -435,7 +506,7 @@
    "live": {
     "md5": "e1bf5a5c7e4c3fabd0a1d4dd453aeeb2",
     "norm_len": 956,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -463,7 +534,7 @@
    "live": {
     "md5": "353a30089cd23babd3b6cb509bd36586",
     "norm_len": 7140,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -486,7 +557,7 @@
    "live": {
     "md5": "d082086e2c32e7a185f85f446762b962",
     "norm_len": 950,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -509,7 +580,7 @@
    "live": {
     "md5": "e0b8780931f19903f82b7d5072e633b5",
     "norm_len": 4007,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -532,7 +603,7 @@
    "live": {
     "md5": "4de2d1ab665b7346db266da9e82756f5",
     "norm_len": 2037,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -556,7 +627,7 @@
    "live": {
     "md5": "7d5ff57df0bc48aedea5b7e880d93762",
     "norm_len": 4824,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -580,7 +651,7 @@
    "live": {
     "md5": "172260834de31310749af088b28d9b5a",
     "norm_len": 8668,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -610,7 +681,7 @@
    "live": {
     "md5": "16edeb155d99c38949da8d5b74aed56b",
     "norm_len": 8851,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -633,7 +704,7 @@
    "live": {
     "md5": "3f8f7916df64860d0f8bcca734434fe3",
     "norm_len": 769,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -659,7 +730,7 @@
    "live": {
     "md5": "40cd62d5540dd49407fb92e6a0419f3a",
     "norm_len": 19432,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -682,7 +753,7 @@
    "live": {
     "md5": "ad371996517c1573ae629c11c9be27f7",
     "norm_len": 1091,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -707,7 +778,7 @@
    "live": {
     "md5": "7d50858f37b312cdd3f961180e9109cd",
     "norm_len": 1089,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -731,7 +802,7 @@
    "live": {
     "md5": "9cdfde85f2d243619627d452bb0641bf",
     "norm_len": 2299,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -756,7 +827,7 @@
    "live": {
     "md5": "04b8d369d4f14e0aa89aa98a457e405b",
     "norm_len": 1120,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -778,7 +849,7 @@
    "live": {
     "md5": "40b0935afb1a8c718db954c718f55db7",
     "norm_len": 335,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -802,7 +873,7 @@
    "live": {
     "md5": "9d133e3bcea570172f17ea4ce1e98136",
     "norm_len": 16826,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -828,7 +899,7 @@
    "live": {
     "md5": "904639a5a3357255194bb0aac7ca0f15",
     "norm_len": 8303,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -855,7 +926,7 @@
    "live": {
     "md5": "ed3d20468ba9b19a8472888a9125f52f",
     "norm_len": 7851,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -882,7 +953,7 @@
    "live": {
     "md5": "599ff5364f1691b23491a26ab2cd4cc1",
     "norm_len": 6262,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -906,7 +977,7 @@
    "live": {
     "md5": "926570772cc4eb9cabc081a17acc8c6c",
     "norm_len": 4438,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -928,7 +999,7 @@
    "live": {
     "md5": "8a6907536d6b16514536510fb47e9c0a",
     "norm_len": 945,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -951,7 +1022,7 @@
    "live": {
     "md5": "83bb8d29d253bf8815f718f35f5fd5c5",
     "norm_len": 1921,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -974,7 +1045,7 @@
    "live": {
     "md5": "30a759cad8e34ad1314ccaa075b22201",
     "norm_len": 1840,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -1000,12 +1071,35 @@
    "live": {
     "md5": "ee3d1a930dcfd607e30992058ad98353",
     "norm_len": 1068,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
     "md5": "ee3d1a930dcfd607e30992058ad98353",
     "norm_len": 1068,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_apply_member(p_instance uuid, p_user uuid, p_slot integer, p_session uuid, p_intent uuid, p_delta jsonb, p_hunt jsonb, p_analyzer jsonb)",
+   "name": "hr_hunt_apply_member",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-23-hunt-world-state.sql",
+    "2026-10-25-settle-hooks.sql"
+   ],
+   "live": {
+    "md5": "c81f956bde7073fa0b1d0fb8718768ec",
+    "norm_len": 27620,
+    "measured": "2026-10-19",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "c81f956bde7073fa0b1d0fb8718768ec",
+    "norm_len": 27620,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1023,7 +1117,7 @@
    "live": {
     "md5": "c469d13f9ae0bddb947192179d283949",
     "norm_len": 3084,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -1037,22 +1131,162 @@
    "sig": "hr_hunt_enter(p_slot integer, p_hunt text, p_bag jsonb, p_preset integer, p_falls integer, p_hours integer, p_idem uuid)",
    "name": "hr_hunt_enter",
    "tracked_by": [
+    "chain",
     "pin"
    ],
    "touched_by": [
     "2026-10-21-hunt-sessions.sql",
     "2026-10-22-hunt-sessions-settle.sql",
-    "2026-10-23-hunt-party.sql"
+    "2026-10-23-hunt-party.sql",
+    "2026-10-25-party-invites.sql"
    ],
    "live": {
-    "md5": "174a786c64c70f890d631b4836108bfb",
-    "norm_len": 9141,
-    "measured": "2026-10-18",
+    "md5": "fc64a7c835332031ae8bcaf7ee2cb350",
+    "norm_len": 1563,
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "174a786c64c70f890d631b4836108bfb",
-    "norm_len": 9141,
+    "md5": "fc64a7c835332031ae8bcaf7ee2cb350",
+    "norm_len": 1563,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_loot_rules(p_user uuid, p_slot integer, p_session uuid, p_intent uuid, p_items jsonb, p_at timestamp with time zone)",
+   "name": "hr_hunt_loot_rules",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-25-bag-rules.sql"
+   ],
+   "live": {
+    "md5": "9cd6ce1b0deba1d61bb385371594383c",
+    "norm_len": 2829,
+    "measured": "2026-10-19",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "9cd6ce1b0deba1d61bb385371594383c",
+    "norm_len": 2829,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_member_read(p_s hunt_sessions)",
+   "name": "hr_hunt_member_read",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-23-hunt-world-state.sql",
+    "2026-10-25-settle-hooks.sql"
+   ],
+   "live": {
+    "md5": "97ce94075239ba12ca9816f5598b89d3",
+    "norm_len": 3528,
+    "measured": "2026-10-19",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "97ce94075239ba12ca9816f5598b89d3",
+    "norm_len": 3528,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_party_finder(p_slot integer, p_hunt text, p_weapon text)",
+   "name": "hr_hunt_party_finder",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-23-hunt-party.sql",
+    "2026-10-25-settle-hooks.sql"
+   ],
+   "live": {
+    "md5": "6e4af98864fbacc300199b7dfcba5aa8",
+    "norm_len": 1566,
+    "measured": "2026-10-19",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "6e4af98864fbacc300199b7dfcba5aa8",
+    "norm_len": 1566,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_party_view(p_user uuid, p_slot integer)",
+   "name": "hr_hunt_party_view",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-23-hunt-party.sql",
+    "2026-10-25-settle-hooks.sql"
+   ],
+   "live": {
+    "md5": "0270941e3190cc551786d1eb3fd34a59",
+    "norm_len": 5755,
+    "measured": "2026-10-19",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "0270941e3190cc551786d1eb3fd34a59",
+    "norm_len": 5755,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_section_view(p_user uuid, p_slot integer)",
+   "name": "hr_hunt_section_view",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-23-hunt-world-state.sql",
+    "2026-10-25-settle-hooks.sql"
+   ],
+   "live": {
+    "md5": "2d1637aeef041dea16d16a469214a41c",
+    "norm_len": 4166,
+    "measured": "2026-10-19",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "2d1637aeef041dea16d16a469214a41c",
+    "norm_len": 4166,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_settings_view(p_user uuid, p_slot integer)",
+   "name": "hr_hunt_settings_view",
+   "tracked_by": [
+    "chain"
+   ],
+   "touched_by": [
+    "2026-10-23-hunt-settings-options.sql",
+    "2026-10-23-hunt-world-state.sql",
+    "2026-10-25-action-conditions.sql"
+   ],
+   "live": {
+    "md5": "7066491a820f84404b42f83da9c3dded",
+    "norm_len": 6664,
+    "measured": "2026-10-19",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "7066491a820f84404b42f83da9c3dded",
+    "norm_len": 6664,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1061,22 +1295,24 @@
    "sig": "hr_hunt_settle_session(p_user uuid, p_slot integer, p_session uuid, p_delta jsonb)",
    "name": "hr_hunt_settle_session",
    "tracked_by": [
+    "chain",
     "pin"
    ],
    "touched_by": [
     "2026-10-21-hunt-sessions.sql",
     "2026-10-22-hunt-sessions-settle.sql",
-    "2026-10-23-hunt-supply-ledger.sql"
+    "2026-10-23-hunt-supply-ledger.sql",
+    "2026-10-25-action-conditions.sql"
    ],
    "live": {
-    "md5": "a3d8983d756786625154db1f6b714317",
-    "norm_len": 16500,
-    "measured": "2026-10-18",
+    "md5": "6a6cdf090fd123307a7cfd31ef38fbb2",
+    "norm_len": 16940,
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "a3d8983d756786625154db1f6b714317",
-    "norm_len": 16500,
+    "md5": "6a6cdf090fd123307a7cfd31ef38fbb2",
+    "norm_len": 16940,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1093,7 +1329,7 @@
    "live": {
     "md5": "8c09a1a30c26db6754c36f18e339da54",
     "norm_len": 1346,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -1117,7 +1353,7 @@
    "live": {
     "md5": "25ec8f70bfeb651073efddb86b6dffb7",
     "norm_len": 1632,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -1139,12 +1375,34 @@
    "live": {
     "md5": "97f6c74e00fa9e8419b9c6437efc0685",
     "norm_len": 1645,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
     "md5": "97f6c74e00fa9e8419b9c6437efc0685",
     "norm_len": 1645,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_item_locked(p_user uuid, p_slot integer, p_item text)",
+   "name": "hr_item_locked",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-25-bag-rules.sql"
+   ],
+   "live": {
+    "md5": "712f2c22fe6492a4e233420f6f9d20f4",
+    "norm_len": 332,
+    "measured": "2026-10-19",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "712f2c22fe6492a4e233420f6f9d20f4",
+    "norm_len": 332,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1164,7 +1422,7 @@
    "live": {
     "md5": "c3a3699a1ecf9b4b1324e6cfef1bbdbc",
     "norm_len": 2604,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -1187,7 +1445,7 @@
    "live": {
     "md5": "e60fa9248521c859ea29d108fba74c51",
     "norm_len": 1248,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -1210,7 +1468,7 @@
    "live": {
     "md5": "6939771758bd852e5ab4817f6540536b",
     "norm_len": 21619,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -1233,7 +1491,7 @@
    "live": {
     "md5": "6d26d16ed7fa2b38896d8c0808118b8d",
     "norm_len": 10079,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -1255,7 +1513,7 @@
    "live": {
     "md5": "b527321e54deb4699ba20155d9b1af30",
     "norm_len": 12598,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -1279,7 +1537,7 @@
    "live": {
     "md5": "807506a8f149cc089f0716a30d80034a",
     "norm_len": 2139,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -1303,7 +1561,7 @@
    "live": {
     "md5": "dbeb4ee4887467cedefb8f40c343630d",
     "norm_len": 585,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -1327,7 +1585,7 @@
    "live": {
     "md5": "545af821ac3e2f3d8add9f70f6ecec61",
     "norm_len": 287,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -1351,7 +1609,7 @@
    "live": {
     "md5": "c24f3873a5f11d1fc906e040817cae70",
     "norm_len": 22542,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -1374,7 +1632,7 @@
    "live": {
     "md5": "571f57c35fc8bab706af7fde51ea5e78",
     "norm_len": 616,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -1399,7 +1657,7 @@
    "live": {
     "md5": "e01e3a27b1d05aff96dd8842bf0366be",
     "norm_len": 7070,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -1421,7 +1679,7 @@
    "live": {
     "md5": "f901c0b558ba63cc691d6330188f818f",
     "norm_len": 533,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -1451,7 +1709,7 @@
    "live": {
     "md5": "1b09ff20d59a4d32bf5922b6685073ce",
     "norm_len": 41901,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -1476,7 +1734,7 @@
    "live": {
     "md5": "abe004d3ba1bc85dcaa555659a8afd23",
     "norm_len": 5999,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -1503,7 +1761,7 @@
    "live": {
     "md5": "17ebca77a2158d319b07a7b32f465317",
     "norm_len": 6735,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -1526,7 +1784,7 @@
    "live": {
     "md5": "fce9340cc733e6a9b7547eb49dd7f9c1",
     "norm_len": 9531,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -1553,7 +1811,7 @@
    "live": {
     "md5": "6b6e4a8e394ed77784cf14c57f65a5ba",
     "norm_len": 2462,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -1581,7 +1839,7 @@
    "live": {
     "md5": "545d26dafbcd6dc1909ecc31c1525f1f",
     "norm_len": 9599,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -1604,7 +1862,7 @@
    "live": {
     "md5": "34f422a6eb646d7cbfd1554eb8eb2970",
     "norm_len": 293,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -1626,7 +1884,7 @@
    "live": {
     "md5": "c60535aab4b595c1a8120e7006db5112",
     "norm_len": 475,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -1649,7 +1907,7 @@
    "live": {
     "md5": "eeb836b4bf709b919937cac6665904dc",
     "norm_len": 403,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -1675,7 +1933,7 @@
    "live": {
     "md5": "c583b4545f4ae41e378340e8c1b101e2",
     "norm_len": 3922,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -1697,7 +1955,7 @@
    "live": {
     "md5": "b92c0779dbca735b21f5d983c54381cc",
     "norm_len": 521,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -1720,7 +1978,7 @@
    "live": {
     "md5": "917af913c47a6856de12caf5b62448de",
     "norm_len": 7957,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -1768,17 +2026,18 @@
     "2026-10-16-goal-board-retire.sql",
     "2026-10-18-discord-gift.sql",
     "2026-10-21-closed-mode.sql",
-    "2026-10-21-hunt-sessions.sql"
+    "2026-10-21-hunt-sessions.sql",
+    "2026-10-25-character-sheet.sql"
    ],
    "live": {
-    "md5": "bd8b22943058fd69b32096c66ace93b1",
-    "norm_len": 3621,
-    "measured": "2026-10-18",
+    "md5": "31cd06d2c20809faf8e503e402db8ea1",
+    "norm_len": 3730,
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "bd8b22943058fd69b32096c66ace93b1",
-    "norm_len": 3621,
+    "md5": "31cd06d2c20809faf8e503e402db8ea1",
+    "norm_len": 3730,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1797,7 +2056,7 @@
    "live": {
     "md5": "ca900dc9a74f5123b0dedef66d47b80a",
     "norm_len": 6368,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -1820,7 +2079,7 @@
    "live": {
     "md5": "aaa43577cb9de2fadfa813705427c7b6",
     "norm_len": 5357,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -1842,7 +2101,7 @@
    "live": {
     "md5": "b7ec5c00f2402e749e443e52795269ba",
     "norm_len": 376,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -1864,7 +2123,7 @@
    "live": {
     "md5": "2082f2d3299fcae99bb37ab8ca888df8",
     "norm_len": 1672,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -1887,7 +2146,7 @@
    "live": {
     "md5": "02da870368740a07eac679cc6ec59ad9",
     "norm_len": 631,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -1956,7 +2215,7 @@
    "live": {
     "md5": "ab5bd3423d1757c399fdab86ec1a4b19",
     "norm_len": 30577,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -1978,7 +2237,7 @@
    "live": {
     "md5": "f603f9ad7c8afd1e11064a1ffe3a6d37",
     "norm_len": 956,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -2002,7 +2261,7 @@
    "live": {
     "md5": "af9bfb288f533db72fba4e5142a9bfbf",
     "norm_len": 987,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -2030,7 +2289,7 @@
    "live": {
     "md5": "7b811630c267c7ce2a85b2e3fceef461",
     "norm_len": 15426,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -2057,7 +2316,7 @@
    "live": {
     "md5": "9e03d03571e0ef8316a2beb4cec80485",
     "norm_len": 17127,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -2087,7 +2346,7 @@
    "live": {
     "md5": "a893ce7814cce556fb24b508f3928eaf",
     "norm_len": 16324,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -2115,7 +2374,7 @@
    "live": {
     "md5": "56ac9d3af603b98bfec940bf4123c10c",
     "norm_len": 13991,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -2138,7 +2397,7 @@
    "live": {
     "md5": "39776e3a0ed05b94f3cb4f8bfacedf9d",
     "norm_len": 5657,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -2161,7 +2420,7 @@
    "live": {
     "md5": "ae64c62dd0847ee4eb6fbcf83061a20c",
     "norm_len": 992,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -2185,7 +2444,7 @@
    "live": {
     "md5": "eaec519d270b9a80729ae4d707432935",
     "norm_len": 10045,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -2209,7 +2468,7 @@
    "live": {
     "md5": "23b42c18cc09c472287379039a60d731",
     "norm_len": 20577,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -2231,7 +2490,7 @@
    "live": {
     "md5": "11394712df724d52990bce2c6ca6c7d6",
     "norm_len": 1235,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -2258,7 +2517,7 @@
    "live": {
     "md5": "0d0ed3b05cde0bbdac584696fb159f90",
     "norm_len": 220,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -2282,7 +2541,7 @@
    "live": {
     "md5": "6ec96537a3581e36ab6568c8f53817e2",
     "norm_len": 235,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -2304,7 +2563,7 @@
    "live": {
     "md5": "69a7af7d432dfc8a6723142ab4aa638d",
     "norm_len": 808,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -2328,7 +2587,7 @@
    "live": {
     "md5": "8daf82ea78a08b5aef51f2bb80602cce",
     "norm_len": 4362,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -2354,7 +2613,7 @@
    "live": {
     "md5": "d1d0d0289e01cc9cbef24aa7a57302ad",
     "norm_len": 4069,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -2380,7 +2639,7 @@
    "live": {
     "md5": "cdf4cf77ca7a4b3f7c0444b50e9e82e0",
     "norm_len": 970,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -2407,7 +2666,7 @@
    "live": {
     "md5": "e9cadca68a91799a65d76cdb0c37e987",
     "norm_len": 12216,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -2431,7 +2690,7 @@
    "live": {
     "md5": "20af0420afd606ebf94d613ed51b97b6",
     "norm_len": 1124,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -2457,7 +2716,7 @@
    "live": {
     "md5": "db09b63e11f28ed693efac9e11ee2525",
     "norm_len": 9461,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -2481,7 +2740,7 @@
    "live": {
     "md5": "def6a8ed883433ac31f91478e7f56d21",
     "norm_len": 970,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
@@ -2509,7 +2768,7 @@
    "live": {
     "md5": "5f95acd0c27178ef01df79f0f33f4374",
     "norm_len": 5939,
-    "measured": "2026-10-18",
+    "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {

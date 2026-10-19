@@ -17,22 +17,22 @@
 // On a phone the tablets become one swipeable row and the plaque collapses
 // to the editor button (parity SH-07, HS-08).
 // ════════════════════════════════════════════════════════════════════════
-import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.4';
-import { huntOf, settingsOf, staminaOf } from '../../session/hunt-sections.js?v=0.2.4';
-import { text, cls, attr } from '../../render/paint.js?v=0.2.4';
-import { whole, pct, hoursMinutes } from '../../render/format.js?v=0.2.4';
-import { glyphSvg } from '../launcher.js?v=0.2.4';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.4';
-import { gaugeHtml, patchGauge, itemIconHtml, itemName, abilityName } from './bits.js?v=0.2.4';
-import { ITEMS } from '../../data/items.js?v=0.2.4';
-import { METRICS } from '../../data/condition-metrics.js?v=0.2.4';
-import { openSlot } from '../windows/bar-editor.js?v=0.2.4';
-import { assignToBar, barKind } from '../bar-assign.js?v=0.2.4';
-import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.4';
-import { refusalWords } from '../intent-words.js?v=0.2.4';
+import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.5';
+import { huntOf, settingsOf, staminaOf } from '../../session/hunt-sections.js?v=0.2.5';
+import { text, cls, attr } from '../../render/paint.js?v=0.2.5';
+import { whole, pct, hoursMinutes } from '../../render/format.js?v=0.2.5';
+import { glyphSvg } from '../launcher.js?v=0.2.5';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.5';
+import { gaugeHtml, patchGauge, itemIconHtml, itemName, abilityName } from './bits.js?v=0.2.5';
+import { ITEMS } from '../../data/items.js?v=0.2.5';
+import { METRICS } from '../../data/condition-metrics.js?v=0.2.5';
+import { openSlot } from '../windows/bar-editor.js?v=0.2.5';
+import { assignToBar, barKind } from '../bar-assign.js?v=0.2.5';
+import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.5';
+import { refusalWords } from '../intent-words.js?v=0.2.5';
 
 const METRIC_KIND = new Map(METRICS.map((m) => [m.id, m.value]));
-import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, patchControls, sendOption } from './settings-intent.js?v=0.2.4';
+import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, patchControls, sendOption } from './settings-intent.js?v=0.2.5';
 
 const HALF = (BAR_SLOTS.rows * BAR_SLOTS.cols) / 2;
 

@@ -5,6 +5,14 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.5 — 2026-10-19 (Bones, bank and a second hero)
+
+**Bury bones.** Bones in your bag now have Bury all. Your hero buries them and earns Prayer; press Stop to finish early.
+
+**Store exactly what you want.** In Storage, a press moves one, Shift moves the whole stack, and right-click asks how many.
+
+**A second hero.** Every account now starts with two character slots. The character screen shows each hero's name and level, and Create character on the empty slot.
+
 ## v0.2.4 — 2026-10-19 (Steady windows)
 
 **Windows behave.** The X closes a window without shuffling the others, and windows reopen where you left them.

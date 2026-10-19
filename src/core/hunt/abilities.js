@@ -31,16 +31,16 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS } from '../../data/abilities.js?v=0.2.4';
-import { resolveLine, takeLine, canAfford, shopShotFor } from '../action-rules.js?v=0.2.4';
-import { cheb, dist2, los } from './grid.js?v=0.2.4';
-import { makeEvent } from './events.js?v=0.2.4';
-import { landHit } from './damage.js?v=0.2.4';
-import { applyStatus, statusRow } from './status.js?v=0.2.4';
-import { markHealed } from './consumables.js?v=0.2.4';
-import { ammoPerShot } from '../ammo.js?v=0.2.4';
-import { ITEMS } from '../../data/items.js?v=0.2.4';
-import { slotsFor, pickSlot, bestAim, itemRow } from './conditions.js?v=0.2.4';
+import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS } from '../../data/abilities.js?v=0.2.5';
+import { resolveLine, takeLine, canAfford, shopShotFor } from '../action-rules.js?v=0.2.5';
+import { cheb, dist2, los } from './grid.js?v=0.2.5';
+import { makeEvent } from './events.js?v=0.2.5';
+import { landHit } from './damage.js?v=0.2.5';
+import { applyStatus, statusRow } from './status.js?v=0.2.5';
+import { markHealed } from './consumables.js?v=0.2.5';
+import { ammoPerShot } from '../ammo.js?v=0.2.5';
+import { ITEMS } from '../../data/items.js?v=0.2.5';
+import { slotsFor, pickSlot, bestAim, itemRow } from './conditions.js?v=0.2.5';
 
 export const PERSISTED = Object.freeze({
   unit: Object.freeze([['mana', 'int'], ['maxMana', 'int'], ['manaMilli', 'int'], ['lanes', 'json'], ['cds', 'json'],

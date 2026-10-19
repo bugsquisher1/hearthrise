@@ -3,12 +3,12 @@
 // voice, original IP. Surfaced in the item detail/tooltip (the "what is it" line).
 // SAFE TO EXTEND: an item with no entry here just shows no flavour line — nothing breaks.
 
-import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.4';
-import { SLOT_DESC } from './slot-ladders.js?v=0.2.4';
-import { LIB2_DESC } from './library2-items.js?v=0.2.4';
-import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.4';
-import { CHAMPION_DESC } from './champions.js?v=0.2.4';
-import { DRINK_DESC } from './drinks.js?v=0.2.4';
+import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.5';
+import { SLOT_DESC } from './slot-ladders.js?v=0.2.5';
+import { LIB2_DESC } from './library2-items.js?v=0.2.5';
+import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.5';
+import { CHAMPION_DESC } from './champions.js?v=0.2.5';
+import { DRINK_DESC } from './drinks.js?v=0.2.5';
 
 export const ITEM_DESC = {
   ...WAVE3_DESC, // b247: the 14 Wave-3 unique item flavour lines

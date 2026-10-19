@@ -154,7 +154,7 @@ async function loadEdge(root) {
     AC: await import(u(join(FN, 'accrual.js'))),
     SEED: await import(u(join(FN, 'hunt-seed.js'))),
     TR: await import(u(join(FN, 'tick-reads.js'))),
-    HT: await import(u(join(FN, 'hunt-track.js'))),
+    HT: await import(u('src/core/hunt-track.js')),
     IN: await import(u(join(FN, 'intents.js'))),
     TK: await import(u(join(FN, 'tick.js'))),
     HSD: await import(u('src/data/hunt-sessions.js')),
@@ -312,12 +312,13 @@ const ENGINE_ARMS = {
       if (m) problems.push(`${f} still names \`${m[0]}\` in code (deleted outright)`);
     }
     const presence = /\baway\b|presence|last_seen|capMs|cap_ms|hr_accrue_cap_ms|hr_offline_cap_ms|return_anchor|horizon/;
-    for (const f of ['hunt-settle.js', 'hunt-seed.js', 'hunt-ground.js', 'hunt-track.js']) {
+    for (const f of ['hunt-settle.js', 'hunt-seed.js', '../../../src/core/hunt-ground.js', '../../../src/core/hunt-track.js']) {
       const code = stripComments(readFileSync(join(dir, f), 'utf8'));
       const m = code.match(presence);
       if (m) problems.push(`${f} reads \`${m[0]}\` — the hunt settle may not consult presence, a cap or ctx.away (TICK-2)`);
     }
-    const acc = stripComments(readFileSync(join(dir, 'accrual.js'), 'utf8'));
+    /* memberSide lives in src/core/member.js since option B (the browser's live view shares it). */
+    const acc = stripComments(readFileSync(join(dir, 'accrual.js'), 'utf8') + '\n' + readFileSync(join(dir, '..', '..', '..', 'src', 'core', 'member.js'), 'utf8'));
     const body = ['accrueHunt', 'memberSide', 'memberDelta'].map((fn) => {
       const i = acc.indexOf('function ' + fn + '(');
       const j = acc.indexOf('\nfunction ', i + 10);
@@ -1430,7 +1431,7 @@ const MUTANTS = [
   { arm: 'TICK-2', name: '[C2 absence watermark] the window starts at a presence watermark', file: join(FN, 'accrual.js'),
     from: 'const fromMs = Math.floor(nat(w.fromMs, -1));', to: 'const fromMs = Math.floor(nat(inp.accruedToMs, nat(w.fromMs, -1)));' },
   { arm: 'TICK-2', name: '[C2 F11 / no_topup] a deleted read returns to the hunt settle', file: join(FN, 'hunt-settle.js'),
-    from: "import { huntTimeline } from './hunt-track.js';", to: "import { huntTimeline } from './hunt-track.js';\nexport const ATTENDED_READ = 'select * from public.hr_attended_kills($1, $2, $3)';" },
+    from: "import { huntTimeline, worldHash } from '../../../src/core/hunt-track.js';", to: "import { huntTimeline, worldHash } from '../../../src/core/hunt-track.js';\nexport const ATTENDED_READ = 'select * from public.hr_attended_kills($1, $2, $3)';" },
   { arm: 'BUFF', name: 'the hunt never re-measures the buff queue (a buff never pays)', file: 'src/core/combat-sim.js',
     from: "      if (typeof m.buffsAt === 'function') m.buffsAt(atMs);\n", to: '' },
   { arm: 'BUFF', name: '[C2 buff queue at the read clock] the queue is measured once, at the window start', file: join(FN, 'accrual.js'),
@@ -1461,7 +1462,7 @@ const MUTANTS = [
     from: '    vs ? Number(vs.critChance) || 0 : 0);', to: '    0);' },
   { arm: 'CRIT', name: 'a crit is not journalled as the lifetime stat', file: join(FN, 'accrual.js'),
     from: "  stat('crits', stats.crits);\n", to: '' },
-  { arm: 'EVENT-IDS', name: 'an event id counts across the whole window', file: join(FN, 'hunt-track.js'),
+  { arm: 'EVENT-IDS', name: 'an event id counts across the whole window', file: 'src/core/hunt-track.js',
     from: '    const k = seen.get(at) || 0;', to: '    const k = seen.size;' },
   { arm: 'STAMINA-RULE', name: 'a swing does not drain the pool', file: 'src/core/action-rules.js',
     from: '  if (hunting) return Math.max(0, v - d);', to: '  if (hunting) return v;' },

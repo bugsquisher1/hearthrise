@@ -50,12 +50,47 @@ import { accrueHunt } from './accrual.js';
 import { engineInputsFromEnvelope } from './envelope.js';
 import { intentIdFor } from './intents.js';
 import { readTickPerks } from './tick-reads.js';
-import { huntGroundOf } from './hunt-ground.js';
-import { huntTimeline } from './hunt-track.js';
+import { huntGroundOf } from '../../../src/core/hunt-ground.js';
+import { huntTimeline, worldHash } from '../../../src/core/hunt-track.js';
 import { ITEMS } from '../../../src/data/items.js';
 import { MONSTERS } from '../../../src/data/monsters.js';
 import { roleWeaponOf } from '../../../src/data/hunt-roles.js';
 import { heroSetup } from '../../../src/core/hunt-spawn.js';
+import { seederFor } from './hunt-seed.js';
+
+/* THE LIVE VIEW (option B, Tyler 2026-10-19). The browser runs the SAME instance engine
+   (src/core/combat-sim.js, the member assembly src/core/member.js) for the VIEWED character,
+   display only, and the server confirms. `hunt_live` is what it needs to start from the instance's
+   last settled point: the stored world (and its hash), the instance clocks, every member's engine
+   input and the next LIVE_SEEDS combat-swing seeds. THE DROP STREAM ('r') IS NEVER SENT: the
+   browser cannot foresee loot, and shows none until a server envelope confirms it. A party
+   member's purse is withheld (null); its skills, gear and bar are sent (the shared instance needs
+   them; listed for the reopen Security review in docs/design/server-authority.md). Prediction
+   only: nothing the browser simulates is spent or credited (CLAUDE.md §1, §6). */
+export const LIVE_SEEDS = 64;
+/** The next LIVE_SEEDS combat-swing seeds from world swing `from` (domain 's' only, never 'r'). */
+export function liveSeeds(inst, from) {
+  const seed = seederFor(String(inst.secret || ''), String(inst.id));
+  const list = [];
+  for (let i = 0; i < LIVE_SEEDS; i++) list.push(seed('s', from + i));
+  return { domain: 's', from, list };
+}
+export function huntLive(inst, members, user, slot) {
+  const from = Math.max(0, Math.floor(Number(inst.world_swing) || 0));
+  const world = typeof inst.world === 'string' ? inst.world : null;
+  return {
+    v: 1,
+    instance: { id: String(inst.id), hunt: String(inst.hunt), world, world_hash: worldHash(world),
+      settled_to_ms: Number(inst.settled_to_ms), next_swing_at_ms: Number(inst.next_swing_at_ms), world_swing: from },
+    seeds: liveSeeds(inst, from),
+    members: members.map((m) => {
+      const self = String(m.user) === String(user) && Number(m.slot) === Number(slot);
+      return { key: m.key, seat: m.seat, unitId: m.unitId, self, huntSession: m.huntSession,
+        skills: m.skills, levelXp: m.levelXp, xpFrac: m.xpFrac, hp: m.hp, gold: self ? m.gold : null,
+        equipment: m.equipment, buffs: m.buffs, perks: m.perks, hero: m.hero };
+    }),
+  };
+}
 
 /* THE PLAYER DOOR'S FLOOR (hunt_settle, a hunter's accrue, a purchase's
    collect): a settle asked for inside this of the last one prices nothing and
@@ -192,7 +227,11 @@ async function settleOnce(o, mode) {
         status: 200,
         body: { ...(res.state || {}), ok: true, settled: !replayed, hunt_settle: own.hunt_settle || null,
           session: own.session || null, instance: res.instance || null,
-          ...(o.project === true ? huntTimeline(p.out.track, p.out.events, fromMs, p.out.settledTo, plan.nowMs) : {}),
+          ...(o.project === true ? huntTimeline(p.out.track, p.out.events, fromMs, p.out.settledTo, plan.nowMs, p.out.units) : {}),
+          /* THE RECONCILE KEY of the world this commit stored: the live view compares its own. */
+          ...(o.live === true ? { hunt_check: { world_swing: p.out.worldSwingTo, settled_to_ms: p.out.settledTo, world_hash: worldHash(p.out.world),
+            /* the next combat seeds from the stored world: a matching prediction runs on with them */
+            seeds: liveSeeds(plan.inst, p.out.worldSwingTo) } } : {}),
           ...(degraded ? { degraded } : {}) },
       };
     }
@@ -248,7 +287,8 @@ export async function readHuntSettle(o, mode) {
   if (!(nowMs > fromMs)) return notDue;
   const minMs = Number.isFinite(Number(o.minWindowMs)) ? Math.max(0, Number(o.minWindowMs))
     : (mode === 'settle' ? HUNT_SETTLE_MIN_MS : 0);
-  if (!pending && nowMs - fromMs < minMs) {
+  const below = !pending && nowMs - fromMs < minMs;
+  if (below && o.live !== true) {
     return { answer: { outcome: 'nothing', reason: 'below_min_span', status: 200,
       body: { ok: true, settled: false, reason: 'below_min_span', ...env } } };
   }
@@ -260,6 +300,12 @@ export async function readHuntSettle(o, mode) {
   for (const m of members) {
     m.hero = heroSetup({ weaponType: m._weaponType, options: m._options, bar: m._bar, partyRoles });
     if (!m.hero) return { answer: { outcome: 'refused', reason: 'no_role', ...refusal(409, 'no_role') } };
+  }
+  /* Below the floor a player door that asked for the live view gets the instance's start point
+     instead of a settle: nothing is priced or written. */
+  if (below) {
+    return { answer: { outcome: 'nothing', reason: 'below_min_span', status: 200,
+      body: { ok: true, settled: false, reason: 'below_min_span', ...env, hunt_live: huntLive(inst, members, user, slot) } } };
   }
   const toMs = Number.isFinite(Number(o.atMs)) ? Math.min(nowMs, Math.floor(Number(o.atMs))) : nowMs;
   if (!(toMs > fromMs)) return notDue;
@@ -373,7 +419,7 @@ export function parseHunts(raw) {
    window's timeline (./hunt-track.js huntTimeline: hunt_track, hunt_events, hunt_server_now_ms). */
 export async function runHuntVerb(o) {
   const v = await settleHunt({
-    exec: o.exec, user: o.user, slot: o.slot, mode: 'settle', bucket: o.bucket, project: true,
+    exec: o.exec, user: o.user, slot: o.slot, mode: 'settle', bucket: o.bucket, project: true, live: true,
   });
   return { status: v.status, body: { ...v.body, verb: o.verb } };
 }

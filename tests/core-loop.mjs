@@ -155,9 +155,9 @@ const MUTATIONS = {
       + "payableRecipeIndex(ARTISAN_RECIPES_ALL)).filter(([, r]) => r.skill !== 'cooking'));",
   },
   hunt_drops_nothing: {
-    file: 'accrual.js', by: 'LOOP-1 step 6',
+    file: '../../../src/core/member.js', by: 'LOOP-1 step 6',
     why: 'kills stop dropping loot server-side: the hunt pays XP and nothing to sell',
-    /* Re-anchored lane S1: the hunt's loot sink is accrual.js memberSide addItem. */
+    /* Re-anchored: the hunt's loot sink is memberSide's addItem (src/core/member.js since option B). */
     find: '      itemDelta[id] = (itemDelta[id] || 0) + n;\n      hs.tally.loot[id] = (hs.tally.loot[id] || 0) + n;',
     repl: '      return;',
   },

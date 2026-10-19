@@ -339,8 +339,8 @@ const DB_MUTANTS = [
   ['death_log', 'public.hr_death_log_view(uuid,integer)', "'monster', nullif(", "'killer', nullif("],
 ];
 const EDGE_MUTANTS = [
-  ['hunt_track', join(FN, 'hunt-track.js'), '    hunt_track: pb.steps.map(', '    track: pb.steps.map('],
-  ['hunt_server_now_ms', join(FN, 'hunt-track.js'), '    hunt_server_now_ms: Math.floor(', '    server_now_ms: Math.floor('],
+  ['hunt_track', 'src/core/hunt-track.js', '    hunt_track: pb.steps.map(', '    track: pb.steps.map('],
+  ['hunt_server_now_ms', 'src/core/hunt-track.js', '    hunt_server_now_ms: Math.floor(', '    server_now_ms: Math.floor('],
   ['character_sheet', join(FN, 'character-sheet.js'), '    damage: { min: 1, max: snap.maxHit },', '    dmg: { min: 1, max: snap.maxHit },'],
 ];
 

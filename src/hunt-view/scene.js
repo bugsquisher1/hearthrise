@@ -26,6 +26,15 @@ import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.8';
 import { partyPeopleOf } from '../session/party-sections.js?v=0.2.8';
 import { floatShown } from './float-prefs.js?v=0.2.8';
 import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.8';
+import { STUB_SPRITE } from '../world/core/book.js?v=0.2.8';
+import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.8';
+
+/* The ground's first start tile, standing (the hero before its first window). */
+function entranceOf(huntId) {
+  const g = huntId ? Object.values(HUNT_GROUNDS).find((r) => r.hunt === huntId) : null;
+  const t = g && g.start && g.start[0];
+  return t ? { x: t[0], y: t[1], moving: false, d: 0, hx: 0, hy: 1 } : null;
+}
 
 export const SCENE_TIMING = Object.freeze({
   deathFadeMs: 400,     // VW-05: colour to a grey corpse
@@ -65,6 +74,7 @@ export function readHunt(cs) {
     people: partyPeopleOf(cs),
     viewed: h && h.hero.unit !== null ? h.hero.unit : p ? p.self : null,
     viewedShield: h ? h.hero.shield : null,
+    entrance: h ? entranceOf(h.huntId) : null,
     shown: (type, boss) => floatShown(cs, type, boss ? 'boss' : 'regular'),
   };
 }
@@ -88,10 +98,13 @@ export function createHuntScene(o) {
   const isHero = (u) => read.heroes.has(u) || (read.units.get(u) || {}).side === 'hero';
   const isBoss = (u) => !!(read.units.get(u) || {}).boss;
   const roleOf = (u) => (read.heroes.get(u) ? read.heroes.get(u).role : isHero(u) ? null : 'monster');
+  /* A monster's kind: the snapshot's, else the timeline's unit book (a corpse played after the
+     snapshot dropped it). Unknown is null and the unit is not drawn (never a stub box). */
   const spriteOf = (u) => {
     if (isHero(u)) { const m = read.heroes.get(u); return outfitSprite(m && m.outfit, m && m.role); }
-    return (read.units.get(u) || {}).kind || 'stub';
+    return (read.units.get(u) || {}).kind || (typeof tl.kindOf === 'function' ? tl.kindOf(u) : null) || null;
   };
+  const unnamed = new Set();
   /* How long a one-shot effect plays (its frames at its fps); a loop shows for its row's lifeMs. */
   function lifeOf(id, lifeMs) {
     const s = book.sprite(id);
@@ -192,11 +205,15 @@ export function createHuntScene(o) {
     return true;
   }
 
-  /** One unit's draw record at `now`, or null when it is gone. */
-  function unitAt(u, now) {
-    const p = tl.positionAt(u, now);
+  /** One unit's draw record at `now`, or null when it is gone (`at`: a stand-in position). */
+  function unitAt(u, now, at) {
+    const p = at || tl.positionAt(u, now);
     if (!p) return null;
     const id = spriteOf(u);
+    if (!id || !book.sprite(id) || book.sprite(id) === STUB_SPRITE) {
+      if (!unnamed.has(u)) { unnamed.add(u); console.warn('[hunt-scene] no sprite for unit ' + u + ' (' + id + '): not drawn'); }
+      return null;
+    }
     const hero = isHero(u);
     const m = read.heroes.get(u);
     let alpha = 1, grey = 0, under = false;
@@ -231,8 +248,10 @@ export function createHuntScene(o) {
     const out = { id, unit: u, x: p.x, y: p.y, anim, dir, diag, frame, alpha, grey, under,
       flash: !under && f !== undefined && now >= f && now - f < SCENE_TIMING.flashMs };
     if (!under) {
-      const hp = hero ? m && m.hp : (read.units.get(u) || {}).hp;
-      const hpMax = hero ? m && m.hpMax : (read.units.get(u) || {}).hpMax;
+      /* A monster's bar is its HP AT THE INSTANT SHOWN (timeline.js T6), the snapshot's only as a fallback. */
+      const played = hero || typeof tl.hpAt !== 'function' ? null : tl.hpAt(u, now);
+      const hp = hero ? m && m.hp : played ? played.hp : (read.units.get(u) || {}).hp;
+      const hpMax = hero ? m && m.hpMax : played ? played.maxHp : (read.units.get(u) || {}).hpMax;
       const mana = hero && m ? m.mana : null, manaMax = hero && m ? m.manaMax : null;
       const hpPct = Number.isFinite(hp) && hpMax > 0 ? Math.max(0, Math.min(1, hp / hpMax)) : null;
       const mpPct = Number.isFinite(mana) && manaMax > 0 ? Math.max(0, Math.min(1, mana / manaMax)) : null;
@@ -272,6 +291,9 @@ export function createHuntScene(o) {
       if (u === read.viewed) hero = d;
       else units.push(d);
     }
+    /* BEFORE THE FIRST WINDOW (just entered, or reloaded): the viewed hero stands at the ground's
+       entrance instead of leaving the screen empty. */
+    if (!hero && read.viewed !== null && read.entrance) hero = unitAt(read.viewed, now, read.entrance);
     const tgt = read.viewed !== null ? target.get(read.viewed) : undefined;
     for (const d of units) if (d.unit === tgt && !d.under) d.target = true;
     /* VW-06: the viewed hero's shield bubble while the server says it holds one. */

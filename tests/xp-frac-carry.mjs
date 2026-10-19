@@ -141,13 +141,14 @@ async function load(base) {
     at('src/core/xp.js'), at('src/data/core-model.js'),
   ]);
   const pacing = await at('src/core/pacing.js');
+  const member = await at('src/core/member.js');
   const buffs = await at('src/core/buffs.js');
   const tick = await at('supabase/functions/hr-accrue/tick.js');
   const tg = await at('supabase/functions/hr-accrue/tick-gather.js');
   const cat = await at('supabase/functions/hr-accrue/catalogue.js');
   const gatherFixture = JSON.parse(await readFile(join(ROOT, 'services', 'world-tick', 'fixtures', 'gather-sessions.json'), 'utf8')).sessions[0];
   const { RESIDUE_FIELDS: residueFields } = await import(pathToFileURL(join(base, 'src', 'session', 'residue.js')).href + '?t=' + Date.now());
-  return { prog, acc, cmb, sim, rng, env, shadow, contract, spawn, MONSTERS: monsters.MONSTERS, ITEMS: items.ITEMS,
+  return { prog, acc, member, cmb, sim, rng, env, shadow, contract, spawn, MONSTERS: monsters.MONSTERS, ITEMS: items.ITEMS,
     xp, core, pacing, buffs, tick, tg, gatherFixture, residueFields, GATHER_NODES: cat.GATHER_NODES };
 }
 
@@ -197,11 +198,11 @@ function combatInput(L, { fromMs, toMs, skills, xpFrac, perks, seed, monster }) 
    built here from the same exported core functions, so the attended column is
    an independent second construction of the same fight. */
 function attendedCtx(L, { skills, perks, boost, rng, xpState, onGrant }) {
-  const { cmb, acc, MONSTERS, ITEMS } = L;
+  const { cmb, member, MONSTERS, ITEMS } = L;
   const eq = cmb.equipmentStats({}, ITEMS, {});
   const setBonus = cmb.armorSetBonus({}, ITEMS);
-  const profile = acc.deriveProfile(eq.weaponType);
-  const bonus = acc.bonusFor(perks || null, boost ? { buffs: L.buffs.buffQueueFromServer(boost, FROM) } : null);
+  const profile = member.deriveProfile(eq.weaponType);
+  const bonus = member.bonusFor(perks || null, boost ? { buffs: L.buffs.buffQueueFromServer(boost, FROM) } : null);
   return {
     tickMs: 2000,
     ctx: {

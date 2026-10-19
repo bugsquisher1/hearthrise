@@ -70,7 +70,8 @@
 // ============================================================================
 
 import postgres from 'npm:postgres@3.4.5';
-import { computeAccrual, levelsOf, degradeStep, accrueWorkers, accrueRested, CALLER_AUTHORITY, SKIP } from './accrual.js';
+import { computeAccrual, degradeStep, accrueWorkers, accrueRested, CALLER_AUTHORITY, SKIP } from './accrual.js';
+import { levelsOf } from '../../../src/core/xp.js';
 /* THE ENVELOPE -> ENGINE INPUT MAP, shared with the world tick (2026-09-22).
    ONE field list for a two-level projection; see ./envelope.js. */
 import { engineInputsFromEnvelope } from './envelope.js';
@@ -1101,7 +1102,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       const huntOpenHere = out.reason === SKIP.HUNT_OPEN;
       const respond = async (auxOut: Record<string, any>): Promise<Response> => {
         if (!huntOpenHere) return json(auxOut);
-        const hv = await settleHunt({ exec, user, slot, mode: 'settle', bucket: null, project: true });
+        const hv = await settleHunt({ exec, user, slot, mode: 'settle', bucket: null, project: true, live: true });
         if (hv.status !== 200) {
           return json({ ...auxOut, hunt: { outcome: hv.outcome, reason: hv.reason ?? null } });
         }

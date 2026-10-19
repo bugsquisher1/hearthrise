@@ -49,7 +49,7 @@ async function load(root) {
   M.SUP = await imp('src/data/supplies.js');
   M.kit = await imp('src/data/start-kit.js');
   M.acc = await raw('supabase/functions/hr-accrue/accrual.js');
-  M.hg = await raw('supabase/functions/hr-accrue/hunt-ground.js');
+  M.hg = await raw('src/core/hunt-ground.js');
   M.heroSetup = (await raw('src/core/hunt-spawn.js')).heroSetup;
   M.drops = await imp('src/core/drops.js');
   M.hf = await imp('src/core/hearthfind.js');

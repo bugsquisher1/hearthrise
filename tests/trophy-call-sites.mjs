@@ -55,7 +55,8 @@ import { charmIndex, killsByClass } from '../src/core/charms.js';
 import { playerCombatRolls, monsterCombatRolls, weaknessInfo, equipmentStats } from '../src/core/combat.js';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
-const ACCRUAL = join(ROOT, 'supabase', 'functions', 'hr-accrue', 'accrual.js');
+/* The hunt engine seam lives in the member assembly (src/core/member.js memberSide since option B). */
+const ACCRUAL = join(ROOT, 'src', 'core', 'member.js');
 
 const SELFTEST = process.argv.slice(2).includes('--selftest');
 

@@ -44,7 +44,7 @@ import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.8
 import { createRng } from './rng.js?v=0.2.8';
 import { densityFor } from '../data/hunt-grounds.js?v=0.2.8';
 import { stepSwing } from './hunt/world-step.js?v=0.2.8';
-import { makeEvent } from './hunt/events.js?v=0.2.8';
+import { makeEvent, trackStep } from './hunt/events.js?v=0.2.8';
 import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.8';
 import { rewardSwing } from './hunt-rewards.js?v=0.2.8';
 
@@ -156,8 +156,17 @@ export function simulateHuntInstance(inst, ctx) {
   const track = []; const worldEvents = [];
   /* Every unit's kind as it was seen (a corpse is cleared after corpseMs): the analyzer's 'taken by monster'. */
   const kinds = {};
-  const seen = () => { if (world) for (const u of world.units) kinds[u.id] = u.kind; };
+  /* THE PLAYBACK'S UNIT BOOK (visual only, never value): each monster seen this window as
+     [kind, maxHp, hp when first seen] (the window's start, or its spawn), so the client names,
+     sizes and fills the bar of a unit it first meets mid-window or after the snapshot stopped
+     listing it (a corpse played behind the server); the window's dmg/heal events move the bar. */
+  const units = {};
+  const seen = () => { if (world) for (const u of world.units) { kinds[u.id] = u.kind; if (u.side === 'mon' && !units[u.id]) units[u.id] = [u.kind, u.maxHp, u.hp]; } };
   seen();
+  /* ANCHORS (visual only): every unit standing at the window's first instant gets a step on its
+     tile, so a unit that never moves inside a window is still placed by it (the track is moves). */
+  const anchor = (at) => { if (world) for (const u of world.units) if (u.alive) track.push(trackStep(u.id, u.x, u.y, at)); };
+  anchor(atMs);
   let swings = 0;
   for (const m of members) {
     m.left = !!m.hs.endedReason;
@@ -176,8 +185,12 @@ export function simulateHuntInstance(inst, ctx) {
       m.hs.swingIndex += 1;
       m.hs.nextSwingAtMs = atMs + tick;
       if (m.unitId === null) {
-        if (!world) { world = newHuntWorld(ctx.ground, ctx.grid, [heroOf(m)]); m.unitId = world.units[0].id; }
-        else m.unitId = joinHero(world, ctx.ground, heroOf(m), m.seat);
+        if (!world) { world = newHuntWorld(ctx.ground, ctx.grid, [heroOf(m)]); m.unitId = world.units[0].id; anchor(atMs); seen(); }
+        else {
+          m.unitId = joinHero(world, ctx.ground, heroOf(m), m.seat);
+          const j = world.units.find((x) => x.id === m.unitId);
+          if (j) track.push(trackStep(j.id, j.x, j.y, atMs));
+        }
         out.get(m.key).unitEver = m.unitId;
       }
       here.push(m);
@@ -258,5 +271,5 @@ export function simulateHuntInstance(inst, ctx) {
       unitIdEver: o.unitEver,
     };
   }
-  return { world, nextSwingAtMs: atMs, swings, track, events: worldEvents, kinds, members: summaries };
+  return { world, nextSwingAtMs: atMs, swings, track, events: worldEvents, kinds, units, members: summaries };
 }

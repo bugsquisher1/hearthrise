@@ -138,3 +138,10 @@ export function totalLevel(skills) {
   if (!skills) return 0;
   return Object.keys(skills).reduce((s, k) => s + levelOf(skills, k), 0);
 }
+
+/** Derived levels for the envelope, so the client never computes one. */
+export function levelsOf(skills) {
+  const out = {};
+  for (const k in (skills || {})) out[k] = skillLevelFromXp(k, Number(skills[k]) || 0);
+  return out;
+}

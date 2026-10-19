@@ -30,7 +30,7 @@ import { packHpFor, yieldPermille, routeFor } from '../../data/hunt-grounds.js?v
 import { cheb, dist2, freeNear, tileKey } from './grid.js?v=0.2.8';
 import { inArea, resetPack } from './leash.js?v=0.2.8';
 import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy } from './movement.js?v=0.2.8';
-import { makeEvent } from './events.js?v=0.2.8';
+import { makeEvent, trackStep } from './events.js?v=0.2.8';
 import { pickLeader, kites } from './roles.js?v=0.2.8';
 
 /* deadMs: a corpse's age. hpMilli: out-of-combat regen carried below one HP.
@@ -89,6 +89,7 @@ export function spawnPack(inst, p, sc) {
       w.nextId += 1;
       w.units.push(u);
       inst.occ.mon.set(tileKey(inst.grid, at[0], at[1]), u);
+      if (sc) sc.track(trackStep(u.id, at[0], at[1], sc.atMs));   // a respawn is placed by the track (visual only)
     }
   }
   w.packs[p].alive = true;

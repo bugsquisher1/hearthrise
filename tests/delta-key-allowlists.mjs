@@ -61,6 +61,11 @@
 //       unknown_delta_key — the regression this lane fixes, reproduced
 //   PI  2026-10-13-party-settle-frac-keys.sql re-applies byte-identically
 //
+// THE CORE REBUILD (2026-10-19) DROPS hr_party_tick_settle (2026-10-27-core-schema.sql): the M8 party world
+// tick is gone and a hunt party settles through hr_hunt_apply_member, whose keys hr_apply's c_delta_keys
+// judge. At the chain end KR / KB / KC / KW's party half / P / PS are therefore RETIRED (printed, not
+// skipped silently); P0 and PI still run at their own chain position, where the function exists.
+//
 // Exit: 0 green (or, under --mutate, every mutant caught) · 1 red · 2 harness.
 // ============================================================================
 
@@ -240,8 +245,9 @@ function staticArms({ src, applyDef, settleDef, columns }) {
   const P = proposable(src);
   const fold = foldClassified(src.contract);
   const apply = sqlArray(applyDef, 'c_delta_keys');
-  const ok = sqlArray(settleDef, 'c_delta_ok');
-  const stamp = sqlArray(settleDef, 'c_stamp');
+  const party = settleDef !== null;
+  const ok = party ? sqlArray(settleDef, 'c_delta_ok') : new Set();
+  const stamp = party ? sqlArray(settleDef, 'c_stamp') : new Set();
   if (!apply || !ok || !stamp) { fail('K0', 'an allowlist could not be read out of an installed body'); return { red, P }; }
   /* (`fight` left the combat set with the single-foe span, lane S1: the world carries the fight.) */
   const need = { combat: ['gold', 'xp', 'items', 'hp', 'accrued_to', 'journal', 'deaths', 'xp_frac'],
@@ -255,21 +261,25 @@ function staticArms({ src, applyDef, settleDef, columns }) {
      its declaration and the key check. A body that reads a name out of it
      (`format('%I', c_delta_ok[n])`) is a writer the single-writer scan's
      carve-out would otherwise hide. */
-  const code = settleDef.replace(/--[^\n]*/g, '');
-  const refs = (code.match(/c_delta_ok/g) || []).length;
-  if (refs !== 2 || !code.includes('k = any (c_delta_ok)') || !/c_delta_ok\s+constant\s+text\[\]\s*:=\s*array\[/.test(code)) {
-    fail('KR', `c_delta_ok is referenced ${refs} time(s); it may appear only in its declaration and the key check`);
+  if (party) {
+    const code = settleDef.replace(/--[^\n]*/g, '');
+    const refs = (code.match(/c_delta_ok/g) || []).length;
+    if (refs !== 2 || !code.includes('k = any (c_delta_ok)') || !/c_delta_ok\s+constant\s+text\[\]\s*:=\s*array\[/.test(code)) {
+      fail('KR', `c_delta_ok is referenced ${refs} time(s); it may appear only in its declaration and the key check`);
+    }
   }
   const live = (k) => !(k in DORMANT);
   const missA = [...P.all].filter((k) => live(k) && !apply.has(k));
   if (missA.length) fail('KA', `hr_apply's c_delta_keys does not accept ${missA.join(', ')} — every settle proposing it 409s unknown_delta_key`);
-  const missB = [...P.combat].filter((k) => live(k) && !ok.has(k) && !stamp.has(k));
-  if (missB.length) fail('KB', `hr_party_tick_settle's c_delta_ok does not accept ${missB.join(', ')} — every party window proposing it is refused whole`);
-  if ([...stamp].sort().join() !== [...STAMPING_DELTA_KEYS].sort().join()) {
-    fail('KB', `c_stamp {${[...stamp]}} is not STAMPING_DELTA_KEYS {${STAMPING_DELTA_KEYS}}`);
+  if (party) {
+    const missB = [...P.combat].filter((k) => live(k) && !ok.has(k) && !stamp.has(k));
+    if (missB.length) fail('KB', `hr_party_tick_settle's c_delta_ok does not accept ${missB.join(', ')} — every party window proposing it is refused whole`);
+    if ([...stamp].sort().join() !== [...STAMPING_DELTA_KEYS].sort().join()) {
+      fail('KB', `c_stamp {${[...stamp]}} is not STAMPING_DELTA_KEYS {${STAMPING_DELTA_KEYS}}`);
+    }
+    const extraC = [...ok].filter((k) => !apply.has(k));
+    if (extraC.length) fail('KC', `c_delta_ok accepts ${extraC.join(', ')} which hr_apply refuses (S-1: shadow evidence for an unpayable payload)`);
   }
-  const extraC = [...ok].filter((k) => !apply.has(k));
-  if (extraC.length) fail('KC', `c_delta_ok accepts ${extraC.join(', ')} which hr_apply refuses (S-1: shadow evidence for an unpayable payload)`);
   const missD = [...P.all].filter((k) => !fold.has(k));
   if (missD.length) fail('KD', `foldDeltas does not classify ${missD.join(', ')} — a tick fold throws on it`);
   for (const [k, { table, column }] of Object.entries(DORMANT)) {
@@ -406,6 +416,7 @@ async function scanArm(db, fracSql) {
   const planted = await scan();
   await db.exec('drop function public.zz_frac_probe();');
   if (planted !== 'zz_frac_probe') red.push(`KW: a planted body naming xp_frac was not caught (${planted})`);
+  if (!(await db.query(`select to_regprocedure('${SETTLE_SIG}') is not null as x`)).rows[0].x) return red;   // party half retired (core rebuild)
   const def = (await db.query(`select pg_get_functiondef('${SETTLE_SIG}'::regprocedure) d`)).rows[0].d;
   const bent = def.replace("  v_role     text;", "  v_role     text; -- xp_frac");
   if (bent === def) { red.push('KW: harness anchor v_role missing'); return red; }
@@ -436,7 +447,8 @@ async function installed(db) {
   const d = async (sig) => (await db.query(`select pg_get_functiondef('${sig}'::regprocedure) d`)).rows[0].d.replace(/\r/g, '');
   const cols = new Set((await db.query(`select table_name || '.' || column_name c from information_schema.columns
                                          where table_schema = 'public'`)).rows.map((r) => r.c));
-  return { applyDef: await d(APPLY_SIG), settleDef: await d(SETTLE_SIG), columns: cols };
+  const hasSettle = (await db.query(`select to_regprocedure('${SETTLE_SIG}') is not null as x`)).rows[0].x;
+  return { applyDef: await d(APPLY_SIG), settleDef: hasSettle ? await d(SETTLE_SIG) : null, columns: cols };
 }
 function fnSource(sql, name) {
   const start = sql.indexOf(`create or replace function public.${name}(`);
@@ -449,14 +461,17 @@ const settleMd5 = async (db) => (await db.query(
   `select md5(replace(prosrc, chr(13), '')) m from pg_proc where oid = '${SETTLE_SIG}'::regprocedure`)).rows[0].m;
 
 async function everything(db, src, fracSql, { log = () => {} } = {}) {
-  const st = staticArms(Object.assign({ src }, await installed(db)));
+  const inst = await installed(db);
+  const st = staticArms(Object.assign({ src }, inst));
   const red = [...st.red];
   if (!st.red.length) {
     log(`  ✓ K0 — derived: combat {${[...st.P.combat].sort()}}; gather+artisan add {${[...st.P.all].filter((k) => !st.P.combat.has(k)).sort()}}`);
-    log('  ✓ KA/KB/KC/KD/KE — hr_apply, the party settle (c_delta_ok + c_stamp), and foldDeltas cover every proposable key; c_delta_ok ⊆ hr_apply; ammo_carry is dormant (no column, no hr_apply key)');
+    log(inst.settleDef !== null
+      ? '  ✓ KA/KB/KC/KD/KE — hr_apply, the party settle (c_delta_ok + c_stamp), and foldDeltas cover every proposable key; c_delta_ok ⊆ hr_apply; ammo_carry is dormant (no column, no hr_apply key)'
+      : '  ✓ KA/KD/KE — hr_apply and foldDeltas cover every proposable key; ammo_carry is dormant. (KR/KB/KC/P/PS RETIRED: hr_party_tick_settle is dropped by the core rebuild)');
   }
   red.push(...await scanArm(db, fracSql));
-  red.push(...await dbArms(db, { log }));
+  if (inst.settleDef !== null) red.push(...await dbArms(db, { log }));
   return red;
 }
 
@@ -509,24 +524,25 @@ async function main() {
   if (control.length) { console.error(`harness: the unmutated control is red (${control.join(' | ')})`); process.exit(2); }
   const settleDef = (await installed(db)).settleDef;
   const applyDef = (await installed(db)).applyDef;
+  const PARTY = settleDef !== null;   // false since the core rebuild: the party mutants are retired with their function
   const bodyMutant = (def, from, to) => async () => {
     if (def.split(from).length !== 2) throw Object.assign(new Error(`anchor matched ${def.split(from).length - 1}x: ${from}`), { harness: true });
     await db.exec(def.replace(from, () => to));
     return async () => { await db.exec(def); };
   };
   const MUTANTS = [
-    { name: 'party allowlist lacks xp_frac', arms: /^(KB|P):/,
+    { party: true, name: 'party allowlist lacks xp_frac', arms: /^(KB|P):/,
       plant: bodyMutant(settleDef, "'xp_frac','companion_xp_frac'];", "'companion_xp_frac'];") },
-    { name: 'party allowlist lacks companion_xp_frac', arms: /^(KB|P):/,
+    { party: true, name: 'party allowlist lacks companion_xp_frac', arms: /^(KB|P):/,
       plant: bodyMutant(settleDef, "'xp_frac','companion_xp_frac'];", "'xp_frac'];") },
-    { name: 'party allowlist accepts a key hr_apply refuses', arms: /^KC:/,
+    { party: true, name: 'party allowlist accepts a key hr_apply refuses', arms: /^KC:/,
       plant: bodyMutant(settleDef, "'xp_frac','companion_xp_frac'];", "'xp_frac','companion_xp_frac','wealth'];") },
     /* Re-pointed lane C2: the engine no longer writes companion_xp_frac (companion
        XP deleted), so dropping THAT key from hr_apply is KC's and P's to see, not
        KA's. xp_frac is still engine output, so its absence must be KA-red. */
     { name: 'hr_apply allowlist lacks xp_frac', arms: /^KA:/,
       plant: bodyMutant(applyDef, "    'xp_frac',\n", '') },
-    { name: 'hr_apply allowlist lacks companion_xp_frac (no engine writer)', arms: /^(KC|P):/,
+    { party: true, name: 'hr_apply allowlist lacks companion_xp_frac (no engine writer)', arms: /^(KC|P):/,
       plant: bodyMutant(applyDef, "    'companion_xp_frac',\n", '') },
     { name: 'a NEW combat key the allowlists do not know', arms: /^(KA|KB|KD):/,
       src: { accrual: src.accrual.replace('  if (goldDelta > 0) delta.gold = goldDelta;', '  if (goldDelta > 0) delta.gold = goldDelta;\n  delta.zz_new_key = 1;') } },
@@ -554,7 +570,7 @@ async function main() {
       src: { ticks: Object.assign({}, src.ticks, { 'tick-gather.js': src.ticks['tick-gather.js'].replace(
         '  if (Array.isArray(folded.progress)) folded.progress = coalesceProgress(folded.progress);',
         "  if (Array.isArray(folded.progress)) folded.progress = coalesceProgress(folded.progress);\n  folded['zz'] = 1;") }) } },
-    { name: 'a party settle reads a name out of c_delta_ok (format %I)', arms: /^(KR|KW):/,
+    { party: true, name: 'a party settle reads a name out of c_delta_ok (format %I)', arms: /^(KR|KW):/,
       plant: bodyMutant(settleDef, '  v_role     text;', "  v_role     text; v_dyn text := format('%I', c_delta_ok[14]);") },
     { name: 'foldDeltas stops classifying xp_frac', arms: /^KD:/,
       src: { contract: src.contract.replace("export const ABSOLUTE_MAP = Object.freeze(['xp_frac']);", "export const ABSOLUTE_MAP = Object.freeze([]);") } },
@@ -564,7 +580,10 @@ async function main() {
       frac: fracSql.map((s) => s.replace("then regexp_replace(p.prosrc, 'c_delta_ok\\s+constant\\s+text\\[\\]\\s*:=\\s*array\\[[^]]*\\];', '')", "then ''")) },
   ];
   let survived = 0;
-  for (const m of MUTANTS) {
+  const retired = MUTANTS.filter((m) => m.party && !PARTY);
+  for (const m of retired) console.log(`  - ${m.name}: RETIRED with hr_party_tick_settle (dropped by the core rebuild)`);
+  const LIVE = MUTANTS.filter((m) => !(m.party && !PARTY));
+  for (const m of LIVE) {
     const s2 = Object.assign({}, src, m.src || {});
     if (m.src && Object.keys(m.src).some((k) => m.src[k] === src[k])) { console.error(`harness: ${m.name}: source anchor missed`); process.exit(2); }
     if (m.frac && m.frac.every((t, i) => t === fracSql[i])) { console.error(`harness: ${m.name}: scan anchor missed`); process.exit(2); }

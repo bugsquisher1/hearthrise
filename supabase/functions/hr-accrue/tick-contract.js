@@ -90,7 +90,8 @@ export function planWindows(anchorMs, fromMs, toMs, cadenceMs, tickMs) {
      APPEND     the key is a list of events; folding is concatenation, and the
                 per-call clamp (one death row, the progress-op cap) must be
                 re-checked AFTER the fold, never only per window. */
-export const ADDITIVE_SCALAR = Object.freeze(['gold']);
+/* level_xp (the core rebuild): Level XP is a signed movement credited by the hunt settle, folded by addition. */
+export const ADDITIVE_SCALAR = Object.freeze(['gold', 'level_xp']);
 export const ADDITIVE_MAP = Object.freeze(['xp', 'items']);
 export const ABSOLUTE = Object.freeze([
   'accrued_to', 'hp', 'fight', 'activity',

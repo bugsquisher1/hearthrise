@@ -22,18 +22,18 @@
 // open doll slot and the "new" marks. No key here is a walk key: selling is
 // Delete, so W, A, S and D always reach the World (Tyler 10-18).
 // ════════════════════════════════════════════════════════════════════════
-import { kindOf, equipSlotFor, markSeen } from '../../bag-model.js?v=0.2.0';
-import { assignToBar, barKind, barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.0';
-import { runIntent } from '../../intent-words.js?v=0.2.0';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.0';
-import { gold } from '../../../render/format.js?v=0.2.0';
-import { itemName } from '../../widgets/bits.js?v=0.2.0';
-import { showTip, hideTip } from '../item-tip.js?v=0.2.0';
-import { openFloatMenu, closeFloatMenu } from '../float-menu.js?v=0.2.0';
-import { stateOf, scratchOf, seenOf, confirmFor, junkOf, setPref } from './state.js?v=0.2.0';
-import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.0';
-import { askElsewhere } from './elsewhere.js?v=0.2.0';
-import { skillsOf } from '../../../session/item-sections.js?v=0.2.0';
+import { kindOf, equipSlotFor, markSeen } from '../../bag-model.js?v=0.2.1';
+import { assignToBar, barKind, barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.1';
+import { runIntent } from '../../intent-words.js?v=0.2.1';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.1';
+import { gold } from '../../../render/format.js?v=0.2.1';
+import { itemName } from '../../widgets/bits.js?v=0.2.1';
+import { showTip, hideTip } from '../item-tip.js?v=0.2.1';
+import { openFloatMenu, closeFloatMenu } from '../float-menu.js?v=0.2.1';
+import { stateOf, scratchOf, seenOf, confirmFor, junkOf, setPref } from './state.js?v=0.2.1';
+import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.1';
+import { askElsewhere } from './elsewhere.js?v=0.2.1';
+import { skillsOf } from '../../../session/item-sections.js?v=0.2.1';
 
 export const INVENTORY_EVENTS = Object.freeze(['input', 'keydown', 'contextmenu', 'pointerdown', 'pointerup', 'pointercancel',
   'dragstart', 'dragover', 'dragleave', 'drop', 'dragend', 'mouseover', 'mouseout']);

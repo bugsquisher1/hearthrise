@@ -19,19 +19,19 @@
 // hr_closed); the first such answer replaces everything with the closed notice.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPABASE_CONFIG, createSupabaseClient } from '../net/supabase-bootstrap.js?v=0.2.0';
-import { createAuth } from '../net/auth.js?v=0.2.0';
-import { SESSION_CONFIG } from '../session/config.js?v=0.2.0';
-import { createServerLink } from '../session/server.js?v=0.2.0';
-import { AccountSession } from '../session/account-session.js?v=0.2.0';
-import { FRAME_EVENT } from '../session/character-session.js?v=0.2.0';
-import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.0';
-import { mountWorldPane } from './world-pane.js?v=0.2.0';
-import { mountCharacterStrip } from './character-strip.js?v=0.2.0';
-import { createAlertCenter } from '../shell/alerts.js?v=0.2.0';
-import { createSocialRealtime } from '../social/realtime.js?v=0.2.0';
-import { SocialSession } from '../social/social-session.js?v=0.2.0';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.0';
+import { SUPABASE_CONFIG, createSupabaseClient } from '../net/supabase-bootstrap.js?v=0.2.1';
+import { createAuth } from '../net/auth.js?v=0.2.1';
+import { SESSION_CONFIG } from '../session/config.js?v=0.2.1';
+import { createServerLink } from '../session/server.js?v=0.2.1';
+import { AccountSession } from '../session/account-session.js?v=0.2.1';
+import { FRAME_EVENT } from '../session/character-session.js?v=0.2.1';
+import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.1';
+import { mountWorldPane } from './world-pane.js?v=0.2.1';
+import { mountCharacterStrip } from './character-strip.js?v=0.2.1';
+import { createAlertCenter } from '../shell/alerts.js?v=0.2.1';
+import { createSocialRealtime } from '../social/realtime.js?v=0.2.1';
+import { SocialSession } from '../social/social-session.js?v=0.2.1';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.1';
 
 const DISCORD = 'https://discord.gg/eJrUSUJM3M';
 

@@ -5,6 +5,16 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.1 — 2026-10-19 (Town and friends)
+
+**See each other in town.** Other players now walk through The Common in their own outfits. Right-click anyone to inspect their gear, send a message, add a friend, invite them to your party or block them.
+
+**Real chat.** Channels for everyone nearby, your party and the system, private whispers, a friends list and item links.
+
+**Smarter hunting.** Tell each action bar slot when to fire (heal below a set health, switch arrows when enough monsters bunch up), pick how many monsters to pull, and choose where to hunt from the new Hunts list. Two new hunting grounds: Meadowbrook Thicket and Coppercap Warrens.
+
+**Your character.** A Character window with your skills, stats, outfit and deaths; one Inventory for your bag and gear; storage anywhere in town; and Services for stamina, blessings and your name.
+
 ## v0.2.0 — 2026-10-18 (The hunt)
 
 **Hunting is here.** Take your character into the Mill Cellar, then down into the Millrace Sewer and its Rat King. Watch the fight play out: your party moves, pulls and kites on its own while you set the strategy (target, stance, distance, what to eat and drink) from the action bar. The hunt analyzer tracks kills, XP, gold and supplies.

@@ -5,15 +5,15 @@
 // derived from the id; a glyph when the id is not an item), an item's name, and
 // the frame every hunt panel sits in (title, minimise). Display only.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../../data/items.js?v=0.2.0';
-import { DRINK_ITEMS } from '../../data/drinks.js?v=0.2.0';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.0';
-import { ABILITIES } from '../../data/abilities.js?v=0.2.0';
-import { PIXEL_DIR } from '../../data/item-art.js?v=0.2.0';
-import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.0';
-import { glyphSvg } from '../launcher.js?v=0.2.0';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.0';
-import { text, style, attr } from '../../render/paint.js?v=0.2.0';
+import { ITEMS } from '../../data/items.js?v=0.2.1';
+import { DRINK_ITEMS } from '../../data/drinks.js?v=0.2.1';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.1';
+import { ABILITIES } from '../../data/abilities.js?v=0.2.1';
+import { PIXEL_DIR } from '../../data/item-art.js?v=0.2.1';
+import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.1';
+import { glyphSvg } from '../launcher.js?v=0.2.1';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.1';
+import { text, style, attr } from '../../render/paint.js?v=0.2.1';
 
 /** A gauge's skeleton: kind is hp | mana | stamina | xp. */
 export function gaugeHtml(kind, label) {

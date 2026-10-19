@@ -40,11 +40,11 @@
 // only things it sends of its own are the allowlisted residue and intents.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyEnvelope, applyFrame, withResidue } from './envelope.js?v=0.2.0';
-import { createTimeline } from '../hunt-view/timeline.js?v=0.2.0';
-import { RESIDUE_FIELDS, sanitizeResidueField } from './residue.js?v=0.2.0';
-import { SESSION_CONFIG } from './config.js?v=0.2.0';
-import { edgeBody } from './edge-intents.js?v=0.2.0';
+import { applyEnvelope, applyFrame, withResidue } from './envelope.js?v=0.2.1';
+import { createTimeline } from '../hunt-view/timeline.js?v=0.2.1';
+import { RESIDUE_FIELDS, sanitizeResidueField } from './residue.js?v=0.2.1';
+import { SESSION_CONFIG } from './config.js?v=0.2.1';
+import { edgeBody } from './edge-intents.js?v=0.2.1';
 
 export const FRAME_EVENT = 'frame';
 

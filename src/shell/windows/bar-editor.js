@@ -15,16 +15,16 @@
 // section, and a refusal is shown inline on the slot and condition it names.
 // Join (and/or) sits under "More options".
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS, OPERATORS, ACTION_TYPES, MAX_CONDITIONS } from '../../data/condition-metrics.js?v=0.2.0';
-import { ABILITIES } from '../../data/abilities.js?v=0.2.0';
-import { STATUSES } from '../../data/statuses.js?v=0.2.0';
-import { ITEMS } from '../../data/items.js?v=0.2.0';
-import { DRINK_ITEMS } from '../../data/drinks.js?v=0.2.0';
-import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.0';
-import { settingsOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.0';
-import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.0';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.0';
-import { itemName, abilityName } from '../widgets/bits.js?v=0.2.0';
+import { METRICS, OPERATORS, ACTION_TYPES, MAX_CONDITIONS } from '../../data/condition-metrics.js?v=0.2.1';
+import { ABILITIES } from '../../data/abilities.js?v=0.2.1';
+import { STATUSES } from '../../data/statuses.js?v=0.2.1';
+import { ITEMS } from '../../data/items.js?v=0.2.1';
+import { DRINK_ITEMS } from '../../data/drinks.js?v=0.2.1';
+import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.1';
+import { settingsOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.1';
+import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.1';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.1';
+import { itemName, abilityName } from '../widgets/bits.js?v=0.2.1';
 
 const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));

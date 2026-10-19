@@ -16,15 +16,15 @@
 // While a hunt runs the chest is at home and the hero is not: the window says
 // so and its moves stay off (the server's own rule is in CONFLICTS.md).
 // ════════════════════════════════════════════════════════════════════════
-import { bagOf, bankOf } from '../../session/item-sections.js?v=0.2.0';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.0';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.0';
-import { whole } from '../../render/format.js?v=0.2.0';
-import { glyphSvg } from '../launcher.js?v=0.2.0';
-import { itemName } from '../widgets/bits.js?v=0.2.0';
-import { runIntent } from '../intent-words.js?v=0.2.0';
-import { pocketHtml, patchCount } from './inventory/pockets.js?v=0.2.0';
-import { showTip, hideTip } from './item-tip.js?v=0.2.0';
+import { bagOf, bankOf } from '../../session/item-sections.js?v=0.2.1';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.1';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.1';
+import { whole } from '../../render/format.js?v=0.2.1';
+import { glyphSvg } from '../launcher.js?v=0.2.1';
+import { itemName } from '../widgets/bits.js?v=0.2.1';
+import { runIntent } from '../intent-words.js?v=0.2.1';
+import { pocketHtml, patchCount } from './inventory/pockets.js?v=0.2.1';
+import { showTip, hideTip } from './item-tip.js?v=0.2.1';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { query: '', pending: false, msg: '' }; SCRATCH.set(cs, s); } return s; };

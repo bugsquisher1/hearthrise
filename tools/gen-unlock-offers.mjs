@@ -63,6 +63,7 @@ import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { makeDie } from './lib/slice-literal.mjs';
+import { generatedTarget } from './lib/generated-target.mjs';
 import { SHOP_OFFERS } from '../src/data/shops.js';
 import { ITEMS } from '../src/data/items.js';
 import { PROPERTY_TIERS, ROOM_RUNGS } from '../src/data/homestead-tiers.js';
@@ -71,15 +72,14 @@ import {
 } from '../supabase/functions/hr-accrue/unlock-catalogue.js';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
-/* A REGEN IS A NEW DATED FILE, never a rewrite of an applied one: 2026-08-16-unlock-offers.generated.sql and
-   2026-10-23-demolition-unlock-offers.generated.sql (APPLIED 2026-10-17) stay in the chain byte-identical.
-   2026-10-26: hero slot 1 became a starter, so its refused character_slot.1 row left the shop. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2026-10-26-unlock-offers-slot-starter.generated.sql');
 const die = makeDie('gen-unlock-offers');
 
 const argv = process.argv.slice(2);
 const CHECK = argv.includes('--check');
 const REPORT = argv.includes('--report');
+/* THE OUTPUT: the newest migration this tool wrote, in apply order (tools/lib/generated-target.mjs); an
+   APPLIED one is never rewritten - `--new <YYYY-MM-DD-name>.generated.sql` starts the next forward file. */
+const OUT = generatedTarget(ROOT, 'gen-unlock-offers.mjs', argv, { write: !CHECK && !REPORT, die });
 
 
 /* ══════════════════════════════════════════════════════════════════════════

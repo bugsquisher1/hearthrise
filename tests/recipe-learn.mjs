@@ -276,7 +276,8 @@ async function boot(mutate, gateBlind, extra) {
      be graded against the catalogue the data authors, in every arm. */
   if (byFile.size) {
     const { readFileSync } = await import('node:fs');
-    await db.exec(readFileSync(new URL('supabase/migrations/2026-10-26-unlocks-slot-starter.generated.sql', ROOT), 'utf8'));
+    const { newestOwned } = await import('../tools/lib/generated-target.mjs');
+    await db.exec(readFileSync(newestOwned((await import('node:url')).fileURLToPath(ROOT), 'gen-unlocks.mjs').path, 'utf8'));
   }
   if (post) await db.exec(post);
   return db;

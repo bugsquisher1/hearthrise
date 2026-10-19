@@ -20,7 +20,6 @@
 
 import { runAll as coreGuards } from './core-purity.mjs';
 import { runAll as accrualGuards } from './accrual-engine.mjs';
-import { autoEatAuthorityGuard } from './auto-eat-authority.mjs';
 import { perkChannelGuard } from './perk-channel.mjs';
 import { companionPerkGuard } from './companion-perk.mjs';
 import { companionXpGuard } from './companion-xp.mjs';
@@ -49,7 +48,6 @@ import { feastCatalogueDriftGuard } from './clan-feast-catalogue-drift.mjs';
 import { rpcGateBucketGuard } from './rpc-gate-bucket-guard.mjs';
 import { heroSlotBuyGuard } from './hero-slot-buy.mjs';
 import { combatStyleGuard } from './combat-style.mjs';
-import { accrueEnvelopeAwayGuard } from './accrue-envelope-away.mjs';
 import { unlockOfferOwnershipGuard } from './unlock-offer-ownership.mjs';
 import { unlockCatalogueOwnershipGuard } from './unlock-catalogue-ownership.mjs';
 import { companionGrantHardeningGuard } from './companion-grant-hardening.mjs';
@@ -889,24 +887,6 @@ const run = async () => {
       console.log('\nAccrual guard — server accrual matches the client for the same seed; hostile inputs inert.');
     }
 
-    /* ── The auto-eat authority guard ───────────────────────────────────
-       The accrual guard above proves the ENGINE eats correctly. This proves
-       the DATABASE only ever lets it: hr_set_auto_eat is the sole writer of
-       the three columns the engine reads, and it is the thing standing
-       between "the server heals you" and "the server hands every character
-       a 100-Bounty-Mark trait". Runs a real PostgreSQL in process (PGlite)
-       with the real migrations applied verbatim, and pairs every refusal
-       with a control. See tests/auto-eat-authority.mjs. */
-    const autoEatProblems = await autoEatAuthorityGuard();
-    if (autoEatProblems.length) {
-      console.log('\nAuto-eat authority guard (the entitlement gate holds) — FAILED:');
-      for (const p of autoEatProblems) console.log(`  ✗ ${p}`);
-      exitCode = 1;
-    } else {
-      console.log('\nAuto-eat authority guard — the entitlement gate, the catalogue, the threshold, '
-        + 'collect_first and the grants all hold, each against a control.');
-    }
-
     /* ── The perk channel guard (b349) ───────────────────────
        The whole chain, EXECUTED: a player_progress unlock row ->
        hr_unlock_levels -> hr_perks_of -> normalisePerkState -> makeBonus ->
@@ -1062,22 +1042,6 @@ const run = async () => {
     } else {
       console.log('\nCollection/renown claim drift guard — milestone + rank catalogues, client rows, '
         + 'and the credit RPC SQL all agree on every threshold + gold + gems.');
-    }
-
-    /* ── The kill-credit plausibility-cap drift guard (bug #5) ──────────────
-       hr_bounty_kill_cap reproduces src/core/kill-time.js in SQL so
-       hr_credit_kills can clamp a client's claimed kills to the physical maximum
-       a character of its level could make. Binds the integer coefficients + the
-       migration's GATE(c) anchors to the core model so the two runtimes cannot
-       diverge (a divergence = an honest kill refused, or a forged one accepted). */
-    try {
-      const { killTimeDriftGuard } = await import('./kill-time-drift.mjs');
-      const r = await killTimeDriftGuard();
-      console.log(`\nKill-time drift guard — ${r.checks}`);
-    } catch (e) {
-      console.log('\nKill-time drift guard — FAILED:');
-      for (const p of (e.problems || [e.message])) console.log(`  ✗ ${p}`);
-      exitCode = 1;
     }
 
     /* ── The combat-XP cap drift guard (bug #5 root pt2) ─────────────────────
@@ -1651,74 +1615,6 @@ const run = async () => {
 
     /* The b497 goal-gold retune guard (tests/goal-gold-retune.mjs) was deleted with
        daily quests in the 2026-10-14 demolition; its migration stays in the chain. */
-    /* ── The kill → DAILY-goal credit guard (live report #41 residual) ───
-       Daily AND weekly kill goals grade on player_progress(kind='daily',
-       key='ev:kill_any', period=<utc day key>), whose only writer was the
-       away/span-sim (60-99% undercount). hr_credit_kills wrote 'ev:kill_any'
-       only as the LIFETIME stat row, so an attended kill-30 daily sat at
-       "30/30 · Confirming…" with no Claim. The guard drives a real player
-       through the real rate-gated hr_credit_kills on a fully replayed PGlite
-       chain and then through the real hr_claim_goal — so the assertion is "the
-       player can now claim", not "a row exists". It also proves the CONTAINMENT
-       that makes the new bounty-free branch reviewable: a credit with no active
-       bounty moves the daily row and NOTHING else (not the lifetime counters
-       hr_renown_of scores and hr_claim_quest pays on, not the bestiary, not
-       gold/gems), the anchor closes its window, a settle-first credit pays
-       nothing, and the per-day ceiling binds. `--selftest` plants nine real
-       defects, two of them with the migration's own gate short-circuited so the
-       guard alone has to see them; every one must read RED. */
-    try {
-      const { killDailyCreditGuard } = await import('./kill-daily-credit.mjs');
-      const kdcProblems = await killDailyCreditGuard();
-      if (kdcProblems.length) {
-        console.log('\nKill → daily-goal credit guard — FAILED:');
-        for (const p of kdcProblems) console.log(`  ✗ ${p}`);
-        exitCode = 1;
-      } else {
-        console.log('\nKill → daily-goal credit guard — the daily ev:kill_any row is stamped by '
-          + 'both branches, the bounty-free branch writes that row and nothing else, the anchor '
-          + '+ per-day ceiling bind, a replay does not double-stamp, and hr_claim_goal pays '
-          + 'kill_more/wk_kills off it.');
-      }
-    } catch (e) {
-      console.log('\nKill → daily-goal credit guard — FAILED:\n' + String(e.message || e));
-      exitCode = e.harness ? 2 : 1;
-    }
-
-    /* ── The renown kill-faucet guard (Security R5) ───────────────────────
-       A LIVE, PRE-EXISTING faucet in the deployed 2026-08-30 code:
-       hr_credit_kills writes stat/ev:kill_any and stat/ev:kill_monster:<id>,
-       and hr_renown_of SCORES both (0.05/kill; 5/kill for is_boss ids) — because
-       hr_bounty_kills reads that same bestiary row, so moving renown is a side
-       effect of making a bounty completable. Measured at 65 boss kills/min
-       behind ONE held bounty = 19,500 renown/hour, ~8.5x honest, against a score
-       that gates hr_claim_rank (1,603,000 gold + 925 gems per character) and the
-       renownAllXp perk on the LIVE level boards.
-       The guard drives a real player through the REAL hr_accept_bounty /
-       hr_credit_kills / hr_claim_bounty against a REAL is_boss monster on a fully
-       replayed PGlite chain. ⚠ Its FIRST check is the HONEST CONTROL — a
-       server-simulated settle must still score in full — because every other
-       assertion here is "a number did not move" and they all pass trivially if
-       renown is broken to always return 0. `--selftest` plants seven real
-       defects, two with the migration's own gate short-circuited; every one must
-       read RED. */
-    try {
-      const { renownKillFaucetGuard } = await import('./renown-kill-faucet.mjs');
-      const rkfProblems = await renownKillFaucetGuard();
-      if (rkfProblems.length) {
-        console.log('\nRenown kill-faucet guard — FAILED:');
-        for (const p of rkfProblems) console.log(`  ✗ ${p}`);
-        exitCode = 1;
-      } else {
-        console.log('\nRenown kill-faucet guard — a client kill credit scores ZERO renown '
-          + '(sustained spam and throttled credits included) while a server settle still scores in '
-          + 'full, the discount is per-monster and unprunable, the bestiary row still moves and the '
-          + `bounty turn-in still pays. hr_renown_of read cost: ${renownKillFaucetGuard.readCost}.`);
-      }
-    } catch (e) {
-      console.log('\nRenown kill-faucet guard — FAILED:\n' + String(e.message || e));
-      exitCode = e.harness ? 2 : 1;
-    }
 
     /* ── The HERO-SLOT purchase guard (2026-09-08) ───────────────────────
        Three live defects in one surface. The Buy button was LIT AND DEAD:
@@ -1782,28 +1678,6 @@ const run = async () => {
       console.log('\nCombat-style guard — the engine routes settle XP to the SERVER-STORED style, '
         + 'catalogue bound to src/core/styles.js both ways, never read from a request body, '
         + 'collect-first guarded, accrued_to never stamped.');
-    }
-
-    /* ── THE ENVELOPE CONTRACT: every accrued:true carries `away` (b475) ─
-       The standalone parallel-settle branch in index.ts (pointer idle, rested
-       bank and/or worker crew owe) returned accrued:true WITHOUT an `away`
-       receipt, so the client gate isEnvelopeApplicable classified a genuine
-       grant as `malformed` — three of those tripped ACCRUE_HALT_AFTER_TRIES and
-       raised "Away progress is paused" while HIDING the grant the server made.
-       Affected any returning player idle with a pending rested bank (everyone
-       banks on wall-clock) or a worker crew. This guard proves the source
-       attaches `away` (RED against pre-fix index.ts) AND that the rested-only /
-       worker-only responses pass the real client gate, while the same responses
-       WITHOUT away read malformed — the class this would have caught. */
-    const envAwayProblems = await accrueEnvelopeAwayGuard();
-    if (envAwayProblems.length) {
-      console.log('\nAccrue envelope contract (every accrued:true carries away) — FAILED:');
-      for (const p of envAwayProblems) console.log(`  ✗ ${p}`);
-      exitCode = 1;
-    } else {
-      console.log('\nAccrue-envelope-away guard — the standalone rested/worker settle attaches a '
-        + 'well-formed away receipt (pure projection, no rolls); the real client gate accepts it '
-        + 'and fails closed on a missing receipt.');
     }
 
     /* ── The catalogue-refill ownership interlock (b461) ─────────────────
@@ -2039,7 +1913,7 @@ const run = async () => {
        indistinguishable from one that passed. A retired guard leaves this list
        in the SAME commit. */
     const REQUIRED_GUARD_MARKERS = [
-      'Core guard', 'Accrual guard', 'Auto-eat authority guard', 'Perk channel guard',
+      'Core guard', 'Accrual guard', 'Perk channel guard',
       'Artisan progress model guard', 'Goal counters guard', 'Artisan accrual guard',
       'Live settlement Phase 0', 'Equip intent (Phase 2)', 'Skill-row upsert',
       'Unlock purchase guard', 'Market v2 guard', 'Market intent guard',

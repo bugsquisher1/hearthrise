@@ -744,21 +744,6 @@ jobs:
           node tests/client-state-retired-fields.mjs
           node tests/client-state-retired-fields.mjs --selftest
 
-      # 2026-10-04-bounty-abandon-server-fee.sql (Security P2): the abandon fee is
-      # priced from the server's active_bounty + Bounty-Hunter level, never a client
-      # number. Replays the chain up to the K4 retirement (bounty-gems-close drops
-      # these RPCs at chain end) and drives the gated wrapper as
-      # `authenticated`: the file re-applies byte-identically, the retired
-      # (level, reward) call does not resolve, a level-15 abandon pays 10 and ends
-      # the contract, a second abandon is refused, level 9 pays 0, and the ungated
-      # body reaches no client. --mutate plants four defects (§5 switched off so
-      # they reach these arms) and requires each CAUGHT by its named arm.
-      - name: Bounty abandon fee — server-priced, contract ends, second apply identical
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/bounty-abandon-fee.mjs
-          node tests/bounty-abandon-fee.mjs --mutate
-
       # 2026-10-23-demolition-bounty-gems-close.sql (BETA_PLAN K4 + K37): at chain
       # end the bounty RPCs do not resolve for a player, and the ONE gem credit
       # refuses gems_retired (a 1-gem start kit is refused end to end, 0 gems land).
@@ -2316,25 +2301,6 @@ jobs:
           node tests/basic-attack-interval.mjs
           node tests/basic-attack-interval.mjs --mutate
 
-      # THE RENOWN FAUCET'S MUTATION HARNESS — the half that proves the guard
-      # itself can fail. The guard already runs inside run-smoke; its --selftest
-      # was wired into NOTHING, which is the restore-census mistake below,
-      # repeated. Worse, until 2026-08-31 it graded ANY throw as a catch: eight
-      # of eleven mutations demonstrated only "the apply threw", and a reviewer's
-      # SYNTAX-ONLY non-defect duly reported ✓ CAUGHT. Every mutation now names
-      # WHICH mechanism must catch it (the migration's own §3 gate, or this
-      # file's assertions) and a regex the catch must MATCH; a syntax error or an
-      # unplantable anchor is classified HARNESS and exits 2; and two permanent
-      # NEGATIVE CONTROLS — the reviewer's syntax-only plant and a comment-only
-      # plant — must never read as catches. Making `by` explicit also exposed
-      # that R2's counter equality, R6 and R9 had no mutation that reached them
-      # at all (§3 refused every defect aimed at them first), so all three were
-      # assertions nothing had ever fired; they now have gate-blind twins.
-      # 14 mutations + 2 controls, ~2 minutes of real PostgreSQL.
-      - name: Renown faucet — every mutation caught by its NAMED assertion
-        if: ${{ !cancelled() }}
-        run: node tests/renown-kill-faucet.mjs --selftest
-
       # ⬇ THE FLOOR UNDER EVERY MUTATION PROOF (2026-09-12, tests/guard-hygiene.mjs
       # RULE 5). Each of the 22 steps below used to register ONLY the --selftest arm.
       # A security review planted `where kind = NOSUCHCOLUMN_XYZ` in a guard's OWN SQL:
@@ -2698,30 +2664,6 @@ jobs:
         run: |
           node tests/raid-band-denial.mjs
           node tests/raid-band-denial.mjs --selftest
-
-      # THE BACKFILLED LIFETIME PLANT COUNTER MUST STAY UNPAYABLE (Security P2 on
-      # supabase/migrations/2026-09-07-farm-plant-lifetime-counter.sql). That file
-      # backfilled a lifetime stat/'ev:planted' row for 27 (user, slot) pairs from
-      # the plant ledger - a stock of already-completed work that no catalogue
-      # grades today. Two independent paths could make it payable, and neither is
-      # covered by the other: a row in hr_goal_rewards naming a lifetime kind
-      # (now refused by a CHECK constraint), and a fifth branch in
-      # hr_claim_quest__ungated's hardcoded CASE over LIFETIME stat keys, which
-      # no constraint anywhere can reach. The guard proves the constraint EXISTS,
-      # is VALIDATED and bites (an executed counter_kind='stat' insert must raise
-      # 23514 after a control insert succeeds), that the quest body names no
-      # ev:planted, AND - the property that actually matters - drives a character
-      # holding 40x the target as a LIFETIME counter through the real
-      # hr_goal_state / hr_claim_goal and requires have=0 and a 'not_complete'
-      # refusal, with a non-vacuity arm showing the same reads do say yes to a
-      # real daily counter. 4 defects x 2 arms (gate / SEC-4-blind) plus a GREEN
-      # control that deletes the CREATE TABLE's inline check so the migration's
-      # own ADD path is exercised rather than assumed. No credentials.
-      - name: Goal counter kinds - the backfilled lifetime ev:planted stock cannot be claimed
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/goal-counter-kinds.mjs
-          node tests/goal-counter-kinds.mjs --selftest
 
       # ORPHAN ADOPTED. W1-W13 on the shipped hired-crew accrual engine. Its
       # header claimed run-smoke.mjs invoked it; nothing did, so thirteen

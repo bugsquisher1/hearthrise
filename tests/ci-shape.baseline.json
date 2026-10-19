@@ -353,6 +353,8 @@
     "node tests/hunt-scene.mjs --mutate": "client-guards",
     "node tests/hunt-scene-live.mjs --node": "client-guards",
     "node tests/hunt-scene-live.mjs --mutate": "client-guards",
+    "node tests/hunt-live.mjs": "client-guards",
+    "node tests/hunt-live.mjs --mutate": "client-guards",
     "node tests/client-intent-surface.mjs": "client-guards",
     "node tests/client-intent-surface.mjs --selftest": "client-guards",
     "node tests/client-module-size.mjs": "client-guards",

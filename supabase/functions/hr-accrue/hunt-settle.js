@@ -65,7 +65,7 @@ import { seederFor } from './hunt-seed.js';
    input and the next LIVE_SEEDS combat-swing seeds. THE DROP STREAM ('r') IS NEVER SENT: the
    browser cannot foresee loot, and shows none until a server envelope confirms it. A party
    member's purse is withheld (null); its skills, gear and bar are sent (the shared instance needs
-   them; listed for the reopen Security review in docs/design/server-authority.md). Prediction
+   them; listed for the reopen Security review in docs/design/ARCHITECTURE_CONTRACTS.md §L). Prediction
    only: nothing the browser simulates is spent or credited (CLAUDE.md §1, §6). */
 export const LIVE_SEEDS = 64;
 /** The next LIVE_SEEDS combat-swing seeds from world swing `from` (domain 's' only, never 'r'). */

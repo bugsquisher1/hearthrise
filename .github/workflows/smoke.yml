@@ -3587,6 +3587,15 @@ jobs:
           node tests/hunt-scene-live.mjs --node
           node tests/hunt-scene-live.mjs --mutate
 
+      # The live view (option B, 2026-10-19): the browser's swings are the server's (determinism over
+      # commits and seed refreshes, solo and party), loot is not foreseeable from what the browser
+      # holds, a divergence eases back, and a melee hero holds its tile like the sim's.
+      - name: Hunt live view
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/hunt-live.mjs
+          node tests/hunt-live.mjs --mutate
+
       - name: Client intent surface
         if: ${{ !cancelled() }}
         run: |

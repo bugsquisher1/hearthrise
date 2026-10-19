@@ -30,6 +30,11 @@
 //                      the party and hunt-again intents, re-read the same way;
 //   saveOutfit(o, c)   the outfit INTENT (hr_outfit_set), re-read the same way
 //   findParties        the party finder, a read whose rows are never the record
+//   hunt re-read       while the server holds a hunt open, one hello every
+//                      SESSION_CONFIG.huntPollMs: the hunter's settle answers
+//                      the new state, track and events (frames never carry the
+//                      `hunt` section, and the world tick flushes only every
+//                      90 s), and it stops on the envelope that says it ended
 //   timeline           the settle responses' visual timeline (src/hunt-view/
 //                      timeline.js): tracks and events, never the record
 //   now()              the display clock the timeline plays on
@@ -105,6 +110,7 @@ export class CharacterSession {
     this._attempt = 0;
     this._retry = null;
     this._residueTimer = null;
+    this._huntTimer = null;
     this._pending = {};
     this._closed = false;
     this.lastVerdict = null;
@@ -138,7 +144,26 @@ export class CharacterSession {
     this.receivedAt = this._now();
     this._play(body);
     this._emit(why);
+    this._armHuntPoll();
     return true;
+  }
+
+  /* Does the server hold a hunt open for this character (its last word, never a guess)? */
+  _huntOpen() {
+    const h = this.read('hunt');
+    return !!h && typeof h === 'object' && typeof h.session_id === 'string' && h.ended !== true;
+  }
+
+  /* THE HUNT RE-READ: armed by every applied answer while a hunt is open, never twice. */
+  _armHuntPoll() {
+    if (this._closed || this._huntTimer || !this._huntOpen()) return;
+    this._huntTimer = this._setTimer(() => { this._huntTimer = null; this._huntPoll(); }, SESSION_CONFIG.huntPollMs);
+  }
+
+  async _huntPoll() {
+    if (this._closed || !this._huntOpen()) return;
+    try { await this.hello(); } catch (e) { /* the next ask retries */ }
+    this._armHuntPoll();
   }
 
   /* The answer's timeline goes to the playback buffer; the snapshot's pose reconciles it gently. */
@@ -192,10 +217,17 @@ export class CharacterSession {
     return this._settled(await this._server.rpc('hr_action_set_copy', { p_from: this.slot, p_to: toSlot, p_idem: newIdem() }));
   }
 
-  /** Leave the hunt (hr_hunt_leave): the server settles and ends it; the re-read shows the summary. */
+  /**
+   * Leave the hunt (hr_hunt_leave). Ended at once, the re-read shows it; a PENDING leave (hunting
+   * time owed) is settled now by the hunter's own settle, which never holds a leave back, so the
+   * envelope that answers it says the hunt ended and the hero is home.
+   */
   async leaveHunt() {
     if (this._closed) return { ok: false, error: 'closed' };
-    return this._settled(await this._server.rpc('hr_hunt_leave', { p_slot: this.slot, p_idem: newIdem() }));
+    const ans = await this._server.rpc('hr_hunt_leave', { p_slot: this.slot, p_idem: newIdem() });
+    if (this._closed) return { ok: false, error: 'closed' };
+    if (ans.ok && ans.body && ans.body.ok === true && ans.body.pending === true) { await this.hello(); return { ok: true }; }
+    return this._settled(ans);
   }
 
   /**
@@ -428,6 +460,7 @@ export class CharacterSession {
     if (!r.applied) return false;
     this._record = r.record;
     this._emit('frame');
+    this._armHuntPoll();
     if (before !== null && r.record.version > before + 1) this.hello();
     return true;
   }
@@ -480,6 +513,7 @@ export class CharacterSession {
     if (this._leave) { try { this._leave(); } catch (e) { /* already gone */ } this._leave = null; }
     if (this._retry) { this._clearTimer(this._retry); this._retry = null; }
     if (this._residueTimer) { this._clearTimer(this._residueTimer); this._residueTimer = null; }
+    if (this._huntTimer) { this._clearTimer(this._huntTimer); this._huntTimer = null; }
     this._record = null;
     this._pending = {};
     this._status = 'closed';

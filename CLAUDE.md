@@ -52,7 +52,7 @@ Player-visible bugs first, in the order a player meets them. No new feature trac
 | Lane | What | Gates, in order |
 |---|---|---|
 | **A. Bug** | player-visible fix, client and/or edge, no DB body change | merge alone → visual pass on touched screens only if a rendered surface changed (+combat & inventory if CSS moved) → edge deploy if `supabase/functions/**` moved → bump → push `release/vX.Y.Z` and `main` → GitHub run (the in-page suite runs there) → report. A red is fixed forward within the hour. Target ≤60 min from branch landing. |
-| **B. Feature / multi-file** | features, refactors, content batches, multi-surface changes | merge the ready set → visual gate on the ASSEMBLED branch, touched screens only (922×423, screenshots READ; +combat & inventory if CSS moved; buttons stay off until the server confirms) → bump → push `release/vX.Y.Z` → GitHub green (the in-page suite runs there) → push `main` → report |
+| **B. Feature / multi-file** | features, refactors, content batches, multi-surface changes | merge the ready set → visual gate on the ASSEMBLED branch, touched screens only (DESKTOP first, 922×423 only when usage allows — Tyler 2026-10-19; screenshots READ; +combat & inventory if CSS moved; buttons stay off until the server confirms) → bump → push `release/vX.Y.Z` → GitHub green (the in-page suite runs there) → push `main` → report |
 | **C. DB / economy** | any migration or RPC body change | author + §4 self-check + `schema-drift` replay + `apply-order-honesty` → **Security GO** → Coordinator applies (one file; landed body md5s match the review) → `live-hash-drift --live --write` + apply-order note flipped to APPLIED, in ONE Coordinator commit (the authoring lane re-pins `restore-census` in its own commit when it adds a table or changes seeded rows) → edge deploy if the engine moved → THEN the client half ships via A or B. The apply always precedes the client push that needs it. No separate post-apply verification agent: the migration's §4 self-check runs inside the apply and rolls it back on failure. |
 
 Every lane:
@@ -91,7 +91,7 @@ Start each session by PLAYING: the QA account on live through the real loop, and
 - **Memory stays pruned:** dated logs retire once their lessons are folded into durable notes or this file; stale facts are deleted when found.
 
 ### 3.7 Re-tighten before the Early Access wipe (Tyler, 2026-10-14)
-The 2026-10-14 lightening is for a beta nobody plays. Before EA: the full mutation sweep is green on the launch build with no waivers; Security briefs protect existing player data again and census re-pins follow every apply; the play gate moves before `main` (a staging origin with the QA account signed in); desktop comes back into the visual gate; any combat-engine deploy passes the combat replay; the designer does a full re-read.
+The 2026-10-14 lightening is for a beta nobody plays. Before EA: the full mutation sweep is green on the launch build with no waivers; Security briefs protect existing player data again and census re-pins follow every apply; the play gate moves before `main` (a staging origin with the QA account signed in); any combat-engine deploy passes the combat replay; the designer does a full re-read.
 
 ---
 

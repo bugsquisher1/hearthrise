@@ -17,18 +17,18 @@
 // Every control is one intent, off from the press until the server answered;
 // the window changes only from the re-read envelope. Nothing is predicted.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.1';
-import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.1';
-import { WEAPON_WORDS } from '../../data/hunt-hud.js?v=0.2.1';
-import { partyMembershipOf, invitesOf, huntName } from '../../session/party-sections.js?v=0.2.1';
-import { nameOf } from '../../session/item-sections.js?v=0.2.1';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.1';
-import { markPlayer } from '../context-menu.js?v=0.2.1';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.1';
-import { glyphSvg } from '../launcher.js?v=0.2.1';
-import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.1';
-import { runIntent } from '../intent-words.js?v=0.2.1';
-import { finderHtml, patchFinder, actFinder, partyScratch } from './party-finder.js?v=0.2.1';
+import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.2';
+import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.2';
+import { WEAPON_WORDS } from '../../data/hunt-hud.js?v=0.2.2';
+import { partyMembershipOf, invitesOf, huntName } from '../../session/party-sections.js?v=0.2.2';
+import { nameOf } from '../../session/item-sections.js?v=0.2.2';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.2';
+import { markPlayer } from '../context-menu.js?v=0.2.2';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.2';
+import { glyphSvg } from '../launcher.js?v=0.2.2';
+import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.2';
+import { runIntent } from '../intent-words.js?v=0.2.2';
+import { finderHtml, patchFinder, actFinder, partyScratch } from './party-finder.js?v=0.2.2';
 
 const nameFor = (cs) => nameOf(cs) || 'Character ' + (cs.slot + 1);
 

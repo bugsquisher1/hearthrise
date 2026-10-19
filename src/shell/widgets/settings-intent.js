@@ -12,12 +12,12 @@
 //
 // Controls are marked `data-opt="<key>"`; buttons carry `data-val`.
 // ════════════════════════════════════════════════════════════════════════
-import { TARGET_MODES, HUNT_STANCES, HERO_DISTANCE } from '../../data/rule-subjects.js?v=0.2.1';
-import { SUPPLY_SOURCE, ON_EMPTY, GATHER_SHARE } from '../../data/hunt-sessions.js?v=0.2.1';
-import { DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.1';
-import { settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.1';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.1';
-import { text, attr, prop, cls } from '../../render/paint.js?v=0.2.1';
+import { TARGET_MODES, HUNT_STANCES, HERO_DISTANCE } from '../../data/rule-subjects.js?v=0.2.3';
+import { SUPPLY_SOURCE, ON_EMPTY, GATHER_SHARE } from '../../data/hunt-sessions.js?v=0.2.3';
+import { DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.3';
+import { settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.3';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.3';
+import { text, attr, prop, cls } from '../../render/paint.js?v=0.2.3';
 
 export const SUPPLY_LABEL = Object.freeze({ mine: 'Use my own supplies', store: 'Buy from the store' });
 export const ON_EMPTY_LABEL = Object.freeze({ switch: 'Buy from the store', end: 'End the hunt' });

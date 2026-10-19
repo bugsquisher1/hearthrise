@@ -27,4 +27,9 @@ export const SESSION_CONFIG = Object.freeze({
   /** Reconnect delay bounds for a character's push channel. */
   reconnectMinMs: 1000,
   reconnectMaxMs: 60000,
+  /** While a hunt is open, the character asks the engine to bring it up to date this often (hr-accrue
+      {slot}: the hunter's settle, with its track and events). Just over the engine's player-door floor
+      (hunt-settle.js HUNT_SETTLE_MIN_MS, 15 s) so each ask pays a window; the world tick only flushes a
+      session owed 90 s or more, so without this an attended hunt shows nothing for a minute and a half. */
+  huntPollMs: 16000,
 });

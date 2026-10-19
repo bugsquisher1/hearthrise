@@ -38,7 +38,8 @@
 //     world's navigation table names nothing that could send an intent
 //   S STEERING: no corner cutting, a tap on a blocked tile walks to the nearest
 //     reachable one, and a hero left IDLE_TO_STATION_MS walks to its activity's
-//     station once — and nothing else does
+//     station once — but never after the player steered it (tap or keys) until
+//     the activity changes (live v0.2.1: "walks to a random spot when I stop")
 //   K THE KEYS: held WASD/arrows walk the same tile legs at the same speed by
 //     the same no-corner-cutting rule, eight ways; let go and the step ends on
 //     a tile; a key takes over from a tap walk (live b585: "WASD doesn't work")
@@ -273,20 +274,31 @@ function check(M) {
     for (let t = 0; t <= 2500; t += 50) f = ws.frame(ENV({ kind: 'gather' }), t);
     const c = ws.cell();
     ok('S', !(c[0] === 6 && c[1] === 8) && dist2(c, [6, 8]) <= 2 && f.mark === null, 'a tap on the anvil walks next to it and the mark clears on arrival, at ' + c.join());
-    const station = M.town.stationOf(town, 'gather');
     const at3 = ws.cell().join();
     for (let t = 2500; t < 2500 + 2500; t += 50) ws.frame(ENV({ kind: 'gather' }), t);
     ok('S', ws.cell().join() === at3, 'under IDLE_TO_STATION_MS the hero must stay where the tap left it');
-    for (let t = 5000; t <= 15000; t += 50) f = ws.frame(ENV({ kind: 'gather' }), t);
-    ok('S', ws.cell().join() === station.join() && f.mark === null, 'a hero left alone must walk to its gather station ' + station.join() + ', is at ' + ws.cell().join());
-    for (let t = 15000; t <= 30000; t += 250) f = ws.frame(ENV({ kind: 'gather' }), t);
-    ok('S', ws.cell().join() === station.join() && f.hero.anim === 'idle', 'at its station the hero stays and idles');
+    /* live v0.2.1 (Tyler): "my character just randomly walks to a random location when I stop moving".
+       A hero the player steered stays where it was left, however long it stands. */
+    for (let t = 5000; t <= 20000; t += 50) f = ws.frame(ENV({ kind: 'gather' }), t);
+    ok('S', ws.cell().join() === at3 && f.hero.anim === 'idle', 'a hero the player walked must stay where the tap left it (' + at3 + '), walked to ' + ws.cell().join());
+    ws.drive([1, 0], 20000); ws.drive(null, 20000);
+    let kt = 20000;
+    for (; kt <= 21000; kt += 50) ws.frame(ENV({ kind: 'gather' }), kt);
+    const atKeys = ws.cell().join();
+    for (; kt <= 36000; kt += 100) ws.frame(ENV({ kind: 'gather' }), kt);
+    ok('S', ws.cell().join() === atKeys, 'a hero stopped after the keys must stay put (' + atKeys + '), walked to ' + ws.cell().join());
+    /* A NEW activity (the server's pointer changed) sends it to that activity's station. */
+    const cstation = M.town.stationOf(town, 'combat');
+    for (; kt <= 60000; kt += 50) f = ws.frame(ENV({ kind: 'combat' }), kt);
+    ok('S', cstation.join() === atKeys || (ws.cell().join() === cstation.join() && f.mark === null), 'a new activity must walk the hero to its station ' + cstation.join() + ', is at ' + ws.cell().join());
+    for (let t = kt; t <= kt + 15000; t += 250) f = ws.frame(ENV({ kind: 'combat' }), t);
+    ok('S', ws.cell().join() === cstation.join() && f.hero.anim === 'idle', 'at its station the hero stays and idles');
+    const lean = f.camera;
+    ok('S', lean && town.focus && Math.abs(lean.x - (cstation[0] + town.focus[0]) / 2) < 1e-9, 'the camera leans halfway to the town\'s focus');
     const t0 = 1.7e12;   // a wall clock, as the pane passes Date.now()
     const fresh = M.walk.createWalkScene(town, { at: null, sprites: M.book.sprites, openClasses: M.terrain.OPEN_CLASSES, maps: M.rows });
     for (let t = t0; t < t0 + 2900; t += 100) fresh.frame(ENV({ kind: 'gather' }), t);
     ok('S', fresh.cell().join() === town.start.join(), 'a hero who has just arrived must stand IDLE_TO_STATION_MS before heading off, moved to ' + fresh.cell().join());
-    const lean = f.camera;
-    ok('S', lean && town.focus && Math.abs(lean.x - (station[0] + town.focus[0]) / 2) < 1e-9, 'the camera leans halfway to the town\'s focus');
   });
 
   /* K — THE KEYS (live b585: "WASD doesn't work"). Held keys walk the same feet
@@ -476,6 +488,8 @@ const MUTANTS = [
   ['H', 'the hatch also moves the hero', 'src/world/steer-local.js', [["if (act.kind === 'hunt') return nav.hunt(act.hunt);", "if (act.kind === 'hunt') { nav.walk([0, 0]); return nav.hunt(act.hunt); }"]]],
   ['H', 'the hatch starts the hunt', 'src/world/world-boot.js', [["    hunt: (id) => emit('entrance', { hunt: id }),", "    hunt: (id) => { win.startHunt(id); return emit('entrance', { hunt: id }); },"]]],
   ['S', 'a corner-cutting walk', 'src/world/core/path.js', [['if (dx && dy) return walkable', 'if (false) return walkable']]],
+  ['S', 'a hero the player walked heads off to its station (live v0.2.1)', 'src/world/walk-scene.js', [['if (!steered && steer.restMs(now)', 'if (steer.restMs(now)']]],
+  ['S', 'a new activity never sends a steered hero to its station', 'src/world/walk-scene.js', [['else if (steered && steeredUnder !== env.kind) steered = false;', 'else void 0;']]],
   ['S', 'the hero never goes back to its station', 'src/world/walk-scene.js', [['if (sentTo !== key) { sentTo = key; steer.walkTo(station, now, false); }', 'void key;']]],
   ['S', 'a hero just arrived counts as long idle', 'src/world/steer-local.js', [['let legs = [], leg = null, restSince = null,', 'let legs = [], leg = null, restSince = 0,']]],
   ['K', 'a held key takes one step and stops', 'src/world/steer-local.js', [['const next = legs.shift() || heldStep(fx, fy);', 'const next = legs.shift() || (leg ? null : heldStep(fx, fy));']]],

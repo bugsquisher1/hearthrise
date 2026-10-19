@@ -136,6 +136,9 @@ export const GROUND_NODE_KINDS = Object.freeze({
   iron_rock: kind('mining', 1, 6, 60000, 'cw_iron_vein', 'cw_iron_vein_spent'),
   coal_rock: kind('mining', 1, 8, 75000, 'cw_coal_seam', 'cw_coal_seam_spent'),
   gold_rock: kind('mining', 3, 4, 120000, 'cw_gold_seam', 'cw_gold_seam_spent'),
+  /* Pebblebrook Bank's willows: the oak sprite stands in until pb_willow / pb_weeping_willow land (art owed) */
+  willow_tree: kind('woodcutting', 2, 8, 75000, 'oak', 'mb_oak_stump'),
+  weeping_willow_tree: kind('woodcutting', 2, 10, 90000, 'oak', 'mb_oak_stump'),
 });
 
 /* THE GATHER SLIDER (Tyler 10-18): `shares` are the steps of the time between pulls a hero spends
@@ -257,6 +260,38 @@ export const HUNT_GROUNDS = Object.freeze({
       ['iron_rock', 22, 30, 4], ['iron_rock', 35, 29, 4],
       /* P5 the Chief's Hall: the seam his hoard came out of */
       ['gold_rock', 2, 30, 5], ['gold_rock', 2, 34, 5],
+    ]),
+  }),
+  pebblebrook_bank: Object.freeze({
+    id: 'pebblebrook_bank', hunt: 'pebblebrook_bank', map: 'pebblebrook_bank',
+    /* the lane down from town, onto the north bank */
+    start: Object.freeze([[1, 6], [1, 5]]),
+    pockets: Object.freeze([
+      /* P0 the Shingle: the young crayfish basking on the pebble bar */
+      box([4, 5, 16, 14], [10, 9], ['shingle_crayfish', 'shingle_crayfish', 'shingle_crayfish'], ['tanpit_crayfish', 'shingle_crayfish', 'shingle_crayfish', 'tanpit_crayfish', 'shingle_crayfish']),
+      /* P1 the Osier Beds: the basket-makers' willows */
+      box([22, 5, 37, 15], [29, 10], ['shingle_crayfish', 'tanpit_crayfish', 'shingle_crayfish'], ['shingle_crayfish', 'shingle_crayfish', 'tanpit_crayfish', 'shingle_crayfish', 'shingle_crayfish']),
+      /* P2 the Eel Stakes: the big ones raid the eel-catchers' traps */
+      box([42, 4, 55, 14], [49, 8], ['tanpit_crayfish', 'tanpit_crayfish', 'shingle_crayfish'], ['shingle_crayfish', 'tanpit_crayfish', 'shingle_crayfish', 'shingle_crayfish', 'shingle_crayfish']),
+      /* P3 the Weir Pool, over the weir: a Musselback holds the pool */
+      box([43, 20, 56, 29], [50, 25], ['musselback_crayfish', 'shingle_crayfish', 'shingle_crayfish'], ['tanpit_crayfish', 'shingle_crayfish', 'tanpit_crayfish', 'shingle_crayfish', 'shingle_crayfish']),
+      /* P4 the Tannery Steps: fed on what the tan pits let fall in */
+      box([24, 23, 41, 33], [31, 28], ['tanpit_crayfish', 'shingle_crayfish', 'shingle_crayfish'], ['shingle_crayfish', 'tanpit_crayfish', 'shingle_crayfish', 'musselback_crayfish', 'shingle_crayfish']),
+      /* P5 the Withy Bank, then back north over Tanner's Ford */
+      box([4, 22, 22, 31], [11, 26], ['shingle_crayfish', 'shingle_crayfish', 'tanpit_crayfish'], ['shingle_crayfish', 'shingle_crayfish', 'tanpit_crayfish', 'shingle_crayfish', 'shingle_crayfish']),
+    ]),
+    route: Object.freeze([0, 1, 2, 3, 4, 5]),
+    respawnMs: 60000, pullDist: 1.5, partyScale: true, groupFit: 'solo',
+    densityMax: Object.freeze([8, 8, 8, 8]),
+    /* a solo hero may pull up to 6, a pair the full box */
+    density: density(6, 2, 8),
+    gather: gather(10000, [
+      /* P1 the Osier Beds: the withy willows */
+      ['willow_tree', 24, 8, 1], ['willow_tree', 35, 9, 1], ['willow_tree', 26, 13, 1], ['willow_tree', 33, 13, 1],
+      /* P3 the Weir Pool: weeping willows over the water */
+      ['weeping_willow_tree', 55, 24, 3], ['weeping_willow_tree', 44, 26, 3],
+      /* P5 the Withy Bank */
+      ['willow_tree', 5, 26, 5], ['willow_tree', 8, 23, 5], ['weeping_willow_tree', 20, 27, 5],
     ]),
   }),
 });

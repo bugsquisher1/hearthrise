@@ -96,6 +96,9 @@ export const ITEMS={
   warlord_badge:{n:'Warlord Badge',icon:'🎖️',v:350},bear_pelt:{n:'Bear Pelt',icon:'🐻',v:260},bear_claw:{n:'Bear Claw',icon:'爪',v:180},
   wraith_veil:{n:'Wraith Veil',icon:'👻',v:420},hell_ember:{n:'Hell Ember',icon:'🔥',v:600},shadow_thread:{n:'Shadow Thread',icon:'🧵',v:320},
   void_chitin:{n:'Void Chitin',icon:'🪲',v:800},captain_medal:{n:'Captain Medal',icon:'🏅',v:700},shadow_pelt:{n:'Shadow Pelt',icon:'🐈‍⬛',v:480},
+  /* Pebblebrook Bank (2026-10-19): every crayfish drops the claw (the trader's junk) and, less often,
+     the back-plate (the ground's imbuement material: kept for armour imbuements, sold until they open). */
+  crayfish_claw:{n:'Crayfish Claw',icon:'🦞',v:8},carapace_plate:{n:'Carapace Plate',icon:'🛡️',v:60},
   /* b542 — `captains_ribblade` and `chief_blade` (next line but one) are the two
      boss-drop weapons that carried NEITHER a tier nor a gate, so neither reader
      had anything to gate on: the client's tier fallback needs a tier and

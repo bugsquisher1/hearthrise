@@ -739,6 +739,22 @@ export const MONSTERS = {
     elementResist: ['frost'],
     hp: 1100, atk: 54, def: 28, xp: 7920, gp: [76, 172], speed: 2800,
     drops: [{ id: 'big_bones', ch: 1 }, { id: 'gold_ore', ch: .5 }, { id: 'goblin_totem', ch: .3 }, { id: 'war_crown', ch: .02 }] },
+
+  /* ══ Pebblebrook Bank: the crayfish of the Pebble Brook below the mill (one family, three
+     roles; a solo ground, Levels 25-32). Names, roles, drops and economy: the
+     src/data/hunt-grounds.js header. ══════════════════════════════════════════════════ */
+  shingle_crayfish: { name: 'Shingle Crayfish', icon: '🦞', tier: 3, level: 26, cls: 'vermin', family: 'Vermin',
+    hp: 60, atk: 21, def: 6, xp: 340, gp: [15, 40], speed: 4000,
+    drops: [{ id: 'crayfish_claw', ch: .5 }, { id: 'carapace_plate', ch: .03 },
+      { id: 'spidereye_studs', ch: .0007, lucky: true }] },
+  tanpit_crayfish: { name: 'Tanpit Crayfish', icon: '🦞', tier: 3, level: 29, cls: 'vermin', family: 'Vermin',
+    hp: 78, atk: 24, def: 9, xp: 450, gp: [14, 34], speed: 3000,
+    drops: [{ id: 'crayfish_claw', ch: .6 }, { id: 'carapace_plate', ch: .05 }, { id: 'boarhide_body', ch: .001 }] },
+  musselback_crayfish: { name: 'Musselback Crayfish', icon: '🦞', tier: 4, level: 32, cls: 'vermin', family: 'Vermin',
+    /* one override (weapon): a hammer only cracks the mussels on its back; a blade finds the joints. */
+    weaponWeak: 'sword', weaponResist: ['hammer'],
+    hp: 150, atk: 30, def: 20, xp: 900, gp: [38, 82], speed: 2400,
+    drops: [{ id: 'crayfish_claw', ch: .8 }, { id: 'carapace_plate', ch: .25 }, { id: 'steel_platebody', ch: .002 }] },
 };
 
 /* SEAL: write each class's profile onto its members, so `m.weaponWeak` is a

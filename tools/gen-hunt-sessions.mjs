@@ -115,7 +115,9 @@ export const WORLD_FIELDS_READ = Object.freeze({
     'role', 'dist', 'chase', 'tmode', 'stance']),
   world: Object.freeze(['leader']),
 });
-export const OUT_NAME = '2026-10-27-hunt-sessions-catalogue.generated.sql';
+/* PEBBLEBROOK BANK (2026-10-19): 2026-10-27-hunt-sessions-catalogue.generated.sql is APPLIED history; the river
+   ground's travel row, ground, spawns, kill bounds and vendor values land in this forward file, the same wholesale rewrite. */
+export const OUT_NAME = '2026-10-28-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -507,14 +509,11 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- SUPERSEDES 2026-10-25-hunt-sessions-catalogue.generated.sql (applied; history,
--- never regenerated): every table below is rewritten wholesale. THE CORE REBUILD
--- (docs/design/CORE_MODEL.md, 2026-10-19): END_ORDER's 'died' and
--- 'party_member_died' replace 'falls'; the falls and knockout limits go; the core
--- model's curve, vitals and combat-XP rows join hr_hunt_limits; the magic bound
--- reads the hero's own max mana; the kill bound prices Melee / Ranged XP per HP
--- and the kill's Level XP; the world loses 'downMs' / 'ward' and gains 'regenPm'.
--- Apply after 2026-10-27-core-schema.sql, before 2026-10-27-core-bodies.sql.
+-- SUPERSEDES 2026-10-27-hunt-sessions-catalogue.generated.sql (applied; history,
+-- never regenerated): every table below is rewritten wholesale. PEBBLEBROOK BANK
+-- (2026-10-19): the river ground (Levels 25-32) adds its travel row, its ground and
+-- pocket spawns, the three crayfish's kill bounds and their drops' vendor values.
+-- Apply after 2026-10-28-hunts-catalogue.generated.sql.
 --
 -- Server-only: RLS on, NO policy, no client grant (the client reads src/data).
 -- Idempotent: delete + insert; nothing references these rows by foreign key.

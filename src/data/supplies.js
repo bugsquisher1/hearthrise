@@ -191,6 +191,11 @@ export const BAG_GUIDE_BY_HUNT = Object.freeze({
     melee: melee('cooked_swordfish', 60),
     ranged: ranged('cooked_swordfish', 60, 'barbed_arrows', 5100),
     magic: magic('cooked_swordfish', 80, 'carrot_juice', 40, 'earth_rune', 4300) }),
+  /* Pebblebrook Bank (2026-10-19): tier-3 crayfish, so the bag is the tier-3 guide's lobster. */
+  pebblebrook_bank: Object.freeze({ tier: 3,
+    melee: melee('cooked_lobster', 60),
+    ranged: ranged('cooked_lobster', 60, 'barbed_arrows', 5100),
+    magic: magic('cooked_lobster', 80, 'tomato_juice', 40, 'earth_rune', 4300) }),
 });
 
 /* A single-monster fight is guided by its monster's tier (melee measured:

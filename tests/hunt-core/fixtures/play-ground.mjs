@@ -11,9 +11,11 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const T0 = Date.UTC(2026, 9, 18, 12, 0, 0);
-const IID = '00000000-0000-4000-8000-0000000c5f01';
+/* the instance id labels every seed; PLAY_SEED=n replays the same play on another stream */
+const IID = '00000000-0000-4000-8000-' + (0xc5f01 + (Number(process.env.PLAY_SEED) || 0)).toString(16).padStart(12, '0');
 const SECRET = '-4611686018427387904';
-const SPAN = 1800000;
+/* thirty sim-minutes by default; PLAY_MINUTES=180 plays three hours (steadier numbers, same windows) */
+const SPAN = (Number(process.env.PLAY_MINUTES) || 30) * 60000;
 const COMBAT = ['melee', 'ranged', 'magic', 'defense'];
 
 export async function play(root, only) {
@@ -24,6 +26,7 @@ export async function play(root, only) {
   const GRID = await import(u('src/core/hunt/grid.js'));
   const XP = await import(u('src/core/xp.js'));
   const SB = await import(u('src/data/supply-basics.js'));
+  const SUP = await import(u('src/data/supplies.js'));
   const G = await import(u('src/data/hunt-grounds.js'));
   const MAPS = await import(u('src/data/world/maps/index.js'));
   const TER = await import(u('src/data/world/terrain.js'));
@@ -41,7 +44,8 @@ export async function play(root, only) {
   };
   const basics = {};
   for (const b of SB.BASIC_SUPPLIES) basics[b.id] = { kind: b.kind, price: b.price, heals: b.heals || 0, mana: b.mana || 0, partner: b.partner };
-  const shop = { heal: SB.basicFor('heal', 1).id, mana: SB.basicFor('mana', 1).id };
+  /* the store rows THIS hunt's tier resolves to (hr_hunt_travel.tier = supplies.js BAG_GUIDE_BY_HUNT), as the settle reads them */
+  const shopFor = (huntId) => { const t = SUP.bagGuideFor(huntId).tier; return { heal: SB.basicFor('heal', t).id, mana: SB.basicFor('mana', t).id }; };
   /* gear by level, the smiths' ladder a player at that level wears */
   const kit = (L, role) => {
     const t = L < 15 ? 0 : L < 30 ? 1 : L < 45 ? 2 : 3;
@@ -57,7 +61,7 @@ export async function play(root, only) {
     return {
       key: role + i, user: role + i, slot: 0, seat: i, unitId: null, sessionId: 's-' + role + i, version: 1, huntId,
       huntSession: { id: 's-' + role + i, instanceId: IID, huntFromMs: T0, nextSwingAtMs: T0, swingIndex: 0, bag: role === 'ranger' ? { bronze_arrows: { loaded: 1 } } : {},
-        staminaMs: 12 * 3600000, staminaMaxMs: 12 * 3600000, basics, shop, goldFloor: 0, supplySource: 'mine', onEmpty: 'switch', cover: {} },
+        staminaMs: 12 * 3600000, staminaMaxMs: 12 * 3600000, basics, shop: shopFor(huntId), goldFloor: 0, supplySource: 'mine', onEmpty: 'switch', cover: {} },
       skills, levelXp: XP.charXpForLevel(L), xpFrac: null, hp: 1e9, gold: 50000, equipment,
       inventory: {}, deathsTodayBefore: 0, deathsLifetimeBefore: 0, hearthfindReady: false, perks: null,
       hero: SPAWN.heroSetup({ weaponType: ITEMS[equipment.weapon].weaponType, options: role === 'healer' ? { role: 'healer' } : {}, bar: [], partyRoles: roles }),
@@ -108,6 +112,8 @@ export async function play(root, only) {
     ['meadowbrook_thicket', [['in range, combat ~10', 10, ['tank']], ['below range (combat ~3)', 2, ['tank']]]],
     ['millrace_sewer', [['in range, a party of four at ~20', 20, ['tank', 'ranger', 'mage', 'healer']], ['the floor, a party of four at ~5', 5, ['tank', 'ranger', 'mage', 'healer']]]],
     ['coppercap_warrens', [['in range, a party of four at ~40', 40, ['tank', 'ranger', 'mage', 'healer']], ['below range, a party of four at ~27', 27, ['tank', 'ranger', 'mage', 'healer']]]],
+    ['pebblebrook_bank', [['at the floor, solo melee at 25', 25, ['tank']], ['mid range, solo melee at 28', 28, ['tank']],
+      ['at the top, solo melee at 32', 32, ['tank']], ['below range, solo melee at 18', 18, ['tank']]]],
   ];
   console.log('  per hero per hour | kills/h (party) | deaths (30 min) | Level XP | skill XP | coin + commons (vendor bid) vs store gold = margin | rares | net');
   for (const [huntId, runs] of PLAN) {

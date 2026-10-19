@@ -34,7 +34,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    hunts-forest-cave, integration v0.2.1) landed in 2026-10-25 (APPLIED history). The core rebuild's
    Level bands (CORE_NUMBERS_2026-10-19 Q9: the cellar 1-8, the sewer 8-25) land in this forward
    file, which rewrites the same tables. */
-export const OUT_NAME = '2026-10-27-hunts-catalogue.generated.sql';
+/* PEBBLEBROOK BANK (2026-10-19): 2026-10-27 is APPLIED history; the river ground (Levels 25-32) lands in
+   this forward file, the same rewrite of the same tables. */
+export const OUT_NAME = '2026-10-28-hunts-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

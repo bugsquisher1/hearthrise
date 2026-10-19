@@ -1,4 +1,5 @@
-// tests/hunt-core/forest-cave.mjs — THE MEADOWBROOK THICKET AND THE COPPERCAP WARRENS (Tyler 10-18). Run by run-all.mjs.
+// tests/hunt-core/forest-cave.mjs — THE MEADOWBROOK THICKET, THE COPPERCAP WARRENS (Tyler 10-18) AND PEBBLEBROOK BANK
+// (2026-10-19, Levels 25-32). Run by run-all.mjs.
 //
 //   packs-on-the-map    every pack tile at full density is open floor and listed in the map's spawns;
 //                       every pull tile has a clear 3x3 (no wall, no prop): the full box (Tyler 10-18)
@@ -23,8 +24,9 @@ import { pathToFileURL } from 'node:url';
 import { makeReport, ROOT } from './fixtures/h1.js';
 
 const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
-const NEW = ['meadowbrook_thicket', 'coppercap_warrens'];
-const BRIDGE = { meadowbrook_thicket: [[28, 5], [29, 5], [30, 5], [31, 5], [32, 5]], coppercap_warrens: [[51, 20], [51, 21], [51, 22]] };
+const NEW = ['meadowbrook_thicket', 'coppercap_warrens', 'pebblebrook_bank'];
+const BRIDGE = { meadowbrook_thicket: [[28, 5], [29, 5], [30, 5], [31, 5], [32, 5]], coppercap_warrens: [[51, 20], [51, 21], [51, 22]],
+  pebblebrook_bank: [[47, 15], [47, 16], [47, 17], [47, 18], [47, 19]] };
 const MID_DENSITY = 4;
 const RING8 = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
 
@@ -263,6 +265,12 @@ const mutants = [
     edits: [['src/data/hunt-grounds.js', "['oak_tree', 40, 3, 2]", "['oak_tree', 41, 3, 2]"]] },
   { name: 'a pocket too bare for the top gather share', case: 'gather-nodes',
     edits: [['src/data/hunt-grounds.js', "copper_rock: kind('mining', 1, 6,", "copper_rock: kind('mining', 1, 2,"]] },
+  { name: 'the mill weir washed out', case: 'one-choke',
+    edits: [['src/data/world/maps/pebblebrook_bank.js', "~=~~~~~~~~~~~~',\n    '###########...###", "~~~~~~~~~~~~~~',\n    '###########...###"]] },
+  { name: 'the Musselback labelled as common as the Shingles', case: 'spawn-mix',
+    edits: [['src/data/hunts.js', "{ monster: 'musselback_crayfish', w: 1, rarity: 'rare' }", "{ monster: 'musselback_crayfish', w: 1, rarity: 'common' }"]] },
+  { name: 'a willow off its map tile', case: 'gather-nodes',
+    edits: [['src/data/hunt-grounds.js', "['willow_tree', 24, 8, 1]", "['willow_tree', 25, 8, 1]"]] },
 ];
 
 function plant(edits) {
@@ -283,7 +291,8 @@ const R = makeReport('hunt-core/forest-cave');
 const M = await load(ROOT);
 if (process.argv.includes('--play')) {
   const { play } = await import(pathToFileURL(join(ROOT, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
-  await play(ROOT);
+  const only = process.argv.slice(2).filter((a) => !a.startsWith('--'));
+  await play(ROOT, only.length ? only : undefined);
   process.exit(0);
 }
 for (const [cn, fn] of Object.entries(cases)) {

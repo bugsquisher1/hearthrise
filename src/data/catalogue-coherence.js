@@ -85,6 +85,9 @@ export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_
   /* CORE REBUILD (2026-10-19): the Rat King's Crown Shard lost its Prayer offering (Tyler's
      deletion list); "a trader pays well for it" is its whole job until the roster gives it one. */
   'crown_shard',
+  /* PEBBLEBROOK BANK (2026-10-19): the crayfish claw is the bank's junk; the carapace plate is its
+     imbuement material and sells until armour imbuements open (ARCHITECTURE_CONTRACTS §8). */
+  'crayfish_claw', 'carapace_plate',
 ]);
 
 /* ── AWAITING THE ROSTER — catalogued, kept, and deliberately unobtainable ───
@@ -99,7 +102,7 @@ export const AWAITING_ROSTER = Object.freeze([
   'oak_rod',   // the road_cook reward until the 2026-10-14 re-reward; rods have no recipe yet
   'abyssal_greaves', 'adept_helmet', 'adept_pants', 'alphaheart_longbow', 'apprentice_body',
   'apprentice_helmet', 'apprentice_pants', 'archmage_belt', 'archmage_body', 'archmage_helmet',
-  'archmage_pants', 'ashcrown_greatsword', 'boarhide_body', 'boarhide_pants', 'bone_needle',
+  'archmage_pants', 'ashcrown_greatsword', 'boarhide_pants', 'bone_needle',
   'bronze_hammer', 'bronze_helm', 'bronze_knife',
   'bronze_platebody', 'bronze_platelegs', 'chitin_belt', 'chitin_body',
   'chitin_boots', 'chitin_gloves', 'chitin_helmet', 'chitin_pants', 'choirbone',
@@ -122,8 +125,8 @@ export const AWAITING_ROSTER = Object.freeze([
   'rune_platelegs', 'rune_warhammer', 'runewood_bow', 'runewood_rod', 'scholar_body',
   'scholar_helmet', 'scholar_pants', 'slagheart_core', 'slagheart_platebody', 'snakeskin_body',
   'snakeskin_helmet', 'snakeskin_pants', 'sorcerer_body', 'sorcerer_helmet', 'sorcerer_pants',
-  'spellstone_ring', 'spidereye_studs', 'steel_hammer', 'steel_knife',
-  'steel_needle', 'steel_platebody', 'steel_platelegs', 'steel_warhammer',
+  'spellstone_ring', 'steel_hammer', 'steel_knife',
+  'steel_needle', 'steel_platelegs', 'steel_warhammer',
   'studded_body', 'studded_pants', 'verdite_blade', 'verdite_helm', 'verdite_platebody',
   'verdite_platelegs', 'void_essence', 'voidheart_robe', 'voidhide_belt', 'voidhide_body',
   'voidhide_boots', 'voidhide_gloves', 'voidhide_helmet', 'voidhide_pants', 'voidmaw_scepter',

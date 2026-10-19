@@ -116,6 +116,18 @@ export const HUNTS = Object.freeze([
       { monster: 'goblin_skulker', w: 5, rarity: 'uncommon' }, { monster: 'hobgoblin_foreman', w: 1, rarity: 'rare' }],
     family: 'Humanoid', art: 'goblin_scavenger', travelS: 60, pull: 4, respawnMs: 90000,
   },
+  /* THE RIVER GROUND (2026-10-19; workbook H-004 Pebblebrook Bank, re-banded to Levels 25-32 to close the
+     gap between the Sewer and the Warrens). Solo first (a friend may come along). One family, the crayfish
+     of the Pebble Brook below the mill weir. Walked: src/data/hunt-grounds.js `pebblebrook_bank`. Weights
+     are the pockets' head-count at density 4. No travel time asked for (Tyler): 10 s is the least the
+     catalogue's travel check (10..300) allows, so it stands in until that check is ruled. */
+  {
+    id: 'pebblebrook_bank', name: 'Pebblebrook Bank', theme: 'Crayfish grow fat below the mill weir, on whatever the tannery lets fall in.',
+    band: [25, 32],
+    spawns: [{ monster: 'shingle_crayfish', w: 16, rarity: 'common' }, { monster: 'tanpit_crayfish', w: 7, rarity: 'uncommon' },
+      { monster: 'musselback_crayfish', w: 1, rarity: 'rare' }],
+    family: 'Vermin', art: 'shingle_crayfish', travelS: 10, pull: 3, respawnMs: 60000,
+  },
 ]);
 
 /** The words a player reads for a spawn's rarity. */

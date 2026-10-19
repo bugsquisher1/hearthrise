@@ -9,6 +9,8 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
+import { RELIC_TIER, MAX_RELIC_MULT } from '../data/bestiary-stages.js?v=0.2.10';
+
 export const DROP_BAND_MAX = { rare: 0.05, uncommon: 0.15, common: 1.0 };
 
 export function dropBand(ch) {
@@ -41,8 +43,14 @@ export function formatDropOdds(ch) {
  * cannot be made "more than certain", and letting a buff scale it would
  * silently turn a guarantee into a multi-roll.
  *
- * @param row     { id, ch }
- * @param mods    { dropMult, dropBuff, featuredMult }
+ * @param row     { id, ch, tier? }
+ * @param mods    { dropMult, dropBuff, featuredMult, yieldMult, relicMult }
+ *
+ * relicMult: the account bestiary's activated stage for the killed monster
+ * (src/data/bestiary-stages.js), handed in by the member the server assembled
+ * from its own projection. It multiplies ONLY a row marked `tier: 'relic'`,
+ * before the 0.95 cap; anything that is not a number >= 1 counts as 1 and it
+ * never exceeds the top stage's MAX_RELIC_MULT.
  */
 export function effectiveDropChance(row, mods) {
   const m = mods || {};
@@ -52,7 +60,13 @@ export function effectiveDropChance(row, mods) {
   const dropMult = m.dropMult == null ? 1 : m.dropMult;
   const dropBuff = m.dropBuff || 0;
   const featured = m.featuredMult == null ? 1 : m.featuredMult;
-  return Math.min(0.95, row.ch * dropMult * (1 + dropBuff) * featured * y);
+  const relic = row.tier === RELIC_TIER ? relicMultOf(m.relicMult) : 1;
+  return Math.min(0.95, row.ch * dropMult * (1 + dropBuff) * featured * y * relic);
+}
+
+/* A relic multiplier as the engine honours it: 1..MAX_RELIC_MULT, else 1. */
+function relicMultOf(v) {
+  return typeof v === 'number' && Number.isFinite(v) && v >= 1 ? Math.min(v, MAX_RELIC_MULT) : 1;
 }
 
 /**

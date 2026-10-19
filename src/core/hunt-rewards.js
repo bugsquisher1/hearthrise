@@ -81,7 +81,10 @@ function payKill(present, killer, kind, ctx, yieldPm) {
     if (g > 0) { m.state.gold = (m.state.gold || 0) + g; call(m.fx, 'onLoot', g, row); }
   });
   const lead = killer || present[0];
-  const rolled = rollDropTable(row.drops, { dropMult: lead.weakness(row).dropMult, dropBuff: lead.bonus('dropRate'), yieldMult: y }, rng);
+  /* relicMult: the account bestiary's activated stage for this monster, from the member the server
+     assembled (absent: 1). It lifts only the row's relic tier (drops.js). */
+  const rolled = rollDropTable(row.drops, { dropMult: lead.weakness(row).dropMult, dropBuff: lead.bonus('dropRate'), yieldMult: y,
+    relicMult: typeof lead.relicMult === 'function' ? lead.relicMult(kind) : 1 }, rng);
   const offset = present.length > 1 && rolled.events.length ? rng.int(0, present.length - 1) : 0;
   rolled.events.forEach((ev, k) => {
     const m = present[itemOwner(k, present.length, offset)];
@@ -104,7 +107,7 @@ function payKill(present, killer, kind, ctx, yieldPm) {
 /**
  * Pay one swing. `members` maps a hero unit id to its member:
  *   { state, hs, fx, family (the weapon family), armoured, shield, bonus(key),
- *     weakness(monsterRow) → { dropMult } }.
+ *     weakness(monsterRow) → { dropMult }, relicMult?(monsterId) → number >= 1 }.
  * `world` is the instance world AFTER the swing (a corpse is still a unit).
  * `ctx` = { rng (the swing's `r` stream), monsters?, hearthfind? (the indexed table; the catalogue's when absent) }.
  * Answers the swing's deaths: [{ unit, atMs, monster }], in event order.

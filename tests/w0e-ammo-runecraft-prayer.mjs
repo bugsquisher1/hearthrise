@@ -19,10 +19,10 @@
 //   RUNE  Runecrafting's level-1 loop closes with nothing else trained: mine
 //         Rune Essence -> cut Blank Runes -> bind EARTH runes -> spend them in a
 //         magic fight. Every step runs through computeAccrual.
-//   PRAY  The Prayer ward lands identically on the live swing, a hunt settle
-//         and a hunt cut into 10 s windows (AWAY-1): one function
-//         (`monsterCombatRolls`) prices every monster swing, and every path
-//         hands it the same skills map.
+//   PRAY  RETIRED 2026-10-19 (core rebuild): Prayer wards are deleted (Tyler: Prayer
+//         is regen RATES only). Its replacement guards: tests/core-curves.mjs (the
+//         regen rate, JS = SQL) and tests/hunt-core/conditions.mjs (vitals by
+//         armour and Prayer through the one engine).
 //
 // Node-only, credential-free, no database. Mutated runs import a STAGED COPY of
 // src/ and supabase/functions/hr-accrue/ (Node cannot import a string, and the
@@ -80,34 +80,6 @@ const MUTATIONS = {
     find: "inputs: { rune_essence: 4 },",
     repl: "inputs: { dressed_block: 2 },",
   },
-  ward_not_front_loaded: {
-    file: 'src/data/skills.js',
-    why: 'the first ward is back to the linear 2% — the early Prayer levels the designer ruled '
-       + 'must be felt are not',
-    find: 'Object.freeze({ lv: 10, pct: 3 }),',
-    repl: 'Object.freeze({ lv: 10, pct: 2 }),',
-  },
-  ward_floored: {
-    file: 'src/core/combat.js',
-    why: 'the ward is re-clamped to the min-accuracy floor, so a hero whose defence already '
-       + 'pins foes at the floor gets nothing from Prayer (Security #4)',
-    find: '  const accuracy = ward > 0 ? landed * (1 - ward / 100) : landed;',
-    repl: '  const accuracy = ward > 0 ? Math.max(b.monsterMinAccuracy, landed * (1 - ward / 100)) : landed;',
-  },
-  ward_off: {
-    file: 'src/core/combat.js',
-    why: 'Prayer does nothing in a fight again — a combat-level padder',
-    find: '  const ward = prayerWardPct(c.skills);',
-    repl: '  const ward = 0;',
-  },
-  ward_attended_only: {
-    file: 'supabase/functions/hr-accrue/accrual.js',
-    why: 'the hunt engine prices monster swings without the Prayer level, so the ward pays on the '
-       + 'live swing and not in a hunt settle (AWAY-1 broken)',
-    /* Re-anchored lane S1: the hunt hero's snapshot carries the ward onto its unit. */
-    find: 'def, ward: Math.floor(prayerWardPct(state.skills)) };',
-    repl: 'def, ward: 0 };',
-  },
 };
 
 /* ── HARNESS ────────────────────────────────────────────────────────────── */
@@ -150,14 +122,12 @@ export async function runAll({ mutate } = {}) {
     const { START_INVENTORY } = await imp('src/data/start-kit.js');
     const { SHOP_OFFERS } = await imp('src/data/shops.js');
     const { ARTISAN_RECIPES } = await imp('src/data/recipes.js');
-    const { PRAYER_WARDS, PRAYER_WARD_MAX_PCT } = await imp('src/data/skills.js');
     const { TREES, ROCKS, FISH_SPOTS } = await imp('src/data/gathering.js');
     const C = await imp('src/core/combat.js');
 
     const AMMO = await imp('src/core/ammo.js');
     const { createRng } = await imp('src/core/rng.js');
-    const { resolveStyle } = await imp('src/core/styles.js');
-    const { xpForLevel } = await imp('src/core/xp.js');
+    const { xpForLevel, charXpForLevel } = await imp('src/core/xp.js');
     const { indexArtisanRecipes } = await imp('src/core/artisan-sim.js');
     const ACC = await imp('supabase/functions/hr-accrue/accrual.js');
     const { computeAccrual } = ACC;
@@ -191,19 +161,18 @@ export async function runAll({ mutate } = {}) {
     function attended({ equipment, inventory, skills, ticks, monsterId, seed }) {
       const items = ITEMS; const bonus = () => 0;
       const eq = C.equipmentStats(equipment, items);
-      const style = resolveStyle(eq.weaponType, null);
       const profile = eq.weaponType === 'ranged'
         ? { type: 'ranged', accuracySkill: 'ranged', damageSkill: 'ranged', accuracyBonusField: 'rangeAtkB', strengthBonusField: 'rangeStrB' }
         : eq.weaponType === 'magic'
           ? { type: 'magic', accuracySkill: 'magic', damageSkill: 'magic', accuracyBonusField: 'magicAtkB', strengthBonusField: 'magicStrB' }
           : Object.assign({}, C.DEFAULT_PROFILE, { type: eq.weaponType || 'sword' });
       const setBonus = C.armorSetBonus(equipment, items);
-      const G = { activeMonster: monsterId || TARGET, playerHp: 1e6, playerMaxHp: 1e6, gold: 0, skills: { ...skills }, stats: {} };
+      const G = { activeMonster: monsterId || TARGET, playerHp: 1e6, playerMaxHp: 1e6, gold: 0, skills: { ...skills }, levelXp: 0, stats: {} };
       const bag = {};
       for (const [id, q] of Object.entries(inventory || {})) bag[id] = { loaded: q };
       const ctx = {
-        fromMs: FROM_MS, toMs: FROM_MS + ticks * 2000, monsters: MONSTERS, items, bonus, style,
-        playerRolls: (m) => C.playerCombatRolls(m, { eq, equipment, items, skills: G.skills, bonus, setBonus, profile, style }),
+        fromMs: FROM_MS, toMs: FROM_MS + ticks * 2000, monsters: MONSTERS, items, bonus, family: eq.weaponType || 'sword',
+        playerRolls: (m) => C.playerCombatRolls(m, { eq, equipment, items, skills: G.skills, bonus, setBonus, profile }),
         weakness: (m) => C.weaknessInfo(m, eq),
         fx: { addXp() {}, addItem() {} },
       };
@@ -221,7 +190,8 @@ export async function runAll({ mutate } = {}) {
       const inp = {
         userId: UID, slot: 0, nowMs: NOW_MS, accruedToMs: FROM_MS, activeSinceMs: FROM_MS,
         activeKind: o.kind || 'combat', activeId: o.id || TARGET, capMs: 12 * 3600000, seed: o.seed || SEED,
-        hp: o.hp || 99, maxHp: o.hp || 99, gold: 0,
+        /* A Level-150 hero (max HP from Level): the fight measures damage dealt, not survival. */
+        hp: o.hp || 99, levelXp: charXpForLevel(150), gold: 0,
         skills: o.skills, equipment: o.equipment || {}, inventory: o.inventory || {},
         toolCarry: {},
         items: ITEMS, monsters: MONSTERS, nodes: GATHER_INDEX, recipes: ARTISAN_INDEX,
@@ -233,8 +203,7 @@ export async function runAll({ mutate } = {}) {
       return huntAccrual({ ...inp, inventory: {} }, { seed: o.seed || SEED, bag, engine: ACC });
     };
 
-    const RANGED = { attack: 0, hitpoints: MAX_XP, defense: MAX_XP, ranged: MAX_XP, magic: 0, prayer: 0 };
-    const MAGE = { hitpoints: MAX_XP, defense: MAX_XP, magic: MAX_XP, prayer: 0 };
+    const RANGED = { melee: 0, defense: MAX_XP, ranged: MAX_XP, magic: 0, prayer: 0 };
 
     // ═════════════════════════ AMMO ═════════════════════════════════════
     {
@@ -316,7 +285,7 @@ export async function runAll({ mutate } = {}) {
 
       /* THE LOOP, through the engine. Runecrafting 1, Mining 1, Stonemason 0;
          Magic 15 so the Earth rune is wearable. */
-      const skills = { runecrafting: 0, mining: 0, stonemason: 0, hitpoints: xpAt(30), defense: xpAt(30), magic: xpAt(15), prayer: 0 };
+      const skills = { runecrafting: 0, mining: 0, stonemason: 0, defense: xpAt(30), magic: xpAt(15), prayer: 0 };
       const step = (id, inventory) => away({ kind: 'artisan', id, skills: { ...skills }, inventory, hp: 300 });
       const mine = away({ kind: 'gather', id: 'essence_rock', skills: { ...skills }, inventory: {}, hp: 300 });
       const ess = (mine.accrued && mine.delta.items && mine.delta.items.rune_essence) || 0;
@@ -342,121 +311,6 @@ export async function runAll({ mutate } = {}) {
       }
     }
 
-    // ═════════════════════════ PRAYER ══════════════════════════════════
-    {
-      let prev = 0; let prevLv = 0;
-      for (const row of PRAYER_WARDS) {
-        ok(row.lv > prevLv && row.pct > prev && row.pct <= PRAYER_WARD_MAX_PCT,
-          `P1: PRAYER_WARDS row ${JSON.stringify(row)} is not strictly above the last and within ${PRAYER_WARD_MAX_PCT}%`);
-        prev = row.pct; prevLv = row.lv;
-      }
-      /* The Game Designer's ruled table (2026-10-10): front-loaded, same cap. */
-      const RULED = '10:3,20:5,30:7,40:9,50:11,60:13,70:15,80:17,90:19,99:20';
-      ok(PRAYER_WARDS.map((r) => r.lv + ':' + r.pct).join(',') === RULED && PRAYER_WARD_MAX_PCT === 25,
-        `P1: PRAYER_WARDS is not the ruled table ${RULED} (cap 25) — got `
-        + PRAYER_WARDS.map((r) => r.lv + ':' + r.pct).join(',') + ` cap ${PRAYER_WARD_MAX_PCT}`);
-      ok(C.prayerWardPct({ prayer: xpAt(10) }) === 3 && C.prayerWardPct({ prayer: xpAt(9) }) === 0,
-        'P1: the first ward must land at exactly Prayer 10 (3%) and not before');
-      ok(C.prayerWardPct({ prayer: 0 }) === 0, 'P1: Prayer 1 has a ward');
-      ok(C.prayerWardPct({ prayer: MAX_XP }) === PRAYER_WARDS[PRAYER_WARDS.length - 1].pct,
-        'P1: Prayer 99 does not read the top ward');
-      const m = MONSTERS[TARGET];
-      const lo = C.monsterCombatRolls(m, { eq: {}, skills: { prayer: 0 }, bonus: () => 0 });
-      const hi = C.monsterCombatRolls(m, { eq: {}, skills: { prayer: MAX_XP }, bonus: () => 0 });
-      const want = lo.accuracy * (1 - C.prayerWardPct({ prayer: MAX_XP }) / 100);
-      ok(Math.abs(hi.accuracy - want) < 1e-12 && hi.maxHit === lo.maxHit,
-        `P2: Prayer 99 lands ${hi.accuracy} of ${lo.accuracy} (want ${want}) — the ward is not a clean share of blows`);
-
-      /* P2b — THE FLOOR BINDS (Security GO condition #4). With defence 23+ over
-         the foe's attack the landed chance is clamped UP to monsterMinAccuracy;
-         the ward must still cut BELOW that floor, or a well-armoured hero's
-         Prayer pays nothing. Kills `Math.max(min, landed * (1 - w))`. */
-      const B = C.COMBAT_BALANCE;
-      const weak = Object.keys(MONSTERS).map((id) => MONSTERS[id])
-        .sort((a, b) => (a.atk || 1) - (b.atk || 1))[0];
-      const defLv = Math.min(99, (weak.atk || 1) + 30);
-      ok(defLv - (weak.atk || 1) >= 23, `P2b fixture: defence ${defLv} is not 23 over ${weak.atk}`);
-      const fl0 = C.monsterCombatRolls(weak, { eq: {}, skills: { defense: xpAt(defLv), prayer: 0 }, bonus: () => 0 });
-      const fl9 = C.monsterCombatRolls(weak, { eq: {}, skills: { defense: xpAt(defLv), prayer: MAX_XP }, bonus: () => 0 });
-      ok(fl0.accuracy === B.monsterMinAccuracy,
-        `P2b fixture: the floor does not bind (${fl0.accuracy} vs min ${B.monsterMinAccuracy})`);
-      ok(Math.abs(fl9.accuracy - B.monsterMinAccuracy * (1 - C.prayerWardPct({ prayer: MAX_XP }) / 100)) < 1e-12
-        && fl9.accuracy < B.monsterMinAccuracy,
-        `P2b: at the accuracy floor Prayer 99 lands ${fl9.accuracy} — the ward must apply AFTER the clamp `
-        + `(want ${B.monsterMinAccuracy} x ${1 - C.prayerWardPct({ prayer: MAX_XP }) / 100})`);
-
-      /* ATTENDED vs AWAY vs TICK. The same character, prayer 1 and prayer 99,
-         against a foe that hits. Each path's damage ratio must match the ward. */
-      const melee = { weapon: bestOf('sword', 'strB') };
-      const body = (p) => ({ attack: xpAt(20), strength: xpAt(20), defense: 0, hitpoints: MAX_XP, prayer: p });
-      const FOE = Object.keys(MONSTERS).filter((id) => !MONSTERS[id].boss && (MONSTERS[id].atk || 0) >= 40)
-        .sort((a, b) => MONSTERS[a].atk - MONSTERS[b].atk)[0] || TARGET;
-      const ward = C.prayerWardPct({ prayer: MAX_XP }) / 100;
-      const band = (r) => Math.abs(r - (1 - ward)) < 0.06;
-
-      const at0 = attended({ equipment: melee, skills: body(0), ticks: 6000, monsterId: FOE });
-      const at9 = attended({ equipment: melee, skills: body(MAX_XP), ticks: 6000, monsterId: FOE });
-      ok(at0.taken > 500, `P3 fixture: ${FOE} dealt only ${at0.taken} damage attended — not a foe that hits`);
-      ok(band(at9.taken / at0.taken),
-        `P3 ATTENDED: Prayer 99 took ${(at9.taken / at0.taken).toFixed(3)} of Prayer 1's damage (want ~${(1 - ward).toFixed(2)})`);
-
-      const HP = 5e6;
-      const aw0 = away({ id: FOE, equipment: melee, skills: body(0), hp: HP });
-      const aw9 = away({ id: FOE, equipment: melee, skills: body(MAX_XP), hp: HP });
-      /* HP lost = the blows the hunt's analyzer tally counts taken (regen out of a fight refills the bar). */
-      const lost = (r) => (r.accrued && r.analyzer ? Number(r.analyzer.taken.total) : NaN);
-      ok(aw0.accrued && aw9.accrued, `P3 HUNT: a fixture accrued nothing (${aw0.reason}/${aw9.reason})`);
-      ok(band(lost(aw9) / lost(aw0)),
-        `P3 HUNT: Prayer 99 lost ${(lost(aw9) / lost(aw0)).toFixed(3)} of Prayer 1's HP (want ~${(1 - ward).toFixed(2)})`);
-
-      /* AWAY-1, exact: one hunt span, the same session run twice — the ward is
-         not a scope question (a hunt has none), so the fight is byte-identical. */
-      const spanOf = () => {
-        const eq = C.equipmentStats(melee, ITEMS);
-        const style = resolveStyle(eq.weaponType, null);
-        const G = { activeMonster: FOE, monsterHp: 0, monsterMaxHp: 0, playerHp: HP, playerMaxHp: HP,
-          gold: 0, skills: body(MAX_XP), stats: {}, inventory: {}, equipment: { ...melee }, ammoCarry: {} };
-        const bonus = () => 0;
-        const ctx = {
-          fromMs: FROM_MS, toMs: FROM_MS + 3600000, tickMs: 2400,
-          monsters: MONSTERS, items: ITEMS, bonus, style, activeBuffCount: 0,
-          playerRolls: (mm) => C.playerCombatRolls(mm, { eq, equipment: melee, items: ITEMS, skills: G.skills, bonus,
-            setBonus: C.armorSetBonus(melee, ITEMS), profile: Object.assign({}, C.DEFAULT_PROFILE, { type: eq.weaponType }), style }),
-          monsterRolls: (mm) => C.monsterCombatRolls(mm, { eq, skills: G.skills, bonus }),
-          weakness: (mm) => C.weaknessInfo(mm, eq),
-          fx: { addXp() {}, addItem() {}, addGold() {}, removeItem() {} },
-        };
-        const s = huntSpan(G, ctx, { seed: SEED, fromMs: FROM_MS });
-        return { hp: G.playerHp, kills: s.kills };
-      };
-      const sa = spanOf(); const sb = spanOf();
-      ok(sa.kills > 0 && sa.hp === sb.hp && sa.kills === sb.kills,
-        `P4 AWAY-1: the warded hunt is not deterministic (${sa.hp} hp, ${sa.kills} kills) vs (${sb.hp}, ${sb.kills})`);
-
-      /* TICK: the world tick settles a hunt in 10 s windows through the same
-         engine, the session carried window to window (TICK-1). */
-      const tickLost = (p) => {
-        const eq = C.equipmentStats(melee, ITEMS);
-        const style = resolveStyle(eq.weaponType, null);
-        const G = { activeMonster: FOE, monsterHp: 0, monsterMaxHp: 0, playerHp: HP, playerMaxHp: HP,
-          gold: 0, skills: body(p), stats: {}, inventory: {}, equipment: { ...melee }, ammoCarry: {} };
-        const bonus = () => 0;
-        const ctx = {
-          tickMs: 2400, monsters: MONSTERS, items: ITEMS, bonus, style, activeBuffCount: 0,
-          playerRolls: (mm) => C.playerCombatRolls(mm, { eq, equipment: melee, items: ITEMS, skills: G.skills, bonus,
-            setBonus: C.armorSetBonus(melee, ITEMS), profile: Object.assign({}, C.DEFAULT_PROFILE, { type: eq.weaponType }), style }),
-          monsterRolls: (mm) => C.monsterCombatRolls(mm, { eq, skills: G.skills, bonus }),
-          weakness: (mm) => C.weaknessInfo(mm, eq),
-          fx: { addXp() {}, addItem() {}, addGold() {}, removeItem() {} },
-        };
-        /* Blows taken, counted from the world events (regen out of a fight refills HP). */
-        return huntSpan(G, { ...ctx, fromMs: FROM_MS, toMs: FROM_MS + 2 * 3600000 }, { seed: SEED, windowMs: 10000 }).taken;
-      };
-      const tk0 = tickLost(0); const tk9 = tickLost(MAX_XP);
-      ok(tk0 > 500, `P5 fixture: the tick chain took only ${tk0} damage from ${FOE}`);
-      ok(band(tk9 / tk0),
-        `P5 TICK: Prayer 99 lost ${(tk9 / tk0).toFixed(3)} of Prayer 1's HP across 10 s windows (want ~${(1 - ward).toFixed(2)})`);
-    }
   } finally {
     if (st.base) await rm(st.base, { recursive: true, force: true });
   }
@@ -495,7 +349,7 @@ const main = async () => {
     log(`\nall ${Object.keys(MUTATIONS).length} mutations caught; pristine run ${r.checks - r.fails}/${r.checks}`);
     return r.fails ? 1 : 0;
   }
-  log('W0 — ammo run-dry, Runecrafting level-1 loop, Prayer ward on every path');
+  log('W0 — ammo run-dry, Runecrafting level-1 loop');
   const r = await runAll();
   log(`\n  ${r.checks - r.fails}/${r.checks} checks green`);
   return r.fails ? 1 : 0;

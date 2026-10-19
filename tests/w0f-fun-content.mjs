@@ -41,11 +41,9 @@ import { auditRoster, TIER_BANDS } from '../src/data/monster-classes.js';
 import { DROP_BAND_MAX, effectiveDropChance } from '../src/core/drops.js';
 import { createRng } from '../src/core/rng.js';
 import {
-  playerCombatRolls, monsterCombatRolls, weaknessInfo, equipmentStats,
-  swingIntervalMs, DEFAULT_PROFILE,
+  playerCombatRolls, monsterCombatRolls, weaknessInfo, equipmentStats, DEFAULT_PROFILE,
 } from '../src/core/combat.js';
-import { COMBAT_STYLES } from '../src/core/styles.js';
-import { xpForLevel } from '../src/core/xp.js';
+import { skillXpForLevel, charXpForLevel } from '../src/core/xp.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
 import { huntSpan } from './hunt-fixture.mjs';
 
@@ -88,18 +86,16 @@ function fight(monsters, monsterId) {
   const m = monsters[monsterId];
   const L = LOADOUT[m.tier].level;
   const EQ = equipmentFor(m.tier);
-  const skills = { attack: xpForLevel(L), strength: xpForLevel(L), defense: xpForLevel(L),
-    hitpoints: xpForLevel(Math.max(10, L)) };
-  const maxHp = Math.max(10, L);
+  /* The tier's Level with Melee and Defense at it (core rebuild: max HP from Level, the one 2 s swing). */
+  const skills = { melee: skillXpForLevel('melee', L), defense: skillXpForLevel('defense', L) };
   const eq = equipmentStats(EQ, ITEMS);
-  const style = COMBAT_STYLES.controlled || Object.values(COMBAT_STYLES)[0];
   const state = { activeMonster: monsterId, monsterHp: m.hp, monsterMaxHp: m.hp,
-    playerHp: maxHp, playerMaxHp: maxHp, gold: 0, skills, stats: {}, inventory: {} };
+    playerHp: 1e9, gold: 0, skills, levelXp: charXpForLevel(L), stats: {}, inventory: {} };
   const ctx = {
-    fromMs: 0, toMs: 3600000, tickMs: swingIntervalMs(eq, style),
-    monsters, items: ITEMS, eq, bonus: () => 0, style, activeBuffCount: 0,
+    fromMs: 0, toMs: 3600000,
+    monsters, items: ITEMS, eq, bonus: () => 0, family: 'sword', activeBuffCount: 0,
     playerRolls: (mm) => playerCombatRolls(mm, { eq, equipment: EQ, items: ITEMS, skills, bonus: () => 0,
-      profile: DEFAULT_PROFILE, style }),
+      profile: DEFAULT_PROFILE }),
     monsterRolls: (mm) => monsterCombatRolls(mm, { eq, skills, bonus: () => 0 }),
     weakness: (mm) => weaknessInfo(mm, eq),
   };

@@ -69,6 +69,12 @@ comment on column public.player_state.level_xp is
 
 -- ── §2 THE RETIRED SKILLS ────────────────────────────────────────────────────
 delete from public.player_skills where skill_id in ('attack', 'strength', 'hitpoints');
+-- "Defeat 100 monsters" paid 1,500 Hitpoints XP (2026-10-10-quest-xp-absence-pay.sql). Its XP moves to
+-- Defense, the combat skill every role trains (any hero in armour); Level cannot be granted by a claim
+-- (kills only, hr_apply refuses level_xp outside a hunt). PROVISIONAL, flagged to the designer.
+insert into public.hr_quest_rewards (quest_id, xp) values
+  ('hundred_kills', '{"defense": 1500}')
+on conflict (quest_id) do update set xp = excluded.xp;
 
 -- ── §3 THE OLD MODEL ─────────────────────────────────────────────────────────
 -- Max HP stored and raised by Hitpoints.

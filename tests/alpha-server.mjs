@@ -122,7 +122,7 @@ const ARMS = {
       for (; made < bought; made++) await db.query("insert into public.player_ledger (user_id, slot, kind, intent, gold, meta) values ($1, 0, 'shop', 'stamina_refill:1', -1, '{}')", [uid]);
       const q = await H.one(db, 'select public.hr_stamina_refill_quote($1, 0)', [uid]);
       const cap = Number(q.max_ms) / 60000;
-      const want = X.SR.refillPrice({ combatLevel: q.level, currentMin: cur, capMin: cap, boughtToday: bought });
+      const want = X.SR.refillPrice({ level: q.level, currentMin: cur, capMin: cap, boughtToday: bought });
       if ((want === null) !== (q.available === false) || (want && (want.price !== Number(q.price) || want.restoredMin * 60000 !== Number(q.restore_ms) || want.n !== q.n))) {
         p.push(`stamina refill (level ${lv}, ${cur} min, bought ${bought}, premium ${prem}): SQL ${JSON.stringify(q)} vs data ${JSON.stringify(want)}`);
       }

@@ -27,9 +27,9 @@
 // THE PRICE, integer only (the server computes it; the client only shows it):
 //   restoredMin = min(maxMinPerBuy, capMin - currentMin)   (refused if <= 0)
 //   n           = purchases already made this server (UTC) day + 1  (refused past perDay)
-//   price = ceil( (base + perLevel x combatLevel) x (stepDen + stepNum x (n - 1)) x restoredMin
+//   price = ceil( (base + perLevel x Level) x (stepDen + stepNum x (n - 1)) x restoredMin
 //                 / (stepDen x maxMinPerBuy) )
-// combatLevel is src/core/xp.js combatLevel (server: hr_lb_combat_level) at the
+// Level is src/core/xp.js charLevelFromXp(level_xp) (server: hr_level_of) at the
 // instant of the purchase.
 //
 // WORKED EXAMPLES (combat levels stated):
@@ -63,12 +63,12 @@ export const STAMINA_REFILL = Object.freeze({
 });
 
 /** The gold a purchase costs, or null when it buys nothing or the day is spent. Integers in, integer out. */
-export function refillPrice({ combatLevel, currentMin, capMin, boughtToday }) {
+export function refillPrice({ level, currentMin, capMin, boughtToday }) {
   const R = STAMINA_REFILL;
   const restored = Math.min(R.maxMinPerBuy, Math.floor(capMin) - Math.floor(currentMin));
   const n = Math.floor(boughtToday) + 1;
   if (!(restored > 0) || n > R.perDay) return null;
-  const lv = Math.max(1, Math.floor(combatLevel));
+  const lv = Math.max(1, Math.floor(level));
   const num = (R.base + R.perLevel * lv) * (R.stepDen + R.stepNum * (n - 1)) * restored;
   const den = R.stepDen * R.maxMinPerBuy;
   return { restoredMin: restored, n, price: Math.ceil(num / den) };

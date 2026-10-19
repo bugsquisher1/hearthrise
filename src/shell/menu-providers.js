@@ -19,12 +19,12 @@
 //                                         Security review) ships
 // worldTargetOf turns what the World picked under a pointer into a target.
 // ════════════════════════════════════════════════════════════════════════
-import { MONSTERS } from '../data/monsters.js?v=0.2.8';
-import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.8';
-import { refusalText } from './intent-words.js?v=0.2.8';
-import { monsterName } from './widgets/bits.js?v=0.2.8';
-import { partyMembershipOf } from '../session/party-sections.js?v=0.2.8';
-import { inviteOwn, afterLeave } from '../session/party-intents.js?v=0.2.8';
+import { MONSTERS } from '../data/monsters.js?v=0.2.9';
+import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.9';
+import { refusalText } from './intent-words.js?v=0.2.9';
+import { monsterName } from './widgets/bits.js?v=0.2.9';
+import { partyMembershipOf } from '../session/party-sections.js?v=0.2.9';
+import { inviteOwn, afterLeave } from '../session/party-intents.js?v=0.2.9';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

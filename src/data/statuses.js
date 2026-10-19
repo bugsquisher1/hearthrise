@@ -30,7 +30,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.8';
+import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.9';
 
 export const STATUSES = Object.freeze({
   bleed: Object.freeze({

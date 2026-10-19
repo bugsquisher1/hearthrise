@@ -147,13 +147,15 @@ export function mountShell(root, o) {
       if (!el) { el = frame(wm.row(p.id)); layer.appendChild(el); refresh(p.id); }
       el.classList.toggle('is-entering', p.entering);
       el.classList.toggle('is-leaving', p.leaving);
-      el.classList.toggle('is-floating', !p.docked);
+      el.classList.toggle('is-floating', !p.docked && !p.modal);
+      el.classList.toggle('is-modal', !!p.modal);
       el.classList.toggle('is-top', p.top);
       el.style.zIndex = String(p.z);
       el.style.width = p.width ? p.width + 'px' : '';
       el.style.right = p.docked && !p.phone ? p.right + 'px' : '';
-      el.style.left = p.docked ? '' : p.x + 'px';
-      el.style.top = p.docked ? '' : p.y + 'px';
+      /* A modal row is centred by its own CSS (.hs-win.is-modal), on every size class. */
+      el.style.left = p.docked || p.modal ? '' : p.x + 'px';
+      el.style.top = p.docked || p.modal ? '' : p.y + 'px';
     }
   }
 
@@ -293,7 +295,7 @@ export function mountShell(root, o) {
     const id = win.getAttribute('data-hs-win');
     wm.focus(id);
     const head = e.target.closest('[data-hs-drag]');
-    if (!head || e.target.closest('[data-hs-close]') || phoneMq.matches) return;
+    if (!head || e.target.closest('[data-hs-close]') || phoneMq.matches || wm.row(id).modal) return;
     const b = shell.getBoundingClientRect(), r = win.getBoundingClientRect();
     const ox = e.clientX - r.left, oy = e.clientY - r.top;
     const move = (m) => wm.float(id, { x: m.clientX - b.left - ox, y: m.clientY - b.top - oy });

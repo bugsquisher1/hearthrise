@@ -1,114 +1,38 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/shell/windows/configure-action.js — "CONFIGURE ACTION": ONE BAR SLOT, WHAT AND WHEN.
 //
-// A press on a bar slot (in a hunt or in town) opens this window on that slot.
-//   kind      Use an ability / Eat or drink / Attack with an item
-//             (ACTION_TYPES, src/data/condition-metrics.js)
-//   list      the choices of that kind: the abilities the worn weapon gives
-//             (the server's `role`), every food and drink the bag may carry
-//             plus "Any food" / "Any drink", every ammo line plus "The
-//             loaded ammo" — the same rows the server accepts
-//             (src/core/hunt/conditions.js actionKnown), never a typed list
-//   details   what the picked choice does, read from its catalogue row
-//   conditions up to MAX_CONDITIONS tests from the registry (metric, whose,
-//             comparison, value with − / +), all or any; with none, the
-//             action's own trigger, spelled out
-//   priority  Earlier / Later moves the slot in the bar (slot 1 fires first)
-// Save, Empty slot and the moves each send ONE intent through bar-draft.js;
-// every control stays off until the server has answered and the re-read
-// envelope has replaced hunt_settings, and a refusal is shown on its condition.
+// Tyler's spec (2026-10-18; Huntera's flow, never its look): a press on a bar
+// slot (its "+" when empty) opens this window CENTRED over the World (a modal
+// row, src/data/shell-windows.js), in town or in a hunt.
+//   tabs      Spells | Runes | Items (action-facts.js TABS / choicesFor: the ids
+//             the server accepts; Items carries food, drink and ammo, own stock
+//             and "Any food" / "Any drink" with the store behind them at its
+//             price per use)
+//   list      icon + name per choice (+ how many you carry, the store price)
+//   details   icon + name, type line, cost · cooldown, effect, where its uses
+//             come from (own first, then the store), requirement
+//   conditions up to MAX_CONDITIONS registry tests (metric, whose, comparison,
+//             − value +), all or any; with none, the action's own trigger
+//   priority  Earlier / Later (slot 1 fires first); dragging on the bar too
+// Nothing applies until Save; Save, Empty slot and a move each send ONE intent
+// (bar-draft.js), every control stays off until the server has answered and the
+// re-read envelope has replaced hunt_settings, and a refusal shows on its
+// condition. Not here yet, because the server's slot holds no field for them:
+// an Enabled switch and a slot's ignored monsters (half-built stays hidden).
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS, OPERATORS, ACTION_TYPES, MAX_CONDITIONS, CONSUME_KINDS, ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.1';
-import { ABILITIES } from '../../data/abilities.js?v=0.2.1';
-import { CONSUMABLES, CONSUMABLE_RULES } from '../../data/consumables.js?v=0.2.1';
-import { SUPPLIES } from '../../data/supplies.js?v=0.2.1';
+import { METRICS, OPERATORS, MAX_CONDITIONS } from '../../data/condition-metrics.js?v=0.2.1';
 import { STATUSES } from '../../data/statuses.js?v=0.2.1';
-import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.1';
-import { defaultConditions } from '../../core/hunt/conditions.js?v=0.2.1';
 import { settingsOf } from '../../session/hunt-sections.js?v=0.2.1';
 import { bagOf } from '../../session/item-sections.js?v=0.2.1';
 import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.1';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.1';
-import { glyphSvg } from '../launcher.js?v=0.2.1';
-import { itemName, abilityName, itemIconHtml } from '../widgets/bits.js?v=0.2.1';
-import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, conditionWords, saveOpen, emptyOpen, moveSlot, storeOf, storeWords } from '../bar-draft.js?v=0.2.1';
+import { actionIconHtml } from '../widgets/bits.js?v=0.2.1';
+import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, storeOf } from '../bar-draft.js?v=0.2.1';
+import { TABS, tabOf, choicesFor, actionName, factsOf, carried, supplyLines, setupWords } from '../action-facts.js?v=0.2.1';
 
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
-const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const options = (pairs) => pairs.map(([v, l]) => '<option value="' + esc(v) + '">' + esc(l) + '</option>').join('');
-const secs = (ms) => (ms % 1000 ? (ms / 1000).toFixed(1) : String(ms / 1000));
-
-/* The choices of each action type: [id, name, glyph-or-null] (a null glyph = the item's own icon). */
-const KIND_ROWS = Object.freeze({
-  food: ['food', 'Any food', 'uiChest'], drink: ['drink', 'Any drink', 'uiPotion'], loaded: ['loaded', 'The loaded ammo', 'uiSword'],
-});
-function choicesOf(type, role) {
-  if (type === 'ability') {
-    const disc = role && HUNT_ROLES[role] ? HUNT_ROLES[role].discipline : null;
-    return Object.values(ABILITIES).filter((a) => a.active && (!disc || a.disciplines.includes(disc))).map((a) => [a.id, a.n, 'uiSpark']);
-  }
-  if (type === 'consume') {
-    return Object.keys(CONSUME_KINDS).map((k) => KIND_ROWS[k])
-      .concat(Object.values(CONSUMABLES).filter((r) => r.source === 'own').map((r) => [r.id, itemName(r.id), null]));
-  }
-  return Object.keys(ATTACK_KINDS).map((k) => KIND_ROWS[k])
-    .concat(Object.values(SUPPLIES).filter((r) => r.kind === 'ammo').map((r) => [r.id, itemName(r.id), null]));
-}
-
-/* What a choice does, in plain lines, from its catalogue row. */
-function factsOf(a, set, bag) {
-  return whatOf(a).concat(supplyOf(a, set, bag));
-}
-
-/* How many of a choice the bag holds (a kind: every line of it), from the server's inventory. */
-function carried(a, bag) {
-  if (!bag) return null;
-  const kinds = { food: 'food', drink: 'drink' };
-  const of = (id) => (bag.find((l) => l.id === id) || { qty: 0 }).qty;
-  if (a.type === 'consume' && kinds[a.id]) return bag.filter((l) => CONSUMABLES[l.id] && CONSUMABLES[l.id].source === 'own' && CONSUMABLES[l.id].kind === kinds[a.id]).reduce((n, l) => n + l.qty, 0);
-  if (a.id === 'loaded') return null;
-  return a.type === 'ability' ? null : of(a.id);
-}
-
-/* Where its uses come from: own stock first, then the store per use (or nothing), and the supply setting. */
-function supplyOf(a, set, bag) {
-  if (a.type === 'ability') return [];
-  const st = storeOf(a);
-  const n = carried(a, bag);
-  const out = [];
-  if (n !== null) out.push(n > 0 ? 'You carry ' + n + '. ' + (st ? 'Own stock first, ' + storeWords(st) + '.' : 'When they run out, this slot waits.') : st ? 'You carry none: ' + storeWords(st).replace(/^then /, '') + '.' : 'You carry none, so this slot waits.');
-  else if (st) out.push('Own stock first, ' + storeWords(st) + '.');
-  if (st && set && set.supplySource !== 'store' && set.onEmpty !== 'switch') out.push('Your supply setting keeps the store off (Hunt settings, When my bag runs out).');
-  if (!st && a.type === 'consume') out.push('Choose Any food or Any drink to fall back on the store.');
-  return out;
-}
-
-function whatOf(a) {
-  if (a.type === 'ability') {
-    const r = ABILITIES[a.id];
-    if (!r) return [];
-    const out = [r.mana ? 'Costs ' + r.mana + ' mana.' : 'Costs no mana.', 'Ready again after ' + secs(r.cdMs) + ' seconds.'];
-    const el = r.element ? ' ' + r.element : '';
-    if (r.target === 'taunt') out.push('Pulls the monsters near you onto you.');
-    if (r.target === 'mark') out.push('Your target takes ' + r.bonusPct + '% more damage for ' + secs(r.durMs) + ' seconds.');
-    if (r.dmg) out.push('Deals ' + r.dmg[0] + '–' + r.dmg[1] + el + ' damage' + (r.target === 'area' ? ' to every monster in the area.' : r.maxHits ? ' to up to ' + r.maxHits + ' monsters.' : r.hits ? ', ' + r.hits + ' times.' : '.'));
-    if (r.heal) out.push('Heals ' + r.heal[0] + '–' + r.heal[1] + (r.target === 'party' ? ' to everyone nearby.' : ' to the ally who needs it most.'));
-    if (r.shield) out.push('Puts a ' + r.shield + '-point shield on you.');
-    if (r.status && STATUSES[r.status]) out.push('Causes ' + STATUSES[r.status].name.toLowerCase() + '.');
-    if (r.rune) out.push('Uses one ' + itemName(r.rune) + ' each time.');
-    if (r.ammo) out.push('Uses ' + r.ammo + ' of your loaded ammo.');
-    return out;
-  }
-  if (a.type === 'consume') {
-    const stat = (k) => (k === 'drink' || k === 'mana' ? 'mana' : 'health');
-    const spread = 'Half lands at once, the rest over ' + secs(CONSUMABLE_RULES.overTimeMs) + ' seconds.';
-    if (own(CONSUME_KINDS, a.id)) return ['Uses the best ' + a.id + ' you carry.', spread];
-    const r = CONSUMABLES[a.id];
-    return r ? ['Restores ' + r.amount + ' ' + stat(r.kind) + '.', spread] : [];
-  }
-  if (own(ATTACK_KINDS, a.id)) return ['Attacks with whatever ammo you have loaded.'];
-  return ['Attacks with it. Each shot uses one.'];
-}
+const VIEW = new WeakMap();   // CharacterSession -> the tab on show (display scratch)
 
 function condHtml(i) {
   const b = (x, label, body) => '<button type="button" class="hh-seg" data-hs-act="cfg" data-x="' + x + '" data-i="' + i + '" aria-label="' + label + '">' + body + '</button>';
@@ -116,7 +40,7 @@ function condHtml(i) {
     + '<select class="hh-select" data-hs-act="cfg-f" data-f="metric" data-i="' + i + '" aria-label="Test ' + (i + 1) + '">' + options(METRICS.map((m) => [m.id, m.label])) + '</select>'
     + '<select class="hh-select" data-hs-act="cfg-f" data-f="subject" data-i="' + i + '" aria-label="Whose"></select>'
     + '<select class="hh-select" data-hs-act="cfg-f" data-f="op" data-i="' + i + '" aria-label="Comparison"></select>'
-    + '<span class="hc-num">' + b('dec', 'Lower', '−')
+    + '<span class="hc-num hh-step">' + b('dec', 'Lower', '−')
     + '<input class="hh-num" type="number" inputmode="numeric" data-hs-act="cfg-f" data-f="value" data-i="' + i + '" aria-label="Value"><span class="he-unit"></span>'
     + b('inc', 'Higher', '+') + '</span>'
     + '<select class="hh-select" data-hs-act="cfg-f" data-f="effect" data-i="' + i + '" aria-label="Effect">' + options(Object.values(STATUSES).map((s) => [s.id, s.name])) + '</select>'
@@ -132,15 +56,16 @@ export function renderConfigureAction() {
     + '<p class="hh-empty hc-none">Your bar shows here once your character has loaded.</p>'
     + '<div class="hc-form">'
     + '<div class="hc-head"><b class="hc-title"></b><small class="hc-rank"></small>' + btn('up', 'Earlier') + btn('down', 'Later') + '</div>'
-    + '<div class="hh-segs hc-types" role="group" aria-label="Kind of action">'
-    + Object.entries(ACTION_TYPES).map(([k, t]) => '<button type="button" class="hh-seg" data-hs-act="cfg" data-x="type" data-type="' + esc(k) + '" aria-pressed="false">' + esc(t.label) + '</button>').join('')
+    + '<div class="hc-tabs" role="tablist" aria-label="Kind of action">'
+    + TABS.map(([k, l]) => '<button type="button" class="hc-tab" role="tab" data-hs-act="cfg" data-x="tab" data-tab="' + k + '" aria-selected="false">' + l + '</button>').join('')
     + '</div>'
     + '<div class="hc-pick"><ul class="hc-list" role="listbox" aria-label="Choose the action"></ul>'
-    + '<div class="hc-detail"><p class="hc-name"></p><ul class="hc-facts"></ul></div></div>'
-    + '<div class="hc-conds-head"><h3 class="hs-sub">Conditions</h3>' + btn('add', 'Add a condition') + '</div>'
+    + '<div class="hc-detail"><div class="hc-detail-head"><span class="hc-detail-icon"></span><b class="hc-name"></b></div>'
+    + '<p class="hc-type"></p><p class="hc-cost"></p><ul class="hc-facts"></ul><p class="hc-req"></p></div></div>'
+    + '<div class="hc-conds-head"><h3 class="hs-sub">Conditions</h3>' + btn('add', '+ Add condition') + '</div>'
     + '<p class="hs-note hc-rule"></p>'
     + '<label class="hc-join"><span class="he-label">With more than one</span><select class="hh-select" data-hs-act="cfg-f" data-f="join">'
-    + '<option value="and">all must pass</option><option value="or">any one passes</option></select></label>'
+    + '<option value="and">all must match</option><option value="or">any one matches</option></select></label>'
     + '<ol class="hc-conds">' + conds + '</ol>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p>'
     + '<div class="hc-foot">' + btn('clear', 'Empty slot') + btn('cancel', 'Cancel') + btn('save', 'Save', ' is-primary') + '</div>'
@@ -179,6 +104,12 @@ function patchCond(row, c, i, s, doc) {
   if (m.value === 'effect') prop(eff, 'value', String(c.value));
 }
 
+/* The list's small note: how many you carry, and the store's price per use. */
+function choiceNote(a, bag) {
+  const st = storeOf(a), n = carried(a, bag);
+  return [n ? '×' + n : '', st && st.price !== null ? (st.from ? 'store from ' : 'store ') + st.price + ' g each' : st ? 'store' : ''].filter(Boolean).join(' · ');
+}
+
 renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   const cs = ctx.character;
   const set = settingsOf(cs);
@@ -191,29 +122,35 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   if (!on) return;
   const d = s.draft;
   const off = s.pending;
+  const bag = bagOf(cs);
+  const tab = VIEW.get(cs) || tabOf(d.action);
   text(root.querySelector('.hc-title'), 'Slot ' + (s.open + 1));
   text(root.querySelector('.hc-rank'), s.open === 0 ? 'Tried first' : 'Tried after slot ' + s.open);
-  for (const b of root.querySelectorAll('.hc-types [data-type]')) attr(b, 'aria-pressed', String(b.getAttribute('data-type') === d.action.type));
-  const choices = choicesOf(d.action.type, set.role);
-  const bag = bagOf(cs);
-  rows(root.querySelector('.hc-list'), choices, {
-    key: (c) => d.action.type + ':' + c[0],
-    build: (c) => element(ctx.doc, '<li role="option"><button type="button" class="hc-choice" data-hs-act="cfg" data-x="pick" data-id="' + esc(c[0]) + '">'
-      + (c[2] ? '<span class="hh-icon is-glyph">' + glyphSvg(ctx.glyphs, c[2]) + '</span>' : itemIconHtml(ctx.glyphs, c[0])) + '<span class="hc-choice-name">' + esc(c[1]) + '</span><small class="hc-choice-note"></small></button></li>'),
+  for (const b of root.querySelectorAll('.hc-tab')) attr(b, 'aria-selected', String(b.getAttribute('data-tab') === tab));
+  rows(root.querySelector('.hc-list'), choicesFor(tab, set.role), {
+    key: (c) => c.type + ':' + c.id,
+    build: (c) => element(ctx.doc, '<li role="option"><button type="button" class="hc-choice" data-hs-act="cfg" data-x="pick" data-type="' + esc(c.type) + '" data-id="' + esc(c.id) + '">'
+      + actionIconHtml(ctx.glyphs, c) + '<span class="hc-choice-name">' + esc(c.name) + '</span><small class="hc-choice-note"></small></button></li>'),
     patch: (li, c) => {
-      attr(li, 'aria-selected', String(c[0] === d.action.id)); cls(li, 'is-on', c[0] === d.action.id); prop(li.firstElementChild, 'disabled', off);
-      const a = { type: d.action.type, id: c[0] }, st = storeOf(a), n = carried(a, bag);
-      text(li.querySelector('.hc-choice-note'), [n ? '×' + n : '', st && st.price !== null ? (st.from ? 'store from ' : 'store ') + st.price + ' g each' : st ? 'store' : ''].filter(Boolean).join(' · '));
+      const picked = c.type === d.action.type && c.id === d.action.id;
+      attr(li, 'aria-selected', String(picked)); cls(li, 'is-on', picked); prop(li.firstElementChild, 'disabled', off);
+      text(li.querySelector('.hc-choice-note'), choiceNote(c, bag));
     },
   });
-  text(root.querySelector('.hc-name'), d.action.id ? (d.action.type === 'ability' ? abilityName(d.action.id) : (choices.find((c) => c[0] === d.action.id) || [0, itemName(d.action.id)])[1]) : 'Choose one from the list');
-  rows(root.querySelector('.hc-facts'), d.action.id ? factsOf(d.action, set, bag) : [], {
-    key: (f) => f, build: () => element(ctx.doc, '<li></li>'), patch: (li, f) => text(li, f),
+  const icon = root.querySelector('.hc-detail-icon');
+  const key = d.action.type + ':' + d.action.id;
+  if (icon.getAttribute('data-for') !== key) { icon.innerHTML = d.action.id ? actionIconHtml(ctx.glyphs, d.action) : ''; attr(icon, 'data-for', key); }
+  text(root.querySelector('.hc-name'), d.action.id ? actionName(d.action) : 'Choose one from the list');
+  const f = d.action.id ? factsOf(d.action) : { type: null, cost: null, cooldown: null, effect: [], requires: null };
+  text(root.querySelector('.hc-type'), f.type || '');
+  text(root.querySelector('.hc-cost'), [f.cost, f.cooldown].filter(Boolean).join(' · '));
+  rows(root.querySelector('.hc-facts'), f.effect.concat(d.action.id ? supplyLines(d.action, set, bag) : []), {
+    key: (x) => x, build: () => element(ctx.doc, '<li></li>'), patch: (li, x) => text(li, x),
   });
+  text(root.querySelector('.hc-req'), f.requires || '');
   const n = d.conditions.length;
-  const dflt = d.action.id ? defaultConditions(d, { foodBelowPct: set.foodPct, drinkBelowPct: set.drinkPct }) : [];
-  text(root.querySelector('.hc-rule'), n ? (n > 1 ? (d.join === 'or' ? 'Fires when any one of these passes.' : 'Fires when all of these pass.') : 'Fires when this passes.')
-    : 'No conditions: ' + (dflt.length ? 'it fires when ' + dflt.map(conditionWords).join(' and ') + '.' : 'it fires whenever it is ready.'));
+  text(root.querySelector('.hc-rule'), n ? (n > 1 ? (d.join === 'or' ? 'Fires when any one of these matches.' : 'All conditions must match.') : 'Fires when this matches.')
+    : (d.action.id ? setupWords(d, set) : 'No conditions: the action’s own trigger.'));
   cls(root.querySelector('.hc-join'), 'is-on', n > 1);
   prop(root.querySelector('[data-f="join"]'), 'value', d.join);
   root.querySelectorAll('.hc-cond').forEach((row, i) => patchCond(row, d.conditions[i], i, s, ctx.doc));
@@ -239,17 +176,14 @@ renderConfigureAction.act = function actConfigureAction(ctx, body, action, ev, t
   const cs = ctx.character;
   const s = draftOf(cs);
   if (s.pending || !s.draft) return;
-  const repaint = () => { ctx.refresh('configure-action'); ctx.refresh('hunt-settings'); };
-  const done = () => ctx.wm.close('configure-action');
+  const repaint = () => ctx.refresh('configure-action');
+  const done = () => { VIEW.delete(cs); ctx.wm.close('configure-action'); };
   const d = s.draft;
   const c = d.conditions[Number(t.getAttribute('data-i'))];
   if (action === 'cfg' && ev.type === 'click') {
     const x = t.getAttribute('data-x');
-    if (x === 'type' && d.action.type !== t.getAttribute('data-type')) {
-      const type = t.getAttribute('data-type');
-      const first = choicesOf(type, (settingsOf(cs) || {}).role)[0];
-      d.action = { type, id: first ? first[0] : '' };
-    } else if (x === 'pick') d.action.id = t.getAttribute('data-id');
+    if (x === 'tab') VIEW.set(cs, t.getAttribute('data-tab'));
+    else if (x === 'pick') d.action = { type: t.getAttribute('data-type'), id: t.getAttribute('data-id') };
     else if (x === 'add' && d.conditions.length < MAX_CONDITIONS) d.conditions.push(blankCondition());
     else if (x === 'drop' && c) d.conditions.splice(Number(t.getAttribute('data-i')), 1);
     else if ((x === 'inc' || x === 'dec') && c) nudge(c, x === 'inc' ? 1 : -1);
@@ -270,3 +204,6 @@ renderConfigureAction.act = function actConfigureAction(ctx, body, action, ev, t
   else if (c && f === 'effect') c.value = t.value;
   repaint();
 };
+
+/** Forget the tab on show (the bar opens the window on a slot's own tab). */
+export function resetConfigureView(cs) { VIEW.delete(cs); }

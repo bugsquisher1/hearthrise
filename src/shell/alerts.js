@@ -26,6 +26,8 @@ import { bagOf, rulesOf, nameOf } from '../session/item-sections.js?v=0.2.1';
 import { huntName } from '../session/party-sections.js?v=0.2.1';
 import { itemName } from './widgets/bits.js?v=0.2.1';
 import { whole } from '../render/format.js?v=0.2.1';
+import { CONSUME_KINDS } from '../data/condition-metrics.js?v=0.2.1';
+import { storeOf } from './bar-draft.js?v=0.2.1';
 
 const residueOf = (cs) => {
   const r = cs && cs.record && cs.record.residue && cs.record.residue.alerts;
@@ -60,7 +62,12 @@ function lowItems(cs) {
     if (n * 100 < target * LOW_SUPPLY_PCT) out.set(id, { item: id, have: n, target });
   }
   const s = settingsOf(cs);
-  if (s) for (const sl of s.slots) if (!sl.empty && sl.action.type === 'consume' && !(have.get(sl.item) > 0) && !out.has(sl.item)) out.set(sl.item, { item: sl.item, have: 0, target: null });
+  /* A bar slot with the store behind it (Any food / Any drink, paid per use) is never "out": nobody has to buy first. */
+  const storeOn = !!s && (s.supplySource === 'store' || s.onEmpty === 'switch');
+  if (s) for (const sl of s.slots) {
+    if (sl.empty || sl.action.type !== 'consume' || (storeOn && storeOf(sl.action)) || CONSUME_KINDS[sl.item]) continue;
+    if (!(have.get(sl.item) > 0) && !out.has(sl.item)) out.set(sl.item, { item: sl.item, have: 0, target: null });
+  }
   return Array.from(out.values());
 }
 

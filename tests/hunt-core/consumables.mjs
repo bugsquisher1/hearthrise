@@ -77,6 +77,20 @@ const cases = {
     if (hs.purse !== 1000 - price || hs.tally.bought[STORE_FOOD] !== 1) return 'the purse or the tally is wrong: purse ' + hs.purse + ' ' + JSON.stringify(hs.tally);
     return null;
   },
+  /* SLOT 1 FIRST (Tyler 10-18): two slots whose conditions both pass and that both can act — the
+     earlier slot fires and the later one does not; swap their places and the other one fires. */
+  'slot-one-first': (M) => {
+    const run = (order) => {
+      const hs = supplySession(M, { bag: { cooked_shrimp: { loaded: 3 }, cooked_trout: { loaded: 3 } }, purse: 0 });
+      const slots = M.conditions.heroSlots(order.map((id) => ({ action: { type: 'consume', id }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 90 }], join: 'and' })), null);
+      const { inst, sc } = oneHero(M, { hp: 50 }, { hs, slots });
+      M.consumables.consume(inst, sc);
+      return eats(sc).map((e) => e.item);
+    };
+    const a = run(['cooked_shrimp', 'cooked_trout']), b = run(['cooked_trout', 'cooked_shrimp']);
+    if (a.join() !== 'cooked_shrimp') return 'with shrimp in slot 1 the hero ate ' + JSON.stringify(a);
+    return b.join() === 'cooked_trout' ? null : 'with trout in slot 1 the hero ate ' + JSON.stringify(b);
+  },
   /* §3.4 #7: a hunt never stops for lack of stock; only gold ends it (gold_out). */
   'never-stops-when-out': (M) => {
     const hs = supplySession(M, { bag: { cooked_shrimp: { loaded: 1, essential: true } }, purse: 100 });
@@ -156,6 +170,8 @@ const mutants = [
     edits: [['src/core/action-rules.js', "    if (!storeAllowed(hs, want)) return { why: 'store_off' };", "    if (hs) return { why: 'store_off' };"]] },
   { name: 'a store use the purse cannot pay ends nothing', case: 'never-stops-when-out',
     edits: [['src/core/hunt/consumables.js', "      if (w.why === 'gold_short') { if (w.kind === 'food') hero.hs.goldOut = true; return { why: 'gold_short' }; }", "      if (w.why === 'gold_short') return { why: 'gold_short' };"]] },
+  { name: 'the last slot is tried first', case: 'slot-one-first',
+    edits: [['src/core/hunt/conditions.js', '  for (const row of rows) {\n    const t = testSlot(inst, u, h, row.slot);', '  for (const row of rows.slice().reverse()) {\n    const t = testSlot(inst, u, h, row.slot);']] },
   { name: 'a store use is free', case: 'configured-store-slot',
     edits: [['src/core/action-rules.js', '    hs.purse = Math.max(0, int(hs.purse, 0)) - b.price;', '    hs.purse = Math.max(0, int(hs.purse, 0));']] },
   { name: 'food and drink each keep their own lane', case: 'one-shared-lane',

@@ -33,7 +33,7 @@ export function glyphSvg(glyphs, key, cls) {
  */
 function pointerFor(ctx, open) {
   const cs = ctx.character;
-  if (!cs || open.has('hunts') || huntOf(cs)) return '';
+  if (!cs || open.has('hunts') || huntOf(cs) || Array.from(open).some((id) => ctx.wm.row(id) && ctx.wm.row(id).modal)) return '';
   const sk = skillsOf(cs);
   if (!sk || Object.keys(SKILLS_DEF).some((id) => SKILLS_DEF[id].cat === 'combat' && sk[id] && sk[id].xp > 0)) return '';
   const card = HUNT_TUTORIAL[0];

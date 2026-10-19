@@ -76,17 +76,20 @@ export function closeSlot(cs) {
   s.open = null; s.draft = null; s.error = null; s.msg = '';
 }
 
-/** A fresh condition on the registry's first test, at its lowest value. */
+/* A number test starts at the middle of a percent (50) or the lowest count; a yes/no test at yes. */
+const startValue = (m) => (m.value === 'pct' ? Math.round((m.range[0] + m.range[1]) / 2) : m.range ? m.range[0] : true);
+
+/** A fresh condition on the registry's first test. */
 export function blankCondition() {
   const m = METRICS[0];
-  return { metric: m.id, op: m.ops[0], value: m.range ? m.range[0] : true };
+  return { metric: m.id, op: m.ops[0], value: startValue(m) };
 }
 
 /** A condition re-pointed at another test: that test's first comparison, first subject and lowest value. */
 export function conditionFor(metric) {
   const m = METRIC.get(metric);
   if (!m) return null;
-  const c = { metric: m.id, op: m.ops[0], value: m.value === 'effect' ? Object.keys(STATUSES)[0] : m.range ? m.range[0] : true };
+  const c = { metric: m.id, op: m.ops[0], value: m.value === 'effect' ? Object.keys(STATUSES)[0] : startValue(m) };
   if (m.subject) c.subject = Object.keys(m.subject)[0];
   return c;
 }
@@ -189,6 +192,16 @@ export function emptyOpen(cs, repaint, onOk) {
   if (!bar || s.open === null) return;
   bar[s.open] = null;
   sendBar(cs, bar, repaint, () => { closeSlot(cs); if (onOk) onOk(); });
+}
+
+/** Drag a slot to another place on the bar: it moves there and the slots between shift (one intent). */
+export function placeSlot(cs, from, to, repaint) {
+  const bar = serverBar(cs);
+  if (!bar || !(from >= 0 && from < SLOTS) || !(to >= 0 && to < SLOTS) || from === to || !bar[from]) return false;
+  const [x] = bar.splice(from, 1);
+  bar.splice(to, 0, x);
+  sendBar(cs, bar, repaint, () => closeSlot(cs));
+  return true;
 }
 
 /** Move slot `i` one place earlier (by -1) or later (+1) on the server; an open slot's draft follows it. */

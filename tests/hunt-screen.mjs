@@ -26,10 +26,16 @@
 //         regular monsters; every other float type on for both
 //   HS-6  the combat log (Chat, Combat tab) shows each server event once, even
 //         when the next envelope restates the same events
-//   HS-7  THE SLOT EDITOR: a bar slot opens it on that slot; its metric picker is
-//         the registry (src/data/condition-metrics.js); Save sends ONE intent with
-//         the whole bar; the list keeps the server's slot until the re-read
-//         envelope; a server validation error shows on its slot and condition
+//   HS-7  CONFIGURE ACTION: a bar slot opens it, centred, on that slot and its
+//         tab; its metric picker is the registry (src/data/condition-metrics.js);
+//         Save sends ONE intent with the whole bar; the slot's tooltip keeps the
+//         server's setup until the re-read envelope; a refusal shows on its condition
+//   HS-8  IN TOWN: the bar shows (no hunt vitals, a "+" on empty slots); an empty
+//         slot is set to Any food (its store price shown, paid as used) IF My HP %
+//         below 60 - ONE intent; the density step on the hunt picker sends ONE
+//         intent and shows only the server's value; after a reload both come back
+//   HS-9  A SLOT THAT NEVER FIRES: an earlier slot with the same action under
+//         weaker conditions marks it "!" with the reason; emptying it clears that
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { launchOptions } from './_chrome.mjs';
@@ -64,14 +70,18 @@ async function stub(page, s) {
   });
 }
 
-async function signInAndPlay(page, base) {
-  await page.goto(base + '/play.html', { waitUntil: 'load' });
-  await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
-  await page.fill('input[name=email]', 'qa@example.test');
-  await page.fill('input[name=password]', 'not-a-real-password');
-  await page.click('.auth-submit');
-  await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
-  await page.click('[data-app="play"][data-slot="0"]');
+async function signInAndPlay(page, base, town) {
+  if (base) await page.goto(base + '/play.html', { waitUntil: 'load' });
+  /* A reload keeps the signed-in session: the sign-in form, the character list or the World, whichever comes. */
+  await wait(page, () => document.querySelector('form[data-auth="sign-in"], [data-app="play"][data-slot="0"], .hb-bar'));
+  if (await page.$('form[data-auth="sign-in"]')) {
+    await page.fill('input[name=email]', 'qa@example.test');
+    await page.fill('input[name=password]', 'not-a-real-password');
+    await page.click('.auth-submit');
+  }
+  await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"], .hb-bar'));
+  if (await page.$('[data-app="play"][data-slot="0"]')) await page.click('[data-app="play"][data-slot="0"]');
+  if (town) return wait(page, () => document.querySelector('.hb-bar') && document.querySelectorAll('.hb-slot[data-item]').length === 20);
   /* Mounted = the party lists both heroes and the analyzer (where the size class shows it) has its numbers. */
   return wait(page, () => document.querySelectorAll('.hp-m').length === 2 && (!document.querySelector('.ha-analyzer')
     || document.querySelector('.ha-stats dd[data-stat="kills"]').textContent !== ''));
@@ -107,8 +117,9 @@ async function checks(overrides, shots) {
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
     page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
     const s = scripted();
+    if (o.town) for (const k of ['hunt', 'party', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'hunt_server_now_ms']) delete s.env[k];
     await stub(page, s);
-    const up = await signInAndPlay(page, base);
+    const up = await signInAndPlay(page, base, !!o.town);
     return { ctx, page, errors, s, up };
   };
   try {
@@ -141,7 +152,7 @@ async function checks(overrides, shots) {
           return { rebuilt: Object.keys(now).filter((k) => now[k] !== window.__nodes[k]), kills: now.kills && now.kills.textContent, hp: now.hp && now.hp.textContent };
         }, NODES);
         if (after.rebuilt.length) fails.push('HS-2 a new envelope rebuilt ' + after.rebuilt.join(', ') + ' instead of patching it');
-        if (after.kills !== '170' || !/^90 \//.test(String(after.hp))) fails.push('HS-2 the patched nodes did not take the new numbers (kills ' + after.kills + ', hp ' + after.hp + ')');
+        if (after.kills !== '170' || !/^HP 90 \//.test(String(after.hp))) fails.push('HS-2 the patched nodes did not take the new numbers (kills ' + after.kills + ', hp ' + after.hp + ')');
         /* HS-6: the log shows each fixture event once, after a restated envelope too. */
         await page.keyboard.press('Enter');
         await wait(page, () => document.querySelector('[data-hs-win="chat"] .hc-log'));
@@ -171,11 +182,14 @@ async function checks(overrides, shots) {
       const { ctx, page, s, up } = await open();
       if (up) {
         s.env.hunt_settings.stance = 'offensive';   // what the server says once it has saved
-        const btn = '.hb-plaque [data-opt="stance"][data-val="offensive"]';
+        /* Target, stance and chase live in Hunt settings (J), not on the bar (Tyler 10-18). */
+        await page.keyboard.press('j');
+        await wait(page, () => document.querySelector('[data-hs-win="hunt-settings"] .he-form [data-opt="stance"]:not([disabled])'), null, 3000);
+        const btn = '.he-form [data-opt="stance"][data-val="offensive"]';
         await page.click(btn);
         const mid = await page.evaluate((b) => ({ off: document.querySelector(b).disabled, pressed: document.querySelector(b).getAttribute('aria-pressed'),
-          allOff: Array.from(document.querySelectorAll('.hb-plaque [data-opt]')).every((c) => c.disabled) }), btn);
-        if (!mid.off || !mid.allOff) fails.push('HS-3 the plaque controls stayed on while the intent was in flight');
+          allOff: Array.from(document.querySelectorAll('.he-form [data-opt]')).every((c) => c.disabled) }), btn);
+        if (!mid.off || !mid.allOff) fails.push('HS-3 the settings controls stayed on while the intent was in flight');
         if (mid.pressed !== 'false') fails.push('HS-3 the stance showed as chosen before the server confirmed it');
         const sent = s.calls.filter((c) => c.name === 'hr_action_set_options');
         if (sent.length !== 1 || JSON.stringify(sent[0].body.p_opts) !== '{"stance":"offensive"}' || sent[0].body.p_slot !== 0) fails.push('HS-3 the press sent ' + JSON.stringify(sent.map((c) => c.body)));
@@ -183,40 +197,19 @@ async function checks(overrides, shots) {
         if (!done) fails.push('HS-3 after the server confirmed, the stance did not show the server’s new value');
         /* Refused: the server's value stays and the plaque says why. */
         s.optionsReply = { ok: false, error: 'bad_option' };
-        const def = '.hb-plaque [data-opt="stance"][data-val="defensive"]';
+        const def = '.he-form [data-opt="stance"][data-val="defensive"]';
         await page.click(def);
         await page.waitForTimeout(100);
         const back = await wait(page, (b) => !document.querySelector(b).disabled, def, 3000);
-        const r = await page.evaluate((b) => ({ pressed: document.querySelector(b).getAttribute('aria-pressed'), msg: document.querySelector('.hb-plaque .hh-intent-msg').textContent }), def);
+        const r = await page.evaluate((b) => ({ pressed: document.querySelector(b).getAttribute('aria-pressed'), msg: document.querySelector('.he-form .hh-intent-msg').textContent }), def);
+        /* HS-10: the bar keeps no fight controls; Hunt settings keeps no density (the hunt picker's) and no gathering share (not live). */
+        const left = await page.evaluate(() => ({ plaque: document.querySelectorAll('.hb-plaque [data-opt]').length,
+          settings: Array.from(document.querySelectorAll('[data-hs-win="hunt-settings"] [data-opt]')).map((e) => e.getAttribute('data-opt')),
+          words: document.querySelector('[data-hs-win="hunt-settings"]').innerText }));
+        if (left.plaque) fails.push('HS-10 the bar still carries ' + left.plaque + ' fight controls');
+        if (left.settings.includes('density') || left.settings.includes('gather_share') || /gather/i.test(left.words)) fails.push('HS-10 Hunt settings still shows density or gathering: ' + left.settings.join(','));
         if (!back || r.pressed !== 'false' || !r.msg) fails.push('HS-3 a refusal did not keep the server’s stance with a reason (' + JSON.stringify(r) + ')');
       } else fails.push('HS-3 the screen did not mount');
-      await ctx.close();
-    }
-
-    { // HS-8 the density and gathering sliders (action engine, Tyler 2026-10-18): the server's values, one intent, off until confirmed
-      const { ctx, page, s, up } = await open();
-      if (up) {
-        await page.click('.hb-slot[data-slot="2"]');
-        const W = '[data-hs-win="hunt-settings"]';
-        const there = await wait(page, (w) => document.querySelector(w + ' input[data-opt="density"]') && document.querySelector(w + ' input[data-opt="gather_share"]'), W, 3000);
-        if (!there) fails.push('HS-8 the hunt settings window has no density / gathering slider');
-        else {
-          const shown = await page.evaluate((w) => ({ d: document.querySelector(w + ' input[data-opt="density"]').value,
-            g: document.querySelector(w + ' input[data-opt="gather_share"]').value, hint: document.querySelector(w + ' .he-form').innerText }), W);
-          if (shown.d !== '1' || shown.g !== '0') fails.push('HS-8 the sliders do not show the server’s values: ' + JSON.stringify(shown).slice(0, 120));
-          if (!/arrives/.test(shown.hint)) fails.push('HS-8 the gathering slider does not say it is not live yet');
-          s.env.hunt_settings.density = 3;
-          await page.evaluate((w) => { const el = document.querySelector(w + ' input[data-opt="density"]'); el.value = '3'; el.dispatchEvent(new Event('change', { bubbles: true })); }, W);
-          const mid = await page.evaluate((w) => document.querySelector(w + ' input[data-opt="density"]').disabled, W);
-          if (!mid) fails.push('HS-8 the density slider stayed on while its intent was in flight');
-          /* the intent leaves on a microtask after the change: wait for it (up to 3 s), never assume it already left */
-          for (let i = 0; i < 60 && !s.calls.some((c) => c.name === 'hr_action_set_options'); i++) await new Promise((r) => setTimeout(r, 50));
-          const sent = s.calls.filter((c) => c.name === 'hr_action_set_options').map((c) => c.body.p_opts);
-          if (sent.length !== 1 || JSON.stringify(sent[0]) !== '{"density":3}') fails.push('HS-8 the slider sent ' + JSON.stringify(sent));
-          const done = await wait(page, (w) => { const el = document.querySelector(w + ' input[data-opt="density"]'); return !el.disabled && el.value === '3'; }, W, 3000);
-          if (!done) fails.push('HS-8 after the server confirmed, the slider did not show the server’s density');
-        }
-      } else fails.push('HS-8 the screen did not mount');
       await ctx.close();
     }
 
@@ -245,50 +238,128 @@ async function checks(overrides, shots) {
       await ctx.close();
     }
 
-    { // HS-7 the slot editor: registry pickers, one whole-bar intent, off until confirmed, refusals inline
+    { // HS-7 Configure action: a bar slot opens it centred; registry pickers; one whole-bar intent; off until confirmed; refusals inline
       const { ctx, page, s, up } = await open();
       if (up) {
         await page.click('.hb-slot[data-slot="2"]');
-        const opened = await wait(page, () => document.querySelector('[data-hs-win="hunt-settings"] .hx-form.is-on'), null, 3000);
-        if (!opened) fails.push('HS-7 pressing a bar slot did not open its editor');
+        const opened = await wait(page, () => { const f = document.querySelector('[data-hs-win="configure-action"].is-modal .hc-cfg'); return f && !f.classList.contains('is-empty'); }, null, 3000);
+        if (!opened) fails.push('HS-7 pressing a bar slot did not open Configure action as a centred modal');
         else {
           const picks = await page.evaluate(async () => {
             const reg = await import('/src/data/condition-metrics.js?v=0.1.0');
-            const shown = Array.from(document.querySelectorAll('.hx-cond[data-cond="0"] [data-f="metric"] option')).map((o) => o.value);
-            return { ok: JSON.stringify(shown) === JSON.stringify(reg.METRICS.map((m) => m.id)), shown, title: document.querySelector('.hx-title').textContent };
+            const shown = Array.from(document.querySelectorAll('.hc-cond[data-cond="0"] [data-f="metric"] option')).map((o) => o.value);
+            const win = document.querySelector('[data-hs-win="configure-action"]').getBoundingClientRect();
+            const mid = Math.abs((win.left + win.width / 2) - window.innerWidth / 2);
+            return { ok: JSON.stringify(shown) === JSON.stringify(reg.METRICS.map((m) => m.id)), shown, title: document.querySelector('.hc-title').textContent,
+              picked: (document.querySelector('.hc-list .is-on .hc-choice-name') || {}).textContent, tab: (document.querySelector('.hc-tab[aria-selected="true"]') || {}).textContent, mid };
           });
           if (!picks.ok) fails.push('HS-7 the metric picker is not the registry: ' + picks.shown.join(','));
-          if (picks.title !== 'Slot 3') fails.push('HS-7 the editor opened on "' + picks.title + '", not slot 3');
-          await page.selectOption('.hx-cond[data-cond="0"] [data-f="op"]', 'lt');
-          await page.fill('.hx-cond[data-cond="0"] [data-f="value"]', '40');
-          await page.dispatchEvent('.hx-cond[data-cond="0"] [data-f="value"]', 'change');
-          const before = 'IF My HP % at or below 50% THEN Eat or drink: Wheat Bread';   // the server's slot 3, as the fixture holds it
+          if (picks.title !== 'Slot 3') fails.push('HS-7 the window opened on "' + picks.title + '", not slot 3');
+          if (picks.picked !== 'Wheat Bread' || picks.tab !== 'Items') fails.push('HS-7 the server’s action is not the picked choice on its tab: ' + picks.picked + ' / ' + picks.tab);
+          if (picks.mid > 30) fails.push('HS-7 the modal is not centred (' + Math.round(picks.mid) + ' px off)');
+          await page.selectOption('.hc-cond[data-cond="0"] [data-f="op"]', 'lt');
+          await page.fill('.hc-cond[data-cond="0"] [data-f="value"]', '40');
+          await page.dispatchEvent('.hc-cond[data-cond="0"] [data-f="value"]', 'change');
           s.env.hunt_settings.slots[2].conditions = [{ metric: 'self_hp_pct', op: 'lt', value: 40 }];
-          await page.click('.hx-form [data-x="save"]');
-          const mid = await page.evaluate(() => ({ off: Array.from(document.querySelectorAll('.hx-bar button, .hx-bar select')).every((b) => b.disabled),
-            sum: document.querySelectorAll('.hx-row')[2].querySelector('.hx-sum').textContent }));
-          if (!mid.off) fails.push('HS-7 the editor stayed on while its intent was in flight');
-          if (mid.sum !== before) fails.push('HS-7 the list showed the edit before the server confirmed it');
+          const tipBefore = await page.evaluate(() => { const li = document.querySelector('.hb-slot[data-slot="2"]'); li.dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); return document.querySelector('.hb-tip').textContent; });
+          await page.click('.hc-foot [data-x="save"]');
+          const mid = await page.evaluate(() => Array.from(document.querySelectorAll('.hc-form button, .hc-form select, .hc-form input')).every((b) => b.disabled));
+          if (!mid) fails.push('HS-7 Configure action stayed on while its intent was in flight');
+          if (!/at or below 50%/.test(tipBefore)) fails.push('HS-7 the slot tooltip did not show the server’s setup: ' + tipBefore);
           const sent = s.calls.filter((c) => c.name === 'hr_action_set_options').map((c) => c.body.p_opts);
           const sl = sent[0] && sent[0].slots;
           if (sent.length !== 1 || !Array.isArray(sl) || sl.length !== 20 || JSON.stringify(sl[2].conditions) !== '[{"metric":"self_hp_pct","op":"lt","value":40}]'
             || JSON.stringify(sl[0]) !== JSON.stringify({ action: FIXTURE.hunt_settings.slots[0].action, conditions: FIXTURE.hunt_settings.slots[0].conditions, join: 'and' })) {
             fails.push('HS-7 the save sent ' + JSON.stringify(sent).slice(0, 300));
           }
-          const done = await wait(page, () => /below 40%/.test(document.querySelectorAll('.hx-row')[2].querySelector('.hx-sum').textContent)
-            && !document.querySelector('.hx-form').classList.contains('is-on'), null, 3000);
-          if (!done) fails.push('HS-7 after the server confirmed, the slot did not show the server’s new test');
-          /* A refusal: shown inline on the slot and condition the server names; the server's bar stays. */
+          const done = await wait(page, () => !document.querySelector('[data-hs-win="configure-action"]'), null, 3000);
+          const tipAfter = await page.evaluate(() => { const li = document.querySelector('.hb-slot[data-slot="2"]'); li.dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); return document.querySelector('.hb-tip').textContent; });
+          if (!done || !/below 40%/.test(tipAfter)) fails.push('HS-7 after the server confirmed, the slot did not show the server’s new test and close: ' + tipAfter);
+          /* A refusal: shown inline on the condition the server names; the server's bar stays. */
           s.optionsReply = { ok: false, error: 'bad_value', slot: 0, condition: 0 };
-          await page.click('.hx-row:nth-child(1) [data-x="edit"]');
-          await page.click('.hx-form [data-x="save"]');
-          const shown = await wait(page, () => document.querySelector('.hx-row:nth-child(1)').classList.contains('is-error')
-            && document.querySelector('.hx-cond[data-cond="0"]').classList.contains('is-error')
-            && document.querySelector('.hx-form .hh-intent-msg').textContent.length > 0, null, 3000);
-          if (!shown) fails.push('HS-7 a server validation error was not shown on its slot and condition');
-          if (shots) await page.screenshot({ path: join(shots, 'hunt-1440x900-slot-editor.png') });
+          await page.click('.hb-slot[data-slot="0"]');
+          await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .hc-title'), null, 3000);
+          await page.click('.hc-conds-head [data-x="add"]');
+          await page.click('.hc-foot [data-x="save"]');
+          const shown = await wait(page, () => document.querySelector('.hc-cond[data-cond="0"]').classList.contains('is-error')
+            && document.querySelector('.hc-form .hh-intent-msg').textContent.length > 0, null, 3000);
+          if (!shown) fails.push('HS-7 a server validation error was not shown on its condition');
+          if (shots) await page.screenshot({ path: join(shots, 'hunt-1440x900-configure-action.png') });
         }
       } else fails.push('HS-7 the screen did not mount');
+      await ctx.close();
+    }
+
+    { // HS-9 a slot that can never fire: the same action under weaker conditions earlier shows "!" and why; emptying the earlier one clears it
+      const { ctx, page, s, up } = await open();
+      if (up) {
+        s.env.hunt_settings.slots[6] = { action: { type: 'ability', id: 'power_strike' }, conditions: [{ metric: 'enemies_in_aoe', op: 'lte', value: 1 }, { metric: 'self_hp_pct', op: 'gt', value: 50 }], join: 'and', usable: true, mana: 6 };
+        await pushEnvelope(page, s);
+        const blocked = await wait(page, () => document.querySelector('.hb-slot[data-slot="6"]').classList.contains('is-blocked')
+          && !document.querySelector('.hb-slot[data-slot="0"]').classList.contains('is-blocked'), null, 3000);
+        const tip = await page.evaluate(() => { document.querySelector('.hb-slot[data-slot="6"]').dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); return document.querySelector('.hb-tip .is-warn') ? document.querySelector('.hb-tip .is-warn').textContent : ''; });
+        if (!blocked || !/Blocked by Power Strike \(slot 1\)/.test(tip)) fails.push('HS-9 the never-firing slot shows no "!" or no reason: ' + tip);
+        s.env.hunt_settings.slots[0] = null;
+        await pushEnvelope(page, s);
+        if (!(await wait(page, () => !document.querySelector('.hb-slot[data-slot="6"]').classList.contains('is-blocked'), null, 3000))) fails.push('HS-9 emptying the earlier slot did not clear the "!"');
+      } else fails.push('HS-9 the screen did not mount');
+      await ctx.close();
+    }
+
+    for (const vp of shots ? [{ width: 1440, height: 900 }, { width: 922, height: 423 }] : [{ width: 1440, height: 900 }]) { // HS-8 in town
+      const { ctx, page, s, up } = await open({ town: true, viewport: vp });
+      const tag = vp.width + 'x' + vp.height;
+      if (!up) { fails.push('HS-8 the town bar did not mount (' + tag + ')'); await ctx.close(); continue; }
+      const town = await page.evaluate(() => ({ bar: !!document.querySelector('.hb-bar.is-town'),
+        vitals: getComputedStyle(document.querySelector('.hb-vitals')).display,
+        plus: getComputedStyle(document.querySelector('.hb-slot[data-slot="5"] .hb-plus')).display }));
+      if (!town.bar || town.vitals !== 'none') fails.push('HS-8 in town the bar is missing or shows hunt vitals: ' + JSON.stringify(town));
+      if (town.plus === 'none') fails.push('HS-8 an empty slot shows no "+"');
+      if (shots) await page.screenshot({ path: join(shots, 'town-' + tag + '-bar.png') });
+      /* Configure an empty slot from its "+": Items, Any food (the store price shown, paid as used), IF My HP % below 60. */
+      await page.click('.hb-slot[data-slot="5"]');
+      await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .hc-title'), null, 3000);
+      await page.click('.hc-tab[data-tab="items"]');
+      await page.click('.hc-choice[data-id="food"]');
+      const note = await page.evaluate(() => ({ choice: document.querySelector('.hc-choice[data-id="food"] .hc-choice-note').textContent,
+        facts: document.querySelector('.hc-facts').textContent }));
+      if (!/store from \d+ g each/.test(note.choice) || !/paid as used/.test(note.facts)) fails.push('HS-8 Any food does not show the store price paid as used: ' + JSON.stringify(note));
+      await page.click('.hc-conds-head [data-x="add"]');
+      await page.fill('.hc-cond[data-cond="0"] [data-f="value"]', '60');
+      await page.dispatchEvent('.hc-cond[data-cond="0"] [data-f="value"]', 'change');
+      if (shots) await page.screenshot({ path: join(shots, 'town-' + tag + '-configure-action.png') });
+      const want = { action: { type: 'consume', id: 'food' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 60 }], join: 'and' };
+      s.env.hunt_settings.slots[5] = Object.assign({ usable: true, count: 0 }, want);
+      await page.click('.hc-foot [data-x="save"]');
+      const sent = s.calls.filter((c) => c.name === 'hr_action_set_options').map((c) => c.body.p_opts);
+      if (sent.length !== 1 || JSON.stringify(sent[0].slots[5]) !== JSON.stringify(want)) fails.push('HS-8 the town save sent ' + JSON.stringify(sent).slice(0, 300));
+      const saved = await wait(page, () => /Any food/.test(document.querySelector('.hb-slot[data-slot="5"]').getAttribute('aria-label')) && !document.querySelector('[data-hs-win="configure-action"]'), null, 3000);
+      if (!saved) fails.push('HS-8 the town slot did not show the server’s Any food after it confirmed');
+      /* Density on the hunt picker: a −/+ step, one intent, the server's value only. */
+      await page.keyboard.press('h');
+      await wait(page, () => document.querySelector('.hw-hunt.is-picked .hw-density.is-on'), null, 3000);
+      const d0 = await page.evaluate(() => document.querySelector('.hw-hunt.is-picked .hw-density .hh-step-val').textContent);
+      s.env.hunt_settings.density = 2;
+      await page.click('.hw-hunt.is-picked .hw-density [data-by="1"]');
+      const dMid = await page.evaluate(() => document.querySelector('.hw-hunt.is-picked .hw-density .hh-step-val').textContent);
+      const dSent = s.calls.filter((c) => c.name === 'hr_action_set_options').map((c) => c.body.p_opts).slice(1);
+      if (JSON.stringify(dSent) !== '[{"density":2}]') fails.push('HS-8 the density step sent ' + JSON.stringify(dSent));
+      if (dMid !== d0) fails.push('HS-8 the density showed ' + dMid + ' before the server confirmed it');
+      if (!(await wait(page, () => document.querySelector('.hw-hunt.is-picked .hw-density .hh-step-val').textContent === '2 each', null, 3000))) fails.push('HS-8 the density did not show the server’s 2');
+      if (shots) await page.screenshot({ path: join(shots, 'town-' + tag + '-hunts-density.png') });
+      /* Reload: the slot and the density come back from the server, nothing from the browser. */
+      await page.reload({ waitUntil: 'load' });
+      const back = await signInAndPlay(page, '', true);
+      if (!back) fails.push('HS-8 the town did not mount after a reload');
+      else {
+        const slot = await wait(page, () => /Any food/.test(document.querySelector('.hb-slot[data-slot="5"]').getAttribute('aria-label')), null, 3000);
+        await page.click('.hb-slot[data-slot="5"]');
+        const cond = await wait(page, () => { const n = document.querySelector('.hc-cond[data-cond="0"].is-on [data-f="value"]'); return n && n.value === '60'; }, null, 3000);
+        if (!slot || !cond) fails.push('HS-8 after a reload the slot or its condition is not the server’s');
+        await page.keyboard.press('Escape');
+        await page.keyboard.press('h');
+        if (!(await wait(page, () => { const v = document.querySelector('.hw-hunt.is-picked .hw-density .hh-step-val'); return v && v.textContent === '2 each'; }, null, 3000))) fails.push('HS-8 after a reload the density is not the server’s');
+      }
       await ctx.close();
     }
 
@@ -326,9 +397,14 @@ const MUTANTS = [
   ['controls stay on while an intent is in flight', 'src/shell/widgets/settings-intent.js', "prop(el, 'disabled', pending || v === null);", "prop(el, 'disabled', v === null);"],
   ['the analyzer ignores the premium gate', 'src/shell/widgets/analyzer.js', 'const premium = isPremium(ctx.character);', 'const premium = true;'],
   ['the analyzer keeps the last numbers when the section goes', 'src/session/hunt-sections.js', "  const a = section(cs, 'hunt_analyzer');\n", "  const a = section(cs, 'hunt_analyzer') || globalThis.__lastA;\n  globalThis.__lastA = a;\n"],
-  ['the metric picker is a hard-coded list', 'src/shell/windows/bar-editor.js', "aria-label=\"Test ' + (i + 1) + '\">' + options(METRICS.map((m) => [m.id, m.label]))", "aria-label=\"Test ' + (i + 1) + '\">' + options([['self_hp_pct', 'My HP %'], ['self_mana_pct', 'My mana %']])"],
-  ['the slot list shows the draft before the server confirms', 'src/shell/windows/bar-editor.js', "text(li.querySelector('.hx-sum'), slotWords(r.sl.empty ? null : wireSlot(r.sl)));", "text(li.querySelector('.hx-sum'), slotWords(s.open === r.i && s.draft ? s.draft : r.sl.empty ? null : wireSlot(r.sl)));"],
-  ['a server validation error is not shown inline', 'src/shell/windows/bar-editor.js', '  else { s.error = r;', '  else { s.error = null;'],
+  ['the metric picker is a hard-coded list', 'src/shell/windows/configure-action.js', "aria-label=\"Test ' + (i + 1) + '\">' + options(METRICS.map((m) => [m.id, m.label]))", "aria-label=\"Test ' + (i + 1) + '\">' + options([['self_hp_pct', 'My HP %'], ['self_mana_pct', 'My mana %']])"],
+  ['the controls stay on while a bar intent is in flight', 'src/shell/windows/configure-action.js', '  const off = s.pending;', '  const off = false;'],
+  ['a server validation error is not shown inline', 'src/shell/bar-draft.js', '  else { s.error = r;', '  else { s.error = null;'],
+  ['the bar hides in town', 'src/data/hud-widgets.js', "removable: true, when: 'always',\n    phone: Object.freeze({ dy: 2 }),", "removable: true, when: 'hunt',\n    phone: Object.freeze({ dy: 2 }),"],
+  ['the store price is not shown on Any food', 'src/shell/windows/configure-action.js', "(st.from ? 'store from ' : 'store ') + st.price + ' g each'", "''"],
+  ['the density shows before the server confirms', 'src/shell/windows/hunts.js', "    runIntent(sc, repaint, () => cs.setHuntOptions(s.preset, { density: n }), 'Saving…', () => '');", "    s.density = n; runIntent(sc, repaint, () => cs.setHuntOptions(s.preset, { density: n }), 'Saving…', () => '');"],
+  ['a blocked slot is not flagged', 'src/shell/action-facts.js', '      if (same || kind) {', '      if (false) {'],
+  ['the modal docks instead of centring', 'src/shell/window-manager.js', "  const isModal = (id) => rows.get(id).modal === true;", "  const isModal = () => false;"],
   ['the bleed badge defaults on for regular monsters', 'src/data/combat-text.js', "label: 'Bleed stack count', on: on(false, true)", "label: 'Bleed stack count', on: on(true, true)"],
 ];
 

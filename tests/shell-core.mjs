@@ -187,6 +187,20 @@ async function runTests(mods) {
     wm.dock('bag');
     ok(wm.layout().find((p) => p.id === 'bag').docked, 'dock() returns it');
   });
+  t('W10b a modal row opens centred: never docked, never in the inset, never a phone sheet', () => {
+    const windows = SPEC_WINDOWS.concat([{ id: 'cfg', label: 'Configure action', key: 'q', glyph: 'uiTarget', width: 560, object: 'plain', modal: true }]);
+    for (const phone of [false, true]) {
+      const { wm } = harness(WM, { width: 1440, windows, phone });
+      wm.open('bag');
+      const before = wm.inset().right;
+      wm.open('cfg');
+      const at = Object.fromEntries(wm.layout().map((p) => [p.id, p]));
+      ok(at.cfg && at.cfg.modal && !at.cfg.docked, (phone ? 'phone' : 'desktop') + ': the modal row is centred, not docked');
+      ok(!!at.bag, (phone ? 'phone' : 'desktop') + ': the window under the modal stays open');
+      eq(wm.inset().right, before, (phone ? 'phone' : 'desktop') + ': the modal adds nothing to the camera inset');
+      ok(wm.float('cfg', { x: 5, y: 5 }) === false, 'a modal never floats');
+    }
+  });
   t('W11 the inset is published with its rect, only when it changes', () => {
     const { wm, events } = harness(WM, { width: 1440 });
     wm.open('bag');

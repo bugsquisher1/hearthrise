@@ -41,8 +41,10 @@ function channelFor(client, auth) {
     try { client.realtime.setAuth(auth.token()); } catch (e) { /* the join reports it */ }
     const ch = client.channel(topic, { config: { private: true } });
     ch.on('broadcast', { event: FRAME_EVENT }, (m) => onMessage(m && m.payload));
-    ch.subscribe((status) => onStatus(status));
-    return () => { client.removeChannel(ch); };
+    /* Left once; a status after the leave (removeChannel's own CLOSED) is not reported back. */
+    let left = false;
+    ch.subscribe((status) => { if (!left) onStatus(status); });
+    return () => { if (left) return; left = true; client.removeChannel(ch); };
   };
 }
 

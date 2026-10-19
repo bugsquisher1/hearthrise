@@ -256,6 +256,9 @@ const ARMS = {
     const seatB = await H.one(db, 'select seat from public.hunt_party_members where party_id = $1 and user_id = $2', [pid, b]);
     const k = await ok(a, 'select public.hr_hunt_party_kick(0, $1, $2::uuid)', [seatB, idem()]);
     if (k.leaving !== true || await H.one(db, 'select public.hr_hunt_party_of($1, 0)', [b])) p.push('the kick did not take the hunter out: ' + JSON.stringify(k));
+    /* One transaction has one now(): the kick is put a minute back, so the settles below cross its leave and the
+       boundary after it (the engine ends a hunt at the first swing boundary at or past leave_at). */
+    await db.query("update public.hunt_sessions set leave_at = leave_at - interval '60 seconds' where id = $1 and leave_at is not null", [sb]);
     const nowMs = Number(await H.one(db, 'select floor(extract(epoch from now()) * 1000)::bigint'));
     const from2 = Number(await H.one(db, 'select floor(extract(epoch from settled_to) * 1000)::bigint from public.hunt_instances where id = $1', [pid]));
     for (const at of [...H.ticksOf(30000, 4 * 60000)(from2).filter((x) => x < nowMs), nowMs]) await H.settleTo(db, M, at, { user: a });

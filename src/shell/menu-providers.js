@@ -14,10 +14,10 @@
 //                                         Security review) ships
 // worldTargetOf turns what the World picked under a pointer into a target.
 // ════════════════════════════════════════════════════════════════════════
-import { MONSTERS } from '../data/monsters.js?v=0.2.9';
-import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.9';
-import { refusalWords } from './intent-words.js?v=0.2.9';
-import { monsterName } from './widgets/bits.js?v=0.2.9';
+import { MONSTERS } from '../data/monsters.js?v=0.2.10';
+import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.10';
+import { refusalWords } from './intent-words.js?v=0.2.10';
+import { monsterName } from './widgets/bits.js?v=0.2.10';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

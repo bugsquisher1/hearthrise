@@ -5,6 +5,16 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.10 — 2026-10-19 (Analyzer for everyone)
+
+**Hunt analyzer for every hero.** Free heroes see session time, kills, XP and XP per hour, loot value and gold per hour, supplies and balance. Premium adds the detailed breakdowns.
+
+**Tidier screen.** Hunt panels no longer overlap the top bar, and the Configure action window no longer moves the view.
+
+**Max mana** now shows in the Character window, and wands and spellbooks are labelled correctly.
+
+**Steadier connection.** Fixed a loop that could freeze the page when a connection dropped.
+
 ## v0.2.9 — 2026-10-19 (Eat when you need to)
 
 **Food fires when you need it.** If your food slot's condition matches, your hero eats right away, even while the last food is still healing. The new food's slow half replaces what was left of the old one.

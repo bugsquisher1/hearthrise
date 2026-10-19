@@ -368,8 +368,8 @@ const STAGED = Object.freeze([
   /* The 10-25 forward catalogue (applied history), the one this pass's chain end holds: the core rebuild's own
      catalogue (gen-hunt-sessions' OUT today) is later than action-conditions and judged by its own re-apply. */
   ['2026-10-25-hunt-sessions-catalogue.generated.sql', '2026-10-25-action-conditions.sql'],
-  /* Tyler's 2026-10-19 answers: the 2 s food-and-drink cooldown and no walk (the forward catalogue), eat-at before drink-at (the settings view). */
-  ['2026-10-28-hunt-sessions-catalogue.generated.sql', '2026-10-28-consume-defaults.sql'],
+  /* Tyler's 2026-10-19 answers: a hunt opens no earlier than the stamina stamp (no walk hid it), the 2 s food-and-drink cooldown and no walk (the forward catalogue), eat-at before drink-at (the settings view). */
+  ['2026-10-28-hunt-enter-after-stamina.sql', '2026-10-28-hunt-sessions-catalogue.generated.sql', '2026-10-28-consume-defaults.sql'],
 ]);
 async function d1(db) {
   const red = [];

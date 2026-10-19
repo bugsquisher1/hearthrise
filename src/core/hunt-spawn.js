@@ -46,7 +46,7 @@ export function heroSetup(o) {
     role,
     /* THE BAR as the engine runs it (conditions.js heroSlots): the stored slots the
        hero's discipline can act on, then each empty lane's defaults (ROLE_RULES,
-       drink-at then eat-at). */
+       eat-at then drink-at). */
     slots: heroSlots(o.bar, role, (id) => allowed.includes(id)),
     stopRules: heroStopRules(stops),
     /* MONSTER DENSITY: the stored pick; the span clamps it to the ground (hunt-grounds.js densityFor). */

@@ -30,8 +30,9 @@ export const CONSUMABLE_RULES = Object.freeze({
   /* The other half over 6 s (week plan item 7), one tick a second. */
   overTimeMs: 6000,
   overTimeTickMs: 1000,
-  /* The one shared food-and-drink lane: 1 s (ASSUMED, Bible §9.1 PROPOSED). */
-  laneMs: 1000,
+  /* The one shared food-and-drink cooldown: 2 s (Tyler 2026-10-19: "2 second global
+     cooldown for food/drink is ideal, same cooldown"). */
+  laneMs: 2000,
   /* Per-hero defaults (ASSUMED): drink under 30% mana, eat under 50% HP. */
   drinkBelowPct: 30,
   foodBelowPct: 50,

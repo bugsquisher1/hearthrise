@@ -252,6 +252,10 @@ const ARMS = {
     await probe(db);
     const e = await enter(db, [{ item: 'cooked_shrimp', qty: 5 }]);
     if (!e || e.ok !== true) return red.push(`S1: enter answered ${JSON.stringify(e)}`);
+    /* NO WALK (Tyler 2026-10-19: no walk time until the town has destinations): the fight starts at the enter. */
+    const walkMs = await one(db, `select round(extract(epoch from (hunt_from - entered_at)) * 1000)::int from public.hunt_sessions
+                                   where user_id = $1 and ended_at is null`, [UID]);
+    if (walkMs === null || Math.abs(walkMs) > 1) red.push(`S1: the hunt starts ${walkMs} ms after the enter, want 0 (no walk)`);
     const e2 = await enter(db, [{ item: 'cooked_shrimp', qty: 5 }]);
     if (e2?.error !== 'hunt_open') red.push(`S1: a second enter answered ${JSON.stringify(e2)}`);
     await db.query('savepoint s1');
@@ -364,6 +368,8 @@ const STAGED = Object.freeze([
   /* The 10-25 forward catalogue (applied history), the one this pass's chain end holds: the core rebuild's own
      catalogue (gen-hunt-sessions' OUT today) is later than action-conditions and judged by its own re-apply. */
   ['2026-10-25-hunt-sessions-catalogue.generated.sql', '2026-10-25-action-conditions.sql'],
+  /* Tyler's 2026-10-19 answers: the 2 s food-and-drink cooldown and no walk (the forward catalogue), eat-at before drink-at (the settings view). */
+  ['2026-10-28-hunt-sessions-catalogue.generated.sql', '2026-10-28-consume-defaults.sql'],
 ]);
 async function d1(db) {
   const red = [];

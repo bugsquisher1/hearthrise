@@ -193,12 +193,13 @@ function uniqueIds(list, prefix) {
   });
 }
 
-/* The defaults a lane takes when the bar holds no slot for it: drink-at then eat-at
+/* The defaults a lane takes when the bar holds no slot for it: eat-at then drink-at
+   (food first: consumables.js ALWAYS FIRES — a drink first would starve food)
    (tablets, like a stored slot), and the basic attack with the loaded ammo, the
    attack lane's LAST resort after every attack slot (never a tablet). */
 const DEFAULT_CONSUME = Object.freeze([
-  Object.freeze({ id: 'd_drink', action: Object.freeze({ type: 'consume', id: 'drink' }), conditions: Object.freeze([]), join: 'and' }),
   Object.freeze({ id: 'd_food', action: Object.freeze({ type: 'consume', id: 'food' }), conditions: Object.freeze([]), join: 'and' }),
+  Object.freeze({ id: 'd_drink', action: Object.freeze({ type: 'consume', id: 'drink' }), conditions: Object.freeze([]), join: 'and' }),
 ]);
 const DEFAULT_ATTACK = Object.freeze({ id: 'd_attack', action: Object.freeze({ type: 'attack_with_item', id: 'loaded' }), conditions: Object.freeze([]), join: 'and' });
 /* The attack lane's default as a row (a bare fixture unit's only one). */
@@ -462,7 +463,7 @@ export function pickSlot(inst, u, h, rows, act, sc, lane) {
    action could not happen is reported ONCE per (lane, rule, why): the unit keeps its
    last report per lane (`ruleWait`, persisted, so a settle cut never repeats one),
    and a lane that fires clears it. Bounded: one event per change, never per sub-step. */
-export const WAIT_WHY = Object.freeze(['mana', 'cooldown', 'no_stock', 'no_target', 'out_of_range', 'gold_short', 'busy']);
+export const WAIT_WHY = Object.freeze(['mana', 'cooldown', 'no_stock', 'no_target', 'out_of_range', 'gold_short']);
 function noteWait(u, lane, wait, sc) {
   const key = wait.rule + ':' + wait.why;
   const cur = u.ruleWait && typeof u.ruleWait === 'object' ? u.ruleWait : {};

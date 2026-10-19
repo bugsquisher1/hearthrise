@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-10-19",
- "digest": "5c7e67bb7d0f7992a017154913eef73c1f244873b61a89ac63a32c17ba8a4720",
+ "digest": "84a36dbc25439f17c52b9eec72269eb90b09166fa1cc47a5fad6abc4e1fa0fe6",
  "counts": {
   "relations": 213,
-  "functions": 513,
+  "functions": 514,
   "policies": 129,
   "indexes": 297,
   "triggers": 34,
@@ -444,6 +444,7 @@
    "hr_hunt_active_set(p_user uuid, p_slot integer)",
    "hr_hunt_admit(p_user uuid, p_slot integer, p_hunt text)",
    "hr_hunt_analyzer(p_slot integer, p_session uuid)",
+   "hr_hunt_analyzer_basic(p_a jsonb)",
    "hr_hunt_analyzer_of(p_user uuid, p_slot integer, p_session uuid)",
    "hr_hunt_analyzer_view(p_user uuid, p_slot integer)",
    "hr_hunt_apply_instance(p_instance uuid, p_world_from bigint, p_settle jsonb, p_members jsonb, p_project_user uuid, p_project_slot integer)",

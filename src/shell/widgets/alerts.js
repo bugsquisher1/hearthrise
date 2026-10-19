@@ -14,10 +14,10 @@
 //                                answerInvite INTENT, the same way (PARTY_SPEC
 //                                §1.3: the toast reaches a player anywhere)
 // ════════════════════════════════════════════════════════════════════════
-import { ALERTS_SHOWN } from '../../data/alerts.js?v=0.2.9';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.9';
-import { glyphSvg } from '../launcher.js?v=0.2.9';
-import { refusalWords } from '../intent-words.js?v=0.2.9';
+import { ALERTS_SHOWN } from '../../data/alerts.js?v=0.2.10';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.10';
+import { glyphSvg } from '../launcher.js?v=0.2.10';
+import { refusalWords } from '../intent-words.js?v=0.2.10';
 
 const OPENS = Object.freeze({ bag: 'inventory', shop: 'shop', show: null });
 

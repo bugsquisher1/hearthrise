@@ -31,7 +31,7 @@
 // size and a scheduler, so node drives every rule (tests/shell-core.mjs).
 // ════════════════════════════════════════════════════════════════════════
 
-import { keyBelongsToField } from '../utils/dom.js?v=0.2.9';
+import { keyBelongsToField } from '../utils/dom.js?v=0.2.10';
 
 export const MAX_OPEN = 3;
 export const DOCK_MAX = 0.6;
@@ -156,7 +156,10 @@ export function createWindowManager(o) {
     if (open.includes(id) && !leaving.has(id)) return focus(id);
     drop(id);
     if (isPhone() && !isModal(id)) for (const other of open.slice()) drop(other);
-    while (open.length >= MAX_OPEN) drop(open[0]);
+    /* The cap counts the dock and the floats only: a modal floats over them and never closes one
+       (Tyler v0.2.6: Configure action evicted the oldest docked window and the camera moved). */
+    const sheets = () => open.filter((x) => !isModal(x));
+    if (!isModal(id)) while (sheets().length >= MAX_OPEN) drop(sheets()[0]);
     open.push(id);
     if (!reducedMotion()) entering.add(id);
     if (!isPhone() && !isModal(id)) {

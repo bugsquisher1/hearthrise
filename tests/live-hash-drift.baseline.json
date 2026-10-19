@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-19",
- "replay_ms": 25101,
+ "replay_ms": 41136,
  "counts": {
   "tracked_names": 135,
   "entries": 107
@@ -1042,17 +1042,18 @@
     "2026-09-22-hunt-analyzer.sql",
     "2026-10-21-hunt-sessions.sql",
     "2026-10-22-hunt-sessions-settle.sql",
-    "2026-10-23-hunt-analyzer-v2.sql"
+    "2026-10-23-hunt-analyzer-v2.sql",
+    "2026-10-26-hunt-analyzer-basic.sql"
    ],
    "live": {
-    "md5": "ee3d1a930dcfd607e30992058ad98353",
-    "norm_len": 1068,
+    "md5": "f98d157329d1f74417be81d893a6847e",
+    "norm_len": 1042,
     "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "ee3d1a930dcfd607e30992058ad98353",
-    "norm_len": 1068,
+    "md5": "f98d157329d1f74417be81d893a6847e",
+    "norm_len": 1042,
     "source": "computed-from-replay"
    },
    "agree": true

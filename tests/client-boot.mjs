@@ -27,6 +27,11 @@
 //   B-8  a hunting character (tests/fixtures/hunt-envelope.json) mounts the hunt
 //        screen's panels (top bar, party, analyzer, bottom bar) with zero console
 //        errors; the rules of each panel are tests/hunt-screen.mjs
+//   B-9  ONE HERO, TWO SLOTS (Tyler live 10-18: no way to create a character; ruling
+//        10-17: every account starts with two): the screen names the hero and its
+//        combat level, the empty owned slot offers Create character, Create is ONE
+//        hr_create_character for that slot and plays it, and after a reload both
+//        heroes list by name
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { launchOptions } from './_chrome.mjs';
@@ -47,6 +52,16 @@ async function stubServer(page, o) {
     const url = r.request().url();
     const body = JSON.parse(r.request().postData() || '{}');
     if (o.closed) return r.fulfill({ status: 403, contentType: 'application/json', body: JSON.stringify({ code: 'hr_closed', message: 'closed' }) });
+    if (o.heroes) {   // a stateful account: { slot: name } heroes; hr_create_character adds one
+      const name = url.split('/').pop();
+      if (name === 'hr_create_character') { o.created.push(body.p_slot); o.heroes[body.p_slot] = 'New hero'; return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, slot: body.p_slot, created: true }) }); }
+      const slot = name === 'hr_load' ? body.p_slot : body.slot;
+      if (name === 'hr_load' || name === 'hr-accrue') {
+        const b = o.heroes[slot] ? envelope(slot, 1, { name: o.heroes[slot], skills: { attack: { xp: 1200, level: 10 }, strength: { xp: 1200, level: 10 }, defense: { xp: 1200, level: 10 }, hitpoints: { xp: 1200, level: 10 } } })
+          : { ok: false, error: 'no_character', hero_slots: [0, 1] };
+        return r.fulfill({ contentType: 'application/json', body: JSON.stringify(name === 'hr-accrue' ? Object.assign({ accrued: true }, b) : b) });
+      }
+    }
     if (url.endsWith('/rpc/hr_load')) return r.fulfill({ contentType: 'application/json', body: JSON.stringify(o.hunt ? Object.assign({}, HUNT, { version: 1 }) : envelope(body.p_slot, 1)) });
     if (url.endsWith('/functions/v1/hr-accrue')) return r.fulfill({ contentType: 'application/json', body: JSON.stringify(Object.assign({ accrued: true }, o.hunt ? Object.assign({}, HUNT, { version: 2 }) : envelope(body.slot, 2))) });
     return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true }) });
@@ -143,6 +158,32 @@ async function checks(overrides) {
       await ctx.close();
     }
 
+    { // B-9 one hero, two owned slots: name + level, Create character, both after a reload
+      const o = { heroes: { 0: 'Tester' }, created: [] };
+      const { ctx, page, errors } = await fresh(o);
+      await page.goto(base + '/play.html', { waitUntil: 'load' });
+      await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
+      await page.fill('input[name=email]', 'qa@example.test');
+      await page.fill('input[name=password]', 'not-a-real-password');
+      await page.click('.auth-submit');
+      await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
+      const rows = await page.evaluate(() => Array.from(document.querySelectorAll('.char-row')).map((li) => li.textContent.replace(/\s+/g, ' ').trim()));
+      if (rows.length !== 2 || !/^Tester Combat \d+ ?Play$/.test(rows[0]) || !/Create character$/.test(rows[1]) || !(await page.$('[data-app="create"][data-slot="1"]')))
+        fails.push('B-9 one hero and an empty owned slot list as ' + JSON.stringify(rows));
+      else {
+        await page.click('[data-app="create"][data-slot="1"]');
+        const played = await wait(page, () => document.querySelector('#panel-world[data-slot="1"]'));
+        if (JSON.stringify(o.created) !== '[1]' || !played) fails.push('B-9 Create sent ' + JSON.stringify(o.created) + (played ? '' : ' and did not play the new hero'));
+        await page.reload({ waitUntil: 'load' });
+        await wait(page, () => document.querySelectorAll('[data-app="play"]').length === 2 || document.querySelector('.hs-launchers'));
+        if (!(await page.$('[data-app="play"][data-slot="1"]'))) { await page.click('[data-app="characters"]').catch(() => {}); await wait(page, () => document.querySelectorAll('[data-app="play"]').length === 2); }
+        const after = await page.evaluate(() => Array.from(document.querySelectorAll('.char-row .char-name')).map((n) => n.textContent.replace(/\s+/g, ' ').trim()));
+        if (after.length !== 2 || !/^Tester/.test(after[0]) || !/^New hero/.test(after[1])) fails.push('B-9 after a reload the heroes list as ' + JSON.stringify(after));
+      }
+      if (errors.length) fails.push('B-9 console errors: ' + errors.slice(0, 3).join(' | '));
+      await ctx.close();
+    }
+
     { // B-7
       const { ctx, page } = await fresh({ closed: true });
       await page.goto(base + '/play.html', { waitUntil: 'load' });
@@ -167,6 +208,8 @@ const MUTANTS = [
   ['the recovery link is ignored', 'src/app/boot.js', [["if (ev === 'recovery') showAuth('set-password');", "if (ev === 'nothing') showAuth('set-password');"],
     ['const recovering = /type=recovery/.test(win.location.hash);', 'const recovering = false;']]],
   ['the hunt panels never mount', 'src/data/hud-widgets.js', 'min: Object.freeze([320, 64]), opacity: 1, visible: true', 'min: Object.freeze([320, 64]), opacity: 1, visible: false'],
+  ['every hero is "Character N" again', 'src/app/boot.js', "(r.exists ? esc(r.name || 'Unnamed hero')", "(r.exists ? 'Character ' + (r.slot + 1)"],
+  ['an empty owned slot offers no Create', 'src/app/boot.js', '\'">Create character</button>\')', '\'" hidden>Create character</button>\')'],
   ['the closed answer is ignored', 'src/app/boot.js', "if (why === 'closed-game') showClosed();", "if (why === 'never') showClosed();"],
 ];
 
@@ -174,7 +217,7 @@ async function main() {
   if (!process.argv.includes('--mutate')) {
     const fails = await checks(null);
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'client-boot: ' + fails.length + ' check(s) RED' : 'client-boot: both pages boot; sign-in, play, two characters, sign-out, reset and closed all hold');
+    console.log(fails.length ? 'client-boot: ' + fails.length + ' check(s) RED' : 'client-boot: both pages boot; sign-in, play, two characters, one hero + Create in the second slot, sign-out, reset and closed all hold');
     process.exit(fails.length ? 1 : 0);
   }
   let bad = 0;

@@ -118,10 +118,14 @@ function startApp(win) {
     const roster = await a.roster();
     if (a !== account || a.closedGame) return;
     const open = new Set(a.characters().map((c) => c.slot));
-    const rows = roster.map((r) => '<li class="char-row"><span class="char-name">Character ' + (r.slot + 1) + '</span>'
+    /* Each owned slot: its hero by name and combat level (the server's), or an empty slot to create in.
+       Every account owns two (Tyler 10-17); slots it has not bought are not shown until buying them is built. */
+    const rows = roster.map((r) => '<li class="char-row"><span class="char-name">'
+      + (r.exists ? esc(r.name || 'Unnamed hero') + (r.level ? ' <small class="char-level">Combat ' + r.level + '</small>' : '') : 'Empty slot')
+      + '</span>'
       + (r.exists
         ? '<button type="button" class="auth-submit" data-app="play" data-slot="' + r.slot + '">' + (open.has(r.slot) ? 'Show' : 'Play') + '</button>'
-        : '<button type="button" class="auth-submit" data-app="create" data-slot="' + r.slot + '">Create this character</button>')
+        : '<button type="button" class="auth-submit" data-app="create" data-slot="' + r.slot + '">Create character</button>')
       + '</li>').join('');
     root.querySelector('.auth-card').innerHTML = '<h1 class="auth-title">Your characters</h1>'
       + '<p class="auth-lead">Signed in as ' + esc(auth.email() || 'you') + '. ' + (a.limit() > 1 ? 'Up to ' + a.limit() + ' can play at once.' : 'One can play at a time.') + '</p>'
@@ -195,7 +199,12 @@ function startApp(win) {
     else if (what === 'show') goTo(slot, null);
     else if (what === 'all') { if (pane) pane.shell.toggle('characters'); }
     else if (what === 'create') {
-      account.create(slot).then((r) => (r.ok ? play(slot) : showCharacters()));
+      account.create(slot).then(async (r) => {
+        if (r.ok) { play(slot); return; }
+        await showCharacters();
+        const m = root.querySelector('.auth-message');
+        if (m) m.textContent = r.reason === 'slot_not_owned' ? 'That slot is not yours yet.' : 'The character could not be made. Try again in a minute.';
+      });
     }
   });
 

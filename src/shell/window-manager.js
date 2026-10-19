@@ -6,6 +6,15 @@
 //            floated window (dragged by its head) leaves the dock. The dock never
 //            covers more than DOCK_MAX of the World: opening one that would cross
 //            it closes the oldest docked window. At most MAX_OPEN open in all.
+//   slots    a docked window keeps its SLOT (its offset from the right edge) for
+//            as long as it is open: focusing, opening or closing another window
+//            never moves or resizes it (Tyler 10-18: an X press that re-sorted the
+//            dock under the pointer never closed anything). A new window takes the
+//            first free gap that fits, else the strip's left end; a closed one's
+//            place is remembered and a reopen goes back there when it is free.
+//            Only when nothing fits inside DOCK_MAX do the survivors pack right
+//            (better than closing a second window).
+//   order    `open` is the STACK (z order, Esc, focus); it never drives position.
 //   phone    ONE full-height side sheet, min(400px, 48vw); opening another
 //            replaces it.
 //   Esc      closes the top window; with none open it opens the `escape` row.
@@ -76,16 +85,55 @@ export function createWindowManager(o) {
   const leaving = new Set();     // ids sliding out
   const entering = new Set();    // ids sliding in on the next paint
   const listeners = new Set();
+  const slot = new Map();        // id -> right offset (px from the World's right edge) of a docked window
+  const lastAt = new Map();      // id -> { right } | { x, y }: where it was when it last closed
   let lastInset = '';
 
   const docked = () => open.filter((id) => !floating.has(id));
-  const dockWidth = (ids) => (ids.length ? ids.reduce((s, id) => s + rows.get(id).width, 0) + DOCK_GAP * (ids.length - 1) + DOCK_EDGE : 0);
+  const width = (id) => rows.get(id).width;
   const sheetWidth = () => Math.min(SHEET_MAX, Math.round(world().width * SHEET_VW));
+  const dockMax = () => world().width * DOCK_MAX;
+
+  /* The other docked windows' occupied spans (right-edge offsets), sorted. */
+  function spans(except) {
+    return docked().filter((d) => d !== except && slot.has(d) && !leaving.has(d))
+      .map((d) => ({ id: d, r: slot.get(d), w: width(d) })).sort((a, b) => a.r - b.r);
+  }
+  const fits = (r, w, occ) => r >= DOCK_EDGE && occ.every((q) => r + w + DOCK_GAP <= q.r || q.r + q.w + DOCK_GAP <= r);
+
+  /* A free slot for id that keeps the dock inside DOCK_MAX (its remembered one first), or null. */
+  function freeSlot(id, prefer) {
+    const w = width(id), occ = spans(id), max = dockMax();
+    const tries = (Number.isFinite(prefer) ? [prefer] : []).concat([DOCK_EDGE], occ.map((q) => q.r + q.w + DOCK_GAP));
+    for (const r of tries) if (fits(r, w, occ) && r + w <= max) return r;
+    return null;
+  }
+
+  /* Give a docked window its slot: a free one; else pack the others right if that makes room; else close the oldest. */
+  function place(id, prefer) {
+    for (;;) {
+      const r = freeSlot(id, prefer);
+      if (r !== null) { slot.set(id, r); return; }
+      const occ = spans(id);
+      if (!occ.length) { slot.set(id, DOCK_EDGE); return; }
+      const packed = occ.reduce((s, q) => s + q.w + DOCK_GAP, DOCK_EDGE);
+      if (packed + width(id) <= dockMax()) {
+        let at = DOCK_EDGE;
+        for (const q of occ) { slot.set(q.id, at); at += q.w + DOCK_GAP; }
+        slot.set(id, at);
+        return;
+      }
+      drop(docked().find((d) => d !== id && slot.has(d)));
+    }
+  }
 
   function drop(id) {
     const i = open.indexOf(id);
     if (i >= 0) open.splice(i, 1);
+    if (floating.has(id)) lastAt.set(id, Object.assign({}, floating.get(id)));
+    else if (slot.has(id)) lastAt.set(id, { right: slot.get(id) });
     floating.delete(id);
+    slot.delete(id);
     leaving.delete(id);
     entering.delete(id);
   }
@@ -103,13 +151,16 @@ export function createWindowManager(o) {
     if (open.includes(id) && !leaving.has(id)) return focus(id);
     drop(id);
     if (isPhone()) for (const other of open.slice()) drop(other);
+    while (open.length >= MAX_OPEN) drop(open[0]);
     open.push(id);
     if (!reducedMotion()) entering.add(id);
     if (!isPhone()) {
-      const max = world().width * DOCK_MAX;
-      while (docked().length > 1 && dockWidth(docked()) > max) drop(docked()[0]);
+      const was = lastAt.get(id);
+      if (was && Number.isFinite(was.x)) {
+        const w = world();
+        floating.set(id, { x: Math.max(0, Math.min(w.width - width(id), was.x)), y: Math.max(0, Math.min(w.height - 48, was.y)) });
+      } else place(id, was ? was.right : null);
     }
-    while (open.length > MAX_OPEN) drop(open[0]);
     emit();
     return true;
   }
@@ -156,8 +207,9 @@ export function createWindowManager(o) {
   /** Float a window at {x, y} (desktop only), clamped inside the World. */
   function float(id, pos) {
     if (isPhone() || !open.includes(id)) return false;
-    const w = world(), width = rows.get(id).width;
-    floating.set(id, { x: Math.round(Math.max(0, Math.min(w.width - width, pos.x))), y: Math.round(Math.max(0, Math.min(w.height - 48, pos.y))) });
+    const w = world();
+    slot.delete(id);
+    floating.set(id, { x: Math.round(Math.max(0, Math.min(w.width - width(id), pos.x))), y: Math.round(Math.max(0, Math.min(w.height - 48, pos.y))) });
     if (open[open.length - 1] !== id) { open.splice(open.indexOf(id), 1); open.push(id); }
     emit();
     return true;
@@ -165,8 +217,7 @@ export function createWindowManager(o) {
 
   function dock(id) {
     if (!floating.delete(id)) return false;
-    const max = world().width * DOCK_MAX;
-    while (docked().length > 1 && dockWidth(docked()) > max) drop(docked().find((d) => d !== id));
+    place(id, null);
     emit();
     return true;
   }
@@ -176,7 +227,8 @@ export function createWindowManager(o) {
     if (isPhone()) {
       while (open.length > 1) drop(open[0]);
       floating.clear();
-    }
+      slot.clear();
+    } else for (const id of docked()) if (!slot.has(id)) place(id, null);
     emit();
   }
 
@@ -184,23 +236,22 @@ export function createWindowManager(o) {
   function insetOf() {
     const w = world();
     let right = 0;
-    if (live().length) right = isPhone() ? sheetWidth() : dockWidth(docked().filter((id) => !leaving.has(id)));
+    if (live().length) right = isPhone() ? sheetWidth() : spans(null).reduce((m, q) => Math.max(m, q.r + q.w), 0);
     right = Math.min(right, w.width);
     return { right, rect: { x: w.width - right, y: 0, width: right, height: right ? w.height : 0 } };
   }
 
-  /** Where each open window sits: newest docked at the right edge, older ones to its left. */
+  /** Where each open window sits: docked ones at their own slot (never the stack order), z from the stack. */
   function layout() {
     const phone = isPhone();
     const out = [];
-    let right = DOCK_EDGE;
-    for (let i = open.length - 1; i >= 0; i--) {
+    for (let i = 0; i < open.length; i++) {
       const id = open[i], r = rows.get(id);
       const e = { id, z: 10 + i, top: i === open.length - 1, entering: entering.has(id), leaving: leaving.has(id), phone };
       if (phone) Object.assign(e, { docked: true, right: 0, width: null });
       else if (floating.has(id)) Object.assign(e, { docked: false, x: floating.get(id).x, y: floating.get(id).y, width: r.width });
-      else { Object.assign(e, { docked: true, right, width: r.width }); right += r.width + DOCK_GAP; }
-      out.unshift(e);
+      else Object.assign(e, { docked: true, right: slot.has(id) ? slot.get(id) : DOCK_EDGE, width: r.width });
+      out.push(e);
     }
     entering.clear();
     return out;

@@ -34,6 +34,12 @@ renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
   text(el.querySelector('.ht-clock'), a && a.sessionMs !== null ? clock(a.sessionMs + live) : '');
   const leave = el.querySelector('.is-leave');
   prop(leave, 'disabled', !h || h.ended || leave.hasAttribute('data-pending'));
+  /* A hunt that is over (the hero is back in town) keeps only the way back to its summary (Tyler 10-19):
+     no Leave hunt, no Hunt details, no clock. Follows the server's hunt section, replaced each envelope. */
+  const over = !h || h.ended;
+  prop(leave, 'hidden', over && !leave.hasAttribute('data-pending'));
+  prop(el.querySelector('[data-hs-act="details"]'), 'hidden', over);
+  prop(el.querySelector('.ht-clock'), 'hidden', over);
 };
 
 renderHuntTopbar.act = async function actHuntTopbar(ctx, el, action, ev, btn) {

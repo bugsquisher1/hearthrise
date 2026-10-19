@@ -850,6 +850,9 @@ const run = async () => {
   if (await itemsCataloguePreflight()) process.exit(1);
   if (await recipeYieldPreflight()) process.exit(1);
   if (await unlockModelPreflight()) process.exit(1);
+  /* `--preflights`: the data preflights above and nothing else (seconds, no browser, no replay). tools/lane-done.mjs runs
+     this so a generated catalogue left stale by a data edit (the 2026-10-19 Unlock preflight red) cannot pass lane-done. */
+  if (process.argv.includes('--preflights')) { console.log('run-smoke --preflights: every data preflight green'); process.exit(0); }
   let exitCode = 0;
   try {
     /* ── The core guard (Phase 0, server authority) ─────────────────────

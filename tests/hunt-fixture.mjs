@@ -41,6 +41,7 @@
 import { newHuntSession } from '../src/core/action-rules.js';
 import { simulateHuntInstance } from '../src/core/combat-sim.js';
 import { heroSetup } from '../src/core/hunt-spawn.js';
+import { roleWeaponOf } from '../src/data/hunt-roles.js';
 import { makeGrid } from '../src/core/hunt/grid.js';
 
 import { COMBAT_BALANCE } from '../src/core/combat.js';
@@ -112,7 +113,10 @@ export function huntAccrual(inp, opts) {
   const toMs = Math.floor(Number(inp.nowMs) || 0);
   const monsters = inp.monsters || MONSTERS;
   const ids = monstersOf(inp.activeId, monsters);
-  const weaponType = (((inp.items || {})[(inp.equipment || {}).weapon] || {}).weaponType) || 'sword';
+  /* The ROLE key, as hunt-settle.js memberInput reads it (hunt-roles.js roleWeaponOf: a magic weapon by its
+     discipline, wand = Mage, staff = Healer); no weapon fights as the sword fixture, as before. */
+  const worn = (inp.items || {})[(inp.equipment || {}).weapon];
+  const weaponType = worn ? roleWeaponOf(worn) : 'sword';
   const hero = heroSetup({ weaponType, options: o.options || {}, bar: o.bar || [], partyRoles: [] })
     || heroSetup({ weaponType: 'sword', options: {}, bar: [], partyRoles: [] });
   const member = {

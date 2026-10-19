@@ -255,8 +255,9 @@ function memberIn(M, key, o) {
       cover: x.cover || {} },
     skills, levelXp: x.levelXp ?? M.XP.charXpForLevel(L), xpFrac: null, hp: x.hp ?? 1e9, gold: x.gold ?? 0, equipment: x.equipment || {},
     inventory: {}, deathsTodayBefore: 0, deathsLifetimeBefore: 0, hearthfindReady: false, perks: null,
-    hero: M.SPAWN.heroSetup({ weaponType: x.weaponType || ({ melee_dps: 'hammer', ranger: 'ranged', mage: 'magic', healer: 'magic' }[role] || 'sword'),
-      options: Object.assign({}, x.options || {}, role === 'healer' ? { role: 'healer' } : {}), bar: x.bar || [], partyRoles: x.partyRoles || [role] }),
+    /* The ROLE key (hunt-roles.js roleWeaponOf): a wand is the Mage, a staff the Healer (Tyler 2026-10-19). */
+    hero: M.SPAWN.heroSetup({ weaponType: x.weaponType || ({ melee_dps: 'hammer', ranger: 'ranged', mage: 'wand', healer: 'staff' }[role] || 'sword'),
+      options: x.options || {}, bar: x.bar || [], partyRoles: x.partyRoles || [role] }),
     ...(x.extra || {}),
   };
 }

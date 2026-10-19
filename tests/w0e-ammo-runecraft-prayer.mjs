@@ -151,7 +151,9 @@ export async function runAll({ mutate } = {}) {
       .filter((id) => ITEMS[id] && ITEMS[id].weaponType === type && ITEMS[id][field])
       .sort((a, b) => (ITEMS[b][field] || 0) - (ITEMS[a][field] || 0))[0];
     const BOW = bestOf('ranged', 'rangeStrB');
-    const STAFF = Object.keys(ITEMS).find((id) => ITEMS[id] && ITEMS[id].weaponType === 'magic');
+    /* The MAGE's weapon (Tyler 2026-10-19: Mage = wand + spellbook; a staff is the Healer's, who heals
+       rather than spends runes on blows): the first destruction-discipline magic weapon, a wand. */
+    const STAFF = Object.keys(ITEMS).find((id) => ITEMS[id] && ITEMS[id].weaponType === 'magic' && ITEMS[id].discipline === 'destruction');
     const TARGET = MONSTERS.goblin ? 'goblin' : Object.keys(MONSTERS)[0];
 
     /* ── THE ATTENDED COLUMN: the instance engine at the viewed character's

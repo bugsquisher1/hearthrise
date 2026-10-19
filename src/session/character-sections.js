@@ -7,7 +7,7 @@
 // a number the server did not send is never invented (CLAUDE.md §6).
 //
 // What 2026-10-27-core-bodies.sql projects (hr_state_sections rows):
-//   character_sheet { level, max_hp, bestiary: { slain, total }, fresh,
+//   character_sheet { level, max_hp, max_mana, bestiary: { slain, total }, fresh,
 //                     combat: <the engine's sheet while fresh, else null>, computed_at }
 //     combat        { role, weapon_type, level, max_hp, max_mana, regen_pct, move_speed,
 //                     damage: { min, max }, accuracy_pct, crit_pct, defence, set,
@@ -51,7 +51,7 @@ export function characterSheetOf(cs) {
   if (!isObj(s)) return null;
   const b = isObj(s.bestiary) ? s.bestiary : null;
   return {
-    level: nat(s.level), maxHp: nat(s.max_hp),
+    level: nat(s.level), maxHp: nat(s.max_hp), maxMana: nat(s.max_mana),
     bestiary: b && nat(b.slain) !== null && nat(b.total) ? { slain: b.slain, total: b.total } : null,
     fresh: s.fresh === true,
     combat: s.fresh === true ? combatOf(s.combat) : null,

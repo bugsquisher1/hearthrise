@@ -89,7 +89,9 @@ export function patchSheet(body, ctx, drawPortrait, asked) {
   /* Vitals: the server's max HP, the engine's max mana, regeneration and walk speed, the bag's spaces, the stamina pool. */
   const hpMax = sh && sh.maxHp !== null ? sh.maxHp : v.hpMax;
   line(root, '[data-vital="hp"]', hpMax !== null ? whole(hpMax) : null);
-  line(root, '[data-vital="mana"]', c && c.maxMana !== null ? whole(c.maxMana) : null);
+  /* Max mana like max HP: the engine's sheet, else the server's top-level number, else the hunt's vitals. */
+  const manaMax = c && c.maxMana !== null ? c.maxMana : sh && sh.maxMana !== null ? sh.maxMana : v.manaMax;
+  line(root, '[data-vital="mana"]', manaMax !== null ? whole(manaMax) : null);
   line(root, '[data-vital="regen"]', c && c.regenPct !== null ? c.regenPct + '% of the base rate (Prayer)' : null);
   line(root, '[data-vital="speed"]', c && c.moveSpeed !== null ? (Math.round(c.moveSpeed / 100) / 10) + ' tiles a second' : null);
   line(root, '[data-vital="cap"]', cap !== null ? whole(cap) + ' bag spaces' : null);

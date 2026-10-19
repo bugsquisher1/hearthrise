@@ -604,7 +604,7 @@ const BODY_MUTANTS = [
     from: "    from public.player_ledger l where l.session_id = p_session and l.id > v_hwm and l.at >= v_fold_from;",
     to: "    from public.player_ledger l where l.session_id = p_session and l.id > 0 and l.at >= v_fold_from;" },
   { name: 'the fold drops xp', arm: 'T1', fn: 'hr_hunt_settle_session',
-    from: 'xp = public.hr_jsonb_add(t.xp, v_xp)', to: 'xp = t.xp' },
+    from: "xp = public.hr_jsonb_add(t.xp, v_xp || case when v_lx > 0 then jsonb_build_object('level', v_lx) else '{}'::jsonb end)", to: 'xp = t.xp' },
 ];
 /* Defects in the migration TEXT that its own §8 must refuse (the replay raises). */
 const TEXT_MUTANTS = [

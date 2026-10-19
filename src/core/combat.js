@@ -61,6 +61,12 @@ export const COMBAT_BALANCE = {
      150 + 10 per Level scale, so a blow and a meal move together and uses per
      hour, and so the economy, stay where they were. */
   monsterAttackDamageScale: 5.4,
+  /* PER-TIER DAMAGE SCALE (Game Designer, CORE_NUMBERS 2026-10-19 addendum). HP grows 10 a Level
+     while monster atk grows about one a Level, so one flat 5.4 put a tier-6 blow at ~50% of an
+     in-band hero's HP (a boss two-shot the Level-90 hearthfind hero). Tiers 1-3 (the EA grounds)
+     keep 5.4; tiers 4-6 flatten so an in-band blow stays ~20-30% of max HP (bosses <= ~35%).
+     Damage only: accuracy still reads `atk`. A tier missing here uses monsterAttackDamageScale. */
+  monsterDamageScaleByTier: Object.freeze({ 4: 4.0, 5: 3.0, 6: 2.2 }),
   /* THE UNIVERSAL BASIC-ATTACK INTERVAL (Tyler, 2026-10-15: "2.0 s for every
      player and monster basic attack"). The ONE source, with no speed modifier
      of any kind (no gear speed, no weapon-family speed, no style speed): the
@@ -378,7 +384,9 @@ export function monsterAccuracy(monster, playerDefense) {
 
 /** A monster's largest blow. */
 export function monsterMaxHit(monster) {
-  return Math.max(1, Math.floor(((monster && monster.atk) || 1) * COMBAT_BALANCE.monsterAttackDamageScale));
+  const b = COMBAT_BALANCE;
+  const scale = (monster && b.monsterDamageScaleByTier[monster.tier]) || b.monsterAttackDamageScale;
+  return Math.max(1, Math.floor(((monster && monster.atk) || 1) * scale));
 }
 
 /**

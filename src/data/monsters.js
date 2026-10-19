@@ -121,33 +121,33 @@ export const MONSTERS = {
   wild_boar: { name: 'Wild Boar', icon: '🐗', tier: 1, cls: 'mammal', family: 'Mammal',
     hp: 13, atk: 4, def: 1, xp: 11, gp: [2, 6],
     drops: [{ id: 'wolf_pelt', ch: .3 }, { id: 'bones', ch: 1 }, { id: 'raw_wolf_meat', ch: .45 }, { id: 'small_fang', ch: .14 },
-      { id: 'leather_belt', ch: .004, salvage: true }] },
+      { id: 'leather_belt', ch: .0032, salvage: true }] },
   /* FOLD-03: display rename only, the id is untouched. "Small X" reads as a dev
      label; a Cub reads as a creature, and it is the head of the canine ladder. */
   small_wolf: { name: 'Wolf Cub', icon: '🐺', tier: 1, cls: 'mammal', family: 'Mammal',
     dropBonus: 1.15,
     hp: 16, atk: 5, def: 1, xp: 14, gp: [3, 9],
     drops: [{ id: 'wolf_pelt', ch: .32 }, { id: 'small_fang', ch: .18 }, { id: 'bones', ch: 1 }, { id: 'raw_wolf_meat', ch: .6 },
-      { id: 'wolfbone_torc', ch: .0006, lucky: true }] },   // .0008 -> .0006 (S1 instance engine, 310 kills/h at the T1 loadout): 3.5 -> 4.7 h, inside lucky-finds' [4, 30]
+      { id: 'wolfbone_torc', ch: .0002, lucky: true }] },   // .0006 -> .0002 (core rebuild, flat 2.0 s swing: 3.2 h): ~10 h, the rare-drop ruling's 10-20 h (Tyler 10-14/15)
   mandrake: { name: 'Mandrake', icon: '🌱', tier: 1, cls: 'plant', family: 'Plant',
     hp: 11, atk: 3, def: 1, xp: 9, gp: [2, 5],
     drops: [{ id: 'goldenroot', ch: .3 }, { id: 'moonbloom', ch: .08 }, { id: 'turnip', ch: .35 },
-      { id: 'bramble_blade', ch: .00045, lucky: true }] },  // .0006 -> .00045 (S1 instance engine, 490 kills/h): 3.4 -> 4.5 h
+      { id: 'bramble_blade', ch: .00015, lucky: true }] },  // .00045 -> .00015 (core rebuild: 3.4 h): ~10 h, rare ruling 10-20 h
   goblin: { name: 'Goblin', icon: '👺', tier: 1, cls: 'humanoid', family: 'Humanoid',
     hp: 15, atk: 4, def: 1, xp: 13, gp: [2, 8],
     drops: [{ id: 'goblin_ear', ch: .5 }, { id: 'bones', ch: 1 }, { id: 'bronze_sword', ch: .03 }, { id: 'goblin_totem', ch: .01 }] },
   kobold: { name: 'Kobold', icon: '🦎', tier: 1, cls: 'humanoid', family: 'Humanoid',
     hp: 12, atk: 3, def: 1, xp: 10, gp: [2, 6], speed: 3200,
     drops: [{ id: 'goblin_totem', ch: .06 }, { id: 'bones', ch: 1 }, { id: 'bone_chips', ch: .3 }, { id: 'copper_ore', ch: .18 },
-      { id: 'banded_signet', ch: .00045, lucky: true }] },  // .0006 -> .00045 (S1 instance engine, 463 kills/h): 3.6 -> 4.8 h
+      { id: 'banded_signet', ch: .00016, lucky: true }] },  // .00045 -> .00016 (core rebuild: 3.6 h): ~10 h, rare ruling 10-20 h
   witchs_apprentice: { name: "Witch's Apprentice", icon: '🧹', tier: 1, cls: 'human', family: 'Human',
     hp: 10, atk: 5, def: 0, xp: 12, gp: [2, 7],
     drops: [{ id: 'magic_essence', ch: .3 }, { id: 'rune_frag', ch: .1 }, { id: 'normal_log', ch: .25 },
-      { id: 'adept_body', ch: .0005, lucky: true }] },   // .0006 -> .0005 (S1 instance engine, 439 kills/h): 3.8 -> 4.6 h
+      { id: 'adept_body', ch: .00017, lucky: true }] },   // .0005 -> .00017 (core rebuild: 3.3 h): ~10 h, rare ruling 10-20 h
   cutpurse: { name: 'Cutpurse', icon: '🎭', tier: 1, cls: 'human', family: 'Human',
     hp: 11, atk: 4, def: 0, xp: 10, gp: [2, 6],
     drops: [{ id: 'rat_tail', ch: .2 }, { id: 'copper_ore', ch: .2 }, { id: 'bones', ch: .4 },
-      { id: 'apprentice_gloves', ch: .004, salvage: true }] },
+      { id: 'apprentice_gloves', ch: .0028, salvage: true }] },
   /* FOLD-05: display rename only. "Weak" is a stat; "Brittle" is a description
      a player reads as fragile without being told it is the tutorial version. */
   weak_skeleton: { name: 'Brittle Skeleton', icon: '💀', tier: 1, cls: 'undead', family: 'Undead',
@@ -156,12 +156,12 @@ export const MONSTERS = {
   imp: { name: 'Imp', icon: '👿', tier: 1, cls: 'demon', family: 'Demon',
     hp: 10, atk: 4, def: 0, xp: 10, gp: [2, 6],
     drops: [{ id: 'demon_shard', ch: .1 }, { id: 'coal', ch: .25 }, { id: 'rune_frag', ch: .08 },
-      { id: 'apprentice_boots', ch: .004, salvage: true }] },
+      { id: 'apprentice_boots', ch: .0027, salvage: true }] },
   fire_elemental: { name: 'Fire Elemental', icon: '🔥', tier: 1, cls: 'elemental', family: 'Elemental',
     elementWeak: 'frost', elementImmune: ['ember'],
     hp: 12, atk: 4, def: 1, xp: 11, gp: [2, 6],
     drops: [{ id: 'coal', ch: .5 }, { id: 'copper_ore', ch: .2 }, { id: 'hell_ember', ch: .005 },
-      { id: 'apprentice_belt', ch: .004, salvage: true }] },
+      { id: 'apprentice_belt', ch: .003, salvage: true }] },
   scarecrow: { name: 'Scarecrow', icon: '🎃', tier: 1, cls: 'construct', family: 'Construct',
     hp: 16, atk: 2, def: 2, xp: 9, gp: [1, 5],
     drops: [{ id: 'wheat', ch: .6 }, { id: 'normal_log', ch: .35 }, { id: 'pumpkin', ch: .12 },
@@ -172,11 +172,11 @@ export const MONSTERS = {
   giant_bat: { name: 'Giant Bat', icon: '🦇', tier: 2, cls: 'vermin', family: 'Vermin',
     hp: 24, atk: 7, def: 1, xp: 24, gp: [4, 12], speed: 4400,
     drops: [{ id: 'bat_wing', ch: .7 }, { id: 'night_fang', ch: .025 }, { id: 'bones', ch: .5 },
-      { id: 'fang_studs', ch: .0005, lucky: true }] },   // .0007 -> .0005 (S1 instance engine, 397 kills/h at the T2 loadout): 3.6 -> 5.0 h, inside lucky-finds' [4, 30]
+      { id: 'fang_studs', ch: .00019, lucky: true }] },   // .0005 -> .00019 (core rebuild: 3.8 h): ~10 h, rare ruling 10-20 h
   locust_swarm: { name: 'Locust Swarm', icon: '🦗', tier: 2, cls: 'vermin', family: 'Vermin',
     hp: 25, atk: 8, def: 1, xp: 27, gp: [4, 13],
     drops: [{ id: 'wheat', ch: .8 }, { id: 'silk_thread', ch: .2 }, { id: 'venom_sac', ch: .1 },
-      { id: 'studded_belt', ch: .004, salvage: true }] },
+      { id: 'studded_belt', ch: .0032, salvage: true }] },
   ooze: { name: 'Ooze', icon: '🫧', tier: 2, cls: 'vermin', family: 'Vermin',
     /* one override (element): immune to every element — the pure triangle check. */
     elementWeak: null, elementImmune: ['ember', 'frost', 'poison'],
@@ -196,7 +196,7 @@ export const MONSTERS = {
   shrieker: { name: 'Shrieker', icon: '🍄', tier: 2, cls: 'plant', family: 'Plant',
     hp: 29, atk: 9, def: 2, xp: 33, gp: [6, 15],
     drops: [{ id: 'oak_log', ch: .5 }, { id: 'moonbloom', ch: .12 }, { id: 'goldenroot', ch: .25 },
-      { id: 'studded_helmet', ch: .0038, salvage: true }] },
+      { id: 'studded_helmet', ch: .0031, salvage: true }] },
   hobgoblin: { name: 'Hobgoblin', icon: '👹', tier: 2, cls: 'humanoid', family: 'Humanoid',
     hp: 34, atk: 9, def: 4, xp: 38, gp: [8, 22],
     drops: [{ id: 'goblin_ear', ch: .65 }, { id: 'iron_ore', ch: .12 }, { id: 'iron_sword', ch: .012 }, { id: 'goblin_totem', ch: .02 },
@@ -245,7 +245,7 @@ export const MONSTERS = {
     elementWeak: 'frost',
     hp: 24, atk: 11, def: 1, xp: 43, gp: [8, 19],
     drops: [{ id: 'magic_essence', ch: .4 }, { id: 'rune_frag', ch: .22 }, { id: 'normal_log', ch: .3 },
-      { id: 'adept_gloves', ch: .004, salvage: true }] },
+      { id: 'adept_gloves', ch: .0031, salvage: true }] },
   stone_golem: { name: 'Stone Golem', icon: '🗿', tier: 2, cls: 'construct', family: 'Construct',
     hp: 35, atk: 7, def: 4, xp: 34, gp: [6, 15],
     drops: [{ id: 'copper_ore', ch: .5 }, { id: 'iron_ore', ch: .25 }, { id: 'coal', ch: .3 },

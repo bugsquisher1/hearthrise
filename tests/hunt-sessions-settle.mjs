@@ -199,7 +199,7 @@ const groundRow = () => ({
     { room: [1, 1, 8, 6], spawns: [{ monster: 'wolf', x: 4, y: 3 }] },
     { room: [1, 8, 18, 8], spawns: [{ monster: 'rat', x: 9, y: 8 }] },
   ],
-  route: [0, 1, 2], respawnMs: 90000, pullDist: 1.5,
+  route: [0, 1, 2], respawnMs: 90000, pullDist: 1.5, groupFit: 'both',
 });
 const gridOf = (M) => M.GRID.makeGrid(GROUND_MAP[0].length, GROUND_MAP.length,
   (x, y) => GROUND_MAP[y][x] === '.', (x, y) => GROUND_MAP[y][x] === '#');

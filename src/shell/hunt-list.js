@@ -30,7 +30,7 @@ export function huntRows() {
     if (!h) continue;
     const sizes = g.pockets.map((p) => p.spawns.length);
     out.push({
-      hunt: g.hunt, name: h.name, theme: h.theme || '', band: h.band.slice(),
+      hunt: g.hunt, name: h.name, theme: h.theme || '', band: h.band.slice(), groupFit: g.groupFit,
       heroes: Math.min(g.start.length, PARTY_SCALE.maxHeroes),
       packs: g.pockets.length, packMin: Math.min(...sizes), packMax: Math.max(...sizes),
       respawnS: Math.round(g.respawnMs / 1000),
@@ -59,6 +59,27 @@ export const ABOVE_LEVEL_WORDS = 'This hunt is above your level, expect losses.'
 export function rangeWords(r, level) {
   if (!Number.isInteger(level) || level >= r.band[0]) return null;
   return r.band[0] - level >= SESSION_LIMITS.belowRangeRefuse ? 'You are too far below this hunt to enter it yet.' : ABOVE_LEVEL_WORDS;
+}
+
+/** Is this ground built for a group of `partySize` (1 = alone)? A 'both' ground always is. */
+export function fitsGroup(r, partySize) {
+  return r.groupFit === 'both' || r.groupFit === ((Number(partySize) || 1) >= 2 ? 'party' : 'solo');
+}
+
+/**
+ * THE ONE RECOMMENDATION (the Hunts window's default pick; tests/core-loop.mjs plays it): the
+ * highest-floor ground whose band holds `level` and whose groupFit suits `partySize`, else the
+ * highest-floor ground in band, else the first ground. Advice only: every ground stays enterable.
+ */
+export function recommendedHunt(level, partySize = 1, rows = huntRows()) {
+  const inBand = Number.isInteger(level) ? rows.filter((r) => r.band[0] <= level && level <= r.band[1]) : [];
+  const best = (l) => l.slice().sort((a, b) => b.band[0] - a.band[0] || (a.name < b.name ? -1 : 1))[0] || null;
+  return best(inBand.filter((r) => fitsGroup(r, partySize))) || best(inBand) || rows[0] || null;
+}
+
+/** A party ground seen by a lone hero: "Best with a party of 2–4"; else null. */
+export function groupWords(r, partySize) {
+  return r.groupFit === 'party' && (Number(partySize) || 1) < 2 ? 'Best with a party of 2–' + Math.max(2, r.heroes) : null;
 }
 
 /** Who may come: "1 hero" or "1 to 4 heroes". */

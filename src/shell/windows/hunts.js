@@ -18,7 +18,7 @@
 // only the server refuses (Tyler 10-18: 15 or more levels under it).
 // ════════════════════════════════════════════════════════════════════════
 import { combatLevel } from '../../core/xp.js?v=0.2.0';
-import { huntOf, settingsOf } from '../../session/hunt-sections.js?v=0.2.0';
+import { huntOf, settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.0';
 import { bagOf, rulesOf, skillsOf } from '../../session/item-sections.js?v=0.2.0';
 import { huntName } from '../../session/party-sections.js?v=0.2.0';
 import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.0';
@@ -26,7 +26,7 @@ import { whole } from '../../render/format.js?v=0.2.0';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.0';
 import { itemName } from '../widgets/bits.js?v=0.2.0';
 import { runIntent } from '../intent-words.js?v=0.2.0';
-import { huntRows, densityWords, bandWords, rangeWords, heroWords, packFor, ABOVE_LEVEL_WORDS } from '../hunt-list.js?v=0.2.0';
+import { huntRows, densityWords, bandWords, rangeWords, groupWords, recommendedHunt, heroWords, packFor, ABOVE_LEVEL_WORDS } from '../hunt-list.js?v=0.2.0';
 import { partyScratch } from './party-finder.js?v=0.2.0';
 
 const SCRATCH = new WeakMap();
@@ -73,10 +73,12 @@ renderHunts.patch = function patchHunts(body, ctx) {
   const sc = scratchOf(cs);
   const root = body.querySelector('.hw-hunts');
   const list = huntRows();
-  if (!sc.pick && list.length) sc.pick = list[0].hunt;
   const h = huntOf(cs);
   const now = h && !h.ended ? h : null;
   const level = levelOf(cs);
+  const party = partyOf(cs);
+  const size = party ? party.members.length : 1;
+  if (!sc.pick && list.length) { const rec = recommendedHunt(level, size, list); sc.pick = rec ? rec.hunt : list[0].hunt; }
   const pack = packFor(bagOf(cs), rulesOf(cs));
   const nowEl = root.querySelector('.hw-hunts-now');
   text(nowEl, now ? 'You are hunting in ' + huntName(now.huntId) + '. Leave that hunt to go somewhere else.' : 'Pick a hunt, then Enter. Your hero walks there and fights on its own.');
@@ -92,7 +94,7 @@ renderHunts.patch = function patchHunts(body, ctx) {
       text(band, bandWords(r, level));
       cls(band, 'is-short', short);
       /* the floor is a warning (Tyler 10-18): words only, Enter stays the server's to refuse */
-      text(li.querySelector('.hw-hunt-warn'), rangeWords(r, level) || '');
+      text(li.querySelector('.hw-hunt-warn'), [rangeWords(r, level), groupWords(r, size)].filter(Boolean).join(' '));
       text(li.querySelector('.hw-hunt-pack'), on ? packWords(pack) : '');
       const enter = li.querySelector('.hw-hunt-enter');
       cls(enter, 'hw-primary', on);

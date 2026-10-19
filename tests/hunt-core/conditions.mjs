@@ -72,7 +72,7 @@ function openGrid(M) {
 }
 function openGround(spawns, o) {
   return Object.assign({ id: 'ae_room', hunt: 'mill_cellar', map: 'ae_room', start: [[2, 5], [2, 6], [3, 5], [3, 6]],
-    pockets: [{ room: [8, 1, 22, 10], spawns }], route: [0], respawnMs: 3000, pullDist: 1.5, densityMax: [12, 12, 12, 12], partyScale: true }, o || {});
+    pockets: [{ room: [8, 1, 22, 10], spawns }], route: [0], respawnMs: 3000, pullDist: 1.5, groupFit: 'both', densityMax: [12, 12, 12, 12], partyScale: true }, o || {});
 }
 /* A 3 x 3 block of `monster` round (16, 5), plus a straggler at (20, 9). */
 const BLOCK = (monster) => [[15, 4], [16, 4], [17, 4], [15, 5], [16, 5], [17, 5], [15, 6], [16, 6], [17, 6], [20, 9]]

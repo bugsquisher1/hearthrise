@@ -126,6 +126,7 @@ import { combatLevel, xpForLevel } from '../src/core/xp.js';
 import { BASIC_INDEX } from '../src/data/supply-basics.js';
 import { STAMINA_MAX_MS as STAMINA_CAPS, DEFAULT_RESUME, SESSION_LIMITS } from '../src/data/hunt-sessions.js';
 import { HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
+import { recommendedHunt, huntRows } from '../src/shell/hunt-list.js';
 /* A free character's pool (lane S1: the cap is per character, free 8 h / premium 12 h). */
 const STAMINA_MAX_MS = STAMINA_CAPS.free;
 /* The hunts a character can enter: lane S1 fights only on a ground. */
@@ -748,10 +749,14 @@ async function loop2(S, M, tag, rows) {
 
   await step(2, 'pick a hunt for my level', async (t) => {
     const cl = combatOf(p.env);
-    const fit = HUNTS.filter((h) => GROUNDED.has(h.id) && h.band[0] <= cl && cl <= h.band[1]).sort((a, b) => b.band[0] - a.band[0]);
+    const fit = HUNTS.filter((h) => GROUNDED.has(h.id) && h.band[0] <= cl && cl <= h.band[1]);
     t.ok(fit.length > 0, `no named hunt's band holds combat ${cl} (${HUNTS.map((h) => `${h.id}[${h.band}]`).join(' ')})`);
-    hunt = fit[0];
-    t.note(`${hunt.id} [${hunt.band}] (${fit.length} of ${HUNTS.length} hunts fit combat ${cl})`);
+    /* the player's move: the hunt the Hunts window recommends a lone hero of this level (the one chooser) */
+    const rec = recommendedHunt(cl, 1, huntRows());
+    hunt = rec && HUNTS.find((h) => h.id === rec.hunt);
+    t.ok(!!hunt && fit.includes(hunt), `the Hunts window recommends ${rec && rec.hunt}, which is not a ground in band for combat ${cl}`);
+    if (!hunt) return;
+    t.note(`${hunt.id} [${hunt.band}] (recommended alone; ${fit.length} of ${HUNTS.length} hunts fit combat ${cl})`);
   });
 
   await step(3, 'switch the shop heal on', async (t) => {

@@ -19,6 +19,8 @@
 //       hr_hunt_enter_for answers below_range from hr_hunt_below_range. The
 //       executed proof is each file's own self-check in the chain replay
 //       (2026-10-25-hunt-floor-warning.sql §3, 2026-10-25-party-invites.sql §5).
+//   G1  the ONE recommendation (src/shell/hunt-list.js recommendedHunt) prefers a ground whose
+//       groupFit suits the party; a party ground tells a lone hero "Best with a party of 2–4"
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, mkdtempSync, cpSync, writeFileSync, rmSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -42,8 +44,16 @@ async function run(base) {
   ok('W1', typeof far === 'string' && far !== near && /too far/.test(far), 'the margin itself reads ' + JSON.stringify(far));
   ok('W1', at === null && HL.rangeWords(row, 70) === null && HL.rangeWords(row, null) === null, 'at / over the floor or with no level must say nothing');
 
+  /* G1 (coordinator 10-18): the one recommendation prefers a ground built for the group; a party ground
+     stays listed and enterable and tells a lone hero it is best with a party. */
+  const rows = HL.huntRows();
+  const solo40 = HL.recommendedHunt(40, 1, rows), party40 = HL.recommendedHunt(40, 3, rows);
+  ok('G1', !!solo40 && solo40.groupFit !== 'party' && solo40.band[0] <= 40 && 40 <= solo40.band[1], 'a lone combat-40 hero is recommended ' + (solo40 && solo40.hunt + ' (' + solo40.groupFit + ')'));
+  const pg = rows.find((r) => r.groupFit === 'party');
+  ok('G1', !!pg && /^Best with a party of 2–[2-5]$/.test(HL.groupWords(pg, 1) || '') && HL.groupWords(pg, 2) === null, 'a party ground does not tell a lone hero it is best with a party: ' + (pg && HL.groupWords(pg, 1)));
+  ok('G1', !!party40 && HL.fitsGroup(party40, 3), 'a party of three at 40 is recommended ' + (party40 && party40.hunt));
   const win = read('src/shell/windows/hunts.js');
-  ok('W2', /text\(li\.querySelector\('\.hw-hunt-warn'\), rangeWords\(r, level\) \|\| ''\)/.test(win) && win.includes('<small class="hw-hunt-warn"></small>'),
+  ok('W2', win.includes("text(li.querySelector('.hw-hunt-warn'), [rangeWords(r, level), groupWords(r, size)].filter(Boolean).join(' '));") && win.includes('<small class="hw-hunt-warn"></small>'),
     'the Hunts line does not draw rangeWords');
   ok('W2', !/prop\([^)]*'disabled'[^)]*(short|rangeWords)/.test(win), 'Enter must never be disabled by the level warning (the server decides)');
   ok('W2', /res && res\.belowRange \? ' ' \+ ABOVE_LEVEL_WORDS/.test(win), 'a below_range enter does not repeat the warning');
@@ -64,10 +74,12 @@ async function run(base) {
 }
 
 const MUTANTS = [
+  ['the recommendation ignores the group', 'src/shell/hunt-list.js', 'return best(inBand.filter((r) => fitsGroup(r, partySize))) || best(inBand)', 'return best(inBand)'],
+  ['a party ground never says so', 'src/shell/hunt-list.js', "r.groupFit === 'party' && (Number(partySize) || 1) < 2 ?", 'false ?'],
   ['the warning words are dropped', 'src/shell/hunt-list.js', "ABOVE_LEVEL_WORDS;\n}", "null;\n}"],
   ['the margin is ignored (everything under the floor is "too far")', 'src/shell/hunt-list.js', 'r.band[0] - level >= SESSION_LIMITS.belowRangeRefuse ?', 'true ?'],
   ['the margin moved off Tyler\'s 15', 'src/data/hunt-sessions.js', 'belowRangeRefuse: 15,', 'belowRangeRefuse: 10,'],
-  ['the window never draws the warning', 'src/shell/windows/hunts.js', "text(li.querySelector('.hw-hunt-warn'), rangeWords(r, level) || '');", ''],
+  ['the window never draws the warning', 'src/shell/windows/hunts.js', "text(li.querySelector('.hw-hunt-warn'), [rangeWords(r, level), groupWords(r, size)].filter(Boolean).join(' '));", ''],
   ['the session drops below_range', 'src/session/character-session.js', 'return { ok: true, belowRange: true };', 'return { ok: true };'],
   ['the gate keeps the hard floor', 'supabase/migrations/2026-10-25-hunt-floor-warning.sql', 'if v_min - v_cl >= coalesce(v_refuse, 1) then', 'if v_cl < v_min then'],
   ['the enter answer loses its flag', 'supabase/migrations/2026-10-25-party-invites.sql', "'below_range', public.hr_hunt_below_range(v_uid, p_slot, p_hunt)", "'below_range', false"],

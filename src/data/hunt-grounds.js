@@ -16,6 +16,10 @@
 //     route       pocket indexes in walking order (each pocket at most once)
 //     respawnMs   a cleared pack is back this long after it was cleared
 //     pullDist    tiles from the pack centre at which the leader pulls
+//     groupFit    'solo' | 'party' | 'both': who the ground is built for (the world workbook's
+//                 "Group fit" column; a ground the workbook does not list is 'both'). It only
+//                 orders the recommendation (src/shell/hunt-list.js recommendedHunt): a party
+//                 ground stays enterable alone, and says it is best with a party.
 //     leashMargin tiles a pack may step past its room (LE-05/08); absent =
 //                 HUNT_TUNING.leashMarginDefault. Read ONLY via leashMarginOf.
 //     density     (optional) THE MONSTER-DENSITY SLIDER (Tyler 10-18): { solo, perHero,
@@ -152,7 +156,7 @@ export const HUNT_GROUNDS = Object.freeze({
       pocket([4, 5, 10, 10], ['rat', 7, 8], ['slime', 8, 6], ['hive_wasp', 5, 6]),
     ]),
     route: Object.freeze([0, 1]),
-    respawnMs: 30000, pullDist: 1.5, partyScale: true,
+    respawnMs: 30000, pullDist: 1.5, partyScale: true, groupFit: 'both',
     /* the tutorial room allows the full box and no more: its lesson is the pull */
     densityMax: Object.freeze([8, 8, 8, 8]),
   }),
@@ -170,7 +174,7 @@ export const HUNT_GROUNDS = Object.freeze({
       Object.freeze({ ...pocket([51, 17, 57, 29], ['rat_king', 55, 23], ['drain_rat', 54, 21], ['drain_rat', 54, 25]), minParty: 2 }),
     ]),
     route: Object.freeze([0, 1, 2, 3, 4, 5]),
-    respawnMs: 90000, pullDist: 1.5, partyScale: true,
+    respawnMs: 90000, pullDist: 1.5, partyScale: true, groupFit: 'both',
     densityMax: Object.freeze([8, 8, 10, 12]),
   }),
   meadowbrook_thicket: Object.freeze({
@@ -192,7 +196,7 @@ export const HUNT_GROUNDS = Object.freeze({
       box([3, 27, 20, 38], [10, 33], ['gray_wolf', 'gray_whelp'], ['briarcoat_wolf', 'gray_whelp', 'gray_wolf', 'gray_whelp', 'briarcoat_wolf', 'gray_whelp']),
     ]),
     route: Object.freeze([0, 1, 2, 3, 4, 5]),
-    respawnMs: 60000, pullDist: 1.5, partyScale: true,
+    respawnMs: 60000, pullDist: 1.5, partyScale: true, groupFit: 'solo',
     /* integration v0.2.1: the engine's density (densityFor) reads densityMax, which every ground
        holds at the full box at least (the action engine ruling); the slider caps below are the
        designer's and wait on densityCapFor being wired (CONFLICTS.md 2026-10-18 density). */
@@ -233,7 +237,7 @@ export const HUNT_GROUNDS = Object.freeze({
       box([2, 25, 14, 38], [7, 31], ['chief_coppercap', 'goblin_scavenger', 'goblin_scavenger'], ['goblin_digger', 'goblin_skulker', 'hobgoblin_foreman', 'goblin_scavenger', 'goblin_skulker']),
     ]),
     route: Object.freeze([0, 1, 2, 3, 4, 5]),
-    respawnMs: 90000, pullDist: 1.5, partyScale: true,
+    respawnMs: 90000, pullDist: 1.5, partyScale: true, groupFit: 'party',
     /* integration v0.2.1: the engine's density (densityFor) reads densityMax, which every ground
        holds at the full box at least (the action engine ruling); the slider caps below are the
        designer's and wait on densityCapFor being wired (CONFLICTS.md 2026-10-18 density). */
@@ -303,6 +307,9 @@ export const SOLO_HEALER_FLOOR = Object.freeze({ role: 'healer', elementPermille
    EVERY ground's max is at least DENSITY_FULL_BOX (Tyler: "a full box", all 8 tiles
    round the tank taken); a row may allow more. The values above 8 are ASSUMED. */
 export const DENSITY_FULL_BOX = 8;
+
+/* Who a ground is built for (the workbook's "Group fit"): see the row shape's groupFit. */
+export const GROUP_FITS = Object.freeze(['solo', 'party', 'both']);
 export const DENSITY_PICK = Object.freeze({ min: 0, max: 16 });
 
 /** The density an instance spawns at: the members' smallest pick, clamped to the ground's max for its size. */
@@ -409,6 +416,7 @@ export function validateGround(row, refs) {
   }
   if (!(typeof row.pullDist === 'number' && row.pullDist > 0 && row.pullDist <= 8)) bad('pullDist must be in (0, 8]');
   if (row.partyScale !== undefined && typeof row.partyScale !== 'boolean') bad('partyScale must be true or false');
+  if (!GROUP_FITS.includes(row.groupFit)) bad('groupFit must be one of ' + GROUP_FITS.join(' / '));
   (row.pockets || []).forEach((p, i) => {
     if (p && p.minParty !== undefined && !(Number.isInteger(p.minParty) && p.minParty >= 2 && p.minParty <= PARTY_SCALE.maxHeroes)) bad('pocket ' + i + ' minParty must be 2..' + PARTY_SCALE.maxHeroes);
   });

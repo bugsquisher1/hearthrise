@@ -2,11 +2,11 @@
 // src/shell/widgets/action-bar.js — THE ACTION BAR AT THE BOTTOM (Tyler's spec, 2026-10-18).
 //
 // Hunts are idle (Tyler 10-16): the bar is CONFIGURATION, never a cast button.
-//   vitals   HP (and mana, only for a hero with a pool) with what each regains a
-//            second, level and XP, stamina left — every number from the `hunt`
-//            and `stamina` sections; shown only while a hunt runs
-//   slots    2 rows x 10 square slots, slot order = priority (top row 1-10,
-//            bottom 11-20; slot 1 fires first, conditions.js pickSlot). A filled
+//   hub      the vitals hub at the centre (vitals-hub.js): the level medallion,
+//            HP and mana arcs round it, their readouts, stamina, Food and Charm
+//   slots    2 rows x 10 square slots, slot order = priority, split round the
+//            hub as the sim splits them: 1-5 and 11-15 on its left, 6-10 and
+//            16-20 on its right (slot 1 fires first, conditions.js pickSlot). A filled
 //            slot: the action's icon, its small slot number, ONE count badge
 //            (what the bag holds of it, from the server), a diagonal strike when
 //            the server marks it unusable or it has nothing left and no store
@@ -23,13 +23,14 @@
 // ════════════════════════════════════════════════════════════════════════
 import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.6';
 import { CONSUME_KINDS, ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.6';
-import { huntOf, settingsOf, staminaOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.6';
+import { huntOf, settingsOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.6';
 import { bagOf } from '../../session/item-sections.js?v=0.2.6';
 import { text, cls, attr } from '../../render/paint.js?v=0.2.6';
-import { whole, pct, hoursMinutes } from '../../render/format.js?v=0.2.6';
+import { whole } from '../../render/format.js?v=0.2.6';
 import { glyphSvg } from '../launcher.js?v=0.2.6';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.6';
-import { gaugeHtml, patchGauge, actionIconHtml } from './bits.js?v=0.2.6';
+import { actionIconHtml } from './bits.js?v=0.2.6';
+import { hubHtml, patchHub } from './vitals-hub.js?v=0.2.6';
 import { openSlot, storeOf, placeSlot } from '../bar-draft.js?v=0.2.6';
 import { actionName, factsOf, carried, supplyLines, setupWords, conflictsOf } from '../action-facts.js?v=0.2.6';
 import { resetConfigureView } from '../windows/configure-action.js?v=0.2.6';
@@ -52,16 +53,17 @@ function slotHtml(i) {
 /** The skeleton (built once). */
 export function renderActionBar(ctx) {
   const g = ctx.glyphs;
-  let slots = '';
-  for (let i = 0; i < SLOTS; i++) slots += slotHtml(i);
+  /* Each row of ten splits round the hub: its first half on the left, its second on the right. */
+  const half = BAR_SLOTS.cols / 2;
+  const side = (right) => {
+    let h = '';
+    for (let r = 0; r < BAR_SLOTS.rows; r++) for (let c = 0; c < half; c++) h += slotHtml(r * BAR_SLOTS.cols + c + (right ? half : 0));
+    return h;
+  };
   return '<div class="hb-bar" role="group" aria-label="Action bar">'
-    + '<div class="hb-vitals">'
-    + '<div class="hb-vital">' + gaugeHtml('hp', 'Health') + '<small class="hb-regen" data-regen="hp" title="Health regained each second"></small></div>'
-    + '<div class="hb-vital" data-vital="mana">' + gaugeHtml('mana', 'Mana') + '<small class="hb-regen" data-regen="mana" title="Mana regained each second"></small></div>'
-    + '<div class="hb-vital">' + gaugeHtml('xp', 'Experience') + '</div>'
-    + '<div class="hb-vital">' + gaugeHtml('stamina', 'Stamina') + '</div>'
-    + '</div>'
-    + '<ol class="hb-slots" aria-label="Slots 1 to 20, slot 1 tried first">' + slots + '</ol>'
+    + '<ol class="hb-slots" aria-label="Slots 1 to 5 and 11 to 15, slot 1 tried first">' + side(false) + '</ol>'
+    + hubHtml(g)
+    + '<ol class="hb-slots" aria-label="Slots 6 to 10 and 16 to 20">' + side(true) + '</ol>'
     + '<div class="hb-plaque">'
     + '<span class="hb-label">Action set</span><b class="hb-set"></b>'
     + '<span class="hb-tools"><button type="button" class="hh-tool" data-hs-act="editor" aria-label="Hunt settings">' + glyphSvg(g, 'uiSettings') + '</button>'
@@ -117,19 +119,9 @@ function hideTip(el) { const tip = el.querySelector('.hb-tip'); cls(tip, 'is-on'
 renderActionBar.patch = function patchActionBar(el, ctx) {
   const cs = ctx.character;
   const h = huntOf(cs);
-  const hero = h ? h.hero : {};
-  const st = staminaOf(cs);
   const s = settingsOf(cs);
-  const regen = (v) => (Number.isFinite(v) && v > 0 ? '+' + whole(v) + '/s' : '');
-  const hasMana = Number.isFinite(hero.manaMax) && hero.manaMax > 0;
   cls(el.querySelector('.hb-bar'), 'is-town', !h);
-  patchGauge(el.querySelector('.is-hp'), hero.hp, hero.hpMax, hero.hp == null ? 'HP –' : 'HP ' + whole(hero.hp) + ' / ' + whole(hero.hpMax));
-  cls(el.querySelector('[data-vital="mana"]'), 'is-none', !hasMana);
-  patchGauge(el.querySelector('.is-mana'), hero.mana, hero.manaMax, hasMana ? 'Mana ' + whole(hero.mana) + ' / ' + whole(hero.manaMax) : '');
-  patchGauge(el.querySelector('.is-xp'), hero.xpPct, 1, (hero.level == null ? 'Level –' : 'Level ' + hero.level) + ' · ' + pct(hero.xpPct));
-  patchGauge(el.querySelector('.is-stamina'), st ? st.msLeft : null, st ? st.capMs : null, 'Stamina ' + hoursMinutes(st ? st.msLeft : null));
-  text(el.querySelector('[data-regen="hp"]'), regen(hero.hpRegen));
-  text(el.querySelector('[data-regen="mana"]'), hasMana ? regen(hero.manaRegen) : '');
+  patchHub(el, ctx);
   const slots = s ? Array.from({ length: SLOTS }, (_, i) => s.slots[i] || { empty: true }) : [];
   const wires = slots.map((x) => wireSlot(x));
   const conflicts = s ? conflictsOf(wires, s) : new Map();

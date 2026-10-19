@@ -774,6 +774,7 @@ body[data-theme="hearthlight"] {
   --hud-fill-hp:         #b03e2e;
   --hud-fill-stamina:    #66843d;
   --hud-mana-ink:        #8794e0;   /* a slot's mana cost, read on the slot well (6.8:1) */
+  --hud-hp-ink:          #ef8f7c;   /* the vitals hub's HP readout, read on the HUD plate (the sim's warm HP number) */
   /* THE RARITY LADDER (ART_DIRECTION §8): world-palette colours, so the light
      column over a drop and the pocket's border in the bag are one colour.
      Epic is the proposed arcane ramp (Asset Director). Colour is never the only

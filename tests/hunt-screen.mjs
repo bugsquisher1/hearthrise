@@ -42,6 +42,8 @@
 //   HS-11 A SLOT THAT NEVER FIRES: an earlier slot with the same action under
 //         weaker conditions marks it "!" with the reason; emptying it clears that
 //   HS-12 the bar carries no fight controls; Hunt settings no density, no gathering
+//   HS-13 THE VITALS HUB: HP, mana, level, XP and stamina from the envelope, replaced by
+//         the next one; a melee hero with no mana pool still shows its mana gauge
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { launchOptions } from './_chrome.mjs';
@@ -109,7 +111,7 @@ async function pushEnvelope(page, s) {
 
 const FLOAT_IDS = ['dealt', 'taken', 'heal', 'xp', 'miss', 'supply', 'loot', 'ability', 'bleed_badge'];
 const NODES = `({ row: document.querySelector('.hp-m[data-key="1"]'), kills: document.querySelector('[data-sec="totals"] dd[data-stat="kills"]'),
-  slot: document.querySelector('.hb-slot[data-slot="3"]'), hp: document.querySelector('.hb-vital .is-hp .hh-gauge-text') })`;
+  slot: document.querySelector('.hb-slot[data-slot="3"]'), hp: document.querySelector('.hb-read-v[data-v="hp"]') })`;
 
 async function checks(overrides, shots) {
   const fails = [];
@@ -162,7 +164,29 @@ async function checks(overrides, shots) {
           return { rebuilt: Object.keys(now).filter((k) => now[k] !== window.__nodes[k]), kills: now.kills && now.kills.textContent, hp: now.hp && now.hp.textContent };
         }, NODES);
         if (after.rebuilt.length) fails.push('HS-2 a new envelope rebuilt ' + after.rebuilt.join(', ') + ' instead of patching it');
-        if (after.kills !== '170' || !/^HP 90 \//.test(String(after.hp))) fails.push('HS-2 the patched nodes did not take the new numbers (kills ' + after.kills + ', hp ' + after.hp + ')');
+        if (after.kills !== '170' || !/^90\/220$/.test(String(after.hp))) fails.push('HS-2 the patched nodes did not take the new numbers (kills ' + after.kills + ', hp ' + after.hp + ')');
+        /* HS-13 THE VITALS HUB: HP, mana, level, XP and stamina are the envelope's, and the next envelope replaces them. */
+        const hub = () => page.evaluate(() => {
+          const q = (s) => document.querySelector(s);
+          const dash = (s) => (q(s).getAttribute('stroke-dasharray') || '').split(' ')[0];
+          return { hp: q('.hb-read-v[data-v="hp"]').textContent, mana: q('.hb-read-v[data-v="mana"]').textContent, lv: q('.hb-lv').textContent,
+            xp: q('.hb-xp').textContent, stam: q('.hb-stam-v').textContent, hpArc: dash('.hb-arc.is-hp'), manaArc: dash('.hb-arc.is-mana'), xpArc: dash('.hb-arc.is-xp'),
+            manaShown: q('.hb-read.is-mana').getClientRects().length > 0 && q('.hb-arc.is-mana').getClientRects().length > 0, gauges: document.querySelectorAll('.hb-bar .hh-gauge').length };
+        });
+        const h1 = await hub();
+        if (h1.hp !== '90/220' || h1.mana !== '40/60' || h1.lv !== '24' || h1.xp !== 'XP 62%' || h1.hpArc !== '40.9' || h1.manaArc !== '66.7' || h1.xpArc !== '62' || !/\d/.test(h1.stam)) {
+          fails.push('HS-13 the hub does not show the envelope: ' + JSON.stringify(h1));
+        }
+        if (h1.gauges) fails.push('HS-13 the old flat gauges are still on the bar');
+        /* A melee hero the server sends no mana pool still shows its mana gauge (every hero has mana). */
+        Object.assign(s.env.hunt.hero, { mana: 0, mana_max: 0, level: 25, xp_pct: 0.05, hp: 220 });
+        s.env.party.members[0].hp = 220;
+        await pushEnvelope(page, s);
+        const h2 = await hub();
+        if (h2.hp !== '220/220' || h2.mana !== '0/0' || h2.lv !== '25' || h2.xp !== 'XP 5%' || h2.hpArc !== '100' || !h2.manaShown) fails.push('HS-13 the next envelope did not replace the hub (or hid the mana gauge): ' + JSON.stringify(h2));
+        Object.assign(s.env.hunt.hero, { mana: 40, mana_max: 60, hp: 180, level: 24, xp_pct: 0.62 });   // back to the fixture for the screenshots
+        s.env.party.members[0].hp = 180;
+        await pushEnvelope(page, s);
         /* HS-6: the log shows each fixture event once, after a restated envelope too. */
         await page.keyboard.press('Enter');
         await wait(page, () => document.querySelector('[data-hs-win="chat"] .hc-log'));
@@ -376,9 +400,9 @@ async function checks(overrides, shots) {
       const tag = vp.width + 'x' + vp.height;
       if (!up) { fails.push('HS-8 the town bar did not mount (' + tag + ')'); await ctx.close(); continue; }
       const town = await page.evaluate(() => ({ bar: !!document.querySelector('.hb-bar.is-town'),
-        vitals: getComputedStyle(document.querySelector('.hb-vitals')).display,
+        mana: (document.querySelector('.hb-read.is-mana') || { getClientRects: () => [] }).getClientRects().length > 0,
         plus: getComputedStyle(document.querySelector('.hb-slot[data-slot="5"] .hb-plus')).display }));
-      if (!town.bar || town.vitals !== 'none') fails.push('HS-8 in town the bar is missing or shows hunt vitals: ' + JSON.stringify(town));
+      if (!town.bar || !town.mana) fails.push('HS-8 in town the bar or its vitals hub is missing: ' + JSON.stringify(town));
       if (town.plus === 'none') fails.push('HS-8 an empty slot shows no "+"');
       if (shots) await page.screenshot({ path: join(shots, 'town-' + tag + '-bar.png') });
       /* Configure an empty slot from its "+": Items, Any food (the store price shown, paid as used), IF My HP % below 60. */
@@ -483,6 +507,9 @@ const MUTANTS = [
   ['a blocked slot is not flagged', 'src/shell/action-facts.js', '      if (same || kind) {', '      if (false) {'],
   ['the modal docks instead of centring', 'src/shell/window-manager.js', "  const isModal = (id) => rows.get(id).modal === true;", "  const isModal = () => false;"],
   ['Hunt prep tells a player to buy first', 'src/shell/readiness.js', '      const st = storeOn ? storeOf(sl.action) : null;', '      const st = null;'],
+  ['the mana gauge hides for a hero with no pool', 'src/shell/widgets/vitals-hub.js', "  fill(el.querySelector('.hb-arc.is-mana'), share(v.mana, v.manaMax));", "  fill(el.querySelector('.hb-arc.is-mana'), share(v.mana, v.manaMax));\n  el.querySelector('.hb-read.is-mana').style.display = v.manaMax > 0 ? '' : 'none';"],
+  ['the hub keeps the first level it drew', 'src/shell/widgets/vitals-hub.js', '  const level = hero && ok(hero.level) ? hero.level :', '  const level = 24 || hero ? 24 :'],
+  ['the HP arc does not follow the server', 'src/shell/widgets/vitals-hub.js', "  fill(el.querySelector('.hb-arc.is-hp'), share(v.hp, v.hpMax));", "  fill(el.querySelector('.hb-arc.is-hp'), 1);"],
   ['the bleed badge defaults on for regular monsters', 'src/data/combat-text.js', "label: 'Bleed stack count', on: on(false, true)", "label: 'Bleed stack count', on: on(true, true)"],
 ];
 

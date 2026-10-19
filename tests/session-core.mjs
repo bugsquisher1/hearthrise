@@ -19,6 +19,8 @@
 //   ISO-2  a frame for one character changes only that one
 //   CHAN-1 every join of a character's topic re-reads the character once (hello); a dropped
 //          channel is left and re-joined after a backoff
+//   CHAN-3 a leave from inside the channel's own status callback (removeChannel echoes CLOSED)
+//          leaves once and schedules one reconnect, never recursing (live v0.2.6)
 //   CHAN-2 a frame that skips versions asks for one hello (the gap is closed, not guessed)
 //   HELLO-1 an idle settle answer ({accrued:false}) is never applied as the character: the full read follows
 //   HUNT-1 while the server holds a hunt open the character asks the hunter's settle every huntPollMs
@@ -200,6 +202,22 @@ async function rules(M) {
     if (pending.length !== 1) return 'no reconnect was scheduled after the drop';
     pending[0]();
     return hub.topics.has(topic) || 'the reconnect did not re-join the topic';
+  });
+  /* CHAN-3 (live v0.2.6, RangeError in _onChannel): supabase's removeChannel reports CLOSED to the
+     channel's own status callback, synchronously; leaving from inside that callback must not recurse. */
+  await t('CHAN-3', async () => {
+    const srv = fakeServer({ 0: env(1) });
+    let status = null, leaves = 0;
+    const echoing = (topic, onMessage, onStatus) => { status = onStatus; return () => { leaves++; if (leaves > 50) throw new RangeError('Maximum call stack size exceeded'); onStatus('CLOSED'); }; };
+    const pending = [];
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, channel: echoing,
+      setTimer: (fn) => { pending.push(fn); return pending.length; }, clearTimer: () => {} });
+    await cs.load(); cs.connect();
+    try { status('CHANNEL_ERROR'); } catch (e) { return 'a channel error recursed: ' + e.message; }
+    if (leaves !== 1) return 'the channel was left ' + leaves + ' times for one error';
+    if (pending.length !== 1) return 'one drop scheduled ' + pending.length + ' reconnects';
+    cs.close();
+    return leaves === 1 || 'close left an already-left channel again';
   });
   await t('CHAN-2', async () => {
     const srv = fakeServer({ 0: env(1) });
@@ -417,6 +435,7 @@ const MUTANTS = [
   ['existing email told apart', 'src/net/auth.js', "if (error && !/already (registered|exists)/i.test(String(error.message || ''))) return fail(AUTH_COPY.signUpFailed);", 'if (error) return fail(AUTH_COPY.signUpFailed);'],
   ['closed game ignored', 'src/session/server.js', "return status === CLOSED_STATUS && !!body", "return false && !!body"],
   ['a join sends no hello', 'src/session/character-session.js', "if (st === 'SUBSCRIBED') { this._attempt = 0; this.hello(); return; }", "if (st === 'SUBSCRIBED') { this._attempt = 0; return; }"],
+  ['a leave inside the channel callback recurses', 'src/session/character-session.js', "    const leave = this._leave;\n    this._leave = null;\n    if (leave) { try { leave(); } catch (e) { /* already gone */ } }", "    if (this._leave) { try { this._leave(); } catch (e) { /* already gone */ } this._leave = null; }"],
   ['a dropped channel is never re-joined', 'src/session/character-session.js', "this._retry = this._setTimer(() => { this._retry = null; this.connect(); }, reconnectDelay(++this._attempt));", "this._retry = null;"],
   ['a version gap is guessed, not healed', 'src/session/character-session.js', "if (before !== null && r.record.version > before + 1) this.hello();", ""],
   ['an open hunt is never re-read', 'src/session/character-session.js', "    this._emit(why);\n    this._armHuntPoll();", "    this._emit(why);"],

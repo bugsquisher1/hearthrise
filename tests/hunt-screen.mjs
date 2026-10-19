@@ -42,6 +42,7 @@
 //   HS-11 A SLOT THAT NEVER FIRES: an earlier slot with the same action under
 //         weaker conditions marks it "!" with the reason; emptying it clears that
 //   HS-12 the bar carries no fight controls; Hunt settings no density, no gathering
+//   HS-13 no two hunt panels overlap at 1440x900, with and without a docked window
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { launchOptions } from './_chrome.mjs';
@@ -309,6 +310,30 @@ async function checks(overrides, shots) {
       await ctx.close();
     }
 
+    { // HS-13 no two hunt panels overlap at 1440x900, with and without a window docked (Tyler 10-19)
+      const { ctx, page, up } = await open();
+      if (up) {
+        const overlaps = () => page.evaluate(() => {
+          const els = Array.from(document.querySelectorAll('[data-hs-hud="world"] [data-hs-widget]')).map((e) => [e.getAttribute('data-hs-widget'), e.getBoundingClientRect()]);
+          const out = [];
+          for (let i = 0; i < els.length; i++) for (let j = i + 1; j < els.length; j++) {
+            const [a, p] = els[i], [b, q] = els[j];
+            if (p.width && q.width && p.left < q.right - 1 && p.right > q.left + 1 && p.top < q.bottom - 1 && p.bottom > q.top + 1) out.push(a + ' x ' + b);
+          }
+          return out;
+        });
+        const bare = await overlaps();
+        if (bare.length) fails.push('HS-13 hunt panels overlap with no window open: ' + bare.join(', '));
+        await page.keyboard.press('Enter');
+        await wait(page, () => document.querySelector('[data-hs-win="chat"]'));
+        await page.evaluate(() => document.activeElement && document.activeElement.blur && document.activeElement.blur());
+        await page.waitForTimeout(400);
+        const docked = await overlaps();
+        if (docked.length) fails.push('HS-13 hunt panels overlap with the chat window docked: ' + docked.join(', '));
+      } else fails.push('HS-13 the screen did not mount');
+      await ctx.close();
+    }
+
     { // HS-7 Configure action: a bar slot opens it centred; registry pickers; one whole-bar intent; off until confirmed; refusals inline
       const { ctx, page, s, up } = await open();
       if (up) {
@@ -476,6 +501,7 @@ const MUTANTS = [
   ['controls stay on while an intent is in flight', 'src/shell/widgets/settings-intent.js', "prop(el, 'disabled', pending || v === null);", "prop(el, 'disabled', v === null);"],
   ['the analyzer ignores the premium gate', 'src/shell/widgets/analyzer.js', 'const premium = isPremium(ctx.character);', 'const premium = true;'],
   ['the Hunts window keeps saying "On the way" while hunting', 'src/shell/windows/hunts.js', "  if (sc.msg && sc.msg === sc.enterMsg && (now || (h && h.ended))) { sc.msg = ''; sc.enterMsg = null; }\n", ''],
+  ['an edge panel never steps out of the hunt bar’s way', 'src/shell/shell.js', "        for (const p of at.push) edgeEls[p.i].style.top = p.top + 'px';\n", ''],
   ['an ended hunt still offers Leave hunt', 'src/shell/widgets/hunt-topbar.js', "  prop(leave, 'hidden', over && !leave.hasAttribute('data-pending'));\n", ''],
   ['a free character gets no basic analyzer', 'src/shell/widgets/analyzer.js', 'const a = analyzerOf(ctx.character);', 'const a = premium ? analyzerOf(ctx.character) : null;'],
   ['the analyzer keeps the last numbers when the section goes', 'src/session/hunt-sections.js', "  const a = section(cs, 'hunt_analyzer');\n", "  const a = section(cs, 'hunt_analyzer') || globalThis.__lastA;\n  globalThis.__lastA = a;\n"],

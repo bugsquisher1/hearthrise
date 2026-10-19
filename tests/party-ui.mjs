@@ -397,9 +397,8 @@ async function pageRules(overrides, shots) {
       const no = await page.evaluate((q) => { const b = document.querySelector(q + ' [data-hs-act="alert-no"]'); return b && !b.hidden ? b.textContent : null; }, toast);
       if (no !== 'No thanks') fails.push('UI-6 [' + tag + '] the invite line offers ' + JSON.stringify(no) + ', not No thanks');
       const acc0 = sent(s, 'hr_hunt_party_accept').length;
-      await page.click(toast + ' [data-hs-act="alert-do"]');
-      /* (the alert lines repaint on the shell's next paint; the server answers after delayMs) */
-      const toastOff = await wait(page, (q) => { const b = document.querySelector(q + ' [data-hs-act="alert-do"]'); return !b || b.disabled; }, toast, 200);
+      /* The press and the read in ONE turn: the button must be off from the press itself, not from some later paint. */
+      const toastOff = await page.evaluate((q) => { const b = document.querySelector(q + ' [data-hs-act="alert-do"]'); b.click(); return b.disabled; }, toast);
       if (!toastOff) fails.push('UI-6 [' + tag + '] Join stayed on while the intent was in flight');
       await page.waitForTimeout(700);
       const ta = sent(s, 'hr_hunt_party_accept').slice(acc0);

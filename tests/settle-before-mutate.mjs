@@ -117,9 +117,9 @@ async function snapshot(db) {
 
 async function r5(db) {
   await db.query('insert into auth.users(id) values ($1) on conflict (id) do nothing', [UID]);
-  await db.query(`insert into player_state (user_id, slot, gold, hp, max_hp, version,
+  await db.query(`insert into player_state (user_id, slot, gold, hp, version,
                     accrued_to, active_kind, active_id, active_since)
-                  values ($1, 0, 1000, 10, 10, 1, now() - interval '${STALE}',
+                  values ($1, 0, 1000, 10, 1, now() - interval '${STALE}',
                           'combat', 'r5_probe_target', now() - interval '8 hours')`, [UID]);
   await db.query(`insert into player_progress (user_id, slot, kind, key, value, period_key, updated_at)
                   values ($1, 0, 'stat', 'ev:smithed', 60, '', now())`, [UID]);

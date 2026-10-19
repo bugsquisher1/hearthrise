@@ -143,6 +143,11 @@ async function boot(patches) {
   return db;
 }
 
+/* A hunt window's delta without its Level XP: hr_apply credits level_xp only inside the hunt settle
+   (hr.hunt_session, 2026-10-27-core-bodies.sql), and these arms apply the window through hr_apply
+   directly to read the progress ops it carries. */
+const outsideHunt = (d) => { const o = { ...d }; delete o.level_xp; return o; };
+
 /** Apply a delta through the REAL hr_apply, at the current version. */
 async function apply(db, delta) {
   const v = await db.query('select version from public.player_state where user_id=$1 and slot=0', [USER]);
@@ -772,7 +777,7 @@ async function runOn(db, patches) {
     const fresh = await boot(patches);
     const c2 = combatNight();
     if (c2.accrued) {
-      const r = await apply(fresh, c2.delta);
+      const r = await apply(fresh, outsideHunt(c2.delta));
       ok(r?.ok === true, `B3: hr_apply refused the combat delta carrying the bestiary op — ${JSON.stringify(r)}`);
       // Direct row check.
       const rows = await progressRows(fresh);
@@ -853,7 +858,7 @@ async function runOn(db, patches) {
     const fresh = await boot(patches);
     const c2 = combatNight();
     if (c2.accrued) {
-      const r = await apply(fresh, c2.delta);
+      const r = await apply(fresh, outsideHunt(c2.delta));
       ok(r?.ok === true, `COLLECTION-1: hr_apply refused the combat delta carrying loot ops — ${JSON.stringify(r)}`);
       const proj = await fresh.query('select item_id, qty from public.hr_collection_of($1::uuid, 0)', [USER]);
       const got = new Map(proj.rows.map((x) => [x.item_id, Number(x.qty)]));
@@ -950,7 +955,7 @@ async function runOn(db, patches) {
     const fresh = await boot(patches);
     const c2 = combatNight();
     if (c2.accrued) {
-      await apply(fresh, c2.delta);   // writes ev:kill_monster:* and ev:loot:* rows
+      await apply(fresh, outsideHunt(c2.delta));   // writes ev:kill_monster:* and ev:loot:* rows
       await apply(fresh, { accrued_to: 'now', journal: { kind: 'accrue', intent: 'accrue' } }); // a settle → streak
       const r = await fresh.query('select public.hr_state_of($1::uuid, 0) as e', [USER]);
       const env = r.rows[0].e;

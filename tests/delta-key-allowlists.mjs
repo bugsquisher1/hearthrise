@@ -306,9 +306,9 @@ async function dbArms(db, { log = () => {} } = {}) {
     const to2 = new Date(nowMs - 120000).toISOString();
     for (const u of [A, B, SA, SB]) {
       await q('insert into auth.users (id) values ($1) on conflict do nothing', [u]);
-      await q(`insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to,
-                 active_kind, active_id, active_since, consec_falls, companion_equipped)
-               values ($1, 0, 500, 10, 10, 1, $2, 'combat', $3, '2000-01-01 00:00:00+00', 0, 'fox')`, [u, mark, cact]);
+      await q(`insert into public.player_state (user_id, slot, gold, hp, version, accrued_to,
+                 active_kind, active_id, active_since, companion_equipped)
+               values ($1, 0, 500, 10, 1, $2, 'combat', $3, '2000-01-01 00:00:00+00', 'fox')`, [u, mark, cact]);
       await q(`insert into public.player_skills (user_id, slot, skill_id, xp, xp_frac) values ($1, 0, 'attack', 40, 0.9)`, [u]);
     }
     const pid = (await one('insert into public.party (leader_user, leader_slot) values ($1, 0) returning id', [A])).id;

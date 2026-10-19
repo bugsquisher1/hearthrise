@@ -42,10 +42,9 @@ import { effectiveDropChance } from '../src/core/drops.js';
 import { lootKey } from '../src/core/goals.js';
 import {
   playerCombatRolls, monsterCombatRolls, weaknessInfo, equipmentStats,
-  swingIntervalMs, DEFAULT_PROFILE,
+  DEFAULT_PROFILE,
 } from '../src/core/combat.js';
-import { COMBAT_STYLES } from '../src/core/styles.js';
-import { xpForLevel } from '../src/core/xp.js';
+import { xpForLevel, skillXpForLevel, charXpForLevel } from '../src/core/xp.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
 import { computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
 import { huntSpan, huntAccrual } from './hunt-fixture.mjs';
@@ -110,18 +109,16 @@ function fight(monsters, monsterId, { seed = SEED, hours = 1, fx = {} } = {}) {
   const tier = Math.min(6, Math.max(1, m.tier));
   const L = LOADOUT[tier].level;
   const EQ = equipmentFor(tier);
-  const skills = { attack: xpForLevel(L), strength: xpForLevel(L), defense: xpForLevel(L),
-    hitpoints: xpForLevel(Math.max(10, L)) };
-  const maxHp = Math.max(10, L);
+  /* The tier's Level with Melee and Defense at it (core rebuild: max HP from Level, the one 2 s swing). */
+  const skills = { melee: skillXpForLevel('melee', L), defense: skillXpForLevel('defense', L) };
   const eq = equipmentStats(EQ, ITEMS);
-  const style = COMBAT_STYLES.controlled || Object.values(COMBAT_STYLES)[0];
   const state = { activeMonster: monsterId, monsterHp: m.hp, monsterMaxHp: m.hp,
-    playerHp: maxHp, playerMaxHp: maxHp, gold: 0, skills, stats: {}, inventory: {} };
+    playerHp: 1e9, gold: 0, skills, levelXp: charXpForLevel(L), stats: {}, inventory: {} };
   const ctx = {
-    fromMs: 0, toMs: hours * 3600000, tickMs: swingIntervalMs(eq, style),
-    monsters, items: ITEMS, eq, bonus: () => 0, style, activeBuffCount: 0,
+    fromMs: 0, toMs: hours * 3600000, 
+    monsters, items: ITEMS, eq, bonus: () => 0, family: 'sword', activeBuffCount: 0,
     playerRolls: (mm) => playerCombatRolls(mm, { eq, equipment: EQ, items: ITEMS, skills, bonus: () => 0,
-      profile: DEFAULT_PROFILE, style }),
+      profile: DEFAULT_PROFILE }),
     monsterRolls: (mm) => monsterCombatRolls(mm, { eq, skills, bonus: () => 0 }),
     weakness: (mm) => weaknessInfo(mm, eq),
     fx: { ...fx },
@@ -237,8 +234,8 @@ function bothPaths() {
     userId: '00000000-0000-4000-8000-000000000001', slot: 0,
     nowMs: 1760000000000 + 3 * 3600000, accruedToMs: 1760000000000, activeSinceMs: 1760000000000,
     activeKind: 'combat', activeId: PROBE_MONSTER, capMs: 12 * 3600000, seed: s,
-    hp: 20, maxHp: 20, gold: 0,
-    skills: { attack: xpForLevel(L), strength: xpForLevel(L), defense: xpForLevel(L), hitpoints: xpForLevel(20) },
+    hp: 1e9, levelXp: charXpForLevel(L), gold: 0,
+    skills: { melee: skillXpForLevel('melee', L), defense: skillXpForLevel('defense', L) },
     equipment: equipmentFor(1), inventory: {},
     items: ITEMS, monsters: MONSTERS,
   }, { seed: s, food: FIGHT_FOOD, foodQty: 5000 });

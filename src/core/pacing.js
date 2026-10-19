@@ -15,9 +15,11 @@
    duration. FARMING is exempt — growth is wall-clock, so actionMs cannot
    reach it and scaling its XP would only deepen an existing hole. */
 export const PACE = { xp: 0.39, actionMs: 1.60 };
-/* Farming, and the combat skills: their XP is paid as the core model states it
-   (src/data/core-model.js COMBAT_XP; the skill curve was fitted to it as paid). */
-export const PACE_EXEMPT_SKILLS = ['farming', 'melee', 'ranged', 'magic', 'defense', 'prayer'];
+/* Farming, and the combat skills trained in a fight: their XP is paid as the core
+   model states it (src/data/core-model.js COMBAT_XP; the skill curve was fitted to
+   it as paid). Prayer is trained at a bench (the burying rites) and stays on the
+   dial like every artisan skill: its rates are authored pre-dial (PRAYER_BURY). */
+export const PACE_EXEMPT_SKILLS = ['farming', 'melee', 'ranged', 'magic', 'defense'];
 
 export const SPEED_KEYS = { cookSpeed: 1, smithSpeed: 1, craftSpeed: 1, prayerSpeed: 1, gatherSpeed: 1 };
 

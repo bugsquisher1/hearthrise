@@ -77,29 +77,26 @@ export const PRAYER_REGEN = Object.freeze({ maxPermille: 1000, k: 50 });
 export const MONSTER_LEVEL_BY_TIER = Object.freeze({ 1: 5, 2: 15, 3: 35, 4: 60, 5: 90, 6: 130 });
 
 /* PRAYER FROM BURYING (CORE_NUMBERS 2026-10-19 line 99: Prayer ~ 0.6 x Level for a
-   player who buries everything). Burying is Prayer's only XP source and Prayer is
-   exempt from the pacing dial (it is a combat skill, pacing.js), so a bone pays
-   exactly xpPerBone; fractions carry in player_skills.xp_frac.
+   player who buries everything). Burying is a bench action, so its XP rides the
+   pacing dial like every artisan grant (pacing.js PACE.xp 0.39: the root cause of the
+   live 3 bones -> 5 XP, 2026-10-19), and fractions carry in player_skills.xp_frac.
      refLevel / refPrayer  the plain-bones rite serves Prayer 1-15 (Big Bones open at
                            15), reached by Level 25: 0.6 x 25 = 15
      bonesPerHour          a hero burying every bone of an in-range cellar hunt:
                            464 kills/h x 0.26 bones a kill (forest-cave --play,
                            measured 2026-10-19)
-     xpPerBone             skillXp(prayer, refPrayer) / (bonesPerHour x hours to
-                           refLevel at LEVEL_GUARD's rate) = 22,539 / (121 x 11.97)
-                           = 15.56, to the half (tests/bury-rate.mjs re-derives it)
-     ladderBase            the plain-bones XP of the designer's 2026-09-12 rite ladder:
-                           every rite keeps its ratio to it (recipes.js rite()), so
-                           the ladder stays in order; its own retune is the designer's
-                           Prayer pass. */
+     xpPerBone             the Prayer XP a bone PAYS: skillXp(prayer, refPrayer) /
+                           (bonesPerHour x hours to refLevel at LEVEL_GUARD's rate)
+                           = 22,539 / (121 x 11.97) = 15.56, to the tenth
+                           (tests/bury-rate.mjs re-derives it)
+     recipeXp              the bury_bones row's authored (pre-dial) XP: recipeXp x
+                           PACE.xp = xpPerBone exactly (40 x 0.39 = 15.6)
+   Only the plain-bones rite is set from the curve: the rites above it keep the
+   designer's 2026-09-12 values until the designer's Prayer pass (scaling the whole
+   ladder by the same factor breaks the per-apply XP clamp at the top rites). */
 export const PRAYER_BURY = Object.freeze({
-  refLevel: 25, refPrayer: 15, bonesPerHour: 121, xpPerBone: 15.5, ladderBase: 4.5,
+  refLevel: 25, refPrayer: 15, bonesPerHour: 121, xpPerBone: 15.6, recipeXp: 40,
 });
-
-/** A prayer rite's XP from its 2026-09-12 ladder value: the same ratio to plain bones, at xpPerBone, to the half. */
-export function riteXp(ladderXp) {
-  return Math.round((ladderXp * PRAYER_BURY.xpPerBone * 2) / PRAYER_BURY.ladderBase) / 2;
-}
 
 /* FOOD HEALS MOVED x12 WITH MONSTER DAMAGE (CORE_NUMBERS Q3: monsterAttackDamageScale
    0.45 -> 5.4, every food and basic `heals` x12, prices unchanged). The literal heals in

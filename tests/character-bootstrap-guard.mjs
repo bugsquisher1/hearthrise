@@ -147,7 +147,7 @@ language plpgsql as $$
 begin
   if coalesce(current_setting('hearthrise.b338g', true), '') <> 'arm' then return new; end if;
   perform set_config('hearthrise.b338g', 'fired', true);
-  insert into public.player_state (user_id, slot, hp, max_hp) values (new.user_id, new.slot, 10, 10);
+  insert into public.player_state (user_id, slot, hp) values (new.user_id, new.slot, 10);
   return new;
 end $$;
 
@@ -162,7 +162,7 @@ begin
   -- trigger that quietly did nothing would make the result below "pass".
   begin
     perform set_config('hearthrise.b338g', 'arm', true);
-    insert into public.player_state (user_id, slot, hp, max_hp) values (p_uid, p_slot, 10, 10);
+    insert into public.player_state (user_id, slot, hp) values (p_uid, p_slot, 10);
     v_ctl := 'no error';
   exception when others then v_ctl := sqlstate;
   end;
@@ -213,8 +213,8 @@ begin
   begin
     set local role authenticated;
     perform set_config('request.jwt.claim.sub', '${UID}', true);
-    insert into public.player_state (user_id, slot, gold, hp, max_hp)
-      values ('${UID}'::uuid, 4, 999999999, 10, 10);
+    insert into public.player_state (user_id, slot, gold, hp)
+      values ('${UID}'::uuid, 4, 999999999, 10);
     v_ins := 'ALLOWED';
   exception when others then v_ins := sqlstate;
   end;

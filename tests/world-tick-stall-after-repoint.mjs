@@ -139,9 +139,9 @@ const fire = async (u) => (await runTick({
 async function seed(u, kind) {
   await db.exec(`insert into auth.users (id) values ('${u}') on conflict do nothing;`);
   if (kind === 'gather') {
-    await db.exec(`insert into public.player_state (user_id, slot, gold, hp, max_hp, version,
+    await db.exec(`insert into public.player_state (user_id, slot, gold, hp, version,
                      accrued_to, active_kind, active_id, active_since)
-                   values ('${u}', 0, 0, 10, 10, 1, now() - interval '95 seconds',
+                   values ('${u}', 0, 0, 10, 1, now() - interval '95 seconds',
                      'gather', 'normal_tree', now() - interval '2 hours')`);
     await db.exec(`insert into public.player_skills (user_id, slot, skill_id, xp)
                    values ('${u}', 0, 'woodcutting', 302288)`);

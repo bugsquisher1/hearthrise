@@ -145,9 +145,9 @@ async function attempt(db, sql, f) {
     const combat = [{ u: UC, ret: f.ret, since: f.combatSince ?? '3 days' }];
     if (f.twoCombat) combat.push({ u: UC2, ret: f.ret, since: '3 days' });
     for (const c of combat) {
-      await q(`insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to,
+      await q(`insert into public.player_state (user_id, slot, gold, hp, version, accrued_to,
                                                 active_kind, active_id, active_since)
-               values ($1, 0, 0, 10, 10, 1, now() - $2::interval, 'combat', $3, now() - $4::interval)`,
+               values ($1, 0, 0, 10, 1, now() - $2::interval, 'combat', $3, now() - $4::interval)`,
         [c.u, c.ret, cact, c.since]);
       await q("insert into public.hr_tick_ownership (user_id, slot, channel, owned) values ($1, 0, 'combat', true)", [c.u]);
       await q(`insert into public.player_ledger (user_id, slot, kind, intent, meta, at)
@@ -162,9 +162,9 @@ async function attempt(db, sql, f) {
         [UC, f.anchorAge]);
     }
     // The ARMED gatherer (QA slot 2's shape): quiet, paid by the tick every 90 s.
-    await q(`insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to,
+    await q(`insert into public.player_state (user_id, slot, gold, hp, version, accrued_to,
                                               active_kind, active_id, active_since)
-             values ($1, 0, 0, 10, 10, 1, now() - interval '1 minute', 'gather', $2, now() - interval '3 days')`, [UG, gact]);
+             values ($1, 0, 0, 10, 1, now() - interval '1 minute', 'gather', $2, now() - interval '3 days')`, [UG, gact]);
     await q("insert into public.hr_tick_ownership (user_id, slot, channel, owned) values ($1, 0, 'gather', true)", [UG]);
     await q(`insert into public.player_ledger (user_id, slot, kind, intent, meta, at)
              select $1::uuid, 0, 'gather', 'accrue', '{"src":"tick","qty":1}'::jsonb, now() - make_interval(secs => g * 90)

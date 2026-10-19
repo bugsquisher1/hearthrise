@@ -938,7 +938,7 @@ async function loop5(S, M, tag, rows) {
     for (const sk of ['attack', 'strength', 'defense', 'hitpoints']) {
       await S.q('update public.player_skills set xp = $3 where user_id=$1 and slot=0 and skill_id=$2', [p.uid, sk, xpForLevel(99)]);
     }
-    await S.q('update public.player_state set gold=$2, hp=99, max_hp=99 where user_id=$1 and slot=0', [p.uid, 200000]);
+    await S.q('update public.player_state set gold=$2, hp=99 where user_id=$1 and slot=0', [p.uid, 200000]);
     await S.q(`insert into public.player_inventory (user_id, slot, item_id, qty) values ($1,0,'cooked_shark',1500)
                on conflict (user_id, slot, item_id) do update set qty = 1500`, [p.uid]);
     const kit = Object.fromEntries(Object.entries(KIT).filter(([, id]) => ITEMS[id]));

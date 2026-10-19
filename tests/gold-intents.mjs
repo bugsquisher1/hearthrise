@@ -727,7 +727,7 @@ async function run(mutate) {
     await clearGate();
     await db.query(
       `update public.player_state
-          set active_kind = 'gather', active_id = 'copper_rock', max_hp = 900, hp = 900,
+          set active_kind = 'gather', active_id = 'copper_rock', hp = 900,
               accrued_to = now() - interval '3 hours', active_since = now() - interval '3 hours'
         where user_id = $1 and slot = 0`, [UID]);
     const before = await state(db, UID);

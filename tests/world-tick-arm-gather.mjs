@@ -102,9 +102,9 @@ async function attempt(db, sql, f) {
     const gatherers = f.gatherers ?? [{ u: UG, ret: f.ret }];
     for (const u of [UG, UG2, UG3, UC]) await db.exec(`insert into auth.users (id) values ('${u}') on conflict do nothing;`);
     for (const g of gatherers) {
-      await q(`insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to,
+      await q(`insert into public.player_state (user_id, slot, gold, hp, version, accrued_to,
                                                 active_kind, active_id, active_since)
-               values ($1, 0, 0, 10, 10, 1, now() - $2::interval, 'gather', $3, now() - $4::interval)`,
+               values ($1, 0, 0, 10, 1, now() - $2::interval, 'gather', $3, now() - $4::interval)`,
         [g.u, g.ret, gact, g.since ?? '3 days']);
       await q("insert into public.hr_tick_ownership (user_id, slot, channel, owned) values ($1, 0, 'gather', true)", [g.u]);
       // The real return: a CLIENT accrue settle (no meta.src) at accrued_to.
@@ -115,9 +115,9 @@ async function attempt(db, sql, f) {
                  values ($1, 0, 'craft', 'accrue', '{"qty":1}'::jsonb, now() - interval '30 minutes')`, [g.u]);
       }
     }
-    await q(`insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to,
+    await q(`insert into public.player_state (user_id, slot, gold, hp, version, accrued_to,
                                               active_kind, active_id, active_since)
-             values ($1, 0, 0, 10, 10, 1, now() - interval '5 minutes', 'combat', $2, now() - $3::interval)`,
+             values ($1, 0, 0, 10, 1, now() - interval '5 minutes', 'combat', $2, now() - $3::interval)`,
       [UC, cact, f.combatSince ?? '3 days']);
     await q("insert into public.hr_tick_ownership (user_id, slot, channel, owned) values ($1, 0, 'combat', true)", [UC]);
     // 2 h of rostered fires, one per 10 s.

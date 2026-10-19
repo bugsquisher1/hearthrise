@@ -120,9 +120,9 @@ async function arms(db, { log = true } = {}) {
   /** A character; `ago` minutes since its last real settle. */
   const char = async (u, { ago = 0, kind = 'gather', since = 180 } = {}) => {
     await q('insert into auth.users (id) values ($1) on conflict do nothing', [u]);
-    await q(`insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to,
+    await q(`insert into public.player_state (user_id, slot, gold, hp, version, accrued_to,
                                               active_kind, active_id, active_since)
-             values ($1, 0, 0, 10, 10, 1, now() - make_interval(mins => $2), $3, $4, now() - make_interval(mins => $5))`,
+             values ($1, 0, 0, 10, 1, now() - make_interval(mins => $2), $3, $4, now() - make_interval(mins => $5))`,
       [u, ago, kind, kind === 'combat' ? cact : gact, since]);
     return u;
   };

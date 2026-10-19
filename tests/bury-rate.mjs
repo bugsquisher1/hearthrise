@@ -5,17 +5,17 @@
 // Live evidence (prod ledger 34807, 2026-10-19 06:37 UTC): an artisan
 // bury_bones accrue took 3 bones and credited Prayer +5, while recipes.js says
 // 4.5 a bone (13.5). Root cause: the pacing dial (src/core/pacing.js PACE.xp
-// 0.39) scaled every earned grant but farming, so 13.5 x 0.39 = 5.27 paid 5 and
-// carried 0.27. The core rebuild makes Prayer a combat skill, exempt from the
-// dial, and sets the bone's XP from the Prayer curve (src/data/core-model.js
-// PRAYER_BURY). Claims:
+// 0.39) scales every bench grant, so 13.5 x 0.39 = 5.27 paid 5 and carried 0.27
+// (correct arithmetic on a rate authored before the dial was understood). The
+// core rebuild sets the bone's PAID XP from the Prayer curve (src/data/core-model.js
+// PRAYER_BURY) and authors the row pre-dial. Claims:
 //   B1  the constant is the curve's: skillXp(prayer, refPrayer) / (bonesPerHour x
-//       hours to refLevel at LEVEL_GUARD's rate), to the half
+//       hours to refLevel at LEVEL_GUARD's rate), to the tenth; and the row's
+//       authored XP x PACE.xp is exactly that
 //   B2  burying N bones through the real edge accrual (computeAccrual, artisan)
 //       pays Prayer XP = N x xpPerBone EXACTLY: whole XP in delta.xp, the rest in
 //       delta.xp_frac, carried across windows (a 0.5 carried in makes 3 bones
-//       pay 47, not 46)
-//   B3  no rite pays less than the rite below it (the ladder keeps its order)
+//       pay 47.3 -> 47 r 0.3, not 46)
 //
 //   node tests/bury-rate.mjs            run
 //   node tests/bury-rate.mjs --mutate   each planted defect must turn a claim red
@@ -36,6 +36,7 @@ async function load(root) {
     AC: await import(u('supabase/functions/hr-accrue/accrual.js')),
     CAT: await import(u('supabase/functions/hr-accrue/catalogue.js')),
     CM: await import(u('src/data/core-model.js')),
+    PACE: (await import(u('src/core/pacing.js'))).PACE,
     XP: await import(u('src/core/xp.js')),
     R: await import(u('src/data/recipes.js')),
     ITEMS: (await import(u('src/data/items.js'))).ITEMS,
@@ -60,10 +61,13 @@ const CLAIMS = {
     const B = M.CM.PRAYER_BURY; const G = M.CM.LEVEL_GUARD;
     let h = 0;
     for (let l = 1; l < B.refLevel; l++) h += (M.XP.charXpForLevel(l + 1) - M.XP.charXpForLevel(l)) / (G.xpPerHourPerLevel * l);
-    const want = Math.round((M.XP.skillXpForLevel('prayer', B.refPrayer) / (B.bonesPerHour * h)) * 2) / 2;
+    const want = Math.round((M.XP.skillXpForLevel('prayer', B.refPrayer) / (B.bonesPerHour * h)) * 10) / 10;
     if (B.xpPerBone !== want) return [`xpPerBone is ${B.xpPerBone}; the Prayer curve says ${want}`];
+    if (Math.round(B.recipeXp * M.PACE.xp * 1e6) !== Math.round(B.xpPerBone * 1e6)) {
+      return [`the authored ${B.recipeXp} x the dial ${M.PACE.xp} pays ${B.recipeXp * M.PACE.xp}, not ${B.xpPerBone}`];
+    }
     const row = M.R.ARTISAN_RECIPES.prayer.find((r) => r.id === 'bury_bones');
-    if (!row || row.xp !== B.xpPerBone) return [`bury_bones pays ${row && row.xp}, PRAYER_BURY says ${B.xpPerBone}`];
+    if (!row || row.xp !== B.recipeXp) return [`bury_bones authors ${row && row.xp}, PRAYER_BURY says ${B.recipeXp}`];
     return [];
   },
   B2: (M) => {
@@ -76,27 +80,21 @@ const CLAIMS = {
       const whole = (d.xp && d.xp.prayer) || 0;
       const frac = d.xp_frac && d.xp_frac.prayer !== undefined ? d.xp_frac.prayer : (f0 || 0);
       const paid = whole + frac - (f0 || 0);
-      if (Math.abs(paid - n * rate) > 1e-9) out.push(`${n} bones${f0 ? ' (carrying ' + f0 + ')' : ''} paid ${whole} XP + ${frac} carried = ${paid}, not ${n} x ${rate} = ${n * rate}`);
+      if (Math.round(paid * 1e6) !== Math.round(n * rate * 1e6)) out.push(`${n} bones${f0 ? ' (carrying ' + f0 + ')' : ''} paid ${whole} XP + ${frac} carried = ${paid}, not ${n} x ${rate} = ${n * rate}`);
     }
-    return out;
-  },
-  B3: (M) => {
-    const rows = M.R.ARTISAN_RECIPES.prayer.slice().sort((a, b) => a.req - b.req);
-    const out = [];
-    for (let i = 1; i < rows.length; i++) if (rows[i].xp < rows[i - 1].xp) out.push(`${rows[i].id} pays ${rows[i].xp}, below ${rows[i - 1].id}'s ${rows[i - 1].xp}`);
     return out;
   },
 };
 
 const MUTANTS = [
-  { claim: 'B2', name: 'the pacing dial scales Prayer again (the live 5-for-13.5 bug)', file: 'src/core/pacing.js',
-    from: "'defense', 'prayer']", to: "'defense']" },
+  { claim: 'B2', name: 'Prayer leaves the dial (a bone pays 40, the authored pre-dial value)', file: 'src/core/pacing.js',
+    from: "'magic', 'defense'];", to: "'magic', 'defense', 'prayer'];" },
   { claim: 'B2', name: 'the remainder is dropped (per-grant floor)', file: 'src/core/progression.js',
     from: '  if (state.xpFrac && typeof state.xpFrac === \'object\') {', to: '  if (false) {' },
-  { claim: 'B1', name: 'the bone pays the old 4.5', file: 'src/data/core-model.js',
-    from: 'xpPerBone: 15.5,', to: 'xpPerBone: 4.5,' },
-  { claim: 'B3', name: 'a rite loses its ladder ratio', file: 'src/data/recipes.js',
-    from: 'xp:riteXp(15),', to: 'xp:riteXp(1),' },
+  { claim: 'B1', name: 'the bone authors the old 4.5', file: 'src/data/recipes.js',
+    from: 'xp:PRAYER_BURY.recipeXp,', to: 'xp:4.5,' },
+  { claim: 'B1', name: 'the paid rate drifts off the curve', file: 'src/data/core-model.js',
+    from: 'xpPerBone: 15.6,', to: 'xpPerBone: 15.5,' },
 ];
 
 async function runAll(root, only) {

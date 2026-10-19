@@ -45,7 +45,6 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { COMBAT_BALANCE, equipmentStats } from '../src/core/combat.js';
 import { createRng } from '../src/core/rng.js';
 import { grantXp, resolveGatherAction } from '../src/core/progression.js';
-import { COMBAT_STYLES } from '../src/core/styles.js';
 /* The gather half. `simulateSkillSpan` is imported for the BUFF TIMELINE
    section only — the parity section deliberately does NOT use it (see its
    header: the client column there is a transcription of legacy.js). */
@@ -63,7 +62,7 @@ import { ARTISAN_RECIPES } from '../src/data/recipes.js';
 import { indexArtisanRecipes, benchPayable } from '../src/core/artisan-sim.js';
 
 import {
-  computeAccrual, deriveTickMs, zeroBonus, accrueWorkers,
+  computeAccrual, zeroBonus, accrueWorkers,
   ACCRUE_MIN_MS, ACCRUE_MAX_SPAN_MS, WORKER_ACCRUE_CAP_MS,
 } from '../supabase/functions/hr-accrue/accrual.js';
 /* CREW-BACKLOG reads the crew's rate from the SHARED model both engines import,
@@ -102,7 +101,7 @@ const MONSTER = Object.keys(MONSTERS).includes('goblin') ? 'goblin' : Object.key
    `eat: { enabled: false }`), so an unattended fight ends the same way on both
    sides. See "Known limitations". */
 const MAXED = Object.freeze({
-  attack: 13034431, strength: 13034431, defense: 13034431, hitpoints: 13034431,
+  melee: 13034431, defense: 13034431,
   ranged: 13034431, magic: 13034431, prayer: 13034431,
 });
 
@@ -117,7 +116,7 @@ const SEED = 0x5eed1234;
 
 function baseSkills() {
   return {
-    attack: 30000, strength: 28000, defense: 22000, hitpoints: 26000,
+    melee: 30000, defense: 22000,
     ranged: 1000, magic: 1000, prayer: 500,
     woodcutting: 4000, mining: 4000, fishing: 4000,
   };
@@ -759,36 +758,8 @@ function hostileGuard() {
     ok(!r.delta, `SKIP: ${name} produced a delta`);
   }
 
-  // tickMs is derived from equipment and floored. Prove BOTH: that gear moves
-  // it (so it is not a constant) and that it can never go under the floor.
-  const noGear = deriveTickMs({}, ITEMS);
-  ok(noGear === COMBAT_BALANCE.tickMs, `TICK: an unarmed player should swing at ${COMBAT_BALANCE.tickMs}ms, got ${noGear}`);
-  const hammer = Object.keys(ITEMS).find((id) => ITEMS[id]?.weaponType === 'hammer');
-  if (hammer) {
-    ok(deriveTickMs({ weapon: hammer }, ITEMS) > noGear,
-      'TICK: a hammer must swing SLOWER than bare hands — the weapon-family speed identity is not applied');
-  }
-  for (const bogus of [{ weapon: '__nope__' }, null, undefined, { weapon: null }]) {
-    const t = deriveTickMs(bogus, ITEMS);
-    ok(t >= COMBAT_BALANCE.minTickMs, `TICK: bogus equipment ${JSON.stringify(bogus)} produced ${t}ms, below the ${COMBAT_BALANCE.minTickMs}ms floor`);
-  }
-  /* b329 (Xarn): the chosen STYLE now carries a speed cost, and the server has
-     to spend it too — otherwise a Longrange player earns Rapid's tick budget
-     overnight, which is the away/live divergence class this whole program
-     exists to end. Also pins the direction: a style may only ever be SLOWER,
-     because tickMs is a divisor of elapsed time on this path. */
-  const bow = Object.keys(ITEMS).find((id) => ITEMS[id]?.weaponType === 'ranged');
-  if (bow) {
-    const R = COMBAT_STYLES.ranged;
-    const fast = deriveTickMs({ weapon: bow }, ITEMS, R.rapid);
-    const slow = deriveTickMs({ weapon: bow }, ITEMS, R.longrange);
-    ok(deriveTickMs({ weapon: bow }, ITEMS) === fast,
-      'TICK: no style must derive the same interval as the baseline style');
-    ok(slow > fast,
-      `TICK: Longrange must swing slower than Rapid on the SERVER too — got ${slow}ms vs ${fast}ms`);
-    ok(deriveTickMs({ weapon: bow }, ITEMS, { speedMod: 0.01 }) === fast,
-      'TICK: a sub-1 speedMod must clamp to the baseline — a style can never shrink the away tick divisor');
-  }
+  // tickMs: RETIRED 2026-10-19 (core rebuild): deriveTickMs, gear speed and style speed are deleted; every
+  // basic attack is COMBAT_BALANCE.tickMs, guarded by tests/basic-attack-interval.mjs (a real hunt swings at it).
   ok(zeroBonus('goldFind') === 0 && zeroBonus('dropRate') === 0 && zeroBonus('allXP') === 0,
     'BONUS: the server perk stack is not inert');
 }
@@ -950,15 +921,6 @@ async function shapeGuard() {
      the assignment, not the identifier. */
   ok(!/\bminTickMs\s*:/.test(engineCode),
     'SOURCE: accrual.js sets minTickMs in a ctx — the accrual path must use the real 600ms floor');
-  /* b329: the floor moved INTO `swingIntervalMs` (src/core/combat.js) when the
-     hand-copied interval expression here was replaced by a call to the one the
-     client uses. The grep follows it: the requirement is still "the derived tick
-     is floored", it is just no longer floored by a second copy of the clamp.
-     Either shape satisfies this — what must never happen is deriveTickMs
-     open-coding an interval with no floor at all. The NUMERIC proof that the
-     floor holds is the bogus-equipment loop above; this is the shape guard. */
-  ok(/COMBAT_BALANCE\.minTickMs/.test(engineCode) || /swingIntervalMs\s*\(/.test(engineCode),
-    'SOURCE: accrual.js must floor the derived tick — via core swingIntervalMs() or COMBAT_BALANCE.minTickMs');
   ok(!/\bMath\s*\.\s*random\s*\(/.test(engineCode) && !/\bMath\s*\.\s*random\s*\(/.test(shellCode),
     'SOURCE: Math.random() is banned server-side — accrual must be replayable');
   ok(!/\bDate\s*\.\s*now\s*\(\)/.test(engineCode),
@@ -1252,16 +1214,18 @@ async function shellGuard() {
      honest: both call sites have always passed `gold` and accrual.js has never
      read it. Listed rather than deleted so removing it is a deliberate edit.
      LANE S1: only a fight read the combat keys, and a fight is a hunt instance
-     now — hunt-settle.js memberInput reads hp / maxHp / combatStyle / the death
-     anchors from this same map for its member. `fight` and `ammoCarry` were
+     now — hunt-settle.js memberInput reads hp / levelXp / the death anchors
+     from this same map for its member. `fight` and `ammoCarry` were
      the single-foe span's carries: nothing reads them, and the columns retire
      with the Early Access wipe (logged in CONFLICTS 2026-10-17, S1). */
-  const PASSED_BUT_UNREAD = new Set(['gold', 'hp', 'maxHp', 'combatStyle', 'deathsTodayBefore', 'deathsLifetimeBefore',
+  const PASSED_BUT_UNREAD = new Set(['gold', 'hp', 'levelXp', 'deathsTodayBefore', 'deathsLifetimeBefore',
     'fight', 'ammoCarry']);
   const declared = new Set([...envCode.matchAll(
     /export const ENGINE_(?:POINTER|STATE)_KEYS = Object\.freeze\(\[([\s\S]*?)\]\)/g)]
     .flatMap((m) => [...m[1].matchAll(/'([A-Za-z_$][\w$]*)'/g)].map((x) => x[1])));
-  ok(declared.size >= 20,
+  /* 15, not 20: the core rebuild (2026-10-19) deleted maxHp, combatStyle and recoveringUntilMs from
+     the map and added levelXp (18 left); the floor still catches a blind extractor. */
+  ok(declared.size >= 15,
     `SHELL: envelope.js declares only ${declared.size} engine-input keys — the extractor is blind, `
     + 'so the two comparisons below prove nothing');
   for (const name of [...read].sort()) {
@@ -1994,7 +1958,7 @@ export function computeAccrualInputParity(fnDir) {
     if (!m || !p) return null;
     const names = (blob) => [...blob.matchAll(/'([A-Za-z_$][\w$]*)'/g)].map((x) => x[1]);
     const keys = [...names(p[1]), ...names(m[1])];
-    return keys.length >= 20 ? keys : null;
+    return keys.length >= 15 ? keys : null;   // 18 since the core rebuild (see the SHELL floor)
   };
   const keysOf = (src, spreadKeys) => {
     const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
@@ -2033,7 +1997,7 @@ export function computeAccrualInputParity(fnDir) {
     const spreadKeys = spreadKeysOf(envSrc);
     if (!spreadKeys) {
       found.push('PARITY: envelope.js does not declare ENGINE_POINTER_KEYS + ENGINE_STATE_KEYS as '
-        + 'two frozen literal arrays of at least 20 names — the spread both call sites use cannot be '
+        + 'two frozen literal arrays of at least 15 names — the spread both call sites use cannot be '
         + 'resolved, so this comparison would be blind on every envelope field');
       return found;
     }

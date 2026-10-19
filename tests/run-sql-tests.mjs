@@ -86,6 +86,7 @@ import { spawnSync } from 'node:child_process';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as DELETE_AWAY_REMOVALS from './chain-removals/2026-10-22-hunt-sessions-delete-away.mjs';
+import * as CORE_BODIES_REMOVALS from './chain-removals/2026-10-27-core-bodies.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const MIG = (f) => join(ROOT, 'supabase', 'migrations', f);
@@ -696,6 +697,10 @@ const HR_APPLY_CHAIN = [
      debit of a locked item is refused item_locked (hook hr_item_locked).
      INSERTIONS ONLY, so it declares no removals. It is the new last toucher. */
   '2026-10-25-settle-hooks.sql',
+  /* THE CORE REBUILD (2026-10-19). The chain-end body read back with pg_get_functiondef, with the core
+     model's edits: level_xp (the hunt settle only), the derived max HP, no recovery line, one death row.
+     Its declared removals are FROZEN in tests/chain-removals/2026-10-27-core-bodies.mjs. */
+  '2026-10-27-core-bodies.sql',
 ];
 
 // ── THE hr_state_of DERIVATION CHAIN ─────────────────────────────────────
@@ -760,6 +765,9 @@ const HR_STATE_OF_CHAIN = [
   // stance/stop, receipt, hunt-analyzer and vigour keys; its removals are FROZEN
   // in tests/chain-removals/2026-10-22-hunt-sessions-delete-away.mjs.
   '2026-10-22-hunt-sessions-delete-away.sql',
+  // THE CORE REBUILD (2026-10-19): Level, vitals and the derived max HP; no recovery line or combat
+  // style; removals FROZEN in tests/chain-removals/2026-10-27-core-bodies.mjs.
+  '2026-10-27-core-bodies.sql',
 ];
 
 // ── THE hr_rate_gate DERIVATION CHAIN ────────────────────────────────────
@@ -1657,6 +1665,7 @@ say(`── ${SPEC.fn} derivation chain (each body derived from the last, nothin
     /* LANE C2's demolition of hr_apply — frozen and classified in its own
        module (336 lines: whole features, so too long to inline here). */
     '2026-10-22-hunt-sessions-delete-away.sql': DELETE_AWAY_REMOVALS.HR_APPLY,
+    '2026-10-27-core-bodies.sql': CORE_BODIES_REMOVALS.HR_APPLY,
     /* hr_assert_grant_hygiene: 2026-09-23-world-tick-shadow-state-chain.sql is
        THE FIRST LINK OF THAT CHAIN THAT REPLACES AN ENGINE ENTRY. It carries
        its predecessor's body verbatim — every check and every other allowlist
@@ -1899,6 +1908,7 @@ say(`── ${SPEC.fn} derivation chain (each body derived from the last, nothin
   const DECLARED_REMOVALS_BY_FN = {
     hr_state_of: {
       '2026-10-22-hunt-sessions-delete-away.sql': DELETE_AWAY_REMOVALS.HR_STATE_OF,
+      '2026-10-27-core-bodies.sql': CORE_BODIES_REMOVALS.HR_STATE_OF,
       /* auto-eat inserts the three auto_eat_* keys after `accrued_to` — so the
          `accrued_to)` terminator gains a comma (a real line change), and the
          "server clock" and "BOUNDED (RL4)" comment blocks were reflowed/moved as

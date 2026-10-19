@@ -215,9 +215,11 @@ export async function coreAnchorGuard() {
     if (xp.xpForLevel(99) !== 13034431) problems.push('xpForLevel(99) drifted');
     if (xp.xpForLevel(120) !== xp.xpForLevel(99)) problems.push('xpForLevel must clamp above 99');
     if (xp.xpToNext(13034431) !== 0) problems.push('xpToNext at cap must be 0');
-    if (xp.combatLevel({ attack: 0, strength: 0, defense: 0, hitpoints: 1154, prayer: 0 }) !== 3) {
-      problems.push('combatLevel of a fresh character is no longer 3');
-    }
+    /* The core rebuild's curves (CORE_MODEL.md §2): Level from 0 XP is 1, Level 10 costs 21,591, and a
+       combat skill is uncapped (the full JS = SQL parity is tests/core-curves.mjs). */
+    if (xp.charLevelFromXp(0) !== 1 || xp.charXpForLevel(10) !== 21591) problems.push('the Level curve anchors drifted (L1 at 0, L10 at 21,591)');
+    if (xp.skillLevelFromXp('melee', xp.skillXpForLevel('melee', 150)) !== 150) problems.push('a combat skill no longer climbs past 99');
+    if (xp.skillLevelFromXp('mining', 99999999) !== 99) problems.push('a gathering skill no longer caps at 99');
 
     const pacing = await load('pacing.js');
     if (pacing.PACE.xp !== 0.39 || pacing.PACE.actionMs !== 1.60) problems.push('PACE dials drifted');
@@ -283,7 +285,7 @@ export async function coreAnchorGuard() {
     const rolls = combat.playerCombatRolls({ def: 1000, tier: 6 }, { equipment: {}, items, skills: {} });
     if (rolls.accuracy !== 0.15) problems.push('accuracy must floor at 0.15');
     if (rolls.maxHit < 1) problems.push('maxHit must floor at 1');
-    const capRolls = combat.playerCombatRolls({ def: 0, tier: 1 }, { equipment: {}, items, skills: { attack: 13034431 } });
+    const capRolls = combat.playerCombatRolls({ def: 0, tier: 1 }, { equipment: {}, items, skills: { melee: 99999999 } });
     if (capRolls.accuracy !== 0.95) problems.push('accuracy must cap at 0.95');
     if (capRolls.critChance > combat.COMBAT_BALANCE.critCap) problems.push('crit chance escaped its cap');
 
@@ -297,10 +299,10 @@ export async function coreAnchorGuard() {
        carry is ON when the state holds an `xpFrac` map — the server owns the
        column; WITHOUT one the pre-column floor stands, so an edge deployed
        ahead of its migration pays exactly what it used to. */
-    if (prog.grantXp({ skills: {}, restedXp: 0 }, 'attack', 1, {}).gain !== 1) problems.push('with no xpFrac map (no column yet) a 1-XP grant must still pay 1');
+    if (prog.grantXp({ skills: {}, restedXp: 0 }, 'mining', 1, {}).gain !== 1) problems.push('with no xpFrac map (no column yet) a 1-XP grant must still pay 1');
     const tiny = { skills: {}, xpFrac: {}, restedXp: 0 };
-    const t3 = [1, 2, 3].map(() => prog.grantXp(tiny, 'attack', 1, {}).gain);
-    if (JSON.stringify(t3) !== '[0,0,1]' || Math.abs(tiny.xpFrac.attack - 0.17) > 1e-9) {
+    const t3 = [1, 2, 3].map(() => prog.grantXp(tiny, 'mining', 1, {}).gain);
+    if (JSON.stringify(t3) !== '[0,0,1]' || Math.abs(tiny.xpFrac.mining - 0.17) > 1e-9) {
       problems.push('three 1-XP grants must pay 0,0,1 and carry 0.17, paid ' + JSON.stringify(t3) + ' carry ' + JSON.stringify(tiny.xpFrac));
     }
     /* authored grants bypass PACE; earned grants do not. */
@@ -311,11 +313,11 @@ export async function coreAnchorGuard() {
     /* rested is added OUTSIDE the multiplier block. */
     const withRest = prog.grantXp({ skills: {}, restedXp: 1 }, 'mining', 100, { bonus: () => 1, restedQuantum: 1000 });
     if (withRest.gain !== 78 + 1000) problems.push(`rested must not be scaled by perks (got ${withRest.gain})`);
-    const lvl = prog.grantXp({ skills: { attack: 82 }, restedXp: 0 }, 'attack', 1, { authored: true });
+    const lvl = prog.grantXp({ skills: { mining: 82 }, restedXp: 0 }, 'mining', 1, { authored: true });
     if (!lvl.events.some((e) => e.type === 'levelup' && e.from === 1 && e.to === 2)) {
       problems.push('crossing the 83-XP threshold must emit a level-up event');
     }
-    if (prog.grantXp({ skills: { attack: 200 }, restedXp: 0 }, 'attack', 1, { authored: true }).events.length) {
+    if (prog.grantXp({ skills: { mining: 200 }, restedXp: 0 }, 'mining', 1, { authored: true }).events.length) {
       problems.push('a grant that crosses no threshold must emit no event');
     }
     /* the deterministic tool carry: 10 actions of a 10% tool = exactly 1 bonus */
@@ -331,61 +333,16 @@ export async function coreAnchorGuard() {
       { skillId: 'woodcutting', level: 1, rng: createRng(1) });
     if (gated.ok !== false || gated.reason !== 'level') problems.push('the level gate no longer stops an action');
 
-    /* ── Phase A: combat-style XP routing ─────────────────────────────
-       The route used to be four copies of one `Object.entries` walk with
-       two DIFFERENT fallbacks. These anchors pin both, including the
-       asymmetry, so "tidying" one of them fails loudly instead of quietly
-       re-paying Strength on every kill. */
-    const stl = await load('styles.js');
-    if (Object.keys(stl.COMBAT_STYLES).length !== 4) problems.push('a weapon family vanished from COMBAT_STYLES');
-    for (const fam of Object.keys(stl.COMBAT_STYLES)) {
-      for (const key of Object.keys(stl.COMBAT_STYLES[fam])) {
-        const s = stl.COMBAT_STYLES[fam][key];
-        if (!s.xp || !Object.keys(s.xp).length) problems.push(`style ${fam}.${key} trains nothing`);
-        const total = Object.values(s.xp).reduce((a, b) => a + b, 0);
-        if (Math.abs(total - 1) > 1e-9) problems.push(`style ${fam}.${key} splits ${total} XP, not 1.0 — that is a stealth rate change`);
-        /* b329: `speedMod` is a COST, never a gift. If a style could dip below
-           1.00 it would (a) become a second speed ladder beside the unresolved
-           spdB question and (b) shrink the divisor the accrual engine divides
-           elapsed time by. Pinned in the DATA as well as clamped in the formula. */
-        if (!(s.speedMod >= 1 && s.speedMod <= 2)) problems.push(`style ${fam}.${key} has speedMod ${s.speedMod} — must be within [1.00, 2.00]`);
-        if (!s.desc) problems.push(`style ${fam}.${key} has no player-facing desc`);
-        if (/slower/i.test(s.desc || '') !== (s.speedMod > 1)) problems.push(`style ${fam}.${key} desc and speedMod disagree about speed`);
-      }
-      /* Every family must have exactly one baseline (1.00) style, or its whole
-         ladder has silently drifted slower than the pacing anchor. */
-      const fastest = Math.min(...Object.values(stl.COMBAT_STYLES[fam]).map((s) => s.speedMod));
-      if (fastest !== 1) problems.push(`weapon family ${fam} has no 1.00-speed style — its baseline moved off the pacing anchor`);
+    /* ── Combat XP routing (core rebuild 2026-10-19; styles.js deleted) ──
+       A blow pays the WEAPON FAMILY's skill (Melee or Ranged; magic pays by mana
+       spent), Defense pays for blows aimed at an armoured hero. The one engine's
+       routing is cased in tests/hunt-core/xp-share.mjs; these anchor the tables. */
+    const sk = await import(pathToFileURL(join(ROOT, 'src', 'data', 'skills.js')).href);
+    if (sk.FAMILY_SKILL.sword !== 'melee' || sk.FAMILY_SKILL.ranged !== 'ranged' || sk.FAMILY_SKILL.magic !== 'magic') {
+      problems.push('FAMILY_SKILL drifted: ' + JSON.stringify(sk.FAMILY_SKILL));
     }
-    {
-      const R = stl.COMBAT_STYLES.ranged;
-      if (!(R.rapid.speedMod < R.precise.speedMod && R.precise.speedMod < R.longrange.speedMod)) {
-        problems.push('b329 (Xarn): Rapid / Precise / Longrange must be strictly ordered fastest-to-slowest');
-      }
-    }
-    if (stl.resolveStyle('magic', { magic: 'focus' }).name !== 'Focus') problems.push('resolveStyle ignored the stored key');
-    if (stl.resolveStyle('magic', { magic: 'nonsense' }) !== stl.FALLBACK_STYLE) problems.push('an unknown style key must fall back, not crash');
-    if (stl.resolveStyle('slingshot', null).name !== 'Controlled') problems.push('an unknown weapon type must fall back to the SWORD DEFAULT (DEFAULT_STYLE_KEYS.sword, "controlled" since 2026-09-05)');
-    if (stl.resolveStyle('sword', null) !== stl.COMBAT_STYLES.sword[stl.DEFAULT_STYLE_KEYS.sword]) problems.push('an unchosen sword style must resolve to DEFAULT_STYLE_KEYS.sword, not the first authored key');
-    const hit = stl.hitXpRoute(stl.COMBAT_STYLES.sword.aggressive, 5);
-    if (JSON.stringify(hit) !== JSON.stringify([{ skill: 'strength', amount: 20 }, { skill: 'hitpoints', amount: 6.65 }])) {   // unfloored since the 2026-10-07 carry
-      problems.push('hitXpRoute drifted: ' + JSON.stringify(hit));
-    }
-    if (stl.hitXpRoute(null, 0).length) problems.push('a miss must pay nothing');
-    const hitFallback = stl.hitXpRoute(null, 5);
-    if (hitFallback.length !== 3 || hitFallback[0].skill !== 'attack' || hitFallback[1].skill !== 'strength') {
-      problems.push('the pre-styles hit fallback (attack AND strength) was removed');
-    }
-    const kill = stl.killXpRoute(stl.COMBAT_STYLES.ranged.longrange, 100, 1.25);
-    if (JSON.stringify(kill) !== JSON.stringify([{ skill: 'ranged', amount: 62.5 }, { skill: 'defense', amount: 62.5 }])) {
-      problems.push('killXpRoute drifted (Boss-of-the-Day multiplier?): ' + JSON.stringify(kill));
-    }
-    const killFallback = stl.killXpRoute(null, 100, 1);
-    if (killFallback.length !== 1 || killFallback[0].skill !== 'attack') {
-      problems.push('the kill fallback must pay Attack ONLY — it is deliberately not the hit fallback');
-    }
-    const keys = stl.normaliseStyleKeys({ sword: 'controlled' });
-    if (keys.sword !== 'controlled' || keys.magic !== 'cast') problems.push('normaliseStyleKeys clobbered or under-filled a choice');
+    if (sk.DAMAGE_XP_FAMILIES.includes('magic')) problems.push('a magic blow pays damage XP: Magic trains by mana spent, never by damage');
+    if (['attack', 'strength', 'hitpoints'].some((k) => sk.SKILLS_DEF[k])) problems.push('a deleted skill (attack/strength/hitpoints) is back in SKILLS_DEF');
 
     /* ── Phase A: the artisan bench ───────────────────────────────────── */
     const art = await load('artisan.js');

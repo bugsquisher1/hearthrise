@@ -6,10 +6,10 @@
 // single data constant." Combat Design Bible v1.4.
 //
 //   I1  COMBAT_BALANCE.tickMs is 2000.
-//   I2  a bare hero's interval IS the constant, on all three readers: core
-//       swingIntervalMs, the hunt engine's deriveTickMs (hr-accrue), and a real
-//       instance hunt (tests/hunt-fixture.mjs huntAccrual) — whose swing count over its paid time divides out
-//       to exactly the constant.
+//   I2  a real instance hunt (tests/hunt-fixture.mjs huntAccrual) swings at the
+//       constant: its swing count over its paid time divides out to exactly it.
+//       (Core rebuild 2026-10-19: swingIntervalMs and deriveTickMs are deleted
+//       with the speed modifiers; the hunt is the only reader left.)
 //   I3  the constant is the ONLY source: moving COMBAT_BALANCE.tickMs at
 //       runtime moves the engine's swings with it (nothing else holds a copy
 //       the engine reads), AND no file under src/ or the edge carries a
@@ -20,9 +20,7 @@
 //   node tests/basic-attack-interval.mjs --mutate   prove each arm bites
 //
 // A HUNT swings at exactly this constant (accrual.js accrueHunt; the settle
-// holds paid + down = swings x interval). swingIntervalMs — the client's
-// display and the non-hunt readers — still scales it by gear speed, the weapon
-// family and a style's speedMod; I2 measures the bare hero, where they agree.
+// holds paid = swings x interval). No gear, weapon or style scales it.
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, dirname, relative } from 'node:path';
@@ -33,8 +31,8 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const WANT_MS = 2000;
 const OWNER = 'src/core/combat.js';
 
-const { COMBAT_BALANCE, swingIntervalMs, equipmentStats } = await import('../src/core/combat.js');
-const { deriveTickMs } = await import('../supabase/functions/hr-accrue/accrual.js');
+const { COMBAT_BALANCE } = await import('../src/core/combat.js');
+const { charXpForLevel, skillXpForLevel } = await import('../src/core/xp.js');
 const { huntAccrual } = await import('./hunt-fixture.mjs');
 const { ITEMS } = await import('../src/data/items.js');
 const { MONSTERS } = await import('../src/data/monsters.js');
@@ -78,12 +76,12 @@ function huntSwings(hours) {
   const out = huntAccrual({
     userId: '00000000-0000-4000-8000-0000000ba5e1', slot: 0, nowMs: NOW, accruedToMs: FROM, activeSinceMs: FROM,
     activeKind: 'combat', activeId: 'mill_cellar', capMs: 12 * 3600000, seed: 7,
-    hp: 99, maxHp: 99, gold: 0, skills: { attack: 200000, strength: 200000, defense: 200000, hitpoints: 200000 },
+    hp: 1e9, levelXp: charXpForLevel(60), gold: 0, skills: { melee: skillXpForLevel('melee', 60), defense: skillXpForLevel('defense', 60) },
     equipment: {}, items: ITEMS, monsters: MONSTERS, fight: {},
   }, { seed: 7 });
   const h = out.hunt || {};
   const swings = Number(h.swing_to) - Number(h.swing_from);
-  return { swings, paidMs: Number(h.paid_ms) + Number(h.down_ms || 0) };
+  return { swings, paidMs: Number(h.paid_ms) };
 }
 
 export function check(opts) {
@@ -94,11 +92,6 @@ export function check(opts) {
   // I1
   if (CB.tickMs !== WANT_MS) red.push(`I1: COMBAT_BALANCE.tickMs is ${CB.tickMs}, the ruling is ${WANT_MS} ms`);
   // I2
-  const bare = equipmentStats({}, ITEMS);
-  const core = swingIntervalMs(bare, null);
-  const edge = deriveTickMs({}, ITEMS, null);
-  if (core !== CB.tickMs) red.push(`I2: swingIntervalMs(bare) = ${core}, not the constant ${CB.tickMs}`);
-  if (edge !== CB.tickMs) red.push(`I2: hr-accrue deriveTickMs(bare) = ${edge}, not the constant ${CB.tickMs}`);
   const { swings, paidMs } = huntSwings(1);
   if (!(swings > 0) || Math.round(paidMs / swings) !== CB.tickMs) {
     red.push(`I2: a real hunt swung ${swings} times over ${paidMs} ms (${(paidMs / swings).toFixed(1)} ms each), not every ${CB.tickMs} ms`);
@@ -109,7 +102,7 @@ export function check(opts) {
     CB.tickMs = 3000;
     const moved = huntSwings(1);
     const per = Math.round(moved.paidMs / moved.swings);
-    if (per !== 3000 || deriveTickMs({}, ITEMS, null) !== 3000) {
+    if (per !== 3000) {
       red.push(`I3: with COMBAT_BALANCE.tickMs = 3000 the engine swung every ${per} ms — something else holds the interval`);
     }
   } finally { CB.tickMs = was; }
@@ -144,6 +137,6 @@ if (isMain(import.meta.url)) {
   else {
     const red = check();
     if (red.length) { console.error('✗ basic-attack-interval:\n  ' + red.join('\n  ')); process.exit(1); }
-    console.log(`✓ basic-attack-interval: one ${WANT_MS} ms basic attack — core, edge and a real hunt agree; no second copy`);
+    console.log(`✓ basic-attack-interval: one ${WANT_MS} ms basic attack — a real hunt swings at it; no second copy`);
   }
 }

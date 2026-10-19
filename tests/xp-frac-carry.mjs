@@ -38,9 +38,11 @@
 //       consumes no draw. Pinned too, so a change that moves the slime fight
 //       re-measures it deliberately (re-measured lane S1 on the instance engine;
 //       the single-foe engine the b565 pin was taken on is deleted).
-//   X7  THE NO-RESCALE RULING (c), 2026-10-08: constants 4 / 1.33 / 0.39 pinned;
-//       1.33 per 1-damage hit; 100 x 1.33 -> 51 r 0.87; 100 x 10.6 at +2% -> 1081
-//       (floor: 1000); 1 x N == N x 1. (The night ratios (6)/(7) and X8, the
+//   X7  THE CARRY'S ARITHMETIC: PACE.xp 0.39 (gather/artisan) and the core rebuild's
+//       1.5 Melee/Ranged XP per HP (COMBAT_XP, pace-exempt) pinned; 100 x 1.33
+//       paced Mining XP -> 51 r 0.87; 100 x 10.6 Melee at +2% -> 1081 (floor:
+//       1000); 1 x N == N x 1. (The 2026-10-08 ruling's 4 / 1.33 hitpoints split
+//       went with the Hitpoints skill, core rebuild 2026-10-19.) (The night ratios (6)/(7) and X8, the
 //       live-credit window, measured the away combat path the closed rebuild
 //       deleted — lane C2.)
 //   X9  the world-tick S4 fold: xp_frac is a FOLD_CHAIN_KEY, folds per skill (last
@@ -78,7 +80,9 @@ const OWN_SQL = '2026-10-09-xp-frac-carry.sql';
    2.4 s): the same span now holds 1.2x the swings, so 3976 -> 4765 draws and
    588 -> 703 kills. The property this pins — the XP sink never moves a draw —
    is the carry/floor/none equality just below, unchanged. */
-const PRE_CHANGE_DRAWS = { n: 4478, hash: 'e45ff458', kills: 687,
+/* RE-MEASURED core rebuild (2026-10-19): the events now name deaths, Melee and Level XP routes and
+   regenPm, so the hash moved; the draws (4478), kills (687) and drops are unchanged. */
+const PRE_CHANGE_DRAWS = { n: 4478, hash: 'dd9336ef', kills: 687,
   items: '{"bones":213,"slime_gel":633,"sticky_core":18}' };   // re-measured lane S1 (instance engine; n = events)
 /* AND A LEVELLING HERO (every combat skill at 5, 30 minutes): the DRAW STREAM is
    pinned (count + hash), the outcomes deliberately are not. Measured on both
@@ -86,7 +90,7 @@ const PRE_CHANGE_DRAWS = { n: 4478, hash: 'e45ff458', kills: 687,
    floor used to eat, a level arrives at a different swing, and the same number
    rolled against a different accuracy is a different hit. That is XP moving a
    level, never XP moving a draw. */
-const PRE_CHANGE_DRAWS_L5 = { n: 2418, hash: '188cef06' };   // re-measured lane S1 on the instance engine (was 2840 / 7a2d23c4 on the single-foe span)
+const PRE_CHANGE_DRAWS_L5 = { n: 2374, hash: '16337378' };   // re-measured core rebuild 2026-10-19 (Melee/Defense at 5 on the uncapped curve)   // re-measured lane S1 on the instance engine (was 2840 / 7a2d23c4 on the single-foe span)
 
 const JS_MUTANTS = [
   { name: 'floor before multiplier', arm: 'X1', file: 'src/core/progression.js',
@@ -100,10 +104,8 @@ const JS_MUTANTS = [
     edits: [['  hudLayout: sanitizeHudLayout,', '  hudLayout: sanitizeHudLayout,\n  xpFrac: (v) => v,']] },
   { name: 'PACE.xp rescaled', arm: 'X7', file: 'src/core/pacing.js',
     edits: [['export const PACE = { xp: 0.39,', 'export const PACE = { xp: 0.34,']] },
-  { name: 'HIT_HP_XP_PER_DAMAGE rescaled', arm: 'X7', file: 'src/core/styles.js',
-    edits: [['export const HIT_HP_XP_PER_DAMAGE = 1.33;', 'export const HIT_HP_XP_PER_DAMAGE = 1.15;']] },
-  { name: 'hitpoints route floored again', arm: 'X7', file: 'src/core/styles.js',
-    edits: [["  out.push({ skill: 'hitpoints', amount: dmg * HIT_HP_XP_PER_DAMAGE });", "  out.push({ skill: 'hitpoints', amount: Math.floor(dmg * HIT_HP_XP_PER_DAMAGE) });"]] },
+  { name: 'Melee XP per HP rescaled', arm: 'X7', file: 'src/data/core-model.js',
+    edits: [['  hitXpPerDamage: 1.5,', '  hitXpPerDamage: 1.4,']] },
   { name: 'the S4 fold stops at xp_frac', arm: 'X9', file: 'supabase/functions/hr-accrue/tick.js',
     edits: [["'xp', 'xp_frac', 'gold',", "'xp', 'gold',"]] },
   { name: 'xp_frac folded whole-map last-wins', arm: 'X9', file: 'supabase/functions/hr-accrue/tick-contract.js',
@@ -131,12 +133,12 @@ const SQL_MUTANTS = [
 async function load(base) {
   const at = (p) => import(pathToFileURL(join(base, p)).href);
   const spawn = await at('src/core/hunt-spawn.js');
-  const [prog, acc, cmb, sim, rng, env, shadow, contract, monsters, items, xp, styles] = await Promise.all([
+  const [prog, acc, cmb, sim, rng, env, shadow, contract, monsters, items, xp, core] = await Promise.all([
     at('src/core/progression.js'), at('supabase/functions/hr-accrue/accrual.js'),
     at('src/core/combat.js'), at('src/core/combat-sim.js'), at('src/core/rng.js'),
     at('supabase/functions/hr-accrue/envelope.js'), at('supabase/functions/hr-accrue/tick-shadow.js'),
     at('supabase/functions/hr-accrue/tick-contract.js'), at('src/data/monsters.js'), at('src/data/items.js'),
-    at('src/core/xp.js'), at('src/core/styles.js'),
+    at('src/core/xp.js'), at('src/data/core-model.js'),
   ]);
   const pacing = await at('src/core/pacing.js');
   const buffs = await at('src/core/buffs.js');
@@ -146,7 +148,7 @@ async function load(base) {
   const gatherFixture = JSON.parse(await readFile(join(ROOT, 'services', 'world-tick', 'fixtures', 'gather-sessions.json'), 'utf8')).sessions[0];
   const { RESIDUE_FIELDS: residueFields } = await import(pathToFileURL(join(base, 'src', 'session', 'residue.js')).href + '?t=' + Date.now());
   return { prog, acc, cmb, sim, rng, env, shadow, contract, spawn, MONSTERS: monsters.MONSTERS, ITEMS: items.ITEMS,
-    xp, styles, pacing, buffs, tick, tg, gatherFixture, residueFields, GATHER_NODES: cat.GATHER_NODES };
+    xp, core, pacing, buffs, tick, tg, gatherFixture, residueFields, GATHER_NODES: cat.GATHER_NODES };
 }
 
 async function mutantBase(m) {
@@ -171,13 +173,12 @@ const SCALE = 1000000;
 const FROM = Date.UTC(2026, 2, 15, 0, 0, 0);
 const SEED = 0x5eed1234;
 const UID = '00000000-0000-4000-8000-0000000f7ac1';
-const F0 = { attack: 0.7, strength: 0.3, defense: 0.123456, hitpoints: 0.999999 };
+const F0 = { melee: 0.7, ranged: 0.3, defense: 0.123456, magic: 0.999999 };
 const BOOST = Object.freeze([{ type: 'combat_xp', magnitude: 2,
   from: new Date(FROM - 1000).toISOString(), until: new Date(FROM + 48 * 3600000).toISOString() }]);
 
 function maxed(L) {
-  const x = L.xp.xpForLevel(99);
-  return { attack: x, strength: x, defense: x, hitpoints: x };
+  return { melee: L.xp.skillXpForLevel('melee', 99), defense: L.xp.skillXpForLevel('defense', 99) };
 }
 
 /* The accrue-path input for a combat span — the shape engineInputsFromEnvelope
@@ -186,7 +187,7 @@ function combatInput(L, { fromMs, toMs, skills, xpFrac, perks, seed, monster }) 
   return {
     userId: UID, slot: 0, nowMs: toMs, accruedToMs: fromMs, activeSinceMs: FROM,
     activeKind: 'combat', activeId: monster || 'slime', capMs: 12 * 3600000, seed: seed ?? SEED,
-    hp: 990, maxHp: 990, gold: 0, skills: { ...skills }, xpFrac: xpFrac === null ? null : { ...xpFrac },
+    hp: 990, gold: 0, skills: { ...skills }, xpFrac: xpFrac === null ? null : { ...xpFrac },
     equipment: {}, inventory: {}, perks: perks || null,
     items: L.ITEMS, monsters: L.MONSTERS, nodes: {},
   };
@@ -196,25 +197,25 @@ function combatInput(L, { fromMs, toMs, skills, xpFrac, perks, seed, monster }) 
    built here from the same exported core functions, so the attended column is
    an independent second construction of the same fight. */
 function attendedCtx(L, { skills, perks, boost, rng, xpState, onGrant }) {
-  const { cmb, acc, styles, MONSTERS, ITEMS } = L;
+  const { cmb, acc, MONSTERS, ITEMS } = L;
   const eq = cmb.equipmentStats({}, ITEMS, {});
   const setBonus = cmb.armorSetBonus({}, ITEMS);
   const profile = acc.deriveProfile(eq.weaponType);
-  const style = styles.resolveStyle(eq.weaponType, styles.normaliseStyleKeys({}));
   const bonus = acc.bonusFor(perks || null, boost ? { buffs: L.buffs.buffQueueFromServer(boost, FROM) } : null);
   return {
-    tickMs: acc.deriveTickMs({}, ITEMS, style),
+    tickMs: 2000,
     ctx: {
-      away: true, monsters: MONSTERS, items: ITEMS, bonus, style, rng,
-      playerRolls: (m) => cmb.playerCombatRolls(m, { eq, equipment: {}, items: ITEMS, skills: xpState.skills, bonus, setBonus, profile, style, charms: undefined, trophies: undefined, monsterId: 'slime' }),
+      away: true, monsters: MONSTERS, items: ITEMS, bonus, rng,
+      playerRolls: (m) => cmb.playerCombatRolls(m, { eq, equipment: {}, items: ITEMS, skills: xpState.skills, bonus, setBonus, profile, charms: undefined, trophies: undefined, monsterId: 'slime' }),
       monsterRolls: (m) => cmb.monsterCombatRolls(m, { eq, skills: xpState.skills, bonus }),
       weakness: (m, id) => cmb.weaknessInfo(m, eq, undefined, undefined, id),
       botd: { killBonuses: () => ({ xpMult: 1, dropMult: 1, goldMult: 1 }) },
       fx: {
         addXp(skill, amt) {
-          const r = L.prog.grantXp(xpState, skill, amt, { bonus, xpB: eq.xpB || 0, restedQuantum: 0, authored: false });
+          const r = L.prog.grantXp(xpState, skill, amt, { bonus, restedQuantum: 0, authored: false });
           if (onGrant) onGrant(skill, amt, r);
         },
+        addLevelXp() {},
         addItem() {}, mark() {},
       },
     },
@@ -244,7 +245,7 @@ async function runArms(L) {
     const perkB = (k) => (k === 'combatXP' ? 0.02 : k === 'allXP' ? 0.05 : 0);
     const grants = [];
     for (let i = 0; i < 4000; i++) {
-      const skill = ['attack', 'hitpoints', 'mining'][r.int(0, 2)];
+      const skill = ['melee', 'defense', 'mining'][r.int(0, 2)];
       grants.push({ skill, amt: r.int(1, 40) * (0.25 + r.next()) });
     }
     /* THE INDEPENDENT EXPECTATION: integer units, summed with BigInt, one floor.
@@ -256,7 +257,7 @@ async function runArms(L) {
       const raw = L.pacing.pacedXp(g.skill, g.amt) * mult;
       sumU[g.skill] = (sumU[g.skill] || 0n) + BigInt(Math.round(raw * SCALE));
     }
-    const f0 = { attack: 0.5, hitpoints: 0.999999 };
+    const f0 = { melee: 0.5, defense: 0.999999 };
     const expect = {};
     for (const k of Object.keys(sumU)) {
       const tot = BigInt(units(f0[k] || 0)) + sumU[k];
@@ -328,7 +329,7 @@ async function runArms(L) {
   {
     const SPAN = 3600000;
     const g = L.gatherFixture;
-    const F0G = { [Object.keys(g.skills).find((k) => k !== 'hitpoints')]: 0.7, hitpoints: 0.3 };
+    const F0G = { [Object.keys(g.skills).find((k) => k !== 'defense')]: 0.7, defense: 0.3 };
     const gatherInput = ({ fromMs, toMs, xpFrac, seed }) => ({
       userId: UID, slot: 0, nowMs: toMs, accruedToMs: fromMs, activeSinceMs: FROM,
       activeKind: 'gather', activeId: g.activeId, capMs: 12 * 3600000, seed: seed ?? SEED,
@@ -417,57 +418,51 @@ async function runArms(L) {
 
   // X5 ─ clamped and server-only.
   {
-    const n = L.prog.normaliseXpFrac({ attack: 900, strength: 1, defense: -3, magic: 'x', ranged: 0.25 });
+    const n = L.prog.normaliseXpFrac({ mining: 900, melee: 1, defense: -3, magic: 'x', ranged: 0.25 });
     for (const k of Object.keys(n)) ok('X5', n[k] >= 0 && n[k] < 1, `normaliseXpFrac let ${k} = ${n[k]} through`);
-    const s = { skills: {}, xpFrac: { attack: 900 } };
-    const g = L.prog.grantXp(s, 'attack', 1, {});
-    ok('X5', g.gain <= 1 && s.xpFrac.attack >= 0 && s.xpFrac.attack < 1,
-      `a projected remainder of 900 paid ${g.gain} on a 0.39 XP grant (carry ${s.xpFrac.attack}) — an unclamped remainder mints`);
-    const e1 = L.env.engineInputsFromEnvelope({ state: { xp_frac: { attack: 0.5 } }, xpFrac: { attack: 0.5 },
-      skills: { attack: { xp: 5, level: 1 } } }, FROM);
+    const s = { skills: {}, xpFrac: { mining: 900 } };
+    const g = L.prog.grantXp(s, 'mining', 1, {});
+    ok('X5', g.gain <= 1 && s.xpFrac.mining >= 0 && s.xpFrac.mining < 1,
+      `a projected remainder of 900 paid ${g.gain} on a 0.39 XP grant (carry ${s.xpFrac.mining}) — an unclamped remainder mints`);
+    const e1 = L.env.engineInputsFromEnvelope({ state: { xp_frac: { mining: 0.5 } }, xpFrac: { mining: 0.5 },
+      skills: { mining: { xp: 5, level: 1 } } }, FROM);
     ok('X5', e1.xpFrac === null, `the engine took a remainder from somewhere other than skills.<id>.frac: ${JSON.stringify(e1.xpFrac)}`);
-    const e2 = L.env.engineInputsFromEnvelope({ state: {}, skills: { attack: { xp: 5, level: 1, frac: 0.25 } } }, FROM);
-    ok('X5', e2.xpFrac && e2.xpFrac.attack === 0.25, `the projected frac did not reach the engine: ${JSON.stringify(e2.xpFrac)}`);
+    const e2 = L.env.engineInputsFromEnvelope({ state: {}, skills: { mining: { xp: 5, level: 1, frac: 0.25 } } }, FROM);
+    ok('X5', e2.xpFrac && e2.xpFrac.mining === 0.25, `the projected frac did not reach the engine: ${JSON.stringify(e2.xpFrac)}`);
     const fields = Array.isArray(L.residueFields) ? L.residueFields : [];
     ok('X5', fields.length > 0, 'could not read RESIDUE_FIELDS — the residue arm asserts nothing');
     ok('X5', !fields.some((f) => /frac/i.test(f) || f === 'skills'),
       `the client residue carries ${fields.filter((f) => /frac/i.test(f) || f === 'skills')} — the remainder must be server-only`);
   }
-  // X7 ─ THE DESIGNER'S RULING (c), 2026-10-08: ship the carry, NO rescale.
+  // X7 ─ THE CARRY'S ARITHMETIC on the core rebuild's constants.
   {
-    const C = L.styles; const P = L.pacing.PACE;
-    // (1) the three constants are unchanged
-    ok('X7', C.HIT_XP_PER_DAMAGE === 4 && C.HIT_HP_XP_PER_DAMAGE === 1.33 && P.xp === 0.39,
-      `(1) the ruling forbids a rescale: HIT_XP_PER_DAMAGE ${C.HIT_XP_PER_DAMAGE}, HIT_HP_XP_PER_DAMAGE `
-      + `${C.HIT_HP_XP_PER_DAMAGE}, PACE.xp ${P.xp} (want 4 / 1.33 / 0.39)`);
-    // (2) a 1-damage hit pays exactly 1.33 hitpoints XP into the grant, any style
-    for (const st of [null, C.COMBAT_STYLES.sword.controlled, C.COMBAT_STYLES.sword.aggressive]) {
-      const hp = C.hitXpRoute(st, 1).find((g) => g.skill === 'hitpoints');
-      ok('X7', hp && hp.amount === 1.33, `(2) hitXpRoute(${st ? st.name : 'null'}, 1) hitpoints = ${hp && hp.amount}, want 1.33 exactly`);
-    }
-    // (3) 100 x 1.33 hitpoints XP, carried: 100 x 0.5187 = 51.87
+    const P = L.pacing.PACE;
+    // (1) the constants the carry is measured on
+    ok('X7', L.core.COMBAT_XP.hitXpPerDamage === 1.5 && P.xp === 0.39,
+      `(1) Melee/Ranged XP per HP ${L.core.COMBAT_XP.hitXpPerDamage} (CORE_NUMBERS: 1.5), PACE.xp ${P.xp} (0.39)`);
+    ok('X7', L.pacing.pacedXp('melee', 1.5) === 1.5 && L.pacing.pacedXp('mining', 1) === 0.39,
+      '(1) the combat skills must be exempt from the pacing dial (the curve was fitted to the XP as paid), gathering paced');
+    // (3) 100 x 1.33 paced Mining XP, carried: 100 x 0.5187 = 51.87
     const s3 = { skills: {}, xpFrac: {} };
-    for (let i = 0; i < 100; i++) L.prog.grantXp(s3, 'hitpoints', 1.33, {});
-    ok('X7', s3.skills.hitpoints === 51 && units(s3.xpFrac.hitpoints) === 870000,
-      `(3) 100 x grantXp('hitpoints', 1.33) credited ${s3.skills.hitpoints} carry ${s3.xpFrac.hitpoints} (want 51 / 0.87)`);
-    // (4) 100 grants of 10.6 at +2%: 1081 carried; the per-grant floor paid 1000
+    for (let i = 0; i < 100; i++) L.prog.grantXp(s3, 'mining', 1.33, {});
+    ok('X7', s3.skills.mining === 51 && units(s3.xpFrac.mining) === 870000,
+      `(3) 100 x grantXp('mining', 1.33) credited ${s3.skills.mining} carry ${s3.xpFrac.mining} (want 51 / 0.87)`);
+    // (4) 100 grants of 10.6 Melee at +2%: 1081 carried; the per-grant floor paid 1000
     const plus2 = (k) => (k === 'combatXP' ? 0.02 : 0);
     const s4 = { skills: {}, xpFrac: {} };
     const s4old = { skills: {} };
     for (let i = 0; i < 100; i++) {
-      L.prog.grantXp(s4, 'attack', 10.6, { bonus: plus2, authored: true });
-      L.prog.grantXp(s4old, 'attack', 10.6, { bonus: plus2, authored: true });
+      L.prog.grantXp(s4, 'melee', 10.6, { bonus: plus2, authored: true });
+      L.prog.grantXp(s4old, 'melee', 10.6, { bonus: plus2, authored: true });
     }
-    ok('X7', s4.skills.attack === 1081 && s4old.skills.attack === 1000,
-      `(4) 100 x 10.6 at +2% credited ${s4.skills.attack} carried (want 1081) and ${s4old.skills.attack} floored (want 1000)`);
+    ok('X7', s4.skills.melee === 1081 && s4old.skills.melee === 1000,
+      `(4) 100 x 10.6 at +2% credited ${s4.skills.melee} carried (want 1081) and ${s4old.skills.melee} floored (want 1000)`);
     // (5) 1 x N == N x 1 to the unit (the authored path, so the sum is exact)
     const one = { skills: {}, xpFrac: {} };
-    L.prog.grantXp(one, 'attack', 10.6 * 100, { bonus: plus2, authored: true });
-    ok('X7', one.skills.attack === s4.skills.attack && units(one.xpFrac.attack) === units(s4.xpFrac.attack),
-      `(5) one grant of 1060 credited ${one.skills.attack} (${one.xpFrac.attack}), 100 of 10.6 credited `
-      + `${s4.skills.attack} (${s4.xpFrac.attack}) — batching moved a unit`);
-    // (6)/(7) measured the ruling's ratios on the AWAY combat night, which the
-    // closed rebuild deleted (lane C2); (1)-(5) above are the carry's arithmetic.
+    L.prog.grantXp(one, 'melee', 10.6 * 100, { bonus: plus2, authored: true });
+    ok('X7', one.skills.melee === s4.skills.melee && units(one.xpFrac.melee) === units(s4.xpFrac.melee),
+      `(5) one grant of 1060 credited ${one.skills.melee} (${one.xpFrac.melee}), 100 of 10.6 credited `
+      + `${s4.skills.melee} (${s4.xpFrac.melee}) — batching moved a unit`);
   }
   // X9 ─ THE SCALE FOLD (world-tick S4) CARRIES THE REMAINDER. Eight gather
   //      flush windows chained exactly as settleFolded chains them, then ONE
@@ -533,12 +528,12 @@ function slimeHunt(L, { skills, boost, sink, spanMs }) {
   const items = {};
   ctx.fx.addItem = (id, q) => { items[id] = (items[id] || 0) + q; };
   const slime = L.MONSTERS.slime;
-  const state = { skills: xs.skills, playerHp: 990, playerMaxHp: 990, stats: {}, gold: 0, recoveringUntilMs: 0 };
+  const state = { skills: xs.skills, levelXp: 0, playerHp: 990, playerMaxHp: 990, playerMaxMana: 100, regenPm: 1000, stats: {}, gold: 0 };
   const hero = L.spawn.heroSetup({ weaponType: 'sword', options: {}, bar: [], partyRoles: [] });
   const member = { key: 'x', seat: 0, unitId: null, hs: huntSessionFor({ fromMs: FROM, onEmpty: 'end' }), state, fx: ctx.fx,
-    style: ctx.style, bonus: ctx.bonus, weakness: (m) => ctx.weakness(m),
+    family: 'sword', armoured: true, shield: false, bonus: ctx.bonus, weakness: (m) => ctx.weakness(m),
     snapshot: () => { const rr = ctx.playerRolls(slime); return { acc: Math.round(rr.accuracy * 1000), maxHit: Math.max(1, rr.maxHit), def: 99 }; },
-    hero: { role: hero.role, maxMana: hero.maxMana, settings: hero.settings, slots: hero.slots.filter((r) => r.slot.action.type !== 'ability'),
+    hero: { role: hero.role, settings: hero.settings, slots: hero.slots.filter((r) => r.slot.action.type !== 'ability'),
       actionSet: 'hunt', range: hero.range, ammo: null } };
   const sim = L.sim.simulateHuntInstance({ world: null, nextSwingAtMs: FROM, members: [member] }, {
     toMs: FROM + spanMs, tickMs: 2000, seed: seederFor(secretOf(SEED), FIXTURE_INSTANCE),
@@ -548,7 +543,7 @@ function slimeHunt(L, { skills, boost, sink, spanMs }) {
 
 /* X4's digest: the whole fight (every step and event), FNV-1a, and its size. */
 function drawDigest(L, sink, level) {
-  const skills = level ? Object.fromEntries(Object.keys(maxed(L)).map((k) => [k, L.xp.xpForLevel(level)])) : maxed(L);
+  const skills = level ? Object.fromEntries(Object.keys(maxed(L)).map((k) => [k, L.xp.skillXpForLevel(k, level)])) : maxed(L);
   const run = slimeHunt(L, { skills, sink, spanMs: 1800000 });
   const text = JSON.stringify([run.sim.track, run.sim.events]);
   let h = 0x811c9dc5;
@@ -556,15 +551,16 @@ function drawDigest(L, sink, level) {
   return { n: run.sim.events.length, hash: h.toString(16), kills: run.kills, items: JSON.stringify(sortKeys(run.items)) };
 }
 
-/* X6 — A SECOND APPLY IS A NO-OP. The chain is replayed (the file's own §4
-   self-check runs inside it), then the file is executed AGAIN: both patched
+/* X6 — A SECOND APPLY IS A NO-OP. The chain is replayed UP TO this file (its own
+   §4 self-check runs inside it; a later file — the core rebuild's skill list —
+   changes what the self-check's probe can name), then the file is executed AGAIN: both patched
    bodies must be byte-identical, the column and its single CHECK unchanged. A
    double-patch would install the xp_frac block twice — a silent corruption of
    the one function every settle passes through. */
 async function secondApply() {
   const fails = [];
   const { bootReplay } = await import('./schema-replay.mjs');
-  const { db, failures } = await bootReplay({});
+  const { db, failures } = await bootReplay({ upTo: OWN_SQL });
   if (failures && failures.length) {
     return [`X6: the chain does not replay: ${failures.map((f) => `${f.file}: ${String(f.error).split('\n')[0]}`).join('; ')}`];
   }

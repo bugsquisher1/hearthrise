@@ -7,7 +7,7 @@
 //   node tests/alpha-windows.mjs --shots <dir>  also write the visual-gate screenshots
 //                                               (1440x900 and 922x423)
 //
-// mutant-anchors: src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js
+// mutant-anchors: src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character's envelope is tests/fixtures/alpha-envelope.json.
@@ -52,6 +52,14 @@
 //         Inventory and Storage
 //   AW-16 no void: with a window docked the whole town view stays on the map; a
 //         Storage press from town moves the whole stack with ONE hr_bank_move
+//   AW-18 AMOUNTS (Tyler live 10-18, "it's all or nothing"): in Storage a press
+//         moves ONE, Shift-press the whole stack, and a right-click asks how many
+//         (Enter confirms); each is ONE hr_bank_move naming exactly that count, and
+//         store 3 of 10 reads bag 7 / storage 3 from the envelope, before and after a reload
+//   AW-19 BURY (Tyler live 10-18, "can't bury bones"): bones offer Bury all; it is
+//         ONE set_activity { kind:'artisan', id:'bury_bones' } and nothing else, the
+//         Burying line reads the server's pointer, Stop is ONE set_activity idle, and
+//         the bag and the Prayer XP change only from the envelope (and stay after a reload)
 //   AW-17 the skills are two ledgers (the combat one inside the Character window,
 //         tests/character-window.mjs) and Gathering and crafting does not scroll at
 //         922x423; a character that has never fought sees the pointer to Hunts
@@ -92,6 +100,7 @@ async function stub(page, s) {
     const name = r.request().url().split('/').pop();
     const body = JSON.parse(r.request().postData() || '{}');
     s.calls.push({ name, body });
+    if (s.onCall) s.onCall(name, body);
     const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
     if (name === 'hr_load') return json(s.next());
     if (name === 'hr-accrue') {
@@ -103,6 +112,14 @@ async function stub(page, s) {
     if (name === 'hr_account_items') return json({ ok: true, rows: [{ slot: 1, name: 'Druid', item: 'rat_tail', qty: 4, where: 'bank' }] });
     return json({ ok: true });
   });
+}
+
+/* A reload: the stub keeps the session, so the page comes back to the character (or its picker). */
+async function reloadAndPlay(page) {
+  await page.reload({ waitUntil: 'load' });
+  await wait(page, () => document.querySelector('.hs-launchers') || document.querySelector('[data-app="play"][data-slot="0"]'));
+  if (!(await page.$('.hs-launchers'))) await page.click('[data-app="play"][data-slot="0"]');
+  return wait(page, () => document.querySelector('.hs-launchers'));
 }
 
 async function signInAndPlay(page, base) {
@@ -425,13 +442,12 @@ async function checks(overrides, shots) {
           const bread = b && b.p_bag.find((l) => l.item === 'wheat_bread');
           if (!bread || bread.qty !== 10) fails.push('AW-14 the hunt did not carry the bread up to its restock target: ' + JSON.stringify(b && b.p_bag));
         }
-        /* AW-16b Storage from town: one press moves a whole stack, ONE hr_bank_move. */
+        /* AW-16b Storage from town: a Shift-press moves a whole stack, ONE hr_bank_move (the amounts are AW-18). */
         await openWin(page, 't', 'storage');
-        await page.click('[data-hs-win="storage"] .hw-pocket[data-item="oak_logs"]');
+        await page.click('[data-hs-win="storage"] .hw-pocket[data-item="oak_logs"]', { modifiers: ['Shift'] });
         await page.waitForTimeout(700);
         const mv = sent(s, 'hr_bank_move');
         if (mv.length !== 1 || mv[0].body.p_item !== 'oak_logs' || mv[0].body.p_qty !== 12 || mv[0].body.p_dir !== 'withdraw') fails.push('AW-16 a storage press sent ' + JSON.stringify(mv.map((c) => c.body)));
-        if (shots) await shot(page, 'alpha-1440x900-storage');
         /* AW-17 (desktop) neither skills window scrolls; an unlock names each thing and what it is for (Tyler 10-18:
            "and 1 more" made the smithing tools read as weapon crafting). */
         for (const [key, id] of [['g', 'skills-trade']]) {
@@ -444,6 +460,85 @@ async function checks(overrides, shots) {
         if (!/Next at level \d+: .*Bronze Axe \(woodcutting tool\)/.test(smith) || /and 1 more/.test(smith)) fails.push('AW-17 the smithing unlock does not say what it is: ' + JSON.stringify(smith));
       }
       if (errors.length) fails.push('AW-13 console errors in town: ' + errors.slice(0, 3).join(' | '));
+      await ctx.close();
+    }
+
+    { // AW-18 amounts in Storage; AW-19 bury — a stateful stub: the server's answer moves its own counts
+      const town = (e) => {
+        for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
+        e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, bank_cap: 40 });
+        e.bank = { oak_logs: 12, iron_bar: 3 };
+      };
+      const { ctx, page, errors, s, up } = await open({ mutateEnv: town });
+      const shift = (from, to, id, n) => { from[id] -= n; if (!from[id]) delete from[id]; to[id] = (to[id] || 0) + n; };
+      s.onCall = (name, b) => {
+        if (name === 'hr_bank_move') { if (b.p_dir === 'deposit') shift(s.env.inventory, s.env.bank, b.p_item, b.p_qty); else shift(s.env.bank, s.env.inventory, b.p_item, b.p_qty); }
+        if (name === 'hr-accrue' && b.verb === 'set_activity') {
+          if (b.activity.kind === 'artisan') Object.assign(s.env.state, { active_kind: 'artisan', active_id: b.activity.id });
+          else { s.env.skills.prayer.xp += 6 * (s.env.inventory.bones || 0); delete s.env.inventory.bones; Object.assign(s.env.state, { active_kind: 'idle', active_id: null }); }
+        }
+      };
+      const sc = (side, id) => page.evaluate(([sd, i]) => { const li = document.querySelector('[data-hs-win="storage"] .hw-pockets[data-side="' + sd + '"] .hw-pocket[data-item="' + i + '"]'); return li ? (li.querySelector('.hw-count').textContent || '1') : null; }, [side, id]);
+      if (!up) fails.push('AW-18 the town did not mount');
+      else {
+        await openWin(page, 't', 'storage');
+        /* store 3 of 10 through the picker: right-click, type 3, Enter */
+        await page.click('[data-hs-win="storage"] [data-side="bag"] .hw-pocket[data-item="copper_ore"]', { button: 'right' });
+        const picker = await wait(page, () => document.querySelector('.hw-menu.is-on .hw-amt-n'), null, 2000);
+        if (!picker) fails.push('AW-18 a right-click on a bag stack in Storage did not ask how many');
+        else {
+          await page.fill('.hw-menu .hw-amt-n', '3');
+          await page.keyboard.press('Enter');
+          await page.waitForTimeout(800);
+        }
+        let mv = sent(s, 'hr_bank_move');
+        if (mv.length !== 1 || mv[0].body.p_item !== 'copper_ore' || mv[0].body.p_qty !== 3 || mv[0].body.p_dir !== 'deposit') fails.push('AW-18 Store 3 sent ' + JSON.stringify(mv.map((c) => c.body)));
+        if ((await sc('bag', 'copper_ore')) !== '7' || (await sc('bank', 'copper_ore')) !== '3') fails.push('AW-18 after storing 3 of 10 the bag shows ' + (await sc('bag', 'copper_ore')) + ' and storage ' + (await sc('bank', 'copper_ore')));
+        if (!(await reloadAndPlay(page))) fails.push('AW-18 the reload did not come back');
+        else {
+          await openWin(page, 't', 'storage');
+          await page.waitForTimeout(300);
+          if ((await sc('bag', 'copper_ore')) !== '7' || (await sc('bank', 'copper_ore')) !== '3') fails.push('AW-18 after a reload the bag shows ' + (await sc('bag', 'copper_ore')) + ' and storage ' + (await sc('bank', 'copper_ore')));
+          /* a press takes ONE out; a Shift-press takes the whole stack */
+          await page.click('[data-hs-win="storage"] [data-side="bank"] .hw-pocket[data-item="oak_logs"]');
+          await page.waitForTimeout(700);
+          await page.click('[data-hs-win="storage"] [data-side="bank"] .hw-pocket[data-item="iron_bar"]', { modifiers: ['Shift'] });
+          await page.waitForTimeout(700);
+          mv = sent(s, 'hr_bank_move').slice(1).map((c) => c.body.p_item + ':' + c.body.p_qty + ':' + c.body.p_dir);
+          if (mv.join() !== 'oak_logs:1:withdraw,iron_bar:3:withdraw') fails.push('AW-18 a press then a Shift-press sent ' + JSON.stringify(mv));
+          if ((await sc('bank', 'oak_logs')) !== '11') fails.push('AW-18 one oak log out leaves storage showing ' + (await sc('bank', 'oak_logs')));
+          if (shots) await shot(page, 'alpha-1440x900-storage');
+        }
+        /* AW-19 bury: the bones' primary is Bury all; ONE set_activity; Stop collects; the server's numbers only */
+        await openWin(page, 'b', 'inventory');
+        await page.click('[data-hs-win="inventory"] .hw-pocket[data-item="bones"]');
+        const prim = await page.evaluate(() => document.querySelector('[data-hs-win="inventory"] .hw-pick [data-hs-act="primary"]').textContent);
+        if (prim !== 'Bury all') fails.push('AW-19 the bones offer "' + prim + '", not Bury all');
+        else {
+          await page.click('[data-hs-win="inventory"] .hw-pick [data-hs-act="primary"]');
+          await page.waitForTimeout(800);
+          const go = sent(s, 'hr-accrue', 'set_activity');
+          if (go.length !== 1 || JSON.stringify(go[0].body.activity) !== '{"kind":"artisan","id":"bury_bones"}' || Object.keys(go[0].body).sort().join() !== 'activity,intentId,slot,verb')
+            fails.push('AW-19 Bury all sent ' + JSON.stringify(go.map((c) => c.body)));
+          const line = await page.evaluate(() => { const b = document.querySelector('[data-hs-win="inventory"] .hw-burying'); return b && b.classList.contains('is-on') ? b.textContent : ''; });
+          if (!/^Burying Bones\./.test(line)) fails.push('AW-19 no Burying line from the server pointer: ' + JSON.stringify(line));
+          if ((await count(page, 'bones')) !== '8') fails.push('AW-19 the bag painted the bury before the server paid it: bones x' + (await count(page, 'bones')));
+          if (shots) await shot(page, 'alpha-1440x900-burying');
+          await page.click('[data-hs-win="inventory"] [data-hs-act="bury-stop"]');
+          await page.waitForTimeout(800);
+          const stop = sent(s, 'hr-accrue', 'set_activity').slice(1);
+          if (stop.length !== 1 || JSON.stringify(stop[0].body.activity) !== '{"kind":"idle"}') fails.push('AW-19 Stop sent ' + JSON.stringify(stop.map((c) => c.body)));
+          const after = await page.evaluate(() => ({ bones: !!document.querySelector('[data-hs-win="inventory"] .hw-pocket[data-item="bones"]'), msg: document.querySelector('[data-hs-win="inventory"] .hh-intent-msg').textContent }));
+          if (after.bones || after.msg !== 'Done: +48 Prayer XP.') fails.push('AW-19 after the server buried them: ' + JSON.stringify(after));
+          if (!(await reloadAndPlay(page))) fails.push('AW-19 the reload did not come back');
+          else {
+            await openWin(page, 'b', 'inventory');
+            await page.waitForTimeout(300);
+            if (await page.$('[data-hs-win="inventory"] .hw-pocket[data-item="bones"]')) fails.push('AW-19 the bones came back after a reload');
+          }
+        }
+      }
+      if (errors.length) fails.push('AW-18 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
 
@@ -501,7 +596,14 @@ const MUTANTS = [
   ['a docked window shows the void past the map', 'src/world/core/camera.js', '    if (span >= v) c = hold(', '    if (false) c = hold('],
   ['the mill hatch opens nothing', 'src/world/world-boot.js', "    hunt: (id) => emit('entrance', { hunt: id }),", '    hunt: () => false,'],
   ['a hunt carries the whole stack past its restock target', 'src/shell/hunt-list.js', 'restock[r.id] > 0 ? Math.min(r.qty, restock[r.id]) : r.qty', 'r.qty'],
-  ['a storage press moves one at a time', 'src/shell/windows/storage.js', 'const qty = ev.shiftKey ? 1 : row.qty;', 'const qty = 1;'],
+  ['a Shift-press in Storage moves one at a time', 'src/shell/windows/storage.js', 'move(cs, sc, repaint, id, ev.shiftKey ? row.qty : 1, action);', 'move(cs, sc, repaint, id, 1, action);'],
+  ['a press in Storage moves the whole stack', 'src/shell/windows/storage.js', 'move(cs, sc, repaint, id, ev.shiftKey ? row.qty : 1, action);', 'move(cs, sc, repaint, id, row.qty, action);'],
+  ['the amount picker sends the whole stack', 'src/shell/widgets/amount.js', "  return n ? clampAmount(n.value, n.getAttribute('data-max')) : 1;", "  return n ? clampAmount(n.getAttribute('data-max'), n.getAttribute('data-max')) : 1;"],
+  ['Enter in the amount picker does nothing', 'src/shell/windows/float-menu.js', "      if (e.key === 'Enter' && def) { e.preventDefault(); e.stopPropagation(); def.click(); }\n", ''],
+  ['bones offer no Bury', 'src/shell/windows/inventory/state.js', "  if (br) return ['bury', buryLabel(br, st.qty.get(id))];\n", ''],
+  ['Bury debits the bag before the server answers', 'src/shell/windows/inventory/bury.js', "  const qty = (cs.read('inventory') || {})[id] || 0;\n", "  const qty = (cs.read('inventory') || {})[id] || 0;\n  delete cs.read('inventory')[id];\n"],
+  ['Stop does not collect', 'src/shell/windows/inventory/bury.js', "cs.edgeIntent('set_activity', { activity: { kind: 'idle' } })", "Promise.resolve({ ok: true })"],
+  ['the Burying line ignores the server pointer', 'src/shell/windows/inventory/bury.js', "  return r ? buryingWord(r) + ' ' + itemName(r.input) + '. Your Prayer XP and bag update when it is done.' : '';", "  return '';"],
   ['the skills are one window again', 'src/shell/windows/skills.js', "export const renderTradeSkills = skillsWindow([['gather', 'Gathering'], ['artisan', 'Crafting']]);", "export const renderTradeSkills = skillsWindow([['combat', 'Combat'], ['gather', 'Gathering'], ['artisan', 'Crafting']]);"],
   ['a new player gets no pointer to Hunts', 'src/shell/launcher.js', "+ pointerFor(ctx, open) + '</nav>'", "+ '</nav>'"],
   ['edgeBody lets an unlisted field through', 'src/session/edge-intents.js', '  for (const k of Object.keys(fields)) if (!allowed.includes(k)) return null;\n', ''],
@@ -517,7 +619,7 @@ async function main() {
     const fails = await checks(null, shots);
     for (const f of fails) console.log('  ✗ ' + f);
     console.log(fails.length ? 'alpha-windows: ' + fails.length + ' rule(s) RED'
-      : 'alpha-windows: the windows open; patch in place; the server’s counts win; intents only; locks hold; totals first; one-tap refill; Hunts from the hatch in two presses; window presses and focus never steal the World; no void; storage from town; skills split' + (shots ? ' (shots in ' + shots + ')' : ''));
+      : 'alpha-windows: the windows open; patch in place; the server’s counts win; intents only; locks hold; totals first; one-tap refill; Hunts from the hatch in two presses; window presses and focus never steal the World; no void; storage from town; store any amount; bury pays from the server; skills split' + (shots ? ' (shots in ' + shots + ')' : ''));
     process.exit(fails.length ? 1 : 0);
   }
   const clean = await checks(null, null);

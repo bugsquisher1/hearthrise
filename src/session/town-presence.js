@@ -21,7 +21,7 @@
 // The list is REPLACED by each answer, never merged; an answer older than
 // staleMs shows nobody rather than people who may have left.
 // ════════════════════════════════════════════════════════════════════════
-import { TOWN_PRESENCE, TOWN_DIRS } from '../data/town-presence.js?v=0.2.7';
+import { TOWN_PRESENCE, TOWN_DIRS } from '../data/town-presence.js?v=0.2.9';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAP_ID = /^[a-z0-9_]{1,40}$/;

@@ -1,6 +1,7 @@
 // tests/hunt-core/consumables.mjs — src/core/hunt/consumables.js + src/data/consumables.js
 // (spec §3.4; parity CO-01..CO-08; the one resolver src/core/action-rules.js resolveLine). Run by run-all.mjs.
 import { suiteH4, oneHero, steps, supplySession, STORE_FOOD } from './fixtures/h4.js';
+import { spanFixture, runSpan, member, T0 } from './fixtures/h1.js';
 
 const consume = (M) => (inst, sc) => M.consumables.consume(inst, sc);
 const eats = (sc) => sc.events.filter((e) => e.type === 'eat');
@@ -128,16 +129,87 @@ const cases = {
     const dr = (mana) => { const x = oneHero(M, { mana }); M.consumables.consume(x.inst, x.sc); return drinks(x.sc).length; };
     return dr(30) === 0 && dr(29) === 1 ? null : 'drink fires at 30% mana or not under it';
   },
-  /* CO-03: food waits while a heal landed in the last 2 s. */
-  'eat-no-heal-window': (M) => {
+  /* CO-03 (rev. 2026-10-19, ALWAYS FIRES): an ability heal that just landed does not hold food back. */
+  'eat-right-after-a-heal': (M) => {
     const { h, inst, sc } = oneHero(M, { hp: 10 });
-    M.consumables.markHealed(h, 0);
-    sc.atMs = M.CD.CONSUMABLE_RULES.noHealWindowMs;
+    h.healedAt = 0;
+    sc.atMs = 100;
     M.consumables.consume(inst, sc);
-    if (eats(sc).length) return 'the hero ate inside the no-heal window';
-    sc.atMs += 100;
+    return eats(sc).length === 1 ? null : 'the hero did not eat 100 ms after an ability heal';
+  },
+  /* P0 2026-10-19 (prod: every hunt since the core rebuild ate food, store and own, and healed.total read 0):
+     the analyzer's healed total is the HP food restored — half at once, half over 6 s, the catalogue amount. */
+  'tally-healed-is-hp-restored': (M) => {
+    const run = (bag, basicsHeals) => {
+      /* Own: a purse of 0, so the one trout is all there is; store: 40 of 150 HP, so one meal lifts it past eat-at. */
+      const hs = supplySession(M, { bag, purse: basicsHeals === undefined ? 0 : 1000 });
+      if (basicsHeals !== undefined) hs.basics[STORE_FOOD] = Object.assign({}, hs.basics[STORE_FOOD], { heals: basicsHeals });
+      const x = oneHero(M, { hp: 40, maxHp: basicsHeals === undefined ? 400 : 150 }, { hs });
+      steps(x.inst, x.sc, consume(M), 1, 0);
+      const instant = x.h.hp - 40;
+      steps(x.inst, x.sc, consume(M), 69, 100);
+      const t = M.tally.tallyEvents(x.sc.events, M.tally.rosterOf(x.w)).heroes[1];
+      return { instant, restored: x.h.hp - 40, healed: t ? t.healed : null, eats: eats(x.sc) };
+    };
+    const heals = M.ITEMS.cooked_trout.heals;
+    const own = run({ cooked_trout: { loaded: 1 } });
+    if (own.eats.length !== 1) return 'the trout was eaten ' + own.eats.length + ' times (one in the bag, no gold)';
+    if (own.instant !== Math.floor(heals / 2)) return 'the instant half raised HP ' + own.instant + ', want ' + Math.floor(heals / 2);
+    if (own.restored !== heals) return 'over 7 s the trout restored ' + own.restored + ' of ' + heals;
+    if (!own.healed || own.healed.total !== heals || own.healed.bySource.cooked_trout !== heals) return 'tally.healed ' + JSON.stringify(own.healed) + ' is not the ' + heals + ' HP the trout restored';
+    /* A store row heals by the SERVER's catalogue amount (hs.basics), and the tally says so. */
+    const store = run({}, 72);
+    if (store.eats.length !== 1 || store.eats[0].source !== 'store') return 'the store food was not bought: ' + JSON.stringify(store.eats);
+    if (store.restored !== 72 || !store.healed || store.healed.total !== 72 || store.healed.bySource[STORE_FOOD] !== 72) return 'store food restored ' + store.restored + ', tally ' + JSON.stringify(store.healed) + ', want 72 and 72';
+    return null;
+  },
+  /* ALWAYS FIRES (Coordinator 2026-10-19): a second food while the first's over-time half runs fires as soon as
+     the lane reopens; its instant half lands and its over-time half REPLACES the running one (no stacking).
+     A purse of 0: the two trout are all there is (with gold, store food would replace the second's half in turn). */
+  'food-during-over-time': (M) => {
+    const { h, w, inst, sc } = oneHero(M, { hp: 40, maxHp: 1000 }, { hs: supplySession(M, { bag: { cooked_trout: { loaded: 2 } }, purse: 0 }) });
+    const heals = M.ITEMS.cooked_trout.heals; const half = Math.floor(heals / 2);
+    const lane = M.CD.CONSUMABLE_RULES.laneMs;
     M.consumables.consume(inst, sc);
-    return eats(sc).length === 1 ? null : 'the hero did not eat once the window passed';
+    sc.atMs = lane - 100;
+    M.consumables.consume(inst, sc);
+    if (eats(sc).length !== 1) return 'a second food fired inside the shared lane';
+    const before = h.hp;
+    const firstTick = Math.floor((heals - half) / 6);
+    sc.atMs = lane;
+    M.consumables.consume(inst, sc);
+    if (eats(sc).length !== 2) return 'the second food did not fire while the first over-time half ran (' + eats(sc).length + ' eaten)';
+    if (h.hp !== before + firstTick + half) return 'at the reopen HP went ' + before + ' -> ' + h.hp + ', want the tick ' + firstTick + ' and the instant ' + half;
+    if (!Array.isArray(h.otHp) || h.otHp[0] !== heals - half || h.otHp[2] !== 6) return 'the second over-time half did not replace the first: ' + JSON.stringify(h.otHp);
+    steps(inst, sc, consume(M), 80, lane + 100);
+    const want = 40 + half + firstTick + heals;
+    if (h.hp !== want) return 'after both trout HP is ' + h.hp + ', want ' + want + ' (the first over-time half is replaced, never stacked)';
+    const t = M.tally.tallyEvents(sc.events, M.tally.rosterOf(w)).heroes[1];
+    return t && t.healed.total === h.hp - 40 ? null : 'tally.healed ' + JSON.stringify(t && t.healed) + ' is not the ' + (h.hp - 40) + ' HP restored';
+  },
+  /* BOTH PATHS (CLAUDE.md §4, AWAY-1): a solo hunt span that starts hurt eats its own shrimp, and the analyzer
+     credits the HP food restored ATTENDED (cut into 2 s windows, the world decoded at every cut) and AWAY (one
+     window, ctx.away) alike: more than 0, from the food eaten, at least every instant half that landed and at
+     most what the meals hold, and the same number both ways. */
+  'span-healed-attended-and-away': (M) => {
+    const run = (away) => {
+      const fx = spanFixture(M, 11, { spanMs: 60000, members: [member(M, 'a', { unitId: 1, hp: 30, maxHp: 300 })] });
+      fx.inst.world.units.find((u) => u.side === 'hero').hp = 30;
+      if (away) fx.ctx.away = true;
+      const out = JSON.parse(runSpan(M, fx, away ? [] : Array.from({ length: 29 }, (_, i) => T0 + (i + 1) * 2000)));
+      const meals = out.events.filter((e) => e.type === 'eat' && e.u === 1);
+      const t = M.tally.tallyEvents(out.events, { heroes: [1], kinds: {} }).heroes[1];
+      return { meals, healed: t ? t.healed : null };
+    };
+    const a = run(false); const b = run(true);
+    for (const [path, r] of [['attended', a], ['away', b]]) {
+      if (!r.meals.length) return path + ': the hurt hero ate nothing';
+      const lo = r.meals.reduce((n, e) => n + e.landed, 0); const hi = r.meals.reduce((n, e) => n + e.amount, 0);
+      if (!r.healed || !(r.healed.total > 0)) return path + ': ' + r.meals.length + ' meals and tally.healed ' + JSON.stringify(r.healed);
+      if (r.healed.total < lo || r.healed.total > hi) return path + ': tally.healed ' + r.healed.total + ' is outside [' + lo + ', ' + hi + '] (instant halves landed .. meals held)';
+      if (Object.keys(r.healed.bySource).some((k) => !r.meals.some((e) => e.item === k))) return path + ': healed from a food never eaten ' + JSON.stringify(r.healed.bySource);
+    }
+    return JSON.stringify(a.healed) === JSON.stringify(b.healed) ? null : 'attended healed ' + JSON.stringify(a.healed) + ', away ' + JSON.stringify(b.healed);
   },
   /* Persisted: an over-time half survives a settle cut (encode/decode between sub-steps). */
   'over-time-survives-a-cut': (M) => {
@@ -163,7 +235,7 @@ const mutants = [
   { name: 'the whole amount lands at once', case: 'half-now-half-over-6s',
     edits: [['src/data/consumables.js', '  instantPct: 50,', '  instantPct: 100,']] },
   { name: 'the over-time half is dropped', case: 'half-now-half-over-6s',
-    edits: [['src/core/hunt/consumables.js', '      raise(u, stat, part);', '      raise(u, stat, 0);']] },
+    edits: [['src/core/hunt/consumables.js', '      const landed = raise(u, stat, part);', '      const landed = raise(u, stat, 0);']] },
   { name: 'the store is tried before the own stack', case: 'own-first-then-store',
     edits: [['src/core/action-rules.js', "    if (own) return { id: own, source: 'own', price: 0 };", "    if (own && !(hs.shop && hs.shop[want])) return { id: own, source: 'own', price: 0 };"]] },
   { name: 'an empty stack stops eating (the store never takes over)', case: 'never-stops-when-out',
@@ -178,8 +250,24 @@ const mutants = [
     edits: [['src/core/hunt/consumables.js', '    if (int(u.laneAt) > sc.atMs) continue;\n    const hero = heroes', '    const hero = heroes']] },
   { name: 'food eats at its threshold, not under it', case: 'thresholds',
     edits: [['src/core/hunt/conditions.js', "    case 'lt': return a < b;", "    case 'lt': return a <= b;"]] },
-  { name: 'the no-heal window is ignored', case: 'eat-no-heal-window',
-    edits: [['src/core/hunt/consumables.js', "  if (kind === 'food' && u.healedAt !== null", "  if (false && u.healedAt !== null"]] },
+  { name: 'food restores HP but credits no heal (the prod P0: healed.total 0)', case: 'tally-healed-is-hp-restored',
+    edits: [['src/core/hunt/consumables.js', "  if (landed > 0) sc.emit(makeEvent('heal'", "  if (landed < 0) sc.emit(makeEvent('heal'"]] },
+  { name: 'span: food credits no heal, attended or away', case: 'span-healed-attended-and-away',
+    edits: [['src/core/hunt/consumables.js', "  if (landed > 0) sc.emit(makeEvent('heal'", "  if (landed < 0) sc.emit(makeEvent('heal'"]] },
+  { name: 'span: the instant half is not credited', case: 'span-healed-attended-and-away',
+    edits: [['src/core/hunt/consumables.js', "  if (stat === 'hp') healed(u, landed, line.id, sc);\n  return true;", '  return true;']] },
+  { name: 'a food heals 0', case: 'tally-healed-is-hp-restored',
+    edits: [['src/core/hunt/consumables.js', '  const amount = lineAmount(hero.hs, line);', '  const amount = 0 * lineAmount(hero.hs, line);']] },
+  { name: 'the over-time ticks are not credited', case: 'tally-healed-is-hp-restored',
+    edits: [['src/core/hunt/consumables.js', "      if (stat === 'hp') healed(u, landed, item, sc);\n", '']] },
+  { name: 'food waits for the running over-time half', case: 'food-during-over-time',
+    edits: [['src/core/hunt/consumables.js', "  if (kind === 'drink' && u[OT_KEY[stat]]) return", "  if (u[OT_KEY[stat]]) return"]] },
+  { name: 'a drink always fires (it holds the shared lane every second and starves food)', case: 'one-shared-lane',
+    edits: [['src/core/hunt/consumables.js', "  if (kind === 'drink' && u[OT_KEY[stat]]) return", "  if (false && u[OT_KEY[stat]]) return"]] },
+  { name: 'a second over-time half stacks on the first', case: 'food-during-over-time',
+    edits: [['src/core/hunt/consumables.js', '  u[OT_KEY[stat]] = later > 0 ? [later,', '  u[OT_KEY[stat]] = later > 0 ? [later + (Array.isArray(u[OT_KEY[stat]]) ? u[OT_KEY[stat]][0] : 0),']] },
+  { name: 'food waits after an ability heal', case: 'eat-right-after-a-heal',
+    edits: [['src/core/hunt/consumables.js', "  if (kind === 'drink' && u[OT_KEY[stat]]) return { kind, why: 'ticking' };\n", "  if (kind === 'drink' && u[OT_KEY[stat]]) return { kind, why: 'ticking' };\n  if (kind === 'food' && Number.isInteger(u.healedAt)) return { kind, why: 'healed' };\n"]] },
   { name: 'the over-time half is not persisted', case: 'over-time-survives-a-cut',
     edits: [['src/core/hunt/consumables.js', "  unit: Object.freeze([['laneAt', 'int'], ['otHp', 'json'], ['otMana', 'json'], ['healedAt', 'int?']]),",
       "  unit: Object.freeze([['laneAt', 'int'], ['otMana', 'json'], ['healedAt', 'int?']]),"]] },

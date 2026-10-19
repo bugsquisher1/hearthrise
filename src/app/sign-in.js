@@ -11,8 +11,8 @@
 // the form fields; `onSignedIn` is called once the account is signed in.
 // ════════════════════════════════════════════════════════════════════════
 
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.7';
-import { MIN_PASSWORD } from '../net/auth.js?v=0.2.7';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.9';
+import { MIN_PASSWORD } from '../net/auth.js?v=0.2.9';
 
 const FIELD = {
   email: '<label class="auth-field"><span>Email</span><input name="email" type="email" autocomplete="email" required></label>',
@@ -22,7 +22,7 @@ const FIELD = {
 };
 
 /** The crest and the name over every account screen (painted art at its own 1:1 or exactly 1:2, never between). */
-export const AUTH_BRAND = '<header class="auth-brand"><img class="auth-crest" src="assets/brand/hearthrise-crest.png?v=0.2.7" alt="" width="311" height="384">'
+export const AUTH_BRAND = '<header class="auth-brand"><img class="auth-crest" src="assets/brand/hearthrise-crest.png?v=0.2.9" alt="" width="311" height="384">'
   + '<p class="auth-name">Hearthrise</p></header>';
 
 const SCREENS = Object.freeze({

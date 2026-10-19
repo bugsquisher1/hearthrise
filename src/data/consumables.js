@@ -18,10 +18,10 @@
 // PURE ESM. Data only. Integer numbers only (ms, percent, HP, mana).
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPPLIES } from './supplies.js?v=0.2.7';
-import { DRINK_ITEMS } from './drinks.js?v=0.2.7';
-import { BASIC_SUPPLIES } from './supply-basics.js?v=0.2.7';
-import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.7';
+import { SUPPLIES } from './supplies.js?v=0.2.9';
+import { DRINK_ITEMS } from './drinks.js?v=0.2.9';
+import { BASIC_SUPPLIES } from './supply-basics.js?v=0.2.9';
+import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.9';
 
 /* The numbers. ASSUMED values (spec §5 #10) are marked; the rest are rulings. */
 export const CONSUMABLE_RULES = Object.freeze({
@@ -32,8 +32,6 @@ export const CONSUMABLE_RULES = Object.freeze({
   overTimeTickMs: 1000,
   /* The one shared food-and-drink lane: 1 s (ASSUMED, Bible §9.1 PROPOSED). */
   laneMs: 1000,
-  /* Food waits while a heal landed this recently (ASSUMED). */
-  noHealWindowMs: 2000,
   /* Per-hero defaults (ASSUMED): drink under 30% mana, eat under 50% HP. */
   drinkBelowPct: 30,
   foodBelowPct: 50,
@@ -62,7 +60,7 @@ export function validate() {
   for (const [k, v] of Object.entries(R)) if (!Number.isInteger(v) || v <= 0) out.push(k + ' must be a positive integer, got ' + v);
   if (R.instantPct > 100) out.push('instantPct is over 100');
   if (R.overTimeMs % R.overTimeTickMs !== 0) out.push('overTimeMs is not a whole number of ticks');
-  for (const k of ['overTimeTickMs', 'laneMs', 'noHealWindowMs']) {
+  for (const k of ['overTimeTickMs', 'laneMs']) {
     if (R[k] % HUNT_TUNING.stepMs !== 0) out.push(k + ' is not a whole number of ' + HUNT_TUNING.stepMs + ' ms sub-steps');
   }
   for (const k of ['drinkBelowPct', 'foodBelowPct']) if (R[k] > 100) out.push(k + ' is over 100');

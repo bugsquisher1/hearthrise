@@ -269,6 +269,7 @@ jobs:
         run: |
           node tests/alpha-windows.mjs
           node tests/alpha-windows.mjs --mutate
+          node tests/hunt-scene-live.mjs
 
       # WINDOWS, CAMERA AND RIGHT-CLICK (Tyler's playtest, 2026-10-18): the X
       # closes on a real press (docked windows keep their slots; focus never
@@ -3576,6 +3577,15 @@ jobs:
         run: |
           node tests/hunt-scene.mjs
           node tests/hunt-scene.mjs --mutate
+
+      # The live hunt from a REAL post-rebuild envelope (the v0.2.7 P0): a read alone draws the
+      # hero and the pose's monsters, windows at the player door's cadence play with no jump and
+      # no burst, regen reads per second. The page half (frame budget vs the sim) runs in in-page.
+      - name: Hunt scene, live envelope
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/hunt-scene-live.mjs --node
+          node tests/hunt-scene-live.mjs --mutate
 
       - name: Client intent surface
         if: ${{ !cancelled() }}

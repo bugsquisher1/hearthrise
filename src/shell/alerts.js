@@ -24,15 +24,15 @@
 // Nothing here gates or spends anything; the "Start again" button is an
 // intent (CharacterSession.restartHunt) like every other.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERT_INDEX, LOW_SUPPLY_PCT } from '../data/alerts.js?v=0.2.7';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.7';
-import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.7';
-import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.7';
-import { bagOf, rulesOf, nameOf } from '../session/item-sections.js?v=0.2.7';
-import { huntName } from '../session/party-sections.js?v=0.2.7';
-import { itemName } from './widgets/bits.js?v=0.2.7';
-import { whole } from '../render/format.js?v=0.2.7';
-import { CONSUMABLES, CONSUMABLE_KINDS } from '../data/consumables.js?v=0.2.7';
+import { ALERT_INDEX, LOW_SUPPLY_PCT } from '../data/alerts.js?v=0.2.9';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.9';
+import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.9';
+import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.9';
+import { bagOf, rulesOf, nameOf } from '../session/item-sections.js?v=0.2.9';
+import { huntName } from '../session/party-sections.js?v=0.2.9';
+import { itemName } from './widgets/bits.js?v=0.2.9';
+import { whole } from '../render/format.js?v=0.2.9';
+import { CONSUMABLES, CONSUMABLE_KINDS } from '../data/consumables.js?v=0.2.9';
 
 const residueOf = (cs) => {
   const r = cs && cs.record && cs.record.residue && cs.record.residue.alerts;

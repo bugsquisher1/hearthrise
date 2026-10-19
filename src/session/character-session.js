@@ -45,11 +45,11 @@
 // only things it sends of its own are the allowlisted residue and intents.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyEnvelope, applyFrame, withResidue } from './envelope.js?v=0.2.7';
-import { createTimeline } from '../hunt-view/timeline.js?v=0.2.7';
-import { RESIDUE_FIELDS, sanitizeResidueField } from './residue.js?v=0.2.7';
-import { SESSION_CONFIG } from './config.js?v=0.2.7';
-import { edgeBody } from './edge-intents.js?v=0.2.7';
+import { applyEnvelope, applyFrame, withResidue } from './envelope.js?v=0.2.9';
+import { createTimeline } from '../hunt-view/timeline.js?v=0.2.9';
+import { RESIDUE_FIELDS, sanitizeResidueField } from './residue.js?v=0.2.9';
+import { SESSION_CONFIG } from './config.js?v=0.2.9';
+import { edgeBody } from './edge-intents.js?v=0.2.9';
 
 export const FRAME_EVENT = 'frame';
 
@@ -115,7 +115,10 @@ export class CharacterSession {
     this._closed = false;
     this.lastVerdict = null;
     this._now = o.now || (() => (globalThis.performance ? globalThis.performance.now() : Date.now()));
-    this.timeline = createTimeline();
+    /* Played a poll behind, the buffer holds two windows of steps and a unit gone from the pose must
+       outlive the delay before it is forgotten (timeline.js T5). */
+    this.timeline = createTimeline({ delayMs: SESSION_CONFIG.huntPlaybackDelayMs, maxSteps: 256,
+      forgetMs: SESSION_CONFIG.huntPlaybackDelayMs + 15000 });
     this.receivedAt = null;
     for (const fn of Array.from(OBSERVERS)) fn(this);   // e.g. the hunt summary's recorder: it must hear the timeline from the first event
   }
@@ -170,6 +173,12 @@ export class CharacterSession {
   _play(body) {
     if (Array.isArray(body.hunt_track) || Array.isArray(body.hunt_events)) {
       this.timeline.ingest({ track: body.hunt_track, events: body.hunt_events, serverNowMs: body.hunt_server_now_ms }, this._now());
+    } else {
+      /* A plain read (hr_load, or an accrue the settle floor answered without a window) still
+         carries the server's clock (`now`): measure it, or a hunt seen only through reads has no
+         clock and the scene draws nobody even though the pose below is the server's (P0 v0.2.7). */
+      const ms = typeof body.now === 'string' ? Math.floor(Date.parse(body.now)) : NaN;
+      if (Number.isSafeInteger(ms)) this.timeline.ingest({ serverNowMs: ms }, this._now());
     }
     const h = this.read('hunt');
     if (h && h.pose) this.timeline.reconcile(h.pose);

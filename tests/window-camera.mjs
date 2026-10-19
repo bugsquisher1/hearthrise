@@ -10,8 +10,8 @@
 //
 // Tyler's playtest, 2026-10-18 (v0.2.1), on play.html with supabase-js and the
 // REST paths stubbed (tests/_client-harness.mjs), the character standing in
-// town (tests/fixtures/alpha-envelope.json). The hero is PINNED (the idle walk to
-// its station is pushed out of the test's reach by a served override) so the
+// town (tests/fixtures/alpha-envelope.json). The hero never walks on its own
+// (Tyler 2026-10-19), so the
 // camera moves only for the reason a rule is about.
 //   WC-1  THE X CLOSES: with Hunt prep | Hunt settings | Gathering and crafting
 //         docked side by side, a real press and release on Hunt settings' X
@@ -42,16 +42,11 @@ const ANDY = 'aaaaaaaa-0000-4000-8000-0000000000a1';
 const PEER = 'Bartholomew Underhill';   // a long name: its ends lie beyond the figure's box
 const PEER_AT = [13, 9];
 
-/* Read-only hooks, served (never written to the tree): the World pane's runtime on window.__world,
-   and the hero pinned where it stands (the idle walk to its station never comes inside a test). */
-const PANE = 'src/app/world-pane.js', STATIONS = 'src/data/world/stations.js';
+/* A read-only hook, served (never written to the tree): the World pane's runtime on window.__world. */
+const PANE = 'src/app/world-pane.js';
 const paneSrc = await readFile(join(ROOT, PANE), 'utf8');
-const stationSrc = await readFile(join(ROOT, STATIONS), 'utf8');
-if (!paneSrc.includes('    runtime.sync();\n') || !stationSrc.includes('export const IDLE_TO_STATION_MS = ')) throw new Error('window-camera: a hook anchor moved');
-const HOOKS = {
-  [PANE]: paneSrc.replace('    runtime.sync();\n', '    runtime.sync();\n    window.__world = runtime;\n'),
-  [STATIONS]: stationSrc.replace(/export const IDLE_TO_STATION_MS = \d+;/, 'export const IDLE_TO_STATION_MS = 3600000;'),
-};
+if (!paneSrc.includes('    runtime.sync();\n')) throw new Error('window-camera: the hook anchor moved');
+const HOOKS = { [PANE]: paneSrc.replace('    runtime.sync();\n', '    runtime.sync();\n    window.__world = runtime;\n') };
 
 function townEnv() {
   const e = clone(FIXTURE);

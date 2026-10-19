@@ -86,8 +86,11 @@ the friend graph, bug reports, catalogues, config. Every account owns hero slots
 `2026-10-27-core-wipe.sql`; then the hr-accrue edge deploy; then the client.
 
 ## 11. Open (not ruled; not built)
-- Roles from weapons (Tyler: Mage = wand + spellbook, Healer = staff): no wand or spellbook item exists (magic weapons are
-  staves, `weaponType: 'magic'`). Needs from the designer: wand and spellbook rows (names, tiers, stats, sources), the rule
-  for a wand without a spellbook, then a `magicKind` field + off-hand read in `roleForWeapon` and `hr_hunt_weapon_of`.
+- Roles from weapons (Tyler: Mage = wand + spellbook, Healer = staff): BUILT. A magic weapon's role key is its
+  `discipline` (`roleWeaponOf` in `src/data/hunt-roles.js`: destruction = wand = Mage, restoration = staff = Healer;
+  a wand alone is still a Mage); `hr_hunt_weapons` carries the same key. A staff is two-handed: `hr_apply` refuses an
+  off-hand beside it (`two_handed`). Open: the four hand-authored magic drops (demoncaller_staff, void_censer,
+  whispering_codex, voidmaw_scepter) have no discipline and default to Mage until the designer assigns one; the
+  `role` hunt option and its role_pick plumbing no longer choose anything and are a cut still owed.
 - Ability heals and shields are flat against x12 monster damage (CORE_NUMBERS line 99): a party of four loses a hero to the
   Rat King at Level 16-25 (clears at 30+); the abilities pass owns it. Culvert bats end a Level-10-12 solo hero gold_out.

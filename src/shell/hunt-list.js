@@ -8,19 +8,34 @@
 //                          packMax, respawnS, boss }] in band order
 //   densityWords(row)   "2 packs of 2 · back in 30 s"
 //   bandWords(row, lv)  "Combat level 0 to 10" (+ ", you are 3" when known)
+//   partyNote(hunt)     the ground's party rule in words, from ITS row (the
+//                        pocket carrying minParty and the boss standing in it),
+//                        or '' for a ground with no party-only pocket
 //   packFor(bag, rules) what the hunt carries: the bag's own hunt supplies,
 //                        each up to its remembered restock target (all of it
 //                        when it has none), at most the server's line cap
 // Nothing here is a gate: the server checks the band, the stamina and the
 // stock when the player presses Enter, and says why it refuses.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS, PARTY_SCALE } from '../data/hunt-grounds.js?v=0.2.3';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.3';
-import { MONSTERS } from '../data/monsters.js?v=0.2.3';
-import { SUPPLIES } from '../data/supplies.js?v=0.2.3';
-import { SESSION_LIMITS } from '../data/hunt-sessions.js?v=0.2.3';
+import { HUNT_GROUNDS, PARTY_SCALE } from '../data/hunt-grounds.js?v=0.2.4';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.4';
+import { MONSTERS } from '../data/monsters.js?v=0.2.4';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.4';
+import { SESSION_LIMITS } from '../data/hunt-sessions.js?v=0.2.4';
 
 const PACK_QTY_MAX = 100000;
+const COUNT_WORDS = Object.freeze(['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight']);
+
+/** "The Rat King wants a party of two or more. Alone, you skip that hall." for this hunt's ground, or ''. */
+export function partyNote(hunt) {
+  const g = Object.values(HUNT_GROUNDS).find((r) => r.hunt === hunt);
+  const p = g && g.pockets.find((q) => q.minParty);
+  if (!p) return '';
+  const boss = p.spawns.map((s) => MONSTERS[s.monster]).find((m) => m && m.boss === true);
+  const n = COUNT_WORDS[p.minParty] || String(p.minParty);
+  return boss ? 'The ' + boss.name + ' wants a party of ' + n + ' or more. Alone, you skip that hall.'
+    : 'One hall here wants a party of ' + n + ' or more. Alone, you skip it.';
+}
 
 /** One line per hunt ground, lowest band first (ties by name). */
 export function huntRows() {

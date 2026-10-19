@@ -150,7 +150,7 @@ async function checks(overrides) {
       await page.fill('input[name=email]', 'qa@example.test');
       await page.fill('input[name=password]', 'not-a-real-password');
       await page.click('.auth-submit');
-      if (!(await wait(page, () => /closed while we rebuild/i.test(document.body.innerText)))) fails.push('B-7 the closed answer did not show the closed notice');
+      if (!(await wait(page, () => /a new game in development. Follow Discord for the first playtest/i.test(document.body.innerText)))) fails.push('B-7 the closed answer did not show the closed notice');
       await ctx.close();
     }
   } finally {

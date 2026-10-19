@@ -19,19 +19,19 @@
 // hr_closed); the first such answer replaces everything with the closed notice.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPABASE_CONFIG, createSupabaseClient } from '../net/supabase-bootstrap.js?v=0.2.3';
-import { createAuth } from '../net/auth.js?v=0.2.3';
-import { SESSION_CONFIG } from '../session/config.js?v=0.2.3';
-import { createServerLink } from '../session/server.js?v=0.2.3';
-import { AccountSession } from '../session/account-session.js?v=0.2.3';
-import { FRAME_EVENT } from '../session/character-session.js?v=0.2.3';
-import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.3';
-import { mountWorldPane } from './world-pane.js?v=0.2.3';
-import { mountCharacterStrip } from './character-strip.js?v=0.2.3';
-import { createAlertCenter } from '../shell/alerts.js?v=0.2.3';
-import { createSocialRealtime } from '../social/realtime.js?v=0.2.3';
-import { SocialSession } from '../social/social-session.js?v=0.2.3';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.3';
+import { SUPABASE_CONFIG, createSupabaseClient } from '../net/supabase-bootstrap.js?v=0.2.4';
+import { createAuth } from '../net/auth.js?v=0.2.4';
+import { SESSION_CONFIG } from '../session/config.js?v=0.2.4';
+import { createServerLink } from '../session/server.js?v=0.2.4';
+import { AccountSession } from '../session/account-session.js?v=0.2.4';
+import { FRAME_EVENT } from '../session/character-session.js?v=0.2.4';
+import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.4';
+import { mountWorldPane } from './world-pane.js?v=0.2.4';
+import { mountCharacterStrip } from './character-strip.js?v=0.2.4';
+import { createAlertCenter } from '../shell/alerts.js?v=0.2.4';
+import { createSocialRealtime } from '../social/realtime.js?v=0.2.4';
+import { SocialSession } from '../social/social-session.js?v=0.2.4';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.4';
 
 const DISCORD = 'https://discord.gg/eJrUSUJM3M';
 
@@ -82,7 +82,7 @@ function startApp(win) {
     clear();
     root.className = 'app is-auth';
     root.innerHTML = '<main class="auth">' + AUTH_BRAND + '<div class="auth-card">'
-      + '<h1 class="auth-title">Hearthrise is closed while we rebuild it.</h1>'
+      + '<h1 class="auth-title">Hearthrise is a new game in development. Follow Discord for the first playtest.</h1>'
       + '<p class="auth-lead">Your account is not on the list for this test. Discord gets the date first.</p>'
       + '<p class="auth-links"><a class="auth-link" href="' + DISCORD + '" rel="noopener">Join the Discord</a>'
       + '<button type="button" class="auth-link" data-app="sign-out">Sign out</button></p></div></main>';

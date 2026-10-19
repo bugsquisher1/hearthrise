@@ -796,6 +796,8 @@ export const INTENT_ERRORS = Object.freeze({
                             the ownership check, and there is nothing else to
                             check.
        too_many_equip_ops   409 — more ops than hr_apply's c_max_equip_kinds
+       two_handed           409 — the worn set AFTER the delta holds a two-handed
+                            weapon (a staff) and an off-hand (Tyler 2026-10-19)
 
      None of them is minted here except `bad_equip`, because inventing a second
      name for a refusal the database already names is how a taxonomy stops

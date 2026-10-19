@@ -191,3 +191,16 @@ export function equipSlotFor(id, equipment) {
   const eq = equipment || {};
   return slots.find((s) => !eq[s]) || slots[0];
 }
+
+/** The ONE `equip` delta that wears `id` in `slot` (null = take it off). Two hands (Tyler 2026-10-19:
+ *  Healer = staff): a two-handed weapon takes the off-hand off, and an off-hand takes a two-handed
+ *  weapon off, in the same delta, because hr_apply refuses the pair (two_handed) on the worn set. */
+export function equipOps(slot, id, equipment) {
+  const ops = { [slot]: id };
+  const eq = equipment || {};
+  const it = id ? ITEMS[id] : null;
+  if (it && slot === 'weapon' && it.twoHanded === true && eq.shield) ops.shield = null;
+  const worn = eq.weapon ? ITEMS[eq.weapon] : null;
+  if (it && slot === 'shield' && worn && worn.twoHanded === true) ops.weapon = null;
+  return ops;
+}

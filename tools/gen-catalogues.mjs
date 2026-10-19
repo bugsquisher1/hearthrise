@@ -362,6 +362,9 @@ alter table public.hr_items
 -- armour slots of each weight. NULL = not armour.
 alter table public.hr_items
   add column if not exists armour_weight text check (armour_weight in ('heavy', 'medium', 'light'));
+-- TWO-HANDED (Tyler 2026-10-19): a staff fills both hands; hr_apply refuses an off-hand beside it.
+alter table public.hr_items
+  add column if not exists two_handed boolean not null default false;
 create index if not exists hr_items_tradeable_idx on public.hr_items (tradeable);
 
 create table if not exists public.hr_item_slots (
@@ -504,8 +507,8 @@ delete from public.hr_start_equipment;
 delete from public.hr_runes;
 delete from public.hr_skill_curve;
 
-insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, req_lv, heals, auto_eatable, armour_weight) values
-${valuesBlock(items, (r) => `  (${q(r.item_id)},${q(r.name)},${b(r.tradeable)},${q(r.kind)},${n(r.value)},${q(r.req_skill)},${n(r.req_lv)},${n(r.heals)},${b(r.auto_eatable)},${q(r.armour_weight)})`)};
+insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, req_lv, heals, auto_eatable, armour_weight, two_handed) values
+${valuesBlock(items, (r) => `  (${q(r.item_id)},${q(r.name)},${b(r.tradeable)},${q(r.kind)},${n(r.value)},${q(r.req_skill)},${n(r.req_lv)},${n(r.heals)},${b(r.auto_eatable)},${q(r.armour_weight)},${b(r.two_handed)})`)};
 
 insert into public.hr_item_slots (item_id, equip_slot) values
 ${valuesBlock(itemSlots, (r) => `  (${q(r.item_id)},${q(r.equip_slot)})`)};

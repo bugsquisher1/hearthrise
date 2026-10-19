@@ -24,7 +24,7 @@
 // open doll slot and the "new" marks. No key here is a walk key: selling is
 // Delete, so W, A, S and D always reach the World (Tyler 10-18).
 // ════════════════════════════════════════════════════════════════════════
-import { kindOf, equipSlotFor, markSeen } from '../../bag-model.js?v=0.2.6';
+import { kindOf, equipSlotFor, equipOps, markSeen } from '../../bag-model.js?v=0.2.6';
 import { assignToBar, barKind, barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.6';
 import { runIntent } from '../../intent-words.js?v=0.2.6';
 import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.6';
@@ -84,7 +84,7 @@ function goldNow(cs) { const s = cs.read('state'); return s && Number.isSafeInte
 
 /** Wear `id` in `slot`, or take the slot's piece off (`id` null): ONE `equip` intent. */
 function wear(st, repaint, slot, id) {
-  return send(st, repaint, () => st.cs.edgeIntent('equip', { equip: { [slot]: id } }), id ? 'Equipping…' : 'Taking it off…');
+  return send(st, repaint, () => st.cs.edgeIntent('equip', { equip: equipOps(slot, id, st.eq) }), id ? 'Equipping…' : 'Taking it off…');
 }
 
 function doPrimary(st, id, repaint) {

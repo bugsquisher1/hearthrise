@@ -7,7 +7,7 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-10-19",
- "digest": "508bdafbbf7a15061122163bb7c5e4970c4b79bddcc77aa329d08356cabb8a5b",
+ "digest": "329aac6699ef7568c99333778b829b1fa9d7908339ba75798a6f07bdaf25af8e",
  "counts": {
   "relations": 213,
   "functions": 506,
@@ -15,7 +15,7 @@
   "indexes": 297,
   "triggers": 34,
   "constraints": 717,
-  "columns": 1220,
+  "columns": 1221,
   "rls": 192,
   "event_triggers": 1
  },
@@ -2444,6 +2444,7 @@
    "hr_items.req_lv integer",
    "hr_items.req_skill text",
    "hr_items.tradeable boolean NOT NULL",
+   "hr_items.two_handed boolean NOT NULL",
    "hr_items.value bigint NOT NULL",
    "hr_kill_credit_log.applied bigint NOT NULL",
    "hr_kill_credit_log.cap bigint NOT NULL",

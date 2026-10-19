@@ -46,6 +46,7 @@ import {
 import { EQUIP_SLOT_INDEX, ITEM_EQUIP_SLOTS } from '../supabase/functions/hr-accrue/catalogue.js';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { ROOT } from './schema-replay.mjs';
 import { isMain } from './_is-main.mjs';
 
@@ -372,6 +373,41 @@ async function body(db, call, exec) {
         + 'the reqSkill/reqLv gate is hr_apply\'s, checked against SERVER skills under the lock');
       ok(await invOf(db, gated.item_id) === 1, 'E6: a refused gated equip still debited the bag');
     }
+  }
+
+  // ── E6b. TWO HANDS (Tyler 2026-10-19: Healer = staff, Mage = wand + spellbook) ──
+  // A staff (hr_items.two_handed) and anything in the off-hand never share a worn
+  // set, judged on the set AFTER the delta: swapping the book out and the staff in
+  // in ONE delta is honest, either half alone beside the other is refused whole.
+  {
+    const g = await grant(db, await versionOf(db), { apprentice_staff: 1, apprentice_primer: 1 });
+    ok(g.ok === true, `E6b-SETUP: the admin grant was refused — ${JSON.stringify(g)}`);
+    const lv = await grantLevel(db, await versionOf(db), 'magic', 10);
+    ok(lv.ok === true, `E6b-SETUP: the Magic XP grant was refused — ${JSON.stringify(lv)}`);
+    let r = await call({ equip: { shield: 'apprentice_primer' } });
+    ok(r.status === 200 && r.body.ok === true, `E6b: a spellbook beside a one-hand sword was refused — ${JSON.stringify(r.body).slice(0, 200)}`);
+    r = await call({ equip: { weapon: 'apprentice_staff' } });
+    ok(r.status === 409 && r.body.error === 'two_handed',
+      `E6b: a staff equipped beside a spellbook answered ${r.status} ${JSON.stringify(r.body).slice(0, 200)}, want two_handed`);
+    ok(await eqOf(db, 'weapon') === 'iron_sword' && await ownedOf(db, 'apprentice_staff') === 1,
+      'E6b: the refused staff moved the slot or the bag');
+    /* The client's ONE delta builder (src/shell/bag-model.js equipOps, what the bag's Equip sends): the staff
+       takes the book off in the same delta, and the server takes it. */
+    const { equipOps } = await import(pathToFileURL(join(ROOT, 'src/shell/bag-model.js')).href);
+    const worn = async () => ({ weapon: await eqOf(db, 'weapon'), shield: await eqOf(db, 'shield') });
+    r = await call({ equip: equipOps('weapon', 'apprentice_staff', await worn()) });
+    ok(r.status === 200 && await eqOf(db, 'weapon') === 'apprentice_staff' && await eqOf(db, 'shield') === null
+      && await invOf(db, 'apprentice_primer') === 1,
+      `E6b: the bag's staff delta (book out, staff in) was refused or half-applied — ${JSON.stringify(r.body).slice(0, 200)}`);
+    r = await call({ equip: { shield: 'apprentice_primer' } });
+    ok(r.status === 409 && r.body.error === 'two_handed',
+      `E6b: a spellbook beside a staff answered ${r.status} ${JSON.stringify(r.body).slice(0, 200)}, want two_handed`);
+    r = await call({ equip: equipOps('shield', 'apprentice_primer', await worn()) });
+    ok(r.status === 200 && await eqOf(db, 'shield') === 'apprentice_primer' && await eqOf(db, 'weapon') === null
+      && await invOf(db, 'apprentice_staff') === 1,
+      `E6b: the bag's book delta (staff off, book on) was refused or half-applied — ${JSON.stringify(r.body).slice(0, 200)}`);
+    r = await call({ equip: { weapon: 'iron_sword', shield: null } });
+    ok(r.status === 200 && await eqOf(db, 'weapon') === 'iron_sword', 'E6b: the sword did not go back on');
   }
 
   // ── E7. THE RELEASE CLASS — a catalogue refusal must not brick the key ──

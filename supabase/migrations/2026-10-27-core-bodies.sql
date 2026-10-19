@@ -1068,6 +1068,14 @@ begin
           values (v_uid, v_slot, k, v_item)
           on conflict (user_id, slot, equip_slot) do update set item_id = excluded.item_id;
       end loop;
+      -- TWO HANDS (Tyler 2026-10-19: Healer = staff): judged on the worn set AFTER
+      -- the loop, so one delta may swap a spellbook out and a staff in (either order).
+      if exists (select 1 from public.player_equipment pe join public.hr_items i on i.item_id = pe.item_id
+                  where pe.user_id = v_uid and pe.slot = v_slot and pe.equip_slot = 'weapon' and i.two_handed)
+         and exists (select 1 from public.player_equipment pe
+                      where pe.user_id = v_uid and pe.slot = v_slot and pe.equip_slot = 'shield') then
+        perform public.hr_reject('two_handed', jsonb_build_object('equip_slot', 'shield'));
+      end if;
     end if;
 
     -- ── ENCHANTING (ELEMENTS v1) ─────────────────────────────────────────

@@ -60,6 +60,9 @@ const items = itemIds.map((id) => {
     auto_eatable: isAutoEatable(it),
     /* THE ARMOUR WEIGHT (CORE_MODEL.md §3) hr_vitals_of counts: heavy / medium / light, null = not armour. */
     armour_weight: (it.slot && ARMOUR_WEIGHT[it.armourClass]) || null,
+    /* TWO-HANDED (Tyler 2026-10-19: Healer = staff, and a staff leaves no hand for an off-hand):
+       hr_apply refuses a worn set holding a two-handed weapon and anything in the off-hand. */
+    two_handed: it.slot === 'weapon' && it.twoHanded === true,
   };
 });
 

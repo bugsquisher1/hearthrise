@@ -33,7 +33,8 @@
 
 import { ITEMS } from '../../../src/data/items.js';
 import { HUNT_ROLES, roleForWeapon } from '../../../src/data/hunt-roles.js';
-import { playerCombatRolls, prayerWardPct } from '../../../src/core/combat.js';
+import { playerCombatRolls } from '../../../src/core/combat.js';
+import { vitalsOf } from '../../../src/core/vitals.js';
 import { buffQueueFromServer } from '../../../src/core/buffs.js';
 import { xpMultiplierParts } from '../../../src/core/progression.js';
 import { heroSnapshot, loadoutOf, bonusFor, liveBuffHost } from './accrual.js';
@@ -44,7 +45,7 @@ export const VERB = 'sheet';
 
 /** Fingerprint part (hr_character_sheet_inputs) → the envelope path it covers (null: not an envelope read). */
 export const SHEET_INPUTS = Object.freeze({
-  skills: 'skills', equipment: 'equipment', style: 'state.combat_style', buffs: 'buffs', perks: null,
+  skills: 'skills', equipment: 'equipment', level: 'state.level_xp', buffs: 'buffs', perks: null,
 });
 
 /* The rate gate (the registry's bucket), the envelope, the perk stack and the input fingerprint, in ONE statement. */
@@ -78,30 +79,35 @@ export function characterSheetOf(env, perks, nowMs) {
   const skills = {};
   if (isObj(env.skills)) for (const [k, cell] of Object.entries(env.skills)) skills[k] = Number(cell && cell.xp) || 0;
   const equipment = isObj(env.equipment) ? env.equipment : {};
-  const style = isObj(env.state) ? env.state.combat_style : null;
-  const { eq, setBonus, profile, style: st } = loadoutOf(equipment, style, ITEMS);
+  const levelXp = isObj(env.state) ? Number(env.state.level_xp) || 0 : 0;
+  const { eq, setBonus, profile } = loadoutOf(equipment, ITEMS);
+  const vit = vitalsOf({ levelXp, skills, equipment, items: ITEMS });
   const buffs = buffQueueFromServer(Array.isArray(env.buffs) ? env.buffs : [], nowMs);
   const perkState = perks && perks.ok === true ? perks : null;
   const bonus = bonusFor(perkState, liveBuffHost(() => buffs));
-  const snap = heroSnapshot({ skills }, { eq, equipment, items: ITEMS, bonus, setBonus, profile, style: st });
-  const roll = playerCombatRolls(NEUTRAL_FOE, { eq, equipment, items: ITEMS, skills, bonus, setBonus, profile, style: st });
+  const snap = heroSnapshot({ skills }, { eq, equipment, items: ITEMS, bonus, setBonus, profile });
+  const roll = playerCombatRolls(NEUTRAL_FOE, { eq, equipment, items: ITEMS, skills, bonus, setBonus, profile });
   const role = roleForWeapon(eq.weaponType || 'neutral', null);
   const row = role ? HUNT_ROLES[role] : null;
   /* The XP parts grantXp pays with; the lasting ones (no buff layer) split perks from food and drink. */
-  const now = xpMultiplierParts(eq.xpB, bonus);
-  const lasting = xpMultiplierParts(eq.xpB, bonusFor(perkState, null));
+  const now = xpMultiplierParts(bonus);
+  const lasting = xpMultiplierParts(bonusFor(perkState, null));
   return {
     role: role || null,
     weapon_type: eq.weaponType || 'neutral',
-    max_mana: row ? row.mana : null,
+    /* THE CORE MODEL'S VITALS (src/core/vitals.js): Level, max HP and mana from
+       Level and armour weight, and Prayer's regen rate (percent of the base). */
+    level: vit.level,
+    max_hp: vit.maxHp,
+    max_mana: vit.maxMana,
+    regen_pct: round(vit.regenPm / 10, 1),
     move_speed: row ? row.speed : null,
     damage: { min: 1, max: snap.maxHit },
     accuracy_pct: round(snap.acc / 10, 1),
     crit_pct: round(roll.critChance * 100, 1),
     defence: snap.def,
-    ward_pct: Math.floor(prayerWardPct(skills)),
     set: setBonus ? { tier: setBonus.tier, pieces: setBonus.pieces } : null,
-    xp: { gear: round(now.gear, 4), perks: round(lasting.all, 4), buffs: round(now.all - lasting.all, 4), combat: round(now.combat, 4) },
+    xp: { perks: round(lasting.all, 4), buffs: round(now.all - lasting.all, 4), combat: round(now.combat, 4) },
   };
 }
 

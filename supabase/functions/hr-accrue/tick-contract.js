@@ -19,7 +19,6 @@
 // is ONE copy (AWAY-12). No `?v=` (not under src/**).
 // ============================================================================
 
-import { levelFromXp } from '../../../src/core/xp.js';
 
 /* ── RULE 1: TICK-ALIGNED WINDOWS ───────────────────────────────────────────
    `simulateSpan` (src/core/combat-sim.js) budgets a segment as
@@ -86,16 +85,16 @@ export function planWindows(anchorMs, fromMs, toMs, cadenceMs, tickMs) {
      ADDITIVE   the key is a signed movement; folding is addition.
      ABSOLUTE   the key is a CHECKPOINT of resulting state; folding is "last
                 window wins". accrual.js's own header calls these out by name:
-                `fight`, `tool_carry`, `ammo_carry`, `recovering_until`,
+                `fight`, `tool_carry`, `ammo_carry`,
                 `accrued_to`, `hp`, `activity`.
      APPEND     the key is a list of events; folding is concatenation, and the
-                per-call clamp (MAX_DEATH_ROWS, the progress-op cap) must be
+                per-call clamp (one death row, the progress-op cap) must be
                 re-checked AFTER the fold, never only per window. */
 export const ADDITIVE_SCALAR = Object.freeze(['gold']);
 export const ADDITIVE_MAP = Object.freeze(['xp', 'items']);
 export const ABSOLUTE = Object.freeze([
   'accrued_to', 'hp', 'fight', 'activity',
-  'recovering_until', 'ammo_carry', 'tool_carry',
+  'ammo_carry', 'tool_carry',
 ]);
 export const APPEND = Object.freeze(['deaths', 'progress', 'hearthfind']);
 /* ABSOLUTE PER KEY: a map whose every entry is a checkpoint, folded "last
@@ -227,7 +226,6 @@ export function valueSummary(res) {
     items: sortedMap(d.items),
     hp: Number(d.hp || 0),
     fight: d.fight || null,
-    recovering_until: typeof d.recovering_until === 'undefined' ? undefined : d.recovering_until,
     kills: Number(s.kills || 0),
     ticks: Number(s.ticks || 0),
     crits: Number(s.crits || 0),
@@ -268,7 +266,7 @@ export const ZERO_TIME = Object.freeze({ ticks: 0, recoverMs: 0, grantMs: 0 });
    BETWEEN two calls, and it is the one shadow mode gets wrong on production.
 
    Armed, the carrier is the database: hr_apply writes `hp`, `fight`,
-   `recovering_until`, the counters and the bag, and the next fire's
+   the counters and the bag, and the next fire's
    `hr_state_of` reads them back. SHADOW PAYS NOTHING — deliberately, e15 —
    so `player_state` never moves and every fire re-seeds the character from
    the same row. Measured on production 2026-09-23 16:40 UTC, QA slot 1 armed
@@ -289,7 +287,6 @@ export const ZERO_TIME = Object.freeze({ ticks: 0, recoverMs: 0, grantMs: 0 });
    ABSOLUTE (the ABSOLUTE list above, minus `accrued_to` which the fence's own
    `shadow_accrued_to` already chains):
      hp                a window that starts at the row's hp re-fights from full
-     recovering_until  the knockout never sticks; this is the measured defect
      fight             every window restarts the foe at full HP: kills inflate
      ammo_carry        the sub-action remainder is forfeit every window
      tool_carry        the same, on gather, and it is forfeit TODAY
@@ -306,13 +303,8 @@ export const ZERO_TIME = Object.freeze({ ticks: 0, recoverMs: 0, grantMs: 0 });
                        window would restart the count.
 
    ── WHAT IS DELIBERATELY NOT CARRIED, EACH WITH ITS REASON ─────────────────
-     maxHp             NOT A KEY OF ITS OWN — it is a FUNCTION of the carried
-                       hitpoints xp, re-derived on both sides of the seam by
-                       `raiseMaxHpToLevel` below (2026-10-05). It used to be
-                       dropped, and a mid-chain Hitpoints level-up fought every
-                       later window at the old ceiling: -13.6% ticks on a
-                       character still gaining Hitpoints levels, the combat
-                       parity miss (the deleted solo-combat max-HP carry guard).
+     maxHp             NOT A KEY: derived from Level and armour (src/core/vitals.js),
+                       never carried (a chained window is gather or artisan).
      hearthfindReady   `hr_state_of` projects the LITERAL `true`
                        (2026-09-08-hearthfind.sql L466: "Always true once this
                        has run … not a feature flag"). There is nothing for
@@ -363,37 +355,6 @@ export function countersFromProgress(progress) {
   return { deathsLifetime, deathsToday };
 }
 
-/* ── MAX HP FOLLOWS THE HITPOINTS LEVEL, RAISE-ONLY (2026-10-05) ────────────
-   The ARMED chain gets this from the database: hr_apply credits hitpoints xp,
-   the AFTER trigger of 2026-09-06-max-hp-tracks-hitpoints.sql
-   (`hr_sync_max_hp`) raises `max_hp` to `greatest(1, hr_level_from_xp(xp))`,
-   and the next fire's `hr_state_of` reads it back. A single-span accrual does
-   the same inside the engine (accrual.js: `ev.skill === 'hitpoints'` →
-   `state.playerMaxHp = ev.to`). The CHAIN between two settles had neither —
-   `advance()` and the shadow carrier moved the xp but not the ceiling — so
-   every window after a mid-chain level-up fought at the old max.
-
-   This is that trigger's derivation, restated over the same curve
-   (src/core/xp.js is what hr_xp_table is generated from), and NOTHING ELSE:
-     · RAISE-ONLY. A ceiling already at or above the level is left alone, as
-       `where ps.max_hp < v_lvl` leaves it.
-     · HP IS NOT TOUCHED. Never a heal. The trigger's "was at full" arm is
-       superseded on every combat settle by hr_apply's own
-       `hp = least(max_hp, delta.hp)`, and a combat delta always carries `hp`,
-       so the settled hp is the engine's — which is what the caller already
-       assigned from the delta.
-     · PRESENCE OF KEY. A session with no numeric `maxHp` has no column to
-       derive into, and must keep reading that way to the engine.
-   Returns the session for chaining. Pure; no authority: the armed write is
-   still the trigger's, and this only keeps the in-memory copy honest. */
-export function raiseMaxHpToLevel(char) {
-  if (!char || typeof char.maxHp !== 'number' || !Number.isFinite(char.maxHp)) return char;
-  const xp = Math.max(0, Number((char.skills || {}).hitpoints) || 0);
-  const lvl = Math.max(1, levelFromXp(xp));
-  if (char.maxHp < lvl) char.maxHp = lvl;
-  return char;
-}
-
 /* BYTES, NOT UTF-16 CODE UNITS (Security S-4, 2026-09-23). The column's CHECK
    in 2026-09-23-world-tick-shadow-state-chain.sql §1 is
    `octet_length(shadow_state::text) <= 16384` and the fence re-checks the same
@@ -438,7 +399,6 @@ export function shadowStateOf(char, opts) {
      through the chain, or the overlay would turn an ABSENT input into an
      explicit one and the engine would start proposing a key hr_apply refuses. */
   if (typeof c.hp === 'number') st.hp = Math.floor(c.hp);
-  if ('recoveringUntilMs' in c) st.recovering_until = c.recoveringUntilMs || 0;
   if ('fight' in c) st.fight = c.fight;
   if ('ammoCarry' in c) st.ammo_carry = c.ammoCarry;
   if ('toolCarry' in c) st.tool_carry = c.toolCarry;
@@ -481,7 +441,6 @@ export function applyShadowState(session, state) {
   if (Number(st.base_version) !== Number(s.version)) return s;
 
   if (typeof st.hp === 'number') s.hp = st.hp;
-  if ('recovering_until' in st) s.recoveringUntilMs = st.recovering_until || 0;
   if ('fight' in st) s.fight = st.fight;
   if ('ammo_carry' in st) s.ammoCarry = st.ammo_carry;
   if ('tool_carry' in st) s.toolCarry = st.tool_carry;
@@ -494,9 +453,6 @@ export function applyShadowState(session, state) {
     const skills = Object.assign({}, s.skills);
     for (const k of Object.keys(st.xp)) skills[k] = (skills[k] || 0) + Number(st.xp[k] || 0);
     s.skills = skills;
-    /* The carrier holds the hitpoints xp, so it holds the ceiling: re-derive
-       it exactly as the fire that carried it did (raiseMaxHpToLevel). */
-    if ('hitpoints' in st.xp) raiseMaxHpToLevel(s);
   }
   /* PRESENCE OF KEY: only a session whose envelope projects the remainder
      (`xpFrac` non-null) takes the carried one, so a database without the

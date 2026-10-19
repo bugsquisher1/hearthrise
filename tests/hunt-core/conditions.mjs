@@ -82,22 +82,26 @@ const BLOCK = (monster) => [[15, 4], [16, 4], [17, 4], [15, 5], [16, 5], [17, 5]
 const heroRow = (M, o) => Object.assign({ hs: supplySession(M, o && o.session), actionSet: 'hunt', range: 1 }, o || {});
 
 /* ── THE SPAN MEMBER: a hero of `role` with its own slots, bag and snapshot (the one span reads it) ── */
+/* FIXTURE vitals per role (fixture data, not game data: a role sets no vitals, src/core/vitals.js does).
+   HP on the core model's scale (monster blows and food x12, CORE_NUMBERS Q3); mana as the old fixture had it. */
+const FIX = Object.freeze({ tank: [2400, 60], melee_dps: [2400, 60], ranger: [1800, 100], mage: [1440, 320], healer: [1620, 300] });
 function member(M, key, role, o) {
   const x = o || {};
   const R = M.roles.HUNT_ROLES[role];
   const hs = M.AR.newHuntSession({ id: 'ae-' + key, instanceId: 'ae', huntFromMs: T0, nextSwingAtMs: T0,
     bag: x.bag || {}, onEmpty: 'switch', supplySource: 'mine', purse: 0,
-    fallsLimit: 9, staminaMs: 8 * 3600000, staminaMaxMs: 8 * 3600000 });
-  const state = { skills: {}, playerHp: x.hp ?? R.hp, playerMaxHp: x.hp ?? R.hp, stats: {}, gold: 0, recoveringUntilMs: 0 };
+    staminaMs: 8 * 3600000, staminaMaxMs: 8 * 3600000 });
+  const hp = x.hp ?? FIX[role][0];
+  const state = { skills: {}, levelXp: 0, playerHp: hp, playerMaxHp: hp, playerMaxMana: FIX[role][1], regenPm: 1000, stats: {}, gold: 0 };
   const kills = []; const loot = [];
   return {
-    key, seat: x.seat || 0, unitId: null, hs, state, style: null,
+    key, seat: x.seat || 0, unitId: null, hs, state, family: 'hammer', armoured: false, shield: false,
     bonus: () => 0, weakness: () => ({ dropMult: 1 }),
     snapshot: () => ({ acc: x.acc ?? 900, maxHit: x.maxHit ?? 6, def: x.def ?? 4 }),
-    fx: { addXp() {}, addItem(id, n) { loot.push([id, n]); }, onLoot() {}, onDrop() {}, updateDaily() {},
+    fx: { addXp() {}, addLevelXp() {}, addItem(id, n) { loot.push([id, n]); }, onLoot() {}, onDrop() {}, updateDaily() {},
       updateQuest(t) { if (t === 'kill') kills.push(1); } },
     _loot: loot,
-    hero: { role, maxMana: R.mana, element: '', settings: null, slots: rows(x.slots || []), stopRules: M.cond.heroStopRules(x.stopRules || []),
+    hero: { role, element: '', settings: null, slots: rows(x.slots || []), stopRules: M.cond.heroStopRules(x.stopRules || []),
       density: x.density ?? 0, actionSet: 'hunt', range: R.range, ammo: x.ammo || null },
   };
 }
@@ -107,7 +111,7 @@ const HAVOC = 'steel_arrows'; const BURST = 'iron_arrows';
 function party(M, o) {
   const x = o || {};
   return [
-    member(M, 'a-knight', 'tank', { seat: 0, hp: 160, def: 2, maxHit: 5 }),
+    member(M, 'a-knight', 'tank', { seat: 0, hp: 1920, def: 2, maxHit: 5 }),
     member(M, 'b-ranger', 'ranger', { seat: 1, ammo: 'bronze_arrows', maxHit: 4,
       bag: { bronze_arrows: { loaded: 50 }, [HAVOC]: { loaded: x.havoc ?? 6 }, [BURST]: { loaded: 500 } },
       slots: [slot('attack_with_item', HAVOC, [c('enemies_in_aoe', 'gte', 4)], 'and', 'havoc'), slot('attack_with_item', BURST, [c('enemies_in_aoe', 'gte', 2)], 'and', 'burst')] }),
@@ -373,7 +377,8 @@ const cases = {
       if (m.yieldPm !== pm) return n + ' heroes: the monster pays ' + m.yieldPm + ' permille, the ruling says ' + pm;
       /* per HP dealt: the kill XP it pays over its HP, against the row's, within one XP of rounding */
       const xp = Math.round(row.xp * m.yieldPm / 1000);
-      if (Math.abs(xp / m.maxHp - row.xp / row.hp) > 1 / m.maxHp + 1e-9) return n + ' heroes: ' + xp + ' XP for ' + m.maxHp + ' HP vs ' + row.xp + ' for ' + row.hp;
+      /* within one XP of rounding and one HP of the scaled pool's rounding */
+      if (Math.abs(xp / m.maxHp - row.xp / row.hp) > (1 + row.xp / row.hp) / m.maxHp + 1e-9) return n + ' heroes: ' + xp + ' XP for ' + m.maxHp + ' HP vs ' + row.xp + ' for ' + row.hp;
     }
     /* every chance scales: a drop (a sure one too) and the Hearthfind */
     const ch = M.drops.effectiveDropChance({ ch: 0.2 }, { yieldMult: 0.55 }); const sure = M.drops.effectiveDropChance({ ch: 1 }, { yieldMult: 0.55 });
@@ -701,6 +706,7 @@ for (const [cn, fn] of Object.entries(cases)) {
 }
 if (!process.argv.includes('--no-mutate')) {
   for (const mu of mutants) {
+    if (!cases[mu.case]) { R.ok(false, 'mutant "' + mu.name + '" names no case ' + mu.case); continue; }
     if (only.length && !only.includes(mu.case)) continue;
     const p = plant(mu.edits);
     try {

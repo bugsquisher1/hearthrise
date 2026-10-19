@@ -34,7 +34,9 @@ export * as rested from './rested.js?v=0.2.2';
 export * as tools from './tools.js?v=0.2.2';
 export * as farm from './farm.js?v=0.2.2';
 export * as progression from './progression.js?v=0.2.2';
-export * as styles from './styles.js?v=0.2.2';
+/* THE CORE MODEL'S VITALS (docs/design/CORE_MODEL.md §3): max HP and mana from
+   Level and armour weight, the regen rate from Prayer. */
+export * as vitals from './vitals.js?v=0.2.2';
 export * as artisan from './artisan.js?v=0.2.2';
 /* b357 — THE CONSUMPTION SEAM. Authored ahead of its consumers on purpose:
    Fletching, Runecrafting and Stonemason are all specified against one field
@@ -47,12 +49,6 @@ export * as artisan from './artisan.js?v=0.2.2';
    through `spendForSwings` on every tick — live and away, ctx-blind, so the
    quiver drains identically down both paths. */
 export * as ammo from './ammo.js?v=0.2.2';
-/* Auto-eat is the ONE fx handler combat-sim.js calls that the server accrual
-   engine did not implement, and a missing handler is a silent no-op — so the
-   server's character died early and the night stopped paying (measured: -63%
-   to -99% of an absence). The DECISION now lives here so both sides run the
-   same predicate; each caller keeps its own apply step. */
-export * as autoEat from './auto-eat.js?v=0.2.2';
 /* The away/active unification (docs/design/away-time-ruling.md). `away` is
    the contract as data, `botd` the featured-boss rotation as a function of a
    timestamp, `buffs` the registry plus the clock as a function of elapsed

@@ -372,6 +372,10 @@ export function auditRoster(MONSTERS) {
     if (ov.length > 1) problems.push(id + ': TWO overrides (' + ov.join(' + ') + ') — the rule is at most one');
 
     // Tier band — the pacing curve.
+    /* A PLACED monster (it carries a `level`: CORE_MODEL.md §4) has its kill XP set by
+       the Level curve's per-ground guard (tests/level-curve.mjs: in-range XP/h within
+       ±20% of the line), not by the tier's old XP band; every other stat stays banded. */
+    const banded = (k) => (Number.isInteger(m.level) ? ['hp', 'atk', 'def'] : ['hp', 'atk', 'def', 'xp']).includes(k);
     if (!TIER_BANDS[m.tier]) { problems.push(id + ': tier ' + m.tier + ' has no band'); return; }
     /* A champion is checked against championBand instead, and must not also
        claim to be a boss (two flags, two sets of rules — pick one). */
@@ -381,7 +385,7 @@ export function auditRoster(MONSTERS) {
     if (champ && form) problems.push(id + ': a champion cannot also be a formation row');
     if (form) {
       if (!FORMATION_BANDS[m.tier]) { problems.push(id + ': formation tier ' + m.tier + ' has no band'); return; }
-      ['hp', 'atk', 'def', 'xp'].forEach((k) => {
+      ['hp', 'atk', 'def', 'xp'].filter(banded).forEach((k) => {
         if (!inFormationBand(m.tier, k, m[k], m.boss)) {
           problems.push(id + ': T' + m.tier + ' formation' + (m.boss ? ' boss ' : ' ') + k + '=' + m[k] + ' outside band ['
             + formationBand(m.tier, k, m.boss).join(',') + ']');
@@ -400,7 +404,7 @@ export function auditRoster(MONSTERS) {
     }
     const fits = champ ? inChampionBand : inBand;
     const bandOf = (k) => (champ ? championBand(m.tier, k) : TIER_BANDS[m.tier][k]) || [];
-    ['hp', 'atk', 'def', 'xp'].forEach((k) => {
+    ['hp', 'atk', 'def', 'xp'].filter(banded).forEach((k) => {
       if (!fits(m.tier, k, m[k])) {
         problems.push(id + ': T' + m.tier + (champ ? ' champion ' : ' ') + k + '=' + m[k] + ' outside band ['
           + bandOf(k).join(',') + ']');

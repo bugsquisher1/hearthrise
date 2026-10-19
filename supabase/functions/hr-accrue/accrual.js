@@ -84,8 +84,8 @@
 // ============================================================================
 
 import {
-  DEFAULT_PROFILE, swingIntervalMs, COMBAT_BALANCE,
-  equipmentStats, armorSetBonus, playerCombatRolls, weaknessInfo, prayerWardPct,
+  DEFAULT_PROFILE, COMBAT_BALANCE,
+  equipmentStats, armorSetBonus, playerCombatRolls, weaknessInfo,
 } from '../../../src/core/combat.js';
 /* THE ONE COMBAT LOOP (src/core/combat-sim.js simulateHuntInstance): a fight is a
    hunt instance, solo or party, priced only by accrueHunt below. */
@@ -105,7 +105,7 @@ import { BENCH_COUNTERS } from '../../../src/core/artisan.js';
    both the server and (through core-bridge) the client — the flip from
    last-window to first-window crediting is a property of the away model, not a
    line of arithmetic each side gets to write for itself. */
-import { creditWindow, recoveryRefuses } from '../../../src/core/away.js';
+import { creditWindow } from '../../../src/core/away.js';
 import { createRng } from '../../../src/core/rng.js';
 /* NAMED HUNTS (lane C1). A combat pointer names a hunt (src/data/hunts.js). */
 import { huntFor } from '../../../src/core/hunt-spawn.js';
@@ -125,8 +125,11 @@ import { tallyEvents } from '../../../src/core/hunt/tally.js';
    it moves no seeded roll and away == live stays byte-identical (AWAY-1). */
 import { accrueRestedXp as coreAccrueRested } from '../../../src/core/rested.js';
 import { grantXp, normaliseXpFrac, xpFracChanges } from '../../../src/core/progression.js';
-import { resolveStyle, normaliseStyleKeys } from '../../../src/core/styles.js';
-import { levelFromXp } from '../../../src/core/xp.js';
+import { skillLevelFromXp, charLevelFromXp } from '../../../src/core/xp.js';
+/* THE CORE MODEL'S VITALS (docs/design/CORE_MODEL.md §3): max HP and mana from
+   Level and armour weight, the regen rate from Prayer; derived, never stored. */
+import { vitalsOf, wearsArmour } from '../../../src/core/vitals.js';
+import { HUNT_ROLES } from '../../../src/data/hunt-roles.js';
 /* THE PERMANENT PERK CHANNEL — the same module src/legacy.js getBonus is layer
    0 of. `makeBonus(perkState)` replaces `zeroBonus` at every site below. */
 import { makeBonus, EMPTY_PERKS } from '../../../src/core/perks.js';
@@ -516,13 +519,6 @@ export const SKIP = {
      nothing", which is where this whole item started. */
 export const PAYABLE_KINDS = Object.freeze(['combat', 'gather', 'artisan']);
 
-/* THE DEATH-ROW CEILING (Recovery rev. 2, N3). hr_apply enforces its own copy —
-   this one exists so a pathological span proposes a delta hr_apply will accept
-   rather than one it refuses outright, which would cost the player the window
-   instead of the tail of a list. 24 is comfortably above the ~20 the ladder's
-   own 64-minute cap allows in a twelve-hour night. */
-export const MAX_DEATH_ROWS = 24;
-
 /* ── KIND → THE FUNCTION THAT PRICES IT ────────────────────────────────────
    The mechanism the block above could not previously claim, made real: this is
    what `computeAccrual`'s branch DISPATCHES ON, and tests/artisan-accrual.mjs
@@ -646,34 +642,6 @@ export function bonusFor(perkState, buffHost, away) {
    evaluated until the simulation asks for a key. */
 export function liveBuffHost(get) {
   return { get buffs() { return get(); } };
-}
-
-/**
- * The swing interval, DERIVED — never accepted.
- *
- * `ticks = floor(elapsed / tickMs)` makes this a DIVISOR of elapsed time and
- * therefore the largest single lever in the whole grant: a 12h absence at the
- * honest 2.4s swing budgets ~18,000 ticks; at 1ms it budgets ~43,200,000.
- * (design §3, "interval_ms is the accrual engine's largest lever".)
- *
- * b329: this used to be a HAND COPY of the client's combatTickMs(), annotated
- * "byte-for-byte the same expression". It is now literally the same function —
- * `src/core/combat.js swingIntervalMs()` — because the moment a third speed
- * term arrived (the style's `speedMod`), "byte-for-byte by comment" was one
- * edit away from being false, and two intervals is exactly how a hammer came to
- * swing 26% more often asleep than awake (combat-sim.js header, omission 10).
- *
- * `style` is still DERIVED, never accepted: the caller resolves it from the
- * server-owned weapon family, and `swingIntervalMs` clamps `speedMod` to
- * [1.00, 2.00], so no style row — present, absent or hostile — can shrink the
- * divisor below the family baseline.
- *
- * @param equipment  server-owned { equip_slot: item_id }
- * @param items      the ITEMS catalogue
- * @param style      the resolved COMBAT_STYLES row (optional)
- */
-export function deriveTickMs(equipment, items, style) {
-  return swingIntervalMs(equipmentStats(equipment, items), style);
 }
 
 /** The stat profile, derived from the equipped weapon family. Mirrors
@@ -947,19 +915,6 @@ export function accrueRested({ nowMs, restedAtMs, restedXp, libraryCap }) {
  *                  without the column. Only a FRACTIONAL rung is affected, and
  *                  only by under-charging (< 1 item per settled window), which
  *                  is the safe direction. See src/core/ammo.js.
- *   recoveringUntilMs
- *                player_state.recovering_until in ms — the RECOVERY LINE
- *                (First-Night Idle Rescue). An ABSOLUTE server instant before
- *                which the character is Knocked Out: no swing, no gather, no
- *                XP, no loot, no food. Written only by hr_apply, never by any
- *                client, and never a per-window counter — the ~90 s live settle
- *                cadence would re-zero a counter and make Recovery free (R1).
- *                **NULL means the column does not exist**; 0 means the column
- *                exists and the character is up. The switch is the KEY'S
- *                PRESENCE in hr_state_of's envelope rather than `?? null`,
- *                because null is the ordinary value — see index.ts's field.
- *                Null ⇒ the engine omits `recovering_until` from the delta,
- *                which is byte-for-byte the pre-Recovery behaviour.
  *   buffs        THE CONSUMABLE BUFF QUEUE (2026-09-13) — the envelope's OWN
  *                top-level `buffs` block, i.e. player_state.buffs projected as
  *                [{type, magnitude, until, remaining_ms}]. Written ONLY by
@@ -1147,41 +1102,8 @@ export function computeAccrual(input) {
   // paid for more time than the activity has actually existed.
   const sinceMs = nat(inp.activeSinceMs, accruedToMs);
 
-  /* ── (1-r) KNOCKED OUT TIME IS NOT PAYABLE TIME (Recovery rev. 3, R2) ─────
-     `player_state.recovering_until` is an ABSOLUTE server instant before which
-     this character may not FIGHT. Rev. 2 read it as "earns nothing" and made
-     the floor apply to every payable kind except combat; the designer ruling
-     of 2026-09-08 (rev. 3) narrows it: a knockout stops you fighting, it does
-     not lock you out of the world. Gathering and the benches pay in FULL
-     through a knockout, at the ordinary rate, with no tax.
-       · There is ONE definition of "which kinds does recovery refuse", and it
-         is `recoveryRefuses()` in src/core/away.js — the same predicate the
-         declaration gate in set-activity.js asks. This file does not restate
-         `'combat'`; the day the catalogue changes, it changes there.
-       · COMBAT — the one kind the predicate refuses — is NOT subtracted here
-         either: it is gated inside the simulation (`simulateSpan` spends
-         recovery ticks without swinging), because the combat path is the one
-         that can CREATE a recovery mid-window and so needs a timeline rather
-         than a subtraction. The floor stays in the code as the seam the
-         predicate drives, so a future refused kind WITHOUT a timeline gets the
-         prefix subtraction for free.
-     Clamped to `nowMs` so a line in the future cannot push the floor past the
-     present and mint a negative span. Self-configuring on the column exactly
-     like the combat seed below: absent ⇒ 0 ⇒ byte-for-byte the old behaviour. */
-  const recoverColIn = inp.recoveringUntilMs !== null && typeof inp.recoveringUntilMs !== 'undefined';
-  /* The second clause is NOT a second copy of the recovery catalogue: it names
-     a different property — this kind is SIMULATED tick by tick below, so its
-     recovery is spent on the timeline (RECOVER-2 pins that a pure-recovery
-     combat window still applies and carries the line forward; a prefix
-     subtraction here would skip it and re-price the knockout for ever). */
-  const simulatesRecovery = (kind) => kind === 'combat';
-  const recoverFloorMs = (recoverColIn && recoveryRefuses(inp.activeKind)
-    && !simulatesRecovery(inp.activeKind))
-    ? Math.min(nat(inp.recoveringUntilMs, 0), nowMs) : 0;
-  /* The floor the paid window starts at. `accrued_to` still advances to now()
-     in the delta — the forfeited knockout is a FORFEIT, not a deferral, exactly
-     like the over-cap tail. */
-  const payFromMs = Math.max(accruedToMs, recoverFloorMs);
+  /* The floor the paid window starts at: the watermark. */
+  const payFromMs = accruedToMs;
 
   const elapsedMs = Math.max(0, nowMs - payFromMs);
   const sinceActivityMs = Math.max(0, nowMs - sinceMs);
@@ -1234,8 +1156,6 @@ export function computeAccrual(input) {
      `grantMs` is UNCHANGED by this — only its POSITION on the timeline moves.
      An uncapped absence is byte-identical, because W + grantMs === nowMs there. */
   const credit = creditWindow({
-    /* `payFromMs`, NOT `accruedToMs` — see (1-r). For combat the two are the
-       same value and this line is byte-identical to the shipped one. */
     watermarkMs: payFromMs, activeSinceMs: sinceMs, nowMs, grantMs,
   });
   const unpaidMs = credit.unpaidMs;
@@ -1291,20 +1211,27 @@ export function encodeWorld(world) { return JSON.stringify(encodeWorldRow(world)
 const NEUTRAL_FOE = Object.freeze({});
 export function heroSnapshot(state, c) {
   const roll = playerCombatRolls(NEUTRAL_FOE, { eq: c.eq, equipment: c.equipment, items: c.items, skills: state.skills,
-    bonus: c.bonus, setBonus: c.setBonus, profile: c.profile, style: c.style });
+    bonus: c.bonus, setBonus: c.setBonus, profile: c.profile });
   const def = Math.floor((Number(levelsOf(state.skills).defense) || 1) + (Number(c.eq.defB) || 0) + (Number(c.bonus('defense')) || 0));
-  return { acc: Math.round(roll.accuracy * 1000), maxHit: Math.max(1, Math.floor(roll.maxHit)), def, ward: Math.floor(prayerWardPct(state.skills)) };
+  return { acc: Math.round(roll.accuracy * 1000), maxHit: Math.max(1, Math.floor(roll.maxHit)), def };
 }
 
-/* THE LOADOUT a hero fights with: the worn set's stats, its armour-set bonus,
-   the stat profile its weapon family reads and THE PLAYER'S CHOSEN STYLE, from
-   server state (hr_set_style validated it). One assembly for the hunt member
-   and the character sheet (./character-sheet.js), so the sheet shows the
-   numbers a fight is priced by. */
-export function loadoutOf(equipment, combatStyle, items) {
+/* THE LOADOUT a hero fights with: the worn set's stats, its armour-set bonus
+   and the stat profile its weapon family reads, from server state. One assembly
+   for the hunt member and the character sheet (./character-sheet.js), so the
+   sheet shows the numbers a fight is priced by. There is no combat style to
+   pick: the weapon family is the style (CORE_MODEL.md §4). */
+export function loadoutOf(equipment, items) {
   const eq = equipmentStats(equipment, items);
-  return { eq, setBonus: armorSetBonus(equipment, items), profile: deriveProfile(eq.weaponType),
-    style: resolveStyle(eq.weaponType, normaliseStyleKeys({ ...(combatStyle || {}) })) };
+  return { eq, setBonus: armorSetBonus(equipment, items), profile: deriveProfile(eq.weaponType) };
+}
+
+/* A member's vitals at its state NOW (src/core/vitals.js), into the state the engine reads. */
+function applyVitals(state, equipment, items) {
+  const v = vitalsOf({ levelXp: state.levelXp, skills: state.skills, equipment, items });
+  state.playerMaxHp = Math.max(state.playerMaxHp || 0, v.maxHp);
+  state.playerMaxMana = Math.max(state.playerMaxMana || 0, v.maxMana);
+  state.regenPm = v.regenPm;
 }
 
 /* ONE MEMBER'S SIDE OF THE SPAN: its state, its value sinks and the counters
@@ -1313,25 +1240,30 @@ export function loadoutOf(equipment, combatStyle, items) {
 function memberSide(mi, ctx) {
   const items = ctx.items;
   const equipment = mi.equipment || {};
-  const { eq, setBonus, profile, style } = loadoutOf(equipment, mi.combatStyle, items);
-  const maxHp = Math.max(1, nat(mi.maxHp, 10));
+  const { eq, setBonus, profile } = loadoutOf(equipment, items);
   const skills0 = {};
   for (const k in (mi.skills || {})) skills0[k] = nat(mi.skills[k], 0);
+  const levelXp0 = Math.floor(nat(mi.levelXp, 0));
   const xpFrac0 = normaliseXpFrac(mi.xpFrac);
   const state = {
-    playerHp: Math.min(maxHp, Math.max(0, nat(mi.hp, maxHp))),
-    playerMaxHp: maxHp,
+    playerHp: 0,
+    playerMaxHp: 0,
+    playerMaxMana: 0,
+    regenPm: 1000,
+    levelXp: levelXp0,                       // the character's Level XP (a COPY the death debits)
     gold: 0,                                 // a DELTA accumulator (hr_apply's gold is a delta)
     skills: { ...skills0 },                  // a COPY: grantXp mutates it
     xpFrac: xpFrac0 ? { ...xpFrac0 } : undefined,
     stats: {},
-    recoveringUntilMs: nat(mi.recoveringUntilMs, 0),
     /* THE TIMED BUFF QUEUE, re-measured at every swing boundary (buffsAt below)
        from the server's absolute rows, so a buff pays exactly while it runs
        however the windows are cut (TICK-1). A hunt FIRES no buff (buff foods are
        parked; food is HP, drink is mana): it only reads the queue. */
     buffs: [],
   };
+  applyVitals(state, equipment, items);
+  state.playerHp = Math.min(state.playerMaxHp, Math.max(0, nat(mi.hp, state.playerMaxHp)));
+  let levelGained = 0;
   const buffRows = Array.isArray(mi.buffs) ? mi.buffs : [];
   const bonus = bonusFor(mi.perks, liveBuffHost(() => state.buffs));
   const goals = makeGoalCounter();
@@ -1346,17 +1278,26 @@ function memberSide(mi, ctx) {
        projected it at the window start; kill coins join it as they drop. */
     purse: nat(mi.gold, 0) }));
   const fx = {
-    /* XP through the SHARED grant (PACE, perks, the single floor). Max HP is
-       RAISE-ONLY on a Hitpoints level (lane C2, the FX-4 root cause). */
+    /* SKILL XP through the SHARED grant (perks, the carried remainder). A
+       Prayer level raises the regen rate from the next swing. */
     addXp(skillId, amt) {
       const before = Number(state.skills[skillId]) || 0;
-      const res = grantXp(state, skillId, amt, { bonus, xpB: eq.xpB || 0, restedQuantum: 0, authored: false });
+      grantXp(state, skillId, amt, { bonus, restedQuantum: 0, authored: false });
       const applied = (Number(state.skills[skillId]) || 0) - before;
       if (applied > 0) xpGained[skillId] = (xpGained[skillId] || 0) + applied;
       hs.tally.xp[skillId] = (hs.tally.xp[skillId] || 0) + (Number(amt) || 0);
-      for (const ev of res.events) {
-        if (ev.type === 'levelup' && ev.skill === 'hitpoints' && ev.to > state.playerMaxHp) state.playerMaxHp = ev.to;
-      }
+      if (skillId === 'prayer' && applied > 0) applyVitals(state, equipment, items);
+    },
+    /* LEVEL XP: the kill share xp-share.js already split, whole (Level comes from
+       kills only). A Level raises max HP and max mana from the next swing. */
+    addLevelXp(amt) {
+      const n = Math.max(0, Math.floor(Number(amt) || 0));
+      if (!n) return;
+      const lv0 = charLevelFromXp(state.levelXp);
+      state.levelXp += n;
+      levelGained += n;
+      hs.tally.xp.level = (hs.tally.xp.level || 0) + n;
+      if (charLevelFromXp(state.levelXp) > lv0) applyVitals(state, equipment, items);
     },
     addItem(id, qty) {
       const n = Math.floor(Number(qty) || 0);
@@ -1387,22 +1328,27 @@ function memberSide(mi, ctx) {
     },
   };
   const h = mi.hero || {};
-  const snapCtx = { eq, equipment, items, bonus, setBonus, profile, style };
+  const snapCtx = { eq, equipment, items, bonus, setBonus, profile };
   /* THE ENGINE SEAM a blow is priced through (tests/trophy-call-sites.mjs lifts
      and executes these two lines): the hero's rolls AGAINST the monster it
      swings at — accuracy over the monster's defence and the weapon weakness —
      and the weakness the drops and damage read. */
-  const rollsVs = (m) => playerCombatRolls(m, { eq, equipment, items, skills: state.skills, bonus, setBonus, profile, style });
+  const rollsVs = (m) => playerCombatRolls(m, { eq, equipment, items, skills: state.skills, bonus, setBonus, profile });
   const weakness = (m) => weaknessInfo(m, eq);
   /* ⟦end engine seam⟧ */
   return {
-    mi, hs, state, fx, style, eq, skills0, xpFrac0, catalogue: items, goals, bestiary, collection, itemDelta, events, xpGained, finds,
+    mi, hs, state, fx, eq, skills0, levelXp0, levelGained: () => levelGained, xpFrac0, catalogue: items, goals, bestiary, collection, itemDelta, events, xpGained, finds,
     member: {
-      key: mi.key, seat: mi.seat, unitId: Number.isInteger(mi.unitId) ? mi.unitId : null, hs, state, fx, style,
+      key: mi.key, seat: mi.seat, unitId: Number.isInteger(mi.unitId) ? mi.unitId : null, hs, state, fx,
+      /* THE XP ROUTE INPUTS (hunt-rewards.js): the weapon family, whether any armour
+         is worn (Defense trains only then) and whether the hero holds a shield. */
+      family: eq.weaponType,
+      armoured: wearsArmour(equipment, items),
+      shield: !!(HUNT_ROLES[h.role] && HUNT_ROLES[h.role].discipline === 'shield'),
       buffsAt: (atMs) => { state.buffs = buffQueueFromServer(buffRows, atMs); },
       bonus, weakness, rollsVs,
       snapshot: (st) => heroSnapshot(st, snapCtx),
-      hero: { role: h.role, maxMana: h.maxMana, element: h.element || '', settings: h.settings || null,
+      hero: { role: h.role, element: h.element || '', settings: h.settings || null,
         slots: h.slots || [], stopRules: h.stopRules || [], density: h.density || 0,
         actionSet: h.actionSet || 'hunt', range: h.range || 1, ammo: equipment.ammo || null,
         foodBelowPct: h.foodBelowPct, drinkBelowPct: h.drinkBelowPct },
@@ -1429,10 +1375,10 @@ function analyzerOf(sim, unitIds, unitId) {
  * @param inp.ground / inp.grid  the hunt ground row and its walkable grid
  * @param inp.items / inp.monsters  the catalogues
  * @param inp.members  [{ key, user, slot, seat, unitId, session (engine shape
- *        input), hero { role, settings, bar, actionSet, range, maxMana, element,
- *        foodBelowPct, drinkBelowPct }, + the envelope inputs (skills, xpFrac,
- *        hp, maxHp, gold, equipment, combatStyle, inventory, recoveringUntilMs,
- *        deathsTodayBefore, deathsLifetimeBefore, perks, hearthfindReady) }]
+ *        input), hero { role, settings, bar, actionSet, range, element,
+ *        foodBelowPct, drinkBelowPct }, + the envelope inputs (skills, levelXp,
+ *        xpFrac, hp, gold, equipment, inventory, deathsTodayBefore,
+ *        deathsLifetimeBefore, perks, hearthfindReady) }]
  * @returns { accrued, reason?, world, worldSwingFrom, worldSwingTo, settledTo,
  *            track, events, members: [{ key, delta, hunt }] }
  */
@@ -1488,13 +1434,19 @@ function memberDelta(s, summary, fromMs, toMs, tickMs) {
     if (g > 0) xpDelta[k] = g;
   }
   /* THE LEVEL-UPS ARE THE BANKED ONES: the persisted xp plus the proposal,
-     less what this window's falls took back (the database debits it). */
+     less what this window's death took back (the database debits it). */
   const xpLostOf = summary.xpLost || {};
   for (const k in xpDelta) {
     const before = nat(s.skills0[k], 0);
-    const from = levelFromXp(before);
-    const to = levelFromXp(before + xpDelta[k] - (Number(xpLostOf[k]) || 0));
+    const from = skillLevelFromXp(k, before);
+    const to = skillLevelFromXp(k, before + xpDelta[k] - (Number(xpLostOf[k]) || 0));
     for (let lv = from; lv < to; lv++) levelUps.push({ skill: k, from: lv, to: lv + 1 });
+  }
+  const levelGain = Math.floor(s.levelGained());
+  {
+    const from = charLevelFromXp(s.levelXp0);
+    const to = charLevelFromXp(s.levelXp0 + levelGain - (Number(xpLostOf.level) || 0));
+    for (let lv = from; lv < to; lv++) levelUps.push({ skill: 'level', from: lv, to: lv + 1 });
   }
   const goldDelta = Math.floor(state.gold || 0);
   /* THE ITEM DELTA is the loot (store uses and own bag uses are the session
@@ -1564,26 +1516,21 @@ function memberDelta(s, summary, fromMs, toMs, tickMs) {
   }
   if (itemKinds > 0) delta.items = items_;
   if (Object.keys(xpDelta).length) delta.xp = xpDelta;
+  /* THE LEVEL XP the window's kills paid (hr_apply clamps it by the journalled kills). */
+  if (levelGain > 0) delta.level_xp = levelGain;
   if (s.xpFrac0) {
     const fr = xpFracChanges(s.xpFrac0, state.xpFrac);
     if (Object.keys(fr).length) delta.xp_frac = fr;
   }
   if (progress.length) delta.progress = progress;
-  /* THE RECOVERY LINE, ABSOLUTE, always sent when the column exists (null = up). */
-  if (mi.recoveringUntilMs !== null && mi.recoveringUntilMs !== undefined) {
-    delta.recovering_until = state.recoveringUntilMs > 0 ? new Date(state.recoveringUntilMs).toISOString() : null;
-  }
-  /* ONE death row per fall (a hunt's knockout is the flat KNOCKOUT_MS; the
-     database refuses any other), stating the window-open counters plus the
-     fall's position. */
+  /* THE DEATH ROW (a hero dies once a hunt: the hunt ends `died`), stating the
+     window-open counters and whether food was left in the bag. */
   if (Array.isArray(summary.deathLog) && summary.deathLog.length) {
     const hadFood = Object.keys(hs.bag).some((id) => SUPPLIES[id] && SUPPLIES[id].kind === 'heal' && hs.bag[id].left > 0);
-    delta.deaths = summary.deathLog.slice(0, MAX_DEATH_ROWS).map((d, i) => ({
+    delta.deaths = summary.deathLog.slice(0, 1).map((d) => ({
       monster: String(d.monster || ''),
-      recovery_ms: Math.max(0, Math.floor(Number(d.recoverMs) || 0)),
-      deaths_today: nat(mi.deathsTodayBefore, 0) + i + 1,
-      deaths_lifetime: nat(mi.deathsLifetimeBefore, 0) + i + 1,
-      resume_hp: Math.max(0, Math.floor(Number(d.resumeHp) || 0)),
+      deaths_today: nat(mi.deathsTodayBefore, 0) + 1,
+      deaths_lifetime: nat(mi.deathsLifetimeBefore, 0) + 1,
       food_in_bag: hadFood,
     }));
   }
@@ -1592,9 +1539,10 @@ function memberDelta(s, summary, fromMs, toMs, tickMs) {
     hunt: huntProposal(hs, s.mi.huntSession ? Math.max(0, Math.floor(Number(s.mi.huntSession.swingIndex) || 0)) : 0,
       settledTo, summary, tickMs),
     maxHp: state.playerMaxHp,
+    maxMana: state.playerMaxMana,
     levelUps,
     events,
-    summary: { ...summary, gold: goldDelta, xp: xpDelta, items: items_, levelUps },
+    summary: { ...summary, gold: goldDelta, xp: xpDelta, levelXp: levelGain, items: items_, levelUps },
   };
 }
 
@@ -1602,8 +1550,8 @@ function memberDelta(s, summary, fromMs, toMs, tickMs) {
    What hr_hunt_apply_member hands hr_hunt_settle_session in the SAME
    transaction as the hr_apply delta. Every value is the span's own statement
    about THIS window; the database re-proves each one from server state (swing
-   CAS, window bounds, bag sufficiency, per-lane use caps, falls = the death
-   rows hr_apply just wrote, every end re-derived, the store re-priced).
+   CAS, window bounds, bag sufficiency, per-lane use caps, a `died` end = the
+   death row hr_apply just wrote, every end re-derived, the store re-priced).
    `uses` / `buys` ARE THE SUPPLY LEDGER (spec §3.8): own units leave the bag
    and are journalled `supply_own` (no gold); store units are priced from the
    catalogue and journalled `supply_buy` (gold). The hints are TIMES ONLY; a
@@ -1614,11 +1562,11 @@ export function huntProposal(hs, swingFrom, settledToMs, summary, tickMs) {
   const t = hs.tally || {};
   const pos = (o) => Object.fromEntries(Object.entries(o || {})
     .map(([id, n]) => [id, Math.floor(Number(n) || 0)]).filter(([, n]) => n > 0));
-  const hints = { slot_dry: {}, fall: [], rare_drop: [] };
+  const hints = { slot_dry: {}, death: [], rare_drop: [] };
   for (const e of (summary && Array.isArray(summary.huntEvents) ? summary.huntEvents : [])) {
     if (!e) continue;
     if (e.type === 'slot_dry' && e.item && !(e.item in hints.slot_dry)) hints.slot_dry[e.item] = Math.floor(e.atMs);
-    else if (e.type === 'fall') hints.fall.push(Math.floor(e.atMs));
+    else if (e.type === 'death') hints.death.push(Math.floor(e.atMs));
   }
   const rawXp = {};
   for (const k of Object.keys(t.xp || {})) {
@@ -1632,9 +1580,6 @@ export function huntProposal(hs, swingFrom, settledToMs, summary, tickMs) {
     to: huntIso(settledToMs),
     next_swing_at: huntIso(next),
     uses: pos(t.supplies),
-    falls: Math.max(0, Math.floor(Number(hs.falls) || 0)),
-    down: !!hs.down,
-    down_ms: Math.max(0, Math.floor(Number(t.downMs) || 0)),
     paid_ms: Math.max(0, Math.floor(Number(t.paidMs) || 0)),
     raw_xp: rawXp,
     hints,
@@ -1643,11 +1588,11 @@ export function huntProposal(hs, swingFrom, settledToMs, summary, tickMs) {
     cover: pos(t.covered),
     /* THE STAMINA POOL AT `to`, walked swing by swing from the database's own
        start value (hr_stamina_of); re-bounded there against this window's
-       paid / knocked-out time and the death rows' recovery. */
+       paid time. */
     stamina: hs.staminaMs === null || hs.staminaMs === undefined ? null : Math.max(0, Math.floor(Number(hs.staminaMs))),
-    /* THE PRICE OF EACH FALL, one `{skill: xp}` per death row, in order. */
+    /* THE PRICE OF THE DEATH, `{ level?, <skill>?: xp }` for the death row (at most one). */
     death_xp: ((summary && Array.isArray(summary.deathLog)) ? summary.deathLog : [])
-      .slice(0, MAX_DEATH_ROWS).map((d) => Object.assign({}, (d && d.xpLost) || {})),
+      .slice(0, 1).map((d) => Object.assign({}, (d && d.xpLost) || {})),
     /* THE HERO'S UNIT in the instance world (null once it has left). */
     unit_id: summary && Number.isInteger(summary.unitId) ? summary.unitId : null,
     tick_ms: tickMs,
@@ -2647,7 +2592,7 @@ function roundCarry(carry) {
 /** Derived levels for the envelope, so the client never computes one. */
 export function levelsOf(skills) {
   const out = {};
-  for (const k in (skills || {})) out[k] = levelFromXp(Number(skills[k]) || 0);
+  for (const k in (skills || {})) out[k] = skillLevelFromXp(k, Number(skills[k]) || 0);
   return out;
 }
 

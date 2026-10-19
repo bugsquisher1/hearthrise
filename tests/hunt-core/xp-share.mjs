@@ -8,14 +8,15 @@ import { spanFixture, runSpan, member, T0 } from './fixtures/h1.js';
 const inst = (w) => ({ world: w, ground: null, grid: null, occ: null });
 const ofType = (sc, t) => sc.events.filter((e) => e.type === t);
 
-/* Kill XP actually credited, per path: the total fx.addXp at multiplier 2 minus at 1 is exactly the kill XP
-   at 1 (hit XP and every die are the same; the multiplier draws nothing). Answers { killXp, monsterXp, kills }. */
+/* Kill XP actually credited, per path: the total fx.addLevelXp at multiplier 2 minus at 1 is exactly the kill XP
+   at 1 (every die is the same; the multiplier draws nothing). Kill XP is the character's LEVEL only
+   (CORE_MODEL.md §4). Answers { killXp, monsterXp, kills }. */
 function creditedKillXp(M, run) {
   const at = (mult) => {
     let xp = 0; let monsterXp = 0; let kills = 0;
     /* Summed in integer milli-XP: hit XP is fractional (HP XP per damage), and a float sum's
        difference is not exact (33.00000000000006). Kill XP is whole, so the rule stays exact. */
-    const fx = { addXp: (sk, n) => { xp += Math.round(n * 1000); },
+    const fx = { addLevelXp: (n) => { xp += Math.round(n * 1000); },
       updateQuest: (type, n, meta) => { if (type === 'kill_monster') { kills++; monsterXp += M.MONSTERS[meta.target].xp; } } };
     run(fx, () => mult);
     return { xp, monsterXp, kills };
@@ -104,12 +105,48 @@ const cases = {
     if (!/xp_group/.test(one)) return 'the fixture never grouped';
     return run([3, 8, 15, 27]) === one ? null : 'a cut changed the +XP groups';
   },
-  /* XP-05: a level event per level crossed, on the one curve (src/core/xp.js). */
+  /* XP-05: a level event per level crossed, on the one curve of each kind (src/core/xp.js): the Level's and a skill's. */
   'level-event': (M) => {
-    const t = M.xpcurve.xpForLevel;
-    const evs = M.xpshare.levelUps(1, 'attack', t(2) - 1, t(4) - t(2) + 1, 500);
-    if (evs.map((e) => e.level).join() !== '2,3,4' || evs.some((e) => e.atMs !== 500 || e.u !== 1)) return 'levels ' + JSON.stringify(evs);
-    return M.xpshare.levelUps(1, 'attack', t(5), 1, 0).length ? 'one XP past a threshold levelled' : null;
+    for (const [skill, t] of [['level', M.xpcurve.charXpForLevel], ['melee', (l) => M.xpcurve.skillXpForLevel('melee', l)]]) {
+      const evs = M.xpshare.levelUps(1, skill, t(2) - 1, t(4) - t(2) + 1, 500);
+      if (evs.map((e) => e.level).join() !== '2,3,4' || evs.some((e) => e.atMs !== 500 || e.u !== 1)) return skill + ' levels ' + JSON.stringify(evs);
+      if (M.xpshare.levelUps(1, skill, t(5), 1, 0).length) return skill + ': one XP past a threshold levelled';
+    }
+    return null;
+  },
+  /* THE XP ROUTES (CORE_MODEL.md §4; CORE_NUMBERS Q4/Q5): a kill pays the Level only; a melee blow pays Melee
+     (hitXpPerDamage per HP), a bow blow Ranged, a staff blow nothing; a monster's blow at an ARMOURED hero pays
+     Defense at defenseXpPerLevelPermille x its level, a miss on a shield-holder blockMult times that; no armour,
+     no Defense. */
+  'xp-routes': async (M) => {
+    const rw = await import(new URL('src/core/hunt-rewards.js', 'file:///' + M.root.replace(/\\/g, '/') + '/').href + M.V);
+    const CX = M.cm.COMBAT_XP;
+    const rat = M.MONSTERS.rat;
+    const pay = (member, events) => {
+      const got = { level: 0 };
+      member.fx = { addXp: (k, n) => { got[k] = (got[k] || 0) + n; }, addLevelXp: (n) => { got.level += n; } };
+      member.state = { stats: {} }; member.hs = { tally: { kills: 0 } };
+      const w = { units: [{ id: 1, side: 'hero', alive: true }, { id: 9, side: 'mon', kind: 'rat', alive: true, hp: 5 }] };
+      rw.rewardSwing(new Map([[1, member]]), events, w, { rng: { int: (a) => a, chance: () => false }, monsters: M.MONSTERS });
+      return got;
+    };
+    const m = (family, armoured, shield) => ({ family, armoured, shield, bonus: () => 0, weakness: () => ({ dropMult: 1 }) });
+    let g = pay(m('sword', false, false), [{ type: 'xp', u: 1, amount: 12 }]);
+    if (g.level !== 12 || Object.keys(g).length !== 1) return 'a kill paid ' + JSON.stringify(g) + ', want the Level only';
+    g = pay(m('sword', false, false), [{ type: 'dmg', u: 1, t: 9, amount: 4 }]);
+    if (g.melee !== 4 * CX.hitXpPerDamage || g.ranged || g.magic) return 'a sword blow paid ' + JSON.stringify(g);
+    g = pay(m('ranged', false, false), [{ type: 'dmg', u: 1, t: 9, amount: 4 }]);
+    if (g.ranged !== 4 * CX.hitXpPerDamage || g.melee) return 'a bow blow paid ' + JSON.stringify(g);
+    g = pay(m('magic', false, false), [{ type: 'dmg', u: 1, t: 9, amount: 4 }]);
+    if (g.magic || g.melee || g.ranged) return 'a staff blow paid damage XP: ' + JSON.stringify(g);
+    const lv = M.monLevelOf(rat);
+    const def = lv * CX.defenseXpPerLevelPermille / 1000;
+    g = pay(m('sword', true, false), [{ type: 'dmg', u: 9, t: 1, amount: 3 }, { type: 'miss', u: 9, t: 1 }]);
+    if (Math.abs((g.defense || 0) - 2 * def) > 1e-9) return 'two blows at an armoured hero paid Defense ' + g.defense + ', want ' + 2 * def;
+    g = pay(m('sword', true, true), [{ type: 'miss', u: 9, t: 1 }]);
+    if (Math.abs((g.defense || 0) - def * CX.blockMult) > 1e-9) return 'a shield block paid Defense ' + g.defense + ', want ' + def * CX.blockMult;
+    g = pay(m('sword', false, true), [{ type: 'dmg', u: 9, t: 1, amount: 3 }, { type: 'miss', u: 9, t: 1 }]);
+    return g.defense ? 'an unarmoured hero trained Defense: ' + g.defense : null;
   },
   /* AB-04: Magic XP = mana x 1.5 x the ability's multiplier. */
   'magic-xp-from-mana': (M) => {
@@ -142,9 +179,19 @@ const mutants = [
   { name: 'the open group is not persisted', case: 'group-survives-a-cut',
     edits: [['src/core/hunt/xp-share.js', "world: Object.freeze([['xpGroup', 'json']])", 'world: Object.freeze([])']] },
   { name: 'the attended kill bypasses the rule', case: 'attended-kill-xp-through-the-rule',
-    edits: [['src/core/hunt-rewards.js', 'for (const g of killXpRoute(m.style, ev.amount, 1))', 'for (const g of killXpRoute(m.style, ev.raw, 1))']] },
+    edits: [['src/core/hunt-rewards.js', "call(m.fx, 'addLevelXp', ev.amount);", "call(m.fx, 'addLevelXp', ev.raw);"]] },
   { name: 'the away kill bypasses the rule', case: 'away-kill-xp-through-the-rule',
-    edits: [['src/core/hunt-rewards.js', 'for (const g of killXpRoute(m.style, ev.amount, 1))', 'for (const g of killXpRoute(m.style, ev.raw, 1))']] },
+    edits: [['src/core/hunt-rewards.js', "call(m.fx, 'addLevelXp', ev.amount);", "call(m.fx, 'addLevelXp', ev.raw);"]] },
+  { name: 'a kill pays a combat skill too', case: 'xp-routes',
+    edits: [['src/core/hunt-rewards.js', "if (m && ev.amount > 0) call(m.fx, 'addLevelXp', ev.amount);", "if (m && ev.amount > 0) { call(m.fx, 'addLevelXp', ev.amount); call(m.fx, 'addXp', 'melee', ev.amount); }"]] },
+  { name: 'a staff blow pays damage XP', case: 'xp-routes',
+    edits: [['src/data/skills.js', "export const DAMAGE_XP_FAMILIES = Object.freeze(['sword', 'hammer', 'axe', 'ranged', 'neutral']);", "export const DAMAGE_XP_FAMILIES = Object.freeze(['sword', 'hammer', 'axe', 'ranged', 'neutral', 'magic']);"]] },
+  { name: 'Defense trains without armour', case: 'xp-routes',
+    edits: [['src/core/hunt-rewards.js', "if (!m || m.armoured !== true || !attacker", "if (!m || !attacker"]] },
+  { name: 'a shield block pays no extra', case: 'xp-routes',
+    edits: [['src/core/hunt-rewards.js', '(missed && m.shield === true ? COMBAT_XP.blockMult : 1)', '1']] },
+  { name: 'Defense ignores the attacker level', case: 'xp-routes',
+    edits: [['src/core/hunt-rewards.js', '(lv * COMBAT_XP.defenseXpPerLevelPermille / 1000)', '(COMBAT_XP.defenseXpPerLevelPermille / 1000)']] },
   { name: 'Magic XP drifts off 1.5', case: 'magic-xp-from-mana',
     edits: [['src/data/hunt-xp.js', 'magicXpPermillePerMana: 1500,', 'magicXpPermillePerMana: 1000,']] },
 ];

@@ -34,14 +34,29 @@ const cases = {
     const ten = runSpan(M, spanFixture(M, 7), Array.from({ length: 5 }, (_, i) => T0 + (i + 1) * 10000));
     return ten === one ? null : 'ten-second windows differ from the one span';
   },
-  /* The instance never pauses for one hero: knocked out, its hero still in the world, the world still steps
-     every boundary (and it stands up on the world's own clock). */
-  'world-steps-every-boundary': (M) => {
-    const fx = spanFixture(M, 7, { spanMs: 100000, members: [member(M, 'a', { unitId: 1, hp: 3, maxHp: 3, acc: 50, maxHit: 1 })] });
+  /* DEATH ENDS THE HUNT (Tyler 2026-10-19): the killed hero's death is priced at once, its hunt ends `died`
+     at its next boundary, it walks home with FULL HP, and an instance with no member left stops stepping. */
+  'death-ends-the-hunt': (M) => {
+    const fx = spanFixture(M, 7, { spanMs: 100000, members: [member(M, 'a', { unitId: 1, hp: 3, maxHp: 3, acc: 50, maxHit: 1, levelXp: 20000 })] });
     runSpan(M, fx, []);
     const m = fx.inst.members[0];
-    if (!(m.hs.falls > 0) || !(m.hs.tally.downMs > 0) || m.hs.endedReason) return 'the fixture never knocks its hero out (or ends the hunt) — the test would prove nothing';
-    return fx.world.swing === 50 ? null : 'the world stepped ' + fx.world.swing + ' of 50 boundaries';
+    if (m.hs.endedReason !== 'died') return 'the hunt did not end `died` (ended ' + m.hs.endedReason + ')';
+    if (m.hs.tally.deaths !== 1) return 'deaths ' + m.hs.tally.deaths + ', want exactly 1';
+    if (m.state.playerHp !== m.state.playerMaxHp) return 'the dead hero came home at ' + m.state.playerHp + ' of ' + m.state.playerMaxHp + ' HP, not full';
+    if (!(m.state.levelXp < 20000)) return 'the death cost no Level XP';
+    if (m.hs.endedAtMs % 2000 !== 0 || m.hs.endedAtMs <= T0) return 'the end is not on a swing boundary: ' + m.hs.endedAtMs;
+    return fx.world.swing < 50 ? null : 'the world kept stepping all 50 boundaries after its only hero died';
+  },
+  /* ONE DEATH ENDS THE PARTY (Tyler 2026-10-19): the survivor ends `party_member_died` at its boundary and pays nothing. */
+  'party-death-ends-everyone': (M) => {
+    const fx = spanFixture(M, 7, { spanMs: 100000, members: [member(M, 'a', { unitId: 1, seat: 0, hp: 3, maxHp: 3, acc: 50, maxHit: 1, levelXp: 20000 }),
+      member(M, 'b', { unitId: 2, seat: 1, hp: 5000, maxHp: 5000, levelXp: 20000 })] });
+    runSpan(M, fx, []);
+    const [a, b] = fx.inst.members;
+    if (a.hs.endedReason !== 'died') return 'the weak hero ended ' + a.hs.endedReason;
+    if (b.hs.endedReason !== 'party_member_died') return 'the survivor ended ' + b.hs.endedReason + ', not party_member_died';
+    if (b.state.levelXp < 20000 || b.hs.tally.deaths !== 0) return 'the survivor paid for a death it did not have';
+    return a.hs.endedAtMs === b.hs.endedAtMs ? null : 'the two ends are not on the same boundary: ' + a.hs.endedAtMs + ' / ' + b.hs.endedAtMs;
   },
   /* AWAY-1: there is no away path — the flag changes nothing. */
   'attended-equals-away': (M) => {
@@ -72,9 +87,14 @@ const mutants = [
   { name: 'encode drops a field (prog)', case: 'split-parity',
     edits: [['src/core/hunt/world-state.js', 'const row = (part, obj) => FIELDS[part].map(([name]) => copy(obj[name]));',
       "const row = (part, obj) => FIELDS[part].map(([name]) => (name === 'prog' ? 0 : copy(obj[name])));"]] },
-  { name: 'the world sleeps while every hero is down', case: 'world-steps-every-boundary',
-    edits: [['src/core/combat-sim.js', '    if (world) {\n      const sw = world.swing;',
-      '    if (world && here.some((m) => (world.units.find((x) => x.id === m.unitId) || {}).alive)) {\n      const sw = world.swing;']] },
+  { name: 'a death does not end the hunt', case: 'death-ends-the-hunt',
+    edits: [['src/core/action-rules.js', '  died: (hs) => hs.died === true,', '  died: () => false,']] },
+  { name: 'a dead hero comes home at 0 HP', case: 'death-ends-the-hunt',
+    edits: [['src/core/combat-sim.js', '  if (u) m.state.playerHp = u.alive ? u.hp : m.state.playerMaxHp;', '  if (u) m.state.playerHp = u.alive ? u.hp : 0;']] },
+  { name: 'a death costs no XP', case: 'death-ends-the-hunt',
+    edits: [['src/core/combat-sim.js', "    if (k === 'level') m.state.levelXp = (Number(m.state.levelXp) || 0) - xpLost[k];", "    if (k === 'level') m.state.levelXp = Number(m.state.levelXp) || 0;"]] },
+  { name: 'a party death leaves the survivor hunting', case: 'party-death-ends-everyone',
+    edits: [['src/core/combat-sim.js', '        for (const other of members) if (other !== m && !other.left && !other.hs.died) other.hs.partyDied = true;\n', '']] },
   { name: 'the swing seed is indexed per window', case: 'split-parity',
     edits: [['src/core/combat-sim.js', "rng: createRng(seedOf(ctx, 's', sw))", "rng: createRng(seedOf(ctx, 's', swings))"]] },
   { name: 'a sub-step that is not a whole number', case: 'substeps-divide-swing',

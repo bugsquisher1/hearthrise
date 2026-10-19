@@ -1,10 +1,10 @@
 // ============================================================
 // src/core/action-rules.js — A HUNT SESSION'S SUPPLIES, ITS END ORDER, ITS
-// STAMINA AND THE PRICE OF A FALL (ruling HR-2026-10-14; HUNT_SCREEN_SPEC
+// STAMINA AND THE PRICE OF A DEATH (ruling HR-2026-10-14; HUNT_SCREEN_SPEC
 // §3.4, §3.8; lane S1 2026-10-17).
 //
 // A hunt session is one character's half of a hunt instance: its bag, its
-// purse and shop, its swing clock, its falls, its stamina and its tally. The
+// purse and shop, its swing clock, its stamina and its tally. The
 // caller carries it across settle windows. Its clock is `nextSwingAtMs`: every
 // swing boundary is an absolute instant, so WHERE a settle window splits cannot
 // move a swing, a seed or a use (TICK-1).
@@ -20,9 +20,10 @@
 // ============================================================
 
 import { SUPPLIES } from '../data/supplies.js?v=0.2.2';
-import { END_ORDER, SESSION_LIMITS, DEATH_XP_LOSS, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY } from '../data/hunt-sessions.js?v=0.2.2';
+import { END_ORDER, DEATH_XP_LOSS, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY } from '../data/hunt-sessions.js?v=0.2.2';
 import { CONSUMABLES, CONSUMABLE_KINDS } from '../data/consumables.js?v=0.2.2';
-import { levelFromXp, xpForLevel, MAX_LEVEL } from './xp.js?v=0.2.2';
+import { COMBAT_SKILLS } from '../data/skills.js?v=0.2.2';
+import { skillLevelFromXp, skillXpForLevel, charLevelFromXp, charXpForLevel } from './xp.js?v=0.2.2';
 
 const int = (v, d) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? n : d; };
 
@@ -235,7 +236,10 @@ const at = (ms, t) => ms !== null && ms !== undefined && Number.isFinite(Number(
 
 /* THE END CHECKS, keyed by END_ORDER's names; the order is END_ORDER's. */
 const END_CHECKS = Object.freeze({
-  falls: (hs) => int(hs.falls, 0) >= int(hs.fallsLimit, SESSION_LIMITS.falls.default),
+  /* The hero was killed this span (combat-sim.js die): the hunt ends at the next boundary. */
+  died: (hs) => hs.died === true,
+  /* Another member of the party died this span: the whole party's hunt ends (Tyler 2026-10-19). */
+  party_member_died: (hs) => hs.partyDied === true && hs.died !== true,
   heals_out: (hs) => essentialOut(hs, 'heal'),
   ammo_out: (hs) => essentialOut(hs, 'ammo'),
   gold_out: (hs) => hs.goldOut === true,
@@ -271,33 +275,34 @@ export function staminaStep(ms, intervalMs, hunting, maxMs) {
   return Math.max(v, Math.min(Math.floor(Number(maxMs) || 0), v + d));
 }
 
-/* ── THE PRICE OF A FALL (Tyler 2026-10-14; data row DEATH_XP_LOSS) ─────────
-   Each skill the fight trains — the combat style's XP route, `style.xp`'s
-   keys (Attack when no style resolved) — loses DEATH_XP_LOSS of the XP its
-   CURRENT level needs to reach the next, and only out of the progress made
-   inside that level: never a de-level, 0 at a level floor, 0 at the top level.
-   Integer XP, floored. PURE: it draws no random number. */
-export function deathXpLossFor(xp, fraction = DEATH_XP_LOSS) {
-  const x = Math.max(0, Math.floor(Number(xp) || 0));
-  const lv = levelFromXp(x);
-  if (lv >= MAX_LEVEL) return 0;
-  const floor = xpForLevel(lv);
-  const gap = xpForLevel(lv + 1) - floor;
+/* ── THE PRICE OF A DEATH (Tyler 2026-10-19; hunt-sessions.js DEATH_XP_LOSS) ──
+   LEVEL: the fraction of the character's TOTAL Level XP, never below the start
+   of its current Level (a death never de-levels; 0 at a Level floor).
+   SKILLS: every combat skill (src/data/skills.js COMBAT_SKILLS) loses the same
+   fraction of its PROGRESS toward its next level, never a level.
+   Integer XP, floored. PURE: it draws no random number, and it is read off the
+   state, not applied (the caller debits the same numbers it journals). */
+export function levelDeathLoss(levelXp, fraction = DEATH_XP_LOSS) {
+  const x = Math.max(0, Math.floor(Number(levelXp) || 0));
   const f = Number(fraction);
-  if (!(f > 0) || !(gap > 0)) return 0;
-  return Math.max(0, Math.min(Math.floor(gap * f), x - floor));
+  if (!(f > 0)) return 0;
+  const floor = charXpForLevel(charLevelFromXp(x));
+  return Math.max(0, Math.min(Math.floor(x * f), x - floor));
 }
-/** The skills a fall costs: the style's XP route, sorted (one order, every caller). */
-export function deathXpSkills(style) {
-  const route = style && style.xp && typeof style.xp === 'object' ? Object.keys(style.xp) : ['attack'];
-  return route.slice().sort();
+export function skillDeathLoss(skillId, xp, fraction = DEATH_XP_LOSS) {
+  const x = Math.max(0, Math.floor(Number(xp) || 0));
+  const f = Number(fraction);
+  if (!(f > 0)) return 0;
+  const into = x - skillXpForLevel(skillId, skillLevelFromXp(skillId, x));
+  return Math.max(0, Math.floor(into * f));
 }
-/** One fall's loss as `{skill: xp}` (zeros omitted), read off `skills` and
-    NOT applied — the caller debits the same numbers it journals. */
-export function deathXpLoss(skills, style, fraction = DEATH_XP_LOSS) {
+/** One death's loss as `{ level?: xp, <skill>?: xp }` (zeros omitted), skills in COMBAT_SKILLS order. */
+export function deathXpLoss(state, fraction = DEATH_XP_LOSS) {
   const out = {};
-  for (const k of deathXpSkills(style)) {
-    const n = deathXpLossFor(skills ? skills[k] : 0, fraction);
+  const lv = levelDeathLoss(state && state.levelXp, fraction);
+  if (lv > 0) out.level = lv;
+  for (const k of COMBAT_SKILLS) {
+    const n = skillDeathLoss(k, state && state.skills ? state.skills[k] : 0, fraction);
     if (n > 0) out[k] = n;
   }
   return out;
@@ -334,8 +339,8 @@ function shopTable(t) {
 /**
  * A session in the engine's shape, every field present. The settle builds it
  * from hunt_sessions / hunt_bag / player_action_sets.options (server rows);
- * the engine then owns `nextSwingAtMs`, `swingIndex`, `falls`, `down`,
- * `tally`, the bag's `left`, the purse and the end stamp.
+ * the engine then owns `nextSwingAtMs`, `swingIndex`, `died`, `tally`, the
+ * bag's `left`, the purse and the end stamp.
  */
 export function newHuntSession(o) {
   const s = o || {};
@@ -345,7 +350,6 @@ export function newHuntSession(o) {
     const loaded = Math.max(0, int(l && l.loaded, 0));
     bag[id] = { loaded, left: Math.max(0, int(l && l.left, loaded)), essential: isEssential(id, l) };
   }
-  const lim = SESSION_LIMITS.falls;
   return {
     id: String(s.id || ''),
     /* THE INSTANCE the session hunts in (hunt_instances; solo: the session's
@@ -355,8 +359,9 @@ export function newHuntSession(o) {
     nextSwingAtMs: Math.max(from, int(s.nextSwingAtMs, from)),
     swingIndex: Math.max(0, int(s.swingIndex, 0)),
     bag,
-    falls: Math.max(0, int(s.falls, 0)),
-    fallsLimit: Math.min(lim.max, Math.max(lim.min, int(s.fallsLimit, lim.default))),
+    /* Killed this span (a flag of the span, never stored: the death row is). */
+    died: s.died === true,
+    partyDied: s.partyDied === true,
     hoursLimit: s.hoursLimit === null || s.hoursLimit === undefined ? null : int(s.hoursLimit, null),
     /* THE STORE: the server's catalogue, the ids this hunt's tier resolves
        food and drink to, the purse they are paid from, and "a buy failed". */
@@ -380,8 +385,7 @@ export function newHuntSession(o) {
     leaveAtMs: s.leaveAtMs ?? null,
     changeAtMs: s.changeAtMs ?? null,
     stopAtMs: s.stopAtMs ?? null,
-    down: !!s.down,
-    tally: Object.assign({ swings: 0, kills: 0, deaths: 0, downMs: 0, paidMs: 0, coins: 0,
+    tally: Object.assign({ swings: 0, kills: 0, deaths: 0, paidMs: 0, coins: 0,
       xp: {}, loot: {}, supplies: {}, bought: {}, covered: {} }, s.tally || {}),
     endedReason: s.endedReason || null,
     endedAtMs: s.endedAtMs ?? null,

@@ -55,7 +55,6 @@ export function heroSetup(o) {
     gatherShare: Number.isInteger(opt.gather_share) ? opt.gather_share : 0, gatherInert: true,
     actionSet: pick('action_set', 'hunt'),
     range: row.range,
-    maxMana: row.mana,
     element: '',
     settings: { dist: pick('distance', d.dist), chase: pick('chase', d.chase), tmode: pick('target_mode', d.tmode),
       stance: pick('stance', d.stance) },
@@ -71,8 +70,8 @@ function heroUnit(id, h, partyRoles, tile) {
   const [x, y] = tile;
   return makeUnit({ id, side: 'hero', kind: h.role, pocket: null, alive: true, hp: h.hp ?? h.maxHp, maxHp: h.maxHp,
     x, y, fx: x, fy: y, speed: HUNT_ROLES[h.role].speed, role: h.role, dist: s.dist, chase: s.chase, tmode: s.tmode,
-    stance: s.stance, acc: h.acc, maxHit: h.maxHit, def: h.def || 0, ward: h.ward || 0, element: h.element || '',
-    mana: h.mana ?? h.maxMana ?? 0, maxMana: h.maxMana || 0 });
+    stance: s.stance, acc: h.acc, maxHit: h.maxHit, def: h.def || 0, element: h.element || '',
+    mana: h.mana ?? h.maxMana ?? 0, maxMana: h.maxMana || 0, regenPm: h.regenPm || 1000 });
 }
 
 /**

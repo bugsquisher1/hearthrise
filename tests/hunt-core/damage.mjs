@@ -59,7 +59,7 @@ const cases = {
     if (M.damage.hurt(inst, m, 1, src(M, { stance: 'defensive' }), null, null).dmg !== 1) return 'a 1-point blow into defence dealt nothing';
     return M.damage.hurt(inst, m, 0, src(M), null, null).dmg === 1 ? null : 'a landed blow of 0 must still deal 1';
   },
-  /* The kill hand-off: a monster becomes a corpse, a hero is knocked out for KNOCKOUT_MS; the client hears `kill`. */
+  /* The kill hand-off: a monster becomes a corpse, a hero is DEAD (no knockout: Tyler 2026-10-19); the client hears `kill`. */
   'kill-hand-off': (M) => {
     const k = H(M, 1, 12, 3, 'tank'); const r = H(M, 2, 16, 3, 'ranger', { hp: 5, maxHp: 50 });
     const m = E(M, 3, 0, 13, 3, 1, { hp: 4 });
@@ -73,7 +73,7 @@ const cases = {
     M.damage.landHit(inst, sc, k, E(M, 9, 0, 14, 3, 1, { hp: 50, maxHp: 50 }), 5, 'frost', { id: 'frost_lance' });
     if (!sc.events.some((e) => e.type === 'dmg' && e.t === 9 && e.ability === 'frost_lance' && e.element === 'frost')) return 'an ability hit lost its ability or element';
     M.damage.landHit(inst, sc, m, r, 9, null, null);
-    return !r.alive && r.downMs === M.sessions.KNOCKOUT_MS ? null : 'the hero is not knocked out for KNOCKOUT_MS (' + r.downMs + ')';
+    return !r.alive && r.hp === 0 && !('downMs' in r) ? null : 'the killed hero is not simply dead: ' + JSON.stringify({ alive: r.alive, hp: r.hp, downMs: r.downMs });
   },
   /* RO-19: ranged heroes shoot while moving; Melee only standing on a tile. */
   'ranged-fires-on-move': (M) => {
@@ -110,7 +110,7 @@ const mutants = [
   { name: 'the shield is ignored', case: 'shield-absorbs-first', edits: [[D, '  if (absorbed) target.shield -= absorbed;', '  if (false) target.shield -= absorbed;']] },
   { name: 'no minimum', case: 'min-1', edits: [[D, '  n = Math.max(1, n);', '  n = Math.max(0, n);']] },
   { name: 'dmg forgets its ability', case: 'kill-hand-off', edits: [[D, "      ability: (ability && ability.id) || 'basic', element: element || null, ...(crit ? { crit: true } : {}) }));", '      element: element || null, ...(crit ? { crit: true } : {}) }));']] },
-  { name: 'a fallen hero is not knocked out', case: 'kill-hand-off', edits: [['src/core/hunt/pull-cycle.js', '  u.downMs = KNOCKOUT_MS;', '  u.downMs = 0;']] },
+  { name: 'a killed hero gets back up', case: 'kill-hand-off', edits: [['src/core/hunt/pull-cycle.js', "  if (u.side === 'mon') { u.deadMs = 0; return; }\n  u.spot = null;", "  if (u.side === 'mon') { u.deadMs = 0; return; }\n  u.alive = true; u.hp = 1; u.spot = null;"]] },
   { name: 'Melee swings on the move', case: 'ranged-fires-on-move', edits: [[D, '    if (!row || (row.melee && !atRest(u)) || !inRange(inst, u, t)) continue;', '    if (!row || !inRange(inst, u, t)) continue;']] },
   { name: 'no swing interval', case: 'swing-every-interval', edits: [[D, 'function restart(u) { u.swingLeftMs = COMBAT_BALANCE.tickMs; }', 'function restart(u) { u.swingLeftMs = 0; }']] },
 ];

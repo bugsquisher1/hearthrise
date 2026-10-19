@@ -233,9 +233,6 @@ function emptySummary(spanMs, ctx) {
     intervalMs: 0, slices: 0,
     /* ── the honesty payload (away-time-ruling.md, "Player-facing honesty") ──
        Stated by the simulation, not inferred by a renderer. */
-    /* Ruling 3.5 — reported by `AWAY_SCOPE.blessing`, never restated here.
-       See the long note at the same field in src/core/combat-sim.js. */
-    blessed: channelApplies(CHANNEL.BLESSING, ctx),
     buffsPaused: false,      // buffs pay away and drain away — nothing is paused
     buffPaidMs: 0, buffsExpired: [],
     capped: !!(ctx && ctx.capped),

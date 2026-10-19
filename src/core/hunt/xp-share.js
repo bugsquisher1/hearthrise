@@ -23,7 +23,7 @@
 // ============================================================
 
 import { HUNT_XP } from '../../data/hunt-xp.js?v=0.2.2';
-import { levelFromXp } from '../xp.js?v=0.2.2';
+import { skillLevelFromXp, charLevelFromXp } from '../xp.js?v=0.2.2';
 import { makeEvent } from './events.js?v=0.2.2';
 
 export const PERSISTED = Object.freeze({ unit: Object.freeze([]), world: Object.freeze([['xpGroup', 'json']]), pack: Object.freeze([]) });
@@ -98,10 +98,12 @@ export function flushXpGroup(inst, sc) {
   sc.emit(makeEvent('xp_group', sc.atMs, { amount, by, kills: g.kills, ...centre }));
 }
 
-/** The `level` events of `skill` going from `xpBefore` to `xpBefore + gained` (XP-05). */
+/** The `level` events of `skill` going from `xpBefore` to `xpBefore + gained` (XP-05);
+    `skill` 'level' is the character's Level (src/core/xp.js charLevelFromXp). */
 export function levelUps(u, skill, xpBefore, gained, atMs) {
-  const from = levelFromXp(xpBefore);
-  const to = levelFromXp(xpBefore + gained);
+  const lvOf = (x) => (skill === 'level' ? charLevelFromXp(x) : skillLevelFromXp(skill, x));
+  const from = lvOf(xpBefore);
+  const to = lvOf(xpBefore + gained);
   const out = [];
   for (let lv = from + 1; lv <= to; lv++) out.push(makeEvent('level', atMs, { u, skill, level: lv }));
   return out;

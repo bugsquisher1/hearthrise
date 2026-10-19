@@ -16,13 +16,13 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-export const EVENT_VERSION = 2;
+export const EVENT_VERSION = 3;
 
 /* type → its required fields. `u` acts, `t` is acted on (unit ids). */
 export const EVENT_TYPES = Object.freeze({
   /* the span (combat-sim.js simulateHuntSpan) */
   ended: Object.freeze(['reason']),
-  fall: Object.freeze(['monster', 'xpLost']),
+  death: Object.freeze(['monster', 'xpLost']),
   rare_drop: Object.freeze(['item']),
   slot_dry: Object.freeze(['item']),
   /* leash.js / pull-cycle.js */

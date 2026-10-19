@@ -116,15 +116,12 @@ export function huntSessionFromRead(h, instanceId) {
     nextSwingAtMs: num(h.next_swing_at_ms),
     swingIndex: num(h.swing_index),
     bag: h.bag || {},
-    falls: num(h.falls),
-    fallsLimit: num(h.falls_limit),
     hoursLimit: num(h.hours_limit),
     leaveAtMs: num(h.leave_at_ms),
     changeAtMs: num(h.change_at_ms),
     /* THE KILL SWITCH ends the hunt at its first boundary ('server', END_ORDER
        last), which hr_hunt_settle_session re-proves from hr_hunt_config. */
     stopAtMs: h.enabled === false ? num(h.settled_to_ms) : null,
-    down: h.down === true,
     /* THE STAMINA POOL AT THE WINDOW START and the cap it rests to — the
        database's own hr_stamina_of / hr_stamina_cap, never a client value. */
     staminaMs: num(h.stamina_ms),
@@ -308,9 +305,8 @@ async function memberInput(exec, m, inst) {
     unitId: Number.isInteger(m.unit_id) ? m.unit_id : null,
     sessionId: String(m.session.id), version: env.version, huntId: String(inst.hunt),
     huntSession: huntSessionFromRead(m.session, inst.id),
-    skills: e.skills, xpFrac: e.xpFrac, hp: e.hp, maxHp: e.maxHp, gold: e.gold,
-    equipment: e.equipment, combatStyle: e.combatStyle, inventory: e.inventory, buffs: e.buffs,
-    recoveringUntilMs: e.recoveringUntilMs,
+    skills: e.skills, levelXp: e.levelXp, xpFrac: e.xpFrac, hp: e.hp, gold: e.gold,
+    equipment: e.equipment, inventory: e.inventory, buffs: e.buffs,
     deathsTodayBefore: e.deathsTodayBefore, deathsLifetimeBefore: e.deathsLifetimeBefore,
     hearthfindReady: e.hearthfindReady, perks,
     _weaponType: weaponType, _options: options, _bar: m.session.bar, _role: pre ? pre.role : null,

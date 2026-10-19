@@ -59,11 +59,11 @@ const shot = (id, n, partner, price) => Object.freeze({ id, kind: 'ammo', n, par
 /* id -> row. `tiers` are the hunt tiers whose "shop heal" / "shop drink" slot
    resolves to this row; `price` is gold per use (per shot for ammo). */
 export const BASIC_SUPPLIES = Object.freeze([
-  heal('salted_shrimp', 'Salted Shrimp', 'cooked_shrimp', 6, 14, [1]),
-  heal('salted_trout', 'Salted Trout', 'cooked_trout', 10, 40, [2]),
-  heal('salted_lobster', 'Salted Lobster', 'cooked_lobster', 18, 180, [3]),
-  heal('salted_swordfish', 'Salted Swordfish', 'cooked_swordfish', 24, 432, [4, 5]),
-  heal('salted_shark', 'Salted Shark', 'cooked_shark', 33, 693, [6]),
+  heal('salted_shrimp', 'Salted Shrimp', 'cooked_shrimp', 72, 14, [1]),
+  heal('salted_trout', 'Salted Trout', 'cooked_trout', 120, 40, [2]),
+  heal('salted_lobster', 'Salted Lobster', 'cooked_lobster', 216, 180, [3]),
+  heal('salted_swordfish', 'Salted Swordfish', 'cooked_swordfish', 288, 432, [4, 5]),
+  heal('salted_shark', 'Salted Shark', 'cooked_shark', 396, 693, [6]),
   mana('thin_turnip_juice', 'Thin Turnip Juice', 'turnip_juice', 6, 6, [1]),
   mana('thin_carrot_juice', 'Thin Carrot Juice', 'carrot_juice', 10, 11, [2]),
   mana('thin_tomato_juice', 'Thin Tomato Juice', 'tomato_juice', 18, 27, [3]),

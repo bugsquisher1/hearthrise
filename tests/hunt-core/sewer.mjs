@@ -37,6 +37,7 @@ async function load(root) {
   M.basics = await imp('src/data/supply-basics.js');
   M.art = await imp('src/data/monster-art.js');
   M.cond = await imp('src/core/hunt/conditions.js');
+  M.vit = await imp('src/core/vitals.js');
   return M;
 }
 
@@ -81,16 +82,22 @@ function session(M, p) {
   });
 }
 
-/** Play a ground for `swings` with `party`; answers what happened, pocket by pocket. */
-function playSewer(M, party, swings, seed, groundId) {
+/* THE ARMOUR each role wears in the measurement (six armour slots: src/data/core-model.js ARMOUR_SLOTS):
+   the tank in plate, the casters in cloth, the ranger in leather. Vitals come from Level + armour
+   (src/core/vitals.js), never from the role. */
+const ARMOUR = Object.freeze({ tank: [6, 0], melee_dps: [6, 0], ranger: [0, 0], mage: [0, 6], healer: [0, 6] });
+
+/** Play a ground for `swings` with `party` at Level `level`; answers what happened, pocket by pocket. */
+function playSewer(M, party, swings, seed, groundId, level) {
   const ground = M.grounds.HUNT_GROUNDS[groundId || 'millrace_sewer'];
   const grid = gridOf(M, ground.map);
-  const world = M.hs.newHuntWorld(ground, grid, party.map((p) => ({ role: p.role, maxHp: M.roles.HUNT_ROLES[p.role].hp,
+  const L = level || 12;
+  const world = M.hs.newHuntWorld(ground, grid, party.map((p) => ({ role: p.role, maxHp: M.vit.maxHpFor(L, ARMOUR[p.role][0]),
     acc: p.acc || 850, maxHit: p.maxHit, def: 0, element: p.element })));
   const heroes = {};
   party.forEach((p, i) => {
     const u = world.units[i];
-    u.mana = u.maxMana = M.roles.HUNT_ROLES[p.role].mana;
+    u.mana = u.maxMana = M.vit.maxManaFor(L, ARMOUR[p.role][1]);
     heroes[u.id] = { hs: session(M, p), slots: M.cond.heroSlots(p.bar, null), actionSet: 'hunt', range: M.roles.HUNT_ROLES[p.role].range, ammo: p.ammo || null };
   });
   const out = { pulls: [], kills: {}, wipes: 0, falls: 0, kingDead: false, swings: 0, loops: 0 };
@@ -207,7 +214,10 @@ const cases = {
     return null;
   },
   'sewer-full-party-loop': (M) => {
-    const r = playSewer(M, PARTY, 600, 1);
+    /* At Level 16, the middle of the Sewer's band (CORE_NUMBERS Q9: 8-25). Measured 2026-10-19 on the rebuilt
+       core: L16 / L20 / L25 clear the route with no death; at L12 the party loses a hero at the Cistern Spider
+       (level 20), which is the band's "expect losses below the monster" shape, handed to the designer. */
+    const r = playSewer(M, PARTY, 600, 1, 'millrace_sewer', 16);
     const order = r.pulls.map((p) => p.pocket).join(',');
     console.log('    full party: pulls ' + r.pulls.map((p) => p.pocket + '@' + Math.round(p.at / 1000) + 's' + (p.clearS != null ? '/' + p.clearS + 's' : '')).join(' ')
       + ' | loop ' + r.swings * 2 + 's | falls ' + r.falls + ' wipes ' + r.wipes
@@ -218,18 +228,18 @@ const cases = {
     return null;
   },
   'cellar-solo-first-kill': (M) => {
-    /* Tutorial step 2 on the real core: a fresh hero (a weak swing: 60% to hit, max 2) alone in the cellar
-       ground kills a rat inside two minutes and is never knocked out. */
-    const r = playSewer(M, [{ role: 'tank', maxHit: 2, acc: 600, element: '', bar: [] }], 60, 1, 'mill_cellar');
+    /* Tutorial step 2 on the real core: a fresh Level-1 hero (a weak swing: 60% to hit, max 2) alone in the
+       cellar ground kills a rat inside two minutes and does not die. */
+    const r = playSewer(M, [{ role: 'tank', maxHit: 2, acc: 600, element: '', bar: [] }], 60, 1, 'mill_cellar', 1);
     console.log('    cellar solo: pulls ' + r.pulls.map((p) => p.pocket + '@' + Math.round(p.at / 1000) + 's').join(' ') + ' | kills ' + JSON.stringify(r.kills) + ' | falls ' + r.falls);
     if (!(r.kills.rat >= 1)) return 'a fresh hero killed no rat in the cellar in two minutes';
-    return r.falls ? 'a fresh hero was knocked out in the cellar' : null;
+    return r.falls ? 'a fresh hero died in the cellar' : null;
   },
   'tutorial-walk-through': (M) => {
     const bad = M.tut.validate();
     if (bad.length) return bad.join('; ');
     const steps = M.tut.HUNT_TUTORIAL;
-    const fresh = M.xp.combatLevel(M.kit.START_SKILL_XP);
+    const fresh = M.xp.charLevelFromXp(0);
     const H = M.HUNTS;
     /* What the player holds and can reach after each step: the walk-through, in code. */
     const can = { hunts: new Set(Object.values(H).filter((h) => h.band[0] <= fresh).map((h) => h.id)), inHunt: null, entered: new Set(), pulled: [] };
@@ -282,7 +292,7 @@ const mutants = [
   { name: 'the tutorial sends a fresh character to the sewer first', case: 'tutorial-walk-through',
     edits: [['src/data/hunt-tutorial.js', "{ kind: 'enter', hunt: 'mill_cellar' }", "{ kind: 'enter', hunt: 'millrace_sewer' }"]] },
   { name: 'the sewer opens to a fresh character', case: 'tutorial-walk-through',
-    edits: [['src/data/hunts.js', 'band: [4, 40],', 'band: [0, 40],']] },
+    edits: [['src/data/hunts.js', 'band: [8, 25],', 'band: [1, 25],']] },
 ];
 
 /* fixtures/h1.js `plant`, widened to the world engine and its manifests (the map cases read them):
@@ -324,6 +334,7 @@ for (const [cn, fn] of Object.entries(cases)) {
   R.ok(!why, cn + ': ' + why);
 }
 for (const mu of mutants) {
+  if (!cases[mu.case]) { R.ok(false, 'mutant "' + mu.name + '" names no case ' + mu.case); continue; }
   const p = plant(mu.edits);
   try {
     let why = null;

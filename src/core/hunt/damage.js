@@ -35,10 +35,10 @@ import { slotsFor, pickSlot, bestAim, footprintOf, inFootprint, DEFAULT_ATTACK_R
 import { resolveLine } from '../action-rules.js?v=0.2.2';
 import { elementWithFloor } from '../../data/hunt-grounds.js?v=0.2.2';
 
-/* stance: the hero's setting. acc (permille), maxHit, def, ward (the Prayer ward, %), element: its combat snapshot.
+/* stance: the hero's setting. acc (permille), maxHit, def, element: its combat snapshot.
    swingLeftMs: ms until the unit may swing again. */
 export const PERSISTED = Object.freeze({
-  unit: Object.freeze([['stance', 'str'], ['acc', 'int'], ['maxHit', 'int'], ['def', 'int'], ['ward', 'int'], ['element', 'str'], ['swingLeftMs', 'int']]),
+  unit: Object.freeze([['stance', 'str'], ['acc', 'int'], ['maxHit', 'int'], ['def', 'int'], ['element', 'str'], ['swingLeftMs', 'int']]),
   world: Object.freeze([]),
   pack: Object.freeze([]),
 });
@@ -126,9 +126,7 @@ export function resolveAttacks(inst, sc) {
     if (u.side === 'mon') {
       if (cheb(u, t) > 1 || !atRest(u)) continue;
       const row = MONSTERS[u.kind];
-      /* THE PRAYER WARD (combat.js monsterCombatRolls' rule): a share of blows turned aside, after the clamp. */
-      const landed = monsterAccuracy(row, t.def);
-      swing(inst, sc, u, t, t.ward > 0 ? landed * (1 - t.ward / 100) : landed, monsterMaxHit(row));
+      swing(inst, sc, u, t, monsterAccuracy(row, t.def), monsterMaxHit(row));
       continue;
     }
     const row = roleOf(u);

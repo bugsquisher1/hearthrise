@@ -43,7 +43,7 @@ import { ITEMS } from '../../data/items.js?v=0.2.2';
 import { slotsFor, pickSlot, bestAim, itemRow } from './conditions.js?v=0.2.2';
 
 export const PERSISTED = Object.freeze({
-  unit: Object.freeze([['mana', 'int'], ['maxMana', 'int'], ['manaMilli', 'int'], ['lanes', 'json'], ['cds', 'json'],
+  unit: Object.freeze([['mana', 'int'], ['maxMana', 'int'], ['manaMilli', 'int'], ['regenPm', 'int'], ['lanes', 'json'], ['cds', 'json'],
     ['shield', 'int'], ['markBy', 'int?'], ['markUntil', 'int'], ['vulnUntil', 'int']]),
   world: Object.freeze([]),
   pack: Object.freeze([]),
@@ -233,10 +233,12 @@ export function fire(inst, u, pick, sc) {
   return true;
 }
 
-/** Mana regenerates ABILITY_RULES.manaRegenPctPerMin of max a minute, in milli-mana (AB-13). */
+/** Mana regenerates ABILITY_RULES.manaRegenPctPerMin of max a minute, in milli-mana (AB-13), times
+    the hero's Prayer regen rate (`regenPm`, permille: src/core/vitals.js regenPermille; 1000 unset). */
 function regenMana(u, dtMs) {
   if (!(int(u.maxMana) > 0)) return;
-  u.manaMilli = int(u.manaMilli) + Math.floor((int(u.maxMana) * ABILITY_RULES.manaRegenPctPerMin * 10 * dtMs) / 60000);
+  const pm = int(u.regenPm) > 0 ? int(u.regenPm) : 1000;
+  u.manaMilli = int(u.manaMilli) + Math.floor((int(u.maxMana) * ABILITY_RULES.manaRegenPctPerMin * 10 * pm * dtMs) / 60000000);
   const whole = Math.floor(u.manaMilli / 1000);
   u.manaMilli -= whole * 1000;
   u.mana = Math.min(int(u.maxMana), int(u.mana) + whole);

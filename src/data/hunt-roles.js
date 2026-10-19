@@ -22,13 +22,15 @@
    range     tiles; a ranged role also needs line of sight (TG-02)
    tank      true = holds, and Challenges what is not on him (spec §3.2 #2, #14)
    peel      permille: a basic attack of this role draws a queued monster onto it (TG-07, ASSUMED)
-   discipline the src/data/abilities.js discipline whose three abilities the role's bar holds */
+   discipline the src/data/abilities.js discipline whose three abilities the role's bar holds
+   A role sets no HP or mana: those come from the character's Level and armour
+   (src/core/vitals.js, CORE_MODEL.md §3). */
 export const HUNT_ROLES = Object.freeze({
-  tank: Object.freeze({ label: 'Melee (shield)', discipline: 'shield', melee: true, range: 1, tank: true, hp: 200, mana: 60, speed: 3200, peel: 0 }),
-  melee_dps: Object.freeze({ label: 'Melee', discipline: 'dual_axe', melee: true, range: 1, tank: false, hp: 200, mana: 60, speed: 3200, peel: 0 }),
-  ranger: Object.freeze({ label: 'Ranger', discipline: 'ranged', melee: false, range: 7, tank: false, hp: 150, mana: 100, speed: 3200, peel: 0 }),
-  mage: Object.freeze({ label: 'Mage', discipline: 'destruction', melee: false, range: 7, tank: false, hp: 120, mana: 320, speed: 3200, peel: 0 }),
-  healer: Object.freeze({ label: 'Healer', discipline: 'restoration', melee: false, range: 7, tank: false, hp: 135, mana: 300, speed: 3200, peel: 180 }),
+  tank: Object.freeze({ label: 'Melee (shield)', discipline: 'shield', melee: true, range: 1, tank: true, speed: 3200, peel: 0 }),
+  melee_dps: Object.freeze({ label: 'Melee', discipline: 'dual_axe', melee: true, range: 1, tank: false, speed: 3200, peel: 0 }),
+  ranger: Object.freeze({ label: 'Ranger', discipline: 'ranged', melee: false, range: 7, tank: false, speed: 3200, peel: 0 }),
+  mage: Object.freeze({ label: 'Mage', discipline: 'destruction', melee: false, range: 7, tank: false, speed: 3200, peel: 0 }),
+  healer: Object.freeze({ label: 'Healer', discipline: 'restoration', melee: false, range: 7, tank: false, speed: 3200, peel: 180 }),
 });
 
 /* WHO LEADS THE PULL (spec §3.2 #3, ASSUMED): the first hero in this order, ties by unit id. */
@@ -102,7 +104,7 @@ export function validate() {
     if (typeof r.melee !== 'boolean' || typeof r.tank !== 'boolean') out.push(id + ': melee and tank are booleans');
     if (!Number.isInteger(r.range) || r.range < 1 || r.range > 12) out.push(id + ': range must be 1..12 tiles');
     if (r.melee && r.range !== 1) out.push(id + ': a melee role has range 1');
-    for (const k of ['hp', 'mana', 'speed']) if (!Number.isInteger(r[k]) || r[k] <= 0) out.push(id + ': ' + k + ' must be a positive integer');
+    if (!Number.isInteger(r.speed) || r.speed <= 0) out.push(id + ': speed must be a positive integer');
     if (!Number.isInteger(r.peel) || r.peel < 0 || r.peel > 1000) out.push(id + ': peel is permille 0..1000');
     if (!['shield', 'dual_axe', 'ranged', 'destruction', 'restoration'].includes(r.discipline)) out.push(id + ': unknown discipline ' + r.discipline);
   }

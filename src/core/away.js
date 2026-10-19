@@ -42,11 +42,11 @@ export const AWAY_RATE_MULT = 1.00;
       should still get their personal / clan buffs."
 
    So the away/active line is not "timed vs permanent" and never was — it is
-   SERVER-WIDE vs PERSONAL. A rotating daily blessing and a world event are
-   things the WORLD is doing, and the world does them for people who are in
-   it; a Hunter's Feast is something the PLAYER did to their own character,
-   and it keeps being true while they sleep. `clan` was already on the
-   permanent channel, which is the same call made earlier for the same reason.
+   SERVER-WIDE vs PERSONAL. A Hunter's Feast is something the PLAYER did to
+   their own character, and it keeps being true while they sleep. (The
+   server-wide daily/weekly world blessings this table once excluded were
+   removed outright, Tyler 2026-10-14: a Blessing is now death protection,
+   src/data/blessings.js, with no channel here.)
 
    THE BUFF CHANNEL'S TWO HALVES ARE ONE RULE. A timed buff that PAYS away
    must also DRAIN away. Paying without draining is the b326 exploit written
@@ -72,11 +72,6 @@ export const CHANNEL = {
   CRIT: 'crit',
   /** Boss of the Day / Boss of the Week, resolved per UTC-day segment. */
   BOTD: 'botd',
-  /** healing auto-eat — survival, not a bonus. Pays and consumes away. */
-  HEAL: 'heal',
-  /** rotating daily/weekly blessings and world events (b227). SERVER-WIDE, so
-      out of scope away — the one channel Tyler's rule explicitly excludes. */
-  BLESSING: 'blessing',
   /** timed consumable buffs (BUFFS_DEF). PERSONAL, so they pay away — and
       because they pay, they drain away. Both halves or neither. */
   BUFF: 'buff',
@@ -87,8 +82,6 @@ export const AWAY_SCOPE = Object.freeze({
   permanent: true,
   crit: true,
   botd: true,
-  heal: true,
-  blessing: false,
   buff: true,
 });
 
@@ -112,12 +105,6 @@ export function channelApplies(channel, ctx) {
 export function rateMult(ctx) {
   return (ctx && ctx.away) ? AWAY_RATE_MULT : 1;
 }
-
-/* THE RECOVERY RULE moved to ./recovery.js (Hunt Sessions); re-exported so
-   every caller of away.js keeps its import. */
-export {
-  RECOVERY_REFUSED_KINDS, recoveryRefuses, RESUME_HP_FRACTION, resumeHpFor,
-} from './recovery.js?v=0.2.2';
 
 export const DAY_MS = 86400000;
 

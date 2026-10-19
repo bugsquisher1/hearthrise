@@ -80,7 +80,7 @@ import {
   sessionFromRoster as gatherSessionFromRoster, settleGatherSession, foldWindowIntents,
 } from './tick-gather.js';
 /* The level curve, for the fold's level-up stop (settleFolded). */
-import { levelFromXp } from '../../../src/core/xp.js';
+import { skillLevelFromXp } from '../../../src/core/xp.js';
 /* HUNT SESSIONS (lane C2): the one settle, and the body's `hunts` selectors. */
 import { settleHunt, parseHunts } from './hunt-settle.js';
 /* THE CHAIN CARRIER, ONE DEFINITION, SHARED WITH THE OFFLINE GUARDS
@@ -1131,7 +1131,7 @@ export const FOLD_CHAIN_KEYS = Object.freeze(
 
 function levelledUp(before, after) {
   for (const k of Object.keys(after || {})) {
-    if (levelFromXp(Number((before || {})[k]) || 0) !== levelFromXp(Number(after[k]) || 0)) return true;
+    if (skillLevelFromXp(k, Number((before || {})[k]) || 0) !== skillLevelFromXp(k, Number(after[k]) || 0)) return true;
   }
   return false;
 }

@@ -17,17 +17,15 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { levelFromXp } from './xp.js?v=0.2.2';
+import { skillLevelFromXp } from './xp.js?v=0.2.2';
 import { pacedXp } from './pacing.js?v=0.2.2';
 import { spendRestedCharge } from './rested.js?v=0.2.2';
 import { advanceToolCarry } from './tools.js?v=0.2.2';
 
-/* b228 P1 (bonus-rebase.md §5.4): this list used to name four styles and
-   silently skip RANGED and MAGIC, so two of the seven combat skills were paid
-   nothing by the Trophy Room, the Watchtower, War Drums or Hunter's Moon —
-   and nothing on any screen said so. ONE list, read by both the XP grant and
-   the hint the player sees, so they can never disagree again. */
-export const COMBAT_XP_SKILLS = ['attack', 'strength', 'defense', 'hitpoints', 'ranged', 'magic'];
+/* The skills the `combatXP` bonus channel pays: the four trained in a fight
+   (CORE_MODEL.md §4). Prayer trains at the altar, not in a fight. ONE list,
+   read by both the XP grant and the hint the player sees. */
+export const COMBAT_XP_SKILLS = ['melee', 'ranged', 'magic', 'defense'];
 
 /* ── FRACTIONAL XP IS CARRIED, NEVER FLOORED AWAY (game-designer ruling,
    2026-10-07, final) ─────────────────────────────────────────────────────────
@@ -92,7 +90,7 @@ export function xpFracChanges(before, after) {
  * The whole of addXp's maths.
  *
  * @param state  { skills, xpFrac, restedXp }  — MUTATED
- * @param ctx    { bonus, xpB, restedQuantum, authored }
+ * @param ctx    { bonus, restedQuantum, authored }
  * @returns { gain, base, rested, oldLevel, newLevel, events }
  *
  * Ordering is load-bearing:
@@ -110,8 +108,8 @@ export function xpFracChanges(before, after) {
  */
 export function grantXp(state, skillId, amt, ctx) {
   const c = ctx || {};
-  const parts = xpMultiplierParts(c.xpB, c.bonus);
-  const perk = parts.all + parts.gear;
+  const parts = xpMultiplierParts(c.bonus);
+  const perk = parts.all;
   const combat = COMBAT_XP_SKILLS.indexOf(skillId) >= 0 ? parts.combat : 0;
 
   const rested = amt > 0 ? spendRestedCharge(state, c.restedQuantum || 0) : 0;
@@ -142,9 +140,9 @@ export function grantXp(state, skillId, amt, ctx) {
   const gain = whole + rested;
 
   if (!state.skills) state.skills = {};
-  const oldLevel = levelFromXp(state.skills[skillId] || 0);
+  const oldLevel = skillLevelFromXp(skillId, state.skills[skillId] || 0);
   state.skills[skillId] = (state.skills[skillId] || 0) + gain;
-  const newLevel = levelFromXp(state.skills[skillId]);
+  const newLevel = skillLevelFromXp(skillId, state.skills[skillId]);
 
   const events = [];
   if (newLevel > oldLevel) events.push({ type: 'levelup', skill: skillId, from: oldLevel, to: newLevel });
@@ -154,18 +152,17 @@ export function grantXp(state, skillId, amt, ctx) {
 
 /**
  * THE XP MULTIPLIER, BY PART — the one formula. A grant is paid
- * base × (1 + all + gear + (combat on a combat skill)); grantXp above prices
- * every grant with it, and the Character window's experience bonuses
+ * base × (1 + all + (combat on a combat skill)); grantXp above prices every
+ * grant with it, and the Character window's experience bonuses
  * (supabase/functions/hr-accrue/character-sheet.js) are these same parts.
- *   gear    the worn set's xpB (equipmentStats)
+ * Gear grants no XP (Tyler 2026-10-14: no XP boosts for sale).
  *   all     the bonus channel `allXP` (rooms, renown, companion, buffs)
  *   combat  the bonus channel `combatXP` (combat skills only)
- * @param xpB    the worn set's xpB
  * @param bonus  the engine's bonus(key) function (absent = 0 for every key)
  */
-export function xpMultiplierParts(xpB, bonus) {
+export function xpMultiplierParts(bonus) {
   const b = typeof bonus === 'function' ? bonus : () => 0;
-  return { gear: Number(xpB) || 0, all: Number(b('allXP')) || 0, combat: Number(b('combatXP')) || 0 };
+  return { all: Number(b('allXP')) || 0, combat: Number(b('combatXP')) || 0 };
 }
 
 /**

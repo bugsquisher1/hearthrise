@@ -4,15 +4,14 @@
 // The phase machine of one instance (solo = a party of one):
 //   travel   the leader walks to the next pocket's pack; followers walk his trail
 //   fight    the pack is on the party; it ends when the pocket's last monster falls
-//   regroup  everyone up and within regroupRadius of the leader, at least regroupMs
-//   down     the leader fell: the party wiped; wait for him to stand
+//   regroup  everyone together within regroupRadius of the leader, at least regroupMs
 // A world with no phase ('') is not cycled: a walker world the caller drives.
 //
-// Falls (spec §3.2 #16): a hero at 0 HP is knocked out for KNOCKOUT_MS (the C2
-// value, on the sub-step clock) and stands where he fell at resumeHpFor(maxHp),
-// never full: a fall is never a free heal. The leader falling wipes the party:
-// every pack on it resets (leash.resetPack) and the standing heroes walk back to
-// the entrance.
+// Death (Tyler 2026-10-19): a hero at 0 HP is dead. It stays a body on the
+// world until its member's next boundary, where its hunt ends `died` and the
+// unit leaves (src/core/combat-sim.js). There is no knockout and no standing up.
+// The LEADER dying resets every pack on the party (leash.resetPack) and the
+// living heroes regroup at the entrance under the next leader.
 //
 // Packs: a cleared pack is back ground.respawnMs after it was cleared, never
 // while its pocket is mid-fight (PC-09). A new monster takes its spawn tile, or
@@ -24,10 +23,9 @@
 // ============================================================
 
 import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.2';
-import { KNOCKOUT_MS } from '../../data/hunt-sessions.js?v=0.2.2';
+import { VITALS } from '../../data/core-model.js?v=0.2.2';
 import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js?v=0.2.2';
 import { AI_REPATH_MS } from '../../data/hunt-roles.js?v=0.2.2';
-import { resumeHpFor } from '../recovery.js?v=0.2.2';
 import { packHpFor, yieldPermille, routeFor } from '../../data/hunt-grounds.js?v=0.2.2';
 import { cheb, dist2, freeNear, tileKey } from './grid.js?v=0.2.2';
 import { inArea, resetPack } from './leash.js?v=0.2.2';
@@ -35,17 +33,17 @@ import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy } from './mov
 import { makeEvent } from './events.js?v=0.2.2';
 import { pickLeader, kites } from './roles.js?v=0.2.2';
 
-/* downMs: knockout left. deadMs: a corpse's age. hpMilli: out-of-combat regen carried below one HP.
+/* deadMs: a corpse's age. hpMilli: out-of-combat regen carried below one HP.
    phase / routeIdx / phaseMs / regroupNext / runs / nextId: the cycle. alive / respawnAtMs: a pack. */
 /* yieldPm: the share (permille) of its row's kill yield a monster pays: its HP scale at spawn. */
 export const PERSISTED = Object.freeze({
-  unit: Object.freeze([['downMs', 'int'], ['deadMs', 'int'], ['hpMilli', 'int'], ['yieldPm', 'int']]),
+  unit: Object.freeze([['deadMs', 'int'], ['hpMilli', 'int'], ['yieldPm', 'int']]),
   world: Object.freeze([['phase', 'str'], ['routeIdx', 'int'], ['phaseMs', 'int'], ['regroupNext', 'bool'], ['runs', 'int'], ['nextId', 'int'],
     ['density', 'int']]),
   pack: Object.freeze([['alive', 'bool'], ['respawnAtMs', 'int']]),
 });
 
-export const PHASE = Object.freeze({ TRAVEL: 'travel', FIGHT: 'fight', REGROUP: 'regroup', DOWN: 'down' });
+export const PHASE = Object.freeze({ TRAVEL: 'travel', FIGHT: 'fight', REGROUP: 'regroup' });
 
 const cycling = (inst) => inst.world.phase !== '';
 /* THE ROUTE THIS PARTY WALKS (hunt-grounds.js routeFor): a pocket whose `minParty` the
@@ -55,7 +53,7 @@ const pocketNow = (inst) => { const r = routeOf(inst); return r[inst.world.route
 const packMonsters = (inst, p) => inst.world.units.filter((u) => u.side === 'mon' && u.alive && u.pocket === p);
 const heroes = (inst) => inst.world.units.filter((u) => u.side === 'hero');
 
-/** The instance's party size: its hero units, standing or down (hunt-grounds.js scales by it). */
+/** The instance's party size: its hero units (hunt-grounds.js scales by it). */
 export const partySize = (inst) => inst.world.units.filter((u) => u.side === 'hero').length;
 
 /**
@@ -100,8 +98,9 @@ export function spawnPack(inst, p, sc) {
 }
 
 /**
- * THE KILL HAND-OFF (damage.landHit): a monster becomes a corpse; a hero is knocked
- * out for KNOCKOUT_MS; the leader falling wipes the party (spec §3.2 #16, PC-13).
+ * THE KILL HAND-OFF (damage.landHit): a monster becomes a corpse; a hero is dead
+ * (its hunt ends at its next boundary); the leader dying resets the packs on the
+ * party and the living regroup at the entrance (PC-13).
  */
 export function fallen(inst, u, sc) {
   u.alive = false;
@@ -109,13 +108,14 @@ export function fallen(inst, u, sc) {
   u.target = null;
   clearGoal(u);
   if (u.side === 'mon') { u.deadMs = 0; return; }
-  u.downMs = KNOCKOUT_MS;
   u.spot = null;
   if (inst.world.leader !== u.id) return;
   for (let p = 0; p < inst.world.packs.length; p++) if (inst.world.packs[p].aggro) resetPack(inst, p, sc);
   sc.emit(makeEvent('wipe', sc.atMs, {}));
   if (!cycling(inst)) return;
-  inst.world.phase = PHASE.DOWN;
+  inst.world.phase = PHASE.REGROUP;
+  inst.world.phaseMs = HUNT_TUNING.regroupMs;
+  inst.world.regroupNext = false;
   heroes(inst).filter((h) => h.alive).forEach((h, i) => {
     const s = inst.ground.start[i % inst.ground.start.length];
     h.target = null;
@@ -176,34 +176,29 @@ function travel(inst, sc, k) {
   k.aiMs = AI_REPATH_MS.travel;
 }
 
-/* Knockouts run out; out of a fight the standing heroes regain HP (PC-12). */
+/* The living heroes regain HP (PC-12): the resting rate out of a fight, the
+   in-fight rate during one (CORE_NUMBERS Q6), each times the hero's Prayer regen
+   rate (`regenPm`, src/core/vitals.js regenPermille). */
 function tickHeroes(inst, sc) {
-  const regen = inst.world.phase !== PHASE.FIGHT;
+  const rate = inst.world.phase !== PHASE.FIGHT ? HUNT_TUNING.oocRegenPermillePerS : VITALS.inFightRegenPermillePerS;
   for (const h of heroes(inst)) {
-    if (!h.alive) {
-      if (h.downMs > 0) h.downMs = Math.max(0, h.downMs - sc.dtMs);
-      if (h.downMs === 0) { h.alive = true; h.hp = resumeHpFor(h.maxHp); h.hpMilli = 0; }
-      continue;
-    }
-    if (!regen || h.hp >= h.maxHp) { h.hpMilli = 0; continue; }
-    h.hpMilli += Math.floor((h.maxHp * HUNT_TUNING.oocRegenPermillePerS * sc.dtMs) / 1000);
+    if (!h.alive) continue;
+    if (h.hp >= h.maxHp) { h.hpMilli = 0; continue; }
+    const pm = Number.isInteger(h.regenPm) && h.regenPm > 0 ? h.regenPm : 1000;
+    h.hpMilli += Math.floor((h.maxHp * rate * pm * sc.dtMs) / 1000000);
     const whole = Math.floor(h.hpMilli / 1000);
     h.hp = Math.min(h.maxHp, h.hp + whole);
     h.hpMilli -= whole * 1000;
   }
 }
 
-/** Phase-AI hook: travel, pull, fight, regroup, down; the pocket route (PC-03..13). */
+/** Phase-AI hook: travel, pull, fight, regroup; the pocket route (PC-03..13). */
 export function runPhase(inst, sc) {
   if (!cycling(inst)) return;
   const w = inst.world;
   if (!Number.isInteger(w.leader) || !unitById(inst, w.leader)) w.leader = pickLeader(w.units);
   tickHeroes(inst, sc);
   const k = leaderOf(inst);
-  if (w.phase === PHASE.DOWN) {
-    if (k) { w.phase = PHASE.REGROUP; w.phaseMs = HUNT_TUNING.regroupMs; w.regroupNext = false; }
-    return;
-  }
   if (!k) return;
   if (w.phase === PHASE.TRAVEL) { travel(inst, sc, k); return; }
   if (w.phase === PHASE.FIGHT) {

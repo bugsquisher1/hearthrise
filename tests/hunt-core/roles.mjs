@@ -136,7 +136,10 @@ const cases = {
     const bad = M.roleData.validate();
     if (bad.length) return bad.join('; ');
     if (f('shield') !== 'tank' || f('dual_axe') !== 'melee_dps' || f('crossbow') !== 'ranger') return 'weapon → role is wrong';
-    if (f('staff') !== 'mage' || f('staff', 'healer') !== 'healer' || f('staff', 'tank') !== 'mage') return 'the staff choice is wrong';
+    /* Tyler 2026-10-19: Mage = wand (+ spellbook), Healer = staff; neither offers the other role. */
+    if (f('staff') !== 'healer' || f('staff', 'mage') !== 'healer' || f('wand') !== 'mage' || f('wand', 'healer') !== 'mage') return 'the wand / staff roles are wrong';
+    const RW = M.roleData.roleWeaponOf;
+    if (RW({ weaponType: 'magic', discipline: 'restoration' }) !== 'staff' || RW({ weaponType: 'magic', discipline: 'destruction' }) !== 'wand' || RW(null) !== 'neutral') return 'roleWeaponOf does not read the magic discipline';
     return f('no_such_weapon') === null ? null : 'an unknown weapon got a role';
   },
 };
@@ -159,7 +162,9 @@ const mutants = [
   { name: 'the retreat may go toward the pack', case: 'kite-retreats-away-from-pack', edits: [[R, '    if (Math.hypot(x - cx, y - cy) - here <= KITE.awayMin) continue;\n', '']] },
   { name: 'no Melee does not change chase', case: 'defaults-per-role', edits: [[R, '    chase: HUNT_ROLES[role].melee ? d.chase : (noMelee ? false : d.chase),', '    chase: d.chase,']] },
   { name: 'the leader is the first hero by id', case: 'pull-leader-order', edits: [[R, "    const r = u.side === 'hero' ? ROLE_ORDER.indexOf(u.role) : -1;", "    const r = u.side === 'hero' && ROLE_ORDER.includes(u.role) ? 0 : -1;"]] },
-  { name: 'a staff can only be a Mage', case: 'role-from-weapon', edits: [['src/data/hunt-roles.js', "  staff: Object.freeze(['mage', 'healer']),", "  staff: Object.freeze(['mage']),"]] },
+  { name: 'a staff offers the Mage too', case: 'role-from-weapon', edits: [['src/data/hunt-roles.js', "  staff: Object.freeze(['healer']),", "  staff: Object.freeze(['mage', 'healer']),"]] },
+  { name: 'a wand plays the Healer', case: 'role-from-weapon', edits: [['src/data/hunt-roles.js', "  wand: Object.freeze(['mage']),", "  wand: Object.freeze(['healer']),"]] },
+  { name: 'a magic weapon ignores its discipline', case: 'role-from-weapon', edits: [['src/data/hunt-roles.js', "  if (item.weaponType === 'magic') return MAGIC_ROLE_WEAPON[item.discipline] || 'wand';", "  if (item.weaponType === 'magic') return 'wand';"]] },
 ];
 
 await suite('hunt-core/roles', cases, mutants);

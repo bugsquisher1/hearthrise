@@ -51,6 +51,8 @@ async function load(root) {
   M.acc = await raw('supabase/functions/hr-accrue/accrual.js');
   M.hg = await raw('supabase/functions/hr-accrue/hunt-ground.js');
   M.heroSetup = (await raw('src/core/hunt-spawn.js')).heroSetup;
+  /* The WEAPON_ROLES key an item plays (a magic weapon by its discipline), as the settle reads it (hunt-settle.js). */
+  M.roleWeaponOf = (await raw('src/data/hunt-roles.js')).roleWeaponOf;
   M.drops = await imp('src/core/drops.js');
   M.hf = await imp('src/core/hearthfind.js');
   return M;
@@ -144,7 +146,7 @@ function runParty(M, cuts, o) {
 /* A FRESH CHARACTER on the REAL settle (accrueHunt) at a real ground: the start kit's skills and food, a staff. */
 function freshHealer(M, huntId, minutes, seed, options, element) {
   const { ground, grid } = M.hg.huntGroundOf(huntId);
-  const hero = M.heroSetup({ weaponType: M.ITEMS.apprentice_staff.weaponType, options: Object.assign({ role: 'healer' }, options || {}), bar: [], partyRoles: [] });
+  const hero = M.heroSetup({ weaponType: M.roleWeaponOf(M.ITEMS.apprentice_staff), options: Object.assign({ role: 'healer' }, options || {}), bar: [], partyRoles: [] });
   const from = T0; const to = from + minutes * 60000;
   const food = Object.keys(M.kit.START_INVENTORY).find((id) => M.SUP.SUPPLIES[id] && M.SUP.SUPPLIES[id].kind === 'heal');
   const member0 = { key: 'h', user: 'u', slot: 0, seat: 0, unitId: null, sessionId: 's', version: 1, huntId,
@@ -587,7 +589,7 @@ const cases = {
   /* The SETTLE clamps an over-max pick (the stored 4) to the ground's solo max (the sewer's 2): its first pocket spawns twice. */
   /* Tyler P1: the Healer's default rule set (an empty bar) heals first and attacks only when nobody needs healing. */
   'healer-default-rules': (M) => {
-    const setup = M.heroSetup({ weaponType: 'magic', options: { role: 'healer' }, bar: [], partyRoles: [] });
+    const setup = M.heroSetup({ weaponType: M.roleWeaponOf(M.ITEMS.apprentice_staff), options: { role: 'healer' }, bar: [], partyRoles: [] });
     const run = (allyHp) => {
       const d = hero(M, 1, 6, 3, { role: 'healer', hp: 135, maxHp: 135, mana: 300, maxMana: 300 });
       const k = hero(M, 2, 8, 3, { role: 'tank', hp: allyHp, maxHp: 100 });

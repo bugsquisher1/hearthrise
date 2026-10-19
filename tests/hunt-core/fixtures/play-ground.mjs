@@ -21,6 +21,7 @@ export async function play(root, only) {
   const AC = await import(u('supabase/functions/hr-accrue/accrual.js'));
   const CAT = await import(u('supabase/functions/hr-accrue/catalogue.js'));
   const SPAWN = await import(u('src/core/hunt-spawn.js'));
+  const { roleWeaponOf } = await import(u('src/data/hunt-roles.js'));
   const GRID = await import(u('src/core/hunt/grid.js'));
   const XP = await import(u('src/core/xp.js'));
   const SB = await import(u('src/data/supply-basics.js'));
@@ -60,7 +61,7 @@ export async function play(root, only) {
         staminaMs: 12 * 3600000, staminaMaxMs: 12 * 3600000, basics, shop, goldFloor: 0, supplySource: 'mine', onEmpty: 'switch', cover: {} },
       skills, levelXp: XP.charXpForLevel(L), xpFrac: null, hp: 1e9, gold: 50000, equipment,
       inventory: {}, deathsTodayBefore: 0, deathsLifetimeBefore: 0, hearthfindReady: false, perks: null,
-      hero: SPAWN.heroSetup({ weaponType: ITEMS[equipment.weapon].weaponType, options: role === 'healer' ? { role: 'healer' } : {}, bar: [], partyRoles: roles }),
+      hero: SPAWN.heroSetup({ weaponType: roleWeaponOf(ITEMS[equipment.weapon]), options: role === 'healer' ? { role: 'healer' } : {}, bar: [], partyRoles: roles }),
     };
   };
   const run = (huntId, L, roles) => {

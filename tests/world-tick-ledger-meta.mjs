@@ -147,7 +147,7 @@ try {
     try {
       out = (await db.query(
         `select public.hr_apply('${U}'::uuid, 0, ${ver}::bigint, '${key}'::uuid,
-           jsonb_build_object('gold', 500, 'xp', jsonb_build_object('strength', 1200),
+           jsonb_build_object('gold', 500, 'xp', jsonb_build_object('melee', 1200),
              'items', jsonb_build_object('bones', 3),
              'accrued_to', to_jsonb(now()::timestamptz)
              ${extraSql},
@@ -247,7 +247,7 @@ try {
         where user_id = '${U}' and intent = 'accrue' and not (meta ? 'att')`)).rows;
     const ok = r && r.att === false && String(r.kills) === '31' && String(r.ate) === '8'
       && r.capped === false && String(r.ms) === '10800000' && String(r.g) === '500'
-      && r.x && Number(r.x.strength) === 1200 && r.i && Number(r.i.bones) === 3;
+      && r.x && Number(r.x.melee) === 1200 && r.i && Number(r.i.bones) === 3;
     judge('L-3', ok,
       'all eight read their value off the unattended row: '
       + JSON.stringify(r && { att: r.att, kills: r.kills, ate: r.ate, capped: r.capped,

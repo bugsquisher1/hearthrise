@@ -2495,7 +2495,7 @@ async function accrualPhase(db, books, keys, rng, applyAs, q, divergences) {
       c.bankCap = cap;
 
       const st = (await db.query(
-        `select gold::text gold, hp, max_hp, version::text version,
+        `select gold::text gold, hp, level_xp::text level_xp, version::text version,
                 extract(epoch from accrued_to)*1000 a, extract(epoch from active_since)*1000 s,
                 extract(epoch from now())*1000 n
            from player_state where user_id = $1 and slot = $2`, [c.uid, c.slot])).rows[0];
@@ -2507,7 +2507,7 @@ async function accrualPhase(db, books, keys, rng, applyAs, q, divergences) {
       const env = {
         nowMs: Number(st.n), accruedToMs: Number(st.a), activeSinceMs: Number(st.s),
         activeKind: 'gather', activeId: NODE, capMs: 12 * 3600000,
-        seed: 1234567, hp: Number(st.hp), maxHp: Number(st.max_hp), gold: Number(st.gold),
+        seed: 1234567, hp: Number(st.hp), levelXp: Number(st.level_xp), gold: Number(st.gold),
         skills, equipment, items: ITEMS_DATA, monsters: MONSTERS_DATA, nodes: NODES,
       };
 

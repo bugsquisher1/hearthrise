@@ -49,6 +49,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, ROOT } from './schema-replay.mjs';
+import { PRE_CORE } from './pre-core.mjs';
 
 const MUTATE = process.argv.includes('--mutate') || process.argv.includes('--selftest');
 const CONTROL = Boolean(process.env.HR_MUTANT_CONTROL);
@@ -251,7 +252,10 @@ async function arms(db, sql, { log = true } = {}) {
 }
 
 let db;
-try { ({ db } = await bootReplay({})); } catch (e) {
+/* At the arm file's own era (tests/pre-core.mjs): its P4 reads hr_party_tick_settle's cohort fences, and the
+   core rebuild (2026-10-27-core-schema.sql) drops that settle with the M8 party world tick, so at the chain end
+   the arm file can only refuse — for a reason none of these cases is about. */
+try { ({ db } = await bootReplay({ upTo: PRE_CORE })); } catch (e) {
   console.error(`harness: the migration chain did not replay — ${e.message}`); process.exit(2);
 }
 

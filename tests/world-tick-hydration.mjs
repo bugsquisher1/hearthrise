@@ -200,20 +200,18 @@ async function seedFighter(u) {
   await db.exec(`
     insert into public.player_state (user_id, slot, gold, hp, version, accrued_to,
       active_kind, active_id, active_since, tool_carry, combat_xp_accrued_to,
-      fight, buffs)
+      fight, buffs, level_xp)
     values ('${u}', 0, 1234, 40, 7, now() - interval '95 seconds',
       'combat', '${FIGHT_MONSTER}', now() - interval '2 hours', '{}'::jsonb,
       now() - interval '3 hours',
-      '{"id":"${FIGHT_MONSTER}","hp":11}'::jsonb, '[]'::jsonb)
-    on conflict (user_id, slot) do update set version = 7, hp = 40, gold = 1234,
+      '{"id":"${FIGHT_MONSTER}","hp":11}'::jsonb, '[]'::jsonb, 321000)
+    on conflict (user_id, slot) do update set version = 7, hp = 40, gold = 1234, level_xp = 321000,
       accrued_to = now() - interval '95 seconds',
       active_kind = 'combat', active_id = '${FIGHT_MONSTER}';`);
   await db.exec(`
     insert into public.player_skills (user_id, slot, skill_id, xp) values
-      ('${u}', 0, 'attack',    ${XP_AT_61_COMBAT}),
-      ('${u}', 0, 'strength',  ${XP_AT_61_COMBAT}),
-      ('${u}', 0, 'defence',   150000),
-      ('${u}', 0, 'hitpoints', ${XP_AT_61_COMBAT});`);
+      ('${u}', 0, 'melee',     ${XP_AT_61_COMBAT}),
+      ('${u}', 0, 'defense',   150000);`);
   await db.exec(`
     insert into public.player_inventory (user_id, slot, item_id, qty) values
       ('${u}', 0, 'cooked_trout', 25), ('${u}', 0, 'bones', 3);`);
@@ -581,11 +579,12 @@ try {
       activeKind: { from: 'active_kind', level: 'state' },
       activeId: { from: 'active_id', level: 'state' },
       hp: { from: 'hp', level: 'state' },
-      maxHp: { from: 'max_hp', level: 'state' },
+      /* The core rebuild: Level XP replaces the stored max HP (derived from it), and the recovery line and
+         the combat style left the engine with the knockout and the styles. */
+      levelXp: { from: 'level_xp', level: 'state' },
       gold: { from: 'gold', level: 'state' },
       fight: { from: 'fight', level: 'state' },
       toolCarry: { from: 'tool_carry', level: 'state' },
-      recoveringUntilMs: { from: 'recovering_until', level: 'state' },
       /* Lane C2 (closed rebuild) deleted the Auto-Eat trio, the fall streak,
          the combat-XP watermark, the enchant, the pet's XP remainder, the
          stance/stop pair, traits and Vigour as ENGINE inputs: a fight is a
@@ -595,7 +594,6 @@ try {
       deathsTodayBefore: { from: 'deaths_today', level: 'state' },
       deathsLifetimeBefore: { from: 'deaths_lifetime', level: 'state' },
       hearthfindReady: { from: 'hearthfind_ready', level: 'state' },
-      combatStyle: { from: 'combat_style', level: 'state' },
       /* THE FIVE PROJECTIONS. `enchant` and `buffs` are player_state COLUMNS
          and are still projected at the TOP level — which is exactly why the
          level is not guessable from the name, and why S-7 read five of them
@@ -667,13 +665,11 @@ try {
       activeSinceMs: Date.parse(env.state.active_since),
       activeKind: env.state.active_kind,
       activeId: env.state.active_id,
-      hp: env.state.hp, maxHp: env.state.max_hp, gold: env.state.gold,
+      hp: env.state.hp, levelXp: env.state.level_xp, gold: env.state.gold,
       fight: env.state.fight, toolCarry: env.state.tool_carry,
-      recoveringUntilMs: Date.parse(env.state.recovering_until),
       deathsTodayBefore: env.state.deaths_today,
       deathsLifetimeBefore: env.state.deaths_lifetime,
       hearthfindReady: env.state.hearthfind_ready,
-      combatStyle: env.state.combat_style,
       /* `skills` is the ONE key the map reshapes: `{skill_id:{xp,level}}` on
          the wire, raw xp NUMBERS to the engine. Getting the level right and
          the unwrap wrong hands it objects where it expects numbers, which
@@ -689,8 +685,8 @@ try {
     const wrongValue = Object.keys(EXPECT).filter((k) => !same(hy[k], EXPECT[k]));
     judge('H5b', wrongValue.length === 0,
       `engineInputsFromEnvelope filled all ${Object.keys(EXPECT).length} inputs from the level `
-      + `each one lives on — skills as raw xp (attack ${hy.skills && hy.skills.attack}), `
-      + `style ${JSON.stringify(hy.combatStyle)}, `
+      + `each one lives on — skills as raw xp (melee ${hy.skills && hy.skills.melee}), `
+      + `Level XP ${JSON.stringify(hy.levelXp)}, `
       + `deaths ${hy.deathsTodayBefore}/${hy.deathsLifetimeBefore}`,
       `read the WRONG value for: ${wrongValue.map((k) => `${k} (got `
         + `${JSON.stringify(hy[k])}, envelope says ${JSON.stringify(EXPECT[k])})`).join('; ')}`);
@@ -698,11 +694,11 @@ try {
     /* AND THE FIGHTER IS A FIGHTER. A level-61 attack read off the wrong level
        is `{}` — a perfectly good skills map that says level 0, which is the
        exact reading that made every production shadow row `would_ticks: 0`. */
-    judge('H5b', (hy.skills || {}).attack === XP_AT_61_COMBAT && hy.hp > 0
+    judge('H5b', (hy.skills || {}).melee === XP_AT_61_COMBAT && hy.hp > 0
       && Object.keys(hy.equipment || {}).length > 0
       && Object.keys(hy.inventory || {}).length > 0,
       'and the probe reaches the engine as the level-61 fighter it is — armed, fed, mid-fight',
-      `the probe reaches the engine as attack=${JSON.stringify((hy.skills || {}).attack)}, `
+      `the probe reaches the engine as melee=${JSON.stringify((hy.skills || {}).melee)}, `
       + `equipment ${JSON.stringify(hy.equipment)}, inventory ${JSON.stringify(hy.inventory)} — `
       + 'a level-0 fighter, unarmed, with an empty bag (S-7)');
 

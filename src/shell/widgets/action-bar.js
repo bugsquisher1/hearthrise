@@ -120,7 +120,8 @@ renderActionBar.patch = function patchActionBar(el, ctx) {
   const hero = h ? h.hero : {};
   const st = staminaOf(cs);
   const s = settingsOf(cs);
-  const regen = (v) => (Number.isFinite(v) && v > 0 ? '+' + whole(v) + '/s' : '');
+  /* Real units: per second, one decimal (huntOf's hpPerS / manaPerS: +0.5/s at 170 HP). */
+  const regen = (v) => (Number.isFinite(v) && v > 0 ? '+' + (v < 10 ? v.toFixed(1) : String(Math.round(v))) + '/s' : '');
   const hasMana = Number.isFinite(hero.manaMax) && hero.manaMax > 0;
   cls(el.querySelector('.hb-bar'), 'is-town', !h);
   patchGauge(el.querySelector('.is-hp'), hero.hp, hero.hpMax, hero.hp == null ? 'HP –' : 'HP ' + whole(hero.hp) + ' / ' + whole(hero.hpMax));
@@ -128,8 +129,8 @@ renderActionBar.patch = function patchActionBar(el, ctx) {
   patchGauge(el.querySelector('.is-mana'), hero.mana, hero.manaMax, hasMana ? 'Mana ' + whole(hero.mana) + ' / ' + whole(hero.manaMax) : '');
   patchGauge(el.querySelector('.is-xp'), hero.xpPct, 1, (hero.level == null ? 'Level –' : 'Level ' + hero.level) + ' · ' + pct(hero.xpPct));
   patchGauge(el.querySelector('.is-stamina'), st ? st.msLeft : null, st ? st.capMs : null, 'Stamina ' + hoursMinutes(st ? st.msLeft : null));
-  text(el.querySelector('[data-regen="hp"]'), regen(hero.hpRegen));
-  text(el.querySelector('[data-regen="mana"]'), hasMana ? regen(hero.manaRegen) : '');
+  text(el.querySelector('[data-regen="hp"]'), regen(hero.hpPerS));
+  text(el.querySelector('[data-regen="mana"]'), hasMana ? regen(hero.manaPerS) : '');
   const slots = s ? Array.from({ length: SLOTS }, (_, i) => s.slots[i] || { empty: true }) : [];
   const wires = slots.map((x) => wireSlot(x));
   const conflicts = s ? conflictsOf(wires, s) : new Map();

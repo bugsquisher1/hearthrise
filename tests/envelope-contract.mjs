@@ -55,7 +55,7 @@ function contract(R, cs, body, tl) {
   const h = R.HS.huntOf(cs);
   need('hunt', !!h, 'huntOf reads no hunt (the screen says "Not in a hunt."): ' + JSON.stringify(body.hunt).slice(0, 240));
   if (h) {
-    const m = missing(h, ['sessionId', 'huntId']).concat(missing(h.hero, ['unit', 'name', 'level', 'hp', 'hpMax', 'mana', 'manaMax', 'hpRegen', 'manaRegen', 'xpPct', 'regenPm']).map((k) => 'hero.' + k));
+    const m = missing(h, ['sessionId', 'huntId']).concat(missing(h.hero, ['unit', 'name', 'level', 'hp', 'hpMax', 'mana', 'manaMax', 'hpPerS', 'manaPerS', 'xpPct', 'regenPm']).map((k) => 'hero.' + k));
     need('hunt', !m.length, 'huntOf misses ' + m.join(', '));
     const units = Array.from(h.units.values());
     need('hunt', units.some((u) => u.side === 'hero') && units.every((u) => u.side === 'hero' || u.kind), 'the pose has no hero, or a monster with no kind: ' + JSON.stringify(units.slice(0, 4)));

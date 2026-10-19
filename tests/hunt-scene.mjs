@@ -72,7 +72,8 @@ async function load(base) {
 
 const S0 = 2000000;     // the server clock of the first settle
 const C0 = 100000;      // the client clock it arrives at
-const DELAY = 600;      // the timeline's playback delay (timeline.js DEFAULTS)
+/* The scene's playback delay: the CharacterSession's (src/session/config.js huntPlaybackDelayMs), read, never typed. */
+const DELAY = (await import(pathToFileURL(join(ROOT, 'src/session/config.js')).href + V)).SESSION_CONFIG.huntPlaybackDelayMs;
 
 /* The fixture character, hunting: the tank (unit 1) walks east then a diagonal; the
    ranger (2) stands; a rat (101) is hit, bleeds and dies; the boss (103) bleeds. */

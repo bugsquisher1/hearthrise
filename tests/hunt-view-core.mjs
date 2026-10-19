@@ -46,6 +46,7 @@ async function load(base) {
     F: await u('src/hunt-view/float-prefs.js'),
     R: await u('src/session/residue.js'),
     L: await u('src/hunt-view/combat-log.js'),
+    CFG: await u('src/session/config.js'),
   };
 }
 
@@ -96,7 +97,7 @@ async function rules(M) {
     await cs.load();
     ok('TL-5', cs.read('hunt_track') === undefined && cs.read('hunt_events') === undefined && cs.read('hunt_server_now_ms') === undefined,
       'the timeline keys must stay out of the record');
-    const delay = 600;
+    const delay = M.CFG.SESSION_CONFIG.huntPlaybackDelayMs;   // the session's playback delay (src/session/config.js)
     clock.t = 100000 + delay + 150;              // mid-step: server 2000150 of a 312 ms roll
     const before = cs.timeline.positionAt(7, clock.t);
     ok('TL-2', before && before.moving && before.x > 4 && before.x < 5, 'the fixture must be mid-step, got ' + JSON.stringify(before));

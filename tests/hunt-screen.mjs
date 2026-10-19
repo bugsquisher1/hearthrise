@@ -48,8 +48,12 @@ import { launchOptions } from './_chrome.mjs';
 import { readFile, mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
+import { pathToFileURL } from 'node:url';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
+/* The scene and its log play huntPlaybackDelayMs behind the server (src/session/config.js): the fixture's
+   window is stated that far in the past, so its events are due the moment it lands. */
+FIXTURE.hunt_server_now_ms += (await import(pathToFileURL(join(ROOT, 'src/session/config.js')).href)).SESSION_CONFIG.huntPlaybackDelayMs;
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 

@@ -81,6 +81,7 @@ import { INTENT_ERRORS, intentNameOf, catalogueGet, requiresKey, guardStampKeys 
 import { ITEMS } from '../../../src/data/items.js';
 import { gateAndRead, applyDelta, refusalBody } from './spend.js';
 import { settleBeforeMutate } from './settle-first.js';
+import { huntOpenOf } from './hunt-settle.js';
 
 /** The verb's own name. */
 export const VERB = 'eat';
@@ -249,6 +250,14 @@ export async function runEat(o) {
      read — never the client. */
   const read = await gateAndRead({ exec, user, slot, verb: VERB });
   if (read.refusal) return read.refusal;
+
+  /* (1a) ON A HUNT? REFUSED (Security, reopen review 2026-10-19). In a hunt HP lives on the instance's
+     unit and the next settle writes it back over player_state.hp, so a manual eat here would be lost (and
+     paid for). The ONE engine eats in a hunt: the bar's food slots (src/core/hunt/consumables.js). */
+  if (await huntOpenOf(exec, user, slot)) {
+    return { status: 409, body: await refusalBody({ exec, user, slot, verb: VERB,
+      refusal: { error: INTENT_ERRORS.HUNT_OPEN }, fallback: read.env }) };
+  }
 
   /* (1b) ⚠ SETTLE BEFORE THE EAT (Security F1, 2026-09-28). A buff eaten at
      return was paid over the whole absence — the segment stores no start — and

@@ -80,7 +80,7 @@ import { engineInputsFromEnvelope } from './envelope.js';
    never runs for a hunter. */
 import { runHuntVerb, settleHunt, HUNT_OPEN_SQL } from './hunt-settle.js';
 import { verifyJwt, bearerOf, gotrueIntrospector } from './jwt.js';
-import { parseIntent } from './request.js';
+import { parseIntent, readBodyCapped, bodyJson } from './request.js';
 import { frameSelfMarker } from './frame-self.js';
 import { intentIdFor, isKnownVerb, INTENT_ERRORS, rateBucketFor } from './intents.js';
 import { runSetActivity } from './set-activity.js';
@@ -89,7 +89,6 @@ import { runVendorSell, runVendorSellMany } from './vendor-sell.js';
 import { runUnlockBuy } from './unlock-buy.js';
 import { runTrophyClaim } from './trophy-claim.js';
 import { runSheet } from './character-sheet.js';
-import { runMarketList, runMarketCancel, runMarketBuy } from './market.js';
 import { runEquip } from './equip.js';
 import { runEat } from './eat.js';
 import { withCors } from './cors.js';
@@ -323,7 +322,9 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
      that a Node test can execute. See ./request.js. Four fields come back and
      every one of them is a name or a selector; none is a value any progression
      number is computed from. */
-  const intent = parseIntent(await req.json().catch(() => ({})));
+  const raw = await readBodyCapped(req);
+  if (raw.tooLarge) return json({ ok: false, error: 'body_too_large' }, 413);
+  const intent = parseIntent(bodyJson(raw.text));
   const slot = intent.slot;
 
   /* An UNKNOWN verb is refused, never defaulted to `accrue`. An ABSENT verb IS
@@ -528,53 +529,6 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       return await reply(out.body, out.status);
     }
 
-    /* ── b355 — THE MARKET VERBS. THE FIRST VALUE THAT CROSSES BETWEEN TWO
-       PLAYERS, and the dispatch is the same three lines the others get, which
-       is the point: index.ts stays five things and every intent is a pure ESM
-       module a Node test can drive.
-
-       ⚠ READ THE ARGUMENT LISTS. `market_buy` forwards a LISTING and a COUNT
-         and nothing else — there is no `ask` in it, and there must never be.
-         The seller names a price ONCE, in `market_list`, about their own goods;
-         from then on it is server state, and hr_market_buy reads it off the row
-         it locked. That asymmetry is the whole of the cross-player argument
-         (./request.js §"…AND THEN THERE IS `ask`"), and it lives visibly in
-         these two argument lists rather than in a comment somewhere else. */
-    if (intent.verb === 'market_list') {
-      const out = await runMarketList({
-        exec,
-        user,                       // the VERIFIED subject, never a body field
-        slot,
-        intentId: intent.intentId,
-        item: intent.item,
-        qty: intent.qty,
-        ask: intent.ask,
-      });
-      return await reply(out.body, out.status);
-    }
-
-    if (intent.verb === 'market_cancel') {
-      const out = await runMarketCancel({
-        exec,
-        user,
-        slot,
-        intentId: intent.intentId,
-        listing: intent.listing,
-      });
-      return await reply(out.body, out.status);
-    }
-
-    if (intent.verb === 'market_buy') {
-      const out = await runMarketBuy({
-        exec,
-        user,
-        slot,
-        intentId: intent.intentId,
-        listing: intent.listing,
-        qty: intent.qty,
-      });
-      return await reply(out.body, out.status);
-    }
 
     /* ── THE HUNT VERB (lanes C2 / S1) ──────────────────────────────────────
        `hunt_settle` ("bring my hunt up to date"). The request carries the slot

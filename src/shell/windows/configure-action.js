@@ -64,8 +64,6 @@ export function renderConfigureAction() {
     + '<p class="hc-type"></p><p class="hc-cost"></p><ul class="hc-facts"></ul><p class="hc-req"></p></div></div>'
     + '<div class="hc-conds-head"><h3 class="hs-sub">Conditions</h3>' + btn('add', '+ Add condition') + '</div>'
     + '<p class="hs-note hc-rule"></p>'
-    + '<label class="hc-join"><span class="he-label">With more than one</span><select class="hh-select" data-hs-act="cfg-f" data-f="join">'
-    + '<option value="and">all must match</option><option value="or">any one matches</option></select></label>'
     + '<ol class="hc-conds">' + conds + '</ol>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p>'
     + '<div class="hc-foot">' + btn('clear', 'Empty slot') + btn('cancel', 'Cancel') + btn('save', 'Save', ' is-primary') + '</div>'
@@ -149,10 +147,8 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   });
   text(root.querySelector('.hc-req'), f.requires || '');
   const n = d.conditions.length;
-  text(root.querySelector('.hc-rule'), n ? (n > 1 ? (d.join === 'or' ? 'Fires when any one of these matches.' : 'All conditions must match.') : 'Fires when this matches.')
+  text(root.querySelector('.hc-rule'), n ? 'All conditions must match (up to ' + MAX_CONDITIONS + ').'
     : (d.action.id ? setupWords(d, set) : 'No conditions: the action’s own trigger.'));
-  cls(root.querySelector('.hc-join'), 'is-on', n > 1);
-  prop(root.querySelector('[data-f="join"]'), 'value', d.join);
   root.querySelectorAll('.hc-cond').forEach((row, i) => patchCond(row, d.conditions[i], i, s, ctx.doc));
   const msg = root.querySelector('.hh-intent-msg');
   text(msg, s.msg);
@@ -196,8 +192,7 @@ renderConfigureAction.act = function actConfigureAction(ctx, body, action, ev, t
   }
   if (action !== 'cfg-f' || ev.type !== 'change') return;
   const f = t.getAttribute('data-f');
-  if (f === 'join') d.join = t.value === 'or' ? 'or' : 'and';
-  else if (c && f === 'metric') { const n = conditionFor(t.value); if (n) d.conditions[Number(t.getAttribute('data-i'))] = n; }
+  if (c && f === 'metric') { const n = conditionFor(t.value); if (n) d.conditions[Number(t.getAttribute('data-i'))] = n; }
   else if (c && f === 'op') c.op = t.value;
   else if (c && f === 'subject') c.subject = t.value;
   else if (c && f === 'value') c.value = Math.round(Number(t.value)) || 0;

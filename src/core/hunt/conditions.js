@@ -122,7 +122,7 @@ function conditionsProblem(conds, join, stop) {
   if (conds !== undefined && !Array.isArray(conds)) return { error: 'bad_condition' };
   const list = conds || [];
   if (list.length > MAX_CONDITIONS) return { error: 'too_many_conditions' };
-  if (join !== undefined && !JOINS.includes(join)) return { error: 'bad_join' };
+  if (join !== undefined && (!JOINS.includes(join) || (!stop && join !== 'and'))) return { error: 'bad_join' };
   for (let i = 0; i < list.length; i++) {
     const why = conditionProblem(list[i], stop);
     if (why) return { error: why, condition: i };

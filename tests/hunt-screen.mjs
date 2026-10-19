@@ -34,6 +34,7 @@
 //         slot is set to Any food (its store price shown, paid as used) IF My HP %
 //         below 60 - ONE intent; the density step on the hunt picker sends ONE
 //         intent and shows only the server's value; after a reload both come back
+//   HS-10 the bar carries no fight controls; Hunt settings no density, no gathering
 //   HS-9  A SLOT THAT NEVER FIRES: an earlier slot with the same action under
 //         weaker conditions marks it "!" with the reason; emptying it clears that
 // ════════════════════════════════════════════════════════════════════════
@@ -339,6 +340,12 @@ async function checks(overrides, shots) {
       if (sent.length !== 1 || JSON.stringify(sent[0].slots[5]) !== JSON.stringify(want)) fails.push('HS-8 the town save sent ' + JSON.stringify(sent).slice(0, 300));
       const saved = await wait(page, () => /Any food/.test(document.querySelector('.hb-slot[data-slot="5"]').getAttribute('aria-label')) && !document.querySelector('[data-hs-win="configure-action"]'), null, 3000);
       if (!saved) fails.push('HS-8 the town slot did not show the server’s Any food after it confirmed');
+      /* Nobody is told to buy first (Tyler 10-19): with Any food on the bar and an empty bag, Hunt prep reads the store per use. */
+      await page.keyboard.press('p');
+      const prep = await wait(page, () => /Food: the store, from \d+ gp each as used/.test((document.querySelector('[data-hs-win="hunt-prep"] .hw-checks') || {}).textContent || ''), null, 3000);
+      const prepText = await page.evaluate(() => (document.querySelector('[data-hs-win="hunt-prep"]') || {}).innerText || '');
+      if (!prep || /0 food/.test(prepText)) fails.push('HS-8 Hunt prep does not read the store per use for Any food: ' + prepText.slice(0, 200));
+      await page.keyboard.press('p');
       /* Density on the hunt picker: a −/+ step, one intent, the server's value only. */
       await page.keyboard.press('h');
       await wait(page, () => document.querySelector('.hw-hunt.is-picked .hw-density.is-on'), null, 3000);
@@ -412,6 +419,7 @@ const MUTANTS = [
   ['the density shows the ground max, not the server pick', 'src/shell/windows/hunts.js', '  return { now: densityFor(g, size, [set.density]), max };', '  return { now: max, max };'],
   ['a blocked slot is not flagged', 'src/shell/action-facts.js', '      if (same || kind) {', '      if (false) {'],
   ['the modal docks instead of centring', 'src/shell/window-manager.js', "  const isModal = (id) => rows.get(id).modal === true;", "  const isModal = () => false;"],
+  ['Hunt prep tells a player to buy first', 'src/shell/readiness.js', '      const st = storeOn ? storeOf(sl.action) : null;', '      const st = null;'],
   ['the bleed badge defaults on for regular monsters', 'src/data/combat-text.js', "label: 'Bleed stack count', on: on(false, true)", "label: 'Bleed stack count', on: on(true, true)"],
 ];
 

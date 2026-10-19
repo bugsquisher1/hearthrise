@@ -57,7 +57,7 @@ export function openSlot(cs, i) {
   const bar = serverBar(cs);
   s.open = Number.isInteger(i) && i >= 0 && i < SLOTS ? i : null;
   const cur = bar && s.open !== null ? bar[s.open] : null;
-  s.draft = cur ? JSON.parse(JSON.stringify(cur)) : { action: { type: 'consume', id: 'food' }, conditions: [], join: 'and' };
+  s.draft = cur ? Object.assign(JSON.parse(JSON.stringify(cur)), { join: 'and' }) : { action: { type: 'consume', id: 'food' }, conditions: [], join: 'and' };
   s.error = null;
   s.msg = '';
 }

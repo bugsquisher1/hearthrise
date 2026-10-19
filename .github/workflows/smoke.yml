@@ -454,6 +454,30 @@ jobs:
           node tests/schema-drift.mjs --mutate
           node tests/schema-drift.mjs --live-selftest
 
+      # THE EXECUTE SURFACE, PINNED (Security 2026-10-19: hr_claim_rank paid up to
+      # 1,000,000 gold to any signed-in caller with grant hygiene green, because an
+      # approval row rides in the same file as its grant). After the full replay,
+      # what anon / authenticated / hr_engine / hr_tick can execute must EQUAL
+      # tests/rpc-execute-surface.baseline.json; no retired claim may exist; the
+      # reopen sweep re-applies byte-identically. --selftest re-grants a dropped
+      # claim, re-grants a market writer to the engine, widens anon and drops a
+      # live verb, each with hygiene kept quiet, and requires every one red.
+      - name: RPC execute surface — pinned per role
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/rpc-execute-surface.mjs
+          node tests/rpc-execute-surface.mjs --selftest
+
+      # The gate-bucket guard (plain run also in run-smoke.mjs) now retires a
+      # bucket whose every caller's function was DROPPED later in the chain;
+      # --selftest proves a removed drop, a re-created function, a live caller of
+      # a retired bucket and a forgotten kept bucket each still turn it red.
+      - name: RPC gate buckets — retirement cannot hide a live caller
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/rpc-gate-bucket-guard.mjs
+          node tests/rpc-gate-bucket-guard.mjs --selftest
+
       # THE ABSENCE IS PRICED AT THE STATE THAT EXISTED DURING IT (Security F2/F3,
       # 2026-09-28, docs/planning/SEC_ABSENCE_PRICED_AT_RETURN_2026-09-28.md).
       # R5: a client-direct RPC (and a non-stamping hr_apply) on a 7.25 h-stale row

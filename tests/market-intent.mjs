@@ -51,7 +51,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { bootReplay, ROOT } from './schema-replay.mjs';
+import { bootReplay, ROOT, chainFileBefore, REOPEN_SWEEP } from './schema-replay.mjs';
 
 const FN = (f) => join(ROOT, 'supabase', 'functions', 'hr-accrue', f);
 
@@ -179,7 +179,9 @@ async function boot(mutate) {
 
   let db;
   try {
-    ({ db } = await bootReplay());
+    /* The market as of the file before the reopen sweep, which revokes these
+       writers from hr_engine (schema-replay.mjs REOPEN_SWEEP). */
+    ({ db } = await bootReplay({ upTo: await chainFileBefore(REOPEN_SWEEP) }));
   } catch (e) {
     if (e.harness) throw e;
     throw new Red(`migration chain refused: ${e.message}`);

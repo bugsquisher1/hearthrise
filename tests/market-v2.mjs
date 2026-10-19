@@ -49,7 +49,7 @@
 // cannot demonstrate it sees failure is treated as broken, not as a pass.
 // ════════════════════════════════════════════════════════════════════════
 
-import { bootReplay, LAST_PATCHED } from './schema-replay.mjs';
+import { bootReplay, LAST_PATCHED, chainFileBefore, REOPEN_SWEEP } from './schema-replay.mjs';
 
 const MIG = '2026-08-17-market-v2.sql';
 
@@ -378,7 +378,10 @@ async function boot(mutate) {
   }
   let db;
   try {
-    ({ db } = await bootReplay(patches ? { patches, upTo: LAST_PATCHED } : {}));
+    /* Plain run: the market as of the file before the reopen sweep, which
+       revokes these writers from hr_engine (schema-replay.mjs REOPEN_SWEEP). */
+    ({ db } = await bootReplay(patches ? { patches, upTo: LAST_PATCHED }
+                                       : { upTo: await chainFileBefore(REOPEN_SWEEP) }));
   } catch (e) {
     if (e.harness) throw e;
     /* A mutation that makes the migration REFUSE TO INSTALL is the guard

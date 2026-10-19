@@ -91,6 +91,22 @@ export async function manifest() {
  *   · a manifest entry with no file                      -> stale entry
  *   · a duplicate entry                                  -> ambiguous order
  */
+/* THE REOPEN SWEEP (2026-10-28-reopen-rpc-sweep.sql) DROPS the ten dormant
+   claim RPCs and REVOKES the three market writers from every client and engine
+   role. A guard whose SUBJECT is one of those surfaces judges it as of the file
+   just before the sweep — the last state in which it was reachable — and says
+   so at its call site; the chain end proves the surface is gone
+   (tests/rpc-execute-surface.mjs). */
+export const REOPEN_SWEEP = '2026-10-28-reopen-rpc-sweep.sql';
+
+/** The chain file immediately BEFORE `name` (a harness error if absent). */
+export async function chainFileBefore(name) {
+  const order = (await chainFiles()).map(([n]) => n);
+  const i = order.indexOf(name);
+  if (i < 1) { const e = new Error(`chainFileBefore: "${name}" is not in the chain (or is first)`); e.harness = true; throw e; }
+  return order[i - 1];
+}
+
 export async function chainFiles() {
   const m = await manifest();
   const onDisk = (await readdir(MIGDIR)).filter((f) => f.endsWith('.sql')).sort();

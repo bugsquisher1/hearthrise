@@ -75,7 +75,7 @@
 
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { bootReplay, ROOT } from './schema-replay.mjs';
+import { bootReplay, ROOT, chainFileBefore, REOPEN_SWEEP } from './schema-replay.mjs';
 import { xpForLevel } from '../src/core/xp.js';
 
 const FN = (f) => join(ROOT, 'supabase', 'functions', 'hr-accrue', f);
@@ -218,7 +218,9 @@ async function run(mutate) {
   const { sa, mk, eat, it } = mods;
 
   let db;
-  try { ({ db } = await bootReplay()); } catch (e) {
+  /* R3 drives the market writers, which the reopen sweep revokes from hr_engine:
+     the chain as of the file before it (schema-replay.mjs REOPEN_SWEEP). */
+  try { ({ db } = await bootReplay({ upTo: await chainFileBefore(REOPEN_SWEEP) })); } catch (e) {
     if (e.harness) throw e;
     return { fails: [`the migration chain would not apply: ${e.message}`], notes };
   }

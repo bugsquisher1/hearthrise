@@ -40,6 +40,7 @@
 // Then assert every caller bucket (plain 'x' or dynamic-SQL ''x'') is in the
 // final live set.
 //
+//   node tests/rpc-gate-bucket-guard.mjs --selftest   (the retirement rule cannot hide a live caller)
 // Exit: 0 green · 1 drift · 2 harness problem.
 // ════════════════════════════════════════════════════════════════════════
 
@@ -51,7 +52,9 @@ import { isMain } from './_is-main.mjs';
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const MIGDIR = join(ROOT, 'supabase', 'migrations');
 
-export async function rpcGateBucketGuard() {
+/** @param {{ edit?: (file:string, sql:string) => string }} [opts] edit: the
+ *  --selftest's in-memory mutation of one file's text (never written to disk). */
+export async function rpcGateBucketGuard({ edit = null } = {}) {
   const manifest = JSON.parse(
     await readFile(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8'));
   const order = [...(manifest.pre_schema || []), ...manifest.order];
@@ -68,12 +71,33 @@ export async function rpcGateBucketGuard() {
   // ordered correctly.
   const events = [];             // { key:[fi,pos], type:'fulldef'|'splice', buckets:[], file }
   const callers = new Map();     // bucket -> [files that pass it]
+  // RETIRED CALLERS (2026-10-28-reopen-rpc-sweep.sql dropped ten claim RPCs and
+  // their buckets). A bucket is owed admission only while a SURVIVING function
+  // passes it. Each call is attributed to the nearest preceding `create function
+  // public.<fn>` header in its file; it is dead only when a `drop function
+  // public.<fn>(` lands LATER in apply order than that function's last
+  // (re)creation. Re-create the function after its drop and its bucket is owed
+  // again (--selftest proves both directions).
+  const rawCalls = [];           // { bucket, file, key:[fi,pos], fn }
+  const lastCreate = new Map();  // fn -> [fi,pos]
+  const lastDrop = new Map();    // fn -> [fi,pos]
 
   for (let fi = 0; fi < order.length; fi++) {
     const f = order[fi];
     let sql;
     try { sql = (await readFile(join(MIGDIR, f), 'utf8')).replace(/\r\n/g, '\n'); }
     catch { continue; }          // manifest↔disk sync is schema-replay's job
+    if (edit) sql = edit(f, sql);
+
+    const headers = [...sql.matchAll(/create\s+(?:or\s+replace\s+)?function\s+public\.([a-z0-9_]+)\s*\(/gi)]
+      .map((m) => ({ fn: m[1].toLowerCase(), pos: m.index }));
+    for (const h of headers) lastCreate.set(h.fn, [fi, h.pos]);
+    // A drop counts only as a STATEMENT at the start of a line: a commented-out
+    // `--   drop function …` (a reversibility note) or one buried in a string
+    // retires nothing, so the bucket stays owed (fail-safe).
+    for (const m of sql.matchAll(/^[ \t]*drop\s+function\s+(?:if\s+exists\s+)?public\.([a-z0-9_]+)\s*\(/gim)) {
+      lastDrop.set(m[1].toLowerCase(), [fi, m.index]);
+    }
 
     // ── Full definitions ──────────────────────────────────────────────────
     // Admission is judged against the CASE LIST ONLY (`case p_bucket` …
@@ -118,10 +142,17 @@ export async function rpcGateBucketGuard() {
     // Collect caller buckets: hr_rpc_gate('x') in plain SQL, hr_rpc_gate(''x'')
     // inside dynamic-SQL strings. Exclude the def itself (p_bucket parameter).
     for (const m of sql.matchAll(/hr_rpc_gate\s*\(\s*'{1,2}([a-z0-9_]+)'{1,2}\s*\)/g)) {
-      const bucket = m[1];
-      if (!callers.has(bucket)) callers.set(bucket, []);
-      if (!callers.get(bucket).includes(f)) callers.get(bucket).push(f);
+      const enclosing = headers.filter((h) => h.pos < m.index).pop();
+      rawCalls.push({ bucket: m[1], file: f, key: [fi, m.index], fn: enclosing ? enclosing.fn : null });
     }
+  }
+  const cmpKey = (x, y) => (x[0] - y[0]) || (x[1] - y[1]);
+  const retired = new Set();
+  for (const c of rawCalls) {
+    const dropped = c.fn && lastDrop.get(c.fn);
+    if (dropped && cmpKey(dropped, lastCreate.get(c.fn)) > 0) { retired.add(`${c.bucket} (${c.fn})`); continue; }
+    if (!callers.has(c.bucket)) callers.set(c.bucket, []);
+    if (!callers.get(c.bucket).includes(c.file)) callers.get(c.bucket).push(c.file);
   }
 
   // Model the LIVE admitted set: the LAST full def is the baseline (it clobbers
@@ -169,15 +200,57 @@ export async function rpcGateBucketGuard() {
       + 'idiom AFTER the last full def.\nMissing:\n' + missing.join('\n'));
   }
 
-  return { buckets: callers.size, finalDef: lastFullDef.file, spliced: splicedIn };
+  return { buckets: callers.size, finalDef: lastFullDef.file, spliced: splicedIn, retired: [...retired].sort() };
+}
+
+/* --selftest: the retirement rule must not become a hiding place. Each mutation
+   edits the chain IN MEMORY; every one must turn the guard red. */
+const RETIRING = '2026-10-28-reopen-rpc-sweep.sql';
+const SELFTEST = [
+  { name: 'drop-line-removed',
+    why: 'hr_claim_rank is no longer dropped, so its bucket is owed again and the gate refuses it',
+    edit: (f, sql) => (f === RETIRING ? sql.replace('drop function if exists public.hr_claim_rank(text, integer);\n', '') : sql) },
+  { name: 'dropped-fn-recreated-later',
+    why: 'a LATER file re-creates hr_claim_rank passing its retired bucket: the drop is before the create',
+    edit: (f, sql) => (f === RETIRING ? `${sql}\ncreate or replace function public.hr_claim_rank(p text, s int) returns boolean language sql as $f$ select public.hr_rpc_gate('hr_claim_rank') $f$;\n` : sql) },
+  { name: 'live-caller-of-retired-bucket',
+    why: 'a surviving function passes a retired bucket (hr_login_claim spending hr_claim_quest)',
+    edit: (f, sql) => (f === '2026-10-23-premium-login-reward.sql' ? sql.replace("hr_rpc_gate('hr_claim_daily')", "hr_rpc_gate('hr_claim_quest')") : sql) },
+  { name: 'kept-bucket-unlisted',
+    why: 'the restated gate forgets hr_claim_daily, which hr_login_claim still spends',
+    edit: (f, sql) => (f === RETIRING ? sql.replace("         'hr_claim_daily',\n", '') : sql) },
+];
+
+async function selftest() {
+  try { await rpcGateBucketGuard(); } catch (e) { console.error(`CLEAN arm is red: ${e.message}`); return 1; }
+  console.log('CLEAN   the unmutated chain is green');
+  let missed = 0;
+  for (const m of SELFTEST) {
+    let changed = false;
+    const edit = (f, sql) => { const out = m.edit(f, sql); if (out !== sql) changed = true; return out; };
+    try {
+      await rpcGateBucketGuard({ edit });
+      console.error(`MISSED  ${m.name}${changed ? '' : ' (the edit never landed — fix its anchor)'}\n          ${m.why}`);
+      missed += 1;
+    } catch (e) {
+      if (e.harness || !changed) { console.error(`MISSED  ${m.name}: ${changed ? 'harness' : 'edit never landed'} — ${e.message}`); missed += 1; continue; }
+      console.log(`CAUGHT  ${m.name}\n          ${m.why}`);
+    }
+  }
+  if (missed) { console.error(`\n${missed} of ${SELFTEST.length} mutations NOT caught.`); return 1; }
+  console.log(`\nall ${SELFTEST.length} mutations caught.`);
+  return 0;
 }
 
 // Standalone: node tests/rpc-gate-bucket-guard.mjs
-if (isMain(import.meta.url)) {
+if (isMain(import.meta.url) && process.argv.includes('--selftest')) {
+  selftest().then((code) => process.exit(code), (e) => { console.error(String(e.stack || e)); process.exit(2); });
+} else if (isMain(import.meta.url)) {
   rpcGateBucketGuard().then(
     (r) => {
       const via = r.spliced.length ? ` (${r.spliced.length} added by splice: ${r.spliced.join(', ')})` : '';
-      console.log(`RPC-gate bucket guard — ${r.buckets} caller bucket(s) all admitted by ${r.finalDef}${via}.`);
+      const gone = r.retired.length ? ` ${r.retired.length} caller(s) retired with their dropped function: ${r.retired.join(', ')}.` : '';
+      console.log(`RPC-gate bucket guard — ${r.buckets} caller bucket(s) all admitted by ${r.finalDef}${via}.${gone}`);
     },
     (e) => { console.error(String(e.message || e)); process.exit(e.harness ? 2 : 1); });
 }

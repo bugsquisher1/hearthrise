@@ -116,7 +116,7 @@
 import { readFile } from 'node:fs/promises';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { bootReplay } from './schema-replay.mjs';
+import { bootReplay, chainFileBefore, REOPEN_SWEEP } from './schema-replay.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const MIG = (f) => join(ROOT, 'supabase', 'migrations', f);
@@ -829,9 +829,11 @@ async function boot(injectionId) {
 
   let db;
   try {
-    ({ db } = await bootReplay(patches
-      ? { patches, fullChain: 'the fuzz judges the CHAIN-END economy; the injection file is checked above to be the LAST writer' }
-      : {}));
+    /* The economy as of the file before the reopen sweep, which revokes the
+       market writers the fuzz trades through from hr_engine (schema-replay.mjs
+       REOPEN_SWEEP); the injection file is checked above to be the LAST writer. */
+    const preSweep = await chainFileBefore(REOPEN_SWEEP);
+    ({ db } = await bootReplay(patches ? { patches, upTo: preSweep } : { upTo: preSweep }));
   } catch (e) {
     // A `gate: true` injection is one the MIGRATION'S OWN do$$ block is
     // supposed to refuse. That is a stronger result than the fuzz catching it
@@ -917,7 +919,7 @@ async function bootFinalBody(injectionId, signature) {
   const inj = INJECTIONS[injectionId];
   let db;
   try {
-    ({ db } = await bootReplay({}));
+    ({ db } = await bootReplay({ upTo: await chainFileBefore(REOPEN_SWEEP) }));
   } catch (e) {
     if (e.harness) { process.stderr.write(`HARNESS: ${e.message}\n`); process.exit(2); }
     process.stderr.write(`HARNESS: migrations would not apply (CLEAN chain, before the "${injectionId}" `

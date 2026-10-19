@@ -50,7 +50,7 @@
 
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { bootReplay, LAST_PATCHED, ROOT } from './schema-replay.mjs';
+import { bootReplay, LAST_PATCHED, ROOT, chainFileBefore, REOPEN_SWEEP } from './schema-replay.mjs';
 /* The settle-first threshold, PINNED here since its JS twin (src/core/combat-xp-cap.js) went with the
    attended combat-XP door in the core rebuild (2026-10-19): no JS path reads it any more, so the SQL's
    c_settle_first_ms is held to the ruled 180 s directly. */
@@ -359,7 +359,10 @@ async function run(mutate, { only } = {}) {
   }
   if (only === 'R4' || (m && m.r4)) return failed;
   let db;
-  try { ({ db } = await bootReplay({ patches: m && m.patches, upTo: LAST_PATCHED })); } catch (e) {
+  /* R5/R6 claim through hr_claim_quest, which the reopen sweep drops: a plain
+     run stops at the file before it (schema-replay.mjs REOPEN_SWEEP). */
+  const scope = m && m.patches ? LAST_PATCHED : await chainFileBefore(REOPEN_SWEEP);
+  try { ({ db } = await bootReplay({ patches: m && m.patches, upTo: scope })); } catch (e) {
     if (e.harness) throw e;
     throw harness(`the migration chain would not apply — ${String(e.message).split('\n').slice(0, 3).join(' | ')}`);
   }

@@ -69,15 +69,17 @@ export function createTownCast(map, o) {
     frame(walkers, now) {
       const live = new Set();
       for (const w of walkers || []) {
-        live.add(w.id);
-        let p = people.get(w.id);
+        /* a person is a CHARACTER (its user and slot): one account's two characters are two people */
+        const key = w.id + ':' + w.slot;
+        live.add(key);
+        let p = people.get(key);
         if (p && !sameSpot(p.w, w)) {
           /* a NEW report: re-aim from where the peer is drawn, unless that is too far from it (jump) */
           const c = p.steer.cell();
           if (Math.hypot(c[0] - w.x, c[1] - w.y) > limits.snapTiles) p = null;
           else aim(p, w, now);
         } else if (p) p.w = w;
-        if (!p) { p = place(w, now); people.set(w.id, p); }
+        if (!p) { p = place(w, now); people.set(key, p); }
       }
       for (const id of Array.from(people.keys())) if (!live.has(id)) people.delete(id);
       const units = [];

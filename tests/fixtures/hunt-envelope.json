@@ -216,7 +216,8 @@
         "healed": 0,
         "dps": 12,
         "hps": 0,
-        "aggro": true
+        "aggro": true,
+        "seat": 0
       },
       {
         "unit": 2,
@@ -231,9 +232,12 @@
         "dealt": 2900,
         "healed": 0,
         "dps": 15,
-        "hps": 0
+        "hps": 0,
+        "seat": 1
       }
-    ]
+    ],
+    "self_seat": 0,
+    "leader_seat": 0
   },
   "premium": {
     "active": true,

@@ -68,6 +68,20 @@ export function levelOf(cs) {
   return { xp, level, into: xp - lo, need: charXpForLevel(level + 1) - lo };
 }
 
+/**
+ * The vitals strip OUT OF A HUNT (in town, or after a hunt ended): HP from `state.hp`, max HP and
+ * max mana from the server's `vitals`, and mana FULL (mana lives only inside a hunt instance; out of
+ * one there is nothing spending it). { hp, hpMax, mana, manaMax, level, xpPct }, or null.
+ */
+export function townVitalsOf(cs) {
+  const st = read(cs, 'state');
+  const v = read(cs, 'vitals');
+  if (!isObj(st) || !isObj(v) || nat(v.max_hp) === null) return null;
+  const lv = levelOf(cs);
+  return { hp: nat(st.hp), hpMax: v.max_hp, mana: nat(v.max_mana), manaMax: nat(v.max_mana), level: nat(v.level),
+    xpPct: lv && lv.need > 0 ? Math.max(0, Math.min(1, lv.into / lv.need)) : null };
+}
+
 /** `outfit`: { worn, colors, owned: Set }, or null. */
 export function outfitOf(cs) {
   const o = read(cs, 'outfit');

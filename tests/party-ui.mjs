@@ -80,6 +80,7 @@ async function load(base) {
     C: await import(u('src/session/character-session.js')),
     AL: await import(u('src/shell/alerts.js')),
     PS: await import(u('src/session/party-sections.js')),
+    HS: await import(u('src/session/hunt-sections.js')),
     HUD: await import(u('src/data/hunt-hud.js')),
     ROLES: await import(u('src/data/hunt-roles.js')),
   };
@@ -195,6 +196,18 @@ async function pureRules(M, base) {
     if (bad.some((r) => r.ok) || srv.calls.length) return 'a malformed party intent was sent: ' + JSON.stringify(srv.calls);
     const f = await cs.findParties('millrace_sewer', 'bow');
     return (f.ok && srv.calls.length === 1 && srv.calls[0][0] === 'hr_hunt_party_finder' && srv.calls[0][1].p_weapon === 'bow') || 'the finder read was wrong: ' + JSON.stringify(srv.calls);
+  });
+
+  /* PR-3 (Tyler 10-19): a party in TOWN (no instance: every unit null) is still listed, by seat, with
+     who leads and who this is: the Party panel shows the party wherever it is, never "Not in a hunt." */
+  await t('PR-3', async () => {
+    const party = { id: '11111111-0000-4000-8000-00000000000b', hunt: 'mill_cellar', max: 2, open: true, self: null, leader: null, self_seat: 1, leader_seat: 0,
+      members: [{ seat: 0, unit: null, name: 'Tyler', level: 5, weapon: 'sword', hp: 190, hp_max: 190, mana: null, mana_max: 140 },
+                { seat: 1, unit: null, name: 'Tyler II', level: 3, weapon: 'staff', hp: 170, hp_max: 170, mana: null, mana_max: 120 }] };
+    const p = M.HS.partyOf({ read: (k) => (k === 'party' ? party : undefined) });
+    if (!p || p.members.length !== 2) return 'a party in town lists ' + (p ? p.members.length : 'no') + ' member(s), want 2';
+    if (p.selfSeat !== 1 || p.leaderSeat !== 0 || p.members.some((m) => m.unit !== null)) return 'the town party lost its seats: ' + JSON.stringify(p);
+    return true;
   });
 
   await t('PR-1', async () => {

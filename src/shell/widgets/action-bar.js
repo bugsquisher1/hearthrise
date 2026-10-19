@@ -25,6 +25,7 @@ import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.8';
 import { CONSUME_KINDS, ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.8';
 import { huntOf, settingsOf, staminaOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.8';
 import { bagOf } from '../../session/item-sections.js?v=0.2.8';
+import { townVitalsOf } from '../../session/character-sections.js?v=0.2.8';
 import { text, cls, attr } from '../../render/paint.js?v=0.2.8';
 import { whole, pct, hoursMinutes } from '../../render/format.js?v=0.2.8';
 import { glyphSvg } from '../launcher.js?v=0.2.8';
@@ -117,7 +118,9 @@ function hideTip(el) { const tip = el.querySelector('.hb-tip'); cls(tip, 'is-on'
 renderActionBar.patch = function patchActionBar(el, ctx) {
   const cs = ctx.character;
   const h = huntOf(cs);
-  const hero = h ? h.hero : {};
+  /* Out of a hunt (town, or a hunt that ended) the strip reads the character's own vitals: mana is
+     full there, never a "–" (Tyler 10-19). */
+  const hero = h && !h.ended ? h.hero : townVitalsOf(cs) || {};
   const st = staminaOf(cs);
   const s = settingsOf(cs);
   /* Real units: per second, one decimal (huntOf's hpPerS / manaPerS: +0.5/s at 170 HP). */

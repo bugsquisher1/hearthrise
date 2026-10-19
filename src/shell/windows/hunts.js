@@ -25,18 +25,18 @@
 // press is ONE hr_action_set_options. The server keeps ONE pick per action set
 // today, not one per ground, so the line says it carries to the next hunt.
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf, settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.7';
-import { bagOf, rulesOf } from '../../session/item-sections.js?v=0.2.7';
-import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.7';
-import { huntName } from '../../session/party-sections.js?v=0.2.7';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.7';
-import { whole } from '../../render/format.js?v=0.2.7';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.7';
-import { itemName } from '../widgets/bits.js?v=0.2.7';
-import { runIntent } from '../intent-words.js?v=0.2.7';
-import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.7';
-import { huntRows, densityWords, bandWords, rangeWords, groupWords, recommendedHunt, heroWords, packFor, ABOVE_LEVEL_WORDS } from '../hunt-list.js?v=0.2.7';
-import { partyScratch } from './party-finder.js?v=0.2.7';
+import { huntOf, settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.8';
+import { bagOf, rulesOf } from '../../session/item-sections.js?v=0.2.8';
+import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.8';
+import { huntName } from '../../session/party-sections.js?v=0.2.8';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.8';
+import { whole } from '../../render/format.js?v=0.2.8';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.8';
+import { itemName } from '../widgets/bits.js?v=0.2.8';
+import { runIntent } from '../intent-words.js?v=0.2.8';
+import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.8';
+import { huntRows, densityWords, bandWords, rangeWords, groupWords, recommendedHunt, heroWords, packFor, ABOVE_LEVEL_WORDS } from '../hunt-list.js?v=0.2.8';
+import { partyScratch } from './party-finder.js?v=0.2.8';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pick: null, pending: false, msg: '' }; SCRATCH.set(cs, s); } return s; };

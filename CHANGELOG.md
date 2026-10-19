@@ -5,6 +5,12 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.8 — 2026-10-19 (See the fight)
+
+**Hunts play smoothly.** Your hero and the monsters show as soon as you enter a hunt, and the fight plays without freezing.
+
+**Real regeneration numbers.** Health and mana regen now show per second.
+
 ## v0.2.7 — 2026-10-19 (Level and skills)
 
 **One Level.** Your hero earns Level from kills, and each Level raises your max health and mana. Every hero has mana.

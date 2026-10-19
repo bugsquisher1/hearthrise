@@ -286,8 +286,7 @@ export async function bootWorld(panel, opts) {
     let cast;
     if (sc.kind === 'hunt') {
       cast = huntState(G, sc, map, name, now);
-      /* A hunt ends at the town's arrival point (map start), never back where the hero stood before. */
-      walk = null; lastWalk = null; keys.clear(); forgetPos(G);
+      walk = null; lastWalk = null; keys.clear(); forgetPos(G);   // back in town: the arrival point
       if (town) town.show(null);
     } else {
       hunt = null; huntMap = null; lastHunt = null; endLive();

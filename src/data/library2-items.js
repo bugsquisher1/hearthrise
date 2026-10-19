@@ -55,7 +55,7 @@
 // line.vmul), the same expression the generator uses.
 // ============================================================
 
-import { MAX_BANE_MULT } from '../core/bane.js?v=0.2.6';
+import { MAX_BANE_MULT } from '../core/bane.js?v=0.2.7';
 
 /* The generator's own value expression, so a hand-authored rung and a generated
    one can never price differently. Kept local rather than exported from
@@ -82,7 +82,7 @@ const BANE_GEAR = {
   lazlos_maul: {
     n: "Lazlo's Maul", icon: '🔨', v: priced(110, 4), type: 'weapon', slot: 'weapon',
     weaponType: 'hammer', atkB: 12, strB: 24, tier: 4, rarity: 'epic',
-    reqSkill: 'attack', reqLv: 45, bane: BANE('undead'), effects: ['bane'],
+    reqSkill: 'melee', reqLv: 45, bane: BANE('undead'), effects: ['bane'],
   },
   // ITEM-NEW-03 · ranged T6 · vs Dragon. Bow T6 curve (35/28) × 0.85.
   dragonrib_bow: {
@@ -96,7 +96,7 @@ const BANE_GEAR = {
   bramble_blade: {
     n: 'Bramble Blade', icon: '⚔️', v: priced(100, 2), type: 'weapon', slot: 'weapon',
     weaponType: 'sword', atkB: 6, strB: 5, tier: 2, rarity: 'uncommon',
-    reqSkill: 'attack', reqLv: 15, bane: BANE('plant'), effects: ['bane'],
+    reqSkill: 'melee', reqLv: 15, bane: BANE('plant'), effects: ['bane'],
   },
   // ITEM-NEW-05 · magic T5 · vs Extra Dimensional. Staff T5 curve (21/29) × 0.85.
   // The review book also gives it "reveals the hidden element weakness"; that is
@@ -113,7 +113,7 @@ const BANE_GEAR = {
   rat_stick: {
     n: 'Rat Stick', icon: '🔨', v: priced(110, 3), type: 'weapon', slot: 'weapon',
     weaponType: 'hammer', atkB: 8, strB: 16, tier: 3, rarity: 'rare',
-    reqSkill: 'attack', reqLv: 30, bane: BANE('vermin'), effects: ['bane'],
+    reqSkill: 'melee', reqLv: 30, bane: BANE('vermin'), effects: ['bane'],
   },
 };
 
@@ -253,7 +253,7 @@ const rune = (id, name, i) => [id, {
    equipmentStats, and spdB is closed by the b343 ruling. */
 const whet = (id, name, i, v) => [id, {
   n: name, icon: '🪨', v, type: 'ammo', slot: 'ammo', tier: i + 1,
-  rarity: AMMO_RARITY[i], reqSkill: 'attack', reqLv: AMMO_REQ[i],
+  rarity: AMMO_RARITY[i], reqSkill: 'melee', reqLv: AMMO_REQ[i],
   strB: AMMO_STR[i], ammoPerShot: i === 0 ? 0 : 0.02,
   pendingSkill: 'smithing',
 }];

@@ -165,7 +165,6 @@ export function probeResultOf(res) {
     deaths: Array.isArray(d.deaths) ? d.deaths.length : 0,
     xp: signedMap(d.xp),
     items: signedMap(d.items),
-    recovering_until: typeof d.recovering_until === 'string' ? d.recovering_until : null,
     capped: meta.capped === true || (res && res.capped === true),
     stopped: d.activity ? 'activity' : null,
   };

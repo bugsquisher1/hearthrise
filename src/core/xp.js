@@ -1,13 +1,22 @@
 // ============================================================
-// src/core/xp.js — the XP curve and every level derived from it.
+// src/core/xp.js — EVERY XP CURVE and every level derived from one
+// (docs/design/CORE_MODEL.md §2).
 //
-// AUTHORITATIVE. `legacy.js` no longer owns this maths; its XP_TABLE is
-// unified against this array by src/core-bridge.js (the same in-place
-// merge main.js uses for ITEMS/MONSTERS, so there is one identity rather
-// than two copies), and a smoke guard asserts they never drift.
+//   XP_TABLE / levelFromXp / xpForLevel   the CAPPED curve: gathering and
+//                       crafting skills, 99 levels.
+//   skill curve         Melee, Ranged, Magic, Defense, Prayer: no cap
+//                       (src/data/core-model.js SKILL_CURVE), whole XP.
+//   Level curve         the character's Level, from kills only, endless
+//                       (LEVEL_CURVE); Level is not a skill.
+//
+// The server's twins (hr_level_from_xp, hr_skill_level, hr_char_level) are
+// generated from / pinned to these by tests/core-curves.mjs.
 //
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
+
+import { LEVEL_CURVE, SKILL_CURVE } from '../data/core-model.js?v=0.2.7';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.7';
 
 /* Threshold XP for level i+1. b215: the level-98 threshold (11,805,606)
    was missing for a long time, which capped levelFromXp at 98 and made
@@ -23,6 +32,7 @@ export const XP_TABLE = [
   7944614, 8771558, 9684577, 10692629, 11805606, 13034431,
 ];
 
+/* The cap of a CAPPED skill (gathering and crafting); the combat skills have none. */
 export const MAX_LEVEL = 99;
 
 export function levelFromXp(xp) {
@@ -50,32 +60,81 @@ export function xpPct(xp) {
   return (xp - a) / (b - a);
 }
 
+// ── The uncapped skill curve (Melee, Ranged, Magic, Defense, Prayer) ──────
+/* The XP from level s to s+1 is floor(base x s^2 x r^(s-1)), r = (1000 + g)/1000,
+   the power held as an exact fraction of integers (BigInt), so every runtime
+   floors the same value. TOTAL[s-1] = XP to reach level s. Grown on demand;
+   past 2^53 a level is unreachable, so the walk stops there. */
+const SKILL_TOTAL = [0];
+let powNum = 1n;
+let powDen = 1n;
+function growSkillTo(lv) {
+  const base = BigInt(SKILL_CURVE.base);
+  const g = BigInt(1000 + SKILL_CURVE.growthPermille);
+  while (SKILL_TOTAL.length < lv && SKILL_TOTAL[SKILL_TOTAL.length - 1] < Number.MAX_SAFE_INTEGER) {
+    const sl = BigInt(SKILL_TOTAL.length);
+    const step = Number((base * sl * sl * powNum) / powDen);
+    SKILL_TOTAL.push(SKILL_TOTAL[SKILL_TOTAL.length - 1] + step);
+    powNum *= g;
+    powDen *= 1000n;
+  }
+}
+
+/** Is `skillId` capped at MAX_LEVEL (gathering / crafting)? An unknown id is capped. */
+export function isCapped(skillId) {
+  const d = SKILLS_DEF[skillId];
+  return !d || d.cat !== 'combat';
+}
+/** The cap of `skillId`, or null for an uncapped (combat) skill. */
+export function skillCapOf(skillId) { return isCapped(skillId) ? MAX_LEVEL : null; }
+
+/** Total XP to REACH level `lv` of `skillId`. */
+export function skillXpForLevel(skillId, lv) {
+  if (isCapped(skillId)) return xpForLevel(lv);
+  const n = Math.max(1, Math.floor(Number(lv) || 1));
+  growSkillTo(n);
+  return SKILL_TOTAL[Math.min(n, SKILL_TOTAL.length) - 1];
+}
+
+/** The level `xp` makes in `skillId`. */
+export function skillLevelFromXp(skillId, xp) {
+  if (isCapped(skillId)) return levelFromXp(xp);
+  const x = Math.max(0, Math.floor(Number(xp) || 0));
+  let lv = 1;
+  for (;;) {
+    growSkillTo(lv + 1);
+    if (SKILL_TOTAL.length <= lv || SKILL_TOTAL[lv] > x) return lv;
+    lv += 1;
+  }
+}
+
+// ── The Level curve (the character, from kills only) ────────────────────
+/** Total XP to REACH Level `lv`: quartic x (L-1)^4 + cubic x (L-1)^3 + linear x (L-1), exact. */
+export function charXpForLevel(lv) {
+  const n = Math.max(1, Math.floor(Number(lv) || 1)) - 1;
+  return LEVEL_CURVE.quartic * n * n * n * n + LEVEL_CURVE.cubic * n * n * n + LEVEL_CURVE.linear * n;
+}
+/** The Level `xp` makes. Endless. */
+export function charLevelFromXp(xp) {
+  const x = Math.max(0, Math.floor(Number(xp) || 0));
+  const lead = LEVEL_CURVE.quartic > 0 ? Math.pow(x / LEVEL_CURVE.quartic, 0.25) : Math.cbrt(x / Math.max(1, LEVEL_CURVE.cubic));
+  let lv = Math.max(1, Math.floor(lead));
+  while (lv > 1 && charXpForLevel(lv) > x) lv -= 1;
+  while (charXpForLevel(lv + 1) <= x) lv += 1;
+  return lv;
+}
+
 // ── Derived levels ───────────────────────────────────────────────────────
-// These take the skill XP map explicitly; on the client that is G.skills,
-// on the server it is the `player_skills` rows keyed by skill_id. Neither
-// caller stores a level — level is always derived, so the two
-// representations of one fact can never drift (design §1).
+// These take the skill XP map explicitly; on the client that is the
+// projection's skills, on the server the `player_skills` rows keyed by
+// skill_id. Neither caller stores a level: a level is always derived, so the
+// two representations of one fact can never drift.
 
 export function levelOf(skills, skillId) {
-  return levelFromXp((skills && skills[skillId]) || 0);
+  return skillLevelFromXp(skillId, (skills && skills[skillId]) || 0);
 }
 
 export function totalLevel(skills) {
   if (!skills) return 0;
   return Object.keys(skills).reduce((s, k) => s + levelOf(skills, k), 0);
-}
-
-export function combatLevel(skills) {
-  const a = levelOf(skills, 'attack');
-  const st = levelOf(skills, 'strength');
-  const d = levelOf(skills, 'defense');
-  const h = levelOf(skills, 'hitpoints');
-  const p = levelOf(skills, 'prayer');
-  const r = levelOf(skills, 'ranged');
-  const mg = levelOf(skills, 'magic');
-  const base = (d + h + Math.floor(p / 2)) * 0.25;
-  const melee = (a + st) * 0.325;
-  const range = Math.floor(r * 1.5) * 0.325;
-  const mage = Math.floor(mg * 1.5) * 0.325;
-  return Math.floor(base + Math.max(melee, range, mage));
 }

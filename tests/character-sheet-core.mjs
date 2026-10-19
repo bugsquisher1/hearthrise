@@ -5,12 +5,12 @@
 //   node tests/character-sheet-core.mjs           the rules
 //   node tests/character-sheet-core.mjs --mutate  every planted defect must turn a rule RED
 //
-// mutant-anchors: src/core/progression.js supabase/functions/hr-accrue/character-sheet.js supabase/migrations/2026-10-25-character-sheet.sql
+// mutant-anchors: src/core/progression.js supabase/functions/hr-accrue/character-sheet.js supabase/migrations/2026-10-25-character-sheet.sql supabase/migrations/2026-10-27-core-bodies.sql
 //
-//   CS-X1 ONE XP FORMULA: grantXp pays exactly base × (1 + all + gear + combat
-//         on a combat skill) with the parts xpMultiplierParts answers, and the
-//         sheet's experience bonuses are those same parts (gear, the lasting
-//         perks, the buff layer, combat)
+//   CS-X1 ONE XP FORMULA: grantXp pays exactly base × (1 + all + combat on a
+//         combat skill) with the parts xpMultiplierParts answers, and the sheet's
+//         experience bonuses are those same parts (the lasting perks, the buff
+//         layer, combat). Gear XP bonuses went with the core rebuild (no xpB).
 //   CS-I1 THE SHEET READS ONLY WHAT ITS FINGERPRINT COVERS: every envelope path
 //         characterSheetOf reads is a SHEET_INPUTS path, and SHEET_INPUTS names
 //         exactly the parts hr_character_sheet_inputs fingerprints
@@ -27,6 +27,9 @@ import { ROOT } from './_client-harness.mjs';
 
 const SHEET = 'supabase/functions/hr-accrue/character-sheet.js';
 const MIG = 'supabase/migrations/2026-10-25-character-sheet.sql';
+/* hr_character_sheet_inputs and hr_character_sheet_view are RESTATED by the core rebuild (Level XP replaces the
+   combat style in the fingerprint): the body that runs is read, and mutated, there. */
+const BODIES = 'supabase/migrations/2026-10-27-core-bodies.sql';
 
 /* Every envelope path read through `o`, recorded as dotted paths. */
 function recorder(o, seen, path = '') {
@@ -50,23 +53,26 @@ async function rules(root) {
   const AC = await imp('supabase/functions/hr-accrue/accrual.js');
   const H = await imp('supabase/functions/hr-accrue/payload-hash.js');
   // CS-X1
-  const cases = [{ allXP: 0, combatXP: 0, xpB: 0 }, { allXP: 0.05, combatXP: 0.1, xpB: 0.02 }, { allXP: 0.31, combatXP: 0, xpB: 0.15 }, { allXP: 0, combatXP: 0.25, xpB: 0 }];
+  const cases = [{ allXP: 0, combatXP: 0 }, { allXP: 0.05, combatXP: 0.1 }, { allXP: 0.31, combatXP: 0 }, { allXP: 0, combatXP: 0.25 }];
   for (const c of cases) {
     const bonus = (k) => (k === 'allXP' ? c.allXP : k === 'combatXP' ? c.combatXP : 0);
-    const parts = P.xpMultiplierParts(c.xpB, bonus);
-    if (parts.gear !== c.xpB || parts.all !== c.allXP || parts.combat !== c.combatXP) fails.push('CS-X1 xpMultiplierParts answered ' + JSON.stringify(parts) + ' for ' + JSON.stringify(c));
-    for (const skill of ['attack', 'woodcutting']) {
+    const parts = P.xpMultiplierParts(bonus);
+    if (parts.all !== c.allXP || parts.combat !== c.combatXP) fails.push('CS-X1 xpMultiplierParts answered ' + JSON.stringify(parts) + ' for ' + JSON.stringify(c));
+    for (const skill of ['melee', 'woodcutting']) {
       const st = { skills: {}, xpFrac: {} };
-      const r = P.grantXp(st, skill, 1000, { bonus, xpB: c.xpB, authored: true });
-      const want = Math.floor(1000 * (1 + parts.all + parts.gear + (skill === 'attack' ? parts.combat : 0)) + 1e-9);
+      const r = P.grantXp(st, skill, 1000, { bonus, authored: true });
+      const want = Math.floor(1000 * (1 + parts.all + (skill === 'melee' ? parts.combat : 0)) + 1e-9);
       if (r.gain !== want) fails.push('CS-X1 grantXp paid ' + r.gain + ' ' + skill + ' XP, the parts say ' + want + ' (' + JSON.stringify(c) + ')');
     }
   }
   const perks = { ok: true, rooms: {}, plots: {}, propertyTier: 0, unlockedRecipes: {}, renownAllXp: 0.03, clanPerks: {}, castle: null };
-  const env = { ok: true, state: { combat_style: {} }, skills: { attack: { xp: 4700, level: 20 } }, equipment: { cape: 'chitinweave_cloak' }, buffs: [] };
+  /* A live +10% combat-XP food buff, so the combat part is not zero (a sheet that folded it into perks shows). */
+  const buffs = [{ type: 'combat_xp', magnitude: 10, from: new Date(Date.now() - 60000).toISOString(), until: new Date(Date.now() + 3600000).toISOString() }];
+  const env = { ok: true, state: { level_xp: 21591 }, skills: { melee: { xp: 4700, level: 20 } }, equipment: { cape: 'chitinweave_cloak' }, buffs };
   const sh = S.characterSheetOf(env, perks, Date.now());
-  const lasting = P.xpMultiplierParts(0.01, AC.bonusFor(perks, null));
-  if (Math.abs(sh.xp.perks - lasting.all) > 1e-4 || sh.xp.buffs !== 0 || Math.abs(sh.xp.gear - lasting.gear) > 1e-4 || !(sh.xp.gear > 0)) fails.push('CS-X1 the sheet\'s XP parts ' + JSON.stringify(sh.xp) + ' are not grantXp\'s (' + JSON.stringify(lasting) + ')');
+  const lasting = P.xpMultiplierParts(AC.bonusFor(perks, null));
+  if (Math.abs(sh.xp.perks - lasting.all) > 1e-4 || !(sh.xp.combat > 0.09) || sh.xp.buffs !== 0 || 'gear' in sh.xp) fails.push('CS-X1 the sheet\'s XP parts ' + JSON.stringify(sh.xp) + ' are not grantXp\'s (' + JSON.stringify(lasting) + ')');
+  if (sh.level !== 10) fails.push('CS-X1 the sheet reads Level ' + sh.level + ' off 21,591 Level XP, not 10');
   // CS-I1
   const seen = new Set();
   S.characterSheetOf(recorder(JSON.parse(JSON.stringify(env)), seen), perks, Date.now());
@@ -74,7 +80,9 @@ async function rules(root) {
   for (const p of allowed) if (p.includes('.')) allowed.add(p.split('.')[0]);
   for (const p of seen) if (!allowed.has(p)) fails.push('CS-I1 characterSheetOf reads `' + p + '`, which hr_character_sheet_inputs does not fingerprint');
   const sql = readFileSync(join(root, MIG), 'utf8').replace(/\r\n/g, '\n');
-  const body = sql.slice(sql.indexOf('create or replace function public.hr_character_sheet_inputs'), sql.indexOf('$$;', sql.indexOf('create or replace function public.hr_character_sheet_inputs')));
+  const live = readFileSync(join(root, BODIES), 'utf8').replace(/\r\n/g, '\n');
+  const at = live.toLowerCase().indexOf('create or replace function public.hr_character_sheet_inputs');
+  const body = live.slice(at, live.indexOf('$function$;', at));
   const parts = [...body.matchAll(/^ {4}'([a-z_]+)', /gm)].map((m) => m[1]).sort();
   if (parts.join() !== Object.keys(S.SHEET_INPUTS).sort().join()) fails.push('CS-I1 hr_character_sheet_inputs fingerprints [' + parts.join(', ') + '], SHEET_INPUTS names [' + Object.keys(S.SHEET_INPUTS).sort().join(', ') + ']');
   // CS-V1
@@ -89,17 +97,17 @@ async function rules(root) {
   if (!put || put.params[3] !== H.PAYLOAD_SHA256 || put.params[2] !== 'f'.repeat(32)) fails.push('CS-V1 the put was handed ' + JSON.stringify(put && put.params.slice(0, 4)) + ', not the fingerprint and the payload hash ' + H.PAYLOAD_SHA256);
   if (!/create or replace function public\.hr_character_sheet_stamp[\s\S]*?md5\(coalesce\(p_inputs, ''\) \|\| ':' \|\| coalesce\(p_version, ''\)\)/.test(sql)
       || !/public\.hr_character_sheet_stamp\(p_inputs, p_version\)/.test(sql)
-      || !/v_cs\.engine_version = v_engine/.test(sql)) fails.push('CS-V1 the server stamp is not md5(inputs:engine), or the view does not hold the sheet to the latest engine');
+      || !/v_cs\.engine_version = v_engine/.test(live)) fails.push('CS-V1 the server stamp is not md5(inputs:engine), or the view does not hold the sheet to the latest engine');
   return fails;
 }
 
 const MUTANTS = [
   ['grantXp drops the combat part', 'src/core/progression.js', 'const combat = COMBAT_XP_SKILLS.indexOf(skillId) >= 0 ? parts.combat : 0;', 'const combat = 0;'],
-  ['the sheet prices its own XP split', SHEET, "perks: round(lasting.all, 4)", "perks: round(lasting.all + now.gear, 4)"],
+  ['the sheet prices its own XP split', SHEET, "perks: round(lasting.all, 4)", "perks: round(lasting.all + now.combat, 4)"],
   ['the sheet reads a key its fingerprint misses', SHEET, "  const equipment = isObj(env.equipment) ? env.equipment : {};", "  const equipment = isObj(env.equipment) ? env.equipment : {}; void env.enchant;"],
-  ['the fingerprint stops covering the buffs', MIG, "    'buffs', coalesce((select jsonb_agg(", "    'bufs', coalesce((select jsonb_agg("],
+  ['the fingerprint stops covering the buffs', BODIES, "    'buffs', coalesce((select jsonb_agg(jsonb_build_object('type', b.v->>'type',", "    'bufs', coalesce((select jsonb_agg(jsonb_build_object('type', b.v->>'type',"],
   ['the put is handed a fixed engine version', SHEET, "const version = o.version || PAYLOAD_SHA256;", "const version = o.version || 'unpacked0';"],
-  ['the view ignores the engine', MIG, "    v_fresh := v_cs.engine_version = v_engine\n      and", "    v_fresh := true\n      and"],
+  ['the view ignores the engine', BODIES, "    v_fresh := v_cs.engine_version = v_engine\n      and", "    v_fresh := true\n      and"],
 ];
 
 async function main() {

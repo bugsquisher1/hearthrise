@@ -31,9 +31,10 @@ const imp = (rel) => import(pathToFileURL(join(ROOT, rel)).href);
  *  nothing, so a guard may import it. */
 export async function deriveCatalogueRows() {
 const { ITEMS, isAutoEatable } = await imp('src/data/items.js');
+const { ARMOUR_WEIGHT } = await imp('src/data/core-model.js');
 const { TREES, ROCKS, FISH_SPOTS, expandItemSlot } = await imp('src/data/gathering.js');
 const { ARTISAN_RECIPES } = await imp('src/data/recipes.js');
-const { MONSTERS } = await imp('src/data/monsters.js');
+const { MONSTERS, monsterLevelOf } = await imp('src/data/monsters.js');
 
 const itemIds = Object.keys(ITEMS).sort();
 const items = itemIds.map((id) => {
@@ -57,6 +58,11 @@ const items = itemIds.map((id) => {
        it, and then the engine would silently ignore it — a UI that says one
        thing while the engine does another, which is the b341 failure class. */
     auto_eatable: isAutoEatable(it),
+    /* THE ARMOUR WEIGHT (CORE_MODEL.md §3) hr_vitals_of counts: heavy / medium / light, null = not armour. */
+    armour_weight: (it.slot && ARMOUR_WEIGHT[it.armourClass]) || null,
+    /* TWO-HANDED (Tyler 2026-10-19: Healer = staff, and a staff leaves no hand for an off-hand):
+       hr_apply refuses a worn set holding a two-handed weapon and anything in the off-hand. */
+    two_handed: it.slot === 'weapon' && it.twoHanded === true,
   };
 });
 
@@ -83,7 +89,7 @@ const activities = [];
 const pushNodes = (arr, skill) => {
   for (const n of arr) activities.push({
     kind: 'gather', activity_id: n.id, req_skill: skill, req_lv: Math.trunc(n.req ?? 1),
-    max_hp: null, is_boss: false,
+    max_hp: null, is_boss: false, level: null,
   });
 };
 pushNodes(TREES, 'woodcutting');
@@ -92,7 +98,7 @@ pushNodes(FISH_SPOTS, 'fishing');
 for (const [skill, list] of Object.entries(ARTISAN_RECIPES)) {
   for (const r of list) activities.push({
     kind: 'artisan', activity_id: r.id, req_skill: skill, req_lv: Math.trunc(r.req ?? 1),
-    max_hp: null, is_boss: false,
+    max_hp: null, is_boss: false, level: null,
   });
 }
 for (const id of Object.keys(MONSTERS).sort()) {
@@ -115,7 +121,9 @@ for (const id of Object.keys(MONSTERS).sort()) {
      drift would silently mis-score renown. `hr_renown_of` joins the bestiary
      rows against `hr_activities where is_boss`. */
   activities.push({ kind: 'combat', activity_id: id, req_skill: null, req_lv: null,
-    max_hp: hp, is_boss: MONSTERS[id].boss === true });
+    max_hp: hp, is_boss: MONSTERS[id].boss === true,
+    /* THE MONSTER'S LEVEL (CORE_MODEL.md §4): Defense XP per blow scales with it. */
+    level: monsterLevelOf(MONSTERS[id]) });
 }
 activities.sort((a, b) => (a.kind + a.activity_id).localeCompare(b.kind + b.activity_id));
 

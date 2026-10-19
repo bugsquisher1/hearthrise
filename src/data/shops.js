@@ -56,8 +56,8 @@
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPPLY_SHOP_OFFERS } from './supply-basics.js?v=0.2.6';
-import { ITEMS } from './items.js?v=0.2.6';
+import { SUPPLY_SHOP_OFFERS } from './supply-basics.js?v=0.2.7';
+import { ITEMS } from './items.js?v=0.2.7';
 
 export const SHOPS_DIGEST = "3dd62b831e08bf6b8180fdfa08e203c68eea083199dfdb44a4082ccd36552e07";
 
@@ -112,6 +112,20 @@ export const SHOP_OFFERS = [
     name: "Apprentice Staff",
     cost: [{ kind: "currency", id: "gold", amount: 120 }],
     grant: [{ kind: "item", id: "apprentice_staff", amount: 1 }],
+    repeatable: true,
+  },
+  {
+    id: "equip.apprentice_wand", table: "equip",
+    name: "Apprentice Wand",
+    cost: [{ kind: "currency", id: "gold", amount: 100 }],
+    grant: [{ kind: "item", id: "apprentice_wand", amount: 1 }],
+    repeatable: true,
+  },
+  {
+    id: "equip.apprentice_primer", table: "equip",
+    name: "Apprentice Primer",
+    cost: [{ kind: "currency", id: "gold", amount: 90 }],
+    grant: [{ kind: "item", id: "apprentice_primer", amount: 1 }],
     repeatable: true,
   },
   {

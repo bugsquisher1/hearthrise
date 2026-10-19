@@ -16,10 +16,11 @@
 /* The fletching ladder (arrows). Crafted gear — the generated gear-tiers
    recipes, the wave-3 uniques, the library-2 sets, the boss forge and the
    jewellery/cape rows — was deleted in the 2026-10-14 demolition. */
-import { SLOT_RECIPES } from './slot-ladders.js?v=0.2.6';
-import { ITEMS, foodClassOf } from './items.js?v=0.2.6';
-import { STONECRAFT_RECIPES } from './stonecraft.js?v=0.2.6';
-import { DRINK_RECIPES } from './drinks.js?v=0.2.6';
+import { SLOT_RECIPES } from './slot-ladders.js?v=0.2.7';
+import { ITEMS, foodClassOf } from './items.js?v=0.2.7';
+import { STONECRAFT_RECIPES } from './stonecraft.js?v=0.2.7';
+import { DRINK_RECIPES } from './drinks.js?v=0.2.7';
+import { PRAYER_BURY } from './core-model.js?v=0.2.7';
 const BASE_RECIPES = {
   cooking: [
     // Fish — original starter chain
@@ -286,8 +287,10 @@ const BASE_RECIPES = {
      The XP curve steps ~1.4x per rung against ms that grows only 2.2 s → 3.8 s,
      which is the standard artisan shape: the later rungs are worth more per
      action AND per hour, but each one costs a rarer drop. Levels are the
-     Designer's (ruling 2026-09-12, final); nothing here is derived, so retuning
-     is a data edit plus a catalogue regenerate.
+     Designer's (ruling 2026-09-12, final); Bury Bones' XP is set from the core
+     rebuild's Prayer curve (src/data/core-model.js PRAYER_BURY, 2026-10-19), the
+     rites above it await the designer's Prayer pass. Retuning is a data edit plus a
+     catalogue regenerate.
 
      ⚠ ADDING A ROW HERE MOVES THE SERVER. tools/gen-catalogues.mjs emits one
      `hr_activities` row per recipe (kind 'artisan', req_skill = the bench, req_lv
@@ -297,9 +300,7 @@ const BASE_RECIPES = {
      PAYLOAD, which imports this file (supabase/functions/hr-accrue/catalogue.js),
      so hr-accrue must be redeployed at the same cut. */
   prayer: [
-    {id:'bury_bones',     name:'Bury Bones',         icon:'🦴', input:'bones',         output:null, xp:4.5, req:1,  ms:1200},
-    /* The Crown Shard: 100 Bones of Prayer, or 150 g sold (UNVERIFIED balance; the choice is the point). */
-    {id:'offer_crown_shard',      name:'Offer a Crown Shard',      icon:'👑',  input:'crown_shard',  output:null, xp:450,  req:10, ms:2400},
+    {id:'bury_bones',     name:'Bury Bones',         icon:'🦴', input:'bones',         output:null, xp:PRAYER_BURY.recipeXp, req:1,  ms:1200},
     {id:'bury_big',       name:'Bury Big Bones',     icon:'🦴', input:'big_bones',     output:null, xp:15,  req:15, ms:1500},
     {id:'bury_dragon',    name:'Bury Dragon Bones',  icon:'🦴', input:'dragon_bones',  output:null, xp:72,  req:35, ms:2000},
     {id:'bury_bone_chips',        name:'Sift Bone Chips',          icon:'🦴',  input:'bone_chips',   output:null, xp:105,  req:40, ms:2200},

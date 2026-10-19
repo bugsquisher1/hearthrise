@@ -1,57 +1,46 @@
-// SKILLS_DEF — extracted from hearthrise-phaseA.html
+// ════════════════════════════════════════════════════════════════════════
+// src/data/skills.js — THE SKILL LIST (docs/design/CORE_MODEL.md §1; Tyler
+// 2026-10-14 / 2026-10-19).
+//
+// combat   Melee, Ranged, Magic, Defense, Prayer: trained by use, NO cap
+//          (src/core/xp.js skill curve). There is no Hitpoints, Attack or
+//          Strength skill.
+// gather / artisan   capped at 99 (src/core/xp.js XP_TABLE).
+//
+// LEVEL IS NOT A SKILL: it comes from kills only and lives in
+// player_state.level_xp (src/core/xp.js charLevelFromXp), so no skill list,
+// board or tooltip can draw it as one.
+//
+// Adding a row here gives a skill its Skills-window line, its hr_skills
+// catalogue row (tools/gen-catalogues.mjs) and its 0-XP start on every new
+// character (src/data/start-kit.js).
+//
+// PURE ESM. Data only.
+// ════════════════════════════════════════════════════════════════════════
 
-export const SKILLS_DEF={
-  attack:{name:'Attack',icon:'⚔️',cat:'combat'},strength:{name:'Strength',icon:'💪',cat:'combat'},
-  defense:{name:'Defense',icon:'🛡️',cat:'combat'},hitpoints:{name:'Hitpoints',icon:'❤️',cat:'combat'},
-  prayer:{name:'Prayer',icon:'🙏',cat:'combat'},magic:{name:'Magic',icon:'🔮',cat:'combat'},
-  ranged:{name:'Ranged',icon:'🏹',cat:'combat'},
-  woodcutting:{name:'Woodcutting',icon:'🪓',cat:'gather'},mining:{name:'Mining',icon:'⛏️',cat:'gather'},
-  fishing:{name:'Fishing',icon:'🎣',cat:'gather'},farming:{name:'Farming',icon:'🌾',cat:'gather'},
-  cooking:{name:'Cooking',icon:'🍳',cat:'artisan'},crafting:{name:'Crafting',icon:'🔨',cat:'artisan'},
-  smithing:{name:'Smithing',icon:'🔩',cat:'artisan'},
-  /* docs/design/consumable-economy.md R6 — the consumable economy's new
-     bench (Stonemason, its twin, was cut in the 2026-10-14 demolition). ARTISAN, not gathering: the artisan engine is generic over
-     ARTISAN_RECIPES[skill], so a new lane is a data row; the
-     gathering engine is hard-branched on three skill ids in ~14 sites of the
-     monolith. (Fletching is the third and is sequenced separately.)
-     Adding the row here is what gives each skill its Activities tile, its
-     detail grid, its hr_skills catalogue row and its 0-XP start on every new
-     character — see src/data/start-kit.js's header. */
-  runecrafting:{name:'Runecrafting',icon:'🔮',cat:'artisan'},
+export const SKILLS_DEF = {
+  melee: { name: 'Melee', icon: '⚔️', cat: 'combat' },
+  ranged: { name: 'Ranged', icon: '🏹', cat: 'combat' },
+  magic: { name: 'Magic', icon: '🔮', cat: 'combat' },
+  defense: { name: 'Defense', icon: '🛡️', cat: 'combat' },
+  prayer: { name: 'Prayer', icon: '🙏', cat: 'combat' },
+  woodcutting: { name: 'Woodcutting', icon: '🪓', cat: 'gather' },
+  mining: { name: 'Mining', icon: '⛏️', cat: 'gather' },
+  fishing: { name: 'Fishing', icon: '🎣', cat: 'gather' },
+  farming: { name: 'Farming', icon: '🌾', cat: 'gather' },
+  cooking: { name: 'Cooking', icon: '🍳', cat: 'artisan' },
+  crafting: { name: 'Crafting', icon: '🔨', cat: 'artisan' },
+  smithing: { name: 'Smithing', icon: '🔩', cat: 'artisan' },
+  runecrafting: { name: 'Runecrafting', icon: '🔮', cat: 'artisan' },
 };
 
-/* ── PRAYER WARDS — W0 coherence audit, Top-10 #8 (2026-10-09) ──────────────
-   Prayer used to do nothing in a fight: it only padded combat level. Now every
-   Prayer tier carries a PASSIVE WARD — a share of incoming blows that glance
-   off. Rows are { lv, pct }: at Prayer >= lv the ward is pct percent. Read by
-   ONE function (src/core/combat.js `prayerWardPct`) inside
-   `monsterCombatRolls`, which is the single expression the attended tick, the
-   away accrual and the world tick all price a monster's swing through — so the
-   ward is identical on every path (AWAY-1) with no caller wiring.
+/* The uncapped skills: every `combat` row. A death costs each of them the same
+   fraction of its progress toward its next level as the Level loses
+   (src/data/hunt-sessions.js DEATH_XP_LOSS; never a level). */
+export const COMBAT_SKILLS = Object.freeze(Object.keys(SKILLS_DEF).filter((id) => SKILLS_DEF[id].cat === 'combat'));
 
-   HOW IT BITES: the monster's chance to land is multiplied by (1 - pct/100)
-   AFTER its own clamp. Expected damage taken therefore falls by exactly pct%,
-   at every monster size — a max-hit cut would round to nothing against the
-   small hitters a low-Prayer player actually fights. It spends no RNG draw, so
-   seeded replays are unchanged in shape.
-
-   GAME DESIGNER RULING (W0, 2026-10-10): front-loaded so early levels are felt,
-   3% at 10 then +2% per decade, 20% at 99. Below a defence tier's worth: a real
-   but secondary survival stat — a Prayer-99 hero eats about a fifth less food,
-   never fights for free. Retune a row, never a branch. Ascending by `lv`; a
-   guard asserts the order and the cap. */
-export const PRAYER_WARDS = Object.freeze([
-  Object.freeze({ lv: 10, pct: 3 }),
-  Object.freeze({ lv: 20, pct: 5 }),
-  Object.freeze({ lv: 30, pct: 7 }),
-  Object.freeze({ lv: 40, pct: 9 }),
-  Object.freeze({ lv: 50, pct: 11 }),
-  Object.freeze({ lv: 60, pct: 13 }),
-  Object.freeze({ lv: 70, pct: 15 }),
-  Object.freeze({ lv: 80, pct: 17 }),
-  Object.freeze({ lv: 90, pct: 19 }),
-  Object.freeze({ lv: 99, pct: 20 }),
-]);
-/* The ceiling no row may exceed. A ward is a share of blows turned aside; at
-   anything near 100 Prayer becomes invulnerability. */
-export const PRAYER_WARD_MAX_PCT = 25;
+/* The skill a weapon family's damage trains and its accuracy and max hit read
+   (CORE_MODEL.md §4). Magic is trained by mana spent, never by damage. */
+export const FAMILY_SKILL = Object.freeze({ sword: 'melee', hammer: 'melee', axe: 'melee', ranged: 'ranged', magic: 'magic', neutral: 'melee' });
+/* The families whose landed blows pay damage XP (magic pays per mana spent). */
+export const DAMAGE_XP_FAMILIES = Object.freeze(['sword', 'hammer', 'axe', 'ranged', 'neutral']);

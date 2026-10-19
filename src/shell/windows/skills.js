@@ -8,27 +8,31 @@
 // categories, so a new skill joins the ledger of its category with nothing
 // else to edit. One compact entry per skill, two to a
 // row: its glyph and name, the server's level, the progress to the next level
-// on the shared XP curve (src/core/xp.js, the curve hr_level_from_xp uses), the
+// on the skill's own curve (src/core/xp.js skillXpForLevel: the combat skills climb
+// the uncapped curve, the rest stop at 99; the curves hr_skill_level uses), the
 // XP still to go, and its NEXT UNLOCK (src/data/skill-unlocks.js: the lowest
 // recipe, node or gear requirement above the current level, from the catalogues). What the
 // skill is for and where it is trained (src/data/skill-guide.js) is the
 // entry's tooltip. Every level and XP number is the envelope's `skills`,
 // replaced on each envelope; the windows send nothing.
 // ════════════════════════════════════════════════════════════════════════
-import { SKILLS_DEF } from '../../data/skills.js?v=0.2.6';
-import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.6';
-import { xpForLevel, MAX_LEVEL } from '../../core/xp.js?v=0.2.6';
-import { nextUnlock } from '../../data/skill-unlocks.js?v=0.2.6';
-import { skillsOf } from '../../session/item-sections.js?v=0.2.6';
-import { rows, text, cls, style, attr, element } from '../../render/paint.js?v=0.2.6';
-import { whole } from '../../render/format.js?v=0.2.6';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.6';
-import { glyphSvg } from '../launcher.js?v=0.2.6';
+import { SKILLS_DEF } from '../../data/skills.js?v=0.2.7';
+import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.7';
+import { skillXpForLevel, skillCapOf } from '../../core/xp.js?v=0.2.7';
+import { nextUnlock } from '../../data/skill-unlocks.js?v=0.2.7';
+import { skillsOf } from '../../session/item-sections.js?v=0.2.7';
+import { rows, text, cls, style, attr, element } from '../../render/paint.js?v=0.2.7';
+import { whole } from '../../render/format.js?v=0.2.7';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.7';
+import { glyphSvg } from '../launcher.js?v=0.2.7';
 
-/** Progress inside the current level, 0..1, from the server's XP and level. */
-function levelProgress(xp, level) {
-  if (level >= MAX_LEVEL) return 1;
-  const lo = xpForLevel(level), hi = xpForLevel(level + 1);
+/* Is `level` the skill's last (a capped skill at its cap)? Combat skills have none. */
+const mastered = (id, level) => { const cap = skillCapOf(id); return cap !== null && level >= cap; };
+
+/** Progress inside the current level, 0..1, from the server's XP and level, on the skill's own curve. */
+function levelProgress(id, xp, level) {
+  if (mastered(id, level)) return 1;
+  const lo = skillXpForLevel(id, level), hi = skillXpForLevel(id, level + 1);
   return hi > lo ? Math.max(0, Math.min(1, (xp - lo) / (hi - lo))) : 0;
 }
 
@@ -65,10 +69,10 @@ function skillsWindow(groups) {
         patch: (li, id) => {
           const r = sk[id] || { xp: 0, level: 1 };
           text(li.querySelector('.hw-skill-lv'), String(r.level));
-          const f = levelProgress(r.xp, r.level);
+          const f = levelProgress(id, r.xp, r.level);
           style(li.querySelector('.hw-skill-fill'), 'width', (Math.round(f * 1000) / 10) + '%');
           attr(li.querySelector('.hw-skill-bar'), 'aria-valuenow', Math.round(f * 100));
-          text(li.querySelector('.hw-skill-xp'), r.level >= MAX_LEVEL ? 'Mastered' : whole(Math.max(0, xpForLevel(r.level + 1) - r.xp)) + ' XP to ' + (r.level + 1));
+          text(li.querySelector('.hw-skill-xp'), mastered(id, r.level) ? 'Mastered' : whole(Math.max(0, skillXpForLevel(id, r.level + 1) - r.xp)) + ' XP to ' + (r.level + 1));
           const next = nextUnlock(id, r.level);
           const nx = li.querySelector('.hw-skill-next');
           text(nx, next);

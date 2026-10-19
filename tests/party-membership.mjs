@@ -257,12 +257,17 @@ try {
   // refusal an operator sees.
   group('P-IDEM2  and it REFUSES to re-apply once S2 has landed');
   {
-    const hasS2 = (await q("select to_regclass('public.party_hunt') is not null as x"))[0].x;
+    /* Measured at S2's OWN position (a boot up to its last file): at the chain end a LATER file (the core
+       rebuild drops player_state.max_hp) refuses file 1 before its GATE(f) is reached, which would read as
+       a refusal for the wrong reason. */
+    const s2 = await bootReplay({ upTo: '2026-09-23-m8-parties-s2-3-engine-allowlist.sql' });
+    const q2 = async (sql) => (await s2.db.query(sql)).rows;
+    const hasS2 = (await q2("select to_regclass('public.party_hunt') is not null as x"))[0].x;
     let err = null;
     if (hasS2) {
       const sql = (await readFile(join(ROOT, 'supabase', 'migrations', F1), 'utf8'))
         .replace(/\r\n/g, '\n');
-      try { await db.exec(sql); } catch (e) { err = String(e.message).split('\n')[0]; }
+      try { await s2.db.exec(sql); } catch (e) { err = String(e.message).split('\n')[0]; }
     }
     /* AND THE REFUSED RE-APPLY LEFT THE PREDICATE ALONE. The whole file runs
        as one implicit transaction, so the raise takes back the `create or
@@ -271,10 +276,11 @@ try {
        still reverted the body would be the silent revert with an error message
        stapled to it. */
     const stillReal = hasS2
-      ? (await q("select position('party_hunt' in p.prosrc) > 0 as x from pg_proc p"
+      ? (await q2("select position('party_hunt' in p.prosrc) > 0 as x from pg_proc p"
           + " join pg_namespace n on n.oid = p.pronamespace"
           + " where n.nspname = 'public' and p.proname = 'hr_party_hunt_live'"))[0].x
       : true;
+    await s2.db.close();
     judge('P-IDEM2', hasS2 ? (/GATE\(f\)/.test(String(err || '')) && stillReal === true) : true,
       hasS2
         ? `re-applying file 1 over S2 is refused: "${String(err).slice(0, 96)}…" — and the raise `
@@ -612,10 +618,20 @@ try {
       `member: ${member.err || `${member.rows} row(s)`}; outsider: `
       + `${outsider.err || `${outsider.rows} row(s)`}`);
 
+    /* THE CORE REBUILD (2026-10-27-core-schema.sql) DROPS hr_party_view: it projected the deleted
+       recovering_until and combat level, and the hunt party's own view (hr_hunt_party_view) is the
+       roster the client reads. Gone means gone: no function and no client-baseline row. */
+    const viewGone = (await q("select to_regprocedure('public.hr_party_view(uuid)') is null as x"))[0].x;
+    if (viewGone) {
+      const base = (await q("select count(*)::int n from public.hr_client_rpc_baseline where proname = 'hr_party_view'"))[0].n;
+      judge('P-VIEW', base === 0,
+        'hr_party_view is dropped (core rebuild) and no client-baseline row still names it',
+        `hr_party_view is dropped but hr_client_rpc_baseline still names it (${base} row(s))`);
+    }
     await as(A);
-    const view = await call(`public.hr_party_view('${p2.p}'::uuid)`);
+    const view = viewGone ? null : await call(`public.hr_party_view('${p2.p}'::uuid)`);
     await as(C);
-    const denied = await call(`public.hr_party_view('${p2.p}'::uuid)`);
+    const denied = viewGone ? null : await call(`public.hr_party_view('${p2.p}'::uuid)`);
     const keys = view?.members?.[0] ? Object.keys(view.members[0]).sort() : [];
     // FIVE once 2026-10-15-party-hunt-view.sql is in the replay (A2: share_bp /
     // xp / gold retired in favour of hr_party_hunt_view); EIGHT in a replay that
@@ -625,7 +641,7 @@ try {
     const FROZEN = retired
       ? ['combat_level', 'hp', 'hp_max', 'name', 'recovering_until']
       : ['combat_level', 'gold', 'hp', 'hp_max', 'name', 'recovering_until', 'share_bp', 'xp'];
-    judge('P-VIEW', view?.ok === true
+    if (!viewGone) judge('P-VIEW', view?.ok === true
       && JSON.stringify(keys) === JSON.stringify(FROZEN)
       && denied?.error === 'not_in_party' && !('members' in (denied || {})),
       'hr_party_view answers a member with the FROZEN key shape (five after party-hunt-view) and refuses a non-member '

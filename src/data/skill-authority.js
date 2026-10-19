@@ -36,9 +36,9 @@
 //
 // ── THE PARTITION ───────────────────────────────────────────────────────────
 //   ACCRUED (serverAccruedSkill === true): the union of what the engine settles —
-//     • COMBAT xp skills — the `xp:{...}` keys of every COMBAT_STYLES entry, plus
-//       hitpoints (always granted) and the attack/strength fallback route.
-//       Source: src/core/styles.js (hitXpRoute/killXpRoute read the same table).
+//     • COMBAT xp skills — the skills a hunt pays (src/core/hunt-rewards.js):
+//       COMBAT_XP_SKILLS (Melee, Ranged, Magic, Defense). Source:
+//       src/core/progression.js. (Prayer is the payable artisan lane below.)
 //     • GATHER skills — GATHER_SKILLS (woodcutting/mining/fishing), the exact
 //       list src/core/skill-sim.js's simulateSkillSpan pays. Source:
 //       src/core/pacing.js. NOTE farming is a 'gather' CATEGORY skill but has no
@@ -55,30 +55,14 @@
 // PURE ESM. No DOM required to import; loads and answers in Node.
 // ============================================================================
 
-import { SKILLS_DEF } from './skills.js?v=0.2.6';
-import { COMBAT_STYLES } from '../core/styles.js?v=0.2.6';
-import { GATHER_SKILLS } from '../core/pacing.js?v=0.2.6';
-import { ARTISAN_SETTLEMENT } from './item-authority.js?v=0.2.6';
+import { SKILLS_DEF } from './skills.js?v=0.2.7';
+import { COMBAT_XP_SKILLS } from '../core/progression.js?v=0.2.7';
+import { GATHER_SKILLS } from '../core/pacing.js?v=0.2.7';
+import { ARTISAN_SETTLEMENT } from './item-authority.js?v=0.2.7';
 
-/* Hitpoints is granted on EVERY landed hit (styles.js hitXpRoute), and the
-   pre-styles fallback route trains Attack+Strength — neither shows up as an
-   `xp:{...}` key on a style, so both are named here to match the engine exactly. */
-export const ALWAYS_COMBAT_XP_SKILLS = Object.freeze(['hitpoints', 'attack', 'strength']);
-
-/** Every skill any COMBAT style's `xp` map trains, ∪ the always-on combat route.
- *  Read off the SAME table hitXpRoute/killXpRoute route XP through, so the client
- *  carve-out and the combat engine cannot disagree about which skills combat pays. */
+/** The skills a hunt pays XP into (src/core/hunt-rewards.js routes, the one list). */
 export function combatXpSkills() {
-  const s = new Set(ALWAYS_COMBAT_XP_SKILLS);
-  for (const family of Object.values(COMBAT_STYLES || {})) {
-    if (!family || typeof family !== 'object') continue;
-    for (const style of Object.values(family)) {
-      if (style && style.xp && typeof style.xp === 'object') {
-        for (const sk of Object.keys(style.xp)) s.add(sk);
-      }
-    }
-  }
-  return s;
+  return new Set(COMBAT_XP_SKILLS);
 }
 
 /** The gather skills the engine's simulateSkillSpan actually pays. */

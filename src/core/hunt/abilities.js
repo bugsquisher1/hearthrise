@@ -31,19 +31,19 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS } from '../../data/abilities.js?v=0.2.6';
-import { resolveLine, takeLine, canAfford, shopShotFor } from '../action-rules.js?v=0.2.6';
-import { cheb, dist2, los } from './grid.js?v=0.2.6';
-import { makeEvent } from './events.js?v=0.2.6';
-import { landHit } from './damage.js?v=0.2.6';
-import { applyStatus, statusRow } from './status.js?v=0.2.6';
-import { markHealed } from './consumables.js?v=0.2.6';
-import { ammoPerShot } from '../ammo.js?v=0.2.6';
-import { ITEMS } from '../../data/items.js?v=0.2.6';
-import { slotsFor, pickSlot, bestAim, itemRow } from './conditions.js?v=0.2.6';
+import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS } from '../../data/abilities.js?v=0.2.7';
+import { resolveLine, takeLine, canAfford, shopShotFor } from '../action-rules.js?v=0.2.7';
+import { cheb, dist2, los } from './grid.js?v=0.2.7';
+import { makeEvent } from './events.js?v=0.2.7';
+import { landHit } from './damage.js?v=0.2.7';
+import { applyStatus, statusRow } from './status.js?v=0.2.7';
+import { markHealed } from './consumables.js?v=0.2.7';
+import { ammoPerShot } from '../ammo.js?v=0.2.7';
+import { ITEMS } from '../../data/items.js?v=0.2.7';
+import { slotsFor, pickSlot, bestAim, itemRow } from './conditions.js?v=0.2.7';
 
 export const PERSISTED = Object.freeze({
-  unit: Object.freeze([['mana', 'int'], ['maxMana', 'int'], ['manaMilli', 'int'], ['lanes', 'json'], ['cds', 'json'],
+  unit: Object.freeze([['mana', 'int'], ['maxMana', 'int'], ['manaMilli', 'int'], ['regenPm', 'int'], ['lanes', 'json'], ['cds', 'json'],
     ['shield', 'int'], ['markBy', 'int?'], ['markUntil', 'int'], ['vulnUntil', 'int']]),
   world: Object.freeze([]),
   pack: Object.freeze([]),
@@ -233,10 +233,12 @@ export function fire(inst, u, pick, sc) {
   return true;
 }
 
-/** Mana regenerates ABILITY_RULES.manaRegenPctPerMin of max a minute, in milli-mana (AB-13). */
+/** Mana regenerates ABILITY_RULES.manaRegenPctPerMin of max a minute, in milli-mana (AB-13), times
+    the hero's Prayer regen rate (`regenPm`, permille: src/core/vitals.js regenPermille; 1000 unset). */
 function regenMana(u, dtMs) {
   if (!(int(u.maxMana) > 0)) return;
-  u.manaMilli = int(u.manaMilli) + Math.floor((int(u.maxMana) * ABILITY_RULES.manaRegenPctPerMin * 10 * dtMs) / 60000);
+  const pm = int(u.regenPm) > 0 ? int(u.regenPm) : 1000;
+  u.manaMilli = int(u.manaMilli) + Math.floor((int(u.maxMana) * ABILITY_RULES.manaRegenPctPerMin * 10 * pm * dtMs) / 60000000);
   const whole = Math.floor(u.manaMilli / 1000);
   u.manaMilli -= whole * 1000;
   u.mana = Math.min(int(u.maxMana), int(u.mana) + whole);

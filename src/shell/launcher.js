@@ -6,11 +6,10 @@
 // The row is drawn from the window catalogue, so it lists only windows that
 // exist, and it is the `launchers` HUD widget, which can never be hidden.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.6';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.6';
-import { HUNT_TUTORIAL } from '../data/hunt-tutorial.js?v=0.2.6';
-import { skillsOf } from '../session/item-sections.js?v=0.2.6';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.6';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.7';
+import { HUNT_TUTORIAL } from '../data/hunt-tutorial.js?v=0.2.7';
+import { levelOf } from '../session/character-sections.js?v=0.2.7';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.7';
 
 /** The chip text for a row's shortcut key: 'b' -> 'B', 'enter' -> 'Enter'. */
 export function keyLabel(key) {
@@ -26,16 +25,16 @@ export function glyphSvg(glyphs, key, cls) {
 
 /**
  * THE FIRST-MINUTE POINTER (Tyler 10-18: "I'm confused right away"). A
- * character that has never fought (every combat skill at 0 XP, as the server
- * says) and is not hunting gets one line under the Hunts icon: the first hunt
- * tutorial card's words. It goes the moment the first kill pays XP, or while
- * Hunts is open. Display only; it reads the server's skills and hunt.
+ * character that has never fought (Level XP 0, as the server says: Level comes
+ * from kills only) and is not hunting gets one line under the Hunts icon: the first
+ * hunt tutorial card's words. It goes the moment the first kill pays Level XP, or
+ * while Hunts is open. Display only; it reads the server's Level XP and hunt.
  */
 function pointerFor(ctx, open) {
   const cs = ctx.character;
   if (!cs || open.has('hunts') || huntOf(cs) || Array.from(open).some((id) => ctx.wm.row(id) && ctx.wm.row(id).modal)) return '';
-  const sk = skillsOf(cs);
-  if (!sk || Object.keys(SKILLS_DEF).some((id) => SKILLS_DEF[id].cat === 'combat' && sk[id] && sk[id].xp > 0)) return '';
+  const lv = levelOf(cs);
+  if (!lv || lv.xp > 0) return '';
   const card = HUNT_TUTORIAL[0];
   return '<p class="hs-pointer" role="note"><b>' + esc(card.title) + '</b> ' + esc(card.text) + '</p>';
 }

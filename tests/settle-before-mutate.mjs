@@ -51,7 +51,10 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, LAST_PATCHED, ROOT } from './schema-replay.mjs';
-import { COMBAT_XP_SETTLE_FIRST_MS } from '../src/core/combat-xp-cap.js';
+/* The settle-first threshold, PINNED here since its JS twin (src/core/combat-xp-cap.js) went with the
+   attended combat-XP door in the core rebuild (2026-10-19): no JS path reads it any more, so the SQL's
+   c_settle_first_ms is held to the ruled 180 s directly. */
+const COMBAT_XP_SETTLE_FIRST_MS = 180000;
 import { computeAccrual, PAYABLE_KINDS, CALLER_AUTHORITY }
   from '../supabase/functions/hr-accrue/accrual.js';
 import { settleGatherSession, intentValue, atSpan, GATHER_CATALOGUES }
@@ -117,9 +120,9 @@ async function snapshot(db) {
 
 async function r5(db) {
   await db.query('insert into auth.users(id) values ($1) on conflict (id) do nothing', [UID]);
-  await db.query(`insert into player_state (user_id, slot, gold, hp, max_hp, version,
+  await db.query(`insert into player_state (user_id, slot, gold, hp, version,
                     accrued_to, active_kind, active_id, active_since)
-                  values ($1, 0, 1000, 10, 10, 1, now() - interval '${STALE}',
+                  values ($1, 0, 1000, 10, 1, now() - interval '${STALE}',
                           'combat', 'r5_probe_target', now() - interval '8 hours')`, [UID]);
   await db.query(`insert into player_progress (user_id, slot, kind, key, value, period_key, updated_at)
                   values ($1, 0, 'stat', 'ev:smithed', 60, '', now())`, [UID]);

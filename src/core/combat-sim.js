@@ -16,8 +16,12 @@
 // own clock stands there (members in key order):
 //   the end checks (action-rules.js END_ORDER) — an ended member's hero leaves
 //   the world at that boundary;
-//   the swing interval is PAID (its hero standing: stamina drains) or KNOCKED
-//   OUT (its hero down: stamina rests).
+//   the swing interval is PAID (stamina drains).
+// A hero killed in a swing DIES (Tyler 2026-10-19): its death is priced at once
+// (action-rules.js deathXpLoss) and its hunt ends `died` at its next boundary;
+// it walks home with full HP. No knockout, no falls, no resume. One death ends
+// the WHOLE party's hunt (Tyler 2026-10-19): every other member ends
+// `party_member_died` at its own next boundary, paying nothing for it.
 // Then ONE world swing (src/core/hunt/world-step.js stepSwing) moves every unit
 // of every member, and src/core/hunt-rewards.js pays what it did, member by
 // member, through each member's own `fx` sink. A member still walking in (its
@@ -31,23 +35,21 @@
 // refuses the swing: an unseeded hunt swing is a predictable one.
 //
 // Everything impure is INJECTED: the seeder, the ground and its grid, each
-// member's fx, perk stack, combat snapshot and style. PURE ESM. No DOM, no
+// member's fx, perk stack and combat snapshot. PURE ESM. No DOM, no
 // window, no timers, no Math.random.
 // ============================================================
 
-import { COMBAT_BALANCE } from './combat.js?v=0.2.6';
-import { resumeHpFor } from './recovery.js?v=0.2.6';
-import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.6';
-import { createRng } from './rng.js?v=0.2.6';
-import { KNOCKOUT_MS } from '../data/hunt-sessions.js?v=0.2.6';
-import { densityFor } from '../data/hunt-grounds.js?v=0.2.6';
-import { stepSwing } from './hunt/world-step.js?v=0.2.6';
-import { makeEvent } from './hunt/events.js?v=0.2.6';
-import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.6';
-import { rewardSwing } from './hunt-rewards.js?v=0.2.6';
+import { COMBAT_BALANCE } from './combat.js?v=0.2.7';
+import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.7';
+import { createRng } from './rng.js?v=0.2.7';
+import { densityFor } from '../data/hunt-grounds.js?v=0.2.7';
+import { stepSwing } from './hunt/world-step.js?v=0.2.7';
+import { makeEvent } from './hunt/events.js?v=0.2.7';
+import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.7';
+import { rewardSwing } from './hunt-rewards.js?v=0.2.7';
 
 /* The engine's front door (src/core/index.js `combatSim`). */
-export { stepSwing } from './hunt/world-step.js?v=0.2.6';
+export { stepSwing } from './hunt/world-step.js?v=0.2.7';
 
 /* WHY A COMBAT SPAN STOPPED BEFORE THE WINDOW DID — the same contract
    src/core/skill-sim.js and src/core/artisan-sim.js publish under this name.
@@ -69,17 +71,21 @@ function seedOf(ctx, domain, index) {
 function heroOf(m) {
   const snap = m.snapshot(m.state);
   return Object.assign({ role: m.hero.role, maxHp: m.state.playerMaxHp, hp: m.state.playerHp,
-    maxMana: m.hero.maxMana, element: m.hero.element || '', settings: m.hero.settings, density: m.hero.density }, snap);
+    maxMana: m.state.playerMaxMana, element: m.hero.element || '', settings: m.hero.settings, density: m.hero.density,
+    regenPm: m.state.regenPm }, snap);
 }
 
 /* The settings and combat snapshot the settle writes onto a member's unit
    (roles.js / damage.js read them there): the hero's options, its role and its
-   gear and skills as they stand NOW, so a level gained mid-window counts from
-   the next swing however the window was cut. Max HP is raise-only. */
+   gear, skills and Level as they stand NOW, so a level gained mid-window counts
+   from the next swing however the window was cut. Max HP and max mana are
+   raise-only inside a hunt (a Level is never lost in one: a death ends it). */
 function syncUnit(u, m) {
   const snap = m.snapshot(m.state);
-  u.acc = snap.acc; u.maxHit = snap.maxHit; u.def = snap.def; u.ward = snap.ward || 0;
+  u.acc = snap.acc; u.maxHit = snap.maxHit; u.def = snap.def;
   u.maxHp = Math.max(u.maxHp, m.state.playerMaxHp);
+  u.maxMana = Math.max(u.maxMana || 0, m.state.playerMaxMana || 0);
+  u.regenPm = m.state.regenPm;
   if (m.hero.settings) {
     const s = m.hero.settings;
     if (s.dist !== undefined) u.dist = s.dist;
@@ -89,21 +95,24 @@ function syncUnit(u, m) {
   }
 }
 
-/* The fall's price and its knockout, on the member (the world already knocked
-   the hero out for KNOCKOUT_MS; a fall is never a free heal). */
-function fall(m, f, out) {
+/* A DEATH (Tyler 2026-10-19): priced on the member at once (Level and every
+   combat skill, action-rules.js deathXpLoss) and its hunt ends `died` at the
+   member's next boundary (the end checks). A hero dies once: its hunt is over. */
+function die(m, f, out) {
   const hs = m.hs;
-  hs.falls = (Math.floor(Number(hs.falls)) || 0) + 1;
+  if (hs.died) return;
+  hs.died = true;
   hs.tally.deaths++;
   m.state.stats = m.state.stats || {};
   m.state.stats.deaths = (m.state.stats.deaths || 0) + 1;
-  const xpLost = deathXpLoss(m.state.skills, m.style);
-  for (const k in xpLost) m.state.skills[k] = (Number(m.state.skills[k]) || 0) - xpLost[k];
-  for (const k in xpLost) out.xpLost[k] = (out.xpLost[k] || 0) + xpLost[k];
-  out.deathLog.push({ atMs: f.atMs, monster: f.monster, recoverMs: KNOCKOUT_MS,
-    resumeHp: resumeHpFor(m.state.playerMaxHp), xpLost });
-  out.events.push(makeEvent('fall', f.atMs, { monster: f.monster, xpLost }));
-  m.state.recoveringUntilMs = f.atMs + KNOCKOUT_MS;
+  const xpLost = deathXpLoss(m.state);
+  for (const k in xpLost) {
+    if (k === 'level') m.state.levelXp = (Number(m.state.levelXp) || 0) - xpLost[k];
+    else m.state.skills[k] = (Number(m.state.skills[k]) || 0) - xpLost[k];
+    out.xpLost[k] = (out.xpLost[k] || 0) + xpLost[k];
+  }
+  out.deathLog.push({ atMs: f.atMs, monster: f.monster, xpLost });
+  out.events.push(makeEvent('death', f.atMs, { monster: f.monster, xpLost }));
 }
 
 function endMember(m, why, atMs, world, out) {
@@ -112,8 +121,9 @@ function endMember(m, why, atMs, world, out) {
   hs.endedAtMs = atMs;
   out.events.push(makeEvent('ended', atMs, { reason: why, ...(why === 'rule' ? { rule: hs.ruleStop } : {}) }));
   const u = world && m.unitId !== null ? world.units.find((x) => x.id === m.unitId) : null;
-  /* An ENDED hunt leaves no knockout behind: the character walks home, up. */
-  if (u) m.state.playerHp = u.alive ? u.hp : resumeHpFor(m.state.playerMaxHp);
+  /* A DEAD hero is back in town with full HP and mana (Tyler 2026-10-19); any
+     other end walks home with the HP it had. */
+  if (u) m.state.playerHp = u.alive ? u.hp : m.state.playerMaxHp;
   if (world && m.unitId !== null) leaveHero(world, m.unitId);
   m.left = true;
 }
@@ -124,13 +134,13 @@ function endMember(m, why, atMs, world, out) {
  * @param inst { world (decoded world-state world, or null before anyone
  *        arrived), nextSwingAtMs (the instance clock), members: [m] in key order }
  *        m = { key, seat, unitId (int or null: not in the world yet), hs
- *        (action-rules.js newHuntSession), state { skills, playerHp,
- *        playerMaxHp, stats, gold (a delta), recoveringUntilMs }, hero { role,
- *        maxMana, element, settings, slots (hunt-spawn heroSetup), stopRules, density, actionSet, range, ammo, foodBelowPct,
- *        drinkBelowPct }, snapshot(state) → { acc, maxHit, def }, style,
- *        bonus(key), weakness(row) → { dropMult }, rollsVs?(row) → playerCombatRolls
+ *        (action-rules.js newHuntSession), state { skills, levelXp, playerHp,
+ *        playerMaxHp, playerMaxMana, regenPm, stats, gold (a delta) }, hero { role,
+ *        element, settings, slots (hunt-spawn heroSetup), stopRules, density, actionSet, range, ammo, foodBelowPct,
+ *        drinkBelowPct }, snapshot(state) → { acc, maxHit, def }, family (the weapon family),
+ *        armoured, shield, bonus(key), weakness(row) → { dropMult }, rollsVs?(row) → playerCombatRolls
  *        against that monster (a basic swing's accuracy and weapon weakness), fx, buffsAt?(atMs) (re-measures the timed
- *        buff queue the member's bonus reads, at each of its boundaries) }; snapshot may add ward
+ *        buff queue the member's bonus reads, at each of its boundaries) }
  * @param ctx  { toMs, tickMs (COMBAT_BALANCE.tickMs), seed(domain, index), ground, grid, monsters?, items? (the server's item catalogue: an attack item's footprint),
  *        hearthfind? (an indexed Hearthfind table; the catalogue's when absent), xpMultOf?(unitId) }
  * @returns { world, nextSwingAtMs, swings, track, events, kinds, members: { [key]: summary } }
@@ -141,7 +151,7 @@ export function simulateHuntInstance(inst, ctx) {
   const members = inst.members;
   let world = inst.world || null;
   let atMs = Math.floor(Number(inst.nextSwingAtMs));
-  const out = new Map(members.map((m) => [m.key, { ticks: 0, kills: 0, deaths: 0, recoverMs: 0, deathLog: [],
+  const out = new Map(members.map((m) => [m.key, { ticks: 0, kills: 0, deaths: 0, deathLog: [],
     xpLost: {}, events: [], killsBefore: m.hs.tally.kills, unitEver: m.unitId }]));
   const track = []; const worldEvents = [];
   /* Every unit's kind as it was seen (a corpse is cleared after corpseMs): the analyzer's 'taken by monster'. */
@@ -157,7 +167,7 @@ export function simulateHuntInstance(inst, ctx) {
   }
 
   while (atMs < toMs && members.some((m) => !m.left)) {
-    // (1) Each member at this boundary: the end checks, then a paid or knocked-out interval.
+    // (1) Each member at this boundary: the end checks, then a paid interval.
     const here = [];
     for (const m of members) {
       if (m.left || m.hs.nextSwingAtMs > atMs) continue;
@@ -177,12 +187,10 @@ export function simulateHuntInstance(inst, ctx) {
       const u = world.units.find((x) => x.id === m.unitId);
       const o = out.get(m.key);
       if (typeof m.buffsAt === 'function') m.buffsAt(atMs);
-      const standing = !!u && u.alive;
       if (m.hs.staminaMs !== null && m.hs.staminaMs !== undefined) {
-        m.hs.staminaMs = staminaStep(m.hs.staminaMs, tick, standing, m.hs.staminaMaxMs);
+        m.hs.staminaMs = staminaStep(m.hs.staminaMs, tick, true, m.hs.staminaMaxMs);
       }
-      if (standing) { m.hs.tally.paidMs += tick; m.hs.tally.swings += 1; o.ticks += 1; }
-      else { m.hs.tally.downMs += tick; o.recoverMs += tick; }
+      m.hs.tally.paidMs += tick; m.hs.tally.swings += 1; o.ticks += 1;
       if (u) syncUnit(u, m);
       byUnit.set(m.unitId, m);
     }
@@ -206,12 +214,13 @@ export function simulateHuntInstance(inst, ctx) {
       seen();
       for (const t of r.track) track.push(t);
       for (const e of r.events) worldEvents.push(e);
-      const falls = rewardSwing(byUnit, r.events, world, { rng: createRng(seedOf(ctx, 'r', sw)), monsters: ctx.monsters, hearthfind: ctx.hearthfind });
-      for (const f of falls) {
+      const deaths = rewardSwing(byUnit, r.events, world, { rng: createRng(seedOf(ctx, 'r', sw)), monsters: ctx.monsters, hearthfind: ctx.hearthfind });
+      for (const f of deaths) {
         const m = byUnit.get(f.unit);
         const o = out.get(m.key);
-        o.deaths += 1;
-        fall(m, f, o);
+        if (!m.hs.died) o.deaths += 1;
+        die(m, f, o);
+        for (const other of members) if (other !== m && !other.left && !other.hs.died) other.hs.partyDied = true;
       }
       for (const [id, m] of byUnit) {
         const u = world.units.find((x) => x.id === id);
@@ -224,30 +233,24 @@ export function simulateHuntInstance(inst, ctx) {
 
   /* AN END THAT IS ALREADY CERTAIN is stamped at the member's VERY NEXT boundary,
      even when it lies past this window's end: a store use the purse could not
-     cover (the flag is not part of the stored session), and the falls limit
-     reached on this window's last swing (the database requires that end in the
-     SAME settle as the fall). The full end order is asked at that boundary, so
-     an earlier reason that also holds there wins — the same instant however
-     the windows were cut. */
+     cover, a stop rule met, and a death on this window's last swing (none of
+     those flags is part of the stored session, and the database requires the
+     `died` end in the SAME settle as the death row). The full end order is
+     asked at that boundary, so an earlier reason that also holds there wins —
+     the same instant however the windows were cut. */
   for (const m of members) {
     if (m.left || m.unitId === null) continue;
     const next = m.hs.nextSwingAtMs;
-    if (m.hs.goldOut === true || typeof m.hs.ruleStop === 'string' || endReasonAt(m.hs, next) === 'falls') {
+    if (m.hs.goldOut === true || typeof m.hs.ruleStop === 'string' || m.hs.died === true || m.hs.partyDied === true) {
       endMember(m, endReasonAt(m.hs, next) || 'gold_out', next, world, out.get(m.key));
     }
   }
   const summaries = {};
   for (const m of members) {
     const o = out.get(m.key);
-    const u = world && m.unitId !== null && !m.left ? world.units.find((x) => x.id === m.unitId) : null;
-    const down = !!u && !u.alive;
-    /* The knockout line survives the window only while the hero is still down
-       in a hunt that goes on. */
-    if (m.hs.endedReason || !down) m.state.recoveringUntilMs = 0;
-    m.hs.down = !m.hs.endedReason && down;
     delete m.hs._events;
     summaries[m.key] = {
-      ticks: o.ticks, deaths: o.deaths, died: o.deaths > 0, recoverMs: o.recoverMs,
+      ticks: o.ticks, deaths: o.deaths, died: o.deaths > 0,
       kills: m.hs.tally.kills - o.killsBefore,
       deathLog: o.deathLog, xpLost: o.xpLost, huntEvents: o.events,
       huntEnded: m.hs.endedReason ? { reason: m.hs.endedReason, atMs: m.hs.endedAtMs } : null,

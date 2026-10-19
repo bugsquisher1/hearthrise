@@ -26,20 +26,20 @@
 // PURE ESM. No DOM. Imports cleanly in Node, Deno and the browser.
 // ============================================================
 
-import { ITEMS } from './items.js?v=0.2.6';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.6';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.6';
-import { SKILLS_DEF } from './skills.js?v=0.2.6';
-import { SHOP_OFFERS } from './shops.js?v=0.2.6';
-import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=0.2.6';
-import { PREMIUM_LOGIN_REWARD } from './premium.js?v=0.2.6';
-import { HEARTHFIND_ITEMS } from './hearthfind.js?v=0.2.6';
-import { EFFECT_KINDS } from './item-effects.js?v=0.2.6';
-import { MONSTERS } from './monsters.js?v=0.2.6';
+import { ITEMS } from './items.js?v=0.2.7';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.7';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.7';
+import { SKILLS_DEF } from './skills.js?v=0.2.7';
+import { SHOP_OFFERS } from './shops.js?v=0.2.7';
+import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=0.2.7';
+import { PREMIUM_LOGIN_REWARD } from './premium.js?v=0.2.7';
+import { HEARTHFIND_ITEMS } from './hearthfind.js?v=0.2.7';
+import { EFFECT_KINDS } from './item-effects.js?v=0.2.7';
+import { MONSTERS } from './monsters.js?v=0.2.7';
 import {
   gatherProductIds, cropProductIds, seedIds, combatDropIds, artisanOutputIds,
   shopGrantIds, goalRewardIds,
-} from './item-authority.js?v=0.2.6';
+} from './item-authority.js?v=0.2.7';
 
 /* The data identities this module reads, re-exported so a Node guard can mutate
    the SAME objects (a bare import without the ?v= query is a second module
@@ -82,6 +82,9 @@ export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_
   'swarm_heart', 'warlord_badge', 'hell_ember', 'shadow_thread', 'captain_medal',
   'shadow_pelt', 'death_steel', 'hollow_sigil', 'abyssal_pearl', 'gold_bar', 'verdite_bar',
   'heartgarnet',
+  /* CORE REBUILD (2026-10-19): the Rat King's Crown Shard lost its Prayer offering (Tyler's
+     deletion list); "a trader pays well for it" is its whole job until the roster gives it one. */
+  'crown_shard',
 ]);
 
 /* ── AWAITING THE ROSTER — catalogued, kept, and deliberately unobtainable ───
@@ -212,10 +215,8 @@ export function obtainableItemIds() {
    A combat skill makes no item; its "consumer" is the engine that reads its
    level. Declared with the file that reads it, proven by the guard. */
 export const ENGINE_SKILL_CONSUMERS = Object.freeze({
-  attack:       Object.freeze({ label: 'hit chance (combat engine)', file: 'src/core/combat.js', needle: 'attack' }),
-  strength:     Object.freeze({ label: 'max hit (combat engine)', file: 'src/core/combat.js', needle: 'strength' }),
+  melee:        Object.freeze({ label: 'melee hit chance and max hit (combat engine)', file: 'src/core/combat.js', needle: 'melee' }),
   defense:      Object.freeze({ label: 'damage taken (combat engine)', file: 'src/core/combat.js', needle: 'defense' }),
-  hitpoints:    Object.freeze({ label: 'max HP (accrual engine)', file: 'supabase/functions/hr-accrue/accrual.js', needle: "ev.skill === 'hitpoints'" }),
   ranged:       Object.freeze({ label: 'ranged accuracy and damage (combat engine)', file: 'src/core/combat.js', needle: 'ranged' }),
   magic:        Object.freeze({ label: 'magic accuracy and damage (combat engine)', file: 'src/core/combat.js', needle: 'magic' }),
 });

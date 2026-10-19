@@ -12,11 +12,11 @@
 //
 // Controls are marked `data-opt="<key>"`; buttons carry `data-val`.
 // ════════════════════════════════════════════════════════════════════════
-import { TARGET_MODES, HUNT_STANCES, HERO_DISTANCE } from '../../data/rule-subjects.js?v=0.2.6';
-import { SUPPLY_SOURCE, ON_EMPTY } from '../../data/hunt-sessions.js?v=0.2.6';
-import { settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.6';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.6';
-import { text, attr, prop, cls } from '../../render/paint.js?v=0.2.6';
+import { TARGET_MODES, HUNT_STANCES, HERO_DISTANCE } from '../../data/rule-subjects.js?v=0.2.7';
+import { SUPPLY_SOURCE, ON_EMPTY } from '../../data/hunt-sessions.js?v=0.2.7';
+import { settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.7';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.7';
+import { text, attr, prop, cls } from '../../render/paint.js?v=0.2.7';
 
 export const SUPPLY_LABEL = Object.freeze({ mine: 'Use my own supplies', store: 'Buy from the store' });
 export const ON_EMPTY_LABEL = Object.freeze({ switch: 'Buy from the store', end: 'End the hunt' });

@@ -147,7 +147,7 @@ language plpgsql as $$
 begin
   if coalesce(current_setting('hearthrise.b338g', true), '') <> 'arm' then return new; end if;
   perform set_config('hearthrise.b338g', 'fired', true);
-  insert into public.player_state (user_id, slot, hp, max_hp) values (new.user_id, new.slot, 10, 10);
+  insert into public.player_state (user_id, slot, hp) values (new.user_id, new.slot, 10);
   return new;
 end $$;
 
@@ -162,7 +162,7 @@ begin
   -- trigger that quietly did nothing would make the result below "pass".
   begin
     perform set_config('hearthrise.b338g', 'arm', true);
-    insert into public.player_state (user_id, slot, hp, max_hp) values (p_uid, p_slot, 10, 10);
+    insert into public.player_state (user_id, slot, hp) values (p_uid, p_slot, 10);
     v_ctl := 'no error';
   exception when others then v_ctl := sqlstate;
   end;
@@ -213,8 +213,8 @@ begin
   begin
     set local role authenticated;
     perform set_config('request.jwt.claim.sub', '${UID}', true);
-    insert into public.player_state (user_id, slot, gold, hp, max_hp)
-      values ('${UID}'::uuid, 4, 999999999, 10, 10);
+    insert into public.player_state (user_id, slot, gold, hp)
+      values ('${UID}'::uuid, 4, 999999999, 10);
     v_ins := 'ALLOWED';
   exception when others then v_ins := sqlstate;
   end;
@@ -500,12 +500,18 @@ async function run(mutationId) {
   const owned = R((await one(`select public.__b338_owned('${UID}', 0) as r`)).r);
   const st = R(owned.state);
 
-  // ── C2 · the kit that landed is the kit in src/data/start-kit.js ──────
+  // ── C2 · the kit that landed is the kit THIS CHAIN's catalogue states ──
+  /* This guard replays the 2026-08 bootstrap (EXTRA) and grades THAT function. The core rebuild moved the
+     JS kit (hp 150, no max_hp, no Hitpoints XP), and the current kit's JS-to-SQL binding is
+     tools/gen-catalogues.mjs --check + 2026-10-27-core-bodies.sql §5; so the vitals and the skill XP are held
+     to the rows the replayed catalogue seeded, and the currencies to start-kit.js (unchanged since). */
   const K = KIT.START_CURRENCY;
-  check('C2  the character owns exactly the currencies+vitals in start-kit.js',
+  const KR = R((await one('select to_jsonb(k) as r from public.hr_start_kit k')).r);
+  const KSX = Object.fromEntries((await db.query('select skill_id, xp from public.hr_start_skill_xp')).rows.map((r) => [r.skill_id, Number(r.xp)]));
+  check('C2  the character owns exactly the currencies+vitals its catalogue states',
     Number(st.gold) === K.gold && Number(st.gems) === K.gems
     && Number(st.hearth_tokens) === 0
-    && Number(st.max_hp) === K.maxHp && Number(st.hp) === Math.min(K.hp, K.maxHp)
+    && Number(st.max_hp) === Number(KR.max_hp) && Number(st.hp) === Math.min(Number(KR.hp), Number(KR.max_hp))
     && Number(st.bank_cap) === K.bankCap && Number(st.version) === 0
     && st.active_kind === 'idle' && st.active_id === null,
     JSON.stringify({ got: st, want: K }));
@@ -530,19 +536,19 @@ async function run(mutationId) {
 
   const skills = R(owned.skills);
   const nSkills = Number((await one('select count(*) n from public.hr_skills')).n);
-  check('C6  a row per CATALOGUE skill, with START_SKILL_XP applied and the rest at 0',
+  check('C6  a row per CATALOGUE skill, with the catalogue\'s start XP applied and the rest at 0',
     Object.keys(skills).length === nSkills
-    && Object.entries(KIT.START_SKILL_XP).every(([k, v]) => Number(skills[k]) === v)
+    && Object.entries(KSX).every(([k, v]) => Number(skills[k]) === v)
     && Object.entries(skills).every(([k, v]) =>
-      Number(v) === (KIT.START_SKILL_XP[k] ?? 0)),
+      Number(v) === (KSX[k] ?? 0)),
     JSON.stringify({ n: Object.keys(skills).length, want: nSkills, skills }));
 
   // The identity that stops the client's render-time derivation from silently
   // rewriting a server value on the very first refresh.
   const lvl = Number((await one(
-    `select public.hr_level_from_xp(${KIT.START_SKILL_XP.hitpoints || 0}) n`)).n);
-  check('C7  max_hp equals the level the granted hitpoints XP buys (client derives it)',
-    lvl === K.maxHp, JSON.stringify({ hitpoints_level: lvl, max_hp: K.maxHp }));
+    `select public.hr_level_from_xp(${KSX.hitpoints || 0}) n`)).n);
+  check('C7  max_hp equals the level the granted hitpoints XP buys (this chain\'s 2026-08 model)',
+    lvl === Number(KR.max_hp), JSON.stringify({ hitpoints_level: lvl, max_hp: KR.max_hp }));
 
   check('C8  the plots and ONE journal row carrying the starting gold',
     Number(owned.plots) === K.farmPlots && Number(owned.ledger) === 1

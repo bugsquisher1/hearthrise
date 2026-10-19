@@ -84,7 +84,6 @@
 .hp-party.is-empty .hh-empty { display: block; }
 .hp-members { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
 .hp-m { display: flex; gap: 8px; align-items: flex-start; }
-.hp-m.is-down { opacity: .6; }
 .hp-portrait { width: 36px; height: 36px; flex: none; display: grid; place-items: center; border-radius: 50%; background: var(--bg-1); border: 2px solid var(--line); color: var(--ink-2); }
 .hp-m.is-self .hp-portrait { border-color: var(--gold); color: var(--gold-2); }
 .hp-portrait .hs-glyph { width: 20px; height: 20px; }

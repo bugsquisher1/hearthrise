@@ -3,14 +3,27 @@
 // voice, original IP. Surfaced in the item detail/tooltip (the "what is it" line).
 // SAFE TO EXTEND: an item with no entry here just shows no flavour line — nothing breaks.
 
-import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.6';
-import { SLOT_DESC } from './slot-ladders.js?v=0.2.6';
-import { LIB2_DESC } from './library2-items.js?v=0.2.6';
-import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.6';
-import { CHAMPION_DESC } from './champions.js?v=0.2.6';
-import { DRINK_DESC } from './drinks.js?v=0.2.6';
+import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.7';
+import { SLOT_DESC } from './slot-ladders.js?v=0.2.7';
+import { LIB2_DESC } from './library2-items.js?v=0.2.7';
+import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.7';
+import { CHAMPION_DESC } from './champions.js?v=0.2.7';
+import { DRINK_DESC } from './drinks.js?v=0.2.7';
 
 export const ITEM_DESC = {
+  /* Mage = wand + spellbook; Healer = staff (Tyler 2026-10-19). */
+  'apprentice_wand': 'A short beech wand, light enough to leave a hand free for a spellbook',
+  'oak_wand': 'An oak wand with a brass ferrule, sharper in a mage hand than any staff',
+  'willow_wand': 'A whippy willow wand that snaps a spell out quickly',
+  'maple_wand': 'A turned maple wand, its grain polished by long practice',
+  'yew_wand': 'A dark yew wand that hums before a spell leaves it',
+  'runewood_wand': 'A runewood wand cut along its rune lines, the point of a master mage',
+  'apprentice_primer': 'A dog-eared primer of first spells, carried in the off-hand beside a wand',
+  'oak_spellbook': 'A spellbook between oak boards, its margins full of corrections',
+  'willow_spellbook': 'Willow-leaf pages pressed into a book of quicker spells',
+  'maple_spellbook': 'A maple-bound spellbook clasped shut against the damp',
+  'yew_spellbook': 'A yew-clasped spellbook whose pages fall open at the right spell',
+  'runewood_codex': 'A codex bound in runewood, heavy with a lifetime of spellcraft',
   ...WAVE3_DESC, // b247: the 14 Wave-3 unique item flavour lines
   ...SLOT_DESC,  // b343: the ammo / earrings / cape / jewelry ladders
   ...LIB2_DESC,  // b356: the approved review-book catalogue (Library 2)
@@ -36,7 +49,7 @@ export const ITEM_DESC = {
   'apprentice_gloves': 'Plain apprentice gloves, thin cloth that keeps a first-year mage\'s casting hand free',
   'apprentice_helmet': 'A plain cloth hat, a first-year mage\'s humble start toward real arcane power',
   'apprentice_pants': 'Plain apprentice robe bottoms, humble cloth worn while a mage learns to channel',
-  'apprentice_staff': 'Plain apprentice staff for channeling a first spark of magic',
+  'apprentice_staff': 'A plain two-handed staff, the first tool of a healer who mends a party',
   'archmage_belt': 'An archmage\'s sash, cloth cinched round one who has mastered the arcane craft',
   'archmage_body': 'An archmage\'s robe top, cloth thick with a mastery few casters ever reach',
   'archmage_boots': 'An archmage\'s slippers, cloth footing fit for one who has mastered the arcane craft',
@@ -136,7 +149,7 @@ export const ITEM_DESC = {
   'duskwood_log': 'A near-black duskwood log, the finest wood a woodcutter can fell',
   'duskwood_plank': 'A dusk-dark plank, the finest timber a crafter can shape',
   'duskwood_rod': 'Duskwood rod whose dark grain draws the wariest deep fish',
-  'duskwood_staff': 'Duskwood staff, peak arcane focus at the top of the ladder',
+  'duskwood_staff': 'Duskwood staff, the finest healing focus at the top of the ladder',
   'elderscale_heart': 'The still-scaled heart of the Ancient Wyrm Elderscale, dense and cold, a delver\'s grim proof',
   'ember_axe': 'Emberforged axe whose hot edge fells the oldest timber',
   'ember_bar': 'A smouldering Emberforged bar, rare metal for elite gear',
@@ -220,7 +233,7 @@ export const ITEM_DESC = {
   'maple_log': 'A dense maple log, fine timber for advanced crafting',
   'maple_plank': 'A fine maple plank, timber for advanced crafting',
   'maple_rod': 'Springy maple rod for the practised angler\'s steady haul',
-  'maple_staff': 'Fine maple staff focusing keen arcane force',
+  'maple_staff': 'Fine maple staff that carries a healer and their mending further',
   'marrow_cookbook': 'A cook\'s book for simmering rich Dragon Stew',
   'mithril_axe': 'Light mithril axe that swings quick and never seems to dull',
   'mithril_bar': 'A light, strong mithril bar, high-tier smithing metal',
@@ -245,14 +258,14 @@ export const ITEM_DESC = {
   'oak_plank': 'A solid oak plank, dependable timber for crafted goods',
   'oak_practice_blade': 'Hide-wrapped oak blade from the drill yard; it teaches the swing, not the kill',
   'oak_rod':'Sturdy oak rod that lands bigger catches from deeper water',
-  'oak_staff': 'Sturdy oak staff that steadies a growing mage\'s arcane power',
+  'oak_staff': 'Sturdy oak staff that steadies a growing healer and their mending',
   'plague_ichor': 'Vile ichor drawn from a diseased host, a caustic reagent',
   'potato': 'A firm, starchy tuber dug from the dirt, plain and filling',
   'potato_seed': 'Potato seed, a hearty tuber that keeps the larder stocked',
   'pumpkin': 'A fat autumn gourd, heavy and sweet, a hearty harvest worth the wait',
   'pumpkin_pie': 'A golden spiced pie of autumn gourd, a feast that sharpens all your learning',
   'pumpkin_seed': 'Pumpkin seed that swells into the fields\' fattest prize',
-  'crown_shard': 'A sliver of the Rat King\'s crown, hammered from drain-grate iron. Sold, or offered at Prayer',
+  'crown_shard': 'A sliver of the Rat King\'s crown, hammered from drain-grate iron. A trader pays well for it',
   'rat_tail': 'A scrawny rat\'s tail, vendor trash, but coin is coin',
   'raw_bear_meat': 'A thick, fatty slab of raw bear, a filling roast waiting to happen',
   'raw_panther_meat': 'Lean, dark raw meat from a hunting cat; cook it well to make it worth the chew',
@@ -283,7 +296,7 @@ export const ITEM_DESC = {
   'runewood_log': 'A rune-veined log that hums faintly, rare and costly timber',
   'runewood_plank': 'A rune-veined plank, rare timber for master crafting',
   'runewood_rod': 'Rune-carved rod, the master angler\'s tool for prized catches',
-  'runewood_staff': 'Runewood staff crackling with woven enchantment',
+  'runewood_staff': 'Runewood staff whose woven runes knit wounds closed',
   'scholar_belt': 'A scholar\'s sash, densely woven cloth cinched round a caster of real standing',
   'scholar_body': 'A scholar\'s robe top, densely woven cloth carrying real weight of arcane power',
   'scholar_boots': 'A scholar\'s slippers, densely woven cloth footing for a caster deep in their study',
@@ -397,7 +410,7 @@ export const ITEM_DESC = {
   'willow_longbow': 'Supple willow longbow, a marksman\'s steady ranged arm',
   'willow_plank': 'A flexible willow plank, mid-tier crafting timber',
   'willow_rod': 'Supple willow rod for a beginner\'s first cast off the bank',
-  'willow_staff': 'Supple willow staff channeling stronger spellwork',
+  'willow_staff': 'Supple willow staff channeling stronger mending',
   'wolf_pelt': 'Grey pelt of a wolf, tanned into leather for light armour',
   'worldroot_seed': 'A seed cut from the world tree\'s own root, kept by the finder as a keepsake and nothing more',
   'wraith_veil': 'The tattered shroud of a wraith, cold to hold, a spectral reagent',
@@ -413,5 +426,5 @@ export const ITEM_DESC = {
   'yew_log': 'A prized yew log, hard, close-grained wood for master work',
   'yew_plank': 'A master-grade yew plank, timber for the finest builds',
   'yew_rod': 'Strong yew rod that hauls in the fish lesser lines would lose',
-  'yew_staff': 'Prized yew staff, a deep magical channel for a skilled caster',
+  'yew_staff': 'Prized yew staff, a deep channel for a skilled healer',
 };

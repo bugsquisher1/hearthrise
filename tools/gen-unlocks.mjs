@@ -79,10 +79,9 @@ import { SHOP_OFFERS } from '../src/data/shops.js';
 import { ARTISAN_RECIPES } from '../src/data/recipes.js';
 import { ITEMS } from '../src/data/items.js';
 import { ROOM_PERKS } from '../src/data/perks.js';
+import { generatedTarget } from './lib/generated-target.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
-/* DEMOLITION REGEN (2026-10-14): a new superseding file; 2026-08-16-unlocks.generated.sql stays in the chain. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2026-10-23-demolition-unlocks.generated.sql');
 
 const argv = process.argv.slice(2);
 const CHECK = argv.includes('--check');
@@ -92,6 +91,10 @@ function die(msg) {
   console.error(`gen-unlocks: ${msg}`);
   process.exit(1);
 }
+
+/* THE OUTPUT: the newest migration this tool wrote, in apply order (tools/lib/generated-target.mjs); an
+   APPLIED one is never rewritten - `--new <YYYY-MM-DD-name>.generated.sql` starts the next forward file. */
+const OUT = generatedTarget(ROOT, 'gen-unlocks.mjs', argv, { write: !CHECK && !REPORT, die });
 
 /* ══════════════════════════════════════════════════════════════════════════
    1 · THE DECLARATION. One row per namespace, and nothing may be absent.

@@ -274,11 +274,11 @@ async function dbArms(db, Ms, ok, log, run) {
 
   const mkChar = async (s, pet, u) => {
     await q('insert into auth.users (id) values ($1) on conflict do nothing', [u]);
-    await q(`insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to,
+    await q(`insert into public.player_state (user_id, slot, gold, hp, version, accrued_to,
                                               active_kind, active_id, active_since, companion_equipped)
-             values ($1, 0, 0, $2, $3, 1, to_timestamp($4::double precision / 1000), $5, $6,
-                     to_timestamp($7::double precision / 1000), $8)`,
-    [u, s.hp, s.maxHp, s.accruedToMs, s.activeKind, s.activeId, s.activeSinceMs, pet || null]);
+             values ($1, 0, 0, $2, 1, to_timestamp($3::double precision / 1000), $4, $5,
+                     to_timestamp($6::double precision / 1000), $7)`,
+    [u, s.hp, s.accruedToMs, s.activeKind, s.activeId, s.activeSinceMs, pet || null]);
     return u;
   };
   /* A deterministic intent id per (comparison step), SHARED by the characters

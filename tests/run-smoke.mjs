@@ -48,7 +48,6 @@ import { clanEconomySinksGuard } from './clan-economy-sinks.mjs';
 import { feastCatalogueDriftGuard } from './clan-feast-catalogue-drift.mjs';
 import { rpcGateBucketGuard } from './rpc-gate-bucket-guard.mjs';
 import { heroSlotBuyGuard } from './hero-slot-buy.mjs';
-import { combatStyleGuard } from './combat-style.mjs';
 import { accrueEnvelopeAwayGuard } from './accrue-envelope-away.mjs';
 import { unlockOfferOwnershipGuard } from './unlock-offer-ownership.mjs';
 import { unlockCatalogueOwnershipGuard } from './unlock-catalogue-ownership.mjs';
@@ -851,6 +850,9 @@ const run = async () => {
   if (await itemsCataloguePreflight()) process.exit(1);
   if (await recipeYieldPreflight()) process.exit(1);
   if (await unlockModelPreflight()) process.exit(1);
+  /* `--preflights`: the data preflights above and nothing else (seconds, no browser, no replay). tools/lane-done.mjs runs
+     this so a generated catalogue left stale by a data edit (the 2026-10-19 Unlock preflight red) cannot pass lane-done. */
+  if (process.argv.includes('--preflights')) { console.log('run-smoke --preflights: every data preflight green'); process.exit(0); }
   let exitCode = 0;
   try {
     /* ── The core guard (Phase 0, server authority) ─────────────────────
@@ -1064,37 +1066,12 @@ const run = async () => {
         + 'and the credit RPC SQL all agree on every threshold + gold + gems.');
     }
 
-    /* ── The kill-credit plausibility-cap drift guard (bug #5) ──────────────
-       hr_bounty_kill_cap reproduces src/core/kill-time.js in SQL so
-       hr_credit_kills can clamp a client's claimed kills to the physical maximum
-       a character of its level could make. Binds the integer coefficients + the
-       migration's GATE(c) anchors to the core model so the two runtimes cannot
-       diverge (a divergence = an honest kill refused, or a forged one accepted). */
-    try {
-      const { killTimeDriftGuard } = await import('./kill-time-drift.mjs');
-      const r = await killTimeDriftGuard();
-      console.log(`\nKill-time drift guard — ${r.checks}`);
-    } catch (e) {
-      console.log('\nKill-time drift guard — FAILED:');
-      for (const p of (e.problems || [e.message])) console.log(`  ✗ ${p}`);
-      exitCode = 1;
-    }
-
-    /* ── The combat-XP cap drift guard (bug #5 root pt2) ─────────────────────
-       Binds src/core/combat-xp-cap.js to hr_combat_xp_cap in
-       2026-08-31-combat-xp-credit.sql, so the ATTENDED-combat-XP credit's per-skill
-       physical-max ceiling agrees bit-for-bit across Node and Postgres — a
-       divergence would refuse an honest gain (the level keeps reverting) or accept
-       a forged one (a leaderboard the cap should have bounded). */
-    try {
-      const { combatXpCapDriftGuard } = await import('./combat-xp-cap-drift.mjs');
-      const r = await combatXpCapDriftGuard();
-      console.log(`\nCombat-XP cap drift guard — ${r.checks}`);
-    } catch (e) {
-      console.log('\nCombat-XP cap drift guard — FAILED:');
-      for (const p of (e.problems || [e.message])) console.log(`  ✗ ${p}`);
-      exitCode = 1;
-    }
+    /* tests/kill-time-drift.mjs and tests/combat-xp-cap-drift.mjs were RETIRED by the core rebuild
+       (2026-10-19): src/core/kill-time.js (swing speed by weapon/style, deleted with the speed mods) and
+       src/core/combat-xp-cap.js + hr_combat_xp_cap (the attended combat-XP door, dropped) are gone. Kill
+       and XP bounds now live in the one settle: hr_hunt_apply_member's kills_over / value_over /
+       death_xp_over, proven by tests/hunt-sessions-settle.mjs VALUE / DEATHXP. hr_bounty_kill_cap
+       remains only for the dormant bounty surface (handed to the dormant-surface lane). */
 
     /* tests/combat-xp-settle-split.mjs and tests/combat-xp-settle-first.mjs
        were RETIRED by lane C2 (closed rebuild, 2026-10-14): both graded the
@@ -1759,30 +1736,9 @@ const run = async () => {
 
     /* (b497 Auto-Eat-at-creation guard retired by lane C2 — see the import note.) */
 
-    /* ── THE COMBAT STYLE IS SERVER STATE (P0, live — Paione) ────────────
-       "Strength/Defense/HP exp is not saving — only Attack saves." The accrual
-       engine settled every combat window with `resolveStyle(eq.weaponType,
-       null)`, i.e. the family default (Accurate, 100% to Attack), because the
-       chosen style had no server home. Skills are server-of-record and armed, so
-       each settle overwrote the client's predicted Strength/Defence XP with it.
-       This guard DRIVES THE REAL ENGINE over a real seeded span and asserts a
-       server-stored sword/defensive routes to Defence and sword/aggressive to
-       Strength (with a null-style CONTROL, so it cannot be satisfied by an
-       engine that pays everything), that the styled TOTAL is preserved (a style
-       is a route, not a multiplier), that a foreign family cannot leak, that the
-       input is not mutated, and that speedMod reaches the swing interval. It
-       also BINDS src/core/styles.js to public.hr_combat_styles in both
-       directions. `--selftest` plants six real defects; every one must read RED. */
-    const styleProblems = await combatStyleGuard();
-    if (styleProblems.length) {
-      console.log('\nCombat-style authority — FAILED:');
-      for (const p of styleProblems) console.log(`  ✗ ${p}`);
-      exitCode = 1;
-    } else {
-      console.log('\nCombat-style guard — the engine routes settle XP to the SERVER-STORED style, '
-        + 'catalogue bound to src/core/styles.js both ways, never read from a request body, '
-        + 'collect-first guarded, accrued_to never stamped.');
-    }
+    /* THE COMBAT STYLE guard (tests/combat-style.mjs) RETIRED 2026-10-19 (core rebuild): combat styles are
+       deleted; a blow's XP goes to the weapon family's skill, guarded in the one engine by
+       tests/hunt-core/xp-share.mjs (the xp-routes case and its mutants). */
 
     /* ── THE ENVELOPE CONTRACT: every accrued:true carries `away` (b475) ─
        The standalone parallel-settle branch in index.ts (pointer idle, rested

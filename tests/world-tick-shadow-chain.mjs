@@ -77,9 +77,9 @@ let ACT = null;
 async function makeChar(db, u) {
   await db.exec(`insert into auth.users (id) values ('${u}') on conflict do nothing;`);
   await db.exec(`
-    insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to,
+    insert into public.player_state (user_id, slot, gold, hp, version, accrued_to,
                                      active_kind, active_id, active_since)
-    values ('${u}', 0, 0, 10, 10, 1, now() - interval '30 minutes',
+    values ('${u}', 0, 0, 10, 1, now() - interval '30 minutes',
             'gather', '${ACT}', now() - interval '2 hours')
     on conflict (user_id, slot) do update
       set version = 1, gold = 0, accrued_to = now() - interval '30 minutes',

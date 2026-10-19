@@ -325,11 +325,10 @@ async function rules(M) {
     return heard.length === 0 || 'a switch made characters emit: ' + heard.join(',');
   });
   await t('ACC-2', async () => {
-    /* each hero by its server name and its combat level from the server's XP (the character screen, Tyler 10-18) */
-    const sk = { attack: { xp: 1200, level: 10 }, strength: { xp: 1200, level: 10 }, defense: { xp: 1200, level: 10 }, hitpoints: { xp: 1200, level: 10 } };
-    const acc = mkAccount(fakeServer({ 0: env(1, { hero_slots: [0, 2, 99, -1, 'x'], name: 'Tester', skills: sk }), 2: env(1) }));
+    /* each hero by its server name and its Level from the server's Level XP (21,591 = Level 10, CORE_MODEL.md §2) */
+    const acc = mkAccount(fakeServer({ 0: env(1, { hero_slots: [0, 2, 99, -1, 'x'], name: 'Tester', state: { gold: 1, level_xp: 21591 } }), 2: env(1) }));
     const r = await acc.roster();
-    return JSON.stringify(r) === JSON.stringify([{ slot: 0, exists: true, name: 'Tester', level: 11 }, { slot: 2, exists: true, name: null, level: null }]) || 'roster was ' + JSON.stringify(r);
+    return JSON.stringify(r) === JSON.stringify([{ slot: 0, exists: true, name: 'Tester', level: 10 }, { slot: 2, exists: true, name: null, level: null }]) || 'roster was ' + JSON.stringify(r);
   });
   await t('ACC-3', async () => {
     if (!S.isClosedAnswer(403, { code: 'hr_closed' }) || S.isClosedAnswer(403, { code: 'other' }) || S.isClosedAnswer(200, { code: 'hr_closed' })) return 'isClosedAnswer is wrong';
@@ -431,7 +430,8 @@ function copyTree(dst) {
   mkdirSync(join(dst, 'src/data'), { recursive: true });
   cpSync(join(ROOT, 'src/data/town-presence.js'), join(dst, 'src/data/town-presence.js'));   // the AccountSession's TownPresence knobs
   mkdirSync(join(dst, 'src/core'), { recursive: true });
-  cpSync(join(ROOT, 'src/core/xp.js'), join(dst, 'src/core/xp.js'));   // the roster's combat level
+  cpSync(join(ROOT, 'src/core/xp.js'), join(dst, 'src/core/xp.js'));   // the roster's Level (the shared curve)
+  for (const f of ['core-model.js', 'skills.js']) cpSync(join(ROOT, 'src/data', f), join(dst, 'src/data', f));   // xp.js's curves and skill list
 }
 
 async function main() {

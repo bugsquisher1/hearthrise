@@ -127,14 +127,25 @@ export async function feastCatalogueDriftGuard(opts = {}) {
       matters for b544: it is the shape this guard used to be blind to — a
       correct forward patch in a NEW file — and it must now be ACCEPTED. */
 async function selftest() {
-  const LAST = '2026-09-13-reed-and-tide.sql';
+  /* The newest seed is DERIVED (the last file in apply order that seeds hr_feast_foods), never typed: it was
+     2026-09-13-reed-and-tide.sql until the core rebuild's catalogue (2026-10-27-core-catalogue.generated.sql)
+     re-seeded every heal, and a typed name kept mutating a file the fold had already overridden. */
+  const order = JSON.parse(await readFile(ORDER, 'utf8')).order;
+  let LAST = null;
+  for (const f of order) {
+    let t; try { t = await readFile(join(MIG_DIR, f), 'utf8'); } catch { continue; }
+    if (seedRowsIn(t).length) LAST = f;
+  }
+  if (!LAST) { process.stdout.write('  FAIL  no seeding file in the apply order\n'); return 1; }
   const real = await readFile(join(MIG_DIR, LAST), 'utf8');
+  const [[id0, heals0], [id1]] = seedRowsIn(real);
+  const drifted = real.replace(new RegExp(`\\(\\s*'${id0}'\\s*,\\s*\\d+\\s*\\)`), `('${id0}', ${heals0 + 1})`);
+  const dropped = real.replace(new RegExp(`\\(\\s*'${id1}'\\s*,\\s*\\d+\\s*\\)\\s*,`), '');
+  if (drifted === real || dropped === real) { process.stdout.write(`  FAIL  selftest anchors missed in ${LAST}\n`); return 1; }
   const arms = [
     ['control (unmutated chain)', {}, false],
-    ['a heal value drifts in the newest seed',
-      { [LAST]: real.replace("('cooked_goldgill', 23)", "('cooked_goldgill', 24)") }, true],
-    ['a food is dropped from the newest seed',
-      { [LAST]: real.replace("('river_chowder', 30),", '') }, true],
+    [`a heal value drifts in the newest seed (${LAST})`, { [LAST]: drifted }, true],
+    ['a food is dropped from the newest seed', { [LAST]: dropped }, true],
     ['a LATER file seeds a food items.js does not back',
       { [LAST]: real + "\ninsert into public.hr_feast_foods (item_id, heals) values ('not_a_food', 9)"
                      + '\n  on conflict (item_id) do update set heals = excluded.heals;\n' }, true],

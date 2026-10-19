@@ -94,9 +94,9 @@ function armOverlapMetric() {
 async function seed(db) {
   await db.exec(`insert into auth.users (id) values ('${U}') on conflict do nothing;`);
   await db.exec(`
-    insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to,
+    insert into public.player_state (user_id, slot, gold, hp, version, accrued_to,
                                      active_kind, active_id, active_since)
-    values ('${U}', 0, 0, 10, 10, 1, now() - interval '10 minutes',
+    values ('${U}', 0, 0, 10, 1, now() - interval '10 minutes',
             'gather', (select activity_id from public.hr_activities where kind='gather' limit 1),
             now() - interval '1 hour')
     on conflict (user_id, slot) do update set version = 1, gold = 0,

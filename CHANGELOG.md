@@ -5,6 +5,20 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.7 — 2026-10-19 (Level and skills)
+
+**One Level.** Your hero earns Level from kills, and each Level raises your max health and mana. Every hero has mana.
+
+**Five combat skills.** Melee, Ranged, Magic, Defense and Prayer train as you fight. Attack, Strength and Hitpoints are gone.
+
+**Dying sends you home.** If your hero dies, the hunt ends and you return to town with full health and mana, losing a little Level progress. In a party, one death sends the whole party home.
+
+**Prayer speeds your regeneration.** Bury bones to train it.
+
+**Wands, spellbooks and staffs.** Mages carry a wand with a spellbook; Healers carry a two-handed staff. The first of each are in the Local Shop.
+
+**A fresh start.** Every character was cleared for the new rules. Every account starts with two hero slots.
+
 ## v0.2.6 — 2026-10-19 (The action bar)
 
 **Set up your bar.** Twenty numbered slots, in town and on the hunt. Press + on an empty slot to open Configure action, pick a spell, rune or item, add up to three conditions, and save it into the slot.

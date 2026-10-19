@@ -42,7 +42,11 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
 /* THE DRINKS (lane S2, 2026-10-18): 2026-10-24-sewer-catalogue.generated.sql is APPLIED history;
    the six mana drinks (hr_items) and their Cooking recipes (hr_activities) land in this forward
    file, the same full delete+insert replace. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2026-10-25-drinks-catalogue.generated.sql');
+/* THE CORE REBUILD (2026-10-19, docs/design/CORE_MODEL.md): 2026-10-25-drinks-catalogue.generated.sql is
+   APPLIED history; the skill list (Melee replaces Attack and Strength; no Hitpoints), the armour weight
+   max HP and mana read (hr_items.armour_weight), the start kit's derived HP, the Level-scale monster XP and
+   the food heals x12 land in this forward file, the same full delete+insert replace. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2026-10-27-core-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already
@@ -128,8 +132,8 @@ const crops = Object.keys(CROPS).sort().map((id) => ({
 // client-side symptom. So the kit becomes catalogue rows like everything else,
 // and the checks below are the reason this is worth doing rather than a
 // second literal in a second language: a typo'd item id, an illegal equip
-// slot, or an hp that disagrees with the hitpoints level FAILS GENERATION.
-const { levelFromXp } = await imp('src/core/xp.js');
+// slot, or a starting hp that is not a Level-1 character's full health FAILS GENERATION.
+const { maxHpFor } = await imp('src/core/vitals.js');
 
 const die = (msg) => { console.error(`start-kit: ${msg}`); process.exit(1); };
 
@@ -165,20 +169,18 @@ const startSkillXp = Object.keys(START_SKILL_XP).sort().map((id) => {
   return { skill_id: id, xp };
 });
 
-// THE IDENTITY THAT MATTERS MOST, asserted rather than commented: the client
-// derives playerMaxHp from the hitpoints LEVEL (legacy.js :898). If maxHp and
-// levelFromXp(START_SKILL_XP.hitpoints) ever disagree, the very first client
-// refresh silently rewrites the server's max_hp — the client re-authoring a
-// server value, which is the one thing this whole program exists to stop.
+// THE IDENTITY THAT MATTERS MOST, asserted rather than commented: a new
+// character is Level 1 with no armour, so its starting HP is exactly that
+// character's max HP (src/core/vitals.js maxHpFor(1, 0)); max HP itself is
+// never stored (CORE_MODEL.md §3), so there is no second number to drift.
 {
-  const hpLevel = levelFromXp(START_SKILL_XP.hitpoints || 0);
-  if (hpLevel !== START_CURRENCY.maxHp) {
-    die(`START_CURRENCY.maxHp is ${START_CURRENCY.maxHp} but hitpoints XP `
-      + `${START_SKILL_XP.hitpoints || 0} is level ${hpLevel} — the client derives `
-      + 'maxHp from the hitpoints level, so these must agree');
+  if (START_CURRENCY.hp !== maxHpFor(1, 0)) {
+    die(`START_CURRENCY.hp is ${START_CURRENCY.hp} but a Level-1 character's max HP is ${maxHpFor(1, 0)}`);
   }
-  if (START_CURRENCY.hp > START_CURRENCY.maxHp) die('START_CURRENCY.hp exceeds maxHp');
-  for (const k of ['gold', 'gems', 'hearthTokens', 'hp', 'maxHp', 'bankCap', 'farmPlots']) {
+  if (Object.keys(START_SKILL_XP).some((k) => SKILLS_DEF[k] && SKILLS_DEF[k].cat === 'combat' && START_SKILL_XP[k] > 0)) {
+    die('START_SKILL_XP gives a combat skill a head start: every combat skill starts at level 1');
+  }
+  for (const k of ['gold', 'gems', 'hearthTokens', 'hp', 'bankCap', 'farmPlots']) {
     if (!Number.isInteger(START_CURRENCY[k]) || START_CURRENCY[k] < 0) {
       die(`START_CURRENCY.${k} must be a non-negative integer`);
     }
@@ -188,10 +190,30 @@ const startSkillXp = Object.keys(START_SKILL_XP).sort().map((id) => {
   if (START_CURRENCY.hearthTokens !== 0) die('START_CURRENCY.hearthTokens must be 0 — the Hearth Token is IAP-only');
 }
 
+/* THE UNCAPPED SKILL CURVE (Melee, Ranged, Magic, Defense, Prayer): total XP to reach each level,
+   from src/core/xp.js skillXpForLevel (the one walk), until the next level would pass 2^53. The server's
+   hr_skill_level / hr_skill_xp_for_level read these rows, as hr_level_from_xp reads hr_xp_table. */
+const { skillXpForLevel } = await imp('src/core/xp.js');
+const skillCurve = [];
+for (let lv = 1; ; lv++) {
+  const xp = skillXpForLevel('melee', lv);
+  if (lv > 1 && xp <= skillCurve[skillCurve.length - 1].xp) break;
+  skillCurve.push({ level: lv, xp });
+}
+if (skillCurve.length < 200) die(`the skill curve stops at level ${skillCurve.length}: too short for an uncapped skill`);
+
+/* THE FEAST HEAL VALUES (public.hr_feast_foods, 2026-08-27-clan-economy-sinks.sql): every cooked or
+   prepared food's heals (foodClass healing|buff, heals > 0 — tests/clan-feast-catalogue-drift.mjs's own
+   rule), upserted, because the core rebuild moved every food heal x12 (CORE_NUMBERS Q3). */
+const feastFoods = Object.entries(ITEMS)
+  .filter(([, d]) => d && (d.foodClass === 'healing' || d.foodClass === 'buff') && Number(d.heals) > 0)
+  .map(([id, d]) => ({ item_id: id, heals: Number(d.heals) }))
+  .sort((a, b) => (a.item_id < b.item_id ? -1 : 1));
+
 const startKit = {
   gold: START_CURRENCY.gold, gems: START_CURRENCY.gems,
   hearth_tokens: START_CURRENCY.hearthTokens,
-  hp: START_CURRENCY.hp, max_hp: START_CURRENCY.maxHp,
+  hp: START_CURRENCY.hp,
   bank_cap: START_CURRENCY.bankCap, farm_plots: START_CURRENCY.farmPlots,
 };
 
@@ -335,6 +357,14 @@ create table if not exists public.hr_items (
 -- an unknown answer to "may auto-eat spend this?".
 alter table public.hr_items
   add column if not exists auto_eatable boolean not null default false;
+-- THE ARMOUR WEIGHT (CORE_MODEL.md §3): heavy / medium / light, from the row's
+-- armourClass (src/data/core-model.js ARMOUR_WEIGHT); hr_vitals_of counts the worn
+-- armour slots of each weight. NULL = not armour.
+alter table public.hr_items
+  add column if not exists armour_weight text check (armour_weight in ('heavy', 'medium', 'light'));
+-- TWO-HANDED (Tyler 2026-10-19): a staff fills both hands; hr_apply refuses an off-hand beside it.
+alter table public.hr_items
+  add column if not exists two_handed boolean not null default false;
 create index if not exists hr_items_tradeable_idx on public.hr_items (tradeable);
 
 create table if not exists public.hr_item_slots (
@@ -388,6 +418,11 @@ create table if not exists public.hr_activities (
 -- combat row on a null ceiling and quietly make hr_apply's fight clamp vacuous.
 alter table public.hr_activities
   add column if not exists max_hp int;
+-- THE MONSTER'S LEVEL (2026-10-27 core rebuild, CORE_MODEL.md §4): a combat row's
+-- level (src/data/monsters.js monsterLevelOf), which Defense XP per blow scales
+-- with and the settle's Defense bound reads. NULL on every non-combat row.
+alter table public.hr_activities
+  add column if not exists level int check (level is null or level > 0);
 -- is_boss — additive, same self-configuring shape as max_hp/auto_eatable: a
 -- database that created hr_activities before this column existed must not leave
 -- every combat row FALSE (which would silently zero the renown bossKill term
@@ -416,9 +451,14 @@ create table if not exists public.hr_start_kit (
   gems          bigint not null check (gems >= 0),
   hearth_tokens bigint not null check (hearth_tokens = 0),  -- IAP-only, never minted
   hp            int    not null check (hp >= 0),
-  max_hp        int    not null check (max_hp > 0),
   bank_cap      int    not null check (bank_cap between 1 and 100000),
   farm_plots    int    not null check (farm_plots between 0 and 64)
+);
+
+-- ── THE UNCAPPED SKILL CURVE (CORE_MODEL.md §2) ─────────────────────────
+create table if not exists public.hr_skill_curve (
+  level int    primary key check (level >= 1),
+  xp    bigint not null check (xp >= 0)
 );
 
 create table if not exists public.hr_start_skill_xp (
@@ -465,9 +505,10 @@ delete from public.hr_start_skill_xp;
 delete from public.hr_start_inventory;
 delete from public.hr_start_equipment;
 delete from public.hr_runes;
+delete from public.hr_skill_curve;
 
-insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, req_lv, heals, auto_eatable) values
-${valuesBlock(items, (r) => `  (${q(r.item_id)},${q(r.name)},${b(r.tradeable)},${q(r.kind)},${n(r.value)},${q(r.req_skill)},${n(r.req_lv)},${n(r.heals)},${b(r.auto_eatable)})`)};
+insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, req_lv, heals, auto_eatable, armour_weight, two_handed) values
+${valuesBlock(items, (r) => `  (${q(r.item_id)},${q(r.name)},${b(r.tradeable)},${q(r.kind)},${n(r.value)},${q(r.req_skill)},${n(r.req_lv)},${n(r.heals)},${b(r.auto_eatable)},${q(r.armour_weight)},${b(r.two_handed)})`)};
 
 insert into public.hr_item_slots (item_id, equip_slot) values
 ${valuesBlock(itemSlots, (r) => `  (${q(r.item_id)},${q(r.equip_slot)})`)};
@@ -481,23 +522,26 @@ ${valuesBlock(skills, (r) => `  (${q(r.skill_id)},${q(r.name)},${q(r.cat)})`)};
 insert into public.hr_crops (crop_id, seed_item, prod_item, base_hours, req_lv, yield_min, yield_max, xp, regrows) values
 ${valuesBlock(crops, (r) => `  (${q(r.crop_id)},${q(r.seed_item)},${q(r.prod_item)},${n(r.base_hours)},${n(r.req_lv)},${n(r.yield_min)},${n(r.yield_max)},${n(r.xp)},${b(r.regrows)})`)};
 
-insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, is_boss) values
-${valuesBlock(activities, (r) => `  (${q(r.kind)},${q(r.activity_id)},${q(r.req_skill)},${n(r.req_lv)},${n(r.max_hp)},${b(r.is_boss)})`)};
+insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, is_boss, level) values
+${valuesBlock(activities, (r) => `  (${q(r.kind)},${q(r.activity_id)},${q(r.req_skill)},${n(r.req_lv)},${n(r.max_hp)},${b(r.is_boss)},${n(r.level)})`)};
 
 -- The starting kit. hr_start_kit is a ONE-ROW table (only_row), so it is an
 -- upsert rather than a delete+insert: hr_create_character() reads it, and a
 -- momentary gap where the row does not exist would be a window in which a new
 -- character could be created with no kit at all.
-insert into public.hr_start_kit (only_row, gold, gems, hearth_tokens, hp, max_hp, bank_cap, farm_plots)
+insert into public.hr_start_kit (only_row, gold, gems, hearth_tokens, hp, bank_cap, farm_plots)
   values (true, ${n(startKit.gold)}, ${n(startKit.gems)}, ${n(startKit.hearth_tokens)},
-          ${n(startKit.hp)}, ${n(startKit.max_hp)}, ${n(startKit.bank_cap)}, ${n(startKit.farm_plots)})
+          ${n(startKit.hp)}, ${n(startKit.bank_cap)}, ${n(startKit.farm_plots)})
   on conflict (only_row) do update set
     gold = excluded.gold, gems = excluded.gems, hearth_tokens = excluded.hearth_tokens,
-    hp = excluded.hp, max_hp = excluded.max_hp, bank_cap = excluded.bank_cap,
+    hp = excluded.hp, bank_cap = excluded.bank_cap,
     farm_plots = excluded.farm_plots;
 
-insert into public.hr_start_skill_xp (skill_id, xp) values
-${valuesBlock(startSkillXp, (r) => `  (${q(r.skill_id)},${n(r.xp)})`)};
+${startSkillXp.length ? `insert into public.hr_start_skill_xp (skill_id, xp) values
+${valuesBlock(startSkillXp, (r) => `  (${q(r.skill_id)},${n(r.xp)})`)};` : '-- (every skill starts at 0 XP: hr_start_skill_xp is empty)'}
+
+insert into public.hr_skill_curve (level, xp) values
+${valuesBlock(skillCurve, (r) => `  (${n(r.level)},${n(r.xp)})`)};
 
 insert into public.hr_start_inventory (item_id, qty) values
 ${valuesBlock(startInventory, (r) => `  (${q(r.item_id)},${n(r.qty)})`)};
@@ -507,6 +551,11 @@ ${valuesBlock(startEquipment, (r) => `  (${q(r.equip_slot)},${q(r.item_id)})`)};
 
 ${runes.length ? `insert into public.hr_runes (rune_id, element) values
 ${valuesBlock(runes, (r) => `  (${q(r.rune_id)},${q(r.element)})`)};` : '-- (no tag:\'rune\' items authored yet — hr_runes seeded empty)'}
+
+-- The feast heal values (the clan feast's table), from the same items.js heals.
+insert into public.hr_feast_foods (item_id, heals) values
+${valuesBlock(feastFoods, (r) => `  (${q(r.item_id)},${n(r.heals)})`)}
+on conflict (item_id) do update set heals = excluded.heals;
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
   values (true, ${q(DIGEST)}, now())
@@ -523,7 +572,7 @@ begin
   foreach t in array array['hr_items','hr_item_slots','hr_equip_slots','hr_skills',
                            'hr_crops','hr_activities','hr_catalogue_meta',
                            'hr_start_kit','hr_start_skill_xp','hr_start_inventory',
-                           'hr_start_equipment','hr_runes'] loop
+                           'hr_start_equipment','hr_runes','hr_skill_curve'] loop
     execute format('alter table public.%I enable row level security', t);
     execute format('revoke all on public.%I from public, anon, authenticated, service_role', t);
     execute format('grant select on public.%I to anon, authenticated, service_role', t);
@@ -608,7 +657,7 @@ begin
      and tablename in ('hr_items','hr_item_slots','hr_equip_slots','hr_skills',
                        'hr_crops','hr_activities','hr_catalogue_meta',
                        'hr_start_kit','hr_start_skill_xp','hr_start_inventory',
-                       'hr_start_equipment','hr_runes')
+                       'hr_start_equipment','hr_runes','hr_skill_curve')
      and cmd in ('INSERT','UPDATE','DELETE','ALL');
   if v_bad > 0 then raise exception '% write policies on catalogue tables', v_bad; end if;
 
@@ -618,7 +667,7 @@ begin
      and table_name in ('hr_items','hr_item_slots','hr_equip_slots','hr_skills',
                         'hr_crops','hr_activities','hr_catalogue_meta',
                         'hr_start_kit','hr_start_skill_xp','hr_start_inventory',
-                        'hr_start_equipment','hr_runes')
+                        'hr_start_equipment','hr_runes','hr_skill_curve')
      and grantee in ('anon','authenticated','service_role','PUBLIC')
      and privilege_type <> 'SELECT';
   if v_bad > 0 then raise exception '% client write grants on catalogue tables', v_bad; end if;
@@ -648,17 +697,17 @@ begin
    where not exists (select 1 from public.hr_skills k where k.skill_id = s.skill_id);
   if v_bad > 0 then raise exception '% starting skill grants name an unknown skill', v_bad; end if;
 
-  -- max_hp must equal the level the starting hitpoints XP buys, evaluated by
-  -- the SERVER's own curve (hr_xp_table, materialised by player-state.sql).
-  -- The generator asserts the same identity using src/core/xp.js, so this line
-  -- additionally proves the two curves agree — which is the property that lets
-  -- the client keep deriving playerMaxHp for RENDERING without re-authoring it.
-  select public.hr_level_from_xp(coalesce(
-           (select xp from public.hr_start_skill_xp where skill_id = 'hitpoints'), 0))
-    into v_n;
-  if v_n <> (select max_hp from public.hr_start_kit) then
-    raise exception 'hr_start_kit.max_hp is % but the starting hitpoints XP is level % on hr_xp_table',
-      (select max_hp from public.hr_start_kit), v_n;
+  -- The starting HP is a Level-1, unarmoured character's full health (the
+  -- generator asserts it against src/core/vitals.js); max HP itself is never
+  -- stored (CORE_MODEL.md §3), so there is no second number to agree with.
+  if (select hp from public.hr_start_kit) <> ${n(startKit.hp)} then
+    raise exception 'hr_start_kit.hp is %, the generator emitted ${n(startKit.hp)}', (select hp from public.hr_start_kit);
+  end if;
+  -- THE UNCAPPED SKILL CURVE (src/core/xp.js, CORE_MODEL.md §2), whole and strictly rising.
+  if (select count(*) from public.hr_skill_curve) <> ${skillCurve.length}
+     or exists (select 1 from public.hr_skill_curve a join public.hr_skill_curve b on b.level = a.level + 1 where b.xp <= a.xp)
+     or (select xp from public.hr_skill_curve where level = 1) <> 0 then
+    raise exception 'hr_skill_curve is not the ${skillCurve.length}-row rising curve src/core/xp.js walks';
   end if;
 
   -- The Hearth Token bond is IAP-only (the Final Directive). A CHECK already

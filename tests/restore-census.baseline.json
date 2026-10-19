@@ -33,7 +33,7 @@
   "Classifications are AUTHORED, never generated — deciding what a restore owes",
   "a table is a judgement, and --write preserves whatever is already here."
  ],
- "generated": "2026-10-18",
+ "generated": "2026-10-19",
  "production": {
   "measured": "2026-08-30",
   "project": "nezapsylztqbbwuwembx (hearthrise-testing, Postgres 17.6, us-west-2, Micro compute)",
@@ -754,7 +754,7 @@
   },
   "hr_activities": {
    "class": "seeded",
-   "replay": 291,
+   "replay": 290,
    "note": "Generated from src/data/*.js by tools/gen-catalogues.mjs; content guarded by --check as a smoke preflight. 344 rows on 2026-08-15, 508 now. Rebuilt from repo, never restored."
   },
   "hr_blessing_rule": {
@@ -814,18 +814,13 @@
   },
   "hr_client_rpc_baseline": {
    "class": "seeded",
-   "replay": 132,
+   "replay": 126,
    "note": "The approved client-callable RPC list: 51 rows on 2026-08-15, 72 on 2026-08-30, 73 since 2026-09-08-hero-slot-buy.sql §9 registered hr_buy_hero_slot(p_slot_id integer, p_slot integer, p_idem uuid) for `authenticated` with a delete-then-insert, so a re-apply cannot double it; production measured at 73 rows carrying that exact row on 2026-09-04. 74 IN THE REPLAY SINCE 2026-09-06-recovering-until.sql §5b registered hr_rest(p_slot integer, p_intent_id uuid) for `authenticated` — the Recovery Rule's food-for-a-knockout relief valve, granted in §5 of the same file and deliberately revoked from hr_engine. STAGED, NOT APPLIED: this row is a REPLAY-ONLY count today and production is expected to stay one lower until the Coordinator applies that migration, at which point the two converge with no further re-baseline. §5b derives identity_args from pg_proc via to_regprocedure (a retyped signature silences nothing, because check (2) joins on it) and deletes any row bearing a stale signature first, so a re-apply can neither double the row nor leave an approval for a shape that no longer exists. hr_assert_grant_hygiene check (2) raises on any grant not recorded here, nightly on cron. A rebuild that seeded a different set would make that detector wrong in both directions — silently permitting an unreviewed grant, or crying about a reviewed one. 77 IN THE REPLAY SINCE 2026-09-13-town-presence.sql §12 registered the three Week-1 live-system verbs for `authenticated` — hr_heartbeat(p_slot integer), hr_set_presence_quiet(p_slot integer, p_quiet boolean) and hr_town_of(p_zone text) — with the same delete-then-insert, so a re-apply cannot double them. APPLIED 2026-09-13 (town-presence): production and replay converged at 77. 78 IN THE REPLAY SINCE 2026-09-13-world-finds-projection.sql §5 registered hr_world_finds_of(p_limit integer) for `authenticated` — the projected Hearthfind board, which closes the named pre-launch P2 by minting the finder's display name server-side (NULL for a presence_quiet finder) so that world_finds.user_id could be revoked from anon and authenticated — with the same delete-then-insert keyed on (proname, grantee), so a re-apply can neither double the row nor leave an approval for a shape that no longer exists. APPLIED 2026-09-13 08:14 UTC (world-finds-projection): production and replay converged at 78. This row is the APPROVAL for the grant, in the same migration as the grant: hr_assert_grant_hygiene check (2) raises nightly on any client-executable function this table does not list, so a rebuild that seeded a different set would make that detector wrong in both directions — silently permitting an unreviewed grant, or crying about a reviewed one. 80 IN THE REPLAY SINCE 2026-09-14-gem-unlock-buy.sql section 6b and 2026-09-14-recipe-learn.sql section 4d registered hr_buy_gem_unlock(p_unlock_id text, p_slot integer, p_idem uuid) and hr_recipe_learn(p_item text, p_slot integer, p_idem uuid) for `authenticated`, each with the same delete-then-insert keyed on (proname, grantee), so a re-apply can neither double a row nor leave an approval for a shape that no longer exists. STAGED, NOT APPLIED: both rows are REPLAY-ONLY today and production is expected to stay at 78 until the Coordinator applies the two migrations, at which point the counts converge with no further re-baseline. This entry was updated BY HAND rather than with --write, deliberately: --write would also re-pin every other table's row count from this branch's replay, which is not this lane's to certify. 87 since 2026-09-23-m8-parties-s1-3-client-surface.sql registered the six client-callable M8 slice-1 party functions (hr_party_view + the five membership verbs) for `authenticated`, also with a delete-then-insert so a re-apply converges rather than skipping a row whose argued claim has since been rewritten. 89 since 2026-09-24-m8-parties-s4-3-client-surface.sql registered the two M8 slice-4 hunt verbs — hr_party_hunt_start(p_slot integer, p_active_id text, p_stance text, p_stop jsonb, p_idem uuid) and hr_party_hunt_stop(p_slot integer, p_idem uuid) — for `authenticated`, with the same delete-then-insert, and that file's §3(a) asserts each row's identity_args EQUALS the installed pg_get_function_arguments, so a retyped signature is red at apply time rather than an approval for a shape nobody granted. STAGED, NOT APPLIED: both rows are REPLAY-ONLY today and production is expected to stay at 87 until the Coordinator applies the S4 three, at which point the counts converge with no further re-baseline. 90 IN THE REPLAY SINCE 2026-10-15-party-hunt-view.sql §6 registered hr_party_hunt_view(p_slot integer) for authenticated (Game Designer A1, the member-only read of the party hunt) and rewrote the hr_party_view row's note (A2: share_bp/xp/gold retired), both delete-then-insert keyed on (proname, grantee) with identity_args derived from pg_get_function_identity_arguments. STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. Updated BY HAND, not --write, for the reason above. 91 IN THE REPLAY SINCE 2026-10-18-discord-gift.sql §7 registered hr_claim_discord_gift(p_slot integer, p_code text) for authenticated (delete-then-insert keyed on (proname, grantee)). STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. Updated BY HAND. 98 IN THE REPLAY SINCE 2026-10-22-hunt-sessions-drop-away.sql §3 dropped hr_set_auto_eat and hr_credit_kills and deleted their two `authenticated` rows (hunt sessions retire auto-eat and the attended kill credit; ruling HR-2026-10-14 §3). STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. 2026-10-25-town-walk.sql registered hr_town_move and hr_town_walkers for authenticated (delete-then-insert)."
   },
   "hr_client_write_baseline": {
    "class": "seeded",
    "replay": 0,
    "note": "The register of KNOWN-WEAK client write grants awaiting a sweep. 2026-08-16-client-write-grant-sweep.sql inserts 21; sweeps 2, 3 and 4 delete each row as the grant behind it is revoked, so the chain ends — and production sits — at ZERO. Pinned at 0 deliberately: this is the one seeded table whose CORRECT value is empty, and a future migration re-registering a weak grant makes the census go red so somebody has to look at it rather than at a green tick."
-  },
-  "hr_combat_styles": {
-   "class": "seeded",
-   "replay": 13,
-   "note": "Hand-seeded by 2026-08-24-combat-style.sql: the combat style -> skill routing table (Attack/Strength/Defence/Ranged/Magic and the shared splits). Server-owned, and the client holds the same numbers — the live 'Defensive XP routed to Attack' bug was exactly a divergence between the two copies, so a rebuild producing a different set silently mis-routes every point of combat XP. Content additionally guarded by tests/combat-style.mjs. Rebuilt from repo."
   },
   "hr_combat_xp_credit_log": {
    "class": "restore_only",
@@ -986,7 +981,7 @@
   },
   "hr_hunt_end_reasons": {
    "class": "seeded",
-   "replay": 10,
+   "replay": 11,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): END_ORDER (src/data/hunt-sessions.js): the reasons the settle applier may end a hunt with. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_ground_spawns": {
@@ -1011,7 +1006,7 @@
   },
   "hr_hunt_limits": {
    "class": "seeded",
-   "replay": 37,
+   "replay": 52,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): the session limits (presets, slots, conditions, bag lines, falls and hours ranges, cooldowns, vigour_low threshold, sessions kept). Every RPC reads them; a missing key fails the RPC closed. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_resumable_kinds": {
@@ -1067,7 +1062,7 @@
   },
   "hr_hunt_vendor_value": {
    "class": "seeded",
-   "replay": 468,
+   "replay": 480,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): the vendor bid per item (vendorPriceOf), read only by hr_hunt_analyzer for Gold-at-vendor-value and Waste. Moves no value. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_weapon_roles": {
@@ -1077,7 +1072,7 @@
   },
   "hr_hunt_weapons": {
    "class": "seeded",
-   "replay": 49,
+   "replay": 55,
    "note": "Generated catalogue (2026-10-23-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check from src/data): weapon item -> weapon type, the role a hero plays (hr_hunt_weapon_of). Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_world_shape": {
@@ -1102,12 +1097,12 @@
   },
   "hr_item_slots": {
    "class": "seeded",
-   "replay": 270,
+   "replay": 282,
    "note": "Generated catalogue — which items may occupy which equipment slot. 222 rows on 2026-08-15, 275 now. Rebuilt from repo, never restored."
   },
   "hr_items": {
    "class": "seeded",
-   "replay": 479,
+   "replay": 491,
    "note": "Generated catalogue — the market tradeable allowlist and every item's server-side truth. 426 rows on 2026-08-15, 515 on 2026-09-06, 519 now (+4 Hearthfind trophies, 2026-09-08). Content digest guarded by tools/gen-catalogues.mjs --check as a smoke preflight."
   },
   "hr_kill_credit_log": {
@@ -1239,9 +1234,14 @@
    "replay": 20,
    "note": "Generated catalogue (2026-10-25-alpha-catalogue.generated.sql, tools/gen-alpha-catalogue.mjs --check from src/data/supply-basics.js): the shop's packable supplies and their prices. Rebuilt from repo, never restored."
   },
+  "hr_skill_curve": {
+   "class": "seeded",
+   "replay": 476,
+   "note": "The uncapped combat-skill curve (Melee, Ranged, Magic, Defense, Prayer), generated by tools/gen-catalogues.mjs from src/core/xp.js skillXpForLevel (2026-10-27-core-catalogue.generated.sql; parity: tests/core-curves.mjs). Every combat-skill level is derived from it. Rebuilt from repo, never restored."
+  },
   "hr_skills": {
    "class": "seeded",
-   "replay": 15,
+   "replay": 13,
    "note": "Generated catalogue — the skill list every XP write is validated against. 15 rows on 2026-08-15, 17 now. Rebuilt from repo, never restored."
   },
   "hr_stamina_refill_rule": {
@@ -1266,7 +1266,7 @@
   },
   "hr_start_skill_xp": {
    "class": "seeded",
-   "replay": 1,
+   "replay": 0,
    "note": "Generated from src/data/start-kit.js — the XP a fresh character starts each skill at. Rebuilt from repo, never restored."
   },
   "hr_state_sections": {
@@ -1357,7 +1357,7 @@
   },
   "hr_unlock_offers": {
    "class": "seeded",
-   "replay": 111,
+   "replay": 110,
    "note": "Generated catalogue (2026-08-16-unlock-offers.generated.sql, tools/gen-unlock-offers.mjs --check as a smoke preflight): every purchasable unlock offer with its namespace, rung and price. 142 rows, and it is a PRICE LIST — a rebuild producing a different set sells different things at different prices than the ledger's recorded purchases were made at. Rebuilt from repo, never restored."
   },
   "hr_unlocks": {
@@ -1367,7 +1367,7 @@
   },
   "hr_wipe_log": {
    "class": "regenerated",
-   "replay": 1,
+   "replay": 2,
    "note": "The audit row of the 2026-10-15 clean-slate wipe (2026-10-21-closed-rebuild-wipe.sql, one-shot). A rebuild runs that file and writes ONE row of its own — the right count with the WRONG content (the replay's own timestamp and counts, not production's 2026-10-15 02:41 UTC wipe). No player value; the production row is the only record of when the real wipe ran, so a backup is what keeps it."
   },
   "hr_xp_table": {

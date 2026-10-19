@@ -14,13 +14,11 @@
 const row = (glyph, use, where) => Object.freeze({ glyph, use, where });
 
 export const SKILL_GUIDE = Object.freeze({
-  attack: row('uiSword', 'Lands more of your melee blows.', 'Hunt with a melee weapon.'),
-  strength: row('strength', 'Raises your biggest melee hit.', 'Hunt with a melee weapon.'),
-  defense: row('uiShield', 'Monsters hit you less often.', 'Hunt; every fight trains it.'),
-  hitpoints: row('uiHeart', 'Raises your health.', 'Hunt; every fight trains it.'),
-  prayer: row('uiStar', 'Some monster blows glance off you, more at every tier.', 'Offer bones with Prayer.'),
-  magic: row('uiStaff', 'Your spells land more often and hit harder.', 'Hunt with a staff.'),
-  ranged: row('uiBow', 'Your shots land more often and hit harder.', 'Hunt with a bow.'),
+  melee: row('uiSword', 'Your melee blows land more often and hit harder.', 'Deal damage with a sword, axes or a club.'),
+  ranged: row('uiBow', 'Your shots land more often and hit harder.', 'Deal damage with a bow or crossbow.'),
+  magic: row('uiStaff', 'Your spells land more often and hit harder.', 'Spend mana on spells.'),
+  defense: row('uiShield', 'Monsters hit you less often.', 'Take blows while wearing armour; a shield block counts double.'),
+  prayer: row('uiStar', 'You recover health and mana faster.', 'Bury bones.'),
   woodcutting: row('uiAxe', 'Logs for Crafting and for building your home.', 'Chop trees.'),
   mining: row('uiPickaxe', 'Ore for Smithing and essence for Runecrafting.', 'Mine rocks.'),
   fishing: row('uiRod', 'Raw fish for Cooking.', 'Fish at a fishing spot.'),

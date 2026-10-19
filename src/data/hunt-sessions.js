@@ -12,24 +12,22 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_STANCES } from './rule-subjects.js?v=0.2.6';
-import { WEAPON_ROLES } from './hunt-roles.js?v=0.2.6';
-import { ACTION_SET_SKIPS } from './abilities.js?v=0.2.6';
-import { DENSITY_PICK } from './hunt-grounds.js?v=0.2.6';
+import { HUNT_STANCES } from './rule-subjects.js?v=0.2.7';
+import { WEAPON_ROLES } from './hunt-roles.js?v=0.2.7';
+import { ACTION_SET_SKIPS } from './abilities.js?v=0.2.7';
+import { DENSITY_PICK } from './hunt-grounds.js?v=0.2.7';
 
-/* Falls ends the hunt after that many knock-outs (replaces Retreat): THREE,
-   for everyone (master plan row 16, 2026-10-14 — rulings S and U), so the
-   range is the single value. Hours is an optional limit, off by default: the
-   bag and the falls already bound a hunt, and a timer nobody asked for is a
-   hunt that ends for no reason. */
+/* Hours is an optional limit, off by default: the bag, stamina and death
+   already bound a hunt, and a timer nobody asked for is a hunt that ends for no
+   reason. (A death ends the hunt outright, Tyler 2026-10-19: there is no falls
+   limit.) */
 export const SESSION_LIMITS = Object.freeze({
-  falls: Object.freeze({ min: 3, max: 3, default: 3 }),
   hours: Object.freeze({ min: 1, max: 24, default: null }),
   bagLines: 10,
   /* THE LEVEL FLOOR IS A WARNING (Tyler, 2026-10-18): a hunt's band[0] (src/data/hunts.js) is
      advice. hr_hunt_enter_for admits a character under it and answers below_range: true (the
      picker says the hunt is above your level); it refuses only a character this many combat
-     levels or more under the floor (2026-10-25-hunt-floor-warning.sql). */
+     Levels or more under the floor (2026-10-25-hunt-floor-warning.sql). */
   belowRangeRefuse: 15,
 });
 
@@ -38,12 +36,6 @@ export const SESSION_LIMITS = Object.freeze({
    stamina pool has this many minutes or fewer left. The server reads it
    through the generated catalogue, so retuning it is this one edit. */
 export const STAMINA_LOW_MIN = 60;
-
-/* A KNOCKOUT INSIDE A HUNT is a flat minute (master plan row 16: rulings S and
-   U replace the Recovery Rule's 0…64 min ladder for sessions); the character
-   gets up at 40% HP (src/core/recovery.js resumeHpFor), and three falls end
-   the hunt (SESSION_LIMITS.falls). */
-export const KNOCKOUT_MS = 60000;
 
 /* THE GOLD FLOOR (master plan row 3, 2026-10-14). A shop use never takes the
    character's gold below this: when a charge would, the hunt first sells this
@@ -99,7 +91,9 @@ export const ACTION_SET_OPTIONS = Object.freeze({
   stance: Object.freeze({ kind: 'enum', values: Object.freeze(Object.keys(HUNT_STANCES)) }),
   distance: Object.freeze({ kind: 'limit', limit: 'distance' }),
   chase: Object.freeze({ kind: 'bool' }),
-  /* A staff plays Mage or Healer (hunt-roles.js WEAPON_ROLES); any other weapon ignores it. */
+  /* The role pick. Since Tyler's 2026-10-19 ruling (wand = Mage, staff = Healer) no weapon plays two
+     roles, so every weapon ignores it (roleForWeapon); the option and its role_pick plumbing are a cut
+     still owed (CORE_MODEL.md §11). */
   role: Object.freeze({ kind: 'enum', values: WEAPON_ROLES.staff }),
   food_below_pct: Object.freeze({ kind: 'limit', limit: 'threshold_pct' }),
   drink_below_pct: Object.freeze({ kind: 'limit', limit: 'threshold_pct' }),
@@ -144,15 +138,22 @@ export function coverSellable(item, isSupply) {
   return item.junk === true;
 }
 
-/* TBD-designer (Tyler 2026-10-14: "for now a small loss of xp on death";
-   lane C2 placeholder). On every fall inside a hunt, each skill the fight
-   trains (the combat style's XP route) loses this fraction of the XP its
-   CURRENT level needs to reach the next — taken only from progress inside that
-   level, so a fall never costs a level, costs nothing at a level floor, and
-   nothing at the top level. The server reads it as the hr_hunt_limits row
-   `death_xp_permille` (2026-10-22-hunt-sessions-settle.sql), pinned equal to
-   this by tests/hunt-sessions-settle.mjs DEATHXP. */
+/* THE PRICE OF A DEATH (Tyler 2026-10-19; Coordinator answer Q7, recorded for
+   Tyler's approval). A death ends the hunt and costs:
+     Level   this fraction of the character's TOTAL Level XP, never below the
+             start of the current Level (a death never de-levels);
+     skills  every combat skill (src/data/skills.js DEATH_SKILLS) loses the same
+             fraction of its progress toward its next level, never a level.
+   Blessings (src/data/blessings.js) remove a share of both. The server reads it
+   as the hr_hunt_limits row `death_xp_permille` (the generator refuses a
+   fraction that is not a whole permille). */
 export const DEATH_XP_LOSS = 0.02;
+/* WHAT THE LEVEL'S LOSS IS A SHARE OF (Tyler 2026-10-19: 'total'; the designer
+   recommends 'level', the current Level's span, at Level 200): 'total' = the
+   character's total Level XP, 'level' = the XP between its current Level and the
+   next. Either way the loss never takes the character below its current Level.
+   Server row `death_xp_base` (0 total, 1 level), generated. */
+export const DEATH_XP_BASE = 'total';
 
 /* The Analyzer keeps a character's last this-many hunts (ruling §2); an older
    ended hunt, its bag lines, tally and timeline are pruned when a new one
@@ -162,8 +163,8 @@ export const SESSIONS_KEPT = 20;
 /* STAMINA (Tyler 2026-10-14: "steal the stamina system, 1:1 like Huntera,
    keep it simple"; Tyler 2026-10-17: 8 h free, 12 h premium). One pool per
    character, in ms: it DRAINS 1:1 on every swing interval a hunt session spends
-   hunting, and RESTS BACK 1:1 at every other instant — walking out, knocked
-   out, in town, not in a hunt at all — never past the character's CAP:
+   hunting, and RESTS BACK 1:1 at every other instant — walking out,
+   in town, not in a hunt at all — never past the character's CAP:
    `premium` while player_state.premium_until is ahead of the instant it rests
    to, `free` otherwise (hr_stamina_of). A lapse never removes banked stamina:
    a pool above the free cap stays, and only stops resting until it is below
@@ -176,13 +177,17 @@ export const STAMINA_MAX_MS = Object.freeze({ free: 8 * 3600000, premium: 12 * 3
 
 /* Checked in this order on every swing; the first that holds ends the hunt.
    Stamina sits where Vigour stood (Vigour ends no hunt — designer ruling,
-   2026-10-14 loop check). `gold_out` (Tyler, same day): an NPC basic supply
+   2026-10-14 loop check). `died` (Tyler 2026-10-19): the hero was killed; the
+   hunt ends at the next boundary and the hero is back in town with full HP and
+   mana. `party_member_died` (Tyler 2026-10-19): another member of the party died,
+   which ends the whole party's hunt; the survivor pays nothing for it.
+   `gold_out` (Tyler, 2026-10-14): an NPC basic supply
    the purse cannot pay ends the hunt at the next boundary. `rule` (Tyler
    2026-10-18, the action engine): one of the hero's own stop rules held for its
    hold time (src/core/hunt/conditions.js checkStopRules). The server reads
    this list as hr_hunt_end_reasons and as hunt_sessions.end_reason's CHECK
    (tools/gen-hunt-sessions.mjs). */
-export const END_ORDER = Object.freeze(['falls', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'left', 'changed', 'server']);
+export const END_ORDER = Object.freeze(['died', 'party_member_died', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'left', 'changed', 'server']);
 
 /* WHICH ENDS SEND THE CHARACTER BACK TO WHAT THEY WERE DOING (Tyler
    2026-10-14): every AUTOMATIC end. A hunt the player left or changed is the
@@ -191,7 +196,7 @@ export const END_ORDER = Object.freeze(['falls', 'heals_out', 'ammo_out', 'gold_
    (player_state.last_activity_kind / _id), if that is still allowed; else
    idle in town. A data row so Huntera-style combat training can take its
    place later without touching the settle. */
-export const RESUME_AFTER_END = Object.freeze(['falls', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'server']);
+export const RESUME_AFTER_END = Object.freeze(['died', 'party_member_died', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'server']);
 
 /* The non-hunt activity kinds a character's "last activity" may name. `training`
    is RESERVED for the combat redesign (train a chosen combat skill in town while
@@ -205,9 +210,9 @@ export const END_CARD_COPY = Object.freeze({
   again: 'Hunt again',
   details: 'Details',
   againShort: 'Not enough {item} to pack this bag again: you have {have}, the bag needs {need}.',
-  /* The hunt's falls cost this much XP in all (DEATH_XP_LOSS), summed by the
-     renderer from the `fall` events' server-stated `xp_lost`. */
-  xpLost: Object.freeze({ one: 'Your falls cost you 1 XP.', other: 'Your falls cost you {n} XP.' }),
+  /* The death cost this much XP in all (DEATH_XP_LOSS), summed by the
+     renderer from the `death` event's server-stated `xp_lost`. */
+  xpLost: Object.freeze({ one: 'Dying cost you 1 XP.', other: 'Dying cost you {n} XP.' }),
   /* After an automatic end the character walks home and picks up what it was
      doing; `{activity}` is the server's own name for it ("fishing at Shrimp
      Spot"), drawn from the `ended` event's `resume`. */
@@ -215,7 +220,10 @@ export const END_CARD_COPY = Object.freeze({
 });
 
 export const END_REASON_COPY = Object.freeze({
-  falls: Object.freeze({ one: 'You were knocked out, so you walked home to recover.', other: 'You were knocked out {n} times, so you walked home to recover.' }),
+  /* `{name}` the character, `{ground}` the hunt's name, both from the server. */
+  died: Object.freeze({ one: '{name} died in {ground} and returned to town.' }),
+  /* `{member}` the party member who died, from the server. */
+  party_member_died: Object.freeze({ one: '{member} died in {ground}, so the party returned to town.' }),
   heals_out: Object.freeze({ one: 'You ran out of healing food, so you headed home.' }),
   ammo_out: Object.freeze({ one: 'You ran out of {item}, so you headed home.' }),
   gold_out: Object.freeze({ one: 'You ran out of gold for supplies — the hunt ended.' }),
@@ -232,7 +240,7 @@ export const END_REASON_COPY = Object.freeze({
 export const TIMELINE_COPY = Object.freeze({
   heading: 'Since you last looked',
   empty: 'Nothing new since you last looked.',
-  /* Shown under a `fall` line whose server-stated `xp_lost` is above 0. */
+  /* Shown under a `death` line whose server-stated `xp_lost` is above 0. */
   xpLost: Object.freeze({ one: 'Lost 1 XP.', other: 'Lost {n} XP.' }),
 });
 
@@ -240,7 +248,7 @@ export const EVENT_COPY = Object.freeze({
   entered: Object.freeze({ one: 'Set out for {hunt}.' }),
   level_up: Object.freeze({ one: 'Reached {skill} level {level}.' }),
   rare_drop: Object.freeze({ one: 'Rare drop: {item}.' }),
-  fall: Object.freeze({ one: 'Knocked out by {monster}.' }),
+  death: Object.freeze({ one: 'Killed by {monster}.' }),
   slot_dry: Object.freeze({ one: 'Ran out of {item}.' }),
   stamina_low: Object.freeze({ one: 'Stamina is low: about 1 minute left.', other: 'Stamina is low: about {n} minutes left.' }),
   /* Sell-to-cover: loot sold to the vendor so the shop could be paid. */

@@ -58,8 +58,8 @@ import {
   playerCombatRolls, monsterCombatRolls, weaknessInfo, equipmentStats,
   COMBAT_BALANCE, DEFAULT_PROFILE,
 } from '../src/core/combat.js';
-import { COMBAT_STYLES } from '../src/core/styles.js';
-import { xpForLevel } from '../src/core/xp.js';
+import { xpForLevel, skillXpForLevel, charXpForLevel } from '../src/core/xp.js';
+import { vitalsOf } from '../src/core/vitals.js';
 
 let failed = 0;
 const ok = (cond, msg) => { if (!cond) { failed++; console.error(`  FAIL  ${msg}`); } };
@@ -78,27 +78,27 @@ const EQUIPMENT = Object.freeze({
 function measure(monsterId) {
   const m = MONSTERS[monsterId];
   if (!m) return null;
-  const skills = {
-    attack: xpForLevel(LEVEL), strength: xpForLevel(LEVEL),
-    defense: xpForLevel(LEVEL), hitpoints: xpForLevel(LEVEL),
-  };
+  /* Level 90 with Melee and Defense at it (core rebuild: no Attack/Strength/Hitpoints). */
+  const skills = { melee: skillXpForLevel('melee', LEVEL), defense: skillXpForLevel('defense', LEVEL) };
   const eq = equipmentStats(EQUIPMENT, ITEMS);
-  const style = COMBAT_STYLES.controlled || Object.values(COMBAT_STYLES)[0];
   /* The hunt engine's ONE interval (accrual.js accrueHunt): gear and style no
      longer move a hunt's swing (Tyler 2026-10-14, MDR §2). */
   const tickMs = COMBAT_BALANCE.tickMs;
+  const HERO_HP = vitalsOf({ levelXp: charXpForLevel(LEVEL), skills, equipment: EQUIPMENT, items: ITEMS }).maxHp;
   const state = {
     activeMonster: monsterId, monsterHp: m.hp, monsterMaxHp: m.hp,
-    playerHp: 990, playerMaxHp: 990,
+    /* The core rebuild: max HP is DERIVED from the Level and the armour worn (src/core/vitals.js), never typed
+       (the old 990 was the 99-Hitpoints-era pool, a tenth of a Level 90's). */
+    playerHp: HERO_HP, playerMaxHp: HERO_HP, levelXp: charXpForLevel(LEVEL),
     gold: 0, skills, stats: {}, inventory: {},
   };
   const ctx = {
     away: true, fromMs: 0, toMs: 3600000, tickMs,
     rng: createRng(SEED), monsters: MONSTERS, items: ITEMS,
-    bonus: () => 0, style, activeBuffCount: 0,
+    bonus: () => 0, family: 'sword', activeBuffCount: 0,
     playerRolls: (mm) => playerCombatRolls(mm, {
       eq, equipment: EQUIPMENT, items: ITEMS, skills, bonus: () => 0,
-      profile: DEFAULT_PROFILE, style,
+      profile: DEFAULT_PROFILE,
     }),
     monsterRolls: (mm) => monsterCombatRolls(mm, { eq, skills, bonus: () => 0 }),
     weakness: (mm) => weaknessInfo(mm, eq),

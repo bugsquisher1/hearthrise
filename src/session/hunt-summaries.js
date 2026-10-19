@@ -13,7 +13,7 @@ const LOOT_SHOWN = 6;
 const SUPPLIES_SHOWN = 8;
 const BAG_LINES_MAX = 16;
 const DEATH_LINES_MAX = 6;
-const REASON = /^[a-z_]{1,16}$/;
+const REASON = /^[a-z_]{1,24}$/;
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -30,10 +30,10 @@ export function sanitizeSummary(v) {
   const reason = typeof v.reason === 'string' && REASON.test(v.reason) ? v.reason : null;
   return {
     id: v.id, hunt: id(v.hunt), at: ms(v.at), reason, ms: num(v.ms) !== null && v.ms >= 0 ? Math.floor(v.ms) : null,
-    kills: int(v.kills), xp: num(v.xp), gold: num(v.gold), falls: int(v.falls),
+    kills: int(v.kills), xp: num(v.xp), gold: num(v.gold), died: int(v.died),
     loot: pairs(v.loot, (p) => (Array.isArray(p) && id(p[0]) && int(p[1]) !== null ? [p[0], p[1]] : null), LOOT_SHOWN),
     supplies: pairs(v.supplies, (p) => (Array.isArray(p) && id(p[0]) && (p[1] === 'own' || p[1] === 'store') && num(p[2]) !== null ? [p[0], p[1], p[2]] : null), SUPPLIES_SHOWN),
-    preset: int(v.preset), fallsLimit: int(v.fallsLimit), hoursLimit: int(v.hoursLimit),
+    preset: int(v.preset), hoursLimit: int(v.hoursLimit),
     bag: pairs(v.bag, (p) => (Array.isArray(p) && id(p[0]) && int(p[1]) !== null && p[1] >= 1 && p[1] <= 100000 ? [p[0], p[1], p[2] === 1 ? 1 : 0] : null), BAG_LINES_MAX),
     deaths: Array.isArray(v.deaths) ? v.deaths.filter((d) => typeof d === 'string').slice(0, DEATH_LINES_MAX).map((d) => d.slice(0, 280)) : [],
   };

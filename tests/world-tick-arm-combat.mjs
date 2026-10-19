@@ -49,6 +49,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, ROOT } from './schema-replay.mjs';
+import { PRE_CORE } from './pre-core.mjs';
 
 const MUTATE = process.argv.includes('--mutate') || process.argv.includes('--selftest');
 const CONTROL = Boolean(process.env.HR_MUTANT_CONTROL);
@@ -145,9 +146,9 @@ async function attempt(db, sql, f) {
     const combat = [{ u: UC, ret: f.ret, since: f.combatSince ?? '3 days' }];
     if (f.twoCombat) combat.push({ u: UC2, ret: f.ret, since: '3 days' });
     for (const c of combat) {
-      await q(`insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to,
+      await q(`insert into public.player_state (user_id, slot, gold, hp, version, accrued_to,
                                                 active_kind, active_id, active_since)
-               values ($1, 0, 0, 10, 10, 1, now() - $2::interval, 'combat', $3, now() - $4::interval)`,
+               values ($1, 0, 0, 10, 1, now() - $2::interval, 'combat', $3, now() - $4::interval)`,
         [c.u, c.ret, cact, c.since]);
       await q("insert into public.hr_tick_ownership (user_id, slot, channel, owned) values ($1, 0, 'combat', true)", [c.u]);
       await q(`insert into public.player_ledger (user_id, slot, kind, intent, meta, at)
@@ -162,9 +163,9 @@ async function attempt(db, sql, f) {
         [UC, f.anchorAge]);
     }
     // The ARMED gatherer (QA slot 2's shape): quiet, paid by the tick every 90 s.
-    await q(`insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to,
+    await q(`insert into public.player_state (user_id, slot, gold, hp, version, accrued_to,
                                               active_kind, active_id, active_since)
-             values ($1, 0, 0, 10, 10, 1, now() - interval '1 minute', 'gather', $2, now() - interval '3 days')`, [UG, gact]);
+             values ($1, 0, 0, 10, 1, now() - interval '1 minute', 'gather', $2, now() - interval '3 days')`, [UG, gact]);
     await q("insert into public.hr_tick_ownership (user_id, slot, channel, owned) values ($1, 0, 'gather', true)", [UG]);
     await q(`insert into public.player_ledger (user_id, slot, kind, intent, meta, at)
              select $1::uuid, 0, 'gather', 'accrue', '{"src":"tick","qty":1}'::jsonb, now() - make_interval(secs => g * 90)
@@ -251,7 +252,10 @@ async function arms(db, sql, { log = true } = {}) {
 }
 
 let db;
-try { ({ db } = await bootReplay({})); } catch (e) {
+/* At the arm file's own era (tests/pre-core.mjs): its P4 reads hr_party_tick_settle's cohort fences, and the
+   core rebuild (2026-10-27-core-schema.sql) drops that settle with the M8 party world tick, so at the chain end
+   the arm file can only refuse — for a reason none of these cases is about. */
+try { ({ db } = await bootReplay({ upTo: PRE_CORE })); } catch (e) {
   console.error(`harness: the migration chain did not replay — ${e.message}`); process.exit(2);
 }
 

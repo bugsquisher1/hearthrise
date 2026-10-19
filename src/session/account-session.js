@@ -33,10 +33,10 @@
 //                 left and destroyed when it closes
 // ════════════════════════════════════════════════════════════════════════
 
-import { SESSION_CONFIG } from './config.js?v=0.2.6';
-import { CharacterSession } from './character-session.js?v=0.2.6';
-import { TownPresence } from './town-presence.js?v=0.2.6';
-import { combatLevel } from '../core/xp.js?v=0.2.6';
+import { SESSION_CONFIG } from './config.js?v=0.2.7';
+import { CharacterSession } from './character-session.js?v=0.2.7';
+import { TownPresence } from './town-presence.js?v=0.2.7';
+import { charLevelFromXp } from '../core/xp.js?v=0.2.7';
 
 /** This tab's session id: made once per tab, kept across a reload, new for a new tab. */
 export function tabSessionId(tab, cfg = SESSION_CONFIG, make) {
@@ -54,14 +54,13 @@ export function accountLimitOf(read) {
   return a && typeof a === 'object' && Number.isInteger(a.max_concurrent) && a.max_concurrent >= 1 && a.max_concurrent <= 8 ? a.max_concurrent : null;
 }
 
-/** A roster row's hero, from one hr_load answer: its name and combat level (from the server's XP), or nulls. Pure. */
+/** A roster row's hero, from one hr_load answer: its name and Level (the server's state.level_xp on the
+    shared curve, CORE_MODEL.md §1), or nulls. Pure. */
 export function heroOf(body) {
   if (!body || body.ok !== true) return { name: null, level: null };
   const name = typeof body.name === 'string' && body.name.trim() ? body.name.trim().slice(0, 40) : null;
-  const sk = body.skills && typeof body.skills === 'object' ? body.skills : null;
-  const xp = {};
-  if (sk) for (const [k, r] of Object.entries(sk)) if (r && Number.isSafeInteger(r.xp) && r.xp >= 0) xp[k] = r.xp;
-  return { name, level: sk ? combatLevel(xp) : null };
+  const lx = body.state && typeof body.state === 'object' ? body.state.level_xp : null;
+  return { name, level: Number.isSafeInteger(lx) && lx >= 0 ? charLevelFromXp(lx) : null };
 }
 
 /** The owned slots an envelope's `hero_slots` names, bounded to the server's range. Pure. */

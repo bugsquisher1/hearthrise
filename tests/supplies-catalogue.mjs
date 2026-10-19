@@ -57,6 +57,7 @@ import {
   supplyKindOf, BAG_TARGET_HOURS, BAG_GUIDE_BY_HUNT, BAG_GUIDE_BY_TIER, bagGuideFor,
 } from '../src/data/supplies.js';
 import { BASIC_SUPPLIES, BASIC_INDEX, BASIC_EFFECT_SHARE, BASIC_AMMO_PREMIUM, basicFor } from '../src/data/supply-basics.js';
+import { FOOD_HEAL_SCALE } from '../src/data/core-model.js';
 import { DRINK_ITEMS, DRINK_RECIPES, DRINK_DESC } from '../src/data/drinks.js';
 import { TARGET_MODES, HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from '../src/data/rule-subjects.js';
 import { CONSUMABLE_RULES } from '../src/data/consumables.js';
@@ -79,13 +80,15 @@ import { isMain as isEntryModule } from './_is-main.mjs';
    like Huntera"); `gold_out` follows the bag's own ends (Tyler, same day: a
    shop supply the purse cannot pay ends the hunt). `rule` (Tyler 2026-10-18, the
    conditional action engine): one of the hero's own stop rules held. */
-const RULING_END_ORDER = ['falls', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'left', 'changed', 'server'];
+/* Core rebuild (Tyler 2026-10-19): a death ends the hunt (`died`), and one party member's death ends it for the
+   party (`party_member_died`); there is no falls limit. */
+const RULING_END_ORDER = ['died', 'party_member_died', 'heals_out', 'ammo_out', 'gold_out', 'rule', 'stamina', 'hours', 'left', 'changed', 'server'];
 /* vigour_low -> stamina_low (master plan row 4); `cover` = sell-to-cover (row 3). */
-const RULING_EVENTS = ['entered', 'level_up', 'rare_drop', 'fall', 'slot_dry', 'stamina_low', 'cover', 'ended'];
+const RULING_EVENTS = ['entered', 'level_up', 'rare_drop', 'death', 'slot_dry', 'stamina_low', 'cover', 'ended'];
 const PER_USE_KINDS = ['heal', 'mana', 'ammo'];   // buff is parked
 /* `activity`: the server's name for what the character resumes after an
    automatic end ("fishing at Shrimp Spot", Tyler 2026-10-14). */
-const PLACEHOLDERS = new Set(['hunt', 'item', 'skill', 'level', 'n', 'have', 'need', 'monster', 'reason', 'activity']);
+const PLACEHOLDERS = new Set(['hunt', 'item', 'skill', 'level', 'n', 'have', 'need', 'monster', 'reason', 'activity', 'name', 'ground', 'member']);
 const BATCH_FAUCET_CAP = 5;                       // tests/recipe-yield-guard.mjs
 const STYLES = ['melee', 'ranged', 'magic'];
 
@@ -177,7 +180,9 @@ function checkBasics(d, f) {
     if (!(Number.isInteger(b.price) && b.price > 0)) f('B1', `'${b.id}' price ${b.price} is not a whole number of gold`);
     if (b.kind === 'heal' || b.kind === 'mana') {
       const key = b.kind === 'heal' ? 'heals' : 'mana';
-      if (b[key] !== Math.floor(p[key] * BASIC_EFFECT_SHARE) || !(b[key] < p[key])) f('B1', `'${b.id}' gives ${b[key]}, not ${BASIC_EFFECT_SHARE} of '${b.partner}' (${p[key]})`);
+      /* Heals: three quarters at the pre-x12 grain (FOOD_HEAL_SCALE), so the core rebuild's x12 kept every basic's ratio. */
+      const S = key === 'heals' ? FOOD_HEAL_SCALE : 1;
+      if (b[key] !== S * Math.floor((p[key] / S) * BASIC_EFFECT_SHARE) || !(b[key] < p[key])) f('B1', `'${b.id}' gives ${b[key]}, not ${BASIC_EFFECT_SHARE} of '${b.partner}' (${p[key]})`);
       if (!(b.price / b[key] > partnerUnit(p, b.kind))) f('B1', `'${b.id}' costs ${(b.price / b[key]).toFixed(1)} g a point, not more than '${b.partner}' at ${partnerUnit(p, b.kind).toFixed(1)}`);
     } else {
       if (!(p.tier >= 2) || p.reqSkill !== 'ranged') f('B1', `'${b.id}' partner '${b.partner}' is not a tier-2+ arrow`);
@@ -281,8 +286,8 @@ function checkHuntsAndGuides(d, f) {
 
 function checkLimitsAndCopy(d, f) {
   const L = d.limits;
-  /* Three falls end every hunt (master plan row 16): a single value, not a range. */
-  if (L.falls.default !== 3 || L.falls.min !== 3 || L.falls.max !== 3) f('L1', 'falls is not a flat 3');
+  /* No falls limit (Tyler 2026-10-19): the first death ends the hunt, so no knockout count is a setting. */
+  if ('falls' in L) f('L1', 'a falls limit survives: one death ends a hunt, there is nothing to count');
   if (L.hours.min !== 1 || L.hours.max !== 24 || L.hours.default !== null) f('L1', 'hours is not 1–24, off by default');
   if (L.bagLines !== 10) f('L1', 'a bag is not 10 lines');
 
@@ -363,11 +368,11 @@ function selftest() {
     ['G1', 'a mage bag with no drinks', (d) => {
       const g = d.guides.ridge_camp; d.guides = { ...d.guides, ridge_camp: { ...g, magic: { heal: g.magic.heal, ammo: g.magic.ammo } } };
     }],
-    ['L1', 'falls defaulting to 4', (d) => { d.limits = { ...SESSION_LIMITS, falls: { min: 1, max: 6, default: 4 } }; }],
-    ['C1', 'the end order shuffled', (d) => { d.endOrder = ['heals_out', 'falls', ...END_ORDER.slice(2)]; }],
+    ['L1', 'a falls limit is back', (d) => { d.limits = { ...SESSION_LIMITS, falls: { min: 1, max: 6, default: 4 } }; }],
+    ['C1', 'the end order shuffled', (d) => { d.endOrder = ['party_member_died', 'died', ...END_ORDER.slice(2)]; }],
     ['C1', 'Vigour ends a hunt again', (d) => { d.endOrder = END_ORDER.map((r) => (r === 'stamina' ? 'vigour' : r)); }],
     ['C1', 'stamina never ends a hunt', (d) => { d.endOrder = END_ORDER.filter((r) => r !== 'stamina'); }],
-    ['C1', 'a "(s)" plural hack in end copy', (d) => { d.endCopy = { ...END_REASON_COPY, falls: { one: 'You fell {n} time(s).' } }; }],
+    ['C1', 'a "(s)" plural hack in end copy', (d) => { d.endCopy = { ...END_REASON_COPY, died: { one: 'You died {n} time(s).' } }; }],
   ];
   let missed = 0;
   for (const [code, name, plant] of mutants) {

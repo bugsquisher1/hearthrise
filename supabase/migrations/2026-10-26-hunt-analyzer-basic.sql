@@ -32,7 +32,8 @@
 -- Re-apply §2-§3 of 2026-10-23-hunt-analyzer-v2.sql (hr_hunt_analyzer,
 -- hr_hunt_analyzer_view, the section row and the baseline note); drop
 -- hr_hunt_analyzer_basic.
--- ORDER: after 2026-10-23-hunt-analyzer-v2.sql (and last in the chain). No begin/commit.
+-- ORDER: after 2026-10-23-hunt-analyzer-v2.sql and the core rebuild (2026-10-27-core-wipe.sql); last in the
+-- chain. No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS AND THE PINS ────────────────────────────────────────────
@@ -134,7 +135,7 @@ begin
     insert into public.hr_access_allowlist (user_id, note) values (v_uid, 'hunt-analyzer-basic §4 probe') on conflict (user_id) do nothing;
     v := public.hr_create_character(0);
     if coalesce(v->>'ok', '') <> 'true' then raise exception 'VERIFY(b): hr_create_character refused: %', v; end if;
-    v_sid := public.hr_hunt_new_session(v_uid, 0, 'mill_cellar', null, 0, 3, null);
+    v_sid := public.hr_hunt_new_session(v_uid, 0, 'mill_cellar', null, 0, null);
     update public.hunt_session_tally set kills = 5, coins = 40, supply_gold = 12, supplies = '{"cooked_shrimp": 3}'::jsonb,
            bought = '{"basic_bread": 2}'::jsonb, dealt = '{"total": 90, "byAbility": {"basic": 90}}'::jsonb,
            taken = '{"total": 30, "byMonster": {"rat": 30}}'::jsonb

@@ -18,7 +18,9 @@ async function loadAll(root) {
   M.statuses = await imp('src/data/statuses.js');
   M.huntxp = await imp('src/data/hunt-xp.js');
   M.xpcurve = await imp('src/core/xp.js');
-  M.styles = await imp('src/core/styles.js');
+  M.cm = await imp('src/data/core-model.js');
+  M.monLevelOf = (await imp('src/data/monsters.js')).monsterLevelOf;
+  M.V = V;
   return M;
 }
 
@@ -32,6 +34,7 @@ export async function suite35(name, cases, mutants) {
     R.ok(!why, cn + ': ' + why);
   }
   for (const mu of mutants || []) {
+    if (!cases[mu.case]) { R.ok(false, 'mutant "' + mu.name + '" names no case ' + mu.case); continue; }
     const p = plant(mu.edits);
     try {
       let why = null;

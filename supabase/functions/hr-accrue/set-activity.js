@@ -368,17 +368,6 @@ export async function runSetActivity(o) {
     };
   }
 
-  /* ── (1b) KNOCKED OUT? — RETIRED WITH THE COMBAT POINTER (lane C2) ───────
-     Rev. 3 (2026-09-08) refused exactly one declared kind while
-     `recovering_until` was ahead: `combat`. A fight is a HUNT now and a
-     `combat` declaration is answered `hunt_required` on shape, above, so the
-     branch could no longer be reached; it is deleted rather than left as a
-     gate on a door that does not exist. Gathering and the benches stay open
-     and paid through a knockout (tests/recovery-rest.mjs §10 (c)/(f)/(g)).
-     The knockout rule for a FIGHT is the one combat body's: a hunt window
-     inside `recovering_until` earns nothing (tests/hunt-sessions-settle.mjs
-     KNOCKOUT), whoever opened the session. */
-
   /* (2) ⚠ COLLECT BEFORE SWITCH. The rule. See intents.js §3. Whether it
          applies is the registry's `collectsFirst`, read here and nowhere else;
          an intent that does not collect states so as a verdict rather than by

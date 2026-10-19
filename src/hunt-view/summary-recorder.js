@@ -10,10 +10,10 @@
 // field `huntSummaries`, with the death explanation (death-explain.js) taken
 // from those events. It authors no number: it reads the server's sections.
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf, partyOf, analyzerOf } from '../session/hunt-sections.js?v=0.2.6';
-import { monsterName } from '../shell/widgets/bits.js?v=0.2.6';
-import { explainDeaths } from './death-explain.js?v=0.2.6';
-import { createRecorder, endedSessionOf, buildSummary, withSummary } from './summary-model.js?v=0.2.6';
+import { huntOf, partyOf, analyzerOf } from '../session/hunt-sections.js?v=0.2.7';
+import { monsterName } from '../shell/widgets/bits.js?v=0.2.7';
+import { explainDeaths } from './death-explain.js?v=0.2.7';
+import { createRecorder, endedSessionOf, buildSummary, withSummary } from './summary-model.js?v=0.2.7';
 
 const ATTACHED = new WeakMap();
 
@@ -53,8 +53,8 @@ export function summariesOf(cs) {
   return r && Array.isArray(r.huntSummaries) ? r.huntSummaries : [];
 }
 
-/** The newest falls of the current hunt, explained (memoised on what the recorder holds). */
-export function liveFalls(a) {
+/** The newest deaths of the current hunt, explained (memoised on what the recorder holds). */
+export function liveDeaths(a) {
   const evs = a.rec.events();
   const sig = evs.length + ':' + (evs.length ? evs[evs.length - 1].atMs : 0);
   if (a.liveSig !== sig) { a.liveSig = sig; a.live = explainDeaths(evs, { whoOf }); }
@@ -79,8 +79,8 @@ export function attach(cs) {
     if (a.done.has(s.id)) return;
     a.done.add(s.id);
     if (summariesOf(cs).some((x) => x.id === s.id)) return;
-    const ex = a.sid === s.id ? explainDeaths(a.rec.events(), { whoOf }) : { falls: [] };
-    const deaths = ex.falls.map((f) => f.lines.join(' '));
+    const ex = a.sid === s.id ? explainDeaths(a.rec.events(), { whoOf }) : { deaths: [] };
+    const deaths = ex.deaths.map((f) => f.lines.join(' '));
     a.fresh = s.id;
     cs.setResidue('huntSummaries', withSummary(summariesOf(cs), buildSummary(s, analyzerOf(cs), deaths)));
   });

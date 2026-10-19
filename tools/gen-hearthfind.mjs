@@ -46,11 +46,11 @@ import { MONSTERS } from '../src/data/monsters.js';
 import { TREES, ROCKS, FISH_SPOTS } from '../src/data/gathering.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-/* THE FORWARD FILE. 2026-09-08- and 2026-10-22-hearthfind-catalogue.generated.sql
+/* THE FORWARD FILE. 2026-09-08-, 2026-10-22- and 2026-10-23-hearthfind-catalogue.generated.sql
    are APPLIED history and are never regenerated; the boss odds re-measured on the
-   hunt instance engine (lane S1, 2026-10-17) land in this forward file, which
-   rewrites the same tables. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2026-10-23-hearthfind-catalogue.generated.sql');
+   core rebuild (Level HP, per-tier monster damage; designer 2026-10-19) land in this
+   forward file, which rewrites the same tables. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2026-10-27-hearthfind-catalogue.generated.sql');
 const ID_RE = /^[a-z0-9_]+$/;
 
 const die = (msg) => { throw new Error(`gen-hearthfind: ${msg}`); };

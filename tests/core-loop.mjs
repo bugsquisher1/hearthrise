@@ -43,7 +43,7 @@
 //   13    a settle pays once        a second settle of one window writes nothing    -
 //
 //   LOOP-2, a mid-level character (Combat 40)
-//    1    a Combat-40 character     fixture levels + gold + steel kit, REAL equip   all
+//    1    a Level-16 character      fixture levels + gold + iron kit, REAL equip    all
 //    2    pick a hunt for my level  src/data/hunts.js band contains my level        4
 //    3    switch the shop heal on   hr_action_set_put: the bar buys a heal per use  4
 //                                   (master plan rows 1 and 25: off for a new bar)
@@ -122,7 +122,7 @@ import { bootReplay, ROOT } from './schema-replay.mjs';
 import { ITEMS } from '../src/data/items.js';
 import { HUNTS } from '../src/data/hunts.js';
 import { START_KIT } from '../src/data/start-kit.js';
-import { combatLevel, xpForLevel } from '../src/core/xp.js';
+import { charLevelFromXp, charXpForLevel, skillXpForLevel } from '../src/core/xp.js';
 import { BASIC_INDEX } from '../src/data/supply-basics.js';
 import { STAMINA_MAX_MS as STAMINA_CAPS, DEFAULT_RESUME, SESSION_LIMITS } from '../src/data/hunt-sessions.js';
 import { HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
@@ -367,7 +367,7 @@ function makeLoop(loopId, rows) {
 const inv = (env, id) => num(env && env.inventory && env.inventory[id]);
 const xpOf = (env, sk) => num(env && env.skills && env.skills[sk] && env.skills[sk].xp);
 const lvOf = (env, sk) => num(env && env.skills && env.skills[sk] && env.skills[sk].level);
-const COMBAT_SKILLS = ['attack', 'strength', 'defense', 'hitpoints', 'ranged', 'magic'];
+const COMBAT_SKILLS = ['melee', 'defense', 'ranged', 'magic', 'prayer'];
 const combatXp = (env) => COMBAT_SKILLS.reduce((s, k) => s + xpOf(env, k), 0);
 const heals = (id) => num(ITEMS[id] && ITEMS[id].heals);
 const isFood = (id) => heals(id) > 0;
@@ -472,8 +472,8 @@ function sameWorld(t, label, a, b, aName = 'before', bName = 'after reload') {
 }
 
 /* ── ONE PLAYER: what the server last said, and the two moves every loop makes ── */
-const levelsOf = (env) => Object.fromEntries(Object.keys(env.skills || {}).map((k) => [k, xpOf(env, k)]));
-const combatOf = (env) => combatLevel(levelsOf(env));
+/* The character's Level: the server's state.level_xp on the shared curve (the core rebuild: Level from kills). */
+const combatOf = (env) => charLevelFromXp(num(env && env.state && env.state.level_xp));
 
 function makePlayer(S, uid) {
   const p = {
@@ -514,7 +514,7 @@ function makePlayer(S, uid) {
         await p.act(t, 'set_activity idle (leave for the hunt)', { verb: 'set_activity', activity: { kind: 'idle', id: null } });
       }
       const lines = Object.entries(bag || {}).filter(([, n]) => n > 0).map(([item, qty]) => ({ item, qty }));
-      const r = await S.rpc(uid, 'select public.hr_hunt_enter(0, $1, $2::jsonb, 0, null, null, $3::uuid) r',
+      const r = await S.rpc(uid, 'select public.hr_hunt_enter(0, $1, $2::jsonb, 0, null, $3::uuid) r',
         [hunt, JSON.stringify(lines), uuid()]);
       t.ok(r && r.ok === true, `hr_hunt_enter ${hunt} refused: ${brief(r)}`);
       p.env = await readBack(S, uid, t, `enter ${hunt}`, null);
@@ -596,7 +596,7 @@ async function loop1(S, M, tag, rows) {
     /* The floor is a warning (Tyler 10-18): only SESSION_LIMITS.belowRangeRefuse or more levels under it is refused. */
     const locked = HUNTS.filter((h) => h.band[0] - cl >= SESSION_LIMITS.belowRangeRefuse).sort((a, b) => a.band[0] - b.band[0])[0];
     if (locked) {
-      const no = await S.rpc(p.uid, 'select public.hr_hunt_enter(0, $1, $2::jsonb, 0, null, null, $3::uuid) r',
+      const no = await S.rpc(p.uid, 'select public.hr_hunt_enter(0, $1, $2::jsonb, 0, null, $3::uuid) r',
         [locked.id, '[]', uuid()]);
       t.ok(!(no && no.ok === true), `a combat-${cl} character was let into ${locked.id} (band floor ${locked.band[0]}, ${SESSION_LIMITS.belowRangeRefuse}+ under is refused)`);
       t.note(`${locked.id} refused at combat ${cl}: ${no && no.error}`);
@@ -714,10 +714,14 @@ async function equipFromBag(p, t, slot, id) {
   if (was) t.ok(inv(p.env, was) === inv(before, was) + 1, `the old ${was} did not return to the bag`);
 }
 
-/* ══ LOOP-2 — A MID-LEVEL CHARACTER (COMBAT 40) ══════════════════════════ */
-const MID_LEVEL = 35;                       // attack/strength/defence/hitpoints -> combat 40
-const MID_KIT = { weapon: 'steel_sword', helmet: 'steel_helm', body: 'steel_platebody',
-  boots: 'steel_boots', gloves: 'steel_gauntlets', belt: 'steel_belt' };
+/* ══ LOOP-2 — A MID-LEVEL CHARACTER (LEVEL 16, the Sewer's band) ═════════ */
+/* Level 16 with Melee and Defense at 15 (skills trail Level, CORE_NUMBERS) in the iron kit: the lower half of the
+   Sewer's solo band (Q9: 8-25). Levels 26-50 have only the party-built Warrens (32-50) — a lone hero there is a
+   designer gap, not this loop's question. */
+const MID_LEVEL = 15;
+const MID_CHAR_LEVEL = 16;
+const MID_KIT = { weapon: 'iron_sword', helmet: 'iron_helm', body: 'iron_platebody',
+  boots: 'iron_boots', gloves: 'iron_gauntlets', belt: 'iron_belt' };
 const MID_GOLD = 6000;
 
 async function loop2(S, M, tag, rows) {
@@ -729,22 +733,23 @@ async function loop2(S, M, tag, rows) {
   let hour = null;
   let lootGold = 0;
 
-  await step(1, 'a Combat-40 character', async (t) => {
+  await step(1, 'a Level-16 character', async (t) => {
     const cr = await S.create(p.uid, `Loop2${tag}`);
     t.ok(cr && cr.ok === true, `hr_create_character refused: ${brief(cr)}`);
-    for (const sk of ['attack', 'strength', 'defense', 'hitpoints']) {
-      await S.q('update public.player_skills set xp = $3 where user_id=$1 and slot=0 and skill_id=$2', [p.uid, sk, xpForLevel(MID_LEVEL)]);
+    for (const sk of ['melee', 'defense']) {
+      await S.q('update public.player_skills set xp = $3 where user_id=$1 and slot=0 and skill_id=$2', [p.uid, sk, skillXpForLevel(sk, MID_LEVEL)]);
     }
-    await S.q('update public.player_state set gold=$2, hp=$3, max_hp=$3 where user_id=$1 and slot=0', [p.uid, MID_GOLD, MID_LEVEL]);
+    /* Level XP is the hunt settle's to credit; the fixture writes the column the settle would have. */
+    await S.q('update public.player_state set gold=$2, level_xp=$3, hp=100000 where user_id=$1 and slot=0', [p.uid, MID_GOLD, charXpForLevel(MID_CHAR_LEVEL)]);
     for (const id of Object.values(MID_KIT)) {
       await S.q(`insert into public.player_inventory (user_id, slot, item_id, qty) values ($1,0,$2,1)
                  on conflict (user_id, slot, item_id) do update set qty = player_inventory.qty + 1`, [p.uid, id]);
     }
-    await p.act(t, 'equip the steel kit', { verb: 'equip', equip: { ...MID_KIT } });
+    await p.act(t, 'equip the iron kit', { verb: 'equip', equip: { ...MID_KIT } });
     for (const [s, id] of Object.entries(MID_KIT)) t.ok(p.env.equipment[s] === id, `${s} is ${p.env.equipment[s]}, not ${id}`);
     const cl = combatOf(p.env);
-    t.ok(cl >= 38 && cl <= 42, `the fixture is combat ${cl}, not ~40`);
-    t.note(`combat ${cl}, hp ${p.env.state.max_hp}, ${p.env.state.gold} gold, steel kit equipped`);
+    t.ok(cl === MID_CHAR_LEVEL, `the fixture is Level ${cl}, not ${MID_CHAR_LEVEL}`);
+    t.note(`Level ${cl}, hp ${p.env.state.max_hp}, ${p.env.state.gold} gold, iron kit equipped`);
   });
 
   await step(2, 'pick a hunt for my level', async (t) => {
@@ -889,7 +894,7 @@ async function loop4(S, M, tag, rows) {
 
   await step(2, 'the hunt ends on its own', async (t) => {
     const reason = night.session && night.session.end_reason;
-    t.ok(['falls', 'heals_out', 'gold_out', 'stamina', 'ammo_out'].includes(reason),
+    t.ok(['died', 'heals_out', 'gold_out', 'stamina', 'ammo_out'].includes(reason),
       `ten hours with only the kit left the hunt ${reason || 'open'}: a night must end on an automatic reason`);
     t.note(`ended ${reason}`);
   });
@@ -935,10 +940,10 @@ async function loop5(S, M, tag, rows) {
   await step(1, 'a Combat-99 character', async (t) => {
     const cr = await S.create(p.uid, `Loop5${tag}`);
     t.ok(cr && cr.ok === true, `hr_create_character refused: ${brief(cr)}`);
-    for (const sk of ['attack', 'strength', 'defense', 'hitpoints']) {
-      await S.q('update public.player_skills set xp = $3 where user_id=$1 and slot=0 and skill_id=$2', [p.uid, sk, xpForLevel(99)]);
+    for (const sk of ['melee', 'defense']) {
+      await S.q('update public.player_skills set xp = $3 where user_id=$1 and slot=0 and skill_id=$2', [p.uid, sk, skillXpForLevel(sk, 99)]);
     }
-    await S.q('update public.player_state set gold=$2, hp=99, max_hp=99 where user_id=$1 and slot=0', [p.uid, 200000]);
+    await S.q('update public.player_state set gold=$2, level_xp=$3, hp=100000 where user_id=$1 and slot=0', [p.uid, 200000, charXpForLevel(99)]);
     await S.q(`insert into public.player_inventory (user_id, slot, item_id, qty) values ($1,0,'cooked_shark',1500)
                on conflict (user_id, slot, item_id) do update set qty = 1500`, [p.uid]);
     const kit = Object.fromEntries(Object.entries(KIT).filter(([, id]) => ITEMS[id]));

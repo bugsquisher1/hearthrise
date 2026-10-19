@@ -185,7 +185,7 @@ const mutants = [
   { name: 'fractional mana is dropped every sub-step', case: 'mana-regen',
     edits: [['src/core/hunt/abilities.js', '  u.manaMilli -= whole * 1000;', '  u.manaMilli = 0;']] },
   { name: 'the lanes are not persisted', case: 'clocks-survive-a-cut',
-    edits: [['src/core/hunt/abilities.js', "['manaMilli', 'int'], ['lanes', 'json'], ['cds', 'json'],", "['manaMilli', 'int'], ['cds', 'json'],"]] },
+    edits: [['src/core/hunt/abilities.js', "['regenPm', 'int'], ['lanes', 'json'], ['cds', 'json'],", "['regenPm', 'int'], ['cds', 'json'],"]] },
 ];
 
 await suiteH4('hunt-core/abilities', cases, mutants);

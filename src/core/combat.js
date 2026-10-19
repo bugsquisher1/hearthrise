@@ -17,12 +17,11 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { levelOf } from './xp.js?v=0.2.6';
-import { PRAYER_WARDS, PRAYER_WARD_MAX_PCT } from '../data/skills.js?v=0.2.6';
+import { levelOf } from './xp.js?v=0.2.7';
 import {
   baneIndex, baneMultFor, classOfMonster, MAX_COMBINED_DAMAGE_MULT,
-} from './bane.js?v=0.2.6';
-import { elementMultFor, MAX_TOTAL_DAMAGE_MULT } from './elements.js?v=0.2.6';
+} from './bane.js?v=0.2.7';
+import { elementMultFor, MAX_TOTAL_DAMAGE_MULT } from './elements.js?v=0.2.7';
 /* The bestiary CHARM and TROPHY combat multipliers are gone (closed rebuild,
    demolition safety review item 9: trophies stay as claims and display; the
    ladders no longer price a fight). A monster's drops are its own row's. */
@@ -58,29 +57,26 @@ export const COMBAT_BALANCE = {
   monsterAccuracyPerPoint: 0.02,
   monsterMinAccuracy: 0.05,
   monsterMaxAccuracy: 0.85,
-  monsterAttackDamageScale: 0.45,
-  defenseXpMiss: 1,
-  defenseXpDamageScale: 2,
-  /* THE UNIVERSAL BASIC-ATTACK INTERVAL (Tyler, 2026-10-14: "2.0 s for every
-     player and monster basic attack — the Tibia rhythm"; Combat Design Bible
-     v1.4). The ONE source: the live scheduler (combatTickMs), the hunt engine
-     (hr-accrue deriveTickMs) and the away replay all read it through
-     swingIntervalMs; tests/basic-attack-interval.mjs proves no second copy. */
+  /* x12 with every food heal (CORE_NUMBERS_2026-10-19 Q3): HP is on the
+     150 + 10 per Level scale, so a blow and a meal move together and uses per
+     hour, and so the economy, stay where they were. */
+  monsterAttackDamageScale: 5.4,
+  /* PER-TIER DAMAGE SCALE (Game Designer, CORE_NUMBERS 2026-10-19 addendum). HP grows 10 a Level
+     while monster atk grows about one a Level, so one flat 5.4 put a tier-6 blow at ~50% of an
+     in-band hero's HP (a boss two-shot the Level-90 hearthfind hero). Tiers 1-3 (the EA grounds)
+     keep 5.4; tiers 4-6 flatten so an in-band blow stays ~20-30% of max HP (bosses <= ~35%).
+     Damage only: accuracy still reads `atk`. A tier missing here uses monsterAttackDamageScale. */
+  monsterDamageScaleByTier: Object.freeze({ 4: 4.0, 5: 3.0, 6: 2.2 }),
+  /* THE UNIVERSAL BASIC-ATTACK INTERVAL (Tyler, 2026-10-15: "2.0 s for every
+     player and monster basic attack"). The ONE source, with no speed modifier
+     of any kind (no gear speed, no weapon-family speed, no style speed): the
+     hunt engine (src/core/hunt/damage.js), the edge settle and the generated
+     `swing_interval_ms` limits row all read this number;
+     tests/basic-attack-interval.mjs proves no second copy. */
   tickMs: 2000,
-  /* THE FLOOR ON A SWING. `combatTickMs()` clamps to this, and so does
-     `simulateSpan` — because a tick interval is a DIVISOR of elapsed time on
-     the accrual path, and a divisor is an exploit surface. It lives here,
-     beside `tickMs`, so the live scheduler and the away replay cannot be
-     given two different minima the way they were once given two different
-     intervals (see combat-sim.js's header, omission 10). */
-  minTickMs: 600,
   critMult: 1.5,
   critCap: 0.60,
 };
-
-/* Wave 5: weapon-family SPEED identity — multiplies the swing interval so
-   DPS trades against per-hit burst. */
-export const WEAPON_SPEED_MOD = { sword: 1.0, hammer: 1.35, ranged: 0.88, magic: 1.05, neutral: 1.0 };
 
 /* Wave 5b: endgame DEF scaling for ACCURACY only, so weapon atkB still
    matters at the top of the ladder. Tiers 1-3 unchanged. */
@@ -88,20 +84,14 @@ export const ACC_DEF_MUL = { 4: 1.15, 5: 1.30, 6: 1.50 };
 
 export function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
 
-/* The default stat profile when no combat-style module has loaded. */
+/* The melee stat profile (a sword, a hammer, an axe or bare hands): Melee is the
+   skill both its accuracy and its max hit read (CORE_MODEL.md §4; there is no
+   Attack or Strength skill). */
 export const DEFAULT_PROFILE = {
-  type: 'sword', accuracySkill: 'attack', damageSkill: 'strength',
+  type: 'sword', accuracySkill: 'melee', damageSkill: 'melee',
   accuracyBonusField: 'atkB', strengthBonusField: 'strB',
 };
-export const DEFAULT_STYLE = { accuracyMod: 1, damageMod: 1, defenseMod: 1, speedMod: 1 };
 
-/* A style may only ever COST speed, never grant it. See the b329 header in
-   src/core/styles.js: making this an invariant of the FORMULA (rather than a
-   promise about the table) is what stops combat styles from becoming a second
-   speed ladder next to the unresolved `spdB` question, and it means a garbage
-   or hostile style row can never shrink the divisor the accrual engine uses. */
-export const STYLE_SPEED_MIN = 1.00;
-export const STYLE_SPEED_MAX = 2.00;
 
 // ── Derived equipment state ──────────────────────────────────────────────
 
@@ -153,7 +143,7 @@ export const STYLE_SPEED_MAX = 2.00;
  */
 export function equipmentStats(equipment, items) {
   const s = {
-    atkB: 0, strB: 0, defB: 0, critB: 0, xpB: 0, spdB: 0, weaponType: 'neutral',
+    atkB: 0, strB: 0, defB: 0, critB: 0, weaponType: 'neutral',
     /* class → best bane multiplier, or null when no bane gear is worn. Derived
        here (rather than in weaknessInfo) because this is the ONE function that
        already walks the equipped set, and because both engines — the live tick
@@ -168,47 +158,11 @@ export function equipmentStats(equipment, items) {
     const it = items && items[id];
     if (!it) return;
     s.atkB += it.atkB || 0; s.strB += it.strB || 0; s.defB += it.defB || 0;
-    s.critB += it.critB || 0; s.xpB += it.xpB || 0; s.spdB += it.spdB || 0;
+    s.critB += it.critB || 0;
     if (slot === 'weapon' && it.weaponType) s.weaponType = it.weaponType;
   });
   s.bane = baneIndex(equipment, items);
   return s;
-}
-
-/**
- * THE SWING INTERVAL. **One formula, three callers.**
- *
- * This expression existed TWICE before b329 — `combatTickMs()` in legacy.js and
- * `deriveTickMs()` in supabase/functions/hr-accrue/accrual.js — with a comment
- * in the second promising it was "byte-for-byte the same expression as the
- * client's". Two copies reconciled by a comment is precisely how a hammer came
- * to swing 26% more often asleep than awake (combat-sim.js header, omission 10),
- * so adding a THIRD term (`style.speedMod`) to two copies was not an option.
- * Both callers now delegate here. There is nowhere left to add a term to only
- * one of them.
- *
- * interval = clamp_floor( base × (1 − spdB) × familyMod × styleSpeedMod )
- *
- *   spdB           gear speed, clamped to 20% (b245)
- *   familyMod      the weapon family's speed identity (Wave 5)
- *   styleSpeedMod  the chosen style's cost, clamped to [1.00, 2.00] (b329) —
- *                  a style can only ever be SLOWER than its family baseline
- *
- * The `minTickMs` floor is the last word for the same reason it always was: on
- * the accrual path this number is a DIVISOR of elapsed time.
- *
- * @param eq     equipmentStats() output
- * @param style  the resolved COMBAT_STYLES row (null/undefined = no modifier)
- */
-export function swingIntervalMs(eq, style) {
-  const spd = clamp(((eq && eq.spdB) || 0), 0, 0.20);
-  const wmod = WEAPON_SPEED_MOD[(eq && eq.weaponType)] || 1;
-  const raw = Number(style && style.speedMod);
-  const smod = isFinite(raw) ? clamp(raw, STYLE_SPEED_MIN, STYLE_SPEED_MAX) : STYLE_SPEED_MIN;
-  return Math.max(
-    COMBAT_BALANCE.minTickMs,
-    Math.floor(COMBAT_BALANCE.tickMs * (1 - spd) * wmod * smod),
-  );
 }
 
 /* Wave 5c / b283: a SET is 5+ pieces of the same material tier AND the same
@@ -314,7 +268,7 @@ export function weaknessInfo(monster, eq) {
 
 /**
  * @param monster the MONSTERS row
- * @param ctx { eq, skills, equipment, items, profile, style, bonus, setBonus, ammoShare }
+ * @param ctx { eq, skills, equipment, items, profile, bonus, setBonus, ammoShare }
  *        `setBonus` may be omitted — it is then derived from equipment+items.
  *        `bonus` may be omitted — it then contributes 0 (the inert case).
  *        `ammoShare` (0..1, default 1): the share of the equipped AMMO's typed
@@ -328,7 +282,6 @@ export function playerCombatRolls(monster, ctx) {
   const skills = c.skills || {};
   const bonus = typeof c.bonus === 'function' ? c.bonus : () => 0;
   const profile = c.profile || DEFAULT_PROFILE;
-  const style = c.style || DEFAULT_STYLE;
   const weak = weaknessInfo(monster, eq);
 
   /* Sum typed bonuses from equipment (the profile decides WHICH fields —
@@ -348,7 +301,6 @@ export function playerCombatRolls(monster, ctx) {
   const defScore = monsterDefScore(monster);
 
   let accuracy = 0.55 + (((accLvl + accBonus) - defScore) * 0.01);
-  accuracy *= (style.accuracyMod || 1);
   accuracy *= weak.accuracyMult;
   accuracy = Math.max(0.15, Math.min(0.95, accuracy));
 
@@ -384,7 +336,6 @@ export function playerCombatRolls(monster, ctx) {
      One expression, both engines: supabase/functions/hr-accrue/accrual.js
      imports THIS file, so the away replay follows with no second edit. */
   maxHit = Math.max(1, maxHit - defenceReduction(monster));
-  maxHit = Math.max(1, Math.floor(maxHit * (style.damageMod || 1)));
   maxHit = Math.max(1, Math.floor(maxHit * (weak.damageMult || 1)));
 
   const dmgBuff = bonus('damage') || 0;
@@ -394,40 +345,20 @@ export function playerCombatRolls(monster, ctx) {
   const set = (c.setBonus !== undefined) ? c.setBonus : armorSetBonus(c.equipment, items);
   const critChance = clamp((eq.critB || 0) + critBuff + (set ? set.critB : 0), 0, COMBAT_BALANCE.critCap);
 
-  return { accuracy, maxHit, critChance, weak, profile, style };
+  return { accuracy, maxHit, critChance, weak, profile };
 }
 
 /**
+ * A monster's swing at a hero: its chance to land against the hero's defence
+ * (Defense level + worn defence + a defence buff) and its largest blow.
  * @param ctx { eq, skills, bonus }
  */
-/**
- * The Prayer ward, in percent, for a skills map ({ skillId: xp }). The highest
- * PRAYER_WARDS row whose `lv` the Prayer level reaches; 0 below the first row.
- * Clamped to [0, PRAYER_WARD_MAX_PCT] so a bad data row cannot buy immunity.
- * Exported so the UI quotes the same number the fight applies.
- */
-export function prayerWardPct(skills) {
-  const lv = levelOf(skills || {}, 'prayer');
-  let pct = 0;
-  for (const row of PRAYER_WARDS) if (lv >= row.lv) pct = Number(row.pct) || 0;
-  return Math.max(0, Math.min(PRAYER_WARD_MAX_PCT, pct));
-}
-
 export function monsterCombatRolls(monster, ctx) {
   const c = ctx || {};
   const eq = c.eq || {};
   const bonus = typeof c.bonus === 'function' ? c.bonus : () => 0;
   const playerDefense = levelOf(c.skills || {}, 'defense') + (eq.defB || 0) + (bonus('defense') || 0);
-  const landed = monsterAccuracy(monster, playerDefense);
-  /* THE PRAYER WARD (W0, Top-10 #8). Applied AFTER the clamp, as a share of
-     blows turned aside, so expected damage taken falls by exactly `ward`% at
-     every monster size and the min-accuracy floor cannot swallow it. This is
-     the ONE function every path prices a monster swing through (legacy
-     getMonsterCombatRolls, hr-accrue accrual.js -> world tick), so attended,
-     away and tick apply the same ward from the same skills map. No RNG draw. */
-  const ward = prayerWardPct(c.skills);
-  const accuracy = ward > 0 ? landed * (1 - ward / 100) : landed;
-  return { accuracy, maxHit: monsterMaxHit(monster) };
+  return { accuracy: monsterAccuracy(monster, playerDefense), maxHit: monsterMaxHit(monster) };
 }
 
 /* ── THE PIECES OF A MONSTER'S DEFENCE AND SWING ──
@@ -444,7 +375,7 @@ export function defenceReduction(monster) {
   return Math.floor(monsterDefScore(monster) * COMBAT_BALANCE.monsterDefenseDamageReduction);
 }
 
-/** A monster's chance to land a blow on a hero of `playerDefense` (before any Prayer ward). */
+/** A monster's chance to land a blow on a hero of `playerDefense`. */
 export function monsterAccuracy(monster, playerDefense) {
   const b = COMBAT_BALANCE;
   return clamp(b.monsterBaseAccuracy + ((((monster && monster.atk) || 1) - playerDefense) * b.monsterAccuracyPerPoint),
@@ -453,7 +384,9 @@ export function monsterAccuracy(monster, playerDefense) {
 
 /** A monster's largest blow. */
 export function monsterMaxHit(monster) {
-  return Math.max(1, Math.floor(((monster && monster.atk) || 1) * COMBAT_BALANCE.monsterAttackDamageScale));
+  const b = COMBAT_BALANCE;
+  const scale = (monster && b.monsterDamageScaleByTier[monster.tier]) || b.monsterAttackDamageScale;
+  return Math.max(1, Math.floor(((monster && monster.atk) || 1) * scale));
 }
 
 /**

@@ -26,8 +26,8 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPPLIES } from './supplies.js?v=0.2.6';
-import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.6';
+import { SUPPLIES } from './supplies.js?v=0.2.7';
+import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.7';
 
 /* Two ability lanes and their lockouts (Bible §9.1 PROPOSED, AB-02). Food and
    drink keep their own lane (consumables.js). */
@@ -72,18 +72,18 @@ export const ABILITIES = Object.freeze([
     target: 'enemy', dmg: [7, 12] }),
   /* staff — Mage (destruction) */
   ab({ id: 'fireball', n: 'Fireball', disciplines: ['destruction'], lane: 'offense', cdMs: 8000, mana: 25, rune: 'fire_rune',
-    target: 'area', dmg: [7, 12], element: 'fire', magicXpMult: 1000 }),
+    target: 'area', dmg: [7, 12], element: 'fire', magicXpMult: 1600 }),
   ab({ id: 'frost_lance', n: 'Frost Lance', disciplines: ['destruction'], lane: 'offense', cdMs: 6000, mana: 20, rune: 'frost_rune',
-    target: 'enemy', dmg: [12, 18], element: 'frost', magicXpMult: 1000, active: false }),
+    target: 'enemy', dmg: [12, 18], element: 'frost', magicXpMult: 1600, active: false }),
   ab({ id: 'arcane_barrier', n: 'Arcane Barrier', disciplines: ['destruction'], lane: 'heal', cdMs: 20000, mana: 30, target: 'self',
-    shield: 40, whenBelowPct: 85, magicXpMult: 1000 }),
+    shield: 40, whenBelowPct: 85, magicXpMult: 1600 }),
   /* staff — Healer (restoration) */
   ab({ id: 'greater_mend', n: 'Greater Mend', disciplines: ['restoration'], lane: 'heal', cdMs: 2000, mana: 25, target: 'ally',
-    heal: [40, 60], whenBelowPct: 70, magicXpMult: 1000 }),
+    heal: [40, 60], whenBelowPct: 70, magicXpMult: 1600 }),
   ab({ id: 'circle_of_renewal', n: 'Circle of Renewal', disciplines: ['restoration'], lane: 'heal', cdMs: 12000, mana: 50, target: 'party',
-    heal: [20, 30], whenBelowPct: 80, minHurt: 2, radius: 8, magicXpMult: 1000 }),
+    heal: [20, 30], whenBelowPct: 80, minHurt: 2, radius: 8, magicXpMult: 1600 }),
   ab({ id: 'natures_wrath', n: "Nature's Wrath", disciplines: ['restoration'], lane: 'offense', cdMs: 10000, mana: 30, target: 'area',
-    dmg: [3, 6], element: 'nature', vuln: true, magicXpMult: 1000 }),
+    dmg: [3, 6], element: 'nature', vuln: true, magicXpMult: 1600 }),
 ].reduce((acc, r) => { acc[r.id] = r; return acc; }, Object.create(null)));
 
 const TARGETS = ['taunt', 'mark', 'enemy', 'area', 'cleave', 'self', 'ally', 'party'];

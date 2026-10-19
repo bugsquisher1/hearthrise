@@ -15,7 +15,11 @@
    duration. FARMING is exempt — growth is wall-clock, so actionMs cannot
    reach it and scaling its XP would only deepen an existing hole. */
 export const PACE = { xp: 0.39, actionMs: 1.60 };
-export const PACE_EXEMPT_SKILLS = ['farming'];
+/* Farming, and the combat skills trained in a fight: their XP is paid as the core
+   model states it (src/data/core-model.js COMBAT_XP; the skill curve was fitted to
+   it as paid). Prayer is trained at a bench (the burying rites) and stays on the
+   dial like every artisan skill: its rates are authored pre-dial (PRAYER_BURY). */
+export const PACE_EXEMPT_SKILLS = ['farming', 'melee', 'ranged', 'magic', 'defense'];
 
 export const SPEED_KEYS = { cookSpeed: 1, smithSpeed: 1, craftSpeed: 1, prayerSpeed: 1, gatherSpeed: 1 };
 
@@ -112,14 +116,14 @@ export function actionIntervalMs(skillId, baseMs, ctx) {
  * "xp/hr" readout reads this — an activity bar quoting 18,000 xp/hr while
  * the skill ticks at 5,000 is a worse lie than showing no number at all.
  *
- * @param ctx { bonus, toolSpeed, xpB }
+ * @param ctx { bonus, toolSpeed }
  */
 export function actionRate(skillId, action, ctx) {
   if (!action) return null;
   const c = ctx || {};
   const bonus = typeof c.bonus === 'function' ? c.bonus : () => 0;
   const ms = actionIntervalMs(skillId, action.ms, c);
-  const xpBonus = (bonus('allXP') || 0) + (c.xpB || 0);
+  const xpBonus = bonus('allXP') || 0;
   const per = Math.max(1, Math.floor(pacedXp(skillId, action.xp || 0) * (1 + xpBonus)));
   return { ms, xpPerAction: per, xpPerHour: Math.floor(3600000 / ms * per) };
 }

@@ -12,14 +12,14 @@
 // in place, so a composition change adds or drops one row and nothing else.
 // The expand toggle is display scratch on the panel itself.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.6';
-import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.6';
-import { partyOf } from '../../session/hunt-sections.js?v=0.2.6';
-import { rows, text, cls, attr, element } from '../../render/paint.js?v=0.2.6';
-import { short, whole } from '../../render/format.js?v=0.2.6';
-import { glyphSvg } from '../launcher.js?v=0.2.6';
-import { markPlayer } from '../context-menu.js?v=0.2.6';
-import { gaugeHtml, patchGauge, panelHtml } from './bits.js?v=0.2.6';
+import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.7';
+import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.7';
+import { partyOf } from '../../session/hunt-sections.js?v=0.2.7';
+import { rows, text, cls, attr, element } from '../../render/paint.js?v=0.2.7';
+import { short, whole } from '../../render/format.js?v=0.2.7';
+import { glyphSvg } from '../launcher.js?v=0.2.7';
+import { markPlayer } from '../context-menu.js?v=0.2.7';
+import { gaugeHtml, patchGauge, panelHtml } from './bits.js?v=0.2.7';
 
 function memberHtml(glyphs) {
   return '<li class="hp-m">'
@@ -45,8 +45,7 @@ function patchMember(el, m, party, glyphs) {
   text(el.querySelector('.hp-role'), role ? role.label : 'No weapon');
   text(el.querySelector('.hp-lv'), m.level === null ? '' : 'Lv ' + m.level);
   cls(el.querySelector('.hp-lead'), 'is-on', m.unit === party.leader);
-  text(el.querySelector('.hp-state'), m.down ? 'Down' : m.eating ? 'Eating' : m.drinking ? 'Drinking' : m.aggro ? 'Targeted' : '');
-  cls(el, 'is-down', m.down);
+  text(el.querySelector('.hp-state'), m.eating ? 'Eating' : m.drinking ? 'Drinking' : m.aggro ? 'Targeted' : '');
   cls(el, 'is-self', m.unit === party.self);
   markPlayer(el, m.unit === party.self ? null : { name: m.name });   // the player menu (src/shell/context-menu.js)
   patchGauge(el.querySelector('.is-hp'), m.hp, m.hpMax, m.hp === null ? '–' : whole(m.hp) + ' / ' + whole(m.hpMax));

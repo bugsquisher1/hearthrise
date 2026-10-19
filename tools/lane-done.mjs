@@ -104,6 +104,9 @@ const STEPS = [
   // A new guard's mutant replay must declare its scope (upTo / fullChain) where
   // the guard is written, not after a newer migration blinds it in CI.
   ['node', ['tests/replay-scope-guard.mjs']],
+  // run-smoke's data preflights (art, catalogues, the unlock/offer generators' --check, derived bodies): seconds.
+  // GitHub's smoke job runs them first; a generated file left stale by a data edit must be red HERE (2026-10-19).
+  ['node', ['tests/run-smoke.mjs', '--preflights']],
 ];
 const argv = process.argv.slice(2);
 const FAIL_FAST = argv.includes('--fail-fast');

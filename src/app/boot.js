@@ -19,19 +19,19 @@
 // hr_closed); the first such answer replaces everything with the closed notice.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPABASE_CONFIG, createSupabaseClient } from '../net/supabase-bootstrap.js?v=0.2.6';
-import { createAuth } from '../net/auth.js?v=0.2.6';
-import { SESSION_CONFIG } from '../session/config.js?v=0.2.6';
-import { createServerLink } from '../session/server.js?v=0.2.6';
-import { AccountSession } from '../session/account-session.js?v=0.2.6';
-import { FRAME_EVENT } from '../session/character-session.js?v=0.2.6';
-import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.6';
-import { mountWorldPane } from './world-pane.js?v=0.2.6';
-import { mountCharacterStrip } from './character-strip.js?v=0.2.6';
-import { createAlertCenter } from '../shell/alerts.js?v=0.2.6';
-import { createSocialRealtime } from '../social/realtime.js?v=0.2.6';
-import { SocialSession } from '../social/social-session.js?v=0.2.6';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.6';
+import { SUPABASE_CONFIG, createSupabaseClient } from '../net/supabase-bootstrap.js?v=0.2.7';
+import { createAuth } from '../net/auth.js?v=0.2.7';
+import { SESSION_CONFIG } from '../session/config.js?v=0.2.7';
+import { createServerLink } from '../session/server.js?v=0.2.7';
+import { AccountSession } from '../session/account-session.js?v=0.2.7';
+import { FRAME_EVENT } from '../session/character-session.js?v=0.2.7';
+import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.7';
+import { mountWorldPane } from './world-pane.js?v=0.2.7';
+import { mountCharacterStrip } from './character-strip.js?v=0.2.7';
+import { createAlertCenter } from '../shell/alerts.js?v=0.2.7';
+import { createSocialRealtime } from '../social/realtime.js?v=0.2.7';
+import { SocialSession } from '../social/social-session.js?v=0.2.7';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.7';
 
 const DISCORD = 'https://discord.gg/eJrUSUJM3M';
 
@@ -118,10 +118,10 @@ function startApp(win) {
     const roster = await a.roster();
     if (a !== account || a.closedGame) return;
     const open = new Set(a.characters().map((c) => c.slot));
-    /* Each owned slot: its hero by name and combat level (the server's), or an empty slot to create in.
+    /* Each owned slot: its hero by name and Level (the server's), or an empty slot to create in.
        Every account owns two (Tyler 10-17); slots it has not bought are not shown until buying them is built. */
     const rows = roster.map((r) => '<li class="char-row"><span class="char-name">'
-      + (r.exists ? esc(r.name || 'Unnamed hero') + (r.level ? ' <small class="char-level">Combat ' + r.level + '</small>' : '') : 'Empty slot')
+      + (r.exists ? esc(r.name || 'Unnamed hero') + (r.level ? ' <small class="char-level">Level ' + r.level + '</small>' : '') : 'Empty slot')
       + '</span>'
       + (r.exists
         ? '<button type="button" class="auth-submit" data-app="play" data-slot="' + r.slot + '">' + (open.has(r.slot) ? 'Show' : 'Play') + '</button>'

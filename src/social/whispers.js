@@ -14,8 +14,8 @@
 //   load()                hr_whispers_recent once, on sign-in
 // Incoming whispers arrive pushed (src/social/realtime.js, to_id = this account).
 // ════════════════════════════════════════════════════════════════════════
-import { WHISPER, CHAT_LIMITS } from '../data/chat-channels.js?v=0.2.6';
-import { lineOf, bodyOf } from './chat-lines.js?v=0.2.6';
+import { WHISPER, CHAT_LIMITS } from '../data/chat-channels.js?v=0.2.7';
+import { lineOf, bodyOf } from './chat-lines.js?v=0.2.7';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const whisperTab = (id) => WHISPER.prefix + id;

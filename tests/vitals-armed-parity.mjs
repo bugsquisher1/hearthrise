@@ -81,9 +81,9 @@ async function arms(db, V, { log = true } = {}) {
   /** A gatherer on slot 0: active since `since`, raw mark `acc` (default: 5 min before real now). */
   const gatherer = async (u, { since = '2000-01-01 00:00:00+00', acc = null } = {}) => {
     await db.exec(`insert into auth.users (id) values ('${u}') on conflict do nothing;`);
-    await q(`insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to,
+    await q(`insert into public.player_state (user_id, slot, gold, hp, version, accrued_to,
                                               active_kind, active_id, active_since)
-             values ($1, 0, 0, 10, 10, 1, coalesce($3::timestamptz, now() - interval '5 minutes'), 'gather', $2, $4::timestamptz)`,
+             values ($1, 0, 0, 10, 1, coalesce($3::timestamptz, now() - interval '5 minutes'), 'gather', $2, $4::timestamptz)`,
     [u, gact, acc, since]);
     await q("insert into public.hr_tick_ownership (user_id, slot, channel, owned) values ($1, 0, 'gather', false)", [u]);
   };
@@ -222,9 +222,9 @@ async function arms(db, V, { log = true } = {}) {
   await cfg("armed_channels = array['combat','gather']");
   const fighter = async (u, owned) => {
     await db.exec(`insert into auth.users (id) values ('${u}') on conflict do nothing;`);
-    await q(`insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to,
+    await q(`insert into public.player_state (user_id, slot, gold, hp, version, accrued_to,
                                               active_kind, active_id, active_since)
-             values ($1, 0, 0, 10, 10, 1, now() - interval '5 minutes', 'combat', $2, '2000-01-01 00:00:00+00')`, [u, cact]);
+             values ($1, 0, 0, 10, 1, now() - interval '5 minutes', 'combat', $2, '2000-01-01 00:00:00+00')`, [u, cact]);
     await q("insert into public.hr_tick_ownership (user_id, slot, channel, owned) values ($1, 0, 'combat', $2)", [u, owned]);
   };
   const huntFor = async (leader, member = null) => {

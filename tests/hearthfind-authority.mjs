@@ -244,9 +244,9 @@ async function boot(mutate) {
 async function seed(db, uid) {
   await db.exec(`insert into auth.users (id) values ('${uid}') on conflict (id) do nothing;`);
   await db.exec(`insert into public.player_state
-      (user_id, slot, gold, hp, max_hp, version, active_kind, active_id, accrued_to)
-    values ('${uid}', 0, 0, 10, 10, 1, 'idle', null, now())
-    on conflict (user_id, slot) do update set version = 1, hp = 10, max_hp = 10;`);
+      (user_id, slot, gold, hp, version, active_kind, active_id, accrued_to)
+    values ('${uid}', 0, 0, 10, 1, 'idle', null, now())
+    on conflict (user_id, slot) do update set version = 1, hp = 10;`);
   await db.exec(`delete from public.player_inventory where user_id='${uid}' and slot=0;`);
   await db.exec(`delete from public.player_ledger where user_id='${uid}' and slot=0;`);
   await db.exec(`delete from public.world_finds where user_id='${uid}' and slot=0;`);

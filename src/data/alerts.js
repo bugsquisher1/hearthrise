@@ -22,7 +22,7 @@
 
 export const ALERT_KINDS = Object.freeze([
   Object.freeze({ id: 'rare', label: 'Rare drops', glyph: 'uiGem', action: 'bag', button: 'Open your inventory' }),
-  Object.freeze({ id: 'fall', label: 'Knocked out', glyph: 'uiSkull', action: 'show', button: 'See the hunt' }),
+  Object.freeze({ id: 'death', label: 'Deaths', glyph: 'uiSkull', action: 'show', button: 'See the hunt' }),
   Object.freeze({ id: 'low', label: 'Low supplies', glyph: 'uiWarn', action: 'shop', button: 'Buy supplies' }),
   Object.freeze({ id: 'ended', label: 'Hunt ended', glyph: 'uiHourglass', action: 'restart', button: 'Start again' }),
 ]);

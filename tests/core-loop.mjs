@@ -124,7 +124,7 @@ import { HUNTS } from '../src/data/hunts.js';
 import { START_KIT } from '../src/data/start-kit.js';
 import { combatLevel, xpForLevel } from '../src/core/xp.js';
 import { BASIC_INDEX } from '../src/data/supply-basics.js';
-import { STAMINA_MAX_MS as STAMINA_CAPS, DEFAULT_RESUME } from '../src/data/hunt-sessions.js';
+import { STAMINA_MAX_MS as STAMINA_CAPS, DEFAULT_RESUME, SESSION_LIMITS } from '../src/data/hunt-sessions.js';
 import { HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
 /* A free character's pool (lane S1: the cap is per character, free 8 h / premium 12 h). */
 const STAMINA_MAX_MS = STAMINA_CAPS.free;
@@ -592,11 +592,12 @@ async function loop1(S, M, tag, rows) {
 
   await step(5, 'enter a hunt (Mill Cellar)', async (t) => {
     const cl = combatOf(p.env);
-    const locked = HUNTS.filter((h) => h.band[0] > cl).sort((a, b) => a.band[0] - b.band[0])[0];
+    /* The floor is a warning (Tyler 10-18): only SESSION_LIMITS.belowRangeRefuse or more levels under it is refused. */
+    const locked = HUNTS.filter((h) => h.band[0] - cl >= SESSION_LIMITS.belowRangeRefuse).sort((a, b) => a.band[0] - b.band[0])[0];
     if (locked) {
       const no = await S.rpc(p.uid, 'select public.hr_hunt_enter(0, $1, $2::jsonb, 0, null, null, $3::uuid) r',
         [locked.id, '[]', uuid()]);
-      t.ok(!(no && no.ok === true), `a combat-${cl} character was let into ${locked.id} (band floor ${locked.band[0]})`);
+      t.ok(!(no && no.ok === true), `a combat-${cl} character was let into ${locked.id} (band floor ${locked.band[0]}, ${SESSION_LIMITS.belowRangeRefuse}+ under is refused)`);
       t.note(`${locked.id} refused at combat ${cl}: ${no && no.error}`);
     }
     await p.enter(t, HUNT, { cooked_shrimp: inv(p.env, 'cooked_shrimp') });

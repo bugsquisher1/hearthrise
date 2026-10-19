@@ -123,5 +123,5 @@ export default Object.freeze({
   stations: Object.freeze({}),
   exits: Object.freeze([{ x: 0, y: 19, to: 'town_common' }]),
   start: Object.freeze([1, 19]),
-  maskHash: '7244ac16',
+  maskHash: '4d981f23',
 });

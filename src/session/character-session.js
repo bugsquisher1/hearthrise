@@ -380,7 +380,8 @@ export class CharacterSession {
   async _settled(ans) {
     if (this._closed) return { ok: false, error: 'closed' };
     /* below_range: the server admitted a hunt under its level floor (the floor is a warning, Tyler 10-18). */
-    if (ans.ok && ans.body && ans.body.ok === true) { await this.load(); return ans.body.below_range === true ? { ok: true, belowRange: true } : { ok: true }; }
+    if (ans.ok && ans.body && ans.body.ok === true && ans.body.below_range === true) { await this.load(); return { ok: true, belowRange: true }; }
+    if (ans.ok && ans.body && ans.body.ok === true) { await this.load(); return { ok: true }; }
     const b = ans.body && typeof ans.body === 'object' ? ans.body : {};
     /* The server's validation detail (which slot, which condition, which field) goes back to the editor as sent. */
     return { ok: false, error: (typeof b.error === 'string' && b.error) || ans.error || 'refused',

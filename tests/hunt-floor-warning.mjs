@@ -48,7 +48,7 @@ async function run(base) {
   ok('W2', !/prop\([^)]*'disabled'[^)]*(short|rangeWords)/.test(win), 'Enter must never be disabled by the level warning (the server decides)');
   ok('W2', /res && res\.belowRange \? ' ' \+ ABOVE_LEVEL_WORDS/.test(win), 'a below_range enter does not repeat the warning');
   const cs = read('src/session/character-session.js');
-  ok('W3', /ans\.body\.below_range === true \? \{ ok: true, belowRange: true \}/.test(cs), 'CharacterSession drops the server\'s below_range');
+  ok('W3', cs.includes('ans.body.ok === true && ans.body.below_range === true) { await this.load(); return { ok: true, belowRange: true }; }'), 'CharacterSession drops the server\'s below_range');
 
   const cat = read('supabase/migrations/2026-10-25-hunt-sessions-catalogue.generated.sql');
   ok('S1', cat.includes("('below_range_refuse', " + m + ')'), 'the catalogue does not write below_range_refuse = ' + m);
@@ -68,7 +68,7 @@ const MUTANTS = [
   ['the margin is ignored (everything under the floor is "too far")', 'src/shell/hunt-list.js', 'r.band[0] - level >= SESSION_LIMITS.belowRangeRefuse ?', 'true ?'],
   ['the margin moved off Tyler\'s 15', 'src/data/hunt-sessions.js', 'belowRangeRefuse: 15,', 'belowRangeRefuse: 10,'],
   ['the window never draws the warning', 'src/shell/windows/hunts.js', "text(li.querySelector('.hw-hunt-warn'), rangeWords(r, level) || '');", ''],
-  ['the session drops below_range', 'src/session/character-session.js', 'ans.body.below_range === true ? { ok: true, belowRange: true } : { ok: true }', '{ ok: true }'],
+  ['the session drops below_range', 'src/session/character-session.js', 'return { ok: true, belowRange: true };', 'return { ok: true };'],
   ['the gate keeps the hard floor', 'supabase/migrations/2026-10-25-hunt-floor-warning.sql', 'if v_min - v_cl >= coalesce(v_refuse, 1) then', 'if v_cl < v_min then'],
   ['the enter answer loses its flag', 'supabase/migrations/2026-10-25-party-invites.sql', "'below_range', public.hr_hunt_below_range(v_uid, p_slot, p_hunt)", "'below_range', false"],
 ];

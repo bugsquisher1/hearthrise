@@ -97,7 +97,7 @@ export const AWAITING_ROSTER = Object.freeze([
   'abyssal_greaves', 'adept_helmet', 'adept_pants', 'alphaheart_longbow', 'apprentice_body',
   'apprentice_helmet', 'apprentice_pants', 'archmage_belt', 'archmage_body', 'archmage_helmet',
   'archmage_pants', 'ashcrown_greatsword', 'boarhide_body', 'boarhide_pants', 'bone_needle',
-  'bronze_boots', 'bronze_hammer', 'bronze_helm', 'bronze_knife',
+  'bronze_hammer', 'bronze_helm', 'bronze_knife',
   'bronze_platebody', 'bronze_platelegs', 'chitin_belt', 'chitin_body',
   'chitin_boots', 'chitin_gloves', 'chitin_helmet', 'chitin_pants', 'choirbone',
   'choirbone_gauntlets', 'copper_studs', 'crown_of_the_fallen_king', 'dawn_belt',

@@ -8,8 +8,11 @@
 // (T) opens it.
 //
 // Two grids of the same pocket the Inventory uses (inventory/pockets.js):
-// what is in storage, and what is in the bag. A press on a stack moves all of
-// it across; Shift moves one. Each is ONE hr_bank_move, every control is off
+// what is in storage, and what is in the bag. A press on a stack moves ONE
+// across; Shift moves all of it; a right-click (or a long press) asks how many
+// (src/shell/widgets/amount.js: Store X / Take X). Tyler 10-18: "it's all or
+// nothing." Each is ONE hr_bank_move naming that exact count (the server moves
+// exactly it, under its own lock and stack fuses), every control is off
 // until the server answers, and both grids change only from the re-read
 // envelope (`bank` and `inventory`, replaced, never merged). The search is the
 // same "Find an item" as the Inventory's: it filters both grids.
@@ -25,9 +28,12 @@ import { itemName } from '../widgets/bits.js?v=0.2.4';
 import { runIntent } from '../intent-words.js?v=0.2.4';
 import { pocketHtml, patchCount } from './inventory/pockets.js?v=0.2.4';
 import { showTip, hideTip } from './item-tip.js?v=0.2.4';
+import { openFloatMenu, closeFloatMenu } from './float-menu.js?v=0.2.4';
+import { amountHtml, amountOf, stepAmount } from '../widgets/amount.js?v=0.2.4';
 
 const SCRATCH = new WeakMap();
-const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { query: '', pending: false, msg: '' }; SCRATCH.set(cs, s); } return s; };
+const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { query: '', pending: false, msg: '', press: null, pressed: false }; SCRATCH.set(cs, s); } return s; };
+const LONG_PRESS_MS = 500;
 
 const match = (q) => (r) => !q || itemName(r.id).toLowerCase().includes(q);
 const byName = (a, b) => (itemName(a.id) < itemName(b.id) ? -1 : 1);
@@ -75,7 +81,7 @@ renderStorage.patch = function patchStorage(body, ctx) {
   const input = root.querySelector('.hw-q');
   if (ctx.doc.activeElement !== input) prop(input, 'value', sc.query);
   text(root.querySelector('.hw-store-note'), away ? 'Your storage is at home and your hero is out hunting. Leave the hunt to use it.'
-    : !bank ? 'Reading your storage…' : 'Press a stack to move all of it across. Shift moves one.');
+    : !bank ? 'Reading your storage…' : 'Press a stack to move one across. Shift-press moves all of it. Right-click (or hold) to choose how many.');
   patchSide(root, ctx, 'bank', bank || [], q, off);
   patchSide(root, ctx, 'bag', bag || [], q, off);
   cls(root, 'is-pending', sc.pending);
@@ -83,7 +89,31 @@ renderStorage.patch = function patchStorage(body, ctx) {
   text(root.querySelector('.hh-intent-msg'), sc.msg);
 };
 
-renderStorage.events = Object.freeze(['input', 'mouseover', 'mouseout']);
+renderStorage.events = Object.freeze(['input', 'mouseover', 'mouseout', 'contextmenu', 'pointerdown', 'pointerup', 'pointercancel']);
+
+/* ONE hr_bank_move naming exactly `qty`; both grids change only from the re-read envelope. */
+function move(cs, sc, repaint, id, qty, dir) {
+  return runIntent(sc, repaint, () => cs.moveStorage(id, qty, dir), dir === 'withdraw' ? 'Taking it out…' : 'Putting it away…',
+    () => (dir === 'withdraw' ? 'Took out ' : 'Put away ') + whole(qty) + ' ' + itemName(id) + '.');
+}
+
+/* "How many?" beside the stack: Store X / Take X, up to the stack the server last sent. */
+function askAmount(ctx, body, cs, sc, repaint, row, dir, at) {
+  hideTip(ctx.doc);
+  const verb = dir === 'withdraw' ? 'Take' : 'Store';
+  openFloatMenu(ctx.doc, amountHtml({ title: verb + ' how many ' + itemName(row.id) + '?', verb, max: row.qty, value: row.qty, act: 'amt-go' }), at, {
+    label: verb + ' how many',
+    onAct: (action) => {
+      const menu = ctx.doc.querySelector('.hw-menu');
+      if (stepAmount(menu, action) || action !== 'amt-go') return;
+      const n = amountOf(menu);
+      closeFloatMenu(ctx.doc);
+      if (!sc.pending) move(cs, sc, repaint, row.id, n, dir);
+    },
+    onClose: () => {},
+    alive: () => body.isConnected,
+  });
+}
 
 renderStorage.act = function actStorage(ctx, body, action, ev, t) {
   const cs = ctx.character;
@@ -92,16 +122,28 @@ renderStorage.act = function actStorage(ctx, body, action, ev, t) {
   if (action === 'search' && ev.type === 'input') { sc.query = t.value.slice(0, 40); repaint(); return false; }
   if (action !== 'withdraw' && action !== 'deposit') return false;
   const id = t.getAttribute('data-item');
-  if (ev.type === 'mouseover') { showTip(ctx.doc, t, id, {}); return false; }
-  if (ev.type === 'mouseout') { if (!t.contains(ev.relatedTarget)) hideTip(ctx.doc); return false; }
-  if (ev.type !== 'click') return false;
-  if (t.getAttribute('aria-disabled') === 'true') return true;
-  const from = action === 'withdraw' ? bankOf(cs) : bagOf(cs);
-  const row = (from || []).find((r) => r.id === id);
-  if (!row) return true;
-  const qty = ev.shiftKey ? 1 : row.qty;
+  const type = ev.type;
+  if (type === 'mouseover') { showTip(ctx.doc, t, id, {}); return false; }
+  if (type === 'mouseout') { if (!t.contains(ev.relatedTarget)) hideTip(ctx.doc); return false; }
+  if (type === 'pointerup' || type === 'pointercancel') { clearTimeout(sc.press); return false; }
+  const off = t.getAttribute('aria-disabled') === 'true';
+  const row = ((action === 'withdraw' ? bankOf(cs) : bagOf(cs)) || []).find((r) => r.id === id);
+  if (type === 'pointerdown') {
+    if (!ev.pointerType || ev.pointerType === 'mouse' || off || !row) return false;
+    sc.pressed = false;
+    clearTimeout(sc.press);
+    sc.press = setTimeout(() => { sc.pressed = true; const r = t.getBoundingClientRect(); askAmount(ctx, body, cs, sc, repaint, row, action, { x: r.left, y: r.bottom }); }, LONG_PRESS_MS);
+    return false;
+  }
+  if (type === 'contextmenu') {
+    ev.preventDefault();
+    if (!off && row) askAmount(ctx, body, cs, sc, repaint, row, action, { x: ev.clientX, y: ev.clientY });
+    return true;
+  }
+  if (type !== 'click') return false;
+  if (sc.pressed) { sc.pressed = false; return true; }
+  if (off || !row) return true;
   hideTip(ctx.doc);
-  runIntent(sc, repaint, () => cs.moveStorage(id, qty, action), action === 'withdraw' ? 'Taking it out…' : 'Putting it away…',
-    () => (action === 'withdraw' ? 'Took out ' : 'Put away ') + whole(qty) + ' ' + itemName(id) + '.');
+  move(cs, sc, repaint, id, ev.shiftKey ? row.qty : 1, action);
   return true;
 };

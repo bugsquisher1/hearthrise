@@ -27,6 +27,7 @@ import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.4';
 import { primaryOf, junkOf, confirmWords, huntLoot } from './state.js?v=0.2.4';
 import { pocketHtml, patchCount } from './pockets.js?v=0.2.4';
 import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.4';
+import { buryLine, buryBlock, buryingOf, buryRecipeOf } from './bury.js?v=0.2.4';
 
 const RULES = Object.freeze([['keep', 'Keep'], ['sell', 'Sell at the shop'], ['ignore', 'Leave it']]);
 export const KEYS = '/ search · arrows move · Enter use · Space select · Delete sell · L lock · Ctrl+A select all';
@@ -57,6 +58,7 @@ export function toolsHtml(g) {
   return '<div class="hw-pick"><span class="hw-pick-ico"></span><span class="hw-pick-name"><b></b><small></small></span>'
     + '<button type="button" class="hw-primary" data-hs-act="primary"></button>'
     + '<button type="button" class="hh-tool hw-more" data-hs-act="more" aria-label="More for this item">' + glyphSvg(g, 'uiPlus') + '</button></div>'
+    + '<div class="hw-burying" role="status"><span class="hw-burying-q"></span><button type="button" class="hh-tool" data-hs-act="bury-stop">Stop</button></div>'
     + '<div class="hw-bulk"><span class="hw-selcount"></span>'
     + '<button type="button" class="hh-tool" data-hs-act="sell-sel">Sell selected</button>'
     + '<button type="button" class="hh-tool" data-hs-act="clear-sel">Clear</button></div>'
@@ -124,7 +126,14 @@ export function patchTools(root, st, ctx) {
   const pb = pick.querySelector('[data-hs-act="primary"]');
   text(pb, prim ? prim[1] : '');
   cls(pb, 'is-on', !!prim);
+  const buryWhy = prim && prim[0] === 'bury' ? (buryingOf(st.cs) ? 'Already burying. Stop it first.' : buryBlock(st.cs, buryRecipeOf(cur))) : '';
   prop(pb, 'disabled', sc.pending || !prim);
+  attr(pb, 'title', buryWhy || null);
+  const line = buryLine(st.cs);
+  const bl = root.querySelector('.hw-burying');
+  cls(bl, 'is-on', !!line);
+  text(bl.querySelector('.hw-burying-q'), line);
+  prop(bl.querySelector('[data-hs-act="bury-stop"]'), 'disabled', sc.pending);
   prop(pick.querySelector('.hw-more'), 'disabled', sc.pending || !cur);
 
   const selIds = Array.from(sc.sel).filter((id) => st.qty.has(id));

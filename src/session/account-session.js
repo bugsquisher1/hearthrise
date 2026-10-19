@@ -12,8 +12,10 @@
 // "current player" — switching it touches no CharacterSession, so the others
 // keep their records, topics and timers and keep playing on the server.
 //
-//   roster()      which slots this account owns and which hold a character,
-//                 read from the server (hr_load per owned slot; `hero_slots`)
+//   roster()      which slots this account owns and which hold a character
+//                 (its name and combat level), read from the server (hr_load
+//                 per owned slot; `hero_slots`: slot 0 and the starter slots
+//                 every account owns, plus any bought)
 //   create(slot)  ask the server to make a character in an empty owned slot
 //   open(slot)    a CharacterSession for the slot: loaded, then connected
 //   close(slot)   leave and forget one character
@@ -34,6 +36,7 @@
 import { SESSION_CONFIG } from './config.js?v=0.2.4';
 import { CharacterSession } from './character-session.js?v=0.2.4';
 import { TownPresence } from './town-presence.js?v=0.2.4';
+import { combatLevel } from '../core/xp.js?v=0.2.4';
 
 /** This tab's session id: made once per tab, kept across a reload, new for a new tab. */
 export function tabSessionId(tab, cfg = SESSION_CONFIG, make) {
@@ -49,6 +52,16 @@ export function tabSessionId(tab, cfg = SESSION_CONFIG, make) {
 export function accountLimitOf(read) {
   const a = read('account');
   return a && typeof a === 'object' && Number.isInteger(a.max_concurrent) && a.max_concurrent >= 1 && a.max_concurrent <= 8 ? a.max_concurrent : null;
+}
+
+/** A roster row's hero, from one hr_load answer: its name and combat level (from the server's XP), or nulls. Pure. */
+export function heroOf(body) {
+  if (!body || body.ok !== true) return { name: null, level: null };
+  const name = typeof body.name === 'string' && body.name.trim() ? body.name.trim().slice(0, 40) : null;
+  const sk = body.skills && typeof body.skills === 'object' ? body.skills : null;
+  const xp = {};
+  if (sk) for (const [k, r] of Object.entries(sk)) if (r && Number.isSafeInteger(r.xp) && r.xp >= 0) xp[k] = r.xp;
+  return { name, level: sk ? combatLevel(xp) : null };
 }
 
 /** The owned slots an envelope's `hero_slots` names, bounded to the server's range. Pure. */
@@ -118,7 +131,7 @@ export class AccountSession {
     if (ans && ans.closed && !this.closedGame) { this.closedGame = true; this._emit('closed-game'); }
   }
 
-  /** [{ slot, exists }] for every slot this account owns. */
+  /** [{ slot, exists, name, level }] for every slot this account owns. */
   async roster() {
     const first = await this.server.rpc('hr_load', { p_slot: 0 });
     this._noteClosed(first);
@@ -130,7 +143,7 @@ export class AccountSession {
     for (const slot of owned) {
       const ans = slot === 0 ? first : await this.server.rpc('hr_load', { p_slot: slot });
       this._noteClosed(ans);
-      out.push({ slot, exists: !!(ans.ok && ans.body && ans.body.ok === true) });
+      out.push(Object.assign({ slot, exists: !!(ans.ok && ans.body && ans.body.ok === true) }, heroOf(ans.ok ? ans.body : null)));
     }
     return out;
   }

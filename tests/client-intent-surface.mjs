@@ -96,6 +96,8 @@ export const CLIENT_EDGE_INTENTS = Object.freeze({
   eat: ['item'],
   /* the Character window's ask: the slot only; the engine computes the sheet (hr-accrue character-sheet.js) */
   sheet: [],
+  /* the Inventory's Bury: an artisan recipe by id, or idle to stop; the engine collects before it switches (hr-accrue set-activity.js) */
+  set_activity: ['activity'],
 });
 const EDGE = 'src/session/edge-intents.js';
 const VALUE_FIELD = /price|gold|cost|total|amount|ask/i;

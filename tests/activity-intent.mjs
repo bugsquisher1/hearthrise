@@ -978,6 +978,39 @@ async function run(mutate) {
     }
   }
 
+  /* ── A3d. BURYING BONES PAYS PRAYER (Tyler live, v0.2.1: "can't bury bones") ─
+     The Inventory's Bury is THIS intent and nothing else: set_activity
+     artisan:bury_bones, then the switch back to idle collects. Prayer XP comes
+     from the server's recipe row (4.5 a bone), the bones leave the server's bag,
+     and the tables a reload reads (player_skills, player_inventory) say so. */
+  {
+    await db.query(
+      `insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, 'bones', 6)
+       on conflict (user_id, slot, item_id) do update set qty = excluded.qty`, [UID]);
+    const prayerBefore = await skillXp(db, UID, 'prayer');
+    const start = await call({ intentId: uuid(), activity: { kind: 'artisan', id: 'bury_bones' } });
+    ok(start.status === 200 && start.body.ok === true,
+      `A3d: Bury was refused: ${start.status} ${JSON.stringify(start.body).slice(0, 200)}`);
+    const burying = await state(db, UID);
+    ok(burying.active_kind === 'artisan' && burying.active_id === 'bury_bones',
+      `A3d: the pointer is ${burying.active_kind}/${burying.active_id}, not artisan/bury_bones`);
+    /* Thirty seconds of burying: six bones at 1.2 s each fit with room to spare. */
+    await db.query(
+      `update public.player_state set accrued_to = now() - interval '30 seconds', active_since = now() - interval '30 seconds'
+        where user_id = $1 and slot = 0`, [UID]);
+    const stop = await call({ intentId: uuid(), activity: { kind: 'idle', id: null } });
+    ok(stop.status === 200 && stop.body.ok === true && !!stop.body.collected,
+      `A3d: the stop did not collect the burying: ${stop.status} ${JSON.stringify(stop.body).slice(0, 200)}`);
+    const bones = Number((await db.query(
+      `select qty from public.player_inventory where user_id = $1 and slot = 0 and item_id = 'bones'`, [UID])).rows[0]?.qty ?? 0);
+    ok(bones === 0, `A3d: ${bones} bones are still in the server bag after 30 s of burying six`);
+    const gained = (await skillXp(db, UID, 'prayer')) - prayerBefore;
+    /* 4.5 a bone through the pacing dial (pacedXp), at least 1 a bone: never 0, never above the raw 27. */
+    ok(gained >= 6 && gained <= 27, `A3d: burying six bones paid ${gained} Prayer XP (expected 6..27: 4.5 a bone, paced)`);
+    const after = await state(db, UID);
+    ok(after.active_kind === 'idle', `A3d: after the stop the pointer is ${after.active_kind}, not idle — hr_hunt_enter would refuse activity_running`);
+  }
+
   /* ── A3e. THE SUB-MINUTE RUN THAT ENDED ON SUPPLIES (b531) ──────────────
      LIVE, MEASURED TWICE (QA account, 2026-09-09 16:36:13→16:36:49 and
      16:40:14→16:40:51 UTC, b530). 28 iron bars, Smithing 25,

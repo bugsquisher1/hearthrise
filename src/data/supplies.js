@@ -195,7 +195,7 @@ export const BAG_GUIDE_BY_HUNT = Object.freeze({
 
 /* A single-monster fight is guided by its monster's tier (melee measured:
    heals an hour at entry level, tier 2 Wolf lv 15 10.6, tier 3 Dire Wolf lv 30
-   14.1, tier 4 Bear lv 45 19.4, tier 5 Panther lv 60 28.9, tier 6 Ancient Bear
+   14.1, tier 4 Bear lv 45 19.4, tier 5 Panther lv 60 28.9, tier 6 Greymuzzle Bear
    lv 75 35.9). */
 export const BAG_GUIDE_BY_TIER = Object.freeze({
   1: Object.freeze({ tier: 1, melee: melee('cooked_shrimp', 105) }),

@@ -83,19 +83,19 @@ export const ITEMS={
   troll_hide:{n:'Troll Hide',icon:'🟤',v:80},vamp_dust:{n:'Vampire Dust',icon:'💜',v:120},
   demon_shard:{n:'Demon Shard',icon:'🔴',v:200},dragon_scale:{n:'Dragon Scale',icon:'🐲',v:500},
   lich_soul:{n:'Lich Soul',icon:'☠️',v:800},magic_essence:{n:'Magic Essence',icon:'✨',v:50},
-  rune_frag:{n:'Rune Fragment',icon:'🔷',v:30},ancient_rune:{n:'Ancient Rune',icon:'🔮',v:300},
+  rune_frag:{n:'Rune Fragment',icon:'🔷',v:30},ancient_rune:{n:'Graven Rune',icon:'🔮',v:300},
   dragon_gem:{n:'Dragon Gem',icon:'💎',v:2000},ruby:{n:'Ruby',icon:'❤️',v:400},
   sticky_core:{n:'Sticky Core',icon:'🟢',v:35},rat_tail:{n:'Rat Tail',icon:'🐀',v:6},
   /* The Rat King's shard (15%, ~3 an hour for a full party): sold, the sewer's profit; offered, Prayer XP. */
   crown_shard:{n:'Crown Shard',icon:'👑',v:150},small_fang:{n:'Small Fang',icon:'🦷',v:15},
-  bone_chips:{n:'Bone Chips',icon:'🦴',v:10},ancient_fragment:{n:'Ancient Fragment',icon:'🏺',v:85},goblin_totem:{n:'Goblin Totem',icon:'🗿',v:120},
-  night_fang:{n:'Night Fang',icon:'🦇',v:90},dark_sigil:{n:'Dark Sigil',icon:'🔯',v:180},venom_sac:{n:'Venom Sac',icon:'🟣',v:75},
+  bone_chips:{n:'Bone Chips',icon:'🦴',v:10},ancient_fragment:{n:'Barrow Shard',icon:'🏺',v:85},goblin_totem:{n:'Goblin Totem',icon:'🗿',v:120},
+  night_fang:{n:'Night Fang',icon:'🦇',v:90},dark_sigil:{n:"Conjurer's Sigil",icon:'🔯',v:180},venom_sac:{n:'Venom Sac',icon:'🟣',v:75},
   silk_thread:{n:'Silk Thread',icon:'🧵',v:55},spider_eye:{n:'Spider Eye',icon:'👁️',v:220},brute_plate:{n:'Brute Plate',icon:'🛡️',v:130},
   dire_fang:{n:'Dire Fang',icon:'🦷',v:150},alpha_fang:{n:'Alpha Fang',icon:'🦷',v:450},grave_dust:{n:'Grave Dust',icon:'⚱️',v:95},
   cracked_spellstone:{n:'Cracked Spellstone',icon:'🔮',v:260},plague_ichor:{n:'Plague Ichor',icon:'🧪',v:180},swarm_heart:{n:'Swarm Heart',icon:'💚',v:650},
   warlord_badge:{n:'Warlord Badge',icon:'🎖️',v:350},bear_pelt:{n:'Bear Pelt',icon:'🐻',v:260},bear_claw:{n:'Bear Claw',icon:'爪',v:180},
-  wraith_veil:{n:'Wraith Veil',icon:'👻',v:420},hell_ember:{n:'Hell Ember',icon:'🔥',v:600},shadow_thread:{n:'Shadow Thread',icon:'🧵',v:320},
-  void_chitin:{n:'Void Chitin',icon:'🪲',v:800},captain_medal:{n:'Captain Medal',icon:'🏅',v:700},shadow_pelt:{n:'Shadow Pelt',icon:'🐈‍⬛',v:480},
+  wraith_veil:{n:'Wraith Veil',icon:'👻',v:420},hell_ember:{n:'Hell Ember',icon:'🔥',v:600},shadow_thread:{n:'Gloamthread',icon:'🧵',v:320},
+  void_chitin:{n:'Starshell',icon:'🪲',v:800},captain_medal:{n:'Captain Medal',icon:'🏅',v:700},shadow_pelt:{n:'Panther Pelt',icon:'🐈‍⬛',v:480},
   /* b542 — `captains_ribblade` and `chief_blade` (next line but one) are the two
      boss-drop weapons that carried NEITHER a tier nor a gate, so neither reader
      had anything to gate on: the client's tier fallback needs a tier and
@@ -105,8 +105,8 @@ export const ITEMS={
      rather than inventing a tier, because `tier` also drives the rarity border
      and the ladder guards, and these two are drops, not rungs. */
   razor_claw:{n:'Razor Claw',icon:'爪',v:360},death_steel:{n:'Death Steel',icon:'⚙️',v:550},captains_ribblade:{n:"Captain's Ribblade",icon:'🗡️',v:1800,type:'weapon',slot:'weapon',weaponType:'sword',atkB:19,strB:15,reqSkill:'melee',reqLv:30},
-  hollow_sigil:{n:'Hollow Sigil',icon:'🔯',v:1400},void_core:{n:'Void Core',icon:'⚫',v:2200},war_crown:{n:'War Crown',icon:'👑',v:2500},
-  ancient_claw:{n:'Ancient Claw',icon:'爪',v:1600},chief_blade:{n:"Chief's Blade",icon:'🗡️',v:900,type:'weapon',slot:'weapon',weaponType:'sword',atkB:13,strB:11,reqSkill:'melee',reqLv:15},alpha_cloak:{n:'Alpha Cloak',icon:'🦸',v:1500,type:'armor',slot:'cape',defB:5,atkB:2,reqSkill:'defense',reqLv:30},
+  hollow_sigil:{n:'Hollow Sigil',icon:'🔯',v:1400},void_core:{n:'Stillheart',icon:'⚫',v:2200},war_crown:{n:'War Crown',icon:'👑',v:2500},
+  ancient_claw:{n:'Great Claw',icon:'爪',v:1600},chief_blade:{n:"Chief's Blade",icon:'🗡️',v:900,type:'weapon',slot:'weapon',weaponType:'sword',atkB:13,strB:11,reqSkill:'melee',reqLv:15},alpha_cloak:{n:'Alpha Cloak',icon:'🦸',v:1500,type:'armor',slot:'cape',defB:5,atkB:2,reqSkill:'defense',reqLv:30},
   leather_boots:{n:'Leather Boots',icon:'🥾',v:90,type:'armor',slot:'boots',defB:2},
   /* THE SEVEN LAST UNGATED EQUIPPABLES. The 2026-09-12 sweep closed the 34 rows that
      carried a `tier`; these seven carry none, so neither reader had anything to
@@ -400,7 +400,7 @@ export const ITEMS={
      live in hr_items.heals and hr_feast_foods (2026-09-26-deep-waters.sql).
      RULED, STATED HONESTLY (the pack's "stays under" claim was false):
      (i)  Cooked Moonfish 50 is ABOVE the gated Dragon Stew 45 and EQUAL to
-          Lich Soul Soup 50; only Void Banquet 60 stays above it. It is the top
+          Lich Soul Soup 50; only Dragonbone Banquet 60 stays above it. It is the top
           auto-eatable healing Provision (above Moonbloom Elixir 40). The
           ceiling is 50 for a foodClass 'healing' item — pinned by DEEPWATERS-4.
      (ii) The auto-eat fallback (biggest healer, when nothing covers the
@@ -527,7 +527,7 @@ export const ITEMS={
   hunters_feast:  {n:"Hunter's Feast", icon:'🍱', v:420, heals:420, foodClass:'buff', buff:{type:'drop_rate', magnitude:5, durationMs:900000}}, // b238: was dead monster_respawn — a hunter's feast earns you more loot
   dragon_stew:    {n:'Dragon Stew',    icon:'🍜', v:780, heals:540, foodClass:'buff', buff:{type:'combat_xp',       magnitude:4, durationMs:1200000}},
   lich_soul_soup: {n:'Lich Soul Soup', icon:'🥣', v:1100,heals:600, foodClass:'buff', buff:{type:'gold_find',       magnitude:5, durationMs:300000}},
-  void_banquet:   {n:'Void Banquet',   icon:'🎂', v:2400,heals:720, foodClass:'buff', buff:{type:'damage_crit',     magnitude:5,  durationMs:900000}},
+  void_banquet:   {n:'Dragonbone Banquet', icon:'🎂', v:2400,heals:720, foodClass:'buff', buff:{type:'damage_crit',     magnitude:5,  durationMs:900000}},
   // New bars (Phase A.1 progression — required by smelt_* and forge_* recipes below)
   bronze_bar: {n:'Bronze Bar', icon:'🟫', v:32},
   steel_bar:  {n:'Steel Bar',  icon:'⬜', v:150},
@@ -546,7 +546,7 @@ export const ITEMS={
     rarity:'legendary', tag:'cosmetic',
   },
   void_essence: {
-    n:'Void Essence', icon:'🌌', v:3000, bop:true,
+    n:'Rift Essence', icon:'🌌', v:3000, bop:true,
     rarity:'epic', tag:'crafting-mat',
   },
   /* b206 (SYS-10): the Hearth Token is the premium BOND — bought with real
@@ -683,15 +683,15 @@ export const ITEMS={
   warboss_standard: {n:'Warboss Standard', icon:'🚩', v:1200,  type:'trophy', tag:'cosmetic', rarity:'epic'},
 
   // haunted_archive — The Pale Archivist (Lv 45)
-  whispering_codex: {n:'Whispering Codex', icon:'📖', v:6500,  bop:true, type:'weapon', slot:'weapon', weaponType:'magic', atkB:15, strB:14, magicAtkB:18, magicStrB:20, critB:.04, reqSkill:'magic', reqLv:45, rarity:'unique'},
+  whispering_codex: {n:'Whispering Codex', icon:'📖', v:6500,  bop:true, type:'weapon', slot:'weapon', weaponType:'magic', discipline:'destruction', atkB:15, strB:14, magicAtkB:18, magicStrB:20, critB:.04, reqSkill:'magic', reqLv:45, rarity:'unique'},
   lexarch_seal:     {n:'Archivist Seal',   icon:'🔖', v:2200,  type:'trophy', tag:'cosmetic', rarity:'epic'},
 
   // obsidian_keep — The Ashen King (Lv 65)
   ashcrown_greatsword: {n:'Ashcrown Greatsword', icon:'🗡️', v:40000, bop:true, type:'weapon', slot:'weapon', weaponType:'sword', atkB:34, strB:40, critB:.03, reqSkill:'melee', reqLv:65, rarity:'unique'},
 
   // voidbringer — The Riftmaw (Lv 80)
-  voidmaw_scepter:  {n:'Voidmaw Scepter',  icon:'🔱', v:65000, bop:true, type:'weapon', slot:'weapon', weaponType:'magic', atkB:32, strB:30, magicAtkB:40, magicStrB:46, critB:.06, reqSkill:'magic', reqLv:80, rarity:'unique'},
-  voidwoven_sigil:  {n:'Voidwoven Sigil',  icon:'🕸️', v:5000,  type:'trophy', tag:'cosmetic', rarity:'legendary'},
+  voidmaw_scepter:  {n:'Riftmaw Scepter',  icon:'🔱', v:65000, bop:true, type:'weapon', slot:'weapon', weaponType:'magic', discipline:'destruction', atkB:32, strB:30, magicAtkB:40, magicStrB:46, critB:.06, reqSkill:'magic', reqLv:80, rarity:'unique'},
+  voidwoven_sigil:  {n:"Riftsealer's Sigil", icon:'🕸️', v:5000,  type:'trophy', tag:'cosmetic', rarity:'legendary'},
   riftmaw_husk:     {n:'Riftmaw Husk',     icon:'🐚', v:4200,  tag:'crafting-mat', rarity:'epic'},
 
 
@@ -853,7 +853,7 @@ for (const id of RAW_MATERIAL_IDS) { if (ITEMS[id]) ITEMS[id].raw = true; }
 
    foodClassOf() answers the engine's question ("may auto-eat spend this?").
    It does not answer the player's question, which is "what is this and what
-   verb do I press?" — and beta testers reported exactly that gap: a Void
+   verb do I press?" — and beta testers reported exactly that gap: a Dragonbone
    Banquet and a Cooked Shrimp were both an item called "food" with a heal
    number and an identical button.
 

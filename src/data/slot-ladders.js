@@ -119,7 +119,7 @@ export const SLOT_ITEMS = {
   woolen_cloak:    { n: 'Woollen Cloak',   icon: '🦸', v: priced(240, 1), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 1, rarity: 'common',    reqSkill: 'defense', reqLv: 12, defB: 2 },
   houndskin_cloak: { n: 'Houndskin Cloak', icon: '🦸', v: priced(240, 2), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 2, rarity: 'uncommon',  reqSkill: 'defense', reqLv: 28, defB: 4,  strB: 1 },
   trollhide_cape:  { n: 'Trollhide Cape',  icon: '🦸', v: priced(240, 4), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 4, rarity: 'epic',      reqSkill: 'defense', reqLv: 50, defB: 11, strB: 2 },
-  shadowsilk_cape: { n: 'Shadowsilk Cape', icon: '🦸', v: priced(240, 5), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 5, rarity: 'legendary', reqSkill: 'defense', reqLv: 63, defB: 16, strB: 3 },
+  shadowsilk_cape: { n: 'Gloamsilk Cape', icon: '🦸', v: priced(240, 5), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 5, rarity: 'legendary', reqSkill: 'defense', reqLv: 63, defB: 16, strB: 3 },
   dawnlit_mantle:  { n: 'Dawnlit Mantle',  icon: '🦸', v: priced(240, 7), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 7, rarity: 'mythic',    reqSkill: 'defense', reqLv: 88, defB: 30, strB: 3, critB: 0.01 },
 
   /* ══ NECKLACE — accuracy low, damage high ═══════════════════════════════ */
@@ -220,7 +220,7 @@ export const SLOT_DESC = {
   woolen_cloak: 'Honest wool against honest weather — the first cloak that is warmer than a rumour',
   houndskin_cloak: 'Hound-pelt lined with bat-leather, cut short so it never catches on a swing',
   trollhide_cape: 'Troll hide over bear pelt, thick enough to blunt a blade and heavy enough to notice',
-  shadowsilk_cape: 'Panther-shadow woven on a spider\'s loom — it hangs perfectly still even when you do not',
+  shadowsilk_cape: 'Gloamthread woven over panther hide on a spider\'s loom — it hangs perfectly still even when you do not',
   dawnlit_mantle: 'Duskwood thread shot through with dawnsteel, so the hem catches first light before you do',
 
   wolfbone_torc: 'A ring of wolfbone bound in bronze, worn by hunters who count their kills on it',

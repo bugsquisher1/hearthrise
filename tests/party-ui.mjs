@@ -224,7 +224,10 @@ async function pureRules(M, base) {
     const bad = [...wands.filter((id) => role(id) !== 'mage'), ...staves.filter((id) => role(id) !== 'healer')];
     if (bad.length) return 'wrong role for ' + bad.map((id) => id + '=' + role(id)).join(', ');
     if (R.roleWeaponOf(null) !== 'neutral' || role('apprentice_primer') === 'mage' && ITEMS.apprentice_primer.slot === 'weapon') return 'the spellbook or bare hands resolve wrong';
-    const sql = readFileSync(join(base, 'supabase/migrations/2026-10-27-hunt-sessions-catalogue.generated.sql'), 'utf8');
+    /* The NEWEST hunt-sessions catalogue in the apply order (a forward file per regen), never a typed name. */
+    const cat = JSON.parse(readFileSync(join(ROOT, 'tests/schema-apply-order.json'), 'utf8')).order
+      .filter((f) => /-hunt-sessions-catalogue\.generated\.sql$/.test(f)).pop();
+    const sql = readFileSync(join(base, 'supabase/migrations', cat), 'utf8');
     for (const id of [...wands, ...staves]) {
       const m = new RegExp(`\\('${id}', '([a-z_]+)'\\)`).exec(sql);
       if (!m || m[1] !== R.roleWeaponOf(ITEMS[id])) return `hr_hunt_weapons says ${id} is ${m && m[1]}, the engine says ${R.roleWeaponOf(ITEMS[id])}`;

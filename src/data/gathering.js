@@ -49,7 +49,7 @@ export const TREES=[
   {id:'elder_yew_tree',name:'Elder Yew',icon:'🌲',req:68,xp:124,ms:10800,prod:'yew_log',qty:[1,2]},
   /* b215: woodcutting used to end at 60 — these carry it to the cap. */
   {id:'runewood_tree',name:'Runewood',icon:'🌲',req:75,xp:144,ms:11500,prod:'runewood_log',qty:[1,1]},
-  {id:'ancient_runewood_tree',name:'Ancient Runewood',icon:'🌲',req:82,xp:168,ms:12200,prod:'runewood_log',qty:[1,2]},
+  {id:'ancient_runewood_tree',name:'Old-Growth Runewood',icon:'🌲',req:82,xp:168,ms:12200,prod:'runewood_log',qty:[1,2]},
   {id:'duskwood_tree',name:'Duskwood',icon:'🌲',req:90,xp:198,ms:13000,prod:'duskwood_log',qty:[1,1]},
 ];
 

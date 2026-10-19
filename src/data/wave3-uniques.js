@@ -7,7 +7,7 @@ export const WAVE3_ITEMS = {
   dragonrend_greatblade: {n:'Dragonrend',icon:'🗡️',v:17600,type:'weapon',slot:'weapon',weaponType:'sword',atkB:42,strB:42,critB:0.02,rarity:'unique',tier:8,reqSkill:'melee',reqLv:88},
   crown_of_the_fallen_king: {n:'Crown of the Fallen King',icon:'🛡️',v:17000,type:'armor',slot:'helmet',defB:36,strB:6,rarity:'unique',tier:7,reqSkill:'defense',reqLv:85},
   emberfang_blade: {n:'Emberfang',icon:'🗡️',v:14400,type:'weapon',slot:'weapon',weaponType:'sword',atkB:24,strB:15,critB:0.06,rarity:'epic',tier:6,reqSkill:'melee',reqLv:72},
-  demoncaller_staff: {n:'Demoncaller',icon:'🪄',v:13600,type:'weapon',slot:'weapon',weaponType:'magic',magicAtkB:24,magicStrB:31,atkB:24,strB:31,critB:0.05,rarity:'epic',tier:6,reqSkill:'magic',reqLv:68},
+  demoncaller_staff: {n:'Demoncaller',icon:'🪄',v:13600,type:'weapon',slot:'weapon',weaponType:'magic',discipline:'destruction',magicAtkB:24,magicStrB:31,atkB:24,strB:31,critB:0.05,rarity:'epic',tier:6,reqSkill:'magic',reqLv:68},
   panthers_eye_pendant: {n:'Panther\'s Eye Pendant',icon:'📿',v:13600,type:'jewelry',slot:'necklace',critB:0.05,atkB:2,rarity:'rare',tier:5,reqSkill:'melee',reqLv:68},
   wraithsilk_shroud: {n:'Wraithsilk Shroud',icon:'🛡️',v:10400,type:'armor',slot:'body',defB:20,magicAtkB:8,rarity:'epic',tier:5,reqSkill:'defense',reqLv:52},
   widows_fang: {n:'Widow\'s Fang',icon:'🗡️',v:7600,type:'weapon',slot:'weapon',weaponType:'sword',atkB:16,strB:12,critB:0.06,rarity:'rare',tier:3,reqSkill:'melee',reqLv:38},
@@ -21,18 +21,18 @@ export const WAVE3_ITEMS = {
 };
 
 export const WAVE3_DESC = {
-  'dragonrend_greatblade': 'An ancient bear\'s claw and a dragon\'s heart-gem bound in death-steel — a greatblade so heavy it splits scale, plate, and bone alike.',
+  'dragonrend_greatblade': 'A greymuzzle bear\'s claw and a dragon\'s heart-gem bound in death-steel — a greatblade heavy enough to split scale, plate and bone.',
   'crown_of_the_fallen_king': 'The War King\'s own circlet, reforged onto dawnsteel — it weighs like a burden and rewards like a throne.',
   'emberfang_blade': 'A demon-ember quenched in a plague-swarm\'s heart — a blade that runs hot and hungry, biting faster than steel has any right to.',
   'demoncaller_staff': 'A runewood haft crowned with a coal from the underworld that will not die — every cast spits demonfire.',
-  'panthers_eye_pendant': 'A night panther\'s ruby eye strung on shadow-silk — it sharpens every strike to a killing edge.',
+  'panthers_eye_pendant': 'A night panther\'s ruby eye strung on gloamthread — it sharpens every strike to a killing edge.',
   'wraithsilk_shroud': 'A cowl woven from a wraith\'s own fading edge — it drinks the light and hurries the wearer through it.',
   'widows_fang': 'A slim envenomed blade set with a spider\'s unblinking eye — it strikes fast and finds the gap.',
   'plaguewarden_greaves': 'Mithril plate cured in swarm-ichor until the rot works for you, not against you.',
-  'hollow_sigil_ring': 'A band of spent runes bound around a dark wizard\'s sigil — it whispers the next spell before you cast it.',
+  'hollow_sigil_ring': 'A band of spent runes bound around a hedge conjurer\'s sigil — it whispers the next spell before you cast it.',
   'fangdart_recurve': 'Strung with dire-wolf sinew and tipped in torn fangs and night-bone shot — light, quick, and it finds the soft place between ribs.',
   'alphaheart_longbow': 'Carved around the single fang of a pack-alpha; the bow remembers what it means to lead the hunt.',
-  'nightstalker_pelt': 'Panther-hide stitched with shadow-silk and clawed clasps — armour that would rather you were never seen.',
+  'nightstalker_pelt': 'Panther-hide stitched with gloamthread and clawed clasps — armour that would rather you were never seen.',
   'warband_bulwark': 'A brute\'s shed bone-plating hammered over a steel frame — it hits back as hard as it holds.',
-  'chitinweave_cloak': 'Overlapping void-carapace plates sewn onto a panther\'s shadow — weightless armour that seems to shrug the world off your shoulders.',
+  'chitinweave_cloak': 'Overlapping starshell plates sewn over panther hide — weightless armour that seems to shrug the world off your shoulders.',
 };

@@ -1,26 +1,4 @@
 {
   "why": "DESIGN_STANDARDS §2: no filler fantasy words (Shadow, Void, Ancient, Eternal, Dark, Forgotten) in data-row names. Shrink-only: these are the 2026-10-14 hits, renamed as each area is reworked. New hits fail; a renamed row fails until dropped with `node tests/copy-lint.mjs --prune-names`. Never add a row.",
-  "hits": {
-    "src/data/gathering.js#Ancient Runewood": "Ancient",
-    "src/data/items.js#Ancient Claw": "Ancient",
-    "src/data/items.js#Ancient Fragment": "Ancient",
-    "src/data/items.js#Ancient Rune": "Ancient",
-    "src/data/items.js#Dark Sigil": "Dark",
-    "src/data/items.js#Shadow Pelt": "Shadow",
-    "src/data/items.js#Shadow Thread": "Shadow",
-    "src/data/items.js#Void Banquet": "Void",
-    "src/data/items.js#Void Chitin": "Void",
-    "src/data/items.js#Void Core": "Void",
-    "src/data/items.js#Void Essence": "Void",
-    "src/data/library2-items.js#Void Censer": "Void",
-    "src/data/monsters.js#Ancient Bear": "Ancient",
-    "src/data/monsters.js#Ancient Lich": "Ancient",
-    "src/data/monsters.js#Dark Wizard": "Dark",
-    "src/data/monsters.js#Shadow Creeper": "Shadow",
-    "src/data/monsters.js#Void Mote": "Void",
-    "src/data/monsters.js#Void Parasite": "Void",
-    "src/data/recipes.js#Offer Ancient Claw": "Ancient",
-    "src/data/recipes.js#Purge Void Chitin": "Void",
-    "src/data/recipes.js#Void Banquet": "Void"
-  }
+  "hits": {}
 }

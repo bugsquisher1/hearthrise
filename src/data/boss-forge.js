@@ -4,14 +4,14 @@
 // Game-designer ruling, coherence audit 2026-10-09 ("Boss materials craft the
 // best gear, and boss trophies hang in your trophy room"). Two holes closed:
 //
-//   1. THREE BOSS MATERIALS CRAFTED NOTHING. Void Essence and Riftmaw Husk (the
-//      Voidbringer, Lv 80) and Elderscale Heart (the Ancient Wyrm, Lv 95) were
+//   1. THREE BOSS MATERIALS CRAFTED NOTHING. Rift Essence and Riftmaw Husk (the
+//      Riftmaw's dungeon, Lv 80) and Elderscale Heart (the Great Wyrm, Lv 95) were
 //      the rarest rows in two chests and had no recipe and no use — vendor
 //      trash with a legendary border. Each now forges the BEST BODY PIECE of
 //      one armour line, so all three combat styles have a boss chase:
 //        Elderscale Heart → Elderscale Platebody   (plate,   melee)
 //        Riftmaw Husk     → Riftmaw Carapace       (leather, ranged)
-//        Void Essence     → Voidheart Robe         (cloth,   magic)
+//        Rift Essence     → Riftmaw Robe           (cloth,   magic)
 //      Each piece is its Dawnsteel-tier twin plus a modest step (about +15%
 //      on the line's own stat), gated ABOVE the twin's Defence 88, so it is a
 //      real upgrade and never a sidegrade. Expected clears to one piece, from
@@ -19,13 +19,13 @@
 //      25% ≈ 8 — a week or two of runs, which is the point.
 //      BIND-ON-PICKUP (Tyler's rule, 2026-08-09): boss GEAR is the reward for
 //      clearing the fight yourself; the MATERIALS stay as tradeable as they
-//      already were (Void Essence was already BoP), so a crafter can still buy
+//      already were (Rift Essence was already BoP), so a crafter can still buy
 //      a husk or a heart and the market keeps its role.
 //      Values sit at the twin's value × 1.1 — inside the existing gear value
 //      curve, so no new vendor route opens (a non-raw item vendors at `v`).
 //
 //   2. FOUR BOSS TROPHIES DID NOTHING. Warboss Standard, Archivist Seal,
-//      Voidwoven Sigil and Dragon Relic now HANG in the House Trophy Room: the
+//      Riftsealer's Sigil and Dragon Relic now HANG in the House Trophy Room: the
 //      room lists each one, says where the missing ones come from, and lights a
 //      lamp in the room's scene for each one you hold. A DISPLAY effect only —
 //      no stat, no XP, no server column — so a trophy can never become a power
@@ -52,7 +52,7 @@ export const BOSS_FORGE_ITEMS = {
     rarity: 'unique', reqSkill: 'defense', reqLv: 90,
   },
   voidheart_robe: {
-    n: 'Voidheart Robe', icon: '🧥', v: 83160, bop: true,
+    n: 'Riftmaw Robe', icon: '🧥', v: 83160, bop: true,
     type: 'armor', slot: 'body', armourClass: 'cloth',
     defB: 30, magicAtkB: 62, magicStrB: 42, atkB: -23, rangeAtkB: -18,
     rarity: 'unique', reqSkill: 'defense', reqLv: 90,
@@ -62,7 +62,7 @@ export const BOSS_FORGE_ITEMS = {
 export const BOSS_FORGE_DESC = {
   elderscale_platebody: "Dawnsteel plate hammered around the Great Wyrm's still-cold heart; nothing in the realm turns a blow better",
   riftmaw_carapace: "The Riftmaw's shed husk, split and stitched over duskwood ribs, light as leather and steadying every shot",
-  voidheart_robe: 'A robe woven through with distilled void, and every spell cast in it lands as if the dark were pushing',
+  voidheart_robe: "Rift Essence woven through the Riftmaw's cloth, and every spell cast in it lands as if the rift itself were pushing",
 };
 
 /* THE TROPHY WALL'S BOSS ROW. Order is the order a player meets the bosses.

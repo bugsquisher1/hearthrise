@@ -104,8 +104,8 @@ const BANE_GEAR = {
   // The censer therefore ships on its bane alone and its description promises
   // nothing else. Flagged in the change contract.
   void_censer: {
-    n: 'Void Censer', icon: '🪔', v: priced(100, 5), type: 'weapon', slot: 'weapon',
-    weaponType: 'magic', atkB: 18, strB: 25, magicAtkB: 18, magicStrB: 25,
+    n: 'Riftward Censer', icon: '🪔', v: priced(100, 5), type: 'weapon', slot: 'weapon',
+    weaponType: 'magic', discipline: 'restoration', atkB: 18, strB: 25, magicAtkB: 18, magicStrB: 25,
     tier: 5, rarity: 'legendary', reqSkill: 'magic', reqLv: 60,
     bane: BANE('extra_dimensional'), effects: ['bane'],
   },
@@ -320,7 +320,7 @@ export const LIB2_DESC = {
   watchknight_gloves: 'Deathsteel gauntlets, articulated finely enough to hold a cup at the end of a long night',
   watchknight_belt: 'A deathsteel warbelt, buckled once and rarely undone',
 
-  quiet_coat: 'A long coat of void-chitin weave that makes no sound at all — not the cloth, not the buckles, not the man inside it',
+  quiet_coat: 'A long coat of starshell weave that makes no sound at all — not the cloth, not the buckles, not the man inside it',
 
   rune_essence: 'Pale humming stone off the essence face, the raw stuff every blank rune is cut out of',
   rune_blank: 'A blank stone chip, cut square and waiting for a mark',

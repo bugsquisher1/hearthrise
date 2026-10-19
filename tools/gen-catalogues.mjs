@@ -46,7 +46,10 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    APPLIED history; the skill list (Melee replaces Attack and Strength; no Hitpoints), the armour weight
    max HP and mana read (hr_items.armour_weight), the start kit's derived HP, the Level-scale monster XP and
    the food heals x12 land in this forward file, the same full delete+insert replace. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2026-10-27-core-catalogue.generated.sql');
+/* THE CONTENT NAMES (lane D, 2026-10-19, DESIGN_STANDARDS §2): 2026-10-27-core-catalogue.generated.sql is
+   APPLIED history; the filler-word renames (hr_items.name only: Void/Shadow/Ancient/Dark display names)
+   land in this forward file, the same full delete+insert replace. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2026-10-28-content-names-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already

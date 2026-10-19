@@ -207,7 +207,7 @@ export const MONSTERS = {
        starts to feel connected. */
     drops: [{ id: 'goblin_ear', ch: .4 }, { id: 'wolf_pelt', ch: .35 }, { id: 'bat_wing', ch: .2 }, { id: 'iron_ore', ch: .1 },
       { id: 'willow_longbow', ch: .0005, lucky: true }] },
-  dark_wizard: { name: 'Dark Wizard', icon: '🧙', tier: 2, cls: 'human', family: 'Human',
+  dark_wizard: { name: 'Hedge Conjurer', icon: '🧙', tier: 2, cls: 'human', family: 'Human',
     dropBonus: 1.15,
     hp: 28, atk: 12, def: 1, xp: 55, gp: [10, 25],
     drops: [{ id: 'magic_essence', ch: .4 }, { id: 'rune_frag', ch: .2 }, { id: 'bones', ch: .6 }, { id: 'dark_sigil', ch: .015 }, { id: 'oak_wand', ch: .003 }, { id: 'oak_spellbook', ch: .003 }] },
@@ -434,7 +434,7 @@ export const MONSTERS = {
     /* empty armour: kill it and you get the armour. */
     hp: 164, atk: 27, def: 22, xp: 262, gp: [45, 98],
     drops: [{ id: 'steel_bar', ch: .5 }, { id: 'iron_fitting', ch: .6 }, { id: 'steel_helm', ch: .02 }, { id: 'brute_plate', ch: .25 }] },
-  void_mote: { name: 'Void Mote', icon: '🌑', tier: 4, cls: 'extradimensional', family: 'Extra Dimensional',
+  void_mote: { name: 'Pinhole Mote', icon: '🌑', tier: 4, cls: 'extradimensional', family: 'Extra Dimensional',
     /* hidden element — the bestiary reveals it at 25 kills (PROG-01). */
     elementWeak: 'ember', elementResist: ['frost', 'poison'],
     hp: 104, atk: 38, def: 13, xp: 326, gp: [57, 126],
@@ -529,7 +529,7 @@ export const MONSTERS = {
     hp: 254, atk: 50, def: 40, xp: 542, gp: [108, 228],
     drops: [{ id: 'iron_fitting', ch: .7 }, { id: 'mithril_ore', ch: .35 }, { id: 'keystone', ch: .05 }, { id: 'steel_bar', ch: .45 },
       { id: 'rune_belt', ch: .0018, salvage: true }] },
-  shadow_creeper: { name: 'Shadow Creeper', icon: '🕸️', tier: 5, cls: 'extradimensional', family: 'Extra Dimensional',
+  shadow_creeper: { name: 'Gloamspinner', icon: '🕸️', tier: 5, cls: 'extradimensional', family: 'Extra Dimensional',
     elementWeak: 'frost', elementResist: ['ember', 'poison'],
     hp: 190, atk: 48, def: 26, xp: 475, gp: [90, 190],
     drops: [{ id: 'shadow_thread', ch: .45 }, { id: 'silk_thread', ch: .6 }, { id: 'void_chitin', ch: .018 },
@@ -542,7 +542,7 @@ export const MONSTERS = {
 
   /* ══ Tier 6 — legendary enemies ═══════════════════════════════════════ */
 
-  ancient_bear: { name: 'Ancient Bear', icon: '🐻', tier: 6, cls: 'mammal', family: 'Mammal',
+  ancient_bear: { name: 'Greymuzzle Bear', icon: '🐻', tier: 6, cls: 'mammal', family: 'Mammal',
     hp: 460, atk: 94, def: 54, xp: 1100, gp: [250, 500],
     drops: [{ id: 'bear_pelt', ch: 1 }, { id: 'ancient_claw', ch: .25 }, { id: 'alpha_cloak', ch: .01 }, { id: 'raw_bear_meat', ch: .8 }] },
   elk_king: { name: 'Elk King', icon: '🦌', tier: 6, cls: 'mammal', family: 'Mammal', boss: true,
@@ -564,7 +564,7 @@ export const MONSTERS = {
   necromancer: { name: 'Necromancer', icon: '🕯️', tier: 6, cls: 'human', family: 'Human', boss: true,
     hp: 356, atk: 100, def: 34, xp: 1195, gp: [302, 650],
     drops: [{ id: 'lich_soul', ch: .4 }, { id: 'ancient_rune', ch: .35 }, { id: 'hollow_sigil', ch: .05 }, { id: 'grave_dust', ch: 1 }, { id: 'soul_recipe', ch: .015 }, { id: 'runewood_wand', ch: .0015 }] },
-  lich: { name: 'Ancient Lich', icon: '☠️', tier: 6, cls: 'undead', family: 'Undead', boss: true,
+  lich: { name: 'Lich Abbot', icon: '☠️', tier: 6, cls: 'undead', family: 'Undead', boss: true,
     hp: 350, atk: 55, def: 30, xp: 800, gp: [200, 500],
     drops: [{ id: 'lich_soul', ch: .8 }, { id: 'ancient_rune', ch: .3 }, { id: 'vamp_dust', ch: .30 }, { id: 'hollow_sigil', ch: .025 }, { id: 'soul_recipe', ch: .01 }, { id: 'runewood_codex', ch: .0013 }] },
   revenant: { name: 'Revenant', icon: '🦴', tier: 6, cls: 'undead', family: 'Undead',
@@ -617,7 +617,7 @@ export const MONSTERS = {
   iron_colossus: { name: 'Iron Colossus', icon: '⚙️', tier: 6, cls: 'construct', family: 'Construct', boss: true,
     hp: 518, atk: 80, def: 62, xp: 1075, gp: [264, 544],
     drops: [{ id: 'rune_bar', ch: .35 }, { id: 'mithril_bar', ch: .7 }, { id: 'keystone', ch: .25 }, { id: 'iron_fitting', ch: 1 }, { id: 'death_steel', ch: .2 }] },
-  void_parasite: { name: 'Void Parasite', icon: '🪱', tier: 6, cls: 'extradimensional', family: 'Extra Dimensional',
+  void_parasite: { name: 'Hushworm', icon: '🪱', tier: 6, cls: 'extradimensional', family: 'Extra Dimensional',
     elementWeak: 'poison', elementResist: ['ember', 'frost'],
     hp: 340, atk: 82, def: 42, xp: 900, gp: [210, 420],
     drops: [{ id: 'void_chitin', ch: .55 }, { id: 'plague_ichor', ch: .35 }, { id: 'void_core', ch: .015 },

@@ -68,7 +68,7 @@ const BASE_RECIPES = {
     {id:'cook_hunters_feast',name:"Hunter's Feast",  icon:'🍱', inputs:{troll_hide:1, bear_pelt:1, cooked_trout:2}, output:'hunters_feast', xp:320, req:75, ms:5500, gated:'field_cookbook'},
     {id:'cook_dragon_stew',  name:'Dragon Stew',     icon:'🍜', inputs:{dragon_scale:1, carrot:1, tomato:1, pumpkin:1, potato:1}, output:'dragon_stew', xp:450, req:85, ms:6000, gated:'marrow_cookbook'},
     {id:'cook_lich_soup',    name:'Lich Soul Soup',  icon:'🥣', inputs:{lich_soul:1, wheat:1}, output:'lich_soul_soup', xp:600, req:90, ms:6500, gated:'soul_recipe'},
-    {id:'cook_void_banquet', name:'Void Banquet',    icon:'🎂', inputs:{void_core:1, dragon_bones:1, cooked_shark:3}, output:'void_banquet', xp:900, req:99, ms:7000},
+    {id:'cook_void_banquet', name:'Dragonbone Banquet',icon:'🎂', inputs:{void_core:1, dragon_bones:1, cooked_shark:3}, output:'void_banquet', xp:900, req:99, ms:7000},
     /* b215: sinks for the three late-game crops */
     {id:'cook_goldenroot',  name:'Goldenroot Roast',  icon:'🍠', inputs:{goldenroot:2},                 output:'goldenroot_roast', xp:300, req:65, ms:5000},
     {id:'cook_ember_tart',  name:'Ember Tart',        icon:'🥧', inputs:{emberfruit:2, wheat:2},        output:'ember_tart',       xp:520, req:78, ms:5600},
@@ -311,8 +311,8 @@ const BASE_RECIPES = {
     {id:'unbind_wraith_veil',     name:'Unbind Wraith Veil',       icon:'👻',  input:'wraith_veil',  output:null, xp:600,  req:72, ms:3000},
     {id:'consecrate_dragon_scale',name:'Consecrate Dragon Scale',  icon:'🐲',  input:'dragon_scale', output:null, xp:855,  req:79, ms:3200},
     {id:'release_lich_soul',      name:'Release Lich Soul',        icon:'☠️',  input:'lich_soul',    output:null, xp:1210, req:86, ms:3400},
-    {id:'offer_ancient_claw',     name:'Offer Ancient Claw',       icon:'爪',  input:'ancient_claw', output:null, xp:1700, req:92, ms:3600},
-    {id:'purge_void_chitin',      name:'Purge Void Chitin',        icon:'🪲',  input:'void_chitin',  output:null, xp:2400, req:99, ms:3800},
+    {id:'offer_ancient_claw',     name:'Offer Great Claw',         icon:'爪',  input:'ancient_claw', output:null, xp:1700, req:92, ms:3600},
+    {id:'purge_void_chitin',      name:'Purge Starshell',          icon:'🪲',  input:'void_chitin',  output:null, xp:2400, req:99, ms:3800},
   ]
 };
 

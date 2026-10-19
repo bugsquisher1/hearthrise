@@ -55,7 +55,7 @@ export const BOSSES = {
     id: 'ashen_king', name: 'The Ashen King', title: 'Lord of the Obsidian Throne',
     dungeon: 'obsidian_keep', tier: 5, reqLv: 65, style: 'magic',
     weakness: 'hammer', resist: ['sword'],
-    mechanic: 'Calls down dark-magic barrages you must weather between swings.',
+    mechanic: 'Calls down cinder barrages you must weather between swings.',
     signature: ['ashcrown_greatsword'],
   },
   riftmaw: {

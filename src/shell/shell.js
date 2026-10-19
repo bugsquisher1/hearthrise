@@ -36,16 +36,16 @@
 //
 // Mounted by src/app/world-pane.js over one character's World.
 // ════════════════════════════════════════════════════════════════════════
-import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.4';
-import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.4';
-import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.4';
-import { createWindowManager, DOCK_EDGE } from './window-manager.js?v=0.2.4';
-import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges } from './hud.js?v=0.2.4';
-import { keyLabel, glyphSvg } from './launcher.js?v=0.2.4';
-import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.4';
-import { mountContextMenu } from './context-menu.js?v=0.2.4';
-import { menuProvidersOf } from './menu-providers.js?v=0.2.4';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.4';
+import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.6';
+import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.6';
+import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.6';
+import { createWindowManager, DOCK_EDGE } from './window-manager.js?v=0.2.6';
+import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges } from './hud.js?v=0.2.6';
+import { keyLabel, glyphSvg } from './launcher.js?v=0.2.6';
+import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.6';
+import { mountContextMenu } from './context-menu.js?v=0.2.6';
+import { menuProvidersOf } from './menu-providers.js?v=0.2.6';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.6';
 
 /* The components' display clock: session timers and the timeline's due events (parity SH-05, DOM 4 Hz). */
 const DISPLAY_TICK_MS = 250;
@@ -149,13 +149,15 @@ export function mountShell(root, o) {
       if (!el) { el = frame(wm.row(p.id)); layer.appendChild(el); refresh(p.id); }
       el.classList.toggle('is-entering', p.entering);
       el.classList.toggle('is-leaving', p.leaving);
-      el.classList.toggle('is-floating', !p.docked);
+      el.classList.toggle('is-floating', !p.docked && !p.modal);
+      el.classList.toggle('is-modal', !!p.modal);
       el.classList.toggle('is-top', p.top);
       el.style.zIndex = String(p.z);
       el.style.width = p.width ? p.width + 'px' : '';
       el.style.right = p.docked && !p.phone ? p.right + 'px' : '';
-      el.style.left = p.docked ? '' : p.x + 'px';
-      el.style.top = p.docked ? '' : p.y + 'px';
+      /* A modal row is centred by its own CSS (.hs-win.is-modal), on every size class. */
+      el.style.left = p.docked || p.modal ? '' : p.x + 'px';
+      el.style.top = p.docked || p.modal ? '' : p.y + 'px';
     }
   }
 
@@ -300,7 +302,7 @@ export function mountShell(root, o) {
     const id = win.getAttribute('data-hs-win');
     wm.focus(id);
     const head = e.target.closest('[data-hs-drag]');
-    if (!head || e.button !== 0 || phoneMq.matches) return;
+    if (!head || e.button !== 0 || phoneMq.matches || wm.row(id).modal) return;
     const b = shell.getBoundingClientRect(), r = win.getBoundingClientRect();
     const ox = e.clientX - r.left, oy = e.clientY - r.top;
     /* A press that wanders under DRAG_SLOP_PX is a click, not a drag: it never floats the window. */

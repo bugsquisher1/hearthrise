@@ -12,14 +12,14 @@
 // in place, so a composition change adds or drops one row and nothing else.
 // The expand toggle is display scratch on the panel itself.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.4';
-import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.4';
-import { partyOf } from '../../session/hunt-sections.js?v=0.2.4';
-import { rows, text, cls, attr, element } from '../../render/paint.js?v=0.2.4';
-import { short, whole } from '../../render/format.js?v=0.2.4';
-import { glyphSvg } from '../launcher.js?v=0.2.4';
-import { markPlayer } from '../context-menu.js?v=0.2.4';
-import { gaugeHtml, patchGauge, panelHtml } from './bits.js?v=0.2.4';
+import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.6';
+import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.6';
+import { partyOf } from '../../session/hunt-sections.js?v=0.2.6';
+import { rows, text, cls, attr, element } from '../../render/paint.js?v=0.2.6';
+import { short, whole } from '../../render/format.js?v=0.2.6';
+import { glyphSvg } from '../launcher.js?v=0.2.6';
+import { markPlayer } from '../context-menu.js?v=0.2.6';
+import { gaugeHtml, patchGauge, panelHtml } from './bits.js?v=0.2.6';
 
 function memberHtml(glyphs) {
   return '<li class="hp-m">'

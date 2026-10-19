@@ -187,6 +187,20 @@ async function runTests(mods) {
     wm.dock('bag');
     ok(wm.layout().find((p) => p.id === 'bag').docked, 'dock() returns it');
   });
+  t('W10b a modal row opens centred: never docked, never in the inset, never a phone sheet', () => {
+    const windows = SPEC_WINDOWS.concat([{ id: 'cfg', label: 'Configure action', key: 'q', glyph: 'uiTarget', width: 560, object: 'plain', modal: true }]);
+    for (const phone of [false, true]) {
+      const { wm } = harness(WM, { width: 1440, windows, phone });
+      wm.open('bag');
+      const before = wm.inset().right;
+      wm.open('cfg');
+      const at = Object.fromEntries(wm.layout().map((p) => [p.id, p]));
+      ok(at.cfg && at.cfg.modal && !at.cfg.docked, (phone ? 'phone' : 'desktop') + ': the modal row is centred, not docked');
+      ok(!!at.bag, (phone ? 'phone' : 'desktop') + ': the window under the modal stays open');
+      eq(wm.inset().right, before, (phone ? 'phone' : 'desktop') + ': the modal adds nothing to the camera inset');
+      ok(wm.float('cfg', { x: 5, y: 5 }) === false, 'a modal never floats');
+    }
+  });
   t('W13 slots are stable: focus, open and close never move another window; a reopen goes back', () => {
     const { wm, flush } = harness(WM, { width: 4000 });
     wm.open('bag'); wm.open('skills'); wm.open('equip');
@@ -356,9 +370,10 @@ const MUTANTS = [
   { test: 'W2', file: WM_FILE, from: 'export const DOCK_MAX = 0.6;', to: 'export const DOCK_MAX = 0.9;' },
   { test: 'W3', file: WM_FILE, from: 'for (const r of rows.values()) if (r.escape) return openWindow(r.id);', to: '' },
   { test: 'W4', file: WM_FILE, from: "if (open[open.length - 1] !== id) { open.splice(open.indexOf(id), 1); open.push(id); emit(); }", to: '' },
+  { test: 'W5', file: WM_FILE, from: 'if (isPhone() && !isModal(id)) for (const other of open.slice()) drop(other);', to: '' },
+  { test: 'W10b', file: WM_FILE, from: 'const isModal = (id) => rows.get(id).modal === true;', to: 'const isModal = () => false;' },
   { test: 'W13', file: WM_FILE, from: "else Object.assign(e, { docked: true, right: slot.has(id) ? slot.get(id) : DOCK_EDGE, width: r.width });", to: "else Object.assign(e, { docked: true, right: DOCK_EDGE + open.slice(i + 1).filter((d) => !floating.has(d)).reduce((s, d) => s + width(d) + DOCK_GAP, 0), width: r.width });" },
   { test: 'W13', file: WM_FILE, from: 'else if (slot.has(id)) lastAt.set(id, { right: slot.get(id) });', to: ';' },
-  { test: 'W5', file: WM_FILE, from: 'if (isPhone()) for (const other of open.slice()) drop(other);', to: '' },
   { test: 'W8', file: WM_FILE, from: 'return keyBelongsToField(ev.target, ev.key);', to: 'return false;' },
   { test: 'W8', file: 'src/utils/dom.js', from: "  if (tag === 'select') return /^Arrow/.test(String(key || ''));", to: "  if (tag === 'select') return true;" },
   { test: 'W8', file: 'src/utils/dom.js', from: '  return TEXT_TYPES.has(type);', to: '  return true;' },

@@ -18,7 +18,7 @@
 // read makes that ROW null, not the whole section.
 // ════════════════════════════════════════════════════════════════════════
 
-import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.4';
+import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.6';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -103,6 +103,8 @@ export function settingsOf(cs) {
   if (!s || int(s.preset) === null) return null;
   return {
     preset: s.preset,
+    /* The hunt role the worn weapon gives (the server's; the ability list follows it). */
+    role: str(s.role),
     presets: list(s.presets, (p) => (isObj(p) && int(p.preset) !== null && str(p.name) ? { preset: p.preset, name: p.name } : null), 8),
     targetMode: str(s.target_mode), stance: str(s.stance), distance: int(s.distance),
     chase: typeof s.chase === 'boolean' ? s.chase : null,

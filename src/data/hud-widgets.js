@@ -51,8 +51,9 @@ export const HUD_WIDGETS = Object.freeze([
     phone: Object.freeze({ visible: false, dx: 4, dy: 4 }),
   }),
   Object.freeze({
-    id: 'action-bar', label: 'Hunt bar (bottom)', layer: 'world', anchor: 'bc', dx: 0, dy: 8,
-    min: Object.freeze([320, 64]), opacity: 1, visible: true, removable: true, when: 'hunt',
+    /* Shown in town too, so the bar is set up before leaving (its vitals show only in a hunt). */
+    id: 'action-bar', label: 'Action bar (bottom)', layer: 'world', anchor: 'bc', dx: 0, dy: 8,
+    min: Object.freeze([320, 64]), opacity: 1, visible: true, removable: true, when: 'always',
     phone: Object.freeze({ dy: 2 }),
   }),
 ]);

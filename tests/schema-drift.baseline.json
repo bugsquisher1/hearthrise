@@ -7,7 +7,7 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-10-19",
- "digest": "7ce946352456c0c7551799a2ab61c3934a570cbec43b972c2cff0ced121908b1",
+ "digest": "1bc9e2f38f995eb485979e93ffe06570610842e2409770c487e19586f1a8f4e7",
  "counts": {
   "relations": 213,
   "functions": 509,
@@ -15,7 +15,7 @@
   "indexes": 298,
   "triggers": 35,
   "constraints": 719,
-  "columns": 1227,
+  "columns": 1228,
   "rls": 192,
   "event_triggers": 1
  },
@@ -2314,6 +2314,7 @@
    "hr_hero_slots.name text NOT NULL",
    "hr_hero_slots.premium_waived boolean NOT NULL",
    "hr_hero_slots.slot_id integer NOT NULL",
+   "hr_hero_slots.starter boolean NOT NULL",
    "hr_hunt_abilities.ability_id text NOT NULL",
    "hr_hunt_abilities.active boolean NOT NULL",
    "hr_hunt_abilities.ammo integer NOT NULL",

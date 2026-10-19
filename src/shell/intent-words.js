@@ -54,7 +54,7 @@ const WORDS = Object.freeze({
   bad_weapon: 'The server does not know that weapon.',
   /* Going hunting (hr_hunt_enter) and the storage (hr_bank_move). */
   activity_locked: 'Your combat level is too low for that hunt yet.',
-  activity_running: 'Your hero is busy with something else. Stop it first.',
+  activity_running: 'Your hero is busy with something else (burying, say). Stop it in the Inventory first.',
   unknown_hunt: 'The server does not know that hunt.',
   unknown_preset: 'That action set is gone. Pick another in Hunt settings.',
   unknown_supply: 'One of the things packed is not a hunt supply.',

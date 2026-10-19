@@ -339,6 +339,13 @@ export function wiredIconMap() {
 export const ITEM_ART_SET = 'pixel';
 export const PIXEL_DIR = 'assets/icons-bundle/pixel/items/';
 
+/* THE ABILITY ICONS: 32x32 pixel tiles, one per ability with art, under
+   assets/icons-bundle/pixel/abilities/<id>.png (ported from the hunt sim's set,
+   the same 32 px grid as the items). An ability without art shows its glyph. */
+export const ABILITY_DIR = 'assets/icons-bundle/pixel/abilities/';
+export const ABILITY_ART = Object.freeze(['challenge', 'flame_strike', 'power_strike', 'hunters_mark', 'flame_volley', 'precision_shot',
+  'fireball', 'frost_lance', 'arcane_barrier', 'greater_mend', 'circle_of_renewal', 'natures_wrath']);
+
 /** `<PIXEL_DIR><id>.png` for every id given. */
 export function pixelIconMap(ids) {
   const out = {};

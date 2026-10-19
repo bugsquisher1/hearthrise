@@ -17,14 +17,14 @@
 // Every control is off while an intent is in flight; counts and gold change
 // only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { shopOf, bagOf, rulesOf, goldOf } from '../../session/item-sections.js?v=0.2.4';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.4';
-import { whole, gold } from '../../render/format.js?v=0.2.4';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.4';
-import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.4';
-import { kindOf, sellPlan } from '../bag-model.js?v=0.2.4';
-import { runIntent } from '../intent-words.js?v=0.2.4';
-import { showTip, hideTip } from './item-tip.js?v=0.2.4';
+import { shopOf, bagOf, rulesOf, goldOf } from '../../session/item-sections.js?v=0.2.6';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.6';
+import { whole, gold } from '../../render/format.js?v=0.2.6';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.6';
+import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.6';
+import { kindOf, sellPlan } from '../bag-model.js?v=0.2.6';
+import { runIntent } from '../intent-words.js?v=0.2.6';
+import { showTip, hideTip } from './item-tip.js?v=0.2.6';
 
 const TABS = Object.freeze([['buy', 'Buy'], ['sell', 'Sell'], ['refill', 'Refill']]);
 const KIND_WORDS = Object.freeze({ food: 'Food', drink: 'Drinks', ammo: 'Ammo', tool: 'Tools' });
@@ -47,8 +47,8 @@ export function renderShop() {
     + '<div class="hw-confirm-do"><button type="button" class="hw-primary" data-hs-act="confirm-yes"></button>'
     + '<button type="button" class="hh-tool" data-hs-act="confirm-no">Cancel</button></div></div></section>'
     + '<section class="hw-pane" data-pane="refill">'
-    + '<p class="hs-note">Set how many of each supply you like to carry. Refill buys whatever is short, at the shop’s prices, in one tap.</p>'
-    + '<ul class="hw-ledger hw-targets"></ul><p class="hh-empty hw-targets-none">No restock targets yet. Add the supplies you hunt with.</p>'
+    + '<p class="hs-note">Stock up if you want: set how many of each supply to carry and Refill buys what is short, in one tap. You never have to: a bar slot set to Any food or Any drink pays the store per use.</p>'
+    + '<ul class="hw-ledger hw-targets"></ul><p class="hh-empty hw-targets-none">No restock targets. Add one only if you like to carry your own.</p>'
     + '<div class="hw-add"><select class="hh-select" data-hs-act="add-item" aria-label="Supply to add"></select>'
     + '<input type="number" class="hh-num" min="1" max="1000" step="1" inputmode="numeric" value="20" data-hs-act="add-n" aria-label="How many to carry">'
     + '<button type="button" class="hh-tool" data-hs-act="add">Add</button></div>'

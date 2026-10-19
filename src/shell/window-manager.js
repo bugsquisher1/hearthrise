@@ -17,6 +17,9 @@
 //   order    `open` is the STACK (z order, Esc, focus); it never drives position.
 //   phone    ONE full-height side sheet, min(400px, 48vw); opening another
 //            replaces it.
+//   modal    a row with `modal: true` (Configure action) opens CENTRED over the
+//            World on every size class: never docked, never a sheet, never in
+//            the camera inset, and it leaves the windows under it open.
 //   Esc      closes the top window; with none open it opens the `escape` row.
 //   keys     each row's `key` toggles it; ignored while typing (src/utils/dom.js
 //            keyBelongsToField: a text field, or a select's arrows) or with a modifier.
@@ -28,7 +31,7 @@
 // size and a scheduler, so node drives every rule (tests/shell-core.mjs).
 // ════════════════════════════════════════════════════════════════════════
 
-import { keyBelongsToField } from '../utils/dom.js?v=0.2.4';
+import { keyBelongsToField } from '../utils/dom.js?v=0.2.6';
 
 export const MAX_OPEN = 3;
 export const DOCK_MAX = 0.6;
@@ -52,6 +55,7 @@ export function validateWindowRows(rows) {
     if (!KEY_RE.test(r.key || '')) throw new Error('shell windows: ' + r.id + ' key must be a letter, enter or escape');
     if (keys.has(r.key)) throw new Error('shell windows: key ' + r.key + ' is both ' + keys.get(r.key) + ' and ' + r.id);
     if (!(r.width > 0)) throw new Error('shell windows: ' + r.id + ' needs a positive width');
+    if (r.modal !== undefined && r.modal !== true) throw new Error('shell windows: ' + r.id + ' modal is true or absent');
     if (r.escape) escapes++;
     byId.set(r.id, r);
     keys.set(r.key, r.id);
@@ -89,7 +93,8 @@ export function createWindowManager(o) {
   const lastAt = new Map();      // id -> { right } | { x, y }: where it was when it last closed
   let lastInset = '';
 
-  const docked = () => open.filter((id) => !floating.has(id));
+  const isModal = (id) => rows.get(id).modal === true;
+  const docked = () => open.filter((id) => !floating.has(id) && !isModal(id));
   const width = (id) => rows.get(id).width;
   const sheetWidth = () => Math.min(SHEET_MAX, Math.round(world().width * SHEET_VW));
   const dockMax = () => world().width * DOCK_MAX;
@@ -150,11 +155,14 @@ export function createWindowManager(o) {
     if (!rows.has(id)) return false;
     if (open.includes(id) && !leaving.has(id)) return focus(id);
     drop(id);
-    if (isPhone()) for (const other of open.slice()) drop(other);
-    while (open.length >= MAX_OPEN) drop(open[0]);
+    if (isPhone() && !isModal(id)) for (const other of open.slice()) drop(other);
+    /* The cap counts the dock and the floats only: a modal floats over them and never closes one
+       (Tyler v0.2.6: Configure action evicted the oldest docked window and the camera moved). */
+    const sheets = () => open.filter((x) => !isModal(x));
+    if (!isModal(id)) while (sheets().length >= MAX_OPEN) drop(sheets()[0]);
     open.push(id);
     if (!reducedMotion()) entering.add(id);
-    if (!isPhone()) {
+    if (!isPhone() && !isModal(id)) {
       const was = lastAt.get(id);
       if (was && Number.isFinite(was.x)) {
         const w = world();
@@ -206,7 +214,7 @@ export function createWindowManager(o) {
 
   /** Float a window at {x, y} (desktop only), clamped inside the World. */
   function float(id, pos) {
-    if (isPhone() || !open.includes(id)) return false;
+    if (isPhone() || !open.includes(id) || isModal(id)) return false;
     const w = world();
     slot.delete(id);
     floating.set(id, { x: Math.round(Math.max(0, Math.min(w.width - width(id), pos.x))), y: Math.round(Math.max(0, Math.min(w.height - 48, pos.y))) });
@@ -225,7 +233,8 @@ export function createWindowManager(o) {
   /** The size class changed: the phone keeps only the top window, docked. */
   function resize() {
     if (isPhone()) {
-      while (open.length > 1) drop(open[0]);
+      const sheets = open.filter((id) => !isModal(id));
+      while (sheets.length > 1) drop(sheets.shift());
       floating.clear();
       slot.clear();
     } else for (const id of docked()) if (!slot.has(id)) place(id, null);
@@ -236,7 +245,7 @@ export function createWindowManager(o) {
   function insetOf() {
     const w = world();
     let right = 0;
-    if (live().length) right = isPhone() ? sheetWidth() : spans(null).reduce((m, q) => Math.max(m, q.r + q.w), 0);
+    if (live().some((id) => !isModal(id))) right = isPhone() ? sheetWidth() : spans(null).reduce((m, q) => Math.max(m, q.r + q.w), 0);
     right = Math.min(right, w.width);
     return { right, rect: { x: w.width - right, y: 0, width: right, height: right ? w.height : 0 } };
   }
@@ -248,7 +257,8 @@ export function createWindowManager(o) {
     for (let i = 0; i < open.length; i++) {
       const id = open[i], r = rows.get(id);
       const e = { id, z: 10 + i, top: i === open.length - 1, entering: entering.has(id), leaving: leaving.has(id), phone };
-      if (phone) Object.assign(e, { docked: true, right: 0, width: null });
+      if (isModal(id)) Object.assign(e, { docked: false, modal: true, width: r.width });
+      else if (phone) Object.assign(e, { docked: true, right: 0, width: null });
       else if (floating.has(id)) Object.assign(e, { docked: false, x: floating.get(id).x, y: floating.get(id).y, width: r.width });
       else Object.assign(e, { docked: true, right: slot.has(id) ? slot.get(id) : DOCK_EDGE, width: r.width });
       out.push(e);

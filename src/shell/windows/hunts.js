@@ -16,18 +16,27 @@
 // and the stock, and the hunt shows only from the re-read envelope. A hunt above
 // the character's level says so ("expect losses"); the floor is a warning, and
 // only the server refuses (Tyler 10-18: 15 or more levels under it).
+//
+// DENSITY is chosen with the hunt, before Enter (Tyler 10-18): how many monsters
+// each spawn holds (the engine's pack size, pull-cycle.js spawnPack), a −/+
+// stepper on the picked line from "as built" up to the ground's most for the
+// party's size (hunt-grounds.js densityFor). It shows only the server's value
+// (hunt_settings.density, clamped to the ground as the settle clamps it) and a
+// press is ONE hr_action_set_options. The server keeps ONE pick per action set
+// today, not one per ground, so the line says it carries to the next hunt.
 // ════════════════════════════════════════════════════════════════════════
-import { combatLevel } from '../../core/xp.js?v=0.2.4';
-import { huntOf, settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.4';
-import { bagOf, rulesOf, skillsOf } from '../../session/item-sections.js?v=0.2.4';
-import { huntName } from '../../session/party-sections.js?v=0.2.4';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.4';
-import { whole } from '../../render/format.js?v=0.2.4';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.4';
-import { itemName } from '../widgets/bits.js?v=0.2.4';
-import { runIntent } from '../intent-words.js?v=0.2.4';
-import { huntRows, densityWords, bandWords, rangeWords, groupWords, recommendedHunt, heroWords, packFor, ABOVE_LEVEL_WORDS } from '../hunt-list.js?v=0.2.4';
-import { partyScratch } from './party-finder.js?v=0.2.4';
+import { combatLevel } from '../../core/xp.js?v=0.2.6';
+import { huntOf, settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.6';
+import { bagOf, rulesOf, skillsOf } from '../../session/item-sections.js?v=0.2.6';
+import { huntName } from '../../session/party-sections.js?v=0.2.6';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.6';
+import { whole } from '../../render/format.js?v=0.2.6';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.6';
+import { itemName } from '../widgets/bits.js?v=0.2.6';
+import { runIntent } from '../intent-words.js?v=0.2.6';
+import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.6';
+import { huntRows, densityWords, bandWords, rangeWords, groupWords, recommendedHunt, heroWords, packFor, ABOVE_LEVEL_WORDS } from '../hunt-list.js?v=0.2.6';
+import { partyScratch } from './party-finder.js?v=0.2.6';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pick: null, pending: false, msg: '' }; SCRATCH.set(cs, s); } return s; };
@@ -44,6 +53,14 @@ function levelOf(cs) {
   const sk = skillsOf(cs);
   if (!sk) return null;
   return combatLevel(Object.fromEntries(Object.entries(sk).map(([id, r]) => [id, r.xp])));
+}
+
+/* The server's density pick as this ground would spawn it, and the most the ground allows for `size`; null = unknown. */
+function densityOf(set, hunt, size) {
+  const g = Object.values(HUNT_GROUNDS).find((x) => x.hunt === hunt);
+  if (!set || !Number.isInteger(set.density) || !g) return null;
+  const max = densityFor(g, size, [DENSITY_PICK.max]);
+  return { now: densityFor(g, size, [set.density]), max };
 }
 
 function packWords(lines) {
@@ -63,7 +80,12 @@ function lineHtml(r) {
   return '<li class="hw-hunt" role="option" data-hs-act="pick" data-hunt="' + esc(r.hunt) + '" tabindex="-1">'
     + '<span class="hw-hunt-main"><b class="hw-hunt-name">' + esc(r.name) + '</b><small class="hw-hunt-theme">' + esc(r.theme) + '</small>'
     + '<small class="hw-hunt-band"></small><small class="hw-hunt-warn"></small><small class="hw-hunt-facts">' + esc(heroWords(r) + ' · ' + densityWords(r)) + '</small>'
-    + '<small class="hw-hunt-pack"></small></span>'
+    + '<small class="hw-hunt-pack"></small>'
+    + '<span class="hw-density" role="group" aria-label="Density"><span class="hw-density-label">Density</span>'
+    + '<span class="hh-step"><button type="button" class="hh-seg" data-hs-act="density" data-by="-1" data-hunt="' + esc(r.hunt) + '" aria-label="Fewer monsters">−</button>'
+    + '<output class="hh-step-val"></output>'
+    + '<button type="button" class="hh-seg" data-hs-act="density" data-by="1" data-hunt="' + esc(r.hunt) + '" aria-label="More monsters">+</button></span>'
+    + '<small class="hw-density-note"></small></span></span>'
     + '<span class="hw-hunt-do"><button type="button" class="hh-tool hw-hunt-enter" data-hs-act="enter" data-hunt="' + esc(r.hunt) + '">Enter</button>'
     + '<button type="button" class="hh-tool" data-hs-act="party" data-hunt="' + esc(r.hunt) + '">With a party</button></span></li>';
 }
@@ -80,6 +102,7 @@ renderHunts.patch = function patchHunts(body, ctx) {
   const size = party ? party.members.length : 1;
   if (!sc.pick && list.length) { const rec = recommendedHunt(level, size, list); sc.pick = rec ? rec.hunt : list[0].hunt; }
   const pack = packFor(bagOf(cs), rulesOf(cs));
+  const set = settingsOf(cs);
   /* "On the way to …" is the intent's answer, not the hunt's state: once the server's hunt section
      says the hero is hunting (or the hunt is over), the line below speaks for it (Tyler 10-19). */
   if (sc.msg && sc.msg === sc.enterMsg && (now || (h && h.ended))) { sc.msg = ''; sc.enterMsg = null; }
@@ -104,6 +127,14 @@ renderHunts.patch = function patchHunts(body, ctx) {
       cls(enter, 'is-on', on);
       cls(enter, 'hh-tool', !on);
       for (const b of li.querySelectorAll('button')) prop(b, 'disabled', sc.pending || !!now);
+      const dn = densityOf(set, r.hunt, size);
+      cls(li.querySelector('.hw-density'), 'is-on', on && !!dn);
+      if (on && dn) {
+        text(li.querySelector('.hw-density .hh-step-val'), dn.now ? dn.now + ' each' : 'As built');
+        text(li.querySelector('.hw-density-note'), 'How many monsters each spawn holds (up to ' + dn.max + ' for ' + (size === 1 ? 'you alone' : 'a party of ' + size) + '). It stays set for your next hunts.');
+        prop(li.querySelector('[data-by="-1"]'), 'disabled', sc.pending || !!now || dn.now <= DENSITY_PICK.min);
+        prop(li.querySelector('[data-by="1"]'), 'disabled', sc.pending || !!now || dn.now >= dn.max);
+      }
     },
   });
   cls(root, 'is-pending', sc.pending);
@@ -116,6 +147,15 @@ renderHunts.act = function actHunts(ctx, body, action, ev, t) {
   const sc = scratchOf(cs);
   const hunt = t.getAttribute('data-hunt');
   const repaint = () => renderHunts.patch(body, ctx);
+  if (action === 'density') {
+    const s = settingsOf(cs);
+    const party = partyOf(cs);
+    const dn = densityOf(s, hunt, party ? party.members.length : 1);
+    const n = dn ? dn.now + Number(t.getAttribute('data-by')) : NaN;
+    if (!dn || n < DENSITY_PICK.min || n > dn.max) return true;
+    runIntent(sc, repaint, () => cs.setHuntOptions(s.preset, { density: n }), 'Saving…', () => '');
+    return true;
+  }
   if (action === 'pick') { sc.pick = hunt; sc.msg = ''; repaint(); return true; }
   if (action === 'enter') {
     sc.pick = hunt;

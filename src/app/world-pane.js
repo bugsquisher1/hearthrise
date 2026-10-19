@@ -12,11 +12,11 @@
 // sends an intent or writes a number.
 // ════════════════════════════════════════════════════════════════════════
 
-import { worldViewOf } from './world-view.js?v=0.2.4';
-import { mountShell } from '../shell/shell.js?v=0.2.4';
-import { logFor } from '../hunt-view/combat-log.js?v=0.2.4';
-import { pickHunt } from '../shell/windows/hunts.js?v=0.2.4';
-import { worldTargetOf } from '../shell/menu-providers.js?v=0.2.4';
+import { worldViewOf } from './world-view.js?v=0.2.6';
+import { mountShell } from '../shell/shell.js?v=0.2.6';
+import { logFor } from '../hunt-view/combat-log.js?v=0.2.6';
+import { pickHunt } from '../shell/windows/hunts.js?v=0.2.6';
+import { worldTargetOf } from '../shell/menu-providers.js?v=0.2.6';
 
 const PANE_HTML = '<div class="world-chrome">'
   + '<span class="world-title">World</span>'
@@ -70,7 +70,7 @@ export async function mountWorldPane(host, character, o) {
 
   let runtime = null;
   try {
-    const { bootWorld } = await import('../world/world-boot.js?v=0.2.4');
+    const { bootWorld } = await import('../world/world-boot.js?v=0.2.6');
     const town = opts.account && typeof opts.account.townOf === 'function' ? opts.account.townOf(character.slot) : null;
     runtime = await bootWorld(pane, { view, character, emit, town });
     runtime.sync();

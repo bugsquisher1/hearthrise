@@ -92,8 +92,15 @@ export function stopBury(cs, sc, send) {
   });
 }
 
-/** The "Burying…" line's words, or '' when nothing is being buried. */
+/**
+ * The "Burying…" line's words, or '' when the hero is free. Any other gathering
+ * or crafting pointer the server holds (from before this client had a way to
+ * stop it) is named too, with the same Stop: hr_hunt_enter refuses a hero that
+ * is not idle, so a pointer with no Stop would keep the hero out of every hunt.
+ */
 export function buryLine(cs) {
   const r = buryingOf(cs);
-  return r ? buryingWord(r) + ' ' + itemName(r.input) + '. Your Prayer XP and bag update when it is done.' : '';
+  if (r) return buryingWord(r) + ' ' + itemName(r.input) + '. Your Prayer XP and bag update when it is done.';
+  const s = cs && typeof cs.read === 'function' ? cs.read('state') : null;
+  return s && (s.active_kind === 'gather' || s.active_kind === 'artisan') ? 'Your hero is still busy gathering or crafting, so hunts will not start. Stop it here.' : '';
 }

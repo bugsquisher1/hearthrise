@@ -209,7 +209,7 @@ const MUTANTS = [
     ['const recovering = /type=recovery/.test(win.location.hash);', 'const recovering = false;']]],
   ['the hunt panels never mount', 'src/data/hud-widgets.js', 'min: Object.freeze([320, 64]), opacity: 1, visible: true', 'min: Object.freeze([320, 64]), opacity: 1, visible: false'],
   ['every hero is "Character N" again', 'src/app/boot.js', "(r.exists ? esc(r.name || 'Unnamed hero')", "(r.exists ? 'Character ' + (r.slot + 1)"],
-  ['an empty owned slot offers no Create', 'src/app/boot.js', '\'">Create character</button>\')', '\'" hidden>Create character</button>\')'],
+  ['an empty owned slot offers no Create', 'src/app/boot.js', 'class="auth-submit" data-app="create" data-slot="', 'class="auth-submit" data-app="nothing" data-slot="'],
   ['the closed answer is ignored', 'src/app/boot.js', "if (why === 'closed-game') showClosed();", "if (why === 'never') showClosed();"],
 ];
 

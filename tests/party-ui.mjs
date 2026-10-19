@@ -367,6 +367,8 @@ async function pageRules(overrides, shots) {
       const s = scripted();
       await stub(page, s);
       const shot = async (name) => { if (shots) { await page.waitForTimeout(400); await page.screenshot({ path: join(shots, 'party-' + tag + '-' + name + '.png') }); } };
+      /* A step that throws (a control missing from the page) is a red rule, never a crash of the run. */
+      try {
       if (!(await openBoth(page, base))) { fails.push('UI-1 [' + tag + '] two characters did not open beside each other' + (errors.length ? ': ' + errors.slice(0, 2).join(' | ') : '')); await ctx.close(); continue; }
       /* UI-1: one tab per character, its name, what it does, its badge; a press shows it and re-reads nobody. */
       await page.waitForTimeout(400);
@@ -474,7 +476,8 @@ async function pageRules(overrides, shots) {
         if (tab !== 'invites') fails.push('UI-3 [' + tag + '] the Party window opened on ' + JSON.stringify(tab) + ' with an invite waiting');
         await shot('party-invites');
         const acc1 = sent(s, 'hr_hunt_party_accept').length;
-        await page.click(P + '.hw-invites [data-hs-act="accept"]');
+        /* (not on screen = the rule is red, never a crash) */
+        await page.click(P + '.hw-invites [data-hs-act="accept"]', { timeout: 2000 }).catch(() => fails.push('UI-3 [' + tag + '] the invite’s Join is not on screen'));
         await page.waitForTimeout(700);
         const ac = sent(s, 'hr_hunt_party_accept').slice(acc1);
         if (ac.length !== 1 || ac[0].body.p_slot !== 1 || ac[0].body.p_invite !== 'bbbbbbbb-0000-4000-8000-000000000002') fails.push('UI-3 [' + tag + '] Join sent ' + JSON.stringify(ac.map((c) => c.body)));
@@ -498,6 +501,7 @@ async function pageRules(overrides, shots) {
           if (!b || !b.off || b.text !== 'Enter') fails.push('UI-3 [' + tag + '] a member’s Enter reads ' + JSON.stringify(b));
         } else fails.push('UI-3 [' + tag + '] H did not open the Hunts window for character 1');
       } else fails.push('UI-3 [' + tag + '] the Party window did not open for character 1');
+      } catch (e) { fails.push('UI-? [' + tag + '] a page step threw: ' + String(e.message).split('\n')[0]); }
       if (errors.length) fails.push('UI-4 [' + tag + '] console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }

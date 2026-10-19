@@ -11,16 +11,16 @@
 // alerts the character on screen raises (display-only residue).
 // Built once, patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERT_KINDS } from '../../data/alerts.js?v=0.2.5';
-import { summaryOf } from '../command-model.js?v=0.2.5';
-import { alertShown, setAlertShown } from '../alerts.js?v=0.2.5';
-import { huntName } from '../../session/party-sections.js?v=0.2.5';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.5';
-import { gold, whole, hoursMinutes } from '../../render/format.js?v=0.2.5';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.5';
-import { gaugeHtml, patchGauge, patchRoleGlyph } from '../widgets/bits.js?v=0.2.5';
-import { glyphSvg } from '../launcher.js?v=0.2.5';
-import { refusalWords } from '../intent-words.js?v=0.2.5';
+import { ALERT_KINDS } from '../../data/alerts.js?v=0.2.6';
+import { summaryOf } from '../command-model.js?v=0.2.6';
+import { alertShown, setAlertShown } from '../alerts.js?v=0.2.6';
+import { huntName } from '../../session/party-sections.js?v=0.2.6';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.6';
+import { gold, whole, hoursMinutes } from '../../render/format.js?v=0.2.6';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.6';
+import { gaugeHtml, patchGauge, patchRoleGlyph } from '../widgets/bits.js?v=0.2.6';
+import { glyphSvg } from '../launcher.js?v=0.2.6';
+import { refusalWords } from '../intent-words.js?v=0.2.6';
 
 const SCRATCH = { pending: false, msg: '' };
 

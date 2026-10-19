@@ -33,10 +33,10 @@
 //                 left and destroyed when it closes
 // ════════════════════════════════════════════════════════════════════════
 
-import { SESSION_CONFIG } from './config.js?v=0.2.5';
-import { CharacterSession } from './character-session.js?v=0.2.5';
-import { TownPresence } from './town-presence.js?v=0.2.5';
-import { combatLevel } from '../core/xp.js?v=0.2.5';
+import { SESSION_CONFIG } from './config.js?v=0.2.6';
+import { CharacterSession } from './character-session.js?v=0.2.6';
+import { TownPresence } from './town-presence.js?v=0.2.6';
+import { combatLevel } from '../core/xp.js?v=0.2.6';
 
 /** This tab's session id: made once per tab, kept across a reload, new for a new tab. */
 export function tabSessionId(tab, cfg = SESSION_CONFIG, make) {

@@ -276,7 +276,8 @@ async function boot(mutate, gateBlind, extra) {
      graded against the catalogue the data authors, in every arm. */
   if (byFile.size) {
     const { readFileSync } = await import('node:fs');
-    await db.exec(readFileSync(new URL('supabase/migrations/2026-10-23-demolition-unlocks.generated.sql', ROOT), 'utf8'));
+    /* The CURRENT generated unlock catalogue (tools/gen-unlocks.mjs OUT: the core rebuild's forward file). */
+    await db.exec(readFileSync(new URL('supabase/migrations/2026-10-27-unlocks.generated.sql', ROOT), 'utf8'));
   }
   if (post) await db.exec(post);
   return db;

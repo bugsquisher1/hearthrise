@@ -81,8 +81,10 @@ import { ITEMS } from '../src/data/items.js';
 import { ROOM_PERKS } from '../src/data/perks.js';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
-/* DEMOLITION REGEN (2026-10-14): a new superseding file; 2026-08-16-unlocks.generated.sql stays in the chain. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2026-10-23-demolition-unlocks.generated.sql');
+/* DEMOLITION REGEN (2026-10-14): a new superseding file; 2026-08-16-unlocks.generated.sql stays in the chain.
+   CORE REBUILD REGEN (2026-10-19): the forward file after the applied 2026-10-23 one (the recipe set lost
+   `offer_crown_shard`); applied files are history. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2026-10-27-unlocks.generated.sql');
 
 const argv = process.argv.slice(2);
 const CHECK = argv.includes('--check');

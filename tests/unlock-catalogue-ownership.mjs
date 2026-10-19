@@ -89,6 +89,7 @@ const REPAIR_AFTER_WIPE = [
   '2026-09-05-companion-unlock-catalogue-reseed.sql',  // the 17 again, derived from the allowlist
   '2026-09-18-retired-iap-catalogue-removal.sql',      // seeds nothing: removes the two retired entitlement:* rows b505 stopped generating. After a wipe + regen its targets are absent and it is a guarded no-op, but it WRITES hr_unlocks, so it is listed.
   '2026-10-23-demolition-unlocks.generated.sql',       // STAGED demolition regen: SCOPED upsert of the derived ids + delete of the 20 retired ones (bounty, cosmetic, dungeon_run, gear scrolls); never touches companion rows.
+  '2026-10-27-unlocks.generated.sql',                  // the core rebuild's forward regen: the same scoped upsert, character_slot:1 retired (the starter slot is owned, never sold).
 ];
 
 /** The seventeen ids the 2026-08-23 refill destroyed, pinned BY VALUE (b493:

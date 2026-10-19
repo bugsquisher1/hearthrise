@@ -57,6 +57,7 @@
 // Exit: 0 in sync · 1 drift · 2 harness problem.
 // ════════════════════════════════════════════════════════════════════════
 
+import { readFileSync } from 'node:fs';
 import { bootReplay } from './schema-replay.mjs';
 import { deriveCatalogueRows } from '../tools/catalogue-rows.mjs';
 import { isMain } from './_is-main.mjs';
@@ -197,7 +198,17 @@ const DEEP = '2026-09-13-deep-seam.sql';
 const GEN = '2026-08-11-catalogue.generated.sql';
 /* The chain-end owner of hr_items / hr_item_slots (the newest generated catalogue; was demolition, now sewer)
    regen: a literal moved in DEEP or GEN no longer reaches the chain end. */
-const CHAIN_END = '2026-10-24-sewer-catalogue.generated.sql';
+/* Found, not hard-coded: the LAST file in the apply order that seeds both arm
+   anchors. A hard-coded name went stale every time a new catalogue landed. */
+const CHAIN_END = (() => {
+  const order = JSON.parse(readFileSync(new URL('./schema-apply-order.json', import.meta.url), 'utf8'));
+  const list = order.order || order.files || Object.values(order).find(Array.isArray);
+  for (const f of [...list].reverse()) {
+    let t; try { t = readFileSync(new URL('../supabase/migrations/' + f, import.meta.url), 'utf8'); } catch { continue; }
+    if (t.includes("('verdite_bar','Verdite Bar',true,null,320,") && t.includes("('trollhide_cape','cape')")) return f;
+  }
+  throw new Error('no migration seeds both arm anchors: re-anchor the selftest');
+})();
 
 async function selftest() {
   const arms = [

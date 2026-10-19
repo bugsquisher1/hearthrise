@@ -7,8 +7,10 @@
       "blessings",
       "bounty",
       "buffs",
+      "character_sheet",
       "client_state",
       "companions",
+      "death_log",
       "dungeon_cooldowns",
       "enchant",
       "equipment",
@@ -26,8 +28,10 @@
       "name",
       "now",
       "ok",
+      "outfit",
       "party",
       "party_invites",
+      "party_people",
       "place",
       "premium",
       "progress",
@@ -78,5 +82,5 @@
       "workers_accrued_to"
     ]
   },
-  "generatedAt": "2026-10-18"
+  "generatedAt": "2026-10-19"
 }

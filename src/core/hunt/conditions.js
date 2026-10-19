@@ -46,15 +46,15 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random. Draws nothing.
 // ============================================================
 
-import { METRICS, OPERATORS, MAX_CONDITIONS, MAX_STOP_RULES, STOP_HOLD_MS, ACTION_TYPES, CONSUME_KINDS, ATTACK_KINDS, EFFECT_IDS } from '../../data/condition-metrics.js?v=0.2.7';
-import { ABILITIES, ABILITY_RULES } from '../../data/abilities.js?v=0.2.7';
-import { CONSUMABLES, CONSUMABLE_RULES } from '../../data/consumables.js?v=0.2.7';
-import { SUPPLIES } from '../../data/supplies.js?v=0.2.7';
-import { ITEMS } from '../../data/items.js?v=0.2.7';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.7';
-import { ROLE_RULES } from '../../data/rule-subjects.js?v=0.2.7';
-import { cheb, dist2, los } from './grid.js?v=0.2.7';
-import { makeEvent } from './events.js?v=0.2.7';
+import { METRICS, OPERATORS, MAX_CONDITIONS, MAX_STOP_RULES, STOP_HOLD_MS, ACTION_TYPES, CONSUME_KINDS, ATTACK_KINDS, EFFECT_IDS } from '../../data/condition-metrics.js?v=0.2.8';
+import { ABILITIES, ABILITY_RULES } from '../../data/abilities.js?v=0.2.8';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../../data/consumables.js?v=0.2.8';
+import { SUPPLIES } from '../../data/supplies.js?v=0.2.8';
+import { ITEMS } from '../../data/items.js?v=0.2.8';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.8';
+import { ROLE_RULES } from '../../data/rule-subjects.js?v=0.2.8';
+import { cheb, dist2, los } from './grid.js?v=0.2.8';
+import { makeEvent } from './events.js?v=0.2.8';
 
 /* ruleHold: ms each stop rule has held, by its stable rule id (null = none held).
    ruleWait: the last `rule_wait` reported, per lane ('ruleId:why'), so it is reported once.

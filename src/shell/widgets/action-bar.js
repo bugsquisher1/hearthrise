@@ -21,21 +21,21 @@
 // Shown in town too (Tyler 10-18: set it up before leaving). Every value is
 // the server's; the bar changes only when the re-read envelope says so.
 // ════════════════════════════════════════════════════════════════════════
-import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.7';
-import { CONSUME_KINDS, ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.7';
-import { huntOf, settingsOf, staminaOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.7';
-import { bagOf } from '../../session/item-sections.js?v=0.2.7';
-import { text, cls, attr } from '../../render/paint.js?v=0.2.7';
-import { whole, pct, hoursMinutes } from '../../render/format.js?v=0.2.7';
-import { glyphSvg } from '../launcher.js?v=0.2.7';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.7';
-import { gaugeHtml, patchGauge, actionIconHtml } from './bits.js?v=0.2.7';
-import { openSlot, storeOf, placeSlot } from '../bar-draft.js?v=0.2.7';
-import { actionName, factsOf, carried, supplyLines, setupWords, conflictsOf } from '../action-facts.js?v=0.2.7';
-import { resetConfigureView } from '../windows/configure-action.js?v=0.2.7';
-import { assignToBar, barKind } from '../bar-assign.js?v=0.2.7';
-import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.7';
-import { refusalWords } from '../intent-words.js?v=0.2.7';
+import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.8';
+import { CONSUME_KINDS, ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.8';
+import { huntOf, settingsOf, staminaOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.8';
+import { bagOf } from '../../session/item-sections.js?v=0.2.8';
+import { text, cls, attr } from '../../render/paint.js?v=0.2.8';
+import { whole, pct, hoursMinutes } from '../../render/format.js?v=0.2.8';
+import { glyphSvg } from '../launcher.js?v=0.2.8';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.8';
+import { gaugeHtml, patchGauge, actionIconHtml } from './bits.js?v=0.2.8';
+import { openSlot, storeOf, placeSlot } from '../bar-draft.js?v=0.2.8';
+import { actionName, factsOf, carried, supplyLines, setupWords, conflictsOf } from '../action-facts.js?v=0.2.8';
+import { resetConfigureView } from '../windows/configure-action.js?v=0.2.8';
+import { assignToBar, barKind } from '../bar-assign.js?v=0.2.8';
+import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.8';
+import { refusalWords } from '../intent-words.js?v=0.2.8';
 
 const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const SLOT_DRAG = 'application/x-hr-bar-slot';
@@ -120,7 +120,8 @@ renderActionBar.patch = function patchActionBar(el, ctx) {
   const hero = h ? h.hero : {};
   const st = staminaOf(cs);
   const s = settingsOf(cs);
-  const regen = (v) => (Number.isFinite(v) && v > 0 ? '+' + whole(v) + '/s' : '');
+  /* Real units: per second, one decimal (huntOf's hpPerS / manaPerS: +0.5/s at 170 HP). */
+  const regen = (v) => (Number.isFinite(v) && v > 0 ? '+' + (v < 10 ? v.toFixed(1) : String(Math.round(v))) + '/s' : '');
   const hasMana = Number.isFinite(hero.manaMax) && hero.manaMax > 0;
   cls(el.querySelector('.hb-bar'), 'is-town', !h);
   patchGauge(el.querySelector('.is-hp'), hero.hp, hero.hpMax, hero.hp == null ? 'HP –' : 'HP ' + whole(hero.hp) + ' / ' + whole(hero.hpMax));
@@ -128,8 +129,8 @@ renderActionBar.patch = function patchActionBar(el, ctx) {
   patchGauge(el.querySelector('.is-mana'), hero.mana, hero.manaMax, hasMana ? 'Mana ' + whole(hero.mana) + ' / ' + whole(hero.manaMax) : '');
   patchGauge(el.querySelector('.is-xp'), hero.xpPct, 1, (hero.level == null ? 'Level –' : 'Level ' + hero.level) + ' · ' + pct(hero.xpPct));
   patchGauge(el.querySelector('.is-stamina'), st ? st.msLeft : null, st ? st.capMs : null, 'Stamina ' + hoursMinutes(st ? st.msLeft : null));
-  text(el.querySelector('[data-regen="hp"]'), regen(hero.hpRegen));
-  text(el.querySelector('[data-regen="mana"]'), hasMana ? regen(hero.manaRegen) : '');
+  text(el.querySelector('[data-regen="hp"]'), regen(hero.hpPerS));
+  text(el.querySelector('[data-regen="mana"]'), hasMana ? regen(hero.manaPerS) : '');
   const slots = s ? Array.from({ length: SLOTS }, (_, i) => s.slots[i] || { empty: true }) : [];
   const wires = slots.map((x) => wireSlot(x));
   const conflicts = s ? conflictsOf(wires, s) : new Map();

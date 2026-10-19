@@ -5,7 +5,7 @@
 //   node tests/window-camera.mjs           the rules, in a real Chromium
 //   node tests/window-camera.mjs --mutate  every planted defect must turn a rule RED
 //
-// mutant-anchors: src/shell/window-manager.js src/shell/shell.js src/world/core/camera.js src/world/render/canvas-backend.js src/styles/world.css
+// mutant-anchors: src/shell/window-manager.js src/shell/shell.js src/world/render/canvas-backend.js src/styles/world.css
 // mutant-writes-tree: no — mutants are served overrides
 //
 // Tyler's playtest, 2026-10-18 (v0.2.1), on play.html with supabase-js and the
@@ -22,8 +22,9 @@
 //         window leave the camera and the hero where they were; the stage and the
 //         pane cannot be scrolled (a focused control past the edge would scroll
 //         the canvas with them)
-//   WC-3  NO SNAP: opening and closing a docked window moves the camera over
-//         several frames, no single frame more than half the way
+//   WC-3  WINDOWS FLOAT OVER THE WORLD (Tyler 2026-10-19): opening, clicking and
+//         closing a docked window, a second docked window and the Configure action
+//         modal leave the canvas rect and the camera unchanged on every frame
 //   WC-4  RIGHT-CLICK: a real right-click on another player in town (on the
 //         figure or on the name over it) opens the player menu, and the
 //         browser's own menu is suppressed there
@@ -175,29 +176,36 @@ async function checks(overrides) {
       await ctx.close();
     }
 
-    { // WC-3 no snap; WC-4 right-click
+    { // WC-3 windows float over the World; WC-4 right-click
       const { ctx, page, errors, up } = await enter(browser, base, { width: 1440, height: 900 });
       if (!up) fails.push('WC-3 the town did not mount');
       else {
-        /* Sample the camera on every animation frame across a window's opening and closing. */
-        const sweep = (key) => page.evaluate(async (k) => {
-          const xs = [];
-          const at = () => window.__world.screenOf(0, 0).x;
-          xs.push(at());
-          document.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }));
+        /* The canvas rect and the camera, on EVERY animation frame across a step (Tyler 2026-10-19: windows
+           float over the World; opening, closing or clicking one never moves the camera or the canvas). */
+        const frames = (step) => page.evaluate(async (k) => {
+          const shot = () => { const c = document.querySelector('.world-canvas').getBoundingClientRect(); const p = window.__world.screenOf(0, 0);
+            return [c.left, c.top, c.width, c.height, p.x, p.y].map(Math.round).join(','); };
+          const seen = new Set([shot()]);
+          if (k.key) document.dispatchEvent(new KeyboardEvent('keydown', { key: k.key, bubbles: true }));
+          if (k.click) { const el = document.querySelector(k.click); if (el) el.click(); }
           const t0 = performance.now();
-          while (performance.now() - t0 < 600) { await new Promise((ok) => requestAnimationFrame(ok)); xs.push(at()); }
-          return xs;
-        }, key);
-        for (const [what, key] of [['opening', 'c'], ['closing', 'c']]) {
-          const xs = await sweep(key);
-          const total = Math.abs(xs[xs.length - 1] - xs[0]);
-          let step = 0;
-          for (let i = 1; i < xs.length; i++) step = Math.max(step, Math.abs(xs[i] - xs[i - 1]));
-          if (total < 24) fails.push('WC-3 ' + what + ' the Character window moved the camera only ' + Math.round(total) + ' px (the check needs a camera that moves)');
-          else if (step > total / 2) fails.push('WC-3 ' + what + ' a window snapped the camera ' + Math.round(step) + ' of ' + Math.round(total) + ' px in one frame: ' + xs.map(Math.round).join(','));
-          await settle(page);
+          while (performance.now() - t0 < 500) { await new Promise((ok) => requestAnimationFrame(ok)); seen.add(shot()); }
+          return Array.from(seen);
+        }, step);
+        const steps = [
+          ['opening the docked Character window', { key: 'c' }],
+          ['clicking inside it', { click: '[data-hs-win="character"] .hs-win-title' }],
+          ['opening Hunts beside it', { key: 'h' }],
+          ['closing Hunts', { click: '[data-hs-win="hunts"] [data-hs-close]' }],
+          ['closing Character', { click: '[data-hs-win="character"] [data-hs-close]' }],
+          ['opening the Configure action modal', { click: '.hb-slot[data-slot="2"]' }],
+          ['closing the modal', { click: '[data-hs-win="configure-action"] [data-hs-close]' }],
+        ];
+        for (const [what, step] of steps) {
+          const seen = await frames(step);
+          if (seen.length !== 1) fails.push('WC-3 ' + what + ' moved the World (canvas rect, camera): ' + seen.join(' | '));
         }
+        if (!(await page.evaluate(() => document.querySelectorAll('[data-hs-win]:not(.is-leaving)').length === 0))) fails.push('WC-3 a window stayed open after its X');
         /* WC-4: right-click the peer with the real mouse, on the figure and on the far end of the long name
            over it (beyond the figure's own box), and on bare ground (no menu, and no browser menu either). */
         await page.evaluate(() => { window.__ctxPrevented = []; window.addEventListener('contextmenu', (e) => window.__ctxPrevented.push(e.defaultPrevented)); });
@@ -234,7 +242,7 @@ const MUTANTS = [
   ['a click that wanders a pixel drags the window off the dock', 'src/shell/shell.js', 'const DRAG_SLOP_PX = 5;', 'const DRAG_SLOP_PX = 0;'],
   ['the stage can scroll', 'src/styles/world.css', 'overflow: clip;   /* never scrollable', 'overflow: hidden;   /* never scrollable'],
   ['the pane can scroll', 'src/styles/world.css', '  overflow: clip;\n}', '  overflow: hidden;\n}'],
-  ['the camera snaps to a new inset', 'src/world/core/camera.js', '  if (k >= 1) return to;', '  return to;'],
+  ['a docked window takes its strip of the World again', 'src/shell/shell.js', '  const windowsCover = () => (phoneMq.matches ? wm.inset().right : 0);', '  const windowsCover = () => wm.inset().right;'],
   ['a name is not a target', 'src/world/render/canvas-backend.js', '      const hits = named.concat(', '      const hits = [].concat('],
 ];
 
@@ -243,7 +251,7 @@ async function main() {
     const fails = await checks(null);
     for (const f of fails) console.log('  ✗ ' + f);
     console.log(fails.length ? 'window-camera: ' + fails.length + ' rule(s) RED'
-      : 'window-camera: the X closes; the dock never moves under the pointer; clicks in windows leave the World and the hero alone; the camera eases; right-click on a player works');
+      : 'window-camera: the X closes; the dock never moves under the pointer; clicks in windows leave the World and the hero alone; windows float over the World; right-click on a player works');
     process.exit(fails.length ? 1 : 0);
   }
   const clean = await checks(null);

@@ -10,13 +10,13 @@
 // another; a body re-renders on refresh(id). The World never pauses: windows
 // are not modal and have no backdrop.
 //
-// THE CAMERA INSET: every change to the World edges the shell covers — the
-// docked windows' right strip AND each docked HUD widget's edge (the bottom
-// bar, the top bar, the side panels; hud.js hudInsetOf) — is handed to
+// THE CAMERA INSET: every change to the World edges the HUD covers (the bottom
+// bar, the top bar, the side panels; hud.js hudInsetOf) is handed to
 // onInset(fn) subscribers as {left, right, top, bottom} and dispatched as
 // `hearthrise:shell-inset` on the host, so the World calls its engine's
-// setInset and frames the hero and the target in the uncovered part.
-// World-layer widgets centre beside the docked windows.
+// setInset and frames the hero and the target in the uncovered part. WINDOWS
+// ARE NOT IN IT on desktop: they float over the World (Tyler 2026-10-19); only
+// the phone's full-height sheet covers its strip (windowsCover).
 //
 // COMPONENTS (the hunt panels): a renderer that carries a `.patch(el, ctx)` is
 // BUILT ONCE (its HTML is the skeleton, written when the box is created) and
@@ -161,9 +161,15 @@ export function mountShell(root, o) {
     }
   }
 
+  /* WINDOWS FLOAT OVER THE WORLD (Tyler 2026-10-19): on desktop no window (docked, floating or modal)
+     takes any of the World: opening, closing, focusing or clicking one never moves the camera, the
+     canvas or the HUD. Only the phone's full-height sheet, which leaves no room beside it, covers
+     its strip (window-manager.js insetOf). */
+  const windowsCover = () => (phoneMq.matches ? wm.inset().right : 0);
+
   /* ── Widgets: shown, faded and placed from the layout ── */
   function paintWidgets() {
-    worldHud.style.right = wm.inset().right + 'px';
+    worldHud.style.right = windowsCover() + 'px';
     for (const row of hud.rows()) {
       const box = row.layer === 'screen' ? screenHud : worldHud;
       let el = box.querySelector('[data-hs-widget="' + row.id + '"]');
@@ -212,7 +218,7 @@ export function mountShell(root, o) {
       const r = el.getBoundingClientRect();
       widgets.push({ anchor: hud.layoutOf(el.getAttribute('data-hs-widget')).anchor, rect: { left: r.left - b.left, top: r.top - b.top, width: r.width, height: r.height } });
     }
-    return hudInsetOf(widgets, { width: b.width, height: b.height }, wm.inset().right);
+    return hudInsetOf(widgets, { width: b.width, height: b.height }, windowsCover());
   }
   function publishInset() {
     const inset = insetNow();

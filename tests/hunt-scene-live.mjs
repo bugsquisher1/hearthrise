@@ -6,7 +6,7 @@
 //   node tests/hunt-scene-live.mjs --node     the node rules only
 //   node tests/hunt-scene-live.mjs --mutate   every planted defect must turn its rule RED
 //
-// mutant-anchors: src/session/character-session.js src/session/config.js src/session/hunt-sections.js src/shell/widgets/action-bar.js
+// mutant-anchors: src/session/character-session.js src/session/config.js src/session/hunt-sections.js src/shell/widgets/vitals-hub.js
 // mutant-writes-tree: no — mutants are planted into a temp copy of src/
 //
 // The P0 of v0.2.7 (2026-10-19). tests/fixtures/hunt-envelope-live.json is
@@ -189,7 +189,7 @@ async function nodeRules(M) {
     const want = (LIVE.hunt.hero.hp_max * 3 * LIVE.hunt.hero.regen_pm) / 1e6;
     ok('LV-3', h.hpPerS !== null && Math.abs(h.hpPerS - want) < 1e-9, `HP regen reads ${h.hpPerS}/s, want ${want}/s (in-fight, per second)`);
     ok('LV-3', h.manaPerS !== null && Math.abs(h.manaPerS - LIVE.hunt.hero.mana_regen / 60) < 1e-9, `mana regen reads ${h.manaPerS}/s, want ${LIVE.hunt.hero.mana_regen / 60}`);
-    const src = readFileSync(join(M.AB, 'src/shell/widgets/action-bar.js'), 'utf8');
+    const src = readFileSync(join(M.AB, 'src/shell/widgets/vitals-hub.js'), 'utf8');
     ok('LV-3', /regen\(hero\.hpPerS\)/.test(src) && /regen\(hero\.manaPerS\)/.test(src) && /'\/s'/.test(src), 'the vitals strip does not print hpPerS / manaPerS as /s');
   }
   return { fails, book };
@@ -292,7 +292,7 @@ async function pageRules(M) {
 const MUTANTS = [
   ['a read carries no clock (LV-1)', 'src/session/character-session.js', '      if (Number.isSafeInteger(ms)) this.timeline.ingest({ serverNowMs: ms }, this._now());', '', /^LV-1/],
   ['the scene plays 600 ms behind a 16 s cadence (LV-2)', 'src/session/config.js', '  huntPlaybackDelayMs: 19000,', '  huntPlaybackDelayMs: 600,', /^LV-2/],
-  ['the per-minute figure printed as /s (LV-3)', 'src/shell/widgets/action-bar.js', 'regen(hero.hpPerS)', 'regen(hero.hpPerS * 60)', /^LV-3/],
+  ['the per-minute figure printed as /s (LV-3)', 'src/shell/widgets/vitals-hub.js', 'regen(hero.hpPerS)', 'regen(hero.hpPerS * 60)', /^LV-3/],
   ['HP regen at the resting rate (LV-3)', 'src/session/hunt-sections.js', '* VITALS.inFightRegenPermillePerS *', '* 60 *', /^LV-3/],
 ];
 

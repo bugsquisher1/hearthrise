@@ -457,12 +457,15 @@ async function checks(overrides, shots) {
         if (await menuOn() || sent().length !== 1) fails.push('HS-14 a press away did not cancel the drop');
         /* Swap: exactly the two change places. */
         await drag(0, 2);
-        await page.click('.hb-drop [data-x="swap"]');
+        if (await menuOn()) await page.click('.hb-drop [data-x="swap"]'); else fails.push('HS-14 the drop menu did not open for a swap');
         const swapped = base.slice(); swapped[0] = base[2]; swapped[2] = base[0];
         await lastIs('a swap', { n: 2, bar: swapped });
-        /* Insert: the target and the slots after it shift one place, up to the first empty slot. */
+        /* Insert: the target and the slots after it shift one place, up to the first empty slot — never past it (slot 9 stays). */
+        s.env.hunt_settings.slots[8] = { action: { type: 'ability', id: 'challenge' }, conditions: [], join: 'and', usable: true, mana: 0 };
+        await pushEnvelope(page, s);
+        base[8] = wire(s.env.hunt_settings.slots[8]);
         await drag(0, 2);
-        await page.click('.hb-drop [data-x="insert"]');
+        if (await menuOn()) await page.click('.hb-drop [data-x="insert"]'); else fails.push('HS-14 the drop menu did not open for an insert');
         const ins = base.slice(); ins[0] = null; ins[2] = base[0]; ins[3] = base[2]; ins[4] = base[3]; ins[5] = base[4];
         await lastIs('an insert', { n: 3, bar: ins });
         if (shots) { await drag(0, 2); await page.screenshot({ path: join(shots, 'hunt-1440x900-drop-menu.png') }); await page.keyboard.press('Escape'); }
@@ -645,7 +648,7 @@ const MUTANTS = [
   ['the HP arc does not follow the server', 'src/shell/widgets/vitals-hub.js', "  fill(el.querySelector('.hb-arc.is-hp'), share(v.hp, v.hpMax));", "  fill(el.querySelector('.hb-arc.is-hp'), 1);"],
   ['a drop onto an action moves it without asking', 'src/shell/widgets/action-bar.js', '    else openDropMenu(ctx, el, t, from, to, bar);', '    else runDrop(ctx, el, (b) => swapPlan(b, from, to));'],
   ['insert shifts past the first empty slot', 'src/shell/bar-draft.js', '  while (k < SLOTS && out[k]) k++;', '  k = SLOTS - 1;'],
-  ['the status line stays after a drop', 'src/shell/widgets/action-bar.js', ".then((r) => { text(msg, r.ok ? '' :", ".then((r) => { text(msg, r.ok ? 'Moving it…' :"],
+  ['the status line stays after a drop', 'src/shell/widgets/action-bar.js', ".then((r) => { text(msg, r.ok ? '' : r.error === 'no_room'", ".then((r) => { text(msg, r.ok ? 'Moving it…' : r.error === 'no_room'"],
   ['a slot short of its rune says nothing', 'src/shell/action-facts.js', '    if (r.rune && !((bag', '    if (false && r.rune && !((bag'],
   ['a press on the panel sends on pointerdown', 'src/shell/widgets/action-bar.js', "    if (ev.type !== (t.tagName === 'SELECT' ? 'change' : 'click')) return;", "    if ((t.tagName === 'SELECT') !== (ev.type === 'change')) return;"],
   ['the bleed badge defaults on for regular monsters', 'src/data/combat-text.js', "label: 'Bleed stack count', on: on(false, true)", "label: 'Bleed stack count', on: on(true, true)"],

@@ -274,13 +274,13 @@ const MUTATIONS = [
     apply: (s) => ({ sql: s.sql.replace("('road_harvest', '{\"potato_seed\": 10}')", "('road_harvest', '{\"potato_seed\": 1}')") }) },
   { name: 'road: catalogue iron_pickaxe qty drift against both other sides',
     apply: (s, cat) => ({ QUEST_REWARDS: { ...cat, road_forge: { ...cat.road_forge, items: { iron_pickaxe: 2 } } } }) },
-  /* ── the XP half (2026-10-10-quest-xp-absence-pay.sql) */
+  /* ── the XP half (2026-10-10-quest-xp-absence-pay.sql; Defense since 2026-10-27-core-schema.sql) */
   { name: 'xp: chain-end seed amount drift (hundred_kills 1500 -> 15000)',
-    apply: (s) => ({ xpSql: s.xpSql.replace("('hundred_kills', '{\"hitpoints\": 1500}')", "('hundred_kills', '{\"hitpoints\": 15000}')") }) },
+    apply: (s) => ({ xpSql: s.xpSql.replace("('hundred_kills', '{\"defense\": 1500}')", "('hundred_kills', '{\"defense\": 15000}')") }) },
   { name: 'xp: chain-end seed row removed (hr_claim_quest pays hundred_kills nothing)',
-    apply: (s) => ({ xpSql: s.xpSql.replace("('hundred_kills', '{\"hitpoints\": 1500}')", "('nobody', '{}')") }) },
+    apply: (s) => ({ xpSql: s.xpSql.replace("('hundred_kills', '{\"defense\": 1500}')", "('nobody', '{}')") }) },
   { name: 'xp: chain-end seed names a skill that does not exist',
-    apply: (s) => ({ xpSql: s.xpSql.replace("('hundred_kills', '{\"hitpoints\": 1500}')", "('hundred_kills', '{\"combat\": 1500}')") }) },
+    apply: (s) => ({ xpSql: s.xpSql.replace("('hundred_kills', '{\"defense\": 1500}')", "('hundred_kills', '{\"combat\": 1500}')") }) },
   { name: 'xp: catalogue XP emptied (the client stops claiming hundred_kills)',
     apply: (s, cat) => ({ QUEST_REWARDS: { ...cat, hundred_kills: { ...cat.hundred_kills, xp: {} } } }) },
   { name: 'road: chain-end seed row removed (road_cook pays gold only)',

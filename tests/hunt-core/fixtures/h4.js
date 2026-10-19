@@ -64,6 +64,7 @@ export async function suiteH4(name, cases, mutants) {
     R.ok(!why, cn + ': ' + why);
   }
   for (const mu of mutants || []) {
+    if (!cases[mu.case]) { R.ok(false, 'mutant "' + mu.name + '" names no case ' + mu.case); continue; }
     const p = plant(mu.edits);
     try {
       let why = null;

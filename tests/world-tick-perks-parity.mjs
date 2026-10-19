@@ -84,9 +84,9 @@ const holder = (await one("select left('cron:' || coalesce(current_database(), '
 await db.exec("update public.hr_tick_config set channels = array['combat','gather']::text[],"
   + ' enabled = true, armed_channels = array[]::text[] where id;');
 await db.exec(`insert into auth.users (id) values ('${U}') on conflict do nothing;`);
-await db.exec(`insert into public.player_state (user_id, slot, gold, hp, max_hp, version,
+await db.exec(`insert into public.player_state (user_id, slot, gold, hp, version,
                  accrued_to, active_kind, active_id, active_since)
-               values ('${U}', 0, 0, 10, 10, 1, now() - interval '100 seconds',
+               values ('${U}', 0, 0, 10, 1, now() - interval '100 seconds',
                  'gather', '${NODE}', now() - interval '2 hours')`);
 await db.exec(`insert into public.player_skills (user_id, slot, skill_id, xp)
                values ('${U}', 0, 'woodcutting', 302288)`);

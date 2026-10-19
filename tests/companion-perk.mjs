@@ -57,7 +57,7 @@ function pickEquipment() {
   return eqp;
 }
 const EQUIPMENT = pickEquipment();
-const SKILLS = { attack: 30000, strength: 28000, defense: 22000, hitpoints: 26000, ranged: 1000, magic: 1000, prayer: 500 };
+const SKILLS = { melee: 30000, defense: 22000, ranged: 1000, magic: 1000, prayer: 500 };
 const MONSTER = Object.keys(MONSTERS).includes('goblin') ? 'goblin' : Object.keys(MONSTERS)[0];
 const FROM_MS = Date.UTC(2026, 2, 14, 20, 0, 0);
 const NOW_MS = FROM_MS + 12 * 3600000;
@@ -67,7 +67,9 @@ function run(perks, away = true) {
     userId: '00000000-0000-4000-8000-0000000000c0', slot: 0,
     nowMs: NOW_MS, accruedToMs: FROM_MS, activeSinceMs: FROM_MS,
     activeKind: 'combat', activeId: MONSTER, capMs: 12 * 3600000,
-    seed: 0x5eed1234, hp: 99, maxHp: 99, gold: 1000,
+    /* xpFrac: the server owns the remainder column (2026-10-09), so a +1% on a 1.5-per-HP blow is CARRIED;
+       without the map the pre-column per-grant floor would eat it (4.5 x 1.01 -> 4). */
+    seed: 0x5eed1234, hp: 99, gold: 1000, xpFrac: {},
     skills: SKILLS, equipment: EQUIPMENT, items: ITEMS, monsters: MONSTERS,
     perks, away,
   });

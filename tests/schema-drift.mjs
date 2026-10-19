@@ -923,6 +923,14 @@ create temp table if not exists _bystanders_pre_wipe (intent text);
 insert into _bystanders_pre_wipe
   select intent from public.player_ledger where user_id = '${BYSTANDER_UID}';
 `;
+/* ...and "gone after it" is read IMMEDIATELY after the wipe file (seeded before the next file), not at the chain
+   end: the core rebuild's own wipe (2026-10-27-core-wipe.sql) truncates the ledger again later, and a chain-end
+   read let it mask a 10-21 wipe that kept the ledger (schema-drift --mutate wipe_keeps_ledger SLIPPED). */
+const BYSTANDERS_POST_WIPE = `
+create temp table if not exists _bystanders_post_wipe (n int);
+insert into _bystanders_post_wipe
+  select count(*)::int from public.player_ledger where user_id = '${BYSTANDER_UID}';
+`;
 
 /**
  * Both bystander rows must still be there when the chain ends (or, on a chain
@@ -938,8 +946,11 @@ async function assertBystanders(db) {
           : 'select intent from public.player_ledger where user_id = $1 order by intent',
     wiped ? [] : [BYSTANDER_UID]);
   if (wiped) {
-    const left = (await db.query('select count(*)::int as n from public.player_ledger where user_id = $1',
-      [BYSTANDER_UID])).rows[0].n;
+    const post = (await db.query(`select to_regclass('pg_temp._bystanders_post_wipe') is not null as t`)).rows[0].t;
+    const left = post
+      ? (await db.query('select coalesce(max(n), 0)::int as n from _bystanders_post_wipe')).rows[0].n
+      : (await db.query('select count(*)::int as n from public.player_ledger where user_id = $1',
+        [BYSTANDER_UID])).rows[0].n;
     if (left !== 0) {
       const e = new Error(`THE DECLARED WIPE (${WIPE_FILE}) LEFT ${left} LEDGER ROW(S) BEHIND.\n`
         + '  It truncates player_ledger by ruling; a ledger row that survives it is a money journal\n'
@@ -968,7 +979,12 @@ async function fingerprint(patches, extraSeeds) {
   // its own, and two seeds on the SAME file concatenate rather than one
   // silently replacing the other.
   const seedBefore = new Map([[BYSTANDER_AT, BYSTANDERS]]);
-  if ((await chainFiles()).some(([n]) => n === WIPE_FILE)) seedBefore.set(WIPE_FILE, BYSTANDERS_PRE_WIPE);
+  const chain = (await chainFiles()).map(([n]) => n);
+  const wi = chain.indexOf(WIPE_FILE);
+  if (wi >= 0) {
+    seedBefore.set(WIPE_FILE, BYSTANDERS_PRE_WIPE);
+    if (wi + 1 < chain.length) seedBefore.set(chain[wi + 1], BYSTANDERS_POST_WIPE);
+  }
   for (const [file, sql] of extraSeeds || []) {
     seedBefore.set(file, (seedBefore.get(file) || '') + sql);
   }

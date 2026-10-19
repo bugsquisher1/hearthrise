@@ -83,8 +83,8 @@ async function arms(db, { log = true } = {}) {
   const char = async ({ owned = false } = {}) => {
     const u = uid();
     await q('insert into auth.users (id) values ($1) on conflict do nothing', [u]);
-    await q(`insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to, active_kind, active_id, active_since)
-             values ($1, 0, 0, 10, 10, 1, now() - interval '10 seconds', 'gather', $2, '2000-01-01 00:00:00+00')`, [u, gact]);
+    await q(`insert into public.player_state (user_id, slot, gold, hp, version, accrued_to, active_kind, active_id, active_since)
+             values ($1, 0, 0, 10, 1, now() - interval '10 seconds', 'gather', $2, '2000-01-01 00:00:00+00')`, [u, gact]);
     if (owned) {
       await q(`insert into public.hr_tick_ownership (user_id, slot, channel, owned, lease_holder, lease_until)
                values ($1, 0, 'gather', true, $2, now() + interval '5 minutes')`, [u, HOLDER]);
@@ -277,8 +277,8 @@ async function arms(db, { log = true } = {}) {
   // ── S7 same uid, two slots ──────────────────────────────────────────────
   {
     const U = await char();
-    await q(`insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to, active_kind, active_id, active_since)
-             values ($1, 1, 0, 10, 10, 1, now() - interval '10 seconds', 'gather', $2, '2000-01-01 00:00:00+00')`, [U, gact]);
+    await q(`insert into public.player_state (user_id, slot, gold, hp, version, accrued_to, active_kind, active_id, active_since)
+             values ($1, 1, 0, 10, 1, now() - interval '10 seconds', 'gather', $2, '2000-01-01 00:00:00+00')`, [U, gact]);
     await tickWrite("update public.hr_return_anchor set real_return_at = now() - interval '1 hour' where user_id = $1 and slot in (0, 1)", [U]);
     await tickWrite("update public.player_state set last_seen_at = now() - interval '1 hour' where user_id = $1 and slot = 0", [U]);
     const s1Before = ms((await one('select real_return_at from public.hr_return_anchor where user_id = $1 and slot = 1', [U])).real_return_at);

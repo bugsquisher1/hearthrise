@@ -21,22 +21,22 @@
 // Shown in town too (Tyler 10-18: set it up before leaving). Every value is
 // the server's; the bar changes only when the re-read envelope says so.
 // ════════════════════════════════════════════════════════════════════════
-import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.6';
-import { CONSUME_KINDS, ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.6';
-import { huntOf, settingsOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.6';
-import { bagOf } from '../../session/item-sections.js?v=0.2.6';
-import { text, cls, attr } from '../../render/paint.js?v=0.2.6';
-import { whole } from '../../render/format.js?v=0.2.6';
-import { glyphSvg } from '../launcher.js?v=0.2.6';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.6';
-import { actionIconHtml } from './bits.js?v=0.2.6';
-import { hubHtml, patchHub } from './vitals-hub.js?v=0.2.6';
-import { openSlot, sendPlan, movePlan, swapPlan, insertPlan, serverBar } from '../bar-draft.js?v=0.2.6';
-import { actionName, factsOf, carried, supplyLines, setupWords, conflictsOf, reasonOf, sharedCooldownOf } from '../action-facts.js?v=0.2.6';
-import { resetConfigureView } from '../windows/configure-action.js?v=0.2.6';
-import { assignToBar, barKind } from '../bar-assign.js?v=0.2.6';
-import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.6';
-import { refusalWords } from '../intent-words.js?v=0.2.6';
+import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.8';
+import { CONSUME_KINDS, ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.8';
+import { huntOf, settingsOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.8';
+import { bagOf } from '../../session/item-sections.js?v=0.2.8';
+import { text, cls, attr } from '../../render/paint.js?v=0.2.8';
+import { whole } from '../../render/format.js?v=0.2.8';
+import { glyphSvg } from '../launcher.js?v=0.2.8';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.8';
+import { actionIconHtml } from './bits.js?v=0.2.8';
+import { hubHtml, patchHub } from './vitals-hub.js?v=0.2.8';
+import { openSlot, sendPlan, movePlan, swapPlan, insertPlan, serverBar } from '../bar-draft.js?v=0.2.8';
+import { actionName, factsOf, carried, supplyLines, setupWords, conflictsOf, reasonOf, sharedCooldownOf } from '../action-facts.js?v=0.2.8';
+import { resetConfigureView } from '../windows/configure-action.js?v=0.2.8';
+import { assignToBar, barKind } from '../bar-assign.js?v=0.2.8';
+import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.8';
+import { refusalWords } from '../intent-words.js?v=0.2.8';
 
 const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const SLOT_DRAG = 'application/x-hr-bar-slot';

@@ -17,7 +17,7 @@
 
 import { computeAccrual, CALLER_AUTHORITY } from './accrual.js';
 import { hashSeed } from '../../../src/core/rng.js';
-import { planWindows, countersFromProgress, raiseMaxHpToLevel } from './tick-contract.js';
+import { planWindows, countersFromProgress } from './tick-contract.js';
 import { engineStateOf } from './envelope.js';
 
 /* ── THE SEED, PER WINDOW, FROM THE WATERMARK ───────────────────────────────
@@ -94,10 +94,6 @@ export function advance(char, res) {
     char.xpFrac = Object.assign({}, char.xpFrac, d.xp_frac);
     ch.xpFrac = Object.assign(ch.xpFrac || {}, d.xp_frac);
   }
-  /* A Hitpoints level-up raises the ceiling the next window fights at, as the
-     max_hp trigger does on the armed write (tick-contract.js raiseMaxHpToLevel).
-     Raise-only; `hp` is the delta's, assigned below — never a heal. */
-  if (d.xp && 'hitpoints' in d.xp) raiseMaxHpToLevel(char);
   for (const k of Object.keys(d.items || {})) {
     const q = (char.inventory[k] || 0) + Number(d.items[k] || 0);
     if (q > 0) char.inventory[k] = q; else delete char.inventory[k];
@@ -107,9 +103,6 @@ export function advance(char, res) {
   if (typeof d.fight !== 'undefined') char.fight = d.fight;
   if (typeof d.ammo_carry !== 'undefined') char.ammoCarry = d.ammo_carry;
   if (typeof d.tool_carry !== 'undefined') char.toolCarry = d.tool_carry;
-  if (typeof d.recovering_until !== 'undefined') {
-    char.recoveringUntilMs = d.recovering_until ? Date.parse(d.recovering_until) : 0;
-  }
   if (d.activity && d.activity.kind) {
     char.activeKind = d.activity.kind; char.activeId = d.activity.id;
     ch.activity = { kind: d.activity.kind, id: d.activity.id ?? null };

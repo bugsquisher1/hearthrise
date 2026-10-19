@@ -40,6 +40,7 @@ const STEPS = [
   ['node', ['tests/session-core.mjs', '--mutate']],
   ['node', ['tests/hunt-view-core.mjs']],
   ['node', ['tests/hunt-scene.mjs']],
+  ['node', ['tests/hunt-scene-live.mjs', '--node']],
   ['node', ['tests/client-intent-surface.mjs']],
   // The envelope contract (2026-10-18): every section the client reads, from the REAL
   // projections on PGlite through the real readers. ~1 min (one replay).
@@ -104,6 +105,9 @@ const STEPS = [
   // A new guard's mutant replay must declare its scope (upTo / fullChain) where
   // the guard is written, not after a newer migration blinds it in CI.
   ['node', ['tests/replay-scope-guard.mjs']],
+  // run-smoke's data preflights (art, catalogues, the unlock/offer generators' --check, derived bodies): seconds.
+  // GitHub's smoke job runs them first; a generated file left stale by a data edit must be red HERE (2026-10-19).
+  ['node', ['tests/run-smoke.mjs', '--preflights']],
 ];
 const argv = process.argv.slice(2);
 const FAIL_FAST = argv.includes('--fail-fast');

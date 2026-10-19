@@ -26,7 +26,7 @@ const cases = {
   },
   /* CO-05 / CO-01: half at once, the other half over 6 s in 1 s ticks, exactly the amount. */
   'half-now-half-over-6s': (M) => {
-    const { h, inst, sc } = oneHero(M, { hp: 40 }, { hs: supplySession(M, { bag: { cooked_trout: { loaded: 1 } } }) });
+    const { h, inst, sc } = oneHero(M, { hp: 40, maxHp: 210 }, { hs: supplySession(M, { bag: { cooked_trout: { loaded: 1 } } }) });
     const heals = M.ITEMS.cooked_trout.heals;
     const now = Math.floor(heals / 2);
     M.consumables.consume(inst, sc);
@@ -35,7 +35,7 @@ const cases = {
     if (h.hp !== 40 + heals) return 'after 6 s the trout restored ' + (h.hp - 40) + ' of ' + heals;
     if (h.otHp !== null) return 'the over-time half is still ticking after 6 s';
     /* At 5.9 s one tick is still to come. */
-    const b = oneHero(M, { hp: 40 }, { hs: supplySession(M, { bag: { cooked_trout: { loaded: 1 } } }) });
+    const b = oneHero(M, { hp: 40, maxHp: 210 }, { hs: supplySession(M, { bag: { cooked_trout: { loaded: 1 } } }) });
     M.consumables.consume(b.inst, b.sc);
     steps(b.inst, b.sc, consume(M), 59, 100);
     return b.h.hp < 40 + heals ? null : 'the whole trout landed before 6 s';
@@ -142,7 +142,7 @@ const cases = {
   /* Persisted: an over-time half survives a settle cut (encode/decode between sub-steps). */
   'over-time-survives-a-cut': (M) => {
     const run = (cut) => {
-      const x = oneHero(M, { hp: 40, mana: 10 }, { hs: supplySession(M, { bag: { cooked_trout: { loaded: 2 } } }) });
+      const x = oneHero(M, { hp: 40, maxHp: 1000, mana: 10 }, { hs: supplySession(M, { bag: { cooked_trout: { loaded: 2 } } }) });
       let w = x.w;
       for (let t = 0; t < 8000; t += 100) {
         if (cut && t % 700 === 0) { w = M.worldstate.decode(JSON.parse(JSON.stringify(M.worldstate.encode(w)))); x.inst.world = w; }

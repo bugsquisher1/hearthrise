@@ -97,8 +97,8 @@ async function arms(db, { log = true, edge = EDGE } = {}) {
   const char = async (markMs = R0) => {
     const u = uid();
     await q('insert into auth.users (id) values ($1) on conflict do nothing', [u]);
-    await q(`insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to, active_kind, active_id, active_since)
-             values ($1, 0, 0, 10, 10, 1, $2, 'gather', $3, '2000-01-01 00:00:00+00')`, [u, iso(markMs), gact]);
+    await q(`insert into public.player_state (user_id, slot, gold, hp, version, accrued_to, active_kind, active_id, active_since)
+             values ($1, 0, 0, 10, 1, $2, 'gather', $3, '2000-01-01 00:00:00+00')`, [u, iso(markMs), gact]);
     await q(`insert into public.hr_tick_ownership (user_id, slot, channel, owned, lease_holder, lease_until)
              values ($1, 0, 'gather', true, $2, now() + interval '5 minutes')`, [u, HOLDER]);
     return u;

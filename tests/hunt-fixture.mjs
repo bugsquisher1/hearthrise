@@ -27,7 +27,7 @@
 //                             ctx.toMs); answers the member's summary
 //                             { ticks, kills, deaths, deathLog, … }.
 //
-// opts: { seed, food, foodQty, bag, fallsLimit, hoursLimit, respawnMs, count, engine,
+// opts: { seed, food, foodQty, bag, hoursLimit, respawnMs, count, engine,
 //         onEmpty, stamina }
 //   food/foodQty   loaded into the session bag (own stock; a hero eats under
 //                  its food threshold)
@@ -41,11 +41,11 @@
 import { newHuntSession } from '../src/core/action-rules.js';
 import { simulateHuntInstance } from '../src/core/combat-sim.js';
 import { heroSetup } from '../src/core/hunt-spawn.js';
+import { roleWeaponOf } from '../src/data/hunt-roles.js';
 import { makeGrid } from '../src/core/hunt/grid.js';
 
-import { COMBAT_BALANCE, prayerWardPct } from '../src/core/combat.js';
-import { COMBAT_STYLES } from '../src/core/styles.js';
-import { SESSION_LIMITS } from '../src/data/hunt-sessions.js';
+import { COMBAT_BALANCE } from '../src/core/combat.js';
+import { vitalsOf } from '../src/core/vitals.js';
 import { HUNT_INDEX } from '../src/data/hunts.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { seederFor } from '../supabase/functions/hr-accrue/hunt-seed.js';
@@ -92,7 +92,6 @@ export function huntSessionFor(opts) {
   return newHuntSession({
     id: o.id || 'fixture-hunt', instanceId: FIXTURE_INSTANCE,
     huntFromMs: fromMs, nextSwingAtMs: fromMs, bag: bagOf(o),
-    fallsLimit: o.fallsLimit ?? SESSION_LIMITS.falls.max,
     hoursLimit: o.hoursLimit ?? null,
     onEmpty: o.onEmpty || 'end',
     staminaMs: o.stamina ?? null,
@@ -101,9 +100,9 @@ export function huntSessionFor(opts) {
 
 /**
  * A pointer-era combat input settled as ONE instance window.
- * inp: { activeKind, activeId, nowMs, accruedToMs, seed, skills, xpFrac, hp,
- *        maxHp, gold, equipment, inventory, combatStyle, perks, items, monsters,
- *        hearthfindReady, recoveringUntilMs, … } (computeAccrual's names).
+ * inp: { activeKind, activeId, nowMs, accruedToMs, seed, skills, levelXp, xpFrac, hp,
+ *        gold, equipment, inventory, perks, items, monsters, hearthfindReady, … }
+ *        (computeAccrual's names; max HP and mana are derived from Level and armour).
  */
 export function huntAccrual(inp, opts) {
   const o = opts || {};
@@ -114,18 +113,21 @@ export function huntAccrual(inp, opts) {
   const toMs = Math.floor(Number(inp.nowMs) || 0);
   const monsters = inp.monsters || MONSTERS;
   const ids = monstersOf(inp.activeId, monsters);
-  const weaponType = (((inp.items || {})[(inp.equipment || {}).weapon] || {}).weaponType) || 'sword';
+  /* The ROLE key, as hunt-settle.js memberInput reads it (hunt-roles.js roleWeaponOf: a magic weapon by its
+     discipline, wand = Mage, staff = Healer); no weapon fights as the sword fixture, as before. */
+  const worn = (inp.items || {})[(inp.equipment || {}).weapon];
+  const weaponType = worn ? roleWeaponOf(worn) : 'sword';
   const hero = heroSetup({ weaponType, options: o.options || {}, bar: o.bar || [], partyRoles: [] })
     || heroSetup({ weaponType: 'sword', options: {}, bar: [], partyRoles: [] });
   const member = {
     key: 'fixture', user: inp.userId || 'fixture', slot: inp.slot || 0, seat: 0, unitId: null,
     sessionId: 'fixture-hunt', version: 1, huntId: String(inp.activeId || ''),
     huntSession: { id: 'fixture-hunt', instanceId: FIXTURE_INSTANCE, huntFromMs: fromMs, nextSwingAtMs: fromMs, swingIndex: 0,
-      bag: bagOf(o), fallsLimit: o.fallsLimit ?? SESSION_LIMITS.falls.max, hoursLimit: o.hoursLimit ?? null,
+      bag: bagOf(o), hoursLimit: o.hoursLimit ?? null,
       onEmpty: o.onEmpty || 'end', staminaMs: o.stamina ?? null, staminaMaxMs: o.stamina ?? 0 },
-    skills: inp.skills || {}, xpFrac: inp.xpFrac ?? null, hp: inp.hp, maxHp: inp.maxHp, gold: inp.gold || 0,
-    equipment: inp.equipment || {}, combatStyle: inp.combatStyle || null, inventory: inp.inventory || {},
-    recoveringUntilMs: inp.recoveringUntilMs ?? 0, deathsTodayBefore: 0, deathsLifetimeBefore: 0,
+    skills: inp.skills || {}, levelXp: inp.levelXp ?? 0, xpFrac: inp.xpFrac ?? null, hp: inp.hp, gold: inp.gold || 0,
+    equipment: inp.equipment || {}, inventory: inp.inventory || {},
+    deathsTodayBefore: 0, deathsLifetimeBefore: 0,
     hearthfindReady: inp.hearthfindReady === true, perks: inp.perks || null, buffs: inp.buffs ?? null, hero,
   };
   const out = eng.accrueHunt({
@@ -143,8 +145,9 @@ export function onTrainingHunt(inp, opts) { return huntAccrual(inp, opts); }
 
 /**
  * The test's own fight as ONE member of an instance.
- * state: { activeMonster, playerHp, playerMaxHp, skills, stats, gold, … }
- * ctx:   { fromMs, toMs, tickMs?, monsters, style, bonus, weakness, fx,
+ * state: { activeMonster, playerHp, playerMaxHp?, skills, levelXp?, stats, gold, … }
+ *        (max HP / mana / regen default to vitals.js's for the state's Level, no armour)
+ * ctx:   { fromMs, toMs, tickMs?, monsters, family, bonus, weakness, fx,
  *          playerRolls(monster) → { accuracy, maxHit }, def?, hearthfind?, xpMultOf? }
  */
 export function huntSpan(state, ctx, opts) {
@@ -155,7 +158,11 @@ export function huntSpan(state, ctx, opts) {
   if (!row) throw new Error(`hunt-fixture: no monster '${id}'`);
   state.stats = state.stats || {};
   state.gold = state.gold || 0;
-  const style = typeof ctx.style === 'string' ? COMBAT_STYLES[ctx.style] : ctx.style;
+  const v = vitalsOf({ levelXp: state.levelXp || 0, skills: state.skills || {}, equipment: {}, items: {} });
+  if (!(state.playerMaxHp > 0)) state.playerMaxHp = v.maxHp;
+  if (!(state.playerMaxMana > 0)) state.playerMaxMana = v.maxMana;
+  if (!(state.regenPm > 0)) state.regenPm = v.regenPm;
+  if (state.levelXp === undefined) state.levelXp = 0;
   const fromMs = Math.floor(Number(ctx.fromMs) || 0) || 1;
   const hs = huntSessionFor({ ...o, fromMs });
   const rolls = (st) => {
@@ -166,14 +173,13 @@ export function huntSpan(state, ctx, opts) {
     const bonus = ctx.bonus || (() => 0);
     const def = ctx.def ?? Math.floor((Number(levelsOf(st.skills || {}).defense) || 1)
       + (Number((ctx.eq || {}).defB) || 0) + (Number(bonus('defense')) || 0));
-    return { acc: Math.round(r.accuracy * 1000), maxHit: Math.max(1, Math.floor(r.maxHit)), def,
-      ward: Math.floor(ctx.ward ?? prayerWardPct(st.skills || {})) };
+    return { acc: Math.round(r.accuracy * 1000), maxHit: Math.max(1, Math.floor(r.maxHit)), def };
   };
   const hero = heroSetup({ weaponType: o.weaponType || 'sword', options: o.options || {}, bar: o.bar || [], partyRoles: [] });
   const member = {
-    key: 'fixture', seat: 0, unitId: null, hs, state, fx: ctx.fx || {}, style,
+    key: 'fixture', seat: 0, unitId: null, hs, state, fx: ctx.fx || {}, family: ctx.family || o.weaponType || 'sword',
     bonus: ctx.bonus || (() => 0), weakness: ctx.weakness || (() => ({ dropMult: 1 })), snapshot: rolls,
-    hero: { role: hero.role, maxMana: hero.maxMana, element: hero.element || '', settings: hero.settings,
+    hero: { role: hero.role, element: hero.element || '', settings: hero.settings,
       slots: hero.slots, stopRules: hero.stopRules, density: hero.density, actionSet: hero.actionSet, range: hero.range, ammo: o.ammo || null,
       foodBelowPct: hero.foodBelowPct, drinkBelowPct: hero.drinkBelowPct },
   };

@@ -28,6 +28,7 @@ export async function loadCore(root) {
   M.AR = await imp('src/core/action-rules.js');
   M.rng = await imp('src/core/rng.js');
   M.tuning = await imp('src/data/hunt-tuning.js');
+  M.coreModel = await imp('src/data/core-model.js');
   M.grounds = await imp('src/data/hunt-grounds.js');
   M.MONSTERS = (await imp('src/data/monsters.js')).MONSTERS;
   M.ITEMS = (await imp('src/data/items.js')).ITEMS;
@@ -126,14 +127,16 @@ export function member(M, key, o) {
   const x = o || {};
   const hs = M.AR.newHuntSession({ id: 'h1-' + key, instanceId: 'h1-span', huntFromMs: x.fromMs ?? T0, nextSwingAtMs: x.fromMs ?? T0,
     bag: x.bag || { cooked_shrimp: { loaded: 40 } } });
-  const state = { skills: {}, playerHp: x.hp ?? 40, playerMaxHp: x.maxHp ?? 40, stats: {}, gold: 0, recoveringUntilMs: 0 };
+  const state = { skills: {}, levelXp: x.levelXp ?? 0, playerHp: x.hp ?? 40, playerMaxHp: x.maxHp ?? 40, playerMaxMana: 60,
+    regenPm: 1000, stats: {}, gold: 0 };
   return {
-    key, seat: x.seat || 0, unitId: x.unitId ?? null, hs, state, style: null,
+    key, seat: x.seat || 0, unitId: x.unitId ?? null, hs, state,
+    family: x.family || 'hammer', armoured: x.armoured === true, shield: x.shield === true,
     bonus: () => 0, weakness: () => ({ dropMult: 1 }),
     snapshot: () => ({ acc: x.acc ?? 900, maxHit: x.maxHit ?? 9, def: x.def ?? 1 }),
     fx: x.fx || {},
     /* THE BAR SHORTHAND (fixtures only): ability ids, each a slot with no conditions, through the engine's heroSlots. */
-    hero: { role: x.role || 'melee_dps', maxMana: 60, element: '', settings: null, slots: M.conditions.heroSlots(x.bar || [], null), actionSet: 'hunt', range: 1,
+    hero: { role: x.role || 'melee_dps', element: '', settings: null, slots: M.conditions.heroSlots(x.bar || [], null), actionSet: 'hunt', range: 1,
       ammo: null },
   };
 }
@@ -145,7 +148,7 @@ export function spanFixture(M, seed, o) {
   const x = o || {};
   const members = x.members || [member(M, 'a', { unitId: 1, seat: 0 }), member(M, 'b', { unitId: 2, seat: 1 })];
   const w = M.spawn.newHuntWorld(ground, grid, members.filter((m) => m.unitId !== null)
-    .map((m) => Object.assign({ role: m.hero.role, maxHp: m.state.playerMaxHp, maxMana: m.hero.maxMana }, m.snapshot(m.state))));
+    .map((m) => Object.assign({ role: m.hero.role, maxHp: m.state.playerMaxHp, maxMana: m.state.playerMaxMana }, m.snapshot(m.state))));
   const ctx = { tickMs: 2000, seed: (d, i) => M.rng.hashSeed('h1', seed, d, i), monsters: M.MONSTERS, ground, grid,
     ...(x.xpMultOf ? { xpMultOf: x.xpMultOf } : {}) };
   return { inst: { world: w, nextSwingAtMs: T0, members }, ctx, spanMs: x.spanMs || 60000 };
@@ -167,7 +170,7 @@ export function runSpan(M, fx, cuts) {
   fx.world = world;
   return JSON.stringify({ world: world ? M.worldstate.encode(world) : null, track, events, memberEvents, next,
     members: inst.members.map((m) => ({ hp: m.state.playerHp, kills: m.state.stats.kills || 0, gold: m.state.gold,
-      swing: m.hs.swingIndex, next: m.hs.nextSwingAtMs, tally: m.hs.tally, falls: m.hs.falls })) });
+      swing: m.hs.swingIndex, next: m.hs.nextSwingAtMs, tally: m.hs.tally, died: m.hs.died, ended: m.hs.endedReason })) });
 }
 
 /* ── REPORTING ── */
@@ -196,6 +199,7 @@ export async function suite(name, cases, mutants) {
     R.ok(!why, cn + ': ' + why);
   }
   for (const mu of mutants || []) {
+    if (!cases[mu.case]) { R.ok(false, 'mutant "' + mu.name + '" names no case ' + mu.case); continue; }
     const p = plant(mu.edits);
     try {
       let why = null;

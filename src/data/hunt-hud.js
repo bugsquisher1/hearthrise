@@ -34,11 +34,11 @@ export const WEAPON_WORDS = Object.freeze({
   bow: 'Bow',
   crossbow: 'Crossbow',
   staff: 'Staff',
+  wand: 'Wand',
   sword: 'Sword',
   hammer: 'Hammer',
   neutral: 'Bare hands',
   ranged: 'Bow or crossbow',
-  magic: 'Wand or staff',
 });
 
 export const BAR_SLOTS = Object.freeze({ rows: 2, cols: 10 });

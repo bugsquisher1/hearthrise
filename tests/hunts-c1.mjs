@@ -155,8 +155,10 @@ async function chainArm() {
     await q('select * from public.hr_hunts order by 1'), await q('select * from public.hr_hunt_spawns order by 1, 2')]);
   const before = await snap();
   /* the CURRENT hunts catalogue (the earlier ones are applied history its forward file supersedes),
-     then the gate, the rally pricing and the gate's chain-end restatement (the floor is a warning) */
-  for (const f of [HUNTS_NOW, '2026-10-20-hunts-start-gate.sql', '2026-10-20-hunts-rally-kills.sql', '2026-10-25-hunt-floor-warning.sql']) {
+     then the gate, the rally pricing and the gate's chain-end restatements (the floor is a warning; the core
+     rebuild reads the gate's skill levels on each skill's own curve, 2026-10-27-core-bodies.sql) */
+  for (const f of [HUNTS_NOW, '2026-10-20-hunts-start-gate.sql', '2026-10-20-hunts-rally-kills.sql', '2026-10-25-hunt-floor-warning.sql',
+    '2026-10-27-core-bodies.sql']) {
     try { await db.exec(readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8')); } catch (e) {
       red.push(`C1: a second apply of ${f} raised: ${String(e.message).split(String.fromCharCode(10))[0]}`);
     }

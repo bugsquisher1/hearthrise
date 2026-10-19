@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-19",
- "replay_ms": 21608,
+ "replay_ms": 25101,
  "counts": {
-  "tracked_names": 131,
-  "entries": 109
+  "tracked_names": 135,
+  "entries": 107
  },
  "functions": [
   {
@@ -215,17 +215,18 @@
     "2026-10-19-account-wallet.sql",
     "2026-10-20-hunts-start-gate.sql",
     "2026-10-22-hunt-sessions-delete-away.sql",
-    "2026-10-25-settle-hooks.sql"
+    "2026-10-25-settle-hooks.sql",
+    "2026-10-27-core-bodies.sql"
    ],
    "live": {
-    "md5": "e73ce3e87ab7d84fac474e85be3bcfc8",
-    "norm_len": 134904,
+    "md5": "5c03b90a19e93087466c0e4750af3756",
+    "norm_len": 131713,
     "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "e73ce3e87ab7d84fac474e85be3bcfc8",
-    "norm_len": 134904,
+    "md5": "5c03b90a19e93087466c0e4750af3756",
+    "norm_len": 131713,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -676,66 +677,18 @@
     "2026-09-08-hero-slot-buy.sql",
     "2026-10-19-account-wallet.sql",
     "2026-10-22-closed-mode-ungated-rpcs.sql",
-    "2026-10-22-hunt-sessions-delete-away.sql"
+    "2026-10-22-hunt-sessions-delete-away.sql",
+    "2026-10-27-core-bodies.sql"
    ],
    "live": {
-    "md5": "16edeb155d99c38949da8d5b74aed56b",
-    "norm_len": 8851,
+    "md5": "d0d297a42f1497bfcffb12d4b8217732",
+    "norm_len": 8808,
     "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "16edeb155d99c38949da8d5b74aed56b",
-    "norm_len": 8851,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_credit_combat_xp(p_slot integer, p_xp jsonb, p_idem text)",
-   "name": "hr_credit_combat_xp",
-   "tracked_by": [
-    "pin"
-   ],
-   "touched_by": [
-    "2026-08-31-combat-xp-credit.sql",
-    "2026-10-22-hunt-sessions-settle.sql"
-   ],
-   "live": {
-    "md5": "3f8f7916df64860d0f8bcca734434fe3",
-    "norm_len": 769,
-    "measured": "2026-10-19",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "3f8f7916df64860d0f8bcca734434fe3",
-    "norm_len": 769,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_credit_combat_xp__ungated(p_slot integer, p_xp jsonb, p_idem text)",
-   "name": "hr_credit_combat_xp__ungated",
-   "tracked_by": [
-    "floor",
-    "pin"
-   ],
-   "touched_by": [
-    "2026-08-31-combat-xp-credit.sql",
-    "2026-09-06-cadence-recovery-floor.sql",
-    "2026-09-09-combat-xp-settle-first.sql",
-    "2026-09-17-attended-xp-on-settle.sql"
-   ],
-   "live": {
-    "md5": "40cd62d5540dd49407fb92e6a0419f3a",
-    "norm_len": 19432,
-    "measured": "2026-10-19",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "40cd62d5540dd49407fb92e6a0419f3a",
-    "norm_len": 19432,
+    "md5": "d0d297a42f1497bfcffb12d4b8217732",
+    "norm_len": 8808,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1108,21 +1061,23 @@
    "sig": "hr_hunt_apply_member(p_instance uuid, p_user uuid, p_slot integer, p_session uuid, p_intent uuid, p_delta jsonb, p_hunt jsonb, p_analyzer jsonb)",
    "name": "hr_hunt_apply_member",
    "tracked_by": [
+    "chain",
     "pin"
    ],
    "touched_by": [
     "2026-10-23-hunt-world-state.sql",
-    "2026-10-25-settle-hooks.sql"
+    "2026-10-25-settle-hooks.sql",
+    "2026-10-27-core-bodies.sql"
    ],
    "live": {
-    "md5": "c81f956bde7073fa0b1d0fb8718768ec",
-    "norm_len": 27620,
+    "md5": "4a92082cba40ca00cab1769ba53d0eb6",
+    "norm_len": 28861,
     "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "c81f956bde7073fa0b1d0fb8718768ec",
-    "norm_len": 27620,
+    "md5": "4a92082cba40ca00cab1769ba53d0eb6",
+    "norm_len": 28861,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1151,7 +1106,7 @@
    "agree": true
   },
   {
-   "sig": "hr_hunt_enter(p_slot integer, p_hunt text, p_bag jsonb, p_preset integer, p_falls integer, p_hours integer, p_idem uuid)",
+   "sig": "hr_hunt_enter(p_slot integer, p_hunt text, p_bag jsonb, p_preset integer, p_hours integer, p_idem uuid)",
    "name": "hr_hunt_enter",
    "tracked_by": [
     "chain",
@@ -1161,17 +1116,42 @@
     "2026-10-21-hunt-sessions.sql",
     "2026-10-22-hunt-sessions-settle.sql",
     "2026-10-23-hunt-party.sql",
-    "2026-10-25-party-invites.sql"
+    "2026-10-25-party-invites.sql",
+    "2026-10-27-core-bodies.sql"
    ],
    "live": {
-    "md5": "fc64a7c835332031ae8bcaf7ee2cb350",
-    "norm_len": 1563,
+    "md5": "fd966f5cc9abc1781d8c0a78225b0e93",
+    "norm_len": 1537,
     "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "fc64a7c835332031ae8bcaf7ee2cb350",
-    "norm_len": 1563,
+    "md5": "fd966f5cc9abc1781d8c0a78225b0e93",
+    "norm_len": 1537,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_gate(p_user uuid, p_slot integer, p_hunt text)",
+   "name": "hr_hunt_gate",
+   "tracked_by": [
+    "chain"
+   ],
+   "touched_by": [
+    "2026-10-20-hunts-start-gate.sql",
+    "2026-10-25-hunt-floor-warning.sql",
+    "2026-10-27-core-bodies.sql"
+   ],
+   "live": {
+    "md5": "670fb51a3f249e228a23f8543fe41b4f",
+    "norm_len": 1649,
+    "measured": "2026-10-19",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "670fb51a3f249e228a23f8543fe41b4f",
+    "norm_len": 1649,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1202,21 +1182,71 @@
    "sig": "hr_hunt_member_read(p_s hunt_sessions)",
    "name": "hr_hunt_member_read",
    "tracked_by": [
+    "chain",
     "pin"
    ],
    "touched_by": [
     "2026-10-23-hunt-world-state.sql",
-    "2026-10-25-settle-hooks.sql"
+    "2026-10-25-settle-hooks.sql",
+    "2026-10-27-core-bodies.sql"
    ],
    "live": {
-    "md5": "97ce94075239ba12ca9816f5598b89d3",
-    "norm_len": 3528,
+    "md5": "6c0e269a82dc08acbe3881e0abaeca04",
+    "norm_len": 3458,
     "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "97ce94075239ba12ca9816f5598b89d3",
-    "norm_len": 3528,
+    "md5": "6c0e269a82dc08acbe3881e0abaeca04",
+    "norm_len": 3458,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_new_session(p_user uuid, p_slot integer, p_hunt text, p_prev uuid, p_preset integer, p_hours integer)",
+   "name": "hr_hunt_new_session",
+   "tracked_by": [
+    "chain"
+   ],
+   "touched_by": [
+    "2026-10-21-hunt-sessions.sql",
+    "2026-10-23-hunt-party.sql",
+    "2026-10-27-core-bodies.sql"
+   ],
+   "live": {
+    "md5": "04f39e85382cccae7414cf481d365d30",
+    "norm_len": 460,
+    "measured": "2026-10-19",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "04f39e85382cccae7414cf481d365d30",
+    "norm_len": 460,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_open_session(p_user uuid, p_slot integer, p_hunt text, p_prev uuid, p_preset integer, p_hours integer, p_instance uuid, p_from timestamp with time zone, p_seat integer)",
+   "name": "hr_hunt_open_session",
+   "tracked_by": [
+    "chain"
+   ],
+   "touched_by": [
+    "2026-10-23-hunt-party.sql",
+    "2026-10-25-action-conditions.sql",
+    "2026-10-27-core-bodies.sql"
+   ],
+   "live": {
+    "md5": "a998b6d8cbe5baadfeef341957ef1e61",
+    "norm_len": 1714,
+    "measured": "2026-10-19",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "a998b6d8cbe5baadfeef341957ef1e61",
+    "norm_len": 1714,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1248,21 +1278,23 @@
    "sig": "hr_hunt_party_view(p_user uuid, p_slot integer)",
    "name": "hr_hunt_party_view",
    "tracked_by": [
+    "chain",
     "pin"
    ],
    "touched_by": [
     "2026-10-23-hunt-party.sql",
-    "2026-10-25-settle-hooks.sql"
+    "2026-10-25-settle-hooks.sql",
+    "2026-10-27-core-bodies.sql"
    ],
    "live": {
-    "md5": "0270941e3190cc551786d1eb3fd34a59",
-    "norm_len": 5755,
+    "md5": "510e5d2b0a924e7498cd85cf5e5f0492",
+    "norm_len": 5625,
     "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "0270941e3190cc551786d1eb3fd34a59",
-    "norm_len": 5755,
+    "md5": "510e5d2b0a924e7498cd85cf5e5f0492",
+    "norm_len": 5625,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1271,21 +1303,23 @@
    "sig": "hr_hunt_section_view(p_user uuid, p_slot integer)",
    "name": "hr_hunt_section_view",
    "tracked_by": [
+    "chain",
     "pin"
    ],
    "touched_by": [
     "2026-10-23-hunt-world-state.sql",
-    "2026-10-25-settle-hooks.sql"
+    "2026-10-25-settle-hooks.sql",
+    "2026-10-27-core-bodies.sql"
    ],
    "live": {
-    "md5": "2d1637aeef041dea16d16a469214a41c",
-    "norm_len": 4166,
+    "md5": "fdf68c2a36a55efff952efba9c9f522c",
+    "norm_len": 4246,
     "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "2d1637aeef041dea16d16a469214a41c",
-    "norm_len": 4166,
+    "md5": "fdf68c2a36a55efff952efba9c9f522c",
+    "norm_len": 4246,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1325,17 +1359,18 @@
     "2026-10-21-hunt-sessions.sql",
     "2026-10-22-hunt-sessions-settle.sql",
     "2026-10-23-hunt-supply-ledger.sql",
-    "2026-10-25-action-conditions.sql"
+    "2026-10-25-action-conditions.sql",
+    "2026-10-27-core-bodies.sql"
    ],
    "live": {
-    "md5": "6a6cdf090fd123307a7cfd31ef38fbb2",
-    "norm_len": 16940,
+    "md5": "b530136f1ad43b044985d45b5a586fed",
+    "norm_len": 17673,
     "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "6a6cdf090fd123307a7cfd31ef38fbb2",
-    "norm_len": 16940,
+    "md5": "b530136f1ad43b044985d45b5a586fed",
+    "norm_len": 17673,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1366,22 +1401,24 @@
    "sig": "hr_hunt_view(p_session uuid)",
    "name": "hr_hunt_view",
    "tracked_by": [
+    "chain",
     "pin"
    ],
    "touched_by": [
     "2026-10-21-hunt-sessions.sql",
     "2026-10-22-hunt-sessions-settle.sql",
-    "2026-10-23-hunt-world-state.sql"
+    "2026-10-23-hunt-world-state.sql",
+    "2026-10-27-core-bodies.sql"
    ],
    "live": {
-    "md5": "25ec8f70bfeb651073efddb86b6dffb7",
-    "norm_len": 1632,
+    "md5": "4a86aacf0117eae193a8f54596d2ca0d",
+    "norm_len": 1546,
     "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "25ec8f70bfeb651073efddb86b6dffb7",
-    "norm_len": 1632,
+    "md5": "4a86aacf0117eae193a8f54596d2ca0d",
+    "norm_len": 1546,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1426,6 +1463,30 @@
    "replay": {
     "md5": "712f2c22fe6492a4e233420f6f9d20f4",
     "norm_len": 332,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_lb_skills()",
+   "name": "hr_lb_skills",
+   "tracked_by": [
+    "chain"
+   ],
+   "touched_by": [
+    "2026-08-08-leaderboards.sql",
+    "2026-08-17-leaderboard-skills.sql",
+    "2026-10-27-core-bodies.sql"
+   ],
+   "live": {
+    "md5": "43a1270bf42c043616cbd570c188a8fb",
+    "norm_len": 292,
+    "measured": "2026-10-19",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "43a1270bf42c043616cbd570c188a8fb",
+    "norm_len": 292,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1619,30 +1680,6 @@
    "agree": true
   },
   {
-   "sig": "hr_party_hunt_start(p_slot integer, p_active_id text, p_stance text, p_stop jsonb, p_idem uuid)",
-   "name": "hr_party_hunt_start",
-   "tracked_by": [
-    "pin"
-   ],
-   "touched_by": [
-    "2026-09-24-m8-parties-s4-2-hunt-intents.sql",
-    "2026-10-09-party-hunt-start-gate.sql",
-    "2026-10-14-world-tick-m4-party-horizon.sql"
-   ],
-   "live": {
-    "md5": "c24f3873a5f11d1fc906e040817cae70",
-    "norm_len": 22542,
-    "measured": "2026-10-19",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "c24f3873a5f11d1fc906e040817cae70",
-    "norm_len": 22542,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
    "sig": "hr_party_mark(p_party uuid)",
    "name": "hr_party_mark",
    "tracked_by": [
@@ -1708,36 +1745,6 @@
    "replay": {
     "md5": "f901c0b558ba63cc691d6330188f818f",
     "norm_len": 533,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_party_tick_settle(p_holder text, p_party uuid, p_window_from timestamp with time zone, p_window_to timestamp with time zone, p_intent_id uuid, p_members jsonb)",
-   "name": "hr_party_tick_settle",
-   "tracked_by": [
-    "chain",
-    "pin"
-   ],
-   "touched_by": [
-    "2026-09-23-m8-parties-s2-2-roster-settle.sql",
-    "2026-10-06-world-tick-channel-arm.sql",
-    "2026-10-07-frame-emit-online-only.sql",
-    "2026-10-08-world-tick-party-drop.sql",
-    "2026-10-08-world-tick-party-fences.sql",
-    "2026-10-13-party-settle-frac-keys.sql",
-    "2026-10-14-world-tick-m4-party-horizon.sql",
-    "2026-10-22-hunt-sessions-delete-away.sql"
-   ],
-   "live": {
-    "md5": "1b09ff20d59a4d32bf5922b6685073ce",
-    "norm_len": 41901,
-    "measured": "2026-10-19",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "1b09ff20d59a4d32bf5922b6685073ce",
-    "norm_len": 41901,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1989,29 +1996,6 @@
    "agree": true
   },
   {
-   "sig": "hr_rest(p_slot integer, p_intent_id uuid)",
-   "name": "hr_rest",
-   "tracked_by": [
-    "pin"
-   ],
-   "touched_by": [
-    "2026-09-06-recovering-until.sql",
-    "2026-10-22-closed-mode-ungated-rpcs.sql"
-   ],
-   "live": {
-    "md5": "917af913c47a6856de12caf5b62448de",
-    "norm_len": 7957,
-    "measured": "2026-10-19",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "917af913c47a6856de12caf5b62448de",
-    "norm_len": 7957,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
    "sig": "hr_rpc_gate(p_bucket text)",
    "name": "hr_rpc_gate",
    "tracked_by": [
@@ -2085,29 +2069,6 @@
    "replay": {
     "md5": "ca900dc9a74f5123b0dedef66d47b80a",
     "norm_len": 6368,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_set_style__ungated(p_family text, p_key text, p_slot integer, p_idem uuid)",
-   "name": "hr_set_style__ungated",
-   "tracked_by": [
-    "pin"
-   ],
-   "touched_by": [
-    "2026-08-24-combat-style.sql",
-    "2026-09-03-intent-mismatch-class.sql"
-   ],
-   "live": {
-    "md5": "aaa43577cb9de2fadfa813705427c7b6",
-    "norm_len": 5357,
-    "measured": "2026-10-19",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "aaa43577cb9de2fadfa813705427c7b6",
-    "norm_len": 5357,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -2233,17 +2194,18 @@
     "2026-10-19-account-wallet.sql",
     "2026-10-22-hunt-sessions-delete-away.sql",
     "2026-10-22-hunt-sessions-settle.sql",
-    "2026-10-23-character-premium.sql"
+    "2026-10-23-character-premium.sql",
+    "2026-10-27-core-bodies.sql"
    ],
    "live": {
-    "md5": "ab5bd3423d1757c399fdab86ec1a4b19",
-    "norm_len": 30577,
+    "md5": "ae1a05ef17adeb179b74b40ee8d16222",
+    "norm_len": 29967,
     "measured": "2026-10-19",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "ab5bd3423d1757c399fdab86ec1a4b19",
-    "norm_len": 30577,
+    "md5": "ae1a05ef17adeb179b74b40ee8d16222",
+    "norm_len": 29967,
     "source": "computed-from-replay"
    },
    "agree": true

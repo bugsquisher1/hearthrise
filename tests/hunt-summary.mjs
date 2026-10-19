@@ -7,7 +7,7 @@
 //
 // mutant-anchors: src/hunt-view/death-explain.js src/hunt-view/summary-model.js src/session/hunt-summaries.js src/hunt-view/summary-recorder.js src/session/character-session.js src/session/residue.js
 //
-//   D1  a fall from a fixture event stream names the killing blows with their
+//   D1  a death from a fixture event stream names the killing blows with their
 //       amounts, the healing gap, the empty mana, and the heal rule that waited
 //   D2  an event id counts once (the same id twice is one hit, not two)
 //   D3  events outside the last 10 s are not blamed; with no rule events the
@@ -43,7 +43,7 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
 const NAMES = { 1: 'Knight', 2: 'Druid', 101: 'Rat King', 102: 'Slime' };
 const names = { name: (u) => NAMES[u] || 'Someone', isHero: (u) => u < 100 };
 
-/* The fixture: Knight (1) is hit by the Rat King (101) three times in the last 6 s, last healed 6 s before the fall;
+/* The fixture: Knight (1) is hit by the Rat King (101) three times in the last 6 s, last healed 6 s before the death;
    Druid (2) is nearly dry and its heal rule 'Knight below 50%' waited for mana. */
 const T = 100000;
 const STREAM = [
@@ -53,7 +53,7 @@ const STREAM = [
   { id: (T - 6500) + '.0', type: 'rule_wait', atMs: T - 6500, u: 2, t: 1, rule: 'heal_knight_50', rule_label: 'Knight below 50%', why: 'mana' },
   { id: (T - 5000) + '.0', type: 'dmg', atMs: T - 5000, u: 101, t: 1, amount: 38 },
   { id: (T - 2000) + '.0', type: 'dmg', atMs: T - 2000, u: 101, t: 1, amount: 51 },
-  { id: T + '.0', type: 'fall', atMs: T, u: 1, monster: 'rat_king', xpLost: 120 },
+  { id: T + '.0', type: 'death', atMs: T, u: 1, monster: 'rat_king', xpLost: { level: 120 } },
 ];
 const VITALS = (u) => ({ self: u === 1 ? { mana: 20, manaMax: 20 } : null, others: [{ name: 'Druid', mana: 4, manaMax: 60 }] });
 
@@ -62,7 +62,7 @@ function recorded(events, mod) {
   for (const e of events) rec.add(e, VITALS);
   return rec;
 }
-const whoOf = (u, fall) => ({ name: fall.an, vitals: (fall.vitals || {}).self || undefined, others: (fall.vitals || {}).others });
+const whoOf = (u, death) => ({ name: death.an, vitals: (death.vitals || {}).self || undefined, others: (death.vitals || {}).others });
 
 async function runTests(M) {
   const fails = [];
@@ -74,9 +74,9 @@ async function runTests(M) {
   await t('D1 the explanation names the killing blows, the gap, the empty mana and the waiting rule', () => {
     const rec = recorded(STREAM, MD);
     const out = EX.explainDeaths(rec.events(), { whoOf });
-    eq(out.kind, 'fall', 'one fall');
-    const f = out.falls[0];
-    ok(f.name === 'Knight', 'names the fallen hero: ' + f.name);
+    eq(out.kind, 'death', 'one death');
+    const f = out.deaths[0];
+    ok(f.name === 'Knight', 'names the dead hero: ' + f.name);
     ok(f.lines[0].includes('3 Rat King hits (42, 38, 51)'), 'the blows and amounts: ' + f.lines[0]);
     ok(f.lines[0].includes('no heal for 8 s'), 'the healing gap: ' + f.lines[0]);
     ok(f.lines[0].includes('Druid at 4 mana'), 'the empty mana: ' + f.lines[0]);
@@ -88,7 +88,7 @@ async function runTests(M) {
   await t('D2 an event id counts once', () => {
     const rec = recorded(STREAM.concat(STREAM.slice(2, 6)), MD);   // the next settle restates the window's tail
     eq(rec.events().length, STREAM.length, 'a restated event is not kept twice');
-    const f = EX.explainDeaths(rec.events(), { whoOf }).falls[0];
+    const f = EX.explainDeaths(rec.events(), { whoOf }).deaths[0];
     ok(f.lines[0].includes('3 Rat King hits (42, 38, 51)') && !f.lines[0].includes('6 Rat King'), 'three blows, not six: ' + f.lines[0]);
     eq(f.hits, 3, 'hit count');
     /* the timeline's own key form dedupes the same way */
@@ -98,18 +98,18 @@ async function runTests(M) {
 
   await t('D3 only the last 10 s is blamed, and no rule events means no rule clause', () => {
     const plain = STREAM.filter((e) => e.type !== 'rule_wait');
-    const f = EX.explainDeaths(recorded(plain, MD).events(), { whoOf }).falls[0];
+    const f = EX.explainDeaths(recorded(plain, MD).events(), { whoOf }).deaths[0];
     ok(!f.lines[0].includes('99'), 'the 15 s old blow is not blamed: ' + f.lines[0]);
     ok(!f.lines[0].includes('rule'), 'no rule clause without rule events: ' + f.lines[0]);
-    const bare = EX.explainDeaths(recorded([{ id: '1.0', type: 'fall', atMs: 1, u: 5 }], MD).events(), { whoOf }).falls[0];
-    ok(bare.lines[0].startsWith('Someone fell:'), 'a bare fall still reads: ' + bare.lines[0]);
+    const bare = EX.explainDeaths(recorded([{ id: '1.0', type: 'death', atMs: 1, u: 5 }], MD).events(), { whoOf }).deaths[0];
+    ok(bare.lines[0].startsWith('Someone died:'), 'a bare death still reads: ' + bare.lines[0]);
   });
 
   await t('D4 a wipe explains every hero that fell', () => {
     const evs = STREAM.concat([{ id: (T + 100) + '.0', type: 'dmg', atMs: T + 100, u: 101, t: 2, amount: 70 },
-      { id: (T + 200) + '.0', type: 'fall', atMs: T + 200, u: 2, monster: 'rat_king', xpLost: 5 }, { id: (T + 200) + '.1', type: 'wipe', atMs: T + 200 }]);
+      { id: (T + 200) + '.0', type: 'death', atMs: T + 200, u: 2, monster: 'rat_king', xpLost: { level: 5 } }, { id: (T + 200) + '.1', type: 'wipe', atMs: T + 200 }]);
     const out = EX.explainDeaths(recorded(evs, MD).events(), { whoOf });
-    eq([out.kind, out.falls.map((f) => f.name)], ['wipe', ['Knight', 'Druid']], 'both heroes, flagged a wipe');
+    eq([out.kind, out.deaths.map((f) => f.name)], ['wipe', ['Knight', 'Druid']], 'both heroes, flagged a wipe');
   });
 
   await t('S1 every END_ORDER reason has a plain sentence', () => {
@@ -118,8 +118,8 @@ async function runTests(M) {
     ok(MD.endWords('nonsense') === 'The hunt ended.', 'an unknown reason still reads');
   });
 
-  const entry = (i, over) => Object.assign({ id: 'sess-' + i, hunt: 'mill_cellar', at: 1000 + i, reason: 'left', ms: 60000, kills: i, xp: 10, gold: 5, falls: 0,
-    loot: [['rat_tail', 3]], supplies: [['wheat_bread', 'own', 2]], preset: 0, fallsLimit: 3, hoursLimit: null, bag: [['wheat_bread', 20, 0]], deaths: [] }, over);
+  const entry = (i, over) => Object.assign({ id: 'sess-' + i, hunt: 'mill_cellar', at: 1000 + i, reason: 'left', ms: 60000, kills: i, xp: 10, gold: 5, died: 0,
+    loot: [['rat_tail', 3]], supplies: [['wheat_bread', 'own', 2]], preset: 0, hoursLimit: null, bag: [['wheat_bread', 20, 0]], deaths: [] }, over);
 
   await t('S2 the stored history is bounded, typed and one entry per session', () => {
     const many = Array.from({ length: 30 }, (_, i) => entry(i));
@@ -140,14 +140,14 @@ async function runTests(M) {
     eq(out.huntSummaries.length, 8, 'bounded to 8');
   });
 
-  const ended = (over) => Object.assign({ id: 'sess-9', ended: true, hunt: 'mill_cellar', reason: 'falls', preset: 1, fallsLimit: 3, hoursLimit: 2, enteredMs: 1000, endedMs: 61000,
-    bag: [['wheat_bread', 20, 0], ['goldenroot_tea', 10, 1]], tally: { kills: 7, xp: 70, coins: 30, loot: { rat_tail: 4 }, supplies: { wheat_bread: 3 }, deaths: 3 }, deaths: 3 }, over || {});
+  const ended = (over) => Object.assign({ id: 'sess-9', ended: true, hunt: 'mill_cellar', reason: 'died', preset: 1, hoursLimit: 2, enteredMs: 1000, endedMs: 61000,
+    bag: [['wheat_bread', 20, 0], ['goldenroot_tea', 10, 1]], tally: { kills: 7, xp: 70, coins: 30, loot: { rat_tail: 4 }, supplies: { wheat_bread: 3 }, deaths: 1 }, died: 1 }, over || {});
 
   await t('S4 the summary reads the analyzer (own vs store) and, for a free character, the tally', () => {
     const an = { sessionMs: 120000, hero: { kills: 164, xp: 16311, gold: 2996, supplies: [{ item: 'wheat_bread', source: 'own', count: 12 }, { item: 'wheat_bread', source: 'store', count: 4 }],
       loot: [{ item: 'rat_tail', count: 5 }, { item: 'cheese', count: 9 }] } };
-    const s = MD.buildSummary(ended(), an, ['Knight fell.']);
-    eq([s.ms, s.kills, s.xp, s.gold, s.reason, s.falls], [120000, 164, 16311, 2996, 'falls', 3], 'the analyzer numbers');
+    const s = MD.buildSummary(ended(), an, ['Knight died.']);
+    eq([s.ms, s.kills, s.xp, s.gold, s.reason, s.died], [120000, 164, 16311, 2996, 'died', 1], 'the analyzer numbers');
     eq(s.supplies, [['wheat_bread', 'own', 12], ['wheat_bread', 'store', 4]], 'bag vs store');
     eq(s.loot[0], ['cheese', 9], 'top loot first');
     const free = MD.buildSummary(ended(), null, []);
@@ -156,7 +156,7 @@ async function runTests(M) {
 
   await t('S5 Hunt again is the ended hunt\'s own settings', () => {
     const s = MD.buildSummary(ended(), null, []);
-    eq(MD.huntAgainOf(s), { hunt: 'mill_cellar', preset: 1, falls: 3, hours: 2,
+    eq(MD.huntAgainOf(s), { hunt: 'mill_cellar', preset: 1, hours: 2,
       bag: [{ item: 'wheat_bread', qty: 20 }, { item: 'goldenroot_tea', qty: 10, essential: true }] }, 'same ground, set, limits, bag');
     eq(MD.huntAgainOf(Object.assign({}, s, { hunt: null })), null, 'no ground, no card button');
   });
@@ -165,7 +165,7 @@ async function runTests(M) {
   const endedEnv = (version) => {
     const e = clone(FIX);
     e.version = version;
-    e.hunt = { session: { id: 'sess-9', hunt: 'mill_cellar', preset: 1, falls_limit: 3, hours_limit: 2, entered_at: '2026-10-18T10:00:00Z', ended_at: '2026-10-18T10:01:00Z', end_reason: 'falls', phase: 'ended',
+    e.hunt = { session: { id: 'sess-9', hunt: 'mill_cellar', preset: 1, hours_limit: 2, entered_at: '2026-10-18T10:00:00Z', ended_at: '2026-10-18T10:01:00Z', end_reason: 'died', phase: 'ended',
       bag: [{ item: 'wheat_bread', loaded: 20, left: 4, essential: false }], tally: { kills: 7, xp: 70, coins: 30, loot: { rat_tail: 4 }, supplies: { wheat_bread: 3 }, deaths: 1 } }, pose: null };
     delete e.hunt_analyzer;
     delete e.hunt_events;
@@ -184,7 +184,7 @@ async function runTests(M) {
     ok(r.ok, 'the intent was accepted');
     const enters = calls.filter((c) => c.name === 'hr_hunt_enter');
     eq(enters.length, 1, 'exactly one enter');
-    eq(enters[0].args, { p_slot: 0, p_hunt: 'mill_cellar', p_bag: args.bag, p_preset: 1, p_falls: 3, p_hours: 2, p_idem: enters[0].args.p_idem }, 'the same ground, set, limits and bag');
+    eq(enters[0].args, { p_slot: 0, p_hunt: 'mill_cellar', p_bag: args.bag, p_preset: 1, p_hours: 2, p_idem: enters[0].args.p_idem }, 'the same ground, set, limits and bag');
     const before = calls.length;
     const bad = await cs.huntAgain({ hunt: 'Bad Id', preset: 0, bag: [] });
     ok(!bad.ok && calls.length === before, 'a call missing its ground sends nothing');
@@ -204,7 +204,7 @@ async function runTests(M) {
     cs.timeline.advance(1e9);
     ok(await cs.load(), 'the ended envelope applied');
     eq(store.length, 1, 'one residue write for the ended session');
-    ok(store[0][1][0].id === 'sess-9' && store[0][1][0].reason === 'falls', 'the card is for the ended session');
+    ok(store[0][1][0].id === 'sess-9' && store[0][1][0].reason === 'died', 'the card is for the ended session');
     ok(store[0][1][0].deaths.some((d) => d.includes('3 ') && d.includes('hits')), 'the card carries the explanation: ' + JSON.stringify(store[0][1][0].deaths));
     v = 9;
     await cs.load();
@@ -238,11 +238,11 @@ const MUTANTS = [
   { test: 'S3', file: RESIDUE, from: "  huntSummaries: sanitizeSummaries,", to: "  huntSummaries: (v) => v," },
   { test: 'S4', file: MODEL, from: ".map((x) => [x.item, x.source, x.count])", to: ".map((x) => [x.item, 'own', x.count])" },
   { test: 'S4', file: MODEL, from: "loot.sort((a, b) => b[1] - a[1]);", to: '' },
-  { test: 'S5', file: MODEL, from: "hunt: summary.hunt, preset: summary.preset, falls: summary.fallsLimit, hours: summary.hoursLimit,", to: "hunt: summary.hunt, preset: 0, falls: summary.fallsLimit, hours: summary.hoursLimit," },
+  { test: 'S5', file: MODEL, from: "hunt: summary.hunt, preset: summary.preset, hours: summary.hoursLimit,", to: "hunt: summary.hunt, preset: 0, hours: summary.hoursLimit," },
   { test: 'A1', file: SESSION, from: "p_hunt: a.hunt, p_bag: a.bag, p_preset: a.preset,", to: "p_hunt: a.hunt, p_bag: [], p_preset: a.preset," },
   { test: 'A1', file: SESSION, from: "if (!a || !ITEM.test(String(a.hunt)) ||", to: "if (!a ||" },
   { test: 'A2', file: RECORDER, from: "    if (a.done.has(s.id)) return;\n    a.done.add(s.id);", to: "    a.done.add(s.id);" },
-  { test: 'A2', file: RECORDER, from: "const ex = a.sid === s.id ? explainDeaths(a.rec.events(), { whoOf }) : { falls: [] };", to: "const ex = { falls: [] };" },
+  { test: 'A2', file: RECORDER, from: "const ex = a.sid === s.id ? explainDeaths(a.rec.events(), { whoOf }) : { deaths: [] };", to: "const ex = { deaths: [] };" },
 ];
 
 async function selftest() {

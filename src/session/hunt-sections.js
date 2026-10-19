@@ -18,7 +18,8 @@
 // read makes that ROW null, not the whole section.
 // ════════════════════════════════════════════════════════════════════════
 
-import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.6';
+import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.8';
+import { VITALS } from '../data/core-model.js?v=0.2.8';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -47,7 +48,7 @@ function unitsOf(pose) {
   return out;
 }
 
-/** `hunt`: the session, the viewed hero's vitals and the instance's units (who is who). */
+/** `hunt`: the session (and why it ended), the viewed hero's vitals and the instance's units (who is who). */
 export function huntOf(cs) {
   const h = section(cs, 'hunt');
   if (!h || !str(h.session_id)) return null;
@@ -56,12 +57,19 @@ export function huntOf(cs) {
     sessionId: h.session_id,
     huntId: str(h.hunt_id),
     ended: bool(h.ended),
+    endReason: isObj(h.session) ? str(h.session.end_reason) : null,
     units: unitsOf(h.pose),
     hero: {
       unit: int(hero.unit), name: str(hero.name), level: int(hero.level),
       hp: num(hero.hp), hpMax: num(hero.hp_max), mana: num(hero.mana), manaMax: num(hero.mana_max),
-      hpRegen: num(hero.hp_regen), manaRegen: num(hero.mana_regen), shield: num(hero.shield),
-      xpPct: num(hero.xp_pct), falls: int(hero.falls),
+      shield: num(hero.shield),
+      xpPct: num(hero.xp_pct), regenPm: int(hero.regen_pm),
+      /* PER SECOND, the rates the engine runs while the hunt fights (src/core/hunt/pull-cycle.js
+         tickHeroes; src/core/hunt/abilities.js mana): HP at VITALS.inFightRegenPermillePerS of the
+         server's max HP, mana the server's per-minute figure (Prayer's regen_pm is in both). */
+      hpPerS: num(hero.hp_max) !== null && int(hero.regen_pm) !== null
+        ? (hero.hp_max * VITALS.inFightRegenPermillePerS * hero.regen_pm) / 1e6 : null,
+      manaPerS: num(hero.mana_regen) !== null ? hero.mana_regen / 60 : null,
     },
   };
 }
@@ -124,7 +132,7 @@ function memberOf(m) {
     role: roleForWeapon(str(m.weapon), str(m.role_pick)),
     hp: num(m.hp), hpMax: num(m.hp_max), mana: num(m.mana), manaMax: num(m.mana_max), staminaMs: num(m.stamina_ms),
     dealt: num(m.dealt), healed: num(m.healed), dps: num(m.dps), hps: num(m.hps),
-    down: bool(m.down), eating: bool(m.eating), drinking: bool(m.drinking), aggro: bool(m.aggro),
+    eating: bool(m.eating), drinking: bool(m.drinking), aggro: bool(m.aggro),
   };
 }
 

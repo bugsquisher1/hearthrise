@@ -11,10 +11,10 @@
 //                                is off until the server answered, and the
 //                                alert goes once it has
 // ════════════════════════════════════════════════════════════════════════
-import { ALERTS_SHOWN } from '../../data/alerts.js?v=0.2.6';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.6';
-import { glyphSvg } from '../launcher.js?v=0.2.6';
-import { refusalWords } from '../intent-words.js?v=0.2.6';
+import { ALERTS_SHOWN } from '../../data/alerts.js?v=0.2.8';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.8';
+import { glyphSvg } from '../launcher.js?v=0.2.8';
+import { refusalWords } from '../intent-words.js?v=0.2.8';
 
 const OPENS = Object.freeze({ bag: 'inventory', shop: 'shop', show: null });
 

@@ -15,12 +15,12 @@
 //   statLines / compare   an item's stats in words, and the change against the worn one
 //   equipSlotFor(id, eq)  the slot an item would go into
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.6';
-import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.6';
-import { MONSTERS } from '../data/monsters.js?v=0.2.6';
-import { expandItemSlot } from '../data/gathering.js?v=0.2.6';
-import { BAG_SEEN_MAX } from '../session/residue.js?v=0.2.6';
-import { itemName } from './widgets/bits.js?v=0.2.6';
+import { ITEMS } from '../data/items.js?v=0.2.8';
+import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.8';
+import { MONSTERS } from '../data/monsters.js?v=0.2.8';
+import { expandItemSlot } from '../data/gathering.js?v=0.2.8';
+import { BAG_SEEN_MAX } from '../session/residue.js?v=0.2.8';
+import { itemName } from './widgets/bits.js?v=0.2.8';
 
 /* The category row, in reading order. `all` first; the rest are kinds. */
 export const BAG_CATS = Object.freeze([
@@ -150,10 +150,10 @@ export function bagValue(items, bids) {
 
 /* Stat keys in reading order, with their words; `pct` values are fractions. */
 const STATS = Object.freeze([
-  ['atkB', 'Attack'], ['strB', 'Strength'], ['defB', 'Defense'],
+  ['atkB', 'Melee accuracy'], ['strB', 'Melee damage'], ['defB', 'Defense'],
   ['rangeAtkB', 'Ranged accuracy'], ['rangeStrB', 'Ranged damage'],
   ['magicAtkB', 'Magic accuracy'], ['magicStrB', 'Magic damage'],
-  ['critB', 'Critical chance', 'pct'], ['spdB', 'Speed', 'pct'], ['xpB', 'XP', 'pct'],
+  ['critB', 'Critical chance', 'pct'],
 ]);
 
 const statValue = (it, k) => (it && Number.isFinite(it[k]) ? it[k] : 0);
@@ -190,4 +190,17 @@ export function equipSlotFor(id, equipment) {
   if (!slots.length) return null;
   const eq = equipment || {};
   return slots.find((s) => !eq[s]) || slots[0];
+}
+
+/** The ONE `equip` delta that wears `id` in `slot` (null = take it off). Two hands (Tyler 2026-10-19:
+ *  Healer = staff): a two-handed weapon takes the off-hand off, and an off-hand takes a two-handed
+ *  weapon off, in the same delta, because hr_apply refuses the pair (two_handed) on the worn set. */
+export function equipOps(slot, id, equipment) {
+  const ops = { [slot]: id };
+  const eq = equipment || {};
+  const it = id ? ITEMS[id] : null;
+  if (it && slot === 'weapon' && it.twoHanded === true && eq.shield) ops.shield = null;
+  const worn = eq.weapon ? ITEMS[eq.weapon] : null;
+  if (it && slot === 'shield' && worn && worn.twoHanded === true) ops.weapon = null;
+  return ops;
 }

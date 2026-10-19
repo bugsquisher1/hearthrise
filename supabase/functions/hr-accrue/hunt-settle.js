@@ -54,7 +54,7 @@ import { huntGroundOf } from './hunt-ground.js';
 import { huntTimeline } from './hunt-track.js';
 import { ITEMS } from '../../../src/data/items.js';
 import { MONSTERS } from '../../../src/data/monsters.js';
-import { equipmentStats } from '../../../src/core/combat.js';
+import { roleWeaponOf } from '../../../src/data/hunt-roles.js';
 import { heroSetup } from '../../../src/core/hunt-spawn.js';
 
 /* THE PLAYER DOOR'S FLOOR (hunt_settle, a hunter's accrue, a purchase's
@@ -116,15 +116,12 @@ export function huntSessionFromRead(h, instanceId) {
     nextSwingAtMs: num(h.next_swing_at_ms),
     swingIndex: num(h.swing_index),
     bag: h.bag || {},
-    falls: num(h.falls),
-    fallsLimit: num(h.falls_limit),
     hoursLimit: num(h.hours_limit),
     leaveAtMs: num(h.leave_at_ms),
     changeAtMs: num(h.change_at_ms),
     /* THE KILL SWITCH ends the hunt at its first boundary ('server', END_ORDER
        last), which hr_hunt_settle_session re-proves from hr_hunt_config. */
     stopAtMs: h.enabled === false ? num(h.settled_to_ms) : null,
-    down: h.down === true,
     /* THE STAMINA POOL AT THE WINDOW START and the cap it rests to — the
        database's own hr_stamina_of / hr_stamina_cap, never a client value. */
     staminaMs: num(h.stamina_ms),
@@ -299,7 +296,9 @@ async function memberInput(exec, m, inst) {
   const nowMs = Math.floor(Number(m.session.settled_to_ms) || 0);
   const e = engineInputsFromEnvelope(env, nowMs);
   const perks = await readTickPerks(exec, m.user, m.slot);
-  const weaponType = equipmentStats(e.equipment || {}, ITEMS).weaponType || 'neutral';
+  /* The ROLE key (hunt-roles.js roleWeaponOf: a magic weapon by its discipline), the same key
+     hr_hunt_weapons holds; the combat style stays equipmentStats' weaponType in the engine. */
+  const weaponType = roleWeaponOf(ITEMS[(e.equipment || {}).weapon]) || 'neutral';
   const options = (m.session.options && typeof m.session.options === 'object') ? m.session.options : {};
   const pre = heroSetup({ weaponType, options, bar: m.session.bar, partyRoles: null });
   return {
@@ -308,9 +307,8 @@ async function memberInput(exec, m, inst) {
     unitId: Number.isInteger(m.unit_id) ? m.unit_id : null,
     sessionId: String(m.session.id), version: env.version, huntId: String(inst.hunt),
     huntSession: huntSessionFromRead(m.session, inst.id),
-    skills: e.skills, xpFrac: e.xpFrac, hp: e.hp, maxHp: e.maxHp, gold: e.gold,
-    equipment: e.equipment, combatStyle: e.combatStyle, inventory: e.inventory, buffs: e.buffs,
-    recoveringUntilMs: e.recoveringUntilMs,
+    skills: e.skills, levelXp: e.levelXp, xpFrac: e.xpFrac, hp: e.hp, gold: e.gold,
+    equipment: e.equipment, inventory: e.inventory, buffs: e.buffs,
     deathsTodayBefore: e.deathsTodayBefore, deathsLifetimeBefore: e.deathsLifetimeBefore,
     hearthfindReady: e.hearthfindReady, perks,
     _weaponType: weaponType, _options: options, _bar: m.session.bar, _role: pre ? pre.role : null,

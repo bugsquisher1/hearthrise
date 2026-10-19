@@ -12,9 +12,9 @@
 // Names: heroes from the `party` section, monsters from the hunt pose's unit
 // kinds (src/session/hunt-sections.js). An unknown unit reads "Someone".
 // ════════════════════════════════════════════════════════════════════════
-import { LOG_MAX_LINES } from '../data/combat-text.js?v=0.2.6';
-import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.6';
-import { monsterName, itemName, abilityName } from '../shell/widgets/bits.js?v=0.2.6';
+import { LOG_MAX_LINES } from '../data/combat-text.js?v=0.2.8';
+import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.8';
+import { monsterName, itemName, abilityName } from '../shell/widgets/bits.js?v=0.2.8';
 
 const LOGS = new WeakMap();
 
@@ -53,10 +53,10 @@ export function lineOf(ev, n) {
       return line('supply', a + (ev.type === 'eat' ? ' eats ' : ' drinks ') + itemName(ev.item) + (ev.source === 'store' ? ', bought from the store.' : ' from the bag.'));
     case 'status_on': return line('status', b + ' is ' + (ev.status === 'bleed' ? 'bleeding' : 'affected by ' + ev.status) + '.');
     case 'status_off': return line('status', b + (ev.status === 'bleed' ? ' stops bleeding.' : ' is free of ' + ev.status + '.'));
-    case 'fall': return line('death', a + ' is knocked out by ' + monsterName(ev.monster) + '.');
+    case 'death': return line('death', (n.isHero(ev.u) ? a : 'Your hero') + ' was killed by ' + monsterName(ev.monster) + '.');
     case 'rare_drop': return line('loot', 'Rare drop: ' + itemName(ev.item) + '!');
     case 'kill': {
-      if (n.isHero(ev.t)) return line('death', b + ' is knocked out.');
+      if (n.isHero(ev.t)) return line('death', b + ' dies.');
       const loot = ev.loot && typeof ev.loot === 'object' ? Object.entries(ev.loot) : [];
       if (!loot.length) return line('dealt', a + ' defeats ' + b + '.');
       return line('loot', b + ' dropped ' + loot.map(([id, q]) => itemName(id) + ' ×' + q).join(', ') + '.');

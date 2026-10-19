@@ -17,14 +17,15 @@
 // Reading `hunt`: the server's session record sits under `hunt.session` (the
 // section view) and, in the client fixture, flat on `hunt`. Both are read.
 // ════════════════════════════════════════════════════════════════════════
-import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.6';
+import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.8';
 
 export { sanitizeSummaries };
 
 
 /** Why a hunt ended, as a sentence (one per END_ORDER name; a guard in tests/hunt-summary.mjs keeps them equal). */
 export const END_WORDS = Object.freeze({
-  falls: 'Your hero fell too many times, so the hunt ended.',
+  died: 'Your hero died and returned to town.',
+  party_member_died: 'A party member died, so the party returned to town.',
   heals_out: 'You ran out of healing supplies.',
   ammo_out: 'You ran out of ammunition.',
   gold_out: 'Ran out of gold for supplies, returned to town.',
@@ -73,10 +74,10 @@ export function endedSessionOf(cs) {
   return {
     id: sid.slice(0, 64), ended,
     hunt: id(s.hunt) || id(s.hunt_id) || id(h.hunt_id), reason: typeof s.end_reason === 'string' ? s.end_reason : typeof h.end_reason === 'string' ? h.end_reason : null,
-    preset: int(s.preset), fallsLimit: int(s.falls_limit), hoursLimit: int(s.hours_limit),
+    preset: int(s.preset), hoursLimit: int(s.hours_limit),
     enteredMs: ms(s.entered_at), endedMs: ms(s.ended_at), bag,
     tally: isObj(s.tally) ? s.tally : null,
-    deaths: int(isObj(s.tally) ? s.tally.deaths : null) ?? (isObj(h.hero) ? int(h.hero.falls) : null),
+    died: int(isObj(s.tally) ? s.tally.deaths : null),
   };
 }
 
@@ -98,8 +99,8 @@ export function buildSummary(s, an, deaths) {
   return sanitizeSummary({
     id: s.id, hunt: s.hunt, at: s.endedMs, reason: s.reason, ms: dur,
     kills: hero ? hero.kills : int(t.kills), xp: hero ? hero.xp : num(t.xp), gold: hero ? hero.gold : num(t.coins),
-    falls: s.deaths, loot, supplies,
-    preset: s.preset, fallsLimit: s.fallsLimit, hoursLimit: s.hoursLimit, bag: s.bag, deaths,
+    died: s.died, loot, supplies,
+    preset: s.preset, hoursLimit: s.hoursLimit, bag: s.bag, deaths,
   });
 }
 
@@ -113,12 +114,12 @@ export function withSummary(list, summary) {
  * The ONE hr_hunt_enter argument set that puts the same hunt back on: the same
  * ground, preset, limits and bag. The party is the server's (the character's
  * current party); the server checks stock, stamina and the ground again.
- * @returns {{hunt: string, bag: {item: string, qty: number, essential?: boolean}[], preset: number, falls: number|null, hours: number|null}|null}
+ * @returns {{hunt: string, bag: {item: string, qty: number, essential?: boolean}[], preset: number, hours: number|null}|null}
  */
 export function huntAgainOf(summary) {
   if (!summary || !summary.hunt || summary.preset === null) return null;
   return {
-    hunt: summary.hunt, preset: summary.preset, falls: summary.fallsLimit, hours: summary.hoursLimit,
+    hunt: summary.hunt, preset: summary.preset, hours: summary.hoursLimit,
     bag: summary.bag.map(([item, qty, ess]) => (ess ? { item, qty, essential: true } : { item, qty })),
   };
 }
@@ -142,7 +143,7 @@ export function createRecorder(o) {
       if (key === null || seen.has(key)) return false;
       seen.add(key);
       const row = Object.assign({}, ev, { an: Number.isInteger(ev.u) ? o.names.name(ev.u) : undefined, tn: Number.isInteger(ev.t) ? o.names.name(ev.t) : undefined });
-      if (ev.type === 'fall' && typeof vitalsOf === 'function') row.vitals = vitalsOf(ev.u);
+      if (ev.type === 'death' && typeof vitalsOf === 'function') row.vitals = vitalsOf(ev.u);
       events.push(row);
       if (events.length > max) {
         const cut = events.splice(0, events.length - max);

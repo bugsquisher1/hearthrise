@@ -7,7 +7,7 @@
 //   huntRows()          [{ hunt, name, theme, band, heroes, packs, packMin,
 //                          packMax, respawnS, boss }] in band order
 //   densityWords(row)   "2 packs of 2 · back in 30 s"
-//   bandWords(row, lv)  "Combat level 0 to 10" (+ ", you are 3" when known)
+//   bandWords(row, lv)  "Level 1 to 8" (+ ", you are 3" when known)
 //   partyNote(hunt)     the ground's party rule in words, from ITS row (the
 //                        pocket carrying minParty and the boss standing in it),
 //                        or '' for a ground with no party-only pocket
@@ -17,11 +17,11 @@
 // Nothing here is a gate: the server checks the band, the stamina and the
 // stock when the player presses Enter, and says why it refuses.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS, PARTY_SCALE } from '../data/hunt-grounds.js?v=0.2.6';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.6';
-import { MONSTERS } from '../data/monsters.js?v=0.2.6';
-import { SUPPLIES } from '../data/supplies.js?v=0.2.6';
-import { SESSION_LIMITS } from '../data/hunt-sessions.js?v=0.2.6';
+import { HUNT_GROUNDS, PARTY_SCALE } from '../data/hunt-grounds.js?v=0.2.8';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.8';
+import { MONSTERS } from '../data/monsters.js?v=0.2.8';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.8';
+import { SESSION_LIMITS } from '../data/hunt-sessions.js?v=0.2.8';
 
 const PACK_QTY_MAX = 100000;
 const COUNT_WORDS = Object.freeze(['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight']);
@@ -63,7 +63,7 @@ export function densityWords(r) {
 
 /** The ground's level band in words, and where the character stands when its level is known. */
 export function bandWords(r, level) {
-  const band = 'Combat level ' + r.band[0] + ' to ' + r.band[1];
+  const band = 'Level ' + r.band[0] + ' to ' + r.band[1];
   return Number.isInteger(level) ? band + ', you are ' + level : band;
 }
 

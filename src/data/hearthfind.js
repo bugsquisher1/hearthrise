@@ -84,6 +84,10 @@
 //   (2026-10-23-hearthfind-catalogue.generated.sql carries the new odds).
 //   RE-MEASURED 2026-10-18 (designer; was 111 / 139 / 100): a sword is the Tank
 //   (hunt-roles.js WEAPON_ROLES), which holds instead of chasing: 102 / 129 / 92.
+//   RE-MEASURED 2026-10-19 (designer, core rebuild; was 102 / 129 / 92): the hero's HP is
+//   the Level-90 pool (1,040) and monster damage reads the per-tier scale (combat.js
+//   monsterDamageScaleByTier, tier 6 = 2.2): 0 deaths in the hour, 110 / 138 / 98. Hours
+//   stay as ruled (2026-10-27-hearthfind-catalogue.generated.sql carries the new odds).
 //
 //   pinned and re-measured on every run by tests/hearthfind-boss-rate.mjs, so a
 //   combat-balance change that moves the kill rate turns the guard red instead
@@ -179,9 +183,9 @@ export const HEARTHFIND_PLINTH = 'hearth_plinth';
  */
 export const HEARTHFIND_TABLE = Object.freeze([
   // ── Combat: BOSSES ONLY (ruling §2 — the `goblin` row is cut).
-  Object.freeze({ kind: 'monster', id: 'elk_king',    item: 'emberheart', hours: 250, killsPerHour: 102 }),
-  Object.freeze({ kind: 'monster', id: 'grim_reaper', item: 'emberheart', hours: 220, killsPerHour: 129 }),
-  Object.freeze({ kind: 'monster', id: 'dragon',      item: 'emberheart', hours: 180, killsPerHour: 92 }),
+  Object.freeze({ kind: 'monster', id: 'elk_king',    item: 'emberheart', hours: 250, killsPerHour: 110 }),
+  Object.freeze({ kind: 'monster', id: 'grim_reaper', item: 'emberheart', hours: 220, killsPerHour: 138 }),
+  Object.freeze({ kind: 'monster', id: 'dragon',      item: 'emberheart', hours: 180, killsPerHour: 98 }),
 
   // ── Woodcutting. Door / gate / cap.
   Object.freeze({ kind: 'node', id: 'normal_tree',   item: 'worldroot_seed', hours: 350 }),

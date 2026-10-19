@@ -879,8 +879,8 @@ async function run(mutate, blind) {
 
   // ── the character ────────────────────────────────────────────────────────
   await db.exec(`insert into auth.users (id) values ('${U}') on conflict (id) do nothing;`);
-  await db.exec(`insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to)
-    values ('${U}', 0, 100000, 10, 10, 1, now())
+  await db.exec(`insert into public.player_state (user_id, slot, gold, hp, version, accrued_to)
+    values ('${U}', 0, 100000, 10, 1, now())
     on conflict (user_id, slot) do update set gold = 100000, version = 1, buffs = '[]'::jsonb,
       client_state = '{}'::jsonb;`);
 
@@ -1253,7 +1253,7 @@ async function run(mutate, blind) {
       await db.exec(`update public.player_state set buffs = jsonb_build_array(jsonb_build_object(
           'type', '${healBuff.type}', 'magnitude', 99,
           'until', to_jsonb(now() + make_interval(secs => ${CAP_MS / 1000})))),
-          hp = 1, max_hp = 99 where user_id = '${U}' and slot = 0`);
+          hp = 1 where user_id = '${U}' and slot = 0`);
       const q18d = JSON.stringify(await queue());
       const held18d = await held(healBuff.item_id);
       const hpOf = async () => Number((await db.query(

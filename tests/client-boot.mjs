@@ -29,7 +29,7 @@
 //        errors; the rules of each panel are tests/hunt-screen.mjs
 //   B-9  ONE HERO, TWO SLOTS (Tyler live 10-18: no way to create a character; ruling
 //        10-17: every account starts with two): the screen names the hero and its
-//        combat level, the empty owned slot offers Create character, Create is ONE
+//        Level, the empty owned slot offers Create character, Create is ONE
 //        hr_create_character for that slot and plays it, and after a reload both
 //        heroes list by name
 // ════════════════════════════════════════════════════════════════════════
@@ -57,7 +57,7 @@ async function stubServer(page, o) {
       if (name === 'hr_create_character') { o.created.push(body.p_slot); o.heroes[body.p_slot] = 'New hero'; return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, slot: body.p_slot, created: true }) }); }
       const slot = name === 'hr_load' ? body.p_slot : body.slot;
       if (name === 'hr_load' || name === 'hr-accrue') {
-        const b = o.heroes[slot] ? envelope(slot, 1, { name: o.heroes[slot], skills: { attack: { xp: 1200, level: 10 }, strength: { xp: 1200, level: 10 }, defense: { xp: 1200, level: 10 }, hitpoints: { xp: 1200, level: 10 } } })
+        const b = o.heroes[slot] ? envelope(slot, 1, { name: o.heroes[slot], state: { active_kind: 'idle', gold: 0, level_xp: 21591 } })
           : { ok: false, error: 'no_character', hero_slots: [0, 1] };
         return r.fulfill({ contentType: 'application/json', body: JSON.stringify(name === 'hr-accrue' ? Object.assign({ accrued: true }, b) : b) });
       }
@@ -168,7 +168,7 @@ async function checks(overrides) {
       await page.click('.auth-submit');
       await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
       const rows = await page.evaluate(() => Array.from(document.querySelectorAll('.char-row')).map((li) => li.textContent.replace(/\s+/g, ' ').trim()));
-      if (rows.length !== 2 || !/^Tester Combat \d+ ?Play$/.test(rows[0]) || !/Create character$/.test(rows[1]) || !(await page.$('[data-app="create"][data-slot="1"]')))
+      if (rows.length !== 2 || !/^Tester Level 10 ?Play$/.test(rows[0]) || !/Create character$/.test(rows[1]) || !(await page.$('[data-app="create"][data-slot="1"]')))
         fails.push('B-9 one hero and an empty owned slot list as ' + JSON.stringify(rows));
       else {
         await page.click('[data-app="create"][data-slot="1"]');

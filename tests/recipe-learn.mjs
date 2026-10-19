@@ -271,12 +271,13 @@ async function boot(mutate, gateBlind, extra) {
     }
   }
   const { db } = byFile.size ? await bootReplay({ patches: byFile, upTo: REPLAY_UPTO }) : await bootReplay();
-  /* A scoped (mutant) replay stops before the 2026-10-14 demolition's hr_unlocks
-     regen, so lay that one catalogue file on top: the scroll parity below must be
-     graded against the catalogue the data authors, in every arm. */
+  /* A scoped (mutant) replay stops before the hr_unlocks regen, so lay the newest
+     one (the file tools/gen-unlocks.mjs writes) on top: the scroll parity below must
+     be graded against the catalogue the data authors, in every arm. */
   if (byFile.size) {
     const { readFileSync } = await import('node:fs');
-    await db.exec(readFileSync(new URL('supabase/migrations/2026-10-23-demolition-unlocks.generated.sql', ROOT), 'utf8'));
+    const { newestOwned } = await import('../tools/lib/generated-target.mjs');
+    await db.exec(readFileSync(newestOwned((await import('node:url')).fileURLToPath(ROOT), 'gen-unlocks.mjs').path, 'utf8'));
   }
   if (post) await db.exec(post);
   return db;

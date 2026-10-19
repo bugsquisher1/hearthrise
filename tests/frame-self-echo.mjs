@@ -154,11 +154,11 @@ async function executed(db) {
     }
     const act = (await one("select activity_id from public.hr_activities where kind = 'gather' order by activity_id limit 1")).activity_id;
     await db.query('insert into auth.users (id) values ($1), ($2) on conflict do nothing', [U, O]);
-    await db.query(`insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to,
+    await db.query(`insert into public.player_state (user_id, slot, gold, hp, version, accrued_to,
         active_kind, active_id, active_since)
-      values ($1, 0, 1000, 10, 10, 1, date_trunc('second', now()) - interval '20 minutes', 'gather', $3,
+      values ($1, 0, 1000, 10, 1, date_trunc('second', now()) - interval '20 minutes', 'gather', $3,
               date_trunc('second', now()) - interval '80 minutes'),
-             ($2, 0, 1000, 10, 10, 1, date_trunc('second', now()) - interval '20 minutes', 'idle', null, null)`,
+             ($2, 0, 1000, 10, 1, date_trunc('second', now()) - interval '20 minutes', 'idle', null, null)`,
     [U, O, act]);
     await db.query(`insert into public.hr_tick_ownership (user_id, slot, channel, owned, lease_holder, lease_until)
       values ($1, 0, 'gather', true, 'guard-selfecho', now() + interval '5 minutes')`, [U]);

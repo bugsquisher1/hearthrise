@@ -56,7 +56,8 @@ const invOf = async (db, id) => Number((await db.query(
 const hpOf = async (db) => Number((await db.query(
   'select hp::text h from player_state where user_id=$1 and slot=0', [UID])).rows[0].h);
 const maxHpOf = async (db) => Number((await db.query(
-  'select max_hp::text m from player_state where user_id=$1 and slot=0', [UID])).rows[0].m);
+  /* Derived from Level and armour since the core rebuild (no stored column). */
+  "select (public.hr_vitals_of($1::uuid, 0)->>'max_hp') m", [UID])).rows[0].m);
 
 /** An admin apply — grant items / set hp the server's own way, never a raw
     INSERT (the harness must not take a privilege the engine lacks). */
@@ -93,8 +94,9 @@ export function contractGuard() {
   ok(db2.items.x === -1, 'C1: a buff-only food must still debit the item');
 
   // resolveFood classifications — pure, catalogue-driven.
-  ok(resolveFood('turnip').ok === true && resolveFood('turnip').heals === 2,
-    'C2: turnip does not resolve as food heals:2');
+  /* Food heals moved x12 with monster damage (CORE_NUMBERS Q3): a turnip heals 24. */
+  ok(resolveFood('turnip').ok === true && resolveFood('turnip').heals === 24,
+    'C2: turnip does not resolve as food heals:24');
   ok(resolveFood('').error === INTENT_ERRORS.BAD_ITEM, 'C2: empty id is not bad_item');
   ok(resolveFood('not_a_real_item_zzz').error === INTENT_ERRORS.UNKNOWN_ITEM, 'C2: junk id is not unknown_item');
   /* A real, non-food item (bronze bar) must be item_not_food, not unknown_item. */
@@ -149,7 +151,7 @@ async function body(db, call) {
   if (cr.ok !== true) { problems.push(`EAT-SQL: hr_create_character failed — ${JSON.stringify(cr)}`); return; }
 
   const maxHp = await maxHpOf(db);
-  // Grant 3 turnips and set hp to 5 so a +2 heal is observable and unclamped.
+  // Grant 3 turnips and set hp to 5 so a +24 heal is observable and unclamped (max HP 150 at Level 1).
   ok((await admin(db, { items: { turnip: 3 }, hp: 5 })).ok === true, 'E2-SETUP: grant/hp admin refused');
   ok(await invOf(db, 'turnip') === 3, 'E2-SETUP: turnips did not land');
   ok(await hpOf(db) === 5, 'E2-SETUP: hp was not set to 5');
@@ -162,8 +164,8 @@ async function body(db, call) {
     ok(await invOf(db, 'turnip') === 2,
       `E3: the eaten turnip did not leave the bag server-side (qty=${await invOf(db, 'turnip')}). `
       + 'This is the P0: it is what the absolute reconcile reads, and a non-debit is the food "returning".');
-    ok(await hpOf(db) === 7, `E3: hp is ${await hpOf(db)}, expected 7 (5 + turnip heals 2)`);
-    ok(r.body.receipt && r.body.receipt.item === 'turnip' && r.body.receipt.heals === 2,
+    ok(await hpOf(db) === 29, `E3: hp is ${await hpOf(db)}, expected 29 (5 + turnip heals 24)`);
+    ok(r.body.receipt && r.body.receipt.item === 'turnip' && r.body.receipt.heals === 24,
       'E3: the receipt did not describe the eat');
   }
 
@@ -200,7 +202,7 @@ async function body(db, call) {
   // E6. THE HP CLAMP — a heal never exceeds max_hp.
   {
     ok((await admin(db, { items: { turnip: 1 }, hp: maxHp - 1 })).ok === true, 'E6-SETUP: admin refused');
-    const r = await call({ item: 'turnip' });    // heals 2, but only 1 below max
+    const r = await call({ item: 'turnip' });    // heals 24, but only 1 below max
     ok(r.body.ok === true, `E6: eat refused — ${JSON.stringify(r.body).slice(0, 200)}`);
     ok(await hpOf(db) === maxHp, `E6: hp is ${await hpOf(db)}, must clamp to max_hp ${maxHp}`);
   }

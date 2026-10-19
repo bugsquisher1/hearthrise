@@ -47,8 +47,11 @@ async function run(base) {
   /* G1 (coordinator 10-18): the one recommendation prefers a ground built for the group; a party ground
      stays listed and enterable and tells a lone hero it is best with a party. */
   const rows = HL.huntRows();
-  const solo40 = HL.recommendedHunt(40, 1, rows), party40 = HL.recommendedHunt(40, 3, rows);
-  ok('G1', !!solo40 && solo40.groupFit !== 'party' && solo40.band[0] <= 40 && 40 <= solo40.band[1], 'a lone combat-40 hero is recommended ' + (solo40 && solo40.hunt + ' (' + solo40.groupFit + ')'));
+  /* Level 12, with the party ground's band widened to start ABOVE the sewer's (10-50): the real Q9 bands
+     (thicket 5-15, sewer 8-25, warrens 32-50) leave no level where a party ground out-ranks a solo one. */
+  const wide = rows.map((r) => (r.groupFit === 'party' ? { ...r, band: [10, 50] } : r));
+  const solo12 = HL.recommendedHunt(12, 1, wide), party40 = HL.recommendedHunt(40, 3, rows);
+  ok('G1', !!solo12 && solo12.groupFit !== 'party' && solo12.band[0] <= 12 && 12 <= solo12.band[1], 'a lone Level-12 hero is recommended ' + (solo12 && solo12.hunt + ' (' + solo12.groupFit + ')'));
   const pg = rows.find((r) => r.groupFit === 'party');
   ok('G1', !!pg && /^Best with a party of 2–[2-5]$/.test(HL.groupWords(pg, 1) || '') && HL.groupWords(pg, 2) === null, 'a party ground does not tell a lone hero it is best with a party: ' + (pg && HL.groupWords(pg, 1)));
   ok('G1', !!party40 && HL.fitsGroup(party40, 3), 'a party of three at 40 is recommended ' + (party40 && party40.hunt));

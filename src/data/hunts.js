@@ -10,8 +10,9 @@
 //   { id, name, theme, band: [min, max], spawns: [{ monster, w }], family, art }
 //     id      [a-z0-9_]; NEVER a monster id (the server pointer is
 //             active_kind='combat', active_id=<hunt id or monster id>)
-//     band    combat-level band; band[0] is the SERVER-ENFORCED floor
-//             (hr_apply refuses `hunt_locked` below it), band[1] is advisory
+//     band    Level band (CORE_NUMBERS Q9); band[0] is the floor: under it the hunt
+//             warns, and refuses at SESSION_LIMITS.belowRangeRefuse Levels under;
+//             band[1] is advisory
 //     spawns  positive integer weights; every monster must exist in
 //             src/data/monsters.js (the generator refuses unknown ids).
 //             UNEVEN ON PURPOSE (Tyler 10-18, the Huntera model): a common majority,
@@ -53,7 +54,7 @@
 export const HUNTS = Object.freeze([
   {
     id: 'mill_cellar', name: 'Mill Cellar', theme: 'Damp sacks, gnawed grain and things that buzz in the dark.',
-    band: [0, 10],
+    band: [1, 8],
     spawns: [{ monster: 'rat', w: 3, rarity: 'common' }, { monster: 'slime', w: 1, rarity: 'uncommon' },
       { monster: 'hive_wasp', w: 1, rarity: 'rare' }],
     family: 'Vermin', art: 'rat', travelS: 20, pull: 1, respawnMs: 60000,
@@ -85,7 +86,7 @@ export const HUNTS = Object.freeze([
      earns the door in the Mill Cellar first. */
   {
     id: 'millrace_sewer', name: 'Millrace Sewer', theme: 'The mill race runs under the town here. The rats answer to someone.',
-    band: [4, 40],
+    band: [8, 25],
     spawns: [{ monster: 'drain_rat', w: 6, rarity: 'common' }, { monster: 'culvert_bat', w: 4, rarity: 'uncommon' },
       { monster: 'sump_slime', w: 3, rarity: 'uncommon' }, { monster: 'kobold_tosher', w: 3, rarity: 'uncommon' },
       { monster: 'cistern_spider', w: 2, rarity: 'rare' }],

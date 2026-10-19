@@ -119,13 +119,12 @@ export { refusalCarriesState, STATELESS_REFUSALS };
    CARRIES FORWARD between windows (tick-shadow.js `advance` writes most of
    them). Exported so a chained caller forwards exactly this list instead of
    re-typing a subset — the third copy of the field list, and the one that made
-   `hearthfindReady`, `enchant` and `combatStyle` invisible to a tick window. */
+   `hearthfindReady` and `enchant` invisible to a tick window. */
 export const ENGINE_STATE_KEYS = Object.freeze([
-  'hp', 'maxHp', 'gold',
+  'hp', 'levelXp', 'gold',
   'skills', 'xpFrac', 'inventory', 'equipment',
-  'buffs', 'combatStyle',
+  'buffs',
   'toolCarry', 'ammoCarry', 'fight',
-  'recoveringUntilMs',
   'deathsTodayBefore', 'deathsLifetimeBefore',
   'hearthfindReady',
 ]);
@@ -191,7 +190,9 @@ export function engineInputsFromEnvelope(env, nowMs) {
 
     /* ── THE COLUMNS ON THE ROW `hr_apply` LOCKS ─────────────────────────── */
     hp: Number(st.hp) || 0,
-    maxHp: Number(st.max_hp) || 0,
+    /* THE CHARACTER'S LEVEL XP (CORE_MODEL.md §2): kills only. Max HP and mana are
+       DERIVED from it and the worn armour (src/core/vitals.js), never read. */
+    levelXp: Number(st.level_xp) || 0,
     gold: Number(st.gold) || 0,
 
     /* ── THE PROJECTIONS, WHICH LIVE AT THE ENVELOPE TOP LEVEL ───────────── */
@@ -222,13 +223,6 @@ export function engineInputsFromEnvelope(env, nowMs) {
        a settle RESUMES the fight instead of restarting it — without it, any
        monster whose time-to-kill exceeds the span pays zero forever. */
     fight: st.fight ?? null,
-    /* THE RECOVERY LINE (First-Night Idle Rescue). An ABSOLUTE server timestamp,
-       the only authority on whether this character is Knocked Out. It CANNOT be
-       spelled `?? null`: null is the ORDINARY value (the character is up), so
-       `??` would report every healthy character as a database without the
-       column. The distinction is the KEY'S PRESENCE in the envelope. */
-    recoveringUntilMs: ('recovering_until' in st)
-      ? (st.recovering_until ? new Date(st.recovering_until).getTime() : 0) : null,
     /* THE TWO DEATH ANCHORS the death rows state. Read by hr_state_of
        as its OWN scalars and NOT dug out of the `progress` array, which is
        `limit 1000` with a `progress_truncated` flag: a survival mechanic must
@@ -243,14 +237,6 @@ export function engineInputsFromEnvelope(env, nowMs) {
        migration is inert rather than 409-ing `unknown_delta_key` and costing a
        player their night. The switch is the ENVELOPE, never a deploy flag. */
     hearthfindReady: st.hearthfind_ready === true,
-    /* THE COMBAT STYLE (2026-08-24-combat-style.sql). Projected INSIDE `state`,
-       read off the row hr_apply locks — never from the request body, which
-       carries no style field at all. It is what makes an away fight train the
-       skill the player picked. `?? null` and NOT `?? {}`: null means the column
-       does not exist, and `resolveStyle(weaponType, null)` is exactly the
-       pre-migration behaviour. */
-    combatStyle: st.combat_style ?? null,
-
   };
 }
 
@@ -260,7 +246,7 @@ export function engineInputsFromEnvelope(env, nowMs) {
  *
  * A key the character does not hold stays ABSENT rather than becoming
  * `undefined`, because several of these inputs are presence-of-key switches
- * (`recoveringUntilMs`, `buffs`) and an offline fixture that
+ * (`buffs`) and an offline fixture that
  * never had the column must keep reading as "no column".
  */
 export function engineStateOf(char) {

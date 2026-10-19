@@ -18,9 +18,9 @@
 // third of an hour and at level 100 (3,600 g) a fraction of that level's
 // hourly income. Tier n requires tiers 1..n-1.
 //
-// PRICE (integer): free if combatLevel < freeUntilLevel, else
-//   base + perLevel x (combatLevel - freeUntilLevel)
-// combatLevel = src/core/xp.js combatLevel (server: hr_lb_combat_level).
+// PRICE (integer): free if Level < freeUntilLevel, else
+//   base + perLevel x (Level - freeUntilLevel)
+// Level = src/core/xp.js charLevelFromXp(level_xp) (server: hr_level_of).
 //
 // WORKED PRICES:          level 31   level 60   level 100
 //   tier 1 (32%)             110        400        800
@@ -49,11 +49,11 @@ export const BLESSING_TIERS = Object.freeze([
   Object.freeze({ tier: 3, xpLossReductionPermille: 950, base: 200, perLevel: 20 }),
 ]);
 
-/** Gold for `tier` at `combatLevel` (0 under the free level), or null for an unknown tier. */
-export function blessingPrice(tier, combatLevel) {
+/** Gold for `tier` at Level `level` (0 under the free level), or null for an unknown tier. */
+export function blessingPrice(tier, level) {
   const row = BLESSING_TIERS.find((r) => r.tier === tier);
   if (!row) return null;
-  const lv = Math.floor(combatLevel);
+  const lv = Math.floor(level);
   if (lv < BLESSING_RULES.freeUntilLevel) return 0;
   return row.base + row.perLevel * (lv - BLESSING_RULES.freeUntilLevel);
 }

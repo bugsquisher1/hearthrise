@@ -7,7 +7,7 @@
 //   rare    a `rare_drop` event as it ARRIVES in the character's timeline
 //           (timeline.onArrive, so a character that is not on screen still
 //           tells), id = the server's own event id
-//   fall    the hunt hero's `falls` count rising, id = session + count
+//   death   the hunt section ending `died` / `party_member_died`, id = session
 //   low     a restock target under LOW_SUPPLY_PCT of itself, or a bar supply
 //           at zero, while hunting; id = session + item. Never for a resource
 //           the hero does not use (a drink for a hero with no mana pool), and
@@ -24,14 +24,15 @@
 // Nothing here gates or spends anything; the "Start again" button is an
 // intent (CharacterSession.restartHunt) like every other.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERT_INDEX, LOW_SUPPLY_PCT } from '../data/alerts.js?v=0.2.6';
-import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.6';
-import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.6';
-import { bagOf, rulesOf, nameOf } from '../session/item-sections.js?v=0.2.6';
-import { huntName } from '../session/party-sections.js?v=0.2.6';
-import { itemName } from './widgets/bits.js?v=0.2.6';
-import { CONSUMABLES, CONSUMABLE_KINDS } from '../data/consumables.js?v=0.2.6';
-import { whole } from '../render/format.js?v=0.2.6';
+import { ALERT_INDEX, LOW_SUPPLY_PCT } from '../data/alerts.js?v=0.2.8';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.8';
+import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.8';
+import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.8';
+import { bagOf, rulesOf, nameOf } from '../session/item-sections.js?v=0.2.8';
+import { huntName } from '../session/party-sections.js?v=0.2.8';
+import { itemName } from './widgets/bits.js?v=0.2.8';
+import { whole } from '../render/format.js?v=0.2.8';
+import { CONSUMABLES, CONSUMABLE_KINDS } from '../data/consumables.js?v=0.2.8';
 
 const residueOf = (cs) => {
   const r = cs && cs.record && cs.record.residue && cs.record.residue.alerts;
@@ -91,9 +92,12 @@ function candidatesOf(cs) {
   if (!h) return [];
   const out = [];
   const where = huntName(h.huntId);
-  if (h.hero.falls > 0) out.push({ id: 'fall:' + h.sessionId + ':' + h.hero.falls, kind: 'fall', session: h.sessionId,
-    text: who(cs) + ' was knocked out in ' + where + (h.hero.falls > 1 ? ' (' + h.hero.falls + ' times this hunt).' : '.') });
-  if (h.ended) out.push({ id: 'ended:' + h.sessionId, kind: 'ended', session: h.sessionId, text: who(cs) + '’s hunt in ' + where + ' has ended.' });
+  /* A death ends the hunt (CORE_MODEL.md §4): the death alert stands in for the ended one. */
+  if (h.ended && h.endReason === 'died') out.push({ id: 'death:' + h.sessionId, kind: 'death', session: h.sessionId,
+    text: END_REASON_COPY.died.one.replace('{name}', who(cs)).replace('{ground}', where) });
+  else if (h.ended && h.endReason === 'party_member_died') out.push({ id: 'death:' + h.sessionId, kind: 'death', session: h.sessionId,
+    text: 'A party member died in ' + where + ', so ' + who(cs) + '’s party returned to town.' });
+  else if (h.ended) out.push({ id: 'ended:' + h.sessionId, kind: 'ended', session: h.sessionId, text: who(cs) + '’s hunt in ' + where + ' has ended.' });
   else for (const l of lowItems(cs, h.hero)) {
     out.push({ id: 'low:' + h.sessionId + ':' + l.item, kind: 'low', session: h.sessionId, item: l.item,
       text: who(cs) + ' is ' + (l.have === 0 ? 'out of ' : 'low on ') + supplyWords(l.item) + (l.target ? ' (' + whole(l.have) + ' of ' + whole(l.target) + ').' : '.') });

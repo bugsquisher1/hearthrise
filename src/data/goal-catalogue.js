@@ -116,9 +116,10 @@ export const QUEST_REWARDS = Object.freeze({
   road_gather:  { checkKey: 'ev:gather',   goal: 500, gold: 1000, items: Object.freeze({}) },
   road_hunt:    { checkKey: 'ev:kill_any', goal: 500, gold: 1500, items: Object.freeze({ cooked_lobster: 2 }) },
   road_harvest: { checkKey: 'ev:harvest',  goal: 40,  gold: 1500, items: Object.freeze({ potato_seed: 10 }) },
-  /* "Defeat 100 monsters" — XP only, credited by hr_claim_quest. */
+  /* "Defeat 100 monsters" — XP only, credited by hr_claim_quest (Defense since the core rebuild:
+     no Hitpoints skill, and a claim cannot grant Level; 2026-10-27-core-schema.sql). */
   hundred_kills: { checkKey: 'ev:kill_any', goal: 100, gold: 0, items: Object.freeze({}),
-    xp: Object.freeze({ hitpoints: 1500 }) },
+    xp: Object.freeze({ defense: 1500 }) },
 });
 
 /* QUEST TYPES THAT READ A SERVER *STATE*, NOT AN `ev:` COUNTER (W0, 2026-10-10).

@@ -70,12 +70,22 @@
 // FAMILY_ALIAS folds the historical counts rather than stranding them.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyClassProfiles } from './monster-classes.js?v=0.2.6';
+import { applyClassProfiles } from './monster-classes.js?v=0.2.8';
+import { MONSTER_LEVEL_BY_TIER } from './core-model.js?v=0.2.8';
 
 /* HUNT SPEED (HUNT_SCREEN_SPEC §3.1 #4): a row's `speed` is MILLITILES per second
    (src/data/hunt-tuning.js units; the sewer roster's values are the sim's, ASSUMED).
    A row with no `speed` walks at MONSTER_SPEED_DEFAULT; read it only via monsterSpeedOf. */
 const MONSTER_SPEED_DEFAULT = 3000;
+/* A MONSTER'S LEVEL (docs/design/CORE_MODEL.md §4; CORE_NUMBERS Q5): the row's own
+   `level` where its ground places it, else its tier's (core-model.js
+   MONSTER_LEVEL_BY_TIER); 0 for no row. Defense XP scales with it. */
+export function monsterLevelOf(row) {
+  if (!row) return 0;
+  if (Number.isInteger(row.level) && row.level > 0) return row.level;
+  return MONSTER_LEVEL_BY_TIER[row.tier] || 0;
+}
+
 export function monsterSpeedOf(row) {
   const v = row && row.speed;
   return Number.isInteger(v) && v > 0 ? v : MONSTER_SPEED_DEFAULT;
@@ -85,12 +95,12 @@ export const MONSTERS = {
 
   /* ══ Tier 1 — local threats ═══════════════════════════════════════════ */
 
-  slime: { name: 'Slime', icon: '🟢', tier: 1, cls: 'vermin', family: 'Vermin',
+  slime: { name: 'Slime', icon: '🟢', tier: 1, level: 2, cls: 'vermin', family: 'Vermin',
     /* one override (element): a slime is the element-immune outlier — the
        pure weapon-triangle check the class needed. */
     elementWeak: null, elementImmune: ['ember', 'frost', 'poison'],
     dropBonus: 1.15,
-    hp: 8, atk: 2, def: 0, xp: 5, gp: [1, 3], speed: 2400,
+    hp: 8, atk: 2, def: 0, xp: 22, gp: [1, 3], speed: 2400,
     drops: [{ id: 'slime_gel', ch: .8 }, { id: 'bones', ch: .25 }, { id: 'sticky_core', ch: .02 }] },
   /* FOLD-02 / FOLD-31 (combat-screen-rework.md §7): `barn_rat` merged INTO this
      row via MONSTER_ALIAS. Two Tier-1 Vermin rats with the same weakness and the
@@ -99,45 +109,45 @@ export const MONSTERS = {
      the kill counts; the display name becomes the familiar-fantasy standard, and
      `barn_rat`'s better drop line (wheat, the granary flavour) is absorbed here
      so nothing the merged monster offered is lost. */
-  rat: { name: 'Giant Rat', icon: '🐀', tier: 1, cls: 'vermin', family: 'Vermin',
-    hp: 9, atk: 2, def: 0, xp: 6, gp: [1, 4], speed: 3400,
+  rat: { name: 'Giant Rat', icon: '🐀', tier: 1, level: 2, cls: 'vermin', family: 'Vermin',
+    hp: 9, atk: 2, def: 0, xp: 27, gp: [1, 4], speed: 3400,
     drops: [{ id: 'rat_tail', ch: .7 }, { id: 'small_fang', ch: .12 }, { id: 'wheat', ch: .3 }, { id: 'bones', ch: .35 }] },
-  hive_wasp: { name: 'Hive Wasp', icon: '🐝', tier: 1, cls: 'vermin', family: 'Vermin',
+  hive_wasp: { name: 'Hive Wasp', icon: '🐝', tier: 1, level: 4, cls: 'vermin', family: 'Vermin',
     /* one override (weapon): it flies, so the T1 bow finally has a target. */
     weaponWeak: 'ranged', weaponResist: [],
-    hp: 8, atk: 4, def: 0, xp: 8, gp: [1, 4],
+    hp: 8, atk: 4, def: 0, xp: 36, gp: [1, 4],
     drops: [{ id: 'venom_sac', ch: .35 }, { id: 'silk_thread', ch: .15 }, { id: 'small_fang', ch: .1 },
       { id: 'leather_helmet', ch: .002, salvage: true }] },
   wild_boar: { name: 'Wild Boar', icon: '🐗', tier: 1, cls: 'mammal', family: 'Mammal',
     hp: 13, atk: 4, def: 1, xp: 11, gp: [2, 6],
     drops: [{ id: 'wolf_pelt', ch: .3 }, { id: 'bones', ch: 1 }, { id: 'raw_wolf_meat', ch: .45 }, { id: 'small_fang', ch: .14 },
-      { id: 'leather_belt', ch: .004, salvage: true }] },
+      { id: 'leather_belt', ch: .0032, salvage: true }] },
   /* FOLD-03: display rename only, the id is untouched. "Small X" reads as a dev
      label; a Cub reads as a creature, and it is the head of the canine ladder. */
   small_wolf: { name: 'Wolf Cub', icon: '🐺', tier: 1, cls: 'mammal', family: 'Mammal',
     dropBonus: 1.15,
     hp: 16, atk: 5, def: 1, xp: 14, gp: [3, 9],
     drops: [{ id: 'wolf_pelt', ch: .32 }, { id: 'small_fang', ch: .18 }, { id: 'bones', ch: 1 }, { id: 'raw_wolf_meat', ch: .6 },
-      { id: 'wolfbone_torc', ch: .0006, lucky: true }] },   // .0008 -> .0006 (S1 instance engine, 310 kills/h at the T1 loadout): 3.5 -> 4.7 h, inside lucky-finds' [4, 30]
+      { id: 'wolfbone_torc', ch: .0002, lucky: true }] },   // .0006 -> .0002 (core rebuild, flat 2.0 s swing: 3.2 h): ~10 h, the rare-drop ruling's 10-20 h (Tyler 10-14/15)
   mandrake: { name: 'Mandrake', icon: '🌱', tier: 1, cls: 'plant', family: 'Plant',
     hp: 11, atk: 3, def: 1, xp: 9, gp: [2, 5],
     drops: [{ id: 'goldenroot', ch: .3 }, { id: 'moonbloom', ch: .08 }, { id: 'turnip', ch: .35 },
-      { id: 'bramble_blade', ch: .00045, lucky: true }] },  // .0006 -> .00045 (S1 instance engine, 490 kills/h): 3.4 -> 4.5 h
+      { id: 'bramble_blade', ch: .00015, lucky: true }] },  // .00045 -> .00015 (core rebuild: 3.4 h): ~10 h, rare ruling 10-20 h
   goblin: { name: 'Goblin', icon: '👺', tier: 1, cls: 'humanoid', family: 'Humanoid',
     hp: 15, atk: 4, def: 1, xp: 13, gp: [2, 8],
     drops: [{ id: 'goblin_ear', ch: .5 }, { id: 'bones', ch: 1 }, { id: 'bronze_sword', ch: .03 }, { id: 'goblin_totem', ch: .01 }] },
   kobold: { name: 'Kobold', icon: '🦎', tier: 1, cls: 'humanoid', family: 'Humanoid',
     hp: 12, atk: 3, def: 1, xp: 10, gp: [2, 6], speed: 3200,
     drops: [{ id: 'goblin_totem', ch: .06 }, { id: 'bones', ch: 1 }, { id: 'bone_chips', ch: .3 }, { id: 'copper_ore', ch: .18 },
-      { id: 'banded_signet', ch: .00045, lucky: true }] },  // .0006 -> .00045 (S1 instance engine, 463 kills/h): 3.6 -> 4.8 h
+      { id: 'banded_signet', ch: .00016, lucky: true }] },  // .00045 -> .00016 (core rebuild: 3.6 h): ~10 h, rare ruling 10-20 h
   witchs_apprentice: { name: "Witch's Apprentice", icon: '🧹', tier: 1, cls: 'human', family: 'Human',
     hp: 10, atk: 5, def: 0, xp: 12, gp: [2, 7],
     drops: [{ id: 'magic_essence', ch: .3 }, { id: 'rune_frag', ch: .1 }, { id: 'normal_log', ch: .25 },
-      { id: 'adept_body', ch: .0005, lucky: true }] },   // .0006 -> .0005 (S1 instance engine, 439 kills/h): 3.8 -> 4.6 h
+      { id: 'adept_body', ch: .00017, lucky: true }] },   // .0005 -> .00017 (core rebuild: 3.3 h): ~10 h, rare ruling 10-20 h
   cutpurse: { name: 'Cutpurse', icon: '🎭', tier: 1, cls: 'human', family: 'Human',
     hp: 11, atk: 4, def: 0, xp: 10, gp: [2, 6],
     drops: [{ id: 'rat_tail', ch: .2 }, { id: 'copper_ore', ch: .2 }, { id: 'bones', ch: .4 },
-      { id: 'apprentice_gloves', ch: .004, salvage: true }] },
+      { id: 'apprentice_gloves', ch: .0028, salvage: true }] },
   /* FOLD-05: display rename only. "Weak" is a stat; "Brittle" is a description
      a player reads as fragile without being told it is the tutorial version. */
   weak_skeleton: { name: 'Brittle Skeleton', icon: '💀', tier: 1, cls: 'undead', family: 'Undead',
@@ -146,12 +156,12 @@ export const MONSTERS = {
   imp: { name: 'Imp', icon: '👿', tier: 1, cls: 'demon', family: 'Demon',
     hp: 10, atk: 4, def: 0, xp: 10, gp: [2, 6],
     drops: [{ id: 'demon_shard', ch: .1 }, { id: 'coal', ch: .25 }, { id: 'rune_frag', ch: .08 },
-      { id: 'apprentice_boots', ch: .004, salvage: true }] },
+      { id: 'apprentice_boots', ch: .0027, salvage: true }] },
   fire_elemental: { name: 'Fire Elemental', icon: '🔥', tier: 1, cls: 'elemental', family: 'Elemental',
     elementWeak: 'frost', elementImmune: ['ember'],
     hp: 12, atk: 4, def: 1, xp: 11, gp: [2, 6],
     drops: [{ id: 'coal', ch: .5 }, { id: 'copper_ore', ch: .2 }, { id: 'hell_ember', ch: .005 },
-      { id: 'apprentice_belt', ch: .004, salvage: true }] },
+      { id: 'apprentice_belt', ch: .003, salvage: true }] },
   scarecrow: { name: 'Scarecrow', icon: '🎃', tier: 1, cls: 'construct', family: 'Construct',
     hp: 16, atk: 2, def: 2, xp: 9, gp: [1, 5],
     drops: [{ id: 'wheat', ch: .6 }, { id: 'normal_log', ch: .35 }, { id: 'pumpkin', ch: .12 },
@@ -162,11 +172,11 @@ export const MONSTERS = {
   giant_bat: { name: 'Giant Bat', icon: '🦇', tier: 2, cls: 'vermin', family: 'Vermin',
     hp: 24, atk: 7, def: 1, xp: 24, gp: [4, 12], speed: 4400,
     drops: [{ id: 'bat_wing', ch: .7 }, { id: 'night_fang', ch: .025 }, { id: 'bones', ch: .5 },
-      { id: 'fang_studs', ch: .0005, lucky: true }] },   // .0007 -> .0005 (S1 instance engine, 397 kills/h at the T2 loadout): 3.6 -> 5.0 h, inside lucky-finds' [4, 30]
+      { id: 'fang_studs', ch: .00019, lucky: true }] },   // .0005 -> .00019 (core rebuild: 3.8 h): ~10 h, rare ruling 10-20 h
   locust_swarm: { name: 'Locust Swarm', icon: '🦗', tier: 2, cls: 'vermin', family: 'Vermin',
     hp: 25, atk: 8, def: 1, xp: 27, gp: [4, 13],
     drops: [{ id: 'wheat', ch: .8 }, { id: 'silk_thread', ch: .2 }, { id: 'venom_sac', ch: .1 },
-      { id: 'studded_belt', ch: .004, salvage: true }] },
+      { id: 'studded_belt', ch: .0032, salvage: true }] },
   ooze: { name: 'Ooze', icon: '🫧', tier: 2, cls: 'vermin', family: 'Vermin',
     /* one override (element): immune to every element — the pure triangle check. */
     elementWeak: null, elementImmune: ['ember', 'frost', 'poison'],
@@ -186,7 +196,7 @@ export const MONSTERS = {
   shrieker: { name: 'Shrieker', icon: '🍄', tier: 2, cls: 'plant', family: 'Plant',
     hp: 29, atk: 9, def: 2, xp: 33, gp: [6, 15],
     drops: [{ id: 'oak_log', ch: .5 }, { id: 'moonbloom', ch: .12 }, { id: 'goldenroot', ch: .25 },
-      { id: 'studded_helmet', ch: .0038, salvage: true }] },
+      { id: 'studded_helmet', ch: .0031, salvage: true }] },
   hobgoblin: { name: 'Hobgoblin', icon: '👹', tier: 2, cls: 'humanoid', family: 'Humanoid',
     hp: 34, atk: 9, def: 4, xp: 38, gp: [8, 22],
     drops: [{ id: 'goblin_ear', ch: .65 }, { id: 'iron_ore', ch: .12 }, { id: 'iron_sword', ch: .012 }, { id: 'goblin_totem', ch: .02 },
@@ -200,7 +210,7 @@ export const MONSTERS = {
   dark_wizard: { name: 'Dark Wizard', icon: '🧙', tier: 2, cls: 'human', family: 'Human',
     dropBonus: 1.15,
     hp: 28, atk: 12, def: 1, xp: 55, gp: [10, 25],
-    drops: [{ id: 'magic_essence', ch: .4 }, { id: 'rune_frag', ch: .2 }, { id: 'bones', ch: .6 }, { id: 'dark_sigil', ch: .015 }] },
+    drops: [{ id: 'magic_essence', ch: .4 }, { id: 'rune_frag', ch: .2 }, { id: 'bones', ch: .6 }, { id: 'dark_sigil', ch: .015 }, { id: 'oak_wand', ch: .003 }, { id: 'oak_spellbook', ch: .003 }] },
   /* FOLD-33: `cultist` merged INTO `dark_wizard` above via MONSTER_ALIAS. Two
      Tier-2 robed Human casters, both magic-styled; the Human class carries
      eleven casters across six tiers and this is the one pair where the
@@ -235,7 +245,7 @@ export const MONSTERS = {
     elementWeak: 'frost',
     hp: 24, atk: 11, def: 1, xp: 43, gp: [8, 19],
     drops: [{ id: 'magic_essence', ch: .4 }, { id: 'rune_frag', ch: .22 }, { id: 'normal_log', ch: .3 },
-      { id: 'adept_gloves', ch: .004, salvage: true }] },
+      { id: 'adept_gloves', ch: .0031, salvage: true }] },
   stone_golem: { name: 'Stone Golem', icon: '🗿', tier: 2, cls: 'construct', family: 'Construct',
     hp: 35, atk: 7, def: 4, xp: 34, gp: [6, 15],
     drops: [{ id: 'copper_ore', ch: .5 }, { id: 'iron_ore', ch: .25 }, { id: 'coal', ch: .3 },
@@ -279,7 +289,7 @@ export const MONSTERS = {
     dropBonus: 1.15,
     hp: 58, atk: 24, def: 5, xp: 135, gp: [24, 60],
     drops: [{ id: 'magic_essence', ch: .55 }, { id: 'rune_frag', ch: .35 }, { id: 'cracked_spellstone', ch: .025 },
-      { id: 'scholar_gloves', ch: .0035, salvage: true }] },
+      { id: 'willow_wand', ch: .001 }, { id: 'willow_spellbook', ch: .001 }, { id: 'scholar_gloves', ch: .0035, salvage: true }] },
   deserter: { name: 'Deserter', icon: '🗡️', tier: 3, cls: 'human', family: 'Human',
     /* one override (weapon): he wears real plate — the first monster where
        your weapon choice is about HIS kit, not his species. */
@@ -370,14 +380,14 @@ export const MONSTERS = {
     /* the `magic_essence` faucet at the tier Runecrafting actually needs it. */
     hp: 106, atk: 37, def: 13, xp: 318, gp: [56, 122],
     drops: [{ id: 'magic_essence', ch: .9 }, { id: 'rune_frag', ch: .5 }, { id: 'cracked_spellstone', ch: .04 },
-      { id: 'warlock_gloves', ch: .003, salvage: true }] },
+      { id: 'maple_wand', ch: .0015 }, { id: 'warlock_gloves', ch: .003, salvage: true }] },
   conjurer: { name: 'Conjurer', icon: '🔮', tier: 4, cls: 'human', family: 'Human',
     /* one override (element): he casts what he is immune to — the first
        "bring the other element" lesson. */
     elementImmune: ['ember'],
     hp: 110, atk: 36, def: 14, xp: 312, gp: [54, 118],
     drops: [{ id: 'magic_essence', ch: .7 }, { id: 'hell_ember', ch: .03 }, { id: 'rune_frag', ch: .45 },
-      { id: 'warlock_boots', ch: .003, salvage: true }] },
+      { id: 'maple_spellbook', ch: .0014 }, { id: 'warlock_boots', ch: .003, salvage: true }] },
   wraith: { name: 'Wraith', icon: '👻', tier: 4, cls: 'undead', family: 'Undead',
     hp: 112, atk: 38, def: 20, xp: 310, gp: [55, 115],
     drops: [{ id: 'grave_dust', ch: .7 }, { id: 'wraith_veil', ch: .2 }, { id: 'vamp_dust', ch: .12 }, { id: 'ancient_rune', ch: .04 },
@@ -480,11 +490,11 @@ export const MONSTERS = {
     dropBonus: 1.15,
     hp: 215, atk: 72, def: 22, xp: 680, gp: [145, 310],
     drops: [{ id: 'magic_essence', ch: .8 }, { id: 'ancient_rune', ch: .22 }, { id: 'hollow_sigil', ch: .018 },
-      { id: 'sorcerer_gloves', ch: .0025, salvage: true }] },
+      { id: 'yew_wand', ch: .001 }, { id: 'sorcerer_gloves', ch: .0025, salvage: true }] },
   astrologer: { name: 'Astrologer', icon: '🔭', tier: 5, cls: 'human', family: 'Human',
     hp: 196, atk: 70, def: 22, xp: 662, gp: [140, 296],
     drops: [{ id: 'magic_essence', ch: .75 }, { id: 'ancient_rune', ch: .2 }, { id: 'rune_frag', ch: .6 }, { id: 'ruby', ch: .04 },
-      { id: 'sorcerer_boots', ch: .0025, salvage: true }] },
+      { id: 'yew_spellbook', ch: .0012 }, { id: 'sorcerer_boots', ch: .0025, salvage: true }] },
   bandit_lord: { name: 'Bandit Lord', icon: '🪙', tier: 5, cls: 'human', family: 'Human',
     hp: 212, atk: 65, def: 27, xp: 612, gp: [126, 262],
     drops: [{ id: 'gold_ore', ch: .5 }, { id: 'gold_bar', ch: .25 }, { id: 'ruby', ch: .05 }, { id: 'captain_medal', ch: .08 },
@@ -553,10 +563,10 @@ export const MONSTERS = {
     drops: [{ id: 'war_crown', ch: .12 }, { id: 'captain_medal', ch: .45 }, { id: 'death_steel', ch: .3 }, { id: 'warlord_badge', ch: .8 }] },
   necromancer: { name: 'Necromancer', icon: '🕯️', tier: 6, cls: 'human', family: 'Human', boss: true,
     hp: 356, atk: 100, def: 34, xp: 1195, gp: [302, 650],
-    drops: [{ id: 'lich_soul', ch: .4 }, { id: 'ancient_rune', ch: .35 }, { id: 'hollow_sigil', ch: .05 }, { id: 'grave_dust', ch: 1 }, { id: 'soul_recipe', ch: .015 }] },
+    drops: [{ id: 'lich_soul', ch: .4 }, { id: 'ancient_rune', ch: .35 }, { id: 'hollow_sigil', ch: .05 }, { id: 'grave_dust', ch: 1 }, { id: 'soul_recipe', ch: .015 }, { id: 'runewood_wand', ch: .0015 }] },
   lich: { name: 'Ancient Lich', icon: '☠️', tier: 6, cls: 'undead', family: 'Undead', boss: true,
     hp: 350, atk: 55, def: 30, xp: 800, gp: [200, 500],
-    drops: [{ id: 'lich_soul', ch: .8 }, { id: 'ancient_rune', ch: .3 }, { id: 'vamp_dust', ch: .30 }, { id: 'hollow_sigil', ch: .025 }, { id: 'soul_recipe', ch: .01 }] },
+    drops: [{ id: 'lich_soul', ch: .8 }, { id: 'ancient_rune', ch: .3 }, { id: 'vamp_dust', ch: .30 }, { id: 'hollow_sigil', ch: .025 }, { id: 'soul_recipe', ch: .01 }, { id: 'runewood_codex', ch: .0013 }] },
   revenant: { name: 'Revenant', icon: '🦴', tier: 6, cls: 'undead', family: 'Undead',
     /* the `big_bones` endgame faucet, and Prayer's best customer. */
     hp: 448, atk: 86, def: 50, xp: 1035, gp: [252, 512],
@@ -661,73 +671,73 @@ export const MONSTERS = {
 
   /* ══ The Millrace Sewer: FORMATION rows (a party of up to four, FORMATION_BANDS).
      Numbers, names and economy: the src/data/hunt-grounds.js header. ══════════ */
-  drain_rat: { name: 'Drain Rat', icon: '🐀', tier: 1, cls: 'vermin', family: 'Vermin', formation: true,
-    hp: 45, atk: 5, def: 0, xp: 24, gp: [2, 10], speed: 3400,
+  drain_rat: { name: 'Drain Rat', icon: '🐀', tier: 1, level: 10, cls: 'vermin', family: 'Vermin', formation: true,
+    hp: 45, atk: 5, def: 0, xp: 154, gp: [2, 10], speed: 3400,
     drops: [{ id: 'rat_tail', ch: .9 }, { id: 'bones', ch: .35 }, { id: 'small_fang', ch: .06 }] },
-  sump_slime: { name: 'Sump Slime', icon: '🟢', tier: 1, cls: 'vermin', family: 'Vermin', formation: true,
+  sump_slime: { name: 'Sump Slime', icon: '🟢', tier: 1, level: 10, cls: 'vermin', family: 'Vermin', formation: true,
     /* one override (element): the sump shrugs off every element. */
     elementWeak: null, elementImmune: ['ember', 'frost', 'poison'],
-    hp: 50, atk: 4, def: 0, xp: 22, gp: [2, 8], speed: 2400,
+    hp: 50, atk: 4, def: 0, xp: 141, gp: [2, 8], speed: 2400,
     drops: [{ id: 'slime_gel', ch: .95 }, { id: 'bones', ch: .25 }, { id: 'sticky_core', ch: .02 }] },
-  culvert_bat: { name: 'Culvert Bat', icon: '🦇', tier: 1, cls: 'vermin', family: 'Vermin', formation: true,
-    hp: 70, atk: 9, def: 1, xp: 45, gp: [8, 21], speed: 4400,
+  culvert_bat: { name: 'Culvert Bat', icon: '🦇', tier: 1, level: 15, cls: 'vermin', family: 'Vermin', formation: true,
+    hp: 70, atk: 9, def: 1, xp: 288, gp: [8, 21], speed: 4400,
     drops: [{ id: 'bat_wing', ch: .7 }, { id: 'bones', ch: .5 }, { id: 'night_fang', ch: .025 }] },
-  cistern_spider: { name: 'Cistern Spider', icon: '🕷️', tier: 1, cls: 'vermin', family: 'Vermin', formation: true,
+  cistern_spider: { name: 'Cistern Spider', icon: '🕷️', tier: 1, level: 20, cls: 'vermin', family: 'Vermin', formation: true,
     /* one override (element): venomous, so poison is a resist, not an immunity. */
     elementResist: ['poison'], elementImmune: [],
-    hp: 90, atk: 13, def: 6, xp: 110, gp: [20, 50], speed: 3600,
+    hp: 90, atk: 13, def: 6, xp: 704, gp: [20, 50], speed: 3600,
     drops: [{ id: 'silk_thread', ch: .3 }, { id: 'venom_sac', ch: .1 }, { id: 'spider_eye', ch: .035 }] },
-  kobold_tosher: { name: 'Kobold Tosher', icon: '🦎', tier: 1, cls: 'humanoid', family: 'Humanoid', formation: true,
-    hp: 55, atk: 7, def: 1, xp: 30, gp: [5, 14], speed: 3200,
+  kobold_tosher: { name: 'Kobold Tosher', icon: '🦎', tier: 1, level: 13, cls: 'humanoid', family: 'Humanoid', formation: true,
+    hp: 55, atk: 7, def: 1, xp: 192, gp: [5, 14], speed: 3200,
     drops: [{ id: 'bones', ch: 1 }, { id: 'bone_chips', ch: .5 }, { id: 'copper_ore', ch: .18 }] },
-  rat_king: { name: 'Rat King', icon: '👑', tier: 1, cls: 'vermin', family: 'Vermin', formation: true, boss: true,
+  rat_king: { name: 'Rat King', icon: '👑', tier: 1, level: 25, cls: 'vermin', family: 'Vermin', formation: true, boss: true,
     /* one override (element): fire glances off the knot; frost is the exam's answer. */
     elementResist: ['ember'],
-    hp: 600, atk: 20, def: 4, xp: 600, gp: [66, 132], speed: 2800,
+    hp: 600, atk: 20, def: 4, xp: 3840, gp: [66, 132], speed: 2800,
     drops: [{ id: 'rat_tail', ch: 1 }, { id: 'bones', ch: 1 }, { id: 'crown_shard', ch: .15 }] },
 
   /* ══ Meadowbrook Thicket: the gray wolves (one family, five roles; a solo ground).
      Names, roles and economy: the src/data/hunt-grounds.js header. ══════════════ */
-  gray_whelp: { name: 'Gray Whelp', icon: '🐺', tier: 1, cls: 'mammal', family: 'Mammal',
-    hp: 9, atk: 2, def: 0, xp: 6, gp: [1, 3], speed: 3800,
+  gray_whelp: { name: 'Gray Whelp', icon: '🐺', tier: 1, level: 5, cls: 'mammal', family: 'Mammal',
+    hp: 9, atk: 2, def: 0, xp: 28, gp: [1, 3], speed: 3800,
     drops: [{ id: 'raw_wolf_meat', ch: .35 }, { id: 'bones', ch: .4 }, { id: 'small_fang', ch: .02 }] },
-  gray_wolf: { name: 'Gray Wolf', icon: '🐺', tier: 1, cls: 'mammal', family: 'Mammal',
-    hp: 14, atk: 4, def: 1, xp: 11, gp: [2, 5], speed: 4200,
+  gray_wolf: { name: 'Gray Wolf', icon: '🐺', tier: 1, level: 8, cls: 'mammal', family: 'Mammal',
+    hp: 14, atk: 4, def: 1, xp: 52, gp: [2, 5], speed: 4200,
     drops: [{ id: 'raw_wolf_meat', ch: .5 }, { id: 'wolf_pelt', ch: .05 }, { id: 'bones', ch: .5 }, { id: 'small_fang', ch: .03 },
       { id: 'bronze_boots', ch: .0025, salvage: true }] },
-  briarcoat_wolf: { name: 'Briarcoat Wolf', icon: '🐺', tier: 1, cls: 'mammal', family: 'Mammal',
+  briarcoat_wolf: { name: 'Briarcoat Wolf', icon: '🐺', tier: 1, level: 10, cls: 'mammal', family: 'Mammal',
     /* one override (weapon): arrows snag in the burrs; a club knocks them loose. */
     weaponWeak: 'hammer', weaponResist: ['ranged'],
-    hp: 16, atk: 3, def: 2, xp: 13, gp: [2, 5], speed: 2800,
+    hp: 16, atk: 3, def: 2, xp: 61, gp: [2, 5], speed: 2800,
     drops: [{ id: 'wolf_pelt', ch: .1 }, { id: 'raw_wolf_meat', ch: .4 }, { id: 'bones', ch: .5 }] },
-  dire_gray: { name: 'Dire Gray', icon: '🐺', tier: 2, cls: 'mammal', family: 'Mammal',
-    hp: 28, atk: 7, def: 3, xp: 38, gp: [5, 14], speed: 3600,
+  dire_gray: { name: 'Dire Gray', icon: '🐺', tier: 2, level: 13, cls: 'mammal', family: 'Mammal',
+    hp: 28, atk: 7, def: 3, xp: 179, gp: [5, 14], speed: 3600,
     drops: [{ id: 'wolf_pelt', ch: .2 }, { id: 'raw_wolf_meat', ch: .7 }, { id: 'bones', ch: 1 }, { id: 'dire_fang', ch: .04 }] },
-  grayjaw: { name: 'Old Grayjaw', icon: '🐺', tier: 2, cls: 'mammal', family: 'Mammal',
+  grayjaw: { name: 'Old Grayjaw', icon: '🐺', tier: 2, level: 15, cls: 'mammal', family: 'Mammal',
     /* the den mother under the hollow oak: the top of tier 2, the wood's hardest bite. */
-    hp: 35, atk: 10, def: 4, xp: 55, gp: [6, 16], speed: 3200,
+    hp: 35, atk: 10, def: 4, xp: 258, gp: [6, 16], speed: 3200,
     drops: [{ id: 'wolf_pelt', ch: .4 }, { id: 'bones', ch: 1 }, { id: 'dire_fang', ch: .25 }, { id: 'alpha_fang', ch: .01 }] },
 
   /* ══ Coppercap Warrens: the goblins of the copper diggings (one family, five roles;
      a party ground). Names, roles and economy: the src/data/hunt-grounds.js header. ══ */
-  goblin_scavenger: { name: 'Goblin Scavenger', icon: '👺', tier: 3, cls: 'humanoid', family: 'Humanoid', formation: true,
-    hp: 150, atk: 22, def: 10, xp: 140, gp: [10, 23], speed: 3200,
+  goblin_scavenger: { name: 'Goblin Scavenger', icon: '👺', tier: 3, level: 34, cls: 'humanoid', family: 'Humanoid', formation: true,
+    hp: 150, atk: 22, def: 10, xp: 924, gp: [10, 23], speed: 3200,
     drops: [{ id: 'goblin_ear', ch: .6 }, { id: 'copper_ore', ch: .5 }, { id: 'bones', ch: .5 }, { id: 'coal', ch: .1 }] },
-  goblin_skulker: { name: 'Goblin Skulker', icon: '👺', tier: 3, cls: 'humanoid', family: 'Humanoid', formation: true,
-    hp: 170, atk: 30, def: 12, xp: 170, gp: [11, 27], speed: 4400,
+  goblin_skulker: { name: 'Goblin Skulker', icon: '👺', tier: 3, level: 38, cls: 'humanoid', family: 'Humanoid', formation: true,
+    hp: 170, atk: 30, def: 12, xp: 1122, gp: [11, 27], speed: 4400,
     drops: [{ id: 'goblin_ear', ch: .6 }, { id: 'bones', ch: .5 }, { id: 'iron_ore', ch: .2 }, { id: 'goblin_totem', ch: .03 }] },
-  goblin_digger: { name: 'Goblin Digger', icon: '👺', tier: 3, cls: 'humanoid', family: 'Humanoid', formation: true,
+  goblin_digger: { name: 'Goblin Digger', icon: '👺', tier: 3, level: 40, cls: 'humanoid', family: 'Humanoid', formation: true,
     /* one override (weapon): the copper pot over its eyes turns a blade; a hammer rings it. */
     weaponWeak: 'hammer', weaponResist: ['sword'],
-    hp: 240, atk: 26, def: 20, xp: 220, gp: [13, 31], speed: 2600,
+    hp: 240, atk: 26, def: 20, xp: 1452, gp: [13, 31], speed: 2600,
     drops: [{ id: 'copper_ore', ch: .8 }, { id: 'coal', ch: .4 }, { id: 'bones', ch: .5 }, { id: 'goblin_ear', ch: .4 }] },
-  hobgoblin_foreman: { name: 'Hobgoblin Foreman', icon: '👹', tier: 3, cls: 'humanoid', family: 'Humanoid', formation: true,
-    hp: 300, atk: 40, def: 22, xp: 320, gp: [23, 54], speed: 3000,
+  hobgoblin_foreman: { name: 'Hobgoblin Foreman', icon: '👹', tier: 3, level: 46, cls: 'humanoid', family: 'Humanoid', formation: true,
+    hp: 300, atk: 40, def: 22, xp: 2112, gp: [23, 54], speed: 3000,
     drops: [{ id: 'big_bones', ch: 1 }, { id: 'iron_ore', ch: .6 }, { id: 'coal', ch: .6 }, { id: 'goblin_totem', ch: .08 }] },
-  chief_coppercap: { name: 'Chief Coppercap', icon: '👑', tier: 3, cls: 'humanoid', family: 'Humanoid', formation: true, boss: true,
+  chief_coppercap: { name: 'Chief Coppercap', icon: '👑', tier: 3, level: 52, cls: 'humanoid', family: 'Humanoid', formation: true, boss: true,
     /* one override (element): the polished cauldron he wears for a crown sheds frost. */
     elementResist: ['frost'],
-    hp: 1100, atk: 54, def: 28, xp: 1200, gp: [76, 172], speed: 2800,
+    hp: 1100, atk: 54, def: 28, xp: 7920, gp: [76, 172], speed: 2800,
     drops: [{ id: 'big_bones', ch: 1 }, { id: 'gold_ore', ch: .5 }, { id: 'goblin_totem', ch: .3 }, { id: 'war_crown', ch: .02 }] },
 };
 

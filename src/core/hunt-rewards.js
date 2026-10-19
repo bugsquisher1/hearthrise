@@ -7,18 +7,23 @@
 // and turns them into each member's value — through that member's OWN `fx`
 // sink (the one the settle prices and the database re-proves):
 //
-//   xp     kill XP (xp-share.js already split it per hero) along the hero's
-//          combat-style route (styles.js killXpRoute)
-//   dmg    hit XP for every point of HP a hero removed from a monster, and the
-//          lifetime crit count for a crit blow
-//          (styles.js hitXpRoute: "XP is earned on damage dealt")
+// THE XP ROUTES (docs/design/CORE_MODEL.md §4; Tyler 2026-10-19), the ONE
+// place a hunt pays XP, attended or not (AWAY-1):
+//   xp     kill XP (xp-share.js already split it per hero): the character's
+//          LEVEL, and nothing else (Level comes from kills only)
+//   dmg    a hero's blow on a monster: Melee or Ranged XP (the weapon family's
+//          skill, src/data/skills.js FAMILY_SKILL) per HP removed; a magic
+//          weapon pays nothing here. The lifetime crit count for a crit blow.
+//   dmg / miss  a monster's blow at an ARMOURED hero: Defense XP scaled by the
+//          attacker's level (MONSTERS[*].level), a blow a shield turns aside
+//          (a miss on a shield-holder) paying COMBAT_XP.blockMult times more
 //   cast   Magic XP for the mana an ability spent (xp-share.js magicXpFor)
 //   kill   of a MONSTER: its gold and drops on the instance's `r` stream —
 //          gold split evenly, items round-robin (party-split.js, the one
 //          split) — and every kill counter, for each hero in the instance;
 //          then the Hearthfind roll for the hero who landed it
-//   kill   of a HERO: a fall, answered to the caller (the span owns the
-//          knockout, the death row and the price of the fall)
+//   kill   of a HERO: a death, answered to the caller (the span ends that
+//          hero's hunt and prices the death)
 //
 // DICE: only kills draw, from `ctx.rng` (seed domain `r`, one stream per
 // swing, so a window cut anywhere draws the same numbers — TICK-1), in event
@@ -28,16 +33,26 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { MONSTERS } from '../data/monsters.js?v=0.2.6';
-import { rollDropTable } from './drops.js?v=0.2.6';
-import { yieldOf } from './hunt/damage.js?v=0.2.6';
-import { applyGoldFind } from './pacing.js?v=0.2.6';
-import { hitXpRoute, killXpRoute } from './styles.js?v=0.2.6';
-import { resolveHearthfind } from './hearthfind.js?v=0.2.6';
-import { magicXpFor } from './hunt/xp-share.js?v=0.2.6';
-import { splitEven, itemOwner } from './party-split.js?v=0.2.6';
+import { MONSTERS, monsterLevelOf } from '../data/monsters.js?v=0.2.8';
+import { rollDropTable } from './drops.js?v=0.2.8';
+import { yieldOf } from './hunt/damage.js?v=0.2.8';
+import { applyGoldFind } from './pacing.js?v=0.2.8';
+import { COMBAT_XP } from '../data/core-model.js?v=0.2.8';
+import { FAMILY_SKILL, DAMAGE_XP_FAMILIES } from '../data/skills.js?v=0.2.8';
+import { resolveHearthfind } from './hearthfind.js?v=0.2.8';
+import { magicXpFor } from './hunt/xp-share.js?v=0.2.8';
+import { splitEven, itemOwner } from './party-split.js?v=0.2.8';
 
 const call = (fx, name, ...args) => (fx && typeof fx[name] === 'function' ? fx[name](...args) : undefined);
+
+/* THE DEFENSE XP of one monster blow aimed at member `m` (landed or turned aside):
+   only while the hero wears armour; scaled by the attacker's level; a shield's
+   block (a miss on a shield-holder) pays blockMult times more. */
+function defenseXp(m, attacker, missed, monsters) {
+  if (!m || m.armoured !== true || !attacker || attacker.side !== 'mon') return 0;
+  const lv = monsterLevelOf((monsters || MONSTERS)[attacker.kind]);
+  return (lv * COMBAT_XP.defenseXpPerLevelPermille / 1000) * (missed && m.shield === true ? COMBAT_XP.blockMult : 1);
+}
 
 /* The kill counters every hero in the instance earns for one monster kill. */
 function countKill(m, kind) {
@@ -88,28 +103,40 @@ function payKill(present, killer, kind, ctx, yieldPm) {
 
 /**
  * Pay one swing. `members` maps a hero unit id to its member:
- *   { state, hs, fx, style, bonus(key), weakness(monsterRow) → { dropMult } }.
+ *   { state, hs, fx, family (the weapon family), armoured, shield, bonus(key),
+ *     weakness(monsterRow) → { dropMult } }.
  * `world` is the instance world AFTER the swing (a corpse is still a unit).
  * `ctx` = { rng (the swing's `r` stream), monsters?, hearthfind? (the indexed table; the catalogue's when absent) }.
- * Answers the swing's falls: [{ unit, atMs, monster }], in event order.
+ * Answers the swing's deaths: [{ unit, atMs, monster }], in event order.
  */
 export function rewardSwing(members, events, world, ctx) {
   const unitOf = (id) => world.units.find((u) => u.id === id) || null;
   const present = () => world.units.filter((u) => u.side === 'hero' && members.has(u.id))
     .sort((a, b) => a.id - b.id).map((u) => members.get(u.id));
-  const falls = [];
+  const deaths = [];
   for (const ev of events) {
     switch (ev.type) {
       case 'xp': {
         const m = members.get(ev.u);
-        if (m) for (const g of killXpRoute(m.style, ev.amount, 1)) call(m.fx, 'addXp', g.skill, g.amount);
+        if (m && ev.amount > 0) call(m.fx, 'addLevelXp', ev.amount);
         break;
       }
       case 'dmg': {
         const m = members.get(ev.u);
         const t = unitOf(ev.t);
-        if (m && t && t.side === 'mon' && ev.amount > 0) for (const g of hitXpRoute(m.style, ev.amount)) call(m.fx, 'addXp', g.skill, g.amount);
+        if (m && t && t.side === 'mon' && ev.amount > 0 && DAMAGE_XP_FAMILIES.includes(m.family)) {
+          call(m.fx, 'addXp', FAMILY_SKILL[m.family], ev.amount * COMBAT_XP.hitXpPerDamage);
+        }
         if (m && ev.crit === true) { m.state.stats = m.state.stats || {}; m.state.stats.crits = (m.state.stats.crits || 0) + 1; }
+        const hit = members.get(ev.t);
+        const d = hit ? defenseXp(hit, unitOf(ev.u), false, ctx.monsters) : 0;
+        if (d > 0) call(hit.fx, 'addXp', 'defense', d);
+        break;
+      }
+      case 'miss': {
+        const aimed = members.get(ev.t);
+        const d = aimed ? defenseXp(aimed, unitOf(ev.u), true, ctx.monsters) : 0;
+        if (d > 0) call(aimed.fx, 'addXp', 'defense', d);
         break;
       }
       case 'cast': {
@@ -126,12 +153,12 @@ export function rewardSwing(members, events, world, ctx) {
           if (heroes.length) payKill(heroes, members.get(ev.u) || null, t.kind, ctx, yieldOf(t));
         } else if (members.has(ev.t)) {
           const k = unitOf(ev.u);
-          falls.push({ unit: ev.t, atMs: ev.atMs, monster: k && k.side === 'mon' ? k.kind : '' });
+          deaths.push({ unit: ev.t, atMs: ev.atMs, monster: k && k.side === 'mon' ? k.kind : '' });
         }
         break;
       }
       default: break;
     }
   }
-  return falls;
+  return deaths;
 }

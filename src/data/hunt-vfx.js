@@ -22,7 +22,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { ABILITIES } from './abilities.js?v=0.2.6';
+import { ABILITIES } from './abilities.js?v=0.2.8';
 
 /* Where on a unit an effect centres, as a fraction of its art height: a rat's chest is
    lower than the Rat King's, and a mark floats over whichever head it is on. */
@@ -41,7 +41,7 @@ export const EVENT_FX = Object.freeze({
   challenge: row({ fx: 'fx_challenge_taunt', at: 'u', lift: FEET }),
   level: row({ fx: 'fx_level_up', at: 'u', lift: FEET }),
   rare_drop: row({ fx: 'fx_loot_sparkle', at: 'viewed', lift: CHEST }),
-  ended: null, fall: null, slot_dry: null, pack_reset: null, pull: null, respawn: null, wipe: null,
+  ended: null, death: null, slot_dry: null, pack_reset: null, pull: null, respawn: null, wipe: null,
   target: null, miss: null, immune: null, status_on: null, status_off: null,
   eat: null, drink: null, xp: null, xp_group: null, rule_stop: null, shot: null, rule_wait: null,
 });

@@ -7,27 +7,13 @@
   "state": {
     "active_kind": "combat",
     "active_id": "mill_cellar",
-    "gold": 5200
+    "gold": 5200,
+    "level_xp": 21591
   },
   "skills": {
-    "attack": {
-      "xp": 4700,
-      "level": 20,
-      "frac": 0
-    },
-    "strength": {
-      "xp": 4500,
-      "level": 20,
-      "frac": 0
-    },
     "defense": {
       "xp": 3973,
       "level": 19,
-      "frac": 0
-    },
-    "hitpoints": {
-      "xp": 7100,
-      "level": 24,
       "frac": 0
     },
     "prayer": {
@@ -84,6 +70,11 @@
       "xp": 0,
       "level": 1,
       "frac": 0
+    },
+    "melee": {
+      "xp": 4700,
+      "level": 20,
+      "frac": 0
     }
   },
   "inventory": {
@@ -124,8 +115,7 @@
       "hp_regen": 2,
       "mana_regen": 1,
       "shield": 0,
-      "xp_pct": 0.62,
-      "falls": 0
+      "xp_pct": 0.62
     },
     "pose": {
       "at_ms": 1760702400000,

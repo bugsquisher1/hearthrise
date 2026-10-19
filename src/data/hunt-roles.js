@@ -5,7 +5,8 @@
 // RO-18). No vocation names anywhere. A role row is a function, not a spec
 // (RO-17): a shield makes a Melee tank (it pulls, holds and Challenges), two
 // axes or a club a Melee DPS (stands by the tank's target), a bow or crossbow
-// a Ranger, a staff a Mage or a Healer.
+// a Ranger, a wand a Mage (its spellbook rides in the off-hand), a staff a Healer
+// (Tyler 2026-10-19).
 //
 // UNITS (hunt-tuning.js): speed in millitiles per second, range in tiles,
 // chances in permille, clocks in integer ms.
@@ -22,27 +23,32 @@
    range     tiles; a ranged role also needs line of sight (TG-02)
    tank      true = holds, and Challenges what is not on him (spec §3.2 #2, #14)
    peel      permille: a basic attack of this role draws a queued monster onto it (TG-07, ASSUMED)
-   discipline the src/data/abilities.js discipline whose three abilities the role's bar holds */
+   discipline the src/data/abilities.js discipline whose three abilities the role's bar holds
+   A role sets no HP or mana: those come from the character's Level and armour
+   (src/core/vitals.js, CORE_MODEL.md §3). */
 export const HUNT_ROLES = Object.freeze({
-  tank: Object.freeze({ label: 'Melee (shield)', discipline: 'shield', melee: true, range: 1, tank: true, hp: 200, mana: 60, speed: 3200, peel: 0 }),
-  melee_dps: Object.freeze({ label: 'Melee', discipline: 'dual_axe', melee: true, range: 1, tank: false, hp: 200, mana: 60, speed: 3200, peel: 0 }),
-  ranger: Object.freeze({ label: 'Ranger', discipline: 'ranged', melee: false, range: 7, tank: false, hp: 150, mana: 100, speed: 3200, peel: 0 }),
-  mage: Object.freeze({ label: 'Mage', discipline: 'destruction', melee: false, range: 7, tank: false, hp: 120, mana: 320, speed: 3200, peel: 0 }),
-  healer: Object.freeze({ label: 'Healer', discipline: 'restoration', melee: false, range: 7, tank: false, hp: 135, mana: 300, speed: 3200, peel: 180 }),
+  tank: Object.freeze({ label: 'Melee (shield)', discipline: 'shield', melee: true, range: 1, tank: true, speed: 3200, peel: 0 }),
+  melee_dps: Object.freeze({ label: 'Melee', discipline: 'dual_axe', melee: true, range: 1, tank: false, speed: 3200, peel: 0 }),
+  ranger: Object.freeze({ label: 'Ranger', discipline: 'ranged', melee: false, range: 7, tank: false, speed: 3200, peel: 0 }),
+  mage: Object.freeze({ label: 'Mage', discipline: 'destruction', melee: false, range: 7, tank: false, speed: 3200, peel: 0 }),
+  healer: Object.freeze({ label: 'Healer', discipline: 'restoration', melee: false, range: 7, tank: false, speed: 3200, peel: 180 }),
 });
 
 /* WHO LEADS THE PULL (spec §3.2 #3, ASSUMED): the first hero in this order, ties by unit id. */
 export const ROLE_ORDER = Object.freeze(['tank', 'melee_dps', 'ranger', 'mage', 'healer']);
 
-/* WEAPON TYPE → the roles it can play; the first is the default (a staff is a Mage
-   unless the hero's settings pick Healer). */
+/* ROLE WEAPON KEY → the roles it can play; the first is the default. The key is
+   roleWeaponOf(item): the item's weaponType, except that a magic weapon's role is its
+   `discipline` (src/data/gear-tiers.js): destruction = 'wand' (Mage), restoration =
+   'staff' (Healer). Tyler 2026-10-19: Mage = wand + spellbook, Healer = staff. */
 export const WEAPON_ROLES = Object.freeze({
   shield: Object.freeze(['tank']),
   dual_axe: Object.freeze(['melee_dps']),
   club: Object.freeze(['melee_dps']),
   bow: Object.freeze(['ranger']),
   crossbow: Object.freeze(['ranger']),
-  staff: Object.freeze(['mage', 'healer']),
+  staff: Object.freeze(['healer']),
+  wand: Object.freeze(['mage']),
   /* THE WEAPON TYPES src/data/items.js SHIPS (designer 2026-10-18). This table is
      the ONE weapon -> role source: the server (hr_hunt_weapon_roles, generated),
      hunt-spawn heroSetup and the client (import roleForWeapon, never a copy).
@@ -50,14 +56,27 @@ export const WEAPON_ROLES = Object.freeze({
      rows are mapped here, not renamed. A sword is a one-hand blade with a shield
      arm: the anchor, Tank (the sewer lane's Bronze Sword ruling). A two-hand
      hammer crushes: the club's Melee DPS. Bows and crossbows ship as `ranged`
-     until bow = AoE / crossbow = single target is ruled; magic weapons are
-     staves (Mage, or Healer if picked). No weapon fights as Melee DPS. */
+     until bow = AoE / crossbow = single target is ruled. A magic weapon has no
+     `magic` row: it is a wand or a staff by its discipline (roleWeaponOf). */
   sword: Object.freeze(['tank']),
   hammer: Object.freeze(['melee_dps']),
   neutral: Object.freeze(['melee_dps']),
   ranged: Object.freeze(['ranger']),
-  magic: Object.freeze(['mage', 'healer']),
 });
+
+/* The magic disciplines' role keys (Tyler 2026-10-19). */
+const MAGIC_ROLE_WEAPON = Object.freeze({ destruction: 'wand', restoration: 'staff' });
+
+/** The WEAPON_ROLES key an equipped weapon item plays: a magic weapon by its discipline
+ *  (wand / staff), any other by its weaponType; 'neutral' for no weapon. A magic weapon
+ *  with NO discipline (the four hand-authored drops: demoncaller_staff, void_censer,
+ *  whispering_codex, voidmaw_scepter) keeps the Mage it played before the ruling until
+ *  the designer gives it one. */
+export function roleWeaponOf(item) {
+  if (!item) return 'neutral';
+  if (item.weaponType === 'magic') return MAGIC_ROLE_WEAPON[item.discipline] || 'wand';
+  return item.weaponType || 'neutral';
+}
 
 /* THE TANK'S AUTO-CHALLENGE (spec §3.2 #14, ASSUMED numbers): any engaged monster
    within `radius` tiles (Chebyshev, "on screen") that is not on the tank is pulled
@@ -102,7 +121,7 @@ export function validate() {
     if (typeof r.melee !== 'boolean' || typeof r.tank !== 'boolean') out.push(id + ': melee and tank are booleans');
     if (!Number.isInteger(r.range) || r.range < 1 || r.range > 12) out.push(id + ': range must be 1..12 tiles');
     if (r.melee && r.range !== 1) out.push(id + ': a melee role has range 1');
-    for (const k of ['hp', 'mana', 'speed']) if (!Number.isInteger(r[k]) || r[k] <= 0) out.push(id + ': ' + k + ' must be a positive integer');
+    if (!Number.isInteger(r.speed) || r.speed <= 0) out.push(id + ': speed must be a positive integer');
     if (!Number.isInteger(r.peel) || r.peel < 0 || r.peel > 1000) out.push(id + ': peel is permille 0..1000');
     if (!['shield', 'dual_axe', 'ranged', 'destruction', 'restoration'].includes(r.discipline)) out.push(id + ': unknown discipline ' + r.discipline);
   }

@@ -17,7 +17,10 @@
 .hw-cs-id { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .hw-cs-name { font-family: var(--f-label); font-size: var(--t-lead); color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hw-cs-role, .hw-cs-level { font-size: var(--t-micro); color: var(--ink-2); }
-.hw-cs-level { color: var(--gold-2); font-variant-numeric: lining-nums tabular-nums; }
+.hw-cs-level { display: none; align-items: center; gap: 6px; color: var(--gold-2); font-variant-numeric: lining-nums tabular-nums; }
+.hw-cs-level.is-on { display: flex; }
+.hw-cs-level .hw-skill-bar { max-width: 96px; }
+.hw-cs-lvxp { color: var(--ink-3); }
 .hw-cs-vitals { flex: none; display: grid; grid-template-columns: auto auto; gap: 0 12px; margin: 0; }
 .hw-cs-line { display: none; justify-content: space-between; gap: 8px; min-height: 22px; align-items: baseline; }
 .hw-cs-line.is-on { display: flex; }

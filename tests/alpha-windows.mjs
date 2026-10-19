@@ -548,7 +548,8 @@ async function checks(overrides, shots) {
     }
 
     { // AW-17 the skills are two windows and neither scrolls, on the phone too; the first-minute pointer
-      const fresh = (e) => { for (const k of Object.keys(e.skills)) if (['attack', 'strength', 'defense', 'hitpoints', 'prayer', 'magic', 'ranged'].includes(k)) e.skills[k] = { xp: 0, level: 1 }; for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k]; e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null }); };
+      /* A character that has killed nothing: Level XP 0 (the core rebuild: Level comes from kills only). */
+      const fresh = (e) => { for (const k of Object.keys(e.skills)) if (['melee', 'defense', 'prayer', 'magic', 'ranged'].includes(k)) e.skills[k] = { xp: 0, level: 1 }; for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k]; e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, level_xp: 0 }); };
       const { ctx, page, up } = await open({ viewport: { width: 922, height: 423 }, mutateEnv: fresh });
       if (up) {
         const ptr = await page.evaluate(() => { const p = document.querySelector('.hs-pointer'); return p ? p.textContent : null; });

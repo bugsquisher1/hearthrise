@@ -21,24 +21,24 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { MONSTERS } from '../../data/monsters.js?v=0.2.6';
-import { HUNT_STANCES, DEFAULT_STANCE } from '../../data/rule-subjects.js?v=0.2.6';
-import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js?v=0.2.6';
-import { cheb } from './grid.js?v=0.2.6';
-import { atRest, unitById } from './movement.js?v=0.2.6';
-import { makeEvent } from './events.js?v=0.2.6';
-import { roleOf, elementOn, inRange, peel, engaged } from './targeting.js?v=0.2.6';
-import { fallen, partySize } from './pull-cycle.js?v=0.2.6';
-import { shareKillXp } from './xp-share.js?v=0.2.6';
-import { payBasic } from './abilities.js?v=0.2.6';
-import { slotsFor, pickSlot, bestAim, footprintOf, inFootprint, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.6';
-import { resolveLine } from '../action-rules.js?v=0.2.6';
-import { elementWithFloor } from '../../data/hunt-grounds.js?v=0.2.6';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.8';
+import { HUNT_STANCES, DEFAULT_STANCE } from '../../data/rule-subjects.js?v=0.2.8';
+import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js?v=0.2.8';
+import { cheb } from './grid.js?v=0.2.8';
+import { atRest, unitById } from './movement.js?v=0.2.8';
+import { makeEvent } from './events.js?v=0.2.8';
+import { roleOf, elementOn, inRange, peel, engaged } from './targeting.js?v=0.2.8';
+import { fallen, partySize } from './pull-cycle.js?v=0.2.8';
+import { shareKillXp } from './xp-share.js?v=0.2.8';
+import { payBasic } from './abilities.js?v=0.2.8';
+import { slotsFor, pickSlot, bestAim, footprintOf, inFootprint, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.8';
+import { resolveLine } from '../action-rules.js?v=0.2.8';
+import { elementWithFloor } from '../../data/hunt-grounds.js?v=0.2.8';
 
-/* stance: the hero's setting. acc (permille), maxHit, def, ward (the Prayer ward, %), element: its combat snapshot.
+/* stance: the hero's setting. acc (permille), maxHit, def, element: its combat snapshot.
    swingLeftMs: ms until the unit may swing again. */
 export const PERSISTED = Object.freeze({
-  unit: Object.freeze([['stance', 'str'], ['acc', 'int'], ['maxHit', 'int'], ['def', 'int'], ['ward', 'int'], ['element', 'str'], ['swingLeftMs', 'int']]),
+  unit: Object.freeze([['stance', 'str'], ['acc', 'int'], ['maxHit', 'int'], ['def', 'int'], ['element', 'str'], ['swingLeftMs', 'int']]),
   world: Object.freeze([]),
   pack: Object.freeze([]),
 });
@@ -126,9 +126,7 @@ export function resolveAttacks(inst, sc) {
     if (u.side === 'mon') {
       if (cheb(u, t) > 1 || !atRest(u)) continue;
       const row = MONSTERS[u.kind];
-      /* THE PRAYER WARD (combat.js monsterCombatRolls' rule): a share of blows turned aside, after the clamp. */
-      const landed = monsterAccuracy(row, t.def);
-      swing(inst, sc, u, t, t.ward > 0 ? landed * (1 - t.ward / 100) : landed, monsterMaxHit(row));
+      swing(inst, sc, u, t, monsterAccuracy(row, t.def), monsterMaxHit(row));
       continue;
     }
     const row = roleOf(u);

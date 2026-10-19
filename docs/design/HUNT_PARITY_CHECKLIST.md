@@ -7,6 +7,8 @@ Game Designer, 2026-10-17. Built from evidence, read 10-17 at `origin/main` 7bec
 
 Spec: `docs/design/HUNT_SCREEN_SPEC.md`. Week plan step 19: a QA agent plays the real game beside the sim, row by row. A missing row is a P1.
 
+**2026-10-19:** the game is the source of truth; the sim is frozen and only a quality floor (live must not look or play worse). Where a row and a Tyler ruling differ, the ruling wins and the row is SUPERSEDED (memory `rulings-of-record.md`).
+
 **ROW TOTALS: 351 rows.** Rows citing the sim code 239 · citing a 10-15..10-17 ruling 120 · citing a HUD ref 40 (a row can cite more than one). Status: TODO 285 · LIVE-SERVER 10 · DEV-ONLY 12 · DO-NOT-PORT 4 · SUPERSEDED 8 · NOT-HUNT 29 · NOT-BUILT 3.
 
 **Keys.**
@@ -115,8 +117,8 @@ Spec: `docs/design/HUNT_SCREEN_SPEC.md`. Week plan step 19: a QA agent plays the
 | PC-10 | Phases travel / fight / down / regroup | sim.js:798-807 | core/pull-cycle.js | S-edge | none | hc/pull-cycle#phase-machine | TODO |
 | PC-11 | Regroup waits for all heroes up and within 7 tiles, min 1.5 s | sim.js:803-806; sim.js:12 | core/pull-cycle.js | S-edge | hunt-tuning `regroupSec`, `regroupRadius` | hc/pull-cycle#regroup-waits-for-all | TODO |
 | PC-12 | Out-of-combat HP regen 6%/s | sim.js:808; sim.js:13 | core/pull-cycle.js | S-edge, D | hunt-tuning `oocRegenPct` (ASSUMED; Prayer regen open) | hc/pull-cycle#ooc-regen | TODO |
-| PC-13 | Leader death = wipe: pack leashes home and heals; all return to entrance | sim.js:377-383 | core/pull-cycle.js | S-edge | none | hc/pull-cycle#wipe-resets-pack | TODO |
-| PC-14 | Hero respawn: sim 8 s at the entrance → real: `KNOCKOUT_MS` 60 s (C2) | sim.js:8, :387-394; data/hunt-sessions.js:36 | core/pull-cycle.js | S-edge, D | `KNOCKOUT_MS` | hc/pull-cycle#knockout-uses-c2-value | TODO |
+| PC-13 | ~~Leader death = wipe, all return to the entrance~~ A dead hero's hunt ends and they go to town (Tyler 10-19); the party case is not ruled | sim.js:377-383 | core/pull-cycle.js | S-edge | none | none | SUPERSEDED |
+| PC-14 | ~~Hero respawn / `KNOCKOUT_MS`~~ No knockouts, no falls, no respawn: death ends the hunt, back to town (Tyler 10-19) | sim.js:8, :387-394 | core/pull-cycle.js | S-edge | none | none | SUPERSEDED |
 | PC-15 | A death is never a free heal | CLAUDE.md §6 | core/pull-cycle.js | S-edge | `DEATH_XP_LOSS` | hc/pull-cycle#death-costs | LIVE-SERVER |
 | PC-16 | Corpses linger 10 s, then are removed | sim.js:813-814; sim.js:11 | core/pull-cycle.js (removal) + view/scene.js (fade) | S-edge, C | hunt-tuning `corpseSec` | hc/pull-cycle#corpse-removed | TODO |
 | PC-17 | Hunting is instanced: solo or party instance | T10-15 L82 | S-pg `hunt_instances` | S-pg | none | sql§4 one-instance-per-session | LIVE-SERVER |
@@ -183,15 +185,15 @@ Spec: `docs/design/HUNT_SCREEN_SPEC.md`. Week plan step 19: a QA agent plays the
 | id | feature | source | real module | owner | data rows | test name | status |
 |---|---|---|---|---|---|---|---|
 | CO-01 | Over-time effect ticks (HP and mana) | sim.js:698-706 | core/consumables.js | S-edge | none | hc/consumables#over-time-ticks | TODO |
-| CO-02 | Drink under its mana threshold: own then store, 50/50 | sim.js:713-721 | core/consumables.js | S-edge, D | consumables drink row | hc/consumables#drink-under-threshold | TODO |
-| CO-03 | Eat under its HP threshold when no heal in the last 2 s | sim.js:723-731 | core/consumables.js | S-edge, D | consumables food row | hc/consumables#eat-no-heal-window | TODO |
+| CO-02 | Drink when its action-bar slot's conditions match (default mana < 30%): own then store, 50/50 | sim.js:713-721; T10-18 | core/consumables.js | S-edge, D | consumables drink row | hc/consumables#drink-on-condition | TODO |
+| CO-03 | Eat when its action-bar slot's conditions match (default HP < 50%), not within 2 s of a heal | sim.js:723-731; T10-18 | core/consumables.js | S-edge, D | consumables food row | hc/consumables#eat-on-condition | TODO |
 | CO-04 | Food = HP, drink = mana, no potions | T10-16 L124 | data/consumables.js | D | rows with `hp` or `mana`, never both | hc/consumables#food-hp-drink-mana | TODO |
 | CO-05 | 50% instantly, 50% over 6 s | sim.js:697; T10-16 L125; week plan item 7 | core/consumables.js | S-edge, D | `INSTANT_SHARE` 0.5, `OVER_TIME_S` 6 | hc/consumables#half-now-half-over-6s | TODO |
 | CO-06 | One shared consumable lane, 1 s | combat-data.js:21 | core/consumables.js | S-edge, D | lane row | hc/consumables#one-shared-lane | TODO |
 | CO-07 | Own stock is free; store-bought at store price; never stop for lack of stock | sim.js:711-712; T10-16 L144 | core/consumables.js + S-pg ledger | S-edge, S-pg | supply-basics; `ON_EMPTY` default → `switch` | hc/consumables#own-first-then-store, #never-stops-when-out | TODO |
 | CO-08 | Consumable rows (sim: Moonbloom tea 60 mana, Ham 70 HP, Bread 45 HP) | combat-data.js:16-20 | data/consumables.js | D | ham + tea rows missing; `wheat_bread` exists | hc/consumables#rows-validate | TODO |
 | CO-09 | Carried stack sizes per role | combat-data.js:22-28 | S-pg `hunt_bag` (player-packed) | S-pg | none (the player packs) | sql§4 bag-from-inventory | LIVE-SERVER |
-| CO-10 | Per-hero food/drink thresholds | sim.js:710, :723; ui.js:483-485 | win/hunt-settings.js + S-pg options | S-pg, C | options keys `foodBelow`, `drinkBelow` | sql§4 threshold-range-refused | TODO |
+| CO-10 | ~~Per-hero food/drink thresholds~~ folded into action-bar slot conditions (Tyler 10-18) | sim.js:710, :723 | none | none | none | none | SUPERSEDED |
 
 ## 11. XP — `core/xp-share.js`
 
@@ -260,7 +262,7 @@ Spec: `docs/design/HUNT_SCREEN_SPEC.md`. Week plan step 19: a QA agent plays the
 | PA-03 | Heroes tracked by unit id, never kind | T10-16 L142 | core/* | S-edge | none | hc/world-step#duplicate-roles | TODO |
 | PA-04 | Party finder filters/forces by weapon type | T10-16 L138 | win/party-finder.js + S-pg | S-pg, C | hunt-roles weapon types | sql§4 finder-filter | TODO |
 | PA-05 | Loot split evenly by value | week plan item 9 | S-pg settle per instance | S-pg | party.js `lootSplit` | sql§4 loot-split-even-by-value | TODO |
-| PA-06 | Each player controls one hero; party hunting with real players ready for beta | T10-15 L119 | S-pg + ses/character-session.js | S-pg | none | sql§4 one-hero-per-session | TODO |
+| PA-06 | One account plays up to 4 of its own characters at once (Tyler 10-17, replaces "one hero per player"); party hunting with real players ready for beta | T10-17 | S-pg + ses/character-session.js | S-pg | none | sql§4 one-hero-per-session | TODO |
 | PA-07 | One pull state per instance | contract §1.10 | S-pg `hunt_instances` | S-pg | none | sql§4 one-pull-state-per-instance | TODO |
 | PA-08 | Party composition presets | sim.js:170-175 | none | C | none | none (dev tool) | DEV-ONLY |
 | PA-09 | Party builder: any 1-4 of the roles | sim.js:1012-1024 | none | C | none | none (dev tool) | DEV-ONLY |
@@ -353,11 +355,11 @@ Spec: `docs/design/HUNT_SCREEN_SPEC.md`. Week plan step 19: a QA agent plays the
 |---|---|---|---|---|---|---|---|
 | BB-01 | Layout scales with the window: 34 px tablets, 44 px at ≥ 1200 | ui.js:323-327 | wdg/action-bar.js | C | none | visual hunt | TODO |
 | BB-02 | 2x10 slot tablets either side of the emblem | ui.js:338-344, :451-455; ref 19, 20 | wdg/action-bar.js | C | rule-subjects `ACTION_SET_LIMITS.slots` 20 | visual hunt | TODO |
-| BB-03 | Unusable slot: greyed and cracked (ref: slashed) | ui.js:345-349, :359; ref 19 | wdg/action-bar.js | C | none | hv/action-bar#unusable-from-server | TODO |
+| BB-03 | Unusable slot: disabled or out = a diagonal strike (Tyler 10-19) | ui.js:345-349, :359; ref 19 | wdg/action-bar.js | C | none | hv/action-bar#unusable-from-server | TODO |
 | BB-04 | Canvas text ≥ 12 px with outline | ui.js:351-354; week plan item 12 | wdg/action-bar.js | C | tokens | visual hunt | TODO |
 | BB-05 | Slot: icon or glyph fallback | ui.js:358-364, :33-64 | wdg/action-bar.js | C | icon manifest | hv/action-bar#icon-fallback | TODO |
 | BB-06 | Cooldown: ember rising with seconds left (ref: "2.0", "0.4" labels) | ui.js:366-373; ref 19, 20 | wdg/action-bar.js | C | none | hv/action-bar#cd-from-server-clock | TODO |
-| BB-07 | Mana cost top-left, count top-right, threshold badge | ui.js:377-379; ref 19 | wdg/action-bar.js | C | none | visual hunt | TODO |
+| BB-07 | ~~Mana cost top-left, count top-right, threshold badge~~ A filled slot shows its icon and ONE corner count (Tyler 10-19) | ui.js:377-379; ref 19 | wdg/action-bar.js | C | none | visual hunt | SUPERSEDED |
 | BB-08 | Flash on use | ui.js:380-381 | wdg/action-bar.js | C | none | hv/action-bar#flash-from-event | TODO |
 | BB-09 | Emblem: HP arc, mana arc, XP ring, stamina arc, level, XP % | ui.js:396-415; ref 19 (HP, MP, Lv, stamina bars) | wdg/action-bar.js | C | none | visual hunt | TODO |
 | BB-10 | HP and MP readouts with regen per second; shield value | ui.js:417-425; ref 19 ("+8", "+60") | wdg/action-bar.js | C | none | visual hunt | TODO |

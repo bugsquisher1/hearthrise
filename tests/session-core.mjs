@@ -325,9 +325,11 @@ async function rules(M) {
     return heard.length === 0 || 'a switch made characters emit: ' + heard.join(',');
   });
   await t('ACC-2', async () => {
-    const acc = mkAccount(fakeServer({ 0: env(1, { hero_slots: [0, 2, 99, -1, 'x'] }), 2: env(1) }));
+    /* each hero by its server name and its combat level from the server's XP (the character screen, Tyler 10-18) */
+    const sk = { attack: { xp: 1200, level: 10 }, strength: { xp: 1200, level: 10 }, defense: { xp: 1200, level: 10 }, hitpoints: { xp: 1200, level: 10 } };
+    const acc = mkAccount(fakeServer({ 0: env(1, { hero_slots: [0, 2, 99, -1, 'x'], name: 'Tester', skills: sk }), 2: env(1) }));
     const r = await acc.roster();
-    return JSON.stringify(r) === JSON.stringify([{ slot: 0, exists: true }, { slot: 2, exists: true }]) || 'roster was ' + JSON.stringify(r);
+    return JSON.stringify(r) === JSON.stringify([{ slot: 0, exists: true, name: 'Tester', level: 11 }, { slot: 2, exists: true, name: null, level: null }]) || 'roster was ' + JSON.stringify(r);
   });
   await t('ACC-3', async () => {
     if (!S.isClosedAnswer(403, { code: 'hr_closed' }) || S.isClosedAnswer(403, { code: 'other' }) || S.isClosedAnswer(200, { code: 'hr_closed' })) return 'isClosedAnswer is wrong';
@@ -428,6 +430,8 @@ function copyTree(dst) {
   cpSync(join(ROOT, 'src/hunt-view/timeline.js'), join(dst, 'src/hunt-view/timeline.js'));
   mkdirSync(join(dst, 'src/data'), { recursive: true });
   cpSync(join(ROOT, 'src/data/town-presence.js'), join(dst, 'src/data/town-presence.js'));   // the AccountSession's TownPresence knobs
+  mkdirSync(join(dst, 'src/core'), { recursive: true });
+  cpSync(join(ROOT, 'src/core/xp.js'), join(dst, 'src/core/xp.js'));   // the roster's combat level
 }
 
 async function main() {

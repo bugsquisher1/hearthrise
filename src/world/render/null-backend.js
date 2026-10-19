@@ -2,9 +2,9 @@
 // Same interface as canvas-backend.js ({ mount, setMap, setInset, sync, snapshot, destroy }) and the
 // same compose step over the same manifest book, so a node test reads exactly the draw
 // list the canvas would paint.
-import { T } from '../core/grid.js?v=0.2.4';
-import { frameView } from '../core/camera.js?v=0.2.4';
-import { composeFrame, groundTiles } from '../core/compose.js?v=0.2.4';
+import { T } from '../core/grid.js?v=0.2.5';
+import { frameView } from '../core/camera.js?v=0.2.5';
+import { composeFrame, groundTiles } from '../core/compose.js?v=0.2.5';
 
 /** @param {{book: object, tables: object, view?: {w:number,h:number}}} o  view in art px */
 export function createNullBackend(o) {

@@ -9,9 +9,9 @@
 // enforces the block itself: their lines and whispers never reach you, and
 // their whispers, friend asks and inspects are refused.
 // ════════════════════════════════════════════════════════════════════════
-import { SOCIAL_SETTINGS } from '../../data/social-settings.js?v=0.2.4';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.4';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.4';
+import { SOCIAL_SETTINGS } from '../../data/social-settings.js?v=0.2.5';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.5';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.5';
 
 const ROW = SOCIAL_SETTINGS.find((r) => r.id === 'social.blocked');
 const PENDING = new WeakSet();   // the hosts with an Unblock in flight

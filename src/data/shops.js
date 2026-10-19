@@ -17,7 +17,7 @@
 //   goes with it. The filename does not change, so nothing downstream moves.
 //
 //   catalogue digest: 3dd62b831e08bf6b8180fdfa08e203c68eea083199dfdb44a4082ccd36552e07
-//   87 offers · 185 cost lines · 4 prices that are formulas, not data
+//   86 offers · 184 cost lines · 4 prices that are formulas, not data
 //
 // EXTRACTED FROM
 //   room              40  src/legacy.js
@@ -26,7 +26,7 @@
 //   equip             11  src/legacy.js
 //   property           5  src/features/homestead.js
 //   worker             6  src/features/workers.js
-//   character_slot     4  src/multi-character.js
+//   character_slot     3  src/multi-character.js (slot 1 is a starter: owned, never sold, 2026-10-26)
 //   companion          4  src/data/companions.js
 //
 // THE LINE SHAPE — both sides of every offer
@@ -56,19 +56,13 @@
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPPLY_SHOP_OFFERS } from './supply-basics.js?v=0.2.4';
-import { ITEMS } from './items.js?v=0.2.4';
+import { SUPPLY_SHOP_OFFERS } from './supply-basics.js?v=0.2.5';
+import { ITEMS } from './items.js?v=0.2.5';
 
 export const SHOPS_DIGEST = "3dd62b831e08bf6b8180fdfa08e203c68eea083199dfdb44a4082ccd36552e07";
 
 /** Every offer whose price is fully known as data. */
 export const SHOP_OFFERS = [
-  {
-    id: "character_slot.1", table: "character_slot",
-    name: "Character slot 2",
-    cost: [{ kind: "currency", id: "gold", amount: 15000 }],
-    grant: [{ kind: "unlock", id: "character_slot:1", amount: 1 }],
-  },
   {
     id: "character_slot.2", table: "character_slot",
     name: "Character slot 3",
@@ -698,7 +692,7 @@ export const SHOP_TABLES = [
     "origin": "src/multi-character.js",
     "anchor": "const SLOT_COSTS_GOLD = [",
     "spends_at": "multi-character.js unlockSlot()",
-    "count": 4
+    "count": 3
   },
   {
     "table": "companion",

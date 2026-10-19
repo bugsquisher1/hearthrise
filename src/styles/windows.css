@@ -49,6 +49,11 @@
 .hw-tools, .hw-bulk { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
 .hw-bulk { display: none; padding: 6px 8px; background: var(--bg-1); box-shadow: var(--hw-well); }
 .hw-bulk.is-on { display: flex; }
+.hw-burying { display: none; align-items: center; gap: 6px; margin-top: 8px; padding: 6px 8px; background: var(--bg-1); box-shadow: var(--hw-well); }
+.hw-burying.is-on { display: flex; }
+.hw-burying-q { flex: 1; }
+.hw-amt { display: flex; align-items: center; gap: 4px; padding: 4px 0; }
+.hw-amt-n { width: 6em; }
 .hw-selcount { flex: 1; font-weight: 700; font-variant-numeric: lining-nums tabular-nums; }
 .hw-tools [data-hs-act="sell-cat"] { display: none; }
 .hw-tools [data-hs-act="sell-cat"].is-on { display: inline-block; }

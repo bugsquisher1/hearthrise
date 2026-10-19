@@ -12,6 +12,8 @@
 //                          after a confirmation that shows the total at the
 //                          server's bids; LOCKED stacks are never named
 //   lock, loot rule        hr_item_lock, hr_loot_rule_set
+//   bury (and stop)        the engine's `set_activity` on the item's Prayer recipe
+//                          (bury.js): the server buries the stack and pays Prayer
 // While one is in flight every action control is off; the counts change only
 // when the re-read envelope replaces the bag and the worn set.
 //
@@ -22,18 +24,19 @@
 // open doll slot and the "new" marks. No key here is a walk key: selling is
 // Delete, so W, A, S and D always reach the World (Tyler 10-18).
 // ════════════════════════════════════════════════════════════════════════
-import { kindOf, equipSlotFor, markSeen } from '../../bag-model.js?v=0.2.4';
-import { assignToBar, barKind, barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.4';
-import { runIntent } from '../../intent-words.js?v=0.2.4';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.4';
-import { gold } from '../../../render/format.js?v=0.2.4';
-import { itemName } from '../../widgets/bits.js?v=0.2.4';
-import { showTip, hideTip } from '../item-tip.js?v=0.2.4';
-import { openFloatMenu, closeFloatMenu } from '../float-menu.js?v=0.2.4';
-import { stateOf, scratchOf, seenOf, confirmFor, junkOf, setPref } from './state.js?v=0.2.4';
-import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.4';
-import { askElsewhere } from './elsewhere.js?v=0.2.4';
-import { skillsOf } from '../../../session/item-sections.js?v=0.2.4';
+import { kindOf, equipSlotFor, markSeen } from '../../bag-model.js?v=0.2.5';
+import { assignToBar, barKind, barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.5';
+import { runIntent } from '../../intent-words.js?v=0.2.5';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.5';
+import { gold } from '../../../render/format.js?v=0.2.5';
+import { itemName } from '../../widgets/bits.js?v=0.2.5';
+import { showTip, hideTip } from '../item-tip.js?v=0.2.5';
+import { openFloatMenu, closeFloatMenu } from '../float-menu.js?v=0.2.5';
+import { stateOf, scratchOf, seenOf, confirmFor, junkOf, setPref } from './state.js?v=0.2.5';
+import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.5';
+import { askElsewhere } from './elsewhere.js?v=0.2.5';
+import { skillsOf } from '../../../session/item-sections.js?v=0.2.5';
+import { buryRecipeOf, buryLabel, buryBlock, buryingOf, startBury, stopBury } from './bury.js?v=0.2.5';
 
 export const INVENTORY_EVENTS = Object.freeze(['input', 'keydown', 'contextmenu', 'pointerdown', 'pointerup', 'pointercancel',
   'dragstart', 'dragover', 'dragleave', 'drop', 'dragend', 'mouseover', 'mouseout']);
@@ -94,7 +97,19 @@ function doPrimary(st, id, repaint) {
     send(st, repaint, () => cs.edgeIntent('eat', { item: id }), 'Eating…');
   } else if (barKind(id) && st.bar && barIndexOf(cs, id) < 0) {
     send(st, repaint, () => assignToBar(cs, id), 'Putting it on the bar…');
-  } else askSell(st, [id], 'Sell', repaint);
+  } else if (buryRecipeOf(id)) doBury(st, id, repaint);
+  else askSell(st, [id], 'Sell', repaint);
+}
+
+/* Bury the whole stack (bury.js): refused here only for what the screen already knows (a hunt, the level, a bury running). */
+function doBury(st, id, repaint) {
+  const why = buryingOf(st.cs) ? 'Already burying. Stop it first.' : buryBlock(st.cs, buryRecipeOf(id));
+  if (why) { st.sc.menu = null; st.sc.msg = why; repaint(); return; }
+  startBury(st.cs, st.sc, id, (fn, busy, done) => send(st, repaint, fn, busy, done), repaint);
+}
+
+function doStopBury(st, repaint) {
+  stopBury(st.cs, st.sc, (fn, busy, done) => send(st, repaint, fn, busy, done));
 }
 
 function askSell(st, ids, label, repaint) {
@@ -142,6 +157,8 @@ function openMenu(ctx, body, st, id, at, repaint) {
   let h = '<b class="hw-menu-title">' + esc(itemName(id)) + '</b>';
   if (k === 'gear') h += item('m-equip', 'Equip', !!equipSlotFor(id, st.eq));
   if (k === 'food') h += item('m-eat', 'Eat', true);
+  const br = buryRecipeOf(id);
+  if (br) h += item('m-bury', buryLabel(br, st.qty.get(id) || 0), !buryingOf(st.cs) && !buryBlock(st.cs, br));
   if (barKind(id)) h += item('m-bar', bi >= 0 ? 'On the bar (key ' + barKeyLabel(bi) + ')' : 'Put on the bar', !!st.bar && bi < 0);
   h += item('m-sell', locked ? 'Sell (unlock it first)' : 'Sell…', !locked && !!st.shop && st.shop.bids.has(id));
   h += item('m-lock', locked ? 'Unlock' : 'Lock', !!st.rules);
@@ -326,6 +343,7 @@ export function actInventory(ctx, body, action, ev, t, repaint) {
     case 'sell-cat': askSell(st, st.shown.map((r) => r.id), 'Sell all', repaint); return true;
     case 'confirm-yes': doSell(st, repaint); return true;
     case 'confirm-no': sc.confirm = null; repaint(); return true;
+    case 'bury-stop': doStopBury(st, repaint); return true;
     case 'inv': closeMenu(ctx, st); return false;
     default: break;
   }
@@ -333,6 +351,7 @@ export function actInventory(ctx, body, action, ev, t, repaint) {
   if (!id) return false;
   switch (action) {
     case 'm-equip': case 'm-eat': doPrimary(st, id, repaint); return true;
+    case 'm-bury': doBury(st, id, repaint); return true;
     case 'm-bar': send(st, repaint, () => assignToBar(st.cs, id), 'Putting it on the bar…'); return true;
     case 'm-sell': askSell(st, [id], 'Sell', repaint); return true;
     case 'm-lock': doLock(st, id, repaint); return true;

@@ -117,7 +117,7 @@ export function rateMult(ctx) {
    every caller of away.js keeps its import. */
 export {
   RECOVERY_REFUSED_KINDS, recoveryRefuses, RESUME_HP_FRACTION, resumeHpFor,
-} from './recovery.js?v=0.2.4';
+} from './recovery.js?v=0.2.5';
 
 export const DAY_MS = 86400000;
 

@@ -6,8 +6,8 @@
   "schema change was intended — the diff of this file is the review surface.",
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
- "generated": "2026-10-18",
- "digest": "1640239e0bff5a62e1489300742797e96901caf3f17cf70d871ee1b87bd583f4",
+ "generated": "2026-10-19",
+ "digest": "044607faee7cd8d84835fe60582b26731d9a69dda7a120dbbfeb7ad5e3c45b96",
  "counts": {
   "relations": 213,
   "functions": 508,
@@ -15,7 +15,7 @@
   "indexes": 298,
   "triggers": 35,
   "constraints": 719,
-  "columns": 1227,
+  "columns": 1228,
   "rls": 192,
   "event_triggers": 1
  },
@@ -2313,6 +2313,7 @@
    "hr_hero_slots.name text NOT NULL",
    "hr_hero_slots.premium_waived boolean NOT NULL",
    "hr_hero_slots.slot_id integer NOT NULL",
+   "hr_hero_slots.starter boolean NOT NULL",
    "hr_hunt_abilities.ability_id text NOT NULL",
    "hr_hunt_abilities.active boolean NOT NULL",
    "hr_hunt_abilities.ammo integer NOT NULL",

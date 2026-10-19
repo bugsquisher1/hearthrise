@@ -13,11 +13,12 @@
 //                     in flight. Display only: nothing reads it but this
 //                     window, nothing spends it.
 // ════════════════════════════════════════════════════════════════════════
-import { bagOf, bagCapOf, goldOf, rulesOf, shopOf, equipmentOf, huntLootOf } from '../../../session/item-sections.js?v=0.2.4';
-import { settingsOf, analyzerOf } from '../../../session/hunt-sections.js?v=0.2.4';
-import { BAG_CATS, BAG_SORTS, view, kindOf, equipSlotFor, sellPlan, junkIds } from '../../bag-model.js?v=0.2.4';
-import { barKind, barIndexOf } from '../../bar-assign.js?v=0.2.4';
-import { itemName } from '../../widgets/bits.js?v=0.2.4';
+import { bagOf, bagCapOf, goldOf, rulesOf, shopOf, equipmentOf, huntLootOf } from '../../../session/item-sections.js?v=0.2.5';
+import { settingsOf, analyzerOf } from '../../../session/hunt-sections.js?v=0.2.5';
+import { BAG_CATS, BAG_SORTS, view, kindOf, equipSlotFor, sellPlan, junkIds } from '../../bag-model.js?v=0.2.5';
+import { barKind, barIndexOf } from '../../bar-assign.js?v=0.2.5';
+import { itemName } from '../../widgets/bits.js?v=0.2.5';
+import { buryRecipeOf, buryLabel } from './bury.js?v=0.2.5';
 
 const SCRATCH = new WeakMap();
 const CAT_IDS = new Set(BAG_CATS.map(([id]) => id));
@@ -86,6 +87,8 @@ export function primaryOf(st, id) {
   if (k === 'gear') return equipSlotFor(id, st.eq) ? ['equip', 'Equip'] : null;
   if (k === 'food') return ['eat', 'Eat'];
   if (barKind(id) && st.bar && barIndexOf(st.cs, id) < 0) return ['bar', 'Put on the bar'];
+  const br = buryRecipeOf(id);
+  if (br) return ['bury', buryLabel(br, st.qty.get(id))];
   if (st.shop && st.shop.bids.has(id) && !(st.rules && st.rules.locked.has(id))) return ['sell', 'Sell'];
   return null;
 }

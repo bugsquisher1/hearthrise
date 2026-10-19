@@ -3,7 +3,6 @@
 Moved here on 2026-10-19 (Tyler: "weed out old shit that is no longer relevant"). These describe the scrapped pre-rebuild game or replaced plans. **Never read them for current rules**: the rules are Tyler's rulings of record (memory `rulings-of-record.md`) and `CLAUDE.md`. Kept for history; code comments that cite the old paths point here.
 
 ## design/
-- `HANDOFF-server-authority.md` — August server-authority handoff; the cutover finished 2026-08-16.
 - `agility-and-monster-foundation.md` — Agility skill and the August monster rework; the skill set is now Melee/Ranged/Magic/Defense + Prayer.
 - `armour-identities.md` — August armour rescale; replaced by Heavy/Medium/Light = Absorb/Dodge/Ward (Tyler 10-18).
 - `art-direction-picker.md`, `art-pilot-prompts.md`, `art-sample-pack.md` — August painted-icon style lanes; style 1 is final (10-15).
@@ -17,7 +16,6 @@ Moved here on 2026-10-19 (Tyler: "weed out old shit that is no longer relevant")
 - `consumable-economy.md`, `crafting-cooking-taxonomy.md` — old Fletching/Runecrafting/Stonemason and cooking taxonomy; supplies are now food/drink/runes/ammo, own stock then store (10-16).
 - `dungeon-settlement.md` — dungeons, paused.
 - `farming-watering.md`, `homestead-deepening.md` — old farm and Homestead; housing at EA is the cottage, benches, depot and trophies (10-14/15).
-- `item-art-prompts.md`, `monster-art-prompts.md`, `itemization-and-art-pipeline.md`, `itemization-rework.md` — August item/monster art and itemization; replaced by pixel icons, fixed-stat gear and imbuement (10-14).
 - `leaderboards.md`, `renown-kill-faucet.md`, `quests.md`, `world-event-cadence.md` — leaderboards, renown, quests and world events, removed.
 - `render-extraction-pattern.md` — strangler pattern for `src/legacy.js`, which is deleted.
 - `server-authority.md` — the August foundation design; its laws live on in CLAUDE.md §1/§2/§6, its phases are done.

@@ -26,6 +26,12 @@ function menuEl(doc) {
   });
   el.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeFloatMenu(doc); return; }
+    /* A field in the menu (the amount picker, src/shell/widgets/amount.js): Enter presses its default button and the arrows stay the field's. */
+    if (e.target.tagName === 'INPUT') {
+      const def = el.querySelector('[data-hs-default]:not([disabled])');
+      if (e.key === 'Enter' && def) { e.preventDefault(); e.stopPropagation(); def.click(); }
+      return;
+    }
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
     e.preventDefault();
     const items = Array.from(el.querySelectorAll('button:not([disabled])'));
@@ -56,8 +62,10 @@ export function openFloatMenu(doc, html, at, owner) {
   const w = el.offsetWidth, h = el.offsetHeight;
   el.style.left = Math.round(Math.max(4, Math.min(view.innerWidth - w - 4, at.x))) + 'px';
   el.style.top = Math.round(Math.max(4, Math.min(view.innerHeight - h - 4, at.y))) + 'px';
-  const first = el.querySelector('button:not([disabled])');
+  const field = el.querySelector('input');
+  const first = field || el.querySelector('button:not([disabled])');
   if (first) first.focus({ preventScroll: true });
+  if (field && field.select) field.select();
   clearInterval(WATCH);
   WATCH = view.setInterval(() => { if (OWNER && !OWNER.alive()) closeFloatMenu(doc); }, 300);
 }

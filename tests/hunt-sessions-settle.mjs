@@ -1166,7 +1166,11 @@ const DB_ARMS = {
     await db.query(`select public.hr_premium_grant($1, 0, now() + interval '1 day', 'probe')`, [UID]);
     await asUser(db, UID);
     const prem = await one(db, 'select public.hr_hunt_analyzer(0, null)');
-    if (!free || free.error !== 'premium_required') problems.push(`a free character's analyzer read answered ${JSON.stringify(free).slice(0, 160)}`);
+    /* Basic for everyone, the rest for premium (2026-10-26-hunt-analyzer-basic.sql, Tyler 10-19): a free read is the
+       basic block (kills, XP, gold), never the damage tally. */
+    if (!free || free.ok !== true || free.tier !== 'basic' || !free.hero || free.hero.dealt !== undefined || !(Number(free.hero.kills) > 0)) {
+      problems.push(`a free character's analyzer read answered ${JSON.stringify(free).slice(0, 160)}`);
+    }
     if (!prem || prem.ok !== true || Number(prem.hero.dealt.total) !== Number(t.dealt.total) || Number(prem.hero.kills) <= 0) {
       problems.push(`the premium analyzer read ${JSON.stringify(prem && prem.hero).slice(0, 200)} is not the session's tally`);
     }
@@ -1619,8 +1623,8 @@ const DB_MUTANTS = [
     find: 'supplies = public.hr_jsonb_add(t.supplies, v_sup)', replace: 'supplies = t.supplies' },
   { arm: 'ANALYZER', name: 'the analyzer tally is not folded', fn: AM,
     find: '       set dealt = public.hr_hunt_tally_add(t.dealt, coalesce(p_analyzer->\'dealt\', \'{}\'::jsonb)),', replace: '       set dealt = t.dealt,' },
-  { arm: 'ANALYZER', name: 'a free character reads the analyzer', fn: 'public.hr_hunt_analyzer(integer,uuid)',
-    find: '  if not public.hr_premium_active(v_uid, p_slot, now()) then', replace: '  if false then' },
+  { arm: 'ANALYZER', name: 'a free character reads the whole analyzer', fn: 'public.hr_hunt_analyzer(integer,uuid)',
+    find: '  if public.hr_premium_active(v_uid, p_slot, now()) then return', replace: '  if true then return' },
   { arm: 'DEATHXP', name: 'the applier stops bounding the Level\'s death price', fn: AM,
     find: '        if v_n > floor(v_lxb * v_rate / 1000.0) or v_cur - v_n < v_xfloor then', replace: '        if false then' },
   { arm: 'DEATHXP', name: 'the Level\'s death price is never debited', fn: AM,

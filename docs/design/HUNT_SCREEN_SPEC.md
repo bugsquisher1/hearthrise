@@ -355,7 +355,7 @@ Gaps the walk-through found: the sewer ground row, the Rat King, `life_rune`, `c
 7. Challenge radius 6 tiles; cooldown 8 s.
 8. Leader death = wipe; regroup within 7 tiles; pack respawn 90 s.
 9. Bleed tick 1-3 every 1 s; skill factor 0.004; tiers 1.00/1.10/1.20.
-10. Consumable lane 1 s; default food/drink slot conditions 30% mana / 50% HP; 2 s no-heal window.
+10. Consumable lane 1 s; default food/drink slot conditions 30% mana / 50% HP; food always fires when the lane is free and its over-time half replaces a running one (2026-10-19; was a 2 s no-heal window).
 11. RESOLVED (SE 10-17, §3.4 #7): `ON_EMPTY.default = 'switch'` is a data change C2 already supports; `end` stays as an opt-in; `gold_out` unchanged.
 12. Base XP share split among living heroes; "Raw XP/h" = before multipliers.
 13. Distance 1-8; stance numbers; the three action-set presets; the five target modes.

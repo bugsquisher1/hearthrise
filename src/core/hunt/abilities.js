@@ -14,7 +14,7 @@
 // Firing spends the mana, the rune and the shots, sets the cooldown and the
 // lane (AB-07), and applies the effect (AB-08): taunt, mark, hit (with a status
 // per hit, H3), area (+ vulnerability), cleave, shield, ally heal, party heal.
-// A heal is capped at the missing HP and stamps healedAt (AB-09).
+// A heal is capped at the missing HP (AB-09).
 //
 // SEAMS to the other core lanes, called through their agreed signatures only:
 // damage.landHit (H2) for every hit (the one place a kill is handed off),
@@ -31,16 +31,15 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS } from '../../data/abilities.js?v=0.2.8';
-import { resolveLine, takeLine, canAfford, shopShotFor } from '../action-rules.js?v=0.2.8';
-import { cheb, dist2, los } from './grid.js?v=0.2.8';
-import { makeEvent } from './events.js?v=0.2.8';
-import { landHit } from './damage.js?v=0.2.8';
-import { applyStatus, statusRow } from './status.js?v=0.2.8';
-import { markHealed } from './consumables.js?v=0.2.8';
-import { ammoPerShot } from '../ammo.js?v=0.2.8';
-import { ITEMS } from '../../data/items.js?v=0.2.8';
-import { slotsFor, pickSlot, bestAim, itemRow } from './conditions.js?v=0.2.8';
+import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS } from '../../data/abilities.js?v=0.2.9';
+import { resolveLine, takeLine, canAfford, shopShotFor } from '../action-rules.js?v=0.2.9';
+import { cheb, dist2, los } from './grid.js?v=0.2.9';
+import { makeEvent } from './events.js?v=0.2.9';
+import { landHit } from './damage.js?v=0.2.9';
+import { applyStatus, statusRow } from './status.js?v=0.2.9';
+import { ammoPerShot } from '../ammo.js?v=0.2.9';
+import { ITEMS } from '../../data/items.js?v=0.2.9';
+import { slotsFor, pickSlot, bestAim, itemRow } from './conditions.js?v=0.2.9';
 
 export const PERSISTED = Object.freeze({
   unit: Object.freeze([['mana', 'int'], ['maxMana', 'int'], ['manaMilli', 'int'], ['regenPm', 'int'], ['lanes', 'json'], ['cds', 'json'],
@@ -167,7 +166,6 @@ export function firstUsable(inst, hero, sc) {
 function healOne(u, t, n, sc) {
   const got = Math.max(0, Math.min(n, int(t.maxHp) - int(t.hp)));
   t.hp = int(t.hp) + got;
-  markHealed(t, sc.atMs);
   sc.emit(makeEvent('heal', sc.atMs, { u: u.id, t: t.id, amount: got }));
 }
 const roll = (sc, r) => sc.rng.int(r[0], r[1]);

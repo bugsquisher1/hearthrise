@@ -18,15 +18,15 @@
 // own state in town), regen, level and XP from the hunt section, the town's
 // Level (state.level_xp, character-sections.js levelOf). Built once, patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { CONSUMABLES } from '../../data/consumables.js?v=0.2.8';
-import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.8';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.8';
-import { vitalsOf } from '../../session/party-sections.js?v=0.2.8';
-import { bagOf } from '../../session/item-sections.js?v=0.2.8';
-import { text, attr } from '../../render/paint.js?v=0.2.8';
-import { whole, hoursMinutes } from '../../render/format.js?v=0.2.8';
-import { glyphSvg } from '../launcher.js?v=0.2.8';
-import { itemIconHtml, itemName } from './bits.js?v=0.2.8';
+import { CONSUMABLES } from '../../data/consumables.js?v=0.2.9';
+import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.9';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.9';
+import { vitalsOf } from '../../session/party-sections.js?v=0.2.9';
+import { bagOf } from '../../session/item-sections.js?v=0.2.9';
+import { text, attr } from '../../render/paint.js?v=0.2.9';
+import { whole, hoursMinutes } from '../../render/format.js?v=0.2.9';
+import { glyphSvg } from '../launcher.js?v=0.2.9';
+import { itemIconHtml, itemName } from './bits.js?v=0.2.9';
 
 /* The arcs on a 100 x 100 box, centre (50, 50), radius 42: the left one from the
    bottom (111.6 deg) round to the top (248.4 deg), the right one the mirror. */

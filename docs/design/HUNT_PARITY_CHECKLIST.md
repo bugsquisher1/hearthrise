@@ -186,7 +186,7 @@ Spec: `docs/design/HUNT_SCREEN_SPEC.md`. Week plan step 19: a QA agent plays the
 |---|---|---|---|---|---|---|---|
 | CO-01 | Over-time effect ticks (HP and mana) | sim.js:698-706 | core/consumables.js | S-edge | none | hc/consumables#over-time-ticks | TODO |
 | CO-02 | Drink when its action-bar slot's conditions match (default mana < 30%): own then store, 50/50 | sim.js:713-721; T10-18 | core/consumables.js | S-edge, D | consumables drink row | hc/consumables#drink-on-condition | TODO |
-| CO-03 | Eat when its action-bar slot's conditions match (default HP < 50%), not within 2 s of a heal | sim.js:723-731; T10-18 | core/consumables.js | S-edge, D | consumables food row | hc/consumables#eat-on-condition | TODO |
+| CO-03 | Eat when its action-bar slot's conditions match (default HP < 50%), whenever the 1 s lane is free (2026-10-19: no heal window, no wait for a running over-time half; the new half replaces it) | sim.js:723-731; T10-18 | core/consumables.js | S-edge, D | consumables food row | hc/consumables#eat-on-condition | TODO |
 | CO-04 | Food = HP, drink = mana, no potions | T10-16 L124 | data/consumables.js | D | rows with `hp` or `mana`, never both | hc/consumables#food-hp-drink-mana | TODO |
 | CO-05 | 50% instantly, 50% over 6 s | sim.js:697; T10-16 L125; week plan item 7 | core/consumables.js | S-edge, D | `INSTANT_SHARE` 0.5, `OVER_TIME_S` 6 | hc/consumables#half-now-half-over-6s | TODO |
 | CO-06 | One shared consumable lane, 1 s | combat-data.js:21 | core/consumables.js | S-edge, D | lane row | hc/consumables#one-shared-lane | TODO |

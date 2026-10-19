@@ -12,20 +12,23 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-/* THE LEVEL CURVE (Q1). Total XP to reach Level L = cubic x (L-1)^3 + linear x (L-1):
-   an integer, 0 at Level 1, endless. */
-export const LEVEL_CURVE = Object.freeze({ cubic: 20, linear: 50 });
+/* THE LEVEL CURVE (Q1, re-ruled after Tyler's 10-19 review: slower). Total XP to
+   reach Level L = quartic x (L-1)^4 + cubic x (L-1)^3 + linear x (L-1): an integer,
+   0 at Level 1, endless (L100 ~ 540 h, L200 ~ 4,000 h in range). */
+export const LEVEL_CURVE = Object.freeze({ quartic: 1, cubic: 20, linear: 50 });
 
 /* THE LEVEL GUARD'S LINE (Q1): a hero hunting in range earns xpPerHourPerLevel x
    Level XP an hour; summed over Levels 1..199 the curve must take between
-   `hoursTo200` hours (tests/level-curve.mjs). Not read by the game. */
-export const LEVEL_GUARD = Object.freeze({ xpPerHourPerLevel: 1300, hoursTo200: Object.freeze([874, 966]) });
+   `hoursTo200` hours, and Level 10 between `hoursTo10` (tests/level-curve.mjs).
+   Not read by the game. */
+export const LEVEL_GUARD = Object.freeze({ xpPerHourPerLevel: 2900, hoursTo200: Object.freeze([3800, 4200]),
+  hoursTo10: Object.freeze([0.75, 2]) });
 
 /* THE UNCAPPED SKILL CURVE (Q2): Melee, Ranged, Magic, Defense, Prayer.
    XP from level s to s+1 = floor(base x s^2 x (1 + growthPermille/1000)^(s-1)),
    the power walked in exact integers (src/core/xp.js), so the browser, the edge
    and Postgres agree to the unit. No cap. */
-export const SKILL_CURVE = Object.freeze({ base: 25, growthPermille: 20 });
+export const SKILL_CURVE = Object.freeze({ base: 15, growthPermille: 40 });
 
 /* VITALS FROM LEVEL AND ARMOUR WEIGHT (Q3; the armour shares are Tyler's:
    heavy up to +28% HP, light up to +35% mana, blended by the share of armour

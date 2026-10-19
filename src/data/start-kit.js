@@ -37,35 +37,25 @@
 // number here is a Designer call.
 // ════════════════════════════════════════════════════════════════════════
 
-/* Currencies + vitals. `hp`/`maxHp` are NOT free parameters: the client
-   derives playerMaxHp from the hitpoints level (legacy.js :898,
-   `G.playerMaxHp = levelFromXp(G.skills.hitpoints)`), so maxHp must equal the
-   level `skills.hitpoints` buys. hitpoints 1154 XP is exactly level 10 —
-   verified against the server's own hr_xp_for_level(10), which returns 1154.
-   The generator asserts that identity rather than trusting this comment. */
+/* Currencies + the starting HP. `hp` is NOT a free parameter: a new character is
+   Level 1 with nothing worn, so it starts at full health, src/core/vitals.js
+   maxHpFor(1, 0) (= VITALS.hpBase). Max HP is never stored: it is derived from
+   Level and armour (CORE_MODEL.md §3). The generator asserts the identity. */
 export const START_CURRENCY = Object.freeze({
   gold: 500,
   gems: 0,
   hearthTokens: 0,          // the IAP bond. NEVER minted by a PvE path.
-  hp: 10,
-  maxHp: 10,
+  hp: 150,
   bankCap: 100,
   farmPlots: 4,
 });
 
-/* Skill XP. Absent = 0. `hitpoints` is the only non-zero, the OSRS-lineage
-   level-10 start every game in this family uses.
-
-   Deliberately NOT an exhaustive list of the fifteen skills in SKILLS_DEF:
-   the server creates a row per skill in the CATALOGUE (hr_skills) and reads
-   the starting XP from here, so adding a skill to src/data/skills.js gives
-   every new character that skill at 0 with no edit to this file and no edit
-   to SQL. The client stores an absent skill as absent and levelFromXp(0) is
-   level 1 either way, which is why the two representations agree without a
-   translation layer. */
-export const START_SKILL_XP = Object.freeze({
-  hitpoints: 1154,
-});
+/* Skill XP. Absent = 0: a new character starts every skill at level 1 and its
+   Level at 1 (player_state.level_xp 0). The server creates a row per skill in
+   the CATALOGUE (hr_skills) and reads the starting XP from here, so adding a
+   skill to src/data/skills.js gives every new character that skill at 0 with no
+   edit to this file and no edit to SQL. */
+export const START_SKILL_XP = Object.freeze({});
 
 /* Inventory. item_id -> qty. Every id must exist in src/data/items.js; the
    generator FAILS if one does not, so a typo here cannot become a character

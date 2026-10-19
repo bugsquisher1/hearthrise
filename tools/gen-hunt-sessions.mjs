@@ -89,8 +89,8 @@ import { SUPPLIES, COMBAT_BUFF_TYPES, BAG_GUIDE_BY_HUNT } from '../src/data/supp
 import { BASIC_SUPPLIES } from '../src/data/supply-basics.js';
 import { DRINK_ITEMS } from '../src/data/drinks.js';
 import { ACTION_SET_LIMITS, TARGET_MODES, DEFAULT_TARGET_MODE, HERO_DISTANCE } from '../src/data/rule-subjects.js';
-import { SESSION_LIMITS, END_ORDER, STAMINA_LOW_MIN, SESSIONS_KEPT, DEATH_XP_LOSS, STAMINA_MAX_MS,
-  RESUMABLE_KINDS, RESUME_AFTER_END, KNOCKOUT_MS, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY, ACTION_SET_OPTIONS, VALUE_HEADROOM,
+import { SESSION_LIMITS, END_ORDER, STAMINA_LOW_MIN, SESSIONS_KEPT, DEATH_XP_LOSS, DEATH_XP_BASE, STAMINA_MAX_MS,
+  RESUMABLE_KINDS, RESUME_AFTER_END, GOLD_FLOOR, SUPPLY_SOURCE, ON_EMPTY, ACTION_SET_OPTIONS, VALUE_HEADROOM,
   DEFAULT_RESUME, EVENT_COPY, THRESHOLD_PCT, GATHER_SHARE, coverSellable } from '../src/data/hunt-sessions.js';
 import { CONSUMABLE_RULES } from '../src/data/consumables.js';
 import { ABILITIES, ABILITY_LANES, ABILITY_RULES } from '../src/data/abilities.js';
@@ -104,18 +104,18 @@ import { PREMIUM_LOGIN_REWARD } from '../src/data/premium.js';
 import { WORLD_VERSION, SHAPE, FIELDS as WORLD_FIELDS } from '../src/core/hunt/world-state.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
 import { COMBAT_BALANCE } from '../src/core/combat.js';
-import { HIT_XP_PER_DAMAGE, HIT_HP_XP_PER_DAMAGE } from '../src/core/styles.js';
+import { LEVEL_CURVE, SKILL_CURVE, VITALS, ARMOUR_SLOTS, COMBAT_XP, PRAYER_REGEN } from '../src/data/core-model.js';
 import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /** The world fields SQL reads by name (hr_hunt_section_view / hr_hunt_settings_view, 2026-10-23-hunt-world-state.sql;
     hr_hunt_party_view, 2026-10-23-hunt-party.sql). */
 export const WORLD_FIELDS_READ = Object.freeze({
-  unit: Object.freeze(['id', 'side', 'kind', 'alive', 'x', 'y', 'hp', 'maxHp', 'target', 'mana', 'maxMana', 'shield', 'downMs', 'otHp', 'otMana',
+  unit: Object.freeze(['id', 'side', 'kind', 'alive', 'x', 'y', 'hp', 'maxHp', 'target', 'mana', 'maxMana', 'shield', 'otHp', 'otMana',
     'role', 'dist', 'chase', 'tmode', 'stance']),
   world: Object.freeze(['leader']),
 });
-export const OUT_NAME = '2026-10-25-hunt-sessions-catalogue.generated.sql';
+export const OUT_NAME = '2026-10-27-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -157,7 +157,7 @@ export function catalogueRows(src = {}) {
     setLimits: ACTION_SET_LIMITS, distance: HERO_DISTANCE, thresholds: THRESHOLD_PCT,
     sessionLimits: SESSION_LIMITS, endOrder: END_ORDER,
     staminaLow: STAMINA_LOW_MIN, kept: SESSIONS_KEPT, deathXpLoss: DEATH_XP_LOSS, stamina: STAMINA_MAX_MS,
-    knockoutMs: KNOCKOUT_MS, floor: GOLD_FLOOR, supplySource: SUPPLY_SOURCE, onEmpty: ON_EMPTY, setOptions: ACTION_SET_OPTIONS,
+    floor: GOLD_FLOOR, supplySource: SUPPLY_SOURCE, onEmpty: ON_EMPTY, setOptions: ACTION_SET_OPTIONS,
     swingIntervalMs: COMBAT_BALANCE.tickMs, valueHeadroom: VALUE_HEADROOM, defaultResume: DEFAULT_RESUME, events: EVENT_COPY,
     basics: BASIC_SUPPLIES, huntTiers: BAG_GUIDE_BY_HUNT, drinks: DRINK_ITEMS,
     targetModes: TARGET_MODES, defaultTarget: DEFAULT_TARGET_MODE,
@@ -257,16 +257,16 @@ export function catalogueRows(src = {}) {
   const lim = {
     presets: S.setLimits.presets, slots: S.setLimits.slots,
     bag_lines: S.sessionLimits.bagLines,
-    falls_min: S.sessionLimits.falls.min, falls_max: S.sessionLimits.falls.max, falls_default: S.sessionLimits.falls.default,
     hours_min: S.sessionLimits.hours.min, hours_max: S.sessionLimits.hours.max,
     /* THE ONE BASIC-ATTACK INTERVAL (architecture contracts S3/X1): the engine's own
        constant, so the settle holds hunting time to the exact swing count. */
     swing_interval_ms: S.swingIntervalMs,
     value_headroom: S.valueHeadroom,
     stamina_low_min: S.staminaLow, sessions_kept: S.kept,
-    knockout_ms: S.knockoutMs,
     gold_floor_min: S.floor.min, gold_floor_max: S.floor.max, gold_floor_default: S.floor.default,
     death_xp_permille: Math.round(Number(S.deathXpLoss) * 1000),
+    /* What the Level's death loss is a share of: 0 total Level XP, 1 the current Level's span. */
+    death_xp_base: { total: 0, level: 1 }[DEATH_XP_BASE],
     stamina_free_min: staminaFree, stamina_premium_min: staminaPremium,
     distance_min: S.distance.min, distance_max: S.distance.max,
     threshold_pct_min: S.thresholds.min, threshold_pct_max: S.thresholds.max,
@@ -282,20 +282,33 @@ export function catalogueRows(src = {}) {
     world_max_bytes: S.worldMaxBytes,
     ability_ammo_max: Math.max(0, ...abilities.map((a) => a.ammo)),
     /* THE MAGIC-XP BLAST RADIUS (the value bound): Magic XP is paid per mana
-       spent, not per kill, so a window's is bounded by the mana a hero can have:
-       the largest role pool at once, then its regen plus a drink every lane a
-       minute. Derived, never typed. */
-    mana_burst_max: Math.max(...Object.values(S.roles).map((x) => x.mana)),
-    mana_per_min_max: Math.ceil(Math.max(...Object.values(S.roles).map((x) => x.mana)) * S.manaRegenPct / 100)
-      + Math.floor(60000 / S.consumableLaneMs) * Math.max(0, ...Object.values(S.drinks).map((d) => d.mana),
-        ...[...S.basics].filter((b) => b.kind === 'mana').map((b) => b.mana)),
+       spent, not per kill, so a window's is bounded by the mana the hero can
+       have: its own max mana (hr_vitals_of) at once, then its regen, plus the
+       most a drink every lane a minute restores. Derived, never typed. */
+    drink_mana_per_min_max: Math.floor(60000 / S.consumableLaneMs) * Math.max(0, ...Object.values(S.drinks).map((d) => d.mana),
+      ...[...S.basics].filter((b) => b.kind === 'mana').map((b) => b.mana)),
     magic_xp_permille: S.magicXpPermille,
+    /* The largest ability Magic-XP multiplier (permille; abilities.js magicXpMult): the magic bound's top. */
+    magic_xp_mult_max: Math.max(1000, ...Object.values(S.abilities).map((a) => a.magicXpMult || 0)),
+    /* THE CORE MODEL (src/data/core-model.js; CORE_MODEL.md): the curves and the
+       vitals the server derives Level, skill levels, max HP / mana and the regen
+       rate from (hr_char_level, hr_skill_level, hr_vitals_of), and the combat XP
+       rates the value bound prices. One source; tests/core-curves.mjs pins the
+       SQL twins to src/core/xp.js and src/core/vitals.js. */
+    level_quartic: LEVEL_CURVE.quartic, level_cubic: LEVEL_CURVE.cubic, level_linear: LEVEL_CURVE.linear,
+    skill_base: SKILL_CURVE.base, skill_growth_permille: SKILL_CURVE.growthPermille,
+    hp_base: VITALS.hpBase, hp_per_level: VITALS.hpPerLevel, mana_base: VITALS.manaBase, mana_per_level: VITALS.manaPerLevel,
+    heavy_hp_permille: VITALS.heavyHpPermille, light_mana_permille: VITALS.lightManaPermille, armour_slots: ARMOUR_SLOTS.length,
+    in_fight_regen_permille_s: VITALS.inFightRegenPermillePerS,
+    prayer_regen_max_permille: PRAYER_REGEN.maxPermille, prayer_regen_k: PRAYER_REGEN.k,
+    hit_xp_permille: Math.round(COMBAT_XP.hitXpPerDamage * 1000),
+    defense_xp_level_permille: COMBAT_XP.defenseXpPerLevelPermille, block_mult: COMBAT_XP.blockMult,
   };
   if (!(lim.gold_floor_min <= lim.gold_floor_default && lim.gold_floor_default <= lim.gold_floor_max)) {
     throw new Error(`GOLD_FLOOR ${JSON.stringify(S.floor)} is not min <= default <= max`);
   }
-  if (!(lim.knockout_ms >= 1000)) throw new Error(`KNOCKOUT_MS ${S.knockoutMs} is under a second`);
-  if (lim.knockout_ms % lim.swing_interval_ms !== 0) throw new Error(`KNOCKOUT_MS ${S.knockoutMs} is not a whole number of swings`);
+  if (lim.death_xp_base === undefined) throw new Error(`DEATH_XP_BASE ${DEATH_XP_BASE} is not 'total' or 'level'`);
+  if (lim.hit_xp_permille / 1000 !== COMBAT_XP.hitXpPerDamage) throw new Error(`COMBAT_XP.hitXpPerDamage ${COMBAT_XP.hitXpPerDamage} is not a whole permille`);
   if (!(whole(lim.stamina_free_min) && lim.stamina_free_min > 0 && whole(lim.stamina_premium_min) && lim.stamina_premium_min >= lim.stamina_free_min)) {
     throw new Error(`STAMINA_MAX_MS ${JSON.stringify(st)} is not whole minutes with premium >= free > 0`);
   }
@@ -337,10 +350,10 @@ export function catalogueRows(src = {}) {
     throw new Error(`VALUE_HEADROOM ${S.valueHeadroom} is not a whole multiplier in [1, 10]`);
   }
   /* THE KILL BOUNDS (Security GO item 3): per combat monster, the most one kill
-     can pay — gold (the top gp roll), XP (every HP of damage at the fallback
-     route's attack + strength + hitpoints rate, plus the kill XP) and each item
-     (one unit per drop row naming it). Derived, never typed. */
-  const xpPerHp = 2 * HIT_XP_PER_DAMAGE + HIT_HP_XP_PER_DAMAGE;
+     can pay — gold (the top gp roll), XP (every HP of damage at the Melee / Ranged
+     rate, plus the kill's Level XP) and each item (one unit per drop row naming
+     it). Derived, never typed. */
+  const xpPerHp = COMBAT_XP.hitXpPerDamage;
   const killBounds = Object.keys(S.monsters).sort().map((id) => {
     const m = S.monsters[id];
     if (!ID.test(id)) throw new Error(`monster id ${id} is not [a-z0-9_]{1,64}`);
@@ -386,7 +399,6 @@ export function catalogueRows(src = {}) {
   for (const [k, v] of Object.entries(lim)) {
     if (!(whole(v) && v >= 0 && v <= 100000)) throw new Error(`limit ${k} = ${v} is not a whole number in 0..100000`);
   }
-  if (!(lim.falls_min <= lim.falls_default && lim.falls_default <= lim.falls_max)) throw new Error('falls default outside its range');
   const ends = S.endOrder.map((r, i) => {
     if (!ID.test(r)) throw new Error(`end reason ${r} is not [a-z0-9_]{1,64}`);
     if (r === 'vigour') throw new Error("END_ORDER names 'vigour': Vigour ends no hunt (designer ruling 2026-10-14)");
@@ -495,14 +507,14 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- SUPERSEDES 2026-10-23-hunt-sessions-catalogue.generated.sql (applied; history,
--- never regenerated): every table below is rewritten wholesale, and the six
--- drinks join hr_hunt_supplies as kind 'mana' (lane S2). The C2 bar's
--- tables (rule subjects, buff types, slot kinds and targets, the default slot
--- preset) are no longer written; 2026-10-23-hunt-settings-options.sql drops them.
--- The action engine (lane action-engine) adds END_ORDER's rule, the density /
--- gather_share options and the world's ruleHold + density. Apply before
--- 2026-10-25-action-conditions.sql.
+-- SUPERSEDES 2026-10-25-hunt-sessions-catalogue.generated.sql (applied; history,
+-- never regenerated): every table below is rewritten wholesale. THE CORE REBUILD
+-- (docs/design/CORE_MODEL.md, 2026-10-19): END_ORDER's 'died' and
+-- 'party_member_died' replace 'falls'; the falls and knockout limits go; the core
+-- model's curve, vitals and combat-XP rows join hr_hunt_limits; the magic bound
+-- reads the hero's own max mana; the kill bound prices Melee / Ranged XP per HP
+-- and the kill's Level XP; the world loses 'downMs' / 'ward' and gains 'regenPm'.
+-- Apply after 2026-10-27-core-schema.sql, before 2026-10-27-core-bodies.sql.
 --
 -- Server-only: RLS on, NO policy, no client grant (the client reads src/data).
 -- Idempotent: delete + insert; nothing references these rows by foreign key.
@@ -789,10 +801,11 @@ begin
   -- ONE consumable lane, at the data file's ms (the food-lane ruling, spec §3.4 #3).
   if (select ms from public.hr_hunt_lanes where lane = 'consumable') is distinct from ${r.lanes.find((x) => x.l === 'consumable').ms} then
     raise exception 'the consumable lane is not consumables.js laneMs'; end if;
-  -- Premium may never rest less than free; a knockout is whole swings.
+  -- Premium may never rest less than free; the core model's curves are live (a Level and a skill both start at 0 XP).
   if public.hr_hunt_limit('stamina_premium_min') < public.hr_hunt_limit('stamina_free_min')
-     or public.hr_hunt_limit('knockout_ms') % public.hr_hunt_limit('swing_interval_ms') <> 0 then
-    raise exception 'the stamina caps or the knockout are malformed'; end if;
+     or coalesce(public.hr_hunt_limit('level_cubic'), 0) <= 0 or coalesce(public.hr_hunt_limit('skill_base'), 0) <= 0
+     or coalesce(public.hr_hunt_limit('armour_slots'), 0) <= 0 then
+    raise exception 'the stamina caps or the core model rows are malformed'; end if;
   -- Every supply, vendor value, ability rune and login reward is a catalogued item;
   -- every named hunt and ground hunt is in hr_hunts; every training id is a
   -- non-boss combat target; every ground spawn has a kill bound.
@@ -864,13 +877,12 @@ function selftest() {
     'an ability on an unknown lane': () => ({ abilities: { ...ABILITIES, cleave: { ...ABILITIES.cleave, lane: 'nope' } } }),
     'a default target mode that is no mode': () => ({ defaultTarget: 'loudest' }),
     'combat as a resumable kind': () => ({ resumable: ['gather', 'combat'] }),
-    'a manual leave that resumes': () => ({ resumeAfter: ['falls', 'left'] }),
+    'a manual leave that resumes': () => ({ resumeAfter: ['died', 'left'] }),
     'a ground on an unknown hunt': () => ({ grounds: { g1: { ...fixtureGround.g1, hunt: 'nowhere' } } }),
     'a ground spawning an unknown monster': () => ({ grounds: { g1: { ...fixtureGround.g1,
       pockets: [{ room: [0, 0, 4, 4], spawns: [{ monster: 'dragon_of_nowhere', x: 2, y: 2 }] }] } } }),
     'a party of six': () => ({ partyMax: 6 }),
     'a login reward that is no item': () => ({ loginReward: { item: 'not_an_item', qty: 1 } }),
-    'a knockout that is not whole swings': () => ({ knockoutMs: 61000 }),
   };
   /* The fixture ground itself must pass (the arm proves the ground path is live). */
   catalogueRows({ grounds: fixtureGround });

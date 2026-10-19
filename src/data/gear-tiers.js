@@ -200,7 +200,7 @@ export const GEAR_ITEMS = (() => {
         rarity: mat.rarity,
         tier: mat.tier,
         /* b246: weapons are gated on their own combat style at the tier's level. */
-        reqSkill: fam.weaponType === 'ranged' ? 'ranged' : fam.weaponType === 'magic' ? 'magic' : 'attack',
+        reqSkill: fam.weaponType === 'ranged' ? 'ranged' : fam.weaponType === 'magic' ? 'magic' : 'melee',
         reqLv: mat.smith,
       };
       // Ranged and magic weapons carry their style's own attack/strength too,

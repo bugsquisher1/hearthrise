@@ -20,12 +20,15 @@ import { charLevelFromXp, levelOf } from './xp.js?v=0.2.2';
 
 const int = (v) => { const n = Math.floor(Number(v)); return Number.isFinite(n) && n > 0 ? n : 0; };
 
-/** How many armour slots of each weight `equipment` wears: { heavy, medium, light }. */
+/** How many worn pieces of each armour weight `equipment` holds: { heavy, medium, light }.
+    Every worn item counts by its own armourClass (only armour carries one), so the server's
+    hr_vitals_of counts the same rows (hr_items.armour_weight); the share's denominator is
+    ARMOUR_SLOTS.length, the armour slots a full set fills. */
 export function armourWeights(equipment, items) {
   const out = { heavy: 0, medium: 0, light: 0 };
-  for (const slot of ARMOUR_SLOTS) {
-    const id = equipment && equipment[slot];
-    const w = id && items && items[id] ? ARMOUR_WEIGHT[items[id].armourClass] : null;
+  for (const id of Object.values(equipment || {})) {
+    const it = id && items ? items[id] : null;
+    const w = it && it.slot ? ARMOUR_WEIGHT[it.armourClass] : null;
     if (w) out[w] += 1;
   }
   return out;

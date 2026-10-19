@@ -146,6 +146,12 @@ export function coverSellable(item, isSupply) {
    as the hr_hunt_limits row `death_xp_permille` (the generator refuses a
    fraction that is not a whole permille). */
 export const DEATH_XP_LOSS = 0.02;
+/* WHAT THE LEVEL'S LOSS IS A SHARE OF (Tyler 2026-10-19: 'total'; the designer
+   recommends 'level', the current Level's span, at Level 200): 'total' = the
+   character's total Level XP, 'level' = the XP between its current Level and the
+   next. Either way the loss never takes the character below its current Level.
+   Server row `death_xp_base` (0 total, 1 level), generated. */
+export const DEATH_XP_BASE = 'total';
 
 /* The Analyzer keeps a character's last this-many hunts (ruling §2); an older
    ended hunt, its bag lines, tally and timeline are pruned when a new one

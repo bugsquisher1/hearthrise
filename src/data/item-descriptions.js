@@ -252,7 +252,7 @@ export const ITEM_DESC = {
   'pumpkin': 'A fat autumn gourd, heavy and sweet, a hearty harvest worth the wait',
   'pumpkin_pie': 'A golden spiced pie of autumn gourd, a feast that sharpens all your learning',
   'pumpkin_seed': 'Pumpkin seed that swells into the fields\' fattest prize',
-  'crown_shard': 'A sliver of the Rat King\'s crown, hammered from drain-grate iron. Sold, or offered at Prayer',
+  'crown_shard': 'A sliver of the Rat King\'s crown, hammered from drain-grate iron. A trader pays well for it',
   'rat_tail': 'A scrawny rat\'s tail, vendor trash, but coin is coin',
   'raw_bear_meat': 'A thick, fatty slab of raw bear, a filling roast waiting to happen',
   'raw_panther_meat': 'Lean, dark raw meat from a hunting cat; cook it well to make it worth the chew',

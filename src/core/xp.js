@@ -109,15 +109,16 @@ export function skillLevelFromXp(skillId, xp) {
 }
 
 // ── The Level curve (the character, from kills only) ────────────────────
-/** Total XP to REACH Level `lv`: cubic x (L-1)^3 + linear x (L-1), exact. */
+/** Total XP to REACH Level `lv`: quartic x (L-1)^4 + cubic x (L-1)^3 + linear x (L-1), exact. */
 export function charXpForLevel(lv) {
   const n = Math.max(1, Math.floor(Number(lv) || 1)) - 1;
-  return LEVEL_CURVE.cubic * n * n * n + LEVEL_CURVE.linear * n;
+  return LEVEL_CURVE.quartic * n * n * n * n + LEVEL_CURVE.cubic * n * n * n + LEVEL_CURVE.linear * n;
 }
 /** The Level `xp` makes. Endless. */
 export function charLevelFromXp(xp) {
   const x = Math.max(0, Math.floor(Number(xp) || 0));
-  let lv = Math.max(1, Math.floor(Math.cbrt(x / LEVEL_CURVE.cubic)));
+  const lead = LEVEL_CURVE.quartic > 0 ? Math.pow(x / LEVEL_CURVE.quartic, 0.25) : Math.cbrt(x / Math.max(1, LEVEL_CURVE.cubic));
+  let lv = Math.max(1, Math.floor(lead));
   while (lv > 1 && charXpForLevel(lv) > x) lv -= 1;
   while (charXpForLevel(lv + 1) <= x) lv += 1;
   return lv;

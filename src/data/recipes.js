@@ -298,8 +298,6 @@ const BASE_RECIPES = {
      so hr-accrue must be redeployed at the same cut. */
   prayer: [
     {id:'bury_bones',     name:'Bury Bones',         icon:'🦴', input:'bones',         output:null, xp:4.5, req:1,  ms:1200},
-    /* The Crown Shard: 100 Bones of Prayer, or 150 g sold (UNVERIFIED balance; the choice is the point). */
-    {id:'offer_crown_shard',      name:'Offer a Crown Shard',      icon:'👑',  input:'crown_shard',  output:null, xp:450,  req:10, ms:2400},
     {id:'bury_big',       name:'Bury Big Bones',     icon:'🦴', input:'big_bones',     output:null, xp:15,  req:15, ms:1500},
     {id:'bury_dragon',    name:'Bury Dragon Bones',  icon:'🦴', input:'dragon_bones',  output:null, xp:72,  req:35, ms:2000},
     {id:'bury_bone_chips',        name:'Sift Bone Chips',          icon:'🦴',  input:'bone_chips',   output:null, xp:105,  req:40, ms:2200},

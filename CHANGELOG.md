@@ -5,6 +5,12 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.2 — 2026-10-19 (Hunts that run)
+
+**Hunts play out while you watch.** Your hunting ground now shows the fight as it happens: packs, pulls, kills and loot keep updating instead of sitting still.
+
+**Leave hunt works.** Pressing Leave hunt now brings your hero straight back to town.
+
 ## v0.2.1 — 2026-10-19 (Town and friends)
 
 **See each other in town.** Other players now walk through The Common in their own outfits. Right-click anyone to inspect their gear, send a message, add a friend, invite them to your party or block them.

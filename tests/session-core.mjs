@@ -21,6 +21,9 @@
 //          channel is left and re-joined after a backoff
 //   CHAN-2 a frame that skips versions asks for one hello (the gap is closed, not guessed)
 //   HELLO-1 an idle settle answer ({accrued:false}) is never applied as the character: the full read follows
+//   HUNT-1 while the server holds a hunt open the character asks the hunter's settle every huntPollMs
+//          (attended): the track reaches the timeline; the envelope that says it ended stops the asking
+//   HUNT-2 a pending leave is settled at once (away-owed time) and its envelope replaces the open hunt
 //   ACC-1  at most the server's concurrent limit open (within the tab's ceiling); close frees a place
 //   ACC-4  the limit is the SERVER's (account.max_concurrent): a smaller one holds, an unstated one
 //          allows one character, a larger one is capped by the tab's ceiling
@@ -221,6 +224,52 @@ async function rules(M) {
     return calls.join(',') === 'accrue,hr_load' || 'the full read did not follow an idle settle: ' + calls.join(',');
   });
 
+  /* HUNT-1 (ATTENDED, live v0.2.1 "Mill Cellar shows no monsters"): frames never carry `hunt` and the world
+     tick flushes a session only every 90 s, so while a hunt is open the character itself asks the hunter's
+     settle (one hello per huntPollMs); the answer's track reaches the timeline, and an ended hunt stops it. */
+  await t('HUNT-1', async () => {
+    const open = (v, extra) => env(v, Object.assign({ hunt: { session_id: 'h1', hunt_id: 'mill_cellar', ended: false } }, extra || {}));
+    let next = open(2, { hunt_track: [{ u: 1, x: 3, y: 4, atMs: 1000 }], hunt_events: [], hunt_server_now_ms: 1000 });
+    const calls = [];
+    const srv = {
+      rpc: async (name) => { calls.push(name); return { ok: true, status: 200, body: open(1), closed: false }; },
+      accrue: async (b) => { calls.push('accrue:' + b.slot); return { ok: true, status: 200, body: Object.assign({ accrued: true }, next), closed: false }; },
+    };
+    const armed = [];
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, setTimer: (fn, ms) => { armed.push({ fn, ms }); return armed.length; }, clearTimer: () => {} });
+    await cs.load();
+    if (armed.length !== 1 || armed[0].ms !== CFG.SESSION_CONFIG.huntPollMs) return 'an open hunt did not arm one re-read at huntPollMs: ' + JSON.stringify(armed.map((a) => a.ms));
+    armed.shift().fn();
+    await new Promise((r) => setImmediate(r));
+    if (calls.join(',') !== 'hr_load,accrue:0') return 'the re-read did not ask the hunter\'s settle for the slot: ' + calls.join(',');
+    if (!cs.timeline.units().includes(1)) return 'the settle\'s track never reached the timeline';
+    if (armed.length !== 1) return 'the re-read did not re-arm while the hunt is open (' + armed.length + ')';
+    next = env(3, { hunt: { session_id: 'h1', hunt_id: 'mill_cellar', ended: true } });
+    armed.shift().fn();
+    await new Promise((r) => setImmediate(r));
+    if (!cs.record.data.hunt.ended) return 'the ended hunt did not replace the open one';
+    return armed.length === 0 || 'an ended hunt kept re-reading';
+  });
+  /* HUNT-2 (AWAY / pending leave, live v0.2.1 "Leave hunt does nothing"): a leave with hunting time owed
+     answers `pending`; the hunter's settle that follows ends it, and that envelope REPLACES the open hunt. */
+  await t('HUNT-2', async () => {
+    const calls = [];
+    const srv = {
+      rpc: async (name) => {
+        calls.push(name);
+        if (name === 'hr_hunt_leave') return { ok: true, status: 200, body: { ok: true, pending: true }, closed: false };
+        return { ok: true, status: 200, body: env(1, { hunt: { session_id: 'h1', hunt_id: 'mill_cellar', ended: false } }), closed: false };
+      },
+      accrue: async () => { calls.push('accrue'); return { ok: true, status: 200, body: Object.assign({ accrued: true }, env(2, { hunt: { session_id: 'h1', hunt_id: 'mill_cellar', ended: true }, state: { gold: 1, active_kind: 'idle' } })), closed: false }; },
+    };
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, ...timers });
+    await cs.load();
+    const r = await cs.leaveHunt();
+    if (!r.ok) return 'the pending leave answered ' + JSON.stringify(r);
+    if (calls.join(',') !== 'hr_load,hr_hunt_leave,accrue') return 'a pending leave was not settled at once: ' + calls.join(',');
+    return (cs.record.data.hunt.ended === true && cs.record.data.state.active_kind === 'idle') || 'the client still holds the hunt open after the leave';
+  });
+
   const mkAccount = (srv, o = {}) => {
     const tab = memStore();
     const auth = { userId: () => UID, token: () => 'jwt', signOut: async () => { auth.out = true; } };
@@ -365,6 +414,9 @@ const MUTANTS = [
   ['a join sends no hello', 'src/session/character-session.js', "if (st === 'SUBSCRIBED') { this._attempt = 0; this.hello(); return; }", "if (st === 'SUBSCRIBED') { this._attempt = 0; return; }"],
   ['a dropped channel is never re-joined', 'src/session/character-session.js', "this._retry = this._setTimer(() => { this._retry = null; this.connect(); }, reconnectDelay(++this._attempt));", "this._retry = null;"],
   ['a version gap is guessed, not healed', 'src/session/character-session.js', "if (before !== null && r.record.version > before + 1) this.hello();", ""],
+  ['an open hunt is never re-read', 'src/session/character-session.js', "    this._emit(why);\n    this._armHuntPoll();", "    this._emit(why);"],
+  ['an ended hunt keeps re-reading', 'src/session/character-session.js', "typeof h.session_id === 'string' && h.ended !== true;", "typeof h.session_id === 'string';"],
+  ['a pending leave waits for the world tick', 'src/session/character-session.js', "ans.body.pending === true) { await this.hello(); return { ok: true }; }", "ans.body.pending === true) { await this.load(); return { ok: true }; }"],
   ['an idle settle replaces the character', 'src/session/character-session.js', "if (ans.ok && ans.body && ans.body.accrued !== true) return this.load();", ""],
 ];
 
@@ -383,7 +435,7 @@ async function main() {
   if (!mutate) {
     const fails = [...await rules(await load(ROOT)), ...await viewRules(ROOT)];
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (21 rules)');
+    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (23 rules)');
     process.exit(fails.length ? 1 : 0);
   }
   let bad = 0;

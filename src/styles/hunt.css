@@ -195,7 +195,7 @@
 .he-form .hh-intent-msg { margin-top: 6px; }
 .he-editor.is-empty .hx-bar { display: none; }
 
-/* ── The bar's slot editor: a priority list, then "IF … THEN …" for the open slot ── */
+/* ── The bar as a priority list (Hunt settings) ── */
 .hx-bar { margin-top: 10px; }
 .hx-slots { margin: 0; padding: 0; list-style: none; }
 .hx-row { display: flex; align-items: center; gap: 6px; min-height: 36px; border-top: 1px solid var(--line-soft); }
@@ -206,19 +206,45 @@
 .hx-row.is-folded { display: none; }
 .hx-row.is-open { background: var(--surf-panel); }
 .hx-row.is-open .hx-n { color: var(--gold-2); }
-.hx-row.is-error .hx-sum, .hx-cond.is-error .hx-kw { color: var(--red); }
-.hx-form { display: none; margin: 8px 0 0; padding: 8px; border: 1px solid var(--line); }
-.hx-form.is-on { display: flex; flex-direction: column; gap: 6px; }
-.hx-title { margin: 0; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); color: var(--gold-2); letter-spacing: .04em; }
-.hx-cond { display: none; flex-wrap: wrap; align-items: center; gap: 4px; }
-.hx-cond.is-on { display: flex; }
-.hx-cond.is-error { outline: 1px solid var(--red); outline-offset: 2px; }
-.hx-cond [data-f="subject"], .hx-cond [data-f="value"], .hx-cond [data-f="effect"] { display: none; }
-.hx-cond [data-f="subject"].is-on, .hx-cond [data-f="value"].is-on, .hx-cond [data-f="effect"].is-on { display: inline-block; }
-.hx-kw { width: 40px; flex: none; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); color: var(--gold); }
-.hx-then { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
-.hx-more summary { cursor: pointer; font-size: var(--t-micro); color: var(--ink-3); }
-.hx-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.hx-row.is-error .hx-sum { color: var(--red); }
+
+/* ── Configure action: kind, the choices beside what the pick does, its conditions ── */
+.hc-cfg .hc-none { display: none; }
+.hc-cfg.is-empty .hc-none { display: block; }
+.hc-cfg.is-empty .hc-form { display: none; }
+.hc-form { display: flex; flex-direction: column; gap: 8px; }
+.hc-head { display: flex; align-items: baseline; gap: 8px; }
+.hc-title { font-family: var(--f-label); font-size: var(--t-small); color: var(--gold-2); letter-spacing: .04em; }
+.hc-rank { flex: 1; font-size: var(--t-micro); color: var(--ink-3); }
+.hc-pick { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; min-height: 0; }
+.hc-list { margin: 0; padding: 0; list-style: none; max-height: 196px; overflow-y: auto; overscroll-behavior: contain; }
+.hc-choice { display: flex; align-items: center; gap: 6px; width: 100%; min-height: 36px; padding: 2px 4px; background: none; border: 0; border-bottom: 1px solid var(--line-soft); color: var(--ink-2); font: inherit; font-size: var(--t-small); text-align: left; cursor: pointer; }
+.hc-choice:hover:not(:disabled) { background: var(--surf-panel); color: var(--ink); }
+.hc-choice:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
+.hc-choice-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hc-choice-note { flex: none; font-size: var(--t-micro); color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; }
+.hc-list .is-on .hc-choice { background: var(--bg-3); color: var(--gold-2); }
+.hc-detail { min-width: 0; }
+.hc-name { margin: 0 0 4px; font-weight: 700; color: var(--ink); }
+.hc-facts { margin: 0; padding: 0; list-style: none; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.45; }
+.hc-facts li + li { margin-top: 3px; }
+.hc-conds-head { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--line-soft); padding-top: 6px; }
+.hc-conds-head .hs-sub { margin: 0; }
+.hc-rule { margin: 0; }
+.hc-join { display: none; align-items: center; gap: 8px; }
+.hc-join.is-on { display: flex; }
+.hc-conds { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.hc-cond { display: none; flex-wrap: wrap; align-items: center; gap: 4px; }
+.hc-cond.is-on { display: flex; }
+.hc-cond.is-error { outline: 1px solid var(--red); outline-offset: 2px; }
+.hc-cond [data-f="subject"], .hc-cond [data-f="effect"], .hc-num { display: none; }
+.hc-cond [data-f="subject"].is-on, .hc-cond [data-f="effect"].is-on { display: inline-block; }
+.hc-num.is-on { display: inline-flex; align-items: center; gap: 2px; }
+.hc-num .hh-num { width: 56px; text-align: center; }
+.hc-cond .hh-seg { min-width: 30px; padding: 0 6px; }
+.hc-form .hh-intent-msg.is-error { color: var(--red); }
+.hc-foot { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; border-top: 1px solid var(--line-soft); padding-top: 6px; }
+.hb-bar.is-town .hb-vitals { display: none; }
 .hh-tool.is-primary { padding: 0 14px; background: var(--gold); color: var(--bg-0); }
 .hh-tool.is-primary:hover:not(:disabled) { background: var(--gold-2); color: var(--bg-0); }
 
@@ -342,6 +368,8 @@
   .hb-plaque .hh-tool { min-height: 44px; min-width: 44px; }
   .he-row { min-height: 52px; }
   .he-editor .hh-seg, .he-editor .hh-select, .he-editor .hh-num { min-height: 44px; }
+  .hc-cfg .hh-seg, .hc-cfg .hh-select, .hc-cfg .hh-num, .hc-cfg .hh-tool { min-height: 40px; }
+  .hc-list { max-height: 140px; }
   .ht-bar { gap: 6px; padding: 2px 4px; }
   /* The side sheet halves the stage: the top bar (anchored right) would run
      under the party board, so it drops the ground's name and keeps the clock

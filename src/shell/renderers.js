@@ -13,6 +13,7 @@ import { renderHuntTopbar } from './widgets/hunt-topbar.js?v=0.2.1';
 import { renderPartyPanel } from './widgets/party-panel.js?v=0.2.1';
 import { renderAnalyzer } from './widgets/analyzer.js?v=0.2.1';
 import { renderActionBar } from './widgets/action-bar.js?v=0.2.1';
+import { renderConfigureAction } from './windows/configure-action.js?v=0.2.1';
 import { renderHuntSettings } from './windows/hunt-settings.js?v=0.2.1';
 import { renderChat } from './windows/chat.js?v=0.2.1';
 import { renderFriends } from './windows/friends.js?v=0.2.1';
@@ -46,6 +47,7 @@ export const WINDOW_RENDERERS = Object.freeze({
   'hunt-summary': renderHuntSummary,
   hud: renderHudSettings,
   'hunt-settings': renderHuntSettings,
+  'configure-action': renderConfigureAction,
   chat: renderChat,
   friends: renderFriends,
   inspect: renderInspect,

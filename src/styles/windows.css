@@ -252,6 +252,12 @@
 .hw-hunt-warn:empty { display: none; }
 .hw-hunt-pack { font-size: var(--t-micro); color: var(--ink-2); }
 .hw-hunt-pack:empty { display: none; }
+.hw-density { display: none; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.hw-density.is-on { display: flex; }
+.hw-density-label { font-size: var(--t-small); color: var(--ink-2); }
+.hw-density .hh-seg { min-width: 36px; min-height: 36px; }
+.hw-density .hh-step-val { min-width: 64px; text-align: center; }
+.hw-density-note { flex-basis: 100%; font-size: var(--t-micro); color: var(--ink-3); }
 .hw-hunt-do { flex: none; display: flex; flex-direction: column; align-items: stretch; gap: 4px; }
 .hw-hunt-do .hw-primary.is-on { display: inline-block; }
 

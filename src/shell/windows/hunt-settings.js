@@ -2,17 +2,17 @@
 // src/shell/windows/hunt-settings.js — THE PER-HERO HUNT SETTINGS EDITOR (parity HS-01..HS-09).
 //
 // The viewed character's settings for its active action set: target, stance,
-// chase, distance, when to eat and drink, monster density, the gathering share
-// (stored, inert until gathering lands), and where supplies come from. Every
+// chase, distance, when to eat and drink, and where supplies come from. Monster
+// density is chosen with the hunt (the Hunts window, Tyler 10-18); the gathering
+// share stays hidden until gathering on hunting grounds ships (CLAUDE.md §3.5). Every
 // control shows the server's `hunt_settings` section; every change is ONE
 // intent (settings-intent.js) and the editor's controls stay off until the
 // server has answered and the re-read envelope replaced the section (HS-07).
 // A desktop window; on a phone the shell shows it as the one full-height sheet
-// with big touch targets (HS-08). Below the options, the bar's slot editor
-// (bar-editor.js): "IF [test] THEN [action]" per slot, in priority order.
+// with big touch targets (HS-08). Below the options, the bar as a priority
+// list (bar-editor.js); a slot is configured in the Configure action window.
 // ════════════════════════════════════════════════════════════════════════
-import { SUPPLY_SOURCE, ON_EMPTY, GATHER_SHARE } from '../../data/hunt-sessions.js?v=0.2.1';
-import { DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.1';
+import { SUPPLY_SOURCE, ON_EMPTY } from '../../data/hunt-sessions.js?v=0.2.1';
 import { settingsOf } from '../../session/hunt-sections.js?v=0.2.1';
 import { text, cls } from '../../render/paint.js?v=0.2.1';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.1';
@@ -35,10 +35,6 @@ export function renderHuntSettings() {
     + row('Distance', distanceHtml(), 'Tiles from your target')
     + row('Eat at', pctInput('food_pct', 'Eat when health is at or below this percent'), 'Food restores health')
     + row('Drink at', pctInput('drink_pct', 'Drink when mana is at or below this percent'), 'Drink restores mana')
-    + row('Monster density', '<input type="range" class="hh-range" min="' + DENSITY_PICK.min + '" max="' + DENSITY_PICK.max + '" step="1" data-opt="density" data-hs-act="opt" aria-label="Monster density"><output class="hh-step-val" data-show="density"></output>',
-      'How many packs you pull at once; the hunting ground and your party size set the most it allows')
-    + row('Gathering', '<input type="range" class="hh-range" min="' + GATHER_SHARE.min + '" max="' + GATHER_SHARE.max + '" step="5" data-opt="gather_share" data-hs-act="opt" aria-label="Share of the hunt spent gathering"><output class="hh-step-val" data-show="gather_share"></output><span class="he-unit">%</span>',
-      'Saved now; it starts to count when gathering on hunting grounds arrives. 0 = fight only')
     + row('Supplies', '<select class="hh-select" data-opt="supply_source" data-hs-act="opt">' + opts(SUPPLY_SOURCE.modes, SUPPLY_LABEL) + '</select>')
     + row('When my bag runs out', '<select class="hh-select" data-opt="on_empty" data-hs-act="opt">' + opts(ON_EMPTY.modes, ON_EMPTY_LABEL) + '</select>')
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p>'
@@ -56,7 +52,7 @@ renderHuntSettings.patch = function patchHuntSettings(body, ctx) {
 };
 
 renderHuntSettings.act = function actHuntSettings(ctx, body, action, ev, t) {
-  if (action === 'bar' || action === 'bar-f') { actBarEditor(ctx, body, action, ev, t, () => renderHuntSettings.patch(body, ctx)); return; }
+  if (action === 'bar') { actBarEditor(ctx, body, action, ev, t, () => renderHuntSettings.patch(body, ctx)); return; }
   if (action !== 'opt') return;
   const isField = t.tagName === 'SELECT' || t.tagName === 'INPUT';
   if (isField !== (ev.type === 'change')) return;

@@ -7,15 +7,17 @@
 //   tablets  the active action set's 20 slots, ten either side of the emblem:
 //            an icon, mana cost top-left, count top-right, the first
 //            condition's percent; a slot the server marks unusable is greyed
-//            and struck; a press opens the slot editor on that slot; a food,
+//            and struck; a press opens Configure action on that slot; a food,
 //            drink or ammo stack dragged from the bag onto a slot puts it
 //            there (ONE intent, the whole bar restated: src/shell/bar-assign.js)
 //   plaque   the action set's name, target, stance, chase and distance — each
 //            change an INTENT through settings-intent.js, the controls off
 //            until the server has confirmed. The full editor (thresholds,
 //            supplies) is the hunt settings window, one button away.
-// On a phone the tablets become one swipeable row and the plaque collapses
-// to the editor button (parity SH-07, HS-08).
+// The bar shows in town too (Tyler 10-18: set it up before leaving); the
+// vitals show only while a hunt runs. Saved setups (Hunt prep) are one
+// button away. On a phone the tablets become one swipeable row and the plaque
+// collapses to the editor button (parity SH-07, HS-08).
 // ════════════════════════════════════════════════════════════════════════
 import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.1';
 import { huntOf, settingsOf, staminaOf } from '../../session/hunt-sections.js?v=0.2.1';
@@ -26,7 +28,7 @@ import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.1';
 import { gaugeHtml, patchGauge, itemIconHtml, itemName, abilityName } from './bits.js?v=0.2.1';
 import { ITEMS } from '../../data/items.js?v=0.2.1';
 import { METRICS } from '../../data/condition-metrics.js?v=0.2.1';
-import { openSlot } from '../windows/bar-editor.js?v=0.2.1';
+import { openSlot, storeOf, storeWords } from '../bar-draft.js?v=0.2.1';
 import { assignToBar, barKind } from '../bar-assign.js?v=0.2.1';
 import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.1';
 import { refusalWords } from '../intent-words.js?v=0.2.1';
@@ -62,6 +64,7 @@ export function renderActionBar(ctx) {
     + tabletHtml(HALF, 'Slots 11 to 20')
     + '<div class="hb-plaque">'
     + '<div class="hb-row"><span class="hb-label">Action set</span><b class="hb-set"></b>'
+    + '<button type="button" class="hh-tool" data-hs-act="setups" aria-label="Saved setups">' + glyphSvg(g, 'uiCheck') + '</button>'
     + '<button type="button" class="hh-tool" data-hs-act="editor" aria-label="Edit hunt settings">' + glyphSvg(g, 'uiSettings') + '</button></div>'
     + '<label class="hb-row"><span class="hb-label">Target</span><select class="hh-select" data-opt="target_mode" data-hs-act="opt">' + targetOptionsHtml() + '</select></label>'
     + '<div class="hb-row hb-seg-row"><span class="hh-segs" role="group" aria-label="Stance">' + stanceButtonsHtml() + '</span>'
@@ -76,8 +79,10 @@ function patchSlot(li, s, glyphs) {
     attr(li, 'data-item', s.empty ? '' : s.item);
     const ico = li.querySelector('.hb-slot-ico');
     ico.innerHTML = s.empty ? '' : ITEMS[s.item] ? itemIconHtml(glyphs, s.item) : glyphSvg(glyphs, s.item === 'basic' ? 'uiSword' : 'uiSpark');
-    attr(li, 'title', s.empty ? 'Empty slot' : (ITEMS[s.item] ? itemName(s.item) : abilityName(s.item)));
   }
+  const st = s.empty ? null : storeOf(s.action);
+  attr(li, 'title', s.empty ? 'Empty slot: press to configure' : (s.action.type === 'ability' ? abilityName(s.item) : ITEMS[s.item] ? itemName(s.item) : s.item === 'food' ? 'Any food' : s.item === 'drink' ? 'Any drink' : 'The loaded ammo')
+    + (st ? ' · own first, ' + storeWords(st) : ''));
   cls(li, 'is-empty', s.empty);
   cls(li, 'is-off', !s.empty && !s.usable);
   text(li.querySelector('.hb-mana'), !s.empty && s.mana ? s.mana : '');
@@ -91,6 +96,7 @@ renderActionBar.patch = function patchActionBar(el, ctx) {
   const h = huntOf(cs);
   const hero = h ? h.hero : {};
   const st = staminaOf(cs);
+  cls(el.querySelector('.hb-bar'), 'is-town', !h);
   const s = settingsOf(cs);
   const regen = (v) => (Number.isFinite(v) && v > 0 ? '+' + whole(v) : '');
   patchGauge(el.querySelector('.is-hp'), hero.hp, hero.hpMax, hero.hp == null ? 'Health –' : whole(hero.hp) + ' / ' + whole(hero.hpMax));
@@ -128,8 +134,9 @@ function dropOnSlot(ctx, el, ev, t) {
 renderActionBar.act = function actActionBar(ctx, el, action, ev, t) {
   if (action === 'slot' && ev.type !== 'click') return dropOnSlot(ctx, el, ev, t);
   if (action === 'editor' && ev.type === 'click') { ctx.show('hunt-settings'); return; }
-  /* A slot opens the editor on that slot (BB-18): the bar is configured, never pressed. */
-  if (action === 'slot' && ev.type === 'click') { openSlot(ctx.character, Number(t.getAttribute('data-slot'))); ctx.show('hunt-settings'); return; }
+  if (action === 'setups' && ev.type === 'click') { ctx.show('hunt-prep'); return; }
+  /* A slot opens Configure action on that slot (BB-18): the bar is configured, never pressed. */
+  if (action === 'slot' && ev.type === 'click') { openSlot(ctx.character, Number(t.getAttribute('data-slot'))); ctx.show('configure-action'); ctx.refresh('configure-action'); return; }
   if (action !== 'opt') return;
   /* A select reports on change; a button on click. */
   if ((t.tagName === 'SELECT') !== (ev.type === 'change')) return;

@@ -55,6 +55,28 @@ const cases = {
     if (hs.purse !== 1000 - 15 || hs.tally.bought[STORE_FOOD] !== 1 || hs.tally.supplies.cooked_shrimp !== 1) return 'the ledger split is wrong: purse ' + hs.purse + ' ' + JSON.stringify(hs.tally);
     return null;
   },
+  /* THE CONFIGURED STORE SLOT (Configure action, lane b-condition-builder): a player's slot "Any food IF
+     My HP % at or below 80" eats the own stack first, free; once it is gone the SAME slot, under the SAME
+     condition, buys the tier's store food at the server catalogue's price; above 80% nothing fires at all. */
+  'configured-store-slot': (M) => {
+    const hs = supplySession(M, { bag: { cooked_shrimp: { loaded: 1 } }, purse: 1000 });
+    const slots = M.conditions.heroSlots([{ action: { type: 'consume', id: 'food' }, conditions: [{ metric: 'self_hp_pct', op: 'lte', value: 80 }], join: 'and' }], null);
+    const { h, inst, sc } = oneHero(M, { hp: 85 }, { hs, slots });
+    M.consumables.consume(inst, sc);
+    if (eats(sc).length) return 'the slot fired above its condition (85% HP, condition at or below 80%)';
+    h.hp = 75;
+    M.consumables.consume(inst, sc);
+    const first = eats(sc)[0];
+    if (!first || first.source !== 'own' || first.item !== 'cooked_shrimp' || hs.purse !== 1000) return 'the own stack was not eaten first, free, at 75% HP: ' + JSON.stringify(first);
+    h.otHp = null; h.hp = 75;
+    sc.atMs = 5000;
+    M.consumables.consume(inst, sc);
+    const second = eats(sc)[1];
+    const price = hs.basics[STORE_FOOD].price;
+    if (!second || second.source !== 'store' || second.item !== STORE_FOOD || second.gold !== price) return 'out of own stock, the slot did not buy the store food at its price: ' + JSON.stringify(second);
+    if (hs.purse !== 1000 - price || hs.tally.bought[STORE_FOOD] !== 1) return 'the purse or the tally is wrong: purse ' + hs.purse + ' ' + JSON.stringify(hs.tally);
+    return null;
+  },
   /* §3.4 #7: a hunt never stops for lack of stock; only gold ends it (gold_out). */
   'never-stops-when-out': (M) => {
     const hs = supplySession(M, { bag: { cooked_shrimp: { loaded: 1, essential: true } }, purse: 100 });
@@ -134,6 +156,8 @@ const mutants = [
     edits: [['src/core/action-rules.js', "    if (!storeAllowed(hs, want)) return { why: 'store_off' };", "    if (hs) return { why: 'store_off' };"]] },
   { name: 'a store use the purse cannot pay ends nothing', case: 'never-stops-when-out',
     edits: [['src/core/hunt/consumables.js', "      if (w.why === 'gold_short') { if (w.kind === 'food') hero.hs.goldOut = true; return { why: 'gold_short' }; }", "      if (w.why === 'gold_short') return { why: 'gold_short' };"]] },
+  { name: 'a store use is free', case: 'configured-store-slot',
+    edits: [['src/core/action-rules.js', '    hs.purse = Math.max(0, int(hs.purse, 0)) - b.price;', '    hs.purse = Math.max(0, int(hs.purse, 0));']] },
   { name: 'food and drink each keep their own lane', case: 'one-shared-lane',
     edits: [['src/core/hunt/consumables.js', '    if (int(u.laneAt) > sc.atMs) continue;\n    const hero = heroes', '    const hero = heroes']] },
   { name: 'food eats at its threshold, not under it', case: 'thresholds',

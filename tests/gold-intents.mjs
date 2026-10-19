@@ -1322,8 +1322,8 @@ async function run(mutate) {
     const at = fwd.indexOf('insert into public.hr_items ');
     const stmt = at < 0 ? '' : fwd.slice(at, fwd.indexOf(';\n', at) + 1);
     await db.exec('create temp table g16_items (like public.hr_items including defaults)');
-    /* The forward catalogue carries columns this frozen slice's hr_items predates (the core rebuild's armour_weight). */
-    await db.exec('alter table pg_temp.g16_items add column if not exists armour_weight text');
+    /* The forward catalogue carries columns this frozen slice's hr_items predates (the core rebuild's armour_weight and two_handed). */
+    await db.exec('alter table pg_temp.g16_items add column if not exists armour_weight text, add column if not exists two_handed boolean not null default false');
     if (stmt) await db.exec(stmt.replace('insert into public.hr_items ', 'insert into pg_temp.g16_items '));
     const rows = (await db.query('select item_id from pg_temp.g16_items')).rows.map((r) => r.item_id);
     const known = new Set(rows);

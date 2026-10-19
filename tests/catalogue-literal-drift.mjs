@@ -210,6 +210,13 @@ const CHAIN_END = (() => {
   throw new Error('no migration seeds both arm anchors: re-anchor the selftest');
 })();
 
+const VERDITE_ROW = (() => {
+  const t = readFileSync(new URL('../supabase/migrations/' + CHAIN_END, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const m = t.match(/^  \('verdite_bar','Verdite Bar',true,null,320,[^\n]*\n/m);
+  if (!m) throw new Error('the verdite_bar row is gone from ' + CHAIN_END + ': re-anchor arm (a)');
+  return m[0];
+})();
+
 async function selftest() {
   const arms = [
     ['control (unmutated chain)', {}, false],
@@ -227,10 +234,9 @@ async function selftest() {
     //     disagree with src/data is the honest shape of the finding, and it is
     //     invisible to `gen-catalogues --check`.
     ['(a) a price literal drifts in the deep-seam migration only', {
-      patches: new Map([[CHAIN_END, [
-        ["  ('verdite_bar','Verdite Bar',true,null,320,null,null,null,false),",
-         "  ('verdite_bar','Verdite Bar',true,null,260,null,null,null,false),"],
-      ]]]),
+      /* The row is READ off the chain-end file (its column list grows: the core rebuild added
+         armour_weight), so the arm moves the price and nothing else. */
+      patches: new Map([[CHAIN_END, [[VERDITE_ROW, VERDITE_ROW.replace(',320,', ',260,')]]]]),
     }, true],
 
     // (b) the mirror image: src/data moves and no migration follows it.

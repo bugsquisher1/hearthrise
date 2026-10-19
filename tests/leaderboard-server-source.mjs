@@ -128,7 +128,8 @@ export async function guard() {
   // Everything below grades a rebuilt view. If the view were never rebuilt, or
   // the predecessor never applied, several assertions would pass anyway.
   const skills = (await one('select hr_lb_skills() s')).s;
-  ok(Array.isArray(skills) && skills.includes('stonemason') && skills.length === 17,
+  /* 15 since the core rebuild: Melee replaces Attack + Strength, Hitpoints is gone (2026-10-27-core-bodies.sql). */
+  ok(Array.isArray(skills) && skills.includes('stonemason') && skills.includes('melee') && skills.length === 15,
     `LB-0: hr_lb_skills() is ${Array.isArray(skills) ? skills.length : '?'} entries and the `
     + 'predecessor gate term "stonemason" is missing — the chain did not apply '
     + '2026-08-17-leaderboard-skills.sql, so the migration under test refused to install and '
@@ -155,75 +156,45 @@ export async function guard() {
   // look identical to a working one under every forgery assertion below.
   //
   // ⚠ THE EXPECTATION IS COMPUTED FROM src/core/xp.js AGAINST THE ROWS THAT
-  //   ACTUALLY EXIST, not hardcoded. The first draft of this asserted 17 (one
-  //   level per seeded skill) and 1 — both WRONG, because hr_create_character's
-  //   start kit seeds hitpoints at level 10, so a fresh character is total 26,
-  //   combat 3. A hardcoded number here would have to be re-guessed every time
-  //   the start kit moves, and guessing is what produced the red. Deriving it
-  //   in JS also makes this an independent cross-check of the SQL view against
-  //   the client's own maths, which is worth more than the constant was.
+  //   ACTUALLY EXIST, not hardcoded: each skill on its OWN curve (the combat skills
+  //   uncapped, the rest capped at 99), the same sum hr_skill_level makes in the view.
   await refresh();
   const xp = await import(pathToFileURL(join(ROOT, 'src', 'core', 'xp.js')).href);
-  const skillXp = Object.fromEntries((await q(
+  const rowsOf = async () => Object.fromEntries((await q(
     'select skill_id, xp::text xp from player_skills where user_id=$1 and slot=0', [HONEST]))
     .map((r) => [r.skill_id, Number(r.xp)]));
+  const skillXp = await rowsOf();
   ok(Object.keys(skillXp).length > 0,
     'LB-9 (the FIXTURE control): hr_create_character seeded no player_skills rows, so the '
     + 'bootstrap expectations below are computed from nothing.');
   const wantTotal = xp.totalLevel(skillXp);
-  const wantCombat = xp.combatLevel(skillXp);
   const freshTotal = await scoreOf('total_level', HONEST);
   ok(freshTotal === wantTotal,
     `LB-9: a freshly bootstrapped character scores ${freshTotal} on total_level; src/core/xp.js `
     + `totalLevel() over the SAME seeded rows says ${wantTotal}. null means the player fell out of `
-    + 'the view entirely (the "no server rows -> NULL" crash this rebuild had to avoid); a '
-    + 'mismatch means the server and the client disagree about the player\'s own level.');
-  const freshCombat = await scoreOf('combat_level', HONEST);
-  ok(freshCombat === wantCombat,
-    `LB-9: a fresh character's combat_level is ${freshCombat}, src/core/xp.js says ${wantCombat}. `
-    + 'The coalesce default for an absent skill row must be level 1, matching levelOf().');
-  ok(freshTotal != null && freshCombat != null,
-    'LB-9: a bootstrapped character with no activity must still RANK, at bootstrap values.');
+    + 'the view entirely; a mismatch means the server and the client disagree about the player\'s own level.');
+  ok(freshTotal != null, 'LB-9: a bootstrapped character with no activity must still RANK on total_level.');
+  /* THE LEVEL BOARD (core rebuild): the score is Level XP, from kills only; a character that has
+     killed nothing (0) ranks nobody, exactly as every board drops a zero score. */
+  ok(await scoreOf('level', HONEST) === null, 'LB-9: a character with 0 Level XP ranks on the Level board');
 
-  /* ── LB-9b — A CHARACTER WITH A MISSING SKILL ROW STILL RANKS CORRECTLY. ──
-     This is the state 2026-08-18-skill-row-upsert.sql exists for: per-skill
-     rows are seeded ONCE at character creation and the catalogue GROWS
-     afterwards, so every character older than a skill LACKS that skill's row.
-     The view left-joins and coalesces the missing level to 1 — matching
-     src/core/xp.js levelOf(), which returns levelFromXp(0) = 1 for an absent
-     key — and getting that default wrong is a silent, permanent disagreement
-     between the board and the player's own screen.
-
-     ⚠ THE FIXTURE IS TUNED TO DISCRIMINATE, AND IT HAD TO BE MEASURED.
-       At bootstrap values (strength 1, hitpoints 10) a coalesce of 0 and a
-       coalesce of 1 BOTH yield combat level 3 — the difference of 0.325 does
-       not cross a floor boundary — so the obvious version of this test passes
-       against the wrong default. Strength is first raised to level 3, where the
-       two answers are 4 and 3. Verified by mutation (M6). */
-  const strengthGrant = await apply(HONEST, { xp: { strength: xp.XP_TABLE[2] } });
-  ok(strengthGrant && strengthGrant.ok === true,
-    `LB-9b: the strength grant was refused — ${JSON.stringify(strengthGrant)}`);
+  /* ── LB-9b — A COMBAT SKILL COUNTS ON ITS OWN CURVE. ──
+     Melee is raised to level 30 on the combat curve (300,743 XP): the capped 99 table reads that XP
+     as level 60, so a view that summed hr_level_from_xp would disagree with the player's own screen
+     by 30 levels. A
+     missing row (Mining deleted) must simply not count — the view sums the rows that exist. */
+  const meleeGrant = await apply(HONEST, { xp: { melee: xp.skillXpForLevel('melee', 30) } });
+  ok(meleeGrant && meleeGrant.ok === true, `LB-9b: the Melee grant was refused — ${JSON.stringify(meleeGrant)}`);
   const del = await db.query(
-    'delete from player_skills where user_id=$1 and slot=0 and skill_id=$2', [HONEST, 'attack']);
+    'delete from player_skills where user_id=$1 and slot=0 and skill_id=$2', [HONEST, 'mining']);
   ok(del.affectedRows === 1,
-    `LB-9b (the FIXTURE control): the delete removed ${del.affectedRows} rows, expected 1 — the `
-    + 'character never had an attack row, so the missing-row case is not what is being tested.');
+    `LB-9b (the FIXTURE control): the delete removed ${del.affectedRows} rows, expected 1.`);
   await refresh();
-  const partial = Object.fromEntries((await q(
-    'select skill_id, xp::text xp from player_skills where user_id=$1 and slot=0', [HONEST]))
-    .map((r) => [r.skill_id, Number(r.xp)]));
-  ok(!('attack' in partial),
-    'LB-9b (the FIXTURE control): the attack row survived the delete.');
-  const gapCombat = await scoreOf('combat_level', HONEST);
-  ok(gapCombat === xp.combatLevel(partial),
-    `LB-9b: with no attack row the board says combat level ${gapCombat}; src/core/xp.js over the `
-    + `same remaining rows says ${xp.combatLevel(partial)}. The left join must treat a missing `
-    + 'skill row as level 1, not 0 and not NULL.');
-  ok(gapCombat != null,
-    'LB-9b: a character with a missing skill row fell off the combat board entirely — an inner '
-    + 'join where a left join belongs.');
+  const partial = await rowsOf();
+  ok(xp.skillLevelFromXp('melee', partial.melee || 0) === 30, 'LB-9b (the FIXTURE control): Melee is not at level 30');
   ok(await scoreOf('total_level', HONEST) === xp.totalLevel(partial),
-    'LB-9b: total_level disagrees with src/core/xp.js totalLevel() over the remaining rows.');
+    `LB-9b: total_level is ${await scoreOf('total_level', HONEST)}; src/core/xp.js totalLevel() over the `
+    + `remaining rows says ${xp.totalLevel(partial)} — a combat skill must count on its own curve.`);
 
   // ── LB-1 — THE FORGERY. A hand-written save blob moves NOTHING. ──────────
   // This is the exploit, executed. The insert is what the live client does on
@@ -233,6 +204,8 @@ export async function guard() {
     gold: FORGED_GOLD,
     totalLevel: FORGED_TOTAL,
     combatLevel: 126,
+    level: 999,
+    levelXp: FORGED_XP,
     renown: 999999,
     bossKills: 999999,
     playerName: FORGED_NAME,
@@ -250,7 +223,7 @@ export async function guard() {
 
   for (const [b, forgedValue] of [
     ['wealth', FORGED_GOLD], ['total_level', FORGED_TOTAL], ['skill:mining', FORGED_XP],
-    ['skill:attack', FORGED_XP], ['skill:stonemason', FORGED_XP],
+    ['skill:melee', FORGED_XP], ['skill:stonemason', FORGED_XP], ['level', FORGED_XP],
   ]) {
     const got = await scoreOf(b, FORGER);
     ok(got !== forgedValue,
@@ -362,47 +335,15 @@ export async function guard() {
       + 'hr_leaderboard\'s p_limit clamp is no longer the only door.');
   }
 
-  // ── LB-6 — THE PORTED COMBAT-LEVEL FORMULA MATCHES src/core/xp.js. ───────
-  // hr_lb_combat_level() is the one piece of client LOGIC this migration
-  // duplicates into SQL, and two hand-written copies of one formula is exactly
-  // the drift this repo has been burned by. Swept, not spot-checked — and
-  // deterministically, so a failure is reproducible.
-  let combatLevel, XP_TABLE;
-  try {
-    ({ combatLevel, XP_TABLE } = await import(
-      pathToFileURL(join(ROOT, 'src', 'core', 'xp.js')).href));
-  } catch (e) {
-    problems.push(`LB-6: could not import src/core/xp.js — ${e.message}`);
-  }
-  if (combatLevel) {
-    const xpFor = (lv) => (lv <= 1 ? 0 : XP_TABLE[lv - 1]);
-    const COMBAT = ['attack', 'strength', 'defense', 'hitpoints', 'prayer', 'ranged', 'magic'];
-    // Deterministic LCG — Math.random() would make a red irreproducible.
-    let seed = 20260818;
-    const rnd = (m) => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed % m; };
-    const vectors = [
-      [1, 1, 1, 1, 1, 1, 1], [99, 99, 99, 99, 99, 99, 99], [1, 1, 1, 10, 1, 99, 1],
-      [1, 1, 1, 10, 1, 1, 99], [99, 99, 1, 1, 1, 1, 1], [1, 1, 99, 99, 99, 1, 1],
-      [50, 50, 50, 50, 51, 50, 50], [98, 98, 98, 98, 97, 98, 98], [1, 99, 1, 99, 1, 99, 1],
-    ];
-    for (let i = 0; i < 300; i++) vectors.push(COMBAT.map(() => 1 + rnd(99)));
-
-    let mismatches = 0, firstBad = null;
-    for (const v of vectors) {
-      const js = combatLevel(Object.fromEntries(COMBAT.map((k, i) => [k, xpFor(v[i])])));
-      const sql = Number((await one(
-        'select hr_lb_combat_level($1,$2,$3,$4,$5,$6,$7)::text c',
-        [v[0], v[1], v[2], v[3], v[4], v[5], v[6]])).c);
-      if (js !== sql) { mismatches++; if (!firstBad) firstBad = { v, js, sql }; }
-    }
-    ok(mismatches === 0,
-      `LB-6: hr_lb_combat_level() disagrees with src/core/xp.js combatLevel() on ${mismatches} of `
-      + `${vectors.length} vectors. First: levels ${JSON.stringify(firstBad && firstBad.v)} -> `
-      + `JS ${firstBad && firstBad.js}, SQL ${firstBad && firstBad.sql}. The board would show a `
-      + 'different combat level from the player\'s own screen. NOTE the float8 casts in the SQL '
-      + 'are load-bearing: numeric (exact-decimal) arithmetic on 0.325 differs from IEEE754 '
-      + 'double in the last bits, and the result is immediately floored.');
-  }
+  // ── LB-6 — THE LEVEL BOARD IS THE SERVER'S LEVEL XP. ─────────────────────
+  // (Was the ported combat-level formula; the combat level is deleted with the core rebuild.)
+  // A server-written Level XP (the hunt settle is its only writer; the fixture writes the column
+  // directly, as the settle would) moves the board to exactly that number.
+  await db.query('update player_state set level_xp = 21591 where user_id = $1 and slot = 0', [HONEST]);
+  await refresh();
+  ok(await scoreOf('level', HONEST) === 21591,
+    `LB-6: the Level board reads ${await scoreOf('level', HONEST)} after player_state.level_xp = 21591 — it must rank the server's Level XP.`);
+  ok(await scoreOf('level', FORGER) !== FORGED_XP, 'LB-6: the Level board ranked the forger\'s blob');
 
   // ── LB-7 — THE READ SHAPE THE CLIENT PARSES IS UNCHANGED. ───────────────
   // src/features/leaderboards.js reduceBoard() consumes ok/board/refreshed_at/
@@ -604,7 +545,7 @@ export async function guard() {
   guard.report = [
     `LB: forged snapshot (gold ${FORGED_GOLD}, xp ${FORGED_XP}, name "${FORGED_NAME}") moved no `
     + `board; a server-written 5000 xp / 5000 gold moved skill:mining, total_level and wealth.`,
-    `LB: ${skills.length} skill boards + total_level/combat_level/wealth/clan_power sourced from `
+    `LB: ${skills.length} skill boards + total_level/level/wealth/clan_power sourced from `
     + 'player_state + player_skills; renown + bosses declared unsourced and rank nobody.',
     `LB: refresh churn over ${idle.rows} ranked rows — idle ${idle.rewritten} rewritten, after `
     + `EVERY player settled ${settled.rewritten} rewritten, after a real xp gain `
@@ -629,6 +570,11 @@ export async function guard() {
      MUTATION HARNESS. It edits a real migration in place and restores it
      afterwards; a suite running beside it reads the MUTATED bytes. */
 const MIG = 'supabase/migrations/2026-08-18-leaderboard-server-source.sql';
+/* The view and its revoke are RESTATED by the core rebuild (2026-10-27-core-bodies.sql §4): a mutant of the
+   view must be planted THERE, or the later file's restatement silently undoes it and the mutant proves nothing. */
+const VIEW = 'supabase/migrations/2026-10-27-core-bodies.sql';
+const BLIND_VIEW = [["  -- (a) NO LIVE BODY READS THE OLD MODEL:",
+  '  return; -- MUTATION HARNESS: §5 disabled so the BEHAVIOUR is what fails\n  -- (a) NO LIVE BODY READS THE OLD MODEL:']];
 /* `return` in a DO block ends it, so §6 stops before its first assertion. */
 const BLIND2 = [["  if to_regclass('public.leaderboard_ranked') is null then\n"
   + "    raise exception 'leaderboard_ranked missing';\n  end if;",
@@ -636,40 +582,40 @@ const BLIND2 = [["  if to_regclass('public.leaderboard_ranked') is null then\n"
 
 const MUTANTS = [
   {
-    id: 'M1', file: MIG,
+    id: 'M1', file: VIEW,
     what: 'the wealth board reverts to the save blob, so forged gold buys rank #1 again',
     edits: [["  select 'wealth', b.user_id, b.name, b.clan_name, b.gold, b.saved_at\n  from base b",
       "  select 'wealth', b.user_id, b.name, b.clan_name,\n"
       + "         public.hr_lb_num(gs.snapshot, 'gold'), b.saved_at\n"
       + '  from base b join public.game_saves gs on gs.user_id = b.user_id and gs.slot = 0'],
-    ...BLIND2],
+    ...BLIND_VIEW],
   },
   {
-    id: 'M2', file: MIG,
+    id: 'M2', file: VIEW,
     what: 'the F5 revoke is dropped, so the recreated matview re-inherits the schema default '
       + 'grant and anon can dump every player again',
     edits: [['revoke all on public.leaderboard_ranked from public, anon, authenticated, service_role;',
-      '-- revoke removed by the mutation harness'], ...BLIND2],
+      '-- revoke removed by the mutation harness'], ...BLIND_VIEW],
   },
   {
-    id: 'M3', file: MIG,
+    id: 'M3', file: VIEW,
     what: 'renown goes back to ranking snapshot->>\'renown\' (a board still sourced from the blob '
       + 'while the rebuild claims to be done)',
     edits: [["  -- NOTE: no 'renown' branch and no 'bosses' branch.",
       "  union all\n  select 'renown', b.user_id, b.name, b.clan_name,\n"
       + "         public.hr_lb_num(gs.snapshot, 'renown'), b.saved_at\n"
       + '  from base b join public.game_saves gs on gs.user_id = b.user_id and gs.slot = 0\n'
-      + "  -- NOTE: no 'renown' branch and no 'bosses' branch."], ...BLIND2],
+      + "  -- NOTE: no 'renown' branch and no 'bosses' branch."], ...BLIND_VIEW],
   },
   {
-    id: 'M4', file: MIG,
+    id: 'M4', file: VIEW,
     what: 'the display-name fallback to snapshot->>\'playerName\' comes back (impersonation)',
     edits: [["         coalesce(p.display_name, 'Adventurer')     as name,",
       "         coalesce(p.display_name, gs2.snapshot->>'playerName', 'Adventurer') as name,"],
     ['  left join public.clans    c on c.id = p.clan_id\n  where ps.slot = 0',
       '  left join public.clans    c on c.id = p.clan_id\n'
       + '  left join public.game_saves gs2 on gs2.user_id = ps.user_id and gs2.slot = 0\n'
-      + '  where ps.slot = 0'], ...BLIND2],
+      + '  where ps.slot = 0'], ...BLIND_VIEW],
   },
   /* ⚠ THERE IS DELIBERATELY NO "numeric INSTEAD OF float8" MUTANT.
      One was written, and it SLIPPED — correctly. The expression reduces to
@@ -682,22 +628,22 @@ const MUTANTS = [
      migration's comment on those casts was corrected to match this measurement
      rather than keeping the plausible-sounding claim it started with. */
   {
-    id: 'M6', file: MIG,
-    what: 'the missing-skill coalesce defaults to 0 instead of 1, so a fresh character\'s combat '
-      + 'level disagrees with their own screen',
-    edits: [["           coalesce(max(l.level) filter (where l.skill_id = 'attack'),    1),",
-      "           coalesce(max(l.level) filter (where l.skill_id = 'attack'),    0),"], ...BLIND2],
+    id: 'M6', file: VIEW,
+    what: 'Total Level reads every skill on the capped 99 table, so a combat skill counts at the wrong '
+      + 'level and the board disagrees with the player\'s own screen (was: the combat-level coalesce, deleted)',
+    edits: [['  select s.user_id, s.skill_id, s.xp, public.hr_skill_level(s.skill_id, s.xp) as level',
+      '  select s.user_id, s.skill_id, s.xp, public.hr_level_from_xp(s.xp) as level'], ...BLIND_VIEW],
   },
   {
     /* THE WAL CHURN, RESTORED. saved_at re-sourced from player_state.updated_at
        — which is what the design started with, and what made every active
        player's rows rewrite on every 5-minute refresh despite `concurrently`
        already diffing. */
-    id: 'M9', file: MIG,
+    id: 'M9', file: VIEW,
     what: 'saved_at is re-sourced from player_state.updated_at, so every active player\'s rows '
       + 'churn on every refresh and the concurrent diff saves nothing',
     edits: [['         null::timestamptz                          as saved_at,',
-      '         ps.updated_at                              as saved_at,'], ...BLIND2],
+      '         ps.updated_at                              as saved_at,'], ...BLIND_VIEW],
   },
   {
     /* THE DEFECT THIS FILE'S FIRST REVISION ACTUALLY SHIPPED. §4 replaced the

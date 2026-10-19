@@ -1034,7 +1034,7 @@ begin
         if exists (
           select 1 from public.hr_items i
            where i.item_id = v_item and i.req_skill is not null and i.req_lv is not null
-             and coalesce((select public.hr_level_from_xp(s.xp) from public.player_skills s
+             and coalesce((select public.hr_skill_level(i.req_skill, s.xp) from public.player_skills s
                             where s.user_id = v_uid and s.slot = v_slot
                               and s.skill_id = i.req_skill), 1) < i.req_lv)
         then
@@ -1388,7 +1388,7 @@ begin
           select 1 from public.hr_activities a
            where a.kind = v_act->>'kind' and a.activity_id = v_act->>'id'
              and a.req_skill is not null and a.req_lv is not null
-             and coalesce((select public.hr_level_from_xp(s.xp) from public.player_skills s
+             and coalesce((select public.hr_skill_level(a.req_skill, s.xp) from public.player_skills s
                             where s.user_id = v_uid and s.slot = v_slot
                               and s.skill_id = a.req_skill), 1) < a.req_lv)
         then
@@ -3060,7 +3060,7 @@ begin
       and exists (select 1 from public.hr_activities a where a.kind = v_lk and a.activity_id = v_li)
       and not exists (select 1 from public.hr_activities a
                        where a.kind = v_lk and a.activity_id = v_li and a.req_skill is not null and a.req_lv is not null
-                         and coalesce((select public.hr_level_from_xp(sk.xp) from public.player_skills sk
+                         and coalesce((select public.hr_skill_level(a.req_skill, sk.xp) from public.player_skills sk
                                         where sk.user_id = p_user and sk.slot = p_slot and sk.skill_id = a.req_skill), 1) < a.req_lv);
     if v_ok then
       update public.player_state
@@ -4815,7 +4815,7 @@ begin
      where s.hunt_id = p_hunt
        and (a.is_boss
             or (a.req_skill is not null and a.req_lv is not null
-                and coalesce((select public.hr_level_from_xp(ps.xp) from public.player_skills ps
+                and coalesce((select public.hr_skill_level(a.req_skill, ps.xp) from public.player_skills ps
                                where ps.user_id = p_user and ps.slot = p_slot
                                  and ps.skill_id = a.req_skill), 1) < a.req_lv)))
   then
@@ -5170,6 +5170,8 @@ scores as (
            + least(greatest(coalesce(c.treasury, 0), 0), 999999999)::bigint,
          null::timestamptz
   from public.clans c
+  -- NOTE: no 'renown' branch and no 'bosses' branch (2026-08-18-leaderboard-server-source.sql's header:
+  -- neither has a server source, so neither ranks anybody).
 )
 select board, subject_id, name, clan_name, score, saved_at,
        row_number() over (partition by board order by score desc, subject_id) as rank

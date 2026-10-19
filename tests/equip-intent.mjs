@@ -93,8 +93,9 @@ async function grant(db, version, items) {
     directly — there is no such column, and a probe that faked one would be
     testing a shape the engine does not have. */
 async function grantLevel(db, version, skill, level) {
+  /* The skill's OWN curve (core rebuild: a combat skill is uncapped, hr_skill_curve). */
   const need = Number((await db.query(
-    'select min(xp)::text x from hr_xp_table where level >= $1', [level])).rows[0].x);
+    'select public.hr_skill_xp_for_level($1, $2)::text x', [skill, level])).rows[0].x);
   const rows = await asEngine(db, 'select hr_apply($1,0,$2,$3,$4::jsonb) r', [
     UID, version, uuid(),
     JSON.stringify({ xp: { [skill]: need },
@@ -255,7 +256,7 @@ async function body(db, call, exec) {
     ok(g.ok === true, `E2-SETUP: the admin grant was refused — ${JSON.stringify(g)}`);
     ok(await invOf(db, 'iron_sword') === 1, 'E2-SETUP: the grant did not land');
 
-    /* ⚠ b542 — iron_sword IS GATED NOW (Attack 15,
+    /* ⚠ b542 — iron_sword IS GATED NOW (Melee 15 since the core rebuild; was Attack 15,
        2026-09-12-equippable-req-lv.sql). Until that file, hr_items.req_lv was
        NULL for the whole hand-authored plate ladder and this control equipped
        it at Attack 1. The fixture was measuring an ungated item, so it went red
@@ -267,14 +268,14 @@ async function body(db, call, exec) {
        gates iron_sword at 99 and one that ungates it entirely are both red. */
     const under = await call({ equip: { weapon: 'iron_sword' } });
     ok(under.status === 409 && under.body.error === 'requirement_not_met',
-      `E2a: an Attack-1 character equipping iron_sword (Attack 15) answered ${under.status} `
+      `E2a: a Melee-1 character equipping iron_sword (Melee 15) answered ${under.status} `
       + `${JSON.stringify(under.body).slice(0, 200)} — hr_items.req_lv is the ONLY wield `
       + 'authority; the client tier ladder is not a control');
     ok(await invOf(db, 'iron_sword') === 1 && await eqOf(db, 'weapon') === 'bronze_sword',
       'E2a: the refused equip moved the bag or the slot — a rejection must roll back whole');
 
-    const lv = await grantLevel(db, await versionOf(db), 'attack', 15);
-    ok(lv.ok === true, `E2-SETUP: the Attack-15 XP grant was refused — ${JSON.stringify(lv)}`);
+    const lv = await grantLevel(db, await versionOf(db), 'melee', 15);
+    ok(lv.ok === true, `E2-SETUP: the Melee-15 XP grant was refused — ${JSON.stringify(lv)}`);
 
     const r = await call({ equip: { weapon: 'iron_sword' } });
     ok(r.status === 200 && r.body.ok === true,

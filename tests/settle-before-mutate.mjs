@@ -51,7 +51,10 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, LAST_PATCHED, ROOT } from './schema-replay.mjs';
-import { COMBAT_XP_SETTLE_FIRST_MS } from '../src/core/combat-xp-cap.js';
+/* The settle-first threshold, PINNED here since its JS twin (src/core/combat-xp-cap.js) went with the
+   attended combat-XP door in the core rebuild (2026-10-19): no JS path reads it any more, so the SQL's
+   c_settle_first_ms is held to the ruled 180 s directly. */
+const COMBAT_XP_SETTLE_FIRST_MS = 180000;
 import { computeAccrual, PAYABLE_KINDS, CALLER_AUTHORITY }
   from '../supabase/functions/hr-accrue/accrual.js';
 import { settleGatherSession, intentValue, atSpan, GATHER_CATALOGUES }

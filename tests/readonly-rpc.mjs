@@ -289,7 +289,11 @@ try {
       `these are declared read-only and are NOT: ${clean.bad.join(', ')} — declare them VOLATILE`);
     const pv = (await db.query(
       "select provolatile::text v from pg_proc where oid = to_regprocedure('public.hr_party_view(uuid)')")).rows[0]?.v;
-    judge('PV', pv === 'v', 'hr_party_view is VOLATILE — PostgREST gives it a writable transaction',
+    /* The core rebuild (2026-10-27-core-schema.sql) DROPS hr_party_view with the pre-instance party hunt:
+       absent is as safe as VOLATILE (nothing to call read-only). Its P-IDEM below then replays the chain
+       up to its own file, where the function still exists. */
+    judge('PV', pv === 'v' || pv === undefined,
+      pv === 'v' ? 'hr_party_view is VOLATILE — PostgREST gives it a writable transaction' : 'hr_party_view is dropped (core rebuild) — nothing left to call read-only',
       `hr_party_view is provolatile=${pv}`);
 
     if (SELFTEST) {
@@ -311,12 +315,14 @@ try {
         `a refused call was judged read-only clean: ${JSON.stringify(planted.bad)}`);
     } else {
       // ── P-IDEM: the file re-applies as a byte-identical no-op ────────────
-      console.log('\nP-IDEM  ' + FILE + ' re-applied onto the full chain');
-      const before = JSON.stringify(await inventory(db)) + (await volatility(db));
+      const own = pv === undefined ? (await bootReplay({ upTo: FILE })).db : db;
+      console.log('\nP-IDEM  ' + FILE + ' re-applied onto ' + (own === db ? 'the full chain' : 'the chain up to itself (its function is dropped later)'));
+      const before = JSON.stringify(await inventory(own)) + (await volatility(own));
       const sql = (await readFile(join(ROOT, 'supabase', 'migrations', FILE), 'utf8')).replace(/\r\n/g, '\n');
       let err = null;
-      try { await db.exec(sql); } catch (e) { err = String(e.message).split('\n')[0]; }
-      const after = err ? null : JSON.stringify(await inventory(db)) + (await volatility(db));
+      try { await own.exec(sql); } catch (e) { err = String(e.message).split('\n')[0]; }
+      const after = err ? null : JSON.stringify(await inventory(own)) + (await volatility(own));
+      if (own !== db) await own.close();
       judge('P-IDEM', !err && before === after,
         'second apply passed its §4 again and left the inventory and every provolatile byte-identical',
         err ? `the second apply FAILED: ${err}` : 'the second apply changed the schema or a volatility');

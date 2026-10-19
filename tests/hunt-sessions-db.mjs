@@ -118,7 +118,7 @@ const inv = (db, item) => one(db, `select coalesce((select qty from public.playe
 const bagLeft = (db, sid, item) => one(db, `select coalesce((select qty_left from public.hunt_bag where session_id = $1 and item_id = $2), 0)::int`, [sid, item]);
 
 async function enter(db, bag) {
-  return call(db, 'hr_hunt_enter', [0, 'mill_cellar', JSON.stringify(bag), 0, null, null, idem()]);
+  return call(db, 'hr_hunt_enter', [0, 'mill_cellar', JSON.stringify(bag), 0, null, idem()]);   // no falls limit (the core rebuild)
 }
 /* Put the session into its hunting phase 9 minutes ago, so a settle window fits. */
 async function startHunting(db, sid) {
@@ -256,8 +256,8 @@ const ARMS = {
     if (e2?.error !== 'hunt_open') red.push(`S1: a second enter answered ${JSON.stringify(e2)}`);
     await db.query('savepoint s1');
     try {
-      await db.query(`insert into public.hunt_sessions (user_id, slot, hunt_id, falls_limit, hunt_from, settled_to, next_swing_at)
-                      values ($1, 0, 'rat', 3, now(), now(), now())`, [UID]);
+      await db.query(`insert into public.hunt_sessions (user_id, slot, hunt_id, hunt_from, settled_to, next_swing_at)
+                      values ($1, 0, 'rat', now(), now(), now())`, [UID]);
       red.push('S1: a second open row was admitted');
     } catch (err) { if (!/unique|duplicate/i.test(err.message)) red.push(`S1: second row refused for the wrong reason: ${err.message}`); }
     await db.query('rollback to savepoint s1');
@@ -307,14 +307,15 @@ const ARMS = {
     const sid = e.session.id;
     const from = await startHunting(db, sid);
     await engineRows(db, sid, [
-      { kind: 'accrue', intent: 'tick', gold: 25, meta: { delta: { g: 25, x: { attack: 40, hitpoints: 13 }, i: { bones: 2, rat_tail: 1 } }, kills: 5 } },
-      { kind: 'combat', intent: 'death', meta: { monster: 'slime' } },
+      { kind: 'accrue', intent: 'tick', gold: 25, meta: { delta: { g: 25, x: { melee: 40, defense: 13 }, i: { bones: 2, rat_tail: 1 } }, kills: 5 } },
     ]);
-    let s = await settle(db, sid, { swing_from: 0, swing_to: 20, to: at(from, 60), next_swing_at: at(from, 61), falls: 1,
+    let s = await settle(db, sid, { swing_from: 0, swing_to: 20, to: at(from, 60), next_swing_at: at(from, 61),
       uses: { cooked_shrimp: 3, bronze_arrows: 18 } });
     if (s?.ok !== true) return red.push(`T1: settle 1 answered ${JSON.stringify(s)}`);
-    await engineRows(db, sid, [{ kind: 'accrue', intent: 'tick', gold: 9, meta: { delta: { g: 9, x: { attack: 7 }, i: { bones: 1 } }, kills: 2 } }]);
-    s = await settle(db, sid, { swing_from: 20, swing_to: 40, to: at(from, 120), next_swing_at: at(from, 121), falls: 1,
+    /* The window with the hunt's one death (the core rebuild): it carries the end the death owes. */
+    await engineRows(db, sid, [{ kind: 'accrue', intent: 'tick', gold: 9, meta: { delta: { g: 9, x: { melee: 7 }, i: { bones: 1 } }, kills: 2 } },
+      { kind: 'combat', intent: 'death', meta: { monster: 'slime' } }]);
+    s = await settle(db, sid, { swing_from: 20, swing_to: 40, to: at(from, 120), next_swing_at: at(from, 121), ended: { reason: 'died', at: at(from, 120) },
       uses: { cooked_shrimp: 1, bronze_arrows: 9 } });
     if (s?.ok !== true) return red.push(`T1: settle 2 answered ${JSON.stringify(s)}`);
     const t = (await q(db, `select * from public.hunt_session_tally where session_id = $1`, [sid]))[0];
@@ -360,7 +361,9 @@ const STAGED = Object.freeze([
   ['2026-10-23-hunt-sessions-catalogue.generated.sql', '2026-10-23-character-premium.sql', '2026-10-23-premium-login-reward.sql', '2026-10-23-hunt-settings-options.sql',
     '2026-10-23-hunt-supply-ledger.sql', '2026-10-23-hunt-analyzer-v2.sql', '2026-10-23-hunt-world-state.sql', '2026-10-23-hunt-party.sql'],
   /* lane action-engine: restates hr_hunt_bar_check / _settle_session / _open_session / _settings_view after the forward catalogue */
-  [CAT_NOW, '2026-10-25-action-conditions.sql'],
+  /* The 10-25 forward catalogue (applied history), the one this pass's chain end holds: the core rebuild's own
+     catalogue (gen-hunt-sessions' OUT today) is later than action-conditions and judged by its own re-apply. */
+  ['2026-10-25-hunt-sessions-catalogue.generated.sql', '2026-10-25-action-conditions.sql'],
 ]);
 async function d1(db) {
   const red = [];
@@ -368,9 +371,11 @@ async function d1(db) {
       and table_name = 'player_state' and column_name in ('auto_eat_enabled', 'auto_eat_food', 'auto_eat_pct',
                                                           'auto_eat_set_at', 'last_away_receipt', 'hunt_stance', 'hunt_stop')`);
   if (cols !== 0) red.push(`D1: ${cols} away column(s) survived the delete on the chain`);
+  /* consec_falls outlived this file for the M8 party settle, and the core rebuild (2026-10-27-core-schema.sql)
+     deleted both: on the chain it is gone too. */
   const kept = await one(db, `select count(*)::int from information_schema.columns where table_schema = 'public'
       and table_name = 'player_state' and column_name = 'consec_falls'`);
-  if (kept !== 1) red.push('D1: player_state.consec_falls was dropped; the party settle still reads it until demolition M2');
+  if (kept !== 0) red.push('D1: player_state.consec_falls survived the core rebuild');
   const projected = await one(db, `select position('last_away_receipt' in
       regexp_replace(pg_get_functiondef('public.hr_state_of(uuid,int)'::regprocedure), '--[^\n]*', '', 'g')) > 0`);
   if (projected) red.push('D1: hr_state_of still projects last_away_receipt');
@@ -448,7 +453,7 @@ const SIX = [
   ['hr_clan_browser', 'select public.hr_clan_browser(25)'],
   ['hr_companion_equip', "select public.hr_companion_equip(0, 'fox', true)"],
   ['hr_companion_grant', "select public.hr_companion_grant(0, 'fox', 'shop', gen_random_uuid())"],
-  ['hr_rest', 'select public.hr_rest(0, gen_random_uuid())'],
+  /* hr_rest left with the knockout (the core rebuild, 2026-10-27-core-schema.sql). */
 ];
 async function a1(db) {
   const red = [];
@@ -649,21 +654,22 @@ if (!MUTATE) {
     console.log(`  ${mine.length ? 'caught ' : 'ESCAPED'} ${m.name}${mine.length ? ` (${mine[0].slice(0, 90)})` : ''}`);
     if (!mine.length) escaped++;
   }
-  /* A1 bites: hr_rest re-created WITHOUT the access line (the body the
-     ungated file spliced, one line removed) must be red. Rolled back. */
+  /* A1 bites: hr_companion_grant re-created WITHOUT the access line (the body the
+     ungated file spliced, one line removed) must be red. Restored from its own definition.
+     (Was hr_rest, dropped with the knockout by the core rebuild.) */
   {
     let red = [];
+    const def = String(await one(db, `select pg_get_functiondef('public.hr_companion_grant(integer,text,text,uuid)'::regprocedure)`)).replace(/\r/g, '');
     try {
-      const def = String(await one(db, `select pg_get_functiondef('public.hr_rest(integer,uuid)'::regprocedure)`)).replace(/\r/g, '');
       const line = '  perform public.hr_access_check();\n';
       if (def.split(line).length !== 2) throw new Error('A1 mutant anchor moved');
       await db.exec(def.replace(line, ''));
       red = await a1(db);
     } finally {
-      await db.exec(UNGATED_TEXT);   // restore the spliced body (the file is idempotent)
+      await db.exec(def);   // restore the shipped body
     }
-    const caught = red.some((r) => r.startsWith('A1') && r.includes('hr_rest'));
-    console.log(`  ${caught ? 'caught ' : 'ESCAPED'} A1: hr_rest loses its access line${caught ? ` (${red[0].slice(0, 90)})` : ''}`);
+    const caught = red.some((r) => r.startsWith('A1') && r.includes('hr_companion_grant'));
+    console.log(`  ${caught ? 'caught ' : 'ESCAPED'} A1: hr_companion_grant loses its access line${caught ? ` (${red[0].slice(0, 90)})` : ''}`);
     if (!caught) escaped++;
   }
   /* A2 bites: hr_engine_closed answers false for everyone (the bare 429 back). */

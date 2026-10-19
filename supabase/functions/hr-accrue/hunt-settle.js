@@ -357,6 +357,8 @@ async function memberInput(exec, m, inst) {
     equipment: e.equipment, inventory: e.inventory, buffs: e.buffs,
     deathsTodayBefore: e.deathsTodayBefore, deathsLifetimeBefore: e.deathsLifetimeBefore,
     hearthfindReady: e.hearthfindReady, perks,
+    /* the account-wide bestiary's relic multipliers ({ monsterId: mult }), when the server projects them */
+    relicMults: env.relic_mults && typeof env.relic_mults === 'object' ? env.relic_mults : null,
     _weaponType: weaponType, _options: options, _bar: m.session.bar, _role: pre ? pre.role : null,
   };
 }

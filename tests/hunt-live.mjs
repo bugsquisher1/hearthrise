@@ -51,6 +51,7 @@ async function load(base) {
     SPAWN: await u('src/core/hunt-spawn.js'),
     SB: await u('src/data/supply-basics.js'),
     XP: await u('src/core/xp.js'),
+    MB: await u('src/core/member.js'),
     WS: await u('src/core/hunt/world-state.js'),
     ITEMS: (await u('src/data/items.js')).ITEMS,
     MONSTERS: (await u('src/data/monsters.js')).MONSTERS,
@@ -173,6 +174,15 @@ function rules(M) {
       console.log(`  LV-L: server paid ${JSON.stringify(sorted(paid))}; the browser's engine would have dropped ${JSON.stringify(sorted(predicted))}`);
       ok('LV-L', JSON.stringify(sorted(predicted)) !== JSON.stringify(sorted(paid)), `the browser's engine foresaw the server's drops exactly (${JSON.stringify(sorted(paid))})`);
     }
+  }
+
+  { // LV-X: the assembled member carries relicMult (server-side drop input; 1 when absent)
+    const side = (mi) => M.MB.memberSide(mi, { items: M.ITEMS }).member;
+    const a = side(Object.assign(memberOf(M, 'a', 0, 'tank', 6), { relicMults: { rat: 1.25 } }));
+    const b = side(memberOf(M, 'a', 0, 'tank', 6));
+    const c = side(Object.assign(memberOf(M, 'a', 0, 'tank', 6), { relicMults: { rat: 0.5, slime: 'x' } }));
+    ok('LV-X', a.relicMult('rat') === 1.25 && a.relicMult('slime') === 1, `relicMult with a projection reads ${a.relicMult('rat')} / ${a.relicMult('slime')}`);
+    ok('LV-X', b.relicMult('rat') === 1 && c.relicMult('rat') === 1 && c.relicMult('slime') === 1, 'an absent or invalid projection is not 1');
   }
 
   { // LV-M: a melee hero in range holds its tile and swings (Tyler 10-19: "back and forth between mobs").

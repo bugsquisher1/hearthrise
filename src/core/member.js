@@ -239,6 +239,13 @@ export function memberSide(mi, ctx) {
       shield: !!(HUNT_ROLES[h.role] && HUNT_ROLES[h.role].discipline === 'shield'),
       buffsAt: (atMs) => { state.buffs = buffQueueFromServer(buffRows, atMs); },
       bonus, weakness, rollsVs,
+      /* THE RELIC MULTIPLIER (Bestiary lane, 2026-10-19): the account-wide bestiary projection's
+         { monsterId: mult } (mi.relicMults, server-side only: drops are never rolled for the browser),
+         read by the drop roll for relic-tier rows; 1 when absent or not a number >= 1. */
+      relicMult: (monsterId) => {
+        const v = mi.relicMults && typeof mi.relicMults === 'object' ? Number(mi.relicMults[monsterId]) : NaN;
+        return Number.isFinite(v) && v >= 1 ? v : 1;
+      },
       snapshot: (st) => heroSnapshot(st, snapCtx),
       hero: { role: h.role, element: h.element || '', settings: h.settings || null,
         slots: h.slots || [], stopRules: h.stopRules || [], density: h.density || 0,

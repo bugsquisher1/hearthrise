@@ -7,7 +7,7 @@
 //   node tests/party-ui.mjs --mutate       every planted defect must turn a rule RED
 //   node tests/party-ui.mjs --shots <dir>  also write the visual-gate screenshots (1440x900, 922x423)
 //
-// mutant-anchors: src/shell/alerts.js src/session/party-sections.js src/session/character-session.js src/shell/windows/party.js src/shell/windows/party-finder.js src/app/character-strip.js src/shell/widgets/alerts.js
+// mutant-anchors: src/shell/alerts.js src/shell/hunt-list.js src/session/party-sections.js src/session/character-session.js src/shell/windows/party.js src/shell/windows/party-finder.js src/app/character-strip.js src/shell/widgets/alerts.js
 // mutant-writes-tree: no — pure mutants plant into a temp copy of src/, page mutants into served overrides
 //
 // The fixture is tests/fixtures/party-envelope.json (S1's `party` shape plus this lane's asks).
@@ -27,6 +27,8 @@
 //   UI-3  the Party window: the seats with the leader's crown; Start is ONE hr_hunt_party_start,
 //         off from the press until the server answered; the finder defaults to this
 //         character's weapon and Join is ONE hr_hunt_party_join
+//   UI-5  the party notes are the PICKED ground's, from its catalogue row, updated on change
+//   AL-2  no out-of-stock warning while the store pays; none for a resource the hero does not use
 //   UI-4  the command centre lists every open character; zero console errors throughout
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
@@ -40,6 +42,15 @@ import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/party-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
+/* UI-5: each ground's party note, read off ITS catalogue row (the pocket with minParty and the boss in it). */
+const { HUNT_GROUNDS } = await import(pathToFileURL(join(ROOT, 'src/data/hunt-grounds.js')).href);
+const { MONSTERS } = await import(pathToFileURL(join(ROOT, 'src/data/monsters.js')).href);
+const PARTY_NOTES = Object.fromEntries(Object.values(HUNT_GROUNDS).map((g) => {
+  const p = g.pockets.find((q) => q.minParty);
+  const boss = p && p.spawns.map((x) => MONSTERS[x.monster]).find((m) => m && m.boss);
+  return [g.hunt, p && boss ? 'The ' + boss.name + ' wants a party of ' + ['', 'one', 'two', 'three', 'four'][p.minParty] + ' or more. Alone, you skip that hall.' : ''];
+}));
+if (!PARTY_NOTES.millrace_sewer || PARTY_NOTES.coppercap_warrens !== '') throw new Error('party-ui: UI-5 needs a party-gated ground and one without');
 const PARTY_RPCS = ['hr_hunt_party_create', 'hr_hunt_party_join', 'hr_hunt_party_leave', 'hr_hunt_party_kick', 'hr_hunt_party_invite',
   'hr_hunt_party_accept', 'hr_hunt_party_decline', 'hr_hunt_party_start', 'hr_hunt_restart'];
 
@@ -114,6 +125,39 @@ async function pureRules(M, base) {
     await cs2.load(); await cs2.load();
     const low = centre2.list().filter((a) => a.kind === 'low');
     return (low.length === 1 && low[0].item === 'wheat_bread') || 'low supplies raised ' + low.length + ' alert(s)';
+  });
+
+  /* AL-2 (Tyler 10-18, "Tester is out of Drink · Buy supplies" for a hero with no mana): a bar slot may
+     name a KIND; a hero with no mana pool is never warned about drinks; while the store pays per use
+     there is no out-of-stock warning at all (HUNT_SCREEN_SPEC §3.4 rule 7). */
+  await t('AL-2', async () => {
+    const lows = async (edit) => {
+      const srv = fakeServer();
+      const e = srv.env[0];
+      e.hunt.hero.falls = 0;
+      e.hunt_events = [];
+      e.bag_rules.restock = {};
+      edit(e);
+      const acc = account(M, srv);
+      const centre = M.AL.createAlertCenter(acc);
+      if (!(await acc.open(0)).session) return null;
+      return centre.list().filter((a) => a.kind === 'low').map((a) => a.text);
+    };
+    const kinds = (e, mode, food, drink) => {
+      e.hunt_settings.on_empty = mode;
+      e.hunt_settings.supply_source = 'mine';
+      e.hunt_settings.slots = [{ action: { type: 'consume', id: 'food' } }, { action: { type: 'consume', id: 'drink' } }].concat(Array(18).fill(null));
+      for (const id of ['wheat_bread', 'cooked_shrimp']) if (!food) delete e.inventory[id];
+      if (!drink) delete e.inventory.goldenroot_tea;
+    };
+    const a = await lows((e) => { kinds(e, 'switch', false, false); e.bag_rules.restock = { goldenroot_tea: 10 }; });
+    if (!a || a.length) return 'with the store paying per use, an out-of-stock warning still fired: ' + JSON.stringify(a);
+    const b = await lows((e) => { kinds(e, 'end', true, false); e.hunt.hero.mana_max = 0; e.hunt.hero.mana = 0; e.bag_rules.restock = { goldenroot_tea: 10 }; });
+    if (!b || b.length) return 'a hero with no mana pool was warned about drinks: ' + JSON.stringify(b);
+    const c = await lows((e) => kinds(e, 'end', true, true));
+    if (!c || c.length) return 'a kind slot with that kind in the bag still read as out of stock: ' + JSON.stringify(c);
+    const d = await lows((e) => kinds(e, 'end', false, true));
+    return (d && d.length === 1 && / is out of food\.$/.test(d[0])) || 'own stock with "end the hunt" and no food must warn once, in words: ' + JSON.stringify(d);
   });
 
   await t('PI-1', async () => {
@@ -300,6 +344,15 @@ async function pageRules(overrides, shots) {
       if (await openWin(page, 'y', 'hunt-party')) {
         const w = await page.evaluate(() => document.querySelector('[data-hs-act="find-weapon"]').value);
         if (w !== 'staff') fails.push('UI-3 [' + tag + '] the finder starts on "' + w + '", not this character’s staff');
+        /* UI-5 (Tyler 10-19): the party note is the PICKED ground's, from its row, the moment the picker changes. */
+        for (const [pick, sel] of [['create-hunt', '.hw-create-note'], ['find-hunt', '.hw-find-note']]) {
+          for (const [hunt, want] of [['millrace_sewer', PARTY_NOTES.millrace_sewer], ['coppercap_warrens', PARTY_NOTES.coppercap_warrens], ['millrace_sewer', PARTY_NOTES.millrace_sewer]]) {
+            await page.selectOption('[data-hs-win="hunt-party"] [data-hs-act="' + pick + '"]', hunt);
+            const got = await page.evaluate((q) => { const n = document.querySelector('[data-hs-win="hunt-party"] ' + q); return n && !n.hidden ? n.textContent : ''; }, sel);
+            if (got !== want) fails.push('UI-5 [' + tag + '] with ' + hunt + ' picked in ' + pick + ' the note reads ' + JSON.stringify(got) + ', want ' + JSON.stringify(want));
+          }
+        }
+        await page.selectOption('[data-hs-win="hunt-party"] [data-hs-act="find-hunt"]', '');
         await page.click('[data-hs-win="hunt-party"] [data-hs-act="find"]');
         await wait(page, () => document.querySelector('.hw-found-row'), null, 3000);
         const fin = sent(s, 'hr_hunt_party_finder');
@@ -322,6 +375,9 @@ async function pageRules(overrides, shots) {
 
 /* ── THE MUTANTS: each must turn at least one rule red. ── */
 const PURE_MUTANTS = [
+  ['the store paying per use still warns out of stock', 'src/shell/alerts.js', "const storePays = !s || s.supplySource === 'store' || s.onEmpty !== 'end';", 'const storePays = false;'],
+  ['a hero with no mana pool is warned about drinks', 'src/shell/alerts.js', "const uses = (id) => kindOf(id) !== 'drink' || hero.manaMax > 0;", 'const uses = () => true;'],
+  ['a kind slot reads as an item no bag holds', 'src/shell/alerts.js', 'const stock = (id) => (CONSUMABLE_KINDS[id] ? bag.reduce((n, r) => n + (kindOf(r.id) === id ? r.qty : 0), 0) : have.get(id) || 0);', 'const stock = (id) => have.get(id) || 0;'],
   ['an alert fires on every read', 'src/shell/alerts.js', '    if (mine.has(c.id) || (Array.isArray(stored) && stored.includes(c.id))) return false;\n', ''],
   ['the shown ids are not kept for the next visit', 'src/shell/alerts.js', "    cs.setResidue('alerts', { off: Array.isArray(r.off) ? r.off : [], seen: (Array.isArray(stored) ? stored : []).concat(c.id).slice(-ALERTS_SEEN_MAX) });\n", ''],
   ['a switched-off kind still alerts', 'src/shell/alerts.js', '    if (!alertShown(cs, c.kind)) return false;\n', ''],
@@ -336,6 +392,7 @@ const PAGE_MUTANTS = [
   ['a tab press re-reads the character', 'src/app/boot.js', "    else if (what === 'show') goTo(slot, null);", "    else if (what === 'show') { goTo(slot, null); account.character(slot).load(); }"],
   ['the strip shows no badge', 'src/app/character-strip.js', "  text(badge, x.alerts ? String(x.alerts) : '');", "  text(badge, '');"],
   ['the finder ignores this character’s weapon', 'src/shell/windows/party-finder.js', "sc.weapon = mine && mine.weapon && WEAPON_ROLES[mine.weapon] ? mine.weapon : '';", "sc.weapon = '';"],
+  ['the party note ignores the picked ground', 'src/shell/hunt-list.js', '  const g = Object.values(HUNT_GROUNDS).find((r) => r.hunt === hunt);', "  const g = HUNT_GROUNDS.millrace_sewer; void hunt;"],
 ];
 
 function copySrc() {

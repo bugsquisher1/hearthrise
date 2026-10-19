@@ -113,9 +113,9 @@
 .ha-scope { display: inline-flex; gap: 2px; }
 .ha-scope .hh-tool { padding: 0 6px; }
 .ha-analyzer:not(.has-party) .ha-scope { display: none; }
-.ha-locked, .ha-wait, .ha-ended { display: none; margin: 0 0 6px; color: var(--ink-2); line-height: 1.35; }
-.ha-analyzer.is-locked .ha-locked, .ha-analyzer.is-waiting .ha-wait { display: block; }
-.ha-analyzer.is-locked .ha-main, .ha-analyzer.is-waiting .ha-main { display: none; }
+.ha-wait, .ha-ended { display: none; margin: 0 0 6px; color: var(--ink-2); line-height: 1.35; }
+.ha-analyzer.is-waiting .ha-wait { display: block; }
+.ha-analyzer.is-waiting .ha-main { display: none; }
 .ha-analyzer.is-ended .ha-ended { display: block; color: var(--gold-2); }
 .ha-main { display: flex; flex-direction: column; min-height: 0; }
 .ha-clocks { display: flex; justify-content: space-around; margin-bottom: 6px; text-align: center; }

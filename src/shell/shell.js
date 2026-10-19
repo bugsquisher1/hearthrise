@@ -36,19 +36,21 @@
 //
 // Mounted by src/app/world-pane.js over one character's World.
 // ════════════════════════════════════════════════════════════════════════
-import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.3';
-import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.3';
-import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.3';
-import { createWindowManager, DOCK_EDGE } from './window-manager.js?v=0.2.3';
-import { createHud, residueStore, placeWidget, hudInsetOf } from './hud.js?v=0.2.3';
-import { keyLabel, glyphSvg } from './launcher.js?v=0.2.3';
-import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.3';
-import { mountContextMenu } from './context-menu.js?v=0.2.3';
-import { menuProvidersOf } from './menu-providers.js?v=0.2.3';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.3';
+import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.4';
+import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.4';
+import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.4';
+import { createWindowManager, DOCK_EDGE } from './window-manager.js?v=0.2.4';
+import { createHud, residueStore, placeWidget, hudInsetOf } from './hud.js?v=0.2.4';
+import { keyLabel, glyphSvg } from './launcher.js?v=0.2.4';
+import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.4';
+import { mountContextMenu } from './context-menu.js?v=0.2.4';
+import { menuProvidersOf } from './menu-providers.js?v=0.2.4';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.4';
 
 /* The components' display clock: session timers and the timeline's due events (parity SH-05, DOM 4 Hz). */
 const DISPLAY_TICK_MS = 250;
+/* How far a press on a window's head must travel before it is a drag (a click never floats a window). */
+const DRAG_SLOP_PX = 5;
 /* The DOM events a renderer may opt into with `.events` (click and change always reach `.act`). */
 const EXTRA_EVENTS = Object.freeze(['input', 'keydown', 'contextmenu', 'pointerdown', 'pointerup', 'pointercancel',
   'dragstart', 'dragover', 'dragleave', 'drop', 'dragend', 'mouseover', 'mouseout']);
@@ -288,17 +290,26 @@ export function mountShell(root, o) {
     }
   }
   function onKey(e) { if (wm.handleKey(e)) e.preventDefault(); }
-  /* A press on a window raises it; a press on its head (desktop) drags it off the dock. */
+  /* A press on a window raises it (z only: the dock never moves, window-manager.js slots); a press on
+     its head (desktop) drags it off the dock. The X is a button: its press raises nothing and drags
+     nothing, so the click lands on the same X and closes. */
   function onPointerDown(e) {
     const win = e.target.closest('[data-hs-win]');
     if (!win) return;
+    if (e.target.closest('[data-hs-close]')) return;
     const id = win.getAttribute('data-hs-win');
     wm.focus(id);
     const head = e.target.closest('[data-hs-drag]');
-    if (!head || e.target.closest('[data-hs-close]') || phoneMq.matches || wm.row(id).modal) return;
+    if (!head || e.button !== 0 || phoneMq.matches || wm.row(id).modal) return;
     const b = shell.getBoundingClientRect(), r = win.getBoundingClientRect();
     const ox = e.clientX - r.left, oy = e.clientY - r.top;
-    const move = (m) => wm.float(id, { x: m.clientX - b.left - ox, y: m.clientY - b.top - oy });
+    /* A press that wanders under DRAG_SLOP_PX is a click, not a drag: it never floats the window. */
+    let dragging = false;
+    const move = (m) => {
+      if (!dragging && Math.hypot(m.clientX - e.clientX, m.clientY - e.clientY) < DRAG_SLOP_PX) return;
+      dragging = true;
+      wm.float(id, { x: m.clientX - b.left - ox, y: m.clientY - b.top - oy });
+    };
     const up = () => { host.removeEventListener('pointermove', move); host.removeEventListener('pointerup', up); };
     host.addEventListener('pointermove', move);
     host.addEventListener('pointerup', up);

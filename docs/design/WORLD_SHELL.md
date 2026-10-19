@@ -60,7 +60,7 @@ The hero walks to monsters, monsters walk to the hero, and a ground is an author
 | Bestiary / Market / Chat | L / M / Enter | the market stall | an encyclopedia / a stall ledger / plain |
 | News | (none) | **the town crier** | the crier's speech bubble, then a posted bill |
 
-- **Desktop:** a window docks at the right, and newer ones dock to its left. Dragging a title bar floats it. **The dock never covers more than 60% of the World:** a window that would cross that line closes the oldest docked one. At most 3 windows are open.
+- **Desktop:** a window docks at the right, and newer ones dock to its left. Dragging a title bar floats it. **The dock never covers more than 60% of the World:** a window that would cross that line closes the oldest docked one. At most 3 windows are open. **A docked window keeps its place (Tyler, 2026-10-18):** focusing, opening or closing another never moves it; a closed window's gap stays until a new one fills it, and a reopened window returns to its last place. Clicks and focus inside a window never move the camera or the hero; when the dock changes, the camera eases over 200 ms.
 - **Phone:** one full-height side sheet, `min(400px, 48vw)`. Opening another replaces it.
 - **Esc** closes the top window, or opens Settings when nothing is open. Keys are ignored while typing.
 - **The World never pauses:** 38 frames in 0.6 s were measured with a window open. Windows are not modal and have no backdrop.

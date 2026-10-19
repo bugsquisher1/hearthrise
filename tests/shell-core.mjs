@@ -178,12 +178,12 @@ async function runTests(mods) {
     const { wm } = harness(WM, { width: 4000 });
     wm.open('bag'); wm.open('equip');
     const at = Object.fromEntries(wm.layout().map((p) => [p.id, p]));
-    eq(at.equip.right, 12, 'newest at the right edge');
-    eq(at.bag.right, 12 + 340 + 8, 'older ones to its left');
+    eq(at.bag.right, 12, 'the first window docks at the right edge');
+    eq(at.equip.right, 12 + 400 + 8, 'a newer one docks to its left');
     wm.float('bag', { x: 100, y: 50 });
     const f = wm.layout().find((p) => p.id === 'bag');
     ok(!f.docked && f.x === 100 && f.y === 50, 'a floated window sits where it was put');
-    eq(wm.inset().right, 340 + 12, 'a floating window does not cover the camera inset');
+    eq(wm.inset().right, 12 + 400 + 8 + 340, 'a floating window leaves its slot empty: the inset is the docked one, which did not move');
     wm.dock('bag');
     ok(wm.layout().find((p) => p.id === 'bag').docked, 'dock() returns it');
   });
@@ -200,6 +200,24 @@ async function runTests(mods) {
       eq(wm.inset().right, before, (phone ? 'phone' : 'desktop') + ': the modal adds nothing to the camera inset');
       ok(wm.float('cfg', { x: 5, y: 5 }) === false, 'a modal never floats');
     }
+  });
+  t('W13 slots are stable: focus, open and close never move another window; a reopen goes back', () => {
+    const { wm, flush } = harness(WM, { width: 4000 });
+    wm.open('bag'); wm.open('skills'); wm.open('equip');
+    const rights = () => Object.fromEntries(wm.layout().filter((p) => !p.leaving).map((p) => [p.id, p.right]).sort());
+    const before = rights();
+    wm.focus('skills'); wm.focus('bag');
+    eq(rights(), before, 'focusing a window moved the dock');
+    wm.close('skills'); flush();
+    eq(rights(), { bag: before.bag, equip: before.equip }, 'closing the middle window moved the others');
+    eq(wm.inset().right, before.equip + 340, 'the inset still covers the left-most window');
+    wm.open('skills');
+    eq(rights(), before, 'a reopened window did not go back to its own slot');
+    wm.close('skills'); wm.close('bag'); flush(); wm.open('skills');
+    eq(rights().skills, before.skills, 'a reopen must restore its last rect, not take the first gap');
+    wm.open('bag');
+    wm.close('equip'); flush(); wm.open('home');
+    eq(rights().home, before.equip, 'a new window takes the first free gap');
   });
   t('W11 the inset is published with its rect, only when it changes', () => {
     const { wm, events } = harness(WM, { width: 1440 });
@@ -339,6 +357,8 @@ const MUTANTS = [
   { test: 'W4', file: WM_FILE, from: "if (open[open.length - 1] !== id) { open.splice(open.indexOf(id), 1); open.push(id); emit(); }", to: '' },
   { test: 'W5', file: WM_FILE, from: 'if (isPhone() && !isModal(id)) for (const other of open.slice()) drop(other);', to: '' },
   { test: 'W10b', file: WM_FILE, from: 'const isModal = (id) => rows.get(id).modal === true;', to: 'const isModal = () => false;' },
+  { test: 'W13', file: WM_FILE, from: "else Object.assign(e, { docked: true, right: slot.has(id) ? slot.get(id) : DOCK_EDGE, width: r.width });", to: "else Object.assign(e, { docked: true, right: DOCK_EDGE + open.slice(i + 1).filter((d) => !floating.has(d)).reduce((s, d) => s + width(d) + DOCK_GAP, 0), width: r.width });" },
+  { test: 'W13', file: WM_FILE, from: 'else if (slot.has(id)) lastAt.set(id, { right: slot.get(id) });', to: ';' },
   { test: 'W8', file: WM_FILE, from: 'return keyBelongsToField(ev.target, ev.key);', to: 'return false;' },
   { test: 'W8', file: 'src/utils/dom.js', from: "  if (tag === 'select') return /^Arrow/.test(String(key || ''));", to: "  if (tag === 'select') return true;" },
   { test: 'W8', file: 'src/utils/dom.js', from: '  return TEXT_TYPES.has(type);', to: '  return true;' },

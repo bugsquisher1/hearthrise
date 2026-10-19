@@ -25,18 +25,18 @@
 // press is ONE hr_action_set_options. The server keeps ONE pick per action set
 // today, not one per ground, so the line says it carries to the next hunt.
 // ════════════════════════════════════════════════════════════════════════
-import { combatLevel } from '../../core/xp.js?v=0.2.3';
-import { huntOf, settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.3';
-import { bagOf, rulesOf, skillsOf } from '../../session/item-sections.js?v=0.2.3';
-import { huntName } from '../../session/party-sections.js?v=0.2.3';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.3';
-import { whole } from '../../render/format.js?v=0.2.3';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.3';
-import { itemName } from '../widgets/bits.js?v=0.2.3';
-import { runIntent } from '../intent-words.js?v=0.2.3';
-import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.3';
-import { huntRows, densityWords, bandWords, rangeWords, groupWords, recommendedHunt, heroWords, packFor, ABOVE_LEVEL_WORDS } from '../hunt-list.js?v=0.2.3';
-import { partyScratch } from './party-finder.js?v=0.2.3';
+import { combatLevel } from '../../core/xp.js?v=0.2.4';
+import { huntOf, settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.4';
+import { bagOf, rulesOf, skillsOf } from '../../session/item-sections.js?v=0.2.4';
+import { huntName } from '../../session/party-sections.js?v=0.2.4';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.4';
+import { whole } from '../../render/format.js?v=0.2.4';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.4';
+import { itemName } from '../widgets/bits.js?v=0.2.4';
+import { runIntent } from '../intent-words.js?v=0.2.4';
+import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.4';
+import { huntRows, densityWords, bandWords, rangeWords, groupWords, recommendedHunt, heroWords, packFor, ABOVE_LEVEL_WORDS } from '../hunt-list.js?v=0.2.4';
+import { partyScratch } from './party-finder.js?v=0.2.4';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pick: null, pending: false, msg: '' }; SCRATCH.set(cs, s); } return s; };
@@ -103,6 +103,9 @@ renderHunts.patch = function patchHunts(body, ctx) {
   if (!sc.pick && list.length) { const rec = recommendedHunt(level, size, list); sc.pick = rec ? rec.hunt : list[0].hunt; }
   const pack = packFor(bagOf(cs), rulesOf(cs));
   const set = settingsOf(cs);
+  /* "On the way to …" is the intent's answer, not the hunt's state: once the server's hunt section
+     says the hero is hunting (or the hunt is over), the line below speaks for it (Tyler 10-19). */
+  if (sc.msg && sc.msg === sc.enterMsg && (now || (h && h.ended))) { sc.msg = ''; sc.enterMsg = null; }
   const nowEl = root.querySelector('.hw-hunts-now');
   text(nowEl, now ? 'You are hunting in ' + huntName(now.huntId) + '. Leave that hunt to go somewhere else.' : 'Pick a hunt, then Enter. Your hero walks there and fights on its own.');
   rows(root.querySelector('.hw-hunt-list'), list, {
@@ -158,7 +161,7 @@ renderHunts.act = function actHunts(ctx, body, action, ev, t) {
     sc.pick = hunt;
     const s = settingsOf(cs);
     const lines = packFor(bagOf(cs), rulesOf(cs));
-    runIntent(sc, repaint, () => cs.enterHunt(hunt, lines, s ? s.preset : 0), 'Setting off for ' + huntName(hunt) + '…', (res) => 'On the way to ' + huntName(hunt) + '.' + (res && res.belowRange ? ' ' + ABOVE_LEVEL_WORDS : ''));
+    runIntent(sc, repaint, () => cs.enterHunt(hunt, lines, s ? s.preset : 0), 'Setting off for ' + huntName(hunt) + '…', (res) => { sc.enterMsg = 'On the way to ' + huntName(hunt) + '.' + (res && res.belowRange ? ' ' + ABOVE_LEVEL_WORDS : ''); return sc.enterMsg; });
     return true;
   }
   if (action === 'party') {

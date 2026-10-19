@@ -7,11 +7,11 @@
 // character was re-read. "Ready in" and the "»" buttons of the reference are
 // NOT built (TB-03, TB-04: purpose unknown, Tyler 10-17).
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.3';
-import { huntOf, analyzerOf } from '../../session/hunt-sections.js?v=0.2.3';
-import { text, prop, attr } from '../../render/paint.js?v=0.2.3';
-import { clock } from '../../render/format.js?v=0.2.3';
-import { takeFresh } from '../../hunt-view/summary-recorder.js?v=0.2.3';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.4';
+import { huntOf, analyzerOf } from '../../session/hunt-sections.js?v=0.2.4';
+import { text, prop, attr } from '../../render/paint.js?v=0.2.4';
+import { clock } from '../../render/format.js?v=0.2.4';
+import { takeFresh } from '../../hunt-view/summary-recorder.js?v=0.2.4';
 
 /** The skeleton (built once). */
 export function renderHuntTopbar() {
@@ -34,6 +34,12 @@ renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
   text(el.querySelector('.ht-clock'), a && a.sessionMs !== null ? clock(a.sessionMs + live) : '');
   const leave = el.querySelector('.is-leave');
   prop(leave, 'disabled', !h || h.ended || leave.hasAttribute('data-pending'));
+  /* A hunt that is over (the hero is back in town) keeps only the way back to its summary (Tyler 10-19):
+     no Leave hunt, no Hunt details, no clock. Follows the server's hunt section, replaced each envelope. */
+  const over = !h || h.ended;
+  prop(leave, 'hidden', over && !leave.hasAttribute('data-pending'));
+  prop(el.querySelector('[data-hs-act="details"]'), 'hidden', over);
+  prop(el.querySelector('.ht-clock'), 'hidden', over);
 };
 
 renderHuntTopbar.act = async function actHuntTopbar(ctx, el, action, ev, btn) {

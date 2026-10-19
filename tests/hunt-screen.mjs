@@ -7,7 +7,7 @@
 //   node tests/hunt-screen.mjs --shots <dir>  also write the visual-gate screenshots
 //                                             (1440x900 and 922x423)
 //
-// mutant-anchors: src/render/paint.js src/shell/shell.js src/shell/widgets/ src/shell/windows/ src/session/hunt-sections.js src/data/combat-text.js src/data/condition-metrics.js
+// mutant-anchors: src/shell/windows/hunts.js src/shell/widgets/hunt-topbar.js src/render/paint.js src/shell/shell.js src/shell/widgets/ src/shell/windows/ src/session/hunt-sections.js src/data/combat-text.js src/data/condition-metrics.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character's envelope is tests/fixtures/hunt-envelope.json.
@@ -20,8 +20,9 @@
 //         pressed stance stays the server's until the re-read envelope says
 //         otherwise; a refusal keeps the server's value and says why
 //   HS-4  THE ANALYZER RENDERS ONLY SERVER DATA: its numbers are the section's;
-//         an envelope without the section shows none; a free character's
-//         analyzer shows the premium line and no number at all
+//         an envelope without the section shows none; a free character sees
+//         the basic rows, none of the premium ones and one quiet line; premium
+//         sees every row (Tyler 2026-10-19)
 //   HS-5  BADGE DEFAULTS: Settings shows the bleed count on bosses and off on
 //         regular monsters; every other float type on for both
 //   HS-6  the combat log (Chat, Combat tab) shows each server event once, even
@@ -34,9 +35,13 @@
 //         slot is set to Any food (its store price shown, paid as used) IF My HP %
 //         below 60 - ONE intent; the density step on the hunt picker sends ONE
 //         intent and shows only the server's value; after a reload both come back
-//   HS-10 the bar carries no fight controls; Hunt settings no density, no gathering
-//   HS-9  A SLOT THAT NEVER FIRES: an earlier slot with the same action under
+//   HS-9  the Hunts window follows the server's hunt: once the hero is hunting
+//         it says so, never a stale "On the way to ..." (Tyler 10-19)
+//   HS-10 a hunt that is over keeps only the way back to its summary: no Leave
+//         hunt, no Hunt details; a running hunt shows Leave hunt
+//   HS-11 A SLOT THAT NEVER FIRES: an earlier slot with the same action under
 //         weaker conditions marks it "!" with the reason; emptying it clears that
+//   HS-12 the bar carries no fight controls; Hunt settings no density, no gathering
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { launchOptions } from './_chrome.mjs';
@@ -207,12 +212,12 @@ async function checks(overrides, shots) {
         await page.waitForTimeout(100);
         const back = await wait(page, (b) => !document.querySelector(b).disabled, def, 3000);
         const r = await page.evaluate((b) => ({ pressed: document.querySelector(b).getAttribute('aria-pressed'), msg: document.querySelector('.he-form .hh-intent-msg').textContent }), def);
-        /* HS-10: the bar keeps no fight controls; Hunt settings keeps no density (the hunt picker's) and no gathering share (not live). */
+        /* HS-12: the bar keeps no fight controls; Hunt settings keeps no density (the hunt picker's) and no gathering share (not live). */
         const left = await page.evaluate(() => ({ plaque: document.querySelectorAll('.hb-plaque [data-opt]').length,
           settings: Array.from(document.querySelectorAll('[data-hs-win="hunt-settings"] [data-opt]')).map((e) => e.getAttribute('data-opt')),
           words: document.querySelector('[data-hs-win="hunt-settings"]').innerText }));
-        if (left.plaque) fails.push('HS-10 the bar still carries ' + left.plaque + ' fight controls');
-        if (left.settings.includes('density') || left.settings.includes('gather_share') || /gather/i.test(left.words)) fails.push('HS-10 Hunt settings still shows density or gathering: ' + left.settings.join(','));
+        if (left.plaque) fails.push('HS-12 the bar still carries ' + left.plaque + ' fight controls');
+        if (left.settings.includes('density') || left.settings.includes('gather_share') || /gather/i.test(left.words)) fails.push('HS-12 Hunt settings still shows density or gathering: ' + left.settings.join(','));
         if (!back || r.pressed !== 'false' || !r.msg) fails.push('HS-3 a refusal did not keep the server’s stance with a reason (' + JSON.stringify(r) + ')');
       } else fails.push('HS-3 the screen did not mount');
       await ctx.close();
@@ -229,9 +234,31 @@ async function checks(overrides, shots) {
         s.env.premium = { active: false, premium_until: null };
         s.env.hunt_analyzer = clone(FIXTURE.hunt_analyzer);
         await pushEnvelope(page, s);
-        const free = await page.evaluate(() => ({ locked: document.querySelector('.ha-analyzer').classList.contains('is-locked'),
-          text: document.querySelector('.ha-analyzer').innerText }));
-        if (!free.locked || /\d/.test(free.text)) fails.push('HS-4 a free character’s analyzer showed numbers: ' + JSON.stringify(free.text.slice(0, 80)));
+        /* Tyler 2026-10-19: a free character sees the BASIC rows, none of the premium ones, and one quiet line. */
+        const free = await page.evaluate(() => {
+          const p = document.querySelector('.ha-analyzer');
+          const shown = (el) => !!el && el.getClientRects().length > 0;
+          const stat = (sec, k) => p.querySelector('[data-sec="' + sec + '"] [data-stat="' + k + '"]');
+          return {
+            basic: [['totals', 'kills'], ['totals', 'xp'], ['totals', 'gold'], ['totals', 'balance'], ['rates', 'xp'], ['rates', 'gold']].map(([a, k]) => shown(stat(a, k)) && /\d/.test(stat(a, k).textContent)),
+            premium: [['totals', 'waste'], ['rates', 'rawXp'], ['rates', 'waste']].map(([a, k]) => shown(stat(a, k)) || /\d/.test(stat(a, k).textContent))
+              .concat([shown(p.querySelector('[data-clock="next"]')), /\d/.test(p.querySelector('[data-clock="next"]').textContent),
+                shown(p.querySelector('.ha-tab[data-tab="taken"]')), shown(p.querySelector('.ha-tab[data-tab="dealt"]')), shown(p.querySelector('.ha-scope'))]),
+            supplies: shown(p.querySelector('[data-sec="supplies"]')),
+            more: shown(p.querySelector('.ha-more')) ? p.querySelector('.ha-more').textContent : null,
+          };
+        });
+        if (free.basic.some((x) => !x) || !free.supplies) fails.push('HS-4 a free character does not see the basic analyzer rows: ' + JSON.stringify(free));
+        if (free.premium.some((x) => x)) fails.push('HS-4 a free character sees a premium analyzer row: ' + JSON.stringify(free.premium));
+        if (free.more !== 'More detail with premium.') fails.push('HS-4 a free character has no quiet premium line: ' + JSON.stringify(free.more));
+        s.env.premium = { active: true, premium_until: '2099-01-01T00:00:00Z' };
+        await pushEnvelope(page, s);
+        const paid = await page.evaluate(() => {
+          const p = document.querySelector('.ha-analyzer');
+          return { waste: p.querySelector('[data-sec="totals"] [data-stat="waste"]').getClientRects().length > 0 && /\d/.test(p.querySelector('[data-sec="totals"] [data-stat="waste"]').textContent),
+            taken: p.querySelector('.ha-tab[data-tab="taken"]').getClientRects().length > 0, more: p.querySelector('.ha-more').getClientRects().length > 0 };
+        });
+        if (!paid.waste || !paid.taken || paid.more) fails.push('HS-4 a premium character does not see every analyzer row: ' + JSON.stringify(paid));
         await page.keyboard.press('Escape');
         await wait(page, () => document.querySelector('[data-hs-win="settings"] input[data-float]'));
         await page.waitForTimeout(300);
@@ -240,6 +267,39 @@ async function checks(overrides, shots) {
         for (const id of FLOAT_IDS.filter((x) => x !== 'bleed_badge')) if (boxes[id + ':regular'] !== true || boxes[id + ':boss'] !== true) fails.push('HS-5 ' + id + ' is not on by default');
         if (shots) await page.screenshot({ path: join(shots, 'hunt-1440x900-free-settings.png') });
       } else fails.push('HS-4 the screen did not mount');
+      await ctx.close();
+    }
+
+    { // HS-9 the Hunts window follows the server's hunt; HS-10 a hunt that is over keeps only its summary (Tyler 10-19)
+      const { ctx, page, s, up } = await open();
+      if (up) {
+        const hunting = clone(s.env);
+        for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete s.env[k];
+        s.env.state = Object.assign({}, s.env.state, { active_kind: 'idle', active_id: null });
+        await pushEnvelope(page, s);
+        await page.keyboard.press('h');
+        await wait(page, () => document.querySelector('[data-hs-win="hunts"] .hw-hunt.is-picked .hw-hunt-enter'));
+        s.env = hunting;   // the server's answer to Enter: the hero is hunting
+        await page.click('[data-hs-win="hunts"] .hw-hunt.is-picked .hw-hunt-enter');
+        await page.waitForTimeout(900);
+        await pushEnvelope(page, s);
+        const w = await page.evaluate(() => ({ msg: document.querySelector('[data-hs-win="hunts"] .hh-intent-msg').textContent,
+          now: document.querySelector('[data-hs-win="hunts"] .hw-hunts-now').textContent }));
+        if (/On the way/.test(w.msg) || !/You are hunting in/.test(w.now)) fails.push('HS-9 the Hunts window does not follow the server’s hunt: ' + JSON.stringify(w));
+        /* HS-10: the server says the hunt is over: the top bar keeps the summary, never Leave hunt. */
+        s.env.hunt = Object.assign({}, s.env.hunt, { ended: true });
+        await pushEnvelope(page, s);
+        const bar = await page.evaluate(() => {
+          const b = document.querySelector('.ht-bar');
+          const shown = (q) => { const n = b && b.querySelector(q); return !!n && n.getClientRects().length > 0; };
+          return b ? { leave: shown('[data-hs-act="leave"]'), details: shown('[data-hs-act="details"]'), summary: shown('[data-hs-act="summary"]') } : null;
+        });
+        if (bar && (bar.leave || bar.details || !bar.summary)) fails.push('HS-10 a hunt that is over still offers more than its summary: ' + JSON.stringify(bar));
+        s.env.hunt = Object.assign({}, s.env.hunt, { ended: false });
+        await pushEnvelope(page, s);
+        const live = await page.evaluate(() => { const n = document.querySelector('.ht-bar [data-hs-act="leave"]'); return !!n && n.getClientRects().length > 0; });
+        if (!live) fails.push('HS-10 a running hunt shows no Leave hunt');
+      } else fails.push('HS-9 the screen did not mount');
       await ctx.close();
     }
 
@@ -295,7 +355,7 @@ async function checks(overrides, shots) {
       await ctx.close();
     }
 
-    { // HS-9 a slot that can never fire: the same action under weaker conditions earlier shows "!" and why; emptying the earlier one clears it
+    { // HS-11 a slot that can never fire: the same action under weaker conditions earlier shows "!" and why; emptying the earlier one clears it
       const { ctx, page, s, up } = await open();
       if (up) {
         s.env.hunt_settings.slots[6] = { action: { type: 'ability', id: 'power_strike' }, conditions: [{ metric: 'enemies_in_aoe', op: 'lte', value: 1 }, { metric: 'self_hp_pct', op: 'gt', value: 50 }], join: 'and', usable: true, mana: 6 };
@@ -303,11 +363,11 @@ async function checks(overrides, shots) {
         const blocked = await wait(page, () => document.querySelector('.hb-slot[data-slot="6"]').classList.contains('is-blocked')
           && !document.querySelector('.hb-slot[data-slot="0"]').classList.contains('is-blocked'), null, 3000);
         const tip = await page.evaluate(() => { document.querySelector('.hb-slot[data-slot="6"]').dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); return document.querySelector('.hb-tip .is-warn') ? document.querySelector('.hb-tip .is-warn').textContent : ''; });
-        if (!blocked || !/Blocked by Power Strike \(slot 1\)/.test(tip)) fails.push('HS-9 the never-firing slot shows no "!" or no reason: ' + tip);
+        if (!blocked || !/Blocked by Power Strike \(slot 1\)/.test(tip)) fails.push('HS-11 the never-firing slot shows no "!" or no reason: ' + tip);
         s.env.hunt_settings.slots[0] = null;
         await pushEnvelope(page, s);
-        if (!(await wait(page, () => !document.querySelector('.hb-slot[data-slot="6"]').classList.contains('is-blocked'), null, 3000))) fails.push('HS-9 emptying the earlier slot did not clear the "!"');
-      } else fails.push('HS-9 the screen did not mount');
+        if (!(await wait(page, () => !document.querySelector('.hb-slot[data-slot="6"]').classList.contains('is-blocked'), null, 3000))) fails.push('HS-11 emptying the earlier slot did not clear the "!"');
+      } else fails.push('HS-11 the screen did not mount');
       await ctx.close();
     }
 
@@ -409,6 +469,9 @@ const MUTANTS = [
     ["else if (key === 'stance') attr(el, 'aria-pressed', String(v === el.getAttribute('data-val')));", "else if (key === 'stance') attr(el, 'aria-pressed', String(pending ? root.__want === el : v === el.getAttribute('data-val')));"]]],
   ['controls stay on while an intent is in flight', 'src/shell/widgets/settings-intent.js', "prop(el, 'disabled', pending || v === null);", "prop(el, 'disabled', v === null);"],
   ['the analyzer ignores the premium gate', 'src/shell/widgets/analyzer.js', 'const premium = isPremium(ctx.character);', 'const premium = true;'],
+  ['the Hunts window keeps saying "On the way" while hunting', 'src/shell/windows/hunts.js', "  if (sc.msg && sc.msg === sc.enterMsg && (now || (h && h.ended))) { sc.msg = ''; sc.enterMsg = null; }\n", ''],
+  ['an ended hunt still offers Leave hunt', 'src/shell/widgets/hunt-topbar.js', "  prop(leave, 'hidden', over && !leave.hasAttribute('data-pending'));\n", ''],
+  ['a free character gets no basic analyzer', 'src/shell/widgets/analyzer.js', 'const a = analyzerOf(ctx.character);', 'const a = premium ? analyzerOf(ctx.character) : null;'],
   ['the analyzer keeps the last numbers when the section goes', 'src/session/hunt-sections.js', "  const a = section(cs, 'hunt_analyzer');\n", "  const a = section(cs, 'hunt_analyzer') || globalThis.__lastA;\n  globalThis.__lastA = a;\n"],
   ['the metric picker is a hard-coded list', 'src/shell/windows/configure-action.js', "aria-label=\"Test ' + (i + 1) + '\">' + options(METRICS.map((m) => [m.id, m.label]))", "aria-label=\"Test ' + (i + 1) + '\">' + options([['self_hp_pct', 'My HP %'], ['self_mana_pct', 'My mana %']])"],
   ['the controls stay on while a bar intent is in flight', 'src/shell/windows/configure-action.js', '  const off = s.pending;', '  const off = false;'],

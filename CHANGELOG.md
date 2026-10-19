@@ -5,6 +5,10 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.3 — 2026-10-19 (Stay where I put you)
+
+**Your hero stays put.** After you walk somewhere and stop, your hero no longer wanders off on its own. Starting a new activity still walks it to the right spot.
+
 ## v0.2.2 — 2026-10-19 (Hunts that run)
 
 **Hunts play out while you watch.** Your hunting ground now shows the fight as it happens: packs, pulls, kills and loot keep updating instead of sitting still.

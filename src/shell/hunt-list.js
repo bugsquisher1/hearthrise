@@ -14,11 +14,11 @@
 // Nothing here is a gate: the server checks the band, the stamina and the
 // stock when the player presses Enter, and says why it refuses.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS, PARTY_SCALE } from '../data/hunt-grounds.js?v=0.2.2';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.2';
-import { MONSTERS } from '../data/monsters.js?v=0.2.2';
-import { SUPPLIES } from '../data/supplies.js?v=0.2.2';
-import { SESSION_LIMITS } from '../data/hunt-sessions.js?v=0.2.2';
+import { HUNT_GROUNDS, PARTY_SCALE } from '../data/hunt-grounds.js?v=0.2.3';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.3';
+import { MONSTERS } from '../data/monsters.js?v=0.2.3';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.3';
+import { SESSION_LIMITS } from '../data/hunt-sessions.js?v=0.2.3';
 
 const PACK_QTY_MAX = 100000;
 

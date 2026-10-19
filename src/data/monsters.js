@@ -70,8 +70,8 @@
 // FAMILY_ALIAS folds the historical counts rather than stranding them.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyClassProfiles } from './monster-classes.js?v=0.2.2';
-import { MONSTER_LEVEL_BY_TIER } from './core-model.js?v=0.2.2';
+import { applyClassProfiles } from './monster-classes.js?v=0.2.6';
+import { MONSTER_LEVEL_BY_TIER } from './core-model.js?v=0.2.6';
 
 /* HUNT SPEED (HUNT_SCREEN_SPEC §3.1 #4): a row's `speed` is MILLITILES per second
    (src/data/hunt-tuning.js units; the sewer roster's values are the sim's, ASSUMED).

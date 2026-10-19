@@ -96,6 +96,7 @@
 .char-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .char-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 48px; border-top: 1px solid var(--line-soft); }
 .char-name { font-weight: 700; }
+.char-level { margin-left: .5em; font-weight: 400; color: var(--ink-2); }
 
 .char-strip {
   display: flex;

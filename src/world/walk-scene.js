@@ -11,16 +11,19 @@
 // Derived pieces are rebuilt whenever their input changes and REPLACE what was
 // there (new rungs re-furnish the home and re-block the hero's mask), never
 // merged into it; the peers follow each new walker list (town-scene.js).
-// A hero left standing IDLE_TO_STATION_MS walks to its activity's station.
+// A hero left standing IDLE_TO_STATION_MS walks to its activity's station, but
+// never once the player has steered it (a tap walk or the keys) under that
+// activity: a hero you walked stays where you left it (live v0.2.1: "my
+// character walks to a random spot when I stop moving"). A new activity sends it again.
 // PURE: no DOM, no window, no G — world-boot.js reads those and passes `env`.
 // ════════════════════════════════════════════════════════════════════════
-import { IDLE_TO_STATION_MS, TAP_OPENS } from '../data/world/stations.js?v=0.2.2';
-import { createSteer, tapAction, walkClip } from './steer-local.js?v=0.2.2';
-import { createTownCast, stationOf } from './town-scene.js?v=0.2.2';
-import { furnish, maskWith } from './home-scene.js?v=0.2.2';
-import { T } from './core/grid.js?v=0.2.2';
-import { pickFacing } from './core/facing.js?v=0.2.2';
-import { OUTFITS } from '../data/hunt-outfits.js?v=0.2.2';
+import { IDLE_TO_STATION_MS, TAP_OPENS } from '../data/world/stations.js?v=0.2.6';
+import { createSteer, tapAction, walkClip } from './steer-local.js?v=0.2.6';
+import { createTownCast, stationOf } from './town-scene.js?v=0.2.6';
+import { furnish, maskWith } from './home-scene.js?v=0.2.6';
+import { T } from './core/grid.js?v=0.2.6';
+import { pickFacing } from './core/facing.js?v=0.2.6';
+import { OUTFITS } from '../data/hunt-outfits.js?v=0.2.6';
 
 /* How far a walked map's camera leans from the hero toward the map's `focus`:
    halfway keeps the hero on screen anywhere on a town-sized map and the plaza
@@ -41,6 +44,10 @@ export function createWalkScene(map, o) {
   let propsKey = null, props = [];
   const cast = map.kind === 'town' ? createTownCast(map, { sprites: o.sprites }) : null;
   let sentTo = null;
+  /* Steered: the player walked the hero (tap or keys) under activity `steeredUnder` (null until the
+     next frame names it, when the walk came before any frame). A change of activity clears it. */
+  let steered = false, steeredUnder = null, kindNow = null;
+  const steerNow = () => { steered = true; steeredUnder = kindNow; };
 
   function furnishing(env) {
     if (map.kind !== 'home') return;
@@ -62,9 +69,12 @@ export function createWalkScene(map, o) {
     frame(env, now) {
       furnishing(env);
       const units = cast ? cast.frame(env.walkers, now) : [];
+      kindNow = env.kind;
+      if (steered && steeredUnder === null) steeredUnder = env.kind;
+      else if (steered && steeredUnder !== env.kind) steered = false;
       const station = stationOf(map, env.kind);
       const cell = steer.cell();
-      if (steer.restMs(now) >= IDLE_TO_STATION_MS && (cell[0] !== station[0] || cell[1] !== station[1])) {
+      if (!steered && steer.restMs(now) >= IDLE_TO_STATION_MS && (cell[0] !== station[0] || cell[1] !== station[1])) {
         const key = station.join() + '|' + propsKey;
         if (sentTo !== key) { sentTo = key; steer.walkTo(station, now, false); }
       }
@@ -92,14 +102,14 @@ export function createWalkScene(map, o) {
     /** A tap ({tile, hits}) → the action it means; a walk is started here. */
     tap(pick, now) {
       const act = tapAction(map, pick, { opens: TAP_OPENS, maps: o.maps });
-      if (act.kind === 'walk') { sentTo = null; steer.walkTo(act.to, now, true); }
+      if (act.kind === 'walk') { sentTo = null; steerNow(); steer.walkTo(act.to, now, true); }
       return act;
     },
     /**
      * The keys: hold direction v ([dx, dy], each -1..1; null lets go). The same
      * feet as a tap (steer-local.js drive), so nothing a key does is sent either.
      */
-    drive(v, now) { sentTo = null; steer.drive(v, now); },
+    drive(v, now) { sentTo = null; if (v && (v[0] || v[1])) steerNow(); steer.drive(v, now); },
     /** What a tap here would do, without doing it (the pointer's hover cue). */
     peek: (pick) => tapAction(map, pick, { opens: TAP_OPENS, maps: o.maps }),
     /** Where the hero stands (or is stepping onto). */

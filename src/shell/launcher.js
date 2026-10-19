@@ -6,10 +6,10 @@
 // The row is drawn from the window catalogue, so it lists only windows that
 // exist, and it is the `launchers` HUD widget, which can never be hidden.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.2';
-import { HUNT_TUTORIAL } from '../data/hunt-tutorial.js?v=0.2.2';
-import { levelOf } from '../session/character-sections.js?v=0.2.2';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.2';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.6';
+import { HUNT_TUTORIAL } from '../data/hunt-tutorial.js?v=0.2.6';
+import { levelOf } from '../session/character-sections.js?v=0.2.6';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.6';
 
 /** The chip text for a row's shortcut key: 'b' -> 'B', 'enter' -> 'Enter'. */
 export function keyLabel(key) {
@@ -32,7 +32,7 @@ export function glyphSvg(glyphs, key, cls) {
  */
 function pointerFor(ctx, open) {
   const cs = ctx.character;
-  if (!cs || open.has('hunts') || huntOf(cs)) return '';
+  if (!cs || open.has('hunts') || huntOf(cs) || Array.from(open).some((id) => ctx.wm.row(id) && ctx.wm.row(id).modal)) return '';
   const lv = levelOf(cs);
   if (!lv || lv.xp > 0) return '';
   const card = HUNT_TUTORIAL[0];

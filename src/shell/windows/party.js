@@ -17,18 +17,19 @@
 // Every control is one intent, off from the press until the server answered;
 // the window changes only from the re-read envelope. Nothing is predicted.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.2';
-import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.2';
-import { WEAPON_WORDS } from '../../data/hunt-hud.js?v=0.2.2';
-import { partyMembershipOf, invitesOf, huntName } from '../../session/party-sections.js?v=0.2.2';
-import { nameOf } from '../../session/item-sections.js?v=0.2.2';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.2';
-import { markPlayer } from '../context-menu.js?v=0.2.2';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.2';
-import { glyphSvg } from '../launcher.js?v=0.2.2';
-import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.2';
-import { runIntent } from '../intent-words.js?v=0.2.2';
-import { finderHtml, patchFinder, actFinder, partyScratch } from './party-finder.js?v=0.2.2';
+import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.6';
+import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.6';
+import { WEAPON_WORDS } from '../../data/hunt-hud.js?v=0.2.6';
+import { partyMembershipOf, invitesOf, huntName } from '../../session/party-sections.js?v=0.2.6';
+import { nameOf } from '../../session/item-sections.js?v=0.2.6';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.6';
+import { markPlayer } from '../context-menu.js?v=0.2.6';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.6';
+import { glyphSvg } from '../launcher.js?v=0.2.6';
+import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.6';
+import { runIntent } from '../intent-words.js?v=0.2.6';
+import { finderHtml, patchFinder, actFinder, partyScratch } from './party-finder.js?v=0.2.6';
+import { partyNote } from '../hunt-list.js?v=0.2.6';
 
 const nameFor = (cs) => nameOf(cs) || 'Character ' + (cs.slot + 1);
 
@@ -59,6 +60,7 @@ export function renderParty() {
     + '<p class="hs-note">Up to four characters hunt one ground together, any mix of weapons. Loot is split evenly by value.</p>'
     + '<div class="hw-add"><select class="hh-select" data-hs-act="create-hunt" aria-label="Hunt for the new party">' + grounds + '</select>'
     + '<button type="button" class="hw-primary is-on" data-hs-act="create">Make a party</button></div>'
+    + '<p class="hs-note hw-create-note"></p>'
     + finderHtml() + '</section>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
 }
@@ -127,6 +129,11 @@ function patchOut(root, ctx, sc) {
   /* The Hunts window's "With a party" names its ground once; the player's own pick wins after that. */
   const ground = root.querySelector('[data-hs-act="create-hunt"]');
   if (sc.hunt && ctx.doc.activeElement !== ground) { ground.value = sc.hunt; sc.hunt = null; }
+  /* The picked ground's party rule, from ITS row (Tyler 10-19: the Rat King's note under Coppercap Warrens). */
+  const note = root.querySelector('.hw-create-note');
+  const said = partyNote(ground.value);
+  text(note, said);
+  prop(note, 'hidden', !said);
   patchFinder(root, ctx, sc);
 }
 
@@ -145,6 +152,8 @@ const WORDS_DONE = Object.freeze({ create: 'Party made.', leave: 'You left the p
   accept: 'You joined the party.', decline: 'Invite declined.', start: 'The party is on its way.', bring: 'Joined the party.' });
 
 renderParty.act = function actParty(ctx, body, action, ev, t) {
+  /* A ground picked: its party rule shows at once, not on the next display tick. */
+  if (ev.type === 'change' && (action === 'create-hunt' || action === 'find-hunt')) { renderParty.patch(body, ctx); return true; }
   if (ev.type !== 'click') return false;
   const cs = ctx.character;
   const sc = partyScratch(cs);

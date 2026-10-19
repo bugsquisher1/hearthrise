@@ -28,6 +28,7 @@ async function load(root) {
   M.sets = await imp('src/data/world/atlas-sets.js');
   M.classes = await imp('src/data/monster-classes.js');
   M.tut = await imp('src/data/hunt-tutorial.js');
+  M.cm = await imp('src/data/condition-metrics.js');
   M.kit = await imp('src/data/start-kit.js');
   M.xp = await imp('src/core/xp.js');
   M.supplies = await imp('src/data/supplies.js');
@@ -262,6 +263,9 @@ const cases = {
       } else if (d.kind === 'ended') {
         if (!can.inHunt) return s.id + ': no hunt to end';
         can.inHunt = null;
+      } else if (d.kind === 'bar') {
+        /* The bar shows in town and in a hunt, and its first condition is the registry's own row: always doable. */
+        if (!M.cm.METRICS.some((m) => m.id === 'self_hp_pct')) return s.id + ': the condition the card names is not in the registry';
       } else if (d.kind === 'pull') {
         if (can.inHunt !== M.grounds.HUNT_GROUNDS[d.ground].hunt) return s.id + ': not hunting ' + d.ground;
         const route = M.grounds.HUNT_GROUNDS[d.ground].route;

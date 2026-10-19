@@ -12,8 +12,10 @@
 // "current player" — switching it touches no CharacterSession, so the others
 // keep their records, topics and timers and keep playing on the server.
 //
-//   roster()      which slots this account owns and which hold a character,
-//                 read from the server (hr_load per owned slot; `hero_slots`)
+//   roster()      which slots this account owns and which hold a character
+//                 (its name and combat level), read from the server (hr_load
+//                 per owned slot; `hero_slots`: slot 0 and the starter slots
+//                 every account owns, plus any bought)
 //   create(slot)  ask the server to make a character in an empty owned slot
 //   open(slot)    a CharacterSession for the slot: loaded, then connected
 //   close(slot)   leave and forget one character
@@ -31,9 +33,10 @@
 //                 left and destroyed when it closes
 // ════════════════════════════════════════════════════════════════════════
 
-import { SESSION_CONFIG } from './config.js?v=0.2.2';
-import { CharacterSession } from './character-session.js?v=0.2.2';
-import { TownPresence } from './town-presence.js?v=0.2.2';
+import { SESSION_CONFIG } from './config.js?v=0.2.6';
+import { CharacterSession } from './character-session.js?v=0.2.6';
+import { TownPresence } from './town-presence.js?v=0.2.6';
+import { charLevelFromXp } from '../core/xp.js?v=0.2.6';
 
 /** This tab's session id: made once per tab, kept across a reload, new for a new tab. */
 export function tabSessionId(tab, cfg = SESSION_CONFIG, make) {
@@ -49,6 +52,15 @@ export function tabSessionId(tab, cfg = SESSION_CONFIG, make) {
 export function accountLimitOf(read) {
   const a = read('account');
   return a && typeof a === 'object' && Number.isInteger(a.max_concurrent) && a.max_concurrent >= 1 && a.max_concurrent <= 8 ? a.max_concurrent : null;
+}
+
+/** A roster row's hero, from one hr_load answer: its name and Level (the server's state.level_xp on the
+    shared curve, CORE_MODEL.md §1), or nulls. Pure. */
+export function heroOf(body) {
+  if (!body || body.ok !== true) return { name: null, level: null };
+  const name = typeof body.name === 'string' && body.name.trim() ? body.name.trim().slice(0, 40) : null;
+  const lx = body.state && typeof body.state === 'object' ? body.state.level_xp : null;
+  return { name, level: Number.isSafeInteger(lx) && lx >= 0 ? charLevelFromXp(lx) : null };
 }
 
 /** The owned slots an envelope's `hero_slots` names, bounded to the server's range. Pure. */
@@ -118,7 +130,7 @@ export class AccountSession {
     if (ans && ans.closed && !this.closedGame) { this.closedGame = true; this._emit('closed-game'); }
   }
 
-  /** [{ slot, exists }] for every slot this account owns. */
+  /** [{ slot, exists, name, level }] for every slot this account owns. */
   async roster() {
     const first = await this.server.rpc('hr_load', { p_slot: 0 });
     this._noteClosed(first);
@@ -130,7 +142,7 @@ export class AccountSession {
     for (const slot of owned) {
       const ans = slot === 0 ? first : await this.server.rpc('hr_load', { p_slot: slot });
       this._noteClosed(ans);
-      out.push({ slot, exists: !!(ans.ok && ans.body && ans.body.ok === true) });
+      out.push(Object.assign({ slot, exists: !!(ans.ok && ans.body && ans.body.ok === true) }, heroOf(ans.ok ? ans.body : null)));
     }
     return out;
   }

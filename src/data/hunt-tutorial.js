@@ -18,6 +18,8 @@
 //       { kind: 'unlock', hunt }            combat level >= that hunt's band floor (hunts.js)
 //       { kind: 'ended',  reason }          the hunt session ended for `reason` (END_ORDER)
 //       { kind: 'pull',   ground, pocket }  a `pull` hunt event on that ground's pocket
+//       { kind: 'bar' }                     the server's stored bar (hunt_settings.bar) holds a
+//                                           slot the player set a condition on (Configure action)
 //
 // No number is restated here: the sewer's floor is read from hunts.js, pockets
 // from hunt-grounds.js. validate() proves every name a card uses is real; the
@@ -27,9 +29,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from './hunts.js?v=0.2.2';
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.2';
-import { END_ORDER } from './hunt-sessions.js?v=0.2.2';
+import { HUNT_INDEX } from './hunts.js?v=0.2.6';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.6';
+import { END_ORDER } from './hunt-sessions.js?v=0.2.6';
 
 /* The surfaces a card may point at, and where each is specified. */
 export const TUTORIAL_ANCHORS = Object.freeze({
@@ -37,6 +39,7 @@ export const TUTORIAL_ANCHORS = Object.freeze({
   world: 'the world pane (src/app/world-pane.js)',
   hud_vitals: 'the bottom bar HP/XP (HUNT_SCREEN_SPEC §1.4 action-bar.js)',
   hunt_topbar: 'Hunt details and Leave hunt (HUNT_SCREEN_SPEC §1.4 hunt-topbar.js)',
+  action_bar: 'a slot on the action bar, which opens Configure action (src/shell/windows/configure-action.js); shown in town too',
 });
 
 const step = (id, title, text, anchor, done) => Object.freeze({ id, title, text, anchor, done: Object.freeze(done) });
@@ -57,6 +60,9 @@ export const HUNT_TUTORIAL = Object.freeze([
   step('leave_cellar', 'Cash in',
     'Leave the hunt. What you looted goes to your bag when you do.',
     'hunt_topbar', { kind: 'ended', reason: 'left' }),
+  step('set_the_bar', 'Tell your hero when',
+    'The sewer hits harder. Press a slot on the action bar at the bottom and choose Any food, then add a condition: My HP % below 60. Your hero eats your own food first and buys from the store when it runs out. Slot 1 is tried first.',
+    'action_bar', { kind: 'bar' }),
   step('go_below', 'Into the sewer',
     'Pick the Millrace Sewer. It is built for a party of up to four. Alone, the packs are smaller.',
     'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' }),
@@ -68,7 +74,7 @@ export const HUNT_TUTORIAL = Object.freeze([
     'world', { kind: 'pull', ground: 'millrace_sewer', pocket: 5 }),
 ]);
 
-const DONE_KINDS = Object.freeze(['enter', 'kills', 'level', 'unlock', 'ended', 'pull']);
+const DONE_KINDS = Object.freeze(['enter', 'kills', 'level', 'unlock', 'ended', 'pull', 'bar']);
 
 /** Every problem with the tutorial, as strings. Empty = valid. */
 export function validate(rows = HUNT_TUTORIAL) {

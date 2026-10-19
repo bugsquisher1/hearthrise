@@ -17,7 +17,7 @@
 // Reading `hunt`: the server's session record sits under `hunt.session` (the
 // section view) and, in the client fixture, flat on `hunt`. Both are read.
 // ════════════════════════════════════════════════════════════════════════
-import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.2';
+import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.6';
 
 export { sanitizeSummaries };
 
@@ -28,7 +28,7 @@ export const END_WORDS = Object.freeze({
   party_member_died: 'A party member died, so the party returned to town.',
   heals_out: 'You ran out of healing supplies.',
   ammo_out: 'You ran out of ammunition.',
-  gold_out: 'You ran out of gold to buy supplies.',
+  gold_out: 'Ran out of gold for supplies, returned to town.',
   rule: 'One of your stop rules was met, so you headed home.',
   stamina: 'Your stamina ran out.',
   hours: 'The hunt reached its time limit.',

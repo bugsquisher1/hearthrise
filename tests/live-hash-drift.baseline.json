@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-19",
- "replay_ms": 3736,
+ "replay_ms": 21608,
  "counts": {
-  "tracked_names": 130,
-  "entries": 108
+  "tracked_names": 131,
+  "entries": 109
  },
  "functions": [
   {
@@ -1051,6 +1051,29 @@
    "replay": {
     "md5": "30a759cad8e34ad1314ccaa075b22201",
     "norm_len": 1840,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hero_slots_of(p_user uuid)",
+   "name": "hr_hero_slots_of",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-08-hero-slot-buy.sql",
+    "2026-10-26-hero-slots-start-two.sql"
+   ],
+   "live": {
+    "md5": "c644e020fc4b405c7c56662d1f1b805b",
+    "norm_len": 1241,
+    "measured": "2026-10-19",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "c644e020fc4b405c7c56662d1f1b805b",
+    "norm_len": 1241,
     "source": "computed-from-replay"
    },
    "agree": true

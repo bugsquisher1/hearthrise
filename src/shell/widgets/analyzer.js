@@ -4,9 +4,18 @@
 // Fed ONLY by the character's `hunt_analyzer` section (src/session/
 // hunt-sections.js analyzerOf): the client computes no tally, no rate and no
 // balance (HUNT_SCREEN_SPEC §3.6 #6). A number the server did not send reads
-// as a dash. Gated by the server's `premium` section: a free character sees
-// one line saying what the analyzer is, never the numbers (AW-15) — and the
-// server sends it none anyway (AN-10).
+// as a dash.
+//
+// BASIC FOR EVERYONE, MORE WITH PREMIUM (Tyler 2026-10-19, replacing the 10-17
+// "only premium sees it"): every character sees the BASIC block — session time,
+// kills, XP and XP/h, loot value and gold/h, supplies spent (own vs store),
+// balance. The server's `premium` section adds the rest — next-level ETA, raw
+// XP, waste, damage taken and dealt (the two tabs) and the party breakdown. A
+// free character's premium nodes are hidden AND never written, and one quiet
+// line says "More detail with premium." No upsell beyond that line. (Until the
+// server's projection sends free characters their basic block, a free
+// character's analyzer waits: 2026-10-23-hunt-analyzer-v2.sql projects it only
+// for premium.)
 //
 //   This hero / Party   which of the server's two views is shown (AW-04)
 //   Session / Taken / Dealt   the three tabs (AW-05)
@@ -16,13 +25,16 @@
 // the moment that envelope arrived (display only; the next envelope replaces
 // it). The view, tab and folds are display scratch on the panel.
 // ════════════════════════════════════════════════════════════════════════
-import { analyzerOf, isPremium } from '../../session/hunt-sections.js?v=0.2.2';
-import { rows, text, cls, attr, element } from '../../render/paint.js?v=0.2.2';
-import { whole, gold, clock } from '../../render/format.js?v=0.2.2';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.2';
-import { panelHtml, itemIconHtml, itemName, monsterName, abilityName, elementName } from './bits.js?v=0.2.2';
+import { analyzerOf, isPremium } from '../../session/hunt-sections.js?v=0.2.6';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.6';
+import { whole, gold, clock } from '../../render/format.js?v=0.2.6';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.6';
+import { panelHtml, itemIconHtml, itemName, monsterName, abilityName, elementName } from './bits.js?v=0.2.6';
 
 const TABS = Object.freeze([['session', 'Session'], ['taken', 'Taken'], ['dealt', 'Dealt']]);
+/* What only a premium character sees: these stats (section.stat), and every section off the Session tab. */
+const PREMIUM_STATS = new Set(['totals.waste', 'rates.rawXp', 'rates.waste', 'rates.balance']);
+const premiumTab = (tab) => tab !== 'session';
 
 /* Each section: its tab, its title and its body (a fixed list of stat rows, or a keyed list). */
 const SECTIONS = Object.freeze([
@@ -37,8 +49,9 @@ const SECTIONS = Object.freeze([
 ]);
 
 function sectionHtml(s) {
-  const stats = s.stats ? '<dl class="ha-stats">' + s.stats.map(([k, label]) => '<dt>' + esc(label) + '</dt><dd data-stat="' + k + '"></dd>').join('') + '</dl>' : '';
-  return '<section class="ha-sec" data-sec="' + s.id + '" data-tab="' + s.tab + '">'
+  const prem = (k) => (PREMIUM_STATS.has(s.id + '.' + k) ? ' data-premium' : '');
+  const stats = s.stats ? '<dl class="ha-stats">' + s.stats.map(([k, label]) => '<dt' + prem(k) + '>' + esc(label) + '</dt><dd data-stat="' + k + '"' + prem(k) + '></dd>').join('') + '</dl>' : '';
+  return '<section class="ha-sec" data-sec="' + s.id + '" data-tab="' + s.tab + '"' + (premiumTab(s.tab) ? ' data-premium' : '') + '>'
     + '<h3 class="ha-sec-head"><button type="button" class="ha-fold" data-hs-act="fold" aria-expanded="true">' + esc(s.title) + '</button></h3>'
     + '<div class="ha-sec-body">' + stats + (s.stats ? '' : '<ul class="ha-list"></ul><p class="ha-none">Nothing yet.</p>') + '</div></section>';
 }
@@ -48,13 +61,13 @@ export function renderAnalyzer() {
   const tools = '<span class="ha-scope" role="group" aria-label="Whose numbers">'
     + '<button type="button" class="hh-tool" data-hs-act="scope" data-scope="hero" aria-pressed="true">This hero</button>'
     + '<button type="button" class="hh-tool" data-hs-act="scope" data-scope="party" aria-pressed="false">Party</button></span>';
-  const body = '<p class="ha-locked">The hunt analyzer shows this character’s kills, XP, gold and supplies per hour. It comes with premium.</p>'
-    + '<p class="ha-wait">The analyzer fills in once the hunt has run for a moment.</p>'
+  const body = '<p class="ha-wait">The analyzer fills in once the hunt has run for a moment.</p>'
     + '<div class="ha-main">'
     + '<p class="ha-ended" role="status">Hunt ended. This is the session summary.</p>'
-    + '<div class="ha-clocks"><span><small>Session</small><b data-clock="session"></b></span><span><small>Next level in</small><b data-clock="next"></b></span></div>'
-    + '<div class="ha-tabs" role="tablist">' + TABS.map(([id, label], i) => '<button type="button" role="tab" class="ha-tab" data-hs-act="tab" data-tab="' + id + '" aria-selected="' + (i === 0) + '">' + label + '</button>').join('') + '</div>'
-    + '<div class="ha-scroll">' + SECTIONS.map(sectionHtml).join('') + '</div></div>';
+    + '<div class="ha-clocks"><span><small>Session</small><b data-clock="session"></b></span><span data-premium><small>Next level in</small><b data-clock="next"></b></span></div>'
+    + '<div class="ha-tabs" role="tablist">' + TABS.map(([id, label], i) => '<button type="button" role="tab" class="ha-tab" data-hs-act="tab" data-tab="' + id + '" aria-selected="' + (i === 0) + '"' + (premiumTab(id) ? ' data-premium' : '') + '>' + label + '</button>').join('') + '</div>'
+    + '<div class="ha-scroll">' + SECTIONS.map(sectionHtml).join('') + '</div>'
+    + '<p class="hs-note ha-more" hidden>More detail with premium.</p></div>';
   return panelHtml('ha-analyzer', 'Hunt analyzer', tools, body);
 }
 
@@ -75,11 +88,15 @@ function patchList(ul, items, key, fill, ctx) {
   cls(ul.nextElementSibling, 'is-on', !items.length);
 }
 
-function patchView(root, v, ctx) {
+function patchView(root, v, ctx, premium) {
   for (const s of SECTIONS) {
     const sec = root.querySelector('[data-sec="' + s.id + '"]');
+    if (!premium && premiumTab(s.tab)) continue;
     if (s.stats) {
-      for (const [k, , fmt, from] of s.stats) text(sec.querySelector('[data-stat="' + k + '"]'), fmt(from ? v[from][k] : v[k]));
+      for (const [k, , fmt, from] of s.stats) {
+        const dd = sec.querySelector('[data-stat="' + k + '"]');
+        text(dd, !premium && PREMIUM_STATS.has(s.id + '.' + k) ? '' : fmt(from ? v[from][k] : v[k]));
+      }
       cls(sec.querySelector('[data-stat="balance"]'), 'is-loss', (s.id === 'totals' ? v.balance : v.perHour.balance) < 0);
     } else if (s.list === 'supplies') {
       patchList(sec.querySelector('.ha-list'), v.supplies, (it) => it.item + ':' + it.source, (li, it) => {
@@ -106,18 +123,25 @@ function patchView(root, v, ctx) {
 renderAnalyzer.patch = function patchAnalyzer(el, ctx) {
   const panel = el.querySelector('.ha-analyzer');
   const premium = isPremium(ctx.character);
-  const a = premium ? analyzerOf(ctx.character) : null;
-  cls(panel, 'is-locked', !premium);
-  cls(panel, 'is-waiting', premium && !a);
+  const a = analyzerOf(ctx.character);
+  cls(panel, 'is-waiting', !a);
+  /* The premium rows: shown only to a premium character; a free one gets the one quiet line. */
+  for (const n of panel.querySelectorAll('[data-premium]')) prop(n, 'hidden', !premium);
+  prop(panel.querySelector('.ha-more'), 'hidden', premium);
+  if (!premium && panel.getAttribute('data-tab') && panel.getAttribute('data-tab') !== 'session') {
+    attr(panel, 'data-tab', 'session');
+    for (const b of panel.querySelectorAll('.ha-tab')) attr(b, 'aria-selected', String(b.getAttribute('data-tab') === 'session'));
+  }
+  if (!premium) for (const n of panel.querySelectorAll('dd[data-premium], [data-clock="next"]')) if (n.textContent) n.textContent = '';
   if (!a) return;
-  const scope = panel.getAttribute('data-scope') === 'party' && a.party ? 'party' : 'hero';
-  cls(panel, 'has-party', !!a.party);
+  const scope = premium && panel.getAttribute('data-scope') === 'party' && a.party ? 'party' : 'hero';
+  cls(panel, 'has-party', premium && !!a.party);
   cls(panel, 'is-ended', a.ended);
   const since = ctx.character.receivedAt;
   const live = !a.ended && Number.isFinite(since) ? Math.max(0, ctx.now() - since) : 0;
   text(panel.querySelector('[data-clock="session"]'), clock(a.sessionMs === null ? null : a.sessionMs + live));
-  text(panel.querySelector('[data-clock="next"]'), clock(a.nextLevelMs === null ? null : Math.max(0, a.nextLevelMs - live)));
-  patchView(panel, scope === 'party' ? a.party : a.hero, ctx);
+  if (premium) text(panel.querySelector('[data-clock="next"]'), clock(a.nextLevelMs === null ? null : Math.max(0, a.nextLevelMs - live)));
+  patchView(panel, scope === 'party' ? a.party : a.hero, ctx, premium);
 };
 
 renderAnalyzer.act = function actAnalyzer(ctx, el, action, ev, btn) {

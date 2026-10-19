@@ -9,7 +9,12 @@
 //           tells), id = the server's own event id
 //   death   the hunt section ending `died` / `party_member_died`, id = session
 //   low     a restock target under LOW_SUPPLY_PCT of itself, or a bar supply
-//           at zero, while hunting; id = session + item
+//           at zero, while hunting; id = session + item. Never for a resource
+//           the hero does not use (a drink for a hero with no mana pool), and
+//           never "out of" while the store pays per use (supply_source `store`
+//           or on_empty `switch`: HUNT_SCREEN_SPEC §3.4 rule 7, the hunt never
+//           stops for lack of stock). A bar slot may name a KIND (`food`,
+//           `drink`): its stock is every bag stack of that kind.
 //   ended   the hunt section saying `ended`, id = session
 //
 // THE RULE: an alert fires ONCE per event id. The ids already shown are kept
@@ -19,14 +24,15 @@
 // Nothing here gates or spends anything; the "Start again" button is an
 // intent (CharacterSession.restartHunt) like every other.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERT_INDEX, LOW_SUPPLY_PCT } from '../data/alerts.js?v=0.2.2';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.2';
-import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.2';
-import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.2';
-import { bagOf, rulesOf, nameOf } from '../session/item-sections.js?v=0.2.2';
-import { huntName } from '../session/party-sections.js?v=0.2.2';
-import { itemName } from './widgets/bits.js?v=0.2.2';
-import { whole } from '../render/format.js?v=0.2.2';
+import { ALERT_INDEX, LOW_SUPPLY_PCT } from '../data/alerts.js?v=0.2.6';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.6';
+import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.6';
+import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.6';
+import { bagOf, rulesOf, nameOf } from '../session/item-sections.js?v=0.2.6';
+import { huntName } from '../session/party-sections.js?v=0.2.6';
+import { itemName } from './widgets/bits.js?v=0.2.6';
+import { whole } from '../render/format.js?v=0.2.6';
+import { CONSUMABLES, CONSUMABLE_KINDS } from '../data/consumables.js?v=0.2.6';
 
 const residueOf = (cs) => {
   const r = cs && cs.record && cs.record.residue && cs.record.residue.alerts;
@@ -49,21 +55,33 @@ export function setAlertShown(cs, kind, on) {
   return cs.setResidue('alerts', { off: Array.from(off), seen: Array.isArray(r.seen) ? r.seen : [] });
 }
 
+/* What a consume names: a kind ('food' | 'drink') or an item, and which kind it is (null = neither). */
+const kindOf = (id) => (CONSUMABLE_KINDS[id] ? id : CONSUMABLES[id] ? CONSUMABLES[id].kind : null);
+
 /* The low-supply items of a hunting character: restock targets under the share, and bar supplies at zero. */
-function lowItems(cs) {
+function lowItems(cs, hero) {
   const bag = bagOf(cs);
   if (!bag) return [];
+  const s = settingsOf(cs);
+  /* The store pays per use unless the hero opted into "own stock, end the hunt": running out is no event. */
+  const storePays = !s || s.supplySource === 'store' || s.onEmpty !== 'end';
+  /* A drink restores mana: a hero the server gives no mana pool never needs one. */
+  const uses = (id) => kindOf(id) !== 'drink' || hero.manaMax > 0;
   const have = new Map(bag.map((r) => [r.id, r.qty]));
+  const stock = (id) => (CONSUMABLE_KINDS[id] ? bag.reduce((n, r) => n + (kindOf(r.id) === id ? r.qty : 0), 0) : have.get(id) || 0);
   const out = new Map();
   const rules = rulesOf(cs);
   if (rules) for (const [id, target] of Object.entries(rules.restock)) {
     const n = have.get(id) || 0;
-    if (n * 100 < target * LOW_SUPPLY_PCT) out.set(id, { item: id, have: n, target });
+    if (uses(id) && n * 100 < target * LOW_SUPPLY_PCT && !(storePays && n === 0)) out.set(id, { item: id, have: n, target });
   }
-  const s = settingsOf(cs);
-  if (s) for (const sl of s.slots) if (!sl.empty && sl.action.type === 'consume' && !(have.get(sl.item) > 0) && !out.has(sl.item)) out.set(sl.item, { item: sl.item, have: 0, target: null });
+  if (s && !storePays) for (const sl of s.slots) {
+    if (!sl.empty && sl.action.type === 'consume' && uses(sl.item) && !(stock(sl.item) > 0) && !out.has(sl.item)) out.set(sl.item, { item: sl.item, have: 0, target: null });
+  }
   return Array.from(out.values());
 }
+/* A kind reads as plain words ("out of drinks"); an item by its name. */
+const supplyWords = (id) => (id === 'food' ? 'food' : id === 'drink' ? 'drinks' : itemName(id));
 
 /**
  * What this character's record says happened, as candidate alerts (pure).
@@ -80,9 +98,9 @@ function candidatesOf(cs) {
   else if (h.ended && h.endReason === 'party_member_died') out.push({ id: 'death:' + h.sessionId, kind: 'death', session: h.sessionId,
     text: 'A party member died in ' + where + ', so ' + who(cs) + '’s party returned to town.' });
   else if (h.ended) out.push({ id: 'ended:' + h.sessionId, kind: 'ended', session: h.sessionId, text: who(cs) + '’s hunt in ' + where + ' has ended.' });
-  else for (const l of lowItems(cs)) {
+  else for (const l of lowItems(cs, h.hero)) {
     out.push({ id: 'low:' + h.sessionId + ':' + l.item, kind: 'low', session: h.sessionId, item: l.item,
-      text: who(cs) + ' is ' + (l.have === 0 ? 'out of ' : 'low on ') + itemName(l.item) + (l.target ? ' (' + whole(l.have) + ' of ' + whole(l.target) + ').' : '.') });
+      text: who(cs) + ' is ' + (l.have === 0 ? 'out of ' : 'low on ') + supplyWords(l.item) + (l.target ? ' (' + whole(l.have) + ' of ' + whole(l.target) + ').' : '.') });
   }
   return out;
 }

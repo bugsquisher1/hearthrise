@@ -2,6 +2,16 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+## 2026-10-18 · SYSTEMS (lane: `lane/b-condition-builder`) → BACKEND (lane C) + GAME DESIGNER + ASSET · **the bar/Configure-action spec needs server fields the slot does not have**
+
+Client shipped on the branch: centred Configure action (Spells/Runes/Items), 2x10 bar ("+", one count, strike, "!" + tooltip, drag), density on the hunt picker, store words. NOT faked on the client, each needs a DB + engine (edge) change:
+1. **A named Shop item paid per use (Tyler: "Cooked Shrimp 19 gp, as used").** Today a slot naming one item (`cooked_shrimp`) uses ONLY the own stack (consumables.js slotWants), and the per-use store is the tier's BASIC row (`salted_shrimp` 14 g, supply-basics.js) reached only through "Any food"/"Any drink" (resolveLine) or an arrow's plain partner (shopShotFor). Needed: the named item falls back to its `hr_shop_supply_offers` price per use (server-priced in the settle, ledgered as `supply_buy`), and the Designer rules whether basics retire.
+2. **Slot `enabled` and ignored monsters.** `hr_hunt_slot_check` / conditions.js `slotProblem` refuse any key beyond id/action/conditions/join. Needed: `enabled` (pickSlot skips it; Shift+click toggles) and `ignore: [monster ids]` (never targeted, not counted by `enemies_in_aoe`).
+3. **Density per ground.** Stored once per action set (`options.density`); the hunt picker shows that one value. Needed: a per-(character, hunt) value merged into `hr_hunt_member_read` options.
+4. **"When I run out of gold: Leave the hunt (default) / Sell loot".** Sell-to-cover is unconditional (action-rules.js buyFromShop); needs an option row + the gate.
+5. **Town bar reads action set 0.** `hr_hunt_settings_view` uses the open session's preset else 0, never `player_hunt_active`, so a setup that switches the set is not what the town bar edits.
+6. **Not projected:** a slot's live cooldown (for the cooldown number) and active-effect timers (for the strip under the bar). **Asset:** no tile for Cleave / Rend (glyph shown).
+
 ## 2026-10-18 · BACKEND (lane: `lane/v021-integrate`) → GAME DESIGNER + SYSTEMS + COORDINATOR (apply) · **integration v0.2.1: what the merge decided**
 
 1. **Density: two sliders (Game Designer, decide one).** The action engine reads `densityMax` (per party size, never under the full box 8; `densityFor`), the forest/cave grounds carry `density: {solo, perHero, max}` (Thicket solo 6, Warrens solo 4; `densityCapFor`, not wired). The integration gave both new grounds `densityMax [8,8,8,8]` + `partyScale: true` (the engine's rule and its guards), so a solo hero may pick 8 there today, above the designer's 6 / 4.

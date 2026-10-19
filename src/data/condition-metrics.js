@@ -13,7 +13,7 @@
 // A SLOT (hunt_settings.slots[i], player_action_sets.slots):
 //   { action: { type: 'ability'|'consume'|'attack_with_item', id },
 //     conditions: [ { metric, op, value, subject? } ]   (at most MAX_CONDITIONS)
-//     join: 'and'|'or' }
+//     join: 'and' }   (all must match; only a stop rule may join 'or')
 // Slot order IS priority: the first slot whose conditions pass AND whose action
 // can happen fires; the next one is the fallback. A slot with no conditions
 // takes its action's DEFAULT conditions (an ability's own trigger, the hero's
@@ -39,12 +39,12 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_ROLES } from './hunt-roles.js?v=0.2.2';
-import { STATUSES } from './statuses.js?v=0.2.2';
+import { HUNT_ROLES } from './hunt-roles.js?v=0.2.6';
+import { STATUSES } from './statuses.js?v=0.2.6';
 
-/* Four, so a heal can say "HP at or below 75%, and Trapped, and Paralyzed, and mana at or below 50%"
-   (Tyler's Huntera reference, 2026-10-18). The `pass` bitmask is one bit a condition. */
-export const MAX_CONDITIONS = 4;
+/* Three, all of which must match (Tyler's ruling, 2026-10-19 audit C2; a stop rule may still join
+   "any"). The `pass` bitmask is one bit a condition. Server: 2026-10-26-bar-three-conditions.sql. */
+export const MAX_CONDITIONS = 3;
 export const MAX_STOP_RULES = 3;
 /* A stop rule's hold, in ms: whole sub-steps, at most ten minutes. */
 export const STOP_HOLD_MS = Object.freeze({ min: 0, max: 600000, step: 100 });

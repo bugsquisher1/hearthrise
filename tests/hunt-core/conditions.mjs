@@ -34,6 +34,8 @@ import { supplySession } from './fixtures/h4.js';
 
 const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
 const MIGRATION = 'supabase/migrations/2026-10-25-action-conditions.sql';
+/* The limits moved forward (Tyler 10-19: three conditions, all must match). */
+const LIMITS_MIGRATION = 'supabase/migrations/2026-10-26-bar-three-conditions.sql';
 
 async function load(root) {
   const M = await loadCore(root);
@@ -210,8 +212,10 @@ const cases = {
       [ab('power_strike', [c('self_hp_pct', 'lt', 50, 'tank')]), 'bad_subject'],
       [ab('power_strike', [c('target_is_boss', 'eq', 1)]), 'bad_value'],
       [ab('power_strike', [c('effect_missing', 'lacks_effect', 'glow')]), 'bad_value'],
-      [ab('power_strike', [c('self_hp_pct', 'lt', 1), c('self_hp_pct', 'lt', 2), c('self_hp_pct', 'lt', 3), c('self_hp_pct', 'lt', 4)]), null],
-      [ab('power_strike', [c('self_hp_pct', 'lt', 1), c('self_hp_pct', 'lt', 2), c('self_hp_pct', 'lt', 3), c('self_hp_pct', 'lt', 4), c('self_hp_pct', 'lt', 5)]), 'too_many_conditions'],
+      [ab('power_strike', [c('self_hp_pct', 'lt', 1), c('self_hp_pct', 'lt', 2), c('self_hp_pct', 'lt', 3)]), null],
+      [ab('power_strike', [c('self_hp_pct', 'lt', 1), c('self_hp_pct', 'lt', 2), c('self_hp_pct', 'lt', 3), c('self_hp_pct', 'lt', 4)]), 'too_many_conditions'],
+      /* A slot's conditions all must match (Tyler 10-19): a slot never joins 'or'. */
+      [ab('power_strike', [c('self_hp_pct', 'lt', 50), c('self_mana_pct', 'lt', 50)], 'or'), 'bad_join'],
       [ab('power_strike', [], 'xor'), 'bad_join'],
       [ab('no_such'), 'bad_action'], [slot('consume', 'iron_arrows'), 'bad_action'], [slot('attack_with_item', 'cooked_shrimp'), 'bad_action'],
       [slot('consume', 'food'), null], [slot('attack_with_item', 'iron_arrows', [c('enemies_in_aoe', 'gte', 3)]), null],
@@ -225,6 +229,7 @@ const cases = {
     if ((M.cond.barProblem([null, ab('nope')], 20) || {}).slot !== 1) return 'a bar refusal does not name its slot';
     const S = M.cond.stopRulesProblem;
     if (S([{ conditions: [c('self_mana_pct', 'lt', 20)], forMs: 30000 }]) !== null) return 'a valid stop rule was refused';
+    if (S([{ conditions: [c('self_mana_pct', 'lt', 20), c('self_hp_pct', 'lt', 20)], join: 'or' }]) !== null) return 'a stop rule joined any was refused';
     if ((S([{ conditions: [c('enemies_in_aoe', 'gte', 2)] }]) || {}).error !== 'bad_metric') return 'a stop rule took a slot-only metric';
     if ((S([{ conditions: [c('item_qty', 'lt', 5, 'item')] }]) || {}).error !== 'bad_subject') return 'a stop rule took the slot item';
     if ((S([{ conditions: [c('self_mana_pct', 'lt', 20)], forMs: 150 }]) || {}).error !== 'bad_hold') return 'a hold off the sub-step grid was taken';
@@ -607,8 +612,10 @@ const cases = {
   'sql-rows': (M) => {
     let sql;
     try { sql = readFileSync(join(M.root, MIGRATION), 'utf8'); } catch { return MIGRATION + ' is missing'; }
+    let lim;
+    try { lim = readFileSync(join(M.root, LIMITS_MIGRATION), 'utf8'); } catch { return LIMITS_MIGRATION + ' is missing'; }
     for (const [tag, want] of [['metrics', metricRowsSql(M)], ['action-ids', actionIdRowsSql(M)], ['role-rules', roleRuleRowsSql(M)], ['limits', limitRowsSql(M)]]) {
-      const got = between(sql, tag);
+      const got = between(tag === 'limits' ? lim : sql, tag);
       if (got !== want) return 'the migration\'s ' + tag + ' block is stale (node tests/hunt-core/conditions.mjs --print)';
     }
     return null;
@@ -638,6 +645,7 @@ const mutants = [
   { name: 'a metric row with no evaluator', case: 'registry', edits: [['src/core/hunt/conditions.js', '  target_is_boss: (cx) => {', '  target_is_boss_x: (cx) => {']] },
   { name: 'an unknown metric is accepted', case: 'validation', edits: [['src/core/hunt/conditions.js', "  if (!m || (stop && m.slotOnly)) return 'bad_metric';", "  if (stop && m && m.slotOnly) return 'bad_metric';\n  if (!m) return null;"]] },
   { name: 'a value out of range is accepted', case: 'validation', edits: [['src/core/hunt/conditions.js', ' || c.value < m.range[0] || c.value > m.range[1]) return', ') return']] },
+  { name: 'a slot may join or', case: 'validation', edits: [['src/core/hunt/conditions.js', "(!JOINS.includes(join) || (!stop && join !== 'and'))", '!JOINS.includes(join)']] },
   { name: 'four conditions are accepted', case: 'validation', edits: [['src/core/hunt/conditions.js', '  if (list.length > MAX_CONDITIONS) return', '  if (list.length > MAX_CONDITIONS + 1) return']] },
   { name: 'the even footprint is centred north-west', case: 'footprint', edits: [['src/core/hunt/conditions.js', ' : -(size / 2 - 1);', ' : -(size / 2);']] },
   { name: 'enemies_in_aoe counts the 1x1 always', case: 'enemies-in-aoe', edits: [['src/core/hunt/conditions.js', '    const b = bestAim(cx.inst, cx.u, cx.h && cx.h.range, footprintOf(cx.slot, cx.h));', '    const b = bestAim(cx.inst, cx.u, cx.h && cx.h.range, 3);']] },

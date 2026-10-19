@@ -19,19 +19,19 @@
 // hr_closed); the first such answer replaces everything with the closed notice.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPABASE_CONFIG, createSupabaseClient } from '../net/supabase-bootstrap.js?v=0.2.2';
-import { createAuth } from '../net/auth.js?v=0.2.2';
-import { SESSION_CONFIG } from '../session/config.js?v=0.2.2';
-import { createServerLink } from '../session/server.js?v=0.2.2';
-import { AccountSession } from '../session/account-session.js?v=0.2.2';
-import { FRAME_EVENT } from '../session/character-session.js?v=0.2.2';
-import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.2';
-import { mountWorldPane } from './world-pane.js?v=0.2.2';
-import { mountCharacterStrip } from './character-strip.js?v=0.2.2';
-import { createAlertCenter } from '../shell/alerts.js?v=0.2.2';
-import { createSocialRealtime } from '../social/realtime.js?v=0.2.2';
-import { SocialSession } from '../social/social-session.js?v=0.2.2';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.2';
+import { SUPABASE_CONFIG, createSupabaseClient } from '../net/supabase-bootstrap.js?v=0.2.6';
+import { createAuth } from '../net/auth.js?v=0.2.6';
+import { SESSION_CONFIG } from '../session/config.js?v=0.2.6';
+import { createServerLink } from '../session/server.js?v=0.2.6';
+import { AccountSession } from '../session/account-session.js?v=0.2.6';
+import { FRAME_EVENT } from '../session/character-session.js?v=0.2.6';
+import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.6';
+import { mountWorldPane } from './world-pane.js?v=0.2.6';
+import { mountCharacterStrip } from './character-strip.js?v=0.2.6';
+import { createAlertCenter } from '../shell/alerts.js?v=0.2.6';
+import { createSocialRealtime } from '../social/realtime.js?v=0.2.6';
+import { SocialSession } from '../social/social-session.js?v=0.2.6';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.6';
 
 const DISCORD = 'https://discord.gg/eJrUSUJM3M';
 
@@ -82,7 +82,7 @@ function startApp(win) {
     clear();
     root.className = 'app is-auth';
     root.innerHTML = '<main class="auth">' + AUTH_BRAND + '<div class="auth-card">'
-      + '<h1 class="auth-title">Hearthrise is closed while we rebuild it.</h1>'
+      + '<h1 class="auth-title">Hearthrise is a new game in development. Follow Discord for the first playtest.</h1>'
       + '<p class="auth-lead">Your account is not on the list for this test. Discord gets the date first.</p>'
       + '<p class="auth-links"><a class="auth-link" href="' + DISCORD + '" rel="noopener">Join the Discord</a>'
       + '<button type="button" class="auth-link" data-app="sign-out">Sign out</button></p></div></main>';
@@ -118,10 +118,14 @@ function startApp(win) {
     const roster = await a.roster();
     if (a !== account || a.closedGame) return;
     const open = new Set(a.characters().map((c) => c.slot));
-    const rows = roster.map((r) => '<li class="char-row"><span class="char-name">Character ' + (r.slot + 1) + '</span>'
+    /* Each owned slot: its hero by name and Level (the server's), or an empty slot to create in.
+       Every account owns two (Tyler 10-17); slots it has not bought are not shown until buying them is built. */
+    const rows = roster.map((r) => '<li class="char-row"><span class="char-name">'
+      + (r.exists ? esc(r.name || 'Unnamed hero') + (r.level ? ' <small class="char-level">Level ' + r.level + '</small>' : '') : 'Empty slot')
+      + '</span>'
       + (r.exists
         ? '<button type="button" class="auth-submit" data-app="play" data-slot="' + r.slot + '">' + (open.has(r.slot) ? 'Show' : 'Play') + '</button>'
-        : '<button type="button" class="auth-submit" data-app="create" data-slot="' + r.slot + '">Create this character</button>')
+        : '<button type="button" class="auth-submit" data-app="create" data-slot="' + r.slot + '">Create character</button>')
       + '</li>').join('');
     root.querySelector('.auth-card').innerHTML = '<h1 class="auth-title">Your characters</h1>'
       + '<p class="auth-lead">Signed in as ' + esc(auth.email() || 'you') + '. ' + (a.limit() > 1 ? 'Up to ' + a.limit() + ' can play at once.' : 'One can play at a time.') + '</p>'
@@ -195,7 +199,12 @@ function startApp(win) {
     else if (what === 'show') goTo(slot, null);
     else if (what === 'all') { if (pane) pane.shell.toggle('characters'); }
     else if (what === 'create') {
-      account.create(slot).then((r) => (r.ok ? play(slot) : showCharacters()));
+      account.create(slot).then(async (r) => {
+        if (r.ok) { play(slot); return; }
+        await showCharacters();
+        const m = root.querySelector('.auth-message');
+        if (m) m.textContent = r.reason === 'slot_not_owned' ? 'That slot is not yours yet.' : 'The character could not be made. Try again in a minute.';
+      });
     }
   });
 

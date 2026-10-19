@@ -5,6 +5,40 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.6 — 2026-10-19 (The action bar)
+
+**Set up your bar.** Twenty numbered slots, in town and on the hunt. Press + on an empty slot to open Configure action, pick a spell, rune or item, add up to three conditions, and save it into the slot.
+
+**Slot 1 goes first.** Each moment, the first slot whose conditions match is the one that fires. Drag slots to change the order. A ! marks a slot that never gets a turn because an earlier one always wins, and hovering explains why.
+
+**No need to stock up.** Pick Any food or Any drink and your hero uses its own stock first, then buys from the store at the shop price as it goes.
+
+**Density on the hunt.** Choose how busy a hunting ground is from the Hunts window before you go.
+
+## v0.2.5 — 2026-10-19 (Bones, bank and a second hero)
+
+**Bury bones.** Bones in your bag now have Bury all. Your hero buries them and earns Prayer; press Stop to finish early.
+
+**Store exactly what you want.** In Storage, a press moves one, Shift moves the whole stack, and right-click asks how many.
+
+**A second hero.** Every account now starts with two character slots. The character screen shows each hero's name and level, and Create character on the empty slot.
+
+## v0.2.4 — 2026-10-19 (Steady windows)
+
+**Windows behave.** The X closes a window without shuffling the others, and windows reopen where you left them.
+
+**The camera holds still.** Opening, closing or clicking inside a window no longer jumps the view; it eases over smoothly.
+
+**Right-click works,** on players and on their names.
+
+**No false supply warnings.** When the store pays per use, you won't be told you're out of food or drink, and heroes without mana never hear about drinks.
+
+**Clearer hunt status.** The Hunts window says when you've arrived, and the party window's notes follow the hunting ground you pick.
+
+## v0.2.3 — 2026-10-19 (Stay where I put you)
+
+**Your hero stays put.** After you walk somewhere and stop, your hero no longer wanders off on its own. Starting a new activity still walks it to the right spot.
+
 ## v0.2.2 — 2026-10-19 (Hunts that run)
 
 **Hunts play out while you watch.** Your hunting ground now shows the fight as it happens: packs, pulls, kills and loot keep updating instead of sitting still.

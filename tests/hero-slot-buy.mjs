@@ -479,19 +479,29 @@ async function chainEnd(mutate) {
     try { return (await db.query(sql, p)).rows[0]?.r; } finally { await db.query('reset role').catch(() => {}); }
   };
   const z = {};
-  z.catalogue = await q('select slot_id, cost_gold::text cost, premium_waived from public.hr_hero_slots order by slot_id');
-  const c1 = Number(z.catalogue.find((r) => r.slot_id === 1)?.cost);
+  /* `starter` (2026-10-26-hero-slots-start-two.sql): owned by every account, never sold. Read through
+     to_jsonb so the HERO_GOLD-scoped mutant replays (which stop before the column exists) read false. */
+  z.catalogue = await q("select slot_id, cost_gold::text cost, premium_waived, coalesce((to_jsonb(h)->>'starter')::boolean, false) starter "
+    + 'from public.hr_hero_slots h order by slot_id');
+  /* The first PAID slot is the one the gold arm buys (slot 1 while it was sold; slot 2 once it is a starter). */
+  const paid = z.catalogue.find((r) => !r.starter);
+  const c1 = Number(paid?.cost);
+  z.paid = paid?.slot_id;
+  z.starters = z.catalogue.filter((r) => r.starter).map((r) => r.slot_id);
   const uid = (await q('select gen_random_uuid() as i'))[0].i;
   await q('insert into auth.users (id, instance_id, aud, role, email) '
     + "values ($1,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','gold@probe.invalid')", [uid]);
   await q('insert into public.profiles (id) values ($1) on conflict do nothing', [uid]);
   await q('delete from public.hr_rate_counters');
   z.create = await asUser(uid, 'select public.hr_create_character(0) as r');
+  /* Every account STARTS owning slot 0 and the starter slots (Tyler 2026-10-17: two), and makes a hero in one unpaid. */
+  z.owned = (await q('select public.hr_hero_slots_of($1) as r', [uid]))[0]?.r;
+  if (z.starters.length) { await q('delete from public.hr_rate_counters'); z.createStarter = await asUser(uid, 'select public.hr_create_character($1) as r', [z.starters[0]]); }
   await q('insert into public.account_wallet (user_id, gems) values ($1, 5000) on conflict (user_id) do update set gems = 5000', [uid]);
   const goldOf = async () => Number((await q('select gold::text g from player_state where user_id=$1 and slot=0', [uid]))[0]?.g);
   const gemsOf = async () => Number((await q('select gems::text g from account_wallet where user_id=$1', [uid]))[0]?.g);
   const buy = async () => { await q('delete from public.hr_rate_counters');
-    return asUser(uid, 'select public.hr_buy_hero_slot($1,$2,$3) as r', [1, 0, crypto.randomUUID()]); };
+    return asUser(uid, 'select public.hr_buy_hero_slot($1,$2,$3) as r', [z.paid, 0, crypto.randomUUID()]); };
   await q('update public.player_state set gold = $2 where user_id = $1 and slot = 0', [uid, c1 - 1]);
   z.short = await buy(); z.shortGold = await goldOf();
   await q('update public.player_state set gold = $2 where user_id = $1 and slot = 0', [uid, c1]);
@@ -506,12 +516,16 @@ async function chainEnd(mutate) {
 
 function gradeChainEnd(z) {
   ok(z.create?.ok === true, `Z FIXTURE: hr_create_character refused: ${JSON.stringify(z.create)}`);
+  ok(JSON.stringify(z.owned) === JSON.stringify([0, ...z.starters]),
+    `Z: a fresh account owns ${JSON.stringify(z.owned)}, expected slot 0 and the starter slots ${JSON.stringify(z.starters)}`);
+  ok(!z.starters.length || (z.createStarter?.ok === true && z.createStarter?.created === true),
+    `Z: a hero could not be made in the starter slot ${z.starters[0]} without paying: ${JSON.stringify(z.createStarter)}`);
   ok(z.short?.error === 'insufficient_gold' && Number(z.short?.short_by) === 1,
-    `Z: a hero one gold short of slot 1 was not refused insufficient_gold: ${JSON.stringify(z.short)}`);
+    `Z: a hero one gold short of slot ${z.paid} was not refused insufficient_gold: ${JSON.stringify(z.short)}`);
   ok(z.shortGold === z.c1 - 1, `Z: the refused purchase moved gold (${z.shortGold})`);
   ok(z.ok?.ok === true && z.ok?.currency === 'gold' && Number(z.ok?.cost) === z.c1,
     `Z: the gold purchase of slot 1 answered ${JSON.stringify(z.ok)}`);
-  ok(z.okGold === 0, `Z: slot 1 left ${z.okGold} gold of exactly ${z.c1} — the debit is not the catalogue price`);
+  ok(z.okGold === 0, `Z: slot ${z.paid} left ${z.okGold} gold of exactly ${z.c1} — the debit is not the catalogue price`);
   ok(z.gems === 5000, `Z: the gold purchase moved account gems (${z.gems} of 5000)`);
   ok(z.ledger?.length === 1 && Number(z.ledger[0].gold) === -z.c1 && Number(z.ledger[0].gold_in) === 0
      && Number(z.ledger[0].gems_in) === 0,
@@ -752,6 +766,7 @@ async function bindGuard(cat) {
 
   // (A) ↔ (C)
   for (let i = 1; i < A.costs.length; i++) {
+    if (A.costs[i] === undefined) continue;   // not offered: must be a starter (checked below)
     const c = cat.get(i);
     ok(!!c, `BIND: authored hero slot ${i} (${A.costs[i]} gold) is ABSENT from public.hr_hero_slots, `
       + 'so its Buy button is DEAD under the gems arm — the exact defect this migration exists for');
@@ -761,8 +776,14 @@ async function bindGuard(cat) {
       + 'hr_hero_slots.cost_gold — the catalogue would advertise one price and the server would charge another');
     ok(c.premium_waived === false,
       `BIND: slot ${i} is waived on the server, and the catalogue offers no waiver — the server gives away a slot the shop sells`);
+    ok(c.starter !== true, `BIND: slot ${i} is a starter on the server (owned by everyone) but src/data/shops.js sells it`);
   }
-  for (const id of cat.keys()) {
+  for (const [id, c] of cat) {
+    if (c.starter === true) {
+      ok(A.costs[id] === undefined && Number(c.cost) === 0,
+        `BIND: starter slot ${id} is offered (${A.costs[id]}) or priced (${c.cost}) — every account owns it`);
+      continue;
+    }
     ok(id < A.costs.length && A.costs[id] > 0,
       `BIND: hr_hero_slots carries slot ${id}, which src/data/shops.js does not offer — the `
       + 'server would sell a slot the player can never see');
@@ -771,7 +792,7 @@ async function bindGuard(cat) {
   // (A) ↔ (B): the generated ESM catalogue the server-side tooling reads.
   const shops = await import(new URL('../src/data/shops.js', import.meta.url).href);
   const offers = (shops.SHOP_OFFERS || []).filter((o) => o.table === 'character_slot');
-  ok(offers.length === A.costs.length - 1,
+  ok(offers.length === A.costs.filter((x, i) => i > 0 && x !== undefined).length,
     `BIND: src/data/shops.js carries ${offers.length} character_slot offers, the authored ladder `
     + `has ${A.costs.length - 1} paid rungs. Fix the hero-slot rows in src/data/shops.js.`);
   for (const off of offers) {

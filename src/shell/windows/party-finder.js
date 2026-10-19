@@ -9,15 +9,16 @@
 // answer held as window scratch — never the record, and nothing can spend them:
 // Join is the server's own check under its lock.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS, MIN_PARTY_NOTE } from '../../data/hunt-grounds.js?v=0.2.2';
-import { WEAPON_ROLES, HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.2';
-import { WEAPON_WORDS } from '../../data/hunt-hud.js?v=0.2.2';
-import { finderRows, huntName } from '../../session/party-sections.js?v=0.2.2';
-import { roleOf } from '../../session/item-sections.js?v=0.2.2';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.2';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.2';
-import { refusalWords, runIntent } from '../intent-words.js?v=0.2.2';
-import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.2';
+import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.6';
+import { partyNote } from '../hunt-list.js?v=0.2.6';
+import { WEAPON_ROLES, HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.6';
+import { WEAPON_WORDS } from '../../data/hunt-hud.js?v=0.2.6';
+import { finderRows, huntName } from '../../session/party-sections.js?v=0.2.6';
+import { roleOf } from '../../session/item-sections.js?v=0.2.6';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.6';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.6';
+import { refusalWords, runIntent } from '../intent-words.js?v=0.2.6';
+import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.6';
 
 const SCRATCH = new WeakMap();
 
@@ -45,8 +46,8 @@ export function finderHtml() {
     + '<div class="hw-add hw-find-party"><select class="hh-select" data-hs-act="find-hunt" aria-label="Hunt"><option value="">Any hunt</option>' + grounds + '</select>'
     + '<select class="hh-select" data-hs-act="find-weapon" aria-label="Parties with"><option value="">Any party</option>' + weapons + '</select>'
     + '<button type="button" class="hh-tool" data-hs-act="find">Search</button></div>'
-    /* A ground with a party-only pocket (minParty: the Rat King) says so, from its data row. */
-    + Object.values(HUNT_GROUNDS).filter((g) => g.pockets.some((p) => p.minParty)).map((g) => '<p class="hh-note">' + esc(MIN_PARTY_NOTE) + '</p>').join('')
+    /* The PICKED ground's party rule, from its own row (patchFinder; none for "Any hunt"). */
+    + '<p class="hh-note hw-find-note"></p>'
     + '<ul class="hw-ledger hw-found"></ul><p class="hh-empty hw-found-none"></p>';
 }
 
@@ -63,6 +64,10 @@ export function patchFinder(root, ctx, sc) {
     sc.weapon = mine && mine.weapon && WEAPON_ROLES[mine.weapon] ? mine.weapon : '';
   }
   if (sel.value !== sc.weapon && ctx.doc.activeElement !== sel) sel.value = sc.weapon;
+  const note = root.querySelector('.hw-find-note');
+  const said = partyNote(root.querySelector('[data-hs-act="find-hunt"]').value);
+  text(note, said);
+  prop(note, 'hidden', !said);
   rows(root.querySelector('.hw-found'), sc.found || [], {
     key: (r) => r.id,
     build: (r) => foundRow(ctx, r),

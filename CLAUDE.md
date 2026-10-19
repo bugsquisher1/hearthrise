@@ -127,7 +127,7 @@ The 2026-10-14 lightening is for a beta nobody plays. Before EA: the full mutati
 - **Residue-ahead is a bug class:** never gate a server capability on a client-held tier/level/flag. Gates read the server-mirrored value, failing safe to "not unlocked".
 - **Server writes are versioned, raise-only where needed** (hp floors, bank cap, plot tier); the client never rolls a server version back. Never restore or evict on uncertainty (network error, missing table, bad timestamp).
 - **Single active session keys on the TAB** (`sessionStorage` instance id) with heartbeat + stale takeover; a second tab pauses with "Your session moved".
-- **One combat engine:** `src/core/combat-sim.js` runs both the live tick and away accrual (`AWAY-1` parity; `AWAY-12` forbids a second path). `AWAY_SCOPE` lists which channels pay away; unknown channels PAY. Deaths knock out and resume (Recovery Rule rev.2, `src/core/away.js`); a death is never a free heal, attended or away.
+- **One combat engine:** `src/core/combat-sim.js` runs both the live tick and away accrual (`AWAY-1` parity; `AWAY-12` forbids a second path). `AWAY_SCOPE` lists which channels pay away; unknown channels PAY. A death ends the hunt and sends the hero back to town: no knockouts, no falls, no resume; it costs the small death XP loss, attended or away (Tyler, 2026-10-19; replaces Recovery Rule rev.2).
 - **RLS is per-user** on every player table; public tables are read-only to others. The client RPC surface is `hr_client_rpc_baseline`; `hr_assert_grant_hygiene` detects drift.
 
 ---

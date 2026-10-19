@@ -17,14 +17,14 @@
 // Every control is off while an intent is in flight; counts and gold change
 // only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { shopOf, bagOf, rulesOf, goldOf } from '../../session/item-sections.js?v=0.2.1';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.1';
-import { whole, gold } from '../../render/format.js?v=0.2.1';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.1';
-import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.1';
-import { kindOf, sellPlan } from '../bag-model.js?v=0.2.1';
-import { runIntent } from '../intent-words.js?v=0.2.1';
-import { showTip, hideTip } from './item-tip.js?v=0.2.1';
+import { shopOf, bagOf, rulesOf, goldOf } from '../../session/item-sections.js?v=0.2.3';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.3';
+import { whole, gold } from '../../render/format.js?v=0.2.3';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.3';
+import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.3';
+import { kindOf, sellPlan } from '../bag-model.js?v=0.2.3';
+import { runIntent } from '../intent-words.js?v=0.2.3';
+import { showTip, hideTip } from './item-tip.js?v=0.2.3';
 
 const TABS = Object.freeze([['buy', 'Buy'], ['sell', 'Sell'], ['refill', 'Refill']]);
 const KIND_WORDS = Object.freeze({ food: 'Food', drink: 'Drinks', ammo: 'Ammo', tool: 'Tools' });

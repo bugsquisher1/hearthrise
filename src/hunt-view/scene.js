@@ -28,6 +28,7 @@ import { floatShown } from './float-prefs.js?v=0.2.8';
 import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.8';
 import { STUB_SPRITE } from '../world/core/book.js?v=0.2.8';
 import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.8';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.8';
 
 /* The ground's first start tile, standing (the hero before its first window). */
 function entranceOf(huntId) {
@@ -67,14 +68,26 @@ export function readHunt(cs) {
   const h = huntOf(cs);
   const p = partyOf(cs);
   const heroes = new Map();
-  for (const m of p ? p.members : []) heroes.set(m.unit, m);
+  for (const m of p ? p.members : []) if (m.unit !== null) heroes.set(m.unit, m);
+  /* THE LIVE VIEW knows every hero of the instance before the snapshot does (its own units): each
+     is the party member of its seat, so every member is drawn as a hero from the first swing. */
+  const live = cs && cs.live && typeof cs.live.heroUnits === 'function' && cs.live.running() ? cs.live.heroUnits() : [];
+  for (const x of live) {
+    if (x.unit === null || heroes.has(x.unit)) continue;
+    const m = p ? p.members.find((y) => y.seat === x.seat) : null;
+    heroes.set(x.unit, Object.assign({}, m || { name: 'Hero', seat: x.seat, role: x.role }, { unit: x.unit, role: (m && m.role) || x.role }));
+  }
+  const selfLive = live.find((x) => x.self);
   return {
     units: h ? h.units : new Map(),
     heroes,
     people: partyPeopleOf(cs),
-    viewed: h && h.hero.unit !== null ? h.hero.unit : p ? p.self : null,
+    viewed: h && h.hero.unit !== null ? h.hero.unit : selfLive && selfLive.unit !== null ? selfLive.unit : p ? p.self : null,
     viewedShield: h ? h.hero.shield : null,
     entrance: h ? entranceOf(h.huntId) : null,
+    huntName: h && HUNT_INDEX[h.huntId] ? HUNT_INDEX[h.huntId].name : null,
+    huntFromMs: h ? h.huntFromMs : null,
+    self: p ? p.members.find((m) => m.seat === p.selfSeat) || null : null,
     shown: (type, boss) => floatShown(cs, type, boss ? 'boss' : 'regular'),
   };
 }
@@ -205,6 +218,25 @@ export function createHuntScene(o) {
     return true;
   }
 
+  /* The viewed hero before its unit exists: its outfit at the entrance, walking out the travel. */
+  function standIn(now) {
+    const e = read.entrance;
+    const m = read.self;
+    const id = outfitSprite(m && m.outfit, m && m.role);
+    if (!e || !id) return null;
+    const server = typeof tl.serverNowAt === 'function' ? tl.serverNowAt(now) : null;
+    const left = Number.isFinite(read.huntFromMs) && server !== null ? Math.max(0, read.huntFromMs - server) : 0;
+    const sp = book.sprite(id);
+    const walk = sp.anims && sp.anims.walk;
+    const walking = left > 0 && !!walk;
+    const { dir, diag } = facingOf(0, 1);
+    const name = read.huntName || 'the hunt';
+    return { id, unit: read.viewed !== null ? read.viewed : -1, x: e.x, y: e.y, dir, diag, alpha: 1, grey: 0, under: false, flash: false,
+      anim: walking ? 'walk' : sp.anims && sp.anims.idle ? 'idle' : 'walk',
+      frame: walking ? Math.floor((now / 1000) * walk.fps) : 0,
+      plate: { text: left > 0 ? 'Walking to ' + name + ' · ' + Math.ceil(left / 1000) + ' s' : (m && m.name) || 'Hero', kind: 'self' } };
+  }
+
   /** One unit's draw record at `now`, or null when it is gone (`at`: a stand-in position). */
   function unitAt(u, now, at) {
     const p = at || tl.positionAt(u, now);
@@ -291,9 +323,10 @@ export function createHuntScene(o) {
       if (u === read.viewed) hero = d;
       else units.push(d);
     }
-    /* BEFORE THE FIRST WINDOW (just entered, or reloaded): the viewed hero stands at the ground's
-       entrance instead of leaving the screen empty. */
-    if (!hero && read.viewed !== null && read.entrance) hero = unitAt(read.viewed, now, read.entrance);
+    /* BEFORE THE FIRST SWING (just entered, travelling, or reloaded): the viewed hero is at the
+       ground's entrance instead of leaving the screen empty, walking while the server's travel
+       time runs ("Walking to Mill Cellar · 18 s"; travel_s is the server's one data value). */
+    if (!hero && read.entrance) hero = (read.viewed !== null && unitAt(read.viewed, now, read.entrance)) || standIn(now);
     const tgt = read.viewed !== null ? target.get(read.viewed) : undefined;
     for (const d of units) if (d.unit === tgt && !d.under) d.target = true;
     /* VW-06: the viewed hero's shield bubble while the server says it holds one. */
@@ -323,6 +356,8 @@ export function createHuntScene(o) {
 
   return {
     onEvent, frame,
+    /** A reconcile found these units alive: a death the prediction drew is undone (no lingering corpse). */
+    revive(alive) { for (const u of alive || []) { dead.delete(u); flash.delete(u); } },
     /** For tests: how many effects and floats are live, and the keys played. */
     stats: () => ({ fx: fx.length, floats: floats.length, played: keys.size }),
   };

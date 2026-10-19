@@ -66,7 +66,7 @@ export function patchControls(root, cs) {
   }
   /* "Follow the leader" names the leader when there is one (HS-02). */
   const follow = root.querySelector('select[data-opt="target_mode"] option[value="follow"]');
-  const lead = party && party.members.find((m) => m.unit === party.leader);
+  const lead = party && party.members.find((m) => m.seat === party.leaderSeat);
   if (follow) text(follow, lead && party.members.length > 1 ? 'Follow ' + lead.name : TARGET_MODES.follow.label);
   cls(root, 'is-pending', pending);
 }

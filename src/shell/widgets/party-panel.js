@@ -44,10 +44,10 @@ function patchMember(el, m, party, glyphs) {
   text(el.querySelector('.hp-name'), m.name);
   text(el.querySelector('.hp-role'), role ? role.label : 'No weapon');
   text(el.querySelector('.hp-lv'), m.level === null ? '' : 'Lv ' + m.level);
-  cls(el.querySelector('.hp-lead'), 'is-on', m.unit === party.leader);
+  cls(el.querySelector('.hp-lead'), 'is-on', m.seat === party.leaderSeat);
   text(el.querySelector('.hp-state'), m.eating ? 'Eating' : m.drinking ? 'Drinking' : m.aggro ? 'Targeted' : '');
-  cls(el, 'is-self', m.unit === party.self);
-  markPlayer(el, m.unit === party.self ? null : { name: m.name });   // the player menu (src/shell/context-menu.js)
+  cls(el, 'is-self', m.seat === party.selfSeat);
+  markPlayer(el, m.seat === party.selfSeat ? null : { name: m.name });   // the player menu (src/shell/context-menu.js)
   patchGauge(el.querySelector('.is-hp'), m.hp, m.hpMax, m.hp === null ? '–' : whole(m.hp) + ' / ' + whole(m.hpMax));
   patchGauge(el.querySelector('.is-mana'), m.mana, m.manaMax, m.mana === null ? '–' : whole(m.mana) + ' / ' + whole(m.manaMax));
   text(el.querySelector('.hp-dps'), short(m.dps));
@@ -68,7 +68,7 @@ renderPartyPanel.patch = function patchPartyPanel(el, ctx) {
   const members = party ? party.members : [];
   cls(el.querySelector('.hp-party'), 'is-empty', !members.length);
   rows(el.querySelector('.hp-members'), members, {
-    key: (m) => m.unit,
+    key: (m) => m.seat,
     build: () => element(ctx.doc, memberHtml(ctx.glyphs)),
     patch: (row, m) => patchMember(row, m, party, ctx.glyphs),
   });

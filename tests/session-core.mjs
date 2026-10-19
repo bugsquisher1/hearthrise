@@ -6,7 +6,7 @@
 //   node tests/session-core.mjs --mutate  every planted defect must turn a rule RED
 //
 // mutant-anchors: src/session/ src/net/auth.js
-// mutant-writes-tree: no — mutants are planted into a temp copy of src/session + src/net/auth.js + src/hunt-view/timeline.js + src/data/town-presence.js
+// mutant-writes-tree: no — mutants are planted into a temp copy of src/session + src/net/auth.js + src/hunt-view + src/data + src/core
 //
 //   ENV-1  a full envelope REPLACES the record: a key the new one lacks is gone
 //   ENV-2  an older envelope is refused; the same version restates
@@ -238,12 +238,16 @@ async function rules(M) {
     const armed = [];
     const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, setTimer: (fn, ms) => { armed.push({ fn, ms }); return armed.length; }, clearTimer: () => {} });
     await cs.load();
-    if (armed.length !== 1 || armed[0].ms !== CFG.SESSION_CONFIG.huntPollMs) return 'an open hunt did not arm one re-read at huntPollMs: ' + JSON.stringify(armed.map((a) => a.ms));
+    /* The live view (option B) asks at once for its start point (liveAskMs); an answer without one
+       counts a try, and after liveAskTries the ordinary huntPollMs settle resumes. */
+    if (armed.length !== 1 || armed[0].ms !== CFG.SESSION_CONFIG.liveAskMs) return 'an open hunt did not ask at once for its live start point: ' + JSON.stringify(armed.map((a) => a.ms));
     armed.shift().fn();
     await new Promise((r) => setImmediate(r));
     if (calls.join(',') !== 'hr_load,accrue:0') return 'the re-read did not ask the hunter\'s settle for the slot: ' + calls.join(',');
     if (!cs.timeline.units().includes(1)) return 'the settle\'s track never reached the timeline';
     if (armed.length !== 1) return 'the re-read did not re-arm while the hunt is open (' + armed.length + ')';
+    for (let i = 0; i < CFG.SESSION_CONFIG.liveAskTries && armed[0].ms === CFG.SESSION_CONFIG.liveAskMs; i++) { armed.shift().fn(); await new Promise((r) => setImmediate(r)); }
+    if (armed.length !== 1 || armed[0].ms !== CFG.SESSION_CONFIG.huntPollMs) return 'without a live start point the ordinary re-read did not resume at huntPollMs: ' + JSON.stringify(armed.map((a) => a.ms));
     next = env(3, { hunt: { session_id: 'h1', hunt_id: 'mill_cellar', ended: true } });
     armed.shift().fn();
     await new Promise((r) => setImmediate(r));
@@ -425,13 +429,8 @@ function copyTree(dst) {
   mkdirSync(join(dst, 'src/net'), { recursive: true });
   cpSync(join(ROOT, 'src/session'), join(dst, 'src/session'), { recursive: true });
   cpSync(join(ROOT, 'src/net/auth.js'), join(dst, 'src/net/auth.js'));
-  mkdirSync(join(dst, 'src/hunt-view'), { recursive: true });
-  cpSync(join(ROOT, 'src/hunt-view/timeline.js'), join(dst, 'src/hunt-view/timeline.js'));
-  mkdirSync(join(dst, 'src/data'), { recursive: true });
-  cpSync(join(ROOT, 'src/data/town-presence.js'), join(dst, 'src/data/town-presence.js'));   // the AccountSession's TownPresence knobs
-  mkdirSync(join(dst, 'src/core'), { recursive: true });
-  cpSync(join(ROOT, 'src/core/xp.js'), join(dst, 'src/core/xp.js'));   // the roster's Level (the shared curve)
-  for (const f of ['core-model.js', 'skills.js']) cpSync(join(ROOT, 'src/data', f), join(dst, 'src/data', f));   // xp.js's curves and skill list
+  /* The CharacterSession runs the live hunt view (option B), so the engine and the data come along. */
+  for (const d of ['src/hunt-view', 'src/data', 'src/core']) cpSync(join(ROOT, d), join(dst, d), { recursive: true });
 }
 
 async function main() {

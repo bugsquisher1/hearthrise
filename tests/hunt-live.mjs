@@ -29,6 +29,7 @@ import { readFileSync, mkdtempSync, cpSync, writeFileSync, rmSync } from 'node:f
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { isMain } from './_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const FN = 'supabase/functions/hr-accrue';
@@ -248,6 +249,9 @@ async function mutate() {
   process.exit(escaped ? 1 : 0);
 }
 
+/* For tests/hunt-scene-live.mjs: the same members, server and start point. */
+export const HARNESS = Object.freeze({ T0, load, memberOf, server });
+
 async function main() {
   if (process.argv.includes('--mutate')) return mutate();
   const M = await load(ROOT);
@@ -256,4 +260,4 @@ async function main() {
   console.log(fails.length ? `hunt-live: ${fails.length} rule(s) RED` : 'hunt-live: the browser\'s swings are the server\'s, loot is not foreseeable, a divergence eases back');
   process.exit(fails.length ? 1 : 0);
 }
-main().catch((e) => { console.error(e); process.exit(2); });
+if (isMain(import.meta.url)) main().catch((e) => { console.error(e); process.exit(2); });

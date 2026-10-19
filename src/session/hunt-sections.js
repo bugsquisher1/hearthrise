@@ -58,6 +58,8 @@ export function huntOf(cs) {
     huntId: str(h.hunt_id),
     ended: bool(h.ended),
     endReason: isObj(h.session) ? str(h.session.end_reason) : null,
+    /* When the hunt's engine starts (the end of the travel, hr_hunt_travel): before it the hero walks. */
+    huntFromMs: isObj(h.session) && str(h.session.hunt_from) ? Date.parse(h.session.hunt_from) || null : null,
     units: unitsOf(h.pose),
     hero: {
       unit: int(hero.unit), name: str(hero.name), level: int(hero.level),
@@ -125,10 +127,12 @@ export function settingsOf(cs) {
   };
 }
 
+/* A party member. `unit` is its hero in the hunt instance, null while the party is in town (it is
+   listed all the same: the Party panel shows the party wherever it is). */
 function memberOf(m) {
-  if (!isObj(m) || int(m.unit) === null) return null;
+  if (!isObj(m) || int(m.seat) === null) return null;
   return {
-    unit: m.unit, seat: int(m.seat), name: str(m.name) || 'Hero', level: int(m.level), outfit: str(m.outfit),
+    unit: int(m.unit), seat: m.seat, name: str(m.name) || 'Hero', level: int(m.level), outfit: str(m.outfit),
     role: roleForWeapon(str(m.weapon), str(m.role_pick)),
     hp: num(m.hp), hpMax: num(m.hp_max), mana: num(m.mana), manaMax: num(m.mana_max), staminaMs: num(m.stamina_ms),
     dealt: num(m.dealt), healed: num(m.healed), dps: num(m.dps), hps: num(m.hps),
@@ -142,7 +146,7 @@ export function partyOf(cs) {
   if (!p) return null;
   const members = list(p.members, memberOf, 8);
   if (!members.length) return null;
-  return { leader: int(p.leader), self: int(p.self), open: p.open !== false, members };
+  return { leader: int(p.leader), self: int(p.self), leaderSeat: int(p.leader_seat), selfSeat: int(p.self_seat), open: p.open !== false, members };
 }
 
 /** `premium`: is THIS character premium right now, as the server says. Fails safe to false. */

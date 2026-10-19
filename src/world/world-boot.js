@@ -204,6 +204,11 @@ export async function bootWorld(panel, opts) {
       liveHunt = { map: sc.map, scene, off: tl.subscribe((ev) => scene.onEvent(ev, character.now())) };
     }
     const now = character.now();
+    /* THE LIVE VIEW: the instance engine runs to this instant first (src/hunt-view/live-engine.js),
+       then the timeline plays what it produced; a reconcile's survivors stand up again. */
+    if (typeof character.liveAdvance === 'function') character.liveAdvance(now);
+    const back = typeof character.takeReseeded === 'function' ? character.takeReseeded() : null;
+    if (back) liveHunt.scene.revive(back);
     tl.advance(now);
     const f = liveHunt.scene.frame(now);
     lastHunt = { live: true, units: f.units.map((u) => ({ id: u.id, unit: u.unit, x: u.x, y: u.y, anim: u.anim, frame: u.frame, dir: u.dir, diag: u.diag })),

@@ -94,6 +94,9 @@ export function createLiveEngine(o) {
     running: () => !!st && !st.starved,
     /** The viewed character's unit in the instance (null before the first swing places it). */
     selfUnit: () => (st ? (st.sides.find((x) => x.mi && x.mi.self) || {}).member?.unitId ?? st.self : null),
+    /** Every hero of the instance: [{ unit, seat, self, role }] (unit null before its first swing). */
+    heroUnits: () => (st ? st.sides.map((x) => ({ unit: Number.isInteger(x.member.unitId) ? x.member.unitId : null,
+      seat: x.mi.seat, self: x.mi.self === true, role: x.member.hero.role })) : []),
     /** The server instant of the next swing boundary (null when not running). */
     nextAt: () => (st ? st.next : null),
     /**

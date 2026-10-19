@@ -13,11 +13,11 @@
 //                     in flight. Display only: nothing reads it but this
 //                     window, nothing spends it.
 // ════════════════════════════════════════════════════════════════════════
-import { bagOf, bagCapOf, goldOf, rulesOf, shopOf, equipmentOf, huntLootOf } from '../../../session/item-sections.js?v=0.2.3';
-import { settingsOf, analyzerOf } from '../../../session/hunt-sections.js?v=0.2.3';
-import { BAG_CATS, BAG_SORTS, view, kindOf, equipSlotFor, sellPlan, junkIds } from '../../bag-model.js?v=0.2.3';
-import { barKind, barIndexOf } from '../../bar-assign.js?v=0.2.3';
-import { itemName } from '../../widgets/bits.js?v=0.2.3';
+import { bagOf, bagCapOf, goldOf, rulesOf, shopOf, equipmentOf, huntLootOf } from '../../../session/item-sections.js?v=0.2.4';
+import { settingsOf, analyzerOf } from '../../../session/hunt-sections.js?v=0.2.4';
+import { BAG_CATS, BAG_SORTS, view, kindOf, equipSlotFor, sellPlan, junkIds } from '../../bag-model.js?v=0.2.4';
+import { barKind, barIndexOf } from '../../bar-assign.js?v=0.2.4';
+import { itemName } from '../../widgets/bits.js?v=0.2.4';
 
 const SCRATCH = new WeakMap();
 const CAT_IDS = new Set(BAG_CATS.map(([id]) => id));

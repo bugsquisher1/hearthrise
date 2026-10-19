@@ -117,7 +117,11 @@ async function checks(overrides, shots) {
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
     page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
     const s = scripted();
-    if (o.town) for (const k of ['hunt', 'party', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'hunt_server_now_ms']) delete s.env[k];
+    /* In town: no hunt sections and no combat activity (the World's own "in a hunt" reads both). */
+    if (o.town) {
+      for (const k of ['hunt', 'party', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'hunt_server_now_ms']) delete s.env[k];
+      s.env.state = Object.assign({}, s.env.state, { active_kind: null, active_id: null });
+    }
     await stub(page, s);
     const up = await signInAndPlay(page, base, !!o.town);
     return { ctx, page, errors, s, up };
@@ -340,7 +344,9 @@ async function checks(overrides, shots) {
       await wait(page, () => document.querySelector('.hw-hunt.is-picked .hw-density.is-on'), null, 3000);
       const d0 = await page.evaluate(() => document.querySelector('.hw-hunt.is-picked .hw-density .hh-step-val').textContent);
       s.env.hunt_settings.density = 2;
-      await page.click('.hw-hunt.is-picked .hw-density [data-by="1"]');
+      if (d0 !== '1 each') fails.push('HS-8 the density does not show the server’s pick of 1: ' + d0);
+      if (await page.evaluate(() => document.querySelector('.hw-hunt.is-picked .hw-density [data-by="1"]').disabled)) fails.push('HS-8 the density + is off below the ground’s most');
+      else await page.click('.hw-hunt.is-picked .hw-density [data-by="1"]');
       const dMid = await page.evaluate(() => document.querySelector('.hw-hunt.is-picked .hw-density .hh-step-val').textContent);
       const dSent = s.calls.filter((c) => c.name === 'hr_action_set_options').map((c) => c.body.p_opts).slice(1);
       if (JSON.stringify(dSent) !== '[{"density":2}]') fails.push('HS-8 the density step sent ' + JSON.stringify(dSent));
@@ -402,7 +408,8 @@ const MUTANTS = [
   ['a server validation error is not shown inline', 'src/shell/bar-draft.js', '  else { s.error = r;', '  else { s.error = null;'],
   ['the bar hides in town', 'src/data/hud-widgets.js', "removable: true, when: 'always',\n    phone: Object.freeze({ dy: 2 }),", "removable: true, when: 'hunt',\n    phone: Object.freeze({ dy: 2 }),"],
   ['the store price is not shown on Any food', 'src/shell/windows/configure-action.js', "(st.from ? 'store from ' : 'store ') + st.price + ' g each'", "''"],
-  ['the density shows before the server confirms', 'src/shell/windows/hunts.js', "    runIntent(sc, repaint, () => cs.setHuntOptions(s.preset, { density: n }), 'Saving…', () => '');", "    s.density = n; runIntent(sc, repaint, () => cs.setHuntOptions(s.preset, { density: n }), 'Saving…', () => '');"],
+  ['the density step sends no intent', 'src/shell/windows/hunts.js', "    runIntent(sc, repaint, () => cs.setHuntOptions(s.preset, { density: n }), 'Saving…', () => '');", "    runIntent(sc, repaint, () => Promise.resolve({ ok: true }), 'Saving…', () => '');"],
+  ['the density shows the ground max, not the server pick', 'src/shell/windows/hunts.js', '  return { now: densityFor(g, size, [set.density]), max };', '  return { now: max, max };'],
   ['a blocked slot is not flagged', 'src/shell/action-facts.js', '      if (same || kind) {', '      if (false) {'],
   ['the modal docks instead of centring', 'src/shell/window-manager.js', "  const isModal = (id) => rows.get(id).modal === true;", "  const isModal = () => false;"],
   ['the bleed badge defaults on for regular monsters', 'src/data/combat-text.js', "label: 'Bleed stack count', on: on(false, true)", "label: 'Bleed stack count', on: on(true, true)"],

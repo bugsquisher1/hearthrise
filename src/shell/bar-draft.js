@@ -2,32 +2,24 @@
 // src/shell/bar-draft.js — ONE CHARACTER'S BAR EDIT: THE OPEN SLOT, ITS DRAFT, ONE INTENT.
 //
 // The bar is a priority list (src/data/condition-metrics.js): slot 1 is tried
-// first, the next slot whose conditions pass is the fallback. Two surfaces
-// edit it and share this state, so they can never disagree:
-//   configure-action.js  the "Configure action" window: one slot's action and
-//                        its conditions (a press on a bar slot opens it)
-//   bar-editor.js        the priority list inside Hunt settings (move a slot
-//                        earlier or later; open one to configure it)
+// first, the next slot whose conditions pass is the fallback. The bar
+// (widgets/action-bar.js: a press, a drag) and the Configure action window
+// (windows/configure-action.js) share this state, so they never disagree.
 // The draft is display scratch: nothing spends it and nothing else reads it.
-// Save, Empty and a move each send ONE intent, the whole bar restated
-// (hr_action_set_options { slots }); `pending` keeps every control of both
-// surfaces off until the server has answered and the re-read envelope has
-// replaced hunt_settings (CLAUDE.md §6). A refusal names its slot and condition.
+// Save, Empty, a move and a drag each send ONE intent, the whole bar restated
+// (hr_action_set_options { slots }); `pending` keeps the window's controls off
+// until the server has answered and the re-read envelope has replaced
+// hunt_settings (CLAUDE.md §6). A refusal names its slot and condition.
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS, OPERATORS, ACTION_TYPES, MAX_CONDITIONS, CONSUME_KINDS, ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.1';
+import { METRICS, OPERATORS, MAX_CONDITIONS, CONSUME_KINDS } from '../data/condition-metrics.js?v=0.2.1';
 import { STATUSES } from '../data/statuses.js?v=0.2.1';
 import { BAR_SLOTS } from '../data/hunt-hud.js?v=0.2.1';
 import { BASIC_SUPPLIES } from '../data/supply-basics.js?v=0.2.1';
 import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.1';
-import { itemName, abilityName } from './widgets/bits.js?v=0.2.1';
 
 export const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
 const SCRATCH = new WeakMap();   // CharacterSession -> { open: index|null, draft, error, pending, msg }
-
-/* A kind a consume or attack slot may name instead of one item, in words. */
-const KIND_WORDS = Object.freeze({ food: 'Any food', drink: 'Any drink', loaded: 'The loaded ammo' });
-const knownKind = (id) => Object.prototype.hasOwnProperty.call(CONSUME_KINDS, id) || Object.prototype.hasOwnProperty.call(ATTACK_KINDS, id);
 
 /* Plain words for the server's validation codes. */
 const REFUSAL = Object.freeze({
@@ -126,12 +118,6 @@ export function storeWords(st) {
     : 'then the store’s ' + st.name + ', ' + (st.from ? 'from ' : '') + st.price + ' g each, paid as used';
 }
 
-/** The action a slot takes, in words: "Eat or drink: Wheat Bread". */
-export function actionWords(a) {
-  const what = a.type === 'ability' ? abilityName(a.id) : knownKind(a.id) ? KIND_WORDS[a.id] || a.id : itemName(a.id);
-  return (ACTION_TYPES[a.type] || { label: a.type }).label + ': ' + what;
-}
-
 function valueWords(c, m) {
   if (m.value === 'pct') return c.value + '%';
   if (m.value === 'effect') return (STATUSES[c.value] && STATUSES[c.value].name) || String(c.value);
@@ -147,14 +133,6 @@ export function conditionWords(c) {
   return what + ' ' + (OPERATORS[c.op] ? OPERATORS[c.op].label : c.op) + ' ' + valueWords(c, m);
 }
 
-/** A whole slot in words: "IF My HP % at or below 50% THEN Eat or drink: Wheat Bread". */
-export function slotWords(w) {
-  if (!w) return 'Empty';
-  const st = storeOf(w.action);
-  const act = actionWords(w.action) + (st ? ' (own first, ' + storeWords(st) + ')' : '');
-  if (!w.conditions.length) return act + (st ? '' : ' (its own trigger)');
-  return 'IF ' + w.conditions.map(conditionWords).join(w.join === 'or' ? ' OR ' : ' AND ') + ' THEN ' + act;
-}
 
 /**
  * Send the whole bar as ONE intent. Every control of both surfaces is off

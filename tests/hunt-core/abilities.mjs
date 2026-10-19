@@ -111,14 +111,13 @@ const cases = {
     M.abilities.castAbilities(x.inst, x.sc);
     return casts(x.sc).length === 0 && v.bag.fire_rune.left === 2 ? null : 'a three-shot volley fired on two arrows';
   },
-  /* AB-09: a heal is capped at the missing HP and stamps healedAt (food then waits). */
+  /* AB-09: a heal is capped at the missing HP (food no longer waits on it: consumables.js ALWAYS FIRES). */
   'heal-capped': (M) => {
     const { h, inst, sc } = oneHero(M, { hp: 65 }, { bar: ['greater_mend'], range: 7 }, [{ x: 15, y: 3 }]);
     sc.rng = rngOf(M, 5);
     M.abilities.castAbilities(inst, sc);
     const ev = sc.events.find((e) => e.type === 'heal');
-    if (!ev || ev.amount !== 35 || h.hp !== 100) return 'a 40-60 heal on 35 missing healed ' + (ev && ev.amount) + ' to ' + h.hp;
-    return h.healedAt === 0 ? null : 'the heal did not stamp healedAt';
+    return !ev || ev.amount !== 35 || h.hp !== 100 ? 'a 40-60 heal on 35 missing healed ' + (ev && ev.amount) + ' to ' + h.hp : null;
   },
   /* AB-03 / AB-08: Challenge pulls every engaged monster that is not on the tank. */
   'taunt-pulls-back': (M) => {

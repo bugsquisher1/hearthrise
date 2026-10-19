@@ -8,12 +8,27 @@
 //      conditions pass and that has something to use fires. With no consume
 //      slot on its bar the defaults stand: drink under drink_below_pct, then
 //      eat under food_below_pct (the eat-at / drink-at options ARE these slots'
-//      values: one system). A drink waits while one still ticks; food also
-//      waits noHealWindowMs after a heal landed.
+//      values: one system).
 // Food restores HP and drink restores mana, never both (no potions). Each use
 // lands instantPct now and the rest over overTimeMs, in whole ticks; the last
 // tick carries the remainder, so a use restores exactly its amount (capped at
 // the pool's max as it lands).
+//
+// FOOD ALWAYS FIRES (Coordinator 2026-10-19, P0 lane c-food-heals): a food
+// slot whose conditions pass fires whenever the shared lane is free — nothing
+// else holds it (no wait for a running over-time half, no wait after an
+// ability heal). Its instant half always lands; its over-time half REPLACES
+// what is left of the running one (one over-time half per pool, never
+// stacked). A DRINK still waits while its own over-time half runs: drink-at
+// stands BEFORE eat-at by default (here and hr_hunt_settings_view), and a
+// drink that always fired would hold the lane every second while mana stays
+// low (a tier-1 drink lands 3 mana), starving food. The wait is the
+// alternation.
+//
+// EVERY HP POINT FOOD RESTORES IS A `heal` EVENT (u = t = the eater, `item` =
+// the food): the instant half, and each over-time tick that landed. The
+// analyzer's healed total (tally.js) is the sum of `heal` events, so it equals
+// the HP food actually restored (it read 0 for every food before this).
 //
 // SUPPLY. Each hero's line comes from `resolveLine` (src/core/action-rules.js,
 // the one resolver): its own carried stack first, free; then the store row for
@@ -35,7 +50,9 @@ import { slotsFor, pickSlot } from './conditions.js?v=0.2.8';
 import { resolveLine, takeLine, lineAmount } from '../action-rules.js?v=0.2.8';
 import { makeEvent } from './events.js?v=0.2.8';
 
-/* An over-time half is [left, nextTickAtMs, ticksLeft] (integers), or null. */
+/* An over-time half is [left, nextTickAtMs, ticksLeft, itemId], or null. `healedAt`
+   is RETIRED (no rule reads it since food always fires); it stays in the world's
+   shape only so worlds already stored still decode, until the next WORLD_VERSION. */
 export const PERSISTED = Object.freeze({
   unit: Object.freeze([['laneAt', 'int'], ['otHp', 'json'], ['otMana', 'json'], ['healedAt', 'int?']]),
   world: Object.freeze([]),
@@ -46,9 +63,6 @@ const OT_KEY = Object.freeze({ hp: 'otHp', mana: 'otMana' });
 const MAX_OF = Object.freeze({ hp: 'maxHp', mana: 'maxMana' });
 const int = (v) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? n : 0; };
 
-/** Stamp a heal landing on `unit` (abilities.js calls it; food waits noHealWindowMs after one). */
-export function markHealed(unit, atMs) { unit.healedAt = atMs; }
-
 /* Raise `stat` by `n`, never past its max; answers what landed. */
 function raise(u, stat, n) {
   const before = int(u[stat]);
@@ -57,19 +71,26 @@ function raise(u, stat, n) {
   return u[stat] - before;
 }
 
-/** Tick `unit`'s over-time halves due at `atMs`. */
-function tickOverTime(u, atMs) {
+/* The `heal` event of HP food restored (none when nothing landed). */
+function healed(u, landed, item, sc) {
+  if (landed > 0) sc.emit(makeEvent('heal', sc.atMs, { u: u.id, t: u.id, amount: landed, item: String(item || 'food') }));
+}
+
+/** Tick `unit`'s over-time halves due at `sc.atMs`. */
+function tickOverTime(u, sc) {
   for (const stat of ['hp', 'mana']) {
     const k = OT_KEY[stat];
     const ot = u[k];
     if (!Array.isArray(ot)) continue;
     let [left, at, n] = ot;
-    while (n > 0 && atMs >= at) {
+    const item = ot[3];
+    while (n > 0 && sc.atMs >= at) {
       const part = n === 1 ? left : Math.floor(left / n);
-      raise(u, stat, part);
+      const landed = raise(u, stat, part);
+      if (stat === 'hp') healed(u, landed, item, sc);
       left -= part; n -= 1; at += R.overTimeTickMs;
     }
-    u[k] = n > 0 ? [left, at, n] : null;
+    u[k] = n > 0 ? [left, at, n, ...(item === undefined ? [] : [item])] : null;
   }
 }
 
@@ -83,23 +104,24 @@ function use(u, hero, kind, line, sc, d) {
   const landed = raise(u, stat, now);
   const later = amount - now;
   const ticks = R.overTimeMs / R.overTimeTickMs;
-  u[OT_KEY[stat]] = later > 0 ? [later, sc.atMs + R.overTimeTickMs, ticks] : null;
+  /* REPLACES the pool's running over-time half (never stacks with it). */
+  u[OT_KEY[stat]] = later > 0 ? [later, sc.atMs + R.overTimeTickMs, ticks, line.id] : null;
   u.laneAt = sc.atMs + R.laneMs;
   sc.emit(makeEvent(kind === 'drink' ? 'drink' : 'eat', sc.atMs,
     { u: u.id, item: line.id, source: line.source, gold: line.price, amount, landed,
       ...(d && typeof d.rule === 'string' ? { rule: d.rule, rule_label: d.label, pass: d.mask } : {}) }));
+  if (stat === 'hp') healed(u, landed, line.id, sc);
   return true;
 }
 
 /* What a consume slot's action would use now (its conditions already passed), or
    why not. `id` is a KIND ('food' | 'drink': the best line of it, own first, then
    the store) or one own item (its own stack only: none left falls back). */
-function slotWants(u, hero, id, atMs) {
+function slotWants(u, hero, id) {
   const kind = CONSUME_KINDS[id] ? id : (CONSUMABLES[id] ? CONSUMABLES[id].kind : null);
   if (!kind) return { why: 'none' };
   const stat = CONSUMABLE_KINDS[kind].stat;
-  if (u[OT_KEY[stat]]) return { kind, why: 'ticking' };
-  if (kind === 'food' && u.healedAt !== null && u.healedAt !== undefined && atMs - u.healedAt <= R.noHealWindowMs) return { kind, why: 'healed' };
+  if (kind === 'drink' && u[OT_KEY[stat]]) return { kind, why: 'ticking' };
   if (!CONSUME_KINDS[id]) {
     const l = hero.hs.bag && hero.hs.bag[id];
     return l && int(l.left) > 0 ? { kind, line: { id, source: 'own', price: 0 } } : { kind, why: 'none' };
@@ -117,18 +139,18 @@ export function consume(inst, sc) {
   const heroes = inst.heroes || null;
   for (const u of inst.world.units) {
     if (u.side !== 'hero' || !u.alive) continue;
-    tickOverTime(u, sc.atMs);
+    tickOverTime(u, sc);
     if (int(u.laneAt) > sc.atMs) continue;
     const hero = heroes && heroes[u.id];
     if (!hero || !hero.hs) continue;
     const got = pickSlot(inst, u, hero, slotsFor(hero, 'consume'), (slot) => {
-      const w = slotWants(u, hero, slot.action.id, sc.atMs);
+      const w = slotWants(u, hero, slot.action.id);
       /* A FOOD the purse cannot buy ends the hunt gold_out (a hero cannot heal);
          a DRINK it cannot buy only goes without (mana feeds abilities, and a basic
          swing needs none): a hunt never stops for a drink (spec §3.4 #7). */
       if (w.why === 'gold_short') { if (w.kind === 'food') hero.hs.goldOut = true; return { why: 'gold_short' }; }
       if (w.line) return w;
-      return { why: w.why === 'ticking' || w.why === 'healed' ? 'busy' : 'no_stock' };
+      return { why: w.why === 'ticking' ? 'busy' : 'no_stock' };
     }, sc, 'consume');
     if (got) use(u, hero, got.pick.kind, got.pick.line, sc, got);
   }

@@ -1,3 +1,5 @@
+> **STALE: last true 2026-08-09 (b229). Describes the scrapped old game. Never read it for current rules; read rulings-of-record (memory) and CLAUDE.md.**
+
 # CURRENT_STATE
 
 _The team's shared snapshot of where Hearthrise is. Updated at every COORDINATE and after every integration. Keep it true._

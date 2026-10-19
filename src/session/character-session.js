@@ -47,9 +47,7 @@
 
 import { applyEnvelope, applyFrame, withResidue } from './envelope.js?v=0.2.8';
 import { createTimeline } from '../hunt-view/timeline.js?v=0.2.8';
-import { createLiveEngine } from '../hunt-view/live-engine.js?v=0.2.8';
-import { ITEMS } from '../data/items.js?v=0.2.8';
-import { MONSTERS } from '../data/monsters.js?v=0.2.8';
+import { LiveLink } from './live-link.js?v=0.2.8';
 import { RESIDUE_FIELDS, sanitizeResidueField } from './residue.js?v=0.2.8';
 import { SESSION_CONFIG } from './config.js?v=0.2.8';
 import { edgeBody } from './edge-intents.js?v=0.2.8';
@@ -123,10 +121,9 @@ export class CharacterSession {
     this.timeline = createTimeline({ delayMs: SESSION_CONFIG.huntPlaybackDelayMs, maxSteps: 256,
       forgetMs: SESSION_CONFIG.huntPlaybackDelayMs + 15000 });
     /* THE LIVE VIEW (option B): the instance engine run in the browser from the server's start
-       point (hunt_live), prediction only; the frame loop advances it (liveAdvance). */
-    this.live = createLiveEngine({ items: ITEMS, monsters: MONSTERS });
-    this._wantLive = false;
-    this._liveTries = 0;
+       point, prediction only; `live` is its engine (the scene reads its heroes). */
+    this.liveLink = new LiveLink({ timeline: this.timeline, now: () => this._now(), emit: (why) => this._emit(why) });
+    this.live = this.liveLink.engine;
     this.receivedAt = null;
     for (const fn of Array.from(OBSERVERS)) fn(this);   // e.g. the hunt summary's recorder: it must hear the timeline from the first event
   }
@@ -170,7 +167,7 @@ export class CharacterSession {
     if (this._closed || this._huntTimer || !this._huntOpen()) return;
     /* The live view without a start point (just entered, reloaded, or a commit it did not match)
        asks at once; the floor then answers with hunt_live instead of a settle. */
-    const ms = this._wantLive ? SESSION_CONFIG.liveAskMs : SESSION_CONFIG.huntPollMs;
+    const ms = this.liveLink.want ? SESSION_CONFIG.liveAskMs : SESSION_CONFIG.huntPollMs;
     this._huntTimer = this._setTimer(() => { this._huntTimer = null; this._huntPoll(); }, ms);
   }
 
@@ -204,53 +201,14 @@ export class CharacterSession {
     if (h && h.pose) this.timeline.reconcile(h.pose);
   }
 
-  /* THE LIVE VIEW'S INPUTS from one answer: a start point seeds (or re-seeds, eased) the engine; a
-     commit's check confirms it (and refreshes its seeds) or asks for a fresh start point. */
-  _liveFrom(body) {
-    if (!this._huntOpen()) {
-      if (this.live.running()) { this.live.stop(); this.timeline.setDelay(SESSION_CONFIG.huntPlaybackDelayMs); }
-      this._wantLive = false; this._liveTries = 0;
-      return;
-    }
-    if (!body.hunt_live && !body.hunt_check && this.live.running()) return;
-    const ms = Number.isSafeInteger(body.hunt_server_now_ms) ? body.hunt_server_now_ms
-      : typeof body.now === 'string' ? Math.floor(Date.parse(body.now)) : NaN;
-    if ((body.hunt_live || body.hunt_check) && Number.isSafeInteger(ms)) this.timeline.ingest({ serverNowMs: ms }, this._now());
-    const now = this.timeline.serverNowAt(this._now());
-    if (body.hunt_live) {
-      if (!this.live.running()) {
-        if (this.live.seed(body.hunt_live)) { this.timeline.setDelay(SESSION_CONFIG.liveDelayMs); this._wantLive = false; this._liveTries = 0; this._emit('live'); }
-      } else if (this.live.check({ world_swing: body.hunt_live.instance.world_swing, world_hash: body.hunt_live.instance.world_hash }) !== 'match') {
-        const res = this.live.reseed(body.hunt_live, now);
-        if (res) {
-          this.timeline.rebase(Math.floor(now), res.positions, SESSION_CONFIG.liveEaseMs);
-          this.timeline.ingest({ units: res.units, fromMs: Math.floor(now) }, this._now());
-          this._reseeded = res.alive;
-          this._emit('reseed');
-        }
-        this._wantLive = false;
-      } else this._wantLive = false;
-    } else if (body.hunt_check && this.live.running()) {
-      const v = this.live.confirm(body.hunt_check);
-      if (v !== 'match') this._wantLive = true;
-    } else if (!this.live.running()) {
-      /* No start point in this answer: ask again soon, twice at most (an engine that does not send
-         one leaves the hunt on its server-paced view at the ordinary poll). */
-      this._wantLive = this._liveTries < SESSION_CONFIG.liveAskTries;
-      if (this._wantLive) this._liveTries++;
-    }
-  }
+  /* THE LIVE VIEW (src/session/live-link.js): reads every answer while a hunt is open. */
+  _liveFrom(body) { if (this._huntOpen()) this.liveLink.from(body); else this.liveLink.off(); }
 
   /** The frame loop's step: run the live engine to the server's clock now (the viewed character). */
-  liveAdvance(clientNow) {
-    if (!this.live.running()) return 0;
-    const now = this.timeline.serverNowAt(clientNow);
-    if (now === null) return 0;
-    return this.live.advance(now, (b) => this.timeline.ingest(b, clientNow));
-  }
+  liveAdvance(clientNow) { return this.liveLink.advance(clientNow); }
 
   /** Units the last reseed found alive (the scene revives a corpse the prediction made), once. */
-  takeReseeded() { const r = this._reseeded || null; this._reseeded = null; return r; }
+  takeReseeded() { return this.liveLink.takeReseeded(); }
 
   /**
    * The hunt settings intent for one preset. Nothing changes on screen from the

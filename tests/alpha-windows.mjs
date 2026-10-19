@@ -166,6 +166,11 @@ async function pure() {
   if (edgeBody(0, 'shop_buy', { offer: 'supply.wheat_bread', qty: 2, price: 1 }, 'x')) fails.push('AW-0 edgeBody let a price field through');
   if (edgeBody(0, 'grant_gold', { qty: 1 }, 'x')) fails.push('AW-0 edgeBody built an unknown verb');
   if (!edgeBody(0, 'vendor_sell_many', { lines: [{ item: 'rat_tail', qty: 3 }] }, 'x')) fails.push('AW-0 edgeBody refused a well-formed sale');
+  /* AW-19: a gathering or crafting pointer from before (hr_hunt_enter refuses a hero that is not idle) still gets the Stop line. */
+  const { buryLine } = await imp('src/shell/windows/inventory/bury.js');
+  if (!/Stop it here\.$/.test(buryLine({ read: (k) => (k === 'state' ? { active_kind: 'gather', active_id: 'copper_rock' } : null) })))
+    fails.push('AW-19 an old gathering pointer gets no Stop line, so the hero could never hunt again');
+  if (edgeBody(0, 'set_activity', { activity: { kind: 'combat', id: 'rat' } }, 'x')) fails.push('AW-0 edgeBody let the client declare a fight through set_activity');
   return fails;
 }
 
@@ -603,7 +608,7 @@ const MUTANTS = [
   ['bones offer no Bury', 'src/shell/windows/inventory/state.js', "  if (br) return ['bury', buryLabel(br, st.qty.get(id))];\n", ''],
   ['Bury debits the bag before the server answers', 'src/shell/windows/inventory/bury.js', "  const qty = (cs.read('inventory') || {})[id] || 0;\n", "  const qty = (cs.read('inventory') || {})[id] || 0;\n  delete cs.read('inventory')[id];\n"],
   ['Stop does not collect', 'src/shell/windows/inventory/bury.js', "cs.edgeIntent('set_activity', { activity: { kind: 'idle' } })", "Promise.resolve({ ok: true })"],
-  ['the Burying line ignores the server pointer', 'src/shell/windows/inventory/bury.js', "  return r ? buryingWord(r) + ' ' + itemName(r.input) + '. Your Prayer XP and bag update when it is done.' : '';", "  return '';"],
+  ['the Burying line ignores the server pointer', 'src/shell/windows/inventory/bury.js', "  if (r) return buryingWord(r) + ' ' + itemName(r.input) + '. Your Prayer XP and bag update when it is done.';", "  if (r) return '';"],
   ['the skills are one window again', 'src/shell/windows/skills.js', "export const renderTradeSkills = skillsWindow([['gather', 'Gathering'], ['artisan', 'Crafting']]);", "export const renderTradeSkills = skillsWindow([['combat', 'Combat'], ['gather', 'Gathering'], ['artisan', 'Crafting']]);"],
   ['a new player gets no pointer to Hunts', 'src/shell/launcher.js', "+ pointerFor(ctx, open) + '</nav>'", "+ '</nav>'"],
   ['edgeBody lets an unlisted field through', 'src/session/edge-intents.js', '  for (const k of Object.keys(fields)) if (!allowed.includes(k)) return null;\n', ''],

@@ -17,19 +17,19 @@
 // Every control is one intent, off from the press until the server answered;
 // the window changes only from the re-read envelope. Nothing is predicted.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.6';
-import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.6';
-import { WEAPON_WORDS } from '../../data/hunt-hud.js?v=0.2.6';
-import { partyMembershipOf, invitesOf, huntName } from '../../session/party-sections.js?v=0.2.6';
-import { nameOf } from '../../session/item-sections.js?v=0.2.6';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.6';
-import { markPlayer } from '../context-menu.js?v=0.2.6';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.6';
-import { glyphSvg } from '../launcher.js?v=0.2.6';
-import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.6';
-import { runIntent } from '../intent-words.js?v=0.2.6';
-import { finderHtml, patchFinder, actFinder, partyScratch } from './party-finder.js?v=0.2.6';
-import { partyNote } from '../hunt-list.js?v=0.2.6';
+import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.7';
+import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.7';
+import { WEAPON_WORDS } from '../../data/hunt-hud.js?v=0.2.7';
+import { partyMembershipOf, invitesOf, huntName } from '../../session/party-sections.js?v=0.2.7';
+import { nameOf } from '../../session/item-sections.js?v=0.2.7';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.7';
+import { markPlayer } from '../context-menu.js?v=0.2.7';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.7';
+import { glyphSvg } from '../launcher.js?v=0.2.7';
+import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.7';
+import { runIntent } from '../intent-words.js?v=0.2.7';
+import { finderHtml, patchFinder, actFinder, partyScratch } from './party-finder.js?v=0.2.7';
+import { partyNote } from '../hunt-list.js?v=0.2.7';
 
 const nameFor = (cs) => nameOf(cs) || 'Character ' + (cs.slot + 1);
 

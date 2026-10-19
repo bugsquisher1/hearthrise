@@ -33,15 +33,15 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { MONSTERS, monsterLevelOf } from '../data/monsters.js?v=0.2.6';
-import { rollDropTable } from './drops.js?v=0.2.6';
-import { yieldOf } from './hunt/damage.js?v=0.2.6';
-import { applyGoldFind } from './pacing.js?v=0.2.6';
-import { COMBAT_XP } from '../data/core-model.js?v=0.2.6';
-import { FAMILY_SKILL, DAMAGE_XP_FAMILIES } from '../data/skills.js?v=0.2.6';
-import { resolveHearthfind } from './hearthfind.js?v=0.2.6';
-import { magicXpFor } from './hunt/xp-share.js?v=0.2.6';
-import { splitEven, itemOwner } from './party-split.js?v=0.2.6';
+import { MONSTERS, monsterLevelOf } from '../data/monsters.js?v=0.2.7';
+import { rollDropTable } from './drops.js?v=0.2.7';
+import { yieldOf } from './hunt/damage.js?v=0.2.7';
+import { applyGoldFind } from './pacing.js?v=0.2.7';
+import { COMBAT_XP } from '../data/core-model.js?v=0.2.7';
+import { FAMILY_SKILL, DAMAGE_XP_FAMILIES } from '../data/skills.js?v=0.2.7';
+import { resolveHearthfind } from './hearthfind.js?v=0.2.7';
+import { magicXpFor } from './hunt/xp-share.js?v=0.2.7';
+import { splitEven, itemOwner } from './party-split.js?v=0.2.7';
 
 const call = (fx, name, ...args) => (fx && typeof fx[name] === 'function' ? fx[name](...args) : undefined);
 

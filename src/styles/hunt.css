@@ -190,6 +190,11 @@
 .hb-why { position: absolute; left: 2px; bottom: 2px; width: 14px; height: 14px; display: grid; place-items: center; pointer-events: none; }
 .hb-why .hs-glyph { width: 12px; height: 12px; color: var(--gold-2); }
 .hb-slot.is-wait .hb-slot-ico { opacity: .6; }
+/* A cooling slot (the sim's ember): a veil, an ember rising from the bottom as the cooldown runs out, the seconds left. */
+.hb-cd { display: none; position: absolute; inset: 1px; background: var(--hud-cool-veil); pointer-events: none; }
+.hb-slot.is-cooling .hb-cd { display: block; }
+.hb-cd-ember { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: var(--hud-ember); box-shadow: inset 0 1px 0 var(--hud-ember-edge); }
+.hb-cd-s { position: absolute; inset: 0; display: grid; place-items: center; font-size: var(--t-small); font-weight: 800; color: var(--hud-ember-ink); paint-order: stroke; -webkit-text-stroke: 3px var(--bg-0); font-variant-numeric: lining-nums tabular-nums; }
 /* The drop menu: onto an action, swap or insert; Escape or a press elsewhere cancels. */
 .hb-drop { display: none; position: absolute; bottom: calc(100% + 6px); width: 240px; padding: 8px; flex-direction: column; gap: 4px; background: var(--modal-bg); border: 4px solid transparent; border-image: url('../../assets/ui/frame-iron-thin.png') 2 / 4px stretch; image-rendering: pixelated; z-index: 3; }
 .hb-drop.is-on { display: flex; }

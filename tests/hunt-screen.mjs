@@ -49,6 +49,8 @@
 //         here, shift the rest / Escape or a press away cancels); one intent per choice;
 //         the status line clears on the server's answer
 //   HS-15 every struck slot says why (glyph + the tooltip's first line), one slot a reason
+//   HS-16 THE COOLDOWN EMBER: the hero's played cast cools that ability's slot for its
+//         catalogue cooldown; the ember rises and the seconds fall as it runs out
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { launchOptions } from './_chrome.mjs';
@@ -514,6 +516,31 @@ async function checks(overrides, shots) {
       await ctx.close();
     }
 
+    { // HS-16 the cooldown ember: the hero's played `cast` cools that ability's slot for its catalogue cooldown; the ember rises as it runs out
+      const { ctx, page, s, up } = await open();
+      if (up) {
+        const delay = await page.evaluate(async () => (await import('/src/session/config.js?v=0.1.0')).SESSION_CONFIG.huntPlaybackDelayMs);
+        const D = Number.isFinite(delay) ? delay : 19000;
+        const now = s.env.hunt_server_now_ms;
+        /* A cast that plays at once (its time is already behind the playback delay) by the viewed hero (unit 1). */
+        s.env.hunt_events = s.env.hunt_events.concat([{ id: 'cd:1', type: 'cast', atMs: now - D - 500, u: 1, t: 101, ability: 'power_strike' }]);
+        await pushEnvelope(page, s);
+        const read = () => page.evaluate(() => {
+          const li = document.querySelector('.hb-slot[data-slot="0"]');
+          return { on: li.classList.contains('is-cooling'), h: parseFloat(li.querySelector('.hb-cd-ember').style.height) || 0, sec: li.querySelector('.hb-cd-s').textContent,
+            other: document.querySelector('.hb-slot[data-slot="2"]').classList.contains('is-cooling') };
+        });
+        const ok1 = await wait(page, () => document.querySelector('.hb-slot[data-slot="0"]').classList.contains('is-cooling'), null, 4000);
+        const a = await read();
+        await page.waitForTimeout(1200);
+        const b = await read();
+        if (!ok1 || !(a.h > 0 && a.h < 100) || !(Number(a.sec) > 0 && Number(a.sec) <= 6) || a.other) fails.push('HS-16 the cast did not cool its slot with an ember: ' + JSON.stringify(a));
+        else if (!(b.h > a.h) || !(Number(b.sec) < Number(a.sec))) fails.push('HS-16 the ember did not rise as the cooldown ran out: ' + JSON.stringify([a, b]));
+        if (shots) await page.screenshot({ path: join(shots, 'hunt-1440x900-cooldown.png') });
+      } else fails.push('HS-16 the screen did not mount');
+      await ctx.close();
+    }
+
     { // HS-11 a slot that can never fire: the same action under weaker conditions earlier shows "!" and why; emptying the earlier one clears it
       const { ctx, page, s, up } = await open();
       if (up) {
@@ -651,6 +678,8 @@ const MUTANTS = [
   ['the status line stays after a drop', 'src/shell/widgets/action-bar.js', ".then((r) => { text(msg, r.ok ? '' : r.error === 'no_room'", ".then((r) => { text(msg, r.ok ? 'Moving it…' : r.error === 'no_room'"],
   ['a slot short of its rune says nothing', 'src/shell/action-facts.js', '    if (r.rune && !((bag', '    if (false && r.rune && !((bag'],
   ['a press on the panel sends on pointerdown', 'src/shell/widgets/action-bar.js', "    if (ev.type !== (t.tagName === 'SELECT' ? 'change' : 'click')) return;", "    if ((t.tagName === 'SELECT') !== (ev.type === 'change')) return;"],
+  ['a cast never cools its slot', 'src/shell/widgets/action-bar.js', '  const on = left > 0;', '  const on = false;'],
+  ['the ember stands still', 'src/shell/widgets/action-bar.js', "style.height = (Math.round((1 - left / r.cdMs) * 1000) / 10) + '%';", "style.height = '50%';"],
   ['the bleed badge defaults on for regular monsters', 'src/data/combat-text.js', "label: 'Bleed stack count', on: on(false, true)", "label: 'Bleed stack count', on: on(true, true)"],
 ];
 

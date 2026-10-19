@@ -23,6 +23,7 @@
 // the server's; the bar changes only when the re-read envelope says so.
 // ════════════════════════════════════════════════════════════════════════
 import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.8';
+import { ABILITIES } from '../../data/abilities.js?v=0.2.8';
 import { CONSUME_KINDS, ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.8';
 import { huntOf, settingsOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.8';
 import { bagOf } from '../../session/item-sections.js?v=0.2.8';
@@ -46,11 +47,46 @@ const LONG_PRESS_MS = 450;
 const KINDS = new Set(Object.keys(CONSUME_KINDS).concat(Object.keys(ATTACK_KINDS)));
 const PRESS = new WeakMap();   // the bar element -> { timer, held }
 const DROP = new WeakMap();    // the bar element -> { from, to, off } while the drop menu is open
+const CASTS = new WeakMap();   // the bar element -> { cs, off, at: Map(ability -> client ms of the hero's last cast) }
+
+/* THE COOLDOWN EMBER (the sim's, Tyler 10-19): when the server's timeline plays the viewed hero's
+   `cast` of an ability, its slot cools for that ability's catalogue cooldown (cdMs, the clock the
+   engine runs): a veil over the slot, an ember rising from the bottom as the cooldown runs out, and
+   the seconds left. Played in step with the scene (timeline.subscribe), from server events only. */
+function watchCasts(el, ctx) {
+  const cs = ctx.character;
+  const w = CASTS.get(el);
+  if (w && w.cs === cs) return w;
+  if (w) w.off();
+  const at = new Map();
+  const tl = cs && cs.timeline;
+  const off = tl && typeof tl.subscribe === 'function' ? tl.subscribe((ev) => {
+    const h = huntOf(cs);
+    if (!ev || ev.type !== 'cast' || !ABILITIES[ev.ability] || !h || ev.u !== h.hero.unit) return;
+    const c = typeof tl.clientAt === 'function' ? tl.clientAt(ev.atMs) : null;
+    at.set(ev.ability, Number.isFinite(c) ? c : ctx.now());
+  }) : () => {};
+  const out = { cs, off, at };
+  CASTS.set(el, out);
+  return out;
+}
+
+function patchCooldown(li, s, casts, now) {
+  const r = !s.empty && s.action.type === 'ability' ? ABILITIES[s.action.id] : null;
+  const t0 = r ? casts.at.get(s.action.id) : undefined;
+  const left = r && Number.isFinite(t0) ? r.cdMs - (now - t0) : 0;
+  const on = left > 0;
+  cls(li, 'is-cooling', on);
+  if (!on) return;
+  li.querySelector('.hb-cd-ember').style.height = (Math.round((1 - left / r.cdMs) * 1000) / 10) + '%';
+  text(li.querySelector('.hb-cd-s'), left < 10000 ? (left / 1000).toFixed(1) : String(Math.ceil(left / 1000)));
+}
 
 function slotHtml(i) {
   return '<li class="hb-slot is-empty" data-slot="' + i + '" data-hs-act="slot" role="button" tabindex="0" aria-label="Slot ' + (i + 1) + '">'
     + '<span class="hb-slot-ico"></span><small class="hb-n">' + (i + 1) + '</small><small class="hb-count"></small><b class="hb-warn" aria-hidden="true">!</b>'
-    + '<span class="hb-why" aria-hidden="true"></span><span class="hb-plus" aria-hidden="true">+</span></li>';
+    + '<span class="hb-why" aria-hidden="true"></span><span class="hb-plus" aria-hidden="true">+</span>'
+    + '<span class="hb-cd" aria-hidden="true"><i class="hb-cd-ember"></i><b class="hb-cd-s"></b></span></li>';
 }
 
 /** The skeleton (built once). */
@@ -147,10 +183,13 @@ renderActionBar.patch = function patchActionBar(el, ctx) {
   const conflicts = s ? conflictsOf(wires, s) : new Map();
   const bag = bagOf(cs);
   const hero = h && !h.ended ? h.hero : null;
+  const casts = watchCasts(el, ctx);
+  const now = ctx.now();
   for (const li of el.querySelectorAll('.hb-slot')) {
     const i = Number(li.getAttribute('data-slot'));
     const sl = slots[i] || { empty: true };
     patchSlot(li, sl, wires[i], ctx, bag, conflicts.get(i), reasonOf(sl, s, bag, hero));
+    patchCooldown(li, sl, casts, now);
   }
   const set = s && s.presets.find((p) => p.preset === s.preset);
   text(el.querySelector('.hb-set'), set ? set.name : s ? 'Set ' + (s.preset + 1) : '–');

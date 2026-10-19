@@ -5,7 +5,7 @@
 //   node tests/hunt-live.mjs            the rules
 //   node tests/hunt-live.mjs --mutate   every planted defect must turn its rule RED
 //
-// mutant-anchors: src/hunt-view/live-engine.js src/core/combat-sim.js supabase/functions/hr-accrue/hunt-settle.js src/hunt-view/timeline.js
+// mutant-anchors: src/hunt-view/live-engine.js src/core/combat-sim.js supabase/functions/hr-accrue/hunt-settle.js src/hunt-view/timeline.js src/core/hunt/roles.js
 // mutant-writes-tree: no — mutants are planted into a temp copy of src/ and the edge
 //
 // Option B (Tyler 2026-10-19). The edge settles a hunt instance in commits of at
@@ -21,6 +21,8 @@
 //   LV-L  LOOT IS NOT FORESEEABLE: the drops the browser's engine would roll (its
 //         member sinks) are not the drops the server's commits paid; hunt_live
 //         carries no drop-stream seed. (Mutant: drops rolled on the combat stream.)
+//   LV-M  MELEE HOLDS: the engine's lone knight changes tile no more often per kill than the
+//         frozen sim's (measured) and almost never steps back and forth between swings.
 //   LV-R  RECONCILE: a prediction forced off the server's world is judged
 //         `diverged` at the next commit, and the reseed eases every unit onto its true
 //         tile with no frame moving a unit more than one tile.
@@ -173,6 +175,33 @@ function rules(M) {
     }
   }
 
+  { // LV-M: a melee hero in range holds its tile and swings (Tyler 10-19: "back and forth between mobs").
+    /* THE SIM'S FIGURE, measured 2026-10-19 (prototypes/hunt-sim, a lone knight, 600 s at dt 0.1 through
+       __simFast): 10.9 tile changes per kill. No melee hero of the engine may wander more than that. */
+    const SIM_TILES_PER_KILL = 10.9;
+    for (const role of ['tank', 'melee_dps']) {
+      const mis = [memberOf(M, 'a', 0, role, 6)];
+      const srv = server(M, mis);
+      const steps = []; let kills = 0;
+      for (let t = T0 + 16000; t <= T0 + 600000; t += 16000) {
+        const c = srv.commit(t);
+        if (!c) continue;
+        for (const st of c.tl.hunt_track) if (st.u === mis[0].unitId) steps.push(st);
+        kills += c.tl.hunt_events.filter((e) => e.type === 'kill' && e.u === mis[0].unitId).length;
+      }
+      let moves = 0, flips = 0;
+      for (let i = 1; i < steps.length; i++) if (steps[i].x !== steps[i - 1].x || steps[i].y !== steps[i - 1].y) moves++;
+      for (let i = 2; i < steps.length; i++) {
+        const back = steps[i].x === steps[i - 2].x && steps[i].y === steps[i - 2].y;
+        const moved = steps[i - 1].x !== steps[i].x || steps[i - 1].y !== steps[i].y;
+        if (back && moved) flips++;
+      }
+      console.log(`  LV-M ${role}: ${moves} tile changes over ${kills} kills (${(moves / Math.max(1, kills)).toFixed(2)} per kill; the sim's knight ${SIM_TILES_PER_KILL}), ${flips} back-and-forth steps in 600 s`);
+      ok('LV-M', kills > 20 && moves / kills <= SIM_TILES_PER_KILL, `${role}: ${(moves / Math.max(1, kills)).toFixed(2)} tile changes per kill (sim ${SIM_TILES_PER_KILL})`);
+      ok('LV-M', flips <= kills * 0.15, `${role}: ${flips} back-and-forth steps over ${kills} kills (a hero stepping between swings)`);
+    }
+  }
+
   { // LV-R
     const mis = [memberOf(M, 'a', 0, 'tank', 6)];
     const tl = M.TL.createTimeline({ delayMs: 100, maxSteps: 256 });
@@ -224,6 +253,9 @@ const MUTANTS = [
   ['drops rolled on the combat stream (LV-L)', 'src/core/combat-sim.js', "rng: createRng(seedOf(ctx, 'r', sw))", "rng: createRng(seedOf(ctx, 's', sw))", /^LV-L/],
   ['the reseed teleports (LV-R)', 'src/hunt-view/timeline.js', 'const dur = Math.max(easeMs || 250, Math.ceil(dist * EASE_MS_PER_TILE));', 'const dur = 1;', /^LV-R/],
   ['every commit reads as a match (LV-R)', 'src/hunt-view/live-engine.js', "return h === hc.world_hash ? 'match' : 'diverged';", "return 'match';", /^LV-R/],
+  ['a melee hero beside its target steps to another side every repath (LV-M)', 'src/core/hunt/roles.js',
+    '  if (cheb(h, tgt) <= 1 && atRest(h)) { clearGoal(h); return; }\n  if (h.aiMs > 0 && h.path.length) return;\n  h.aiMs = AI_REPATH_MS.melee;\n  const free = (x, y) => !standable(inst, h, tgt.pocket, x, y);',
+    '  if (h.aiMs > 0 && h.path.length) return;\n  h.aiMs = AI_REPATH_MS.melee;\n  const free = (x, y) => !standable(inst, h, tgt.pocket, x, y) || (x === h.x && y === h.y);', /^LV-M/],
   ['members run in another order than the server (LV-D)', 'src/hunt-view/live-engine.js', '.slice().sort((a, b) => (a.key < b.key ? -1 : 1))', '.slice().reverse()', /^LV-D/],
 ];
 

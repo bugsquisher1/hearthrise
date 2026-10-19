@@ -10,7 +10,7 @@
 //
 //   readinessOf(cs) → { name, ready, checks: [{ id, ok, text }], short: [words] }
 // ════════════════════════════════════════════════════════════════════════
-import { settingsOf, staminaOf } from '../session/hunt-sections.js?v=0.2.1';
+import { settingsOf, staminaOf, analyzerOf } from '../session/hunt-sections.js?v=0.2.1';
 import { bagOf, equipmentOf, rulesOf, shopOf, goldOf, nameOf } from '../session/item-sections.js?v=0.2.1';
 import { kindOf } from './bag-model.js?v=0.2.1';
 import { itemName } from './widgets/bits.js?v=0.2.1';
@@ -78,6 +78,12 @@ export function readinessOf(cs) {
   }
   const quote = (shopOf(cs) || {}).refill;
   const gp = goldOf(cs);
+  /* How long the gold lasts: the gold and, while a hunt runs, the server's supply spend an hour (the analyzer's waste). */
+  if (gp !== null) {
+    const an = analyzerOf(cs);
+    const spend = an && an.hero.perHour.waste > 0 ? an.hero.perHour.waste : null;
+    checks.push({ id: 'gold-now', ok: true, text: 'Gold: ' + whole(gp) + ' gp' + (spend ? ' · supplies about ' + whole(spend) + ' gp an hour on this hunt, about ' + (Math.floor((gp / spend) * 10) / 10) + ' h of gold' : '') });
+  }
   if (quote && quote.total > 0 && gp !== null && gp < quote.total) { checks.push({ id: 'gold', ok: false, text: 'Not enough gold to refill' }); short.push('short of gold'); }
   return { name, ready: short.length === 0, checks, short };
 }

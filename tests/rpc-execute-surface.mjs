@@ -6,7 +6,7 @@
 //   node tests/rpc-execute-surface.mjs --selftest  every planted defect must be caught
 //   node tests/rpc-execute-surface.mjs --write     re-pin after a REVIEWED surface change
 //
-// mutant-anchors: supabase/migrations/2026-10-28-reopen-rpc-sweep.sql (its final notice)
+// mutant-anchors: supabase/migrations/2026-10-28-reopen-rpc-sweep.sql
 //
 // ── THE FAILURE THIS KILLS (Security review, 2026-10-19) ─────────────────────
 // hr_claim_rank paid up to 1,000,000 gold per character by a direct update,

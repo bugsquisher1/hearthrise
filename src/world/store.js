@@ -41,6 +41,11 @@ export function notePos(G, map, x, y) {
   else { w.pos.x = x; w.pos.y = y; }
 }
 
+/** Forget where the hero stood (it went hunting): back in town it arrives at the map's start. */
+export function forgetPos(G) {
+  delete worldOf(G).pos;
+}
+
 /** What the server last said the hero is doing: { kind: 'combat', id } or null. */
 export function activityOf(G) {
   return G && G.activeMonster ? { kind: 'combat', id: String(G._huntId || G.activeMonster) } : null;

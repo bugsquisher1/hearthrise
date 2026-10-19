@@ -40,7 +40,7 @@ import { compileMap } from './core/map-compile.js?v=0.2.7';
 import { STUB_SPRITE } from './core/book.js?v=0.2.7';
 import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.7';
 import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.7';
-import { readScene, setChoice, heroPosOn, notePos } from './store.js?v=0.2.7';
+import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.7';
 import { loadAtlases } from './atlas.js?v=0.2.7';
 import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.7';
 import { huntOfMap } from './hunt-maps.js?v=0.2.7';
@@ -286,7 +286,8 @@ export async function bootWorld(panel, opts) {
     let cast;
     if (sc.kind === 'hunt') {
       cast = huntState(G, sc, map, name, now);
-      walk = null; lastWalk = null; keys.clear();
+      /* A hunt ends at the town's arrival point (map start), never back where the hero stood before. */
+      walk = null; lastWalk = null; keys.clear(); forgetPos(G);
       if (town) town.show(null);
     } else {
       hunt = null; huntMap = null; lastHunt = null; endLive();

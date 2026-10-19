@@ -5,7 +5,7 @@
 //   node tests/party-flow.mjs            the guard (every arm)
 //   node tests/party-flow.mjs --mutate   every planted defect must be CAUGHT by its arm
 //
-// mutant-anchors: supabase/migrations/2026-10-28-party-flow.sql
+// mutant-anchors: supabase/migrations/2026-10-28-party-flow.sql supabase/migrations/2026-10-29-party-security.sql
 // mutant-writes-tree: no — each mutant is the migration text patched in memory and applied inside a rolled-back transaction
 //
 // Ships with supabase/migrations/2026-10-28-party-flow.sql (PARTY_SPEC.md,
@@ -26,7 +26,16 @@
 //   PF-KEEP     a member unseen 9 minutes keeps the seat, 11 loses it; the
 //               leader dropped hands the lead on; a hunter is never dropped;
 //               the last one swept closes the party
-//   PF-IDEM     a second apply of the file is byte-identical
+//   PF-LISTED   (2026-10-29-party-security.sql, Security reopen #1) no seat without an invite or
+//               a listing: an unlisted party refuses the finder's Join and is not listed; only
+//               the leader lists it; then Join seats
+//   PF-BLOCK    (#1, #3) a block either way, with the inviter or any member, refuses the invite,
+//               the accept and the Join, and the finder hides that party
+//   PF-KICK-HUNT (#2) a kicked hunter leaves its hunt: a stale session gets leave_at (the next
+//               settle ends it, so it is out of every later split), a walking one ends at once,
+//               and its seat goes now
+//   PF-M8       (#4) the dormant M8 verbs and their baseline rows are gone
+//   PF-IDEM     a second apply of both files is byte-identical
 //   PF-GRANT    the four verbs are authenticated-only; the sweep and the
 //               helpers are nobody's
 // Exit: 0 green · 1 a red arm or a missed mutant · 2 a harness problem.
@@ -38,7 +47,8 @@ import { isMain } from './_is-main.mjs';
 
 const MUTATE = process.argv.includes('--mutate');
 const FILE = '2026-10-28-party-flow.sql';
-const SRC = () => readFileSync(join(ROOT, 'supabase', 'migrations', FILE), 'utf8').replace(/\r\n/g, '\n');
+const SEC = '2026-10-29-party-security.sql';
+const SRC = (f = FILE) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
 const U = ['000000c0-0000-4000-8000-0000000f1001', '000000c0-0000-4000-8000-0000000f1002', '000000c0-0000-4000-8000-0000000f1003'];
 const [A, B, C] = U;
 const idem = () => crypto.randomUUID();
@@ -58,6 +68,9 @@ const start = (db, uid, hunt) => as(db, uid, 'select public.hr_hunt_party_start(
 const disband = (db, uid) => as(db, uid, 'select public.hr_hunt_party_disband(0, $1::uuid)', [idem()]);
 const leave = (db, uid, slot = 0) => as(db, uid, 'select public.hr_hunt_party_leave($1, $2::uuid)', [slot, idem()]);
 const kick = (db, uid, seat) => as(db, uid, 'select public.hr_hunt_party_kick(0, $1, $2::uuid)', [seat, idem()]);
+const joinParty = (db, uid, party) => as(db, uid, 'select public.hr_hunt_party_join(0, $1::uuid, $2::uuid)', [party, idem()]);
+const list = (db, uid, on) => as(db, uid, 'select public.hr_hunt_party_list(0, $1, $2::uuid)', [on, idem()]);
+const finder = async (db, uid) => ((await as(db, uid, 'select public.hr_hunt_party_finder(0, null, null)')) || {}).parties || [];
 async function accept(db, uid) {
   const inv = await one(db, "select public.hr_state_of($1, 0)->'party_invites'", [uid]);
   return as(db, uid, 'select public.hr_hunt_party_accept(0, $1::uuid, $2::uuid)', [inv && inv[0] && inv[0].id, idem()]);
@@ -244,8 +257,77 @@ const ARMS = {
                        where p.pronamespace = 'public'::regnamespace order by 1`)).rows,
       (await db.query('select proname, identity_args, grantee, note from public.hr_client_rpc_baseline order by 1, 2, 3')).rows]);
     const before = await snap();
-    try { await db.exec(SRC()); } catch (e) { return ['the second apply RAISED: ' + String(e.message).split('\n')[0]]; }
+    /* Both files, in their order: the security file restates bodies the flow file also writes. */
+    for (const f of [FILE, SEC]) {
+      try { await db.exec(SRC(f)); } catch (e) { return ['the second apply of ' + f + ' RAISED: ' + String(e.message).split('\n')[0]]; }
+    }
     return before === await snap() ? [] : ['a second apply moved the schema, a body, an ACL or a baseline row'];
+  },
+
+  'PF-LISTED': async (db) => {
+    const p = [];
+    await world(db);
+    await invite(db, A, 'Flow C');
+    await accept(db, C);
+    const pid = await partyOf(db, A);
+    if (err(await joinParty(db, B, pid)) !== 'not_listed' || await partyOf(db, B)) p.push('a join with no invite and no listing was not refused `not_listed`');
+    if ((await finder(db, B)).length !== 0) p.push('the finder shows an unlisted party');
+    if (err(await list(db, C, true)) !== 'not_leader') p.push('a member listed the party');
+    if (err(await list(db, A, true)) !== 'ok') p.push('the leader could not list the party');
+    if ((await one(db, 'select public.hr_hunt_party_view($1, 0)', [A])).listed !== true) p.push('the party section does not say listed');
+    if ((await finder(db, B)).length !== 1) p.push('the finder hides a listed party');
+    if (err(await joinParty(db, B, pid)) !== 'ok' || await partyOf(db, B) !== pid) p.push('a listed party refused the finder’s Join');
+    return p;
+  },
+
+  'PF-BLOCK': async (db) => {
+    const p = [];
+    await world(db);
+    await invite(db, A, 'Flow C');
+    await accept(db, C);
+    const pid = await partyOf(db, A);
+    await list(db, A, true);
+    if (err(await invite(db, A, 'Flow B')) !== 'ok') p.push('HARNESS: the invite before the block was refused');
+    await db.query('insert into public.chat_blocks (blocker_id, blocked_id) values ($1, $2)', [C, B]);   // a MEMBER blocks B
+    if (err(await invite(db, A, 'Flow B')) !== 'unavailable') p.push('an invite across a member’s block was not refused');
+    if (err(await accept(db, B)) !== 'unavailable' || await partyOf(db, B)) p.push('an accept across a member’s block seated B');
+    if (err(await joinParty(db, B, pid)) !== 'unavailable') p.push('a join across a member’s block was not refused');
+    if ((await finder(db, B)).length !== 0) p.push('the finder shows B a party across a block');
+    await db.query('delete from public.chat_blocks where blocker_id = $1', [C]);
+    await db.query('insert into public.chat_blocks (blocker_id, blocked_id) values ($1, $2)', [B, A]);   // B blocks the INVITER
+    if (err(await invite(db, A, 'Flow B')) !== 'unavailable') p.push('an invite to a player who blocked the inviter was not refused');
+    return p;
+  },
+
+  'PF-KICK-HUNT': async (db) => {
+    const { hunt } = await world(db);
+    const p = await threeOf(db);
+    const pid = await partyOf(db, A);
+    if (err(await start(db, A, hunt)) !== 'ok') return [...p, 'HARNESS: the start was refused'];
+    /* B's session minutes behind (no settle ran): the kick must schedule its leave, as B's own Leave would. */
+    const sb = await one(db, 'select id from public.hunt_sessions where user_id = $1 and ended_at is null', [B]);
+    await db.query(`update public.hunt_sessions set entered_at = now() - interval '7 minutes', hunt_from = now() - interval '6 minutes', settled_to = now() - interval '5 minutes',
+                    next_swing_at = now() - interval '5 minutes' where id = $1`, [sb]);
+    const seatOf = async (uid, slot) => Number(await one(db, 'select seat from public.hunt_party_members where user_id = $1 and slot = $2', [uid, slot]));
+    const k = await kick(db, A, await seatOf(B, 0));
+    const s = (await db.query('select leave_at, ended_at from public.hunt_sessions where id = $1', [sb])).rows[0];
+    if (err(k) !== 'ok' || k.leaving !== true || (s.leave_at === null && s.ended_at === null)) p.push('a kicked hunter keeps hunting: ' + JSON.stringify([k, s]));
+    if (await partyOf(db, B)) p.push('a kicked hunter keeps its seat');
+    /* A/1 is still walking in (settled_to ahead): the kick ends its session at once. */
+    const s1 = await one(db, 'select id from public.hunt_sessions where user_id = $1 and slot = 1 and ended_at is null', [A]);
+    await kick(db, A, await seatOf(A, 1));
+    if (await one(db, 'select ended_at from public.hunt_sessions where id = $1', [s1]) === null) p.push('a kicked walking hunter was not ended at once');
+    if (await one(db, 'select count(*)::int from public.hunt_sessions where instance_id = $1 and ended_at is null and leave_at is null', [pid]) !== 1) {
+      p.push('the instance still holds a kicked hunter with no leave scheduled');
+    }
+    return p;
+  },
+
+  'PF-M8': async (db) => {
+    const names = ['hr_party_create', 'hr_party_invite', 'hr_party_accept', 'hr_party_kick', 'hr_party_leave', 'hr_party_hunt_stop'];
+    const left = (await db.query(`select proname from pg_proc where pronamespace = 'public'::regnamespace and proname = any ($1)
+                                  union all select proname from public.hr_client_rpc_baseline where proname = any ($1)`, [names])).rows;
+    return left.length ? ['the dormant M8 verbs are still installed or baselined: ' + left.map((r) => r.proname).join(', ')] : [];
   },
 
   'PF-GRANT': async (db) => {
@@ -267,7 +349,8 @@ const ARMS = {
 
 /* Each mutant: [find, replace] in the migration, the arm that must go red. Its §7 is made an uncalled function. */
 const MUTANTS = [
-  { arm: 'PF-INVITE', why: 'the first invite needs a party made first',
+  /* The invite that runs is the security file's restatement: its mutants plant there (file: SEC). */
+  { arm: 'PF-INVITE', file: SEC, why: 'the first invite needs a party made first',
     find: '      v_pid := public.hr_party_open(v_uid, p_slot);\n    end if;\n    select * into v_p',
     repl: "      return public.hr_note_rejection('hunt_party_invite', p_slot, jsonb_build_object('ok', false, 'error', 'no_party'));\n    end if;\n    select * into v_p" },
   { arm: 'PF-OWN', why: 'an own character is not seated',
@@ -296,6 +379,21 @@ const MUTANTS = [
     find: 'revoke execute on function public.hr_hunt_party_sweep(int) from public, anon, authenticated, service_role;',
     repl: 'revoke execute on function public.hr_hunt_party_sweep(int) from public, anon, service_role;\ngrant execute on function public.hr_hunt_party_sweep(int) to authenticated;' },
 ];
+
+/* Security's reopen must-fixes (2026-10-29-party-security.sql). */
+MUTANTS.push(
+  { arm: 'PF-LISTED', file: SEC, why: 'the finder’s Join seats in an unlisted party',
+    find: "  if p_need_listed and not v_p.listed then return jsonb_build_object('ok', false, 'error', 'not_listed'); end if;\n", repl: '' },
+  { arm: 'PF-LISTED', file: SEC, why: 'the finder lists unlisted parties',
+    find: '     where p.closed_at is null and p.listed and (p_hunt is null', repl: '     where p.closed_at is null and (p_hunt is null' },
+  { arm: 'PF-BLOCK', file: SEC, why: 'a join or an accept ignores a member’s block',
+    find: "  if exists (select 1 from public.hunt_party_members m where m.party_id = p_party and m.user_id <> p_uid\n               and public.hr_social_blocked(p_uid, m.user_id)) then",
+    repl: '  if false then' },
+  { arm: 'PF-BLOCK', file: SEC, why: 'an invite ignores a member’s block',
+    find: 'and m.user_id <> v_t.user_id and public.hr_social_blocked(v_t.user_id, m.user_id))) then', repl: 'and false)) then' },
+  { arm: 'PF-KICK-HUNT', file: SEC, why: 'a kicked hunter keeps hunting and sharing',
+    find: '  if v_s.id is not null and v_s.instance_id = v_pid then\n    v_leaving := true;', repl: '  if false then\n    v_leaving := true;' },
+);
 
 function selfCheckOff(src) {
   const m = src.match(/\n(-- (?:── )?§\d+ SELF-CHECK[^\n]*(?:\n--[^\n]*)*)\n(do \$(\w*)\$)/);
@@ -326,18 +424,20 @@ async function main() {
     await db.close().catch(() => {});
     process.exit(bad ? 1 : 0);
   }
-  /* The control: the file re-applied with its self-check off and nothing planted keeps every mutant's arm green. */
-  const base = selfCheckOff(SRC());
+  /* The control: both files re-applied in order, self-checks off, nothing planted: every mutant's arm stays green. */
+  const base = { [FILE]: selfCheckOff(SRC(FILE)), [SEC]: selfCheckOff(SRC(SEC)) };
+  const prelude = (b) => b[FILE] + '\n' + b[SEC];
   let missed = 0;
   for (const arm of new Set(MUTANTS.map((m) => m.arm))) {
-    const p = await runArm(db, arm, base);
+    const p = await runArm(db, arm, prelude(base));
     if (p.length) { console.error(`✗ CONTROL ${arm} is red with nothing planted: ${p[0]}`); missed++; }
   }
   for (const mu of MUTANTS) {
+    const f = mu.file || FILE;
     const edits = [[mu.find, mu.repl], ...(mu.also ? [mu.also] : [])];
-    if (edits.some(([f]) => !base.includes(f))) { console.error(`✗ ${mu.arm} (${mu.why}): anchor not found`); missed++; continue; }
-    const planted = edits.reduce((s, [f, r]) => s.replace(f, () => r), base);
-    const p = (await runArm(db, mu.arm, planted)).filter((x) => !x.startsWith('HARNESS'));
+    if (edits.some(([x]) => !base[f].includes(x))) { console.error(`✗ ${mu.arm} (${mu.why}): anchor not found in ${f}`); missed++; continue; }
+    const planted = Object.assign({}, base, { [f]: edits.reduce((s, [x, r]) => s.replace(x, () => r), base[f]) });
+    const p = (await runArm(db, mu.arm, prelude(planted))).filter((x) => !x.startsWith('HARNESS'));
     if (p.length) console.log(`✓ ${mu.arm} catches: ${mu.why} — ${p[0].slice(0, 120)}`);
     else { console.error(`✗ ${mu.arm} MISSED: ${mu.why}`); missed++; }
   }

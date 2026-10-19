@@ -87,6 +87,9 @@ end $mig$;
 
 -- ── §1 THE GROUND IS CHOSEN AT START ─────────────────────────────────────────
 alter table public.hunt_parties alter column hunt_id drop not null;
+-- LISTED: the leader shows the party in the finder (hr_hunt_party_list, 2026-10-29-party-security.sql); a
+-- party is private until then, joined only by invite. Projected as the `party` section's `listed`.
+alter table public.hunt_parties add column if not exists listed boolean not null default false;
 comment on table public.hunt_parties is
   '2026-10-23 (lane S1); 2026-10-28-party-flow.sql. A hunting party: up to party_max heroes, any role mix, one shared instance '
   '(id = party id). hunt_id is the ground its leader last started on (null until the first start). Written only by the '
@@ -648,7 +651,8 @@ begin
     'id', v_pid, 'hunt', coalesce(v_p.hunt_id, v_own.hunt_id),
     'max', coalesce(v_p.max_size::int, 1),
     'open', v_pid is not null and jsonb_array_length(v_mem) < v_p.max_size,
-    'leader', v_lead, 'self', v_self, 'leader_seat', v_lseat, 'self_seat', v_sseat, 'members', v_mem);
+    'leader', v_lead, 'self', v_self, 'leader_seat', v_lseat, 'self_seat', v_sseat, 'members', v_mem,
+    'listed', coalesce(v_p.listed, false));
 end $function$;
 revoke execute on function public.hr_hunt_party_view(uuid, int) from public, anon, authenticated, service_role;
 

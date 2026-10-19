@@ -32,7 +32,9 @@
 //   A-STAMINA a refill bought DURING a hunt (attended) raises the pool at the
 //             session's settled_to, and the next settles run past the old end;
 //   A-PARTY   invite by name -> accept -> the leader's one start enters both
-//             members with their OWN bags, and the instance settles them.
+//             members with their OWN bags, and the instance settles them; a kicked
+//             hunter is ended `left` at its leave and the instance settles on
+//             without it (Security reopen #2, 2026-10-29-party-security.sql).
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -246,6 +248,23 @@ const ARMS = {
     for (const at of H.ticksOf(30000, 3 * 60000)(from)) await H.settleTo(db, M, at, { user: a });
     const swings = await H.q(db, 'select user_id, swing_index from public.hunt_sessions where instance_id = $1 and ended_at is null', [pid]);
     if (swings.length !== 2 || swings.some((s) => !(Number(s.swing_index) > 0))) p.push('the instance did not settle both members: ' + JSON.stringify(swings));
+    /* SECURITY REOPEN #2 (2026-10-29-party-security.sql): the leader kicks the HUNTING member. Minutes behind the
+       clock, its session gets leave_at; the next settle ends it `left` there, and the instance settles on with the
+       leader alone, so the kicked member is in no later split. */
+    await db.query('delete from public.hr_rate_counters');
+    const sb = await H.one(db, 'select id from public.hunt_sessions where instance_id = $1 and user_id = $2 and ended_at is null', [pid, b]);
+    const seatB = await H.one(db, 'select seat from public.hunt_party_members where party_id = $1 and user_id = $2', [pid, b]);
+    const k = await ok(a, 'select public.hr_hunt_party_kick(0, $1, $2::uuid)', [seatB, idem()]);
+    if (k.leaving !== true || await H.one(db, 'select public.hr_hunt_party_of($1, 0)', [b])) p.push('the kick did not take the hunter out: ' + JSON.stringify(k));
+    const nowMs = Number(await H.one(db, 'select floor(extract(epoch from now()) * 1000)::bigint'));
+    const from2 = Number(await H.one(db, 'select floor(extract(epoch from settled_to) * 1000)::bigint from public.hunt_instances where id = $1', [pid]));
+    for (const at of [...H.ticksOf(30000, 4 * 60000)(from2).filter((x) => x < nowMs), nowMs]) await H.settleTo(db, M, at, { user: a });
+    const end = (await H.q(db, 'select ended_at, end_reason, leave_at, settled_to from public.hunt_sessions where id = $1', [sb]))[0];
+    if (!end || end.ended_at === null || end.end_reason !== 'left' || (end.leave_at && new Date(end.settled_to) > new Date(end.leave_at))) {
+      p.push('the kicked hunter was not ended at its leave: ' + JSON.stringify(end));
+    }
+    const open = await H.q(db, 'select user_id from public.hunt_sessions where instance_id = $1 and ended_at is null', [pid]);
+    if (open.length !== 1 || open[0].user_id !== a) p.push('after the kick the instance holds ' + JSON.stringify(open) + ', want the leader alone');
     return p;
   },
 };

@@ -12,6 +12,8 @@
 //   disbandParty(account, cs)           the leader closes the party, in town
 //   inviteOwn(account, cs, otherSlot)   one of this account's own characters
 //                                       joins at once (no accept step)
+//   listParty(account, cs, on)          the leader shows the party in the
+//                                       finder or hides it (private = invite only)
 //   afterLeave(account, cs, send)       a CharacterSession leave / kick, then
 //                                       the account's other partied characters
 //                                       re-read too
@@ -78,6 +80,13 @@ export async function inviteOwn(account, cs, otherSlot) {
   const other = typeof account.character === 'function' ? account.character(otherSlot) : null;
   const peers = partyPeersOf(account, cs).concat(other ? [other] : []);
   return settled(await account.server.rpc('hr_hunt_party_invite_own', { p_slot: cs.slot, p_other_slot: otherSlot, p_idem: newIdem() }), peers);
+}
+
+/** The leader shows its party in the finder (`on`) or hides it; until listed, a party is joined by invite only. */
+export async function listParty(account, cs, on) {
+  if (!usable(account, cs) || typeof on !== 'boolean') return { ok: false, error: 'bad_intent', seats: [] };
+  const peers = partyPeersOf(account, cs);
+  return settled(await account.server.rpc('hr_hunt_party_list', { p_slot: cs.slot, p_listed: on, p_idem: newIdem() }), peers);
 }
 
 /**

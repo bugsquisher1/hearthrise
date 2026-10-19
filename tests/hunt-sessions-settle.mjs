@@ -845,6 +845,9 @@ async function hunter(db, M, o) {
   if (o.party) {
     await asUser(db, UIDS[0]);
     party = (await one(db, `select public.hr_hunt_party_create(0, 'mill_cellar', $1::uuid)`, [idem()])).party.id;
+    /* A party is joined only by invite or once its leader LISTS it (2026-10-29-party-security.sql). */
+    const listed = await one(db, 'select public.hr_hunt_party_list(0, true, $1::uuid)', [idem()]);
+    if (!listed || listed.ok !== true) throw new Error('party list refused: ' + JSON.stringify(listed));
     for (let i = 1; i < who.length; i++) {
       await asUser(db, UIDS[i]);
       const j = await one(db, 'select public.hr_hunt_party_join(0, $1::uuid, $2::uuid)', [party, idem()]);

@@ -7,7 +7,9 @@
 // with NO member of that weapon type yet. A party picks its ground at Start, so
 // there is no ground filter; a row names the ground it last hunted, if any. The
 // filter starts on this character's own weapon (the server's `role` section, or
-// its party seat), so the common search is one press. The rows are the
+// its party seat), so the common search is one press. A party is private
+// (invite only) until its leader lists it: the leader's switch here is ONE
+// hr_hunt_party_list and reads the server's `listed`. The rows are the
 // server's answer held as window scratch — never the record, and nothing can
 // spend them: Join is the server's own check under its lock.
 // ════════════════════════════════════════════════════════════════════════
@@ -19,8 +21,15 @@ import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.8';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.8';
 import { refusalWords, runIntent } from '../intent-words.js?v=0.2.8';
 import { patchRoleGlyph } from '../widgets/bits.js?v=0.2.8';
+import { listParty } from '../../session/party-intents.js?v=0.2.8';
 
 const SCRATCH = new WeakMap();
+
+/** The `party` section's `listed` as the server says it (false when unsaid: private fails safe). */
+function listedOf(cs) {
+  const p = cs && typeof cs.read === 'function' ? cs.read('party') : null;
+  return !!p && typeof p === 'object' && p.listed === true;
+}
 
 /** The Party window's scratch for one character: the intent in flight, the open tab, the finder's last answer. */
 export function partyScratch(cs) {
@@ -37,7 +46,10 @@ function weaponOption(w) {
 
 export function finderHtml() {
   const weapons = Object.keys(WEAPON_ROLES).map((w) => '<option value="' + esc(w) + '">' + esc(weaponOption(w)) + '</option>').join('');
-  return '<div class="hw-add hw-find-party">'
+  /* The leader's listing switch (2026-10-29-party-security.sql): a party is private, invite only, until listed. */
+  return '<div class="hw-add hw-list-party" hidden><span class="hs-note hw-list-why"></span>'
+    + '<button type="button" class="hh-tool" data-hs-act="list-party"></button></div>'
+    + '<div class="hw-add hw-find-party">'
     + '<select class="hh-select" data-hs-act="find-weapon" aria-label="Parties with"><option value="">Any party</option>' + weapons + '</select>'
     + '<button type="button" class="hh-tool" data-hs-act="find">Search</button></div>'
     + '<p class="hs-note hw-find-why"></p>'
@@ -58,7 +70,15 @@ export function patchFinder(root, ctx, sc) {
   }
   if (sel.value !== sc.weapon && ctx.doc.activeElement !== sel) sel.value = sc.weapon;
   /* Already partied: Join would be refused `already_in_party`, so the tab says so and Join stays off. */
-  const inParty = !!partyMembershipOf(ctx.character);
+  const mine = partyMembershipOf(ctx.character);
+  const inParty = !!mine;
+  /* The leader sees whether its party is listed, the server's `listed`, and flips it with ONE intent. */
+  const listed = listedOf(ctx.character);
+  const sw = root.querySelector('.hw-list-party');
+  prop(sw, 'hidden', !(mine && mine.isLeader));
+  text(sw.querySelector('.hw-list-why'), listed ? 'Your party shows in the finder.' : 'Your party is private: only players you invite can join.');
+  text(sw.querySelector('button'), listed ? 'Hide from the finder' : 'Show in the finder');
+  prop(sw.querySelector('button'), 'disabled', sc.pending);
   const why = root.querySelector('.hw-find-why');
   text(why, inParty ? 'You are in a party. Leave it to join another.' : '');
   prop(why, 'hidden', !inParty);
@@ -95,6 +115,12 @@ export function actFinder(ctx, body, action, t, repaint) {
       sc.findMsg = r.ok ? (sc.found && sc.found.length ? '' : 'No open party matches. Right-click a player to invite them and start your own.') : refusalWords(r.error);
       return { ok: true };
     }, 'Searching…', () => '');
+    return true;
+  }
+  if (action === 'list-party') {
+    const on = !listedOf(cs);
+    runIntent(sc, repaint, () => listParty(ctx.account, cs, on), on ? 'Listing your party…' : 'Hiding your party…',
+      () => (on ? 'Your party shows in the finder.' : 'Your party is private again.'));
     return true;
   }
   if (action === 'join') {

@@ -60,6 +60,7 @@ const WORDS = Object.freeze({
   no_invite: 'That invite has gone.',
   already_hunting: 'Everyone in the party is already hunting.',
   away: 'They are away from the game.',
+  not_listed: 'That party is not open to join. Ask its leader for an invite.',
   /* Going hunting (hr_hunt_enter) and the storage (hr_bank_move). */
   activity_locked: 'Your combat level is too low for that hunt yet.',
   activity_running: 'Your hero is busy with something else (burying, say). Stop it in the Inventory first.',

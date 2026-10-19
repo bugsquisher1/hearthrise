@@ -128,13 +128,13 @@ async function checks(overrides) {
       const { ctx, page, errors, up } = await enter(browser, base, { width: 2560, height: 1200 });
       if (!up) fails.push('WC-1 the town did not mount');
       else {
-        for (const k of ['p', 'j', 'g']) { await page.keyboard.press(k); await settle(page); }
+        for (const k of ['p', 'r', 'g']) { await page.keyboard.press(k); await settle(page); }
         const r0 = await rects(page);
-        if (Object.keys(r0).sort().join() !== 'hunt-prep,hunt-settings,skills-trade') fails.push('WC-1 three docked windows did not open: ' + JSON.stringify(r0));
+        if (Object.keys(r0).sort().join() !== 'hunt-prep,services,skills-trade') fails.push('WC-1 three docked windows did not open: ' + JSON.stringify(r0));
         else {
           const c0 = await camera(page), h0 = await hero(page);
           /* WC-2: presses inside a window (its head, its body) move no window, no camera, no hero. */
-          for (const sel of ['[data-hs-win="hunt-settings"] .hs-win-title', '[data-hs-win="hunt-prep"] .hs-win-title', '[data-hs-win="hunt-settings"] .hs-win-title']) { await press(page, sel, 3); await page.waitForTimeout(120); }
+          for (const sel of ['[data-hs-win="services"] .hs-win-title', '[data-hs-win="hunt-prep"] .hs-win-title', '[data-hs-win="services"] .hs-win-title']) { await press(page, sel, 3); await page.waitForTimeout(120); }
           await settle(page);
           if (JSON.stringify(await rects(page)) !== JSON.stringify(r0)) fails.push('WC-1 presses inside windows moved the dock: ' + JSON.stringify(await rects(page)) + ' vs ' + JSON.stringify(r0));
           if ((await camera(page)) !== c0) fails.push('WC-2 three presses inside a window moved the camera from ' + c0 + ' to ' + (await camera(page)));
@@ -161,14 +161,14 @@ async function checks(overrides) {
           });
           if (scrolled.some((n) => n !== 0)) fails.push('WC-2 the World can be scrolled under a window (stage, pane): ' + scrolled.join(','));
           /* WC-1: the X closes on a real press and release; the others keep their rects. */
-          await press(page, '[data-hs-win="hunt-settings"] [data-hs-close]');
+          await press(page, '[data-hs-win="services"] [data-hs-close]');
           await settle(page);
           const r1 = await rects(page);
-          if (r1['hunt-settings']) fails.push('WC-1 a press on Hunt settings’ X did not close it: ' + JSON.stringify(r1));
+          if (r1['services']) fails.push('WC-1 a press on Services’ X did not close it: ' + JSON.stringify(r1));
           if (r1['hunt-prep'] !== r0['hunt-prep'] || r1['skills-trade'] !== r0['skills-trade']) fails.push('WC-1 closing one window moved the others: ' + JSON.stringify(r1) + ' vs ' + JSON.stringify(r0));
-          await page.keyboard.press('j'); await settle(page);
+          await page.keyboard.press('r'); await settle(page);
           const r2 = await rects(page);
-          if (r2['hunt-settings'] !== r0['hunt-settings']) fails.push('WC-1 a reopened window did not come back to its rect: ' + r2['hunt-settings'] + ' vs ' + r0['hunt-settings']);
+          if (r2['services'] !== r0['services']) fails.push('WC-1 a reopened window did not come back to its rect: ' + r2['services'] + ' vs ' + r0['services']);
         }
       }
       if (errors.length) fails.push('WC-1 console errors: ' + errors.slice(0, 3).join(' | '));

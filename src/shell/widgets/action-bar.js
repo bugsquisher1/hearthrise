@@ -17,7 +17,8 @@
 //            on a slot puts it there (src/shell/bar-assign.js)
 //   tooltip  hover, focus or a long press: name, cost, type, cooldown, effect,
 //            then the slot's setup and any conflict (action-facts.js)
-//   plaque   the action set's name, Hunt settings and the saved setups
+//   panel    the action set (Saved setups switch it), target, stance, chase and
+//            distance: each ONE intent (settings-intent.js), shown from the server
 // Shown in town too (Tyler 10-18: set it up before leaving). Every value is
 // the server's; the bar changes only when the re-read envelope says so.
 // ════════════════════════════════════════════════════════════════════════
@@ -37,6 +38,7 @@ import { resetConfigureView } from '../windows/configure-action.js?v=0.2.8';
 import { assignToBar, barKind } from '../bar-assign.js?v=0.2.8';
 import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.8';
 import { refusalWords } from '../intent-words.js?v=0.2.8';
+import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, patchControls, sendOption } from './settings-intent.js?v=0.2.8';
 
 const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const SLOT_DRAG = 'application/x-hr-bar-slot';
@@ -152,6 +154,7 @@ renderActionBar.patch = function patchActionBar(el, ctx) {
   }
   const set = s && s.presets.find((p) => p.preset === s.preset);
   text(el.querySelector('.hb-set'), set ? set.name : s ? 'Set ' + (s.preset + 1) : '–');
+  patchControls(el.querySelector('.hb-plaque'), cs);
   const tip = el.querySelector('.hb-tip.is-on');
   if (tip) { const i = tip.getAttribute('data-for'); attr(tip, 'data-for', null); const li = el.querySelector('.hb-slot[data-slot="' + i + '"]'); if (li) showTip(el, li, ctx); }
 };
@@ -229,7 +232,13 @@ function openOn(ctx, i) {
 }
 
 renderActionBar.act = function actActionBar(ctx, el, action, ev, t) {
-  if (action === 'editor' && ev.type === 'click') { ctx.show('hunt-settings'); return; }
+  /* The panel: target, stance, chase, distance — ONE intent each, the controls off until the server answers (settings-intent.js). */
+  if (action === 'opt') {
+    /* A button acts on its click, a select on its change; the bar's other events (pointer, drag, key) never send. */
+    if (ev.type !== (t.tagName === 'SELECT' ? 'change' : 'click')) return;
+    sendOption(ctx, el.querySelector('.hb-plaque'), t, () => renderActionBar.patch(el, ctx));
+    return;
+  }
   if (action === 'setups' && ev.type === 'click') { ctx.show('hunt-prep'); return; }
   if (action === 'drop' && ev.type === 'click') {
     const d = DROP.get(el);

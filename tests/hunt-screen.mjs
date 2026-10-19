@@ -41,9 +41,14 @@
 //         hunt, no Hunt details; a running hunt shows Leave hunt
 //   HS-11 A SLOT THAT NEVER FIRES: an earlier slot with the same action under
 //         weaker conditions marks it "!" with the reason; emptying it clears that
-//   HS-12 the bar carries no fight controls; Hunt settings no density, no gathering
+//   HS-12 THE BAR PANEL holds target, stance, chase, distance (nothing else); each is ONE
+//         intent, shows the server value, survives a reload; no Hunt settings window
 //   HS-13 THE VITALS HUB: HP, mana, level, XP and stamina from the envelope, replaced by
 //         the next one; a melee hero with no mana pool still shows its mana gauge
+//   HS-14 DRAG: onto an empty slot it moves; onto an action a menu (Swap with X / Insert
+//         here, shift the rest / Escape or a press away cancels); one intent per choice;
+//         the status line clears on the server's answer
+//   HS-15 every struck slot says why (glyph + the tooltip's first line), one slot a reason
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { launchOptions } from './_chrome.mjs';
@@ -216,37 +221,64 @@ async function checks(overrides, shots) {
       await ctx.close();
     }
 
-    { // HS-3 intent-only edits: confirmed, then refused
+    { // HS-3 intent-only edits on the bar's panel: confirmed, then refused; HS-12 the panel holds what Hunt settings held, and there is no Hunt settings window
       const { ctx, page, s, up } = await open();
       if (up) {
         s.env.hunt_settings.stance = 'offensive';   // what the server says once it has saved
-        /* Target, stance and chase live in Hunt settings (J), not on the bar (Tyler 10-18). */
-        await page.keyboard.press('j');
-        await wait(page, () => document.querySelector('[data-hs-win="hunt-settings"] .he-form [data-opt="stance"]:not([disabled])'), null, 3000);
-        const btn = '.he-form [data-opt="stance"][data-val="offensive"]';
+        /* Target, stance, chase and distance live on the bar's panel (Tyler 10-19). */
+        const P = '.hb-plaque';
+        await wait(page, (p) => document.querySelector(p + ' [data-opt="stance"]:not([disabled])'), P, 3000);
+        const btn = P + ' [data-opt="stance"][data-val="offensive"]';
         await page.click(btn);
-        const mid = await page.evaluate((b) => ({ off: document.querySelector(b).disabled, pressed: document.querySelector(b).getAttribute('aria-pressed'),
-          allOff: Array.from(document.querySelectorAll('.he-form [data-opt]')).every((c) => c.disabled) }), btn);
-        if (!mid.off || !mid.allOff) fails.push('HS-3 the settings controls stayed on while the intent was in flight');
+        const mid = await page.evaluate(([b, p]) => ({ off: document.querySelector(b).disabled, pressed: document.querySelector(b).getAttribute('aria-pressed'),
+          allOff: Array.from(document.querySelectorAll(p + ' [data-opt]')).every((c) => c.disabled) }), [btn, P]);
+        if (!mid.off || !mid.allOff) fails.push('HS-3 the panel controls stayed on while the intent was in flight');
         if (mid.pressed !== 'false') fails.push('HS-3 the stance showed as chosen before the server confirmed it');
         const sent = s.calls.filter((c) => c.name === 'hr_action_set_options');
         if (sent.length !== 1 || JSON.stringify(sent[0].body.p_opts) !== '{"stance":"offensive"}' || sent[0].body.p_slot !== 0) fails.push('HS-3 the press sent ' + JSON.stringify(sent.map((c) => c.body)));
         const done = await wait(page, (b) => !document.querySelector(b).disabled && document.querySelector(b).getAttribute('aria-pressed') === 'true', btn, 3000);
         if (!done) fails.push('HS-3 after the server confirmed, the stance did not show the server’s new value');
-        /* Refused: the server's value stays and the plaque says why. */
+        /* Refused: the server's value stays and the panel says why. */
         s.optionsReply = { ok: false, error: 'bad_option' };
-        const def = '.he-form [data-opt="stance"][data-val="defensive"]';
+        const def = P + ' [data-opt="stance"][data-val="defensive"]';
         await page.click(def);
         await page.waitForTimeout(100);
         const back = await wait(page, (b) => !document.querySelector(b).disabled, def, 3000);
-        const r = await page.evaluate((b) => ({ pressed: document.querySelector(b).getAttribute('aria-pressed'), msg: document.querySelector('.he-form .hh-intent-msg').textContent }), def);
-        /* HS-12: the bar keeps no fight controls; Hunt settings keeps no density (the hunt picker's) and no gathering share (not live). */
-        const left = await page.evaluate(() => ({ plaque: document.querySelectorAll('.hb-plaque [data-opt]').length,
-          settings: Array.from(document.querySelectorAll('[data-hs-win="hunt-settings"] [data-opt]')).map((e) => e.getAttribute('data-opt')),
-          words: document.querySelector('[data-hs-win="hunt-settings"]').innerText }));
-        if (left.plaque) fails.push('HS-12 the bar still carries ' + left.plaque + ' fight controls');
-        if (left.settings.includes('density') || left.settings.includes('gather_share') || /gather/i.test(left.words)) fails.push('HS-12 Hunt settings still shows density or gathering: ' + left.settings.join(','));
+        const r = await page.evaluate(([b, p]) => ({ pressed: document.querySelector(b).getAttribute('aria-pressed'), msg: document.querySelector(p + ' .hh-intent-msg').textContent }), [def, P]);
         if (!back || r.pressed !== 'false' || !r.msg) fails.push('HS-3 a refusal did not keep the server’s stance with a reason (' + JSON.stringify(r) + ')');
+        /* HS-12: exactly target, stance, chase and distance; no eat/drink thresholds, no supplies, no density, no gathering; J opens nothing. */
+        s.optionsReply = { ok: true };
+        const opts = await page.evaluate((p) => Array.from(new Set(Array.from(document.querySelectorAll(p + ' [data-opt]')).map((e) => e.getAttribute('data-opt')))).sort().join(), P);
+        if (opts !== 'chase,distance,stance,target_mode') fails.push('HS-12 the panel holds ' + opts);
+        await page.keyboard.press('j');
+        await page.waitForTimeout(300);
+        if (await page.$('[data-hs-win="hunt-settings"]')) fails.push('HS-12 a Hunt settings window still opens');
+        /* Each control is ONE intent and shows only the server's value. */
+        const one = async (label, act, want, set) => {
+          const before = s.calls.filter((c) => c.name === 'hr_action_set_options').length;
+          Object.assign(s.env.hunt_settings, set);
+          await act();
+          await wait(page, (p) => !document.querySelector(p).classList.contains('is-pending'), P, 3000);
+          await page.waitForTimeout(150);
+          const got = s.calls.filter((c) => c.name === 'hr_action_set_options').slice(before).map((c) => JSON.stringify(c.body.p_opts));
+          if (got.length !== 1 || got[0] !== want) fails.push('HS-12 ' + label + ' sent ' + JSON.stringify(got) + ' (all: ' + JSON.stringify(s.calls.filter((c) => c.name === 'hr_action_set_options').map((c) => c.body.p_opts)) + ')');
+        };
+        await one('the target', () => page.selectOption(P + ' [data-opt="target_mode"]', 'weakest'), '{"target_mode":"weakest"}', { target_mode: 'weakest' });
+        const chase0 = FIXTURE.hunt_settings.chase;
+        await one('chase', () => page.click(P + ' [data-opt="chase"]'), JSON.stringify({ chase: !chase0 }), { chase: !chase0 });
+        const d0 = FIXTURE.hunt_settings.distance;
+        await one('distance', () => page.click(P + ' [data-opt="distance"][data-val="1"]'), JSON.stringify({ distance: d0 + 1 }), { distance: d0 + 1 });
+        const shown = await page.evaluate((p) => ({ target: document.querySelector(p + ' [data-opt="target_mode"]').value,
+          chase: document.querySelector(p + ' [data-opt="chase"]').getAttribute('aria-pressed'), distance: document.querySelector(p + ' [data-show="distance"]').textContent }), P);
+        if (shown.target !== 'weakest' || shown.chase !== String(!chase0) || shown.distance !== String(d0 + 1)) fails.push('HS-12 the panel does not show the server’s values: ' + JSON.stringify(shown));
+        /* After a reload, the same values come back from the server. */
+        await page.reload({ waitUntil: 'load' });
+        if (!(await signInAndPlay(page, ''))) fails.push('HS-12 the screen did not mount after a reload');
+        else {
+          const again = await page.evaluate((p) => ({ target: document.querySelector(p + ' [data-opt="target_mode"]').value, stance: (document.querySelector(p + ' [data-opt="stance"][aria-pressed="true"]') || {}).getAttribute ? document.querySelector(p + ' [data-opt="stance"][aria-pressed="true"]').getAttribute('data-val') : null,
+            distance: document.querySelector(p + ' [data-show="distance"]').textContent }), P);
+          if (again.target !== 'weakest' || again.stance !== 'offensive' || again.distance !== String(d0 + 1)) fails.push('HS-12 after a reload the panel is not the server’s: ' + JSON.stringify(again));
+        }
       } else fails.push('HS-3 the screen did not mount');
       await ctx.close();
     }
@@ -383,6 +415,102 @@ async function checks(overrides, shots) {
       await ctx.close();
     }
 
+    { // HS-14 drag on the bar: onto an empty slot it moves; onto an action a menu (Swap / Insert / cancel); one intent per choice; the status line clears
+      const { ctx, page, s, up } = await open();
+      if (up) {
+        const wire = (x) => (x ? { action: x.action, conditions: x.conditions, join: x.join || 'and' } : null);
+        const base = Array.from({ length: 20 }, (_, i) => wire(FIXTURE.hunt_settings.slots[i]));
+        const drag = (from, to) => page.evaluate(([f, t]) => {
+          const dt = new DataTransfer();
+          const a = document.querySelector('.hb-slot[data-slot="' + f + '"]'), b = document.querySelector('.hb-slot[data-slot="' + t + '"]');
+          a.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: dt }));
+          b.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }));
+          b.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }));
+          a.dispatchEvent(new DragEvent('dragend', { bubbles: true, dataTransfer: dt }));
+        }, [from, to]);
+        const sent = () => s.calls.filter((c) => c.name === 'hr_action_set_options').map((c) => c.body.p_opts.slots);
+        const lastIs = async (label, want) => {
+          for (let i = 0; i < 40 && sent().length < want.n; i++) await page.waitForTimeout(50);
+          const all = sent();
+          if (all.length !== want.n || JSON.stringify(all[all.length - 1]) !== JSON.stringify(want.bar)) fails.push('HS-14 ' + label + ' sent ' + JSON.stringify(all[all.length - 1]).slice(0, 400));
+          const cleared = await wait(page, () => document.querySelector('.hb-plaque .hh-intent-msg').textContent === '', null, 3000);
+          if (!cleared) fails.push('HS-14 the status line stayed after the server answered ' + label);
+        };
+        const menuOn = () => page.evaluate(() => document.querySelector('.hb-drop').classList.contains('is-on'));
+        /* Onto an empty slot: it just moves there. */
+        await drag(4, 7);
+        if (await menuOn()) fails.push('HS-14 a drop onto an empty slot opened the menu');
+        const moved = base.slice(); moved[7] = base[4]; moved[4] = null;
+        await lastIs('a move onto an empty slot', { n: 1, bar: moved });
+        /* Onto an action: the menu names the dragged action and the target; Escape cancels with no intent. */
+        await drag(0, 2);
+        const menu = await page.evaluate(() => ({ on: document.querySelector('.hb-drop').classList.contains('is-on'), title: document.querySelector('.hb-drop-t').textContent,
+          swap: document.querySelector('.hb-drop [data-x="swap"]').textContent, insert: document.querySelector('.hb-drop [data-x="insert"]').textContent }));
+        if (!menu.on || menu.title !== 'Power Strike' || menu.swap !== 'Swap with Wheat Bread' || menu.insert !== 'Insert here (shift the rest)') fails.push('HS-14 the drop menu reads ' + JSON.stringify(menu));
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(400);
+        if (await menuOn() || sent().length !== 1) fails.push('HS-14 Escape did not cancel the drop (menu or an intent left)');
+        /* A press elsewhere cancels too. */
+        await drag(0, 2);
+        await page.mouse.click(700, 300);
+        await page.waitForTimeout(300);
+        if (await menuOn() || sent().length !== 1) fails.push('HS-14 a press away did not cancel the drop');
+        /* Swap: exactly the two change places. */
+        await drag(0, 2);
+        await page.click('.hb-drop [data-x="swap"]');
+        const swapped = base.slice(); swapped[0] = base[2]; swapped[2] = base[0];
+        await lastIs('a swap', { n: 2, bar: swapped });
+        /* Insert: the target and the slots after it shift one place, up to the first empty slot. */
+        await drag(0, 2);
+        await page.click('.hb-drop [data-x="insert"]');
+        const ins = base.slice(); ins[0] = null; ins[2] = base[0]; ins[3] = base[2]; ins[4] = base[3]; ins[5] = base[4];
+        await lastIs('an insert', { n: 3, bar: ins });
+        if (shots) { await drag(0, 2); await page.screenshot({ path: join(shots, 'hunt-1440x900-drop-menu.png') }); await page.keyboard.press('Escape'); }
+      } else fails.push('HS-14 the screen did not mount');
+      await ctx.close();
+    }
+
+    { // HS-15 every struck slot says why: a glyph on the slot, the reason first in its tooltip (the server's rules, action-facts.js reasonOf)
+      const { ctx, page, s, up } = await open();
+      if (up) {
+        const why = (i) => page.evaluate((k) => {
+          const li = document.querySelector('.hb-slot[data-slot="' + k + '"]');
+          li.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+          const w = document.querySelector('.hb-tip .is-why');
+          return { off: li.classList.contains('is-off'), wait: li.classList.contains('is-wait'), glyph: !!li.querySelector('.hb-why svg'), text: w ? w.textContent : '' };
+        }, i);
+        const S = s.env.hunt_settings;
+        Object.assign(S, { role: 'tank', supply_source: 'mine', on_empty: 'end' });
+        s.env.hunt.hero.mana = 2;
+        S.slots[2] = Object.assign({}, S.slots[2], { count: 0 });
+        S.slots[5] = { action: { type: 'consume', id: 'food' }, conditions: [], join: 'and', usable: true, count: 0 };
+        await pushEnvelope(page, s);
+        await page.waitForTimeout(300);
+        const want = [
+          [0, 'mana', /^Needs 6 mana, you have 2\.$/, false],
+          [1, 'rune', /^Needs a Fire Rune in the bag/, true],
+          [2, 'stock', /^Out of stock and no store fallback/, true],
+          [5, 'store off', /^Out of stock, and this hero is set to end the hunt rather than buy from the store/, true],
+        ];
+        for (const [i, label, re, strike] of want) {
+          const w = await why(i);
+          if (!re.test(w.text) || !w.glyph || w.off !== strike || w.wait !== !strike) fails.push('HS-15 the ' + label + ' slot reads ' + JSON.stringify(w));
+        }
+        if (shots) await page.screenshot({ path: join(shots, 'hunt-1440x900-slot-reasons.png') });
+        S.role = 'healer';
+        await pushEnvelope(page, s);
+        await page.waitForTimeout(300);
+        const wrong = await why(0);
+        if (!/^Your weapon can’t use this\. Needs /.test(wrong.text) || !wrong.off || !wrong.glyph) fails.push('HS-15 the wrong-weapon slot reads ' + JSON.stringify(wrong));
+        delete S.role;
+        await pushEnvelope(page, s);
+        await page.waitForTimeout(300);
+        const none = await why(0);
+        if (!/^No weapon worn/.test(none.text) || !none.off) fails.push('HS-15 the no-weapon slot reads ' + JSON.stringify(none));
+      } else fails.push('HS-15 the screen did not mount');
+      await ctx.close();
+    }
+
     { // HS-11 a slot that can never fire: the same action under weaker conditions earlier shows "!" and why; emptying the earlier one clears it
       const { ctx, page, s, up } = await open();
       if (up) {
@@ -390,7 +518,7 @@ async function checks(overrides, shots) {
         await pushEnvelope(page, s);
         const blocked = await wait(page, () => document.querySelector('.hb-slot[data-slot="6"]').classList.contains('is-blocked')
           && !document.querySelector('.hb-slot[data-slot="0"]').classList.contains('is-blocked'), null, 3000);
-        const tip = await page.evaluate(() => { document.querySelector('.hb-slot[data-slot="6"]').dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); return document.querySelector('.hb-tip .is-warn') ? document.querySelector('.hb-tip .is-warn').textContent : ''; });
+        const tip = await page.evaluate(() => { document.querySelector('.hb-slot[data-slot="6"]').dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); return document.querySelector('.hb-tip .is-warn:not(.is-why)') ? document.querySelector('.hb-tip .is-warn:not(.is-why)').textContent : ''; });
         if (!blocked || !/Blocked by Power Strike \(slot 1\)/.test(tip)) fails.push('HS-11 the never-firing slot shows no "!" or no reason: ' + tip);
         s.env.hunt_settings.slots[0] = null;
         await pushEnvelope(page, s);
@@ -417,7 +545,8 @@ async function checks(overrides, shots) {
       const note = await page.evaluate(() => ({ choice: document.querySelector('.hc-choice[data-id="food"] .hc-choice-note').textContent,
         facts: document.querySelector('.hc-facts').textContent }));
       if (!/store from \d+ g each/.test(note.choice) || !/paid as used/.test(note.facts)) fails.push('HS-8 Any food does not show the store price paid as used: ' + JSON.stringify(note));
-      await page.click('.hc-conds-head [data-x="add"]');
+      /* A food slot starts at HP below 50% (Eat at is gone); the player moves it to 60. */
+      if ((await page.$$eval('.hc-cond.is-on', (n) => n.length)) !== 1) fails.push('HS-8 a new food slot does not start with its HP condition');
       await page.fill('.hc-cond[data-cond="0"] [data-f="value"]', '60');
       await page.dispatchEvent('.hc-cond[data-cond="0"] [data-f="value"]', 'change');
       if (shots) await page.screenshot({ path: join(shots, 'town-' + tag + '-configure-action.png') });
@@ -514,6 +643,11 @@ const MUTANTS = [
   ['the mana gauge hides for a hero with no pool', 'src/shell/widgets/vitals-hub.js', "  fill(el.querySelector('.hb-arc.is-mana'), share(v.mana, v.manaMax));", "  fill(el.querySelector('.hb-arc.is-mana'), share(v.mana, v.manaMax));\n  el.querySelector('.hb-read.is-mana').style.display = v.manaMax > 0 ? '' : 'none';"],
   ['the hub keeps the first level it drew', 'src/shell/widgets/vitals-hub.js', '  const level = hero && ok(hero.level) ? hero.level :', '  const level = 24 || hero ? 24 :'],
   ['the HP arc does not follow the server', 'src/shell/widgets/vitals-hub.js', "  fill(el.querySelector('.hb-arc.is-hp'), share(v.hp, v.hpMax));", "  fill(el.querySelector('.hb-arc.is-hp'), 1);"],
+  ['a drop onto an action moves it without asking', 'src/shell/widgets/action-bar.js', '    else openDropMenu(ctx, el, t, from, to, bar);', '    else runDrop(ctx, el, (b) => swapPlan(b, from, to));'],
+  ['insert shifts past the first empty slot', 'src/shell/bar-draft.js', '  while (k < SLOTS && out[k]) k++;', '  k = SLOTS - 1;'],
+  ['the status line stays after a drop', 'src/shell/widgets/action-bar.js', ".then((r) => { text(msg, r.ok ? '' :", ".then((r) => { text(msg, r.ok ? 'Moving it…' :"],
+  ['a slot short of its rune says nothing', 'src/shell/action-facts.js', '    if (r.rune && !((bag', '    if (false && r.rune && !((bag'],
+  ['a press on the panel sends on pointerdown', 'src/shell/widgets/action-bar.js', "    if (ev.type !== (t.tagName === 'SELECT' ? 'change' : 'click')) return;", "    if ((t.tagName === 'SELECT') !== (ev.type === 'change')) return;"],
   ['the bleed badge defaults on for regular monsters', 'src/data/combat-text.js', "label: 'Bleed stack count', on: on(false, true)", "label: 'Bleed stack count', on: on(true, true)"],
 ];
 

@@ -32,7 +32,7 @@ export function targetOptionsHtml() {
 
 /** The stance buttons. */
 export function stanceButtonsHtml() {
-  return Object.entries(HUNT_STANCES).map(([id, s]) => '<button type="button" class="hh-seg" data-opt="stance" data-val="' + esc(id) + '" data-hs-act="opt" aria-pressed="false">' + esc(s.label) + '</button>').join('');
+  return Object.entries(HUNT_STANCES).map(([id, s]) => '<button type="button" class="hh-seg" data-opt="stance" data-val="' + esc(id) + '" data-hs-act="opt" aria-pressed="false" title="' + esc(s.label) + '">' + esc(s.label) + '</button>').join('');
 }
 
 /** The distance stepper: minus, the server's value, plus. */

@@ -16,13 +16,13 @@
 // is the server's (CLAUDE.md §6): HP, mana and stamina from the envelope
 // (party-sections.js vitalsOf: the hunt hero while hunting, the character's
 // own state in town), regen, level and XP from the hunt section, the town's
-// level from the server's skills. Built once, patched in place.
+// Level (state.level_xp, character-sections.js levelOf). Built once, patched in place.
 // ════════════════════════════════════════════════════════════════════════
 import { CONSUMABLES } from '../../data/consumables.js?v=0.2.8';
-import { combatLevel } from '../../core/xp.js?v=0.2.8';
+import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.8';
 import { huntOf } from '../../session/hunt-sections.js?v=0.2.8';
 import { vitalsOf } from '../../session/party-sections.js?v=0.2.8';
-import { bagOf, skillsOf } from '../../session/item-sections.js?v=0.2.8';
+import { bagOf } from '../../session/item-sections.js?v=0.2.8';
 import { text, attr } from '../../render/paint.js?v=0.2.8';
 import { whole, hoursMinutes } from '../../render/format.js?v=0.2.8';
 import { glyphSvg } from '../launcher.js?v=0.2.8';
@@ -74,15 +74,16 @@ export function patchHub(el, ctx) {
   const v = vitalsOf(cs);
   const h = huntOf(cs);
   const hero = h && !h.ended ? h.hero : null;
-  const sk = skillsOf(cs);
-  const level = hero && ok(hero.level) ? hero.level : sk ? combatLevel(Object.fromEntries(Object.entries(sk).map(([id, r]) => [id, r.xp]))) : null;
-  const xp = hero && ok(hero.xpPct) ? hero.xpPct : null;
+  const row = levelRowOf(cs);
+  const level = hero && ok(hero.level) ? hero.level : row ? row.level : null;
+  const xp = hero && ok(hero.xpPct) ? hero.xpPct : row && row.need > 0 ? row.into / row.need : null;
   const pair = (cur, max) => (ok(cur) && ok(max) ? whole(cur) + '/' + whole(max) : '–');
-  const regen = (r) => (ok(r) ? '+' + whole(r) + '/s' : '');
+  /* Real units, per second (huntOf's hpPerS / manaPerS: the engine's in-fight rates): one decimal under 10. */
+  const regen = (r) => (ok(r) && r > 0 ? '+' + (r < 0.1 ? r.toFixed(2) : r < 10 ? r.toFixed(1) : String(Math.round(r))) + '/s' : '');
   text(el.querySelector('[data-v="hp"]'), pair(v.hp, v.hpMax));
   text(el.querySelector('[data-v="mana"]'), pair(v.mana, v.manaMax));
-  text(el.querySelector('[data-r="hp"]'), hero ? regen(hero.hpRegen) : '');
-  text(el.querySelector('[data-r="mana"]'), hero ? regen(hero.manaRegen) : '');
+  text(el.querySelector('[data-r="hp"]'), hero ? regen(hero.hpPerS) : '');
+  text(el.querySelector('[data-r="mana"]'), hero ? regen(hero.manaPerS) : '');
   fill(el.querySelector('.hb-arc.is-hp'), share(v.hp, v.hpMax));
   fill(el.querySelector('.hb-arc.is-mana'), share(v.mana, v.manaMax));
   fill(el.querySelector('.hb-arc.is-xp'), xp === null ? 0 : Math.max(0, Math.min(1, xp)));

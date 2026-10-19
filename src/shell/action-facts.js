@@ -129,7 +129,7 @@ export function supplyLines(a, set, bag) {
   if (n !== null && n > 0) out.push('You carry ' + n + '. ' + (st ? 'Own stock first, ' + storeWords(st) + '.' : 'When they run out, this slot waits.'));
   else if (n !== null) out.push(st ? 'You carry none: ' + storeWords(st).replace(/^then /, '') + '.' : 'You carry none, so this slot waits.');
   else if (st) out.push('Own stock first, ' + storeWords(st) + '.');
-  if (st && set && set.supplySource !== 'store' && set.onEmpty !== 'switch') out.push('Your supply setting keeps the store off (Hunt settings, When my bag runs out).');
+  if (st && set && set.supplySource !== 'store' && set.onEmpty !== 'switch') out.push('This hero is set to end the hunt when its own stock runs out, so the store stays off.');
   if (!st && a.type === 'consume') out.push('Choose Any food or Any drink to fall back on the store.');
   return out;
 }
@@ -214,7 +214,7 @@ export function reasonOf(sl, set, bag, hero) {
   const st = storeOf(a);
   const storeOn = !!set && (set.supplySource === 'store' || set.onEmpty === 'switch');
   if (st && storeOn) return null;
-  if (st) return { code: 'store_off', text: 'Out of stock, and your supply setting keeps the store off (Hunt settings, When my bag runs out).', glyph: 'uiChest', strike: true };
+  if (st) return { code: 'store_off', text: 'Out of stock, and this hero is set to end the hunt rather than buy from the store.', glyph: 'uiChest', strike: true };
   return { code: 'stock', text: 'Out of stock and no store fallback' + (a.type === 'consume' ? ': choose Any food or Any drink to buy as used.' : '.'), glyph: 'uiChest', strike: true };
 }
 

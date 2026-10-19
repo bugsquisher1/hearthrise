@@ -15,6 +15,7 @@ import { METRICS, OPERATORS, MAX_CONDITIONS, CONSUME_KINDS } from '../data/condi
 import { STATUSES } from '../data/statuses.js?v=0.2.8';
 import { BAR_SLOTS } from '../data/hunt-hud.js?v=0.2.8';
 import { BASIC_SUPPLIES } from '../data/supply-basics.js?v=0.2.8';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.8';
 import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.8';
 
 export const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
@@ -70,6 +71,20 @@ export function closeSlot(cs) {
 
 /* A number test starts at the middle of a percent (50) or the lowest count; a yes/no test at yes. */
 const startValue = (m) => (m.value === 'pct' ? Math.round((m.range[0] + m.range[1]) / 2) : m.range ? m.range[0] : true);
+
+/**
+ * A new food or drink slot's starting condition (Tyler 10-19: the Eat at / Drink at
+ * settings are gone; food and drink fire from their slot's condition, starting where
+ * the hero's defaults stood: HP below 50%, mana below 30%, CONSUMABLE_RULES). Other
+ * actions start with none.
+ */
+export function supplyDefault(a) {
+  if (!a || a.type !== 'consume') return [];
+  const kind = Object.prototype.hasOwnProperty.call(CONSUME_KINDS, a.id) ? a.id : CONSUMABLES[a.id] ? CONSUMABLES[a.id].kind : null;
+  if (kind === 'food') return [{ metric: 'self_hp_pct', op: 'lt', value: CONSUMABLE_RULES.foodBelowPct }];
+  if (kind === 'drink') return [{ metric: 'self_mana_pct', op: 'lt', value: CONSUMABLE_RULES.drinkBelowPct }];
+  return [];
+}
 
 /** A fresh condition on the registry's first test. */
 export function blankCondition() {

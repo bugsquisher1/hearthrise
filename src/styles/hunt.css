@@ -174,10 +174,27 @@
 .hb-slot.is-empty:hover .hb-plus, .hb-slot.is-empty:focus-visible .hb-plus { opacity: 1; color: var(--gold-2); }
 .hb-slot.is-off .hb-slot-ico { opacity: .35; }
 .hb-slot.is-off::after { content: ''; position: absolute; left: 3px; right: 3px; top: 50%; height: 2px; background: var(--red); transform: rotate(-45deg); }
-.hb-plaque { width: 132px; display: flex; flex-direction: column; gap: 2px; }
-.hb-label { font-family: var(--f-label); font-size: var(--t-micro); color: var(--ink-3); letter-spacing: .04em; }
-.hb-set { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
-.hb-tools { display: flex; gap: 4px; }
+/* The panel at the far right (Tyler 10-19: everything Hunt settings held, on the bar): the set, target, stance, chase and distance. */
+.hb-plaque { position: relative; width: 228px; display: flex; flex-direction: column; gap: 3px; }
+.hb-pl-row { display: flex; align-items: center; gap: 6px; min-height: 30px; }
+.hb-label { flex: none; font-family: var(--f-label); font-size: var(--t-micro); color: var(--ink-3); letter-spacing: .04em; }
+.hb-set { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+.hb-pl-row .hh-select { flex: 1; min-width: 0; min-height: 30px; }
+.hb-stance { display: flex; width: 100%; }
+.hb-stance .hh-seg { flex: 1 1 0; min-width: 0; padding: 0 2px; min-height: 30px; font-size: var(--t-micro); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hb-pl-row .hh-step .hh-seg { min-height: 30px; }
+/* The status line floats above the panel: a message coming or going never shifts a control under the pointer. */
+.hb-plaque .hh-intent-msg { position: absolute; left: 0; right: 0; bottom: calc(100% + 8px); margin: 0; padding: 2px 6px; font-size: var(--t-micro); background: var(--world-hud-bg); pointer-events: none; }
+.hb-plaque .hh-intent-msg:empty { display: none; }
+/* Why a slot cannot fire: a small glyph on the slot, its words first in the tooltip (action-facts.js reasonOf). */
+.hb-why { position: absolute; left: 2px; bottom: 2px; width: 14px; height: 14px; display: grid; place-items: center; pointer-events: none; }
+.hb-why .hs-glyph { width: 12px; height: 12px; color: var(--gold-2); }
+.hb-slot.is-wait .hb-slot-ico { opacity: .6; }
+/* The drop menu: onto an action, swap or insert; Escape or a press elsewhere cancels. */
+.hb-drop { display: none; position: absolute; bottom: calc(100% + 6px); width: 240px; padding: 8px; flex-direction: column; gap: 4px; background: var(--modal-bg); border: 4px solid transparent; border-image: url('../../assets/ui/frame-iron-thin.png') 2 / 4px stretch; image-rendering: pixelated; z-index: 3; }
+.hb-drop.is-on { display: flex; }
+.hb-drop-t { color: var(--ink); font-size: var(--t-small); }
+.hb-drop .hh-tool { justify-content: flex-start; text-align: left; min-height: 34px; }
 .hb-tip { display: none; position: absolute; bottom: calc(100% + 6px); width: 260px; padding: 8px 10px; background: var(--modal-bg); border: 4px solid transparent; border-image: url('../../assets/ui/frame-iron-thin.png') 2 / 4px stretch; image-rendering: pixelated; pointer-events: none; z-index: 2; }
 .hb-tip.is-on { display: block; }
 .hb-tip b { color: var(--ink); }
@@ -188,9 +205,9 @@
 .hb-tip .is-warn { color: var(--gold-2); }
 
 /* ── The vitals hub (vitals-hub.js): HP | the medallion | MP, Food and Charm under the readouts, stamina under the medallion ── */
-.hb-hub { display: grid; grid-template-columns: 84px 112px 84px; grid-template-rows: 56px 56px auto; grid-template-areas: "hp medal mp" "food medal charm" ". stam ."; column-gap: 4px; align-items: center; justify-items: center; }
-.hb-medal { grid-area: medal; position: relative; width: 112px; height: 112px; }
-.hb-arcs { position: absolute; inset: 0; width: 112px; height: 112px; overflow: visible; }
+.hb-hub { display: grid; grid-template-columns: 72px 104px 72px; grid-template-rows: 52px 52px auto; grid-template-areas: "hp medal mp" "food medal charm" ". stam ."; column-gap: 4px; align-items: center; justify-items: center; }
+.hb-medal { grid-area: medal; position: relative; width: 104px; height: 104px; }
+.hb-arcs { position: absolute; inset: 0; width: 104px; height: 104px; overflow: visible; }
 .hb-arc-well { fill: none; stroke: var(--bg-3); stroke-width: 8; }
 .hb-arc { fill: none; stroke-width: 6; stroke-linecap: butt; }
 .hb-arc.is-hp { stroke: var(--hud-fill-hp); }
@@ -384,10 +401,8 @@
   .hb-medal, .hb-arcs { width: 88px; height: 88px; }
   .hb-socket-k { display: none; }
   .hb-slots { grid-template-columns: repeat(5, 36px); grid-auto-rows: 36px; gap: 3px; }
-  .hb-plaque { width: auto; }
-  .hb-plaque .hb-label, .hb-set { display: none; }
-  .hb-tools { flex-direction: column; }
-  .hb-plaque .hh-tool { min-height: 36px; min-width: 40px; }
+  .hb-plaque { width: 196px; }
+  .hb-plaque .hb-label { display: none; }
   .hc-cfg .hh-seg, .hc-cfg .hh-select, .hc-cfg .hh-num, .hc-cfg .hh-tool { min-height: 40px; }
   .hc-list { max-height: 140px; }
   .ht-bar { gap: 6px; padding: 2px 4px; }

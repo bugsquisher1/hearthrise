@@ -1530,12 +1530,12 @@ const MUTATIONS = {
     repl: '      -- totalLevel x 2 (sum of every skill level owned) [edited after apply]',
   },
   gate_bucket_added: {
-    // FINAL BODY: hr_rpc_gate's last author is 2026-10-25-character-sheet.sql §2a
-    // (a whole restatement md5-pinned to the 2026-10-21-hunt-sessions.sql body,
+    // FINAL BODY: hr_rpc_gate's last author is 2026-10-28-reopen-rpc-sweep.sql §3
+    // (a whole restatement md5-pinned to the 2026-10-25-character-sheet.sql body,
     // so a plant in any EARLIER file trips that pin and the chain stops
     // replaying — measured 2026-10-19). The plant rides the restatement: one
     // extra bucket line. The next author of hr_rpc_gate must move this plant again.
-    file: '2026-10-25-character-sheet.sql',
+    file: '2026-10-28-reopen-rpc-sweep.sql',
     what: 'a rate bucket is edited into hr_rpc_gate in the repo — the b487 root-cause class, and '
         + 'a body EVERY client-callable RPC passes through',
     expect: 'replay hr_rpc_gate(p_bucket text)',

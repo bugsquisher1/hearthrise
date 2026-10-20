@@ -176,7 +176,12 @@ export function simulateHuntInstance(inst, ctx) {
       m.hs.swingIndex += 1;
       m.hs.nextSwingAtMs = atMs + tick;
       if (m.unitId === null) {
-        if (!world) { world = newHuntWorld(ctx.ground, ctx.grid, [heroOf(m)]); m.unitId = world.units[0].id; }
+        if (!world) {
+          world = newHuntWorld(ctx.ground, ctx.grid, [heroOf(m)]);
+          /* A restarted instance's fresh world counts on from its stored swing (the seed index never repeats). */
+          world.swing = Math.max(0, Math.floor(Number(inst.worldSwing) || 0));
+          m.unitId = world.units[0].id;
+        }
         else m.unitId = joinHero(world, ctx.ground, heroOf(m), m.seat);
         out.get(m.key).unitEver = m.unitId;
       }

@@ -29,6 +29,8 @@
 //   LV-H  THE LOOK-AHEAD (Tyler 2026-10-20): hunt_live sends liveSeeds (16) combat seeds,
 //         one constant (src/data/hunt-tuning.js) the edge reads, and the leave horizon of
 //         2026-10-31-live-horizon.sql is exactly liveSeeds x the swing.
+//   LV-T  A SECOND TANK FIGHTS: with the pack on the leader, the second shield hero walks to its own
+//         target and lands >= 60% of the leader's blows, never 3 s+ with nothing engaged beside it.
 //   LV-W  A RESTARTED INSTANCE (no world, swing counter kept) predicts from its first swing and
 //         its first commit matches (v0.2.20: the browser asked for seed 0 of a list from 40 and
 //         never started).
@@ -269,6 +271,34 @@ function rules(M) {
     }
   }
 
+  { // LV-T: A SECOND TANK FIGHTS (Andy / Tyler 10-20: "not moving to the mobs ... when he has to move after
+    // initial placement"). Two shield heroes, the pack on the leader: the second walks to its own target,
+    // lands at least 60% of the leader's blows (was 25-40%) and is never more than 3 s with no engaged
+    // monster beside it while one lives (was 6-50 s).
+    for (const [hunt, dens] of [['meadowbrook_thicket', 0], ['millrace_sewer', 7]]) {
+      const mis = [memberOf(M, 'a', 0, 'tank', 9), memberOf(M, 'b', 1, 'tank', 19)];
+      for (const m of mis) { m.huntId = hunt; m.hero = Object.assign({}, M.SPAWN.heroSetup({ weaponType: 'sword', options: {}, bar: [], partyRoles: ['tank', 'tank'] }), { density: dens }); }
+      const srv = server(M, mis, { hunt });
+      const hits = {}; let away = 0, longest = 0;
+      for (let t = T0 + M.CB.tickMs; t <= T0 + 120000; t += M.CB.tickMs) {
+        const c = srv.commit(t);
+        if (!c) break;
+        for (const e of c.tl.hunt_events) if (e.type === 'dmg') hits[e.u] = (hits[e.u] || 0) + 1;
+        const w = M.WS.decode(JSON.parse(srv.inst.world));
+        const engaged = w.units.filter((u) => u.side === 'mon' && u.alive && Number.isInteger(u.target));
+        const h = w.units.find((u) => u.id === mis[1].unitId);
+        if (!h || !h.alive) break;
+        const beside = engaged.some((m) => Math.max(Math.abs(m.x - h.x), Math.abs(m.y - h.y)) <= 1);
+        away = engaged.length && !beside ? away + M.CB.tickMs : 0;
+        longest = Math.max(longest, away);
+      }
+      const a = hits[mis[0].unitId] || 0, b = hits[mis[1].unitId] || 0;
+      console.log(`  LV-T ${hunt} d${dens}: leader ${a} blows, second tank ${b} (${Math.round(b / Math.max(1, a) * 100)}%), longest ${longest / 1000} s with no engaged monster beside it`);
+      ok('LV-T', a > 10 && b >= a * 0.6, `${hunt} d${dens}: the second tank landed ${b} blows to the leader's ${a} (want >= 60%)`);
+      ok('LV-T', longest <= 3000, `${hunt} d${dens}: the second tank stood ${longest / 1000} s with no engaged monster beside it (want <= 3 s)`);
+    }
+  }
+
   { // LV-W: a RESTARTED instance (no world, its swing counter kept: hr_hunt_start) runs live from its first swing
     const mis = [memberOf(M, 'a', 0, 'tank', 6)];
     const srv = server(M, mis);
@@ -339,6 +369,7 @@ const MUTANTS = [
     '  if (h.aiMs > 0 && h.path.length) return;\n  h.aiMs = AI_REPATH_MS.melee;\n  const free = (x, y) => !standable(inst, h, tgt.pocket, x, y) || (x === h.x && y === h.y);', /^LV-M/],
   ['a peer row carries its full setup (LV-P)', 'supabase/functions/hr-accrue/hunt-settle.js', '      if (!self) {', '      if (false) {', /^LV-P/],
   ['the look-ahead is its own number at the edge (LV-H)', 'supabase/functions/hr-accrue/hunt-settle.js', 'export const LIVE_SEEDS = HUNT_TUNING.liveSeeds;', 'export const LIVE_SEEDS = 64;', /^LV-H/],
+  ['a second tank holds where it stands (LV-T)', 'src/core/hunt/roles.js', "  if (!mons.some((m) => m.target === h.id)) { closeIn(inst, h, unitById(inst, h.target) || nearestTo(mons, h)); return; }\n", '', /^LV-T/],
   ['a fresh world counts from 0, not the instance swing (LV-W)', 'src/hunt-view/live-engine.js', '      worldSwing: s.worldSwing },', '      worldSwing: 0 },', /^LV-W/],
   ['members run in another order than the server (LV-D)', 'src/hunt-view/live-engine.js', '.slice().sort((a, b) => (a.key < b.key ? -1 : 1))', '.slice().reverse()', /^LV-D/],
 ];

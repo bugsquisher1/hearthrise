@@ -6,11 +6,11 @@
   "schema change was intended — the diff of this file is the review surface.",
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
- "generated": "2026-10-19",
- "digest": "84a36dbc25439f17c52b9eec72269eb90b09166fa1cc47a5fad6abc4e1fa0fe6",
+ "generated": "2026-10-20",
+ "digest": "ba43abb64088af6c03d48d2b644962723a87690e87f329291a5c954f503203a9",
  "counts": {
   "relations": 213,
-  "functions": 514,
+  "functions": 513,
   "policies": 129,
   "indexes": 297,
   "triggers": 34,
@@ -478,7 +478,6 @@
    "hr_hunt_open_of(p_user uuid, p_slot integer)",
    "hr_hunt_open_session(p_user uuid, p_slot integer, p_hunt text, p_prev uuid, p_preset integer, p_hours integer, p_instance uuid, p_from timestamp with time zone, p_seat integer)",
    "hr_hunt_party_accept(p_slot integer, p_invite uuid, p_idem uuid)",
-   "hr_hunt_party_create(p_slot integer, p_hunt text, p_idem uuid)",
    "hr_hunt_party_decline(p_slot integer, p_invite uuid, p_idem uuid)",
    "hr_hunt_party_disband(p_slot integer, p_idem uuid)",
    "hr_hunt_party_finder(p_slot integer, p_hunt text, p_weapon text)",

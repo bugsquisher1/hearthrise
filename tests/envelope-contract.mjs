@@ -218,10 +218,9 @@ async function seedS2(db, M, H) {
   await ok(me, "select public.hr_loot_rule_set(0, $1, 'sell', gen_random_uuid())", [SEED.loot]);
   await ok(me, 'select public.hr_restock_set(0, $1::jsonb, gen_random_uuid())', [JSON.stringify({ [SEED.food]: SEED.target })]);
   await ok(me, 'select public.hr_hunt_preset_save(0, $1, $2, gen_random_uuid())', [SEED.preset, SEED.presetName]);
-  /* An invite to this character from another party's member, found by its name. */
+  /* An invite to this character, found by its name (the first invite makes the inviter's party). */
   await H.character(db, M, other, { inv: {} });
   await ok(other, 'select public.hr_character_name_set(0, $1, gen_random_uuid())', [SEED.inviter]);
-  await ok(other, "select public.hr_hunt_party_create(0, 'mill_cellar', gen_random_uuid())");
   await ok(other, 'select public.hr_hunt_party_invite(0, $1, gen_random_uuid())', [SEED.name]);
   await db.query("select set_config('request.jwt.claim.sub', '', true)");
 }

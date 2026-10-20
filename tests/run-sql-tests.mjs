@@ -1221,7 +1221,6 @@ const CLIENT_CALLABLE = new Map([
   ['hr_login_claim', ['authenticated']],
   ['hr_hunt_enter', ['authenticated']],
   ['hr_hunt_change', ['authenticated']],
-  ['hr_hunt_party_create', ['authenticated']],
   ['hr_hunt_party_join', ['authenticated']],
   ['hr_hunt_party_leave', ['authenticated']],
   ['hr_hunt_party_kick', ['authenticated']],

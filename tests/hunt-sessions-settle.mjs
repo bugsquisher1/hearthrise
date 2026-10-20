@@ -844,8 +844,14 @@ async function hunter(db, M, o) {
   for (let i = 0; i < who.length; i++) await character(db, M, UIDS[i], who[i]);
   let party = null;
   if (o.party) {
+    /* THE FIRST INVITE MAKES THE PARTY (2026-10-28-party-flow.sql; hr_hunt_party_create is retired). */
+    await asUser(db, UIDS[1]);
+    const named = await one(db, 'select public.hr_character_name_set(0, $1, $2::uuid)', ['Settle Second', idem()]);
+    if (!named || named.ok !== true) throw new Error('name refused: ' + JSON.stringify(named));
     await asUser(db, UIDS[0]);
-    party = (await one(db, `select public.hr_hunt_party_create(0, 'mill_cellar', $1::uuid)`, [idem()])).party.id;
+    const inv = await one(db, 'select public.hr_hunt_party_invite(0, $1, $2::uuid)', ['Settle Second', idem()]);
+    if (!inv || inv.ok !== true) throw new Error('party invite refused: ' + JSON.stringify(inv));
+    party = await one(db, 'select public.hr_hunt_party_of($1::uuid, 0)', [UIDS[0]]);
     /* A party is joined only by invite or once its leader LISTS it (2026-10-29-party-security.sql). */
     const listed = await one(db, 'select public.hr_hunt_party_list(0, true, $1::uuid)', [idem()]);
     if (!listed || listed.ok !== true) throw new Error('party list refused: ' + JSON.stringify(listed));

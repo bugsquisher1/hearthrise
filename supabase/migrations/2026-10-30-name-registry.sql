@@ -69,8 +69,9 @@
 -- from 2026-10-11-name-moderation.sql. A future wipe lists hr_name_registry next
 -- to display_names / character_names (its user_id column makes the wipe's
 -- unknown-table guard ask).
--- ORDER: after 2026-10-29-party-security.sql (needs 2026-10-25-account-items.sql
--- and 2026-10-11-name-moderation.sql). No begin/commit.
+-- ORDER: last, after 2026-10-28-town-own-characters.sql (no object in common);
+-- needs 2026-10-25-account-items.sql and 2026-10-11-name-moderation.sql.
+-- No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS AND THE PIN ────────────────────────────────────────────

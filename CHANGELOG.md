@@ -5,6 +5,12 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.13 — 2026-10-20 (Your heroes, together)
+
+**See your other heroes.** Your other characters now walk around town like any other player.
+
+**Party panel in town.** The Party panel lists your party while you're in town, not only during a hunt.
+
 ## v0.2.12 — 2026-10-20 (Spells and corpses)
 
 **Mages and healers show their attacks.** Wand and staff attacks now fire visible bolts.

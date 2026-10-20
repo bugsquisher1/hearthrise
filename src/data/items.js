@@ -99,6 +99,11 @@ export const ITEMS={
   /* Pebblebrook Bank (2026-10-19): every crayfish drops the claw (the trader's junk) and, less often,
      the back-plate (the ground's imbuement material: kept for armour imbuements, sold until they open). */
   crayfish_claw:{n:'Crayfish Claw',icon:'🦞',v:8},carapace_plate:{n:'Carapace Plate',icon:'🛡️',v:60},
+  /* Pebblebrook Bank's RELIC (Tyler 2026-10-20: the rare carrier also drops a relic, ~100-150 h). The weir-keeper
+     who kept the mill weir drowned under it; the Shingle Crayfish still turn up his collar of riveted carapace.
+     A band-30 necklace a clear step above the ground's rare (Spider-Eye Studs): armour, attack and crit at once. */
+  weirkeepers_gorget:{n:"Weirkeeper's Gorget",icon:'📿',v:1500,type:'jewelry',slot:'necklace',tier:3,rarity:'epic',
+    reqSkill:'defense',reqLv:30,defB:5,atkB:4,critB:.015},
   /* b542 — `captains_ribblade` and `chief_blade` (next line but one) are the two
      boss-drop weapons that carried NEITHER a tier nor a gate, so neither reader
      had anything to gate on: the client's tier fallback needs a tier and

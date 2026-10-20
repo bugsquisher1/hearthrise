@@ -6,9 +6,9 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 1f6bf1dcac77b308d36b7efa51f13d4e0d51f2d8769398ccf34c054b05c7f6fb
---   rows: 493 items (15 untradeable) ·
---         282 item-slot pairs · 15 equip slots ·
+--   catalogue digest: 65b95ed56a4bbc125c0b4098ab88fbb580f5c580cd76a67c1c77f8039878e13f
+--   rows: 494 items (15 untradeable) ·
+--         283 item-slot pairs · 15 equip slots ·
 --         13 skills · 9 crops · 293 activities ·
 --         0 runes
 --
@@ -654,6 +654,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('watchknight_helmet','Watchknight Helm',true,'armor',5400,'defense',60,null,false,'heavy',false),
   ('watchknight_pants','Watchknight Greaves',true,'armor',9900,'defense',60,null,false,'heavy',false),
   ('water_rune','Water Rune',true,'ammo',2,'magic',30,null,false,null,false),
+  ('weirkeepers_gorget','Weirkeeper''s Gorget',true,'jewelry',1500,'defense',30,null,false,null,false),
   ('wheat','Wheat',true,null,50,null,null,12,true,null,false),
   ('wheat_bread','Wheat Bread',true,null,120,null,null,216,true,null,false),
   ('wheat_seed','Wheat Seed',true,null,15,null,null,null,false,null,false),
@@ -951,6 +952,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('watchknight_helmet','helmet'),
   ('watchknight_pants','pants'),
   ('water_rune','ammo'),
+  ('weirkeepers_gorget','necklace'),
   ('whispering_codex','weapon'),
   ('widows_fang','weapon'),
   ('willow_longbow','weapon'),
@@ -1855,7 +1857,7 @@ insert into public.hr_feast_foods (item_id, heals) values
 on conflict (item_id) do update set heals = excluded.heals;
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '1f6bf1dcac77b308d36b7efa51f13d4e0d51f2d8769398ccf34c054b05c7f6fb', now())
+  values (true, '65b95ed56a4bbc125c0b4098ab88fbb580f5c580cd76a67c1c77f8039878e13f', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1883,7 +1885,7 @@ do $$
 declare v_bad int; v_n int;
 begin
   select count(*) into v_n from public.hr_items;
-  if v_n <> 493 then raise exception 'hr_items has % rows, generator emitted 493', v_n; end if;
+  if v_n <> 494 then raise exception 'hr_items has % rows, generator emitted 494', v_n; end if;
   select count(*) into v_n from public.hr_items where not tradeable;
   if v_n <> 15 then
     raise exception 'untradeable count is %, generator emitted 15', v_n;
@@ -2043,7 +2045,7 @@ begin
   ) src where not exists (select 1 from public.hr_items i where i.item_id = src.id);
   if v_bad > 0 then raise exception '% grant-source row(s) name an item missing from hr_items', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 1f6bf1dcac77b308d36b7efa51f13d4e0d51f2d8769398ccf34c054b05c7f6fb',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 65b95ed56a4bbc125c0b4098ab88fbb580f5c580cd76a67c1c77f8039878e13f',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

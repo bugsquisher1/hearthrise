@@ -8,9 +8,9 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 3decfd703ab75fa5db2d16c8683075097d7e1b955df99f4278c9ac2928e47784
+--   digest: 0813ff3cefb527851428647ecb4841e65e350bc4c24f727420b71779fcda5af5
 --   59 supplies, 119 hunts (named + training), 52 limits, 11 end reasons,
---   482 vendor values, 18 store supplies paid per use, 5 target modes,
+--   483 vendor values, 18 store supplies paid per use, 5 target modes,
 --   3 lanes, 14 abilities, 13 action-set options, 5 hunt grounds
 --
 -- SUPERSEDES 2026-10-27-hunt-sessions-catalogue.generated.sql (applied; history,
@@ -390,7 +390,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('salamander', 17, 81, '{"dragon_scale":1,"coal":1,"bones":1,"studded_gloves":1}'::jsonb),
   ('scarecrow', 5, 33, '{"wheat":1,"normal_log":1,"pumpkin":1,"bronze_gauntlets":1}'::jsonb),
   ('shadow_creeper', 190, 760, '{"shadow_thread":1,"silk_thread":1,"void_chitin":1,"shadowsilk_cape":1}'::jsonb),
-  ('shingle_crayfish', 40, 430, '{"crayfish_claw":1,"carapace_plate":1,"spidereye_studs":1}'::jsonb),
+  ('shingle_crayfish', 40, 430, '{"crayfish_claw":1,"carapace_plate":1,"weirkeepers_gorget":1,"spidereye_studs":1}'::jsonb),
   ('shrieker', 15, 77, '{"oak_log":1,"moonbloom":1,"goldenroot":1,"studded_helmet":1}'::jsonb),
   ('skeleton', 20, 98, '{"bones":1,"bone_chips":1,"iron_ore":1,"ancient_fragment":1,"iron_belt":1}'::jsonb),
   ('slime', 3, 34, '{"slime_gel":1,"bones":1,"sticky_core":1}'::jsonb),
@@ -1226,6 +1226,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('watchknight_helmet', 5400),
   ('watchknight_pants', 9900),
   ('water_rune', 2),
+  ('weirkeepers_gorget', 1500),
   ('wheat', 10),
   ('wheat_bread', 120),
   ('wheat_seed', 7),
@@ -1268,7 +1269,7 @@ begin
      or (select count(*) from public.hr_hunt_travel) <> 119
      or (select count(*) from public.hr_hunt_limits) <> 52
      or (select count(*) from public.hr_hunt_end_reasons) <> 11
-     or (select count(*) from public.hr_hunt_vendor_value) <> 482
+     or (select count(*) from public.hr_hunt_vendor_value) <> 483
      or (select count(*) from public.hr_hunt_basic_supplies) <> 18
      or (select count(*) from public.hr_hunt_cover_items) <> 0
      or (select count(*) from public.hr_hunt_travel where tier is null) <> 0

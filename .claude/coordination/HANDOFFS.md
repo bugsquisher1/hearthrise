@@ -5,7 +5,7 @@
 **Live:** v0.2.13 (main 762bf0dc7). Applied today: core rebuild (15:15), hero-slots, bar-three-conditions, analyzer-basic, party-flow, party-security, town-own-characters, Andy allowlist, alpha premium. Edge hr-accrue 8c16396c. bug-report-bridge redeployed (v0.2.12).
 
 **Pending, owned by PC agents (may finish after this note):**
-- lane/a-names-nowalk @ba27f0f5d (pushed 2026-10-20 ~00:00): real hero names + no auto-walk. CONFLICTS with main (town-scene.js, walk-scene.js, world-boot.js, schema-apply-order.json, after v0.2.13 town walkers): send back to its lane to merge main, then ship.
+- lane/a-names-nowalk @109d97c31: real names + no auto-walk. Client tests green on main+lane. Its migration 2026-10-29-character-names-everywhere.sql FAILED its pin on prod (hr_chat_name_authority moved, live md5 f03cc173…; rolled back, nothing applied 02:50 UTC). Restate it from the live body (re-pin), re-run the self-check, then apply + ship. Client half must not ship before the migration.
 - lane/a-party-invite-menu: "Invite to party" on right-click; starting a hunt/party stops town activities; no default fishing after hunts; burying ends server-side. Has a STAGED migration: apply, then ship.
 
 - lane/c-consume-cd-travel @dc7344370 (pushed, report not received): food+drink share ONE 2 s cooldown, "Millrace Sewer" → "The Sewer", travel_s = 0, the two hunt-core red tests fixed. Check its migrations/edge, apply, deploy, ship.

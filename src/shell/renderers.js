@@ -7,30 +7,30 @@
 // HTML. tests/shell-renderers.mjs fails the build on a row with no renderer or
 // a renderer with no row, so a launcher can never open an empty window.
 // ════════════════════════════════════════════════════════════════════════
-import { renderLaunchers } from './launcher.js?v=0.2.14';
-import { renderHudSettings } from './hud.js?v=0.2.14';
-import { renderHuntTopbar } from './widgets/hunt-topbar.js?v=0.2.14';
-import { renderPartyPanel } from './widgets/party-panel.js?v=0.2.14';
-import { renderAnalyzer } from './widgets/analyzer.js?v=0.2.14';
-import { renderActionBar } from './widgets/action-bar.js?v=0.2.14';
-import { renderConfigureAction } from './windows/configure-action.js?v=0.2.14';
-import { renderHuntSettings } from './windows/hunt-settings.js?v=0.2.14';
-import { renderChat } from './windows/chat.js?v=0.2.14';
-import { renderFriends } from './windows/friends.js?v=0.2.14';
-import { renderInspect } from './windows/inspect.js?v=0.2.14';
-import { renderSettings } from './windows/settings.js?v=0.2.14';
-import { renderInventory } from './windows/inventory/index.js?v=0.2.14';
-import { renderTradeSkills } from './windows/skills.js?v=0.2.14';
-import { renderCharacter } from './windows/character/index.js?v=0.2.14';
-import { renderHunts } from './windows/hunts.js?v=0.2.14';
-import { renderStorage } from './windows/storage.js?v=0.2.14';
-import { renderShop } from './windows/shop.js?v=0.2.14';
-import { renderServices } from './windows/services.js?v=0.2.14';
-import { renderHuntPrep } from './windows/hunt-prep.js?v=0.2.14';
-import { renderParty } from './windows/party.js?v=0.2.14';
-import { renderCharacters } from './windows/characters.js?v=0.2.14';
-import { renderAlerts } from './widgets/alerts.js?v=0.2.14';
-import { renderHuntSummary } from './windows/hunt-summary.js?v=0.2.14';
+import { renderLaunchers } from './launcher.js?v=0.2.15';
+import { renderHudSettings } from './hud.js?v=0.2.15';
+import { renderHuntTopbar } from './widgets/hunt-topbar.js?v=0.2.15';
+import { renderPartyPanel } from './widgets/party-panel.js?v=0.2.15';
+import { renderAnalyzer } from './widgets/analyzer.js?v=0.2.15';
+import { renderActionBar } from './widgets/action-bar.js?v=0.2.15';
+import { renderConfigureAction } from './windows/configure-action.js?v=0.2.15';
+import { renderHuntSettings } from './windows/hunt-settings.js?v=0.2.15';
+import { renderChat } from './windows/chat.js?v=0.2.15';
+import { renderFriends } from './windows/friends.js?v=0.2.15';
+import { renderInspect } from './windows/inspect.js?v=0.2.15';
+import { renderSettings } from './windows/settings.js?v=0.2.15';
+import { renderInventory } from './windows/inventory/index.js?v=0.2.15';
+import { renderTradeSkills } from './windows/skills.js?v=0.2.15';
+import { renderCharacter } from './windows/character/index.js?v=0.2.15';
+import { renderHunts } from './windows/hunts.js?v=0.2.15';
+import { renderStorage } from './windows/storage.js?v=0.2.15';
+import { renderShop } from './windows/shop.js?v=0.2.15';
+import { renderServices } from './windows/services.js?v=0.2.15';
+import { renderHuntPrep } from './windows/hunt-prep.js?v=0.2.15';
+import { renderParty } from './windows/party.js?v=0.2.15';
+import { renderCharacters } from './windows/characters.js?v=0.2.15';
+import { renderAlerts } from './widgets/alerts.js?v=0.2.15';
+import { renderHuntSummary } from './windows/hunt-summary.js?v=0.2.15';
 
 /* A renderer with `.patch` is a component: built once, then patched in place (src/shell/shell.js). */
 export const WINDOW_RENDERERS = Object.freeze({

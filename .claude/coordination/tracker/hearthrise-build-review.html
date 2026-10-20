@@ -1,0 +1,332 @@
+<title>Hearthrise Build Review</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700&family=Alegreya+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400&display=swap">
+<style>
+/* Layout: a work order for one reader. What waits on Tyler first (questions, builds to check, releases to test), then the log of what happened, then the rulings ledger. The game's own Charcoal & Gold, single dark look by choice. */
+:root{
+  --bg:#141518; --panel:#1c1e22; --raise:#24272c; --line:#2f3238;
+  --fg:#e9e4d8; --muted:#a39d90; --faint:#76705f;
+  --gold:#d4a84a; --gold-ink:#1a1408;
+  --ok:#7fb069; --warn:#e0a03a; --bad:#e0645a; --info:#7aa2d6; --core:#c08ad8;
+  --f-display:"Alegreya SC", Georgia, serif;
+  --f-body:"Alegreya Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Consolas, monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:16px/1.5 var(--f-body);margin:0}
+.wrap{max-width:1080px;margin:0 auto;padding-block:28px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:36px}
+h1,h2,h3{font-family:var(--f-display);font-weight:700;letter-spacing:.02em;margin:0;text-wrap:balance}
+h1{font-size:2rem;color:var(--gold)}
+h2{font-size:1.3rem;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+h2 .n{font-family:var(--f-body);font-size:.85rem;color:var(--muted);font-weight:500}
+.sub{color:var(--muted);font-size:.95rem;max-width:62ch}
+header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px;border-bottom:1px solid var(--line);padding-bottom:16px}
+.meta{font-size:.85rem;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums;max-width:46ch}
+.meta b{color:var(--fg);font-weight:500}
+nav{display:flex;flex-wrap:wrap;gap:6px}
+nav a{color:var(--muted);text-decoration:none;font-size:.88rem;padding:3px 10px;border:1px solid var(--line)}
+nav a:hover,nav a:focus-visible{color:var(--fg);border-color:var(--gold)}
+nav a .c{color:var(--gold);font-variant-numeric:tabular-nums;margin-left:4px}
+section{display:flex;flex-direction:column;gap:12px;scroll-margin-top:12px}
+.hint{color:var(--muted);font-size:.9rem;max-width:70ch}
+.empty{color:var(--faint);font-style:italic;padding:8px 0}
+textarea{width:100%;min-height:58px;background:var(--bg);color:var(--fg);border:1px solid var(--line);font:inherit;padding:8px 10px;resize:vertical}
+textarea:focus,button:focus-visible,input:focus,summary:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
+.acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button{font:inherit;font-size:.9rem;cursor:pointer;border:1px solid var(--line);background:var(--raise);color:var(--fg);padding:5px 12px}
+button.primary{background:var(--gold);color:var(--gold-ink);border-color:var(--gold);font-weight:700}
+button.is-ok{background:var(--ok);color:#10180c;border-color:var(--ok);font-weight:700}
+button.is-change{background:var(--warn);color:#1d1406;border-color:var(--warn);font-weight:700}
+.saved{font-size:.8rem;color:var(--ok)}
+.err{font-size:.8rem;color:var(--bad)}
+/* question + card shells share one shape: a left stripe that carries state */
+.card{background:var(--panel);border-left:3px solid var(--line);padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.card.s-open{border-left-color:var(--gold)}
+.card.s-ok{border-left-color:var(--ok)}
+.card.s-change{border-left-color:var(--warn)}
+.card .k{font-size:.72rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap}
+.card .k .st{color:var(--info)}
+.card .k .st.shipped,.card .k .st.ready{color:var(--ok)} .card .k .st.waiting{color:var(--warn)} .card .k .st.blocked{color:var(--bad)} .card .k .st.paused{color:var(--faint)}
+.card .t{font-weight:700;font-size:1.05rem}
+.card .ctx{color:var(--muted);font-size:.92rem}
+.card ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:3px}
+.card li{max-width:72ch}
+.card .lbl{font-size:.75rem;text-transform:uppercase;letter-spacing:.09em;color:var(--gold);margin-top:4px}
+.card .note{font-size:.9rem;color:var(--warn)}
+.card .ans{font-size:.92rem;color:var(--ok)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,460px),1fr));gap:12px}
+details.more summary{cursor:pointer;color:var(--muted);font-size:.9rem;padding:4px 0}
+/* log */
+.log{display:flex;flex-direction:column}
+.log .e{display:grid;grid-template-columns:118px minmax(0,1fr);gap:4px 14px;padding:8px 0;border-bottom:1px solid var(--line)}
+.log .when{font-family:var(--f-mono);font-size:.78rem;color:var(--faint);padding-top:3px;font-variant-numeric:tabular-nums}
+.log .what{min-width:0;overflow-wrap:anywhere}
+.log .tag{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--info);margin-right:6px}
+/* rulings */
+.bar{display:flex;height:12px;overflow:hidden;background:var(--raise)}
+.bar span{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:.85rem;padding:3px 10px;border:1px solid var(--line);background:transparent;color:var(--fg)}
+.chip i{width:9px;height:9px;display:inline-block}
+.chip[aria-pressed="true"]{border-color:var(--gold);background:var(--raise)}
+.chip .c{color:var(--muted);font-variant-numeric:tabular-nums}
+.tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.tools input{background:var(--panel);border:1px solid var(--line);color:var(--fg);font:inherit;padding:6px 10px;min-width:0;flex:1 1 220px}
+.area h3{font-size:1.05rem;color:var(--gold);padding:14px 0 6px;border-bottom:1px solid var(--line)}
+.item{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:4px 14px;padding:10px 0;border-bottom:1px solid var(--line);align-items:start}
+.item .id{font-family:var(--f-mono);font-size:.8rem;color:var(--faint);padding-top:3px}
+.item .body{display:flex;flex-direction:column;gap:3px;min-width:0}
+.item .own{font-size:.85rem;color:var(--muted)}
+.pill{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;padding:2px 8px;white-space:nowrap;border:1px solid currentColor;justify-self:end}
+.item .v{grid-column:2 / 4;display:flex;flex-direction:column;gap:6px}
+.s-built{color:var(--ok)} .s-partial{color:var(--warn)} .s-not_built{color:var(--bad)} .s-contradicted{color:var(--bad)}
+.s-core{color:var(--core)} .s-lane{color:var(--info)} .s-nc{color:var(--faint)}
+.b-built{background:var(--ok)} .b-partial{background:var(--warn)} .b-not_built{background:#a8483f} .b-contradicted{background:var(--bad)}
+.b-core{background:var(--core)} .b-lane{background:var(--info)} .b-nc{background:var(--faint)}
+@media (max-width:560px){
+  .item{grid-template-columns:minmax(0,1fr) auto}
+  .item .id{grid-column:1 / 3}
+  .item .v{grid-column:1 / 3}
+  .log .e{grid-template-columns:minmax(0,1fr)}
+  .meta{text-align:left}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Hearthrise Build Review</h1>
+      <div class="sub">What Claude is building, what you'll see when it lands, and what's ready for you to play. Approve it, or say what's wrong before it ships.</div>
+    </div>
+    <div class="meta" id="meta">Loading…</div>
+  </header>
+
+  <nav aria-label="Sections">
+    <a href="#ask">Questions<span class="c" id="n-ask"></span></a>
+    <a href="#test">Ready to test<span class="c" id="n-test"></span></a>
+    <a href="#build">Being built<span class="c" id="n-build"></span></a>
+    <a href="#log">What happened</a>
+    <a href="#rulings">Rulings</a>
+  </nav>
+
+  <section id="ask">
+    <h2>Needs your answer <span class="n" id="qcount"></span></h2>
+    <div id="questions"><div class="empty">Loading questions…</div></div>
+  </section>
+
+  <section id="test">
+    <h2>Ready for you to test <span class="n" id="tcount"></span></h2>
+    <p class="hint">Live on the site. Each one says what changed and how to check it. Mark it Works, or Not right with what you saw.</p>
+    <div class="grid" id="tests"><div class="empty">Loading…</div></div>
+  </section>
+
+  <section id="build">
+    <h2>Being built <span class="n" id="bcount"></span></h2>
+    <p class="hint">Each lane lists exactly what you'll see when it ships. If any line is wrong, press Change and say so: it gets fixed before release, not after.</p>
+    <div class="grid" id="builds"><div class="empty">Loading…</div></div>
+  </section>
+
+  <section id="log">
+    <h2>What happened</h2>
+    <div class="log" id="events"><div class="empty">Loading…</div></div>
+  </section>
+
+  <section id="rulings">
+    <h2>Every ruling <span class="n" id="total"></span></h2>
+    <div class="bar" id="bar" aria-hidden="true"></div>
+    <div class="legend" id="legend" role="group" aria-label="Filter by status"></div>
+    <div class="tools">
+      <input id="search" type="search" placeholder="Search rulings or owners" aria-label="Search rulings">
+      <button class="chip" id="gaps" aria-pressed="false">Only gaps</button>
+      <button class="chip" id="mine" aria-pressed="false">Only my notes</button>
+    </div>
+    <div id="items"><div class="empty">Rulings appear here once the tracker loads.</div></div>
+  </section>
+</div>
+
+<script>
+const STATUS = {
+  contradicted:{label:"Contradicts ruling"}, not_built:{label:"Not built"}, partial:{label:"Partly built"},
+  core:{label:"Core rebuild"}, lane:{label:"Being fixed"}, built:{label:"Built correctly"}, nc:{label:"Not code-checkable"}
+};
+const ORDER = ["contradicted","not_built","partial","core","lane","built","nc"];
+const GAPS = new Set(["contradicted","not_built","partial"]);
+const S = {items:[],questions:[],builds:[],tests:[],events:[],meta:null,filter:null,q:"",gaps:false,mine:false,canWrite:false,db:null};
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmt = iso => { try { return new Date(iso).toLocaleString([], {month:"short", day:"numeric", hour:"2-digit", minute:"2-digit"}); } catch { return ""; } };
+const list = a => a && a.length ? `<ul>${a.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>` : "";
+const why = e => (e && (e.code || e.message)) || String(e);
+const now = () => new Date().toISOString();
+
+async function write(coll, arr, id, patch){
+  const ref = S.db.doc(coll+"/"+id);
+  try { await ref.update(patch); }
+  catch(e1){
+    const cur = arr.find(x => x._doc === id) || {}; const { _doc, ...body } = cur;
+    try { await ref.set({...body, ...patch}); } catch(e2){ throw e2 && (e2.code || e2.message) ? e2 : e1; }
+  }
+}
+
+function renderMeta(){
+  const m = S.meta;
+  $("#meta").innerHTML = m ? `Live build <b>${esc(m.liveVersion||"?")}</b> · updated ${esc(fmt(m.updatedAt))}${m.note?`<br>${esc(m.note)}`:""}` : "Waiting for data";
+}
+
+/* A verdict block shared by tests and builds: two buttons plus a note box. */
+function verdictBlock(coll, d, okLabel, okDone, changeLabel){
+  const id = esc(d._doc);
+  if(!S.canWrite) return d.verdict ? `<div class="${d.verdict==="ok"?"ans":"note"}">${d.verdict==="ok"?okDone:"You asked for a change"}${d.note?`: ${esc(d.note)}`:""}</div>` : "";
+  const open = d.verdict==="change";
+  return `<div class="acts">
+      <button data-c="${coll}" data-id="${id}" data-a="ok" class="${d.verdict==="ok"?"is-ok":""}">${d.verdict==="ok"?okDone:okLabel}</button>
+      <button data-c="${coll}" data-id="${id}" data-a="change" class="${open?"is-change":""}">${open?"Change requested":changeLabel}</button>
+      ${d.verdictAt?`<span class="saved">${esc(fmt(d.verdictAt))}</span>`:""}
+    </div>
+    <div id="nb-${coll}-${id}" ${open?"":"hidden"}>
+      <textarea id="nt-${coll}-${id}" aria-label="What's wrong">${esc(d.note||"")}</textarea>
+      <div class="acts"><button class="primary" data-c="${coll}" data-id="${id}" data-a="save">Send to Claude</button><span id="ns-${coll}-${id}"></span></div>
+    </div>`;
+}
+
+async function verdictAct(coll, id, a){
+  const arr = S[coll]; const msg = document.getElementById(`ns-${coll}-${id}`);
+  try{
+    if(a==="ok") await write(coll, arr, id, {verdict:"ok", note:"", verdictAt:now(), handled:false});
+    else if(a==="change"){ document.getElementById(`nb-${coll}-${id}`).hidden = false; document.getElementById(`nt-${coll}-${id}`).focus(); }
+    else if(a==="save"){
+      const note = document.getElementById(`nt-${coll}-${id}`).value.trim();
+      if(!note){ msg.className="err"; msg.textContent="Say what's wrong first."; return; }
+      await write(coll, arr, id, {verdict:"change", note, verdictAt:now(), handled:false});
+    }
+  }catch(e){ if(msg){ msg.className="err"; msg.textContent="Couldn't save ("+why(e)+"). Tell Claude in chat."; } }
+}
+
+function bindVerdicts(root){ root.querySelectorAll("button[data-c]").forEach(b => b.onclick = () => verdictAct(b.dataset.c, b.dataset.id, b.dataset.a)); }
+
+function renderQuestions(){
+  const el = $("#questions");
+  const qs = [...S.questions].sort((a,b)=> (a.status==="answered")-(b.status==="answered") || String(b.askedAt||"").localeCompare(String(a.askedAt||"")));
+  const open = qs.filter(q=>q.status!=="answered");
+  $("#qcount").textContent = qs.length ? `${open.length} open` : "";
+  $("#n-ask").textContent = open.length ? open.length : "";
+  if(!qs.length){ el.innerHTML = `<div class="empty">Nothing waiting on you.</div>`; return; }
+  const card = q => `<div class="card ${q.status==="answered"?"s-ok":"s-open"}">
+      <div class="k"><span>${q.status==="answered"?"Answered":"Question"}</span>${q.askedAt?`<span>${esc(fmt(q.askedAt))}</span>`:""}</div>
+      <div class="t">${esc(q.text)}</div>${q.context?`<div class="ctx">${esc(q.context)}</div>`:""}
+      ${S.canWrite
+        ? `<textarea id="qa-${esc(q._doc)}" aria-label="Your answer">${esc(q.answer||"")}</textarea>
+           <div class="acts"><button class="primary" data-q="${esc(q._doc)}">Save answer</button><span id="qs-${esc(q._doc)}"></span></div>`
+        : (q.answer?`<div class="ans">${esc(q.answer)}</div>`:"")}
+    </div>`;
+  const done = qs.filter(q=>q.status==="answered");
+  el.innerHTML = (open.length? open.map(card).join("") : `<div class="empty">Nothing waiting on you.</div>`)
+    + (done.length ? `<details class="more"><summary>${done.length} answered</summary><div style="display:flex;flex-direction:column;gap:10px;margin-top:8px">${done.map(q=>`<div class="card s-ok"><div class="t">${esc(q.text)}</div><div class="ans">${esc(q.answer||"")}</div></div>`).join("")}</div></details>` : "");
+  el.querySelectorAll("button[data-q]").forEach(b => b.onclick = async () => {
+    const id = b.dataset.q, ta = document.getElementById("qa-"+id), msg = document.getElementById("qs-"+id);
+    const answer = ta.value.trim(); if(!answer){ msg.className="err"; msg.textContent="Write an answer first."; return; }
+    msg.className="saved"; msg.textContent="Saving…";
+    try { await write("questions", S.questions, id, {answer, status:"answered", answeredAt:now(), handled:false}); msg.textContent="Saved"; }
+    catch(e){ msg.className="err"; msg.textContent="Couldn't save ("+why(e)+"). Tell Claude in chat."; }
+  });
+}
+
+function renderTests(){
+  const el = $("#tests");
+  const ts = [...S.tests].sort((a,b)=> (a.verdict==="ok")-(b.verdict==="ok") || String(b.liveAt||"").localeCompare(String(a.liveAt||"")));
+  const open = ts.filter(t=>t.verdict!=="ok").length;
+  $("#tcount").textContent = ts.length ? `${open} to check` : ""; $("#n-test").textContent = open || "";
+  if(!ts.length){ el.innerHTML = `<div class="empty">Nothing new to test yet. Releases appear here once they're live.</div>`; return; }
+  el.innerHTML = ts.map(t=>`<div class="card ${t.verdict==="ok"?"s-ok":t.verdict==="change"?"s-change":"s-open"}">
+      <div class="k"><span>${esc(t.version||"")}</span>${t.liveAt?`<span>live ${esc(fmt(t.liveAt))}</span>`:""}</div>
+      <div class="t">${esc(t.title)}</div>
+      ${t.changed?.length?`<div class="lbl">What changed</div>${list(t.changed)}`:""}
+      ${t.howToCheck?.length?`<div class="lbl">How to check</div>${list(t.howToCheck)}`:""}
+      ${t.known?`<div class="ctx">Known: ${esc(t.known)}</div>`:""}
+      ${verdictBlock("tests", t, "Works", "Works", "Not right")}
+    </div>`).join("");
+  bindVerdicts(el);
+}
+
+function renderBuilds(){
+  const el = $("#builds");
+  const rank = {blocked:0,waiting:1,building:2,ready:3,paused:4,shipped:5};
+  const bs = [...S.builds].sort((a,b)=> (rank[a.status]??9)-(rank[b.status]??9) || (a.order||0)-(b.order||0));
+  const live = bs.filter(b=>b.status!=="shipped");
+  $("#bcount").textContent = live.length ? `${live.length} lanes` : ""; $("#n-build").textContent = live.length || "";
+  if(!bs.length){ el.innerHTML = `<div class="empty">No lanes listed yet.</div>`; return; }
+  const card = b => `<div class="card ${b.verdict==="ok"?"s-ok":b.verdict==="change"?"s-change":"s-open"}">
+      <div class="k"><span class="st ${esc(b.status)}">${esc(b.status||"")}</span>${b.who?`<span>${esc(b.who)}</span>`:""}${b.updatedAt?`<span>${esc(fmt(b.updatedAt))}</span>`:""}</div>
+      <div class="t">${esc(b.name)}</div>
+      ${b.youWillSee?.length?`<div class="lbl">You'll see</div>${list(b.youWillSee)}`:""}
+      ${b.rulings?.length?`<div class="ctx">Rulings: ${esc(b.rulings.join(", "))}</div>`:""}
+      ${b.next?`<div class="ctx">Next: ${esc(b.next)}</div>`:""}
+      ${verdictBlock("builds", b, "Looks right", "Approved", "Change")}
+    </div>`;
+  el.innerHTML = live.map(card).join("") || `<div class="empty">Nothing in flight.</div>`;
+  const shipped = bs.filter(b=>b.status==="shipped");
+  if(shipped.length) el.insertAdjacentHTML("afterend", "");
+  bindVerdicts(el);
+}
+
+function renderEvents(){
+  const el = $("#events");
+  const es = [...S.events].sort((a,b)=> String(b.at||"").localeCompare(String(a.at||""))).slice(0,40);
+  if(!es.length){ el.innerHTML = `<div class="empty">Nothing logged yet.</div>`; return; }
+  el.innerHTML = es.map(e=>`<div class="e"><div class="when">${esc(fmt(e.at))}</div><div class="what">${e.kind?`<span class="tag">${esc(e.kind)}</span>`:""}${esc(e.text)}</div></div>`).join("");
+}
+
+function counts(){ const c = {}; S.items.forEach(i => c[i.status]=(c[i.status]||0)+1); return c; }
+function renderSummary(){
+  const c = counts(), n = S.items.length;
+  $("#total").textContent = n ? `${n}` : "";
+  $("#bar").innerHTML = ORDER.filter(s=>c[s]).map(s=>`<span class="b-${s}" style="width:${(c[s]/n*100).toFixed(2)}%" title="${STATUS[s].label}: ${c[s]}"></span>`).join("");
+  $("#legend").innerHTML = ORDER.filter(s=>c[s]).map(s=>`<button class="chip" data-s="${s}" aria-pressed="${S.filter===s}"><i class="b-${s}"></i>${STATUS[s].label} <span class="c">${c[s]}</span></button>`).join("");
+  $("#legend").querySelectorAll("button").forEach(b => b.onclick = () => { S.filter = S.filter===b.dataset.s ? null : b.dataset.s; renderSummary(); renderItems(); });
+}
+function visible(i){
+  if(S.filter && i.status!==S.filter) return false;
+  if(S.gaps && !GAPS.has(i.status)) return false;
+  if(S.mine && !i.verdict && !i.note) return false;
+  if(S.q){ const h = (i.id+" "+i.ruling+" "+(i.owner||"")).toLowerCase(); if(!h.includes(S.q)) return false; }
+  return true;
+}
+function renderItems(){
+  const el = $("#items");
+  if(!S.items.length) return;
+  const shown = S.items.filter(visible);
+  if(!shown.length){ el.innerHTML = `<div class="empty">No rulings match these filters.</div>`; return; }
+  const areas = new Map();
+  shown.sort((a,b)=>(a.areaOrder-b.areaOrder)||(a.order-b.order)).forEach(i=>{ if(!areas.has(i.area)) areas.set(i.area,[]); areas.get(i.area).push(i); });
+  el.innerHTML = [...areas].map(([area, rows]) => `<div class="area"><h3>${esc(area)}</h3>${rows.map(i=>`<div class="item">
+      <div class="id">${esc(i.id)}</div>
+      <div class="body"><div>${esc(i.ruling)}</div>${i.owner?`<div class="own">${esc(i.owner)}</div>`:""}</div>
+      <div class="pill s-${esc(i.status)}">${esc(STATUS[i.status]?.label||i.status)}</div>
+      <div class="v">${verdictBlock("items", i, "Approve", "Approved", "Change")}</div>
+    </div>`).join("")}</div>`).join("");
+  bindVerdicts(el);
+}
+
+$("#search").addEventListener("input", e => { S.q = e.target.value.trim().toLowerCase(); renderItems(); });
+$("#gaps").onclick = e => { S.gaps = !S.gaps; e.target.setAttribute("aria-pressed", S.gaps); renderItems(); };
+$("#mine").onclick = e => { S.mine = !S.mine; e.target.setAttribute("aria-pressed", S.mine); renderItems(); };
+
+(async () => {
+  if(!window.claude?.use){ $("#meta").textContent = "Open this page on claude.ai to load the tracker."; return; }
+  const db = await claude.use("db"); const user = await claude.use("user");
+  if(!db){ $("#meta").textContent = "Sign in to claude.ai to load the tracker."; return; }
+  S.db = db;
+  const cw = user ? await user.can("data.write") : null;
+  S.canWrite = cw !== false;
+  const sub = (path, key, fn) => db.collection(path).onSnapshot(snap => { S[key] = snap.docs.map(d => ({...d.data(), _doc:d.id})); fn(); }, () => {});
+  sub("questions", "questions", renderQuestions);
+  sub("tests", "tests", renderTests);
+  sub("builds", "builds", renderBuilds);
+  sub("events", "events", renderEvents);
+  sub("items", "items", () => { renderSummary(); renderItems(); });
+  db.doc("meta/summary").onSnapshot(s => { S.meta = s.exists ? s.data() : null; renderMeta(); }, () => {});
+})();
+</script>

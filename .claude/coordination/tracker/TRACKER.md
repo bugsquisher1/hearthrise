@@ -1,4 +1,6 @@
-# Hearthrise Tracker
+# Hearthrise Tracker (repo mirror)
+
+**Live tracker: https://claude.ai/artifact/7dvCZ7Z3XyALQtamvQXd1t** (Hearthrise Build Review, second account, 2026-10-20; page source `tracker/hearthrise-build-review.html`). Tyler answers there. This file is the git mirror for any session that cannot open it (e.g. the primary account after 10-24); the Coordinator keeps both in step.
 
 The single tracker (Tyler 2026-10-20: "store it somewhere else rather than an artifact"). Replaces the claude.ai artifact 81VCt3YuFkKbrtke5u9jqK, whose database is unreachable from the second account. Both Claude sessions (PC Coordinator and cloud) read it at session start and update it in the SAME commit as the event (lane starts/ships, release live, ruling, bug, question). Tyler answers by editing this file, or in chat (Claude writes the answer here).
 

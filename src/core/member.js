@@ -46,6 +46,9 @@ function nat(v, fallback) {
    byte — a companion changes the totals, but away==live for the same setup.
    EMPTY_PERKS carries no `companion`, so companionBonus returns 0 for every
    key and this degrades to the pre-companion behaviour exactly. */
+/* The account bestiary's largest relic multiplier (stage 4, x1.25; lane c-bestiary). */
+const RELIC_MULT_MAX = 1.25;
+
 export function bonusFor(perkState, buffHost, away) {
   const base = makeBonus(perkState || EMPTY_PERKS);
   const comp = companionBonus(perkState || EMPTY_PERKS);
@@ -239,12 +242,14 @@ export function memberSide(mi, ctx) {
       shield: !!(HUNT_ROLES[h.role] && HUNT_ROLES[h.role].discipline === 'shield'),
       buffsAt: (atMs) => { state.buffs = buffQueueFromServer(buffRows, atMs); },
       bonus, weakness, rollsVs,
-      /* THE RELIC MULTIPLIER (Bestiary lane, 2026-10-19): the account-wide bestiary projection's
-         { monsterId: mult } (mi.relicMults, server-side only: drops are never rolled for the browser),
-         read by the drop roll for relic-tier rows; 1 when absent or not a number >= 1. */
-      relicMult: (monsterId) => {
-        const v = mi.relicMults && typeof mi.relicMults === 'object' ? Number(mi.relicMults[monsterId]) : NaN;
-        return Number.isFinite(v) && v >= 1 ? v : 1;
+      /* THE RELIC MULTIPLIER (lane c-bestiary): the member's OWN account_bestiary.relic_mult
+         { monster kind: mult } (mi.relicMults, server-side only: drops are never rolled for the
+         browser), read by hunt-rewards.js as lead.relicMult(kind); 1 when absent, clamped to
+         [1, RELIC_MULT_MAX]. */
+      relicMult: (kind) => {
+        const r = mi.relicMults && typeof mi.relicMults === 'object' ? mi.relicMults : null;
+        const v = r && Object.prototype.hasOwnProperty.call(r, kind) ? Number(r[kind]) : NaN;
+        return Number.isFinite(v) ? Math.min(RELIC_MULT_MAX, Math.max(1, v)) : 1;
       },
       snapshot: (st) => heroSnapshot(st, snapCtx),
       hero: { role: h.role, element: h.element || '', settings: h.settings || null,

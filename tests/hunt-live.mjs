@@ -183,6 +183,11 @@ function rules(M) {
     const c = side(Object.assign(memberOf(M, 'a', 0, 'tank', 6), { relicMults: { rat: 0.5, slime: 'x' } }));
     ok('LV-X', a.relicMult('rat') === 1.25 && a.relicMult('slime') === 1, `relicMult with a projection reads ${a.relicMult('rat')} / ${a.relicMult('slime')}`);
     ok('LV-X', b.relicMult('rat') === 1 && c.relicMult('rat') === 1 && c.relicMult('slime') === 1, 'an absent or invalid projection is not 1');
+    const d = side(Object.assign(memberOf(M, 'a', 0, 'tank', 6), { relicMults: { rat: 3 } }));
+    ok('LV-X', d.relicMult('rat') === 1.25, 'a relic multiplier over the stage-4 x1.25 is not clamped: ' + d.relicMult('rat'));
+    /* the settle reads it from the member's OWN hr_state_of account_bestiary.relic_mult (never the request) */
+    const src = readFileSync(join(M.base || ROOT, FN, 'hunt-settle.js'), 'utf8');
+    ok('LV-X', /env\.account_bestiary\.relic_mult/.test(src), 'hunt-settle.js does not read account_bestiary.relic_mult');
   }
 
   { // LV-M: a melee hero in range holds its tile and swings (Tyler 10-19: "back and forth between mobs").

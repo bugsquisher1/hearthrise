@@ -72,6 +72,7 @@ export const CLIENT_RPCS = Object.freeze({
   /* Lane S2's Services window: each sends the server's own QUOTE (refused quote_changed otherwise), never a price of its own. */
   hr_stamina_refill: 'buy the next stamina refill at the quoted price (CharacterSession.buyStamina)',
   hr_blessing_buy: 'buy one blessing tier at the quoted price, 0 under the free level (CharacterSession.buyBlessing)',
+  hr_bestiary_activate: 'activate a bestiary stage for one monster kind at the quoted fee (CharacterSession.activateBestiaryStage; lane c-bestiary)',
   hr_character_name_set: 'claim this character’s own name, checked by the server (CharacterSession.setName)',
   /* The social side (2026-10-25-chat-channels.sql, 2026-10-25-social.sql): a slot, a channel KIND, a body,
      a target (a user id or a claimed name) and a yes/no — never a name, level, zone or role of the sender. */

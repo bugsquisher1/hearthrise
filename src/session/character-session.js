@@ -396,6 +396,13 @@ export class CharacterSession {
     return this._settled(await this._server.rpc('hr_blessing_buy', { p_slot: this.slot, p_tier: tier, p_price: quotedPrice, p_idem: newIdem() }));
   }
 
+  /** Activate a bestiary stage for one monster kind at the server's quoted fee (refused `quote_changed` otherwise). */
+  async activateBestiaryStage(monster, stage, quotedFee) {
+    if (this._closed || !ITEM.test(String(monster)) || !Number.isInteger(stage) || stage < 1 || stage > 4
+      || !Number.isSafeInteger(quotedFee) || quotedFee < 0) return { ok: false, error: 'bad_intent' };
+    return this._settled(await this._server.rpc('hr_bestiary_activate', { p_slot: this.slot, p_monster: monster, p_stage: stage, p_price: quotedFee, p_idem: newIdem() }));
+  }
+
   /** Claim this character's own name (the server checks the rules and that nobody else has it). */
   async setName(name) {
     const n = String(name || '').trim().replace(/\s+/g, ' ');

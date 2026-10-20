@@ -28,6 +28,7 @@
 //   HUNT-2 a pending leave is settled at once (away-owed time) and its envelope replaces the open hunt
 //   LEAVE-1 a pending leave's close is re-read a hair after the SERVER's leave_at (server clock), moving
 //          an armed poll earlier; the closing envelope ends the hunt and the re-reads stop
+//   LEAVE-2 a refused settle after a pending leave is followed by the plain read (leave_at is shown)
 //   ACC-1  at most the server's concurrent limit open (within the tab's ceiling); close frees a place
 //   ACC-4  the limit is the SERVER's (account.max_concurrent): a smaller one holds, an unstated one
 //          allows one character, a larger one is capped by the tab's ceiling
@@ -340,6 +341,30 @@ async function rules(M) {
     return armed.filter((x) => x.live).length === 0 || 'an ended hunt kept re-reading';
   });
 
+  /* LEAVE-2: the settle after a pending leave can be refused (the accrue bucket, a dropped request);
+     the plain read still brings the server's leave_at, so the button counts down instead of offering
+     Leave hunt again until the next poll. */
+  await t('LEAVE-2', async () => {
+    const calls = [];
+    let leaving = false;
+    const hunt = () => ({ session_id: 'h1', hunt_id: 'mill_cellar', ended: false,
+      session: { id: 'h1', leave_at: leaving ? '2031-01-01T00:00:07.000Z' : null } });
+    let v = 1;
+    const srv = {
+      rpc: async (name) => {
+        calls.push(name);
+        if (name === 'hr_hunt_leave') { leaving = true; return { ok: true, status: 200, body: { ok: true, pending: true }, closed: false }; }
+        return { ok: true, status: 200, body: env(++v, { now: '2031-01-01T00:00:01.000Z', hunt: hunt() }), closed: false };
+      },
+      accrue: async () => { calls.push('accrue'); return { ok: false, status: 429, body: { ok: false, error: 'rate_limited' }, closed: false }; },
+    };
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, ...timers });
+    await cs.load();
+    if (!(await cs.leaveHunt()).ok) return 'the pending leave was refused';
+    if (calls.join(',') !== 'hr_load,hr_hunt_leave,accrue,hr_load') return 'a refused settle was not followed by the plain read: ' + calls.join(',');
+    return cs.record.data.hunt.session.leave_at === '2031-01-01T00:00:07.000Z' || 'the record does not carry the server’s leave_at';
+  });
+
   const mkAccount = (srv, o = {}) => {
     const tab = memStore();
     const auth = { userId: () => UID, token: () => 'jwt', signOut: async () => { auth.out = true; } };
@@ -489,6 +514,7 @@ const MUTANTS = [
   ['an open hunt is never re-read', 'src/session/character-session.js', "    this._emit(why);\n    this._armHuntPoll();", "    this._emit(why);"],
   ['an ended hunt keeps re-reading', 'src/session/character-session.js', "typeof h.session_id === 'string' && h.ended !== true;", "typeof h.session_id === 'string';"],
   ['a pending leave waits for the world tick', 'src/session/character-session.js', "      if (!(await this.hello()) && !this._closed) await this.load();", "      await this.load();"],
+  ['a refused settle leaves the leave unseen', 'src/session/character-session.js', "      if (!(await this.hello()) && !this._closed) await this.load();", "      await this.hello();"],
   ['the close waits a whole poll past leave_at', 'src/session/character-session.js', "    if (close !== null) ms = Math.min(ms, close);", ""],
   ['an armed poll is never moved earlier', 'src/session/character-session.js', "      if (!(due < this._huntDue)) return;", "      return;"],
   ['the close is timed on the device clock', 'src/session/character-session.js', "  serverNow() { return this.timeline.serverNowAt(this._now()); }", "  serverNow() { return Date.now(); }"],
@@ -508,7 +534,7 @@ async function main() {
   if (!mutate) {
     const fails = [...await rules(await load(ROOT)), ...await viewRules(ROOT)];
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (24 rules)');
+    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (25 rules)');
     process.exit(fails.length ? 1 : 0);
   }
   let bad = 0;

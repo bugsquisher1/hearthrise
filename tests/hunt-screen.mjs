@@ -347,6 +347,7 @@ async function checks(overrides, shots) {
         const a = await label();
         const n = (x) => Number(((x && x.t) || '').replace(/\D+/g, '')) || 0;
         if (!a || !/^Leaving in [4-6]s$/.test(a.t) || !a.off) fails.push('HS-14 the button does not count down to the server’s leave_at (want 4-6s): ' + JSON.stringify(a));
+        await page.click('.ht-bar [data-hs-act="leave"]', { force: true, timeout: 1000 }).catch(() => {});   // a second press while it pends
         await page.waitForTimeout(1300);
         const b = await label();
         if (!(n(b) < n(a))) fails.push('HS-14 the countdown does not tick: ' + JSON.stringify([a, b]));

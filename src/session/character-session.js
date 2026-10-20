@@ -32,11 +32,10 @@
 //                      own seat);
 //   saveOutfit(o, c)   the outfit INTENT (hr_outfit_set), re-read the same way
 //   findParties        the party finder, a read whose rows are never the record
-//   hunt re-read       while the server holds a hunt open, one hello every
-//                      SESSION_CONFIG.huntPollMs: the hunter's settle answers
-//                      the new state, track and events (frames never carry the
-//                      `hunt` section, and the world tick flushes only every
-//                      90 s), and it stops on the envelope that says it ended
+//   hunt re-read       while the server holds a hunt open, one hello per
+//                      src/session/hunt-poll.js: the hunter's settle answers the
+//                      new state, track and events (frames never carry `hunt`);
+//                      it stops on the envelope that says it ended
 //   timeline           the settle responses' visual timeline (src/hunt-view/
 //                      timeline.js): tracks and events, never the record
 //   now()              the display clock the timeline plays on
@@ -54,6 +53,7 @@ import { RESIDUE_FIELDS, sanitizeResidueField } from './residue.js?v=0.2.20';
 import { SESSION_CONFIG } from './config.js?v=0.2.20';
 import { edgeBody } from './edge-intents.js?v=0.2.20';
 import { leaveAskOf, pendingLeaveAt, leaveCountdown, closeInMs } from './hunt-leave.js?v=0.2.20';
+import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.20';
 
 export const FRAME_EVENT = 'frame';
 
@@ -114,13 +114,12 @@ export class CharacterSession {
     this._attempt = 0;
     this._retry = null;
     this._residueTimer = null;
-    this._huntTimer = null;
-    this._huntDue = null;
     this._leaveAsk = null;
     this._pending = {};
     this._closed = false;
     this.lastVerdict = null;
     this._now = o.now || (() => (globalThis.performance ? globalThis.performance.now() : Date.now()));
+    this._poll = new HuntPoll({ setTimer: this._setTimer, clearTimer: this._clearTimer, now: () => this._now(), fire: () => this._huntPoll() });
     /* Played a poll behind, the buffer holds two windows of steps and a unit gone from the pose must
        outlive the delay before it is forgotten (timeline.js T5). */
     this.timeline = createTimeline({ delayMs: SESSION_CONFIG.huntPlaybackDelayMs, maxSteps: 256,
@@ -172,32 +171,14 @@ export class CharacterSession {
   /** The SERVER's clock now (ms), measured from its answers (timeline.js T3), or null before one came. */
   serverNow() { return this.timeline.serverNowAt(this._now()); }
 
-  /* THE HUNT RE-READ: armed by every applied answer while a hunt is open, never twice. A pending
-     leave's close moves an armed re-read EARLIER (never later), so the hunt ends on screen at the
-     server's leave_at instead of a whole poll after it. */
+  /* THE HUNT RE-READ (hunt-poll.js), armed by every applied answer while a hunt is open. */
   _armHuntPoll() {
     if (this._closed || !this._huntOpen()) return;
-    /* The live view without a start point (just entered, reloaded, or a commit it did not match)
-       asks at once; the floor then answers with hunt_live instead of a settle. */
-    const h = this.read('hunt');
-    const from = h && h.session && typeof h.session.hunt_from === 'string' ? Date.parse(h.session.hunt_from) : NaN;
-    let ms = this.liveLink.askDelayMs(from) ?? SESSION_CONFIG.huntPollMs;
-    const close = this._closeInMs();
-    if (close !== null) ms = Math.min(ms, close);
-    const due = this._now() + ms;
-    if (this._huntTimer) {
-      if (!(due < this._huntDue)) return;
-      this._clearTimer(this._huntTimer);
-    }
-    this._huntDue = due;
-    this._huntTimer = this._setTimer(() => { this._huntTimer = null; this._huntDue = null; this._huntPoll(); }, ms);
+    this._poll.arm(pollDelayMs(this.read('hunt'), this.liveLink, closeInMs(this.leaveAt(), this.serverNow())));
   }
 
-  /* A PENDING LEAVE (hunt-leave.js), on the server's clock: its instant is the envelope's leave_at, else
-     the leave's own answer for the same session (so the countdown never waits on the settle after it). */
-  _closeInMs() { return closeInMs(this.leaveAt(), this.serverNow()); }
-
-  /** The pending leave's server instant (ms), or null when none pends (or no hunt is open). */
+  /** A PENDING LEAVE's server instant (ms): the envelope's leave_at, else the leave's own answer for the
+      same session (the countdown never waits on the settle after it); null when none pends or no hunt. */
   leaveAt() { return this._huntOpen() ? pendingLeaveAt(this.read('hunt'), this._leaveAsk) : null; }
 
   /** The pending leave as the hunt bar shows it (hunt-leave.js leaveCountdown), or null when none pends. */
@@ -207,8 +188,7 @@ export class CharacterSession {
     if (this._closed || !this._huntOpen()) return;
     let took = false;
     try { took = await this.hello(); } catch (e) { /* the next ask retries */ }
-    /* an ask that brought no answer (blocked, refused, offline) backs off like one that brought no start
-       point: the live ask once re-armed every liveAskMs for as long as the calls failed */
+    /* no answer (blocked, refused, offline) backs the live ask off too, never every liveAskMs */
     if (!took) this.liveLink.missed();
     this._armHuntPoll();
   }
@@ -608,7 +588,7 @@ export class CharacterSession {
     this._dropChannel();
     if (this._retry) { this._clearTimer(this._retry); this._retry = null; }
     if (this._residueTimer) { this._clearTimer(this._residueTimer); this._residueTimer = null; }
-    if (this._huntTimer) { this._clearTimer(this._huntTimer); this._huntTimer = null; this._huntDue = null; }
+    this._poll.stop();
     this._record = null;
     this._pending = {};
     this._status = 'closed';

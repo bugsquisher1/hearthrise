@@ -7,7 +7,7 @@
 //   node tests/character-window.mjs --shots <dir>  also write the visual-gate screenshots
 //                                                  (1440x900 and 922x423)
 //
-// mutant-anchors: src/shell/windows/character/sheet.js src/shell/windows/character/index.js src/shell/windows/character/outfit.js src/session/character-sections.js src/shell/windows/skills.js src/data/item-uses.js src/data/skill-unlocks.js supabase/functions/hr-accrue/character-sheet.js src/core/progression.js
+// mutant-anchors: src/shell/windows/character/sheet.js src/shell/windows/character/index.js src/shell/windows/character/outfit.js src/session/character-sections.js src/shell/windows/skills.js src/styles/character.css src/data/item-uses.js src/data/skill-unlocks.js supabase/functions/hr-accrue/character-sheet.js src/core/progression.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character is tests/fixtures/alpha-envelope.json plus the three sections
@@ -28,6 +28,7 @@
 //         server's outfit until the re-read; a premium outfit not owned can be
 //         tried on and never saved
 //   CW-5  THE DEATH LOG is the server's rows: who killed the hero, where, the XP
+//   CW-7  the sheet lays out from the window's own width: every vital row whole, none over the identity
 //   CW-6  THE SKILLS: Gathering and crafting lists no combat skill; the combat
 //         ledger is the Character window's; an unlock line names each thing and
 //         its kind ("Bronze Axe (woodcutting tool)")
@@ -168,7 +169,7 @@ async function checks(overrides, shots) {
         /* CW-2: exactly the section's numbers. */
         const L = await lines(page);
         const want = { Damage: '1–17', 'Hit chance': '74.5% against no armour', 'Critical chance': '4.5%', Defence: '23', 'Max mana': '60', 'Max health': '24',
-          Regeneration: '101.9% of the base rate (Prayer)', 'Home and renown': '+2%', Total: '+2%' };
+          Regeneration: '+1.9% (Prayer)', 'Home and renown': '+2%', Total: '+2%' };
         for (const [k, v] of Object.entries(want)) if (L[k] !== v) fails.push('CW-2 ' + k + ' reads ' + JSON.stringify(L[k]) + ', the server sent ' + v);
         if ('Prayer ward' in L || 'Gear' in L || 'Food and drink' in L) fails.push('CW-3 a zero line is drawn: ' + JSON.stringify(L));
         const level = await page.evaluate(() => document.querySelector('[data-hs-win="character"] .hw-cs-lv').textContent);
@@ -272,6 +273,34 @@ async function checks(overrides, shots) {
       } else fails.push('CW-3 the no-mana character did not open');
       await ctx.close();
     }
+    { // CW-7 THE SHEET LAYS OUT FROM THE WINDOW'S OWN WIDTH: at every browser size (and a squeezed window)
+      // every vital row is drawn whole inside the window and no identity box crosses a vital box.
+      for (const vp of [[922, 423], [1280, 720], [1440, 900], [1920, 1080], [1440, 900, 300]]) {
+        const { ctx, page, up } = await open({ viewport: { width: vp[0], height: vp[1] } });
+        if (up && await openWin(page, 'c', 'character')) {
+          await waitCombat(page);
+          const r = await page.evaluate((w) => {
+            const win = document.querySelector('[data-hs-win="character"]');
+            if (w) win.style.width = w + 'px';
+            const box = (e) => e.getBoundingClientRect();
+            const W = box(win);
+            const ids = Array.from(win.querySelectorAll('.hw-cs-portrait, .hw-cs-name, .hw-cs-role, .hw-cs-lv, .hw-cs-level .hw-skill-bar, .hw-cs-lvxp')).map(box).filter((b) => b.width > 0);
+            const vit = Array.from(win.querySelectorAll('.hw-cs-vitals .hw-cs-line.is-on'));
+            const bad = [];
+            for (const v of vit) {
+              const b = box(v);
+              const name = v.querySelector('dt').textContent;
+              if (b.width < 1 || b.height < 1 || b.left < W.left - 0.5 || b.right > W.right + 0.5 || v.scrollWidth > v.clientWidth + 1) bad.push(name + ' not drawn whole');
+              for (const d of v.children) { const q = box(d); if (ids.some((i) => q.left < i.right && i.left < q.right && q.top < i.bottom && i.top < q.bottom)) bad.push(name + ' overlaps the identity'); }
+            }
+            return { n: vit.length, names: vit.map((v) => v.querySelector('dt').textContent), bad };
+          }, vp[2] || 0);
+          if (['Max health', 'Max mana', 'Regeneration', 'Speed'].some((k) => !r.names.includes(k))) fails.push('CW-7 at ' + vp.join('x') + ' only ' + r.names.join(',') + ' show');
+          if (r.bad.length) fails.push('CW-7 at ' + vp.join('x') + ': ' + r.bad.join('; '));
+        } else fails.push('CW-7 the window did not open at ' + vp.join('x'));
+        await ctx.close();
+      }
+    }
     if (shots) { // the phone size class
       const { ctx, page, up } = await open({ viewport: { width: 922, height: 423 } });
       if (up && await openWin(page, 'c', 'character')) {
@@ -296,6 +325,7 @@ async function checks(overrides, shots) {
 }
 
 const MUTANTS = [
+  ['the vitals no longer wrap under the identity', 'src/styles/character.css', '.hw-cs-vitals { flex: 1 1 260px; min-width: 0;', '.hw-cs-vitals { flex: none; grid-template-columns: auto auto !important;'],
   ['the damage is derived in the browser', 'src/shell/windows/character/sheet.js', "c && c.damage ? c.damage.min + '–' + c.damage.max : null", "c && c.damage ? '1–' + (Math.floor(c.defence * 0.35) + 2) : null"],
   ['a stale sheet keeps the last numbers', 'src/session/character-sections.js', '    combat: s.fresh === true ? combatOf(s.combat) : null,', '    combat: (globalThis.__lc = s.fresh === true ? combatOf(s.combat) : (globalThis.__lc || null)),'],
   ['an absent stat draws a zero', 'src/shell/windows/character/sheet.js', "line(root, '[data-vital=\"mana\"]', manaMax !== null ? whole(manaMax) : null);", "line(root, '[data-vital=\"mana\"]', whole(manaMax || 0));"],

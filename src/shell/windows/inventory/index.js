@@ -20,15 +20,15 @@
 // (src/render/paint.js). Opening it again is what clears the "new" marks the
 // player was shown last time (the residue `bagSeen`).
 // ════════════════════════════════════════════════════════════════════════
-import { text, cls, prop, style } from '../../../render/paint.js?v=0.2.18';
-import { whole, gold } from '../../../render/format.js?v=0.2.18';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.18';
-import { closeFloatMenu } from '../float-menu.js?v=0.2.18';
-import { stateOf } from './state.js?v=0.2.18';
-import { dollHtml, slotLineHtml, patchDoll, patchSlotLine } from './doll.js?v=0.2.18';
-import { toolbarHtml, gridHtml, toolsHtml, patchToolbar, patchGrid, patchTools, KEYS } from './grid.js?v=0.2.18';
-import { advancedHtml, patchAdvanced } from './advanced.js?v=0.2.18';
-import { actInventory, commitSeen, INVENTORY_EVENTS } from './actions.js?v=0.2.18';
+import { text, cls, prop, style } from '../../../render/paint.js?v=0.2.19';
+import { whole, gold } from '../../../render/format.js?v=0.2.19';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.19';
+import { closeFloatMenu } from '../float-menu.js?v=0.2.19';
+import { stateOf } from './state.js?v=0.2.19';
+import { dollHtml, slotLineHtml, patchDoll, patchSlotLine } from './doll.js?v=0.2.19';
+import { toolbarHtml, gridHtml, toolsHtml, patchToolbar, patchGrid, patchTools, KEYS } from './grid.js?v=0.2.19';
+import { advancedHtml, patchAdvanced } from './advanced.js?v=0.2.19';
+import { actInventory, commitSeen, INVENTORY_EVENTS } from './actions.js?v=0.2.19';
 
 /** The skeleton (built once per opening). */
 export function renderInventory(ctx) {

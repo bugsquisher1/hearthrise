@@ -19,17 +19,17 @@
 // Built once; each member is a keyed row (src/render/paint.js rows), patched in
 // place. The expand toggle and the intent scratch live on the panel element.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.11';
-import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.11';
-import { partyOf } from '../../session/hunt-sections.js?v=0.2.11';
-import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.11';
-import { afterLeave, disbandParty } from '../../session/party-intents.js?v=0.2.11';
-import { runIntent } from '../intent-words.js?v=0.2.11';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.11';
-import { short, whole } from '../../render/format.js?v=0.2.11';
-import { glyphSvg } from '../launcher.js?v=0.2.11';
-import { markPlayer } from '../context-menu.js?v=0.2.11';
-import { gaugeHtml, patchGauge, panelHtml } from './bits.js?v=0.2.11';
+import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.12';
+import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.12';
+import { partyOf } from '../../session/hunt-sections.js?v=0.2.12';
+import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.12';
+import { afterLeave, disbandParty } from '../../session/party-intents.js?v=0.2.12';
+import { runIntent } from '../intent-words.js?v=0.2.12';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.12';
+import { short, whole } from '../../render/format.js?v=0.2.12';
+import { glyphSvg } from '../launcher.js?v=0.2.12';
+import { markPlayer } from '../context-menu.js?v=0.2.12';
+import { gaugeHtml, patchGauge, panelHtml } from './bits.js?v=0.2.12';
 
 function memberHtml(glyphs) {
   return '<li class="hp-m">'

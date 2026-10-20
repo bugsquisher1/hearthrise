@@ -395,6 +395,7 @@ const MUTANTS = [
   ['C7', 'the camera ignores the docked window', 'src/world/core/camera.js', [['const inset = cleanInset(o.inset);', 'const inset = cleanInset(null);']]],
   ['C7', 'the leaning camera lets the hero walk under the window', 'src/world/core/camera.js', [['inset, mid(o.keep), T), o.sinceMs);', 'inset, null, T), o.sinceMs);']]],
   ['C7', 'a small room centred in the whole stage, not the uncovered part', 'src/world/core/camera.js', [['if (span <= u) c = lo + (span - u) / 2;', 'if (span <= u) c = lo + (span - v) / 2 + a;']]],
+  ['C8', 'a docked HUD panel shows the void past the map', 'src/world/core/camera.js', [['    if (span >= v) c = hold(', '    if (false) c = hold(']]],
   ['C2', 'the camera rounded to art pixels', 'src/world/core/camera.js', [['const cx = Math.round(cam.x * z), cy', 'const cx = Math.round(cam.x) * z, cy']]],
   ['L1', 'the lint accepts offsets', 'src/world/core/map-compile.js', [["k !== 'id' && k !== 'x' && k !== 'y'", "k !== 'id' && k !== 'x' && k !== 'y' && k !== 'ox'"]]],
   ['L0', 'a map row edited without its hash', 'src/data/world/maps/mill_cellar.js', [["    '###...................##',\n", "    '###.......#...........##',\n"]]],

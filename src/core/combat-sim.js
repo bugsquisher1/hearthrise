@@ -39,17 +39,17 @@
 // window, no timers, no Math.random.
 // ============================================================
 
-import { COMBAT_BALANCE } from './combat.js?v=0.2.14';
-import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.14';
-import { createRng } from './rng.js?v=0.2.14';
-import { densityFor } from '../data/hunt-grounds.js?v=0.2.14';
-import { stepSwing } from './hunt/world-step.js?v=0.2.14';
-import { makeEvent } from './hunt/events.js?v=0.2.14';
-import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.14';
-import { rewardSwing } from './hunt-rewards.js?v=0.2.14';
+import { COMBAT_BALANCE } from './combat.js?v=0.2.18';
+import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.18';
+import { createRng } from './rng.js?v=0.2.18';
+import { densityFor } from '../data/hunt-grounds.js?v=0.2.18';
+import { stepSwing } from './hunt/world-step.js?v=0.2.18';
+import { makeEvent } from './hunt/events.js?v=0.2.18';
+import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.18';
+import { rewardSwing } from './hunt-rewards.js?v=0.2.18';
 
 /* The engine's front door (src/core/index.js `combatSim`). */
-export { stepSwing } from './hunt/world-step.js?v=0.2.14';
+export { stepSwing } from './hunt/world-step.js?v=0.2.18';
 
 /* WHY A COMBAT SPAN STOPPED BEFORE THE WINDOW DID — the same contract
    src/core/skill-sim.js and src/core/artisan-sim.js publish under this name.
@@ -165,6 +165,13 @@ export function simulateHuntInstance(inst, ctx) {
     const u = world && m.unitId !== null ? world.units.find((x) => x.id === m.unitId) : null;
     if (u) syncUnit(u, m);
   }
+  /* A HERO WITH NO MEMBER walks out first: a session the database closed between
+     settles (a kick, a leave at once — hr_hunt_close clears unit_id, not the world)
+     left its unit standing, and an unowned hero would earn kills nobody is paid for. */
+  if (world) {
+    const owned = new Set(members.filter((m) => !m.left && m.unitId !== null).map((m) => m.unitId));
+    for (const u of world.units.slice()) if (u.side === 'hero' && !owned.has(u.id)) leaveHero(world, u.id);
+  }
 
   while (atMs < toMs && members.some((m) => !m.left)) {
     // (1) Each member at this boundary: the end checks, then a paid interval.
@@ -176,7 +183,12 @@ export function simulateHuntInstance(inst, ctx) {
       m.hs.swingIndex += 1;
       m.hs.nextSwingAtMs = atMs + tick;
       if (m.unitId === null) {
-        if (!world) { world = newHuntWorld(ctx.ground, ctx.grid, [heroOf(m)]); m.unitId = world.units[0].id; }
+        if (!world) {
+          world = newHuntWorld(ctx.ground, ctx.grid, [heroOf(m)]);
+          /* A restarted instance's fresh world counts on from its stored swing (the seed index never repeats). */
+          world.swing = Math.max(0, Math.floor(Number(inst.worldSwing) || 0));
+          m.unitId = world.units[0].id;
+        }
         else m.unitId = joinHero(world, ctx.ground, heroOf(m), m.seat);
         out.get(m.key).unitEver = m.unitId;
       }

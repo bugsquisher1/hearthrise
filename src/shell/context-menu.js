@@ -17,11 +17,11 @@
 // at page level — a press on it never reaches the World; the click a long
 // press leaves behind is swallowed too.
 // ════════════════════════════════════════════════════════════════════════
-import { MENU_ENTRIES } from '../data/social-menu.js?v=0.2.14';
-import { refusalWords } from './intent-words.js?v=0.2.14';
-import { openFloatMenu, closeFloatMenu } from './windows/float-menu.js?v=0.2.14';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.14';
-import { attr } from '../render/paint.js?v=0.2.14';
+import { MENU_ENTRIES } from '../data/social-menu.js?v=0.2.18';
+import { refusalWords } from './intent-words.js?v=0.2.18';
+import { openFloatMenu, closeFloatMenu } from './windows/float-menu.js?v=0.2.18';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.18';
+import { attr } from '../render/paint.js?v=0.2.18';
 
 const LONG_PRESS_MS = 500;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -55,7 +55,11 @@ export function entriesFor(target, providers) {
     if (!e || typeof e.run !== 'function') continue;
     let on = false;
     try { on = typeof e.when !== 'function' || e.when(target) === true; } catch (err) { on = false; }
-    if (on) out.push({ id: row.id, label: typeof row.label === 'function' ? row.label(target) : row.label, run: e.run });
+    if (!on) continue;
+    /* A provider may name a reason the entry is shown but off ("Party full"): its label, the button disabled. */
+    let off = null;
+    try { off = typeof e.off === 'function' ? e.off(target) : null; } catch (err) { off = null; }
+    out.push({ id: row.id, label: typeof off === 'string' && off ? off : typeof row.label === 'function' ? row.label(target) : row.label, run: e.run, off: typeof off === 'string' && !!off });
   }
   return out;
 }
@@ -80,7 +84,7 @@ export function mountContextMenu(ctx, roots, providers) {
     if (!list.length) return false;
     const title = target.kind === 'player' ? target.name : (target.title || target.id);
     const html = '<b class="hw-menu-title">' + esc(title) + '</b>'
-      + list.map((e) => '<button type="button" role="menuitem" class="hw-mi" data-hs-act="' + esc(e.id) + '">' + esc(e.label) + '</button>').join('')
+      + list.map((e) => '<button type="button" role="menuitem" class="hw-mi" data-hs-act="' + esc(e.id) + '"' + (e.off ? ' disabled' : '') + '>' + esc(e.label) + '</button>').join('')
       + '<p class="hw-menu-say" role="status" hidden></p>';
     const say = (text) => {
       const el = doc.querySelector('.hw-menu .hw-menu-say');

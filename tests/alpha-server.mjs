@@ -378,7 +378,7 @@ async function blessArm(db, { H, M }, attended) {
 /* Each mutant: the file, its [find, replace], the arm that must go red. The file's own
    self-check is turned into an uncalled function so the defect reaches the arm. */
 const MUTANTS = [
-  { arm: 'A-LOCK', file: '2026-10-25-settle-hooks.sql', why: 'hr_apply no longer refuses a locked sale',
+  { arm: 'A-LOCK', file: '2026-10-27-core-bodies.sql', why: 'hr_apply no longer refuses a locked sale',
     find: "        if v_n < 0 and coalesce(v_this_intent, '') ~ '^vendor_sell(_many)?(:|$)' and public.hr_item_locked(v_uid, v_slot, k) then",
     repl: "        if false and coalesce(v_this_intent, '') ~ '^vendor_sell(_many)?(:|$)' and public.hr_item_locked(v_uid, v_slot, k) then" },
   /* hr_hunt_apply_member is RESTATED by the core rebuild (2026-10-27-core-bodies.sql):
@@ -407,10 +407,29 @@ const MUTANTS = [
      so there is no second death for the mutant to protect.) */
   { arm: 'A-BLESS-ATTENDED', file: '2026-10-25-blessings.sql', why: 'a death does not use the blessings up',
     find: '  delete from public.player_blessings where user_id = p_user and slot = p_slot and tier = any (v_tiers);', repl: '  perform 1;' },
-  /* hr_hunt_party_start is RESTATED by 2026-10-28-party-flow.sql (the ground picked at Start): the mutant is planted in the body that runs. */
-  { arm: 'A-PARTY', file: '2026-10-28-party-flow.sql', why: "the shared start loads the leader's bag into every member",
+  /* hr_hunt_party_start is RESTATED last by 2026-10-30-town-activity-yields.sql (after party-flow): the mutant is planted in the body that runs. */
+  { arm: 'A-PARTY', file: '2026-10-30-town-activity-yields.sql', why: "the shared start loads the leader's bag into every member",
     find: 'public.hr_hunt_saved_bag(v_m.user_id, v_m.slot),', repl: 'public.hr_hunt_saved_bag(v_uid, p_slot),' },
 ];
+
+/** Each mutant's file must be the chain's LAST author of the function its `find` sits in (mutate the caller). */
+export function staleAnchors(mutants) {
+  const order = JSON.parse(readFileSync(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+  const text = (f) => { try { return readFileSync(MIG(f), 'utf8').replace(/\r\n/g, '\n'); } catch { return ''; } };
+  const out = [];
+  for (const mu of mutants) {
+    const body = text(mu.file);
+    const at = body.indexOf(mu.find);
+    if (at < 0) { out.push(`${mu.arm}: find not in ${mu.file}`); continue; }
+    let fn = null;
+    for (const m of body.slice(0, at).matchAll(/create\s+or\s+replace\s+function\s+(?:public\.)?(\w+)\s*\(/gi)) fn = m[1];
+    if (!fn) continue;
+    const re = new RegExp('create\\s+or\\s+replace\\s+function\\s+(?:public\\.)?' + fn + '\\s*\\(', 'i');
+    const later = order.slice(order.indexOf(mu.file) + 1).filter((f) => re.test(text(f)));
+    if (later.length) out.push(`${mu.arm}: ${fn} in ${mu.file} is restated last by ${later.at(-1)}; plant it there`);
+  }
+  return out;
+}
 
 function selfCheckOff(file) {
   const src = readFileSync(MIG(file), 'utf8').replace(/\r\n/g, '\n');
@@ -449,7 +468,13 @@ async function main() {
     console.log(bad ? `alpha-server: ${bad} of ${res.length} arms red` : `alpha-server: green — ${res.length} arms`);
     process.exit(bad ? 1 : 0);
   }
-  let missed = 0;
+  /* A mutant planted in a body a later file restates never runs (A-PARTY/A-LOCK, 2026-10-20): refuse it up front.
+     Selftest: the old party-flow anchor must be flagged, or this check is blind. */
+  const probe = staleAnchors([{ arm: 'SELFTEST', file: '2026-10-28-party-flow.sql', find: 'public.hr_hunt_saved_bag(v_m.user_id, v_m.slot),' }]);
+  if (!probe.length) { console.error('✗ ANCHOR selftest: a superseded party-flow anchor was not flagged'); process.exit(1); }
+  const stale = staleAnchors(MUTANTS);
+  for (const s of stale) console.error('✗ ANCHOR ' + s);
+  let missed = stale.length;
   for (const mu of MUTANTS) {
     let db;
     try {

@@ -6,10 +6,10 @@
 // The row is drawn from the window catalogue, so it lists only windows that
 // exist, and it is the `launchers` HUD widget, which can never be hidden.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.14';
-import { HUNT_TUTORIAL } from '../data/hunt-tutorial.js?v=0.2.14';
-import { levelOf } from '../session/character-sections.js?v=0.2.14';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.14';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.18';
+import { HUNT_TUTORIAL } from '../data/hunt-tutorial.js?v=0.2.18';
+import { levelOf } from '../session/character-sections.js?v=0.2.18';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.18';
 
 /** The chip text for a row's shortcut key: 'b' -> 'B', 'enter' -> 'Enter'. */
 export function keyLabel(key) {

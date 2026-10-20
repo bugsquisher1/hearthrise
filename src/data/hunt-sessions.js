@@ -12,10 +12,10 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_STANCES } from './rule-subjects.js?v=0.2.14';
-import { WEAPON_ROLES } from './hunt-roles.js?v=0.2.14';
-import { ACTION_SET_SKIPS } from './abilities.js?v=0.2.14';
-import { DENSITY_PICK } from './hunt-grounds.js?v=0.2.14';
+import { HUNT_STANCES } from './rule-subjects.js?v=0.2.18';
+import { WEAPON_ROLES } from './hunt-roles.js?v=0.2.18';
+import { ACTION_SET_SKIPS } from './abilities.js?v=0.2.18';
+import { DENSITY_PICK } from './hunt-grounds.js?v=0.2.18';
 
 /* Hours is an optional limit, off by default: the bag, stamina and death
    already bound a hunt, and a timer nobody asked for is a hunt that ends for no
@@ -116,10 +116,11 @@ export const ACTION_SET_OPTIONS = Object.freeze({
    buggy engine minting more than a few times what K kills can be worth. */
 export const VALUE_HEADROOM = 3;
 
-/* WHAT AN AUTOMATIC END SENDS A CHARACTER WITH NOTHING ELSE TO DO BACK TO
-   (master plan row 25): fishing the Shrimp Spot. A new character's
-   `last_activity_*` starts here (the generated column default). */
-export const DEFAULT_RESUME = Object.freeze({ kind: 'gather', id: 'shrimp_s' });
+/* WHAT AN AUTOMATIC END SENDS A CHARACTER WITH NOTHING ELSE TO DO BACK TO: NOTHING (live v0.2.11,
+   2026-10-20). A hunt end resumes only an activity the player chose; a character that never chose one goes
+   idle in town. (It was fishing the Shrimp Spot, started invisibly for heroes that never fished.) null = no
+   column default on player_state.last_activity_*. */
+export const DEFAULT_RESUME = null;
 
 /* SELL-TO-COVER: WHAT A HUNT MAY SELL TO KEEP THE SHOP PAID (master plan row 3;
    narrowed by the Master Design Reference §8 review, 2026-10-15). Auto-sell is

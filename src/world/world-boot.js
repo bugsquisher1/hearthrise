@@ -31,27 +31,27 @@
 // A fight on a hunt no map renders shows the viewer's town or home with a slim
 // banner that names the fight and offers the hunt that IS in the World.
 // ════════════════════════════════════════════════════════════════════════
-import { BUILD } from '../build-info.js?v=0.2.14';
-import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=0.2.14';
-import { WORLD_MAPS } from '../data/world/maps/index.js?v=0.2.14';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.14';
-import { MONSTERS } from '../data/monsters.js?v=0.2.14';
-import { compileMap } from './core/map-compile.js?v=0.2.14';
-import { STUB_SPRITE } from './core/book.js?v=0.2.14';
-import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.14';
-import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.14';
-import { readScene, setChoice, heroPosOn, notePos } from './store.js?v=0.2.14';
-import { loadAtlases } from './atlas.js?v=0.2.14';
-import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.14';
-import { huntOfMap } from './hunt-maps.js?v=0.2.14';
-import { createHuntScene } from './hunt-scene.js?v=0.2.14';
-import { createHuntScene as createLiveHunt, readHunt } from '../hunt-view/scene.js?v=0.2.14';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.14';
-import { createWalkScene } from './walk-scene.js?v=0.2.14';
-import { homeMapFor } from './home-scene.js?v=0.2.14';
-import { runAction } from './steer-local.js?v=0.2.14';
-import { heroSprite } from '../session/hero-look.js?v=0.2.14';
-import { keyBelongsToField } from '../utils/dom.js?v=0.2.14';
+import { BUILD } from '../build-info.js?v=0.2.18';
+import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=0.2.18';
+import { WORLD_MAPS } from '../data/world/maps/index.js?v=0.2.18';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.18';
+import { MONSTERS } from '../data/monsters.js?v=0.2.18';
+import { compileMap } from './core/map-compile.js?v=0.2.18';
+import { STUB_SPRITE } from './core/book.js?v=0.2.18';
+import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.18';
+import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.18';
+import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.18';
+import { loadAtlases } from './atlas.js?v=0.2.18';
+import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.18';
+import { huntOfMap } from './hunt-maps.js?v=0.2.18';
+import { createHuntScene } from './hunt-scene.js?v=0.2.18';
+import { createHuntScene as createLiveHunt, readHunt } from '../hunt-view/scene.js?v=0.2.18';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.18';
+import { createWalkScene } from './walk-scene.js?v=0.2.18';
+import { homeMapFor } from './home-scene.js?v=0.2.18';
+import { runAction } from './steer-local.js?v=0.2.18';
+import { heroSprite } from '../session/hero-look.js?v=0.2.18';
+import { keyBelongsToField } from '../utils/dom.js?v=0.2.18';
 
 /* THE KEYS (desktop): WASD and the arrows, by physical key (e.code, so a
    non-QWERTY layout walks with the same hand). Two held at once walk the
@@ -286,7 +286,7 @@ export async function bootWorld(panel, opts) {
     let cast;
     if (sc.kind === 'hunt') {
       cast = huntState(G, sc, map, name, now);
-      walk = null; lastWalk = null; keys.clear();
+      walk = null; lastWalk = null; keys.clear(); forgetPos(G);   // back in town: the arrival point
       if (town) town.show(null);
     } else {
       hunt = null; huntMap = null; lastHunt = null; endLive();
@@ -430,7 +430,7 @@ export async function bootWorld(panel, opts) {
       raf = 0; running = false;
       if (unsubscribe) unsubscribe();
       endLive();
-      if (town) town.show(null);
+      if (town) town.park();   // another character is viewed: this one stays in town
       chrome.removeEventListener('click', onChoice);
       stage.removeEventListener('click', onTap);
       stage.removeEventListener('contextmenu', onContext);

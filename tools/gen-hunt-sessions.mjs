@@ -119,7 +119,7 @@ export const WORLD_FIELDS_READ = Object.freeze({
     'role', 'dist', 'chase', 'tmode', 'stance']),
   world: Object.freeze(['leader']),
 });
-export const OUT_NAME = '2026-10-28-hunt-sessions-catalogue.generated.sql';
+export const OUT_NAME = '2026-10-30-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -338,7 +338,7 @@ export function catalogueRows(src = {}) {
     .map((id) => ({ id, unit: vendorPriceOf(S.items, id) })).filter((r) => r.unit >= 1)
     .sort((a, b) => (a.id < b.id ? -1 : 1));
   const resume = S.defaultResume;
-  if (!resume || !S.resumable.includes(resume.kind) || !ID.test(resume.id)) {
+  if (resume !== null && (!resume || !S.resumable.includes(resume.kind) || !ID.test(resume.id))) {
     throw new Error(`DEFAULT_RESUME ${JSON.stringify(resume)} is not a resumable kind and id`);
   }
   const eventTypes = Object.keys(S.events);
@@ -762,8 +762,9 @@ alter table public.hunt_session_events add constraint hunt_session_events_type_c
 -- THE LAST NON-HUNT ACTIVITY an automatic hunt end resumes (Tyler 2026-10-14).
 alter table public.player_state add column if not exists last_activity_kind text;
 alter table public.player_state add column if not exists last_activity_id text;
-alter table public.player_state alter column last_activity_kind set default ${sq(r.resume.kind)};
-alter table public.player_state alter column last_activity_id set default ${sq(r.resume.id)};
+${r.resume ? `alter table public.player_state alter column last_activity_kind set default ${sq(r.resume.kind)};
+alter table public.player_state alter column last_activity_id set default ${sq(r.resume.id)};` : `alter table public.player_state alter column last_activity_kind drop default;
+alter table public.player_state alter column last_activity_id drop default;`}
 alter table public.player_state drop constraint if exists player_state_last_activity_ck;
 alter table public.player_state add constraint player_state_last_activity_ck
   check ((last_activity_kind is null) = (last_activity_id is null)

@@ -33,10 +33,10 @@
 //                 left and destroyed when it closes
 // ════════════════════════════════════════════════════════════════════════
 
-import { SESSION_CONFIG } from './config.js?v=0.2.14';
-import { CharacterSession } from './character-session.js?v=0.2.14';
-import { TownPresence } from './town-presence.js?v=0.2.14';
-import { charLevelFromXp } from '../core/xp.js?v=0.2.14';
+import { SESSION_CONFIG } from './config.js?v=0.2.18';
+import { CharacterSession } from './character-session.js?v=0.2.18';
+import { TownPresence } from './town-presence.js?v=0.2.18';
+import { charLevelFromXp } from '../core/xp.js?v=0.2.18';
 
 /** This tab's session id: made once per tab, kept across a reload, new for a new tab. */
 export function tabSessionId(tab, cfg = SESSION_CONFIG, make) {
@@ -174,6 +174,7 @@ export class AccountSession {
     cs.connect();
     this._towns.set(slot, new TownPresence({ server: this.server, slot, self: () => this.userId,
       hidden: (id) => !!(this.social && this.social.blocks && this.social.blocks.has(id)),
+      busy: () => !!cs.read('hunt'),
       timers: this._timers.setInterval ? { setTimer: this._timers.setInterval, clearTimer: this._timers.clearInterval } : null }));
     if (this.viewed === null) this.viewed = slot;
     this._emit('opened', slot);

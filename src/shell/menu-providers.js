@@ -19,12 +19,12 @@
 //                                         Security review) ships
 // worldTargetOf turns what the World picked under a pointer into a target.
 // ════════════════════════════════════════════════════════════════════════
-import { MONSTERS } from '../data/monsters.js?v=0.2.14';
-import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.14';
-import { refusalText } from './intent-words.js?v=0.2.14';
-import { monsterName } from './widgets/bits.js?v=0.2.14';
-import { partyMembershipOf } from '../session/party-sections.js?v=0.2.14';
-import { inviteOwn, afterLeave } from '../session/party-intents.js?v=0.2.14';
+import { MONSTERS } from '../data/monsters.js?v=0.2.18';
+import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.18';
+import { refusalText } from './intent-words.js?v=0.2.18';
+import { monsterName } from './widgets/bits.js?v=0.2.18';
+import { partyMembershipOf, partyPeopleOf } from '../session/party-sections.js?v=0.2.18';
+import { inviteOwn, invitePlayer, afterLeave } from '../session/party-intents.js?v=0.2.18';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -68,21 +68,31 @@ export function worldTargetOf(pick) {
  */
 function partyEntries(ctx, cs) {
   const account = ctx.account;
+  const social = account && account.social;
   const mine = (t) => !!t && t.kind === 'player' && !!t.id && !!account && t.id === account.userId;
   const ownOf = (t) => (mine(t) && Number.isInteger(t.slot) ? ctx.peers().find((o) => o.slot === t.slot) || null : null);
   return {
     'party-invite': {
+      /* Every other player (live v0.2.11: an unnamed "Adventurer" lost the entry because the invite went by
+         name); hidden only across a block or for someone already in this party. */
       when: (t) => {
         if (!cs || t.kind !== 'player') return false;
         if (mine(t)) { const o = ownOf(t); return !!o && o !== cs && !partyMembershipOf(o); }
+        if (t.id && UUID.test(t.id)) {
+          if (social && social.blocks && typeof social.blocks.has === 'function' && social.blocks.has(t.id)) return false;
+          for (const p of partyPeopleOf(cs).values()) if (p.id === t.id && (t.slot === null || t.slot === undefined || p.slot === t.slot)) return false;
+          return true;
+        }
         return !!t.name && t.name !== 'Adventurer' && typeof cs.inviteByName === 'function';
       },
+      /* A full party shows the entry off, in words. */
+      off: (t) => { const p = partyMembershipOf(cs); return !mine(t) && p && p.full ? 'Party full' : null; },
       run: async (t) => {
         if (mine(t)) {
           const r = await inviteOwn(account, cs, t.slot);
           return { say: r.ok ? t.name + ' joined your party.' : refusalText(r) };
         }
-        const r = await cs.inviteByName(t.name);
+        const r = t.id && UUID.test(t.id) ? await invitePlayer(account, cs, t.id, Number.isInteger(t.slot) ? t.slot : null) : await cs.inviteByName(t.name);
         return { say: r.ok ? 'Invite sent to ' + t.name + '.' : refusalText(r) };
       },
     },

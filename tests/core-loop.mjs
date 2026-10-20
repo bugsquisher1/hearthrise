@@ -520,7 +520,7 @@ function makePlayer(S, uid) {
       p.env = await readBack(S, uid, t, `enter ${hunt}`, null);
       return r;
     },
-    /** Leave the hunt: settle first (so it closes at once), then the RPC. */
+    /** Leave the hunt: settle, ask to leave, let the look-ahead pass, settle again (it closes then). */
     async leave(t) {
       await S.huntSettle(uid);
       /* A hunt that ended on its own (stamina, gold, falls) has already walked home: nothing to leave. */
@@ -528,7 +528,8 @@ function makePlayer(S, uid) {
       if (open && open.ended_at) { t.note(`already ended ${open.end_reason}`); p.env = p.seen = await readBack(S, uid, t, 'leave', null); return { ok: true, ended: open.end_reason }; }
       const r = await S.rpc(uid, 'select public.hr_hunt_leave(0, $1::uuid) r', [uuid()]);
       t.ok(r && r.ok === true, `hr_hunt_leave refused: ${brief(r)}`);
-      if (r.pending) await S.huntSettle(uid);
+      /* A leave PENDS past the live look-ahead (2026-10-31-live-horizon.sql, 32 s): let it pass, then settle. */
+      if (r.pending) { await S.elapse(uid, 40); await S.huntSettle(uid); }
       const sess = await S.session(uid);
       t.ok(sess && sess.ended_at, `the hunt did not close on leave (${brief(sess)})`);
       p.env = p.seen = await readBack(S, uid, t, 'leave', null);

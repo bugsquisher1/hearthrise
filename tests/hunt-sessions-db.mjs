@@ -229,6 +229,10 @@ const ARMS = {
     if (!c || c.ok !== true) return red.push(`B1: change answered ${JSON.stringify(c)}`);
     const l = await call(db, 'hr_hunt_leave', [0, idem()]);
     if (!l || l.ok !== true) return red.push(`B1: leave answered ${JSON.stringify(l)}`);
+    /* NO AT-ONCE END (2026-10-31-live-horizon.sql): a change and a leave both PEND past the live look-ahead;
+       the settle that reaches them closes the session (hr_hunt_close, run here directly). */
+    if (c.pending !== true || l.pending !== true) red.push(`B1: a change / leave ended the hunt at once (${c.pending} / ${l.pending})`);
+    await db.query(`select public.hr_hunt_close(id, 'left', now(), true) from public.hunt_sessions where user_id = $1 and ended_at is null`, [UID]);
     const drift = await q(db, `select x.session_id, x.item_id, x.j, coalesce(b.qty_left, 0) as left
         from (select session_id, item_id, sum(q) as j from (
                 select session_id, item_id, qty as q from public.player_ledger

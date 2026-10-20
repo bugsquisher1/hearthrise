@@ -54,6 +54,12 @@
 //                silences the client's own dice exactly as for lucky rows).
 //                Guarded by tests/field-salvage.mjs (4% faucet cap per row, 5%
 //                total gear cap per monster, hours band, both paths).
+//   tier         `{id, ch, tier:'relic'}` — the RELIC tier of a hunt's rare
+//                carrier (about 1 per 100-150 h). The ACCOUNT bestiary's activated
+//                stage multiplies these rows ONLY (src/data/bestiary-stages.js,
+//                src/core/drops.js relicMult). 'relic' is the only value
+//                (tools/gen-bestiary-catalogue.mjs refuses another). No row carries
+//                it yet: the relic items are a content decision.
 //
 // `neutral` IS RETIRED (DEC-NEUT-01). Every monster answers a real weapon.
 // The 7 monsters that used to opt out of the triangle earned a x1.15 drop

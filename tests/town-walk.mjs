@@ -43,6 +43,8 @@
 //         viewed one sees the other without viewing it first; a hunting one is not drawn; one
 //         BACK from a hunt (the server's hunt section names the ended session) stands in town;
 //         a parked one whose hunt ends while the page is open stands again on the re-read
+//   TW-13 SWITCHED AWAY MID-HUNT: a character that went hunting while viewed (its World showed
+//         no town) and is then left for another stands at the arrival tile once its hunt ends
 //   TW-12 ONE BODY PER CHARACTER ON THE SERVER: the chain's last hr_town_move keys its upsert,
 //         floor and hunting delete by user AND slot, and town_positions' primary key is
 //         (user_id, slot), as the fake server below models it (Tyler live v0.2.20: one
@@ -304,6 +306,35 @@ async function pureRules(M) {
       fail('TW-11 a character that went hunting still stands in town: own slots ' + JSON.stringify(again));
     b.a.close(0); b.a.close(1);
   }
+  // TW-13: viewed while it hunts, then another character is viewed: back from the hunt, it stands in town.
+  {
+    const w13 = fakeWorld();
+    w13.names.set(TYLER, 'Tyler');
+    const ticks = [];
+    const a = new M.acct.AccountSession({ auth: { userId: () => TYLER, token: () => 'jwt', signOut: async () => {} }, server: w13.link(TYLER),
+      timers: { setTimer: () => 0, clearTimer: () => {}, setInterval: (fn) => { ticks.push(fn); return ticks.length; }, clearInterval: (h) => { ticks[h - 1] = null; } } });
+    const run = async () => { for (const fn of ticks.slice()) if (fn) fn(); await settle(); };
+    if (!(await a.open(0)).ok || !(await a.open(1)).ok) throw new Error('TW-13 open failed');
+    a.view(0);
+    const t0 = a.townOf(0), t1 = a.townOf(1);
+    t0.show('town_common'); t0.publish(at(12, 9)); await settle();
+    w13.hunting.add(TYLER + ':0'); await a.character(0).load();
+    t0.show(null);   // the viewed World now shows the hunt
+    a.view(1); t0.park();   // the World pane switched to slot 1
+    t1.show('town_common'); await settle();
+    await run();
+    await t1.read();
+    if (t1.walkers().some((w) => w.id === TYLER && w.slot === 0)) fail('TW-13 a hunting character is drawn in town');
+    w13.hunting.delete(TYLER + ':0'); w13.back.add(TYLER + ':0');
+    await a.character(0).load();   // the hunt re-read says it ended
+    await run();
+    await t1.read();
+    const p0 = w13.pos.get(TYLER + ':0');
+    const town = M.maps.WORLD_MAPS.find((m) => m.id === M.maps.SCENE_MAPS.town);
+    if (!t1.walkers().some((w) => w.id === TYLER && w.slot === 0)) fail('TW-13 switched away mid-hunt, the character is not back in town after its hunt ended');
+    else if (!p0 || p0.x !== town.start[0] || p0.y !== town.start[1]) fail('TW-13 back from the hunt it stands at ' + JSON.stringify(p0) + ', not the arrival tile');
+    a.close(0); a.close(1);
+  }
   // TW-12: the fake above keys a body by user AND slot; the real server (the chain's last word) must too.
   {
     const order = JSON.parse(readFileSync(join(ROOT, 'tests/schema-apply-order.json'), 'utf8')).order;
@@ -463,7 +494,8 @@ const PURE_MUTANTS = [
   ['viewing another character leaves town', 'src/session/town-presence.js', '    this._parked = true;\n', '    this.show(null); return;\n'],
   ['a parked character never keeps alive', 'src/session/town-presence.js', '      if (this._want && this._now() - this._sentAt >= this.limits.keepaliveMs) this._flush(true);\n      return;', '      return;'],
   ['a parked character that hunts stays in town', 'src/session/town-presence.js', '      if (this._busy()) { this._home = this._home || this._want || this._sent; this._leave(); return; }\n', ''],
-  ['an unviewed character has no body after a boot', 'src/session/account-session.js', 'if (town && town.start) this._towns.get(slot).stand(', 'if (false) this._towns.get(slot).stand('],
+  ['an unviewed character has no body after a boot', 'src/session/account-session.js', '    this._towns.get(slot).stand();\n', ''],
+  ['left mid-hunt, a character never stands in town again', 'src/session/town-presence.js', '    if (!this._map) { this.stand(); return; }\n', '    if (!this._map) return;\n'],
   ['boot opens only the viewed character', 'src/session/account-session.js', '      await this.open(slot);\n    }\n    return this.characters()', '    }\n    return this.characters()'],
   ['a standing body never places itself', 'src/session/town-presence.js', '      if (!this._want && this._home) this._want = this._home;\n', ''],
   ['closing a character keeps its body in town', 'src/session/account-session.js', 'if (town) { this._towns.delete(slot); town.destroy(); }', 'void town;'],

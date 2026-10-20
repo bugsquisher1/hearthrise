@@ -180,14 +180,15 @@ export class AccountSession {
       return { ok: false, reason };
     }
     cs.connect();
-    this._towns.set(slot, new TownPresence({ server: this.server, slot, self: () => this.userId,
-      hidden: (id) => !!(this.social && this.social.blocks && this.social.blocks.has(id)),
-      busy: () => huntOpenIn(cs.read('hunt')),
-      timers: this._timers.setInterval ? { setTimer: this._timers.setInterval, clearTimer: this._timers.clearInterval } : null }));
     /* Playing = standing in town for everyone (Tyler 2026-10-19), viewed or not: a body from the
        moment it opens (a reload or login too), at the town's arrival tile, while it is not hunting. */
     const town = WORLD_MAPS.find((m) => m.id === SCENE_MAPS.town);
-    if (town && town.start) this._towns.get(slot).stand(town.id, { x: town.start[0], y: town.start[1], gx: town.start[0], gy: town.start[1], dir: 's' });
+    const arrival = town && town.start ? { map: town.id, x: town.start[0], y: town.start[1], gx: town.start[0], gy: town.start[1], dir: 's' } : null;
+    this._towns.set(slot, new TownPresence({ server: this.server, slot, self: () => this.userId,
+      hidden: (id) => !!(this.social && this.social.blocks && this.social.blocks.has(id)),
+      busy: () => huntOpenIn(cs.read('hunt')), arrival,
+      timers: this._timers.setInterval ? { setTimer: this._timers.setInterval, clearTimer: this._timers.clearInterval } : null }));
+    this._towns.get(slot).stand();
     if (this.viewed === null) this.viewed = slot;
     this._emit('opened', slot);
     if (this.social) this.social.start();

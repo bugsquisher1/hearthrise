@@ -23,11 +23,11 @@
 // the moment that envelope arrived (display only; the next envelope replaces
 // it). The view, tab and folds are display scratch on the panel.
 // ════════════════════════════════════════════════════════════════════════
-import { analyzerOf, isPremium } from '../../session/hunt-sections.js?v=0.2.17';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.17';
-import { whole, gold, clock } from '../../render/format.js?v=0.2.17';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.17';
-import { panelHtml, itemIconHtml, itemName, monsterName, abilityName, elementName } from './bits.js?v=0.2.17';
+import { analyzerOf, isPremium } from '../../session/hunt-sections.js?v=0.2.18';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.18';
+import { whole, gold, clock } from '../../render/format.js?v=0.2.18';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.18';
+import { panelHtml, itemIconHtml, itemName, monsterName, abilityName, elementName } from './bits.js?v=0.2.18';
 
 const TABS = Object.freeze([['session', 'Session'], ['taken', 'Taken'], ['dealt', 'Dealt']]);
 /* What only a premium character sees: these stats (section.stat), and every section off the Session tab. */

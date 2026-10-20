@@ -5,6 +5,10 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.18 — 2026-10-20 (Windows over the world)
+
+**Windows float over the world.** Opening, closing, moving or clicking a window never shifts the world. Your hero stays in the middle of the screen.
+
 ## v0.2.17 — 2026-10-20 (Your heroes' own names)
 
 **Real names everywhere.** Chat, nameplates, the party and your friends list show each hero's own name.

@@ -54,19 +54,11 @@
 //                silences the client's own dice exactly as for lucky rows).
 //                Guarded by tests/field-salvage.mjs (4% faucet cap per row, 5%
 //                total gear cap per monster, hours band, both paths).
-//   gear         `{id, ch, gear:true}` — THE EQUIPMENT SLOT (Tyler 2026-10-14:
-//                every monster drops gold, junk, an imbuement item and an
-//                equipment piece; 2026-10-20: low-level gear WAY more common).
-//                Exactly one per monster a walked ground spawns: armour or a
-//                weapon its ground's band can wear, at 5% or less, its chance
-//                set so each of weapon / helmet / body / legs / boots lands
-//                about every 1.3 h per hero at the floor of a low ground (the
-//                Warrens' steel every ~8 h). A standard drop: the engine rolls
-//                it as band 'gear', never a rare reveal (src/core/drops.js).
-//                It replaces a salvage row on those monsters. Only one monster
-//                per ground carries rare-odds (<= 5%) rows: the hunt's RARE
-//                CARRIER. Guarded by tests/hunt-core/drop-tables.mjs (slots,
-//                pace, the +25% profit floor, the faucet, the carrier).
+//   gear         `{id, ch, gear:true}` — THE EQUIPMENT SLOT (Tyler 10-14/10-20):
+//                one per walked-ground monster, gear its band can wear, each
+//                slot about every 1.3 h per hero at a low floor; rolled as band
+//                'gear', never a rare reveal. One monster per ground (the RARE
+//                CARRIER) holds every rare-odds row. tests/hunt-core/drop-tables.mjs.
 //
 // `neutral` IS RETIRED (DEC-NEUT-01). Every monster answers a real weapon.
 // The 7 monsters that used to opt out of the triangle earned a x1.15 drop

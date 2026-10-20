@@ -34,7 +34,7 @@ const GEAR_HOURS = 6;           // "a few hours of hunting equips a new hero": a
 const SLOT_HOURS = Object.freeze({ low: [0.5, 3], high: [3, 15] });   // expected hours per piece per hero: band D's
                                 // standard drops (1-3 h) for the low-level grounds; the tier-3 Warrens' steel rarer
 const HIGH_FLOOR = 30;          // a ground whose floor wears steel (gear-tiers.js: steel opens at 30) keeps the rarer band
-const LUMP = 3;              // no slot more than 3x slower than the ground's fastest slot
+const LUMP = 3;                 // no slot more than 3x slower than the ground's fastest slot
 const RARE_HOURS = Object.freeze([10, 20]);   // Tyler 10-14/15: a rare drop about once per 10-20 h of hunting
 const FAUCET = 0.35;            // equipment vendor value per hour at most 35% of the coin per hour
 const SLOTS = Object.freeze(['weapon', 'helmet', 'body', 'pants', 'boots']);

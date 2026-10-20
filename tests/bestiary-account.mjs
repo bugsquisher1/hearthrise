@@ -24,7 +24,9 @@
 //             without gold, at a stale price, for a relic-less monster, out of
 //             order and twice; the fee once, one ledger row, idempotent on its key;
 //             the stage is the account's (the other character's projection and
-//             relic map carry it); no client role writes the table or reads the view
+//             relic map carry it); no client role writes the table or reads the view;
+//             the client's reader (src/session/bestiary-sections.js) parses the REAL
+//             projection and invents nothing when a number is missing
 //   B-IDEM    a second apply of both 2026-10-28 files is byte-identical
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, mkdtempSync, cpSync, writeFileSync, rmSync } from 'node:fs';
@@ -46,6 +48,7 @@ async function modules(root) {
     HR: await import(u('src/core/hunt-rewards.js')),
     MON: await import(u('src/data/monsters.js')),
     GEN: await import(u('tools/gen-bestiary-catalogue.mjs')),
+    RD: await import(u('src/session/bestiary-sections.js')),
   };
 }
 
@@ -195,7 +198,7 @@ const DB_ARMS = {
     return p;
   }),
 
-  'B-FEE': async (db, { H, M }) => H.inTx(db, async () => {
+  'B-FEE': async (db, { H, M, X }) => H.inTx(db, async () => {
     const p = [];
     const uid = H.UIDS[2];
     await H.character(db, M, uid, { gold: 0 });
@@ -233,6 +236,21 @@ const DB_ARMS = {
     const s1 = await section(H, db, uid, 1);
     if (rowOf(s1, 'rat')?.activated_stage !== 1 || s1?.relic_mult?.rat !== 1.05) p.push(`the other character reads ${JSON.stringify(rowOf(s1, 'rat'))} / ${JSON.stringify(s1?.relic_mult)}`);
     if (await gold(1) !== 100000) p.push('the activation took gold from the character that did not pay');
+    /* THE CLIENT'S READER on the REAL projection: what the window draws is the server's, and a row
+       missing a number is dropped, never filled in. */
+    const read = (sec) => X.RD.bestiaryOf({ read: (k) => (k === 'account_bestiary' ? sec : undefined) });
+    const seen = read(s1);
+    const rat = seen && seen.monsters.find((m) => m.monster === 'rat');
+    const fee2 = Number(await H.one(db, "select public.hr_bestiary_fee_of(2, 'rat')"));
+    if (!rat || rat.kills !== 1250 || rat.stage !== 1 || rat.activatedStage !== 1 || rat.relicMult !== 1.05 || rat.hasRelic !== true
+      || !rat.next || rat.next.stage !== 2 || rat.next.kills !== 2500 || rat.next.fee !== fee2 || rat.canActivate !== false
+      || seen.monsters.length !== s1.monsters.length || seen.stages.length !== 4) {
+      p.push(`the client reader reads the projection as ${JSON.stringify(rat)} (${seen && seen.monsters.length} rows)`);
+    }
+    const holed = JSON.parse(JSON.stringify(s1));
+    delete holed.monsters.find((m) => m.monster === 'rat').next_fee;
+    if (read(holed).monsters.some((m) => m.monster === 'rat')) p.push('the client reader kept a row whose fee the server did not send');
+    if (read(undefined) !== null) p.push('the client reader invented a bestiary the server did not send');
     /* No client role reaches the table, the readers or the count. */
     for (const sql of [`insert into public.account_bestiary (user_id, monster_id, kills, activated_stage) values ('${uid}', 'slime', 99999, 4)`,
       `update public.account_bestiary set activated_stage = 4 where user_id = '${uid}'`,
@@ -284,6 +302,8 @@ const MUTANTS = [
     from: 'Math.min(v, MAX_RELIC_MULT)', to: 'v' },
   { arm: 'B-REWARDS', name: 'the kill roll never asks the member for its relicMult', file: 'src/core/hunt-rewards.js',
     from: "relicMult: typeof lead.relicMult === 'function' ? lead.relicMult(kind) : 1 }", to: 'relicMult: 1 }' },
+  { arm: 'B-FEE', name: 'the client reader fills in a missing fee', file: 'src/session/bestiary-sections.js',
+    from: '|| nat(r.next_fee) === null)) return null;', to: ')) return null;' },
   { arm: 'B-STAGES', name: 'stage 1 needs 1,200 kills', file: 'src/data/bestiary-stages.js',
     from: '{ stage: 1, kills: 1250,', to: '{ stage: 1, kills: 1200,' },
 ];
@@ -328,7 +348,7 @@ async function main() {
         const src = readFileSync(p, 'utf8').replace(/\r\n/g, '\n');
         if (src.split(m.from).length !== 2) { console.error(`✗ mutant "${m.name}": marker not found exactly once`); bad++; continue; }
         writeFileSync(p, src.replace(m.from, () => m.to));
-        const res = await runArms(dir, null, ctx, [m.arm]);
+        const res = await runArms(dir, db, ctx, [m.arm]);
         if (res[m.arm] && res[m.arm].length) console.log(`✓ ${m.arm} goes red on: ${m.name}`);
         else { console.error(`✗ ${m.arm} stayed GREEN on: ${m.name}`); bad++; }
       } finally { rmSync(dir, { recursive: true, force: true }); }

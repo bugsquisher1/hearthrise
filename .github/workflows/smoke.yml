@@ -1118,7 +1118,8 @@ jobs:
       # through the REAL hunt settle); activation refused below the kills, without
       # gold, at a stale price and for a relic-less monster, idempotent, one ledger
       # row; no client role writes the table; drops.js lifts only relic rows; a
-      # second apply of both files is byte-identical. --mutate plants each defect.
+      # second apply of both files is byte-identical. --mutate plants 13 defects, each
+      # red on its arm. Measured locally (template-warm): 7 s plain, 55 s mutate.
       - name: Account bestiary - one count per account, stages for a fee, relic rows only
         if: ${{ !cancelled() }}
         run: |

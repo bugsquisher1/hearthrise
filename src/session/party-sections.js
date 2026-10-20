@@ -24,9 +24,11 @@
 // the server's `role` is only the pick, kept when the weapon allows it.
 // ════════════════════════════════════════════════════════════════════════
 
-import { roleForWeapon, WEAPON_ROLES } from '../data/hunt-roles.js?v=0.2.13';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.13';
-import { huntOf, staminaOf } from './hunt-sections.js?v=0.2.13';
+import { roleForWeapon, WEAPON_ROLES } from '../data/hunt-roles.js?v=0.2.16';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.16';
+import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.16';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.16';
+import { huntOf, staminaOf } from './hunt-sections.js?v=0.2.16';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -115,6 +117,21 @@ export function finderRows(body) {
 /** A hunt's player-facing name. */
 export function huntName(id) { return (id && HUNT_INDEX[id] && HUNT_INDEX[id].name) || 'a hunt'; }
 
+/* A town activity in words, keyed kind:id (the catalogue the engine runs); a row it does not know falls back to its kind. */
+const TOWN_WORDS = new Map([
+  ...TREES.map((n) => ['gather:' + n.id, 'chopping the ' + n.name]),
+  ...ROCKS.map((n) => ['gather:' + n.id, 'mining the ' + n.name]),
+  ...FISH_SPOTS.map((n) => ['gather:' + n.id, 'fishing at the ' + n.name]),
+  ...Object.values(ARTISAN_RECIPES).flat().map((r) => ['artisan:' + r.id, 'working on ' + r.name]),
+]);
+const TOWN_KIND_WORDS = Object.freeze({ gather: 'gathering', artisan: 'at a workbench', training: 'training' });
+
+/** The town activity the server's pointer names ("fishing at the Shrimp Spot"), or null when there is none. Pure. */
+export function townActivityWords(st) {
+  if (!isObj(st) || !Object.prototype.hasOwnProperty.call(TOWN_KIND_WORDS, st.active_kind)) return null;
+  return TOWN_WORDS.get(st.active_kind + ':' + st.active_id) || TOWN_KIND_WORDS[st.active_kind];
+}
+
 /**
  * What a character is doing, as the server says: { kind: 'hunting'|'idle'|'busy'|'unknown', where, text }.
  * A hunt the server still holds open is "hunting"; an idle state is "in town".
@@ -126,7 +143,7 @@ export function assignmentOf(cs) {
   if (!isObj(st)) return { kind: 'unknown', where: null, text: 'Not read yet' };
   if (st.active_kind === 'combat' && typeof st.active_id === 'string') return { kind: 'hunting', where: st.active_id, text: 'Hunting in ' + huntName(st.active_id) };
   if (!st.active_kind || st.active_kind === 'idle') return { kind: 'idle', where: null, text: h && h.ended ? 'In town, the hunt is over' : 'In town, idle' };
-  const what = String(st.active_kind).replace(/_/g, ' ');
+  const what = townActivityWords(st) || String(st.active_kind).replace(/_/g, ' ');
   return { kind: 'busy', where: null, text: 'In town, ' + what };
 }
 

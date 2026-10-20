@@ -29,9 +29,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from './hunts.js?v=0.2.13';
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.13';
-import { END_ORDER } from './hunt-sessions.js?v=0.2.13';
+import { HUNT_INDEX } from './hunts.js?v=0.2.16';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.16';
+import { END_ORDER } from './hunt-sessions.js?v=0.2.16';
 
 /* The surfaces a card may point at, and where each is specified. */
 export const TUTORIAL_ANCHORS = Object.freeze({
@@ -55,7 +55,7 @@ export const HUNT_TUTORIAL = Object.freeze([
     'Every kill pays experience. Keep going until a skill goes up a level.',
     'hud_vitals', { kind: 'level' }),
   step('earn_the_drain', 'Where the rats come from',
-    'They climb up through the drain in the corner, from the sewer below. Keep hunting here until the Millrace Sewer opens to you.',
+    'They climb up through the drain in the corner, from the sewer below. Keep hunting here until The Sewer opens to you.',
     'hud_vitals', { kind: 'unlock', hunt: 'millrace_sewer' }),
   step('leave_cellar', 'Cash in',
     'Leave the hunt. What you looted goes to your bag when you do.',
@@ -64,7 +64,7 @@ export const HUNT_TUTORIAL = Object.freeze([
     'The sewer hits harder. Press a slot on the action bar at the bottom and choose Any food, then add a condition: My HP % below 60. Your hero eats your own food first and buys from the store when it runs out. Slot 1 is tried first.',
     'action_bar', { kind: 'bar' }),
   step('go_below', 'Into the sewer',
-    'Pick the Millrace Sewer. It is built for a party of up to four. Alone, the packs are smaller.',
+    'Pick The Sewer. It is built for a party of up to four. Alone, the packs are smaller.',
     'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' }),
   step('first_room', 'Room by room',
     'Clear the rats in the first room. The party walks on to the next room by itself.',

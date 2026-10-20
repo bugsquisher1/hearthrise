@@ -1,0 +1,286 @@
+<title>Hearthrise Tracker</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700&family=Alegreya+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400&display=swap">
+<style>
+/* Layout: one long ledger — what needs Tyler first, then the state of play, then every ruling grouped by area. Single dark Charcoal & Gold look, the game's own. */
+:root{
+  --bg:#141518; --panel:#1c1e22; --raise:#24272c; --line:#2f3238;
+  --fg:#e9e4d8; --muted:#a39d90; --faint:#6f6a60;
+  --gold:#d4a84a; --gold-ink:#1a1408;
+  --ok:#7fb069; --warn:#e0a03a; --bad:#e0645a; --info:#7aa2d6; --core:#c08ad8;
+  --f-display:"Alegreya SC", Georgia, serif;
+  --f-body:"Alegreya Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Consolas, monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:16px/1.5 var(--f-body);margin:0}
+.wrap{max-width:1080px;margin:0 auto;padding-block:28px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:32px}
+h1,h2,h3{font-family:var(--f-display);font-weight:700;letter-spacing:.02em;margin:0;text-wrap:balance}
+h1{font-size:2rem;color:var(--gold)}
+h2{font-size:1.25rem;display:flex;align-items:baseline;gap:10px}
+h2 .n{font-family:var(--f-body);font-size:.85rem;color:var(--muted);font-weight:500}
+.sub{color:var(--muted);font-size:.95rem}
+header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px;border-bottom:1px solid var(--line);padding-bottom:16px}
+.meta{font-size:.85rem;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+.meta b{color:var(--fg);font-weight:500}
+section{display:flex;flex-direction:column;gap:12px}
+.empty{color:var(--faint);font-style:italic;padding:12px 0}
+/* questions */
+.q{background:var(--panel);border-left:3px solid var(--gold);padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.q.answered{border-left-color:var(--ok);opacity:.8}
+.q .kind{font-size:.72rem;text-transform:uppercase;letter-spacing:.1em;color:var(--gold)}
+.q.answered .kind{color:var(--ok)}
+.q .txt{font-weight:500}
+.q .ctx{color:var(--muted);font-size:.9rem}
+textarea{width:100%;min-height:60px;background:var(--bg);color:var(--fg);border:1px solid var(--line);font:inherit;padding:8px 10px;resize:vertical}
+textarea:focus,button:focus-visible,input:focus{outline:2px solid var(--gold);outline-offset:1px}
+.row-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button{font:inherit;font-size:.9rem;cursor:pointer;border:1px solid var(--line);background:var(--raise);color:var(--fg);padding:5px 12px}
+button.primary{background:var(--gold);color:var(--gold-ink);border-color:var(--gold);font-weight:700}
+button.on-ok{background:var(--ok);color:#10180c;border-color:var(--ok);font-weight:700}
+button.on-change{background:var(--warn);color:#1d1406;border-color:var(--warn);font-weight:700}
+button:disabled{opacity:.45;cursor:default}
+.saved{font-size:.8rem;color:var(--ok)}
+/* summary bar */
+.bar{display:flex;height:14px;overflow:hidden;background:var(--raise)}
+.bar span{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:.85rem;padding:3px 10px;border:1px solid var(--line);background:transparent;color:var(--fg)}
+.chip i{width:9px;height:9px;display:inline-block}
+.chip[aria-pressed="true"]{border-color:var(--gold);background:var(--raise)}
+.chip .c{color:var(--muted);font-variant-numeric:tabular-nums}
+/* lanes */
+.lanes{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+.lane{background:var(--panel);padding:12px 14px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.lane .nm{font-weight:700}
+.lane .st{font-size:.8rem;text-transform:uppercase;letter-spacing:.08em}
+.lane .sc{color:var(--muted);font-size:.9rem}
+/* items */
+.tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.tools input{background:var(--panel);border:1px solid var(--line);color:var(--fg);font:inherit;padding:6px 10px;min-width:0;flex:1 1 220px}
+.area{display:flex;flex-direction:column}
+.area h3{font-size:1.05rem;color:var(--gold);padding:14px 0 6px;border-bottom:1px solid var(--line)}
+.item{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:4px 14px;padding:12px 0;border-bottom:1px solid var(--line);align-items:start}
+.item .id{font-family:var(--f-mono);font-size:.8rem;color:var(--faint);padding-top:3px}
+.item .body{display:flex;flex-direction:column;gap:4px;min-width:0}
+.item .rl{font-weight:500}
+.item .own{font-size:.85rem;color:var(--muted)}
+.pill{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;padding:2px 8px;white-space:nowrap;border:1px solid currentColor;justify-self:end}
+details{font-size:.88rem;color:var(--muted)}
+details summary{cursor:pointer;color:var(--faint);font-size:.82rem}
+details p{margin:6px 0 0;overflow-wrap:anywhere}
+.verdict{grid-column:2 / 4;display:flex;flex-direction:column;gap:6px}
+.verdict .note{font-size:.88rem;color:var(--warn)}
+.s-built{color:var(--ok)} .s-partial{color:var(--warn)} .s-not_built{color:var(--bad)} .s-contradicted{color:var(--bad)}
+.s-core{color:var(--core)} .s-lane{color:var(--info)} .s-nc{color:var(--faint)}
+.b-built{background:var(--ok)} .b-partial{background:var(--warn)} .b-not_built{background:#a8483f} .b-contradicted{background:var(--bad)}
+.b-core{background:var(--core)} .b-lane{background:var(--info)} .b-nc{background:var(--faint)}
+.readonly{font-size:.85rem;color:var(--muted)}
+@media (max-width:560px){
+  .item{grid-template-columns:minmax(0,1fr) auto}
+  .item .id{grid-column:1 / 3}
+  .verdict{grid-column:1 / 3}
+  .meta{text-align:left}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Hearthrise Tracker</h1>
+      <div class="sub">Every ruling, what the live game does with it, and who is fixing it. Approve or change anything; Claude reads your answers.</div>
+    </div>
+    <div class="meta" id="meta">Loading…</div>
+  </header>
+
+  <section>
+    <h2>Needs your answer <span class="n" id="qcount"></span></h2>
+    <div id="questions"><div class="empty">Loading questions…</div></div>
+  </section>
+
+  <section>
+    <h2>Where the game stands <span class="n" id="total"></span></h2>
+    <div class="bar" id="bar" aria-hidden="true"></div>
+    <div class="legend" id="legend" role="group" aria-label="Filter by status"></div>
+  </section>
+
+  <section>
+    <h2>In progress</h2>
+    <div class="lanes" id="lanes"><div class="empty">Loading…</div></div>
+  </section>
+
+  <section>
+    <h2>Every ruling</h2>
+    <div class="tools">
+      <input id="search" type="search" placeholder="Search rulings, files, owners" aria-label="Search rulings">
+      <button class="chip" id="gaps" aria-pressed="false">Only gaps</button>
+      <button class="chip" id="mine" aria-pressed="false">Only my notes</button>
+    </div>
+    <div id="items"><div class="empty">Rulings appear here once the tracker loads. If this stays empty, the page's database isn't available in this view.</div></div>
+  </section>
+</div>
+
+<script>
+const STATUS = {
+  contradicted:{label:"Contradicts ruling"}, not_built:{label:"Not built"}, partial:{label:"Partly built"},
+  core:{label:"Core rebuild"}, lane:{label:"Being fixed"}, built:{label:"Built correctly"}, nc:{label:"Not code-checkable"}
+};
+const ORDER = ["contradicted","not_built","partial","core","lane","built","nc"];
+const GAPS = new Set(["contradicted","not_built","partial"]);
+const state = {items:[], questions:[], lanes:[], meta:null, filter:null, q:"", gaps:false, mine:false, canWrite:false, db:null};
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmt = iso => { try { return new Date(iso).toLocaleString([], {month:"short", day:"numeric", hour:"2-digit", minute:"2-digit"}); } catch { return ""; } };
+
+function renderMeta(){
+  const m = state.meta;
+  $("#meta").innerHTML = m
+    ? `Live build <b>${esc(m.liveVersion||"?")}</b><br>Updated ${esc(fmt(m.updatedAt))}${m.note?`<br>${esc(m.note)}`:""}`
+    : "Waiting for data";
+}
+
+function renderQuestions(){
+  const el = $("#questions");
+  const qs = [...state.questions].sort((a,b)=> (a.status==="answered")-(b.status==="answered") || (a.order||0)-(b.order||0));
+  const open = qs.filter(q=>q.status!=="answered").length;
+  $("#qcount").textContent = qs.length ? `${open} open` : "";
+  if(!qs.length){ el.innerHTML = `<div class="empty">Nothing waiting on you.</div>`; return; }
+  el.innerHTML = "";
+  for(const q of qs){
+    const d = document.createElement("div");
+    d.className = "q" + (q.status==="answered" ? " answered" : "");
+    d.innerHTML = `<div class="kind">${esc(q.kind==="conflict"?"Your rulings conflict":q.kind==="check"?"Answered overnight — approve or change":"Question")}${q.status==="answered"?" · answered":""}</div>
+      <div class="txt">${esc(q.text)}</div>${q.context?`<div class="ctx">${esc(q.context)}</div>`:""}
+      ${state.canWrite
+        ? `<textarea id="qa-${esc(q._doc)}" aria-label="Your answer">${esc(q.answer||"")}</textarea>
+           <div class="row-actions"><button class="primary" data-q="${esc(q._doc)}">Save answer</button><span class="saved" id="qs-${esc(q._doc)}"></span></div>`
+        : (q.answer?`<div class="ctx">Answer: ${esc(q.answer)}</div>`:"")}`;
+    el.appendChild(d);
+  }
+  el.querySelectorAll("button[data-q]").forEach(b => b.onclick = () => saveAnswer(b.dataset.q));
+}
+
+const why = e => (e && (e.code || e.message)) || String(e);
+// update() first; if the viewer's runtime refuses it, write the whole doc back with set().
+async function write(coll, list, id, patch){
+  const ref = state.db.doc(coll+"/"+id);
+  try { await ref.update(patch); }
+  catch(e1){
+    const cur = list.find(x => x._doc === id) || {};
+    const { _doc, ...body } = cur;
+    try { await ref.set({...body, ...patch}); }
+    catch(e2){ throw e2 && (e2.code || e2.message) ? e2 : e1; }
+  }
+}
+
+async function saveAnswer(id){
+  const ta = document.getElementById("qa-"+id); const msg = document.getElementById("qs-"+id);
+  const answer = ta.value.trim(); if(!answer){ msg.textContent = "Write an answer first."; return; }
+  msg.textContent = "Saving…";
+  try { await write("questions", state.questions, id, {answer, status:"answered", answeredAt:new Date().toISOString()}); msg.textContent = "Saved"; }
+  catch(e){ msg.textContent = "Couldn't save (" + why(e) + "). Tell Claude your answer in chat."; }
+}
+
+function counts(){ const c = {}; state.items.forEach(i => c[i.status]=(c[i.status]||0)+1); return c; }
+
+function renderSummary(){
+  const c = counts(), n = state.items.length;
+  $("#total").textContent = n ? `${n} rulings` : "";
+  $("#bar").innerHTML = ORDER.filter(s=>c[s]).map(s=>`<span class="b-${s}" style="width:${(c[s]/n*100).toFixed(2)}%" title="${STATUS[s].label}: ${c[s]}"></span>`).join("");
+  $("#legend").innerHTML = ORDER.filter(s=>c[s]).map(s=>`<button class="chip" data-s="${s}" aria-pressed="${state.filter===s}"><i class="b-${s}"></i>${STATUS[s].label} <span class="c">${c[s]}</span></button>`).join("");
+  $("#legend").querySelectorAll("button").forEach(b => b.onclick = () => { state.filter = state.filter===b.dataset.s ? null : b.dataset.s; renderSummary(); renderItems(); });
+}
+
+function renderLanes(){
+  const el = $("#lanes");
+  const ls = [...state.lanes].sort((a,b)=>(a.order||0)-(b.order||0));
+  if(!ls.length){ el.innerHTML = `<div class="empty">No lanes listed yet.</div>`; return; }
+  const col = {shipped:"var(--ok)", building:"var(--info)", paused:"var(--faint)", waiting:"var(--warn)", blocked:"var(--bad)"};
+  el.innerHTML = ls.map(l=>`<div class="lane"><div class="st" style="color:${col[l.status]||"var(--muted)"}">${esc(l.status||"")}</div><div class="nm">${esc(l.name)}</div><div class="sc">${esc(l.scope||"")}</div>${l.next?`<div class="sc">Next: ${esc(l.next)}</div>`:""}</div>`).join("");
+}
+
+function visible(i){
+  if(state.filter && i.status!==state.filter) return false;
+  if(state.gaps && !GAPS.has(i.status)) return false;
+  if(state.mine && !i.verdict && !i.note) return false;
+  if(state.q){ const h = (i.id+" "+i.ruling+" "+i.proof+" "+i.owner+" "+i.lane).toLowerCase(); if(!h.includes(state.q)) return false; }
+  return true;
+}
+
+function renderItems(){
+  const el = $("#items");
+  const shown = state.items.filter(visible);
+  if(!state.items.length){ return; }
+  if(!shown.length){ el.innerHTML = `<div class="empty">No rulings match these filters.</div>`; return; }
+  const areas = new Map();
+  shown.sort((a,b)=>(a.areaOrder-b.areaOrder)||(a.order-b.order)).forEach(i=>{ if(!areas.has(i.area)) areas.set(i.area,[]); areas.get(i.area).push(i); });
+  el.innerHTML = "";
+  for(const [area, list] of areas){
+    const a = document.createElement("div"); a.className = "area";
+    a.innerHTML = `<h3>${esc(area)}</h3>`;
+    for(const i of list){
+      const who = i.status==="lane" ? i.lane : (i.status==="core" ? "Core rebuild" : (i.owner && i.owner!=="-" ? i.owner : ""));
+      const r = document.createElement("div"); r.className = "item";
+      r.innerHTML = `<div class="id">${esc(i.id)}</div>
+        <div class="body"><div class="rl">${esc(i.ruling)}</div>${who?`<div class="own">${esc(who)}</div>`:""}
+          ${i.proof?`<details><summary>What the game does</summary><p>${esc(i.proof)}</p></details>`:""}</div>
+        <div class="pill s-${i.status}">${STATUS[i.status]?.label||i.status}</div>
+        <div class="verdict">${verdictHtml(i)}</div>`;
+      a.appendChild(r);
+    }
+    el.appendChild(a);
+  }
+  el.querySelectorAll("[data-act]").forEach(b => b.onclick = () => act(b.dataset.id, b.dataset.act));
+}
+
+function verdictHtml(i){
+  const key = i._doc;
+  if(!state.canWrite) return i.verdict ? `<div class="readonly">Tyler: ${i.verdict==="approve"?"approved":"wants a change"}${i.note?` — ${esc(i.note)}`:""}</div>` : "";
+  const open = i.verdict==="change";
+  return `<div class="row-actions">
+      <button data-id="${esc(key)}" data-act="approve" class="${i.verdict==="approve"?"on-ok":""}">${i.verdict==="approve"?"Approved":"Approve"}</button>
+      <button data-id="${esc(key)}" data-act="change" class="${open?"on-change":""}">${open?"Change requested":"Change"}</button>
+      ${i.verdictAt?`<span class="saved">${esc(fmt(i.verdictAt))}</span>`:""}
+    </div>
+    <div id="n-${esc(key)}" ${open?"":"hidden"}>
+      <textarea id="nt-${esc(key)}" aria-label="What should change">${esc(i.note||"")}</textarea>
+      <div class="row-actions"><button class="primary" data-id="${esc(key)}" data-act="save">Save note</button><span class="saved" id="ns-${esc(key)}"></span></div>
+    </div>`;
+}
+
+async function act(key, a){
+  try{
+    if(a==="approve"){ await write("items", state.items, key, {verdict:"approve", verdictAt:new Date().toISOString()}); }
+    else if(a==="change"){ const n = document.getElementById("n-"+key); n.hidden = false; document.getElementById("nt-"+key).focus(); }
+    else if(a==="save"){
+      const note = document.getElementById("nt-"+key).value.trim();
+      if(!note){ document.getElementById("ns-"+key).textContent = "Say what should change."; return; }
+      await write("items", state.items, key, {verdict:"change", note, verdictAt:new Date().toISOString()});
+    }
+  }catch(e){ const s = document.getElementById("ns-"+key); if(s) s.textContent = "Couldn't save (" + why(e) + "). Tell Claude in chat."; }
+}
+
+$("#search").addEventListener("input", e => { state.q = e.target.value.trim().toLowerCase(); renderItems(); });
+$("#gaps").onclick = e => { state.gaps = !state.gaps; e.target.setAttribute("aria-pressed", state.gaps); renderItems(); };
+$("#mine").onclick = e => { state.mine = !state.mine; e.target.setAttribute("aria-pressed", state.mine); renderItems(); };
+
+(async () => {
+  if(!window.claude?.use){ $("#meta").textContent = "Open this page on claude.ai to load the tracker."; return; }
+  const db = await claude.use("db"); const user = await claude.use("user");
+  if(!db){ $("#meta").textContent = "The tracker's data isn't available in this view."; return; }
+  state.db = db;
+  const cw = user ? await user.can("data.write") : null;
+  state.canWrite = cw !== false;
+  const sub = (path, key, map) => db.collection(path).onSnapshot(snap => {
+    state[key] = snap.docs.map(d => ({...d.data(), _doc:d.id}));
+    map();
+  }, () => {});
+  sub("items", "items", () => { renderSummary(); renderItems(); });
+  sub("questions", "questions", renderQuestions);
+  sub("lanes", "lanes", renderLanes);
+  db.doc("meta/summary").onSnapshot(s => { state.meta = s.exists ? s.data() : null; renderMeta(); }, () => {});
+})();
+</script>

@@ -19,19 +19,19 @@
 // hr_closed); the first such answer replaces everything with the closed notice.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPABASE_CONFIG, createSupabaseClient } from '../net/supabase-bootstrap.js?v=0.2.13';
-import { createAuth } from '../net/auth.js?v=0.2.13';
-import { SESSION_CONFIG } from '../session/config.js?v=0.2.13';
-import { createServerLink } from '../session/server.js?v=0.2.13';
-import { AccountSession } from '../session/account-session.js?v=0.2.13';
-import { FRAME_EVENT } from '../session/character-session.js?v=0.2.13';
-import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.13';
-import { mountWorldPane } from './world-pane.js?v=0.2.13';
-import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.13';
-import { createAlertCenter } from '../shell/alerts.js?v=0.2.13';
-import { createSocialRealtime } from '../social/realtime.js?v=0.2.13';
-import { SocialSession } from '../social/social-session.js?v=0.2.13';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.13';
+import { SUPABASE_CONFIG, createSupabaseClient } from '../net/supabase-bootstrap.js?v=0.2.16';
+import { createAuth } from '../net/auth.js?v=0.2.16';
+import { SESSION_CONFIG } from '../session/config.js?v=0.2.16';
+import { createServerLink } from '../session/server.js?v=0.2.16';
+import { AccountSession } from '../session/account-session.js?v=0.2.16';
+import { FRAME_EVENT } from '../session/character-session.js?v=0.2.16';
+import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.16';
+import { mountWorldPane } from './world-pane.js?v=0.2.16';
+import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.16';
+import { createAlertCenter } from '../shell/alerts.js?v=0.2.16';
+import { createSocialRealtime } from '../social/realtime.js?v=0.2.16';
+import { SocialSession } from '../social/social-session.js?v=0.2.16';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.16';
 
 const DISCORD = 'https://discord.gg/eJrUSUJM3M';
 

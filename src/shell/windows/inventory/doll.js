@@ -17,16 +17,16 @@
 // `equip` intent; the doll changes only when the re-read envelope replaces
 // `equipment`.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../../../data/items.js?v=0.2.13';
-import { EQUIP_SLOT_META, expandItemSlot } from '../../../data/gathering.js?v=0.2.13';
-import { bagOf, skillsOf, shopOf } from '../../../session/item-sections.js?v=0.2.13';
-import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.13';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.13';
-import { glyphSvg } from '../../launcher.js?v=0.2.13';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.13';
-import { compare, rarityOf } from '../../bag-model.js?v=0.2.13';
-import { needOf } from '../../item-lore.js?v=0.2.13';
-import { showTip } from '../item-tip.js?v=0.2.13';
+import { ITEMS } from '../../../data/items.js?v=0.2.16';
+import { EQUIP_SLOT_META, expandItemSlot } from '../../../data/gathering.js?v=0.2.16';
+import { bagOf, skillsOf, shopOf } from '../../../session/item-sections.js?v=0.2.16';
+import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.16';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.16';
+import { glyphSvg } from '../../launcher.js?v=0.2.16';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.16';
+import { compare, rarityOf } from '../../bag-model.js?v=0.2.16';
+import { needOf } from '../../item-lore.js?v=0.2.16';
+import { showTip } from '../item-tip.js?v=0.2.16';
 
 /* Body order, row by row: [slot, label, empty glyph]. */
 export const DOLL = Object.freeze([

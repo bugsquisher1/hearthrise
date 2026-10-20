@@ -32,18 +32,18 @@
 // press is ONE hr_action_set_options. The server keeps ONE pick per action set
 // today, not one per ground, so the line says it carries to the next hunt.
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf, settingsOf } from '../../session/hunt-sections.js?v=0.2.13';
-import { bagOf, rulesOf } from '../../session/item-sections.js?v=0.2.13';
-import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.13';
-import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.13';
-import { startPartyHunt } from '../../session/party-intents.js?v=0.2.13';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.13';
-import { whole } from '../../render/format.js?v=0.2.13';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.13';
-import { itemName } from '../widgets/bits.js?v=0.2.13';
-import { runIntent } from '../intent-words.js?v=0.2.13';
-import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.13';
-import { huntRows, densityWords, bandWords, rangeWords, groupWords, recommendedHunt, heroWords, packFor, partyNote, ABOVE_LEVEL_WORDS } from '../hunt-list.js?v=0.2.13';
+import { huntOf, settingsOf } from '../../session/hunt-sections.js?v=0.2.16';
+import { bagOf, rulesOf } from '../../session/item-sections.js?v=0.2.16';
+import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.16';
+import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.16';
+import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.16';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.16';
+import { whole } from '../../render/format.js?v=0.2.16';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.16';
+import { itemName } from '../widgets/bits.js?v=0.2.16';
+import { runIntent } from '../intent-words.js?v=0.2.16';
+import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.16';
+import { huntRows, densityWords, bandWords, rangeWords, groupWords, recommendedHunt, heroWords, packFor, partyNote, ABOVE_LEVEL_WORDS } from '../hunt-list.js?v=0.2.16';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pick: null, pending: false, msg: '' }; SCRATCH.set(cs, s); } return s; };
@@ -184,7 +184,8 @@ renderHunts.act = function actHunts(ctx, body, action, ev, t) {
     sc.pick = hunt;
     const s = settingsOf(cs);
     const lines = packFor(bagOf(cs), rulesOf(cs));
-    runIntent(sc, repaint, () => cs.enterHunt(hunt, lines, s ? s.preset : 0), 'Setting off for ' + huntName(hunt) + '…', (res) => { sc.enterMsg = 'On the way to ' + huntName(hunt) + '.' + (res && res.belowRange ? ' ' + ABOVE_LEVEL_WORDS : ''); return sc.enterMsg; });
+    /* A town activity never blocks a hunt: the engine settles it first (what it earned is paid), then Enter. */
+    runIntent(sc, repaint, () => settleTownActivity(cs).then(() => cs.enterHunt(hunt, lines, s ? s.preset : 0)), 'Setting off for ' + huntName(hunt) + '…', (res) => { sc.enterMsg = 'On the way to ' + huntName(hunt) + '.' + (res && res.belowRange ? ' ' + ABOVE_LEVEL_WORDS : ''); return sc.enterMsg; });
     return true;
   }
   return false;

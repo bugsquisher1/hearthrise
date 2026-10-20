@@ -12,6 +12,8 @@
 //   disbandParty(account, cs)           the leader closes the party, in town
 //   inviteOwn(account, cs, otherSlot)   one of this account's own characters
 //                                       joins at once (no accept step)
+//   invitePlayer(account, cs, id, slot) a player by the account id the menu target
+//                                       carries (a name may be the "Adventurer" fallback)
 //   listParty(account, cs, on)          the leader shows the party in the
 //                                       finder or hides it (private = invite only)
 //   afterLeave(account, cs, send)       a CharacterSession leave / kick, then
@@ -21,9 +23,10 @@
 // in that party, so on ok each of them (and the character that joined) is
 // RE-READ: the screen shows only the server's answer, never a prediction.
 // ════════════════════════════════════════════════════════════════════════
-import { partyMembershipOf } from './party-sections.js?v=0.2.13';
+import { partyMembershipOf } from './party-sections.js?v=0.2.16';
 
 const HUNT_ID = /^[a-z0-9_]{1,64}$/;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_SLOT = 5;
 const newIdem = () => globalThis.crypto.randomUUID();
 
@@ -42,6 +45,7 @@ function seatsOf(b) {
     seat: Number.isInteger(s.seat) ? s.seat : null,
     name: typeof s.name === 'string' && s.name.trim() ? s.name.trim().slice(0, 40) : 'A member',
     error: typeof s.error === 'string' ? s.error.slice(0, 40) : 'refused',
+    hunt: typeof s.hunt === 'string' && HUNT_ID.test(s.hunt) ? s.hunt : null,
   }));
 }
 
@@ -56,12 +60,28 @@ async function settled(ans, reread) {
     name: typeof b.name === 'string' ? b.name.slice(0, 40) : null };
 }
 
+/* The town activities a hunt replaces (the server makes them yield; settling first through the engine pays the
+   stretch since their last settle, which SQL cannot). */
+const TOWN_KINDS = Object.freeze(['gather', 'artisan', 'training']);
+
+/**
+ * Before a hunt: an own character still gathering, on an artisan run or training is stopped through the engine
+ * (set_activity idle collects before it switches), so what it earned is paid. A refusal here does not stop the
+ * hunt: the server makes the activity yield anyway.
+ */
+export async function settleTownActivity(cs) {
+  const st = cs && typeof cs.read === 'function' ? cs.read('state') : null;
+  if (!st || !TOWN_KINDS.includes(st.active_kind) || typeof cs.edgeIntent !== 'function') return { ok: true, skipped: true };
+  try { return await cs.edgeIntent('set_activity', { activity: { kind: 'idle' } }); } catch (e) { return { ok: false, error: 'network' }; }
+}
+
 const usable = (account, cs) => !!account && !!account.server && !!cs && cs.status !== 'closed';
 
 /** The leader starts the party's hunt on `hunt`: every member with its own saved setup, or the server says who is not ready. */
 export async function startPartyHunt(account, cs, hunt) {
   if (!usable(account, cs) || !HUNT_ID.test(String(hunt))) return { ok: false, error: 'bad_intent', seats: [] };
   const peers = partyPeersOf(account, cs);
+  for (const o of peers) await settleTownActivity(o);
   return settled(await account.server.rpc('hr_hunt_party_start', { p_slot: cs.slot, p_hunt: hunt, p_idem: newIdem() }), peers);
 }
 
@@ -80,6 +100,19 @@ export async function inviteOwn(account, cs, otherSlot) {
   const other = typeof account.character === 'function' ? account.character(otherSlot) : null;
   const peers = partyPeersOf(account, cs).concat(other ? [other] : []);
   return settled(await account.server.rpc('hr_hunt_party_invite_own', { p_slot: cs.slot, p_other_slot: otherSlot, p_idem: newIdem() }), peers);
+}
+
+/**
+ * Invite the player a menu targets, by the SERVER's account id it carries (and its character slot when the
+ * target names one: town and hunt peers do; a friend row does not, and the server picks). Works for a player
+ * with no claimed name, whom no name can find (live v0.2.11).
+ */
+export async function invitePlayer(account, cs, userId, slot) {
+  if (!usable(account, cs) || !UUID.test(String(userId)) || (slot !== null && slot !== undefined && !(Number.isInteger(slot) && slot >= 0 && slot <= MAX_SLOT))) {
+    return { ok: false, error: 'bad_intent', seats: [] };
+  }
+  const peers = partyPeersOf(account, cs);
+  return settled(await account.server.rpc('hr_hunt_party_invite_player', { p_slot: cs.slot, p_target: String(userId), p_target_slot: Number.isInteger(slot) ? slot : null, p_idem: newIdem() }), peers);
 }
 
 /** The leader shows its party in the finder (`on`) or hides it; until listed, a party is joined by invite only. */

@@ -7,7 +7,7 @@
 //   node tests/party-ui.mjs --mutate       every planted defect must turn a rule RED
 //   node tests/party-ui.mjs --shots <dir>  also write the visual-gate screenshots (1440x900, 922x423)
 //
-// mutant-anchors: src/shell/alerts.js src/shell/hunt-list.js src/session/party-sections.js src/session/character-session.js src/shell/windows/party.js src/shell/windows/party-finder.js src/app/character-strip.js src/shell/widgets/alerts.js src/session/party-intents.js src/shell/intent-words.js src/shell/windows/hunts.js
+// mutant-anchors: src/shell/alerts.js src/shell/hunt-list.js src/session/party-sections.js src/session/character-session.js src/shell/windows/party.js src/shell/windows/party-finder.js src/app/character-strip.js src/shell/widgets/alerts.js src/session/party-intents.js src/shell/intent-words.js src/shell/windows/hunts.js src/shell/windows/inventory/bury.js
 // mutant-writes-tree: no — pure mutants plant into a temp copy of src/, page mutants into served overrides
 //
 // The fixture is tests/fixtures/party-envelope.json (S1's `party` shape plus this lane's asks).
@@ -101,6 +101,7 @@ async function load(base) {
     PI: await import(u('src/session/party-intents.js')),
     PP: await import(u('src/shell/widgets/party-panel.js')),
     IW: await import(u('src/shell/intent-words.js')),
+    BURY: await import(u('src/shell/windows/inventory/bury.js')),
   };
 }
 
@@ -112,6 +113,22 @@ function account(M, srv) {
 async function pureRules(M, base) {
   const fails = [];
   const t = async (id, fn) => { try { const r = await fn(); if (r !== true) fails.push(id + ': ' + r); } catch (e) { fails.push(id + ': threw ' + e.message); } };
+
+  /* PI-TOWN (live v0.2.11, Andy: "no Stop line"): every town pointer the server holds (a resumed gather, a bench,
+     training) is named on the Inventory's Stop line and in the Characters window; nothing runs unseen. */
+  await t('PI-TOWN', async () => {
+    const at = (st) => ({ read: (k) => (k === 'state' ? st : null) });
+    for (const [st, want] of [[{ active_kind: 'gather', active_id: 'shrimp_s' }, 'fishing at the Shrimp Spot'],
+      [{ active_kind: 'gather', active_id: 'copper_rock' }, 'mining the '], [{ active_kind: 'training', active_id: 'dummy' }, 'training'],
+      [{ active_kind: 'artisan', active_id: 'no_such_recipe' }, 'at a workbench']]) {
+      const line = M.BURY.buryLine(at(st));
+      if (!/or stop it here\.$/.test(line) || !line.includes(want)) return 'the Stop line for ' + JSON.stringify(st) + ' reads ' + JSON.stringify(line);
+      const doing = M.PS.assignmentOf(at(st)).text;
+      if (!doing.startsWith('In town, ' + want)) return 'Characters reads ' + JSON.stringify(doing) + ' for ' + JSON.stringify(st);
+    }
+    if (M.BURY.buryLine(at({ active_kind: 'idle', active_id: null }))) return 'an idle hero gets a Stop line';
+    return true;
+  });
 
   await t('AL-1', async () => {
     const srv = fakeServer();
@@ -235,6 +252,17 @@ async function pureRules(M, base) {
     const a = srv.calls[0][1];
     if (srv.calls[0][0] !== 'hr_hunt_party_start' || Object.keys(a).sort().join() !== 'p_hunt,p_idem,p_slot' || a.p_slot !== 0 || a.p_hunt !== 'millrace_sewer') return 'the start sent ' + JSON.stringify(srv.calls[0]);
     if (M.IW.refusalText(r) !== 'Nobody went in: Mira is away.') return 'the not-ready words are ' + JSON.stringify(M.IW.refusalText(r));
+    /* Live v0.2.11 "busy in town": an own character still gathering is settled through the engine first
+       (set_activity idle collects before it switches), then the party starts. */
+    srv.env[0].state = Object.assign({}, srv.env[0].state, { active_kind: 'gather', active_id: 'shrimp_s' });
+    await c0.load();
+    srv.calls.length = 0;
+    srv.reply = { ok: true };
+    await M.PI.startPartyHunt(acc, c0, 'millrace_sewer');
+    const order = srv.calls.map((c) => (c[0] === 'accrue' ? 'accrue:' + JSON.stringify(c[1].activity || c[1].verb || '') : c[0])).filter((x) => x !== 'hr_load');
+    if (!/^accrue:.*idle/.test(order[0] || '') || !order.includes('hr_hunt_party_start')) return 'a gathering own character was not settled before the start: ' + JSON.stringify(order);
+    srv.env[0].state = Object.assign({}, srv.env[0].state, { active_kind: 'idle', active_id: null });
+    await c0.load();
     /* An ok re-reads every own character the verb touched: the party's, and the one that joined. */
     for (const [fn, args, want, reads] of [['startPartyHunt', ['millrace_sewer'], 'hr_hunt_party_start', '0'], ['disbandParty', [], 'hr_hunt_party_disband', '0'],
       ['inviteOwn', [1], 'hr_hunt_party_invite_own', '0,1'], ['listParty', [true], 'hr_hunt_party_list', '0']]) {
@@ -320,7 +348,7 @@ async function pureRules(M, base) {
     const bad = [...wands.filter((id) => role(id) !== 'mage'), ...staves.filter((id) => role(id) !== 'healer')];
     if (bad.length) return 'wrong role for ' + bad.map((id) => id + '=' + role(id)).join(', ');
     if (R.roleWeaponOf(null) !== 'neutral' || role('apprentice_primer') === 'mage' && ITEMS.apprentice_primer.slot === 'weapon') return 'the spellbook or bare hands resolve wrong';
-    const sql = readFileSync(join(base, 'supabase/migrations/2026-10-27-hunt-sessions-catalogue.generated.sql'), 'utf8');
+    const sql = readFileSync(join(base, 'supabase/migrations/2026-10-28-hunt-sessions-catalogue.generated.sql'), 'utf8');
     for (const id of [...wands, ...staves]) {
       const m = new RegExp(`\\('${id}', '([a-z_]+)'\\)`).exec(sql);
       if (!m || m[1] !== R.roleWeaponOf(ITEMS[id])) return `hr_hunt_weapons says ${id} is ${m && m[1]}, the engine says ${R.roleWeaponOf(ITEMS[id])}`;
@@ -424,7 +452,7 @@ async function pageRules(overrides, shots) {
       const tabs = await page.evaluate(() => Array.from(document.querySelectorAll('.char-tab[data-app="show"]')).map((b) => ({ slot: b.getAttribute('data-slot'),
         name: b.querySelector('.char-tab-name').textContent, doing: b.querySelector('.char-tab-doing').textContent, badge: b.querySelector('.char-badge').textContent, on: b.classList.contains('is-shown') })));
       const t0 = tabs.find((x) => x.slot === '0'), t1 = tabs.find((x) => x.slot === '1');
-      if (!t0 || t0.name !== 'Tyler' || t0.doing !== 'Hunting in Millrace Sewer' || t0.badge !== '1') fails.push('UI-1 [' + tag + '] tab 0 reads ' + JSON.stringify(t0));
+      if (!t0 || t0.name !== 'Tyler' || t0.doing !== 'Hunting in The Sewer' || t0.badge !== '1') fails.push('UI-1 [' + tag + '] tab 0 reads ' + JSON.stringify(t0));
       if (!t1 || t1.name !== 'Druid' || t1.doing !== 'In town, idle' || !t1.on) fails.push('UI-1 [' + tag + '] tab 1 reads ' + JSON.stringify(t1));
       const loads = s.calls.length;
       await page.click('.char-tab[data-slot="0"]');
@@ -588,14 +616,18 @@ const PURE_MUTANTS = [
   ['a kick names a user', 'src/session/character-session.js', "{ p_slot: this.slot, p_seat: seat, p_idem: newIdem() }", "{ p_slot: this.slot, p_seat: seat, p_user: this.uid, p_idem: newIdem() }"],
   ['a malformed seat is sent', 'src/session/character-session.js', "if (this._closed || !Number.isInteger(seat) || seat < 0 || seat > 7) return { ok: false, error: 'bad_intent' };", "if (this._closed) return { ok: false, error: 'bad_intent' };"],
   ['the server role pick is trusted over the weapon', 'src/session/party-sections.js', "role: roleForWeapon(w, pick),", "role: pick || roleForWeapon(w, null),"],
+  ['a training pointer runs with no Stop line', 'src/session/party-sections.js', "gather: 'gathering', artisan: 'at a workbench', training: 'training' });", "gather: 'gathering', artisan: 'at a workbench' });"],
+  ['a resumed gather is not named', 'src/session/party-sections.js', "  ...FISH_SPOTS.map((n) => ['gather:' + n.id, 'fishing at the ' + n.name]),\n", ''],
+  ['the Stop line ignores a town pointer that is not a bury', 'src/shell/windows/inventory/bury.js', "  return words ? 'Your hero is ' + words", "  return words && false ? 'Your hero is ' + words"],
   ['a party start re-reads nobody', 'src/session/party-intents.js', "    await Promise.all(Array.from(new Set(reread)).filter((o) => o && o.status !== 'closed').map((o) => o.load()));\n", ''],
+  ['the start does not settle a gathering own character first', 'src/session/party-intents.js', '  for (const o of peers) await settleTownActivity(o);\n', ''],
   ['an own invite names a user', 'src/session/party-intents.js', '{ p_slot: cs.slot, p_other_slot: otherSlot, p_idem: newIdem() }', '{ p_slot: cs.slot, p_other_slot: otherSlot, p_user: account.userId, p_idem: newIdem() }'],
   ['an own invite re-reads only the inviter', 'src/session/party-intents.js', '  const peers = partyPeersOf(account, cs).concat(other ? [other] : []);', '  const peers = partyPeersOf(account, cs);'],
   ['an own invite to the same slot is sent', 'src/session/party-intents.js', ' || otherSlot === cs.slot) {', ') {'],
   ['the roster is the hunt section only (a party in town is not listed)', 'src/shell/widgets/party-panel.js', '  if (p) {\n    const members = p.seats', '  if (p && h) {\n    const members = p.seats'],
   ['an away seat reads as in town', 'src/shell/widgets/party-panel.js', "  if (m.away) return m.seatMs === null ? 'Away' : 'Away, seat kept ' + Math.max(1, Math.ceil(m.seatMs / 60000)) + ' min';\n", ''],
   ['DPS and HPS shows with nobody hunting', 'src/shell/widgets/party-panel.js', "  prop(expand, 'hidden', !r.anyHunting);", "  prop(expand, 'hidden', false);"],
-  ['not ready names nobody', 'src/shell/intent-words.js', "    return 'Nobody went in: ' + seats.map((x) => x.name + ' ' + (SEAT_WORDS[x.error] || 'is not ready')).join('; ') + '.';", "    return 'Not everyone in the party is ready.';"],
+  ['not ready names nobody', 'src/shell/intent-words.js', "    return 'Nobody went in: ' + seats.map((x) => x.name + ' ' + (x.error === 'hunt_open' && x.hunt && HUNT_INDEX[x.hunt]\n      ? 'is still hunting in ' + HUNT_INDEX[x.hunt].name : SEAT_WORDS[x.error] || 'is not ready')).join('; ') + '.';", "    return 'Not everyone in the party is ready.';"],
 ];
 const PAGE_MUTANTS = [
   ['Start with party stays on while in flight', 'src/shell/windows/hunts.js', "for (const b of li.querySelectorAll('button')) prop(b, 'disabled', sc.pending || !!now);", "for (const b of li.querySelectorAll('button')) prop(b, 'disabled', !!now);"],

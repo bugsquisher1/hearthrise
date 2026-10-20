@@ -102,7 +102,10 @@ const argv = process.argv.slice(2);
 // it to the id of the session it just opened (v_sid) is scoped by the same
 // construction as `id`. The binding must still be REAL (below): session_id
 // bound to another column, or to nothing the block declared, stays a finding.
-const OWNER = '(?:user_id|clan_id|owner_id|character_id|listing_id|offer_id|seller_id|buyer_id|session_id|id)';
+// `party_id` (hunt parties, 2026-10-28): hunt_party_members is keyed by its
+// PARTY, and a self-check that binds it to the party its own probe characters
+// formed (v_pid) is scoped the same way; party_id = party_id stays a finding.
+const OWNER = '(?:user_id|clan_id|owner_id|character_id|listing_id|offer_id|seller_id|buyer_id|session_id|party_id|id)';
 
 // The vocabulary the right-hand side of a binding may use WITHOUT being a
 // reference to another column: cast targets, the array spellings, the literals.
@@ -967,6 +970,14 @@ const PLANTS = [
     patch: (s) => s.replace(IN_BLOCK, `    update public.hunt_bag set qty_left = 0 where session_id = session_id;\n${IN_BLOCK}`),
   },
   {
+    name: 'party_id_bound_to_nothing_declared',
+    what: 'party_id is an owner column (party seats), but binding it to ANOTHER column rather '
+        + 'than to the party the probes formed reaches every party\'s seats',
+    by: 'open', match: /update hunt_party_members/,
+    patch: (s) => s.replace(IN_BLOCK, `    update public.hunt_party_members set joined_at = now() where party_id = party_id;
+${IN_BLOCK}`),
+  },
+  {
     name: 'select_sourced_upsert_still_global',
     what: 'the values-list exemption must not cover an upsert whose ROW SOURCE is a select: a '
         + 'function doing insert into hunt_bag … select … on conflict do update, called from a self-check',
@@ -1119,6 +1130,14 @@ ${IN_BLOCK}`),
     control: true,
     patch: (s) => s.replace(IN_BLOCK,
       `    delete from public.player_ledger where user_id = v_uid and at < v_cut;\n${IN_BLOCK}`),
+  },
+  {
+    name: 'CONTROL party_scoped_update',
+    what: 'an update bound to the party the probes formed — the correct shape must not be reported',
+    control: true,
+    patch: (s) => s.replace(IN_BLOCK,
+      `    update public.hunt_party_members set joined_at = now() where party_id = v_uid;
+${IN_BLOCK}`),
   },
   {
     name: 'CONTROL comment_only',

@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-20",
- "replay_ms": 190269,
+ "replay_ms": 25246,
  "counts": {
   "tracked_names": 139,
   "entries": 111
@@ -1142,17 +1142,19 @@
    "touched_by": [
     "2026-10-25-party-invites.sql",
     "2026-10-27-core-bodies.sql",
-    "2026-10-28-party-flow.sql"
+    "2026-10-28-hunt-enter-after-stamina.sql",
+    "2026-10-28-party-flow.sql",
+    "2026-10-30-town-activity-yields.sql"
    ],
    "live": {
-    "md5": "b85ec652661e4e6602e822433a871d47",
-    "norm_len": 7707,
+    "md5": "30c1ee3803500d061969d963c34bdf83",
+    "norm_len": 8700,
     "measured": "2026-10-20",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "b85ec652661e4e6602e822433a871d47",
-    "norm_len": 7707,
+    "md5": "30c1ee3803500d061969d963c34bdf83",
+    "norm_len": 8700,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1237,17 +1239,18 @@
    "touched_by": [
     "2026-10-21-hunt-sessions.sql",
     "2026-10-23-hunt-party.sql",
-    "2026-10-27-core-bodies.sql"
+    "2026-10-27-core-bodies.sql",
+    "2026-10-28-hunt-enter-after-stamina.sql"
    ],
    "live": {
-    "md5": "04f39e85382cccae7414cf481d365d30",
-    "norm_len": 460,
+    "md5": "23cebe3d481b37205d025d6b02e6b140",
+    "norm_len": 569,
     "measured": "2026-10-20",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "04f39e85382cccae7414cf481d365d30",
-    "norm_len": 460,
+    "md5": "23cebe3d481b37205d025d6b02e6b140",
+    "norm_len": 569,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1310,17 +1313,18 @@
    "touched_by": [
     "2026-10-25-party-invites.sql",
     "2026-10-28-party-flow.sql",
-    "2026-10-29-party-security.sql"
+    "2026-10-29-party-security.sql",
+    "2026-10-30-party-invite-player.sql"
    ],
    "live": {
-    "md5": "646168857f653d9d9be0b77a5f80420c",
-    "norm_len": 4772,
+    "md5": "af9850fc97042407790910872f148948",
+    "norm_len": 1825,
     "measured": "2026-10-20",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "646168857f653d9d9be0b77a5f80420c",
-    "norm_len": 4772,
+    "md5": "af9850fc97042407790910872f148948",
+    "norm_len": 1825,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1335,17 +1339,18 @@
    "touched_by": [
     "2026-10-25-party-invites.sql",
     "2026-10-27-core-bodies.sql",
-    "2026-10-28-party-flow.sql"
+    "2026-10-28-party-flow.sql",
+    "2026-10-30-town-activity-yields.sql"
    ],
    "live": {
-    "md5": "163bf422d2773caa802bdfa1b0e89d85",
-    "norm_len": 4378,
+    "md5": "8f059dce3a91a20b47cff43d88120c7b",
+    "norm_len": 4495,
     "measured": "2026-10-20",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "163bf422d2773caa802bdfa1b0e89d85",
-    "norm_len": 4378,
+    "md5": "8f059dce3a91a20b47cff43d88120c7b",
+    "norm_len": 4495,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1405,22 +1410,24 @@
    "sig": "hr_hunt_settings_view(p_user uuid, p_slot integer)",
    "name": "hr_hunt_settings_view",
    "tracked_by": [
-    "chain"
+    "chain",
+    "pin"
    ],
    "touched_by": [
     "2026-10-23-hunt-settings-options.sql",
     "2026-10-23-hunt-world-state.sql",
-    "2026-10-25-action-conditions.sql"
+    "2026-10-25-action-conditions.sql",
+    "2026-10-28-consume-defaults.sql"
    ],
    "live": {
-    "md5": "7066491a820f84404b42f83da9c3dded",
-    "norm_len": 6664,
+    "md5": "95adfbbd7417328bfa496de0c60c7077",
+    "norm_len": 6823,
     "measured": "2026-10-20",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "7066491a820f84404b42f83da9c3dded",
-    "norm_len": 6664,
+    "md5": "95adfbbd7417328bfa496de0c60c7077",
+    "norm_len": 6823,
     "source": "computed-from-replay"
    },
    "agree": true

@@ -405,7 +405,7 @@ async function huntWindow(S, uid, mins, t) {
   await S.elapse(uid, mins * MIN);
   let c = null;
   let paid = false;
-  for (let k = 0; k < 8; k++) {
+  for (let k = 0; k < 200; k++) {   // successive fires: a settle simulates at most HUNT_SETTLE_SPAN_MS
     c = await S.huntSettle(uid);
     if (c.outcome === 'paid') paid = true;
     const sess = await S.session(uid);
@@ -769,8 +769,10 @@ async function loop2(S, M, tag, rows) {
        the hero's option (spec §3.8). */
     /* …and chooses "Use Store Supplies" (Master Design Reference §4): the store
        is never used without the player's choice. */
-    const pick = await S.rpc(p.uid, `select public.hr_action_set_options(0, 0, '{"supply_source":"store"}'::jsonb, $1::uuid) r`, [uuid()]);
-    t.ok(pick && pick.ok === true && pick.options && pick.options.supply_source === 'store', `the supplies choice was refused: ${brief(pick)}`);
+    /* …and eats at 80% HP: a Combat 40 hero in the sewer drops under the default 50% only a few times
+       an hour (3 meals on one dice stream, 0 on another), so the default left this step to the dice. */
+    const pick = await S.rpc(p.uid, `select public.hr_action_set_options(0, 0, '{"supply_source":"store","food_below_pct":80}'::jsonb, $1::uuid) r`, [uuid()]);
+    t.ok(pick && pick.ok === true && pick.options && pick.options.supply_source === 'store' && pick.options.food_below_pct === 80, `the supplies choice was refused: ${brief(pick)}`);
     food = { item: '*heal_shop' };
   });
 
@@ -899,20 +901,23 @@ async function loop4(S, M, tag, rows) {
     t.note(`ended ${reason}`);
   });
 
-  await step(3, 'back to work: fishing again', async (t) => {
-    const want = `${DEFAULT_RESUME.kind}:${DEFAULT_RESUME.id}`;
+  /* A hero that never chose an activity goes idle after the hunt (live v0.2.11: it used to start fishing,
+     invisibly); only an activity the player chose resumes (DEFAULT_RESUME is null). */
+  await step(3, 'back in town: idle, nothing started behind the player', async (t) => {
     const now = await S.load(p.uid);
-    t.ok(`${now.state.active_kind}:${now.state.active_id}` === want,
-      `after the hunt the pointer is ${now.state.active_kind}:${now.state.active_id}, not ${want}`);
+    t.ok(DEFAULT_RESUME === null && now.state.active_kind === 'idle',
+      `after the hunt the pointer is ${now.state.active_kind}:${now.state.active_id}, not idle`);
     const r = await S.q(`select meta from public.player_ledger where user_id = $1 and kind = 'hunt' and intent = 'resume'
                           order by id desc limit 1`, [p.uid]);
-    t.ok(r[0] && r[0].meta && r[0].meta.resumed === true, `the resume was not journalled: ${brief(r[0])}`);
+    t.ok(r[0] && r[0].meta && r[0].meta.resumed === false, `the resume was not journalled as nothing resumed: ${brief(r[0])}`);
     p.env = now;
   });
 
   await step(4, 'never stranded: fishing pays, food can be bought', async (t) => {
+    /* The player picks fishing itself (nothing resumes behind it). */
+    await p.act(t, 'set_activity gather:shrimp_s', { verb: 'set_activity', activity: { kind: 'gather', id: 'shrimp_s' } });
     const before = await p.settleAfter(t, 'fishing after the hunt', 20);
-    t.ok(inv(p.env, 'shrimp') > inv(before, 'shrimp'), 'the resumed fishing paid nothing');
+    t.ok(inv(p.env, 'shrimp') > inv(before, 'shrimp'), 'fishing after the hunt paid nothing');
     const o = cheapestFood(M);
     if (o) {
       t.ok(num(p.env.state.gold) >= o.gold, `the player has ${p.env.state.gold} gold and the cheapest food costs ${o.gold}`);

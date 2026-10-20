@@ -36,16 +36,16 @@
 //
 // Mounted by src/app/world-pane.js over one character's World.
 // ════════════════════════════════════════════════════════════════════════
-import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.9';
-import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.9';
-import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.9';
-import { createWindowManager, DOCK_EDGE } from './window-manager.js?v=0.2.9';
-import { createHud, residueStore, placeWidget, hudInsetOf } from './hud.js?v=0.2.9';
-import { keyLabel, glyphSvg } from './launcher.js?v=0.2.9';
-import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.9';
-import { mountContextMenu } from './context-menu.js?v=0.2.9';
-import { menuProvidersOf } from './menu-providers.js?v=0.2.9';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.9';
+import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.11';
+import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.11';
+import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.11';
+import { createWindowManager, DOCK_EDGE } from './window-manager.js?v=0.2.11';
+import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges } from './hud.js?v=0.2.11';
+import { keyLabel, glyphSvg } from './launcher.js?v=0.2.11';
+import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.11';
+import { mountContextMenu } from './context-menu.js?v=0.2.11';
+import { menuProvidersOf } from './menu-providers.js?v=0.2.11';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.11';
 
 /* The components' display clock: session timers and the timeline's due events (parity SH-05, DOM 4 Hz). */
 const DISPLAY_TICK_MS = 250;
@@ -186,17 +186,19 @@ export function mountShell(root, o) {
       el.style.left = at.left + 'px';
       el.style.top = at.top + 'px';
     }
-    /* Widgets never overlap: a centred widget that lands on an edge-anchored
-       one (the dock narrowing the World) steps clear of it when there is room. */
+    /* Widgets never overlap (hud.js clearOfEdges): a centred widget that lands on an edge-anchored
+       one (the dock narrowing the World) moves along its row to clear it, and when the row is too
+       narrow the edge widgets it still hits step down below it. */
     for (const box of [worldHud, screenHud]) {
       const els = Array.from(box.querySelectorAll('[data-hs-widget]'));
       const centred = (e) => hud.layoutOf(e.getAttribute('data-hs-widget')).anchor[1] === 'c';
-      const edges = els.filter((e) => !centred(e)).map((e) => e.getBoundingClientRect());
       const b = box.getBoundingClientRect();
+      const rel = (e) => { const q = e.getBoundingClientRect(); return { left: q.left - b.left, top: q.top - b.top, width: q.width, height: q.height }; };
+      const edgeEls = els.filter((e) => !centred(e));
       for (const e of els.filter(centred)) {
-        const r = e.getBoundingClientRect();
-        const hit = edges.find((q) => r.left < q.right && r.right > q.left && r.top < q.bottom && r.bottom > q.top);
-        if (hit && hit.right + DOCK_EDGE + r.width <= b.right) e.style.left = Math.round(hit.right - b.left + DOCK_EDGE) + 'px';
+        const at = clearOfEdges(rel(e), edgeEls.map(rel), b.width, DOCK_EDGE);
+        e.style.left = at.left + 'px';
+        for (const p of at.push) edgeEls[p.i].style.top = p.top + 'px';
       }
     }
     publishInset();

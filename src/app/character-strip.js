@@ -8,13 +8,27 @@
 // the others keep playing on the server and keep their records and channels.
 // "All characters" opens the command centre (src/shell/windows/characters.js).
 //
+// A RIGHT-CLICK (or long press) on a tab opens the one player menu (src/shell/
+// context-menu.js, attached by boot.js to the viewed character's shell): the
+// tab names this account's own character by the account id and its slot, so
+// the party provider (src/shell/menu-providers.js) offers "Invite to party"
+// (that character joins the viewed one's party at once, no accept step,
+// PARTY_SPEC §1.2) and "Leave party" when it sits in one. Nothing here sends.
+//
 // Built once when the game screen opens; every tab is a keyed row patched in
 // place (src/render/paint.js) on any character's change, a switch, or an
 // alert. Every number is the server's (src/shell/command-model.js).
 // ════════════════════════════════════════════════════════════════════════
-import { summaryOf } from '../shell/command-model.js?v=0.2.9';
-import { rows, text, cls, attr, style, element } from '../render/paint.js?v=0.2.9';
-import { patchRoleGlyph } from '../shell/widgets/bits.js?v=0.2.9';
+import { summaryOf } from '../shell/command-model.js?v=0.2.11';
+import { rows, text, cls, attr, style, element } from '../render/paint.js?v=0.2.11';
+import { patchRoleGlyph } from '../shell/widgets/bits.js?v=0.2.11';
+import { markPlayer, playerTargetOf } from '../shell/context-menu.js?v=0.2.11';
+
+/** The menu target under a strip event: one of this account's own characters (its tab), or null. */
+export function stripTargetOf(e) {
+  const tab = e && e.target && e.target.closest ? e.target.closest('.char-tab[data-hs-player]') : null;
+  return tab ? playerTargetOf(tab) : null;
+}
 
 const STRIP_HTML = '<ol class="char-tabs"></ol>'
   + '<span class="char-strip-tools">'
@@ -30,9 +44,10 @@ const TAB_HTML = '<li class="char-tab-row"><button type="button" class="char-tab
 
 const fill = (cur, max) => (Number.isFinite(cur) && Number.isFinite(max) && max > 0 ? Math.round(Math.max(0, Math.min(1, cur / max)) * 1000) / 10 + '%' : '0%');
 
-function patchTab(li, x, viewed, glyphs) {
+function patchTab(li, x, viewed, glyphs, uid) {
   const b = li.querySelector('.char-tab');
   attr(b, 'data-slot', String(x.slot));
+  markPlayer(b, uid ? { id: uid, name: x.name, slot: x.slot } : null);
   attr(b, 'aria-pressed', String(x.slot === viewed));
   cls(b, 'is-shown', x.slot === viewed);
   cls(b, 'is-hunting', x.doing.kind === 'hunting');
@@ -76,7 +91,7 @@ export function mountCharacterStrip(host, o) {
     rows(list, o.account.characters().map((cs) => summaryOf(cs, o.alerts)), {
       key: (x) => String(x.slot),
       build: () => element(doc, TAB_HTML),
-      patch: (li, x) => patchTab(li, x, viewed, glyphs()),
+      patch: (li, x) => patchTab(li, x, viewed, glyphs(), o.account.userId),
     });
   }
 

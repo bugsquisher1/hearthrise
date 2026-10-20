@@ -16,13 +16,13 @@
 // Built once, patched in place; every control is off while an intent is in
 // flight, and changes show only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { presetsOf, shopOf } from '../../session/item-sections.js?v=0.2.9';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.9';
-import { whole, gold } from '../../render/format.js?v=0.2.9';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.9';
-import { itemName } from '../widgets/bits.js?v=0.2.9';
-import { runIntent } from '../intent-words.js?v=0.2.9';
-import { readinessOf, readinessLine } from '../readiness.js?v=0.2.9';
+import { presetsOf, shopOf } from '../../session/item-sections.js?v=0.2.11';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.11';
+import { whole, gold } from '../../render/format.js?v=0.2.11';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.11';
+import { itemName } from '../widgets/bits.js?v=0.2.11';
+import { runIntent } from '../intent-words.js?v=0.2.11';
+import { readinessOf, readinessLine } from '../readiness.js?v=0.2.11';
 
 const MAX_PRESETS = 8;
 const SCRATCH = new WeakMap();

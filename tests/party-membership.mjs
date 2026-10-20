@@ -137,7 +137,10 @@ if (MUTATE) {
 const patches = new Map();
 if (MUTATE) patches.set(F2, [MUTANT, NEUTER_SELFCHECK]);
 
-const { db, failures } = await bootReplay({ patches, upTo: LAST_PATCHED });
+/* The M8 verbs are DROPPED by 2026-10-29-party-security.sql (Security's reopen must-fix #4): the plain run
+   replays the chain up to the file just before their removal, the last state in which they exist. */
+const M8_LAST = '2026-10-28-party-flow.sql';
+const { db, failures } = await bootReplay({ patches, upTo: MUTATE ? LAST_PATCHED : M8_LAST });
 if (failures.length) {
   console.error('the schema replay did not complete:', failures);
   process.exit(2);

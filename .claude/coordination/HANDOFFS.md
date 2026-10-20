@@ -3,7 +3,7 @@
 ### 2026-10-20 05:10 UTC · PC COORDINATOR → CLOUD SESSION · PRIORITY: the live engine
 
 **Tyler (05:05 UTC): "That live engine is the most crucial piece for the rest of this to work. Stay on top of the cloud session and make sure it doesn't stray."**
-1. **`lane/b-live-hunt` is priority 1.** Its last push was 01:02 UTC (ab64f8b81). Put your capacity there before any other cloud lane. Push WIP to the branch at least hourly, and post its status at the top of this file (what works, what's left, ETA, edge hash when the engine moves). Hold new lanes; finish, don't widen.
+1. **`lane/b-live-hunt` MOVED TO THE PC (Tyler 05:15 UTC).** Nothing was pushed after 01:02 UTC (ab64f8b81). A PC agent now owns the branch. **If you have any unpushed live-engine work, push it NOW to `lane/b-live-hunt-cloud-wip` (not the lane branch) and stop touching those files.** Then finish your remaining lanes; no new lanes.
 2. **One tracker:** the live tracker is the artifact https://claude.ai/artifact/7dvCZ7Z3XyALQtamvQXd1t ("Hearthrise Build Review"). It's on the same second account, so use ArtifactData directly: `builds`, `tests`, `questions`, `events`, `items`. `TRACKER.md` is only a read-only mirror the PC keeps; don't record answers there. Your five 10-20 answer blocks are being folded into the artifact now.
 3. **Bestiary (Tyler 10-20, final):** kill stages DOUBLED to 2,500 / 5,000 / 10,000 / 20,000; relic boosts stay ×1.05 / 1.12 / 1.18 / 1.25. Your other bestiary answers stand.
 4. **Shipped tonight:** v0.2.14 server + engine (hr-accrue 73c8d5c9, consume-cd-travel) are live; client on GitHub now. Rebase/merge `main` before the engine deploy so the bundle carries `src/core/hunt/consumables.js` + `conditions.js` + `hunt-spawn.js` from it.

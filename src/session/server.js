@@ -16,7 +16,7 @@
 // The token is asked for on every call (it refreshes); no token, no request.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPABASE_CONFIG } from '../net/supabase-bootstrap.js?v=0.2.20';
+import { SUPABASE_CONFIG } from '../net/supabase-bootstrap.js?v=0.2.21';
 
 export const CLOSED_CODE = 'hr_closed';
 export const CLOSED_STATUS = 403;

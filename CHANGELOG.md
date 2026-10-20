@@ -5,6 +5,14 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.21 — 2026-10-20 (Party pulls)
+
+**The party leader sets the pull.** In a party, the leader picks how many monsters come at once, and every respawn follows that pick. A boss never shows up twice in the same pull, and a full pull no longer blocks the leader from reaching it.
+
+**Smoother hunts.** Heroes and monsters keep their stride between server updates instead of snapping, a hero no longer spins around between swings, and a monster killed mid-step falls where it stands.
+
+**Faster replies.** The hunt engine now runs next to the game's database, so each hunt update comes back much sooner.
+
 ## v0.2.20 — 2026-10-20 (Live hunts)
 
 **Hunts play out live.** Your browser runs the same fight as the server for the hero you're watching, so hunts move smoothly in real time. HP bars for monsters and heroes move with every hit, your whole party is drawn, melee heroes hold their spot, caster bolts fly, and monsters fall and leave a corpse. The server still decides every hit, kill and drop.

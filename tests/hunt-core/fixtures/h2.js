@@ -17,6 +17,7 @@ async function loadCore2(root) {
   M.roleData = await imp('src/data/hunt-roles.js');
   M.monData = await imp('src/data/monsters.js');
   M.sessions = await imp('src/data/hunt-sessions.js');
+  M.hg = await imp('src/core/hunt-ground.js');
   return M;
 }
 

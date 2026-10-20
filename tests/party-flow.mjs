@@ -32,8 +32,9 @@
 //   PF-BLOCK    (#1, #3) a block either way, with the inviter or any member, refuses the invite,
 //               the accept and the Join, and the finder hides that party
 //   PF-KICK-HUNT (#2) a kicked hunter leaves its hunt: a stale session gets leave_at (the next
-//               settle ends it, so it is out of every later split), a walking one ends at once,
-//               and its seat goes now
+//               settle ends it, so it is out of every later split), a walking one pends at its
+//               live horizon (2026-10-31-live-horizon.sql: no door ends a hunt at once), and its
+//               seat goes now
 //   PF-M8       (#4) the dormant M8 verbs and their baseline rows are gone
 //   PF-IDEM     a second apply of both files is byte-identical
 //   PF-GRANT    the four verbs are authenticated-only; the sweep and the
@@ -56,6 +57,8 @@ const INV = '2026-10-30-party-invite-player.sql';
 const TOWN = '2026-10-30-town-activity-yields.sql';
 /* 2026-10-28-hunt-enter-after-stamina.sql restates hr_hunt_enter_for between SEC and INV; TOWN pins its image. */
 const STAM = '2026-10-28-hunt-enter-after-stamina.sql';
+/* 2026-10-31-live-horizon.sql restates SEC's hr_hunt_party_kick at the chain end: --mutate re-applies it last. */
+const LIVE = '2026-10-31-live-horizon.sql';
 const SRC = (f = FILE) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
 const U = ['000000c0-0000-4000-8000-0000000f1001', '000000c0-0000-4000-8000-0000000f1002', '000000c0-0000-4000-8000-0000000f1003'];
 const [A, B, C] = U;
@@ -329,10 +332,13 @@ const ARMS = {
     const s = (await db.query('select leave_at, ended_at from public.hunt_sessions where id = $1', [sb])).rows[0];
     if (err(k) !== 'ok' || k.leaving !== true || (s.leave_at === null && s.ended_at === null)) p.push('a kicked hunter keeps hunting: ' + JSON.stringify([k, s]));
     if (await partyOf(db, B)) p.push('a kicked hunter keeps its seat');
-    /* A/1 is still walking in (settled_to ahead): the kick ends its session at once. */
+    /* A/1 is still walking in (settled_to ahead): the kick pends at its live horizon, as its own Leave would,
+       never at once — a death the viewer saw in its seeds cannot be kicked around (Tyler 2026-10-20, live-horizon). */
     const s1 = await one(db, 'select id from public.hunt_sessions where user_id = $1 and slot = 1 and ended_at is null', [A]);
     await kick(db, A, await seatOf(A, 1));
-    if (await one(db, 'select ended_at from public.hunt_sessions where id = $1', [s1]) === null) p.push('a kicked walking hunter was not ended at once');
+    const w = (await db.query('select ended_at, leave_at, leave_at = public.hr_hunt_live_horizon_at(settled_to) as at_horizon from public.hunt_sessions where id = $1', [s1])).rows[0];
+    if (w.ended_at !== null || w.at_horizon !== true) p.push('a kicked walking hunter did not pend at its live horizon: ' + JSON.stringify(w));
+    if (await partyOf(db, A, 1)) p.push('a kicked walking hunter keeps its seat');
     if (await one(db, 'select count(*)::int from public.hunt_sessions where instance_id = $1 and ended_at is null and leave_at is null', [pid]) !== 1) {
       p.push('the instance still holds a kicked hunter with no leave scheduled');
     }
@@ -468,8 +474,11 @@ MUTANTS.push(
     repl: '  if false then' },
   { arm: 'PF-BLOCK', file: INV, why: 'an invite ignores a member’s block',
     find: 'and m.user_id <> p_t_user and public.hr_social_blocked(p_t_user, m.user_id))) then', repl: 'and false)) then' },
-  { arm: 'PF-KICK-HUNT', file: SEC, why: 'a kicked hunter keeps hunting and sharing',
+  { arm: 'PF-KICK-HUNT', file: LIVE, why: 'a kicked hunter keeps hunting and sharing',
     find: '  if v_s.id is not null and v_s.instance_id = v_pid then\n    v_leaving := true;', repl: '  if false then\n    v_leaving := true;' },
+  { arm: 'PF-KICK-HUNT', file: LIVE, why: 'a kick pends a walking hunter at now(), inside the look-ahead its viewer was shown',
+    find: '      update public.hunt_sessions set leave_at = public.hr_hunt_live_horizon_at(v_s.settled_to), version = version + 1 where id = v_s.id;\n    end if;\n  end if;\n  delete from public.hunt_party_members',
+    repl: '      update public.hunt_sessions set leave_at = now(), version = version + 1 where id = v_s.id;\n    end if;\n  end if;\n  delete from public.hunt_party_members' },
 );
 
 function selfCheckOff(src) {
@@ -501,9 +510,9 @@ async function main() {
     await db.close().catch(() => {});
     process.exit(bad ? 1 : 0);
   }
-  /* The control: both files re-applied in order, self-checks off, nothing planted: every mutant's arm stays green. */
-  const base = { [FILE]: selfCheckOff(SRC(FILE)), [SEC]: selfCheckOff(SRC(SEC)), [INV]: selfCheckOff(SRC(INV)), [STAM]: selfCheckOff(SRC(STAM)), [TOWN]: selfCheckOff(SRC(TOWN)) };
-  const prelude = (b) => [FILE, SEC, STAM, INV, TOWN].map((f) => b[f]).join('\n');
+  /* The control: the files re-applied in order, self-checks off, nothing planted: every mutant's arm stays green. */
+  const base = { [FILE]: selfCheckOff(SRC(FILE)), [SEC]: selfCheckOff(SRC(SEC)), [INV]: selfCheckOff(SRC(INV)), [STAM]: selfCheckOff(SRC(STAM)), [TOWN]: selfCheckOff(SRC(TOWN)), [LIVE]: selfCheckOff(SRC(LIVE)) };
+  const prelude = (b) => [FILE, SEC, STAM, INV, TOWN, LIVE].map((f) => b[f]).join('\n');
   let missed = 0;
   for (const arm of new Set(MUTANTS.map((m) => m.arm))) {
     const p = await runArm(db, arm, prelude(base));

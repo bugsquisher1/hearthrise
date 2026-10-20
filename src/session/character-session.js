@@ -127,6 +127,8 @@ export class CharacterSession {
     this.liveLink = new LiveLink({ timeline: this.timeline, now: () => this._now(), emit: (why) => this._emit(why) });
     this.live = this.liveLink.engine;
     this.receivedAt = null;
+    /** The hunt session the timeline holds (a new one clears it: _play). */
+    this._huntSid = null;
     for (const fn of Array.from(OBSERVERS)) fn(this);   // e.g. the hunt summary's recorder: it must hear the timeline from the first event
   }
 
@@ -169,13 +171,19 @@ export class CharacterSession {
     if (this._closed || this._huntTimer || !this._huntOpen()) return;
     /* The live view without a start point (just entered, reloaded, or a commit it did not match)
        asks at once; the floor then answers with hunt_live instead of a settle. */
-    const ms = this.liveLink.want ? SESSION_CONFIG.liveAskMs : SESSION_CONFIG.huntPollMs;
+    const h = this.read('hunt');
+    const from = h && h.session && typeof h.session.hunt_from === 'string' ? Date.parse(h.session.hunt_from) : NaN;
+    const ms = this.liveLink.askDelayMs(from) ?? SESSION_CONFIG.huntPollMs;
     this._huntTimer = this._setTimer(() => { this._huntTimer = null; this._huntPoll(); }, ms);
   }
 
   async _huntPoll() {
     if (this._closed || !this._huntOpen()) return;
-    try { await this.hello(); } catch (e) { /* the next ask retries */ }
+    let took = false;
+    try { took = await this.hello(); } catch (e) { /* the next ask retries */ }
+    /* an ask that brought no answer (blocked, refused, offline) backs off like one that brought no start
+       point: the live ask once re-armed every liveAskMs for as long as the calls failed */
+    if (!took) this.liveLink.missed();
     this._armHuntPoll();
   }
 
@@ -183,15 +191,26 @@ export class CharacterSession {
      While the live engine runs, the server's windows only JUDGE the prediction (hunt_check) and
      restart it (hunt_live); its steps and events are already on screen from the engine. */
   _play(body) {
+    /* ONE HUNT AT A TIME (timeline.js T10): a new session is a new instance whose unit ids start again
+       at 1, so the last hunt's steps go (drawn on, they put a unit in the new ground's wall and slid it
+       across the map) and a prediction of the old instance stops. */
+    const h0 = this.read('hunt');
+    const sid = h0 && typeof h0.session_id === 'string' && h0.ended !== true ? h0.session_id : null;
+    if (sid !== null && sid !== this._huntSid) { this.liveLink.off(); this.timeline.clear(); }
+    if (sid !== null) this._huntSid = sid;
     this._liveFrom(body);
-    if (this.live.running()) {
+    /* ONE POSITION SOURCE: while a prediction exists, even one out of seeds waiting for its restart,
+       the server's window never writes the same units (its steps are the past, played over the
+       prediction's: two sources bouncing one hero). */
+    if (this.live.running() || this.live.stalled()) {
       const ms = Number.isSafeInteger(body.hunt_server_now_ms) ? body.hunt_server_now_ms
         : typeof body.now === 'string' ? Math.floor(Date.parse(body.now)) : NaN;
       if (Number.isSafeInteger(ms)) this.timeline.ingest({ serverNowMs: ms }, this._now());
       return;
     }
     if (Array.isArray(body.hunt_track) || Array.isArray(body.hunt_events)) {
-      this.timeline.ingest({ track: body.hunt_track, events: body.hunt_events, serverNowMs: body.hunt_server_now_ms }, this._now());
+      this.timeline.ingest({ track: body.hunt_track, events: body.hunt_events, serverNowMs: body.hunt_server_now_ms,
+        units: body.hunt_units, fromMs: body.hunt_from_ms }, this._now());
     } else {
       /* A plain read (hr_load, or an accrue the settle floor answered without a window) still
          carries the server's clock (`now`): measure it, or a hunt seen only through reads has no

@@ -303,7 +303,9 @@ export const SOLO_HEALER_FLOOR = Object.freeze({ role: 'healer', elementPermille
 /* MONSTER DENSITY (Tyler 2026-10-18): a hero picks how many monsters a pull brings
    (0 = the room as built). The server stores the pick inside DENSITY_PICK and the
    settle CLAMPS it to the ground's `densityMax` for the party's size (a row's array,
-   one entry per party size 1..4); a party takes the smallest pick among its members.
+   one entry per party size 1..4). IN A PARTY THE LEADER CHOOSES (Tyler 2026-10-20:
+   "There should be a party leader that chooses the hunt settings"): the leader's
+   pick is the pull for every member, the others' picks have no say (partyPick).
    EVERY ground's max is at least DENSITY_FULL_BOX (Tyler: "a full box", all 8 tiles
    round the tank taken); a row may allow more. The values above 8 are ASSUMED. */
 export const DENSITY_FULL_BOX = 8;
@@ -312,13 +314,23 @@ export const DENSITY_FULL_BOX = 8;
 export const GROUP_FITS = Object.freeze(['solo', 'party', 'both']);
 export const DENSITY_PICK = Object.freeze({ min: 0, max: 16 });
 
-/** The density an instance spawns at: the members' smallest pick, clamped to the ground's max for its size. */
-export function densityFor(ground, partySize, picks) {
+/** The density an instance spawns at: the pick (partyPick's, for a party) clamped to the ground's max
+    for its size; 0 (as built) for no pick. */
+export function densityFor(ground, partySize, pick) {
   const n = Math.min(PARTY_SCALE.maxHeroes, Math.max(1, Math.floor(Number(partySize) || 1)));
   const max = Array.isArray(ground && ground.densityMax) ? ground.densityMax[n - 1] : DENSITY_FULL_BOX;
-  const want = (picks || []).filter(Number.isInteger);
-  const pick = want.length ? Math.min(...want) : 0;
-  return Math.max(0, Math.min(max, pick, DENSITY_PICK.max));
+  const p = Number.isInteger(pick) && pick > 0 ? pick : 0;
+  return Math.max(0, Math.min(max, p, DENSITY_PICK.max));
+}
+
+/** THE PULL'S PICK: of `heroes` ([{ density, lead, seat }]) the one that leads the party (`lead`: the
+    party's crowned seat, hunt_parties.leader, read per member as hr_hunt_instance_read `leads`), else
+    (a solo hero, or a party whose leader is not on the instance) the lowest seat's. Its pick alone counts. */
+export function partyPick(heroes) {
+  const list = (heroes || []).filter(Boolean);
+  const lead = list.find((h) => h.lead === true)
+    || list.slice().sort((a, b) => (Number(a.seat) || 0) - (Number(b.seat) || 0))[0];
+  return lead && Number.isInteger(lead.density) && lead.density > 0 ? lead.density : 0;
 }
 
 /** The HP scale (permille) for a pack in an instance of `partySize` heroes. */
@@ -357,8 +369,28 @@ export function packAt(ground, p, level) {
   const pk = ground.pockets[p];
   const d = ground.density;
   if (!d || !pk.pack) return pk.spawns.slice();
-  const lv = Math.max(1, Math.min(d.max, Math.floor(Number(level) || 1)));
-  return pk.pack.slice(0, lv);
+  return pullRows(ground, p, Math.max(1, Math.min(d.max, Math.floor(Number(level) || 1))));
+}
+
+const isBoss = (s) => !!(MONSTERS[s.monster] && MONSTERS[s.monster].boss === true);
+
+/** THE ROWS A PULL OF `size` SPAWNS in pocket `p` (pull-cycle.js spawnPack; `size` = the settle's density,
+    0 = the pocket as built, its `spawns`). The pocket's authored rows come first (a box's `pack`, else its
+    `spawns`); past them the extra slots cycle its FILL rows (a box's `pack` past its `spawns`, else the
+    pocket's own rows), never a boss: A BOSS NEVER REPEATS INSIDE A PULL (designer ruling 2026-10-20: a
+    named leader such as the den's Old Grayjaw stands in the as-built head only). A pocket with no non-boss
+    row keeps its as-built pack at any size. */
+export function pullRows(ground, p, size) {
+  const pk = ground.pockets[p];
+  const n = Math.floor(Number(size) || 0);
+  const rows = pk.pack || pk.spawns;
+  if (n <= 0 || !rows.some((s) => !isBoss(s))) return pk.spawns.slice();
+  if (n <= rows.length) return rows.slice(0, n);
+  const extra = (pk.pack ? pk.pack.slice(pk.spawns.length) : rows).filter((s) => !isBoss(s));
+  const fill = extra.length ? extra : rows.filter((s) => !isBoss(s));
+  const out = rows.slice();
+  for (let i = 0; out.length < n; i++) out.push(fill[i % fill.length]);
+  return out;
 }
 
 /** A ground's gather nodes, each with its kind resolved (empty for a ground with none). INERT until the gather engine lands. */

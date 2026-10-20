@@ -21,7 +21,7 @@
 // in that party, so on ok each of them (and the character that joined) is
 // RE-READ: the screen shows only the server's answer, never a prediction.
 // ════════════════════════════════════════════════════════════════════════
-import { partyMembershipOf } from './party-sections.js?v=0.2.10';
+import { partyMembershipOf } from './party-sections.js?v=0.2.11';
 
 const HUNT_ID = /^[a-z0-9_]{1,64}$/;
 const MAX_SLOT = 5;

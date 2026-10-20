@@ -12,10 +12,10 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_STANCES } from './rule-subjects.js?v=0.2.10';
-import { WEAPON_ROLES } from './hunt-roles.js?v=0.2.10';
-import { ACTION_SET_SKIPS } from './abilities.js?v=0.2.10';
-import { DENSITY_PICK } from './hunt-grounds.js?v=0.2.10';
+import { HUNT_STANCES } from './rule-subjects.js?v=0.2.11';
+import { WEAPON_ROLES } from './hunt-roles.js?v=0.2.11';
+import { ACTION_SET_SKIPS } from './abilities.js?v=0.2.11';
+import { DENSITY_PICK } from './hunt-grounds.js?v=0.2.11';
 
 /* Hours is an optional limit, off by default: the bag, stamina and death
    already bound a hunt, and a timer nobody asked for is a hunt that ends for no

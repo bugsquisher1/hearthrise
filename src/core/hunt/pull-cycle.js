@@ -22,16 +22,16 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.10';
-import { VITALS } from '../../data/core-model.js?v=0.2.10';
-import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js?v=0.2.10';
-import { AI_REPATH_MS } from '../../data/hunt-roles.js?v=0.2.10';
-import { packHpFor, yieldPermille, routeFor } from '../../data/hunt-grounds.js?v=0.2.10';
-import { cheb, dist2, freeNear, tileKey } from './grid.js?v=0.2.10';
-import { inArea, resetPack } from './leash.js?v=0.2.10';
-import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy } from './movement.js?v=0.2.10';
-import { makeEvent } from './events.js?v=0.2.10';
-import { pickLeader, kites } from './roles.js?v=0.2.10';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.11';
+import { VITALS } from '../../data/core-model.js?v=0.2.11';
+import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js?v=0.2.11';
+import { AI_REPATH_MS } from '../../data/hunt-roles.js?v=0.2.11';
+import { packHpFor, yieldPermille, routeFor } from '../../data/hunt-grounds.js?v=0.2.11';
+import { cheb, dist2, freeNear, tileKey } from './grid.js?v=0.2.11';
+import { inArea, resetPack } from './leash.js?v=0.2.11';
+import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy } from './movement.js?v=0.2.11';
+import { makeEvent } from './events.js?v=0.2.11';
+import { pickLeader, kites } from './roles.js?v=0.2.11';
 
 /* deadMs: a corpse's age. hpMilli: out-of-combat regen carried below one HP.
    phase / routeIdx / phaseMs / regroupNext / runs / nextId: the cycle. alive / respawnAtMs: a pack. */

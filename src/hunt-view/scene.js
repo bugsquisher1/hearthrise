@@ -20,12 +20,12 @@
 //      never a tally of the events; a float is only ever the event's own number.
 //   S4 bounded: at most MAX_FX effects and MAX_FLOATS floats live at once.
 // ════════════════════════════════════════════════════════════════════════
-import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX } from '../data/hunt-vfx.js?v=0.2.10';
-import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.10';
-import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.10';
-import { partyPeopleOf } from '../session/party-sections.js?v=0.2.10';
-import { floatShown } from './float-prefs.js?v=0.2.10';
-import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.10';
+import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX } from '../data/hunt-vfx.js?v=0.2.11';
+import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.11';
+import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.11';
+import { partyPeopleOf } from '../session/party-sections.js?v=0.2.11';
+import { floatShown } from './float-prefs.js?v=0.2.11';
+import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.11';
 
 export const SCENE_TIMING = Object.freeze({
   deathFadeMs: 400,     // VW-05: colour to a grey corpse

@@ -32,18 +32,18 @@
 // press is ONE hr_action_set_options. The server keeps ONE pick per action set
 // today, not one per ground, so the line says it carries to the next hunt.
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf, settingsOf } from '../../session/hunt-sections.js?v=0.2.10';
-import { bagOf, rulesOf } from '../../session/item-sections.js?v=0.2.10';
-import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.10';
-import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.10';
-import { startPartyHunt } from '../../session/party-intents.js?v=0.2.10';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.10';
-import { whole } from '../../render/format.js?v=0.2.10';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.10';
-import { itemName } from '../widgets/bits.js?v=0.2.10';
-import { runIntent } from '../intent-words.js?v=0.2.10';
-import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.10';
-import { huntRows, densityWords, bandWords, rangeWords, groupWords, recommendedHunt, heroWords, packFor, partyNote, ABOVE_LEVEL_WORDS } from '../hunt-list.js?v=0.2.10';
+import { huntOf, settingsOf } from '../../session/hunt-sections.js?v=0.2.11';
+import { bagOf, rulesOf } from '../../session/item-sections.js?v=0.2.11';
+import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.11';
+import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.11';
+import { startPartyHunt } from '../../session/party-intents.js?v=0.2.11';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.11';
+import { whole } from '../../render/format.js?v=0.2.11';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.11';
+import { itemName } from '../widgets/bits.js?v=0.2.11';
+import { runIntent } from '../intent-words.js?v=0.2.11';
+import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.11';
+import { huntRows, densityWords, bandWords, rangeWords, groupWords, recommendedHunt, heroWords, packFor, partyNote, ABOVE_LEVEL_WORDS } from '../hunt-list.js?v=0.2.11';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pick: null, pending: false, msg: '' }; SCRATCH.set(cs, s); } return s; };

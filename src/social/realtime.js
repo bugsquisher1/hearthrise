@@ -17,7 +17,7 @@
 // the rest — every binding is a filter the Realtime poller runs per write.
 // ════════════════════════════════════════════════════════════════════════
 
-import { CHAT_LIMITS } from '../data/chat-channels.js?v=0.2.10';
+import { CHAT_LIMITS } from '../data/chat-channels.js?v=0.2.11';
 
 const CHANNEL = /^(global|system|local:[a-z0-9_]{1,64}|party:[0-9a-f-]{36})$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

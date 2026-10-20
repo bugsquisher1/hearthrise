@@ -11,11 +11,18 @@
 // its name and theme, its Level band against the character's own Level,
 // who may come, and how crowded it is. The picked line carries the window's one
 // primary, Enter, and says what the hunt will carry from the bag (the player's
-// remembered restock targets). "With a party" opens the Party window on that
-// ground. Enter is ONE hr_hunt_enter; the server checks the band, the stamina
+// remembered restock targets). Enter is ONE hr_hunt_enter; the server checks the band, the stamina
 // and the stock, and the hunt shows only from the re-read envelope. A hunt above
 // the character's level says so ("expect losses"); the floor is a warning, and
 // only the server refuses (Tyler 10-18: 15 or more levels under it).
+//
+// IN A PARTY (PARTY_SPEC.md §1.5, Tyler 10-19) the ground is chosen HERE, at
+// Start: the leader's Enter reads "Start with party" and is ONE
+// hr_hunt_party_start naming the picked hunt; everyone walks in together, each
+// with their own saved setup, or nobody, and the answer names who was not
+// ready. A member's Enter stays off ("the leader starts the hunt"). The party
+// size is the server's seat count; the picked ground's party rule (its row's
+// minParty pocket and boss) shows on its line.
 //
 // DENSITY is chosen with the hunt, before Enter (Tyler 10-18): how many monsters
 // each spawn holds (the engine's pack size, pull-cycle.js spawnPack), a −/+
@@ -25,18 +32,18 @@
 // press is ONE hr_action_set_options. The server keeps ONE pick per action set
 // today, not one per ground, so the line says it carries to the next hunt.
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf, settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.10';
-import { bagOf, rulesOf } from '../../session/item-sections.js?v=0.2.10';
-import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.10';
-import { huntName } from '../../session/party-sections.js?v=0.2.10';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.10';
-import { whole } from '../../render/format.js?v=0.2.10';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.10';
-import { itemName } from '../widgets/bits.js?v=0.2.10';
-import { runIntent } from '../intent-words.js?v=0.2.10';
-import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.10';
-import { huntRows, densityWords, bandWords, rangeWords, groupWords, recommendedHunt, heroWords, packFor, ABOVE_LEVEL_WORDS } from '../hunt-list.js?v=0.2.10';
-import { partyScratch } from './party-finder.js?v=0.2.10';
+import { huntOf, settingsOf } from '../../session/hunt-sections.js?v=0.2.11';
+import { bagOf, rulesOf } from '../../session/item-sections.js?v=0.2.11';
+import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.11';
+import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.11';
+import { startPartyHunt } from '../../session/party-intents.js?v=0.2.11';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.11';
+import { whole } from '../../render/format.js?v=0.2.11';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.11';
+import { itemName } from '../widgets/bits.js?v=0.2.11';
+import { runIntent } from '../intent-words.js?v=0.2.11';
+import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.11';
+import { huntRows, densityWords, bandWords, rangeWords, groupWords, recommendedHunt, heroWords, packFor, partyNote, ABOVE_LEVEL_WORDS } from '../hunt-list.js?v=0.2.11';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pick: null, pending: false, msg: '' }; SCRATCH.set(cs, s); } return s; };
@@ -79,14 +86,13 @@ function lineHtml(r) {
   return '<li class="hw-hunt" role="option" data-hs-act="pick" data-hunt="' + esc(r.hunt) + '" tabindex="-1">'
     + '<span class="hw-hunt-main"><b class="hw-hunt-name">' + esc(r.name) + '</b><small class="hw-hunt-theme">' + esc(r.theme) + '</small>'
     + '<small class="hw-hunt-band"></small><small class="hw-hunt-warn"></small><small class="hw-hunt-facts">' + esc(heroWords(r) + ' · ' + densityWords(r)) + '</small>'
-    + '<small class="hw-hunt-pack"></small>'
+    + '<small class="hw-hunt-pack"></small><small class="hw-hunt-party"></small>'
     + '<span class="hw-density" role="group" aria-label="Density"><span class="hw-density-label">Density</span>'
     + '<span class="hh-step"><button type="button" class="hh-seg" data-hs-act="density" data-by="-1" data-hunt="' + esc(r.hunt) + '" aria-label="Fewer monsters">−</button>'
     + '<output class="hh-step-val"></output>'
     + '<button type="button" class="hh-seg" data-hs-act="density" data-by="1" data-hunt="' + esc(r.hunt) + '" aria-label="More monsters">+</button></span>'
     + '<small class="hw-density-note"></small></span></span>'
-    + '<span class="hw-hunt-do"><button type="button" class="hh-tool hw-hunt-enter" data-hs-act="enter" data-hunt="' + esc(r.hunt) + '">Enter</button>'
-    + '<button type="button" class="hh-tool" data-hs-act="party" data-hunt="' + esc(r.hunt) + '">With a party</button></span></li>';
+    + '<span class="hw-hunt-do"><button type="button" class="hh-tool hw-hunt-enter" data-hs-act="enter" data-hunt="' + esc(r.hunt) + '">Enter</button></span></li>';
 }
 
 renderHunts.patch = function patchHunts(body, ctx) {
@@ -97,8 +103,9 @@ renderHunts.patch = function patchHunts(body, ctx) {
   const h = huntOf(cs);
   const now = h && !h.ended ? h : null;
   const level = levelOf(cs);
-  const party = partyOf(cs);
-  const size = party ? party.members.length : 1;
+  const party = partyMembershipOf(cs);
+  const size = party ? party.seats.length : 1;
+  const follower = !!party && !party.isLeader;
   if (!sc.pick && list.length) { const rec = recommendedHunt(level, size, list); sc.pick = rec ? rec.hunt : list[0].hunt; }
   const pack = packFor(bagOf(cs), rulesOf(cs));
   const set = settingsOf(cs);
@@ -106,7 +113,10 @@ renderHunts.patch = function patchHunts(body, ctx) {
      says the hero is hunting (or the hunt is over), the line below speaks for it (Tyler 10-19). */
   if (sc.msg && sc.msg === sc.enterMsg && (now || (h && h.ended))) { sc.msg = ''; sc.enterMsg = null; }
   const nowEl = root.querySelector('.hw-hunts-now');
-  text(nowEl, now ? 'You are hunting in ' + huntName(now.huntId) + '. Leave that hunt to go somewhere else.' : 'Pick a hunt, then Enter. Your hero walks there and fights on its own.');
+  text(nowEl, now ? 'You are hunting in ' + huntName(now.huntId) + '. Leave that hunt to go somewhere else.'
+    : follower ? 'Your party leader picks the hunt and starts it. You walk in with everyone, with your own setup.'
+    : party ? 'Pick a hunt, then Start with party. Everyone walks in together, each with their own setup.'
+    : 'Pick a hunt, then Enter. Your hero walks there and fights on its own.');
   rows(root.querySelector('.hw-hunt-list'), list, {
     key: (r) => r.hunt,
     build: (r) => element(ctx.doc, lineHtml(r)),
@@ -121,11 +131,18 @@ renderHunts.patch = function patchHunts(body, ctx) {
       /* the floor is a warning (Tyler 10-18): words only, Enter stays the server's to refuse */
       text(li.querySelector('.hw-hunt-warn'), [rangeWords(r, level), groupWords(r, size)].filter(Boolean).join(' '));
       text(li.querySelector('.hw-hunt-pack'), on ? packWords(pack) : '');
+      /* The picked ground's party rule, from ITS row (Tyler 10-19: the Rat King's note). */
+      const note = li.querySelector('.hw-hunt-party');
+      const said = on ? partyNote(r.hunt) : '';
+      text(note, said);
+      prop(note, 'hidden', !said);
       const enter = li.querySelector('.hw-hunt-enter');
+      text(enter, party && !follower ? 'Start with party' : 'Enter');
       cls(enter, 'hw-primary', on);
       cls(enter, 'is-on', on);
       cls(enter, 'hh-tool', !on);
       for (const b of li.querySelectorAll('button')) prop(b, 'disabled', sc.pending || !!now);
+      if (follower) prop(enter, 'disabled', true);
       const dn = densityOf(set, r.hunt, size);
       cls(li.querySelector('.hw-density'), 'is-on', on && !!dn);
       if (on && dn) {
@@ -148,24 +165,26 @@ renderHunts.act = function actHunts(ctx, body, action, ev, t) {
   const repaint = () => renderHunts.patch(body, ctx);
   if (action === 'density') {
     const s = settingsOf(cs);
-    const party = partyOf(cs);
-    const dn = densityOf(s, hunt, party ? party.members.length : 1);
+    const party = partyMembershipOf(cs);
+    const dn = densityOf(s, hunt, party ? party.seats.length : 1);
     const n = dn ? dn.now + Number(t.getAttribute('data-by')) : NaN;
     if (!dn || n < DENSITY_PICK.min || n > dn.max) return true;
     runIntent(sc, repaint, () => cs.setHuntOptions(s.preset, { density: n }), 'Saving…', () => '');
     return true;
   }
   if (action === 'pick') { sc.pick = hunt; sc.msg = ''; repaint(); return true; }
+  if (action === 'enter' && partyMembershipOf(cs)) {
+    sc.pick = hunt;
+    if (!partyMembershipOf(cs).isLeader) return true;
+    runIntent(sc, repaint, () => startPartyHunt(ctx.account, cs, hunt), 'Gathering the party for ' + huntName(hunt) + '…',
+      () => 'Your party is on its way to ' + huntName(hunt) + '.');
+    return true;
+  }
   if (action === 'enter') {
     sc.pick = hunt;
     const s = settingsOf(cs);
     const lines = packFor(bagOf(cs), rulesOf(cs));
     runIntent(sc, repaint, () => cs.enterHunt(hunt, lines, s ? s.preset : 0), 'Setting off for ' + huntName(hunt) + '…', (res) => { sc.enterMsg = 'On the way to ' + huntName(hunt) + '.' + (res && res.belowRange ? ' ' + ABOVE_LEVEL_WORDS : ''); return sc.enterMsg; });
-    return true;
-  }
-  if (action === 'party') {
-    partyScratch(cs).hunt = hunt;
-    if (ctx.wm.isOpen('hunt-party')) ctx.refresh('hunt-party'); else ctx.wm.open('hunt-party');
     return true;
   }
   return false;

@@ -846,6 +846,9 @@ async function hunter(db, M, o) {
   if (o.party) {
     await asUser(db, UIDS[0]);
     party = (await one(db, `select public.hr_hunt_party_create(0, 'mill_cellar', $1::uuid)`, [idem()])).party.id;
+    /* A party is joined only by invite or once its leader LISTS it (2026-10-29-party-security.sql). */
+    const listed = await one(db, 'select public.hr_hunt_party_list(0, true, $1::uuid)', [idem()]);
+    if (!listed || listed.ok !== true) throw new Error('party list refused: ' + JSON.stringify(listed));
     for (let i = 1; i < who.length; i++) {
       await asUser(db, UIDS[i]);
       const j = await one(db, 'select public.hr_hunt_party_join(0, $1::uuid, $2::uuid)', [party, idem()]);
@@ -1164,7 +1167,11 @@ const DB_ARMS = {
     await db.query(`select public.hr_premium_grant($1, 0, now() + interval '1 day', 'probe')`, [UID]);
     await asUser(db, UID);
     const prem = await one(db, 'select public.hr_hunt_analyzer(0, null)');
-    if (!free || free.error !== 'premium_required') problems.push(`a free character's analyzer read answered ${JSON.stringify(free).slice(0, 160)}`);
+    /* Basic for everyone, the rest for premium (2026-10-26-hunt-analyzer-basic.sql, Tyler 10-19): a free read is the
+       basic block (kills, XP, gold), never the damage tally. */
+    if (!free || free.ok !== true || free.tier !== 'basic' || !free.hero || free.hero.dealt !== undefined || !(Number(free.hero.kills) > 0)) {
+      problems.push(`a free character's analyzer read answered ${JSON.stringify(free).slice(0, 160)}`);
+    }
     if (!prem || prem.ok !== true || Number(prem.hero.dealt.total) !== Number(t.dealt.total) || Number(prem.hero.kills) <= 0) {
       problems.push(`the premium analyzer read ${JSON.stringify(prem && prem.hero).slice(0, 200)} is not the session's tally`);
     }

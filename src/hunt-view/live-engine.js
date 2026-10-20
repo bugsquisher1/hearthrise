@@ -26,12 +26,12 @@
 // PURE (no DOM). The caller owns the clock.
 // ════════════════════════════════════════════════════════════════════════
 
-import { simulateHuntInstance } from '../core/combat-sim.js?v=0.2.10';
-import { memberSide } from '../core/member.js?v=0.2.10';
-import { huntGroundOf } from '../core/hunt-ground.js?v=0.2.10';
-import { huntTimeline, worldHash } from '../core/hunt-track.js?v=0.2.10';
-import { encode as encodeWorldRow, decode as decodeWorldRow } from '../core/hunt/world-state.js?v=0.2.10';
-import { COMBAT_BALANCE } from '../core/combat.js?v=0.2.10';
+import { simulateHuntInstance } from '../core/combat-sim.js?v=0.2.11';
+import { memberSide } from '../core/member.js?v=0.2.11';
+import { huntGroundOf } from '../core/hunt-ground.js?v=0.2.11';
+import { huntTimeline, worldHash } from '../core/hunt-track.js?v=0.2.11';
+import { encode as encodeWorldRow, decode as decodeWorldRow } from '../core/hunt/world-state.js?v=0.2.11';
+import { COMBAT_BALANCE } from '../core/combat.js?v=0.2.11';
 
 /* How many swings of world hashes are kept to judge a server commit against. */
 const KEEP_HASHES = 64;

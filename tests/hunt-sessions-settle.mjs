@@ -852,6 +852,9 @@ async function hunter(db, M, o) {
     const inv = await one(db, 'select public.hr_hunt_party_invite(0, $1, $2::uuid)', ['Settle Second', idem()]);
     if (!inv || inv.ok !== true) throw new Error('party invite refused: ' + JSON.stringify(inv));
     party = await one(db, 'select public.hr_hunt_party_of($1::uuid, 0)', [UIDS[0]]);
+    /* The ground is the leader's pick at Start (hr_hunt_party_start); these arms enter member by member, so the
+       fixture binds it as the retired create did. */
+    await db.query("update public.hunt_parties set hunt_id = 'mill_cellar' where id = $1", [party]);
     /* A party is joined only by invite or once its leader LISTS it (2026-10-29-party-security.sql). */
     const listed = await one(db, 'select public.hr_hunt_party_list(0, true, $1::uuid)', [idem()]);
     if (!listed || listed.ok !== true) throw new Error('party list refused: ' + JSON.stringify(listed));

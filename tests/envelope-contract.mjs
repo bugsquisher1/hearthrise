@@ -158,7 +158,7 @@ function contract(R, cs, body, tl) {
   const ro = R.IS.roleOf(cs);
   need('role', !!ro && ro.weapon !== null && R.PS.roleIdOf(cs) === ro.id, 'roleOf yields ' + JSON.stringify(ro) + ' from ' + JSON.stringify(body.role));
   const inv = R.PS.invitesOf(cs);
-  need('party_invites', Array.isArray(inv) && inv.length === 1 && inv[0].from === SEED.inviter && inv[0].hunt !== null,
+  need('party_invites', Array.isArray(inv) && inv.length === 1 && inv[0].from === SEED.inviter && inv[0].hunt === (body.party_invites[0].hunt ?? null),
     'invitesOf yields ' + JSON.stringify(inv) + ' from ' + JSON.stringify(body.party_invites));
   /* The Services window's readers (src/session/item-sections.js). */
   const sr = R.IS.staminaRefillOf(cs);

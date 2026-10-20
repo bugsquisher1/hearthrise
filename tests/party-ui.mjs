@@ -233,6 +233,17 @@ async function pureRules(M, base) {
     const a = srv.calls[0][1];
     if (srv.calls[0][0] !== 'hr_hunt_party_start' || Object.keys(a).sort().join() !== 'p_hunt,p_idem,p_slot' || a.p_slot !== 0 || a.p_hunt !== 'millrace_sewer') return 'the start sent ' + JSON.stringify(srv.calls[0]);
     if (M.IW.refusalText(r) !== 'Nobody went in: Mira is away.') return 'the not-ready words are ' + JSON.stringify(M.IW.refusalText(r));
+    /* Live v0.2.11 "busy in town": an own character still gathering is settled through the engine first
+       (set_activity idle collects before it switches), then the party starts. */
+    srv.env[0].state = Object.assign({}, srv.env[0].state, { active_kind: 'gather', active_id: 'shrimp_s' });
+    await c0.load();
+    srv.calls.length = 0;
+    srv.reply = { ok: true };
+    await M.PI.startPartyHunt(acc, c0, 'millrace_sewer');
+    const order = srv.calls.map((c) => (c[0] === 'accrue' ? 'accrue:' + JSON.stringify(c[1].activity || c[1].verb || '') : c[0])).filter((x) => x !== 'hr_load');
+    if (!/^accrue:.*idle/.test(order[0] || '') || !order.includes('hr_hunt_party_start')) return 'a gathering own character was not settled before the start: ' + JSON.stringify(order);
+    srv.env[0].state = Object.assign({}, srv.env[0].state, { active_kind: 'idle', active_id: null });
+    await c0.load();
     /* An ok re-reads every own character the verb touched: the party's, and the one that joined. */
     for (const [fn, args, want, reads] of [['startPartyHunt', ['millrace_sewer'], 'hr_hunt_party_start', '0'], ['disbandParty', [], 'hr_hunt_party_disband', '0'],
       ['inviteOwn', [1], 'hr_hunt_party_invite_own', '0,1'], ['listParty', [true], 'hr_hunt_party_list', '0']]) {
@@ -544,6 +555,7 @@ const PURE_MUTANTS = [
   ['a malformed seat is sent', 'src/session/character-session.js', "if (this._closed || !Number.isInteger(seat) || seat < 0 || seat > 7) return { ok: false, error: 'bad_intent' };", "if (this._closed) return { ok: false, error: 'bad_intent' };"],
   ['the server role pick is trusted over the weapon', 'src/session/party-sections.js', "role: roleForWeapon(w, pick),", "role: pick || roleForWeapon(w, null),"],
   ['a party start re-reads nobody', 'src/session/party-intents.js', "    await Promise.all(Array.from(new Set(reread)).filter((o) => o && o.status !== 'closed').map((o) => o.load()));\n", ''],
+  ['the start does not settle a gathering own character first', 'src/session/party-intents.js', '  for (const o of peers) await settleTownActivity(o);\n', ''],
   ['an own invite names a user', 'src/session/party-intents.js', '{ p_slot: cs.slot, p_other_slot: otherSlot, p_idem: newIdem() }', '{ p_slot: cs.slot, p_other_slot: otherSlot, p_user: account.userId, p_idem: newIdem() }'],
   ['an own invite re-reads only the inviter', 'src/session/party-intents.js', '  const peers = partyPeersOf(account, cs).concat(other ? [other] : []);', '  const peers = partyPeersOf(account, cs);'],
   ['an own invite to the same slot is sent', 'src/session/party-intents.js', ' || otherSlot === cs.slot) {', ') {'],

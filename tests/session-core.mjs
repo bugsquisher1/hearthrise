@@ -36,6 +36,12 @@
 //   OUT-1  sign-out clears every copy of the session (device + tab, sb-*, retired keys, tab id) and closes every character
 //   TAB-1  the tab id is stable within a tab and new for a new tab
 //   COPY-1 sign-up/reset copy never reveals whether an email has an account; no "open beta"/"invite code"
+//   TOK-1  a token about to expire is refreshed BEFORE the call; the call carries the new one
+//          (live 2026-10-20: a background tab sent a token dead for 14 h, 805 times)
+//   TOK-2  a 401 renews the token once and retries that call once, never more
+//   TOK-3  a refresh the server refuses ends the session: 'expired' once, and no further call is sent
+//   TOK-4  two characters in one tab share ONE refresh
+//   TOK-5  waking a hidden tab checks the token before the next call
 //   VIEW-1 the world view reads only the character's record and its own scratch
 // ════════════════════════════════════════════════════════════════════════
 import { mkdtempSync, cpSync, readFileSync, writeFileSync, rmSync, mkdirSync } from 'node:fs';
@@ -399,6 +405,92 @@ async function rules(M) {
     const all = Object.values(AU.AUTH_COPY).join(' ');
     return !/open beta|invite code/i.test(all) || 'retired copy (open beta / invite code) is back';
   });
+
+  /* THE TOKEN (TOK-*): the real createAuth over a fake supabase-js auth, the real server link over a fake fetch. */
+  const T0 = 1_800_000_000_000;
+  const sess = (tok, expMs) => ({ access_token: tok, refresh_token: 'r-' + tok, expires_at: Math.floor(expMs / 1000), user: { id: UID, email: 'qa@x.co' } });
+  const tokenRig = (o = {}) => {
+    const clock = { t: T0 };
+    let stored = o.start || sess('A', T0 + 3600e3);
+    const n = { get: 0, refresh: 0 };
+    const doc = { visibilityState: 'visible', fns: [], addEventListener(ev, fn) { if (ev === 'visibilitychange') this.fns.push(fn); },
+      wake() { this.visibilityState = 'visible'; for (const f of this.fns) f(); } };
+    const client = { auth: {
+      getSession: async () => { n.get++; return { data: { session: stored } }; },
+      refreshSession: async () => {
+        n.refresh++;
+        await new Promise((r) => setImmediate(r));
+        if (o.refuse) return { data: { session: null, user: null }, error: { name: 'AuthApiError', status: 400, message: 'Invalid Refresh Token: Already Used' } };
+        stored = sess('B', clock.t + 3600e3);
+        return { data: { session: stored }, error: null };
+      },
+      signOut: async () => {}, onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }) } };
+    const auth = AU.createAuth({ client, device: memStore(), tab: memStore(), redirectTo: 'https://x/', doc, now: () => clock.t });
+    const sent = [];
+    const fetch = async (url, init) => {
+      const tok = init.headers.Authorization.slice(7);
+      sent.push(tok);
+      const dead = (o.dead || ['A']).includes(tok) && (o.reject401 || tok !== 'B');
+      return { ok: !dead, status: dead ? 401 : 200, json: async () => (dead ? { code: 'UNAUTHORIZED' } : { ok: true, accrued: true, version: 1, state: { gold: 1 } }) };
+    };
+    const server = S.createServerLink({ url: 'https://p', anonKey: 'anon', token: auth.freshToken, renew: auth.renewToken, fetch });
+    const heard = [];
+    auth.onChange((ev) => heard.push(ev));
+    return { clock, auth, server, sent, n, doc, heard };
+  };
+
+  await t('TOK-1', async () => {
+    const r = tokenRig({ start: sess('A', T0 + 3600e3) });
+    await r.auth.refresh();
+    r.clock.t = T0 + 3600e3 - 30e3;   // 30 s left: inside the margin
+    const ans = await r.server.accrue({ slot: 0 });
+    if (r.sent.join() !== 'B') return 'the call sent ' + JSON.stringify(r.sent) + ', not the refreshed token alone';
+    return (ans.ok && r.n.refresh === 1) || 'the stale token was not refreshed exactly once before the call (' + r.n.refresh + ')';
+  });
+  await t('TOK-2', async () => {
+    const r = tokenRig();
+    await r.auth.refresh();
+    const ans = await r.server.rpc('hr_load', { p_slot: 0 });
+    if (r.sent.join() !== 'A,B' || !ans.ok) return 'a 401 was not renewed and retried once: sent ' + JSON.stringify(r.sent);
+    if (r.n.refresh !== 1) return 'a 401 refreshed ' + r.n.refresh + ' times';
+    const r2 = tokenRig({ dead: ['A', 'B'], reject401: true });
+    await r2.auth.refresh();
+    const a2 = await r2.server.accrue({ slot: 0 });
+    return (r2.sent.length === 2 && a2.status === 401) || 'a 401 on the retry was retried again: sent ' + JSON.stringify(r2.sent);
+  });
+  await t('TOK-3', async () => {
+    const r = tokenRig({ refuse: true });
+    await r.auth.refresh();
+    await r.server.accrue({ slot: 0 });   // 401 → refresh refused
+    for (let i = 0; i < 10; i++) await r.server.accrue({ slot: 0 });
+    if (r.sent.length !== 1) return 'a dead session sent ' + r.sent.length + ' calls';
+    if (r.heard.filter((e) => e === 'expired').length !== 1) return 'the app heard expired ' + r.heard.filter((e) => e === 'expired').length + ' times';
+    if (r.auth.token() !== null) return 'the dead token is still held';
+    const s = tokenRig({ refuse: true, start: sess('A', T0 + 10e3) });
+    await s.auth.refresh();
+    for (let i = 0; i < 10; i++) await s.server.accrue({ slot: 0 });
+    return (s.sent.length === 0 && s.n.refresh === 1 && s.heard.join() === 'expired') || 'a refused pre-call refresh still sent ' + s.sent.length + ' calls / refreshed ' + s.n.refresh + ' times';
+  });
+  await t('TOK-4', async () => {
+    const r = tokenRig({ start: sess('A', T0 + 20e3) });
+    await r.auth.refresh();
+    const a = new C.CharacterSession({ slot: 0, uid: UID, server: r.server, ...timers });
+    const b = new C.CharacterSession({ slot: 1, uid: UID, server: r.server, ...timers });
+    await Promise.all([a.load(), b.load()]);
+    if (r.n.refresh !== 1) return 'two characters refreshed ' + r.n.refresh + ' times';
+    return (r.sent.length === 2 && r.sent.every((x) => x === 'B')) || 'the two characters did not both carry the one refreshed token: ' + JSON.stringify(r.sent);
+  });
+  await t('TOK-5', async () => {
+    const r = tokenRig({ start: sess('A', T0 + 3600e3) });
+    await r.auth.refresh();
+    r.doc.visibilityState = 'hidden';
+    r.clock.t = T0 + 5 * 3600e3;          // hidden for hours: supabase-js refreshed nothing
+    r.doc.wake();
+    await new Promise((res) => setImmediate(res)); await new Promise((res) => setImmediate(res));
+    if (r.n.refresh !== 1 || r.auth.token() !== 'B') return 'waking the tab did not refresh the token (' + r.n.refresh + ', ' + r.auth.token() + ')';
+    await r.server.accrue({ slot: 0 });
+    return (r.sent.join() === 'B' && r.n.refresh === 1) || 'the call after waking sent ' + JSON.stringify(r.sent);
+  });
   return fails;
 }
 
@@ -441,6 +533,11 @@ const MUTANTS = [
   ['an open hunt is never re-read', 'src/session/character-session.js', "    this._emit(why);\n    this._armHuntPoll();", "    this._emit(why);"],
   ['an ended hunt keeps re-reading', 'src/session/character-session.js', "typeof h.session_id === 'string' && h.ended !== true;", "typeof h.session_id === 'string';"],
   ['a pending leave waits for the world tick', 'src/session/character-session.js', "ans.body.pending === true) { await this.hello(); return { ok: true }; }", "ans.body.pending === true) { await this.load(); return { ok: true }; }"],
+  ['a stale token is sent as it is', 'src/net/auth.js', '    if (lasts(session)) return tokenOf(session);\n    if (!session) return null;', '    if (session) return tokenOf(session);\n    if (!session) return null;'],
+  ['a 401 is not renewed', 'src/session/server.js', 'if (res.status === 401 && o.renew)', 'if (false && o.renew)'],
+  ['every caller refreshes on its own', 'src/net/auth.js', '    if (renewing) return renewing;\n', ''],
+  ['a refused refresh keeps the dead session', 'src/net/auth.js', "    session = null;\n    tell('expired');", "    tell('expired');"],
+  ['waking a hidden tab checks nothing', 'src/net/auth.js', "if (o.doc.visibilityState === 'visible') freshToken();", "if (false) freshToken();"],
   ['an idle settle replaces the character', 'src/session/character-session.js', "if (ans.ok && ans.body && ans.body.accrued !== true) return this.load();", ""],
 ];
 
@@ -457,7 +554,7 @@ async function main() {
   if (!mutate) {
     const fails = [...await rules(await load(ROOT)), ...await viewRules(ROOT)];
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (23 rules)');
+    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (28 rules)');
     process.exit(fails.length ? 1 : 0);
   }
   let bad = 0;

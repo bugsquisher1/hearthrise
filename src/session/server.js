@@ -13,7 +13,11 @@
 // `closed: true` so the app shows the closed notice. The server decides; this
 // only reads its answer.
 //
-// The token is asked for on every call (it refreshes); no token, no request.
+// The token is asked for on every call (auth.freshToken: refreshed first when it
+// is about to expire); no token, no request. A 401 renews the token once
+// (auth.renewToken) and retries that one call once; a session that cannot be
+// renewed has no token, so it sends nothing more (live 2026-10-20: a dead token
+// was sent 805 times from a background tab).
 // ════════════════════════════════════════════════════════════════════════
 
 export const CLOSED_CODE = 'hr_closed';
@@ -28,22 +32,30 @@ export function isClosedAnswer(status, body) {
  * @param {object} o
  * @param {string} o.url        the project URL
  * @param {string} o.anonKey    the public anon key
- * @param {() => string|null} o.token   the signed-in user's access token
+ * @param {() => string|null|Promise<string|null>} o.token   the signed-in user's access token, valid for the call
+ * @param {(bad: string) => string|null|Promise<string|null>} [o.renew]  a new token after a 401, or null
  * @param {typeof fetch} [o.fetch]
  */
 export function createServerLink(o) {
   const base = String(o.url || '').replace(/\/+$/, '');
   const doFetch = o.fetch || ((...a) => globalThis.fetch(...a));
+  const send = (path, payload, jwt) => doFetch(base + path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', apikey: o.anonKey, Authorization: 'Bearer ' + jwt },
+    body: JSON.stringify(payload || {}),
+  });
   async function post(path, payload) {
-    const jwt = o.token();
+    let jwt = null;
+    try { jwt = await o.token(); } catch (e) { jwt = null; }
     if (!jwt) return { ok: false, status: 0, error: 'no_token', closed: false };
     let res;
     try {
-      res = await doFetch(base + path, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', apikey: o.anonKey, Authorization: 'Bearer ' + jwt },
-        body: JSON.stringify(payload || {}),
-      });
+      res = await send(path, payload, jwt);
+      if (res.status === 401 && o.renew) {
+        let next = null;
+        try { next = await o.renew(jwt); } catch (e) { next = null; }
+        if (next && next !== jwt) res = await send(path, payload, next);
+      }
     } catch (e) {
       return { ok: false, status: 0, error: 'network', closed: false };
     }

@@ -74,7 +74,7 @@ export class AccountSession {
   /**
    * @param {object} o
    * @param {object} o.auth        createAuth(...) — signed in
-   * @param {object} o.server      createServerLink(...) using auth.token
+   * @param {object} o.server      createServerLink(...) using auth.freshToken / auth.renewToken
    * @param {object} [o.tab]       the tab store (HearthriseStorage.session)
    * @param {Function} [o.channel] (topic, onMessage, onStatus) => leave
    * @param {object} [o.config]

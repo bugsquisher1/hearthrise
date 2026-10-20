@@ -311,6 +311,21 @@ async function runTests(mods) {
       { anchor: 'tl', rect: { left: 12, top: 12, width: 250, height: 200 } }, { anchor: 'tr', rect: { left: 700, top: 12, width: 260, height: 300 } }], box, 420);
     eq(all, { left: 262, right: 420, top: 48, bottom: 90 }, 'top bar, party, analyzer beside a wider dock');
   });
+  t('H10 a centred widget never overlaps an edge widget: it moves along its row, else they step below it', () => {
+    const party = { left: 12, top: 12, width: 258, height: 250 }, an = { left: 720, top: 12, width: 285, height: 550 };
+    const over = (a, q) => a.left < q.left + q.width && a.left + a.width > q.left && a.top < q.top + q.height && a.top + a.height > q.top;
+    /* room in the row: it slides clear, nothing is pushed */
+    let r = { left: 400, top: 8, width: 300, height: 40 };
+    let at = HUD.clearOfEdges(r, [party, an], 1200, 12);
+    ok(!at.push.length && !over(Object.assign({}, r, { left: at.left }), party) && !over(Object.assign({}, r, { left: at.left }), an), 'a bar with room must slide clear: ' + JSON.stringify(at));
+    /* 1440x900 with a window docked (Tyler 10-19): no left clears both; the one it still hits steps below it */
+    r = { left: 280, top: 8, width: 450, height: 40 };
+    at = HUD.clearOfEdges(r, [party, an], 1010, 12);
+    const placed = Object.assign({}, r, { left: at.left });
+    const moved = [party, an].map((q, i) => { const p = at.push.find((x) => x.i === i); return p ? Object.assign({}, q, { top: p.top }) : q; });
+    ok(moved.every((q) => !over(placed, q)), 'the bar still overlaps an edge widget: ' + JSON.stringify(at));
+    eq(at.push.map((p) => p.i), [1], 'only the analyzer (the one nearest the centre spot) steps down');
+  });
   t('H8 the contract is validated', () => {
     const bad = [W({ anchor: 'xx' }), W({ layer: 'sky' }), W({ opacity: 0.2 }), W({ when: 'night' }), W({ removable: false, visible: false }), W({ phone: { min: [1, 1] } })];
     for (const r of bad) { let threw = false; try { HUD.validateWidgetRows([r]); } catch (e) { threw = true; } ok(threw, 'must refuse ' + JSON.stringify(r)); }
@@ -366,6 +381,7 @@ const MUTANTS = [
   { test: 'H2', file: HUD_FILE, from: 'const clampOpacity = (v) => Math.max(OPACITY_MIN, Math.min(OPACITY_MAX, Number(v)));', to: 'const clampOpacity = (v) => Number(v);' },
   { test: 'H3', file: HUD_FILE, from: 'if (!row.removable) L.visible = true;', to: '' },
   { test: 'H4', file: HUD_FILE, from: "for (const k of SIZE_CLASSES) if (k !== cls && isObj(all[k])) next[k] = all[k];\n    store.write(next);\n    load();", to: 'store.write({});\n    load();' },
+  { test: 'H10', file: HUD_FILE, from: "return { left: Math.round(left), push: hits(left).map(({ i }) => ({ i, top: Math.round(r.top + r.height + gap) })) };", to: 'return { left: Math.round(r.left), push: [] };' },
   { test: 'H9', file: HUD_FILE, from: "if (v === 'b') out.bottom = Math.max(out.bottom, box.height - r.top);", to: "if (v === 'b') out.bottom = Math.max(out.bottom, 0);" },
   { test: 'R1', file: 'src/session/residue.js', from: "  hudLayout: sanitizeHudLayout,", to: '  hudLayout: (v) => v,' },
   { test: 'R2', file: HUD_FILE, from: "write(next) { if (character) character.setResidue('hudLayout', next); },", to: 'write(next) {},' },

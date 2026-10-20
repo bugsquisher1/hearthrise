@@ -19,19 +19,19 @@
 // hr_closed); the first such answer replaces everything with the closed notice.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPABASE_CONFIG, createSupabaseClient } from '../net/supabase-bootstrap.js?v=0.2.9';
-import { createAuth } from '../net/auth.js?v=0.2.9';
-import { SESSION_CONFIG } from '../session/config.js?v=0.2.9';
-import { createServerLink } from '../session/server.js?v=0.2.9';
-import { AccountSession } from '../session/account-session.js?v=0.2.9';
-import { FRAME_EVENT } from '../session/character-session.js?v=0.2.9';
-import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.9';
-import { mountWorldPane } from './world-pane.js?v=0.2.9';
-import { mountCharacterStrip } from './character-strip.js?v=0.2.9';
-import { createAlertCenter } from '../shell/alerts.js?v=0.2.9';
-import { createSocialRealtime } from '../social/realtime.js?v=0.2.9';
-import { SocialSession } from '../social/social-session.js?v=0.2.9';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.9';
+import { SUPABASE_CONFIG, createSupabaseClient } from '../net/supabase-bootstrap.js?v=0.2.13';
+import { createAuth } from '../net/auth.js?v=0.2.13';
+import { SESSION_CONFIG } from '../session/config.js?v=0.2.13';
+import { createServerLink } from '../session/server.js?v=0.2.13';
+import { AccountSession } from '../session/account-session.js?v=0.2.13';
+import { FRAME_EVENT } from '../session/character-session.js?v=0.2.13';
+import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.13';
+import { mountWorldPane } from './world-pane.js?v=0.2.13';
+import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.13';
+import { createAlertCenter } from '../shell/alerts.js?v=0.2.13';
+import { createSocialRealtime } from '../social/realtime.js?v=0.2.13';
+import { SocialSession } from '../social/social-session.js?v=0.2.13';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.13';
 
 const DISCORD = 'https://discord.gg/eJrUSUJM3M';
 
@@ -41,8 +41,10 @@ function channelFor(client, auth) {
     try { client.realtime.setAuth(auth.token()); } catch (e) { /* the join reports it */ }
     const ch = client.channel(topic, { config: { private: true } });
     ch.on('broadcast', { event: FRAME_EVENT }, (m) => onMessage(m && m.payload));
-    ch.subscribe((status) => onStatus(status));
-    return () => { client.removeChannel(ch); };
+    /* Left once; a status after the leave (removeChannel's own CLOSED) is not reported back. */
+    let left = false;
+    ch.subscribe((status) => { if (!left) onStatus(status); });
+    return () => { if (left) return; left = true; client.removeChannel(ch); };
   };
 }
 
@@ -176,6 +178,9 @@ function startApp(win) {
       peers: () => (acc ? acc.characters() : [cs]) });
     if (seq !== paneSeq) { p.destroy(); return; }
     pane = Object.assign(p, { slot: cs.slot });
+    /* The strip's tabs open the viewed shell's one player menu (Invite to party / Leave party for own characters). */
+    const nav = root.querySelector('nav.char-strip');
+    if (nav && p.shell && p.shell.menu) p.shell.menu.attach(nav, stripTargetOf);
     if (strip) strip.patch();
     if (want) pane.shell.open(want);
   }

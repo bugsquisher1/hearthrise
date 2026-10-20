@@ -224,6 +224,10 @@ async function seedPlayer(db) {
   const made = (await db.query('select public.hr_create_character(0) as r')).rows[0].r;
   if (String(made?.created ?? made?.ok) !== 'true') throw harness(`no seeded character: ${JSON.stringify(made)}`);
   await db.exec('delete from public.hr_rate_counters;');
+  /* The dormant M8 party verbs are DROPPED at the chain end (2026-10-29-party-security.sql); its party id fed
+     only hr_party_view's argument, itself dropped by the core rebuild. The chain end seeds a plain uuid. */
+  const m8 = (await db.query("select to_regprocedure('public.hr_party_create(integer,uuid)') is not null as h")).rows[0].h;
+  if (!m8) { await db.query("select set_config('request.jwt.claim.sub', '', false)"); return { party: (await db.query('select gen_random_uuid() as u')).rows[0].u }; }
   const p = (await db.query('select public.hr_party_create(0, gen_random_uuid()) as r')).rows[0].r;
   if (p?.ok !== true) throw harness(`hr_party_create refused the seed: ${JSON.stringify(p)}`);
   await db.query("select set_config('request.jwt.claim.sub', '', false)");

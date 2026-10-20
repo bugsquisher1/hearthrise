@@ -15,14 +15,14 @@
 //              lifeMs  how long a LOOPING effect shows (a one-shot plays its frames once)
 // HIT_FX     the effect on the target of a `dmg`: by ability, else by element, else
 //            by the attacker's role (a monster's bite is the `monster` row).
-// PROJECTILE what flies from the attacker before that hit lands (ranged roles).
+// PROJECTILE what flies from the attacker before that hit lands: by ability, else by role.
 // CAST_FX    the effect on the caster of a `cast`: by ability, else by role.
 //
 // A new effect is a row here plus its port; nothing else changes.
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { ABILITIES } from './abilities.js?v=0.2.9';
+import { ABILITIES } from './abilities.js?v=0.2.13';
 
 /* Where on a unit an effect centres, as a fraction of its art height: a rat's chest is
    lower than the Rat King's, and a mark floats over whichever head it is on. */
@@ -56,12 +56,28 @@ export const HIT_FX = Object.freeze({
     fireball: 'fx_fire_rune_burst', frost_lance: 'fx_frost_lance_shatter', natures_wrath: 'fx_natures_wrath',
   }),
   element: Object.freeze({ fire: 'fx_flame_volley_puff', frost: 'fx_frost_lance_shatter', nature: 'fx_natures_wrath' }),
-  role: Object.freeze({ tank: 'fx_melee_slash', melee_dps: 'fx_melee_slash', ranger: 'fx_crossbow_bolt_impact', mage: null, healer: null, monster: 'fx_melee_slash' }),
+  role: Object.freeze({
+    tank: 'fx_melee_slash', melee_dps: 'fx_melee_slash', ranger: 'fx_crossbow_bolt_impact',
+    mage: 'fx_wand_bolt_impact', healer: 'fx_staff_bolt_impact', monster: 'fx_melee_slash',
+  }),
   lift: CHEST,
 });
 
-/* A bolt flies `flightMs` from the shooter to the target; the hit, its number and its flash land then. */
-export const PROJECTILE = row({ fx: 'fx_crossbow_bolt_projectile', roles: Object.freeze(['ranger']), flightMs: 220, lift: CHEST });
+/* What flies `flightMs` from the shooter to the target before a `dmg` lands (the hit, its number and
+   its flash land on arrival): by ability (null: it strikes where it stands), else by the attacker's
+   role (a role not listed strikes in place). A basic hit carries no element today (no weapon binds
+   one), so a caster's bolt is its weapon's: the wand's frost-blue orb, the staff's green mote. Area
+   spells land where they are aimed; their burst is the hit. */
+const BOLT = Object.freeze({ ranger: 'fx_crossbow_bolt_projectile', mage: 'fx_wand_bolt', healer: 'fx_staff_bolt' });
+export const PROJECTILE = Object.freeze({
+  ability: Object.freeze({ cleave: null, fireball: null, natures_wrath: null }),
+  role: BOLT,
+  flightMs: 220,
+  lift: CHEST,
+  /* What src/hunt-view/scene.js reads today (one bolt, rangers only); dropped when it reads `ability`/`role`. */
+  fx: BOLT.ranger,
+  roles: Object.freeze(['ranger']),
+});
 
 export const CAST_FX = Object.freeze({
   ability: Object.freeze({ circle_of_renewal: row({ fx: 'fx_circle_of_renewal', lift: FEET, lifeMs: 1400 }) }),
@@ -82,7 +98,7 @@ export function effectIds() {
   const add = (r) => { if (r && r.fx) out.add(r.fx); };
   Object.values(EVENT_FX).forEach(add);
   add(LOOT_FX); add(PROJECTILE);
-  for (const t of [HIT_FX.ability, HIT_FX.element, HIT_FX.role]) for (const v of Object.values(t)) if (v) out.add(v);
+  for (const t of [HIT_FX.ability, HIT_FX.element, HIT_FX.role, PROJECTILE.ability, PROJECTILE.role]) for (const v of Object.values(t)) if (v) out.add(v);
   Object.values(CAST_FX.ability).forEach(add);
   Object.values(CAST_FX.role).forEach(add);
   return Array.from(out).sort();

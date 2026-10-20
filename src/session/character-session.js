@@ -45,11 +45,11 @@
 // only things it sends of its own are the allowlisted residue and intents.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyEnvelope, applyFrame, withResidue } from './envelope.js?v=0.2.9';
-import { createTimeline } from '../hunt-view/timeline.js?v=0.2.9';
-import { RESIDUE_FIELDS, sanitizeResidueField } from './residue.js?v=0.2.9';
-import { SESSION_CONFIG } from './config.js?v=0.2.9';
-import { edgeBody } from './edge-intents.js?v=0.2.9';
+import { applyEnvelope, applyFrame, withResidue } from './envelope.js?v=0.2.13';
+import { createTimeline } from '../hunt-view/timeline.js?v=0.2.13';
+import { RESIDUE_FIELDS, sanitizeResidueField } from './residue.js?v=0.2.13';
+import { SESSION_CONFIG } from './config.js?v=0.2.13';
+import { edgeBody } from './edge-intents.js?v=0.2.13';
 
 export const FRAME_EVENT = 'frame';
 
@@ -483,11 +483,20 @@ export class CharacterSession {
     return true;
   }
 
+  /* Leave the topic ONCE. The leave is forgotten before it runs: supabase's removeChannel reports
+     CLOSED to this channel's own status callback synchronously, and that must find nothing to leave
+     (live v0.2.6: _onChannel -> leave -> CLOSED -> _onChannel ... until the stack ran out). */
+  _dropChannel() {
+    const leave = this._leave;
+    this._leave = null;
+    if (leave) { try { leave(); } catch (e) { /* already gone */ } }
+  }
+
   _onChannel(st) {
     if (this._closed) return;
     if (st === 'SUBSCRIBED') { this._attempt = 0; this.hello(); return; }
     if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT' || st === 'CLOSED') {
-      if (this._leave) { try { this._leave(); } catch (e) { /* already gone */ } this._leave = null; }
+      this._dropChannel();
       if (this._retry) return;
       this._retry = this._setTimer(() => { this._retry = null; this.connect(); }, reconnectDelay(++this._attempt));
     }
@@ -519,7 +528,7 @@ export class CharacterSession {
   close() {
     if (this._closed) return;
     this._closed = true;
-    if (this._leave) { try { this._leave(); } catch (e) { /* already gone */ } this._leave = null; }
+    this._dropChannel();
     if (this._retry) { this._clearTimer(this._retry); this._retry = null; }
     if (this._residueTimer) { this._clearTimer(this._residueTimer); this._residueTimer = null; }
     if (this._huntTimer) { this._clearTimer(this._huntTimer); this._huntTimer = null; }

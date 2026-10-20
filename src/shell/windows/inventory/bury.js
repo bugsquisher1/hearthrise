@@ -18,12 +18,12 @@
 // The engine buries the WHOLE stack: it has no "this many" for a recipe, so a
 // partial bury would be a client guess at the server's clock. It is not offered.
 // ════════════════════════════════════════════════════════════════════════
-import { ARTISAN_RECIPES } from '../../../data/recipes.js?v=0.2.9';
-import { pacedActionMs } from '../../../core/pacing.js?v=0.2.9';
-import { whole } from '../../../render/format.js?v=0.2.9';
-import { itemName } from '../../widgets/bits.js?v=0.2.9';
-import { skillsOf } from '../../../session/item-sections.js?v=0.2.9';
-import { huntOf } from '../../../session/hunt-sections.js?v=0.2.9';
+import { ARTISAN_RECIPES } from '../../../data/recipes.js?v=0.2.13';
+import { pacedActionMs } from '../../../core/pacing.js?v=0.2.13';
+import { whole } from '../../../render/format.js?v=0.2.13';
+import { itemName } from '../../widgets/bits.js?v=0.2.13';
+import { skillsOf } from '../../../session/item-sections.js?v=0.2.13';
+import { huntOf } from '../../../session/hunt-sections.js?v=0.2.13';
 
 /* item id -> its Prayer recipe (input = the item, nothing made). */
 const BY_ITEM = new Map((ARTISAN_RECIPES.prayer || []).filter((r) => r.input && !r.output).map((r) => [r.input, r]));

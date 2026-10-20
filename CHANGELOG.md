@@ -5,6 +5,38 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.13 — 2026-10-20 (Your heroes, together)
+
+**See your other heroes.** Your other characters now walk around town like any other player.
+
+**Party panel in town.** The Party panel lists your party while you're in town, not only during a hunt.
+
+## v0.2.12 — 2026-10-20 (Spells and corpses)
+
+**Mages and healers show their attacks.** Wand and staff attacks now fire visible bolts.
+
+**Monster art filled in.** Missing monster frames on the live hunting grounds were added.
+
+**Sturdier bug reports.** The bug-report form handles long reports safely.
+
+## v0.2.11 — 2026-10-20 (Parties, simply)
+
+**Inviting is one click.** Right-click a player and choose Invite: the first invite makes the party. Your own characters join from the character strip straight away.
+
+**One place for your party.** The Party window has two tabs: Invites, and Find a party (filter by weapon). The leader picks the hunting ground and presses Start with party; it shows who isn't ready yet.
+
+**Safer parties.** You can only join by invite or from the finder, blocked players can't join or invite you, and a kicked member stops sharing loot right away. A member who logs out keeps their seat for 10 minutes.
+
+## v0.2.10 — 2026-10-19 (Analyzer for everyone)
+
+**Hunt analyzer for every hero.** Free heroes see session time, kills, XP and XP per hour, loot value and gold per hour, supplies and balance. Premium adds the detailed breakdowns.
+
+**Tidier screen.** Hunt panels no longer overlap the top bar, and the Configure action window no longer moves the view.
+
+**Max mana** now shows in the Character window, and wands and spellbooks are labelled correctly.
+
+**Steadier connection.** Fixed a loop that could freeze the page when a connection dropped.
+
 ## v0.2.9 — 2026-10-19 (Eat when you need to)
 
 **Food fires when you need it.** If your food slot's condition matches, your hero eats right away, even while the last food is still healing. The new food's slow half replaces what was left of the old one.

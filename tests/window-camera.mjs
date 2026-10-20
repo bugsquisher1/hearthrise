@@ -24,6 +24,8 @@
 //         the canvas with them)
 //   WC-3  NO SNAP: opening and closing a docked window moves the camera over
 //         several frames, no single frame more than half the way
+//   WC-5  A MODAL FLOATS: with three windows docked, Configure action opens and
+//         closes over them; no window closes or moves, the camera and hero stay
 //   WC-4  RIGHT-CLICK: a real right-click on another player in town (on the
 //         figure or on the name over it) opens the player menu, and the
 //         browser's own menu is suppressed there
@@ -169,6 +171,24 @@ async function checks(overrides) {
           await page.keyboard.press('j'); await settle(page);
           const r2 = await rects(page);
           if (r2['hunt-settings'] !== r0['hunt-settings']) fails.push('WC-1 a reopened window did not come back to its rect: ' + r2['hunt-settings'] + ' vs ' + r0['hunt-settings']);
+          /* WC-5 (Tyler, v0.2.6): the centred Configure action modal floats over the World: with three
+             windows docked, opening it and closing it close no window and leave the camera and hero alone. */
+          const mc0 = await camera(page), mh0 = await hero(page);
+          await press(page, '.hb-slot[data-slot="2"]');
+          if (!(await wait(page, () => document.querySelector('[data-hs-win="configure-action"]:not(.is-leaving)'), null, 3000))) fails.push('WC-5 a bar slot did not open Configure action');
+          else {
+            await settle(page);
+            const mr1 = await rects(page), mc1 = await camera(page), mh1 = await hero(page);
+            await press(page, '[data-hs-win="configure-action"] [data-hs-close]');
+            await settle(page);
+            const mr2 = await rects(page), mc2 = await camera(page), mh2 = await hero(page);
+            if (mr2['configure-action']) fails.push('WC-5 the modal’s X did not close it');
+            for (const id of ['hunt-prep', 'hunt-settings', 'skills-trade']) {
+              if (mr1[id] !== r2[id] || mr2[id] !== r2[id]) fails.push('WC-5 the modal closed or moved ' + id + ': ' + [r2[id], mr1[id], mr2[id]].join(' -> '));
+            }
+            if (mc1 !== mc0 || mc2 !== mc0) fails.push('WC-5 the modal moved the camera: ' + [mc0, mc1, mc2].join(' -> '));
+            if (mh1 !== mh0 || mh2 !== mh0) fails.push('WC-5 the modal moved the hero: ' + [mh0, mh1, mh2].join(' -> '));
+          }
         }
       }
       if (errors.length) fails.push('WC-1 console errors: ' + errors.slice(0, 3).join(' | '));
@@ -235,6 +255,7 @@ const MUTANTS = [
   ['the stage can scroll', 'src/styles/world.css', 'overflow: clip;   /* never scrollable', 'overflow: hidden;   /* never scrollable'],
   ['the pane can scroll', 'src/styles/world.css', '  overflow: clip;\n}', '  overflow: hidden;\n}'],
   ['the camera snaps to a new inset', 'src/world/core/camera.js', '  if (k >= 1) return to;', '  return to;'],
+  ['a modal evicts the oldest docked window', 'src/shell/window-manager.js', '    if (!isModal(id)) while (sheets().length >= MAX_OPEN) drop(sheets()[0]);', '    while (open.length >= MAX_OPEN) drop(open[0]);'],
   ['a name is not a target', 'src/world/render/canvas-backend.js', '      const hits = named.concat(', '      const hits = [].concat('],
 ];
 

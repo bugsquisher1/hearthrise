@@ -22,6 +22,22 @@
 
 **Cloud, please:** keep each lane's report to sha + guards with exit codes + apply order + `pack-edge --hash` if the edge moved. Don't start new lanes on `src/core/hunt/consumables.js`, `src/data/hunts.js`, `src/data/consumables.js`, party/social menu files, or `tools/gen-hunt-sessions.mjs` until items 1–3 are on main.
 
+### 2026-10-20 05:15 UTC · CLOUD SESSION → PC COORDINATOR · lane status update (supersedes the shas in the table below)
+
+| Lane | Branch @ sha | State | Apply order / deploy |
+|---|---|---|---|
+| Reopen RPC sweep | `lane/c-reopen-rpc-sweep` @ `c02b3d37f` | READY | `2026-10-30-reopen-rpc-sweep.sql` after party-security |
+| Server cleanup | `lane/c-server-cleanup` @ `bec239de4` (on S1) | READY except live-hash-drift (yours after apply: 34 bodies gone, `hr_rpc_gate` changed, 4 rewritten). Byte-identical second apply being confirmed | **Deploy edge first** (payload `eba94b16…805f84`, market + unlock_buy verbs gone), then `2026-10-31-server-cleanup.sql` after the sweep |
+| run-sql-tests green | `lane/c-sql-tests-green` @ `feb947a61` | READY (lane-done green) | `2026-10-30-social-rate-rejections.sql` |
+| Name registry | `lane/c-name-registry` @ `77688f5a0` | READY (lane-done green) | `2026-10-30-name-registry.sql`; restore-census classifies `hr_name_registry` by hand (restore_only, player-value) |
+| Content names | `lane/d-content-names` @ `e31ede005` | READY, holding for the catalogue regen cue; Tyler reviewing the new names | 2 generated files, regenerate with `--new` on its turn |
+| New ground L25–32 (Pebblebrook) | `lane/d-ground-25-32` @ `43ded2e32` | Built; blocked on art | regenerate on its turn; `hunterall-132` dropped (S1 drops `hr_claim_milestone`) |
+| Bestiary | `lane/c-bestiary` @ `8f5882e06` | READY (lane-done green), waits its turn | `2026-10-28-bestiary-catalogue.generated.sql` → `2026-10-28-bestiary-account.sql` (regenerate on its turn) |
+| Action bar | `lane/b-vitals-hub` @ `d6eb32e21` | READY (lane-done green); desktop visual gate; bar ~33 px taller (44% of 922×423) | none |
+| Live engine | `lane/b-live-hunt` @ `31f864685` | IN PROGRESS: PC next-steps, scene fixes, travel 0, engine-end fixes, bestiary seam done; option B core (hunt.live, browser engine, reconcile) next | `2026-10-31-party-create-retire.sql`, `2026-10-31-hunt-sessions-catalogue.generated.sql` + edge |
+
+Flags for you: `selfcheck-no-global-dml` flags the applied `2026-10-28-party-flow.sql`. Still in place after cleanup (owned by the live engine: `hr_apply`/`hr_state_of` read them): `player_workers`, `workers_accrued_to`, `hr_gem_unlocks(_of)`; generator-fed catalogues `hr_quest_rewards`, `hr_feast_foods`, `hr_companion_grants`, `hr_unlock_offers` need a tools lane; bounty helpers + attended-credit logs left as unsure.
+
 ### 2026-10-20 · CLOUD SESSION (second account) → the PC session taking over as Coordinator · cloud lanes
 
 **Takeover:** the PC terminal signed in with the second account takes the Coordinator role (COORDINATOR.md) while the primary account is out until 2026-10-24 17:00 UTC. The cloud session has no Supabase token: it stages, pushes lane branches and reports; the PC session applies, deploys, pushes `main` and posts Discord. Nothing in this list is applied. Verify each sha against `git ls-remote` before merging; lanes still running will push newer shas.

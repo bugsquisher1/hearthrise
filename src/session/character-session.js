@@ -25,9 +25,11 @@
 //                      the bag rules, the one-tap refill and the hunt presets
 //                      (CONFLICTS.md 2026-10-18 alpha windows: the server lane
 //                      adds them); each is one intent, re-read the same way
-//   createParty / joinParty / leaveParty / kickSeat / inviteByName /
-//   answerInvite / startPartyHunt / restartHunt
-//                      the party and hunt-again intents, re-read the same way;
+//   joinParty / leaveParty / kickSeat / inviteByName / answerInvite /
+//   restartHunt        the party and hunt-again intents, re-read the same way
+//                      (a party is made by an invite and started by
+//                      party-intents.js startPartyHunt, which re-reads every
+//                      own seat);
 //   saveOutfit(o, c)   the outfit INTENT (hr_outfit_set), re-read the same way
 //   findParties        the party finder, a read whose rows are never the record
 //   hunt re-read       while the server holds a hunt open, one hello every
@@ -340,12 +342,6 @@ export class CharacterSession {
      2026-10-18 party UI). Each is one intent naming THIS character's slot and ids or a seat; no user id, no
      number of the server's crosses. The party changes on screen only from the re-read envelope. ── */
 
-  /** Open a party on a hunt (this character takes seat 0 and leads it). */
-  async createParty(hunt) {
-    if (this._closed || !HUNT_ID.test(String(hunt))) return { ok: false, error: 'bad_intent' };
-    return this._settled(await this._server.rpc('hr_hunt_party_create', { p_slot: this.slot, p_hunt: hunt, p_idem: newIdem() }));
-  }
-
   /** Take a free seat in an open party (the finder's row, or one of this account's own parties). */
   async joinParty(party) {
     if (this._closed || !UUID.test(String(party))) return { ok: false, error: 'bad_intent' };
@@ -376,12 +372,6 @@ export class CharacterSession {
     if (this._closed || !UUID.test(String(invite))) return { ok: false, error: 'bad_intent' };
     const args = { p_slot: this.slot, p_invite: invite, p_idem: newIdem() };
     return this._settled(await (accept === true ? this._server.rpc('hr_hunt_party_accept', args) : this._server.rpc('hr_hunt_party_decline', args)));
-  }
-
-  /** The leader starts the party's hunt: every member enters with its own saved setup, or the server says who is not ready. */
-  async startPartyHunt() {
-    if (this._closed) return { ok: false, error: 'closed' };
-    return this._settled(await this._server.rpc('hr_hunt_party_start', { p_slot: this.slot, p_idem: newIdem() }));
   }
 
   /** Go back to the hunt that just ended, with the same setup it ran on (the server reads that session's own). */

@@ -2040,6 +2040,20 @@ jobs:
           node tests/party-flow.mjs
           node tests/party-flow.mjs --mutate
 
+      # ONE NAME REGISTRY (2026-10-30-name-registry.sql, Security pre-reopen
+      # MED): a display name and a character name share one namespace, refused
+      # both ways as `authenticated` (claim_display_name -> taken,
+      # hr_character_name_set -> name_taken), and a definer-side row is held to
+      # the same registry; own-name sharing, the release on rename, one
+      # normalisation, a byte-identical second apply, server-only grants.
+      # --mutate plants eight defects in a rolled-back re-apply after a clean
+      # control. Measured locally 2026-10-20 template-warm: 9 s + 10 s.
+      - name: Name registry — display and character names, one namespace, both directions
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/name-registry.mjs
+          node tests/name-registry.mjs --mutate
+
       # THE CONTROL HALF OF A MUTATION PROOF. Every registered guard is re-run
       # with HR_MUTANT_CONTROL=1 (nothing planted, scope kept); any arm that
       # still reads "caught" is caught by something other than its mutant

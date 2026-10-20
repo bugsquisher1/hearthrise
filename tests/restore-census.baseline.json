@@ -33,7 +33,7 @@
   "Classifications are AUTHORED, never generated — deciding what a restore owes",
   "a table is a judgement, and --write preserves whatever is already here."
  ],
- "generated": "2026-10-19",
+ "generated": "2026-10-20",
  "production": {
   "measured": "2026-08-30",
   "project": "nezapsylztqbbwuwembx (hearthrise-testing, Postgres 17.6, us-west-2, Micro compute)",
@@ -543,7 +543,8 @@
   "player_hunt_presets",
   "player_hunt_active",
   "character_names",
-  "player_blessings"
+  "player_blessings",
+  "hr_name_registry"
  ],
  "_player_value_tables_why": [
   "THE CLASS OF THESE IS NOT NEGOTIABLE: restore_only, always. They hold a",
@@ -1152,6 +1153,11 @@
    "class": "restore_only",
    "wiped_at_cutover": false,
    "note": "MODERATION STATE - the fold keys of names a moderator took back (hr_mod_force_rename). One row per moderation. A rebuild returns it EMPTY, after which every moderated name (and its spacing/leet variants) becomes claimable again by anyone. Written only by hr_mod_force_rename; no client grant. Not gold, but a player-scoped row whose loss re-publishes abuse, so it is restored like player value."
+  },
+  "hr_name_registry": {
+   "class": "restore_only",
+   "wiped_at_cutover": false,
+   "note": "PLAYER IDENTITY (2026-10-30-name-registry.sql) - the one namespace behind display_names and character_names: canonical name -> owning account. Both tables reference it (FK), so a restore that brings them back without it fails; restore all three together. Losing it alone frees every worn name for another account."
   },
   "hr_outfit_dyes": {
    "class": "seeded",

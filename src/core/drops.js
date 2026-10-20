@@ -9,7 +9,7 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { RELIC_TIER, MAX_RELIC_MULT } from '../data/bestiary-stages.js?v=0.2.10';
+import { RELIC_TIER, MAX_RELIC_MULT } from '../data/bestiary-stages.js?v=0.2.12';
 
 export const DROP_BAND_MAX = { rare: 0.05, uncommon: 0.15, common: 1.0 };
 

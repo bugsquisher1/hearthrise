@@ -14,8 +14,8 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { leashMarginOf } from '../../data/hunt-grounds.js?v=0.2.10';
-import { makeEvent } from './events.js?v=0.2.10';
+import { leashMarginOf } from '../../data/hunt-grounds.js?v=0.2.12';
+import { makeEvent } from './events.js?v=0.2.12';
 
 /** Is (x, y) inside pocket `pocket`'s pack area (its room plus the ground's margin)? */
 export function inArea(inst, pocket, x, y) {

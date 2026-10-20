@@ -13,14 +13,14 @@
 // intent is in flight, and when the purse is short; nothing on screen moves
 // until the re-read envelope says so.
 // ════════════════════════════════════════════════════════════════════════
-import { bestiaryOf } from '../../session/bestiary-sections.js?v=0.2.10';
-import { goldOf } from '../../session/item-sections.js?v=0.2.10';
-import { HUNT_INDEX, RARITY_LABEL } from '../../data/hunts.js?v=0.2.10';
-import { monsterName } from '../widgets/bits.js?v=0.2.10';
-import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.10';
-import { whole, gold } from '../../render/format.js?v=0.2.10';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.10';
-import { runIntent } from '../intent-words.js?v=0.2.10';
+import { bestiaryOf } from '../../session/bestiary-sections.js?v=0.2.12';
+import { goldOf } from '../../session/item-sections.js?v=0.2.12';
+import { HUNT_INDEX, RARITY_LABEL } from '../../data/hunts.js?v=0.2.12';
+import { monsterName } from '../widgets/bits.js?v=0.2.12';
+import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.12';
+import { whole, gold } from '../../render/format.js?v=0.2.12';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.12';
+import { runIntent } from '../intent-words.js?v=0.2.12';
 
 const COMMON = Object.freeze({ ...RARITY_LABEL, boss: 'Holds a room' });
 const SCRATCH = new WeakMap();

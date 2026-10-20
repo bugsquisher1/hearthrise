@@ -7,7 +7,7 @@
 //   node tests/party-ui.mjs --mutate       every planted defect must turn a rule RED
 //   node tests/party-ui.mjs --shots <dir>  also write the visual-gate screenshots (1440x900, 922x423)
 //
-// mutant-anchors: src/shell/alerts.js src/shell/hunt-list.js src/session/party-sections.js src/session/character-session.js src/shell/windows/party.js src/shell/windows/party-finder.js src/app/character-strip.js src/shell/widgets/alerts.js
+// mutant-anchors: src/shell/alerts.js src/shell/hunt-list.js src/session/party-sections.js src/session/character-session.js src/shell/windows/party.js src/shell/windows/party-finder.js src/app/character-strip.js src/shell/widgets/alerts.js src/session/party-intents.js src/shell/intent-words.js src/shell/windows/hunts.js
 // mutant-writes-tree: no — pure mutants plant into a temp copy of src/, page mutants into served overrides
 //
 // The fixture is tests/fixtures/party-envelope.json (S1's `party` shape plus this lane's asks).
@@ -24,10 +24,25 @@
 //         badge; a tab press shows that character and re-reads nobody
 //   UI-2  the alert lines show each alert once, survive a re-read without repeating, and go
 //         when dismissed
-//   UI-3  the Party window: the seats with the leader's crown; Start is ONE hr_hunt_party_start,
-//         off from the press until the server answered; the finder defaults to this
-//         character's weapon and Join is ONE hr_hunt_party_join
-//   UI-5  the party notes are the PICKED ground's, from its catalogue row, updated on change
+//   PI-2  THE ONE-WAY FLOW'S VERBS (src/session/party-intents.js, PARTY_SPEC 2026-10-19): Start
+//         names the picked hunt, Disband and an own invite by slot are each ONE rpc (slot, hunt,
+//         own slot only); a refusal re-reads nobody and `not_ready` names each seat in words;
+//         an ok re-reads every own character the verb touched; a malformed one sends nothing
+//   UI-3  the Hunts window is where a party starts: the leader's Enter reads "Start with party"
+//         and is ONE hr_hunt_party_start naming the picked hunt, off until the server
+//         answered, and a refusal names who was not ready; a member's Enter stays off. The
+//         Party window is Invites + Find a party: Invites opens first while one waits, Join is
+//         ONE hr_hunt_party_accept; the finder defaults to this character's weapon (no ground
+//         filter) and Join is ONE hr_hunt_party_join
+//   UI-5  the party note is the PICKED ground's, from its catalogue row, on its Hunts line
+//   UI-6  an invite reaches the player as an alert line with Join / No thanks; Join is ONE
+//         hr_hunt_party_accept for that character, off until the server answered
+//   UI-7  a character tab's right-click: Invite to party for an own character in no party (ONE
+//         hr_hunt_party_invite_own naming the viewed slot and that slot), Leave party for one
+//         that sits in a party, nothing party-wise otherwise
+//   UI-8  the leader's Find tab carries the listing switch (a party is private until listed,
+//         Security reopen #1): it reads the server's `listed` and is ONE hr_hunt_party_list,
+//         off until the server answered
 //   AL-2  no out-of-stock warning while the store pays; none for a resource the hero does not use
 //   UI-4  the command centre lists every open character; zero console errors throughout
 // ════════════════════════════════════════════════════════════════════════
@@ -52,7 +67,7 @@ const PARTY_NOTES = Object.fromEntries(Object.values(HUNT_GROUNDS).map((g) => {
 }));
 if (!PARTY_NOTES.millrace_sewer || PARTY_NOTES.coppercap_warrens !== '') throw new Error('party-ui: UI-5 needs a party-gated ground and one without');
 const PARTY_RPCS = ['hr_hunt_party_create', 'hr_hunt_party_join', 'hr_hunt_party_leave', 'hr_hunt_party_kick', 'hr_hunt_party_invite',
-  'hr_hunt_party_accept', 'hr_hunt_party_decline', 'hr_hunt_party_start', 'hr_hunt_restart'];
+  'hr_hunt_party_accept', 'hr_hunt_party_decline', 'hr_hunt_party_start', 'hr_hunt_restart', 'hr_hunt_party_invite_own', 'hr_hunt_party_disband', 'hr_hunt_party_list'];
 
 /* ── PURE ── */
 
@@ -82,6 +97,8 @@ async function load(base) {
     PS: await import(u('src/session/party-sections.js')),
     HUD: await import(u('src/data/hunt-hud.js')),
     ROLES: await import(u('src/data/hunt-roles.js')),
+    PI: await import(u('src/session/party-intents.js')),
+    IW: await import(u('src/shell/intent-words.js')),
   };
 }
 
@@ -197,6 +214,40 @@ async function pureRules(M, base) {
     return (f.ok && srv.calls.length === 1 && srv.calls[0][0] === 'hr_hunt_party_finder' && srv.calls[0][1].p_weapon === 'bow') || 'the finder read was wrong: ' + JSON.stringify(srv.calls);
   });
 
+  await t('PI-2', async () => {
+    const srv = fakeServer();
+    const acc = account(M, srv);
+    const c0 = (await acc.open(0)).session;
+    const c1 = (await acc.open(1)).session;
+    if (!c0 || !c1) return 'the fixture characters did not open';
+    const ALLOWED = new Set(['p_slot', 'p_hunt', 'p_other_slot', 'p_listed', 'p_idem']);
+    srv.calls.length = 0;
+    const bad = [await M.PI.startPartyHunt(acc, c0, 'Bad Hunt!'), await M.PI.inviteOwn(acc, c0, 0), await M.PI.inviteOwn(acc, c0, 9), await M.PI.inviteOwn(acc, c0, 1.5),
+      await M.PI.listParty(acc, c0, 'yes')];
+    if (bad.some((r) => r.ok) || srv.calls.length) return 'a malformed party intent was sent: ' + JSON.stringify(srv.calls);
+    /* Start waits for everyone: the refusal names the seat, in words, and re-reads nobody. */
+    srv.reply = { ok: false, error: 'not_ready', seats: [{ seat: 1, name: 'Mira', error: 'away' }] };
+    const rec = c0.record;
+    const r = await M.PI.startPartyHunt(acc, c0, 'millrace_sewer');
+    if (r.ok || r.error !== 'not_ready' || srv.calls.length !== 1 || c0.record !== rec) return 'a refused start answered ' + JSON.stringify(r) + ' after ' + JSON.stringify(srv.calls.map((c) => c[0]));
+    const a = srv.calls[0][1];
+    if (srv.calls[0][0] !== 'hr_hunt_party_start' || Object.keys(a).sort().join() !== 'p_hunt,p_idem,p_slot' || a.p_slot !== 0 || a.p_hunt !== 'millrace_sewer') return 'the start sent ' + JSON.stringify(srv.calls[0]);
+    if (M.IW.refusalText(r) !== 'Nobody went in: Mira is away.') return 'the not-ready words are ' + JSON.stringify(M.IW.refusalText(r));
+    /* An ok re-reads every own character the verb touched: the party's, and the one that joined. */
+    for (const [fn, args, want, reads] of [['startPartyHunt', ['millrace_sewer'], 'hr_hunt_party_start', '0'], ['disbandParty', [], 'hr_hunt_party_disband', '0'],
+      ['inviteOwn', [1], 'hr_hunt_party_invite_own', '0,1'], ['listParty', [true], 'hr_hunt_party_list', '0']]) {
+      srv.calls.length = 0;
+      srv.reply = { ok: true };
+      const ok = await M.PI[fn](acc, c0, ...args);
+      const sentArgs = srv.calls[0] ? srv.calls[0][1] : {};
+      const extra = Object.keys(sentArgs).filter((k) => !ALLOWED.has(k));
+      const loads = srv.calls.filter((c) => c[0] === 'hr_load').map((c) => c[1].p_slot).sort().join();
+      if (!ok.ok || !srv.calls[0] || srv.calls[0][0] !== want || extra.length || sentArgs.p_slot !== 0) return fn + ' sent ' + JSON.stringify(srv.calls);
+      if (loads !== reads) return fn + ' re-read slots [' + loads + '], want [' + reads + ']';
+    }
+    return true;
+  });
+
   await t('PR-1', async () => {
     const members = [{ seat: 0, weapon: 'staff', role_pick: 'healer' }, { seat: 1, weapon: 'wand', role_pick: 'tank' }, { seat: 2, weapon: 'bow', role_pick: 'tank' }, { seat: 3, weapon: 'no_such_weapon', role_pick: 'tank' }];
     const cs = { read: (k) => (k === 'party' ? { id: '11111111-0000-4000-8000-00000000000a', hunt: 'mill_cellar', max: 4, leader_seat: 0, self_seat: 0, members } : undefined) };
@@ -238,7 +289,7 @@ async function pureRules(M, base) {
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 
 function scripted() {
-  const s = { env: clone(FIXTURE.characters), version: 1, calls: [], residue: { 0: {}, 1: {} }, delayMs: 300 };
+  const s = { env: clone(FIXTURE.characters), version: 1, calls: [], residue: { 0: {}, 1: {} }, delayMs: 300, startReplies: [] };
   s.next = (slot) => Object.assign(clone(s.env[slot]), { version: ++s.version, client_state: clone(s.residue[slot] || {}) });
   return s;
 }
@@ -256,7 +307,10 @@ async function stub(page, s) {
     if (name === 'hr_put_client_state') { Object.assign(s.residue[body.p_slot], body.p_patch || {}); return json({ ok: true }); }
     if (name === 'hr_hunt_party_finder') return json({ ok: true, parties: [{ id: 'dddddddd-0000-4000-8000-000000000004', hunt: 'millrace_sewer', max: 4,
       seats: [{ seat: 0, weapon: 'shield', name: 'Oren' }, { seat: 1, weapon: 'club', name: 'Pell' }] }] });
-    if (PARTY_RPCS.includes(name)) { await new Promise((ok) => setTimeout(ok, s.delayMs)); return json({ ok: true }); }
+    if (PARTY_RPCS.includes(name)) {
+      await new Promise((ok) => setTimeout(ok, s.delayMs));
+      return json(name === 'hr_hunt_party_start' && s.startReplies.length ? s.startReplies.shift() : { ok: true });
+    }
     return json({ ok: true });
   });
 }
@@ -317,6 +371,8 @@ async function pageRules(overrides, shots) {
       const s = scripted();
       await stub(page, s);
       const shot = async (name) => { if (shots) { await page.waitForTimeout(400); await page.screenshot({ path: join(shots, 'party-' + tag + '-' + name + '.png') }); } };
+      /* A step that throws (a control missing from the page) is a red rule, never a crash of the run. */
+      try {
       if (!(await openBoth(page, base))) { fails.push('UI-1 [' + tag + '] two characters did not open beside each other' + (errors.length ? ': ' + errors.slice(0, 2).join(' | ') : '')); await ctx.close(); continue; }
       /* UI-1: one tab per character, its name, what it does, its badge; a press shows it and re-reads nobody. */
       await page.waitForTimeout(400);
@@ -334,26 +390,76 @@ async function pageRules(overrides, shots) {
       if (!(await page.evaluate((uid) => !!window.__hub.channels['hr:' + uid + ':1'], UID))) fails.push('UI-1 [' + tag + '] the switch left character 1’s channel');
       /* UI-2: each alert once; a re-read does not repeat them; dismiss removes one. */
       const lines = () => page.evaluate(() => Array.from(document.querySelectorAll('.hw-alert')).map((li) => li.getAttribute('data-kind')).sort().join(','));
+      /* The town character (slot 1) has an invite waiting: its alert line rides beside the rare drop (UI-6). */
       await wait(page, () => document.querySelectorAll('.hw-alert').length >= 2, null, 3000);
-      if ((await lines()) !== 'rare') fails.push('UI-2 [' + tag + '] the alert lines are [' + (await lines()) + '], want [rare]');
+      if ((await lines()) !== 'invite,rare') fails.push('UI-2 [' + tag + '] the alert lines are [' + (await lines()) + '], want [invite,rare]');
       await shot('strip-alerts');
       await pushEnvelope(page, s, 0);
-      if ((await lines()) !== 'rare') fails.push('UI-2 [' + tag + '] after a re-read the alert lines are [' + (await lines()) + ']');
-      /* UI-3: the Party window for the leader, between hunts (nobody hunting: Start is on). */
-      for (const m of s.env[0].party.members) { m.hunting = false; m.unit = null; }
-      await pushEnvelope(page, s, 0);
-      if (!(await openWin(page, 'y', 'hunt-party'))) fails.push('UI-3 [' + tag + '] Y did not open the Party window');
+      if ((await lines()) !== 'invite,rare') fails.push('UI-2 [' + tag + '] after a re-read the alert lines are [' + (await lines()) + ']');
+      /* UI-6: the invite toast answers in place: Join / No thanks; Join is ONE accept, off while in flight. */
+      const toast = '.hw-alert[data-kind="invite"]';
+      const no = await page.evaluate((q) => { const b = document.querySelector(q + ' [data-hs-act="alert-no"]'); return b && !b.hidden ? b.textContent : null; }, toast);
+      if (no !== 'No thanks') fails.push('UI-6 [' + tag + '] the invite line offers ' + JSON.stringify(no) + ', not No thanks');
+      const acc0 = sent(s, 'hr_hunt_party_accept').length;
+      /* The press and the read in ONE turn: the button must be off from the press itself, not from some later paint. */
+      const toastOff = await page.evaluate((q) => { const b = document.querySelector(q + ' [data-hs-act="alert-do"]'); b.click(); return b.disabled; }, toast);
+      if (!toastOff) fails.push('UI-6 [' + tag + '] Join stayed on while the intent was in flight');
+      await page.waitForTimeout(700);
+      const ta = sent(s, 'hr_hunt_party_accept').slice(acc0);
+      if (ta.length !== 1 || ta[0].body.p_slot !== 1 || ta[0].body.p_invite !== 'bbbbbbbb-0000-4000-8000-000000000002') fails.push('UI-6 [' + tag + '] Join sent ' + JSON.stringify(ta.map((c) => c.body)));
+      /* UI-7: the strip's right-click. Tab 1 (own, in no party): Invite to party, ONE own invite; tab 0 (partied): Leave party. */
+      const menuIds = async (slot) => {
+        await page.keyboard.press('Escape');
+        await page.click('.char-tab[data-slot="' + slot + '"]', { button: 'right' });
+        await wait(page, () => document.querySelector('.hw-menu .hw-mi'), null, 2000);
+        return page.evaluate(() => Array.from(document.querySelectorAll('.hw-menu .hw-mi')).map((b) => b.getAttribute('data-hs-act')));
+      };
+      const m1 = await menuIds(1);
+      if (!m1.includes('party-invite') || m1.includes('party-leave')) fails.push('UI-7 [' + tag + '] tab 1 offers ' + JSON.stringify(m1));
       else {
-        const seats = await page.evaluate(() => Array.from(document.querySelectorAll('.hw-seat')).map((li) => ({ name: li.querySelector('b').textContent, crown: li.querySelector('.hw-crown').classList.contains('is-on'), role: li.querySelector('.hw-roleglyph').getAttribute('data-role') })));
-        if (seats.length !== 2 || !seats[0].crown || seats[1].crown || seats[0].role !== 'tank' || seats[1].role !== 'ranger') fails.push('UI-3 [' + tag + '] the seats read ' + JSON.stringify(seats));
-        await shot('party-leader');
+        const before = sent(s, 'hr_hunt_party_invite_own').length;
+        await page.click('.hw-menu [data-hs-act="party-invite"]');
+        await page.waitForTimeout(700);
+        const io = sent(s, 'hr_hunt_party_invite_own').slice(before);
+        if (io.length !== 1 || Object.keys(io[0].body).sort().join() !== 'p_idem,p_other_slot,p_slot' || io[0].body.p_slot !== 0 || io[0].body.p_other_slot !== 1) fails.push('UI-7 [' + tag + '] Invite sent ' + JSON.stringify(io.map((c) => c.body)));
+      }
+      const m0 = await menuIds(0);
+      if (!m0.includes('party-leave') || m0.includes('party-invite')) fails.push('UI-7 [' + tag + '] tab 0 offers ' + JSON.stringify(m0));
+      else {
+        const before = sent(s, 'hr_hunt_party_leave').length;
+        await page.click('.hw-menu [data-hs-act="party-leave"]');
+        await page.waitForTimeout(700);
+        const lv = sent(s, 'hr_hunt_party_leave').slice(before);
+        if (lv.length !== 1 || lv[0].body.p_slot !== 0) fails.push('UI-7 [' + tag + '] Leave sent ' + JSON.stringify(lv.map((c) => c.body)));
+      }
+      await page.keyboard.press('Escape');
+      /* UI-3: the leader starts from the Hunts window, between hunts. */
+      for (const m of s.env[0].party.members) { m.hunting = false; m.unit = null; }
+      s.env[0].hunt.ended = true;
+      s.env[0].hunt.session = Object.assign({}, s.env[0].hunt.session, { end_reason: 'left', ended_at: '2026-10-17T12:30:00Z', phase: 'ended' });
+      await pushEnvelope(page, s, 0);
+      if (!(await openWin(page, 'h', 'hunts'))) fails.push('UI-3 [' + tag + '] H did not open the Hunts window');
+      else {
+        const W = '[data-hs-win="hunts"] ';
+        /* UI-5 (Tyler 10-19): the party note is the PICKED ground's, from its row. */
+        for (const hunt of ['millrace_sewer', 'coppercap_warrens', 'millrace_sewer']) {
+          await page.click(W + '.hw-hunt[data-hunt="' + hunt + '"] .hw-hunt-name');
+          const got = await page.evaluate((q) => { const n = document.querySelector(q); return n && !n.hidden ? n.textContent : ''; }, W + '.hw-hunt[data-hunt="' + hunt + '"] .hw-hunt-party');
+          if (got !== PARTY_NOTES[hunt]) fails.push('UI-5 [' + tag + '] with ' + hunt + ' picked the note reads ' + JSON.stringify(got) + ', want ' + JSON.stringify(PARTY_NOTES[hunt]));
+        }
+        const go = W + '.hw-hunt[data-hunt="millrace_sewer"] [data-hs-act="enter"]';
+        const label = await page.evaluate((q) => document.querySelector(q).textContent, go);
+        if (label !== 'Start with party') fails.push('UI-3 [' + tag + '] the leader’s button reads ' + JSON.stringify(label));
+        await shot('hunts-leader');
+        s.startReplies.push({ ok: false, error: 'not_ready', seats: [{ seat: 1, name: 'Mira', error: 'away' }] });
         const before = sent(s, 'hr_hunt_party_start').length;
-        await page.click('[data-hs-win="hunt-party"] [data-hs-act="start"]');
-        const off = await page.evaluate(() => document.querySelector('[data-hs-win="hunt-party"] [data-hs-act="start"]').disabled);
-        if (!off) fails.push('UI-3 [' + tag + '] Start stayed on while the intent was in flight');
+        await page.click(go);
+        if (!(await page.evaluate((q) => document.querySelector(q).disabled, go))) fails.push('UI-3 [' + tag + '] Start with party stayed on while the intent was in flight');
         await page.waitForTimeout(700);
         const st = sent(s, 'hr_hunt_party_start').slice(before);
-        if (st.length !== 1 || Object.keys(st[0].body).sort().join() !== 'p_idem,p_slot' || st[0].body.p_slot !== 0) fails.push('UI-3 [' + tag + '] Start sent ' + JSON.stringify(st.map((c) => c.body)));
+        if (st.length !== 1 || Object.keys(st[0].body).sort().join() !== 'p_hunt,p_idem,p_slot' || st[0].body.p_slot !== 0 || st[0].body.p_hunt !== 'millrace_sewer') fails.push('UI-3 [' + tag + '] Start sent ' + JSON.stringify(st.map((c) => c.body)));
+        const said = await page.evaluate((q) => document.querySelector(q).textContent, W + '.hh-intent-msg');
+        if (said !== 'Nobody went in: Mira is away.') fails.push('UI-3 [' + tag + '] a refused start says ' + JSON.stringify(said));
       }
       /* UI-4: the command centre lists both characters. */
       if (!(await openWin(page, 'o', 'characters'))) fails.push('UI-4 [' + tag + '] O did not open the command centre');
@@ -362,32 +468,58 @@ async function pageRules(overrides, shots) {
         if (names !== 'Tyler,Druid') fails.push('UI-4 [' + tag + '] the command centre lists ' + names);
         await shot('command-centre');
       }
+      /* UI-8: the leader's listing switch (private until listed): the server's `listed`, ONE hr_hunt_party_list. */
+      if (await openWin(page, 'y', 'hunt-party')) {
+        const P = '[data-hs-win="hunt-party"] ';
+        await page.click(P + '.hw-tab[data-tab="find"]');
+        const sw = await page.evaluate((q) => { const d = document.querySelector(q + '.hw-list-party'); return d && { hidden: d.hidden, text: d.querySelector('button').textContent }; }, P);
+        if (!sw || sw.hidden || sw.text !== 'Show in the finder') fails.push('UI-8 [' + tag + '] the leader’s listing switch reads ' + JSON.stringify(sw));
+        else {
+          const before = sent(s, 'hr_hunt_party_list').length;
+          const off = await page.evaluate((q) => { const b = document.querySelector(q + '[data-hs-act="list-party"]'); b.click(); return b.disabled; }, P);
+          if (!off) fails.push('UI-8 [' + tag + '] the listing switch stayed on while in flight');
+          await page.waitForTimeout(700);
+          const ls = sent(s, 'hr_hunt_party_list').slice(before);
+          if (ls.length !== 1 || ls[0].body.p_slot !== 0 || ls[0].body.p_listed !== true) fails.push('UI-8 [' + tag + '] the switch sent ' + JSON.stringify(ls.map((c) => c.body)));
+        }
+      } else fails.push('UI-8 [' + tag + '] Y did not open the Party window for the leader');
       /* UI-3: the finder on the town character starts on its own weapon; Join is one intent. */
       await closeAll(page);
       await page.click('.char-tab[data-slot="1"]');
       await wait(page, () => document.querySelector('#panel-world[data-slot="1"]') && document.querySelector('.hs-launchers'));
       if (await openWin(page, 'y', 'hunt-party')) {
+        const P = '[data-hs-win="hunt-party"] ';
+        /* An invite is waiting: the Invites tab opens first; Join is ONE accept naming it. */
+        const tab = await page.evaluate((q) => { const b = document.querySelector(q + '.hw-tab[aria-selected="true"]'); return b && b.getAttribute('data-tab'); }, P);
+        if (tab !== 'invites') fails.push('UI-3 [' + tag + '] the Party window opened on ' + JSON.stringify(tab) + ' with an invite waiting');
+        await shot('party-invites');
+        const acc1 = sent(s, 'hr_hunt_party_accept').length;
+        /* (not on screen = the rule is red, never a crash) */
+        await page.click(P + '.hw-invites [data-hs-act="accept"]', { timeout: 2000 }).catch(() => fails.push('UI-3 [' + tag + '] the invite’s Join is not on screen'));
+        await page.waitForTimeout(700);
+        const ac = sent(s, 'hr_hunt_party_accept').slice(acc1);
+        if (ac.length !== 1 || ac[0].body.p_slot !== 1 || ac[0].body.p_invite !== 'bbbbbbbb-0000-4000-8000-000000000002') fails.push('UI-3 [' + tag + '] Join sent ' + JSON.stringify(ac.map((c) => c.body)));
+        await page.click(P + '.hw-tab[data-tab="find"]');
         const w = await page.evaluate(() => document.querySelector('[data-hs-act="find-weapon"]').value);
         if (w !== 'staff') fails.push('UI-3 [' + tag + '] the finder starts on "' + w + '", not this character’s staff');
-        /* UI-5 (Tyler 10-19): the party note is the PICKED ground's, from its row, the moment the picker changes. */
-        for (const [pick, sel] of [['create-hunt', '.hw-create-note'], ['find-hunt', '.hw-find-note']]) {
-          for (const [hunt, want] of [['millrace_sewer', PARTY_NOTES.millrace_sewer], ['coppercap_warrens', PARTY_NOTES.coppercap_warrens], ['millrace_sewer', PARTY_NOTES.millrace_sewer]]) {
-            await page.selectOption('[data-hs-win="hunt-party"] [data-hs-act="' + pick + '"]', hunt);
-            const got = await page.evaluate((q) => { const n = document.querySelector('[data-hs-win="hunt-party"] ' + q); return n && !n.hidden ? n.textContent : ''; }, sel);
-            if (got !== want) fails.push('UI-5 [' + tag + '] with ' + hunt + ' picked in ' + pick + ' the note reads ' + JSON.stringify(got) + ', want ' + JSON.stringify(want));
-          }
-        }
-        await page.selectOption('[data-hs-win="hunt-party"] [data-hs-act="find-hunt"]', '');
-        await page.click('[data-hs-win="hunt-party"] [data-hs-act="find"]');
+        await page.click(P + '[data-hs-act="find"]');
         await wait(page, () => document.querySelector('.hw-found-row'), null, 3000);
         const fin = sent(s, 'hr_hunt_party_finder');
-        if (fin.length !== 1 || fin[0].body.p_weapon !== 'staff') fails.push('UI-3 [' + tag + '] the finder sent ' + JSON.stringify(fin.map((c) => c.body)));
+        if (fin.length !== 1 || fin[0].body.p_weapon !== 'staff' || fin[0].body.p_hunt !== null) fails.push('UI-3 [' + tag + '] the finder sent ' + JSON.stringify(fin.map((c) => c.body)));
         await shot('party-finder');
         await page.click('.hw-found-row [data-hs-act="join"]');
         await page.waitForTimeout(700);
         const j = sent(s, 'hr_hunt_party_join');
         if (j.length !== 1 || j[0].body.p_party !== 'dddddddd-0000-4000-8000-000000000004' || j[0].body.p_slot !== 1) fails.push('UI-3 [' + tag + '] Join sent ' + JSON.stringify(j.map((c) => c.body)));
+        /* A member (not the leader) cannot start: its Enter stays off, the leader picks the ground. */
+        s.env[1].party = Object.assign(clone(s.env[0].party), { self_seat: 1, leader_seat: 0 });
+        await pushEnvelope(page, s, 1);
+        if (await openWin(page, 'h', 'hunts')) {
+          const b = await page.evaluate(() => { const e = document.querySelector('[data-hs-win="hunts"] .hw-hunt.is-picked [data-hs-act="enter"]'); return e && { off: e.disabled, text: e.textContent }; });
+          if (!b || !b.off || b.text !== 'Enter') fails.push('UI-3 [' + tag + '] a member’s Enter reads ' + JSON.stringify(b));
+        } else fails.push('UI-3 [' + tag + '] H did not open the Hunts window for character 1');
       } else fails.push('UI-3 [' + tag + '] the Party window did not open for character 1');
+      } catch (e) { fails.push('UI-? [' + tag + '] a page step threw: ' + String(e.message).split('\n')[0]); }
       if (errors.length) fails.push('UI-4 [' + tag + '] console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
@@ -411,9 +543,21 @@ const PURE_MUTANTS = [
   ['a kick names a user', 'src/session/character-session.js', "{ p_slot: this.slot, p_seat: seat, p_idem: newIdem() }", "{ p_slot: this.slot, p_seat: seat, p_user: this.uid, p_idem: newIdem() }"],
   ['a malformed seat is sent', 'src/session/character-session.js', "if (this._closed || !Number.isInteger(seat) || seat < 0 || seat > 7) return { ok: false, error: 'bad_intent' };", "if (this._closed) return { ok: false, error: 'bad_intent' };"],
   ['the server role pick is trusted over the weapon', 'src/session/party-sections.js', "role: roleForWeapon(w, pick),", "role: pick || roleForWeapon(w, null),"],
+  ['a party start re-reads nobody', 'src/session/party-intents.js', "    await Promise.all(Array.from(new Set(reread)).filter((o) => o && o.status !== 'closed').map((o) => o.load()));\n", ''],
+  ['an own invite names a user', 'src/session/party-intents.js', '{ p_slot: cs.slot, p_other_slot: otherSlot, p_idem: newIdem() }', '{ p_slot: cs.slot, p_other_slot: otherSlot, p_user: account.userId, p_idem: newIdem() }'],
+  ['an own invite re-reads only the inviter', 'src/session/party-intents.js', '  const peers = partyPeersOf(account, cs).concat(other ? [other] : []);', '  const peers = partyPeersOf(account, cs);'],
+  ['an own invite to the same slot is sent', 'src/session/party-intents.js', ' || otherSlot === cs.slot) {', ') {'],
+  ['not ready names nobody', 'src/shell/intent-words.js', "    return 'Nobody went in: ' + seats.map((x) => x.name + ' ' + (SEAT_WORDS[x.error] || 'is not ready')).join('; ') + '.';", "    return 'Not everyone in the party is ready.';"],
 ];
 const PAGE_MUTANTS = [
-  ['Start stays on while in flight', 'src/shell/windows/party.js', "prop(start, 'disabled', sc.pending || p.anyHunting);", "prop(start, 'disabled', p.anyHunting);"],
+  ['Start with party stays on while in flight', 'src/shell/windows/hunts.js', "for (const b of li.querySelectorAll('button')) prop(b, 'disabled', sc.pending || !!now);", "for (const b of li.querySelectorAll('button')) prop(b, 'disabled', !!now);"],
+  ['a member may press Start', 'src/shell/windows/hunts.js', '      if (follower) prop(enter, \'disabled\', true);\n', ''],
+  ['the strip tab is no menu target', 'src/app/character-strip.js', '  markPlayer(b, uid ? { id: uid, name: x.name, slot: x.slot } : null);', '  markPlayer(b, null);'],
+  ['the invite toast cannot answer', 'src/shell/widgets/alerts.js', "  if (a.action === 'join') { if (a.invite) await settle(ctx, el, a, (cs) => cs.answerInvite(a.invite, action === 'alert-do')); return; }", "  if (a.action === 'join') return;"],
+  ['the toast stays on while in flight', 'src/shell/widgets/alerts.js', "  ctx.alerts.mark(a.key, true, '');\n  renderAlerts.patch(el, ctx);\n", "  ctx.alerts.mark(a.key, true, '');\n"],
+  ['the listing switch stays on while in flight', 'src/shell/windows/party-finder.js', "  prop(sw.querySelector('button'), 'disabled', sc.pending);", "  prop(sw.querySelector('button'), 'disabled', false);"],
+  ['the leader has no listing switch', 'src/shell/windows/party-finder.js', "  prop(sw, 'hidden', !(mine && mine.isLeader));", "  prop(sw, 'hidden', true);"],
+  ['the Party window opens on the finder with an invite waiting', 'src/shell/windows/party.js', "  const tab = sc.tab || (inv.length ? 'invites' : 'find');", "  const tab = sc.tab || 'find';"],
   ['a tab press re-reads the character', 'src/app/boot.js', "    else if (what === 'show') goTo(slot, null);", "    else if (what === 'show') { goTo(slot, null); account.character(slot).load(); }"],
   ['the strip shows no badge', 'src/app/character-strip.js', "  text(badge, x.alerts ? String(x.alerts) : '');", "  text(badge, '');"],
   ['the finder ignores this character’s weapon', 'src/shell/windows/party-finder.js', "sc.weapon = mine && mine.weapon && WEAPON_ROLES[mine.weapon] ? mine.weapon : '';", "sc.weapon = '';"],

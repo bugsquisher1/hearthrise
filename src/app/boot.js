@@ -19,19 +19,19 @@
 // hr_closed); the first such answer replaces everything with the closed notice.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPABASE_CONFIG, createSupabaseClient } from '../net/supabase-bootstrap.js?v=0.2.10';
-import { createAuth } from '../net/auth.js?v=0.2.10';
-import { SESSION_CONFIG } from '../session/config.js?v=0.2.10';
-import { createServerLink } from '../session/server.js?v=0.2.10';
-import { AccountSession } from '../session/account-session.js?v=0.2.10';
-import { FRAME_EVENT } from '../session/character-session.js?v=0.2.10';
-import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.10';
-import { mountWorldPane } from './world-pane.js?v=0.2.10';
-import { mountCharacterStrip } from './character-strip.js?v=0.2.10';
-import { createAlertCenter } from '../shell/alerts.js?v=0.2.10';
-import { createSocialRealtime } from '../social/realtime.js?v=0.2.10';
-import { SocialSession } from '../social/social-session.js?v=0.2.10';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.10';
+import { SUPABASE_CONFIG, createSupabaseClient } from '../net/supabase-bootstrap.js?v=0.2.12';
+import { createAuth } from '../net/auth.js?v=0.2.12';
+import { SESSION_CONFIG } from '../session/config.js?v=0.2.12';
+import { createServerLink } from '../session/server.js?v=0.2.12';
+import { AccountSession } from '../session/account-session.js?v=0.2.12';
+import { FRAME_EVENT } from '../session/character-session.js?v=0.2.12';
+import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.12';
+import { mountWorldPane } from './world-pane.js?v=0.2.12';
+import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.12';
+import { createAlertCenter } from '../shell/alerts.js?v=0.2.12';
+import { createSocialRealtime } from '../social/realtime.js?v=0.2.12';
+import { SocialSession } from '../social/social-session.js?v=0.2.12';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.12';
 
 const DISCORD = 'https://discord.gg/eJrUSUJM3M';
 
@@ -178,6 +178,9 @@ function startApp(win) {
       peers: () => (acc ? acc.characters() : [cs]) });
     if (seq !== paneSeq) { p.destroy(); return; }
     pane = Object.assign(p, { slot: cs.slot });
+    /* The strip's tabs open the viewed shell's one player menu (Invite to party / Leave party for own characters). */
+    const nav = root.querySelector('nav.char-strip');
+    if (nav && p.shell && p.shell.menu) p.shell.menu.attach(nav, stripTargetOf);
     if (strip) strip.patch();
     if (want) pane.shell.open(want);
   }

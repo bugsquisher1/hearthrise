@@ -29,6 +29,13 @@
 // has its stations, its crier and its two buildings, the house one piece per room,
 // and each reachable map its painted ground.
 //
+// Every monster on a live hunting ground (HUNT_GROUNDS pockets and packs, HUNTS spawns) must be
+// something the renderer can draw through a whole kill: a sprite in a loaded atlas (an id no
+// atlas carries is the brown stub box, src/world/stub-atlas.js), idle and walk in all eight
+// facings, the blow (`attack`), the fall (`death`) and the held body (`corpse`) in the four
+// cardinals, every frame inside its atlas and not blank (rule [live], LIVE_CLIPS). A kill that
+// leaves a brown square or a standing monster is red here, not in a player's hunt.
+//
 // ONE STYLE (Tyler 2026-10-18, tools/world-art/style1.mjs): every sidecar of a set
 // the renderer loads is style 1 with a style-1 source, no retired pre-style-1 set
 // (hero, cellar, town, home) is loaded or left in the tree, no art sits in a set
@@ -140,6 +147,44 @@ const REQUIRED = {
 const REQUIRED_TERRAIN = { sewer_ground: 'sewer', cellar_ground: 'mill', common_ground: 'common', cottage_ground: 'cottage',
   meadowbrook_ground: 'forest', warrens_ground: 'warren' };
 
+// THE LIVE-GROUND CONTRACT: what a kill on a walked ground asks the renderer for. The sprite id is the
+// monster id (src/hunt-view/scene.js spriteOf, src/world/choreo.js corpses); the clips are the ones the
+// scenes name: idle and walk (every facing), attack, death and the held corpse (the four cardinals; a
+// diagonal falls back to its cardinal, core/book.js pickFacing).
+const CARDINALS = ['s', 'e', 'n', 'w'];
+const LIVE_CLIPS = [['idle', FACINGS], ['walk', FACINGS], ['attack', CARDINALS], ['death', CARDINALS], ['corpse', CARDINALS]];
+/** monster id → the grounds whose packs and spawn rows name it. */
+function liveMonsters(grounds = HUNT_GROUNDS, hunts = HUNT_INDEX) {
+  const out = new Map();
+  const add = (id, g) => { if (!out.has(id)) out.set(id, new Set()); out.get(id).add(g); };
+  for (const g of Object.values(grounds)) {
+    for (const p of g.pockets) for (const s of [...p.spawns, ...(p.pack || [])]) add(s.monster, g.id);
+    for (const s of (hunts[g.hunt] || {}).spawns || []) add(s.monster, g.id);
+  }
+  return out;
+}
+/** `sprites`: id → { set, sprite } (the shipped manifests); `atlasOf(set)`: the decoded atlas of a loaded set. */
+function liveFindings(monsters, sprites, atlasOf) {
+  const out = [];
+  for (const [id, where] of monsters) {
+    const at = [...where].join(', ');
+    const got = sprites[id];
+    if (!got) { out.push(`live: ${id} spawns on ${at} but no loaded atlas carries a sprite "${id}" (the renderer draws a brown stub box)`); continue; }
+    const [fw, fh] = got.sprite.frame, atlas = atlasOf(got.set);
+    for (const [name, dirs] of LIVE_CLIPS) for (const d of dirs) {
+      const list = (got.sprite.anims[name] || { dirs: {} }).dirs[d] || [];
+      if (!list.length) { out.push(`live: ${id} (${at}) has no ${name} facing ${d}`); continue; }
+      list.forEach(([x, y], i) => {
+        if (!atlas || x < 0 || y < 0 || x + fw > atlas.width || y + fh > atlas.height) { out.push(`live: ${id} ${name}/${d}/${i} points outside atlas ${got.set}`); return; }
+        let opaque = 0;
+        for (let r = 0; r < fh && !opaque; r++) for (let c = 0; c < fw; c++) if (atlas.data[((y + r) * atlas.width + x + c) * 4 + 3] >= 128) { opaque++; break; }
+        if (!opaque) out.push(`live: ${id} ${name}/${d}/${i} is a blank frame`);
+      });
+    }
+  }
+  return out;
+}
+
 function loadAtlases(root = ROOT) {
   const dir = join(root, OUT_DIR);
   if (!existsSync(dir)) return [];
@@ -175,6 +220,8 @@ function guard() {
     const needs = want.anims.map((a) => [a, want.dirs]).concat(Object.entries(want.also || {}));
     for (const [a, dirs] of needs) for (const d of dirs) if (!got.sprite.anims[a] || !(got.sprite.anims[a].dirs[d] || []).length) fails.push(`content: "${id}" has no ${a} facing ${d}`);
   }
+  const atlasOf = (set) => (atlases.find((a) => a.manifest.set === set) || {}).atlas;
+  for (const f of liveFindings(liveMonsters(), seen, atlasOf)) fails.push(f);
   for (const [id, set] of Object.entries(REQUIRED_TERRAIN)) {
     const m = atlases.find((a) => a.manifest.set === set);
     if (!m || !m.manifest.terrain[id]) fails.push(`content: no terrain "${id}" in set ${set}`);
@@ -303,6 +350,36 @@ function selftest(atlases) {
   s1('a window loading the retired hero atlas itself', 's1-code', style1Input(ROOT, { code: codeRefs(ROOT).concat([{ file: 'src/shell/windows/inventory/doll.js', sets: codeSets("const p = atlasPaths('hero');") }]) }));
   s1('a literal path to a retired atlas', 's1-code', style1Input(ROOT, { code: [{ file: 'src/x.js', sets: codeSets("fetch('assets/world/atlas-town.json')") }] }));
 
+  // THE LIVE-GROUND CONTRACT: each planted gap must be named by its own finding; the shipped sprites stay silent.
+  const sprites = {};
+  for (const { manifest: m } of atlases) for (const [id, sp] of Object.entries(m.sprites)) sprites[id] = { set: m.set, sprite: sp };
+  const atlasOf = (set) => (atlases.find((a) => a.manifest.set === set) || {}).atlas;
+  const monsters = liveMonsters();
+  const shipped = liveFindings(monsters, sprites, atlasOf);
+  if (shipped.length) { console.error('world-assets --selftest: harness — a live-ground monster is already incomplete: ' + shipped.slice(0, 3).join('; ')); process.exit(2); }
+  const without = (id, over) => ({ ...sprites, [id]: { ...sprites[id], sprite: { ...sprites[id].sprite, ...over(sprites[id].sprite) } } });
+  const liveCase = (name, want, mons, spr) => {
+    const hits = liveFindings(mons, spr, atlasOf).filter((f) => f.includes(want));
+    if (hits.length) console.log(`  ✓ ${name}: caught by [live] (${hits[0].slice(6, 70)}…)`);
+    else { escaped++; console.log(`  ✗ ${name}: NOT caught by [live] (wanted "${want}")`); }
+  };
+  const dropClip = (clip) => (sp) => ({ anims: Object.fromEntries(Object.entries(sp.anims).filter(([n]) => n !== clip)) });
+  liveCase('a Mill Cellar rat with no corpse', 'rat (', monsters, without('rat', dropClip('corpse')));
+  liveCase('a Sewer bat with no death clip', 'culvert_bat (', monsters, without('culvert_bat', dropClip('death')));
+  liveCase('a Warrens goblin with no attack', 'goblin_digger (', monsters, without('goblin_digger', dropClip('attack')));
+  liveCase('a Thicket wolf whose corpse lacks the west facing', 'gray_wolf (', monsters,
+    without('gray_wolf', (sp) => ({ anims: { ...sp.anims, corpse: { ...sp.anims.corpse, dirs: { ...sp.anims.corpse.dirs, w: [] } } } })));
+  liveCase('a corpse frame pointing outside its atlas', 'points outside atlas', monsters,
+    without('slime', (sp) => ({ anims: { ...sp.anims, corpse: { ...sp.anims.corpse, dirs: { ...sp.anims.corpse.dirs, e: [[9999, 9999]] } } } })));
+  liveCase('a corpse frame that is blank', 'is a blank frame', monsters,
+    without('hive_wasp', (sp) => { const [x, y] = sp.anims.corpse.dirs.s[0]; const a = atlasOf('mill'); let blank = null;
+      for (let yy = 0; yy + sp.frame[1] <= a.height && !blank; yy++) for (let xx = 0; xx + sp.frame[0] <= a.width && !blank; xx += 1) { let any = false;
+        for (let r = 0; r < sp.frame[1] && !any; r++) for (let c = 0; c < sp.frame[0]; c++) if (a.data[((yy + r) * a.width + xx + c) * 4 + 3]) { any = true; break; }
+        if (!any) blank = [xx, yy]; }
+      return { anims: { ...sp.anims, corpse: { ...sp.anims.corpse, dirs: { ...sp.anims.corpse.dirs, s: [blank || [x, y]] } } } }; }));
+  liveCase('a spawn whose monster has no sprite at all (the brown stub)', 'brown stub', new Map([...monsters, ['ghost_rat', new Set(['mill_cellar'])]]), sprites);
+  const LIVE_MUTANTS = 7;
+
   // Drift, end to end: a copy of the tree with one atlas pixel edited by hand must
   // fail the rebuild comparison the plain run makes (checkAll), not just a hash.
   const tmp = mkdtempSync(join(tmpdir(), 'world-assets-'));
@@ -319,7 +396,7 @@ function selftest(atlases) {
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
-  console.log(escaped ? `world-assets --selftest: RED — ${escaped} planted defect(s) escaped` : `world-assets --selftest: all ${mutants.length + 11} planted defects caught; ${controls.length + 1} clean controls silent`);
+  console.log(escaped ? `world-assets --selftest: RED — ${escaped} planted defect(s) escaped` : `world-assets --selftest: all ${mutants.length + 11 + LIVE_MUTANTS} planted defects caught; ${controls.length + 2} clean controls silent`);
   process.exit(escaped ? 1 : 0);
 }
 

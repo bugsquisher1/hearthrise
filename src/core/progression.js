@@ -17,10 +17,10 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { skillLevelFromXp } from './xp.js?v=0.2.10';
-import { pacedXp } from './pacing.js?v=0.2.10';
-import { spendRestedCharge } from './rested.js?v=0.2.10';
-import { advanceToolCarry } from './tools.js?v=0.2.10';
+import { skillLevelFromXp } from './xp.js?v=0.2.12';
+import { pacedXp } from './pacing.js?v=0.2.12';
+import { spendRestedCharge } from './rested.js?v=0.2.12';
+import { advanceToolCarry } from './tools.js?v=0.2.12';
 
 /* The skills the `combatXP` bonus channel pays: the four trained in a fight
    (CORE_MODEL.md §4). Prayer trains at the altar, not in a fight. ONE list,

@@ -1,0 +1,31 @@
+{
+  "id": "fx_staff_bolt_impact",
+  "class": "vfx",
+  "style": "s1",
+  "material": "light",
+  "source": "fx_staff_bolt_impact.png",
+  "frame": [
+    18,
+    23
+  ],
+  "anchor_px": [
+    9,
+    14
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "blend": "add",
+  "anims": [
+    {
+      "name": "play",
+      "fps": 16,
+      "loop": false,
+      "dirs": {
+        "s": 2
+      }
+    }
+  ],
+  "notes": "Cut from prototypes/hunt-sim-assets/vfx/nature_heal_motes frames 1,2 by tools/world-art/port-hunt-sim.mjs: unscaled, cropped to the frames' union box, anchor as the sim drew it."
+}

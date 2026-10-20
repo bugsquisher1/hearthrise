@@ -72,6 +72,15 @@ export const HUNT_DEGRADABLE = Object.freeze([
   'too_many_item_kinds', 'too_many_progress_ops', 'bank_full', 'daily_budget',
 ]);
 export const HUNT_MAX_DEGRADE = 3;
+
+/* THE PER-CALL SIMULATED SPAN (P1 2026-10-20: 546 WORKER_RESOURCE_LIMIT). A
+   settle simulates at most this much of the instance's backlog; the rest stays
+   owed on its unmoved settled_to and the next fire takes the next slice (90x
+   real time at a 10 s tick). Without it an instance whose commit is refused
+   (session_moved, a tally error) re-simulates a window that grows 10 s every
+   fire, up to accrual.js HUNT_MAX_WINDOW_MS (6 h), twice per fire on a retry,
+   until the worker's CPU budget kills the whole tick and every hunt in it. */
+export const HUNT_SETTLE_SPAN_MS = 15 * 60000;
 /* Refusals that mean "someone else moved the instance under us". */
 const RETRYABLE = Object.freeze(['session_moved', 'version_conflict']);
 
@@ -261,7 +270,8 @@ export async function readHuntSettle(o, mode) {
     m.hero = heroSetup({ weaponType: m._weaponType, options: m._options, bar: m._bar, partyRoles });
     if (!m.hero) return { answer: { outcome: 'refused', reason: 'no_role', ...refusal(409, 'no_role') } };
   }
-  const toMs = Number.isFinite(Number(o.atMs)) ? Math.min(nowMs, Math.floor(Number(o.atMs))) : nowMs;
+  const endMs = Number.isFinite(Number(o.atMs)) ? Math.min(nowMs, Math.floor(Number(o.atMs))) : nowMs;
+  const toMs = Math.min(endMs, fromMs + HUNT_SETTLE_SPAN_MS);
   if (!(toMs > fromMs)) return notDue;
   return { env, inst, members, where, fromMs, toMs, nowMs };
 }

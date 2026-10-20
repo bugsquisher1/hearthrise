@@ -139,7 +139,9 @@ async function coverArm(db, { H, M }, forged) {
   const uid = H.UIDS[0];
   const h = await H.hunter(db, M, COVERER);
   const item = 'bones';
-  await db.query('insert into public.hr_hunt_cover_items (item_id, unit) values ($1, 1) on conflict (item_id) do update set unit = 1', [item]);
+  /* 50 g a bone: one pickup covers a store heal, so EVERY seed reaches the cover case (at 1 g a
+     bone only ~1 seed in 6 picked up enough before gold_out ended the hunt — the H-COVER flake). */
+  await db.query('insert into public.hr_hunt_cover_items (item_id, unit) values ($1, 50) on conflict (item_id) do update set unit = 50', [item]);
   if (forged) {
     await db.query('insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, $2, 5) on conflict (user_id, slot, item_id) do update set qty = 5', [uid, item]);
     const go = async () => (await H.settleTo(db, M, h.from + 90000, { tamper: (c) => { c.members[0].hunt.cover = { [item]: 1 }; } })).res;

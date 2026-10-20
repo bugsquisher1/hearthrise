@@ -405,7 +405,7 @@ async function huntWindow(S, uid, mins, t) {
   await S.elapse(uid, mins * MIN);
   let c = null;
   let paid = false;
-  for (let k = 0; k < 8; k++) {
+  for (let k = 0; k < 200; k++) {   // successive fires: a settle simulates at most HUNT_SETTLE_SPAN_MS
     c = await S.huntSettle(uid);
     if (c.outcome === 'paid') paid = true;
     const sess = await S.session(uid);

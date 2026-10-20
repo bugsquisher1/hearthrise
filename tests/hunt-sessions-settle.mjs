@@ -881,6 +881,13 @@ async function hunter(db, M, o) {
 
 /* ONE settle of the instance, ending at `toMs`, through hunt-settle.js's three pieces (tamper between). */
 async function settleTo(db, M, toMs, o = {}) {
+  /* A backlog longer than HUNT_SETTLE_SPAN_MS lands in slices, as successive fires do. */
+  for (;;) {
+    const r = await settleSlice(db, M, toMs, o);
+    if (o.tamper || o.raw || r.skipped || r.res?.ok !== true || !(r.commit && r.out && r.out.settledTo < toMs && r.planTo < toMs)) return r;
+  }
+}
+async function settleSlice(db, M, toMs, o) {
   const exec = makeExec(db);
   const plan = await M.HS.readHuntSettle({ exec, user: o.user || UID, slot: 0, grounds: groundsOf(M), atMs: toMs }, 'tick');
   if (plan.answer) return { skipped: plan.answer.reason };
@@ -890,7 +897,7 @@ async function settleTo(db, M, toMs, o = {}) {
   const res = await M.HS.commitHuntSettle(exec, { ...p.commit, project: null });
   if (o.tamper || o.raw) return { res, out: p.out, commit: p.commit };
   if (!res || res.ok !== true) throw new Error(`settle to ${new Date(toMs).toISOString()} refused: ${JSON.stringify(res).slice(0, 500)}`);
-  return { res, out: p.out, commit: p.commit };
+  return { res, out: p.out, commit: p.commit, planTo: plan.toMs };
 }
 /* Settle `cuts(from)` in order; stop when the hunt is over. */
 async function run(db, M, from, cuts, o) {
@@ -983,7 +990,7 @@ const DB_ARMS = {
     for (const [door, go] of [
       ['tick', () => M.HS.settleHunt({ exec, user: UID, slot: 0, mode: 'tick', session: sid, grounds: groundsOf(M) })],
       ['settle', () => M.HS.settleHunt({ exec, user: UID, slot: 0, mode: 'settle', minWindowMs: 0, grounds: groundsOf(M) })],
-      ['pieces', async () => { const now = Number(await one(db, 'select floor(extract(epoch from now()) * 1000)::bigint')); return settleTo(db, M, now); }],
+      ['pieces', async () => { const now = Number(await one(db, 'select floor(extract(epoch from now()) * 1000)::bigint')); return settleSlice(db, M, now, {}); }],
     ]) {
       const r = await go();
       if (door !== 'pieces' && (!r || r.outcome !== 'paid')) problems.push(`CONTROL: the ${door} door did not pay (${r && r.outcome}/${r && r.reason})`);
@@ -1290,6 +1297,20 @@ const DB_ARMS = {
     if (!honest.res || honest.res.ok !== true) problems.push(`an honest settle answered ${JSON.stringify(honest.res).slice(0, 200)}`);
     return problems;
   }),
+  /* P1 2026-10-20 (546 WORKER_RESOURCE_LIMIT): a refused instance re-simulated its whole growing
+     backlog every fire. One settle simulates at most HUNT_SETTLE_SPAN_MS; the rest is owed. */
+  SPAN: async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const span = M.HS.HUNT_SETTLE_SPAN_MS;
+    if (!(span > 0 && span <= 30 * 60000)) return [`HUNT_SETTLE_SPAN_MS is ${span}, not a bound of at most 30 min`];
+    const { from } = await hunter(db, M, { ...STRONG, minutesAgo: 120 });
+    const plan = await M.HS.readHuntSettle({ exec: makeExec(db), user: UID, slot: 0, grounds: groundsOf(M) }, 'tick');
+    if (plan.answer) return [`a 2 h backlog was not offered: ${JSON.stringify(plan.answer.reason)}`];
+    if (plan.toMs - plan.fromMs > span) problems.push(`one settle simulates ${plan.toMs - plan.fromMs} ms of a 2 h backlog, past the ${span} ms span`);
+    const r = await settleTo(db, M, from + 3 * span);
+    if (!r.res || r.res.ok !== true) problems.push(`the backlog did not catch up slice by slice: ${JSON.stringify(r.res).slice(0, 200)}`);
+    return problems;
+  }),
   REPLAY: async (db, M) => inTx(db, async () => {
     const problems = [];
     const { sid, from } = await hunter(db, M, STRONG);
@@ -1445,6 +1466,8 @@ async function runArms(root, db, only) {
 /* JS mutants: planted in a temp copy of the edge + src/core + src/data. A name
    in [brackets] is the C2 mutant this one re-anchors (its catch is kept). */
 const MUTANTS = [
+  { arm: 'SPAN', name: '[546 P1] a settle simulates the whole backlog again', file: join(FN, 'hunt-settle.js'),
+    from: '  const toMs = Math.min(endMs, fromMs + HUNT_SETTLE_SPAN_MS);', to: '  const toMs = endMs;' },
   { arm: 'TICK-2', name: '[C2 away ctx] the instance span runs with ctx.away again', file: join(FN, 'accrual.js'),
     from: '    { toMs, tickMs, seed, ground: inp.ground,', to: '    { away: true, toMs, tickMs, seed, ground: inp.ground,' },
   { arm: 'TICK-2', name: '[C2 absence watermark] the window starts at a presence watermark', file: join(FN, 'accrual.js'),

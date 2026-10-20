@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-20",
- "replay_ms": 33994,
+ "replay_ms": 190269,
  "counts": {
-  "tracked_names": 138,
-  "entries": 110
+  "tracked_names": 139,
+  "entries": 111
  },
  "functions": [
   {
@@ -2465,6 +2465,31 @@
    "replay": {
     "md5": "39776e3a0ed05b94f3cb4f8bfacedf9d",
     "norm_len": 5657,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_town_walkers(p_map text)",
+   "name": "hr_town_walkers",
+   "tracked_by": [
+    "chain",
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-25-town-walk.sql",
+    "2026-10-27-core-bodies.sql",
+    "2026-10-28-town-own-characters.sql"
+   ],
+   "live": {
+    "md5": "4de8976e65a9afe69fa6edafc614690e",
+    "norm_len": 2546,
+    "measured": "2026-10-20",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "4de8976e65a9afe69fa6edafc614690e",
+    "norm_len": 2546,
     "source": "computed-from-replay"
    },
    "agree": true

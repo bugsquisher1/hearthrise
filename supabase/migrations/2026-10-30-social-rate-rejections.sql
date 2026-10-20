@@ -10,7 +10,8 @@
 -- because sustained rate limiting is the loudest automation signal the server
 -- produces and an early `return` before any write leaves nothing at all.
 -- The social lane's twelve player RPCs (2026-10-25-chat-channels.sql,
--- -social.sql, -town-walk.sql; four of them restated by 2026-10-27-core-bodies)
+-- -social.sql, -town-walk.sql; four restated by 2026-10-27-core-bodies.sql, and
+-- hr_town_walkers again by 2026-10-28-town-own-characters.sql)
 -- returned 'rate_limited' bare. tests/run-sql-tests.mjs could not see it: none
 -- of those files was in its lint set, and core-bodies joined it only now (its
 -- hr_apply / hr_state_of derivation links were unreadable without it).
@@ -41,9 +42,10 @@
 -- only new write is the existing exception-safe, key-capped rejection journal.
 --
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
--- Re-apply the predecessors' bodies (2026-10-27-core-bodies.sql for chat_send,
--- whisper_send, inspect, town_walkers; the three 2026-10-25 files for the rest).
--- ORDER: LAST in the chain (after 2026-10-29-party-security.sql). No begin/commit.
+-- Re-apply the predecessors' bodies (2026-10-28-town-own-characters.sql for
+-- town_walkers; 2026-10-27-core-bodies.sql for chat_send, whisper_send, inspect;
+-- the three 2026-10-25 files for the rest).
+-- ORDER: LAST in the chain (after 2026-10-28-town-own-characters.sql). No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS AND THE PINS ────────────────────────────────────────────
@@ -66,7 +68,7 @@ begin
     ('public.hr_social_state(integer)', '4d92a4468c1113b2b31567c393814bb4', 1),
     ('public.hr_inspect(text,integer)', '59d9315c59970c2a7ef3c51fd02ac2bc', 1),
     ('public.hr_town_move(integer,text,integer,integer,integer,integer,text)', 'b049c0091c716cf1d58ec43e57bec8be', 1),
-    ('public.hr_town_walkers(text)', '6ee33b7ba793e913c02044e7f1e69d67', 1)) t(sig, pin, gates) loop
+    ('public.hr_town_walkers(text)', '7c3256511af37a1519b757c150d77e19', 1)) t(sig, pin, gates) loop
     if to_regprocedure(r.sig) is null then raise exception 'PRECONDITION: % is missing', r.sig; end if;
     select prosrc into v_src from pg_proc where oid = to_regprocedure(r.sig);
     v_base := regexp_replace(v_src, '\n +if public\.hr_rate_sample_weight\(public\.hr_rate_over\(v_uid, ''[^'']+''\) - [a-z0-9_]+\) > 0 then\n +perform public\.hr_record_rejection\([^;]*\);\n +end if;', '', 'g');
@@ -569,8 +571,7 @@ begin
                      where tp.map_id = p_map and tp.at > now() - c_fresh
                      order by tp.at desc limit c_scan) c
               join public.player_state ps on ps.user_id = c.user_id and ps.slot = c.slot
-             where c.user_id <> v_uid
-               and not coalesce(ps.presence_quiet, false)
+             where not coalesce(ps.presence_quiet, false)
                and not exists (select 1 from public.hunt_sessions h
                                 where h.user_id = c.user_id and h.slot = c.slot and h.ended_at is null)
                and not public.hr_social_blocked(v_uid, c.user_id)
@@ -601,7 +602,7 @@ begin
     ('public.hr_social_state(integer)', '4d92a4468c1113b2b31567c393814bb4', 1),
     ('public.hr_inspect(text,integer)', '59d9315c59970c2a7ef3c51fd02ac2bc', 1),
     ('public.hr_town_move(integer,text,integer,integer,integer,integer,text)', 'b049c0091c716cf1d58ec43e57bec8be', 1),
-    ('public.hr_town_walkers(text)', '6ee33b7ba793e913c02044e7f1e69d67', 1)) t(sig, pin, gates) loop
+    ('public.hr_town_walkers(text)', '7c3256511af37a1519b757c150d77e19', 1)) t(sig, pin, gates) loop
     select prosrc into v_src from pg_proc where oid = to_regprocedure(r.sig);
     if md5(regexp_replace(v_src, '\n +if public\.hr_rate_sample_weight\(public\.hr_rate_over\(v_uid, ''[^'']+''\) - [a-z0-9_]+\) > 0 then\n +perform public\.hr_record_rejection\([^;]*\);\n +end if;', '', 'g')) <> r.pin then
       raise exception 'SELF-CHECK(a): % is not its pre-image plus insertions', r.sig; end if;

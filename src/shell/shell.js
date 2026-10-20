@@ -36,16 +36,16 @@
 //
 // Mounted by src/app/world-pane.js over one character's World.
 // ════════════════════════════════════════════════════════════════════════
-import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.12';
-import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.12';
-import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.12';
-import { createWindowManager, DOCK_EDGE } from './window-manager.js?v=0.2.12';
-import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges } from './hud.js?v=0.2.12';
-import { keyLabel, glyphSvg } from './launcher.js?v=0.2.12';
-import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.12';
-import { mountContextMenu } from './context-menu.js?v=0.2.12';
-import { menuProvidersOf } from './menu-providers.js?v=0.2.12';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.12';
+import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.13';
+import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.13';
+import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.13';
+import { createWindowManager, DOCK_EDGE } from './window-manager.js?v=0.2.13';
+import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges } from './hud.js?v=0.2.13';
+import { keyLabel, glyphSvg } from './launcher.js?v=0.2.13';
+import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.13';
+import { mountContextMenu } from './context-menu.js?v=0.2.13';
+import { menuProvidersOf } from './menu-providers.js?v=0.2.13';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.13';
 
 /* The components' display clock: session timers and the timeline's due events (parity SH-05, DOM 4 Hz). */
 const DISPLAY_TICK_MS = 250;

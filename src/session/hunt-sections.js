@@ -18,8 +18,8 @@
 // read makes that ROW null, not the whole section.
 // ════════════════════════════════════════════════════════════════════════
 
-import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.12';
-import { VITALS } from '../data/core-model.js?v=0.2.12';
+import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.13';
+import { VITALS } from '../data/core-model.js?v=0.2.13';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -142,7 +142,7 @@ export function partyOf(cs) {
   if (!p) return null;
   const members = list(p.members, memberOf, 8);
   if (!members.length) return null;
-  return { leader: int(p.leader), self: int(p.self), open: p.open !== false, members };
+  return { leader: int(p.leader), self: int(p.self), leaderSeat: int(p.leader_seat), selfSeat: int(p.self_seat), open: p.open !== false, members };
 }
 
 /** `premium`: is THIS character premium right now, as the server says. Fails safe to false. */

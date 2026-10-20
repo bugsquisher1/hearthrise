@@ -105,6 +105,11 @@
 .hp-stats dd { margin: 0; font-weight: 700; font-variant-numeric: lining-nums tabular-nums; }
 .hp-foot { margin: 8px 0 0; padding-top: 6px; border-top: 1px solid var(--line-soft); font-size: var(--t-micro); color: var(--ink-3); }
 .hp-party.is-empty .hp-foot { display: none; }
+.hp-acts { display: flex; gap: 6px; margin-top: 8px; }
+.hp-acts.is-off { display: none; }
+.hp-kick { margin-left: auto; }
+.hp-m.is-away { opacity: .7; }
+.hp-msg:empty { display: none; }
 
 /* ── Analyzer ── */
 .ha-analyzer { width: 290px; max-height: min(560px, calc(100vh - 200px)); }

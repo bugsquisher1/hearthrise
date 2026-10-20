@@ -35,6 +35,8 @@
 //         most `cap` are kept
 //   TW-7  ONE CATALOGUE: every kind:'town' map row has its hr_town_maps seed row
 //         with the same size
+//   TW-9  ONE ACCOUNT, TWO CHARACTERS: each of an account's playing characters sees the
+//         other in town (a walker is a user AND a slot), never itself
 //   TW-8  [page] in The Common a peer the server names walks beside the hero; a
 //         right-click on them opens the player menu under their name (Inspect
 //         gear, Message, Add friend, Invite to party, Block); the hero publishes
@@ -72,7 +74,7 @@ async function load(base) {
 
 /* ── THE SHARED FAKE SERVER: hr_load, hr_town_move, hr_town_walkers, with the server's own rules ── */
 function fakeWorld() {
-  const pos = new Map();   // uid -> { slot, map, x, y, gx, gy, dir }
+  const pos = new Map();   // 'uid:slot' -> { uid, slot, map, x, y, gx, gy, dir } (a walker is a CHARACTER)
   const names = new Map();
   const blocks = new Set();   // 'a|b'
   const calls = [];
@@ -81,14 +83,17 @@ function fakeWorld() {
       calls.push({ uid, name, args });
       if (name === 'hr_load') return { ok: true, body: Object.assign(townEnvelope(names.get(uid)), { version: 1 }) };
       if (name === 'hr_town_move') {
-        if (args.p_map === null) { pos.delete(uid); return { ok: true, body: { ok: true, left: true } }; }
-        pos.set(uid, { slot: args.p_slot, map: args.p_map, x: args.p_x, y: args.p_y, gx: args.p_gx, gy: args.p_gy, dir: args.p_dir });
+        if (args.p_map === null) { pos.delete(uid + ':' + args.p_slot); return { ok: true, body: { ok: true, left: true } }; }
+        pos.set(uid + ':' + args.p_slot, { uid, slot: args.p_slot, map: args.p_map, x: args.p_x, y: args.p_y, gx: args.p_gx, gy: args.p_gy, dir: args.p_dir });
         return { ok: true, body: { ok: true, stamped: true } };
       }
       if (name === 'hr_town_walkers') {
         const walkers = [];
-        for (const [id, p] of pos) {
-          if (id === uid || p.map !== args.p_map || blocks.has(uid + '|' + id) || blocks.has(id + '|' + uid)) continue;
+        /* 2026-10-28-town-own-characters.sql: the caller's OTHER characters are walkers too (no account
+           exclusion server-side); the client drops only its own character. */
+        for (const p of pos.values()) {
+          const id = p.uid;
+          if (p.map !== args.p_map || blocks.has(uid + '|' + id) || blocks.has(id + '|' + uid)) continue;
           walkers.push({ id, slot: p.slot, name: names.get(id), level: 7, role: 'healer', x: p.x, y: p.y, gx: p.gx, gy: p.gy, dir: p.dir, age_ms: 0 });
         }
         return { ok: true, body: { ok: true, map: args.p_map, cap: 40, walkers } };
@@ -139,6 +144,22 @@ async function pureRules(M) {
     blockedByTyler.add(ANDY);
     if (tt.walkers().some((w) => w.id === ANDY)) fail('TW-3 a blocked player is still among the walkers');
     blockedByTyler.delete(ANDY);
+    // TW-9 (Tyler 2026-10-19): one account, two characters playing: each sees the other, never itself.
+    {
+      const w9 = fakeWorld();
+      w9.names.set(TYLER, 'Tyler');
+      const mk = (slot) => new M.town.TownPresence({ server: w9.link(TYLER), slot, self: () => TYLER,
+        timers: { setTimer: () => 0, clearTimer: () => {} } });
+      const t0 = mk(0), t1 = mk(1);
+      t0.show('town_common'); t1.show('town_common');
+      t0.publish(at(10, 9)); t1.publish(at(14, 9));
+      await settle();
+      await t0.read(); await t1.read();
+      const by0 = t0.walkers(), by1 = t1.walkers();
+      if (by0.length !== 1 || by0[0].slot !== 1 || by1.length !== 1 || by1[0].slot !== 0)
+        fail('TW-9 one account\'s two characters do not see each other: slot 0 sees ' + JSON.stringify(by0.map((x) => x.slot)) + ', slot 1 sees ' + JSON.stringify(by1.map((x) => x.slot)));
+      t0.destroy(); t1.destroy();
+    }
     // TW-4
     const before = world.calls.length;
     ta.show(null);
@@ -150,7 +171,7 @@ async function pureRules(M) {
     if (ta.walkers().length) fail('TW-4 a presence off the town still lists walkers');
     T.close(0);
     await settle();
-    if (world.pos.has(TYLER)) fail('TW-4 closing a character left its body in town');
+    if (world.pos.has(TYLER + ':0')) fail('TW-4 closing a character left its body in town');
   }
   // TW-2 and TW-4 (in flight) on one presence with a clock
   {
@@ -318,7 +339,8 @@ const PURE_MUTANTS = [
   ['the publish is not capped', 'src/session/town-presence.js', '    if (since < this.limits.publishMinMs) return false;\n', ''],
   ['standing still never keeps alive', 'src/session/town-presence.js', ' && !(keepalive || since >= this.limits.keepaliveMs)) return false;', ') return false;'],
   ['a blocked player stays drawn', 'src/session/town-presence.js', 'return this._walkers.filter((w) => !this._hidden(w.id));', 'return this._walkers.slice();'],
-  ['your own account is a walker', 'src/session/town-presence.js', "if (!w || w.id === self || seen.has(w.id)) continue;", 'if (!w || seen.has(w.id)) continue;'],
+  ['your own character is a walker', 'src/session/town-presence.js', "if ((w.id === self && w.slot === this._slot) || seen.has(key)) continue;", 'if (seen.has(key)) continue;'],
+  ['your other character is hidden with you', 'src/session/town-presence.js', "if ((w.id === self && w.slot === this._slot) || seen.has(key)) continue;", 'if (w.id === self || seen.has(key)) continue;'],
   ['leaving sends nothing', 'src/session/town-presence.js', '    if (!this._out) return;\n', '    return;\n'],
   ['a leave is not sent after an in-flight publish', 'src/session/town-presence.js', 'if (this._dead || this._map !== p.map) this._leave(); else this._sent = p;', 'this._sent = p;'],
   ['a stale list still shows people', 'src/session/town-presence.js', ' || this._now() - this._readAt > this.limits.staleMs', ''],

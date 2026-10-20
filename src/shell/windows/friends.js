@@ -5,8 +5,8 @@
 // only what hr_social_state answered: names, online, and "Hunting in <ground>"
 // or "In town" — told only to accepted friends. Rows carry data-hs-player, so
 // a right-click (or a long press) opens the same player menu as anywhere; the
-// row's own Message button runs that menu's entry (src/shell/menu-providers.js),
-// never a copy of its logic; Invite to party is the menu's alone (PARTY_SPEC §2).
+// row's own Message and Invite to party buttons run that menu's entries
+// (src/shell/menu-providers.js), never a copy of their logic.
 //   Add a friend   by claimed name (the server resolves it; a block refuses it)
 //   Asks for you   Accept / Decline
 //   Your asks      Withdraw
@@ -52,13 +52,20 @@ renderFriends.patch = function patchFriends(body, ctx) {
   rows(body.querySelector('.hf-list.is-friends'), f.friends(), {
     key: (p) => p.id,
     build: (p) => element(ctx.doc, '<li class="hf-row"' + personAttrs(p) + '><span class="hf-dot"></span><b class="hf-who"></b><small class="hf-doing"></small>'
-      + '<span class="hf-acts"><button type="button" class="hh-tool" data-hs-act="run" data-entry="message">Message</button></span></li>'),
+      + '<span class="hf-acts"><button type="button" class="hh-tool" data-hs-act="run" data-entry="message">Message</button>'
+      + '<button type="button" class="hh-tool" data-hs-act="run" data-entry="party-invite">Invite to party</button></span></li>'),
     patch: (el, p) => {
       text(el.querySelector('.hf-who'), p.name);
       text(el.querySelector('.hf-doing'), doingWords(p));
       cls(el, 'is-online', p.online);
-      const list = entriesFor({ kind: 'player', id: p.id, name: p.name, slot: null }, menuProvidersOf(ctx)).map((e) => e.id);
-      for (const b of el.querySelectorAll('[data-entry]')) prop(b, 'disabled', st.pending || !list.includes(b.getAttribute('data-entry')));
+      const list = entriesFor({ kind: 'player', id: p.id, name: p.name, slot: null }, menuProvidersOf(ctx));
+      for (const b of el.querySelectorAll('[data-entry]')) {
+        const e = list.find((x) => x.id === b.getAttribute('data-entry'));
+        /* The menu's own entry, its words and state ("Party full" off); hidden where the menu hides it. */
+        prop(b, 'hidden', !e);
+        prop(b, 'disabled', st.pending || !e || !!e.off);
+        if (e) text(b, e.label);
+      }
     },
   });
   rows(body.querySelector('.hf-list.is-in'), f.incoming(), {

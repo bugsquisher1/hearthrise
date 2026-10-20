@@ -5,7 +5,7 @@
 //   node tests/party-flow.mjs            the guard (every arm)
 //   node tests/party-flow.mjs --mutate   every planted defect must be CAUGHT by its arm
 //
-// mutant-anchors: supabase/migrations/2026-10-28-party-flow.sql supabase/migrations/2026-10-29-party-security.sql
+// mutant-anchors: supabase/migrations/2026-10-28-party-flow.sql supabase/migrations/2026-10-29-party-security.sql supabase/migrations/2026-10-30-party-invite-player.sql supabase/migrations/2026-10-30-town-activity-yields.sql src/shell/menu-providers.js
 // mutant-writes-tree: no — each mutant is the migration text patched in memory and applied inside a rolled-back transaction
 //
 // Ships with supabase/migrations/2026-10-28-party-flow.sql (PARTY_SPEC.md,
@@ -42,12 +42,20 @@
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { bootReplay, inventory, ROOT } from './schema-replay.mjs';
 import { isMain } from './_is-main.mjs';
 
 const MUTATE = process.argv.includes('--mutate');
+/* The real client modules PF-MENU drives (the town walker reader, the menu, its providers). */
+const client = (f) => import(pathToFileURL(join(ROOT, f)).href);
+const CLIENT = { TP: await client('src/session/town-presence.js'), MP: await client('src/shell/menu-providers.js'), CM: await client('src/shell/context-menu.js') };
 const FILE = '2026-10-28-party-flow.sql';
 const SEC = '2026-10-29-party-security.sql';
+const INV = '2026-10-30-party-invite-player.sql';
+const TOWN = '2026-10-30-town-activity-yields.sql';
+/* 2026-10-28-hunt-enter-after-stamina.sql restates hr_hunt_enter_for between SEC and INV; TOWN pins its image. */
+const STAM = '2026-10-28-hunt-enter-after-stamina.sql';
 const SRC = (f = FILE) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
 const U = ['000000c0-0000-4000-8000-0000000f1001', '000000c0-0000-4000-8000-0000000f1002', '000000c0-0000-4000-8000-0000000f1003'];
 const [A, B, C] = U;
@@ -255,16 +263,16 @@ const ARMS = {
     /* Idempotence is a property of the files over the state THEY produced (hunt-sessions-db C1, the same move):
        a later file may restate a body these write (2026-10-28-hunt-enter-after-stamina.sql restates
        hr_hunt_enter_for), and a chain-END re-apply of these would correctly put their own body back. So the
-       chain is booted to SEC, the later of the two. On the full chain (no later file) it is the same chain. */
+       chain is booted to TOWN, the last of these, and STAM (which restates hr_hunt_enter_for between them) re-applies in its place. */
     void chainDb;
-    const { db } = await bootReplay({ upTo: SEC });
+    const { db } = await bootReplay({ upTo: TOWN });
     const snap = async () => JSON.stringify([await inventory(db),
       (await db.query(`select p.oid::regprocedure::text f, md5(p.prosrc) h, coalesce(p.proacl::text, '') a from pg_proc p
                        where p.pronamespace = 'public'::regnamespace order by 1`)).rows,
       (await db.query('select proname, identity_args, grantee, note from public.hr_client_rpc_baseline order by 1, 2, 3')).rows]);
     const before = await snap();
     /* Both files, in their order: the security file restates bodies the flow file also writes. */
-    for (const f of [FILE, SEC]) {
+    for (const f of [FILE, SEC, STAM, INV, TOWN]) {
       try { await db.exec(SRC(f)); } catch (e) { return ['the second apply of ' + f + ' RAISED: ' + String(e.message).split('\n')[0]]; }
     }
     const same = before === await snap();
@@ -331,6 +339,64 @@ const ARMS = {
     return p;
   },
 
+  /* LIVE v0.2.11: right-clicking an unnamed player ("Adventurer") offered no Invite to party. The target is
+     built the way the game builds it: hr_town_walkers' REAL answer on this chain -> walkerOf -> the town scene's
+     ref.player -> worldTargetOf -> the one menu; its press goes through the real party-intents to the real RPC. */
+  'PF-MENU': async (db) => {
+    const p = [];
+    await world(db);
+    await db.query("update public.profiles set display_name = null where id = $1", [B]);
+    await db.query("update public.hr_flags set enabled = true where key = 'town_presence'");
+    await db.query("insert into public.town_positions (user_id, slot, map_id, x, y, gx, gy, dir, at) values ($1, 0, 'town_common', 3, 3, 3, 3, 's', now()) on conflict (user_id) do update set at = now()", [B]);
+    const walkers = await as(db, A, "select public.hr_town_walkers('town_common')");
+    const raw = (walkers && walkers.walkers || []).find((w) => w.id === B);
+    if (!raw) return ['HARNESS: hr_town_walkers did not list B: ' + JSON.stringify(walkers).slice(0, 200)];
+    const w = CLIENT.TP.walkerOf(raw);
+    const target = CLIENT.MP.worldTargetOf({ hits: [{ id: 'walker', ref: { player: { id: w.id, name: w.name, slot: w.slot } } }] });
+    let state = await one(db, 'select public.hr_state_of($1, 0)', [A]);
+    const cs = { slot: 0, status: 'ready', read: (k) => (state ? state[k] : undefined), load: async () => { state = await one(db, 'select public.hr_state_of($1, 0)', [A]); },
+      inviteByName: async () => ({ ok: false, error: 'by_name' }) };
+    const server = { rpc: async (name, args) => {
+      const keys = Object.keys(args);
+      const body = await as(db, A, `select public.${name}(${keys.map((k, i) => `${k} => $${i + 1}`).join(', ')})`, keys.map((k) => args[k]));
+      return { ok: true, status: 200, body };
+    } };
+    const ctx = { account: { userId: A, server, social: null, characters: () => [cs], character: () => cs }, character: cs, peers: () => [cs] };
+    const entries = () => CLIENT.CM.entriesFor(target, CLIENT.MP.menuProvidersOf(ctx));
+    const e = entries().find((x) => x.id === 'party-invite');
+    if (target.name !== 'Adventurer' || !e || e.off) return [...p, 'the unnamed town peer ' + JSON.stringify(target) + ' gets ' + JSON.stringify(entries().map((x) => x.id))];
+    const said = await e.run(target, {});
+    if (!(await partyOf(db, A)) || Number(await one(db, 'select count(*) from public.hunt_party_invites where to_user = $1', [B])) !== 1) {
+      p.push('the menu press did not invite B: ' + JSON.stringify(said));
+    }
+    /* Hidden across a block; "Party full" and off when the party has no seat. */
+    await db.query('insert into public.chat_blocks (blocker_id, blocked_id) values ($1, $2)', [B, A]);
+    const blocks = { has: (id) => id === B };
+    ctx.account.social = { blocks, menuProviders: () => ({}), isSelf: () => false };
+    if (entries().some((x) => x.id === 'party-invite')) p.push('Invite to party shows across a block');
+    ctx.account.social = null;
+    await db.query('delete from public.chat_blocks where blocker_id = $1', [B]);
+    await db.query('update public.hunt_parties set max_size = 1 where id = $1', [await partyOf(db, A)]);
+    await cs.load();
+    const full = entries().find((x) => x.id === 'party-invite');
+    if (!full || !full.off || full.label !== 'Party full') p.push('a full party shows ' + JSON.stringify(full));
+    return p;
+  },
+
+  /* LIVE v0.2.11 "busy in town": a gathering member does not hold the start back; its activity yields. */
+  'PF-TOWN': async (db) => {
+    const { hunt } = await world(db);
+    const p = [];
+    await invite(db, A, 'Flow B');
+    await accept(db, B);
+    const g = await one(db, "select activity_id from public.hr_activities where kind = 'gather' order by req_lv nulls first, activity_id limit 1");
+    await db.query("update public.player_state set active_kind = 'gather', active_id = $2, active_since = now() where user_id = $1 and slot = 0", [B, g]);
+    const st = await start(db, A, hunt);
+    if (err(st) !== 'ok' || st.entered !== 2) p.push('a gathering member held the start back: ' + JSON.stringify(st));
+    if (!(await one(db, "select count(*)::int from public.player_ledger where user_id = $1 and intent = 'activity_yield'", [B]))) p.push('the yield was not journalled');
+    return p;
+  },
+
   'PF-M8': async (db) => {
     const names = ['hr_party_create', 'hr_party_invite', 'hr_party_accept', 'hr_party_kick', 'hr_party_leave', 'hr_party_hunt_stop'];
     const left = (await db.query(`select proname from pg_proc where pronamespace = 'public'::regnamespace and proname = any ($1)
@@ -357,22 +423,23 @@ const ARMS = {
 
 /* Each mutant: [find, replace] in the migration, the arm that must go red. Its §7 is made an uncalled function. */
 const MUTANTS = [
-  /* The invite that runs is the security file's restatement: its mutants plant there (file: SEC). */
-  { arm: 'PF-INVITE', file: SEC, why: 'the first invite needs a party made first',
-    find: '      v_pid := public.hr_party_open(v_uid, p_slot);\n    end if;\n    select * into v_p',
-    repl: "      return public.hr_note_rejection('hunt_party_invite', p_slot, jsonb_build_object('ok', false, 'error', 'no_party'));\n    end if;\n    select * into v_p" },
+  /* The invite body that runs is 2026-10-30-party-invite-player.sql's hr_party_invite_core: its mutants plant there. */
+  { arm: 'PF-INVITE', file: INV, why: 'the first invite needs a party made first',
+    find: '      v_pid := public.hr_party_open(p_uid, p_slot);\n    end if;\n    select * into v_p',
+    repl: "      return jsonb_build_object('ok', false, 'error', 'no_party');\n    end if;\n    select * into v_p" },
   { arm: 'PF-OWN', why: 'an own character is not seated',
     find: '  perform public.hr_party_seat_into(v_pid, p_user, p_other);', repl: '  perform 1;' },
-  { arm: 'PF-OWN', why: 'a ground-less party matches any hunt',
+  /* hr_hunt_enter_for and hr_hunt_party_start run as 2026-10-30-town-activity-yields.sql restates them. */
+  { arm: 'PF-OWN', file: TOWN, why: 'a ground-less party matches any hunt',
     find: '    if v_p.hunt_id is distinct from p_hunt then\n      return jsonb_build_object(\'ok\', false, \'error\', \'party_hunt_mismatch\'',
     repl: '    if v_p.hunt_id <> p_hunt then\n      return jsonb_build_object(\'ok\', false, \'error\', \'party_hunt_mismatch\'' },
   { arm: 'PF-DISBAND', why: 'the party is disbanded mid-hunt',
     find: "  if exists (select 1 from public.hunt_sessions h where h.instance_id = v_pid and h.ended_at is null) then\n    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'party_hunting')); end if;\n  delete from public.hunt_party_invites where party_id = v_pid;",
     repl: '  delete from public.hunt_party_invites where party_id = v_pid;' },
-  { arm: 'PF-START', why: 'the start marches an away member in',
+  { arm: 'PF-START', file: TOWN, why: 'the start marches an away member in',
     find: '      if v_m.user_id <> v_uid and public.hr_party_away(v_m.user_id, v_m.slot, v_m.joined_at) then',
     repl: '      if false then' },
-  { arm: 'PF-START', why: 'the start never writes the leader\'s ground',
+  { arm: 'PF-START', file: TOWN, why: 'the start never writes the leader\'s ground',
     find: '    update public.hunt_parties set hunt_id = p_hunt where id = v_pid and hunt_id is distinct from p_hunt;', repl: '    perform 1;' },
   { arm: 'PF-KEEP', why: 'the sweep drops a seat the moment it is away',
     find: "returns interval language sql immutable set search_path = public, pg_catalog as $$ select interval '10 minutes' $$;",
@@ -390,6 +457,8 @@ const MUTANTS = [
 
 /* Security's reopen must-fixes (2026-10-29-party-security.sql). */
 MUTANTS.push(
+  { arm: 'PF-TOWN', file: TOWN, why: 'a gathering member refuses the start',
+    find: "  if v_st.active_kind in ('gather', 'artisan', 'training') then", repl: '  if false then' },
   { arm: 'PF-LISTED', file: SEC, why: 'the finder’s Join seats in an unlisted party',
     find: "  if p_need_listed and not v_p.listed then return jsonb_build_object('ok', false, 'error', 'not_listed'); end if;\n", repl: '' },
   { arm: 'PF-LISTED', file: SEC, why: 'the finder lists unlisted parties',
@@ -397,8 +466,8 @@ MUTANTS.push(
   { arm: 'PF-BLOCK', file: SEC, why: 'a join or an accept ignores a member’s block',
     find: "  if exists (select 1 from public.hunt_party_members m where m.party_id = p_party and m.user_id <> p_uid\n               and public.hr_social_blocked(p_uid, m.user_id)) then",
     repl: '  if false then' },
-  { arm: 'PF-BLOCK', file: SEC, why: 'an invite ignores a member’s block',
-    find: 'and m.user_id <> v_t.user_id and public.hr_social_blocked(v_t.user_id, m.user_id))) then', repl: 'and false)) then' },
+  { arm: 'PF-BLOCK', file: INV, why: 'an invite ignores a member’s block',
+    find: 'and m.user_id <> p_t_user and public.hr_social_blocked(p_t_user, m.user_id))) then', repl: 'and false)) then' },
   { arm: 'PF-KICK-HUNT', file: SEC, why: 'a kicked hunter keeps hunting and sharing',
     find: '  if v_s.id is not null and v_s.instance_id = v_pid then\n    v_leaving := true;', repl: '  if false then\n    v_leaving := true;' },
 );
@@ -433,8 +502,8 @@ async function main() {
     process.exit(bad ? 1 : 0);
   }
   /* The control: both files re-applied in order, self-checks off, nothing planted: every mutant's arm stays green. */
-  const base = { [FILE]: selfCheckOff(SRC(FILE)), [SEC]: selfCheckOff(SRC(SEC)) };
-  const prelude = (b) => b[FILE] + '\n' + b[SEC];
+  const base = { [FILE]: selfCheckOff(SRC(FILE)), [SEC]: selfCheckOff(SRC(SEC)), [INV]: selfCheckOff(SRC(INV)), [STAM]: selfCheckOff(SRC(STAM)), [TOWN]: selfCheckOff(SRC(TOWN)) };
+  const prelude = (b) => [FILE, SEC, STAM, INV, TOWN].map((f) => b[f]).join('\n');
   let missed = 0;
   for (const arm of new Set(MUTANTS.map((m) => m.arm))) {
     const p = await runArm(db, arm, prelude(base));

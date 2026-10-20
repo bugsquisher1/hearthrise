@@ -36,7 +36,7 @@ import { huntOf, settingsOf } from '../../session/hunt-sections.js?v=0.2.15';
 import { bagOf, rulesOf } from '../../session/item-sections.js?v=0.2.15';
 import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.15';
 import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.15';
-import { startPartyHunt } from '../../session/party-intents.js?v=0.2.15';
+import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.15';
 import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.15';
 import { whole } from '../../render/format.js?v=0.2.15';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.15';
@@ -184,7 +184,8 @@ renderHunts.act = function actHunts(ctx, body, action, ev, t) {
     sc.pick = hunt;
     const s = settingsOf(cs);
     const lines = packFor(bagOf(cs), rulesOf(cs));
-    runIntent(sc, repaint, () => cs.enterHunt(hunt, lines, s ? s.preset : 0), 'Setting off for ' + huntName(hunt) + '…', (res) => { sc.enterMsg = 'On the way to ' + huntName(hunt) + '.' + (res && res.belowRange ? ' ' + ABOVE_LEVEL_WORDS : ''); return sc.enterMsg; });
+    /* A town activity never blocks a hunt: the engine settles it first (what it earned is paid), then Enter. */
+    runIntent(sc, repaint, () => settleTownActivity(cs).then(() => cs.enterHunt(hunt, lines, s ? s.preset : 0)), 'Setting off for ' + huntName(hunt) + '…', (res) => { sc.enterMsg = 'On the way to ' + huntName(hunt) + '.' + (res && res.belowRange ? ' ' + ABOVE_LEVEL_WORDS : ''); return sc.enterMsg; });
     return true;
   }
   return false;

@@ -6,7 +6,7 @@
 //   node tests/rpc-execute-surface.mjs --selftest  every planted defect must be caught
 //   node tests/rpc-execute-surface.mjs --write     re-pin after a REVIEWED surface change
 //
-// mutant-anchors: supabase/migrations/2026-10-28-reopen-rpc-sweep.sql
+// mutant-anchors: supabase/migrations/2026-10-30-reopen-rpc-sweep.sql
 //
 // ── THE FAILURE THIS KILLS (Security review, 2026-10-19) ─────────────────────
 // hr_claim_rank paid up to 1,000,000 gold per character by a direct update,
@@ -27,7 +27,7 @@
 //                 a grant with no approval is grant hygiene's red, asked again).
 //   S3 retired    no function named in RETIRED exists at all, whatever the pin
 //                 says — `--write` cannot re-admit a retired money claim.
-//   S4 re-apply   2026-10-28-reopen-rpc-sweep.sql applied a SECOND time leaves the
+//   S4 re-apply   2026-10-30-reopen-rpc-sweep.sql applied a SECOND time leaves the
 //                 surface and hr_rpc_gate's body byte-identical.
 //
 // Exit: 0 green · 1 red · 2 harness problem.
@@ -37,11 +37,11 @@ import { join } from 'node:path';
 import { bootReplay, LAST_PATCHED, ROOT } from './schema-replay.mjs';
 import { isMain } from './_is-main.mjs';
 
-const FIX = '2026-10-28-reopen-rpc-sweep.sql';
+const FIX = '2026-10-30-reopen-rpc-sweep.sql';
 const PIN = join(ROOT, 'tests', 'rpc-execute-surface.baseline.json');
 const ROLES = ['anon', 'authenticated', 'hr_engine', 'hr_tick'];
 
-/* Retired with 2026-10-28-reopen-rpc-sweep.sql (wrapper AND __ungated body).
+/* Retired with 2026-10-30-reopen-rpc-sweep.sql (wrapper AND __ungated body).
    Bringing one back is a design decision that edits THIS list, in review. */
 const RETIRED = [
   'hr_claim_rank', 'hr_claim_milestone', 'hr_claim_quest', 'hr_claim_daily',

@@ -52,6 +52,7 @@ function withSections(env, o = {}) {
   env.character_sheet = { level: 21, max_hp: 24, bestiary: { slain: 7, total: 119 }, fresh: o.fresh !== false,
     combat: o.fresh === false ? null : Object.assign(clone(COMBAT), o.combat || {}), computed_at: '2026-10-18T10:00:00Z' };
   if (o.dropMana && env.character_sheet.combat) delete env.character_sheet.combat.max_mana;
+  if (o.dropMana && env.hunt && env.hunt.hero) delete env.hunt.hero.mana_max;
   env.outfit = { worn: 'berserker', colors: {}, owned: ['knight', 'berserker', 'ranger', 'sorcerer', 'druid'] };
   env.death_log = [{ id: 901, at: '2026-10-18T09:30:00Z', hunt: 'mill_cellar', monster: 'rat_king', xp: 140, xp_lost: { level: 90, melee: 50 } },
     { id: 877, at: '2026-10-17T20:00:00Z', hunt: 'mill_cellar', monster: 'rat', xp: 0, xp_lost: null }];
@@ -177,6 +178,9 @@ async function checks(overrides, shots) {
         if (!/7 of 119 creatures slain/.test(words)) fails.push('CW-2 the bestiary line is missing');
         const combatSkills = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="character"] .hw-skill-name')).map((b) => b.textContent));
         if (!combatSkills.includes('Melee') || combatSkills.includes('Attack') || combatSkills.includes('Mining')) fails.push('CW-6 the Character window\'s skills are ' + combatSkills.join(','));
+        /* CW-6b (Tyler 10-19: "Oak Wand (staff)"): a wand reads (wand), a staff (staff), a spellbook (spellbook). */
+        const magic = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="character"] .hw-skill')).map((li) => li.textContent).find((t) => /^\s*Magic/.test(t)) || '');
+        if (!/Oak Wand \(wand\)/.test(magic) || !/Oak Staff \(staff\)/.test(magic) || !/Spellbook \(spellbook\)/.test(magic)) fails.push('CW-6 the magic unlock words are wrong: ' + JSON.stringify(magic));
         if (sheetAsks(s).length !== 1) fails.push('CW-3 one opening asked the engine ' + sheetAsks(s).length + ' time(s), not once');
         if (shots) await shot(page, 'character-1440x900-sheet');
         /* CW-2b: a new envelope replaces the numbers on the same node. */
@@ -235,8 +239,10 @@ async function checks(overrides, shots) {
         await push(page, s);
         await page.waitForTimeout(1000);
         const L = await lines(page);
-        for (const k of ['Damage', 'Hit chance', 'Critical chance', 'Defence', 'Max mana', 'Speed', 'Total']) if (k in L) fails.push('CW-3 a stale sheet still draws ' + k + ' = ' + L[k]);
+        for (const k of ['Damage', 'Hit chance', 'Critical chance', 'Defence', 'Speed', 'Total']) if (k in L) fails.push('CW-3 a stale sheet still draws ' + k + ' = ' + L[k]);
         if (L['Max health'] !== '24') fails.push('CW-3 the server-owned max health is gone with the stale sheet: ' + JSON.stringify(L));
+        /* Max mana is a vital like max health (Tyler 10-19): the server's hunt vitals carry it when the sheet is stale. */
+        if (L['Max mana'] !== '60') fails.push('CW-3 max mana went with the stale sheet instead of reading the server vitals: ' + JSON.stringify(L));
         if (sheetAsks(s).length !== 2) fails.push('CW-3 the opening plus a stale version asked the engine ' + sheetAsks(s).length + ' times, not 2');
         const ask = sheetAsks(s)[1];
         if (ask && Object.keys(ask.body).some((k) => !['slot', 'verb', 'intentId'].includes(k))) fails.push('CW-3 the sheet ask carries ' + JSON.stringify(ask.body));
@@ -292,7 +298,10 @@ async function checks(overrides, shots) {
 const MUTANTS = [
   ['the damage is derived in the browser', 'src/shell/windows/character/sheet.js', "c && c.damage ? c.damage.min + '–' + c.damage.max : null", "c && c.damage ? '1–' + (Math.floor(c.defence * 0.35) + 2) : null"],
   ['a stale sheet keeps the last numbers', 'src/session/character-sections.js', '    combat: s.fresh === true ? combatOf(s.combat) : null,', '    combat: (globalThis.__lc = s.fresh === true ? combatOf(s.combat) : (globalThis.__lc || null)),'],
-  ['an absent stat draws a zero', 'src/shell/windows/character/sheet.js', "line(root, '[data-vital=\"mana\"]', c && c.maxMana !== null ? whole(c.maxMana) : null);", "line(root, '[data-vital=\"mana\"]', whole((c && c.maxMana) || 0));"],
+  ['an absent stat draws a zero', 'src/shell/windows/character/sheet.js', "line(root, '[data-vital=\"mana\"]', manaMax !== null ? whole(manaMax) : null);", "line(root, '[data-vital=\"mana\"]', whole(manaMax || 0));"],
+  ['a wand reads (staff) again', 'src/data/item-uses.js', "  if (it.type === 'weapon') return WEAPON_WORD[roleWeaponOf(it)] || 'weapon';", "  if (it.type === 'weapon') return ({ magic: 'staff' })[it.weaponType] || WEAPON_WORD[it.weaponType] || 'weapon';"],
+  ['a spellbook reads (offhand)', 'src/data/item-uses.js', "  if (it.slot === 'shield' && it.discipline) return 'spellbook';\n", ''],
+  ['max mana only from the engine sheet', 'src/shell/windows/character/sheet.js', ': sh && sh.maxMana !== null ? sh.maxMana : v.manaMax;', ': null;'],
   ['a leech line the engine does not have', 'src/shell/windows/character/sheet.js', "const COMBAT = Object.freeze([['damage', 'Damage'],", "const COMBAT = Object.freeze([['leech', 'Life Leech'], ['damage', 'Damage'],"],
   ['the sheet is asked for every paint', 'src/shell/windows/character/index.js', "  if (!sh || sc.sheetAsking || v === null) return;\n  if (sc.opening !== 'due' && (sh.fresh || sc.sheetAsked === v)) return;", "  if (!sh) return;"],
   ['an opening never asks the engine', 'src/shell/windows/character/index.js', "if (sc.opening !== 'due' && (sh.fresh || sc.sheetAsked === v)) return;", "if (sh.fresh || sc.sheetAsked === v) return;"],

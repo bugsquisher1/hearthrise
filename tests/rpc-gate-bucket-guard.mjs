@@ -71,7 +71,7 @@ export async function rpcGateBucketGuard({ edit = null } = {}) {
   // ordered correctly.
   const events = [];             // { key:[fi,pos], type:'fulldef'|'splice', buckets:[], file }
   const callers = new Map();     // bucket -> [files that pass it]
-  // RETIRED CALLERS (2026-10-28-reopen-rpc-sweep.sql dropped ten claim RPCs and
+  // RETIRED CALLERS (2026-10-30-reopen-rpc-sweep.sql dropped ten claim RPCs and
   // their buckets). A bucket is owed admission only while a SURVIVING function
   // passes it. Each call is attributed to the nearest preceding `create function
   // public.<fn>` header in its file; it is dead only when a `drop function
@@ -205,7 +205,7 @@ export async function rpcGateBucketGuard({ edit = null } = {}) {
 
 /* --selftest: the retirement rule must not become a hiding place. Each mutation
    edits the chain IN MEMORY; every one must turn the guard red. */
-const RETIRING = '2026-10-28-reopen-rpc-sweep.sql';
+const RETIRING = '2026-10-30-reopen-rpc-sweep.sql';
 const SELFTEST = [
   { name: 'drop-line-removed',
     why: 'hr_claim_rank is no longer dropped, so its bucket is owed again and the gate refuses it',

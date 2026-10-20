@@ -37,7 +37,7 @@
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
 -- Re-apply the authoring files' bodies + grants + baseline rows and the
 -- character-sheet hr_rpc_gate. Nothing here deletes a player row.
--- ORDER: LAST in the chain (after 2026-10-19-access-add-0d959747.sql). No begin/commit.
+-- ORDER: LAST in the chain (after 2026-10-29-party-security.sql). No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS ─────────────────────────────────────────────────────────

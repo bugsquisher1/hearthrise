@@ -387,6 +387,16 @@ const ARMS = {
     return p;
   },
 
+  /* LIVE v0.2.11: characters made before the 2026-10-30 catalogue carry the old default pointer (gather /
+     shrimp_s), so a hunt end started fishing nobody chose. The town file clears it (run as planted: `prelude`). */
+  'PF-RESUME': async (db, prelude) => {
+    await world(db);
+    await db.query("update public.player_state set last_activity_kind = 'gather', last_activity_id = 'shrimp_s' where user_id = $1 and slot = 0", [A]);
+    await db.exec(prelude || SRC(TOWN));
+    const row = (await db.query('select last_activity_kind, last_activity_id from public.player_state where user_id = $1 and slot = 0', [A])).rows[0];
+    return row && row.last_activity_kind === null && row.last_activity_id === null ? [] : ['the old default resume pointer survived: ' + JSON.stringify(row)];
+  },
+
   'PF-M8': async (db) => {
     const names = ['hr_party_create', 'hr_party_invite', 'hr_party_accept', 'hr_party_kick', 'hr_party_leave', 'hr_party_hunt_stop'];
     const left = (await db.query(`select proname from pg_proc where pronamespace = 'public'::regnamespace and proname = any ($1)
@@ -447,6 +457,9 @@ const MUTANTS = [
 
 /* Security's reopen must-fixes (2026-10-29-party-security.sql). */
 MUTANTS.push(
+  { arm: 'PF-RESUME', file: TOWN, why: 'the old default resume pointer is kept',
+    find: "update public.player_state set last_activity_kind = null, last_activity_id = null\n where last_activity_kind = 'gather' and last_activity_id = 'shrimp_s';",
+    repl: 'select 1;' },
   { arm: 'PF-TOWN', file: TOWN, why: 'a gathering member refuses the start',
     find: "  if v_st.active_kind in ('gather', 'artisan', 'training') then", repl: '  if false then' },
   { arm: 'PF-LISTED', file: SEC, why: 'the finder’s Join seats in an unlisted party',
@@ -473,7 +486,7 @@ async function runArm(db, name, prelude) {
   await db.query('begin');
   try {
     if (prelude) await db.exec(prelude);
-    return await ARMS[name](db);
+    return await ARMS[name](db, prelude);
   } catch (e) { return ['HARNESS: ' + String(e.message).slice(0, 300)]; }
   finally { await db.query('rollback'); }
 }

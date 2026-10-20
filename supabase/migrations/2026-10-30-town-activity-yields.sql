@@ -233,6 +233,14 @@ revoke execute on function public.hr_hunt_party_start(int, text, uuid) from publ
 revoke execute on function public.hr_hunt_party_start(int, text, uuid) from anon, service_role;
 grant  execute on function public.hr_hunt_party_start(int, text, uuid) to authenticated;
 
+-- THE OLD DEFAULT RESUME POINTER (2026-10-27 catalogue: the column default 'gather' / 'shrimp_s'). The
+-- 2026-10-30 catalogue drops the default, but every character made before it still carries the pointer, so its
+-- next automatic hunt end would start fishing it never chose (Andy, live v0.2.11). No client since v0.2.0 can
+-- start gathering, so that pointer is the default's, not a choice: it is cleared. A resume pointer only; no value,
+-- no level, no item moves. Idempotent (a second apply finds none).
+update public.player_state set last_activity_kind = null, last_activity_id = null
+ where last_activity_kind = 'gather' and last_activity_id = 'shrimp_s';
+
 -- ── §3 SELF-CHECK (CLAUDE.md §4), EXECUTED, every probe rolled back ──────────
 do $$
 declare
@@ -289,6 +297,9 @@ begin
   end;
   perform set_config('request.jwt.claim.sub', '', true);
   if exists (select 1 from public.player_state where user_id = any (v_u)) then raise exception 'VERIFY(d): §3 LEAKED a probe row'; end if;
+  -- (e) no character still carries the old default pointer a hunt end would resume.
+  if exists (select 1 from public.player_state where last_activity_kind = 'gather' and last_activity_id = 'shrimp_s') then
+    raise exception 'VERIFY(e): a character still resumes the old default fishing'; end if;
   perform public.hr_assert_grant_hygiene(true);
   raise notice 'town-activity-yields: a town activity yields to a hunt, another hunt is named, a new character resumes nothing; all green';
 end $$;

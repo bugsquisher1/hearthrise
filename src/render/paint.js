@@ -15,7 +15,11 @@
 //   style(el, name, v)   one inline style property, skipped when equal
 //   rows(host, items, o) keyed rows: o.key(item) → string, o.build(item) → Element
 //                        (called once per new key), o.patch(el, item) (every time);
-//                        a key that left is removed; order follows `items`
+//                        a key that left is removed; order follows `items`.
+//                        o.keep: a row whose key left is kept aside and comes
+//                        back as the same node (its <img> is never fetched again)
+//   keyedChild(host, key, build)  host shows the ONE child for `key`, built once;
+//                        '' empties it; a key that comes back gets its old node
 //
 // writes() counts every DOM write this module made (tests read it to prove an
 // unchanged repaint writes nothing). PURE apart from the elements it is handed.
@@ -23,6 +27,7 @@
 
 let WRITES = 0;
 const KEYED = new WeakMap();
+const KEPT = new WeakMap();   // host -> Map(key -> a row or child that left, ready to come back)
 
 /** How many DOM writes this module has made since load (a test probe). */
 export function writes() { return WRITES; }
@@ -75,25 +80,28 @@ export function style(el, name, v) {
 
 /**
  * Keyed rows under `host`. Each row element is built once for its key and
- * patched in place afterwards; rows whose key left are removed.
+ * patched in place afterwards; rows whose key left are removed. With o.keep a
+ * removed row is kept and reused when its key returns, so only a list whose
+ * keys come from a catalogue (items, monsters, abilities) passes it.
  * @param {Element} host
  * @param {any[]} items
- * @param {{key:(i:any)=>string, build:(i:any)=>Element, patch:(el:Element,i:any)=>void}} o
+ * @param {{key:(i:any)=>string, build:(i:any)=>Element, patch:(el:Element,i:any)=>void, keep?:boolean}} o
  */
 export function rows(host, items, o) {
   if (!host) return;
   let held = KEYED.get(host);
   if (!held) { held = new Map(); KEYED.set(host, held); }
+  const kept = o.keep ? keptOf(host) : null;
   const next = new Map();
   for (const it of items) {
     const k = String(o.key(it));
     if (next.has(k)) continue;
-    let el = held.get(k);
+    let el = held.get(k) || (kept && kept.get(k));
     if (!el) { el = o.build(it); el.setAttribute('data-key', k); WRITES++; }
     o.patch(el, it);
     next.set(k, el);
   }
-  for (const [k, el] of held) if (!next.has(k)) { el.remove(); WRITES++; }
+  for (const [k, el] of held) if (!next.has(k)) { el.remove(); WRITES++; if (kept) kept.set(k, el); }
   let ref = host.firstElementChild;
   for (const el of next.values()) {
     if (el === ref) { ref = ref.nextElementSibling; continue; }
@@ -101,6 +109,33 @@ export function rows(host, items, o) {
     WRITES++;
   }
   KEYED.set(host, next);
+}
+
+function keptOf(host) {
+  let m = KEPT.get(host);
+  if (!m) { m = new Map(); KEPT.set(host, m); }
+  return m;
+}
+
+/**
+ * `host` shows the one child for `key` (build() runs once per key; '' empties
+ * the host). A key that comes back gets the node it had, so an icon that left
+ * for one envelope returns without a new image request. Keys are a catalogue's
+ * (a slot's action), so the nodes kept stay few.
+ * @param {Element} host
+ * @param {string} key
+ * @param {() => Element} build
+ */
+export function keyedChild(host, key, build) {
+  if (!host) return false;
+  const k = String(key || '');
+  const m = keptOf(host);
+  const el = k ? (m.get(k) || build()) : null;
+  if (el) m.set(k, el);
+  if (el ? host.childNodes.length === 1 && host.firstChild === el : !host.firstChild) return false;
+  if (el) host.replaceChildren(el); else host.replaceChildren();
+  WRITES++;
+  return true;
 }
 
 /** One element from a markup string (a row's skeleton). */

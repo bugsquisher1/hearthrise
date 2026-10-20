@@ -14,7 +14,6 @@ import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.20';
 import { glyphSvg } from '../launcher.js?v=0.2.20';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.20';
 import { text, style, attr } from '../../render/paint.js?v=0.2.20';
-import { holdIcon } from '../../render/images.js?v=0.2.20';
 
 /** A gauge's skeleton: kind is hp | mana | stamina | xp. */
 export function gaugeHtml(kind, label) {
@@ -51,10 +50,9 @@ export function abilityName(id) { return id === 'basic' ? 'Basic attack' : (ABIL
 /** An element or damage type, as a word. */
 export function elementName(id) { return spelled(id); }
 
-/** An item's 32 px pixel icon at x2, or the glyph `fallback` when the id is not an item. Its image is held
-    (src/render/images.js), so rebuilding the icon never fetches the file again. */
+/** An item's 32 px pixel icon at x2, or the glyph `fallback` when the id is not an item. */
 export function itemIconHtml(glyphs, id, fallback) {
-  if (ITEMS[id]) return '<img class="hh-icon" src="' + esc(holdIcon(PIXEL_DIR + id + '.png')) + '" alt="" width="32" height="32" decoding="async">';
+  if (ITEMS[id]) return '<img class="hh-icon" src="' + esc(PIXEL_DIR + id + '.png') + '" alt="" width="32" height="32" decoding="async">';
   return '<span class="hh-icon is-glyph">' + glyphSvg(glyphs, fallback || (DRINK_ITEMS[id] ? 'uiPotion' : 'uiChest')) + '</span>';
 }
 
@@ -65,7 +63,7 @@ const ACTION_GLYPH = Object.freeze({ cleave: 'uiAxe', rend: 'uiBone', food: 'uiF
 export function actionIconHtml(glyphs, action) {
   const id = action && action.id;
   if (action && action.type === 'ability' && ABILITY_ART.includes(id)) {
-    return '<img class="hh-icon" src="' + esc(holdIcon(ABILITY_DIR + id + '.png')) + '" alt="" width="32" height="32" decoding="async">';
+    return '<img class="hh-icon" src="' + esc(ABILITY_DIR + id + '.png') + '" alt="" width="32" height="32" decoding="async">';
   }
   if (ITEMS[id]) return itemIconHtml(glyphs, id);
   return '<span class="hh-icon is-glyph">' + glyphSvg(glyphs, ACTION_GLYPH[id] || (action && action.type === 'ability' ? 'uiSpark' : 'uiChest')) + '</span>';

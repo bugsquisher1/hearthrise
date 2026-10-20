@@ -43,8 +43,9 @@
 //         weaker conditions marks it "!" with the reason; emptying it clears that
 //   HS-12 the bar carries no fight controls; Hunt settings no density, no gathering
 //   HS-13 no two hunt panels overlap at 1440x900 or on a narrower desktop
-//   HS-14 AN IMAGE LOADS ONCE: the bar rebuilt from an envelope without it and
-//         back fetches no image again; an atlas asked for twice is one image
+//   HS-14 AN IMAGE LOADS ONCE: five repaints, the bar leaving for an envelope and
+//         back, and a loot line leaving and back fetch no image (the cache is
+//         off here, so only a kept node passes); an atlas asked for thrice is one image
 //         (Coordinator QA 2026-10-20: 216 repeated image requests in a hunt)
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
@@ -182,25 +183,39 @@ async function checks(overrides, shots) {
         const missing = ids.filter((k) => !lines.includes(k));
         const dupes = lines.filter((k, i) => lines.indexOf(k) !== i);
         if (missing.length || dupes.length) fails.push('HS-6 combat log lines: missing [' + missing.join(',') + '] repeated [' + dupes.join(',') + ']');
-        /* HS-14: the server's bar leaves for one envelope and comes back, twice: the slots' icons are
-           rebuilt, and not one image is fetched again. An atlas asked for twice is ONE decoded image. */
+        /* HS-14: images load once. This page runs with the HTTP cache OFF (Playwright routes it), so any
+           new <img> is a request: (a) five envelopes with moving numbers, (b) the server's bar leaving for
+           one envelope and coming back, twice, (c) a loot line leaving and coming back, twice, all fetch
+           no image. Garbage is collected while each is gone, so nothing rides on what the browser held. */
         const pngs = [];
         const onReq = (q) => { if (/\.png(\?|$)/.test(q.url())) pngs.push(q.url().replace(base + '/', '')); };
         page.on('request', onReq);
-        const bar = s.env.hunt_settings;
-        /* Collect garbage while the bar is empty: an icon nothing holds any more is then truly gone,
-           so whether the rebuild refetches never depends on when the browser happened to collect. */
         const cdp = await page.context().newCDPSession(page);
+        const gc = async () => { await cdp.send('HeapProfiler.collectGarbage'); await page.waitForTimeout(100); };
+        for (let i = 0; i < 5; i++) { s.env.hunt_analyzer.hero.kills += 1; s.env.hunt_analyzer.hero.loot.rat_tail += 1; await pushEnvelope(page, s); }
+        const repaintPngs = pngs.length;
+        const bar = s.env.hunt_settings;
         let rebuilt = 0;
         for (let i = 0; i < 2; i++) {
           delete s.env.hunt_settings;
           await pushEnvelope(page, s);
           if (await wait(page, () => !document.querySelector('.hb-slot[data-slot="0"] img'), null, 3000)) rebuilt++;
-          await cdp.send('HeapProfiler.collectGarbage');
-          await page.waitForTimeout(100);
+          await gc();
           s.env.hunt_settings = bar;
           await pushEnvelope(page, s);
           await wait(page, () => !!document.querySelector('.hb-slot[data-slot="0"] img'), null, 3000);
+        }
+        const loot = s.env.hunt_analyzer.hero.loot;
+        const gel = loot.slime_gel;
+        let lootBack = 0;
+        for (let i = 0; i < 2; i++) {
+          delete loot.slime_gel;
+          await pushEnvelope(page, s);
+          const gone = await wait(page, () => !document.querySelector('[data-sec="loot"] .ha-line[data-key="slime_gel"]'), null, 3000);
+          await gc();
+          loot.slime_gel = gel;
+          await pushEnvelope(page, s);
+          if (gone && await wait(page, () => !!document.querySelector('[data-sec="loot"] .ha-line[data-key="slime_gel"] img'), null, 3000)) lootBack++;
         }
         const oneAtlas = await page.evaluate(async () => {
           const v = new URL(document.querySelector('script[type="module"]').src).searchParams.get('v');
@@ -211,7 +226,9 @@ async function checks(overrides, shots) {
         });
         page.off('request', onReq);
         if (rebuilt !== 2) fails.push('HS-14 the bar did not empty when the server sent none (' + rebuilt + '/2), so the rebuild was never exercised');
-        if (pngs.length) fails.push('HS-14 rebuilt icons fetched their images again: ' + pngs.join(', '));
+        if (lootBack !== 2) fails.push('HS-14 the slime gel loot line did not leave and come back (' + lootBack + '/2), so its return was never exercised');
+        if (repaintPngs) fails.push('HS-14 five repaints fetched images: ' + pngs.slice(0, repaintPngs).join(', '));
+        if (pngs.length > repaintPngs) fails.push('HS-14 an icon that left and came back fetched its image again: ' + pngs.slice(repaintPngs).join(', '));
         if (!oneAtlas) fails.push('HS-14 the hunt atlas asked for three times was not one decoded image');
         if (shots) {
           await page.screenshot({ path: join(shots, 'hunt-1440x900-log.png') });
@@ -531,7 +548,7 @@ async function checks(overrides, shots) {
 
 const MUTANTS = [
   ['the shell rebuilds a component on every paint', 'src/shell/shell.js', 'if (render.patch) render.patch(el, ctx);', 'if (render.patch) { el.innerHTML = render(ctx); render.patch(el, ctx); }'],
-  ['keyed rows rebuild every row', 'src/render/paint.js', 'let el = held.get(k);', 'let el = null;'],
+  ['keyed rows rebuild every row', 'src/render/paint.js', 'let el = held.get(k) || (kept && kept.get(k));', 'let el = null;'],
   ['a setting shows before the server confirms', 'src/shell/widgets/settings-intent.js', [["  attr(root, 'data-pending', true);\n", "  attr(root, 'data-pending', true);\n  root.__want = el;\n"],
     ["else if (key === 'stance') attr(el, 'aria-pressed', String(v === el.getAttribute('data-val')));", "else if (key === 'stance') attr(el, 'aria-pressed', String(pending ? root.__want === el : v === el.getAttribute('data-val')));"]]],
   ['controls stay on while an intent is in flight', 'src/shell/widgets/settings-intent.js', "prop(el, 'disabled', pending || v === null);", "prop(el, 'disabled', v === null);"],
@@ -551,7 +568,8 @@ const MUTANTS = [
   ['a blocked slot is not flagged', 'src/shell/action-facts.js', '      if (same || kind) {', '      if (false) {'],
   ['the modal docks instead of centring', 'src/shell/window-manager.js', "  const isModal = (id) => rows.get(id).modal === true;", "  const isModal = () => false;"],
   ['Hunt prep tells a player to buy first', 'src/shell/readiness.js', '      const st = storeOn ? storeOf(sl.action) : null;', '      const st = null;'],
-  ['a rebuilt icon fetches its image again', 'src/render/images.js', "  if (doc && typeof doc.createElement === 'function') hold(doc, src);\n", ''],
+  ['a slot that comes back builds a new icon', 'src/render/paint.js', '  const el = k ? (m.get(k) || build()) : null;', '  const el = k ? build() : null;'],
+  ['a loot line that comes back is built again', 'src/shell/widgets/analyzer.js', '    keep: true,\n', ''],
   ['an atlas is decoded once per caller', 'src/world/atlas.js', 'heldImage(o.doc, url(p.image)),', "heldImage(o.doc, url(p.image) + '&n=' + Math.random()),"],
   ['the bleed badge defaults on for regular monsters', 'src/data/combat-text.js', "label: 'Bleed stack count', on: on(false, true)", "label: 'Bleed stack count', on: on(true, true)"],
 ];

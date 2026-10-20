@@ -93,6 +93,7 @@
 //   PARTY      two characters in one party hunt ONE instance: one world, both
 //              paid, kills journalled each, gold split; a settle missing a
 //              member is refused member_set.
+//   PARTY-RESTART  a restarted instance (no world, a kept swing counter) settles on from it.
 //   PARTY-VIEW the real `party` section of a settled two-hero hunt, read by the
 //              client's own reader (src/session/hunt-sections.js partyOf), yields
 //              both members the party panel draws: unit (= the session's world
@@ -1210,6 +1211,18 @@ const DB_ARMS = {
     if (a.instance.world !== b.instance.world || a.instance.world_swing !== b.instance.world_swing) problems.push('the two members see two worlds');
     const units = new Set([a.session.unit, b.session.unit]);
     if (units.size !== 2 || units.has(null)) problems.push(`the members' units are ${[...units]}`);
+    return problems;
+  }),
+  /* PARTY-RESTART (live P1 2026-10-20): a party instance restarted after its last session ended keeps
+     its swing counter but no world; the first settle of the new hunt must count on from that counter
+     (the commit's CAS), not from 0 (session_moved on every fire, the hunt frozen). */
+  'PARTY-RESTART': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const h = await hunter(db, M, { party: [{ ...STRONG }, { ...STRONG }] });
+    await db.query('update public.hunt_instances set world = null, world_swing = 112 where id = $1', [h.inst]);
+    const r = await settleTo(db, M, h.from + 120000, { raw: true });
+    if (!r.res || r.res.ok !== true) problems.push(`a restarted instance's settle answered ${JSON.stringify(r.res || r.skipped).slice(0, 200)}`);
+    else if (!(Number(r.res.instance.world_swing) > 112)) problems.push(`the restarted world swing ${r.res.instance.world_swing} did not count on from 112`);
     return problems;
   }),
   'PARTY-VIEW': async (db, M) => inTx(db, async () => {

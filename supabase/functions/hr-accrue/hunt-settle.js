@@ -271,7 +271,8 @@ export async function readHuntSettle(o, mode) {
 export async function proposeHuntSettle(plan, toMs, attempt) {
   const { inst, members, where, fromMs } = plan;
   const out = accrueHunt({
-    instance: { id: String(inst.id), nextSwingAtMs: Number(inst.next_swing_at_ms), world: inst.world || null },
+    instance: { id: String(inst.id), nextSwingAtMs: Number(inst.next_swing_at_ms), world: inst.world || null,
+      worldSwing: Number(inst.world_swing) || 0 },
     window: { fromMs, toMs }, secret: String(inst.secret || ''),
     ground: where.ground, grid: where.grid, items: ITEMS, monsters: MONSTERS, members,
   });

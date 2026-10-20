@@ -19,8 +19,8 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { ITEMS } from './items.js?v=0.2.16';
-import { roleWeaponOf } from './hunt-roles.js?v=0.2.16';
+import { ITEMS } from './items.js?v=0.2.17';
+import { roleWeaponOf } from './hunt-roles.js?v=0.2.17';
 
 /* The ammo noun (the last word of the item's name) and what fires it. */
 const AMMO_FOR = Object.freeze({ arrows: 'bows', bolts: 'crossbows', rune: 'staves', runes: 'staves', whetstone: 'blades', whetstones: 'blades' });

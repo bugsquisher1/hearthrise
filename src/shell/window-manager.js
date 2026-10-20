@@ -31,7 +31,7 @@
 // size and a scheduler, so node drives every rule (tests/shell-core.mjs).
 // ════════════════════════════════════════════════════════════════════════
 
-import { keyBelongsToField } from '../utils/dom.js?v=0.2.16';
+import { keyBelongsToField } from '../utils/dom.js?v=0.2.17';
 
 export const MAX_OPEN = 3;
 export const DOCK_MAX = 0.6;

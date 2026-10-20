@@ -21,7 +21,7 @@
 // which the app turns into the set-new-password screen (onChange 'recovery').
 // ════════════════════════════════════════════════════════════════════════
 
-import { SESSION_CONFIG } from '../session/config.js?v=0.2.16';
+import { SESSION_CONFIG } from '../session/config.js?v=0.2.17';
 
 export const MIN_PASSWORD = 8;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

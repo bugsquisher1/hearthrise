@@ -7,11 +7,11 @@
 // character was re-read. "Ready in" and the "»" buttons of the reference are
 // NOT built (TB-03, TB-04: purpose unknown, Tyler 10-17).
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.16';
-import { huntOf, analyzerOf } from '../../session/hunt-sections.js?v=0.2.16';
-import { text, prop, attr } from '../../render/paint.js?v=0.2.16';
-import { clock } from '../../render/format.js?v=0.2.16';
-import { takeFresh } from '../../hunt-view/summary-recorder.js?v=0.2.16';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.17';
+import { huntOf, analyzerOf } from '../../session/hunt-sections.js?v=0.2.17';
+import { text, prop, attr } from '../../render/paint.js?v=0.2.17';
+import { clock } from '../../render/format.js?v=0.2.17';
+import { takeFresh } from '../../hunt-view/summary-recorder.js?v=0.2.17';
 
 /** The skeleton (built once). */
 export function renderHuntTopbar() {

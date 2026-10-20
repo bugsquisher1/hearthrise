@@ -156,12 +156,12 @@ export function simulateHuntInstance(inst, ctx) {
   const track = []; const worldEvents = [];
   /* Every unit's kind as it was seen (a corpse is cleared after corpseMs): the analyzer's 'taken by monster'. */
   const kinds = {};
-  /* THE PLAYBACK'S UNIT BOOK (visual only, never value): each monster seen this window as
+  /* THE PLAYBACK'S UNIT BOOK (visual only, never value): each unit (monster or hero) seen this window as
      [kind, maxHp, hp when first seen] (the window's start, or its spawn), so the client names,
      sizes and fills the bar of a unit it first meets mid-window or after the snapshot stopped
      listing it (a corpse played behind the server); the window's dmg/heal events move the bar. */
   const units = {};
-  const seen = () => { if (world) for (const u of world.units) { kinds[u.id] = u.kind; if (u.side === 'mon' && !units[u.id]) units[u.id] = [u.kind, u.maxHp, u.hp]; } };
+  const seen = () => { if (world) for (const u of world.units) { kinds[u.id] = u.kind; if (!units[u.id]) units[u.id] = [u.kind, u.maxHp, u.hp]; } };
   seen();
   /* ANCHORS (visual only): every unit standing at the window's first instant gets a step on its
      tile, so a unit that never moves inside a window is still placed by it (the track is moves). */

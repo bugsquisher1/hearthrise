@@ -74,9 +74,6 @@ export const PROJECTILE = Object.freeze({
   role: BOLT,
   flightMs: 220,
   lift: CHEST,
-  /* What src/hunt-view/scene.js reads today (one bolt, rangers only); dropped when it reads `ability`/`role`. */
-  fx: BOLT.ranger,
-  roles: Object.freeze(['ranger']),
 });
 
 export const CAST_FX = Object.freeze({
@@ -97,7 +94,7 @@ export function effectIds() {
   const out = new Set();
   const add = (r) => { if (r && r.fx) out.add(r.fx); };
   Object.values(EVENT_FX).forEach(add);
-  add(LOOT_FX); add(PROJECTILE);
+  add(LOOT_FX);
   for (const t of [HIT_FX.ability, HIT_FX.element, HIT_FX.role, PROJECTILE.ability, PROJECTILE.role]) for (const v of Object.values(t)) if (v) out.add(v);
   Object.values(CAST_FX.ability).forEach(add);
   Object.values(CAST_FX.role).forEach(add);

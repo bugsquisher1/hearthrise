@@ -23,7 +23,7 @@
 //      ONE walking step toward it (reconcile gently); it never teleports a unit
 //      that is mid-step and never rewrites a step already played.
 //   T6 the UNIT BOOK: each batch's `units` ({ id: [kind, maxHp, hp at the batch's start] },
-//      the settle answer's hunt_units) names and sizes a monster for as long as it plays, and its
+//      the settle answer's hunt_units) names and sizes a unit (a hero too) for as long as it plays, and its
 //      bar at the instant shown is that start HP moved by the dmg / heal events at or before the
 //      instant (hpAt): the HP of the moment drawn, never the snapshot's later number.
 //   T7 a step that does not move the unit (an anchor on the tile it already holds) adds nothing.

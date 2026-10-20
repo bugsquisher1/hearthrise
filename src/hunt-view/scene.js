@@ -151,11 +151,13 @@ export function createHuntScene(o) {
 
   function hit(ev, start) {
     const role = roleOf(ev.u);
-    const flies = PROJECTILE.roles.includes(role) && ev.ability !== 'cleave';
+    /* What flies before the hit lands: the ability's own row (null: it strikes where it stands), else the role's bolt. */
+    const bolt = Object.hasOwn(PROJECTILE.ability, ev.ability) ? PROJECTILE.ability[ev.ability] : PROJECTILE.role[role] || null;
+    const flies = !!bolt;
     const land = flies ? start + PROJECTILE.flightMs : start;
     if (flies) {
       const a = fixed(ev.u, start), b = fixed(ev.t, start);
-      if (a && b) addFx(PROJECTILE.fx, start, { x: a.x, y: a.y, tx: b.x, ty: b.y }, PROJECTILE.lift, PROJECTILE.flightMs, ev.u);
+      if (a && b) addFx(bolt, start, { x: a.x, y: a.y, tx: b.x, ty: b.y }, PROJECTILE.lift, PROJECTILE.flightMs, ev.u);
     }
     const id = HIT_FX.ability[ev.ability] || HIT_FX.element[ev.element] || HIT_FX.role[role] || null;
     addFx(id, land, at(ev.t), HIT_FX.lift);
@@ -248,20 +250,8 @@ export function createHuntScene(o) {
     }
     const hero = isHero(u);
     const m = read.heroes.get(u);
-    let alpha = 1, grey = 0, under = false;
-    const died = dead.get(u);
-    if (died !== undefined) {
-      if (p.moving) dead.delete(u);   // a unit the server walks again is not dead
-      else {
-        const age = now - died;
-        if (age >= SCENE_TIMING.corpseMs) return null;
-        if (age >= 0) {
-          grey = Math.min(1, age / SCENE_TIMING.deathFadeMs);
-          alpha = (1 - 0.45 * grey) * Math.min(1, (SCENE_TIMING.corpseMs - age) / SCENE_TIMING.corpseFadeMs);
-          under = true;
-        }
-      }
-    }
+    const sp = book.sprite(id);
+    const clips = sp.anims || {};
     /* Facing: the way it walks; standing, toward what it last swung at; else its last heading. */
     let hx = p.hx, hy = p.hy;
     const s = swing.get(u);
@@ -270,20 +260,35 @@ export function createHuntScene(o) {
       if (q && (q.x !== p.x || q.y !== p.y)) { hx = q.x - p.x; hy = q.y - p.y; }
     }
     const { dir, diag } = facingOf(hx, hy);
-    const sp = book.sprite(id);
-    const walk = sp.anims && sp.anims.walk;
+    let alpha = 1, grey = 0, under = false, corpse = null;
+    const died = dead.get(u);
+    if (died !== undefined) {
+      if (p.moving) dead.delete(u);   // a unit the server walks again is not dead
+      else {
+        const age = now - died;
+        if (age >= SCENE_TIMING.corpseMs) return null;
+        if (age >= 0) {
+          under = true;
+          /* VW-05: the sprite's own death clip, then its corpse frame; only art without them greys. */
+          corpse = corpseFrame(id, clips, dir, age);
+          if (!corpse) grey = Math.min(1, age / SCENE_TIMING.deathFadeMs);
+          alpha = (1 - 0.45 * grey) * Math.min(1, (SCENE_TIMING.corpseMs - age) / SCENE_TIMING.corpseFadeMs);
+        }
+      }
+    }
+    const walk = clips.walk;
     const moving = p.moving && !under && !!walk;
     /* VW-11: the walk frame advances with distance walked, at the clip's fps when moving at the playback speed. */
-    const frame = moving ? Math.floor((p.d * walk.fps * tl.tileMs) / 1000) : 0;
-    const anim = moving ? 'walk' : sp.anims && sp.anims.idle ? 'idle' : walk ? 'walk' : 'idle';
+    const frame = corpse ? corpse.frame : moving ? Math.floor((p.d * walk.fps * tl.tileMs) / 1000) : 0;
+    const anim = corpse ? corpse.anim : moving ? 'walk' : clips.idle ? 'idle' : walk ? 'walk' : 'idle';
     const f = flash.get(u);
     const out = { id, unit: u, x: p.x, y: p.y, anim, dir, diag, frame, alpha, grey, under,
       flash: !under && f !== undefined && now >= f && now - f < SCENE_TIMING.flashMs };
     if (!under) {
-      /* A monster's bar is its HP AT THE INSTANT SHOWN (timeline.js T6), the snapshot's only as a fallback. */
-      const played = hero || typeof tl.hpAt !== 'function' ? null : tl.hpAt(u, now);
-      const hp = hero ? m && m.hp : played ? played.hp : (read.units.get(u) || {}).hp;
-      const hpMax = hero ? m && m.hpMax : played ? played.maxHp : (read.units.get(u) || {}).hpMax;
+      /* Every bar is the HP AT THE INSTANT SHOWN (timeline.js T6: heroes too, so it moves live), the snapshot's only as a fallback. */
+      const played = typeof tl.hpAt !== 'function' ? null : tl.hpAt(u, now);
+      const hp = played ? played.hp : hero ? m && m.hp : (read.units.get(u) || {}).hp;
+      const hpMax = played ? played.maxHp : hero ? m && m.hpMax : (read.units.get(u) || {}).hpMax;
       const mana = hero && m ? m.mana : null, manaMax = hero && m ? m.manaMax : null;
       const hpPct = Number.isFinite(hp) && hpMax > 0 ? Math.max(0, Math.min(1, hp / hpMax)) : null;
       const mpPct = Number.isFinite(mana) && manaMax > 0 ? Math.max(0, Math.min(1, mana / manaMax)) : null;
@@ -294,13 +299,28 @@ export function createHuntScene(o) {
       if (hero && m && u !== read.viewed) {
         const who = Number.isInteger(m.seat) ? read.people.get(m.seat) : null;
         out.ref = { player: { id: who ? who.id : null, name: (who && who.name) || m.name, slot: who ? who.slot : null } };
-      } else if (!hero && (read.units.get(u) || {}).kind) out.ref = { monster: read.units.get(u).kind };
-      else if (isBoss(u)) out.plate = { text: (read.units.get(u) || {}).name || null, kind: 'foe' };
+      } else if (!hero) {
+        const kind = spriteOf(u);
+        if (kind) out.ref = { monster: kind };
+        if (isBoss(u)) out.plate = { text: (read.units.get(u) || {}).name || null, kind: 'foe' };
+      }
       if (out.plate && !out.plate.text) delete out.plate;
       const stacks = bleed.get(u) || 0;
       if (stacks > 0 && (hero || read.shown('bleed_badge', isBoss(u)))) out.badge = stacks;
     }
     return out;
+  }
+
+  /* VW-05: a corpse `age` ms old plays its sprite's death clip once, then lies as its corpse frame;
+     null when the art has neither (it greys instead). */
+  function corpseFrame(id, clips, dir, age) {
+    const d = clips.death;
+    if (d && d.fps) {
+      const n = book.frames(id, 'death', dir);
+      const i = Math.floor((age * d.fps) / 1000);
+      if (i < n || !clips.corpse) return { anim: 'death', frame: Math.min(i, n - 1) };
+    }
+    return clips.corpse ? { anim: 'corpse', frame: 0 } : null;
   }
 
   /**

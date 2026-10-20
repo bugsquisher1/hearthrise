@@ -14,13 +14,14 @@ Statuses: `contradicted` contradicts a ruling · `not_built` · `partial` · `co
 
 Add new questions at the top of this list as `- **Qnn** (date) question — context. → Answer:`
 
-- **Q05** (10-20, Bestiary) Existing kills: fold each account's current per-character kills into the new account-wide total once at apply (a small save migration), or start everyone at zero (progress is wiped at EA anyway)? → Answer:
-- **Q04** (10-20, Bestiary) The window lists only the 19 monsters that spawn on hunting grounds, not the whole roster. OK? → Answer:
-- **Q03** (10-20, Bestiary) Do field-champion relics (`champion: true` drop rows) count as relics for the Bestiary boost? Currently no; only `tier: 'relic'` rows. → Answer:
-- **Q02** (10-20, Bestiary) A monster with no relic: refuse the stage fee (current: refuses, `no_relic`) or still sell the stage? → Answer:
-- **Q01** (10-20, Pebblebrook) Replace the borrowed rare (Spider-Eye Studs) with a crayfish-themed rare once it has art? → Answer:
 
 ## Answered (newest first; all folded into memory rulings-of-record)
+
+- **Bestiary: no relic → refuse the stage fee?** → yes for now; the Bestiary will grow beyond relics later (Tyler 10-20)
+- **Bestiary: field-champion relics (`champion: true`) count?** → Tyler unsure; designer call: NO for now (only `tier: 'relic'` rows), revisit when the Bestiary expands
+- **Bestiary lists only the 19 monsters that spawn on hunting grounds** → fine (Tyler 10-20)
+- **Bestiary: fold existing per-character kills into the account total once** → yes, keep existing (Tyler 10-20)
+- **Pebblebrook: a crayfish-themed rare replaces the borrowed Spider-Eye Studs** → yes (Tyler 10-20)
 
 - **Hunt profit target** (+25–35% over the store supply bill): at the band's floor or across the band? → bottom of the band only (Tyler 10-20)
 - **Pebblebrook rare carrier gets a relic too?** → yes; the relic is named **Crystal Collar** (Tyler 10-20)

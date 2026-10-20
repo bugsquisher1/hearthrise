@@ -115,7 +115,7 @@ export async function play(root, only) {
     ['pebblebrook_bank', [['at the floor, solo melee at 25', 25, ['tank']], ['mid range, solo melee at 28', 28, ['tank']],
       ['at the top, solo melee at 32', 32, ['tank']], ['below range, solo melee at 18', 18, ['tank']]]],
   ];
-  console.log('  per hero per hour | kills/h (party) | deaths (30 min) | Level XP | skill XP | coin + commons (vendor bid) vs store gold = margin | rares | net');
+  console.log('  per hero per hour | kills/h (party) | deaths (whole span) | Level XP | skill XP | coin + commons (vendor bid) vs store gold = margin | rares | net');
   for (const [huntId, runs] of PLAN) {
     if (only && !only.includes(huntId)) continue;
     for (const [what, L, roles] of runs) {

@@ -89,6 +89,18 @@
 // rows are the game's shared tier-1 rows; unchanged). Below the range every hunt LOSES
 // gold (-36% to -45%). The coin is final in the rows: no engine multiplies it (DM-16).
 //
+// PEBBLEBROOK BANK (2026-10-19, Levels 25-32, solo first; workbook H-004 re-banded to close the Sewer-Warrens
+// gap). The Pebble Brook below the mill weir that feeds the mill race; the tannery upstream of Tanner's Ford
+// lets its pits drain in, and the crayfish grow fat on it. ONE FAMILY (Vermin: crush the shell, frost bites):
+// the Shingle Crayfish (the swarm, the common majority, basking on the pebble bar), the Tanpit Crayfish (the
+// bruiser, uncommon, out of the tan pits) and the Musselback Crayfish (the tank, rare: its mussel crust turns
+// a hammer, a blade finds the joints). DROPS (each: coin, junk, the imbuement material, equipment): the claw
+// (junk), the carapace plate (armour imbuements; sold until they open), and gear: the Shingle is the ground's
+// ONE RARE CARRIER (its lucky row, ~13 h a drop solo on this ground), the Tanpit a Boarhide Body, the Musselback a
+// Steel Platebody (normal drops, the band's own steel). ECONOMY, played on the real settle (forest-cave --play,
+// 5 seeds x 3 h, solo Melee, store-only supplies): Level 25 in iron +29% over the store bill; the steel step at
+// 30 makes the bank easy (Level 28 +234%, Level 32 almost no supplies), and Level 18 loses (-81%, dies).
+//
 // PARTY SCALING (BALANCE_RULINGS 2026-10-16, the party-size test): a fixed pack
 // is trivial for four heroes and lethal at the boss for one, so a pack's HP is
 // scaled by its instance's party size, `packScalePermille` below, on every ground

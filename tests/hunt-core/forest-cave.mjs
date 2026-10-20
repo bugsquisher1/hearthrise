@@ -16,7 +16,8 @@
 //
 // `--play` runs each ground ONCE on the real engine (supabase/functions/hr-accrue accrueHunt, the world
 // tick's settle): a fresh solo hero from the start kit in the forest, a four-hero party in the cave,
-// thirty sim-minutes each, and prints falls and gold against supplies. Evidence, not a gate.
+// thirty sim-minutes each (PLAY_MINUTES / PLAY_SEED override), and prints deaths and gold against supplies.
+// `--play pebblebrook_bank` plays one hunt. Evidence, not a gate.
 import { readFileSync, mkdtempSync, cpSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';

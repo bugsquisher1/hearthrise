@@ -36,6 +36,10 @@
 // party first waits for the save. Each line's facts say the pull size the
 // server spawns at that pick. The server keeps ONE pick per action set today,
 // not one per ground, so the note says it carries to the next hunt.
+// IN A PARTY THE LEADER CHOOSES (Tyler 2026-10-20): the leader's pick is the pull
+// for everyone; a member sees it read-only ("Set by <leader>: 7 each", the
+// server's `leader_density`) with no step, and the server refuses a member's
+// density (hr_action_set_options `not_leader`).
 // ════════════════════════════════════════════════════════════════════════
 import { huntOf, settingsOf } from '../../session/hunt-sections.js?v=0.2.20';
 import { bagOf, rulesOf } from '../../session/item-sections.js?v=0.2.20';
@@ -74,16 +78,18 @@ function levelOf(cs) {
 function densityOf(set, hunt, size) {
   const g = Object.values(HUNT_GROUNDS).find((x) => x.hunt === hunt);
   if (!set || !Number.isInteger(set.density) || !g) return null;
-  const max = densityFor(g, size, [DENSITY_PICK.max]);
-  return { now: densityFor(g, size, [set.density]), max };
+  const max = densityFor(g, size, DENSITY_PICK.max);
+  return { now: densityFor(g, size, set.density), max };
 }
 
-/* The density on screen: the unsaved draft while there is one, else the server's (both clamped to the ground). */
-function shownDensity(sc, set, hunt, size) {
+/* The density on screen: the unsaved draft while there is one, else the server's (both clamped to the ground).
+   A party member's is its leader's (the party section's leader_density), never its own. */
+function shownDensity(sc, set, hunt, size, party) {
+  if (party && !party.isLeader) return densityOf(Number.isInteger(party.density) ? { density: party.density } : null, hunt, size);
   const dn = densityOf(set, hunt, size);
   if (!dn || !sc.draft) return dn;
   const g = Object.values(HUNT_GROUNDS).find((x) => x.hunt === hunt);
-  return { now: densityFor(g, size, [sc.draft.n]), max: dn.max };
+  return { now: densityFor(g, size, sc.draft.n), max: dn.max };
 }
 
 /**
@@ -189,20 +195,23 @@ renderHunts.patch = function patchHunts(body, ctx) {
       cls(enter, 'hh-tool', !on);
       for (const b of li.querySelectorAll('button')) prop(b, 'disabled', sc.pending || !!now);
       if (follower) prop(enter, 'disabled', true);
-      const dn = shownDensity(sc, set, r.hunt, size);
+      const dn = shownDensity(sc, set, r.hunt, size, party);
       /* The pull size the server spawns at the shown pick (every line: the one pick carries to every ground). */
-      text(li.querySelector('.hw-hunt-facts'), heroWords(r) + ' · ' + densityWords(r, dn ? dn.now : null, size > 1));
+      text(li.querySelector('.hw-hunt-facts'), heroWords(r) + ' · ' + densityWords(r, dn ? dn.now : null));
       cls(li.querySelector('.hw-density'), 'is-on', on && !!dn);
+      for (const b of li.querySelectorAll('.hw-density [data-by]')) prop(b, 'hidden', follower);
       if (on && dn) {
         const val = li.querySelector('.hw-density .hh-step-val');
-        text(val, dn.now ? dn.now + ' each' : 'As built');
-        attr(val, 'data-pending', String(!!(sc.draft || sc.saving)));
+        const words = dn.now ? dn.now + ' each' : 'As built';
+        text(val, follower ? 'Set by ' + (party.leaderName || 'your leader') + ': ' + words : words);
+        attr(val, 'data-pending', String(!follower && !!(sc.draft || sc.saving)));
         /* The size it clamps for, named: alone, or this party's seat count (the settle's clamp). */
-        text(li.querySelector('.hw-density-note'), 'How many monsters each pull brings, up to ' + dn.max
-          + (size === 1 ? ' when you hunt alone.' : ' for your party of ' + size + '. In a party the smallest pick sets the pull; As built leaves it to the others.')
+        text(li.querySelector('.hw-density-note'), follower ? 'Your party leader sets how many monsters each pull brings.'
+          : 'How many monsters each pull brings, up to ' + dn.max
+          + (size === 1 ? ' when you hunt alone.' : ' for your party of ' + size + '. As the leader, your pick sets the pull for everyone.')
           + ' It stays set for your next hunts.');
-        prop(li.querySelector('[data-by="-1"]'), 'disabled', sc.pending || !!now || dn.now <= DENSITY_PICK.min);
-        prop(li.querySelector('[data-by="1"]'), 'disabled', sc.pending || !!now || dn.now >= dn.max);
+        prop(li.querySelector('[data-by="-1"]'), 'disabled', follower || sc.pending || !!now || dn.now <= DENSITY_PICK.min);
+        prop(li.querySelector('[data-by="1"]'), 'disabled', follower || sc.pending || !!now || dn.now >= dn.max);
       }
     },
   });
@@ -222,8 +231,10 @@ renderHunts.act = function actHunts(ctx, body, action, ev, t) {
     /* The number moves on the press; the save waits DENSITY_SAVE_MS for the next press (saveDensity). */
     const s = settingsOf(cs);
     const party = partyMembershipOf(cs);
+    /* A member's density is its leader's: there is nothing to press (the server refuses it too). */
+    if (party && !party.isLeader) return true;
     const size = party ? party.seats.length : 1;
-    const dn = shownDensity(sc, s, hunt, size);
+    const dn = shownDensity(sc, s, hunt, size, party);
     const n = dn ? dn.now + Number(t.getAttribute('data-by')) : NaN;
     if (!dn || sc.pending || !(n >= DENSITY_PICK.min && n <= dn.max)) return true;
     sc.msg = '';

@@ -47,6 +47,9 @@
 //         weaker conditions marks it "!" with the reason; emptying it clears that
 //   HS-12 the bar carries no fight controls; Hunt settings no density, no gathering
 //   HS-13 no two hunt panels overlap at 1440x900 or on a narrower desktop
+//   HS-14 THE LEADER CHOOSES (Tyler 2026-10-20): a party member's hunt picker shows
+//         the leader's density read-only ("Set by Fingerguns: 7 each", the server's
+//         leader_density) with no step and sends nothing; the leader keeps its step
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { launchOptions } from './_chrome.mjs';
@@ -497,6 +500,38 @@ async function checks(overrides, shots) {
       await ctx.close();
     }
 
+    { // HS-14 a party member's density is the leader's, read-only; the leader keeps its step
+      const { ctx, page, s, up } = await open({ town: true });
+      if (up) {
+        const seat = (n, name, weapon) => ({ unit: null, seat: n, hunting: false, name, level: 20, weapon });
+        s.env.party = { id: '0a47c0de-0000-4000-a000-00000000aa01', hunt: null, max: 4, open: true, listed: false, leader: null, self: null,
+          leader_seat: 1, self_seat: 0, leader_density: 7, members: [seat(0, 'Tyler', 'shield'), seat(1, 'Fingerguns', 'bow')] };
+        await pushEnvelope(page, s);
+        await page.keyboard.press('h');
+        const shown = await wait(page, () => { const v = document.querySelector('.hw-hunt.is-picked .hw-density.is-on .hh-step-val'); return v && /Set by/.test(v.textContent); }, null, 4000);
+        const m = await page.evaluate(() => {
+          const d = document.querySelector('.hw-hunt.is-picked .hw-density');
+          const steps = [...d.querySelectorAll('[data-by]')];
+          return { v: d.querySelector('.hh-step-val').textContent, visible: steps.filter((b) => b.offsetParent !== null).length,
+            facts: document.querySelector('.hw-hunt.is-picked .hw-hunt-facts').textContent };
+        });
+        if (!shown || m.v !== 'Set by Fingerguns: 7 each') fails.push('HS-14 a member does not see the leader\'s density read-only: ' + JSON.stringify(m));
+        if (m.visible !== 0) fails.push('HS-14 a member\'s picker still shows ' + m.visible + ' density step(s)');
+        if (!/ packs? of 7[ ,]/.test(m.facts)) fails.push('HS-14 a member\'s facts line does not say the leader\'s pull: ' + m.facts);
+        const before = s.calls.filter((c) => c.name === 'hr_action_set_options').length;
+        await page.evaluate(() => { for (const b of document.querySelectorAll('.hw-hunt.is-picked .hw-density [data-by]')) b.click(); });
+        await page.waitForTimeout(500);
+        if (s.calls.filter((c) => c.name === 'hr_action_set_options').length !== before) fails.push('HS-14 a member\'s density press sent an intent');
+        /* The leader (the crown passes to seat 0): its own pick and its step are back. */
+        s.env.party = Object.assign({}, s.env.party, { leader_seat: 0 });
+        await pushEnvelope(page, s);
+        const lead = await wait(page, () => { const d = document.querySelector('.hw-hunt.is-picked .hw-density.is-on');
+          return d && !/Set by/.test(d.querySelector('.hh-step-val').textContent) && [...d.querySelectorAll('[data-by]')].every((b) => b.offsetParent !== null); }, null, 4000);
+        if (!lead) fails.push('HS-14 the leader does not get its density step back');
+      } else fails.push('HS-14 the town did not mount');
+      await ctx.close();
+    }
+
     if (shots) { // the phone size class
       const { ctx, page, up } = await open({ viewport: { width: 922, height: 423 } });
       if (up) {
@@ -544,8 +579,10 @@ const MUTANTS = [
   ['every density press sends its own intent', 'src/shell/windows/hunts.js', '      sc.timer = setTimeout(() => saveDensity(cs, sc, repaint), DENSITY_SAVE_MS);', '      saveDensity(cs, sc, repaint);'],
   ['the density waits for the server before it moves', 'src/shell/windows/hunts.js', '  if (!dn || !sc.draft) return dn;', '  if (dn) return dn;'],
   ['the density draft outlives the server answer', 'src/shell/windows/hunts.js', '    if (sc.draft === d) { sc.draft = null;', '    if (sc.draft === d) { sc.draft = r.ok ? d : null;'],
-  ['the facts line ignores the density pick', 'src/shell/windows/hunts.js', "densityWords(r, dn ? dn.now : null, size > 1)", "densityWords(r, null, size > 1)"],
-  ['the density shows the ground max, not the server pick', 'src/shell/windows/hunts.js', '  return { now: densityFor(g, size, [set.density]), max };', '  return { now: max, max };'],
+  ['the facts line ignores the density pick', 'src/shell/windows/hunts.js', "densityWords(r, dn ? dn.now : null)", "densityWords(r, null)"],
+  ['the density shows the ground max, not the server pick', 'src/shell/windows/hunts.js', '  return { now: densityFor(g, size, set.density), max };', '  return { now: max, max };'],
+  ['a party member steps its own density', 'src/shell/windows/hunts.js', "  if (party && !party.isLeader) return densityOf(Number.isInteger(party.density) ? { density: party.density } : null, hunt, size);\n", ''],
+  ['a party member keeps the density step', 'src/shell/windows/hunts.js', "prop(b, 'hidden', follower);", "prop(b, 'hidden', false);"],
   ['a blocked slot is not flagged', 'src/shell/action-facts.js', '      if (same || kind) {', '      if (false) {'],
   ['the modal docks instead of centring', 'src/shell/window-manager.js', "  const isModal = (id) => rows.get(id).modal === true;", "  const isModal = () => false;"],
   ['Hunt prep tells a player to buy first', 'src/shell/readiness.js', '      const st = storeOn ? storeOf(sl.action) : null;', '      const st = null;'],

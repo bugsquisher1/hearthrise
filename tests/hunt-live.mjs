@@ -5,7 +5,7 @@
 //   node tests/hunt-live.mjs            the rules
 //   node tests/hunt-live.mjs --mutate   every planted defect must turn its rule RED
 //
-// mutant-anchors: src/hunt-view/live-engine.js src/core/combat-sim.js supabase/functions/hr-accrue/hunt-settle.js src/hunt-view/timeline.js src/core/hunt/roles.js
+// mutant-anchors: src/hunt-view/live-engine.js src/core/combat-sim.js supabase/functions/hr-accrue/hunt-settle.js src/hunt-view/timeline.js src/core/hunt/roles.js src/core/member.js
 // mutant-writes-tree: no — mutants are planted into a temp copy of src/ and the edge
 //
 // Option B (Tyler 2026-10-19). The edge settles a hunt instance in commits of at
@@ -26,6 +26,11 @@
 //   LV-P  PARTY PRIVACY (Tyler 2026-10-20): a peer's row is exactly its frozen numbers
 //         (src/core/member.js FROZEN_KEYS / FROZEN_SESSION_KEYS): no skills, gear, perks,
 //         buffs, purse, premium or bestiary; the viewer's own row stays whole.
+//   LV-K  THE LEADER CHOOSES (Tyler 2026-10-20): a party whose leader (seat 1, a peer of the
+//         viewer) picked 7 and the viewer 3 runs 7 on the server, and the viewer's browser
+//         predicts that pull (every commit matches): the peer's frozen hero carries `lead`.
+//   LV-B  A FULL BOX IS PULLED, VIEWED (Andy 10-20): a Thicket duo at its leader's 8 (the member never
+//         picked) pulls the designer's ring of 8 from its edge and kills it; every commit matches.
 //   LV-H  THE LOOK-AHEAD (Tyler 2026-10-20): hunt_live sends liveSeeds (16) combat seeds,
 //         one constant (src/data/hunt-tuning.js) the edge reads, and the leave horizon of
 //         2026-10-31-live-horizon.sql is exactly liveSeeds x the swing.
@@ -125,7 +130,7 @@ function server(M, mis, o) {
 /* N seconds of one instance: the browser predicting swing by swing, the server committing every 16 s. */
 function run(M, mis, spanMs, opt) {
   const o = opt || {};
-  const srv = server(M, mis);
+  const srv = server(M, mis, o.server);
   const E = M.LE.createLiveEngine({ items: M.ITEMS, monsters: M.MONSTERS });
   E.seed(srv.live(mis[0].user));
   const fed = { steps: [], events: [] };
@@ -233,6 +238,30 @@ function rules(M) {
       ok('LV-P', !text.includes(bad), 'a peer row leaks ' + bad);
     }
     ok('LV-P', !!own && !!own.skills && !!own.equipment && !!own.huntSession, "the viewer's own row is not its full setup");
+  }
+
+  { // LV-K: THE LEADER CHOOSES (Tyler 2026-10-20): the peer leader's pick is the pull, on the server and in the browser.
+    const pick = (mi, density, lead) => { mi.hero = Object.assign({}, mi.hero, { density, lead }); return mi; };
+    const mis = [pick(memberOf(M, 'a', 0, 'tank', 6), 3, false), pick(memberOf(M, 'b', 1, 'melee_dps', 6), 7, true)];
+    const r = run(M, mis, 48000);
+    const w = r.srv.inst.world ? M.WS.decode(JSON.parse(r.srv.inst.world)) : null;
+    ok('LV-K', !!w && w.density === 7, 'the server ran density ' + (w && w.density) + ' with the leader (seat 1) at 7 and the viewer at 3');
+    const bad = r.verdicts.filter((x) => x.v !== 'match');
+    ok('LV-K', r.verdicts.length >= 2 && bad.length === 0, `the viewer's browser did not predict the leader's pull: ${bad.length} of ${r.verdicts.length} commits diverged`);
+    const src = readFileSync(join(M.base || ROOT, FN, 'hunt-settle.js'), 'utf8');
+    ok('LV-K', /_leads: m\.leads === true/.test(src) && /lead: m\._leads/.test(src), 'hunt-settle.js does not hand the engine hr_hunt_instance_read `leads`');
+  }
+
+  { // LV-B: A FULL BOX IS PULLED, VIEWED (Andy 10-20): a Thicket duo, its leader at 8 and the member never picked. The
+    // designer's ring of 8 walls the pull tile off; the leader pulls from the ring's edge on the server, the browser predicts it.
+    const pick = (mi, density, lead) => { mi.hero = Object.assign({}, mi.hero, density === null ? { lead } : { density, lead }); return mi; };
+    const mis = [pick(memberOf(M, 'a', 0, 'tank', 40), 8, true), pick(memberOf(M, 'b', 1, 'melee_dps', 40), null, false)];
+    const r = run(M, mis, 160000, { server: { hunt: 'meadowbrook_thicket' } });
+    const pulls = r.verdicts.flatMap((x) => x.tl.hunt_events).filter((e) => e.type === 'pull').length;
+    const kills = r.verdicts.flatMap((x) => x.tl.hunt_events).filter((e) => e.type === 'kill').length;
+    ok('LV-B', pulls >= 1 && kills >= 8, `the duo at the leader's 8 pulled ${pulls} time(s) and killed ${kills} in 160 s: the full box walled the leader off`);
+    const bad = r.verdicts.filter((x) => x.v !== 'match');
+    ok('LV-B', r.verdicts.length >= 9 && bad.length === 0, `the viewer's browser did not predict the full-box pull: ${bad.length} of ${r.verdicts.length} commits diverged`);
   }
 
   { // LV-H: the look-ahead is ONE constant (16 swings), and a leave lands no earlier than its last swing.
@@ -372,6 +401,7 @@ const MUTANTS = [
   ['a second tank holds where it stands (LV-T)', 'src/core/hunt/roles.js', "  if (!mons.some((m) => m.target === h.id)) { closeIn(inst, h, unitById(inst, h.target) || nearestTo(mons, h)); return; }\n", '', /^LV-T/],
   ['a fresh world counts from 0, not the instance swing (LV-W)', 'src/hunt-view/live-engine.js', '      worldSwing: s.worldSwing },', '      worldSwing: 0 },', /^LV-W/],
   ['members run in another order than the server (LV-D)', 'src/hunt-view/live-engine.js', '.slice().sort((a, b) => (a.key < b.key ? -1 : 1))', '.slice().reverse()', /^LV-D/],
+  ['the browser drops the leader flag of a peer (LV-K)', 'src/core/member.js', '    hero: f.hero || {},', '    hero: Object.assign({}, f.hero, { lead: false }),', /^LV-K/],
 ];
 
 async function mutate() {

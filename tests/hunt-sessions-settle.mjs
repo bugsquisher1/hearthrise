@@ -410,8 +410,8 @@ const ENGINE_ARMS = {
     }
     const lines = readFileSync(join(M.root, 'src/core/combat-sim.js'), 'utf8').split('\n').length;
     if (lines >= 600) problems.push(`src/core/combat-sim.js is ${lines} lines (spec §1.1: under 600)`);
-    /* THE FOOD LANE, ONE SOURCE (spec §3.4 #3): consumables.js laneMs, 1 s. */
-    if (M.CD.CONSUMABLE_RULES.laneMs !== 1000) problems.push(`the food-and-drink lane is ${M.CD.CONSUMABLE_RULES.laneMs} ms, the spec's pick is 1 s`);
+    /* THE FOOD COOLDOWN, ONE SOURCE (Tyler 2026-10-19): consumables.js laneMs, 2 s, food and drink alike. */
+    if (M.CD.CONSUMABLE_RULES.laneMs !== 2000) problems.push(`the food-and-drink cooldown is ${M.CD.CONSUMABLE_RULES.laneMs} ms, Tyler ruled 2 s`);
     return problems;
   },
 

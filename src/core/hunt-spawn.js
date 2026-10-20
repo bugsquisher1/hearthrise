@@ -4,14 +4,14 @@
 // roll is src/core/hunt/pull-cycle.js (every pack spawns from its pocket's
 // rows): the C2 single-foe `pickSpawn` was retired with the single-foe swing
 // (HUNT_SCREEN_SPEC §1.1 one-path table; lane S1, 2026-10-17).
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.13';
-import { densityFor } from '../data/hunt-grounds.js?v=0.2.13';
-import { HUNT_ROLES, roleForWeapon } from '../data/hunt-roles.js?v=0.2.13';
-import { ABILITIES } from '../data/abilities.js?v=0.2.13';
-import { makeUnit, makeWorld } from './hunt/world-state.js?v=0.2.13';
-import { spawnPack, PHASE } from './hunt/pull-cycle.js?v=0.2.13';
-import { pickLeader, defaultSettings } from './hunt/roles.js?v=0.2.13';
-import { heroSlots, heroStopRules, stopRulesProblem } from './hunt/conditions.js?v=0.2.13';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.14';
+import { densityFor } from '../data/hunt-grounds.js?v=0.2.14';
+import { HUNT_ROLES, roleForWeapon } from '../data/hunt-roles.js?v=0.2.14';
+import { ABILITIES } from '../data/abilities.js?v=0.2.14';
+import { makeUnit, makeWorld } from './hunt/world-state.js?v=0.2.14';
+import { spawnPack, PHASE } from './hunt/pull-cycle.js?v=0.2.14';
+import { pickLeader, defaultSettings } from './hunt/roles.js?v=0.2.14';
+import { heroSlots, heroStopRules, stopRulesProblem } from './hunt/conditions.js?v=0.2.14';
 
 /** The named hunt a combat pointer names, or null (a monster id / unknown). */
 export function huntFor(activeId) {
@@ -46,7 +46,7 @@ export function heroSetup(o) {
     role,
     /* THE BAR as the engine runs it (conditions.js heroSlots): the stored slots the
        hero's discipline can act on, then each empty lane's defaults (ROLE_RULES,
-       drink-at then eat-at). */
+       eat-at then drink-at). */
     slots: heroSlots(o.bar, role, (id) => allowed.includes(id)),
     stopRules: heroStopRules(stops),
     /* MONSTER DENSITY: the stored pick; the span clamps it to the ground (hunt-grounds.js densityFor). */

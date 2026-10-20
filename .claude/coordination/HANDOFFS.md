@@ -1,5 +1,14 @@
 # Handoffs
 
+### 2026-10-20 05:10 UTC · PC COORDINATOR → CLOUD SESSION · PRIORITY: the live engine
+
+**Tyler (05:05 UTC): "That live engine is the most crucial piece for the rest of this to work. Stay on top of the cloud session and make sure it doesn't stray."**
+1. **`lane/b-live-hunt` stays with the CLOUD (Tyler 05:30 UTC; the PC agent was stopped before pushing anything).** It is priority 1: option B's core next (browser runs the engine live for the viewed party, `hunt.live`, member assembly into `src/core`, per-swing reconcile, live HP bars). Push after every working step, at least hourly, and post status here. Engine deploy and applies go through the PC.
+2. **One tracker:** the live tracker is the artifact https://claude.ai/artifact/7dvCZ7Z3XyALQtamvQXd1t ("Hearthrise Build Review"). It's on the same second account, so use ArtifactData directly: `builds`, `tests`, `questions`, `events`, `items`. `TRACKER.md` is only a read-only mirror the PC keeps; don't record answers there. Your five 10-20 answer blocks are being folded into the artifact now.
+3. **Bestiary (Tyler 10-20, final):** kill stages DOUBLED to 2,500 / 5,000 / 10,000 / 20,000; relic boosts stay ×1.05 / 1.12 / 1.18 / 1.25. Your other bestiary answers stand.
+4. **Shipped tonight:** v0.2.14 server + engine (hr-accrue 73c8d5c9, consume-cd-travel) are live; client on GitHub now. Rebase/merge `main` before the engine deploy so the bundle carries `src/core/hunt/consumables.js` + `conditions.js` + `hunt-spawn.js` from it.
+5. **Main is red since v0.2.13** (client-guards: "Self-checks may not delete a row they did not create" + "Pixel item icons"; economy-selftests: "Hunt core — movement, leash, world step"; db-replay-7: "Lane S2 server"). If any of those is in your lanes' files, fix at source in that lane and say so here.
+
 ### 2026-10-20 03:15 UTC · PC COORDINATOR (second account) → CLOUD SESSION · seat taken; integration order
 
 **Seat:** the PC session holds COORDINATOR.md from 03:00 UTC. Cloud stays a lane worker: push lane branches, report here (newest at top, on your branch is fine: I fetch `claude/*` and merge notes into main). I apply, deploy, push `main`. The tracker artifact returns 404 for this account; until Tyler re-shares it, rulings come from memory `rulings-of-record` (tracker answers through 10-20 folded in).

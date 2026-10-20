@@ -769,8 +769,10 @@ async function loop2(S, M, tag, rows) {
        the hero's option (spec §3.8). */
     /* …and chooses "Use Store Supplies" (Master Design Reference §4): the store
        is never used without the player's choice. */
-    const pick = await S.rpc(p.uid, `select public.hr_action_set_options(0, 0, '{"supply_source":"store"}'::jsonb, $1::uuid) r`, [uuid()]);
-    t.ok(pick && pick.ok === true && pick.options && pick.options.supply_source === 'store', `the supplies choice was refused: ${brief(pick)}`);
+    /* …and eats at 80% HP: a Combat 40 hero in the sewer drops under the default 50% only a few times
+       an hour (3 meals on one dice stream, 0 on another), so the default left this step to the dice. */
+    const pick = await S.rpc(p.uid, `select public.hr_action_set_options(0, 0, '{"supply_source":"store","food_below_pct":80}'::jsonb, $1::uuid) r`, [uuid()]);
+    t.ok(pick && pick.ok === true && pick.options && pick.options.supply_source === 'store' && pick.options.food_below_pct === 80, `the supplies choice was refused: ${brief(pick)}`);
     food = { item: '*heal_shop' };
   });
 

@@ -5,6 +5,20 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.15 — 2026-10-20 (Wands and spellbooks)
+
+**Icons for every wand and spellbook.** Mage weapons now show their own icons in the bag, the shop and the character window.
+
+## v0.2.14 — 2026-10-20 (Eat, drink, fight)
+
+**One cooldown for food and drink.** Food and drink share a 2-second cooldown. When it's ready, whichever slot's condition matches goes first, and new heroes eat before they drink.
+
+**Straight into the fight.** Pressing Enter starts the hunt at once, with no walk countdown.
+
+**The Sewer.** The second hunting ground is now simply called The Sewer.
+
+**Fixed:** leaving a hunt and entering again right away no longer leaves the new hunt frozen.
+
 ## v0.2.13 — 2026-10-20 (Your heroes, together)
 
 **See your other heroes.** Your other characters now walk around town like any other player.

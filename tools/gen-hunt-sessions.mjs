@@ -65,7 +65,11 @@
 // the world's ruleHold + density) share ONE forward file,
 // 2026-10-25-hunt-sessions-catalogue.generated.sql (integration v0.2.1), which
 // rewrites every table it names wholesale, widens hr_hunt_supplies' kind to
-// 'mana' and precedes 2026-10-25-action-conditions.sql.
+// 'mana' and precedes 2026-10-25-action-conditions.sql. The core rebuild's
+// 2026-10-27 file is history (APPLIED 2026-10-19 15:15); Tyler's 2026-10-19
+// tracker answers (food and drink on ONE 2 s cooldown; no walk until the town
+// has destinations: every travel_s 0) start
+// 2026-10-28-hunt-sessions-catalogue.generated.sql.
 //
 //   Regenerate:  node tools/gen-hunt-sessions.mjs
 //   Verify:      node tools/gen-hunt-sessions.mjs --check     (exit 1 on drift)
@@ -73,7 +77,7 @@
 //
 // REFUSES (throws, nothing written): a bad id shape, a supply whose kind is not
 // heal/buff/ammo, a heal that heals nothing, a buff with no combat buff type, a
-// travel time that is not a multiple of 10 in 10..300, an ability with an
+// travel time that is not a multiple of 10 in 0..300, an ability with an
 // unknown lane, a ground naming an unknown hunt or monster, an on-empty default
 // that is not `switch`, a stamina cap that is not a whole minute or a premium
 // cap below the free one, and a training id that collides with a named hunt.
@@ -115,7 +119,7 @@ export const WORLD_FIELDS_READ = Object.freeze({
     'role', 'dist', 'chase', 'tmode', 'stance']),
   world: Object.freeze(['leader']),
 });
-export const OUT_NAME = '2026-10-27-hunt-sessions-catalogue.generated.sql';
+export const OUT_NAME = '2026-10-28-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -222,8 +226,8 @@ export function catalogueRows(src = {}) {
     if (!ID.test(h.id)) throw new Error(`hunt id ${h.id} is not [a-z0-9_]{1,64}`);
     if (seen.has(h.id)) throw new Error(`hunt id ${h.id} appears twice (a training id collides with a named hunt)`);
     seen.add(h.id);
-    if (!(whole(h.travelS) && h.travelS >= 10 && h.travelS <= 300 && h.travelS % 10 === 0)) {
-      throw new Error(`hunt ${h.id} travelS ${h.travelS} is not a multiple of 10 in 10..300`);
+    if (!(whole(h.travelS) && h.travelS >= 0 && h.travelS <= 300 && h.travelS % 10 === 0)) {
+      throw new Error(`hunt ${h.id} travelS ${h.travelS} is not a multiple of 10 in 0..300`);
     }
     if (!(whole(h.tier) && h.tier >= 1 && h.tier <= 99)) throw new Error(`hunt ${h.id} has no tier (${h.tier})`);
     travel.push({ id: h.id, s: h.travelS, training, tier: h.tier });
@@ -507,14 +511,14 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- SUPERSEDES 2026-10-25-hunt-sessions-catalogue.generated.sql (applied; history,
--- never regenerated): every table below is rewritten wholesale. THE CORE REBUILD
--- (docs/design/CORE_MODEL.md, 2026-10-19): END_ORDER's 'died' and
--- 'party_member_died' replace 'falls'; the falls and knockout limits go; the core
--- model's curve, vitals and combat-XP rows join hr_hunt_limits; the magic bound
--- reads the hero's own max mana; the kill bound prices Melee / Ranged XP per HP
--- and the kill's Level XP; the world loses 'downMs' / 'ward' and gains 'regenPm'.
--- Apply after 2026-10-27-core-schema.sql, before 2026-10-27-core-bodies.sql.
+-- SUPERSEDES 2026-10-27-hunt-sessions-catalogue.generated.sql (applied; history,
+-- never regenerated): every table below is rewritten wholesale. Tyler's
+-- 2026-10-19 tracker answers: food and drink share ONE 2 s cooldown
+-- (hr_hunt_lanes 'consumable', consumables.js laneMs), and no walk until the
+-- town has destinations to walk through: every hr_hunt_travel.travel_s is 0
+-- (its check widens to 0..300), so a hunt's fight starts the moment it is
+-- entered. Apply after 2026-10-27-core-bodies.sql (any order against
+-- 2026-10-28-consume-defaults.sql).
 --
 -- Server-only: RLS on, NO policy, no client grant (the client reads src/data).
 -- Idempotent: delete + insert; nothing references these rows by foreign key.
@@ -544,9 +548,12 @@ alter table public.hr_hunt_supplies add constraint hr_hunt_supplies_shape_ck che
     or (kind = 'ammo' and heals = 0 and buff_type is null));
 create table if not exists public.hr_hunt_travel (
   hunt_id  text primary key check (hunt_id ~ '^[a-z0-9_]{1,64}$'),
-  travel_s int  not null check (travel_s between 10 and 300 and travel_s % 10 = 0),
+  travel_s int  not null check (travel_s between 0 and 300 and travel_s % 10 = 0),
   training boolean not null
 );
+-- An existing table (created by an applied catalogue) learns a walk of 0.
+alter table public.hr_hunt_travel drop constraint if exists hr_hunt_travel_travel_s_check;
+alter table public.hr_hunt_travel add constraint hr_hunt_travel_travel_s_check check (travel_s between 0 and 300 and travel_s % 10 = 0);
 alter table public.hr_hunt_travel add column if not exists tier int;
 -- THE SPAWN CYCLE of the single-foe engine lived here (pull_size, respawn_ms);
 -- a hunt's cycle is its GROUND now (hr_hunt_grounds, the world's packs).

@@ -5,8 +5,8 @@
 // only what hr_social_state answered: names, online, and "Hunting in <ground>"
 // or "In town" — told only to accepted friends. Rows carry data-hs-player, so
 // a right-click (or a long press) opens the same player menu as anywhere; the
-// row's own Message and Invite buttons run that menu's entries
-// (src/shell/menu-providers.js), never a copy of their logic.
+// row's own Message button runs that menu's entry (src/shell/menu-providers.js),
+// never a copy of its logic; Invite to party is the menu's alone (PARTY_SPEC §2).
 //   Add a friend   by claimed name (the server resolves it; a block refuses it)
 //   Asks for you   Accept / Decline
 //   Your asks      Withdraw
@@ -14,13 +14,13 @@
 //                  `social.blocked` row opens this window)
 // Every button is ONE rpc and stays off until the server answered.
 // ════════════════════════════════════════════════════════════════════════
-import { refusalWords } from '../intent-words.js?v=0.2.10';
-import { huntName } from '../../session/party-sections.js?v=0.2.10';
-import { menuProvidersOf } from '../menu-providers.js?v=0.2.10';
-import { entriesFor } from '../context-menu.js?v=0.2.10';
-import { blocksHtml, patchBlocks, actBlocks } from './block-list.js?v=0.2.10';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.10';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.10';
+import { refusalWords } from '../intent-words.js?v=0.2.11';
+import { huntName } from '../../session/party-sections.js?v=0.2.11';
+import { menuProvidersOf } from '../menu-providers.js?v=0.2.11';
+import { entriesFor } from '../context-menu.js?v=0.2.11';
+import { blocksHtml, patchBlocks, actBlocks } from './block-list.js?v=0.2.11';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.11';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.11';
 
 const STATE = new WeakMap();
 const stateOf = (body) => { let s = STATE.get(body); if (!s) { s = { pending: false, msg: '', asked: false }; STATE.set(body, s); } return s; };
@@ -52,8 +52,7 @@ renderFriends.patch = function patchFriends(body, ctx) {
   rows(body.querySelector('.hf-list.is-friends'), f.friends(), {
     key: (p) => p.id,
     build: (p) => element(ctx.doc, '<li class="hf-row"' + personAttrs(p) + '><span class="hf-dot"></span><b class="hf-who"></b><small class="hf-doing"></small>'
-      + '<span class="hf-acts"><button type="button" class="hh-tool" data-hs-act="run" data-entry="message">Message</button>'
-      + '<button type="button" class="hh-tool" data-hs-act="run" data-entry="party-invite">Invite</button></span></li>'),
+      + '<span class="hf-acts"><button type="button" class="hh-tool" data-hs-act="run" data-entry="message">Message</button></span></li>'),
     patch: (el, p) => {
       text(el.querySelector('.hf-who'), p.name);
       text(el.querySelector('.hf-doing'), doingWords(p));

@@ -8,13 +8,13 @@
 -- enters again inside one swing opened its new session BEFORE stamina_at, and
 -- hr_hunt_apply_member refused every settle of it (stamina_ahead): a hunt that
 -- never moves (measured: tests/core-loop.mjs LOOP-1 step 11, LOOP-2 step 8). The
--- 20-300 s walk used to hide it. hr_hunt_enter_for and hr_hunt_new_session (the
--- change-hunt swap's door), bodies of 2026-10-27-core-bodies.sql byte-for-byte but
--- for the arrival, now open no earlier than stamina_at; a party member still
+-- 20-300 s walk used to hide it. hr_hunt_enter_for (body of
+-- 2026-10-28-party-flow.sql) and hr_hunt_new_session (the change-hunt swap's door,
+-- body of 2026-10-27-core-bodies.sql), each byte-for-byte but for the arrival, now open no earlier than stamina_at; a party member still
 -- rounds up onto the instance's boundaries from there.
 --
 -- Two function bodies; no table, row or grant change. Reversible by re-applying
--- the 2026-10-27-core-bodies.sql bodies. MUST apply before (or with) the
+-- those two bodies. Apply AFTER 2026-10-28-party-flow.sql. MUST apply before (or with) the
 -- catalogue's travel_s 0. No begin/commit (CLAUDE.md §2).
 -- ════════════════════════════════════════════════════════════════════════
 
@@ -24,6 +24,7 @@ CREATE OR REPLACE FUNCTION public.hr_hunt_enter_for(p_uid uuid, p_slot integer, 
  SET search_path TO 'public', 'pg_catalog'
 AS $function$
 declare
+  -- PARTY-FLOW (2026-10-28-party-flow.sql): a ground-less party matches no hunt; a restarted instance takes the new ground.
   v_uid  uuid := p_uid;
   v_r    jsonb;
   v_s    public.hunt_sessions%rowtype;
@@ -73,7 +74,7 @@ begin
   v_party := public.hr_hunt_party_of(v_uid, p_slot);
   if v_party is not null then
     select * into v_p from public.hunt_parties where id = v_party for update;
-    if v_p.hunt_id <> p_hunt then
+    if v_p.hunt_id is distinct from p_hunt then
       return jsonb_build_object('ok', false, 'error', 'party_hunt_mismatch', 'hunt', v_p.hunt_id); end if;
     select m.seat into v_seat from public.hunt_party_members m where m.party_id = v_party and m.user_id = v_uid and m.slot = p_slot;
   end if;
@@ -113,9 +114,9 @@ begin
       insert into public.hunt_instances (id, hunt_id, kind, settled_to, next_swing_at)
         values (v_party, p_hunt, 'party', v_from, v_from);
     elsif not exists (select 1 from public.hunt_sessions h where h.instance_id = v_party and h.ended_at is null) then
-      -- No open session: the instance restarts its clock here, with no world (the
-      -- swing counter keeps counting forward).
-      update public.hunt_instances set world = null, settled_to = v_from, next_swing_at = v_from, version = version + 1
+      -- No open session: the instance restarts its clock here, on the party's ground of this start, with
+      -- no world (the swing counter keeps counting forward).
+      update public.hunt_instances set hunt_id = p_hunt, world = null, settled_to = v_from, next_swing_at = v_from, version = version + 1
        where id = v_party;
     else
       v_from := v_i.next_swing_at + make_interval(secs => ceil(greatest(0, extract(epoch from (v_from - v_i.next_swing_at)) * 1000)

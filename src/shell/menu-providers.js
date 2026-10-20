@@ -5,8 +5,13 @@
 // keyed by the `provider` of each row in src/data/social-menu.js:
 //   inspect, whispers, friends, blocks   the account's social side
 //                                         (SocialSession.menuProviders)
-//   party                                 the viewed character's party invite
-//                                         (CharacterSession.inviteByName)
+//   party                                 Invite to party: a stranger by name
+//                                         (CharacterSession.inviteByName; the
+//                                         first invite makes the party), one of
+//                                         this account's own characters by slot
+//                                         (party-intents.js inviteOwn: it joins
+//                                         at once); Leave party for an own
+//                                         character that sits in one
 //   look                                  a monster's name, tier and weaknesses,
 //                                         from the bestiary rows
 //   trade                                 none yet: the row is hidden until the
@@ -14,10 +19,12 @@
 //                                         Security review) ships
 // worldTargetOf turns what the World picked under a pointer into a target.
 // ════════════════════════════════════════════════════════════════════════
-import { MONSTERS } from '../data/monsters.js?v=0.2.10';
-import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.10';
-import { refusalWords } from './intent-words.js?v=0.2.10';
-import { monsterName } from './widgets/bits.js?v=0.2.10';
+import { MONSTERS } from '../data/monsters.js?v=0.2.11';
+import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.11';
+import { refusalText } from './intent-words.js?v=0.2.11';
+import { monsterName } from './widgets/bits.js?v=0.2.11';
+import { partyMembershipOf } from '../session/party-sections.js?v=0.2.11';
+import { inviteOwn, afterLeave } from '../session/party-intents.js?v=0.2.11';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -52,22 +59,52 @@ export function worldTargetOf(pick) {
   return null;
 }
 
+/**
+ * The party's entries for one shell. A target with this account's id and a slot
+ * is one of its OWN characters (the strip's tabs; a sibling the town draws): it
+ * is invited by slot and joins at once. Anyone else is invited by the name
+ * players see. Which entries show reads the server's party sections only; the
+ * server decides every press.
+ */
+function partyEntries(ctx, cs) {
+  const account = ctx.account;
+  const mine = (t) => !!t && t.kind === 'player' && !!t.id && !!account && t.id === account.userId;
+  const ownOf = (t) => (mine(t) && Number.isInteger(t.slot) ? ctx.peers().find((o) => o.slot === t.slot) || null : null);
+  return {
+    'party-invite': {
+      when: (t) => {
+        if (!cs || t.kind !== 'player') return false;
+        if (mine(t)) { const o = ownOf(t); return !!o && o !== cs && !partyMembershipOf(o); }
+        return !!t.name && t.name !== 'Adventurer' && typeof cs.inviteByName === 'function';
+      },
+      run: async (t) => {
+        if (mine(t)) {
+          const r = await inviteOwn(account, cs, t.slot);
+          return { say: r.ok ? t.name + ' joined your party.' : refusalText(r) };
+        }
+        const r = await cs.inviteByName(t.name);
+        return { say: r.ok ? 'Invite sent to ' + t.name + '.' : refusalText(r) };
+      },
+    },
+    'party-leave': {
+      when: (t) => { const o = ownOf(t); return !!o && !!partyMembershipOf(o); },
+      run: async (t) => {
+        const o = ownOf(t);
+        if (!o) return { say: refusalText({ error: 'closed' }) };
+        const r = await afterLeave(account, o, () => o.leaveParty());
+        return { say: r.ok ? t.name + ' left the party.' : refusalText(r) };
+      },
+    },
+  };
+}
+
 /** The providers for one shell (its character, its account). */
 export function menuProvidersOf(ctx) {
   const social = ctx.account && ctx.account.social;
   const cs = ctx.character;
-  const self = (t) => !!(social && social.isSelf(t));
   const own = social ? social.menuProviders() : {};
   return Object.assign({}, own, {
-    party: {
-      'party-invite': {
-        when: (t) => t.kind === 'player' && !self(t) && !!t.name && t.name !== 'Adventurer' && !!cs && typeof cs.inviteByName === 'function',
-        run: async (t) => {
-          const r = await cs.inviteByName(t.name);
-          return r.ok ? { say: 'Invite sent to ' + t.name + '.' } : { say: refusalWords(r.error) };
-        },
-      },
-    },
+    party: partyEntries(ctx, cs),
     look: { look: { when: (t) => t.kind === 'monster' && !!MONSTERS[t.id], run: (t) => ({ say: lookText(t.id) }) } },
   });
 }

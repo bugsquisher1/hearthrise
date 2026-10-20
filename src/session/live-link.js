@@ -12,11 +12,11 @@
 // Prediction only: nothing here is spent, credited or shown as owned.
 // ════════════════════════════════════════════════════════════════════════
 
-import { createLiveEngine } from '../hunt-view/live-engine.js?v=0.2.20';
-import { ITEMS } from '../data/items.js?v=0.2.20';
-import { MONSTERS } from '../data/monsters.js?v=0.2.20';
-import { SESSION_CONFIG } from './config.js?v=0.2.20';
-import { COMBAT_BALANCE } from '../core/combat.js?v=0.2.20';
+import { createLiveEngine } from '../hunt-view/live-engine.js?v=0.2.21';
+import { ITEMS } from '../data/items.js?v=0.2.21';
+import { MONSTERS } from '../data/monsters.js?v=0.2.21';
+import { SESSION_CONFIG } from './config.js?v=0.2.21';
+import { COMBAT_BALANCE } from '../core/combat.js?v=0.2.21';
 
 export class LiveLink {
   /**
@@ -61,7 +61,7 @@ export class LiveLink {
          points, never commits) lived on its first 16 swings, froze, then jumped (live v0.2.20). */
       const i = body.hunt_live.instance;
       if (this.engine.running()
-        && this.engine.confirm({ world_swing: i.world_swing, world_hash: i.world_hash, seeds: body.hunt_live.seeds }) === 'match') return;
+        && this.engine.reconcile({ world_swing: i.world_swing, world_hash: i.world_hash, seeds: body.hunt_live.seeds }) === 'match') return;
       /* Off the server's world: restart from it, eased (never fed: the swings it runs to catch up are
          already in the past). */
       this._ease(this.engine.reseed(body.hunt_live, now), now);

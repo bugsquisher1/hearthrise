@@ -62,7 +62,7 @@ async function stub(page) {
   await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
   await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
   await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
-    const name = r.request().url().split('/').pop();
+    const name = r.request().url().split('?')[0].split('/').pop();
     const body = JSON.parse(r.request().postData() || '{}');
     const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
     if (name === 'hr_load') return json(Object.assign(townEnv(), { version: ++version }));

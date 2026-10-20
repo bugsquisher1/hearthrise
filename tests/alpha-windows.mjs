@@ -97,7 +97,7 @@ async function stub(page, s) {
   await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
   await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
   await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
-    const name = r.request().url().split('/').pop();
+    const name = r.request().url().split('?')[0].split('/').pop();
     const body = JSON.parse(r.request().postData() || '{}');
     s.calls.push({ name, body });
     if (s.onCall) s.onCall(name, body);

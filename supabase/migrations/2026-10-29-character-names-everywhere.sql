@@ -41,7 +41,10 @@ begin
   if to_regprocedure('public.hr_character_name(uuid,integer)') is null or to_regclass('public.character_names') is null then
     raise exception 'PRECONDITION: apply 2026-10-25-account-items.sql first'; end if;
   select md5(prosrc), prosrc into v_md5, v_src from pg_proc where oid = 'public.hr_chat_name_authority()'::regprocedure;
-  if v_md5 <> '70d618d4b00b374071c73a84a2fce349' and strpos(v_src, 'hr_character_name(new.from_id') = 0 then
+  -- 70d618d4… is the 2026-08-11 file's body (the replay chain); f03cc173… is the same body as live holds it,
+  -- comments stripped (read from prod 2026-10-20 03:05 UTC).
+  if v_md5 not in ('70d618d4b00b374071c73a84a2fce349', 'f03cc173cf884515bac99546affe4334')
+     and strpos(v_src, 'hr_character_name(new.from_id') = 0 then
     raise exception 'PIN: hr_chat_name_authority moved (md5 %)', v_md5; end if;
   select md5(prosrc), prosrc into v_md5, v_src from pg_proc where oid = 'public.hr_chat_row(public.chat_messages)'::regprocedure;
   if v_md5 <> '2d01e547d17bfb1aa2398b60337e8dc2' and strpos(v_src, 'hr_character_name(m.from_id') = 0 then

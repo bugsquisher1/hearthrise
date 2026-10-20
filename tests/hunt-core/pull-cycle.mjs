@@ -4,6 +4,7 @@
 import { suite, H, E, inst2, sc2, run, world, partyWorld, PARTY_GROUND } from './fixtures/h2.js';
 
 const P = 'src/core/hunt/pull-cycle.js';
+const G = 'src/data/hunt-grounds.js';
 const firstPull = (M, inst, max) => {
   const sc = sc2(M, 3);
   let at = null;
@@ -149,6 +150,58 @@ const cases = {
     M.hunt['pull-cycle'].clearCorpses(inst, sc);
     return inst.world.units.includes(m) ? 'the corpse never went' : null;
   },
+  /* Designer ruling 2026-10-20: A BOSS NEVER REPEATS INSIDE A PULL. On every real ground at every density up to its
+     max, each pocket spawns its bosses as built (the Sewer's Rat King, the Warrens' Chief Coppercap, the den's Old
+     Grayjaw: once); the extra slots are the pocket's fill rows. A pocket of bosses only keeps its as-built pack. */
+  'boss-once-per-pull': (M) => {
+    const GH = M.grounds;
+    const lead = { role: 'tank', maxHp: 200, acc: 1000, maxHit: 12, def: 0 };
+    const named = { coppercap_warrens: 'chief_coppercap', meadowbrook_thicket: 'grayjaw', millrace_sewer: 'rat_king' };
+    for (const g of Object.values(GH.HUNT_GROUNDS)) {
+      const { grid } = M.hg.huntGroundOf(g.hunt) || {};
+      if (!grid) return g.id + ': no grid';
+      const top = Math.max(GH.DENSITY_FULL_BOX, ...(g.densityMax || []));
+      for (let n = 1; n <= top; n++) {
+        const w = M.hs.newHuntWorld(g, grid, [lead], { density: n });
+        for (let p = 0; p < g.pockets.length; p++) {
+          const got = w.units.filter((u) => u.side === 'mon' && u.pocket === p).map((u) => u.kind);
+          for (const k of new Set(g.pockets[p].spawns.map((s) => s.monster).concat(named[g.id] || []))) {
+            const once = M.MONSTERS[k] && (M.MONSTERS[k].boss === true || named[g.id] === k);
+            const built = g.pockets[p].spawns.filter((s) => s.monster === k).length;
+            const have = got.filter((x) => x === k).length;
+            if (once && have > built) return g.id + ' pocket ' + p + ' at density ' + n + ' spawned ' + have + ' ' + k + ' (as built ' + built + ')';
+          }
+        }
+      }
+    }
+    /* the fill really fills: the Sewer's Rat King room at density 7 is the King and six rats */
+    const sewer = GH.HUNT_GROUNDS.millrace_sewer;
+    const kp = sewer.pockets.findIndex((pk) => pk.spawns.some((s) => s.monster === 'rat_king'));
+    const room = GH.pullRows(sewer, kp, 7).map((s) => s.monster);
+    if (room.length !== 7 || room.filter((k) => k === 'rat_king').length !== 1) return 'the Rat King room at 7 is ' + room.join(',');
+    const sw = M.hs.newHuntWorld(sewer, M.hg.huntGroundOf(sewer.hunt).grid, [lead], { density: 7 });
+    const born = sw.units.filter((u) => u.side === 'mon' && u.pocket === kp).length;
+    if (born !== 7) return 'the Rat King room spawned ' + born + ' at density 7, want 7';
+    const lone = { pockets: [{ spawns: [{ monster: 'rat_king', x: 1, y: 1 }] }] };
+    const solo = GH.pullRows(lone, 0, 5);
+    return solo.length === 1 && solo[0].monster === 'rat_king' ? null : 'a boss-only pocket at 5 spawned ' + solo.map((s) => s && s.monster).join(',');
+  },
+  /* A FULL BOX (Andy 10-20): at 8 the Thicket's first box rings its pull tile, so the leader pulls from the ring's edge
+     (it stood there for the whole hunt); at 7 the ring has a gap and the leader still walks in to the pull tile. */
+  'full-box-pull': (M) => {
+    const g = M.grounds.HUNT_GROUNDS.meadowbrook_thicket;
+    const { grid } = M.hg.huntGroundOf(g.hunt);
+    const pull = g.pockets[0].pull;
+    const at = {};
+    for (const n of [7, 8]) {
+      const inst = Object.assign(inst2(M, M.hs.newHuntWorld(g, grid, [Object.assign({ role: 'tank' }, strong, { def: 0 })], { density: n }), g), { grid });
+      if (!firstPull(M, inst, 600)) return 'density ' + n + ': no pull in 60 s';
+      const k = inst.world.units[0];
+      at[n] = cheb(k, { x: pull[0], y: pull[1] });
+    }
+    if (at[8] !== 2) return 'at 8 the leader pulled ' + at[8] + ' tile(s) from the pull tile, want 2 (the ring\'s edge)';
+    return at[7] === 0 ? null : 'at 7 (a gap in the ring) the leader pulled ' + at[7] + ' tile(s) from the pull tile, want 0 (walked in)';
+  },
   /* engine contract #4/#5 for this lane's fields: a 4-hero party world, cut and JSON-decoded at EVERY swing,
      replays the uncut world event for event and byte for byte, and stays inside the world bound. */
   'party-world-survives-every-cut': (M) => {
@@ -175,8 +228,18 @@ const cases = {
 };
 
 const mutants = [
+  { name: 'density cycles the as-built spawns, bosses and all (the old engine)', case: 'boss-once-per-pull',
+    edits: [[G, '  const rows = pk.pack || pk.spawns;', '  const rows = pk.spawns;'], [G, '.filter((s) => !isBoss(s));\n  const fill', ';\n  const fill']] },
+  { name: 'the fill keeps the boss rows', case: 'boss-once-per-pull', edits: [[G, '.filter((s) => !isBoss(s));\n  const fill', ';\n  const fill']] },
+  { name: 'the engine ignores the designer\'s pack (Old Grayjaw repeats)', case: 'boss-once-per-pull',
+    edits: [[G, '  const rows = pk.pack || pk.spawns;', '  const rows = pk.spawns;'], [G, '(pk.pack ? pk.pack.slice(pk.spawns.length) : rows)', 'rows']] },
+  { name: 'a boss-only pocket is filled anyway', case: 'boss-once-per-pull', edits: [[G, ' || !rows.some((s) => !isBoss(s))) return', ') return']] },
+  { name: 'spawnPack ignores the density', case: 'boss-once-per-pull', edits: [[P, 'pullRows(inst.ground, p, w.density)', 'pullRows(inst.ground, p, 0)']] },
   { name: 'only one monster aggros', case: 'pull-on-approach', edits: [[P, '  for (const m of packMonsters(inst, p)) m.target = k.id;', '  packMonsters(inst, p)[0].target = k.id;']] },
   { name: 'the leader is the first hero by id', case: 'pull-on-approach', edits: [['src/core/hunt-spawn.js', 'leader: pickLeader(units),', 'leader: 1,']] },
+  { name: 'a full box walls the leader off (no pull from the edge)', case: 'full-box-pull', edits: [[P, ' || arrived || walled)) {', ' || arrived)) {']] },
+  { name: 'the leader pulls at any monster in its way, gap or not', case: 'full-box-pull',
+    edits: [[P, '    && !!occupancy(inst) && !reachable(inst, k, k.goal[0], k.goal[1]);', ';']] },
   { name: 'a kiting leader walks into the pack', case: 'kiter-pulls-from-range',
     edits: [[P, '  if (here && kites(k) && Math.min(...mons.map((m) => cheb(m, k))) <= k.dist + 1) { startPull(inst, sc, k, p); return; }\n', '']] },
   { name: 'the route never loops', case: 'route-loops', edits: [[P, '{ w.routeIdx = 0; w.runs += 1; }', '{ w.routeIdx = inst.ground.route.length - 1; }']] },

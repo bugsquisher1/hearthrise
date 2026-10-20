@@ -6,7 +6,7 @@
 // new ground is a data row and shows up here with nothing else to edit.
 //   huntRows()          [{ hunt, name, theme, band, heroes, packs, packMin,
 //                          packMax, respawnS, boss }] in band order
-//   densityWords(row, n, party)  "6 packs of 7 · back in 60 s": the pull size the
+//   densityWords(row, n)  "6 packs of 7 · back in 60 s": the pull size the
 //                        server spawns at density `n` (the pick clamped to the
 //                        ground); the room as built only at 0
 //   bandWords(row, lv)  "Level 1 to 8" (+ ", you are 3" when known)
@@ -60,14 +60,13 @@ export function huntRows() {
 /**
  * How crowded a ground is, in words: its packs, their size, the boss, the respawn. `n` is the
  * density the server spawns this ground at (hunt-grounds.js densityFor of the pick: every pack
- * holds n), 0 or unknown = the room as built. In a `party` the smallest real pick sets the pull, so
- * a pick of n reads "up to n", and As built leaves the size to the others' picks.
+ * holds n; in a party the leader's pick), 0 or unknown = the room as built.
  */
-export function densityWords(r, n, party) {
+export function densityWords(r, n) {
   const built = r.packMin === r.packMax ? String(r.packMin) : r.packMin + ' to ' + r.packMax;
   const picked = Number.isInteger(n) && n > 0;
   const packs = r.packs + (r.packs === 1 ? ' pack' : ' packs');
-  const size = picked ? ' of ' + (party ? 'up to ' : '') + n : party ? ', as big as your party picks' : ' of ' + built;
+  const size = picked ? ' of ' + n : ' of ' + built;
   return packs + size + (r.boss ? ', a boss' : '') + ' · back in ' + r.respawnS + ' s';
 }
 

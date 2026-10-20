@@ -10,7 +10,8 @@
 //   party   { id, hunt, max, open, listed, leader: unit, self: unit, leader_seat, self_seat,
 //             members: [{ unit, seat, hunting, name, level, weapon, role_pick, hp, hp_max, mana,
 //                         mana_max, dealt, healed, dps, hps, down, eating, drinking, aggro,
-//                         away, seat_ms }] }   (away / seat_ms: 2026-10-28-party-flow.sql)
+//                         away, seat_ms }], leader_density }   (away / seat_ms: 2026-10-28-party-flow.sql;
+//             leader_density: the leader's density pick, 2026-11-01-party-leader-density.sql)
 //   (a solo hunt is a party of one with id null: no party membership here)
 // The finder's answer (hr_hunt_party_finder) keeps its own { seats: [{ seat, weapon, role, name }] }.
 // What this lane asks the server for (CONFLICTS.md 2026-10-18 party UI; the
@@ -68,6 +69,10 @@ export function partyMembershipOf(cs) {
     id: p.id, hunt: typeof p.hunt === 'string' && HUNT.test(p.hunt) ? p.hunt : null, max,
     leader: seatNo(p.leader_seat), me, seats,
     isLeader: seatNo(p.leader_seat) === me,
+    /* THE LEADER CHOOSES THE HUNT SETTINGS (Tyler 2026-10-20): its density pick is the party's pull,
+       shown read-only to the others; null when the server did not say. */
+    density: Number.isInteger(p.leader_density) && p.leader_density >= 0 ? p.leader_density : null,
+    leaderName: (seats.find((s) => s.seat === seatNo(p.leader_seat)) || {}).name || null,
     anyHunting: seats.some((s) => s.hunting),
     full: max !== null && seats.length >= max,
   };

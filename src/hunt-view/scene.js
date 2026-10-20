@@ -25,6 +25,7 @@ import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.20';
 import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.20';
 import { partyPeopleOf } from '../session/party-sections.js?v=0.2.20';
 import { floatShown } from './float-prefs.js?v=0.2.20';
+import { heroSprite } from '../session/hero-look.js?v=0.2.20';
 import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.20';
 import { STUB_SPRITE } from '../world/core/book.js?v=0.2.20';
 import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.20';
@@ -43,7 +44,6 @@ export const SCENE_TIMING = Object.freeze({
   corpseFadeMs: 2000,   // it fades out over its last 2 s
   flashMs: 120,         // a hit's white flash
   floatMs: 1000,        // a floating number's life
-  faceMs: 700,          // a standing attacker faces its target this long after a swing
 });
 const MAX_FX = 96, MAX_FLOATS = 64, MAX_KEYS = 4096, PRUNE_AT = 512;
 /* FX-01: a target's numbers cycle through four offsets so a burst never stacks into one;
@@ -71,7 +71,8 @@ export function readHunt(cs) {
   for (const m of p ? p.members : []) if (m.unit !== null) heroes.set(m.unit, m);
   /* THE LIVE VIEW knows every hero of the instance before the snapshot does (its own units): each
      is the party member of its seat, so every member is drawn as a hero from the first swing. */
-  const live = cs && cs.live && typeof cs.live.heroUnits === 'function' && cs.live.running() ? cs.live.heroUnits() : [];
+  /* (a prediction out of seeds still names its heroes: heroUnits() is [] only with no prediction at all) */
+  const live = cs && cs.live && typeof cs.live.heroUnits === 'function' ? cs.live.heroUnits() : [];
   for (const x of live) {
     if (x.unit === null || heroes.has(x.unit)) continue;
     const m = p ? p.members.find((y) => y.seat === x.seat) : null;
@@ -88,6 +89,8 @@ export function readHunt(cs) {
     huntName: h && HUNT_INDEX[h.huntId] ? HUNT_INDEX[h.huntId].name : null,
     huntFromMs: h ? h.huntFromMs : null,
     self: p ? p.members.find((m) => m.seat === p.selfSeat) || null : null,
+    /* the viewed hero's look: the ONE source the town draws it with too (chosen outfit, else role) */
+    look: heroSprite(cs),
     shown: (type, boss) => floatShown(cs, type, boss ? 'boss' : 'regular'),
   };
 }
@@ -114,6 +117,7 @@ export function createHuntScene(o) {
   /* A monster's kind: the snapshot's, else the timeline's unit book (a corpse played after the
      snapshot dropped it). Unknown is null and the unit is not drawn (never a stub box). */
   const spriteOf = (u) => {
+    if (u === read.viewed && read.look) return read.look;
     if (isHero(u)) { const m = read.heroes.get(u); return outfitSprite(m && m.outfit, m && m.role); }
     return (read.units.get(u) || {}).kind || (typeof tl.kindOf === 'function' ? tl.kindOf(u) : null) || null;
   };
@@ -224,7 +228,7 @@ export function createHuntScene(o) {
   function standIn(now) {
     const e = read.entrance;
     const m = read.self;
-    const id = outfitSprite(m && m.outfit, m && m.role);
+    const id = read.look || outfitSprite(m && m.outfit, m && m.role);
     if (!e || !id) return null;
     const server = typeof tl.serverNowAt === 'function' ? tl.serverNowAt(now) : null;
     const left = Number.isFinite(read.huntFromMs) && server !== null ? Math.max(0, read.huntFromMs - server) : 0;
@@ -255,7 +259,7 @@ export function createHuntScene(o) {
     /* Facing: the way it walks; standing, toward what it last swung at; else its last heading. */
     let hx = p.hx, hy = p.hy;
     const s = swing.get(u);
-    if (!p.moving && s && now - s.at >= 0 && now - s.at < SCENE_TIMING.faceMs) {
+    if (!p.moving && s && now - s.at >= 0) {   // standing, it keeps facing what it last swung at (no turning back between swings)
       const q = tl.positionAt(s.t, now);
       if (q && (q.x !== p.x || q.y !== p.y)) { hx = q.x - p.x; hy = q.y - p.y; }
     }
@@ -263,7 +267,11 @@ export function createHuntScene(o) {
     let alpha = 1, grey = 0, under = false, corpse = null;
     const died = dead.get(u);
     if (died !== undefined) {
-      if (p.moving) dead.delete(u);   // a unit the server walks again is not dead
+      /* a unit the server walks again is not dead; one killed mid-step (HP 0 at this instant, read as its bar
+         reads it) finishes its step dead */
+      const hpNow = typeof tl.hpAt === 'function' ? tl.hpAt(u, now) : null;
+      const gone = hpNow ? hpNow.hp <= 0 : (read.units.get(u) || {}).hp === 0;
+      if (p.moving && !gone) dead.delete(u);
       else {
         const age = now - died;
         if (age >= SCENE_TIMING.corpseMs) return null;

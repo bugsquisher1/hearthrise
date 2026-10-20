@@ -44,10 +44,10 @@ export const SESSION_CONFIG = Object.freeze({
   liveDelayMs: 150,
   /** A reconcile eases each unit onto the server's world over at least this long (timeline.js T8). */
   liveEaseMs: 250,
-  /** Without a live start point, ask this soon (the floor answers with hunt_live, writing nothing). */
+  /** Without a live start point, ask this soon (the floor answers with hunt_live, writing nothing),
+      doubling per answer that brought none, up to huntPollMs, and never before the hunt's first
+      boundary (src/session/live-link.js askDelayMs). */
   liveAskMs: 300,
-  /** ...and at most this many times in a row before falling back to the ordinary poll. */
-  liveAskTries: 2,
   /** A PENDING LEAVE closes at the server's leave_at: the hunter's settle is asked this long after it
       (clock slack), not up to a huntPollMs later; the settle closes it then (hunt-settle.js: a pending
       leave is never held back by the floor). */

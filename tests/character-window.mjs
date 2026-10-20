@@ -79,6 +79,9 @@ async function stub(page, s) {
     if (name === 'hr-accrue') {
       /* The sheet verb answers at the SAME version (the put moves no version) and, here, still stale. */
       if (body.verb === 'sheet') { await new Promise((ok) => setTimeout(ok, s.sheetDelay || 200)); return json(Object.assign(clone(s.env), { version: s.version, verb: 'sheet', client_state: clone(s.residue) })); }
+      /* A plain ask under the settle floor writes nothing and restates the version (hunt-settle.js
+         below_min_span): the open hunt's live ask re-asks with back-off until a start point comes. */
+      if (!body.verb) return json(Object.assign(clone(s.env), { ok: true, settled: false, reason: 'below_min_span', version: s.version, client_state: clone(s.residue) }));
       return json(Object.assign({ accrued: true }, s.next()));
     }
     if (name === 'hr_outfit_set') { await new Promise((ok) => setTimeout(ok, 300)); return json({ ok: true }); }

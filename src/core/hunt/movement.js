@@ -79,6 +79,11 @@ function plan(inst, u, gx, gy, avoid) {
   return astar(inst.grid, u.x, u.y, gx, gy, veto, HUNT_TUNING.pathNodeCap);
 }
 
+/** Is there a way to (gx, gy) for `u` round every monster standing now (occupancy fresh)? */
+export function reachable(inst, u, gx, gy) {
+  return !!plan(inst, u, gx, gy, (x, y) => blocks(inst, u, x, y));
+}
+
 /** Aim `u` at (gx, gy). The same goal keeps its path (MV-01); no path = stand. */
 export function setGoal(inst, u, gx, gy) {
   if (u.goal && u.goal[0] === gx && u.goal[1] === gy && (u.path.length || (u.x === gx && u.y === gy))) return;

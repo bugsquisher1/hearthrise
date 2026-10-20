@@ -641,6 +641,15 @@ const ALSO_LINTED = [
      the sheet's engine pair and link 20 of HR_GRANT_HYGIENE_CHAIN. */
   '2026-10-25-outfits-catalogue.generated.sql',
   '2026-10-25-character-sheet.sql',
+  /* THE CORE REBUILD 3/3 (APPLIED 2026-10-19). HR_APPLY_CHAIN's and
+     HR_STATE_OF_CHAIN's last link since e6fc64a69, but never listed here, so the
+     derivation walk could not read it ("cannot extract the body") and the
+     delta-key classification read nothing. Its 26 restated bodies are graded by
+     RESTATED_IN_PLACE below (the revokes it did not restate). */
+  '2026-10-27-core-bodies.sql',
+  /* C2/S6 for the social lane's twelve RPCs (2026-10-20): the rate-limit
+     refusals core-bodies' four restatements surfaced, fixed for all twelve. */
+  '2026-10-30-social-rate-rejections.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────
@@ -1226,9 +1235,120 @@ const CLIENT_CALLABLE = new Map([
   ['hr_hunt_party_leave', ['authenticated']],
   ['hr_hunt_party_kick', ['authenticated']],
   ['hr_hunt_party_finder', ['authenticated']],
+  /* 2026-10-25-character-sheet.sql (the character window): wear an OWNED outfit
+     with catalogue dye indices. Cosmetic, moves no value; own character only,
+     idempotent, rate-gated (hr_rpc_gate 'outfit'), NOT granted to hr_engine.
+     The file records the hr_client_rpc_baseline row in §5; this static list had
+     never been told (the auto-eat lesson above: two baselines, one stale). */
+  ['hr_outfit_set', ['authenticated']],
+  /* The social lane (2026-10-25-chat-channels.sql, -social.sql, -town-walk.sql),
+     restated by 2026-10-30-social-rate-rejections.sql with its grants exactly as
+     authored: the player's own chat, whispers, blocks, friends, inspect and town
+     walk. Each is rate-gated by hr_rate_ok (and now records the refusal), none
+     moves value, none is granted to hr_engine. */
+  ['hr_chat_send', ['authenticated']],
+  ['hr_chat_recent', ['authenticated']],
+  ['hr_whisper_send', ['authenticated']],
+  ['hr_whispers_recent', ['authenticated']],
+  ['hr_block_set', ['authenticated']],
+  ['hr_friend_request', ['authenticated']],
+  ['hr_friend_answer', ['authenticated']],
+  ['hr_friend_remove', ['authenticated']],
+  ['hr_social_state', ['authenticated']],
+  ['hr_inspect', ['authenticated']],
+  ['hr_town_move', ['authenticated']],
+  ['hr_town_walkers', ['authenticated']],
 ]);
 
+/* REVOKES WRITTEN AS A format() LOOP. 2026-10-25-character-sheet.sql §5 (and
+   C1's 2026-10-21-hunt-sessions.sql) revoke with
+     foreach f in array array['public.fn(args)', …] loop
+       execute format('revoke execute on function %s from public', f); …
+   which the literal regex below cannot read. This reads exactly that shape and
+   nothing looser: the array element must name `public.<fn>(`, and the SAME loop
+   variable must reach a format() whose literal is `revoke execute on function
+   %s from public`. A loop that revokes only from named roles, or formats a
+   different variable, revokes nothing here. */
+const loopRevokedFromPublic = (sql) => {
+  const out = new Set();
+  for (const m of sql.matchAll(/foreach\s+([a-z_][a-z0-9_]*)\s+in\s+array\s+array\s*\[([\s\S]*?)\]\s*loop([\s\S]*?)end\s+loop\s*;/gi)) {
+    const v = m[1];
+    const revokes = new RegExp(
+      `execute\\s+format\\s*\\(\\s*'revoke\\s+execute\\s+on\\s+function\\s+%s\\s+from\\s+public'\\s*,\\s*${v}\\s*\\)`, 'i');
+    if (!revokes.test(m[3])) continue;
+    for (const e of m[2].matchAll(/'public\.([a-z0-9_]+)\s*\(/gi)) out.add(e[1].toLowerCase());
+  }
+  return out;
+};
+
+/* RESTATED IN PLACE. A file listed here restates functions from the replayed
+   chain's own pg_get_functiondef text and does not restate their revokes.
+   CREATE OR REPLACE keeps an existing function's ACL, so such a body is safe
+   exactly when its IDENTITY is unchanged (a changed argument list is a NEW
+   function, born executable by PUBLIC) and nothing dropped it in between. That
+   property is checked here statically, per function, against the previous file
+   in the apply order that creates it; the file must also run the database-side
+   detector hr_assert_grant_hygiene(true) in its executed self-check. Every new
+   function in such a file, and every changed identity, still needs its own
+   revoke. Not a pattern to reach for: new files restate their revokes. */
+const RESTATED_IN_PLACE = new Set([
+  /* THE CORE REBUILD (APPLIED 2026-10-19 15:15 UTC): 26 bodies restated whole,
+     revokes only on its new and re-signed functions; §5 runs the detector. */
+  '2026-10-27-core-bodies.sql',
+]);
+const APPLY_ORDER = JSON.parse(await readFile(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+// The normalised argument list of the definition whose `create … (` match ends at
+// `open` (the index just past its opening paren). Names are kept: CREATE OR
+// REPLACE refuses a renamed input parameter, so equal lists are the stricter test.
+const paramsAt = (sql, open) => {
+  let i = open, d = 1, s = '';
+  while (d > 0 && i < sql.length) { const c = sql[i++]; if (c === '(') d++; else if (c === ')') d--; if (d > 0) s += c; }
+  return s.split(',').map((p) => p.toLowerCase()
+    .replace(/\s+(default|=)\s[\s\S]*$/, '')
+    .replace(/\btimestamp with time zone\b/g, 'timestamptz')
+    .replace(/\binteger\b/g, 'int')
+    .replace(/\bboolean\b/g, 'bool')
+    .replace(/\s+/g, ' ').trim()).join(', ');
+};
+const identityOf = (sql, fn) => {
+  const re = new RegExp(`create\\s+or\\s+replace\\s+function\\s+public\\.${fn}\\s*\\(`, 'gi');
+  let m, last = null;
+  while ((m = re.exec(sql))) last = paramsAt(sql, m.index + m[0].length);
+  return last;
+};
+const migText = new Map();
+const readMig = async (f) => {
+  if (!migText.has(f)) { try { migText.set(f, stripComments(await readFile(MIG(f), 'utf8'))); } catch { migText.set(f, null); } }
+  return migText.get(f);
+};
+const inPlaceVerdict = async (file, fn) => {
+  const at = APPLY_ORDER.indexOf(file);
+  if (at < 0) return `${file} is not in schema-apply-order.json`;
+  const mine = identityOf(code.get(file), fn);
+  const dropRe = new RegExp(`drop\\s+function\\s+(if\\s+exists\\s+)?public\\.${fn}\\s*\\(`, 'i');
+  if (dropRe.test(code.get(file))) return 'the file itself drops it';
+  for (let k = at - 1; k >= 0; k--) {
+    const sql = await readMig(APPLY_ORDER[k]);
+    if (!sql) continue;
+    const prev = identityOf(sql, fn);
+    if (prev === null) {
+      if (dropRe.test(sql)) return `${APPLY_ORDER[k]} drops it before this file restates it`;
+      continue;
+    }
+    if (prev !== mine) return `its identity (${mine}) differs from ${APPLY_ORDER[k]}'s (${prev}) — a new function`;
+    const after = sql.slice(sql.search(new RegExp(`create\\s+or\\s+replace\\s+function\\s+public\\.${fn}\\s*\\(`, 'i')));
+    if (dropRe.test(after)) return `${APPLY_ORDER[k]} drops it after creating it`;
+    return null;
+  }
+  return 'no earlier file in the apply order creates it — a new function';
+};
+
 for (const [file, sql] of code) {
+  const loopRevoked = loopRevokedFromPublic(sql);
+  const inPlace = RESTATED_IN_PLACE.has(file);
+  if (inPlace && !/perform\s+public\.hr_assert_grant_hygiene\s*\(\s*true\s*\)/i.test(sql)) {
+    fail(`${file}: listed RESTATED_IN_PLACE but its self-check never runs hr_assert_grant_hygiene(true)`);
+  }
   // Every `create or replace function public.NAME(` in the file.
   const created = [...sql.matchAll(/create\s+or\s+replace\s+function\s+public\.([a-z0-9_]+)\s*\(/gi)]
     .map((m) => m[1]);
@@ -1245,8 +1365,13 @@ for (const [file, sql] of code) {
     const revoked = new RegExp(
       `revoke\\s+execute\\s+on\\s+function\\s+public\\.${fn}\\s*\\([^)]*\\)[\\s\\S]{0,200}?from[^;]*\\bpublic\\b`,
       'i').test(sql);
-    if (!revoked) fail(`${file}: ${fn}() is created but never revoked from PUBLIC`);
-    else pass(`${file}: ${fn}() revoked from PUBLIC`);
+    if (revoked) pass(`${file}: ${fn}() revoked from PUBLIC`);
+    else if (loopRevoked.has(fn.toLowerCase())) pass(`${file}: ${fn}() revoked from PUBLIC (format() loop)`);
+    else if (inPlace) {
+      const why = await inPlaceVerdict(file, fn);
+      if (why) fail(`${file}: ${fn}() is created but never revoked from PUBLIC, and it is not an in-place restatement: ${why}`);
+      else pass(`${file}: ${fn}() restated in place (same identity; its ACL carries over)`);
+    } else fail(`${file}: ${fn}() is created but never revoked from PUBLIC`);
 
     // A privileged function must not be granted to a client role.
     const grants = [...sql.matchAll(
@@ -1373,11 +1498,33 @@ say('── to_regproc vs to_regprocedure');
 // vanishes: no ledger row, no intent row, nothing. Same defect class as R4.
 say('── rate-limit rejections are observable (C2) and sampled (S6)');
 {
-  let bad = 0, seen = 0;
+  let bad = 0, seen = 0, superseded = 0;
+  /* A body a LATER LINTED file restates is not live, and the live one is
+     judged in that later file — so a refusal fixed forward (2026-10-30-social-
+     rate-rejections.sql over core-bodies' four social restatements) is judged
+     once, where it lives. Superseded only by a file this lint reads: a body
+     restated by an unlinted file stays judged here, so nothing leaves coverage. */
+  // Keyed by name AND argument list: an overload with another identity is
+  // another function, and does not retire this one.
+  const DEF_RE = /create\s+or\s+replace\s+function\s+public\.([a-z0-9_]+)\s*\(/gi;
+  const keyOf = (s, d) => `${d[1].toLowerCase()}(${paramsAt(s, d.index + d[0].length)})`;
+  const definers = new Map();   // name(args) -> [apply-order index of each linted file creating it]
+  for (const [f, s] of code) {
+    for (const d of s.matchAll(DEF_RE)) {
+      const k = keyOf(s, d);
+      if (!definers.has(k)) definers.set(k, []);
+      definers.get(k).push(APPLY_ORDER.indexOf(f));
+    }
+  }
   for (const [file, sql] of code) {
+    const at = APPLY_ORDER.indexOf(file);
+    const defs = [...sql.matchAll(DEF_RE)];
     // Each `if not …hr_rate_ok(…) then … end if;` block must mention
     // hr_record_rejection before it returns.
     for (const m of sql.matchAll(/if\s+not\s+public\.hr_rate_ok\([\s\S]*?end if;/gi)) {
+      const owner = defs.filter((d) => d.index < m.index).pop();
+      const later = owner && at >= 0 && (definers.get(keyOf(sql, owner)) || []).some((i) => i > at);
+      if (later) { superseded++; continue; }
       seen++;
       if (!/hr_record_rejection/.test(m[0])) {
         fail(`${file}: a hr_rate_ok() rejection returns without hr_record_rejection (C2)`);
@@ -1387,13 +1534,20 @@ say('── rate-limit rejections are observable (C2) and sampled (S6)');
       // path means a retry storm costs a row lock and a WAL record per request,
       // all serialised on one tuple — the server doing more durable work the
       // harder it is hammered. The gate is hr_rate_sample_weight() > 0.
-      if (!/hr_rate_sample_weight/.test(m[0])) {
+      // (Read as the GATE, 2026-10-20: the bare name also appears as the
+      // recorder's p_count argument, so `if true then perform
+      // hr_record_rejection(…, hr_rate_sample_weight(…))` used to pass.)
+      // Two shapes: the weight inline in the `if`, or held in a variable first
+      // (2026-08-23-open-beta.sql: `v_weight := …; if v_weight > 0 then`).
+      const gated = /if\s+(?:public\.)?hr_rate_sample_weight\s*\([\s\S]*?\)\s*>\s*0\s+then\s+perform\s+(?:public\.)?hr_record_rejection\s*\(/i.test(m[0])
+        || /\b([a-z_][a-z0-9_]*)\s*:=\s*(?:public\.)?hr_rate_sample_weight\s*\([^;]*;\s*if\s+\1\s*>\s*0\s+then\s+perform\s+(?:public\.)?hr_record_rejection\s*\(/i.test(m[0]);
+      if (!gated) {
         fail(`${file}: a hr_rate_ok() rejection records unconditionally — gate it on hr_rate_sample_weight() (S6)`);
         bad++;
       }
     }
   }
-  if (!bad) pass(`all ${seen} rate-limit rejections are recorded and sampled`);
+  if (!bad) pass(`all ${seen} live rate-limit rejections are recorded and sampled (${superseded} in bodies a later linted file restates)`);
 }
 
 // ── PART 1c-iv — no migration may control its own transaction (review S5) ─
@@ -1479,7 +1633,9 @@ say('── one owner for clan_members."join as self"');
 // ── PART 1d — the migrations must be self-verifying ──────────────────────
 say('── self-verification blocks');
 for (const [file, sql] of sources) {
-  if (/raise\s+exception/i.test(sql) && /do\s+\$\$/.test(sql)) pass(`${file}: has assertions`);
+  // Any dollar tag: core-bodies' §5 is `do $mig$ … end $mig$;` (a named tag is
+  // still a do-block; `$$` was simply the only shape written before it).
+  if (/raise\s+exception/i.test(sql) && /\bdo\s+\$[A-Za-z_]*\$/i.test(sql)) pass(`${file}: has assertions`);
   else fail(`${file}: no self-verifying do-block`);
 }
 
@@ -2210,9 +2366,14 @@ say('── every currency delta key has a per-call clamp AND a daily ceiling (S
       + 'a whole XP point only ever reaches player_skills through the clamped, budgeted `xp` key'],
     companion_xp_frac: ['bounded', '2026-10-12 — the equipped companion remainder in [0,1), the xp_frac '
       + 'shape; range-refused, keyed to an equipped companion only. Moves no balance'],
-    recovering_until: ['bounded', 'First-Night Idle Rescue — an ABSOLUTE instant, ceilinged ahead of '
-      + 'now() and REFUSED when it would shorten a running knockout (Security F1). A clock, never a '
-      + 'balance'],
+    /* THE CORE REBUILD (2026-10-27-core-bodies.sql, Tyler 2026-10-19: no
+       knockouts, a death ends the hunt) took `recovering_until` out of hr_apply
+       and brought `level_xp` in. */
+    level_xp: ['bounded', 'core rebuild — the character Level XP, a monotonic counter, not a '
+      + 'spendable or tradeable balance. Refused (never clamped) above c_max_xp_delta per call, '
+      + 'refused level_xp_outside_hunt unless hr.hunt_session is set, bounded by '
+      + 'hr_hunt_apply_member at kills x per-kill XP (value_over), journalled as meta.lx. It '
+      + 'ranks (the Level board) and carries NO daily dimension: the kill bound is its ceiling'],
     deaths: ['metadata', 'rev. 2 N3 — an array of server-derived death records fanned out to one '
       + 'ledger row each. Audit only: the rows carry no gold_in/xp_in/qty_in, so they enter no '
       + 'conservation sum and there is nothing here to clamp, only to refuse'],

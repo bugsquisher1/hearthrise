@@ -18,7 +18,8 @@
      · the combat-skill list naming attack / strength / hitpoints (the skill list is melee, ranged,
        magic, defense, prayer);
      · the non-value key list, which gains level_xp (re-flowed), and the bare `else` / `end if;` /
-       `--` / blank lines the restated blocks re-nested.
+       `--` / blank lines the restated blocks re-nested;
+     · the item and activity level gates' hr_level_from_xp, now hr_skill_level (each skill's curve).
    hr_state_of (vs 2026-10-22-hunt-sessions-delete-away.sql):
      · state.recovering_until and its comment block; state.max_hp read off the dropped column (now
        derived: `least(v_st.hp, max_hp)` and 'max_hp' from hr_vitals_of); the deaths_* anchors' recovery
@@ -129,6 +130,11 @@ export const HR_APPLY = Object.freeze([
   "        end if;",
   "    --",
   "",
+  /* The item and activity level gates (both copies of this line): the capped single-curve
+     hr_level_from_xp becomes hr_skill_level(req_skill, xp), each skill on its own curve. Added
+     2026-10-20 (lane/c-sql-tests-green): 17b39e0b0 made this edit 12 minutes after the list was
+     frozen, and the walk could not see it until core-bodies joined run-sql-tests' sources. */
+  "             and coalesce((select public.hr_level_from_xp(s.xp) from public.player_skills s",
 ]);
 export const HR_STATE_OF = Object.freeze([
   "  return jsonb_build_object(",

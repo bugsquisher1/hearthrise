@@ -53,6 +53,7 @@ import { readTickPerks } from './tick-reads.js';
 import { huntGroundOf } from '../../../src/core/hunt-ground.js';
 import { huntTimeline, worldHash } from '../../../src/core/hunt-track.js';
 import { ITEMS } from '../../../src/data/items.js';
+import { HUNT_TUNING } from '../../../src/data/hunt-tuning.js';
 import { MONSTERS } from '../../../src/data/monsters.js';
 import { roleWeaponOf } from '../../../src/data/hunt-roles.js';
 import { heroSetup } from '../../../src/core/hunt-spawn.js';
@@ -67,7 +68,8 @@ import { seederFor } from './hunt-seed.js';
    member's purse is withheld (null); its skills, gear and bar are sent (the shared instance needs
    them; listed for the reopen Security review in docs/design/ARCHITECTURE_CONTRACTS.md §L). Prediction
    only: nothing the browser simulates is spent or credited (CLAUDE.md §1, §6). */
-export const LIVE_SEEDS = 64;
+/* The look-ahead is ONE data constant the browser reads too (src/data/hunt-tuning.js liveSeeds). */
+export const LIVE_SEEDS = HUNT_TUNING.liveSeeds;
 /** The next LIVE_SEEDS combat-swing seeds from world swing `from` (domain 's' only, never 'r'). */
 export function liveSeeds(inst, from) {
   const seed = seederFor(String(inst.secret || ''), String(inst.id));

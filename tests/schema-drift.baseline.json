@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-10-20",
- "digest": "ba43abb64088af6c03d48d2b644962723a87690e87f329291a5c954f503203a9",
+ "digest": "064401d809dc71475e730bbbc34ded9abca685860960a7fdbcac6a563d8934d6",
  "counts": {
   "relations": 213,
-  "functions": 513,
+  "functions": 514,
   "policies": 129,
   "indexes": 297,
   "triggers": 34,
@@ -471,6 +471,7 @@
    "hr_hunt_leave(p_slot integer, p_idem uuid)",
    "hr_hunt_ledger_pair(p_user uuid, p_slot integer, p_from_session uuid, p_to_session uuid, p_item text, p_qty bigint, p_intent text)",
    "hr_hunt_limit(p_key text)",
+   "hr_hunt_live_horizon_at(p_settled_to timestamp with time zone)",
    "hr_hunt_lock(p_user uuid, p_slot integer)",
    "hr_hunt_loot_rules(p_user uuid, p_slot integer, p_session uuid, p_intent uuid, p_items jsonb, p_at timestamp with time zone)",
    "hr_hunt_member_read(p_s hunt_sessions)",

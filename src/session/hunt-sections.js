@@ -119,6 +119,8 @@ export function settingsOf(cs) {
     targetMode: str(s.target_mode), stance: str(s.stance), distance: int(s.distance),
     chase: typeof s.chase === 'boolean' ? s.chase : null,
     foodPct: int(s.food_pct), drinkPct: int(s.drink_pct), supplySource: str(s.supply_source), onEmpty: str(s.on_empty),
+    /* The gold the store never spends below (hunt_settings.gold_floor; null until hr_hunt_settings_view projects it). */
+    goldFloor: int(s.gold_floor),
     /* Monster density (the pick; the settle clamps it to the ground) and the gathering share (INERT until gathering lands). */
     density: int(s.density), gatherShare: int(s.gather_share), gatherInert: s.gather_inert === true,
     stopRules: list(s.stop_rules, (r) => (isObj(r) && Array.isArray(r.conditions) ? { conditions: list(r.conditions, conditionOf, 4), join: JOIN.test(String(r.join)) ? r.join : 'and', forMs: int(r.forMs) || 0 } : null), 3),

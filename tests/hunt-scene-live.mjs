@@ -319,7 +319,7 @@ const MUTANTS = [
   ['the live view keeps the server-paced delay (LV-2)', 'src/session/live-link.js', 'this._tl.setDelay(SESSION_CONFIG.liveDelayMs);', 'void 0;', /^LV-2/],
   ['the frame loop never advances the engine (LV-2)', 'src/session/live-link.js', '    return this.engine.advance(now, (b) => this._tl.ingest(b, clientNow));', '    return 0;', /^LV-2/],
   ['a monster the snapshot dropped is unnamed (LV-5)', 'src/hunt-view/scene.js', "(typeof tl.kindOf === 'function' ? tl.kindOf(u) : null)", 'null', /^LV-5/],
-  ["a monster's bar is the snapshot's HP (LV-5)", 'src/hunt-view/scene.js', "const played = hero || typeof tl.hpAt !== 'function' ? null : tl.hpAt(u, now);", 'const played = null;', /^LV-5/],
+  ["a bar is the snapshot's HP (LV-5)", 'src/hunt-view/scene.js', "const played = typeof tl.hpAt !== 'function' ? null : tl.hpAt(u, now);", 'const played = null;', /^LV-5/],
   ['the per-minute figure printed as /s (LV-3)', 'src/shell/widgets/action-bar.js', 'regen(hero.hpPerS)', 'regen(hero.hpPerS * 60)', /^LV-3/],
 ];
 

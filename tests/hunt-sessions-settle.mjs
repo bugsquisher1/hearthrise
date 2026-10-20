@@ -980,6 +980,10 @@ const DB_ARMS = {
     const { a, b } = await compareRuns(db, M, DOOMED, ticksOf(90000, SPAN_MS), attended);
     if (!((a[0].deaths || []).length === 1)) problems.push(`CONTROL: the weak hero did not die exactly once (${JSON.stringify(a[0].deaths)})`);
     if (a[0].session.end_reason !== 'died') problems.push(`the death ended the hunt ${a[0].session.end_reason}, not died`);
+    /* The death row carries the engine's instant (the settle's death hint), inside the swing it happened in:
+       strictly before the boundary the hunt ended at, never clamped onto a window edge. */
+    const deathAt = ((a[0].events || []).find((e) => e[0] === 'death') || [])[1];
+    if (!(Date.parse(deathAt) < Date.parse(a[0].session.ended_at))) problems.push(`the death row sits at ${deathAt}, not before the end ${a[0].session.ended_at}`);
     if (canon(a) !== canon(b)) problems.push(`a hunt settled at a player's instants wrote different rows from the tick's ${firstDiff(canon(a), canon(b))}`);
     return problems;
   },

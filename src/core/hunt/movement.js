@@ -23,10 +23,10 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.18';
-import { walkable, astar, cheb, stepCost, tileKey } from './grid.js?v=0.2.18';
-import { leashAllows, inArea } from './leash.js?v=0.2.18';
-import { trackStep } from './events.js?v=0.2.18';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.19';
+import { walkable, astar, cheb, stepCost, tileKey } from './grid.js?v=0.2.19';
+import { leashAllows, inArea } from './leash.js?v=0.2.19';
+import { trackStep } from './events.js?v=0.2.19';
 
 /* What this module keeps on the persisted world (world-state.js encodes it). */
 export const PERSISTED = Object.freeze({

@@ -9,11 +9,11 @@
 // Display only: it reads the catalogue (src/shell/item-lore.js) and the
 // numbers the window hands it from the envelope, and sends nothing.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.18';
-import { whole, gold } from '../../render/format.js?v=0.2.18';
-import { itemName } from '../widgets/bits.js?v=0.2.18';
-import { kindWords, sourcesOf, usesOf, flavourOf, needOf } from '../item-lore.js?v=0.2.18';
-import { statLines, compare, rarityOf } from '../bag-model.js?v=0.2.18';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.19';
+import { whole, gold } from '../../render/format.js?v=0.2.19';
+import { itemName } from '../widgets/bits.js?v=0.2.19';
+import { kindWords, sourcesOf, usesOf, flavourOf, needOf } from '../item-lore.js?v=0.2.19';
+import { statLines, compare, rarityOf } from '../bag-model.js?v=0.2.19';
 
 const RULE_WORDS = Object.freeze({ keep: 'Keep', sell: 'Sell at the shop', ignore: 'Leave on the ground' });
 const GAP = 10;

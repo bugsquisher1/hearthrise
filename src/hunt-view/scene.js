@@ -71,7 +71,8 @@ export function readHunt(cs) {
   for (const m of p ? p.members : []) if (m.unit !== null) heroes.set(m.unit, m);
   /* THE LIVE VIEW knows every hero of the instance before the snapshot does (its own units): each
      is the party member of its seat, so every member is drawn as a hero from the first swing. */
-  const live = cs && cs.live && typeof cs.live.heroUnits === 'function' && cs.live.running() ? cs.live.heroUnits() : [];
+  /* (a prediction out of seeds still names its heroes: heroUnits() is [] only with no prediction at all) */
+  const live = cs && cs.live && typeof cs.live.heroUnits === 'function' ? cs.live.heroUnits() : [];
   for (const x of live) {
     if (x.unit === null || heroes.has(x.unit)) continue;
     const m = p ? p.members.find((y) => y.seat === x.seat) : null;

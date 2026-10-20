@@ -198,10 +198,13 @@ export async function bootWorld(panel, opts) {
 
   function liveState(sc) {
     const tl = character.timeline;
-    if (!liveHunt || liveHunt.map !== sc.map) {
+    /* one scene per hunt SESSION, not per map: its per-unit marks (corpses, flashes, facings) are keyed
+       by unit ids that restart in every instance (timeline.js T10) */
+    const session = (huntOf(character) || {}).sessionId || null;
+    if (!liveHunt || liveHunt.map !== sc.map || liveHunt.session !== session) {
       endLive();
       const scene = createLiveHunt({ timeline: tl, book, read: () => readHunt(character) });
-      liveHunt = { map: sc.map, scene, off: tl.subscribe((ev) => scene.onEvent(ev, character.now())) };
+      liveHunt = { map: sc.map, session, scene, off: tl.subscribe((ev) => scene.onEvent(ev, character.now())) };
     }
     const now = character.now();
     /* the live view's engine runs to now first (src/session/live-link.js) */

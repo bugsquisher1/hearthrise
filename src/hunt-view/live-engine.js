@@ -32,6 +32,8 @@ import { huntGroundOf } from '../core/hunt-ground.js?v=0.2.20';
 import { huntTimeline, worldHash } from '../core/hunt-track.js?v=0.2.20';
 import { encode as encodeWorldRow, decode as decodeWorldRow } from '../core/hunt/world-state.js?v=0.2.20';
 import { COMBAT_BALANCE } from '../core/combat.js?v=0.2.20';
+import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.20';
+import { stepCost } from '../core/hunt/grid.js?v=0.2.20';
 
 /* How many swings of world hashes are kept to judge a server commit against. */
 const KEEP_HASHES = 64;
@@ -40,6 +42,38 @@ const UNKNOWN_PURSE = Number.MAX_SAFE_INTEGER;
 
 const isInt = (v) => Number.isSafeInteger(v);
 const encodeWorld = (w) => JSON.stringify(encodeWorldRow(w));
+
+/*
+ * THE DRAWN TIMING OF A SWING'S STEPS (display only: nothing reads it back). The engine stamps a step
+ * with the 100 ms sub-step it began in, but a unit rolls continuously at its own speed (movement.js
+ * MV-02: a step finished mid-sub-step rolls straight into the next), so a step that follows on truly
+ * starts the instant the last one ended, and rolls for its length over the unit's speed (a diagonal
+ * 1.414 times a straight one). Drawn at the stamp over one fixed tile time instead, a walk rushed its
+ * diagonals and stood still at most tile boundaries (live v0.2.20 "choppy"). A unit's first sighting
+ * (its spawn anchor) moves 1 ms before a step that starts on the same instant, so the timeline (one
+ * step per unit and instant, timeline.js T2) keeps both and the hero never cuts two tiles at once.
+ * `memo`: unit -> { x, y, end, first } across swings (the caller prunes it).
+ */
+export function timeSteps(steps, speedOf, memo) {
+  const sub = HUNT_TUNING.stepMs;
+  for (const s of steps) {
+    const m = memo.get(s.u);
+    if (!m) { s.stampMs = s.atMs; memo.set(s.u, { x: s.x, y: s.y, end: s.atMs, first: s }); continue; }
+    if (m.x === s.x && m.y === s.y) continue;   // an anchor on the tile it is rolling to or holds
+    const budget = Math.floor((Number(speedOf(s.u)) * sub) / 1000);   // movement.js stepUnit's budget
+    const adjacent = Math.max(Math.abs(s.x - m.x), Math.abs(s.y - m.y)) === 1;
+    if (!adjacent || !(budget > 0)) { memo.set(s.u, { x: s.x, y: s.y, end: s.atMs, first: null }); continue; }
+    const start = Number.isFinite(m.end) && m.end >= s.atMs && m.end < s.atMs + sub ? m.end : s.atMs;
+    const end = start + (stepCost(m.x, m.y, s.x, s.y) * sub) / budget;
+    const at = Math.round(start);
+    if (m.first && m.first.atMs >= at) m.first.atMs = at - 1;
+    s.stampMs = s.atMs;   // the engine's own sub-step stamp (tests/hunt-live.mjs LV-D judges the swings on it)
+    s.atMs = at;
+    s.dur = Math.round(end) - at;
+    memo.set(s.u, { x: s.x, y: s.y, end, first: null });
+  }
+  return steps;
+}
 
 /**
  * @param {{items: object, monsters: object}} o  the catalogues the edge prices with
@@ -60,13 +94,21 @@ export function createLiveEngine(o) {
     const s = {
       instance: String(live.instance.id),
       world, next: Number(live.instance.next_swing_at_ms), where, sides,
+      /* A restarted instance's fresh world counts on from its stored swing (combat-sim.js worldSwing):
+         the server passes it, so must the browser, or its first swing asks for a seed index never sent. */
+      worldSwing: Math.max(0, Math.floor(Number(live.instance.world_swing) || 0)),
       seeds: { from: Number(live.seeds.from), list: live.seeds.list.slice() },
-      hashes: new Map(), starved: false,
+      hashes: new Map(), starved: false, drawn: new Map(),
       self: (live.members.find((m) => m.self) || {}).unitId ?? null,
     };
     s.hashes.set(Number(live.instance.world_swing), live.instance.world_hash);
     return s;
   }
+
+  /* Does the prediction hold the combat seed of its next swing? Asked BEFORE the swing runs: the sim
+     moves its members' sessions on before it draws the seed, so a swing that starved half-way would
+     leave a world the next seed can no longer replay. */
+  const seeded = (s) => isInt(s.seeds.list[(s.world ? s.world.swing : s.worldSwing) - s.seeds.from]);
 
   /* One swing of the instance, from the engine's next boundary. */
   function swing(s) {
@@ -76,16 +118,42 @@ export function createLiveEngine(o) {
       if (!isInt(v)) { const e = new Error('live: no combat seed for swing ' + index); e.starved = true; throw e; }
       return v;
     };
+    if (!seeded(s)) { const e = new Error('live: no combat seed for the next swing'); e.starved = true; throw e; }
     const at = s.next;
-    const sim = simulateHuntInstance({ world: s.world, nextSwingAtMs: at, members: s.sides.map((x) => x.member) },
-      { toMs: at + 1, tickMs: COMBAT_BALANCE.tickMs, seed, ground: s.where.ground, grid: s.where.grid, monsters, items });
+    const speeds = new Map();
+    for (const u of (s.world ? s.world.units : [])) speeds.set(u.id, u.speed);
+    const sim = simulateHuntInstance({ world: s.world, nextSwingAtMs: at, members: s.sides.map((x) => x.member),
+      worldSwing: s.worldSwing },
+    { toMs: at + 1, tickMs: COMBAT_BALANCE.tickMs, seed, ground: s.where.ground, grid: s.where.grid, monsters, items });
     s.world = sim.world;
     s.next = sim.nextSwingAtMs;
     if (s.world) {
       s.hashes.set(s.world.swing, worldHash(encodeWorld(s.world)));
       if (s.hashes.size > KEEP_HASHES) s.hashes.delete(s.hashes.keys().next().value);
     }
-    return huntTimeline(sim.track, sim.events, at, sim.nextSwingAtMs, at, sim.units);
+    const tl = huntTimeline(sim.track, sim.events, at, sim.nextSwingAtMs, at, sim.units);
+    const alive = new Set();
+    for (const u of (s.world ? s.world.units : [])) { if (!speeds.has(u.id)) speeds.set(u.id, u.speed); alive.add(u.id); }
+    timeSteps(tl.hunt_track, (id) => speeds.get(id), s.drawn);
+    for (const id of s.drawn.keys()) if (!alive.has(id)) s.drawn.delete(id);
+    return tl;
+  }
+
+  /* Run every swing up to `serverNowMs` WITHOUT playing it, and answer where every unit now stands
+     (the caller eases the drawing onto it: timeline.rebase). */
+  function fastForward(serverNowMs) {
+    const units = {};
+    while (st.next <= serverNowMs) {
+      let tl;
+      try { tl = swing(st); } catch (e) { if (e && e.starved) { st.starved = true; break; } throw e; }
+      Object.assign(units, tl.hunt_units);
+    }
+    const positions = new Map(), alive = new Set();
+    st.drawn.clear();
+    for (const u of (st.world ? st.world.units : [])) {
+      if (u.alive) { positions.set(u.id, [u.x, u.y]); alive.add(u.id); st.drawn.set(u.id, { x: u.x, y: u.y, end: NaN, first: null }); }
+    }
+    return { positions, alive, units, fromMs: serverNowMs };
   }
 
   return {
@@ -153,18 +221,18 @@ export function createLiveEngine(o) {
       const s = start(live);
       if (!s) { st = null; return null; }
       st = s;
-      const units = {};
-      while (st.next <= serverNowMs) {
-        let tl;
-        try { tl = swing(st); } catch (e) { if (e && e.starved) { st.starved = true; break; } throw e; }
-        Object.assign(units, tl.hunt_units);
-      }
-      const positions = new Map(), alive = new Set();
-      for (const u of (st.world ? st.world.units : [])) {
-        if (u.alive) { positions.set(u.id, [u.x, u.y]); alive.add(u.id); }
-      }
-      return { positions, alive, units, fromMs: serverNowMs };
+      return fastForward(serverNowMs);
     },
+    /** A prediction that ran out of seeds (it holds a world, but cannot step it): restart it eased, never fed. */
+    stalled: () => !!st && st.starved,
+    /** How far (ms) the prediction's next boundary lies behind `serverNowMs` (0 when it is up to date or not running). */
+    behindMs: (serverNowMs) => (st && !st.starved && Number.isFinite(serverNowMs) ? Math.max(0, serverNowMs - st.next) : 0),
+    /**
+     * A prediction more than a swing behind (a background tab's paused frame loop): its missed swings are
+     * already in the past, so they are run without being played and the caller eases onto the result
+     * (reseed's answer shape), instead of feeding them and drawing their end at once.
+     */
+    catchUp(serverNowMs) { return st && !st.starved ? fastForward(serverNowMs) : null; },
     /** What the prediction's member sinks would have dropped (inert: it proves drops are NOT foreseen). */
     predictedDrops() {
       const out = {};

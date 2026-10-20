@@ -16,6 +16,7 @@ import { createLiveEngine } from '../hunt-view/live-engine.js?v=0.2.20';
 import { ITEMS } from '../data/items.js?v=0.2.20';
 import { MONSTERS } from '../data/monsters.js?v=0.2.20';
 import { SESSION_CONFIG } from './config.js?v=0.2.20';
+import { COMBAT_BALANCE } from '../core/combat.js?v=0.2.20';
 
 export class LiveLink {
   /**
@@ -36,7 +37,7 @@ export class LiveLink {
 
   /** The hunt is over (or there is none): back to the server-paced view. */
   off() {
-    if (this.engine.running()) { this.engine.stop(); this._tl.setDelay(SESSION_CONFIG.huntPlaybackDelayMs); }
+    if (this.engine.running() || this.engine.stalled()) { this.engine.stop(); this._tl.setDelay(SESSION_CONFIG.huntPlaybackDelayMs); }
     this.want = false; this._tries = 0;
   }
 
@@ -49,26 +50,55 @@ export class LiveLink {
     const now = this._tl.serverNowAt(this._now());
     if (body.hunt_live) {
       this.want = false;
+      /* Not started, or out of seeds: (re)start from the server's world. A start point from an older
+         commit leaves the prediction behind the clock, and advance() eases it on (catchUp). */
       if (!this.engine.running()) {
         if (this.engine.seed(body.hunt_live)) { this._tl.setDelay(SESSION_CONFIG.liveDelayMs); this._tries = 0; this._emit('live'); }
         return;
       }
+      /* A start point the prediction agrees with hands it the next seeds. A character whose own poll
+         never lands the settle (another client of the party settled first: its answers are start
+         points, never commits) lived on its first 16 swings, froze, then jumped (live v0.2.20). */
       const i = body.hunt_live.instance;
-      if (this.engine.check({ world_swing: i.world_swing, world_hash: i.world_hash }) === 'match') return;
-      const res = this.engine.reseed(body.hunt_live, now);
-      if (!res) return;
-      this._tl.rebase(Math.floor(now), res.positions, SESSION_CONFIG.liveEaseMs);
-      this._tl.ingest({ units: res.units, fromMs: Math.floor(now) }, this._now());
-      this._reseeded = res.alive;
-      this._emit('reseed');
+      if (this.engine.running()
+        && this.engine.confirm({ world_swing: i.world_swing, world_hash: i.world_hash, seeds: body.hunt_live.seeds }) === 'match') return;
+      /* Off the server's world: restart from it, eased (never fed: the swings it runs to catch up are
+         already in the past). */
+      this._ease(this.engine.reseed(body.hunt_live, now), now);
     } else if (body.hunt_check && this.engine.running()) {
       if (this.engine.confirm(body.hunt_check) !== 'match') this.want = true;
     } else if (!this.engine.running()) {
-      /* No start point in this answer: ask again soon, liveAskTries at most (an engine that does
-         not send one leaves the hunt on its server-paced view at the ordinary poll). */
-      this.want = this._tries < SESSION_CONFIG.liveAskTries;
-      if (this.want) this._tries++;
+      /* No start point in this answer (not due yet, a settle, or a plain read): ask again, backing
+         off to the ordinary poll (askDelayMs). Never give up while the hunt is open: a view that
+         stopped asking stayed on the server-paced playback a whole poll behind (v0.2.20 start delay). */
+      this.want = true;
+      this._tries++;
     }
+  }
+
+  /** An ask that brought no answer at all: the next one waits twice as long (askDelayMs). */
+  missed() { if (this.want) this._tries++; }
+
+  /**
+   * How soon to ask for a start point (ms), or null for the ordinary poll: liveAskMs doubling per
+   * answer that brought none, up to the ordinary poll, and never before the hunt's first boundary
+   * (`huntFromMs`, the session's hunt_from: until it the floor answers not_due with no start point).
+   */
+  askDelayMs(huntFromMs) {
+    if (!this.want) return null;
+    const back = SESSION_CONFIG.liveAskMs * 2 ** Math.max(0, this._tries - 1);
+    const now = this._tl.serverNowAt(this._now());
+    const until = Number.isFinite(huntFromMs) && now !== null ? huntFromMs - now + SESSION_CONFIG.liveAskMs : 0;
+    return Math.min(SESSION_CONFIG.huntPollMs, Math.max(back, until));
+  }
+
+  /* Ease the drawing onto a fast-forwarded prediction (timeline.js T8) and revive what it finds alive. */
+  _ease(res, now) {
+    if (!res || now === null) return;
+    this._tl.rebase(Math.floor(now), res.positions, SESSION_CONFIG.liveEaseMs);
+    this._tl.ingest({ units: res.units, fromMs: Math.floor(now) }, this._now());
+    this._reseeded = res.alive;
+    this._emit('reseed');
   }
 
   /** The frame loop's step: run the engine to the server's clock now. */
@@ -76,6 +106,9 @@ export class LiveLink {
     if (!this.engine.running()) return 0;
     const now = this._tl.serverNowAt(clientNow);
     if (now === null) return 0;
+    /* More than a swing behind (the frame loop paused in a background tab, or a start point from the
+       last commit): the missed swings are past, so they are run unplayed and the drawing eases on. */
+    if (this.engine.behindMs(now) > COMBAT_BALANCE.tickMs) { this._ease(this.engine.catchUp(now), now); return 0; }
     return this.engine.advance(now, (b) => this._tl.ingest(b, clientNow));
   }
 

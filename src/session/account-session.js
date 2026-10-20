@@ -64,6 +64,13 @@ export function heroOf(body) {
   return { name, level: Number.isSafeInteger(lx) && lx >= 0 ? charLevelFromXp(lx) : null };
 }
 
+/** Does a `hunt` section say the server holds a hunt OPEN? The section names the newest session
+    even after it ended (hr_hunt_section_view: `ended: true`), so its presence alone is not hunting:
+    a hero back from a hunt stands in town again. Pure. */
+function huntOpenIn(h) {
+  return !!h && typeof h === 'object' && typeof h.session_id === 'string' && h.ended !== true;
+}
+
 /** The owned slots an envelope's `hero_slots` names, bounded to the server's range. Pure. */
 function ownedSlots(heroSlots, cfg = SESSION_CONFIG) {
   const out = new Set([0]);
@@ -175,7 +182,7 @@ export class AccountSession {
     cs.connect();
     this._towns.set(slot, new TownPresence({ server: this.server, slot, self: () => this.userId,
       hidden: (id) => !!(this.social && this.social.blocks && this.social.blocks.has(id)),
-      busy: () => !!cs.read('hunt'),
+      busy: () => huntOpenIn(cs.read('hunt')),
       timers: this._timers.setInterval ? { setTimer: this._timers.setInterval, clearTimer: this._timers.clearInterval } : null }));
     /* Playing = standing in town for everyone (Tyler 2026-10-19), viewed or not: a body from the
        moment it opens (a reload or login too), at the town's arrival tile, while it is not hunting. */

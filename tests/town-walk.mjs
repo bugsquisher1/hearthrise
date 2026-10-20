@@ -40,7 +40,13 @@
 //   TW-10 VIEWING ANOTHER CHARACTER: a parked presence (its World pane closed) keeps its
 //         body in town with keepalives and no reads, and leaves once it starts a hunt
 //   TW-11 BOOT / RELOAD: every playing character not hunting gets a town body on open, so the
-//         viewed one sees the other without viewing it first; a hunting one is not drawn
+//         viewed one sees the other without viewing it first; a hunting one is not drawn; one
+//         BACK from a hunt (the server's hunt section names the ended session) stands in town;
+//         a parked one whose hunt ends while the page is open stands again on the re-read
+//   TW-12 ONE BODY PER CHARACTER ON THE SERVER: the chain's last hr_town_move keys its upsert,
+//         floor and hunting delete by user AND slot, and town_positions' primary key is
+//         (user_id, slot), as the fake server below models it (Tyler live v0.2.20: one
+//         account row meant each character overwrote the other)
 //   TW-8  [page] in The Common a peer the server names walks beside the hero; a
 //         right-click on them opens the player menu under their name (Inspect
 //         gear, Message, Add friend, Invite to party, Block); the hero publishes
@@ -83,12 +89,17 @@ function fakeWorld() {
   const blocks = new Set();   // 'a|b'
   const calls = [];
   const hunting = new Set();   // 'uid:slot' out on a hunt (the server refuses its town body)
+  const back = new Set();      // 'uid:slot' back from a hunt: its hunt section names the ENDED session
+  let version = 0;
   const link = (uid) => ({
     rpc: async (name, args) => {
       calls.push({ uid, name, args });
       if (name === 'hr_load') {
-        const hunts = hunting.has(uid + ':' + args.p_slot);
-        return { ok: true, body: Object.assign(hunts ? clone(FIXTURE) : townEnvelope(names.get(uid)), { version: 1, account: { max_concurrent: 4 } }) };
+        const key = uid + ':' + args.p_slot;
+        const e = hunting.has(key) ? clone(FIXTURE) : townEnvelope(names.get(uid));
+        /* hr_hunt_section_view names the open OR NEWEST session: a hero home from a hunt still has one, ended */
+        if (!hunting.has(key) && back.has(key)) e.hunt = Object.assign(clone(FIXTURE.hunt), { ended: true });
+        return { ok: true, body: Object.assign(e, { version: ++version, account: { max_concurrent: 4 } }) };
       }
       if (name === 'hr_town_move') {
         if (args.p_map !== null && hunting.has(uid + ':' + args.p_slot)) return { ok: true, body: { ok: false, error: 'hunting' } };
@@ -111,7 +122,7 @@ function fakeWorld() {
     },
     accrue: async () => ({ ok: true, body: { accrued: false } }),
   });
-  return { pos, names, blocks, calls, hunting, link };
+  return { pos, names, blocks, calls, hunting, back, link };
 }
 const tick = () => new Promise((ok) => setTimeout(ok, 0));
 const settle = async () => { for (let i = 0; i < 6; i++) await tick(); };
@@ -259,7 +270,9 @@ async function pureRules(M) {
       await settle();
       const t0 = a.townOf(0);
       t0.show('town_common'); await settle(); await t0.read();
-      return { a, slots: t0.walkers().filter((w) => w.id === TYLER).map((w) => w.slot) };
+      /* the next poll tick (every standing character re-places its body), then the viewed one reads */
+      const seen = async () => { for (const fn of ticks.slice()) fn(); await settle(); await t0.read(); return t0.walkers().filter((w) => w.id === TYLER).map((w) => w.slot); };
+      return { a, seen, slots: t0.walkers().filter((w) => w.id === TYLER).map((w) => w.slot) };
     };
     let b = await boot();
     if (b.slots.join() !== '1') fail('TW-11 fresh boot: the viewed character sees own slots ' + JSON.stringify(b.slots) + ' (want [1]) before the other is viewed');
@@ -273,7 +286,43 @@ async function pureRules(M) {
     if (b.slots.length) fail('TW-11 a hunting character is drawn in town: ' + JSON.stringify(b.slots));
     if (w11.calls.slice(before).some((c) => c.name === 'hr_town_move' && c.args.p_slot === 1 && c.args.p_map !== null))
       fail('TW-11 a hunting character asked for a town body');
+    // the hunt ends while the page is open: the parked character's re-read says ended, and it stands again
+    w11.hunting.delete(TYLER + ':1'); w11.back.add(TYLER + ':1');
+    await b.a.character(1).load();
+    let again = await b.seen();
+    if (again.join() !== '1') fail('TW-11 a parked character whose hunt ended is not back in town: own slots ' + JSON.stringify(again));
+    b.a.close(0); b.a.close(1); await settle();
+    // a reload of a character BACK from a hunt (its section names the ended session): in town
+    b = await boot();
+    if (b.slots.join() !== '1') fail('TW-11 a character back from a hunt is not drawn in town after a reload: own slots ' + JSON.stringify(b.slots));
+    // ...and going hunting again takes it out: it asks for no body while the server says open
+    w11.back.delete(TYLER + ':1'); w11.hunting.add(TYLER + ':1');
+    await b.a.character(1).load();
+    const mark = w11.calls.length;
+    again = await b.seen();
+    if (again.length || w11.calls.slice(mark).some((c) => c.name === 'hr_town_move' && c.args.p_slot === 1 && c.args.p_map !== null))
+      fail('TW-11 a character that went hunting still stands in town: own slots ' + JSON.stringify(again));
     b.a.close(0); b.a.close(1);
+  }
+  // TW-12: the fake above keys a body by user AND slot; the real server (the chain's last word) must too.
+  {
+    const order = JSON.parse(readFileSync(join(ROOT, 'tests/schema-apply-order.json'), 'utf8')).order;
+    let body = null, key = null;
+    for (const file of order) {
+      let sql;
+      try { sql = readFileSync(join(ROOT, 'supabase/migrations', file), 'utf8'); } catch { continue; }
+      const i = sql.search(/create or replace function public\.hr_town_move\(/i);
+      if (i >= 0) { const a = sql.indexOf('$$', i) + 2; body = sql.slice(a, sql.indexOf('$$', a)); }
+      if (/create unlogged table if not exists public\.town_positions[\s\S]*?user_id uuid primary key/i.test(sql)) key = 'user_id';
+      for (const m of sql.matchAll(/add constraint town_positions_pkey primary key \(([^)]*)\)/gi)) key = m[1].replace(/\s+/g, '');
+    }
+    if (!body) fail('TW-12 no hr_town_move body in the chain');
+    else {
+      if (!/on conflict \(user_id, slot\)/i.test(body)) fail('TW-12 hr_town_move upserts one body per ACCOUNT, not per character');
+      const unscoped = body.split('\n').filter((l) => /town_positions/.test(l) && /where user_id = v_uid/.test(l) && !/slot = v_slot/.test(l));
+      if (unscoped.length) fail('TW-12 hr_town_move reads or deletes the account\'s bodies, not the character\'s: ' + unscoped.map((l) => l.trim()).join(' | '));
+    }
+    if (key !== 'user_id,slot') fail('TW-12 town_positions is keyed by (' + key + '), not (user_id, slot)');
   }
   // TW-5, TW-6
   {
@@ -418,6 +467,8 @@ const PURE_MUTANTS = [
   ['boot opens only the viewed character', 'src/session/account-session.js', '      await this.open(slot);\n    }\n    return this.characters()', '    }\n    return this.characters()'],
   ['a standing body never places itself', 'src/session/town-presence.js', '      if (!this._want && this._home) this._want = this._home;\n', ''],
   ['closing a character keeps its body in town', 'src/session/account-session.js', 'if (town) { this._towns.delete(slot); town.destroy(); }', 'void town;'],
+  ['a hero back from a hunt still counts as hunting', 'src/session/account-session.js', "busy: () => huntOpenIn(cs.read('hunt')),", "busy: () => !!cs.read('hunt'),"],
+  ['an ended hunt section is an open hunt', 'src/session/account-session.js', " && h.ended !== true;\n}", ';\n}'],
 ];
 const PAGE_MUTANTS = [
   ['the World never tells the presence it is in town', 'src/world/world-boot.js', "      town.show(map.kind === 'town' ? map.id : null);\n", ''],

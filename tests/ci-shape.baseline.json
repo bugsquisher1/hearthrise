@@ -183,6 +183,8 @@
     "node tools/build-settle-hooks.mjs --check": "db-replay-7",
     "node tests/settle-hooks.mjs": "db-replay-7",
     "node tests/settle-hooks.mjs --mutate": "db-replay-7",
+    "node tests/party-flow.mjs": "db-replay-7",
+    "node tests/party-flow.mjs --mutate": "db-replay-7",
     "node tests/mutant-control.mjs": "db-replay-7",
     "node tests/mutant-control.mjs --selftest": "db-replay-7",
     "node tests/world-tick-parity-probe.mjs": "db-replay-8",

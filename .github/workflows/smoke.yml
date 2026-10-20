@@ -2050,6 +2050,20 @@ jobs:
           node tests/settle-hooks.mjs
           node tests/settle-hooks.mjs --mutate
 
+      # THE ONE-WAY PARTY FLOW (2026-10-28-party-flow.sql, PARTY_SPEC + Tyler
+      # 10-19): every step on the real chain as `authenticated` — the first
+      # invite makes the party, an own character joins at once (slot or name),
+      # accept, leave (the lead passes on), kick, disband (leader, town only),
+      # start on the leader's ground all-or-none (an away member holds it back),
+      # the 10-minute seat keep (a hunter is never dropped), a byte-identical
+      # second apply, the grants. --mutate plants nine defects into the file,
+      # applied in a rolled-back transaction after a clean control.
+      - name: Party flow — invite, own join, accept, leave, kick, disband, start, seat keep
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/party-flow.mjs
+          node tests/party-flow.mjs --mutate
+
       # THE CONTROL HALF OF A MUTATION PROOF. Every registered guard is re-run
       # with HR_MUTANT_CONTROL=1 (nothing planted, scope kept); any arm that
       # still reads "caught" is caught by something other than its mutant

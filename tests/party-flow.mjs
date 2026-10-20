@@ -251,7 +251,13 @@ const ARMS = {
     return p;
   },
 
-  'PF-IDEM': async (db) => {
+  'PF-IDEM': async (chainDb) => {
+    /* Idempotence is a property of the files over the state THEY produced (hunt-sessions-db C1, the same move):
+       a later file may restate a body these write (2026-10-28-hunt-enter-after-stamina.sql restates
+       hr_hunt_enter_for), and a chain-END re-apply of these would correctly put their own body back. So the
+       chain is booted to SEC, the later of the two. On the full chain (no later file) it is the same chain. */
+    void chainDb;
+    const { db } = await bootReplay({ upTo: SEC });
     const snap = async () => JSON.stringify([await inventory(db),
       (await db.query(`select p.oid::regprocedure::text f, md5(p.prosrc) h, coalesce(p.proacl::text, '') a from pg_proc p
                        where p.pronamespace = 'public'::regnamespace order by 1`)).rows,
@@ -261,7 +267,9 @@ const ARMS = {
     for (const f of [FILE, SEC]) {
       try { await db.exec(SRC(f)); } catch (e) { return ['the second apply of ' + f + ' RAISED: ' + String(e.message).split('\n')[0]]; }
     }
-    return before === await snap() ? [] : ['a second apply moved the schema, a body, an ACL or a baseline row'];
+    const same = before === await snap();
+    await db.close?.();
+    return same ? [] : ['a second apply moved the schema, a body, an ACL or a baseline row'];
   },
 
   'PF-LISTED': async (db) => {

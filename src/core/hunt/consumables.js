@@ -6,24 +6,23 @@
 //   2. while the ONE food-and-drink lane is locked, nothing more;
 //   3. its consume SLOTS are walked in order (conditions.js): the first whose
 //      conditions pass and that has something to use fires. With no consume
-//      slot on its bar the defaults stand: drink under drink_below_pct, then
-//      eat under food_below_pct (the eat-at / drink-at options ARE these slots'
-//      values: one system).
+//      slot on its bar the defaults stand: eat under food_below_pct, then
+//      drink under drink_below_pct (the eat-at / drink-at options ARE these
+//      slots' values: one system).
 // Food restores HP and drink restores mana, never both (no potions). Each use
 // lands instantPct now and the rest over overTimeMs, in whole ticks; the last
 // tick carries the remainder, so a use restores exactly its amount (capped at
 // the pool's max as it lands).
 //
-// FOOD ALWAYS FIRES (Coordinator 2026-10-19, P0 lane c-food-heals): a food
-// slot whose conditions pass fires whenever the shared lane is free — nothing
-// else holds it (no wait for a running over-time half, no wait after an
-// ability heal). Its instant half always lands; its over-time half REPLACES
-// what is left of the running one (one over-time half per pool, never
-// stacked). A DRINK still waits while its own over-time half runs: drink-at
-// stands BEFORE eat-at by default (here and hr_hunt_settings_view), and a
-// drink that always fired would hold the lane every second while mana stays
-// low (a tier-1 drink lands 3 mana), starving food. The wait is the
-// alternation.
+// ALWAYS FIRES (Tyler 2026-10-19): a food or drink slot whose conditions pass
+// fires whenever the ONE shared 2 s cooldown (laneMs) is free — nothing else
+// holds it (no wait for a running over-time half, no wait after an ability
+// heal). Its instant half always lands; its over-time half REPLACES what is
+// left of the same pool's (never stacked). EAT-AT STANDS BEFORE DRINK-AT in
+// the default bar (conditions.js DEFAULT_CONSUME and hr_hunt_settings_view,
+// 2026-10-28-consume-defaults.sql): a drink that always fires would otherwise
+// take every cooldown while mana stays low (a tier-1 drink lands 3 mana) and
+// starve food. A player's own bar keeps the player's order.
 //
 // EVERY HP POINT FOOD RESTORES IS A `heal` EVENT (u = t = the eater, `item` =
 // the food): the instant half, and each over-time tick that landed. The
@@ -44,11 +43,11 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random. Draws nothing.
 // ============================================================
 
-import { CONSUMABLE_RULES as R, CONSUMABLE_KINDS, CONSUMABLES } from '../../data/consumables.js?v=0.2.13';
-import { CONSUME_KINDS } from '../../data/condition-metrics.js?v=0.2.13';
-import { slotsFor, pickSlot } from './conditions.js?v=0.2.13';
-import { resolveLine, takeLine, lineAmount } from '../action-rules.js?v=0.2.13';
-import { makeEvent } from './events.js?v=0.2.13';
+import { CONSUMABLE_RULES as R, CONSUMABLE_KINDS, CONSUMABLES } from '../../data/consumables.js?v=0.2.14';
+import { CONSUME_KINDS } from '../../data/condition-metrics.js?v=0.2.14';
+import { slotsFor, pickSlot } from './conditions.js?v=0.2.14';
+import { resolveLine, takeLine, lineAmount } from '../action-rules.js?v=0.2.14';
+import { makeEvent } from './events.js?v=0.2.14';
 
 /* An over-time half is [left, nextTickAtMs, ticksLeft, itemId], or null. `healedAt`
    is RETIRED (no rule reads it since food always fires); it stays in the world's
@@ -121,7 +120,6 @@ function slotWants(u, hero, id) {
   const kind = CONSUME_KINDS[id] ? id : (CONSUMABLES[id] ? CONSUMABLES[id].kind : null);
   if (!kind) return { why: 'none' };
   const stat = CONSUMABLE_KINDS[kind].stat;
-  if (kind === 'drink' && u[OT_KEY[stat]]) return { kind, why: 'ticking' };
   if (!CONSUME_KINDS[id]) {
     const l = hero.hs.bag && hero.hs.bag[id];
     return l && int(l.left) > 0 ? { kind, line: { id, source: 'own', price: 0 } } : { kind, why: 'none' };
@@ -132,7 +130,7 @@ function slotWants(u, hero, id) {
 
 /**
  * Consumable hook: while the ONE food-and-drink lane is free, each hero walks its
- * consume slots in order (conditions.js; its defaults are drink-at, then eat-at)
+ * consume slots in order (conditions.js; its defaults are eat-at, then drink-at)
  * and uses the first whose conditions pass and that has something to use.
  */
 export function consume(inst, sc) {
@@ -150,7 +148,7 @@ export function consume(inst, sc) {
          swing needs none): a hunt never stops for a drink (spec §3.4 #7). */
       if (w.why === 'gold_short') { if (w.kind === 'food') hero.hs.goldOut = true; return { why: 'gold_short' }; }
       if (w.line) return w;
-      return { why: w.why === 'ticking' ? 'busy' : 'no_stock' };
+      return { why: 'no_stock' };
     }, sc, 'consume');
     if (got) use(u, hero, got.pick.kind, got.pick.line, sc, got);
   }

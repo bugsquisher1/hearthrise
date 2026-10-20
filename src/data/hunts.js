@@ -26,7 +26,10 @@
 //     art     the monster id whose art represents the area
 //     travelS seconds of walking from town (Hunt Sessions, HR-2026-10-14): the
 //             session earns and spends nothing while walking. A multiple of
-//             the 10 s world tick, 10..300 (tests/supplies-catalogue.mjs).
+//             the 10 s world tick, 0..300. EVERY ONE IS 0 (Tyler 2026-10-19:
+//             "walk time needs to be there when we have destinations to walk
+//             to through the town; until then no time needed"): the fight
+//             starts the moment the hunt is entered (tests/supplies-catalogue.mjs H1).
 //     pull    how many foes the ground shows at once (its MOB density, 1..8)
 //     respawnMs  the ground's SPAWN LIMIT: a pull is back this long after it
 //             STARTED, whatever the hero does (Security design review
@@ -57,25 +60,25 @@ export const HUNTS = Object.freeze([
     band: [1, 8],
     spawns: [{ monster: 'rat', w: 3, rarity: 'common' }, { monster: 'slime', w: 1, rarity: 'uncommon' },
       { monster: 'hive_wasp', w: 1, rarity: 'rare' }],
-    family: 'Vermin', art: 'rat', travelS: 20, pull: 1, respawnMs: 60000,
+    family: 'Vermin', art: 'rat', travelS: 0, pull: 1, respawnMs: 60000,
   },
   {
     id: 'bramble_edge', name: 'Bramble Edge', theme: 'Where the farm fields give way to thorn and wild things.',
     band: [0, 15],
     spawns: [{ monster: 'small_wolf', w: 4 }, { monster: 'wild_boar', w: 3 }, { monster: 'mandrake', w: 3 }],
-    family: 'Mammal', art: 'small_wolf', travelS: 30, pull: 3, respawnMs: 42000,
+    family: 'Mammal', art: 'small_wolf', travelS: 0, pull: 3, respawnMs: 42000,
   },
   {
     id: 'goblin_warren', name: 'Goblin Warren', theme: 'Tunnels full of stolen pots and sharp little knives.',
     band: [0, 15],
     spawns: [{ monster: 'goblin', w: 6 }, { monster: 'kobold', w: 4 }],
-    family: 'Humanoid', art: 'goblin', travelS: 30, pull: 5, respawnMs: 60000,
+    family: 'Humanoid', art: 'goblin', travelS: 0, pull: 5, respawnMs: 60000,
   },
   {
     id: 'ridge_camp', name: 'Ridge Camp', theme: 'A raiders’ camp on the high ridge, and the stags that graze past it.',
     band: [15, 99],
     spawns: [{ monster: 'hobgoblin', w: 4 }, { monster: 'gnoll', w: 4 }, { monster: 'stag', w: 2 }],
-    family: 'Humanoid', art: 'hobgoblin', travelS: 60, pull: 5, respawnMs: 54000,
+    family: 'Humanoid', art: 'hobgoblin', travelS: 0, pull: 5, respawnMs: 54000,
   },
   /* THE FIRST PARTY GROUND (week plan item 17, 2026-10-18). The mill race runs
      under the town here; its rats are the ones that climb into the Mill Cellar.
@@ -85,12 +88,12 @@ export const HUNTS = Object.freeze([
      weighted spawn; he holds the last room). Floor 4: a fresh character (combat 3)
      earns the door in the Mill Cellar first. */
   {
-    id: 'millrace_sewer', name: 'Millrace Sewer', theme: 'The mill race runs under the town here. The rats answer to someone.',
+    id: 'millrace_sewer', name: 'The Sewer', theme: 'The mill race runs under the town here. The rats answer to someone.',
     band: [8, 25],
     spawns: [{ monster: 'drain_rat', w: 6, rarity: 'common' }, { monster: 'culvert_bat', w: 4, rarity: 'uncommon' },
       { monster: 'sump_slime', w: 3, rarity: 'uncommon' }, { monster: 'kobold_tosher', w: 3, rarity: 'uncommon' },
       { monster: 'cistern_spider', w: 2, rarity: 'rare' }],
-    family: 'Vermin', art: 'drain_rat', travelS: 30, pull: 4, respawnMs: 90000,
+    family: 'Vermin', art: 'drain_rat', travelS: 0, pull: 4, respawnMs: 90000,
   },
   /* THE WOOD GROUND (Tyler 10-18; workbook H-001): a ring of clearings round the
      Meadowbrook, crossed once by a log bridge and once at the ford. Solo first (a
@@ -103,7 +106,7 @@ export const HUNTS = Object.freeze([
     band: [5, 15],
     spawns: [{ monster: 'gray_wolf', w: 10, rarity: 'common' }, { monster: 'gray_whelp', w: 8, rarity: 'common' },
       { monster: 'briarcoat_wolf', w: 4, rarity: 'uncommon' }, { monster: 'dire_gray', w: 1, rarity: 'rare' }],
-    family: 'Mammal', art: 'gray_wolf', travelS: 40, pull: 3, respawnMs: 60000,
+    family: 'Mammal', art: 'gray_wolf', travelS: 0, pull: 3, respawnMs: 60000,
   },
   /* THE ORE GROUND (Tyler 10-18; workbook H-005): the goblins' copper diggings,
      down over the Drop on a plank bridge and back up the ore-cart ramp. A party
@@ -114,7 +117,7 @@ export const HUNTS = Object.freeze([
     band: [32, 50],
     spawns: [{ monster: 'goblin_scavenger', w: 10, rarity: 'common' }, { monster: 'goblin_digger', w: 7, rarity: 'uncommon' },
       { monster: 'goblin_skulker', w: 5, rarity: 'uncommon' }, { monster: 'hobgoblin_foreman', w: 1, rarity: 'rare' }],
-    family: 'Humanoid', art: 'goblin_scavenger', travelS: 60, pull: 4, respawnMs: 90000,
+    family: 'Humanoid', art: 'goblin_scavenger', travelS: 0, pull: 4, respawnMs: 90000,
   },
 ]);
 
@@ -125,9 +128,9 @@ export const RARITY_LABEL = Object.freeze({ common: 'Common', uncommon: 'Uncommo
 export const HUNT_INDEX = Object.freeze(HUNTS.reduce((acc, h) => { acc[h.id] = h; return acc; },
   Object.create(null)));
 
-/* A single-monster fight walks further the stronger the foe: 20 s for a
-   tier-1 monster and 20 s more a tier. */
-export const TRAINING_TRAVEL_S = Object.freeze({ 1: 20, 2: 40, 3: 60, 4: 80, 5: 100, 6: 120 });
+/* A single-monster fight's walk, by the foe's tier: 0 for every tier until the
+   town has destinations to walk through (Tyler 2026-10-19; see travelS above). */
+export const TRAINING_TRAVEL_S = Object.freeze({ 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 });
 
 /* A single foe is back this long after it was engaged: one foe at a time, the
    same spawn limit for every tier (a training fight is a kill-time cap, not a
@@ -140,7 +143,7 @@ export function trainingHunt(monsterId, monster) {
   return {
     id: monsterId, name: m.name || monsterId, theme: 'Training',
     band: [0, 99], spawns: [{ monster: monsterId, w: 1 }], family: m.family || null, art: monsterId,
-    travelS: TRAINING_TRAVEL_S[m.tier] || TRAINING_TRAVEL_S[1],
+    travelS: TRAINING_TRAVEL_S[m.tier] ?? TRAINING_TRAVEL_S[1],
     pull: 1, respawnMs: TRAINING_RESPAWN_MS,
   };
 }

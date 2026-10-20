@@ -26,8 +26,8 @@
 //   B2 every crafted ARROW from tier 2 up has a shop version, NO rune has one
 //      (the rune system is being replaced — designer review K10, 2026-10-15),
 //      and every monster tier has exactly one shop heal and one shop drink
-//   L1 ONE food-and-drink lane at 1 s (HUNT_SCREEN_SPEC §3.4 #3, consumables.js
-//      laneMs; lane S1 retired the C2 2 s copy); the ability lanes are abilities.js's
+//   L1 ONE food-and-drink cooldown at 2 s (Tyler 2026-10-19, consumables.js
+//      laneMs, the one source); the ability lanes are abilities.js's
 //   B4 no GOLD offer on a counter (src/data/shops.js) sells a heal or a drink
 //      for less gold per point than the shop's per-use basic of that tier
 //      (master plan row 2: the Counter's seed.cooked_* sold food ~4x cheaper
@@ -235,8 +235,8 @@ function checkBasics(d, f) {
 }
 
 function checkRules(d, f) {
-  /* L1: the ONE food-and-drink lane (spec §3.4 #3 picks 1 s; consumables.js is its one source). */
-  if (d.consumable.laneMs !== 1000) f('L1', `the food-and-drink lane is ${d.consumable.laneMs} ms, not the spec's 1 s`);
+  /* L1: the ONE food-and-drink cooldown (Tyler 2026-10-19: 2 s; consumables.js is its one source). */
+  if (d.consumable.laneMs !== 2000) f('L1', `the food-and-drink cooldown is ${d.consumable.laneMs} ms, not Tyler's 2 s`);
   if (!(ABILITY_LANES.offense > 0 && ABILITY_LANES.heal > 0)) f('L1', 'the ability lanes are not abilities.js offense + heal');
   for (const [name, o] of Object.entries({ TARGET_MODES: d.targets, HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS, CONSUMABLE_RULES: d.consumable })) {
     if (!deepFrozen(o)) f('R1', `${name} is not frozen all the way down`);
@@ -250,12 +250,16 @@ function checkRules(d, f) {
 
 function checkHuntsAndGuides(d, f) {
   for (const h of d.hunts) {
-    if (!Number.isInteger(h.travelS) || h.travelS < 10 || h.travelS > 300 || h.travelS % 10) f('H1', `hunt '${h.id}' travelS ${h.travelS} is not 10..300 in whole 10 s ticks`);
+    /* Tyler 2026-10-19: no walk until the town has destinations to walk through. */
+    if (h.travelS !== 0) f('H1', `hunt '${h.id}' travelS ${h.travelS} is not 0 (no walk time until town destinations exist)`);
   }
+  /* Tyler 2026-10-19: the first party ground is "The Sewer" (its id stays millrace_sewer). */
+  const sewer = d.hunts.find((h) => h.id === 'millrace_sewer');
+  if (!sewer || sewer.name !== 'The Sewer') f('H1', `the sewer ground is named ${sewer && sewer.name}, not "The Sewer"`);
   const tiers = [...new Set(Object.values(MONSTERS).map((m) => m.tier).filter(Boolean))];
   for (const t of tiers) {
     const s = TRAINING_TRAVEL_S[t];
-    if (!Number.isInteger(s) || s < 10 || s > 300 || s % 10) f('H1', `monster tier ${t} has no valid training walk`);
+    if (s !== 0) f('H1', `monster tier ${t}'s training walk is ${s}, not 0`);
     if (trainingHunt('x', { tier: t }).travelS !== s) f('H1', `trainingHunt ignores TRAINING_TRAVEL_S for tier ${t}`);
   }
   const staged = new Set(MANA_SUPPLY_ROWS.map((r) => r[1]));
@@ -353,7 +357,7 @@ function selftest() {
     ['B3', 'a big shop heal cheaper per point than a small one (Lobster 3.3 g vs Trout 4.0 g)', (d) => { withBasic(d, 'salted_lobster', { price: 60 }); }],
     ['M1', 'a drink batch that vends over 5x its crop', (d) => { d.drinks = { ...d.drinks, turnip_juice: { ...d.drinks.turnip_juice, v: 100 } }; }],
     ['M1', 'a staged drink with no recipe', (d) => { d.drinkRecipes = d.drinkRecipes.filter((r) => r.output !== 'pumpkin_cider'); }],
-    ['L1', 'the food lane back at the C2 2 s', (d) => { d.consumable = Object.freeze({ ...CONSUMABLE_RULES, laneMs: 2000 }); }],
+    ['L1', 'the food cooldown back at 1 s', (d) => { d.consumable = Object.freeze({ ...CONSUMABLE_RULES, laneMs: 1000 }); }],
     ['R1', 'a target-mode table left unfrozen', (d) => { d.targets = { ...TARGET_MODES }; }],
     ['R2', 'the default hero eats only under 30%', (d) => { d.consumable = Object.freeze({ ...CONSUMABLE_RULES, foodBelowPct: 30 }); }],
     ['R2', 'a hunt stops for lack of stock by default', (d) => { d.onEmpty = { ...ON_EMPTY, default: 'end' }; }],
@@ -362,6 +366,8 @@ function selftest() {
     ['S6', 'whetstones made essential', (d) => { d.rows = d.rows.map((r) => (r[1] === 'iron_whetstone' ? ['ammo', r[1], true] : r)); }],
     ['S8', 'a buff type sorted nowhere', (d) => { d.combatBuffs = COMBAT_BUFF_TYPES.filter((t) => t !== 'damage'); }],
     ['H1', 'a walk that is not a whole tick', (d) => { d.hunts = d.hunts.map((h, i) => (i ? h : { ...h, travelS: 15 })); }],
+    ['H1', 'the sewer keeps its old name', (d) => { d.hunts = d.hunts.map((h) => (h.id === 'millrace_sewer' ? { ...h, name: 'Millrace Sewer' } : h)); }],
+    ['H1', 'a walk back before the town has destinations', (d) => { d.hunts = d.hunts.map((h, i) => (i ? h : { ...h, travelS: 30 })); }],
     ['G1', 'a suggested bag with a parked feast', (d) => {
       const g = d.guides.mill_cellar; d.guides = { ...d.guides, mill_cellar: { ...g, melee: { ...g.melee, buff: { id: 'vegetable_stew', qty: 4 } } } };
     }],

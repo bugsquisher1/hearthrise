@@ -23,7 +23,7 @@
 //         1 s, every frame draws it, no frame moves it half a tile, no frame plays a
 //         burst of events, and the playback is a hair behind real time (liveDelayMs).
 //   LV-5  every monster drawn has a sprite (never a stub box), and each bar is the HP
-//         at the instant shown (never a grey empty bar; a monster killed mid-step is drawn dead).
+//         at the instant shown (never a grey empty bar).
 //   LV-6  A PARTY: both heroes of a two-member instance are drawn for the whole run.
 //   LV-3  REGEN IN REAL UNITS: +HP/s and +mana/s at the engine's in-fight rates.
 //   LV-4  THE PAGE (headless Chrome, the real client, the same server answers): the hunt
@@ -315,7 +315,6 @@ async function pageRules() {
 
 const MUTANTS = [
   ['a read carries no clock (LV-0)', 'src/session/character-session.js', '      if (Number.isSafeInteger(ms)) this.timeline.ingest({ serverNowMs: ms }, this._now());\n    }\n    const h = this.read', '    }\n    const h = this.read', /^LV-0/],
-  ['a monster killed mid-step walks on alive (LV-5)', 'src/hunt-view/scene.js', '      if (p.moving && !(hpNow && hpNow.hp <= 0)) dead.delete(u);', '      if (p.moving) dead.delete(u);', /^LV-5/],
   ['no stand-in before the first swing (LV-1)', 'src/hunt-view/scene.js', '    if (!hero && read.entrance) hero = (read.viewed !== null && unitAt(read.viewed, now, read.entrance)) || standIn(now);', '', /^LV-1/],
   ['the live view keeps the server-paced delay (LV-2)', 'src/session/live-link.js', 'this._tl.setDelay(SESSION_CONFIG.liveDelayMs);', 'void 0;', /^LV-2/],
   ['the frame loop never advances the engine (LV-2)', 'src/session/live-link.js', '    return this.engine.advance(now, (b) => this._tl.ingest(b, clientNow));', '    return 0;', /^LV-2/],

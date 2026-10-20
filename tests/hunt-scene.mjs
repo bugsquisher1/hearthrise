@@ -33,6 +33,8 @@
 //         drawn as its own bolt flying to the target, then its hit
 //   SC-7  FLOAT TOGGLES: the bleed badge shows over a boss and not over a
 //         regular monster by default; a hidden float type never shows
+//   SC-11 A KILL MID-STEP: a rat killed while it walks finishes the step dead and lies
+//         as its corpse with no bar (it was drawn standing at 0 HP for ever)
 //   SC-8  BOUNDED: a unit the pose stops listing is forgotten once its corpse
 //         time has passed, so a long hunt's frame does not grow with its kills
 // ════════════════════════════════════════════════════════════════════════
@@ -319,11 +321,25 @@ async function rules(M) {
     const fl = v.at(at(S0 - 350 + 220 + 40)).floats;
     ok('SC-7', !fl.some((x) => x.kind === 'hit'), 'damage dealt is switched off but floated: ' + JSON.stringify(fl));
   }
+
+  { // SC-11: the rat starts a step 50 ms before the blow that kills it
+    const clock = { t: C0 };
+    const body = envelope(7, S0);
+    body.hunt_track = body.hunt_track.filter((st) => st.u !== 101).concat([{ u: 101, x: 14, y: 9, atMs: S0 - 1000 }, { u: 101, x: 14, y: 10, atMs: S0 + 250 }]);
+    const cs = session(M, clock, [body]);
+    await cs.load();
+    const v = viewer(M, cs);
+    const seen = [];
+    for (let s = S0 + 200; s <= S0 + 1500; s += 25) { const d = unitOf(v.at(at(s)), 101); if (d && s > S0 + 300) seen.push(d); }
+    const up = seen.filter((d) => !d.under || d.bar !== undefined);
+    ok('SC-11', seen.length > 0 && up.length === 0, 'a rat killed mid-step was drawn standing in ' + up.length + ' of ' + seen.length + ' frames: ' + JSON.stringify(up[0] || null));
+  }
   return fails;
 }
 
 const MUTANTS = [
   ['the walk frame counts frames drawn', 'src/hunt-view/scene.js', 'const frame = corpse ? corpse.frame : moving ? Math.floor((p.d * walk.fps * tl.tileMs) / 1000) : 0;', 'globalThis.__n = (globalThis.__n || 0) + 1;\n    const frame = corpse ? corpse.frame : moving ? globalThis.__n % 6 : 0;'],
+  ['a monster killed mid-step stands up again', 'src/hunt-view/scene.js', '      if (p.moving && !gone) dead.delete(u);', '      if (p.moving) dead.delete(u);'],
   ['an event plays twice', 'src/hunt-view/scene.js', '    if (!ev || keys.has(ev.key)) return false;\n', '    if (!ev) return false;\n'],
   ['an effect starts when it is delivered', 'src/hunt-view/scene.js', 'const start = tl.clientAt(ev.atMs) ?? now;', 'const start = now;'],
   ['playback runs ahead of the track', 'src/hunt-view/timeline.js', 'const f = Math.min(1, (t - cur.atMs) / (cur.dur || cfg.tileMs));', 'const f = (t - cur.atMs + 200) / (cur.dur || cfg.tileMs);'],

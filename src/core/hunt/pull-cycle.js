@@ -29,7 +29,7 @@ import { AI_REPATH_MS } from '../../data/hunt-roles.js?v=0.2.20';
 import { packHpFor, yieldPermille, routeFor, pullRows } from '../../data/hunt-grounds.js?v=0.2.20';
 import { cheb, dist2, freeNear, tileKey } from './grid.js?v=0.2.20';
 import { inArea, resetPack } from './leash.js?v=0.2.20';
-import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy } from './movement.js?v=0.2.20';
+import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy, reachable } from './movement.js?v=0.2.20';
 import { makeEvent, trackStep } from './events.js?v=0.2.20';
 import { pickLeader, kites } from './roles.js?v=0.2.20';
 
@@ -165,10 +165,12 @@ function travel(inst, sc, k) {
   const here = inArea(inst, p, k.x, k.y);
   if (here && kites(k) && Math.min(...mons.map((m) => cheb(m, k))) <= k.dist + 1) { startPull(inst, sc, k, p); return; }
   const arrived = !!k.goal && k.x === k.goal[0] && k.y === k.goal[1] && atRest(k);
-  /* WALLED OFF: the pack itself stands on the leader's next step. A full box (density 8) rings the pull tile,
-     so the centre is never reached; a melee leader pulls from the ring's edge (a kiter keeps its range rule above). */
+  /* WALLED OFF: the pack stands on the leader's next step and no way round it reaches the goal. A full box
+     (density 8) rings the pull tile, so its centre is never reached; a melee leader pulls from the ring's edge
+     (a kiter keeps its range rule above). A ring with a gap is walked round as before. */
   const step = k.path && k.path[0];
-  const walled = !kites(k) && !!step && atRest(k) && mons.some((m) => m.x === step[0] && m.y === step[1]);
+  const walled = !kites(k) && !!step && !!k.goal && atRest(k) && mons.some((m) => m.x === step[0] && m.y === step[1])
+    && !!occupancy(inst) && !reachable(inst, k, k.goal[0], k.goal[1]);
   if (here && (dist2(k, c) <= inst.ground.pullDist * inst.ground.pullDist || arrived || walled)) { startPull(inst, sc, k, p); return; }
   if (k.goal && k.aiMs > 0) return;
   occupancy(inst);

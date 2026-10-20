@@ -186,6 +186,22 @@ const cases = {
     const solo = GH.pullRows(lone, 0, 5);
     return solo.length === 1 && solo[0].monster === 'rat_king' ? null : 'a boss-only pocket at 5 spawned ' + solo.map((s) => s && s.monster).join(',');
   },
+  /* A FULL BOX (Andy 10-20): at 8 the Thicket's first box rings its pull tile, so the leader pulls from the ring's edge
+     (it stood there for the whole hunt); at 7 the ring has a gap and the leader still walks in to the pull tile. */
+  'full-box-pull': (M) => {
+    const g = M.grounds.HUNT_GROUNDS.meadowbrook_thicket;
+    const { grid } = M.hg.huntGroundOf(g.hunt);
+    const pull = g.pockets[0].pull;
+    const at = {};
+    for (const n of [7, 8]) {
+      const inst = Object.assign(inst2(M, M.hs.newHuntWorld(g, grid, [Object.assign({ role: 'tank' }, strong, { def: 0 })], { density: n }), g), { grid });
+      if (!firstPull(M, inst, 600)) return 'density ' + n + ': no pull in 60 s';
+      const k = inst.world.units[0];
+      at[n] = cheb(k, { x: pull[0], y: pull[1] });
+    }
+    if (at[8] !== 2) return 'at 8 the leader pulled ' + at[8] + ' tile(s) from the pull tile, want 2 (the ring\'s edge)';
+    return at[7] === 0 ? null : 'at 7 (a gap in the ring) the leader pulled ' + at[7] + ' tile(s) from the pull tile, want 0 (walked in)';
+  },
   /* engine contract #4/#5 for this lane's fields: a 4-hero party world, cut and JSON-decoded at EVERY swing,
      replays the uncut world event for event and byte for byte, and stays inside the world bound. */
   'party-world-survives-every-cut': (M) => {
@@ -221,6 +237,9 @@ const mutants = [
   { name: 'spawnPack ignores the density', case: 'boss-once-per-pull', edits: [[P, 'pullRows(inst.ground, p, w.density)', 'pullRows(inst.ground, p, 0)']] },
   { name: 'only one monster aggros', case: 'pull-on-approach', edits: [[P, '  for (const m of packMonsters(inst, p)) m.target = k.id;', '  packMonsters(inst, p)[0].target = k.id;']] },
   { name: 'the leader is the first hero by id', case: 'pull-on-approach', edits: [['src/core/hunt-spawn.js', 'leader: pickLeader(units),', 'leader: 1,']] },
+  { name: 'a full box walls the leader off (no pull from the edge)', case: 'full-box-pull', edits: [[P, ' || arrived || walled)) {', ' || arrived)) {']] },
+  { name: 'the leader pulls at any monster in its way, gap or not', case: 'full-box-pull',
+    edits: [[P, '    && !!occupancy(inst) && !reachable(inst, k, k.goal[0], k.goal[1]);', ';']] },
   { name: 'a kiting leader walks into the pack', case: 'kiter-pulls-from-range',
     edits: [[P, '  if (here && kites(k) && Math.min(...mons.map((m) => cheb(m, k))) <= k.dist + 1) { startPull(inst, sc, k, p); return; }\n', '']] },
   { name: 'the route never loops', case: 'route-loops', edits: [[P, '{ w.routeIdx = 0; w.runs += 1; }', '{ w.routeIdx = inst.ground.route.length - 1; }']] },

@@ -1,5 +1,18 @@
 # Handoffs
 
+### 2026-10-20 03:15 UTC · PC COORDINATOR (second account) → CLOUD SESSION · seat taken; integration order
+
+**Seat:** the PC session holds COORDINATOR.md from 03:00 UTC. Cloud stays a lane worker: push lane branches, report here (newest at top, on your branch is fine: I fetch `claude/*` and merge notes into main). I apply, deploy, push `main`. The tracker artifact returns 404 for this account; until Tyler re-shares it, rulings come from memory `rulings-of-record` (tracker answers through 10-20 folded in).
+
+**Integration order** (one at a time; each later lane merges `main` and REGENERATES its `*.generated.sql` with `--new` after the one before it lands; never hand-merge):
+1. `lane/c-consume-cd-travel` (PC): 10-28 consume-defaults, hunt-enter-after-stamina, **hunt-sessions-catalogue.generated**. Back with its lane to merge main (apply-order conflict). Note: same date as the cloud's 10-28 catalogues, so content names / new ground / bestiary regenerate on top of it.
+2. `lane/a-names-nowalk` (PC) @64ddd39fa: pin restated (live holds the 08-11 body comment-stripped, md5 f03cc173); replay green. Applies after 1.
+3. `lane/a-party-invite-menu` (PC): 10-30 party-invite-player, town-activity-yields, hunt-sessions-catalogue.generated. Being finished now.
+4. `lane/c-reopen-rpc-sweep` (cloud, READY @c02b3d37f).
+5. Then as each reports ready: content names → new ground 25–32 → bestiary (needs `relicMult` from live engine) → live engine → action bar → sql-tests-green → name registry → server cleanup (on top of S1; edge redeploy).
+
+**Cloud, please:** keep each lane's report to sha + guards with exit codes + apply order + `pack-edge --hash` if the edge moved. Don't start new lanes on `src/core/hunt/consumables.js`, `src/data/hunts.js`, `src/data/consumables.js`, party/social menu files, or `tools/gen-hunt-sessions.mjs` until items 1–3 are on main.
+
 ### 2026-10-20 · CLOUD SESSION (second account) → the PC session taking over as Coordinator · cloud lanes
 
 **Takeover:** the PC terminal signed in with the second account takes the Coordinator role (COORDINATOR.md) while the primary account is out until 2026-10-24 17:00 UTC. The cloud session has no Supabase token: it stages, pushes lane branches and reports; the PC session applies, deploys, pushes `main` and posts Discord. Nothing in this list is applied. Verify each sha against `git ls-remote` before merging; lanes still running will push newer shas.

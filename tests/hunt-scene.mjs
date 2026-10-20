@@ -35,6 +35,11 @@
 //         regular monster by default; a hidden float type never shows
 //   SC-8  BOUNDED: a unit the pose stops listing is forgotten once its corpse
 //         time has passed, so a long hunt's frame does not grow with its kills
+//   SC-9  ONE LOOK: the viewed hero wears the outfit the server says it chose (the
+//         same sprite the town draws, session/hero-look.js), never its weapon
+//         role's default — a druid-clad sword hero never flips to the knight
+//   SC-10 NO SPIN: a hero standing between swings keeps facing its target; it
+//         never turns back to its last walk heading and round again each swing
 // ════════════════════════════════════════════════════════════════════════
 import { mkdtempSync, cpSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -308,6 +313,28 @@ async function rules(M) {
       'a unit gone from the pose must be forgotten after its corpse time: ' + JSON.stringify(cs.timeline.units()));
   }
 
+  { // SC-9: the viewed hero's look is the server's chosen outfit, in the hunt as in town
+    const clock = { t: C0 };
+    const body = envelope(7, S0);
+    body.outfit = { worn: 'druid', owned: ['knight', 'druid'], colors: {} };
+    const cs = session(M, clock, [body]);
+    await cs.load();
+    const v = viewer(M, cs);
+    const ids = new Set();
+    for (let s = S0 - 900; s <= S0 + 2000; s += 50) { const h = unitOf(v.at(at(s)), 1); if (h) ids.add(h.id); }
+    ok('SC-9', ids.size === 1 && ids.has('outfit_druid'), 'the viewed hero chose the druid outfit but was drawn as ' + JSON.stringify(Array.from(ids)));
+  }
+
+  { // SC-10: standing between swings, the hero keeps facing what it swung at
+    const clock = { t: C0 };
+    const cs = session(M, clock, [envelope(7, S0)]);
+    await cs.load();
+    const v = viewer(M, cs);
+    const seen = new Set();
+    for (let s = S0 + 150; s <= S0 + 2500; s += 50) { const h = unitOf(v.at(at(s)), 1); if (h && h.anim !== 'walk') seen.add(h.dir + '/' + h.diag); }
+    ok('SC-10', seen.size === 1 && seen.has('e/null'), 'the tank stood by the rat it struck (east) but turned ' + JSON.stringify(Array.from(seen)));
+  }
+
   { // SC-7: a hidden type never shows
     const clock = { t: C0 };
     const body = envelope(7, S0);
@@ -339,6 +366,8 @@ const MUTANTS = [
   ['a gone unit is kept for ever', 'src/hunt-view/timeline.js', 'if (!listed.has(u) && a[a.length - 1].atMs < pose.at_ms - cfg.forgetMs) steps.delete(u);', ''],
   ['bars from the events, not the snapshot', 'src/hunt-view/scene.js', 'const hp = played ? played.hp : hero ? m && m.hp : (read.units.get(u) || {}).hp;', 'const hp = 1;'],
   ["only a ranger's shot flies (a caster's bolt is dropped)", 'src/hunt-view/scene.js', 'const bolt = Object.hasOwn(PROJECTILE.ability, ev.ability) ? PROJECTILE.ability[ev.ability] : PROJECTILE.role[role] || null;', "const bolt = role === 'ranger' ? PROJECTILE.role.ranger : null;"],
+  ['the hunt draws the role default, not the chosen outfit', 'src/hunt-view/scene.js', '    if (u === read.viewed && read.look) return read.look;', 'if (false) return read.look;'],
+  ['a standing hero turns back to its walk heading after a swing', 'src/hunt-view/scene.js', 'if (!p.moving && s && now - s.at >= 0) {', 'if (!p.moving && s && now - s.at >= 0 && now - s.at < 700) {'],
   ['a corpse greys its idle instead of its death clip', 'src/hunt-view/scene.js', '          corpse = corpseFrame(id, clips, dir, age);', '          corpse = null;'],
 ];
 

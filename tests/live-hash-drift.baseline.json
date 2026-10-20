@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-20",
- "replay_ms": 2303,
+ "replay_ms": 2407,
  "counts": {
   "tracked_names": 140,
   "entries": 112
@@ -155,17 +155,18 @@
    "touched_by": [
     "2026-10-22-hunt-sessions-settle.sql",
     "2026-10-23-hunt-settings-options.sql",
-    "2026-10-25-action-conditions.sql"
+    "2026-10-25-action-conditions.sql",
+    "2026-11-01-party-leader-density.sql"
    ],
    "live": {
-    "md5": "1ce652a8a919c1ebe16514d1dd451921",
-    "norm_len": 5498,
+    "md5": "cb39f11a35d8f262753972791c52850a",
+    "norm_len": 6191,
     "measured": "2026-10-20",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "1ce652a8a919c1ebe16514d1dd451921",
-    "norm_len": 5498,
+    "md5": "cb39f11a35d8f262753972791c52850a",
+    "norm_len": 6191,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1391,17 +1392,18 @@
     "2026-10-23-hunt-party.sql",
     "2026-10-25-settle-hooks.sql",
     "2026-10-27-core-bodies.sql",
-    "2026-10-28-party-flow.sql"
+    "2026-10-28-party-flow.sql",
+    "2026-11-01-party-leader-density.sql"
    ],
    "live": {
-    "md5": "add6aa9994239d8cc320950353c908f7",
-    "norm_len": 6121,
+    "md5": "1b6d6ca8dffcfe484da40d83f6f22237",
+    "norm_len": 6566,
     "measured": "2026-10-20",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "add6aa9994239d8cc320950353c908f7",
-    "norm_len": 6121,
+    "md5": "1b6d6ca8dffcfe484da40d83f6f22237",
+    "norm_len": 6566,
     "source": "computed-from-replay"
    },
    "agree": true

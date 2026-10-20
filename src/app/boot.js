@@ -61,6 +61,7 @@ function startApp(win) {
   let strip = null;
   let paneSeq = 0;
   let openAfter = null;
+  let rosterSlots = [];   // the account's existing characters, as the roster last read them
 
   const recovering = /type=recovery/.test(win.location.hash);
 
@@ -119,6 +120,7 @@ function startApp(win) {
     const a = account;
     const roster = await a.roster();
     if (a !== account || a.closedGame) return;
+    rosterSlots = roster.filter((r) => r.exists).map((r) => r.slot);
     const open = new Set(a.characters().map((c) => c.slot));
     /* Each owned slot: its hero by name and Level (the server's), or an empty slot to create in.
        Every account owns two (Tyler 10-17); slots it has not bought are not shown until buying them is built. */
@@ -146,6 +148,8 @@ function startApp(win) {
     }
     account.view(slot);
     await showGame();
+    /* the account's other characters play too (in town for everyone), unviewed */
+    if (account) await account.openOthers(rosterSlots);
   }
 
   /* The game screen: the strip once, then the viewed character's pane. */

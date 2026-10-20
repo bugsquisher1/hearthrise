@@ -88,6 +88,7 @@ export class TownPresence {
     this._listeners = new Set();
     this._dead = false;
     this._parked = false;    // not on screen, still standing in town (another character is viewed)
+    this._home = null;       // where a parked body stands again once a hunt ends
   }
 
   subscribe(fn) { this._listeners.add(fn); return () => this._listeners.delete(fn); }
@@ -152,13 +153,31 @@ export class TownPresence {
   park() {
     if (!this._map || this._dead || this._parked) return;
     this._parked = true;
+    this._home = this._want || this._sent;
     this._walkers = []; this._readAt = null;
     this._changed();
   }
 
+  /**
+   * A character that is playing but not on screen stands in town at `place` from the moment it
+   * opens (boot, reload, login), parked: keepalives, no reads. While it hunts the server holds no
+   * body for it; when the hunt ends it stands at `place` again. Viewing it (show(map)) takes over.
+   */
+  stand(map, place) {
+    const p = placeOf(Object.assign({}, place, { map }));
+    if (!p || this._dead || this._map) return false;
+    this._map = p.map;
+    this._parked = true;
+    this._home = p;
+    /* first body on the first tick (≤ pollMs): a view of it in the same breath publishes its own tile */
+    this._timer = this._set(() => this._tick(), this.limits.pollMs);
+    return true;
+  }
+
   _tick() {
     if (this._parked) {
-      if (this._busy()) { this.show(null); return; }
+      if (this._busy()) { this._home = this._home || this._want || this._sent; this._leave(); return; }
+      if (!this._want && this._home) this._want = this._home;
       if (this._want && this._now() - this._sentAt >= this.limits.keepaliveMs) this._flush(true);
       return;
     }

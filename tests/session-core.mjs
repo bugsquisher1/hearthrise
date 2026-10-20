@@ -6,7 +6,7 @@
 //   node tests/session-core.mjs --mutate  every planted defect must turn a rule RED
 //
 // mutant-anchors: src/session/ src/net/auth.js
-// mutant-writes-tree: no — mutants are planted into a temp copy of src/session + src/net/auth.js + src/hunt-view/timeline.js + src/data/town-presence.js
+// mutant-writes-tree: no — mutants are planted into a temp copy of src/session + src/net/auth.js + src/hunt-view/timeline.js + src/data/town-presence.js + src/data/world/maps
 //
 //   ENV-1  a full envelope REPLACES the record: a key the new one lacks is gone
 //   ENV-2  an older envelope is refused; the same version restates
@@ -448,6 +448,7 @@ function copyTree(dst) {
   cpSync(join(ROOT, 'src/hunt-view/timeline.js'), join(dst, 'src/hunt-view/timeline.js'));
   mkdirSync(join(dst, 'src/data'), { recursive: true });
   cpSync(join(ROOT, 'src/data/town-presence.js'), join(dst, 'src/data/town-presence.js'));   // the AccountSession's TownPresence knobs
+  cpSync(join(ROOT, 'src/data/world/maps'), join(dst, 'src/data/world/maps'), { recursive: true });   // the town a character stands in on open
   mkdirSync(join(dst, 'src/core'), { recursive: true });
   cpSync(join(ROOT, 'src/core/xp.js'), join(dst, 'src/core/xp.js'));   // the roster's Level (the shared curve)
   for (const f of ['core-model.js', 'skills.js']) cpSync(join(ROOT, 'src/data', f), join(dst, 'src/data', f));   // xp.js's curves and skill list

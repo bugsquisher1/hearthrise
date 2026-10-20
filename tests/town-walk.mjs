@@ -39,6 +39,8 @@
 //         other in town (a walker is a user AND a slot), never itself
 //   TW-10 VIEWING ANOTHER CHARACTER: a parked presence (its World pane closed) keeps its
 //         body in town with keepalives and no reads, and leaves once it starts a hunt
+//   TW-11 BOOT / RELOAD: every playing character not hunting gets a town body on open, so the
+//         viewed one sees the other without viewing it first; a hunting one is not drawn
 //   TW-8  [page] in The Common a peer the server names walks beside the hero; a
 //         right-click on them opens the player menu under their name (Inspect
 //         gear, Message, Add friend, Invite to party, Block); the hero publishes
@@ -80,11 +82,16 @@ function fakeWorld() {
   const names = new Map();
   const blocks = new Set();   // 'a|b'
   const calls = [];
+  const hunting = new Set();   // 'uid:slot' out on a hunt (the server refuses its town body)
   const link = (uid) => ({
     rpc: async (name, args) => {
       calls.push({ uid, name, args });
-      if (name === 'hr_load') return { ok: true, body: Object.assign(townEnvelope(names.get(uid)), { version: 1 }) };
+      if (name === 'hr_load') {
+        const hunts = hunting.has(uid + ':' + args.p_slot);
+        return { ok: true, body: Object.assign(hunts ? clone(FIXTURE) : townEnvelope(names.get(uid)), { version: 1, account: { max_concurrent: 4 } }) };
+      }
       if (name === 'hr_town_move') {
+        if (args.p_map !== null && hunting.has(uid + ':' + args.p_slot)) return { ok: true, body: { ok: false, error: 'hunting' } };
         if (args.p_map === null) { pos.delete(uid + ':' + args.p_slot); return { ok: true, body: { ok: true, left: true } }; }
         pos.set(uid + ':' + args.p_slot, { uid, slot: args.p_slot, map: args.p_map, x: args.p_x, y: args.p_y, gx: args.p_gx, gy: args.p_gy, dir: args.p_dir });
         return { ok: true, body: { ok: true, stamped: true } };
@@ -104,7 +111,7 @@ function fakeWorld() {
     },
     accrue: async () => ({ ok: true, body: { accrued: false } }),
   });
-  return { pos, names, blocks, calls, link };
+  return { pos, names, blocks, calls, hunting, link };
 }
 const tick = () => new Promise((ok) => setTimeout(ok, 0));
 const settle = async () => { for (let i = 0; i < 6; i++) await tick(); };
@@ -234,6 +241,39 @@ async function pureRules(M) {
     const gone = sent.filter((c) => c.name === 'hr_town_move');
     if (gone.length !== 1 || gone[0].args.p_map !== null) fail('TW-10 an unviewed character that starts a hunt did not leave town: ' + JSON.stringify(gone.map((c) => c.args)));
     tp.destroy();
+  }
+  // TW-11 (Tyler 2026-10-20 "can't see my other character in town"): a fresh boot / reload with two
+  // playing characters: the viewed one sees the other WITHOUT the other ever being viewed; a hunter is not drawn.
+  {
+    const w11 = fakeWorld();
+    w11.names.set(TYLER, 'Tyler');
+    const boot = async () => {
+      const ticks = [];
+      const a = new M.acct.AccountSession({ auth: { userId: () => TYLER, token: () => 'jwt', signOut: async () => {} }, server: w11.link(TYLER),
+        timers: { setTimer: () => 0, clearTimer: () => {}, setInterval: (fn) => { ticks.push(fn); return ticks.length; }, clearInterval: () => {} } });
+      const r = await a.open(0);
+      if (!r.ok) throw new Error('TW-11 open failed: ' + r.reason);
+      a.view(0);
+      if (typeof a.openOthers === 'function') await a.openOthers([0, 1]);
+      for (const fn of ticks.slice()) fn();   // the first poll tick: every standing character places its body
+      await settle();
+      const t0 = a.townOf(0);
+      t0.show('town_common'); await settle(); await t0.read();
+      return { a, slots: t0.walkers().filter((w) => w.id === TYLER).map((w) => w.slot) };
+    };
+    let b = await boot();
+    if (b.slots.join() !== '1') fail('TW-11 fresh boot: the viewed character sees own slots ' + JSON.stringify(b.slots) + ' (want [1]) before the other is viewed');
+    b.a.close(0); b.a.close(1); await settle();
+    b = await boot();   // reload
+    if (b.slots.join() !== '1') fail('TW-11 after a reload the viewed character sees own slots ' + JSON.stringify(b.slots) + ' (want [1])');
+    b.a.close(0); b.a.close(1); await settle();
+    w11.hunting.add(TYLER + ':1');
+    const before = w11.calls.length;
+    b = await boot();
+    if (b.slots.length) fail('TW-11 a hunting character is drawn in town: ' + JSON.stringify(b.slots));
+    if (w11.calls.slice(before).some((c) => c.name === 'hr_town_move' && c.args.p_slot === 1 && c.args.p_map !== null))
+      fail('TW-11 a hunting character asked for a town body');
+    b.a.close(0); b.a.close(1);
   }
   // TW-5, TW-6
   {
@@ -373,7 +413,10 @@ const PURE_MUTANTS = [
   ['the walkers are not capped', 'src/session/town-presence.js', '      if (list.length >= this.limits.cap) break;\n', ''],
   ['viewing another character leaves town', 'src/session/town-presence.js', '    this._parked = true;\n', '    this.show(null); return;\n'],
   ['a parked character never keeps alive', 'src/session/town-presence.js', '      if (this._want && this._now() - this._sentAt >= this.limits.keepaliveMs) this._flush(true);\n      return;', '      return;'],
-  ['a parked character that hunts stays in town', 'src/session/town-presence.js', '      if (this._busy()) { this.show(null); return; }\n', ''],
+  ['a parked character that hunts stays in town', 'src/session/town-presence.js', '      if (this._busy()) { this._home = this._home || this._want || this._sent; this._leave(); return; }\n', ''],
+  ['an unviewed character has no body after a boot', 'src/session/account-session.js', 'if (town && town.start) this._towns.get(slot).stand(', 'if (false) this._towns.get(slot).stand('],
+  ['boot opens only the viewed character', 'src/session/account-session.js', '      await this.open(slot);\n    }\n    return this.characters()', '    }\n    return this.characters()'],
+  ['a standing body never places itself', 'src/session/town-presence.js', '      if (!this._want && this._home) this._want = this._home;\n', ''],
   ['closing a character keeps its body in town', 'src/session/account-session.js', 'if (town) { this._towns.delete(slot); town.destroy(); }', 'void town;'],
 ];
 const PAGE_MUTANTS = [

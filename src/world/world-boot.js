@@ -430,7 +430,7 @@ export async function bootWorld(panel, opts) {
       raf = 0; running = false;
       if (unsubscribe) unsubscribe();
       endLive();
-      if (town) town.show(null);
+      if (town) town.park();   // another character is viewed: this one stays in town
       chrome.removeEventListener('click', onChoice);
       stage.removeEventListener('click', onTap);
       stage.removeEventListener('contextmenu', onContext);

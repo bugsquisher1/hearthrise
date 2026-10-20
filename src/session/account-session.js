@@ -174,6 +174,7 @@ export class AccountSession {
     cs.connect();
     this._towns.set(slot, new TownPresence({ server: this.server, slot, self: () => this.userId,
       hidden: (id) => !!(this.social && this.social.blocks && this.social.blocks.has(id)),
+      busy: () => !!cs.read('hunt'),
       timers: this._timers.setInterval ? { setTimer: this._timers.setInterval, clearTimer: this._timers.clearInterval } : null }));
     if (this.viewed === null) this.viewed = slot;
     this._emit('opened', slot);

@@ -251,6 +251,17 @@ jobs:
           node tests/client-boot.mjs
           node tests/client-boot.mjs --mutate
 
+      # TELEMETRY (2026-10-20): play.html served as hearthrise.net with the REAL
+      # vendored Sentry and PostHog, their ingest hosts routed: both wired with
+      # the account id only, inputs and chat masked, replay only in the game,
+      # the named events sent; nothing loads on localhost or with ?noanalytics=1.
+      # --mutate plants eleven defects (masking off, kill switch ignored, ...).
+      - name: Observability (Sentry + PostHog)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/observability.mjs
+          node tests/observability.mjs --mutate
+
       # THE ALPHA WINDOWS (2026-10-18, week plan 16a + QoL 2/5): Bag, Gear,
       # Skills, Shop, Hunt prep and Find on the fixture envelope. Built once and
       # patched in place; the server's counts win; every action one intent with

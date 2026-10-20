@@ -32,6 +32,7 @@ import { createAlertCenter } from '../shell/alerts.js?v=0.2.20';
 import { createSocialRealtime } from '../social/realtime.js?v=0.2.20';
 import { SocialSession } from '../social/social-session.js?v=0.2.20';
 import { escapeHtml as esc } from '../utils/dom.js?v=0.2.20';
+import { startObservability, track } from '../net/observability.js?v=0.2.20';
 
 const DISCORD = 'https://discord.gg/eJrUSUJM3M';
 
@@ -49,6 +50,8 @@ function channelFor(client, auth) {
 }
 
 function startApp(win) {
+  /* Errors and replays (src/net/observability.js): telemetry only, nothing sent off hearthrise.net. */
+  const obs = startObservability(win);
   const doc = win.document;
   const root = doc.getElementById('app');
   const HS = win.HearthriseStorage;
@@ -73,6 +76,7 @@ function startApp(win) {
 
   function showAuth(mode) {
     clear();
+    obs.screen('auth');
     root.className = 'app is-auth';
     const box = doc.createElement('main');
     box.className = 'auth';
@@ -82,6 +86,7 @@ function startApp(win) {
 
   function showClosed() {
     clear();
+    obs.screen('closed');
     root.className = 'app is-auth';
     root.innerHTML = '<main class="auth">' + AUTH_BRAND + '<div class="auth-card">'
       + '<h1 class="auth-title">Hearthrise is a new game in development. Follow Discord for the first playtest.</h1>'
@@ -93,12 +98,14 @@ function startApp(win) {
   async function signOut() {
     if (alerts) { alerts.destroy(); alerts = null; }
     if (account) { const a = account; account = null; await a.signOut(); } else await auth.signOut();
+    obs.forget();
     showAuth('sign-in');
   }
 
   async function startAccount() {
     if (!auth.userId()) { showAuth('sign-in'); return; }
     if (account) return;
+    obs.identify(auth.userId());
     const server = createServerLink({ url: SUPABASE_CONFIG.url, anonKey: SUPABASE_CONFIG.anonKey, token: auth.token });
     account = new AccountSession({ auth, server, tab: HS.session, channel: channelFor(client, auth),
       social: (acc) => new SocialSession({ account: acc, realtime: createSocialRealtime(client, auth.token) }) });
@@ -113,6 +120,7 @@ function startApp(win) {
 
   async function showCharacters() {
     clear();
+    obs.screen('characters');
     root.className = 'app is-auth';
     root.innerHTML = '<main class="auth">' + AUTH_BRAND + '<div class="auth-card"><h1 class="auth-title">Your characters</h1>'
       + '<p class="auth-lead" role="status">Reading your characters…</p></div></main>';
@@ -152,6 +160,7 @@ function startApp(win) {
   async function showGame() {
     if (!strip) {
       clear();
+      obs.screen('game');
       root.className = 'app is-game';
       const nav = doc.createElement('nav');
       const main = doc.createElement('main');
@@ -205,7 +214,7 @@ function startApp(win) {
     else if (what === 'all') { if (pane) pane.shell.toggle('characters'); }
     else if (what === 'create') {
       account.create(slot).then(async (r) => {
-        if (r.ok) { play(slot); return; }
+        if (r.ok) { track('character_created'); play(slot); return; }
         await showCharacters();
         const m = root.querySelector('.auth-message');
         if (m) m.textContent = r.reason === 'slot_not_owned' ? 'That slot is not yours yet.' : 'The character could not be made. Try again in a minute.';
@@ -215,7 +224,7 @@ function startApp(win) {
 
   auth.onChange((ev) => {
     if (ev === 'recovery') showAuth('set-password');
-    else if (ev === 'signed-out' && account) { account = null; showAuth('sign-in'); }
+    else if (ev === 'signed-out' && account) { account = null; obs.forget(); showAuth('sign-in'); }
   });
 
   auth.refresh().then(() => {

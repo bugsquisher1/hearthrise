@@ -96,6 +96,10 @@ check_invariant() {
   # string under src/**.js that contains `?v=<digits>` must carry the current
   # build, extension-anchored or not. Unquoted prose in comments still doesn't
   # count (that's how index.html:12 and legacy.js's kill-switch example survive).
+  # src/vendor/ is out of scope, in the check and in the bump: third-party bytes,
+  # pinned by version in the filename and by sha384 (src/net/observability-config.js
+  # sets it as the script's integrity), so a rewrite would stop them loading; their
+  # own `?v=` (posthog's "/flags/?v=2") is an API parameter, not our cache buster.
   local bad_html bad_js bad_lit missing ok
   # Every page at the repo root is a served entry (index.html and the client
   # page beside it), so every one is held to the rule — not a list to forget.
@@ -107,20 +111,20 @@ check_invariant() {
       | grep -oE '\?v=[0-9][0-9.]*$' | { grep -vE "\?v=${cur//./\\.}\$" || true; } | sort -u | tr '\n' ' ')"
     if [[ -n "$b" ]]; then bad_html="${bad_html}  FAIL ${page} has stale versions: ${b}"$'\n'; fi
   done
-  bad_js="$({ grep -rhoE "['\"][^'\"]*\.js\?v=[0-9][0-9.]*" src --include='*.js' || true; } \
+  bad_js="$({ grep -rhoE "['\"][^'\"]*\.js\?v=[0-9][0-9.]*" src --include='*.js' --exclude-dir=vendor || true; } \
     | grep -oE '\?v=[0-9][0-9.]*$' | { grep -vE "\?v=${cur//./\\.}\$" || true; } | sort -u | tr '\n' ' ')"
-  bad_lit="$({ grep -rnoE "['\"\`][^'\"\`]*\?v=[0-9][0-9.]*" src --include='*.js' || true; } \
+  bad_lit="$({ grep -rnoE "['\"\`][^'\"\`]*\?v=[0-9][0-9.]*" src --include='*.js' --exclude-dir=vendor || true; } \
     | { grep -vE "\?v=${cur//./\\.}\$" || true; })"
   # A relative .js import with no ?v= at all is the gap that lets a stale
   # module run for ~10 min after deploy.
-  missing="$({ grep -rnE "(import|export|from|import\()[^'\"]*['\"]\.\.?/[^'\"]*\.js['\"]" src --include='*.js' || true; } | { grep -vE '\?v=' || true; })"
+  missing="$({ grep -rnE "(import|export|from|import\()[^'\"]*['\"]\.\.?/[^'\"]*\.js['\"]" src --include='*.js' --exclude-dir=vendor || true; } | { grep -vE '\?v=' || true; })"
 
   echo "cache-buster check — build-info says ${cur}"
   ok=0
   if [[ -n "$bad_html" ]]; then printf '%s' "$bad_html" >&2; ok=1; fi
   if [[ -n "$bad_js"   ]]; then
     echo "  FAIL src/**/*.js has stale versions: ${bad_js}" >&2
-    { grep -rnE "['\"][^'\"]*\.js\?v=[0-9][0-9.]*" src --include='*.js' || true; } \
+    { grep -rnE "['\"][^'\"]*\.js\?v=[0-9][0-9.]*" src --include='*.js' --exclude-dir=vendor || true; } \
       | { grep -vE "\?v=${cur//./\\.}[\"']" || true; } | sed 's/^/      /' >&2
     echo "      ^ a module reachable at TWO versions is loaded TWICE, with two copies" >&2
     echo "        of its module state. See tests/cache-buster-guard.mjs (b493)." >&2
@@ -328,7 +332,7 @@ sed -i -E "s/(cache:[[:space:]]*')${old//./\\.}',/\1${new}',/; s/(version:[[:spa
 for page in *.html; do if [[ -f "$page" ]]; then sed -i "s/?v=${old//./\\.}/?v=${new}/g" "$page"; fi; done
 
 # 3. Every ?v= on ESM import specifiers under src/
-find src -name '*.js' -print0 | xargs -0 sed -i "s/?v=${old//./\\.}/?v=${new}/g"
+find src -path src/vendor -prune -o -name '*.js' -print0 | xargs -0 sed -i "s/?v=${old//./\\.}/?v=${new}/g"
 
 # 3b. ── THE b493 PASS: NORMALISE, don't just rewrite the previous number ──────
 # Step 3 only knows about `?v=${old}`. A branch cut at build N and integrated at
@@ -345,7 +349,7 @@ find src -name '*.js' -print0 | xargs -0 sed -i "s/?v=${old//./\\.}/?v=${new}/g"
 #   here and invisible to the old --check. It sat at build 88 for 400+ builds.
 #   The pin is gone (icon-swap.js derives the version now) and check_invariant
 #   grew a `bad_lit` rule so a bare quoted `?v=<n>` can never come back silently.
-find src -name '*.js' -print0 | xargs -0 sed -i -E "s/([\"'\`][^\"'\`]*\.[a-z0-9]+)\?v=[0-9][0-9.]*/\1?v=${new}/g"
+find src -path src/vendor -prune -o -name '*.js' -print0 | xargs -0 sed -i -E "s/([\"'\`][^\"'\`]*\.[a-z0-9]+)\?v=[0-9][0-9.]*/\1?v=${new}/g"
 
 # --- Verify: the SAME rule --check uses, so the two can never disagree ---
 # (b493: this used to check only for leftover `?v=${old}`, which is why fourteen
@@ -358,7 +362,7 @@ if ! check_invariant; then
 fi
 
 new_html="$({ cat ./*.html | grep -oE "\?v=${new//./\\.}\b" || true; } | wc -l | tr -d ' ')"
-new_js="$({ grep -roE "\?v=${new}\b" src --include='*.js' || true; } | wc -l | tr -d ' ')"
+new_js="$({ grep -roE "\?v=${new}\b" src --include='*.js' --exclude-dir=vendor || true; } | wc -l | tr -d ' ')"
 
 echo "  build-info.cache : $(grep -oE "cache:[[:space:]]*'[0-9.]+'" src/build-info.js)"
 echo "  *.html ?v=${new}     : ${new_html} tags"

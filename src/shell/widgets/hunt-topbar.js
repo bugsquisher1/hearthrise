@@ -12,6 +12,7 @@ import { huntOf, analyzerOf } from '../../session/hunt-sections.js?v=0.2.20';
 import { text, prop, attr } from '../../render/paint.js?v=0.2.20';
 import { clock } from '../../render/format.js?v=0.2.20';
 import { takeFresh } from '../../hunt-view/summary-recorder.js?v=0.2.20';
+import { track } from '../../net/observability.js?v=0.2.20';
 
 /** The skeleton (built once). */
 export function renderHuntTopbar() {
@@ -47,6 +48,7 @@ renderHuntTopbar.act = async function actHuntTopbar(ctx, el, action, ev, btn) {
   if (action === 'summary') { ctx.show('hunt-summary'); return; }
   if (action === 'details') { ctx.show('analyzer'); return; }
   if (action !== 'leave' || btn.hasAttribute('data-pending')) return;
+  track('leave_hunt_clicked');
   attr(btn, 'data-pending', true);
   renderHuntTopbar.patch(el, ctx);
   const r = await ctx.character.leaveHunt();

@@ -347,7 +347,7 @@ const ARMS = {
     await world(db);
     await db.query("update public.profiles set display_name = null where id = $1", [B]);
     await db.query("update public.hr_flags set enabled = true where key = 'town_presence'");
-    await db.query("insert into public.town_positions (user_id, slot, map_id, x, y, gx, gy, dir, at) values ($1, 0, 'town_common', 3, 3, 3, 3, 's', now()) on conflict (user_id) do update set at = now()", [B]);
+    await db.query("insert into public.town_positions (user_id, slot, map_id, x, y, gx, gy, dir, at) values ($1, 0, 'town_common', 3, 3, 3, 3, 's', now()) on conflict (user_id, slot) do update set at = now()", [B]);
     const walkers = await as(db, A, "select public.hr_town_walkers('town_common')");
     const raw = (walkers && walkers.walkers || []).find((w) => w.id === B);
     if (!raw) return ['HARNESS: hr_town_walkers did not list B: ' + JSON.stringify(walkers).slice(0, 200)];

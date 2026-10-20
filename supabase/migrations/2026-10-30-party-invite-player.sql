@@ -85,7 +85,7 @@ revoke execute on function public.hr_party_invite_core(uuid, int, uuid, int, tex
 create or replace function public.hr_hunt_party_invite(p_slot int, p_name text, p_idem uuid)
 returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $$
 declare
-  -- PARTY-INVITE-PLAYER (2026-10-30-party-invite-player.sql): the name resolves, the core invites.
+  -- PARTY-INVITE-PLAYER (2026-10-30-party-invite-player.sql), over PARTY-SECURITY over PARTY-FLOW: the name resolves, the core invites.
   v_uid uuid := auth.uid(); v_r jsonb; v_verb text; v_t record;
 begin
   if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;

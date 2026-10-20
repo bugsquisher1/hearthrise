@@ -6,6 +6,8 @@
 // screen either way, because nothing was changed before the server answered.
 // ════════════════════════════════════════════════════════════════════════
 
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.11';
+
 const WORDS = Object.freeze({
   rate_limited: 'Too many changes at once. Try again in a moment.',
   settle_first: 'The hunt is catching up. Try again in a few seconds.',
@@ -96,7 +98,7 @@ export function refusalWords(code) {
 
 /* Why one seat held the party's start back, after its name. */
 const SEAT_WORDS = Object.freeze({
-  away: 'is away', no_stamina: 'has no stamina left', hunt_open: 'is in another hunt', activity_running: 'is busy in town',
+  away: 'is away', no_stamina: 'has no stamina left', hunt_open: 'is still hunting', activity_running: 'is busy in town',
   insufficient_item: 'is short of supplies', activity_locked: 'is too low a level for that hunt', hunts_paused: 'cannot go while hunts are paused',
 });
 
@@ -108,7 +110,8 @@ const SEAT_WORDS = Object.freeze({
 export function refusalText(r) {
   const seats = r && Array.isArray(r.seats) ? r.seats : [];
   if (r && r.error === 'not_ready' && seats.length) {
-    return 'Nobody went in: ' + seats.map((x) => x.name + ' ' + (SEAT_WORDS[x.error] || 'is not ready')).join('; ') + '.';
+    return 'Nobody went in: ' + seats.map((x) => x.name + ' ' + (x.error === 'hunt_open' && x.hunt && HUNT_INDEX[x.hunt]
+      ? 'is still hunting in ' + HUNT_INDEX[x.hunt].name : SEAT_WORDS[x.error] || 'is not ready')).join('; ') + '.';
   }
   if (r && r.error === 'member_hunting' && r.name) return r.name + ' is hunting. Invite them once that hunt ends.';
   return refusalWords(r && r.error);

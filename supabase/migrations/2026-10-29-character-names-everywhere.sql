@@ -93,7 +93,16 @@ do $$
 declare
   v_a constant uuid := '000000c0-0000-0000-0000-0000a4e50001';
   v jsonb; v_id uuid;
+  v_n1 text; v_n2 text;   -- probe names generated per run, checked absent: never a real character's name
 begin
+  loop
+    v_n1 := 'Zq' || translate(substr(md5(gen_random_uuid()::text), 1, 8), '0123456789', 'ghijklmnop');
+    exit when not exists (select 1 from public.character_names where canonical = public.hr_canon_display_name(v_n1));
+  end loop;
+  loop
+    v_n2 := 'Zr' || translate(substr(md5(gen_random_uuid()::text), 1, 8), '0123456789', 'ghijklmnop');
+    exit when v_n2 <> v_n1 and not exists (select 1 from public.character_names where canonical = public.hr_canon_display_name(v_n2));
+  end loop;
   begin
     insert into public.hr_flags (key, enabled, note) values ('closed_mode', true, 'names §4')
       on conflict (key) do update set enabled = true;
@@ -104,20 +113,20 @@ begin
     v := public.hr_create_character(0);
     if coalesce(v->>'ok', '') <> 'true' then raise exception 'names §4: hr_create_character refused: %', v; end if;
     insert into public.character_names (user_id, slot, name, canonical)
-      values (v_a, 0, 'Fremulon', public.hr_canon_display_name('Fremulon'))
+      values (v_a, 0, v_n1, public.hr_canon_display_name(v_n1))
       on conflict (user_id, slot) do update set name = excluded.name, canonical = excluded.canonical, updated_at = now();
     -- (a) a new line carries the character's name, not the account's or 'Adventurer'.
     v := public.hr_chat_send(0, 'global', 'hello');
-    if coalesce(v->>'ok', '') <> 'true' or v->'line'->>'from_name' <> 'Fremulon' then
+    if coalesce(v->>'ok', '') <> 'true' or v->'line'->>'from_name' <> v_n1 then
       raise exception 'names §4(a): a new line is named %', v->'line'->>'from_name'; end if;
     v_id := (v->'line'->>'id')::uuid;
-    if (select from_name from public.chat_messages where id = v_id) <> 'Fremulon' then raise exception 'names §4(a): the stamp is not the character name'; end if;
+    if (select from_name from public.chat_messages where id = v_id) <> v_n1 then raise exception 'names §4(a): the stamp is not the character name'; end if;
     -- (b) a rename reaches the old line at the next read, and the social name.
-    update public.character_names set name = 'Cheeseburger Eddie', canonical = public.hr_canon_display_name('Cheeseburger Eddie'), updated_at = now()
+    update public.character_names set name = v_n2, canonical = public.hr_canon_display_name(v_n2), updated_at = now()
      where user_id = v_a and slot = 0;
-    if (select public.hr_chat_row(m)->>'from_name' from public.chat_messages m where m.id = v_id) <> 'Cheeseburger Eddie' then
+    if (select public.hr_chat_row(m)->>'from_name' from public.chat_messages m where m.id = v_id) <> v_n2 then
       raise exception 'names §4(b): history did not follow the rename'; end if;
-    if public.hr_social_name(v_a) <> 'Cheeseburger Eddie' then raise exception 'names §4(b): hr_social_name is %', public.hr_social_name(v_a); end if;
+    if public.hr_social_name(v_a) <> v_n2 then raise exception 'names §4(b): hr_social_name is %', public.hr_social_name(v_a); end if;
     raise exception using errcode = 'HR861', message = 'names §4 complete - rolling back';
   exception when sqlstate 'HR861' then null;
   end;

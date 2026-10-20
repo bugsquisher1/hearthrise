@@ -3461,6 +3461,8 @@ jobs:
         run: |
           node tests/selfcheck-no-global-dml.mjs --selftest
           node tests/selfcheck-no-global-dml.mjs
+          node tests/names-selfcheck-collision.mjs
+          node tests/names-selfcheck-collision.mjs --mutate
           node tests/selfcheck-no-global-dml.bypass.mjs
 
       # W0 FUN LIST (game-designer, 2026-10-10; lane w0f). Crop XP x42 and the

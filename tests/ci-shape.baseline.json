@@ -320,6 +320,8 @@
     "node tests/no-client-copy-of-projection.mjs": "client-guards",
     "node tests/selfcheck-no-global-dml.mjs --selftest": "client-guards",
     "node tests/selfcheck-no-global-dml.mjs": "client-guards",
+    "node tests/names-selfcheck-collision.mjs": "client-guards",
+    "node tests/names-selfcheck-collision.mjs --mutate": "client-guards",
     "node tests/selfcheck-no-global-dml.bypass.mjs": "client-guards",
     "node tests/w0f-fun-content.mjs": "client-guards",
     "node tests/w0f-fun-content.mjs --selftest": "client-guards",

@@ -12,9 +12,21 @@ Statuses: `contradicted` contradicts a ruling · `not_built` · `partial` · `co
 
 ## Needs your answer (open)
 
-_None open._ Add new questions at the top of this list as `- **Qnn** (date) question — context. → Answer:`
+Add new questions at the top of this list as `- **Qnn** (date) question — context. → Answer:`
+
+- **Q05** (10-20, Bestiary) Existing kills: fold each account's current per-character kills into the new account-wide total once at apply (a small save migration), or start everyone at zero (progress is wiped at EA anyway)? → Answer:
+- **Q04** (10-20, Bestiary) The window lists only the 19 monsters that spawn on hunting grounds, not the whole roster. OK? → Answer:
+- **Q03** (10-20, Bestiary) Do field-champion relics (`champion: true` drop rows) count as relics for the Bestiary boost? Currently no; only `tier: 'relic'` rows. → Answer:
+- **Q02** (10-20, Bestiary) A monster with no relic: refuse the stage fee (current: refuses, `no_relic`) or still sell the stage? → Answer:
+- **Q01** (10-20, Pebblebrook) Replace the borrowed rare (Spider-Eye Studs) with a crayfish-themed rare once it has art? → Answer:
 
 ## Answered (newest first; all folded into memory rulings-of-record)
+
+- **Hunt profit target** (+25–35% over the store supply bill): at the band's floor or across the band? → bottom of the band only (Tyler 10-20)
+- **Pebblebrook rare carrier gets a relic too?** → yes; the relic is named **Crystal Collar** (Tyler 10-20)
+- **"Keep at least N gold" on the bar's right panel** (`gold_floor`)? → yes (Tyler 10-20)
+- **Hub HP/mana regen: in-fight or out-of-fight rate?** → Tyler unsure; designer call: show the rate that applies now (in-fight while hunting, out-of-fight in town)
+- **PixelLab spend** (9 death clips, 16 bestiary portraits, wand/staff bolts) → approved, then parked by Tyler (10-20)
 
 - **Cooldown ember** on a cooling slot, like the sim? → yes
 - **Party camera keys** 1–4 + P, like the sim? → yes

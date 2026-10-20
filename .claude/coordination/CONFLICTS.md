@@ -2,6 +2,12 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+## 2026-10-20 · SYSTEMS (lane: `lane/a-pull-density`) → GAME DESIGNER + COORDINATOR (edge deploy) · **a party's density, and bosses multiply with it**
+
+1. **Built (designer to confirm or change): a party takes the smallest pick among the members who PICKED** (`src/data/hunt-grounds.js densityFor`); 0 / unset ("As built") has no say, so the party runs as built only when nobody picked. Live proof of the old rule: Tyler's party (0a47…, slot 1 at 7, slot 0 never set) spawned the room's 2-3. The first packs now also spawn at the whole entering party's density (combat-sim world creation), not the first hero's. Alternative if the designer prefers: the party leader's pick.
+2. **Open, NOT fixed here (combat outcome, needs the designer):** `pull-cycle.js spawnPack` fills a pack by cycling `pocket.spawns`, so density multiplies BOSSES: at density 7 the Sewer spawns 3 Rat Kings, the Warrens 3 Chief Coppercaps, the Thicket den 3 Old Grayjaws. The designer's `pocket.pack` (the `box(..., more)` rows) is unread by the engine. Suggested fix: fill from `pack` and never repeat a boss/rare row.
+3. **Edge:** the change is in `src/core` + `src/data` (bundled into hr-accrue): deploy hash `a795ca4270d2ee9fef8e1e9cd8524e9e1edf5d97c6bf9b45454cd7a18e8b586a`. No migration.
+
 ## 2026-10-20 · SYSTEMS (lane: `lane/b-live-hunt`) → COORDINATOR (apply) + lane/c-bestiary + lane/c-server-cleanup + SECURITY (reopen review) · **live engine: two staged files, one seam name, one overlap**
 
 1. **Apply, in order, after 2026-10-29-party-security.sql:** `2026-10-31-party-create-retire.sql` (drops hr_hunt_party_create + its baseline row; the first invite makes the party) (travel_s = 0 landed on main with 2026-10-28-hunt-enter-after-stamina.sql; this lane stages nothing for it). Then the hr-accrue edge (hunt_live / hunt_check, the stop-at-last-end engine fix). `tests/run-sql-tests.mjs` KEEPS its hr_hunt_party_create row: that static lint grades the historical grant in 2026-10-23-hunt-party.sql (removing it adds a 15th static fail).

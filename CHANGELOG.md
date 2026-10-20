@@ -5,6 +5,16 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.16 — 2026-10-20 (Parties that work)
+
+**Invite to party.** Right-click a player (or their nameplate, or a friend) and choose Invite to party. It shows "Party full" when there's no room.
+
+**Town activities never block a hunt.** Starting a hunt or a party hunt stops whatever your hero was doing in town. After a hunt, your hero only goes back to an activity you chose, and any running activity shows with a Stop button.
+
+**Your other heroes stay in town.** Switching to another character no longer makes the one you left vanish.
+
+**Fixed:** a party that started a second hunt in the same place could freeze. Hunts also keep moving smoothly on the server even when one falls far behind.
+
 ## v0.2.15 — 2026-10-20 (Wands and spellbooks)
 
 **Icons for every wand and spellbook.** Mage weapons now show their own icons in the bag, the shop and the character window.

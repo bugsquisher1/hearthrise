@@ -20,15 +20,15 @@
 // condition. Not here yet, because the server's slot holds no field for them:
 // an Enabled switch and a slot's ignored monsters (half-built stays hidden).
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS, OPERATORS, MAX_CONDITIONS } from '../../data/condition-metrics.js?v=0.2.15';
-import { STATUSES } from '../../data/statuses.js?v=0.2.15';
-import { settingsOf } from '../../session/hunt-sections.js?v=0.2.15';
-import { bagOf } from '../../session/item-sections.js?v=0.2.15';
-import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.15';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.15';
-import { actionIconHtml } from '../widgets/bits.js?v=0.2.15';
-import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, storeOf } from '../bar-draft.js?v=0.2.15';
-import { TABS, tabOf, choicesFor, actionName, factsOf, carried, supplyLines, setupWords } from '../action-facts.js?v=0.2.15';
+import { METRICS, OPERATORS, MAX_CONDITIONS } from '../../data/condition-metrics.js?v=0.2.16';
+import { STATUSES } from '../../data/statuses.js?v=0.2.16';
+import { settingsOf } from '../../session/hunt-sections.js?v=0.2.16';
+import { bagOf } from '../../session/item-sections.js?v=0.2.16';
+import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.16';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.16';
+import { actionIconHtml } from '../widgets/bits.js?v=0.2.16';
+import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, storeOf } from '../bar-draft.js?v=0.2.16';
+import { TABS, tabOf, choicesFor, actionName, factsOf, carried, supplyLines, setupWords } from '../action-facts.js?v=0.2.16';
 
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
 const options = (pairs) => pairs.map(([v, l]) => '<option value="' + esc(v) + '">' + esc(l) + '</option>').join('');

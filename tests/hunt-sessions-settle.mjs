@@ -94,6 +94,9 @@
 //              paid, kills journalled each, gold split; a settle missing a
 //              member is refused member_set.
 //   PARTY-RESTART  a restarted instance (no world, a kept swing counter) settles on from it.
+//   PARTY-KICK a member closed by the database between settles (a kick, a leave at
+//              once) walks its unit out; the next settle still commits (live P1 10-20:
+//              `tally ... not a hero` on every fire).
 //   PARTY-VIEW the real `party` section of a settled two-hero hunt, read by the
 //              client's own reader (src/session/hunt-sections.js partyOf), yields
 //              both members the party panel draws: unit (= the session's world
@@ -1232,6 +1235,21 @@ const DB_ARMS = {
     else if (!(Number(r.res.instance.world_swing) > 112)) problems.push(`the restarted world swing ${r.res.instance.world_swing} did not count on from 112`);
     return problems;
   }),
+  /* PARTY-KICK (live P1 2026-10-20): hr_hunt_close (kick / an at-once leave) clears the session's unit_id
+     but not the stored world; the orphan hero kept fighting, and the analyzer tally refused every settle. */
+  'PARTY-KICK': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const h = await hunter(db, M, { party: [{ ...STRONG }, { ...STRONG }] });
+    await settleTo(db, M, h.from + 120000);
+    const gone = await one(db, 'select unit_id from public.hunt_sessions where id = $1', [h.sids[1]]);
+    await db.query(`select public.hr_hunt_close($1::uuid, 'left', now(), true)`, [h.sids[1]]);
+    let r;
+    try { r = await settleTo(db, M, h.from + 480000, { raw: true }); } catch (e) { r = { res: { error: String(e.message) } }; }
+    if (!r.res || r.res.ok !== true) return [...problems, `the settle after a kick answered ${JSON.stringify(r.res || r.skipped).slice(0, 200)}`];
+    const w = JSON.stringify(r.out.world && (await import(pathToFileURL(join(ROOT, 'src/core/hunt/world-state.js')).href)).decode(JSON.parse(r.out.world)).units.filter((u) => u.side === 'hero').map((u) => u.id));
+    if (!Number.isInteger(gone) || w.includes(String(gone))) problems.push(`the kicked unit ${gone} is still in the world's heroes ${w}`);
+    return problems;
+  }),
   'PARTY-VIEW': async (db, M) => inTx(db, async () => {
     const problems = [];
     const { partyOf } = await import(pathToFileURL(join(ROOT, 'src/session/hunt-sections.js')).href);
@@ -1591,6 +1609,8 @@ const MUTANTS = [
     to: '    instance: { id: String(inst.id), nextSwingAtMs: Number(inst.next_swing_at_ms), world: null,' },
   { arm: 'PARTY-RESTART', name: 'the fresh world of a restarted instance counts from swing 0', file: join(FN, 'hunt-settle.js'),
     from: '      worldSwing: Number(inst.world_swing) || 0 },', to: '      worldSwing: 0 },' },
+  { arm: 'PARTY-KICK', name: 'a hero with no member stays in the world', file: 'src/core/combat-sim.js',
+    from: "    for (const u of world.units.slice()) if (u.side === 'hero' && !owned.has(u.id)) leaveHero(world, u.id);", to: '' },
   { arm: 'BOTH-PATH', name: 'the death hint is dropped (the death event lands on whichever window edge settled it)', file: join(FN, 'accrual.js'),
     from: "    else if (e.type === 'death') hints.death.push(Math.floor(e.atMs));", to: "    else if (e.type === 'death') hints.death.length = 0;" },
   { arm: 'PARITY', name: '[combat-parity wallclock] the tick door ends its window on a wall-clock grid', file: join(FN, 'hunt-settle.js'),

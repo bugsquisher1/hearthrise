@@ -165,6 +165,13 @@ export function simulateHuntInstance(inst, ctx) {
     const u = world && m.unitId !== null ? world.units.find((x) => x.id === m.unitId) : null;
     if (u) syncUnit(u, m);
   }
+  /* A HERO WITH NO MEMBER walks out first: a session the database closed between
+     settles (a kick, a leave at once — hr_hunt_close clears unit_id, not the world)
+     left its unit standing, and an unowned hero would earn kills nobody is paid for. */
+  if (world) {
+    const owned = new Set(members.filter((m) => !m.left && m.unitId !== null).map((m) => m.unitId));
+    for (const u of world.units.slice()) if (u.side === 'hero' && !owned.has(u.id)) leaveHero(world, u.id);
+  }
 
   while (atMs < toMs && members.some((m) => !m.left)) {
     // (1) Each member at this boundary: the end checks, then a paid interval.

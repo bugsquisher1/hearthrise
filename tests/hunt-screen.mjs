@@ -7,7 +7,7 @@
 //   node tests/hunt-screen.mjs --shots <dir>  also write the visual-gate screenshots
 //                                             (1440x900 and 922x423)
 //
-// mutant-anchors: src/shell/windows/hunts.js src/shell/widgets/hunt-topbar.js src/render/paint.js src/shell/shell.js src/shell/widgets/ src/shell/windows/ src/session/hunt-sections.js src/data/combat-text.js src/data/condition-metrics.js
+// mutant-anchors: src/render/images.js src/world/atlas.js src/shell/windows/hunts.js src/shell/widgets/hunt-topbar.js src/render/paint.js src/shell/shell.js src/shell/widgets/ src/shell/windows/ src/session/hunt-sections.js src/data/combat-text.js src/data/condition-metrics.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character's envelope is tests/fixtures/hunt-envelope.json.
@@ -43,6 +43,9 @@
 //         weaker conditions marks it "!" with the reason; emptying it clears that
 //   HS-12 the bar carries no fight controls; Hunt settings no density, no gathering
 //   HS-13 no two hunt panels overlap at 1440x900 or on a narrower desktop
+//   HS-14 AN IMAGE LOADS ONCE: the bar rebuilt from an envelope without it and
+//         back fetches no image again; an atlas asked for twice is one image
+//         (Coordinator QA 2026-10-20: 216 repeated image requests in a hunt)
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { launchOptions } from './_chrome.mjs';
@@ -179,6 +182,37 @@ async function checks(overrides, shots) {
         const missing = ids.filter((k) => !lines.includes(k));
         const dupes = lines.filter((k, i) => lines.indexOf(k) !== i);
         if (missing.length || dupes.length) fails.push('HS-6 combat log lines: missing [' + missing.join(',') + '] repeated [' + dupes.join(',') + ']');
+        /* HS-14: the server's bar leaves for one envelope and comes back, twice: the slots' icons are
+           rebuilt, and not one image is fetched again. An atlas asked for twice is ONE decoded image. */
+        const pngs = [];
+        const onReq = (q) => { if (/\.png(\?|$)/.test(q.url())) pngs.push(q.url().replace(base + '/', '')); };
+        page.on('request', onReq);
+        const bar = s.env.hunt_settings;
+        /* Collect garbage while the bar is empty: an icon nothing holds any more is then truly gone,
+           so whether the rebuild refetches never depends on when the browser happened to collect. */
+        const cdp = await page.context().newCDPSession(page);
+        let rebuilt = 0;
+        for (let i = 0; i < 2; i++) {
+          delete s.env.hunt_settings;
+          await pushEnvelope(page, s);
+          if (await wait(page, () => !document.querySelector('.hb-slot[data-slot="0"] img'), null, 3000)) rebuilt++;
+          await cdp.send('HeapProfiler.collectGarbage');
+          await page.waitForTimeout(100);
+          s.env.hunt_settings = bar;
+          await pushEnvelope(page, s);
+          await wait(page, () => !!document.querySelector('.hb-slot[data-slot="0"] img'), null, 3000);
+        }
+        const oneAtlas = await page.evaluate(async () => {
+          const v = new URL(document.querySelector('script[type="module"]').src).searchParams.get('v');
+          const m = await import('/src/world/atlas.js?v=' + v);
+          const [a, b] = await Promise.all([m.loadAtlasSet({ doc: document, version: v }, 'hunt'), m.loadAtlasSet({ doc: document, version: v }, 'hunt')]);
+          const c = await m.loadAtlasSet({ doc: document, version: v }, 'hunt');
+          return a.image === b.image && b.image === c.image;
+        });
+        page.off('request', onReq);
+        if (rebuilt !== 2) fails.push('HS-14 the bar did not empty when the server sent none (' + rebuilt + '/2), so the rebuild was never exercised');
+        if (pngs.length) fails.push('HS-14 rebuilt icons fetched their images again: ' + pngs.join(', '));
+        if (!oneAtlas) fails.push('HS-14 the hunt atlas asked for three times was not one decoded image');
         if (shots) {
           await page.screenshot({ path: join(shots, 'hunt-1440x900-log.png') });
           await page.keyboard.press('Escape');
@@ -517,6 +551,8 @@ const MUTANTS = [
   ['a blocked slot is not flagged', 'src/shell/action-facts.js', '      if (same || kind) {', '      if (false) {'],
   ['the modal docks instead of centring', 'src/shell/window-manager.js', "  const isModal = (id) => rows.get(id).modal === true;", "  const isModal = () => false;"],
   ['Hunt prep tells a player to buy first', 'src/shell/readiness.js', '      const st = storeOn ? storeOf(sl.action) : null;', '      const st = null;'],
+  ['a rebuilt icon fetches its image again', 'src/render/images.js', "  if (doc && typeof doc.createElement === 'function') hold(doc, src);\n", ''],
+  ['an atlas is decoded once per caller', 'src/world/atlas.js', 'heldImage(o.doc, url(p.image)),', "heldImage(o.doc, url(p.image) + '&n=' + Math.random()),"],
   ['the bleed badge defaults on for regular monsters', 'src/data/combat-text.js', "label: 'Bleed stack count', on: on(false, true)", "label: 'Bleed stack count', on: on(true, true)"],
 ];
 

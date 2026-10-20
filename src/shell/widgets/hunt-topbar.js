@@ -3,15 +3,22 @@
 //
 // Hunt details (shows the analyzer panel), the session clock from the
 // analyzer's server session_ms, and Leave hunt — an INTENT (hr_hunt_leave),
-// the button off from the press until the server has answered and the
-// character was re-read. "Ready in" and the "»" buttons of the reference are
-// NOT built (TB-03, TB-04: purpose unknown, Tyler 10-17).
+// the button off from the press until the hunt is over: "Leaving in Ns" to
+// the server's pending leave_at, then "Leaving…" until the envelope ends it.
+// "Ready in" and the "»" buttons of the reference are NOT built (TB-03, TB-04: purpose unknown, Tyler 10-17).
 // ════════════════════════════════════════════════════════════════════════
 import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.20';
 import { huntOf, analyzerOf } from '../../session/hunt-sections.js?v=0.2.20';
 import { text, prop, attr } from '../../render/paint.js?v=0.2.20';
 import { clock } from '../../render/format.js?v=0.2.20';
 import { takeFresh } from '../../hunt-view/summary-recorder.js?v=0.2.20';
+
+/** "Leaving in 12s" to the server's leave_at; "Leaving…" while it is unknown or past. */
+function leavingLabel(leaveAt, cs) {
+  const now = cs && typeof cs.serverNow === 'function' ? cs.serverNow() : null;
+  const s = leaveAt !== null && Number.isFinite(now) ? Math.ceil((leaveAt - now) / 1000) : 0;
+  return s > 0 ? 'Leaving in ' + s + 's' : 'Leaving…';
+}
 
 /** The skeleton (built once). */
 export function renderHuntTopbar() {
@@ -33,7 +40,16 @@ renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
   const live = a && !a.ended && Number.isFinite(since) ? Math.max(0, ctx.now() - since) : 0;
   text(el.querySelector('.ht-clock'), a && a.sessionMs !== null ? clock(a.sessionMs + live) : '');
   const leave = el.querySelector('.is-leave');
-  prop(leave, 'disabled', !h || h.ended || leave.hasAttribute('data-pending'));
+  /* LEAVING (the leave pends until the server's leave_at, 2026-10-31-live-horizon.sql): from the press
+     until the hunt is over the button is off and says so. The seconds count down to the SERVER's
+     leave_at on the server's clock (CharacterSession.serverNow), never a device guess; in flight, or
+     past it while the closing settle lands, it holds at "Leaving…". A reload reads the same leave_at. */
+  const asked = leave.hasAttribute('data-pending');
+  const leaveAt = h && !h.ended ? h.leaveAtMs : null;
+  const leaving = asked || leaveAt !== null;
+  text(leave, leaving ? leavingLabel(leaveAt, ctx.character) : 'Leave hunt');
+  attr(leave, 'data-leaving', leaving);
+  prop(leave, 'disabled', !h || h.ended || leaving);
   /* A hunt that is over (the hero is back in town) keeps only the way back to its summary (Tyler 10-19):
      no Leave hunt, no Hunt details, no clock. Follows the server's hunt section, replaced each envelope. */
   const over = !h || h.ended;
@@ -46,7 +62,7 @@ renderHuntTopbar.act = async function actHuntTopbar(ctx, el, action, ev, btn) {
   if (ev.type !== 'click') return;
   if (action === 'summary') { ctx.show('hunt-summary'); return; }
   if (action === 'details') { ctx.show('analyzer'); return; }
-  if (action !== 'leave' || btn.hasAttribute('data-pending')) return;
+  if (action !== 'leave' || btn.hasAttribute('data-pending') || btn.hasAttribute('data-leaving')) return;
   attr(btn, 'data-pending', true);
   renderHuntTopbar.patch(el, ctx);
   const r = await ctx.character.leaveHunt();

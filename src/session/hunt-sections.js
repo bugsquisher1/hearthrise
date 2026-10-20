@@ -48,6 +48,13 @@ function unitsOf(pose) {
   return out;
 }
 
+/** The pending leave's server instant (ms) of a raw `hunt` section, or null (none asked, or the hunt is over). */
+export function leaveAtOf(h) {
+  if (!isObj(h) || bool(h.ended) || !isObj(h.session) || !str(h.session.leave_at)) return null;
+  const ms = Date.parse(h.session.leave_at);
+  return Number.isFinite(ms) ? ms : null;
+}
+
 /** `hunt`: the session (and why it ended), the viewed hero's vitals and the instance's units (who is who). */
 export function huntOf(cs) {
   const h = section(cs, 'hunt');
@@ -60,6 +67,9 @@ export function huntOf(cs) {
     endReason: isObj(h.session) ? str(h.session.end_reason) : null,
     /* When the hunt's engine starts (the end of the travel, hr_hunt_travel): before it the hero walks. */
     huntFromMs: isObj(h.session) && str(h.session.hunt_from) ? Date.parse(h.session.hunt_from) || null : null,
+    /* A PENDING LEAVE: the server instant the settle closes the hunt at (hr_hunt_leave's leave_at, on the
+       server's clock; read against CharacterSession.serverNow, never the device's). Null when none is asked. */
+    leaveAtMs: leaveAtOf(h),
     units: unitsOf(h.pose),
     hero: {
       unit: int(hero.unit), name: str(hero.name), level: int(hero.level),

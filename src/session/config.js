@@ -48,4 +48,10 @@ export const SESSION_CONFIG = Object.freeze({
   liveAskMs: 300,
   /** ...and at most this many times in a row before falling back to the ordinary poll. */
   liveAskTries: 2,
+  /** A PENDING LEAVE closes at the server's leave_at: the hunter's settle is asked this long after it
+      (clock slack), not up to a huntPollMs later; the settle closes it then (hunt-settle.js: a pending
+      leave is never held back by the floor). */
+  leaveSlackMs: 400,
+  /** ...and, if that settle did not close it yet, asked again this often until a huntPollMs past leave_at. */
+  leaveRetryMs: 2000,
 });

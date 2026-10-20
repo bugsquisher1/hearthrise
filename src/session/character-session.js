@@ -53,6 +53,7 @@ import { LiveLink } from './live-link.js?v=0.2.20';
 import { RESIDUE_FIELDS, sanitizeResidueField } from './residue.js?v=0.2.20';
 import { SESSION_CONFIG } from './config.js?v=0.2.20';
 import { edgeBody } from './edge-intents.js?v=0.2.20';
+import { leaveAtOf } from './hunt-sections.js?v=0.2.20';
 
 export const FRAME_EVENT = 'frame';
 
@@ -114,6 +115,7 @@ export class CharacterSession {
     this._retry = null;
     this._residueTimer = null;
     this._huntTimer = null;
+    this._huntDue = null;
     this._pending = {};
     this._closed = false;
     this.lastVerdict = null;
@@ -164,13 +166,38 @@ export class CharacterSession {
     return !!h && typeof h === 'object' && typeof h.session_id === 'string' && h.ended !== true;
   }
 
-  /* THE HUNT RE-READ: armed by every applied answer while a hunt is open, never twice. */
+  /** The SERVER's clock now (ms), measured from its answers (timeline.js T3), or null before one came. */
+  serverNow() { return this.timeline.serverNowAt(this._now()); }
+
+  /* THE HUNT RE-READ: armed by every applied answer while a hunt is open, never twice. A pending
+     leave's close moves an armed re-read EARLIER (never later), so the hunt ends on screen at the
+     server's leave_at instead of a whole poll after it. */
   _armHuntPoll() {
-    if (this._closed || this._huntTimer || !this._huntOpen()) return;
+    if (this._closed || !this._huntOpen()) return;
     /* The live view without a start point (just entered, reloaded, or a commit it did not match)
        asks at once; the floor then answers with hunt_live instead of a settle. */
-    const ms = this.liveLink.want ? SESSION_CONFIG.liveAskMs : SESSION_CONFIG.huntPollMs;
-    this._huntTimer = this._setTimer(() => { this._huntTimer = null; this._huntPoll(); }, ms);
+    let ms = this.liveLink.want ? SESSION_CONFIG.liveAskMs : SESSION_CONFIG.huntPollMs;
+    const close = this._closeInMs();
+    if (close !== null) ms = Math.min(ms, close);
+    const due = this._now() + ms;
+    if (this._huntTimer) {
+      if (!(due < this._huntDue)) return;
+      this._clearTimer(this._huntTimer);
+    }
+    this._huntDue = due;
+    this._huntTimer = this._setTimer(() => { this._huntTimer = null; this._huntDue = null; this._huntPoll(); }, ms);
+  }
+
+  /* How soon (ms) to ask the settle that closes a pending leave: a hair after the server's leave_at;
+     once it is past, every leaveRetryMs for a huntPollMs, then the ordinary poll. Null: no leave pends
+     (or the server's clock is not measured yet). */
+  _closeInMs() {
+    const at = leaveAtOf(this.read('hunt'));
+    const now = this.serverNow();
+    if (at === null || now === null) return null;
+    const left = at - now;
+    if (left > 0) return Math.ceil(left) + SESSION_CONFIG.leaveSlackMs;
+    return left > -SESSION_CONFIG.huntPollMs ? SESSION_CONFIG.leaveRetryMs : null;
   }
 
   async _huntPoll() {
@@ -255,15 +282,20 @@ export class CharacterSession {
   }
 
   /**
-   * Leave the hunt (hr_hunt_leave). Ended at once, the re-read shows it; a PENDING leave (hunting
-   * time owed) is settled now by the hunter's own settle, which never holds a leave back, so the
-   * envelope that answers it says the hunt ended and the hero is home.
+   * Leave the hunt (hr_hunt_leave). The leave is always PENDING (2026-10-31-live-horizon.sql): the
+   * server closes the hunt at leave_at, past the last combat swing the browser was shown. The
+   * hunter's own settle follows at once (a stalled hunt's leave_at is now, and that settle ends it);
+   * its envelope carries leave_at, which the top bar counts down to and the re-read is timed by.
+   * When that settle answers nothing the plain read still brings leave_at, never a guess.
    */
   async leaveHunt() {
     if (this._closed) return { ok: false, error: 'closed' };
     const ans = await this._server.rpc('hr_hunt_leave', { p_slot: this.slot, p_idem: newIdem() });
     if (this._closed) return { ok: false, error: 'closed' };
-    if (ans.ok && ans.body && ans.body.ok === true && ans.body.pending === true) { await this.hello(); return { ok: true }; }
+    if (ans.ok && ans.body && ans.body.ok === true && ans.body.pending === true) {
+      if (!(await this.hello()) && !this._closed) await this.load();
+      return { ok: true };
+    }
     return this._settled(ans);
   }
 
@@ -558,7 +590,7 @@ export class CharacterSession {
     this._dropChannel();
     if (this._retry) { this._clearTimer(this._retry); this._retry = null; }
     if (this._residueTimer) { this._clearTimer(this._residueTimer); this._residueTimer = null; }
-    if (this._huntTimer) { this._clearTimer(this._huntTimer); this._huntTimer = null; }
+    if (this._huntTimer) { this._clearTimer(this._huntTimer); this._huntTimer = null; this._huntDue = null; }
     this._record = null;
     this._pending = {};
     this._status = 'closed';

@@ -39,6 +39,8 @@
 .hh-tool:focus-visible, .hh-seg:focus-visible, .hh-select:focus-visible, .hh-num:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 1px; }
 .hh-tool[aria-pressed="true"], .hh-seg[aria-pressed="true"] { color: var(--gold-2); border-bottom-color: var(--gold); }
 .hh-tool:disabled, .hh-seg:disabled, .hh-select:disabled, .hh-num:disabled { opacity: .5; cursor: default; }
+/* Leave hunt while the leave pends: off, but read at full ink in gold (the countdown is the message). */
+.hh-tool.is-leave[data-leaving] { opacity: 1; color: var(--gold-2); }
 .hh-tool .hs-glyph { width: 18px; height: 18px; }
 .hh-tool { white-space: nowrap; }
 .hh-tool:has(.hs-glyph) { display: inline-grid; place-items: center; min-width: 32px; padding: 0 6px; color: var(--ink-3); }

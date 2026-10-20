@@ -981,9 +981,46 @@ const DB_ARMS = {
     const { a, b } = await compareRuns(db, M, DOOMED, ticksOf(90000, SPAN_MS), attended);
     if (!((a[0].deaths || []).length === 1)) problems.push(`CONTROL: the weak hero did not die exactly once (${JSON.stringify(a[0].deaths)})`);
     if (a[0].session.end_reason !== 'died') problems.push(`the death ended the hunt ${a[0].session.end_reason}, not died`);
+    /* THE DEATH POPUP'S ACCOUNT (core/hunt/death-why.js -> hints.death_why -> hr_death_why): the death
+       event names the killing blow and the last seconds, the same however the windows were cut (below). */
+    const dev = ((a[0] && a[0].events) || []).find((e) => e[0] === 'death');
+    const why = dev && dev[2];
+    if (!why || !why.blow || !(why.blow.n > 0) || !Array.isArray(why.recent) || !why.recent.length
+      || why.recent[0].k !== 'dmg' || why.recent[0].n !== why.blow.n || why.recent[0].ago !== 0 || !why.blow.m) {
+      problems.push(`the death event carries no account of the killing blow: ${JSON.stringify(why)}`);
+    }
     if (canon(a) !== canon(b)) problems.push(`a hunt settled at a player's instants wrote different rows from the tick's ${firstDiff(canon(a), canon(b))}`);
     return problems;
   },
+  /* A NEW WORLD FIELD NEVER REFUSES A RUNNING HUNT (Coordinator 2026-10-20): a world the OLD engine
+     saved (no `hurt` on its units) settles under this engine and this catalogue, pays exactly what the
+     unbroken run pays, and comes back with the field; the database's shape row is unmoved, so the
+     catalogue and the edge deploy can land in either order. */
+  'OLD-WORLD': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const shape = await one(db, 'select shape from public.hr_hunt_world_shape where id');
+    if (Number(shape) !== M.WS.SHAPE) problems.push(`the engine's SHAPE ${M.WS.SHAPE} is not the catalogue's ${shape}: a deploy order could refuse settles`);
+    const h = await hunter(db, M, STRONG);
+    const cuts = ticksOf(90000, SPAN_MS)(h.from);
+    const sid = h.sids[0];
+    const outcome = async () => { const s = await snapshot(db, sid); delete s.events; delete s.instance; return canon(s); };
+    await db.query('savepoint old_world');
+    await run(db, M, h.from, () => cuts);
+    const whole = await outcome();
+    await db.query('rollback to savepoint old_world');
+    await run(db, M, h.from, () => cuts.slice(0, 1));
+    const nShaped = M.WS.FIELDS.unit.length;
+    const stored = JSON.parse(await one(db, 'select i.world from public.hunt_sessions h join public.hunt_instances i on i.id = h.instance_id where h.id = $1', [sid]));
+    if (!stored || !stored.u.length || !(stored.u[0].length > nShaped)) problems.push(`CONTROL: the new engine saved unit rows of ${stored && stored.u[0] && stored.u[0].length} fields, not more than ${nShaped}`);
+    stored.u = stored.u.map((r) => r.slice(0, nShaped));
+    await db.query('update public.hunt_instances i set world = $2 from public.hunt_sessions h where h.id = $1 and i.id = h.instance_id', [sid, JSON.stringify(stored)]);
+    try { await run(db, M, h.from, () => cuts.slice(1)); } catch (e) { problems.push(`a world saved without the new field was refused: ${String(e.message).slice(0, 200)}`); return problems; }
+    const after = await outcome();
+    if (after !== whole) problems.push(`settling on from an old-shape world paid differently ${firstDiff(whole, after)}`);
+    const back = JSON.parse(await one(db, 'select i.world from public.hunt_sessions h join public.hunt_instances i on i.id = h.instance_id where h.id = $1', [sid]));
+    if (!back || !back.u.every((r) => r.length > nShaped)) problems.push('the next save did not carry the new field again');
+    return problems;
+  }),
   PARITY: async (db, M) => inTx(db, async () => {
     const problems = [];
     const { sid } = await hunter(db, M, { ...STRONG, minutesAgo: 10, options: { stance: 'defensive', distance: 3, food_below_pct: 90 } });
@@ -1573,6 +1610,15 @@ const MUTANTS = [
     from: '  const xpLost = deathXpLoss(m.state);', to: '  const xpLost = {};' },
   { arm: 'DEATH', name: 'a dead hero gets back up (the hunt goes on)', file: 'src/core/hunt/pull-cycle.js',
     from: "  if (u.side === 'mon') { u.deadMs = 0; return; }\n  u.spot = null;", to: "  if (u.side === 'mon') { u.deadMs = 0; return; }\n  u.alive = true; u.hp = 1; u.spot = null;" },
+  { arm: 'BOTH-PATH', name: 'the death popup loses what killed the hero', file: 'src/core/combat-sim.js',
+    from: '      noteHurt(world, r.events, kinds);\n', to: '' },
+  { arm: 'BOTH-PATH', name: 'the death account depends on where the window was cut', file: 'src/core/combat-sim.js',
+    from: '        die(m, f, o, deathWhy(world.units.find((x) => x.id === f.unit), f.atMs));',
+    to: '        die(m, f, o, deathWhy({ hurt: worldEvents.filter((e) => e.t === f.unit && e.type === \'dmg\').map((e) => [e.atMs, 0, e.amount, null, null]) }, f.atMs));' },
+  { arm: 'OLD-WORLD', name: 'a world saved without the new field is refused', file: 'src/core/hunt/world-state.js',
+    from: '(arr.length === FIELDS[part].length || arr.length === ALL[part].length)', to: '(arr.length === ALL[part].length)' },
+  { arm: 'OLD-WORLD', name: 'the new field moves the world shape (deploy order matters again)', file: 'src/core/hunt/world-state.js',
+    from: ', conditions.PERSISTED];', to: ', conditions.PERSISTED, { unit: [[\'hurtShaped\', \'json\']], world: [], pack: [] }];' },
   { arm: 'PARTY-DEATH', name: 'a party death leaves the survivor hunting', file: 'src/core/combat-sim.js',
     from: '        for (const other of members) if (other !== m && !other.left && !other.hs.died) other.hs.partyDied = true;\n', to: '' },
   { arm: 'QUIVER', name: '[C2 ammoGuard] a shot is loosed but its arrow is never taken from the bag', file: 'src/core/hunt/abilities.js',
@@ -1640,6 +1686,8 @@ const AM = 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,
 const AI = 'public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)';
 const SS = 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)';
 const DB_MUTANTS = [
+  { arm: 'BOTH-PATH', name: 'the settle drops the death account', fn: 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)',
+    find: "\n                || public.hr_death_why(v_hint->'death_why'->v_i));", replace: ');' },
   { arm: 'VALUE', name: 'the gold bound is gone', fn: AM,
     find: "  if jsonb_typeof(p_delta->'gold') = 'number' and (p_delta->>'gold')::numeric > v_kills * v_vb_gold * v_vb_h then", replace: '  if false then' },
   { arm: 'VALUE', name: 'an undroppable item passes the drop bound', fn: AM,

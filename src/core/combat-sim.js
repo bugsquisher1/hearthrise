@@ -45,6 +45,7 @@ import { createRng } from './rng.js?v=0.2.17';
 import { densityFor } from '../data/hunt-grounds.js?v=0.2.17';
 import { stepSwing } from './hunt/world-step.js?v=0.2.17';
 import { makeEvent } from './hunt/events.js?v=0.2.17';
+import { deathWhy, noteHurt } from './hunt/death-why.js?v=0.2.17';
 import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.17';
 import { rewardSwing } from './hunt-rewards.js?v=0.2.17';
 
@@ -98,7 +99,7 @@ function syncUnit(u, m) {
 /* A DEATH (Tyler 2026-10-19): priced on the member at once (Level and every
    combat skill, action-rules.js deathXpLoss) and its hunt ends `died` at the
    member's next boundary (the end checks). A hero dies once: its hunt is over. */
-function die(m, f, out) {
+function die(m, f, out, why) {
   const hs = m.hs;
   if (hs.died) return;
   hs.died = true;
@@ -111,7 +112,7 @@ function die(m, f, out) {
     else m.state.skills[k] = (Number(m.state.skills[k]) || 0) - xpLost[k];
     out.xpLost[k] = (out.xpLost[k] || 0) + xpLost[k];
   }
-  out.deathLog.push({ atMs: f.atMs, monster: f.monster, xpLost });
+  out.deathLog.push({ atMs: f.atMs, monster: f.monster, xpLost, why: why || null });
   out.events.push(makeEvent('death', f.atMs, { monster: f.monster, xpLost }));
 }
 
@@ -226,12 +227,13 @@ export function simulateHuntInstance(inst, ctx) {
       seen();
       for (const t of r.track) track.push(t);
       for (const e of r.events) worldEvents.push(e);
+      noteHurt(world, r.events, kinds);
       const deaths = rewardSwing(byUnit, r.events, world, { rng: createRng(seedOf(ctx, 'r', sw)), monsters: ctx.monsters, hearthfind: ctx.hearthfind });
       for (const f of deaths) {
         const m = byUnit.get(f.unit);
         const o = out.get(m.key);
         if (!m.hs.died) o.deaths += 1;
-        die(m, f, o);
+        die(m, f, o, deathWhy(world.units.find((x) => x.id === f.unit), f.atMs));
         for (const other of members) if (other !== m && !other.left && !other.hs.died) other.hs.partyDied = true;
       }
       for (const [id, m] of byUnit) {

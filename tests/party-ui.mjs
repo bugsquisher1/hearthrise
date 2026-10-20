@@ -148,11 +148,18 @@ async function pureRules(M, base) {
     const centre2 = M.AL.createAlertCenter(acc2);
     const cs2 = (await acc2.open(0)).session;
     if (centre2.list().length) return 'a reload repeated ' + centre2.list().map((a) => a.id).join(', ');
-    /* The hero dies: the hunt ends `died` (CORE_MODEL.md §6) and ONE death alert says where. */
+    /* The hero dies: the hunt ends `died` (CORE_MODEL.md §6). Its own death is the death popup
+       (tests/death-popup.mjs, Tyler 2026-10-19), never a side line, and not an "ended" line either. */
     srv.env[0].hunt.ended = true;
     srv.env[0].hunt.session = Object.assign({}, srv.env[0].hunt.session, { end_reason: 'died', ended_at: '2026-10-17T12:30:00Z', phase: 'ended' });
     await cs2.load(); await cs2.load();
-    if (centre2.list().length !== 1 || centre2.list()[0].kind !== 'death' || !/died in .* and returned to town/.test(centre2.list()[0].text)) return 'a death raised ' + JSON.stringify(centre2.list().map((a) => [a.kind, a.text]));
+    if (centre2.list().length) return 'a death raised side line(s) ' + JSON.stringify(centre2.list().map((a) => [a.kind, a.text]));
+    /* A party member's death still says so, once. */
+    srv.env[0].hunt.session = Object.assign({}, srv.env[0].hunt.session, { end_reason: 'party_member_died' });
+    srv.env[0].hunt.session_id = '5d1c0f2e-0000-4000-8000-0000000000ff';
+    await cs2.load(); await cs2.load();
+    if (centre2.list().length !== 1 || centre2.list()[0].kind !== 'death' || !/A party member died in .*returned to town/.test(centre2.list()[0].text)) return 'a party death raised ' + JSON.stringify(centre2.list().map((a) => [a.kind, a.text]));
+    srv.env[0].hunt.session_id = '5d1c0f2e-0000-4000-8000-000000000001';
     srv.env[0].hunt.ended = false;
     srv.env[0].hunt.session = Object.assign({}, srv.env[0].hunt.session, { end_reason: null, ended_at: null, phase: 'hunting' });
     M.AL.setAlertShown(cs2, 'rare', false);

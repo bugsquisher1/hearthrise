@@ -21,3 +21,19 @@
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
   .hsum-actions .hh-tool { min-height: 44px; flex: 1 1 30%; }
 }
+
+/* The death popup (src/shell/windows/death.js): a centred modal, read top to bottom. */
+.hdeath-none { display: none; }
+.hdeath.is-empty .hdeath-none { display: block; }
+.hdeath.is-empty .hdeath-card { display: none; }
+.hdeath-title { margin: 2px 2px 4px; font-family: var(--f-label); font-size: var(--t-h2); color: var(--ink); }
+.hdeath-killed { margin: 0 2px 6px; font-size: var(--t-body); font-weight: 700; color: var(--red); }
+.hdeath-recent { margin: 0 2px 8px; padding: 0; list-style: none; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.5; font-variant-numeric: lining-nums tabular-nums; }
+.hdeath-recent li { display: flex; justify-content: space-between; gap: 12px; }
+.hdeath-recent li:last-child .hdeath-what { color: var(--red); font-weight: 700; }
+.hdeath-recent li.is-heal .hdeath-what { color: var(--green); }
+.hdeath-when { color: var(--ink-3); white-space: nowrap; }
+.hdeath-lost, .hdeath-saved, .hdeath-town { margin: 0 2px 4px; font-size: var(--t-micro); color: var(--ink); line-height: 1.45; }
+.hdeath-saved { color: var(--gold); }
+.hdeath-town { color: var(--ink-2); }
+.hdeath-actions { justify-content: flex-end; }

@@ -34,6 +34,7 @@ import * as status from './status.js?v=0.2.17';
 import * as consumables from './consumables.js?v=0.2.17';
 import * as xpShare from './xp-share.js?v=0.2.17';
 import * as conditions from './conditions.js?v=0.2.17';
+import * as deathWhy from './death-why.js?v=0.2.17';
 
 export const WORLD_VERSION = 1;
 
@@ -45,6 +46,10 @@ const BASE = Object.freeze({
 });
 const MODULES = [BASE, movement.PERSISTED, targeting.PERSISTED, roles.PERSISTED, pullCycle.PERSISTED,
   damage.PERSISTED, abilities.PERSISTED, status.PERSISTED, consumables.PERSISTED, xpShare.PERSISTED, conditions.PERSISTED];
+/* DEFAULTED fields (added after a world shape shipped): they ride at the END of each row, are
+   NOT part of SHAPE, and a stored world written without them loads them blank. So a new field
+   never refuses a world a running hunt saved, nor needs the database's shape row to move. */
+const DEFAULTED_MODULES = [deathWhy.DEFAULTED];
 
 function compose(part) {
   const out = []; const seen = new Set();
@@ -73,13 +78,23 @@ const KINDS = Object.freeze({
 });
 
 export const FIELDS = Object.freeze({ unit: compose('unit'), world: compose('world'), pack: compose('pack') });
+const DEFAULTED = Object.freeze(Object.fromEntries(['unit', 'world', 'pack'].map((part) => {
+  const out = [];
+  for (const m of DEFAULTED_MODULES) for (const [name, kind] of m[part]) {
+    if (!KINDS[kind] || FIELDS[part].some(([n]) => n === name) || out.some(([n]) => n === name)) throw new Error('world-state: defaulted ' + part + ' field ' + name + ' is unknown or doubled');
+    out.push([name, kind]);
+  }
+  return [part, Object.freeze(out)];
+})));
+/* Every field a row carries: the shaped ones, then the defaulted ones. */
+const ALL = Object.freeze({ unit: FIELDS.unit.concat(DEFAULTED.unit), world: FIELDS.world.concat(DEFAULTED.world), pack: FIELDS.pack.concat(DEFAULTED.pack) });
 /* The fingerprint of the composed field list: an encoding under any other list is refused. */
 export const SHAPE = hashSeed('world', WORLD_VERSION, JSON.stringify(FIELDS));
 
 const copy = (v) => (v === null || typeof v !== 'object' ? v : JSON.parse(JSON.stringify(v)));
 function blank(part, o) {
   const out = {};
-  for (const [name, kind] of FIELDS[part]) out[name] = o && o[name] !== undefined ? copy(o[name]) : KINDS[kind].blank();
+  for (const [name, kind] of ALL[part]) out[name] = o && o[name] !== undefined ? copy(o[name]) : KINDS[kind].blank();
   return out;
 }
 /** A unit / pack / world with every persisted field present (absent ones blank). */
@@ -92,10 +107,10 @@ export function makeWorld(o) {
   return w;
 }
 
-const row = (part, obj) => FIELDS[part].map(([name]) => copy(obj[name]));
+const row = (part, obj) => ALL[part].map(([name]) => copy(obj[name]));
 const unrow = (part, arr) => {
   const out = {};
-  FIELDS[part].forEach(([name], i) => { out[name] = copy(arr[i]); });
+  ALL[part].forEach(([name, kind], i) => { out[name] = i < arr.length ? copy(arr[i]) : KINDS[kind].blank(); });
   return out;
 };
 
@@ -107,7 +122,8 @@ export function encode(world) {
 /** A world from its persisted form; throws on another version, shape or a short row. */
 export function decode(enc) {
   if (!enc || enc.v !== WORLD_VERSION || enc.s !== SHAPE) throw new Error('world-state: not a v' + WORLD_VERSION + ' world of this shape');
-  const fits = (part, arr) => Array.isArray(arr) && arr.length === FIELDS[part].length;
+  /* A row carries every shaped field, and the defaulted ones or none of them (a world saved before they existed). */
+  const fits = (part, arr) => Array.isArray(arr) && (arr.length === FIELDS[part].length || arr.length === ALL[part].length);
   if (!fits('world', enc.w) || !Array.isArray(enc.u) || !Array.isArray(enc.p)
     || !enc.u.every((r) => fits('unit', r)) || !enc.p.every((r) => fits('pack', r))) throw new Error('world-state: a row does not match the field list');
   const w = unrow('world', enc.w);
@@ -126,7 +142,7 @@ export function validate(world) {
   if (!world || typeof world !== 'object' || !Array.isArray(world.units) || !Array.isArray(world.packs)) return ['world is not a world'];
   const out = [];
   const check = (part, obj, label) => {
-    for (const [name, kind] of FIELDS[part]) if (!KINDS[kind].ok(obj[name])) out.push(label + '.' + name + ' is not a valid ' + kind);
+    for (const [name, kind] of ALL[part]) if (!KINDS[kind].ok(obj[name])) out.push(label + '.' + name + ' is not a valid ' + kind);
   };
   check('world', world, 'world');
   world.packs.forEach((p, i) => check('pack', p, 'pack ' + i));

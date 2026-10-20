@@ -7,7 +7,8 @@
 //   rare    a `rare_drop` event as it ARRIVES in the character's timeline
 //           (timeline.onArrive, so a character that is not on screen still
 //           tells), id = the server's own event id
-//   death   the hunt section ending `died` / `party_member_died`, id = session
+//   death   the hunt section ending `party_member_died`, id = session (the
+//           character's OWN death opens the death popup instead: death-popup.js)
 //   low     a restock target under LOW_SUPPLY_PCT of itself, or a bar supply
 //           at zero, while hunting; id = session + item. Never for a resource
 //           the hero does not use (a drink for a hero with no mana pool), and
@@ -28,7 +29,6 @@
 // intent (CharacterSession.restartHunt) like every other.
 // ════════════════════════════════════════════════════════════════════════
 import { ALERT_INDEX, LOW_SUPPLY_PCT } from '../data/alerts.js?v=0.2.17';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.17';
 import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.17';
 import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.17';
 import { bagOf, rulesOf, nameOf } from '../session/item-sections.js?v=0.2.17';
@@ -96,10 +96,10 @@ function candidatesOf(cs) {
   const h = huntOf(cs);
   if (!h) return out;
   const where = huntName(h.huntId);
-  /* A death ends the hunt (CORE_MODEL.md §4): the death alert stands in for the ended one. */
-  if (h.ended && h.endReason === 'died') out.push({ id: 'death:' + h.sessionId, kind: 'death', session: h.sessionId,
-    text: END_REASON_COPY.died.one.replace('{name}', who(cs)).replace('{ground}', where) });
-  else if (h.ended && h.endReason === 'party_member_died') out.push({ id: 'death:' + h.sessionId, kind: 'death', session: h.sessionId,
+  /* A death ends the hunt (CORE_MODEL.md §4). The character's own death is the death popup
+     (death-popup.js, Tyler 2026-10-19), never a side line; a party member's stands in for the ended one. */
+  if (h.ended && h.endReason === 'died') return out;
+  if (h.ended && h.endReason === 'party_member_died') out.push({ id: 'death:' + h.sessionId, kind: 'death', session: h.sessionId,
     text: 'A party member died in ' + where + ', so ' + who(cs) + '’s party returned to town.' });
   else if (h.ended) out.push({ id: 'ended:' + h.sessionId, kind: 'ended', session: h.sessionId, text: who(cs) + '’s hunt in ' + where + ' has ended.' });
   else for (const l of lowItems(cs, h.hero)) {

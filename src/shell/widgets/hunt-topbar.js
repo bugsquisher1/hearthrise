@@ -12,6 +12,7 @@ import { huntOf, analyzerOf } from '../../session/hunt-sections.js?v=0.2.17';
 import { text, prop, attr } from '../../render/paint.js?v=0.2.17';
 import { clock } from '../../render/format.js?v=0.2.17';
 import { takeFresh } from '../../hunt-view/summary-recorder.js?v=0.2.17';
+import { deathPopupOf } from '../death-popup.js?v=0.2.17';
 
 /** The skeleton (built once). */
 export function renderHuntTopbar() {
@@ -24,7 +25,8 @@ export function renderHuntTopbar() {
 }
 
 renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
-  if (takeFresh(ctx.character)) queueMicrotask(() => ctx.wm.open('hunt-summary'));
+  /* A hunt that ended in a death opens the death popup instead; its Hunt summary button opens this. */
+  if (takeFresh(ctx.character) && !deathPopupOf(ctx.character)) queueMicrotask(() => ctx.wm.open('hunt-summary'));
   const h = huntOf(ctx.character);
   const a = analyzerOf(ctx.character);
   const ground = h && h.huntId && HUNT_INDEX[h.huntId];

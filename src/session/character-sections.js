@@ -13,7 +13,7 @@
 //                     damage: { min, max }, accuracy_pct, crit_pct, defence, set,
 //                     xp: { perks, buffs, combat } }
 //   outfit          { worn: id | null, colors: { region: dye index }, owned: [id] }
-//   death_log       [{ id, at, hunt, monster, xp, xp_lost }] newest first
+//   death_log       [{ id, at, hunt, session, monster, xp, xp_lost, blow, recent, saved }] newest first
 //   state.level_xp  the character's Level XP (kills only, CORE_MODEL.md §1): the Level and
 //                   its progress are read off it on the shared curve (src/core/xp.js, the
 //                   curve hr_char_level uses), never counted in the browser.
@@ -77,7 +77,15 @@ export function outfitOf(cs) {
   return { worn: id(o.worn), colors, owned: new Set(Array.isArray(o.owned) ? o.owned.map(id).filter(Boolean) : []) };
 }
 
-/** `death_log`: [{ id, atMs, hunt, monster, xp, xpLost }] newest first, or null. */
+const SESSION = /^[0-9a-f-]{36}$/;
+const xpMap = (o) => {
+  const out = {};
+  if (isObj(o)) for (const [k, v] of Object.entries(o)) if (/^[a-z_]{1,32}$/.test(k) && nat(v)) out[k] = v;
+  return out;
+};
+/** `death_log`: [{ id, atMs, hunt, session, monster, xp, xpLost, blow, recent, saved }] newest first, or null.
+ *  blow { monster, ability, amount } | null; recent [{ kind: dmg|heal, amount, agoMs, monster, ability }]
+ *  newest first; saved { level|skill: xp } a Blessing kept ({} none, null not known). All the server's (hr_death_log_view). */
 export function deathLogOf(cs) {
   const d = read(cs, 'death_log');
   if (!Array.isArray(d)) return null;
@@ -86,9 +94,11 @@ export function deathLogOf(cs) {
     if (!isObj(r) || nat(r.id) === null) continue;
     const at = typeof r.at === 'string' ? Date.parse(r.at) : NaN;
     if (!Number.isFinite(at)) continue;
-    const lost = {};
-    if (isObj(r.xp_lost)) for (const [k, v] of Object.entries(r.xp_lost)) if (/^[a-z_]{1,32}$/.test(k) && nat(v)) lost[k] = v;
-    out.push({ id: r.id, atMs: at, hunt: id(r.hunt), monster: id(r.monster), xp: nat(r.xp), xpLost: lost });
+    out.push({ id: r.id, atMs: at, hunt: id(r.hunt), session: typeof r.session === 'string' && SESSION.test(r.session) ? r.session : null,
+      monster: id(r.monster), xp: nat(r.xp), xpLost: xpMap(r.xp_lost), saved: isObj(r.saved) ? xpMap(r.saved) : null,
+      blow: isObj(r.blow) && nat(r.blow.n) !== null ? { monster: id(r.blow.m), ability: id(r.blow.ab), amount: r.blow.n } : null,
+      recent: (Array.isArray(r.recent) ? r.recent.slice(0, 12) : []).filter((e) => isObj(e) && (e.k === 'dmg' || e.k === 'heal') && nat(e.n) !== null && nat(e.ago) !== null)
+        .map((e) => ({ kind: e.k, amount: e.n, agoMs: e.ago, monster: id(e.m), ability: id(e.ab) })) });
   }
   return out;
 }

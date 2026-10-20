@@ -1570,6 +1570,11 @@ export function huntProposal(hs, swingFrom, settledToMs, summary, tickMs) {
     if (e.type === 'slot_dry' && e.item && !(e.item in hints.slot_dry)) hints.slot_dry[e.item] = Math.floor(e.atMs);
     else if (e.type === 'death') hints.death.push(Math.floor(e.atMs));
   }
+  /* WHAT KILLED THE HERO (core/hunt/death-why.js), for the death popup: display
+     only; the settle sanitizes it (hr_death_why) onto the death event. */
+  if (summary && Array.isArray(summary.deathLog) && summary.deathLog.length) {
+    hints.death_why = summary.deathLog.slice(0, 1).map((d) => (d && d.why) || null);
+  }
   const rawXp = {};
   for (const k of Object.keys(t.xp || {})) {
     const v = Number(t.xp[k]);

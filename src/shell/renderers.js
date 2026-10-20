@@ -31,6 +31,7 @@ import { renderParty } from './windows/party.js?v=0.2.17';
 import { renderCharacters } from './windows/characters.js?v=0.2.17';
 import { renderAlerts } from './widgets/alerts.js?v=0.2.17';
 import { renderHuntSummary } from './windows/hunt-summary.js?v=0.2.17';
+import { renderDeath } from './windows/death.js?v=0.2.17';
 
 /* A renderer with `.patch` is a component: built once, then patched in place (src/shell/shell.js). */
 export const WINDOW_RENDERERS = Object.freeze({
@@ -48,6 +49,7 @@ export const WINDOW_RENDERERS = Object.freeze({
   hud: renderHudSettings,
   'hunt-settings': renderHuntSettings,
   'configure-action': renderConfigureAction,
+  death: renderDeath,
   chat: renderChat,
   friends: renderFriends,
   inspect: renderInspect,

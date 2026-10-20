@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-10-20",
- "digest": "eb3bf1b0390e94b9626ef7b2dcebe20d898fccf684faf0735d85ea5902ce1374",
+ "digest": "55e6012298e7e9aa933f74ed8636222a838221c98840e0b67f1bd44d8e1409e0",
  "counts": {
   "relations": 213,
-  "functions": 516,
+  "functions": 517,
   "policies": 129,
   "indexes": 297,
   "triggers": 34,
@@ -405,6 +405,7 @@
    "hr_day_budget_used(p_user uuid, p_slot integer, p_at timestamp with time zone)",
    "hr_db_sample(p_top integer)",
    "hr_death_log_view(p_user uuid, p_slot integer)",
+   "hr_death_why(p jsonb)",
    "hr_detail_bound(p_detail jsonb)",
    "hr_discord_code_current()",
    "hr_discord_code_for(p_week text)",

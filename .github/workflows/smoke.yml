@@ -371,6 +371,15 @@ jobs:
           node tests/party-ui.mjs
           node tests/party-ui.mjs --mutate
 
+      # THE DEATH POPUP (Tyler 2026-10-19): a death opens a centred popup whose
+      # every line is the server's death row; attended and away; once per death
+      # (a reload shows no dismissed death). --mutate plants eight.
+      - name: Death popup (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/death-popup.mjs
+          node tests/death-popup.mjs --mutate
+
       # THE CHAT WINDOW AND THE SOCIAL SIDE (2026-10-18, lane/chat): lines are
       # the server's rows (time, name, level, the weapon's role), one intent
       # per send naming no sender fact, the server's channels, unread dots,

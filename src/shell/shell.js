@@ -46,6 +46,7 @@ import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.17';
 import { mountContextMenu } from './context-menu.js?v=0.2.17';
 import { menuProvidersOf } from './menu-providers.js?v=0.2.17';
 import { escapeHtml as esc } from '../utils/dom.js?v=0.2.17';
+import { followDeaths } from './death-popup.js?v=0.2.17';
 
 /* The components' display clock: session timers and the timeline's due events (parity SH-05, DOM 4 Hz). */
 const DISPLAY_TICK_MS = 250;
@@ -329,6 +330,8 @@ export function mountShell(root, o) {
   phoneMq.addEventListener('change', onSizeClass);
   host.addEventListener('resize', onResize);
   paintWidgets();
+  /* A death opens its popup (death-popup.js), on load too: a death while away shows on return. */
+  const offDeaths = followDeaths(ctx);
 
   return {
     wm, hud,
@@ -342,7 +345,7 @@ export function mountShell(root, o) {
     onInset(fn) { insetListeners.add(fn); return () => insetListeners.delete(fn); },
     menu: ctx.menu,
     destroy() {
-      offWm(); offHud();
+      offDeaths(); offWm(); offHud();
       ctx.menu.destroy();
       host.clearInterval(ticker);
       doc.removeEventListener('keydown', onKey);

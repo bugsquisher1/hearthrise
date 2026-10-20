@@ -28,7 +28,13 @@ const cases = {
     const throws = (e) => { try { M.worldstate.decode(e); return false; } catch { return true; } };
     if (!throws(Object.assign({}, enc, { s: enc.s ^ 1 }))) return 'a world of another field list was decoded';
     if (!throws(Object.assign({}, enc, { v: enc.v + 1 }))) return 'a world of another version was decoded';
-    if (!throws(Object.assign({}, enc, { u: [enc.u[0].slice(0, -1)] }))) return 'a short unit row was decoded';
+    /* A row short only by the DEFAULTED fields (a world saved before they existed) loads them blank;
+       a row short by a shaped field is another shape and is refused. */
+    const nShaped = M.worldstate.FIELDS.unit.length;
+    if (!throws(Object.assign({}, enc, { u: [enc.u[0].slice(0, nShaped - 1)] }))) return 'a short unit row was decoded';
+    let old;
+    try { old = M.worldstate.decode(Object.assign({}, enc, { u: enc.u.map((r) => r.slice(0, nShaped)) })); } catch (e) { return 'a world saved without the defaulted fields was refused: ' + e.message; }
+    if (!old.units.every((u) => u.hurt === null)) return 'a missing defaulted field did not load blank';
     return null;
   },
   'validate-refuses-bad-values': (M) => {
@@ -48,7 +54,7 @@ const cases = {
 
 const mutants = [
   { name: 'decode drops a field', case: 'round-trip',
-    edits: [['src/core/hunt/world-state.js', "  FIELDS[part].forEach(([name], i) => { out[name] = copy(arr[i]); });", "  FIELDS[part].forEach(([name], i) => { out[name] = name === 'prog' ? 0 : copy(arr[i]); });"]] },
+    edits: [['src/core/hunt/world-state.js', "  ALL[part].forEach(([name, kind], i) => { out[name] = i < arr.length ? copy(arr[i]) : KINDS[kind].blank(); });", "  ALL[part].forEach(([name, kind], i) => { out[name] = name === 'prog' ? 0 : i < arr.length ? copy(arr[i]) : KINDS[kind].blank(); });"]] },
   { name: 'no byte bound', case: 'bound',
     edits: [['src/core/hunt/world-state.js', '    if (bytes > HUNT_TUNING.worldMaxBytes)', '    if (false)']] },
   { name: 'two modules persist one field', case: 'fields-composed-from-modules',

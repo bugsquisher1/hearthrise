@@ -1,6 +1,6 @@
 # Hearthrise — Asset Manifest
 
-_Last updated: 2026-10-15 (World atlas registry, Art Director); 2026-08-08 (asset-organization pass, build b216; asset
+_Last updated: 2026-10-19 (live-ground monster combat clips, Asset Director); 2026-10-15 (World atlas registry, Art Director); 2026-08-08 (asset-organization pass, build b216; asset
 promotion pass, build b224)._
 
 The single reference for how Hearthrise's shipped assets are organized, what the
@@ -79,6 +79,16 @@ armour line), then snapped in Lab to the palette (metal tiers to their own ramp)
   one icon per ITEMS key, no orphans, 32x32, on-palette, no partial alpha.
 - Contact sheets (60 per sheet, read at x3): `docs/art-experiments/pixel-icons/`.
 - Out of scope: monster portraits, skill medallions, building art (unchanged).
+
+### Live-ground monster clips (2026-10-19) — the blow, the fall and the corpse
+Every monster on Mill Cellar, Millrace Sewer, Meadowbrook Thicket and Coppercap Warrens must be drawable through a whole
+kill: idle and walk in 8 facings, `attack`, `death` and the held `corpse` in s/e/n/w (`tests/world-assets.mjs` rule `[live]`, read
+from `HUNT_GROUNDS` and `HUNTS`, so a new spawn is covered the day it lands). The wolves and goblins carry drawn clips. The nine
+that had none (rat, slime, hive_wasp, drain_rat, sump_slime, culvert_bat, cistern_spider, kobold_tosher, rat_king) get
+`node tools/world-art/derive-combat.mjs` (`--check` for drift): their own idle pixels, moved by whole pixels, flipped, squashed or
+quarter-turned; nothing is borrowed or scaled up. These are a stand-in for drawn death clips, not a replacement:
+a PixelLab death/attack per creature (`docs/PIXELLAB_WORKFLOW.md`) supersedes a derived row when Tyler approves a spend.
+The `hunt` atlas is 2048x1808 of its 2048x2048 cap: the next monster set goes in its own set.
 
 ### World atlas registry (2026-10-15) — every world sprite and terrain, and what happens to it
 

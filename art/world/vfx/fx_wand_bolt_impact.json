@@ -1,0 +1,31 @@
+{
+  "id": "fx_wand_bolt_impact",
+  "class": "vfx",
+  "style": "s1",
+  "material": "light",
+  "source": "fx_wand_bolt_impact.png",
+  "frame": [
+    22,
+    22
+  ],
+  "anchor_px": [
+    11,
+    11
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "blend": "add",
+  "anims": [
+    {
+      "name": "play",
+      "fps": 16,
+      "loop": false,
+      "dirs": {
+        "s": 2
+      }
+    }
+  ],
+  "notes": "Cut from prototypes/hunt-sim-assets/vfx/frost_lance_shatter frames 0,1 by tools/world-art/port-hunt-sim.mjs: unscaled, cropped to the frames' union box, anchor as the sim drew it."
+}

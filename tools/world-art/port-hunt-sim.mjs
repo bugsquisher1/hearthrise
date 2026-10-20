@@ -3,6 +3,7 @@
 //
 //   node tools/world-art/port-hunt-sim.mjs            write art/world/hunt/<id>.{png,json} and art/world/vfx/<id>.{png,json}
 //   node tools/world-art/port-hunt-sim.mjs --report   measure what the port would produce; write nothing
+//   node tools/world-art/port-hunt-sim.mjs --derived  write only the effects cut from sim frames (DERIVED_VFX)
 //
 // The sim's art (prototypes/hunt-sim-assets, PixelLab style-1, 48x48 frames, 8 facings,
 // a foot anchor per unit in its manifest.json) is SOURCE ART. This ports the pixels, never
@@ -20,6 +21,7 @@ import { decodePNG, encodePNG, createImage, blit } from './png.mjs';
 import { CLASSES, FACINGS } from '../../src/data/world/art-budget.js';
 import { ROOT } from './build.mjs';
 import { measureFrame } from './measure.mjs';
+import { ALPHA_CUT } from '../../src/data/world/palette.js';
 import { isMain } from '../../tests/_is-main.mjs';
 
 /* How far a bat hovers above its anchor, art px (the flier class allows 6-16). */
@@ -167,11 +169,65 @@ export function portVfx(name, e) {
   return { sheet, sidecar };
 }
 
+/* Effects CUT from a sim effect's own frames (PixelLab style 1, unscaled, no pixel redrawn): the
+   casters' basic attacks. The sim drew its wand and staff bolts in canvas code (sim.js shoot), never
+   as art, so a bolt is the first frame of the style-1 effect of its colour and its impact that frame
+   and the next. The wand's orb is the frost lance's (the sorcerer's runes and barrier lock to the same
+   frost ramp), the staff's mote the healing motes'. A row: { from: sim effect, frames: [i…], fps, loop }. */
+export const DERIVED_VFX = Object.freeze({
+  wand_bolt: Object.freeze({ from: 'frost_lance_shatter', frames: [0], fps: 12, loop: true }),
+  wand_bolt_impact: Object.freeze({ from: 'frost_lance_shatter', frames: [0, 1], fps: 16, loop: false }),
+  staff_bolt: Object.freeze({ from: 'nature_heal_motes', frames: [0], fps: 12, loop: true }),
+  staff_bolt_impact: Object.freeze({ from: 'nature_heal_motes', frames: [1, 2], fps: 16, loop: false }),
+});
+
+/**
+ * One derived effect as { sheet, sidecar }, or { error }: the chosen frames of `fx[row.from]`,
+ * cropped to their union opaque box (alpha at or above the lock's cut) with the sim anchor moved
+ * by the same whole pixels.
+ */
+export function deriveVfx(name, row, fx) {
+  const e = fx[row && row.from];
+  if (!e || !Array.isArray(e.frames) || !Array.isArray(e.size) || !Array.isArray(e.anchor)) return { error: name + ': ' + (row && row.from) + ' is not a sim effect' };
+  if (!row.frames.length || row.frames.some((i) => !Number.isInteger(i) || i < 0 || i >= e.frames.length)) return { error: name + ': frames ' + row.frames + ' are not frames of ' + row.from };
+  const imgs = row.frames.map((i) => decodePNG(readFileSync(join(ROOT, VFX_SRC, e.frames[i]))));
+  let x0 = Infinity, y0 = Infinity, x1 = -1, y1 = -1;
+  for (const img of imgs) for (let y = 0; y < img.height; y++) for (let x = 0; x < img.width; x++) {
+    if (img.data[(y * img.width + x) * 4 + 3] < ALPHA_CUT) continue;
+    x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y);
+  }
+  if (x1 < 0) return { error: name + ': the chosen frames of ' + row.from + ' are empty' };
+  const fw = x1 - x0 + 1, fh = y1 - y0 + 1;
+  const sheet = createImage(fw * imgs.length, fh);
+  imgs.forEach((img, i) => blit(sheet, img, x0, y0, fw, fh, i * fw, 0));
+  const id = vfxId(name);
+  const sidecar = {
+    id, class: 'vfx', style: 's1', material: 'light', source: id + '.png', frame: [fw, fh], anchor_px: [e.anchor[0] - x0, e.anchor[1] - y0], footprint: [1, 1],
+    ...(e.additive ? { blend: 'add' } : {}),
+    anims: [{ name: 'play', fps: row.fps, loop: !!row.loop, dirs: { s: imgs.length } }],
+    notes: 'Cut from ' + VFX_SRC + '/' + row.from + ' frames ' + row.frames.join(',') + ' by tools/world-art/port-hunt-sim.mjs: unscaled, cropped to the frames\' union box, anchor as the sim drew it.',
+  };
+  return { sheet, sidecar };
+}
+
 function main() {
   const manifest = JSON.parse(readFileSync(join(ROOT, SRC, 'manifest.json'), 'utf8'));
   const report = process.argv.includes('--report');
   const only = process.argv.includes('--unit') ? process.argv[process.argv.indexOf('--unit') + 1] : null;
   let bad = 0;
+  if (process.argv.includes('--derived')) {
+    const fx = JSON.parse(readFileSync(join(ROOT, VFX_SRC, 'manifest.json'), 'utf8')).effects || {};
+    for (const [name, row] of Object.entries(DERIVED_VFX)) {
+      const r = deriveVfx(name, row, fx);
+      if (r.error) { console.log('  ✗ ' + r.error); bad++; continue; }
+      if (!report) {
+        writeFileSync(join(ROOT, VFX_OUT, r.sidecar.source), encodePNG(r.sheet));
+        writeFileSync(join(ROOT, VFX_OUT, r.sidecar.id + '.json'), JSON.stringify(r.sidecar, null, 2) + '\n');
+      }
+      console.log('  ✓ vfx ' + row.from + ' [' + row.frames + '] → ' + r.sidecar.id + ' (' + r.sheet.width + 'x' + r.sheet.height + ', anchor ' + r.sidecar.anchor_px + ')');
+    }
+    process.exit(bad ? 1 : 0);
+  }
   if (!report) mkdirSync(join(ROOT, OUT), { recursive: true });
   for (const simId of Object.keys(UNITS)) {
     if (only && only !== simId) continue;

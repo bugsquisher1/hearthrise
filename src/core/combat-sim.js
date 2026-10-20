@@ -194,7 +194,11 @@ export function simulateHuntInstance(inst, ctx) {
       m.hs.nextSwingAtMs = atMs + tick;
       if (m.unitId === null) {
         if (!world) {
-          world = newHuntWorld(ctx.ground, ctx.grid, [heroOf(m)]);
+          /* The first packs spawn at the ENTERING party's density (every standing member's pick, clamped for
+             their number), the same number every respawn reads below, never the first hero's pick alone. */
+          const standing = members.filter((x) => !x.left);
+          world = newHuntWorld(ctx.ground, ctx.grid, [heroOf(m)],
+            { density: densityFor(ctx.ground, standing.length, standing.map((x) => x.hero.density)) });
           /* A restarted instance's fresh world counts on from its stored swing (the seed index never repeats). */
           world.swing = Math.max(0, Math.floor(Number(inst.worldSwing) || 0));
           m.unitId = world.units[0].id; anchor(atMs); seen();

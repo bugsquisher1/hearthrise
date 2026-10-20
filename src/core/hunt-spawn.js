@@ -82,9 +82,10 @@ function heroUnit(id, h, partyRoles, tile) {
  * `party` is [{ role, maxHp, hp?, acc, maxHit, def, element, maxMana?, mana?, settings? }],
  * each a server-read hero: `role` a src/data/hunt-roles.js id, `acc` permille,
  * `settings` the character's own { dist, chase, tmode, stance } (an absent key
- * takes the role's default for this party). Heroes are units 1..n.
+ * takes the role's default for this party). Heroes are units 1..n. `o.density`, when given,
+ * is the density the packs spawn at (the settle's whole entering party), else the party's own.
  */
-export function newHuntWorld(ground, grid, party) {
+export function newHuntWorld(ground, grid, party, o) {
   if (!Array.isArray(party) || !party.length || party.length > ground.start.length) {
     throw new Error('newHuntWorld: a party of 1..' + ground.start.length + ' heroes');
   }
@@ -92,8 +93,9 @@ export function newHuntWorld(ground, grid, party) {
   const units = party.map((h, i) => heroUnit(i + 1, h, roles, ground.start[i]));
   const world = makeWorld({ ground: ground.id, swing: 0, leader: pickLeader(units), phase: PHASE.TRAVEL,
     routeIdx: 0, nextId: units.length + 1, packs: ground.pockets.map(() => ({ aggro: false, holder: null })),
-    /* MONSTER DENSITY: the members' smallest pick, clamped to the ground for this party size (each hero's `density`). */
-    density: densityFor(ground, party.length, party.map((h) => h.density)) });
+    /* MONSTER DENSITY: the members' smallest pick, clamped to the ground for this party size (each hero's `density`);
+       `o.density` when the settle opens the world for a party still walking in (combat-sim: the whole party's). */
+    density: o && Number.isInteger(o.density) ? o.density : densityFor(ground, party.length, party.map((h) => h.density)) });
   world.units = units;
   const inst = { world, ground, grid, occ: null, makeUnit };
   for (let p = 0; p < ground.pockets.length; p++) spawnPack(inst, p, null);

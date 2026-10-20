@@ -5,8 +5,8 @@
 -- STAGED. Game CLOSED: applies on its passing §3.
 --
 -- ── WHAT ─────────────────────────────────────────────────────────────────────
--- hr_hunt_enter_for (restated from 2026-10-28-party-flow.sql, VERBATIM but two
--- spots): a character gathering, on an artisan run or training is no longer
+-- hr_hunt_enter_for (restated from 2026-10-28-hunt-enter-after-stamina.sql, its
+-- stamina_at arrival kept, VERBATIM but two spots): a character gathering, on an artisan run or training is no longer
 -- refused `activity_running`; the activity yields (the hunt pointer replaces it,
 -- hr_hunt_point) and the stop is journalled (player_ledger kind hunt, intent
 -- activity_yield, with the instant it was last settled to). Every door uses this
@@ -24,7 +24,8 @@
 -- Paying that window server-side, and ending an artisan run whose inputs ran out
 -- at settle, is engine work (hr-accrue accrual.js) for an edge lane.
 --
--- REVERSIBILITY: re-apply both bodies from 2026-10-28-party-flow.sql.
+-- REVERSIBILITY: re-apply hr_hunt_enter_for from 2026-10-28-hunt-enter-after-stamina.sql and
+-- hr_hunt_party_start from 2026-10-28-party-flow.sql.
 -- ORDER: after 2026-10-30-party-invite-player.sql. No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════
 
@@ -32,7 +33,9 @@ do $mig$
 declare v_src text;
 begin
   select prosrc into v_src from pg_proc where oid = 'public.hr_hunt_enter_for(uuid,integer,text,jsonb,integer,integer)'::regprocedure;
-  if strpos(v_src, 'PARTY-FLOW') = 0 then raise exception 'PIN: hr_hunt_enter_for is not the party-flow image or this file''s'; end if;
+  -- hr_hunt_enter_for: the 2026-10-28-hunt-enter-after-stamina.sql image (live md5 c4134cb2, 2026-10-20) or this file's.
+  if md5(v_src) <> 'c4134cb232aee375576831376e54acc7' and strpos(v_src, 'TOWN-YIELDS') = 0 then
+    raise exception 'PIN: hr_hunt_enter_for is not the hunt-enter-after-stamina image or this file''s'; end if;
   select prosrc into v_src from pg_proc where oid = 'public.hr_hunt_party_start(integer,text,uuid)'::regprocedure;
   if strpos(v_src, 'hr_party_away(') = 0 then raise exception 'PIN: hr_hunt_party_start is not the party-flow image or this file''s'; end if;
 end $mig$;
@@ -127,7 +130,12 @@ begin
   end loop;
 
   -- THE ARRIVAL: after the walk; a party member's on the instance's boundaries.
-  v_from := date_trunc('milliseconds', now() + make_interval(secs => (select travel_s from public.hr_hunt_travel where hunt_id = p_hunt)));
+  -- NEVER BEFORE THE STAMINA STAMP (2026-10-28): the last session's settle may have
+  -- run to the swing boundary just past its leave (stamina_at = that window's end),
+  -- and with no walk (travel_s 0) a hunt entered within that swing would open BEHIND
+  -- it: every settle of it would refuse stamina_ahead, forever.
+  v_from := greatest(date_trunc('milliseconds', now() + make_interval(secs => (select travel_s from public.hr_hunt_travel where hunt_id = p_hunt))),
+                     v_st.stamina_at);
   if v_party is not null then
     v_tick := public.hr_hunt_limit('swing_interval_ms');
     select * into v_i from public.hunt_instances where id = v_party for update;

@@ -54,6 +54,8 @@ const FILE = '2026-10-28-party-flow.sql';
 const SEC = '2026-10-29-party-security.sql';
 const INV = '2026-10-30-party-invite-player.sql';
 const TOWN = '2026-10-30-town-activity-yields.sql';
+/* 2026-10-28-hunt-enter-after-stamina.sql restates hr_hunt_enter_for between SEC and INV; TOWN pins its image. */
+const STAM = '2026-10-28-hunt-enter-after-stamina.sql';
 const SRC = (f = FILE) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
 const U = ['000000c0-0000-4000-8000-0000000f1001', '000000c0-0000-4000-8000-0000000f1002', '000000c0-0000-4000-8000-0000000f1003'];
 const [A, B, C] = U;
@@ -257,17 +259,25 @@ const ARMS = {
     return p;
   },
 
-  'PF-IDEM': async (db) => {
+  'PF-IDEM': async (chainDb) => {
+    /* Idempotence is a property of the files over the state THEY produced (hunt-sessions-db C1, the same move):
+       a later file may restate a body these write (2026-10-28-hunt-enter-after-stamina.sql restates
+       hr_hunt_enter_for), and a chain-END re-apply of these would correctly put their own body back. So the
+       chain is booted to TOWN, the last of these, and STAM (which restates hr_hunt_enter_for between them) re-applies in its place. */
+    void chainDb;
+    const { db } = await bootReplay({ upTo: TOWN });
     const snap = async () => JSON.stringify([await inventory(db),
       (await db.query(`select p.oid::regprocedure::text f, md5(p.prosrc) h, coalesce(p.proacl::text, '') a from pg_proc p
                        where p.pronamespace = 'public'::regnamespace order by 1`)).rows,
       (await db.query('select proname, identity_args, grantee, note from public.hr_client_rpc_baseline order by 1, 2, 3')).rows]);
     const before = await snap();
     /* Both files, in their order: the security file restates bodies the flow file also writes. */
-    for (const f of [FILE, SEC, '2026-10-30-party-invite-player.sql', '2026-10-30-town-activity-yields.sql']) {
+    for (const f of [FILE, SEC, STAM, INV, TOWN]) {
       try { await db.exec(SRC(f)); } catch (e) { return ['the second apply of ' + f + ' RAISED: ' + String(e.message).split('\n')[0]]; }
     }
-    return before === await snap() ? [] : ['a second apply moved the schema, a body, an ACL or a baseline row'];
+    const same = before === await snap();
+    await db.close?.();
+    return same ? [] : ['a second apply moved the schema, a body, an ACL or a baseline row'];
   },
 
   'PF-LISTED': async (db) => {
@@ -492,8 +502,8 @@ async function main() {
     process.exit(bad ? 1 : 0);
   }
   /* The control: both files re-applied in order, self-checks off, nothing planted: every mutant's arm stays green. */
-  const base = { [FILE]: selfCheckOff(SRC(FILE)), [SEC]: selfCheckOff(SRC(SEC)), [INV]: selfCheckOff(SRC(INV)), [TOWN]: selfCheckOff(SRC(TOWN)) };
-  const prelude = (b) => [FILE, SEC, INV, TOWN].map((f) => b[f]).join('\n');
+  const base = { [FILE]: selfCheckOff(SRC(FILE)), [SEC]: selfCheckOff(SRC(SEC)), [INV]: selfCheckOff(SRC(INV)), [STAM]: selfCheckOff(SRC(STAM)), [TOWN]: selfCheckOff(SRC(TOWN)) };
+  const prelude = (b) => [FILE, SEC, STAM, INV, TOWN].map((f) => b[f]).join('\n');
   let missed = 0;
   for (const arm of new Set(MUTANTS.map((m) => m.arm))) {
     const p = await runArm(db, arm, prelude(base));

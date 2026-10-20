@@ -32,18 +32,18 @@
 // press is ONE hr_action_set_options. The server keeps ONE pick per action set
 // today, not one per ground, so the line says it carries to the next hunt.
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf, settingsOf } from '../../session/hunt-sections.js?v=0.2.13';
-import { bagOf, rulesOf } from '../../session/item-sections.js?v=0.2.13';
-import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.13';
-import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.13';
-import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.13';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.13';
-import { whole } from '../../render/format.js?v=0.2.13';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.13';
-import { itemName } from '../widgets/bits.js?v=0.2.13';
-import { runIntent } from '../intent-words.js?v=0.2.13';
-import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.13';
-import { huntRows, densityWords, bandWords, rangeWords, groupWords, recommendedHunt, heroWords, packFor, partyNote, ABOVE_LEVEL_WORDS } from '../hunt-list.js?v=0.2.13';
+import { huntOf, settingsOf } from '../../session/hunt-sections.js?v=0.2.14';
+import { bagOf, rulesOf } from '../../session/item-sections.js?v=0.2.14';
+import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.14';
+import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.14';
+import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.14';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.14';
+import { whole } from '../../render/format.js?v=0.2.14';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.14';
+import { itemName } from '../widgets/bits.js?v=0.2.14';
+import { runIntent } from '../intent-words.js?v=0.2.14';
+import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.14';
+import { huntRows, densityWords, bandWords, rangeWords, groupWords, recommendedHunt, heroWords, packFor, partyNote, ABOVE_LEVEL_WORDS } from '../hunt-list.js?v=0.2.14';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pick: null, pending: false, msg: '' }; SCRATCH.set(cs, s); } return s; };

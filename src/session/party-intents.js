@@ -23,7 +23,7 @@
 // in that party, so on ok each of them (and the character that joined) is
 // RE-READ: the screen shows only the server's answer, never a prediction.
 // ════════════════════════════════════════════════════════════════════════
-import { partyMembershipOf } from './party-sections.js?v=0.2.13';
+import { partyMembershipOf } from './party-sections.js?v=0.2.14';
 
 const HUNT_ID = /^[a-z0-9_]{1,64}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

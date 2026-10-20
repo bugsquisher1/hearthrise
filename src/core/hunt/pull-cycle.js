@@ -26,7 +26,7 @@ import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.20';
 import { VITALS } from '../../data/core-model.js?v=0.2.20';
 import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js?v=0.2.20';
 import { AI_REPATH_MS } from '../../data/hunt-roles.js?v=0.2.20';
-import { packHpFor, yieldPermille, routeFor } from '../../data/hunt-grounds.js?v=0.2.20';
+import { packHpFor, yieldPermille, routeFor, pullRows } from '../../data/hunt-grounds.js?v=0.2.20';
 import { cheb, dist2, freeNear, tileKey } from './grid.js?v=0.2.20';
 import { inArea, resetPack } from './leash.js?v=0.2.20';
 import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy } from './movement.js?v=0.2.20';
@@ -62,21 +62,18 @@ export const partySize = (inst) => inst.world.units.filter((u) => u.side === 'he
  * 1000 permille for 1-4 heroes) at the size the instance has WHEN the pack spawns; a hero joining later meets the
  * next respawn at the new size. The DENSITY (world.density, the settle's
  * clamped pick: hunt-grounds.js densityFor) is the pack's SIZE: that many
- * monsters, the pocket's spawn rows taken in order and round again (0 = the
- * pocket as built), each on the first free tile near its row's own spot
+ * monsters, the rows hunt-grounds.js pullRows gives (the pocket's authored rows,
+ * then its non-boss fill rows round again: a boss never repeats inside a pull;
+ * 0 = the pocket as built), each on the first free tile near its row's own spot
  * (deterministic). A full box is 8: every tile round the tank.
  */
 export function spawnPack(inst, p, sc) {
   const w = inst.world;
-  const pocket = inst.ground.pockets[p];
   const heroes = partySize(inst);
-  const want = Math.floor(Number(w.density) || 0);
-  const size = want > 0 ? want : pocket.spawns.length;
   occupancy(inst);
   const taken = (x, y) => inst.occ.mon.has(tileKey(inst.grid, x, y)) || inst.occ.hero.has(tileKey(inst.grid, x, y)) || !inArea(inst, p, x, y);
-  for (let i = 0; i < size; i++) {
+  for (const s of pullRows(inst.ground, p, w.density)) {
     {
-      const s = pocket.spawns[i % pocket.spawns.length];
       const at = freeNear(inst.grid, s.x, s.y, 3, taken);
       const row = MONSTERS[s.monster];
       if (!at || !row) continue;

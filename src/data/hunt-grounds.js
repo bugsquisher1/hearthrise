@@ -361,8 +361,28 @@ export function packAt(ground, p, level) {
   const pk = ground.pockets[p];
   const d = ground.density;
   if (!d || !pk.pack) return pk.spawns.slice();
-  const lv = Math.max(1, Math.min(d.max, Math.floor(Number(level) || 1)));
-  return pk.pack.slice(0, lv);
+  return pullRows(ground, p, Math.max(1, Math.min(d.max, Math.floor(Number(level) || 1))));
+}
+
+const isBoss = (s) => !!(MONSTERS[s.monster] && MONSTERS[s.monster].boss === true);
+
+/** THE ROWS A PULL OF `size` SPAWNS in pocket `p` (pull-cycle.js spawnPack; `size` = the settle's density,
+    0 = the pocket as built, its `spawns`). The pocket's authored rows come first (a box's `pack`, else its
+    `spawns`); past them the extra slots cycle its FILL rows (a box's `pack` past its `spawns`, else the
+    pocket's own rows), never a boss: A BOSS NEVER REPEATS INSIDE A PULL (designer ruling 2026-10-20: a
+    named leader such as the den's Old Grayjaw stands in the as-built head only). A pocket with no non-boss
+    row keeps its as-built pack at any size. */
+export function pullRows(ground, p, size) {
+  const pk = ground.pockets[p];
+  const n = Math.floor(Number(size) || 0);
+  const rows = pk.pack || pk.spawns;
+  if (n <= 0 || !rows.some((s) => !isBoss(s))) return pk.spawns.slice();
+  if (n <= rows.length) return rows.slice(0, n);
+  const extra = (pk.pack ? pk.pack.slice(pk.spawns.length) : rows).filter((s) => !isBoss(s));
+  const fill = extra.length ? extra : rows.filter((s) => !isBoss(s));
+  const out = rows.slice();
+  for (let i = 0; out.length < n; i++) out.push(fill[i % fill.length]);
+  return out;
 }
 
 /** A ground's gather nodes, each with its kind resolved (empty for a ground with none). INERT until the gather engine lands. */

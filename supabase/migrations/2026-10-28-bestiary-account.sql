@@ -26,7 +26,8 @@
 --    — MONEY. Shape -> idempotency replay -> rate gate -> catalogue -> the
 --    CHARACTER lock (hr_hunt_lock: gold is per hero) -> the ACCOUNT bestiary lock
 --    (the advisory key the §2 trigger takes) -> the row FOR UPDATE -> refusals:
---      already_active (stage <= activated), needs_previous (stage > activated+1),
+--      no_relic (the monster drops no relic: no fee for nothing),
+--      already_active (stage <= activated), needs_previous_stage (stage > activated+1),
 --      not_enough_kills {have, need} (gold never skips kills), quote_changed
 --      (p_price is not the server's fee; carries the section) -> ONE hr_apply
 --      {gold: -fee} journalled kind shop, intent bestiary_stage:<monster>:<stage>
@@ -145,7 +146,7 @@ returns jsonb language sql stable security definer set search_path = public, pg_
         'monster', f.monster_id, 'level', public.hr_monster_level(f.monster_id), 'grounds', f.grounds,
         'kills', f.kills, 'stage', f.stage, 'activated_stage', f.act, 'relic_mult', f.relic_mult,
         'next_stage', f.next_stage, 'next_stage_kills', f.next_kills, 'next_fee', f.next_fee,
-        'can_activate', f.next_stage is not null and f.kills >= f.next_kills, 'has_relic', f.has_relic)
+        'can_activate', f.next_stage is not null and f.kills >= f.next_kills and f.has_relic, 'has_relic', f.has_relic)
       order by f.ord) from full_ f), '[]'::jsonb))
    where exists (select 1 from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot)
 $$;
@@ -174,6 +175,9 @@ begin
   if not public.hr_rpc_gate('hunt') then return jsonb_build_object('ok', false, 'error', 'rate_limited'); end if;
   if not exists (select 1 from public.hr_bestiary_monsters m where m.monster_id = p_monster) then
     return public.hr_note_rejection('bestiary_activate', p_slot, jsonb_build_object('ok', false, 'error', 'unknown_monster')); end if;
+  -- A STAGE BUYS ONLY A RELIC LIFT: a monster that drops no relic takes no fee for nothing.
+  if not exists (select 1 from public.hr_bestiary_monsters m where m.monster_id = p_monster and m.has_relic) then
+    return public.hr_note_rejection('bestiary_activate', p_slot, jsonb_build_object('ok', false, 'error', 'no_relic')); end if;
   select s.kills into v_need from public.hr_bestiary_stages s where s.stage = p_stage;
   if v_need is null then
     return public.hr_note_rejection('bestiary_activate', p_slot, jsonb_build_object('ok', false, 'error', 'unknown_stage')); end if;
@@ -188,7 +192,7 @@ begin
   if p_stage <= v_act then
     return public.hr_note_rejection('bestiary_activate', p_slot, jsonb_build_object('ok', false, 'error', 'already_active', 'activated_stage', v_act)); end if;
   if p_stage > v_act + 1 then
-    return public.hr_note_rejection('bestiary_activate', p_slot, jsonb_build_object('ok', false, 'error', 'needs_previous', 'activated_stage', v_act)); end if;
+    return public.hr_note_rejection('bestiary_activate', p_slot, jsonb_build_object('ok', false, 'error', 'needs_previous_stage', 'activated_stage', v_act)); end if;
   if v_kills < v_need then
     return public.hr_note_rejection('bestiary_activate', p_slot, jsonb_build_object('ok', false, 'error', 'not_enough_kills', 'have', v_kills, 'need', v_need)); end if;
   v_fee := public.hr_bestiary_fee_of(p_stage, p_monster);
@@ -234,6 +238,10 @@ begin
     s := public.hr_state_of(v_u, 0)->'account_bestiary';
     if s is null or jsonb_array_length(s->'monsters') <> (select count(distinct monster_id) from public.hr_bestiary_monsters)
        or (s->'relic_mult') <> '{}'::jsonb then raise exception 'VERIFY(a): the empty section is %', s; end if;
+    -- (a2) a monster with no relic takes no fee (no shipped row carries a relic yet: the probe's rat is given one).
+    v := public.hr_bestiary_activate(0, c_rat, 1, public.hr_bestiary_fee_of(1, c_rat), '000000c0-0000-4000-a000-0000b0570100');
+    if v->>'error' is distinct from 'no_relic' then raise exception 'VERIFY(a2): a relic-less monster answered %', v; end if;
+    update public.hr_bestiary_monsters set has_relic = true where monster_id = c_rat;
     -- (b) kills from BOTH characters land on ONE account count (the settle's progress op, through hr_apply).
     select version into v_ver from public.player_state where user_id = v_u and slot = 0;
     v := public.hr_apply(v_u, 0, v_ver, '000000c0-0000-4000-a000-0000b0570101',
@@ -279,7 +287,7 @@ begin
     v := public.hr_bestiary_activate(1, c_rat, 2, public.hr_bestiary_fee_of(2, c_rat), '000000c0-0000-4000-a000-0000b0570107');
     if v->>'error' is distinct from 'not_enough_kills' then raise exception 'VERIFY(f): stage 2 at 1,300 kills answered %', v; end if;
     v := public.hr_bestiary_activate(1, c_rat, 3, public.hr_bestiary_fee_of(3, c_rat), '000000c0-0000-4000-a000-0000b0570108');
-    if v->>'error' is distinct from 'needs_previous' then raise exception 'VERIFY(f): skipping to stage 3 answered %', v; end if;
+    if v->>'error' is distinct from 'needs_previous_stage' then raise exception 'VERIFY(f): skipping to stage 3 answered %', v; end if;
     v := public.hr_bestiary_activate(1, c_rat, 1, v_fee, '000000c0-0000-4000-a000-0000b0570109');
     if v->>'error' is distinct from 'already_active' then raise exception 'VERIFY(f): a second stage 1 answered %', v; end if;
     raise exception using errcode = 'HR877', message = 'bestiary-account §6 complete - rolling back';

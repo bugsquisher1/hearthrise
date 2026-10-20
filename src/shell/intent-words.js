@@ -77,6 +77,13 @@ const WORDS = Object.freeze({
   already_friends: 'You are already friends.',
   too_many: 'Your list is full.',
   no_request: 'That request has gone.',
+  /* The account bestiary (2026-10-28-bestiary-account.sql hr_bestiary_activate). */
+  not_enough_kills: 'Your account has not slain enough of these for that stage yet.',
+  already_active: 'That stage is already active.',
+  needs_previous_stage: 'Activate the stage before it first.',
+  no_relic: 'This creature drops no relic, so a stage has nothing to raise.',
+  unknown_monster: 'The bestiary does not know that creature.',
+  unknown_stage: 'There is no such stage.',
   read_only: 'Nothing can be typed here.',
 });
 

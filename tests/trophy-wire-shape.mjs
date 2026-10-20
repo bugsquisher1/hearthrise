@@ -42,7 +42,6 @@ import { readFile } from 'node:fs/promises';
 import { join, normalize } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { killsByClass } from '../src/core/charms.js';
 import { MONSTERS } from '../src/data/monsters.js';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
@@ -79,7 +78,7 @@ function liftEmit(src) {
     throw new Harness('a TypeScript annotation survived the lift — the transform is stale');
   }
   // eslint-disable-next-line no-new-func
-  return new Function('trophyRows', 'byId', 'killsByClass', 'MONSTERS', `
+  return new Function('trophyRows', 'byId', 'MONSTERS', `
     let bestiary = null; let bestiaryKills = null;
     ${body}
     return bestiary;
@@ -95,7 +94,7 @@ async function run(indexSrc, envelopePath) {
   const kept = (block) => { const r = E.applyEnvelope(null, envelopeFor(block)); return r.record ? r.record.data.bestiary : undefined; };
 
   // ── W1 — THE DEGRADATION PATH. trophyRows null ⇒ NO `trophies` KEY. ───────
-  const degraded = emit(null, BY_ID, killsByClass, MONSTERS);
+  const degraded = emit(null, BY_ID, MONSTERS);
   ok(degraded && typeof degraded === 'object',
     'W1: the bestiary block was not built at all on the 42883 path — the counters must still ride');
   ok(degraded && !('trophies' in degraded),
@@ -106,7 +105,7 @@ async function run(indexSrc, envelopePath) {
     + 'projection and must not be taken down with it');
 
   // ── W2 — THE SERVER ANSWERED, NOTHING CLAIMED. Key PRESENT and empty. ────
-  const none = emit([], BY_ID, killsByClass, MONSTERS);
+  const none = emit([], BY_ID, MONSTERS);
   ok(none && Array.isArray(none.trophies) && none.trophies.length === 0,
     'W2: a server that answered with zero rows must send `trophies: []` — a truthful "none claimed", '
     + 'which is a DIFFERENT sentence from W1 and the whole reason the key is conditional');
@@ -114,7 +113,7 @@ async function run(indexSrc, envelopePath) {
   // ── W3 — THE SERVER'S OWN LIST, carried verbatim and coerced. ────────────
   const held = emit(
     [{ monster_id: 'goblin', stage: 4 }, { monster_id: '', stage: 2 }, { monster_id: 'slime', stage: 0 }],
-    BY_ID, killsByClass, MONSTERS,
+    BY_ID, MONSTERS,
   );
   ok(held && Array.isArray(held.trophies) && held.trophies.length === 1,
     `W3: the emit carried ${held && held.trophies && held.trophies.length} rows where 1 survives coercion `

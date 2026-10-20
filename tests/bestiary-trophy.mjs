@@ -1,39 +1,36 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
-// tests/bestiary-trophy.mjs — THE TROPHY IS CLAIMED, THE POWER IS DERIVED,
-// AND NEITHER HALF TRUSTS THE CLIENT.
+// tests/bestiary-trophy.mjs — THE DORMANT TROPHY CLAIM: CLAIMED ONCE, MINTS
+// NOTHING, TRUSTS NO CLIENT COUNT.
 //
-//   node tests/bestiary-trophy.mjs             the guard (pure arm + SQL arm)
-//   node tests/bestiary-trophy.mjs --pure      the pure arm only (no pglite)
+//   node tests/bestiary-trophy.mjs             the guard (wire arm + SQL arm)
+//   node tests/bestiary-trophy.mjs --pure      the wire arm only (no pglite)
 //   node tests/bestiary-trophy.mjs --report    print what it measured, gate too
 //   node tests/bestiary-trophy.mjs --selftest  mutation proof: each defect caught
 //
-// ── WHAT THIS OWNS, AND WHAT tests/bestiary-ladder.mjs OWNS ─────────────────
-// bestiary-ladder.mjs owns the DATA: that every monster has a ladder, that the
-// census is generated rather than typed, and that every authored bonus sits
-// inside its band. This file owns the two halves that data becomes:
-//
-//   THE DERIVED HALF (pure, milliseconds, no database) — src/core/trophies.js
-//   turns the server's kill counters into a multiplier, the product with the
-//   class charm is clamped once, the damage half is honestly dormant, and the
-//   attended and away paths read ONE number (AWAY-1).
-//
-//   THE CLAIMED HALF (a real PostgreSQL, via tests/schema-replay.mjs) —
+// ── WHAT IS LEFT, AND WHY (2026-10-19) ─────────────────────────────────────
+// Tyler's account bestiary (src/data/bestiary-stages.js, 2026-10-28-bestiary-
+// account.sql, tests/bestiary-account.mjs) replaced the per-character trophy
+// ladder: src/data/bestiary.js, bestiary-charms.js, src/core/trophies.js and
+// charms.js are deleted, and with them this file's pure ladder arm (T1-T8). The
+// SERVER half of the old claim is still installed and still reachable by the
+// engine's dormant `trophy_claim` verb (hr_trophy_claim, hr_trophy_of,
+// hr-accrue/trophy-claim.js; no client sends it) until the edge lane retires
+// the verb and a migration drops the two functions. Until then this keeps
+// guarding it: its ladder now lives only in its own SQL (`c_at`), read out of
+// the migration, and:
+//   THE WIRE ARM — T9 the wire's stage bound equals that ladder's length, T10
+//   a forged count has nowhere to travel, T11 the verb's registry row;
+//   THE SQL ARM (a real PostgreSQL, via tests/schema-replay.mjs) —
 //   hr_trophy_claim refuses below the threshold, refuses a second claim, writes
 //   exactly one progress row and exactly one ledger row, and cannot be told a
 //   kill count because its signature has nowhere to put one.
 //
 // ── WHY THE SQL ARM EXISTS AT ALL, GIVEN §5 OF THE MIGRATION ────────────────
-// 2026-09-22-trophy-claim.sql asserts these properties in its own §4 self-check
-// and tests/schema-drift.mjs executes that on every replay — so the CLEAN case
-// is already covered twice. What this file adds is the thing a self-check
-// structurally cannot do: it MUTATES the migration and requires each defect to
-// be caught. A self-check runs inside the file it is checking; it can only ever
-// prove that file correct as written, never that its guards bite.
-//
-// Design: docs/design/BESTIARY_LADDER.md. Engine: src/core/trophies.js.
-// Ladder data: src/data/bestiary.js.
-//
+// 2026-09-22-trophy-claim.sql asserts these properties in its own self-check
+// and tests/schema-drift.mjs executes that on every replay. What this file adds
+// is the thing a self-check structurally cannot do: it MUTATES the migration
+// and requires each defect to be caught.
 // Exit: 0 green · 1 a finding · 2 harness (a module would not load, pglite is
 // absent, or --selftest could not plant a defect).
 // ════════════════════════════════════════════════════════════════════════
@@ -42,20 +39,6 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import {
-  TROPHY_STAGES, MAX_TROPHY_DROP_MULT, MAX_TROPHY_DAMAGE_MULT, MAX_MEMORY_DROP_MULT,
-  MAX_TROPHY_STAGE, trophyKey, trophyStageAt,
-} from '../src/data/bestiary.js';
-import { CHARM_RANKS, MAX_CHARM_DROP_MULT } from '../src/data/bestiary-charms.js';
-import { MONSTERS } from '../src/data/monsters.js';
-import { MAX_TOTAL_DAMAGE_MULT } from '../src/core/elements.js';
-import {
-  trophyIndex, trophyDropMultFor, trophyDamageMultFor, trophyStageFor,
-  memoryDropMult, TROPHY_DAMAGE_ARM_ENABLED,
-} from '../src/core/trophies.js';
-import { weaknessInfo, playerCombatRolls, equipmentStats } from '../src/core/combat.js';
-import { charmIndex, killsByClass } from '../src/core/charms.js';
-import { ITEMS } from '../src/data/items.js';
 import { readTrophy } from '../supabase/functions/hr-accrue/request.js';
 import { resolveTrophyClaim } from '../supabase/functions/hr-accrue/trophy-claim.js';
 import { INTENT_REGISTRY } from '../supabase/functions/hr-accrue/intents.js';
@@ -68,7 +51,6 @@ const KEY_MAX = 64;
 /* The chain name tests/schema-apply-order.json gives the file under test. */
 const CLAIM_FILE = '2026-09-22-trophy-claim.sql';
 
-const near = (a, b) => Math.abs(a - b) < 1e-9;
 
 /* An RPC answer, reduced to the fact a finding is about. A successful claim
    returns the WHOLE hr_state_of envelope — every skill, the bag, the farm — and
@@ -76,223 +58,29 @@ const near = (a, b) => Math.abs(a - b) < 1e-9;
 const verdict = (r) => JSON.stringify({
   ok: r?.ok, error: r?.error, replayed: r?.replayed, detail: r?.detail, claimed: r?.claimed,
 });
+/* The dormant claim's row key, as hr_trophy_of splits it back (split_part(key, ':', 2|3)). */
+const trophyKey = (monsterId, stage) => `trophy:${monsterId}:${stage}`;
 
 // ════════════════════════════════════════════════════════════════════════
-// THE PURE ARM — the derived multiplier, over an INJECTABLE world so a
-// mutation can be planted in any input and the NAMED assertion required to be
-// the one that reports it.
+// THE WIRE ARM — over an INJECTABLE world so a mutation can be planted and the
+// NAMED assertion required to be the one that reports it.
 // ════════════════════════════════════════════════════════════════════════
 
-/** The world the pure assertions read. Everything injectable; nothing global. */
+/** The world the wire assertions read: the SQL ladder and the wire's stage bound, both read off disk. */
 function realPureWorld() {
-  return {
-    stages: TROPHY_STAGES.map((r) => ({ ...r })),
-    charmRanks: CHARM_RANKS.map((r) => ({ ...r })),
-    roster: Object.fromEntries(Object.keys(MONSTERS).map((id) => [id, { ...MONSTERS[id] }])),
-    maxDrop: MAX_TROPHY_DROP_MULT,
-    maxDmg: MAX_TROPHY_DAMAGE_MULT,
-    maxMemory: MAX_MEMORY_DROP_MULT,
-    maxCharmDrop: MAX_CHARM_DROP_MULT,
-    maxTotalDamage: MAX_TOTAL_DAMAGE_MULT,
-    wireMax: 4,          // request.js MAX_TROPHY_STAGE_WIRE, re-read below
-    sqlThresholds: null, // filled from the migration by auditPure's caller
-    /* T6's fight expression: the SHIPPED functions. Injected only so a mutation
-       can plant a ladder back into the one expression and T6 must notice. */
-    fight: { weaknessInfo, playerCombatRolls },
-    /* The multiplier functions themselves are NOT injected: they are the thing
-       under test. What is injected is every number they are supposed to obey,
-       so a mutation moves the CONTRACT and the assertion has to notice. */
-  };
+  return { sqlThresholds: null, wireMax: -1 };
 }
 
 function auditPure(w) {
   const f = [];
   const say = (id, msg) => f.push({ id, msg });
 
-  /* T1 — THE DERIVED MULTIPLIER EQUALS THE DESIGN'S TABLE, AT EVERY STAGE, on
-     the exact threshold and one kill below it. This is the assertion the whole
-     "the power is derived" claim rests on: if the table and the derivation
-     disagree, a player is paid a rate nobody authored. */
-  for (const row of w.stages) {
-    const idx = Object.create(null); idx.slime = row.stage;
-    const got = trophyDropMultFor('slime', idx);
-    /* ⚠ COMPARED AGAINST THE TABLE AS AUTHORED, NOT AGAINST `min(table, ceiling)`.
-       Pre-applying the clamp here would make this assertion agree with the
-       derivation for ANY authored value at or above the ceiling — measured:
-       with `want = Math.min(row.drop, maxDrop)` a table re-priced to x1.99 is
-       invisible to T1, because both sides collapse to x1.03. The clamp is a
-       property of the FORMULA and T3 owns it; T1 owns the narrower question of
-       whether the derivation says what the ladder says. */
-    if (!near(got, row.drop)) {
-      say('T1', `stage ${row.stage} (${row.id}) derives drop x${got}, the ladder authors x${row.drop}`);
-    }
-    const at = trophyStageAt(row.at);
-    if (!at || at.stage !== row.stage) {
-      say('T1', `${row.at} kills derives stage ${at ? at.stage : 'null'}, expected ${row.stage}`);
-    }
-    const below = trophyStageAt(row.at - 1);
-    if (below && below.stage >= row.stage) {
-      say('T1', `${row.at - 1} kills — one short of ${row.id} — already derives stage ${below.stage}`);
-    }
-  }
-
-  /* T2 — STAGE 1 PAYS NO POWER. Design §2: a first rung that paid a multiplier
-     would make the first 2,500 kills of all 108 monsters compulsory rather than
-     chosen, which is the opposite of what the ladder is for. EXACTLY 1, not
-     "about 1": the trophy and the revealed drop table ARE the reward. */
-  const q = Object.create(null); q.slime = 1;
-  /* BOTH SIDES, because they can fail apart: the authored table is where a
-     designer would put the bonus, and the derivation is where a clamp or an
-     off-by-one rung would introduce one. An assertion that read only the module
-     cannot see the first, which is the edit this rule exists to refuse. */
-  if (w.stages[0].drop !== 1) {
-    say('T2', `the ladder authors x${w.stages[0].drop} at stage 1 — the first rung must pay the trophy and the revealed drop table, and no power`);
-  }
-  if (w.stages[0].dmg !== 1) {
-    say('T2', `the ladder authors damage x${w.stages[0].dmg} at stage 1 — the first rung pays no power at all`);
-  }
-  if (trophyDropMultFor('slime', q) !== 1) {
-    say('T2', `stage 1 derives a drop multiplier (x${trophyDropMultFor('slime', q)}) — the first rung must pay the trophy and nothing else`);
-  }
-
-  /* T3 — THE PRODUCT OF BOTH REMEMBERED-KILLS LADDERS, over EVERY pair, never
-     exceeds MAX_MEMORY_DROP_MULT — and the clamp is the FORMULA's, so a hostile
-     pair is clamped too. Design §2.3: two ladders that each clamp only
-     themselves are two ladders whose product is nobody's job. */
-  for (const c of w.charmRanks) {
-    for (const t of w.stages) {
-      const product = Math.max(1, c.drop) * Math.max(1, t.drop);
-      if (product > w.maxMemory + 1e-9) {
-        say('T3', `charm ${c.id} (x${c.drop}) x trophy ${t.id} (x${t.drop}) = ${product.toFixed(4)}, over MAX_MEMORY_DROP_MULT ${w.maxMemory}`);
-      }
-      const clamped = memoryDropMult(c.drop, t.drop);
-      if (clamped > w.maxMemory + 1e-9) {
-        say('T3', `memoryDropMult(${c.drop}, ${t.drop}) returned ${clamped}, over the ceiling it exists to apply`);
-      }
-    }
-  }
-  /* …and the clamp BITES on a pair no table authors, which is what makes it a
-     property of the formula rather than a restatement of the data. */
-  if (memoryDropMult(9, 9) > w.maxMemory + 1e-9) {
-    say('T3', `memoryDropMult(9, 9) returned ${memoryDropMult(9, 9)} — the ceiling is not applied by the formula`);
-  }
-
-  /* T4 — THE OWN-PROPERTY RECEIPT. charms.js already paid for this one: with
-     `Object.prototype.constructor` truthy on any plain object, a lookup written
-     as `index[id]` handed out a top-rung bonus against something nobody had
-     killed (Security review 2026-09-13). */
-  for (const hostile of ['constructor', 'toString', 'valueOf', '__proto__']) {
-    if (trophyDropMultFor(hostile, {}) !== 1 || trophyStageFor(hostile, {}) !== 0) {
-      say('T4', `"${hostile}" resolves to a trophy on an empty index — the lookup is not own-property only`);
-    }
-  }
-
-  /* T5 — THE DAMAGE HALF IS DORMANT AND HONEST. Design §3.1: `maxHit` is an
-     integer and `Math.floor` rounds x1.01 away, so the stated effect would do
-     nothing — which is what tests/arm-flag-honesty.mjs exists for. While the
-     flag is off EVERY stage must return exactly 1, including the top one that
-     authors x1.01, and `weaknessInfo` must publish no damage readout for it. */
-  for (const row of w.stages) {
-    const idx = Object.create(null); idx.slime = row.stage;
-    const got = trophyDamageMultFor('slime', idx);
-    if (TROPHY_DAMAGE_ARM_ENABLED) {
-      const want = Math.min(row.dmg, w.maxDmg);
-      if (!near(got, want)) say('T5', `ARMED: stage ${row.id} derives damage x${got}, the ladder authors x${want}`);
-    } else if (got !== 1) {
-      say('T5', `stage ${row.id} pays damage x${got} while TROPHY_DAMAGE_ARM_ENABLED is false — a dormant flag that pays is worse than an armed one`);
-    }
-  }
-  /* …and the dormant ladder leaves the one clamped damage expression untouched:
-     a top-stage trophy must not move `damageMult` by a hair while it is off. */
-  {
-    const m = MONSTERS.slime;
-    const eq = equipmentStats({}, ITEMS);
-    const top = Object.create(null); top.slime = MAX_TROPHY_STAGE;
-    const off = weaknessInfo(m, eq, null, null, 'slime');
-    const on = weaknessInfo(m, eq, null, top, 'slime');
-    if (!TROPHY_DAMAGE_ARM_ENABLED && !near(off.damageMult, on.damageMult)) {
-      say('T5', `a top-stage trophy moved damageMult ${off.damageMult} → ${on.damageMult} while the arm flag is off`);
-    }
-    if (!TROPHY_DAMAGE_ARM_ENABLED && on.trophyDamageMult !== undefined) {
-      say('T5', 'weaknessInfo publishes a trophyDamageMult readout for a bonus the engine does not apply');
-    }
-    if (on.damageMult > w.maxTotalDamage + 1e-9) {
-      say('T5', `damageMult ${on.damageMult} exceeds MAX_TOTAL_DAMAGE_MULT ${w.maxTotalDamage}`);
-    }
-  }
-
-  /* T6 — A TROPHY PRICES NO FIGHT (closed rebuild, lane C2; demolition safety
-     review item 9). The trophy is KEPT — claimed, displayed, mounted — but its
-     COMBAT multiplier and the class charm's were deleted from the one fight
-     expression. So a full-ladder trophy and a top-rank charm must leave the
-     drop and damage factors EXACTLY where an empty bestiary leaves them, on the
-     attended shape (`playerCombatRolls`) and the bound one (`weaknessInfo`)
-     alike, whatever extra arguments a stale caller still hands them. */
-  {
-    const m = MONSTERS.slime;
-    const eq = equipmentStats({}, ITEMS);
-    const kills = Object.create(null); kills.slime = TROPHY_STAGES[TROPHY_STAGES.length - 1].at;
-    const trophies = trophyIndex(kills, MONSTERS);
-    if (trophyStageFor('slime', trophies) !== MAX_TROPHY_STAGE) {
-      say('T6', 'CONTROL: the fixture does not hold a top-stage trophy — the arm would be vacuous');
-    }
-    /* The fight expression is read through the world so --selftest can plant a
-       ladder back into it; the real world carries the shipped functions. */
-    const fx = w.fight;
-    const bare = fx.weaknessInfo(m, eq);
-    const stale = fx.weaknessInfo(m, eq, { vermin: 4 }, trophies, 'slime');
-    const attended = fx.playerCombatRolls(m, { eq, equipment: {}, items: ITEMS, skills: {}, charms: { vermin: 4 },
-      trophies, monsterId: 'slime' }).weak;
-    for (const [what, r] of [['weaknessInfo', stale], ['playerCombatRolls', attended]]) {
-      if (!near(r.dropMult, bare.dropMult) || !near(r.damageMult, bare.damageMult)) {
-        say('T6', `${what} still prices a trophy or a charm into a fight (drop ${r.dropMult} / dmg ${r.damageMult} vs ${bare.dropMult} / ${bare.damageMult})`);
-      }
-    }
-  }
-
-  /* T7 — THE KEY, FOR EVERY MONSTER AT EVERY STAGE. Three properties, and each
-     one is a production-only failure if it breaks: an overlong key is a claim
-     that throws in production and nowhere else; a key that collides with the
-     `ev:` namespace is a claimable row inside an engine counter sweep (design
-     §5); and a key the SQL projection cannot parse back is a trophy that is
-     written and never rendered. */
-  for (const id of Object.keys(w.roster)) {
-    for (const row of w.stages) {
-      const key = trophyKey(id, row.stage);
-      if (key.length > KEY_MAX) {
-        say('T7', `trophy key "${key}" is ${key.length} chars, over player_progress's ${KEY_MAX}`);
-      }
-      if (key.startsWith('ev:')) {
-        say('T7', `trophy key "${key}" is inside the ev: engine-counter namespace`);
-      }
-      /* The inverse of hr_trophy_of's split_part(key, ':', 2|3). */
-      const parts = key.split(':');
-      if (parts.length !== 3 || parts[0] !== 'trophy' || parts[1] !== id
-          || String(parts[2]) !== String(row.stage)) {
-        say('T7', `trophy key "${key}" does not parse back to (${id}, ${row.stage}) the way hr_trophy_of's split_part does`);
-      }
-    }
-  }
-
-  /* T8 — THE SQL LADDER AND THE JS LADDER ARE ONE LADDER. The thresholds are
-     authored in src/data/bestiary.js and restated as a catalogue inside
-     hr_trophy_claim, because a threshold a claim is judged against may never
-     travel on the wire. Two copies of one number drift; this reads BOTH and
-     compares them rather than restating either. */
-  if (w.sqlThresholds) {
-    const want = w.stages.map((r) => r.at);
-    if (w.sqlThresholds.length !== want.length
-        || w.sqlThresholds.some((n, i) => Number(n) !== Number(want[i]))) {
-      say('T8', `hr_trophy_claim's c_at is [${w.sqlThresholds.join(', ')}] and TROPHY_STAGES is [${want.join(', ')}] — the two ladders have drifted`);
-    }
-  }
-
   /* T9 — THE WIRE BOUND AND THE LADDER AGREE. request.js refuses a stage
      outside 1..MAX_TROPHY_STAGE_WIRE so an unbounded integer never reaches a
-     `::int` cast; if that bound fell BEHIND the ladder, the top rung would be
-     unclaimable and the refusal would read "malformed request". */
-  if (w.wireMax !== w.stages.length || MAX_TROPHY_STAGE !== w.stages.length) {
-    say('T9', `the wire admits stages 1..${w.wireMax} and MAX_TROPHY_STAGE is ${MAX_TROPHY_STAGE}, but the ladder has ${w.stages.length} rungs`);
+     `::int` cast; if that bound fell BEHIND the claim's own ladder, the top rung
+     would be unclaimable and the refusal would read "malformed request". */
+  if (w.wireMax !== w.sqlThresholds.length) {
+    say('T9', `the wire admits stages 1..${w.wireMax}, but hr_trophy_claim's ladder has ${w.sqlThresholds.length} rungs`);
   }
 
   /* T10 — A FORGED KILL COUNT HAS NOWHERE TO TRAVEL. The wire's whole
@@ -349,38 +137,15 @@ function auditPure(w) {
   return f;
 }
 
-// ── The pure arm's mutations ─────────────────────────────────────────────
-// Each plants ONE defect in the injectable world (or in a number the module
-// reads) and names the assertion that must report it.
+// ── The wire arm's mutations ─────────────────────────────────────────────
 const PURE_MUTATIONS = [
-  ['T1', 'the top rung is re-priced in the data table',
-    (w) => { w.stages[w.stages.length - 1].drop = 1.99; }],
-  ['T2', 'stage 1 starts paying a drop bonus',
-    (w) => { w.stages[0].drop = 1.02; }],
-  ['T3', 'the memory ceiling is lowered under the shipped product',
-    (w) => { w.maxMemory = 1.00; }],
-  ['T7', 'a monster id is authored too long for the key',
-    (w) => { w.roster['x'.repeat(70)] = { ...w.roster.slime }; }],
-  ['T8', 'the SQL ladder drifts from the data ladder',
-    (w) => { w.sqlThresholds = [2500, 5000, 10000, 99999]; }],
   ['T9', 'the wire bound falls behind the ladder',
-    (w) => { w.wireMax = 3; }],
-  ['T6', 'a trophy prices the fight again (the stale 4th/5th arguments are read)',
-    (w) => {
-      const real = w.fight.weaknessInfo;
-      const lifted = (m, eq, charms, trophies, id) => {
-        const r = real(m, eq);
-        return trophies && id && trophies[id] ? { ...r, dropMult: r.dropMult * 1.1845 } : r;
-      };
-      w.fight = { weaknessInfo: lifted, playerCombatRolls: (m, ctx) => ({ weak: lifted(m, ctx.eq, ctx.charms, ctx.trophies, ctx.monsterId) }) };
-    }],
+    (w) => { w.wireMax = w.sqlThresholds.length - 1; }],
 ];
 
-/* NEGATIVE CONTROLS — changes that must stay SILENT. A guard that goes red on
-   a display rename is a guard people learn to edit around. */
+/* NEGATIVE CONTROL — a change that must stay SILENT. */
 const PURE_NEGATIVE = [
-  ['a stage display name is rewritten', (w) => { w.stages[0].id = w.stages[0].id; }],
-  ['a monster is added to the roster', (w) => { w.roster.new_beast = { ...w.roster.slime, name: 'New Beast' }; }],
+  ['a rung of the SQL ladder is re-priced (the count, not the length)', (w) => { w.sqlThresholds[0] += 1; }],
 ];
 
 function mutantPureWorld(plant, base) {
@@ -416,7 +181,7 @@ async function auditSql(db) {
   const say = (id, msg) => f.push({ id, msg });
   const [{ activity_id: mon }] = await q(db,
     `select activity_id from public.hr_activities where kind = 'combat' order by activity_id limit 1`);
-  const first = TROPHY_STAGES[0].at;
+  const first = (await withSqlThresholds(realPureWorld())).sqlThresholds[0];
 
   await q(db, `select set_config('request.jwt.claim.sub', $1, false)`, [PROBE]);
   await q(db, `insert into auth.users (id) values ($1) on conflict (id) do nothing`, [PROBE]);
@@ -668,7 +433,7 @@ async function bootAndAudit(extraPatch) {
 // ════════════════════════════════════════════════════════════════════════
 
 async function selftest() {
-  console.log('── the pure arm ──────────────────────────────────────────────');
+  console.log('── the wire arm ──────────────────────────────────────────────');
   const cleanPure = auditPure(await withSqlThresholds(realPureWorld()));
   if (cleanPure.length) {
     console.error('SELFTEST HARNESS: the CLEAN pure arm is already red, so a caught defect cannot be told from a broken guard.');
@@ -748,25 +513,15 @@ async function withSqlThresholds(w) {
 }
 
 function report(pure, sql) {
-  console.log(`bestiary trophies: ${Object.keys(MONSTERS).length} monsters x ${TROPHY_STAGES.length} stages`);
-  for (const r of TROPHY_STAGES) {
-    const idx = Object.create(null); idx.slime = r.stage;
-    console.log(`  stage ${r.stage} ${r.id.padEnd(8)} at ${String(r.at).padStart(6)} kills`
-      + `  derived drop x${trophyDropMultFor('slime', idx).toFixed(2)}`
-      + `  derived dmg x${trophyDamageMultFor('slime', idx).toFixed(2)}`
-      + (TROPHY_DAMAGE_ARM_ENABLED ? '' : ' (damage arm OFF)'));
-  }
-  const top = TROPHY_STAGES[TROPHY_STAGES.length - 1].drop;
-  const topCharm = CHARM_RANKS[CHARM_RANKS.length - 1].drop;
-  console.log(`  charm x${topCharm} x trophy x${top} = ${(topCharm * top).toFixed(4)}`
-    + `, clamped to ${memoryDropMult(topCharm, top)} (ceiling ${MAX_MEMORY_DROP_MULT})`);
-  console.log(`  pure findings ${pure.length}, sql findings ${sql === null ? 'skipped' : sql.length}`);
+  console.log(`dormant trophy claim: hr_trophy_claim ladder [${pureWorld.sqlThresholds.join(', ')}], wire bound ${pureWorld.wireMax}`);
+  console.log(`  wire findings ${pure.length}, sql findings ${sql === null ? 'skipped' : sql.length}`);
 }
 
 const argv = process.argv.slice(2);
 if (argv.includes('--selftest')) await selftest();
 
-const pure = auditPure(await withSqlThresholds(realPureWorld()));
+const pureWorld = await withSqlThresholds(realPureWorld());
+const pure = auditPure(pureWorld);
 const sql = argv.includes('--pure') ? null : await bootAndAudit(null);
 if (argv.includes('--report')) report(pure, sql);
 
@@ -776,6 +531,5 @@ if (findings.length) {
   for (const x of findings) console.error(`  ${x.id}  ${x.msg}`);
   process.exit(1);
 }
-console.log(`bestiary-trophy: green — the ladder derives its own multipliers inside the stated`
-  + ` ceilings, attended and away quote one number, and the claim refuses, journals once and mints`
-  + ` nothing${sql === null ? ' (SQL arm skipped: --pure)' : ''}.`);
+console.log(`bestiary-trophy: green — the dormant claim's wire carries no count, its bound matches its ladder,`
+  + ` and the claim refuses, journals once and mints nothing${sql === null ? ' (SQL arm skipped: --pure)' : ''}.`);

@@ -17,7 +17,7 @@
 //   launcher false keeps a window off the icon row (reached from another window)
 //   escape   true on at most one row: Esc with nothing open opens it (Settings)
 //
-// The rest of the spec's catalogue (Homestead, Bestiary L, Market M) lands
+// The rest of the spec's catalogue (Homestead, Market M) lands
 // with its renderer: a launcher never opens a window that does not exist yet
 // (§1). Chat opens on Global (or the tab it showed last).
 //
@@ -38,6 +38,8 @@ export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'shop', label: 'Shop', key: 'v', glyph: 'navStore', width: 420, object: 'ledger' }),
   /* Lane S2: stamina refills, blessings and the character's name, each priced by the server. */
   Object.freeze({ id: 'services', label: 'Services', key: 'r', glyph: 'uiHourglass', width: 400, object: 'ledger' }),
+  /* The ACCOUNT bestiary (Tyler 2026-10-19): kills, stages and relic boosts per hunting ground, every number the server's. */
+  Object.freeze({ id: 'bestiary', label: 'Bestiary', key: 'x', glyph: 'uiBook', width: 440, object: 'book' }),
   Object.freeze({ id: 'hunt-prep', label: 'Hunt prep', key: 'p', glyph: 'uiCheck', width: 420, object: 'plain' }),
   /* Week plan step 16 + QoL 3: the party, and every open character on one screen (opened from the
      character strip's "All characters", so it takes no launcher icon). */

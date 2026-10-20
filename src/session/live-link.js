@@ -61,7 +61,7 @@ export class LiveLink {
          points, never commits) lived on its first 16 swings, froze, then jumped (live v0.2.20). */
       const i = body.hunt_live.instance;
       if (this.engine.running()
-        && this.engine.confirm({ world_swing: i.world_swing, world_hash: i.world_hash, seeds: body.hunt_live.seeds }) === 'match') return;
+        && this.engine.reconcile({ world_swing: i.world_swing, world_hash: i.world_hash, seeds: body.hunt_live.seeds }) === 'match') return;
       /* Off the server's world: restart from it, eased (never fed: the swings it runs to catch up are
          already in the past). */
       this._ease(this.engine.reseed(body.hunt_live, now), now);

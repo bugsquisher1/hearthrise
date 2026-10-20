@@ -37,6 +37,8 @@
 //         with the same size
 //   TW-9  ONE ACCOUNT, TWO CHARACTERS: each of an account's playing characters sees the
 //         other in town (a walker is a user AND a slot), never itself
+//   TW-10 VIEWING ANOTHER CHARACTER: a parked presence (its World pane closed) keeps its
+//         body in town with keepalives and no reads, and leaves once it starts a hunt
 //   TW-8  [page] in The Common a peer the server names walks beside the hero; a
 //         right-click on them opens the player menu under their name (Inspect
 //         gear, Message, Add friend, Invite to party, Block); the hero publishes
@@ -210,6 +212,29 @@ async function pureRules(M) {
     if (tail.length !== 2 || tail[1].args.p_map !== null) fail('TW-4 a publish in flight when the hero left town was not followed by a leave: ' + JSON.stringify(tail.map((c) => c.args.p_map)));
     tq.destroy();
   }
+  // TW-10: another character is viewed - this one STAYS in town (keepalive, no leave) until it hunts
+  {
+    const sent = [];
+    let now = 0, hunting = false;
+    const server = { rpc: (name, args) => { sent.push({ name, args }); return Promise.resolve({ ok: true, body: { ok: true, stamped: true, walkers: [] } }); } };
+    let tick10 = null;
+    const tp = new M.town.TownPresence({ server, slot: 1, self: () => TYLER, busy: () => hunting,
+      timers: { setTimer: (fn) => { tick10 = fn; return 1; }, clearTimer: () => {} }, now: () => now });
+    tp.show('town_common');
+    tp.publish(at(12, 9)); await settle();
+    sent.length = 0;
+    if (typeof tp.park === 'function') tp.park(); else tp.show(null);   // the World pane switched to another character
+    for (now = 1000; now <= 3 * L.keepaliveMs; now += L.pollMs) { if (tick10) tick10(); await settle(); }
+    const moves = sent.filter((c) => c.name === 'hr_town_move');
+    if (moves.some((c) => c.args.p_map === null) || moves.length < 2)
+      fail('TW-10 an unviewed character left town or stopped its keepalive: ' + JSON.stringify(moves.map((c) => c.args.p_map)));
+    if (sent.some((c) => c.name === 'hr_town_walkers')) fail('TW-10 an unviewed character still reads the walkers');
+    sent.length = 0; hunting = true;
+    if (tick10) tick10(); await settle();
+    const gone = sent.filter((c) => c.name === 'hr_town_move');
+    if (gone.length !== 1 || gone[0].args.p_map !== null) fail('TW-10 an unviewed character that starts a hunt did not leave town: ' + JSON.stringify(gone.map((c) => c.args)));
+    tp.destroy();
+  }
   // TW-5, TW-6
   {
     let now = 1000, answer = null;
@@ -346,6 +371,9 @@ const PURE_MUTANTS = [
   ['a stale list still shows people', 'src/session/town-presence.js', ' || this._now() - this._readAt > this.limits.staleMs', ''],
   ['the list is merged, not replaced', 'src/session/town-presence.js', 'this._walkers = b.off ? [] : list;', 'this._walkers = this._walkers.concat(list);'],
   ['the walkers are not capped', 'src/session/town-presence.js', '      if (list.length >= this.limits.cap) break;\n', ''],
+  ['viewing another character leaves town', 'src/session/town-presence.js', '    this._parked = true;\n', '    this.show(null); return;\n'],
+  ['a parked character never keeps alive', 'src/session/town-presence.js', '      if (this._want && this._now() - this._sentAt >= this.limits.keepaliveMs) this._flush(true);\n      return;', '      return;'],
+  ['a parked character that hunts stays in town', 'src/session/town-presence.js', '      if (this._busy()) { this.show(null); return; }\n', ''],
   ['closing a character keeps its body in town', 'src/session/account-session.js', 'if (town) { this._towns.delete(slot); town.destroy(); }', 'void town;'],
 ];
 const PAGE_MUTANTS = [

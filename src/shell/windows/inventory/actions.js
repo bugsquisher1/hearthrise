@@ -24,19 +24,19 @@
 // open doll slot and the "new" marks. No key here is a walk key: selling is
 // Delete, so W, A, S and D always reach the World (Tyler 10-18).
 // ════════════════════════════════════════════════════════════════════════
-import { kindOf, equipSlotFor, equipOps, markSeen } from '../../bag-model.js?v=0.2.14';
-import { assignToBar, barKind, barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.14';
-import { runIntent } from '../../intent-words.js?v=0.2.14';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.14';
-import { gold } from '../../../render/format.js?v=0.2.14';
-import { itemName } from '../../widgets/bits.js?v=0.2.14';
-import { showTip, hideTip } from '../item-tip.js?v=0.2.14';
-import { openFloatMenu, closeFloatMenu } from '../float-menu.js?v=0.2.14';
-import { stateOf, scratchOf, seenOf, confirmFor, junkOf, setPref } from './state.js?v=0.2.14';
-import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.14';
-import { askElsewhere } from './elsewhere.js?v=0.2.14';
-import { skillsOf } from '../../../session/item-sections.js?v=0.2.14';
-import { buryRecipeOf, buryLabel, buryBlock, buryingOf, startBury, stopBury } from './bury.js?v=0.2.14';
+import { kindOf, equipSlotFor, equipOps, markSeen } from '../../bag-model.js?v=0.2.15';
+import { assignToBar, barKind, barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.15';
+import { runIntent } from '../../intent-words.js?v=0.2.15';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.15';
+import { gold } from '../../../render/format.js?v=0.2.15';
+import { itemName } from '../../widgets/bits.js?v=0.2.15';
+import { showTip, hideTip } from '../item-tip.js?v=0.2.15';
+import { openFloatMenu, closeFloatMenu } from '../float-menu.js?v=0.2.15';
+import { stateOf, scratchOf, seenOf, confirmFor, junkOf, setPref } from './state.js?v=0.2.15';
+import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.15';
+import { askElsewhere } from './elsewhere.js?v=0.2.15';
+import { skillsOf } from '../../../session/item-sections.js?v=0.2.15';
+import { buryRecipeOf, buryLabel, buryBlock, buryingOf, startBury, stopBury } from './bury.js?v=0.2.15';
 
 export const INVENTORY_EVENTS = Object.freeze(['input', 'keydown', 'contextmenu', 'pointerdown', 'pointerup', 'pointercancel',
   'dragstart', 'dragover', 'dragleave', 'drop', 'dragend', 'mouseover', 'mouseout']);

@@ -12,11 +12,11 @@
 // with big touch targets (HS-08). The bar's slots are set in one place only:
 // the bar itself, through the Configure action window (configure-action.js).
 // ════════════════════════════════════════════════════════════════════════
-import { SUPPLY_SOURCE, ON_EMPTY } from '../../data/hunt-sessions.js?v=0.2.14';
-import { settingsOf } from '../../session/hunt-sections.js?v=0.2.14';
-import { text, cls } from '../../render/paint.js?v=0.2.14';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.14';
-import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, patchControls, sendOption, SUPPLY_LABEL, ON_EMPTY_LABEL } from '../widgets/settings-intent.js?v=0.2.14';
+import { SUPPLY_SOURCE, ON_EMPTY } from '../../data/hunt-sessions.js?v=0.2.15';
+import { settingsOf } from '../../session/hunt-sections.js?v=0.2.15';
+import { text, cls } from '../../render/paint.js?v=0.2.15';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.15';
+import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, patchControls, sendOption, SUPPLY_LABEL, ON_EMPTY_LABEL } from '../widgets/settings-intent.js?v=0.2.15';
 
 const opts = (modes, labels) => modes.map((m) => '<option value="' + esc(m) + '">' + esc(labels[m] || m) + '</option>').join('');
 const row = (label, control, hint) => '<div class="he-row"><span class="he-label">' + label + (hint ? '<small>' + hint + '</small>' : '') + '</span>' + control + '</div>';

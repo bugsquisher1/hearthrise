@@ -5,6 +5,10 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.15 — 2026-10-20 (Wands and spellbooks)
+
+**Icons for every wand and spellbook.** Mage weapons now show their own icons in the bag, the shop and the character window.
+
 ## v0.2.14 — 2026-10-20 (Eat, drink, fight)
 
 **One cooldown for food and drink.** Food and drink share a 2-second cooldown. When it's ready, whichever slot's condition matches goes first, and new heroes eat before they drink.

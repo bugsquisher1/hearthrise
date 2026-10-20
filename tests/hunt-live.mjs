@@ -32,6 +32,8 @@
 //   LV-K  THE LEADER CHOOSES (Tyler 2026-10-20): a party whose leader (seat 1, a peer of the
 //         viewer) picked 7 and the viewer 3 runs 7 on the server, and the viewer's browser
 //         predicts that pull (every commit matches): the peer's frozen hero carries `lead`.
+//   LV-W  A FULL BOX IS PULLED, VIEWED (Andy 10-20): a Thicket duo at its leader's 8 (the member never
+//         picked) pulls the designer's ring of 8 from its edge and kills it; every commit matches.
 //   LV-R  RECONCILE: a prediction forced off the server's world is judged
 //         `diverged` at the next commit, and the reseed eases every unit onto its true
 //         tile with no frame moving a unit more than one tile.
@@ -70,13 +72,13 @@ async function load(base) {
 }
 
 /* One member's engine input, in the shape hunt-settle.js memberInput builds. */
-function memberOf(M, user, seat, role, level) {
+function memberOf(M, user, seat, role, level, hunt) {
   const basics = {};
   for (const b of M.SB.BASIC_SUPPLIES) basics[b.id] = { kind: b.kind, price: b.price, heals: b.heals || 0, mana: b.mana || 0, partner: b.partner };
   const weapon = { tank: 'bronze_sword', melee_dps: 'stone_maul', ranger: 'shortbow' }[role] || 'bronze_sword';
   const L = level || 6;
   return {
-    key: user + ':0', user, slot: 0, seat, unitId: null, sessionId: 's-' + user, version: 1, huntId: 'mill_cellar',
+    key: user + ':0', user, slot: 0, seat, unitId: null, sessionId: 's-' + user, version: 1, huntId: hunt || 'mill_cellar',
     huntSession: { id: 's-' + user, instanceId: 'i-live', huntFromMs: T0, nextSwingAtMs: T0, swingIndex: 0, bag: { cooked_shrimp: { loaded: 30, left: 30, essential: true } },
       staminaMs: 8 * 3600000, staminaMaxMs: 8 * 3600000, basics, shop: { heal: M.SB.basicFor('heal', 1).id, mana: M.SB.basicFor('mana', 1).id },
       goldFloor: 0, supplySource: 'mine', onEmpty: 'switch', cover: {} },
@@ -89,8 +91,9 @@ function memberOf(M, user, seat, role, level) {
 
 /* The server: the instance row and its members, settled by accrueHunt in commits. */
 function server(M, mis) {
-  const where = M.HG.huntGroundOf('mill_cellar');
-  const inst = { id: 'i-live', hunt: 'mill_cellar', world: null, settled_to_ms: T0, next_swing_at_ms: T0, world_swing: 0, secret: SECRET };
+  const hunt = mis[0].huntId;
+  const where = M.HG.huntGroundOf(hunt);
+  const inst = { id: 'i-live', hunt, world: null, settled_to_ms: T0, next_swing_at_ms: T0, world_swing: 0, secret: SECRET };
   const drops = {};
   return {
     inst, drops,
@@ -240,6 +243,18 @@ function rules(M) {
     ok('LV-K', r.verdicts.length >= 2 && bad.length === 0, `the viewer's browser did not predict the leader's pull: ${bad.length} of ${r.verdicts.length} commits diverged`);
     const src = readFileSync(join(M.base || ROOT, FN, 'hunt-settle.js'), 'utf8');
     ok('LV-K', /_leads: m\.leads === true/.test(src) && /lead: m\._leads/.test(src), 'hunt-settle.js does not hand the engine hr_hunt_instance_read `leads`');
+  }
+
+  { // LV-W: A FULL BOX IS PULLED, VIEWED (Andy 10-20): a Thicket duo, its leader at 8 and the member never picked. The
+    // designer's ring of 8 walls the pull tile off; the leader pulls from the ring's edge on the server, the browser predicts it.
+    const pick = (mi, density, lead) => { mi.hero = Object.assign({}, mi.hero, density === null ? { lead } : { density, lead }); return mi; };
+    const mis = [pick(memberOf(M, 'a', 0, 'tank', 40, 'meadowbrook_thicket'), 8, true), pick(memberOf(M, 'b', 1, 'melee_dps', 40, 'meadowbrook_thicket'), null, false)];
+    const r = run(M, mis, 160000);
+    const pulls = r.verdicts.flatMap((x) => x.tl.hunt_events).filter((e) => e.type === 'pull').length;
+    const kills = r.verdicts.flatMap((x) => x.tl.hunt_events).filter((e) => e.type === 'kill').length;
+    ok('LV-W', pulls >= 1 && kills >= 8, `the duo at the leader's 8 pulled ${pulls} time(s) and killed ${kills} in 160 s: the full box walled the leader off`);
+    const bad = r.verdicts.filter((x) => x.v !== 'match');
+    ok('LV-W', r.verdicts.length >= 9 && bad.length === 0, `the viewer's browser did not predict the full-box pull: ${bad.length} of ${r.verdicts.length} commits diverged`);
   }
 
   { // LV-H: the look-ahead is ONE constant (16 swings), and a leave lands no earlier than its last swing.

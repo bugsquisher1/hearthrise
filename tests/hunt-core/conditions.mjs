@@ -18,7 +18,8 @@
 //                     member at 0 / 3 spawns 7, in either seat order; the member's pick never counts
 //   density-laps      Andy 10-20 ("second lap on 8x and there's only 2 mobs"): a duo, its leader at 8 and the member
 //                     never picked, runs 3+ laps of the Thicket on the real settle; EVERY spawn, the first packs and
-//                     every respawn, is a pack of 8, never the room as built
+//                     every respawn, is a pack of 8, never the room as built; the box's ring of 8 never walls the leader
+//                     off the pull tile (it pulls from the ring's edge)
 //   party-scale       a pack spawns at the party scale's HP for the instance's size
 //   healer-floor      a solo Healer's blow into an immunity lands at the floor; a duo's does not
 //   party-acceptance  a 4-party (Knight, Ranger, Druid, Sorcerer) on one instance: the Ranger switches 5x5 / 3x3 by
@@ -758,6 +759,8 @@ const mutants = [
   { name: 'the first packs spawn at the opening hero\'s pick alone', case: 'density-pull', edits: [['src/core/combat-sim.js', '            { density: densityFor(ctx.ground, standing.length, picker(standing)) });', '            {});']] },
   { name: 'respawns read every member\'s pick, smallest first (Andy 10-20, v0.2.20)', case: 'density-laps',
     edits: [['src/core/combat-sim.js', '        picker(members.filter((m) => !m.left && m.unitId !== null)));', '        Math.min(...members.filter((m) => !m.left && m.unitId !== null).map((m) => m.hero.density)));']] },
+  { name: 'a full box walls the leader off the pull tile (no pull from the ring\'s edge)', case: 'density-laps',
+    edits: [['src/core/hunt/pull-cycle.js', ' || arrived || walled)) {', ' || arrived)) {']] },
   { name: 'the settle never clamps the stored pick', case: 'density-settle', edits: [['src/core/combat-sim.js', '      world.density = densityFor(ctx.ground,', '      world.density = Math.max(...members.map((m) => m.hero.density), 1) || densityFor(ctx.ground,']] },
   { name: 'the solo healer fights unscaled packs with no floor (the P1 as it shipped)', case: 'solo-healer',
     edits: [['src/data/hunt-grounds.js', '  return ground && ground.partyScale === true ? scaledHp(row, partySize) : Math.max(1, (row && row.hp) || 1);', '  return Math.max(1, (row && row.hp) || 1);'],

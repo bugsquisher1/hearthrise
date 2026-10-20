@@ -165,7 +165,11 @@ function travel(inst, sc, k) {
   const here = inArea(inst, p, k.x, k.y);
   if (here && kites(k) && Math.min(...mons.map((m) => cheb(m, k))) <= k.dist + 1) { startPull(inst, sc, k, p); return; }
   const arrived = !!k.goal && k.x === k.goal[0] && k.y === k.goal[1] && atRest(k);
-  if (here && (dist2(k, c) <= inst.ground.pullDist * inst.ground.pullDist || arrived)) { startPull(inst, sc, k, p); return; }
+  /* WALLED OFF: the pack itself stands on the leader's next step. A full box (density 8) rings the pull tile,
+     so the centre is never reached; a melee leader pulls from the ring's edge (a kiter keeps its range rule above). */
+  const step = k.path && k.path[0];
+  const walled = !kites(k) && !!step && atRest(k) && mons.some((m) => m.x === step[0] && m.y === step[1]);
+  if (here && (dist2(k, c) <= inst.ground.pullDist * inst.ground.pullDist || arrived || walled)) { startPull(inst, sc, k, p); return; }
   if (k.goal && k.aiMs > 0) return;
   occupancy(inst);
   const g = freeNear(inst.grid, Math.round(c.x), Math.round(c.y), 2, (x, y) => inst.occ.mon.has(tileKey(inst.grid, x, y)))

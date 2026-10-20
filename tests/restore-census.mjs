@@ -119,10 +119,10 @@
 //  C. ROW *CONTENT* in a seeded table. A count is not a checksum. The content
 //     guard for the generated catalogues is `tools/gen-*.mjs --check`, which is
 //     a preflight in tests/run-smoke.mjs and is stronger than anything this
-//     file could add. Do not duplicate it. `hr_castle_items` is the one seeded
-//     catalogue with NO content guard anywhere (it is hand-maintained — see
-//     docs/design/server-authority.md §3.4), so for that table the count pinned
-//     here is the only guard that exists.
+//     file could add. Do not duplicate it. For the hand-maintained seeded and
+//     operator rows (hr_flags, hr_hero_slots, …) the count pinned here is the
+//     only guard that exists (hr_castle_items, the first such table, left with
+//     the clans in 2026-10-31-server-cleanup.sql).
 //  D. ANYTHING OUTSIDE `public`. auth.users is the root of the entire player
 //     graph — 17 foreign keys in `public` reference it — and NO file in this
 //     repository creates it. It is recorded in the baseline's
@@ -170,20 +170,26 @@ const MUTATIONS = {
   // proves nothing about this one. That self-check reads `if v_n < 34` — a
   // FLOOR, not an equality — so it is blind in one direction, and the second
   // mutation is aimed exactly there.
+  /* Re-aimed 2026-10-20: hr_castle_items, the original subject, left with the
+     clans (2026-10-31-server-cleanup.sql). hr_flags is pinned (operator_tunable)
+     and seeded by a plain `on conflict do nothing` insert with no count check. */
   shrink_a_catalogue: {
-    what: 'hr_castle_items rebuilds one row SHORT. Caught upstream by the migration\'s own floor check, which is the correct first line of defence; recorded so the pair below is read as a deliberate split rather than a mistake',
+    what: 'hr_flags rebuilds without town_presence. Caught upstream: 2026-09-13-town-presence-on.sql refuses a missing row, which is the correct first line of defence; recorded so the pair below is read as a deliberate split rather than a mistake',
     expect: 'replay',
-    patches: [['2026-08-08-clan-seat.sql', [[
-      "  ('rat_tail','spoil',1,6),             ('goblin_ear','spoil',1,8),",
-      "  ('rat_tail','spoil',1,6),",
+    patches: [['2026-09-13-town-presence.sql', [[
+      "insert into public.hr_flags (key, enabled, note) values\n  ('town_presence', false,",
+      "insert into public.hr_flags (key, enabled, note) select * from (values\n  ('town_presence', false,",
+    ], [
+      "'and opens the peer projection; turning it off stops both with no deploy.')\non conflict (key) do nothing;",
+      "'and opens the peer projection; turning it off stops both with no deploy.')) v where false\non conflict (key) do nothing;",
     ]]]],
   },
   grow_a_catalogue: {
-    what: 'hr_castle_items rebuilds one row LONG — the migration\'s `v_n < 34` floor check passes happily, so a rebuilt database would run a catalogue production never had and ONLY the exact count pinned here sees it',
+    what: 'hr_flags rebuilds one row LONG — no migration counts its rows, so a rebuilt database would carry a flag production never had and ONLY the exact count pinned here sees it',
     expect: 'census',
-    patches: [['2026-08-08-clan-seat.sql', [[
-      "  ('rat_tail','spoil',1,6),             ('goblin_ear','spoil',1,8),",
-      "  ('rat_tail','spoil',1,6),             ('goblin_ear','spoil',1,8),\n  ('mutant_trophy','trophy',1,1),",
+    patches: [['2026-09-13-town-presence.sql', [[
+      "'and opens the peer projection; turning it off stops both with no deploy.')\non conflict (key) do nothing;",
+      "'and opens the peer projection; turning it off stops both with no deploy.'),\n  ('mutant_flag', false, 'planted by restore-census --mutate')\non conflict (key) do nothing;",
     ]]]],
   },
   drop_retention_cron: {

@@ -73,7 +73,7 @@
 //
 // REFUSES (throws, nothing written): a bad id shape, a supply whose kind is not
 // heal/buff/ammo, a heal that heals nothing, a buff with no combat buff type, a
-// travel time that is not a multiple of 10 in 0..300, an ability with an
+// travel time that is not a multiple of 10 in 10..300, an ability with an
 // unknown lane, a ground naming an unknown hunt or monster, an on-empty default
 // that is not `switch`, a stamina cap that is not a whole minute or a premium
 // cap below the free one, and a training id that collides with a named hunt.
@@ -115,7 +115,7 @@ export const WORLD_FIELDS_READ = Object.freeze({
     'role', 'dist', 'chase', 'tmode', 'stance']),
   world: Object.freeze(['leader']),
 });
-export const OUT_NAME = '2026-10-31-hunt-sessions-catalogue.generated.sql';
+export const OUT_NAME = '2026-10-27-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -222,8 +222,8 @@ export function catalogueRows(src = {}) {
     if (!ID.test(h.id)) throw new Error(`hunt id ${h.id} is not [a-z0-9_]{1,64}`);
     if (seen.has(h.id)) throw new Error(`hunt id ${h.id} appears twice (a training id collides with a named hunt)`);
     seen.add(h.id);
-    if (!(whole(h.travelS) && h.travelS >= 0 && h.travelS <= 300 && h.travelS % 10 === 0)) {
-      throw new Error(`hunt ${h.id} travelS ${h.travelS} is not a multiple of 10 in 0..300`);
+    if (!(whole(h.travelS) && h.travelS >= 10 && h.travelS <= 300 && h.travelS % 10 === 0)) {
+      throw new Error(`hunt ${h.id} travelS ${h.travelS} is not a multiple of 10 in 10..300`);
     }
     if (!(whole(h.tier) && h.tier >= 1 && h.tier <= 99)) throw new Error(`hunt ${h.id} has no tier (${h.tier})`);
     travel.push({ id: h.id, s: h.travelS, training, tier: h.tier });
@@ -544,13 +544,10 @@ alter table public.hr_hunt_supplies add constraint hr_hunt_supplies_shape_ck che
     or (kind = 'ammo' and heals = 0 and buff_type is null));
 create table if not exists public.hr_hunt_travel (
   hunt_id  text primary key check (hunt_id ~ '^[a-z0-9_]{1,64}$'),
-  travel_s int  not null check (travel_s between 0 and 300 and travel_s % 10 = 0),
+  travel_s int  not null check (travel_s between 10 and 300 and travel_s % 10 = 0),
   training boolean not null
 );
 alter table public.hr_hunt_travel add column if not exists tier int;
--- An existing table (created by an applied catalogue) learns travel 0 (no walk time, 2026-10-20).
-alter table public.hr_hunt_travel drop constraint if exists hr_hunt_travel_travel_s_check;
-alter table public.hr_hunt_travel add constraint hr_hunt_travel_travel_s_check check (travel_s between 0 and 300 and travel_s % 10 = 0);
 -- THE SPAWN CYCLE of the single-foe engine lived here (pull_size, respawn_ms);
 -- a hunt's cycle is its GROUND now (hr_hunt_grounds, the world's packs).
 alter table public.hr_hunt_travel drop column if exists pull_size;

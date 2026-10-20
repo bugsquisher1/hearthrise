@@ -65,7 +65,7 @@ import { ABILITY_LANES } from '../src/data/abilities.js';
 import {
   SUPPLY_SOURCE, ON_EMPTY, SESSION_LIMITS, END_ORDER, END_CARD_COPY, END_REASON_COPY, TIMELINE_COPY, EVENT_COPY,
 } from '../src/data/hunt-sessions.js';
-import { HUNTS, TRAVEL_S, trainingHunt } from '../src/data/hunts.js';
+import { HUNTS, TRAINING_TRAVEL_S, trainingHunt } from '../src/data/hunts.js';
 import { CROPS } from '../src/data/gathering.js';
 import { itemSources, ITEMS, MONSTERS } from '../src/data/catalogue-coherence.js';
 import { BUFFS_DEF } from '../src/core/buffs.js';
@@ -249,14 +249,15 @@ function checkRules(d, f) {
 }
 
 function checkHuntsAndGuides(d, f) {
-  /* H1: no walk time (2026-10-20): every hunt, named or a training fight, walks TRAVEL_S = 0. */
-  if (TRAVEL_S !== 0) f('H1', `TRAVEL_S is ${TRAVEL_S}, not 0 (the hero arrives as it enters)`);
   for (const h of d.hunts) {
-    if (!Number.isInteger(h.travelS) || h.travelS < 0 || h.travelS > 300 || h.travelS % 10) f('H1', `hunt '${h.id}' travelS ${h.travelS} is not 0..300 in whole 10 s ticks`);
-    if (h.travelS !== TRAVEL_S) f('H1', `hunt '${h.id}' walks ${h.travelS} s, not TRAVEL_S`);
+    if (!Number.isInteger(h.travelS) || h.travelS < 10 || h.travelS > 300 || h.travelS % 10) f('H1', `hunt '${h.id}' travelS ${h.travelS} is not 10..300 in whole 10 s ticks`);
   }
   const tiers = [...new Set(Object.values(MONSTERS).map((m) => m.tier).filter(Boolean))];
-  for (const t of tiers) if (trainingHunt('x', { tier: t }).travelS !== TRAVEL_S) f('H1', `trainingHunt walks a tier-${t} fight, not TRAVEL_S`);
+  for (const t of tiers) {
+    const s = TRAINING_TRAVEL_S[t];
+    if (!Number.isInteger(s) || s < 10 || s > 300 || s % 10) f('H1', `monster tier ${t} has no valid training walk`);
+    if (trainingHunt('x', { tier: t }).travelS !== s) f('H1', `trainingHunt ignores TRAINING_TRAVEL_S for tier ${t}`);
+  }
   const staged = new Set(MANA_SUPPLY_ROWS.map((r) => r[1]));
   const lineOk = (line, kind, where) => {
     if (!line) { f('G1', `${where}: no ${kind} line`); return; }

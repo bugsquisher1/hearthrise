@@ -2,7 +2,7 @@
 
 _What each lane is doing right now, and the files it owns. Check this before touching a shared surface. Anyone picking up work (incl. the cloud session) takes fixes ONLY from gaps whose files are not listed here. Older entries (Aug 2026, the retired client) are in git history._
 
-Coordinator: the PC session (see COORDINATOR.md). Live: v0.2.9 (2026-10-19 21:45 UTC). Gap source: `.claude/coordination/sim-gap-list-2026-10-19.md`.
+Coordinator: the PC session, second account, from 2026-10-20 03:00 UTC (see COORDINATOR.md). Live: v0.2.13. Integration order: HANDOFFS.md top entry. PC lanes now: `lane/c-consume-cd-travel`, `lane/a-names-nowalk`, `lane/a-party-invite-menu`; cloud lanes: the cloud handoff table below it in HANDOFFS.md. Gap source: `.claude/coordination/sim-gap-list-2026-10-19.md`.
 
 | Lane | Branch | Owns (files / directories) | Status | Updated |
 |---|---|---|---|---|

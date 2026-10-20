@@ -16,6 +16,9 @@
 //   density-pull      the pick is the pull size: a Thicket settle at 7 spawns 7 a pack solo; in a party the LEADER's pick
 //                     is the pull (Tyler 10-20: "a party leader that chooses the hunt settings"): a leader at 7 beside a
 //                     member at 0 / 3 spawns 7, in either seat order; the member's pick never counts
+//   density-laps      Andy 10-20 ("second lap on 8x and there's only 2 mobs"): a duo, its leader at 8 and the member
+//                     never picked, runs 3+ laps of the Thicket on the real settle; EVERY spawn, the first packs and
+//                     every respawn, is a pack of 8, never the room as built
 //   party-scale       a pack spawns at the party scale's HP for the instance's size
 //   healer-floor      a solo Healer's blow into an immunity lands at the floor; a duo's does not
 //   party-acceptance  a 4-party (Knight, Ranger, Druid, Sorcerer) on one instance: the Ranger switches 5x5 / 3x3 by
@@ -57,6 +60,7 @@ async function load(root) {
   /* The WEAPON_ROLES key an item plays (a magic weapon by its discipline), as the settle reads it (hunt-settle.js). */
   M.roleWeaponOf = (await raw('src/data/hunt-roles.js')).roleWeaponOf;
   M.drops = await imp('src/core/drops.js');
+  M.XP = await imp('src/core/xp.js');
   M.hf = await imp('src/core/hearthfind.js');
   return M;
 }
@@ -650,6 +654,38 @@ const cases = {
     const built = packs([{ density: 7 }, { lead: true }]);
     return built.d === 0 ? null : 'a leader at As built beside a member at 7 ran density ' + built.d + ', want 0 (as built)';
   },
+  'density-laps': (M) => {
+    const { ground, grid } = M.hg.huntGroundOf('meadowbrook_thicket');
+    const from = T0; const to = from + 30 * 60000;
+    const L = 40;
+    /* Two strong heroes: seat 0 the LEADER at 8, seat 1 never touched the step (no stored density). */
+    const members = [['tank', 'bronze_sword', 'sword', { density: 8 }, true], ['melee_dps', 'stone_maul', 'hammer', {}, false]].map(([role, weapon, wt, options, lead], i) => ({
+      key: 'l' + i, user: 'u' + i, slot: 0, seat: i, unitId: null, sessionId: 's' + i, version: 1, huntId: 'meadowbrook_thicket',
+      huntSession: { id: 's' + i, instanceId: 'i', huntFromMs: from, nextSwingAtMs: from, swingIndex: 0, onEmpty: 'switch', bag: {},
+        staminaMs: 8 * 3600000, staminaMaxMs: 8 * 3600000 },
+      skills: { melee: M.XP.skillXpForLevel('melee', L), defense: M.XP.skillXpForLevel('defense', L), ranged: 0, magic: 0, prayer: 0 },
+      levelXp: M.XP.charXpForLevel(L), hp: 1e6, gold: 0, equipment: { weapon }, inventory: {},
+      hero: M.heroSetup({ weaponType: wt, options: Object.assign({ role }, options), bar: [], partyRoles: ['tank', 'melee_dps'], lead }) }));
+    const out = M.acc.accrueHunt({ instance: { id: '00000000-0000-4000-8000-0000000000af', nextSwingAtMs: from, world: null },
+      window: { fromMs: from, toMs: to }, secret: '77', ground, grid, items: M.ITEMS, monsters: M.MONSTERS, members });
+    const w = M.worldstate.decode(JSON.parse(out.world));
+    if (w.runs < 3) return 'the duo ran ' + w.runs + ' lap(s) in 30 min, the test needs 3';
+    const respawns = out.events.filter((e) => e.type === 'respawn');
+    if (respawns.length < 2 * ground.pockets.length) return 'only ' + respawns.length + ' respawns in 3 laps';
+    /* The units the first world opened with (the leader and its first packs) and the heroes are not respawns. */
+    const opened = M.spawn.newHuntWorld(ground, grid, [{ role: 'tank', maxHp: 200, acc: 1000, maxHit: 12, def: 0 }], { density: 8 });
+    const heroIds = new Set(w.units.filter((u) => u.side === 'hero').map((u) => u.id));
+    /* every respawn instant: the monsters first placed at it (a respawn places each by the track) number 8 per pocket */
+    const first = new Map();
+    for (const s of out.track) if (!first.has(s.u) && s.u >= opened.nextId && !heroIds.has(s.u)) first.set(s.u, s.atMs);
+    const at = new Map();
+    for (const e of respawns) at.set(e.atMs, (at.get(e.atMs) || 0) + 1);
+    for (const [ms, pockets] of at) {
+      const born = [...first.values()].filter((x) => x === ms).length;
+      if (born !== 8 * pockets) return 'lap respawn at +' + (ms - from) + ' ms brought ' + born + ' monster(s) for ' + pockets + ' pocket(s), want 8 each (the leader\'s 8)';
+    }
+    return w.density === 8 ? null : 'the world ran density ' + w.density + ', want the leader\'s 8';
+  },
   'sql-rows': (M) => {
     let sql;
     try { sql = readFileSync(join(M.root, MIGRATION), 'utf8'); } catch { return MIGRATION + ' is missing'; }
@@ -720,6 +756,8 @@ const mutants = [
   { name: 'the lowest seat chooses, not the leader', case: 'density-pull', edits: [['src/data/hunt-grounds.js', "  const lead = list.find((h) => h.lead === true)\n    || list", "  const lead = list"]] },
   { name: 'the settle never hands the member its leader flag', case: 'density-pull', edits: [['src/core/member.js', ' density: h.density || 0, lead: h.lead === true,', ' density: h.density || 0,']] },
   { name: 'the first packs spawn at the opening hero\'s pick alone', case: 'density-pull', edits: [['src/core/combat-sim.js', '            { density: densityFor(ctx.ground, standing.length, picker(standing)) });', '            {});']] },
+  { name: 'respawns read every member\'s pick, smallest first (Andy 10-20, v0.2.20)', case: 'density-laps',
+    edits: [['src/core/combat-sim.js', '        picker(members.filter((m) => !m.left && m.unitId !== null)));', '        Math.min(...members.filter((m) => !m.left && m.unitId !== null).map((m) => m.hero.density)));']] },
   { name: 'the settle never clamps the stored pick', case: 'density-settle', edits: [['src/core/combat-sim.js', '      world.density = densityFor(ctx.ground,', '      world.density = Math.max(...members.map((m) => m.hero.density), 1) || densityFor(ctx.ground,']] },
   { name: 'the solo healer fights unscaled packs with no floor (the P1 as it shipped)', case: 'solo-healer',
     edits: [['src/data/hunt-grounds.js', '  return ground && ground.partyScale === true ? scaledHp(row, partySize) : Math.max(1, (row && row.hp) || 1);', '  return Math.max(1, (row && row.hp) || 1);'],

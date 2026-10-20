@@ -263,7 +263,9 @@ export function createHuntScene(o) {
     let alpha = 1, grey = 0, under = false, corpse = null;
     const died = dead.get(u);
     if (died !== undefined) {
-      if (p.moving) dead.delete(u);   // a unit the server walks again is not dead
+      /* a unit the server walks again is not dead; one killed mid-step (HP 0 at this instant) finishes its step dead */
+      const hpNow = typeof tl.hpAt === 'function' ? tl.hpAt(u, now) : null;
+      if (p.moving && !(hpNow && hpNow.hp <= 0)) dead.delete(u);
       else {
         const age = now - died;
         if (age >= SCENE_TIMING.corpseMs) return null;

@@ -24,10 +24,12 @@
 //         144 fps loop give the same units, walk frames, facings, floats and effects
 //   SC-5  EVERY EVENT TYPE IS MAPPED (FX-05): each EVENT_TYPES key has an
 //         EVENT_FX row or an explicit null, every effect named exists in the vfx
-//         atlas, every outfit walks in all eight facings in the hunt atlas
+//         atlas, every outfit walks in all eight facings in the hunt atlas, every
+//         ranged role's basic attack has a shipped bolt and every role a basic hit
 //   SC-6  THE FRAME DRAWS IT: hunt-set sprites (never a stub) with the diagonal
 //         frame of a diagonal step, vfx-set effects, the hit target flashed, a
-//         corpse sorted beneath the standing, HP bars only when not full
+//         corpse sorted beneath the standing, HP bars only when not full, a wand's
+//         and a staff's basic hit drawn on the target
 //   SC-7  FLOAT TOGGLES: the bleed badge shows over a boss and not over a
 //         regular monster by default; a hidden float type never shows
 //   SC-8  BOUNDED: a unit the pose stops listing is forgotten once its corpse
@@ -50,6 +52,7 @@ async function load(base) {
     S: await u('src/hunt-view/scene.js'),
     F: await u('src/hunt-view/float-prefs.js'),
     X: await u('src/data/hunt-vfx.js'),
+    R: await u('src/data/hunt-roles.js'),
     O: await u('src/data/hunt-outfits.js'),
     E: await u('src/core/hunt/events.js'),
     B: await u('src/world/core/book.js'),
@@ -220,6 +223,27 @@ async function rules(M) {
       ok('SC-5', !short.length, 'outfit ' + o + ' (' + id + ') lacks walk/idle in ' + short.join(','));
     }
     for (const r of Object.keys(M.O.ROLE_OUTFIT)) ok('SC-5', !!M.O.OUTFITS[M.O.ROLE_OUTFIT[r]], 'role ' + r + ' defaults to an outfit that does not ship');
+    /* every ranged role's basic attack has a bolt and a hit, both shipped (FX-07: a wand or a staff showed nothing) */
+    const plays = (id) => !!(id && vfx[id] && vfx[id].anims.play && vfx[id].anims.play.dirs.s.length);
+    for (const [r, row] of Object.entries(M.R.HUNT_ROLES)) {
+      const bolt = (M.X.PROJECTILE.role || {})[r];
+      if (!row.melee) ok('SC-5', plays(bolt), 'ranged role ' + r + ' has no shipped bolt: ' + bolt);
+      ok('SC-5', plays(M.X.HIT_FX.role[r]), 'role ' + r + ' has no shipped basic hit: ' + M.X.HIT_FX.role[r]);
+    }
+  }
+
+  { // SC-6: a caster's basic attack draws its hit on the target (the wand's burst, the staff's)
+    for (const [weapon, want] of [['wand', 'fx_wand_bolt_impact'], ['staff', 'fx_staff_bolt_impact']]) {
+      const clock = { t: C0 };
+      const body = envelope(7, S0);
+      body.party.members[1].weapon = weapon;
+      const cs = session(M, clock, [body]);
+      await cs.load();
+      const v = viewer(M, cs);
+      const seen = new Set();
+      for (let s = S0 - 350; s <= S0 - 350 + M.X.PROJECTILE.flightMs + 200; s += 10) for (const e of v.at(at(s)).fx) seen.add(e.id);
+      ok('SC-6', seen.has(want), 'a ' + weapon + "'s basic hit must draw " + want + ' on the rat, drew ' + JSON.stringify(Array.from(seen)));
+    }
   }
 
   { // SC-6, SC-7: the composed frame
@@ -298,6 +322,8 @@ const MUTANTS = [
   ['playback runs ahead of the track', 'src/hunt-view/timeline.js', 'const f = Math.min(1, (t - cur.atMs) / (cur.dur || cfg.tileMs));', 'const f = (t - cur.atMs + 200) / (cur.dur || cfg.tileMs);'],
   ['an event type left unmapped', 'src/data/hunt-vfx.js', '  eat: null, drink: null,', '  drink: null,'],
   ['an effect the atlas lacks', 'src/data/hunt-vfx.js', "heal: row({ fx: 'fx_nature_heal_motes'", "heal: row({ fx: 'fx_heal_glow'"],
+  ["a wand's basic hit shows nothing", 'src/data/hunt-vfx.js', "mage: 'fx_wand_bolt_impact'", 'mage: null'],
+  ["a staff's bolt is missing", 'src/data/hunt-vfx.js', "healer: 'fx_staff_bolt' }", 'healer: null }'],
   ['the diagonal is dropped', 'src/hunt-view/scene.js', 'const diag = ax && ay && ', 'const diag = false && '],
   ['no flash on a hit', 'src/hunt-view/scene.js', '    flash.set(ev.t, land);\n', ''],
   ['a corpse stands among the living', 'src/world/core/compose.js', "bias: u.under ? -UNDER : 0,", 'bias: 0,'],

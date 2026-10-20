@@ -3368,3 +3368,21 @@ props on the map (they block a step client-side; the server grid ignores props, 
 gen-catalogues (10 monsters; hunterAll 119 -> 129 in SQL), then pack-edge (the edge imports the maps and grounds).
 (5) terrain.js OPEN_CLASSES gains 'span': the Sewer's grate bridge was sealing its own 1-tile choke in the client
 mask (sewer maskHash ad6e51f5 -> cb4d8232); the server grid never saw props, so no server behaviour moved.
+
+## 2026-10-19 · art-director -> live-engine lane (src/hunt-view/**) · caster bolts are data now (lane/a-caster-vfx)
+src/data/hunt-vfx.js PROJECTILE is { ability, role, flightMs, lift }: a `dmg` flies PROJECTILE.ability[ev.ability]
+when the key is present (null = strikes in place: cleave, fireball, natures_wrath), else PROJECTILE.role[role]
+(ranger crossbow bolt, mage fx_wand_bolt, healer fx_staff_bolt). scene.js:128 and :132 still read the old single
+bolt (`PROJECTILE.roles`, `PROJECTILE.fx`), kept as two transitional fields so nothing breaks. Change scene.js:128 to
+`const bolt = Object.hasOwn(PROJECTILE.ability, ev.ability) ? PROJECTILE.ability[ev.ability] : PROJECTILE.role[role] || null;
+const flies = !!bolt;` and :132 `addFx(PROJECTILE.fx, …` to `addFx(bolt, …`, then delete `fx`/`roles` from PROJECTILE
+(the hard-coded 'cleave' goes with it). Proven in a scratch copy: hunt-scene green with both bolts drawn.
+HIT_FX.role mage/healer already render today (scene.js:134). Open: an area spell fires one dmg per target, so a
+flying area spell would draw N bolts; the sim flew one to the centre.
+
+## 2026-10-19 · art-director -> asset-director · purpose-made caster bolts (lane/a-caster-vfx)
+fx_wand_bolt(+_impact) and fx_staff_bolt(+_impact) are CUT from the sim's frost_lance_shatter and nature_heal_motes
+frames (tools/world-art/port-hunt-sim.mjs DERIVED_VFX): honest style-1 pixels, no redraw. When PixelLab spend is
+approved, generate purpose bolts: a smaller wand bolt (the 16 px orb is heavy beside the 13x4 crossbow bolt), a staff
+impact without the heal's "+" sparkles, and the arcane ramp (ART_DIRECTION §8) so the wand stops borrowing frost blue.
+Per-element bolts (ember/frost/poison) wait on a weapon element; note core says ember/poison, abilities say fire/nature.

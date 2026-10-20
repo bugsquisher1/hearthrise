@@ -200,10 +200,13 @@
   "party": {
     "leader": 1,
     "self": 1,
+    "self_seat": 0,
+    "leader_seat": 0,
     "open": true,
     "members": [
       {
         "unit": 1,
+        "seat": 0,
         "name": "Tyler",
         "level": 24,
         "weapon": "shield",
@@ -221,6 +224,7 @@
       },
       {
         "unit": 2,
+        "seat": 1,
         "name": "Mira",
         "level": 22,
         "weapon": "bow",

@@ -13,8 +13,9 @@
 //   metrics-misc      target_is_boss, item_qty, effect_missing
 //   stop-rule         a stop rule ends the hunt `rule` only after holding forMs; a break resets the hold
 //   density           the pick is clamped to the ground for the party size; density 2 doubles the pack, deterministically
-//   density-pull      the pick is the pull size: a Thicket settle at 7 spawns 7 a pack, solo and beside a partner who never
-//                     picked (Tyler 10-20); a smaller real pick sets the pull; nobody picked = as built
+//   density-pull      the pick is the pull size: a Thicket settle at 7 spawns 7 a pack solo; in a party the LEADER's pick
+//                     is the pull (Tyler 10-20: "a party leader that chooses the hunt settings"): a leader at 7 beside a
+//                     member at 0 / 3 spawns 7, in either seat order; the member's pick never counts
 //   party-scale       a pack spawns at the party scale's HP for the instance's size
 //   healer-floor      a solo Healer's blow into an immunity lands at the floor; a duo's does not
 //   party-acceptance  a 4-party (Knight, Ranger, Druid, Sorcerer) on one instance: the Ranger switches 5x5 / 3x3 by
@@ -156,7 +157,9 @@ function freshParty(M, huntId, minutes, seed, optionsList, element) {
   const from = T0; const to = from + minutes * 60000;
   const food = Object.keys(M.kit.START_INVENTORY).find((id) => M.SUP.SUPPLIES[id] && M.SUP.SUPPLIES[id].kind === 'heal');
   const members = optionsList.map((options, i) => {
-    const hero = M.heroSetup({ weaponType: M.roleWeaponOf(M.ITEMS.apprentice_staff), options: Object.assign({ role: 'healer' }, options || {}), bar: [], partyRoles: [] });
+    /* `lead` marks the party leader, as hunt-settle.js reads hr_hunt_instance_read `leads` */
+    const hero = M.heroSetup({ weaponType: M.roleWeaponOf(M.ITEMS.apprentice_staff), options: Object.assign({ role: 'healer' }, options || {}), bar: [], partyRoles: [],
+      lead: !!(options && options.lead) });
     return { key: 'h' + (i || ''), user: 'u', slot: i, seat: i, unitId: null, sessionId: 's' + i, version: 1, huntId,
       huntSession: { id: 's' + i, instanceId: 'i', huntFromMs: from, nextSwingAtMs: from, swingIndex: 0, onEmpty: 'switch',
         bag: { [food]: { loaded: M.kit.START_INVENTORY[food] }, air_rune: { loaded: M.kit.START_INVENTORY.air_rune } },
@@ -474,8 +477,8 @@ const cases = {
   },
   density: (M) => {
     const g = M.grounds.HUNT_GROUNDS.millrace_sewer;
-    const got = [M.grounds.densityFor(g, 1, [16]), M.grounds.densityFor(g, 3, [16]), M.grounds.densityFor(g, 4, [12, 9]), M.grounds.densityFor(g, 1, [])].join();
-    if (got !== '8,10,9,0') return 'densityFor answered ' + got + ' (want an over-max pick clamped to 8 solo, 10 for three; a party takes its smallest pick; none = as built)';
+    const got = [M.grounds.densityFor(g, 1, 16), M.grounds.densityFor(g, 3, 16), M.grounds.densityFor(g, 4, 9), M.grounds.densityFor(g, 1, 0)].join();
+    if (got !== '8,10,9,0') return 'densityFor answered ' + got + ' (want an over-max pick clamped to 8 solo, 10 for three; a pick under the max kept; none = as built)';
     for (const row of Object.values(M.grounds.HUNT_GROUNDS)) {
       if (!row.densityMax || row.densityMax.some((v) => v < M.grounds.DENSITY_FULL_BOX)) return row.id + ' allows less than a full box: ' + row.densityMax;
     }
@@ -623,7 +626,8 @@ const cases = {
   /* Tyler 2026-10-20 (Meadowbrook, "7 each", "only like 2 mobs per pull"): his pick of 7 sat beside a
      partner character who never touched the step (no stored density = 0, as built), and the party's
      smallest pick made every pull the room's 2-3. The pick is the PULL SIZE: a settle at 7 on the
-     Thicket spawns 7 a pack, solo and beside an unset partner; a real smaller pick still wins. */
+     Thicket spawns 7 a pack. Then (Tyler 2026-10-20): "There should be a party leader that chooses the
+     hunt settings": in a party the LEADER's pick is the pull; a member's (unset, 0 or 3) never counts. */
   'density-pull': (M) => {
     const g = M.grounds.HUNT_GROUNDS.meadowbrook_thicket;
     const packs = (opts) => {
@@ -634,15 +638,17 @@ const cases = {
     const at = (r, n) => r.d === n && r.born.every((k) => k <= n) && r.born.filter((k) => k === n).length >= g.pockets.length - 1;
     const solo = packs([{ density: 7 }]);
     if (!at(solo, 7)) return 'a solo settle at density 7 on the Thicket ran ' + solo.d + ' with packs of ' + solo.born;
-    /* Tyler's seat order: the unset character is member 0, the one that opens the world */
-    const unset = packs([{}, { density: 7 }]);
-    if (!at(unset, 7)) return 'a pick of 7 beside a partner who never picked ran ' + unset.d + ' with packs of ' + unset.born + ' (want 7 a pack)';
-    const built = packs([{ density: 7 }, { density: 0 }]);
-    if (!at(built, 7)) return 'a pick of 7 beside a partner at As built ran ' + built.d + ' with packs of ' + built.born;
-    const small = packs([{ density: 7 }, { density: 4 }]);
-    if (!at(small, 4)) return 'picks of 7 and 4 ran ' + small.d + ' with packs of ' + small.born + ' (the smaller real pick sets the pull)';
-    const none = M.grounds.densityFor(g, 2, [0, 0]);
-    return none === 0 ? null : 'a party where nobody picked ran density ' + none + ', want 0 (as built)';
+    /* Tyler's seat order: the member who never picked is member 0, the one that opens the world */
+    const unset = packs([{}, { density: 7, lead: true }]);
+    if (!at(unset, 7)) return 'a leader at 7 beside a member who never picked ran ' + unset.d + ' with packs of ' + unset.born + ' (want 7 a pack)';
+    const zero = packs([{ density: 7, lead: true }, { density: 0 }]);
+    if (!at(zero, 7)) return 'a leader at 7 beside a member at As built ran ' + zero.d + ' with packs of ' + zero.born;
+    const three = packs([{ density: 3 }, { density: 7, lead: true }]);
+    if (!at(three, 7)) return 'a leader at 7 beside a member at 3 ran ' + three.d + ' with packs of ' + three.born + ' (the leader chooses, Tyler 10-20)';
+    const member = packs([{ density: 7 }, { density: 3, lead: true }]);
+    if (!at(member, 3)) return 'a leader at 3 beside a member at 7 ran ' + member.d + ' with packs of ' + member.born + ' (a member\'s pick never counts)';
+    const built = packs([{ density: 7 }, { lead: true }]);
+    return built.d === 0 ? null : 'a leader at As built beside a member at 7 ran density ' + built.d + ', want 0 (as built)';
   },
   'sql-rows': (M) => {
     let sql;
@@ -699,7 +705,7 @@ const mutants = [
   { name: 'a wait is reported every sub-step', case: 'rule-wait', edits: [['src/core/hunt/conditions.js', '  if (cur[lane] === key) return;\n', '']] },
   { name: 'a stop rule ignores its hold', case: 'stop-rule', edits: [['src/core/hunt/conditions.js', '      if (t.pass && hold[r.id] >= int(r.forMs)) {', '      if (t.pass) {']] },
   { name: 'the span never ends a met stop rule', case: 'stop-rule-span', edits: [['src/core/combat-sim.js', " || typeof m.hs.ruleStop === 'string' ||", ' ||'], ['src/core/action-rules.js', "  rule: (hs) => typeof hs.ruleStop === 'string' && hs.ruleStop.length > 0,", '  rule: () => false,']] },
-  { name: 'the density pick is not clamped', case: 'density', edits: [['src/data/hunt-grounds.js', '  return Math.max(0, Math.min(max, pick, DENSITY_PICK.max));', '  return Math.max(0, Math.min(pick, DENSITY_PICK.max));']] },
+  { name: 'the density pick is not clamped', case: 'density', edits: [['src/data/hunt-grounds.js', '  return Math.max(0, Math.min(max, p, DENSITY_PICK.max));', '  return Math.max(0, Math.min(p, DENSITY_PICK.max));']] },
   { name: 'density does not reach the pack', case: 'density', edits: [['src/core/hunt/pull-cycle.js', 'pullRows(inst.ground, p, w.density)', 'pullRows(inst.ground, p, 0)']] },
   { name: 'packs spawn at full HP whatever the party', case: 'party-scale', edits: [['src/data/hunt-grounds.js', '  return ground && ground.partyScale === true ? scaledHp(row, partySize) : Math.max(1, (row && row.hp) || 1);', '  return Math.max(1, (row && row.hp) || 1);']] },
   { name: 'the solo healer floor is never applied', case: 'healer-floor', edits: [['src/core/hunt/damage.js', '    ? elementWithFloor(elementOn(target, element), source.role, partySize(inst)) : elementOn(target, element);', '    ? elementOn(target, element) : elementOn(target, element);']] },
@@ -709,8 +715,11 @@ const mutants = [
   { name: 'the healer\'s default rule set has no attack-when-safe rule', case: 'healer-default-rules',
     edits: [['src/data/rule-subjects.js', "    slot('natures_wrath', [{ metric: 'ally_hp_pct', op: 'gte', value: 70, subject: 'lowest' }])]),", '  ]),']] },
   { name: 'monsters do not fill the diagonal tiles of the box', case: 'full-box', edits: [['src/core/hunt/roles.js', '      if ((!dx && !dy) || !walkable(inst.grid, x, y)', '      if ((!dx && !dy) || (dx && dy) || !walkable(inst.grid, x, y)']] },
-  { name: 'an unset partner drags the pull to as built (Tyler 10-20)', case: 'density-pull', edits: [['src/data/hunt-grounds.js', '  const want = (picks || []).filter((p) => Number.isInteger(p) && p > 0);', '  const want = (picks || []).filter(Number.isInteger);']] },
-  { name: 'the first packs spawn at the opening hero\'s pick alone', case: 'density-pull', edits: [['src/core/combat-sim.js', '            { density: densityFor(ctx.ground, standing.length, standing.map((x) => x.hero.density)) });', '            {});']] },
+  { name: 'the smallest pick sets the pull (the rule before Tyler 10-20)', case: 'density-pull',
+    edits: [['src/data/hunt-grounds.js', "  const lead = list.find((h) => h.lead === true)\n    || list", "  const lead = list.filter((h) => h.density > 0).sort((a, b) => a.density - b.density)[0]\n    || list"]] },
+  { name: 'the lowest seat chooses, not the leader', case: 'density-pull', edits: [['src/data/hunt-grounds.js', "  const lead = list.find((h) => h.lead === true)\n    || list", "  const lead = list"]] },
+  { name: 'the settle never hands the member its leader flag', case: 'density-pull', edits: [['src/core/member.js', ' density: h.density || 0, lead: h.lead === true,', ' density: h.density || 0,']] },
+  { name: 'the first packs spawn at the opening hero\'s pick alone', case: 'density-pull', edits: [['src/core/combat-sim.js', '            { density: densityFor(ctx.ground, standing.length, picker(standing)) });', '            {});']] },
   { name: 'the settle never clamps the stored pick', case: 'density-settle', edits: [['src/core/combat-sim.js', '      world.density = densityFor(ctx.ground,', '      world.density = Math.max(...members.map((m) => m.hero.density), 1) || densityFor(ctx.ground,']] },
   { name: 'the solo healer fights unscaled packs with no floor (the P1 as it shipped)', case: 'solo-healer',
     edits: [['src/data/hunt-grounds.js', '  return ground && ground.partyScale === true ? scaledHp(row, partySize) : Math.max(1, (row && row.hp) || 1);', '  return Math.max(1, (row && row.hp) || 1);'],

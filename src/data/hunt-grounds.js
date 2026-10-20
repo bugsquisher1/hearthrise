@@ -303,10 +303,9 @@ export const SOLO_HEALER_FLOOR = Object.freeze({ role: 'healer', elementPermille
 /* MONSTER DENSITY (Tyler 2026-10-18): a hero picks how many monsters a pull brings
    (0 = the room as built). The server stores the pick inside DENSITY_PICK and the
    settle CLAMPS it to the ground's `densityMax` for the party's size (a row's array,
-   one entry per party size 1..4); a party takes the smallest pick among the members
-   who PICKED one: 0 ("as built", also every unset character) has no say, so a party
-   runs as built only when nobody picked (Tyler 10-20: a pick of 7 beside a partner
-   who never touched the step must bring 7, not the room's 2).
+   one entry per party size 1..4). IN A PARTY THE LEADER CHOOSES (Tyler 2026-10-20:
+   "There should be a party leader that chooses the hunt settings"): the leader's
+   pick is the pull for every member, the others' picks have no say (partyPick).
    EVERY ground's max is at least DENSITY_FULL_BOX (Tyler: "a full box", all 8 tiles
    round the tank taken); a row may allow more. The values above 8 are ASSUMED. */
 export const DENSITY_FULL_BOX = 8;
@@ -315,14 +314,23 @@ export const DENSITY_FULL_BOX = 8;
 export const GROUP_FITS = Object.freeze(['solo', 'party', 'both']);
 export const DENSITY_PICK = Object.freeze({ min: 0, max: 16 });
 
-/** The density an instance spawns at: the smallest pick among the members who picked (0 = as built, no say),
-    clamped to the ground's max for its size; 0 (as built) when nobody picked. */
-export function densityFor(ground, partySize, picks) {
+/** The density an instance spawns at: the pick (partyPick's, for a party) clamped to the ground's max
+    for its size; 0 (as built) for no pick. */
+export function densityFor(ground, partySize, pick) {
   const n = Math.min(PARTY_SCALE.maxHeroes, Math.max(1, Math.floor(Number(partySize) || 1)));
   const max = Array.isArray(ground && ground.densityMax) ? ground.densityMax[n - 1] : DENSITY_FULL_BOX;
-  const want = (picks || []).filter((p) => Number.isInteger(p) && p > 0);
-  const pick = want.length ? Math.min(...want) : 0;
-  return Math.max(0, Math.min(max, pick, DENSITY_PICK.max));
+  const p = Number.isInteger(pick) && pick > 0 ? pick : 0;
+  return Math.max(0, Math.min(max, p, DENSITY_PICK.max));
+}
+
+/** THE PULL'S PICK: of `heroes` ([{ density, lead, seat }]) the one that leads the party (`lead`: the
+    party's crowned seat, hunt_parties.leader, read per member as hr_hunt_instance_read `leads`), else
+    (a solo hero, or a party whose leader is not on the instance) the lowest seat's. Its pick alone counts. */
+export function partyPick(heroes) {
+  const list = (heroes || []).filter(Boolean);
+  const lead = list.find((h) => h.lead === true)
+    || list.slice().sort((a, b) => (Number(a.seat) || 0) - (Number(b.seat) || 0))[0];
+  return lead && Number.isInteger(lead.density) && lead.density > 0 ? lead.density : 0;
 }
 
 /** The HP scale (permille) for a pack in an instance of `partySize` heroes. */

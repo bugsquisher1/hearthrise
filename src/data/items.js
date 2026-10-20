@@ -99,6 +99,10 @@ export const ITEMS={
   /* Pebblebrook Bank (2026-10-19): every crayfish drops the claw (the trader's junk) and, less often,
      the back-plate (the ground's imbuement material: kept for armour imbuements, sold until they open). */
   crayfish_claw:{n:'Crayfish Claw',icon:'🦞',v:8},carapace_plate:{n:'Carapace Plate',icon:'🛡️',v:60},
+  /* Pebblebrook Bank's RARE (Tyler 2026-10-20: a crayfish rare replaces the borrowed Spider-Eye Studs; ~10-20 h).
+     A ring cut from a big claw's knuckle and polished smooth by the brook. A step below the Crystal Collar. */
+  claw_ring:{n:'Claw Ring',icon:'💍',v:600,type:'jewelry',slot:'ring',tier:3,rarity:'rare',
+    reqSkill:'defense',reqLv:28,defB:2,atkB:2,critB:.01},
   /* Pebblebrook Bank's RELIC (Tyler 2026-10-20: the rare carrier also drops a relic, ~100-150 h; named by Tyler).
      River quartz from the Pebble Brook's shingle, strung on a collar; now and then a Shingle Crayfish has one
      caught in its shell. A band-30 necklace a clear step above the ground's rare (Spider-Eye Studs). */

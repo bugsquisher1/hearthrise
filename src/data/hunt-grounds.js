@@ -96,8 +96,8 @@
 // bruiser, uncommon, out of the tan pits) and the Musselback Crayfish (the tank, rare: its mussel crust turns
 // a hammer, a blade finds the joints). DROPS (each: coin, junk, the imbuement material, equipment): the claw
 // (junk), the carapace plate (armour imbuements; sold until they open), and gear: the Shingle is the ground's
-// ONE RARE CARRIER (its lucky Spider-Eye Studs, measured 12.6 h a drop at Level 25, and its RELIC, Tyler 2026-10-20:
-// the Crystal Collar, `tier: 'relic'`, measured ~117 h a drop at Levels 25 and 28, ~64 h at 32), the Tanpit a Boarhide Body, the Musselback a
+// ONE RARE CARRIER (its Claw Ring, Tyler 2026-10-20, measured 11.7 h a drop at Levels 25 and 28, 6.4 h at 32, and its RELIC, Tyler 2026-10-20:
+// the Crystal Collar, `tier: 'relic'`, measured ~126 h a drop at Level 25, ~117 h at 28, ~87 h at 32), the Tanpit a Boarhide Body, the Musselback a
 // Steel Platebody (normal drops, the band's own steel). ECONOMY, played on the real settle (forest-cave --play,
 // 5 seeds x 3 h, solo Melee, store-only supplies): Level 25 in iron +29% over the store bill; the steel step at
 // 30 makes the bank easy (Level 28 +234%, Level 32 almost no supplies), and Level 18 loses (-81%, dies).

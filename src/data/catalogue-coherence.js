@@ -125,7 +125,7 @@ export const AWAITING_ROSTER = Object.freeze([
   'rune_platelegs', 'rune_warhammer', 'runewood_bow', 'runewood_rod', 'scholar_body',
   'scholar_helmet', 'scholar_pants', 'slagheart_core', 'slagheart_platebody', 'snakeskin_body',
   'snakeskin_helmet', 'snakeskin_pants', 'sorcerer_body', 'sorcerer_helmet', 'sorcerer_pants',
-  'spellstone_ring', 'steel_hammer', 'steel_knife',
+  'spellstone_ring', 'spidereye_studs', 'steel_hammer', 'steel_knife',
   'steel_needle', 'steel_platelegs', 'steel_warhammer',
   'studded_body', 'studded_pants', 'verdite_blade', 'verdite_helm', 'verdite_platebody',
   'verdite_platelegs', 'void_essence', 'voidheart_robe', 'voidhide_belt', 'voidhide_body',

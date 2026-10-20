@@ -586,7 +586,7 @@ const BODY_MUTANTS = [
      (lane S2: one entry body for enter, the party start and hunt again), so the entry
      mutants plant into that body; the arms still enter through hr_hunt_enter. */
   { name: 'enter ignores an already-open session', arm: 'S1', fn: 'hr_hunt_enter_for',
-    from: '  if v_s.id is not null then\n    return jsonb_build_object(\'ok\', false, \'error\', \'hunt_open\', \'session\', v_s.id); end if;',
+    from: '  if v_s.id is not null then\n    return jsonb_build_object(\'ok\', false, \'error\', \'hunt_open\', \'session\', v_s.id, \'hunt\', v_s.hunt_id); end if;',
     to: '' },
   { name: 'enter trusts the client qty', arm: 'F1', fn: 'hr_hunt_enter_for',
     from: '    if coalesce(v_have, 0) < (v_line->>\'qty\')::bigint then', to: '    if false then' },

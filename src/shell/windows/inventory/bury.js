@@ -18,12 +18,13 @@
 // The engine buries the WHOLE stack: it has no "this many" for a recipe, so a
 // partial bury would be a client guess at the server's clock. It is not offered.
 // ════════════════════════════════════════════════════════════════════════
-import { ARTISAN_RECIPES } from '../../../data/recipes.js?v=0.2.15';
-import { pacedActionMs } from '../../../core/pacing.js?v=0.2.15';
-import { whole } from '../../../render/format.js?v=0.2.15';
-import { itemName } from '../../widgets/bits.js?v=0.2.15';
-import { skillsOf } from '../../../session/item-sections.js?v=0.2.15';
-import { huntOf } from '../../../session/hunt-sections.js?v=0.2.15';
+import { ARTISAN_RECIPES } from '../../../data/recipes.js?v=0.2.18';
+import { pacedActionMs } from '../../../core/pacing.js?v=0.2.18';
+import { whole } from '../../../render/format.js?v=0.2.18';
+import { itemName } from '../../widgets/bits.js?v=0.2.18';
+import { skillsOf } from '../../../session/item-sections.js?v=0.2.18';
+import { huntOf } from '../../../session/hunt-sections.js?v=0.2.18';
+import { townActivityWords } from '../../../session/party-sections.js?v=0.2.18';
 
 /* item id -> its Prayer recipe (input = the item, nothing made). */
 const BY_ITEM = new Map((ARTISAN_RECIPES.prayer || []).filter((r) => r.input && !r.output).map((r) => [r.input, r]));
@@ -93,14 +94,15 @@ export function stopBury(cs, sc, send) {
 }
 
 /**
- * The "Burying…" line's words, or '' when the hero is free. Any other gathering
- * or crafting pointer the server holds (from before this client had a way to
- * stop it) is named too, with the same Stop: hr_hunt_enter refuses a hero that
- * is not idle, so a pointer with no Stop would keep the hero out of every hunt.
+ * The "Burying…" line's words, or '' when the hero is free. Every other town
+ * activity the server holds (gathering, a workbench, training: a resumed one
+ * the player never started here) is named too, with the same Stop, so nothing
+ * runs unseen (live v0.2.11). A hunt's start ends it on the server anyway.
  */
 export function buryLine(cs) {
   const r = buryingOf(cs);
   if (r) return buryingWord(r) + ' ' + itemName(r.input) + '. Your Prayer XP and bag update when it is done.';
   const s = cs && typeof cs.read === 'function' ? cs.read('state') : null;
-  return s && (s.active_kind === 'gather' || s.active_kind === 'artisan') ? 'Your hero is still busy gathering or crafting, so hunts will not start. Stop it here.' : '';
+  const words = townActivityWords(s);
+  return words ? 'Your hero is ' + words + '. Starting a hunt ends it, or stop it here.' : '';
 }

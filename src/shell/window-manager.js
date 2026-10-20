@@ -18,28 +18,26 @@
 //   phone    ONE full-height side sheet, min(400px, 48vw); opening another
 //            replaces it.
 //   modal    a row with `modal: true` (Configure action) opens CENTRED over the
-//            World on every size class: never docked, never a sheet, never in
-//            the camera inset, and it leaves the windows under it open.
+//            World on every size class: never docked, never a sheet, and it
+//            leaves the windows under it open.
 //   Esc      closes the top window; with none open it opens the `escape` row.
 //   keys     each row's `key` toggles it; ignored while typing (src/utils/dom.js
 //            keyBelongsToField: a text field, or a select's arrows) or with a modifier.
 //   motion   a close waits MOTION_MS for the slide-out; none under reduced motion.
-//   inset    the covered right-edge rect, published on every change so the World
-//            can centre its camera in what is still visible (engine `setInset`).
+//   no inset WINDOWS FLOAT OVER THE WORLD (Tyler 2026-10-19): no window, docked,
+//            floating, modal or phone sheet, takes any of the World or moves its camera.
 //
 // PURE: no DOM, no window, no G. The host passes the size class, the World's
 // size and a scheduler, so node drives every rule (tests/shell-core.mjs).
 // ════════════════════════════════════════════════════════════════════════
 
-import { keyBelongsToField } from '../utils/dom.js?v=0.2.15';
+import { keyBelongsToField } from '../utils/dom.js?v=0.2.18';
 
 export const MAX_OPEN = 3;
 export const DOCK_MAX = 0.6;
 export const DOCK_GAP = 8;
 export const DOCK_EDGE = 12;
 export const MOTION_MS = 120;
-const SHEET_MAX = 400;
-const SHEET_VW = 0.48;
 
 const KEY_RE = /^([a-z]|enter|escape)$/;
 
@@ -91,12 +89,10 @@ export function createWindowManager(o) {
   const listeners = new Set();
   const slot = new Map();        // id -> right offset (px from the World's right edge) of a docked window
   const lastAt = new Map();      // id -> { right } | { x, y }: where it was when it last closed
-  let lastInset = '';
 
   const isModal = (id) => rows.get(id).modal === true;
   const docked = () => open.filter((id) => !floating.has(id) && !isModal(id));
   const width = (id) => rows.get(id).width;
-  const sheetWidth = () => Math.min(SHEET_MAX, Math.round(world().width * SHEET_VW));
   const dockMax = () => world().width * DOCK_MAX;
 
   /* The other docked windows' occupied spans (right-edge offsets), sorted. */
@@ -144,11 +140,7 @@ export function createWindowManager(o) {
   }
 
   function emit() {
-    const inset = insetOf();
-    const sig = inset.right + 'x' + inset.rect.height;
-    const insetChanged = sig !== lastInset;
-    lastInset = sig;
-    for (const fn of listeners) fn({ open: open.slice(), inset, insetChanged });
+    for (const fn of listeners) fn({ open: open.slice() });
   }
 
   function openWindow(id) {
@@ -241,15 +233,6 @@ export function createWindowManager(o) {
     emit();
   }
 
-  /** The covered right-edge strip of the World, and its rect, for the camera inset. */
-  function insetOf() {
-    const w = world();
-    let right = 0;
-    if (live().some((id) => !isModal(id))) right = isPhone() ? sheetWidth() : spans(null).reduce((m, q) => Math.max(m, q.r + q.w), 0);
-    right = Math.min(right, w.width);
-    return { right, rect: { x: w.width - right, y: 0, width: right, height: right ? w.height : 0 } };
-  }
-
   /** Where each open window sits: docked ones at their own slot (never the stack order), z from the stack. */
   function layout() {
     const phone = isPhone();
@@ -271,7 +254,6 @@ export function createWindowManager(o) {
 
   return {
     open: openWindow, close, toggle, focus, float, dock, resize, handleKey, layout, subscribe,
-    inset: insetOf,
     openIds: () => live(),
     isOpen: (id) => live().includes(id),
     row: (id) => rows.get(id) || null,

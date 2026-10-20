@@ -3,20 +3,20 @@
 //
 // mountShell(root) lays three layers over `root` (the World's box) and drives
 // them from the pure modules:
-//   window-manager.js  which windows are open, docked or floating, and the inset
+//   window-manager.js  which windows are open, docked or floating
 //   hud.js             which widgets show, how faded, and where they sit
 //   renderers.js       what goes inside each window and widget
 // Windows are reconciled by id, so opening one never re-renders (or scrolls)
 // another; a body re-renders on refresh(id). The World never pauses: windows
 // are not modal and have no backdrop.
 //
-// THE CAMERA INSET: every change to the World edges the shell covers — the
-// docked windows' right strip AND each docked HUD widget's edge (the bottom
-// bar, the top bar, the side panels; hud.js hudInsetOf) — is handed to
+// THE CAMERA INSET: every change to the World edges the docked HUD widgets
+// cover (the bottom bar, the top bar, the side panels; hud.js hudInsetOf) is handed to
 // onInset(fn) subscribers as {left, right, top, bottom} and dispatched as
 // `hearthrise:shell-inset` on the host, so the World calls its engine's
 // setInset and frames the hero and the target in the uncovered part.
-// World-layer widgets centre beside the docked windows.
+// WINDOWS ARE NEVER IN IT (Tyler 2026-10-19): they float over the World, so
+// opening, closing, focusing or dragging one never moves the camera or a widget.
 //
 // COMPONENTS (the hunt panels): a renderer that carries a `.patch(el, ctx)` is
 // BUILT ONCE (its HTML is the skeleton, written when the box is created) and
@@ -36,16 +36,16 @@
 //
 // Mounted by src/app/world-pane.js over one character's World.
 // ════════════════════════════════════════════════════════════════════════
-import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.15';
-import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.15';
-import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.15';
-import { createWindowManager, DOCK_EDGE } from './window-manager.js?v=0.2.15';
-import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges } from './hud.js?v=0.2.15';
-import { keyLabel, glyphSvg } from './launcher.js?v=0.2.15';
-import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.15';
-import { mountContextMenu } from './context-menu.js?v=0.2.15';
-import { menuProvidersOf } from './menu-providers.js?v=0.2.15';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.15';
+import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.18';
+import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.18';
+import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.18';
+import { createWindowManager, DOCK_EDGE } from './window-manager.js?v=0.2.18';
+import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges } from './hud.js?v=0.2.18';
+import { keyLabel, glyphSvg } from './launcher.js?v=0.2.18';
+import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.18';
+import { mountContextMenu } from './context-menu.js?v=0.2.18';
+import { menuProvidersOf } from './menu-providers.js?v=0.2.18';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.18';
 
 /* The components' display clock: session timers and the timeline's due events (parity SH-05, DOM 4 Hz). */
 const DISPLAY_TICK_MS = 250;
@@ -163,7 +163,6 @@ export function mountShell(root, o) {
 
   /* ── Widgets: shown, faded and placed from the layout ── */
   function paintWidgets() {
-    worldHud.style.right = wm.inset().right + 'px';
     for (const row of hud.rows()) {
       const box = row.layer === 'screen' ? screenHud : worldHud;
       let el = box.querySelector('[data-hs-widget="' + row.id + '"]');
@@ -187,7 +186,7 @@ export function mountShell(root, o) {
       el.style.top = at.top + 'px';
     }
     /* Widgets never overlap (hud.js clearOfEdges): a centred widget that lands on an edge-anchored
-       one (the dock narrowing the World) moves along its row to clear it, and when the row is too
+       one moves along its row to clear it, and when the row is too
        narrow the edge widgets it still hits step down below it. */
     for (const box of [worldHud, screenHud]) {
       const els = Array.from(box.querySelectorAll('[data-hs-widget]'));
@@ -214,7 +213,7 @@ export function mountShell(root, o) {
       const r = el.getBoundingClientRect();
       widgets.push({ anchor: hud.layoutOf(el.getAttribute('data-hs-widget')).anchor, rect: { left: r.left - b.left, top: r.top - b.top, width: r.width, height: r.height } });
     }
-    return hudInsetOf(widgets, { width: b.width, height: b.height }, wm.inset().right);
+    return hudInsetOf(widgets, { width: b.width, height: b.height });
   }
   function publishInset() {
     const inset = insetNow();

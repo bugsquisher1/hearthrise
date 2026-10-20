@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-10-20",
- "digest": "064401d809dc71475e730bbbc34ded9abca685860960a7fdbcac6a563d8934d6",
+ "digest": "c92cb875b7add208cef80f5cced51e2fb1ade5029f9e711e4b5d05ffe8950cab",
  "counts": {
   "relations": 213,
-  "functions": 514,
+  "functions": 516,
   "policies": 129,
   "indexes": 297,
   "triggers": 34,
@@ -484,6 +484,7 @@
    "hr_hunt_party_finder(p_slot integer, p_hunt text, p_weapon text)",
    "hr_hunt_party_invite(p_slot integer, p_name text, p_idem uuid)",
    "hr_hunt_party_invite_own(p_slot integer, p_other_slot integer, p_idem uuid)",
+   "hr_hunt_party_invite_player(p_slot integer, p_target uuid, p_target_slot integer, p_idem uuid)",
    "hr_hunt_party_join(p_slot integer, p_party uuid, p_idem uuid)",
    "hr_hunt_party_kick(p_slot integer, p_seat integer, p_idem uuid)",
    "hr_hunt_party_leave(p_slot integer, p_idem uuid)",
@@ -582,6 +583,7 @@
    "hr_party_drop(p_party uuid, p_user uuid, p_slot integer)",
    "hr_party_hunt_live(p_party uuid)",
    "hr_party_hunt_tally_on_ledger()",
+   "hr_party_invite_core(p_uid uuid, p_slot integer, p_t_user uuid, p_t_slot integer, p_verb text, p_idem uuid)",
    "hr_party_invite_ttl()",
    "hr_party_invites_view(p_user uuid, p_slot integer)",
    "hr_party_join_for(p_uid uuid, p_slot integer, p_party uuid, p_need_listed boolean)",

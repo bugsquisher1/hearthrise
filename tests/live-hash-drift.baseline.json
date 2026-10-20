@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-20",
- "replay_ms": 58631,
+ "replay_ms": 2413,
  "counts": {
   "tracked_names": 139,
   "entries": 111
@@ -1143,17 +1143,18 @@
     "2026-10-25-party-invites.sql",
     "2026-10-27-core-bodies.sql",
     "2026-10-28-hunt-enter-after-stamina.sql",
-    "2026-10-28-party-flow.sql"
+    "2026-10-28-party-flow.sql",
+    "2026-10-30-town-activity-yields.sql"
    ],
    "live": {
-    "md5": "2abec48c8d3e57a3e8c735941473921e",
-    "norm_len": 8047,
+    "md5": "30c1ee3803500d061969d963c34bdf83",
+    "norm_len": 8700,
     "measured": "2026-10-20",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "2abec48c8d3e57a3e8c735941473921e",
-    "norm_len": 8047,
+    "md5": "30c1ee3803500d061969d963c34bdf83",
+    "norm_len": 8700,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1312,17 +1313,18 @@
    "touched_by": [
     "2026-10-25-party-invites.sql",
     "2026-10-28-party-flow.sql",
-    "2026-10-29-party-security.sql"
+    "2026-10-29-party-security.sql",
+    "2026-10-30-party-invite-player.sql"
    ],
    "live": {
-    "md5": "646168857f653d9d9be0b77a5f80420c",
-    "norm_len": 4772,
+    "md5": "af9850fc97042407790910872f148948",
+    "norm_len": 1825,
     "measured": "2026-10-20",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "646168857f653d9d9be0b77a5f80420c",
-    "norm_len": 4772,
+    "md5": "af9850fc97042407790910872f148948",
+    "norm_len": 1825,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1337,17 +1339,18 @@
    "touched_by": [
     "2026-10-25-party-invites.sql",
     "2026-10-27-core-bodies.sql",
-    "2026-10-28-party-flow.sql"
+    "2026-10-28-party-flow.sql",
+    "2026-10-30-town-activity-yields.sql"
    ],
    "live": {
-    "md5": "163bf422d2773caa802bdfa1b0e89d85",
-    "norm_len": 4378,
+    "md5": "8f059dce3a91a20b47cff43d88120c7b",
+    "norm_len": 4495,
     "measured": "2026-10-20",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "163bf422d2773caa802bdfa1b0e89d85",
-    "norm_len": 4378,
+    "md5": "8f059dce3a91a20b47cff43d88120c7b",
+    "norm_len": 4495,
     "source": "computed-from-replay"
    },
    "agree": true

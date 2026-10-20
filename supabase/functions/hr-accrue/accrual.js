@@ -1171,13 +1171,15 @@ export function accrueHunt(inp) {
   const sides = (inp.members || []).slice().sort((a, b) => (a.key < b.key ? -1 : 1)).map((mi) => memberSide(mi, ctx));
   if (!sides.length) return { accrued: false, reason: SKIP.NOTHING };
   const world0 = inp.instance && inp.instance.world ? decodeWorld(inp.instance.world) : null;
-  const worldSwingFrom = world0 ? world0.swing : 0;
+  /* No world (a new or restarted instance): the instance's stored counter, which the commit's CAS holds. */
+  const worldSwing0 = Math.max(0, Math.floor(nat(inp.instance && inp.instance.worldSwing, 0)));
+  const worldSwingFrom = world0 ? world0.swing : worldSwing0;
   const swingFrom = new Map(sides.map((s) => [s.mi.key, s.hs.swingIndex]));
   /* THE INSTANCE'S KEYED SEEDER: built once per settle; throws on a missing or
      malformed secret — an unseeded hunt swing is a predictable one. */
   const seed = seederFor(String(inp.secret ?? ''), String(inp.instance.id));
   const sim = simulateHuntInstance(
-    { world: world0, nextSwingAtMs: Math.floor(nat(inp.instance.nextSwingAtMs, fromMs)), members: sides.map((s) => s.member) },
+    { world: world0, worldSwing: worldSwing0, nextSwingAtMs: Math.floor(nat(inp.instance.nextSwingAtMs, fromMs)), members: sides.map((s) => s.member) },
     { toMs, tickMs, seed, ground: inp.ground, grid: inp.grid, monsters: ctx.monsters, items: ctx.items });
   const unitIds = [...new Set(Object.values(sim.members).map((m) => m.unitIdEver).filter(Number.isInteger))];
 

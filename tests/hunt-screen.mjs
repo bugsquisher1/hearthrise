@@ -42,7 +42,7 @@
 //   HS-11 A SLOT THAT NEVER FIRES: an earlier slot with the same action under
 //         weaker conditions marks it "!" with the reason; emptying it clears that
 //   HS-12 the bar carries no fight controls; Hunt settings no density, no gathering
-//   HS-13 no two hunt panels overlap at 1440x900, with and without a docked window
+//   HS-13 no two hunt panels overlap at 1440x900 or on a narrower desktop
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { launchOptions } from './_chrome.mjs';
@@ -310,7 +310,7 @@ async function checks(overrides, shots) {
       await ctx.close();
     }
 
-    { // HS-13 no two hunt panels overlap at 1440x900, with and without a window docked (Tyler 10-19)
+    { // HS-13 no two hunt panels overlap at 1440x900 or on a narrower desktop (Tyler 10-19)
       const { ctx, page, up } = await open();
       if (up) {
         const overlaps = () => page.evaluate(() => {
@@ -324,12 +324,14 @@ async function checks(overrides, shots) {
         });
         const bare = await overlaps();
         if (bare.length) fails.push('HS-13 hunt panels overlap with no window open: ' + bare.join(', '));
-        await page.keyboard.press('Enter');
-        await wait(page, () => document.querySelector('[data-hs-win="chat"]'));
-        await page.evaluate(() => document.activeElement && document.activeElement.blur && document.activeElement.blur());
-        await page.waitForTimeout(400);
-        const docked = await overlaps();
-        if (docked.length) fails.push('HS-13 hunt panels overlap with the chat window docked: ' + docked.join(', '));
+        /* A window floats over the World and never narrows it (Tyler 10-19), so the row that is too
+           narrow comes from the screen: a narrow desktop makes the edge panels step below the bar. */
+        for (const vp of [{ width: 1100, height: 800 }, { width: 1024, height: 700 }]) {
+          await page.setViewportSize(vp);
+          await page.waitForTimeout(500);
+          const narrow = await overlaps();
+          if (narrow.length) fails.push('HS-13 hunt panels overlap at ' + vp.width + 'x' + vp.height + ': ' + narrow.join(', '));
+        }
       } else fails.push('HS-13 the screen did not mount');
       await ctx.close();
     }

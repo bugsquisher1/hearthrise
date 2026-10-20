@@ -14,15 +14,15 @@
 // Stats the engine does not have (leech, element protections, a character
 // XP bar) have no line at all.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_ROLES } from '../../../data/hunt-roles.js?v=0.2.15';
-import { characterSheetOf, levelOf } from '../../../session/character-sections.js?v=0.2.15';
-import { nameOf, bagCapOf } from '../../../session/item-sections.js?v=0.2.15';
-import { staminaOf } from '../../../session/hunt-sections.js?v=0.2.15';
-import { vitalsOf, roleIdOf } from '../../../session/party-sections.js?v=0.2.15';
-import { text, cls, style, attr } from '../../../render/paint.js?v=0.2.15';
-import { whole, hoursMinutes } from '../../../render/format.js?v=0.2.15';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.15';
-import { combatLedger } from '../skills.js?v=0.2.15';
+import { HUNT_ROLES } from '../../../data/hunt-roles.js?v=0.2.18';
+import { characterSheetOf, levelOf } from '../../../session/character-sections.js?v=0.2.18';
+import { nameOf, bagCapOf } from '../../../session/item-sections.js?v=0.2.18';
+import { staminaOf } from '../../../session/hunt-sections.js?v=0.2.18';
+import { vitalsOf, roleIdOf } from '../../../session/party-sections.js?v=0.2.18';
+import { text, cls, style, attr } from '../../../render/paint.js?v=0.2.18';
+import { whole, hoursMinutes } from '../../../render/format.js?v=0.2.18';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.18';
+import { combatLedger } from '../skills.js?v=0.2.18';
 
 /* [key, label] of each number line; a line shows only when its value exists. */
 const VITALS = Object.freeze([['hp', 'Max health'], ['mana', 'Max mana'], ['regen', 'Regeneration'], ['speed', 'Speed'], ['cap', 'Capacity'], ['stamina', 'Stamina']]);

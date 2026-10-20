@@ -67,6 +67,7 @@ export const CLIENT_RPCS = Object.freeze({
   /* The one-way party flow (2026-10-28-party-flow.sql): an own character by slot, the leader's disband; slot only, no user id. */
   hr_hunt_party_invite_own: 'seat one of this account’s own characters, by slot, in this character’s party at once (party-intents.js inviteOwn)',
   hr_hunt_party_disband: 'the leader closes its party in town (party-intents.js disbandParty)',
+  hr_hunt_party_invite_player: 'invite the player a menu targets by the server account id it carries (+ slot); same checks as the named invite (party-intents.js invitePlayer)',
   hr_hunt_party_list: 'the leader shows or hides its party in the finder, a yes/no (party-intents.js listParty)',
   hr_hunt_restart: 'go back to the hunt that just ended on that session’s own setup (CharacterSession.restartHunt)',
   /* Lane S2's Services window: each sends the server's own QUOTE (refused quote_changed otherwise), never a price of its own. */

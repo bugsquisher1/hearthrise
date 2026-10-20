@@ -96,6 +96,10 @@
 //   PARTY      two characters in one party hunt ONE instance: one world, both
 //              paid, kills journalled each, gold split; a settle missing a
 //              member is refused member_set.
+//   PARTY-RESTART  a restarted instance (no world, a kept swing counter) settles on from it.
+//   PARTY-KICK a member closed by the database between settles (a kick, a leave at
+//              once) walks its unit out; the next settle still commits (live P1 10-20:
+//              `tally ... not a hero` on every fire).
 //   PARTY-VIEW the real `party` section of a settled two-hero hunt, read by the
 //              client's own reader (src/session/hunt-sections.js partyOf), yields
 //              both members the party panel draws: unit (= the session's world
@@ -893,6 +897,13 @@ async function hunter(db, M, o) {
 
 /* ONE settle of the instance, ending at `toMs`, through hunt-settle.js's three pieces (tamper between). */
 async function settleTo(db, M, toMs, o = {}) {
+  /* A backlog longer than HUNT_SETTLE_SPAN_MS lands in slices, as successive fires do. */
+  for (;;) {
+    const r = await settleSlice(db, M, toMs, o);
+    if (o.tamper || o.raw || r.skipped || r.res?.ok !== true || !(r.commit && r.out && r.out.settledTo < toMs && r.planTo < toMs)) return r;
+  }
+}
+async function settleSlice(db, M, toMs, o) {
   const exec = makeExec(db);
   const plan = await M.HS.readHuntSettle({ exec, user: o.user || UID, slot: 0, grounds: groundsOf(M), atMs: toMs }, 'tick');
   if (plan.answer) return { skipped: plan.answer.reason };
@@ -902,7 +913,7 @@ async function settleTo(db, M, toMs, o = {}) {
   const res = await M.HS.commitHuntSettle(exec, { ...p.commit, project: null });
   if (o.tamper || o.raw) return { res, out: p.out, commit: p.commit };
   if (!res || res.ok !== true) throw new Error(`settle to ${new Date(toMs).toISOString()} refused: ${JSON.stringify(res).slice(0, 500)}`);
-  return { res, out: p.out, commit: p.commit };
+  return { res, out: p.out, commit: p.commit, planTo: plan.toMs };
 }
 /* Settle `cuts(from)` in order; stop when the hunt is over. */
 async function run(db, M, from, cuts, o) {
@@ -1014,14 +1025,14 @@ const DB_ARMS = {
   }),
   PARITY: async (db, M) => inTx(db, async () => {
     const problems = [];
-    const { sid } = await hunter(db, M, { ...STRONG, options: { stance: 'defensive', distance: 3, food_below_pct: 90 } });
+    const { sid } = await hunter(db, M, { ...STRONG, minutesAgo: 10, options: { stance: 'defensive', distance: 3, food_below_pct: 90 } });
     const exec = makeExec(db);
     await db.query('savepoint parity');
     const runs = {};
     for (const [door, go] of [
       ['tick', () => M.HS.settleHunt({ exec, user: UID, slot: 0, mode: 'tick', session: sid, grounds: groundsOf(M) })],
       ['settle', () => M.HS.settleHunt({ exec, user: UID, slot: 0, mode: 'settle', minWindowMs: 0, grounds: groundsOf(M) })],
-      ['pieces', async () => { const now = Number(await one(db, 'select floor(extract(epoch from now()) * 1000)::bigint')); return settleTo(db, M, now); }],
+      ['pieces', async () => { const now = Number(await one(db, 'select floor(extract(epoch from now()) * 1000)::bigint')); return settleSlice(db, M, now, {}); }],
     ]) {
       const r = await go();
       if (door !== 'pieces' && (!r || r.outcome !== 'paid')) problems.push(`CONTROL: the ${door} door did not pay (${r && r.outcome}/${r && r.reason})`);
@@ -1251,6 +1262,33 @@ const DB_ARMS = {
     if (units.size !== 2 || units.has(null)) problems.push(`the members' units are ${[...units]}`);
     return problems;
   }),
+  /* PARTY-RESTART (live P1 2026-10-20): a party instance restarted after its last session ended keeps
+     its swing counter but no world; the first settle of the new hunt must count on from that counter
+     (the commit's CAS), not from 0 (session_moved on every fire, the hunt frozen). */
+  'PARTY-RESTART': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const h = await hunter(db, M, { party: [{ ...STRONG }, { ...STRONG }] });
+    await db.query('update public.hunt_instances set world = null, world_swing = 112 where id = $1', [h.inst]);
+    const r = await settleTo(db, M, h.from + 120000, { raw: true });
+    if (!r.res || r.res.ok !== true) problems.push(`a restarted instance's settle answered ${JSON.stringify(r.res || r.skipped).slice(0, 200)}`);
+    else if (!(Number(r.res.instance.world_swing) > 112)) problems.push(`the restarted world swing ${r.res.instance.world_swing} did not count on from 112`);
+    return problems;
+  }),
+  /* PARTY-KICK (live P1 2026-10-20): hr_hunt_close (kick / an at-once leave) clears the session's unit_id
+     but not the stored world; the orphan hero kept fighting, and the analyzer tally refused every settle. */
+  'PARTY-KICK': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const h = await hunter(db, M, { party: [{ ...STRONG }, { ...STRONG }] });
+    await settleTo(db, M, h.from + 120000);
+    const gone = await one(db, 'select unit_id from public.hunt_sessions where id = $1', [h.sids[1]]);
+    await db.query(`select public.hr_hunt_close($1::uuid, 'left', now(), true)`, [h.sids[1]]);
+    let r;
+    try { r = await settleTo(db, M, h.from + 480000, { raw: true }); } catch (e) { r = { res: { error: String(e.message) } }; }
+    if (!r.res || r.res.ok !== true) return [...problems, `the settle after a kick answered ${JSON.stringify(r.res || r.skipped).slice(0, 200)}`];
+    const w = JSON.stringify(r.out.world && (await import(pathToFileURL(join(ROOT, 'src/core/hunt/world-state.js')).href)).decode(JSON.parse(r.out.world)).units.filter((u) => u.side === 'hero').map((u) => u.id));
+    if (!Number.isInteger(gone) || w.includes(String(gone))) problems.push(`the kicked unit ${gone} is still in the world's heroes ${w}`);
+    return problems;
+  }),
   'PARTY-VIEW': async (db, M) => inTx(db, async () => {
     const problems = [];
     const { partyOf } = await import(pathToFileURL(join(ROOT, 'src/session/hunt-sections.js')).href);
@@ -1314,6 +1352,20 @@ const DB_ARMS = {
     }
     const honest = await settleTo(db, M, from + 120000, { raw: true });
     if (!honest.res || honest.res.ok !== true) problems.push(`an honest settle answered ${JSON.stringify(honest.res).slice(0, 200)}`);
+    return problems;
+  }),
+  /* P1 2026-10-20 (546 WORKER_RESOURCE_LIMIT): a refused instance re-simulated its whole growing
+     backlog every fire. One settle simulates at most HUNT_SETTLE_SPAN_MS; the rest is owed. */
+  SPAN: async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const span = M.HS.HUNT_SETTLE_SPAN_MS;
+    if (!(span > 0 && span <= 30 * 60000)) return [`HUNT_SETTLE_SPAN_MS is ${span}, not a bound of at most 30 min`];
+    const { from } = await hunter(db, M, { ...STRONG, minutesAgo: 120 });
+    const plan = await M.HS.readHuntSettle({ exec: makeExec(db), user: UID, slot: 0, grounds: groundsOf(M) }, 'tick');
+    if (plan.answer) return [`a 2 h backlog was not offered: ${JSON.stringify(plan.answer.reason)}`];
+    if (plan.toMs - plan.fromMs > span) problems.push(`one settle simulates ${plan.toMs - plan.fromMs} ms of a 2 h backlog, past the ${span} ms span`);
+    const r = await settleTo(db, M, from + 3 * span);
+    if (!r.res || r.res.ok !== true) problems.push(`the backlog did not catch up slice by slice: ${JSON.stringify(r.res).slice(0, 200)}`);
     return problems;
   }),
   REPLAY: async (db, M) => inTx(db, async () => {
@@ -1471,6 +1523,8 @@ async function runArms(root, db, only) {
 /* JS mutants: planted in a temp copy of the edge + src/core + src/data. A name
    in [brackets] is the C2 mutant this one re-anchors (its catch is kept). */
 const MUTANTS = [
+  { arm: 'SPAN', name: '[546 P1] a settle simulates the whole backlog again', file: join(FN, 'hunt-settle.js'),
+    from: '  const toMs = Math.min(endMs, fromMs + HUNT_SETTLE_SPAN_MS);', to: '  const toMs = endMs;' },
   { arm: 'TICK-2', name: '[C2 away ctx] the instance span runs with ctx.away again', file: join(FN, 'accrual.js'),
     from: '    { toMs, tickMs, seed, ground: inp.ground,', to: '    { away: true, toMs, tickMs, seed, ground: inp.ground,' },
   { arm: 'TICK-2', name: '[C2 absence watermark] the window starts at a presence watermark', file: join(FN, 'accrual.js'),
@@ -1587,16 +1641,20 @@ const MUTANTS = [
   { arm: 'TICK-1', name: '[combat-parity shiftWindow] the member clock is read one second late', file: join(FN, 'hunt-settle.js'),
     from: '    nextSwingAtMs: num(h.next_swing_at_ms),', to: '    nextSwingAtMs: num(h.next_swing_at_ms) + 1000,' },
   { arm: 'TICK-1', name: '[world-tick-parity P5 rewind] the settle re-simulates the last swing', file: join(FN, 'hunt-settle.js'),
-    from: '    instance: { id: String(inst.id), nextSwingAtMs: Number(inst.next_swing_at_ms), world: inst.world || null },',
-    to: '    instance: { id: String(inst.id), nextSwingAtMs: Number(inst.next_swing_at_ms) - 2000, world: inst.world || null },' },
+    from: '    instance: { id: String(inst.id), nextSwingAtMs: Number(inst.next_swing_at_ms), world: inst.world || null,',
+    to: '    instance: { id: String(inst.id), nextSwingAtMs: Number(inst.next_swing_at_ms) - 2000, world: inst.world || null,' },
   { arm: 'TICK-1', name: '[C2 knocked-out foe carried] the world is not carried across a settle', file: join(FN, 'hunt-settle.js'),
-    from: '    instance: { id: String(inst.id), nextSwingAtMs: Number(inst.next_swing_at_ms), world: inst.world || null },',
-    to: '    instance: { id: String(inst.id), nextSwingAtMs: Number(inst.next_swing_at_ms), world: null },' },
+    from: '    instance: { id: String(inst.id), nextSwingAtMs: Number(inst.next_swing_at_ms), world: inst.world || null,',
+    to: '    instance: { id: String(inst.id), nextSwingAtMs: Number(inst.next_swing_at_ms), world: null,' },
+  { arm: 'PARTY-RESTART', name: 'the fresh world of a restarted instance counts from swing 0', file: join(FN, 'hunt-settle.js'),
+    from: '      worldSwing: Number(inst.world_swing) || 0 },', to: '      worldSwing: 0 },' },
+  { arm: 'PARTY-KICK', name: 'a hero with no member stays in the world', file: 'src/core/combat-sim.js',
+    from: "    for (const u of world.units.slice()) if (u.side === 'hero' && !owned.has(u.id)) leaveHero(world, u.id);", to: '' },
   { arm: 'BOTH-PATH', name: 'the death hint is dropped (the death event lands on whichever window edge settled it)', file: join(FN, 'accrual.js'),
     from: "    else if (e.type === 'death') hints.death.push(Math.floor(e.atMs));", to: "    else if (e.type === 'death') hints.death.length = 0;" },
   { arm: 'PARITY', name: '[combat-parity wallclock] the tick door ends its window on a wall-clock grid', file: join(FN, 'hunt-settle.js'),
-    from: "  const toMs = Number.isFinite(Number(o.atMs)) ? Math.min(nowMs, Math.floor(Number(o.atMs))) : nowMs;",
-    to: "  const toMs = Number.isFinite(Number(o.atMs)) ? Math.min(nowMs, Math.floor(Number(o.atMs))) : (mode === 'tick' ? nowMs - (nowMs % 90000) : nowMs);" },
+    from: "  const endMs = Number.isFinite(Number(o.atMs)) ? Math.min(nowMs, Math.floor(Number(o.atMs))) : nowMs;",
+    to: "  const endMs = Number.isFinite(Number(o.atMs)) ? Math.min(nowMs, Math.floor(Number(o.atMs))) : (mode === 'tick' ? nowMs - (nowMs % 90000) : nowMs);" },
   { arm: 'PARITY', name: '[combat-parity C2 read-dropped] the tick door builds its heroes without their options', file: join(FN, 'hunt-settle.js'),
     from: '    m.hero = heroSetup({ weaponType: m._weaponType, options: m._options, bar: m._bar, partyRoles });',
     to: "    m.hero = heroSetup({ weaponType: m._weaponType, options: mode === 'tick' ? {} : m._options, bar: m._bar, partyRoles });" },

@@ -30,7 +30,10 @@
 // mobile text-only). Validated as a data: URL of jpeg/png that decodes to
 // <= 1.5 MB with real magic bytes, forwarded as a Discord multipart attachment.
 
-const MAX_BODY_BYTES = 3_000_000;
+// The metered body read and the escaped/capped staff embed live in bounds.js
+// (plain JS, so tests/bug-report-bridge-bounds.mjs drives the shipped bytes).
+import { MAX_BODY_BYTES, readBodyBytes, buildEmbed } from './bounds.js';
+
 const MAX_IMAGE_BYTES = 1_500_000;
 const MAX_SUMMARY = 200;
 const MAX_DESC = 4000;
@@ -92,49 +95,6 @@ function decodeScreenshot(dataUrl: unknown): { bytes: Uint8Array; mime: string }
   return { bytes, mime: jpeg ? 'image/jpeg' : 'image/png' };
 }
 
-function fence(s: string, limit: number): string {
-  return s.replace(/```/g, "'''").slice(0, limit);
-}
-
-function buildEmbed(
-  reporter: string, summary: string, description: string, build: string,
-  state: Record<string, unknown>, errors: Array<{ level?: string; msg?: string }>,
-  reportId: unknown, hasShot: boolean,
-) {
-  const metrics = (state.metrics || {}) as Record<string, unknown>;
-  const safe = (metrics.safeArea || {}) as Record<string, string>;
-  const embed: Record<string, unknown> = {
-    title: '🐛 ' + fence(summary, 240),
-    description: fence(description || '(no description)', 1800),
-    color: 0xd44a3a,
-    fields: [
-      { name: 'Build', value: '`' + (build || 'unknown') + '`', inline: true },
-      { name: 'Device', value: String(state.device || '—') + ' · ' + String(state.orientation || '—'), inline: true },
-      { name: 'Player', value: fence(reporter, 64), inline: true },
-      { name: 'Tab', value: String(state.activeTab || '—'), inline: true },
-      { name: 'Report #', value: String(reportId ?? '—'), inline: true },
-      {
-        name: 'Screen',
-        value: `vp ${state.viewport || '—'} · screen ${metrics.screen || '—'} · dpr ${metrics.dpr ?? '—'}`
-          + ` · zoom ${metrics.zoom ?? '—'} · root ${metrics.rootFont || '—'}`
-          + ` · safe(t/r/b/l) ${safe.t || '0px'}/${safe.r || '0px'}/${safe.b || '0px'}/${safe.l || '0px'}`
-          + (metrics.desktopMode ? ' · ⚠️ DESKTOP-MODE' : ''),
-        inline: false,
-      },
-      { name: 'State', value: '```json\n' + fence(JSON.stringify(state, null, 2), 900) + '\n```' },
-      {
-        name: 'Recent errors',
-        value: errors.length
-          ? '```\n' + fence(errors.map((e) => `[${e.level}] ${e.msg}`).join('\n'), 900) + '\n```'
-          : '_(none)_',
-      },
-    ],
-    timestamp: new Date().toISOString(),
-  };
-  if (hasShot) embed.image = { url: 'attachment://screenshot.jpg' };
-  return embed;
-}
-
 Deno.serve(async (req: Request): Promise<Response> => {
   const origin = req.headers.get('origin');
 
@@ -181,21 +141,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return json({ ok: false, status: 'unauthenticated' }, 401, origin);
   }
 
-  const declared = Number(req.headers.get('content-length') || '0');
-  if (declared > MAX_BODY_BYTES) {
-    return json({ ok: false, status: 'payload_too_large' }, 413, origin);
+  // METERED, never `req.arrayBuffer()`: a chunked body has no Content-Length,
+  // so only a byte counter on the stream itself bounds memory per isolate.
+  const read = await readBodyBytes(req, MAX_BODY_BYTES);
+  if (!read.ok) {
+    return read.reason === 'too_large'
+      ? json({ ok: false, status: 'payload_too_large' }, 413, origin)
+      : json({ ok: false, status: 'bad_request', detail: 'unreadable_body' }, 400, origin);
   }
-
-  let raw: string;
-  try {
-    const buf = new Uint8Array(await req.arrayBuffer());
-    if (buf.byteLength > MAX_BODY_BYTES) {
-      return json({ ok: false, status: 'payload_too_large' }, 413, origin);
-    }
-    raw = new TextDecoder().decode(buf);
-  } catch {
-    return json({ ok: false, status: 'bad_request', detail: 'unreadable_body' }, 400, origin);
-  }
+  const raw = new TextDecoder().decode(read.bytes);
 
   let body: Record<string, unknown>;
   try {

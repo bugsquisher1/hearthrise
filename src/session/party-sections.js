@@ -7,9 +7,10 @@
 //
 // What the S1 server projects (supabase/migrations/2026-10-23-hunt-party.sql,
 // hr_hunt_party_view; ONE shape, also read by hunt-sections.js partyOf):
-//   party   { id, hunt, max, open, leader: unit, self: unit, leader_seat, self_seat,
+//   party   { id, hunt, max, open, listed, leader: unit, self: unit, leader_seat, self_seat,
 //             members: [{ unit, seat, hunting, name, level, weapon, role_pick, hp, hp_max, mana,
-//                         mana_max, dealt, healed, dps, hps, down, eating, drinking, aggro }] }
+//                         mana_max, dealt, healed, dps, hps, down, eating, drinking, aggro,
+//                         away, seat_ms }] }   (away / seat_ms: 2026-10-28-party-flow.sql)
 //   (a solo hunt is a party of one with id null: no party membership here)
 // The finder's answer (hr_hunt_party_finder) keeps its own { seats: [{ seat, weapon, role, name }] }.
 // What this lane asks the server for (CONFLICTS.md 2026-10-18 party UI; the
@@ -23,9 +24,9 @@
 // the server's `role` is only the pick, kept when the weapon allows it.
 // ════════════════════════════════════════════════════════════════════════
 
-import { roleForWeapon, WEAPON_ROLES } from '../data/hunt-roles.js?v=0.2.11';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.11';
-import { huntOf, staminaOf } from './hunt-sections.js?v=0.2.11';
+import { roleForWeapon, WEAPON_ROLES } from '../data/hunt-roles.js?v=0.2.13';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.13';
+import { huntOf, staminaOf } from './hunt-sections.js?v=0.2.13';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -47,6 +48,9 @@ function seatOf(s) {
   return {
     seat: s.seat, name: name(s.name), weapon: w, role: roleForWeapon(w, pick),
     hunting: s.hunting === true, hp: num(s.hp), hpMax: num(s.hp_max), dealt: num(s.dealt), healed: num(s.healed),
+    level: Number.isInteger(s.level) && s.level >= 0 ? s.level : null,
+    /* 2026-10-28-party-flow.sql: an away member keeps its seat for `seat_ms` more (ms; null when not away). */
+    away: s.away === true, seatMs: s.away === true && num(s.seat_ms) !== null && s.seat_ms >= 0 ? s.seat_ms : null,
   };
 }
 

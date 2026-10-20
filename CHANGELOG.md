@@ -5,6 +5,14 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.12 — 2026-10-20 (Spells and corpses)
+
+**Mages and healers show their attacks.** Wand and staff attacks now fire visible bolts.
+
+**Monster art filled in.** Missing monster frames on the live hunting grounds were added.
+
+**Sturdier bug reports.** The bug-report form handles long reports safely.
+
 ## v0.2.11 — 2026-10-20 (Parties, simply)
 
 **Inviting is one click.** Right-click a player and choose Invite: the first invite makes the party. Your own characters join from the character strip straight away.

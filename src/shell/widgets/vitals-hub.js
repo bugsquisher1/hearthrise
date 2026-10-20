@@ -78,8 +78,8 @@ export function patchHub(el, ctx) {
   const level = hero && ok(hero.level) ? hero.level : row ? row.level : null;
   const xp = hero && ok(hero.xpPct) ? hero.xpPct : row && row.need > 0 ? row.into / row.need : null;
   const pair = (cur, max) => (ok(cur) && ok(max) ? whole(cur) + '/' + whole(max) : '–');
-  /* Real units, per second (huntOf's hpPerS / manaPerS: the engine's in-fight rates): one decimal under 10. */
-  const regen = (r) => (ok(r) && r > 0 ? '+' + (r < 0.1 ? r.toFixed(2) : r < 10 ? r.toFixed(1) : String(Math.round(r))) + '/s' : '');
+  /* Per second, one decimal (huntOf: manaPerS is the server's per-minute mana_regen over 60, hpPerS the engine's in-fight rate). */
+  const regen = (r) => (ok(r) && r > 0 ? (r < 0.05 ? '+<0.1' : '+' + r.toFixed(1)) + '/s' : '');
   text(el.querySelector('[data-v="hp"]'), pair(v.hp, v.hpMax));
   text(el.querySelector('[data-v="mana"]'), pair(v.mana, v.manaMax));
   text(el.querySelector('[data-r="hp"]'), hero ? regen(hero.hpPerS) : '');
@@ -89,6 +89,7 @@ export function patchHub(el, ctx) {
   fill(el.querySelector('.hb-arc.is-xp'), xp === null ? 0 : Math.max(0, Math.min(1, xp)));
   text(el.querySelector('.hb-lv'), level === null ? '–' : String(level));
   text(el.querySelector('.hb-xp'), xp === null ? '' : 'XP ' + Math.floor(Math.max(0, Math.min(1, xp)) * 100) + '%');
+  attr(el.querySelector('.hb-medal'), 'title', level === null ? 'Level' : 'Level ' + level + (xp === null ? '' : ': ' + Math.floor(Math.max(0, Math.min(1, xp)) * 100) + '% of the way to ' + (level + 1)));
   text(el.querySelector('.hb-stam-v'), hoursMinutes(v.staminaMs));
   const food = foodOf(bagOf(cs));
   const sock = el.querySelector('.hb-socket.is-food');

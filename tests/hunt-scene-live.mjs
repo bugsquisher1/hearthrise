@@ -275,7 +275,7 @@ async function pageRules(M) {
     if (process.env.HR_SHOTS) await simPage.screenshot({ path: join(process.env.HR_SHOTS, 'hunt-sim.png') });
     const gapMed = game.gapMed;
     const busyCap = sim.busy * BUDGET.simBusyFactor + BUDGET.simBusySlackMs;
-    const text = await page.evaluate(() => (document.querySelector('[data-regen="hp"]') || {}).textContent || '');
+    const text = await page.evaluate(() => (document.querySelector('.hb-read-r[data-r="hp"]') || {}).textContent || '');
     if (!/^\+\d+(\.\d)?\/s$/.test(text)) fails.push(`LV-3 the page's HP regen reads "${text}", want +N.N/s`);
     if (errors.length) fails.push('LV-4 page errors: ' + errors.slice(0, 3).join(' | '));
     if (!(gapMed <= BUDGET.gapMedianMs)) fails.push(`LV-4 the frame loop's median gap is ${gapMed.toFixed(1)} ms (budget ${BUDGET.gapMedianMs})`);

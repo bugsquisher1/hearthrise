@@ -16,6 +16,7 @@ import { TARGET_MODES, HUNT_STANCES, HERO_DISTANCE } from '../../data/rule-subje
 import { settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.12';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.12';
 import { text, attr, prop, cls } from '../../render/paint.js?v=0.2.12';
+import { answerWithin } from '../bar-draft.js?v=0.2.12';
 
 /* Words for the server's refusal codes; anything else reads as a plain "not saved". */
 const REFUSAL = Object.freeze({
@@ -23,6 +24,7 @@ const REFUSAL = Object.freeze({
   settle_first: 'The hunt is catching up. Try again in a few seconds.',
   bad_option: 'The server does not take this setting yet.',
   network: 'No connection. Your settings are unchanged.',
+  timeout: 'The server has not answered. The panel shows what it last confirmed.',
 });
 
 /** The <option>s for the target select. */
@@ -104,7 +106,8 @@ export async function sendOption(ctx, root, el, repaint) {
   attr(root, 'data-pending', true);
   text(root.querySelector('.hh-intent-msg'), 'Saving…');
   repaint();
-  const r = await cs.setHuntOptions(s.preset, opts);
+  /* Never left pending: the answer, a refusal or the timeout always turns the controls back on. */
+  const r = await answerWithin(() => cs.setHuntOptions(s.preset, opts));
   attr(root, 'data-pending', null);
   text(root.querySelector('.hh-intent-msg'), r.ok ? '' : (REFUSAL[r.error] || 'Not saved: the server refused it.'));
   repaint();

@@ -13,8 +13,8 @@
 // town (tests/fixtures/alpha-envelope.json). The hero is PINNED (the idle walk to
 // its station is pushed out of the test's reach by a served override) so the
 // camera moves only for the reason a rule is about.
-//   WC-1  THE X CLOSES: with Hunt prep | Hunt settings | Gathering and crafting
-//         docked side by side, a real press and release on Hunt settings' X
+//   WC-1  THE X CLOSES: with Hunt prep | Services | Gathering and crafting
+//         docked side by side, a real press and release on Services' X
 //         closes it; the other two keep their exact rects; presses on a window's
 //         head (a hand's few px of wander included) move no window; a reopen comes
 //         back to its rect

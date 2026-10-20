@@ -2939,3 +2939,12 @@ the sim drew them in canvas code. Cutting frames of a shipped style-1 effect (DE
 (2) In-world "arcane" is frost blue: the palette has no arcane ramp, so the sorcerer's runes lock to frost. (3) A data
 row the renderer ignores is not a fix; HIT_FX.role is read today, PROJECTILE.role waits on scene.js (handoff).
 (4) Basic attacks are the most frequent effect in the game: the impacts run 2 frames at 16 fps (125 ms).
+
+## 2026-10-20 — lane/b-vitals-hub taken over from the PC session (action bar: hub, drop menu, reasons, ember, panel)
+Merged main v0.2.11 then v0.2.12 (version-only conflicts; main's HS-13 overlap rule renumbered HS-17; WC-5 checks
+Services where it checked the deleted Hunt settings). Added: answerWithin (bar-draft.js) so every bar/panel intent
+line comes back on answer, refusal or a 10 s timeout (BAR_ANSWER_MS); regen one decimal; reason badge on a dark
+disc; phone plaque 220 px. Lessons: (1) a status line that only clears in `.then` of an un-timed fetch is a stuck
+line waiting to happen: server.js never times out, so every intent UI needs its own bound. (2) A headless Chromium
+exists in the cloud sandbox (/opt/pw-browsers, HR_CHROME): hunt-screen --shots is a real desktop + 922x423 look.
+(3) Phone stance labels at the 14.5 px floor need ~73 px each; 196 px truncated them to "Offen…".

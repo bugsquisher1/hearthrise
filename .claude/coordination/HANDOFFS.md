@@ -3386,3 +3386,18 @@ frames (tools/world-art/port-hunt-sim.mjs DERIVED_VFX): honest style-1 pixels, n
 approved, generate purpose bolts: a smaller wand bolt (the 16 px orb is heavy beside the 13x4 crossbow bolt), a staff
 impact without the heal's "+" sparkles, and the arcane ramp (ART_DIRECTION §8) so the wand stops borrowing frost blue.
 Per-element bolts (ember/frost/poison) wait on a weapon element; note core says ember/poison, abilities say fire/nature.
+
+## 2026-10-20 · art-director (lane/b-vitals-hub) -> live-engine lane + Coordinator · what the bar needs outside its files
+(1) RETIRED SETTINGS STILL STEER THE ENGINE: Hunt settings (Eat at / Drink at / Supplies / When my bag runs out) is
+deleted, but src/core/hunt/conditions.js defaultConditions still reads food_below_pct / drink_below_pct (hunt-spawn.js
+pick) for a food/drink slot with no conditions, and action-rules.js reads supply_source / on_empty. A stored value is
+now invisible and unchangeable. Rule: retire the four options (CONSUMABLE_RULES only; store fallback always on) in a
+dated migration + hunt-sessions.js ACTION_SET_OPTIONS, or name the control that brings them back. Until then
+action-facts.js reasonOf 'store_off' tells the player about a setting they cannot change.
+(2) NO "WHEN I RUN OUT OF GOLD" OPTION ON THE SERVER: only gold_floor (sell-to-cover, then END gold_out). The panel row
+waits on an ACTION_SET_OPTIONS row + settle behaviour (already queued in ACTIVE_WORK).
+(3) NO TIMEOUT UNDER ANY INTENT: src/session/server.js post() awaits fetch with no bound, so runIntent (intent-words.js)
+lines in every item window can stick like the bar's did. The bar now bounds its own (bar-draft.js answerWithin,
+BAR_ANSWER_MS 10 s); the class kill is an AbortController timeout in server.js returning { error:'timeout' }.
+(4) HP REGEN UNIT: hunt-sections.js hpPerS is the in-fight rate (hp_max x 3 permille x regen_pm); the server also sends
+hp_regen per MINUTE at the out-of-fight rate. The hub shows hpPerS. Confirm which one the player should read.

@@ -33,7 +33,7 @@ import { glyphSvg } from '../launcher.js?v=0.2.12';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.12';
 import { actionIconHtml } from './bits.js?v=0.2.12';
 import { hubHtml, patchHub } from './vitals-hub.js?v=0.2.12';
-import { openSlot, sendPlan, movePlan, swapPlan, insertPlan, serverBar } from '../bar-draft.js?v=0.2.12';
+import { openSlot, sendPlan, movePlan, swapPlan, insertPlan, serverBar, barRefusalWords, answerWithin } from '../bar-draft.js?v=0.2.12';
 import { actionName, factsOf, carried, supplyLines, setupWords, conflictsOf, reasonOf, sharedCooldownOf } from '../action-facts.js?v=0.2.12';
 import { resetConfigureView } from '../windows/configure-action.js?v=0.2.12';
 import { assignToBar, barKind } from '../bar-assign.js?v=0.2.12';
@@ -224,16 +224,17 @@ function dropOnSlot(ctx, el, ev, t) {
   const id = ev.dataTransfer.getData(DRAG_TYPE);
   if (!barKind(id)) { text(msg, refusalWords('not_for_bar')); return true; }
   text(msg, 'Putting it on the bar…');
-  assignToBar(ctx.character, id, to).then((r) => { text(msg, r.ok ? '' : refusalWords(r.error)); repaint(); });
+  answerWithin(() => assignToBar(ctx.character, id, to)).then((r) => { text(msg, r.ok ? '' : r.error === 'timeout' ? barRefusalWords(r.error) : refusalWords(r.error)); repaint(); });
   return true;
 }
 
-/* One drop's intent; the status line says it is on its way and clears on the server's answer (or says why not). */
+/* One drop's intent; the status line says it is on its way and ALWAYS comes back: cleared on the server's
+   answer, its words on a refusal, a plain line on the timeout (bar-draft.js answerWithin never rejects). */
 function runDrop(ctx, el, plan) {
   const msg = el.querySelector('.hb-plaque .hh-intent-msg');
   text(msg, 'Moving it…');
   sendPlan(ctx.character, plan, () => renderActionBar.patch(el, ctx))
-    .then((r) => { text(msg, r.ok ? '' : r.error === 'no_room' ? 'No empty slot after it to shift into.' : refusalWords(r.error)); renderActionBar.patch(el, ctx); });
+    .then((r) => { text(msg, r.ok ? '' : barRefusalWords(r.error)); renderActionBar.patch(el, ctx); });
 }
 
 /* THE DROP MENU (Tyler 10-19): dropped onto an action, the dragged action's name, Swap with <target>,

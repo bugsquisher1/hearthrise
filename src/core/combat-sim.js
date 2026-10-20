@@ -151,6 +151,7 @@ export function simulateHuntInstance(inst, ctx) {
   const members = inst.members;
   let world = inst.world || null;
   let atMs = Math.floor(Number(inst.nextSwingAtMs));
+  const startMs = atMs;
   const out = new Map(members.map((m) => [m.key, { ticks: 0, kills: 0, deaths: 0, deathLog: [],
     xpLost: {}, events: [], killsBefore: m.hs.tally.kills, unitEver: m.unitId }]));
   const track = []; const worldEvents = [];
@@ -196,8 +197,10 @@ export function simulateHuntInstance(inst, ctx) {
       here.push(m);
     }
     /* The last member ended at this boundary: the instance stops HERE, the world unstepped, exactly
-       where a window cut at the end leaves it (the end stamped after the loop) — TICK-1, BOTH-PATH. */
-    if (!members.some((m) => !m.left)) break;
+       where a window cut at the end leaves it (the end stamped after the loop) — TICK-1, BOTH-PATH.
+       Only an end met at a window's FIRST boundary (one set between windows: a leave, the kill
+       switch) still steps once, so no window is empty (hr_hunt_apply refuses `bad_window`). */
+    if (!members.some((m) => !m.left) && atMs > startMs) break;
     const byUnit = new Map();
     for (const m of here) {
       const u = world.units.find((x) => x.id === m.unitId);
@@ -253,13 +256,15 @@ export function simulateHuntInstance(inst, ctx) {
      those flags is part of the stored session, and the database requires the
      `died` end in the SAME settle as the death row). The full end order is
      asked at that boundary, so an earlier reason that also holds there wins —
-     the same instant however the windows were cut. */
+     the same instant however the windows were cut. Any OTHER reason already
+     true at that boundary (stamina spent, the hours run out, a leave due) is
+     stamped there too, so no later window opens on a pending end. */
   for (const m of members) {
     if (m.left || m.unitId === null) continue;
     const next = m.hs.nextSwingAtMs;
-    if (m.hs.goldOut === true || typeof m.hs.ruleStop === 'string' || m.hs.died === true || m.hs.partyDied === true) {
-      endMember(m, endReasonAt(m.hs, next) || 'gold_out', next, world, out.get(m.key));
-    }
+    const flagged = m.hs.goldOut === true || typeof m.hs.ruleStop === 'string' || m.hs.died === true || m.hs.partyDied === true;
+    const why = endReasonAt(m.hs, next);
+    if (flagged || why) endMember(m, why || 'gold_out', next, world, out.get(m.key));
   }
   const summaries = {};
   for (const m of members) {

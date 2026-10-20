@@ -111,7 +111,7 @@ const mutants = [
   { name: 'the swing seed is indexed per window', case: 'split-parity',
     edits: [['src/core/combat-sim.js', "rng: createRng(seedOf(ctx, 's', sw))", "rng: createRng(seedOf(ctx, 's', swings))"]] },
   { name: 'the world steps once more after its last member ended', case: 'death-split-parity',
-    edits: [['src/core/combat-sim.js', '    if (!members.some((m) => !m.left)) break;\n', '']] },
+    edits: [['src/core/combat-sim.js', '    if (!members.some((m) => !m.left) && atMs > startMs) break;\n', '']] },
   { name: 'a sub-step that is not a whole number', case: 'substeps-divide-swing',
     edits: [['src/core/hunt/world-step.js', ' || swingMs % s !== 0) {', ') {']] },
 ];

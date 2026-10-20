@@ -195,6 +195,9 @@ export function simulateHuntInstance(inst, ctx) {
       }
       here.push(m);
     }
+    /* The last member ended at this boundary: the instance stops HERE, the world unstepped, exactly
+       where a window cut at the end leaves it (the end stamped after the loop) — TICK-1, BOTH-PATH. */
+    if (!members.some((m) => !m.left)) break;
     const byUnit = new Map();
     for (const m of here) {
       const u = world.units.find((x) => x.id === m.unitId);

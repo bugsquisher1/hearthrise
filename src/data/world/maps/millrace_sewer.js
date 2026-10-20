@@ -20,7 +20,7 @@
 // `spawns` here lists the same tiles so the map lint proves each is open floor.
 export default Object.freeze({
   id: 'millrace_sewer',
-  name: 'Millrace Sewer',
+  name: 'The Sewer',
   kind: 'hunt',
   hunts: Object.freeze(['millrace_sewer']),
   outdoor: false,

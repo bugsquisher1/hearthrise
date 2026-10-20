@@ -27,11 +27,11 @@
 // by `state.roofAlpha` (roofs.js) over whichever variant is showing.
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { ySort } from './zsort.js?v=0.2.13';
-import { heroBuilding } from './roofs.js?v=0.2.13';
-import { ellipseShadow, castMatrix } from './shadows.js?v=0.2.13';
-import { vertexGrid, tileKey } from './wang.js?v=0.2.13';
-import { OUTFITS } from '../../data/hunt-outfits.js?v=0.2.13';
+import { ySort } from './zsort.js?v=0.2.14';
+import { heroBuilding } from './roofs.js?v=0.2.14';
+import { ellipseShadow, castMatrix } from './shadows.js?v=0.2.14';
+import { vertexGrid, tileKey } from './wang.js?v=0.2.14';
+import { OUTFITS } from '../../data/hunt-outfits.js?v=0.2.14';
 
 /** Wall height: rock tops and capstones are raised by it. */
 export const WALL_FACE_PX = 48;

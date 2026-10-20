@@ -141,9 +141,19 @@ export async function rpcGateBucketGuard({ edit = null } = {}) {
 
     // Collect caller buckets: hr_rpc_gate('x') in plain SQL, hr_rpc_gate(''x'')
     // inside dynamic-SQL strings. Exclude the def itself (p_bucket parameter).
-    for (const m of sql.matchAll(/hr_rpc_gate\s*\(\s*'{1,2}([a-z0-9_]+)'{1,2}\s*\)/g)) {
+    // Two kinds of mention are NOT a live caller and are skipped (2026-10-30,
+    // when the gate first shrank to exactly its live callers): a call inside a
+    // `-- comment`, and a SINGLE-quoted call inside a `do $tag$ … $tag$` block —
+    // an apply-time probe that ran once (the A9 lockdown's clan_deposit /
+    // clan_seat_read refusal test). A DOUBLE-quoted call in a do block is dynamic
+    // SQL that may install a body, so it stays owed (fail-safe).
+    const code = sql.replace(/--[^\n]*/g, (c) => ' '.repeat(c.length));
+    const doBlocks = [...code.matchAll(/\bdo\s*(\$[a-z0-9_]*\$)([\s\S]*?)\1/g)]
+      .map((d) => [d.index, d.index + d[0].length]);
+    for (const m of code.matchAll(/hr_rpc_gate\s*\(\s*('{1,2})([a-z0-9_]+)'{1,2}\s*\)/g)) {
+      if (m[1].length === 1 && doBlocks.some(([s0, e0]) => m.index > s0 && m.index < e0)) continue;
       const enclosing = headers.filter((h) => h.pos < m.index).pop();
-      rawCalls.push({ bucket: m[1], file: f, key: [fi, m.index], fn: enclosing ? enclosing.fn : null });
+      rawCalls.push({ bucket: m[2], file: f, key: [fi, m.index], fn: enclosing ? enclosing.fn : null });
     }
   }
   const cmpKey = (x, y) => (x[0] - y[0]) || (x[1] - y[1]);
@@ -206,6 +216,7 @@ export async function rpcGateBucketGuard({ edit = null } = {}) {
 /* --selftest: the retirement rule must not become a hiding place. Each mutation
    edits the chain IN MEMORY; every one must turn the guard red. */
 const RETIRING = '2026-10-28-reopen-rpc-sweep.sql';
+const CLEANUP = '2026-10-30-server-cleanup.sql';   // hr_rpc_gate's last full def
 const SELFTEST = [
   { name: 'drop-line-removed',
     why: 'hr_claim_rank is no longer dropped, so its bucket is owed again and the gate refuses it',
@@ -218,7 +229,10 @@ const SELFTEST = [
     edit: (f, sql) => (f === '2026-10-23-premium-login-reward.sql' ? sql.replace("hr_rpc_gate('hr_claim_daily')", "hr_rpc_gate('hr_claim_quest')") : sql) },
   { name: 'kept-bucket-unlisted',
     why: 'the restated gate forgets hr_claim_daily, which hr_login_claim still spends',
-    edit: (f, sql) => (f === RETIRING ? sql.replace("         'hr_claim_daily',\n", '') : sql) },
+    edit: (f, sql) => (f === CLEANUP ? sql.replace("         'hr_claim_daily',\n", '') : sql) },
+  { name: 'live-caller-in-a-later-function',
+    why: 'a later top-level function passes a dropped clan bucket: a real caller, not a do-block probe',
+    edit: (f, sql) => (f === CLEANUP ? `${sql}\ncreate or replace function public.hr_mut_clan() returns boolean language sql as $f$ select public.hr_rpc_gate('clan_join') $f$;\n` : sql) },
 ];
 
 async function selftest() {

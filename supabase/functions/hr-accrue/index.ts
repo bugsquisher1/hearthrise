@@ -85,10 +85,8 @@ import { intentIdFor, isKnownVerb, INTENT_ERRORS, rateBucketFor } from './intent
 import { runSetActivity } from './set-activity.js';
 import { runShopBuy } from './shop-buy.js';
 import { runVendorSell, runVendorSellMany } from './vendor-sell.js';
-import { runUnlockBuy } from './unlock-buy.js';
 import { runTrophyClaim } from './trophy-claim.js';
 import { runSheet } from './character-sheet.js';
-import { runMarketList, runMarketCancel, runMarketBuy } from './market.js';
 import { runEquip } from './equip.js';
 import { runEat } from './eat.js';
 import { withCors } from './cors.js';
@@ -487,29 +485,12 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       return await reply(out.body, out.status);
     }
 
-    /* b354 — THE UNLOCK PURCHASE. It forwards LESS than shop_buy does: no
-       quantity, because a rung is bought once, and the OFFER ID is the whole of
-       what crosses. The price, the rung, the ladder, the property-tier gate and
-       the blueprint are all read inside hr_unlock_buy out of
-       public.hr_unlock_offers — so unlike every other verb here, this one's
-       commit point is not hr_apply, which structurally cannot write a level. */
-    if (intent.verb === 'unlock_buy') {
-      const out = await runUnlockBuy({
-        exec,
-        user,                       // the VERIFIED subject, never a body field
-        slot,
-        intentId: intent.intentId,
-        offer: intent.offer,
-      });
-      return await reply(out.body, out.status);
-    }
-
     /* ── THE TROPHY CLAIM VERB (docs/design/BESTIARY_LADDER.md §4). Same three
        lines. It forwards a MONSTER ID and a STAGE NUMBER and nothing else — no
        kill count, no multiplier, no "earned" bit. hr_trophy_claim validates the
        monster against the server's own combat catalogue, re-reads the kill total
        from player_progress under the advisory lock, and writes one collection
-       row plus one ledger row. Like unlock_buy / dungeon_settle / quartermaster_buy
+       row plus one ledger row. Like dungeon_settle / quartermaster_buy
        its commit point is a dedicated RPC and not hr_apply — a trophy row is a
        GREATEST-style once-ever write, and hr_apply merges progress ADDITIVELY.
 
@@ -523,54 +504,6 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         slot,
         intentId: intent.intentId,
         trophy: intent.trophy,
-      });
-      return await reply(out.body, out.status);
-    }
-
-    /* ── b355 — THE MARKET VERBS. THE FIRST VALUE THAT CROSSES BETWEEN TWO
-       PLAYERS, and the dispatch is the same three lines the others get, which
-       is the point: index.ts stays five things and every intent is a pure ESM
-       module a Node test can drive.
-
-       ⚠ READ THE ARGUMENT LISTS. `market_buy` forwards a LISTING and a COUNT
-         and nothing else — there is no `ask` in it, and there must never be.
-         The seller names a price ONCE, in `market_list`, about their own goods;
-         from then on it is server state, and hr_market_buy reads it off the row
-         it locked. That asymmetry is the whole of the cross-player argument
-         (./request.js §"…AND THEN THERE IS `ask`"), and it lives visibly in
-         these two argument lists rather than in a comment somewhere else. */
-    if (intent.verb === 'market_list') {
-      const out = await runMarketList({
-        exec,
-        user,                       // the VERIFIED subject, never a body field
-        slot,
-        intentId: intent.intentId,
-        item: intent.item,
-        qty: intent.qty,
-        ask: intent.ask,
-      });
-      return await reply(out.body, out.status);
-    }
-
-    if (intent.verb === 'market_cancel') {
-      const out = await runMarketCancel({
-        exec,
-        user,
-        slot,
-        intentId: intent.intentId,
-        listing: intent.listing,
-      });
-      return await reply(out.body, out.status);
-    }
-
-    if (intent.verb === 'market_buy') {
-      const out = await runMarketBuy({
-        exec,
-        user,
-        slot,
-        intentId: intent.intentId,
-        listing: intent.listing,
-        qty: intent.qty,
       });
       return await reply(out.body, out.status);
     }

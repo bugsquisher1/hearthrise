@@ -438,48 +438,6 @@ export const INTENT_REGISTRY = Object.freeze({
      rate-limit its own next purchase. Batch the sell; do not widen the gate. */
   shop_buy: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: true }),
   vendor_sell: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: true }),
-  /* b354 — THE UNLOCK PURCHASE. The `shop` bucket, with shop_buy and
-     vendor_sell, because it is the same surface: a player spamming the shop
-     should exhaust ONE budget, not three. A new bucket would also need a new
-     arm in hr_rate_gate, i.e. another link on that derivation chain, for a verb
-     that a player uses 45 times in the lifetime of a character.
-
-     `collectsFirst: TRUE` since 2026-09-28 (SETTLE-BEFORE-MUTATE above): a
-     rung is a PERMANENT PERK (`hr_perks_of`, read by the settle), so buying it
-     at return would price the whole absence at the new rung. hr_unlock_buy
-     still touches accrued_to nowhere (2026-08-16-unlock-buy.sql §6(b)), which
-     is what lets the settle run as its own apply before it. */
-  unlock_buy: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: true }),
-  /* ── b355 — THE MARKET VERBS. THE FIRST CROSS-PLAYER TRANSFER. ────────────
-     `bucket: 'shop'`, and it is a RULING with a cost, so it is argued:
-
-       · hr_rate_gate's bucket list is a `case` in SQL and an unknown bucket
-         FAILS CLOSED. Adding a fifth arm means `create or replace`-ing
-         hr_rate_gate — and 2026-08-16-claim-reward.sql is the LAST file that
-         may do that, while 2026-08-17-market-v2.sql deliberately declines to
-         touch it ("a second writer with its own allowance would raise a
-         compromised engine's total reachable write rate"). A registry row
-         naming a bucket the gate does not know is not a wider budget, it is a
-         verb that 429s on its first call, forever.
-       · So the market rides the `shop` allowance: 30/min, shared with
-         shop_buy, vendor_sell and unlock_buy. That is TIGHTER than the fuse the
-         RPCs spend for themselves (`apply`, 240/min via hr_rate_ok), so the
-         Edge gate is the binding one and this file adds no reachable write
-         rate at all. THE COST, stated rather than discovered: a player sweeping
-         the market can rate-limit their own next NPC purchase. Batch the
-         gesture; do not widen the gate.
-
-     `collectsFirst: TRUE` since 2026-09-28 (SETTLE-BEFORE-MUTATE above). A buy
-     or a cancel puts goods in the bag — a tool is priced from the BAG — and the
-     verdict's worst case is exactly this surface: one Dawnsteel pickaxe relisted
-     between a player's own slots (hr_market_buy refuses a self-buy only when
-     user AND slot match), each slot buying it back at return and settling its
-     night at +75 %. A list removes goods, and must not under-pay the night they
-     were used for. The three RPCs still touch `accrued_to` nowhere
-     (2026-08-17-market-v2.sql §11), so the settle is its own apply first. */
-  market_list: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: true }),
-  market_cancel: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: true }),
-  market_buy: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: true }),
   /* ── b366 — THE EQUIP VERB. THE FIRST VERB THAT MUST COLLECT SINCE #2. ────
      `collectsFirst: TRUE`, and it was the first SWITCH (see SWITCH_VERBS)
      besides `set_activity`. It is DERIVED, not chosen:

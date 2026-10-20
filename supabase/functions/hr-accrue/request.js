@@ -101,14 +101,7 @@ export const MAX_SLOT = 5;
     silently performs a different intent than the one asked for is the worst
     possible failure of a dispatch table. */
 export const VERBS = Object.freeze(
-  ['accrue', 'set_activity', 'shop_buy', 'vendor_sell', 'unlock_buy',
-    /* b355 — THE MARKET VERBS. Three, not one, and deliberately not collapsed
-       into a single `market` verb with a `mode` field: the three do different
-       things to different rows, and a dispatch table whose branch is a body
-       field is a dispatch table one typo away from performing a different
-       intent than the one asked for (the same reason an unknown verb is a hard
-       null below). */
-    'market_list', 'market_cancel', 'market_buy',
+  ['accrue', 'set_activity', 'shop_buy', 'vendor_sell',
     /* b366 — THE EQUIP VERB. Phase 2 of docs/design/live-settlement.md, and the
        gap that made the b362/b363 equip-dupe class possible at all: NOTHING
        told the server about a client equip, so its `player_inventory` row went

@@ -6,7 +6,7 @@
 //   node tests/rpc-execute-surface.mjs --selftest  every planted defect must be caught
 //   node tests/rpc-execute-surface.mjs --write     re-pin after a REVIEWED surface change
 //
-// mutant-anchors: supabase/migrations/2026-10-28-reopen-rpc-sweep.sql
+// mutant-anchors: supabase/migrations/2026-10-30-server-cleanup.sql
 //
 // ── THE FAILURE THIS KILLS (Security review, 2026-10-19) ─────────────────────
 // hr_claim_rank paid up to 1,000,000 gold per character by a direct update,
@@ -27,7 +27,7 @@
 //                 a grant with no approval is grant hygiene's red, asked again).
 //   S3 retired    no function named in RETIRED exists at all, whatever the pin
 //                 says — `--write` cannot re-admit a retired money claim.
-//   S4 re-apply   2026-10-28-reopen-rpc-sweep.sql applied a SECOND time leaves the
+//   S4 re-apply   the chain-end author (FIX) applied a SECOND time leaves the
 //                 surface and hr_rpc_gate's body byte-identical.
 //
 // Exit: 0 green · 1 red · 2 harness problem.
@@ -37,16 +37,21 @@ import { join } from 'node:path';
 import { bootReplay, LAST_PATCHED, ROOT } from './schema-replay.mjs';
 import { isMain } from './_is-main.mjs';
 
-const FIX = '2026-10-28-reopen-rpc-sweep.sql';
+/* The chain-end author of the surface: the server cleanup (after the reopen
+   sweep). Mutants ride its tail; S4 re-applies it. */
+const FIX = '2026-10-30-server-cleanup.sql';
 const PIN = join(ROOT, 'tests', 'rpc-execute-surface.baseline.json');
 const ROLES = ['anon', 'authenticated', 'hr_engine', 'hr_tick'];
 
-/* Retired with 2026-10-28-reopen-rpc-sweep.sql (wrapper AND __ungated body).
+/* Retired with 2026-10-28-reopen-rpc-sweep.sql and 2026-10-30-server-cleanup.sql (wrapper AND __ungated body).
    Bringing one back is a design decision that edits THIS list, in review. */
 const RETIRED = [
   'hr_claim_rank', 'hr_claim_milestone', 'hr_claim_quest', 'hr_claim_daily',
   'raid_claim', 'world_event_claim', 'world_event_absence_claim',
   'world_event_pledge', 'world_event_pledge_settle', 'hr_buy_gem_unlock',
+  /* the value writers 2026-10-30-server-cleanup.sql dropped with their systems */
+  'hr_market_list', 'hr_market_cancel', 'hr_market_buy', 'hr_unlock_buy', 'hr_companion_grant',
+  'raid_strike', 'clan_contribute', 'clan_deposit', 'world_event_contribute', 'hr_worker_hire',
 ];
 
 async function measure(db) {
@@ -122,7 +127,7 @@ async function run({ patches = null } = {}) {
 // the shape no self-check of 2026-10-28 can see. Every one keeps grant hygiene
 // quiet (each grant comes with its approval row, or rides c_engine_allow), so a
 // catch here is THIS guard's, not hygiene's.
-const ANCHOR = "  raise notice 'reopen-rpc-sweep: 10 dormant claims dropped, 3 market writers unreachable, gate restated; all green';\nend $$;\n";
+const ANCHOR = "  raise notice 'server-cleanup: old systems dropped, readers restated, gate exact; all green';\nend $$;\n";
 const after = (sql) => [[ANCHOR, `${ANCHOR}\n${sql}\n`]];
 const MUTATIONS = [
   {
@@ -138,9 +143,9 @@ insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note
     expect: ['S1', 'S3'],
   },
   {
-    name: 'engine-market-regrant',
-    why: 'hr_market_buy is granted back to hr_engine; c_engine_allow still lists it, so hygiene is quiet.',
-    patches: after('grant execute on function public.hr_market_buy(uuid, integer, bigint, uuid, uuid, bigint) to hr_engine;'),
+    name: 'engine-widened',
+    why: 'hr_engine is handed an operator body (the moderation rename) no engine path needs.',
+    patches: after('grant execute on function public.hr_mod_force_rename(uuid, text) to hr_engine;'),
     expect: ['S1'],
   },
   {

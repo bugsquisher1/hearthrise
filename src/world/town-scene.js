@@ -20,12 +20,12 @@
 // ref.player so a right-click opens the shared player menu for that account.
 // PURE: no DOM, no window, no G — the caller passes the walkers and the clock.
 // ════════════════════════════════════════════════════════════════════════
-import { STATION_FALLBACK } from '../data/world/stations.js?v=0.2.12';
-import { TOWN_PRESENCE } from '../data/town-presence.js?v=0.2.12';
-import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.12';
-import { createSteer, standOn, walkClip } from './steer-local.js?v=0.2.12';
-import { pickFacing } from './core/facing.js?v=0.2.12';
-import { T } from './core/grid.js?v=0.2.12';
+import { STATION_FALLBACK } from '../data/world/stations.js?v=0.2.13';
+import { TOWN_PRESENCE } from '../data/town-presence.js?v=0.2.13';
+import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.13';
+import { createSteer, standOn, walkClip } from './steer-local.js?v=0.2.13';
+import { pickFacing } from './core/facing.js?v=0.2.13';
+import { T } from './core/grid.js?v=0.2.13';
 
 /** The stand tile for an activity kind: its own station, else the fallback, else the start. */
 export function stationOf(map, kind) {

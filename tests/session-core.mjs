@@ -31,7 +31,7 @@
 //   LEAVE-2 a refused settle after a pending leave is followed by the plain read (leave_at is shown)
 //   LEAVE-3 the countdown starts from the leave's own answer (the settle after it still out): whole
 //          seconds >= 1 to leave_at, then "now" (never 0 or negative), then "late" a leaveLateMs past
-//          it, and the close is still asked while it is late
+//          it, and the close is still asked while it is late; the next hunt shows none
 //   ACC-1  at most the server's concurrent limit open (within the tab's ceiling); close frees a place
 //   ACC-4  the limit is the SERVER's (account.max_concurrent): a smaller one holds, an unstated one
 //          allows one character, a larger one is capped by the tab's ceiling
@@ -375,9 +375,9 @@ async function rules(M) {
   await t('LEAVE-3', async () => {
     const S0 = Date.parse('2031-01-01T00:00:00Z');
     const iso = (ms) => new Date(ms).toISOString();
-    let clientT = 0, v = 1, release = null;
-    const hunt = (leaveAt) => ({ session_id: 'h1', hunt_id: 'mill_cellar', ended: false,
-      session: { id: 'h1', leave_at: leaveAt === null ? null : iso(leaveAt), phase: leaveAt === null ? 'hunting' : 'leaving' } });
+    let clientT = 0, v = 1, release = null, sid = 'h1';
+    const hunt = (leaveAt) => ({ session_id: sid, hunt_id: 'mill_cellar', ended: false,
+      session: { id: sid, leave_at: leaveAt === null ? null : iso(leaveAt), phase: leaveAt === null ? 'hunting' : 'leaving' } });
     const LEAVE_AT = S0 + 7000;
     let leaving = false;
     const body = () => env(++v, { now: iso(S0 + clientT), hunt: hunt(leaving ? LEAVE_AT : null) });
@@ -414,7 +414,11 @@ async function rules(M) {
     await pending;
     const live = armed.filter((x) => x.live);
     if (live.length !== 1) return 'a late leave stopped asking for the close: ' + JSON.stringify(live.map((x) => x.ms));
-    return cs.leaveCountdown().phase === 'late' || 'the late leave lost its phase: ' + JSON.stringify(cs.leaveCountdown());
+    if (cs.leaveCountdown().phase !== 'late') return 'the late leave lost its phase: ' + JSON.stringify(cs.leaveCountdown());
+    /* THE NEXT HUNT: a leave's answer is its own session's only; a new hunt shows no countdown */
+    sid = 'h2'; leaving = false;
+    await cs.load();
+    return cs.leaveCountdown() === null || 'a new hunt shows the last hunt’s leave countdown: ' + JSON.stringify(cs.leaveCountdown());
   });
 
   const mkAccount = (srv, o = {}) => {
@@ -569,9 +573,10 @@ const MUTANTS = [
   ['a refused settle leaves the leave unseen', 'src/session/character-session.js', "      if (!(await this.hello()) && !this._closed) await this.load();", "      await this.hello();"],
   ['the close waits a whole poll past leave_at', 'src/session/character-session.js', "    if (close !== null) ms = Math.min(ms, close);", ""],
   ['an armed poll is never moved earlier', 'src/session/character-session.js', "      if (!(due < this._huntDue)) return;", "      return;"],
-  ['the countdown waits for the settle after the leave', 'src/session/character-session.js', "      this._askedLeave(ans.body.session);\n", ""],
-  ['the countdown reads 0 past leave_at', 'src/session/character-session.js', "    if (left > 0) return { phase: 'counting', s: Math.ceil(left / 1000) };", "    if (left > -SESSION_CONFIG.leaveLateMs) return { phase: 'counting', s: Math.ceil(left / 1000) };"],
-  ['a late leave is never told apart', 'src/session/character-session.js', "phase: left > -SESSION_CONFIG.leaveLateMs ? 'now' : 'late'", "phase: 'now'"],
+  ['the countdown waits for the settle after the leave', 'src/session/character-session.js', "      this._leaveAsk = leaveAskOf(ans.body.session);\n", ""],
+  ['the leave answer is held for another session', 'src/session/hunt-leave.js', "ask.session === h.session_id ? ask.at : null", "ask.at"],
+  ['the countdown reads 0 past leave_at', 'src/session/hunt-leave.js', "    if (left > 0) return { phase: 'counting', s: Math.ceil(left / 1000) };", "    if (left > -SESSION_CONFIG.leaveLateMs) return { phase: 'counting', s: Math.ceil(left / 1000) };"],
+  ['a late leave is never told apart', 'src/session/hunt-leave.js', "phase: left > -SESSION_CONFIG.leaveLateMs ? 'now' : 'late'", "phase: 'now'"],
   ['the close is timed on the device clock', 'src/session/character-session.js', "  serverNow() { return this.timeline.serverNowAt(this._now()); }", "  serverNow() { return Date.now(); }"],
   ['an idle settle replaces the character', 'src/session/character-session.js', "if (ans.ok && ans.body && ans.body.accrued !== true) return this.load();", ""],
 ];

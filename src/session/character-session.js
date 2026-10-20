@@ -53,7 +53,7 @@ import { LiveLink } from './live-link.js?v=0.2.20';
 import { RESIDUE_FIELDS, sanitizeResidueField } from './residue.js?v=0.2.20';
 import { SESSION_CONFIG } from './config.js?v=0.2.20';
 import { edgeBody } from './edge-intents.js?v=0.2.20';
-import { leaveAtOf } from './hunt-sections.js?v=0.2.20';
+import { leaveAskOf, pendingLeaveAt, leaveCountdown, closeInMs } from './hunt-leave.js?v=0.2.20';
 
 export const FRAME_EVENT = 'frame';
 
@@ -189,56 +189,15 @@ export class CharacterSession {
     this._huntTimer = this._setTimer(() => { this._huntTimer = null; this._huntDue = null; this._huntPoll(); }, ms);
   }
 
-  /* How soon (ms) to ask the settle that closes a pending leave: a hair after the server's leave_at;
-     once it is past, every leaveRetryMs for a leaveLateMs, then the ordinary poll (which keeps asking
-     while the hunt is open). Null: no leave pends (or the server's clock is not measured yet). */
-  _closeInMs() {
-    const at = this.leaveAt();
-    const now = this.serverNow();
-    if (at === null || now === null) return null;
-    const left = at - now;
-    if (left > 0) return Math.ceil(left) + SESSION_CONFIG.leaveSlackMs;
-    return left > -SESSION_CONFIG.leaveLateMs ? SESSION_CONFIG.leaveRetryMs : null;
-  }
+  /* A PENDING LEAVE (hunt-leave.js), on the server's clock: its instant is the envelope's leave_at, else
+     the leave's own answer for the same session (so the countdown never waits on the settle after it). */
+  _closeInMs() { return closeInMs(this.leaveAt(), this.serverNow()); }
 
-  /**
-   * The pending leave's server instant (ms), or null: the last envelope's hunt section, else the
-   * leave's own answer for the same open session (hr_hunt_leave returns the session it set leave_at
-   * on), so the countdown starts one round trip after the press, not after the settle that follows.
-   */
-  leaveAt() {
-    if (!this._huntOpen()) return null;
-    const h = this.read('hunt');
-    const at = leaveAtOf(h);
-    if (at !== null) return at;
-    const a = this._leaveAsk;
-    return a && a.session === h.session_id ? a.at : null;
-  }
+  /** The pending leave's server instant (ms), or null when none pends (or no hunt is open). */
+  leaveAt() { return this._huntOpen() ? pendingLeaveAt(this.read('hunt'), this._leaveAsk) : null; }
 
-  /**
-   * The pending leave as the hunt bar shows it, on the SERVER's clock; null when none pends.
-   * 'counting' with s >= 1 whole seconds to leave_at (never 0, never negative); 'now' from leave_at
-   * until a leaveLateMs past it (the closing settle is being asked); 'late' after that (still open,
-   * still asked); 'asked' while the server's clock is not measured yet.
-   * @returns {null | {phase: 'counting'|'now'|'late'|'asked', s: number|null}}
-   */
-  leaveCountdown() {
-    const at = this.leaveAt();
-    if (at === null) return null;
-    const now = this.serverNow();
-    if (now === null) return { phase: 'asked', s: null };
-    const left = at - now;
-    if (left > 0) return { phase: 'counting', s: Math.ceil(left / 1000) };
-    return { phase: left > -SESSION_CONFIG.leaveLateMs ? 'now' : 'late', s: null };
-  }
-
-  /* The leave's answer (hr_hunt_view of the session): its leave_at, held for that session only until an
-     envelope's hunt section states its own (display and the close timer only; nothing spends it). */
-  _askedLeave(s) {
-    const at = s && typeof s === 'object' && typeof s.id === 'string' && typeof s.leave_at === 'string' ? Date.parse(s.leave_at) : NaN;
-    this._leaveAsk = Number.isFinite(at) ? { session: s.id, at } : null;
-    if (this._leaveAsk) this._armHuntPoll();
-  }
+  /** The pending leave as the hunt bar shows it (hunt-leave.js leaveCountdown), or null when none pends. */
+  leaveCountdown() { const at = this.leaveAt(); return at === null ? null : leaveCountdown(at, this.serverNow()); }
 
   async _huntPoll() {
     if (this._closed || !this._huntOpen()) return;
@@ -322,19 +281,17 @@ export class CharacterSession {
   }
 
   /**
-   * Leave the hunt (hr_hunt_leave). The leave is always PENDING (2026-10-31-live-horizon.sql): the
-   * server closes the hunt at leave_at, past the last combat swing the browser was shown. The
-   * hunter's own settle follows at once (a stalled hunt's leave_at is now, and that settle ends it);
-   * the leave's own answer already carries leave_at, so the top bar counts down from it at once (never
-   * waiting on that settle), and the re-read is timed by it.
-   * When that settle answers nothing the plain read still brings leave_at, never a guess.
+   * Leave the hunt (hr_hunt_leave): always PENDING, closed by the server at leave_at (hunt-leave.js).
+   * Its answer carries leave_at, so the countdown starts at once; the hunter's own settle follows (a
+   * stalled hunt's leave_at is now, and it ends it), else the plain read brings leave_at, never a guess.
    */
   async leaveHunt() {
     if (this._closed) return { ok: false, error: 'closed' };
     const ans = await this._server.rpc('hr_hunt_leave', { p_slot: this.slot, p_idem: newIdem() });
     if (this._closed) return { ok: false, error: 'closed' };
     if (ans.ok && ans.body && ans.body.ok === true && ans.body.pending === true) {
-      this._askedLeave(ans.body.session);
+      this._leaveAsk = leaveAskOf(ans.body.session);
+      this._armHuntPoll();
       if (!(await this.hello()) && !this._closed) await this.load();
       return { ok: true };
     }

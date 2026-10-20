@@ -118,6 +118,11 @@ function positionMonsters(inst, sc) {
 function tankPos(inst, h, mons) {
   if (kites(h)) { keepDistance(inst, h, mons); return; }
   if (!h.chase || mons.some((m) => cheb(m, h) <= 1)) { clearGoal(h); return; }
+  /* A tank no monster is coming for (a second tank: the pack is on the leader) walks to its own target
+     like any melee. The hold below is for the tank the pack walks to; without this a second tank within
+     dist + 1.5 of the fight never moved and hit only what wandered next to it (live v0.2.20, ~30% of
+     the leader's blows). */
+  if (!mons.some((m) => m.target === h.id)) { closeIn(inst, h, unitById(inst, h.target) || nearestTo(mons, h)); return; }
   const near = nearestTo(mons, h);
   if (4 * dist2(near, h) <= (2 * h.dist + 3) * (2 * h.dist + 3) || h.aiMs > 0) return;
   h.aiMs = AI_REPATH_MS.melee;
@@ -130,7 +135,11 @@ function meleePos(inst, h, mons, k) {
   if (kites(h)) { keepDistance(inst, h, mons); return; }
   if (!h.chase) { clearGoal(h); return; }
   const lt = k && k !== h ? unitById(inst, inst.world.leaderLast) : null;
-  const tgt = (lt && lt.alive && mons.includes(lt)) ? lt : unitById(inst, h.target);
+  closeIn(inst, h, (lt && lt.alive && mons.includes(lt)) ? lt : unitById(inst, h.target));
+}
+
+/* The walk every melee hero takes to its mark: a free tile beside `tgt` (else on its queue ring). */
+function closeIn(inst, h, tgt) {
   if (!tgt) return;
   if (cheb(h, tgt) <= 1 && atRest(h)) { clearGoal(h); return; }
   if (h.aiMs > 0 && h.path.length) return;

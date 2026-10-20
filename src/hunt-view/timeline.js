@@ -32,6 +32,9 @@
 //      stands, rolled over max(easeMs, its distance x EASE_MS_PER_TILE), never a teleport.
 //   T9 the delay can be changed (setDelay): the live view plays a hair behind real time, a
 //      server-paced character a poll behind.
+//   T10 ONE HUNT AT A TIME: clear() forgets every unit when the character's hunt session changes
+//      (unit ids restart in every instance: a unit kept from the last hunt was drawn on the new
+//      ground's walls and slid from there across the map, live v0.2.20).
 //   T5 bounded: at most `maxSteps` per unit and `maxEvents` remembered ids, and
 //      a unit the snapshot's pose no longer lists is forgotten once its last step
 //      is `forgetMs` behind the pose (a corpse has lain; a respawn is a new id).
@@ -146,7 +149,8 @@ export function createTimeline(o) {
     measure(b.serverNowMs, clientNowMs);
     noteUnits(b.units, b.fromMs);
     let ns = 0, ne = 0;
-    for (const s of Array.isArray(b.track) ? b.track : []) if (s && addStep(s.u, s.x, s.y, s.atMs)) ns++;
+    /* a step may carry its roll's own duration (`dur`, the live engine's drawn timing); else it rolls over tileMs */
+    for (const s of Array.isArray(b.track) ? b.track : []) if (s && addStep(s.u, s.x, s.y, s.atMs, s.dur)) ns++;
     for (const ev of Array.isArray(b.events) ? b.events : []) {
       if (!ev || typeof ev.type !== 'string' || !isInt(ev.atMs)) continue;
       const k = eventKey(ev);
@@ -257,8 +261,12 @@ export function createTimeline(o) {
     return { hp: Math.max(0, Math.min(r.maxHp, hp)), maxHp: r.maxHp };
   }
 
+  /** T10: a new hunt session is a new instance whose unit ids start again at 1: forget every step,
+      queued event and book entry (the clock offset is kept: it is the server's, not the hunt's). */
+  function clear() { steps.clear(); queue.length = 0; book.clear(); }
+
   return {
-    ingest, reconcile, advance, positionAt, clientAt, kindOf, hpAt, serverNowAt, rebase,
+    ingest, reconcile, advance, positionAt, clientAt, kindOf, hpAt, serverNowAt, rebase, clear,
     /** T9: play `ms` behind the server from now on. */
     setDelay(ms) { if (Number.isFinite(ms) && ms >= 0) cfg.delayMs = ms; },
     delayMs: () => cfg.delayMs,

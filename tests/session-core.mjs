@@ -256,21 +256,42 @@ async function rules(M) {
     const armed = [];
     const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, setTimer: (fn, ms) => { armed.push({ fn, ms }); return armed.length; }, clearTimer: () => {} });
     await cs.load();
-    /* The live view (option B) asks at once for its start point (liveAskMs); an answer without one
-       counts a try, and after liveAskTries the ordinary huntPollMs settle resumes. */
+    /* The live view (option B) asks at once for its start point (liveAskMs); each answer without one
+       doubles the wait, up to the ordinary huntPollMs settle (live-link.js askDelayMs). */
     if (armed.length !== 1 || armed[0].ms !== CFG.SESSION_CONFIG.liveAskMs) return 'an open hunt did not ask at once for its live start point: ' + JSON.stringify(armed.map((a) => a.ms));
     armed.shift().fn();
     await new Promise((r) => setImmediate(r));
     if (calls.join(',') !== 'hr_load,accrue:0') return 'the re-read did not ask the hunter\'s settle for the slot: ' + calls.join(',');
     if (!cs.timeline.units().includes(1)) return 'the settle\'s track never reached the timeline';
     if (armed.length !== 1) return 'the re-read did not re-arm while the hunt is open (' + armed.length + ')';
-    for (let i = 0; i < CFG.SESSION_CONFIG.liveAskTries && armed[0].ms === CFG.SESSION_CONFIG.liveAskMs; i++) { armed.shift().fn(); await new Promise((r) => setImmediate(r)); }
+    const waits = [];
+    for (let i = 0; i < 12 && armed.length === 1 && armed[0].ms < CFG.SESSION_CONFIG.huntPollMs; i++) { waits.push(armed[0].ms); armed.shift().fn(); await new Promise((r) => setImmediate(r)); }
+    if (waits.some((w, i) => i > 0 && w !== Math.min(CFG.SESSION_CONFIG.huntPollMs, waits[i - 1] * 2))) return 'the asks for a live start point did not double: ' + waits.join(',');
+    /* it never gives up while the hunt is open: it backs off all the way to the ordinary poll (v0.2.20 stopped after two) */
+    if (!(waits[waits.length - 1] * 2 >= CFG.SESSION_CONFIG.huntPollMs)) return 'the asks for a live start point gave up before backing off to huntPollMs: ' + waits.join(',');
     if (armed.length !== 1 || armed[0].ms !== CFG.SESSION_CONFIG.huntPollMs) return 'without a live start point the ordinary re-read did not resume at huntPollMs: ' + JSON.stringify(armed.map((a) => a.ms));
     next = env(3, { hunt: { session_id: 'h1', hunt_id: 'mill_cellar', ended: true } });
     armed.shift().fn();
     await new Promise((r) => setImmediate(r));
     if (!cs.record.data.hunt.ended) return 'the ended hunt did not replace the open one';
     return armed.length === 0 || 'an ended hunt kept re-reading';
+  });
+  /* HUNT-1F (live v0.2.20, the http origin's blocked calls): an ask for the live start point that brings
+     NO answer backs off like one that brings no start point; it never re-arms every liveAskMs forever. */
+  await t('HUNT-1F', async () => {
+    const open = (v) => env(v, { hunt: { session_id: 'h1', hunt_id: 'mill_cellar', ended: false } });
+    const srv = {
+      rpc: async () => ({ ok: true, status: 200, body: open(1), closed: false }),
+      accrue: async () => ({ ok: false, status: 0, body: null, closed: false, error: 'network' }),
+    };
+    const armed = [];
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, setTimer: (fn, ms) => { armed.push({ fn, ms }); return armed.length; }, clearTimer: () => {} });
+    await cs.load();
+    const waits = [];
+    for (let i = 0; i < 8 && armed.length; i++) { waits.push(armed[0].ms); armed.shift().fn(); await new Promise((r) => setImmediate(r)); }
+    const live = CFG.SESSION_CONFIG.liveAskMs;
+    return (waits.length === 8 && waits[0] === live && waits[3] >= live * 8 && waits[7] === CFG.SESSION_CONFIG.huntPollMs)
+      || 'failed asks did not back off to the ordinary poll: ' + waits.join(',');
   });
   /* HUNT-2 (AWAY / pending leave, live v0.2.1 "Leave hunt does nothing"): a leave with hunting time owed
      answers `pending`; the hunter's settle that follows ends it, and that envelope REPLACES the open hunt. */
@@ -441,6 +462,8 @@ const MUTANTS = [
   ['an open hunt is never re-read', 'src/session/character-session.js', "    this._emit(why);\n    this._armHuntPoll();", "    this._emit(why);"],
   ['an ended hunt keeps re-reading', 'src/session/character-session.js', "typeof h.session_id === 'string' && h.ended !== true;", "typeof h.session_id === 'string';"],
   ['a pending leave waits for the world tick', 'src/session/character-session.js', "ans.body.pending === true) { await this.hello(); return { ok: true }; }", "ans.body.pending === true) { await this.load(); return { ok: true }; }"],
+  ['a failed live ask re-arms at once, forever', 'src/session/character-session.js', 'if (!took) this.liveLink.missed();', ''],
+  ['the live ask gives up after two tries', 'src/session/live-link.js', '      this.want = true;\n      this._tries++;', '      this.want = this._tries < 2;\n      if (this.want) this._tries++;'],
   ['an idle settle replaces the character', 'src/session/character-session.js', "if (ans.ok && ans.body && ans.body.accrued !== true) return this.load();", ""],
 ];
 
@@ -457,7 +480,7 @@ async function main() {
   if (!mutate) {
     const fails = [...await rules(await load(ROOT)), ...await viewRules(ROOT)];
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (23 rules)');
+    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (24 rules)');
     process.exit(fails.length ? 1 : 0);
   }
   let bad = 0;

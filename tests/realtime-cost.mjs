@@ -237,9 +237,13 @@ async function run(mutation) {
   }
 
   // R5 — CONTROL. The trim must UNPUBLISH, never DROP. A migration that deleted
-  // the tables would satisfy R1-R4 and destroy the market.
-  ok(tablesAlive === 3,
-    `R5 all three tables must still EXIST after the trim (unpublishing is not dropping); found ${tablesAlive}/3`);
+  // the tables would satisfy R1-R4 and destroy the market. A mutant replay stops
+  // at the trim (all three must exist there); the plain run reaches the chain
+  // end, where 2026-10-31-server-cleanup.sql dropped the two market tables on
+  // purpose, so only chat_messages is owed there.
+  const want = m && m.sql ? 3 : 1;
+  ok(tablesAlive === want,
+    `R5 the trim must not drop a table it unpublishes (unpublishing is not dropping); found ${tablesAlive}/${want}`);
 
   return problems.slice();
 }

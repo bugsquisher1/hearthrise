@@ -73,7 +73,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { bootReplay, ROOT, manifest } from './schema-replay.mjs';
+import { bootReplay, ROOT, manifest, chainFileBefore, SERVER_CLEANUP } from './schema-replay.mjs';
 import { isMain } from './_is-main.mjs';
 
 /** The file that refills public.hr_unlocks wholesale. */
@@ -159,7 +159,9 @@ async function run({ control = false } = {}) {
   const unscoped = /^\s*delete\s+from\s+public\.hr_unlocks\s*;/im.test(ownerSrc);
 
   // ── (2) THE CHAIN REBUILDS THE CATALOGUE ────────────────────────────────
-  const { db } = await bootReplay();
+  /* Before the server cleanup: the reseed's companion rows need hr_companion_grant,
+     which that file drops (schema-replay.mjs SERVER_CLEANUP). */
+  const { db } = await bootReplay({ upTo: await chainFileBefore(SERVER_CLEANUP) });
   const q = async (s) => (await db.query(s)).rows;
   const before = await q(FP_SQL);
   const fpOf = (rows) => new Map(rows.map((r) => [r.unlock_id, r.fp]));

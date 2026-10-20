@@ -1817,18 +1817,6 @@ jobs:
       - name: Install node modules (no browser)
         run: npm install --no-audit --no-fund
 
-      - name: Unlock buy — mutation proof
-        if: ${{ !cancelled() }}
-        run: node tests/unlock-buy.mjs --selftest
-
-      - name: Companion codes severity — mutation proof
-        if: ${{ !cancelled() }}
-        run: node tests/companion-codes-severity.mjs --selftest
-
-      - name: Market v2 — mutation proof
-        if: ${{ !cancelled() }}
-        run: node tests/market-v2.mjs --selftest
-
       # (Auto-eat at creation — RETIRED 2026-10-14 by lane C2 with Auto-Eat
       # itself: tests/hunt-sessions-db.mjs D1 asserts the switch and its columns
       # are gone. Deliberately unregistered, not forgotten.)
@@ -1911,16 +1899,6 @@ jobs:
           node tests/closed-rebuild.mjs
           node tests/closed-rebuild.mjs --mutate
 
-      # Absence claim -> the account wallet (2026-10-19-absence-claim-wallet.sql,
-      # Security F1): an attended claim pays gold on the pledge's character and
-      # its gem into the wallet once per account per day; replay refused.
-      # --mutate: 6 SQL mutants, each red on its named §2 arm.
-      - name: Absence claim — gold on char_slot, the gem into the account wallet once
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/absence-claim-wallet.mjs
-          node tests/absence-claim-wallet.mjs --mutate
-
       # NO SELF-ECHO FRAMES (2026-10-09-frame-self-echo.sql). A player's own
       # HTTP write is not pushed back to their own topic; another character's
       # write, a world-tick settle and every client-shaped request still are.
@@ -1987,10 +1965,6 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/artisan-progress-model.mjs --mutate
 
-      - name: Companion grant hardening — mutation proof
-        if: ${{ !cancelled() }}
-        run: node tests/companion-grant-hardening.mjs --selftest
-
       # FRACTIONAL XP IS CARRIED (2026-10-09-xp-frac-carry.sql). Batching moves
       # no unit, +2% pays on the slime, attended == away == world tick in XP AND
       # remainder, the seeded draws are unchanged, the remainder is clamped and
@@ -2017,19 +1991,6 @@ jobs:
         run: |
           node tests/delta-key-allowlists.mjs
           node tests/delta-key-allowlists.mjs --mutate
-
-      # EVERY WRITE OF THE EQUIPPED PET BUMPS THE ROW VERSION. hr_apply's
-      # companion_not_equipped refusal is a stall, not a bug, only because a
-      # swap turns an in-flight settle into version_conflict. CE0 the scan sees
-      # hr_companion_equip; CE1 every UPDATE/upsert SET of companion_equipped
-      # carries version = version + 1 in the same statement; CE2 no record-field,
-      # dynamic-SQL or MERGE write; CE3 no client role holds UPDATE on the column;
-      # CE4 a real equip moves version by exactly 1. --mutate: 10 mutants.
-      - name: Companion equip bumps version (base + mutate)
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/companion-equip-version-bump.mjs
-          node tests/companion-equip-version-bump.mjs --mutate
 
       # LANE S2 (2026-10-25-*.sql): the alpha windows' and the party UI's server
       # half. The catalogue (supply offers, stamina refill, blessings) is GENERATED
@@ -2176,24 +2137,6 @@ jobs:
         run: |
           node tests/progress-coalesce.mjs
           node tests/progress-coalesce.mjs --mutate
-      # F5 LOCKDOWN, ADOPTED (b569). Registered nowhere and red since the file
-      # entered the order (42P01: it replayed the WHOLE chain, which already
-      # dropped public.leaderboard, then looked for the hole to reproduce). It
-      # now replays up to its predecessor — the state the migration targets —
-      # reproduces F5, applies, proves the revoke + controls, and requires §5 to
-      # refuse five broken variants by name. Measured 12 s locally.
-      - name: Leaderboard view lockdown — F5 reproduces, closes, and §5 refuses five mutants
-        if: ${{ !cancelled() }}
-        run: node tests/leaderboard-lockdown-guard.mjs
-
-  # ── artisan-selftest ── tests/artisan-accrual.mjs --selftest (b569). Its plain
-  # run is in run-smoke; the 22-mutant proof was registered nowhere and was RED
-  # on origin/main (M1 double anchor, S5/S6 anchors removed by b374, M5/M8/M10
-  # unreachable since cooking was armed). It plants into the WORKING TREE
-  # (tests/mutation-safety.mjs restores and hash-verifies), so it shares a job
-  # with nothing. MEASURED 2026-10-11 locally on a loaded box: 28 min.
-  # Budget = measured x2 = 56; re-measure from the first GitHub run and tighten.
-
       # Lane C2 hunt sessions — THE SETTLE (supabase/functions/hr-accrue/
       # hunt-settle.js + 2026-10-22-hunt-sessions-settle.sql, ruling
       # HR-2026-10-14 §4): TICK-2 (no ctx.away / presence / cap read on the hunt
@@ -2401,41 +2344,6 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/renown-kill-faucet.mjs --selftest
 
-      # ⬇ THE FLOOR UNDER EVERY MUTATION PROOF (2026-09-12, tests/guard-hygiene.mjs
-      # RULE 5). Each of the 22 steps below used to register ONLY the --selftest arm.
-      # A security review planted `where kind = NOSUCHCOLUMN_XYZ` in a guard's OWN SQL:
-      # every arm threw, the driver read each throw as "the guard went red", and the step
-      # printed "All 6 mutations caught", exit 0 — while the plain run of the same file
-      # was RED. A proof arm answers "can this go red"; only the plain arm answers "is it
-      # green when nothing is wrong", and it runs FIRST for that reason. Cost measured
-      # locally: ~110 s total for all 22. tests/snapshot-allowlist-guard.mjs is the
-      # standing proof the plain arm carries information the proof arm does not — its
-      # plain run is red on today's tree with its --selftest green beside it.
-
-      # b567 (P1 class-kill, CLAUDE.md §1): the rally chest priced up to 3,000 XP
-      # and BOTH claim RPCs returned it without writing player_skills; the browser
-      # called addXp, so combat-theme XP reached hr_credit_combat_xp client-
-      # authored. 2026-10-10-muster-chest-xp-credit.sql credits it inside the
-      # consume. Attended AND absence path x combat AND non-combat theme: the
-      # player_skills delta must EQUAL the response; xp_in journalled; replay and
-      # budget refusals move nothing. Every mutation has a gate-blind twin.
-      - name: Muster chest XP — server-credited on both paths, every mutation caught
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/muster-chest-xp-credit.mjs
-          node tests/muster-chest-xp-credit.mjs --selftest
-
-      # b567 (P1 class-kill + lost pay): hundred_kills' 1,500 XP was minted by the
-      # browser (hr_claim_quest wrote no XP) and the absence claim never credited
-      # its gold/gems. 2026-10-10-quest-xp-absence-pay.sql credits both inside the
-      # claim. Deltas must EQUAL the receipt; wrong user, double claim and budget
-      # refusals move nothing; every mutation has a gate-blind twin.
-      - name: Quest XP + absence gold/gems — server-credited, every mutation caught
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/quest-xp-absence-pay.mjs
-          node tests/quest-xp-absence-pay.mjs --selftest
-
       # RETIRED 2026-10-19 (core rebuild): tests/max-hp-tracks-hitpoints.mjs, the Hitpoints skill and the stored max_hp are deleted; max HP is derived from Level and armour, guarded by tests/core-curves.mjs (JS = SQL) and tests/hunt-sessions-settle.mjs MAXHP.
 
       # The attended-loot top-up is the OTHER half of the beta-2 progression
@@ -2503,25 +2411,6 @@ jobs:
       - name: Bank cap tracks rungs — base run (the migration itself is green)
         if: ${{ !cancelled() }}
         run: node tests/bank-cap-rungs.mjs
-
-      # THE FREE CREW (live 2026-09-09, b527). hr_worker_hire read its paid crew
-      # cap as coalesce(greatest(0, least(max(pp.value), 6)), 0) — and LEAST/GREATEST
-      # DROP null arguments, so a player who had bought NOTHING got least(NULL,6)=6
-      # and up to six workers for zero gold. This drives the REAL hr_unlock_buy and
-      # the REAL hr_worker_hire on a replayed chain (PGlite, no credentials): the
-      # unpaid hire must be refused with paid_cap 0, the six-rung price must be the
-      # one src/data/gold-ladders.js declares, the paid path must debit 500g exactly
-      # once, and the chain is replayed a SECOND time stopping BEFORE the migration
-      # to REPRODUCE the bug. Four mutations, each required to be caught.
-      - name: Worker hire cap — an unpaid crew cap is zero, not six
-        if: ${{ !cancelled() }}
-        run: node tests/worker-hire-cap.mjs --selftest
-
-      # Security C4 (2026-09-06): a --selftest-only registration cannot tell a broken
-      # migration from a working guard. Run the base too.
-      - name: Worker hire cap — base run (the migration itself is green)
-        if: ${{ !cancelled() }}
-        run: node tests/worker-hire-cap.mjs
 
       # RETIRED 2026-10-19 (core rebuild): tests/recovery-rest.mjs, hr_rest, recovering_until and the knockout ladder are deleted (a death ends the hunt); the death ledger and its price are guarded by tests/hunt-sessions-settle.mjs DEATH / DEATHXP / END.
 
@@ -2685,26 +2574,6 @@ jobs:
           node tests/absence-priced-at-return.mjs
           node tests/absence-priced-at-return.mjs --mutate
 
-      # THE HARVEST DAILY IS DEALT ONLY TO A FARMER (2026-10-16-daily-harvest-
-      # eligibility.sql, game-designer 2026-10-10). No seeds or no plot -> never
-      # offered; plantable seeds + a plot -> offered; SQL and JS rules agree over
-      # every input; the client slate equals the server's on a played character.
-      # --mutate: two JS and four SQL defects.
-      # (Harvest daily retired 2026-10-15: the daily tasks left with the
-      #  demolition, and tests/daily-harvest-eligibility.mjs with them.)
-
-      # THE CLAN JOURNAL INVARIANT (F1 + F3, 2026-08-13). "Every RPC that writes
-      # a shared table emits a clan_ledger row in the same transaction" — proven
-      # by calling the real RPCs on an in-process PostgreSQL with the real clan
-      # migration chain applied, not by a regex over migration text. --selftest
-      # plants seven regressions; FOUR of them are invisible to the migrations'
-      # own commit gates and are caught only here.
-      - name: Clan journal + per-day caps (F1/F3)
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/clan-journal-guard.mjs
-          node tests/clan-journal-guard.mjs --selftest
-
       # THE ANON RATE GATE (F4, 2026-08-13). Reproduces Security's probe — 30
       # anonymous calls against a limit of 20 must produce refusals — with the
       # authenticated control that made the original finding legible, plus the
@@ -2715,17 +2584,6 @@ jobs:
         run: |
           node tests/anon-rate-gate.mjs
           node tests/anon-rate-gate.mjs --selftest
-
-      # THE HUNT BAND. Proves, by running the real migration bodies on an
-      # in-process PostgreSQL, that the retired median rule DID let one member's
-      # honest good week pay a teammate nothing, that the shipped rule does not,
-      # and that a free-rider still collects nothing either way. --selftest
-      # mutates the real fix SQL five ways and demands every mutation is caught.
-      - name: Hunt band — denial before, gone after, free-rider still refused
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/raid-band-denial.mjs
-          node tests/raid-band-denial.mjs --selftest
 
       # THE BACKFILLED LIFETIME PLANT COUNTER MUST STAY UNPAYABLE (Security P2 on
       # supabase/migrations/2026-09-07-farm-plant-lifetime-counter.sql). That file

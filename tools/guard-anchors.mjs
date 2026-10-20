@@ -522,7 +522,9 @@ async function selftest() {
   }
 
   /* G — the migration scope, on the two shapes that missed on 2026-10-11: a charset
-     constraint on `clans` (tests/clan-economy-sinks.mjs seeds one) and an hr_state_of rewrite
+     constraint on a table a replay guard seeds (was `clans` / tests/clan-economy-sinks.mjs
+     until both left with the clans, 2026-10-31-server-cleanup.sql; now hr_access_allowlist /
+     tests/closed-rebuild.mjs) and an hr_state_of rewrite
      (the projection's --execute pin). A comment naming an object is not DDL. */
   {
     const t = ddlTargets("-- alter table public.ghosts\nalter table if exists public.clans add constraint clans_name_charset check (name ~ '^[a-z]');\n"
@@ -532,12 +534,12 @@ async function selftest() {
       `G1 DDL targets parsed (${[...t].join(', ')})`);
     const fake = 'supabase/migrations/2099-01-01-name-moderation-probe.sql';
     const read = (f) => (f === fake
-      ? ["alter table public.clans add constraint clans_name_charset check (name ~ '^[A-Za-z ]+$');\n"
+      ? ["alter table public.hr_access_allowlist add constraint allow_note_charset check (note ~ '^[A-Za-z ]+$');\n"
         + 'create or replace function public.hr_state_of(p_slot int) returns jsonb language sql as $$ select 1 $$;']
       : []);
     const st = migrationSteps(ROOT, [fake], read);
-    ok(st.some((s) => s.guard === 'tests/clan-economy-sinks.mjs' && s.arm === null),
-      'G2 a migration that alters clans re-runs tests/clan-economy-sinks.mjs (plain; it seeds clans — tests/vigour.mjs left with Vigour, lane C2)');
+    ok(st.some((s) => s.guard === 'tests/closed-rebuild.mjs' && s.arm === null),
+      'G2 a migration that alters hr_access_allowlist re-runs tests/closed-rebuild.mjs (plain; it seeds the allowlist)');
     ok(st.some((s) => s.guard === 'tests/no-client-copy-of-projection.mjs' && s.arm === '--execute'),
       'G3 a migration that rewrites hr_state_of runs no-client-copy-of-projection --execute');
     ok(!migrationSteps(ROOT, [ENV_FILE], read).length, 'G4 no migration in the diff, no replay steps');

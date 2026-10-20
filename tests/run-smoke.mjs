@@ -29,13 +29,9 @@ import { goalCountersGuard } from './goal-counters.mjs';
 import { inventoryCompleteGuard } from './inventory-complete-probe.mjs';
 import { goalCatalogueDriftGuard } from './goal-catalogue-drift.mjs';
 import { collectionRenownClaimDriftGuard } from './collection-renown-claim-drift.mjs';
-import { unlockBuyGuard } from './unlock-buy.mjs';
-import { marketV2Guard } from './market-v2.mjs';
-import { marketIntentGuard } from './market-intent.mjs';
 import { runAll as equipIntentGuards } from './equip-intent.mjs';
 import { runAll as eatIntentGuards } from './eat-intent.mjs';
 import { guard as skillRowUpsertGuard } from './skill-row-upsert.mjs';
-import { guard as leaderboardSourceGuard } from './leaderboard-server-source.mjs';
 import { itemsCatalogueGuard, itemsCatalogueMutationGuard } from './items-catalogue.mjs';
 import { clientWriteSweep2Guard } from './client-write-sweep-2.mjs';
 import { clientWriteSweep3Guard } from './client-write-sweep-3.mjs';
@@ -43,16 +39,12 @@ import { clientWriteSweep4Guard } from './client-write-sweep-4.mjs';
 import { clientWriteSweep5Guard } from './client-write-sweep-5.mjs';
 import { bugTriageGuard } from './bug-triage.mjs';
 import { nativeDialogGuard } from './native-dialog.mjs';
-import { clanDepositOwnershipGuard } from './clan-deposit-ownership.mjs';
-import { clanEconomySinksGuard } from './clan-economy-sinks.mjs';
 import { feastCatalogueDriftGuard } from './clan-feast-catalogue-drift.mjs';
 import { rpcGateBucketGuard } from './rpc-gate-bucket-guard.mjs';
 import { heroSlotBuyGuard } from './hero-slot-buy.mjs';
 import { accrueEnvelopeAwayGuard } from './accrue-envelope-away.mjs';
 import { unlockOfferOwnershipGuard } from './unlock-offer-ownership.mjs';
 import { unlockCatalogueOwnershipGuard } from './unlock-catalogue-ownership.mjs';
-import { companionGrantHardeningGuard } from './companion-grant-hardening.mjs';
-import { companionCodesSeverityGuard } from './companion-codes-severity.mjs';
 import { runAll as artisanAccrualGuards } from './artisan-accrual.mjs';
 import { runAll as activitySeamGuards } from './activity-seam.mjs';
 import { runAll as liveSettlementGuards, engineGuard as settleReport,
@@ -1253,93 +1245,6 @@ const run = async () => {
       for (const line of skillRowUpsertGuard.report || []) console.log(`  ${line}`);
     }
 
-    /* ── Security S2: the boards stop ranking the save blob ──────────────
-       public.leaderboard_ranked was a materialized view over
-       game_saves.snapshot — the CLIENT-AUTHORED save file — so `G.gold = 1e12`
-       → autosave bought rank #1 on Wealth, and the same line took Total Level,
-       Combat Level and every skill board. It also read the display name out of
-       that blob when a player had no profiles row, which published a name of
-       their choosing to every other player's screen. Rebuilt over player_state
-       and player_skills by 2026-08-18-leaderboard-server-source.sql.
-         The guard asserts BOTH directions, which is the whole point: a view
-       that ranks nothing at all would satisfy "the forgery is dead" perfectly,
-       so every negative is paired with a legitimate server-written change that
-       MUST move the same board. `node tests/leaderboard-server-source.mjs
-       --mutate` plants six real defects (wealth re-sourced from the blob; the
-       F5 revoke dropped so the recreated matview re-inherits anon SELECT;
-       renown re-added from the blob; the playerName impersonation fallback
-       restored; the missing-skill-row coalesce defaulting to 0; and the §0
-       predecessor gate weakened to a term the older migration also contains)
-       and requires all six to read RED. */
-    const leaderboardProblems = await leaderboardSourceGuard();
-    if (leaderboardProblems.length) {
-      console.log('\nLeaderboard server source (S2) — FAILED:');
-      for (const p of leaderboardProblems) console.log(`  ✗ ${p}`);
-      exitCode = 1;
-    } else {
-      console.log('\nLeaderboard server source — a forged game_saves snapshot moves no board, a '
-        + 'server-written XP/gold change does, the matview is not client-selectable, names come '
-        + 'from profiles, and the two boards with no server source rank nobody.');
-      for (const line of leaderboardSourceGuard.report || []) console.log(`  ${line}`);
-    }
-
-    const unlockProblems = await unlockBuyGuard();
-    if (unlockProblems.length) {
-      console.log('\nUnlock purchase guard (hr_unlock_buy) — FAILED:');
-      for (const p of unlockProblems) console.log(`  ✗ ${p}`);
-      exitCode = 1;
-    } else {
-      console.log('\nUnlock purchase guard — a bought Kitchen rung reaches hr_perks_of and cooks a '
-        + 'span with 0 burns; a double buy, a skipped rung, a replay and a stale version all refuse '
-        + 'by name with gold measured.');
-    }
-
-    /* ── The market guard (market v2) ───────────────────────────────────
-       THE FIRST CROSS-PLAYER VALUE TRANSFER. Every other economy guard in this
-       suite measures ONE character, because every other verb touches one;
-       hr_market_buy is the first function that writes a row belonging to
-       somebody who is not the caller, so this one measures BOTH and states its
-       assertions as conservation identities (Σgold+Σtax, Σitems+Σescrow). The
-       whole migration chain replays here, so 2026-08-17-market-v2.sql's own
-       self-verifying blocks — §0's refuse-to-install with both scan controls
-       and §11's structural, source, cron and immutability checks — execute on
-       every suite run. `node tests/market-v2.mjs --selftest` plants seventeen
-       real defects; every one must read RED. */
-    const marketProblems = (await marketV2Guard()).failures;
-    if (marketProblems.length) {
-      console.log('\nMarket v2 guard (two-player transfer) — FAILED:');
-      for (const p of marketProblems) console.log(`  x ${p}`);
-      exitCode = 1;
-    } else {
-      console.log('\nMarket v2 guard — a real list/buy moves gold and items between two real '
-        + 'characters exactly once; replay, stale version, self-trade, a stranger\'s cancel, a '
-        + 'double collect, a racing expiry and both per-day transfer fuses all refuse by name, '
-        + 'with BOTH sides measured and conservation held.');
-    }
-
-    /* ── The market's EDGE half (b355) ─────────────────────────────────
-       market-v2.mjs grades the AUTHORITY layer with well-formed SQL
-       parameters. Nobody hands the server well-formed SQL parameters — an
-       attacker hands it an HTTP BODY — and everything between the two
-       (parseIntent, the registry, the shape refusals, the argument lists) is
-       code no SQL test can see. This drives the REAL Edge modules with
-       genuinely hostile bodies and counts statements, so "refused before any
-       database work" is measured rather than read. The load-bearing one is
-       M-WIRE: hr_market_buy is bound exactly six parameters, none of them a
-       price. `node tests/market-intent.mjs --selftest` plants nine defects;
-       every one must read RED. */
-    const marketIntentProblems = (await marketIntentGuard()).failures;
-    if (marketIntentProblems.length) {
-      console.log('\nMarket intent guard (the Edge half) — FAILED:');
-      for (const p of marketIntentProblems) console.log(`  x ${p}`);
-      exitCode = 1;
-    } else {
-      console.log('\nMarket intent guard — every hostile body (poisoned prototype, numeric-string '
-        + 'price, braced uuid, SQL-shaped listing) is refused by name before it costs a database '
-        + 'statement; the buyer\'s wire binds a listing and a count and no price; a replay carries '
-        + 'the envelope and no receipt.');
-    }
-
     /* ── The client-write-grant sweep, batch 2 (Security) ───────────────
        display_names and leaderboard_meta — the two cross-player identity /
        ranking surfaces among the 21 tables the batch-1 baseline recorded. The
@@ -1475,46 +1380,6 @@ const run = async () => {
         + 'and the client still files each report exactly once.');
     }
 
-    /* ── The clan Storehouse's possession check (Security P0, b366) ─────
-       `clan_deposit` validated the item, clamped it by gold value, journalled
-       it — and never debited the depositor. A devtools call therefore minted
-       materials into clan_stores, castle_tier, contribution points and the
-       clan_power leaderboard: four surfaces that all cross to other players.
-       2026-08-18-clan-deposit-ownership.sql ports hr_market_list's escrow debit
-       into it and moves the write section inside a protected block, so a mixed
-       batch with one short row rolls back WHOLE instead of committing the good
-       half. The guard drives two real players through the real A9-wrapped RPC
-       on a fully replayed PGlite chain; `--selftest` plants five real defects
-       (including the P0 itself) and every one must read RED. */
-    const clanDepositProblems = await clanDepositOwnershipGuard();
-    if (clanDepositProblems.length) {
-      console.log('\nClan Storehouse ownership debit — FAILED:');
-      for (const p of clanDepositProblems) console.log(`  ✗ ${p}`);
-      exitCode = 1;
-    } else {
-      console.log('\nClan-deposit ownership guard — an unowned deposit is refused and moves nothing, an '
-        + 'owned one debits exactly, and a mixed batch with one short row rolls back whole.');
-    }
-
-    /* ── The clan economy-sinks guard (2026-08-27) ───────────────────────
-       Three pre-cutover holes closed: clan_contribute now debits the caller's
-       server-owned gold (was a free treasury/ranking mint), clan_feast_deposit
-       now consumes real cooked food from player_inventory (was a free meter),
-       and the value-less legacy buy_listing RPC is dropped. Drives the real
-       rate-gated RPCs on a fully replayed PGlite chain with this migration
-       appended, proving conservation (gold/food out == treasury/meter in),
-       refusal when the caller cannot pay, the day/call clamps, the level
-       cascade, and that buy_listing is gone. */
-    const econSinkProblems = await clanEconomySinksGuard();
-    if (econSinkProblems.length) {
-      console.log('\nClan economy-sinks — FAILED:');
-      for (const p of econSinkProblems) console.log(`  ✗ ${p}`);
-      exitCode = 1;
-    } else {
-      console.log('\nClan economy-sinks guard — contribute debits gold (conserved), feast consumes food, '
-        + 'buy_listing removed.');
-    }
-
     /* ── The feast catalogue drift guard ─────────────────────────────────
        hr_feast_foods (the server-authoritative feast heal values) is hand-seeded
        from src/data/items.js. This binds the seed to the data: any cooked food
@@ -1623,42 +1488,6 @@ const run = async () => {
       // harness, which is how a real red gets read as a flake and re-run.
       console.log(`\nCron-health guard — ${e.harness ? 'HARNESS FAULT (nothing graded)' : 'FAILED'}:\n`
         + String(e.message || e));
-      exitCode = e.harness ? 2 : 1;
-    }
-
-    /* The b497 goal-gold retune guard (tests/goal-gold-retune.mjs) was deleted with
-       daily quests in the 2026-10-14 demolition; its migration stays in the chain. */
-    /* ── The kill → DAILY-goal credit guard (live report #41 residual) ───
-       Daily AND weekly kill goals grade on player_progress(kind='daily',
-       key='ev:kill_any', period=<utc day key>), whose only writer was the
-       away/span-sim (60-99% undercount). hr_credit_kills wrote 'ev:kill_any'
-       only as the LIFETIME stat row, so an attended kill-30 daily sat at
-       "30/30 · Confirming…" with no Claim. The guard drives a real player
-       through the real rate-gated hr_credit_kills on a fully replayed PGlite
-       chain and then through the real hr_claim_goal — so the assertion is "the
-       player can now claim", not "a row exists". It also proves the CONTAINMENT
-       that makes the new bounty-free branch reviewable: a credit with no active
-       bounty moves the daily row and NOTHING else (not the lifetime counters
-       hr_renown_of scores and hr_claim_quest pays on, not the bestiary, not
-       gold/gems), the anchor closes its window, a settle-first credit pays
-       nothing, and the per-day ceiling binds. `--selftest` plants nine real
-       defects, two of them with the migration's own gate short-circuited so the
-       guard alone has to see them; every one must read RED. */
-    try {
-      const { killDailyCreditGuard } = await import('./kill-daily-credit.mjs');
-      const kdcProblems = await killDailyCreditGuard();
-      if (kdcProblems.length) {
-        console.log('\nKill → daily-goal credit guard — FAILED:');
-        for (const p of kdcProblems) console.log(`  ✗ ${p}`);
-        exitCode = 1;
-      } else {
-        console.log('\nKill → daily-goal credit guard — the daily ev:kill_any row is stamped by '
-          + 'both branches, the bounty-free branch writes that row and nothing else, the anchor '
-          + '+ per-day ceiling bind, a replay does not double-stamp, and hr_claim_goal pays '
-          + 'kill_more/wk_kills off it.');
-      }
-    } catch (e) {
-      console.log('\nKill → daily-goal credit guard — FAILED:\n' + String(e.message || e));
       exitCode = e.harness ? 2 : 1;
     }
 
@@ -1796,67 +1625,6 @@ const run = async () => {
       console.log('\nUnlock-catalogue ownership guard — the chain rebuilds all 21 companion rows; '
         + 're-applying the wholesale unlock catalogue alone is repaired exactly by the declared '
         + 'repair list, which is cross-checked against the apply manifest.');
-    }
-
-    /* ── The three SECURITY conditions on hr_companion_grant ─────────────
-       The reseed above ARMED an already-live client-callable RPC. C1 turns the
-       storage guard's 23514 into a machine code instead of a PostgREST 500 the
-       client cannot tell from an outage; C2 ENFORCES the whelp req_item, which
-       measured its precondition and granted anyway; C3 renames the client's
-       p_source to `claimed_source` so the ledger stops presenting it as a peer
-       of the server-derived catalogue_source.
-
-       Driven through the REAL RPC on a rebuilt database, with the two arms the
-       migration's own §4 cannot run: C1's second layer with the pre-check
-       neutralised (a single backend cannot race the catalogue delete), and the
-       derivation chain — 2026-08-22-companion-grant.sql is GENERATED and still
-       carries the pre-hardening body, so re-applying it alone reverts all three
-       in silence. See tests/companion-grant-hardening.mjs. */
-    const cgHardenProblems = await companionGrantHardeningGuard();
-    if (cgHardenProblems.length) {
-      console.log('\nCompanion-grant hardening (C1 machine code · C2 req_item · C3 claimed_source) '
-        + '— FAILED:');
-      for (const p of cgHardenProblems) console.log(`  ✗ ${p}`);
-      exitCode = 1;
-    } else {
-      console.log('\nCompanion-grant hardening guard — a missing companion:<id> catalogue row '
-        + 'answers unknown_unlock:<key> on both layers without consuming the req_item, whelp is '
-        + 'refused without its dragon_egg and consumes exactly one when held, the ledger separates '
-        + 'claimed_source from catalogue_source, every other storage-guard violation still '
-        + 'propagates, and the hardening file is the manifest\'s last toucher of the RPC.');
-    }
-
-    /* ── C6: the two new refusal codes join the severity taxonomy ─────────
-       The hardening above gave hr_companion_grant two machine refusals and
-       journalled both through hr_record_rejection — which grades severity from
-       its OWN arrays, and neither code was in either, so both landed 'normal'
-       forever, at any n. Security's C6 ruling files them separately, because
-       they are separate populations: `unknown_unlock` is a destroyed unlock
-       catalogue (never player behaviour, damage on call ONE) and becomes an
-       INCIDENT on its first occurrence; `missing_req_item` is a stale client
-       once and a signature fifty times, so it ESCALATES on the existing
-       50/user/slot/day counter.
-
-       Measured through the real function AND end-to-end through the real RPC
-       with the code read off the row the verb wrote — the only thing that can
-       see the emitted code drifting from the graded code — plus the two
-       controls that make the proof non-vacuous (one occurrence must STAY
-       normal; an unclassified code must stay normal at ANY n) and a dual-shape
-       arm that applies the migration to the COMMENT-STRIPPED body production
-       actually runs. See tests/companion-codes-severity.mjs. */
-    const codeSevProblems = await companionCodesSeverityGuard();
-    if (codeSevProblems.length) {
-      console.log('\nCompanion-code severity (C6: unknown_unlock incident · missing_req_item '
-        + 'escalates) — FAILED:');
-      for (const p of codeSevProblems) console.log(`  ✗ ${p}`);
-      exitCode = 1;
-    } else {
-      console.log('\nCompanion-code severity guard — unknown_unlock is an incident on its FIRST '
-        + 'occurrence and missing_req_item stays normal on its first and escalates at '
-        + 'c_escalate_at, proven through the real hr_record_rejection and end-to-end through the '
-        + 'real hr_companion_grant; an unclassified control code stays normal at any n; every '
-        + 'incumbent code survived the patch; the ACL is unchanged across the definer-body '
-        + 'replace; and both anchors match the comment-stripped body production runs.');
     }
 
     /* ── The delta-transport guard (the 2026-08-15 P0) ───────────────────
@@ -1998,7 +1766,8 @@ const run = async () => {
       'Core guard', 'Accrual guard', 'Auto-eat authority guard', 'Perk channel guard',
       'Artisan progress model guard', 'Goal counters guard', 'Artisan accrual guard',
       'Live settlement Phase 0', 'Equip intent (Phase 2)', 'Skill-row upsert',
-      'Unlock purchase guard', 'Market v2 guard', 'Market intent guard',
+      /* 'Unlock purchase guard', 'Market v2 guard', 'Market intent guard', 'Clan-deposit
+         ownership guard' — REMOVED 2026-10-31 with their subjects (2026-10-31-server-cleanup.sql). */
       /* 'Cutover import guard' — REMOVED 2026-09-07 with tests/cutover-import.mjs, whose
          subject hr_import_apply is dropped by 2026-09-07-drop-dead-server-objects.sql. A
          retired guard must leave this list in the SAME commit, or the run reports it as
@@ -2007,7 +1776,7 @@ const run = async () => {
       'Client write sweep batch 4', 'Client write sweep batch 5', 'Bug-triage guard',
       
       /* 'Goal-gold retune guard' — REMOVED 2026-10-17: its guard left with the demolition's daily quests (c0a11d871). */
-      'Clan-deposit ownership guard', 'Delta-transport guard',
+      'Delta-transport guard',
       
       'Identity guard', 'CORS preflight guard', 'Migration guard',
       

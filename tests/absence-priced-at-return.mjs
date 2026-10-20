@@ -15,7 +15,7 @@
 // +13.5 % ore over a 7.25 h mithril night mined at 12.80 s without it.
 //
 // ── WHAT IT DRIVES ──────────────────────────────────────────────────────────
-// The REAL edge modules (market.js, eat.js, set-activity.js)
+// The REAL edge modules (eat.js, shop-buy.js, set-activity.js)
 // behind the same one-statement `exec` seam index.ts hands them, as `hr_engine`,
 // against the REAL migration chain in PGlite.
 //
@@ -39,6 +39,7 @@
 //   the real one.
 //
 // ── THE CLAIMS ─────────────────────────────────────────────────────────────
+//   (R1, R3 and S3 RETIRED 2026-10-31 with the market — 2026-10-31-server-cleanup.sql.)
 //   R1   production shape: Mining 61 on mithril_rock (12.80 s with no tool),
 //        accrued_to = now − 7.25 h. An iron pickaxe BOUGHT FROM ANOTHER PLAYER
 //        at return, then accrue, pays byte-identically to accrue-then-buy —
@@ -75,7 +76,7 @@
 
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { bootReplay, ROOT, chainFileBefore, REOPEN_SWEEP } from './schema-replay.mjs';
+import { bootReplay, ROOT } from './schema-replay.mjs';
 import { xpForLevel } from '../src/core/xp.js';
 
 const FN = (f) => join(ROOT, 'supabase', 'functions', 'hr-accrue', f);
@@ -93,13 +94,6 @@ const R2_EQ = 'R2: a roast eaten at return re-priced the mining night before it'
    one turns the run RED; an anchor that does not match exactly once is a
    HARNESS failure, never a pass. */
 const MUTATIONS = {
-  flipCollectMarket: {
-    file: FN('intents.js'),
-    why: 'market_buy goes back to collectsFirst:false — a pickaxe bought at return prices the '
-       + 'whole night at the new tool (R1, R3)',
-    find: ROW('market_buy', 'shop', 'true'),
-    repl: ROW('market_buy', 'shop', 'false'),
-  },
   flipCollectEat: {
     file: FN('intents.js'),
     why: 'eat goes back to collectsFirst:false — a feast eaten at return is paid over the whole '
@@ -187,7 +181,6 @@ async function loadModules(mutate) {
   const imp = async (f) => import(pathToFileURL(join(dir, f)).href + bust);
   const mods = {
     sa: await imp('set-activity.js'),
-    mk: await imp('market.js'),
     eat: await imp('eat.js'),
     sb: await imp('shop-buy.js'),
     it: await imp('intents.js'),
@@ -215,12 +208,10 @@ async function run(mutate) {
   const notes = [];
   const ok = (c, m) => { if (!c) fails.push(m); return !!c; };
   const mods = await loadModules(mutate);
-  const { sa, mk, eat, it } = mods;
+  const { sa, eat, it } = mods;
 
   let db;
-  /* R3 drives the market writers, which the reopen sweep revokes from hr_engine:
-     the chain as of the file before it (schema-replay.mjs REOPEN_SWEEP). */
-  try { ({ db } = await bootReplay({ upTo: await chainFileBefore(REOPEN_SWEEP) })); } catch (e) {
+  try { ({ db } = await bootReplay()); } catch (e) {
     if (e.harness) throw e;
     return { fails: [`the migration chain would not apply: ${e.message}`], notes };
   }
@@ -282,19 +273,6 @@ async function run(mutate) {
     return c;
   };
 
-  /** A listing of one iron pickaxe by `seller`, returned by id. */
-  const listTool = async (seller, slot = 0) => {
-    await clearGate();
-    await give(seller, TOOL, 1, slot);
-    const l = await mk.runMarketList({ exec, user: seller, slot, intentId: uuid(), item: TOOL, qty: 1, ask: 300 });
-    ok(l.status === 200 && l.body.ok === true, `HARNESS: list refused ${JSON.stringify(l.body).slice(0, 200)}`);
-    return l.body.receipt && l.body.receipt.listing_id;
-  };
-  const buyTool = async (uid, listing, slot = 0) => {
-    await clearGate();
-    return mk.runMarketBuy({ exec, user: uid, slot, intentId: uuid(), listing, qty: 1 });
-  };
-
   try {
     for (const k of Object.keys(U)) await create(U[k]);
     /* Slot 1 is a hero slot: owned the way hr_buy_hero_slot records it (a
@@ -303,38 +281,10 @@ async function run(mutate) {
              values ($1, 0, 'flag', 'character_slot:1', '', 1)`, [U.c]);
     await create(U.c, 1);
 
-    // ══ R1 — PRODUCTION SHAPE, A PICKAXE BOUGHT AT RETURN ════════════════
-    const l1 = await listTool(U.seller);
-    const l2 = await listTool(U.seller);
-    const oreA0 = await qty(U.a, ORE); const xpA0 = await xpOf(U.a, 'mining');
-    const oreB0 = await qty(U.b, ORE); const xpB0 = await xpOf(U.b, 'mining');
-    const oreT0 = await qty(U.t, ORE);
-
-    await miner(U.a);
-    const bA = await buyTool(U.a, l1);
-    ok(bA.status === 200 && bA.body.ok === true, `R1-CONTROL: order A's buy refused ${JSON.stringify(bA.body).slice(0, 240)}`);
-    await accrue(U.a);
-
-    await miner(U.b);
-    const accB = await accrue(U.b);
-    const bB = await buyTool(U.b, l2);
-    ok(bB.status === 200 && bB.body.ok === true, `R1-CONTROL: order B's buy refused ${JSON.stringify(bB.body).slice(0, 240)}`);
-
-    await miner(U.t);
-    await give(U.t, TOOL, 1);
-    await accrue(U.t);
-
-    const oreA = (await qty(U.a, ORE)) - oreA0; const xpA = (await xpOf(U.a, 'mining')) - xpA0;
-    const oreB = (await qty(U.b, ORE)) - oreB0; const xpB = (await xpOf(U.b, 'mining')) - xpB0;
-    const oreT = (await qty(U.t, ORE)) - oreT0;
-    notes.push(`R1: buy→accrue ore=${oreA} xp=${xpA} · accrue→buy ore=${oreB} xp=${xpB} · tool-all-night ore=${oreT}`);
-    ok(oreB > 0 && oreT > oreB,
-      `R1-CONTROL: the tool-all-night night paid ${oreT} ore against ${oreB} without it — the fixture `
-      + 'does not discriminate a pickaxe, so an equality below would be vacuous');
-    ok(oreA === oreB && xpA === xpB,
-      `R1: a pickaxe bought at return re-priced the night that was mined without it — buy→accrue `
-      + `paid ${oreA} ore / ${xpA} XP, accrue→buy paid ${oreB} ore / ${xpB} XP. The order of two `
-      + 'gestures must not move value (production: +13.5 % ore, 2026-09-27).');
+    /* R1 (a pickaxe bought from another player at return), S3 (that buy's
+       receipt) and R3 (the self-market loop) left with the market
+       (2026-10-31-server-cleanup.sql): no verb buys a priceable tool at return
+       any more. S2 keeps the purchase half on shop_buy. */
 
     // ══ S2 — THE SETTLE DEFERS ITS REMAINDER ═════════════════════════════
     //    A window of 1 h + 6.4 s at 12.80 s leaves 281 actions and a 9.6 s
@@ -354,54 +304,6 @@ async function run(mutate) {
         `S2: after the buy's settle, commit-now − accrued_to = ${lag.toFixed(0)} ms (expected ~9,600). `
         + 'A settle whose pointer survives must DEFER the sub-action remainder; ~0 means it stamped '
         + 'now() and forfeited the partial action on every purchase, > one action means it did not settle.');
-    }
-
-    // ══ S3 — THE RECEIPT REACHES THE CLIENT ══════════════════════════════
-    {
-      const c = bA.body.collected;
-      ok(c && c.items && Number(c.items[ORE]) === oreA,
-        `S3: the buy's body reports collected=${JSON.stringify(c && c.items)} but the database moved `
-        + `${oreA} ${ORE}. Render it, do not recompute it — and it must be the server's number.`);
-      const envOre = bA.body.inventory && Number(bA.body.inventory[ORE]);
-      ok(envOre === await qty(U.a, ORE),
-        `S3: the buy's envelope says ${envOre} ${ORE}, the database ${await qty(U.a, ORE)} — the `
-        + 'envelope is not the post-settle, post-commit state');
-      ok(bA.body.inventory && Number(bA.body.inventory[TOOL]) === 1,
-        'S3: the buy\'s envelope does not show the pickaxe it just bought');
-      ok(accB && accB.outcome === 'paid' && bB.body.collected === null,
-        `S3: accrue→buy — the buy reported collected=${JSON.stringify(bB.body.collected)} for a `
-        + 'window the accrue had already paid');
-
-      /* A commit refused AFTER a paid settle still carries the settle's receipt. */
-      await miner(U.a);
-      await q(`delete from public.player_inventory where user_id=$1 and slot=0 and item_id=$2`, [U.a, TOOL]);
-      const ore0 = await qty(U.a, ORE);
-      const gone = await buyTool(U.a, uuid());
-      const moved = (await qty(U.a, ORE)) - ore0;
-      ok(gone.status === 409 && gone.body.ok === false,
-        `S3-CONTROL: a buy of a listing that does not exist answered ${gone.status}`);
-      ok(gone.body.collected && Number(gone.body.collected.items[ORE]) === moved && moved > 0,
-        `S3: the settle paid ${moved} ${ORE} and the refused buy reported `
-        + `collected=${JSON.stringify(gone.body.collected)}. The settle is its own apply and stays `
-        + 'paid — the body has to be able to say so (set_activity\'s C5).');
-    }
-
-    // ══ R3 — THE SELF-MARKET LOOP, CROSS-SLOT ════════════════════════════
-    {
-      await clearGate();
-      const lc = await listTool(U.c, 1);
-      await miner(U.c, 0);
-      const ore0 = await qty(U.c, ORE);
-      const b = await buyTool(U.c, lc, 0);
-      ok(b.status === 200 && b.body.ok === true,
-        `R3-CONTROL: slot 0 could not buy slot 1's listing: ${JSON.stringify(b.body).slice(0, 240)}`);
-      await accrue(U.c, 0);
-      const ore = (await qty(U.c, ORE)) - ore0;
-      notes.push(`R3: cross-slot buy→accrue ore=${ore} (no-tool night ${oreB}, tool night ${oreT})`);
-      ok(ore === oreB,
-        `R3: slot 0 bought its own slot 1's pickaxe at return and was paid ${ore} ${ORE} for a night `
-        + `mined without it; the no-tool rate is ${oreB}. One tool relisted between five slots `
-        + 'would re-price five nights.');
     }
 
     // ══ R2 — A FEAST EATEN AT RETURN ═════════════════════════════════════
@@ -563,9 +465,9 @@ async function main() {
     for (const f of fails) console.log(`  ✗ ${f}`);
     return 1;
   }
-  console.log('absence-priced-at-return: OK — settle-before-mutate: R1 pickaxe-at-return, R1c claim settles, '
-    + 'R2 feast-at-return, R3 self-market loop, S1 sub-minute no-write, S2 remainder deferred, '
-    + 'S3 receipt on body+refusal, S4 party second class (real PG + the deployed edge modules)');
+  console.log('absence-priced-at-return: OK — settle-before-mutate: '
+    + 'R2 feast-at-return, S1 sub-minute no-write, S2 remainder deferred, '
+    + 'S4 party second class (real PG + the deployed edge modules)');
   return 0;
 }
 

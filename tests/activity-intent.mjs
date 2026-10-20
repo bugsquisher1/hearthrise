@@ -2024,9 +2024,9 @@ async function run(mutate) {
        confiscated, it is priced at the state the verb creates — the mint
        tests/absence-priced-at-return.mjs measures) and only the pin sees it. */
     /* claim_reward / dungeon_settle / quartermaster_buy / enchant were deleted
-       outright with the closed rebuild (lane C2). */
-    const SETTLE = ['eat', 'market_buy', 'market_cancel',
-      'market_list', 'shop_buy', 'unlock_buy', 'vendor_sell', 'vendor_sell_many'];
+       outright with the closed rebuild (lane C2); market_* and unlock_buy with
+       the server cleanup (2026-10-31-server-cleanup.sql). */
+    const SETTLE = ['eat', 'shop_buy', 'vendor_sell', 'vendor_sell_many'];
     const SWITCH = ['equip', 'set_activity'];
     const collecting = Object.keys(it.INTENT_REGISTRY).filter((v) => it.collectsFirst(v)).sort();
     ok(collecting.join(',') === [...SETTLE, ...SWITCH].sort().join(','),
@@ -2048,7 +2048,7 @@ async function run(mutate) {
     }
     /* SOURCE: every module that implements a settle verb READS the one helper,
        and none still carries the fail-closed COLLECT_REQUIRED stub it replaced. */
-    for (const f of ['spend.js', 'eat.js', 'market.js', 'unlock-buy.js']) {
+    for (const f of ['spend.js', 'eat.js']) {
       const src = (await readFile(join(fnDir, f), 'utf8'))
         .replace(/\r\n/g, '\n').replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
       ok(/settleBeforeMutate\(/.test(src),

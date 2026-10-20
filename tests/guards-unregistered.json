@@ -68,26 +68,6 @@
         "selftest": true
       }
     },
-    "market-offers-guard.mjs": {
-      "reason": "family pglite-chain-replay: market offer integrity. run-smoke already registers market-v2 and market-intent, which drive the market's value movement.",
-      "family": "pglite-chain-replay",
-      "owner": "security-engineer",
-      "disposition": "adopt-via-shared-db",
-      "verified": {
-        "asserts": true,
-        "selftest": false
-      }
-    },
-    "market-offers-lockdown.mjs": {
-      "reason": "family pglite-chain-replay. NOTE: measured as asserts:false — it prints a lockdown report and cannot exit non-zero, so it gates nothing today. Either give it a verdict or fold it into market-offers-guard.",
-      "family": "pglite-chain-replay",
-      "owner": "security-engineer",
-      "disposition": "needs-a-verdict-first",
-      "verified": {
-        "asserts": false,
-        "selftest": false
-      }
-    },
     "open-beta.mjs": {
       "reason": "family pglite-chain-replay: the open-beta invite/door surface. The in-page suite registers beta-invite-gate for the live half.",
       "family": "pglite-chain-replay",

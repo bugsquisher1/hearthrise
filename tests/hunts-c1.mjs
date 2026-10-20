@@ -146,8 +146,11 @@ async function sqlMutants() {
    spawn-aware void, training unchanged, floor opens at 15) EXECUTES in it. */
 async function chainArm() {
   const red = [];
-  const { bootReplay, inventory } = await import('./schema-replay.mjs');
-  const { db } = await bootReplay({});
+  const { bootReplay, inventory, chainFileBefore, SERVER_CLEANUP } = await import('./schema-replay.mjs');
+  /* The second apply is judged as of the file before the server cleanup: core-
+     bodies restates the leaderboard (clans) and the rally-kills file reads the
+     rally helpers, both of which that cleanup drops (schema-replay.mjs). */
+  const { db } = await bootReplay({ upTo: await chainFileBefore(SERVER_CLEANUP) });
   const q = async (sql) => (await db.query(sql)).rows;
   const snap = async () => JSON.stringify([await inventory(db),
     await q(`select p.proname, md5(p.prosrc) h, p.proacl::text acl from pg_proc p join pg_namespace n on n.oid = p.pronamespace

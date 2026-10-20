@@ -98,6 +98,11 @@ export async function manifest() {
    so at its call site; the chain end proves the surface is gone
    (tests/rpc-execute-surface.mjs). */
 export const REOPEN_SWEEP = '2026-10-30-reopen-rpc-sweep.sql';
+/* THE SERVER CLEANUP (2026-10-31-server-cleanup.sql) DROPS the dormant old
+   systems (clans, raids, the market, companions, world events, quests,
+   leaderboards, workers, unlock buys, old traits). Same rule as above: a guard
+   whose arm drives one of those judges the chain just before it. */
+export const SERVER_CLEANUP = '2026-10-31-server-cleanup.sql';
 
 /** The chain file immediately BEFORE `name` (a harness error if absent). */
 export async function chainFileBefore(name) {

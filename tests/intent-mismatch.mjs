@@ -98,9 +98,9 @@ export const GUARDED = [
   'public.hr_put_client_state__ungated(int,jsonb,uuid)',
   /* hr_set_style__ungated left the chain end with the combat styles (2026-10-27-core-schema.sql, the
      core rebuild): a dropped body has no replay to guard; that file's §4 proves it does not resolve. */
-  'public.hr_trait_buy__ungated(text,int,uuid)',
-  'public.hr_worker_assign(int,text,text,text,uuid)',
-  'public.hr_worker_hire(int,uuid)',
+  /* hr_trait_buy__ungated, hr_worker_assign and hr_worker_hire left the chain end
+     with the old traits and the hired workers (2026-10-31-server-cleanup.sql): a
+     dropped body has no replay to guard; that file's §7(a) proves none resolves. */
 ];
 
 const problems = [];

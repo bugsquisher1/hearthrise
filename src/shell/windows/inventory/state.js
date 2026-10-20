@@ -13,12 +13,12 @@
 //                     in flight. Display only: nothing reads it but this
 //                     window, nothing spends it.
 // ════════════════════════════════════════════════════════════════════════
-import { bagOf, bagCapOf, goldOf, rulesOf, shopOf, equipmentOf, huntLootOf } from '../../../session/item-sections.js?v=0.2.19';
-import { settingsOf, analyzerOf } from '../../../session/hunt-sections.js?v=0.2.19';
-import { BAG_CATS, BAG_SORTS, view, kindOf, equipSlotFor, sellPlan, junkIds } from '../../bag-model.js?v=0.2.19';
-import { barKind, barIndexOf } from '../../bar-assign.js?v=0.2.19';
-import { itemName } from '../../widgets/bits.js?v=0.2.19';
-import { buryRecipeOf, buryLabel } from './bury.js?v=0.2.19';
+import { bagOf, bagCapOf, goldOf, rulesOf, shopOf, equipmentOf, huntLootOf } from '../../../session/item-sections.js?v=0.2.20';
+import { settingsOf, analyzerOf } from '../../../session/hunt-sections.js?v=0.2.20';
+import { BAG_CATS, BAG_SORTS, view, kindOf, equipSlotFor, sellPlan, junkIds } from '../../bag-model.js?v=0.2.20';
+import { barKind, barIndexOf } from '../../bar-assign.js?v=0.2.20';
+import { itemName } from '../../widgets/bits.js?v=0.2.20';
+import { buryRecipeOf, buryLabel } from './bury.js?v=0.2.20';
 
 const SCRATCH = new WeakMap();
 const CAT_IDS = new Set(BAG_CATS.map(([id]) => id));

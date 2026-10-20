@@ -17,6 +17,9 @@ Add new questions at the top of this list as `- **Qnn** (date) question — cont
 
 ## Answered (newest first; all folded into memory rulings-of-record)
 
+- **Live engine look-ahead** (hunt_live sent 64 combat seeds ≈ 128 s; a bot could leave before a foreseen death) → cut to 16 seeds (≈ 32 s) and a leave takes effect only at the next server settle (Tyler 10-20)
+- **Party privacy in hunt_live** (others' full skills/gear/perks sent to each browser) → other members get only frozen combat numbers; own member keeps its full setup (Tyler 10-20)
+
 - **Bestiary: no relic → refuse the stage fee?** → yes for now; the Bestiary will grow beyond relics later (Tyler 10-20)
 - **Bestiary: field-champion relics (`champion: true`) count?** → Tyler unsure; designer call: NO for now (only `tier: 'relic'` rows), revisit when the Bestiary expands
 - **Bestiary lists only the 19 monsters that spawn on hunting grounds** → fine (Tyler 10-20)

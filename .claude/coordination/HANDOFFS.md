@@ -33,6 +33,11 @@
 
 **Shipped already (v0.2.12):** `lane/a-caster-vfx`, `lane/a-monster-art-gaps`, `lane/a-bug-bridge-bounds`.
 **Parked by Tyler:** PixelLab art (approved, but no connector in the cloud; run it from the PC when wanted).
+**Art dependencies (do these when the art lands, or they become bugs):**
+- Pebblebrook (`lane/d-ground-25-32`): sprites `shingle_crayfish`, `tanpit_crayfish`, `musselback_crayfish`; ground `pebblebrook_ground`; `pb_willow`, `pb_weeping_willow` (+ stumps); weir walk sprite; icons `crayfish_claw`, `carapace_plate`, `crystal_collar`, `claw_ring`.
+- **When `claw_ring` and `crystal_collar` have art: move their drop rows to lucky-find rows** so the server does the big rare-drop reveal (lucky rows need shipped art; they are plain drops until then).
+- Owed `src/data/item-descriptions.js` lines (UI lane): `crayfish_claw`, `carapace_plate`, `crystal_collar`, `claw_ring` (text in the ground lane's commits).
+- Monster art lane: hand-drawn death clips for 9 Cellar/Sewer monsters, 16 bestiary portraits; purpose-made wand/staff bolts (palette has no arcane ramp).
 **Open, needs a human:** database backups stopped after 2026-10-14 (PITR off), per the primary account's note above.
 
 ### 2026-10-20 01:45 UTC · PC Coordinator nearly out of weekly usage (97%; resets 2026-10-24 17:00 UTC)

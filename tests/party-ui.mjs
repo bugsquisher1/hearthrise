@@ -95,9 +95,11 @@ async function load(base) {
     C: await import(u('src/session/character-session.js')),
     AL: await import(u('src/shell/alerts.js')),
     PS: await import(u('src/session/party-sections.js')),
+    HS: await import(u('src/session/hunt-sections.js')),
     HUD: await import(u('src/data/hunt-hud.js')),
     ROLES: await import(u('src/data/hunt-roles.js')),
     PI: await import(u('src/session/party-intents.js')),
+    PP: await import(u('src/shell/widgets/party-panel.js')),
     IW: await import(u('src/shell/intent-words.js')),
   };
 }
@@ -245,6 +247,49 @@ async function pureRules(M, base) {
       if (!ok.ok || !srv.calls[0] || srv.calls[0][0] !== want || extra.length || sentArgs.p_slot !== 0) return fn + ' sent ' + JSON.stringify(srv.calls);
       if (loads !== reads) return fn + ' re-read slots [' + loads + '], want [' + reads + ']';
     }
+    return true;
+  });
+
+  /* PR-4 (v0.2.11, PARTY_SPEC §2): the Party panel is the only roster. Its rows are the MEMBERSHIP (in town too,
+     with away / seat kept), overlaid by seat with the hunt's numbers; "DPS and HPS" only while somebody hunts;
+     Leave / Disband / Kick are party-intents verbs that re-read every own seat. */
+  await t('PR-4', async () => {
+    const P = '11111111-0000-4000-8000-00000000000c';
+    const town = { id: P, hunt: 'mill_cellar', max: 3, open: true, self: null, leader: null, self_seat: 0, leader_seat: 0,
+      members: [{ seat: 0, unit: null, hunting: false, name: 'Tyler', level: 5, weapon: 'sword', hp: 190, hp_max: 190, away: false, seat_ms: null },
+                { seat: 2, unit: null, hunting: false, name: 'Mira', level: 4, weapon: 'bow', hp: 150, hp_max: 150, away: true, seat_ms: 420000 }] };
+    const r = M.PP.rosterOf({ read: (k) => (k === 'party' ? town : undefined) });
+    if (r.members.length !== 2 || !r.inParty || !r.isLeader || r.anyHunting) return 'the town roster read ' + JSON.stringify(r);
+    const mira = r.members.find((m) => m.seat === 2);
+    if (!mira || !mira.away || mira.seatMs !== 420000 || mira.level !== 4) return 'the away seat lost its clock: ' + JSON.stringify(mira);
+    const hunt = { id: P, hunt: 'mill_cellar', max: 3, open: true, self: 7, leader: 7, self_seat: 0, leader_seat: 0,
+      members: [{ seat: 0, unit: 7, hunting: true, name: 'Tyler', level: 5, weapon: 'sword', hp: 120, hp_max: 190, mana: 30, mana_max: 140, dps: 12.5, dealt: 900 },
+                { seat: 2, unit: null, hunting: false, name: 'Mira', level: 4, weapon: 'bow', hp: 150, hp_max: 150, away: false }] };
+    const h = M.PP.rosterOf({ read: (k) => (k === 'party' ? hunt : undefined) });
+    const me = h.members.find((m) => m.seat === 0);
+    if (!h.anyHunting || !me || me.hp !== 120 || me.mana !== 30 || me.dps !== 12.5) return 'the hunt numbers were not overlaid by seat: ' + JSON.stringify(me);
+    if (h.members.find((m) => m.seat === 2).dps !== null) return 'a member in town carried hunt numbers';
+    /* The panel's own wiring: words, the hidden DPS toggle, and Kick through afterLeave (every own seat re-read). */
+    const nodes = new Map();
+    const node = (sel) => { if (!nodes.has(sel)) nodes.set(sel, { hidden: false, disabled: false, textContent: '', a: {}, classList: { s: new Set(), contains(n) { return this.s.has(n); }, toggle(n, on) { if (on) this.s.add(n); else this.s.delete(n); } },
+      getAttribute(n) { return n in this.a ? this.a[n] : null; }, setAttribute(n, v) { this.a[n] = String(v); }, hasAttribute(n) { return n in this.a; }, removeAttribute(n) { delete this.a[n]; } }); return nodes.get(sel); };
+    const el = { querySelector: (sel) => (sel === '.hp-members' ? null : node(sel)) };
+    const srv = fakeServer();
+    const acc = account(M, srv);
+    const cs = (await acc.open(0)).session;
+    if (!cs) return 'the fixture character did not open';
+    const view = { character: { read: (k) => (k === 'party' ? town : undefined), leaveParty: () => cs.leaveParty(), kickSeat: (s) => cs.kickSeat(s) }, account: acc, doc: null, glyphs: {} };
+    M.PP.renderPartyPanel.patch(el, view);
+    if (!node('[data-hs-act="expand"]').hidden) return '"DPS and HPS" shows while nobody hunts';
+    if (node('[data-hs-act="leave"]').hidden || node('[data-hs-act="disband"]').hidden) return 'the leader in town has no Leave / Disband';
+    srv.calls.length = 0;
+    srv.reply = { ok: false, error: 'not_leader' };
+    const btn = { getAttribute: (n) => (n === 'data-seat' ? '2' : null) };
+    M.PP.renderPartyPanel.act(view, el, 'kick', { type: 'click' }, btn);
+    for (let i = 0; i < 20 && node('.hp-msg').textContent === 'Removing…'; i++) await new Promise((res) => setTimeout(res, 5));
+    const k = srv.calls.find((c) => c[0] === 'hr_hunt_party_kick');
+    if (!k || k[1].p_seat !== 2 || Object.keys(k[1]).sort().join() !== 'p_idem,p_seat,p_slot') return 'Kick sent ' + JSON.stringify(srv.calls);
+    if (!node('.hp-msg').textContent || node('.hp-msg').textContent === 'Removing…') return 'the refused kick has no words: ' + JSON.stringify(node('.hp-msg').textContent);
     return true;
   });
 
@@ -547,6 +592,9 @@ const PURE_MUTANTS = [
   ['an own invite names a user', 'src/session/party-intents.js', '{ p_slot: cs.slot, p_other_slot: otherSlot, p_idem: newIdem() }', '{ p_slot: cs.slot, p_other_slot: otherSlot, p_user: account.userId, p_idem: newIdem() }'],
   ['an own invite re-reads only the inviter', 'src/session/party-intents.js', '  const peers = partyPeersOf(account, cs).concat(other ? [other] : []);', '  const peers = partyPeersOf(account, cs);'],
   ['an own invite to the same slot is sent', 'src/session/party-intents.js', ' || otherSlot === cs.slot) {', ') {'],
+  ['the roster is the hunt section only (a party in town is not listed)', 'src/shell/widgets/party-panel.js', '  if (p) {\n    const members = p.seats', '  if (p && h) {\n    const members = p.seats'],
+  ['an away seat reads as in town', 'src/shell/widgets/party-panel.js', "  if (m.away) return m.seatMs === null ? 'Away' : 'Away, seat kept ' + Math.max(1, Math.ceil(m.seatMs / 60000)) + ' min';\n", ''],
+  ['DPS and HPS shows with nobody hunting', 'src/shell/widgets/party-panel.js', "  prop(expand, 'hidden', !r.anyHunting);", "  prop(expand, 'hidden', false);"],
   ['not ready names nobody', 'src/shell/intent-words.js', "    return 'Nobody went in: ' + seats.map((x) => x.name + ' ' + (SEAT_WORDS[x.error] || 'is not ready')).join('; ') + '.';", "    return 'Not everyone in the party is ready.';"],
 ];
 const PAGE_MUTANTS = [

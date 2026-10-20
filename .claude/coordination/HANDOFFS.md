@@ -1,17 +1,18 @@
-# HANDOFFS
+# Handoffs
 
-_The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
+### 2026-10-20 01:45 UTC · PC Coordinator nearly out of weekly usage (97%; resets 2026-10-24 17:00 UTC)
 
+**Live:** v0.2.13 (main 762bf0dc7). Applied today: core rebuild (15:15), hero-slots, bar-three-conditions, analyzer-basic, party-flow, party-security, town-own-characters, Andy allowlist, alpha premium. Edge hr-accrue 8c16396c. bug-report-bridge redeployed (v0.2.12).
 
-### 2026-10-14 · FROM Systems Engineer (D1 `lane/demo-shell`) → TO C2 + D2 + B1 + Art Director · **What the demolished client leaves for each lane**
+**Pending, owned by PC agents (may finish after this note):**
+- lane/a-names-nowalk @109d97c31: real names + no auto-walk. Client tests green on main+lane. Its migration 2026-10-29-character-names-everywhere.sql FAILED its pin on prod (hr_chat_name_authority moved, live md5 f03cc173…; rolled back, nothing applied 02:50 UTC). Restate it from the live body (re-pin), re-run the self-check, then apply + ship. Client half must not ship before the migration.
+- lane/a-party-invite-menu: "Invite to party" on right-click; starting a hunt/party stops town activities; no default fishing after hunts; burying ends server-side. Has a STAGED migration: apply, then ship.
 
-- **C2 (net/accrue, net/record, edge):** delete the `window.DUNGEONS` clause from the inventory-authority arm gate and the `main.js` line that publishes it empty (CONFLICTS.md 2026-10-14); `tests/demolition-absence.mjs` ALLOW lists your remaining reads (HearthriseDaily/Renown, `enchant`, the edge verbs) and goes red if any spreads — delete each row with its read. `serverAutoEats` and `playStreakKnown` are in dead-exports' ALLOW for the same reason. The ELEM-5b in-page test pins accrue's top-level `enchant` adoption — delete it with that code.
-- **D2 (data):** ~30 gear rows (helms, platebodies, dragonrend_greatblade, maple_bow, gold_ring…) have no recipe left (b243/b247/b348/LUCKY-7/WAVE4 red in-page); `bone_key` still drops and `oak_rod` is granted but neither is classified in item-authority (SERVER-OWNED-4); the 2026-10-23 staged catalogue breaks the replay chain, which reds every pglite guard (A0, A3c, BIND, utc-midnight-replay, ledger-rollup…).
-- **B1 (combat-screens, death-sheet, hunt-panel):** the War Table has no destination cards now (rail renders empty); death-sheet still names the Bounty Shop and TRAITS; hunt-panel reads HearthriseMuster.
-- **Art Director:** `src/styles/room-modal.css` is the room/hrcs modal's own sheet (moved out of clan-seat.css, still 13.5px under the font-floor exemption it inherited).
+- lane/c-consume-cd-travel @dc7344370 (pushed, report not received): food+drink share ONE 2 s cooldown, "Millrace Sewer" → "The Sewer", travel_s = 0, the two hunt-core red tests fixed. Check its migrations/edge, apply, deploy, ship.
 
+**Other account (cloud) lanes:** live engine (lane/b-live-hunt @ab64f8b81, option B), action bar (lane/b-vitals-hub), reopen RPC sweep (needs rebase onto v0.2.11+), content names, server cleanup, art audit, new ground 25-32, bestiary, PixelLab art (approved). Cloud has NO Supabase token: anything with a migration or edge change waits for the PC Coordinator (after the reset) or extra usage.
 
-### 2026-10-10 · FROM Systems Engineer → TO Game Designer + Art Director + Security · **W0 ammo / Runecrafting / Prayer (lane/w0e-ammo-runecraft-prayer)**
+**Tracker:** https://claude.ai/artifact/81VCt3YuFkKbrtke5u9jqK (Tyler answers questions + row notes there; read BOTH at session start). Rulings: memory rulings-of-record. Gap list: .claude/coordination/sim-gap-list-2026-10-19.md. Lanes + files: ACTIVE_WORK.md.
 
 **Game Designer — proposed numbers, all data rows (retune a row, not a branch):**
 - `PRAYER_WARDS` (src/data/skills.js): RULED 2026-10-10 — 3% at 10, +2% per decade, 20% at 99, cap 25%. A share of monster blows turned aside (landed chance x (1 - pct/100) after the clamp), so expected damage taken falls exactly pct% on the live tick, away and the world tick.
@@ -3401,3 +3402,4 @@ lines in every item window can stick like the bar's did. The bar now bounds its 
 BAR_ANSWER_MS 10 s); the class kill is an AbortController timeout in server.js returning { error:'timeout' }.
 (4) HP REGEN UNIT: hunt-sections.js hpPerS is the in-fight rate (hp_max x 3 permille x regen_pm); the server also sends
 hp_regen per MINUTE at the out-of-fight rate. The hub shows hpPerS. Confirm which one the player should read.
+**Known open bugs:** Andy's/Tyler's heroes can be stuck "busy" (hidden activity) — workaround Inventory > Stop (Andy reports no Stop line visible: the Stop line may not render; party-invite-menu lane fixes the cause server-side). Windows still push the world (lane/a-windows-float @09eac2750 is old WIP, unfinished). No death popup yet. Backups stopped after 2026-10-14 (PITR off): investigate.

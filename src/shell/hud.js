@@ -122,8 +122,8 @@ export function clearOfEdges(r, edges, boxWidth, gap) {
  * @param {{width:number, height:number}} box
  * @param {number} [windowsRight]
  */
-export function hudInsetOf(widgets, box, windowsRight) {
-  const out = { left: 0, right: Math.max(0, windowsRight || 0), top: 0, bottom: 0 };
+export function hudInsetOf(widgets, box) {
+  const out = { left: 0, right: 0, top: 0, bottom: 0 };
   for (const w of widgets) {
     const v = w.anchor[0], h = w.anchor[1], r = w.rect;
     if (!(r.width > 0 && r.height > 0)) continue;

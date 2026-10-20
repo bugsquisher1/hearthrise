@@ -17,8 +17,9 @@
 //            on a slot puts it there (src/shell/bar-assign.js)
 //   tooltip  hover, focus or a long press: name, cost, type, cooldown, effect,
 //            then the slot's setup and any conflict (action-facts.js)
-//   panel    the action set (Saved setups switch it), target, stance, chase and
-//            distance: each ONE intent (settings-intent.js), shown from the server
+//   panel    the action set (Saved setups switch it), target, stance, chase,
+//            distance and the gold to keep (gold_floor): each ONE intent
+//            (settings-intent.js), shown from the server only once it confirms
 // Shown in town too (Tyler 10-18: set it up before leaving). Every value is
 // the server's; the bar changes only when the re-read envelope says so.
 // ════════════════════════════════════════════════════════════════════════
@@ -39,7 +40,7 @@ import { resetConfigureView } from '../windows/configure-action.js?v=0.2.13';
 import { assignToBar, barKind } from '../bar-assign.js?v=0.2.13';
 import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.13';
 import { refusalWords } from '../intent-words.js?v=0.2.13';
-import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, patchControls, sendOption } from './settings-intent.js?v=0.2.13';
+import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, goldFloorHtml, patchControls, sendOption } from './settings-intent.js?v=0.2.13';
 
 const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const SLOT_DRAG = 'application/x-hr-bar-slot';
@@ -110,6 +111,7 @@ export function renderActionBar(ctx) {
     + '<div class="hb-pl-row"><span class="hh-segs hb-stance" role="group" aria-label="Stance">' + stanceButtonsHtml() + '</span></div>'
     + '<div class="hb-pl-row"><button type="button" class="hh-seg" data-opt="chase" data-hs-act="opt" aria-pressed="false" title="With chase off, the hero keeps its distance">Chase</button>'
     + '<span class="hb-label">Distance</span>' + distanceHtml() + '</div>'
+    + '<label class="hb-pl-row is-gold"><span class="hb-label">Keep at least</span>' + goldFloorHtml() + '<span class="hb-label">gold</span></label>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>'
     + '<div class="hb-tip" role="tooltip"></div>'
     + '<div class="hb-drop" role="menu" aria-label="Drop the action"><b class="hb-drop-t"></b>'
@@ -275,7 +277,7 @@ renderActionBar.act = function actActionBar(ctx, el, action, ev, t) {
   /* The panel: target, stance, chase, distance — ONE intent each, the controls off until the server answers (settings-intent.js). */
   if (action === 'opt') {
     /* A button acts on its click, a select on its change; the bar's other events (pointer, drag, key) never send. */
-    if (ev.type !== (t.tagName === 'SELECT' ? 'change' : 'click')) return;
+    if (ev.type !== (t.tagName === 'SELECT' || t.tagName === 'INPUT' ? 'change' : 'click')) return;
     sendOption(ctx, el.querySelector('.hb-plaque'), t, () => renderActionBar.patch(el, ctx));
     return;
   }

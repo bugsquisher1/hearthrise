@@ -188,6 +188,7 @@
 .hb-stance { display: flex; width: 100%; }
 .hb-stance .hh-seg { flex: 1 1 0; min-width: 0; padding: 0 2px; min-height: 30px; font-size: var(--t-micro); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hb-pl-row .hh-step .hh-seg { min-height: 30px; }
+.hb-pl-row .hb-gold { flex: 1; min-width: 0; min-height: 30px; text-align: right; font-variant-numeric: lining-nums tabular-nums; }
 /* The status line floats above the panel: a message coming or going never shifts a control under the pointer. */
 .hb-plaque .hh-intent-msg { position: absolute; left: 0; right: 0; bottom: calc(100% + 8px); margin: 0; padding: 2px 6px; font-size: var(--t-micro); background: var(--world-hud-bg); pointer-events: none; }
 .hb-plaque .hh-intent-msg:empty { display: none; }
@@ -414,6 +415,7 @@
   .hb-slots { grid-template-columns: repeat(5, 36px); grid-auto-rows: 36px; gap: 3px; }
   .hb-plaque { width: 232px; }
   .hb-plaque .hb-label { display: none; }
+  .hb-plaque .is-gold .hb-label { display: inline; }
   .hc-cfg .hh-seg, .hc-cfg .hh-select, .hc-cfg .hh-num, .hc-cfg .hh-tool { min-height: 40px; }
   .hc-list { max-height: 140px; }
   .ht-bar { gap: 6px; padding: 2px 4px; }

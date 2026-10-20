@@ -41,11 +41,13 @@
 //         hunt, no Hunt details; a running hunt shows Leave hunt
 //   HS-11 A SLOT THAT NEVER FIRES: an earlier slot with the same action under
 //         weaker conditions marks it "!" with the reason; emptying it clears that
-//   HS-12 THE BAR PANEL holds target, stance, chase, distance (nothing else); each is ONE
-//         intent, shows the server value, survives a reload; no Hunt settings window
+//   HS-12 THE BAR PANEL holds target, stance, chase, distance and the gold to keep (nothing
+//         else); each is ONE intent, shows the server value (the gold field keeps it while in
+//         flight and after a refusal), survives a reload; no Hunt settings window
 //   HS-13 THE VITALS HUB: HP, mana, level, XP and stamina from the envelope, replaced by
 //         the next one; a melee hero with no mana pool still shows its mana gauge; regen
-//         reads per second with one decimal (the server's per-minute mana over 60)
+//         reads per second with one decimal (the server's per-minute mana over 60) while
+//         hunting, and nothing once the hunt is over or in town (no server rate there)
 //   HS-14 DRAG: onto an empty slot it moves; onto an action a menu (Swap with X / Insert
 //         here, shift the rest / Escape or a press away cancels); one intent per choice;
 //         nothing moves before the server's re-read says so; the status line always comes
@@ -257,7 +259,7 @@ async function checks(overrides, shots) {
         /* HS-12: exactly target, stance, chase and distance; no eat/drink thresholds, no supplies, no density, no gathering; J opens nothing. */
         s.optionsReply = { ok: true };
         const opts = await page.evaluate((p) => Array.from(new Set(Array.from(document.querySelectorAll(p + ' [data-opt]')).map((e) => e.getAttribute('data-opt')))).sort().join(), P);
-        if (opts !== 'chase,distance,stance,target_mode') fails.push('HS-12 the panel holds ' + opts);
+        if (opts !== 'chase,distance,gold_floor,stance,target_mode') fails.push('HS-12 the panel holds ' + opts);
         await page.keyboard.press('j');
         await page.waitForTimeout(300);
         if (await page.$('[data-hs-win="hunt-settings"]')) fails.push('HS-12 a Hunt settings window still opens');
@@ -276,6 +278,27 @@ async function checks(overrides, shots) {
         await one('chase', () => page.click(P + ' [data-opt="chase"]'), JSON.stringify({ chase: !chase0 }), { chase: !chase0 });
         const d0 = FIXTURE.hunt_settings.distance;
         await one('distance', () => page.click(P + ' [data-opt="distance"][data-val="1"]'), JSON.stringify({ distance: d0 + 1 }), { distance: d0 + 1 });
+        /* The gold to keep: typed, sent once on change; in flight the field shows the server's 300, then the confirmed 500. */
+        const G = P + ' [data-opt="gold_floor"]';
+        const g0 = await page.evaluate((g) => document.querySelector(g) && document.querySelector(g).value, G);
+        if (g0 !== '300') fails.push('HS-12 the gold to keep does not show the server’s 300: ' + JSON.stringify(g0));
+        const gBefore = s.calls.filter((c) => c.name === 'hr_action_set_options').length;
+        Object.assign(s.env.hunt_settings, { gold_floor: 500 });
+        await page.fill(G, '500');
+        await page.dispatchEvent(G, 'change');
+        const gMid = await page.evaluate((g) => ({ v: document.querySelector(g).value, off: document.querySelector(g).disabled }), G);
+        if (gMid.v !== '300' || !gMid.off) fails.push('HS-12 the gold to keep showed the new value (or stayed on) before the server confirmed: ' + JSON.stringify(gMid));
+        const gDone = await wait(page, (g) => document.querySelector(g).value === '500' && !document.querySelector(g).disabled, G, 3000);
+        const gSent = s.calls.filter((c) => c.name === 'hr_action_set_options').slice(gBefore).map((c) => JSON.stringify(c.body.p_opts));
+        if (!gDone || gSent.length !== 1 || gSent[0] !== '{"gold_floor":500}') fails.push('HS-12 the gold to keep sent ' + JSON.stringify(gSent) + ', shows ' + await page.evaluate((g) => document.querySelector(g).value, G));
+        /* Refused: the server's 500 stays, the line says why. */
+        s.optionsReply = { ok: false, error: 'rate_limited' };
+        await page.fill(G, '800');
+        await page.dispatchEvent(G, 'change');
+        const gBack = await wait(page, (g) => !document.querySelector(g).disabled && document.querySelector(g).value === '500'
+          && /^Too many changes/.test(document.querySelector('.hb-plaque .hh-intent-msg').textContent), G, 3000);
+        if (!gBack) fails.push('HS-12 a refused gold to keep did not go back to the server’s 500 with a reason');
+        s.optionsReply = { ok: true };
         const shown = await page.evaluate((p) => ({ target: document.querySelector(p + ' [data-opt="target_mode"]').value,
           chase: document.querySelector(p + ' [data-opt="chase"]').getAttribute('aria-pressed'), distance: document.querySelector(p + ' [data-show="distance"]').textContent }), P);
         if (shown.target !== 'weakest' || shown.chase !== String(!chase0) || shown.distance !== String(d0 + 1)) fails.push('HS-12 the panel does not show the server’s values: ' + JSON.stringify(shown));
@@ -285,6 +308,7 @@ async function checks(overrides, shots) {
         else {
           const again = await page.evaluate((p) => ({ target: document.querySelector(p + ' [data-opt="target_mode"]').value, stance: (document.querySelector(p + ' [data-opt="stance"][aria-pressed="true"]') || {}).getAttribute ? document.querySelector(p + ' [data-opt="stance"][aria-pressed="true"]').getAttribute('data-val') : null,
             distance: document.querySelector(p + ' [data-show="distance"]').textContent }), P);
+          if (await page.evaluate((g) => document.querySelector(g).value, G) !== '500') fails.push('HS-12 after a reload the gold to keep is not the server’s 500');
           if (again.target !== 'weakest' || again.stance !== 'offensive' || again.distance !== String(d0 + 1)) fails.push('HS-12 after a reload the panel is not the server’s: ' + JSON.stringify(again));
         }
       } else fails.push('HS-3 the screen did not mount');
@@ -363,6 +387,9 @@ async function checks(overrides, shots) {
           return b ? { leave: shown('[data-hs-act="leave"]'), details: shown('[data-hs-act="details"]'), summary: shown('[data-hs-act="summary"]') } : null;
         });
         if (bar && (bar.leave || bar.details || !bar.summary)) fails.push('HS-10 a hunt that is over still offers more than its summary: ' + JSON.stringify(bar));
+        /* HS-13 the rate that applies NOW: a hunt that is over no longer fights, so its in-fight regen is gone from the hub. */
+        const overRg = await page.evaluate(() => [document.querySelector('[data-r="hp"]').textContent, document.querySelector('[data-r="mana"]').textContent]);
+        if (overRg.join('') !== '') fails.push('HS-13 the hub still shows the hunt’s regen once it is over: ' + JSON.stringify(overRg));
         s.env.hunt = Object.assign({}, s.env.hunt, { ended: false });
         await pushEnvelope(page, s);
         const live = await page.evaluate(() => { const n = document.querySelector('.ht-bar [data-hs-act="leave"]'); return !!n && n.getClientRects().length > 0; });
@@ -649,6 +676,8 @@ async function checks(overrides, shots) {
         plus: getComputedStyle(document.querySelector('.hb-slot[data-slot="5"] .hb-plus')).display }));
       if (!town.bar || !town.mana) fails.push('HS-8 in town the bar or its vitals hub is missing: ' + JSON.stringify(town));
       if (town.plus === 'none') fails.push('HS-8 an empty slot shows no "+"');
+      const townRg = await page.evaluate(() => [document.querySelector('[data-r="hp"]').textContent, document.querySelector('[data-r="mana"]').textContent]);
+      if (townRg.join('') !== '') fails.push('HS-13 in town the hub shows a regen the server never sent: ' + JSON.stringify(townRg));
       if (shots) await page.screenshot({ path: join(shots, 'town-' + tag + '-bar.png') });
       /* Configure an empty slot from its "+": Items, Any food (the store price shown, paid as used), IF My HP % below 60. */
       await page.click('.hb-slot[data-slot="5"]');
@@ -773,7 +802,10 @@ const MUTANTS = [
   ['a server-refused slot is not struck', 'src/shell/action-facts.js', "  if (sl.usable === false) return { code: 'server', text: 'The server says this cannot fire now.', glyph: 'uiLock', strike: true };\n  const n =", '  const n ='],
   ['the panel’s chase sends nothing', 'src/shell/widgets/settings-intent.js', "  if (key === 'chase') return s.chase === null ? null : { chase: !s.chase };", "  if (key === 'chase') return null;"],
   ['a slot short of its rune says nothing', 'src/shell/action-facts.js', '    if (r.rune && !((bag', '    if (false && r.rune && !((bag'],
-  ['a press on the panel sends on pointerdown', 'src/shell/widgets/action-bar.js', "    if (ev.type !== (t.tagName === 'SELECT' ? 'change' : 'click')) return;", "    if ((t.tagName === 'SELECT') !== (ev.type === 'change')) return;"],
+  ['the hub keeps an ended hunt’s in-fight regen', 'src/shell/widgets/vitals-hub.js', '  const hero = h && !h.ended ? h.hero : null;', '  const hero = h ? h.hero : null;'],
+  ['the gold to keep shows the typed value before the server confirms', 'src/shell/widgets/settings-intent.js', "(pending || el.ownerDocument.activeElement !== el)", "(!pending && el.ownerDocument.activeElement !== el)"],
+  ['the gold to keep sends nothing', 'src/shell/widgets/settings-intent.js', ": { gold_floor: n };", ": null;"],
+  ['a press on the panel sends on pointerdown', 'src/shell/widgets/action-bar.js', "    if (ev.type !== (t.tagName === 'SELECT' || t.tagName === 'INPUT' ? 'change' : 'click')) return;", "    if ((t.tagName === 'SELECT') !== (ev.type === 'change')) return;"],
   ['a cast never cools its slot', 'src/shell/widgets/action-bar.js', '  const on = left > 0;', '  const on = false;'],
   ['the ember stands still', 'src/shell/widgets/action-bar.js', "style.height = (Math.round((1 - left / r.cdMs) * 1000) / 10) + '%';", "style.height = '50%';"],
   ['the bleed badge defaults on for regular monsters', 'src/data/combat-text.js', "label: 'Bleed stack count', on: on(false, true)", "label: 'Bleed stack count', on: on(true, true)"],

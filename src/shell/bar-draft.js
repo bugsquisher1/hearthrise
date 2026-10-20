@@ -11,11 +11,11 @@
 // until the server has answered and the re-read envelope has replaced
 // hunt_settings (CLAUDE.md §6). A refusal names its slot and condition.
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS, OPERATORS, MAX_CONDITIONS, CONSUME_KINDS } from '../data/condition-metrics.js?v=0.2.20';
-import { STATUSES } from '../data/statuses.js?v=0.2.20';
-import { BAR_SLOTS } from '../data/hunt-hud.js?v=0.2.20';
-import { BASIC_SUPPLIES } from '../data/supply-basics.js?v=0.2.20';
-import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.20';
+import { METRICS, OPERATORS, MAX_CONDITIONS, CONSUME_KINDS } from '../data/condition-metrics.js?v=0.2.21';
+import { STATUSES } from '../data/statuses.js?v=0.2.21';
+import { BAR_SLOTS } from '../data/hunt-hud.js?v=0.2.21';
+import { BASIC_SUPPLIES } from '../data/supply-basics.js?v=0.2.21';
+import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.21';
 
 export const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));

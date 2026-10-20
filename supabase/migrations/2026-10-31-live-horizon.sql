@@ -10,7 +10,8 @@
 -- change hunt, or have the leader kick them) before it: hr_hunt_leave /
 -- hr_hunt_change / hr_hunt_party_kick closed AT ONCE when the session was freshly
 -- settled, walking or stalled, and otherwise set leave_at / change_at = now().
--- Now each is ALWAYS pending, at hr_hunt_live_horizon_at(settled_to) =
+-- Now each PENDS (a leave or kick still ends at once while the hero is walking in:
+-- it has fought nothing), at hr_hunt_live_horizon_at(settled_to) =
 -- greatest(now(), settled_to + c_horizon_ms): the settle walks the hunt through
 -- every swing the viewer was shown, so a foreseen death still happens there
 -- (`died` at that swing, priced as ever). Every later settle extends the horizon
@@ -37,13 +38,13 @@ do $mig$
 declare v_src text;
 begin
   select prosrc into v_src from pg_proc where oid = 'public.hr_hunt_leave(integer,uuid)'::regprocedure;
-  if md5(v_src) not in ('fec2c5ee4e61788b72e4cb3a458dad15', '3f6444929e66e94f8466d5059d9716ad') then
+  if md5(v_src) not in ('fec2c5ee4e61788b72e4cb3a458dad15', '2961ffcc7d1b34fefb62ac185ded0bda') then
     raise exception 'PIN: hr_hunt_leave moved (md5 %)', md5(v_src); end if;
   select prosrc into v_src from pg_proc where oid = 'public.hr_hunt_change(integer,text,uuid)'::regprocedure;
   if md5(v_src) not in ('a2a5681e8b6d5753f5ad61db4391d9c4', '72821b550ddf25cbee67ef69af898113') then
     raise exception 'PIN: hr_hunt_change moved (md5 %)', md5(v_src); end if;
   select prosrc into v_src from pg_proc where oid = 'public.hr_hunt_party_kick(integer,integer,uuid)'::regprocedure;
-  if md5(v_src) not in ('bc5588d4b4cb54a95c887c90962e395c', 'b2e750ab039bfae2ca721e9fec9b6ec8') then
+  if md5(v_src) not in ('bc5588d4b4cb54a95c887c90962e395c', '537e5eae8b7a86bd3c3329d48fce1339') then
     raise exception 'PIN: hr_hunt_party_kick moved (md5 %)', md5(v_src); end if;
 end $mig$;
 
@@ -74,13 +75,19 @@ begin
 
   v_s := public.hr_hunt_lock(v_uid, p_slot);
   if v_s.id is null then return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'no_hunt')); end if;
-  -- ALWAYS PENDING (live-horizon, 2026-10-31): never at once. The settle walks to leave_at, no earlier
-  -- than the last combat swing the viewer was shown (hr_hunt_live_horizon_at), so a death the browser
-  -- foresaw in its seeds cannot be stepped around: the hunt ends `left` only after it, or `died` at it.
-  if v_s.leave_at is null and v_s.change_at is null then
-    update public.hunt_sessions set leave_at = public.hr_hunt_live_horizon_at(v_s.settled_to), version = version + 1 where id = v_s.id;
+  -- AT ONCE only while the hero is still walking in (settled_to ahead of now: it has fought no swing,
+  -- so no foreseen blow is stepped around). Otherwise PENDING (live-horizon, 2026-10-31): the settle walks
+  -- to leave_at, no earlier than the last combat swing the viewer was shown (hr_hunt_live_horizon_at), so a
+  -- death the browser foresaw in its seeds still happens: the hunt ends `left` only after it, or `died` at it.
+  if public.hr_hunt_gap_ms(v_s) < 0 then
+    perform public.hr_hunt_close(v_s.id, 'left', now(), true);
+    v_r := jsonb_build_object('ok', true, 'pending', false, 'session', public.hr_hunt_view(v_s.id));
+  else
+    if v_s.leave_at is null and v_s.change_at is null then
+      update public.hunt_sessions set leave_at = public.hr_hunt_live_horizon_at(v_s.settled_to), version = version + 1 where id = v_s.id;
+    end if;
+    v_r := jsonb_build_object('ok', true, 'pending', true, 'session', public.hr_hunt_view(v_s.id));
   end if;
-  v_r := jsonb_build_object('ok', true, 'pending', true, 'session', public.hr_hunt_view(v_s.id));
   insert into public.player_intents (user_id, intent_id, slot, intent, result, at)
     values (v_uid, p_idem, p_slot, c_verb, v_r, now()) on conflict (user_id, intent_id) do nothing;
   return v_r;
@@ -157,8 +164,10 @@ begin
   v_s := public.hr_hunt_lock(v_t.user_id, v_t.slot);
   if v_s.id is not null and v_s.instance_id = v_pid then
     v_leaving := true;
-    -- ALWAYS PENDING (live-horizon, 2026-10-31): as its own Leave, never before the last swing shown.
-    if v_s.leave_at is null and v_s.change_at is null then
+    -- As its own Leave (live-horizon, 2026-10-31): at once only while walking in, else never before the last swing shown.
+    if public.hr_hunt_gap_ms(v_s) < 0 then
+      perform public.hr_hunt_close(v_s.id, 'left', now(), true);
+    elsif v_s.leave_at is null and v_s.change_at is null then
       update public.hunt_sessions set leave_at = public.hr_hunt_live_horizon_at(v_s.settled_to), version = version + 1 where id = v_s.id;
     end if;
   end if;
@@ -180,14 +189,14 @@ begin
     raise exception 'VERIFY(a): a fresh settled_to does not answer now() + 32 s'; end if;
   -- (b) no door ends a hunt at once any more, and each pends at the horizon.
   select prosrc into v_src from pg_proc where oid = 'public.hr_hunt_leave(integer,uuid)'::regprocedure;
-  if v_src like '%hr_hunt_close(%' or v_src not like '%hr_hunt_live_horizon_at(v_s.settled_to)%' then
-    raise exception 'VERIFY(b): hr_hunt_leave still closes at once or pends at now()'; end if;
+  if v_src not like '%if public.hr_hunt_gap_ms(v_s) < 0 then%' or v_src like '%c_slack_ms%' or v_src not like '%hr_hunt_live_horizon_at(v_s.settled_to)%' then
+    raise exception 'VERIFY(b): hr_hunt_leave closes at once past the walk or pends at now()'; end if;
   select prosrc into v_src from pg_proc where oid = 'public.hr_hunt_change(integer,text,uuid)'::regprocedure;
   if v_src like '%hr_hunt_swap(%' or v_src not like '%hr_hunt_live_horizon_at(v_s.settled_to)%' then
     raise exception 'VERIFY(b): hr_hunt_change still swaps at once or pends at now()'; end if;
   select prosrc into v_src from pg_proc where oid = 'public.hr_hunt_party_kick(integer,integer,uuid)'::regprocedure;
-  if v_src like '%hr_hunt_close(%' or v_src not like '%hr_hunt_live_horizon_at(v_s.settled_to)%' then
-    raise exception 'VERIFY(b): hr_hunt_party_kick still closes at once or pends at now()'; end if;
+  if v_src not like '%if public.hr_hunt_gap_ms(v_s) < 0 then%' or v_src like '%c_slack_ms%' or v_src not like '%hr_hunt_live_horizon_at(v_s.settled_to)%' then
+    raise exception 'VERIFY(b): hr_hunt_party_kick closes at once past the walk or pends at now()'; end if;
   -- (c) the helper is the owner's; the doors keep the client's grant.
   foreach v_role in array array['anon', 'authenticated'] loop
     if has_function_privilege(v_role, 'public.hr_hunt_live_horizon_at(timestamptz)', 'execute') then

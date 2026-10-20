@@ -1680,8 +1680,8 @@ const AI = 'public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)'
 const SS = 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)';
 const DB_MUTANTS = [
   { arm: 'NO-DODGE', name: 'a leave closes the hunt at once again (the foreseen death is dodged)', fn: 'public.hr_hunt_leave(integer,uuid)',
-    find: '    update public.hunt_sessions set leave_at = public.hr_hunt_live_horizon_at(v_s.settled_to), version = version + 1 where id = v_s.id;',
-    replace: "    perform public.hr_hunt_close(v_s.id, 'left', now(), true);" },
+    find: '      update public.hunt_sessions set leave_at = public.hr_hunt_live_horizon_at(v_s.settled_to), version = version + 1 where id = v_s.id;',
+    replace: "      perform public.hr_hunt_close(v_s.id, 'left', now(), true);" },
   { arm: 'VALUE', name: 'the gold bound is gone', fn: AM,
     find: "  if jsonb_typeof(p_delta->'gold') = 'number' and (p_delta->>'gold')::numeric > v_kills * v_vb_gold * v_vb_h then", replace: '  if false then' },
   { arm: 'VALUE', name: 'an undroppable item passes the drop bound', fn: AM,

@@ -331,6 +331,9 @@ const ARMS = {
     if (await partyOf(db, B)) p.push('a kicked hunter keeps its seat');
     /* A/1 is still walking in (settled_to ahead): the kick ends its session at once. */
     const s1 = await one(db, 'select id from public.hunt_sessions where user_id = $1 and slot = 1 and ended_at is null', [A]);
+    /* No walk is shipped (travel_s 0), so walking in is staged: its clock still ahead of now, no swing fought. */
+    await db.query(`update public.hunt_sessions set hunt_from = now() + interval '20 seconds', settled_to = now() + interval '20 seconds',
+                    next_swing_at = now() + interval '20 seconds' where id = $1`, [s1]);
     await kick(db, A, await seatOf(A, 1));
     if (await one(db, 'select ended_at from public.hunt_sessions where id = $1', [s1]) === null) p.push('a kicked walking hunter was not ended at once');
     if (await one(db, 'select count(*)::int from public.hunt_sessions where instance_id = $1 and ended_at is null and leave_at is null', [pid]) !== 1) {

@@ -52,6 +52,8 @@ export const SESSION_CONFIG = Object.freeze({
       (clock slack), not up to a huntPollMs later; the settle closes it then (hunt-settle.js: a pending
       leave is never held back by the floor). */
   leaveSlackMs: 400,
-  /** ...and, if that settle did not close it yet, asked again this often until a huntPollMs past leave_at. */
+  /** ...and, if that settle did not close it yet, asked again this often until leaveLateMs past leave_at
+      (then the ordinary poll goes on asking, and the hunt bar says it is still being processed). */
   leaveRetryMs: 2000,
+  leaveLateMs: 16000,
 });

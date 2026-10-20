@@ -67,9 +67,6 @@ export function huntOf(cs) {
     endReason: isObj(h.session) ? str(h.session.end_reason) : null,
     /* When the hunt's engine starts (the end of the travel, hr_hunt_travel): before it the hero walks. */
     huntFromMs: isObj(h.session) && str(h.session.hunt_from) ? Date.parse(h.session.hunt_from) || null : null,
-    /* A PENDING LEAVE: the server instant the settle closes the hunt at (hr_hunt_leave's leave_at, on the
-       server's clock; read against CharacterSession.serverNow, never the device's). Null when none is asked. */
-    leaveAtMs: leaveAtOf(h),
     units: unitsOf(h.pose),
     hero: {
       unit: int(hero.unit), name: str(hero.name), level: int(hero.level),

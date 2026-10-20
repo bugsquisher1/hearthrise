@@ -39,8 +39,6 @@
 .hh-tool:focus-visible, .hh-seg:focus-visible, .hh-select:focus-visible, .hh-num:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 1px; }
 .hh-tool[aria-pressed="true"], .hh-seg[aria-pressed="true"] { color: var(--gold-2); border-bottom-color: var(--gold); }
 .hh-tool:disabled, .hh-seg:disabled, .hh-select:disabled, .hh-num:disabled { opacity: .5; cursor: default; }
-/* Leave hunt while the leave pends: off, but read at full ink in gold (the countdown is the message). */
-.hh-tool.is-leave[data-leaving] { opacity: 1; color: var(--gold-2); }
 .hh-tool .hs-glyph { width: 18px; height: 18px; }
 .hh-tool { white-space: nowrap; }
 .hh-tool:has(.hs-glyph) { display: inline-grid; place-items: center; min-width: 32px; padding: 0 6px; color: var(--ink-3); }
@@ -80,6 +78,8 @@
 .ht-ground { font-family: var(--f-label); font-weight: 700; font-size: var(--t-small); letter-spacing: .04em; color: var(--gold-2); white-space: nowrap; }
 .ht-clock { font-variant-numeric: lining-nums tabular-nums; color: var(--ink-2); font-size: var(--t-micro); white-space: nowrap; padding-right: 4px; margin-right: 2px; border-right: 1px solid var(--line-soft); }
 .ht-bar .hh-intent-msg { max-width: 220px; }
+/* The pending leave's countdown beside Leave hunt: gold label text (the bar's own ground-name ink), tabular seconds. */
+.ht-leaving { font-family: var(--f-label); font-weight: 700; font-size: var(--t-small); color: var(--gold-2); font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
 
 /* ── Party board ── */
 .hp-party { width: 250px; }

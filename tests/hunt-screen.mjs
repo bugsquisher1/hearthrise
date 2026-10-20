@@ -43,9 +43,13 @@
 //         weaker conditions marks it "!" with the reason; emptying it clears that
 //   HS-12 the bar carries no fight controls; Hunt settings no density, no gathering
 //   HS-13 no two hunt panels overlap at 1440x900 or on a narrower desktop
-//   HS-14 LEAVE HUNT: the press answers at once ("Leaving…", off, sent once); then "Leaving in Ns"
-//         to the SERVER's leave_at on the server's clock (3 h ahead of the device here), ticking;
-//         a reload keeps it; a hair after leave_at the hunt ends on screen (only Summary left)
+//   HS-14 LEAVE HUNT: the press answers at once ("Leaving…" beside the button, which is off, sent
+//         once); a number shows within about a second (from the leave's own answer, the settle after
+//         it still out): "Leaving in Ns" to the SERVER's leave_at on the server's clock (3 h ahead of
+//         the device here), ticking, in gold label text >= 12 px; a reload keeps it; never 0 or below;
+//         a hair after leave_at the hunt ends on screen (only Summary left)
+//   HS-15 a leave past its leave_at reads "Leaving now…"; one still open a while later says it is
+//         still being processed, the button stays off, and the close is still asked
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { launchOptions } from './_chrome.mjs';
@@ -80,7 +84,12 @@ async function stub(page, s) {
     s.calls.push({ name, body });
     const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
     if (name === 'hr_load') return json(s.next());
-    if (name === 'hr-accrue') { if (s.onAccrue) s.onAccrue(); return json(Object.assign({ accrued: true }, s.next())); }
+    if (name === 'hr-accrue') {
+      const d = s.accrueDelay ? s.accrueDelay() : 0;
+      if (d) await new Promise((ok) => setTimeout(ok, d));
+      if (s.onAccrue) s.onAccrue();
+      return json(Object.assign({ accrued: true }, s.next()));
+    }
     if (name === 'hr_action_set_options') { await new Promise((ok) => setTimeout(ok, s.optionsDelayMs)); return json(s.optionsReply); }
     if (name === 'hr_hunt_leave' && s.onLeave) { await new Promise((ok) => setTimeout(ok, 400)); return json(s.onLeave()); }
     return json({ ok: true });
@@ -317,17 +326,23 @@ async function checks(overrides, shots) {
       await ctx.close();
     }
 
-    { // HS-14 LEAVE HUNT COUNTS DOWN TO THE SERVER'S CLOSE (live v0.2.20 "very buggy and delayed")
+    { // HS-14 LEAVE HUNT COUNTS DOWN TO THE SERVER'S CLOSE (live v0.2.20 "very buggy and delayed";
+      // Tyler 10-20: "a countdown so they know it's not just stuck")
       /* The server runs three hours ahead of this device: a countdown off the device clock reads nothing like it. */
       const SKEW = 3 * 3600000;
-      let leaveAt = null;
+      let leaveAt = null, slowOnce = false;
       const { ctx, page, s, errors, up } = await open({ prep: (sc) => {
         sc.clock = () => Date.now() + SKEW;
         sc.onLeave = () => {
           if (leaveAt === null) leaveAt = sc.clock() + 6000;
-          sc.env.hunt = Object.assign({}, sc.env.hunt, { session: Object.assign({}, sc.env.hunt.session, { leave_at: new Date(leaveAt).toISOString(), phase: 'leaving' }) });
-          return { ok: true, pending: true };
+          const session = Object.assign({}, sc.env.hunt.session, { id: sc.env.hunt.session_id, leave_at: new Date(leaveAt).toISOString(), phase: 'leaving' });
+          sc.env.hunt = Object.assign({}, sc.env.hunt, { session });
+          slowOnce = true;
+          /* the server's answer: the session it set leave_at on (hr_hunt_leave -> hr_hunt_view) */
+          return { ok: true, pending: true, session };
         };
+        /* the settle right after the press is slow (2.5 s): the number must not wait for it */
+        sc.accrueDelay = () => { if (!slowOnce) return 0; slowOnce = false; return 2500; };
         /* the hunter's settle closes it once the server's clock is past leave_at (hunt-settle.js: a pending leave is never held back) */
         sc.onAccrue = () => {
           if (leaveAt === null || sc.clock() < leaveAt || sc.env.hunt.ended) return;
@@ -337,16 +352,23 @@ async function checks(overrides, shots) {
         };
       } });
       if (up) {
-        const label = () => page.evaluate(() => { const b = document.querySelector('.ht-bar [data-hs-act="leave"]'); return b ? { t: b.textContent, off: b.disabled, shown: b.getClientRects().length > 0 } : null; });
-        const counting = () => /^Leaving in \d+s$/.test((document.querySelector('.ht-bar [data-hs-act="leave"]') || {}).textContent || '');
+        const label = () => page.evaluate(() => { const b = document.querySelector('.ht-bar [data-hs-act="leave"]'); const l = document.querySelector('.ht-bar .ht-leaving');
+          return b && l ? { t: l.textContent, line: l.getClientRects().length > 0, off: b.disabled, shown: b.getClientRects().length > 0,
+            px: parseFloat(getComputedStyle(l).fontSize), gold: getComputedStyle(l).color === getComputedStyle(document.querySelector('.ht-ground')).color, next: l.nextElementSibling === b } : null; });
+        const counting = () => { const l = document.querySelector('.ht-bar .ht-leaving'); return !!l && l.getClientRects().length > 0 && /^Leaving in \d+s$/.test(l.textContent); };
         await page.click('.ht-bar [data-hs-act="leave"]');
+        const t0 = Date.now();
         const flight = await label();
         await page.click('.ht-bar [data-hs-act="leave"]', { force: true, timeout: 1000 }).catch(() => {});
-        if (!flight || flight.t !== 'Leaving…' || !flight.off) fails.push('HS-14 the press does not answer at once with Leaving… (off): ' + JSON.stringify(flight));
-        await wait(page, counting, null, 3000);
+        if (!flight || flight.t !== 'Leaving…' || !flight.line || !flight.off) fails.push('HS-14 the press does not answer at once with Leaving… beside an off button: ' + JSON.stringify(flight));
+        /* NO WORDLESS GAP: a number within about a second of the press, while the settle after it is still out */
+        const quick = await wait(page, counting, null, 1500);
+        const gap = Date.now() - t0;
+        if (!quick || gap > 1500) fails.push('HS-14 no number within a second of the press (the settle after it is slow): ' + gap + ' ms, ' + JSON.stringify(await label()));
         const a = await label();
         const n = (x) => Number(((x && x.t) || '').replace(/\D+/g, '')) || 0;
-        if (!a || !/^Leaving in [4-6]s$/.test(a.t) || !a.off) fails.push('HS-14 the button does not count down to the server’s leave_at (want 4-6s): ' + JSON.stringify(a));
+        if (!a || !/^Leaving in [4-6]s$/.test(a.t) || !a.off) fails.push('HS-14 the line does not count down to the server’s leave_at (want 4-6s): ' + JSON.stringify(a));
+        else if (!(a.px >= 12) || !a.gold || !a.next) fails.push('HS-14 the countdown is not gold label text >= 12 px right beside Leave hunt: ' + JSON.stringify(a));
         await page.click('.ht-bar [data-hs-act="leave"]', { force: true, timeout: 1000 }).catch(() => {});   // a second press while it pends
         await page.waitForTimeout(1300);
         const b = await label();
@@ -360,14 +382,51 @@ async function checks(overrides, shots) {
         if (!r || !/^Leaving in \d+s$/.test(r.t) || !(n(r) >= 1 && n(r) <= n(b)) || !r.off) fails.push('HS-14 a reload during the leave lost its countdown: ' + JSON.stringify([b, r]));
         const leaves = s.calls.filter((c) => c.name === 'hr_hunt_leave').length;
         if (leaves !== 1) fails.push('HS-14 the leave was sent ' + leaves + ' times (want once)');
-        /* THE CLOSE: asked a hair after leave_at, the hunt ends on screen within about a second, back in town */
-        const done = await wait(page, () => { const bar = document.querySelector('.ht-bar'); const l = bar && bar.querySelector('[data-hs-act="leave"]');
-          return !!bar && !!l && l.getClientRects().length === 0 && bar.querySelector('[data-hs-act="summary"]').getClientRects().length > 0; }, null, 9000);
+        /* THE CLOSE: asked a hair after leave_at, the hunt ends on screen within about a second, back in town;
+           every line seen on the way is a whole number of seconds >= 1 or "Leaving now…" */
+        const end = await page.evaluate(async () => {
+          const seen = new Set();
+          for (let i = 0; i < 90; i++) {
+            const bar = document.querySelector('.ht-bar'); const l = bar && bar.querySelector('[data-hs-act="leave"]'); const line = bar && bar.querySelector('.ht-leaving');
+            if (line && line.getClientRects().length > 0) seen.add(line.textContent);
+            if (bar && l && l.getClientRects().length === 0 && bar.querySelector('[data-hs-act="summary"]').getClientRects().length > 0) return { done: true, seen: [...seen], line: !!line && line.getClientRects().length > 0 };
+            await new Promise((ok) => setTimeout(ok, 100));
+          }
+          return { done: false, seen: [...seen] };
+        });
         const lag = s.closedAt && leaveAt !== null ? s.closedAt - (leaveAt - SKEW) : null;
-        if (!done) fails.push('HS-14 the hunt never ended on screen after leave_at: ' + JSON.stringify(await label()));
+        if (!end.done) fails.push('HS-14 the hunt never ended on screen after leave_at: ' + JSON.stringify(await label()));
         else if (lag === null || lag > 1500) fails.push('HS-14 the close was asked ' + lag + ' ms after leave_at (want within 1.5 s)');
+        const odd = end.seen.filter((x) => !/^Leaving in [1-9]\d*s$|^Leaving now…$/.test(x));
+        if (odd.length) fails.push('HS-14 the countdown showed ' + JSON.stringify(odd) + ' on its way to the close');
+        if (end.line) fails.push('HS-14 the leaving line stays up after the hunt ended');
         if (errors.length) fails.push('HS-14 console errors: ' + errors.slice(0, 3).join(' | '));
       } else fails.push('HS-14 the screen did not mount');
+      await ctx.close();
+    }
+
+    { // HS-15 PAST leave_at: "Leaving now…"; still open a while later: a plain still-processing line, still asked
+      let iso = null;
+      const { ctx, page, s, errors, up } = await open({ prep: (sc) => {
+        sc.clock = () => Date.now();
+        iso = (ago) => new Date(sc.clock() - ago).toISOString();
+        /* a reload into a leave whose leave_at passed 3 s ago and whose close has not landed */
+        sc.env.hunt = Object.assign({}, sc.env.hunt, { session: Object.assign({}, sc.env.hunt.session, { leave_at: iso(3000), phase: 'leaving' }) });
+      } });
+      if (up) {
+        const line = () => page.evaluate(() => { const l = document.querySelector('.ht-bar .ht-leaving'); const b = document.querySelector('.ht-bar [data-hs-act="leave"]');
+          return l && b ? { t: l.getClientRects().length > 0 ? l.textContent : null, off: b.disabled } : null; });
+        const reads = (t) => page.waitForFunction((x) => { const l = document.querySelector('.ht-bar .ht-leaving'); return !!l && l.getClientRects().length > 0 && l.textContent === x; }, t, { timeout: 4000 }).then(() => true, () => false);
+        if (!(await reads('Leaving now…'))) fails.push('HS-15 a leave past its leave_at does not read "Leaving now…": ' + JSON.stringify(await line()));
+        /* the server's leave_at is now long past (the close is late): the line says so, plainly */
+        const asked = s.calls.filter((c) => c.name === 'hr-accrue').length;
+        s.env.hunt = Object.assign({}, s.env.hunt, { session: Object.assign({}, s.env.hunt.session, { leave_at: iso(20000) }) });
+        if (!(await reads('Still processing your leave…'))) fails.push('HS-15 a late close never says it is still being processed: ' + JSON.stringify(await line()));
+        const l = await line();
+        if (!l || !l.off) fails.push('HS-15 Leave hunt is pressable while the late leave is processed: ' + JSON.stringify(l));
+        if (!(s.calls.filter((c) => c.name === 'hr-accrue').length > asked)) fails.push('HS-15 the late close is not asked again');
+        if (errors.length) fails.push('HS-15 console errors: ' + errors.slice(0, 3).join(' | '));
+      } else fails.push('HS-15 the screen did not mount');
       await ctx.close();
     }
 
@@ -566,8 +625,11 @@ const MUTANTS = [
   ['the Hunts window keeps saying "On the way" while hunting', 'src/shell/windows/hunts.js', "  if (sc.msg && sc.msg === sc.enterMsg && (now || (h && h.ended))) { sc.msg = ''; sc.enterMsg = null; }\n", ''],
   ['an edge panel never steps out of the hunt bar’s way', 'src/shell/shell.js', "        for (const p of at.push) edgeEls[p.i].style.top = p.top + 'px';\n", ''],
   ['an ended hunt still offers Leave hunt', 'src/shell/widgets/hunt-topbar.js', "  prop(leave, 'hidden', over && !leave.hasAttribute('data-pending'));\n", ''],
-  ['Leave hunt forgets a pending leave', 'src/shell/widgets/hunt-topbar.js', "  const leaveAt = h && !h.ended ? h.leaveAtMs : null;", "  const leaveAt = null;"],
-  ['the leave countdown reads the device clock', 'src/shell/widgets/hunt-topbar.js', "cs && typeof cs.serverNow === 'function' ? cs.serverNow() : null;", "Date.now();"],
+  ['Leave hunt forgets a pending leave', 'src/shell/widgets/hunt-topbar.js', "  const cd = over ? null : ctx.character.leaveCountdown();", "  const cd = null;"],
+  ['the leave countdown reads the device clock', 'src/session/character-session.js', "    const now = this.serverNow();\n    if (now === null) return { phase: 'asked', s: null };", "    const now = Date.now();"],
+  ['the countdown waits for the settle after the press', 'src/session/character-session.js', "      this._askedLeave(ans.body.session);\n", ""],
+  ['a late close never says so', 'src/shell/widgets/hunt-topbar.js', "late: 'Still processing your leave…'", "late: 'Leaving now…'"],
+  ['the countdown line is not shown', 'src/shell/widgets/hunt-topbar.js', "  prop(line, 'hidden', !leaving || over);", "  prop(line, 'hidden', true);"],
   ['the leave closes a whole poll late', 'src/session/character-session.js', "    if (close !== null) ms = Math.min(ms, close);", ""],
   ['a free character gets no basic analyzer', 'src/shell/widgets/analyzer.js', 'const a = analyzerOf(ctx.character);', 'const a = premium ? analyzerOf(ctx.character) : null;'],
   ['the analyzer keeps the last numbers when the section goes', 'src/session/hunt-sections.js', "  const a = section(cs, 'hunt_analyzer');\n", "  const a = section(cs, 'hunt_analyzer') || globalThis.__lastA;\n  globalThis.__lastA = a;\n"],

@@ -6,7 +6,7 @@
 -- reopen gate. The Coordinator applies (tools/apply-migration.mjs, one file,
 -- never inside begin/commit, never 00:00-00:10 UTC).
 --
--- ORDER: AFTER 2026-10-28-reopen-rpc-sweep.sql (§0 refuses until it has run).
+-- ORDER: AFTER 2026-10-30-reopen-rpc-sweep.sql (§0 refuses until it has run).
 -- EDGE FIRST: the hr-accrue payload without the market / unlock_buy verbs
 -- (this branch) should be live, or those verbs answer "function does not
 -- exist" instead of unknown_verb. Neither has a client.
@@ -31,6 +31,8 @@
 --                    except hr_lb_combat_level, leaderboard_ranked, leaderboard_meta.
 --   HIRED WORKERS    hr_worker_hire, hr_worker_assign.
 --   UNLOCK BUYS      hr_unlock_buy (the engine writer).
+--   OLD TRAITS       hr_trait_buy (+ __ungated) and the hr_traits catalogue
+--                    (Coordinator 2026-10-20: the old unlock traits are gone).
 --   GATE + BASELINE  hr_rpc_gate restated whole: it admits exactly the buckets a
 --                    surviving body passes (§6 asserts both directions); the
 --                    dropped client RPCs leave hr_client_rpc_baseline.
@@ -44,8 +46,9 @@
 --   (tools/gen-catalogues.mjs), hr_companion_grants (gen-companion-grants),
 --   hr_unlock_offers (gen-unlock-offers / gen-companion-unlocks / gen-gold-ladders).
 --   They go with their generators, in a tools lane.
---   Not in this lane's ruling: hr_login_claim (the premium login reward),
---   hr_trait_buy, the farm (incl. hr_farm_upgrade_plot), hr_buy_hero_slot,
+--   Kept by ruling (Coordinator 2026-10-20; reopen-review items): hr_login_claim
+--   (the premium login reward) and the farm (incl. hr_farm_upgrade_plot).
+--   Not in this lane's ruling: hr_buy_hero_slot,
 --   set_activity + the gather/artisan engine, the bounty helpers and the
 --   attended-credit logs, hr_unlocks + hr_unlock_guard, every party/chat object.
 --   hr_assert_grant_hygiene is NOT restated: its engine allowlist keeps the
@@ -70,10 +73,10 @@ do $mig$
 declare v_md5 text; r record;
 begin
   if to_regprocedure('public.hr_claim_rank(text,integer)') is not null then
-    raise exception 'PRECONDITION: apply 2026-10-28-reopen-rpc-sweep.sql first'; end if;
+    raise exception 'PRECONDITION: apply 2026-10-30-reopen-rpc-sweep.sql first'; end if;
   for r in select * from (values
-      ('public.hr_rpc_gate(text)',               '69610a81a8a5fcfffb951644c0929791', '67ace15a23ee792fb44642127b8c2cd9'),
-      ('public.hr_offline_cap_ms(uuid,integer)', 'ac72785907ae37df0ebb0e45dce0dadb', '5f398aea97658361c9e873b270981f45'),
+      ('public.hr_rpc_gate(text)',               '69610a81a8a5fcfffb951644c0929791', '32255b5122ffd852a18bba07db365212'),
+      ('public.hr_offline_cap_ms(uuid,integer)', 'ac72785907ae37df0ebb0e45dce0dadb', '7d281e4de4ab97c995cac3938d9a20fa'),
       ('public.hr_server_now()',                 'da61e5f17e005006466464900f8100ac', 'c2f9a557ce4b6f3eb51a110d5167bdd8'),
       ('public.hr_name_restamp()',               'a60fbf68e0bc200d17466d1256c645a0', 'a4ee9fddc7eacdaca04d6775571f6adb'),
       ('public.hr_mod_force_rename(uuid,text)',  'd50e4fdf7fe7ee5a42595747efe283cf', 'b77e2c0a30b845249d838aab5140cbfd')) v(sig, pre, own) loop
@@ -108,7 +111,7 @@ begin
   if p_user is null then return c_base_h::bigint * 3600000; end if;
 
   -- The clan rungs (+1h at clan level 4, +2h more at 7) left with the clans
-  -- (2026-10-30-server-cleanup.sql).
+  -- (2026-10-31-server-cleanup.sql).
 
   -- (Offline+ entitlement, renown and property tier land here when they become
   --  server state. Until then they contribute 0 — see the header.)
@@ -259,7 +262,7 @@ drop table if exists
   public.hr_castle_tiers, public.hr_market_config, public.hr_rally_action_s, public.leaderboard_meta,
   public.market_buy_offers, public.market_listings, public.market_sales, public.raid_claims,
   public.raid_contributions, public.world_event_joins, public.world_event_pledges,
-  public.world_event_totals;
+  public.world_event_totals, public.hr_traits;
 drop sequence if exists public.clan_ledger_id_seq, public.market_sales_id_seq;
 alter table public.profiles drop column if exists clan_id;
 
@@ -382,6 +385,8 @@ drop function if exists public.world_event_contribute(text);
 drop function if exists public.world_event_contribute__ungated(text);
 drop function if exists public.world_event_join(text);
 drop function if exists public.world_event_join__ungated(text);
+drop function if exists public.hr_trait_buy(text,integer,uuid);
+drop function if exists public.hr_trait_buy__ungated(text,integer,uuid);
 
 delete from public.hr_client_rpc_baseline where proname = any (array[
     'clan_board_claim', 'clan_board_claim__ungated', 'clan_board_progress',
@@ -413,14 +418,16 @@ delete from public.hr_client_rpc_baseline where proname = any (array[
     'hr_rally_slot', 'hr_rally_theme', 'hr_rally_xp_credit', 'hr_tally_state', 'hr_unlock_buy',
     'hr_utc_week_key', 'hr_week_start', 'hr_worker_assign', 'hr_worker_hire', 'market_sales_prune',
     'raid_strike', 'raid_strike__ungated', 'sync_profile_clan', 'world_event_contribute',
-    'world_event_contribute__ungated', 'world_event_join', 'world_event_join__ungated']);
+    'world_event_contribute__ungated', 'world_event_join', 'world_event_join__ungated',
+    'hr_trait_buy', 'hr_trait_buy__ungated']);
 
 -- ── §6 hr_rpc_gate RESTATED WHOLE: exactly the buckets a surviving body passes ─
 -- Gone with their callers: every clan_* bucket, buy_listing, raid_strike,
 -- world_event_contribute / _join, hr_rally_pledge_state, hr_leaderboard,
 -- hr_tally_state, hr_goal_state, worker_hire / _assign, and the already-orphaned
 -- hr_credit_kills, hr_credit_combat_xp, hr_set_style, hr_accept_bounty,
--- hr_claim_bounty, hr_bounty_spend, hr_claim_goal, hr_vigour_refill, hunt_use
+-- hr_claim_bounty, hr_bounty_spend, hr_claim_goal, hr_vigour_refill, hunt_use,
+-- and hr_trait_buy (dropped in §5)
 -- (their functions left in earlier files). §7(c) asserts the set both ways.
 CREATE OR REPLACE FUNCTION public.hr_rpc_gate(p_bucket text)
  RETURNS boolean
@@ -449,8 +456,7 @@ begin
          'client_state_put'
       then v_limit := 60;
     when 'bug_report_submit', 'claim_beta_invite', 'claim_display_name',
-         'hr_claim_daily',
-         'hr_trait_buy'
+         'hr_claim_daily'
       then v_limit := 12;
     when 'beta_invite_check'
       then v_limit := 20;
@@ -539,14 +545,15 @@ declare
     'hr_rally_slot', 'hr_rally_theme', 'hr_rally_xp_credit', 'hr_tally_state', 'hr_unlock_buy',
     'hr_utc_week_key', 'hr_week_start', 'hr_worker_assign', 'hr_worker_hire', 'market_sales_prune',
     'raid_strike', 'raid_strike__ungated', 'sync_profile_clan', 'world_event_contribute',
-    'world_event_contribute__ungated', 'world_event_join', 'world_event_join__ungated'];
+    'world_event_contribute__ungated', 'world_event_join', 'world_event_join__ungated',
+    'hr_trait_buy', 'hr_trait_buy__ungated'];
   c_rels constant text[] := array[
     'clan_bans', 'clan_board', 'clan_invites', 'clan_ledger', 'clan_members', 'clan_order_ballots',
     'clan_order_votes', 'clan_raids', 'clan_stores', 'clan_tavern', 'clan_withdrawals',
     'clan_work_labour', 'clan_work_orders', 'clans', 'hr_castle_board_tasks', 'hr_castle_buildings',
     'hr_castle_items', 'hr_castle_tiers', 'hr_market_config', 'hr_rally_action_s', 'leaderboard_meta',
     'leaderboard_ranked', 'market_buy_offers', 'market_listings', 'market_price_history', 'market_sales',
-    'raid_claims', 'raid_contributions', 'world_event_joins', 'world_event_pledges', 'world_event_totals',
+    'raid_claims', 'raid_contributions', 'world_event_joins', 'world_event_pledges', 'world_event_totals', 'hr_traits',
     'clan_ledger_id_seq', 'market_sales_id_seq'];
   v_u constant uuid := '000000c0-0000-0000-0000-0000c1ea0001';
   v_left text; v_src text; v_case text; v_r jsonb;

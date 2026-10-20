@@ -18,7 +18,7 @@
 // Vocabulary measured from production 2026-09-07: ledger kinds farm/combat/gather/
 // craft/worker/shop/quest/daily with intents farm_plant|farm_water|farm_harvest,
 // xp_credit|accrue|death, shop_buy:*, unlock_buy:room.*. The old market's
-// listings/sales columns left with its tables (2026-10-30-server-cleanup.sql).
+// listings/sales columns left with its tables (2026-10-31-server-cleanup.sql).
 //
 // ── THE `refused` COLUMN (2026-09-12) ───────────────────────────────────────
 // It used to read player_intents with `result->>'ok' <> 'true'` and was

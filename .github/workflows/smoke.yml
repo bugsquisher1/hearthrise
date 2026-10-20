@@ -3729,7 +3729,16 @@ jobs:
           node tests/edge-tick-gate.mjs
           node tests/edge-tick-gate.mjs --selftest
 
-      # T-5. The tick bearer transits `net.http_request_queue` — pg_net inserts
+      # bug-report-bridge: a chunked body past 3 MB is refused by a byte counter
+      # on the stream (never arrayBuffer()), and player text reaches the staff
+      # Discord embed escaped (no masked links) and capped per field. Offline.
+      - name: bug-report-bridge — metered body read + escaped staff embed
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/bug-report-bridge-bounds.mjs
+          node tests/bug-report-bridge-bounds.mjs --selftest
+
+      # T-5.The tick bearer transits `net.http_request_queue` — pg_net inserts
       # the request row, headers included, and the worker deletes it after the
       # send. Measured on production 2026-09-22: SELECT on that table is granted
       # to PUBLIC by supabase_admin, and the applying role `postgres` is not a

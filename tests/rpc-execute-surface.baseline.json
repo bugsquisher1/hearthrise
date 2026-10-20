@@ -73,7 +73,6 @@
       "hr_town_move(integer,text,integer,integer,integer,integer,text)",
       "hr_town_of(text)",
       "hr_town_walkers(text)",
-      "hr_trait_buy(text,integer,uuid)",
       "hr_whisper_send(integer,text,text)",
       "hr_whispers_recent()",
       "hr_world_finds_of(integer)"

@@ -71,7 +71,7 @@ export async function rpcGateBucketGuard({ edit = null } = {}) {
   // ordered correctly.
   const events = [];             // { key:[fi,pos], type:'fulldef'|'splice', buckets:[], file }
   const callers = new Map();     // bucket -> [files that pass it]
-  // RETIRED CALLERS (2026-10-28-reopen-rpc-sweep.sql dropped ten claim RPCs and
+  // RETIRED CALLERS (2026-10-30-reopen-rpc-sweep.sql dropped ten claim RPCs and
   // their buckets). A bucket is owed admission only while a SURVIVING function
   // passes it. Each call is attributed to the nearest preceding `create function
   // public.<fn>` header in its file; it is dead only when a `drop function
@@ -215,8 +215,8 @@ export async function rpcGateBucketGuard({ edit = null } = {}) {
 
 /* --selftest: the retirement rule must not become a hiding place. Each mutation
    edits the chain IN MEMORY; every one must turn the guard red. */
-const RETIRING = '2026-10-28-reopen-rpc-sweep.sql';
-const CLEANUP = '2026-10-30-server-cleanup.sql';   // hr_rpc_gate's last full def
+const RETIRING = '2026-10-30-reopen-rpc-sweep.sql';
+const CLEANUP = '2026-10-31-server-cleanup.sql';   // hr_rpc_gate's last full def
 const SELFTEST = [
   { name: 'drop-line-removed',
     why: 'hr_claim_rank is no longer dropped, so its bucket is owed again and the gate refuses it',
@@ -229,7 +229,7 @@ const SELFTEST = [
     edit: (f, sql) => (f === '2026-10-23-premium-login-reward.sql' ? sql.replace("hr_rpc_gate('hr_claim_daily')", "hr_rpc_gate('hr_claim_quest')") : sql) },
   { name: 'kept-bucket-unlisted',
     why: 'the restated gate forgets hr_claim_daily, which hr_login_claim still spends',
-    edit: (f, sql) => (f === CLEANUP ? sql.replace("         'hr_claim_daily',\n", '') : sql) },
+    edit: (f, sql) => (f === CLEANUP ? sql.replace("         'hr_claim_daily'\n", '') : sql) },
   { name: 'live-caller-in-a-later-function',
     why: 'a later top-level function passes a dropped clan bucket: a real caller, not a do-block probe',
     edit: (f, sql) => (f === CLEANUP ? `${sql}\ncreate or replace function public.hr_mut_clan() returns boolean language sql as $f$ select public.hr_rpc_gate('clan_join') $f$;\n` : sql) },

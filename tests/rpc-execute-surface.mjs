@@ -6,7 +6,7 @@
 //   node tests/rpc-execute-surface.mjs --selftest  every planted defect must be caught
 //   node tests/rpc-execute-surface.mjs --write     re-pin after a REVIEWED surface change
 //
-// mutant-anchors: supabase/migrations/2026-10-30-server-cleanup.sql
+// mutant-anchors: supabase/migrations/2026-10-31-server-cleanup.sql
 //
 // ── THE FAILURE THIS KILLS (Security review, 2026-10-19) ─────────────────────
 // hr_claim_rank paid up to 1,000,000 gold per character by a direct update,
@@ -39,17 +39,17 @@ import { isMain } from './_is-main.mjs';
 
 /* The chain-end author of the surface: the server cleanup (after the reopen
    sweep). Mutants ride its tail; S4 re-applies it. */
-const FIX = '2026-10-30-server-cleanup.sql';
+const FIX = '2026-10-31-server-cleanup.sql';
 const PIN = join(ROOT, 'tests', 'rpc-execute-surface.baseline.json');
 const ROLES = ['anon', 'authenticated', 'hr_engine', 'hr_tick'];
 
-/* Retired with 2026-10-28-reopen-rpc-sweep.sql and 2026-10-30-server-cleanup.sql (wrapper AND __ungated body).
+/* Retired with 2026-10-30-reopen-rpc-sweep.sql and 2026-10-31-server-cleanup.sql (wrapper AND __ungated body).
    Bringing one back is a design decision that edits THIS list, in review. */
 const RETIRED = [
   'hr_claim_rank', 'hr_claim_milestone', 'hr_claim_quest', 'hr_claim_daily',
   'raid_claim', 'world_event_claim', 'world_event_absence_claim',
   'world_event_pledge', 'world_event_pledge_settle', 'hr_buy_gem_unlock',
-  /* the value writers 2026-10-30-server-cleanup.sql dropped with their systems */
+  /* the value writers 2026-10-31-server-cleanup.sql dropped with their systems */
   'hr_market_list', 'hr_market_cancel', 'hr_market_buy', 'hr_unlock_buy', 'hr_companion_grant',
   'raid_strike', 'clan_contribute', 'clan_deposit', 'world_event_contribute', 'hr_worker_hire',
 ];

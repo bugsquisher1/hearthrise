@@ -154,3 +154,21 @@
 /* In a hunt the top bar carries the ground's name and clock, so the pane's own
    title row would only repeat it and cost the stage a line. */
 .app.is-game:has(.ht-bar) #panel-world .world-chrome { display: none; }
+
+/* THE CREATION STEP (src/app/hero-create.js): the hero on the left, its name and four colour rows beside it. */
+.auth-card.is-create { width: min(40rem, 100%); }
+.hc-body { display: flex; gap: 18px; align-items: flex-start; }
+.hc-preview { flex: none; width: 128px; height: 192px; image-rendering: pixelated; background: var(--bg-0); box-shadow: var(--surf-sunken-edge); }
+.hc-form { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.hc-region { margin: 0; padding: 0; border: 0; min-width: 0; }
+.hc-region legend { padding: 0 0 3px; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
+.hc-dyes { display: grid; grid-template-columns: repeat(16, 18px); gap: 2px; }
+.hc-dye { width: 18px; height: 18px; padding: 0; border: 0; border-radius: 0; background: var(--hc-dye); cursor: pointer; }
+.hc-dye[aria-pressed="true"] { outline: 2px solid var(--gold-2); outline-offset: 1px; }
+.hc-dye:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 1px; }
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .hc-body { gap: 12px; }
+  .hc-form { gap: 4px; }
+  .hc-dyes { grid-template-columns: repeat(16, 16px); }
+  .hc-dye { width: 16px; height: 16px; }
+}

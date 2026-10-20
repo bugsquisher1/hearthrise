@@ -16,7 +16,9 @@
 //                 (its name and combat level), read from the server (hr_load
 //                 per owned slot; `hero_slots`: slot 0 and the starter slots
 //                 every account owns, plus any bought)
-//   create(slot)  ask the server to make a character in an empty owned slot
+//   create(slot, name, colors)  ask the server to make the hero in an owned slot:
+//                 ONE intent (hr_create_hero) with its name and four dye indices;
+//                 a slot holding an unnamed character (roster `unnamed`) is named by it
 //   open(slot)    a CharacterSession for the slot: loaded, then connected
 //   close(slot)   leave and forget one character
 //   view(slot)    show another open character (viewed); nothing else moves
@@ -61,6 +63,11 @@ export function heroOf(body) {
   const name = typeof body.name === 'string' && body.name.trim() ? body.name.trim().slice(0, 40) : null;
   const lx = body.state && typeof body.state === 'object' ? body.state.level_xp : null;
   return { name, level: Number.isSafeInteger(lx) && lx >= 0 ? charLevelFromXp(lx) : null };
+}
+
+function newIdem() {
+  const c = globalThis.crypto;
+  return c && typeof c.randomUUID === 'function' ? c.randomUUID() : Date.now() + '-' + Math.floor(Math.random() * 1e9);
 }
 
 /** The owned slots an envelope's `hero_slots` names, bounded to the server's range. Pure. */
@@ -130,7 +137,8 @@ export class AccountSession {
     if (ans && ans.closed && !this.closedGame) { this.closedGame = true; this._emit('closed-game'); }
   }
 
-  /** [{ slot, exists, name, level }] for every slot this account owns. */
+  /** [{ slot, exists, unnamed, name, level }] for every slot this account owns. `unnamed`: the server
+      holds a character there that may not enter the world until it is named (hr_load needs_name). */
   async roster() {
     const first = await this.server.rpc('hr_load', { p_slot: 0 });
     this._noteClosed(first);
@@ -142,16 +150,19 @@ export class AccountSession {
     for (const slot of owned) {
       const ans = slot === 0 ? first : await this.server.rpc('hr_load', { p_slot: slot });
       this._noteClosed(ans);
-      out.push(Object.assign({ slot, exists: !!(ans.ok && ans.body && ans.body.ok === true) }, heroOf(ans.ok ? ans.body : null)));
+      out.push(Object.assign({ slot, exists: !!(ans.ok && ans.body && ans.body.ok === true),
+        unnamed: !!(ans.ok && ans.body && ans.body.error === 'needs_name') }, heroOf(ans.ok ? ans.body : null)));
     }
     return out;
   }
 
-  /** Ask the server to make the character in an owned slot (idempotent: an existing one answers ok). */
-  async create(slot) {
-    const ans = await this.server.rpc('hr_create_character', { p_slot: slot });
+  /** Ask the server to make the hero in an owned slot with its name and colours ({ head, body, legs, feet }
+      dye indices). { ok } or { ok:false, reason, nameReason }: the server's verdict, never the client's. */
+  async create(slot, name, colors) {
+    const ans = await this.server.rpc('hr_create_hero', { p_slot: slot, p_name: String(name || '').slice(0, 40), p_colors: colors, p_idem: newIdem() });
     this._noteClosed(ans);
-    return { ok: !!(ans.ok && ans.body && ans.body.ok === true), reason: (ans.body && ans.body.error) || ans.error || null };
+    const b = ans.body;
+    return { ok: !!(ans.ok && b && b.ok === true), reason: (b && b.error) || ans.error || null, nameReason: (b && b.reason) || null };
   }
 
   /** Open (load + connect) one character. { ok, session } or { ok:false, reason }. */

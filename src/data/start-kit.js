@@ -120,13 +120,34 @@ export const START_INVENTORY = Object.freeze({
   bronze_arrows: 50,
   air_rune: 50,
   coarse_whetstone: 10,
+  /* THE PRACTICE KIT (Tyler 2026-10-20): every starter weapon set but the worn one, so a
+     new hero can try every role (src/data/items.js practice_*; bound, worth nothing). */
+  practice_hatchets: 1,
+  practice_club: 1,
+  practice_bow: 1,
+  practice_crossbow: 1,
+  practice_wand: 1,
+  practice_spellbook: 1,
+  practice_staff: 1,
 });
 
 /* Equipment. equip_slot -> item_id. Every pair must exist in
    src/data/gathering.js EQUIP_SLOTS and be a legal slot for that item per
    src/data/items.js; again the generator, not a comment, enforces it. */
 export const START_EQUIPMENT = Object.freeze({
-  weapon: 'bronze_sword',
+  weapon: 'practice_sword',
+  shield: 'practice_shield',
+});
+
+/* The six starter weapon sets a new hero owns (worn or in the bag), one per way to fight.
+   Read by the kit test; every id is in START_INVENTORY or START_EQUIPMENT. */
+export const STARTER_SETS = Object.freeze({
+  tank: Object.freeze(['practice_sword', 'practice_shield']),
+  dual_axes: Object.freeze(['practice_hatchets']),
+  club: Object.freeze(['practice_club']),
+  mage: Object.freeze(['practice_wand', 'practice_spellbook']),
+  ranger: Object.freeze(['practice_bow', 'practice_crossbow']),
+  healer: Object.freeze(['practice_staff']),
 });
 
 /* The whole kit, for the one consumer that wants it in one piece (the smoke

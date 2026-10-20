@@ -31,7 +31,6 @@ import { goalCatalogueDriftGuard } from './goal-catalogue-drift.mjs';
 import { collectionRenownClaimDriftGuard } from './collection-renown-claim-drift.mjs';
 import { unlockBuyGuard } from './unlock-buy.mjs';
 import { marketV2Guard } from './market-v2.mjs';
-import { marketIntentGuard } from './market-intent.mjs';
 import { runAll as equipIntentGuards } from './equip-intent.mjs';
 import { runAll as eatIntentGuards } from './eat-intent.mjs';
 import { guard as skillRowUpsertGuard } from './skill-row-upsert.mjs';
@@ -1317,28 +1316,9 @@ const run = async () => {
         + 'with BOTH sides measured and conservation held.');
     }
 
-    /* ── The market's EDGE half (b355) ─────────────────────────────────
-       market-v2.mjs grades the AUTHORITY layer with well-formed SQL
-       parameters. Nobody hands the server well-formed SQL parameters — an
-       attacker hands it an HTTP BODY — and everything between the two
-       (parseIntent, the registry, the shape refusals, the argument lists) is
-       code no SQL test can see. This drives the REAL Edge modules with
-       genuinely hostile bodies and counts statements, so "refused before any
-       database work" is measured rather than read. The load-bearing one is
-       M-WIRE: hr_market_buy is bound exactly six parameters, none of them a
-       price. `node tests/market-intent.mjs --selftest` plants nine defects;
-       every one must read RED. */
-    const marketIntentProblems = (await marketIntentGuard()).failures;
-    if (marketIntentProblems.length) {
-      console.log('\nMarket intent guard (the Edge half) — FAILED:');
-      for (const p of marketIntentProblems) console.log(`  x ${p}`);
-      exitCode = 1;
-    } else {
-      console.log('\nMarket intent guard — every hostile body (poisoned prototype, numeric-string '
-        + 'price, braced uuid, SQL-shaped listing) is refused by name before it costs a database '
-        + 'statement; the buyer\'s wire binds a listing and a count and no price; a replay carries '
-        + 'the envelope and no receipt.');
-    }
+    /* ── The market's EDGE half (b355) RETIRED 2026-10-19: the market_list / market_cancel /
+       market_buy edge verbs left with the old market (Security, reopen review); the SQL half's
+       revocation is its own lane. tests/market-intent.mjs retired with them. */
 
     /* ── The client-write-grant sweep, batch 2 (Security) ───────────────
        display_names and leaderboard_meta — the two cross-player identity /

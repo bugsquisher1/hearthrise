@@ -1071,10 +1071,13 @@ async function shellGuard() {
   // (b) The body is read ONCE, and the value goes straight into the one function
   //     that is allowed to interpret it. No intermediate binding means there is
   //     no identifier for a later edit to reach for.
+  /* Since 2026-10-19 (Security, reopen review) through the ONE bounded reader, never req.json(): the
+     bytes are read once, capped, and handed to parseIntent through bodyJson and nothing else. */
   const jsonCalls = (code.match(/req\s*\.\s*json\s*\(/g) || []).length;
-  ok(jsonCalls === 1, `SHELL: req.json() is called ${jsonCalls} times — the body must be read exactly once`);
-  ok(/parseIntent\(\s*await\s+req\.json\(\)[\s\S]{0,40}?\)/.test(code),
-    'SHELL: the req.json() result is not piped directly into parseIntent — that binding is the attack surface');
+  const reads = (code.match(/readBodyBytes\(\s*req\b/g) || []).length;
+  ok(jsonCalls === 0 && reads === 1, `SHELL: the body is read ${reads} time(s) through readBodyBytes and req.json() ${jsonCalls} time(s) — it must be read exactly once, through the cap`);
+  ok(/parseIntent\(\s*bodyJson\(\s*bytes\s*\)\s*\)/.test(code),
+    'SHELL: the capped bytes are not piped directly into parseIntent — that binding is the attack surface');
   const parseCalls = (code.match(/parseIntent\s*\(/g) || []).length;
   ok(parseCalls === 1, `SHELL: parseIntent is called ${parseCalls} times — one body, one reader`);
 

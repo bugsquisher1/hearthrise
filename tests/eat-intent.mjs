@@ -240,6 +240,20 @@ async function body(db, call) {
       `E8: a key reused for a different food returned ${JSON.stringify(b.body).slice(0, 200)} (want intent_mismatch)`);
     ok(await invOf(db, 'shrimp') === shrimpBefore, 'E8: the mismatched eat still debited the other food');
   }
+
+  // E9. ON A HUNT THE MANUAL EAT IS REFUSED (Security, reopen review 2026-10-19): in a hunt HP lives on the
+  // instance's unit and the next settle writes it back, so a manual eat would be lost and paid for. The
+  // bar's food slots eat in a hunt; nothing leaves the bag and HP does not move.
+  {
+    await db.query(`insert into public.hunt_sessions (user_id, slot, hunt_id, hunt_from, settled_to, next_swing_at)
+                    values ($1, 0, 'mill_cellar', now(), now(), now())`, [UID]);
+    const before = await invOf(db, 'turnip'), hp0 = await hpOf(db);
+    const r = await call({ item: 'turnip' });
+    ok(r.status === 409 && r.body.error === 'hunt_open',
+      `E9: a manual eat during an open hunt returned ${r.status} ${JSON.stringify(r.body).slice(0, 200)} (want 409 hunt_open)`);
+    ok(await invOf(db, 'turnip') === before && await hpOf(db) === hp0, 'E9: the refused hunt eat still moved the bag or HP');
+    await db.query('delete from public.hunt_sessions where user_id = $1', [UID]);
+  }
 }
 
 /* (The refusal-copy table lived in the client's src/net/eat.js and retired with it on

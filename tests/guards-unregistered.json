@@ -69,7 +69,7 @@
       }
     },
     "market-offers-guard.mjs": {
-      "reason": "family pglite-chain-replay: market offer integrity. run-smoke already registers market-v2 and market-intent, which drive the market's value movement.",
+      "reason": "family pglite-chain-replay: market offer integrity. run-smoke already registers market-v2, which drives the market's value movement (market-intent retired with the edge verbs 2026-10-19).",
       "family": "pglite-chain-replay",
       "owner": "security-engineer",
       "disposition": "adopt-via-shared-db",

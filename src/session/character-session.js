@@ -25,9 +25,11 @@
 //                      the bag rules, the one-tap refill and the hunt presets
 //                      (CONFLICTS.md 2026-10-18 alpha windows: the server lane
 //                      adds them); each is one intent, re-read the same way
-//   createParty / joinParty / leaveParty / kickSeat / inviteByName /
-//   answerInvite / startPartyHunt / restartHunt
-//                      the party and hunt-again intents, re-read the same way;
+//   joinParty / leaveParty / kickSeat / inviteByName / answerInvite /
+//   restartHunt        the party and hunt-again intents, re-read the same way
+//                      (a party is made by an invite and started by
+//                      party-intents.js startPartyHunt, which re-reads every
+//                      own seat);
 //   saveOutfit(o, c)   the outfit INTENT (hr_outfit_set), re-read the same way
 //   findParties        the party finder, a read whose rows are never the record
 //   hunt re-read       while the server holds a hunt open, one hello every
@@ -45,11 +47,12 @@
 // only things it sends of its own are the allowlisted residue and intents.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyEnvelope, applyFrame, withResidue } from './envelope.js?v=0.2.18';
-import { createTimeline } from '../hunt-view/timeline.js?v=0.2.18';
-import { RESIDUE_FIELDS, sanitizeResidueField } from './residue.js?v=0.2.18';
-import { SESSION_CONFIG } from './config.js?v=0.2.18';
-import { edgeBody } from './edge-intents.js?v=0.2.18';
+import { applyEnvelope, applyFrame, withResidue } from './envelope.js?v=0.2.20';
+import { createTimeline } from '../hunt-view/timeline.js?v=0.2.20';
+import { LiveLink } from './live-link.js?v=0.2.20';
+import { RESIDUE_FIELDS, sanitizeResidueField } from './residue.js?v=0.2.20';
+import { SESSION_CONFIG } from './config.js?v=0.2.20';
+import { edgeBody } from './edge-intents.js?v=0.2.20';
 
 export const FRAME_EVENT = 'frame';
 
@@ -119,6 +122,10 @@ export class CharacterSession {
        outlive the delay before it is forgotten (timeline.js T5). */
     this.timeline = createTimeline({ delayMs: SESSION_CONFIG.huntPlaybackDelayMs, maxSteps: 256,
       forgetMs: SESSION_CONFIG.huntPlaybackDelayMs + 15000 });
+    /* THE LIVE VIEW (option B): the instance engine run in the browser from the server's start
+       point, prediction only; `live` is its engine (the scene reads its heroes). */
+    this.liveLink = new LiveLink({ timeline: this.timeline, now: () => this._now(), emit: (why) => this._emit(why) });
+    this.live = this.liveLink.engine;
     this.receivedAt = null;
     for (const fn of Array.from(OBSERVERS)) fn(this);   // e.g. the hunt summary's recorder: it must hear the timeline from the first event
   }
@@ -160,7 +167,10 @@ export class CharacterSession {
   /* THE HUNT RE-READ: armed by every applied answer while a hunt is open, never twice. */
   _armHuntPoll() {
     if (this._closed || this._huntTimer || !this._huntOpen()) return;
-    this._huntTimer = this._setTimer(() => { this._huntTimer = null; this._huntPoll(); }, SESSION_CONFIG.huntPollMs);
+    /* The live view without a start point (just entered, reloaded, or a commit it did not match)
+       asks at once; the floor then answers with hunt_live instead of a settle. */
+    const ms = this.liveLink.want ? SESSION_CONFIG.liveAskMs : SESSION_CONFIG.huntPollMs;
+    this._huntTimer = this._setTimer(() => { this._huntTimer = null; this._huntPoll(); }, ms);
   }
 
   async _huntPoll() {
@@ -169,8 +179,17 @@ export class CharacterSession {
     this._armHuntPoll();
   }
 
-  /* The answer's timeline goes to the playback buffer; the snapshot's pose reconciles it gently. */
+  /* The answer's timeline goes to the playback buffer; the snapshot's pose reconciles it gently.
+     While the live engine runs, the server's windows only JUDGE the prediction (hunt_check) and
+     restart it (hunt_live); its steps and events are already on screen from the engine. */
   _play(body) {
+    this._liveFrom(body);
+    if (this.live.running()) {
+      const ms = Number.isSafeInteger(body.hunt_server_now_ms) ? body.hunt_server_now_ms
+        : typeof body.now === 'string' ? Math.floor(Date.parse(body.now)) : NaN;
+      if (Number.isSafeInteger(ms)) this.timeline.ingest({ serverNowMs: ms }, this._now());
+      return;
+    }
     if (Array.isArray(body.hunt_track) || Array.isArray(body.hunt_events)) {
       this.timeline.ingest({ track: body.hunt_track, events: body.hunt_events, serverNowMs: body.hunt_server_now_ms }, this._now());
     } else {
@@ -183,6 +202,15 @@ export class CharacterSession {
     const h = this.read('hunt');
     if (h && h.pose) this.timeline.reconcile(h.pose);
   }
+
+  /* THE LIVE VIEW (src/session/live-link.js): reads every answer while a hunt is open. */
+  _liveFrom(body) { if (this._huntOpen()) this.liveLink.from(body); else this.liveLink.off(); }
+
+  /** The frame loop's step: run the live engine to the server's clock now (the viewed character). */
+  liveAdvance(clientNow) { return this.liveLink.advance(clientNow); }
+
+  /** Units the last reseed found alive (the scene revives a corpse the prediction made), once. */
+  takeReseeded() { return this.liveLink.takeReseeded(); }
 
   /**
    * The hunt settings intent for one preset. Nothing changes on screen from the
@@ -314,12 +342,6 @@ export class CharacterSession {
      2026-10-18 party UI). Each is one intent naming THIS character's slot and ids or a seat; no user id, no
      number of the server's crosses. The party changes on screen only from the re-read envelope. ── */
 
-  /** Open a party on a hunt (this character takes seat 0 and leads it). */
-  async createParty(hunt) {
-    if (this._closed || !HUNT_ID.test(String(hunt))) return { ok: false, error: 'bad_intent' };
-    return this._settled(await this._server.rpc('hr_hunt_party_create', { p_slot: this.slot, p_hunt: hunt, p_idem: newIdem() }));
-  }
-
   /** Take a free seat in an open party (the finder's row, or one of this account's own parties). */
   async joinParty(party) {
     if (this._closed || !UUID.test(String(party))) return { ok: false, error: 'bad_intent' };
@@ -352,12 +374,6 @@ export class CharacterSession {
     return this._settled(await (accept === true ? this._server.rpc('hr_hunt_party_accept', args) : this._server.rpc('hr_hunt_party_decline', args)));
   }
 
-  /** The leader starts the party's hunt: every member enters with its own saved setup, or the server says who is not ready. */
-  async startPartyHunt() {
-    if (this._closed) return { ok: false, error: 'closed' };
-    return this._settled(await this._server.rpc('hr_hunt_party_start', { p_slot: this.slot, p_idem: newIdem() }));
-  }
-
   /** Go back to the hunt that just ended, with the same setup it ran on (the server reads that session's own). */
   async restartHunt(session) {
     if (this._closed || !UUID.test(String(session))) return { ok: false, error: 'bad_intent' };
@@ -378,6 +394,13 @@ export class CharacterSession {
   async buyBlessing(tier, quotedPrice) {
     if (this._closed || !Number.isInteger(tier) || tier < 1 || tier > 9 || !Number.isSafeInteger(quotedPrice) || quotedPrice < 0) return { ok: false, error: 'bad_intent' };
     return this._settled(await this._server.rpc('hr_blessing_buy', { p_slot: this.slot, p_tier: tier, p_price: quotedPrice, p_idem: newIdem() }));
+  }
+
+  /** Activate a bestiary stage for one monster kind at the server's quoted fee (refused `quote_changed` otherwise). */
+  async activateBestiaryStage(monster, stage, quotedFee) {
+    if (this._closed || !ITEM.test(String(monster)) || !Number.isInteger(stage) || stage < 1 || stage > 4
+      || !Number.isSafeInteger(quotedFee) || quotedFee < 0) return { ok: false, error: 'bad_intent' };
+    return this._settled(await this._server.rpc('hr_bestiary_activate', { p_slot: this.slot, p_monster: monster, p_stage: stage, p_price: quotedFee, p_idem: newIdem() }));
   }
 
   /** Claim this character's own name (the server checks the rules and that nobody else has it). */
@@ -454,6 +477,10 @@ export class CharacterSession {
     if (this._closed) return false;
     /* An idle settle answers {accrued:false} without restating the character:
        the full read is hr_load's, so read it rather than apply less. */
+    /* The floor's answer to a hunter carries the whole character and the live start point: take it. */
+    if (ans.ok && ans.body && ans.body.accrued !== true && ans.body.hunt_live && ans.body.state) {
+      if (this._take(ans.body, 'hello')) return true;
+    }
     if (ans.ok && ans.body && ans.body.accrued !== true) return this.load();
     if (ans.ok && this._take(ans.body, 'hello')) return true;
     this._answerFailed(ans);

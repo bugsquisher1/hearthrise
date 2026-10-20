@@ -20,12 +20,22 @@
 //      never a tally of the events; a float is only ever the event's own number.
 //   S4 bounded: at most MAX_FX effects and MAX_FLOATS floats live at once.
 // ════════════════════════════════════════════════════════════════════════
-import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX } from '../data/hunt-vfx.js?v=0.2.18';
-import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.18';
-import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.18';
-import { partyPeopleOf } from '../session/party-sections.js?v=0.2.18';
-import { floatShown } from './float-prefs.js?v=0.2.18';
-import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.18';
+import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX } from '../data/hunt-vfx.js?v=0.2.20';
+import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.20';
+import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.20';
+import { partyPeopleOf } from '../session/party-sections.js?v=0.2.20';
+import { floatShown } from './float-prefs.js?v=0.2.20';
+import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.20';
+import { STUB_SPRITE } from '../world/core/book.js?v=0.2.20';
+import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.20';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.20';
+
+/* The ground's first start tile, standing (the hero before its first window). */
+function entranceOf(huntId) {
+  const g = huntId ? Object.values(HUNT_GROUNDS).find((r) => r.hunt === huntId) : null;
+  const t = g && g.start && g.start[0];
+  return t ? { x: t[0], y: t[1], moving: false, d: 0, hx: 0, hy: 1 } : null;
+}
 
 export const SCENE_TIMING = Object.freeze({
   deathFadeMs: 400,     // VW-05: colour to a grey corpse
@@ -58,13 +68,26 @@ export function readHunt(cs) {
   const h = huntOf(cs);
   const p = partyOf(cs);
   const heroes = new Map();
-  for (const m of p ? p.members : []) heroes.set(m.unit, m);
+  for (const m of p ? p.members : []) if (m.unit !== null) heroes.set(m.unit, m);
+  /* THE LIVE VIEW knows every hero of the instance before the snapshot does (its own units): each
+     is the party member of its seat, so every member is drawn as a hero from the first swing. */
+  const live = cs && cs.live && typeof cs.live.heroUnits === 'function' && cs.live.running() ? cs.live.heroUnits() : [];
+  for (const x of live) {
+    if (x.unit === null || heroes.has(x.unit)) continue;
+    const m = p ? p.members.find((y) => y.seat === x.seat) : null;
+    heroes.set(x.unit, Object.assign({}, m || { name: 'Hero', seat: x.seat, role: x.role }, { unit: x.unit, role: (m && m.role) || x.role }));
+  }
+  const selfLive = live.find((x) => x.self);
   return {
     units: h ? h.units : new Map(),
     heroes,
     people: partyPeopleOf(cs),
-    viewed: h && h.hero.unit !== null ? h.hero.unit : p ? p.self : null,
+    viewed: h && h.hero.unit !== null ? h.hero.unit : selfLive && selfLive.unit !== null ? selfLive.unit : p ? p.self : null,
     viewedShield: h ? h.hero.shield : null,
+    entrance: h ? entranceOf(h.huntId) : null,
+    huntName: h && HUNT_INDEX[h.huntId] ? HUNT_INDEX[h.huntId].name : null,
+    huntFromMs: h ? h.huntFromMs : null,
+    self: p ? p.members.find((m) => m.seat === p.selfSeat) || null : null,
     shown: (type, boss) => floatShown(cs, type, boss ? 'boss' : 'regular'),
   };
 }
@@ -88,10 +111,13 @@ export function createHuntScene(o) {
   const isHero = (u) => read.heroes.has(u) || (read.units.get(u) || {}).side === 'hero';
   const isBoss = (u) => !!(read.units.get(u) || {}).boss;
   const roleOf = (u) => (read.heroes.get(u) ? read.heroes.get(u).role : isHero(u) ? null : 'monster');
+  /* A monster's kind: the snapshot's, else the timeline's unit book (a corpse played after the
+     snapshot dropped it). Unknown is null and the unit is not drawn (never a stub box). */
   const spriteOf = (u) => {
     if (isHero(u)) { const m = read.heroes.get(u); return outfitSprite(m && m.outfit, m && m.role); }
-    return (read.units.get(u) || {}).kind || 'stub';
+    return (read.units.get(u) || {}).kind || (typeof tl.kindOf === 'function' ? tl.kindOf(u) : null) || null;
   };
+  const unnamed = new Set();
   /* How long a one-shot effect plays (its frames at its fps); a loop shows for its row's lifeMs. */
   function lifeOf(id, lifeMs) {
     const s = book.sprite(id);
@@ -125,11 +151,13 @@ export function createHuntScene(o) {
 
   function hit(ev, start) {
     const role = roleOf(ev.u);
-    const flies = PROJECTILE.roles.includes(role) && ev.ability !== 'cleave';
+    /* What flies before the hit lands: the ability's own row (null: it strikes where it stands), else the role's bolt. */
+    const bolt = Object.hasOwn(PROJECTILE.ability, ev.ability) ? PROJECTILE.ability[ev.ability] : PROJECTILE.role[role] || null;
+    const flies = !!bolt;
     const land = flies ? start + PROJECTILE.flightMs : start;
     if (flies) {
       const a = fixed(ev.u, start), b = fixed(ev.t, start);
-      if (a && b) addFx(PROJECTILE.fx, start, { x: a.x, y: a.y, tx: b.x, ty: b.y }, PROJECTILE.lift, PROJECTILE.flightMs, ev.u);
+      if (a && b) addFx(bolt, start, { x: a.x, y: a.y, tx: b.x, ty: b.y }, PROJECTILE.lift, PROJECTILE.flightMs, ev.u);
     }
     const id = HIT_FX.ability[ev.ability] || HIT_FX.element[ev.element] || HIT_FX.role[role] || null;
     addFx(id, land, at(ev.t), HIT_FX.lift);
@@ -192,27 +220,38 @@ export function createHuntScene(o) {
     return true;
   }
 
-  /** One unit's draw record at `now`, or null when it is gone. */
-  function unitAt(u, now) {
-    const p = tl.positionAt(u, now);
+  /* The viewed hero before its unit exists: its outfit at the entrance, walking out the travel. */
+  function standIn(now) {
+    const e = read.entrance;
+    const m = read.self;
+    const id = outfitSprite(m && m.outfit, m && m.role);
+    if (!e || !id) return null;
+    const server = typeof tl.serverNowAt === 'function' ? tl.serverNowAt(now) : null;
+    const left = Number.isFinite(read.huntFromMs) && server !== null ? Math.max(0, read.huntFromMs - server) : 0;
+    const sp = book.sprite(id);
+    const walk = sp.anims && sp.anims.walk;
+    const walking = left > 0 && !!walk;
+    const { dir, diag } = facingOf(0, 1);
+    const name = read.huntName || 'the hunt';
+    return { id, unit: read.viewed !== null ? read.viewed : -1, x: e.x, y: e.y, dir, diag, alpha: 1, grey: 0, under: false, flash: false,
+      anim: walking ? 'walk' : sp.anims && sp.anims.idle ? 'idle' : 'walk',
+      frame: walking ? Math.floor((now / 1000) * walk.fps) : 0,
+      plate: { text: left > 0 ? 'Walking to ' + name + ' · ' + Math.ceil(left / 1000) + ' s' : (m && m.name) || 'Hero', kind: 'self' } };
+  }
+
+  /** One unit's draw record at `now`, or null when it is gone (`at`: a stand-in position). */
+  function unitAt(u, now, at) {
+    const p = at || tl.positionAt(u, now);
     if (!p) return null;
     const id = spriteOf(u);
+    if (!id || !book.sprite(id) || book.sprite(id) === STUB_SPRITE) {
+      if (!unnamed.has(u)) { unnamed.add(u); console.warn('[hunt-scene] no sprite for unit ' + u + ' (' + id + '): not drawn'); }
+      return null;
+    }
     const hero = isHero(u);
     const m = read.heroes.get(u);
-    let alpha = 1, grey = 0, under = false;
-    const died = dead.get(u);
-    if (died !== undefined) {
-      if (p.moving) dead.delete(u);   // a unit the server walks again is not dead
-      else {
-        const age = now - died;
-        if (age >= SCENE_TIMING.corpseMs) return null;
-        if (age >= 0) {
-          grey = Math.min(1, age / SCENE_TIMING.deathFadeMs);
-          alpha = (1 - 0.45 * grey) * Math.min(1, (SCENE_TIMING.corpseMs - age) / SCENE_TIMING.corpseFadeMs);
-          under = true;
-        }
-      }
-    }
+    const sp = book.sprite(id);
+    const clips = sp.anims || {};
     /* Facing: the way it walks; standing, toward what it last swung at; else its last heading. */
     let hx = p.hx, hy = p.hy;
     const s = swing.get(u);
@@ -221,18 +260,35 @@ export function createHuntScene(o) {
       if (q && (q.x !== p.x || q.y !== p.y)) { hx = q.x - p.x; hy = q.y - p.y; }
     }
     const { dir, diag } = facingOf(hx, hy);
-    const sp = book.sprite(id);
-    const walk = sp.anims && sp.anims.walk;
+    let alpha = 1, grey = 0, under = false, corpse = null;
+    const died = dead.get(u);
+    if (died !== undefined) {
+      if (p.moving) dead.delete(u);   // a unit the server walks again is not dead
+      else {
+        const age = now - died;
+        if (age >= SCENE_TIMING.corpseMs) return null;
+        if (age >= 0) {
+          under = true;
+          /* VW-05: the sprite's own death clip, then its corpse frame; only art without them greys. */
+          corpse = corpseFrame(id, clips, dir, age);
+          if (!corpse) grey = Math.min(1, age / SCENE_TIMING.deathFadeMs);
+          alpha = (1 - 0.45 * grey) * Math.min(1, (SCENE_TIMING.corpseMs - age) / SCENE_TIMING.corpseFadeMs);
+        }
+      }
+    }
+    const walk = clips.walk;
     const moving = p.moving && !under && !!walk;
     /* VW-11: the walk frame advances with distance walked, at the clip's fps when moving at the playback speed. */
-    const frame = moving ? Math.floor((p.d * walk.fps * tl.tileMs) / 1000) : 0;
-    const anim = moving ? 'walk' : sp.anims && sp.anims.idle ? 'idle' : walk ? 'walk' : 'idle';
+    const frame = corpse ? corpse.frame : moving ? Math.floor((p.d * walk.fps * tl.tileMs) / 1000) : 0;
+    const anim = corpse ? corpse.anim : moving ? 'walk' : clips.idle ? 'idle' : walk ? 'walk' : 'idle';
     const f = flash.get(u);
     const out = { id, unit: u, x: p.x, y: p.y, anim, dir, diag, frame, alpha, grey, under,
       flash: !under && f !== undefined && now >= f && now - f < SCENE_TIMING.flashMs };
     if (!under) {
-      const hp = hero ? m && m.hp : (read.units.get(u) || {}).hp;
-      const hpMax = hero ? m && m.hpMax : (read.units.get(u) || {}).hpMax;
+      /* Every bar is the HP AT THE INSTANT SHOWN (timeline.js T6: heroes too, so it moves live), the snapshot's only as a fallback. */
+      const played = typeof tl.hpAt !== 'function' ? null : tl.hpAt(u, now);
+      const hp = played ? played.hp : hero ? m && m.hp : (read.units.get(u) || {}).hp;
+      const hpMax = played ? played.maxHp : hero ? m && m.hpMax : (read.units.get(u) || {}).hpMax;
       const mana = hero && m ? m.mana : null, manaMax = hero && m ? m.manaMax : null;
       const hpPct = Number.isFinite(hp) && hpMax > 0 ? Math.max(0, Math.min(1, hp / hpMax)) : null;
       const mpPct = Number.isFinite(mana) && manaMax > 0 ? Math.max(0, Math.min(1, mana / manaMax)) : null;
@@ -243,13 +299,28 @@ export function createHuntScene(o) {
       if (hero && m && u !== read.viewed) {
         const who = Number.isInteger(m.seat) ? read.people.get(m.seat) : null;
         out.ref = { player: { id: who ? who.id : null, name: (who && who.name) || m.name, slot: who ? who.slot : null } };
-      } else if (!hero && (read.units.get(u) || {}).kind) out.ref = { monster: read.units.get(u).kind };
-      else if (isBoss(u)) out.plate = { text: (read.units.get(u) || {}).name || null, kind: 'foe' };
+      } else if (!hero) {
+        const kind = spriteOf(u);
+        if (kind) out.ref = { monster: kind };
+        if (isBoss(u)) out.plate = { text: (read.units.get(u) || {}).name || null, kind: 'foe' };
+      }
       if (out.plate && !out.plate.text) delete out.plate;
       const stacks = bleed.get(u) || 0;
       if (stacks > 0 && (hero || read.shown('bleed_badge', isBoss(u)))) out.badge = stacks;
     }
     return out;
+  }
+
+  /* VW-05: a corpse `age` ms old plays its sprite's death clip once, then lies as its corpse frame;
+     null when the art has neither (it greys instead). */
+  function corpseFrame(id, clips, dir, age) {
+    const d = clips.death;
+    if (d && d.fps) {
+      const n = book.frames(id, 'death', dir);
+      const i = Math.floor((age * d.fps) / 1000);
+      if (i < n || !clips.corpse) return { anim: 'death', frame: Math.min(i, n - 1) };
+    }
+    return clips.corpse ? { anim: 'corpse', frame: 0 } : null;
   }
 
   /**
@@ -272,6 +343,10 @@ export function createHuntScene(o) {
       if (u === read.viewed) hero = d;
       else units.push(d);
     }
+    /* BEFORE THE FIRST SWING (just entered, travelling, or reloaded): the viewed hero is at the
+       ground's entrance instead of leaving the screen empty, walking while the server's travel
+       time runs ("Walking to Mill Cellar · 18 s"; travel_s is the server's one data value). */
+    if (!hero && read.entrance) hero = (read.viewed !== null && unitAt(read.viewed, now, read.entrance)) || standIn(now);
     const tgt = read.viewed !== null ? target.get(read.viewed) : undefined;
     for (const d of units) if (d.unit === tgt && !d.under) d.target = true;
     /* VW-06: the viewed hero's shield bubble while the server says it holds one. */
@@ -301,6 +376,8 @@ export function createHuntScene(o) {
 
   return {
     onEvent, frame,
+    /** A reconcile found these units alive: a death the prediction drew is undone (no lingering corpse). */
+    revive(alive) { for (const u of alive || []) { dead.delete(u); flash.delete(u); } },
     /** For tests: how many effects and floats are live, and the keys played. */
     stats: () => ({ fx: fx.length, floats: floats.length, played: keys.size }),
   };

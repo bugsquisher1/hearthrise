@@ -22,16 +22,16 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.18';
-import { VITALS } from '../../data/core-model.js?v=0.2.18';
-import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js?v=0.2.18';
-import { AI_REPATH_MS } from '../../data/hunt-roles.js?v=0.2.18';
-import { packHpFor, yieldPermille, routeFor } from '../../data/hunt-grounds.js?v=0.2.18';
-import { cheb, dist2, freeNear, tileKey } from './grid.js?v=0.2.18';
-import { inArea, resetPack } from './leash.js?v=0.2.18';
-import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy } from './movement.js?v=0.2.18';
-import { makeEvent } from './events.js?v=0.2.18';
-import { pickLeader, kites } from './roles.js?v=0.2.18';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.20';
+import { VITALS } from '../../data/core-model.js?v=0.2.20';
+import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js?v=0.2.20';
+import { AI_REPATH_MS } from '../../data/hunt-roles.js?v=0.2.20';
+import { packHpFor, yieldPermille, routeFor } from '../../data/hunt-grounds.js?v=0.2.20';
+import { cheb, dist2, freeNear, tileKey } from './grid.js?v=0.2.20';
+import { inArea, resetPack } from './leash.js?v=0.2.20';
+import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy } from './movement.js?v=0.2.20';
+import { makeEvent, trackStep } from './events.js?v=0.2.20';
+import { pickLeader, kites } from './roles.js?v=0.2.20';
 
 /* deadMs: a corpse's age. hpMilli: out-of-combat regen carried below one HP.
    phase / routeIdx / phaseMs / regroupNext / runs / nextId: the cycle. alive / respawnAtMs: a pack. */
@@ -89,6 +89,7 @@ export function spawnPack(inst, p, sc) {
       w.nextId += 1;
       w.units.push(u);
       inst.occ.mon.set(tileKey(inst.grid, at[0], at[1]), u);
+      if (sc) sc.track(trackStep(u.id, at[0], at[1], sc.atMs));   // a respawn is placed by the track (visual only)
     }
   }
   w.packs[p].alive = true;

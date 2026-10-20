@@ -44,6 +44,12 @@ export const HUNT_TUNING = Object.freeze({
   regroupRadius: 7,
   /* hunt_instances.world may not exceed this many UTF-8 bytes (engine contract #4, ASSUMED). */
   worldMaxBytes: 16384,
+  /* THE LIVE LOOK-AHEAD (Tyler 2026-10-20): a settle answer seeds the viewer's browser with this many
+     combat swings (16 x the 2 s swing = 32 s, two server commits), never more. The edge's hunt_live
+     (hunt-settle.js liveSeeds) and the browser's live engine read it; a leave / change / kick lands no
+     earlier than the last of them (2026-10-31-live-horizon.sql c_horizon_ms = liveSeeds x tickMs,
+     pinned by tests/hunt-live.mjs LV-H). */
+  liveSeeds: 16,
 });
 
 /** Every problem with the table, as strings. Empty = valid. */
@@ -52,7 +58,7 @@ export function validate() {
   const T = HUNT_TUNING;
   const posInt = (k, v) => { if (!Number.isInteger(v) || v <= 0) out.push(k + ' must be a positive integer, got ' + v); };
   for (const k of ['stepMs', 'pathNodeCap', 'blockedRepathMs', 'blockedAvoidRadius', 'trailLen',
-    'trailSpacing', 'followRepathMs', 'oocRegenPermillePerS', 'corpseMs', 'regroupMs', 'regroupRadius', 'worldMaxBytes']) posInt(k, T[k]);
+    'trailSpacing', 'followRepathMs', 'oocRegenPermillePerS', 'corpseMs', 'regroupMs', 'regroupRadius', 'worldMaxBytes', 'liveSeeds']) posInt(k, T[k]);
   posInt('stepCost.straight', T.stepCost.straight);
   posInt('stepCost.diagonal', T.stepCost.diagonal);
   if (!Number.isInteger(T.leashMarginDefault) || T.leashMarginDefault < 0) out.push('leashMarginDefault must be an integer >= 0');

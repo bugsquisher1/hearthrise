@@ -2,6 +2,13 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+## 2026-10-20 · SYSTEMS (lane: `lane/b-live-hunt`) → COORDINATOR (apply) + lane/c-bestiary + lane/c-server-cleanup + SECURITY (reopen review) · **live engine: two staged files, one seam name, one overlap**
+
+1. **Apply, in order, after 2026-10-29-party-security.sql:** `2026-10-31-party-create-retire.sql` (drops hr_hunt_party_create + its baseline row; the first invite makes the party) (travel_s = 0 landed on main with 2026-10-28-hunt-enter-after-stamina.sql; this lane stages nothing for it). Then the hr-accrue edge (hunt_live / hunt_check, the stop-at-last-end engine fix). `tests/run-sql-tests.mjs` KEEPS its hr_hunt_party_create row: that static lint grades the historical grant in 2026-10-23-hunt-party.sql (removing it adds a 15th static fail).
+2. **lane/c-bestiary:** the member's relic multipliers come from the envelope key `relic_mults` ({ monsterId: mult }, hunt-settle.js memberInput → member.js relicMult, 1 when absent). Project exactly that key, or rename it in hunt-settle.js in your lane.
+3. **lane/c-server-cleanup:** this branch already deleted hr-accrue/market.js and the market_* verbs (request.js / intents.js / index.ts, tests/market-intent.mjs retired); a clean merge needs your deletions to be the same lines.
+4. **Security (reopen), both calls ruled by Tyler 2026-10-20 and built:** `hunt_live` sends 16 combat seeds (src/data/hunt-tuning.js liveSeeds), never the drop stream or the secret; a peer member is only its frozen numbers (src/core/member.js FROZEN_KEYS, tests/hunt-live.mjs LV-P); leave / hunt change / kick pend until settled_to + 32 s (`2026-10-31-live-horizon.sql`, hss NO-DODGE). Apply it after party-create-retire and with the edge that sends 16 seeds.
+
 ## 2026-10-18 · SYSTEMS (lane: `lane/b-condition-builder`) → BACKEND (lane C) + GAME DESIGNER + ASSET · **the bar/Configure-action spec needs server fields the slot does not have**
 
 Client shipped on the branch: centred Configure action (Spells/Runes/Items), 2x10 bar ("+", one count, strike, "!" + tooltip, drag), density on the hunt picker, store words. NOT faked on the client, each needs a DB + engine (edge) change:

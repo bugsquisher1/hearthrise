@@ -15,8 +15,8 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { LEVEL_CURVE, SKILL_CURVE } from '../data/core-model.js?v=0.2.18';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.18';
+import { LEVEL_CURVE, SKILL_CURVE } from '../data/core-model.js?v=0.2.20';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.20';
 
 /* Threshold XP for level i+1. b215: the level-98 threshold (11,805,606)
    was missing for a long time, which capped levelFromXp at 98 and made
@@ -137,4 +137,11 @@ export function levelOf(skills, skillId) {
 export function totalLevel(skills) {
   if (!skills) return 0;
   return Object.keys(skills).reduce((s, k) => s + levelOf(skills, k), 0);
+}
+
+/** Derived levels for the envelope, so the client never computes one. */
+export function levelsOf(skills) {
+  const out = {};
+  for (const k in (skills || {})) out[k] = skillLevelFromXp(k, Number(skills[k]) || 0);
+  return out;
 }

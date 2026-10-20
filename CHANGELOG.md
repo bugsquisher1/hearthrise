@@ -5,6 +5,16 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.20 — 2026-10-20 (Live hunts)
+
+**Hunts play out live.** Your browser runs the same fight as the server for the hero you're watching, so hunts move smoothly in real time. HP bars for monsters and heroes move with every hit, your whole party is drawn, melee heroes hold their spot, caster bolts fly, and monsters fall and leave a corpse. The server still decides every hit, kill and drop.
+
+**Fair play.** Leaving a hunt takes effect at the next server update, and your browser only learns what it needs to draw your party.
+
+## v0.2.19 — 2026-10-20 (A readable Character window)
+
+**Character window fits any size.** Your hero's name, level and XP bar never sit on top of the stats; in a smaller window the stats move underneath. The XP line reads "15,729 XP to Level 20", and regeneration reads "+1.9% (Prayer)".
+
 ## v0.2.18 — 2026-10-20 (Windows over the world)
 
 **Windows float over the world.** Opening, closing, moving or clicking a window never shifts the world. Your hero stays in the middle of the screen.

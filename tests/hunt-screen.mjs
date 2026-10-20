@@ -113,7 +113,7 @@ async function pushEnvelope(page, s) {
 }
 
 const FLOAT_IDS = ['dealt', 'taken', 'heal', 'xp', 'miss', 'supply', 'loot', 'ability', 'bleed_badge'];
-const NODES = `({ row: document.querySelector('.hp-m[data-key="1"]'), kills: document.querySelector('[data-sec="totals"] dd[data-stat="kills"]'),
+const NODES = `({ row: document.querySelector('.hp-m[data-key="0"]'), kills: document.querySelector('[data-sec="totals"] dd[data-stat="kills"]'),
   slot: document.querySelector('.hb-slot[data-slot="3"]'), hp: document.querySelector('.hb-vital .is-hp .hh-gauge-text') })`;
 
 async function checks(overrides, shots) {
@@ -140,7 +140,7 @@ async function checks(overrides, shots) {
   try {
     { // HS-1, HS-2, HS-4 numbers, HS-6
       const { ctx, page, errors, s, up } = await open();
-      if (!up) fails.push('HS-1 the hunt panels did not mount for the fixture character');
+      if (!up) fails.push('HS-1 the hunt panels did not mount for the fixture character' + (errors.length ? ' (' + errors.slice(0, 3).join(' | ') + ')' : ''));
       else {
         await page.evaluate((src) => { window.__nodes = (0, eval)(src); }, NODES);
         const a = FIXTURE.hunt_analyzer.hero;
@@ -196,12 +196,14 @@ async function checks(overrides, shots) {
     { // HS-3 intent-only edits: confirmed, then refused
       const { ctx, page, s, up } = await open();
       if (up) {
-        s.env.hunt_settings.stance = 'offensive';   // what the server says once it has saved
         /* Target, stance and chase live in Hunt settings (J), not on the bar (Tyler 10-18). */
         await page.keyboard.press('j');
         await wait(page, () => document.querySelector('[data-hs-win="hunt-settings"] .he-form [data-opt="stance"]:not([disabled])'), null, 3000);
         const btn = '.he-form [data-opt="stance"][data-val="offensive"]';
         await page.click(btn);
+        /* What the server says once it has saved: set after the press, so no re-read before it (the live
+           view asks for its start point at once) can show the new stance early. */
+        s.env.hunt_settings.stance = 'offensive';
         const mid = await page.evaluate((b) => ({ off: document.querySelector(b).disabled, pressed: document.querySelector(b).getAttribute('aria-pressed'),
           allOff: Array.from(document.querySelectorAll('.he-form [data-opt]')).every((c) => c.disabled) }), btn);
         if (!mid.off || !mid.allOff) fails.push('HS-3 the settings controls stayed on while the intent was in flight');

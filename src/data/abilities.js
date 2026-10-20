@@ -26,8 +26,8 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPPLIES } from './supplies.js?v=0.2.18';
-import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.18';
+import { SUPPLIES } from './supplies.js?v=0.2.20';
+import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.20';
 
 /* Two ability lanes and their lockouts (Bible §9.1 PROPOSED, AB-02). Food and
    drink keep their own lane (consumables.js). */

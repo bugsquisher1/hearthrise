@@ -162,9 +162,12 @@ export function runSpan(M, fx, cuts) {
   let world = inst.world; let next = inst.nextSwingAtMs;
   for (let i = 1; i < edges.length; i++) {
     world = world ? M.worldstate.decode(JSON.parse(JSON.stringify(M.worldstate.encode(world)))) : null;
+    /* A window OPENS with one anchor step per standing unit (combat-sim.js ANCHORS, visual only): where the
+       windows fall moves those by design; every other step, and the world, must not move. */
+    const anchors = world ? world.units.filter((u) => u.alive).length : 0;
     const r = M.cs.simulateHuntInstance({ world, nextSwingAtMs: next, members: inst.members }, Object.assign({}, ctx, { toMs: edges[i] }));
     world = r.world; next = r.nextSwingAtMs;
-    track.push(...r.track); events.push(...r.events);
+    track.push(...r.track.slice(anchors)); events.push(...r.events);
     for (const m of inst.members) memberEvents.push(...r.members[m.key].huntEvents);
   }
   fx.world = world;

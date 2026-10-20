@@ -21,21 +21,22 @@
 // Shown in town too (Tyler 10-18: set it up before leaving). Every value is
 // the server's; the bar changes only when the re-read envelope says so.
 // ════════════════════════════════════════════════════════════════════════
-import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.18';
-import { CONSUME_KINDS, ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.18';
-import { huntOf, settingsOf, staminaOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.18';
-import { bagOf } from '../../session/item-sections.js?v=0.2.18';
-import { text, cls, attr } from '../../render/paint.js?v=0.2.18';
-import { whole, pct, hoursMinutes } from '../../render/format.js?v=0.2.18';
-import { glyphSvg } from '../launcher.js?v=0.2.18';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.18';
-import { gaugeHtml, patchGauge, actionIconHtml } from './bits.js?v=0.2.18';
-import { openSlot, storeOf, placeSlot } from '../bar-draft.js?v=0.2.18';
-import { actionName, factsOf, carried, supplyLines, setupWords, conflictsOf } from '../action-facts.js?v=0.2.18';
-import { resetConfigureView } from '../windows/configure-action.js?v=0.2.18';
-import { assignToBar, barKind } from '../bar-assign.js?v=0.2.18';
-import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.18';
-import { refusalWords } from '../intent-words.js?v=0.2.18';
+import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.20';
+import { CONSUME_KINDS, ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.20';
+import { huntOf, settingsOf, staminaOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.20';
+import { bagOf } from '../../session/item-sections.js?v=0.2.20';
+import { townVitalsOf } from '../../session/character-sections.js?v=0.2.20';
+import { text, cls, attr } from '../../render/paint.js?v=0.2.20';
+import { whole, pct, hoursMinutes } from '../../render/format.js?v=0.2.20';
+import { glyphSvg } from '../launcher.js?v=0.2.20';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.20';
+import { gaugeHtml, patchGauge, actionIconHtml } from './bits.js?v=0.2.20';
+import { openSlot, storeOf, placeSlot } from '../bar-draft.js?v=0.2.20';
+import { actionName, factsOf, carried, supplyLines, setupWords, conflictsOf } from '../action-facts.js?v=0.2.20';
+import { resetConfigureView } from '../windows/configure-action.js?v=0.2.20';
+import { assignToBar, barKind } from '../bar-assign.js?v=0.2.20';
+import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.20';
+import { refusalWords } from '../intent-words.js?v=0.2.20';
 
 const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const SLOT_DRAG = 'application/x-hr-bar-slot';
@@ -117,7 +118,9 @@ function hideTip(el) { const tip = el.querySelector('.hb-tip'); cls(tip, 'is-on'
 renderActionBar.patch = function patchActionBar(el, ctx) {
   const cs = ctx.character;
   const h = huntOf(cs);
-  const hero = h ? h.hero : {};
+  /* Out of a hunt (town, or a hunt that ended) the strip reads the character's own vitals: mana is
+     full there, never a "–" (Tyler 10-19). */
+  const hero = h && !h.ended ? h.hero : townVitalsOf(cs) || {};
   const st = staminaOf(cs);
   const s = settingsOf(cs);
   /* Real units: per second, one decimal (huntOf's hpPerS / manaPerS: +0.5/s at 170 HP). */

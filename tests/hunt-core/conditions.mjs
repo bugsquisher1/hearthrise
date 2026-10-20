@@ -49,7 +49,7 @@ async function load(root) {
   M.SUP = await imp('src/data/supplies.js');
   M.kit = await imp('src/data/start-kit.js');
   M.acc = await raw('supabase/functions/hr-accrue/accrual.js');
-  M.hg = await raw('supabase/functions/hr-accrue/hunt-ground.js');
+  M.hg = await raw('src/core/hunt-ground.js');
   M.heroSetup = (await raw('src/core/hunt-spawn.js')).heroSetup;
   /* The WEAPON_ROLES key an item plays (a magic weapon by its discipline), as the settle reads it (hunt-settle.js). */
   M.roleWeaponOf = (await raw('src/data/hunt-roles.js')).roleWeaponOf;

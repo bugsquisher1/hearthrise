@@ -72,6 +72,9 @@
 //              ledger sums, the timeline, and the instance WORLD itself.
 //   BOTH-PATH  a hunt with a death settled at a player's irregular instants writes
 //              what the tick's windows write.
+//   NO-DODGE   a death the viewer's live seeds showed cannot be stepped around: a
+//              leave sent seconds before it still ends the hunt `died` at that swing,
+//              the same death row and end as with no leave (2026-10-31-live-horizon.sql).
 //   PARITY     the tick door, the player's door and the composed pieces write
 //              the same rows for one window.
 //   OWN        own food is eaten first: one supply_own row a settle, gold 0, the
@@ -158,7 +161,7 @@ async function loadEdge(root) {
     AC: await import(u(join(FN, 'accrual.js'))),
     SEED: await import(u(join(FN, 'hunt-seed.js'))),
     TR: await import(u(join(FN, 'tick-reads.js'))),
-    HT: await import(u(join(FN, 'hunt-track.js'))),
+    HT: await import(u('src/core/hunt-track.js')),
     IN: await import(u(join(FN, 'intents.js'))),
     TK: await import(u(join(FN, 'tick.js'))),
     HSD: await import(u('src/data/hunt-sessions.js')),
@@ -316,12 +319,13 @@ const ENGINE_ARMS = {
       if (m) problems.push(`${f} still names \`${m[0]}\` in code (deleted outright)`);
     }
     const presence = /\baway\b|presence|last_seen|capMs|cap_ms|hr_accrue_cap_ms|hr_offline_cap_ms|return_anchor|horizon/;
-    for (const f of ['hunt-settle.js', 'hunt-seed.js', 'hunt-ground.js', 'hunt-track.js']) {
+    for (const f of ['hunt-settle.js', 'hunt-seed.js', '../../../src/core/hunt-ground.js', '../../../src/core/hunt-track.js']) {
       const code = stripComments(readFileSync(join(dir, f), 'utf8'));
       const m = code.match(presence);
       if (m) problems.push(`${f} reads \`${m[0]}\` — the hunt settle may not consult presence, a cap or ctx.away (TICK-2)`);
     }
-    const acc = stripComments(readFileSync(join(dir, 'accrual.js'), 'utf8'));
+    /* memberSide lives in src/core/member.js since option B (the browser's live view shares it). */
+    const acc = stripComments(readFileSync(join(dir, 'accrual.js'), 'utf8') + '\n' + readFileSync(join(dir, '..', '..', '..', 'src', 'core', 'member.js'), 'utf8'));
     const body = ['accrueHunt', 'memberSide', 'memberDelta'].map((fn) => {
       const i = acc.indexOf('function ' + fn + '(');
       const j = acc.indexOf('\nfunction ', i + 10);
@@ -847,8 +851,17 @@ async function hunter(db, M, o) {
   for (let i = 0; i < who.length; i++) await character(db, M, UIDS[i], who[i]);
   let party = null;
   if (o.party) {
+    /* THE FIRST INVITE MAKES THE PARTY (2026-10-28-party-flow.sql; hr_hunt_party_create is retired). */
+    await asUser(db, UIDS[1]);
+    const named = await one(db, 'select public.hr_character_name_set(0, $1, $2::uuid)', ['Settle Second', idem()]);
+    if (!named || named.ok !== true) throw new Error('name refused: ' + JSON.stringify(named));
     await asUser(db, UIDS[0]);
-    party = (await one(db, `select public.hr_hunt_party_create(0, 'mill_cellar', $1::uuid)`, [idem()])).party.id;
+    const inv = await one(db, 'select public.hr_hunt_party_invite(0, $1, $2::uuid)', ['Settle Second', idem()]);
+    if (!inv || inv.ok !== true) throw new Error('party invite refused: ' + JSON.stringify(inv));
+    party = await one(db, 'select public.hr_hunt_party_of($1::uuid, 0)', [UIDS[0]]);
+    /* The ground is the leader's pick at Start (hr_hunt_party_start); these arms enter member by member, so the
+       fixture binds it as the retired create did. */
+    await db.query("update public.hunt_parties set hunt_id = 'mill_cellar' where id = $1", [party]);
     /* A party is joined only by invite or once its leader LISTS it (2026-10-29-party-security.sql). */
     const listed = await one(db, 'select public.hr_hunt_party_list(0, true, $1::uuid)', [idem()]);
     if (!listed || listed.ok !== true) throw new Error('party list refused: ' + JSON.stringify(listed));
@@ -981,9 +994,35 @@ const DB_ARMS = {
     const { a, b } = await compareRuns(db, M, DOOMED, ticksOf(90000, SPAN_MS), attended);
     if (!((a[0].deaths || []).length === 1)) problems.push(`CONTROL: the weak hero did not die exactly once (${JSON.stringify(a[0].deaths)})`);
     if (a[0].session.end_reason !== 'died') problems.push(`the death ended the hunt ${a[0].session.end_reason}, not died`);
+    /* The death row carries the engine's instant (the settle's death hint), inside the swing it happened in:
+       strictly before the boundary the hunt ended at, never clamped onto a window edge. */
+    const deathAt = ((a[0].events || []).find((e) => e[0] === 'death') || [])[1];
+    if (!(Date.parse(deathAt) < Date.parse(a[0].session.ended_at))) problems.push(`the death row sits at ${deathAt}, not before the end ${a[0].session.ended_at}`);
     if (canon(a) !== canon(b)) problems.push(`a hunt settled at a player's instants wrote different rows from the tick's ${firstDiff(canon(a), canon(b))}`);
     return problems;
   },
+  'NO-DODGE': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const h = await hunter(db, M, { ...DOOMED });
+    await db.query('savepoint no_dodge');
+    await run(db, M, h.from, () => [h.from + SPAN_MS]);
+    const a = await snapshot(db, h.sid, UIDS[0]);
+    await db.query('rollback to savepoint no_dodge');
+    const deathAt = Date.parse(((a.events || []).find((e) => e[0] === 'death') || [])[1]);
+    if (!(a.session.end_reason === 'died' && Number.isFinite(deathAt))) return ['CONTROL: the doomed hero did not die (' + a.session.end_reason + ')'];
+    /* The browser saw the death in its seeds; the player leaves three seconds before it. */
+    await run(db, M, h.from, () => [deathAt - 3000]);
+    await asUser(db, UIDS[0]);
+    const lv = await one(db, 'select public.hr_hunt_leave(0, $1::uuid)', [idem()]);
+    await db.query("select set_config('request.jwt.claim.sub', '', true)");
+    if (!lv || lv.ok !== true) return ['the leave was refused: ' + JSON.stringify(lv)];
+    await run(db, M, h.from, () => [h.from + SPAN_MS]);
+    const b = await snapshot(db, h.sid, UIDS[0]);
+    if (b.session.end_reason !== 'died') problems.push(`a leave before a foreseen death ended the hunt ${b.session.end_reason}, not died`);
+    if (b.session.ended_at !== a.session.ended_at) problems.push(`the hunt ended at ${b.session.ended_at} with the leave, ${a.session.ended_at} without`);
+    if (JSON.stringify(b.events) !== JSON.stringify(a.events)) problems.push('the death / end rows differ with the leave: ' + firstDiff(JSON.stringify(a.events), JSON.stringify(b.events)));
+    return problems;
+  }),
   PARITY: async (db, M) => inTx(db, async () => {
     const problems = [];
     const { sid } = await hunter(db, M, { ...STRONG, minutesAgo: 10, options: { stance: 'defensive', distance: 3, food_below_pct: 90 } });
@@ -1491,10 +1530,10 @@ const MUTANTS = [
   { arm: 'TICK-2', name: '[C2 absence watermark] the window starts at a presence watermark', file: join(FN, 'accrual.js'),
     from: 'const fromMs = Math.floor(nat(w.fromMs, -1));', to: 'const fromMs = Math.floor(nat(inp.accruedToMs, nat(w.fromMs, -1)));' },
   { arm: 'TICK-2', name: '[C2 F11 / no_topup] a deleted read returns to the hunt settle', file: join(FN, 'hunt-settle.js'),
-    from: "import { huntTimeline } from './hunt-track.js';", to: "import { huntTimeline } from './hunt-track.js';\nexport const ATTENDED_READ = 'select * from public.hr_attended_kills($1, $2, $3)';" },
+    from: "import { huntTimeline, worldHash } from '../../../src/core/hunt-track.js';", to: "import { huntTimeline, worldHash } from '../../../src/core/hunt-track.js';\nexport const ATTENDED_READ = 'select * from public.hr_attended_kills($1, $2, $3)';" },
   { arm: 'BUFF', name: 'the hunt never re-measures the buff queue (a buff never pays)', file: 'src/core/combat-sim.js',
     from: "      if (typeof m.buffsAt === 'function') m.buffsAt(atMs);\n", to: '' },
-  { arm: 'BUFF', name: '[C2 buff queue at the read clock] the queue is measured once, at the window start', file: join(FN, 'accrual.js'),
+  { arm: 'BUFF', name: '[C2 buff queue at the read clock] the queue is measured once, at the window start', file: 'src/core/member.js',
     from: '      buffsAt: (atMs) => { state.buffs = buffQueueFromServer(buffRows, atMs); },',
     to: "      buffsAt: (atMs) => { if (!state._b) { state._b = 1; state.buffs = buffQueueFromServer(buffRows, atMs); } },"  },
   { arm: 'SEED', name: 'the per-swing seed is the 32-bit FNV text mix again', file: join(FN, 'hunt-seed.js'),
@@ -1507,9 +1546,9 @@ const MUTANTS = [
     to: "  if (typeof f !== 'function') return 0;" },
   { arm: 'ONE-PATH', name: 'a press path returns to the settle', file: join(FN, 'hunt-settle.js'),
     from: '    cover: (h.cover && typeof h.cover === \'object\') ? h.cover : {},', to: '    cover: (h.cover && typeof h.cover === \'object\') ? h.cover : {},\n    presses: h.presses || [],' },
-  { arm: 'MAXHP', name: 'a Level-up never raises max HP', file: join(FN, 'accrual.js'),
+  { arm: 'MAXHP', name: 'a Level-up never raises max HP', file: 'src/core/member.js',
     from: '      if (charLevelFromXp(state.levelXp) > lv0) applyVitals(state, equipment, items);', to: '' },
-  { arm: 'MAXHP', name: 'max HP is not raise-only (a vitals read may lower it)', file: join(FN, 'accrual.js'),
+  { arm: 'MAXHP', name: 'max HP is not raise-only (a vitals read may lower it)', file: 'src/core/member.js',
     from: '  state.playerMaxHp = Math.max(state.playerMaxHp || 0, v.maxHp);', to: '  state.playerMaxHp = v.maxHp - 1;' },
   { arm: 'ECON-1', name: 'the T1 store drink back at 90 g (the heal\'s 15 g a point): a fresh melee hero ends gold_out', file: 'src/data/supply-basics.js',
     from: "'turnip_juice', 6, 6, [1]", to: "'turnip_juice', 6, 90, [1]" },
@@ -1522,7 +1561,7 @@ const MUTANTS = [
     from: '    vs ? Number(vs.critChance) || 0 : 0);', to: '    0);' },
   { arm: 'CRIT', name: 'a crit is not journalled as the lifetime stat', file: join(FN, 'accrual.js'),
     from: "  stat('crits', stats.crits);\n", to: '' },
-  { arm: 'EVENT-IDS', name: 'an event id counts across the whole window', file: join(FN, 'hunt-track.js'),
+  { arm: 'EVENT-IDS', name: 'an event id counts across the whole window', file: 'src/core/hunt-track.js',
     from: '    const k = seen.get(at) || 0;', to: '    const k = seen.size;' },
   { arm: 'STAMINA-RULE', name: 'a swing does not drain the pool', file: 'src/core/action-rules.js',
     from: '  if (hunting) return Math.max(0, v - d);', to: '  if (hunting) return v;' },
@@ -1551,7 +1590,7 @@ const MUTANTS = [
     from: '    .sort((a, b) => (hs.cover[a].unit - hs.cover[b].unit) || (a < b ? -1 : 1));', to: '    .sort((a, b) => (hs.cover[b].unit - hs.cover[a].unit) || (a < b ? -1 : 1));' },
   { arm: 'SUPPLY-RULE', name: '[C2 cover bones] sell-to-cover sells any common drop again', file: 'src/data/hunt-sessions.js',
     from: '  return item.junk === true;', to: '  return true;' },
-  { arm: 'SUPPLY-RULE', name: '[C2 kill coins] kill coins never reach the purse', file: join(FN, 'accrual.js'),
+  { arm: 'SUPPLY-RULE', name: '[C2 kill coins] kill coins never reach the purse', file: 'src/core/member.js',
     from: '      hs.purse = Math.max(0, Math.floor(Number(hs.purse) || 0)) + g;', to: '' },
   { arm: 'SUPPLY-RULE', name: '[C2 own first] the resolver reaches for the store before the own stack', file: 'src/core/action-rules.js',
     from: "    const own = pickOwn(hs, want, Math.max(1, int(need, 1)));", to: "    const own = storeAllowed(hs, want) ? null : pickOwn(hs, want, Math.max(1, int(need, 1)));" },
@@ -1640,6 +1679,9 @@ const AM = 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,
 const AI = 'public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)';
 const SS = 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)';
 const DB_MUTANTS = [
+  { arm: 'NO-DODGE', name: 'a leave closes the hunt at once again (the foreseen death is dodged)', fn: 'public.hr_hunt_leave(integer,uuid)',
+    find: '    update public.hunt_sessions set leave_at = public.hr_hunt_live_horizon_at(v_s.settled_to), version = version + 1 where id = v_s.id;',
+    replace: "    perform public.hr_hunt_close(v_s.id, 'left', now(), true);" },
   { arm: 'VALUE', name: 'the gold bound is gone', fn: AM,
     find: "  if jsonb_typeof(p_delta->'gold') = 'number' and (p_delta->>'gold')::numeric > v_kills * v_vb_gold * v_vb_h then", replace: '  if false then' },
   { arm: 'VALUE', name: 'an undroppable item passes the drop bound', fn: AM,
@@ -1681,8 +1723,8 @@ const DB_MUTANTS = [
     find: 'supplies = public.hr_jsonb_add(t.supplies, v_sup)', replace: 'supplies = t.supplies' },
   { arm: 'ANALYZER', name: 'the analyzer tally is not folded', fn: AM,
     find: '       set dealt = public.hr_hunt_tally_add(t.dealt, coalesce(p_analyzer->\'dealt\', \'{}\'::jsonb)),', replace: '       set dealt = t.dealt,' },
-  { arm: 'ANALYZER', name: 'a free character reads the whole analyzer', fn: 'public.hr_hunt_analyzer(integer,uuid)',
-    find: '  if public.hr_premium_active(v_uid, p_slot, now()) then return', replace: '  if true then return' },
+  /* 'a free character reads the analyzer' RETIRED 2026-10-19: 2026-10-26-hunt-analyzer-basic.sql gives every
+     character the basic analyzer, so the live body has no premium gate to remove. */
   { arm: 'DEATHXP', name: 'the applier stops bounding the Level\'s death price', fn: AM,
     find: '        if v_n > floor(v_lxb * v_rate / 1000.0) or v_cur - v_n < v_xfloor then', replace: '        if false then' },
   { arm: 'DEATHXP', name: 'the Level\'s death price is never debited', fn: AM,

@@ -13,16 +13,16 @@
 //   needOf(id, sk)  "Needs Melee 30 (you have 20)", against the server's level
 //   flavourOf(id)   the item's one-line description, or ''
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.18';
-import { DRINK_ITEMS, DRINK_RECIPES, DRINK_DESC } from '../data/drinks.js?v=0.2.18';
-import { MONSTERS } from '../data/monsters.js?v=0.2.18';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.18';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOT_META } from '../data/gathering.js?v=0.2.18';
-import { SHOP_OFFERS } from '../data/shops.js?v=0.2.18';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.18';
-import { ITEM_DESC } from '../data/item-descriptions.js?v=0.2.18';
-import { itemName, monsterName } from './widgets/bits.js?v=0.2.18';
-import { kindOf } from './bag-model.js?v=0.2.18';
+import { ITEMS } from '../data/items.js?v=0.2.20';
+import { DRINK_ITEMS, DRINK_RECIPES, DRINK_DESC } from '../data/drinks.js?v=0.2.20';
+import { MONSTERS } from '../data/monsters.js?v=0.2.20';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.20';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOT_META } from '../data/gathering.js?v=0.2.20';
+import { SHOP_OFFERS } from '../data/shops.js?v=0.2.20';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.20';
+import { ITEM_DESC } from '../data/item-descriptions.js?v=0.2.20';
+import { itemName, monsterName } from './widgets/bits.js?v=0.2.20';
+import { kindOf } from './bag-model.js?v=0.2.20';
 
 const skillName = (id) => (SKILLS_DEF[id] && SKILLS_DEF[id].name) || id;
 const RARITY = Object.freeze({ common: 'Common', uncommon: 'Uncommon', rare: 'Rare', epic: 'Epic', legendary: 'Legendary', mythic: 'Mythic', unique: 'Unique' });

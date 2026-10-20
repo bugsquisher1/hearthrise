@@ -62,7 +62,7 @@ export class LiveLink {
       this._reseeded = res.alive;
       this._emit('reseed');
     } else if (body.hunt_check && this.engine.running()) {
-      if (this.engine.confirm(body.hunt_check) !== 'match') this.want = true;
+      if (this.engine.reconcile(body.hunt_check) !== 'match') this.want = true;
     } else if (!this.engine.running()) {
       /* No start point in this answer: ask again soon, liveAskTries at most (an engine that does
          not send one leaves the hunt on its server-paced view at the ordinary poll). */

@@ -129,7 +129,7 @@ export function createLiveEngine(o) {
      * A server commit's check (hunt_check, with the next seeds): on a match the prediction runs on with
      * the new seeds (and resumes if it had run out); answers check()'s verdict.
      */
-    confirm(hc) {
+    reconcile(hc) {
       const v = this.check(hc);
       if (v === 'match' && hc.seeds && isInt(hc.seeds.from) && Array.isArray(hc.seeds.list)) {
         const from = hc.seeds.from, list = hc.seeds.list;

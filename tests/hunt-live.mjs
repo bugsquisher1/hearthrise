@@ -136,7 +136,7 @@ function run(M, mis, spanMs, opt) {
     if ((t - T0) % every === 0 && t > T0) {
       const c = srv.commit(t);
       if (c) {
-        const v = E.confirm(c.check);
+        const v = E.reconcile(c.check);
         verdicts.push({ t, v, tl: c.tl });
         if (o.onCommit) o.onCommit({ t, v, c, E, srv });
       }

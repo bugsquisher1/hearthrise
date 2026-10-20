@@ -131,26 +131,34 @@ async function selftest() {
      2026-09-13-reed-and-tide.sql until the core rebuild's catalogue (2026-10-27-core-catalogue.generated.sql)
      re-seeded every heal, and a typed name kept mutating a file the fold had already overridden. */
   const order = JSON.parse(await readFile(ORDER, 'utf8')).order;
-  let LAST = null;
+  const seeds = [];
   for (const f of order) {
     let t; try { t = await readFile(join(MIG_DIR, f), 'utf8'); } catch { continue; }
-    if (seedRowsIn(t).length) LAST = f;
+    if (seedRowsIn(t).length) seeds.push([f, t]);
   }
-  if (!LAST) { process.stdout.write('  FAIL  no seeding file in the apply order\n'); return 1; }
-  const real = await readFile(join(MIG_DIR, LAST), 'utf8');
+  if (!seeds.length) { process.stdout.write('  FAIL  no seeding file in the apply order\n'); return 1; }
+  const [LAST, real] = seeds[seeds.length - 1];
+  /* THE NEWEST SEED'S TAIL: a forward catalogue that re-seeds byte-identical rows (2026-10-28 after 2026-10-27)
+     is the same seed twice, and the fold keeps the value either one writes. A food dropped from, or a seed
+     ABSENT in, only the last copy is no defect at all; the defect is the current values gone from the WHOLE
+     tail, so the chain falls back to an older seed's stale values. The drop and absence arms mutate the tail. */
+  const sameRows = (t) => JSON.stringify(seedRowsIn(t)) === JSON.stringify(seedRowsIn(real));
+  const tail = [];
+  for (let i = seeds.length - 1; i >= 0 && sameRows(seeds[i][1]); i--) tail.push(seeds[i]);
   const [[id0, heals0], [id1]] = seedRowsIn(real);
+  const dropRow = (t) => t.replace(new RegExp(`\\(\\s*'${id1}'\\s*,\\s*\\d+\\s*\\)\\s*,`), '');
   const drifted = real.replace(new RegExp(`\\(\\s*'${id0}'\\s*,\\s*\\d+\\s*\\)`), `('${id0}', ${heals0 + 1})`);
-  const dropped = real.replace(new RegExp(`\\(\\s*'${id1}'\\s*,\\s*\\d+\\s*\\)\\s*,`), '');
-  if (drifted === real || dropped === real) { process.stdout.write(`  FAIL  selftest anchors missed in ${LAST}\n`); return 1; }
+  const dropped = Object.fromEntries(tail.map(([f, t]) => [f, dropRow(t)]));
+  const absent = Object.fromEntries(tail.map(([f]) => [f, '-- nothing\n']));
+  if (drifted === real || tail.some(([f, t]) => dropped[f] === t)) { process.stdout.write(`  FAIL  selftest anchors missed in ${LAST}\n`); return 1; }
   const arms = [
     ['control (unmutated chain)', {}, false],
     [`a heal value drifts in the newest seed (${LAST})`, { [LAST]: drifted }, true],
-    ['a food is dropped from the newest seed', { [LAST]: dropped }, true],
+    [`a food is dropped from the newest seed (${tail.length} identical cop${tail.length === 1 ? 'y' : 'ies'})`, dropped, true],
     ['a LATER file seeds a food items.js does not back',
       { [LAST]: real + "\ninsert into public.hr_feast_foods (item_id, heals) values ('not_a_food', 9)"
                      + '\n  on conflict (item_id) do update set heals = excluded.heals;\n' }, true],
-    ['the newest seed is ABSENT (the pre-b544 blind spot)',
-      { [LAST]: '-- nothing\n' }, true],
+    ['the newest seed is ABSENT (the pre-b544 blind spot)', absent, true],
   ];
   let bad = 0;
   for (const [name, inject, mustFail] of arms) {

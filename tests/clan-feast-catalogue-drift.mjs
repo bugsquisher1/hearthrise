@@ -129,28 +129,37 @@ export async function feastCatalogueDriftGuard(opts = {}) {
 async function selftest() {
   /* The newest seed is DERIVED (the last file in apply order that seeds hr_feast_foods), never typed: it was
      2026-09-13-reed-and-tide.sql until the core rebuild's catalogue (2026-10-27-core-catalogue.generated.sql)
-     re-seeded every heal, and a typed name kept mutating a file the fold had already overridden. */
+     re-seeded every heal, and a typed name kept mutating a file the fold had already overridden.
+     The seed is an UPSERT, so a forward catalogue that re-seeds the SAME rows (2026-10-28-content-names
+     after 2026-10-27-core) makes "drop a row from / blank the newest file" no defect at all: the file
+     before it still holds the row. The drop and blank arms therefore mutate the whole trailing run of
+     files carrying the current seed (CURRENT), so the chain really falls back to a stale or missing row. */
   const order = JSON.parse(await readFile(ORDER, 'utf8')).order;
-  let LAST = null;
+  const seeds = [];
   for (const f of order) {
     let t; try { t = await readFile(join(MIG_DIR, f), 'utf8'); } catch { continue; }
-    if (seedRowsIn(t).length) LAST = f;
+    if (seedRowsIn(t).length) seeds.push([f, t]);
   }
-  if (!LAST) { process.stdout.write('  FAIL  no seeding file in the apply order\n'); return 1; }
-  const real = await readFile(join(MIG_DIR, LAST), 'utf8');
+  if (!seeds.length) { process.stdout.write('  FAIL  no seeding file in the apply order\n'); return 1; }
+  const [LAST, real] = seeds[seeds.length - 1];
+  const key = (t) => JSON.stringify(seedRowsIn(t));
+  const CURRENT = [];
+  for (let i = seeds.length - 1; i >= 0 && key(seeds[i][1]) === key(real); i--) CURRENT.push(seeds[i]);
+  const each = (fn) => Object.fromEntries(CURRENT.map(([f, t]) => [f, fn(t)]));
   const [[id0, heals0], [id1]] = seedRowsIn(real);
   const drifted = real.replace(new RegExp(`\\(\\s*'${id0}'\\s*,\\s*\\d+\\s*\\)`), `('${id0}', ${heals0 + 1})`);
-  const dropped = real.replace(new RegExp(`\\(\\s*'${id1}'\\s*,\\s*\\d+\\s*\\)\\s*,`), '');
+  const drop = (t) => t.replace(new RegExp(`\\(\\s*'${id1}'\\s*,\\s*\\d+\\s*\\)\\s*,`), '');
+  const dropped = drop(real);
   if (drifted === real || dropped === real) { process.stdout.write(`  FAIL  selftest anchors missed in ${LAST}\n`); return 1; }
   const arms = [
     ['control (unmutated chain)', {}, false],
     [`a heal value drifts in the newest seed (${LAST})`, { [LAST]: drifted }, true],
-    ['a food is dropped from the newest seed', { [LAST]: dropped }, true],
+    [`a food is dropped from the current seed (${CURRENT.length} file(s))`, each(drop), true],
     ['a LATER file seeds a food items.js does not back',
       { [LAST]: real + "\ninsert into public.hr_feast_foods (item_id, heals) values ('not_a_food', 9)"
                      + '\n  on conflict (item_id) do update set heals = excluded.heals;\n' }, true],
-    ['the newest seed is ABSENT (the pre-b544 blind spot)',
-      { [LAST]: '-- nothing\n' }, true],
+    [`the current seed is ABSENT (the pre-b544 blind spot; ${CURRENT.length} file(s))`,
+      each(() => '-- nothing\n'), true],
   ];
   let bad = 0;
   for (const [name, inject, mustFail] of arms) {

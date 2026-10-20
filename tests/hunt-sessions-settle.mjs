@@ -72,6 +72,9 @@
 //              ledger sums, the timeline, and the instance WORLD itself.
 //   BOTH-PATH  a hunt with a death settled at a player's irregular instants writes
 //              what the tick's windows write.
+//   NO-DODGE   a death the viewer's live seeds showed cannot be stepped around: a
+//              leave sent seconds before it still ends the hunt `died` at that swing,
+//              the same death row and end as with no leave (2026-10-31-live-horizon.sql).
 //   PARITY     the tick door, the player's door and the composed pieces write
 //              the same rows for one window.
 //   OWN        own food is eaten first: one supply_own row a settle, gold 0, the
@@ -987,6 +990,28 @@ const DB_ARMS = {
     if (canon(a) !== canon(b)) problems.push(`a hunt settled at a player's instants wrote different rows from the tick's ${firstDiff(canon(a), canon(b))}`);
     return problems;
   },
+  'NO-DODGE': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const h = await hunter(db, M, { ...DOOMED });
+    await db.query('savepoint no_dodge');
+    await run(db, M, h.from, () => [h.from + SPAN_MS]);
+    const a = await snapshot(db, h.sid, UIDS[0]);
+    await db.query('rollback to savepoint no_dodge');
+    const deathAt = Date.parse(((a.events || []).find((e) => e[0] === 'death') || [])[1]);
+    if (!(a.session.end_reason === 'died' && Number.isFinite(deathAt))) return ['CONTROL: the doomed hero did not die (' + a.session.end_reason + ')'];
+    /* The browser saw the death in its seeds; the player leaves three seconds before it. */
+    await run(db, M, h.from, () => [deathAt - 3000]);
+    await asUser(db, UIDS[0]);
+    const lv = await one(db, 'select public.hr_hunt_leave(0, $1::uuid)', [idem()]);
+    await db.query("select set_config('request.jwt.claim.sub', '', true)");
+    if (!lv || lv.ok !== true) return ['the leave was refused: ' + JSON.stringify(lv)];
+    await run(db, M, h.from, () => [h.from + SPAN_MS]);
+    const b = await snapshot(db, h.sid, UIDS[0]);
+    if (b.session.end_reason !== 'died') problems.push(`a leave before a foreseen death ended the hunt ${b.session.end_reason}, not died`);
+    if (b.session.ended_at !== a.session.ended_at) problems.push(`the hunt ended at ${b.session.ended_at} with the leave, ${a.session.ended_at} without`);
+    if (JSON.stringify(b.events) !== JSON.stringify(a.events)) problems.push('the death / end rows differ with the leave: ' + firstDiff(JSON.stringify(a.events), JSON.stringify(b.events)));
+    return problems;
+  }),
   PARITY: async (db, M) => inTx(db, async () => {
     const problems = [];
     const { sid } = await hunter(db, M, { ...STRONG, options: { stance: 'defensive', distance: 3, food_below_pct: 90 } });
@@ -1596,6 +1621,9 @@ const AM = 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,
 const AI = 'public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)';
 const SS = 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)';
 const DB_MUTANTS = [
+  { arm: 'NO-DODGE', name: 'a leave closes the hunt at once again (the foreseen death is dodged)', fn: 'public.hr_hunt_leave(integer,uuid)',
+    find: '    update public.hunt_sessions set leave_at = public.hr_hunt_live_horizon_at(v_s.settled_to), version = version + 1 where id = v_s.id;',
+    replace: "    perform public.hr_hunt_close(v_s.id, 'left', now(), true);" },
   { arm: 'VALUE', name: 'the gold bound is gone', fn: AM,
     find: "  if jsonb_typeof(p_delta->'gold') = 'number' and (p_delta->>'gold')::numeric > v_kills * v_vb_gold * v_vb_h then", replace: '  if false then' },
   { arm: 'VALUE', name: 'an undroppable item passes the drop bound', fn: AM,

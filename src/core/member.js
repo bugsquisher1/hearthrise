@@ -23,6 +23,7 @@ import { vitalsOf, wearsArmour } from './vitals.js?v=0.2.15';
 import { newHuntSession } from './action-rules.js?v=0.2.15';
 import { makeGoalCounter, makeBestiaryCounter, makeCollectionCounter } from './goals.js?v=0.2.15';
 import { HUNT_ROLES } from '../data/hunt-roles.js?v=0.2.15';
+import { MONSTERS } from '../data/monsters.js?v=0.2.15';
 
 /* A finite, non-negative number or the fallback (every number that crosses in from a row). */
 function nat(v, fallback) {
@@ -260,3 +261,62 @@ export function memberSide(mi, ctx) {
   };
 }
 
+
+/* ── A PARTY MEMBER AS THE VIEWER'S BROWSER SEES IT (Tyler 2026-10-20) ──────────
+   hunt_live gives the viewer its OWN member's full setup, but every OTHER member only
+   the numbers the engine needs to simulate and draw it, frozen at the block's boundary:
+   its vitals, its blow and defence (the snapshot), its rolls against each monster
+   kind the ground fields, its weapon family / armour / shield, its hunt setup (role,
+   settings, bar, range) and its supply session (bag counts, the store catalogue, its
+   pending ends). Never its skills, gear, perks, buffs, premium, purse, cover list,
+   stamina or bestiary. FROZEN_KEYS / FROZEN_SESSION_KEYS are the allowlist
+   (tests/hunt-live.mjs LV-P). */
+export const FROZEN_KEYS = Object.freeze(['hp', 'maxHp', 'maxMana', 'regenPm', 'snap', 'vs', 'family', 'armoured', 'shield', 'hero', 'session']);
+export const FROZEN_SESSION_KEYS = Object.freeze(['huntFromMs', 'nextSwingAtMs', 'swingIndex', 'bag', 'basics', 'shop',
+  'supplySource', 'onEmpty', 'goldFloor', 'leaveAtMs', 'changeAtMs', 'stopAtMs']);
+const finiteOr = (v, d) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+
+/** The frozen numbers of an assembled member side at server instant `atMs`, against the monster `kinds`. */
+export function frozenOf(side, kinds, atMs) {
+  const m = side.member;
+  if (typeof m.buffsAt === 'function') m.buffsAt(atMs);
+  const snap = m.snapshot(m.state);
+  const vs = {};
+  for (const k of kinds) {
+    const row = MONSTERS[k];
+    const r = row ? m.rollsVs(row) : null;
+    if (r) vs[k] = { accuracy: finiteOr(r.accuracy, 0), critChance: finiteOr(r.critChance, 0), damageMult: finiteOr(r.weak && r.weak.damageMult, 1) };
+  }
+  const hs = side.mi.huntSession || {};
+  const session = {};
+  for (const k of FROZEN_SESSION_KEYS) if (hs[k] !== undefined) session[k] = hs[k];
+  return { hp: m.state.playerHp, maxHp: m.state.playerMaxHp, maxMana: m.state.playerMaxMana, regenPm: m.state.regenPm,
+    snap: { acc: snap.acc, maxHit: snap.maxHit, def: snap.def }, vs, family: m.family, armoured: m.armoured === true,
+    shield: m.shield === true, hero: m.hero, session };
+}
+
+/* A monster ROW back to its kind (damage.js hands rollsVs the row). */
+const KIND_OF = new Map(Object.entries(MONSTERS).map(([k, row]) => [row, k]));
+
+/** The engine member of a frozen row (the browser's peer): its numbers, an inert fx, an unbounded purse. */
+export function frozenSide(row) {
+  const f = row.frozen || {};
+  const state = { playerHp: f.hp, playerMaxHp: f.maxHp, playerMaxMana: f.maxMana, regenPm: f.regenPm,
+    levelXp: 0, gold: 0, skills: {}, stats: {}, buffs: [] };
+  const hs = newHuntSession(Object.assign({}, f.session, { purse: Number.MAX_SAFE_INTEGER, cover: {}, staminaMs: null,
+    tally: null, endedReason: null, endedAtMs: null }));
+  const snap = f.snap || { acc: 0, maxHit: 1, def: 0 };
+  const vs = f.vs || {};
+  const member = {
+    key: row.key, seat: row.seat, unitId: Number.isInteger(row.unitId) ? row.unitId : null, hs, state, fx: {},
+    family: f.family, armoured: f.armoured === true, shield: f.shield === true,
+    bonus: () => 0, weakness: () => ({ dropMult: 1, damageMult: 1 }), relicMult: () => 1,
+    rollsVs: (r) => {
+      const v = vs[KIND_OF.get(r)];
+      return v ? { accuracy: v.accuracy, critChance: v.critChance, weak: { damageMult: v.damageMult } } : null;
+    },
+    snapshot: () => snap,
+    hero: f.hero || {},
+  };
+  return { mi: row, hs, state, member };
+}

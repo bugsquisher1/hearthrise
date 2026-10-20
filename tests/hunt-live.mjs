@@ -23,6 +23,12 @@
 //         carries no drop-stream seed. (Mutant: drops rolled on the combat stream.)
 //   LV-M  MELEE HOLDS: the engine's lone knight changes tile no more often per kill than the
 //         frozen sim's (measured) and almost never steps back and forth between swings.
+//   LV-P  PARTY PRIVACY (Tyler 2026-10-20): a peer's row is exactly its frozen numbers
+//         (src/core/member.js FROZEN_KEYS / FROZEN_SESSION_KEYS): no skills, gear, perks,
+//         buffs, purse, premium or bestiary; the viewer's own row stays whole.
+//   LV-H  THE LOOK-AHEAD (Tyler 2026-10-20): hunt_live sends liveSeeds (16) combat seeds,
+//         one constant (src/data/hunt-tuning.js) the edge reads, and the leave horizon of
+//         2026-10-31-live-horizon.sql is exactly liveSeeds x the swing.
 //   LV-R  RECONCILE: a prediction forced off the server's world is judged
 //         `diverged` at the next commit, and the reseed eases every unit onto its true
 //         tile with no frame moving a unit more than one tile.
@@ -52,6 +58,8 @@ async function load(base) {
     SB: await u('src/data/supply-basics.js'),
     XP: await u('src/core/xp.js'),
     MB: await u('src/core/member.js'),
+    TUNE: (await u('src/data/hunt-tuning.js')).HUNT_TUNING,
+    CB: (await u('src/core/combat.js')).COMBAT_BALANCE,
     WS: await u('src/core/hunt/world-state.js'),
     ITEMS: (await u('src/data/items.js')).ITEMS,
     MONSTERS: (await u('src/data/monsters.js')).MONSTERS,
@@ -116,6 +124,8 @@ function run(M, mis, spanMs, opt) {
   const fed = { steps: [], events: [] };
   const heroesSeen = new Map();
   const verdicts = [];
+  const every = o.commitMs || 16000;
+  let starvedMs = 0;
   for (let t = T0; t <= T0 + spanMs; t += 100) {
     E.advance(t, (b) => {
       for (const s of b.track) fed.steps.push(s);
@@ -123,7 +133,7 @@ function run(M, mis, spanMs, opt) {
       if (o.feed) o.feed(b);
     });
     if (o.tamperAt && t === o.tamperAt) o.tamper(E, srv);
-    if ((t - T0) % 16000 === 0 && t > T0) {
+    if ((t - T0) % every === 0 && t > T0) {
       const c = srv.commit(t);
       if (c) {
         const v = E.confirm(c.check);
@@ -132,8 +142,9 @@ function run(M, mis, spanMs, opt) {
       }
     }
     if (o.onTick) o.onTick({ t, E });
+    if (!E.running()) starvedMs += 100;
   }
-  return { srv, E, fed, verdicts, heroesSeen };
+  return { srv, E, fed, verdicts, heroesSeen, starvedMs };
 }
 
 function rules(M) {
@@ -142,8 +153,16 @@ function rules(M) {
   const key = (s) => s.u + ',' + s.x + ',' + s.y + ',' + s.atMs;
   const ekey = (e) => JSON.stringify(e);
 
-  for (const [name, mis] of [['solo', [memberOf(M, 'a', 0, 'tank', 6)]], ['party', [memberOf(M, 'a', 0, 'tank', 6), memberOf(M, 'b', 1, 'melee_dps', 6)]]]) {
+  const cast = { solo: () => [memberOf(M, 'a', 0, 'tank', 6)], party: () => [memberOf(M, 'a', 0, 'tank', 6), memberOf(M, 'b', 1, 'melee_dps', 6)] };
+  for (const [name, mis] of [['solo', cast.solo()], ['party', cast.party()]]) {
     const r = run(M, mis, 160000);
+    /* THE SHORT LOOK-AHEAD NEVER STALLS: 16 seeds (32 s) outlive a commit every 16 s, and one every 30 s. */
+    const late = run(M, cast[name](), 160000, { commitMs: 30000 });
+    /* the control: commits further apart than the look-ahead DO stall, so the measure can see one */
+    const starved = run(M, cast[name](), 160000, { commitMs: 48000 });
+    ok('LV-D', starved.starvedMs > 0, `${name}: CONTROL: commits every 48 s never ran the 32 s look-ahead dry`);
+    ok('LV-D', r.starvedMs === 0 && late.starvedMs === 0, `${name}: the prediction stalled out of seeds for ${r.starvedMs} ms (16 s commits) / ${late.starvedMs} ms (30 s commits)`);
+    console.log(`  LV-D ${name} look-ahead: ${M.TUNE.liveSeeds} seeds; stalled ${r.starvedMs} ms at 16 s commits, ${late.starvedMs} ms at 30 s commits (control: ${starved.starvedMs} ms at 48 s)`);
     const bad = r.verdicts.filter((x) => x.v !== 'match');
     ok('LV-D', r.verdicts.length >= 9 && bad.length === 0, `${name}: ${bad.length} of ${r.verdicts.length} commits did not match the prediction (${bad.slice(0, 3).map((x) => x.t - T0 + ':' + x.v).join(', ')})`);
     const fedSteps = new Set(r.fed.steps.map(key)), fedEvents = new Set(r.fed.events.map(ekey));
@@ -165,12 +184,13 @@ function rules(M) {
       const E2 = M.LE.createLiveEngine({ items: M.ITEMS, monsters: M.MONSTERS });
       const srv2 = server(M, [memberOf(M, 'a', 0, 'tank', 6)]);
       E2.seed(srv2.live('a'));
-      /* The same 112 s on both sides (inside the 64-seed window, the server's windows end-exclusive). */
-      for (let t = T0; t < T0 + 112000; t += 100) E2.advance(t, () => {});
+      /* The same span on both sides: the whole seeded look-ahead (liveSeeds swings), the server's windows end-exclusive. */
+      const SPAN = M.TUNE.liveSeeds * M.CB.tickMs;
+      for (let t = T0; t < T0 + SPAN; t += 100) E2.advance(t, () => {});
       const predicted = E2.predictedDrops();
-      for (let t = T0 + 16000; t <= T0 + 112000; t += 16000) srv2.commit(t);
+      for (let t = T0 + 16000; t <= T0 + SPAN; t += 16000) srv2.commit(t);
       const paid = srv2.drops;
-      ok('LV-L', Object.keys(paid).length > 0, 'the control: the server paid no drops in 112 s');
+      ok('LV-L', Object.keys(paid).length > 0, 'the control: the server paid no drops in ' + SPAN + ' ms');
       console.log(`  LV-L: server paid ${JSON.stringify(sorted(paid))}; the browser's engine would have dropped ${JSON.stringify(sorted(predicted))}`);
       ok('LV-L', JSON.stringify(sorted(predicted)) !== JSON.stringify(sorted(paid)), `the browser's engine foresaw the server's drops exactly (${JSON.stringify(sorted(paid))})`);
     }
@@ -188,6 +208,32 @@ function rules(M) {
     /* the settle reads it from the member's OWN hr_state_of account_bestiary.relic_mult (never the request) */
     const src = readFileSync(join(M.base || ROOT, FN, 'hunt-settle.js'), 'utf8');
     ok('LV-X', /env\.account_bestiary\.relic_mult/.test(src), 'hunt-settle.js does not read account_bestiary.relic_mult');
+  }
+
+  { // LV-P: party privacy — a peer's row is its frozen numbers, nothing else; the viewer's own row is whole.
+    const mis = [memberOf(M, 'a', 0, 'tank', 6), memberOf(M, 'b', 1, 'melee_dps', 6)];
+    mis[1].perks = { rooms: { x: 1 } }; mis[1].buffs = [{ type: 'damage', until: '2030-01-01T00:00:00Z' }];
+    const live = server(M, mis).live('a');
+    const peer = live.members.find((m) => !m.self), own = live.members.find((m) => m.self);
+    const keys = (o) => Object.keys(o || {}).sort().join(',');
+    ok('LV-P', keys(peer) === 'frozen,key,seat,self,unitId', 'a peer row carries ' + keys(peer));
+    ok('LV-P', keys(peer && peer.frozen) === M.MB.FROZEN_KEYS.slice().sort().join(','), 'a peer frozen row carries ' + keys(peer && peer.frozen));
+    ok('LV-P', Object.keys((peer && peer.frozen && peer.frozen.session) || {}).every((k) => M.MB.FROZEN_SESSION_KEYS.includes(k)),
+      'a peer session carries ' + keys(peer && peer.frozen && peer.frozen.session));
+    const text = JSON.stringify(peer);
+    for (const bad of ['"skills"', '"equipment"', '"perks"', '"buffs"', '"gold"', '"levelXp"', '"premium', '"relic', '"cover"', '"staminaMs"', '"xpFrac"']) {
+      ok('LV-P', !text.includes(bad), 'a peer row leaks ' + bad);
+    }
+    ok('LV-P', !!own && !!own.skills && !!own.equipment && !!own.huntSession, "the viewer's own row is not its full setup");
+  }
+
+  { // LV-H: the look-ahead is ONE constant (16 swings), and a leave lands no earlier than its last swing.
+    const live = server(M, [memberOf(M, 'a', 0, 'tank', 6)]).live('a');
+    ok('LV-H', M.TUNE.liveSeeds === 16 && M.HS.LIVE_SEEDS === M.TUNE.liveSeeds && live.seeds.list.length === M.TUNE.liveSeeds,
+      `hunt_live sends ${live.seeds.list.length} seeds (LIVE_SEEDS ${M.HS.LIVE_SEEDS}, liveSeeds ${M.TUNE.liveSeeds}), not 16`);
+    const mig = readFileSync(join(ROOT, 'supabase/migrations/2026-10-31-live-horizon.sql'), 'utf8');
+    const ms = Number((/settled_to \+ make_interval\(secs => (\d+) \/ 1000\.0\)/.exec(mig) || [])[1]);
+    ok('LV-H', ms === M.TUNE.liveSeeds * M.CB.tickMs, `the leave horizon is ${ms} ms, not liveSeeds x the swing (${M.TUNE.liveSeeds * M.CB.tickMs})`);
   }
 
   { // LV-M: a melee hero in range holds its tile and swings (Tyler 10-19: "back and forth between mobs").
@@ -271,6 +317,8 @@ const MUTANTS = [
   ['a melee hero beside its target steps to another side every repath (LV-M)', 'src/core/hunt/roles.js',
     '  if (cheb(h, tgt) <= 1 && atRest(h)) { clearGoal(h); return; }\n  if (h.aiMs > 0 && h.path.length) return;\n  h.aiMs = AI_REPATH_MS.melee;\n  const free = (x, y) => !standable(inst, h, tgt.pocket, x, y);',
     '  if (h.aiMs > 0 && h.path.length) return;\n  h.aiMs = AI_REPATH_MS.melee;\n  const free = (x, y) => !standable(inst, h, tgt.pocket, x, y) || (x === h.x && y === h.y);', /^LV-M/],
+  ['a peer row carries its full setup (LV-P)', 'supabase/functions/hr-accrue/hunt-settle.js', '      if (!self) {', '      if (false) {', /^LV-P/],
+  ['the look-ahead is its own number at the edge (LV-H)', 'supabase/functions/hr-accrue/hunt-settle.js', 'export const LIVE_SEEDS = HUNT_TUNING.liveSeeds;', 'export const LIVE_SEEDS = 64;', /^LV-H/],
   ['members run in another order than the server (LV-D)', 'src/hunt-view/live-engine.js', '.slice().sort((a, b) => (a.key < b.key ? -1 : 1))', '.slice().reverse()', /^LV-D/],
 ];
 

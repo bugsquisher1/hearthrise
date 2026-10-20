@@ -27,7 +27,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { simulateHuntInstance } from '../core/combat-sim.js?v=0.2.15';
-import { memberSide } from '../core/member.js?v=0.2.15';
+import { memberSide, frozenSide } from '../core/member.js?v=0.2.15';
 import { huntGroundOf } from '../core/hunt-ground.js?v=0.2.15';
 import { huntTimeline, worldHash } from '../core/hunt-track.js?v=0.2.15';
 import { encode as encodeWorldRow, decode as decodeWorldRow } from '../core/hunt/world-state.js?v=0.2.15';
@@ -55,7 +55,8 @@ export function createLiveEngine(o) {
     const text = typeof live.instance.world === 'string' ? live.instance.world : null;
     const world = text ? decodeWorldRow(JSON.parse(text)) : null;
     const sides = live.members.slice().sort((a, b) => (a.key < b.key ? -1 : 1))
-      .map((mi) => memberSide(Object.assign({}, mi, { gold: isInt(mi.gold) ? mi.gold : UNKNOWN_PURSE }), { items }));
+      .map((mi) => (mi.frozen ? frozenSide(mi)
+        : memberSide(Object.assign({}, mi, { gold: isInt(mi.gold) ? mi.gold : UNKNOWN_PURSE }), { items })));
     const s = {
       instance: String(live.instance.id),
       world, next: Number(live.instance.next_swing_at_ms), where, sides,

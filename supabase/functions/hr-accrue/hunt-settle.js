@@ -57,6 +57,7 @@ import { HUNT_TUNING } from '../../../src/data/hunt-tuning.js';
 import { MONSTERS } from '../../../src/data/monsters.js';
 import { roleWeaponOf } from '../../../src/data/hunt-roles.js';
 import { heroSetup } from '../../../src/core/hunt-spawn.js';
+import { memberSide, frozenOf } from '../../../src/core/member.js';
 import { seederFor } from './hunt-seed.js';
 
 /* THE LIVE VIEW (option B, Tyler 2026-10-19). The browser runs the SAME instance engine
@@ -87,11 +88,27 @@ export function huntLive(inst, members, user, slot) {
     seeds: liveSeeds(inst, from),
     members: members.map((m) => {
       const self = String(m.user) === String(user) && Number(m.slot) === Number(slot);
+      /* THE VIEWER'S OWN member: its full engine input. EVERY OTHER member: only its frozen numbers
+         (src/core/member.js frozenOf; Tyler 2026-10-20: no skills, gear, perks, premium or bestiary). */
+      if (!self) {
+        return { key: m.key, seat: m.seat, unitId: m.unitId, self: false,
+          frozen: frozenOf(memberSide(m, { items: ITEMS }), kindsOf(inst, world), Number(inst.next_swing_at_ms)) };
+      }
       return { key: m.key, seat: m.seat, unitId: m.unitId, self, huntSession: m.huntSession,
-        skills: m.skills, levelXp: m.levelXp, xpFrac: m.xpFrac, hp: m.hp, gold: self ? m.gold : null,
+        skills: m.skills, levelXp: m.levelXp, xpFrac: m.xpFrac, hp: m.hp, gold: m.gold,
         equipment: m.equipment, buffs: m.buffs, perks: m.perks, hero: m.hero };
     }),
   };
+}
+
+/* The monster kinds a peer's rolls are frozen against: every kind the ground's pockets field,
+   and any standing in the stored world. */
+function kindsOf(inst, worldText) {
+  const out = new Set();
+  const where = huntGroundOf(String(inst.hunt));
+  for (const p of (where && where.ground.pockets) || []) for (const sp of [...(p.spawns || []), ...(p.pack || [])]) if (sp && MONSTERS[sp.monster]) out.add(sp.monster);
+  if (worldText) for (const u of JSON.parse(worldText).u || []) for (const v of u) if (typeof v === 'string' && MONSTERS[v]) out.add(v);
+  return Array.from(out).sort();
 }
 
 /* THE PLAYER DOOR'S FLOOR (hunt_settle, a hunter's accrue, a purchase's

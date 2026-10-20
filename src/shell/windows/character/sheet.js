@@ -85,14 +85,14 @@ export function patchSheet(body, ctx, drawPortrait, asked) {
   const lf = lv && lv.need > 0 ? Math.max(0, Math.min(1, lv.into / lv.need)) : 0;
   style(lvEl.querySelector('.hw-skill-fill'), 'width', (Math.round(lf * 1000) / 10) + '%');
   attr(lvEl.querySelector('.hw-skill-bar'), 'aria-valuenow', Math.round(lf * 100));
-  text(lvEl.querySelector('.hw-cs-lvxp'), lv ? whole(lv.need - lv.into) + ' XP to Level ' + (lv.level + 1) : '');
+  text(lvEl.querySelector('.hw-cs-lvxp'), lv ? whole(lv.into) + ' / ' + whole(lv.need) + ' XP to Level ' + (lv.level + 1) : '');
   /* Vitals: the server's max HP, the engine's max mana, regeneration and walk speed, the bag's spaces, the stamina pool. */
   const hpMax = sh && sh.maxHp !== null ? sh.maxHp : v.hpMax;
   line(root, '[data-vital="hp"]', hpMax !== null ? whole(hpMax) : null);
   /* Max mana like max HP: the engine's sheet, else the server's top-level number, else the hunt's vitals. */
   const manaMax = c && c.maxMana !== null ? c.maxMana : sh && sh.maxMana !== null ? sh.maxMana : v.manaMax;
   line(root, '[data-vital="mana"]', manaMax !== null ? whole(manaMax) : null);
-  line(root, '[data-vital="regen"]', c && c.regenPct !== null ? c.regenPct + '% of the base rate (Prayer)' : null);
+  line(root, '[data-vital="regen"]', c && c.regenPct !== null ? signedPct((c.regenPct - 100) / 100) + ' (Prayer)' : null);
   line(root, '[data-vital="speed"]', c && c.moveSpeed !== null ? (Math.round(c.moveSpeed / 100) / 10) + ' tiles a second' : null);
   line(root, '[data-vital="cap"]', cap !== null ? whole(cap) + ' bag spaces' : null);
   line(root, '[data-vital="stamina"]', st ? hoursMinutes(st.msLeft) : null);

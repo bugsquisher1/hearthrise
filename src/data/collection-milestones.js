@@ -39,7 +39,8 @@
    The SQL hunterAll arm is restated by the S1 catalogue regen (lane C). */
 /* 2026-10-18: 119 -> 129 — the Meadowbrook Thicket's five wolves and the Coppercap Warrens' five goblins.
    The SQL hunterAll arm is restated by the integrator's catalogue regen (gen-catalogues). */
-/* 2026-10-19: 129 -> 132 — Pebblebrook Bank's three crayfish (2026-10-28-hunterall-132.sql). */
+/* 2026-10-19: 129 -> 132 — Pebblebrook Bank's three crayfish. NO SQL restatement: lane/c-reopen-rpc-sweep
+   (2026-10-30) drops hr_claim_milestone and its __ungated body, so the 129 arm is not raised server-side. */
 export const MONSTER_TOTAL = 132;
 
 /* LEDGER OF FIRSTS (2026-09-27, pack 3): 4 rungs → 11. Every rung added by

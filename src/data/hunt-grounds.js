@@ -100,6 +100,8 @@
 // Steel Platebody (normal drops, the band's own steel). ECONOMY, played on the real settle (forest-cave --play,
 // 5 seeds x 3 h, solo Melee, store-only supplies): Level 25 in iron +29% over the store bill; the steel step at
 // 30 makes the bank easy (Level 28 +234%, Level 32 almost no supplies), and Level 18 loses (-81%, dies).
+// RULING (Tyler, 2026-10-20): the +25-35% profit target is measured at the BOTTOM of the band only, so the
+// Level 25 +29% is the number that counts; the rise above it is the reward for out-levelling the ground.
 //
 // PARTY SCALING (BALANCE_RULINGS 2026-10-16, the party-size test): a fixed pack
 // is trivial for four heroes and lethal at the boss for one, so a pack's HP is
@@ -114,9 +116,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.10';
-import { HUNT_INDEX } from './hunts.js?v=0.2.10';
-import { MONSTERS } from './monsters.js?v=0.2.10';
+import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.13';
+import { HUNT_INDEX } from './hunts.js?v=0.2.13';
+import { MONSTERS } from './monsters.js?v=0.2.13';
 
 const pocket = (room, ...spawns) => Object.freeze({ room: Object.freeze(room),
   spawns: Object.freeze(spawns.map(([monster, x, y]) => Object.freeze({ monster, x, y }))) });

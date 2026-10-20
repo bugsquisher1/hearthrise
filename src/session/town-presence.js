@@ -21,7 +21,7 @@
 // The list is REPLACED by each answer, never merged; an answer older than
 // staleMs shows nobody rather than people who may have left.
 // ════════════════════════════════════════════════════════════════════════
-import { TOWN_PRESENCE, TOWN_DIRS } from '../data/town-presence.js?v=0.2.10';
+import { TOWN_PRESENCE, TOWN_DIRS } from '../data/town-presence.js?v=0.2.13';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAP_ID = /^[a-z0-9_]{1,40}$/;
@@ -155,8 +155,12 @@ export class TownPresence {
     const list = [];
     for (const raw of Array.isArray(b.walkers) ? b.walkers : []) {
       const w = walkerOf(raw);
-      if (!w || w.id === self || seen.has(w.id)) continue;
-      seen.add(w.id);
+      /* Only THIS character is not a walker: the viewer's other characters are people in town too
+         (Tyler 2026-10-19), so a walker is its user AND its slot. */
+      if (!w) continue;
+      const key = w.id + ':' + w.slot;
+      if ((w.id === self && w.slot === this._slot) || seen.has(key)) continue;
+      seen.add(key);
       list.push(w);
       if (list.length >= this.limits.cap) break;
     }

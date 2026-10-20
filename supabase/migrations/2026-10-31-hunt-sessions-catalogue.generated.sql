@@ -17,7 +17,7 @@
 -- never regenerated): every table below is rewritten wholesale. PEBBLEBROOK BANK
 -- (2026-10-19): the river ground (Levels 25-32) adds its travel row, its ground and
 -- pocket spawns, the three crayfish's kill bounds and their drops' vendor values.
--- Apply after 2026-10-28-hunts-catalogue.generated.sql.
+-- Apply after 2026-10-31-hunts-catalogue.generated.sql.
 --
 -- Server-only: RLS on, NO policy, no client grant (the client reads src/data).
 -- Idempotent: delete + insert; nothing references these rows by foreign key.

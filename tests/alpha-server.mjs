@@ -32,7 +32,9 @@
 //   A-STAMINA a refill bought DURING a hunt (attended) raises the pool at the
 //             session's settled_to, and the next settles run past the old end;
 //   A-PARTY   invite by name -> accept -> the leader's one start enters both
-//             members with their OWN bags, and the instance settles them.
+//             members with their OWN bags, and the instance settles them; a kicked
+//             hunter is ended `left` at its leave and the instance settles on
+//             without it (Security reopen #2, 2026-10-29-party-security.sql).
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -222,14 +224,15 @@ const ARMS = {
     const ok = async (uid, sql, params) => { const r = await asAuth(db, uid, sql, params); if (!r || r.ok !== true) throw new Error(sql.slice(7, 40) + ' refused: ' + JSON.stringify(r)); return r; };
     await ok(a, 'select public.hr_character_name_set(0, $1, $2::uuid)', ['Party Leader', idem()]);
     await ok(b, 'select public.hr_character_name_set(0, $1, $2::uuid)', ['Party Member', idem()]);
-    const pid = (await ok(a, "select public.hr_hunt_party_create(0, 'mill_cellar', $1::uuid)", [idem()])).party.id;
+    /* The first invite makes the party (2026-10-28-party-flow.sql): the inviter leads, the ground is picked at Start. */
     await ok(a, 'select public.hr_hunt_party_invite(0, $1, $2::uuid)', ['party member', idem()]);
+    const pid = await H.one(db, 'select public.hr_hunt_party_of($1, 0)', [a]);
     const inv = await H.one(db, "select public.hr_state_of($1, 0)->'party_invites'", [b]);
     if (!Array.isArray(inv) || inv.length !== 1 || inv[0].from !== 'Party Leader') return ['the invitee sees ' + JSON.stringify(inv)];
     await ok(b, 'select public.hr_hunt_party_accept(0, $1::uuid, $2::uuid)', [inv[0].id, idem()]);
     await ok(a, 'select public.hr_restock_set(0, $1::jsonb, $2::uuid)', [JSON.stringify({ [food]: 12 }), idem()]);
     await ok(b, 'select public.hr_restock_set(0, $1::jsonb, $2::uuid)', [JSON.stringify({ [food]: 7 }), idem()]);
-    const st = await ok(a, 'select public.hr_hunt_party_start(0, $1::uuid)', [idem()]);
+    const st = await ok(a, "select public.hr_hunt_party_start(0, 'mill_cellar', $1::uuid)", [idem()]);
     if (st.entered !== 2) p.push('the start entered ' + st.entered);
     const bags = await H.q(db, `select h.user_id, b.qty_loaded from public.hunt_sessions h join public.hunt_bag b on b.session_id = h.id
                                  where h.instance_id = $1 and h.ended_at is null and b.item_id = $2`, [pid, food]);
@@ -245,6 +248,26 @@ const ARMS = {
     for (const at of H.ticksOf(30000, 3 * 60000)(from)) await H.settleTo(db, M, at, { user: a });
     const swings = await H.q(db, 'select user_id, swing_index from public.hunt_sessions where instance_id = $1 and ended_at is null', [pid]);
     if (swings.length !== 2 || swings.some((s) => !(Number(s.swing_index) > 0))) p.push('the instance did not settle both members: ' + JSON.stringify(swings));
+    /* SECURITY REOPEN #2 (2026-10-29-party-security.sql): the leader kicks the HUNTING member. Minutes behind the
+       clock, its session gets leave_at; the next settle ends it `left` there, and the instance settles on with the
+       leader alone, so the kicked member is in no later split. */
+    await db.query('delete from public.hr_rate_counters');
+    const sb = await H.one(db, 'select id from public.hunt_sessions where instance_id = $1 and user_id = $2 and ended_at is null', [pid, b]);
+    const seatB = await H.one(db, 'select seat from public.hunt_party_members where party_id = $1 and user_id = $2', [pid, b]);
+    const k = await ok(a, 'select public.hr_hunt_party_kick(0, $1, $2::uuid)', [seatB, idem()]);
+    if (k.leaving !== true || await H.one(db, 'select public.hr_hunt_party_of($1, 0)', [b])) p.push('the kick did not take the hunter out: ' + JSON.stringify(k));
+    /* One transaction has one now(): the kick is put a minute back, so the settles below cross its leave and the
+       boundary after it (the engine ends a hunt at the first swing boundary at or past leave_at). */
+    await db.query("update public.hunt_sessions set leave_at = leave_at - interval '60 seconds' where id = $1 and leave_at is not null", [sb]);
+    const nowMs = Number(await H.one(db, 'select floor(extract(epoch from now()) * 1000)::bigint'));
+    const from2 = Number(await H.one(db, 'select floor(extract(epoch from settled_to) * 1000)::bigint from public.hunt_instances where id = $1', [pid]));
+    for (const at of [...H.ticksOf(30000, 4 * 60000)(from2).filter((x) => x < nowMs), nowMs]) await H.settleTo(db, M, at, { user: a });
+    const end = (await H.q(db, 'select ended_at, end_reason, leave_at, settled_to from public.hunt_sessions where id = $1', [sb]))[0];
+    if (!end || end.ended_at === null || end.end_reason !== 'left' || (end.leave_at && new Date(end.settled_to) > new Date(end.leave_at))) {
+      p.push('the kicked hunter was not ended at its leave: ' + JSON.stringify(end));
+    }
+    const open = await H.q(db, 'select user_id from public.hunt_sessions where instance_id = $1 and ended_at is null', [pid]);
+    if (open.length !== 1 || open[0].user_id !== a) p.push('after the kick the instance holds ' + JSON.stringify(open) + ', want the leader alone');
     return p;
   },
 };
@@ -358,7 +381,7 @@ const MUTANTS = [
   { arm: 'A-LOCK', file: '2026-10-25-settle-hooks.sql', why: 'hr_apply no longer refuses a locked sale',
     find: "        if v_n < 0 and coalesce(v_this_intent, '') ~ '^vendor_sell(_many)?(:|$)' and public.hr_item_locked(v_uid, v_slot, k) then",
     repl: "        if false and coalesce(v_this_intent, '') ~ '^vendor_sell(_many)?(:|$)' and public.hr_item_locked(v_uid, v_slot, k) then" },
-  /* hr_hunt_apply_member and hr_hunt_party_start are RESTATED by the core rebuild (2026-10-27-core-bodies.sql):
+  /* hr_hunt_apply_member is RESTATED by the core rebuild (2026-10-27-core-bodies.sql):
      their mutants are planted in the bodies that run. */
   { arm: 'A-LOOT-AWAY', file: '2026-10-27-core-bodies.sql', why: 'the settle no longer runs the loot filter',
     find: "  v_loot := public.hr_hunt_loot_rules(p_user, p_slot, p_session, p_intent, p_delta->'items', v_to);", repl: '  v_loot := null;' },
@@ -384,7 +407,8 @@ const MUTANTS = [
      so there is no second death for the mutant to protect.) */
   { arm: 'A-BLESS-ATTENDED', file: '2026-10-25-blessings.sql', why: 'a death does not use the blessings up',
     find: '  delete from public.player_blessings where user_id = p_user and slot = p_slot and tier = any (v_tiers);', repl: '  perform 1;' },
-  { arm: 'A-PARTY', file: '2026-10-27-core-bodies.sql', why: "the shared start loads the leader's bag into every member",
+  /* hr_hunt_party_start is RESTATED by 2026-10-28-party-flow.sql (the ground picked at Start): the mutant is planted in the body that runs. */
+  { arm: 'A-PARTY', file: '2026-10-28-party-flow.sql', why: "the shared start loads the leader's bag into every member",
     find: 'public.hr_hunt_saved_bag(v_m.user_id, v_m.slot),', repl: 'public.hr_hunt_saved_bag(v_uid, p_slot),' },
 ];
 

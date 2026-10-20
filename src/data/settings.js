@@ -32,11 +32,11 @@
 // Categories are data too, in the order the window lists them. Gameplay,
 // Chat & Social and Account stay hidden until a feature registers a row there.
 // ════════════════════════════════════════════════════════════════════════
-import { FLOAT_TYPES, FLOAT_TARGETS } from './combat-text.js?v=0.2.10';
-import { HUD_WIDGETS } from './hud-widgets.js?v=0.2.10';
-import { SHELL_WINDOWS } from './shell-windows.js?v=0.2.10';
-import { HOTKEYS } from './hunt-hud.js?v=0.2.10';
-import { SOCIAL_SETTINGS } from './social-settings.js?v=0.2.10';
+import { FLOAT_TYPES, FLOAT_TARGETS } from './combat-text.js?v=0.2.13';
+import { HUD_WIDGETS } from './hud-widgets.js?v=0.2.13';
+import { SHELL_WINDOWS } from './shell-windows.js?v=0.2.13';
+import { HOTKEYS } from './hunt-hud.js?v=0.2.13';
+import { SOCIAL_SETTINGS } from './social-settings.js?v=0.2.13';
 
 export const SETTING_TYPES = Object.freeze(['toggle', 'choice', 'slider', 'hotkey', 'action']);
 export const SETTING_SCOPES = Object.freeze(['residue', 'server']);

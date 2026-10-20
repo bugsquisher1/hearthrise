@@ -49,7 +49,7 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
 /* PEBBLEBROOK BANK (2026-10-19): 2026-10-27-core-catalogue.generated.sql is APPLIED history; the three
    crayfish (hr_activities combat rows) and their two drops (hr_items) land in this forward file, the same
    full delete+insert replace. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2026-10-28-pebblebrook-catalogue.generated.sql');
+const OUT = join(ROOT, 'supabase', 'migrations', '2026-10-31-pebblebrook-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already

@@ -117,7 +117,7 @@ export const WORLD_FIELDS_READ = Object.freeze({
 });
 /* PEBBLEBROOK BANK (2026-10-19): 2026-10-27-hunt-sessions-catalogue.generated.sql is APPLIED history; the river
    ground's travel row, ground, spawns, kill bounds and vendor values land in this forward file, the same wholesale rewrite. */
-export const OUT_NAME = '2026-10-28-hunt-sessions-catalogue.generated.sql';
+export const OUT_NAME = '2026-10-31-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -513,7 +513,7 @@ export function render(src) {
 -- never regenerated): every table below is rewritten wholesale. PEBBLEBROOK BANK
 -- (2026-10-19): the river ground (Levels 25-32) adds its travel row, its ground and
 -- pocket spawns, the three crayfish's kill bounds and their drops' vendor values.
--- Apply after 2026-10-28-hunts-catalogue.generated.sql.
+-- Apply after 2026-10-31-hunts-catalogue.generated.sql.
 --
 -- Server-only: RLS on, NO policy, no client grant (the client reads src/data).
 -- Idempotent: delete + insert; nothing references these rows by foreign key.

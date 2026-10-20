@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-20",
- "replay_ms": 2413,
+ "replay_ms": 2303,
  "counts": {
-  "tracked_names": 139,
-  "entries": 111
+  "tracked_names": 140,
+  "entries": 112
  },
  "functions": [
   {
@@ -1091,17 +1091,18 @@
    ],
    "touched_by": [
     "2026-10-21-hunt-sessions.sql",
-    "2026-10-23-hunt-party.sql"
+    "2026-10-23-hunt-party.sql",
+    "2026-10-31-live-horizon.sql"
    ],
    "live": {
-    "md5": "c469d13f9ae0bddb947192179d283949",
-    "norm_len": 3084,
+    "md5": "5c3e72a57ca341e5cd230b19fde9a938",
+    "norm_len": 2939,
     "measured": "2026-10-20",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "c469d13f9ae0bddb947192179d283949",
-    "norm_len": 3084,
+    "md5": "5c3e72a57ca341e5cd230b19fde9a938",
+    "norm_len": 2939,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1325,6 +1326,30 @@
    "replay": {
     "md5": "af9850fc97042407790910872f148948",
     "norm_len": 1825,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_party_kick(p_slot integer, p_seat integer, p_idem uuid)",
+   "name": "hr_hunt_party_kick",
+   "tracked_by": [
+    "chain"
+   ],
+   "touched_by": [
+    "2026-10-23-hunt-party.sql",
+    "2026-10-29-party-security.sql",
+    "2026-10-31-live-horizon.sql"
+   ],
+   "live": {
+    "md5": "cc619214bfd63432cd4bf22c0b3760d6",
+    "norm_len": 3210,
+    "measured": "2026-10-20",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "cc619214bfd63432cd4bf22c0b3760d6",
+    "norm_len": 3210,
     "source": "computed-from-replay"
    },
    "agree": true

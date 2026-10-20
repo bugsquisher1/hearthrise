@@ -6,7 +6,7 @@ _Who holds the Coordinator role right now. Exactly one holder at a time (CLAUDE.
 
 | Field | Value |
 |---|---|
-| Holder | **PC session (second account, Opus 5.5)** |
+| Holder | **PC desktop session "PC crash" (second account, Opus 5.5)** |
 | Since | 2026-10-20 03:00 UTC |
 | Handoff | HANDOFFS.md 2026-10-20 01:45 UTC (previous account out of weekly usage until 2026-10-24 17:00 UTC) |
 
@@ -23,5 +23,6 @@ _Who holds the Coordinator role right now. Exactly one holder at a time (CLAUDE.
 
 _Newest first. One line per transfer: date · from → to · reason · handoff entry link._
 
+- 2026-10-20 ~19:30 UTC · PC "Coordinator handoff" session (crashed mid-release) → PC desktop session "PC crash" · one Coordinator again; that session stood down
 - 2026-10-20 · PC primary account → PC second account · weekly usage exhausted (Tyler's instruction) · HANDOFFS.md 2026-10-20 01:45 UTC
 - 2026-10-19 · (initial) · PC session holds the role.

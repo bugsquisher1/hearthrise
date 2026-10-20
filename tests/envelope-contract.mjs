@@ -174,6 +174,12 @@ function contract(R, cs, body, tl) {
   const of = R.CS.outfitOf(cs);
   need('outfit', !!of && of.owned.has('knight') && of.owned.has('witch'), 'outfitOf (a premium character) yields ' + JSON.stringify(of && [...of.owned]) + ' from ' + JSON.stringify(body.outfit));
   need('death_log', Array.isArray(R.CS.deathLogOf(cs)), 'deathLogOf reads no death_log: ' + JSON.stringify(body.death_log));
+  // the Bestiary window (2026-10-28-bestiary-account.sql): the account's counts, every ground monster's next stage and fee
+  const be = R.BR.bestiaryOf(cs);
+  const rat = be && be.monsters.find((x) => x.monster === 'rat');
+  need('account_bestiary', !!be && be.stages.length === 4 && be.monsters.length > 1 && !!rat && rat.kills > 0 && !!rat.next && isNum(rat.next.fee)
+    && be.monsters.every((x) => isNum(x.kills) && isNum(x.relicMult) && x.grounds.length > 0),
+    'bestiaryOf yields ' + JSON.stringify(rat) + ' from ' + JSON.stringify(body.account_bestiary).slice(0, 300));
   return out;
 }
 
@@ -195,7 +201,7 @@ function sheetContract(R, cs, body) {
 export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events', 'hunt_server_now_ms', 'hunt_settings', 'hunt_analyzer',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'stamina_refill', 'blessings',
-  'character_sheet', 'outfit', 'death_log']);
+  'character_sheet', 'outfit', 'death_log', 'account_bestiary']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -245,7 +251,7 @@ async function readers(root) {
   return {
     HS: await import(u('src/session/hunt-sections.js')), IS: await import(u('src/session/item-sections.js')),
     PS: await import(u('src/session/party-sections.js')), ACC: await import(u('src/session/account-session.js')),
-    CS: await import(u('src/session/character-sections.js')),
+    CS: await import(u('src/session/character-sections.js')), BR: await import(u('src/session/bestiary-sections.js')),
     CFG: await import(u('src/session/config.js')), CSN: await import(u('src/session/character-session.js')),
     M: await import(u('src/data/monsters.js')),
   };
@@ -337,6 +343,7 @@ const DB_MUTANTS = [
   ['character_sheet', 'public.hr_character_sheet_inputs(uuid,integer)', "'buffs', coalesce((select", "'buffs', clock_timestamp()::text, 'b', coalesce((select"],
   ['outfit', 'public.hr_outfit_view(uuid,integer)', "'owned', to_jsonb(v_owned)", "'have', to_jsonb(v_owned)"],
   ['death_log', 'public.hr_death_log_view(uuid,integer)', "'monster', nullif(", "'killer', nullif("],
+  ['account_bestiary', 'public.hr_bestiary_view(uuid,integer)', "'next_fee', f.next_fee,", "'fee', f.next_fee,"],
 ];
 const EDGE_MUTANTS = [
   ['hunt_track', join(FN, 'hunt-track.js'), '    hunt_track: pb.steps.map(', '    track: pb.steps.map('],

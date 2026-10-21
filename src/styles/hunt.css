@@ -158,6 +158,8 @@
 .ha-none.is-on { display: block; }
 
 /* ── The action bar: vitals, 2 x 10 priority slots, the set's plaque ── */
+/* An open tooltip or drop menu lifts the bar's widget over its siblings (the alert stack drew over the slot's name and why). */
+.hs-widget:has(.hb-tip.is-on, .hb-drop.is-on) { z-index: 1; }
 .hb-bar { position: relative; display: flex; align-items: center; gap: 10px; padding: 6px 8px; background: var(--world-hud-bg); border: 4px solid transparent; border-image: url('../../assets/ui/frame-iron-thin.png') 2 / 4px stretch; image-rendering: pixelated; }
 .hb-slots { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(5, 40px); grid-auto-rows: 40px; gap: 4px; }
 /* A slot is a well cut into the plate: dark on its upper-left inner edge, lit
@@ -195,9 +197,10 @@
 .hb-plaque .hh-intent-msg { position: absolute; left: 0; right: 0; bottom: calc(100% + 8px); margin: 0; padding: 2px 6px; font-size: var(--t-micro); background: var(--world-hud-bg); pointer-events: none; }
 .hb-plaque .hh-intent-msg:empty { display: none; }
 /* Why a slot cannot fire: a small glyph on the slot, its words first in the tooltip (action-facts.js reasonOf). */
-.hb-why { position: absolute; left: 1px; bottom: 1px; width: 16px; height: 16px; display: grid; place-items: center; pointer-events: none; }
+/* Above the struck slot's red line (.hb-slot.is-off::after), and 14 px: at 12 the lock and chest blurred together. */
+.hb-why { position: absolute; z-index: 1; left: 1px; bottom: 1px; width: 18px; height: 18px; display: grid; place-items: center; pointer-events: none; }
 .hb-why:not(:empty) { background: var(--bg-0); border-radius: 50%; box-shadow: inset 0 0 0 1px var(--steel); }
-.hb-why .hs-glyph { width: 12px; height: 12px; color: var(--gold-2); }
+.hb-why .hs-glyph { width: 14px; height: 14px; color: var(--gold-2); }
 .hb-slot.is-wait .hb-slot-ico { opacity: .6; }
 /* A cooling slot (the sim's ember): a veil, an ember rising from the bottom as the cooldown runs out, the seconds left. */
 .hb-cd { display: none; position: absolute; inset: 1px; background: var(--hud-cool-veil); pointer-events: none; }

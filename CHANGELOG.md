@@ -17,7 +17,7 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **Also:** the hunt analyzer's "Next level in" counts down to your next Level instead of sitting at 00:00:00, and the tutorial now walks you through all nine of its cards.
 
-**Known:** on small landscape phone screens the new action bar is too tall; a compact version is next.
+**Known:** on small landscape phone screens, alerts can sit over an open window and the bar's settings sheet covers the top strip; fixes are next.
 
 ## v0.2.22 — 2026-10-21 (Smooth hunts, better loot)
 

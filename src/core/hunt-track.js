@@ -30,7 +30,7 @@
 // PURE ESM, Node + Deno + browser.
 // ============================================================================
 
-import { EVENT_VERSION } from './hunt/events.js?v=0.2.22';
+import { EVENT_VERSION } from './hunt/events.js?v=0.2.23';
 
 export const MAX_STEPS = 4000;
 export const MAX_EVENTS = 2000;

@@ -10,12 +10,12 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SKILLS_DEF } from './skills.js?v=0.2.22';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.22';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.22';
-import { ITEMS } from './items.js?v=0.2.22';
-import { DRINK_ITEMS } from './drinks.js?v=0.2.22';
-import { itemUse, nodeUse } from './item-uses.js?v=0.2.22';
+import { SKILLS_DEF } from './skills.js?v=0.2.23';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.23';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.23';
+import { ITEMS } from './items.js?v=0.2.23';
+import { DRINK_ITEMS } from './drinks.js?v=0.2.23';
+import { itemUse, nodeUse } from './item-uses.js?v=0.2.23';
 
 /* How many things one unlock line names before "and N more". */
 const NAMED = 3;

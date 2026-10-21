@@ -176,6 +176,10 @@ function contract(R, cs, body, tl) {
   const of = R.CS.outfitOf(cs);
   need('outfit', !!of && of.owned.has('knight') && of.owned.has('witch'), 'outfitOf (a premium character) yields ' + JSON.stringify(of && [...of.owned]) + ' from ' + JSON.stringify(body.outfit));
   need('death_log', Array.isArray(R.CS.deathLogOf(cs)), 'deathLogOf reads no death_log: ' + JSON.stringify(body.death_log));
+  /* `now`, the envelope's own server stamp (hr_state_of): the problem report states the envelope's
+     age from it (src/shell/report-model.js). A date, from this run's database clock. */
+  const stamp = Date.parse(String(cs.read('now') || ''));
+  need('now', Number.isFinite(stamp) && Math.abs(stamp - Date.now()) < 24 * 3600000, 'the envelope stamp `now` reads ' + JSON.stringify(body.now) + ' (not a date of this run)');
   // the vitals strip out of a hunt (core rebuild `vitals`): max HP and mana, mana full in town
   const tv = R.CS.townVitalsOf(cs);
   need('vitals', !!tv && isNum(tv.hpMax) && isNum(tv.manaMax) && tv.mana === tv.manaMax && isNum(tv.level),
@@ -201,7 +205,7 @@ function sheetContract(R, cs, body) {
 export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events', 'hunt_server_now_ms', 'hunt_settings', 'hunt_analyzer',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'stamina_refill', 'blessings',
-  'character_sheet', 'outfit', 'death_log', 'vitals']);
+  'character_sheet', 'outfit', 'death_log', 'vitals', 'now']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -342,6 +346,7 @@ const DB_MUTANTS = [
   ['character_sheet', 'public.hr_character_sheet_inputs(uuid,integer)', "'buffs', coalesce((select", "'buffs', clock_timestamp()::text, 'b', coalesce((select"],
   ['outfit', 'public.hr_outfit_view(uuid,integer)', "'owned', to_jsonb(v_owned)", "'have', to_jsonb(v_owned)"],
   ['death_log', 'public.hr_death_log_view(uuid,integer)', "'monster', nullif(", "'killer', nullif("],
+  ['now', 'public.hr_state_of(uuid,integer)', "'now', now(),", "'stamp', now(),"],
 ];
 const EDGE_MUTANTS = [
   ['hunt_track', 'src/core/hunt-track.js', '    hunt_track: pb.steps.map(', '    track: pb.steps.map('],

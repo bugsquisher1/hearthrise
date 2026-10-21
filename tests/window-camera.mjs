@@ -33,7 +33,7 @@
 //         browser's own menu is suppressed there
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
-import { launchOptions } from './_chrome.mjs';
+import { leaseBrowser } from './_chrome.mjs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
@@ -62,7 +62,7 @@ async function stub(page) {
   await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
   await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
   await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
-    const name = r.request().url().split('/').pop();
+    const name = r.request().url().split('?')[0].split('/').pop();
     const body = JSON.parse(r.request().postData() || '{}');
     const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
     if (name === 'hr_load') return json(Object.assign(townEnv(), { version: ++version }));
@@ -121,7 +121,7 @@ async function checks(overrides) {
   const fails = [];
   const { server, port } = await serve(Object.assign({}, HOOKS, overrides || {}));
   const base = 'http://127.0.0.1:' + port;
-  const browser = await chromium.launch(launchOptions({ headless: true }));
+  const browser = await leaseBrowser(chromium);
   try {
     { // WC-1, WC-2 on a wide screen (three windows dock side by side inside 60% of the World)
       const { ctx, page, errors, up } = await enter(browser, base, { width: 2560, height: 1200 });

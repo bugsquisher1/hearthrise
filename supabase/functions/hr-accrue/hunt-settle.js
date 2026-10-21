@@ -326,7 +326,7 @@ export async function readHuntSettle(o, mode) {
   for (const m of r.members) members.push(await memberInput(exec, m, inst));
   const partyRoles = members.map((m) => m._role).filter(Boolean);
   for (const m of members) {
-    m.hero = heroSetup({ weaponType: m._weaponType, options: m._options, bar: m._bar, partyRoles });
+    m.hero = heroSetup({ weaponType: m._weaponType, options: m._options, bar: m._bar, partyRoles, lead: m._leads });
     if (!m.hero) return { answer: { outcome: 'refused', reason: 'no_role', ...refusal(409, 'no_role') } };
   }
   /* Below the floor a player door that asked for the live view gets the instance's start point
@@ -392,6 +392,8 @@ async function memberInput(exec, m, inst) {
     relicMults: env.account_bestiary && typeof env.account_bestiary === 'object' && env.account_bestiary.relic_mult
       && typeof env.account_bestiary.relic_mult === 'object' ? env.account_bestiary.relic_mult : null,
     _weaponType: weaponType, _options: options, _bar: m.session.bar, _role: pre ? pre.role : null,
+    /* THE PARTY LEADER (hr_hunt_instance_read `leads`, 2026-11-01-party-leader-density.sql): its density is the pull. */
+    _leads: m.leads === true,
   };
 }
 

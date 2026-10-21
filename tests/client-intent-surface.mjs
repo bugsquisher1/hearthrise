@@ -39,6 +39,7 @@ const LINK = 'src/session/server.js';
 export const CLIENT_RPCS = Object.freeze({
   hr_load: 'the full read of one character (CharacterSession.load)',
   hr_create_hero: 'make the hero in an owned slot with its name and four dye indices, all or nothing (AccountSession.create)',
+  hr_buy_hero_slot: 'buy the next hero slot with one own hero\'s gold: the slot id, the paying hero and a key, never a price; the server prices, caps and debits (AccountSession.buySlot)',
   hr_put_client_state: 'the allowlisted display residue (CharacterSession.flushResidue)',
   hr_action_set_options: 'the per-hero hunt settings intent, catalogue-validated and refused not clamped (CharacterSession.setHuntOptions)',
   hr_action_set_copy: 'copy one character\'s hunt settings onto another of the caller\'s characters; moves no value (CharacterSession.copyHuntSettingsTo)',

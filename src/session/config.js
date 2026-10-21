@@ -39,4 +39,13 @@ export const SESSION_CONFIG = Object.freeze({
       poll plus slack, every step and blow of every window plays at its own instant. The snapshot's
       numbers (HP, loot, the bar) stay live; only the moving picture is buffered. */
   huntPlaybackDelayMs: 19000,
+  /** THE LIVE VIEW (option B): the viewed hunt runs in the browser and plays this far behind the
+      engine (a frame or so of slack for a swing simulated at its boundary). */
+  liveDelayMs: 150,
+  /** A reconcile eases each unit onto the server's world over at least this long (timeline.js T8). */
+  liveEaseMs: 250,
+  /** Without a live start point, ask this soon (the floor answers with hunt_live, writing nothing),
+      doubling per answer that brought none, up to huntPollMs, and never before the hunt's first
+      boundary (src/session/live-link.js askDelayMs). */
+  liveAskMs: 300,
 });

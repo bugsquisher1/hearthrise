@@ -82,7 +82,9 @@ const OWN_SQL = '2026-10-09-xp-frac-carry.sql';
    is the carry/floor/none equality just below, unchanged. */
 /* RE-MEASURED core rebuild (2026-10-19): the events now name deaths, Melee and Level XP routes and
    regenPm, so the hash moved; the draws (4478), kills (687) and drops are unchanged. */
-const PRE_CHANGE_DRAWS = { n: 4478, hash: 'dd9336ef', kills: 687,
+/* RE-MEASURED option B (2026-10-19): the track now places every standing unit at a window's start and each
+   respawn (anchor steps for the live view), so the hash moved; draws (4478), kills and drops are unchanged. */
+const PRE_CHANGE_DRAWS = { n: 4478, hash: '439f106a', kills: 687,
   items: '{"bones":213,"slime_gel":633,"sticky_core":18}' };   // re-measured lane S1 (instance engine; n = events)
 /* AND A LEVELLING HERO (every combat skill at 5, 30 minutes): the DRAW STREAM is
    pinned (count + hash), the outcomes deliberately are not. Measured on both
@@ -90,7 +92,7 @@ const PRE_CHANGE_DRAWS = { n: 4478, hash: 'dd9336ef', kills: 687,
    floor used to eat, a level arrives at a different swing, and the same number
    rolled against a different accuracy is a different hit. That is XP moving a
    level, never XP moving a draw. */
-const PRE_CHANGE_DRAWS_L5 = { n: 2374, hash: '16337378' };   // re-measured core rebuild 2026-10-19 (Melee/Defense at 5 on the uncapped curve)   // re-measured lane S1 on the instance engine (was 2840 / 7a2d23c4 on the single-foe span)
+const PRE_CHANGE_DRAWS_L5 = { n: 2374, hash: '9aabde49' };   // re-measured option B 2026-10-19 (anchor steps; draws unchanged)   // re-measured core rebuild 2026-10-19 (Melee/Defense at 5 on the uncapped curve)   // re-measured lane S1 on the instance engine (was 2840 / 7a2d23c4 on the single-foe span)
 
 const JS_MUTANTS = [
   { name: 'floor before multiplier', arm: 'X1', file: 'src/core/progression.js',
@@ -141,13 +143,14 @@ async function load(base) {
     at('src/core/xp.js'), at('src/data/core-model.js'),
   ]);
   const pacing = await at('src/core/pacing.js');
+  const member = await at('src/core/member.js');
   const buffs = await at('src/core/buffs.js');
   const tick = await at('supabase/functions/hr-accrue/tick.js');
   const tg = await at('supabase/functions/hr-accrue/tick-gather.js');
   const cat = await at('supabase/functions/hr-accrue/catalogue.js');
   const gatherFixture = JSON.parse(await readFile(join(ROOT, 'services', 'world-tick', 'fixtures', 'gather-sessions.json'), 'utf8')).sessions[0];
   const { RESIDUE_FIELDS: residueFields } = await import(pathToFileURL(join(base, 'src', 'session', 'residue.js')).href + '?t=' + Date.now());
-  return { prog, acc, cmb, sim, rng, env, shadow, contract, spawn, MONSTERS: monsters.MONSTERS, ITEMS: items.ITEMS,
+  return { prog, acc, member, cmb, sim, rng, env, shadow, contract, spawn, MONSTERS: monsters.MONSTERS, ITEMS: items.ITEMS,
     xp, core, pacing, buffs, tick, tg, gatherFixture, residueFields, GATHER_NODES: cat.GATHER_NODES };
 }
 
@@ -197,11 +200,11 @@ function combatInput(L, { fromMs, toMs, skills, xpFrac, perks, seed, monster }) 
    built here from the same exported core functions, so the attended column is
    an independent second construction of the same fight. */
 function attendedCtx(L, { skills, perks, boost, rng, xpState, onGrant }) {
-  const { cmb, acc, MONSTERS, ITEMS } = L;
+  const { cmb, member, MONSTERS, ITEMS } = L;
   const eq = cmb.equipmentStats({}, ITEMS, {});
   const setBonus = cmb.armorSetBonus({}, ITEMS);
-  const profile = acc.deriveProfile(eq.weaponType);
-  const bonus = acc.bonusFor(perks || null, boost ? { buffs: L.buffs.buffQueueFromServer(boost, FROM) } : null);
+  const profile = member.deriveProfile(eq.weaponType);
+  const bonus = member.bonusFor(perks || null, boost ? { buffs: L.buffs.buffQueueFromServer(boost, FROM) } : null);
   return {
     tickMs: 2000,
     ctx: {

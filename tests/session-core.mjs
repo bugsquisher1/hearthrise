@@ -5,8 +5,8 @@
 //   node tests/session-core.mjs           the rules (pure node, no network)
 //   node tests/session-core.mjs --mutate  every planted defect must turn a rule RED
 //
-// mutant-anchors: src/session/ src/net/auth.js
-// mutant-writes-tree: no — mutants are planted into a temp copy of src/session + src/net/auth.js + src/hunt-view/timeline.js + src/data/town-presence.js
+// mutant-anchors: src/session/ src/net/auth.js src/net/supabase-bootstrap.js
+// mutant-writes-tree: no — mutants are planted into a temp copy of src/session + src/net/auth.js + src/net/supabase-bootstrap.js + src/hunt-view + src/data + src/core
 //
 //   ENV-1  a full envelope REPLACES the record: a key the new one lacks is gone
 //   ENV-2  an older envelope is refused; the same version restates
@@ -33,6 +33,7 @@
 //          listeners and the server calls of every character are exactly as before
 //   ACC-2  the roster is the server's owned slots (hero_slots), bounded
 //   ACC-3  the closed-game answer (403 hr_closed) is noticed, never retried as play
+//   NET-1  the engine is asked in the database's region (forceFunctionRegion from SUPABASE_CONFIG)
 //   OUT-1  sign-out clears every copy of the session (device + tab, sb-*, retired keys, tab id) and closes every character
 //   TAB-1  the tab id is stable within a tab and new for a new tab
 //   COPY-1 sign-up/reset copy never reveals whether an email has an account; no "open beta"/"invite code"
@@ -54,6 +55,7 @@ async function load(base) {
     A: await import(u('src/session/account-session.js')),
     S: await import(u('src/session/server.js')),
     AU: await import(u('src/net/auth.js')),
+    NB: await import(u('src/net/supabase-bootstrap.js')),
     CFG: await import(u('src/session/config.js')),
   };
 }
@@ -99,7 +101,7 @@ const timers = { setTimer: () => 0, clearTimer: () => {} };
 async function rules(M) {
   const fails = [];
   const t = async (id, fn) => { try { const r = await fn(); if (r !== true) fails.push(id + ': ' + r); } catch (e) { fails.push(id + ': threw ' + e.message); } };
-  const { E, R, C, A, S, AU, CFG } = M;
+  const { E, R, C, A, S, AU, NB, CFG } = M;
 
   await t('ENV-1', () => {
     const a = E.applyEnvelope(null, env(3, { skills: { mining: 5 }, buffs: [1] })).record;
@@ -256,17 +258,42 @@ async function rules(M) {
     const armed = [];
     const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, setTimer: (fn, ms) => { armed.push({ fn, ms }); return armed.length; }, clearTimer: () => {} });
     await cs.load();
-    if (armed.length !== 1 || armed[0].ms !== CFG.SESSION_CONFIG.huntPollMs) return 'an open hunt did not arm one re-read at huntPollMs: ' + JSON.stringify(armed.map((a) => a.ms));
+    /* The live view (option B) asks at once for its start point (liveAskMs); each answer without one
+       doubles the wait, up to the ordinary huntPollMs settle (live-link.js askDelayMs). */
+    if (armed.length !== 1 || armed[0].ms !== CFG.SESSION_CONFIG.liveAskMs) return 'an open hunt did not ask at once for its live start point: ' + JSON.stringify(armed.map((a) => a.ms));
     armed.shift().fn();
     await new Promise((r) => setImmediate(r));
     if (calls.join(',') !== 'hr_load,accrue:0') return 'the re-read did not ask the hunter\'s settle for the slot: ' + calls.join(',');
     if (!cs.timeline.units().includes(1)) return 'the settle\'s track never reached the timeline';
     if (armed.length !== 1) return 'the re-read did not re-arm while the hunt is open (' + armed.length + ')';
+    const waits = [];
+    for (let i = 0; i < 12 && armed.length === 1 && armed[0].ms < CFG.SESSION_CONFIG.huntPollMs; i++) { waits.push(armed[0].ms); armed.shift().fn(); await new Promise((r) => setImmediate(r)); }
+    if (waits.some((w, i) => i > 0 && w !== Math.min(CFG.SESSION_CONFIG.huntPollMs, waits[i - 1] * 2))) return 'the asks for a live start point did not double: ' + waits.join(',');
+    /* it never gives up while the hunt is open: it backs off all the way to the ordinary poll (v0.2.20 stopped after two) */
+    if (!(waits[waits.length - 1] * 2 >= CFG.SESSION_CONFIG.huntPollMs)) return 'the asks for a live start point gave up before backing off to huntPollMs: ' + waits.join(',');
+    if (armed.length !== 1 || armed[0].ms !== CFG.SESSION_CONFIG.huntPollMs) return 'without a live start point the ordinary re-read did not resume at huntPollMs: ' + JSON.stringify(armed.map((a) => a.ms));
     next = env(3, { hunt: { session_id: 'h1', hunt_id: 'mill_cellar', ended: true } });
     armed.shift().fn();
     await new Promise((r) => setImmediate(r));
     if (!cs.record.data.hunt.ended) return 'the ended hunt did not replace the open one';
     return armed.length === 0 || 'an ended hunt kept re-reading';
+  });
+  /* HUNT-1F (live v0.2.20, the http origin's blocked calls): an ask for the live start point that brings
+     NO answer backs off like one that brings no start point; it never re-arms every liveAskMs forever. */
+  await t('HUNT-1F', async () => {
+    const open = (v) => env(v, { hunt: { session_id: 'h1', hunt_id: 'mill_cellar', ended: false } });
+    const srv = {
+      rpc: async () => ({ ok: true, status: 200, body: open(1), closed: false }),
+      accrue: async () => ({ ok: false, status: 0, body: null, closed: false, error: 'network' }),
+    };
+    const armed = [];
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, setTimer: (fn, ms) => { armed.push({ fn, ms }); return armed.length; }, clearTimer: () => {} });
+    await cs.load();
+    const waits = [];
+    for (let i = 0; i < 8 && armed.length; i++) { waits.push(armed[0].ms); armed.shift().fn(); await new Promise((r) => setImmediate(r)); }
+    const live = CFG.SESSION_CONFIG.liveAskMs;
+    return (waits.length === 8 && waits[0] === live && waits[3] >= live * 8 && waits[7] === CFG.SESSION_CONFIG.huntPollMs)
+      || 'failed asks did not back off to the ordinary poll: ' + waits.join(',');
   });
   /* HUNT-2 (AWAY / pending leave, live v0.2.1 "Leave hunt does nothing"): a leave with hunting time owed
      answers `pending`; the hunter's settle that follows ends it, and that envelope REPLACES the open hunt. */
@@ -356,6 +383,15 @@ async function rules(M) {
     const o = await acc.open(0);
     return (acc.closedGame && heard === 1 && r.length === 0 && !o.ok) || 'the closed game was not noticed';
   });
+  await t('NET-1', async () => {
+    const urls = [];
+    const fetch = async (url) => { urls.push(url); return { ok: true, status: 200, json: async () => ({ ok: true }) }; };
+    const link = S.createServerLink({ url: NB.SUPABASE_CONFIG.url, anonKey: 'anon', token: () => 'jwt', fetch });
+    await link.accrue({ slot: 0 });
+    if (NB.SUPABASE_CONFIG.functionRegion !== 'us-west-2') return 'the function region is not the database\'s (us-west-2): ' + NB.SUPABASE_CONFIG.functionRegion;
+    const want = NB.SUPABASE_CONFIG.url + '/functions/v1/hr-accrue?forceFunctionRegion=' + NB.SUPABASE_CONFIG.functionRegion;
+    return urls[0] === want || 'accrue fetched ' + urls[0] + ', not ' + want;
+  });
 
   await t('OUT-1', async () => {
     const device = memStore(), tab = memStore();
@@ -429,6 +465,8 @@ const MUTANTS = [
   ['sign-out keeps the tab id', 'src/net/auth.js', '    if (o.tab) o.tab.remove(cfg.tabKey);\n', ''],
   ['sign-out leaves characters open', 'src/session/account-session.js', '    for (const slot of Array.from(this._chars.keys())) this.close(slot);\n', ''],
   ['existing email told apart', 'src/net/auth.js', "if (error && !/already (registered|exists)/i.test(String(error.message || ''))) return fail(AUTH_COPY.signUpFailed);", 'if (error) return fail(AUTH_COPY.signUpFailed);'],
+  ['the engine runs in the players\' region', 'src/session/server.js', "post('/functions/v1/hr-accrue?forceFunctionRegion=' + SUPABASE_CONFIG.functionRegion, body)", "post('/functions/v1/hr-accrue', body)"],
+  ['the region is not the database\'s', 'src/net/supabase-bootstrap.js', "functionRegion: 'us-west-2',", "functionRegion: 'us-east-2',"],
   ['closed game ignored', 'src/session/server.js', "return status === CLOSED_STATUS && !!body", "return false && !!body"],
   ['a join sends no hello', 'src/session/character-session.js', "if (st === 'SUBSCRIBED') { this._attempt = 0; this.hello(); return; }", "if (st === 'SUBSCRIBED') { this._attempt = 0; return; }"],
   ['a leave inside the channel callback recurses', 'src/session/character-session.js', "    const leave = this._leave;\n    this._leave = null;\n    if (leave) { try { leave(); } catch (e) { /* already gone */ } }", "    if (this._leave) { try { this._leave(); } catch (e) { /* already gone */ } this._leave = null; }"],
@@ -437,6 +475,8 @@ const MUTANTS = [
   ['an open hunt is never re-read', 'src/session/character-session.js', "    this._emit(why);\n    this._armHuntPoll();", "    this._emit(why);"],
   ['an ended hunt keeps re-reading', 'src/session/character-session.js', "typeof h.session_id === 'string' && h.ended !== true;", "typeof h.session_id === 'string';"],
   ['a pending leave waits for the world tick', 'src/session/character-session.js', "ans.body.pending === true) { await this.hello(); return { ok: true }; }", "ans.body.pending === true) { await this.load(); return { ok: true }; }"],
+  ['a failed live ask re-arms at once, forever', 'src/session/character-session.js', 'if (!took) this.liveLink.missed();', ''],
+  ['the live ask gives up after two tries', 'src/session/live-link.js', '      this.want = true;\n      this._tries++;', '      this.want = this._tries < 2;\n      if (this.want) this._tries++;'],
   ['an idle settle replaces the character', 'src/session/character-session.js', "if (ans.ok && ans.body && ans.body.accrued !== true) return this.load();", ""],
 ];
 
@@ -444,13 +484,9 @@ function copyTree(dst) {
   mkdirSync(join(dst, 'src/net'), { recursive: true });
   cpSync(join(ROOT, 'src/session'), join(dst, 'src/session'), { recursive: true });
   cpSync(join(ROOT, 'src/net/auth.js'), join(dst, 'src/net/auth.js'));
-  mkdirSync(join(dst, 'src/hunt-view'), { recursive: true });
-  cpSync(join(ROOT, 'src/hunt-view/timeline.js'), join(dst, 'src/hunt-view/timeline.js'));
-  mkdirSync(join(dst, 'src/data'), { recursive: true });
-  cpSync(join(ROOT, 'src/data/town-presence.js'), join(dst, 'src/data/town-presence.js'));   // the AccountSession's TownPresence knobs
-  mkdirSync(join(dst, 'src/core'), { recursive: true });
-  cpSync(join(ROOT, 'src/core/xp.js'), join(dst, 'src/core/xp.js'));   // the roster's Level (the shared curve)
-  for (const f of ['core-model.js', 'skills.js']) cpSync(join(ROOT, 'src/data', f), join(dst, 'src/data', f));   // xp.js's curves and skill list
+  cpSync(join(ROOT, 'src/net/supabase-bootstrap.js'), join(dst, 'src/net/supabase-bootstrap.js'));
+  /* The CharacterSession runs the live hunt view (option B), so the engine and the data come along. */
+  for (const d of ['src/hunt-view', 'src/data', 'src/core']) cpSync(join(ROOT, d), join(dst, d), { recursive: true });
 }
 
 async function main() {
@@ -458,7 +494,7 @@ async function main() {
   if (!mutate) {
     const fails = [...await rules(await load(ROOT)), ...await viewRules(ROOT)];
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (23 rules)');
+    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (24 rules)');
     process.exit(fails.length ? 1 : 0);
   }
   let bad = 0;

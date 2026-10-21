@@ -49,7 +49,8 @@ import { vitalsOf } from '../src/core/vitals.js';
 import { HUNT_INDEX } from '../src/data/hunts.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { seederFor } from '../supabase/functions/hr-accrue/hunt-seed.js';
-import { accrueHunt, computeAccrual, levelsOf } from '../supabase/functions/hr-accrue/accrual.js';
+import { accrueHunt, computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
+import { levelsOf } from '../src/core/xp.js';
 
 /** hr_seed's text shape (a signed 64-bit integer), from any integer seed. */
 export const secretOf = (seed) => String(BigInt.asIntN(64, BigInt(Math.floor(Number(seed) || 0)) * 2654435761n + 1n));

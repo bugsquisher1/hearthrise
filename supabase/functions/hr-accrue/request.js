@@ -43,10 +43,6 @@
 //             is tolerant.
 //   reward    { kind, key } — WHICH claimable the player is claiming (b349).
 //             A NAME, in two allowlisted strings.
-//   listing   a market listing's uuid. A SELECTOR for a row the server owns —
-//             the server reads the item, the price, the seller and the escrow
-//             off it and the request has no field for any of them.
-//   ask       ⚠ THE ONE PRICE FIELD IN THIS FILE. See the block below.
 //
 // ⚠ THERE IS NO `period` FIELD, AND ITS ABSENCE IS THE WHOLE DESIGN. A daily
 //   reward is worth something exactly once per UTC day, and the thing that
@@ -62,27 +58,6 @@
 //   value transfer, it is bounded before it is used, and the thing it
 //   multiplies came out of src/data. That is the whole of the client's
 //   arithmetic authority over the economy.
-//
-// ⚠ …AND THEN THERE IS `ask`, WHICH IS A PRICE, AND WHICH IS NOT AN EXCEPTION
-//   TO THE SENTENCE ABOVE SO MUCH AS THE ONE PLACE THE SENTENCE HAS TO BE READ
-//   CAREFULLY. The argument is 2026-08-17-market-v2.sql's, §"THE ONE
-//   UNCOMFORTABLE FIELD", and it is repeated here rather than cross-referenced
-//   because the header a reader trusts is the one in the file they are reading:
-//     · A MARKET EXISTS TO LET A SELLER NAME A PRICE. There is no server-side
-//       answer to "what is this worth" that is not a price control.
-//     · It is authored about the seller's OWN goods and, the moment it is
-//       accepted, it becomes SERVER STATE. THE BUYER NEVER SUPPLIES A PRICE —
-//       `market_buy`'s wire is (listing, qty) and has no field for one;
-//       hr_market_buy reads `ask_each` off the listing row it locked. So no
-//       client value crosses to another player: the seller's number crosses to
-//       the SERVER, and the server's copy is what the buyer transacts against.
-//     · It cannot mint. The trade conserves gold (buyer −gross, seller +net,
-//       tax burned) and the buyer's balance is checked under the lock.
-//   It is bounded HERE anyway — a positive integer in [1, MAX_ASK] — for the
-//   reason `qty` is: an unbounded number that reaches a multiply is an overflow,
-//   and an overflow inside a value transfer is a 500 in the middle of one. The
-//   server re-checks the same bound and the PRODUCT bound this parser cannot
-//   state (it does not know the qty and the ask belong to one listing yet).
 //
 // PURE ESM, no I/O, no globals. Runs in Node and Deno unchanged.
 // ============================================================================
@@ -102,13 +77,6 @@ export const MAX_SLOT = 5;
     possible failure of a dispatch table. */
 export const VERBS = Object.freeze(
   ['accrue', 'set_activity', 'shop_buy', 'vendor_sell', 'unlock_buy',
-    /* b355 — THE MARKET VERBS. Three, not one, and deliberately not collapsed
-       into a single `market` verb with a `mode` field: the three do different
-       things to different rows, and a dispatch table whose branch is a body
-       field is a dispatch table one typo away from performing a different
-       intent than the one asked for (the same reason an unknown verb is a hard
-       null below). */
-    'market_list', 'market_cancel', 'market_buy',
     /* b366 — THE EQUIP VERB. Phase 2 of docs/design/live-settlement.md, and the
        gap that made the b362/b363 equip-dupe class possible at all: NOTHING
        told the server about a client equip, so its `player_inventory` row went
@@ -116,8 +84,7 @@ export const VERBS = Object.freeze(
        stale figure back into the bag. One verb closes it, because hr_apply's
        equip op is a TRANSFER (inventory -> equipment) and a transfer conserves.
 
-       ONE verb for equip AND unequip, unlike the market's three. The market's
-       three touch DIFFERENT ROWS with different authorities; these two are the
+       ONE verb for equip AND unequip: the two are the
        same operation on the same (slot -> item) map, distinguished by whether
        the value is a string or `null` — which is hr_apply's own vocabulary, not
        a mode flag invented at the wire. */
@@ -146,8 +113,7 @@ export const VERBS = Object.freeze(
     'trophy_claim',
     /* b564 — THE BULK SALE. `vendor_sell` for N stacks in ONE gesture: one rate
        token, one settle, one hr_apply. A separate verb rather than an array on
-       `vendor_sell`, for the dispatch-table reason the market's three are three:
-       a body field that changes WHAT the verb does is a typo away from a
+       `vendor_sell`, for the dispatch-table reason: a body field that changes WHAT the verb does is a typo away from a
        different intent. The wire carries `lines: [{item, qty}]` — NAMES and
        COUNTS, never a price (readLines). */
     'vendor_sell_many',
@@ -161,6 +127,54 @@ export const VERBS = Object.freeze(
        moves no value. */
     'sheet']);
 export const DEFAULT_VERB = 'accrue';
+
+/* THE BODY CAP (Security, reopen review 2026-10-19). A player intent is read through the ONE bounded
+   reader below and refused past MAX_INTENT_BYTES: no verb's body comes near it (the largest is a 64-line
+   bulk sale, a few KB), and index.ts used to `req.json()` a body of any size. */
+export const MAX_INTENT_BYTES = 65536;
+
+/**
+ * THE ONE BOUNDED READ of a request body (the player intent here, the world tick's body in ./tick.js):
+ * its BYTES, or `null` past `limit` (a declared Content-Length over it is refused before a byte is read;
+ * a streamed body is counted as it arrives and cancelled the moment it passes) or unreadable. A
+ * Request-like without a stream falls back to the whole-body read, still bounded. Never throws.
+ */
+export async function readBodyBytes(req, limit) {
+  const declared = Number(req.headers && req.headers.get ? req.headers.get('content-length') : NaN);
+  if (Number.isFinite(declared) && declared > limit) return null;
+  if (!req.body || typeof req.body.getReader !== 'function') {
+    try {
+      if (typeof req.text === 'function') {
+        const b = new TextEncoder().encode(await req.text());
+        return b.byteLength > limit ? null : b;
+      }
+      if (typeof req.json === 'function') return new TextEncoder().encode(JSON.stringify(await req.json()));
+      return null;
+    } catch { return null; }
+  }
+  const reader = req.body.getReader();
+  const chunks = [];
+  let n = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      n += value.byteLength;
+      if (n > limit) { try { await reader.cancel(); } catch { /* closed */ } return null; }
+      chunks.push(value);
+    }
+  } catch { return null; }
+  const buf = new Uint8Array(n);
+  let at = 0;
+  for (const c of chunks) { buf.set(c, at); at += c.byteLength; }
+  return buf;
+}
+
+/** Bytes parsed as JSON; empty or unparseable is `{}` (parseIntent then refuses it field by field). */
+export function bodyJson(bytes) {
+  if (!(bytes instanceof Uint8Array) || bytes.byteLength === 0) return {};
+  try { return JSON.parse(new TextDecoder().decode(bytes)); } catch { return {}; }
+}
 
 /** The catalogue's activity vocabulary — the `kind` column of `hr_activities`
     plus the idle sentinel. This is the PARSE-level allowlist and is deliberately
@@ -210,7 +224,7 @@ export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
     which is the direction that matters. */
 export const INTENT_KEYS = Object.freeze(
   ['slot', 'verb', 'intentId', 'activity', 'offer', 'item', 'qty',
-    'listing', 'ask', 'equip', 'auto', 'trophy', 'lines'],
+    'equip', 'auto', 'trophy', 'lines'],
 );
 
 /** The stage ceiling a claim may NAME. Deliberately the parse-level bound only:
@@ -239,14 +253,6 @@ export const EQUIP_SLOT_RE = /^[a-z0-9_]{1,32}$/;
     catalogue to answer a SHAPE question; hr_apply's own `c_max_equip_kinds` is
     the authoritative bound and is checked under the lock. */
 export const MAX_EQUIP_OPS = 15;
-
-/** The largest ask a seller may name, per unit. THE SAME NUMBER the migration's
- *  `ask_each` CHECK constraint carries (1e9), stated here so a listing that the
- *  database would refuse is refused one round trip earlier and by name. Two
- *  copies of a bound is a drift risk and it is taken deliberately: the parser
- *  cannot read a CHECK constraint, and a parser that admitted 1e18 would hand
- *  `bad_price` back to every honest client that fat-fingered a price. */
-export const MAX_ASK = 1000000000;
 
 /** How many LINES one `vendor_sell_many` may carry (b564).
     Not 200, although hr_apply takes `c_max_item_kinds = 200` item keys in one
@@ -280,8 +286,6 @@ export function parseIntent(body) {
   out.offer = readOffer(body);
   out.item = readItem(body);
   out.qty = readQty(body);
-  out.listing = readListing(body);
-  out.ask = readAsk(body);
   out.equip = readEquip(body);
   out.auto = readAuto(body);
   out.trophy = readTrophy(body);
@@ -465,43 +469,6 @@ export function readEquip(body) {
     out[k] = v;
   }
   return out;
-}
-
-/**
- * WHICH LISTING. A canonical uuid and nothing else — the same strictness, and
- * the same reason, as `readIntentId`: Postgres would accept `{…}` and the
- * undashed form too and normalise them on cast, and two spellings of one row id
- * are two chances for a caller to believe it named two different listings.
- *
- * It does NOT check that the listing exists, is open, or belongs to anyone: all
- * three are answers the RPC gives BY NAME under the lock (`gone`, `not_yours`,
- * `expired`), and a parser that collapsed them into null would report
- * "malformed request" for "somebody bought it first".
- */
-export function readListing(body) {
-  const s = ownString(body, 'listing');
-  if (s === null || s.length !== 36) return null;
-  const low = s.toLowerCase();
-  return UUID_RE.test(low) ? low : null;
-}
-
-/**
- * THE ASK, PER UNIT. See the header block for why a price is readable here at
- * all and why that is not a hole.
- *
- * STRICT, exactly as `readQty` is strict and for the identical reason: a server
- * that GUESSES a price has authored a number the player did not ask for, in
- * both directions. An own property, a real JSON number (never a numeric string
- * — `Number("1e9")` is a thousand-fold fat finger that parses), an integer, and
- * inside [1, MAX_ASK]. Everything else is `null`, which market.js refuses BY
- * NAME as `bad_ask` before any database work.
- */
-export function readAsk(body) {
-  if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
-  if (!Object.prototype.hasOwnProperty.call(body, 'ask')) return null;
-  const v = body.ask;
-  if (typeof v !== 'number' || !Number.isSafeInteger(v)) return null;
-  return v >= 1 && v <= MAX_ASK ? v : null;
 }
 
 /** An own string property, or null. The one place a raw body value is read. */

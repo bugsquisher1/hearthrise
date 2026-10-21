@@ -30,7 +30,7 @@ import { roleForWeapon, roleWeaponOf } from '../src/data/hunt-roles.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
 import { heroCells, refusalText } from '../src/app/hero-create.js';
 
-const MIG = '2026-11-01-hero-creation.sql';
+const MIG = '2026-11-02-hero-creation.sql';
 /* What each starter set's weapon plays (hunt-roles.js), the set's purpose. */
 const SET_ROLE = { tank: 'tank', dual_axes: 'melee_dps', club: 'melee_dps', mage: 'mage', ranger: 'ranger', healer: 'healer' };
 

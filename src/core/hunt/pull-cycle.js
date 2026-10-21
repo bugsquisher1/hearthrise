@@ -22,16 +22,16 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.18';
-import { VITALS } from '../../data/core-model.js?v=0.2.18';
-import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js?v=0.2.18';
-import { AI_REPATH_MS } from '../../data/hunt-roles.js?v=0.2.18';
-import { packHpFor, yieldPermille, routeFor } from '../../data/hunt-grounds.js?v=0.2.18';
-import { cheb, dist2, freeNear, tileKey } from './grid.js?v=0.2.18';
-import { inArea, resetPack } from './leash.js?v=0.2.18';
-import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy } from './movement.js?v=0.2.18';
-import { makeEvent } from './events.js?v=0.2.18';
-import { pickLeader, kites } from './roles.js?v=0.2.18';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.21';
+import { VITALS } from '../../data/core-model.js?v=0.2.21';
+import { MONSTERS, monsterSpeedOf } from '../../data/monsters.js?v=0.2.21';
+import { AI_REPATH_MS } from '../../data/hunt-roles.js?v=0.2.21';
+import { packHpFor, yieldPermille, routeFor, pullRows } from '../../data/hunt-grounds.js?v=0.2.21';
+import { cheb, dist2, freeNear, tileKey } from './grid.js?v=0.2.21';
+import { inArea, resetPack } from './leash.js?v=0.2.21';
+import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy, reachable } from './movement.js?v=0.2.21';
+import { makeEvent, trackStep } from './events.js?v=0.2.21';
+import { pickLeader, kites } from './roles.js?v=0.2.21';
 
 /* deadMs: a corpse's age. hpMilli: out-of-combat regen carried below one HP.
    phase / routeIdx / phaseMs / regroupNext / runs / nextId: the cycle. alive / respawnAtMs: a pack. */
@@ -62,21 +62,18 @@ export const partySize = (inst) => inst.world.units.filter((u) => u.side === 'he
  * 1000 permille for 1-4 heroes) at the size the instance has WHEN the pack spawns; a hero joining later meets the
  * next respawn at the new size. The DENSITY (world.density, the settle's
  * clamped pick: hunt-grounds.js densityFor) is the pack's SIZE: that many
- * monsters, the pocket's spawn rows taken in order and round again (0 = the
- * pocket as built), each on the first free tile near its row's own spot
+ * monsters, the rows hunt-grounds.js pullRows gives (the pocket's authored rows,
+ * then its non-boss fill rows round again: a boss never repeats inside a pull;
+ * 0 = the pocket as built), each on the first free tile near its row's own spot
  * (deterministic). A full box is 8: every tile round the tank.
  */
 export function spawnPack(inst, p, sc) {
   const w = inst.world;
-  const pocket = inst.ground.pockets[p];
   const heroes = partySize(inst);
-  const want = Math.floor(Number(w.density) || 0);
-  const size = want > 0 ? want : pocket.spawns.length;
   occupancy(inst);
   const taken = (x, y) => inst.occ.mon.has(tileKey(inst.grid, x, y)) || inst.occ.hero.has(tileKey(inst.grid, x, y)) || !inArea(inst, p, x, y);
-  for (let i = 0; i < size; i++) {
+  for (const s of pullRows(inst.ground, p, w.density)) {
     {
-      const s = pocket.spawns[i % pocket.spawns.length];
       const at = freeNear(inst.grid, s.x, s.y, 3, taken);
       const row = MONSTERS[s.monster];
       if (!at || !row) continue;
@@ -89,6 +86,7 @@ export function spawnPack(inst, p, sc) {
       w.nextId += 1;
       w.units.push(u);
       inst.occ.mon.set(tileKey(inst.grid, at[0], at[1]), u);
+      if (sc) sc.track(trackStep(u.id, at[0], at[1], sc.atMs));   // a respawn is placed by the track (visual only)
     }
   }
   w.packs[p].alive = true;
@@ -167,7 +165,13 @@ function travel(inst, sc, k) {
   const here = inArea(inst, p, k.x, k.y);
   if (here && kites(k) && Math.min(...mons.map((m) => cheb(m, k))) <= k.dist + 1) { startPull(inst, sc, k, p); return; }
   const arrived = !!k.goal && k.x === k.goal[0] && k.y === k.goal[1] && atRest(k);
-  if (here && (dist2(k, c) <= inst.ground.pullDist * inst.ground.pullDist || arrived)) { startPull(inst, sc, k, p); return; }
+  /* WALLED OFF: the pack stands on the leader's next step and no way round it reaches the goal. A full box
+     (density 8) rings the pull tile, so its centre is never reached; a melee leader pulls from the ring's edge
+     (a kiter keeps its range rule above). A ring with a gap is walked round as before. */
+  const step = k.path && k.path[0];
+  const walled = !kites(k) && !!step && !!k.goal && atRest(k) && mons.some((m) => m.x === step[0] && m.y === step[1])
+    && !!occupancy(inst) && !reachable(inst, k, k.goal[0], k.goal[1]);
+  if (here && (dist2(k, c) <= inst.ground.pullDist * inst.ground.pullDist || arrived || walled)) { startPull(inst, sc, k, p); return; }
   if (k.goal && k.aiMs > 0) return;
   occupancy(inst);
   const g = freeNear(inst.grid, Math.round(c.x), Math.round(c.y), 2, (x, y) => inst.occ.mon.has(tileKey(inst.grid, x, y)))

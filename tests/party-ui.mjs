@@ -47,7 +47,7 @@
 //   UI-4  the command centre lists every open character; zero console errors throughout
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
-import { launchOptions } from './_chrome.mjs';
+import { leaseBrowser } from './_chrome.mjs';
 import { readFile, mkdir } from 'node:fs/promises';
 import { mkdtempSync, cpSync, readFileSync, writeFileSync, rmSync, readdirSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -66,7 +66,7 @@ const PARTY_NOTES = Object.fromEntries(Object.values(HUNT_GROUNDS).map((g) => {
   return [g.hunt, p && boss ? 'The ' + boss.name + ' wants a party of ' + ['', 'one', 'two', 'three', 'four'][p.minParty] + ' or more. Alone, you skip that hall.' : ''];
 }));
 if (!PARTY_NOTES.millrace_sewer || PARTY_NOTES.coppercap_warrens !== '') throw new Error('party-ui: UI-5 needs a party-gated ground and one without');
-const PARTY_RPCS = ['hr_hunt_party_create', 'hr_hunt_party_join', 'hr_hunt_party_leave', 'hr_hunt_party_kick', 'hr_hunt_party_invite',
+const PARTY_RPCS = ['hr_hunt_party_join', 'hr_hunt_party_leave', 'hr_hunt_party_kick', 'hr_hunt_party_invite',
   'hr_hunt_party_accept', 'hr_hunt_party_decline', 'hr_hunt_party_start', 'hr_hunt_restart', 'hr_hunt_party_invite_own', 'hr_hunt_party_disband', 'hr_hunt_party_list'];
 
 /* ── PURE ── */
@@ -206,8 +206,10 @@ async function pureRules(M, base) {
     await cs.load();
     const P = '11111111-0000-4000-8000-00000000000a';
     const ALLOWED = new Set(['p_slot', 'p_hunt', 'p_party', 'p_seat', 'p_name', 'p_invite', 'p_session', 'p_idem']);
-    const verbs = [['createParty', ['millrace_sewer']], ['joinParty', [P]], ['leaveParty', []], ['kickSeat', [2]], ['inviteByName', ['Mira']],
-      ['answerInvite', [P, true]], ['answerInvite', [P, false]], ['startPartyHunt', []], ['restartHunt', [P]]];
+    const verbs = [['joinParty', [P]], ['leaveParty', []], ['kickSeat', [2]], ['inviteByName', ['Mira']],
+      ['answerInvite', [P, true]], ['answerInvite', [P, false]], ['restartHunt', [P]]];
+    /* createParty and the 2-arg startPartyHunt are gone (2026-10-29-party-create-retired.sql): a party is made by an invite. */
+    if (typeof cs.createParty === 'function' || typeof cs.startPartyHunt === 'function') return 'CharacterSession still carries createParty / startPartyHunt';
     for (const [verb, args] of verbs) {
       srv.calls.length = 0;
       srv.reply = { ok: false, error: 'not_leader' };
@@ -227,10 +229,22 @@ async function pureRules(M, base) {
       if (!(cs.record.version > v)) return verb + ' left the record unread';
     }
     srv.calls.length = 0;
-    const bad = [await cs.kickSeat(-1), await cs.joinParty('not-an-id'), await cs.createParty('Bad Hunt!'), await cs.inviteByName(' '), await cs.restartHunt(null)];
+    const bad = [await cs.kickSeat(-1), await cs.joinParty('not-an-id'), await cs.inviteByName(' '), await cs.restartHunt(null)];
     if (bad.some((r) => r.ok) || srv.calls.length) return 'a malformed party intent was sent: ' + JSON.stringify(srv.calls);
     const f = await cs.findParties('millrace_sewer', 'bow');
     return (f.ok && srv.calls.length === 1 && srv.calls[0][0] === 'hr_hunt_party_finder' && srv.calls[0][1].p_weapon === 'bow') || 'the finder read was wrong: ' + JSON.stringify(srv.calls);
+  });
+
+  /* PR-3 (Tyler 10-19): a party in TOWN (no instance: every unit null) is still listed, by seat, with
+     who leads and who this is: the Party panel shows the party wherever it is, never "Not in a hunt." */
+  await t('PR-3', async () => {
+    const party = { id: '11111111-0000-4000-8000-00000000000b', hunt: 'mill_cellar', max: 2, open: true, self: null, leader: null, self_seat: 1, leader_seat: 0,
+      members: [{ seat: 0, unit: null, name: 'Tyler', level: 5, weapon: 'sword', hp: 190, hp_max: 190, mana: null, mana_max: 140 },
+                { seat: 1, unit: null, name: 'Tyler II', level: 3, weapon: 'staff', hp: 170, hp_max: 170, mana: null, mana_max: 120 }] };
+    const p = M.HS.partyOf({ read: (k) => (k === 'party' ? party : undefined) });
+    if (!p || p.members.length !== 2) return 'a party in town lists ' + (p ? p.members.length : 'no') + ' member(s), want 2';
+    if (p.selfSeat !== 1 || p.leaderSeat !== 0 || p.members.some((m) => m.unit !== null)) return 'the town party lost its seats: ' + JSON.stringify(p);
+    return true;
   });
 
   await t('PI-2', async () => {
@@ -371,7 +385,7 @@ async function stub(page, s) {
   await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
   await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
   await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
-    const name = r.request().url().split('/').pop();
+    const name = r.request().url().split('?')[0].split('/').pop();
     const body = JSON.parse(r.request().postData() || '{}');
     s.calls.push({ name, body });
     const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
@@ -431,7 +445,7 @@ async function pageRules(overrides, shots) {
   const fails = [];
   const { server, port } = await serve(overrides);
   const base = 'http://127.0.0.1:' + port;
-  const browser = await chromium.launch(launchOptions({ headless: true }));
+  const browser = await leaseBrowser(chromium);
   try {
     for (const vp of shots ? [{ width: 1440, height: 900 }, { width: 922, height: 423 }] : [{ width: 1440, height: 900 }]) {
       const tag = vp.width + 'x' + vp.height;

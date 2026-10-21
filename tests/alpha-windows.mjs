@@ -65,7 +65,7 @@
 //         922x423; a character that has never fought sees the pointer to Hunts
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
-import { launchOptions } from './_chrome.mjs';
+import { leaseBrowser } from './_chrome.mjs';
 import { readFile, mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -97,7 +97,7 @@ async function stub(page, s) {
   await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
   await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
   await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
-    const name = r.request().url().split('/').pop();
+    const name = r.request().url().split('?')[0].split('/').pop();
     const body = JSON.parse(r.request().postData() || '{}');
     s.calls.push({ name, body });
     if (s.onCall) s.onCall(name, body);
@@ -178,7 +178,7 @@ async function checks(overrides, shots) {
   const fails = overrides ? [] : await pure();
   const { server, port } = await serve(Object.assign({}, HOOK, overrides || {}));
   const base = 'http://127.0.0.1:' + port;
-  const browser = await chromium.launch(launchOptions({ headless: true }));
+  const browser = await leaseBrowser(chromium);
   const open = async (o = {}) => {
     const ctx = await browser.newContext({ viewport: o.viewport || { width: 1440, height: 900 } });
     const page = await ctx.newPage();

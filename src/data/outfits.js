@@ -20,7 +20,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { OUTFITS } from './hunt-outfits.js?v=0.2.18';
+import { OUTFITS } from './hunt-outfits.js?v=0.2.21';
 
 export const OUTFIT_ROWS = Object.freeze({
   knight: Object.freeze({ label: 'Knight', premium: false, regions: Object.freeze([]) }),
@@ -37,7 +37,7 @@ export const OUTFIT_ROWS = Object.freeze({
 export const REGION_LABEL = Object.freeze({ hat: 'Hat', robe: 'Robe', trim: 'Trim', head: 'Head', body: 'Body', legs: 'Legs', feet: 'Feet' });
 
 /* THE STANDARD HERO's recolour regions, in picker order (Tyler 2026-10-20: a new hero picks a
-   colour for each at creation). The server's hr_base_regions() (2026-11-01-hero-creation.sql) is
+   colour for each at creation). The server's hr_base_regions() (2026-11-02-hero-creation.sql) is
    held equal by tests/hero-creation.mjs. A saved colour is a dye INDEX, like an outfit's. */
 export const BASE_REGIONS = Object.freeze(['head', 'body', 'legs', 'feet']);
 

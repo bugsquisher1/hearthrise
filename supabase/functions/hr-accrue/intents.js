@@ -450,36 +450,6 @@ export const INTENT_REGISTRY = Object.freeze({
      still touches accrued_to nowhere (2026-08-16-unlock-buy.sql §6(b)), which
      is what lets the settle run as its own apply before it. */
   unlock_buy: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: true }),
-  /* ── b355 — THE MARKET VERBS. THE FIRST CROSS-PLAYER TRANSFER. ────────────
-     `bucket: 'shop'`, and it is a RULING with a cost, so it is argued:
-
-       · hr_rate_gate's bucket list is a `case` in SQL and an unknown bucket
-         FAILS CLOSED. Adding a fifth arm means `create or replace`-ing
-         hr_rate_gate — and 2026-08-16-claim-reward.sql is the LAST file that
-         may do that, while 2026-08-17-market-v2.sql deliberately declines to
-         touch it ("a second writer with its own allowance would raise a
-         compromised engine's total reachable write rate"). A registry row
-         naming a bucket the gate does not know is not a wider budget, it is a
-         verb that 429s on its first call, forever.
-       · So the market rides the `shop` allowance: 30/min, shared with
-         shop_buy, vendor_sell and unlock_buy. That is TIGHTER than the fuse the
-         RPCs spend for themselves (`apply`, 240/min via hr_rate_ok), so the
-         Edge gate is the binding one and this file adds no reachable write
-         rate at all. THE COST, stated rather than discovered: a player sweeping
-         the market can rate-limit their own next NPC purchase. Batch the
-         gesture; do not widen the gate.
-
-     `collectsFirst: TRUE` since 2026-09-28 (SETTLE-BEFORE-MUTATE above). A buy
-     or a cancel puts goods in the bag — a tool is priced from the BAG — and the
-     verdict's worst case is exactly this surface: one Dawnsteel pickaxe relisted
-     between a player's own slots (hr_market_buy refuses a self-buy only when
-     user AND slot match), each slot buying it back at return and settling its
-     night at +75 %. A list removes goods, and must not under-pay the night they
-     were used for. The three RPCs still touch `accrued_to` nowhere
-     (2026-08-17-market-v2.sql §11), so the settle is its own apply first. */
-  market_list: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: true }),
-  market_cancel: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: true }),
-  market_buy: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: true }),
   /* ── b366 — THE EQUIP VERB. THE FIRST VERB THAT MUST COLLECT SINCE #2. ────
      `collectsFirst: TRUE`, and it was the first SWITCH (see SWITCH_VERBS)
      besides `set_activity`. It is DERIVED, not chosen:
@@ -740,38 +710,6 @@ export const INTENT_ERRORS = Object.freeze({
      shop_buy and are already above: one code means one thing, and "this build
      cannot sell that offer" is the same fact whichever verb was asked. */
 
-  /* ── b355, THE MARKET VERBS ───────────────────────────────────────────────
-     TWO codes, and only two, because only two facts are decidable in this
-     process. Everything a market call can be refused for is a fact about a ROW
-     — the escrow, the listing, the buyer's balance, the seller's day — and
-     every one of those is hr_market_*'s own code, returned VERBATIM exactly as
-     hr_apply's are. The reachable set, named here so a reader does not have to
-     read 2,100 lines of SQL to know what a client must handle, but NOT
-     restated as constants (a second taxonomy is a taxonomy that agrees today):
-
-       list    not_tradeable · bad_qty · bad_price · listing_too_large ·
-               too_many_listings · insufficient_item · market_list_daily_cap
-       cancel  gone · not_yours · wrong_slot · bank_full
-       buy     gone · expired · not_enough · own_listing · insufficient_gold ·
-               bank_full · seller_unavailable · trade_too_large ·
-               market_spend_daily_cap · market_proceeds_daily_cap ·
-               listing_moved
-       all three  no_character · version_conflict · intent_mismatch ·
-               intent_in_flight · rate_limited · forbidden_impersonation ·
-               missing_intent_id · bad_market_write
-
-     `bad_qty` is SHARED with the gold verbs and stays shared: one code means
-     one thing, and "that is not a usable count" is the same fact whichever verb
-     was asked. */
-  BAD_LISTING: 'bad_listing',   // 400 — absent, or not a canonical uuid
-  /* 400 — absent, non-integer, or outside [1, MAX_ASK]. A SEPARATE code from
-     the server's `bad_price` on purpose: this one means "your request did not
-     contain a readable price", which the client can fix by re-reading its own
-     form, and the server's means "the price you named is outside the market's
-     bounds". Collapsing them would tell a player with a broken input box that
-     the market has a rule they broke. */
-  BAD_ASK: 'bad_ask',
-
   /* ── b366 — THE EQUIP VERB ───────────────────────────────────────────────
      ONE shape code produced HERE, and everything else about an equip is
      hr_apply's own vocabulary returned verbatim:
@@ -784,11 +722,6 @@ export const INTENT_ERRORS = Object.freeze({
                             and the `stage` field says which layer said it.
        unknown_equip_slot   409 — no such slot (hr_equip_slots)
        wrong_slot           409 — real item, real slot, does not fit
-                            ⚠ SHARED with market_cancel's `wrong_slot`, which
-                              means a CHARACTER slot. Two meanings, one code —
-                              tolerated only because the two can never appear on
-                              one verb, and flagged here so the next person does
-                              not discover it in a support ticket.
        unknown_item         409 — not in hr_items
        requirement_not_met  409 — the reqSkill/reqLv gate, against SERVER skills
        insufficient_item    409 — the player does not own a copy. THIS IS THE
@@ -913,18 +846,6 @@ export const STATELESS_REFUSALS = Object.freeze([
   INTENT_ERRORS.BAD_ITEM,
   INTENT_ERRORS.UNKNOWN_ITEM,
   INTENT_ERRORS.ITEM_NOT_SELLABLE,
-  /* b355 — the market verbs' two SHAPE refusals, on this list for the reason
-     every other shape refusal is: both are answered from the parsed request
-     alone, BEFORE the rate gate and before any database work, so reading a
-     state envelope for them is the database work the check exists to avoid.
-     Nothing was written, so the client's LAST envelope is still current.
-     ⚠ NOTHING ELSE THE MARKET PRODUCES IS ON THIS LIST, and that is the point:
-       every other market refusal is a fact about a ROW that was read under a
-       lock, the caller has already paid for the envelope, and a `gone` or an
-       `insufficient_gold` the client cannot reconcile from would leave a
-       prediction outstanding — which is how a local offset becomes permanent. */
-  INTENT_ERRORS.BAD_LISTING,
-  INTENT_ERRORS.BAD_ASK,
   /* b366 — the equip verb's ONE shape refusal, answered from the parsed request
      and the in-process catalogue BEFORE the rate gate and before any database
      work. Nothing was written and, critically, NO COLLECT RAN — which is what

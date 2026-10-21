@@ -37,7 +37,7 @@ import { playerCombatRolls } from '../../../src/core/combat.js';
 import { vitalsOf } from '../../../src/core/vitals.js';
 import { buffQueueFromServer } from '../../../src/core/buffs.js';
 import { xpMultiplierParts } from '../../../src/core/progression.js';
-import { heroSnapshot, loadoutOf, bonusFor, liveBuffHost } from './accrual.js';
+import { heroSnapshot, loadoutOf, bonusFor, liveBuffHost } from '../../../src/core/member.js';
 import { INTENT_ERRORS } from './intents.js';
 import { PAYLOAD_SHA256 } from './payload-hash.js';
 

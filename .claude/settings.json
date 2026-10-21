@@ -32,7 +32,6 @@
       "Bash(git push*)",
       "Bash(git merge*)",
       "Bash(git checkout*)",
-      "Bash(git stash*)",
       "Bash(git worktree list*)",
 
       "Bash(node tests/run-smoke.mjs*)",
@@ -70,6 +69,44 @@
       "mcp__067fa8d1-0eae-4c3a-8573-d153a1adfdf8__get_cost",
       "mcp__067fa8d1-0eae-4c3a-8573-d153a1adfdf8__search_docs",
       "mcp__067fa8d1-0eae-4c3a-8573-d153a1adfdf8__generate_typescript_types"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"$CLAUDE_PROJECT_DIR/tools/hooks/bash-guard.mjs\"; test -f \"$f\" && node \"$f\" || exit 0",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"$CLAUDE_PROJECT_DIR/tools/hooks/edit-checks.mjs\"; if test -f \"$f\"; then node \"$f\"; fi",
+            "timeout": 45,
+            "statusMessage": "Checking the edited file's guards"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && test -f tools/hooks/session-brief.mjs && node tools/hooks/session-brief.mjs || exit 0",
+            "timeout": 30
+          }
+        ]
+      }
     ]
   }
 }

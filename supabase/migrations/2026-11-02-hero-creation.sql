@@ -36,8 +36,8 @@
 -- Drop hr_create_hero and its baseline row; re-apply hr_load from
 -- 2026-08-11-apply-engine.sql then 2026-10-22-closed-mode-ungated-rpcs.sql §1,
 -- and hr_outfit_view from 2026-10-25-character-sheet.sql; the column is inert.
--- ORDER: after 2026-11-01-hero-kit-catalogue.generated.sql and
--- 2026-11-01-hunt-sessions-catalogue.generated.sql; last. No begin/commit.
+-- ORDER: after 2026-11-02-hero-kit-catalogue.generated.sql and
+-- 2026-11-02-hunt-sessions-catalogue.generated.sql; last. No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS AND THE PINS ────────────────────────────────────────────
@@ -55,9 +55,9 @@ begin
      or to_regclass('public.character_names') is null or to_regclass('public.player_outfits') is null
      or to_regclass('public.hr_outfit_dyes') is null or not exists (select 1 from public.hr_outfit_dyes) then
     raise exception 'PRECONDITION: the character, the names, the outfits and their dyes, or the account view are absent'; end if;
-  -- The practice kit is in the start kit (2026-11-01-hero-kit-catalogue.generated.sql).
+  -- The practice kit is in the start kit (2026-11-02-hero-kit-catalogue.generated.sql).
   if not exists (select 1 from public.hr_start_equipment where item_id = 'practice_sword') then
-    raise exception 'PRECONDITION: apply 2026-11-01-hero-kit-catalogue.generated.sql first'; end if;
+    raise exception 'PRECONDITION: apply 2026-11-02-hero-kit-catalogue.generated.sql first'; end if;
   -- hr_load: the closed-mode wrapper over hr_state_of, or this file's own image.
   select replace(prosrc, chr(13), '') into v_src from pg_proc where oid = 'public.hr_load(integer)'::regprocedure;
   if strpos(v_src, 'needs_name') = 0
@@ -118,7 +118,7 @@ begin
     'worn', v_po.outfit_id,
     'colors', case when v_po.outfit_id is null then '{}'::jsonb else coalesce(v_po.colors, '{}'::jsonb) end,
     'owned', to_jsonb(v_owned),
-    -- the standard hero's colours (2026-11-01-hero-creation.sql), {} until chosen
+    -- the standard hero's colours (2026-11-02-hero-creation.sql), {} until chosen
     'base', coalesce(v_po.base_colors, '{}'::jsonb));
 end $$;
 
@@ -205,7 +205,7 @@ begin
     end if;
     return jsonb_build_object('ok', false, 'error', 'rate_limited');
   end if;
-  -- A CHARACTER ENTERS THE WORLD ONLY WITH A CLAIMED NAME (2026-11-01-hero-creation.sql):
+  -- A CHARACTER ENTERS THE WORLD ONLY WITH A CLAIMED NAME (2026-11-02-hero-creation.sql):
   -- the answer still names the owned slots and the account limit, which the roster reads.
   if exists (select 1 from public.player_state where user_id = v_uid and slot = coalesce(p_slot, 0))
      and not exists (select 1 from public.character_names where user_id = v_uid and slot = coalesce(p_slot, 0)) then

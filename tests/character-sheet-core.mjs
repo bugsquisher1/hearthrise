@@ -50,7 +50,7 @@ async function rules(root) {
   const imp = (p) => import(pathToFileURL(join(root, p)).href);
   const P = await imp('src/core/progression.js');
   const S = await imp(SHEET);
-  const AC = await imp('supabase/functions/hr-accrue/accrual.js');
+  const AC = await imp('src/core/member.js');   // the bonus chain (moved from accrual.js, option B)
   const H = await imp('supabase/functions/hr-accrue/payload-hash.js');
   // CS-X1
   const cases = [{ allXP: 0, combatXP: 0 }, { allXP: 0.05, combatXP: 0.1 }, { allXP: 0.31, combatXP: 0 }, { allXP: 0, combatXP: 0.25 }];

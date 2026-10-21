@@ -35,10 +35,11 @@
 //                 left and destroyed when it closes
 // ════════════════════════════════════════════════════════════════════════
 
-import { SESSION_CONFIG } from './config.js?v=0.2.18';
-import { CharacterSession } from './character-session.js?v=0.2.18';
-import { TownPresence } from './town-presence.js?v=0.2.18';
-import { charLevelFromXp } from '../core/xp.js?v=0.2.18';
+import { SESSION_CONFIG } from './config.js?v=0.2.21';
+import { CharacterSession } from './character-session.js?v=0.2.21';
+import { TownPresence } from './town-presence.js?v=0.2.21';
+import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.21';
+import { charLevelFromXp } from '../core/xp.js?v=0.2.21';
 
 /** This tab's session id: made once per tab, kept across a reload, new for a new tab. */
 export function tabSessionId(tab, cfg = SESSION_CONFIG, make) {
@@ -68,6 +69,13 @@ export function heroOf(body) {
 function newIdem() {
   const c = globalThis.crypto;
   return c && typeof c.randomUUID === 'function' ? c.randomUUID() : Date.now() + '-' + Math.floor(Math.random() * 1e9);
+}
+
+/** Does a `hunt` section say the server holds a hunt OPEN? The section names the newest session
+    even after it ended (hr_hunt_section_view: `ended: true`), so its presence alone is not hunting:
+    a hero back from a hunt stands in town again. Pure. */
+function huntOpenIn(h) {
+  return !!h && typeof h === 'object' && typeof h.session_id === 'string' && h.ended !== true;
 }
 
 /** The owned slots an envelope's `hero_slots` names, bounded to the server's range. Pure. */
@@ -183,14 +191,33 @@ export class AccountSession {
       return { ok: false, reason };
     }
     cs.connect();
+    /* Playing = standing in town for everyone (Tyler 2026-10-19), viewed or not: a body from the
+       moment it opens (a reload or login too), at the town's arrival tile, while it is not hunting. */
+    const town = WORLD_MAPS.find((m) => m.id === SCENE_MAPS.town);
+    const arrival = town && town.start ? { map: town.id, x: town.start[0], y: town.start[1], gx: town.start[0], gy: town.start[1], dir: 's' } : null;
     this._towns.set(slot, new TownPresence({ server: this.server, slot, self: () => this.userId,
       hidden: (id) => !!(this.social && this.social.blocks && this.social.blocks.has(id)),
-      busy: () => !!cs.read('hunt'),
+      busy: () => huntOpenIn(cs.read('hunt')), arrival,
       timers: this._timers.setInterval ? { setTimer: this._timers.setInterval, clearTimer: this._timers.clearInterval } : null }));
+    this._towns.get(slot).stand();
     if (this.viewed === null) this.viewed = slot;
     this._emit('opened', slot);
     if (this.social) this.social.start();
     return { ok: true, session: cs };
+  }
+
+  /**
+   * Open the account's other characters (`slots`, the roster's existing ones) up to the server's
+   * limit, never changing the viewed one: everyone the account plays stands in town after a
+   * reload or login, not only the one on screen. Returns the slots now open.
+   */
+  async openOthers(slots) {
+    for (const slot of Array.isArray(slots) ? slots : []) {
+      if (!Number.isInteger(slot) || this._chars.has(slot)) continue;
+      if (this._chars.size >= this.limit()) break;
+      await this.open(slot);
+    }
+    return this.characters().map((c) => c.slot);
   }
 
   /**

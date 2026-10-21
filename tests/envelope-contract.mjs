@@ -158,7 +158,7 @@ function contract(R, cs, body, tl) {
   const ro = R.IS.roleOf(cs);
   need('role', !!ro && ro.weapon !== null && R.PS.roleIdOf(cs) === ro.id, 'roleOf yields ' + JSON.stringify(ro) + ' from ' + JSON.stringify(body.role));
   const inv = R.PS.invitesOf(cs);
-  need('party_invites', Array.isArray(inv) && inv.length === 1 && inv[0].from === SEED.inviter && inv[0].hunt !== null,
+  need('party_invites', Array.isArray(inv) && inv.length === 1 && inv[0].from === SEED.inviter && inv[0].hunt === (body.party_invites[0].hunt ?? null),
     'invitesOf yields ' + JSON.stringify(inv) + ' from ' + JSON.stringify(body.party_invites));
   /* The Services window's readers (src/session/item-sections.js). */
   const sr = R.IS.staminaRefillOf(cs);
@@ -174,6 +174,10 @@ function contract(R, cs, body, tl) {
   const of = R.CS.outfitOf(cs);
   need('outfit', !!of && of.owned.has('knight') && of.owned.has('witch'), 'outfitOf (a premium character) yields ' + JSON.stringify(of && [...of.owned]) + ' from ' + JSON.stringify(body.outfit));
   need('death_log', Array.isArray(R.CS.deathLogOf(cs)), 'deathLogOf reads no death_log: ' + JSON.stringify(body.death_log));
+  // the vitals strip out of a hunt (core rebuild `vitals`): max HP and mana, mana full in town
+  const tv = R.CS.townVitalsOf(cs);
+  need('vitals', !!tv && isNum(tv.hpMax) && isNum(tv.manaMax) && tv.mana === tv.manaMax && isNum(tv.level),
+    'townVitalsOf yields ' + JSON.stringify(tv) + ' from ' + JSON.stringify(body.vitals));
   return out;
 }
 
@@ -195,7 +199,7 @@ function sheetContract(R, cs, body) {
 export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events', 'hunt_server_now_ms', 'hunt_settings', 'hunt_analyzer',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'stamina_refill', 'blessings',
-  'character_sheet', 'outfit', 'death_log']);
+  'character_sheet', 'outfit', 'death_log', 'vitals']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -214,10 +218,9 @@ async function seedS2(db, M, H) {
   await ok(me, "select public.hr_loot_rule_set(0, $1, 'sell', gen_random_uuid())", [SEED.loot]);
   await ok(me, 'select public.hr_restock_set(0, $1::jsonb, gen_random_uuid())', [JSON.stringify({ [SEED.food]: SEED.target })]);
   await ok(me, 'select public.hr_hunt_preset_save(0, $1, $2, gen_random_uuid())', [SEED.preset, SEED.presetName]);
-  /* An invite to this character from another party's member, found by its name. */
+  /* An invite to this character, found by its name (the first invite makes the inviter's party). */
   await H.character(db, M, other, { inv: {} });
   await ok(other, 'select public.hr_character_name_set(0, $1, gen_random_uuid())', [SEED.inviter]);
-  await ok(other, "select public.hr_hunt_party_create(0, 'mill_cellar', gen_random_uuid())");
   await ok(other, 'select public.hr_hunt_party_invite(0, $1, gen_random_uuid())', [SEED.name]);
   await db.query("select set_config('request.jwt.claim.sub', '', true)");
 }
@@ -339,8 +342,8 @@ const DB_MUTANTS = [
   ['death_log', 'public.hr_death_log_view(uuid,integer)', "'monster', nullif(", "'killer', nullif("],
 ];
 const EDGE_MUTANTS = [
-  ['hunt_track', join(FN, 'hunt-track.js'), '    hunt_track: pb.steps.map(', '    track: pb.steps.map('],
-  ['hunt_server_now_ms', join(FN, 'hunt-track.js'), '    hunt_server_now_ms: Math.floor(', '    server_now_ms: Math.floor('],
+  ['hunt_track', 'src/core/hunt-track.js', '    hunt_track: pb.steps.map(', '    track: pb.steps.map('],
+  ['hunt_server_now_ms', 'src/core/hunt-track.js', '    hunt_server_now_ms: Math.floor(', '    server_now_ms: Math.floor('],
   ['character_sheet', join(FN, 'character-sheet.js'), '    damage: { min: 1, max: snap.maxHit },', '    dmg: { min: 1, max: snap.maxHit },'],
 ];
 

@@ -84,8 +84,8 @@
 // ============================================================================
 
 import {
-  DEFAULT_PROFILE, COMBAT_BALANCE,
-  equipmentStats, armorSetBonus, playerCombatRolls, weaknessInfo,
+  COMBAT_BALANCE,
+  equipmentStats, weaknessInfo,
 } from '../../../src/core/combat.js';
 /* THE ONE COMBAT LOOP (src/core/combat-sim.js simulateHuntInstance): a fight is a
    hunt instance, solo or party, priced only by accrueHunt below. */
@@ -116,6 +116,9 @@ import { huntFor } from '../../../src/core/hunt-spawn.js';
 import { newHuntSession } from '../../../src/core/action-rules.js';
 import { SUPPLIES } from '../../../src/data/supplies.js';
 import { seederFor } from './hunt-seed.js';
+/* THE MEMBER ASSEMBLY, the bonus chain and the weapon profile (src/core/member.js): shared with the
+   browser's live view of a hunt (option B, 2026-10-19). */
+import { memberSide, bonusFor, liveBuffHost } from '../../../src/core/member.js';
 /* THE INSTANCE WORLD a settle resumes and leaves (src/core/hunt/world-state.js),
    and the analyzer's tally of what each hero dealt, took and healed. */
 import { encode as encodeWorldRow, decode as decodeWorldRow } from '../../../src/core/hunt/world-state.js';
@@ -126,16 +129,9 @@ import { tallyEvents } from '../../../src/core/hunt/tally.js';
 import { accrueRestedXp as coreAccrueRested } from '../../../src/core/rested.js';
 import { grantXp, normaliseXpFrac, xpFracChanges } from '../../../src/core/progression.js';
 import { skillLevelFromXp, charLevelFromXp } from '../../../src/core/xp.js';
-/* THE CORE MODEL'S VITALS (docs/design/CORE_MODEL.md §3): max HP and mana from
-   Level and armour weight, the regen rate from Prayer; derived, never stored. */
-import { vitalsOf, wearsArmour } from '../../../src/core/vitals.js';
-import { HUNT_ROLES } from '../../../src/data/hunt-roles.js';
 /* THE PERMANENT PERK CHANNEL — the same module src/legacy.js getBonus is layer
    0 of. `makeBonus(perkState)` replaces `zeroBonus` at every site below. */
 import { makeBonus, EMPTY_PERKS } from '../../../src/core/perks.js';
-/* LAYER 1 — the equipped companion's passive bonus, summed on top of the fused
-   layer 0 by bonusFor below. Pure, draw-free, permanent-scope. */
-import { companionBonus } from '../../../src/core/companion-perk.js';
 /* LAYER 2 — THE TIMED CONSUMABLE QUEUE (2026-09-13). `buffQueueFromServer` is
    where the SERVER's absolute-`until` rows (player_state.buffs, projected as the
    envelope's `buffs` block) become the `remainingMs` shape the simulators drain;
@@ -153,8 +149,8 @@ import {
   /* Slice 1 (bestiary, per-monster kills) + Slice 2 (collection, per-item
      loot): siblings of the goal counter, fed from the SAME kill/loot seams the
      goal model reads. See their headers in src/core/goals.js. */
-  makeBestiaryCounter, bestiaryProgressOps,
-  makeCollectionCounter, collectionProgressOps,
+  bestiaryProgressOps,
+  collectionProgressOps,
   /* THE UTC DAY KEY. One definition — the Recovery ladder's `deaths` daily row
      must land under exactly the period key every other daily row lands under,
      or the free fall is anchored to a day nothing else agrees about. */
@@ -592,71 +588,6 @@ export const KIND_ACCRUERS = (() => {
    Named and exported so a test can assert the degrade path is genuinely inert
    rather than trusting a closure. */
 export function zeroBonus() { return 0; }
-
-/* The engine's bonus function for a given perk state. `null`/absent state →
-   EMPTY_PERKS → 0 for every key.
-
-   ⚠ TWO LAYERS, SUMMED — mirroring the client's getBonus chain exactly.
-   `makeBonus` is LAYER 0 (rooms/plots/property/renown), clamped by the
-   PERMANENT_CAP fuse because on the server that IS the whole layer-0 chain.
-   `companionBonus` is LAYER 1 — the equipped companion, added ON TOP of the
-   fused number precisely as src/features/companions.js wraps window.getBonus
-   with `v += cb[key]` AFTER the base returned. Folding the companion into
-   layer 0 would clamp (rooms + companion) together and disagree with the
-   client near the cap; keeping it a separate additive layer keeps the two
-   byte-identical. companionBonus draws NO rng and pays on AWAY_SCOPE.permanent
-   (true), so away and live share every seeded draw and AWAY-1 stays byte-for-
-   byte — a companion changes the totals, but away==live for the same setup.
-   EMPTY_PERKS carries no `companion`, so companionBonus returns 0 for every
-   key and this degrades to the pre-companion behaviour exactly. */
-export function bonusFor(perkState, buffHost, away) {
-  const base = makeBonus(perkState || EMPTY_PERKS);
-  const comp = companionBonus(perkState || EMPTY_PERKS);
-  /* ── LAYER 2 — THE TIMED CONSUMABLE QUEUE (2026-09-13) ───────────────────
-     A third additive layer, mirroring the client's getBonus chain, which asks
-     the buff queue after rooms and companions. It is read LIVE, through
-     `buffHost.buffs`, and that is the load-bearing part: the simulators DRAIN
-     the queue tick by tick (combat-sim `simulateSpan`, skill/artisan
-     `sliceSpan`) and REASSIGN `state.buffs` when they prune, so a captured
-     array would go stale exactly where a buff expires mid-absence — the b326
-     bug in reverse, paying a dead buff instead of freezing a live one.
-
-     `away` defaults to TRUE because every caller here is the accrual engine and
-     the accrual engine is the away path; `AWAY_SCOPE.buff` is open (a buff is
-     PERSONAL — Tyler, 2026-08-14), so the channel pays, and it drains in the
-     same breath because the two halves are one rule.
-
-     `buffHost` absent → this term is 0 for every key, which is byte-for-byte the
-     pre-2026-09-13 behaviour and the reason an Edge deployed against a database
-     with no `buffs` column pays nobody. */
-  const buffCtx = { away: away !== false };
-  if (!buffHost) return (key) => base(key) + comp(key);
-  return (key) => base(key) + comp(key) + buffBonusFor(buffHost.buffs, key, buffCtx);
-}
-
-/* THE LIVE VIEW a `bonusFor` layer-2 reads through. A getter, not the array:
-   see the reassignment note above. One idiom for all three activity builders so
-   the combat path and the gather/artisan paths cannot drift — and it works in
-   the two orders the builders happen to have (combat builds `state` before its
-   bonus, gather and artisan build the bonus first), because the getter is not
-   evaluated until the simulation asks for a key. */
-export function liveBuffHost(get) {
-  return { get buffs() { return get(); } };
-}
-
-/** The stat profile, derived from the equipped weapon family. Mirrors
-    legacy.js:7906 getCombatStatProfile, which reads the same weapon type. */
-export function deriveProfile(weaponType) {
-  if (weaponType === 'magic') {
-    return { type: 'magic', accuracySkill: 'magic', damageSkill: 'magic',
-             accuracyBonusField: 'magicAtkB', strengthBonusField: 'magicStrB' };
-  }
-  if (weaponType === 'ranged') {
-    return { type: 'ranged', accuracySkill: 'ranged', damageSkill: 'ranged',
-             accuracyBonusField: 'rangeAtkB', strengthBonusField: 'rangeStrB' };
-  }
-  return Object.assign({}, DEFAULT_PROFILE, { type: weaponType || 'sword' });
-}
 
 /* A finite, non-negative integer or the fallback. Used on every number that
    crosses into this engine from a database row — a NULL column, a bigint
@@ -1203,159 +1134,6 @@ function decodeWorld(stored) {
 }
 export function encodeWorld(world) { return JSON.stringify(encodeWorldRow(world)); }
 
-/* THE COMBAT SNAPSHOT a hero's unit carries (src/core/hunt/damage.js reads it):
-   accuracy (permille) and max hit against a ZERO-defence foe — the target's own
-   defence, element and stance are applied by damage.js hurt() at the blow —
-   and the hero's defence as a monster swing reads it. From server-owned gear
-   and skills, through the SAME combat.js functions every fight is priced by. */
-const NEUTRAL_FOE = Object.freeze({});
-export function heroSnapshot(state, c) {
-  const roll = playerCombatRolls(NEUTRAL_FOE, { eq: c.eq, equipment: c.equipment, items: c.items, skills: state.skills,
-    bonus: c.bonus, setBonus: c.setBonus, profile: c.profile });
-  const def = Math.floor((Number(levelsOf(state.skills).defense) || 1) + (Number(c.eq.defB) || 0) + (Number(c.bonus('defense')) || 0));
-  return { acc: Math.round(roll.accuracy * 1000), maxHit: Math.max(1, Math.floor(roll.maxHit)), def };
-}
-
-/* THE LOADOUT a hero fights with: the worn set's stats, its armour-set bonus
-   and the stat profile its weapon family reads, from server state. One assembly
-   for the hunt member and the character sheet (./character-sheet.js), so the
-   sheet shows the numbers a fight is priced by. There is no combat style to
-   pick: the weapon family is the style (CORE_MODEL.md §4). */
-export function loadoutOf(equipment, items) {
-  const eq = equipmentStats(equipment, items);
-  return { eq, setBonus: armorSetBonus(equipment, items), profile: deriveProfile(eq.weaponType) };
-}
-
-/* A member's vitals at its state NOW (src/core/vitals.js), into the state the engine reads. */
-function applyVitals(state, equipment, items) {
-  const v = vitalsOf({ levelXp: state.levelXp, skills: state.skills, equipment, items });
-  state.playerMaxHp = Math.max(state.playerMaxHp || 0, v.maxHp);
-  state.playerMaxMana = Math.max(state.playerMaxMana || 0, v.maxMana);
-  state.regenPm = v.regenPm;
-}
-
-/* ONE MEMBER'S SIDE OF THE SPAN: its state, its value sinks and the counters
-   its delta is built from. The fx handlers are the ONE set every fight's value
-   flows through (tests/goal-counters.mjs anchors them). */
-function memberSide(mi, ctx) {
-  const items = ctx.items;
-  const equipment = mi.equipment || {};
-  const { eq, setBonus, profile } = loadoutOf(equipment, items);
-  const skills0 = {};
-  for (const k in (mi.skills || {})) skills0[k] = nat(mi.skills[k], 0);
-  const levelXp0 = Math.floor(nat(mi.levelXp, 0));
-  const xpFrac0 = normaliseXpFrac(mi.xpFrac);
-  const state = {
-    playerHp: 0,
-    playerMaxHp: 0,
-    playerMaxMana: 0,
-    regenPm: 1000,
-    levelXp: levelXp0,                       // the character's Level XP (a COPY the death debits)
-    gold: 0,                                 // a DELTA accumulator (hr_apply's gold is a delta)
-    skills: { ...skills0 },                  // a COPY: grantXp mutates it
-    xpFrac: xpFrac0 ? { ...xpFrac0 } : undefined,
-    stats: {},
-    /* THE TIMED BUFF QUEUE, re-measured at every swing boundary (buffsAt below)
-       from the server's absolute rows, so a buff pays exactly while it runs
-       however the windows are cut (TICK-1). A hunt FIRES no buff (buff foods are
-       parked; food is HP, drink is mana): it only reads the queue. */
-    buffs: [],
-  };
-  applyVitals(state, equipment, items);
-  state.playerHp = Math.min(state.playerMaxHp, Math.max(0, nat(mi.hp, state.playerMaxHp)));
-  let levelGained = 0;
-  const buffRows = Array.isArray(mi.buffs) ? mi.buffs : [];
-  const bonus = bonusFor(mi.perks, liveBuffHost(() => state.buffs));
-  const goals = makeGoalCounter();
-  const bestiary = makeBestiaryCounter();
-  const collection = makeCollectionCounter();
-  const itemDelta = Object.create(null);
-  const events = [];
-  const xpGained = Object.create(null);
-  const finds = [];
-  const hs = newHuntSession(Object.assign({}, mi.huntSession, { tally: null, endedReason: null, endedAtMs: null,
-    /* THE PURSE a store supply is paid from: the character's gold as the server
-       projected it at the window start; kill coins join it as they drop. */
-    purse: nat(mi.gold, 0) }));
-  const fx = {
-    /* SKILL XP through the SHARED grant (perks, the carried remainder). A
-       Prayer level raises the regen rate from the next swing. */
-    addXp(skillId, amt) {
-      const before = Number(state.skills[skillId]) || 0;
-      grantXp(state, skillId, amt, { bonus, restedQuantum: 0, authored: false });
-      const applied = (Number(state.skills[skillId]) || 0) - before;
-      if (applied > 0) xpGained[skillId] = (xpGained[skillId] || 0) + applied;
-      hs.tally.xp[skillId] = (hs.tally.xp[skillId] || 0) + (Number(amt) || 0);
-      if (skillId === 'prayer' && applied > 0) applyVitals(state, equipment, items);
-    },
-    /* LEVEL XP: the kill share xp-share.js already split, whole (Level comes from
-       kills only). A Level raises max HP and max mana from the next swing. */
-    addLevelXp(amt) {
-      const n = Math.max(0, Math.floor(Number(amt) || 0));
-      if (!n) return;
-      const lv0 = charLevelFromXp(state.levelXp);
-      state.levelXp += n;
-      levelGained += n;
-      hs.tally.xp.level = (hs.tally.xp.level || 0) + n;
-      if (charLevelFromXp(state.levelXp) > lv0) applyVitals(state, equipment, items);
-    },
-    addItem(id, qty) {
-      const n = Math.floor(Number(qty) || 0);
-      if (!id || n <= 0) return;
-      itemDelta[id] = (itemDelta[id] || 0) + n;
-      hs.tally.loot[id] = (hs.tally.loot[id] || 0) + n;
-      /* Loot the session may sell to cover a store charge joins the pool as it drops. */
-      if (hs.cover[id]) hs.cover[id].avail += n;
-      collection.record(id, n);
-    },
-    /* The coins a kill drops are in the purse at once: a store use later in the
-       same window may spend them (the database credits them in the same settle,
-       before the buys are debited). */
-    onLoot(gp) {
-      const g = Math.max(0, Math.floor(Number(gp) || 0));
-      hs.tally.coins += g;
-      hs.purse = Math.max(0, Math.floor(Number(hs.purse) || 0)) + g;
-    },
-    onDrop(ev) { if (ev && ev.rare) events.push({ type: 'rare_drop', item: ev.id }); },
-    /* THE HEARTHFIND: a CLAIM; hr_apply re-derives everything about it. */
-    onHearthfind(f) { if (f && f.item) finds.push({ item: f.item, source_kind: f.kind, source_id: f.id }); },
-    /* THE GOAL / BESTIARY COUNTERS, fed from the kill seams (kept separate:
-       one aggregate, one per-monster count, never double-counted). */
-    updateDaily(type, amt) { goals.daily(type, amt == null ? 1 : amt); },
-    updateQuest(type, amt, meta) {
-      goals.quest(type, amt == null ? 1 : amt);
-      bestiary.record(type, amt == null ? 1 : amt, meta);
-    },
-  };
-  const h = mi.hero || {};
-  const snapCtx = { eq, equipment, items, bonus, setBonus, profile };
-  /* THE ENGINE SEAM a blow is priced through (tests/trophy-call-sites.mjs lifts
-     and executes these two lines): the hero's rolls AGAINST the monster it
-     swings at — accuracy over the monster's defence and the weapon weakness —
-     and the weakness the drops and damage read. */
-  const rollsVs = (m) => playerCombatRolls(m, { eq, equipment, items, skills: state.skills, bonus, setBonus, profile });
-  const weakness = (m) => weaknessInfo(m, eq);
-  /* ⟦end engine seam⟧ */
-  return {
-    mi, hs, state, fx, eq, skills0, levelXp0, levelGained: () => levelGained, xpFrac0, catalogue: items, goals, bestiary, collection, itemDelta, events, xpGained, finds,
-    member: {
-      key: mi.key, seat: mi.seat, unitId: Number.isInteger(mi.unitId) ? mi.unitId : null, hs, state, fx,
-      /* THE XP ROUTE INPUTS (hunt-rewards.js): the weapon family, whether any armour
-         is worn (Defense trains only then) and whether the hero holds a shield. */
-      family: eq.weaponType,
-      armoured: wearsArmour(equipment, items),
-      shield: !!(HUNT_ROLES[h.role] && HUNT_ROLES[h.role].discipline === 'shield'),
-      buffsAt: (atMs) => { state.buffs = buffQueueFromServer(buffRows, atMs); },
-      bonus, weakness, rollsVs,
-      snapshot: (st) => heroSnapshot(st, snapCtx),
-      hero: { role: h.role, element: h.element || '', settings: h.settings || null,
-        slots: h.slots || [], stopRules: h.stopRules || [], density: h.density || 0,
-        actionSet: h.actionSet || 'hunt', range: h.range || 1, ammo: equipment.ammo || null,
-        foodBelowPct: h.foodBelowPct, drinkBelowPct: h.drinkBelowPct },
-    },
-  };
-}
-
 /* THE ANALYZER TALLY of one member's hero (src/core/hunt/tally.js): what it
    dealt, took and healed, by ability / element / monster. Display stats the
    database stores with the session; every VALUE number of the analyzer comes
@@ -1420,7 +1198,7 @@ export function accrueHunt(inp) {
     worldSwingFrom, worldSwingTo: sim.world ? sim.world.swing : worldSwingFrom,
     settledTo: sim.nextSwingAtMs,
     tickMs,
-    track: sim.track, events: sim.events,
+    track: sim.track, events: sim.events, units: sim.units,
     members: out,
   };
 }
@@ -2591,12 +2369,6 @@ function roundCarry(carry) {
   return out;
 }
 
-/** Derived levels for the envelope, so the client never computes one. */
-export function levelsOf(skills) {
-  const out = {};
-  for (const k in (skills || {})) out[k] = skillLevelFromXp(k, Number(skills[k]) || 0);
-  return out;
-}
 
 // ============================================================================
 // THE HIRED-WORKER ACCRUAL — the settlement slice that lets the inventory flip

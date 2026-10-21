@@ -121,7 +121,7 @@ export const WORLD_FIELDS_READ = Object.freeze({
 });
 /* 2026-10-30 is APPLIED history; the practice kit's weapons (hr_hunt_weapons: the hatchets play
    'axe' = Melee DPS) start 2026-11-01 (lane b-hero-creation). */
-export const OUT_NAME = '2026-11-01-hunt-sessions-catalogue.generated.sql';
+export const OUT_NAME = '2026-11-02-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

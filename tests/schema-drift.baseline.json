@@ -6,8 +6,8 @@
   "schema change was intended — the diff of this file is the review surface.",
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
- "generated": "2026-10-20",
- "digest": "a36c9eba3a6716682ee9b7bbbae0267224b5666c32262a2e2b61ebb164690dbf",
+ "generated": "2026-10-21",
+ "digest": "63a7f5993a542ea020cf258efbcb193e96705c3ae8261b85716004ae0dd1175a",
  "counts": {
   "relations": 213,
   "functions": 519,
@@ -474,6 +474,7 @@
    "hr_hunt_leave(p_slot integer, p_idem uuid)",
    "hr_hunt_ledger_pair(p_user uuid, p_slot integer, p_from_session uuid, p_to_session uuid, p_item text, p_qty bigint, p_intent text)",
    "hr_hunt_limit(p_key text)",
+   "hr_hunt_live_horizon_at(p_settled_to timestamp with time zone)",
    "hr_hunt_lock(p_user uuid, p_slot integer)",
    "hr_hunt_loot_rules(p_user uuid, p_slot integer, p_session uuid, p_intent uuid, p_items jsonb, p_at timestamp with time zone)",
    "hr_hunt_member_read(p_s hunt_sessions)",
@@ -481,7 +482,6 @@
    "hr_hunt_open_of(p_user uuid, p_slot integer)",
    "hr_hunt_open_session(p_user uuid, p_slot integer, p_hunt text, p_prev uuid, p_preset integer, p_hours integer, p_instance uuid, p_from timestamp with time zone, p_seat integer)",
    "hr_hunt_party_accept(p_slot integer, p_invite uuid, p_idem uuid)",
-   "hr_hunt_party_create(p_slot integer, p_hunt text, p_idem uuid)",
    "hr_hunt_party_decline(p_slot integer, p_invite uuid, p_idem uuid)",
    "hr_hunt_party_disband(p_slot integer, p_idem uuid)",
    "hr_hunt_party_finder(p_slot integer, p_hunt text, p_weapon text)",

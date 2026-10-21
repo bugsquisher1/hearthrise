@@ -12,21 +12,24 @@
 .hw-cs canvas { image-rendering: pixelated; }
 
 /* ── The Character tab ── */
-.hw-cs-who { display: flex; align-items: center; gap: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--line-soft); }
+.hw-cs-who { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px 10px; padding-bottom: 8px; border-bottom: 1px solid var(--line-soft); }
 .hw-cs-portrait { flex: none; width: 64px; height: 64px; background: var(--bg-1); box-shadow: var(--hw-well); }
-.hw-cs-id { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.hw-cs-id { flex: 1 1 170px; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .hw-cs-name { font-family: var(--f-label); font-size: var(--t-lead); color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hw-cs-role, .hw-cs-level { font-size: var(--t-micro); color: var(--ink-2); }
-.hw-cs-level { display: none; align-items: center; gap: 6px; color: var(--gold-2); font-variant-numeric: lining-nums tabular-nums; }
+.hw-cs-level { display: none; flex-wrap: wrap; align-items: center; gap: 2px 6px; color: var(--gold-2); font-variant-numeric: lining-nums tabular-nums; }
 .hw-cs-level.is-on { display: flex; }
-.hw-cs-level .hw-skill-bar { max-width: 96px; }
+.hw-cs-level .hw-skill-bar { flex: 1 1 64px; max-width: 120px; }
+.hw-cs-lvxp { flex-basis: 100%; }
 .hw-cs-lvxp { color: var(--ink-3); }
-.hw-cs-vitals { flex: none; display: grid; grid-template-columns: auto auto; gap: 0 12px; margin: 0; }
+/* Container-aware: the vitals take the row beside the identity while it fits, else wrap under it;
+   their own columns fall from two to one as the space narrows. Never drawn over the identity. */
+.hw-cs-vitals { flex: 1 1 260px; min-width: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0 12px; margin: 0; }
 .hw-cs-line { display: none; justify-content: space-between; gap: 8px; min-height: 22px; align-items: baseline; }
 .hw-cs-line.is-on { display: flex; }
 .hw-cs-line dt { font-size: var(--t-micro); color: var(--ink-3); }
 .hw-cs-line dd { margin: 0; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; text-align: right; }
-.hw-cs-vitals .hw-cs-line { justify-content: flex-start; }
+.hw-cs-vitals .hw-cs-line { justify-content: flex-start; flex-wrap: wrap; column-gap: 6px; min-width: 0; }
 .hw-cs-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; margin-top: 6px; }
 .hw-cs-col { min-width: 0; }
 .hw-cs-head { display: none; margin: 8px 2px 2px; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
@@ -82,7 +85,6 @@
 .hw-dl-row.is-open .hw-dl-more { display: block; }
 
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
-  .hw-cs-who { flex-wrap: wrap; }
   .hw-cs-vitals { flex-basis: 100%; }
   .hw-cs-cols { grid-template-columns: 1fr; }
   .hw-cs-outfit { grid-template-columns: 1fr; }

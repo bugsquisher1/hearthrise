@@ -39,17 +39,17 @@
 // window, no timers, no Math.random.
 // ============================================================
 
-import { COMBAT_BALANCE } from './combat.js?v=0.2.18';
-import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.18';
-import { createRng } from './rng.js?v=0.2.18';
-import { densityFor } from '../data/hunt-grounds.js?v=0.2.18';
-import { stepSwing } from './hunt/world-step.js?v=0.2.18';
-import { makeEvent } from './hunt/events.js?v=0.2.18';
-import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.18';
-import { rewardSwing } from './hunt-rewards.js?v=0.2.18';
+import { COMBAT_BALANCE } from './combat.js?v=0.2.21';
+import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.21';
+import { createRng } from './rng.js?v=0.2.21';
+import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.21';
+import { stepSwing } from './hunt/world-step.js?v=0.2.21';
+import { makeEvent, trackStep } from './hunt/events.js?v=0.2.21';
+import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.21';
+import { rewardSwing } from './hunt-rewards.js?v=0.2.21';
 
 /* The engine's front door (src/core/index.js `combatSim`). */
-export { stepSwing } from './hunt/world-step.js?v=0.2.18';
+export { stepSwing } from './hunt/world-step.js?v=0.2.21';
 
 /* WHY A COMBAT SPAN STOPPED BEFORE THE WINDOW DID — the same contract
    src/core/skill-sim.js and src/core/artisan-sim.js publish under this name.
@@ -66,6 +66,10 @@ function seedOf(ctx, domain, index) {
   }
   return v;
 }
+
+/* The pull's pick of these members: the party leader's (hunt-grounds.js partyPick). The SAME call on
+   the server's settle and the browser's live view (a peer's `hero` carries `lead`, member.js FROZEN_KEYS). */
+const picker = (ms) => partyPick(ms.map((x) => ({ density: x.hero.density, lead: x.hero.lead === true, seat: x.seat })));
 
 /* A member's hero, as world-state wants it, from the member's server state. */
 function heroOf(m) {
@@ -151,13 +155,23 @@ export function simulateHuntInstance(inst, ctx) {
   const members = inst.members;
   let world = inst.world || null;
   let atMs = Math.floor(Number(inst.nextSwingAtMs));
+  const startMs = atMs;
   const out = new Map(members.map((m) => [m.key, { ticks: 0, kills: 0, deaths: 0, deathLog: [],
     xpLost: {}, events: [], killsBefore: m.hs.tally.kills, unitEver: m.unitId }]));
   const track = []; const worldEvents = [];
   /* Every unit's kind as it was seen (a corpse is cleared after corpseMs): the analyzer's 'taken by monster'. */
   const kinds = {};
-  const seen = () => { if (world) for (const u of world.units) kinds[u.id] = u.kind; };
+  /* THE PLAYBACK'S UNIT BOOK (visual only, never value): each unit (monster or hero) seen this window as
+     [kind, maxHp, hp when first seen] (the window's start, or its spawn), so the client names,
+     sizes and fills the bar of a unit it first meets mid-window or after the snapshot stopped
+     listing it (a corpse played behind the server); the window's dmg/heal events move the bar. */
+  const units = {};
+  const seen = () => { if (world) for (const u of world.units) { kinds[u.id] = u.kind; if (!units[u.id]) units[u.id] = [u.kind, u.maxHp, u.hp]; } };
   seen();
+  /* ANCHORS (visual only): every unit standing at the window's first instant gets a step on its
+     tile, so a unit that never moves inside a window is still placed by it (the track is moves). */
+  const anchor = (at) => { if (world) for (const u of world.units) if (u.alive) track.push(trackStep(u.id, u.x, u.y, at)); };
+  anchor(atMs);
   let swings = 0;
   for (const m of members) {
     m.left = !!m.hs.endedReason;
@@ -184,16 +198,29 @@ export function simulateHuntInstance(inst, ctx) {
       m.hs.nextSwingAtMs = atMs + tick;
       if (m.unitId === null) {
         if (!world) {
-          world = newHuntWorld(ctx.ground, ctx.grid, [heroOf(m)]);
+          /* The first packs spawn at the ENTERING party's density (its leader's pick, clamped for their
+             number), the same number every respawn reads below, never the first hero's pick alone. */
+          const standing = members.filter((x) => !x.left);
+          world = newHuntWorld(ctx.ground, ctx.grid, [heroOf(m)],
+            { density: densityFor(ctx.ground, standing.length, picker(standing)) });
           /* A restarted instance's fresh world counts on from its stored swing (the seed index never repeats). */
           world.swing = Math.max(0, Math.floor(Number(inst.worldSwing) || 0));
-          m.unitId = world.units[0].id;
+          m.unitId = world.units[0].id; anchor(atMs); seen();
+        } else {
+          m.unitId = joinHero(world, ctx.ground, heroOf(m), m.seat);
+          const j = world.units.find((x) => x.id === m.unitId);
+          if (j) track.push(trackStep(j.id, j.x, j.y, atMs));
         }
-        else m.unitId = joinHero(world, ctx.ground, heroOf(m), m.seat);
         out.get(m.key).unitEver = m.unitId;
       }
       here.push(m);
     }
+    /* The last member ended at this boundary: the instance stops HERE, the world unstepped, exactly
+       where a window cut at the end leaves it (the end stamped after the loop) — TICK-1, BOTH-PATH.
+       An end met at a window's FIRST boundary (a clock end: stamina, hours, a leave, the kill
+       switch) still steps once, so no window is empty (hr_hunt_apply refuses `bad_window`); the
+       flagged ends (a death, gold out, a stop rule) are stamped after the loop and never meet it. */
+    if (!members.some((m) => !m.left) && atMs > startMs) break;
     const byUnit = new Map();
     for (const m of here) {
       const u = world.units.find((x) => x.id === m.unitId);
@@ -217,10 +244,10 @@ export function simulateHuntInstance(inst, ctx) {
           range: m.hero.range, rollsVs: m.rollsVs, ammo: m.hero.ammo, items: ctx.items || null,
           foodBelowPct: m.hero.foodBelowPct, drinkBelowPct: m.hero.drinkBelowPct };
       }
-      /* MONSTER DENSITY for the packs that spawn from here: the standing members' smallest
-         pick, clamped to the ground for the party's size (hunt-grounds.js densityFor). */
+      /* MONSTER DENSITY for the packs that spawn from here: the party leader's pick (Tyler 2026-10-20),
+         clamped to the ground for the party's size (hunt-grounds.js partyPick, densityFor). */
       world.density = densityFor(ctx.ground, world.units.filter((u) => u.side === 'hero').length,
-        members.filter((m) => !m.left && m.unitId !== null).map((m) => m.hero.density));
+        picker(members.filter((m) => !m.left && m.unitId !== null)));
       const r = stepSwing(world, { atMs, swingMs: tick, rng: createRng(seedOf(ctx, 's', sw)),
         ground: ctx.ground, grid: ctx.grid, heroes, ...(typeof ctx.xpMultOf === 'function' ? { xpMultOf: ctx.xpMultOf } : {}) });
       seen();
@@ -270,5 +297,5 @@ export function simulateHuntInstance(inst, ctx) {
       unitIdEver: o.unitEver,
     };
   }
-  return { world, nextSwingAtMs: atMs, swings, track, events: worldEvents, kinds, members: summaries };
+  return { world, nextSwingAtMs: atMs, swings, track, events: worldEvents, kinds, units, members: summaries };
 }

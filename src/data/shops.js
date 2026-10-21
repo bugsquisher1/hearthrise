@@ -56,8 +56,8 @@
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPPLY_SHOP_OFFERS } from './supply-basics.js?v=0.2.18';
-import { ITEMS } from './items.js?v=0.2.18';
+import { SUPPLY_SHOP_OFFERS } from './supply-basics.js?v=0.2.21';
+import { ITEMS } from './items.js?v=0.2.21';
 
 export const SHOPS_DIGEST = "3dd62b831e08bf6b8180fdfa08e203c68eea083199dfdb44a4082ccd36552e07";
 

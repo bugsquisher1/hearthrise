@@ -6,7 +6,7 @@
 // screen either way, because nothing was changed before the server answered.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.18';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.21';
 
 const WORDS = Object.freeze({
   rate_limited: 'Too many changes at once. Try again in a moment.',

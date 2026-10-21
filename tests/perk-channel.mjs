@@ -53,7 +53,8 @@ import {
   normalisePerkState, permanentBonus, makeBonus, clampPermanent, restedPayload,
 } from '../src/core/perks.js';
 import { burnChance, BURN_BASE } from '../src/core/artisan.js';
-import { zeroBonus, bonusFor, computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
+import { zeroBonus, computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
+import { bonusFor } from '../src/core/member.js';
 import { huntAccrual } from './hunt-fixture.mjs';
 /* Lane C2: combat accrues only on a hunt session (a pointer-only night answers
    hunt_required), so every P9 night runs as a training hunt on its monster with

@@ -49,7 +49,7 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
 /* THE PRACTICE KIT (lane b-hero-creation, 2026-10-20): 2026-10-27-core-catalogue.generated.sql is APPLIED
    history; the nine practice_* items and the start kit that grants them (every starter weapon set) land in
    this forward file, the same full delete+insert replace. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2026-11-01-hero-kit-catalogue.generated.sql');
+const OUT = join(ROOT, 'supabase', 'migrations', '2026-11-02-hero-kit-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already

@@ -13,6 +13,13 @@
 //   metrics-misc      target_is_boss, item_qty, effect_missing
 //   stop-rule         a stop rule ends the hunt `rule` only after holding forMs; a break resets the hold
 //   density           the pick is clamped to the ground for the party size; density 2 doubles the pack, deterministically
+//   density-pull      the pick is the pull size: a Thicket settle at 7 spawns 7 a pack solo; in a party the LEADER's pick
+//                     is the pull (Tyler 10-20: "a party leader that chooses the hunt settings"): a leader at 7 beside a
+//                     member at 0 / 3 spawns 7, in either seat order; the member's pick never counts
+//   density-laps      Andy 10-20 ("second lap on 8x and there's only 2 mobs"): a duo, its leader at 8 and the member
+//                     never picked, runs 3+ laps of the Thicket on the real settle; EVERY spawn, the first packs and
+//                     every respawn, is a pack of 8, never the room as built; the box's ring of 8 never walls the leader
+//                     off the pull tile (it pulls from the ring's edge)
 //   party-scale       a pack spawns at the party scale's HP for the instance's size
 //   healer-floor      a solo Healer's blow into an immunity lands at the floor; a duo's does not
 //   party-acceptance  a 4-party (Knight, Ranger, Druid, Sorcerer) on one instance: the Ranger switches 5x5 / 3x3 by
@@ -49,11 +56,12 @@ async function load(root) {
   M.SUP = await imp('src/data/supplies.js');
   M.kit = await imp('src/data/start-kit.js');
   M.acc = await raw('supabase/functions/hr-accrue/accrual.js');
-  M.hg = await raw('supabase/functions/hr-accrue/hunt-ground.js');
+  M.hg = await raw('src/core/hunt-ground.js');
   M.heroSetup = (await raw('src/core/hunt-spawn.js')).heroSetup;
   /* The WEAPON_ROLES key an item plays (a magic weapon by its discipline), as the settle reads it (hunt-settle.js). */
   M.roleWeaponOf = (await raw('src/data/hunt-roles.js')).roleWeaponOf;
   M.drops = await imp('src/core/drops.js');
+  M.XP = await imp('src/core/xp.js');
   M.hf = await imp('src/core/hearthfind.js');
   return M;
 }
@@ -145,19 +153,28 @@ function runParty(M, cuts, o) {
 
 /* A FRESH CHARACTER on the REAL settle (accrueHunt) at a real ground: the start kit's skills and food, a staff. */
 function freshHealer(M, huntId, minutes, seed, options, element) {
+  return freshParty(M, huntId, minutes, seed, [options], element);
+}
+/* The same fresh start-kit Healer, one per entry of `optionsList` (each its own stored options, as
+   hr_hunt_member_read hands the settle player_action_sets.options), on ONE instance through the real settle. */
+function freshParty(M, huntId, minutes, seed, optionsList, element) {
   const { ground, grid } = M.hg.huntGroundOf(huntId);
-  const hero = M.heroSetup({ weaponType: M.roleWeaponOf(M.ITEMS.apprentice_staff), options: Object.assign({ role: 'healer' }, options || {}), bar: [], partyRoles: [] });
   const from = T0; const to = from + minutes * 60000;
   const food = Object.keys(M.kit.START_INVENTORY).find((id) => M.SUP.SUPPLIES[id] && M.SUP.SUPPLIES[id].kind === 'heal');
-  const member0 = { key: 'h', user: 'u', slot: 0, seat: 0, unitId: null, sessionId: 's', version: 1, huntId,
-    huntSession: { id: 's', instanceId: 'i', huntFromMs: from, nextSwingAtMs: from, swingIndex: 0, onEmpty: 'switch',
-      bag: { [food]: { loaded: M.kit.START_INVENTORY[food] }, air_rune: { loaded: M.kit.START_INVENTORY.air_rune } },
-      staminaMs: 8 * 3600000, staminaMaxMs: 8 * 3600000 },
-    skills: Object.assign({}, M.kit.START_SKILL_XP), levelXp: 0, hp: M.kit.START_CURRENCY.hp, gold: M.kit.START_CURRENCY.gold,
-    equipment: { weapon: 'apprentice_staff', ammo: 'air_rune' }, inventory: {}, hero: Object.assign({}, hero, { element: element || '' }) };
+  const members = optionsList.map((options, i) => {
+    /* `lead` marks the party leader, as hunt-settle.js reads hr_hunt_instance_read `leads` */
+    const hero = M.heroSetup({ weaponType: M.roleWeaponOf(M.ITEMS.apprentice_staff), options: Object.assign({ role: 'healer' }, options || {}), bar: [], partyRoles: [],
+      lead: !!(options && options.lead) });
+    return { key: 'h' + (i || ''), user: 'u', slot: i, seat: i, unitId: null, sessionId: 's' + i, version: 1, huntId,
+      huntSession: { id: 's' + i, instanceId: 'i', huntFromMs: from, nextSwingAtMs: from, swingIndex: 0, onEmpty: 'switch',
+        bag: { [food]: { loaded: M.kit.START_INVENTORY[food] }, air_rune: { loaded: M.kit.START_INVENTORY.air_rune } },
+        staminaMs: 8 * 3600000, staminaMaxMs: 8 * 3600000 },
+      skills: Object.assign({}, M.kit.START_SKILL_XP), levelXp: 0, hp: M.kit.START_CURRENCY.hp, gold: M.kit.START_CURRENCY.gold,
+      equipment: { weapon: 'apprentice_staff', ammo: 'air_rune' }, inventory: {}, hero: Object.assign({}, hero, { element: element || '' }) };
+  });
   const secret = String(BigInt.asIntN(64, BigInt(seed) * 2654435761n + 1n));
   const out = M.acc.accrueHunt({ instance: { id: '00000000-0000-4000-8000-0000000000ae', nextSwingAtMs: from, world: null },
-    window: { fromMs: from, toMs: to }, secret, ground, grid, items: M.ITEMS, monsters: M.MONSTERS, members: [member0] });
+    window: { fromMs: from, toMs: to }, secret, ground, grid, items: M.ITEMS, monsters: M.MONSTERS, members });
   return out;
 }
 
@@ -465,8 +482,8 @@ const cases = {
   },
   density: (M) => {
     const g = M.grounds.HUNT_GROUNDS.millrace_sewer;
-    const got = [M.grounds.densityFor(g, 1, [16]), M.grounds.densityFor(g, 3, [16]), M.grounds.densityFor(g, 4, [12, 9]), M.grounds.densityFor(g, 1, [])].join();
-    if (got !== '8,10,9,0') return 'densityFor answered ' + got + ' (want an over-max pick clamped to 8 solo, 10 for three; a party takes its smallest pick; none = as built)';
+    const got = [M.grounds.densityFor(g, 1, 16), M.grounds.densityFor(g, 3, 16), M.grounds.densityFor(g, 4, 9), M.grounds.densityFor(g, 1, 0)].join();
+    if (got !== '8,10,9,0') return 'densityFor answered ' + got + ' (want an over-max pick clamped to 8 solo, 10 for three; a pick under the max kept; none = as built)';
     for (const row of Object.values(M.grounds.HUNT_GROUNDS)) {
       if (!row.densityMax || row.densityMax.some((v) => v < M.grounds.DENSITY_FULL_BOX)) return row.id + ' allows less than a full box: ' + row.densityMax;
     }
@@ -611,6 +628,65 @@ const cases = {
     if (w.density !== max) return 'the settle ran density ' + w.density + ' for a stored 16 on a solo sewer hunt (max ' + max + ')';
     return born.every((n) => n <= max) && born[1] === max ? null : 'packs spawned ' + born + ', want at most ' + max + ' and a full pocket 1';
   },
+  /* Tyler 2026-10-20 (Meadowbrook, "7 each", "only like 2 mobs per pull"): his pick of 7 sat beside a
+     partner character who never touched the step (no stored density = 0, as built), and the party's
+     smallest pick made every pull the room's 2-3. The pick is the PULL SIZE: a settle at 7 on the
+     Thicket spawns 7 a pack. Then (Tyler 2026-10-20): "There should be a party leader that chooses the
+     hunt settings": in a party the LEADER's pick is the pull; a member's (unset, 0 or 3) never counts. */
+  'density-pull': (M) => {
+    const g = M.grounds.HUNT_GROUNDS.meadowbrook_thicket;
+    const packs = (opts) => {
+      const w = M.worldstate.decode(JSON.parse(freshParty(M, 'meadowbrook_thicket', 0.25, 3, opts).world));
+      return { d: w.density, born: g.pockets.map((_, p) => w.units.filter((u) => u.side === 'mon' && u.pocket === p).length) };
+    };
+    /* the packs the window never reached stand at their spawn size (the first pocket may be mid-fight) */
+    const at = (r, n) => r.d === n && r.born.every((k) => k <= n) && r.born.filter((k) => k === n).length >= g.pockets.length - 1;
+    const solo = packs([{ density: 7 }]);
+    if (!at(solo, 7)) return 'a solo settle at density 7 on the Thicket ran ' + solo.d + ' with packs of ' + solo.born;
+    /* Tyler's seat order: the member who never picked is member 0, the one that opens the world */
+    const unset = packs([{}, { density: 7, lead: true }]);
+    if (!at(unset, 7)) return 'a leader at 7 beside a member who never picked ran ' + unset.d + ' with packs of ' + unset.born + ' (want 7 a pack)';
+    const zero = packs([{ density: 7, lead: true }, { density: 0 }]);
+    if (!at(zero, 7)) return 'a leader at 7 beside a member at As built ran ' + zero.d + ' with packs of ' + zero.born;
+    const three = packs([{ density: 3 }, { density: 7, lead: true }]);
+    if (!at(three, 7)) return 'a leader at 7 beside a member at 3 ran ' + three.d + ' with packs of ' + three.born + ' (the leader chooses, Tyler 10-20)';
+    const member = packs([{ density: 7 }, { density: 3, lead: true }]);
+    if (!at(member, 3)) return 'a leader at 3 beside a member at 7 ran ' + member.d + ' with packs of ' + member.born + ' (a member\'s pick never counts)';
+    const built = packs([{ density: 7 }, { lead: true }]);
+    return built.d === 0 ? null : 'a leader at As built beside a member at 7 ran density ' + built.d + ', want 0 (as built)';
+  },
+  'density-laps': (M) => {
+    const { ground, grid } = M.hg.huntGroundOf('meadowbrook_thicket');
+    const from = T0; const to = from + 30 * 60000;
+    const L = 40;
+    /* Two strong heroes: seat 0 the LEADER at 8, seat 1 never touched the step (no stored density). */
+    const members = [['tank', 'bronze_sword', 'sword', { density: 8 }, true], ['melee_dps', 'stone_maul', 'hammer', {}, false]].map(([role, weapon, wt, options, lead], i) => ({
+      key: 'l' + i, user: 'u' + i, slot: 0, seat: i, unitId: null, sessionId: 's' + i, version: 1, huntId: 'meadowbrook_thicket',
+      huntSession: { id: 's' + i, instanceId: 'i', huntFromMs: from, nextSwingAtMs: from, swingIndex: 0, onEmpty: 'switch', bag: {},
+        staminaMs: 8 * 3600000, staminaMaxMs: 8 * 3600000 },
+      skills: { melee: M.XP.skillXpForLevel('melee', L), defense: M.XP.skillXpForLevel('defense', L), ranged: 0, magic: 0, prayer: 0 },
+      levelXp: M.XP.charXpForLevel(L), hp: 1e6, gold: 0, equipment: { weapon }, inventory: {},
+      hero: M.heroSetup({ weaponType: wt, options: Object.assign({ role }, options), bar: [], partyRoles: ['tank', 'melee_dps'], lead }) }));
+    const out = M.acc.accrueHunt({ instance: { id: '00000000-0000-4000-8000-0000000000af', nextSwingAtMs: from, world: null },
+      window: { fromMs: from, toMs: to }, secret: '77', ground, grid, items: M.ITEMS, monsters: M.MONSTERS, members });
+    const w = M.worldstate.decode(JSON.parse(out.world));
+    if (w.runs < 3) return 'the duo ran ' + w.runs + ' lap(s) in 30 min, the test needs 3';
+    const respawns = out.events.filter((e) => e.type === 'respawn');
+    if (respawns.length < 2 * ground.pockets.length) return 'only ' + respawns.length + ' respawns in 3 laps';
+    /* The units the first world opened with (the leader and its first packs) and the heroes are not respawns. */
+    const opened = M.spawn.newHuntWorld(ground, grid, [{ role: 'tank', maxHp: 200, acc: 1000, maxHit: 12, def: 0 }], { density: 8 });
+    const heroIds = new Set(w.units.filter((u) => u.side === 'hero').map((u) => u.id));
+    /* every respawn instant: the monsters first placed at it (a respawn places each by the track) number 8 per pocket */
+    const first = new Map();
+    for (const s of out.track) if (!first.has(s.u) && s.u >= opened.nextId && !heroIds.has(s.u)) first.set(s.u, s.atMs);
+    const at = new Map();
+    for (const e of respawns) at.set(e.atMs, (at.get(e.atMs) || 0) + 1);
+    for (const [ms, pockets] of at) {
+      const born = [...first.values()].filter((x) => x === ms).length;
+      if (born !== 8 * pockets) return 'lap respawn at +' + (ms - from) + ' ms brought ' + born + ' monster(s) for ' + pockets + ' pocket(s), want 8 each (the leader\'s 8)';
+    }
+    return w.density === 8 ? null : 'the world ran density ' + w.density + ', want the leader\'s 8';
+  },
   'sql-rows': (M) => {
     let sql;
     try { sql = readFileSync(join(M.root, MIGRATION), 'utf8'); } catch { return MIGRATION + ' is missing'; }
@@ -666,8 +742,8 @@ const mutants = [
   { name: 'a wait is reported every sub-step', case: 'rule-wait', edits: [['src/core/hunt/conditions.js', '  if (cur[lane] === key) return;\n', '']] },
   { name: 'a stop rule ignores its hold', case: 'stop-rule', edits: [['src/core/hunt/conditions.js', '      if (t.pass && hold[r.id] >= int(r.forMs)) {', '      if (t.pass) {']] },
   { name: 'the span never ends a met stop rule', case: 'stop-rule-span', edits: [['src/core/combat-sim.js', " || typeof m.hs.ruleStop === 'string' ||", ' ||'], ['src/core/action-rules.js', "  rule: (hs) => typeof hs.ruleStop === 'string' && hs.ruleStop.length > 0,", '  rule: () => false,']] },
-  { name: 'the density pick is not clamped', case: 'density', edits: [['src/data/hunt-grounds.js', '  return Math.max(0, Math.min(max, pick, DENSITY_PICK.max));', '  return Math.max(0, Math.min(pick, DENSITY_PICK.max));']] },
-  { name: 'density does not reach the pack', case: 'density', edits: [['src/core/hunt/pull-cycle.js', '  const size = want > 0 ? want : pocket.spawns.length;', '  const size = pocket.spawns.length;']] },
+  { name: 'the density pick is not clamped', case: 'density', edits: [['src/data/hunt-grounds.js', '  return Math.max(0, Math.min(max, p, DENSITY_PICK.max));', '  return Math.max(0, Math.min(p, DENSITY_PICK.max));']] },
+  { name: 'density does not reach the pack', case: 'density', edits: [['src/core/hunt/pull-cycle.js', 'pullRows(inst.ground, p, w.density)', 'pullRows(inst.ground, p, 0)']] },
   { name: 'packs spawn at full HP whatever the party', case: 'party-scale', edits: [['src/data/hunt-grounds.js', '  return ground && ground.partyScale === true ? scaledHp(row, partySize) : Math.max(1, (row && row.hp) || 1);', '  return Math.max(1, (row && row.hp) || 1);']] },
   { name: 'the solo healer floor is never applied', case: 'healer-floor', edits: [['src/core/hunt/damage.js', '    ? elementWithFloor(elementOn(target, element), source.role, partySize(inst)) : elementOn(target, element);', '    ? elementOn(target, element) : elementOn(target, element);']] },
   { name: 'the druid heals whoever is lowest', case: 'ally-subject', edits: [['src/core/hunt/conditions.js', '  if (subject && subject !== \'lowest\') return all.find((a) => a.role === subject) || null;\n', '']] },
@@ -676,6 +752,15 @@ const mutants = [
   { name: 'the healer\'s default rule set has no attack-when-safe rule', case: 'healer-default-rules',
     edits: [['src/data/rule-subjects.js', "    slot('natures_wrath', [{ metric: 'ally_hp_pct', op: 'gte', value: 70, subject: 'lowest' }])]),", '  ]),']] },
   { name: 'monsters do not fill the diagonal tiles of the box', case: 'full-box', edits: [['src/core/hunt/roles.js', '      if ((!dx && !dy) || !walkable(inst.grid, x, y)', '      if ((!dx && !dy) || (dx && dy) || !walkable(inst.grid, x, y)']] },
+  { name: 'the smallest pick sets the pull (the rule before Tyler 10-20)', case: 'density-pull',
+    edits: [['src/data/hunt-grounds.js', "  const lead = list.find((h) => h.lead === true)\n    || list", "  const lead = list.filter((h) => h.density > 0).sort((a, b) => a.density - b.density)[0]\n    || list"]] },
+  { name: 'the lowest seat chooses, not the leader', case: 'density-pull', edits: [['src/data/hunt-grounds.js', "  const lead = list.find((h) => h.lead === true)\n    || list", "  const lead = list"]] },
+  { name: 'the settle never hands the member its leader flag', case: 'density-pull', edits: [['src/core/member.js', ' density: h.density || 0, lead: h.lead === true,', ' density: h.density || 0,']] },
+  { name: 'the first packs spawn at the opening hero\'s pick alone', case: 'density-pull', edits: [['src/core/combat-sim.js', '            { density: densityFor(ctx.ground, standing.length, picker(standing)) });', '            {});']] },
+  { name: 'respawns read every member\'s pick, smallest first (Andy 10-20, v0.2.20)', case: 'density-laps',
+    edits: [['src/core/combat-sim.js', '        picker(members.filter((m) => !m.left && m.unitId !== null)));', '        Math.min(...members.filter((m) => !m.left && m.unitId !== null).map((m) => m.hero.density)));']] },
+  { name: 'a full box walls the leader off the pull tile (no pull from the ring\'s edge)', case: 'density-laps',
+    edits: [['src/core/hunt/pull-cycle.js', ' || arrived || walled)) {', ' || arrived)) {']] },
   { name: 'the settle never clamps the stored pick', case: 'density-settle', edits: [['src/core/combat-sim.js', '      world.density = densityFor(ctx.ground,', '      world.density = Math.max(...members.map((m) => m.hero.density), 1) || densityFor(ctx.ground,']] },
   { name: 'the solo healer fights unscaled packs with no floor (the P1 as it shipped)', case: 'solo-healer',
     edits: [['src/data/hunt-grounds.js', '  return ground && ground.partyScale === true ? scaledHp(row, partySize) : Math.max(1, (row && row.hp) || 1);', '  return Math.max(1, (row && row.hp) || 1);'],

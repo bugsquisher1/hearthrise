@@ -4,14 +4,14 @@
 // roll is src/core/hunt/pull-cycle.js (every pack spawns from its pocket's
 // rows): the C2 single-foe `pickSpawn` was retired with the single-foe swing
 // (HUNT_SCREEN_SPEC §1.1 one-path table; lane S1, 2026-10-17).
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.18';
-import { densityFor } from '../data/hunt-grounds.js?v=0.2.18';
-import { HUNT_ROLES, roleForWeapon } from '../data/hunt-roles.js?v=0.2.18';
-import { ABILITIES } from '../data/abilities.js?v=0.2.18';
-import { makeUnit, makeWorld } from './hunt/world-state.js?v=0.2.18';
-import { spawnPack, PHASE } from './hunt/pull-cycle.js?v=0.2.18';
-import { pickLeader, defaultSettings } from './hunt/roles.js?v=0.2.18';
-import { heroSlots, heroStopRules, stopRulesProblem } from './hunt/conditions.js?v=0.2.18';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.21';
+import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.21';
+import { HUNT_ROLES, roleForWeapon } from '../data/hunt-roles.js?v=0.2.21';
+import { ABILITIES } from '../data/abilities.js?v=0.2.21';
+import { makeUnit, makeWorld } from './hunt/world-state.js?v=0.2.21';
+import { spawnPack, PHASE } from './hunt/pull-cycle.js?v=0.2.21';
+import { pickLeader, defaultSettings } from './hunt/roles.js?v=0.2.21';
+import { heroSlots, heroStopRules, stopRulesProblem } from './hunt/conditions.js?v=0.2.21';
 
 /** The named hunt a combat pointer names, or null (a monster id / unknown). */
 export function huntFor(activeId) {
@@ -30,7 +30,7 @@ const disciplineBar = (d) => Object.values(ABILITIES).filter((a) => a.discipline
  * over its role's defaults for this party (`partyRoles`, roles.defaultSettings).
  * Null when the weapon has no role.
  *
- * @param o { weaponType, options (player_action_sets.options), bar (the stored slots), partyRoles }
+ * @param o { weaponType, options (player_action_sets.options), bar (the stored slots), partyRoles, lead (leads its party) }
  */
 export function heroSetup(o) {
   const opt = (o && o.options && typeof o.options === 'object') ? o.options : {};
@@ -49,8 +49,10 @@ export function heroSetup(o) {
        eat-at then drink-at). */
     slots: heroSlots(o.bar, role, (id) => allowed.includes(id)),
     stopRules: heroStopRules(stops),
-    /* MONSTER DENSITY: the stored pick; the span clamps it to the ground (hunt-grounds.js densityFor). */
+    /* MONSTER DENSITY: the stored pick; the span clamps it to the ground (hunt-grounds.js densityFor). In a
+       party only the LEADER's counts (`lead`, the server's hr_hunt_instance_read `leads`; partyPick). */
     density: Number.isInteger(opt.density) ? opt.density : 0,
+    lead: o.lead === true,
     /* THE GATHERING SHARE: stored, INERT until the gathering engine lands (hunt-sessions.js GATHER_SHARE). */
     gatherShare: Number.isInteger(opt.gather_share) ? opt.gather_share : 0, gatherInert: true,
     actionSet: pick('action_set', 'hunt'),
@@ -82,9 +84,10 @@ function heroUnit(id, h, partyRoles, tile) {
  * `party` is [{ role, maxHp, hp?, acc, maxHit, def, element, maxMana?, mana?, settings? }],
  * each a server-read hero: `role` a src/data/hunt-roles.js id, `acc` permille,
  * `settings` the character's own { dist, chase, tmode, stance } (an absent key
- * takes the role's default for this party). Heroes are units 1..n.
+ * takes the role's default for this party). Heroes are units 1..n. `o.density`, when given,
+ * is the density the packs spawn at (the settle's whole entering party), else the party's own.
  */
-export function newHuntWorld(ground, grid, party) {
+export function newHuntWorld(ground, grid, party, o) {
   if (!Array.isArray(party) || !party.length || party.length > ground.start.length) {
     throw new Error('newHuntWorld: a party of 1..' + ground.start.length + ' heroes');
   }
@@ -92,8 +95,10 @@ export function newHuntWorld(ground, grid, party) {
   const units = party.map((h, i) => heroUnit(i + 1, h, roles, ground.start[i]));
   const world = makeWorld({ ground: ground.id, swing: 0, leader: pickLeader(units), phase: PHASE.TRAVEL,
     routeIdx: 0, nextId: units.length + 1, packs: ground.pockets.map(() => ({ aggro: false, holder: null })),
-    /* MONSTER DENSITY: the members' smallest pick, clamped to the ground for this party size (each hero's `density`). */
-    density: densityFor(ground, party.length, party.map((h) => h.density)) });
+    /* MONSTER DENSITY: the leader's pick (partyPick: the hero flagged `lead`, else the first), clamped to the ground
+       for this party size; `o.density` when the settle opens the world for a party still walking in (combat-sim). */
+    density: o && Number.isInteger(o.density) ? o.density
+      : densityFor(ground, party.length, partyPick(party.map((h, i) => ({ density: h.density, lead: h.lead === true, seat: i })))) });
   world.units = units;
   const inst = { world, ground, grid, occ: null, makeUnit };
   for (let p = 0; p < ground.pockets.length; p++) spawnPack(inst, p, null);

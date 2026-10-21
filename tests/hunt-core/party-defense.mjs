@@ -27,10 +27,52 @@ function secondTankDefense(P, quiet) {
   return d.every((n) => n >= all / 4) ? null : 'Defense XP ' + d.join(' / ') + ': a tank earned under a quarter of the pair\'s';
 }
 
+/* THE TANK HOLDS (Tyler 2026-10-16; designer 2026-10-21: the hold equals the Challenge cooldown): a party of
+   one tank, a Ranger, a Mage and a Healer plays the Sewer 10 min on the real settle, and no monster ever turns
+   on a hero that is not a tank (a `target` event naming one). With a 6 s hold under the 8 s cooldown the pack
+   was free 2 s in every 8 and the Healer's peel drew it. */
+const DENSITY = Number(process.env.PD_DENSITY || 8);
+function loneTankHolds(P, quiet) {
+  const roles = ['tank', 'ranger', 'mage', 'healer'];
+  let off = 0, switches = 0, swings = 0;
+  const x = P.run('millrace_sewer', 15, roles, { spanMs: 600000, density: DENSITY, onWindow: (out, members) => {
+    const ids = new Map(out.members.map((p) => [p.hunt.unit_id, members.find((m) => m.key === p.key)]));
+    const nonTank = new Set([...ids].filter(([, m]) => m && m.hero.role !== 'tank').map(([id]) => id));
+    for (const e of out.events || []) {
+      if (e.type === 'target') { switches++; if (nonTank.has(e.t)) off++; }
+      /* the control: monsters swing at heroes all run long (the events are the window's, not empty) */
+      if ((e.type === 'dmg' || e.type === 'miss') && ids.has(e.t) && !ids.has(e.u)) swings++;
+    }
+  } });
+  if (!quiet) console.log('  lone-tank-holds: Sewer, tank + ranger + mage + healer at L15, 10 min, browser closed: ' + swings + ' monster swings at heroes, ' + switches + ' target switch(es), ' + off + ' onto a non-tank, ' + x.kills + ' kills/h, falls ' + x.falls);
+  if (!(x.kills > 0) || swings < 50) return 'CONTROL: the party killed ' + x.kills + '/h and took ' + swings + ' swings (no fight to measure)';
+  return off === 0 ? null : off + ' time(s) a monster turned on a hero that is not the tank';
+}
+
 const R = makeReport('hunt-core/party-defense');
+const P0 = await loadPlay(ROOT);
 let why = null;
-try { why = secondTankDefense(await loadPlay(ROOT), false); } catch (e) { why = 'threw ' + (e && e.stack || e); }
+try { why = secondTankDefense(P0, false); } catch (e) { why = 'threw ' + (e && e.stack || e); }
 R.ok(!why, 'second-tank-defense: ' + why);
+let why2 = null;
+try { why2 = loneTankHolds(P0, false); } catch (e) { why2 = 'threw ' + (e && e.stack || e); }
+R.ok(!why2, 'lone-tank-holds: ' + why2);
+
+/* lone-tank-holds' own proof: the measure sees a monster turn on the Healer when one can (her peel drawing any
+   free monster, every swing) */
+const LONE_MUTANTS = [
+  { name: 'the Healer\'s peel draws any unheld monster, every swing',
+    edits: [['src/core/hunt/targeting.js', 'const free = engaged(inst).filter((m) => m.target === k.id && m.queued && !(m.holdMs > 0) && cheb(m, k) > 1);\n  if (!free.length || sc.rng.int(1, 1000) > row.peel) return null;',
+      'const free = engaged(inst).filter((m) => m.target === k.id && !(m.holdMs > 0));\n  if (!free.length) return null;']] },
+];
+for (const mu of LONE_MUTANTS) {
+  const p = plant(mu.edits, PLAY_TREES);
+  try {
+    let w = null;
+    try { w = loneTankHolds(await loadPlay(p.root), true); } catch (e) { w = 'threw ' + e.message; }
+    R.ok(!!w && !w.startsWith('CONTROL') && !w.startsWith('threw'), 'mutant "' + mu.name + '" was NOT caught by lone-tank-holds (' + w + ')');
+  } finally { p.done(); }
+}
 
 const MUTANTS = [
   { name: 'a held monster is Challenged straight back (live v0.2.22)',
@@ -46,5 +88,5 @@ for (const mu of MUTANTS) {
     R.ok(!!w, 'mutant "' + mu.name + '" was NOT caught by second-tank-defense');
   } finally { p.done(); }
 }
-if (!R.fails.length) console.log('  1 case, ' + MUTANTS.length + ' mutants caught');
+if (!R.fails.length) console.log('  2 cases, ' + (MUTANTS.length + LONE_MUTANTS.length) + ' mutants caught');
 R.finish();

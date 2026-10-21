@@ -84,9 +84,11 @@ export function roleWeaponOf(item) {
    within `radius` tiles (Chebyshev, "on screen") that is not on the tank is pulled
    onto him and HELD there `holdMs` (no other tank's Challenge takes it meanwhile),
    at most once per the `challenge` ability's cdMs (src/data/abilities.js, the one
-   cooldown). No player input. A hold under the cooldown lets two tanks trade the
-   pack (each takes it when the other's hold runs out) instead of one keeping it. */
-export const CHALLENGE = Object.freeze({ radius: 6, holdMs: 6000 });
+   cooldown). No player input. The hold EQUALS the cooldown (designer 2026-10-21): a
+   lone tank's pack is never free between two Challenges (a 6 s hold left it 2 s in
+   every 8 to turn on the Healer), and two tanks still trade the pack every cooldown
+   (each takes it the instant the other's hold runs out). */
+export const CHALLENGE = Object.freeze({ radius: 6, holdMs: 8000 });
 
 /* THE RANGED SPOT (spec §3.1 #10, §5 #4, ASSUMED). A spot is valid while its
    distance d from the hero's own target is in [want - bandBelow, want + bandAbove]

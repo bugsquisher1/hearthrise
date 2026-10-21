@@ -12,12 +12,12 @@
 //   { id, title, text, anchor, done }
 //     anchor  the surface the card points at (TUTORIAL_ANCHORS; the coach rings it)
 //     done    what completes the step, read from the character's own envelope:
-//       { kind: 'enter',  hunt }            a hunt session on `hunt` is open
-//       { kind: 'kills',  atLeast }         the server kill count rose by n since the step began
-//       { kind: 'level' }                   any skill's level rose since the step began
+//       { kind: 'enter',  hunt }            a hunt session on `hunt` is open (the first hunt: or Level XP > 0)
+//       { kind: 'kills',  atLeast }         the first kill has landed (Level XP > 0)
+//       { kind: 'level' }                   a Level or a skill has reached level 2
 //       { kind: 'unlock', hunt }            combat level >= that hunt's band floor (hunts.js)
 //       { kind: 'ended',  reason }          the hunt session ended for `reason` (END_ORDER)
-//       { kind: 'pull',   ground, pocket }  a `pull` hunt event on that ground's pocket
+//       { kind: 'pull',   ground, pocket }  a monster of that pocket, or a later one, stands in the open hunt
 //       { kind: 'bar' }                     the server's stored bar (hunt_settings.bar) holds a
 //                                           slot the player set a condition on (Configure action)
 //
@@ -89,7 +89,7 @@ export function validate(rows = HUNT_TUTORIAL) {
     const d = r.done || {};
     if (!DONE_KINDS.includes(d.kind)) { bad('done kind ' + d.kind + ' is unknown'); continue; }
     if ((d.kind === 'enter' || d.kind === 'unlock') && !HUNT_INDEX[d.hunt]) bad('hunt ' + d.hunt + ' is not in hunts.js');
-    if (d.kind === 'kills' && !(Number.isInteger(d.atLeast) && d.atLeast > 0)) bad('kills needs atLeast >= 1');
+    if (d.kind === 'kills' && d.atLeast !== 1) bad('kills: the server only tells the first kill (Level XP > 0), so atLeast must be 1');
     if (d.kind === 'ended' && !END_ORDER.includes(d.reason)) bad('end reason ' + d.reason + ' is not in END_ORDER');
     if (d.kind === 'pull') {
       const g = HUNT_GROUNDS[d.ground];
@@ -98,4 +98,53 @@ export function validate(rows = HUNT_TUTORIAL) {
     }
   }
   return out;
+}
+
+/* ── WHICH CARD IS UP ──────────────────────────────────────────────────────
+   The card is a pure function of what the SERVER has said (no step counter is
+   stored anywhere, so a reload, a second device and a closed browser all show
+   the same card). `facts` is read from the envelope by src/session/tutorial-sections.js:
+     levelXp     state.level_xp (Level XP comes from kills only, so > 0 means a kill landed)
+     charLevel   the Level that XP makes
+     skillLevel  the highest skill level
+     huntId      the open (not ended) hunt session's hunt, or null
+     unitKinds   Set of the monster kinds standing in the open hunt's instance (the hunt section's units)
+     barSet      the stored bar holds a slot with a condition
+   Every step is judged on what is true NOW, never on "since the step began",
+   and the first unmet step is the card. */
+/* The monster kinds that tell `pocket` (or a LATER pocket) has been pulled: kinds standing in a pocket
+   at or after it on the route that no earlier pocket holds. The hunt section's units are the server's. */
+const pulledKinds = (ground, pocket) => {
+  const at = ground.route.indexOf(pocket);
+  const kinds = (ps) => new Set(ps.flatMap((p) => ground.pockets[p].spawns.map((x) => x.monster)));
+  const before = kinds(ground.route.slice(0, at));
+  return [...kinds(ground.route.slice(at))].filter((k) => !before.has(k));
+};
+
+function isDone(d, facts, openedIn) {
+  switch (d.kind) {
+    case 'enter': return facts.huntId === d.hunt || (d.hunt === HUNT_TUTORIAL[0].done.hunt && facts.levelXp > 0);
+    case 'kills': return facts.levelXp > 0;
+    case 'level': return facts.charLevel >= 2 || facts.skillLevel >= 2;
+    case 'unlock': return facts.charLevel >= HUNT_INDEX[d.hunt].band[0];
+    case 'ended': return facts.huntId !== openedIn;
+    case 'bar': return facts.barSet;
+    case 'pull': {
+      const g = HUNT_GROUNDS[d.ground];
+      return facts.huntId === g.hunt && pulledKinds(g, d.pocket).some((k) => facts.unitKinds.has(k));
+    }
+    default: return false;
+  }
+}
+
+/** The tutorial card this character is on, or null (finished, or out-levelled the sewer). */
+export function currentCard(facts, rows = HUNT_TUTORIAL) {
+  const last = rows[rows.length - 1].done;
+  if (last.kind === 'pull' && facts.charLevel > HUNT_INDEX[HUNT_GROUNDS[last.ground].hunt].band[1]) return null;
+  let openedIn = null;
+  for (const r of rows) {
+    if (r.done.kind === 'enter') openedIn = r.done.hunt;
+    if (!isDone(r.done, facts, openedIn)) return r;
+  }
+  return null;
 }

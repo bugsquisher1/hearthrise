@@ -3,14 +3,15 @@
 //
 // One intent: the whole bar restated (hr_action_set_options { slots }, the
 // same wire the slot editor sends) with the item in the chosen slot, or the
-// first empty one. A food slot starts as "eat when my HP is at or below the
-// hero's eat-at percent", a drink the same on mana, ammo with no test; the
+// first empty one. A food slot starts as "eat when my HP is below 50%", a
+// drink "when my mana is below 30%" (bar-draft.js supplyDefault), ammo with no test; the
 // slot editor changes any of it. The bar on screen changes only when the
 // server's re-read envelope says so.
 // ════════════════════════════════════════════════════════════════════════
 import { BAR_SLOTS } from '../data/hunt-hud.js?v=0.2.22';
 import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.22';
 import { kindOf } from './bag-model.js?v=0.2.22';
+import { supplyDefault } from './bar-draft.js?v=0.2.22';
 
 const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 
@@ -48,8 +49,7 @@ export async function assignToBar(cs, id, at) {
   const wire = Array.from({ length: SLOTS }, (_, i) => wireSlot(s.slots[i]));
   const i = Number.isInteger(at) && at >= 0 && at < SLOTS ? at : wire.findIndex((w) => !w);
   if (i < 0) return { ok: false, error: 'bar_full' };
-  const cond = kind === 'food' && s.foodPct ? [{ metric: 'self_hp_pct', op: 'lte', value: s.foodPct }]
-    : kind === 'drink' && s.drinkPct ? [{ metric: 'self_mana_pct', op: 'lte', value: s.drinkPct }] : [];
-  wire[i] = { action: { type: kind === 'ammo' ? 'attack_with_item' : 'consume', id }, conditions: cond, join: 'and' };
+  const action = { type: kind === 'ammo' ? 'attack_with_item' : 'consume', id };
+  wire[i] = { action, conditions: supplyDefault(action), join: 'and' };
   return cs.setHuntOptions(s.preset, { slots: wire });
 }

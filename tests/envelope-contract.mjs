@@ -123,6 +123,9 @@ function contract(R, cs, body, tl) {
   need('premium', R.HS.isPremium(cs) === true, 'isPremium is false for a premium character: ' + JSON.stringify(body.premium));
   need('account', R.ACC.accountLimitOf((k) => cs.read(k)) === R.CFG.SESSION_CONFIG.maxConcurrentCharacters,
     'account.max_concurrent reads ' + R.ACC.accountLimitOf((k) => cs.read(k)) + ' from ' + JSON.stringify(body.account));
+  /* the roster's hero-slot offer (2026-11-03-hero-slots-gold.sql): a fresh account owns two, so slot 2 is for sale */
+  const so = R.ACC.slotOfferOf(cs.read('account'));
+  need('account', !!so && so.slotId === 2 && so.cost > 0 && so.max === 5, 'slotOfferOf yields ' + JSON.stringify(so) + ' from ' + JSON.stringify(body.account));
   // the alpha windows' sections the server projects
   const bag = R.IS.bagOf(cs);
   need('inventory', Array.isArray(bag), 'bagOf reads no inventory');
@@ -323,6 +326,8 @@ const DB_MUTANTS = [
   ['hunt_analyzer', 'public.hr_hunt_stats_of(uuid[],numeric,uuid,integer)', "'kills', v_kills", "'kill_count', v_kills"],
   ['premium', 'public.hr_premium_view(uuid,integer)', "'active'", "'is_active'"],
   ['account', 'public.hr_account_view(uuid,integer)', "'max_concurrent'", "'max'"],
+  ['account', 'public.hr_account_view(uuid,integer)', "'cost_gold', c.cost_gold", "'cost', c.cost_gold"],
+  ['account', 'public.hr_account_view(uuid,integer)', "'hero_slot_offer', (", "'slot_offer', ("],
   // lane S2
   ['name', 'public.hr_character_name_view(uuid,integer)', 'select to_jsonb(public.hr_character_name(p_user, p_slot))', 'select to_jsonb(null::text)'],
   ['bag_rules', 'public.hr_bag_rules_view(uuid,integer)', "'loot', coalesce(", "'loot_rules', coalesce("],

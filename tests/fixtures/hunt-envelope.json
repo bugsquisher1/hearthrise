@@ -93,6 +93,7 @@
     "drink_pct": 30,
     "supply_source": "mine",
     "on_empty": "switch",
+    "gold_floor": 300,
     "slots": [
       {
         "action": {
@@ -310,7 +311,19 @@
         "total": 0,
         "bySource": {}
       },
-      "skills": {}
+      "skills": {
+        "melee": {
+          "xp": 9100,
+          "per_hour": 7300,
+          "level": 60,
+          "eta_h": 0
+        }
+      },
+      "level": {
+        "xp": 5400,
+        "per_hour": 4320,
+        "eta_h": 1.5
+      }
     },
     "party": {
       "kills": 164,

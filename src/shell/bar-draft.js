@@ -13,8 +13,9 @@
 // ════════════════════════════════════════════════════════════════════════
 import { METRICS, OPERATORS, MAX_CONDITIONS, CONSUME_KINDS } from '../data/condition-metrics.js?v=0.2.22';
 import { STATUSES } from '../data/statuses.js?v=0.2.22';
-import { BAR_SLOTS } from '../data/hunt-hud.js?v=0.2.22';
+import { BAR_SLOTS, BAR_ANSWER_MS } from '../data/hunt-hud.js?v=0.2.22';
 import { BASIC_SUPPLIES } from '../data/supply-basics.js?v=0.2.22';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.22';
 import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.22';
 
 export const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
@@ -36,7 +37,16 @@ const REFUSAL = Object.freeze({
   too_many_conditions: 'A slot takes at most ' + MAX_CONDITIONS + ' conditions.',
   rate_limited: 'Too many changes at once. Try again in a moment.',
   settle_first: 'The hunt is catching up. Try again in a few seconds.',
+  network: 'No connection. Nothing was changed.',
+  timeout: 'The server has not answered. The bar shows what it last confirmed.',
+  busy: 'Still saving the last change. Try again in a moment.',
+  no_room: 'No empty slot after it to shift into.',
 });
+
+/** A refused bar intent in plain words. */
+export function barRefusalWords(code) {
+  return REFUSAL[code] || 'Not saved: the server refused it.';
+}
 
 /** This character's bar edit state (created empty on first use). */
 export function draftOf(cs) {
@@ -70,6 +80,20 @@ export function closeSlot(cs) {
 
 /* A number test starts at the middle of a percent (50) or the lowest count; a yes/no test at yes. */
 const startValue = (m) => (m.value === 'pct' ? Math.round((m.range[0] + m.range[1]) / 2) : m.range ? m.range[0] : true);
+
+/**
+ * A new food or drink slot's starting condition (Tyler 10-19: the Eat at / Drink at
+ * settings are gone; food and drink fire from their slot's condition, starting where
+ * the hero's defaults stood: HP below 50%, mana below 30%, CONSUMABLE_RULES). Other
+ * actions start with none.
+ */
+export function supplyDefault(a) {
+  if (!a || a.type !== 'consume') return [];
+  const kind = Object.prototype.hasOwnProperty.call(CONSUME_KINDS, a.id) ? a.id : CONSUMABLES[a.id] ? CONSUMABLES[a.id].kind : null;
+  if (kind === 'food') return [{ metric: 'self_hp_pct', op: 'lt', value: CONSUMABLE_RULES.foodBelowPct }];
+  if (kind === 'drink') return [{ metric: 'self_mana_pct', op: 'lt', value: CONSUMABLE_RULES.drinkBelowPct }];
+  return [];
+}
 
 /** A fresh condition on the registry's first test. */
 export function blankCondition() {
@@ -135,6 +159,20 @@ export function conditionWords(c) {
 
 
 /**
+ * The server's answer to one intent, or { ok:false, error:'timeout' } once
+ * BAR_ANSWER_MS has passed (a throw reads as 'network'). Never rejects, so a
+ * status line and a pending flag always come back: on the answer, on a
+ * refusal or on the timeout. A late answer is not shown here; its effect
+ * arrives with the re-read envelope like any other (CLAUDE.md §6).
+ */
+export function answerWithin(send, ms = BAR_ANSWER_MS) {
+  let timer = null;
+  const late = new Promise((ok) => { timer = setTimeout(() => ok({ ok: false, error: 'timeout' }), ms); });
+  const sent = Promise.resolve().then(send).then((r) => r || { ok: false, error: 'refused' }, () => ({ ok: false, error: 'network' }));
+  return Promise.race([sent, late]).finally(() => clearTimeout(timer));
+}
+
+/**
  * Send the whole bar as ONE intent. Every control of both surfaces is off
  * until the server answers; on ok `onOk()` runs, on a refusal the error is
  * kept (its slot and condition are shown) with its words. `repaint` runs at
@@ -146,10 +184,10 @@ export async function sendBar(cs, bar, repaint, onOk) {
   if (!set || s.pending) return { ok: false, error: 'busy' };
   s.pending = true; s.error = null; s.msg = 'Saving…';
   repaint();
-  const r = await cs.setHuntOptions(set.preset, { slots: bar });
+  const r = await answerWithin(() => cs.setHuntOptions(set.preset, { slots: bar }));
   s.pending = false;
   if (r.ok) { s.msg = ''; if (onOk) onOk(); }
-  else { s.error = r; s.msg = REFUSAL[r.error] || 'Not saved: the server refused it.'; }
+  else { s.error = r; s.msg = barRefusalWords(r.error); }
   repaint();
   return r;
 }
@@ -172,14 +210,50 @@ export function emptyOpen(cs, repaint, onOk) {
   sendBar(cs, bar, repaint, () => { closeSlot(cs); if (onOk) onOk(); });
 }
 
-/** Drag a slot to another place on the bar: it moves there and the slots between shift (one intent). */
-export function placeSlot(cs, from, to, repaint) {
-  const bar = serverBar(cs);
-  if (!bar || !(from >= 0 && from < SLOTS) || !(to >= 0 && to < SLOTS) || from === to || !bar[from]) return false;
-  const [x] = bar.splice(from, 1);
-  bar.splice(to, 0, x);
-  sendBar(cs, bar, repaint, () => closeSlot(cs));
-  return true;
+/* THE THREE DROPS (Tyler 10-19: a drag never moves anything it was not told to).
+   Each is a pure plan over the server's bar, then ONE intent; nothing on screen
+   moves until the re-read envelope says so. A plan is null when it cannot apply. */
+const inRange = (i) => Number.isInteger(i) && i >= 0 && i < SLOTS;
+
+/** Onto an EMPTY slot: the action moves there; its old slot empties. */
+export function movePlan(bar, from, to) {
+  if (!bar || !inRange(from) || !inRange(to) || from === to || !bar[from] || bar[to]) return null;
+  const out = bar.slice();
+  out[to] = out[from]; out[from] = null;
+  return out;
+}
+
+/** Swap: the dragged action and the target change places; nothing else moves. */
+export function swapPlan(bar, from, to) {
+  if (!bar || !inRange(from) || !inRange(to) || from === to || !bar[from] || !bar[to]) return null;
+  const out = bar.slice();
+  [out[from], out[to]] = [out[to], out[from]];
+  return out;
+}
+
+/**
+ * Insert here: the dragged action takes the target slot; the target and the slots
+ * after it shift one place later, up to the first empty slot (its old slot counts,
+ * once emptied). With no empty slot after the target there is no room: null.
+ */
+export function insertPlan(bar, from, to) {
+  if (!bar || !inRange(from) || !inRange(to) || from === to || !bar[from] || !bar[to]) return null;
+  const out = bar.slice();
+  const x = out[from];
+  out[from] = null;
+  let k = to;
+  while (k < SLOTS && out[k]) k++;
+  if (k >= SLOTS) return null;
+  for (let j = k; j > to; j--) out[j] = out[j - 1];
+  out[to] = x;
+  return out;
+}
+
+/** Send a drop's plan (ONE intent); resolves to the server's answer, or { ok:false } when the plan cannot apply. */
+export function sendPlan(cs, plan, repaint) {
+  const bar = plan(serverBar(cs));
+  if (!bar) return Promise.resolve({ ok: false, error: 'no_room' });
+  return sendBar(cs, bar, repaint, () => closeSlot(cs));
 }
 
 /** Move slot `i` one place earlier (by -1) or later (+1) on the server; an open slot's draft follows it. */

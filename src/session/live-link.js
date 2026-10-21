@@ -34,6 +34,8 @@ export class LiveLink {
     /** What the live view did (tools: the world stage's data-live): each commit's verdict, every restart. */
     this.stats = { match: 0, diverged: 0, unknown: 0, reseeds: 0, catchUps: 0, starves: 0 };
     this._wasStalled = false;
+    /** The server's settle watermark (ms) its last commit or start point stated: display only (?debug=live's settle lag). */
+    this.settledToMs = null;
   }
 
   running() { return this.engine.running(); }
@@ -56,6 +58,8 @@ export class LiveLink {
   }
 
   _take(body) {
+    const st = body.hunt_check ? body.hunt_check.settled_to_ms : body.hunt_live && body.hunt_live.instance ? body.hunt_live.instance.settled_to_ms : null;
+    if (Number.isSafeInteger(st) && st > 0) this.settledToMs = st;
     if (!body.hunt_live && !body.hunt_check && this.engine.running()) return;
     const ms = Number.isSafeInteger(body.hunt_server_now_ms) ? body.hunt_server_now_ms
       : typeof body.now === 'string' ? Math.floor(Date.parse(body.now)) : NaN;
@@ -72,8 +76,11 @@ export class LiveLink {
       /* A start point the prediction agrees with hands it the next seeds. A character whose own poll
          never lands the settle (another client of the party settled first: its answers are start
          points, never commits) lived on its first 16 swings, froze, then jumped (live v0.2.20). */
+      /* A SETUP CHANGED MID-HUNT (r10, Andy): a start point whose heroes fight with other settings or
+         another bar is restarted from even when its world agrees: the server settles from that world with
+         the new setup, and the prediction kept the old one on screen until a later commit diverged. */
       const i = body.hunt_live.instance;
-      if (this.engine.running()
+      if (this.engine.running() && this.engine.sameSetup(body.hunt_live)
         && this._judge({ world_swing: i.world_swing, world_hash: i.world_hash, seeds: body.hunt_live.seeds }) === 'match') return;
       /* Off the server's world: restart from it, eased (never fed: the swings it runs to catch up are
          already in the past). */
@@ -90,6 +97,9 @@ export class LiveLink {
   }
 
   _judge(hc) { const v = this.engine.reconcile(hc); if (Object.hasOwn(this.stats, v)) this.stats[v]++; return v; }
+
+  /** A setup intent the server took mid-hunt: ask for a start point at once (it carries the new setup). */
+  ask() { if (this.engine.running() || this.engine.stalled()) { this.want = true; this._tries = 0; } }
 
   /** An ask that brought no answer at all: the next one waits twice as long (askDelayMs). */
   missed() { if (this.want) this._tries++; else if (this.engine.running()) this._short++; }

@@ -61,13 +61,15 @@
 // ════════════════════════════════════════════════════════════════════════
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { bootReplay, ROOT } from './schema-replay.mjs';
+import { bootReplay, inventory, ROOT } from './schema-replay.mjs';
 import { isMain } from './_is-main.mjs';
 
 const MIG = '2026-09-08-hero-slot-buy.sql';
 const HERO_GOLD = '2026-10-23-demolition-hero-slots-gold.sql';
+const OFFER_MIG = '2026-11-03-hero-slots-gold.sql';
 /* A HERO_GOLD mutant also short-circuits that file's §4, so THIS guard is what must see it. */
 const GOLD_GATE_BLIND = ['  -- (a) the catalogue: four rows, priced in gold as authored, none waived.\n', '  return;\n'];
+const OFFER_GATE_BLIND = ['  -- (a) the catalogue this file reads: five slots in all, the r45 ladder 15,000 / 40,000 / 120,000 on 2..4.\n', '  return;\n'];
 const problems = [];
 const ok = (cond, msg) => { if (!cond) problems.push(msg); };
 
@@ -223,6 +225,40 @@ const MUTATIONS = {
        + 'hero slot behind a priced button',
     find: '     set gold = gold - v_cat.cost_gold, version = version + 1, updated_at = now()',
     repl: '     set gold = gold, version = version + 1, updated_at = now()',
+  },
+  /* ARM Y: 2026-11-03-hero-slots-gold.sql, the roster's offer and the cap (its own §4 silenced). */
+  no_slot_cap: {
+    file: OFFER_MIG,
+    why: 'the cap check is dropped: a sixth slot is refused as an unknown row instead of the account '
+       + 'being told it is at the cap',
+    find: '  if p_slot_id > coalesce(v_top, 0) then',
+    repl: '  if false then',
+  },
+  offer_ignores_ownership: {
+    file: OFFER_MIG,
+    why: 'the offer stops reading ownership: the roster keeps offering a slot the account already '
+       + 'bought, and the button sells nothing at a price',
+    find: '         and not (public.hr_hero_slots_of(p_user) @> to_jsonb(c.slot_id))',
+    repl: '         and true',
+  },
+  keyless_purchase_runs: {
+    file: OFFER_MIG,
+    why: 'a purchase without an idempotency key runs: a retried success reads as a refusal',
+    find: '  if p_idem is null then\n    return jsonb_build_object(\'ok\', false, \'error\', \'idem_required\');',
+    repl: '  if false then\n    return jsonb_build_object(\'ok\', false, \'error\', \'idem_required\');',
+  },
+  ladder_price_drifts: {
+    file: OFFER_MIG,
+    why: 'a hand edits ONE price of the r45 ladder in the server catalogue: the roster shows the '
+       + 'shop price and the server charges another number',
+    find: '  from (values (2, 15000), (3, 40000), (4, 120000)) as v(slot_id, gold)',
+    repl: '  from (values (2, 15000), (3, 45000), (4, 120000)) as v(slot_id, gold)',
+  },
+  success_not_cached: {
+    file: OFFER_MIG,
+    why: 'the success is never cached: the same key retried answers already_owned instead of replaying',
+    find: '  insert into public.player_intents (user_id, intent_id, slot, intent, result, at)\n    values (v_uid, p_idem, v_slot, v_intent, v_result, now())',
+    repl: '  insert into public.player_intents (user_id, intent_id, slot, intent, result, at)\n    select v_uid, p_idem, v_slot, v_intent, v_result, now() where false',
   },
   price_drifts_from_the_client: {
     why: 'a hand edits ONE gem price in the server catalogue. The shop advertises one number and '
@@ -469,9 +505,11 @@ async function run(mutate) {
 let cleanChainEnd = null;
 async function chainEnd(mutate) {
   const m = mutate && MUTATIONS[mutate];
-  if (!(m && m.file === HERO_GOLD) && cleanChainEnd) return cleanChainEnd;
+  const own = m && (m.file === HERO_GOLD || m.file === OFFER_MIG);
+  if (!own && cleanChainEnd) return cleanChainEnd;
   const { db } = await bootReplay(m && m.file === HERO_GOLD
-    ? { patches: new Map([[HERO_GOLD, [[m.find, m.repl], GOLD_GATE_BLIND]]]), upTo: HERO_GOLD } : {});
+    ? { patches: new Map([[HERO_GOLD, [[m.find, m.repl], GOLD_GATE_BLIND]]]), upTo: HERO_GOLD }
+    : m && m.file === OFFER_MIG ? { patches: new Map([[OFFER_MIG, [[m.find, m.repl], OFFER_GATE_BLIND]]]), upTo: OFFER_MIG } : {});
   const q = async (sql, p) => (await db.query(sql, p)).rows;
   const asUser = async (uid, sql, p) => {
     await q("select set_config('request.jwt.claim.sub',$1,false)", [uid]);
@@ -509,12 +547,79 @@ async function chainEnd(mutate) {
   z.ledger = await q("select gold::text gold, gold_in::text gold_in, gems_in::text gems_in, meta from player_ledger "
     + "where user_id=$1 and kind='hero_slot'", [uid]);
   z.c1 = c1;
+  /* ARM Y needs the chain through OFFER_MIG; a HERO_GOLD mutant stops before it. */
+  if (!(m && m.file === HERO_GOLD)) z.y = await offerArm(db, q, asUser, z.catalogue, !m);
   await db.close?.();
   if (!m) cleanChainEnd = z;
   return z;
 }
 
+/** ARM Y — 2026-11-03-hero-slots-gold.sql: the roster's offer, the cap, the key, through the REAL wrapper. */
+async function offerArm(db, q, asUser, catalogue, clean) {
+  const y = {};
+  if (clean) {   // Y0: a second apply of the file changes no schema, body or grant
+    const bodies = async () => JSON.stringify((await db.query(`select p.oid::regprocedure::text as f, md5(p.prosrc) as h, coalesce(p.proacl::text, '') as acl
+      from pg_proc p where p.pronamespace = 'public'::regnamespace order by 1`)).rows);
+    const sqlText = (await readFile(join(ROOT, 'supabase', 'migrations', OFFER_MIG), 'utf8')).replace(/\r\n/g, '\n');
+    const before = JSON.stringify([await inventory(db), await bodies()]);
+    try { await db.exec(`begin;\n${sqlText}\ncommit;`); } catch (e) { y.reapplyErr = String(e.message).split('\n')[0]; await db.exec('rollback').catch(() => {}); }
+    y.reapplySame = before === JSON.stringify([await inventory(db), await bodies()]);
+  }
+  y.paid = catalogue.filter((r) => !r.starter).map((r) => ({ slot_id: r.slot_id, cost: Number(r.cost) }));
+  y.cap = Math.max(...catalogue.map((r) => r.slot_id)) + 1;
+  const uid = (await q('select gen_random_uuid() as i'))[0].i;
+  await q('insert into auth.users (id, instance_id, aud, role, email) '
+    + "values ($1,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','offer@probe.invalid')", [uid]);
+  await q('insert into public.profiles (id) values ($1) on conflict do nothing', [uid]);
+  await q('delete from public.hr_rate_counters');
+  y.create = await asUser(uid, 'select public.hr_create_character(0) as r');
+  const accountOf = async () => { await q('delete from public.hr_rate_counters'); return (await asUser(uid, 'select public.hr_load(0) as r'))?.account; };
+  const buy = async (slotId, idem) => { await q('delete from public.hr_rate_counters');
+    try { return await asUser(uid, 'select public.hr_buy_hero_slot($1,$2,$3) as r', [slotId, 0, idem]); }
+    catch (e) { return { thrown: String(e.message).split('\n')[0] }; } };
+  const rows = async () => (await q("select gold::text g from player_ledger where user_id=$1 and kind='hero_slot'", [uid])).map((r) => Number(r.g));
+  const total = y.paid.reduce((s, p) => s + p.cost, 0);
+  await q('update public.player_state set gold = $2 where user_id = $1 and slot = 0', [uid, total + 3]);
+  y.acc0 = await accountOf();
+  y.keyless = await buy(y.paid[0].slot_id, null);
+  const k = crypto.randomUUID();
+  y.first = await buy(y.paid[0].slot_id, k);
+  y.replay = await buy(y.paid[0].slot_id, k);
+  y.rowsAfterReplay = await rows();
+  y.rest = [];
+  for (const p of y.paid.slice(1)) y.rest.push(await buy(p.slot_id, crypto.randomUUID()));
+  y.accEnd = await accountOf();
+  y.overCap = await buy(y.cap, crypto.randomUUID());
+  y.owned = (await q('select public.hr_hero_slots_of($1) as r', [uid]))[0]?.r;
+  y.goldEnd = Number((await q('select gold::text g from player_state where user_id=$1 and slot=0', [uid]))[0]?.g);
+  y.rowsEnd = await rows();
+  y.total = total;
+  return y;
+}
+
+function gradeOffer(y) {
+  if (!y) return;
+  ok(!y.reapplyErr && y.reapplySame !== false, `Y0: a second apply of ${OFFER_MIG} ${y.reapplyErr ? 'raised ' + y.reapplyErr : 'changed the schema, a body or a grant'}`);
+  ok(y.create?.ok === true, `Y FIXTURE: hr_create_character refused: ${JSON.stringify(y.create)}`);
+  const first = y.paid[0];
+  ok(y.acc0?.hero_slot_offer?.slot_id === first?.slot_id && y.acc0?.hero_slot_offer?.cost_gold === first?.cost,
+    `Y1: a fresh account's envelope offers ${JSON.stringify(y.acc0?.hero_slot_offer)}, expected slot ${first?.slot_id} at the catalogue's ${first?.cost} gold`);
+  ok(y.acc0?.hero_slots_max === y.cap, `Y1: the envelope's hero_slots_max is ${y.acc0?.hero_slots_max}, the catalogue holds ${y.cap}`);
+  ok(y.keyless?.error === 'idem_required', `Y2: a purchase with no idempotency key answered ${JSON.stringify(y.keyless)}`);
+  ok(y.first?.ok === true && Number(y.first?.cost) === first?.cost && y.first?.hero_slot_offer?.slot_id === y.paid[1]?.slot_id,
+    `Y3: the first purchase answered ${JSON.stringify(y.first)} (expected ok at ${first?.cost} and the next offer)`);
+  ok(y.replay?.replayed === true && y.rowsAfterReplay.length === 1,
+    `Y3: the same key retried answered ${JSON.stringify(y.replay)} with ${y.rowsAfterReplay.length} ledger row(s) - a retry must replay, never charge`);
+  ok(y.rest.every((r) => r?.ok === true), `Y4: climbing the ladder answered ${JSON.stringify(y.rest)}`);
+  ok(y.accEnd && y.accEnd.hero_slot_offer === null, `Y4: at the cap the envelope still offers ${JSON.stringify(y.accEnd?.hero_slot_offer)}`);
+  ok(Array.isArray(y.owned) && y.owned.length === y.cap, `Y4: the account owns ${JSON.stringify(y.owned)}, expected ${y.cap} slots`);
+  ok(y.overCap?.error === 'slot_cap' && Number(y.overCap?.max) === y.cap, `Y5: a slot past the cap answered ${JSON.stringify(y.overCap)}`);
+  ok(y.goldEnd === 3 && y.rowsEnd.length === y.paid.length && y.rowsEnd.reduce((s, g) => s + g, 0) === -y.total,
+    `Y6: the ladder left ${y.goldEnd} gold of 3 with ledger ${JSON.stringify(y.rowsEnd)}; expected exactly -${y.total} in ${y.paid.length} rows`);
+}
+
 function gradeChainEnd(z) {
+  gradeOffer(z.y);
   ok(z.create?.ok === true, `Z FIXTURE: hr_create_character refused: ${JSON.stringify(z.create)}`);
   ok(JSON.stringify(z.owned) === JSON.stringify([0, ...z.starters]),
     `Z: a fresh account owns ${JSON.stringify(z.owned)}, expected slot 0 and the starter slots ${JSON.stringify(z.starters)}`);

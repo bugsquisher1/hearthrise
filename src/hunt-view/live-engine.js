@@ -42,6 +42,11 @@ const UNKNOWN_PURSE = Number.MAX_SAFE_INTEGER;
 
 const isInt = (v) => Number.isSafeInteger(v);
 const encodeWorld = (w) => JSON.stringify(encodeWorldRow(w));
+/* WHAT EACH HERO FIGHTS WITH: every member's `hero` (heroSetup: target, stance, chase, distance, the bar,
+   density, thresholds), the viewer's own or a peer's frozen one, by member key. The server reads it afresh
+   at every settle, so a start point naming another one is a setup changed mid-hunt (r10). */
+const setupOf = (live) => JSON.stringify(live.members.map((m) => [String(m.key), (m.frozen ? m.frozen.hero : m.hero) ?? null])
+  .sort((a, b) => (a[0] < b[0] ? -1 : 1)));
 
 /*
  * THE DRAWN TIMING OF A SWING'S STEPS (display only: nothing reads it back). The engine stamps a step
@@ -100,6 +105,7 @@ export function createLiveEngine(o) {
       seeds: { from: Number(live.seeds.from), list: live.seeds.list.slice() },
       hashes: new Map(), starved: false, drawn: new Map(),
       self: (live.members.find((m) => m.self) || {}).unitId ?? null,
+      setup: setupOf(live),
     };
     s.hashes.set(Number(live.instance.world_swing), live.instance.world_hash);
     return s;
@@ -185,6 +191,11 @@ export function createLiveEngine(o) {
   return {
     /** Begin from a server start point (hunt_live). Answers false when it cannot run it. */
     seed(live) { st = start(live); return !!st; },
+    /**
+     * Does a start point carry the setups this prediction runs (setupOf)? One that does not was changed
+     * mid-hunt: the server settles from its world with the new one, so the prediction must restart from it.
+     */
+    sameSetup: (live) => !!st && !!live && Array.isArray(live.members) && setupOf(live) === st.setup,
     /** Is a prediction running? */
     running: () => !!st && !st.starved,
     /** The viewed character's unit in the instance (null before the first swing places it). */

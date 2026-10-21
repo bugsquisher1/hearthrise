@@ -20,7 +20,7 @@
 -- six drink rows (mana, price), the drink_mana_per_min_max limit and the vendor
 -- values of the six crafted drinks move; Fireball spends no rune
 -- (hr_hunt_abilities.rune null). Every other row is the 11-02 file's.
--- Apply after 2026-11-02-shop-no-supplies.sql.
+-- Apply after 2026-11-03-hero-slots-gold.sql.
 --
 -- Server-only: RLS on, NO policy, no client grant (the client reads src/data).
 -- Idempotent: delete + insert; nothing references these rows by foreign key.

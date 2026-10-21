@@ -350,6 +350,18 @@ jobs:
           node tests/services-window.mjs
           node tests/services-window.mjs --mutate
 
+      # EVERY PRESS ANSWERS AT ONCE (tracker r20, r21): a press that sends an
+      # ask is pending in its own frame (Play, a purchase) until the server's
+      # answer AND the re-read envelope, a second click in flight reaches no
+      # handler, a refusal is marked and worded, a press that sends nothing is
+      # never marked; the ?debug=live corner shows only with the flag.
+      # --mutate plants five defects.
+      - name: Instant press and the live overlay (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/instant-press.mjs
+          node tests/instant-press.mjs --mutate
+
       # THE CHARACTER WINDOW (2026-10-25): the outfit catalogue is GENERATED
       # (gen-outfits --check); one XP formula, the sheet reads only what its
       # fingerprint covers, every put carries the engine version

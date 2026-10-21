@@ -438,6 +438,15 @@ export const SKIP = {
      to a pointer the server never pays (set-activity answers `hunt_required`
      before one can be declared). */
   HUNT_REQUIRED: 'hunt_required',
+  /* THE HUNT WINDOW WOULD LEAVE A WORLD PAST THE BOUND (lane c-tick-shards). The
+     world the window ends on encodes past HUNT_TUNING.worldMaxBytes (engine
+     contract #4), so accrueHunt proposes NOTHING: refused here, deterministically,
+     before any commit is built, never left to the database's CHECK (2026-10-21: a
+     63 KB world reached the commit in a mutant). ./hunt-settle.js asks for a
+     shorter window, as it does for a degradable clamp (another swing boundary is
+     another world). REFUSING: the instance keeps settled_to, swing and world, and
+     the window stays owed. Hunt-only: the pointer accrual never produces it. */
+  WORLD_TOO_LARGE: 'world_too_large',
 };
 
 /* ⚠ THE KINDS THIS ENGINE CAN PAY. THE ACTIVITY INTENT'S ALLOWLIST IS DERIVED
@@ -1137,17 +1146,7 @@ function decodeWorld(stored) {
 }
 export function encodeWorld(world) { return JSON.stringify(encodeWorldRow(world)); }
 
-/* THE HUNT SETTLE'S OWN REFUSALS (not SKIP: those classify the pointer accrual's
-   windows). A refused hunt window proposes NOTHING: the instance keeps its
-   settled_to, world and swing, and the window stays owed.
-     WORLD_TOO_LARGE  the world the window would leave encodes past
-                      HUNT_TUNING.worldMaxBytes (engine contract #4). Refused
-                      here, deterministically, before any commit is built, and
-                      never left to the database's CHECK to catch (2026-10-21: a
-                      63 KB world reached the commit in a mutant). The settle
-                      (./hunt-settle.js) asks for a shorter window, as it does for
-                      a degradable clamp: another swing boundary is another world. */
-const HUNT_REFUSE = Object.freeze({ WORLD_TOO_LARGE: 'world_too_large' });
+/* The world bound is measured in UTF-8 bytes of the compact text (SKIP.WORLD_TOO_LARGE). */
 const utf8Bytes = (text) => new TextEncoder().encode(text).length;
 
 /* THE ANALYZER TALLY of one member's hero (src/core/hunt/tally.js): what it
@@ -1214,7 +1213,7 @@ export function accrueHunt(inp) {
   const maxBytes = inp.worldMaxBytes == null ? HUNT_TUNING.worldMaxBytes
     : Math.min(HUNT_TUNING.worldMaxBytes, nat(inp.worldMaxBytes, HUNT_TUNING.worldMaxBytes));
   if (world !== null && utf8Bytes(world) > maxBytes) {
-    return { accrued: false, refused: true, reason: HUNT_REFUSE.WORLD_TOO_LARGE, worldBytes: utf8Bytes(world), worldMaxBytes: maxBytes };
+    return { accrued: false, refused: true, reason: SKIP.WORLD_TOO_LARGE, worldBytes: utf8Bytes(world), worldMaxBytes: maxBytes };
   }
   return {
     accrued: true,

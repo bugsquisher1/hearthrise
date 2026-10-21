@@ -1012,6 +1012,12 @@ export const REFUSING_SKIP_REASONS = Object.freeze([
      player and their next switch. That asymmetry is why the two can share a
      group without sharing a risk. */
   'unpayable_bench',      // SKIP.UNPAYABLE_BENCH
+  /* SKIP.WORLD_TOO_LARGE (lane c-tick-shards) — a HUNT window whose world would
+     encode past the bound. REFUSING: the window is owed and deferred (the
+     instance does not move); it is a property of the window, not of a pointer,
+     so it is not a POINTER reason and never forfeits. The pointer accrual never
+     produces it (a hunter's pointer answers hunt_open). */
+  'world_too_large',      // SKIP.WORLD_TOO_LARGE
 ]);
 
 /** Every reason this contract has an opinion about. */

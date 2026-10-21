@@ -39,6 +39,7 @@ import { resolveLine, takeLine, canAfford, shopShotFor } from '../action-rules.j
 import { cheb, dist2, los } from './grid.js?v=0.2.23';
 import { makeEvent } from './events.js?v=0.2.23';
 import { landHit } from './damage.js?v=0.2.23';
+import { challengeable, challengeFrom } from './targeting.js?v=0.2.23';
 import { applyStatus, statusRow } from './status.js?v=0.2.23';
 import { levelOf } from '../xp.js?v=0.2.23';
 import { ammoPerShot } from '../ammo.js?v=0.2.23';
@@ -78,7 +79,8 @@ function targetFor(inst, hero, h, row, sc, cx) {
   const near = mons.filter((m) => inReach(inst, hero, h.range, m)).sort(byPreference(hero));
   const pct = (u) => (int(u.maxHp) > 0 ? (int(u.hp) * 100) / int(u.maxHp) : 100);
   switch (row.target) {
-    case 'taunt': return mons.some((m) => m.target !== hero.id) ? hero : null;
+    /* The Challenge (targeting.js): the auto-cast and this slot share the ability's clock and its reach. */
+    case 'taunt': return challengeable(inst, hero).length ? hero : null;
     case 'mark': {
       const t = near.slice().sort((a, b) => (int(b.hp) - int(a.hp)) || (a.id - b.id))[0];
       return t && !(t.markUntil > sc.atMs) ? t : null;
@@ -178,10 +180,7 @@ const roll = (sc, r) => sc.rng.int(r[0], r[1]);
 function effect(inst, u, row, t, sc) {
   const el = row.element || null;
   switch (row.target) {
-    case 'taunt':
-      for (const m of engaged(inst)) if (m.target !== u.id) m.target = u.id;
-      sc.emit(makeEvent('challenge', sc.atMs, { u: u.id }));
-      break;
+    case 'taunt': challengeFrom(inst, sc, u); break;
     case 'mark':
       /* The marked target takes bonusPct more damage from every blow until markUntil (damage.landHit). */
       t.markPm = row.bonusPct * 10; t.markUntil = sc.atMs + row.durMs;

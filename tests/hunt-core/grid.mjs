@@ -37,6 +37,16 @@ const cases = {
     if (JSON.stringify(M.grid.astar(open, 2, 0, 2, 0, null)) !== '[]') return 'start = goal must answer []';
     return null;
   },
+  /* bfsTo: the NEAREST goal tile it can walk to (no corner cut, a blocker vetoed); [] on a goal; null when sealed. */
+  'bfs-nearest-goal': (M) => {
+    const g = small(M, ['.#...', '.....']);
+    const p = M.grid.bfsTo(g, 0, 0, (x, y) => x === 2 && y === 0, null);
+    if (JSON.stringify(p) !== '[[0,1],[1,1],[2,1],[2,0]]') return 'past the wall on (1,0) the walk to (2,0) went ' + JSON.stringify(p);
+    const two = M.grid.bfsTo(g, 0, 1, (x, y) => (x === 4 && y === 1) || (x === 2 && y === 1), null);
+    if (JSON.stringify(two) !== '[[1,1],[2,1]]') return 'of two goals the nearer was not taken: ' + JSON.stringify(two);
+    if (M.grid.bfsTo(g, 0, 1, (x, y) => x === 4 && y === 1, (x, y) => x === 1 && y === 1) !== null) return 'a blocker sealing the way must answer null';
+    return JSON.stringify(M.grid.bfsTo(g, 0, 0, (x, y) => x === 0 && y === 0, null)) === '[]' ? null : 'standing on a goal must answer []';
+  },
   /* GR-04 */
   'los-blocked-by-wall': (M) => {
     const g = small(M, ['.....', '..#..', '.....']);
@@ -59,7 +69,11 @@ const cases = {
 
 const mutants = [
   { name: 'A* cuts corners', case: 'astar-no-corner-cut',
-    edits: [['src/core/hunt/grid.js', '      if (dx && dy && (!walkable(g, x + dx, y) || !walkable(g, x, y + dy))) continue;\n', '']] },
+    edits: [['src/core/hunt/grid.js', '      if (dx && dy && (!walkable(g, x + dx, y) || !walkable(g, x, y + dy))) continue;\n      if (blocked && blocked(nx, ny)) continue;\n', '      if (blocked && blocked(nx, ny)) continue;\n']] },
+  { name: 'the breadth-first walk cuts corners', case: 'bfs-nearest-goal',
+    edits: [['src/core/hunt/grid.js', '      if (dx && dy && (!walkable(g, x + dx, y) || !walkable(g, x, y + dy))) continue;\n      const nk = tileKey(g, nx, ny);\n      if (from.has(nk)', '      const nk = tileKey(g, nx, ny);\n      if (from.has(nk)']] },
+  { name: 'the breadth-first walk ignores a blocker', case: 'bfs-nearest-goal',
+    edits: [['src/core/hunt/grid.js', '      if (from.has(nk) || (blocked && blocked(nx, ny))) continue;', '      if (from.has(nk)) continue;']] },
   { name: 'line of sight ignores walls', case: 'los-blocked-by-wall',
     edits: [['src/core/hunt/grid.js', '&& isOpaque(g, x, y)) return false;', '&& false) return false;']] },
 ];

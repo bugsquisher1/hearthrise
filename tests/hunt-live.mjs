@@ -5,7 +5,7 @@
 //   node tests/hunt-live.mjs            the rules
 //   node tests/hunt-live.mjs --mutate   every planted defect must turn its rule RED
 //
-// mutant-anchors: src/hunt-view/live-engine.js src/core/combat-sim.js supabase/functions/hr-accrue/hunt-settle.js supabase/functions/hr-accrue/accrual.js src/hunt-view/timeline.js src/core/hunt/roles.js src/core/member.js
+// mutant-anchors: src/hunt-view/live-engine.js src/core/combat-sim.js supabase/functions/hr-accrue/hunt-settle.js supabase/functions/hr-accrue/accrual.js src/hunt-view/timeline.js src/core/hunt/roles.js src/core/hunt/targeting.js src/core/member.js
 // mutant-writes-tree: no — mutants are planted into a temp copy of src/ and the edge
 //
 // Option B (Tyler 2026-10-19). The edge settles a hunt instance in commits of at
@@ -35,7 +35,9 @@
 //         one constant (src/data/hunt-tuning.js) the edge reads, and the leave horizon of
 //         2026-10-31-live-horizon.sql is exactly liveSeeds x the swing.
 //   LV-T  A SECOND TANK FIGHTS: with the pack on the leader, the second shield hero walks to its own
-//         target and lands >= 60% of the leader's blows, never 3 s+ with nothing engaged beside it.
+//         target and lands >= 60% of the leader's blows, never 3 s+ with nothing engaged beside it;
+//         the two tanks' Challenges trade the pack (each takes >= 25% of the monsters' swings), and
+//         the browser's engine shows the second tank's Challenge and the swings it takes.
 //   LV-W  A RESTARTED INSTANCE (no world, swing counter kept) predicts from its first swing and
 //         its first commit matches (v0.2.20: the browser asked for seed 0 of a list from 40 and
 //         never started).
@@ -312,11 +314,18 @@ function rules(M) {
       const mis = [memberOf(M, 'a', 0, 'tank', 9), memberOf(M, 'b', 1, 'tank', 19)];
       for (const m of mis) { m.huntId = hunt; m.hero = Object.assign({}, M.SPAWN.heroSetup({ weaponType: 'sword', options: {}, bar: [], partyRoles: ['tank', 'tank'] }), { density: dens }); }
       const srv = server(M, mis, { hunt });
-      const hits = {}; let away = 0, longest = 0;
+      const hits = {}, taken = {}; let away = 0, longest = 0;
+      const heroIds = () => [mis[0].unitId, mis[1].unitId];
       for (let t = T0 + M.CB.tickMs; t <= T0 + 120000; t += M.CB.tickMs) {
         const c = srv.commit(t);
         if (!c) break;
-        for (const e of c.tl.hunt_events) if (e.type === 'dmg') hits[e.u] = (hits[e.u] || 0) + 1;
+        for (const e of c.tl.hunt_events) {
+          if (e.type === 'dmg') hits[e.u] = (hits[e.u] || 0) + 1;
+          /* a monster's swing at a hero (landed or missed): what trains that hero's Defense */
+          if ((e.type === 'dmg' || e.type === 'miss') && !heroIds().includes(e.u) && heroIds().includes(e.t)) taken[e.t] = (taken[e.t] || 0) + 1;
+        }
+        /* a party whose world is gone ended (a death ends it for everyone): the two tanks did not hold 120 s */
+        if (!srv.inst.world) { ok('LV-T', false, `${hunt} d${dens}: the instance ended ${(t - T0) / 1000} s in (a hero died)`); break; }
         const w = M.WS.decode(JSON.parse(srv.inst.world));
         const engaged = w.units.filter((u) => u.side === 'mon' && u.alive && Number.isInteger(u.target));
         const h = w.units.find((u) => u.id === mis[1].unitId);
@@ -329,7 +338,24 @@ function rules(M) {
       console.log(`  LV-T ${hunt} d${dens}: leader ${a} blows, second tank ${b} (${Math.round(b / Math.max(1, a) * 100)}%), longest ${longest / 1000} s with no engaged monster beside it`);
       ok('LV-T', a > 10 && b >= a * 0.6, `${hunt} d${dens}: the second tank landed ${b} blows to the leader's ${a} (want >= 60%)`);
       ok('LV-T', longest <= 3000, `${hunt} d${dens}: the second tank stood ${longest / 1000} s with no engaged monster beside it (want <= 3 s)`);
+      /* BOTH TANKS HOLD THE PACK IN TURN (Andy 2026-10-21: "Challenge spell not changing monster target. 2nd char
+         doesn't increase.. Defense is still 1"): each tank's Challenge holds what it takes, so each takes at least a
+         quarter of the monsters' swings (live v0.2.22: the second took none, the leader's Challenge undid its own). */
+      const ta = taken[mis[0].unitId] || 0, tb = taken[mis[1].unitId] || 0;
+      console.log(`  LV-T ${hunt} d${dens}: monster swings at the leader ${ta}, at the second tank ${tb}`);
+      ok('LV-T', ta + tb > 10 && tb >= (ta + tb) / 4 && ta >= (ta + tb) / 4, `${hunt} d${dens}: the monsters swung ${ta} times at the leader and ${tb} at the second tank (want each >= 25%)`);
     }
+    /* VIEWED: the browser's live engine shows the same trade (its events are the server's, LV-D): the second
+       tank casts Challenge and the monsters swing at it on the screen. */
+    const mis = [memberOf(M, 'a', 0, 'tank', 9), memberOf(M, 'b', 1, 'tank', 19)];
+    for (const m of mis) { m.huntId = 'millrace_sewer'; m.hero = Object.assign({}, M.SPAWN.heroSetup({ weaponType: 'sword', options: {}, bar: [], partyRoles: ['tank', 'tank'] }), { density: 7 }); }
+    const v = run(M, mis, 96000, { server: { hunt: 'millrace_sewer' } });
+    const ids = [mis[0].unitId, mis[1].unitId];
+    const casts = v.fed.events.filter((e) => e.type === 'cast' && e.ability === 'challenge' && e.u === ids[1]).length;
+    const atSecond = v.fed.events.filter((e) => (e.type === 'dmg' || e.type === 'miss') && e.t === ids[1] && !ids.includes(e.u)).length;
+    const unmatched = v.verdicts.filter((x) => x.v !== 'match').length;
+    console.log(`  LV-T viewed (browser engine, sewer d7): second tank cast Challenge ${casts}x, took ${atSecond} monster swings; ${unmatched} of ${v.verdicts.length} commits off the prediction`);
+    ok('LV-T', casts > 0 && atSecond > 5 && unmatched === 0 && v.verdicts.length >= 5, `viewed: the second tank cast Challenge ${casts}x and took ${atSecond} monster swings on the screen (${unmatched} commits off the prediction)`);
   }
 
   { // LV-W: a RESTARTED instance (no world, its swing counter kept: hr_hunt_start) runs live from its first swing
@@ -456,8 +482,10 @@ const MUTANTS = [
   ['the reseed teleports (LV-R)', 'src/hunt-view/timeline.js', 'const dur = Math.max(easeMs || 250, Math.ceil(dist * EASE_MS_PER_TILE));', 'const dur = 1;', /^LV-R/],
   ['every commit reads as a match (LV-R)', 'src/hunt-view/live-engine.js', "return h === hc.world_hash ? 'match' : 'diverged';", "return 'match';", /^LV-R/],
   ['a melee hero beside its target steps to another side every repath (LV-M)', 'src/core/hunt/roles.js',
-    '  if (cheb(h, tgt) <= 1 && atRest(h)) { clearGoal(h); return; }\n  if (h.aiMs > 0 && h.path.length) return;\n  h.aiMs = AI_REPATH_MS.melee;\n  const free = (x, y) => !standable(inst, h, tgt.pocket, x, y);',
-    '  if (h.aiMs > 0 && h.path.length) return;\n  h.aiMs = AI_REPATH_MS.melee;\n  const free = (x, y) => !standable(inst, h, tgt.pocket, x, y) || (x === h.x && y === h.y);', /^LV-M/],
+    '  if (cheb(h, tgt) <= 1 && atRest(h)) { clearGoal(h); return; }\n  if (h.aiMs > 0) return;\n  h.aiMs = AI_REPATH_MS.melee;\n  const beside = (list) => (x, y) => list.some((m) => cheb(m, { x, y }) <= 1 && (m.x !== x || m.y !== y) && standable(inst, h, m.pocket, x, y));',
+    '  if (h.aiMs > 0) return;\n  h.aiMs = AI_REPATH_MS.melee;\n  const beside = (list) => (x, y) => list.some((m) => cheb(m, { x, y }) <= 1 && (m.x !== x || m.y !== y) && standable(inst, h, m.pocket, x, y)) && (x !== h.x || y !== h.y);', /^LV-M/],
+  ['a held monster is Challenged straight back (LV-T, live v0.2.22)', 'src/core/hunt/targeting.js', 'm.target !== k.id && !(m.holdMs > 0) && cheb(m, k)', 'm.target !== k.id && cheb(m, k)', /^LV-T/],
+  ['a Challenge holds nothing (LV-T)', 'src/core/hunt/targeting.js', 'm.queued = false; m.holdMs = CHALLENGE.holdMs; }', 'm.queued = false; }', /^LV-T/],
   ['a peer row carries its full setup (LV-P)', 'supabase/functions/hr-accrue/hunt-settle.js', '      if (!self) {', '      if (false) {', /^LV-P/],
   ['the look-ahead is its own number at the edge (LV-H)', 'supabase/functions/hr-accrue/hunt-settle.js', 'export const LIVE_SEEDS = HUNT_TUNING.liveSeeds;', 'export const LIVE_SEEDS = 64;', /^LV-H/],
   ['a second tank holds where it stands (LV-T)', 'src/core/hunt/roles.js', "  if (!mons.some((m) => m.target === h.id)) { closeIn(inst, h, unitById(inst, h.target) || nearestTo(mons, h)); return; }\n", '', /^LV-T/],

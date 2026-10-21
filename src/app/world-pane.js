@@ -26,6 +26,15 @@ const PANE_HTML = '<div class="world-chrome">'
   + '</span></div>'
   + '<div class="world-stage"><p class="world-status">Loading the world…</p></div>';
 
+/* Each character's own display scratch (Town or Home, where its hero stands at home), kept across
+   mounts: the pane is remounted on every switch of the viewed character, and a scratch made per mount
+   sent the hero back to the map's start and the view back to Town. Never sent, never residue. */
+const SCRATCH = new WeakMap();
+function scratchOf(character) {
+  if (!SCRATCH.has(character)) SCRATCH.set(character, { choice: 'town' });
+  return SCRATCH.get(character);
+}
+
 /**
  * @param {HTMLElement} host            where the pane goes (the app's main box)
  * @param {object} character            a CharacterSession (status 'ready')
@@ -48,8 +57,8 @@ export async function mountWorldPane(host, character, o) {
   host.appendChild(pane);
   const stage = pane.querySelector('.world-stage');
 
-  /* The character's own display scratch: where its hero stands, town or home. Never sent. */
-  const scratch = { choice: 'town' };
+  /* The character's own display scratch (SCRATCH): Town or Home, where its hero stands at home. Never sent. */
+  const scratch = scratchOf(character);
   const view = () => worldViewOf(character.record, scratch);
 
   /* The combat log listens to the character's timeline from the start, so no line is missed while its
@@ -72,7 +81,7 @@ export async function mountWorldPane(host, character, o) {
   try {
     const { bootWorld } = await import('../world/world-boot.js?v=0.2.23');
     const town = opts.account && typeof opts.account.townOf === 'function' ? opts.account.townOf(character.slot) : null;
-    runtime = await bootWorld(pane, { view, character, emit, town });
+    runtime = await bootWorld(pane, { view, character, emit, town, peers: opts.peers });
     runtime.sync();
   } catch (e) {
     console.error('[world] the world failed to load', e);

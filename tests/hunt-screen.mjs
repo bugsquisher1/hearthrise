@@ -5,6 +5,8 @@
 //   node tests/hunt-screen.mjs                the rules
 //   node tests/hunt-screen.mjs --mutate       every planted defect must turn a rule RED
 //   node tests/hunt-screen.mjs --mutate --shard=K/N   only every Nth mutant from the Kth (CI splits them)
+//     (on a push, tools/mutant-gate.mjs narrows a shard to the mutants its diff touches —
+//      tools/lib/mutant-scope.mjs; the nightly runs every mutant)
 //   node tests/hunt-screen.mjs --shots <dir>  also write the visual-gate screenshots
 //                                             (1440x900 and 922x423)
 //
@@ -89,6 +91,7 @@ import { readFile, mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { pathToFileURL } from 'node:url';
+import { scopeMutants, gateScope } from '../tools/lib/mutant-scope.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
 /* The scene and its log play huntPlaybackDelayMs behind the server (src/session/config.js): the fixture's
@@ -1282,9 +1285,19 @@ async function main() {
   const sh = process.argv.find((a) => a.startsWith('--shard='));
   const sm = sh ? /^--shard=(\d+)\/(\d+)$/.exec(sh) : null;
   if (sh && (!sm || +sm[1] < 1 || +sm[1] > +sm[2])) { console.log('  ✗ bad ' + sh + ' (want --shard=K/N, 1 <= K <= N)'); process.exit(1); }
-  const mine = sm ? MUTANTS.filter((_, i) => i % +sm[2] === +sm[1] - 1) : MUTANTS;
-  if (!mine.length) { console.log('  ✗ ' + sh + ' selects no mutant'); process.exit(1); }
+  const shard = sm ? MUTANTS.filter((_, i) => i % +sm[2] === +sm[1] - 1) : MUTANTS;
+  if (!shard.length) { console.log('  ✗ ' + sh + ' selects no mutant'); process.exit(1); }
   const tag = sm ? ' (shard ' + sm[1] + '/' + sm[2] + ')' : '';
+  /* A push's gate hands over its diff (HR_MUTANT_SCOPE): only the mutants it can have moved run —
+     the file a mutant patches changed, or its own entry here did; any other change to this file or
+     to a tests/ helper it loads runs them all. No scope (nightly, manual, local) = all of them. */
+  const scope = scopeMutants({ guard: 'tests/hunt-screen.mjs', root: ROOT, ...gateScope() });
+  const mine = scope.all ? shard : shard.filter(([name]) => scope.keep.has(name));
+  if (!scope.all) {
+    console.log('  scope: ' + mine.length + ' of ' + shard.length + ' mutant(s)' + tag + ' touched by this diff');
+    for (const [name] of mine) console.log('    ' + name + ' — ' + scope.why.get(name));
+    if (!mine.length) { console.log('hunt-screen --mutate' + tag + ': no mutant in this shard is touched by this diff (the nightly sweep runs them)'); process.exit(0); }
+  } else if (process.env.HR_MUTANT_SCOPE) console.log('  scope: every mutant — ' + scope.why);
   const clean = await checks(null, null);
   if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
   console.log('  ✓ clean control green');

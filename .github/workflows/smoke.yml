@@ -30,7 +30,9 @@ on:
   # THE NIGHTLY MUTATION SWEEP (CLAUDE.md §3.6/§4, Tyler 2026-10-21): the whole
   # matrix, every --mutate/--selftest, on main once a night at 08:00 UTC (01:00
   # Pacific; clear of the 00:00-00:10 UTC day boundary). A red nightly blocks the
-  # next release until fixed.
+  # next release until fixed. On push and pull_request every proof command goes
+  # through tools/mutant-gate.mjs and runs only when the diff touches its guard
+  # (a skipped one prints why); plain guard runs always run.
   schedule:
     - cron: '0 8 * * *'
 
@@ -253,9 +255,9 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/_chrome.mjs
-          node tests/_chrome.mjs --selftest
+          node tools/mutant-gate.mjs node tests/_chrome.mjs --selftest
           node tests/client-boot.mjs
-          node tests/client-boot.mjs --mutate
+          node tools/mutant-gate.mjs node tests/client-boot.mjs --mutate
 
       # TELEMETRY (2026-10-20): play.html served as hearthrise.net with the REAL
       # vendored Sentry and PostHog, their ingest hosts routed: both wired with
@@ -266,7 +268,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/observability.mjs
-          node tests/observability.mjs --mutate
+          node tools/mutant-gate.mjs node tests/observability.mjs --mutate
 
       # REPORT A PROBLEM (2026-10-21): the launcher row and Settings > Help open
       # it; Send posts ONE body to the bug-report-bridge Edge Function (stubbed)
@@ -277,7 +279,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/report-problem.mjs
-          node tests/report-problem.mjs --mutate
+          node tools/mutant-gate.mjs node tests/report-problem.mjs --mutate
 
       # THE ALPHA WINDOWS (2026-10-18, week plan 16a + QoL 2/5): Bag, Gear,
       # Skills, Shop, Hunt prep and Find on the fixture envelope. Built once and
@@ -289,7 +291,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/alpha-windows.mjs
-          node tests/alpha-windows.mjs --mutate
+          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate
           node tests/hunt-scene-live.mjs
 
       # A failing run is far easier to diagnose with the page state attached.
@@ -349,7 +351,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/window-camera.mjs
-          node tests/window-camera.mjs --mutate
+          node tools/mutant-gate.mjs node tests/window-camera.mjs --mutate
 
       # THE SERVICES WINDOW (lane S2, 2026-10-18): stamina at the server's quoted
       # price after a confirmation, blessings only in order at their prices, the
@@ -359,7 +361,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/services-window.mjs
-          node tests/services-window.mjs --mutate
+          node tools/mutant-gate.mjs node tests/services-window.mjs --mutate
 
       # EVERY PRESS ANSWERS AT ONCE (tracker r20, r21): a press that sends an
       # ask is pending in its own frame (Play, a purchase) until the server's
@@ -371,7 +373,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/instant-press.mjs
-          node tests/instant-press.mjs --mutate
+          node tools/mutant-gate.mjs node tests/instant-press.mjs --mutate
 
       # THE CHARACTER WINDOW (2026-10-25): the outfit catalogue is GENERATED
       # (gen-outfits --check); one XP formula, the sheet reads only what its
@@ -385,11 +387,11 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tools/gen-outfits.mjs --check
-          node tools/gen-outfits.mjs --selftest
+          node tools/mutant-gate.mjs node tools/gen-outfits.mjs --selftest
           node tests/character-sheet-core.mjs
-          node tests/character-sheet-core.mjs --mutate
+          node tools/mutant-gate.mjs node tests/character-sheet-core.mjs --mutate
           node tests/character-window.mjs
-          node tests/character-window.mjs --mutate
+          node tools/mutant-gate.mjs node tests/character-window.mjs --mutate
 
       # THE PARTY UI (2026-10-18, week plan 16 + QoL 3/7): the character strip,
       # the command centre, the Party window and the alert lines on the party
@@ -400,7 +402,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/party-ui.mjs
-          node tests/party-ui.mjs --mutate
+          node tools/mutant-gate.mjs node tests/party-ui.mjs --mutate
 
       # THE CHAT WINDOW AND THE SOCIAL SIDE (2026-10-18, lane/chat): lines are
       # the server's rows (time, name, level, the weapon's role), one intent
@@ -413,7 +415,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/chat-social.mjs
-          node tests/chat-social.mjs --mutate
+          node tools/mutant-gate.mjs node tests/chat-social.mjs --mutate
 
       # TOWN PRESENCE (2026-10-18, lane/town-presence): two accounts in The
       # Common see each other (the server's id, name, level, role, tiles), the
@@ -426,7 +428,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/town-walk.mjs
-          node tests/town-walk.mjs --mutate
+          node tools/mutant-gate.mjs node tests/town-walk.mjs --mutate
 
       # A failing run is far easier to diagnose with the page state attached.
       - name: Upload failure artifacts
@@ -480,7 +482,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/hunt-screen.mjs
-          node tests/hunt-screen.mjs --mutate --shard=1/3
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=1/3
 
       # A failing run is far easier to diagnose with the page state attached.
       - name: Upload failure artifacts
@@ -519,7 +521,7 @@ jobs:
       - name: Hunt screen mutants, shard 2 of 3 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tests/hunt-screen.mjs --mutate --shard=2/3
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=2/3
 
       - name: Upload failure artifacts
         if: failure()
@@ -555,7 +557,7 @@ jobs:
       - name: Hunt screen mutants, shard 3 of 3 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tests/hunt-screen.mjs --mutate --shard=3/3
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=3/3
 
       - name: Upload failure artifacts
         if: failure()
@@ -659,7 +661,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/schema-drift.mjs
-          node tests/schema-drift.mjs --mutate
+          node tools/mutant-gate.mjs node tests/schema-drift.mjs --mutate
           node tests/schema-drift.mjs --live-selftest
 
       # THE ABSENCE IS PRICED AT THE STATE THAT EXISTED DURING IT (Security F2/F3,
@@ -674,7 +676,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/settle-before-mutate.mjs
-          node tests/settle-before-mutate.mjs --selftest
+          node tools/mutant-gate.mjs node tests/settle-before-mutate.mjs --selftest
 
       # UTC MIDNIGHT REPLAY MOVED TO ITS OWN JOB 2026-09-19 (b550). Measured on
       # the GitHub run for ab7572e7 (branch next): this step alone cost 411 s,
@@ -692,7 +694,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/ledger-rollup.mjs
-          node tests/ledger-rollup.mjs --mutate
+          node tools/mutant-gate.mjs node tests/ledger-rollup.mjs --mutate
 
       # ...AND DO THE ROWS THE REBUILD PRODUCES MATCH src/data?
       # schema-drift proves the SCHEMA replays. This is the CONTENT half, and it
@@ -718,7 +720,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/catalogue-literal-drift.mjs
-          node tests/catalogue-literal-drift.mjs --selftest
+          node tools/mutant-gate.mjs node tests/catalogue-literal-drift.mjs --selftest
 
       # ...AND DOES PRODUCTION CARRY THE BODIES THE REPO BELIEVES IT CARRIES?
       # schema-drift fingerprints SIGNATURES; its own header names function
@@ -751,8 +753,8 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/live-hash-drift.mjs
-          node tests/live-hash-drift.mjs --selftest
-          node tests/live-hash-drift.mjs --mutate
+          node tools/mutant-gate.mjs node tests/live-hash-drift.mjs --selftest
+          node tools/mutant-gate.mjs node tests/live-hash-drift.mjs --mutate
 
       # ...AND DOES THE DEPLOYMENT RECORD AGREE WITH THAT MEASUREMENT?
       # The step above measures what production runs. tests/schema-apply-order.json
@@ -780,7 +782,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/apply-order-honesty.mjs
-          node tests/apply-order-honesty.mjs --selftest
+          node tools/mutant-gate.mjs node tests/apply-order-honesty.mjs --selftest
 
       # MOVED HERE FROM db-replay-2, 2026-09-26 CI REBALANCE: run 36219670449
       # (next@94767e81) was CANCELLED at db-replay-2's own 19-min timeout
@@ -798,8 +800,8 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/readonly-rpc.mjs
-          node tests/readonly-rpc.mjs --selftest
-          node tests/readonly-rpc.mjs --mutate
+          node tools/mutant-gate.mjs node tests/readonly-rpc.mjs --selftest
+          node tools/mutant-gate.mjs node tests/readonly-rpc.mjs --mutate
 
   # ── db-replay-4 ── SPLIT OUT OF db-replay 2026-09-28 (CI-SPLIT-4, see note
   # [5] above `jobs:`). Runs 36435388338 (next@d996c262) and 36435597419
@@ -902,7 +904,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/rejections-journal.mjs
-          node tests/rejections-journal.mjs --selftest
+          node tools/mutant-gate.mjs node tests/rejections-journal.mjs --selftest
 
       # A RETIRED KEY IS NOT AN AUTHORITY KEY.
       # hr_put_client_state__ungated refused the WHOLE residue patch on any denied
@@ -934,7 +936,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/client-state-retired-fields.mjs
-          node tests/client-state-retired-fields.mjs --selftest
+          node tools/mutant-gate.mjs node tests/client-state-retired-fields.mjs --selftest
 
       # 2026-10-04-bounty-abandon-server-fee.sql (Security P2): the abandon fee is
       # priced from the server's active_bounty + Bounty-Hunter level, never a client
@@ -949,7 +951,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/bounty-abandon-fee.mjs
-          node tests/bounty-abandon-fee.mjs --mutate
+          node tools/mutant-gate.mjs node tests/bounty-abandon-fee.mjs --mutate
 
       # 2026-10-23-demolition-bounty-gems-close.sql (BETA_PLAN K4 + K37): at chain
       # end the bounty RPCs do not resolve for a player, and the ONE gem credit
@@ -961,7 +963,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/bounty-gems-close.mjs
-          node tests/bounty-gems-close.mjs --mutate
+          node tools/mutant-gate.mjs node tests/bounty-gems-close.mjs --mutate
 
       # 2026-10-23-demolition-login-catalogue.sql (Tyler 2026-10-17: the login reward
       # is premium-only; premium is S1's): every day pays nothing (rewards.js is the
@@ -971,7 +973,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/login-reward-off.mjs
-          node tests/login-reward-off.mjs --mutate
+          node tools/mutant-gate.mjs node tests/login-reward-off.mjs --mutate
 
       # Lane C1 (2026-10-20-hunts-*.sql): hunts as named areas. The hunt catalogue
       # is GENERATED from src/data/hunts.js (unknown monster ids refused); the ONE
@@ -983,9 +985,9 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tools/gen-hunts.mjs --check
-          node tools/gen-hunts.mjs --selftest
+          node tools/mutant-gate.mjs node tools/gen-hunts.mjs --selftest
           node tests/hunts-c1.mjs
-          node tests/hunts-c1.mjs --mutate
+          node tools/mutant-gate.mjs node tests/hunts-c1.mjs --mutate
 
       # Lane C1 hunt sessions (2026-10-21-hunt-sessions*.sql, ruling HR-2026-10-14):
       # the catalogue is GENERATED from src/data (supplies, rule subjects, limits,
@@ -998,9 +1000,9 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tools/gen-hunt-sessions.mjs --check
-          node tools/gen-hunt-sessions.mjs --selftest
+          node tools/mutant-gate.mjs node tools/gen-hunt-sessions.mjs --selftest
           node tests/hunt-sessions-db.mjs
-          node tests/hunt-sessions-db.mjs --mutate
+          node tools/mutant-gate.mjs node tests/hunt-sessions-db.mjs --mutate
 
 
       # 2026-10-11-name-moderation.sql (Security): a name other players see is
@@ -1014,7 +1016,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/name-moderation.mjs
-          node tests/name-moderation.mjs --mutate
+          node tools/mutant-gate.mjs node tests/name-moderation.mjs --mutate
 
       # 2026-11-02-hero-creation.sql (Tyler 2026-10-20): a hero is created with a
       # name and four colours in ONE intent, owns all six starter weapon sets
@@ -1026,7 +1028,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/hero-creation.mjs
-          node tests/hero-creation.mjs --mutate
+          node tools/mutant-gate.mjs node tests/hero-creation.mjs --mutate
 
   # ── db-replay-2 ── THE SECOND HALF OF db-replay, SPLIT OUT 2026-09-20. Same
   # inputs (an applied migration chain), same reason for the split as
@@ -1153,7 +1155,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/restore-census.mjs
-          node tests/restore-census.mjs --mutate
+          node tools/mutant-gate.mjs node tests/restore-census.mjs --mutate
           node tests/restore-census.mjs --baseline-selftest
 
       # IS PRESENCE A SERVER FACT, AND DOES THE PLAZA LEAK EXACTLY SEVEN KEYS?
@@ -1192,7 +1194,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/town-presence.mjs
-          node tests/town-presence.mjs --selftest
+          node tools/mutant-gate.mjs node tests/town-presence.mjs --selftest
 
       # ONE GEM WALLET PER ACCOUNT (2026-10-19-account-wallet.sql, Game Designer
       # ruling 2026-10-11). Gems and Hearth Tokens moved from player_state (one per
@@ -1209,7 +1211,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/account-wallet.mjs
-          node tests/account-wallet.mjs --mutate
+          node tools/mutant-gate.mjs node tests/account-wallet.mjs --mutate
 
       # b564 — THE BULK SALE (`vendor_sell_many`), against the real chain, through
       # the real edge bytes (parseIntent -> runVendorSellMany -> hr_apply as
@@ -1227,7 +1229,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/vendor-sell-many.mjs
-          node tests/vendor-sell-many.mjs --mutate
+          node tools/mutant-gate.mjs node tests/vendor-sell-many.mjs --mutate
 
       # THE DERIVED PER-REQUEST TOKEN, EXECUTED RATHER THAN ASSERTED
       # (SEC_WORLD_TICK_TOKEN_2026-09-23.md, security ruling T-5.3). The
@@ -1256,7 +1258,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/world-tick-token-leak.mjs
-          node tests/world-tick-token-leak.mjs --selftest
+          node tools/mutant-gate.mjs node tests/world-tick-token-leak.mjs --selftest
 
   # ── db-replay-3 ── SPLIT OUT OF db-replay-2 2026-09-26 (CI-SPLIT-2, see the
   # note above db-replay-2 for the two cancelled runs that forced it). Same
@@ -1337,7 +1339,7 @@ jobs:
       #   its NAMED assertion, plus 2 negative controls that must stay silent.
       - name: Bestiary trophies - derived power, claimed row, neither trusts the client
         if: ${{ !cancelled() }}
-        run: node tests/bestiary-trophy.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/bestiary-trophy.mjs --selftest
 
       # A --selftest-only registration cannot tell a broken guard from a caught
       # defect. Run the plain body too: only it answers "green when nothing is wrong".
@@ -1352,7 +1354,7 @@ jobs:
       # plants 4 defects (each caught by name) and a silent control.
       - name: Trophy call sites - one drop rate, no ladder lift (selftest)
         if: ${{ !cancelled() }}
-        run: node tests/trophy-call-sites.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/trophy-call-sites.mjs --selftest
 
       - name: Trophy call sites - base run
         if: ${{ !cancelled() }}
@@ -1371,7 +1373,7 @@ jobs:
       # a player can see, not at a JSON key.
       - name: Trophy wire - the key is absent when the server did not answer
         if: ${{ !cancelled() }}
-        run: node tests/trophy-wire-shape.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/trophy-wire-shape.mjs --selftest
 
       # A --selftest-only registration cannot tell a broken guard from a caught
       # defect. Run the plain body too: only it answers "green when nothing is wrong".
@@ -1388,7 +1390,7 @@ jobs:
       # and executed; the consumer runs in a vm. --selftest plants each defect.
       - name: Collection wire - the log earns rungs from server counts only
         if: ${{ !cancelled() }}
-        run: node tests/collection-wire-shape.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/collection-wire-shape.mjs --selftest
 
       - name: Collection wire - base run
         if: ${{ !cancelled() }}
@@ -1401,7 +1403,7 @@ jobs:
       # and each must turn it red. The plain body runs inside run-smoke.mjs.
       - name: Collection/renown claim drift - mutation proof
         if: ${{ !cancelled() }}
-        run: node tests/collection-renown-claim-drift.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/collection-renown-claim-drift.mjs --selftest
 
       # REALTIME COST. Measured on production 2026-09-06 over 20.25 days: the
       # Realtime WAL poller is 2,706,517 calls / 15,669 s / max 9.8 s — ~61% of
@@ -1415,7 +1417,7 @@ jobs:
       # guard.
       - name: Realtime cost — publication == client subscriptions, both directions
         if: ${{ !cancelled() }}
-        run: node tests/realtime-cost.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/realtime-cost.mjs --selftest
 
       - name: Realtime cost — base run (the trim migration itself is green)
         if: ${{ !cancelled() }}
@@ -1431,7 +1433,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/frame-origin-marker.mjs
-          node tests/frame-origin-marker.mjs --mutate
+          node tools/mutant-gate.mjs node tests/frame-origin-marker.mjs --mutate
 
       # THE POSTGREST RPC RESOLUTION GATE.
       # The A9 retrofit (2026-08-11) rewrapped 35 live RPCs; every wrapper had to
@@ -1458,7 +1460,7 @@ jobs:
       # no extra network round trips.
       - name: RPC resolution — mutation proof
         if: ${{ !cancelled() }}
-        run: node tests/rpc-resolution.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/rpc-resolution.mjs --selftest
 
       # IS THE FINDER'S NAME MINTED IN ONE PLACE, AND IS `presence_quiet` REAL?
       # 2026-09-08-hearthfind.sql granted SELECT on ALL of world_finds — user_id
@@ -1501,7 +1503,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/world-finds-projection.mjs
-          node tests/world-finds-projection.mjs --selftest
+          node tools/mutant-gate.mjs node tests/world-finds-projection.mjs --selftest
 
       # AND DOES THE NIGHT KNOW WHICH RECIPES YOU HAVE READ?
       # 2026-08-16-artisan-progress-model.sql built the STORAGE for a learned
@@ -1528,7 +1530,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/recipe-learn.mjs
-          node tests/recipe-learn.mjs --selftest
+          node tools/mutant-gate.mjs node tests/recipe-learn.mjs --selftest
 
       # THE PROJECTED KEY SET, BY EXECUTION. hr_state_of is created once and then
       # programmatically PATCHED by later migrations, so its shipped body is in no
@@ -1575,7 +1577,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/party-membership.mjs
-          node tests/party-membership.mjs --mutate
+          node tools/mutant-gate.mjs node tests/party-membership.mjs --mutate
 
       # THE THREE PROPERTIES THE STRIP INTRODUCED THAT ITS OWN GUARD DOES NOT
       # MEASURE. Written by the security-engineer role during the review of
@@ -1608,7 +1610,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/client-state-retired-fields-adversarial.mjs
-          node tests/client-state-retired-fields-adversarial.mjs --selftest
+          node tools/mutant-gate.mjs node tests/client-state-retired-fields-adversarial.mjs --selftest
 
       # MOVED FROM db-replay-4 2026-10-20 (see the note above that job), byte for byte.
       # CAN A BROWSER GIVE ITSELF A BUFF?
@@ -1647,7 +1649,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/buff-queue.mjs
-          node tests/buff-queue.mjs --selftest
+          node tools/mutant-gate.mjs node tests/buff-queue.mjs --selftest
 
   # ── db-replay-5 ── SPLIT OUT OF db-replay-3 2026-10-06 (CI-SPLIT-5). The
   # GitHub run for e585a031 (branch next, run 37470960216) CANCELLED db-replay-3
@@ -1710,13 +1712,13 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/world-tick-parity.mjs
-          node tests/world-tick-parity.mjs --mutate
+          node tools/mutant-gate.mjs node tests/world-tick-parity.mjs --mutate
 
       - name: World tick — one window is paid once, and only when armed
         if: ${{ !cancelled() }}
         run: |
           node tests/world-tick-double-pay.mjs
-          node tests/world-tick-double-pay.mjs --mutate
+          node tools/mutant-gate.mjs node tests/world-tick-double-pay.mjs --mutate
 
       # THE SECURITY VERDICT, AS AN EXIT CODE. Every arm of
       # SEC_WORLD_TICK_GATHER_2026-09-19.md, executed: the tick reaches the
@@ -1802,7 +1804,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/world-tick-hydration.mjs
-          node tests/world-tick-hydration.mjs --mutate
+          node tools/mutant-gate.mjs node tests/world-tick-hydration.mjs --mutate
 
       # THE SHADOW STALL AFTER A RE-POINT (2026-09-28). Production ran 21.9 h
       # (combat) and 14.7 h (gather) of `window_already_settled` on every fire
@@ -1816,7 +1818,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/world-tick-stall-after-repoint.mjs
-          node tests/world-tick-stall-after-repoint.mjs --mutate
+          node tools/mutant-gate.mjs node tests/world-tick-stall-after-repoint.mjs --mutate
 
       # A STALLED TICK IS RED FROM THE DATABASE ALONE (2026-09-28). The 22 h
       # stall above read green on every cron-grain query because the edge's
@@ -1831,7 +1833,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/world-tick-stall-guard.mjs
-          node tests/world-tick-stall-guard.mjs --selftest
+          node tools/mutant-gate.mjs node tests/world-tick-stall-guard.mjs --selftest
 
       # A guard's mutant replay stops at its own files (upTo / LAST_PATCHED), or
       # says why the whole chain must judge it (fullChain). Without that, a
@@ -1842,7 +1844,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/replay-scope-guard.mjs
-          node tests/replay-scope-guard.mjs --selftest
+          node tools/mutant-gate.mjs node tests/replay-scope-guard.mjs --selftest
 
       # Security SEC_WORLD_TICK_ARM_2026-10-05 rulings 5 + 1 (admission):
       # armed_channels is the one arming authority. Presents hr_engine as the
@@ -1855,7 +1857,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/world-tick-channel-arm.mjs
-          node tests/world-tick-channel-arm.mjs --selftest
+          node tools/mutant-gate.mjs node tests/world-tick-channel-arm.mjs --selftest
 
       # Security SEC_GATHER_ARM_RUNBOOK_2026-10-06 F1 + F2: an ARMED window
       # never pays time the offline cap forfeits (one span or a drip from an old
@@ -1866,7 +1868,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/world-tick-armed-cap.mjs
-          node tests/world-tick-armed-cap.mjs --mutate
+          node tools/mutant-gate.mjs node tests/world-tick-armed-cap.mjs --mutate
 
       # Security G1 (party-fences review): tools/vitals.mjs restates the armed
       # stall judge (the read-only role cannot execute hr_tick_stall_status).
@@ -1877,7 +1879,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/vitals-armed-parity.mjs
-          node tests/vitals-armed-parity.mjs --mutate
+          node tools/mutant-gate.mjs node tests/vitals-armed-parity.mjs --mutate
 
       # Security P3 on the party-reaper verdict: a party hunt started while
       # combat is disarmed is never ticked, so its members' accrue is refused
@@ -1887,7 +1889,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/party-hunt-start-gate.mjs
-          node tests/party-hunt-start-gate.mjs --mutate
+          node tools/mutant-gate.mjs node tests/party-hunt-start-gate.mjs --mutate
 
       # Presence horizon (2026-10-10-world-tick-presence-horizon.sql, Game
       # Designer ruling on B1): the armed tick pays nothing past last REAL
@@ -1898,7 +1900,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/world-tick-presence-horizon.mjs
-          node tests/world-tick-presence-horizon.mjs --mutate
+          node tools/mutant-gate.mjs node tests/world-tick-presence-horizon.mjs --mutate
 
       # Presence signal (2026-10-14-world-tick-presence-signal.sql, Game
       # Designer precondition B3): a stamped hr_heartbeat (JWT uid, server
@@ -1911,7 +1913,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/world-tick-presence-signal.mjs
-          node tests/world-tick-presence-signal.mjs --mutate
+          node tools/mutant-gate.mjs node tests/world-tick-presence-signal.mjs --mutate
 
       # Gather widen, stage 1 (2026-10-10-world-tick-gather-widen.sql): the
       # server enrols a RETURNING gatherer into tick ownership (hash bucket <
@@ -1923,7 +1925,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/world-tick-gather-widen.mjs
-          node tests/world-tick-gather-widen.mjs --mutate
+          node tools/mutant-gate.mjs node tests/world-tick-gather-widen.mjs --mutate
 
       # World-tick scale (2026-10-11-world-tick-*.sql, the stage 2/3 gates of
       # the gather widen): the roster serves only DUE characters and never
@@ -1933,7 +1935,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/world-tick-scale.mjs
-          node tests/world-tick-scale.mjs --mutate
+          node tools/mutant-gate.mjs node tests/world-tick-scale.mjs --mutate
 
       # EC-3d, the control, carries its own proof since 2026-09-22. It shipped
       # asserting the literal `+00:00` on the accrue path's rendering, which is
@@ -1950,7 +1952,7 @@ jobs:
       # be" against the real Postgres renderings.
       - name: World tick — EC-3d control, mutation proof
         if: ${{ !cancelled() }}
-        run: node tests/world-tick-edge-contract.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/world-tick-edge-contract.mjs --selftest
 
       # THE PARITY READ MUST ADDRESS A LEVEL THAT EXISTS (Security S-10,
       # 2026-09-23). hr_apply writes a ledger row as
@@ -1974,7 +1976,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/world-tick-ledger-meta.mjs
-          node tests/world-tick-ledger-meta.mjs --mutate
+          node tools/mutant-gate.mjs node tests/world-tick-ledger-meta.mjs --mutate
 
       # SECURITY T-1 (SEC_WORLD_TICK_TOKEN_2026-09-23.md), P1. The token
       # migration used to APPLY GREEN on a database where pgcrypto could not be
@@ -1992,7 +1994,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/world-tick-token-failclosed.mjs
-          node tests/world-tick-token-failclosed.mjs --selftest
+          node tools/mutant-gate.mjs node tests/world-tick-token-failclosed.mjs --selftest
 
   # ── db-replay-6 / db-replay-7 ── MUTATION PROOFS NOTHING RAN (2026-10-07,
   # lane b564-hollow-mutants). Thirteen guards' plain bodies run in the in-page
@@ -2028,15 +2030,15 @@ jobs:
 
       - name: Unlock buy — mutation proof
         if: ${{ !cancelled() }}
-        run: node tests/unlock-buy.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/unlock-buy.mjs --selftest
 
       - name: Companion codes severity — mutation proof
         if: ${{ !cancelled() }}
-        run: node tests/companion-codes-severity.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/companion-codes-severity.mjs --selftest
 
       - name: Market v2 — mutation proof
         if: ${{ !cancelled() }}
-        run: node tests/market-v2.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/market-v2.mjs --selftest
 
       # (Auto-eat at creation — RETIRED 2026-10-14 by lane C2 with Auto-Eat
       # itself: tests/hunt-sessions-db.mjs D1 asserts the switch and its columns
@@ -2044,7 +2046,7 @@ jobs:
 
       - name: Client write sweep 5 — mutation proof
         if: ${{ !cancelled() }}
-        run: node tests/client-write-sweep-5.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/client-write-sweep-5.mjs --selftest
 
       # Was in tests/guards-unregistered.json as "asserts:false"; re-measured
       # 2026-10-07: the plain run asserts the 5,000/day gem ceiling (2.2 s) and
@@ -2053,7 +2055,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/gem-daily-budget.mjs
-          node tests/gem-daily-budget.mjs --mutate
+          node tools/mutant-gate.mjs node tests/gem-daily-budget.mjs --mutate
 
       # Security, 2026-10-07: the M2 gather ARM file is excluded from the
       # replay chain, so nothing re-measured it, and its P3 (15 min freshness)
@@ -2065,7 +2067,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/world-tick-arm-gather.mjs
-          node tests/world-tick-arm-gather.mjs --mutate
+          node tools/mutant-gate.mjs node tests/world-tick-arm-gather.mjs --mutate
 
       # M4 (2026-10-14, lane b568-m4-combat-arm). The party path gets the
       # presence horizon and the combat cohort, the cap read loses its partied
@@ -2083,9 +2085,9 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/world-tick-m4-party-horizon.mjs
-          node tests/world-tick-m4-party-horizon.mjs --mutate
+          node tools/mutant-gate.mjs node tests/world-tick-m4-party-horizon.mjs --mutate
           node tests/world-tick-arm-combat.mjs
-          node tests/world-tick-arm-combat.mjs --mutate
+          node tools/mutant-gate.mjs node tests/world-tick-arm-combat.mjs --mutate
 
       # party_hunt SELECT lockdown (2026-10-15-party-hunt-select-lockdown.sql,
       # Security GO-WITH-CHANGES #2): stopped_by can carry a co-member uuid, so
@@ -2095,7 +2097,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/party-hunt-select-lockdown.mjs
-          node tests/party-hunt-select-lockdown.mjs --mutate
+          node tools/mutant-gate.mjs node tests/party-hunt-select-lockdown.mjs --mutate
 
       # Discord gift (2026-10-18-discord-gift.sql): this week's server-derived
       # code (HMAC of a Vault secret) pays a server-constant gem gift ONCE PER
@@ -2106,7 +2108,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/discord-gift.mjs
-          node tests/discord-gift.mjs --mutate
+          node tools/mutant-gate.mjs node tests/discord-gift.mjs --mutate
 
       # Closed rebuild (2026-10-21-closed-mode.sql + 2026-10-21-closed-rebuild-wipe.sql):
       # a non-allowlisted account is refused hr_closed by the pre-request hook,
@@ -2118,7 +2120,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/closed-rebuild.mjs
-          node tests/closed-rebuild.mjs --mutate
+          node tools/mutant-gate.mjs node tests/closed-rebuild.mjs --mutate
 
       # Absence claim -> the account wallet (2026-10-19-absence-claim-wallet.sql,
       # Security F1): an attended claim pays gold on the pledge's character and
@@ -2128,7 +2130,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/absence-claim-wallet.mjs
-          node tests/absence-claim-wallet.mjs --mutate
+          node tools/mutant-gate.mjs node tests/absence-claim-wallet.mjs --mutate
 
       # NO SELF-ECHO FRAMES (2026-10-09-frame-self-echo.sql). A player's own
       # HTTP write is not pushed back to their own topic; another character's
@@ -2141,7 +2143,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/frame-self-echo.mjs
-          node tests/frame-self-echo.mjs --mutate
+          node tools/mutant-gate.mjs node tests/frame-self-echo.mjs --mutate
 
   # db-replay-7 (same origin as db-replay-6, above). MEASURED locally
   # 2026-10-07: intent-mismatch 123 + goal-counters 117 + goal-gold-retune 56
@@ -2182,23 +2184,23 @@ jobs:
 
       - name: Intent mismatch — mutation proof
         if: ${{ !cancelled() }}
-        run: node tests/intent-mismatch.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/intent-mismatch.mjs --selftest
 
       - name: Goal counters — mutation proof
         if: ${{ !cancelled() }}
-        run: node tests/goal-counters.mjs --mutate
+        run: node tools/mutant-gate.mjs node tests/goal-counters.mjs --mutate
 
       - name: Cron health — mutation proof
         if: ${{ !cancelled() }}
-        run: node tests/cron-health.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/cron-health.mjs --selftest
 
       - name: Artisan progress model — mutation proof
         if: ${{ !cancelled() }}
-        run: node tests/artisan-progress-model.mjs --mutate
+        run: node tools/mutant-gate.mjs node tests/artisan-progress-model.mjs --mutate
 
       - name: Companion grant hardening — mutation proof
         if: ${{ !cancelled() }}
-        run: node tests/companion-grant-hardening.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/companion-grant-hardening.mjs --selftest
 
       # FRACTIONAL XP IS CARRIED (2026-10-09-xp-frac-carry.sql). Batching moves
       # no unit, +2% pays on the slime, attended == away == world tick in XP AND
@@ -2209,7 +2211,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/xp-frac-carry.mjs
-          node tests/xp-frac-carry.mjs --mutate
+          node tools/mutant-gate.mjs node tests/xp-frac-carry.mjs --mutate
 
       # EVERY DELTA-KEY ALLOWLIST COVERS EVERY KEY THE ENGINE CAN PROPOSE
       # (2026-10-13-party-settle-frac-keys.sql). The proposable set is DERIVED
@@ -2225,7 +2227,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/delta-key-allowlists.mjs
-          node tests/delta-key-allowlists.mjs --mutate
+          node tools/mutant-gate.mjs node tests/delta-key-allowlists.mjs --mutate
 
       # EVERY WRITE OF THE EQUIPPED PET BUMPS THE ROW VERSION. hr_apply's
       # companion_not_equipped refusal is a stall, not a bug, only because a
@@ -2238,7 +2240,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/companion-equip-version-bump.mjs
-          node tests/companion-equip-version-bump.mjs --mutate
+          node tools/mutant-gate.mjs node tests/companion-equip-version-bump.mjs --mutate
 
       # LANE S2 (2026-10-25-*.sql): the alpha windows' and the party UI's server
       # half. The catalogue (supply offers, stamina refill, blessings) is GENERATED
@@ -2252,12 +2254,12 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tools/gen-alpha-catalogue.mjs --check
-          node tools/gen-alpha-catalogue.mjs --selftest
+          node tools/mutant-gate.mjs node tools/gen-alpha-catalogue.mjs --selftest
           node tests/alpha-server.mjs
-          node tests/alpha-server.mjs --mutate
+          node tools/mutant-gate.mjs node tests/alpha-server.mjs --mutate
           node tools/build-settle-hooks.mjs --check
           node tests/settle-hooks.mjs
-          node tests/settle-hooks.mjs --mutate
+          node tools/mutant-gate.mjs node tests/settle-hooks.mjs --mutate
 
       # THE ONE-WAY PARTY FLOW (2026-10-28-party-flow.sql, PARTY_SPEC + Tyler
       # 10-19): every step on the real chain as `authenticated` — the first
@@ -2271,7 +2273,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/party-flow.mjs
-          node tests/party-flow.mjs --mutate
+          node tools/mutant-gate.mjs node tests/party-flow.mjs --mutate
 
       # THE CONTROL HALF OF A MUTATION PROOF. Every registered guard is re-run
       # with HR_MUTANT_CONTROL=1 (nothing planted, scope kept); any arm that
@@ -2282,7 +2284,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/mutant-control.mjs
-          node tests/mutant-control.mjs --selftest
+          node tools/mutant-gate.mjs node tests/mutant-control.mjs --selftest
 
   # ── db-replay-8 ── SPLIT OUT OF db-replay-5 2026-10-08 (CI-SPLIT-6). The
   # GitHub run for 3ea45544 (set/b565 on next, run 37725703255) CANCELLED
@@ -2352,10 +2354,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/world-tick-parity-probe.mjs
-          node tests/world-tick-parity-probe.mjs --mutate
-          node tools/world-tick-parity.mjs --selftest
+          node tools/mutant-gate.mjs node tests/world-tick-parity-probe.mjs --mutate
+          node tools/mutant-gate.mjs node tools/world-tick-parity.mjs --selftest
           node tests/world-tick-seed-no-leak.mjs
-          node tests/world-tick-seed-no-leak.mjs --mutate
+          node tools/mutant-gate.mjs node tests/world-tick-seed-no-leak.mjs --mutate
 
       # THE PERK STACK (2026-09-28). hr_perks_of is not an envelope field, so
       # the tick priced every window at zero perks — the standing -2.56% XP gap.
@@ -2372,7 +2374,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/world-tick-perks-parity.mjs
-          node tests/world-tick-perks-parity.mjs --mutate
+          node tools/mutant-gate.mjs node tests/world-tick-perks-parity.mjs --mutate
 
       # ONE TICK WINDOW FILES ONE OP PER PROGRESS ROW (2026-10-08, Security P2:
       # a 90 s gather window filed 46-55 of hr_apply's 64 ops). Coalesced ==
@@ -2384,7 +2386,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/progress-coalesce.mjs
-          node tests/progress-coalesce.mjs --mutate
+          node tools/mutant-gate.mjs node tests/progress-coalesce.mjs --mutate
       # F5 LOCKDOWN, ADOPTED (b569). Registered nowhere and red since the file
       # entered the order (42P01: it replayed the WHOLE chain, which already
       # dropped public.leaderboard, then looked for the hole to reproduce). It
@@ -2426,7 +2428,7 @@ jobs:
         run: |
           node tests/hunt-sessions-settle.mjs
           node tests/hunt-sessions-settle.mjs --closed
-          node tests/hunt-sessions-settle.mjs --mutate
+          node tools/mutant-gate.mjs node tests/hunt-sessions-settle.mjs --mutate
       # THE CORE MODEL (docs/design/CORE_MODEL.md, 2026-10-19): the Level curve, the
       # combat skills' uncapped curve, max HP / mana, Prayer's regen and monster levels
       # agree in JS and SQL on every boundary (core-curves, PGlite replay); the Level
@@ -2437,11 +2439,11 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/core-curves.mjs
-          node tests/core-curves.mjs --selftest
+          node tools/mutant-gate.mjs node tests/core-curves.mjs --selftest
           node tests/level-curve.mjs
-          node tests/level-curve.mjs --selftest
+          node tools/mutant-gate.mjs node tests/level-curve.mjs --selftest
           node tests/bury-rate.mjs
-          node tests/bury-rate.mjs --mutate
+          node tools/mutant-gate.mjs node tests/bury-rate.mjs --mutate
       # THE ENVELOPE CONTRACT (2026-10-18; two server-vs-client shape mismatches in a
       # row — party seats vs members, the raw world vs huntOf — are a CLASS): a
       # premium two-hero party settled through the player door on the replayed
@@ -2455,7 +2457,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/envelope-contract.mjs
-          node tests/envelope-contract.mjs --mutate
+          node tools/mutant-gate.mjs node tests/envelope-contract.mjs --mutate
   artisan-selftest:
     runs-on: ubuntu-latest
     timeout-minutes: 56
@@ -2473,7 +2475,7 @@ jobs:
         run: npm install --no-audit --no-fund
 
       - name: Artisan accrual — mutation proof (22 mutants, clean baseline first)
-        run: node tests/artisan-accrual.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/artisan-accrual.mjs --selftest
 
   # ── utc-midnight-replay ── SPLIT OUT OF db-replay 2026-09-19 (b550). The
   # GitHub run on ab7572e7 (branch next) measured db-replay's own steps: PGlite
@@ -2520,7 +2522,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/utc-midnight-replay.mjs
-          node tests/utc-midnight-replay.mjs --selftest
+          node tools/mutant-gate.mjs node tests/utc-midnight-replay.mjs --selftest
 
   # ── economy-selftests ── THE MUTATION HARNESSES. Twenty guards that each plant
   # 8-45 real defects in real migration text and demand every one turns the
@@ -2589,7 +2591,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/basic-attack-interval.mjs
-          node tests/basic-attack-interval.mjs --mutate
+          node tools/mutant-gate.mjs node tests/basic-attack-interval.mjs --mutate
 
       # THE RENOWN FAUCET'S MUTATION HARNESS — the half that proves the guard
       # itself can fail. The guard already runs inside run-smoke; its --selftest
@@ -2608,7 +2610,7 @@ jobs:
       # 14 mutations + 2 controls, ~2 minutes of real PostgreSQL.
       - name: Renown faucet — every mutation caught by its NAMED assertion
         if: ${{ !cancelled() }}
-        run: node tests/renown-kill-faucet.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/renown-kill-faucet.mjs --selftest
 
       # ⬇ THE FLOOR UNDER EVERY MUTATION PROOF (2026-09-12, tests/guard-hygiene.mjs
       # RULE 5). Each of the 22 steps below used to register ONLY the --selftest arm.
@@ -2632,7 +2634,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/muster-chest-xp-credit.mjs
-          node tests/muster-chest-xp-credit.mjs --selftest
+          node tools/mutant-gate.mjs node tests/muster-chest-xp-credit.mjs --selftest
 
       # b567 (P1 class-kill + lost pay): hundred_kills' 1,500 XP was minted by the
       # browser (hr_claim_quest wrote no XP) and the absence claim never credited
@@ -2643,7 +2645,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/quest-xp-absence-pay.mjs
-          node tests/quest-xp-absence-pay.mjs --selftest
+          node tools/mutant-gate.mjs node tests/quest-xp-absence-pay.mjs --selftest
 
       # RETIRED 2026-10-19 (core rebuild): tests/max-hp-tracks-hitpoints.mjs, the Hitpoints skill and the stored max_hp are deleted; max HP is derived from Level and armour, guarded by tests/core-curves.mjs (JS = SQL) and tests/hunt-sessions-settle.mjs MAXHP.
 
@@ -2688,7 +2690,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/state-of-farm-projection.mjs
-          node tests/state-of-farm-projection.mjs --selftest
+          node tools/mutant-gate.mjs node tests/state-of-farm-projection.mjs --selftest
 
       # SA-010 / Q-4: PURCHASED BANK SPACE WAS ENFORCED AT THE BASE CAP.
       # hr_unlock_buy sells bank space as a 30-rung ladder and files it as a
@@ -2705,7 +2707,7 @@ jobs:
       # ✓ is the guard's and not the migration's).
       - name: Bank cap tracks rungs — purchased bank space is the enforced bank space
         if: ${{ !cancelled() }}
-        run: node tests/bank-cap-rungs.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/bank-cap-rungs.mjs --selftest
 
       # Security C4 (2026-09-06): a --selftest-only registration cannot tell a broken
       # migration from a working guard (every arm throws either way). Run the base too.
@@ -2724,7 +2726,7 @@ jobs:
       # to REPRODUCE the bug. Four mutations, each required to be caught.
       - name: Worker hire cap — an unpaid crew cap is zero, not six
         if: ${{ !cancelled() }}
-        run: node tests/worker-hire-cap.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/worker-hire-cap.mjs --selftest
 
       # Security C4 (2026-09-06): a --selftest-only registration cannot tell a broken
       # migration from a working guard. Run the base too.
@@ -2759,7 +2761,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/hearthfind-roll.mjs
-          node tests/hearthfind-roll.mjs --selftest
+          node tools/mutant-gate.mjs node tests/hearthfind-roll.mjs --selftest
 
       # THE MEASUREMENT BEHIND THE ODDS (Designer ruling 2026-09-08 SS4).
       # A hearthfind is authored as EXPECTED HOURS at its source and the build
@@ -2779,7 +2781,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/hearthfind-boss-rate.mjs
-          node tests/hearthfind-boss-rate.mjs --selftest
+          node tools/mutant-gate.mjs node tests/hearthfind-boss-rate.mjs --selftest
 
       # LUCKY FINDS (content pack 1). A {id, ch, lucky:true} drop row is a server
       # faucet into tradeable inventories, so every row keeps the Security
@@ -2796,7 +2798,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/lucky-finds.mjs
-          node tests/lucky-finds.mjs --selftest
+          node tools/mutant-gate.mjs node tests/lucky-finds.mjs --selftest
 
       # FIELD SALVAGE (content pack 6). A {id, ch, salvage:true} row is a server
       # faucet too: own-tier helm/boots/gloves/belt from GEAR_ITEMS, tradeable,
@@ -2811,7 +2813,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/field-salvage.mjs
-          node tests/field-salvage.mjs --selftest
+          node tools/mutant-gate.mjs node tests/field-salvage.mjs --selftest
 
       # THE SQL HALF, ON A REAL DATABASE (PGlite, the ordered migration chain).
       # An honest find pays ONE trophy + ONE ledger row + ONE broadcast + a
@@ -2828,7 +2830,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/hearthfind-authority.mjs
-          node tests/hearthfind-authority.mjs --selftest
+          node tools/mutant-gate.mjs node tests/hearthfind-authority.mjs --selftest
 
       # SECURITY F1 -- THE ATTENDED HALF OF THE SAME RULE.
       # The Recovery Rule shipped with a hole its own header named: the AWAY path
@@ -2853,7 +2855,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/cadence-recovery-floor.mjs
-          node tests/cadence-recovery-floor.mjs --selftest
+          node tools/mutant-gate.mjs node tests/cadence-recovery-floor.mjs --selftest
 
       # THE CONSERVATION FUZZ. Randomised, seeded operations across several
       # characters against the REAL server-authority migrations, running on an
@@ -2867,7 +2869,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/conservation-fuzz.mjs --ops=400
-          node tests/conservation-fuzz.mjs --selftest --ops=400
+          node tools/mutant-gate.mjs node tests/conservation-fuzz.mjs --selftest --ops=400
 
       # THE PLAYER INTENTS. Both run the REAL Edge-Function modules — the same
       # bytes tools/pack-edge.mjs ships — behind their one injected `exec` seam,
@@ -2880,7 +2882,7 @@ jobs:
       #   ordinary way a coverage hole surfaces — the second time you do a thing.
       - name: The activity intent — collect-before-switch, replay, key hygiene
         if: ${{ !cancelled() }}
-        run: node tests/activity-intent.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/activity-intent.mjs --selftest
 
       # SETTLE BEFORE MUTATE (Security F1, 2026-09-28). Every edge verb that adds
       # or changes a priceable input settles the open window at the OLD state
@@ -2893,7 +2895,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/absence-priced-at-return.mjs
-          node tests/absence-priced-at-return.mjs --mutate
+          node tools/mutant-gate.mjs node tests/absence-priced-at-return.mjs --mutate
 
       # THE HARVEST DAILY IS DEALT ONLY TO A FARMER (2026-10-16-daily-harvest-
       # eligibility.sql, game-designer 2026-10-10). No seeds or no plot -> never
@@ -2913,7 +2915,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/clan-journal-guard.mjs
-          node tests/clan-journal-guard.mjs --selftest
+          node tools/mutant-gate.mjs node tests/clan-journal-guard.mjs --selftest
 
       # THE ANON RATE GATE (F4, 2026-08-13). Reproduces Security's probe — 30
       # anonymous calls against a limit of 20 must produce refusals — with the
@@ -2924,7 +2926,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/anon-rate-gate.mjs
-          node tests/anon-rate-gate.mjs --selftest
+          node tools/mutant-gate.mjs node tests/anon-rate-gate.mjs --selftest
 
       # THE HUNT BAND. Proves, by running the real migration bodies on an
       # in-process PostgreSQL, that the retired median rule DID let one member's
@@ -2935,7 +2937,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/raid-band-denial.mjs
-          node tests/raid-band-denial.mjs --selftest
+          node tools/mutant-gate.mjs node tests/raid-band-denial.mjs --selftest
 
       # THE BACKFILLED LIFETIME PLANT COUNTER MUST STAY UNPAYABLE (Security P2 on
       # supabase/migrations/2026-09-07-farm-plant-lifetime-counter.sql). That file
@@ -2959,7 +2961,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/goal-counter-kinds.mjs
-          node tests/goal-counter-kinds.mjs --selftest
+          node tools/mutant-gate.mjs node tests/goal-counter-kinds.mjs --selftest
 
       # ORPHAN ADOPTED. W1-W13 on the shipped hired-crew accrual engine. Its
       # header claimed run-smoke.mjs invoked it; nothing did, so thirteen
@@ -2970,7 +2972,7 @@ jobs:
       # mirror, the exact state b389 shipped at 1.60x from). Now structural.
       - name: Hired-crew accrual — mutation proof
         if: ${{ !cancelled() }}
-        run: node tests/worker-accrual.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/worker-accrual.mjs --selftest
 
       - name: Hired-crew accrual — base run
         if: ${{ !cancelled() }}
@@ -2987,11 +2989,11 @@ jobs:
       # Measured locally: 34 s and ~100 s.
       - name: Delta transport — mutation proof (every apply site, every jsonb argument)
         if: ${{ !cancelled() }}
-        run: node tests/delta-transport.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/delta-transport.mjs --selftest
 
       - name: Skill-row upsert — mutation proof (live-body mutants)
         if: ${{ !cancelled() }}
-        run: node tests/skill-row-upsert.mjs --mutate
+        run: node tools/mutant-gate.mjs node tests/skill-row-upsert.mjs --mutate
 
   # ── client-guards ── STATIC AND SOURCE-SCANNING GUARDS: censuses, ratchets,
   # parity checks, the cache-buster invariant. No database, no browser, no
@@ -3062,7 +3064,7 @@ jobs:
       - name: CI shape - every guard command in exactly one job
         if: ${{ !cancelled() }}
         run: |
-          node tests/ci-shape.mjs --selftest
+          node tools/mutant-gate.mjs node tests/ci-shape.mjs --selftest
           node tests/ci-shape.mjs
 
       # LOCAL SOFT == CI SOFT. run-ci-local prints a `continue-on-error` step as
@@ -3074,7 +3076,7 @@ jobs:
       # file is the --list that ci-shape above already spawns.
       - name: CI-local soft parity - continue-on-error lands on its own step only
         if: ${{ !cancelled() }}
-        run: node tests/run-ci-local.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/run-ci-local.mjs --selftest
 
       # The local runner's memory (tools/lane-done.mjs, guard diet 2026-10-10): a
       # chain-replay step's GREEN is kept under a sha256 of every byte it reads
@@ -3083,7 +3085,7 @@ jobs:
       # the key moves when any input does. Sub-second.
       - name: Verdict cache - a green is keyed by its inputs, a red is never kept
         if: ${{ !cancelled() }}
-        run: node tools/verdict-cache.mjs --selftest
+        run: node tools/mutant-gate.mjs node tools/verdict-cache.mjs --selftest
 
       # THE BOARD'S GENERATED BLOCK MUST NEVER BE A SILENT NO-OP (2026-09-28).
       # tools/board-from-git.mjs rewrites the STATUS table above the `_Last
@@ -3103,7 +3105,7 @@ jobs:
       # browser, sub-second.
       - name: Board-from-git - CRLF-safe generated block, never a silent no-op
         if: ${{ !cancelled() }}
-        run: node tools/board-from-git.mjs --selftest
+        run: node tools/mutant-gate.mjs node tools/board-from-git.mjs --selftest
 
       # DOES EVERY SHIPPED SCRIPT STILL PARSE? It runs FIRST-ish and it is the
       # cheapest question in the matrix: a file that does not parse does not
@@ -3135,7 +3137,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/parse-check.mjs
-          node tests/parse-check.mjs --selftest
+          node tools/mutant-gate.mjs node tests/parse-check.mjs --selftest
 
       # THE WORLD-TICK STALL RULE IN vitals.mjs (2026-09-28). The management
       # endpoint's read-only role cannot execute hr_tick_stall_status() (42501),
@@ -3147,7 +3149,7 @@ jobs:
       # The plain run reads production and is the Coordinator's, not CI's.
       - name: Vitals world-tick - the STALL restatement matches the function's rule
         if: ${{ !cancelled() }}
-        run: node tools/vitals.mjs --selftest
+        run: node tools/mutant-gate.mjs node tools/vitals.mjs --selftest
 
       # RETIRED CAPABILITIES STAY RETIRED (2026-09-27). The cutover retired the blob,
       # guest play, offline play and save files; Settings kept offering all four. A
@@ -3158,7 +3160,7 @@ jobs:
       - name: Retired capability copy - no sentence promises a local save
         if: ${{ !cancelled() }}
         run: |
-          node tests/retired-capability-copy.mjs --selftest
+          node tools/mutant-gate.mjs node tests/retired-capability-copy.mjs --selftest
           node tests/retired-capability-copy.mjs
 
       # THE BESTIARY TROPHY LADDER (docs/design/BESTIARY_LADDER.md). Two things
@@ -3178,7 +3180,7 @@ jobs:
       # credential, milliseconds.
       - name: Bestiary trophy ladder - every monster has one, every bonus is tiny
         if: ${{ !cancelled() }}
-        run: node tests/bestiary-ladder.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/bestiary-ladder.mjs --selftest
 
       # A --selftest-only registration cannot tell a broken guard from a caught
       # defect. Run the plain body too: only it answers "green when nothing is wrong".
@@ -3213,7 +3215,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/hearthfind-mint-guard.mjs
-          node tests/hearthfind-mint-guard.mjs --selftest
+          node tools/mutant-gate.mjs node tests/hearthfind-mint-guard.mjs --selftest
 
       # The cache-buster rule, mutation-proven: 6 defects caught (stale tag,
       # stale ESM specifier = the b493 double-load, the b511 bare quoted pin, a
@@ -3222,7 +3224,7 @@ jobs:
       # a grep that flags everything.
       - name: Cache-buster invariant — mutation proof
         if: ${{ !cancelled() }}
-        run: bash bump-version.sh --selftest
+        run: node tools/mutant-gate.mjs bash bump-version.sh --selftest
 
       # ARM-FLAG HONESTY: the comment above an arm flag is the ONLY documentation
       # of where authority lives for that field, and every reader trusts it before
@@ -3232,7 +3234,7 @@ jobs:
       # source scan, no browser — run it with the other cheap gates.
       - name: Arm-flag honesty — no comment may contradict its flag's value
         run: |
-          node tests/arm-flag-honesty.mjs --selftest
+          node tools/mutant-gate.mjs node tests/arm-flag-honesty.mjs --selftest
           node tests/arm-flag-honesty.mjs
 
 
@@ -3255,7 +3257,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/quest-reward-parity.mjs
-          node tests/quest-reward-parity.mjs --selftest
+          node tools/mutant-gate.mjs node tests/quest-reward-parity.mjs --selftest
           # W0: the old goals board stays cut (client, residue and chain) and
           # the one daily list counts nothing in the browser.
 
@@ -3270,7 +3272,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/demolition-absence.mjs
-          node tests/demolition-absence.mjs --selftest
+          node tools/mutant-gate.mjs node tests/demolition-absence.mjs --selftest
 
       # ITEM FLAVOUR COVERAGE — every catalogued item has a "what is it" line.
       # Content pack 4 closed 419/538 to 538/538 in the base ITEM_DESC literal;
@@ -3286,7 +3288,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/item-flavour-coverage.mjs
-          node tests/item-flavour-coverage.mjs --selftest
+          node tools/mutant-gate.mjs node tests/item-flavour-coverage.mjs --selftest
 
 
 
@@ -3310,8 +3312,8 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/plot-tier-parity.mjs
-          node tests/plot-tier-parity.mjs --selftest
-          node tests/plot-tier-parity.mjs --mutate
+          node tools/mutant-gate.mjs node tests/plot-tier-parity.mjs --selftest
+          node tools/mutant-gate.mjs node tests/plot-tier-parity.mjs --mutate
 
       # R10, THE STANDING RULE: RECOVERY IS NOT FOR SALE.
       # No trait, unlock, gold-ladder rung, Quartermaster offer, clan bond, perk,
@@ -3324,7 +3326,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/recovery-relief-guard.mjs
-          node tests/recovery-relief-guard.mjs --selftest
+          node tools/mutant-gate.mjs node tests/recovery-relief-guard.mjs --selftest
 
 
       # W0 COHERENCE AUDIT, TOP-10 #7 / #8 + THE RUNECRAFTING RULING.
@@ -3338,7 +3340,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/w0e-ammo-runecraft-prayer.mjs
-          node tests/w0e-ammo-runecraft-prayer.mjs --selftest
+          node tools/mutant-gate.mjs node tests/w0e-ammo-runecraft-prayer.mjs --selftest
 
       # -- THE PRESENTATION-LAYER FLOOR (cleanup slice 1) --------------------
       # Three ratchets on the things CLAUDE.md has asserted for months while
@@ -3371,7 +3373,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/css-literal-ratchet.mjs --report
-          node tests/css-literal-ratchet.mjs --selftest
+          node tools/mutant-gate.mjs node tests/css-literal-ratchet.mjs --selftest
 
 
 
@@ -3379,7 +3381,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/breakpoint-guard.mjs --report
-          node tests/breakpoint-guard.mjs --selftest
+          node tools/mutant-gate.mjs node tests/breakpoint-guard.mjs --selftest
 
       # 2026-10-20 (Coordinator QA): http://hearthrise.net served the game and
       # hr-accrue answers https origins only, so every hunt call was refused.
@@ -3389,7 +3391,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/https-upgrade.mjs
-          node tests/https-upgrade.mjs --selftest
+          node tools/mutant-gate.mjs node tests/https-upgrade.mjs --selftest
 
       # b568 (Tyler: "craft 60 items in all ... sounds like broken english"):
       # player copy carries no "in all" padding, no "item(s)" hack, no "a"/"an"
@@ -3398,7 +3400,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/copy-lint.mjs --report
-          node tests/copy-lint.mjs --selftest
+          node tools/mutant-gate.mjs node tests/copy-lint.mjs --selftest
 
 
       # slice 5 step 1 - src/styles/tokens.css is the single source of design
@@ -3411,7 +3413,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/token-single-source.mjs --report
-          node tests/token-single-source.mjs --selftest
+          node tools/mutant-gate.mjs node tests/token-single-source.mjs --selftest
 
 
 
@@ -3421,14 +3423,14 @@ jobs:
       - name: Cleanup slice 3 - dead export census
         if: ${{ !cancelled() }}
         run: |
-          node tests/dead-exports.mjs --selftest
+          node tools/mutant-gate.mjs node tests/dead-exports.mjs --selftest
           node tests/dead-exports.mjs
 
 
       - name: Cleanup slice 3 - dead CSS class census
         if: ${{ !cancelled() }}
         run: |
-          node tests/dead-css.mjs --selftest
+          node tools/mutant-gate.mjs node tests/dead-css.mjs --selftest
           node tests/dead-css.mjs
 
 
@@ -3440,7 +3442,7 @@ jobs:
       - name: Platform seam - web storage only through src/platform/storage.js
         if: ${{ !cancelled() }}
         run: |
-          node tests/platform-seam.mjs --selftest
+          node tools/mutant-gate.mjs node tests/platform-seam.mjs --selftest
           node tests/platform-seam.mjs
 
       # VENDOR/SHOP ARBITRAGE (b564): no shop_buy offer may cost less gold than
@@ -3451,7 +3453,7 @@ jobs:
       - name: Vendor/shop arbitrage - no offer is cheaper than its vendor bid
         if: ${{ !cancelled() }}
         run: |
-          node tests/vendor-shop-arbitrage.mjs --selftest
+          node tools/mutant-gate.mjs node tests/vendor-shop-arbitrage.mjs --selftest
           node tests/vendor-shop-arbitrage.mjs
 
       # CATALOGUE COHERENCE (W0.4, coherence audit 2026-10-10): every item has a
@@ -3464,7 +3466,7 @@ jobs:
       - name: Catalogue coherence - every item has a source and a use
         if: ${{ !cancelled() }}
         run: |
-          node tests/catalogue-coherence.mjs --mutate
+          node tools/mutant-gate.mjs node tests/catalogue-coherence.mjs --mutate
           node tests/catalogue-coherence.mjs
 
       # HUNT SESSIONS DATA (ruling HR-2026-10-14, lane D): every bag supply is
@@ -3473,7 +3475,7 @@ jobs:
       - name: Supplies catalogue - hunt bag, action bar and end card data
         if: ${{ !cancelled() }}
         run: |
-          node tests/supplies-catalogue.mjs --selftest
+          node tools/mutant-gate.mjs node tests/supplies-catalogue.mjs --selftest
           node tests/supplies-catalogue.mjs
 
 
@@ -3487,7 +3489,7 @@ jobs:
       # --selftest plants the exact deleted line back and requires it red.
       - name: No client XP mint — every addXp is a prediction or a server value
         run: |
-          node tests/no-client-xp-mint.mjs --selftest
+          node tools/mutant-gate.mjs node tests/no-client-xp-mint.mjs --selftest
           node tests/no-client-xp-mint.mjs
 
 
@@ -3501,8 +3503,19 @@ jobs:
       # the unplanted control green.
       - name: Guard anchors — every proof guard's anchor set is known, and lane-done re-proves it
         run: |
-          node tools/guard-anchors.mjs --selftest
+          node tools/mutant-gate.mjs node tools/guard-anchors.mjs --selftest
           node tools/guard-anchors.mjs
+
+      # THE MUTANT GATE (CLAUDE.md §3.6, 2026-10-21). Every --mutate/--selftest in
+      # this file runs through tools/mutant-gate.mjs: on a push or PR it runs only
+      # when the diff touches the guard, a file it loads or a file its mutants
+      # anchor on, and prints why when it skips; the nightly and a manual run are
+      # the full sweep. --selftest: live-engine.js picks hunt-live and
+      # hunt-scene-live but not chat-social, an empty diff picks no proof, plain
+      # runs always run, and five planted gate defects each go red.
+      - name: Mutant gate — a push re-proves what its diff touches, the nightly everything
+        run: |
+          node tools/mutant-gate.mjs node tools/mutant-gate.mjs --selftest
 
 
 
@@ -3514,7 +3527,7 @@ jobs:
       - name: Cleanup slice 3 - window globals census
         if: ${{ !cancelled() }}
         run: |
-          node tests/window-globals-exist.mjs --selftest
+          node tools/mutant-gate.mjs node tests/window-globals-exist.mjs --selftest
           node tests/window-globals-exist.mjs
 
 
@@ -3543,7 +3556,7 @@ jobs:
       - name: Comment-ratio ratchet — prose may not outgrow code
         if: ${{ !cancelled() }}
         run: |
-          node tests/comment-ratio-ratchet.mjs --selftest
+          node tools/mutant-gate.mjs node tests/comment-ratio-ratchet.mjs --selftest
           node tests/comment-ratio-ratchet.mjs --report
 
       # A BODY THAT EXISTS ONLY AS A STACK OF REGEXES IS NOT AUTHORED. hr_state_of
@@ -3559,7 +3572,7 @@ jobs:
       - name: Patch-chain guard — no new patch onto a chain 2+ deep
         if: ${{ !cancelled() }}
         run: |
-          node tests/patch-chain-guard.mjs --selftest
+          node tools/mutant-gate.mjs node tests/patch-chain-guard.mjs --selftest
           node tests/patch-chain-guard.mjs --report
 
       # …AND THE RESTATEMENT THAT PAID hr_apply's CHAIN DOWN KEEPS ITS PINS. A
@@ -3577,7 +3590,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/hr-apply-final-body.mjs
-          node tests/hr-apply-final-body.mjs --selftest
+          node tools/mutant-gate.mjs node tests/hr-apply-final-body.mjs --selftest
 
       # THE SAME, FOR THE ENVELOPE. 2026-09-14-hr-state-of-restatement.sql restates
       # hr_state_of (24 anchored patches from 23 files) COMMENT-ONLY, so §0 and
@@ -3593,7 +3606,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/hr-state-of-final-body.mjs
-          node tests/hr-state-of-final-body.mjs --selftest
+          node tools/mutant-gate.mjs node tests/hr-state-of-final-body.mjs --selftest
 
 
       # THE META-GUARD. Every tests/*.mjs must be registered here, invoked by
@@ -3616,7 +3629,7 @@ jobs:
       - name: No client copy of a server projection
         if: ${{ !cancelled() }}
         run: |
-          node tests/no-client-copy-of-projection.mjs --selftest
+          node tools/mutant-gate.mjs node tests/no-client-copy-of-projection.mjs --selftest
           node tests/no-client-copy-of-projection.mjs
 
       # A SELF-CHECK MAY NOT DELETE A ROW IT DID NOT CREATE. 2026-09-20:
@@ -3641,10 +3654,10 @@ jobs:
       - name: Self-checks may not delete a row they did not create
         if: ${{ !cancelled() }}
         run: |
-          node tests/selfcheck-no-global-dml.mjs --selftest
+          node tools/mutant-gate.mjs node tests/selfcheck-no-global-dml.mjs --selftest
           node tests/selfcheck-no-global-dml.mjs
           node tests/names-selfcheck-collision.mjs
-          node tests/names-selfcheck-collision.mjs --mutate
+          node tools/mutant-gate.mjs node tests/names-selfcheck-collision.mjs --mutate
           node tests/selfcheck-no-global-dml.bypass.mjs
 
       # W0 FUN LIST (game-designer, 2026-10-10; lane w0f). Crop XP x42 and the
@@ -3661,7 +3674,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/w0f-fun-content.mjs
-          node tests/w0f-fun-content.mjs --selftest
+          node tools/mutant-gate.mjs node tests/w0f-fun-content.mjs --selftest
 
 
 
@@ -3673,7 +3686,7 @@ jobs:
       # an iso-corner chest and a hand-edited atlas pixel into real sprites.
       - name: World art - mutation proof
         if: ${{ !cancelled() }}
-        run: node tests/world-assets.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/world-assets.mjs --selftest
 
       - name: World art - base run
         if: ${{ !cancelled() }}
@@ -3686,7 +3699,7 @@ jobs:
       # lost switch.
       - name: Pixel item icons - mutation proof
         if: ${{ !cancelled() }}
-        run: node tests/pixel-icons.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/pixel-icons.mjs --selftest
 
       - name: Pixel item icons - base run
         if: ${{ !cancelled() }}
@@ -3700,7 +3713,7 @@ jobs:
       # src/world). --selftest plants 24 violations + 5 negative controls.
       - name: World no-authority - mutation proof
         if: ${{ !cancelled() }}
-        run: node tests/world-no-authority.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/world-no-authority.mjs --selftest
 
       - name: World no-authority - base run
         if: ${{ !cancelled() }}
@@ -3711,7 +3724,7 @@ jobs:
       # layer order. --selftest plants 18 defects into a temp copy.
       - name: World core - mutation proof
         if: ${{ !cancelled() }}
-        run: node tests/world-core.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/world-core.mjs --selftest
 
       - name: World core - base run
         if: ${{ !cancelled() }}
@@ -3724,7 +3737,7 @@ jobs:
       # Analyzer; the room camera; one engine. --selftest plants 8 defects.
       - name: World hunt - mutation proof
         if: ${{ !cancelled() }}
-        run: node tests/world-hunt.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/world-hunt.mjs --selftest
 
       - name: World hunt - base run
         if: ${{ !cancelled() }}
@@ -3739,7 +3752,7 @@ jobs:
       # roof shares (read off the drawn frame). --selftest plants 16 defects.
       - name: World town and home - mutation proof
         if: ${{ !cancelled() }}
-        run: node tests/world-town-home.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/world-town-home.mjs --selftest
 
       - name: World town and home - base run
         if: ${{ !cancelled() }}
@@ -3751,7 +3764,7 @@ jobs:
       # modules; --selftest plants 11 defects into a temp copy.
       - name: World shell core - mutation proof
         if: ${{ !cancelled() }}
-        run: node tests/shell-core.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/shell-core.mjs --selftest
 
       - name: World shell core - base run
         if: ${{ !cancelled() }}
@@ -3760,7 +3773,7 @@ jobs:
       # Every shell window/widget row has a renderer and every renderer a row.
       - name: World shell renderers - mutation proof
         if: ${{ !cancelled() }}
-        run: node tests/shell-renderers.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/shell-renderers.mjs --selftest
 
       - name: World shell renderers - base run
         if: ${{ !cancelled() }}
@@ -3769,7 +3782,7 @@ jobs:
       # Settings are registry rows (src/data/settings.js); the window holds none.
       - name: Settings registry - mutation proof
         if: ${{ !cancelled() }}
-        run: node tests/settings-registry.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/settings-registry.mjs --selftest
 
       - name: Settings registry - base run
         if: ${{ !cancelled() }}
@@ -3780,7 +3793,7 @@ jobs:
       # enter answer's below_range reaches the window.
       - name: Hunt floor warning - mutation proof
         if: ${{ !cancelled() }}
-        run: node tests/hunt-floor-warning.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/hunt-floor-warning.mjs --selftest
 
       - name: Hunt floor warning - base run
         if: ${{ !cancelled() }}
@@ -3791,7 +3804,7 @@ jobs:
       # the same settings, the stored history is bounded.
       - name: Hunt summary - mutation proof
         if: ${{ !cancelled() }}
-        run: node tests/hunt-summary.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/hunt-summary.mjs --selftest
 
       - name: Hunt summary - base run
         if: ${{ !cancelled() }}
@@ -3801,7 +3814,7 @@ jobs:
       # store alone, and the HUD talks to no server.
       - name: HUD layout display-only - mutation proof
         if: ${{ !cancelled() }}
-        run: node tests/hud-layout-display-only.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/hud-layout-display-only.mjs --selftest
 
       - name: HUD layout display-only - base run
         if: ${{ !cancelled() }}
@@ -3817,7 +3830,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/session-core.mjs
-          node tests/session-core.mjs --mutate
+          node tools/mutant-gate.mjs node tests/session-core.mjs --mutate
 
       # The hunt screen's pure rules: the visual timeline (events once, a new
       # envelope never restarts an animation, gaps hold, poses are walked to),
@@ -3826,7 +3839,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/hunt-view-core.mjs
-          node tests/hunt-view-core.mjs --mutate
+          node tools/mutant-gate.mjs node tests/hunt-view-core.mjs --mutate
 
       # The live hunt in the World pane: a new envelope never restarts an
       # animation, each event plays once, units stay inside their track, the
@@ -3836,7 +3849,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/hunt-scene.mjs
-          node tests/hunt-scene.mjs --mutate
+          node tools/mutant-gate.mjs node tests/hunt-scene.mjs --mutate
 
       # The live hunt from a REAL post-rebuild envelope (the v0.2.7 P0): a read alone draws the
       # hero and the pose's monsters, windows at the player door's cadence play with no jump and
@@ -3845,7 +3858,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/hunt-scene-live.mjs --node
-          node tests/hunt-scene-live.mjs --mutate
+          node tools/mutant-gate.mjs node tests/hunt-scene-live.mjs --mutate
 
       # The live view (option B, 2026-10-19): the browser's swings are the server's (determinism over
       # commits and seed refreshes, solo and party), loot is not foreseeable from what the browser
@@ -3854,23 +3867,23 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/hunt-live.mjs
-          node tests/hunt-live.mjs --mutate
+          node tools/mutant-gate.mjs node tests/hunt-live.mjs --mutate
 
       - name: Client intent surface
         if: ${{ !cancelled() }}
         run: |
           node tests/client-intent-surface.mjs
-          node tests/client-intent-surface.mjs --selftest
+          node tools/mutant-gate.mjs node tests/client-intent-surface.mjs --selftest
 
       - name: Client module size
         if: ${{ !cancelled() }}
         run: |
           node tests/client-module-size.mjs
-          node tests/client-module-size.mjs --selftest
+          node tools/mutant-gate.mjs node tests/client-module-size.mjs --selftest
 
       - name: Guard hygiene — no orphans, no vacuous selftests
         if: ${{ !cancelled() }}
-        run: node tests/guard-hygiene.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/guard-hygiene.mjs --selftest
 
       - name: Guard hygiene — base run
         if: ${{ !cancelled() }}
@@ -3934,11 +3947,11 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/edge-body-cap.mjs
-          node tests/edge-body-cap.mjs --mutate
+          node tools/mutant-gate.mjs node tests/edge-body-cap.mjs --mutate
 
       - name: Edge JWT gate — mutation proof
         if: ${{ !cancelled() }}
-        run: node tests/edge-jwt-gate.mjs --selftest
+        run: node tools/mutant-gate.mjs node tests/edge-jwt-gate.mjs --selftest
 
       # ── THE op:'tick' BYPASS, REGISTERED 2026-09-21 (milestone 1b) ─────────
       # hr-accrue now has a branch that runs BEFORE the player JWT is verified.
@@ -3964,7 +3977,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/edge-tick-gate.mjs
-          node tests/edge-tick-gate.mjs --selftest
+          node tools/mutant-gate.mjs node tests/edge-tick-gate.mjs --selftest
 
       # bug-report-bridge: a chunked body past 3 MB is refused by a byte counter
       # on the stream (never arrayBuffer()), and player text reaches the staff
@@ -3973,7 +3986,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/bug-report-bridge-bounds.mjs
-          node tests/bug-report-bridge-bounds.mjs --selftest
+          node tools/mutant-gate.mjs node tests/bug-report-bridge-bounds.mjs --selftest
 
       # T-5.The tick bearer transits `net.http_request_queue` — pg_net inserts
       # the request row, headers included, and the worker deletes it after the
@@ -4004,7 +4017,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/pg-net-queue-unreachable.mjs
-          node tests/pg-net-queue-unreachable.mjs --selftest
+          node tools/mutant-gate.mjs node tests/pg-net-queue-unreachable.mjs --selftest
 
       # The settle watermark advances by ACCOUNTED time, not to now(): the sub-tick
       # remainder rolls into the next window instead of being forfeited (1.3-1.7% of
@@ -4015,4 +4028,4 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/settle-carry-defer.mjs
-          node tests/settle-carry-defer.mjs --mutate
+          node tools/mutant-gate.mjs node tests/settle-carry-defer.mjs --mutate

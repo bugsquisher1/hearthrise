@@ -28,6 +28,12 @@
 //   CI-SHAPE-7  no command changed family without the record changing with it
 //   CI-SHAPE-8  `run-ci-local --list` still enumerates every command in the
 //               matrix — the local half of the gate cannot be weaker than CI
+//   CI-SHAPE-9  every --mutate/--selftest command runs through the mutant gate
+//               (`node tools/mutant-gate.mjs node tests/x.mjs --mutate`, CLAUDE.md
+//               §3.6) — an ungated proof re-runs on every push and is the cost
+//               the gate exists to remove
+//   CI-SHAPE-10 no PLAIN guard run goes through the gate — plain runs always run,
+//               and a gated one could be skipped on a push that did not touch it
 //
 // ── THE REGISTER ────────────────────────────────────────────────────────────
 // tests/ci-shape.baseline.json maps every guard command to the job that owns
@@ -43,7 +49,7 @@
 // Environment steps (`Install …`) are exempt from CI-SHAPE-4/5/6/7 and named as
 // such: `npm install` legitimately runs in four jobs and is not a guard.
 //
-// Credential-free, database-free, milliseconds. --selftest plants eight defects
+// Credential-free, database-free, milliseconds. --selftest plants ten defects
 // — one per assertion — and requires each to be caught BY ITS NAMED ASSERTION,
 // plus two NEGATIVE CONTROLS (a comment-only edit and a whitespace edit) that
 // must stay silent. A shape guard that has never been red is decoration.
@@ -56,6 +62,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { ROOT, WORKFLOW, parseWorkflow, flatSteps, buildPlan, SKIP } from './run-ci-local.mjs';
+import { isGated, isProofCommand, GATE_PREFIX } from '../tools/lib/guard-deps.mjs';
 
 const BASELINE_PATH = join(ROOT, 'tests', 'ci-shape.baseline.json');
 
@@ -162,6 +169,18 @@ export function analyse({ workflowText, baseline, listText }) {
           + 'The local gate would then be strictly weaker than CI — the exact P0 that '
           + 'tests/run-ci-local.mjs was written to close.');
       }
+    }
+  }
+
+  // CI-SHAPE-9/10 — every proof through the mutant gate, no plain run through it.
+  for (const c of cmds) {
+    if (isProofCommand(c.cmd) && !isGated(c.cmd)) {
+      fail('CI-SHAPE-9', `"${c.cmd}" (job "${c.job}") is a mutation proof that does not run through `
+        + `the mutant gate. Write it "${GATE_PREFIX}${c.cmd}": a push then re-proves it only when its `
+        + 'diff touches the guard, and the nightly sweep always does (CLAUDE.md §3.6).');
+    } else if (!isProofCommand(c.cmd) && isGated(c.cmd)) {
+      fail('CI-SHAPE-10', `"${c.cmd}" (job "${c.job}") is a PLAIN guard run behind the mutant gate. `
+        + 'Plain runs always run; drop the gate prefix.');
     }
   }
 
@@ -330,6 +349,16 @@ async function selftest() {
       if (co < 0) throw harness('--selftest could not find the edge job checkout');
       ls.splice(co, 1);
       return { workflowText: ls.join('\n'), baseline, listText };
+    }],
+    ['a --mutate step that skips the mutant gate', 'CI-SHAPE-9', () => {
+      const cmd = 'node tests/not-a-registered-guard.mjs --mutate';
+      const wf = insertInJob('client-guards', ['      - name: Ungated mutant (planted)', `        run: ${cmd}`]);
+      return { workflowText: wf, baseline: { commands: { ...baseline.commands, [cmd]: 'client-guards' } }, listText: listOf(wf) };
+    }],
+    ['a plain guard run behind the mutant gate', 'CI-SHAPE-10', () => {
+      const cmd = `${GATE_PREFIX}node tests/not-a-registered-guard.mjs`;
+      const wf = insertInJob('client-guards', ['      - name: Gated plain run (planted)', `        run: ${cmd}`]);
+      return { workflowText: wf, baseline: { commands: { ...baseline.commands, [cmd]: 'client-guards' } }, listText: listOf(wf) };
     }],
     ['run-ci-local --list stops enumerating a command', 'CI-SHAPE-8', () => ({
       workflowText, baseline,

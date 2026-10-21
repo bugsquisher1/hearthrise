@@ -161,18 +161,21 @@ export const TIER_BANDS = Object.freeze({
    BALANCE_RULINGS.md, rounds 1-2 and the 2026-10-16 party test: normal pockets
    clear in 6-29 s, the Rat King in about 55 s, no full-party wipe), widened by
    about 10% each way. `boss` is the band a formation boss is held to instead.
-   Tier 1 is the Sewer; tier 3 the Coppercap Warrens (2026-10-18). */
+   Tier 1 is the Sewer; tier 3 the Coppercap Warrens (2026-10-18).
+   COIN (Tyler 2026-10-20, the profit floor): the gp envelopes were re-measured when the Sewer's coin
+   rose x1.8 and the Warrens' x1.25 so each earns at least +25% over its store bill at its band floor
+   (tests/hunt-core/drop-tables.mjs); still the new rows' envelope widened about 10%, never open. */
 export const FORMATION_BANDS = Object.freeze({
   1: Object.freeze({
-    hp: [40, 100], atk: [4, 15], def: [0, 7], xp: [20, 120], gpLo: [1, 20], gpHi: [3, 50],
-    boss: Object.freeze({ hp: [400, 1200], atk: [15, 25], def: [0, 8], xp: [400, 900], gpLo: [20, 80], gpHi: [40, 160] }),
+    hp: [40, 100], atk: [4, 15], def: [0, 7], xp: [20, 120], gpLo: [1, 38], gpHi: [3, 94],
+    boss: Object.freeze({ hp: [400, 1200], atk: [15, 25], def: [0, 8], xp: [400, 900], gpLo: [20, 124], gpHi: [40, 247] }),
   }),
   /* TIER 3 (2026-10-18, the Coppercap Warrens, the second party ground): the envelope of its five goblin
      rows, widened about 10% each way, after one real-engine play by a four-hero party at combat 40
      (tests/hunt-core/forest-cave.mjs --play). A tier-3 formation row is a party's fight at combat 32-50. */
   3: Object.freeze({
-    hp: [135, 330], atk: [20, 44], def: [9, 24], xp: [125, 350], gpLo: [9, 26], gpHi: [21, 60],
-    boss: Object.freeze({ hp: [1000, 1210], atk: [48, 60], def: [25, 31], xp: [1080, 1320], gpLo: [68, 84], gpHi: [155, 190] }),
+    hp: [135, 330], atk: [20, 44], def: [9, 24], xp: [125, 350], gpLo: [9, 31], gpHi: [21, 72],
+    boss: Object.freeze({ hp: [1000, 1210], atk: [48, 60], def: [25, 31], xp: [1080, 1320], gpLo: [68, 100], gpHi: [155, 227] }),
   }),
 });
 

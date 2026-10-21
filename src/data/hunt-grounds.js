@@ -78,16 +78,21 @@
 // anchor), the Kobold Tosher (picks the outfalls for scrap) and the Rat King (a knot
 // of rats under a crown hammered from drain grates). hp/atk/def/xp/speed are the hunt
 // sim's measured rows (prototypes/hunt-sim/BALANCE_RULINGS.md, rounds 1-2 and the
-// 10-16 party test). ECONOMY (Tyler 2026-10-18, superseding 10-14's break-even: every hunt
-// is a decent profit inside its range; store prices stay, income rises): coin + commons
-// (vendor bid) land at +30% over the store bill, the designer's pick inside Tyler's
-// 25-35%: a three-hour bag then returns about an hour of supplies, enough to feel and
-// too little to farm past the range. Rares (the Crown Shard, the Alpha Fang, the totems)
-// are upside on top. ONE real-settle play per hunt, store-only supplies, per hero-hour
-// (tests/hunt-core/forest-cave.mjs --play): Sewer +26% (party of four at ~20), Thicket
-// +31% (solo ~10), Warrens +30% (four at ~40); the Mill Cellar +166% on a 1.2k bill (its
-// rows are the game's shared tier-1 rows; unchanged). Below the range every hunt LOSES
-// gold (-36% to -45%). The coin is final in the rows: no engine multiplies it (DM-16).
+// 10-16 party test). ECONOMY (Tyler 2026-10-20: +25-35% over the store bill is a MINIMUM
+// at the band FLOOR, never a cap; the starter grounds keep their higher gold): coin +
+// commons (vendor bid) against the store bill, per hero, in the floor's FIRST hour (the
+// hunt levels the hero after that), measured on the real settle by
+// tests/hunt-core/drop-tables.mjs every run: the Sewer +32% (a solo Melee at 8 in the
+// smiths' ladder kit: its coin rose x1.8), the Warrens +32% (four at 32 in their own-tier
+// set: x1.25, at the hunt's tier-4 store food), the Thicket and the Mill Cellar far above
+// (their coin unchanged). A Mage or Healer pays for drinks far past any coin today (the
+// Sewer's party at 8: about 9,000 g an hour each): that is the drink and ability bill, not
+// the loot (CONFLICTS.md 2026-10-20). EQUIPMENT (Tyler 10-14/10-20): every monster here
+// carries one gear row (monsters.js `gear`); each ground but the cellar covers weapon,
+// helmet, body, legs and boots, about every 1.3 h per hero at a low floor (bronze in the
+// Thicket and the Sewer's lower rooms, iron above them), the Warrens' steel about every
+// 8 h. ONE rare carrier per ground (the Rat King's Crown Shard, Old Grayjaw's Alpha Fang,
+// the Chief's War Crown, 10-20 h per hero). The coin is final in the rows (DM-16).
 //
 // PARTY SCALING (BALANCE_RULINGS 2026-10-16, the party-size test): a fixed pack
 // is trivial for four heroes and lethal at the boss for one, so a pack's HP is

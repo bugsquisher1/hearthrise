@@ -34,8 +34,9 @@
 // it must stay side-effect free.
 // ════════════════════════════════════════════════════════════════════════
 
-/** The three elements. `blight` was renamed POISON everywhere (DEC-ELEM-04). */
-export const ELEMENTS = Object.freeze(['ember', 'frost', 'poison']);
+/* The element vocabulary is src/data/elements.js's, the one copy (re-exported). */
+import { ELEMENTS, isElement } from './elements.js?v=0.2.23';
+export { ELEMENTS };
 
 /** The weapon triangle axis. NOTE: 'neutral' is deliberately absent. */
 export const WEAPON_AXES = Object.freeze(['sword', 'hammer', 'ranged', 'magic']);
@@ -359,8 +360,11 @@ export function auditRoster(MONSTERS) {
     if (WEAPON_AXES.indexOf(p.weaponWeak) < 0) {
       problems.push(id + ': weaponWeak "' + p.weaponWeak + '" is not a weapon axis (neutral is retired)');
     }
-    if (p.elementWeak != null && ELEMENTS.indexOf(p.elementWeak) < 0) {
+    if (p.elementWeak != null && !isElement(p.elementWeak)) {
       problems.push(id + ': elementWeak "' + p.elementWeak + '" is not an element');
+    }
+    for (const k of ['elementResist', 'elementImmune']) {
+      for (const e of p[k]) if (!isElement(e)) problems.push(id + ': ' + k + ' "' + e + '" is not an element');
     }
     if (MONSTER_CLASSES[m.cls].elementPerMonster
       && p.elementWeak == null && !p.elementImmune.length && !p.elementResist.length) {

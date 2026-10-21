@@ -97,6 +97,8 @@ export async function loadPlay(root) {
     const span = opts.spanMs || SPAN, secret = opts.secret || SECRET, monsters = opts.monsters || MONSTERS;
     const ground = G.HUNT_GROUNDS[huntId], grid = gridOf(ground.map);
     const members = roles.map((r, i) => hero(huntId, r, i, L, roles, opts.fullSet === true));
+    /* opts.density: the party's monster density pick (the settle clamps it to the ground) */
+    if (Number.isInteger(opts.density)) for (const m of members) m.hero = Object.assign({}, m.hero, { density: opts.density });
     /* common vs rare by the hunt's own drop rows: a drop at 5% or more anywhere here is a common, unless it is a
        trophy worth 100 g or more (a boss's chase item: the Crown Shard, the Alpha Fang), which is upside */
     const common = new Set();
@@ -108,6 +110,8 @@ export async function loadPlay(root) {
       const out = AC.accrueHunt({ instance: { id: IID, nextSwingAtMs: next, world }, window: { fromMs: t, toMs: Math.min(T0 + span, t + 600000) },
         secret, ground, grid, items: ITEMS, monsters, members });
       if (!out.accrued) continue;
+      /* opts.onWindow(out, members): an observer of each settled window's events and members (party-defense.mjs) */
+      if (typeof opts.onWindow === 'function') opts.onWindow(out, members);
       world = out.world; next = out.settledTo; played = next - T0;
       for (const p of out.members) {
         const m = members.find((x) => x.key === p.key), h = p.hunt;

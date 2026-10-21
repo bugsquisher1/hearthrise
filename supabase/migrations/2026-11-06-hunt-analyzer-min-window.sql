@@ -30,7 +30,7 @@
 --
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
 -- Re-apply hr_hunt_stats_of from 2026-11-03-hunt-analyzer-level-eta.sql.
--- ORDER: after 2026-11-03-alpha-catalogue.generated.sql (last in the chain).
+-- ORDER: after 2026-11-06-hunt-sessions-catalogue.generated.sql (last in the chain).
 -- No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════
 

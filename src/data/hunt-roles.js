@@ -82,8 +82,13 @@ export function roleWeaponOf(item) {
 
 /* THE TANK'S AUTO-CHALLENGE (spec §3.2 #14, ASSUMED numbers): any engaged monster
    within `radius` tiles (Chebyshev, "on screen") that is not on the tank is pulled
-   back onto him, at most once per `cooldownMs`. No player input. */
-export const CHALLENGE = Object.freeze({ radius: 6, cooldownMs: 8000 });
+   onto him and HELD there `holdMs` (no other tank's Challenge takes it meanwhile),
+   at most once per the `challenge` ability's cdMs (src/data/abilities.js, the one
+   cooldown). No player input. The hold EQUALS the cooldown (designer 2026-10-21): a
+   lone tank's pack is never free between two Challenges (a 6 s hold left it 2 s in
+   every 8 to turn on the Healer), and two tanks still trade the pack every cooldown
+   (each takes it the instant the other's hold runs out). */
+export const CHALLENGE = Object.freeze({ radius: 6, holdMs: 8000 });
 
 /* THE RANGED SPOT (spec §3.1 #10, §5 #4, ASSUMED). A spot is valid while its
    distance d from the hero's own target is in [want - bandBelow, want + bandAbove]
@@ -131,7 +136,7 @@ export function validate() {
     if (!roles.length || !roles.every((r) => HUNT_ROLES[r])) out.push('weapon ' + w + ' names an unknown role');
   }
   if (!Number.isInteger(CHALLENGE.radius) || CHALLENGE.radius < 1) out.push('CHALLENGE.radius must be a positive integer');
-  if (!Number.isInteger(CHALLENGE.cooldownMs) || CHALLENGE.cooldownMs <= 0 || CHALLENGE.cooldownMs % 100 !== 0) out.push('CHALLENGE.cooldownMs must be a whole number of 100 ms sub-steps');
+  if (!Number.isInteger(CHALLENGE.holdMs) || CHALLENGE.holdMs <= 0 || CHALLENGE.holdMs % 100 !== 0) out.push('CHALLENGE.holdMs must be a whole number of 100 ms sub-steps');
   for (const [k, v] of Object.entries(AI_REPATH_MS)) if (!Number.isInteger(v) || v <= 0 || v % 100 !== 0) out.push('AI_REPATH_MS.' + k + ' must be a whole number of sub-steps');
   if (!Number.isInteger(SURROUND.repathMs) || SURROUND.repathMs % 100 !== 0) out.push('SURROUND.repathMs must be a whole number of sub-steps');
   if (!(SPOT.hysteresis >= 0)) out.push('SPOT.hysteresis must be >= 0');

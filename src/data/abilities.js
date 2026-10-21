@@ -12,7 +12,7 @@
 // the mana spent, x1000), rune (an item id the cast spends) | null, ammo (shots
 // of the hero's loaded ammo) , target, effect fields, active }.
 //   target: taunt | mark | enemy | area | cleave | self | ally | party
-//   dmg [lo, hi], hits, maxHits, status (a statuses.js id, H3), vuln,
+//   dmg [lo, hi], element (an elements.js id), hits, maxHits, status (a statuses.js id, H3),
 //   bonusPct + durMs (mark), shield, heal [lo, hi], whenBelowPct, minHurt,
 //   radius (party heal, tiles)
 // `active: false` holds a row whose rune is not a carried supply yet: no
@@ -28,6 +28,7 @@
 
 import { SUPPLIES } from './supplies.js?v=0.2.23';
 import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.23';
+import { isElement } from './elements.js?v=0.2.23';
 
 /* Two ability lanes and their lockouts (Bible §9.1 PROPOSED, AB-02). Food and
    drink keep their own lane (consumables.js). */
@@ -36,8 +37,6 @@ export const ABILITY_LANES = Object.freeze({ offense: 2000, heal: 1000 });
 export const ABILITY_RULES = Object.freeze({
   /* Mana regenerates 25% of max a minute (designer ruling 2026-10-15, AB-13). */
   manaRegenPctPerMin: 25,
-  /* Vulnerability lasts 6 s (designer ruling 2026-10-15; damage.js reads it). */
-  vulnMs: 6000,
   /* An area ability needs at least this many monsters it can hurt (AB-03). */
   areaMin: 2,
 });
@@ -56,7 +55,7 @@ export const ABILITIES = Object.freeze([
   /* shield — the tank's Melee */
   ab({ id: 'challenge', n: 'Challenge', disciplines: ['shield'], lane: 'offense', cdMs: 8000, mana: 0, target: 'taunt' }),
   ab({ id: 'flame_strike', n: 'Flame Strike', disciplines: ['shield'], lane: 'offense', cdMs: 8000, mana: 10, rune: 'fire_rune',
-    target: 'enemy', dmg: [8, 14], element: 'fire', magicXpMult: 250 }),
+    target: 'enemy', dmg: [8, 14], element: 'ember', magicXpMult: 250 }),
   ab({ id: 'power_strike', n: 'Power Strike', disciplines: ['shield', 'dual_axe'], lane: 'offense', cdMs: 6000, mana: 6,
     target: 'enemy', dmg: [7, 13] }),
   /* dual axes — Melee DPS */
@@ -67,14 +66,14 @@ export const ABILITIES = Object.freeze([
   ab({ id: 'hunters_mark', n: "Hunter's Mark", disciplines: ['ranged'], lane: 'offense', cdMs: 12000, mana: 8, target: 'mark',
     bonusPct: 20, durMs: 8000 }),
   ab({ id: 'flame_volley', n: 'Flame Volley', disciplines: ['ranged'], lane: 'offense', cdMs: 10000, mana: 15, rune: 'fire_rune', ammo: 3,
-    target: 'area', dmg: [5, 9], element: 'fire', magicXpMult: 250 }),
+    target: 'area', dmg: [5, 9], element: 'ember', magicXpMult: 250 }),
   ab({ id: 'precision_shot', n: 'Precision Shot', disciplines: ['ranged'], lane: 'offense', cdMs: 6000, mana: 6, ammo: 1,
     target: 'enemy', dmg: [7, 12] }),
   /* staff — Mage (destruction) */
   /* Fireball spends mana only (designer 2026-10-21): the Mage's one damage spell must cast with no
      Runecrafting; Flame Strike and Flame Volley keep the Fire Rune as their crafted upgrade. */
   ab({ id: 'fireball', n: 'Fireball', disciplines: ['destruction'], lane: 'offense', cdMs: 8000, mana: 25,
-    target: 'area', dmg: [7, 12], element: 'fire', magicXpMult: 1600 }),
+    target: 'area', dmg: [7, 12], element: 'ember', magicXpMult: 1600 }),
   ab({ id: 'frost_lance', n: 'Frost Lance', disciplines: ['destruction'], lane: 'offense', cdMs: 6000, mana: 20, rune: 'frost_rune',
     target: 'enemy', dmg: [12, 18], element: 'frost', magicXpMult: 1600, active: false }),
   ab({ id: 'arcane_barrier', n: 'Arcane Barrier', disciplines: ['destruction'], lane: 'heal', cdMs: 20000, mana: 30, target: 'self',
@@ -84,8 +83,8 @@ export const ABILITIES = Object.freeze([
     heal: [40, 60], whenBelowPct: 70, magicXpMult: 1600 }),
   ab({ id: 'circle_of_renewal', n: 'Circle of Renewal', disciplines: ['restoration'], lane: 'heal', cdMs: 12000, mana: 50, target: 'party',
     heal: [20, 30], whenBelowPct: 80, minHurt: 2, radius: 8, magicXpMult: 1600 }),
-  ab({ id: 'natures_wrath', n: "Nature's Wrath", disciplines: ['restoration'], lane: 'offense', cdMs: 10000, mana: 30, target: 'area',
-    dmg: [3, 6], element: 'nature', vuln: true, magicXpMult: 1600 }),
+  ab({ id: 'natures_wrath', n: "Nature's Wrath", disciplines: ['restoration'], lane: 'offense', cdMs: 10000, mana: 20, target: 'area',
+    dmg: [3, 6], magicXpMult: 1600 }),
 ].reduce((acc, r) => { acc[r.id] = r; return acc; }, Object.create(null)));
 
 const TARGETS = ['taunt', 'mark', 'enemy', 'area', 'cleave', 'self', 'ally', 'party'];
@@ -107,6 +106,8 @@ export function validate() {
     for (const k of ['dmg', 'heal']) if (r[k] && !(r[k].length === 2 && r[k].every(Number.isInteger) && r[k][0] > 0 && r[k][0] <= r[k][1])) bad(k + ' must be [lo, hi]');
     if (['enemy', 'area', 'cleave'].includes(r.target) && !r.dmg) bad('a damaging target with no dmg');
     if (['ally', 'party'].includes(r.target) && !r.heal) bad('a heal target with no heal');
+    /* One vocabulary (elements.js): a name outside it would match no weakness, resist or immunity. */
+    if ('element' in r && !isElement(r.element)) bad('unknown element ' + r.element);
     /* No ability may name a missing item (spec §1.2): an active rune is a carried ammo line. */
     if (r.rune && r.active && !(SUPPLIES[r.rune] && SUPPLIES[r.rune].kind === 'ammo')) bad('rune ' + r.rune + ' is not a carried supply line');
   }

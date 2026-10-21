@@ -98,15 +98,76 @@ const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelo
    window is stated that far in the past, so its events are due the moment it lands. */
 FIXTURE.hunt_server_now_ms += (await import(pathToFileURL(join(ROOT, 'src/session/config.js')).href)).SESSION_CONFIG.huntPlaybackDelayMs;
 const clone = (o) => JSON.parse(JSON.stringify(o));
-const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
+/* LOAD-PROOF (2026-10-21, P1: HS-7/HS-8/HS-12/HS-15/HS-21 went red on loaded boxes, a different one each run).
+   A rule waits for the STATE it checks, never for wall time: LOAD_MS is only how long a state may take to
+   arrive on a slow box, never a rule. A rule ABOUT time (the leave countdown, the cooldown ember, the bar's
+   answer wait) runs on the page's pinned clock (page.clock): virtual time moves only when the test moves it,
+   and only while no request is out (drive), so a loaded box changes how long the run takes, not what it sees. */
+const LOAD_MS = 15000;
+const wait = (page, fn, arg, ms = LOAD_MS) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
+const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
+/** Node-side: until `fn()` holds (a call reached the stub, a reply went out), or false after LOAD_MS. */
+async function until(fn, ms = LOAD_MS) {
+  for (const end = Date.now() + ms; !fn();) { if (Date.now() > end) return false; await sleep(20); }
+  return true;
+}
+/* Which envelope the page has read: every server answer the client parses (src/session/server.js res.json())
+   is noted, so a test can wait until the page HAS the envelope it pushed instead of guessing a delay. */
+const SEEN_SCRIPT = `(() => { const j = Response.prototype.json;
+  Response.prototype.json = async function () { const v = await j.call(this);
+    if (v && Number.isInteger(v.version)) window.__hsSeen = Math.max(window.__hsSeen || 0, v.version); return v; }; })();`;
+
+/* ── the pinned clock ── */
+const CLOCKS = new WeakMap();   // page -> { paused, now }
+/** Stop the page's clock (page.clock must be installed): from here virtual time moves only through drive(). */
+async function pauseClock(page) {
+  const c = CLOCKS.get(page);
+  for (let margin = 500; ; margin *= 2) {
+    const t = (await page.evaluate(() => Date.now())) + margin;
+    try { await page.clock.pauseAt(t); c.now = t; c.paused = true; return c; } catch (e) { if (margin > 60000) throw e; }
+  }
+}
+async function resumeClock(page) { const c = CLOCKS.get(page); await page.clock.resume(); c.paused = false; }
+/**
+ * Move the paused clock in `step` ms steps, ONLY while no request is out (a held stub reply does not
+ * count): a slow box makes the network slow, never the page's time. Stops when `pred` (a page function)
+ * holds, or after `maxMs` of virtual time. `onStep` runs before each step. -> { ok, used }
+ */
+async function drive(page, { maxMs, pred = null, arg, step = 50, onStep = null }) {
+  const c = CLOCKS.get(page);
+  let used = 0;
+  for (;;) {
+    if (pred && await page.evaluate(pred, arg)) return { ok: true, used };
+    if (onStep) await onStep();
+    if (used >= maxMs) return { ok: !pred, used };
+    if (c.out.size > c.held.size) { await sleep(10); continue; }
+    await page.clock.runFor(step);
+    c.now += step;
+    used += step;
+  }
+}
 
 /** A scripted server: `env` is what hr_load and hr-accrue answer (version bumped each call). */
 function scripted() {
-  const s = { env: clone(FIXTURE), version: 1, calls: [], optionsReply: { ok: true }, optionsDelayMs: 300 };
+  const s = { env: clone(FIXTURE), version: 1, calls: [], optionsReply: { ok: true }, optionsDelayMs: 300, waiting: {} };
+  /* answer every held reply of a kind, and stop holding that kind */
+  s.release = (kind) => {
+    if (kind === 'accrue') s.holdAccrue = false; else s.holdOptions = false;
+    for (const go of (s.waiting[kind] || []).splice(0)) go();
+  };
+  s.sent = (name) => s.calls.filter((c) => c.name === name);
   /* `clock`: a server clock of the test's own (ms); each answer then states it as `now` and hunt_server_now_ms. */
   s.next = () => Object.assign(clone(s.env), { version: ++s.version },
     s.clock ? { now: new Date(s.clock()).toISOString(), hunt_server_now_ms: s.clock() } : {});
   return s;
+}
+
+/** A reply the test holds back (a slow settle, an unanswered save) until s.release(kind): it is out, and drive() moves the clock past it. */
+function hold(page, r, s, kind) {
+  const c = CLOCKS.get(page);
+  const req = r.request();
+  if (c) c.held.add(req);
+  return new Promise((ok) => { (s.waiting[kind] = s.waiting[kind] || []).push(() => { if (c) c.held.delete(req); ok(); }); });
 }
 
 async function stub(page, s) {
@@ -120,13 +181,21 @@ async function stub(page, s) {
     const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
     if (name === 'hr_load') return json(s.next());
     if (name === 'hr-accrue') {
-      const d = s.accrueDelay ? s.accrueDelay() : 0;
-      if (d) await new Promise((ok) => setTimeout(ok, d));
-      if (s.onAccrue) s.onAccrue();
-      return json(Object.assign({ accrued: true }, s.next()));
+      if (s.holdAccrue) await hold(page, r, s, 'accrue');
+      s.accrueLive = (s.accrueLive || 0) + 1;   // answering now (not held)
+      try {
+        if (s.accrueDelayMs) await sleep(s.accrueDelayMs);
+        if (s.onAccrue) s.onAccrue();
+        return await json(Object.assign({ accrued: true }, s.next()));
+      } finally { s.accrueLive--; }
     }
-    if (name === 'hr_action_set_options') { await new Promise((ok) => setTimeout(ok, s.optionsDelayMs)); return json(s.optionsReply); }
-    if (name === 'hr_hunt_leave' && s.onLeave) { await new Promise((ok) => setTimeout(ok, 400)); return json(s.onLeave()); }
+    if (name === 'hr_action_set_options') {
+      if (s.holdOptions) await hold(page, r, s, 'options'); else await sleep(s.optionsDelayMs);
+      /* the server saves what it confirms at the moment it answers (never before the gesture) */
+      if (s.onOptions && s.optionsReply.ok) s.onOptions(body.p_opts);
+      return json(s.optionsReply);
+    }
+    if (name === 'hr_hunt_leave' && s.onLeave) { await sleep(400); const out = s.onLeave(); await json(out); s.leaveAnswered = true; return undefined; }
     return json({ ok: true });
   });
 }
@@ -156,18 +225,25 @@ async function signInAndPlay(page, base, town) {
 async function pushEnvelope(page, s) {
   const frame = s.version + 2;
   s.version = frame;
-  const before = s.calls.filter((c) => c.name === 'hr-accrue').length;
   await page.evaluate(([uid, f, st]) => window.__hub.send('hr:' + uid + ':0', { t: 'delta', frame: f, patch: { state: st } }), [UID, frame, s.env.state]);
-  for (let i = 0; i < 60 && s.calls.filter((c) => c.name === 'hr-accrue').length <= before; i++) await page.waitForTimeout(50);
-  await page.waitForTimeout(200);
+  /* Applied = the page has parsed an answer at least as new as the re-read this frame asks for (every
+     answer from here on carries s.env as it is now), then its own tasks after that have run. */
+  const c = CLOCKS.get(page);
+  if (c && c.paused) { await drive(page, { maxMs: 2000, pred: (v) => (window.__hsSeen || 0) >= v, arg: frame + 1 }); return; }
+  await wait(page, (v) => (window.__hsSeen || 0) >= v, frame + 1);
+  await page.evaluate(() => new Promise((ok) => setTimeout(() => setTimeout(ok, 0), 0)));
 }
 
 const FLOAT_IDS = ['dealt', 'taken', 'heal', 'xp', 'miss', 'supply', 'loot', 'ability', 'bleed_badge'];
 const NODES = `({ row: document.querySelector('.hp-m[data-key="0"]'), kills: document.querySelector('[data-sec="totals"] dd[data-stat="kills"]'),
   slot: document.querySelector('.hb-slot[data-slot="3"]'), hp: document.querySelector('.hb-read-v[data-v="hp"]') })`;
 
-async function checks(overrides, shots) {
+/* A mutant needs ONE red rule: its run stops at the first (stopAtFirst), so the state waits a planted defect
+   leaves hanging (LOAD_MS each) cost one wait, not twenty. The clean control and the plain run see every rule. */
+const STOP = Symbol('first red');
+async function checks(overrides, shots, { stopAtFirst = false } = {}) {
   const fails = [];
+  if (stopAtFirst) fails.push = function (...a) { Array.prototype.push.apply(this, a); throw STOP; };
   const { server, port } = await serve(overrides);
   const base = 'http://127.0.0.1:' + port;
   const browser = await leaseBrowser(chromium);
@@ -177,8 +253,18 @@ async function checks(overrides, shots) {
     const errors = [];
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
     page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
+    await page.addInitScript(SEEN_SCRIPT);
+    if (o.clock) {
+      /* the page's clock, installed running (boot as usual); a timing rule pauses it and drives it */
+      await page.clock.install();
+      const c = { paused: false, now: 0, out: new Set(), held: new Set() };
+      CLOCKS.set(page, c);
+      page.on('request', (q) => c.out.add(q));
+      page.on('requestfinished', (q) => c.out.delete(q));
+      page.on('requestfailed', (q) => c.out.delete(q));
+    }
     const s = scripted();
-    if (o.prep) o.prep(s);
+    if (o.prep) o.prep(s, page);
     /* In town: no hunt sections and no combat activity (the World's own "in a hunt" reads both). */
     if (o.town) {
       for (const k of ['hunt', 'party', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'hunt_server_now_ms']) delete s.env[k];
@@ -215,7 +301,12 @@ async function checks(overrides, shots) {
         s.env.party.members[0].hp = 90;
         s.env.hunt.hero.hp = 90;
         s.env.hunt_analyzer.hero.kills = 170;
+        /* Its re-read answers 600 ms late, as on a slow runner: GitHub run 39640048955 (in-page-5, clean control)
+           read these numbers 200 ms after the re-read was ASKED and saw kills 164, hp 180/220. pushEnvelope now
+           waits until the page has parsed the answer, so the slow answer must still be read whole. */
+        s.accrueDelayMs = 600;
         await pushEnvelope(page, s);
+        s.accrueDelayMs = 0;
         const after = await page.evaluate((src) => {
           const now = (0, eval)(src);
           return { rebuilt: Object.keys(now).filter((k) => now[k] !== window.__nodes[k]), kills: now.kills && now.kills.textContent, hp: now.hp && now.hp.textContent };
@@ -250,11 +341,12 @@ async function checks(overrides, shots) {
         /* HS-6: the log shows each fixture event once, after a restated envelope too. */
         await page.keyboard.press('Enter');
         await wait(page, () => document.querySelector('[data-hs-win="chat"] .hc-log'));
-        await page.waitForTimeout(900);
-        await pushEnvelope(page, s);
-        await page.waitForTimeout(900);
-        const lines = await page.evaluate(() => Array.from(document.querySelectorAll('.hc-line')).map((l) => l.getAttribute('data-key')));
         const ids = FIXTURE.hunt_events.map((e) => 'i:' + e.id);
+        const allIn = (want) => want.every((k) => document.querySelector('.hc-line[data-key="' + k + '"]'));
+        await wait(page, allIn, ids);
+        await pushEnvelope(page, s);
+        await wait(page, allIn, ids);
+        const lines = await page.evaluate(() => Array.from(document.querySelectorAll('.hc-line')).map((l) => l.getAttribute('data-key')));
         const missing = ids.filter((k) => !lines.includes(k));
         const dupes = lines.filter((k, i) => lines.indexOf(k) !== i);
         if (missing.length || dupes.length) fails.push('HS-6 combat log lines: missing [' + missing.join(',') + '] repeated [' + dupes.join(',') + ']');
@@ -277,11 +369,11 @@ async function checks(overrides, shots) {
           await page.evaluate(() => { const im = document.querySelector('.hb-slot[data-slot="0"] img'); if (im) im.__hs17 = true; });
           delete s.env.hunt_settings;
           await pushEnvelope(page, s);
-          if (await wait(page, () => !document.querySelector('.hb-slot[data-slot="0"] img'), null, 3000)) rebuilt++;
+          if (await wait(page, () => !document.querySelector('.hb-slot[data-slot="0"] img'), null)) rebuilt++;
           await gc();
           s.env.hunt_settings = bar;
           await pushEnvelope(page, s);
-          await wait(page, () => !!document.querySelector('.hb-slot[data-slot="0"] img'), null, 3000);
+          await wait(page, () => !!document.querySelector('.hb-slot[data-slot="0"] img'), null);
           if (await page.evaluate(() => { const im = document.querySelector('.hb-slot[data-slot="0"] img'); return !!im && im.__hs17 === true; })) sameNode++;
         }
         const loot = s.env.hunt_analyzer.hero.loot;
@@ -290,11 +382,11 @@ async function checks(overrides, shots) {
         for (let i = 0; i < 2; i++) {
           delete loot.slime_gel;
           await pushEnvelope(page, s);
-          const gone = await wait(page, () => !document.querySelector('[data-sec="loot"] .ha-line[data-key="slime_gel"]'), null, 3000);
+          const gone = await wait(page, () => !document.querySelector('[data-sec="loot"] .ha-line[data-key="slime_gel"]'), null);
           await gc();
           loot.slime_gel = gel;
           await pushEnvelope(page, s);
-          if (gone && await wait(page, () => !!document.querySelector('[data-sec="loot"] .ha-line[data-key="slime_gel"] img'), null, 3000)) lootBack++;
+          if (gone && await wait(page, () => !!document.querySelector('[data-sec="loot"] .ha-line[data-key="slime_gel"] img'), null)) lootBack++;
         }
         const oneAtlas = await page.evaluate(async () => {
           const v = new URL(document.querySelector('script[type="module"]').src).searchParams.get('v');
@@ -329,26 +421,30 @@ async function checks(overrides, shots) {
       if (up) {
         /* Target, stance, chase and distance live on the bar's panel (Tyler 10-19). */
         const P = '.hb-plaque';
-        await wait(page, (p) => document.querySelector(p + ' [data-opt="stance"]:not([disabled])'), P, 3000);
+        await wait(page, (p) => document.querySelector(p + ' [data-opt="stance"]:not([disabled])'), P);
         const btn = P + ' [data-opt="stance"][data-val="offensive"]';
+        /* What the server says once it has saved: it saves what it confirms AT its answer (s.onOptions), so
+           no re-read before it (the live view polls) can show a value early; and the answer is HELD while
+           the in-flight state is read, so a slow box cannot let it land first. */
+        s.onOptions = (o) => Object.assign(s.env.hunt_settings, o);
+        s.holdOptions = true;
         await page.click(btn);
-        /* What the server says once it has saved: set after the press, so no re-read before it (the live
-           view asks for its start point at once) can show the new stance early. */
-        s.env.hunt_settings.stance = 'offensive';
         const mid = await page.evaluate(([b, p]) => ({ off: document.querySelector(b).disabled, pressed: document.querySelector(b).getAttribute('aria-pressed'),
           allOff: Array.from(document.querySelectorAll(p + ' [data-opt]')).every((c) => c.disabled) }), [btn, P]);
         if (!mid.off || !mid.allOff) fails.push('HS-3 the panel controls stayed on while the intent was in flight');
         if (mid.pressed !== 'false') fails.push('HS-3 the stance showed as chosen before the server confirmed it');
+        await until(() => s.sent('hr_action_set_options').length >= 1);
+        s.release('options');
         const sent = s.calls.filter((c) => c.name === 'hr_action_set_options');
         if (sent.length !== 1 || JSON.stringify(sent[0].body.p_opts) !== '{"stance":"offensive"}' || sent[0].body.p_slot !== 0) fails.push('HS-3 the press sent ' + JSON.stringify(sent.map((c) => c.body)));
-        const done = await wait(page, (b) => !document.querySelector(b).disabled && document.querySelector(b).getAttribute('aria-pressed') === 'true', btn, 3000);
+        const done = await wait(page, (b) => !document.querySelector(b).disabled && document.querySelector(b).getAttribute('aria-pressed') === 'true', btn);
         if (!done) fails.push('HS-3 after the server confirmed, the stance did not show the server’s new value');
         /* Refused: the server's value stays and the panel says why. */
         s.optionsReply = { ok: false, error: 'bad_option' };
         const def = P + ' [data-opt="stance"][data-val="defensive"]';
         await page.click(def);
         await page.waitForTimeout(100);
-        const back = await wait(page, (b) => !document.querySelector(b).disabled, def, 3000);
+        const back = await wait(page, (b) => !document.querySelector(b).disabled, def);
         const r = await page.evaluate(([b, p]) => ({ pressed: document.querySelector(b).getAttribute('aria-pressed'), msg: document.querySelector(p + ' .hh-intent-msg').textContent }), [def, P]);
         if (!back || r.pressed !== 'false' || !r.msg) fails.push('HS-3 a refusal did not keep the server’s stance with a reason (' + JSON.stringify(r) + ')');
         /* HS-12: exactly target, stance, chase and distance; no eat/drink thresholds, no supplies, no density, no gathering; J opens nothing. */
@@ -362,11 +458,12 @@ async function checks(overrides, shots) {
         /* Each control is ONE intent and shows only the server's value. */
         const one = async (label, act, want, set) => {
           const before = s.calls.filter((c) => c.name === 'hr_action_set_options').length;
-          /* The server's value is set after the gesture (the reply waits optionsDelayMs), so the live view's
-             own re-reads cannot show it early and make the gesture a no-change (as in HS-3). */
+          /* The server saves the value at its answer (s.onOptions, as in HS-3), so the live view's own
+             re-reads cannot show it early and make the gesture a no-change. `set` is what it saves. */
           await act();
-          Object.assign(s.env.hunt_settings, set);
-          await wait(page, (p) => !document.querySelector(p).classList.contains('is-pending'), P, 3000);
+          await until(() => s.sent('hr_action_set_options').length > before);
+          await wait(page, (p) => !document.querySelector(p).classList.contains('is-pending'), P);
+          if (Object.entries(set).some(([k, v]) => s.env.hunt_settings[k] !== v)) fails.push('HS-12 ' + label + ': the server did not save ' + JSON.stringify(set));
           await page.waitForTimeout(150);
           const got = s.calls.filter((c) => c.name === 'hr_action_set_options').slice(before).map((c) => JSON.stringify(c.body.p_opts));
           if (got.length !== 1 || got[0] !== want) fails.push('HS-12 ' + label + ' sent ' + JSON.stringify(got) + ' (all: ' + JSON.stringify(s.calls.filter((c) => c.name === 'hr_action_set_options').map((c) => c.body.p_opts)) + ')');
@@ -381,12 +478,16 @@ async function checks(overrides, shots) {
         const g0 = await page.evaluate((g) => document.querySelector(g) && document.querySelector(g).value, G);
         if (g0 !== '300') fails.push('HS-12 the gold to keep does not show the server’s 300: ' + JSON.stringify(g0));
         const gBefore = s.calls.filter((c) => c.name === 'hr_action_set_options').length;
-        Object.assign(s.env.hunt_settings, { gold_floor: 500 });
+        /* The server's 500 is saved at its answer (s.onOptions); it used to be set BEFORE the typing, so a
+           live-view re-read landing first on a slow box made 500 the server's already: no change, no intent. */
+        s.holdOptions = true;
         await page.fill(G, '500');
         await page.dispatchEvent(G, 'change');
         const gMid = await page.evaluate((g) => ({ v: document.querySelector(g).value, off: document.querySelector(g).disabled }), G);
         if (gMid.v !== '300' || !gMid.off) fails.push('HS-12 the gold to keep showed the new value (or stayed on) before the server confirmed: ' + JSON.stringify(gMid));
-        const gDone = await wait(page, (g) => document.querySelector(g).value === '500' && !document.querySelector(g).disabled, G, 3000);
+        await until(() => s.sent('hr_action_set_options').length > gBefore);
+        s.release('options');
+        const gDone = await wait(page, (g) => document.querySelector(g).value === '500' && !document.querySelector(g).disabled, G);
         const gSent = s.calls.filter((c) => c.name === 'hr_action_set_options').slice(gBefore).map((c) => JSON.stringify(c.body.p_opts));
         if (!gDone || gSent.length !== 1 || gSent[0] !== '{"gold_floor":500}') fails.push('HS-12 the gold to keep sent ' + JSON.stringify(gSent) + ', shows ' + await page.evaluate((g) => document.querySelector(g).value, G));
         /* Refused: the server's 500 stays, the line says why. */
@@ -394,7 +495,7 @@ async function checks(overrides, shots) {
         await page.fill(G, '800');
         await page.dispatchEvent(G, 'change');
         const gBack = await wait(page, (g) => !document.querySelector(g).disabled && document.querySelector(g).value === '500'
-          && /^Too many changes/.test(document.querySelector('.hb-plaque .hh-intent-msg').textContent), G, 3000);
+          && /^Too many changes/.test(document.querySelector('.hb-plaque .hh-intent-msg').textContent), G);
         if (!gBack) fails.push('HS-12 a refused gold to keep did not go back to the server’s 500 with a reason');
         s.optionsReply = { ok: true };
         const shown = await page.evaluate((p) => ({ target: document.querySelector(p + ' [data-opt="target_mode"]').value,
@@ -492,6 +593,8 @@ async function checks(overrides, shots) {
         await page.click('[data-hs-win="hunts"] .hw-hunt.is-picked .hw-hunt-enter');
         await page.waitForTimeout(900);
         await pushEnvelope(page, s);
+        await wait(page, () => !/On the way/.test(document.querySelector('[data-hs-win="hunts"] .hh-intent-msg').textContent)
+          && /You are hunting in/.test(document.querySelector('[data-hs-win="hunts"] .hw-hunts-now').textContent));
         const w = await page.evaluate(() => ({ msg: document.querySelector('[data-hs-win="hunts"] .hh-intent-msg').textContent,
           now: document.querySelector('[data-hs-win="hunts"] .hw-hunts-now').textContent }));
         if (/On the way/.test(w.msg) || !/You are hunting in/.test(w.now)) fails.push('HS-9 the Hunts window does not follow the server’s hunt: ' + JSON.stringify(w));
@@ -518,8 +621,9 @@ async function checks(overrides, shots) {
         const withWin = await page.evaluate(() => document.querySelectorAll('.hs-pointer').length);
         if (withWin) fails.push('HS-10b the tutorial card is drawn over an open window (' + withWin + ')');
         for (let i = 0; i < 4 && await page.$('[data-hs-win] [data-hs-close]'); i++) { await page.click('[data-hs-win] [data-hs-close]'); await page.waitForTimeout(300); }
-        await page.waitForTimeout(500);
+        await wait(page, () => !document.querySelector('[data-hs-win]'));
         await pushEnvelope(page, s);
+        await wait(page, () => document.querySelectorAll('.hs-pointer').length === 1);
         const geo = await page.evaluate(() => {
           const ps = Array.from(document.querySelectorAll('.hs-pointer'));
           const b = document.querySelector('.ht-bar');
@@ -535,34 +639,33 @@ async function checks(overrides, shots) {
 
     { // HS-15 LEAVE HUNT COUNTS DOWN TO THE SERVER'S CLOSE (live v0.2.20 "very buggy and delayed";
       // Tyler 10-20: "a countdown so they know it's not just stuck")
-      /* The server runs three hours ahead of this device: a countdown off the device clock reads nothing like it. */
+      /* ON THE PINNED CLOCK (2026-10-21, P1): this rule is about time, so the page's clock is paused once the
+         screen is up and moves only through drive(); the stub's server clock is that same virtual time three
+         hours ahead. Every number below is derived from it, so a loaded box (a reload taking 5 s, an answer
+         taking 2 s) changes nothing the rule sees. The old wall-clock rule lost 3-5 s to a slow reload and read
+         an empty line (the countdown had run out) or a "Leaving in 7s". */
       const SKEW = 3 * 3600000;
-      let leaveAt = null, slowUntil = 0;
-      const { ctx, page, s, errors, up } = await open({ prep: (sc) => {
-        sc.clock = () => Date.now() + SKEW;
+      const LEAVE_IN = 5500;
+      let leaveAt = null, clockOf = null;
+      const { ctx, page, s, errors, up } = await open({ clock: true, prep: (sc, pg) => {
+        clockOf = CLOCKS.get(pg);
+        sc.clock = () => (clockOf.paused ? clockOf.now : Date.now()) + SKEW;
         /* the live view's start-point asks wait for a first boundary an hour off, so only the ordinary
-           poll and the leave's own close ask: the asks' backoff could land a settle near leave_at by
-           chance and hide a close that waits a whole poll */
+           poll and the leave's own close ask */
         sc.env.hunt = Object.assign({}, sc.env.hunt, { session: Object.assign({}, sc.env.hunt.session, { hunt_from: new Date(sc.clock() + 3600000).toISOString() }) });
         sc.onLeave = () => {
-          /* 5.5 s ahead, not 6: the page's clock is measured from answers (timeline.js T3: the client's
-             receive instant less the server's stamp), so it always runs a few ms to a few hundred behind
-             the server's; with leave_at a whole 6 s out, a read a hair after the answer saw 5.97 s left and
-             any lag over 30 ms read "Leaving in 7s" (1 run in 3). Half a second keeps the read in 4-6 s. */
-          if (leaveAt === null) leaveAt = sc.clock() + 5500;
+          if (leaveAt === null) leaveAt = sc.clock() + LEAVE_IN;
+          /* every settle asked from the answer on is slow (held): the number must not wait for any of them */
+          sc.holdAccrue = true;
           const session = Object.assign({}, sc.env.hunt.session, { id: sc.env.hunt.session_id, leave_at: new Date(leaveAt).toISOString(), phase: 'leaving' });
           sc.env.hunt = Object.assign({}, sc.env.hunt, { session });
-          slowUntil = Date.now() + 2500;
           /* the server's answer: the session it set leave_at on (hr_hunt_leave -> hr_hunt_view) */
           return { ok: true, pending: true, session };
         };
-        /* every settle asked in the 2.5 s after the press is slow (the live view's own asks too, which
-           never give up): the number must not wait for any of them */
-        sc.accrueDelay = () => Math.max(0, slowUntil - Date.now());
         /* the hunter's settle closes it once the server's clock is past leave_at (hunt-settle.js: a pending leave is never held back) */
         sc.onAccrue = () => {
           if (leaveAt === null || sc.clock() < leaveAt || sc.env.hunt.ended) return;
-          sc.closedAt = Date.now();
+          sc.closedAt = clockOf.now + SKEW;
           sc.env.hunt = Object.assign({}, sc.env.hunt, { ended: true, session: Object.assign({}, sc.env.hunt.session, { leave_at: null, phase: 'ended', ended_at: new Date(leaveAt).toISOString(), end_reason: 'left' }) });
           sc.env.state = Object.assign({}, sc.env.state, { active_kind: 'idle', active_id: null });
         };
@@ -572,50 +675,55 @@ async function checks(overrides, shots) {
           return b && l ? { t: l.textContent, line: l.getClientRects().length > 0, off: b.disabled, shown: b.getClientRects().length > 0,
             px: parseFloat(getComputedStyle(l).fontSize), gold: getComputedStyle(l).color === getComputedStyle(document.querySelector('.ht-ground')).color, next: l.nextElementSibling === b } : null; });
         const counting = () => { const l = document.querySelector('.ht-bar .ht-leaving'); return !!l && l.getClientRects().length > 0 && /^Leaving in \d+s$/.test(l.textContent); };
-        await page.click('.ht-bar [data-hs-act="leave"]');
-        const t0 = Date.now();
-        const flight = await label();
-        await page.click('.ht-bar [data-hs-act="leave"]', { force: true, timeout: 1000 }).catch(() => {});
-        if (!flight || flight.t !== 'Leaving…' || !flight.line || !flight.off) fails.push('HS-15 the press does not answer at once with Leaving… beside an off button: ' + JSON.stringify(flight));
-        /* NO WORDLESS GAP: a number within about a second of the press, while the settle after it is still out */
-        const quick = await wait(page, counting, null, 1500);
-        const gap = Date.now() - t0;
-        if (!quick || gap > 1500) fails.push('HS-15 no number within a second of the press (the settle after it is slow): ' + gap + ' ms, ' + JSON.stringify(await label()));
-        const a = await label();
         const n = (x) => Number(((x && x.t) || '').replace(/\D+/g, '')) || 0;
-        if (!a || !/^Leaving in [4-6]s$/.test(a.t) || !a.off) fails.push('HS-15 the line does not count down to the server’s leave_at (want 4-6s): ' + JSON.stringify(a));
+        /* What the line must read now: ceil(seconds to leave_at) on the server's clock (hunt-leave.js), which the
+           page measures from its answers, so it may run up to one step (50 ms) behind ours. */
+        const due = () => { const left = leaveAt - (clockOf.now + SKEW); return [Math.ceil(left / 1000), Math.ceil((left + 100) / 1000)]; };
+        const reads = (x, want) => !!x && want.includes(n(x)) && /^Leaving in \d+s$/.test(x.t);
+        const press = () => page.evaluate(() => { const b = document.querySelector('.ht-bar [data-hs-act="leave"]'); if (b) b.click(); });
+        await pauseClock(page);
+        await press();
+        const t0 = clockOf.now;
+        const flight = await label();
+        await press();   // a second press while it pends
+        if (!flight || flight.t !== 'Leaving…' || !flight.line || !flight.off) fails.push('HS-15 the press does not answer at once with Leaving… beside an off button: ' + JSON.stringify(flight));
+        /* NO WORDLESS GAP: a number within 1.5 s of the press (page time), while the settle after it is still out */
+        await until(() => s.leaveAnswered);
+        const quick = await drive(page, { maxMs: 1500, pred: counting });
+        if (!quick.ok) fails.push('HS-15 no number within 1.5 s of the press while the settle after it is out: ' + JSON.stringify(await label()));
+        const a = await label();
+        const wantA = due();
+        if (!reads(a, wantA) || !a.off) fails.push('HS-15 the line does not count down to the server’s leave_at (want Leaving in ' + wantA.join(' or ') + 's, ' + (clockOf.now - t0) + ' ms after the press): ' + JSON.stringify(a));
         else if (!(a.px >= 12) || !a.gold || !a.next) fails.push('HS-15 the countdown is not gold label text >= 12 px right beside Leave hunt: ' + JSON.stringify(a));
-        await page.click('.ht-bar [data-hs-act="leave"]', { force: true, timeout: 1000 }).catch(() => {});   // a second press while it pends
-        await page.waitForTimeout(1300);
+        await drive(page, { maxMs: 1300 });
         const b = await label();
-        if (!(n(b) < n(a))) fails.push('HS-15 the countdown does not tick: ' + JSON.stringify([a, b]));
+        const wantB = due();
+        if (!reads(b, wantB) || !(n(b) < n(a))) fails.push('HS-15 the countdown does not tick (1.3 s later want ' + wantB.join(' or ') + 's): ' + JSON.stringify([a, b]));
         if (await page.$('.ht-bar [data-hs-act="leave"]:not([disabled])')) fails.push('HS-15 Leave hunt is pressable again while the leave pends');
-        /* RELOAD during the wait: the same countdown, from the server's leave_at */
+        s.release('accrue');
+        /* RELOAD during the wait: the same countdown, from the server's leave_at (the clock stays pinned) */
         await page.reload({ waitUntil: 'load' });
-        await signInAndPlay(page, null);
-        await wait(page, counting, null, 3000);
+        const mounted = await drive(page, { maxMs: 4000, pred: () => !!document.querySelector('[data-app="play"][data-slot="0"], .hb-bar') });
+        if (mounted.ok && await page.$('[data-app="play"][data-slot="0"]')) await page.evaluate(() => document.querySelector('[data-app="play"][data-slot="0"]').click());
+        const back = await drive(page, { maxMs: 2000, pred: counting });
         const r = await label();
-        if (!r || !/^Leaving in \d+s$/.test(r.t) || !(n(r) >= 1 && n(r) <= n(b)) || !r.off) fails.push('HS-15 a reload during the leave lost its countdown: ' + JSON.stringify([b, r]));
-        const leaves = s.calls.filter((c) => c.name === 'hr_hunt_leave').length;
+        const wantR = due();
+        if (!back.ok || !reads(r, wantR) || !(n(r) >= 1 && n(r) <= n(b)) || !r.off) fails.push('HS-15 a reload during the leave lost its countdown (want ' + wantR.join(' or ') + 's): ' + JSON.stringify([b, r]));
+        const leaves = s.sent('hr_hunt_leave').length;
         if (leaves !== 1) fails.push('HS-15 the leave was sent ' + leaves + ' times (want once)');
-        /* THE CLOSE: asked a hair after leave_at, the hunt ends on screen within about a second, back in town;
-           every line seen on the way is a whole number of seconds >= 1 or "Leaving now…" */
-        const end = await page.evaluate(async () => {
-          const seen = new Set();
-          for (let i = 0; i < 90; i++) {
-            const bar = document.querySelector('.ht-bar'); const l = bar && bar.querySelector('[data-hs-act="leave"]'); const line = bar && bar.querySelector('.ht-leaving');
-            if (line && line.getClientRects().length > 0) seen.add(line.textContent);
-            if (bar && l && l.getClientRects().length === 0 && bar.querySelector('[data-hs-act="summary"]').getClientRects().length > 0) return { done: true, seen: [...seen], line: !!line && line.getClientRects().length > 0 };
-            await new Promise((ok) => setTimeout(ok, 100));
-          }
-          return { done: false, seen: [...seen] };
-        });
-        const lag = s.closedAt && leaveAt !== null ? s.closedAt - (leaveAt - SKEW) : null;
-        if (!end.done) fails.push('HS-15 the hunt never ended on screen after leave_at: ' + JSON.stringify(await label()));
+        /* THE CLOSE: asked a hair after leave_at, the hunt ends on screen, back in town; every line seen on the
+           way is a whole number of seconds >= 1 or "Leaving now…" */
+        const seen = new Set();
+        const done = () => { const bar = document.querySelector('.ht-bar'); const l = bar && bar.querySelector('[data-hs-act="leave"]');
+          return !!(bar && l && l.getClientRects().length === 0 && bar.querySelector('[data-hs-act="summary"]').getClientRects().length > 0); };
+        const end = await drive(page, { maxMs: LEAVE_IN + 4000, pred: done, onStep: async () => { const x = await label(); if (x && x.line) seen.add(x.t); } });
+        const lineUp = await page.evaluate(() => { const l = document.querySelector('.ht-bar .ht-leaving'); return !!l && l.getClientRects().length > 0; });
+        const lag = s.closedAt && leaveAt !== null ? s.closedAt - leaveAt : null;
+        if (!end.ok) fails.push('HS-15 the hunt never ended on screen after leave_at: ' + JSON.stringify(await label()));
         else if (lag === null || lag > 1500) fails.push('HS-15 the close was asked ' + lag + ' ms after leave_at (want within 1.5 s)');
-        const odd = end.seen.filter((x) => !/^Leaving in [1-9]\d*s$|^Leaving now…$/.test(x));
+        const odd = [...seen].filter((x) => !/^Leaving in [1-9]\d*s$|^Leaving now…$/.test(x));
         if (odd.length) fails.push('HS-15 the countdown showed ' + JSON.stringify(odd) + ' on its way to the close');
-        if (end.line) fails.push('HS-15 the leaving line stays up after the hunt ended');
+        if (lineUp) fails.push('HS-15 the leaving line stays up after the hunt ended');
         if (errors.length) fails.push('HS-15 console errors: ' + errors.slice(0, 3).join(' | '));
       } else fails.push('HS-15 the screen did not mount');
       await ctx.close();
@@ -632,15 +740,15 @@ async function checks(overrides, shots) {
       if (up) {
         const line = () => page.evaluate(() => { const l = document.querySelector('.ht-bar .ht-leaving'); const b = document.querySelector('.ht-bar [data-hs-act="leave"]');
           return l && b ? { t: l.getClientRects().length > 0 ? l.textContent : null, off: b.disabled } : null; });
-        const reads = (t) => page.waitForFunction((x) => { const l = document.querySelector('.ht-bar .ht-leaving'); return !!l && l.getClientRects().length > 0 && l.textContent === x; }, t, { timeout: 4000 }).then(() => true, () => false);
+        const reads = (t) => wait(page, (x) => { const l = document.querySelector('.ht-bar .ht-leaving'); return !!l && l.getClientRects().length > 0 && l.textContent === x; }, t);
         if (!(await reads('Leaving now…'))) fails.push('HS-16 a leave past its leave_at does not read "Leaving now…": ' + JSON.stringify(await line()));
         /* the server's leave_at is now long past (the close is late): the line says so, plainly */
-        const asked = s.calls.filter((c) => c.name === 'hr-accrue').length;
+        const asked = s.sent('hr-accrue').length;
         s.env.hunt = Object.assign({}, s.env.hunt, { session: Object.assign({}, s.env.hunt.session, { leave_at: iso(20000) }) });
         if (!(await reads('Still processing your leave…'))) fails.push('HS-16 a late close never says it is still being processed: ' + JSON.stringify(await line()));
         const l = await line();
         if (!l || !l.off) fails.push('HS-16 Leave hunt is pressable while the late leave is processed: ' + JSON.stringify(l));
-        if (!(s.calls.filter((c) => c.name === 'hr-accrue').length > asked)) fails.push('HS-16 the late close is not asked again');
+        if (!(await until(() => s.sent('hr-accrue').length > asked))) fails.push('HS-16 the late close is not asked again');
         if (errors.length) fails.push('HS-16 console errors: ' + errors.slice(0, 3).join(' | '));
       } else fails.push('HS-16 the screen did not mount');
       await ctx.close();
@@ -658,14 +766,16 @@ async function checks(overrides, shots) {
           }
           return out;
         });
-        const bare = await overlaps();
+        /* layout settles on its own schedule (a resize, a docked window): read once it has, or after LOAD_MS */
+        const settled = async () => { for (const end = Date.now() + LOAD_MS; ;) { const o = await overlaps(); if (!o.length || Date.now() > end) return o; await sleep(100); } };
+        const bare = await settled();
         if (bare.length) fails.push('HS-13 hunt panels overlap with no window open: ' + bare.join(', '));
         /* A window floats over the World and never narrows it (Tyler 10-19), so the row that is too
            narrow comes from the screen: a narrow desktop makes the edge panels step below the bar. */
         for (const vp of [{ width: 1100, height: 800 }, { width: 1024, height: 700 }]) {
           await page.setViewportSize(vp);
           await page.waitForTimeout(500);
-          const narrow = await overlaps();
+          const narrow = await settled();
           if (narrow.length) fails.push('HS-13 hunt panels overlap at ' + vp.width + 'x' + vp.height + ': ' + narrow.join(', '));
         }
         await page.setViewportSize({ width: 1440, height: 900 });
@@ -674,7 +784,7 @@ async function checks(overrides, shots) {
         await wait(page, () => document.querySelector('[data-hs-win="chat"]'));
         await page.evaluate(() => document.activeElement && document.activeElement.blur && document.activeElement.blur());
         await page.waitForTimeout(400);
-        const docked = await overlaps();
+        const docked = await settled();
         if (docked.length) fails.push('HS-13 hunt panels overlap with the chat window docked: ' + docked.join(', '));
       } else fails.push('HS-13 the screen did not mount');
       await ctx.close();
@@ -684,7 +794,7 @@ async function checks(overrides, shots) {
       const { ctx, page, s, up } = await open();
       if (up) {
         await page.click('.hb-slot[data-slot="2"]');
-        const opened = await wait(page, () => { const f = document.querySelector('[data-hs-win="configure-action"].is-modal .hc-cfg'); return f && !f.classList.contains('is-empty'); }, null, 3000);
+        const opened = await wait(page, () => { const f = document.querySelector('[data-hs-win="configure-action"].is-modal .hc-cfg'); return f && !f.classList.contains('is-empty'); }, null);
         if (!opened) fails.push('HS-7 pressing a bar slot did not open Configure action as a centred modal');
         else {
           const picks = await page.evaluate(async () => {
@@ -702,29 +812,33 @@ async function checks(overrides, shots) {
           await page.selectOption('.hc-cond[data-cond="0"] [data-f="op"]', 'lt');
           await page.fill('.hc-cond[data-cond="0"] [data-f="value"]', '40');
           await page.dispatchEvent('.hc-cond[data-cond="0"] [data-f="value"]', 'change');
-          s.env.hunt_settings.slots[2].conditions = [{ metric: 'self_hp_pct', op: 'lt', value: 40 }];
+          /* the server saves slot 3's new test AT its answer, held while the in-flight state is read (as HS-3) */
+          s.onOptions = (o) => { if (o.slots && o.slots[2]) s.env.hunt_settings.slots[2].conditions = o.slots[2].conditions; };
           const tipBefore = await page.evaluate(() => { const li = document.querySelector('.hb-slot[data-slot="2"]'); li.dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); return document.querySelector('.hb-tip').textContent; });
+          s.holdOptions = true;
           await page.click('.hc-foot [data-x="save"]');
           const mid = await page.evaluate(() => Array.from(document.querySelectorAll('.hc-form button, .hc-form select, .hc-form input')).every((b) => b.disabled));
           if (!mid) fails.push('HS-7 Configure action stayed on while its intent was in flight');
           if (!/at or below 50%/.test(tipBefore)) fails.push('HS-7 the slot tooltip did not show the server’s setup: ' + tipBefore);
+          await until(() => s.sent('hr_action_set_options').length >= 1);
+          s.release('options');
           const sent = s.calls.filter((c) => c.name === 'hr_action_set_options').map((c) => c.body.p_opts);
           const sl = sent[0] && sent[0].slots;
           if (sent.length !== 1 || !Array.isArray(sl) || sl.length !== 20 || JSON.stringify(sl[2].conditions) !== '[{"metric":"self_hp_pct","op":"lt","value":40}]'
             || JSON.stringify(sl[0]) !== JSON.stringify({ action: FIXTURE.hunt_settings.slots[0].action, conditions: FIXTURE.hunt_settings.slots[0].conditions, join: 'and' })) {
             fails.push('HS-7 the save sent ' + JSON.stringify(sent).slice(0, 300));
           }
-          const done = await wait(page, () => !document.querySelector('[data-hs-win="configure-action"]'), null, 3000);
+          const done = await wait(page, () => !document.querySelector('[data-hs-win="configure-action"]'), null);
           const tipAfter = await page.evaluate(() => { const li = document.querySelector('.hb-slot[data-slot="2"]'); li.dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); return document.querySelector('.hb-tip').textContent; });
           if (!done || !/below 40%/.test(tipAfter)) fails.push('HS-7 after the server confirmed, the slot did not show the server’s new test and close: ' + tipAfter);
           /* A refusal: shown inline on the condition the server names; the server's bar stays. */
           s.optionsReply = { ok: false, error: 'bad_value', slot: 0, condition: 0 };
           await page.click('.hb-slot[data-slot="0"]');
-          await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .hc-title'), null, 3000);
+          await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .hc-title'), null);
           await page.click('.hc-conds-head [data-x="add"]');
           await page.click('.hc-foot [data-x="save"]');
           const shown = await wait(page, () => document.querySelector('.hc-cond[data-cond="0"]').classList.contains('is-error')
-            && document.querySelector('.hc-form .hh-intent-msg').textContent.length > 0, null, 3000);
+            && document.querySelector('.hc-form .hh-intent-msg').textContent.length > 0, null);
           if (!shown) fails.push('HS-7 a server validation error was not shown on its condition');
           if (shots) await page.screenshot({ path: join(shots, 'hunt-1440x900-configure-action.png') });
         }
@@ -736,7 +850,7 @@ async function checks(overrides, shots) {
       const { ctx, page, s, up } = await open({ prep: (st) => { st.env.hunt.hunt_id = 'millrace_sewer'; } });
       if (up) {
         await page.click('.hb-slot[data-slot="2"]');
-        await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .hc-title'), null, 3000);
+        await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .hc-title'), null);
         const warn = () => page.evaluate(() => { const w = document.querySelector('.hc-warn'); return w && w.getClientRects().length ? w.textContent : ''; });
         /* Wheat Bread at HP 50% or below of 220 = 110 HP: above the King's 75, nothing to say. */
         const safe = await warn();
@@ -758,7 +872,7 @@ async function checks(overrides, shots) {
       const { ctx, page, up } = await open({ viewport: { width: 922, height: 423 }, prep: (st) => { st.env.hunt.hunt_id = 'millrace_sewer'; } });
       if (up) {
         await page.click('.hb-slot[data-slot="2"]');
-        await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .hc-title'), null, 3000);
+        await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .hc-title'), null);
         await page.fill('.hc-cond[data-cond="0"] [data-f="value"]', '30');
         await page.dispatchEvent('.hc-cond[data-cond="0"] [data-f="value"]', 'change');
         const seen = await page.evaluate(() => {
@@ -772,7 +886,7 @@ async function checks(overrides, shots) {
     }
 
     { // HS-19 drag on the bar: onto an empty slot it moves; onto an action a menu (Swap / Insert / cancel); one intent per choice; the status line clears
-      const { ctx, page, s, up } = await open();
+      const { ctx, page, s, up } = await open({ clock: true });
       if (up) {
         const wire = (x) => (x ? { action: x.action, conditions: x.conditions, join: x.join || 'and' } : null);
         const base = Array.from({ length: 20 }, (_, i) => wire(FIXTURE.hunt_settings.slots[i]));
@@ -786,10 +900,10 @@ async function checks(overrides, shots) {
         }, [from, to]);
         const sent = () => s.calls.filter((c) => c.name === 'hr_action_set_options').map((c) => c.body.p_opts.slots);
         const lastIs = async (label, want) => {
-          for (let i = 0; i < 40 && sent().length < want.n; i++) await page.waitForTimeout(50);
+          await until(() => sent().length >= want.n);
           const all = sent();
           if (all.length !== want.n || JSON.stringify(all[all.length - 1]) !== JSON.stringify(want.bar)) fails.push('HS-19 ' + label + ' sent ' + String(JSON.stringify(all[all.length - 1])).slice(0, 400));
-          const cleared = await wait(page, () => document.querySelector('.hb-plaque .hh-intent-msg').textContent === '', null, 3000);
+          const cleared = await wait(page, () => document.querySelector('.hb-plaque .hh-intent-msg').textContent === '', null);
           if (!cleared) fails.push('HS-19 the status line stayed after the server answered ' + label);
         };
         const menuOn = () => page.evaluate(() => document.querySelector('.hb-drop').classList.contains('is-on'));
@@ -842,24 +956,32 @@ async function checks(overrides, shots) {
         s.optionsReply = { ok: false, error: 'rate_limited' };
         await drag(0, 2);
         if (await menuOn()) await page.click('.hb-drop [data-x="swap"]'); else fails.push('HS-19 the drop menu did not open for the refusal');
-        const refused = await wait(page, () => /^Too many changes at once/.test(document.querySelector('.hb-plaque .hh-intent-msg').textContent), null, 3000);
+        const refused = await wait(page, () => /^Too many changes at once/.test(document.querySelector('.hb-plaque .hh-intent-msg').textContent), null);
         if (!refused) fails.push('HS-19 a refused drop left the line on ' + JSON.stringify(await line()));
         if (JSON.stringify(await items()) !== JSON.stringify(before)) fails.push('HS-19 a refused drop moved the bar');
         /* No answer at all: the line comes back after the bar's wait (data/hunt-hud.js BAR_ANSWER_MS) and the next drop is taken. */
+        /* ON THE PINNED CLOCK (2026-10-21, P1): the save is held unanswered and the page's clock driven past
+           the bar's wait, so the timeout is measured in page time, not a wall-clock race on a loaded box. */
         s.optionsReply = { ok: true };
-        s.optionsDelayMs = 12500;
+        const BAR_MS = await page.evaluate(async () => (await import('/src/data/hunt-hud.js?v=0.1.0')).BAR_ANSWER_MS);
+        await pauseClock(page);
+        s.holdOptions = true;
+        const nHeld = sent().length;
         await drag(0, 2);
-        if (await menuOn()) await page.click('.hb-drop [data-x="swap"]'); else fails.push('HS-19 the drop menu did not open for the timeout');
-        const timedOut = await wait(page, () => /^The server has not answered/.test(document.querySelector('.hb-plaque .hh-intent-msg').textContent), null, 11500);
+        if (await menuOn()) await page.evaluate(() => document.querySelector('.hb-drop [data-x="swap"]').click()); else fails.push('HS-19 the drop menu did not open for the timeout');
+        await until(() => sent().length > nHeld);
+        const timedOut = (await drive(page, { maxMs: BAR_MS + 500, pred: () => /^The server has not answered/.test(document.querySelector('.hb-plaque .hh-intent-msg').textContent) })).ok;
         if (!timedOut) fails.push('HS-19 a drop the server never answered left the line on ' + JSON.stringify(await line()));
-        await page.waitForTimeout(3000);   // the late answer lands (its effect is the re-read, like any other)
-        s.optionsDelayMs = 300;
+        s.release('options');   // the late answer lands (its effect is the re-read, like any other)
+        await resumeClock(page);
+        await until(() => CLOCKS.get(page).out.size === 0);
+        await page.evaluate(() => new Promise((ok) => setTimeout(ok, 0)));
         const n0 = sent().length;
         await drag(0, 2);
         if (await menuOn()) await page.click('.hb-drop [data-x="swap"]');
-        for (let i = 0; i < 40 && sent().length === n0; i++) await page.waitForTimeout(50);
+        await until(() => sent().length > n0);
         if (sent().length !== n0 + 1) fails.push('HS-19 after a timeout the next drop sent nothing (still pending)');
-        await wait(page, () => document.querySelector('.hb-plaque .hh-intent-msg').textContent === '', null, 3000);
+        await wait(page, () => document.querySelector('.hb-plaque .hh-intent-msg').textContent === '', null);
         if (shots) { await drag(0, 2); await page.screenshot({ path: join(shots, 'hunt-1440x900-drop-menu.png') }); await page.keyboard.press('Escape'); }
       } else fails.push('HS-19 the screen did not mount');
       await ctx.close();
@@ -924,25 +1046,31 @@ async function checks(overrides, shots) {
     }
 
     { // HS-21 the cooldown ember: the hero's played `cast` cools that ability's slot for its catalogue cooldown; the ember rises as it runs out
-      const { ctx, page, s, up } = await open();
+      /* ON THE PINNED CLOCK (2026-10-21, P1): paused before the cast lands, so the cooldown cannot run out
+         between two reads on a loaded box (it was read at 0.2 s left, then over); 1 s of page time apart. */
+      const { ctx, page, s, up } = await open({ clock: true });
       if (up) {
         const delay = await page.evaluate(async () => (await import('/src/session/config.js?v=0.1.0')).SESSION_CONFIG.huntPlaybackDelayMs);
         const D = Number.isFinite(delay) ? delay : 19000;
         const now = s.env.hunt_server_now_ms;
         /* A cast that plays at once (its time is already behind the playback delay) by the viewed hero (unit 1). */
         s.env.hunt_events = s.env.hunt_events.concat([{ id: 'cd:1', type: 'cast', atMs: now - D - 500, u: 1, t: 101, ability: 'power_strike' }]);
+        await pauseClock(page);
         await pushEnvelope(page, s);
         const read = () => page.evaluate(() => {
           const li = document.querySelector('.hb-slot[data-slot="0"]');
           return { on: li.classList.contains('is-cooling'), h: parseFloat(li.querySelector('.hb-cd-ember').style.height) || 0, sec: li.querySelector('.hb-cd-s').textContent,
             other: document.querySelector('.hb-slot[data-slot="2"]').classList.contains('is-cooling') };
         });
-        const ok1 = await wait(page, () => document.querySelector('.hb-slot[data-slot="0"]').classList.contains('is-cooling'), null, 4000);
+        const ok1 = (await drive(page, { maxMs: 1000, pred: () => document.querySelector('.hb-slot[data-slot="0"]').classList.contains('is-cooling') })).ok;
         const a = await read();
-        await page.waitForTimeout(1200);
+        await drive(page, { maxMs: 1000 });
         const b = await read();
+        const fell = Number(a.sec) - Number(b.sec);
         if (!ok1 || !(a.h > 0 && a.h < 100) || !(Number(a.sec) > 0 && Number(a.sec) <= 6) || a.other) fails.push('HS-21 the cast did not cool its slot with an ember: ' + JSON.stringify(a));
-        else if (!(b.h > a.h) || !(Number(b.sec) < Number(a.sec))) fails.push('HS-21 the ember did not rise as the cooldown ran out: ' + JSON.stringify([a, b]));
+        /* 1 s of page time = four display ticks (shell.js DISPLAY_TICK_MS 250), so both reads sit at the same tick
+           phase: the seconds fall by exactly 1.0 (one decimal shown) */
+        else if (!(b.h > a.h) || !(Math.abs(fell - 1) < 0.05)) fails.push('HS-21 the ember did not rise as the cooldown ran out (1 s of page time apart, want 1.0 less): ' + JSON.stringify([a, b]));
         if (shots) await page.screenshot({ path: join(shots, 'hunt-1440x900-cooldown.png') });
       } else fails.push('HS-21 the screen did not mount');
       await ctx.close();
@@ -954,12 +1082,12 @@ async function checks(overrides, shots) {
         s.env.hunt_settings.slots[6] = { action: { type: 'ability', id: 'power_strike' }, conditions: [{ metric: 'enemies_in_aoe', op: 'lte', value: 1 }, { metric: 'self_hp_pct', op: 'gt', value: 50 }], join: 'and', usable: true, mana: 6 };
         await pushEnvelope(page, s);
         const blocked = await wait(page, () => document.querySelector('.hb-slot[data-slot="6"]').classList.contains('is-blocked')
-          && !document.querySelector('.hb-slot[data-slot="0"]').classList.contains('is-blocked'), null, 3000);
+          && !document.querySelector('.hb-slot[data-slot="0"]').classList.contains('is-blocked'), null);
         const tip = await page.evaluate(() => { document.querySelector('.hb-slot[data-slot="6"]').dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); return document.querySelector('.hb-tip .is-warn:not(.is-why)') ? document.querySelector('.hb-tip .is-warn:not(.is-why)').textContent : ''; });
         if (!blocked || !/Blocked by Power Strike \(slot 1\)/.test(tip)) fails.push('HS-11 the never-firing slot shows no "!" or no reason: ' + tip);
         s.env.hunt_settings.slots[0] = null;
         await pushEnvelope(page, s);
-        if (!(await wait(page, () => !document.querySelector('.hb-slot[data-slot="6"]').classList.contains('is-blocked'), null, 3000))) fails.push('HS-11 emptying the earlier slot did not clear the "!"');
+        if (!(await wait(page, () => !document.querySelector('.hb-slot[data-slot="6"]').classList.contains('is-blocked'), null))) fails.push('HS-11 emptying the earlier slot did not clear the "!"');
       } else fails.push('HS-11 the screen did not mount');
       await ctx.close();
     }
@@ -978,7 +1106,7 @@ async function checks(overrides, shots) {
       if (shots) await page.screenshot({ path: join(shots, 'town-' + tag + '-bar.png') });
       /* Configure an empty slot from its "+": Items, Any food (the store price shown, paid as used), IF My HP % below 60. */
       await page.click('.hb-slot[data-slot="5"]');
-      await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .hc-title'), null, 3000);
+      await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .hc-title'), null);
       await page.click('.hc-tab[data-tab="items"]');
       await page.click('.hc-choice[data-id="food"]');
       const note = await page.evaluate(() => ({ choice: document.querySelector('.hc-choice[data-id="food"] .hc-choice-note').textContent,
@@ -992,21 +1120,27 @@ async function checks(overrides, shots) {
       await page.dispatchEvent('.hc-cond[data-cond="0"] [data-f="value"]', 'change');
       if (shots) await page.screenshot({ path: join(shots, 'town-' + tag + '-configure-action.png') });
       const want = { action: { type: 'consume', id: 'food' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 60 }], join: 'and' };
-      s.env.hunt_settings.slots[5] = Object.assign({ usable: true, count: 0 }, want);
+      /* The server saves at its answer (never before the press, where a live re-read could show it early):
+         the slot as sent; a density it answers with 4, not the 5 asked, so what shows after is the server's. */
+      s.onOptions = (o) => {
+        if (o.slots && o.slots[5]) s.env.hunt_settings.slots[5] = Object.assign({ usable: true, count: 0 }, want);
+        if ('density' in o) s.env.hunt_settings.density = 4;
+      };
       await page.click('.hc-foot [data-x="save"]');
+      await until(() => s.sent('hr_action_set_options').length >= 1);
       const sent = s.calls.filter((c) => c.name === 'hr_action_set_options').map((c) => c.body.p_opts);
       if (sent.length !== 1 || JSON.stringify(sent[0].slots[5]) !== JSON.stringify(want)) fails.push('HS-8 the town save sent ' + JSON.stringify(sent).slice(0, 300));
-      const saved = await wait(page, () => /Any food/.test(document.querySelector('.hb-slot[data-slot="5"]').getAttribute('aria-label')) && !document.querySelector('[data-hs-win="configure-action"]'), null, 3000);
+      const saved = await wait(page, () => /Any food/.test(document.querySelector('.hb-slot[data-slot="5"]').getAttribute('aria-label')) && !document.querySelector('[data-hs-win="configure-action"]'), null);
       if (!saved) fails.push('HS-8 the town slot did not show the server’s Any food after it confirmed');
       /* Nobody is told to buy first (Tyler 10-19): with Any food on the bar and an empty bag, Hunt prep reads the store per use. */
       await page.keyboard.press('p');
-      const prep = await wait(page, () => /Food: the store, from \d+ gp each as used/.test((document.querySelector('[data-hs-win="hunt-prep"] .hw-checks') || {}).textContent || ''), null, 3000);
+      const prep = await wait(page, () => /Food: the store, from \d+ gp each as used/.test((document.querySelector('[data-hs-win="hunt-prep"] .hw-checks') || {}).textContent || ''), null);
       const prepText = await page.evaluate(() => (document.querySelector('[data-hs-win="hunt-prep"]') || {}).innerText || '');
       if (!prep || /0 food/.test(prepText)) fails.push('HS-8 Hunt prep does not read the store per use for Any food: ' + prepText.slice(0, 200));
       await page.keyboard.press('p');
       /* Density on the hunt picker: the press answers at once, a run of presses is ONE intent, the server's answer replaces the draft. */
       await page.keyboard.press('h');
-      await wait(page, () => document.querySelector('.hw-hunt.is-picked .hw-density.is-on'), null, 3000);
+      await wait(page, () => document.querySelector('.hw-hunt.is-picked .hw-density.is-on'), null);
       const dRead = () => page.evaluate(() => {
         const v = document.querySelector('.hw-hunt.is-picked .hw-density .hh-step-val');
         return { v: v.textContent, pending: v.getAttribute('data-pending'), msg: document.querySelector('.hw-hunts .hh-intent-msg').textContent,
@@ -1015,8 +1149,9 @@ async function checks(overrides, shots) {
       const d0 = await dRead();
       if (d0.v !== '1 each') fails.push('HS-8 the density does not show the server’s pick of 1: ' + d0.v);
       if (!/ packs? of 1[ ,]/.test(d0.facts)) fails.push('HS-8 the facts line does not say the pull size at the server’s pick of 1: ' + d0.facts);
-      /* the re-read after the save answers 4 (not the 5 asked): what shows afterwards is the server's */
-      s.env.hunt_settings.density = 4;
+      /* the save answers 4 (not the 5 asked, s.onOptions): what shows afterwards is the server's. The answer
+         is held while the unsaved draft is read, so a slow box cannot let it land first. */
+      s.holdOptions = true;
       const sentBefore = s.calls.filter((c) => c.name === 'hr_action_set_options').length;
       const plusOn = await page.evaluate(() => {
         const b = document.querySelector('.hw-hunt.is-picked .hw-density [data-by="1"]');
@@ -1028,7 +1163,9 @@ async function checks(overrides, shots) {
       const dMid = await dRead();
       if (dMid.v !== '5 each' || dMid.pending !== 'true' || !/Saving/.test(dMid.msg)) fails.push('HS-8 four quick presses did not show 5 at once, marked unsaved: ' + JSON.stringify(dMid));
       if (!/ packs? of 5[ ,]/.test(dMid.facts)) fails.push('HS-8 the facts line does not follow the pick: ' + dMid.facts);
-      if (!(await wait(page, () => { const v = document.querySelector('.hw-hunt.is-picked .hw-density .hh-step-val'); return v.textContent === '4 each' && v.getAttribute('data-pending') === 'false'; }, null, 4000))) fails.push('HS-8 the density did not show the server’s answer of 4 after the save: ' + JSON.stringify(await dRead()));
+      await until(() => s.sent('hr_action_set_options').length > sentBefore);
+      s.release('options');
+      if (!(await wait(page, () => { const v = document.querySelector('.hw-hunt.is-picked .hw-density .hh-step-val'); return v.textContent === '4 each' && v.getAttribute('data-pending') === 'false'; }, null))) fails.push('HS-8 the density did not show the server’s answer of 4 after the save: ' + JSON.stringify(await dRead()));
       const dSent = s.calls.filter((c) => c.name === 'hr_action_set_options').map((c) => c.body.p_opts).slice(sentBefore);
       if (JSON.stringify(dSent) !== '[{"density":5}]') fails.push('HS-8 four quick density presses sent ' + JSON.stringify(dSent) + ' (want ONE intent with 5)');
       const dAfter = await dRead();
@@ -1039,7 +1176,7 @@ async function checks(overrides, shots) {
       await page.evaluate(() => { const b = document.querySelector('.hw-hunt.is-picked .hw-density [data-by="1"]'); if (!b.disabled) b.click(); });
       const refused = await wait(page, () => { const v = document.querySelector('.hw-hunt.is-picked .hw-density .hh-step-val');
         const m = document.querySelector('.hw-hunts .hh-intent-msg').textContent;
-        return v.textContent === '4 each' && v.getAttribute('data-pending') === 'false' && m && !/Saving/.test(m); }, null, 4000);
+        return v.textContent === '4 each' && v.getAttribute('data-pending') === 'false' && m && !/Saving/.test(m); }, null);
       if (!refused) fails.push('HS-8 a refused density save does not show the server’s 4 and why: ' + JSON.stringify(await dRead()));
       s.optionsReply = { ok: true };
       /* Reload: the slot and the density come back from the server, nothing from the browser. */
@@ -1047,13 +1184,13 @@ async function checks(overrides, shots) {
       const back = await signInAndPlay(page, '', true);
       if (!back) fails.push('HS-8 the town did not mount after a reload');
       else {
-        const slot = await wait(page, () => /Any food/.test(document.querySelector('.hb-slot[data-slot="5"]').getAttribute('aria-label')), null, 3000);
+        const slot = await wait(page, () => /Any food/.test(document.querySelector('.hb-slot[data-slot="5"]').getAttribute('aria-label')), null);
         await page.click('.hb-slot[data-slot="5"]');
-        const cond = await wait(page, () => { const n = document.querySelector('.hc-cond[data-cond="0"].is-on [data-f="value"]'); return n && n.value === '60'; }, null, 3000);
+        const cond = await wait(page, () => { const n = document.querySelector('.hc-cond[data-cond="0"].is-on [data-f="value"]'); return n && n.value === '60'; }, null);
         if (!slot || !cond) fails.push('HS-8 after a reload the slot or its condition is not the server’s');
         await page.keyboard.press('Escape');
         await page.keyboard.press('h');
-        if (!(await wait(page, () => { const v = document.querySelector('.hw-hunt.is-picked .hw-density .hh-step-val'); return v && v.textContent === '4 each'; }, null, 3000))) fails.push('HS-8 after a reload the density is not the server’s');
+        if (!(await wait(page, () => { const v = document.querySelector('.hw-hunt.is-picked .hw-density .hh-step-val'); return v && v.textContent === '4 each'; }, null))) fails.push('HS-8 after a reload the density is not the server’s');
       }
       await ctx.close();
     }
@@ -1066,7 +1203,7 @@ async function checks(overrides, shots) {
           leader_seat: 1, self_seat: 0, leader_density: 7, members: [seat(0, 'Tyler', 'shield'), seat(1, 'Fingerguns', 'bow')] };
         await pushEnvelope(page, s);
         await page.keyboard.press('h');
-        const shown = await wait(page, () => { const v = document.querySelector('.hw-hunt.is-picked .hw-density.is-on .hh-step-val'); return v && /Set by/.test(v.textContent); }, null, 4000);
+        const shown = await wait(page, () => { const v = document.querySelector('.hw-hunt.is-picked .hw-density.is-on .hh-step-val'); return v && /Set by/.test(v.textContent); }, null);
         const m = await page.evaluate(() => {
           const d = document.querySelector('.hw-hunt.is-picked .hw-density');
           const steps = [...d.querySelectorAll('[data-by]')];
@@ -1084,7 +1221,7 @@ async function checks(overrides, shots) {
         s.env.party = Object.assign({}, s.env.party, { leader_seat: 0 });
         await pushEnvelope(page, s);
         const lead = await wait(page, () => { const d = document.querySelector('.hw-hunt.is-picked .hw-density.is-on');
-          return d && !/Set by/.test(d.querySelector('.hh-step-val').textContent) && [...d.querySelectorAll('[data-by]')].every((b) => b.offsetParent !== null); }, null, 4000);
+          return d && !/Set by/.test(d.querySelector('.hh-step-val').textContent) && [...d.querySelectorAll('[data-by]')].every((b) => b.offsetParent !== null); }, null);
         if (!lead) fails.push('HS-14 the leader does not get its density step back');
       } else fails.push('HS-14 the town did not mount');
       await ctx.close();
@@ -1093,19 +1230,39 @@ async function checks(overrides, shots) {
     for (const town of [false, true]) { // HS-22 THE PHONE BAR at 922x423 (v0.2.23 gate: 874 x 178, 42% of the screen)
       const tag = town ? 'in town' : 'in a hunt';
       /* three party invites waiting: three alert lines, so the stack has a height to collide with */
-      const { ctx, page, up } = await open({ viewport: { width: 922, height: 423 }, town, prep: (sc) => {
+      const { ctx, page, s, up } = await open({ viewport: { width: 922, height: 423 }, town, prep: (sc) => {
         sc.env.party_invites = [1, 2, 3].map((n) => ({ id: '00000000-0000-4000-8000-00000000000' + n, hunt: 'mill_cellar', from: 'Mira' }));
       } });
       if (up) {
-        await page.waitForTimeout(400);
+        await wait(page, () => { const a = document.querySelector('[data-hs-widget="alerts"]'); return !!a && a.getBoundingClientRect().height >= 60; });
         const rect = (sel) => page.evaluate((q) => { const e = document.querySelector(q); if (!e) return null; const b = e.getBoundingClientRect(); return { top: b.top, bottom: b.bottom, left: b.left, right: b.right, h: b.height }; }, sel);
         const bar = await rect('.hb-bar'), alerts = await rect('[data-hs-widget="alerts"]');
         if (!bar || bar.h > 100) fails.push('HS-22 ' + tag + ' the phone bar is ' + (bar && Math.round(bar.h)) + ' px tall (want <= 100)');
         if (!alerts || alerts.h < 60) fails.push('HS-22 ' + tag + ' CONTROL: three invites made no alert stack (' + (alerts && Math.round(alerts.h)) + ' px)');
         else if (bar && alerts.bottom > bar.top) fails.push('HS-22 ' + tag + ' the alerts reach ' + Math.round(alerts.bottom) + ', below the bar top ' + Math.round(bar.top));
+        /* A stack that GROWS after it was placed (a new line, a late stylesheet) still ends above the bar: it is
+           re-placed at its new size, never grown down over the bar's buttons (v0.2.24 run 39670839568: the
+           "No thanks" of an invite took the Fight settings press on a runner). */
+        if (!town) {
+          /* no envelope lands meanwhile (its repaint would re-place the stack and hide the bug): the settles are held */
+          s.holdAccrue = true;
+          const frames = () => page.evaluate(() => new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(() => ok()))));
+          await until(() => !s.accrueLive);
+          await page.evaluate(() => new Promise((ok) => setTimeout(ok, 0)));
+          await frames();
+          const grow = await page.addStyleTag({ content: '[data-hs-widget="alerts"] { padding-bottom: 48px !important; }' });
+          const clear = (q) => { const a = document.querySelector(q.a).getBoundingClientRect(), b = document.querySelector(q.b).getBoundingClientRect(); return a.height > 0 && a.bottom <= b.top; };
+          await frames();
+          const grown = await rect('[data-hs-widget="alerts"]'), bar2 = await rect('.hb-bar');
+          s.release('accrue');
+          if (!grown || !bar2 || grown.bottom > bar2.top || grown.h < (alerts ? alerts.h + 40 : 100)) fails.push('HS-22 an alert stack that grew after it was placed reaches ' + (grown && Math.round(grown.bottom)) + ', below the bar top ' + (bar2 && Math.round(bar2.top)) + ' (' + (grown && Math.round(grown.h)) + ' px tall)');
+          await grow.evaluate((n) => n.remove());
+          await wait(page, clear, { a: '[data-hs-widget="alerts"]', b: '.hb-bar' });
+        }
         /* The panel keeps the set and its buttons; the rest is a sheet: shut, then open on the bar's button, on top, then shut on Escape. */
-        const onTop = () => page.evaluate(() => { const c = document.querySelector('.hb-pl-more [data-opt="target_mode"]'); const b = c.getBoundingClientRect();
-          const h = document.elementFromPoint(b.left + 6, b.top + 6); return b.width > 0 && b.right <= innerWidth && b.left >= 0 && (h === c || c.contains(h)); });
+        const onTopFn = () => { const c = document.querySelector('.hb-pl-more [data-opt="target_mode"]'); const b = c.getBoundingClientRect();
+          const h = document.elementFromPoint(b.left + 6, b.top + 6); return b.width > 0 && b.right <= innerWidth && b.left >= 0 && (h === c || c.contains(h)); };
+        const onTop = () => page.evaluate(onTopFn);
         if (await onTop()) fails.push('HS-22 ' + tag + ' the fight settings show on the bar before its sheet is opened');
         /* No alert over the Party panel (its HP and MP rows) */
         const party = await rect('.hp-party');
@@ -1114,6 +1271,7 @@ async function checks(overrides, shots) {
         }
         await page.click('.hb-plaque .hb-more');
         await page.waitForTimeout(300);
+        await wait(page, onTopFn);
         if (!(await onTop())) fails.push('HS-22 ' + tag + ' the bar’s settings button did not slide the fight settings out on top');
         /* The sheet opens inside the World, under the hunt bar: Leave hunt and the icon row stay in reach (gate P3). */
         const sheet = await rect('.hb-pl-more'), ht = town ? null : await rect('.ht-bar');
@@ -1121,10 +1279,11 @@ async function checks(overrides, shots) {
         if (sheet && sheet.top < 40) fails.push('HS-22 ' + tag + ' the fight settings sheet starts at ' + Math.round(sheet.top) + ', over the top strip');
         await page.keyboard.press('Escape');
         await page.waitForTimeout(300);
+        await wait(page, (src) => !(0, eval)(src)(), String(onTopFn));
         if (await onTop()) fails.push('HS-22 ' + tag + ' Escape did not close the fight settings sheet');
         /* An open window (Configure action, from a slot) has no alert drawn over it (gate P1: they hid its item names). */
         await page.click('.hb-slot[data-slot="2"]');
-        if (await wait(page, () => document.querySelector('[data-hs-win="configure-action"]:not(.is-leaving)'), null, 3000)) {
+        if (await wait(page, () => document.querySelector('[data-hs-win="configure-action"]:not(.is-leaving)'), null)) {
           await page.waitForTimeout(300);
           const over = await page.evaluate(() => {
             const w = document.querySelector('[data-hs-win="configure-action"]').getBoundingClientRect(), a = document.querySelector('[data-hs-widget="alerts"]');
@@ -1140,12 +1299,13 @@ async function checks(overrides, shots) {
           });
           if (over.length) fails.push('HS-22 ' + tag + ' an alert draws over the open Configure action window: ' + over.slice(0, 3).join(','));
           await page.keyboard.press('Escape');
-          await page.waitForTimeout(300);
+          await wait(page, () => !document.querySelector('[data-hs-win="configure-action"]'));
         } else fails.push('HS-22 ' + tag + ' a bar slot did not open Configure action');
         /* A slot's tooltip draws over the alert stack beside it (v0.2.23 gate P2a): every point where the two meet is the tooltip's. */
         /* a real hover: whatever covers the slot takes it (then no tooltip, and the rule says so) */
         await page.hover('.hb-slot[data-slot="8"]', { timeout: 3000 }).catch(() => {});
         await page.waitForTimeout(300);
+        if (!town) await wait(page, () => document.querySelector('.hb-tip').classList.contains('is-on'));
         const tipOver = await page.evaluate(() => {
           const t = document.querySelector('.hb-tip'), a = document.querySelector('[data-hs-widget="alerts"]');
           if (!t.classList.contains('is-on')) return 'no tooltip';
@@ -1182,7 +1342,7 @@ async function checks(overrides, shots) {
       } else fails.push('HS-1 the phone size did not mount');
       await ctx.close();
     }
-  } finally {
+  } catch (e) { if (e !== STOP) throw e; } finally {
     await browser.close();
     server.close();
   }
@@ -1264,6 +1424,7 @@ const MUTANTS = [
   ['the phone alerts dock on the left, over the Party panel (HS-22)', 'src/data/hud-widgets.js', "phone: Object.freeze({ anchor: 'br', dx: 4, dy: 104 }),", "phone: Object.freeze({ anchor: 'bl', dx: 4, dy: 160 }),"],
   ['the phone alerts draw over an open window (HS-22)', 'src/styles/hunt.css', '  :root:has(.hs-win:not(.is-leaving)) .hs-widget.is-alerts { visibility: hidden; }', '.hs-widget.is-alerts { }'],
   ['the fight settings sheet starts at the top of the screen (HS-22)', 'src/shell/widgets/action-bar.js', "    sheet.style.top = Math.round(Math.max(box.top, hb ? hb.bottom + 4 : box.top)) + 'px';", "    sheet.style.top = '0px';"],
+  ['a widget that grows after it is placed is never placed again (HS-22)', 'src/shell/shell.js', 'const sized = host.ResizeObserver ? ', 'const sized = false ? '],
   ['the bleed badge defaults on for regular monsters', 'src/data/combat-text.js', "label: 'Bleed stack count', on: on(false, true)", "label: 'Bleed stack count', on: on(true, true)"],
 ];
 
@@ -1308,7 +1469,7 @@ async function main() {
     const missing = pairs.find(([x]) => !text.includes(x));
     if (missing) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
     for (const [x, y] of pairs) text = text.replace(x, y);
-    const fails = await checks({ [file]: text }, null);
+    const fails = await checks({ [file]: text }, null, { stopAtFirst: true });
     if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
     else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
   }

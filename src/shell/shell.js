@@ -181,7 +181,23 @@ export function mountShell(root, o) {
       el.style.setProperty('--hs-op', String(L.opacity));
       el.style.minWidth = row.min[0] + 'px';
       el.style.minHeight = row.min[1] + 'px';
-      const at = placeWidget(L, { width: box.clientWidth, height: box.clientHeight }, { width: el.offsetWidth, height: el.offsetHeight });
+      if (sized && !sized.watched.has(el)) { sized.watched.add(el); sized.ro.observe(el, { box: 'border-box' }); }
+    }
+    placeWidgets();
+  }
+
+  /* A widget sits where its anchor puts it AT ITS SIZE NOW: a bottom-docked stack (the phone alerts)
+     that grows after it was placed (a new line on a display tick, a late stylesheet) would grow DOWN
+     over the bar's buttons (v0.2.24 run 39670839568: "No thanks" took the Fight settings press).
+     Every size change of a widget or of the box it docks in re-places the widgets. */
+  const sized = host.ResizeObserver ? { ro: new host.ResizeObserver(() => placeWidgets()), watched: new WeakSet() } : null;
+  if (sized) { sized.ro.observe(worldHud); sized.ro.observe(screenHud); }
+  function placeWidgets() {
+    for (const row of hud.rows()) {
+      const box = row.layer === 'screen' ? screenHud : worldHud;
+      const el = box.querySelector('[data-hs-widget="' + row.id + '"]');
+      if (!el) continue;
+      const at = placeWidget(hud.layoutOf(row.id), { width: box.clientWidth, height: box.clientHeight }, { width: el.offsetWidth, height: el.offsetHeight });
       el.style.left = at.left + 'px';
       el.style.top = at.top + 'px';
     }
@@ -342,6 +358,7 @@ export function mountShell(root, o) {
     menu: ctx.menu,
     destroy() {
       offWm(); offHud();
+      if (sized) sized.ro.disconnect();
       ctx.menu.destroy();
       host.clearInterval(ticker);
       doc.removeEventListener('keydown', onKey);

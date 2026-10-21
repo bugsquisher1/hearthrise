@@ -139,21 +139,47 @@ export function createLiveEngine(o) {
     return tl;
   }
 
-  /* Run every swing up to `serverNowMs` WITHOUT playing it, and answer where every unit now stands
-     (the caller eases the drawing onto it: timeline.rebase). */
-  function fastForward(serverNowMs) {
-    const units = {};
-    while (st.next <= serverNowMs) {
+  /*
+   * CATCH UP. Run every swing whose boundary lies at or before `until` (= the server's now plus the
+   * ease the caller draws over) WITHOUT playing the past, and answer the state AT `until`, not at the
+   * end of the last swing run (that lay up to a swing in the future: every unit was eased onto where it
+   * would stand at the next boundary and then stood there until it came, live v0.2.21 "choppy"):
+   *   positions/alive  every unit standing at `until` (spawned and not killed by then) and its tile
+   *   units            { id: [kind, maxHp, hp at `until`] } (the bars carry on from the true HP)
+   *   track/events     what the swings run hold AFTER `until`: played on as usual, nothing skipped
+   *   kills/fallen     the deaths at or before `until` (and each victim's book row at 0 HP): a monster killed inside the skipped span is
+   *                    drawn falling, never left standing at its last tile (live v0.2.21 "the kobold
+   *                    was still standing at the end"); their ids are the engine's, so a death the
+   *                    screen already played is not played twice (timeline.js T1)
+   */
+  function fastForward(serverNowMs, aheadMs) {
+    const until = serverNowMs + Math.max(0, Math.floor(Number(aheadMs) || 0));
+    const pos = new Map(), killed = new Set(), hp = {}, kills = [], track = [], events = [];
+    for (const u of (st.world ? st.world.units : [])) if (u.alive) pos.set(u.id, [u.x, u.y]);
+    while (st.next <= until) {
       let tl;
       try { tl = swing(st); } catch (e) { if (e && e.starved) { st.starved = true; break; } throw e; }
-      Object.assign(units, tl.hunt_units);
+      for (const [k, v] of Object.entries(tl.hunt_units || {})) hp[k] = v.slice();
+      for (const s of tl.hunt_track) { if (s.atMs <= until) pos.set(s.u, [s.x, s.y]); else track.push(s); }
+      for (const ev of tl.hunt_events) {
+        if (ev.atMs > until) { events.push(ev); continue; }
+        if (ev.type === 'kill' && isInt(ev.t)) { killed.add(ev.t); kills.push(ev); }
+        const r = hp[ev.t];
+        if (r && Number.isFinite(ev.amount) && (ev.type === 'dmg' || ev.type === 'heal' || ev.type === 'status_tick')) {
+          r[2] = Math.max(0, Math.min(r[1], r[2] + (ev.type === 'heal' ? ev.amount : -ev.amount)));
+        }
+      }
     }
-    const positions = new Map(), alive = new Set();
-    st.drawn.clear();
-    for (const u of (st.world ? st.world.units : [])) {
-      if (u.alive) { positions.set(u.id, [u.x, u.y]); alive.add(u.id); st.drawn.set(u.id, { x: u.x, y: u.y, end: NaN, first: null }); }
+    const positions = new Map(), alive = new Set(), units = {}, fallen = {};
+    for (const u of killed) if (hp[u]) fallen[u] = [hp[u][0], hp[u][1], 0];
+    for (const [u, xy] of pos) {
+      if (killed.has(u)) continue;
+      positions.set(u, xy); alive.add(u);
+      if (hp[u]) units[u] = hp[u];
     }
-    return { positions, alive, units, fromMs: serverNowMs };
+    /* a unit that first appears after `until` (a respawn) is alive too: its steps are played on */
+    for (const s of track) alive.add(s.u);
+    return { positions, alive, units, fallen, fromMs: until, track, events, kills };
   }
 
   return {
@@ -212,16 +238,15 @@ export function createLiveEngine(o) {
       return v;
     },
     /**
-     * Replace the prediction with a server start point and fast-forward it to `serverNowMs`. Answers
-     * { positions: Map(unit -> [x, y]), units, alive: Set(unit) } for the caller to ease the drawing
-     * onto (timeline.rebase), or null when it cannot run it. Nothing the fast-forward produced is fed:
-     * that time is already on screen.
+     * Replace the prediction with a server start point and fast-forward it to `serverNowMs` + `aheadMs`
+     * (fastForward's answer, for the caller to ease the drawing onto: timeline.rebase), or null when it
+     * cannot run it. The past it ran is not played (that time is already on screen) except its deaths.
      */
-    reseed(live, serverNowMs) {
+    reseed(live, serverNowMs, aheadMs) {
       const s = start(live);
       if (!s) { st = null; return null; }
       st = s;
-      return fastForward(serverNowMs);
+      return fastForward(serverNowMs, aheadMs);
     },
     /** A prediction that ran out of seeds (it holds a world, but cannot step it): restart it eased, never fed. */
     stalled: () => !!st && st.starved,
@@ -232,7 +257,17 @@ export function createLiveEngine(o) {
      * already in the past, so they are run without being played and the caller eases onto the result
      * (reseed's answer shape), instead of feeding them and drawing their end at once.
      */
-    catchUp(serverNowMs) { return st && !st.starved ? fastForward(serverNowMs) : null; },
+    catchUp(serverNowMs, aheadMs) { return st && !st.starved ? fastForward(serverNowMs, aheadMs) : null; },
+    /**
+     * The server instant the look-ahead runs out: the boundary of the first swing it holds no combat
+     * seed for (null when not running). The session asks for more before it comes (live-link.js
+     * refillDelayMs), so the prediction never stands waiting for seeds.
+     */
+    seededUntil() {
+      if (!st || st.starved) return null;
+      const swing = st.world ? st.world.swing : st.worldSwing;
+      return st.next + (st.seeds.from + st.seeds.list.length - swing) * COMBAT_BALANCE.tickMs;
+    },
     /** What the prediction's member sinks would have dropped (inert: it proves drops are NOT foreseen). */
     predictedDrops() {
       const out = {};

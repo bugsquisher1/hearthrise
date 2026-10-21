@@ -45,7 +45,7 @@
 //         its own tiles; the Home button leaves town; zero console errors
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
-import { launchOptions } from './_chrome.mjs';
+import { leaseBrowser } from './_chrome.mjs';
 import { readFile, mkdir } from 'node:fs/promises';
 import { mkdtempSync, mkdirSync, cpSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -298,7 +298,7 @@ async function stub(page, s) {
 async function pageRules(overrides, shots) {
   const fails = [];
   const { server, port } = await serve(overrides);
-  const browser = await chromium.launch(launchOptions({ headless: true }));
+  const browser = await leaseBrowser(chromium);
   try {
     const vp = { width: 1440, height: 900 };
     const ctx = await browser.newContext({ viewport: vp });

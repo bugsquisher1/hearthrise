@@ -28,7 +28,52 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 - **The pre-rebuild board** (b1xx to b585, the scrapped old client and its systems) is archived whole at `docs/archive/planning/PRIORITY_BOARD_pre-rebuild.md`. None of its rows apply to the rebuilt game unless re-added here.
 
 ## Decisions
-_None recorded here since the rebuild; Tyler's rulings live in rulings-of-record._
+_Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
+
+## Designer pass 2026-10-21 (v0.2.22)
+Evidence: the real settle (`hr-accrue accrueHunt`, the `tests/hunt-core/fixtures/play-ground.mjs` runner, one fixed seed, one hour, per hero per hour), run on a scratch copy of the tree with each change planted. Not played in the browser this pass.
+
+### 1. Caster economy (CONFLICTS 2026-10-20 item 1): RULED
+**Found.** (a) The −48% came from a harness whose "mage" held a staff, so it was a second Healer (Mage = wand + spellbook since 10-19). With a real Mage the live data is worse: the Sewer party of four at 8 **wipes** to the Rat King in 2.2 min (starter kit), 12.9 min (ladder kit), 5.1 min (full set). (b) **Root cause:** the 10-19 core rebuild moved every food heal ×12 with the new HP pools (`core-model.js FOOD_HEAL_SCALE`) and left the mana drinks at the old grain: a Thin Turnip Juice restores 6 of a ~230 mana pool. Its 3-mana instant half lands, but a Healer drinks every 2-3 s, so each drink REPLACES the running over-time half (`consumables.js`) and that half never lands: 2 g per mana in effect, at the shared 2 s cooldown, so the Healer cannot keep up and cannot eat. (c) The Mage's only damage spell, Fireball, spends a Fire Rune (Runecrafting 45; no store row, by the K10 rule). A wand hero casts **0** spells an hour.
+
+**Ruling (one idea: mana is the caster's supply, sized for the pool it fills).**
+- Every drink moves ×12 like the food did, back on its authored rule "a drink restores what its tier's fish heals" (crafted 96/168/300/384/528/648 = the cooked fish heals; basics 72/120/216/288/396/480 = the salted fish heals).
+- Store drink prices ×5/3 (ladder shape kept): 10/18/45/80/138/233 g. Tier 1 is 0.139 g a mana. The 10 g is fitted: the Healer, who buys the party's healing, must clear +25% at the Sewer floor in the ladder kit (the kit the drop-tables Sewer reference uses). Bill ≤ 2,636 / 1.25 = 2,109 g at 209 drinks an hour, so ≤ 10.09 g.
+- Fireball spends no rune (mana only). Flame Strike and Flame Volley keep the Fire Rune as their crafted upgrade.
+
+**Numbers, Sewer L8, party of four (Melee tank, Ranger, Mage with wand + book, Healer), bill per hero per hour and margin on the even income share:**
+
+| Kit | Before | After: played / deaths | Income | Melee | Ranger | Mage | Healer |
+|---|---|---|---|---|---|---|---|
+| Starter (practice weapons) | wipe 2.2 min | 60 min / 0 | 2,623 | 602 (+336%) | 170 | 210 | 2,890 (−9%) |
+| Ladder (weapon, helm, body) | wipe 12.9 min | 60 min / 0 | 2,636 | 168 | 160 | 240 | **2,090 (+26%)** |
+| Full own-tier set | wipe 5.1 min | 60 min / 0 | 2,958 | 98 | 130 | 160 | 1,260 (+135%) |
+
+Every role clears the +25% minimum in the reference kits. Exactly +25-35% for each role is not reachable: income is split evenly and costs are personal (ruling 10-16), so the Melee, Ranger and Mage bills are a tenth of a quarter share. The Healer is the binding role and is fitted to the band. Healer arithmetic (ladder kit): Nature's Wrath 281 × 30 + Greater Mend 337 × 25 = 16,855 mana an hour; 209 drinks × 10 g = 2,090 g; 2,636 / 2,090 = +26%.
+Other floors after the change: Sewer solo Melee +32% (no drinks, unchanged); Sewer solo Healer +88% and Mage +155% (ladder kit), +64% and +110% (starter kit plus a helmet). Mill Cellar solo Healer in the starter kit goes from −72% to +227%. The Cellar's solo Mage now casts. Warrens party at 32: Healer goes from −43% to +374% (full set). In the ladder kit the Healer is +29%, but the tank's tier-4 food is −81% (CONFLICTS item 2, still open).
+
+**Exact rows (lane C: every lever is in a server catalogue, so it is not data-only):**
+- `src/data/drinks.js` DRINK_ITEMS `mana`: turnip 8→96, carrot 14→168, tomato 25→300, pumpkin 32→384, goldenroot 44→528, emberfruit 54→648 (`v` unchanged).
+- `src/data/supply-basics.js` BASIC_SUPPLIES (mana, price): thin_turnip 72/10, thin_carrot 120/18, thin_tomato 216/45, thin_pumpkin 288/80, thin_goldenroot 396/138, thin_emberfruit 480/233. SUPPLY_SHOP_OFFERS drink price list (its ceil rule): 14/26/63/107/184/315.
+- `src/data/abilities.js` fireball `rune: 'fire_rune'` → `rune: null`.
+- `tests/supplies-catalogue.mjs` B1: the three-quarters rule uses the ×12 grain for mana too (`const S = FOOD_HEAL_SCALE`); the `core-model.js` comment names drinks.
+- `tests/hunt-core/fixtures/play-ground.mjs` kit: mage = apprentice/oak/willow/maple wand + apprentice_primer/oak/willow/maple spellbook in `shield`.
+- Regenerate both catalogues as new dated files. `gen-hunt-sessions`: hr_hunt_basic_supplies 6 rows, hr_hunt_abilities fireball rune null, hr_hunt_limits drink_mana_per_min_max 1,620→19,440, hr_hunt_vendor_value turnip/carrot/tomato/pumpkin/goldenroot/emberfruit 4/8/19/32/55/94 → 6/11/30/50/86/157. `gen-alpha-catalogue`: hr_shop_supply_offers 6 drink rows. Edge redeploy (packed src/data).
+- Checked on a scratch copy with every row above plus the harness fix (exit codes): supplies-catalogue 0, hunt-core drop-tables 0 (Sewer party +618%, rare every 14.3 h), consumables 0, abilities 0, roles 0, sewer 0, conditions 0. abilities.validate is clean, and gen-alpha accepts the rows.
+- **Regression (Systems, same commit):** drop-tables `caster-floor`. The Sewer party of four in the ladder kit plays the full hour with 0 deaths and every role ≥ +25%; it is red on today's data (wipe at 12.9 min). Mutants: drinks back to 6 mana; Fireball rune back (Mage casts 0). The harness fix alone turns drop-tables red (rare-pace: Sewer party wipes), so it must land with the rows.
+
+**Economy and exploit review.** The gold sink shrinks: party net is about +1,970 g per hero-hour against +758 for a solo Melee (2.6×). This party premium is flagged for Tyler's economy model. Magic XP is mana spent × 1.5 and stays bounded by spell cooldowns and live targets, so drinks buy no XP outside a fight. The drink cap is regenerated. The vendor now pays book value for crafted drinks (the price-list cap rose). The Shop sells no supplies, so buy-then-vend cannot exist, and the recipe-yield rule reads `v`, which is unchanged. Fireball opens no gold path. Prices are a money surface: they go on the reopen Security list.
+
+### 2. New-player path, top 3 first-hour problems (data and engine walk-through; unplayed)
+| Step | Holds / can reach (real rows) | Measured |
+|---|---|---|
+| Create hero | practice sword + shield worn; 6 starter sets in the bag, 20 Cooked Shrimp, 500 g (`start-kit.js`) | - |
+| Mill Cellar (band 1-8) | the only gear row: Hive Wasp `leather_helmet` 2% (1.00 helmet an hour) | solo Melee/Healer/Mage 0 deaths |
+| The Sewer, solo at 8 | the kit + about one helmet | **Melee dies at 2.4 min**; Healer/Mage survive only after ruling 1 |
+
+1. **P1: the second ground kills a Melee newcomer.** The Sewer's +32% reference assumes a bronze sword + helm + platebody that nobody starts with. Practice sword + shield + helmet + platebody still dies (6.7 min). Practice weapons plus a full leather set survives at +42%. Proposal (Systems, hero-kit catalogue): a bound four-piece starter armour set in the kit. This keeps Tyler's Cellar → Sewer → Thicket order.
+2. **P1: casters do not work** (ruling 1, staged as rows): a wand hero casts nothing, a Cellar Healer runs at −72%, and a Sewer party wipes in 2-13 min.
+3. **P2: the guided path ends after card one.** `src/shell/launcher.js` shows only `HUNT_TUTORIAL[0]`. The eight later cards never show: Sewer unlocks at 8, Leave to cash in, set the bar (Tyler: "the tutorial teaches the condition builder"), the Rat King. After the first kill nothing says what to do next. Hand-off: Systems (wiring) + Art Director (coach card).
 
 ## Backlog
 _Add rows as they arise: | Item | Status | Priority | Notes |_

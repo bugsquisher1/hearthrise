@@ -274,7 +274,7 @@ jobs:
       # it; Send posts ONE body to the bug-report-bridge Edge Function (stubbed)
       # with the player's token, the character, its hunt, the envelope version,
       # this load's console errors and a JPEG of the World; "Sent." and the rate
-      # limit read plainly. --mutate plants six defects.
+      # limit read plainly. --mutate plants eight defects (two: the phone sheet answer line).
       - name: Report a problem (play.html)
         if: ${{ !cancelled() }}
         run: |

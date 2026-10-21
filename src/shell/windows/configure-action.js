@@ -65,10 +65,11 @@ export function renderConfigureAction() {
     + '<div class="hc-detail"><div class="hc-detail-head"><span class="hc-detail-icon"></span><b class="hc-name"></b></div>'
     + '<p class="hc-type"></p><p class="hc-cost"></p><ul class="hc-facts"></ul><p class="hc-req"></p></div></div>'
     + '<div class="hc-conds-head"><h3 class="hs-sub">Conditions</h3>' + btn('add', '+ Add condition') + '</div>'
-    + '<p class="hs-note hc-rule"></p><p class="hc-warn" role="note"></p>'
+    + '<p class="hs-note hc-rule"></p>'
     + '<ol class="hc-conds">' + conds + '</ol>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p>'
-    + '<div class="hc-foot">' + btn('clear', 'Empty slot') + btn('cancel', 'Cancel') + btn('save', 'Save', ' is-primary') + '</div>'
+    /* The heal warning sits in the sticky foot beside Save, so it is in view whenever Save is (922 x 423). */
+    + '<div class="hc-foot"><p class="hc-warn" role="status" aria-live="polite"></p>' + btn('clear', 'Empty slot') + btn('cancel', 'Cancel') + btn('save', 'Save', ' is-primary') + '</div>'
     + '</div></div>';
 }
 

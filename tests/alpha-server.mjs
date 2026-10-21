@@ -176,12 +176,9 @@ const ARMS = {
     const shop = await H.one(db, "select public.hr_state_of($1, 0)->'shop'", [uid]);
     const kinds = new Set((shop && shop.offers || []).map((o) => o.kind));
     if (!shop || 'refill' in shop || kinds.size !== 1 || !kinds.has('tool')) p.push('the shop section reads ' + JSON.stringify(shop).slice(0, 200));
-    for (const [verb, sql] of [['hr_shop_refill', 'select public.hr_shop_refill(0, 1, $1::uuid)'], ['hr_restock_set', "select public.hr_restock_set(0, '{}'::jsonb, $1::uuid)"]]) {
-      await db.query('savepoint door');
-      let open = true;
-      try { await asAuth(db, uid, sql, [idem()]); } catch { open = false; }
-      await db.query('rollback to savepoint door');
-      if (open) p.push(verb + ' still answers authenticated');
+    /* The doors are gone, not merely broken: no function a client could reach (a call that fails inside is still a door). */
+    for (const fn of ['public.hr_shop_refill(integer,bigint,uuid)', 'public.hr_shop_refill_quote(uuid,integer)', 'public.hr_restock_set(integer,jsonb,uuid)']) {
+      if (await H.one(db, 'select to_regprocedure($1) is not null', [fn])) p.push(fn + ' still exists');
     }
     const exec = H.makeExec(db);
     const g0 = await gold(H, db, uid);

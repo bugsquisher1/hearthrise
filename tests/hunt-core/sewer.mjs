@@ -283,26 +283,28 @@ const cases = {
        the card is the first step the SERVER's facts have not finished, so one character walked through
        the whole chain meets every card in order. */
     const lvl = (n) => M.xp.charXpForLevel(n);
-    const sewerBand = M.HUNTS.millrace_sewer.band[0];
-    const sewerKinds = (...ks) => new Set(ks);
+    const thicketBand = M.HUNTS.meadowbrook_thicket.band[0], sewerBand = M.HUNTS.millrace_sewer.band[0];
     const base = { levelXp: 0, charLevel: 1, skillLevel: 1, huntId: null, unitKinds: new Set(), barSet: false };
+    const at = (L, more) => ({ ...base, levelXp: lvl(L), charLevel: L, skillLevel: L, ...more });
+    /* Cellar -> Thicket (solo) -> Sewer (party): one character walked through the chain (designer 2026-10-21). */
     const walk = [
       ['to_the_cellar', base],
       ['first_kill', { ...base, huntId: 'mill_cellar' }],
       ['first_level', { ...base, huntId: 'mill_cellar', levelXp: 3 }],
-      ['earn_the_drain', { ...base, huntId: 'mill_cellar', levelXp: 40, charLevel: 2, skillLevel: 2 }],
-      ['leave_cellar', { ...base, huntId: 'mill_cellar', levelXp: lvl(sewerBand), charLevel: sewerBand, skillLevel: 8 }],
-      ['set_the_bar', { ...base, levelXp: lvl(sewerBand), charLevel: sewerBand, skillLevel: 8 }],
-      ['go_below', { ...base, levelXp: lvl(sewerBand), charLevel: sewerBand, skillLevel: 8, barSet: true }],
-      ['first_room', { ...base, levelXp: lvl(sewerBand), charLevel: sewerBand, skillLevel: 8, barSet: true, huntId: 'millrace_sewer', unitKinds: sewerKinds('drain_rat') }],
-      ['the_king', { ...base, levelXp: lvl(sewerBand), charLevel: sewerBand, skillLevel: 8, barSet: true, huntId: 'millrace_sewer', unitKinds: sewerKinds('sump_slime') }],
+      ['earn_the_thicket', { ...base, huntId: 'mill_cellar', levelXp: 40, charLevel: 2, skillLevel: 2 }],
+      ['leave_cellar', at(thicketBand, { huntId: 'mill_cellar' })],
+      ['set_the_bar', at(thicketBand)],
+      ['into_the_thicket', at(thicketBand, { barSet: true })],
+      ['earn_the_sewer', at(thicketBand, { barSet: true, huntId: 'meadowbrook_thicket' })],
+      ['go_below', at(sewerBand, { barSet: true, huntId: 'meadowbrook_thicket' })],
     ];
     for (const [id, facts] of walk) {
       const c = M.tut.currentCard(facts);
       if (!c || c.id !== id) return 'the card for ' + id + ' came up as ' + (c && c.id);
     }
-    if (M.tut.currentCard({ ...walk[8][1], unitKinds: sewerKinds('rat_king') })) return 'the tutorial does not end once the King is up';
-    if (M.tut.currentCard({ ...walk[5][1], charLevel: M.HUNTS.millrace_sewer.band[1] + 1 })) return 'a hero past the sewer band is still coached';
+    /* The chain only moves forward: a hero in the Sewer is not sent back to the Thicket's card. */
+    if (M.tut.currentCard(at(sewerBand, { barSet: true, huntId: 'millrace_sewer' }))) return 'the tutorial does not end once the hero is in the sewer';
+    if (M.tut.currentCard(at(M.HUNTS.millrace_sewer.band[1] + 1, { barSet: true }))) return 'a hero past the sewer band is still coached';
     /* The way down exists: the cellar map has an exit into the sewer map. */
     const cm = M.maps.WORLD_MAPS.find((m) => m.id === cellar.map);
     if (!cm.exits.some((e) => e.to === 'millrace_sewer')) return 'the cellar has no way down into the sewer';
@@ -340,7 +342,7 @@ const mutants = [
   { name: 'the launcher keeps the pointer in a hunt (over Leave hunt)', case: 'tutorial-launcher-card',
     edits: [['src/shell/launcher.js', "(ctx.hud && ctx.hud.isShown('hunt-topbar') ? '' : pointerFor(ctx))", 'pointerFor(ctx)']] },
   { name: 'the card never advances past the first unmet step', case: 'tutorial-walk-through',
-    edits: [['src/data/hunt-tutorial.js', 'if (!isDone(r.done, facts, openedIn)) return r;', 'return r;']] },
+    edits: [['src/data/hunt-tutorial.js', 'if (!isDone(r.done, facts, openedIn, later)) return r;', 'return r;']] },
   { name: 'the first kill does not finish its card', case: 'tutorial-walk-through',
     edits: [['src/data/hunt-tutorial.js', "case 'kills': return facts.levelXp > 0;", "case 'kills': return false;"]] },
   { name: 'a sewer spawn moved into the wall', case: 'sewer-on-the-map',
@@ -358,6 +360,8 @@ const mutants = [
   { name: 'the party-only Rat King card is back in the solo chain', case: 'tutorial-walk-through',
     edits: [['src/data/hunt-tutorial.js', "'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' }),",
       "'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' }),\n  step('the_king', 'The Rat King', 'The last room is his.', 'world', { kind: 'pull', ground: 'millrace_sewer', pocket: 5 }),"]] },
+  { name: 'a hero in the sewer is sent back to the Thicket card (enter judged on the current hunt only)', case: 'tutorial-walk-through',
+    edits: [['src/data/hunt-tutorial.js', '(later && later.has(facts.huntId)) || ', '']] },
   { name: 'the Thicket is skipped: the cellar unlocks the sewer', case: 'tutorial-walk-through',
     edits: [['src/data/hunt-tutorial.js', "{ kind: 'unlock', hunt: 'meadowbrook_thicket' }", "{ kind: 'unlock', hunt: 'millrace_sewer' }"]] },
   { name: 'the sewer opens to a fresh character', case: 'tutorial-walk-through',

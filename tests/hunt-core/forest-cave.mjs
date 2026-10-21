@@ -13,9 +13,13 @@
 //                       stands on its map with its sprite, and a pocket's nodes cover the top gather share
 //   walk-art            every creature of both grounds idles and walks in all 8 facings in a loaded atlas
 //   thicket-solo-starter-kit  a new hero alone at the Thicket's floor (the solo-first ground, band 5-15), wearing
-//                       ONLY the start kit (practice sword, shield and the practice armour), plays the hour on the
-//                       real settle (play-ground.mjs) with no death and at least +25% over its store bill (a
-//                       minimum), on each of the designer's six seeds (designer pass 2026-10-21, Tyler: solo first)
+//                       ONLY the start kit, plays the hour on the real settle (play-ground.mjs) with no death, on
+//                       each of the designer's six seeds (designer pass 2026-10-21, Tyler: solo first)
+//   first-grounds-net-chain  net gold per hero-hour (coin + commons - store) at each first ground's floor never
+//                       drops along the start flow, Cellar (L1, solo, start kit) -> Thicket (L5, solo, start kit)
+//                       -> Sewer (L8, party of four, the smiths' ladder kit: the drop-tables reference), the median
+//                       of the six seeds per ground; and +25% over the bill (a minimum) wherever the bill is at
+//                       least a quarter of the income (designer pass 2026-10-21)
 //
 // `--play` runs each ground ONCE on the real engine (supabase/functions/hr-accrue accrueHunt, the world
 // tick's settle): a fresh solo hero from the start kit in the forest, a four-hero party in the cave,
@@ -34,6 +38,12 @@ const RING8 = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1,
 /* The designer's six hunt seeds (pass 2026-10-21) and the margin floor (+25%, a minimum: Tyler 10-18/10-20). */
 const STARTER_SEEDS = Object.freeze(['-4611686018427387904', '1234567890123', '-987654321987', '42', '7777777777777', '-31415926535']);
 const STARTER_MARGIN_MIN = 25;
+const BILL_SHARE_FOR_MARGIN = 0.25;   // the margin floor applies where store >= 25% of income
+/* The start flow's grounds in order: [ground, roles, kit] (kit 'start' = start-kit.js START_EQUIPMENT, 'ladder' =
+   play-ground's smiths' ladder kit; the start-kit party wipes in the Sewer, so the party reference wears the ladder). */
+const FIRST_CHAIN = Object.freeze([['mill_cellar', ['tank'], 'start'], ['meadowbrook_thicket', ['tank'], 'start'],
+  ['millrace_sewer', ['tank', 'ranger', 'mage', 'healer'], 'ladder']]);
+const median = (a) => { const v = [...a].sort((x, y) => x - y); return v.length % 2 ? v[(v.length - 1) / 2] : (v[v.length / 2 - 1] + v[v.length / 2]) / 2; };
 
 async function load(root) {
   const imp = (p) => import(pathToFileURL(join(root, p)).href + V);
@@ -254,29 +264,46 @@ const cases = {
 };
 
 /* THE SOLO-FIRST GROUND, PLAYED FROM THE START KIT (async: the real settle). */
+const playOf = async (M) => (await import(pathToFileURL(join(M.root, 'tests/hunt-core/fixtures/play-ground.mjs')).href)).loadPlay(M.root);
+const floorOf = (M, gid) => M.hunts.HUNT_INDEX[M.grounds.HUNT_GROUNDS[gid].hunt].band[0];
 cases['thicket-solo-starter-kit'] = async (M) => {
-  const { loadPlay } = await import(pathToFileURL(join(M.root, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
-  const P = await loadPlay(M.root);
-  const floor = M.hunts.HUNT_INDEX[M.grounds.HUNT_GROUNDS.meadowbrook_thicket.hunt].band[0];
+  const P = await playOf(M);
+  const floor = floorOf(M, 'meadowbrook_thicket');
   const bad = [], seen = [];
   for (const secret of STARTER_SEEDS) {
     const x = P.run('meadowbrook_thicket', floor, ['tank'], { spanMs: 3600000, equipment: M.kit.START_EQUIPMENT, secret });
-    const m = x.store > 0 ? (x.income / x.store - 1) * 100 : Infinity;
-    seen.push((x.totals.falls ? 'died ' + (x.playedMs / 60000).toFixed(1) + 'm' : 'lived') + ' ' + (Number.isFinite(m) ? (m >= 0 ? '+' : '') + Math.round(m) + '%' : 'no bill'));
+    seen.push(x.totals.falls ? 'died ' + (x.playedMs / 60000).toFixed(1) + 'm' : 'lived');
     if (x.totals.falls || x.playedMs < 3600000) bad.push('seed ' + secret + ': ended after ' + (x.playedMs / 60000).toFixed(1) + ' min with ' + x.totals.falls + ' death(s) (' + x.ended.join(', ') + ')');
-    else if (m < STARTER_MARGIN_MIN) bad.push('seed ' + secret + ': ' + Math.round(m) + '% over the store bill, under +' + STARTER_MARGIN_MIN + '%');
   }
   console.log('    thicket solo, start kit only (' + Object.values(M.kit.START_EQUIPMENT).join(', ') + ') at L' + floor + ', ' + STARTER_SEEDS.length + ' seeds: ' + seen.join(' | '));
   return bad.length ? 'a start-kit Melee at the Thicket floor: ' + bad.join('; ') : null;
 };
+cases['first-grounds-net-chain'] = async (M) => {
+  const P = await playOf(M);
+  const bad = [], rows = [];
+  for (const [gid, roles, kit] of FIRST_CHAIN) {
+    const floor = floorOf(M, gid), nets = [];
+    for (const secret of STARTER_SEEDS) {
+      const x = P.run(gid, floor, roles, { spanMs: 3600000, secret, ...(kit === 'start' ? { equipment: M.kit.START_EQUIPMENT } : {}) });
+      nets.push(x.income - x.store);
+      if (x.store >= BILL_SHARE_FOR_MARGIN * x.income && (x.income / x.store - 1) * 100 < STARTER_MARGIN_MIN) {
+        bad.push(gid + ' seed ' + secret + ': ' + Math.round((x.income / x.store - 1) * 100) + '% over a bill that is ' + Math.round(100 * x.store / x.income) + '% of income, under +' + STARTER_MARGIN_MIN + '%');
+      }
+    }
+    rows.push({ gid, floor, n: roles.length, kit, net: median(nets), nets });
+  }
+  console.log('    net g per hero-hour at the floor (6-seed median): ' + rows.map((r) => r.gid + ' L' + r.floor + (r.n > 1 ? ' party' : ' solo') + ' ' + r.kit + ' ' + r.net + ' [' + r.nets.join(' ') + ']').join(' -> '));
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i].net < rows[i - 1].net) bad.push(rows[i].gid + ' nets ' + rows[i].net + ' g/h, under ' + rows[i - 1].gid + "'s " + rows[i - 1].net + ' before it');
+  }
+  return bad.length ? bad.join('; ') : null;
+};
 
 const mutants = [
-  /* The two rules of the start-kit case: no death (the wolves hit like a Sewer spider) and the margin floor (the
-     store heal priced x100). The armour alone is not load-bearing here: weapon + shield also live all six seeds. */
   { name: 'the Thicket wolves hit like a Sewer spider (atk 4 -> 13)', case: 'thicket-solo-starter-kit',
     edits: [['src/data/monsters.js', 'hp: 14, atk: 4, def: 1, xp: 52, gp: [2, 5], speed: 4200,', 'hp: 14, atk: 13, def: 1, xp: 52, gp: [2, 5], speed: 4200,']] },
-  { name: 'the tier-1 store heal priced x100 (the bill eats the margin)', case: 'thicket-solo-starter-kit',
-    edits: [['src/data/supply-basics.js', "heal('salted_shrimp', 'Salted Shrimp', 'cooked_shrimp', 72, 14, [1])", "heal('salted_shrimp', 'Salted Shrimp', 'cooked_shrimp', 72, 1400, [1])"]] },
+  { name: 'the Sewer coin back to its pre-x1.8 rows (the party nets under the Thicket)', case: 'first-grounds-net-chain',
+    edits: [['src/data/monsters.js', 'hp: 45, atk: 5, def: 0, xp: 154, gp: [4, 18], speed: 3400,', 'hp: 45, atk: 5, def: 0, xp: 154, gp: [1, 4], speed: 3400,']] },
   { name: 'a pack tile moved into the thicket', case: 'packs-on-the-map',
     edits: [['src/data/hunt-grounds.js', "box([5, 13, 21, 24], [15, 19],", "box([5, 13, 21, 24], [21, 15],"]] },
   { name: 'a prop dropped into a full box', case: 'packs-on-the-map',

@@ -127,9 +127,11 @@ const pulledKinds = (ground, pocket) => {
   return [...kinds(ground.route.slice(at))].filter((k) => !before.has(k));
 };
 
-function isDone(d, facts, openedIn) {
+/* `later`: the hunts entered by the steps after this one. Being in one of them means this step's hunt was
+   passed (the chain only moves forward: Cellar -> Thicket -> Sewer), so a hero in the Sewer is not sent back. */
+function isDone(d, facts, openedIn, later) {
   switch (d.kind) {
-    case 'enter': return facts.huntId === d.hunt || (d.hunt === HUNT_TUTORIAL[0].done.hunt && facts.levelXp > 0);
+    case 'enter': return facts.huntId === d.hunt || (later && later.has(facts.huntId)) || (d.hunt === HUNT_TUTORIAL[0].done.hunt && facts.levelXp > 0);
     case 'kills': return facts.levelXp > 0;
     case 'level': return facts.charLevel >= 2 || facts.skillLevel >= 2;
     case 'unlock': return facts.charLevel >= HUNT_INDEX[d.hunt].band[0];
@@ -143,14 +145,17 @@ function isDone(d, facts, openedIn) {
   }
 }
 
-/** The tutorial card this character is on, or null (finished, or out-levelled the sewer). */
+/** The tutorial card this character is on, or null (finished, or out-levelled the last step's hunt). */
 export function currentCard(facts, rows = HUNT_TUTORIAL) {
   const last = rows[rows.length - 1].done;
-  if (last.kind === 'pull' && facts.charLevel > HUNT_INDEX[HUNT_GROUNDS[last.ground].hunt].band[1]) return null;
+  const lastHunt = last.kind === 'pull' ? HUNT_GROUNDS[last.ground].hunt : last.kind === 'enter' ? last.hunt : null;
+  if (lastHunt && facts.charLevel > HUNT_INDEX[lastHunt].band[1]) return null;
   let openedIn = null;
-  for (const r of rows) {
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
     if (r.done.kind === 'enter') openedIn = r.done.hunt;
-    if (!isDone(r.done, facts, openedIn)) return r;
+    const later = new Set(rows.slice(i + 1).filter((x) => x.done.kind === 'enter').map((x) => x.done.hunt));
+    if (!isDone(r.done, facts, openedIn, later)) return r;
   }
   return null;
 }

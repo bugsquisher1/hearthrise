@@ -123,14 +123,21 @@ async function rules(M) {
     await cs.load();
     const a = M.H.analyzerOf(cs);
     ok('SEC-1', a && a.hero.kills === FIXTURE.hunt_analyzer.hero.kills && a.hero.perHour.xp === FIXTURE.hunt_analyzer.hero.per_hour.xp, 'the analyzer must read the section as sent');
-    body = clone(FIXTURE); body.version += 1; delete body.hunt_analyzer;
+    /* Tracker r44: Next level in read 00:00:00 forever. It is the Level's eta (hero.level.eta_h), never a skill's: the fixture's maxed Melee carries eta_h 0. */
+    ok('SEC-1', a.nextLevelMs === Math.round(FIXTURE.hunt_analyzer.hero.level.eta_h * 3600000) && a.nextLevelMs > 0 && FIXTURE.hunt_analyzer.hero.skills.melee.eta_h === 0, 'Next level in must be the Level eta, not a maxed skill 0 (got ' + a.nextLevelMs + ')');
+    for (const [i, bad] of [null, 0, 'soon'].entries()) {
+      body = clone(FIXTURE); body.version += 1 + i; body.hunt_analyzer.hero.level = { xp: 0, per_hour: 0, eta_h: bad };
+      await cs.load();
+      ok('SEC-1', M.H.analyzerOf(cs).nextLevelMs === null, 'a ' + JSON.stringify(bad) + ' Level eta must read unknown (null, shown as the dash), got ' + M.H.analyzerOf(cs).nextLevelMs);
+    }
+    body = clone(FIXTURE); body.version += 11; delete body.hunt_analyzer;
     body.party.members[0].hp = 'lots';
     await cs.load();
     ok('SEC-1', M.H.analyzerOf(cs) === null, 'an envelope without hunt_analyzer must leave no analyzer behind');
     const p = M.H.partyOf(cs);
     ok('SEC-1', p && p.members[0].hp === null, 'a malformed number must read null, not a guess (' + (p && p.members[0].hp) + ')');
     ok('SEC-2', p && p.members[0].role === 'tank' && p.members[1].role === 'ranger', 'roles must come from the weapons (shield, bow): ' + (p && p.members.map((m) => m.role)));
-    body = clone(FIXTURE); body.version += 2; body.party.members[0].weapon = undefined; body.party.members[0].outfit = 'knight';
+    body = clone(FIXTURE); body.version += 12; body.party.members[0].weapon = undefined; body.party.members[0].outfit = 'knight';
     await cs.load();
     ok('SEC-2', M.H.partyOf(cs).members[0].role === null, 'an outfit must never give a role');
   }

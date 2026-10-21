@@ -209,9 +209,10 @@ export function analyzerOf(cs) {
   if (!a) return null;
   const hero = viewOf(a.hero);
   if (!hero) return null;
-  /* The next level: the soonest ETA of the hero's own skills (hours, from the server). */
-  let next = null;
-  if (isObj(a.hero.skills)) for (const k of Object.values(a.hero.skills)) if (isObj(k) && num(k.eta_h) !== null && (next === null || k.eta_h * 3600000 < next)) next = Math.round(k.eta_h * 3600000);
+  /* The next Level (Level is not a skill): the server's `hero.level.eta_h` (hours). Never a skill's eta, which the server
+     floors at 0 once the skill is maxed; a 0 or absent eta is unknown and reads null (the widget shows the dash). */
+  const lvEta = isObj(a.hero.level) ? num(a.hero.level.eta_h) : null;
+  const next = lvEta !== null && lvEta > 0 ? Math.round(lvEta * 3600000) : null;
   const sess = isObj(a.session) ? a.session : {};
   return { sessionMs: num(a.hunt_ms), nextLevelMs: next, ended: typeof sess.ended_at === 'string', hero, party: viewOf(a.party) };
 }

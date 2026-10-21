@@ -9,8 +9,9 @@
 //                          every pocket is pulled in route order, the Rat King dies, nobody wipes
 //   tutorial-walk-through  each step is doable from the start kit plus the steps before it
 //   sewer-solo-starter-kit a new hero alone at the Sewer's floor, wearing ONLY the start kit (practice sword,
-//                          shield and the practice armour), plays the hour on the real settle with no death
-//                          (designer pass 2026-10-21: without the armour a starter Melee died in 2.4 min)
+//                          shield and the practice armour), plays the hour on the real settle with no death and
+//                          at least +25% over its store bill (a minimum), on each of the designer's six seeds
+//                          (designer pass 2026-10-21: the kit, and the Cistern Spider's atk 13 -> 9)
 //
 // The loop case prints its measured clear times and kills (the evidence a balance claim needs).
 import { readFileSync, mkdtempSync, cpSync, writeFileSync, rmSync } from 'node:fs';
@@ -21,6 +22,9 @@ import { loadCore, makeReport, ROOT } from './fixtures/h1.js';
 
 const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
 const SEWER = ['drain_rat', 'sump_slime', 'culvert_bat', 'cistern_spider', 'kobold_tosher', 'rat_king'];
+/* The designer's six hunt seeds (pass 2026-10-21) and the margin floor (+25%, a minimum: Tyler 10-18/10-20). */
+const STARTER_SEEDS = Object.freeze(['-4611686018427387904', '1234567890123', '-987654321987', '42', '7777777777777', '-31415926535']);
+const STARTER_MARGIN_MIN = 25;
 
 async function load(root) {
   const M = await loadCore(root);
@@ -240,12 +244,16 @@ const cases = {
     const P = await loadPlay(M.root);
     const hunt = M.grounds.HUNT_GROUNDS.millrace_sewer.hunt;
     const floor = (await import(pathToFileURL(join(M.root, 'src/data/hunts.js')).href + V)).HUNT_INDEX[hunt].band[0];
-    const x = P.run('millrace_sewer', floor, ['tank'], { spanMs: 3600000, equipment: M.kit.START_EQUIPMENT });
-    console.log('    sewer solo, start kit only (' + Object.values(M.kit.START_EQUIPMENT).join(', ') + ') at L' + floor + ': '
-      + (x.playedMs / 60000).toFixed(1) + ' min, deaths ' + x.totals.falls + ', in ' + x.income + ' vs store ' + x.store + ' g/h = ' + x.margin);
-    if (x.totals.falls) return 'a start-kit Melee died in the Sewer after ' + (x.playedMs / 60000).toFixed(1) + ' min (' + x.ended.join(', ') + ')';
-    if (x.playedMs < 3600000) return 'a start-kit Melee left the Sewer after ' + (x.playedMs / 60000).toFixed(1) + ' min (' + x.ended.join(', ') + ')';
-    return null;
+    const bad = [], seen = [];
+    for (const secret of STARTER_SEEDS) {
+      const x = P.run('millrace_sewer', floor, ['tank'], { spanMs: 3600000, equipment: M.kit.START_EQUIPMENT, secret });
+      const m = x.store > 0 ? (x.income / x.store - 1) * 100 : Infinity;
+      seen.push((x.totals.falls ? 'died ' + (x.playedMs / 60000).toFixed(1) + 'm' : 'lived') + ' ' + (Number.isFinite(m) ? (m >= 0 ? '+' : '') + Math.round(m) + '%' : 'no bill'));
+      if (x.totals.falls || x.playedMs < 3600000) bad.push('seed ' + secret + ': ended after ' + (x.playedMs / 60000).toFixed(1) + ' min with ' + x.totals.falls + ' death(s) (' + x.ended.join(', ') + ')');
+      else if (m < STARTER_MARGIN_MIN) bad.push('seed ' + secret + ': ' + Math.round(m) + '% over the store bill, under +' + STARTER_MARGIN_MIN + '%');
+    }
+    console.log('    sewer solo, start kit only (' + Object.values(M.kit.START_EQUIPMENT).join(', ') + ') at L' + floor + ', ' + STARTER_SEEDS.length + ' seeds: ' + seen.join(' | '));
+    return bad.length ? 'a start-kit Melee at the Sewer floor: ' + bad.join('; ') : null;
   },
   'cellar-solo-first-kill': (M) => {
     /* Tutorial step 2 on the real core: a fresh Level-1 hero (a weak swing: 60% to hit, max 2) alone in the
@@ -368,6 +376,8 @@ const mutants = [
     edits: [['src/data/hunt-grounds.js', "pocket([15, 5, 21, 10], ['rat', 18, 7], ['rat', 19, 6]),", "pocket([15, 5, 21, 10], ['rat_king', 18, 7]),"]] },
   { name: 'the start kit wears no armour (weapon and shield only)', case: 'sewer-solo-starter-kit',
     edits: [['src/data/start-kit.js', "  helmet: 'practice_cap',\n  body: 'practice_jerkin',\n  pants: 'practice_leggings',\n  boots: 'practice_boots',\n", '']] },
+  { name: 'the Cistern Spider back to atk 13 (the floor-8 route kills a start-kit Melee)', case: 'sewer-solo-starter-kit',
+    edits: [['src/data/monsters.js', 'hp: 90, atk: 9, def: 6, xp: 704, gp: [36, 90], speed: 3600,', 'hp: 90, atk: 13, def: 6, xp: 704, gp: [36, 90], speed: 3600,']] },
   { name: 'the party scale is flat', case: 'party-scale',
     edits: [['src/data/hunt-grounds.js', 'perHeroPermille: 150', 'perHeroPermille: 0']] },
   { name: 'the tutorial sends a fresh character to the sewer first', case: 'tutorial-walk-through',

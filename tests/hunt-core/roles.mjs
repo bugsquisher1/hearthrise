@@ -151,7 +151,7 @@ const mutants = [
     edits: [[R, '    .sort(([a, ta], [b, tb]) => dist2(a, ta) - dist2(b, tb) || a.id - b.id);', '    .sort(([a, ta], [b, tb]) => dist2(b, tb) - dist2(a, ta) || a.id - b.id);']] },
   { name: 'no queue: extras stand', case: 'surround-then-queue', edits: [[R, '    if (q) setGoal(inst, m, q[0], q[1]);', '']] },
   { name: 'the Melee DPS ignores the tank\'s target', case: 'melee-dps-slot',
-    edits: [[R, "const tgt = (lt && lt.alive && mons.includes(lt)) ? lt : unitById(inst, h.target);", 'const tgt = nearestTo(mons, h);']] },
+    edits: [[R, "closeIn(inst, h, (lt && lt.alive && mons.includes(lt)) ? lt : unitById(inst, h.target));", 'closeIn(inst, h, nearestTo(mons, h));']] },
   { name: 'ranged distance measured from the leader', case: 'ranged-distance-from-own-target',
     edits: [[R, "  const tgt = unitById(inst, h.target);\n  if (!tgt) return;\n  const nearMon", "  const tgt = Object.assign({}, leaderOf(inst), { pocket: unitById(inst, h.target).pocket });\n  if (!tgt) return;\n  const nearMon"]] },
   { name: 'the spot band ignores the setting', case: 'ranged-distance-from-own-target', edits: [[R, '  const want = h.dist;\n  const living', '  const want = 6;\n  const living']] },

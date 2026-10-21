@@ -13,13 +13,14 @@
 //   and its target rule finds a target (AB-03).
 // Firing spends the mana, the rune and the shots, sets the cooldown and the
 // lane (AB-07), and applies the effect (AB-08): taunt, mark, hit (with a status
-// per hit, H3), area (+ vulnerability), cleave, shield, ally heal, party heal.
+// per hit, H3), area, cleave, shield, ally heal, party heal.
 // A heal is capped at the missing HP (AB-09).
 //
 // SEAMS to the other core lanes, called through their agreed signatures only:
 // damage.landHit (H2) for every hit (the one place a kill is handed off),
 // status.applyStatus (H3) for a status, and
-// the fields damage.js reads: `markBy`/`markUntil`, `vulnUntil`, `shield`.
+// and the target's `shield`, which damage.hurt spends. `markBy`/`markUntil` are
+// read here only (a marked target is not marked again).
 // Magic XP is H5's: each `cast` event carries `mana` and `magicXpMult`.
 //
 // INJECTED: `inst.heroes[unitId]` = { hs, slots (conditions.js heroSlots rows)
@@ -43,7 +44,7 @@ import { slotsFor, pickSlot, bestAim, itemRow } from './conditions.js?v=0.2.23';
 
 export const PERSISTED = Object.freeze({
   unit: Object.freeze([['mana', 'int'], ['maxMana', 'int'], ['manaMilli', 'int'], ['regenPm', 'int'], ['lanes', 'json'], ['cds', 'json'],
-    ['shield', 'int'], ['markBy', 'int?'], ['markUntil', 'int'], ['vulnUntil', 'int']]),
+    ['shield', 'int'], ['markBy', 'int?'], ['markUntil', 'int']]),
   world: Object.freeze([]),
   pack: Object.freeze([]),
 });
@@ -191,7 +192,6 @@ function effect(inst, u, row, t, sc) {
       break;
     case 'area':
       for (const m of engaged(inst).filter((o) => cheb(o, t) <= 1).sort((a, b) => a.id - b.id)) {
-        if (row.vuln) m.vulnUntil = sc.atMs + ABILITY_RULES.vulnMs;
         landHit(inst, sc, u, m, roll(sc, row.dmg), el, { id: row.id });
       }
       break;

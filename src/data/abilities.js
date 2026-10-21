@@ -12,7 +12,7 @@
 // the mana spent, x1000), rune (an item id the cast spends) | null, ammo (shots
 // of the hero's loaded ammo) , target, effect fields, active }.
 //   target: taunt | mark | enemy | area | cleave | self | ally | party
-//   dmg [lo, hi], element (an elements.js id), hits, maxHits, status (a statuses.js id, H3), vuln,
+//   dmg [lo, hi], element (an elements.js id), hits, maxHits, status (a statuses.js id, H3),
 //   bonusPct + durMs (mark), shield, heal [lo, hi], whenBelowPct, minHurt,
 //   radius (party heal, tiles)
 // `active: false` holds a row whose rune is not a carried supply yet: no
@@ -37,8 +37,6 @@ export const ABILITY_LANES = Object.freeze({ offense: 2000, heal: 1000 });
 export const ABILITY_RULES = Object.freeze({
   /* Mana regenerates 25% of max a minute (designer ruling 2026-10-15, AB-13). */
   manaRegenPctPerMin: 25,
-  /* Vulnerability lasts 6 s (designer ruling 2026-10-15; damage.js reads it). */
-  vulnMs: 6000,
   /* An area ability needs at least this many monsters it can hurt (AB-03). */
   areaMin: 2,
 });
@@ -85,8 +83,8 @@ export const ABILITIES = Object.freeze([
     heal: [40, 60], whenBelowPct: 70, magicXpMult: 1600 }),
   ab({ id: 'circle_of_renewal', n: 'Circle of Renewal', disciplines: ['restoration'], lane: 'heal', cdMs: 12000, mana: 50, target: 'party',
     heal: [20, 30], whenBelowPct: 80, minHurt: 2, radius: 8, magicXpMult: 1600 }),
-  ab({ id: 'natures_wrath', n: "Nature's Wrath", disciplines: ['restoration'], lane: 'offense', cdMs: 10000, mana: 30, target: 'area',
-    dmg: [3, 6], element: 'poison', vuln: true, magicXpMult: 1600 }),
+  ab({ id: 'natures_wrath', n: "Nature's Wrath", disciplines: ['restoration'], lane: 'offense', cdMs: 10000, mana: 20, target: 'area',
+    dmg: [3, 6], magicXpMult: 1600 }),
 ].reduce((acc, r) => { acc[r.id] = r; return acc; }, Object.create(null)));
 
 const TARGETS = ['taunt', 'mark', 'enemy', 'area', 'cleave', 'self', 'ally', 'party'];

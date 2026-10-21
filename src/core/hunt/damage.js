@@ -14,8 +14,7 @@
 // Melee swing only standing on a tile; ranged also while moving (RO-19).
 // Dice: the swing's `s` stream, units in id order (engine contract #3).
 //
-// Mark and vulnerability are abilities.js's (lane H4) statuses: an ability
-// passes its own multiplier as `ability.mult` (permille). A shield is the
+// An ability passes its own multiplier as `ability.mult` (permille). A shield is the
 // target's `shield`, persisted by abilities.js; hurt only spends it.
 //
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.

@@ -81,7 +81,7 @@ export function renderConfigureAction() {
     + '<div class="ca-detail" aria-live="polite">'
     + '<div class="ca-d-head"><span class="ca-d-icon"></span><b class="ca-d-name"></b></div>'
     + '<p class="ca-vs"></p><ul class="ca-cmp"></ul><p class="ca-waste"></p>'
-    + '<p class="ca-src"></p><p class="ca-eff"></p><p class="ca-req"></p>'
+    + '<p class="ca-src"></p><p class="ca-eff"></p><p class="ca-req"></p><p class="ca-d-warn"></p>'
     + '<div class="ca-runestore"><p class="ca-rs-q">When your runes run out:</p><ul class="ca-rs-list" role="listbox" aria-label="Rune from the store"></ul></div>'
     + '<div class="ca-move-phone">' + tool('up', 'Earlier') + tool('down', 'Later') + '</div>'
     + '</div></div>'
@@ -178,7 +178,10 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   /* The heal warning: the hero's hunt (running, else the last one) at the party's size, the server's max HP. */
   const h = huntOf(cs), p = partyOf(cs);
   const blow = h && h.huntId ? biggestBlowOn(h.huntId, p ? p.members.length : 1) : null;
-  text(root.querySelector('.ca-warn'), healWarning(d, set, blow, vitalsOf(cs).hpMax));
+  const warn = healWarning(d, set, blow, vitalsOf(cs).hpMax);
+  text(root.querySelector('.ca-warn'), warn);
+  /* On a phone the sentence's warning is one line with an ellipsis; the detail pane says it whole. */
+  text(root.querySelector('.ca-d-warn'), warn);
   /* THE TABLE: runs of rows, the pick pinned at the top of the well */
   rows(root.querySelector('.ca-runs'), table.runs, {
     key: (run) => tab + ':' + run.kind,

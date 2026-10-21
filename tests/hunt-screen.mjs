@@ -870,19 +870,23 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       } else fails.push('HS-23 the screen did not mount on the Sewer');
       await ctx.close();
     }
-    { // HS-23 at 922x423 (v0.2.24 visual gate): the warning is on screen, beside Save, never scrolled away below it
+    { // HS-23 at 922x423 (v0.2.24 visual gate): the warning is on screen with Save, never scrolled away. The phone sheet
+      // keeps the sentence (and its warning, one line) above the only scrolling parts; the detail pane says it whole.
       const { ctx, page, up } = await open({ viewport: { width: 922, height: 423 }, prep: (st) => { st.env.hunt.hunt_id = 'millrace_sewer'; } });
       if (up) {
         await page.click('.hb-slot[data-slot="2"]');
-        await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .hc-title'), null);
-        await page.fill('.hc-cond[data-cond="0"] [data-f="value"]', '30');
-        await page.dispatchEvent('.hc-cond[data-cond="0"] [data-f="value"]', 'change');
+        await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .ca-rank'), null);
+        await page.fill('.ca-cond[data-cond="0"] [data-f="value"]', '30');
+        await page.dispatchEvent('.ca-cond[data-cond="0"] [data-f="value"]', 'change');
         const seen = await page.evaluate(() => {
           const inView = (el) => { const r = el && el.getBoundingClientRect(); return !!r && r.width > 0 && r.top >= 0 && r.bottom <= window.innerHeight && r.left >= 0 && r.right <= window.innerWidth; };
-          const w = document.querySelector('.hc-warn');
-          return { warn: inView(w), save: inView(document.querySelector('.hc-foot [data-x="save"]')), inFoot: !!(w && w.closest('.hc-foot')), text: w && w.textContent };
+          const w = document.querySelector('.ca-warn');
+          const whole = document.querySelector('.ca-d-warn');
+          return { warn: inView(w), save: inView(document.querySelector('.ca-foot [data-x="save"]')), text: w && w.textContent,
+            whole: whole && whole.getClientRects().length ? whole.textContent : '' };
         });
-        if (!seen.warn || !seen.save || !seen.inFoot || !/one hit can kill you/.test(String(seen.text))) fails.push('HS-23 at 922x423 the heal warning is not in view beside Save: ' + JSON.stringify(seen));
+        if (!seen.warn || !seen.save || !/one hit can kill you/.test(String(seen.text))) fails.push('HS-23 at 922x423 the heal warning is not in view with Save: ' + JSON.stringify(seen));
+        if (seen.whole !== seen.text) fails.push('HS-23 at 922x423 the detail pane does not say the whole warning: ' + JSON.stringify(seen));
       } else fails.push('HS-23 the screen did not mount at 922x423');
       await ctx.close();
     }
@@ -1374,7 +1378,7 @@ const MUTANTS = [
   ['a null per_hour shows dashes, not "Per hour after 10 min."', 'src/shell/widgets/analyzer.js', "prop(sec.querySelector('.ha-later'), 'hidden', v.rated);", "prop(sec.querySelector('.ha-later'), 'hidden', true);"],
   ['the struck reason of a food slot ignores the server', 'src/shell/action-facts.js', "    if (sl.why === 'none_left') return", "    if (false) return"],
   ['Configure action never warns a heal slot', 'src/shell/windows/configure-action.js', "healWarning(d, set, blow, vitalsOf(cs).hpMax)", "''"],
-  ['the heal warning sits above the foot, scrolled away below Save at 922x423', 'src/shell/windows/configure-action.js', "'<div class=\"hc-foot\"><p class=\"hc-warn\" role=\"status\" aria-live=\"polite\"></p>'", "'<p class=\"hc-warn\" role=\"status\" aria-live=\"polite\"></p><div class=\"hc-foot\">'"],
+  ['the phone sheet cuts the heal warning to one line and says it nowhere whole', 'src/shell/windows/configure-action.js', "  text(root.querySelector('.ca-d-warn'), warn);", ''],
   ['the heal warning reads the whole ground whatever the party size', 'src/shell/windows/configure-action.js', 'biggestBlowOn(h.huntId, p ? p.members.length : 1)', 'biggestBlowOn(h.huntId, 4)'],
   ['the Hunts window keeps saying "On the way" while hunting', 'src/shell/windows/hunts.js', "  if (sc.msg && sc.msg === sc.enterMsg && (now || (h && h.ended))) { sc.msg = ''; sc.enterMsg = null; }\n", ''],
   ['an edge panel never steps out of the hunt bar’s way', 'src/shell/shell.js', "        for (const p of at.push) edgeEls[p.i].style.top = p.top + 'px';\n", ''],

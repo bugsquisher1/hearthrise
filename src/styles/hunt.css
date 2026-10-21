@@ -305,7 +305,8 @@
 .ca-drop { margin-left: auto; }
 .ca-add { align-self: flex-start; font-size: var(--t-small); }
 .ca-warn { margin: 0; font-size: var(--t-small); color: var(--gold-2); line-height: 1.45; }
-.ca-warn:empty, .ca-note:empty { display: none; }
+.ca-warn:empty, .ca-note:empty, .ca-d-warn { display: none; }
+.ca-d-warn { color: var(--gold-2); }
 /* The table beside the detail: one sunken well, only the list scrolls. */
 .ca-pick { display: grid; grid-template-columns: 480px minmax(0, 1fr); gap: 16px; min-height: 0; }
 .ca-well { position: relative; max-height: 380px; overflow-y: auto; overscroll-behavior: contain; background: var(--surf-sunken); }
@@ -510,6 +511,7 @@
   .ca-sentence { padding-bottom: 4px; gap: 0; }
   .ca-lead, .ca-cond { min-height: 40px; }
   .ca-warn { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ca-d-warn:not(:empty) { display: block; }
   .ca-pick { flex: 1; min-height: 0; grid-template-columns: 540px minmax(0, 1fr); gap: 10px; }
   .ca-well { max-height: none; }
   .ca-detail { overflow-y: auto; overscroll-behavior: contain; }

@@ -32,7 +32,7 @@ const seenOf = (cs) => {
   return r && typeof r === 'object' ? r : {};
 };
 /** The dismissal id of a death: its hunt session's (the alert centre reads the same one). */
-export const deathSeenId = (session) => 'died:' + session;
+const deathSeenId = (session) => 'died:' + session;
 /* Dismissed on this page: an envelope that lands before the residue put cannot bring one back. */
 const DISMISSED = new WeakMap();
 const dismissedOf = (cs) => { let s = DISMISSED.get(cs); if (!s) { s = new Set(); DISMISSED.set(cs, s); } return s; };

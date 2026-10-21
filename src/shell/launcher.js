@@ -7,9 +7,7 @@
 // exist, and it is the `launchers` HUD widget, which can never be hidden.
 // ════════════════════════════════════════════════════════════════════════
 import { escapeHtml as esc } from '../utils/dom.js?v=0.2.22';
-import { HUNT_TUTORIAL } from '../data/hunt-tutorial.js?v=0.2.22';
-import { levelOf } from '../session/character-sections.js?v=0.2.22';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.22';
+import { tutorialCardOf } from '../session/tutorial-sections.js?v=0.2.22';
 
 /** The chip text for a row's shortcut key: 'b' -> 'B', 'enter' -> 'Enter'. */
 export function keyLabel(key) {
@@ -24,19 +22,17 @@ export function glyphSvg(glyphs, key, cls) {
 }
 
 /**
- * THE FIRST-MINUTE POINTER (Tyler 10-18: "I'm confused right away"). A
- * character that has never fought (Level XP 0, as the server says: Level comes
- * from kills only) and is not hunting gets one line under the Hunts icon: the first
- * hunt tutorial card's words. It goes the moment the first kill pays Level XP, or
- * while Hunts is open. Display only; it reads the server's Level XP and hunt.
+ * THE TUTORIAL POINTER (Tyler 10-18: "I'm confused right away"). One line under the icon row: the
+ * hunt tutorial card the character is on (src/data/hunt-tutorial.js), read from what the server
+ * projects (src/session/tutorial-sections.js), so it advances as the server reports each step done
+ * and is the same after a reload. It hides while Hunts or a modal is open. Display only.
  */
 function pointerFor(ctx, open) {
   const cs = ctx.character;
-  if (!cs || open.has('hunts') || huntOf(cs) || Array.from(open).some((id) => ctx.wm.row(id) && ctx.wm.row(id).modal)) return '';
-  const lv = levelOf(cs);
-  if (!lv || lv.xp > 0) return '';
-  const card = HUNT_TUTORIAL[0];
-  return '<p class="hs-pointer" role="note"><b>' + esc(card.title) + '</b> ' + esc(card.text) + '</p>';
+  if (!cs || open.has('hunts') || Array.from(open).some((id) => ctx.wm.row(id) && ctx.wm.row(id).modal)) return '';
+  const card = tutorialCardOf(cs);
+  if (!card) return '';
+  return '<p class="hs-pointer" role="note" data-tutorial="' + esc(card.id) + '"><b>' + esc(card.title) + '</b> ' + esc(card.text) + '</p>';
 }
 
 /** The `launchers` widget body: one button per window row that has a launcher. */

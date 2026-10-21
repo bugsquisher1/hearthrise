@@ -180,8 +180,9 @@ function checkBasics(d, f) {
     if (!(Number.isInteger(b.price) && b.price > 0)) f('B1', `'${b.id}' price ${b.price} is not a whole number of gold`);
     if (b.kind === 'heal' || b.kind === 'mana') {
       const key = b.kind === 'heal' ? 'heals' : 'mana';
-      /* Heals: three quarters at the pre-x12 grain (FOOD_HEAL_SCALE), so the core rebuild's x12 kept every basic's ratio. */
-      const S = key === 'heals' ? FOOD_HEAL_SCALE : 1;
+      /* Heals and mana: three quarters at the pre-x12 grain (FOOD_HEAL_SCALE), so the core rebuild's x12 kept
+         every basic's ratio (drinks moved x12 with the food: designer 2026-10-21). */
+      const S = FOOD_HEAL_SCALE;
       if (b[key] !== S * Math.floor((p[key] / S) * BASIC_EFFECT_SHARE) || !(b[key] < p[key])) f('B1', `'${b.id}' gives ${b[key]}, not ${BASIC_EFFECT_SHARE} of '${b.partner}' (${p[key]})`);
       if (!(b.price / b[key] > partnerUnit(p, b.kind))) f('B1', `'${b.id}' costs ${(b.price / b[key]).toFixed(1)} g a point, not more than '${b.partner}' at ${partnerUnit(p, b.kind).toFixed(1)}`);
     } else {

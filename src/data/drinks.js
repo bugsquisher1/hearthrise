@@ -11,7 +11,8 @@
 // THE LADDER. One drink per hunt tier, each from one Farming crop, made three
 // at a time because crops are slow (a turnip plot takes four hours) and a mage
 // drinks every few minutes. Mana per drink follows the heal of the fish a
-// fighter eats at the same tier. Book value is capped so three drinks never
+// fighter eats at the same tier (x12 with the food since the core rebuild:
+// designer 2026-10-21, a tier-1 drink fills 72-96 of a ~230 mana pool). Book value is capped so three drinks never
 // vend for more than five times what the vendor pays for the crop
 // (tests/recipe-yield-guard.mjs's batch rule, held by tests/supplies-catalogue.mjs).
 //
@@ -22,12 +23,12 @@
 // ════════════════════════════════════════════════════════════════════════
 
 export const DRINK_ITEMS = Object.freeze({
-  turnip_juice: Object.freeze({ n: 'Turnip Juice', icon: '🥤', v: 6, mana: 8 }),
-  carrot_juice: Object.freeze({ n: 'Carrot Juice', icon: '🥕', v: 11, mana: 14 }),
-  tomato_juice: Object.freeze({ n: 'Tomato Juice', icon: '🍅', v: 30, mana: 25 }),
-  pumpkin_cider: Object.freeze({ n: 'Pumpkin Cider', icon: '🎃', v: 50, mana: 32 }),
-  goldenroot_tea: Object.freeze({ n: 'Goldenroot Tea', icon: '🍵', v: 86, mana: 44 }),
-  emberfruit_cordial: Object.freeze({ n: 'Emberfruit Cordial', icon: '🍷', v: 160, mana: 54 }),
+  turnip_juice: Object.freeze({ n: 'Turnip Juice', icon: '🥤', v: 6, mana: 96 }),
+  carrot_juice: Object.freeze({ n: 'Carrot Juice', icon: '🥕', v: 11, mana: 168 }),
+  tomato_juice: Object.freeze({ n: 'Tomato Juice', icon: '🍅', v: 30, mana: 300 }),
+  pumpkin_cider: Object.freeze({ n: 'Pumpkin Cider', icon: '🎃', v: 50, mana: 384 }),
+  goldenroot_tea: Object.freeze({ n: 'Goldenroot Tea', icon: '🍵', v: 86, mana: 528 }),
+  emberfruit_cordial: Object.freeze({ n: 'Emberfruit Cordial', icon: '🍷', v: 160, mana: 648 }),
 });
 
 export const DRINK_RECIPES = Object.freeze([

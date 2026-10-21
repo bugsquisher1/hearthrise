@@ -32,7 +32,11 @@ import { BLESSING_RULES, BLESSING_TIERS, validate as validateBlessings } from '.
 import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-export const OUT = join(ROOT, 'supabase', 'migrations', '2026-10-25-alpha-catalogue.generated.sql');
+/* THE FORWARD FILE (lane/c-caster-economy, 2026-10-21): 2026-10-25-alpha-catalogue.generated.sql is APPLIED
+   history, never regenerated; the drink price list x5/3 (designer pass 2026-10-21) lands in this forward file,
+   the same full delete+insert replace. */
+export const OUT_NAME = '2026-11-03-alpha-catalogue.generated.sql';
+export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 /* The shop's word for a supply kind (what the Shop window files it under). */
 const SHOP_KIND = Object.freeze({ heal: 'food', mana: 'drink', ammo: 'ammo' });
@@ -80,6 +84,11 @@ function rules() {
 
 const sq = (s) => "'" + String(s).replace(/'/g, "''") + "'";
 
+/** md5 of the offer rows as the self-check folds them in SQL (byte order, as collate "C"). */
+const offersMd5 = (offers) => createHash('md5').update([...offers]
+  .sort((a, b) => Buffer.compare(Buffer.from(a.offer), Buffer.from(b.offer)))
+  .map((o) => `${o.offer}:${o.item}:${o.kind}:${o.price}`).join(',')).digest('hex');
+
 export function render(offers = supplyRows(), r = rules()) {
   const digest = createHash('sha256').update(JSON.stringify({ offers, refill: r.refill, bless: r.bless, tiers: r.tiers })).digest('hex');
   const R = r.refill;
@@ -96,7 +105,11 @@ export function render(offers = supplyRows(), r = rules()) {
 -- Server-only: RLS on, NO policy, no client grant (the client reads src/data and
 -- the envelope's quotes). Idempotent: delete + insert; nothing references these
 -- rows by foreign key. Any hand edit FAILS \`node tools/gen-alpha-catalogue.mjs --check\`.
--- ORDER: after 2026-10-24-hunterall-119.sql (needs hr_items, hr_hunt_supplies).
+-- SUPERSEDES 2026-10-25-alpha-catalogue.generated.sql (applied; history, never
+-- regenerated): the six drink rows move with the caster economy (designer pass
+-- 2026-10-21: the store drinks x5/3, the price list at its ceil rule); every
+-- other row is the 10-25 file's.
+-- ORDER: after 2026-11-03-hunt-sessions-catalogue.generated.sql (needs hr_items, hr_hunt_supplies).
 -- No begin/commit (CLAUDE.md §2).
 -- ════════════════════════════════════════════════════════════════════════
 
@@ -162,6 +175,9 @@ begin
      or (select count(*) from public.hr_blessing_tiers) <> ${r.tiers.length}
      or (select count(*) from public.hr_stamina_refill_rule) <> 1 or (select count(*) from public.hr_blessing_rule) <> 1 then
     raise exception 'VERIFY: the alpha catalogue row counts are not the data''s'; end if;
+  if (select md5(string_agg(offer_id || ':' || item_id || ':' || kind || ':' || price, ',' order by offer_id collate "C"))
+        from public.hr_shop_supply_offers) is distinct from ${sq(offersMd5(offers))} then
+    raise exception 'VERIFY: the supply offers are not the data''s rows and prices'; end if;
   if exists (select 1 from public.hr_shop_supply_offers o
               where not exists (select 1 from public.hr_items i where i.item_id = o.item_id)
                  or (o.kind <> 'tool' and not exists (select 1 from public.hr_hunt_supplies s where s.item_id = o.item_id))) then
@@ -209,7 +225,7 @@ async function main() {
     let have = '';
     try { have = (await readFile(OUT, 'utf8')).replace(/\r\n/g, '\n'); } catch { /* absent */ }
     if (have !== wanted) {
-      console.error('gen-alpha-catalogue --check FAILED: 2026-10-25-alpha-catalogue.generated.sql is stale. Run: node tools/gen-alpha-catalogue.mjs');
+      console.error(`gen-alpha-catalogue --check FAILED: ${OUT_NAME} is stale. Run: node tools/gen-alpha-catalogue.mjs`);
       process.exit(1);
     }
     console.log('gen-alpha-catalogue --check: catalogue matches src/data');

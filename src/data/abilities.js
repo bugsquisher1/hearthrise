@@ -71,7 +71,9 @@ export const ABILITIES = Object.freeze([
   ab({ id: 'precision_shot', n: 'Precision Shot', disciplines: ['ranged'], lane: 'offense', cdMs: 6000, mana: 6, ammo: 1,
     target: 'enemy', dmg: [7, 12] }),
   /* staff — Mage (destruction) */
-  ab({ id: 'fireball', n: 'Fireball', disciplines: ['destruction'], lane: 'offense', cdMs: 8000, mana: 25, rune: 'fire_rune',
+  /* Fireball spends mana only (designer 2026-10-21): the Mage's one damage spell must cast with no
+     Runecrafting; Flame Strike and Flame Volley keep the Fire Rune as their crafted upgrade. */
+  ab({ id: 'fireball', n: 'Fireball', disciplines: ['destruction'], lane: 'offense', cdMs: 8000, mana: 25,
     target: 'area', dmg: [7, 12], element: 'fire', magicXpMult: 1600 }),
   ab({ id: 'frost_lance', n: 'Frost Lance', disciplines: ['destruction'], lane: 'offense', cdMs: 6000, mana: 20, rune: 'frost_rune',
     target: 'enemy', dmg: [12, 18], element: 'frost', magicXpMult: 1600, active: false }),

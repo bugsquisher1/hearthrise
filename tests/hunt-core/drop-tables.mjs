@@ -17,6 +17,10 @@
 //                    more than LUMP times slower than the ground's fastest (the "4 boots, 2 helmets" class)
 //   rare-pace        the carrier's rare rows land once per 10-20 hours per hero (Tyler 10-14/15)
 //   gear-faucet      the vendor value of the equipment that drops stays under FAUCET of the coin
+//   caster-floor     the Sewer's party of four (Melee tank, Ranger, Mage with wand + book, Healer) at its floor in the
+//                    ladder kit plays the full hour with 0 deaths, the Mage casts, and EVERY role clears +25% on the
+//                    even income share against its own store bill (designer pass 2026-10-21: drinks x12 with the mana
+//                    pools, store drinks x5/3, Fireball rune-free; before it the party wiped in 12.9 min)
 //
 // Prints the per-ground table (gold/h, store/h, margin, gear pieces per hour by slot) every run: the evidence.
 import { join } from 'node:path';
@@ -220,6 +224,25 @@ async function plays(M, P, monsters, R, print, only) {
   }
 }
 
+/* THE CASTER FLOOR (designer pass 2026-10-21). Income is split evenly and each hero pays its own store bill
+   (ruling 10-16), so each role's margin is its share of coin + commons over its own bill. */
+function casterFloor(M, P, R, print) {
+  const gid = 'millrace_sewer', floor = M.HUNTS[M.G.HUNT_GROUNDS[gid].hunt].band[0];
+  const x = P.run(gid, floor, PARTY, { spanMs: H });
+  const T = x.totals, h = x.playedMs / H || 1, share = (T.coin + T.commons) / h / PARTY.length;
+  R.ok(x.playedMs >= H && T.falls === 0, 'caster-floor: the ' + gid + ' party of four (ladder kit) ended after ' + (x.playedMs / 60000).toFixed(1)
+    + ' min with ' + T.falls + ' death(s) (' + T.ended.join(', ') + ')');
+  const mage = x.heroes.find((k) => k.startsWith('mage'));
+  R.ok(((x.heroXp[mage] || {}).magic || 0) > 0, 'caster-floor: the Mage (wand + book) cast no spell in ' + (x.playedMs / 60000).toFixed(1) + ' min');
+  const bills = x.heroes.map((k) => [k, Object.entries(T.buys[k] || {}).reduce((s, [id, q]) => s + q * ((P.basics[id] || {}).price || 0), 0) / h]);
+  for (const [k, bill] of bills) {
+    const m = bill > 0 ? (share / bill - 1) * 100 : Infinity;
+    R.ok(m >= MARGIN_MIN, 'caster-floor: ' + k + ' at the ' + gid + ' floor earns ' + pct(m) + ' (share ' + Math.round(share) + ' g/h vs its bill ' + Math.round(bill) + ' g/h), under +' + MARGIN_MIN + '%');
+  }
+  if (print) console.log('  ' + gid.padEnd(20) + ' L' + floor + '  party of 4 (ladder kit): ' + (x.playedMs / 60000).toFixed(0) + ' min, ' + T.falls + ' deaths, share ' + Math.round(share)
+    + ' g/h; bill per hero/h ' + bills.map(([k, b]) => k + ' ' + Math.round(b) + (b > 0 ? ' (' + pct((share / b - 1) * 100) + ')' : '')).join(', '));
+}
+
 /* ── MUTANTS: every case and every play rule must bite ─────────────────── */
 const clone = (MONSTERS, edit) => {
   const out = {};
@@ -246,6 +269,15 @@ const playMutants = [
   { name: 'the den mother\'s fang back to 1%', rule: 'rare-pace: meadowbrook_thicket', edit: (ms) => { ms.grayjaw.drops.find((d) => d.id === 'alpha_fang').ch = 0.01; } },
   { name: 'the Warrens boots by the cartload', rule: 'gear-faucet: coppercap_warrens', edit: (ms) => { gearOf(ms, 'goblin_scavenger').ch = 0.05; } },
 ];
+/* The caster floor's levers live in src/data the engine imports: each mutant plays on a planted copy. */
+const casterMutants = [
+  { name: 'the drinks back to the old grain (a tier-1 drink 6-8 mana)', edits: [
+    ['src/data/supply-basics.js', "'turnip_juice', 72, 10, [1]", "'turnip_juice', 6, 10, [1]"],
+    ['src/data/drinks.js', "v: 6, mana: 96 ", "v: 6, mana: 8 "]] },
+  { name: 'Fireball spends a Fire Rune again (the Mage casts nothing)', edits: [
+    ['src/data/abilities.js', "id: 'fireball', n: 'Fireball', disciplines: ['destruction'], lane: 'offense', cdMs: 8000, mana: 25,",
+      "id: 'fireball', n: 'Fireball', disciplines: ['destruction'], lane: 'offense', cdMs: 8000, mana: 25, rune: 'fire_rune',"]] },
+];
 const engineMutants = [
   { name: 'the equipment band forgotten in the engine', case: 'gear-is-no-reveal',
     edits: [['src/core/drops.js', "const band = d.gear === true ? 'gear' : dropBand(d.ch);", 'const band = dropBand(d.ch);']] },
@@ -258,9 +290,10 @@ for (const [cn, fn] of Object.entries(cases)) {
   try { why = fn(M); } catch (e) { why = 'threw ' + (e && e.stack || e); }
   R.ok(!why, cn + ': ' + why);
 }
-const { loadPlay } = await import(pathToFileURL(join(ROOT, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
+const { loadPlay, PLAY_TREES } = await import(pathToFileURL(join(ROOT, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
 const P = await loadPlay(ROOT);
 await plays(M, P, M.MONSTERS, R, true);
+casterFloor(M, P, R, true);
 
 for (const mu of dataMutants) {
   let why = null;
@@ -280,5 +313,14 @@ for (const mu of playMutants) {
   await plays(M, P, clone(M.MONSTERS, mu.edit), MR, false, [mu.rule.split(': ')[1]]);
   R.ok(MR.fails.some((f) => f.startsWith(mu.rule)), 'mutant "' + mu.name + '" was NOT caught by ' + mu.rule + ' (fails: ' + (MR.fails.join(' | ') || 'none') + ')');
 }
-if (!R.fails.length) console.log('  ' + Object.keys(cases).length + ' cases + the plays, ' + (dataMutants.length + engineMutants.length + playMutants.length) + ' mutants caught');
+for (const mu of casterMutants) {
+  const p = plant(mu.edits, PLAY_TREES);
+  try {
+    const MR = { fails: [], ok(c, msg) { if (!c) this.fails.push(msg); } };
+    casterFloor(M, await loadPlay(p.root), MR, false);
+    R.ok(MR.fails.length > 0, 'mutant "' + mu.name + '" was NOT caught by caster-floor');
+    if (MR.fails.length) console.log('  caster mutant "' + mu.name + '" caught: ' + MR.fails[0].slice(0, 140));
+  } finally { p.done(); }
+}
+if (!R.fails.length) console.log('  ' + Object.keys(cases).length + ' cases + the plays, ' + (dataMutants.length + engineMutants.length + playMutants.length + casterMutants.length) + ' mutants caught');
 R.finish();

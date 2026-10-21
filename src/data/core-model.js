@@ -99,7 +99,9 @@ export const PRAYER_BURY = Object.freeze({
 });
 
 /* FOOD HEALS MOVED x12 WITH MONSTER DAMAGE (CORE_NUMBERS Q3: monsterAttackDamageScale
-   0.45 -> 5.4, every food and basic `heals` x12, prices unchanged). The literal heals in
-   items.js / supply-basics.js are already scaled; this is the grain the basics' "three
-   quarters of the crafted partner" rule is applied at (tests/supplies-catalogue.mjs B1). */
+   0.45 -> 5.4, every food and basic `heals` x12, prices unchanged); THE DRINKS followed
+   (designer 2026-10-21: every drink's `mana` x12 with the mana pools, basics' prices x5/3).
+   The literal heals and mana in items.js / drinks.js / supply-basics.js are already scaled;
+   this is the grain the basics' "three quarters of the crafted partner" rule is applied at,
+   food and drink alike (tests/supplies-catalogue.mjs B1). */
 export const FOOD_HEAL_SCALE = 12;

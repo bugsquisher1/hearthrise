@@ -122,7 +122,7 @@ export const WORLD_FIELDS_READ = Object.freeze({
     'role', 'dist', 'chase', 'tmode', 'stance']),
   world: Object.freeze(['leader']),
 });
-export const OUT_NAME = '2026-11-02-hunt-sessions-catalogue.generated.sql';
+export const OUT_NAME = '2026-11-03-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -514,16 +514,14 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- SUPERSEDES 2026-10-30-hunt-sessions-catalogue.generated.sql (applied; history,
--- never regenerated): every table below is rewritten wholesale. Tyler's
--- 2026-10-20 drops + profit rulings (lane/a-drop-tables): every walked
--- ground's monster carries one equipment row, the Sewer's coin rises x1.8 and
--- the Warrens' x1.25 (the +25% floor over the store bill), one rare carrier
--- per ground; so hr_hunt_kill_bounds (gold_max, the per-kill item counts) and
--- the vendor values it reads move. Lane/b-hero-creation: the six starter
--- sets' practice weapons join hr_hunt_weapons (the hatchets play 'axe', which
--- hr_hunt_weapon_roles maps to Melee DPS). Every other row is the 10-30 file's.
--- Apply after 2026-11-01-party-leader-density.sql.
+-- SUPERSEDES 2026-11-02-hunt-sessions-catalogue.generated.sql (applied; history,
+-- never regenerated): every table below is rewritten wholesale. The caster
+-- economy (designer pass 2026-10-21, lane/c-caster-economy): every drink's mana
+-- x12 with the mana pools and the store drinks x5/3, so hr_hunt_basic_supplies'
+-- six drink rows (mana, price), the drink_mana_per_min_max limit and the vendor
+-- values of the six crafted drinks move; Fireball spends no rune
+-- (hr_hunt_abilities.rune null). Every other row is the 11-02 file's.
+-- Apply after 2026-11-02-shop-no-supplies.sql.
 --
 -- Server-only: RLS on, NO policy, no client grant (the client reads src/data).
 -- Idempotent: delete + insert; nothing references these rows by foreign key.
@@ -840,6 +838,12 @@ begin
   if exists (select 1 from public.hr_hunt_ground_spawns s
                where not exists (select 1 from public.hr_hunt_kill_bounds b where b.monster_id = s.monster_id)) then
     raise exception 'a ground spawns a monster with no kill bound'; end if;
+  -- The Magic-XP bound covers the biggest store drink at one drink a consumable lane (else a settle that
+  -- drank the basics it bought is refused as over-bound).
+  if public.hr_hunt_limit('drink_mana_per_min_max')
+       < (60000 / (select ms from public.hr_hunt_lanes where lane = 'consumable'))
+         * (select coalesce(max(mana), 0) from public.hr_hunt_basic_supplies where kind = 'mana') then
+    raise exception 'drink_mana_per_min_max is under the store drinks at one per consumable lane'; end if;
   -- No client role reads or writes any of them; no policy exists.
   foreach v_role in array array['anon', 'authenticated'] loop
     foreach v_t in array array[${tableList}] loop

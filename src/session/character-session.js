@@ -38,6 +38,8 @@
 //   timeline           the settle responses' visual timeline (src/hunt-view/
 //                      timeline.js): tracks and events, never the record
 //   now()              the display clock the timeline plays on
+//   intents            the account's asks in flight (intent-ledger.js): every intent
+//                      above is tracked from its send until the re-read envelope
 //   subscribe(fn)      fn(session, why) after every applied change
 //   close()            leave the topic, cancel timers, forget the record
 //
@@ -53,6 +55,7 @@ import { SESSION_CONFIG } from './config.js?v=0.2.22';
 import { edgeBody } from './edge-intents.js?v=0.2.22';
 import { leaveAskOf, pendingLeaveAt, leaveCountdown, closeInMs } from './hunt-leave.js?v=0.2.22';
 import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.22';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.22';
 
 export const FRAME_EVENT = 'frame';
 
@@ -96,12 +99,15 @@ export class CharacterSession {
    * @param {(fn: Function, ms: number) => any} [o.setTimer]
    * @param {(t: any) => void} [o.clearTimer]
    * @param {() => number} [o.now]   the display clock (ms) the timeline plays on
+   * @param {object} [o.intents]  the account's intent ledger (default: the server link's)
    */
   constructor(o) {
     if (!Number.isInteger(o.slot) || o.slot < 0 || o.slot > SESSION_CONFIG.maxSlot) throw new RangeError('bad slot ' + o.slot);
     this.slot = o.slot;
     this.uid = o.uid;
     this._server = o.server;
+    /** The account's asks in flight (intent-ledger.js): the server link's, shared by every character. */
+    this.intents = o.intents || (o.server && o.server.intents) || createIntentLedger();
     this._channel = o.channel || null;
     this._setTimer = o.setTimer || ((fn, ms) => setTimeout(fn, ms));
     this._clearTimer = o.clearTimer || ((t) => clearTimeout(t));
@@ -244,7 +250,7 @@ export class CharacterSession {
    */
   async setHuntOptions(preset, opts) {
     if (this._closed) return { ok: false, error: 'closed' };
-    return this._settled(await this._server.rpc('hr_action_set_options', { p_slot: this.slot, p_preset: preset, p_opts: opts, p_idem: newIdem() }));
+    return this._ask('action_set_options', () => this._server.rpc('hr_action_set_options', { p_slot: this.slot, p_preset: preset, p_opts: opts, p_idem: newIdem() }));
   }
 
   /**
@@ -258,14 +264,14 @@ export class CharacterSession {
     const lines = Array.isArray(bag) ? bag : [];
     if (this._closed || !HUNT_ID.test(String(hunt)) || !Number.isInteger(preset) || preset < 0 || preset > 7 || lines.length > 10
       || !lines.every((l) => l && ITEM.test(String(l.item)) && Number.isInteger(l.qty) && l.qty >= 1 && l.qty <= 100000)) return { ok: false, error: 'bad_intent' };
-    return this._settled(await this._server.rpc('hr_hunt_enter', { p_slot: this.slot, p_hunt: hunt,
+    return this._ask('hunt_enter', () => this._server.rpc('hr_hunt_enter', { p_slot: this.slot, p_hunt: hunt,
       p_bag: lines.map((l) => ({ item: l.item, qty: l.qty })), p_preset: preset, p_hours: null, p_idem: newIdem() }));
   }
 
   /** Move a stack between the bag and the home storage (hr_bank_move): `dir` is 'deposit' or 'withdraw'. */
   async moveStorage(item, qty, dir) {
     if (this._closed || !ITEM.test(String(item)) || !Number.isSafeInteger(qty) || qty < 1 || qty > 1000000 || (dir !== 'deposit' && dir !== 'withdraw')) return { ok: false, error: 'bad_intent' };
-    return this._settled(await this._server.rpc('hr_bank_move', { p_slot: this.slot, p_item: item, p_qty: qty, p_dir: dir, p_idem: newIdem() }));
+    return this._ask('bank_move', () => this._server.rpc('hr_bank_move', { p_slot: this.slot, p_item: item, p_qty: qty, p_dir: dir, p_idem: newIdem() }));
   }
 
   /**
@@ -276,7 +282,7 @@ export class CharacterSession {
    */
   async copyHuntSettingsTo(toSlot) {
     if (this._closed) return { ok: false, error: 'closed' };
-    return this._settled(await this._server.rpc('hr_action_set_copy', { p_from: this.slot, p_to: toSlot, p_idem: newIdem() }));
+    return this._ask('action_set_copy', () => this._server.rpc('hr_action_set_copy', { p_from: this.slot, p_to: toSlot, p_idem: newIdem() }));
   }
 
   /**
@@ -284,17 +290,19 @@ export class CharacterSession {
    * Its answer carries leave_at, so the countdown starts at once; the hunter's own settle follows (a
    * stalled hunt's leave_at is now, and it ends it), else the plain read brings leave_at, never a guess.
    */
-  async leaveHunt() {
-    if (this._closed) return { ok: false, error: 'closed' };
-    const ans = await this._server.rpc('hr_hunt_leave', { p_slot: this.slot, p_idem: newIdem() });
-    if (this._closed) return { ok: false, error: 'closed' };
-    if (ans.ok && ans.body && ans.body.ok === true && ans.body.pending === true) {
-      this._leaveAsk = leaveAskOf(ans.body.session);
-      this._armHuntPoll();
-      if (!(await this.hello()) && !this._closed) await this.load();
-      return { ok: true };
-    }
-    return this._settled(ans);
+  leaveHunt() {
+    if (this._closed) return Promise.resolve({ ok: false, error: 'closed' });
+    return this.intents.track('hunt_leave', async () => {
+      const ans = await this._server.rpc('hr_hunt_leave', { p_slot: this.slot, p_idem: newIdem() });
+      if (this._closed) return { ok: false, error: 'closed' };
+      if (ans.ok && ans.body && ans.body.ok === true && ans.body.pending === true) {
+        this._leaveAsk = leaveAskOf(ans.body.session);
+        this._armHuntPoll();
+        if (!(await this.hello()) && !this._closed) await this.load();
+        return { ok: true };
+      }
+      return this._settled(ans);
+    });
   }
 
   /**
@@ -305,7 +313,7 @@ export class CharacterSession {
   async huntAgain(a) {
     if (this._closed) return { ok: false, error: 'closed' };
     if (!a || !ITEM.test(String(a.hunt)) || !Number.isInteger(a.preset) || !Array.isArray(a.bag)) return { ok: false, error: 'bad_intent' };
-    return this._settled(await this._server.rpc('hr_hunt_enter', { p_slot: this.slot, p_hunt: a.hunt, p_bag: a.bag, p_preset: a.preset,
+    return this._ask('hunt_enter', () => this._server.rpc('hr_hunt_enter', { p_slot: this.slot, p_hunt: a.hunt, p_bag: a.bag, p_preset: a.preset,
       p_hours: Number.isInteger(a.hours) ? a.hours : null, p_idem: newIdem() }));
   }
 
@@ -318,32 +326,32 @@ export class CharacterSession {
     if (this._closed) return { ok: false, error: 'closed' };
     const body = edgeBody(this.slot, verb, fields, newIdem());
     if (!body) return { ok: false, error: 'bad_intent' };
-    return this._settled(await this._server.accrue(body));
+    return this._ask(verb, () => this._server.accrue(body));
   }
 
   /** Lock (or unlock) an item so no bulk sale can take it; the server keeps the lock. */
   async lockItem(item, locked) {
     if (this._closed || !ITEM.test(String(item))) return { ok: false, error: 'bad_intent' };
-    return this._settled(await this._server.rpc('hr_item_lock', { p_slot: this.slot, p_item: item, p_locked: locked === true, p_idem: newIdem() }));
+    return this._ask('item_lock', () => this._server.rpc('hr_item_lock', { p_slot: this.slot, p_item: item, p_locked: locked === true, p_idem: newIdem() }));
   }
 
   /** What the server does with this item when a hunt picks it up: keep, sell at the shop, or leave it. */
   async setLootRule(item, rule) {
     if (this._closed || !ITEM.test(String(item)) || !LOOT_RULES.includes(rule)) return { ok: false, error: 'bad_intent' };
-    return this._settled(await this._server.rpc('hr_loot_rule_set', { p_slot: this.slot, p_item: item, p_rule: rule, p_idem: newIdem() }));
+    return this._ask('loot_rule_set', () => this._server.rpc('hr_loot_rule_set', { p_slot: this.slot, p_item: item, p_rule: rule, p_idem: newIdem() }));
   }
 
   /** Save the current action set and gear as a hunt preset (the server snapshots its own state). */
   async savePreset(preset, name) {
     const n = String(name || '').trim().slice(0, 24);
     if (this._closed || !Number.isInteger(preset) || preset < 0 || preset > 7 || !n) return { ok: false, error: 'bad_intent' };
-    return this._settled(await this._server.rpc('hr_hunt_preset_save', { p_slot: this.slot, p_preset: preset, p_name: n, p_idem: newIdem() }));
+    return this._ask('hunt_preset_save', () => this._server.rpc('hr_hunt_preset_save', { p_slot: this.slot, p_preset: preset, p_name: n, p_idem: newIdem() }));
   }
 
   /** Put a saved preset back on: its gear from the bag and its action set. */
   async applyPreset(preset) {
     if (this._closed || !Number.isInteger(preset) || preset < 0 || preset > 7) return { ok: false, error: 'bad_intent' };
-    return this._settled(await this._server.rpc('hr_hunt_preset_apply', { p_slot: this.slot, p_preset: preset, p_idem: newIdem() }));
+    return this._ask('hunt_preset_apply', () => this._server.rpc('hr_hunt_preset_apply', { p_slot: this.slot, p_preset: preset, p_idem: newIdem() }));
   }
 
   /* ── The party (S1 hr_hunt_party_*; the invite, start and restart verbs are this lane's asks, CONFLICTS.md
@@ -353,39 +361,40 @@ export class CharacterSession {
   /** Take a free seat in an open party (the finder's row, or one of this account's own parties). */
   async joinParty(party) {
     if (this._closed || !UUID.test(String(party))) return { ok: false, error: 'bad_intent' };
-    return this._settled(await this._server.rpc('hr_hunt_party_join', { p_slot: this.slot, p_party: party, p_idem: newIdem() }));
+    return this._ask('hunt_party_join', () => this._server.rpc('hr_hunt_party_join', { p_slot: this.slot, p_party: party, p_idem: newIdem() }));
   }
 
   /** Leave this character's party (the server hands the lead on, or closes the last seat). */
   async leaveParty() {
     if (this._closed) return { ok: false, error: 'closed' };
-    return this._settled(await this._server.rpc('hr_hunt_party_leave', { p_slot: this.slot, p_idem: newIdem() }));
+    return this._ask('hunt_party_leave', () => this._server.rpc('hr_hunt_party_leave', { p_slot: this.slot, p_idem: newIdem() }));
   }
 
   /** The leader removes the member in a SEAT. */
   async kickSeat(seat) {
     if (this._closed || !Number.isInteger(seat) || seat < 0 || seat > 7) return { ok: false, error: 'bad_intent' };
-    return this._settled(await this._server.rpc('hr_hunt_party_kick', { p_slot: this.slot, p_seat: seat, p_idem: newIdem() }));
+    return this._ask('hunt_party_kick', () => this._server.rpc('hr_hunt_party_kick', { p_slot: this.slot, p_seat: seat, p_idem: newIdem() }));
   }
 
   /** Invite a character by the name players see; the server finds it, or refuses `no_such_name`. */
   async inviteByName(name) {
     const n = String(name || '').trim().slice(0, 40);
     if (this._closed || n.length < 2) return { ok: false, error: 'bad_intent' };
-    return this._settled(await this._server.rpc('hr_hunt_party_invite', { p_slot: this.slot, p_name: n, p_idem: newIdem() }));
+    return this._ask('hunt_party_invite', () => this._server.rpc('hr_hunt_party_invite', { p_slot: this.slot, p_name: n, p_idem: newIdem() }));
   }
 
   /** Answer an invite to this character: accept takes the seat, decline forgets it. */
   async answerInvite(invite, accept) {
     if (this._closed || !UUID.test(String(invite))) return { ok: false, error: 'bad_intent' };
     const args = { p_slot: this.slot, p_invite: invite, p_idem: newIdem() };
-    return this._settled(await (accept === true ? this._server.rpc('hr_hunt_party_accept', args) : this._server.rpc('hr_hunt_party_decline', args)));
+    return this._ask(accept === true ? 'hunt_party_accept' : 'hunt_party_decline',
+      () => (accept === true ? this._server.rpc('hr_hunt_party_accept', args) : this._server.rpc('hr_hunt_party_decline', args)));
   }
 
   /** Go back to the hunt that just ended, with the same setup it ran on (the server reads that session's own). */
   async restartHunt(session) {
     if (this._closed || !UUID.test(String(session))) return { ok: false, error: 'bad_intent' };
-    return this._settled(await this._server.rpc('hr_hunt_restart', { p_slot: this.slot, p_session: session, p_idem: newIdem() }));
+    return this._ask('hunt_restart', () => this._server.rpc('hr_hunt_restart', { p_slot: this.slot, p_session: session, p_idem: newIdem() }));
   }
 
   /* ── Services (lane S2): each sends the QUOTE the player was shown (the server's own price from
@@ -395,27 +404,27 @@ export class CharacterSession {
   /** Buy the next stamina refill at the server's quoted price. */
   async buyStamina(quotedPrice) {
     if (this._closed || !Number.isSafeInteger(quotedPrice) || quotedPrice < 1) return { ok: false, error: 'bad_intent' };
-    return this._settled(await this._server.rpc('hr_stamina_refill', { p_slot: this.slot, p_price: quotedPrice, p_idem: newIdem() }));
+    return this._ask('stamina_refill', () => this._server.rpc('hr_stamina_refill', { p_slot: this.slot, p_price: quotedPrice, p_idem: newIdem() }));
   }
 
   /** Buy one blessing tier at the server's quoted price (0 under the free level). */
   async buyBlessing(tier, quotedPrice) {
     if (this._closed || !Number.isInteger(tier) || tier < 1 || tier > 9 || !Number.isSafeInteger(quotedPrice) || quotedPrice < 0) return { ok: false, error: 'bad_intent' };
-    return this._settled(await this._server.rpc('hr_blessing_buy', { p_slot: this.slot, p_tier: tier, p_price: quotedPrice, p_idem: newIdem() }));
+    return this._ask('blessing_buy', () => this._server.rpc('hr_blessing_buy', { p_slot: this.slot, p_tier: tier, p_price: quotedPrice, p_idem: newIdem() }));
   }
 
   /** Activate a bestiary stage for one monster kind at the server's quoted fee (refused `quote_changed` otherwise). */
   async activateBestiaryStage(monster, stage, quotedFee) {
     if (this._closed || !ITEM.test(String(monster)) || !Number.isInteger(stage) || stage < 1 || stage > 4
       || !Number.isSafeInteger(quotedFee) || quotedFee < 0) return { ok: false, error: 'bad_intent' };
-    return this._settled(await this._server.rpc('hr_bestiary_activate', { p_slot: this.slot, p_monster: monster, p_stage: stage, p_price: quotedFee, p_idem: newIdem() }));
+    return this._ask('bestiary_activate', () => this._server.rpc('hr_bestiary_activate', { p_slot: this.slot, p_monster: monster, p_stage: stage, p_price: quotedFee, p_idem: newIdem() }));
   }
 
   /** Claim this character's own name (the server checks the rules and that nobody else has it). */
   async setName(name) {
     const n = String(name || '').trim().replace(/\s+/g, ' ');
     if (this._closed || n.length < 3 || n.length > 20) return { ok: false, error: 'bad_name' };
-    return this._settled(await this._server.rpc('hr_character_name_set', { p_slot: this.slot, p_name: n, p_idem: newIdem() }));
+    return this._ask('character_name_set', () => this._server.rpc('hr_character_name_set', { p_slot: this.slot, p_name: n, p_idem: newIdem() }));
   }
 
   /**
@@ -431,7 +440,7 @@ export class CharacterSession {
       if (!/^[a-z]{1,16}$/.test(k) || !Number.isInteger(v) || v < 0 || v > 63) return { ok: false, error: 'bad_intent' };
       c[k] = v;
     }
-    return this._settled(await this._server.rpc('hr_outfit_set', { p_slot: this.slot, p_outfit: outfit, p_colors: c, p_idem: newIdem() }));
+    return this._ask('outfit_set', () => this._server.rpc('hr_outfit_set', { p_slot: this.slot, p_outfit: outfit, p_colors: c, p_idem: newIdem() }));
   }
 
   /**
@@ -442,11 +451,17 @@ export class CharacterSession {
   async findParties(hunt, weaponType) {
     if (this._closed) return { ok: false, error: 'closed' };
     if ((hunt !== null && !HUNT_ID.test(String(hunt))) || (weaponType !== null && !HUNT_ID.test(String(weaponType)))) return { ok: false, error: 'bad_intent' };
-    const ans = await this._server.rpc('hr_hunt_party_finder', { p_slot: this.slot, p_hunt: hunt, p_weapon: weaponType });
-    if (this._closed) return { ok: false, error: 'closed' };
-    if (ans.ok && ans.body && ans.body.ok === true) return { ok: true, body: ans.body };
-    return { ok: false, error: (ans.body && typeof ans.body.error === 'string' && ans.body.error) || ans.error || 'refused' };
+    return this.intents.track('hunt_party_finder', async () => {
+      const ans = await this._server.rpc('hr_hunt_party_finder', { p_slot: this.slot, p_hunt: hunt, p_weapon: weaponType });
+      if (this._closed) return { ok: false, error: 'closed' };
+      if (ans.ok && ans.body && ans.body.ok === true) return { ok: true, body: ans.body };
+      return { ok: false, error: (ans.body && typeof ans.body.error === 'string' && ans.body.error) || ans.error || 'refused' };
+    });
   }
+
+  /* ONE ASK, tracked (intent-ledger.js) from the send until the re-read envelope is applied: the
+     pressed control shows it in flight (src/shell/press-ack.js) and clears on the server's word. */
+  _ask(verb, send) { return this.intents.track(verb, async () => this._settled(await send())); }
 
   /* An intent's answer: on ok the whole character is re-read, so the screen shows the server's result. */
   async _settled(ans) {

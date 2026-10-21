@@ -136,3 +136,11 @@
   .hs-hudset-show small { display: none; }
   .hs-hudset-row input[type="range"] { width: 72px; }
 }
+
+/* EVERY PRESS ANSWERS AT ONCE (src/shell/press-ack.js): a control whose ask is in flight carries a
+   pulsing gold ring from the frame it was pressed until the server's answer and the re-read; a refused
+   press flashes a red ring (the reason is the component's own message line). Any control, any screen. */
+.is-sending { cursor: progress; outline: 2px solid var(--gold-2); outline-offset: 1px; animation: hs-sending 900ms ease-in-out infinite; }
+.is-refused { outline: 2px solid var(--red); outline-offset: 1px; }
+@keyframes hs-sending { 50% { outline-color: transparent; } }
+@media (prefers-reduced-motion: reduce) { .is-sending { animation: none; } }

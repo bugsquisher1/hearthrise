@@ -15,6 +15,7 @@ import { text, prop, attr } from '../../render/paint.js?v=0.2.22';
 import { clock } from '../../render/format.js?v=0.2.22';
 import { takeFresh } from '../../hunt-view/summary-recorder.js?v=0.2.22';
 import { track } from '../../net/observability.js?v=0.2.22';
+import { refusalText } from '../intent-words.js?v=0.2.22';
 
 /* The pending leave's line, per CharacterSession.leaveCountdown phase (null: the press is still out). */
 const LEAVING = Object.freeze({ asked: 'Leaving…', now: 'Leaving now…', late: 'Still processing your leave…' });
@@ -73,6 +74,6 @@ renderHuntTopbar.act = async function actHuntTopbar(ctx, el, action, ev, btn) {
   renderHuntTopbar.patch(el, ctx);
   const r = await ctx.character.leaveHunt();
   attr(btn, 'data-pending', null);
-  text(el.querySelector('.hh-intent-msg'), r.ok ? '' : 'The hunt did not end. Try again in a moment.');
+  text(el.querySelector('.hh-intent-msg'), r.ok ? '' : 'The hunt did not end. ' + refusalText(r));
   renderHuntTopbar.patch(el, ctx);
 };

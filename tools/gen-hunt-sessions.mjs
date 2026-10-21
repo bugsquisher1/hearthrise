@@ -69,7 +69,9 @@
 // 2026-10-27 file is history (APPLIED 2026-10-19 15:15); Tyler's 2026-10-19
 // tracker answers (food and drink on ONE 2 s cooldown; no walk until the town
 // has destinations: every travel_s 0) start
-// 2026-10-28-hunt-sessions-catalogue.generated.sql.
+// 2026-10-28-hunt-sessions-catalogue.generated.sql; 2026-10-30 (no default resume) is history
+// (APPLIED 2026-10-20); the drop tables (lane/a-drop-tables, 2026-10-20) start
+// 2026-11-02-hunt-sessions-catalogue.generated.sql.
 //
 //   Regenerate:  node tools/gen-hunt-sessions.mjs
 //   Verify:      node tools/gen-hunt-sessions.mjs --check     (exit 1 on drift)
@@ -119,7 +121,7 @@ export const WORLD_FIELDS_READ = Object.freeze({
     'role', 'dist', 'chase', 'tmode', 'stance']),
   world: Object.freeze(['leader']),
 });
-export const OUT_NAME = '2026-10-30-hunt-sessions-catalogue.generated.sql';
+export const OUT_NAME = '2026-11-02-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -511,14 +513,14 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- SUPERSEDES 2026-10-27-hunt-sessions-catalogue.generated.sql (applied; history,
+-- SUPERSEDES 2026-10-30-hunt-sessions-catalogue.generated.sql (applied; history,
 -- never regenerated): every table below is rewritten wholesale. Tyler's
--- 2026-10-19 tracker answers: food and drink share ONE 2 s cooldown
--- (hr_hunt_lanes 'consumable', consumables.js laneMs), and no walk until the
--- town has destinations to walk through: every hr_hunt_travel.travel_s is 0
--- (its check widens to 0..300), so a hunt's fight starts the moment it is
--- entered. Apply after 2026-10-27-core-bodies.sql (any order against
--- 2026-10-28-consume-defaults.sql).
+-- 2026-10-20 drops + profit rulings (lane/a-drop-tables): every walked
+-- ground's monster carries one equipment row, the Sewer's coin rises x1.8 and
+-- the Warrens' x1.25 (the +25% floor over the store bill), one rare carrier
+-- per ground; so hr_hunt_kill_bounds (gold_max, the per-kill item counts) and
+-- the vendor values it reads move. Every other row is the 10-30 file's.
+-- Apply after 2026-11-01-party-leader-density.sql.
 --
 -- Server-only: RLS on, NO policy, no client grant (the client reads src/data).
 -- Idempotent: delete + insert; nothing references these rows by foreign key.

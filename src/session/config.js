@@ -56,4 +56,8 @@ export const SESSION_CONFIG = Object.freeze({
       (then the ordinary poll goes on asking, and the hunt bar says it is still being processed). */
   leaveRetryMs: 2000,
   leaveLateMs: 16000,
+  /** THE LOOK-AHEAD KEPT FULL: ask for the next combat seeds this long before the prediction would run
+      out of them (src/session/live-link.js refillDelayMs): four swings, room for an answer that brings
+      none and one retry. */
+  liveRefillMs: 8000,
 });

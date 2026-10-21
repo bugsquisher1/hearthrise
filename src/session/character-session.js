@@ -32,10 +32,9 @@
 //                      own seat);
 //   saveOutfit(o, c)   the outfit INTENT (hr_outfit_set), re-read the same way
 //   findParties        the party finder, a read whose rows are never the record
-//   hunt re-read       while the server holds a hunt open, one hello per
-//                      src/session/hunt-poll.js: the hunter's settle answers the
-//                      new state, track and events (frames never carry `hunt`);
-//                      it stops on the envelope that says it ended
+//   hunt re-read       while a hunt is open, one hello per src/session/hunt-poll.js
+//                      (the hunter's settle answers state, track and events;
+//                      frames never carry `hunt`) until the envelope says it ended
 //   timeline           the settle responses' visual timeline (src/hunt-view/
 //                      timeline.js): tracks and events, never the record
 //   now()              the display clock the timeline plays on
@@ -177,8 +176,7 @@ export class CharacterSession {
     this._poll.arm(pollDelayMs(this.read('hunt'), this.liveLink, closeInMs(this.leaveAt(), this.serverNow())));
   }
 
-  /** A PENDING LEAVE's server instant (ms): the envelope's leave_at, else the leave's own answer for the
-      same session (the countdown never waits on the settle after it); null when none pends or no hunt. */
+  /** A PENDING LEAVE's server instant (ms): leave_at, else the leave's own answer (hunt-leave.js), or null. */
   leaveAt() { return this._huntOpen() ? pendingLeaveAt(this.read('hunt'), this._leaveAsk) : null; }
 
   /** The pending leave as the hunt bar shows it (hunt-leave.js leaveCountdown), or null when none pends. */
@@ -233,6 +231,9 @@ export class CharacterSession {
 
   /** The frame loop's step: run the live engine to the server's clock now (the viewed character). */
   liveAdvance(clientNow) { return this.liveLink.advance(clientNow); }
+
+  /** What the live view did: verdicts of the server's commits and every restart (live-link.js stats). */
+  liveStats() { return Object.assign({}, this.liveLink.stats); }
 
   /** Units the last reseed found alive (the scene revives a corpse the prediction made), once. */
   takeReseeded() { return this.liveLink.takeReseeded(); }

@@ -34,7 +34,7 @@
 //         its kind ("Bronze Axe (woodcutting tool)")
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
-import { launchOptions } from './_chrome.mjs';
+import { leaseBrowser } from './_chrome.mjs';
 import { readFile, mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -144,7 +144,7 @@ async function checks(overrides, shots) {
   const fails = overrides ? [] : await pure();
   const { server, port } = await serve(overrides || {});
   const base = 'http://127.0.0.1:' + port;
-  const browser = await chromium.launch(launchOptions({ headless: true }));
+  const browser = await leaseBrowser(chromium);
   const open = async (o = {}) => {
     const ctx = await browser.newContext({ viewport: o.viewport || { width: 1440, height: 900 } });
     const page = await ctx.newPage();

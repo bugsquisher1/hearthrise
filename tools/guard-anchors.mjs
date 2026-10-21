@@ -41,7 +41,8 @@
 //
 //   node tools/guard-anchors.mjs                    the catalogue (exit 1 on a MISSING)
 //   node tools/guard-anchors.mjs --for <file> …     which proofs a change to <file> re-runs
-//   node tools/guard-anchors.mjs --changed          the same, for this lane's diff
+//   node tools/guard-anchors.mjs --changed [--base <ref>]  the same, for this lane's diff
+//                                                   (base: newest set/v* or origin/next under HEAD, else origin/main)
 //   node tools/guard-anchors.mjs --unregistered     proof arms CI never runs
 //   node tools/guard-anchors.mjs --selftest         mutation proof of this file and of
 //                                                   lane-done's scoped step, end to end
@@ -312,11 +313,33 @@ function git(root, args) {
   return r.status === 0 ? r.stdout : null;
 }
 
-/** The merge base this lane is measured against: origin/main, else main. */
-function laneBase(root) {
-  for (const ref of ['origin/main', 'main']) {
+/* THE LANE'S INTEGRATION BASE (2026-10-20: three lanes paid 50-60 min each). A lane
+   that merged an unreleased release set (local `set/vX.Y.Z`, or origin/next) used to
+   diff against origin/main and so re-prove every guard the whole SET moved. Those
+   proofs are not skipped: the set is proven by its own run (the Coordinator's
+   guards-for on set/vX.Y.Z, then the GitHub matrix on next/release), so the lane
+   proves what IT changed on top of the set. The default base is the newest of
+   origin/next and any local set/v* that is an ancestor of HEAD and contains
+   origin/main (a stale set that predates main would hide main's own diff), else
+   the merge base with origin/main, else main. `--base <ref>` / HR_LANE_BASE pick one. */
+function laneBase(root, ref = process.env.HR_LANE_BASE || null) {
+  if (ref) {
     const b = git(root, ['merge-base', ref, 'HEAD']);
-    if (b) return b.trim();
+    return b ? { sha: b.trim(), ref } : null;
+  }
+  if (git(root, ['rev-parse', '--verify', '--quiet', 'origin/main'])) {
+    /* One git call: the refs under HEAD (--merged) that contain origin/main (--contains). */
+    const sets = (git(root, ['for-each-ref', '--merged', 'HEAD', '--contains', 'origin/main',
+      '--format=%(refname:short) %(objectname)', 'refs/heads/set/v*', 'refs/remotes/origin/next']) || '')
+      .split('\n').map((s) => s.trim().split(' ')).filter((p) => p.length === 2);
+    /* All candidates are ancestors of HEAD, so the newest is the one with the fewest commits left to HEAD. */
+    const ahead = new Map(sets.map(([r]) => [r, Number((git(root, ['rev-list', '--count', `${r}..HEAD`]) || '0').trim())]));
+    const best = sets.sort(([a], [b]) => ahead.get(a) - ahead.get(b) || (a < b ? -1 : 1))[0];
+    if (best) return { sha: best[1], ref: best[0] };
+  }
+  for (const r of ['origin/main', 'main']) {
+    const b = git(root, ['merge-base', r, 'HEAD']);
+    if (b) return { sha: b.trim(), ref: r };
   }
   return null;
 }
@@ -426,9 +449,10 @@ function migrationSteps(root, changed, read) {
 }
 
 /** Everything lane-done needs: the steps to run, and the catalogue's own failures. */
-export function scopedProofs(root = ROOT, { changed = null, base = undefined } = {}) {
-  const b = base === undefined ? laneBase(root) : base;
-  if (!changed && !b) return { error: 'no merge base with origin/main or main — cannot scope the proofs', steps: [], errors: [] };
+export function scopedProofs(root = ROOT, { changed = null, base = undefined, baseRef = null } = {}) {
+  const lb = base === undefined ? laneBase(root, baseRef || undefined) : (base ? { sha: base, ref: base } : null);
+  const b = lb ? lb.sha : null;
+  if (!changed && !b) return { error: `no merge base with ${baseRef || 'origin/main or main'} — cannot scope the proofs`, steps: [], errors: [] };
   const ch = changed || laneChanges(root, b);
   const reader = versionsReader(root, b, ch);
   const entries = catalogue(root, { contentOf: reader });
@@ -442,7 +466,7 @@ export function scopedProofs(root = ROOT, { changed = null, base = undefined } =
   })));
   const steps = [...anchorSteps, ...migrationSteps(root, ch, reader)]
     .filter((s) => !only.length || only.includes(s.guard));
-  return { base: b, changed: ch, steps, errors };
+  return { base: b, baseRef: lb ? lb.ref : null, changed: ch, steps, errors };
 }
 
 // ── --selftest ─────────────────────────────────────────────────────────────
@@ -543,6 +567,66 @@ async function selftest() {
     ok(!migrationSteps(ROOT, [ENV_FILE], read).length, 'G4 no migration in the diff, no replay steps');
   }
 
+  /* B — THE BASE (2026-10-20). A scratch repo with real repo paths: main, then a
+     release set that moves another guard's file, then the lane's own edit to the
+     incident file. The base must be the set (newer than origin/next, which it
+     contains), a set that does not contain origin/main or is not under HEAD must be
+     passed over, the lane's own change must still schedule its proof, and the set's
+     change must not — while --base origin/main still sees both. */
+  {
+    const { mkdtempSync, mkdirSync, writeFileSync: wf, rmSync: rmf } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const tmp = mkdtempSync(join(tmpdir(), 'hr-lane-base-'));
+    const g = (...a) => { const r = spawnSync('git', a, { cwd: tmp, encoding: 'utf8' }); if (r.status !== 0) throw new Error(`git ${a.join(' ')}: ${r.stderr}`); return r.stdout.trim(); };
+    const other = entries.find((e) => e.guard !== INCIDENT_GUARD && !e.anchors.includes(ENV_FILE)
+      && !triggered([e], [ENV_FILE]).length && e.guard.startsWith('tests/'));
+    const put = (rel, text) => { mkdirSync(join(tmp, dirname(rel)), { recursive: true }); wf(join(tmp, rel), text); };
+    const commit = (rel, text) => { put(rel, text); g('add', '-A'); g('commit', '-qm', rel); return g('rev-parse', 'HEAD'); };
+    const prev = process.env.HR_LANE_BASE; const prevOnly = process.env.HR_SCOPED_GUARDS;
+    delete process.env.HR_LANE_BASE; delete process.env.HR_SCOPED_GUARDS;
+    try {
+      g('init', '-q', '-b', 'main'); g('config', 'user.email', 'selftest@example.test'); g('config', 'user.name', 'selftest');
+      g('config', 'commit.gpgsign', 'false');
+      commit('README', 'base\n');
+      const stale = g('rev-parse', 'HEAD');
+      const mainSha = commit('notes.txt', 'main moved\n');
+      g('update-ref', 'refs/remotes/origin/main', mainSha);
+      g('branch', 'set/v0.0.1', stale);                                     // predates origin/main
+      g('checkout', '-qb', 'work');                                         // main stays at origin/main
+      const nextSha = commit('next.txt', 'staged\n');
+      g('update-ref', 'refs/remotes/origin/next', nextSha);
+      const setSha = commit(other.guard, '// the set moved this guard\n');
+      g('branch', 'set/v9.9.9', setSha);
+      g('checkout', '-qb', 'set/v9.9.8', mainSha); commit('side.txt', 'not under the lane\n');
+      g('checkout', '-qb', 'lane/probe', setSha);
+      commit(ENV_FILE, '// the lane edits the incident file\n');
+      const lb = laneBase(tmp);
+      ok(lb && lb.ref === 'set/v9.9.9' && lb.sha === setSha,
+        `B1 the base is the newest set/next under HEAD that contains origin/main (got ${lb && lb.ref}; set/v0.0.1 stale, set/v9.9.8 not under HEAD, origin/next older)`);
+      const own = laneChanges(tmp, lb.sha);
+      const viaSet = scopedProofs(ROOT, { changed: own }).steps.map((s) => s.guard);
+      ok(own.join() === ENV_FILE && viaSet.includes(INCIDENT_GUARD) && !viaSet.includes(other.guard),
+        `B2 the lane's own edit still schedules ${INCIDENT_GUARD}; the set's ${other.guard} is the set's run (changed: ${own.join(', ')})`);
+      const full = laneChanges(tmp, laneBase(tmp, 'origin/main').sha);
+      const viaMain = scopedProofs(ROOT, { changed: full }).steps.map((s) => s.guard);
+      ok(full.includes(other.guard) && viaMain.includes(other.guard) && viaMain.includes(INCIDENT_GUARD),
+        'B3 --base origin/main still re-proves the whole set (the opt-out works)');
+      g('branch', '-D', 'set/v9.9.9');
+      const viaNext = laneBase(tmp);
+      ok(viaNext && viaNext.ref === 'origin/next' && viaNext.sha === nextSha, `B4 with no set under HEAD, origin/next is the base (got ${viaNext && viaNext.ref})`);
+      g('update-ref', '-d', 'refs/remotes/origin/next');
+      const viaMb = laneBase(tmp);
+      ok(viaMb && viaMb.ref === 'origin/main' && viaMb.sha === mainSha, `B5 with neither, the merge base with origin/main (got ${viaMb && viaMb.ref})`);
+      process.env.HR_LANE_BASE = 'main';
+      const viaEnv = laneBase(tmp);
+      ok(viaEnv && viaEnv.ref === 'main' && viaEnv.sha === mainSha, 'B6 HR_LANE_BASE names the base');
+    } finally {
+      if (prev === undefined) delete process.env.HR_LANE_BASE; else process.env.HR_LANE_BASE = prev;
+      if (prevOnly !== undefined) process.env.HR_SCOPED_GUARDS = prevOnly;
+      rmf(tmp, { recursive: true, force: true });
+    }
+  }
+
   /* E — END TO END: plant an anchor-breaking edit, lane-done's scoped step goes RED;
      restore it, the same step goes green (the control). The plant is one byte of
      whitespace inside the incident guard's envelope.js anchor — the exact
@@ -595,8 +679,10 @@ if (isMain(import.meta.url)) {
     console.log(`\n${un.length} of ${entries.length} proof-capable guards have no proof arm in smoke.yml.`);
   } else if (argv.includes('--for') || argv.includes('--changed')) {
     const files = argv.includes('--for') ? argv.slice(argv.indexOf('--for') + 1).filter((a) => !a.startsWith('--')) : null;
-    const r = scopedProofs(ROOT, { changed: files });
+    const bAt = argv.indexOf('--base');
+    const r = scopedProofs(ROOT, { changed: files, baseRef: bAt >= 0 ? argv[bAt + 1] : null });
     if (r.error) { console.log(r.error); process.exit(2); }
+    if (!files) console.log(`base: ${r.baseRef} (${String(r.base).slice(0, 9)})`);
     for (const s of r.steps) console.log(`node ${s.guard} ${s.arm || '(plain)'}${s.solo ? '  (solo)' : ''}   <- ${s.because.join(', ')}`);
     for (const e of r.errors) console.log('MISSING ' + e);
     console.log(`\n${r.steps.length} proof arm(s) for ${r.changed.length} changed file(s).`);

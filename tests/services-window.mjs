@@ -23,7 +23,7 @@
 //         controls stay off and the window says the server has not priced them
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
-import { launchOptions } from './_chrome.mjs';
+import { leaseBrowser } from './_chrome.mjs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
@@ -67,7 +67,7 @@ async function signInAndPlay(page, base) {
 async function checks(overrides) {
   const fails = [];
   const { server, port } = await serve(overrides);
-  const browser = await chromium.launch(launchOptions({ headless: true }));
+  const browser = await leaseBrowser(chromium);
   const open = async (sections) => {
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const page = await ctx.newPage();

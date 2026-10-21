@@ -79,9 +79,11 @@ export function verdictKey(root, argv, inputs) {
   const h = createHash('sha256');
   h.update(`v1\0${process.version}\0${argv.join(' ')}\0`);
   // Every HR_* switch a guard can read is part of the question it answered, except
-  // the two cache switches themselves (they change speed, never the verdict).
+  // the two cache switches (they change speed, never the verdict) and HR_LANE_BASE
+  // / HR_LANE_DONE_LOCK (which proofs lane-done schedules and whether it waited,
+  // never what one of them answers).
   for (const k of Object.keys(process.env).filter((n) => n.startsWith('HR_')
-    && !/^HR_(PGLITE_CACHE|VERDICT_CACHE)/.test(n)).sort()) h.update(`${k}=${process.env[k]}\0`);
+    && !/^HR_(PGLITE_CACHE|VERDICT_CACHE|LANE_BASE|LANE_DONE_LOCK)/.test(n)).sort()) h.update(`${k}=${process.env[k]}\0`);
   const entry = argv.find((a) => /\.m?js$/.test(a)) || argv[0];
   for (const [abs, bytes] of inputFiles(root, entry, inputs)) {
     h.update(relative(root, abs).replace(/\\/g, '/'));
@@ -124,7 +126,81 @@ export function record(key, verdict, dir = cacheDir()) {
   return true;
 }
 
-function selftest() {
+/* ONE lane-done AT A TIME (2026-10-20). Two lane-done runs started together both
+   began cold — a verdict is recorded only after its green — so each paid the full
+   replays and they fought over the same cores. The machine-wide lock file
+   (<git-common-dir>/hr-lane-done.lock, holder PID + start + worktree) makes the
+   second wait, then reuse the first's cached greens. A lock whose PID is gone is
+   stale and taken over; so is one older than LOCK_MAX_MS (a reused PID on a
+   crashed holder must not block a machine forever). lane-done --no-lock opts out. */
+const LOCK_MAX_MS = 3 * 3600 * 1000;
+const alive = (pid) => {
+  try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; }
+};
+
+/** The holder of the lock at `file`, or null when it is free or stale. */
+export function lockHolder(file) {
+  let v;
+  try { v = JSON.parse(readFileSync(file, 'utf8')); } catch (e) {
+    if (e.code === 'ENOENT') return null;
+    /* A half-written lock (its writer is between open and write) is a holder for a moment, not forever. */
+    try { return Date.now() - statSync(file).mtimeMs < 5000 ? { pid: 0, at: Date.now(), worktree: '?' } : null; } catch { return null; }
+  }
+  if (!Number.isInteger(v.pid) || !alive(v.pid) || Date.now() - v.at > LOCK_MAX_MS) return null;
+  return v;
+}
+
+/** Waits for the lock, holds it, and returns its release. `onWait(holder)` is called once. */
+export async function acquireRunLock(file = join(dirname(cacheDir()), 'hr-lane-done.lock'),
+  { worktree = process.cwd(), onWait = () => {}, pollMs = 2000, pid = process.pid } = {}) {
+  mkdirSync(dirname(file), { recursive: true });
+  const mine = JSON.stringify({ pid, at: Date.now(), worktree });
+  let told = false;
+  for (;;) {
+    try {
+      writeFileSync(file, mine, { flag: 'wx' });
+      break;
+    } catch (e) {
+      if (e.code !== 'EEXIST') throw e;
+    }
+    const h = lockHolder(file);
+    if (!h) { try { unlinkSync(file); } catch { /* another waiter took it over first */ } continue; }
+    if (!told) { onWait(h); told = true; }
+    await new Promise((r) => setTimeout(r, pollMs));
+  }
+  const release = () => {
+    try { if (readFileSync(file, 'utf8') === mine) unlinkSync(file); } catch { /* already gone */ }
+  };
+  process.once('exit', release);
+  return release;
+}
+
+async function lockSelftest(tmp, ok) {
+  const file = join(tmp, 'lock', 'hr-lane-done.lock');
+  const rel1 = await acquireRunLock(file, { worktree: 'first', pollMs: 20 });
+  ok('the first run takes the lock (holder = this PID)', lockHolder(file)?.pid === process.pid && lockHolder(file)?.worktree === 'first');
+  let waited = null; let got = false;
+  const second = acquireRunLock(file, { worktree: 'second', pollMs: 20, onWait: (h) => { waited = h; } }).then((r) => { got = true; return r; });
+  await new Promise((r) => setTimeout(r, 200));
+  ok('MUTANT a second run while the first holds the lock WAITS, naming the holder', !got && waited?.worktree === 'first');
+  rel1();
+  const rel2 = await second;
+  ok('the waiter proceeds once the holder releases', got && lockHolder(file)?.worktree === 'second');
+  rel2();
+  ok('a released lock is free', lockHolder(file) === null && !existsSync(file));
+  const dead = spawnSync(process.execPath, ['-e', 'process.stdout.write(String(process.pid))'], { encoding: 'utf8' });
+  writeFileSync(file, JSON.stringify({ pid: Number(dead.stdout), at: Date.now(), worktree: 'crashed' }));
+  ok('MUTANT a lock whose PID is gone is stale', lockHolder(file) === null);
+  const rel3 = await Promise.race([acquireRunLock(file, { worktree: 'after-crash', pollMs: 20, onWait: () => { waited = 'blocked'; } }),
+    new Promise((r) => setTimeout(() => r(null), 2000).unref())]);
+  ok('a stale lock is taken over without waiting', rel3 && lockHolder(file)?.worktree === 'after-crash' && waited !== 'blocked');
+  if (rel3) rel3(); else { unlinkSync(file); return; }
+  writeFileSync(file, JSON.stringify({ pid: process.pid, at: Date.now() - LOCK_MAX_MS - 1, worktree: 'ancient' }));
+  ok('MUTANT a lock older than the cap is stale even if its PID was reused', lockHolder(file) === null);
+  unlinkSync(file);
+}
+
+async function selftest() {
   const fails = [];
   const ok = (label, cond) => { console.log(`  ${cond ? 'ok  ' : 'FAIL'}  ${label}`); if (!cond) fails.push(label); };
   const tmp = mkdtempSync(join(tmpdir(), 'hr-verdict-selftest-'));
@@ -161,6 +237,10 @@ function selftest() {
     if (prev === undefined) delete process.env.HR_VERDICT_CACHE; else process.env.HR_VERDICT_CACHE = prev;
     writeFileSync(join(dir, `${k0}.json`), JSON.stringify({ status: 0, at: Date.now() - MAX_AGE_MS - 1 }));
     ok('an entry older than 14 days is not an answer', lookup(k0, dir) === null);
+    ok('HR_LANE_BASE / HR_LANE_DONE_LOCK (which proofs run, never a verdict) do not change the key',
+      (() => { process.env.HR_LANE_BASE = 'origin/next'; process.env.HR_LANE_DONE_LOCK = '1'; const k = verdictKey(tmp, argv, ['lib/data.sql']);
+        delete process.env.HR_LANE_BASE; delete process.env.HR_LANE_DONE_LOCK; return k === k0; })());
+    await lockSelftest(tmp, ok);
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
@@ -169,6 +249,6 @@ function selftest() {
 }
 
 if (isMain(import.meta.url)) {
-  if (process.argv.includes('--selftest')) process.exit(selftest());
+  if (process.argv.includes('--selftest')) process.exit(await selftest());
   console.log('usage: node tools/verdict-cache.mjs --selftest   (the cache is used by tools/lane-done.mjs)');
 }

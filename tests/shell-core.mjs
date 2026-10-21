@@ -317,6 +317,21 @@ async function runTests(mods) {
     ok(moved.every((q) => !over(placed, q)), 'the bar still overlaps an edge widget: ' + JSON.stringify(at));
     eq(at.push.map((p) => p.i), [1], 'only the analyzer (the one nearest the centre spot) steps down');
   });
+  t('H11 a docked window never covers a right-anchored widget: it slides left of the dock, else waits hidden (r11)', () => {
+    const over = (a, q) => a.left < q.left + q.width && a.left + a.width > q.left && a.top < q.top + q.height && a.top + a.height > q.top;
+    const an = { left: 1143, top: 12, width: 285, height: 300 }, party = { left: 12, top: 12, width: 258, height: 250 };
+    const chat = { left: 1028, top: 12, width: 400, height: 600 };
+    eq(HUD.clearOfDock(an, [], [party], 12), an.left, 'no dock, no move');
+    eq(HUD.clearOfDock(an, [{ left: 1028, top: 700, width: 400, height: 100 }], [party], 12), an.left, 'a window below its row moves nothing');
+    const x = HUD.clearOfDock(an, [chat], [party], 12);
+    ok(x !== null && !over(Object.assign({}, an, { left: x }), chat) && !over(Object.assign({}, an, { left: x }), party), 'the analyzer must clear the chat and the party: ' + x);
+    eq(x, 1028 - 12 - 285, 'it sits right beside the dock');
+    /* a dock and a party that leave no room: it waits hidden rather than sit under a window */
+    eq(HUD.clearOfDock(an, [{ left: 400, top: 0, width: 1040, height: 900 }], [party], 12), null, 'no room left: null');
+    /* the centred pass clears the dock too, and never pushes a window */
+    const at = HUD.clearOfEdges({ left: 570, top: 8, width: 300, height: 40 }, [party], 1440, 12, [chat]);
+    ok(!over({ left: at.left, top: 8, width: 300, height: 40 }, chat) && at.push.every((p) => p.i < 1), 'the top bar must clear the dock: ' + JSON.stringify(at));
+  });
   t('H8 the contract is validated', () => {
     const bad = [W({ anchor: 'xx' }), W({ layer: 'sky' }), W({ opacity: 0.2 }), W({ when: 'night' }), W({ removable: false, visible: false }), W({ phone: { min: [1, 1] } })];
     for (const r of bad) { let threw = false; try { HUD.validateWidgetRows([r]); } catch (e) { threw = true; } ok(threw, 'must refuse ' + JSON.stringify(r)); }

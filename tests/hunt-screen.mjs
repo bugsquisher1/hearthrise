@@ -75,6 +75,9 @@
 //         nothing moves before the server's re-read says so; the status line always comes
 //         back: cleared on the answer, the reason on a refusal, a plain line on the timeout
 //   HS-20 every struck or waiting slot says why (glyph + the tooltip's first line), one slot a reason
+//   HS-23 A DOCKED WINDOW NEVER COVERS THE ANALYZER (r11), at 1440x900 and 922x423: with
+//         the chat docked, then the Character window, the analyzer's box crosses no docked
+//         window (on a desktop it moves beside the dock, never hides)
 //   HS-22 THE PHONE BAR (922x423), in a hunt and in town: at most 100 px tall, the alerts dock
 //         above its top, and the fight settings are a slide-out sheet (shut until the bar's
 //         button opens it, then on top of everything, shut again on Escape)
@@ -301,6 +304,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         s.env.party.members[0].hp = 90;
         s.env.hunt.hero.hp = 90;
         s.env.hunt_analyzer.hero.kills = 170;
+        /* The Level is the server's Level XP (r09: the hub and the Character tab read one field): 577,109 is
+           Level 24 and 62% of the way to 25 on the shared curve, the hunt hero's level and xp_pct. */
+        s.env.state = Object.assign({}, s.env.state, { level_xp: 577109 });
         /* Its re-read answers 600 ms late, as on a slow runner: GitHub run 39640048955 (in-page-5, clean control)
            read these numbers 200 ms after the re-read was ASKED and saw kills 164, hp 180/220. pushEnvelope now
            waits until the page has parsed the answer, so the slow answer must still be read whole. */
@@ -328,6 +334,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (h1.gauges) fails.push('HS-18 the old flat gauges are still on the bar');
         /* A melee hero the server sends no mana pool still shows its mana gauge (every hero has mana). */
         Object.assign(s.env.hunt.hero, { mana: 0, mana_max: 0, level: 25, xp_pct: 0.05, hp: 220, regen_pm: 1000, mana_regen: 18 });
+        s.env.state = Object.assign({}, s.env.state, { level_xp: 614202 });   // Level 25, 5% on
         s.env.party.members[0].hp = 220;
         await pushEnvelope(page, s);
         const h2 = await hub();
@@ -336,6 +343,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const rg = await page.evaluate(() => [document.querySelector('[data-r="hp"]').textContent, document.querySelector('[data-r="mana"]').textContent]);
         if (rg[0] !== '+0.7/s' || rg[1] !== '+0.3/s') fails.push('HS-18 the hub regen reads ' + JSON.stringify(rg) + ', want ["+0.7/s","+0.3/s"]');
         Object.assign(s.env.hunt.hero, { mana: 40, mana_max: 60, hp: 180, level: 24, xp_pct: 0.62 });   // back to the fixture for the screenshots
+        s.env.state = Object.assign({}, s.env.state, { level_xp: FIXTURE.state.level_xp });
         s.env.party.members[0].hp = 180;
         await pushEnvelope(page, s);
         /* HS-6: the log shows each fixture event once, after a restated envelope too. */
@@ -787,6 +795,38 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const docked = await settled();
         if (docked.length) fails.push('HS-13 hunt panels overlap with the chat window docked: ' + docked.join(', '));
       } else fails.push('HS-13 the screen did not mount');
+      await ctx.close();
+    }
+
+    for (const vp of [{ width: 1440, height: 900 }, { width: 922, height: 423 }]) { // HS-23 a docked window never covers the analyzer (r11)
+      const phone = vp.width < 1000, tag = vp.width + 'x' + vp.height;
+      /* The phone hides the analyzer by default: this player shows it (a display preference, residue hudLayout). */
+      const { ctx, page, up } = await open({ viewport: vp, prep: (s) => { if (phone) s.env.client_state = { hudLayout: { phone: { analyzer: { visible: true } } } }; } });
+      if (up && await wait(page, () => document.querySelector('[data-hs-hud="world"] [data-hs-widget="analyzer"]'))) {
+        const cover = () => page.evaluate(() => {
+          const an = document.querySelector('[data-hs-hud="world"] [data-hs-widget="analyzer"]');
+          const a = an.getBoundingClientRect();
+          const shown = getComputedStyle(an).visibility !== 'hidden';
+          const wins = Array.from(document.querySelectorAll('.hs-win:not(.is-leaving):not(.is-floating):not(.is-modal)'));
+          const hits = shown ? wins.filter((w) => { const q = w.getBoundingClientRect(); return a.left < q.right - 1 && a.right > q.left + 1 && a.top < q.bottom - 1 && a.bottom > q.top + 1; }) : [];
+          return { shown, n: wins.length, hits: hits.map((w) => w.getAttribute('data-hs-win')) };
+        });
+        /* The analyzer moves, the World does not (Tyler 10-19): opening the windows publishes no new camera inset. */
+        await page.evaluate(() => { window.__insets = []; window.addEventListener('hearthrise:shell-inset', (e) => window.__insets.push(JSON.stringify(e.detail))); });
+        for (const [key, id] of [['Enter', 'chat'], ['c', 'character']]) {
+          await page.evaluate(() => document.activeElement && document.activeElement.blur && document.activeElement.blur());
+          await page.keyboard.press(key);
+          await wait(page, (w) => document.querySelector('[data-hs-win="' + w + '"]:not(.is-entering)'), id);
+          await page.evaluate(() => document.activeElement && document.activeElement.blur && document.activeElement.blur());
+          let r;
+          for (const end = Date.now() + LOAD_MS; ;) { r = await cover(); if ((r.n && !r.hits.length) || Date.now() > end) break; await sleep(100); }
+          if (!r.n) fails.push('HS-23 at ' + tag + ' no window docked after ' + key);
+          if (r.hits.length) fails.push('HS-23 at ' + tag + ' the docked ' + r.hits.join(', ') + ' covers the analyzer');
+          if (!phone && !r.shown) fails.push('HS-23 at ' + tag + ' the analyzer hid with ' + id + ' docked instead of moving beside the dock');
+        }
+        const insets = await page.evaluate(() => window.__insets);
+        if (insets.length) fails.push('HS-23 at ' + tag + ' docking a window moved the camera inset: ' + insets.slice(0, 2).join(' -> '));
+      } else fails.push('HS-23 the analyzer did not mount at ' + tag);
       await ctx.close();
     }
 

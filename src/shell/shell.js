@@ -16,7 +16,10 @@
 // `hearthrise:shell-inset` on the host, so the World calls its engine's
 // setInset and frames the hero and the target in the uncovered part.
 // WINDOWS ARE NEVER IN IT (Tyler 2026-10-19): they float over the World, so
-// opening, closing, focusing or dragging one never moves the camera or a widget.
+// opening, closing, focusing or dragging one never moves the camera. A docked
+// window never covers a widget either (r11, hud.js clearOfDock): a right-anchored
+// widget it lands on slides left of the dock, and the inset keeps reading that
+// widget at its home place, so the camera still never moves.
 //
 // COMPONENTS (the hunt panels): a renderer that carries a `.patch(el, ctx)` is
 // BUILT ONCE (its HTML is the skeleton, written when the box is created) and
@@ -40,7 +43,7 @@ import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.24';
 import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.24';
 import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.24';
 import { createWindowManager, DOCK_EDGE } from './window-manager.js?v=0.2.24';
-import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges } from './hud.js?v=0.2.24';
+import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock } from './hud.js?v=0.2.24';
 import { keyLabel, glyphSvg } from './launcher.js?v=0.2.24';
 import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.24';
 import { mountContextMenu } from './context-menu.js?v=0.2.24';
@@ -146,7 +149,7 @@ export function mountShell(root, o) {
     for (const el of Array.from(layer.children)) if (!keep.has(el.getAttribute('data-hs-win'))) el.remove();
     for (const p of placed) {
       let el = layer.querySelector('[data-hs-win="' + p.id + '"]');
-      if (!el) { el = frame(wm.row(p.id)); layer.appendChild(el); refresh(p.id); }
+      if (!el) { el = frame(wm.row(p.id)); layer.appendChild(el); refresh(p.id); if (sized) sized.ro.observe(el, { box: 'border-box' }); }
       el.classList.toggle('is-entering', p.entering);
       el.classList.toggle('is-leaving', p.leaving);
       el.classList.toggle('is-floating', !p.docked && !p.modal);
@@ -201,17 +204,30 @@ export function mountShell(root, o) {
       el.style.left = at.left + 'px';
       el.style.top = at.top + 'px';
     }
-    /* Widgets never overlap (hud.js clearOfEdges): a centred widget that lands on an edge-anchored
-       one moves along its row to clear it, and when the row is too
+    /* A docked window never covers a widget (hud.js clearOfDock, r11): a right-anchored World widget it
+       lands on slides left of the dock, or waits hidden when no room is left; its home left is kept for
+       the camera inset. Then widgets never overlap (hud.js clearOfEdges): a centred widget that lands on
+       an edge-anchored one, or on the dock, moves along its row to clear it, and when the row is too
        narrow the edge widgets it still hits step down below it. */
+    const dock = dockRects();
     for (const box of [worldHud, screenHud]) {
       const els = Array.from(box.querySelectorAll('[data-hs-widget]'));
-      const centred = (e) => hud.layoutOf(e.getAttribute('data-hs-widget')).anchor[1] === 'c';
+      const anchorOf = (e) => hud.layoutOf(e.getAttribute('data-hs-widget')).anchor;
+      const centred = (e) => anchorOf(e)[1] === 'c';
       const b = box.getBoundingClientRect();
       const rel = (e) => { const q = e.getBoundingClientRect(); return { left: q.left - b.left, top: q.top - b.top, width: q.width, height: q.height }; };
       const edgeEls = els.filter((e) => !centred(e));
+      const fixed = box === worldHud ? dock : [];
+      for (const e of edgeEls) {
+        const home = rel(e);
+        const left = fixed.length && anchorOf(e)[1] === 'r' ? clearOfDock(home, fixed, edgeEls.filter((o) => o !== e).map(rel), DOCK_EDGE) : home.left;
+        e.classList.toggle('is-under-dock', left === null);
+        if (left === home.left) { dockHome.delete(e); continue; }
+        dockHome.set(e, home.left);
+        if (left !== null) e.style.left = left + 'px';
+      }
       for (const e of els.filter(centred)) {
-        const at = clearOfEdges(rel(e), edgeEls.map(rel), b.width, DOCK_EDGE);
+        const at = clearOfEdges(rel(e), edgeEls.map(rel), b.width, DOCK_EDGE, fixed);
         e.style.left = at.left + 'px';
         for (const p of at.push) edgeEls[p.i].style.top = p.top + 'px';
       }
@@ -219,7 +235,18 @@ export function mountShell(root, o) {
     publishInset();
   }
 
-  /* The World edges the docked windows AND the docked HUD widgets cover ({left, right, top, bottom}),
+  /* The docked windows' boxes in the World's px (the layer and the World HUD share the shell's box);
+     layout boxes, so a window sliding in is where it will sit. Floating and centred windows are the
+     player's own and never move a widget; a window sliding out is already gone. */
+  function dockRects() {
+    return Array.from(layer.querySelectorAll('.hs-win:not(.is-floating):not(.is-modal):not(.is-leaving)'))
+      .map((w) => ({ left: w.offsetLeft, top: w.offsetTop, width: w.offsetWidth, height: w.offsetHeight }))
+      .filter((q) => q.width > 0 && q.height > 0);
+  }
+  /* A widget the dock moved -> its home left: the camera inset reads it there (windows never move the World). */
+  const dockHome = new WeakMap();
+
+  /* The World edges the docked HUD widgets cover ({left, right, top, bottom}),
      published only when they change, so the camera frames the playable area beside them. */
   let lastInset = '';
   function insetNow() {
@@ -227,7 +254,8 @@ export function mountShell(root, o) {
     const widgets = [];
     for (const el of worldHud.querySelectorAll('[data-hs-widget]')) {
       const r = el.getBoundingClientRect();
-      widgets.push({ anchor: hud.layoutOf(el.getAttribute('data-hs-widget')).anchor, rect: { left: r.left - b.left, top: r.top - b.top, width: r.width, height: r.height } });
+      const left = dockHome.has(el) ? dockHome.get(el) : r.left - b.left;
+      widgets.push({ anchor: hud.layoutOf(el.getAttribute('data-hs-widget')).anchor, rect: { left, top: r.top - b.top, width: r.width, height: r.height } });
     }
     return hudInsetOf(widgets, { width: b.width, height: b.height });
   }

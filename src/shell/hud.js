@@ -99,16 +99,40 @@ export function placeWidget(L, box, size) {
  * edge-anchored widget in its row by `gap`; when no left clears them all (the row is too narrow),
  * it takes the one that hits the fewest (nearest wins a tie) and those it still hits step down
  * below it. Rects are {left, top, width, height} in the box's px. Pure.
+ * `fixed` are rects it must also clear but never pushes (the docked windows, r11).
  * @returns {{left: number, push: {i: number, top: number}[]}}  `i` indexes `edges`
  */
-export function clearOfEdges(r, edges, boxWidth, gap) {
-  const row = edges.map((q, i) => ({ q, i })).filter(({ q }) => q.top < r.top + r.height && q.top + q.height > r.top);
+export function clearOfEdges(r, edges, boxWidth, gap, fixed = []) {
+  const row = edges.concat(fixed).map((q, i) => ({ q, i })).filter(({ q }) => q.top < r.top + r.height && q.top + q.height > r.top);
   const hits = (x) => row.filter(({ q }) => !(x + r.width + gap <= q.left || q.left + q.width + gap <= x));
   const xs = [r.left].concat(row.map(({ q }) => q.left + q.width + gap), row.map(({ q }) => q.left - gap - r.width))
     .filter((x) => x >= 0 && x + r.width <= boxWidth)
     .sort((a, b) => hits(a).length - hits(b).length || Math.abs(a - r.left) - Math.abs(b - r.left));
   const left = xs.length ? xs[0] : r.left;
-  return { left: Math.round(left), push: hits(left).map(({ i }) => ({ i, top: Math.round(r.top + r.height + gap) })) };
+  return { left: Math.round(left), push: hits(left).filter(({ i }) => i < edges.length).map(({ i }) => ({ i, top: Math.round(r.top + r.height + gap) })) };
+}
+
+/**
+ * A DOCKED WINDOW NEVER COVERS A WIDGET (r11: a window docked during a hunt sat over the analyzer).
+ * A right-anchored widget `r` that a docked window lands on slides left along its row, past every
+ * docked window and every other edge widget in that row, by `gap`. Windows never move the World
+ * (Tyler 10-19), so the widget moves, not the window. Returns `r.left` when no docked window
+ * touches it, the new left when one does, or null when no left inside the box clears them all (the
+ * widget then waits hidden until the dock narrows). Rects {left, top, width, height}. Pure.
+ */
+export function clearOfDock(r, dock, others, gap) {
+  const inRow = (q) => q.top < r.top + r.height && q.top + q.height > r.top;
+  const hit = (x, q) => inRow(q) && x < q.left + q.width + gap && q.left < x + r.width + gap;
+  if (!dock.some((q) => hit(r.left, q))) return r.left;
+  const all = dock.concat(others);
+  let x = r.left;
+  for (let n = 0; n <= all.length; n++) {
+    const hits = all.filter((q) => hit(x, q));
+    if (!hits.length) return Math.round(x);
+    x = Math.min(...hits.map((q) => q.left)) - gap - r.width;
+    if (x < 0) return null;
+  }
+  return null;
 }
 
 /**

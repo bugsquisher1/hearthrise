@@ -182,8 +182,12 @@ async function stub(page, s) {
     if (name === 'hr_load') return json(s.next());
     if (name === 'hr-accrue') {
       if (s.holdAccrue) await hold(page, r, s, 'accrue');
-      if (s.onAccrue) s.onAccrue();
-      return json(Object.assign({ accrued: true }, s.next()));
+      s.accrueLive = (s.accrueLive || 0) + 1;   // answering now (not held)
+      try {
+        if (s.accrueDelayMs) await sleep(s.accrueDelayMs);
+        if (s.onAccrue) s.onAccrue();
+        return await json(Object.assign({ accrued: true }, s.next()));
+      } finally { s.accrueLive--; }
     }
     if (name === 'hr_action_set_options') {
       if (s.holdOptions) await hold(page, r, s, 'options'); else await sleep(s.optionsDelayMs);
@@ -297,7 +301,12 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         s.env.party.members[0].hp = 90;
         s.env.hunt.hero.hp = 90;
         s.env.hunt_analyzer.hero.kills = 170;
+        /* Its re-read answers 600 ms late, as on a slow runner: GitHub run 39640048955 (in-page-5, clean control)
+           read these numbers 200 ms after the re-read was ASKED and saw kills 164, hp 180/220. pushEnvelope now
+           waits until the page has parsed the answer, so the slow answer must still be read whole. */
+        s.accrueDelayMs = 600;
         await pushEnvelope(page, s);
+        s.accrueDelayMs = 0;
         const after = await page.evaluate((src) => {
           const now = (0, eval)(src);
           return { rebuilt: Object.keys(now).filter((k) => now[k] !== window.__nodes[k]), kills: now.kills && now.kills.textContent, hp: now.hp && now.hp.textContent };
@@ -1221,7 +1230,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
     for (const town of [false, true]) { // HS-22 THE PHONE BAR at 922x423 (v0.2.23 gate: 874 x 178, 42% of the screen)
       const tag = town ? 'in town' : 'in a hunt';
       /* three party invites waiting: three alert lines, so the stack has a height to collide with */
-      const { ctx, page, up } = await open({ viewport: { width: 922, height: 423 }, town, prep: (sc) => {
+      const { ctx, page, s, up } = await open({ viewport: { width: 922, height: 423 }, town, prep: (sc) => {
         sc.env.party_invites = [1, 2, 3].map((n) => ({ id: '00000000-0000-4000-8000-00000000000' + n, hunt: 'mill_cellar', from: 'Mira' }));
       } });
       if (up) {
@@ -1231,6 +1240,25 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (!bar || bar.h > 100) fails.push('HS-22 ' + tag + ' the phone bar is ' + (bar && Math.round(bar.h)) + ' px tall (want <= 100)');
         if (!alerts || alerts.h < 60) fails.push('HS-22 ' + tag + ' CONTROL: three invites made no alert stack (' + (alerts && Math.round(alerts.h)) + ' px)');
         else if (bar && alerts.bottom > bar.top) fails.push('HS-22 ' + tag + ' the alerts reach ' + Math.round(alerts.bottom) + ', below the bar top ' + Math.round(bar.top));
+        /* A stack that GROWS after it was placed (a new line, a late stylesheet) still ends above the bar: it is
+           re-placed at its new size, never grown down over the bar's buttons (v0.2.24 run 39670839568: the
+           "No thanks" of an invite took the Fight settings press on a runner). */
+        if (!town) {
+          /* no envelope lands meanwhile (its repaint would re-place the stack and hide the bug): the settles are held */
+          s.holdAccrue = true;
+          const frames = () => page.evaluate(() => new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(() => ok()))));
+          await until(() => !s.accrueLive);
+          await page.evaluate(() => new Promise((ok) => setTimeout(ok, 0)));
+          await frames();
+          const grow = await page.addStyleTag({ content: '[data-hs-widget="alerts"] { padding-bottom: 48px !important; }' });
+          const clear = (q) => { const a = document.querySelector(q.a).getBoundingClientRect(), b = document.querySelector(q.b).getBoundingClientRect(); return a.height > 0 && a.bottom <= b.top; };
+          await frames();
+          const grown = await rect('[data-hs-widget="alerts"]'), bar2 = await rect('.hb-bar');
+          s.release('accrue');
+          if (!grown || !bar2 || grown.bottom > bar2.top || grown.h < (alerts ? alerts.h + 40 : 100)) fails.push('HS-22 an alert stack that grew after it was placed reaches ' + (grown && Math.round(grown.bottom)) + ', below the bar top ' + (bar2 && Math.round(bar2.top)) + ' (' + (grown && Math.round(grown.h)) + ' px tall)');
+          await grow.evaluate((n) => n.remove());
+          await wait(page, clear, { a: '[data-hs-widget="alerts"]', b: '.hb-bar' });
+        }
         /* The panel keeps the set and its buttons; the rest is a sheet: shut, then open on the bar's button, on top, then shut on Escape. */
         const onTopFn = () => { const c = document.querySelector('.hb-pl-more [data-opt="target_mode"]'); const b = c.getBoundingClientRect();
           const h = document.elementFromPoint(b.left + 6, b.top + 6); return b.width > 0 && b.right <= innerWidth && b.left >= 0 && (h === c || c.contains(h)); };
@@ -1396,6 +1424,7 @@ const MUTANTS = [
   ['the phone alerts dock on the left, over the Party panel (HS-22)', 'src/data/hud-widgets.js', "phone: Object.freeze({ anchor: 'br', dx: 4, dy: 104 }),", "phone: Object.freeze({ anchor: 'bl', dx: 4, dy: 160 }),"],
   ['the phone alerts draw over an open window (HS-22)', 'src/styles/hunt.css', '  :root:has(.hs-win:not(.is-leaving)) .hs-widget.is-alerts { visibility: hidden; }', '.hs-widget.is-alerts { }'],
   ['the fight settings sheet starts at the top of the screen (HS-22)', 'src/shell/widgets/action-bar.js', "    sheet.style.top = Math.round(Math.max(box.top, hb ? hb.bottom + 4 : box.top)) + 'px';", "    sheet.style.top = '0px';"],
+  ['a widget that grows after it is placed is never placed again (HS-22)', 'src/shell/shell.js', 'const sized = host.ResizeObserver ? ', 'const sized = false ? '],
   ['the bleed badge defaults on for regular monsters', 'src/data/combat-text.js', "label: 'Bleed stack count', on: on(false, true)", "label: 'Bleed stack count', on: on(true, true)"],
 ];
 

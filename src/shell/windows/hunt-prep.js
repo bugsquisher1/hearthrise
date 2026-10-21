@@ -18,6 +18,7 @@
 import { presetsOf } from '../../session/item-sections.js?v=0.2.23';
 import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.23';
 import { runIntent } from '../intent-words.js?v=0.2.23';
+import { settleTownActivity } from '../../session/party-intents.js?v=0.2.23';
 import { readinessOf, readinessLine } from '../readiness.js?v=0.2.23';
 
 const MAX_PRESETS = 8;
@@ -85,7 +86,12 @@ renderHuntPrep.act = function actHuntPrep(ctx, body, action, ev, t) {
   const cs = ctx.character;
   const sc = scratchOf(cs);
   const repaint = () => renderHuntPrep.patch(body, ctx);
-  if (action === 'apply') { runIntent(sc, repaint, () => cs.applyPreset(Number(t.getAttribute('data-preset'))), 'Putting the setup on…', () => 'Setup on.'); return true; }
+  /* A town activity yields to the hunt setup (Andy live 10-21: "burying locks an action"): the engine collects
+     it first (set_activity idle, as Enter does in hunts.js), so the server's apply never answers activity_running. */
+  if (action === 'apply') {
+    runIntent(sc, repaint, () => settleTownActivity(cs).then(() => cs.applyPreset(Number(t.getAttribute('data-preset')))), 'Putting the setup on…', () => 'Setup on.');
+    return true;
+  }
   if (action === 'save-over') {
     const p = (presetsOf(cs) || []).find((x) => x.preset === Number(t.getAttribute('data-preset')));
     if (p) runIntent(sc, repaint, () => cs.savePreset(p.preset, p.name), 'Saving…', () => 'Saved over ' + p.name + '.');

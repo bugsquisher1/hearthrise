@@ -17,7 +17,7 @@ export function supplySession(M, o) {
       [STORE_DRINK]: { kind: 'mana', price: 15, heals: 0, mana: 6, partner: 'turnip_juice' },
       ...(x.shot ? { [x.shot]: { kind: 'ammo', price: 2, heals: 0, mana: 0, partner: x.ammo } } : {}),
     },
-    shop: { heal: STORE_FOOD, mana: STORE_DRINK }, purse: x.purse ?? 100000, goldFloor: x.goldFloor ?? 0,
+    purse: x.purse ?? 100000, goldFloor: x.goldFloor ?? 0,
     supplySource: x.supplySource || 'mine', onEmpty: x.onEmpty || 'switch',
   });
 }
@@ -50,7 +50,7 @@ export async function loadData(M) {
   const { pathToFileURL } = await import('node:url');
   const v = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(M.root, 'src/build-info.js'), 'utf8')) || [, ''])[1];
   const imp = (p) => import(pathToFileURL(join(M.root, p)).href + v);
-  return { CD: await imp('src/data/consumables.js'), AD: await imp('src/data/abilities.js') };
+  return { CD: await imp('src/data/consumables.js'), AD: await imp('src/data/abilities.js'), SB: await imp('src/data/supply-basics.js') };
 }
 
 /** fixtures/h1.js `suite`, with this lane's data modules on M (M.CD, M.AD). */

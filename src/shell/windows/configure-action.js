@@ -11,6 +11,13 @@
 //   list      icon + name per choice (+ how many you carry, the store price)
 //   details   icon + name, type line, cost · cooldown, effect, where its uses
 //             come from (own first, then the store), requirement
+//   store     (Tyler 2026-10-19: the PLAYER picks the store item) an Any food /
+//             Any drink slot picks its store row — each with HP (or mana) a use,
+//             gold a use and gold a point, cheapest per point first, from the
+//             SERVER's rows (hunt_settings.store) — or keeps the default, the
+//             cheapest per point; a rune spell picks its store
+//             rune or carried runes only (picking the spell starts on the store
+//             rune, shown and changeable)
 //   conditions up to MAX_CONDITIONS registry tests (metric, whose, comparison,
 //             − value +), all or any; with none, the action's own trigger
 //   priority  Earlier / Later (slot 1 fires first); dragging on the bar too
@@ -27,7 +34,8 @@ import { bagOf } from '../../session/item-sections.js?v=0.2.23';
 import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.23';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.23';
 import { actionIconHtml } from '../widgets/bits.js?v=0.2.23';
-import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, storeOf, supplyDefault } from '../bar-draft.js?v=0.2.23';
+import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, storeOf, supplyDefault,
+  storeChoices, storeChoiceWords, storeDefault } from '../bar-draft.js?v=0.2.23';
 import { TABS, tabOf, choicesFor, actionName, factsOf, carried, supplyLines, setupWords } from '../action-facts.js?v=0.2.23';
 
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
@@ -61,7 +69,8 @@ export function renderConfigureAction() {
     + '</div>'
     + '<div class="hc-pick"><ul class="hc-list" role="listbox" aria-label="Choose the action"></ul>'
     + '<div class="hc-detail"><div class="hc-detail-head"><span class="hc-detail-icon"></span><b class="hc-name"></b></div>'
-    + '<p class="hc-type"></p><p class="hc-cost"></p><ul class="hc-facts"></ul><p class="hc-req"></p></div></div>'
+    + '<p class="hc-type"></p><p class="hc-cost"></p><ul class="hc-facts"></ul><p class="hc-req"></p>'
+    + '<div class="hc-store"><h3 class="hs-sub">When your own run out, buy</h3><ul class="hc-store-list" role="listbox" aria-label="Store item"></ul></div></div></div>'
     + '<div class="hc-conds-head"><h3 class="hs-sub">Conditions</h3>' + btn('add', '+ Add condition') + '</div>'
     + '<p class="hs-note hc-rule"></p>'
     + '<ol class="hc-conds">' + conds + '</ol>'
@@ -103,9 +112,9 @@ function patchCond(row, c, i, s, doc) {
 }
 
 /* The list's small note: how many you carry, and the store's price per use. */
-function choiceNote(a, bag) {
-  const st = storeOf(a), n = carried(a, bag);
-  return [n ? '×' + n : '', st && st.price !== null ? (st.from ? 'store from ' : 'store ') + st.price + ' g each' : st ? 'store' : ''].filter(Boolean).join(' · ');
+function choiceNote(a, bag, rows) {
+  const st = storeOf(a, rows), n = carried(a, bag);
+  return [n ? '×' + n : '', st && st.price !== null ? 'store ' + st.price + ' g each' : st ? 'store' : ''].filter(Boolean).join(' · ');
 }
 
 renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
@@ -132,7 +141,7 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
     patch: (li, c) => {
       const picked = c.type === d.action.type && c.id === d.action.id;
       attr(li, 'aria-selected', String(picked)); cls(li, 'is-on', picked); prop(li.firstElementChild, 'disabled', off);
-      text(li.querySelector('.hc-choice-note'), choiceNote(c, bag));
+      text(li.querySelector('.hc-choice-note'), choiceNote(c, bag, set.store));
     },
   });
   const icon = root.querySelector('.hc-detail-icon');
@@ -146,6 +155,18 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
     key: (x) => x, build: () => element(ctx.doc, '<li></li>'), patch: (li, x) => text(li, x),
   });
   text(root.querySelector('.hc-req'), f.requires || '');
+  const picks = storeChoices(d.action, set.store);
+  cls(root.querySelector('.hc-store'), 'is-on', picks.length > 0);
+  rows(root.querySelector('.hc-store-list'), picks, {
+    key: (c) => c.id || '-',
+    build: (c) => element(ctx.doc, '<li role="option"><button type="button" class="hc-choice" data-hs-act="cfg" data-x="store" data-store="' + esc(c.id || '') + '">'
+      + '<span class="hc-choice-name"></span></button></li>'),
+    patch: (li, c) => {
+      const on = (d.action.store || null) === c.id;
+      attr(li, 'aria-selected', String(on)); cls(li, 'is-on', on); prop(li.firstElementChild, 'disabled', off);
+      text(li.querySelector('.hc-choice-name'), storeChoiceWords(c));
+    },
+  });
   const n = d.conditions.length;
   text(root.querySelector('.hc-rule'), n ? 'All conditions must match (up to ' + MAX_CONDITIONS + ').'
     : (d.action.id ? setupWords(d, set) : 'No conditions: the action’s own trigger.'));
@@ -181,8 +202,14 @@ renderConfigureAction.act = function actConfigureAction(ctx, body, action, ev, t
     if (x === 'tab') VIEW.set(cs, t.getAttribute('data-tab'));
     else if (x === 'pick') {
       d.action = { type: t.getAttribute('data-type'), id: t.getAttribute('data-id') };
+      const st = storeDefault(d.action, (settingsOf(cs) || {}).store);
+      if (st) d.action.store = st;
       /* A food or drink slot with no condition yet starts at HP below 50% / mana below 30%. */
       if (!d.conditions.length) d.conditions = supplyDefault(d.action);
+    }
+    else if (x === 'store') {
+      const id = t.getAttribute('data-store');
+      d.action = Object.assign({ type: d.action.type, id: d.action.id }, id ? { store: id } : {});
     }
     else if (x === 'add' && d.conditions.length < MAX_CONDITIONS) d.conditions.push(blankCondition());
     else if (x === 'drop' && c) d.conditions.splice(Number(t.getAttribute('data-i')), 1);

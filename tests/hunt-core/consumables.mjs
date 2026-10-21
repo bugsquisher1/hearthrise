@@ -138,6 +138,41 @@ const cases = {
     if (d.length !== 2 || d[1].atMs !== lane) return 'a thirsty hero drank at ' + JSON.stringify(d.map((x) => x.atMs)) + '; the second drink must fire at ' + lane + ' while the first still ticks';
     return Array.isArray(b.h.otMana) && b.h.otMana[2] === 6 ? null : 'the second drink did not replace the over-time half: ' + JSON.stringify(b.h.otMana);
   },
+  /* LIVE 10-21 (Andy: "make sure foods are usable while the regen potion is ticking"): a player's own bar
+     with the DRINK slot first. A drink re-fired every cooldown while mana stays low held the ONE shared
+     cooldown, so a hungry hero never ate. While the drink's over-time half lands, food goes first. */
+  'food-while-a-drink-ticks': (M) => {
+    const lane = M.CD.CONSUMABLE_RULES.laneMs;
+    const slots = M.conditions.heroSlots([
+      { action: { type: 'consume', id: 'drink' }, conditions: [{ metric: 'self_mana_pct', op: 'lt', value: 90 }], join: 'and' },
+      { action: { type: 'consume', id: 'food' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 90 }], join: 'and' }], null);
+    const { inst, sc } = oneHero(M, { hp: 10, maxHp: 100000, mana: 5, maxMana: 100000 }, { hs: supplySession(M, { purse: 1e6 }), slots });
+    for (let t = 0; t < 20000; t += 100) { sc.atMs = t; M.consumables.consume(inst, sc); }
+    const e = eats(sc).map((x) => x.atMs);
+    if (!drinks(sc).length || drinks(sc)[0].atMs !== 0) return 'the bar\'s first slot (the drink) did not fire first: ' + JSON.stringify(drinks(sc).map((x) => x.atMs));
+    if (e.length < 6) return 'a hungry hero ate ' + e.length + ' times in 20 s while its drink ticked (meals at ' + JSON.stringify(e) + ')';
+    return e.some((at, i) => i && at - e[i - 1] > 2 * lane) ? 'a gap between meals passed two cooldowns: ' + JSON.stringify(e) : null;
+  },
+  /* TYLER 2026-10-19 (the player picks the store item, never the hunt): an "Any food" slot that names its
+     store row buys exactly that row; with no choice the cheapest per point (the picker's first row); a slot
+     naming an own item buys THAT item's store row once its stack is gone. */
+  'slot-names-its-store-item': (M) => {
+    const hs = supplySession(M, { purse: 1e6 });
+    hs.basics.salted_trout = { kind: 'heal', price: 40, heals: 60, mana: 0, partner: 'cooked_trout' };
+    const pick = (action) => {
+      const slots = M.conditions.heroSlots([{ action, conditions: [], join: 'and' }], null);
+      const x = oneHero(M, { hp: 45, maxHp: 100 }, { hs, slots });
+      M.consumables.consume(x.inst, x.sc);
+      const e = eats(x.sc)[0] || {};
+      return e.source === 'store' ? e.item : 'none (' + JSON.stringify(e) + ')';
+    };
+    const chosen = pick({ type: 'consume', id: 'food', store: STORE_FOOD });
+    if (chosen !== STORE_FOOD) return 'an Any food slot naming ' + STORE_FOOD + ' bought ' + chosen + ' (the default would be Salted Trout)';
+    const auto = pick({ type: 'consume', id: 'food' });
+    if (auto !== 'salted_trout') return 'with no choice the slot bought ' + auto + ', not the cheapest per point (Salted Trout 0.67 g a point, the shrimp 2.5)';
+    const same = pick({ type: 'consume', id: 'cooked_trout' });
+    return same === 'salted_trout' ? null : 'a Cooked Trout slot with none left bought ' + same + ', not Cooked Trout\'s store row';
+  },
   /* §3.4 #4, spec §5 #10: default thresholds drink < 30%, food < 50%; per-hero settings override. */
   'thresholds': (M) => {
     const R = M.CD.CONSUMABLE_RULES;
@@ -259,9 +294,9 @@ const mutants = [
   { name: 'the over-time half is dropped', case: 'half-now-half-over-6s',
     edits: [['src/core/hunt/consumables.js', '      const landed = raise(u, stat, part);', '      const landed = raise(u, stat, 0);']] },
   { name: 'the store is tried before the own stack', case: 'own-first-then-store',
-    edits: [['src/core/action-rules.js', "    if (own) return { id: own, source: 'own', price: 0 };", "    if (own && !(hs.shop && hs.shop[want])) return { id: own, source: 'own', price: 0 };"]] },
+    edits: [['src/core/action-rules.js', "    if (own) return { id: own, source: 'own', price: 0 };", "    if (own && store === null) return { id: own, source: 'own', price: 0 };"]] },
   { name: 'an empty stack stops eating (the store never takes over)', case: 'never-stops-when-out',
-    edits: [['src/core/action-rules.js', "    if (!storeAllowed(hs, want)) return { why: 'store_off' };", "    if (hs) return { why: 'store_off' };"]] },
+    edits: [['src/core/action-rules.js', "    if (!storeAllowed(hs)) return { why: 'store_off' };", "    if (hs) return { why: 'store_off' };"]] },
   { name: 'a store use the purse cannot pay ends nothing', case: 'never-stops-when-out',
     edits: [['src/core/hunt/consumables.js', "      if (w.why === 'gold_short') { if (w.kind === 'food') hero.hs.goldOut = true; return { why: 'gold_short' }; }", "      if (w.why === 'gold_short') return { why: 'gold_short' };"]] },
   { name: 'the last slot is tried first', case: 'slot-one-first',
@@ -272,7 +307,15 @@ const mutants = [
     edits: [['src/core/hunt/conditions.js', "  Object.freeze({ id: 'd_food', action: Object.freeze({ type: 'consume', id: 'food' }), conditions: Object.freeze([]), join: 'and' }),\n  Object.freeze({ id: 'd_drink', action: Object.freeze({ type: 'consume', id: 'drink' }), conditions: Object.freeze([]), join: 'and' }),",
       "  Object.freeze({ id: 'd_drink', action: Object.freeze({ type: 'consume', id: 'drink' }), conditions: Object.freeze([]), join: 'and' }),\n  Object.freeze({ id: 'd_food', action: Object.freeze({ type: 'consume', id: 'food' }), conditions: Object.freeze([]), join: 'and' }),"]] },
   { name: 'a drink waits for its running over-time half', case: 'drink-never-starves-food',
-    edits: [['src/core/hunt/consumables.js', "  const stat = CONSUMABLE_KINDS[kind].stat;\n  if (!CONSUME_KINDS[id])", "  const stat = CONSUMABLE_KINDS[kind].stat;\n  if (kind === 'drink' && u[OT_KEY[stat]]) return { kind, why: 'ticking' };\n  if (!CONSUME_KINDS[id])"]] },
+    edits: [['src/core/hunt/consumables.js', "  const stat = CONSUMABLE_KINDS[kind].stat;\n  const line = CONSUME_KINDS[id]", "  const stat = CONSUMABLE_KINDS[kind].stat;\n  if (kind === 'drink' && u[OT_KEY[stat]]) return { kind, why: 'ticking' };\n  const line = CONSUME_KINDS[id]"]] },
+  { name: 'a ticking drink keeps its bar place (food starves)', case: 'food-while-a-drink-ticks',
+    edits: [['src/core/hunt/consumables.js', '  if (!Array.isArray(u.otMana)) return rows;', '  return rows;']] },
+  { name: 'an Any food slot ignores its chosen store row', case: 'slot-names-its-store-item',
+    edits: [['src/core/action-rules.js', "  if (typeof store === 'string') {\n    const b = basicOf(hs, store);", "  if (false) {\n    const b = basicOf(hs, store);"]] },
+  { name: 'the default store row is the cheapest a use, not a point', case: 'slot-names-its-store-item',
+    edits: [['src/core/action-rules.js', '    if (!c || b.price * amountOf(c) < c.price * amountOf(b) ||', '    if (!c || b.price < c.price ||']] },
+  { name: 'an own item slot stops at its own stack', case: 'slot-names-its-store-item',
+    edits: [['src/core/hunt/consumables.js', '    : resolveLine(hero.hs, id, 1);', '    : resolveLine(hero.hs, id, 1, null);']] },
   { name: 'the shared cooldown back at 1 s', case: 'one-shared-lane',
     edits: [['src/data/consumables.js', '  laneMs: 2000,', '  laneMs: 1000,']] },
   { name: 'food and drink each keep their own lane', case: 'one-shared-lane',
@@ -290,11 +333,11 @@ const mutants = [
   { name: 'the over-time ticks are not credited', case: 'tally-healed-is-hp-restored',
     edits: [['src/core/hunt/consumables.js', "      if (stat === 'hp') healed(u, landed, item, sc);\n", '']] },
   { name: 'food waits for the running over-time half', case: 'food-during-over-time',
-    edits: [['src/core/hunt/consumables.js', "  const stat = CONSUMABLE_KINDS[kind].stat;\n  if (!CONSUME_KINDS[id])", "  const stat = CONSUMABLE_KINDS[kind].stat;\n  if (kind === 'food' && u[OT_KEY[stat]]) return { kind, why: 'ticking' };\n  if (!CONSUME_KINDS[id])"]] },
+    edits: [['src/core/hunt/consumables.js', "  const stat = CONSUMABLE_KINDS[kind].stat;\n  const line = CONSUME_KINDS[id]", "  const stat = CONSUMABLE_KINDS[kind].stat;\n  if (kind === 'food' && u[OT_KEY[stat]]) return { kind, why: 'ticking' };\n  const line = CONSUME_KINDS[id]"]] },
   { name: 'a second over-time half stacks on the first', case: 'food-during-over-time',
     edits: [['src/core/hunt/consumables.js', '  u[OT_KEY[stat]] = later > 0 ? [later,', '  u[OT_KEY[stat]] = later > 0 ? [later + (Array.isArray(u[OT_KEY[stat]]) ? u[OT_KEY[stat]][0] : 0),']] },
   { name: 'food waits after an ability heal', case: 'eat-right-after-a-heal',
-    edits: [['src/core/hunt/consumables.js', "  const stat = CONSUMABLE_KINDS[kind].stat;\n  if (!CONSUME_KINDS[id])", "  const stat = CONSUMABLE_KINDS[kind].stat;\n  if (kind === 'food' && Number.isInteger(u.healedAt)) return { kind, why: 'healed' };\n  if (!CONSUME_KINDS[id])"]] },
+    edits: [['src/core/hunt/consumables.js', "  const stat = CONSUMABLE_KINDS[kind].stat;\n  const line = CONSUME_KINDS[id]", "  const stat = CONSUMABLE_KINDS[kind].stat;\n  if (kind === 'food' && Number.isInteger(u.healedAt)) return { kind, why: 'healed' };\n  const line = CONSUME_KINDS[id]"]] },
   { name: 'the over-time half is not persisted', case: 'over-time-survives-a-cut',
     edits: [['src/core/hunt/consumables.js', "  unit: Object.freeze([['laneAt', 'int'], ['otHp', 'json'], ['otMana', 'json'], ['healedAt', 'int?']]),",
       "  unit: Object.freeze([['laneAt', 'int'], ['otMana', 'json'], ['healedAt', 'int?']]),"]] },

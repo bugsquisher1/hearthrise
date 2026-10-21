@@ -53,6 +53,7 @@ import { SUPPLIES } from '../../data/supplies.js?v=0.2.23';
 import { ITEMS } from '../../data/items.js?v=0.2.23';
 import { MONSTERS } from '../../data/monsters.js?v=0.2.23';
 import { ROLE_RULES } from '../../data/rule-subjects.js?v=0.2.23';
+import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.23';
 import { cheb, dist2, los } from './grid.js?v=0.2.23';
 import { makeEvent } from './events.js?v=0.2.23';
 
@@ -83,7 +84,8 @@ export function normalizeSlot(s) {
   if (!isObj(s) || !isObj(s.action)) return null;
   return {
     id: typeof s.id === 'string' && RULE_ID.test(s.id) ? s.id : null,
-    action: { type: String(s.action.type), id: String(s.action.id) },
+    action: { type: String(s.action.type), id: String(s.action.id),
+      ...(typeof s.action.store === 'string' ? { store: s.action.store } : {}) },
     conditions: Array.isArray(s.conditions) ? s.conditions.map((c) => (isObj(c) ? { metric: c.metric, op: c.op, value: c.value,
       ...(c.subject !== undefined && c.subject !== null ? { subject: c.subject } : {}) } : null)) : [],
     join: s.join === 'or' ? 'or' : 'and',
@@ -97,6 +99,18 @@ function actionKnown(type, id) {
   if (type === 'ability') return !!ABILITIES[id];
   if (type === 'consume') return Object.prototype.hasOwnProperty.call(CONSUME_KINDS, id) || !!(CONSUMABLES[id] && CONSUMABLES[id].source === 'own');
   if (type === 'attack_with_item') return Object.prototype.hasOwnProperty.call(ATTACK_KINDS, id) || !!(SUPPLIES[id] && SUPPLIES[id].kind === 'ammo');
+  return false;
+}
+
+/** THE STORE ROW A SLOT MAY NAME (`action.store`, Tyler 2026-10-19: the player picks
+    it): an Any food / Any drink slot names a store food / drink, an ability with a
+    rune names that rune's store row. Nothing else carries one (an item slot buys its
+    own item's row). True when `store` fits the action. */
+function storeFits(type, id, store) {
+  const b = typeof store === 'string' && Object.prototype.hasOwnProperty.call(BASIC_INDEX, store) ? BASIC_INDEX[store] : null;
+  if (!b) return false;
+  if (type === 'consume') return Object.prototype.hasOwnProperty.call(CONSUME_KINDS, id) && CONSUME_KINDS[id] === b.kind;
+  if (type === 'ability') return !!ABILITIES[id] && !!ABILITIES[id].rune && b.partner === ABILITIES[id].rune;
   return false;
 }
 
@@ -137,6 +151,8 @@ export function slotProblem(s) {
   if (Object.keys(s).some((k) => !['id', 'action', 'conditions', 'join'].includes(k))) return { error: 'bad_slot' };
   if (s.id !== undefined && !(typeof s.id === 'string' && RULE_ID.test(s.id))) return { error: 'bad_slot' };
   if (!ACTION_TYPES[s.action.type] || typeof s.action.id !== 'string' || !actionKnown(s.action.type, s.action.id)) return { error: 'bad_action' };
+  if (Object.keys(s.action).some((k) => !['type', 'id', 'store'].includes(k))) return { error: 'bad_action' };
+  if (s.action.store !== undefined && !storeFits(s.action.type, s.action.id, s.action.store)) return { error: 'bad_store' };
   return conditionsProblem(s.conditions, s.join, false);
 }
 

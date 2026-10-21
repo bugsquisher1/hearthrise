@@ -22,7 +22,11 @@
 // the default bar (conditions.js DEFAULT_CONSUME and hr_hunt_settings_view,
 // 2026-10-28-consume-defaults.sql): a drink that always fires would otherwise
 // take every cooldown while mana stays low (a tier-1 drink lands 3 mana) and
-// starve food. A player's own bar keeps the player's order.
+// starve food. A player's own bar keeps the player's order, with ONE yield
+// (Andy live 10-21, "foods usable while the regen potion is ticking"): while a
+// drink's over-time half is still landing, a matching FOOD slot goes before
+// the drink slots. A drink re-fired mid-tick only replaces what was still
+// coming, so it must not hold the shared cooldown from a hero who needs to eat.
 //
 // EVERY HP POINT FOOD RESTORES IS A `heal` EVENT (u = t = the eater, `item` =
 // the food): the instant half, and each over-time tick that landed. The
@@ -30,8 +34,10 @@
 // the HP food actually restored (it read 0 for every food before this).
 //
 // SUPPLY. Each hero's line comes from `resolveLine` (src/core/action-rules.js,
-// the one resolver): its own carried stack first, free; then the store row for
-// the hunt's tier at store price, on the player's choice; a store use the
+// the one resolver): its own carried stack first, free; then the store row the
+// SLOT names at store price (Tyler 2026-10-19: an item slot buys that item's
+// store row, an Any food / Any drink slot the row its `action.store` chose, else
+// the cheapest per point); a store use the
 // purse cannot pay marks the session goldOut (the hunt ends gold_out). A hero
 // with nothing to eat simply keeps fighting: running out never stops a hunt.
 //
@@ -113,19 +119,30 @@ function use(u, hero, kind, line, sc, d) {
   return true;
 }
 
+/* The kind ('food' | 'drink') a consume slot's action id names, or null. */
+const kindOfAction = (id) => (CONSUME_KINDS[id] ? id : (CONSUMABLES[id] ? CONSUMABLES[id].kind : null));
+
 /* What a consume slot's action would use now (its conditions already passed), or
-   why not. `id` is a KIND ('food' | 'drink': the best line of it, own first, then
-   the store) or one own item (its own stack only: none left falls back). */
-function slotWants(u, hero, id) {
-  const kind = CONSUME_KINDS[id] ? id : (CONSUMABLES[id] ? CONSUMABLES[id].kind : null);
+   why not. `action.id` is a KIND ('food' | 'drink': the best own line of it, then
+   the store row `action.store` chose) or one own item (its own stack, then that
+   item's store row; with neither, the slot falls back). */
+function slotWants(u, hero, action) {
+  const id = action.id;
+  const kind = kindOfAction(id);
   if (!kind) return { why: 'none' };
   const stat = CONSUMABLE_KINDS[kind].stat;
-  if (!CONSUME_KINDS[id]) {
-    const l = hero.hs.bag && hero.hs.bag[id];
-    return l && int(l.left) > 0 ? { kind, line: { id, source: 'own', price: 0 } } : { kind, why: 'none' };
-  }
-  const line = resolveLine(hero.hs, CONSUMABLE_KINDS[kind].supply, int(u[MAX_OF[stat]]) - int(u[stat]));
+  const line = CONSUME_KINDS[id]
+    ? resolveLine(hero.hs, CONSUMABLE_KINDS[kind].supply, int(u[MAX_OF[stat]]) - int(u[stat]), action.store)
+    : resolveLine(hero.hs, id, 1);
   return line.id && !line.why ? { kind, line } : Object.assign({ kind }, line);
+}
+
+/* THE ONE YIELD: while the hero's drink is still landing (its over-time half
+   ticks), its FOOD slots stand before its drink slots; otherwise bar order. */
+function consumeOrder(u, rows) {
+  if (!Array.isArray(u.otMana)) return rows;
+  const drink = (r) => kindOfAction(r.slot.action.id) === 'drink';
+  return rows.filter((r) => !drink(r)).concat(rows.filter(drink));
 }
 
 /**
@@ -141,8 +158,8 @@ export function consume(inst, sc) {
     if (int(u.laneAt) > sc.atMs) continue;
     const hero = heroes && heroes[u.id];
     if (!hero || !hero.hs) continue;
-    const got = pickSlot(inst, u, hero, slotsFor(hero, 'consume'), (slot) => {
-      const w = slotWants(u, hero, slot.action.id);
+    const got = pickSlot(inst, u, hero, consumeOrder(u, slotsFor(hero, 'consume')), (slot) => {
+      const w = slotWants(u, hero, slot.action);
       /* A FOOD the purse cannot buy ends the hunt gold_out (a hero cannot heal);
          a DRINK it cannot buy only goes without (mana feeds abilities, and a basic
          swing needs none): a hunt never stops for a drink (spec §3.4 #7). */

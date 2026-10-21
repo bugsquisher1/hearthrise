@@ -290,6 +290,11 @@
 .hc-choice-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hc-choice-note { flex: none; font-size: var(--t-micro); color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; }
 .hc-list .is-on .hc-choice { background: var(--bg-3); color: var(--gold-2); }
+.hc-store { display: none; margin-top: 8px; }
+.hc-store.is-on { display: block; }
+.hc-store-list { margin: 0; padding: 0; list-style: none; }
+.hc-store-list .hc-choice-name { white-space: normal; font-variant-numeric: lining-nums tabular-nums; }
+.hc-store-list .is-on .hc-choice { background: var(--bg-3); color: var(--gold-2); }
 .hc-detail { min-width: 0; }
 .hc-name { margin: 0 0 4px; font-weight: 700; color: var(--ink); }
 .hc-facts { margin: 0; padding: 0; list-style: none; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.45; }

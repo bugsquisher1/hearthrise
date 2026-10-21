@@ -49,7 +49,7 @@ export function readinessOf(cs) {
       const k = KIND_OF_SLOT[sl.item] || kindOf(sl.item);
       if (!byKind[k]) continue;
       if (!KIND_OF_SLOT[sl.item]) byKind[k].add(sl.item);
-      const st = storeOn ? storeOf(sl.action) : null;
+      const st = storeOn ? storeOf(sl.action, s.store) : null;
       if (st && (!backed[k] || (st.price !== null && st.price < backed[k].price))) backed[k] = st;
       if (KIND_OF_SLOT[sl.item]) for (const r of bag) if (kindOf(r.id) === k) byKind[k].add(r.id);
     }
@@ -57,7 +57,7 @@ export function readinessOf(cs) {
       if (!ids.size && !backed[k]) continue;
       const n = Array.from(ids).reduce((t, id) => t + (have.get(id) || 0), 0);
       const st = backed[k];
-      const store = st ? (st.price === null ? 'then the store as used' : 'then the store, ' + (st.from ? 'from ' : '') + st.price + ' gp each as used') : '';
+      const store = st ? (st.price === null ? 'then the store as used' : 'then the store, ' + st.price + ' gp each as used') : '';
       checks.push({ id: k, ok: n > 0 || !!st, text: st ? PLURAL_CAP[k] + ': ' + (n > 0 ? whole(n) + ' of your own, ' + store : store.replace(/^then the store/, 'the store')) : whole(n) + ' ' + PLURAL[k] + ' for the bar' });
       if (n === 0 && !st) short.push('0 ' + PLURAL[k]);
     }

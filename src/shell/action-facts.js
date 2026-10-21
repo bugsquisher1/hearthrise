@@ -122,8 +122,13 @@ export function carried(a, bag) {
 
 /** Where an action's uses come from: own stock first, then the store per use, and the supply setting. */
 export function supplyLines(a, set, bag) {
-  if (a.type === 'ability') return [];
-  const st = storeOf(a);
+  const st = storeOf(a, set && set.store);
+  if (a.type === 'ability') {
+    const r = ABILITIES[a.id];
+    if (!r || !r.rune) return [];
+    const have = (bag || []).filter((l) => l.id === r.rune).reduce((n, l) => n + l.qty, 0);
+    return ['You carry ' + have + ' ' + itemName(r.rune) + '. ' + (st ? 'Own runes first, ' + storeWords(st) + '.' : 'Carried runes only: once they are gone this slot waits.')];
+  }
   const n = carried(a, bag);
   const out = [];
   if (n !== null && n > 0) out.push('You carry ' + n + '. ' + (st ? 'Own stock first, ' + storeWords(st) + '.' : 'When they run out, this slot waits.'));
@@ -203,7 +208,10 @@ export function reasonOf(sl, set, bag, hero) {
     const role = set && set.role && HUNT_ROLES[set.role] ? HUNT_ROLES[set.role] : null;
     if (!role) return { code: 'weapon', text: 'No weapon worn: abilities come from the weapon you wield. Needs ' + weaponsFor(r.disciplines[0]) + '.', glyph: 'uiLock', strike: true };
     if (!r.disciplines.includes(role.discipline)) return { code: 'weapon', text: 'Your weapon can’t use this. Needs ' + weaponsFor(r.disciplines[0]) + '.', glyph: 'uiLock', strike: true };
-    if (r.rune && !((bag || []).some((l) => l.id === r.rune && l.qty > 0))) return { code: 'rune', text: 'Needs a ' + itemName(r.rune) + ' in the bag for each cast; you have none.', glyph: 'uiChest', strike: true };
+    const storeOn = !!set && (set.supplySource === 'store' || set.onEmpty === 'switch');
+    if (r.rune && !((bag || []).some((l) => l.id === r.rune && l.qty > 0)) && !(storeOn && storeOf(a, set && set.store))) {
+      return { code: 'rune', text: 'Needs a ' + itemName(r.rune) + ' for each cast: you carry none. Pick the store’s rune for this slot to buy one as used.', glyph: 'uiChest', strike: true };
+    }
     if (sl.usable === false) return { code: 'server', text: 'The server says this cannot fire now.', glyph: 'uiLock', strike: true };
     if (hero && Number.isFinite(hero.mana) && r.mana > hero.mana) return { code: 'mana', text: 'Needs ' + r.mana + ' mana, you have ' + Math.floor(hero.mana) + '.', glyph: 'uiPotion', strike: false };
     return null;
@@ -211,7 +219,7 @@ export function reasonOf(sl, set, bag, hero) {
   if (sl.usable === false) return { code: 'server', text: 'The server says this cannot fire now.', glyph: 'uiLock', strike: true };
   const n = Number.isInteger(sl.count) && !own(CONSUME_KINDS, a.id) && !own(ATTACK_KINDS, a.id) ? sl.count : carried(a, bag);
   if (n === null || n > 0) return null;
-  const st = storeOf(a);
+  const st = storeOf(a, set && set.store);
   const storeOn = !!set && (set.supplySource === 'store' || set.onEmpty === 'switch');
   if (st && storeOn) return null;
   if (st) return { code: 'store_off', text: 'Out of stock, and this hero is set to end the hunt rather than buy from the store.', glyph: 'uiChest', strike: true };

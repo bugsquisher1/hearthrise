@@ -57,9 +57,9 @@ function isEssential(id, line) {
 
 /* ── THE STORE: SUPPLIES PAID PER USE (Tyler 2026-10-14; supply-basics.js) ────
    A store supply is not an item. `hs.basics` is the SERVER's catalogue
-   (hr_hunt_basic_supplies: id → { kind, price, heals, mana, partner }) and
-   `hs.shop` the ids the hunt's tier resolves food and drink to ({ heal, mana });
-   neither is ever a client value. A store use is paid from `hs.purse` (the
+   (hr_hunt_basic_supplies: id → { kind, price, heals, mana, partner }), never a
+   client value. WHICH row a use buys is the PLAYER's (Tyler 2026-10-19): the bar
+   slot names it (`storeFor` below); the hunt never picks one. A store use is paid from `hs.purse` (the
    character's gold at the window start plus the coins this window has earned).
    The database re-prices every use from its own catalogue and debits it in the
    locked settle (one `supply_buy` ledger row per settle). */
@@ -67,26 +67,49 @@ export function basicOf(hs, id) {
   const b = hs && hs.basics && typeof id === 'string' && Object.prototype.hasOwnProperty.call(hs.basics, id) ? hs.basics[id] : null;
   return b && Number.isInteger(b.price) && b.price > 0 ? b : null;
 }
-/** MAY THE STORE SUPPLY `kind` NOW? The hero's own setting (hunt-sessions.js
-    SUPPLY_SOURCE / ON_EMPTY): always under `store`; under `mine` only with
-    `switch` (the default) AND once no carried line of that kind has a use left.
-    Every store path asks this: food, drink, a rune, a shot, and the
-    out-of-supply end test. */
-export function storeAllowed(hs, kind) {
-  if (!hs) return false;
-  if (hs.supplySource === 'store') return true;
-  if (hs.onEmpty !== 'switch') return false;
-  return !Object.keys(hs.bag || {}).some((id) => kindOf(id) === kind && leftOf(hs, id) > 0);
+/** MAY THE STORE SUPPLY NOW? The hero's own setting (hunt-sessions.js
+    SUPPLY_SOURCE / ON_EMPTY): under `store`, or under the default `switch`. The
+    carried line is always spent first (resolveLine asks the store only once THAT
+    line is empty), so this is per line: another carried line — a free Bronze
+    Arrow stack, a whetstone — never holds a rune's store back. Every store path
+    asks this: food, drink, a rune, a shot, and the out-of-supply end test. */
+export function storeAllowed(hs) {
+  return !!hs && (hs.supplySource === 'store' || hs.onEmpty === 'switch');
 }
-/** The store shot an empty carried line of `ammoId` (an arrow or a rune) falls
-    back to, or null when the store may not supply ammo. */
-export function shopShotFor(hs, ammoId) {
-  if (!hs || !storeAllowed(hs, 'ammo')) return null;
+/** The store row whose crafted partner is `itemId` (the store's version of THAT
+    item: Salted Shrimp for Cooked Shrimp, Plain Fire Rune for a Fire Rune), or
+    null when the store may not supply it. */
+export function shopShotFor(hs, itemId) {
+  if (!hs || !storeAllowed(hs)) return null;
   for (const id of Object.keys((hs && hs.basics) || {}).sort()) {
     const b = basicOf(hs, id);
-    if (b && b.kind === 'ammo' && b.partner === ammoId) return { id, price: b.price };
+    if (b && b.partner === itemId) return { id, price: b.price };
   }
   return null;
+}
+const amountOf = (b) => Math.max(0, int(b.kind === 'mana' ? b.mana : b.heals, 0));
+/** THE STORE ROW AN "ANY FOOD" / "ANY DRINK" USE BUYS (`kind` 'heal' | 'mana'):
+    the slot's own choice `store` (a row of that kind), else the CHEAPEST PER
+    POINT (the Configure action picker's first row; ties: the cheaper use, then
+    the id). Measured 2026-10-21 (tests/hunt-core/drop-tables.mjs): a default of
+    "the cheapest row that covers what is missing" bought Salted Lobster for an
+    L8 solo in the Sewer (-72% over its bill) and a Healer's drinks at 4.5x
+    (-30%), under the +25% profit floor; the cheapest per point keeps every
+    ground's floor and a player pins any other row. Null when the choice is no
+    row of that kind. Pure. */
+export function storeFor(hs, kind, store) {
+  if (typeof store === 'string') {
+    const b = basicOf(hs, store);
+    return b && b.kind === kind ? store : null;
+  }
+  let best = null;
+  for (const id of Object.keys((hs && hs.basics) || {}).sort()) {
+    const b = basicOf(hs, id);
+    if (!b || b.kind !== kind || !(amountOf(b) > 0)) continue;
+    const c = best && hs.basics[best];
+    if (!c || b.price * amountOf(c) < c.price * amountOf(b) || (b.price * amountOf(c) === c.price * amountOf(b) && b.price < c.price)) best = id;
+  }
+  return best;
 }
 /** Buy `n` uses of store supply `id` from the purse, all or none of each use.
     Returns the uses bought; a shortfall marks the session goldOut. */
@@ -151,9 +174,11 @@ export function canAfford(hs, price) {
 
 /* ── THE ONE SUPPLY RESOLVER (architecture contracts §1.2 / S5; HUNT_SCREEN_SPEC
    §3.4, §3.8) ──────────────────────────────────────────────────────────────
-   `resolveLine(hs, want, need)` answers which line ONE use of a supply comes
-   from: the hero's OWN carried line first (already owned, so it moves no gold),
-   then the STORE at catalogue price — only on the hero's own setting
+   `resolveLine(hs, want, need, store)` answers which line ONE use of a supply
+   comes from: the hero's OWN carried line first (already owned, so it moves no
+   gold), then the STORE row the slot chose (`store`: a row id; undefined = the
+   default — storeFor's cheapest per point for a kind, the item's own store row
+   for an item; null = no store) at catalogue price — only on the hero's own setting
    (storeAllowed) and only while the purse can pay (`gold_short` otherwise: the
    caller marks goldOut and the hunt ends gold_out). `want` is a consumable kind
    ('heal' food, 'mana' drink) or an item id (a rune, an arrow). `takeLine`
@@ -176,19 +201,24 @@ function pickOwn(hs, kind, need) {
   }
   return cover || big;
 }
-export function resolveLine(hs, want, need) {
+export function resolveLine(hs, want, need, store) {
   if (!hs) return { why: 'none' };
   if (want === 'heal' || want === 'mana') {
-    const own = pickOwn(hs, want, Math.max(1, int(need, 1)));
+    const n = Math.max(1, int(need, 1));
+    const own = pickOwn(hs, want, n);
     if (own) return { id: own, source: 'own', price: 0 };
-    const id = (hs.shop && hs.shop[want]) || null;
-    const b = id ? basicOf(hs, id) : null;
-    if (!b || b.kind !== want) return { why: 'none' };
-    if (!storeAllowed(hs, want)) return { why: 'store_off' };
+    if (store === null) return { why: 'none' };
+    const id = storeFor(hs, want, store);
+    if (!id) return { why: 'none' };
+    if (!storeAllowed(hs)) return { why: 'store_off' };
+    const b = hs.basics[id];
     return canAfford(hs, b.price) ? { id, source: 'store', price: b.price } : { why: 'gold_short', id };
   }
   if (leftOf(hs, want) > 0) return { id: want, source: 'own', price: 0 };
-  const shot = shopShotFor(hs, want);
+  if (store === null) return { why: 'none' };
+  const shot = typeof store === 'string'
+    ? (storeAllowed(hs) && basicOf(hs, store) && hs.basics[store].partner === want ? { id: store, price: hs.basics[store].price } : null)
+    : shopShotFor(hs, want);
   if (!shot) return { why: 'none' };
   return canAfford(hs, shot.price) ? { id: shot.id, source: 'store', price: shot.price } : { why: 'gold_short', id: shot.id };
 }
@@ -229,7 +259,7 @@ function essentialOut(hs, kind) {
     any = true;
     if (leftOf(hs, id) > 0 || (kind === 'ammo' && shopShotFor(hs, id))) return false;
   }
-  if (any && kind === 'heal' && storeAllowed(hs, 'heal') && basicOf(hs, hs.shop && hs.shop.heal)) return false;
+  if (any && kind === 'heal' && storeAllowed(hs) && Object.keys(hs.basics || {}).some((id) => (basicOf(hs, id) || {}).kind === 'heal')) return false;
   return any;
 }
 const at = (ms, t) => ms !== null && ms !== undefined && Number.isFinite(Number(ms)) && t >= Number(ms);
@@ -366,11 +396,9 @@ export function newHuntSession(o) {
     died: s.died === true,
     partyDied: s.partyDied === true,
     hoursLimit: s.hoursLimit === null || s.hoursLimit === undefined ? null : int(s.hoursLimit, null),
-    /* THE STORE: the server's catalogue, the ids this hunt's tier resolves
-       food and drink to, the purse they are paid from, and "a buy failed". */
+    /* THE STORE: the server's catalogue (the bar's slots choose the row), the
+       purse it is paid from, and "a buy failed". */
     basics: shopTable(s.basics),
-    shop: { heal: typeof (s.shop || {}).heal === 'string' ? s.shop.heal : null,
-      mana: typeof (s.shop || {}).mana === 'string' ? s.shop.mana : null },
     purse: Math.max(0, int(s.purse, 0)),
     goldOut: s.goldOut === true,
     /* THE GOLD FLOOR and the loot sell-to-cover may sell (row 3). */

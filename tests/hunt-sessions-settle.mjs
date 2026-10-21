@@ -243,7 +243,9 @@ const SECRET = '-4611686018427387904';
 const tier1 = (M) => {
   const basics = {};
   for (const b of M.SB.BASIC_SUPPLIES) basics[b.id] = { kind: b.kind, price: b.price, heals: b.heals || 0, mana: b.mana || 0, partner: b.partner };
-  return { basics, shop: { heal: M.SB.basicFor('heal', 1).id, mana: M.SB.basicFor('mana', 1).id } };
+  /* `shop`: the rows an empty-handed tier-1 hero's need lands on (the cheapest that covers it) — expectations only;
+     the session carries no hunt-tier store (Tyler 2026-10-19: the bar's slots pick the store item). */
+  return { basics, shop: { heal: 'salted_shrimp', mana: 'thin_turnip_juice' } };
 };
 
 /* One member of an engine-arm instance, in the shape hunt-settle.js memberInput builds. */
@@ -258,7 +260,7 @@ function memberIn(M, key, o) {
     key, user: key, slot: 0, seat: x.seat || 0, unitId: x.unitId ?? null, sessionId: 's-' + key, version: 1, huntId: 'mill_cellar',
     huntSession: { id: 's-' + key, instanceId: IID, huntFromMs: T0, nextSwingAtMs: T0, swingIndex: 0,
       bag: x.bag || {}, staminaMs: x.stamina ?? 12 * 3600000, staminaMaxMs: x.staminaMax ?? 12 * 3600000,
-      basics: t.basics, shop: t.shop, goldFloor: x.floor ?? 0, supplySource: x.source || 'mine', onEmpty: x.empty || 'switch',
+      basics: t.basics, goldFloor: x.floor ?? 0, supplySource: x.source || 'mine', onEmpty: x.empty || 'switch',
       cover: x.cover || {} },
     skills, levelXp: x.levelXp ?? M.XP.charXpForLevel(L), xpFrac: null, hp: x.hp ?? 1e9, gold: x.gold ?? 0, equipment: x.equipment || {},
     inventory: {}, deathsTodayBefore: 0, deathsLifetimeBefore: 0, hearthfindReady: false, perks: null,
@@ -561,7 +563,7 @@ const ENGINE_ARMS = {
   'SUPPLY-RULE': async (M) => {
     const problems = [];
     const t = tier1(M);
-    const hs = (o) => M.AR.newHuntSession(Object.assign({ id: 'x', bag: {}, basics: t.basics, shop: t.shop, purse: 1000, goldFloor: 0 }, o));
+    const hs = (o) => M.AR.newHuntSession(Object.assign({ id: 'x', bag: {}, basics: t.basics, purse: 1000, goldFloor: 0 }, o));
     if (M.HSD.ON_EMPTY.default !== 'switch' || !M.HSD.ON_EMPTY.modes.includes('end')) problems.push(`ON_EMPTY is ${JSON.stringify(M.HSD.ON_EMPTY)}, not default switch with end opt-in`);
     /* OWN FIRST, the smallest that covers, free. */
     const own = hs({ bag: { cooked_shrimp: { loaded: 5 }, cooked_trout: { loaded: 5 } } });
@@ -596,7 +598,7 @@ const ENGINE_ARMS = {
     const out = runCut(M, () => [memberIn(M, 'a', { level: 9, gold: row.price - 1, options: { drink_below_pct: 0 } })], 1800000, [], groundWith(M, 'drain_rat'));
     const ms = out.outs.flatMap((o) => o.members);
     /* FOOD buys only: a 6 g store drink is affordable from the purse alone (designer 2026-10-17), so a drink buy proves nothing about the coins. */
-    const tl = ms.reduce((a, x) => a + ((x.hunt.buys || {})[t.shop.heal] || 0), 0);
+    const tl = ms.reduce((a, x) => a + Object.entries(x.hunt.buys || {}).reduce((n, [id, q]) => n + ((t.basics[id] || {}).kind === 'heal' ? q : 0), 0), 0);
     const kills = ms.reduce((a, x) => a + x.delta.journal.meta.kills, 0);
     const end = ms.find((x) => x.hunt.ended);
     /* A DRINK THE PURSE CANNOT BUY ONLY GOES WITHOUT: a broke hero that wants to drink
@@ -1578,7 +1580,7 @@ const MUTANTS = [
   { arm: 'SUPPLY-RULE', name: '[C2 DEEPWATERS-S2] an own food restores one less than its item', file: 'src/core/action-rules.js',
     from: "  return c && c.source === 'own' ? c.amount : 0;", to: "  return c && c.source === 'own' ? c.amount - 1 : 0;" },
   { arm: 'SUPPLY-RULE', name: 'the store is open under the hero\'s end', file: 'src/core/action-rules.js',
-    from: "  if (hs.onEmpty !== 'switch') return false;", to: '' },
+    from: "  return !!hs && (hs.supplySource === 'store' || hs.onEmpty === 'switch');", to: '  return !!hs;' },
   { arm: 'SUPPLY-RULE', name: 'the default goes back to end (a hunt stops for lack of stock)', file: 'src/data/hunt-sessions.js',
     from: "export const ON_EMPTY = Object.freeze({ modes: Object.freeze(['switch', 'end']), default: 'switch' });",
     to: "export const ON_EMPTY = Object.freeze({ modes: Object.freeze(['switch', 'end']), default: 'end' });" },
@@ -1593,7 +1595,7 @@ const MUTANTS = [
   { arm: 'SUPPLY-RULE', name: '[C2 kill coins] kill coins never reach the purse', file: 'src/core/member.js',
     from: '      hs.purse = Math.max(0, Math.floor(Number(hs.purse) || 0)) + g;', to: '' },
   { arm: 'SUPPLY-RULE', name: '[C2 own first] the resolver reaches for the store before the own stack', file: 'src/core/action-rules.js',
-    from: "    const own = pickOwn(hs, want, Math.max(1, int(need, 1)));", to: "    const own = storeAllowed(hs, want) ? null : pickOwn(hs, want, Math.max(1, int(need, 1)));" },
+    from: "    const own = pickOwn(hs, want, n);", to: "    const own = storeAllowed(hs) ? null : pickOwn(hs, want, n);" },
   { arm: 'SUPPLY-RULE', name: 'an unaffordable drink ends the hunt gold_out', file: 'src/core/hunt/consumables.js',
     from: "if (w.why === 'gold_short') { if (w.kind === 'food') hero.hs.goldOut = true; return { why: 'gold_short' }; }", to: "if (w.why === 'gold_short') { hero.hs.goldOut = true; return { why: 'gold_short' }; }" },
   { arm: 'SPLIT', name: 'the remainder of a split is lost', file: 'src/core/party-split.js',

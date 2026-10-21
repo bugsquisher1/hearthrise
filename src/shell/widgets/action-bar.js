@@ -34,7 +34,7 @@ import { glyphSvg } from '../launcher.js?v=0.2.23';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.23';
 import { actionIconHtml } from './bits.js?v=0.2.23';
 import { hubHtml, patchHub } from './vitals-hub.js?v=0.2.23';
-import { openSlot, sendPlan, movePlan, swapPlan, insertPlan, serverBar, barRefusalWords, answerWithin } from '../bar-draft.js?v=0.2.23';
+import { openSlot, sendPlan, movePlan, swapPlan, insertPlan, serverBar, answerWithin } from '../bar-draft.js?v=0.2.23';
 import { actionName, factsOf, carried, supplyLines, setupWords, conflictsOf, reasonOf, sharedCooldownOf } from '../action-facts.js?v=0.2.23';
 import { resetConfigureView } from '../windows/configure-action.js?v=0.2.23';
 import { assignToBar, barKind } from '../bar-assign.js?v=0.2.23';
@@ -234,7 +234,7 @@ function dropOnSlot(ctx, el, ev, t) {
   const id = ev.dataTransfer.getData(DRAG_TYPE);
   if (!barKind(id)) { text(msg, refusalWords('not_for_bar')); return true; }
   text(msg, 'Putting it on the bar…');
-  answerWithin(() => assignToBar(ctx.character, id, to)).then((r) => { text(msg, r.ok ? '' : r.error === 'timeout' ? barRefusalWords(r.error) : refusalWords(r.error)); repaint(); });
+  answerWithin(() => assignToBar(ctx.character, id, to)).then((r) => { text(msg, r.ok ? '' : refusalWords(r.error)); repaint(); });
   return true;
 }
 
@@ -244,7 +244,7 @@ function runDrop(ctx, el, plan) {
   const msg = el.querySelector('.hb-plaque .hh-intent-msg');
   text(msg, 'Moving it…');
   sendPlan(ctx.character, plan, () => renderActionBar.patch(el, ctx))
-    .then((r) => { text(msg, r.ok ? '' : barRefusalWords(r.error)); renderActionBar.patch(el, ctx); });
+    .then((r) => { text(msg, r.ok ? '' : refusalWords(r.error)); renderActionBar.patch(el, ctx); });
 }
 
 /* THE PANEL SHEET (phone): the bar keeps the set's name and its buttons; the rest slides out from the

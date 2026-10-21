@@ -16,20 +16,11 @@
 
 import { BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, REGION_LABEL } from '../data/outfits.js?v=0.2.23';
 import { HERO_BASE_ROWS, HERO_BASE_W, HERO_BASE_H, HERO_BASE_LEGEND, HERO_SHADE_PERMILLE } from '../data/hero-base.js?v=0.2.23';
+import { refusalWords } from '../shell/intent-words.js?v=0.2.23';
 
 /* The preview's integer scale: 16 x 24 cells at 8 = 128 x 192 px. */
 export const PREVIEW_SCALE = 8;
 
-/* What the player reads for each refusal the server can give. */
-const REFUSAL = Object.freeze({
-  name_taken: 'That name is taken. Try another.',
-  already_created: 'This slot already has a hero.',
-  slot_not_owned: 'That slot is not yours yet.',
-  rate_limited: 'Too many tries. Wait a minute, then confirm again.',
-  bad_colors: 'Pick a colour for every part.',
-  bad_region: 'Pick a colour for every part.',
-  bad_dye: 'Pick a colour for every part.',
-});
 const NAME_REASON = Object.freeze({
   short: 'A name needs at least 3 letters.',
   long: 'A name can have at most 20 letters.',
@@ -38,11 +29,11 @@ const NAME_REASON = Object.freeze({
   blocked: 'That name is not allowed. Try another.',
 });
 
-/** The sentence a refusal shows. Pure. */
+/** The sentence a refusal shows, from the one refusal table (src/data/refusal-words.js). Pure. */
 export function refusalText(r) {
   if (!r) return 'The hero could not be made. Try again in a minute.';
   if (r.reason === 'bad_name') return NAME_REASON[r.nameReason] || 'That name is not allowed. Try another.';
-  return REFUSAL[r.reason] || 'The hero could not be made. Try again in a minute.';
+  return refusalWords(r.reason);
 }
 
 /** '#rrggbb' -> [r, g, b], or null. Pure. */

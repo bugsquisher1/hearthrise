@@ -9,7 +9,9 @@
 //   it is active and its action set does not skip it (AB-11),
 //   its own cooldown and its lane are ready (AB-01/02),
 //   the hero has the mana (AB-12), its rune and its shots resolve — own line
-//   first, then the store (AB-05/06, src/core/action-rules.js resolveLine),
+//   first, then the store (AB-05/06, src/core/action-rules.js resolveLine; a
+//   RUNE is bought only when the slot names the store rune, `action.store`, so
+//   a default bar never buys one unseen — designer 2026-10-21),
 //   and its target rule finds a target (AB-03).
 // Firing spends the mana, the rune and the shots, sets the cooldown and the
 // lane (AB-07), and applies the effect (AB-08): taunt, mark, hit (with a status
@@ -96,11 +98,12 @@ function targetFor(inst, hero, h, row, sc, cx) {
   }
 }
 
-/* The supply lines one cast needs, or the reason it cannot have them. */
-function suppliesFor(h, row) {
+/* The supply lines one cast needs, or the reason it cannot have them. `store` is
+   the slot's chosen store rune (action.store), or none: own runes only. */
+function suppliesFor(h, row, store) {
   const lines = [];
   if (row.rune) {
-    const l = resolveLine(h.hs, row.rune, 1);
+    const l = resolveLine(h.hs, row.rune, 1, typeof store === 'string' ? store : null);
     if (!l.id || l.why) return { why: 'no_rune', short: l.why === 'gold_short' };
     lines.push(l);
   }
@@ -113,7 +116,7 @@ function suppliesFor(h, row) {
     const own = Math.min(row.ammo, Math.max(0, int(line && line.left)));
     for (let i = 0; i < own; i++) lines.push({ id: h.ammo, source: 'own', price: 0 });
     if (own < row.ammo) {
-      /* (storeAllowed under 'switch' opens the store only once the carried line is empty.) */
+      /* (The store is asked only once the carried line is empty.) */
       const shot = shopShotFor(h.hs, h.ammo);
       if (!shot) return { why: 'no_ammo' };
       for (let i = own; i < row.ammo; i++) lines.push({ id: shot.id, source: 'store', price: shot.price });
@@ -155,7 +158,7 @@ export function firstUsable(inst, hero, sc) {
     if (gate) return null;
     const t = targetFor(inst, hero, h, row, sc, cx);
     if (!t) return { why: cx && (cx.ally || cx.aim) ? 'out_of_range' : 'no_target', t: cx && cx.ally ? cx.ally.id : undefined };
-    const s = suppliesFor(h, row);
+    const s = suppliesFor(h, row, slot.action.store);
     if (s.why) { if (s.short) h.hs.goldOut = true; return { why: s.short ? 'gold_short' : 'no_stock' }; }
     return { row, target: t, lines: s.lines };
   }, sc, 'ability');

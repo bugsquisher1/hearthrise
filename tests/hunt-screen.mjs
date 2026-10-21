@@ -820,7 +820,7 @@ async function checks(overrides, shots) {
         await page.waitForTimeout(300);
         const want = [
           [0, 'mana', /^Needs 6 mana, you have 2\.$/, false],
-          [1, 'rune', /^Needs a Fire Rune in the bag/, true],
+          [1, 'rune', /^Needs a Fire Rune for each cast: you carry none. Pick the store’s rune/, true],
           [2, 'stock', /^Out of stock and no store fallback/, true],
           [5, 'store off', /^Out of stock, and this hero is set to end the hunt rather than buy from the store/, true],
           [7, 'server', /^The server says this cannot fire now\.$/, true],
@@ -917,13 +917,26 @@ async function checks(overrides, shots) {
       await page.click('.hc-choice[data-id="food"]');
       const note = await page.evaluate(() => ({ choice: document.querySelector('.hc-choice[data-id="food"] .hc-choice-note').textContent,
         facts: document.querySelector('.hc-facts').textContent }));
-      if (!/store from \d+ g each/.test(note.choice) || !/paid as used/.test(note.facts)) fails.push('HS-8 Any food does not show the store price paid as used: ' + JSON.stringify(note));
+      if (!/store \d+ g each/.test(note.choice) || !/paid as used/.test(note.facts)) fails.push('HS-8 Any food does not show the store price paid as used: ' + JSON.stringify(note));
+      /* THE PLAYER PICKS THE STORE FOOD (Tyler 2026-10-19): every store food from the SERVER's rows (hunt_settings.store),
+         each with HP a use, gold a use and gold a point, cheapest per point first, after the default (the cheapest
+         per point, picked until the player chooses). The numbers are the catalogue's, not a client copy. */
+      const store = await page.$$eval('.hc-store.is-on .hc-store-list li', (n) => n.map((li) => ({ on: li.getAttribute('aria-selected') === 'true',
+        id: li.firstElementChild.getAttribute('data-store'), text: li.textContent })));
+      const heals = FIXTURE.hunt_settings.store.filter((r) => r.kind === 'heal');
+      const parsed = store.slice(1).map((r) => { const m = /· (\d+) HP · (\d+) g · ([\d.]+) g\/HP$/.exec(r.text); return m ? { id: r.id, hp: +m[1], g: +m[2], per: +m[3] } : { id: r.id, bad: r.text }; });
+      const rowOk = (p) => { const c = heals.find((h) => h.id === p.id); return !!c && p.hp === c.heals && p.g === c.price && Math.abs(p.per - c.price / c.heals) < 0.006; };
+      if (store.length !== heals.length + 1 || store[0].id !== '' || !store[0].on || store.slice(1).some((r) => r.on)) fails.push('HS-8 the store foods are not listed after a picked default: ' + JSON.stringify(store));
+      else if (!parsed.every(rowOk)) fails.push('HS-8 a store food row is not the catalogue\'s HP / gold / gold a point: ' + JSON.stringify(parsed));
+      else if (parsed.some((p, i) => i && p.per < parsed[i - 1].per)) fails.push('HS-8 the store foods are not cheapest per point first: ' + JSON.stringify(parsed.map((p) => p.per)));
+      await page.click('.hc-store-list [data-store="salted_trout"]');
+      if (!(await wait(page, () => document.querySelector('.hc-store-list li[aria-selected="true"] [data-store="salted_trout"]'), null, 2000))) fails.push('HS-8 picking Salted Trout did not select it');
       /* A food slot starts at HP below 50% (Eat at is gone); the player moves it to 60. */
       if ((await page.$$eval('.hc-cond.is-on', (n) => n.length)) !== 1) fails.push('HS-8 a new food slot does not start with its HP condition');
       await page.fill('.hc-cond[data-cond="0"] [data-f="value"]', '60');
       await page.dispatchEvent('.hc-cond[data-cond="0"] [data-f="value"]', 'change');
       if (shots) await page.screenshot({ path: join(shots, 'town-' + tag + '-configure-action.png') });
-      const want = { action: { type: 'consume', id: 'food' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 60 }], join: 'and' };
+      const want = { action: { type: 'consume', id: 'food', store: 'salted_trout' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 60 }], join: 'and' };
       s.env.hunt_settings.slots[5] = Object.assign({ usable: true, count: 0 }, want);
       await page.click('.hc-foot [data-x="save"]');
       const sent = s.calls.filter((c) => c.name === 'hr_action_set_options').map((c) => c.body.p_opts);
@@ -932,7 +945,7 @@ async function checks(overrides, shots) {
       if (!saved) fails.push('HS-8 the town slot did not show the server’s Any food after it confirmed');
       /* Nobody is told to buy first (Tyler 10-19): with Any food on the bar and an empty bag, Hunt prep reads the store per use. */
       await page.keyboard.press('p');
-      const prep = await wait(page, () => /Food: the store, from \d+ gp each as used/.test((document.querySelector('[data-hs-win="hunt-prep"] .hw-checks') || {}).textContent || ''), null, 3000);
+      const prep = await wait(page, () => /Food: the store, 40 gp each as used/.test((document.querySelector('[data-hs-win="hunt-prep"] .hw-checks') || {}).textContent || ''), null, 3000);
       const prepText = await page.evaluate(() => (document.querySelector('[data-hs-win="hunt-prep"]') || {}).innerText || '');
       if (!prep || /0 food/.test(prepText)) fails.push('HS-8 Hunt prep does not read the store per use for Any food: ' + prepText.slice(0, 200));
       await page.keyboard.press('p');
@@ -1116,7 +1129,7 @@ const MUTANTS = [
   ['the controls stay on while a bar intent is in flight', 'src/shell/windows/configure-action.js', '  const off = s.pending;', '  const off = false;'],
   ['a server validation error is not shown inline', 'src/shell/bar-draft.js', '  else { s.error = r;', '  else { s.error = null;'],
   ['the bar hides in town', 'src/data/hud-widgets.js', "removable: true, when: 'always',\n    phone: Object.freeze({ dy: 2 }),", "removable: true, when: 'hunt',\n    phone: Object.freeze({ dy: 2 }),"],
-  ['the store price is not shown on Any food', 'src/shell/windows/configure-action.js', "(st.from ? 'store from ' : 'store ') + st.price + ' g each'", "''"],
+  ['the store price is not shown on Any food', 'src/shell/windows/configure-action.js', "'store ' + st.price + ' g each'", "''"],
   ['the density step sends no intent', 'src/shell/windows/hunts.js', '    try { r = await cs.setHuntOptions(d.preset, { density: d.n }); } catch (e) { r = null; }', '    try { r = { ok: true }; } catch (e) { r = null; }'],
   ['every density press sends its own intent', 'src/shell/windows/hunts.js', '      sc.timer = setTimeout(() => saveDensity(cs, sc, repaint), DENSITY_SAVE_MS);', '      saveDensity(cs, sc, repaint);'],
   ['the density waits for the server before it moves', 'src/shell/windows/hunts.js', '  if (!dn || !sc.draft) return dn;', '  if (dn) return dn;'],
@@ -1127,14 +1140,14 @@ const MUTANTS = [
   ['a party member keeps the density step', 'src/shell/windows/hunts.js', "prop(b, 'hidden', follower);", "prop(b, 'hidden', false);"],
   ['a blocked slot is not flagged', 'src/shell/action-facts.js', '      if (same || kind) {', '      if (false) {'],
   ['the modal docks instead of centring', 'src/shell/window-manager.js', "  const isModal = (id) => rows.get(id).modal === true;", "  const isModal = () => false;"],
-  ['Hunt prep tells a player to buy first', 'src/shell/readiness.js', '      const st = storeOn ? storeOf(sl.action) : null;', '      const st = null;'],
+  ['Hunt prep tells a player to buy first', 'src/shell/readiness.js', '      const st = storeOn ? storeOf(sl.action, s.store) : null;', '      const st = null;'],
   ['the mana gauge hides for a hero with no pool', 'src/shell/widgets/vitals-hub.js', "  fill(el.querySelector('.hb-arc.is-mana'), share(v.mana, v.manaMax));", "  fill(el.querySelector('.hb-arc.is-mana'), share(v.mana, v.manaMax));\n  el.querySelector('.hb-read.is-mana').style.display = v.manaMax > 0 ? '' : 'none';"],
   ['the hub keeps the first level it drew', 'src/shell/widgets/vitals-hub.js', '  const level = hero && ok(hero.level) ? hero.level :', '  const level = 24 || hero ? 24 :'],
   ['the HP arc does not follow the server', 'src/shell/widgets/vitals-hub.js', "  fill(el.querySelector('.hb-arc.is-hp'), share(v.hp, v.hpMax));", "  fill(el.querySelector('.hb-arc.is-hp'), 1);"],
   ['a drop onto an action moves it without asking', 'src/shell/widgets/action-bar.js', '    else openDropMenu(ctx, el, t, from, to, bar);', '    else runDrop(ctx, el, (b) => swapPlan(b, from, to));'],
   ['insert shifts past the first empty slot', 'src/shell/bar-draft.js', '  while (k < SLOTS && out[k]) k++;', '  k = SLOTS - 1;'],
-  ['the status line stays after a drop', 'src/shell/widgets/action-bar.js', ".then((r) => { text(msg, r.ok ? '' : barRefusalWords(r.error));", ".then((r) => { text(msg, r.ok ? 'Moving it…' : barRefusalWords(r.error));"],
-  ['a refused drop leaves the line on Moving it', 'src/shell/widgets/action-bar.js', ".then((r) => { text(msg, r.ok ? '' : barRefusalWords(r.error));", ".then((r) => { text(msg, r.ok ? '' : 'Moving it…');"],
+  ['the status line stays after a drop', 'src/shell/widgets/action-bar.js', ".then((r) => { text(msg, r.ok ? '' : refusalWords(r.error));", ".then((r) => { text(msg, r.ok ? 'Moving it…' : refusalWords(r.error));"],
+  ['a refused drop leaves the line on Moving it', 'src/shell/widgets/action-bar.js', ".then((r) => { text(msg, r.ok ? '' : refusalWords(r.error));", ".then((r) => { text(msg, r.ok ? '' : 'Moving it…');"],
   ['a drop the server never answers stays pending', 'src/shell/bar-draft.js', '  return Promise.race([sent, late])', '  return Promise.race([sent])'],
   /* The record is deep-frozen (envelope.js), so an optimistic move can only be a client-side overlay the bar paints from. */
   ['a drop moves the bar before the server answers', 'src/shell/widgets/action-bar.js', [

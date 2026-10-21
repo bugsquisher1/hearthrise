@@ -20,16 +20,16 @@
 //      never a tally of the events; a float is only ever the event's own number.
 //   S4 bounded: at most MAX_FX effects and MAX_FLOATS floats live at once.
 // ════════════════════════════════════════════════════════════════════════
-import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX } from '../data/hunt-vfx.js?v=0.2.21';
-import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.21';
-import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.21';
-import { partyPeopleOf } from '../session/party-sections.js?v=0.2.21';
-import { floatShown } from './float-prefs.js?v=0.2.21';
-import { heroSprite } from '../session/hero-look.js?v=0.2.21';
-import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.21';
-import { STUB_SPRITE } from '../world/core/book.js?v=0.2.21';
-import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.21';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.21';
+import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX } from '../data/hunt-vfx.js?v=0.2.22';
+import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.22';
+import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.22';
+import { partyPeopleOf } from '../session/party-sections.js?v=0.2.22';
+import { floatShown } from './float-prefs.js?v=0.2.22';
+import { heroSprite } from '../session/hero-look.js?v=0.2.22';
+import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.22';
+import { STUB_SPRITE } from '../world/core/book.js?v=0.2.22';
+import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.22';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.22';
 
 /* The ground's first start tile, standing (the hero before its first window). */
 function entranceOf(huntId) {

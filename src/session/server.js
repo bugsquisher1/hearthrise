@@ -20,7 +20,7 @@
 // was sent 805 times from a background tab).
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPABASE_CONFIG } from '../net/supabase-bootstrap.js?v=0.2.21';
+import { SUPABASE_CONFIG } from '../net/supabase-bootstrap.js?v=0.2.22';
 
 export const CLOSED_CODE = 'hr_closed';
 export const CLOSED_STATUS = 403;

@@ -35,11 +35,11 @@
 //                 left and destroyed when it closes
 // ════════════════════════════════════════════════════════════════════════
 
-import { SESSION_CONFIG } from './config.js?v=0.2.21';
-import { CharacterSession } from './character-session.js?v=0.2.21';
-import { TownPresence } from './town-presence.js?v=0.2.21';
-import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.21';
-import { charLevelFromXp } from '../core/xp.js?v=0.2.21';
+import { SESSION_CONFIG } from './config.js?v=0.2.22';
+import { CharacterSession } from './character-session.js?v=0.2.22';
+import { TownPresence } from './town-presence.js?v=0.2.22';
+import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.22';
+import { charLevelFromXp } from '../core/xp.js?v=0.2.22';
 
 /** This tab's session id: made once per tab, kept across a reload, new for a new tab. */
 export function tabSessionId(tab, cfg = SESSION_CONFIG, make) {

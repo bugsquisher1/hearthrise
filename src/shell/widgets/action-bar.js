@@ -21,22 +21,22 @@
 // Shown in town too (Tyler 10-18: set it up before leaving). Every value is
 // the server's; the bar changes only when the re-read envelope says so.
 // ════════════════════════════════════════════════════════════════════════
-import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.21';
-import { CONSUME_KINDS, ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.21';
-import { huntOf, settingsOf, staminaOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.21';
-import { bagOf } from '../../session/item-sections.js?v=0.2.21';
-import { townVitalsOf } from '../../session/character-sections.js?v=0.2.21';
-import { text, cls, attr, element, keyedChild } from '../../render/paint.js?v=0.2.21';
-import { whole, pct, hoursMinutes } from '../../render/format.js?v=0.2.21';
-import { glyphSvg } from '../launcher.js?v=0.2.21';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.21';
-import { gaugeHtml, patchGauge, actionIconHtml } from './bits.js?v=0.2.21';
-import { openSlot, storeOf, placeSlot } from '../bar-draft.js?v=0.2.21';
-import { actionName, factsOf, carried, supplyLines, setupWords, conflictsOf } from '../action-facts.js?v=0.2.21';
-import { resetConfigureView } from '../windows/configure-action.js?v=0.2.21';
-import { assignToBar, barKind } from '../bar-assign.js?v=0.2.21';
-import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.21';
-import { refusalWords } from '../intent-words.js?v=0.2.21';
+import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.22';
+import { CONSUME_KINDS, ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.22';
+import { huntOf, settingsOf, staminaOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.22';
+import { bagOf } from '../../session/item-sections.js?v=0.2.22';
+import { townVitalsOf } from '../../session/character-sections.js?v=0.2.22';
+import { text, cls, attr, element, keyedChild } from '../../render/paint.js?v=0.2.22';
+import { whole, pct, hoursMinutes } from '../../render/format.js?v=0.2.22';
+import { glyphSvg } from '../launcher.js?v=0.2.22';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.22';
+import { gaugeHtml, patchGauge, actionIconHtml } from './bits.js?v=0.2.22';
+import { openSlot, storeOf, placeSlot } from '../bar-draft.js?v=0.2.22';
+import { actionName, factsOf, carried, supplyLines, setupWords, conflictsOf } from '../action-facts.js?v=0.2.22';
+import { resetConfigureView } from '../windows/configure-action.js?v=0.2.22';
+import { assignToBar, barKind } from '../bar-assign.js?v=0.2.22';
+import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.22';
+import { refusalWords } from '../intent-words.js?v=0.2.22';
 
 const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const SLOT_DRAG = 'application/x-hr-bar-slot';

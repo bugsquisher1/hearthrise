@@ -225,7 +225,7 @@ async function checks(overrides) {
     }
 
     { // B-11 buy a hero slot with one hero's gold, at the server's price; none at the cap
-      const o = { heroes: { 0: 'Tester', 1: 'Fennick' }, created: [], bought: [], slots: [0, 1], gold: { 0: 80000, 1: 100 }, ladder: { 2: 75000, 3: 250000, 4: 750000 } };
+      const o = { heroes: { 0: 'Tester', 1: 'Fennick' }, created: [], bought: [], slots: [0, 1], gold: { 0: 80000, 1: 100 }, ladder: { 2: 15000, 3: 40000, 4: 120000 } };
       const { ctx, page, errors } = await fresh(o);
       await page.goto(base + '/play.html', { waitUntil: 'load' });
       await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
@@ -236,11 +236,11 @@ async function checks(overrides) {
       const btn = () => page.evaluate(() => { const b = document.querySelector('[data-app="buy-slot"]');
         return b ? { text: b.textContent.trim(), off: b.disabled, pay: b.getAttribute('data-pay'), short: (document.querySelector('.slot-offer-short') || {}).textContent || '' } : null; });
       const b0 = shown ? await btn() : null;
-      if (!b0 || b0.text !== 'Buy a hero slot — 75,000 gold' || b0.off || b0.pay !== '0') fails.push('B-11 the offer reads ' + JSON.stringify(b0) + ' (expected the server price 75,000, paid by the richest hero, lit)');
+      if (!b0 || b0.text !== 'Buy a hero slot — 15,000 gold' || b0.off || b0.pay !== '0') fails.push('B-11 the offer reads ' + JSON.stringify(b0) + ' (expected the server price 15,000, paid by the richest hero, lit)');
       else {
         await page.selectOption('[data-app="slot-payer"]', '1');
         const b1 = await btn();
-        if (!b1 || !b1.off || b1.pay !== '1' || !/Fennick needs 74,900 more gold/.test(b1.short)) fails.push('B-11 a hero 74,900 short reads ' + JSON.stringify(b1));
+        if (!b1 || !b1.off || b1.pay !== '1' || !/Fennick needs 14,900 more gold/.test(b1.short)) fails.push('B-11 a hero 14,900 short reads ' + JSON.stringify(b1));
         await page.selectOption('[data-app="slot-payer"]', '0');
         await page.click('[data-app="buy-slot"]');
         const b2 = await btn();
@@ -250,7 +250,7 @@ async function checks(overrides) {
         if (o.bought.length !== 1 || sent.p_slot_id !== 2 || sent.p_slot !== 0 || typeof sent.p_idem !== 'string' || Object.keys(sent).some((k) => /price|cost|gold/.test(k)))
           fails.push('B-11 the press sent ' + JSON.stringify(o.bought));
         const b3 = await btn();
-        if (!reread || !b3 || b3.text !== 'Buy a hero slot — 250,000 gold') fails.push('B-11 after the purchase the roster reads ' + JSON.stringify(b3) + (reread ? '' : ' with no new empty slot'));
+        if (!reread || !b3 || b3.text !== 'Buy a hero slot — 40,000 gold') fails.push('B-11 after the purchase the roster reads ' + JSON.stringify(b3) + (reread ? '' : ' with no new empty slot'));
         o.slots.push(3, 4);
         await page.reload({ waitUntil: 'load' });
         await wait(page, () => document.querySelectorAll('.char-row').length === 5);

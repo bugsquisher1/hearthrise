@@ -18,6 +18,13 @@
 --       from charging twice, but a retried success read as a refusal).
 --
 -- CONTRACT
+--   §0b THE LADDER (Game Designer ruling r45, 2026-10-21): the 3rd / 4th / 5th
+--      hero slot (slot_id 2 / 3 / 4) cost 15,000 / 40,000 / 120,000 gold, down
+--      from 75,000 / 250,000 / 750,000 so running four heroes is reachable.
+--      A PINNED update of the three seeded rows: it runs only over the old
+--      ladder or its own values (a re-apply) and refuses anything else. The
+--      authored copy is src/data/shops.js character_slot.2/.3/.4, bound to this
+--      table by tests/hero-slot-buy.mjs BIND.
 --   §1 hr_account_view(uid, slot) RESTATED WHOLE from 2026-10-23-hunt-party.sql
 --      (md5 pinned in §0). The `account` section every envelope carries (and
 --      hr_load's needs_name answer) gains two keys, both read from the server
@@ -60,16 +67,18 @@
 --   pays (must be the caller's own row), and the key. Price, ownership, cap,
 --   clock (now()) and the paying balance are the server's.
 --
--- COST AT 100x: no table, no seeded row. The account view adds one
+-- COST AT 100x: no table; three seeded catalogue prices move (§0b). The account view adds one
 --   hr_hero_slots_of (two index probes) and a five-row catalogue scan per
 --   envelope; a purchase is three rows (ledger, progress flag, intent), at most
 --   three per account forever.
 --
 -- RE-RUNNABLE: §0 accepts the pinned pre-images or this file's own bodies.
 -- REVERSIBILITY: re-apply hr_account_view from 2026-10-23-hunt-party.sql and
---   hr_buy_hero_slot__ungated from 2026-10-23-demolition-hero-slots-gold.sql.
+--   hr_buy_hero_slot__ungated from 2026-10-23-demolition-hero-slots-gold.sql;
+--   set cost_gold back to 75000 / 250000 / 750000 on slots 2 / 3 / 4 (with
+--   src/data/shops.js). Slots already bought at the lower price stay owned.
 --   Rows written by purchases are ordinary hero_slot ledger + flag rows.
--- ORDER: after 2026-11-02-shop-no-supplies.sql (last). No begin/commit.
+-- ORDER: after 2026-11-03-hunt-analyzer-level-eta.sql (last). No begin/commit.
 -- After apply: live-hash-drift wants hr_buy_hero_slot__ungated and
 --   hr_account_view measured.
 -- ==========================================================================
@@ -100,6 +109,22 @@ begin
     raise exception 'PRECONDITION: hr_account_view is not the 2026-10-23-hunt-party.sql body this file restates (md5 %) - another lane moved it', v_md5;
   end if;
 end $$;
+
+-- ── 0b. THE LADDER: A PINNED UPDATE OF THE THREE SEEDED PRICES ─────────────
+do $$
+declare v_now text;
+begin
+  select string_agg(slot_id || ':' || cost_gold || ':' || starter, ',' order by slot_id) into v_now
+    from public.hr_hero_slots;
+  if v_now is distinct from '1:0:true,2:75000:false,3:250000:false,4:750000:false'
+     and v_now is distinct from '1:0:true,2:15000:false,3:40000:false,4:120000:false' then
+    raise exception 'PRECONDITION: hr_hero_slots is not the 2026-10-26 ladder this file reprices (%) - another lane moved it', v_now;
+  end if;
+end $$;
+update public.hr_hero_slots as h
+   set cost_gold = v.gold
+  from (values (2, 15000), (3, 40000), (4, 120000)) as v(slot_id, gold)
+ where h.slot_id = v.slot_id and not h.starter and h.cost_gold is distinct from v.gold;
 
 -- ── 1. THE ACCOUNT VIEW: THE CAP AND THE NEXT OFFER, FROM THE CATALOGUE ─────
 create or replace function public.hr_account_view(p_user uuid, p_slot int)
@@ -299,9 +324,11 @@ declare
   v_max  int    := (select max(slot_id) + 1 from public.hr_hero_slots);
   v_role text;
 begin
-  -- (a) the catalogue this file reads: five slots in all, slots 2..4 priced, ascending.
-  if v_max <> 5 or v_c2 is null or v_c3 is null or v_c4 is null or not (0 < v_c2 and v_c2 < v_c3 and v_c3 < v_c4) then
-    raise exception 'VERIFY(a): hr_hero_slots is not a five-slot account with an ascending gold ladder on 2..4 (max %, % / % / %)', v_max, v_c2, v_c3, v_c4;
+  -- (a) the catalogue this file reads: five slots in all, the r45 ladder 15,000 / 40,000 / 120,000 on 2..4.
+  if v_max <> 5 or v_c2 is distinct from 15000 or v_c3 is distinct from 40000 or v_c4 is distinct from 120000
+     or (select count(*) from public.hr_hero_slots where starter) <> 1
+     or not (select starter and cost_gold = 0 from public.hr_hero_slots where slot_id = 1) then
+    raise exception 'VERIFY(a): hr_hero_slots is not five slots with the starter on 1 and 15000 / 40000 / 120000 gold on 2..4 (max %, % / % / %)', v_max, v_c2, v_c3, v_c4;
   end if;
 
   begin

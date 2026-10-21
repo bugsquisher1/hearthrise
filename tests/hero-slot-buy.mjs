@@ -69,7 +69,7 @@ const HERO_GOLD = '2026-10-23-demolition-hero-slots-gold.sql';
 const OFFER_MIG = '2026-11-03-hero-slots-gold.sql';
 /* A HERO_GOLD mutant also short-circuits that file's §4, so THIS guard is what must see it. */
 const GOLD_GATE_BLIND = ['  -- (a) the catalogue: four rows, priced in gold as authored, none waived.\n', '  return;\n'];
-const OFFER_GATE_BLIND = ['  -- (a) the catalogue this file reads: five slots in all, slots 2..4 priced, ascending.\n', '  return;\n'];
+const OFFER_GATE_BLIND = ['  -- (a) the catalogue this file reads: five slots in all, the r45 ladder 15,000 / 40,000 / 120,000 on 2..4.\n', '  return;\n'];
 const problems = [];
 const ok = (cond, msg) => { if (!cond) problems.push(msg); };
 
@@ -246,6 +246,13 @@ const MUTATIONS = {
     why: 'a purchase without an idempotency key runs: a retried success reads as a refusal',
     find: '  if p_idem is null then\n    return jsonb_build_object(\'ok\', false, \'error\', \'idem_required\');',
     repl: '  if false then\n    return jsonb_build_object(\'ok\', false, \'error\', \'idem_required\');',
+  },
+  ladder_price_drifts: {
+    file: OFFER_MIG,
+    why: 'a hand edits ONE price of the r45 ladder in the server catalogue: the roster shows the '
+       + 'shop price and the server charges another number',
+    find: '  from (values (2, 15000), (3, 40000), (4, 120000)) as v(slot_id, gold)',
+    repl: '  from (values (2, 15000), (3, 45000), (4, 120000)) as v(slot_id, gold)',
   },
   success_not_cached: {
     file: OFFER_MIG,

@@ -99,7 +99,7 @@ function fakeServer(bySlot, o = {}) {
       if (name === 'hr_put_client_state') return answer({ ok: true });
       if (name === 'hr_create_hero') return answer(args.p_name === 'Taken' ? { ok: false, error: 'name_taken' } : { ok: true, slot: args.p_slot, name: args.p_name, created: true });
       if (name === 'hr_buy_hero_slot') return answer(args.p_slot === 1 ? { ok: false, error: 'insufficient_gold', short_by: 400 }
-        : { ok: true, slot_id: args.p_slot_id, gold: 5, hero_slots: [0, 1, 2], hero_slot_offer: { slot_id: 3, cost_gold: 250000 }, hero_slots_max: 5 });
+        : { ok: true, slot_id: args.p_slot_id, gold: 5, hero_slots: [0, 1, 2], hero_slot_offer: { slot_id: 3, cost_gold: 40000 }, hero_slots_max: 5 });
       return answer({ ok: false, error: 'unknown' });
     },
     accrue: async (body) => { calls.push(['accrue', body]); return answer(Object.assign({ accrued: true }, bySlot[body.slot])); },
@@ -535,17 +535,17 @@ async function rules(M) {
   await t('ACC-5', async () => {
     const offer = (o) => ({ account: { max_concurrent: 4, hero_slot_offer: o, hero_slots_max: 5 } });
     /* the offer is the server's, bounded; none at the cap, none unstated, none malformed */
-    const none = [offer(null), offer({ slot_id: 2, cost_gold: 0 }), offer({ slot_id: 9, cost_gold: 75000 }), offer({ slot_id: 2, cost_gold: '75000' }), {}];
+    const none = [offer(null), offer({ slot_id: 2, cost_gold: 0 }), offer({ slot_id: 9, cost_gold: 15000 }), offer({ slot_id: 2, cost_gold: '15000' }), {}];
     for (const extra of none) {
       const acc = mkAccount(fakeServer({ 0: env(1, extra) }));
       await acc.roster();
       if (acc.slotOffer !== null) return 'an offer was read from ' + JSON.stringify(extra) + ': ' + JSON.stringify(acc.slotOffer);
     }
-    const srv = fakeServer({ 0: env(1, Object.assign({ hero_slots: [0, 1], name: 'Tester', state: { gold: 80000 } }, offer({ slot_id: 2, cost_gold: 75000 }))),
+    const srv = fakeServer({ 0: env(1, Object.assign({ hero_slots: [0, 1], name: 'Tester', state: { gold: 80000 } }, offer({ slot_id: 2, cost_gold: 15000 }))),
       1: env(1, { name: 'Fennick', state: { gold: 10 } }) });
     const acc = mkAccount(srv);
     const r = await acc.roster();
-    if (JSON.stringify(acc.slotOffer) !== '{"slotId":2,"cost":75000,"max":5}' || r[0].gold !== 80000 || r[1].gold !== 10) return 'the roster read ' + JSON.stringify([acc.slotOffer, r]);
+    if (JSON.stringify(acc.slotOffer) !== '{"slotId":2,"cost":15000,"max":5}' || r[0].gold !== 80000 || r[1].gold !== 10) return 'the roster read ' + JSON.stringify([acc.slotOffer, r]);
     await acc.open(0);
     srv.calls.length = 0;
     const yes = await acc.buySlot(2, 0);
@@ -556,7 +556,7 @@ async function rules(M) {
     if (Object.keys(sent[0]).sort().join() !== 'p_idem,p_slot,p_slot_id' || sent[0].p_slot_id !== 2 || sent[0].p_slot !== 0
       || typeof sent[0].p_idem !== 'string' || sent[0].p_idem === sent[1].p_idem) return 'buySlot sent ' + JSON.stringify(sent);
     if (!srv.calls.some((c) => c[0] === 'hr_load' && c[1].p_slot === 0)) return 'the paying hero was not re-read after the purchase';
-    return JSON.stringify(acc.slotOffer) === '{"slotId":3,"cost":250000,"max":5}' || 'after the purchase the offer is ' + JSON.stringify(acc.slotOffer);
+    return JSON.stringify(acc.slotOffer) === '{"slotId":3,"cost":40000,"max":5}' || 'after the purchase the offer is ' + JSON.stringify(acc.slotOffer);
   });
   await t('ACC-3', async () => {
     if (!S.isClosedAnswer(403, { code: 'hr_closed' }) || S.isClosedAnswer(403, { code: 'other' }) || S.isClosedAnswer(200, { code: 'hr_closed' })) return 'isClosedAnswer is wrong';

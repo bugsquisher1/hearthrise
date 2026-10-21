@@ -5,7 +5,7 @@
 //   node tests/hunt-live.mjs            the rules
 //   node tests/hunt-live.mjs --mutate   every planted defect must turn its rule RED
 //
-// mutant-anchors: src/hunt-view/live-engine.js src/core/combat-sim.js supabase/functions/hr-accrue/hunt-settle.js src/hunt-view/timeline.js src/core/hunt/roles.js src/core/member.js
+// mutant-anchors: src/hunt-view/live-engine.js src/core/combat-sim.js supabase/functions/hr-accrue/hunt-settle.js src/hunt-view/timeline.js src/core/hunt/roles.js src/core/member.js src/core/hunt/pull-cycle.js
 // mutant-writes-tree: no — mutants are planted into a temp copy of src/ and the edge
 //
 // Option B (Tyler 2026-10-19). The edge settles a hunt instance in commits of at
@@ -43,6 +43,9 @@
 //         changed while the hunt runs reach the server's next commit (the hero unit carries them);
 //         every start point keeps one setup until it changes (live-engine.js sameSetup: no restart
 //         per commit) and names the new one after (the viewed half: tests/hunt-scene-live.mjs LV-14).
+//   LV-G  A LONG HUNT COSTS WHAT A SHORT ONE DOES: per settle, the server's input, stored world
+//         and engine work in a 40-min hunt's last 10 min stay within 2x its first 10 min's; the
+//         browser holds at most 2x the look-ahead in combat seeds (they grew with the hunt's age).
 //   LV-R  RECONCILE: a prediction forced off the server's world is judged
 //         `diverged` at the next commit, and the reseed eases every unit onto its true
 //         tile with no frame moving a unit more than one tile.
@@ -389,6 +392,39 @@ function rules(M) {
     }
   }
 
+  { // LV-G: A LONG HUNT COSTS WHAT A SHORT ONE DOES (2026-10-21, a 260-min party hunt read "freezing"). Per settle, the
+    // server's input (the stored world and every member's session), its output (the world it stores) and
+    // the engine's work (steps + events) in the last 10 minutes of a 40-minute Sewer duo stay within 2x the first 10
+    // minutes'; the browser's held combat seeds stay within 2x the look-ahead at every commit (kept from the first seed
+    // ever sent, they grew by 8 every commit and each reconcile re-copied them all).
+    const mis = [memberOf(M, 'a', 0, 'tank', 30), memberOf(M, 'b', 1, 'melee_dps', 30)];
+    for (const m of mis) m.huntId = 'millrace_sewer';
+    const srv = server(M, mis, { hunt: 'millrace_sewer' });
+    const E = M.LE.createLiveEngine({ items: M.ITEMS, monsters: M.MONSTERS });
+    E.seed(srv.live('a'));
+    const SPAN = 40 * 60000, EDGE = 10 * 60000;
+    const early = { input: 0, output: 0, work: 0 }, late = { input: 0, output: 0, work: 0 };
+    let held = 0, stopped = null, worldMax = 0;
+    for (let t = T0 + 16000; t <= T0 + SPAN; t += 16000) {
+      E.advance(t, () => {});
+      const input = JSON.stringify({ w: srv.inst.world, m: mis.map((m) => m.huntSession) }).length;
+      const c = srv.commit(t);
+      if (!c) { stopped = t - T0; break; }
+      if (E.reconcile(c.check) !== 'match') E.seed(srv.live('a'));
+      held = Math.max(held, E.heldSeeds());
+      worldMax = Math.max(worldMax, srv.inst.world.length);
+      const output = srv.inst.world.length, work = c.tl.hunt_track.length + c.tl.hunt_events.length;
+      const at = t - T0 <= EDGE ? early : t - T0 > SPAN - EDGE ? late : null;
+      if (at) { at.input = Math.max(at.input, input); at.output = Math.max(at.output, output); at.work = Math.max(at.work, work); }
+    }
+    console.log(`  LV-G 40-min Sewer duo: per settle, input ${early.input} -> ${late.input} B, world ${early.output} -> ${late.output} B (max ${worldMax}), engine work ${early.work} -> ${late.work} steps+events; browser holds at most ${held} seeds (look-ahead ${M.TUNE.liveSeeds})`);
+    ok('LV-G', stopped === null, `the settle stopped answering ${stopped} ms into the hunt (a world past worldMaxBytes is refused)`);
+    for (const k of ['input', 'output', 'work']) {
+      ok('LV-G', early[k] > 0 && late[k] <= 2 * early[k], `the settle's ${k} grew with the hunt's age: ${early[k]} in the first 10 min, ${late[k]} in the last`);
+    }
+    ok('LV-G', held <= 2 * M.TUNE.liveSeeds, `the browser holds ${held} combat seeds after 40 min, over 2x the look-ahead (${M.TUNE.liveSeeds}): they grow with the hunt's age`);
+  }
+
   { // LV-W: a RESTARTED instance (no world, its swing counter kept: hr_hunt_start) runs live from its first swing
     const mis = [memberOf(M, 'a', 0, 'tank', 6)];
     const srv = server(M, mis);
@@ -496,6 +532,9 @@ const MUTANTS = [
   ['members run in another order than the server (LV-D)', 'src/hunt-view/live-engine.js', '.slice().sort((a, b) => (a.key < b.key ? -1 : 1))', '.slice().reverse()', /^LV-D/],
   ['a setup change is not written onto a standing hero (LV-S)', 'src/core/combat-sim.js', 'if (s.stance !== undefined) u.stance = s.stance;', 'void 0;', /^LV-S/],
   ['every start point reads as the setup already run (LV-S)', 'src/hunt-view/live-engine.js', 'setupOf(live) === st.setup,', 'true,', /^LV-S/],
+  ['the browser keeps every combat seed since the hunt began (LV-G)', 'src/hunt-view/live-engine.js',
+    'const keepFrom = Math.max(Math.min(st.seeds.from, from), st.world ? st.world.swing : st.worldSwing);', 'const keepFrom = Math.min(st.seeds.from, from);', /^LV-G/],
+  ['corpses are never cleared from the stored world (LV-G)', 'src/core/hunt/pull-cycle.js', 'if (u.deadMs >= HUNT_TUNING.corpseMs) gone = true;', 'if (false) gone = true;', /^LV-G/],
   ['the browser drops the leader flag of a peer (LV-K)', 'src/core/member.js', '    hero: f.hero || {},', '    hero: Object.assign({}, f.hero, { lead: false }),', /^LV-K/],
 ];
 

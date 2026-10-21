@@ -12,14 +12,16 @@ import { SESSION_CONFIG } from './config.js?v=0.2.21';
 
 /**
  * How soon (ms) the next re-read is asked: the live view's start-point ask
- * (live-link.js askDelayMs, from the session's hunt_from) else the ordinary
- * poll, and never after a pending leave's close (`closeMs`, or null).
+ * (live-link.js askDelayMs, from the session's hunt_from) or its seed refill
+ * (refillDelayMs), else the ordinary poll, and never after a pending leave's
+ * close (`closeMs`, or null).
  */
 export function pollDelayMs(hunt, liveLink, closeMs) {
   /* The live view without a start point (just entered, reloaded, or a commit it did not match)
-     asks soon; the floor then answers with hunt_live instead of a settle. */
+     asks soon; the floor then answers with hunt_live instead of a settle. A running one asks
+     before its look-ahead runs out (live-link.js refillDelayMs). */
   const from = hunt && hunt.session && typeof hunt.session.hunt_from === 'string' ? Date.parse(hunt.session.hunt_from) : NaN;
-  const ms = liveLink.askDelayMs(from) ?? SESSION_CONFIG.huntPollMs;
+  const ms = Math.min(liveLink.askDelayMs(from) ?? SESSION_CONFIG.huntPollMs, liveLink.refillDelayMs() ?? SESSION_CONFIG.huntPollMs);
   return closeMs === null ? ms : Math.min(ms, closeMs);
 }
 

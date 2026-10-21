@@ -364,7 +364,9 @@ function rules(M) {
         if (v === 'diverged' && verdict === null) {
           verdict = v; verdictT = t;
           const res = E.reseed(srv.live('a'), t);
-          if (res) { eased = tl.rebase(t, res.positions, 250); }
+          /* the caller plays on what the swings run hold after the instant (live-link.js _restart) */
+          const ends = new Map();
+          if (res) { eased = tl.rebase(t, res.positions, 250, ends); tl.ingest({ track: res.track.filter((s) => !(ends.get(s.u) >= s.atMs)), events: res.events, units: res.units, fromMs: res.fromMs }, clientT); }
         }
       },
       onTick: ({ t, E }) => {

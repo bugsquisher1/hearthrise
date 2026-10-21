@@ -2633,8 +2633,9 @@ jobs:
       # a fixture, boss or Hearthfind source; ch <= the tier rate and <= 4% of the
       # gp midpoint per row, <= 5% for ALL the monster's gear rows; 0.5-10
       # MEASURED hours (>= 0.25 h at the ceiling); LAST, one per monster, and a
-      # salvage-shaped row never ships unflagged; bounty proof unchanged. Both
-      # paths on wild_boar. 10 mutations + a clean control arm, no DB.
+      # salvage-shaped row never ships unflagged (a walked ground's `gear: true` equipment row is
+      # tests/hunt-core/drop-tables.mjs's, run by the hunt-core step); bounty proof unchanged. Both
+      # paths on wild_boar. 12 mutations + a clean control arm, no DB.
       - name: Field salvage - the tier armour drop rows keep the faucet rules
         if: ${{ !cancelled() }}
         run: |

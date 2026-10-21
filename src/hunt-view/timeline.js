@@ -29,7 +29,8 @@
 //   T7 a step that does not move the unit (an anchor on the tile it already holds) adds nothing.
 //   T8 REBASE (the live view's reconcile, src/hunt-view/live-engine.js): every step and queued
 //      event after the instant is dropped and each unit gets ONE step toward where it truly
-//      stands, rolled over max(easeMs, its distance x EASE_MS_PER_TILE), never a teleport.
+//      stands, rolled over max(easeMs, its distance x EASE_MS_PER_TILE), never a teleport. A dropped
+//      event is forgotten with its HP change (T1 lets the restarted prediction play it again).
 //   T9 the delay can be changed (setDelay): the live view plays a hair behind real time, a
 //      server-paced character a poll behind.
 //   T10 ONE HUNT AT A TIME: clear() forgets every unit when the character's hunt session changes
@@ -228,20 +229,28 @@ export function createTimeline(o) {
    * T8: drop everything after server instant `atMs` and roll each unit in `positions` (unit -> [x, y])
    * from where it stands onto its true tile. Answers how many units were eased.
    */
-  function rebase(atMs, positions, easeMs) {
+  function rebase(atMs, positions, easeMs, ends) {
     if (!isInt(atMs) || !(positions instanceof Map)) return 0;
     for (const [u, a] of steps) {
       while (a.length > 1 && a[a.length - 1].atMs > atMs) a.pop();
       if (a.length === 1 && a[0].atMs > atMs && !positions.has(u)) steps.delete(u);
     }
-    for (let i = queue.length - 1; i >= 0; i--) if (queue[i].atMs > atMs) queue.splice(i, 1);
+    /* A dropped event is FORGOTTEN, not just unqueued: its id stays the engine's ("<atMs>.<k>"), so the
+       restarted prediction hands the same event back and it must play then (kept in `seen`, a death
+       dropped here was never drawn and the monster stood at its last tile, its bar emptied by the
+       dmg the book had already counted: live v0.2.21). Its HP change leaves the book with it. */
+    for (let i = queue.length - 1; i >= 0; i--) if (queue[i].atMs > atMs) { seen.delete(queue[i].key); queue.splice(i, 1); }
+    for (const r of book.values()) {
+      for (let i = r.deltas.length - 1; i >= 0; i--) if (r.deltas[i][0] > atMs) r.deltas.splice(i, 1);
+      for (let i = r.bases.length - 1; i > 0; i--) if (r.bases[i][0] > atMs) r.bases.splice(i, 1);
+    }
     let n = 0;
     for (const [u, xy] of positions) {
       const a = steps.get(u);
       const last = a && a[a.length - 1];
       const dist = last ? Math.hypot(xy[0] - last.x, xy[1] - last.y) : 0;
       const dur = Math.max(easeMs || 250, Math.ceil(dist * EASE_MS_PER_TILE));
-      if (addStep(u, xy[0], xy[1], atMs + 1, dur)) n++;
+      if (addStep(u, xy[0], xy[1], atMs + 1, dur)) { n++; if (ends instanceof Map) ends.set(u, atMs + 1 + dur); }
     }
     return n;
   }

@@ -32,6 +32,10 @@
 //        Level, the empty owned slot offers Create character, Create is ONE
 //        hr_create_character for that slot and plays it, and after a reload both
 //        heroes list by name
+//   B-10 A SESSION THAT ENDS UNDER THE GAME (live 2026-10-20: a dead token sent 805 times):
+//        every call answers 401 and the refresh is refused -> the sign-in screen with
+//        "You were signed out. Sign in again.", no session copy left, and the dead
+//        session sends no more than a handful of calls
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -51,6 +55,7 @@ async function stubServer(page, o) {
   await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
     const url = r.request().url();
     const body = JSON.parse(r.request().postData() || '{}');
+    if (o.revoked) { o.dead++; return r.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ code: 'UNAUTHORIZED_ASYMMETRIC_JWT' }) }); }
     if (o.closed) return r.fulfill({ status: 403, contentType: 'application/json', body: JSON.stringify({ code: 'hr_closed', message: 'closed' }) });
     if (o.heroes) {   // a stateful account: { slot: name } heroes; hr_create_character adds one
       const name = url.split('?')[0].split('/').pop();
@@ -184,6 +189,30 @@ async function checks(overrides) {
       await ctx.close();
     }
 
+    { // B-10 a refused refresh lands on sign-in, once, with no retry loop
+      const o = { revoked: false, dead: 0 };
+      const { ctx, page } = await fresh(o);
+      await page.goto(base + '/play.html', { waitUntil: 'load' });
+      await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
+      await page.fill('input[name=email]', 'qa@example.test');
+      await page.fill('input[name=password]', 'not-a-real-password');
+      await page.click('.auth-submit');
+      await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
+      await page.click('[data-app="play"][data-slot="0"]');
+      await wait(page, () => document.querySelector('#panel-world[data-slot="0"]'));
+      await page.waitForTimeout(300);
+      o.revoked = true;
+      /* a frame that skips versions makes the character ask the engine (hr-accrue) */
+      await page.evaluate((uid) => { window.__refuseRefresh = true; window.__hub.send('hr:' + uid + ':0', { t: 'delta', frame: 9, patch: { state: { active_kind: 'idle', gold: 9 } } }); }, UID);
+      const out = await wait(page, () => document.querySelector('form[data-auth="sign-in"]') && /You were signed out\. Sign in again\./.test(document.body.innerText));
+      if (!out) fails.push('B-10 a refused refresh did not land on sign-in with "You were signed out. Sign in again."');
+      await page.waitForTimeout(1500);
+      if (o.dead > 3) fails.push('B-10 the dead session sent ' + o.dead + ' calls');
+      const left = await page.evaluate(() => [...Object.keys(localStorage), ...Object.keys(sessionStorage)].filter((k) => k === 'hr-auth' || k === 'hr-tab-id'));
+      if (out && left.length) fails.push('B-10 session copies left after the session ended: ' + left.join(', '));
+      await ctx.close();
+    }
+
     { // B-7
       const { ctx, page } = await fresh({ closed: true });
       await page.goto(base + '/play.html', { waitUntil: 'load' });
@@ -210,6 +239,7 @@ const MUTANTS = [
   ['the hunt panels never mount', 'src/data/hud-widgets.js', 'min: Object.freeze([320, 64]), opacity: 1, visible: true', 'min: Object.freeze([320, 64]), opacity: 1, visible: false'],
   ['every hero is "Character N" again', 'src/app/boot.js', "(r.exists ? esc(r.name || 'Unnamed hero')", "(r.exists ? 'Character ' + (r.slot + 1)"],
   ['an empty owned slot offers no Create', 'src/app/boot.js', 'class="auth-submit" data-app="create" data-slot="', 'class="auth-submit" data-app="nothing" data-slot="'],
+  ['a dead session stays in the game', 'src/app/boot.js', "else if (ev === 'signed-out' || ev === 'expired') sessionEnded();", "else if (ev === 'signed-out') sessionEnded();"],
   ['the closed answer is ignored', 'src/app/boot.js', "if (why === 'closed-game') showClosed();", "if (why === 'never') showClosed();"],
 ];
 
@@ -217,7 +247,7 @@ async function main() {
   if (!process.argv.includes('--mutate')) {
     const fails = await checks(null);
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'client-boot: ' + fails.length + ' check(s) RED' : 'client-boot: both pages boot; sign-in, play, two characters, one hero + Create in the second slot, sign-out, reset and closed all hold');
+    console.log(fails.length ? 'client-boot: ' + fails.length + ' check(s) RED' : 'client-boot: both pages boot; sign-in, play, two characters, one hero + Create in the second slot, sign-out, a dead session, reset and closed all hold');
     process.exit(fails.length ? 1 : 0);
   }
   let bad = 0;

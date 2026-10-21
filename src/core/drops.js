@@ -71,7 +71,9 @@ export function rollDropTable(drops, mods, rng) {
     const chance = effectiveDropChance(d, mods);
     if (!rng.chance(chance)) continue;
     dropped[d.id] = (dropped[d.id] || 0) + 1;
-    const band = dropBand(d.ch);
+    /* THE EQUIPMENT SLOT (`gear: true`, src/data/monsters.js): a standard drop at any odds, never a
+       rare reveal — only the hunt's rare carrier earns the "Rare drop" moment (Tyler 10-14/10-20). */
+    const band = d.gear === true ? 'gear' : dropBand(d.ch);
     events.push({ type: 'drop', id: d.id, band, rare: band === 'rare' });
   }
   return { dropped, events };

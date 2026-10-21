@@ -65,6 +65,12 @@ export const SDK_STUB = `(function () {
         signUp: function () { return Promise.resolve({ data: {}, error: null }); },
         resetPasswordForEmail: function () { return Promise.resolve({ error: null }); },
         updateUser: function () { return Promise.resolve({ data: {}, error: null }); },
+        /* window.__refuseRefresh: the server refuses the refresh token (a session that has ended). */
+        refreshSession: function () {
+          if (window.__refuseRefresh) return Promise.resolve({ data: { session: null, user: null }, error: { name: 'AuthApiError', status: 400, message: 'Invalid Refresh Token' } });
+          var s = Object.assign({}, read(), { access_token: 'jwt-refreshed' }); st.setItem(sk, JSON.stringify(s)); fire('TOKEN_REFRESHED', s);
+          return Promise.resolve({ data: { session: s }, error: null });
+        },
         signOut: function () { fire('SIGNED_OUT', null); return Promise.resolve({ error: null }); },
         onAuthStateChange: function (f) { cbs.push(f); return { data: { subscription: { unsubscribe: function () {} } } }; },
       },

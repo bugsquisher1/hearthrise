@@ -60,6 +60,8 @@
 
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { bootChain, ROOT } from './pglite-chain.mjs';
 
 const argv = process.argv.slice(2);
@@ -71,8 +73,28 @@ const argOf = (n, d) => {
 const MIG = (f) => join(ROOT, 'supabase', 'migrations', f);
 // Appended to the shared chain rather than added to it — see bootChain's
 // `extra` docs. The catalogue is a hard dependency of the file under test.
+/* THE KIT AS SHIPPED. 2026-08-11-catalogue.generated.sql is the frozen root of the chain; the start
+   kit has moved on in the generator's FORWARD files since (2026-11-02: every starter weapon set).
+   The kit rows of the CURRENT generated file (tools/gen-catalogues.mjs OUT) are applied over the
+   root, verbatim, so C3/C4 compare src/data/start-kit.js with what the generator really ships. */
+function shippedKitSql() {
+  const gen = readFileSync(join(ROOT, 'tools', 'gen-catalogues.mjs'), 'utf8');
+  const m = /^const OUT = join\(ROOT, 'supabase', 'migrations', '([^']+)'\);$/m.exec(gen);
+  if (!m) { const e = new Error('tools/gen-catalogues.mjs names no OUT file'); e.harness = true; throw e; }
+  const sql = readFileSync(MIG(m[1]), 'utf8').replace(/\r\n/g, '\n');
+  const block = (t) => {
+    const b = new RegExp('^insert into public\\.' + t + ' \\([^)]*\\) values\\n(?:  \\([^\\n]*\\)[,;]\\n)+', 'm').exec(sql);
+    if (!b) { const e = new Error(m[1] + ' carries no ' + t + ' rows'); e.harness = true; throw e; }
+    return b[0];
+  };
+  const p = join(mkdtempSync(join(tmpdir(), 'hr-kit-')), 'kit.sql');
+  writeFileSync(p, '-- the start kit rows of ' + m[1] + '\ndelete from public.hr_start_inventory;\ndelete from public.hr_start_equipment;\n'
+    + block('hr_start_inventory') + block('hr_start_equipment'));
+  return p;
+}
 const EXTRA = [
   ['catalogue', MIG('2026-08-11-catalogue.generated.sql')],
+  ['kit', shippedKitSql()],
   ['character-bootstrap', MIG('2026-08-14-character-bootstrap.sql')],
 ];
 
@@ -457,9 +479,18 @@ end $planted$;
   catalogue_inventory_drift: {
     what: 'the catalogue grants a different starting quantity than src/data/start-kit.js',
     where: 'runtime',
-    patches: [['catalogue', [[
+    patches: [['kit', [[
       `  ('turnip_seed',${KIT.START_INVENTORY.turnip_seed});`,
       `  ('turnip_seed',${KIT.START_INVENTORY.turnip_seed + 1});`,
+    ]]]],
+  },
+
+  catalogue_kit_drops_a_set: {
+    what: 'the shipped catalogue leaves a starter weapon set out of the kit (Tyler 2026-10-20: all six)',
+    where: 'runtime',
+    patches: [['kit', [[
+      `  ('practice_crossbow',1),\n`,
+      '',
     ]]]],
   },
 };

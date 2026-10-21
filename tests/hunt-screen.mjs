@@ -77,7 +77,8 @@
 //         above its top, and the fight settings are a slide-out sheet (shut until the bar's
 //         button opens it, then on top of everything, shut again on Escape)
 //   HS-23 THE HEAL WARNING: a heal slot whose HP % is fewer HP than the hunt's biggest blow at the
-//         party's size says so in Configure action ("The Rat King can hit 75. Heal at 30% = 66 HP.");
+//         party's size says so in Configure action's sticky foot beside Save ("The Rat King can hit for 75.
+//         At 30% you have 66 HP, so one hit can kill you before you eat."), in view at 922x423 whenever Save is;
 //         it hides at a safe threshold and for a solo hero (who skips the King's hall)
 //   HS-21 THE COOLDOWN EMBER: the hero's played cast cools that ability's slot for its
 //         catalogue cooldown; the ember rises and the seconds fall as it runs out
@@ -739,7 +740,7 @@ async function checks(overrides, shots) {
         await page.fill('.hc-cond[data-cond="0"] [data-f="value"]', '30');
         await page.dispatchEvent('.hc-cond[data-cond="0"] [data-f="value"]', 'change');
         const shown = await warn();
-        if (safe !== '' || shown !== 'The Rat King can hit 75. Heal at 30% = 66 HP.') {
+        if (safe !== '' || shown !== 'The Rat King can hit for 75. At 30% you have 66 HP, so one hit can kill you before you eat.') {
           fails.push('HS-23 the heal warning did not follow the threshold in a party of two: at 50% "' + safe + '", at 30% "' + shown + '"');
         }
         /* Alone the King's hall is skipped (minParty 2): the biggest blow is a Cistern Spider's 48, under 66. */
@@ -748,6 +749,22 @@ async function checks(overrides, shots) {
         const solo = await warn();
         if (solo !== '') fails.push('HS-23 a solo hero (who never meets the Rat King) was warned: "' + solo + '"');
       } else fails.push('HS-23 the screen did not mount on the Sewer');
+      await ctx.close();
+    }
+    { // HS-23 at 922x423 (v0.2.24 visual gate): the warning is on screen, beside Save, never scrolled away below it
+      const { ctx, page, up } = await open({ viewport: { width: 922, height: 423 }, prep: (st) => { st.env.hunt.hunt_id = 'millrace_sewer'; } });
+      if (up) {
+        await page.click('.hb-slot[data-slot="2"]');
+        await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .hc-title'), null, 3000);
+        await page.fill('.hc-cond[data-cond="0"] [data-f="value"]', '30');
+        await page.dispatchEvent('.hc-cond[data-cond="0"] [data-f="value"]', 'change');
+        const seen = await page.evaluate(() => {
+          const inView = (el) => { const r = el && el.getBoundingClientRect(); return !!r && r.width > 0 && r.top >= 0 && r.bottom <= window.innerHeight && r.left >= 0 && r.right <= window.innerWidth; };
+          const w = document.querySelector('.hc-warn');
+          return { warn: inView(w), save: inView(document.querySelector('.hc-foot [data-x="save"]')), inFoot: !!(w && w.closest('.hc-foot')), text: w && w.textContent };
+        });
+        if (!seen.warn || !seen.save || !seen.inFoot || !/one hit can kill you/.test(String(seen.text))) fails.push('HS-23 at 922x423 the heal warning is not in view beside Save: ' + JSON.stringify(seen));
+      } else fails.push('HS-23 the screen did not mount at 922x423');
       await ctx.close();
     }
 
@@ -1179,6 +1196,7 @@ const MUTANTS = [
   ['a null per_hour shows dashes, not "Per hour after 10 min."', 'src/shell/widgets/analyzer.js', "prop(sec.querySelector('.ha-later'), 'hidden', v.rated);", "prop(sec.querySelector('.ha-later'), 'hidden', true);"],
   ['Any food says it eats the best food first', 'src/shell/action-facts.js', 'your own \' + a.id + \' first, the smallest that covers what you are missing, then the store’s', 'your best \' + a.id + \' first'],
   ['Configure action never warns a heal slot', 'src/shell/windows/configure-action.js', "healWarning(d, set, blow, vitalsOf(cs).hpMax)", "''"],
+  ['the heal warning sits above the foot, scrolled away below Save at 922x423', 'src/shell/windows/configure-action.js', "'<div class=\"hc-foot\"><p class=\"hc-warn\" role=\"status\" aria-live=\"polite\"></p>'", "'<p class=\"hc-warn\" role=\"status\" aria-live=\"polite\"></p><div class=\"hc-foot\">'"],
   ['the heal warning reads the whole ground whatever the party size', 'src/shell/windows/configure-action.js', 'biggestBlowOn(h.huntId, p ? p.members.length : 1)', 'biggestBlowOn(h.huntId, 4)'],
   ['the Hunts window keeps saying "On the way" while hunting', 'src/shell/windows/hunts.js', "  if (sc.msg && sc.msg === sc.enterMsg && (now || (h && h.ended))) { sc.msg = ''; sc.enterMsg = null; }\n", ''],
   ['an edge panel never steps out of the hunt bar’s way', 'src/shell/shell.js', "        for (const p of at.push) edgeEls[p.i].style.top = p.top + 'px';\n", ''],

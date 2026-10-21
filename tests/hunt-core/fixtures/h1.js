@@ -44,9 +44,11 @@ export async function loadCore(root) {
  * (exactly one occurrence of `from`, or it throws — a mutant that plants
  * nothing proves nothing). Answers { root, done() }.
  */
-export function plant(edits) {
+export function plant(edits, also = []) {
   const root = mkdtempSync(join(tmpdir(), 'hunt-core-'));
-  for (const d of ['src/core', 'src/data']) cpSync(join(ROOT, d), join(root, d), { recursive: true });
+  /* `also`: more trees a planted run needs (the real settle: supabase/functions/hr-accrue, src/world/core and the
+     world atlases' JSON, play-ground.mjs PLAY_TREES); images are never copied. */
+  for (const d of ['src/core', 'src/data', ...also]) cpSync(join(ROOT, d), join(root, d), { recursive: true, filter: (f) => !/\.(png|webp)$/i.test(f) });
   cpSync(join(ROOT, 'src/build-info.js'), join(root, 'src/build-info.js'));
   for (const [file, from, to] of edits) {
     const p = join(root, file);

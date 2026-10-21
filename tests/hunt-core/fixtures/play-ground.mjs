@@ -18,8 +18,11 @@ const COMBAT = ['melee', 'ranged', 'magic', 'defense'];
 
 /** THE RUNNER, reusable (tests/hunt-core/drop-tables.mjs): `run(huntId, L, roles, opts)` plays one ground
     on the real settle and answers the totals, per hour and per hero, plus `items` (id -> count, the whole
-    party's credit), `heroItems` (per hero key) and `killsBy` (monster -> kills).
+    party's credit), `heroItems` and `heroXp` (per hero key: item / skill -> amount) and `killsBy` (monster -> kills).
     opts: { spanMs (default thirty minutes), secret (the hunt seed), monsters (a drop-table fixture) }. */
+/** The trees loadPlay reads beyond src/core and src/data: a planted copy (h1.js plant) needs them too. */
+export const PLAY_TREES = Object.freeze(['supabase/functions/hr-accrue', 'src/world/core', 'assets/world']);
+
 export async function loadPlay(root) {
   const u = (p) => pathToFileURL(join(root, p)).href;
   const AC = await import(u('supabase/functions/hr-accrue/accrual.js'));
@@ -57,8 +60,11 @@ export async function loadPlay(root) {
   const kit = (L, role) => {
     const t = L < 15 ? 0 : L < 30 ? 1 : L < 45 ? 2 : 3;
     const weapon = { tank: ['bronze_sword', 'iron_sword', 'steel_sword', 'mithril_sword'], ranger: ['shortbow', 'willow_longbow', 'maple_bow', 'maple_bow'],
-      mage: ['apprentice_staff', 'oak_staff', 'willow_staff', 'maple_staff'], healer: ['apprentice_staff', 'oak_staff', 'willow_staff', 'maple_staff'] }[role][t];
-    return { weapon, body: ['bronze_platebody', 'iron_platebody', 'steel_platebody', 'mithril_platebody'][t], helmet: ['bronze_helm', 'iron_helm', 'steel_helm', 'steel_helm'][t],
+      mage: ['apprentice_wand', 'oak_wand', 'willow_wand', 'maple_wand'], healer: ['apprentice_staff', 'oak_staff', 'willow_staff', 'maple_staff'] }[role][t];
+    /* A Mage is wand + spellbook (since 10-19; a staff is the Healer's: hunt-roles.js roleWeaponOf). The harness's
+       "mage" held a staff until 2026-10-21, so it measured a second Healer (designer pass 2026-10-21). */
+    const book = role === 'mage' ? { shield: ['apprentice_primer', 'oak_spellbook', 'willow_spellbook', 'maple_spellbook'][t] } : {};
+    return { weapon, ...book, body: ['bronze_platebody', 'iron_platebody', 'steel_platebody', 'mithril_platebody'][t], helmet: ['bronze_helm', 'iron_helm', 'steel_helm', 'steel_helm'][t],
       ...(role === 'ranger' ? { ammo: 'bronze_arrows' } : {}) };
   };
   /* THE FULL SET (opts.fullSet): the weapon above plus helmet, body, legs and boots of the hero's own armour line
@@ -97,7 +103,7 @@ export async function loadPlay(root) {
     for (const p of ground.pockets) for (const s of p.spawns) for (const d of monsters[s.monster].drops) if (d.ch >= 0.05 && CAT.vendorPriceOf(ITEMS, d.id) < 100) common.add(d.id);
     let world = null, next = T0, played = 0;
     const T = { xp: 0, levelXp: 0, coin: 0, commons: 0, rares: 0, store: 0, falls: 0, kills: 0, ended: [], buys: {} };
-    const items = {}, heroItems = {}, killsBy = {};
+    const items = {}, heroItems = {}, killsBy = {}, heroXp = {};
     for (let t = T0; t < T0 + span; t += 600000) {
       const out = AC.accrueHunt({ instance: { id: IID, nextSwingAtMs: next, world }, window: { fromMs: t, toMs: Math.min(T0 + span, t + 600000) },
         secret, ground, grid, items: ITEMS, monsters, members });
@@ -111,7 +117,11 @@ export async function loadPlay(root) {
         }
         T.falls += (p.summary.deathLog || []).length;
         T.coin += p.delta.gold || 0;
-        for (const [k, v] of Object.entries(p.delta.xp || {})) if (COMBAT.includes(k)) T.xp += v;
+        for (const [k, v] of Object.entries(p.delta.xp || {})) {
+          if (COMBAT.includes(k)) T.xp += v;
+          const hx = heroXp[p.key] = heroXp[p.key] || {};
+          hx[k] = (hx[k] || 0) + v;
+        }
         T.levelXp += p.delta.level_xp || 0;
         for (const [id, n] of Object.entries(p.delta.items || {})) {
           T[common.has(id) ? 'commons' : 'rares'] += n * CAT.vendorPriceOf(ITEMS, id);
@@ -138,7 +148,7 @@ export async function loadPlay(root) {
     const per = 3600000 / span / roles.length;
     const r = (n) => Math.round(n * per);
     const income = r(T.coin + T.commons), store = r(T.store);
-    return { spanMs: span, playedMs: played, totals: T, items, heroItems, killsBy, heroes: members.map((m) => m.key),
+    return { spanMs: span, playedMs: played, totals: T, items, heroItems, heroXp, killsBy, heroes: members.map((m) => m.key),
       kills: Math.round(T.kills * 3600000 / span), falls: T.falls, xp: r(T.xp), levelXp: r(T.levelXp), coin: r(T.coin), commons: r(T.commons), rares: r(T.rares), store, income,
       margin: store ? Math.round((income / store - 1) * 100) + '%' : 'no store spend', net: income + r(T.rares) - store, ended: T.ended };
   };

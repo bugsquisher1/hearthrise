@@ -402,7 +402,8 @@ const MUTANTS = [
     find: "from public.hr_shop_supply_offers o where o.kind = 'tool'), '[]'::jsonb),", repl: "from public.hr_shop_supply_offers o), '[]'::jsonb)," },
   { arm: 'A-NO-SUPPLY', file: '2026-11-02-shop-no-supplies.sql', why: 'the refill door stays open',
     find: "drop function if exists public.hr_shop_refill(integer, bigint, uuid);", repl: "select 1;" },
-  { arm: 'A-DATA', file: '2026-10-25-alpha-catalogue.generated.sql', why: 'the SQL catalogue drifts from the edge price',
+  /* Planted in the LAST alpha catalogue (the 11-03 forward file rewrites every offer row the 10-25 file wrote). */
+  { arm: 'A-DATA', file: '2026-11-03-alpha-catalogue.generated.sql', why: 'the SQL catalogue drifts from the edge price',
     find: "  ('supply.cooked_shrimp', 'cooked_shrimp', 'food', 19),", repl: "  ('supply.cooked_shrimp', 'cooked_shrimp', 'food', 18)," },
   /* hr_stamina_refill_quote is RESTATED by the core rebuild (2026-10-27-core-bodies.sql: priced on Level):
      the mutant is planted in the body that runs. */

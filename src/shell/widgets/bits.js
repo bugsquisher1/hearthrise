@@ -9,6 +9,7 @@ import { ITEMS } from '../../data/items.js?v=0.2.23';
 import { DRINK_ITEMS } from '../../data/drinks.js?v=0.2.23';
 import { MONSTERS } from '../../data/monsters.js?v=0.2.23';
 import { ABILITIES } from '../../data/abilities.js?v=0.2.23';
+import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.23';
 import { PIXEL_DIR, ABILITY_DIR, ABILITY_ART } from '../../data/item-art.js?v=0.2.23';
 import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.23';
 import { glyphSvg } from '../launcher.js?v=0.2.23';
@@ -36,7 +37,7 @@ const spelled = (id) => { const t = String(id).replace(/_/g, ' '); return t.char
 
 /** An item's player-facing name (the catalogue's), or the id spelled out. */
 export function itemName(id) {
-  const it = ITEMS[id] || DRINK_ITEMS[id];
+  const it = ITEMS[id] || DRINK_ITEMS[id] || BASIC_INDEX[id];
   return it && it.n ? it.n : spelled(id);
 }
 
@@ -57,7 +58,9 @@ export function itemIconHtml(glyphs, id, fallback) {
 }
 
 /* A glyph for an ability with no pixel tile yet, and for the slot kinds that name no one item. */
-const ACTION_GLYPH = Object.freeze({ cleave: 'uiAxe', rend: 'uiBone', food: 'uiFood', drink: 'uiPotion', loaded: 'uiArrow' });
+const ACTION_GLYPH = Object.freeze({ cleave: 'uiAxe', rend: 'uiBone', loaded: 'uiArrow' });
+/* A store food or drink has no pixel icon yet (Asset Director handoff): its kind's glyph. */
+const STORE_GLYPH = Object.freeze({ heal: 'uiFood', mana: 'uiPotion', ammo: 'uiArrow' });
 
 /** A bar action's 32 px icon: the ability's pixel tile, the item's pixel icon, else a glyph. */
 export function actionIconHtml(glyphs, action) {
@@ -66,7 +69,8 @@ export function actionIconHtml(glyphs, action) {
     return '<img class="hh-icon" src="' + esc(ABILITY_DIR + id + '.png') + '" alt="" width="32" height="32" decoding="async">';
   }
   if (ITEMS[id]) return itemIconHtml(glyphs, id);
-  return '<span class="hh-icon is-glyph">' + glyphSvg(glyphs, ACTION_GLYPH[id] || (action && action.type === 'ability' ? 'uiSpark' : 'uiChest')) + '</span>';
+  const store = BASIC_INDEX[id] ? STORE_GLYPH[BASIC_INDEX[id].kind] : null;
+  return '<span class="hh-icon is-glyph">' + glyphSvg(glyphs, ACTION_GLYPH[id] || store || (action && action.type === 'ability' ? 'uiSpark' : 'uiChest')) + '</span>';
 }
 
 /** The frame every hunt panel sits in: a title row (with optional controls) and a body. */

@@ -41,6 +41,8 @@ import { supplySession } from './fixtures/h4.js';
 
 const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
 const MIGRATION = 'supabase/migrations/2026-10-25-action-conditions.sql';
+/* The action ids and the starter bar moved forward (Tyler 2026-10-21: a slot names ONE item; a new hero's bar). */
+const STORE_MIGRATION = 'supabase/migrations/2026-11-04-store-by-slot.sql';
 /* The limits moved forward (Tyler 10-19: three conditions, all must match). */
 const LIMITS_MIGRATION = 'supabase/migrations/2026-10-26-bar-three-conditions.sql';
 
@@ -187,9 +189,9 @@ export function metricRowsSql(M) {
 }
 export function actionIdRowsSql(M) {
   const ids = [];
-  for (const k of Object.keys(M.CM.CONSUME_KINDS)) ids.push(['consume', k]);
   for (const k of Object.keys(M.CM.ATTACK_KINDS)) ids.push(['attack_with_item', k]);
-  for (const r of Object.values(M.CD.CONSUMABLES)) if (r.source === 'own') ids.push(['consume', r.id]);
+  /* ONE item a slot (Tyler 2026-10-21): every crafted food and drink AND every store food and drink; no kinds. */
+  for (const r of Object.values(M.CD.CONSUMABLES)) ids.push(['consume', r.id]);
   for (const s of Object.values(M.SUP.SUPPLIES)) if (s.kind === 'ammo') ids.push(['attack_with_item', s.id]);
   return ids.sort((a, b) => (a[0] + ':' + a[1] < b[0] + ':' + b[1] ? -1 : 1)).map(([t, i]) => '  (' + q(t) + ', ' + q(i) + ')').join(',\n');
 }
@@ -237,7 +239,9 @@ const cases = {
       [ab('power_strike', [c('self_hp_pct', 'lt', 50), c('self_mana_pct', 'lt', 50)], 'or'), 'bad_join'],
       [ab('power_strike', [], 'xor'), 'bad_join'],
       [ab('no_such'), 'bad_action'], [slot('consume', 'iron_arrows'), 'bad_action'], [slot('attack_with_item', 'cooked_shrimp'), 'bad_action'],
-      [slot('consume', 'food'), null], [slot('attack_with_item', 'iron_arrows', [c('enemies_in_aoe', 'gte', 3)]), null],
+      /* ONE item a slot (Tyler 2026-10-21): a crafted food or a store food; the retired "Any food" is refused in words. */
+      [slot('consume', 'cooked_shrimp'), null], [slot('consume', 'salted_shrimp'), null], [slot('consume', 'food'), 'choose_item'], [slot('consume', 'drink'), 'choose_item'],
+      [slot('attack_with_item', 'iron_arrows', [c('enemies_in_aoe', 'gte', 3)]), null],
       [Object.assign(ab('power_strike'), { when: 1 }), 'bad_slot'],
     ];
     for (const [s, err] of want) {
@@ -320,8 +324,8 @@ const cases = {
       return sc.events.filter((e) => e.type === 'eat').map((e) => e.item + '#' + e.rule).join();
     };
     const bag = { cooked_shrimp: { loaded: 3 }, cooked_trout: { loaded: 0 } };
-    if (run(85, [], bag) !== '') return 'the default eat-at (50%) ate at 85%';
-    if (run(85, [slot('consume', 'food', [c('self_hp_pct', 'lt', 90)], 'and', 'f90')], bag) !== 'cooked_shrimp#f90') return 'an eat slot at 90% did not eat at 85%';
+    if (run(85, [slot('consume', 'cooked_shrimp', [], 'and', 'sh')], bag) !== '') return 'the default eat-at (50%) ate at 85%';
+    if (run(85, [slot('consume', 'cooked_shrimp', [c('self_hp_pct', 'lt', 90)], 'and', 'f90')], bag) !== 'cooked_shrimp#f90') return 'an eat slot at 90% did not eat at 85%';
     /* An empty item falls back to the next slot. */
     const fb = run(40, [slot('consume', 'cooked_trout', [], 'and', 'tr'), slot('consume', 'cooked_shrimp', [], 'and', 'sh')], bag);
     return fb === 'cooked_shrimp#sh' ? null : 'an empty trout slot fell back to ' + (fb || 'nothing');
@@ -353,7 +357,7 @@ const cases = {
   },
   /* STABLE RULE IDS: a reorder keeps every rule's id; an edit changes only the edited slot's; a repeat is unique. */
   'stable-ids': (M) => {
-    const A = ab('power_strike', [c('self_hp_pct', 'lt', 50)]); const B = ab('cleave'); const C2 = slot('consume', 'food', [c('self_hp_pct', 'lt', 40)]);
+    const A = ab('power_strike', [c('self_hp_pct', 'lt', 50)]); const B = ab('cleave'); const C2 = slot('consume', 'cooked_shrimp', [c('self_hp_pct', 'lt', 40)]);
     const ids = (list) => Object.fromEntries(M.cond.heroSlots(list, null).filter((r) => !r.rule.startsWith('d_')).map((r) => [r.slot.action.id + JSON.stringify(r.slot.conditions), r.rule]));
     const one = ids([A, B, C2]); const re = ids([C2, null, B, A]);
     if (JSON.stringify(Object.entries(one).sort()) !== JSON.stringify(Object.entries(re).sort())) return 'a reorder changed ids: ' + JSON.stringify([one, re]);
@@ -450,7 +454,7 @@ const cases = {
       [c('effect_missing', 'has_effect', 'bleed', 'target'), true], [c('effect_missing', 'lacks_effect', 'bleed', 'self'), true],
       [c('effect_missing', 'lacks_effect', 'bleed', 'ally'), true],
     ].filter(([cond, want]) => holds(cond) !== want);
-    if (holds(c('item_qty', 'eq', 7, 'item'), slot('consume', 'food')) !== true) bad.push(['the slot item of a food slot']);
+    if (holds(c('item_qty', 'eq', 7, 'item'), slot('consume', 'cooked_shrimp')) !== true) bad.push(['the slot item of a food slot']);
     return bad.length ? 'wrong: ' + JSON.stringify(bad) : null;
   },
   'stop-rule': (M) => {
@@ -692,10 +696,18 @@ const cases = {
     try { sql = readFileSync(join(M.root, MIGRATION), 'utf8'); } catch { return MIGRATION + ' is missing'; }
     let lim;
     try { lim = readFileSync(join(M.root, LIMITS_MIGRATION), 'utf8'); } catch { return LIMITS_MIGRATION + ' is missing'; }
+    let store;
+    try { store = readFileSync(join(M.root, STORE_MIGRATION), 'utf8'); } catch { return STORE_MIGRATION + ' is missing'; }
+    const from = { limits: lim, 'action-ids': store };
     for (const [tag, want] of [['metrics', metricRowsSql(M)], ['action-ids', actionIdRowsSql(M)], ['role-rules', roleRuleRowsSql(M)], ['limits', limitRowsSql(M)]]) {
-      const got = between(tag === 'limits' ? lim : sql, tag);
+      const got = between(from[tag] || sql, tag);
       if (got !== want) return 'the migration\'s ' + tag + ' block is stale (node tests/hunt-core/conditions.mjs --print)';
     }
+    /* THE STARTER BAR the server places for a new hero is the start kit's (src/data/start-kit.js START_BAR). */
+    const sb = /-- ⟦starter-bar⟧\n\s*v_def := v_def \|\| '([^\n]*)'::jsonb;\n\s*-- ⟦\/starter-bar⟧/.exec(store);
+    let bar = null;
+    try { bar = sb ? JSON.parse(sb[1].replace(/''/g, "'")) : null; } catch { bar = null; }
+    if (JSON.stringify(bar) !== JSON.stringify(M.kit.START_BAR)) return 'the server\'s starter bar is not the start kit\'s: ' + (sb ? sb[1].slice(0, 120) : 'no ⟦starter-bar⟧ block');
     return null;
   },
 };
@@ -734,7 +746,7 @@ const mutants = [
   { name: 'an area shot spends one unit per monster hit', case: 'attack-item', edits: [['src/core/hunt/damage.js', '    for (const m of hits) if (m.alive) blow(inst, sc, u, h, m);', '    for (const m of hits) { if (m !== aim && shot.pick.ammo) payBasic(inst, u, { ammo: shot.pick.ammo }, sc); if (m.alive) blow(inst, sc, u, h, m); }']] },
   { name: 'an empty attack stack does not fall back', case: 'attack-item', edits: [['src/core/hunt/damage.js', "    if (!l.id || l.why) return { why: l.why === 'gold_short' ? 'gold_short' : 'no_stock' };\n    const size", '    if (!l.id) return { id, size: 1, aim: cx.aim || u };\n    const size']] },
   { name: 'target_is_boss reads the wrong flag', case: 'metrics-misc', edits: [['src/core/hunt/conditions.js', 'MONSTERS[t.kind].boss === true', 'MONSTERS[t.kind].formation === false']] },
-  { name: 'the id is the slot position', case: 'stable-ids', edits: [['src/core/hunt/conditions.js', '  for (const s of list) if (keep(s)) out.push({ rule: s.id, slot: s });', '  list.forEach((s, i) => { if (keep(s)) out.push({ rule: \'p\' + i, slot: s }); });']] },
+  { name: 'the id is the slot position', case: 'stable-ids', edits: [['src/core/hunt/conditions.js', '  list.forEach((s, at) => { if (keep(s)) out.push({ rule: s.id, slot: s, at }); });', '  list.forEach((s, at) => { if (keep(s)) out.push({ rule: \'p\' + at, slot: s, at }); });']] },
   { name: 'a bar edit keeps a dropped rule\'s state', case: 'rekey', edits: [['src/core/hunt/conditions.js', '    for (const [id, ms] of Object.entries(u.ruleHold)) if (ids.has(id)) hold[id] = int(ms);', '    for (const [id, ms] of Object.entries(u.ruleHold)) hold[id] = int(ms);']] },
   { name: 'a scaled kill pays its row\'s whole XP', case: 'yield-scale', edits: [['src/core/hunt/damage.js', 'xp: Math.round((MONSTERS[target.kind].xp * yieldOf(target)) / 1000) }', 'xp: MONSTERS[target.kind].xp }']] },
   { name: 'a sure drop ignores the yield share', case: 'yield-scale', edits: [['src/core/drops.js', '  if (row.ch >= 1) return Math.min(1, row.ch * y);', '  if (row.ch >= 1) return row.ch;']] },
@@ -765,7 +777,9 @@ const mutants = [
   { name: 'the solo healer fights unscaled packs with no floor (the P1 as it shipped)', case: 'solo-healer',
     edits: [['src/data/hunt-grounds.js', '  return ground && ground.partyScale === true ? scaledHp(row, partySize) : Math.max(1, (row && row.hp) || 1);', '  return Math.max(1, (row && row.hp) || 1);'],
       ['src/core/hunt/damage.js', '    ? elementWithFloor(elementOn(target, element), source.role, partySize(inst)) : elementOn(target, element);', '    ? elementOn(target, element) : elementOn(target, element);']] },
-  { name: 'a migration row drifts from the registry', case: 'sql-rows', edits: [['src/data/condition-metrics.js', "label: 'My target is a boss', value: 'bool', ops: Object.freeze(['eq'])", "label: 'My target is a boss', value: 'bool', ops: Object.freeze(['eq', 'ne'])"]] },
+  { name: 'a migration row drifts from the registry', case: 'sql-rows', edits: [['src/data/condition-metrics.js', "label: 'My target is a boss', say: 'my target being a boss', value: 'bool', ops: Object.freeze(['eq'])", "label: 'My target is a boss', say: 'my target being a boss', value: 'bool', ops: Object.freeze(['eq', 'ne'])"]] },
+  { name: 'the start kit bar drifts from the server one', case: 'sql-rows', edits: [['src/data/start-kit.js', "startSlot('d_drink', 'thin_turnip_juice', 'self_mana_pct', 30)", "startSlot('d_drink', 'thin_turnip_juice', 'self_mana_pct', 35)"]] },
+  { name: 'a store food is no slot item', case: 'sql-rows', edits: [['src/data/consumables.js', "    .map((b) => row(b.id, b.kind === 'heal' ? 'food' : 'drink', b.kind === 'heal' ? b.heals : b.mana, 'store', b.price)),", "    .filter(() => false).map((b) => row(b.id, b.kind === 'heal' ? 'food' : 'drink', b.kind === 'heal' ? b.heals : b.mana, 'store', b.price)),"]] },
 ];
 
 function plant(edits) {

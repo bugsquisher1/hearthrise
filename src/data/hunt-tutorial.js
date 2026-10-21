@@ -18,8 +18,9 @@
 //       { kind: 'unlock', hunt }            combat level >= that hunt's band floor (hunts.js)
 //       { kind: 'ended',  reason }          the hunt session ended for `reason` (END_ORDER)
 //       { kind: 'pull',   ground, pocket }  a monster of that pocket, or a later one, stands in the open hunt
-//       { kind: 'bar' }                     the server's stored bar (hunt_settings.bar) holds a
-//                                           slot the player set a condition on (Configure action)
+//       { kind: 'bar' }                     the server's STORED bar (hunt_settings.bar) holds a
+//                                           slot with a condition the player saved (Configure
+//                                           action); the start kit's bar is shown, never stored
 //
 // No number is restated here: the sewer's floor is read from hunts.js, pockets
 // from hunt-grounds.js. validate() proves every name a card uses is real; the
@@ -61,7 +62,7 @@ export const HUNT_TUTORIAL = Object.freeze([
     'Leave the hunt. What you looted goes to your bag when you do.',
     'hunt_topbar', { kind: 'ended', reason: 'left' }),
   step('set_the_bar', 'Tell your hero when',
-    'The sewer hits harder. Press a slot on the action bar at the bottom and choose Any food, then add a condition: My HP % below 60. Your hero eats your own food first and buys from the store when it runs out. Slot 1 is tried first.',
+    'The sewer hits harder. Your bar already eats for you: slot 1 is your own Cooked Shrimp, and slot 2 buys Salted Shrimp from the store once they run out. Press slot 1 and set the HP it eats at, then Save. Slot 1 is tried first.',
     'action_bar', { kind: 'bar' }),
   step('go_below', 'Into the sewer',
     'Pick The Sewer. It is built for a party of up to four. Alone, the packs are smaller.',

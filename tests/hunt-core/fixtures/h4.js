@@ -10,8 +10,6 @@ export function supplySession(M, o) {
   const x = o || {};
   return M.AR.newHuntSession({
     id: 'h4', huntFromMs: 0, bag: x.bag || {},
-    slots: x.slots || [{ item: '*heal_shop', on: true, conditions: [] }, { item: '*mana_shop', on: true, conditions: [] },
-      ...(x.shot ? [{ item: x.shot, on: true, conditions: [] }] : [])],
     basics: {
       [STORE_FOOD]: { kind: 'heal', price: 15, heals: 6, mana: 0, partner: 'cooked_shrimp' },
       [STORE_DRINK]: { kind: 'mana', price: 15, heals: 0, mana: 6, partner: 'turnip_juice' },
@@ -22,14 +20,28 @@ export function supplySession(M, o) {
   });
 }
 
+/** The fixture's supply slots for a session's bag: own foods, the store food, own drinks, the store drink. */
+export function supplyBar(M, hs) {
+  const own = (kind) => Object.keys((hs && hs.bag) || {}).sort().filter((id) => M.CD.CONSUMABLES[id] && M.CD.CONSUMABLES[id].source === 'own' && M.CD.CONSUMABLES[id].kind === kind);
+  const slot = (id) => ({ action: { type: 'consume', id }, conditions: [], join: 'and' });
+  return own('food').map(slot).concat([slot(STORE_FOOD)], own('drink').map(slot), [slot(STORE_DRINK)]);
+}
+
 /** A one-hero world (plus `mons`), its inst with the hero's injected context, and a recording sub-step. */
 export function oneHero(M, heroOver, ctx, mons) {
   const h = hero(M, 1, 12, 3, Object.assign({ hp: 100, maxHp: 100, mana: 100, maxMana: 100 }, heroOver || {}));
   const w = world(M, [h, ...(mons || []).map((m, i) => mon(M, 10 + i, 0, m.x, m.y, Object.assign({ target: 1 }, m)))]);
   const inst = instOf(M, w);
-  /* THE BAR SHORTHAND (fixtures only): `bar` (ability ids) becomes the hero's slots through the engine's heroSlots. */
+  /* THE BAR SHORTHAND (fixtures only): `bar` (ability ids, or slots) becomes the hero's slots through the engine's
+     heroSlots. A bar with no food or drink slot gets the fixture's SUPPLY BAR (supplyBar): a slot names ONE item
+     (Tyler 2026-10-21), so the fixture names each own food in the bag, then the store food, then each own drink,
+     then the store drink, all on the hero's eat-at / drink-at (no conditions of their own). */
   const row = Object.assign({ hs: supplySession(M), actionSet: 'hunt', range: 1 }, ctx || {});
-  if (!row.slots) row.slots = M.conditions.heroSlots(row.bar || [], null);
+  if (!row.slots) {
+    const bar = row.bar || [];
+    const eats = bar.some((s) => s && typeof s === 'object' && s.action && s.action.type === 'consume');
+    row.slots = M.conditions.heroSlots(eats ? bar : bar.concat(supplyBar(M, row.hs)), null);
+  }
   delete row.bar;
   inst.heroes = { 1: row };
   return { h, w, inst, sc: subStep(0) };
@@ -50,7 +62,7 @@ export async function loadData(M) {
   const { pathToFileURL } = await import('node:url');
   const v = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(M.root, 'src/build-info.js'), 'utf8')) || [, ''])[1];
   const imp = (p) => import(pathToFileURL(join(M.root, p)).href + v);
-  return { CD: await imp('src/data/consumables.js'), AD: await imp('src/data/abilities.js'), SB: await imp('src/data/supply-basics.js') };
+  return { CD: await imp('src/data/consumables.js'), AD: await imp('src/data/abilities.js'), SB: await imp('src/data/supply-basics.js'), kit: await imp('src/data/start-kit.js') };
 }
 
 /** fixtures/h1.js `suite`, with this lane's data modules on M (M.CD, M.AD). */

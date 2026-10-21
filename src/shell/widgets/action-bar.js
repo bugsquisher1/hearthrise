@@ -25,7 +25,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.23';
 import { ABILITIES } from '../../data/abilities.js?v=0.2.23';
-import { CONSUME_KINDS, ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.23';
+import { ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.23';
 import { huntOf, settingsOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.23';
 import { bagOf } from '../../session/item-sections.js?v=0.2.23';
 import { text, cls, attr, element, keyedChild } from '../../render/paint.js?v=0.2.23';
@@ -45,7 +45,7 @@ import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, goldFloorHtml, patc
 const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const SLOT_DRAG = 'application/x-hr-bar-slot';
 const LONG_PRESS_MS = 450;
-const KINDS = new Set(Object.keys(CONSUME_KINDS).concat(Object.keys(ATTACK_KINDS)));
+const KINDS = new Set(Object.keys(ATTACK_KINDS));
 const PRESS = new WeakMap();   // the bar element -> { timer, held }
 const DROP = new WeakMap();    // the bar element -> { from, to, off } while the drop menu is open
 const PANEL = new WeakMap();   // the bar element -> the open sheet's listener cleanup (phone)
@@ -135,7 +135,7 @@ function patchSlot(li, s, w, ctx, bag, conflict, why) {
     keyedChild(li.querySelector('.hb-slot-ico'), key, () => element(ctx.doc, actionIconHtml(ctx.glyphs, s.action)));
     attr(li, 'draggable', s.empty ? null : 'true');
   }
-  /* The count: the server's own count for a slot naming one item; a kind's (Any food) is its lines in the server's bag. */
+  /* The count: the server's own count for a slot naming one item (a store item has none); the loaded ammo's is the bag's. */
   const n = s.empty || s.action.type === 'ability' ? null : Number.isInteger(s.count) && !KINDS.has(s.action.id) ? s.count : carried(s.action, bag);
   /* WHY it cannot fire (action-facts.js reasonOf): struck when the server would not fire it, a glyph either way. */
   const out = !!why && why.strike;

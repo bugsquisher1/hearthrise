@@ -33,11 +33,10 @@
 // analyzer's healed total (tally.js) is the sum of `heal` events, so it equals
 // the HP food actually restored (it read 0 for every food before this).
 //
-// SUPPLY. Each hero's line comes from `resolveLine` (src/core/action-rules.js,
-// the one resolver): its own carried stack first, free; then the store row the
-// SLOT names at store price (Tyler 2026-10-19: an item slot buys that item's
-// store row, an Any food / Any drink slot the row its `action.store` chose, else
-// the cheapest per point); a store use the
+// SUPPLY. A slot names ONE item (Tyler 2026-10-21, designer-confirmed): a crafted
+// food or drink comes from the hero's own stack only (none left, the slot is out of
+// stock and the next slot fires), a store food or drink is bought per use at the
+// server catalogue's price (`resolveLine`, src/core/action-rules.js); a store use the
 // purse cannot pay marks the session goldOut (the hunt ends gold_out). A hero
 // with nothing to eat simply keeps fighting: running out never stops a hunt.
 //
@@ -50,7 +49,6 @@
 // ============================================================
 
 import { CONSUMABLE_RULES as R, CONSUMABLE_KINDS, CONSUMABLES } from '../../data/consumables.js?v=0.2.23';
-import { CONSUME_KINDS } from '../../data/condition-metrics.js?v=0.2.23';
 import { slotsFor, pickSlot } from './conditions.js?v=0.2.23';
 import { resolveLine, takeLine, lineAmount } from '../action-rules.js?v=0.2.23';
 import { makeEvent } from './events.js?v=0.2.23';
@@ -116,25 +114,39 @@ function use(u, hero, kind, line, sc, d) {
     { u: u.id, item: line.id, source: line.source, gold: line.price, amount, landed,
       ...(d && typeof d.rule === 'string' ? { rule: d.rule, rule_label: d.label, pass: d.mask } : {}) }));
   if (stat === 'hp') healed(u, landed, line.id, sc);
+  /* The hero's own stack just ran out: say so, and which slot takes over (a server commit's event). */
+  if (line.source === 'own' && !(int(((hero.hs.bag || {})[line.id] || {}).left) > 0)) {
+    const next = takeover(hero, kind, line.id);
+    sc.emit(makeEvent('slot_dry', sc.atMs, { u: u.id, item: line.id, next: next ? next.item : null, slot: next ? next.slot : null }));
+  }
   return true;
 }
 
-/* The kind ('food' | 'drink') a consume slot's action id names, or null. */
-const kindOfAction = (id) => (CONSUME_KINDS[id] ? id : (CONSUMABLES[id] ? CONSUMABLES[id].kind : null));
+/* The kind ('food' | 'drink') of the ONE item a consume slot names, or null. */
+const kindOfAction = (id) => (Object.prototype.hasOwnProperty.call(CONSUMABLES, id) ? CONSUMABLES[id].kind : null);
 
-/* What a consume slot's action would use now (its conditions already passed), or
-   why not. `action.id` is a KIND ('food' | 'drink': the best own line of it, then
-   the store row `action.store` chose) or one own item (its own stack, then that
-   item's store row; with neither, the slot falls back). */
+/* What a consume slot's item would use now (its conditions already passed), or why
+   not (Tyler 2026-10-21, designer-confirmed): a crafted item from the hero's own
+   stack only (none left: the slot is struck and the next slot is tried), a store
+   item bought per use. The player builds the fallback by slot order. */
 function slotWants(u, hero, action) {
-  const id = action.id;
-  const kind = kindOfAction(id);
+  const kind = kindOfAction(action.id);
   if (!kind) return { why: 'none' };
-  const stat = CONSUMABLE_KINDS[kind].stat;
-  const line = CONSUME_KINDS[id]
-    ? resolveLine(hero.hs, CONSUMABLE_KINDS[kind].supply, int(u[MAX_OF[stat]]) - int(u[stat]), action.store)
-    : resolveLine(hero.hs, id, 1);
+  const line = resolveLine(hero.hs, action.id);
   return line.id && !line.why ? { kind, line } : Object.assign({ kind }, line);
+}
+
+/* WHO TAKES OVER when an own stack runs dry (Tyler 2026-10-21: "Cooked Shrimp ran out:
+   slot 2 (Salted Shrimp) takes over"): the first slot, in bar order, of the same kind
+   that names another item and can still supply it. { item, slot } (slot 1-based) or null. */
+function takeover(hero, kind, item) {
+  for (const r of slotsFor(hero, 'consume')) {
+    const id = r.slot.action.id;
+    if (id === item || kindOfAction(id) !== kind) continue;
+    const w = resolveLine(hero.hs, id);
+    if (w.id && !w.why) return { item: id, slot: Number.isInteger(r.at) ? r.at + 1 : null };
+  }
+  return null;
 }
 
 /* THE ONE YIELD: while the hero's drink is still landing (its over-time half

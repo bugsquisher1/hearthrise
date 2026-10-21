@@ -103,7 +103,7 @@ function targetFor(inst, hero, h, row, sc, cx) {
 function suppliesFor(h, row, store) {
   const lines = [];
   if (row.rune) {
-    const l = resolveLine(h.hs, row.rune, 1, typeof store === 'string' ? store : null);
+    const l = resolveLine(h.hs, row.rune, typeof store === 'string' ? store : null);
     if (!l.id || l.why) return { why: 'no_rune', short: l.why === 'gold_short' };
     lines.push(l);
   }
@@ -260,7 +260,7 @@ export function payBasic(inst, hero, cost, sc) {
     const h = inst.heroes && inst.heroes[hero.id];
     /* `ammo`: true = the loaded ammo; an id = the attack item a slot chose (one unit a shot). */
     const id = typeof c.ammo === 'string' ? c.ammo : (h && h.ammo);
-    const l = h && id ? resolveLine(h.hs, id, 1) : { why: 'none' };
+    const l = h && id ? resolveLine(h.hs, id) : { why: 'none' };
     if (!l.id || l.why) { if (l.why === 'gold_short') h.hs.goldOut = true; return false; }
     /* THE FREE RUNG (src/core/ammo.js ammoPerShot 0, the tier-1 rung of every
        ladder): a loaded stack of it looses its shot and never depletes. */

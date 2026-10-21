@@ -110,6 +110,8 @@ export const REFUSAL_WORDS = Object.freeze({
   bad_join: 'Choose all or any.',
   bad_slot: 'The server refused this slot.',
   bad_store: 'That store item does not fit this slot.',
+  choose_item: 'Pick the food or drink this slot uses: the game never chooses one for you.',
+  none_left: 'None left: the next food or drink slot fires instead.',
   too_many_slots: 'The bar is full.',
   too_many_conditions: 'A slot takes at most ' + MAX_CONDITIONS + ' conditions.',
   store_off: 'This hero is set to end the hunt rather than buy from the store.',

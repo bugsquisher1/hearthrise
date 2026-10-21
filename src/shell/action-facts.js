@@ -15,10 +15,9 @@
 //                       the first whose conditions pass AND that can act fires)
 // Display only: every number is a catalogue row or the server's projection.
 // ════════════════════════════════════════════════════════════════════════
-import { CONSUME_KINDS, ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.23';
+import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.23';
 import { ABILITIES } from '../data/abilities.js?v=0.2.23';
 import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.23';
-import { SUPPLIES } from '../data/supplies.js?v=0.2.23';
 import { STATUSES } from '../data/statuses.js?v=0.2.23';
 import { HUNT_ROLES, WEAPON_ROLES } from '../data/hunt-roles.js?v=0.2.23';
 import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.23';
@@ -29,36 +28,20 @@ import { storeOf, storeWords, conditionWords } from './bar-draft.js?v=0.2.23';
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const secs = (ms) => (ms % 1000 ? (ms / 1000).toFixed(1) : String(ms / 1000));
 const isRune = (id) => /_rune$/.test(id);
-const KIND_NAME = Object.freeze({ food: 'Any food', drink: 'Any drink', loaded: 'The loaded ammo' });
 
-/** The three tabs of the Configure action window. */
+/** The three tabs of the Configure action window: spells, the spells that spend a rune, and items. */
 export const TABS = Object.freeze([['spells', 'Spells'], ['runes', 'Runes'], ['items', 'Items']]);
 
-/** The tab an action belongs to. */
+/** The tab an action belongs to (a rune spell under Runes; food, drink and ammo under Items). */
 export function tabOf(a) {
-  if (!a || a.type === 'ability') return 'spells';
-  return a.type === 'attack_with_item' && isRune(a.id) ? 'runes' : 'items';
+  if (!a || a.type === 'ability') return a && ABILITIES[a.id] && ABILITIES[a.id].rune ? 'runes' : 'spells';
+  return 'items';
 }
 
 /** An action's player-facing name. */
 export function actionName(a) {
   if (a.type === 'ability') return abilityName(a.id);
-  return KIND_NAME[a.id] || itemName(a.id);
-}
-
-/** The choices of a tab: [{ type, id, name }], what the server accepts for that slot. */
-export function choicesFor(tab, role) {
-  const at = (type) => (id) => ({ type, id, name: actionName({ type, id }) });
-  if (tab === 'spells') {
-    const disc = role && HUNT_ROLES[role] ? HUNT_ROLES[role].discipline : null;
-    return Object.values(ABILITIES).filter((a) => a.active && (!disc || a.disciplines.includes(disc))).map((a) => at('ability')(a.id));
-  }
-  const ammo = Object.values(SUPPLIES).filter((r) => r.kind === 'ammo').map((r) => r.id);
-  if (tab === 'runes') return ammo.filter(isRune).map(at('attack_with_item'));
-  return Object.keys(CONSUME_KINDS).map(at('consume'))
-    .concat(Object.values(CONSUMABLES).filter((r) => r.source === 'own').map((r) => at('consume')(r.id)))
-    .concat(Object.keys(ATTACK_KINDS).map(at('attack_with_item')))
-    .concat(ammo.filter((id) => !isRune(id)).map(at('attack_with_item')));
+  return own(ATTACK_KINDS, a.id) ? 'The loaded ammo' : itemName(a.id);
 }
 
 /* The weapons that give a discipline, in words ("Sword or Shield"). */
@@ -99,10 +82,6 @@ export function factsOf(a) {
   }
   if (a.type === 'consume') {
     const spread = 'Half lands at once, the rest over ' + secs(CONSUMABLE_RULES.overTimeMs) + ' s.';
-    if (own(CONSUME_KINDS, a.id)) {
-      const stat = a.id === 'drink' ? 'mana' : 'health';
-      return { type: (a.id === 'drink' ? 'Drink' : 'Food') + ': your own ' + a.id + ' first, the smallest that covers what you are missing, then the store’s, restoring ' + stat + '.', cost: null, cooldown: null, effect: [spread], requires: null };
-    }
     const r = CONSUMABLES[a.id];
     if (!r) return { type: null, cost: null, cooldown: null, effect: [], requires: null };
     return { type: r.kind === 'drink' ? 'Drink: restores mana.' : 'Food: restores health.', cost: null, cooldown: null,
@@ -112,11 +91,9 @@ export function factsOf(a) {
   return { type: (isRune(a.id) ? 'Rune' : 'Ammo') + ': your attacks use it, one per shot.', cost: null, cooldown: null, effect: [], requires: null };
 }
 
-/** How many of an action the bag holds (a kind: every own line of it), from the server's inventory; null = not counted. */
+/** How many of an action's ONE item the bag holds, from the server's inventory; null = not counted (a spell, the loaded ammo, a store item). */
 export function carried(a, bag) {
-  if (!bag || a.type === 'ability' || a.id === 'loaded') return null;
-  const want = own(CONSUME_KINDS, a.id) ? a.id : null;
-  if (want) return bag.filter((l) => CONSUMABLES[l.id] && CONSUMABLES[l.id].source === 'own' && CONSUMABLES[l.id].kind === want).reduce((n, l) => n + l.qty, 0);
+  if (!bag || a.type === 'ability' || own(ATTACK_KINDS, a.id) || (CONSUMABLES[a.id] && CONSUMABLES[a.id].source === 'store')) return null;
   return (bag.find((l) => l.id === a.id) || { qty: 0 }).qty;
 }
 
@@ -131,11 +108,12 @@ export function supplyLines(a, set, bag) {
   }
   const n = carried(a, bag);
   const out = [];
-  if (n !== null && n > 0) out.push('You carry ' + n + '. ' + (st ? 'Own stock first, ' + storeWords(st) + '.' : 'When they run out, this slot waits.'));
-  else if (n !== null) out.push(st ? 'You carry none: ' + storeWords(st).replace(/^then /, '') + '.' : 'You carry none, so this slot waits.');
+  /* ONE item a slot (Tyler 2026-10-21): a store item is bought per use; a crafted one is your own stock only. */
+  if (a.type === 'consume' && st && n === null) out.push('Bought from the store at ' + st.price + ' g each, paid as used.');
+  else if (n !== null && n > 0) out.push('You carry ' + n + '. ' + (st && a.type !== 'consume' ? 'Own stock first, ' + storeWords(st) + '.' : 'When they run out, this slot waits and the next slot fires.'));
+  else if (n !== null) out.push(st && a.type !== 'consume' ? 'You carry none: ' + storeWords(st).replace(/^then /, '') + '.' : 'You carry none, so this slot waits and the next slot fires.');
   else if (st) out.push('Own stock first, ' + storeWords(st) + '.');
   if (st && set && set.supplySource !== 'store' && set.onEmpty !== 'switch') out.push('This hero is set to end the hunt when its own stock runs out, so the store stays off.');
-  if (!st && a.type === 'consume') out.push('Choose Any food or Any drink to fall back on the store.');
   return out;
 }
 
@@ -153,9 +131,9 @@ function effective(w, set) {
   return w.conditions.length ? w.conditions : defaultConditions(w, { foodBelowPct: set && set.foodPct, drinkBelowPct: set && set.drinkPct });
 }
 
-/* A slot that heals its own hero: food (Any food or one food) or a self spell that heals. */
+/* A slot that heals its own hero: a food, or a self spell that heals. */
 function healsSelf(a) {
-  if (a.type === 'consume') return CONSUME_KINDS[a.id] === 'heal' || (!!CONSUMABLES[a.id] && CONSUMABLES[a.id].kind === 'food');
+  if (a.type === 'consume') return !!CONSUMABLES[a.id] && CONSUMABLES[a.id].kind === 'food';
   return a.type === 'ability' && !!ABILITIES[a.id] && ABILITIES[a.id].target === 'self' && !!ABILITIES[a.id].heal;
 }
 
@@ -170,7 +148,7 @@ export function healWarning(w, set, blow, hpMax) {
   const c = effective(w, set).find((x) => x.metric === 'self_hp_pct' && (x.op === 'lt' || x.op === 'lte') && Number.isFinite(x.value));
   if (!c) return '';
   const at = Math.floor((hpMax * c.value) / 100);
-  return at < blow.hit ? 'The ' + blow.name + ' can hit ' + blow.hit + '. Heal at ' + c.value + '% = ' + at + ' HP.' : '';
+  return at < blow.hit ? 'The ' + blow.name + ' can hit for ' + blow.hit + '. At ' + c.value + '% you have ' + at + ' HP, so one hit could kill you before you eat.' : '';
 }
 const condKey = (c) => JSON.stringify([c.metric, c.op, c.value, c.subject || null]);
 /* A passes whenever B passes: A's conditions are all among B's (both "all of"), or A has none. */
@@ -186,9 +164,7 @@ function weaker(a, b, set) {
  * Which slots can never fire, and why: Map index -> { by: earlier index, why }.
  * The engine walks a lane's slots in order and fires the first that passes and can
  * act (conditions.js pickSlot), so a later slot never fires when an earlier one
- * (1) does the same action under conditions it always meets, or (2) is Any food /
- * Any drink under such conditions while it names one food or drink of that kind
- * (whenever that item is in the bag, the earlier slot has a line to use).
+ * does the same action under conditions it always meets.
  */
 export function conflictsOf(wires, set) {
   const out = new Map();
@@ -197,11 +173,8 @@ export function conflictsOf(wires, set) {
     for (let i = 0; i < j; i++) {
       const a = wires[i];
       if (!a || !weaker(a, b, set)) continue;
-      const same = a.action.type === b.action.type && a.action.id === b.action.id;
-      const kind = a.action.type === 'consume' && b.action.type === 'consume' && own(CONSUME_KINDS, a.action.id)
-        && CONSUMABLES[b.action.id] && CONSUMABLES[b.action.id].kind === a.action.id;
-      if (same || kind) {
-        out.set(j, { by: i, why: 'Blocked by ' + actionName(a.action) + ' (slot ' + (i + 1) + '): ' + (same ? 'the same action, and it fires first whenever this one could.' : 'it uses your ' + a.action.id + ' first whenever this one could.') });
+      if (a.action.type === b.action.type && a.action.id === b.action.id) {
+        out.set(j, { by: i, why: 'Blocked by ' + actionName(a.action) + ' (slot ' + (i + 1) + '): the same action, and it fires first whenever this one could.' });
         break;
       }
     }
@@ -236,14 +209,20 @@ export function reasonOf(sl, set, bag, hero) {
     if (hero && Number.isFinite(hero.mana) && r.mana > hero.mana) return { code: 'mana', text: 'Needs ' + r.mana + ' mana, you have ' + Math.floor(hero.mana) + '.', glyph: 'uiPotion', strike: false };
     return null;
   }
+  /* A food or drink's struck state is the SERVER's (hr_hunt_settings_view `usable` + `why`), never the browser's own count. */
+  if (a.type === 'consume' && sl.usable === false) {
+    if (sl.why === 'none_left') return { code: 'none_left', text: 'None left: you carry no ' + itemName(a.id) + '. The next food or drink slot fires instead.', glyph: 'uiChest', strike: true };
+    if (sl.why === 'store_off') return { code: 'store_off', text: 'This hero is set to end the hunt rather than buy from the store.', glyph: 'uiChest', strike: true };
+  }
   if (sl.usable === false) return { code: 'server', text: 'The server says this cannot fire now.', glyph: 'uiLock', strike: true };
-  const n = Number.isInteger(sl.count) && !own(CONSUME_KINDS, a.id) && !own(ATTACK_KINDS, a.id) ? sl.count : carried(a, bag);
+  if (a.type === 'consume') return null;
+  const n = Number.isInteger(sl.count) && !own(ATTACK_KINDS, a.id) ? sl.count : carried(a, bag);
   if (n === null || n > 0) return null;
   const st = storeOf(a, set && set.store);
   const storeOn = !!set && (set.supplySource === 'store' || set.onEmpty === 'switch');
   if (st && storeOn) return null;
   if (st) return { code: 'store_off', text: 'Out of stock, and this hero is set to end the hunt rather than buy from the store.', glyph: 'uiChest', strike: true };
-  return { code: 'stock', text: 'Out of stock and no store fallback' + (a.type === 'consume' ? ': choose Any food or Any drink to buy as used.' : '.'), glyph: 'uiChest', strike: true };
+  return { code: 'stock', text: 'Out of stock, and the store does not sell it.', glyph: 'uiChest', strike: true };
 }
 
 /**

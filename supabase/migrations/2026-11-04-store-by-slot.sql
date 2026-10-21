@@ -1,26 +1,33 @@
 -- ════════════════════════════════════════════════════════════════════════
--- Hearthrise — THE PLAYER PICKS THE STORE ITEM (lane b-supplies-bury,
--- systems-engineer, 2026-10-21). STAGED, NOT APPLIED. Game CLOSED: applies on its
--- passing §2; part of the reopen review.
+-- Hearthrise — A BAR SLOT NAMES ONE ITEM (lane b-supplies-bury, systems-engineer,
+-- 2026-10-21). STAGED, NOT APPLIED. Game CLOSED: applies on its passing §2; part
+-- of the reopen review.
 --
--- Tyler 2026-10-19 (rulings of record): the player picks the food, drink, ammo and
--- rune for each bar slot; own stock of that item first, then the store charges for
--- THAT item at NPC price per use. The hunt never picks one. Live 10-21 (Andy):
--- "Flame Strike isn't usable. Not using runes from store."
+-- Tyler 2026-10-21 (designer-confirmed): the GAME never decides which supply is
+-- best. A slot names ONE item: a crafted food or drink comes from the hero's own
+-- stock only (struck "none left" when empty), a store item is bought per use. The
+-- player builds the fallback by slot ORDER. No "Any food" / "Any drink", no hunt-
+-- tier store food. A new hero's bar is the start kit's. Live 10-21 (Andy): "Flame
+-- Strike isn't usable. Not using runes from store."
 --
 -- ── WHAT (STORE-BY-SLOT) ─────────────────────────────────────────────────────
---   hr_hunt_slot_check      a slot may carry action.store: an Any food / Any drink
---                           slot names a store food / drink row, an ability that
---                           spends a rune names that rune's store row; anything
---                           else is `bad_store`, an unknown action key `bad_action`.
---                           The canonical slot (and its stable rule id) keeps it.
---   hr_hunt_settings_view   a rune ability is usable when its rune is held OR its
---                           slot names the rune's store row (and the hero's setting
---                           lets the store supply); the section gains `store`: every
---                           store row at the server's price (the picker's numbers).
+--   hr_hunt_action_ids      consume ids are every crafted food and drink AND every
+--                           store food and drink (src/data/consumables.js); `food`
+--                           and `drink` are gone (⟦action-ids⟧, pinned by
+--                           tests/hunt-core/conditions.mjs).
+--   hr_hunt_slot_check      `food` / `drink` refused `choose_item` (plain words on
+--                           the client); a rune spell may name its rune's store row
+--                           (action.store), anything else carrying one is
+--                           `bad_store`; an unknown action key `bad_action`.
+--   hr_hunt_settings_view   no default food or drink: a hero whose stored bar holds
+--                           nothing gets the start kit's bar (⟦starter-bar⟧); every
+--                           food / drink slot carries the SERVER's struck state
+--                           (`usable`, `why` none_left | store_off, `count` from the
+--                           open hunt's bag else the inventory); a rune slot naming
+--                           its store rune is usable; the section gains `store`
+--                           (every store row at the server's price).
 --   hr_hunt_member_read     loses `shop` (the hunt tier's food and drink ids).
---   hr_hunt_settle_session  heals_out / gold_out no longer read the hunt tier: any
---                           store food (any heal / drink row) may back a slot.
+--   hr_hunt_settle_session  heals_out / gold_out no longer read the hunt tier.
 -- RESTATED WHOLE from the replayed pre-images: hr_hunt_slot_check
 -- (2026-10-25-action-conditions.sql), hr_hunt_settings_view
 -- (2026-10-28-consume-defaults.sql), hr_hunt_member_read and hr_hunt_settle_session
@@ -29,19 +36,19 @@
 --
 -- ── EXPLOIT SURFACE ─────────────────────────────────────────────────────────
 -- Money: a store use is still re-priced from hr_hunt_basic_supplies by the settle
--- (hr_hunt_apply_member, unchanged); a slot can only NAME a row, never a price or an
--- amount. The gold_out end proof is wider (the dearest heal/drink row, not the
--- tier's): an end can only stop value, never mint it. No table, row or grant change.
+-- (hr_hunt_apply_member, unchanged); a slot only NAMES an item, never a price or
+-- an amount. The gold_out end proof is wider (the dearest heal/drink row): an end
+-- can only stop value. A stored "Any food" slot reads as an empty tablet (no
+-- back-compat: the wipe is at EA). No table or grant change; hr_hunt_action_ids'
+-- seeded rows move (restore-census re-pinned).
 --
 -- ── ORDER ───────────────────────────────────────────────────────────────────
--- After 2026-11-03-alpha-catalogue.generated.sql (last), and BEFORE
--- 2026-11-04-hunt-sessions-catalogue.generated.sql, which drops
--- hr_hunt_basic_supplies.tiers and hr_hunt_travel.tier (this file removes their
--- last readers; that file refuses to apply until this one has). The hr-accrue
--- edge that ignores `shop` (src/core/action-rules.js storeFor) deploys BEFORE this
--- file: the old edge without `shop` would find no store food for an Any food slot.
--- REVERSIBILITY: re-apply the four bodies from their source files (the tier
--- columns must exist again first). No begin/commit.
+-- After 2026-11-03-alpha-catalogue.generated.sql, BEFORE
+-- 2026-11-04-hunt-sessions-catalogue.generated.sql (which drops the tier columns
+-- this file stops reading; it refuses to apply until this one has). The hr-accrue
+-- edge of this lane deploys BEFORE this file (it reads no `shop`, names the items).
+-- REVERSIBILITY: re-apply the four bodies from their source files and the
+-- 2026-10-25 action-ids rows (the tier columns must exist again first). No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS AND THE PINS ────────────────────────────────────────────
@@ -62,7 +69,74 @@ begin
     raise exception 'PIN: hr_hunt_settle_session is neither the core-bodies image nor this file''s'; end if;
 end $mig$;
 
--- ── §1 THE FOUR BODIES ───────────────────────────────────────────────────────
+-- ── §1 THE ACTION IDS: one item a slot, crafted or from the store ────────────
+delete from public.hr_hunt_action_ids;
+insert into public.hr_hunt_action_ids (type, id) values
+-- ⟦action-ids⟧
+  ('attack_with_item', 'air_rune'),
+  ('attack_with_item', 'barbed_arrows'),
+  ('attack_with_item', 'blood_rune'),
+  ('attack_with_item', 'bronze_arrows'),
+  ('attack_with_item', 'chaos_rune'),
+  ('attack_with_item', 'coarse_whetstone'),
+  ('attack_with_item', 'copper_whetstone'),
+  ('attack_with_item', 'dawn_whetstone'),
+  ('attack_with_item', 'dawnpoint_arrows'),
+  ('attack_with_item', 'death_rune'),
+  ('attack_with_item', 'earth_rune'),
+  ('attack_with_item', 'emberhead_arrows'),
+  ('attack_with_item', 'fire_rune'),
+  ('attack_with_item', 'iron_arrows'),
+  ('attack_with_item', 'iron_bolts'),
+  ('attack_with_item', 'iron_whetstone'),
+  ('attack_with_item', 'loaded'),
+  ('attack_with_item', 'mithril_arrows'),
+  ('attack_with_item', 'mithril_whetstone'),
+  ('attack_with_item', 'rune_arrows'),
+  ('attack_with_item', 'rune_whetstone'),
+  ('attack_with_item', 'steel_arrows'),
+  ('attack_with_item', 'steel_whetstone'),
+  ('attack_with_item', 'water_rune'),
+  ('consume', 'baked_potato'),
+  ('consume', 'carrot_juice'),
+  ('consume', 'cooked_bear_meat'),
+  ('consume', 'cooked_copper_crab'),
+  ('consume', 'cooked_frostfin'),
+  ('consume', 'cooked_goldgill'),
+  ('consume', 'cooked_herring'),
+  ('consume', 'cooked_lobster'),
+  ('consume', 'cooked_moonfish'),
+  ('consume', 'cooked_panther_meat'),
+  ('consume', 'cooked_pikeperch'),
+  ('consume', 'cooked_shark'),
+  ('consume', 'cooked_shrimp'),
+  ('consume', 'cooked_silverfin'),
+  ('consume', 'cooked_swordfish'),
+  ('consume', 'cooked_trout'),
+  ('consume', 'cooked_wolf_meat'),
+  ('consume', 'emberfruit_cordial'),
+  ('consume', 'goldenroot_tea'),
+  ('consume', 'pumpkin_cider'),
+  ('consume', 'river_chowder'),
+  ('consume', 'salted_lobster'),
+  ('consume', 'salted_shark'),
+  ('consume', 'salted_shrimp'),
+  ('consume', 'salted_swordfish'),
+  ('consume', 'salted_trout'),
+  ('consume', 'thin_carrot_juice'),
+  ('consume', 'thin_emberfruit_cordial'),
+  ('consume', 'thin_goldenroot_tea'),
+  ('consume', 'thin_pumpkin_cider'),
+  ('consume', 'thin_tomato_juice'),
+  ('consume', 'thin_turnip_juice'),
+  ('consume', 'tomato_juice'),
+  ('consume', 'turnip_juice'),
+  ('consume', 'turnip_mash'),
+  ('consume', 'wheat_bread')
+-- ⟦/action-ids⟧
+;
+
+-- ── §2 THE FOUR BODIES ───────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION public.hr_hunt_settle_session(p_user uuid, p_slot integer, p_session uuid, p_delta jsonb)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -183,7 +257,7 @@ begin
                                            and b.qty_left - coalesce((p_delta->'uses'->>b.item_id)::bigint, 0) > 0)
                         and exists (select 1 from public.hunt_bag b join public.hr_hunt_supplies p on p.item_id = b.item_id
                                      where b.session_id = p_session and p.kind = 'heal' and b.essential)
-                        -- STORE-BY-SLOT (2026-11-04): any store food may back a slot (the player picks it).
+                        -- STORE-BY-SLOT (2026-11-04): any store food a slot may name (the player picks it).
                         and not (v_store and exists (select 1 from public.hr_hunt_basic_supplies q where q.kind = 'heal'))
       when 'ammo_out' then not exists (select 1 from public.hunt_bag b join public.hr_hunt_supplies p on p.item_id = b.item_id
                                         where b.session_id = p_session and p.kind = 'ammo' and b.essential
@@ -386,8 +460,8 @@ AS $function$
     -- THE STAMINA POOL AT THE WINDOW START and the cap it rests to (premium).
     'stamina_ms', public.hr_stamina_of(p_s.user_id, p_s.slot, p_s.settled_to),
     'stamina_max_ms', public.hr_stamina_cap(p_s.user_id, p_s.slot, p_s.settled_to),
-    -- THE STORE (catalogue). STORE-BY-SLOT (2026-11-04): the hero's bar slots choose the
-    -- row a use buys (Tyler 2026-10-19); no hunt tier picks one.
+    -- THE STORE (catalogue). STORE-BY-SLOT (2026-11-04): a bar slot names the ONE item a
+    -- use spends (Tyler 2026-10-21); no hunt tier picks one.
     'basics', coalesce((select jsonb_object_agg(b.basic_id, jsonb_build_object('kind', b.kind, 'price', b.price,
                           'heals', b.heals, 'mana', b.mana, 'partner', b.partner))
                           from public.hr_hunt_basic_supplies b), '{}'::jsonb),
@@ -414,7 +488,7 @@ $function$;
 create or replace function public.hr_hunt_slot_check(p_s jsonb)
 returns jsonb language plpgsql stable set search_path = public, pg_catalog as $$
 declare
-  -- STORE-BY-SLOT (2026-11-04): a slot may name the store row that backs it (action.store).
+  -- STORE-BY-SLOT (2026-11-04): a slot names ONE item; a rune spell may name its store rune (action.store).
   v_type text; v_id text; v_r jsonb; v_store text;
 begin
   if p_s is null or jsonb_typeof(p_s) = 'null' then return jsonb_build_object('ok', true, 'slot', 'null'::jsonb); end if;
@@ -429,6 +503,9 @@ begin
   if exists (select 1 from jsonb_object_keys(p_s) k where k not in ('id', 'action', 'conditions', 'join')) then
     return jsonb_build_object('ok', false, 'error', 'bad_slot'); end if;
   v_type := p_s->'action'->>'type'; v_id := p_s->'action'->>'id';
+  -- THE RETIRED "ANY FOOD" / "ANY DRINK" (Tyler 2026-10-21: the game never picks a supply): refused in words.
+  if v_type = 'consume' and v_id in ('food', 'drink') then
+    return jsonb_build_object('ok', false, 'error', 'choose_item'); end if;
   if jsonb_typeof(p_s->'action'->'id') is distinct from 'string' or v_type is null
      or not coalesce(case v_type
           when 'ability' then exists (select 1 from public.hr_hunt_abilities a where a.ability_id = v_id)
@@ -438,16 +515,13 @@ begin
     return jsonb_build_object('ok', false, 'error', 'bad_action'); end if;
   if exists (select 1 from jsonb_object_keys(p_s->'action') k where k not in ('type', 'id', 'store')) then
     return jsonb_build_object('ok', false, 'error', 'bad_action'); end if;
-  -- THE STORE ROW (Tyler 2026-10-19: the player picks the store item): an Any food / Any drink
-  -- slot names a store food / drink; an ability that spends a rune names that rune's store row.
+  -- THE STORE RUNE (designer 2026-10-21): only a spell that spends a rune may name a store row, and
+  -- only that rune's (its partner). A food or drink slot names its one item and nothing else.
   if p_s->'action' ? 'store' then
     v_store := case when jsonb_typeof(p_s->'action'->'store') = 'string' then p_s->'action'->>'store' end;
-    if v_store is null or not exists (
-         select 1 from public.hr_hunt_basic_supplies q
-          where q.basic_id = v_store
-            and ((v_type = 'consume' and ((v_id = 'food' and q.kind = 'heal') or (v_id = 'drink' and q.kind = 'mana')))
-              or (v_type = 'ability' and exists (select 1 from public.hr_hunt_abilities a
-                                                  where a.ability_id = v_id and a.rune is not null and a.rune = q.partner)))) then
+    if v_store is null or v_type <> 'ability' or not exists (
+         select 1 from public.hr_hunt_basic_supplies q join public.hr_hunt_abilities a on a.rune = q.partner
+          where q.basic_id = v_store and a.ability_id = v_id) then
       return jsonb_build_object('ok', false, 'error', 'bad_store'); end if;
   end if;
   v_r := public.hr_hunt_conds_check(p_s->'conditions', p_s->'join', false);
@@ -486,6 +560,9 @@ declare
   v_o     record;
   v_val   jsonb;
   v_ab    public.hr_hunt_abilities%rowtype;
+  v_n     bigint;
+  v_own   boolean;
+  v_on    boolean;
 begin
   select * into s from public.hunt_sessions h where h.user_id = p_user and h.slot = p_slot and h.ended_at is null
    order by h.entered_at desc limit 1;
@@ -533,23 +610,26 @@ begin
                   where e->'action'->>'type' = 'ability' and v_disc = any (ab.disciplines)) then
     select coalesce(jsonb_agg(r.slot order by r.ord), '[]'::jsonb) into v_def from public.hr_hunt_role_rules r where r.role = v_role;
   end if;
-  if not exists (select 1 from jsonb_array_elements(v_list) e where e->'action'->>'type' = 'consume') then
-    -- EAT-AT BEFORE DRINK-AT (2026-10-28): food and drink always fire under ONE 2 s
-    -- cooldown, so a drink first would take every cooldown while mana stays low.
-    v_def := v_def || jsonb_build_array(
-      jsonb_build_object('id', 'd_food', 'action', jsonb_build_object('type', 'consume', 'id', 'food'), 'join', 'and',
-        'conditions', jsonb_build_array(jsonb_build_object('metric', 'self_hp_pct', 'op', 'lt', 'value', v_eff->'food_below_pct'))),
-      jsonb_build_object('id', 'd_drink', 'action', jsonb_build_object('type', 'consume', 'id', 'drink'), 'join', 'and',
-        'conditions', jsonb_build_array(jsonb_build_object('metric', 'self_mana_pct', 'op', 'lt', 'value', v_eff->'drink_below_pct'))));
+  -- STORE-BY-SLOT (2026-11-04): NO default food or drink (Tyler 2026-10-21: the game never picks a
+  -- supply). A NEW hero, whose stored bar holds nothing at all, gets the start kit's bar
+  -- (src/data/start-kit.js START_BAR, pinned by tests/hunt-core/conditions.mjs): its own Cooked
+  -- Shrimp, then the store's Salted Shrimp, then Thin Turnip Juice.
+  if not exists (select 1 from jsonb_array_elements(v_list) e where jsonb_typeof(e) = 'object') then
+    -- ⟦starter-bar⟧
+    v_def := v_def || '[{"id": "d_food", "action": {"type": "consume", "id": "cooked_shrimp"}, "conditions": [{"metric": "self_hp_pct", "op": "lt", "value": 60}], "join": "and"}, {"id": "d_food_store", "action": {"type": "consume", "id": "salted_shrimp"}, "conditions": [{"metric": "self_hp_pct", "op": "lt", "value": 60}], "join": "and"}, {"id": "d_drink", "action": {"type": "consume", "id": "thin_turnip_juice"}, "conditions": [{"metric": "self_mana_pct", "op": "lt", "value": 30}], "join": "and"}]'::jsonb;
+    -- ⟦/starter-bar⟧
   end if;
   for v_d in select value from jsonb_array_elements(v_def) loop
     select min(n - 1) into v_pos from jsonb_array_elements(v_list) with ordinality x(e, n) where jsonb_typeof(x.e) = 'null';
     if v_pos is null then v_list := v_list || jsonb_build_array(v_d);
     else v_list := jsonb_set(v_list, array[v_pos::text], v_d); end if;
   end loop;
-  -- The display fields: an ability's mana and whether it can fire (active, of the discipline,
-  -- its rune held, or STORE-BY-SLOT: its slot names the rune's store row and the hero's
-  -- setting lets the store supply); an item's count in the inventory.
+  -- The display fields, THE SERVER'S STRUCK STATE (the browser never counts its own): an ability's
+  -- mana and whether it can fire (active, of the discipline, its rune held, or STORE-BY-SLOT: its slot
+  -- names the rune's store row and the hero's setting lets the store supply); a food or drink's
+  -- count (the open hunt's bag, else the inventory) and why it cannot fire (`why`): a crafted item
+  -- with none left is `none_left`, a store item under the hero's "end the hunt" is `store_off`.
+  v_on := v_eff->>'supply_source' = 'store' or v_eff->>'on_empty' = 'switch';
   for v_e in select value from jsonb_array_elements(v_list) loop
     if jsonb_typeof(v_e) = 'null' then v_slots := v_slots || jsonb_build_array(v_e); continue; end if;
     if v_e->'action'->>'type' = 'ability' then
@@ -557,12 +637,20 @@ begin
       v_slots := v_slots || jsonb_build_array(v_e || jsonb_build_object('mana', v_ab.mana,
         'usable', coalesce(v_ab.active, false) and v_disc = any (v_ab.disciplines) and (v_ab.rune is null or exists (
           select 1 from public.player_inventory pi where pi.user_id = p_user and pi.slot = p_slot and pi.item_id = v_ab.rune and pi.qty > 0)
-          or ((v_eff->>'supply_source' = 'store' or v_eff->>'on_empty' = 'switch') and exists (
+          or (v_on and exists (
           select 1 from public.hr_hunt_basic_supplies q where q.basic_id = v_e->'action'->>'store' and q.partner = v_ab.rune)))));
+    elsif v_e->'action'->>'type' = 'consume'
+          and exists (select 1 from public.hr_hunt_basic_supplies q where q.basic_id = v_e->'action'->>'id') then
+      v_slots := v_slots || jsonb_build_array(v_e || jsonb_build_object('usable', v_on, 'count', null,
+        'why', case when v_on then null else 'store_off' end));
     else
-      v_slots := v_slots || jsonb_build_array(v_e || jsonb_build_object('usable', true,
-        'count', (select coalesce(sum(pi.qty), 0) from public.player_inventory pi
-                   where pi.user_id = p_user and pi.slot = p_slot and pi.item_id = v_e->'action'->>'id')));
+      v_n := case when s.id is not null
+                  then (select coalesce(sum(b.qty_left), 0) from public.hunt_bag b where b.session_id = s.id and b.item_id = v_e->'action'->>'id')
+                  else (select coalesce(sum(pi.qty), 0) from public.player_inventory pi
+                         where pi.user_id = p_user and pi.slot = p_slot and pi.item_id = v_e->'action'->>'id') end;
+      v_own := v_e->'action'->>'type' = 'consume';
+      v_slots := v_slots || jsonb_build_array(v_e || jsonb_build_object('usable', not v_own or v_n > 0, 'count', v_n,
+        'why', case when v_own and v_n = 0 then 'none_left' end));
     end if;
   end loop;
   select coalesce(jsonb_agg(jsonb_build_object('preset', x.preset, 'name', x.name, 'grounds', coalesce(x.options->'grounds', '[]'::jsonb))
@@ -580,14 +668,14 @@ begin
     'density', v_eff->'density', 'gather_share', v_eff->'gather_share', 'gather_inert', true,
     'stop_rules', coalesce(v_opt->'stop_rules', '[]'::jsonb), 'grounds', coalesce(v_opt->'grounds', '[]'::jsonb),
     'slots', v_slots,
-    -- THE STORE the slots may buy from, at the server's price (the Configure action picker's numbers).
+    -- THE STORE at the server's price (the Configure action table's numbers: never a client copy).
     'store', coalesce((select jsonb_agg(jsonb_build_object('id', q.basic_id, 'kind', q.kind, 'partner', q.partner,
                                                              'heals', q.heals, 'mana', q.mana, 'price', q.price) order by q.kind, q.price, q.basic_id)
                          from public.hr_hunt_basic_supplies q), '[]'::jsonb),
     'bar', coalesce(a.slots, '[]'::jsonb), 'options', v_opt);
 end $$;
 
--- ── §2 SELF-CHECK (CLAUDE.md §4), EXECUTED, ROLLED BACK ──────────────────────
+-- ── §3 SELF-CHECK (CLAUDE.md §4), EXECUTED, ROLLED BACK ──────────────────────
 do $$
 declare
   v_u   uuid := '000000c0-0000-4000-a000-00000057b001';
@@ -598,41 +686,63 @@ declare
                                    and table_name = 'hr_hunt_basic_supplies' and column_name = 'tiers');
   v_sl  jsonb;
 begin
-  -- (a) the slot check: a food slot keeps the store food it names; every misfit is refused.
-  v := public.hr_hunt_slot_check('{"action": {"type": "consume", "id": "food", "store": "salted_trout"}, "conditions": [], "join": "and"}'::jsonb);
-  if coalesce(v->>'ok', '') <> 'true' or v->'slot'->'action'->>'store' is distinct from 'salted_trout' then
-    raise exception 'VERIFY(a): an Any food slot naming Salted Trout answered %', v; end if;
-  if v->'slot'->>'id' = (public.hr_hunt_slot_check('{"action": {"type": "consume", "id": "food"}, "conditions": [], "join": "and"}'::jsonb))->'slot'->>'id' then
-    raise exception 'VERIFY(a): the store choice does not reach the rule id'; end if;
+  -- (a) the slot check: one item, crafted or from the store; "Any food" refused in words; every misfit refused.
+  foreach v_f in array array['cooked_shrimp', 'salted_trout', 'thin_turnip_juice'] loop
+    v := public.hr_hunt_slot_check(jsonb_build_object('action', jsonb_build_object('type', 'consume', 'id', v_f), 'conditions', '[]'::jsonb));
+    if coalesce(v->>'ok', '') <> 'true' or v->'slot'->'action'->>'id' is distinct from v_f then
+      raise exception 'VERIFY(a): a slot naming % answered %', v_f, v; end if;
+  end loop;
+  foreach v_f in array array['food', 'drink'] loop
+    v := public.hr_hunt_slot_check(jsonb_build_object('action', jsonb_build_object('type', 'consume', 'id', v_f)));
+    if v->>'error' is distinct from 'choose_item' then raise exception 'VERIFY(a): the retired % slot answered %', v_f, v; end if;
+  end loop;
   foreach v_f in array array[
-      '{"action": {"type": "consume", "id": "food", "store": "thin_turnip_juice"}}',
-      '{"action": {"type": "consume", "id": "drink", "store": "salted_trout"}}',
       '{"action": {"type": "consume", "id": "cooked_shrimp", "store": "salted_shrimp"}}',
+      '{"action": {"type": "consume", "id": "salted_trout", "store": "salted_trout"}}',
       '{"action": {"type": "ability", "id": "flame_strike", "store": "salted_shrimp"}}',
       '{"action": {"type": "ability", "id": "power_strike", "store": "salted_shrimp"}}',
-      '{"action": {"type": "consume", "id": "food", "store": "no_such_row"}}',
-      '{"action": {"type": "consume", "id": "food", "store": 7}}'] loop
+      '{"action": {"type": "ability", "id": "flame_strike", "store": 7}}'] loop
     v := public.hr_hunt_slot_check(v_f::jsonb);
     if v->>'error' is distinct from 'bad_store' then raise exception 'VERIFY(a): % answered %', v_f, v; end if;
   end loop;
-  v := public.hr_hunt_slot_check('{"action": {"type": "consume", "id": "food", "price": 1}}'::jsonb);
+  v := public.hr_hunt_slot_check('{"action": {"type": "consume", "id": "salted_trout", "price": 1}}'::jsonb);
   if v->>'error' is distinct from 'bad_action' then raise exception 'VERIFY(a): an unknown action key answered %', v; end if;
+  if exists (select 1 from public.hr_hunt_action_ids where type = 'consume' and id in ('food', 'drink'))
+     or not exists (select 1 from public.hr_hunt_action_ids where type = 'consume' and id = 'salted_shrimp') then
+    raise exception 'VERIFY(a): the consume ids still hold a kind, or no store food'; end if;
   -- (b) no restated body reads a hunt tier.
   if exists (select 1 from pg_proc p where p.oid in ('public.hr_hunt_member_read(public.hunt_sessions)'::regprocedure,
                                                       'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)'::regprocedure,
                                                       'public.hr_hunt_settings_view(uuid,integer)'::regprocedure,
                                                       'public.hr_hunt_slot_check(jsonb)'::regprocedure)
-              and (p.prosrc like '%tiers%' or p.prosrc like '%v_tier%' or p.prosrc like '%t.tier%' or p.prosrc like '%''shop''%')) then
+              and (p.prosrc like '%tiers%' or p.prosrc like '%v\_tier%' or p.prosrc like '%t.tier%' or p.prosrc like '%''shop''%')) then
     raise exception 'VERIFY(b): a restated body still reads the hunt tier or projects `shop`'; end if;
-  -- (c) a Flame Strike slot naming the store rune is usable with no rune held; the section prices the store.
   begin
     perform set_config('request.jwt.claim.sub', v_u::text, true);
     insert into auth.users (id) values (v_u) on conflict (id) do nothing;
-    insert into public.hr_access_allowlist (user_id, note) values (v_u, 'store-by-slot §2 probe') on conflict (user_id) do nothing;
+    insert into public.hr_access_allowlist (user_id, note) values (v_u, 'store-by-slot §3 probe') on conflict (user_id) do nothing;
     v := public.hr_create_character(0);
     if coalesce(v->>'ok', '') <> 'true' then raise exception 'VERIFY(c): hr_create_character refused: %', v; end if;
-    if v_rune is null then raise exception 'VERIFY(c): Flame Strike spends no rune'; end if;
-    -- The store rune row lands with 2026-11-04-hunt-sessions-catalogue.generated.sql (after this file): plant it here, rolled back.
+    -- (c) a NEW hero (nothing stored) reads the start kit's bar: own Cooked Shrimp, store Salted Shrimp, Thin Turnip Juice.
+    v := public.hr_hunt_settings_view(v_u, 0);
+    if (select string_agg(e->'action'->>'id', ',' order by n) from jsonb_array_elements(v->'slots') with ordinality x(e, n)
+         where e->'action'->>'type' = 'consume') is distinct from 'cooked_shrimp,salted_shrimp,thin_turnip_juice' then
+      raise exception 'VERIFY(c): a new hero''s food and drink slots are %', v->'slots'; end if;
+    if jsonb_array_length(v->'store') <> (select count(*) from public.hr_hunt_basic_supplies)
+       or exists (select 1 from jsonb_array_elements(v->'store') e join public.hr_hunt_basic_supplies q on q.basic_id = e->>'id'
+                   where (e->>'price')::bigint <> q.price or (e->>'heals')::int <> q.heals or (e->>'mana')::int <> q.mana) then
+      raise exception 'VERIFY(c): the store rows are not the catalogue''s: %', v->'store'; end if;
+    -- (d) the server's struck state: own shrimp gone is `none_left`; the store food still fires; under "end" it is `store_off`.
+    delete from public.player_inventory where user_id = v_u and slot = 0 and item_id in ('cooked_shrimp', v_rune);
+    v := public.hr_hunt_settings_view(v_u, 0);
+    select e into v_sl from jsonb_array_elements(v->'slots') e where e->'action'->>'id' = 'cooked_shrimp';
+    if (v_sl->>'usable')::boolean or v_sl->>'why' is distinct from 'none_left' or (v_sl->>'count')::int <> 0 then
+      raise exception 'VERIFY(d): own shrimp, none left, reads %', v_sl; end if;
+    select e into v_sl from jsonb_array_elements(v->'slots') e where e->'action'->>'id' = 'salted_shrimp';
+    if not (v_sl->>'usable')::boolean or v_sl->>'why' is not null then raise exception 'VERIFY(d): the store shrimp reads %', v_sl; end if;
+    -- (e) a Flame Strike slot naming the store rune is usable with no rune held (the store row is planted
+    --     if 2026-11-04-hunt-sessions-catalogue.generated.sql, which ships it, has not run yet: rolled back).
+    if v_rune is null then raise exception 'VERIFY(e): Flame Strike spends no rune'; end if;
     if not exists (select 1 from public.hr_hunt_basic_supplies where partner = v_rune) then
       if v_has_tiers then
         execute 'insert into public.hr_hunt_basic_supplies (basic_id, kind, partner, heals, mana, price, tiers) values ($1, ''ammo'', $2, 0, 0, 8, ''{}''::int[])' using 'plain_' || v_rune, v_rune;
@@ -640,37 +750,40 @@ begin
         execute 'insert into public.hr_hunt_basic_supplies (basic_id, kind, partner, heals, mana, price) values ($1, ''ammo'', $2, 0, 0, 8)' using 'plain_' || v_rune, v_rune;
       end if;
     end if;
-    delete from public.player_inventory where user_id = v_u and slot = 0 and item_id = v_rune;
     insert into public.player_action_sets (user_id, slot, preset, name, slots, options)
       values (v_u, 0, 0, 'Preset 1', jsonb_build_array(
         jsonb_build_object('action', jsonb_build_object('type', 'ability', 'id', 'flame_strike',
                                                         'store', (select basic_id from public.hr_hunt_basic_supplies where partner = v_rune limit 1)),
                            'conditions', '[]'::jsonb, 'join', 'and'),
-        jsonb_build_object('action', jsonb_build_object('type', 'ability', 'id', 'flame_strike'), 'conditions', '[]'::jsonb, 'join', 'and')),
-        '{"role": "tank"}'::jsonb)
+        jsonb_build_object('action', jsonb_build_object('type', 'ability', 'id', 'flame_strike'), 'conditions', '[]'::jsonb, 'join', 'and'),
+        jsonb_build_object('action', jsonb_build_object('type', 'consume', 'id', 'salted_shrimp'), 'conditions', '[]'::jsonb, 'join', 'and')),
+        '{"role": "tank", "on_empty": "end"}'::jsonb)
       on conflict (user_id, slot, preset) do update set slots = excluded.slots, options = excluded.options;
     v := public.hr_hunt_settings_view(v_u, 0);
-    if jsonb_array_length(v->'store') <> (select count(*) from public.hr_hunt_basic_supplies)
-       or exists (select 1 from jsonb_array_elements(v->'store') e join public.hr_hunt_basic_supplies q on q.basic_id = e->>'id'
-                   where (e->>'price')::bigint <> q.price or (e->>'heals')::int <> q.heals or (e->>'mana')::int <> q.mana) then
-      raise exception 'VERIFY(c): the store rows are not the catalogue''s: %', v->'store'; end if;
+    if exists (select 1 from jsonb_array_elements(v->'slots') e where e->>'id' in ('d_food', 'd_food_store', 'd_drink')) then
+      raise exception 'VERIFY(e): a hero with a stored bar still gets the starter food: %', v->'slots'; end if;
+    v_sl := v->'slots'->2;
+    if (v_sl->>'usable')::boolean or v_sl->>'why' is distinct from 'store_off' then
+      raise exception 'VERIFY(e): a store food under "end the hunt" reads %', v_sl; end if;
+    update public.player_action_sets set options = '{"role": "tank"}'::jsonb where user_id = v_u and slot = 0 and preset = 0;
+    v := public.hr_hunt_settings_view(v_u, 0);
     v_sl := v->'slots'->0;
-    if v_sl->'action'->>'store' is null then raise exception 'VERIFY(c): the stored store choice did not reach the bar: %', v->'slots'; end if;
+    if v_sl->'action'->>'store' is null then raise exception 'VERIFY(e): the stored store rune did not reach the bar: %', v->'slots'; end if;
     if v->>'role' = 'tank' then
-      if not coalesce((v_sl->>'usable')::boolean, false) then raise exception 'VERIFY(c): a Flame Strike slot naming the store rune reads unusable: %', v_sl; end if;
-      if coalesce((v->'slots'->1->>'usable')::boolean, false) then raise exception 'VERIFY(c): a Flame Strike slot with no rune and no store rune reads usable'; end if;
+      if not coalesce((v_sl->>'usable')::boolean, false) then raise exception 'VERIFY(e): a Flame Strike slot naming the store rune reads unusable: %', v_sl; end if;
+      if coalesce((v->'slots'->1->>'usable')::boolean, false) then raise exception 'VERIFY(e): a Flame Strike slot with no rune and no store rune reads usable'; end if;
     end if;
-    raise exception using errcode = 'HR891', message = 'store-by-slot §2 complete - rolling back';
+    raise exception using errcode = 'HR891', message = 'store-by-slot §3 complete - rolling back';
   exception when sqlstate 'HR891' then
     null;
   end;
   perform set_config('request.jwt.claim.sub', '', true);
-  if exists (select 1 from public.player_state where user_id = v_u) then raise exception 'VERIFY(d): §2 LEAKED a probe row'; end if;
+  if exists (select 1 from public.player_state where user_id = v_u) then raise exception 'VERIFY(f): §3 LEAKED a probe row'; end if;
   if has_function_privilege('anon', 'public.hr_hunt_settings_view(uuid,integer)', 'execute')
      or has_function_privilege('authenticated', 'public.hr_hunt_settings_view(uuid,integer)', 'execute')
      or has_function_privilege('authenticated', 'public.hr_hunt_member_read(public.hunt_sessions)', 'execute')
      or has_function_privilege('authenticated', 'public.hr_hunt_slot_check(jsonb)', 'execute') then
-    raise exception 'VERIFY(d): a client role reaches a server-only body'; end if;
+    raise exception 'VERIFY(f): a client role reaches a server-only body'; end if;
   perform public.hr_assert_grant_hygiene(true);
-  raise notice 'store-by-slot: a slot names its store row; a rune slot with its store rune is usable; no body reads a hunt tier';
+  raise notice 'store-by-slot: a slot names one item; a new hero gets the start kit''s bar; the struck state is the server''s';
 end $$;

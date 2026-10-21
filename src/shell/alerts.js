@@ -7,13 +7,17 @@
 //   rare    a `rare_drop` event as it ARRIVES in the character's timeline
 //           (timeline.onArrive, so a character that is not on screen still
 //           tells), id = the server's own event id
+//   out     a `slot_dry` event as it arrives for this character's hero (Tyler
+//           2026-10-21): "Mira's Cooked Shrimp ran out: slot 2 (Salted Shrimp)
+//           takes over", the slot and item the engine named (the server's
+//           commit carries it), id = the event's key
 //   death   the hunt section ending `died` / `party_member_died`, id = session
 //   low     a bar supply at zero for a hero set to end its hunt on empty, while hunting; id = session + item. Never for a resource
 //           the hero does not use (a drink for a hero with no mana pool), and
 //           never "out of" while the store pays per use (supply_source `store`
 //           or on_empty `switch`: HUNT_SCREEN_SPEC §3.4 rule 7, the hunt never
-//           stops for lack of stock). A bar slot may name a KIND (`food`,
-//           `drink`): its stock is every bag stack of that kind.
+//           stops for lack of stock). A bar slot names ONE item: its stock is
+//           that item's bag stack.
 //   ended   the hunt section saying `ended`, id = session
 //   invite  a party invite waiting for the character (`party_invites`), id =
 //           the server's invite id; Join / No thanks answer it, and it goes
@@ -33,7 +37,7 @@ import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.23';
 import { bagOf, nameOf } from '../session/item-sections.js?v=0.2.23';
 import { huntName, invitesOf } from '../session/party-sections.js?v=0.2.23';
 import { itemName } from './widgets/bits.js?v=0.2.23';
-import { CONSUMABLES, CONSUMABLE_KINDS } from '../data/consumables.js?v=0.2.23';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.23';
 
 const residueOf = (cs) => {
   const r = cs && cs.record && cs.record.residue && cs.record.residue.alerts;
@@ -56,8 +60,8 @@ export function setAlertShown(cs, kind, on) {
   return cs.setResidue('alerts', { off: Array.from(off), seen: Array.isArray(r.seen) ? r.seen : [] });
 }
 
-/* What a consume names: a kind ('food' | 'drink') or an item, and which kind it is (null = neither). */
-const kindOf = (id) => (CONSUMABLE_KINDS[id] ? id : CONSUMABLES[id] ? CONSUMABLES[id].kind : null);
+/* Which kind a consume slot's ONE item is ('food' | 'drink'; null = neither). */
+const kindOf = (id) => (CONSUMABLES[id] ? CONSUMABLES[id].kind : null);
 
 /* The low-supply items of a hunting character: bar supplies at zero (no shop sells supplies; Tyler 2026-10-20). */
 function lowItems(cs, hero) {
@@ -69,15 +73,14 @@ function lowItems(cs, hero) {
   /* A drink restores mana: a hero the server gives no mana pool never needs one. */
   const uses = (id) => kindOf(id) !== 'drink' || hero.manaMax > 0;
   const have = new Map(bag.map((r) => [r.id, r.qty]));
-  const stock = (id) => (CONSUMABLE_KINDS[id] ? bag.reduce((n, r) => n + (kindOf(r.id) === id ? r.qty : 0), 0) : have.get(id) || 0);
+  const stock = (id) => have.get(id) || 0;
   const out = new Map();
   if (s && !storePays) for (const sl of s.slots) {
     if (!sl.empty && sl.action.type === 'consume' && uses(sl.item) && !(stock(sl.item) > 0) && !out.has(sl.item)) out.set(sl.item, { item: sl.item });
   }
   return Array.from(out.values());
 }
-/* A kind reads as plain words ("out of drinks"); an item by its name. */
-const supplyWords = (id) => (id === 'food' ? 'food' : id === 'drink' ? 'drinks' : itemName(id));
+const supplyWords = (id) => itemName(id);
 
 /**
  * What this character's record says happened, as candidate alerts (pure).
@@ -108,6 +111,18 @@ function rareOf(cs, ev) {
   const h = huntOf(cs);
   return { id: 'rare:' + (h ? h.sessionId : 'slot' + cs.slot) + ':' + ev.key.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 60), kind: 'rare',
     session: h ? h.sessionId : null, item: ev.item, text: 'Rare drop for ' + who(cs) + ': ' + itemName(ev.item) + '!' };
+}
+
+/** The run-out alert for one arriving `slot_dry` event of this character's hero, or null. */
+export function runOutOf(cs, ev) {
+  if (!ev || ev.type !== 'slot_dry' || typeof ev.item !== 'string' || typeof ev.key !== 'string') return null;
+  const h = huntOf(cs);
+  if (!h || !h.hero || !Number.isInteger(ev.u) || ev.u !== h.hero.unit) return null;
+  const then = typeof ev.next === 'string' && Number.isInteger(ev.slot)
+    ? ': slot ' + ev.slot + ' (' + itemName(ev.next) + ') takes over.'
+    : ', and no slot takes over: ' + who(cs) + ' hunts on without it.';
+  return { id: 'out:' + h.sessionId + ':' + ev.key.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 60), kind: 'low', session: h.sessionId, item: ev.item,
+    text: who(cs) + '’s ' + itemName(ev.item) + ' ran out' + then };
 }
 
 /**
@@ -154,7 +169,7 @@ export function createAlertCenter(account) {
     if (!cs || watching.has(slot)) return;
     const offs = [cs.subscribe((s, why) => { if (why !== 'closed') scan(s); })];
     if (cs.timeline && typeof cs.timeline.onArrive === 'function') {
-      offs.push(cs.timeline.onArrive((ev) => { const c = rareOf(cs, ev); if (c && fire(cs, c)) changed(); }));
+      offs.push(cs.timeline.onArrive((ev) => { const c = rareOf(cs, ev) || runOutOf(cs, ev); if (c && fire(cs, c)) changed(); }));
     }
     watching.set(slot, offs);
     scan(cs);

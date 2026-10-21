@@ -94,7 +94,7 @@ function conditionOf(c) {
 }
 
 /* One bar slot: the server's action + conditions (the wire shape the editor sends back,
-   src/data/condition-metrics.js), plus its display fields (usable, mana, count). */
+   src/data/condition-metrics.js), plus its display fields (usable, why, mana, count). */
 function slotOf(s) {
   if (!isObj(s) || !isObj(s.action) || !ACTION.test(String(s.action.type)) || !str(s.action.id)) return { empty: true };
   const conditions = list(s.conditions, conditionOf, 4);
@@ -105,6 +105,8 @@ function slotOf(s) {
     action: Object.assign({ type: s.action.type, id: s.action.id }, str(s.action.store) ? { store: s.action.store } : {}),
     conditions, join: JOIN.test(String(s.join)) ? s.join : 'and',
     usable: s.usable !== false, mana: int(s.mana), count: int(s.count),
+    /* WHY THE SERVER STRUCK IT (hr_hunt_settings_view): none_left (own stock gone) | store_off; null when it can fire. */
+    why: str(s.why),
   };
 }
 
@@ -135,6 +137,8 @@ export function settingsOf(cs) {
     stopRules: list(s.stop_rules, (r) => (isObj(r) && Array.isArray(r.conditions) ? { conditions: list(r.conditions, conditionOf, 4), join: JOIN.test(String(r.join)) ? r.join : 'and', forMs: int(r.forMs) || 0 } : null), 3),
     grounds: list(s.grounds, (g) => str(g), 32),
     slots: Array.isArray(s.slots) ? s.slots.slice(0, 20).map(slotOf) : [],
+    /* The bar as the player SAVED it (hunt_settings.bar; empty for a new hero, whose shown bar is the start kit's). */
+    storedBar: Array.isArray(s.bar) ? s.bar.slice(0, 20).filter(isObj) : [],
     /* THE STORE the slots may buy from, as the SERVER prices it (hr_hunt_basic_supplies via
        hr_hunt_settings_view): every number the Configure action picker shows comes from here. */
     store: list(s.store, storeRowOf, 64),

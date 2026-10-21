@@ -23,13 +23,12 @@
 // the K10 no-basic-runes rule). The free tier-1 rungs (Bronze Arrows, Air Rune,
 // Coarse Whetstone) stay ordinary packed items.
 //
-// THE PLAYER PICKS THE STORE ITEM (Tyler 2026-10-19, rulings of record): a bar
-// slot names what it uses and the store backs THAT choice — a slot naming a
-// crafted item buys its row here (the row whose partner it is), an "Any food" /
-// "Any drink" slot buys the row the player chose for it (`action.store`; with no
-// choice, the cheapest row that covers what is missing), an ability's rune is
-// bought only when its slot names the store rune. The hunt never picks: there
-// are no per-hunt-tier store rows (the old `tiers` column is gone).
+// THE PLAYER PICKS THE ITEM (Tyler 2026-10-21, designer-confirmed): a bar slot
+// names ONE item. A store food or drink below is an item a slot can name, bought
+// per use; a crafted one comes from the hero's own stock only. The player builds
+// the fallback by slot order (Cooked Trout, then Salted Trout). A rune spell buys
+// its store rune only when its slot names it. The game never picks: there are no
+// per-hunt-tier store rows (the old `tiers` column is gone).
 //
 // PRICES (designer 2026-10-18, the economy rule: gold + common drops pay the
 // supplies). A basic heal costs just above its cooked partner's book value a

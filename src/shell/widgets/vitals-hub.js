@@ -97,5 +97,5 @@ export function patchHub(el, ctx) {
   const ico = sock.querySelector('.hb-socket-ico');
   if (ico.getAttribute('data-for') !== String(food.top)) { ico.innerHTML = food.top ? itemIconHtml(ctx.glyphs, food.top) : glyphSvg(ctx.glyphs, 'uiFood'); attr(ico, 'data-for', String(food.top)); }
   text(sock.querySelector('.hb-socket-k'), 'Food ×' + whole(food.n));
-  attr(sock, 'title', food.top ? whole(food.n) + ' food in the bag (most: ' + itemName(food.top) + ')' : 'No food in the bag: Any food on the bar buys from the store as used');
+  attr(sock, 'title', food.top ? whole(food.n) + ' food in the bag (most: ' + itemName(food.top) + ')' : 'No food in the bag: a store food on the bar buys as used');
 }

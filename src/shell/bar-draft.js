@@ -11,7 +11,7 @@
 // until the server has answered and the re-read envelope has replaced
 // hunt_settings (CLAUDE.md §6). A refusal names its slot and condition.
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS, OPERATORS, CONSUME_KINDS } from '../data/condition-metrics.js?v=0.2.23';
+import { METRICS, OPERATORS } from '../data/condition-metrics.js?v=0.2.23';
 import { STATUSES } from '../data/statuses.js?v=0.2.23';
 import { BAR_SLOTS, BAR_ANSWER_MS } from '../data/hunt-hud.js?v=0.2.23';
 import { BASIC_INDEX } from '../data/supply-basics.js?v=0.2.23';
@@ -43,7 +43,7 @@ export function openSlot(cs, i) {
   const bar = serverBar(cs);
   s.open = Number.isInteger(i) && i >= 0 && i < SLOTS ? i : null;
   const cur = bar && s.open !== null ? bar[s.open] : null;
-  s.draft = cur ? Object.assign(JSON.parse(JSON.stringify(cur)), { join: 'and' }) : { action: { type: 'consume', id: 'food' }, conditions: [], join: 'and' };
+  s.draft = cur ? Object.assign(JSON.parse(JSON.stringify(cur)), { join: 'and' }) : { action: { type: 'consume', id: null }, conditions: [], join: 'and' };
   s.error = null;
   s.msg = '';
 }
@@ -65,7 +65,7 @@ const startValue = (m) => (m.value === 'pct' ? Math.round((m.range[0] + m.range[
  */
 export function supplyDefault(a) {
   if (!a || a.type !== 'consume') return [];
-  const kind = Object.prototype.hasOwnProperty.call(CONSUME_KINDS, a.id) ? a.id : CONSUMABLES[a.id] ? CONSUMABLES[a.id].kind : null;
+  const kind = CONSUMABLES[a.id] ? CONSUMABLES[a.id].kind : null;
   if (kind === 'food') return [{ metric: 'self_hp_pct', op: 'lt', value: CONSUMABLE_RULES.foodBelowPct }];
   if (kind === 'drink') return [{ metric: 'self_mana_pct', op: 'lt', value: CONSUMABLE_RULES.drinkBelowPct }];
   return [];
@@ -87,27 +87,20 @@ export function conditionFor(metric) {
 }
 
 /**
- * THE STORE BEHIND A SLOT (Tyler 2026-10-19: the PLAYER picks the store item;
- * src/core/action-rules.js storeFor / resolveLine). `rows` are the SERVER's store
- * rows (settingsOf(cs).store, hr_hunt_basic_supplies at its price), never a client
- * copy: with no rows read yet the answer is null. What one use buys once the slot's
- * own stock is gone:
- *   Any food / Any drink   the row the slot names (`a.store`); with none, the
- *                          store's cheapest per point
- *   an own food or drink   that item's own store row (Salted Shrimp for Cooked Shrimp)
- *   an ammo line           its plain partner; the loaded ammo, the matching one
- *   a rune ability         the store rune the slot names; with none, carried runes only
+ * THE STORE BEHIND A SLOT (Tyler 2026-10-21, designer-confirmed: a slot names ONE
+ * item, with no hidden fallback). `rows` are the SERVER's store rows
+ * (settingsOf(cs).store, hr_hunt_basic_supplies at its price), never a client
+ * copy: with no rows read yet the answer is null. What one use buys:
+ *   a store food or drink   that row, per use (it is the slot's item)
+ *   a crafted food or drink nothing: own stock only (null)
+ *   an ammo line            its plain partner once yours are gone; the loaded ammo, the matching one
+ *   a rune spell            the store rune the slot names; with none, carried runes only
  * { id, name, price, amount } or null.
  */
 export function storeOf(a, rows) {
   if (!a || !a.id || !Array.isArray(rows)) return null;
   const row = (b) => ({ id: b.id, name: storeName(b.id), price: b.price, amount: b.amount });
-  if (a.type === 'consume' && Object.prototype.hasOwnProperty.call(CONSUME_KINDS, a.id)) {
-    const kind = CONSUME_KINDS[a.id];
-    if (a.store) { const b = rows.find((r) => r.id === a.store && r.kind === kind); return b ? row(b) : null; }
-    const low = cheapestPerPoint(rows, kind);
-    return low ? row(low) : null;
-  }
+  if (a.type === 'consume') { const b = rows.find((r) => r.id === a.id); return b ? row(b) : null; }
   if (a.type === 'ability') {
     const b = a.store ? rows.find((r) => r.id === a.store) : null;
     return b ? row(b) : null;
@@ -117,52 +110,33 @@ export function storeOf(a, rows) {
   return b ? row(b) : null;
 }
 
-/* The store's cheapest row per point of `kind` (action-rules.js storeFor, the same order). */
-function cheapestPerPoint(rows, kind) {
-  return rows.filter((r) => r.kind === kind && r.amount > 0)
-    .reduce((m, b) => (!m || b.price * m.amount < m.price * b.amount || (b.price * m.amount === m.price * b.amount && b.price < m.price) ? b : m), null);
-}
-
-/** A store row's name (a label only: every number is the server's row). */
+/* A store row's name (a label only: every number is the server's row). */
 function storeName(id) {
   return BASIC_INDEX[id] ? BASIC_INDEX[id].n : String(id).replace(/_/g, ' ');
 }
 
 /**
- * THE STORE CHOICES the Configure action window offers for action `a` (Tyler
- * 2026-10-19; the Coordinator's picker 2026-10-21): an Any food / Any drink slot
- * lists every store row of its kind with its HP (or mana) a use, gold a use and
- * gold a point, CHEAPEST PER POINT FIRST, after the default (`id` null: the
- * cheapest per point, named); a rune ability lists "carried runes only"
- * (`id` null) and its rune's store row. [] when the action takes no choice. Every
- * number is the server's row.
+ * A RUNE SPELL'S STORE CHOICE (designer 2026-10-21: a default bar never buys a rune
+ * unseen): "Carried runes only" (`id` null) or the rune's store row at the server's
+ * price a cast. [] for every other action (a food or drink slot names its one item).
  */
 export function storeChoices(a, rows) {
   if (!a || !Array.isArray(rows)) return [];
-  if (a.type === 'consume' && Object.prototype.hasOwnProperty.call(CONSUME_KINDS, a.id)) {
-    const kind = CONSUME_KINDS[a.id];
-    const list = rows.filter((r) => r.kind === kind && r.amount > 0)
-      .map((r) => ({ id: r.id, name: storeName(r.id), amount: r.amount, price: r.price, perPoint: r.price / r.amount, unit: kind === 'heal' ? 'HP' : 'mana' }))
-      .sort((x, y) => (x.perPoint - y.perPoint) || (x.price - y.price) || (x.id < y.id ? -1 : 1));
-    return list.length ? [{ id: null, name: 'Cheapest per point (now ' + list[0].name + ')', amount: null, price: null, perPoint: null, unit: list[0].unit }].concat(list) : [];
-  }
   const rune = a.type === 'ability' && ABILITIES[a.id] ? ABILITIES[a.id].rune : null;
   if (!rune) return [];
-  const list = rows.filter((r) => r.partner === rune).map((r) => ({ id: r.id, name: storeName(r.id), amount: null, price: r.price, perPoint: null, unit: 'cast' }));
-  return list.length ? [{ id: null, name: 'Carried runes only', amount: null, price: null, perPoint: null, unit: 'cast' }].concat(list) : [];
+  const list = rows.filter((r) => r.partner === rune).map((r) => ({ id: r.id, name: storeName(r.id), price: r.price }));
+  return list.length ? [{ id: null, name: 'Carried runes only', price: null }].concat(list) : [];
 }
 
-/** A choice row in words: "Salted Trout · 120 HP · 40 g · 0.33 g/HP", "Plain Fire Rune · 8 g a cast". */
+/** A rune choice in words: "Plain Fire Rune · 8 g a cast". */
 export function storeChoiceWords(c) {
-  if (c.price === null) return c.name;
-  if (c.amount === null) return c.name + ' · ' + c.price + ' g a ' + c.unit;
-  return c.name + ' · ' + c.amount + ' ' + c.unit + ' · ' + c.price + ' g · ' + (Math.round(c.perPoint * 100) / 100) + ' g/' + c.unit;
+  return c.price === null ? c.name : c.name + ' · ' + c.price + ' g a cast';
 }
 
-/** The store choice a freshly picked action starts with: a rune ability its rune's store row (shown, changeable), else none. */
+/** The store choice a freshly picked rune spell starts with: its rune's store row (shown, changeable), else none. */
 export function storeDefault(a, rows) {
   const c = storeChoices(a, rows);
-  return a && a.type === 'ability' && c.length > 1 ? c[1].id : null;
+  return c.length > 1 ? c[1].id : null;
 }
 
 /** The store line in words: "then the store's, from 14 g each, paid as used". */

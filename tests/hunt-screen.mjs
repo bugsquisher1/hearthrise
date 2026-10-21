@@ -340,8 +340,10 @@ async function checks(overrides, shots) {
         /* Each control is ONE intent and shows only the server's value. */
         const one = async (label, act, want, set) => {
           const before = s.calls.filter((c) => c.name === 'hr_action_set_options').length;
-          Object.assign(s.env.hunt_settings, set);
+          /* The server's value is set after the gesture (the reply waits optionsDelayMs), so the live view's
+             own re-reads cannot show it early and make the gesture a no-change (as in HS-3). */
           await act();
+          Object.assign(s.env.hunt_settings, set);
           await wait(page, (p) => !document.querySelector(p).classList.contains('is-pending'), P, 3000);
           await page.waitForTimeout(150);
           const got = s.calls.filter((c) => c.name === 'hr_action_set_options').slice(before).map((c) => JSON.stringify(c.body.p_opts));

@@ -7,7 +7,7 @@
 //   node tests/hunt-screen.mjs --shots <dir>  also write the visual-gate screenshots
 //                                             (1440x900 and 922x423)
 //
-// mutant-anchors: src/session/character-session.js src/session/hunt-leave.js src/shell/windows/hunts.js src/shell/widgets/hunt-topbar.js src/render/paint.js src/shell/shell.js src/shell/widgets/ src/shell/windows/ src/session/hunt-sections.js src/data/combat-text.js src/data/condition-metrics.js
+// mutant-anchors: src/session/character-session.js src/session/hunt-leave.js src/session/hunt-poll.js src/shell/windows/hunts.js src/shell/widgets/hunt-topbar.js src/render/paint.js src/shell/shell.js src/shell/widgets/ src/shell/windows/ src/session/hunt-sections.js src/data/combat-text.js src/data/condition-metrics.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character's envelope is tests/fixtures/hunt-envelope.json.
@@ -337,19 +337,24 @@ async function checks(overrides, shots) {
       // Tyler 10-20: "a countdown so they know it's not just stuck")
       /* The server runs three hours ahead of this device: a countdown off the device clock reads nothing like it. */
       const SKEW = 3 * 3600000;
-      let leaveAt = null, slowOnce = false;
+      let leaveAt = null, slowUntil = 0;
       const { ctx, page, s, errors, up } = await open({ prep: (sc) => {
         sc.clock = () => Date.now() + SKEW;
+        /* the live view's start-point asks wait for a first boundary an hour off, so only the ordinary
+           poll and the leave's own close ask: the asks' backoff could land a settle near leave_at by
+           chance and hide a close that waits a whole poll */
+        sc.env.hunt = Object.assign({}, sc.env.hunt, { session: Object.assign({}, sc.env.hunt.session, { hunt_from: new Date(sc.clock() + 3600000).toISOString() }) });
         sc.onLeave = () => {
           if (leaveAt === null) leaveAt = sc.clock() + 6000;
           const session = Object.assign({}, sc.env.hunt.session, { id: sc.env.hunt.session_id, leave_at: new Date(leaveAt).toISOString(), phase: 'leaving' });
           sc.env.hunt = Object.assign({}, sc.env.hunt, { session });
-          slowOnce = true;
+          slowUntil = Date.now() + 2500;
           /* the server's answer: the session it set leave_at on (hr_hunt_leave -> hr_hunt_view) */
           return { ok: true, pending: true, session };
         };
-        /* the settle right after the press is slow (2.5 s): the number must not wait for it */
-        sc.accrueDelay = () => { if (!slowOnce) return 0; slowOnce = false; return 2500; };
+        /* every settle asked in the 2.5 s after the press is slow (the live view's own asks too, which
+           never give up): the number must not wait for any of them */
+        sc.accrueDelay = () => Math.max(0, slowUntil - Date.now());
         /* the hunter's settle closes it once the server's clock is past leave_at (hunt-settle.js: a pending leave is never held back) */
         sc.onAccrue = () => {
           if (leaveAt === null || sc.clock() < leaveAt || sc.env.hunt.ended) return;
@@ -693,7 +698,7 @@ const MUTANTS = [
   ['the countdown waits for the settle after the press', 'src/session/character-session.js', "      this._leaveAsk = leaveAskOf(ans.body.session);\n", ""],
   ['a late close never says so', 'src/shell/widgets/hunt-topbar.js', "late: 'Still processing your leave…'", "late: 'Leaving now…'"],
   ['the countdown line is not shown', 'src/shell/widgets/hunt-topbar.js', "  prop(line, 'hidden', !leaving || over);", "  prop(line, 'hidden', true);"],
-  ['the leave closes a whole poll late', 'src/session/character-session.js', "    if (close !== null) ms = Math.min(ms, close);", ""],
+  ['the leave closes a whole poll late', 'src/session/hunt-poll.js', "  return closeMs === null ? ms : Math.min(ms, closeMs);", "  return ms;"],
   ['a free character gets no basic analyzer', 'src/shell/widgets/analyzer.js', 'const a = analyzerOf(ctx.character);', 'const a = premium ? analyzerOf(ctx.character) : null;'],
   ['the analyzer keeps the last numbers when the section goes', 'src/session/hunt-sections.js', "  const a = section(cs, 'hunt_analyzer');\n", "  const a = section(cs, 'hunt_analyzer') || globalThis.__lastA;\n  globalThis.__lastA = a;\n"],
   ['the metric picker is a hard-coded list', 'src/shell/windows/configure-action.js', "aria-label=\"Test ' + (i + 1) + '\">' + options(METRICS.map((m) => [m.id, m.label]))", "aria-label=\"Test ' + (i + 1) + '\">' + options([['self_hp_pct', 'My HP %'], ['self_mana_pct', 'My mana %']])"],

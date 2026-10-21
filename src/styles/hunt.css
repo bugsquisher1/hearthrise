@@ -443,6 +443,8 @@
   .hb-pl-head { display: flex; align-items: center; justify-content: space-between; color: var(--ink); }
   .hb-pl-more .hb-label { display: inline; }
   .hb-pl-more .hb-pl-row, .hb-pl-more .hh-seg, .hb-pl-more .hh-select { min-height: 40px; }
+  /* An open window is the phone's one sheet: the alert stack (a screen widget, over the windows' layer) waits. */
+  :root:has(.hs-win:not(.is-leaving)) .hs-widget.is-alerts { visibility: hidden; }
   /* A short screen: the tooltip runs wide instead of tall, so it never climbs into the top strip. */
   .hb-tip { width: 440px; }
   .hc-cfg .hh-seg, .hc-cfg .hh-select, .hc-cfg .hh-num, .hc-cfg .hh-tool { min-height: 40px; }

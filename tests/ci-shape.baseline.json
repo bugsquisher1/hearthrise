@@ -16,6 +16,8 @@
     "node tests/window-camera.mjs --mutate": "in-page-2",
     "node tests/services-window.mjs": "in-page-2",
     "node tests/services-window.mjs --mutate": "in-page-2",
+    "node tests/instant-press.mjs": "in-page-2",
+    "node tests/instant-press.mjs --mutate": "in-page-2",
     "node tools/gen-outfits.mjs --check": "in-page-2",
     "node tools/gen-outfits.mjs --selftest": "in-page-2",
     "node tests/character-sheet-core.mjs": "in-page-2",

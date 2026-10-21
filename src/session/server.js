@@ -4,6 +4,8 @@
 // createServerLink({ url, anonKey, token, fetch }) answers:
 //   rpc(name, args)       POST /rest/v1/rpc/<name>        (Postgres RPC)
 //   accrue(body)          POST /functions/v1/hr-accrue    (the engine's intents)
+//   intents               the account's asks in flight (src/session/intent-ledger.js):
+//                         its callers track each intent; the link only carries it
 // Every answer is { ok, status, body, closed } and never a throw: a network
 // failure is { ok:false, status:0, error:'network' }.
 //
@@ -21,6 +23,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { SUPABASE_CONFIG } from '../net/supabase-bootstrap.js?v=0.2.22';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.22';
 
 export const CLOSED_CODE = 'hr_closed';
 export const CLOSED_STATUS = 403;
@@ -72,5 +75,6 @@ export function createServerLink(o) {
       return post('/rest/v1/rpc/' + name, args);
     },
     accrue: (body) => post('/functions/v1/hr-accrue?forceFunctionRegion=' + SUPABASE_CONFIG.functionRegion, body),
+    intents: createIntentLedger(),
   });
 }

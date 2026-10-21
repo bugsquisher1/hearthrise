@@ -24,7 +24,7 @@
 // A later lane that swaps one of these systems must keep its arrow alive.
 //
 //   LOOP-1, a fresh character from the real start kit
-//    1    log in                    hr_create_character <- src/data/start-kit.js   all
+//    1    log in                    hr_create_hero <- src/data/start-kit.js        all
 //    2    fish                      set_activity gather:shrimp_s, settle            3
 //    3    cook a heal               set_activity artisan:cook_shrimp, settle        6
 //    4    the NPC prices food per use hr_hunt_basic_supplies: the tier-1 shop heal   6
@@ -56,7 +56,7 @@
 //    9    reload                    hr_load == the last envelope                    -
 //
 //   LOOP-3, a CRAFTED supply beats its basic (master plan M3: the hybrid supply)
-//    1    a fresh character         hr_create_character                             2
+//    1    a fresh character         hr_create_hero                                  2
 //    2    fish                      gather:shrimp_s                                 3
 //    3    cook                      artisan:cook_shrimp                             5
 //    4    the crafted heal is better hr_items heals vs hr_hunt_basic_supplies:      5
@@ -263,7 +263,8 @@ async function makeServer(db, M) {
     async create(uid, name) {
       await db.query('insert into auth.users(id) values ($1) on conflict (id) do nothing', [uid]);
       await db.query('insert into profiles(id, display_name) values ($1,$2) on conflict (id) do nothing', [uid, name]);
-      return asUser(uid, async () => (await q('select public.hr_create_character(0) r'))[0].r);
+      /* The one creation door (2026-11-02-hero-creation.sql): a hero with no name does not enter the world. */
+      return asUser(uid, async () => (await q("select public.hr_create_hero(0, $1, '{\"head\": 13, \"body\": 5, \"legs\": 3, \"feet\": 0}'::jsonb, gen_random_uuid()) r", [name]))[0].r);
     },
     /** THE RELOAD: hr_load as `authenticated`, the read the client boots from. */
     async load(uid) {
@@ -552,7 +553,7 @@ async function loop1(S, M, tag, rows) {
 
   await step(1, 'start kit', async (t) => {
     const cr = await S.create(p.uid, `Loop1${tag}`);
-    t.ok(cr && cr.ok === true, `hr_create_character refused: ${brief(cr)}`);
+    t.ok(cr && cr.ok === true, `hr_create_hero refused: ${brief(cr)}`);
     p.env = p.seen = await readBack(S, p.uid, t, 'first load', null);
     const e = p.env;
     t.ok(num(e.state.gold) === START_KIT.currency.gold, `gold ${e.state.gold}, the kit says ${START_KIT.currency.gold}`);
@@ -736,7 +737,7 @@ async function loop2(S, M, tag, rows) {
 
   await step(1, 'a Level-16 character', async (t) => {
     const cr = await S.create(p.uid, `Loop2${tag}`);
-    t.ok(cr && cr.ok === true, `hr_create_character refused: ${brief(cr)}`);
+    t.ok(cr && cr.ok === true, `hr_create_hero refused: ${brief(cr)}`);
     for (const sk of ['melee', 'defense']) {
       await S.q('update public.player_skills set xp = $3 where user_id=$1 and slot=0 and skill_id=$2', [p.uid, sk, skillXpForLevel(sk, MID_LEVEL)]);
     }
@@ -829,7 +830,7 @@ async function loop3(S, M, tag, rows) {
 
   await step(1, 'a fresh character', async (t) => {
     const cr = await S.create(p.uid, `Loop3${tag}`);
-    t.ok(cr && cr.ok === true, `hr_create_character refused: ${brief(cr)}`);
+    t.ok(cr && cr.ok === true, `hr_create_hero refused: ${brief(cr)}`);
     p.env = p.seen = await readBack(S, p.uid, t, 'first load', null);
   });
 
@@ -887,7 +888,7 @@ async function loop4(S, M, tag, rows) {
 
   await step(1, 'a night on Mill Cellar with the kit', async (t) => {
     const cr = await S.create(p.uid, `Loop4${tag}`);
-    t.ok(cr && cr.ok === true, `hr_create_character refused: ${brief(cr)}`);
+    t.ok(cr && cr.ok === true, `hr_create_hero refused: ${brief(cr)}`);
     p.env = await readBack(S, p.uid, t, 'first load', null);
     await p.enter(t, 'mill_cellar', { cooked_shrimp: inv(p.env, 'cooked_shrimp') });
     night = await p.hunt(t, NIGHT_MIN);
@@ -945,7 +946,7 @@ async function loop5(S, M, tag, rows) {
 
   await step(1, 'a Combat-99 character', async (t) => {
     const cr = await S.create(p.uid, `Loop5${tag}`);
-    t.ok(cr && cr.ok === true, `hr_create_character refused: ${brief(cr)}`);
+    t.ok(cr && cr.ok === true, `hr_create_hero refused: ${brief(cr)}`);
     for (const sk of ['melee', 'defense']) {
       await S.q('update public.player_skills set xp = $3 where user_id=$1 and slot=0 and skill_id=$2', [p.uid, sk, skillXpForLevel(sk, 99)]);
     }

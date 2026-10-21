@@ -38,7 +38,7 @@ const LINK = 'src/session/server.js';
 /* The client's whole RPC surface, each with what it is for. */
 export const CLIENT_RPCS = Object.freeze({
   hr_load: 'the full read of one character (CharacterSession.load)',
-  hr_create_character: 'make the character in an owned slot (AccountSession.create)',
+  hr_create_hero: 'make the hero in an owned slot with its name and four dye indices, all or nothing (AccountSession.create)',
   hr_put_client_state: 'the allowlisted display residue (CharacterSession.flushResidue)',
   hr_action_set_options: 'the per-hero hunt settings intent, catalogue-validated and refused not clamped (CharacterSession.setHuntOptions)',
   hr_action_set_copy: 'copy one character\'s hunt settings onto another of the caller\'s characters; moves no value (CharacterSession.copyHuntSettingsTo)',
@@ -49,9 +49,7 @@ export const CLIENT_RPCS = Object.freeze({
   /* The alpha windows (2026-10-18; CONFLICTS.md): staged for the server lane, refused as http_404 until it lands. */
   hr_item_lock: 'lock or unlock an item so no bulk sale can name it (CharacterSession.lockItem)',
   hr_loot_rule_set: 'keep / sell / ignore an item on pickup, applied by the server (CharacterSession.setLootRule)',
-  hr_restock_set: 'the remembered restock targets, counts only (CharacterSession.setRestock)',
-  hr_shop_refill: 'the one-tap refill at server prices, refused if the quoted total moved (CharacterSession.refill)',
-  hr_hunt_preset_save: 'snapshot the action set, gear and restock targets as a setup (CharacterSession.savePreset)',
+  hr_hunt_preset_save: 'snapshot the action set and gear as a setup (CharacterSession.savePreset)',
   hr_hunt_preset_apply: 'put a saved setup back on (CharacterSession.applyPreset)',
   hr_account_items: 'where an item is across this account, a read (AccountSession.findItems)',
   /* The party (S1, 2026-10-23-hunt-party.sql): slot + party id or seat only; no user id crosses. */
@@ -185,7 +183,7 @@ if (process.argv.includes('--selftest')) {
     ['a second fetch', plant('src/app/world-pane.js', "fetch('/rest/v1/rpc/hr_load');"), 'IS-3'],
     ['a table read through supabase-js', plant('src/app/boot.js', "client.from('player_state').select('*');"), 'IS-3'],
     ['an RPC through supabase-js', plant('src/app/boot.js', "client.rpc('hr_load', { p_slot: 0 });"), 'IS-3'],
-    ['a stale allow entry (the reader of hr_create_character gone)', { ...real, 'src/session/account-session.js': real['src/session/account-session.js'].split("'hr_create_character'").join("'hr_create_characterX'") }, 'IS-'],
+    ['a stale allow entry (the reader of hr_create_hero gone)', { ...real, 'src/session/account-session.js': real['src/session/account-session.js'].split("'hr_create_hero'").join("'hr_create_heroX'") }, 'IS-'],
     ['negative control: an RPC named in a comment', plant('src/app/boot.js', "// server.rpc('hr_vendor_sell')"), null],
   ];
   let bad = 0;

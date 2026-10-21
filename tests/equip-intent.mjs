@@ -44,6 +44,9 @@ import {
   INTENT_REGISTRY, guardStampKeys, collectsFirst, rateBucketFor, STATELESS_REFUSALS,
 } from '../supabase/functions/hr-accrue/intents.js';
 import { EQUIP_SLOT_INDEX, ITEM_EQUIP_SLOTS } from '../supabase/functions/hr-accrue/catalogue.js';
+import { START_EQUIPMENT } from '../src/data/start-kit.js';
+/* The start kit's worn weapon (the Practice Sword since 2026-11-02): read, never restated. */
+const KIT_WEAPON = START_EQUIPMENT.weapon;
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -272,7 +275,7 @@ async function body(db, call, exec) {
       `E2a: a Melee-1 character equipping iron_sword (Melee 15) answered ${under.status} `
       + `${JSON.stringify(under.body).slice(0, 200)} — hr_items.req_lv is the ONLY wield `
       + 'authority; the client tier ladder is not a control');
-    ok(await invOf(db, 'iron_sword') === 1 && await eqOf(db, 'weapon') === 'bronze_sword',
+    ok(await invOf(db, 'iron_sword') === 1 && await eqOf(db, 'weapon') === KIT_WEAPON,
       'E2a: the refused equip moved the bag or the slot — a rejection must roll back whole');
 
     const lv = await grantLevel(db, await versionOf(db), 'melee', 15);
@@ -287,9 +290,9 @@ async function body(db, call, exec) {
     ok(await invOf(db, 'iron_sword') === 0,
       'E2: the equipped copy is STILL IN THE BAG. The op is a transfer; leaving the bag row is '
       + 'exactly the b362 duplication, now server-side.');
-    /* THE DISPLACED ITEM CAME BACK. bronze_sword was the start kit's weapon. */
-    ok(await invOf(db, 'bronze_sword') === 1,
-      'E2: the displaced bronze_sword did not return to the bag — an equip that swallows the item '
+    /* THE DISPLACED ITEM CAME BACK: the start kit's weapon. */
+    ok(await invOf(db, KIT_WEAPON) === 1,
+      'E2: the displaced ' + KIT_WEAPON + ' did not return to the bag — an equip that swallows the item '
       + 'it replaced is a DELETION, which is the same defect with the sign flipped');
     /* THE ENVELOPE STATES THE SERVER'S LOADOUT, not the request's. */
     ok(r.body.equipment && r.body.equipment.weapon === 'iron_sword',
@@ -319,7 +322,7 @@ async function body(db, call, exec) {
        impossible rather than merely unimplemented. */
     const before = await ownedOf(db, 'iron_sword');
     ok(before === 1, `E4-SETUP: the probe owns ${before} iron_sword, expected exactly 1`);
-    const r = await call({ equip: { weapon: 'bronze_sword', shield: 'iron_sword' } });
+    const r = await call({ equip: { weapon: KIT_WEAPON, shield: 'iron_sword' } });
     ok(r.status === 409,
       `E4: a loadout naming a copy the player does not own returned ${r.status} `
       + JSON.stringify(r.body).slice(0, 200));

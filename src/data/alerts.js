@@ -12,28 +12,23 @@
 //   label    the toggle's words in the command center
 //   glyph    a window.HR_GLYPHS key
 //   action   what the button does (src/shell/alerts.js NEXT): 'bag' opens the
-//            bag, 'shop' the shop, 'restart' sends the restart intent, 'show'
+//            bag, 'restart' sends the restart intent, 'show'
 //            switches to the character, 'join' accepts a party invite
 //   decline  a second button's words (the invite's No thanks), or none
 //   button   the button's words
-//
-// LOW_SUPPLY_PCT: a restock target counts as low below this share of it
-// (designer value; ASSUMED until the Sewer's measured burn rates).
 // ════════════════════════════════════════════════════════════════════════
 
 export const ALERT_KINDS = Object.freeze([
   Object.freeze({ id: 'rare', label: 'Rare drops', glyph: 'uiGem', action: 'bag', button: 'Open your inventory' }),
   Object.freeze({ id: 'death', label: 'Deaths', glyph: 'uiSkull', action: 'show', button: 'See the hunt' }),
-  Object.freeze({ id: 'low', label: 'Low supplies', glyph: 'uiWarn', action: 'shop', button: 'Buy supplies' }),
+  /* Only a hero set to end its hunt on empty can run out (the store pays per use otherwise): show that hunt. */
+  Object.freeze({ id: 'low', label: 'Low supplies', glyph: 'uiWarn', action: 'show', button: 'See the hunt' }),
   Object.freeze({ id: 'ended', label: 'Hunt ended', glyph: 'uiHourglass', action: 'restart', button: 'Start again' }),
   /* PARTY_SPEC §1.3: an invite reaches a stranger anywhere in the game, Join / No thanks (the server's party_invites). */
   Object.freeze({ id: 'invite', label: 'Party invites', glyph: 'uiPeople', action: 'join', button: 'Join', decline: 'No thanks' }),
 ]);
 
 export const ALERT_INDEX = Object.freeze(Object.fromEntries(ALERT_KINDS.map((k) => [k.id, k])));
-
-/** A restock target is low below this percentage of itself. */
-export const LOW_SUPPLY_PCT = 20;
 
 /** How many alerts the widget keeps on screen at once (newest first). */
 export const ALERTS_SHOWN = 4;

@@ -88,12 +88,13 @@ export function basicFor(kind, huntTier) {
   return BASIC_SUPPLIES.find((b) => b.kind === kind && b.tiers.includes(huntTier)) || null;
 }
 
-// ── THE SHOP'S PACKABLE SUPPLIES (lane S2, 2026-10-18; Coordinator ruling: the designer's prices) ──
-// The Bag's one-tap refill (Tyler 10-18: the player presses once, the server
-// buys up to each restock target and shows the total first; never automatic)
-// needs things a player can PACK, so the shop also sells the CRAFTED partner of
-// each basic row as an ordinary item (`supply.<item>`, bought through shop_buy
-// or the refill): food restores HP, drink restores mana (the only mana source).
+// ── THE SUPPLY PRICE LIST (lane S2, 2026-10-18; Coordinator ruling: the designer's prices) ──
+// THE SHOP SELLS NO SUPPLIES (Tyler 2026-10-20, q02; the one-tap refill and its
+// restock targets are retired by 2026-11-02-shop-no-supplies.sql). Of these rows
+// only the TOOLS are Shop offers (src/data/shops.js SHOP_OFFERS); the food, drink
+// and ammo rows are the price list of each basic row's CRAFTED partner, which the
+// vendor's buy-back cap reads (shops.js SUPPLY_PRICE_LIST), never something a
+// player can buy. Food restores HP, drink restores mana (the only mana source).
 // A basic stays per use, the floor nobody is ever without. THE PRICE IS THE
 // DESIGNER'S RATE ABOVE, per point: ceil(basic price x the item's own heal or
 // mana / the basic's), and a shot is a shot (an arrow costs its basic's per-shot

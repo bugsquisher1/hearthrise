@@ -8,7 +8,7 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: e28f527b5f79960fc3d9222798e8b8de0512c6ad5f59439413507c74459e1f83
+--   digest: 9af57da1fe75c94a1fe86921c37c933ad557f041c5a55248fc5516614b5f64a4
 --   59 supplies, 115 hunts (named + training), 52 limits, 11 end reasons,
 --   480 vendor values, 18 store supplies paid per use, 5 target modes,
 --   3 lanes, 14 abilities, 13 action-set options, 4 hunt grounds
@@ -19,7 +19,9 @@
 -- ground's monster carries one equipment row, the Sewer's coin rises x1.8 and
 -- the Warrens' x1.25 (the +25% floor over the store bill), one rare carrier
 -- per ground; so hr_hunt_kill_bounds (gold_max, the per-kill item counts) and
--- the vendor values it reads move. Every other row is the 10-30 file's.
+-- the vendor values it reads move. Lane/b-hero-creation: the six starter
+-- sets' practice weapons join hr_hunt_weapons (the hatchets play 'axe', which
+-- hr_hunt_weapon_roles maps to Melee DPS). Every other row is the 10-30 file's.
 -- Apply after 2026-11-01-party-leader-density.sql.
 --
 -- Server-only: RLS on, NO policy, no client grant (the client reads src/data).
@@ -513,6 +515,13 @@ insert into public.hr_hunt_weapons (item_id, weapon_type) values
   ('oak_practice_blade', 'sword'),
   ('oak_staff', 'staff'),
   ('oak_wand', 'wand'),
+  ('practice_bow', 'ranged'),
+  ('practice_club', 'hammer'),
+  ('practice_crossbow', 'ranged'),
+  ('practice_hatchets', 'axe'),
+  ('practice_staff', 'staff'),
+  ('practice_sword', 'sword'),
+  ('practice_wand', 'wand'),
   ('rat_stick', 'hammer'),
   ('rune_sword', 'sword'),
   ('rune_warhammer', 'hammer'),
@@ -537,6 +546,7 @@ insert into public.hr_hunt_weapons (item_id, weapon_type) values
   ('yew_wand', 'wand');
 delete from public.hr_hunt_weapon_roles;
 insert into public.hr_hunt_weapon_roles (weapon_type, roles) values
+  ('axe', array['melee_dps']::text[]),
   ('bow', array['ranger']::text[]),
   ('club', array['melee_dps']::text[]),
   ('crossbow', array['ranger']::text[]),
@@ -1275,8 +1285,8 @@ begin
      or (select count(*) from public.hr_hunt_ground_spawns) <> 19
      or (select count(*) from public.hr_hunt_world_shape) <> 1
      or (select count(*) from public.hr_premium_login_reward) <> 1
-     or (select count(*) from public.hr_hunt_weapons) <> 55
-     or (select count(*) from public.hr_hunt_weapon_roles) <> 11
+     or (select count(*) from public.hr_hunt_weapons) <> 62
+     or (select count(*) from public.hr_hunt_weapon_roles) <> 12
      or (select count(*) from public.hr_hunt_roles) <> 5
      or (select count(*) from public.hr_hunt_end_reasons where resumes) <> 9 then
     raise exception 'hunt-session catalogue row counts moved from the generator''s'; end if;

@@ -32,3 +32,7 @@ _None recorded here since the rebuild; Tyler's rulings live in rulings-of-record
 
 ## Backlog
 _Add rows as they arise: | Item | Status | Priority | Notes |_
+
+| Item | Status | Priority | Notes |
+|---|---|---|---|
+| Retire `player_item_rules.restock` + the presets' restock snapshot | 🧊 backlog | P3 debt | Inert since 2026-11-02-shop-no-supplies.sql (no writer, no client reader). Restate hr_bag_rules_view, hr_hunt_presets_view, hr_hunt_preset_save/apply, hr_item_rule_put without it, then drop the column (lane/b-hero-creation, systems-engineer). |

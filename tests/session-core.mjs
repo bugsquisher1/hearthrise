@@ -37,7 +37,9 @@
 //          allows one character, a larger one is capped by the tab's ceiling
 //   VIEW-2 switching the viewed character touches no CharacterSession: records, statuses, topics,
 //          listeners and the server calls of every character are exactly as before
-//   ACC-2  the roster is the server's owned slots (hero_slots), bounded
+//   ACC-2  the roster is the server's owned slots (hero_slots), bounded; a slot whose
+//          character has no name (hr_load needs_name) reads as unnamed, not as a hero;
+//          create is ONE hr_create_hero with the name, the four colours and an idem key
 //   ACC-3  the closed-game answer (403 hr_closed) is noticed, never retried as play
 //   NET-1  the engine is asked in the database's region (forceFunctionRegion from SUPABASE_CONFIG)
 //   OUT-1  sign-out clears every copy of the session (device + tab, sb-*, retired keys, tab id) and closes every character
@@ -92,7 +94,7 @@ function fakeServer(bySlot, o = {}) {
       if (o.closed) return { ok: false, status: 403, body: { code: 'hr_closed' }, closed: true };
       if (name === 'hr_load') return answer(bySlot[args.p_slot] || { ok: false, error: 'no_character' });
       if (name === 'hr_put_client_state') return answer({ ok: true });
-      if (name === 'hr_create_character') return answer({ ok: true, slot: args.p_slot, created: true });
+      if (name === 'hr_create_hero') return answer(args.p_name === 'Taken' ? { ok: false, error: 'name_taken' } : { ok: true, slot: args.p_slot, name: args.p_name, created: true });
       return answer({ ok: false, error: 'unknown' });
     },
     accrue: async (body) => { calls.push(['accrue', body]); return answer(Object.assign({ accrued: true }, bySlot[body.slot])); },
@@ -510,9 +512,20 @@ async function rules(M) {
   });
   await t('ACC-2', async () => {
     /* each hero by its server name and its Level from the server's Level XP (21,591 = Level 10, CORE_MODEL.md §2) */
-    const acc = mkAccount(fakeServer({ 0: env(1, { hero_slots: [0, 2, 99, -1, 'x'], name: 'Tester', state: { gold: 1, level_xp: 21591 } }), 2: env(1) }));
+    const srv = fakeServer({ 0: env(1, { hero_slots: [0, 2, 3, 99, -1, 'x'], name: 'Tester', state: { gold: 1, level_xp: 21591 } }), 2: env(1),
+      3: { ok: false, error: 'needs_name', hero_slots: [0, 2, 3] } });
+    const acc = mkAccount(srv);
     const r = await acc.roster();
-    return JSON.stringify(r) === JSON.stringify([{ slot: 0, exists: true, name: 'Tester', level: 10 }, { slot: 2, exists: true, name: null, level: null }]) || 'roster was ' + JSON.stringify(r);
+    if (JSON.stringify(r) !== JSON.stringify([{ slot: 0, exists: true, unnamed: false, name: 'Tester', level: 10 }, { slot: 2, exists: true, unnamed: false, name: null, level: null },
+      { slot: 3, exists: false, unnamed: true, name: null, level: null }])) return 'roster was ' + JSON.stringify(r);
+    srv.calls.length = 0;
+    const ok = await acc.create(3, 'Fennick', { head: 1, body: 2, legs: 3, feet: 4 });
+    const no = await acc.create(3, 'Taken', { head: 1, body: 2, legs: 3, feet: 4 });
+    const sent = srv.calls.filter((c) => c[0] === 'hr_create_hero').map((c) => c[1]);
+    if (!ok.ok || no.ok || no.reason !== 'name_taken' || sent.length !== 2 || sent[0].p_slot !== 3 || sent[0].p_name !== 'Fennick'
+      || JSON.stringify(sent[0].p_colors) !== '{"head":1,"body":2,"legs":3,"feet":4}' || typeof sent[0].p_idem !== 'string' || sent[0].p_idem === sent[1].p_idem
+      || Object.keys(sent[0]).some((k) => /price|gold|item/.test(k))) return 'create sent ' + JSON.stringify(sent) + ' -> ' + JSON.stringify([ok, no]);
+    return true;
   });
   await t('ACC-3', async () => {
     if (!S.isClosedAnswer(403, { code: 'hr_closed' }) || S.isClosedAnswer(403, { code: 'other' }) || S.isClosedAnswer(200, { code: 'hr_closed' })) return 'isClosedAnswer is wrong';

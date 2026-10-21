@@ -143,17 +143,16 @@ function contract(R, cs, body, tl) {
   need('name', typeof body.name === 'string' && R.IS.nameOf(cs) === SEED.name && (!h || h.hero.name === SEED.name),
     'name reads ' + JSON.stringify(R.IS.nameOf(cs)) + ' from ' + JSON.stringify(body.name) + ' (hero ' + JSON.stringify(h && h.hero.name) + ')');
   const ru = R.IS.rulesOf(cs);
-  need('bag_rules', !!ru && ru.locked.has(SEED.lock) && ru.loot[SEED.loot] === 'sell' && ru.restock[SEED.food] === SEED.target,
-    'rulesOf yields ' + JSON.stringify(ru && { locked: [...ru.locked], loot: ru.loot, restock: ru.restock }) + ' from ' + JSON.stringify(body.bag_rules));
+  need('bag_rules', !!ru && ru.locked.has(SEED.lock) && ru.loot[SEED.loot] === 'sell',
+    'rulesOf yields ' + JSON.stringify(ru && { locked: [...ru.locked], loot: ru.loot }) + ' from ' + JSON.stringify(body.bag_rules));
   const sh = R.IS.shopOf(cs);
-  const line = sh && sh.refill && sh.refill.lines.find((l) => l.item === SEED.food);
-  need('shop', !!sh && sh.offers.length > 0 && sh.offers.some((o) => o.item === SEED.food) && sh.bids.size > 0
-    && !!line && line.offer !== null && line.target === SEED.target && line.buy === Math.max(0, line.target - line.have)
-    && sh.refill.total === sh.refill.lines.reduce((a, l) => a + l.gold, 0) && sh.refill.total > 0,
-    'shopOf yields ' + JSON.stringify(sh && { offers: sh.offers.length, bids: sh.bids.size, refill: sh.refill }).slice(0, 300) + ' from ' + JSON.stringify(body.shop).slice(0, 200));
+  /* The Shop sells tools, never supplies (2026-11-02-shop-no-supplies.sql), and quotes no refill. */
+  need('shop', !!sh && sh.offers.length > 0 && sh.offers.every((o) => o.kind === 'tool') && sh.offers.some((o) => o.item === SEED.tool)
+    && sh.bids.size > 0 && !('refill' in body.shop),
+    'shopOf yields ' + JSON.stringify(sh && { offers: sh.offers.length, bids: sh.bids.size }).slice(0, 300) + ' from ' + JSON.stringify(body.shop).slice(0, 200));
   const pr = R.IS.presetsOf(cs);
   const p0 = pr && pr.find((x) => x.preset === SEED.preset);
-  need('hunt_presets', !!p0 && p0.name === SEED.presetName && p0.actionSet !== null && Object.keys(p0.gear).length > 0 && p0.restock[SEED.food] === SEED.target,
+  need('hunt_presets', !!p0 && p0.name === SEED.presetName && p0.actionSet !== null && Object.keys(p0.gear).length > 0,
     'presetsOf yields ' + JSON.stringify(pr) + ' from ' + JSON.stringify(body.hunt_presets));
   const ro = R.IS.roleOf(cs);
   need('role', !!ro && ro.weapon !== null && R.PS.roleIdOf(cs) === ro.id, 'roleOf yields ' + JSON.stringify(ro) + ' from ' + JSON.stringify(body.role));
@@ -203,7 +202,7 @@ export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events',
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
-  food: 'cooked_shrimp', target: 50, preset: 2, presetName: 'Contract set' });
+  tool: 'bronze_axe', preset: 2, presetName: 'Contract set' });
 async function seedS2(db, M, H) {
   const ok = async (uid, sql, params) => {
     await db.query("select set_config('request.jwt.claim.sub', $1, true)", [uid]);
@@ -216,7 +215,6 @@ async function seedS2(db, M, H) {
   await ok(me, 'select public.hr_character_name_set(0, $1, gen_random_uuid())', [SEED.name]);
   await ok(me, 'select public.hr_item_lock(0, $1, true, gen_random_uuid())', [SEED.lock]);
   await ok(me, "select public.hr_loot_rule_set(0, $1, 'sell', gen_random_uuid())", [SEED.loot]);
-  await ok(me, 'select public.hr_restock_set(0, $1::jsonb, gen_random_uuid())', [JSON.stringify({ [SEED.food]: SEED.target })]);
   await ok(me, 'select public.hr_hunt_preset_save(0, $1, $2, gen_random_uuid())', [SEED.preset, SEED.presetName]);
   /* An invite to this character, found by its name (the first invite makes the inviter's party). */
   await H.character(db, M, other, { inv: {} });
@@ -327,9 +325,8 @@ const DB_MUTANTS = [
   ['account', 'public.hr_account_view(uuid,integer)', "'max_concurrent'", "'max'"],
   // lane S2
   ['name', 'public.hr_character_name_view(uuid,integer)', 'select to_jsonb(public.hr_character_name(p_user, p_slot))', 'select to_jsonb(null::text)'],
-  ['bag_rules', 'public.hr_bag_rules_view(uuid,integer)', "'restock', coalesce(", "'restocks', coalesce("],
+  ['bag_rules', 'public.hr_bag_rules_view(uuid,integer)', "'loot', coalesce(", "'loot_rules', coalesce("],
   ['shop', 'public.hr_shop_view(uuid,integer)', "'offers', coalesce(", "'offer_list', coalesce("],
-  ['shop', 'public.hr_shop_refill_quote(uuid,integer)', "'total', sum(", "'sum', sum("],
   ['hunt_presets', 'public.hr_hunt_presets_view(uuid,integer)', "'action_set', p.action_set,", "'set', p.action_set,"],
   ['role', 'public.hr_role_view(uuid,integer)', "'weapon', w.weapon_type)", "'weapon_type', w.weapon_type)"],
   ['party_invites', 'public.hr_party_invites_view(uuid,integer)', "'from', public.hr_character_name(", "'sender', public.hr_character_name("],

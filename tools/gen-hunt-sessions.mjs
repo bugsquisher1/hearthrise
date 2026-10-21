@@ -70,8 +70,9 @@
 // tracker answers (food and drink on ONE 2 s cooldown; no walk until the town
 // has destinations: every travel_s 0) start
 // 2026-10-28-hunt-sessions-catalogue.generated.sql; 2026-10-30 (no default resume) is history
-// (APPLIED 2026-10-20); the drop tables (lane/a-drop-tables, 2026-10-20) start
-// 2026-11-02-hunt-sessions-catalogue.generated.sql.
+// (APPLIED 2026-10-20); the drop tables (lane/a-drop-tables, 2026-10-20) and the
+// practice kit's weapons (lane/b-hero-creation: hr_hunt_weapons, the hatchets
+// play 'axe' = Melee DPS) start 2026-11-02-hunt-sessions-catalogue.generated.sql.
 //
 //   Regenerate:  node tools/gen-hunt-sessions.mjs
 //   Verify:      node tools/gen-hunt-sessions.mjs --check     (exit 1 on drift)
@@ -519,7 +520,9 @@ export function render(src) {
 -- ground's monster carries one equipment row, the Sewer's coin rises x1.8 and
 -- the Warrens' x1.25 (the +25% floor over the store bill), one rare carrier
 -- per ground; so hr_hunt_kill_bounds (gold_max, the per-kill item counts) and
--- the vendor values it reads move. Every other row is the 10-30 file's.
+-- the vendor values it reads move. Lane/b-hero-creation: the six starter
+-- sets' practice weapons join hr_hunt_weapons (the hatchets play 'axe', which
+-- hr_hunt_weapon_roles maps to Melee DPS). Every other row is the 10-30 file's.
 -- Apply after 2026-11-01-party-leader-density.sql.
 --
 -- Server-only: RLS on, NO policy, no client grant (the client reads src/data).

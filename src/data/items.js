@@ -191,6 +191,21 @@ export const ITEMS={
   bronze_sword:{n:'Bronze Sword',icon:'⚔️',v:50,type:'weapon',slot:'weapon',weaponType:'sword',atkB:4,strB:3},
   // The premium login reward (premium.js): weaker than Bronze, bop + v:0 so it mints no gold.
   oak_practice_blade:{n:'Oak Practice Blade',icon:'🗡️',v:0,bop:true,type:'weapon',slot:'weapon',weaponType:'sword',atkB:2,strB:1},
+  /* THE PRACTICE KIT (Tyler 2026-10-20: every new hero starts with all six starter sets, so
+     every role can be tried on day one). Granted ONLY by the start kit (src/data/start-kit.js).
+     Bound and worth nothing (bop, v:0): a fresh hero cannot sell its kit, so a new character
+     mints no gold. Stats are the tier-1 rung of each family (Bronze Sword, Stone Maul,
+     Shortbow, Apprentice Wand / Primer / Staff), so the first purchase is a sidegrade with a
+     sell value, never a downgrade. The role is the weapon's (hunt-roles.js WEAPON_ROLES). */
+  practice_sword:{n:'Practice Sword',icon:'⚔️',v:0,bop:true,type:'weapon',slot:'weapon',weaponType:'sword',atkB:4,strB:3,tier:1,rarity:'common',reqSkill:'melee',reqLv:1},
+  practice_shield:{n:'Practice Shield',icon:'🛡️',v:0,bop:true,type:'offhand',slot:'shield',offhand:'shield',defB:2,tier:1,rarity:'common',reqSkill:'defense',reqLv:1},
+  practice_hatchets:{n:'Practice Hatchets',icon:'🪓',v:0,bop:true,type:'weapon',slot:'weapon',weaponType:'axe',twoHanded:true,atkB:4,strB:4,tier:1,rarity:'common',reqSkill:'melee',reqLv:1},
+  practice_club:{n:'Practice Club',icon:'🏏',v:0,bop:true,type:'weapon',slot:'weapon',weaponType:'hammer',twoHanded:true,atkB:3,strB:7,tier:1,rarity:'common',reqSkill:'melee',reqLv:1},
+  practice_bow:{n:'Practice Bow',icon:'🏹',v:0,bop:true,type:'weapon',slot:'weapon',weaponType:'ranged',atkB:5,strB:3,rangeAtkB:5,rangeStrB:3,tier:1,rarity:'common',reqSkill:'ranged',reqLv:1},
+  practice_crossbow:{n:'Practice Crossbow',icon:'🏹',v:0,bop:true,type:'weapon',slot:'weapon',weaponType:'ranged',atkB:4,strB:4,rangeAtkB:4,rangeStrB:4,tier:1,rarity:'common',reqSkill:'ranged',reqLv:1},
+  practice_wand:{n:'Practice Wand',icon:'🪄',v:0,bop:true,type:'weapon',slot:'weapon',weaponType:'magic',discipline:'destruction',atkB:4,strB:4,magicAtkB:4,magicStrB:4,tier:1,rarity:'common',reqSkill:'magic',reqLv:1},
+  practice_spellbook:{n:'Practice Spellbook',icon:'📕',v:0,bop:true,type:'offhand',slot:'shield',offhand:'spellbook',discipline:'destruction',magicAtkB:1,magicStrB:2,defB:1,tier:1,rarity:'common',reqSkill:'magic',reqLv:1},
+  practice_staff:{n:'Practice Staff',icon:'🔮',v:0,bop:true,type:'weapon',slot:'weapon',weaponType:'magic',discipline:'restoration',twoHanded:true,atkB:3,strB:5,magicAtkB:3,magicStrB:5,tier:1,rarity:'common',reqSkill:'magic',reqLv:1},
   iron_sword:{n:'Iron Sword',icon:'⚔️',v:200,type:'weapon',slot:'weapon',weaponType:'sword',atkB:7,strB:6},
   steel_sword:{n:'Steel Sword',icon:'⚔️',v:800,type:'weapon',slot:'weapon',weaponType:'sword',atkB:12,strB:10},
   rune_sword:{n:'Rune Sword',icon:'⚔️',v:5000,type:'weapon',slot:'weapon',weaponType:'sword',atkB:25,strB:20},

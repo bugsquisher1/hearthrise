@@ -161,7 +161,10 @@ async function pureRules(M, base) {
     M.AL.setAlertShown(cs2, 'rare', true);
     cs2.timeline.ingest({ events: [{ id: 's1:100', type: 'rare_drop', atMs: 1760702399950, u: 1, item: 'rat_tail' }] }, 0);
     if (centre2.list().length !== 2) return 'a new rare drop id raised ' + (centre2.list().length - 1) + ' alert(s)';
-    srv.env[0].bag_rules.restock.wheat_bread = 100;
+    /* A hero set to end its hunt on empty, out of the bread its bar eats (no restock targets: the Shop sells no supplies). */
+    srv.env[0].hunt_settings = Object.assign({}, srv.env[0].hunt_settings, { on_empty: 'end', supply_source: 'mine',
+      slots: [{ action: { type: 'consume', id: 'wheat_bread' } }].concat(Array(19).fill(null)) });
+    delete srv.env[0].inventory.wheat_bread;
     await cs2.load(); await cs2.load();
     const low = centre2.list().filter((a) => a.kind === 'low');
     return (low.length === 1 && low[0].item === 'wheat_bread') || 'low supplies raised ' + low.length + ' alert(s)';
@@ -176,7 +179,6 @@ async function pureRules(M, base) {
       const e = srv.env[0];
       e.hunt.hero.falls = 0;
       e.hunt_events = [];
-      e.bag_rules.restock = {};
       edit(e);
       const acc = account(M, srv);
       const centre = M.AL.createAlertCenter(acc);
@@ -190,9 +192,9 @@ async function pureRules(M, base) {
       for (const id of ['wheat_bread', 'cooked_shrimp']) if (!food) delete e.inventory[id];
       if (!drink) delete e.inventory.goldenroot_tea;
     };
-    const a = await lows((e) => { kinds(e, 'switch', false, false); e.bag_rules.restock = { goldenroot_tea: 10 }; });
+    const a = await lows((e) => { kinds(e, 'switch', false, false); });
     if (!a || a.length) return 'with the store paying per use, an out-of-stock warning still fired: ' + JSON.stringify(a);
-    const b = await lows((e) => { kinds(e, 'end', true, false); e.hunt.hero.mana_max = 0; e.hunt.hero.mana = 0; e.bag_rules.restock = { goldenroot_tea: 10 }; });
+    const b = await lows((e) => { kinds(e, 'end', true, false); e.hunt.hero.mana_max = 0; e.hunt.hero.mana = 0; });
     if (!b || b.length) return 'a hero with no mana pool was warned about drinks: ' + JSON.stringify(b);
     const c = await lows((e) => kinds(e, 'end', true, true));
     if (!c || c.length) return 'a kind slot with that kind in the bag still read as out of stock: ' + JSON.stringify(c);
@@ -362,7 +364,9 @@ async function pureRules(M, base) {
     const bad = [...wands.filter((id) => role(id) !== 'mage'), ...staves.filter((id) => role(id) !== 'healer')];
     if (bad.length) return 'wrong role for ' + bad.map((id) => id + '=' + role(id)).join(', ');
     if (R.roleWeaponOf(null) !== 'neutral' || role('apprentice_primer') === 'mage' && ITEMS.apprentice_primer.slot === 'weapon') return 'the spellbook or bare hands resolve wrong';
-    const sql = readFileSync(join(base, 'supabase/migrations/2026-10-28-hunt-sessions-catalogue.generated.sql'), 'utf8');
+    /* The hunt-sessions catalogue the generator writes now (its newest forward file), not a dated copy. */
+    const { OUT_NAME } = await import(pathToFileURL(join(ROOT, 'tools/gen-hunt-sessions.mjs')).href);
+    const sql = readFileSync(join(base, 'supabase/migrations', OUT_NAME), 'utf8');
     for (const id of [...wands, ...staves]) {
       const m = new RegExp(`\\('${id}', '([a-z_]+)'\\)`).exec(sql);
       if (!m || m[1] !== R.roleWeaponOf(ITEMS[id])) return `hr_hunt_weapons says ${id} is ${m && m[1]}, the engine says ${R.roleWeaponOf(ITEMS[id])}`;

@@ -4,6 +4,8 @@
 //   boot → auth (src/net/auth.js over the one supabase-js client)
 //        → AccountSession (src/session/account-session.js): one per login
 //        → the characters screen: the account's slots, read from the server
+//        → an empty (or unnamed) slot opens the creation step (src/app/hero-create.js):
+//          name + four colours, ONE intent; the hero enters town on the server's yes
 //        → the game: the character strip (src/app/character-strip.js; up to the
 //          server's concurrent limit, each its own CharacterSession), built
 //          once, and the World pane with the shell over it for the VIEWED
@@ -32,6 +34,7 @@ import { FRAME_EVENT } from '../session/character-session.js?v=0.2.21';
 import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.21';
 import { mountWorldPane } from './world-pane.js?v=0.2.21';
 import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.21';
+import { renderHeroCreate } from './hero-create.js?v=0.2.21';
 import { createAlertCenter } from '../shell/alerts.js?v=0.2.21';
 import { createSocialRealtime } from '../social/realtime.js?v=0.2.21';
 import { SocialSession } from '../social/social-session.js?v=0.2.21';
@@ -68,12 +71,14 @@ function startApp(win) {
   let strip = null;
   let paneSeq = 0;
   let openAfter = null;
+  let creating = null;
   let rosterSlots = [];   // the account's existing characters, as the roster last read them
 
   const recovering = /type=recovery/.test(win.location.hash);
 
   function clear() {
     paneSeq++;
+    if (creating) { creating.destroy(); creating = null; }
     if (pane) { pane.destroy(); pane = null; }
     if (strip) { strip.destroy(); strip = null; }
     root.innerHTML = '';
@@ -150,17 +155,32 @@ function startApp(win) {
     /* Each owned slot: its hero by name and Level (the server's), or an empty slot to create in.
        Every account owns two (Tyler 10-17); slots it has not bought are not shown until buying them is built. */
     const rows = roster.map((r) => '<li class="char-row"><span class="char-name">'
-      + (r.exists ? esc(r.name || 'Unnamed hero') + (r.level ? ' <small class="char-level">Level ' + r.level + '</small>' : '') : 'Empty slot')
+      + (r.exists ? esc(r.name || 'Unnamed hero') + (r.level ? ' <small class="char-level">Level ' + r.level + '</small>' : '') : r.unnamed ? 'Unnamed hero' : 'Empty slot')
       + '</span>'
       + (r.exists
         ? '<button type="button" class="auth-submit" data-app="play" data-slot="' + r.slot + '">' + (open.has(r.slot) ? 'Show' : 'Play') + '</button>'
-        : '<button type="button" class="auth-submit" data-app="create" data-slot="' + r.slot + '">Create character</button>')
+        : '<button type="button" class="auth-submit" data-app="create" data-slot="' + r.slot + '">' + (r.unnamed ? 'Name hero' : 'Create hero') + '</button>')
       + '</li>').join('');
     root.querySelector('.auth-card').innerHTML = '<h1 class="auth-title">Your characters</h1>'
       + '<p class="auth-lead">Signed in as ' + esc(auth.email() || 'you') + '. ' + (a.limit() > 1 ? 'Up to ' + a.limit() + ' can play at once.' : 'One can play at a time.') + '</p>'
       + '<ul class="char-list">' + (rows || '<li class="char-row">The server did not answer. Reload to try again.</li>') + '</ul>'
       + '<p class="auth-message" role="status" aria-live="polite"></p>'
       + '<p class="auth-links"><button type="button" class="auth-link" data-app="sign-out">Sign out</button></p>';
+  }
+
+  /* The creation step over the characters card: the hero enters town only on the server's yes. */
+  function showCreate(slot) {
+    clear();
+    root.className = 'app is-auth';
+    root.innerHTML = '<main class="auth">' + AUTH_BRAND + '<div class="auth-card is-create"></div></main>';
+    const tokens = win.getComputedStyle(doc.documentElement);
+    creating = renderHeroCreate(root.querySelector('.auth-card'), {
+      slot,
+      colorOf: (t) => tokens.getPropertyValue('--' + t),
+      create: (name, colors) => account.create(slot, name, colors),
+      done: () => { track('character_created'); play(slot); },
+      back: () => showCharacters(),
+    });
   }
 
   async function play(slot) {
@@ -233,14 +253,7 @@ function startApp(win) {
     else if (what === 'play') play(slot);
     else if (what === 'show') goTo(slot, null);
     else if (what === 'all') { if (pane) pane.shell.toggle('characters'); }
-    else if (what === 'create') {
-      account.create(slot).then(async (r) => {
-        if (r.ok) { track('character_created'); play(slot); return; }
-        await showCharacters();
-        const m = root.querySelector('.auth-message');
-        if (m) m.textContent = r.reason === 'slot_not_owned' ? 'That slot is not yours yet.' : 'The character could not be made. Try again in a minute.';
-      });
-    }
+    else if (what === 'create') showCreate(slot);
   });
 
   auth.onChange((ev) => {

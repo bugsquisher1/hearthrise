@@ -60,6 +60,8 @@ export const WEAPON_ROLES = Object.freeze({
      `magic` row: it is a wand or a staff by its discipline (roleWeaponOf). */
   sword: Object.freeze(['tank']),
   hammer: Object.freeze(['melee_dps']),
+  /* A pair of axes (the Practice Hatchets): weaponType 'axe', the Melee family (skills.js FAMILY_SKILL). */
+  axe: Object.freeze(['melee_dps']),
   neutral: Object.freeze(['melee_dps']),
   ranged: Object.freeze(['ranger']),
 });

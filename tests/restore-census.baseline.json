@@ -590,6 +590,7 @@
   "hunt_party_invites": "Ephemeral party invites (an hour at most, used up by accept / decline). Player-scoped by to_user / from_user, but they hold no value: losing every row costs pending invites only, and the parties themselves (hunt_parties, restore_only) are untouched.",
   "social_presence": "A presence stamp, not progress: one row per account saying when its client last polled hr_social_state. Every row is rewritten within 30 s of the player being online again, and the only thing it answers is a friend's online dot. Losing every row costs nobody anything.",
   "town_positions": "A display position, not progress: one row per account saying which town tile its hero stands on. Every row is rewritten within 10 s of the player being in town again and older than 30 s is never read. Losing every row costs nobody anything.",
+  "character_presence": "A presence stamp, not progress: one row per character saying when its account's client last asked hr_players_online with it open. Every row is rewritten within 30 s of the player being online again, and the only thing it answers is the players-online count. Losing every row costs nobody anything.",
   "hr_character_sheets": "Derived, display-only: every row is recomputed by the hr-accrue sheet verb from the character's skills, gear, style, buffs and perks (which ARE restored), and is shown only while its input fingerprint matches. Losing every row costs one recompute each, never a value."
  },
  "tables": {
@@ -622,6 +623,11 @@
    "class": "restore_only",
    "wiped_at_cutover": false,
    "note": "51 rows of player-submitted support history. No player value at stake, real diagnostic value. Survivable loss; not worth a decision at 3am."
+  },
+  "character_presence": {
+   "class": "operational",
+   "wiped_at_cutover": true,
+   "note": "2026-11-07-players-online.sql, ships EMPTY. When each character was last open in its account's client (server clock), stamped by hr_players_online's 30 s ask (floor 20 s) and read only to count characters playing. Regenerated within one ask of the player coming back; an empty table counts everyone as offline for at most 30 seconds."
   },
   "character_names": {
    "class": "restore_only",
@@ -1190,7 +1196,7 @@
   },
   "hr_players_online_cache": {
    "class": "operational",
-   "note": "2026-11-07-players-online.sql, one row seeded. The shared players-online count and when it was taken, recomputed by hr_players_online from social_presence at most every 15 s. A cache of a count, never player value: a rebuild's seeded row is stale by construction (taken at -infinity), so the first ask recounts."
+   "note": "2026-11-07-players-online.sql, one row seeded. The shared players-online count and when it was taken, recomputed by hr_players_online from character_presence at most every 15 s. A cache of a count, never player value: a rebuild's seeded row is stale by construction (taken at -infinity), so the first ask recounts."
   },
   "hr_rate_counters": {
    "class": "operational",

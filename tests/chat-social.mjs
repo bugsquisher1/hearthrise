@@ -35,8 +35,9 @@
 //         blocked player gets Unblock; a monster gets Look
 //   FR-1  FRIENDS read as the server said: online, and what they are doing
 //   ON-1  PLAYERS ONLINE (tracker r16): the count is hr_players_online's answer, asked
-//         after the presence stamp on each social poll, replaced by each answer; a
-//         refused or malformed answer reads "— online", never the last number
+//         on each social poll naming the account's open character slots, replaced by
+//         each answer; a refused or malformed answer reads "— online", never the last
+//         number
 //   ON-2  [page] the counter reads the server's "3 online" at 12 px or more, on
 //         screen, overlapping no other widget; off by default on a phone
 //   CW-1  [page] a pushed line renders time + name [level, role glyph] + body, the
@@ -232,19 +233,21 @@ async function pureRules(M) {
     if (!away || M.fwin.doingWords(away) !== 'Offline · In town') fail('FR-1 an offline friend reads ' + JSON.stringify(away && M.fwin.doingWords(away)));
     if (list.length !== 2 || !/^Online · Hunting in /.test(words) || f.incoming().length !== 1) fail('FR-1 friends read ' + JSON.stringify(list) + ' "' + words + '"');
   }
-  // ON-1 (tracker r16): the online count is the server's answer, asked right after the presence stamp on every
-  // social poll, REPLACED by each answer; a failed or malformed answer shows a dash, never the last number.
+  // ON-1 (tracker r16): the online count is the server's answer, asked on every social poll naming exactly the
+  // account's open character slots (the server stamps its own of those present), REPLACED by each answer; a
+  // failed or malformed answer shows a dash, never the last number.
   {
     let answer = { ok: true, online: 3 };
-    const { acct, calls } = fakeAccount({ hr_players_online: () => answer });
+    const { acct, calls, cs } = fakeAccount({ hr_players_online: () => answer });
+    const second = { slot: 2, read: () => null, subscribe: () => () => {} };
+    acct.characters = () => [cs, second];
     let poll = null;
     const soc = new M.store.SocialSession({ account: acct, realtime: fakeRealtime(), timers: { setTimer: (fn) => { poll = fn; return 1; }, clearTimer: () => {} } });
     soc.start();
     for (let i = 0; i < 5; i++) await tick();
-    const order = calls.map((c) => c.name).filter((n) => n === 'hr_social_state' || n === 'hr_players_online');
-    if (order.join(',') !== 'hr_social_state,hr_players_online') fail('ON-1 the first poll asked ' + order.join(',') + ' (the count must follow the presence stamp)');
+    const asks = calls.filter((c) => c.name === 'hr_players_online');
+    if (asks.length !== 1 || JSON.stringify(asks[0].args) !== '{"p_slots":[0,2]}') fail('ON-1 the first poll asked ' + JSON.stringify(asks.map((c) => c.args)) + ' (want the open slots 0 and 2, once)');
     if (soc.online.count !== 3 || M.online.onlineWords(soc.online.count) !== '3 online') fail('ON-1 the server said 3, the counter reads ' + M.online.onlineWords(soc.online.count));
-    if (calls.find((c) => c.name === 'hr_players_online' && Object.keys(c.args || {}).length)) fail('ON-1 the count ask carries arguments (a count needs none)');
     answer = { ok: false, error: 'rate_limited' };
     poll(); for (let i = 0; i < 5; i++) await tick();
     if (soc.online.count !== null || M.online.onlineWords(null) !== '— online') fail('ON-1 a refused ask kept the old count ' + soc.online.count);
@@ -455,9 +458,8 @@ const PURE_MUTANTS = [
   ['a friend reads online when offline', 'src/social/friends.js', "online: f.online === true,", "online: true,"],
   ['the realtime bindings are not capped', 'src/social/realtime.js', "        .slice(0, Math.max(0, CHAT_LIMITS.realtimeBindingsMax - held()));", ";"],
   ['a failed online ask keeps the last count', 'src/social/players-online.js', '    let n = null;', '    let n = this.count;'],
-  ['the online count is asked before the presence stamp', 'src/social/social-session.js',
-    '    try { await this.reread(); } catch (e) { /* the count is still asked; the next poll re-reads */ }\n    return this.online.ask();',
-    '    const n = this.online.ask();\n    try { await this.reread(); } catch (e) { /* mutant */ }\n    return n;'],
+  ['the online ask names only the viewed character', 'src/social/social-session.js',
+    "o.account.characters().map((cs) => cs.slot)", '[o.account.viewed]'],
   ['the ground opens a menu', 'src/shell/menu-providers.js', "    if (MONSTERS[mon]) return { kind: 'monster', id: mon, title: monsterName(mon) };", "    return { kind: 'monster', id: mon, title: String(mon) };"],
 ];
 const PAGE_MUTANTS = [

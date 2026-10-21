@@ -13,6 +13,7 @@
 //               (the friends' online state, and this account's presence stamp),
 //               each followed by the players-online count
 //   online      PlayersOnline (src/social/players-online.js): the server's count
+//               of characters playing (it stamps this account's open ones)
 //   inspect(t)  hr_inspect for a target; the answer is `inspected` until the next
 //   menuProviders()  this system's right-click entries (src/data/social-menu.js
 //               rows), for the shell's one context menu
@@ -47,8 +48,9 @@ export class SocialSession {
     this.blocks = new BlockStore({ account: o.account, reread,
       onBlocked: (id) => { this.chat.hideFrom(id); this.whispers.hideFrom(id); } });
     this._offs = [this.chat.subscribe(() => this._changed()), this.whispers.subscribe(() => this._changed())];
-    /* The server's count of players online, asked right after each presence stamp (players-online.js). */
-    this.online = new PlayersOnline({ server: o.account.server, changed: () => this._changed() });
+    /* The server's count of characters playing, asked on each social poll for the account's open slots (players-online.js). */
+    this.online = new PlayersOnline({ server: o.account.server, changed: () => this._changed(),
+      slots: () => (typeof o.account.characters === 'function' ? o.account.characters().map((cs) => cs.slot) : []) });
   }
 
   subscribe(fn) { this._listeners.add(fn); return () => this._listeners.delete(fn); }
@@ -67,7 +69,8 @@ export class SocialSession {
     this._presence();
   }
 
-  /* One social poll: the friends read (it stamps this account present), then the online count. */
+  /* One social poll: the friends read (the account's presence for its friends), then the online count
+     (which stamps the open characters present). One after the other, never a burst of two. */
   async _presence() {
     try { await this.reread(); } catch (e) { /* the count is still asked; the next poll re-reads */ }
     return this.online.ask();

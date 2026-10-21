@@ -239,6 +239,16 @@ export const MAX_CATCHUP_WINDOWS = 40;
    lease (30 s) alive. */
 export const CATCHUP_BUDGET_MS = 6000;
 
+/* THE HUNT BODY'S TIME BUDGET, from the fire's start (2026-11-04-hunt-tick-shards.sql).
+   The driver packs at most hr_tick_config.hunt_body_max instances into one body
+   (12: ~0.6 s fixed + ~0.3 s an instance, measured 2026-10-21, is half pg_net's 9 s
+   timeout), so a body normally ends far inside this. It is the FUSE for one that
+   does not: no settle STARTS past it, and the selectors left are reported `deferred`
+   and stay leased to this body's holder until the lease (30 s) ends — owed, never
+   lost, and never handed to a second body while this one may still be settling
+   them. 20 s = the 30 s lease less a 10 s worst single settle. */
+export const HUNT_BODY_BUDGET_MS = 20000;
+
 /* ── THE LEDGER FOLD CEILING (2026-10-11, world-tick scale S4): the
    `hr_tick_config_fold_ck` CHECK is `fold_windows between 1 and 8`, and the
    8 is hr_tick_stall_status' 15 min per-character lag judge: an away character
@@ -1292,7 +1302,10 @@ export async function runTick(opts) {
   let hunts = null;
   if (body.hunts.length) {
     hunts = { settled: 0, nothing: 0, none: 0, refused: 0, ended: 0, reasons: Object.create(null) };
+    /* `opts.huntBudgetMs` is the guard's clock seam; index.ts never passes it. */
+    const huntDeadline = t0 + (Number.isFinite(opts.huntBudgetMs) ? opts.huntBudgetMs : HUNT_BODY_BUDGET_MS);
     for (const sel of body.hunts) {
+      if (now() >= huntDeadline) { hunts.deferred = (hunts.deferred || 0) + 1; continue; }
       let v;
       try {
         v = await settleHunt({ exec, user: sel.userId, slot: sel.slot, mode: 'tick', session: sel.session, grounds: opts.grounds });

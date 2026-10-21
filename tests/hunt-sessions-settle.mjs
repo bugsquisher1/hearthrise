@@ -1748,7 +1748,7 @@ const DB_MUTANTS = [
     find: "      when 'heals_out' then not exists (select 1 from public.hunt_bag b join public.hr_hunt_supplies p on p.item_id = b.item_id",
     replace: "      when 'heals_out' then true or not exists (select 1 from public.hunt_bag b join public.hr_hunt_supplies p on p.item_id = b.item_id" },
   { arm: 'TICK-0', name: 'the cron queues its hunts body with no selectors', fn: 'public.hr_tick_cron_run()',
-    find: "'hunts', v_hunts)::text);", replace: "'hunts', '[]'::jsonb)::text);" },
+    find: "'hunts', v_hb.sel)::text);", replace: "'hunts', '[]'::jsonb)::text);" },
 ];
 
 /* SQL mutants: planted in a migration's TEXT; its own §4 must refuse each. The

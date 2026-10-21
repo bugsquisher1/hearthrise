@@ -45,9 +45,10 @@
 //         hunt, no Hunt details; a running hunt shows Leave hunt
 //   HS-11 A SLOT THAT NEVER FIRES: an earlier slot with the same action under
 //         weaker conditions marks it "!" with the reason; emptying it clears that
-//   HS-12 THE BAR PANEL holds target, stance, chase, distance (nothing else); each is ONE
-//         intent, shows the server value, survives a reload; no Hunt settings window
-//   HS-13 no two hunt panels overlap at 1440x900 or on a narrower desktop
+//   HS-12 THE BAR PANEL holds target, stance, chase, distance and the gold to keep (nothing
+//         else); each is ONE intent, shows the server value (the gold field keeps it while in
+//         flight and after a refusal), survives a reload; no Hunt settings window
+//   HS-13 no two hunt panels overlap at 1440x900 or on a narrower desktop, nor with a window docked
 //   HS-14 THE LEADER CHOOSES (Tyler 2026-10-20): a party member's hunt picker shows
 //         the leader's density read-only ("Set by Fingerguns: 7 each", the server's
 //         leader_density) with no step and sends nothing; the leader keeps its step
@@ -63,11 +64,14 @@
 //         off here, so only a kept node passes); an atlas asked for thrice is one image
 //         (Coordinator QA 2026-10-20: 216 repeated image requests in a hunt)
 //   HS-18 THE VITALS HUB: HP, mana, level, XP and stamina from the envelope, replaced by
-//         the next one; a melee hero with no mana pool still shows its mana gauge
+//         the next one; a melee hero with no mana pool still shows its mana gauge; regen
+//         reads per second with one decimal (the server's per-minute mana over 60) while
+//         hunting, and nothing once the hunt is over or in town (no server rate there)
 //   HS-19 DRAG: onto an empty slot it moves; onto an action a menu (Swap with X / Insert
 //         here, shift the rest / Escape or a press away cancels); one intent per choice;
-//         the status line clears on the server's answer
-//   HS-20 every struck slot says why (glyph + the tooltip's first line), one slot a reason
+//         nothing moves before the server's re-read says so; the status line always comes
+//         back: cleared on the answer, the reason on a refusal, a plain line on the timeout
+//   HS-20 every struck or waiting slot says why (glyph + the tooltip's first line), one slot a reason
 //   HS-21 THE COOLDOWN EMBER: the hero's played cast cools that ability's slot for its
 //         catalogue cooldown; the ember rises and the seconds fall as it runs out
 // ════════════════════════════════════════════════════════════════════════
@@ -218,11 +222,14 @@ async function checks(overrides, shots) {
         }
         if (h1.gauges) fails.push('HS-18 the old flat gauges are still on the bar');
         /* A melee hero the server sends no mana pool still shows its mana gauge (every hero has mana). */
-        Object.assign(s.env.hunt.hero, { mana: 0, mana_max: 0, level: 25, xp_pct: 0.05, hp: 220 });
+        Object.assign(s.env.hunt.hero, { mana: 0, mana_max: 0, level: 25, xp_pct: 0.05, hp: 220, regen_pm: 1000, mana_regen: 18 });
         s.env.party.members[0].hp = 220;
         await pushEnvelope(page, s);
         const h2 = await hub();
         if (h2.hp !== '220/220' || h2.mana !== '0/0' || h2.lv !== '25' || h2.xp !== 'XP 5%' || h2.hpArc !== '100' || !h2.manaShown) fails.push('HS-18 the next envelope did not replace the hub (or hid the mana gauge): ' + JSON.stringify(h2));
+        /* Regen per second, one decimal: mana_regen is per MINUTE (18/min = 0.3/s); HP is the in-fight rate (220 x 3 permille x 1000 permille = 0.66/s). */
+        const rg = await page.evaluate(() => [document.querySelector('[data-r="hp"]').textContent, document.querySelector('[data-r="mana"]').textContent]);
+        if (rg[0] !== '+0.7/s' || rg[1] !== '+0.3/s') fails.push('HS-18 the hub regen reads ' + JSON.stringify(rg) + ', want ["+0.7/s","+0.3/s"]');
         Object.assign(s.env.hunt.hero, { mana: 40, mana_max: 60, hp: 180, level: 24, xp_pct: 0.62 });   // back to the fixture for the screenshots
         s.env.party.members[0].hp = 180;
         await pushEnvelope(page, s);
@@ -333,7 +340,7 @@ async function checks(overrides, shots) {
         /* HS-12: exactly target, stance, chase and distance; no eat/drink thresholds, no supplies, no density, no gathering; J opens nothing. */
         s.optionsReply = { ok: true };
         const opts = await page.evaluate((p) => Array.from(new Set(Array.from(document.querySelectorAll(p + ' [data-opt]')).map((e) => e.getAttribute('data-opt')))).sort().join(), P);
-        if (opts !== 'chase,distance,stance,target_mode') fails.push('HS-12 the panel holds ' + opts);
+        if (opts !== 'chase,distance,gold_floor,stance,target_mode') fails.push('HS-12 the panel holds ' + opts);
         await page.keyboard.press('j');
         await page.waitForTimeout(300);
         if (await page.$('[data-hs-win="hunt-settings"]')) fails.push('HS-12 a Hunt settings window still opens');
@@ -354,6 +361,27 @@ async function checks(overrides, shots) {
         await one('chase', () => page.click(P + ' [data-opt="chase"]'), JSON.stringify({ chase: !chase0 }), { chase: !chase0 });
         const d0 = FIXTURE.hunt_settings.distance;
         await one('distance', () => page.click(P + ' [data-opt="distance"][data-val="1"]'), JSON.stringify({ distance: d0 + 1 }), { distance: d0 + 1 });
+        /* The gold to keep: typed, sent once on change; in flight the field shows the server's 300, then the confirmed 500. */
+        const G = P + ' [data-opt="gold_floor"]';
+        const g0 = await page.evaluate((g) => document.querySelector(g) && document.querySelector(g).value, G);
+        if (g0 !== '300') fails.push('HS-12 the gold to keep does not show the server’s 300: ' + JSON.stringify(g0));
+        const gBefore = s.calls.filter((c) => c.name === 'hr_action_set_options').length;
+        Object.assign(s.env.hunt_settings, { gold_floor: 500 });
+        await page.fill(G, '500');
+        await page.dispatchEvent(G, 'change');
+        const gMid = await page.evaluate((g) => ({ v: document.querySelector(g).value, off: document.querySelector(g).disabled }), G);
+        if (gMid.v !== '300' || !gMid.off) fails.push('HS-12 the gold to keep showed the new value (or stayed on) before the server confirmed: ' + JSON.stringify(gMid));
+        const gDone = await wait(page, (g) => document.querySelector(g).value === '500' && !document.querySelector(g).disabled, G, 3000);
+        const gSent = s.calls.filter((c) => c.name === 'hr_action_set_options').slice(gBefore).map((c) => JSON.stringify(c.body.p_opts));
+        if (!gDone || gSent.length !== 1 || gSent[0] !== '{"gold_floor":500}') fails.push('HS-12 the gold to keep sent ' + JSON.stringify(gSent) + ', shows ' + await page.evaluate((g) => document.querySelector(g).value, G));
+        /* Refused: the server's 500 stays, the line says why. */
+        s.optionsReply = { ok: false, error: 'rate_limited' };
+        await page.fill(G, '800');
+        await page.dispatchEvent(G, 'change');
+        const gBack = await wait(page, (g) => !document.querySelector(g).disabled && document.querySelector(g).value === '500'
+          && /^Too many changes/.test(document.querySelector('.hb-plaque .hh-intent-msg').textContent), G, 3000);
+        if (!gBack) fails.push('HS-12 a refused gold to keep did not go back to the server’s 500 with a reason');
+        s.optionsReply = { ok: true };
         const shown = await page.evaluate((p) => ({ target: document.querySelector(p + ' [data-opt="target_mode"]').value,
           chase: document.querySelector(p + ' [data-opt="chase"]').getAttribute('aria-pressed'), distance: document.querySelector(p + ' [data-show="distance"]').textContent }), P);
         if (shown.target !== 'weakest' || shown.chase !== String(!chase0) || shown.distance !== String(d0 + 1)) fails.push('HS-12 the panel does not show the server’s values: ' + JSON.stringify(shown));
@@ -363,6 +391,7 @@ async function checks(overrides, shots) {
         else {
           const again = await page.evaluate((p) => ({ target: document.querySelector(p + ' [data-opt="target_mode"]').value, stance: (document.querySelector(p + ' [data-opt="stance"][aria-pressed="true"]') || {}).getAttribute ? document.querySelector(p + ' [data-opt="stance"][aria-pressed="true"]').getAttribute('data-val') : null,
             distance: document.querySelector(p + ' [data-show="distance"]').textContent }), P);
+          if (await page.evaluate((g) => document.querySelector(g).value, G) !== '500') fails.push('HS-12 after a reload the gold to keep is not the server’s 500');
           if (again.target !== 'weakest' || again.stance !== 'offensive' || again.distance !== String(d0 + 1)) fails.push('HS-12 after a reload the panel is not the server’s: ' + JSON.stringify(again));
         }
       } else fails.push('HS-3 the screen did not mount');
@@ -441,6 +470,9 @@ async function checks(overrides, shots) {
           return b ? { leave: shown('[data-hs-act="leave"]'), details: shown('[data-hs-act="details"]'), summary: shown('[data-hs-act="summary"]') } : null;
         });
         if (bar && (bar.leave || bar.details || !bar.summary)) fails.push('HS-10 a hunt that is over still offers more than its summary: ' + JSON.stringify(bar));
+        /* HS-18 the rate that applies NOW: a hunt that is over no longer fights, so its in-fight regen is gone from the hub. */
+        const overRg = await page.evaluate(() => [document.querySelector('[data-r="hp"]').textContent, document.querySelector('[data-r="mana"]').textContent]);
+        if (overRg.join('') !== '') fails.push('HS-18 the hub still shows the hunt’s regen once it is over: ' + JSON.stringify(overRg));
         s.env.hunt = Object.assign({}, s.env.hunt, { ended: false });
         await pushEnvelope(page, s);
         const live = await page.evaluate(() => { const n = document.querySelector('.ht-bar [data-hs-act="leave"]'); return !!n && n.getClientRects().length > 0; });
@@ -580,6 +612,14 @@ async function checks(overrides, shots) {
           const narrow = await overlaps();
           if (narrow.length) fails.push('HS-13 hunt panels overlap at ' + vp.width + 'x' + vp.height + ': ' + narrow.join(', '));
         }
+        await page.setViewportSize({ width: 1440, height: 900 });
+        await page.waitForTimeout(400);
+        await page.keyboard.press('Enter');
+        await wait(page, () => document.querySelector('[data-hs-win="chat"]'));
+        await page.evaluate(() => document.activeElement && document.activeElement.blur && document.activeElement.blur());
+        await page.waitForTimeout(400);
+        const docked = await overlaps();
+        if (docked.length) fails.push('HS-13 hunt panels overlap with the chat window docked: ' + docked.join(', '));
       } else fails.push('HS-13 the screen did not mount');
       await ctx.close();
     }
@@ -653,7 +693,7 @@ async function checks(overrides, shots) {
         const lastIs = async (label, want) => {
           for (let i = 0; i < 40 && sent().length < want.n; i++) await page.waitForTimeout(50);
           const all = sent();
-          if (all.length !== want.n || JSON.stringify(all[all.length - 1]) !== JSON.stringify(want.bar)) fails.push('HS-19 ' + label + ' sent ' + JSON.stringify(all[all.length - 1]).slice(0, 400));
+          if (all.length !== want.n || JSON.stringify(all[all.length - 1]) !== JSON.stringify(want.bar)) fails.push('HS-19 ' + label + ' sent ' + String(JSON.stringify(all[all.length - 1])).slice(0, 400));
           const cleared = await wait(page, () => document.querySelector('.hb-plaque .hh-intent-msg').textContent === '', null, 3000);
           if (!cleared) fails.push('HS-19 the status line stayed after the server answered ' + label);
         };
@@ -689,6 +729,42 @@ async function checks(overrides, shots) {
         if (await menuOn()) await page.click('.hb-drop [data-x="insert"]'); else fails.push('HS-19 the drop menu did not open for an insert');
         const ins = base.slice(); ins[0] = null; ins[2] = base[0]; ins[3] = base[2]; ins[4] = base[3]; ins[5] = base[4];
         await lastIs('an insert', { n: 3, bar: ins });
+        /* Nothing moves before the server says so: in flight the slots keep the server's actions, and after an
+           answer that leaves the server's bar as it was (this stub's hr_load still holds it) they still do. */
+        const items = () => page.evaluate(() => Array.from(document.querySelectorAll('.hb-slot')).sort((a, b) => a.getAttribute('data-slot') - b.getAttribute('data-slot')).map((l) => l.getAttribute('data-item') || ''));
+        const line = () => page.evaluate(() => document.querySelector('.hb-plaque .hh-intent-msg').textContent);
+        const before = await items();
+        await drag(0, 2);
+        if (await menuOn()) await page.click('.hb-drop [data-x="swap"]'); else fails.push('HS-19 the drop menu did not open for the in-flight check');
+        const mid = await items();
+        const midLine = await line();
+        if (JSON.stringify(mid) !== JSON.stringify(before)) fails.push('HS-19 the bar moved before the server answered: ' + JSON.stringify(mid.slice(0, 4)));
+        if (midLine !== 'Moving it…') fails.push('HS-19 no in-flight line on a drop: ' + JSON.stringify(midLine));
+        const sw = base.slice(); sw[0] = base[2]; sw[2] = base[0];
+        await lastIs('the in-flight swap', { n: 4, bar: sw });
+        if (JSON.stringify(await items()) !== JSON.stringify(before)) fails.push('HS-19 the bar shows a move the server’s bar does not hold');
+        /* A refusal: the line says why (never stays on "Moving it…") and the bar is the server's. */
+        s.optionsReply = { ok: false, error: 'rate_limited' };
+        await drag(0, 2);
+        if (await menuOn()) await page.click('.hb-drop [data-x="swap"]'); else fails.push('HS-19 the drop menu did not open for the refusal');
+        const refused = await wait(page, () => /^Too many changes at once/.test(document.querySelector('.hb-plaque .hh-intent-msg').textContent), null, 3000);
+        if (!refused) fails.push('HS-19 a refused drop left the line on ' + JSON.stringify(await line()));
+        if (JSON.stringify(await items()) !== JSON.stringify(before)) fails.push('HS-19 a refused drop moved the bar');
+        /* No answer at all: the line comes back after the bar's wait (data/hunt-hud.js BAR_ANSWER_MS) and the next drop is taken. */
+        s.optionsReply = { ok: true };
+        s.optionsDelayMs = 12500;
+        await drag(0, 2);
+        if (await menuOn()) await page.click('.hb-drop [data-x="swap"]'); else fails.push('HS-19 the drop menu did not open for the timeout');
+        const timedOut = await wait(page, () => /^The server has not answered/.test(document.querySelector('.hb-plaque .hh-intent-msg').textContent), null, 11500);
+        if (!timedOut) fails.push('HS-19 a drop the server never answered left the line on ' + JSON.stringify(await line()));
+        await page.waitForTimeout(3000);   // the late answer lands (its effect is the re-read, like any other)
+        s.optionsDelayMs = 300;
+        const n0 = sent().length;
+        await drag(0, 2);
+        if (await menuOn()) await page.click('.hb-drop [data-x="swap"]');
+        for (let i = 0; i < 40 && sent().length === n0; i++) await page.waitForTimeout(50);
+        if (sent().length !== n0 + 1) fails.push('HS-19 after a timeout the next drop sent nothing (still pending)');
+        await wait(page, () => document.querySelector('.hb-plaque .hh-intent-msg').textContent === '', null, 3000);
         if (shots) { await drag(0, 2); await page.screenshot({ path: join(shots, 'hunt-1440x900-drop-menu.png') }); await page.keyboard.press('Escape'); }
       } else fails.push('HS-19 the screen did not mount');
       await ctx.close();
@@ -710,12 +786,27 @@ async function checks(overrides, shots) {
         S.slots[5] = { action: { type: 'consume', id: 'food' }, conditions: [], join: 'and', usable: true, count: 0 };
         await pushEnvelope(page, s);
         await page.waitForTimeout(300);
+        S.slots[7] = { action: { type: 'consume', id: 'food' }, conditions: [], join: 'and', usable: false, count: 3 };
+        await pushEnvelope(page, s);
+        await page.waitForTimeout(300);
         const want = [
           [0, 'mana', /^Needs 6 mana, you have 2\.$/, false],
           [1, 'rune', /^Needs a Fire Rune in the bag/, true],
           [2, 'stock', /^Out of stock and no store fallback/, true],
           [5, 'store off', /^Out of stock, and this hero is set to end the hunt rather than buy from the store/, true],
+          [7, 'server', /^The server says this cannot fire now\.$/, true],
         ];
+        /* EVERY struck or waiting slot on the bar, not only the ones named: a glyph on it, the reason as its tooltip's first line. */
+        const sweep = async (label) => {
+          const all = await page.evaluate(() => Array.from(document.querySelectorAll('.hb-slot.is-off, .hb-slot.is-wait')).map((li) => {
+            li.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+            const first = document.querySelector('.hb-tip p');
+            return { slot: li.getAttribute('data-slot'), glyph: !!li.querySelector('.hb-why svg'), why: !!first && first.classList.contains('is-why') && first.textContent.length > 8 };
+          }));
+          const bad = all.filter((x) => !x.glyph || !x.why);
+          if (!all.length || bad.length) fails.push('HS-20 ' + label + ': a struck slot without its glyph or reason ' + JSON.stringify(bad.length ? bad : all));
+        };
+        await sweep('the tank bar');
         for (const [i, label, re, strike] of want) {
           const w = await why(i);
           if (!re.test(w.text) || !w.glyph || w.off !== strike || w.wait !== !strike) fails.push('HS-20 the ' + label + ' slot reads ' + JSON.stringify(w));
@@ -726,11 +817,13 @@ async function checks(overrides, shots) {
         await page.waitForTimeout(300);
         const wrong = await why(0);
         if (!/^Your weapon can’t use this\. Needs /.test(wrong.text) || !wrong.off || !wrong.glyph) fails.push('HS-20 the wrong-weapon slot reads ' + JSON.stringify(wrong));
+        await sweep('the healer bar');
         delete S.role;
         await pushEnvelope(page, s);
         await page.waitForTimeout(300);
         const none = await why(0);
-        if (!/^No weapon worn/.test(none.text) || !none.off) fails.push('HS-20 the no-weapon slot reads ' + JSON.stringify(none));
+        if (!/^No weapon worn/.test(none.text) || !none.off || !none.glyph) fails.push('HS-20 the no-weapon slot reads ' + JSON.stringify(none));
+        await sweep('the bar with no weapon');
       } else fails.push('HS-20 the screen did not mount');
       await ctx.close();
     }
@@ -785,6 +878,8 @@ async function checks(overrides, shots) {
         plus: getComputedStyle(document.querySelector('.hb-slot[data-slot="5"] .hb-plus')).display }));
       if (!town.bar || !town.mana) fails.push('HS-8 in town the bar or its vitals hub is missing: ' + JSON.stringify(town));
       if (town.plus === 'none') fails.push('HS-8 an empty slot shows no "+"');
+      const townRg = await page.evaluate(() => [document.querySelector('[data-r="hp"]').textContent, document.querySelector('[data-r="mana"]').textContent]);
+      if (townRg.join('') !== '') fails.push('HS-18 in town the hub shows a regen the server never sent: ' + JSON.stringify(townRg));
       if (shots) await page.screenshot({ path: join(shots, 'town-' + tag + '-bar.png') });
       /* Configure an empty slot from its "+": Items, Any food (the store price shown, paid as used), IF My HP % below 60. */
       await page.click('.hb-slot[data-slot="5"]');
@@ -963,9 +1058,24 @@ const MUTANTS = [
   ['the HP arc does not follow the server', 'src/shell/widgets/vitals-hub.js', "  fill(el.querySelector('.hb-arc.is-hp'), share(v.hp, v.hpMax));", "  fill(el.querySelector('.hb-arc.is-hp'), 1);"],
   ['a drop onto an action moves it without asking', 'src/shell/widgets/action-bar.js', '    else openDropMenu(ctx, el, t, from, to, bar);', '    else runDrop(ctx, el, (b) => swapPlan(b, from, to));'],
   ['insert shifts past the first empty slot', 'src/shell/bar-draft.js', '  while (k < SLOTS && out[k]) k++;', '  k = SLOTS - 1;'],
-  ['the status line stays after a drop', 'src/shell/widgets/action-bar.js', ".then((r) => { text(msg, r.ok ? '' : r.error === 'no_room'", ".then((r) => { text(msg, r.ok ? 'Moving it…' : r.error === 'no_room'"],
+  ['the status line stays after a drop', 'src/shell/widgets/action-bar.js', ".then((r) => { text(msg, r.ok ? '' : barRefusalWords(r.error));", ".then((r) => { text(msg, r.ok ? 'Moving it…' : barRefusalWords(r.error));"],
+  ['a refused drop leaves the line on Moving it', 'src/shell/widgets/action-bar.js', ".then((r) => { text(msg, r.ok ? '' : barRefusalWords(r.error));", ".then((r) => { text(msg, r.ok ? '' : 'Moving it…');"],
+  ['a drop the server never answers stays pending', 'src/shell/bar-draft.js', '  return Promise.race([sent, late])', '  return Promise.race([sent])'],
+  /* The record is deep-frozen (envelope.js), so an optimistic move can only be a client-side overlay the bar paints from. */
+  ['a drop moves the bar before the server answers', 'src/shell/widgets/action-bar.js', [
+    ["  text(msg, 'Moving it…');", "  text(msg, 'Moving it…'); el.__plan = plan(serverBar(ctx.character));"],
+    ['  const slots = s ? Array.from({ length: SLOTS }, (_, i) => s.slots[i] || { empty: true }) : [];',
+      '  const slots = s ? Array.from({ length: SLOTS }, (_, i) => (el.__plan ? (el.__plan[i] ? Object.assign({ usable: true }, el.__plan[i]) : null) : s.slots[i]) || { empty: true }) : [];']]],
+  ['the hub prints the server’s per-minute mana regen as /s', 'src/shell/widgets/vitals-hub.js', "regen(hero.manaPerS) : ''", "regen(hero.manaPerS * 60) : ''"],
+  ['the hub prints regen with two decimals', 'src/shell/widgets/vitals-hub.js', "'+' + r.toFixed(1)", "'+' + r.toFixed(2)"],
+  ['a struck slot carries no glyph', 'src/shell/widgets/action-bar.js', "g.innerHTML = why ? glyphSvg(ctx.glyphs, why.glyph) : '';", "g.innerHTML = why && !why.strike ? glyphSvg(ctx.glyphs, why.glyph) : '';"],
+  ['a server-refused slot is not struck', 'src/shell/action-facts.js', "  if (sl.usable === false) return { code: 'server', text: 'The server says this cannot fire now.', glyph: 'uiLock', strike: true };\n  const n =", '  const n ='],
+  ['the panel’s chase sends nothing', 'src/shell/widgets/settings-intent.js', "  if (key === 'chase') return s.chase === null ? null : { chase: !s.chase };", "  if (key === 'chase') return null;"],
   ['a slot short of its rune says nothing', 'src/shell/action-facts.js', '    if (r.rune && !((bag', '    if (false && r.rune && !((bag'],
-  ['a press on the panel sends on pointerdown', 'src/shell/widgets/action-bar.js', "    if (ev.type !== (t.tagName === 'SELECT' ? 'change' : 'click')) return;", "    if ((t.tagName === 'SELECT') !== (ev.type === 'change')) return;"],
+  ['the hub keeps an ended hunt’s in-fight regen', 'src/shell/widgets/vitals-hub.js', '  const hero = h && !h.ended ? h.hero : null;', '  const hero = h ? h.hero : null;'],
+  ['the gold to keep shows the typed value before the server confirms', 'src/shell/widgets/settings-intent.js', "(pending || el.ownerDocument.activeElement !== el)", "(!pending && el.ownerDocument.activeElement !== el)"],
+  ['the gold to keep sends nothing', 'src/shell/widgets/settings-intent.js', ": { gold_floor: n };", ": null;"],
+  ['a press on the panel sends on pointerdown', 'src/shell/widgets/action-bar.js', "    if (ev.type !== (t.tagName === 'SELECT' || t.tagName === 'INPUT' ? 'change' : 'click')) return;", "    if ((t.tagName === 'SELECT') !== (ev.type === 'change')) return;"],
   ['a cast never cools its slot', 'src/shell/widgets/action-bar.js', '  const on = left > 0;', '  const on = false;'],
   ['the ember stands still', 'src/shell/widgets/action-bar.js', "style.height = (Math.round((1 - left / r.cdMs) * 1000) / 10) + '%';", "style.height = '50%';"],
   ['a slot that comes back builds a new icon', 'src/render/paint.js', '  const el = k ? (m.get(k) || build()) : null;', '  const el = k ? build() : null;'],

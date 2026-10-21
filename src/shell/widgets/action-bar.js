@@ -17,8 +17,9 @@
 //            on a slot puts it there (src/shell/bar-assign.js)
 //   tooltip  hover, focus or a long press: name, cost, type, cooldown, effect,
 //            then the slot's setup and any conflict (action-facts.js)
-//   panel    the action set (Saved setups switch it), target, stance, chase and
-//            distance: each ONE intent (settings-intent.js), shown from the server
+//   panel    the action set (Saved setups switch it), target, stance, chase,
+//            distance and the gold to keep (gold_floor): each ONE intent
+//            (settings-intent.js), shown from the server only once it confirms
 // Shown in town too (Tyler 10-18: set it up before leaving). Every value is
 // the server's; the bar changes only when the re-read envelope says so.
 // ════════════════════════════════════════════════════════════════════════
@@ -33,13 +34,13 @@ import { glyphSvg } from '../launcher.js?v=0.2.22';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.22';
 import { actionIconHtml } from './bits.js?v=0.2.22';
 import { hubHtml, patchHub } from './vitals-hub.js?v=0.2.22';
-import { openSlot, sendPlan, movePlan, swapPlan, insertPlan, serverBar } from '../bar-draft.js?v=0.2.22';
+import { openSlot, sendPlan, movePlan, swapPlan, insertPlan, serverBar, barRefusalWords, answerWithin } from '../bar-draft.js?v=0.2.22';
 import { actionName, factsOf, carried, supplyLines, setupWords, conflictsOf, reasonOf, sharedCooldownOf } from '../action-facts.js?v=0.2.22';
 import { resetConfigureView } from '../windows/configure-action.js?v=0.2.22';
 import { assignToBar, barKind } from '../bar-assign.js?v=0.2.22';
 import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.22';
 import { refusalWords } from '../intent-words.js?v=0.2.22';
-import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, patchControls, sendOption } from './settings-intent.js?v=0.2.22';
+import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, goldFloorHtml, patchControls, sendOption } from './settings-intent.js?v=0.2.22';
 
 const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const SLOT_DRAG = 'application/x-hr-bar-slot';
@@ -110,6 +111,7 @@ export function renderActionBar(ctx) {
     + '<div class="hb-pl-row"><span class="hh-segs hb-stance" role="group" aria-label="Stance">' + stanceButtonsHtml() + '</span></div>'
     + '<div class="hb-pl-row"><button type="button" class="hh-seg" data-opt="chase" data-hs-act="opt" aria-pressed="false" title="With chase off, the hero keeps its distance">Chase</button>'
     + '<span class="hb-label">Distance</span>' + distanceHtml() + '</div>'
+    + '<label class="hb-pl-row is-gold"><span class="hb-label">Keep at least</span>' + goldFloorHtml() + '<span class="hb-label">gold</span></label>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>'
     + '<div class="hb-tip" role="tooltip"></div>'
     + '<div class="hb-drop" role="menu" aria-label="Drop the action"><b class="hb-drop-t"></b>'
@@ -226,16 +228,17 @@ function dropOnSlot(ctx, el, ev, t) {
   const id = ev.dataTransfer.getData(DRAG_TYPE);
   if (!barKind(id)) { text(msg, refusalWords('not_for_bar')); return true; }
   text(msg, 'Putting it on the bar…');
-  assignToBar(ctx.character, id, to).then((r) => { text(msg, r.ok ? '' : refusalWords(r.error)); repaint(); });
+  answerWithin(() => assignToBar(ctx.character, id, to)).then((r) => { text(msg, r.ok ? '' : r.error === 'timeout' ? barRefusalWords(r.error) : refusalWords(r.error)); repaint(); });
   return true;
 }
 
-/* One drop's intent; the status line says it is on its way and clears on the server's answer (or says why not). */
+/* One drop's intent; the status line says it is on its way and ALWAYS comes back: cleared on the server's
+   answer, its words on a refusal, a plain line on the timeout (bar-draft.js answerWithin never rejects). */
 function runDrop(ctx, el, plan) {
   const msg = el.querySelector('.hb-plaque .hh-intent-msg');
   text(msg, 'Moving it…');
   sendPlan(ctx.character, plan, () => renderActionBar.patch(el, ctx))
-    .then((r) => { text(msg, r.ok ? '' : r.error === 'no_room' ? 'No empty slot after it to shift into.' : refusalWords(r.error)); renderActionBar.patch(el, ctx); });
+    .then((r) => { text(msg, r.ok ? '' : barRefusalWords(r.error)); renderActionBar.patch(el, ctx); });
 }
 
 /* THE DROP MENU (Tyler 10-19): dropped onto an action, the dragged action's name, Swap with <target>,
@@ -276,7 +279,7 @@ renderActionBar.act = function actActionBar(ctx, el, action, ev, t) {
   /* The panel: target, stance, chase, distance — ONE intent each, the controls off until the server answers (settings-intent.js). */
   if (action === 'opt') {
     /* A button acts on its click, a select on its change; the bar's other events (pointer, drag, key) never send. */
-    if (ev.type !== (t.tagName === 'SELECT' ? 'change' : 'click')) return;
+    if (ev.type !== (t.tagName === 'SELECT' || t.tagName === 'INPUT' ? 'change' : 'click')) return;
     sendOption(ctx, el.querySelector('.hb-plaque'), t, () => renderActionBar.patch(el, ctx));
     return;
   }

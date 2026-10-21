@@ -13,7 +13,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { METRICS, OPERATORS, MAX_CONDITIONS, CONSUME_KINDS } from '../data/condition-metrics.js?v=0.2.22';
 import { STATUSES } from '../data/statuses.js?v=0.2.22';
-import { BAR_SLOTS } from '../data/hunt-hud.js?v=0.2.22';
+import { BAR_SLOTS, BAR_ANSWER_MS } from '../data/hunt-hud.js?v=0.2.22';
 import { BASIC_SUPPLIES } from '../data/supply-basics.js?v=0.2.22';
 import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.22';
 import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.22';
@@ -37,7 +37,16 @@ const REFUSAL = Object.freeze({
   too_many_conditions: 'A slot takes at most ' + MAX_CONDITIONS + ' conditions.',
   rate_limited: 'Too many changes at once. Try again in a moment.',
   settle_first: 'The hunt is catching up. Try again in a few seconds.',
+  network: 'No connection. Nothing was changed.',
+  timeout: 'The server has not answered. The bar shows what it last confirmed.',
+  busy: 'Still saving the last change. Try again in a moment.',
+  no_room: 'No empty slot after it to shift into.',
 });
+
+/** A refused bar intent in plain words. */
+export function barRefusalWords(code) {
+  return REFUSAL[code] || 'Not saved: the server refused it.';
+}
 
 /** This character's bar edit state (created empty on first use). */
 export function draftOf(cs) {
@@ -150,6 +159,20 @@ export function conditionWords(c) {
 
 
 /**
+ * The server's answer to one intent, or { ok:false, error:'timeout' } once
+ * BAR_ANSWER_MS has passed (a throw reads as 'network'). Never rejects, so a
+ * status line and a pending flag always come back: on the answer, on a
+ * refusal or on the timeout. A late answer is not shown here; its effect
+ * arrives with the re-read envelope like any other (CLAUDE.md §6).
+ */
+export function answerWithin(send, ms = BAR_ANSWER_MS) {
+  let timer = null;
+  const late = new Promise((ok) => { timer = setTimeout(() => ok({ ok: false, error: 'timeout' }), ms); });
+  const sent = Promise.resolve().then(send).then((r) => r || { ok: false, error: 'refused' }, () => ({ ok: false, error: 'network' }));
+  return Promise.race([sent, late]).finally(() => clearTimeout(timer));
+}
+
+/**
  * Send the whole bar as ONE intent. Every control of both surfaces is off
  * until the server answers; on ok `onOk()` runs, on a refusal the error is
  * kept (its slot and condition are shown) with its words. `repaint` runs at
@@ -161,10 +184,10 @@ export async function sendBar(cs, bar, repaint, onOk) {
   if (!set || s.pending) return { ok: false, error: 'busy' };
   s.pending = true; s.error = null; s.msg = 'Saving…';
   repaint();
-  const r = await cs.setHuntOptions(set.preset, { slots: bar });
+  const r = await answerWithin(() => cs.setHuntOptions(set.preset, { slots: bar }));
   s.pending = false;
   if (r.ok) { s.msg = ''; if (onOk) onOk(); }
-  else { s.error = r; s.msg = REFUSAL[r.error] || 'Not saved: the server refused it.'; }
+  else { s.error = r; s.msg = barRefusalWords(r.error); }
   repaint();
   return r;
 }

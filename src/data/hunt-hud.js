@@ -11,6 +11,10 @@
 //                for the party board and the party finder's filter
 //   BAR_SLOTS    the bottom bar's tablets: rows x columns (parity BB-02, the
 //                action set's 20 slots, rule-subjects ACTION_SET_LIMITS).
+//   BAR_ANSWER_MS how long the bar and its panel wait for the server's answer
+//                to one intent (and the re-read) before they say so and turn
+//                their controls back on; a late answer still lands through the
+//                envelope, and nothing on screen moved before it.
 // ════════════════════════════════════════════════════════════════════════
 
 export const ROLE_GLYPH = Object.freeze({
@@ -43,3 +47,5 @@ export const WEAPON_WORDS = Object.freeze({
 });
 
 export const BAR_SLOTS = Object.freeze({ rows: 2, cols: 10 });
+
+export const BAR_ANSWER_MS = 10000;

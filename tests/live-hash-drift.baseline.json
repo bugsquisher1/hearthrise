@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-21",
- "replay_ms": 79343,
+ "replay_ms": 43095,
  "counts": {
-  "tracked_names": 143,
-  "entries": 115
+  "tracked_names": 144,
+  "entries": 116
  },
  "functions": [
   {
@@ -142,6 +142,29 @@
    "replay": {
     "md5": "1a83c74b90f9a75ca24d661ec4f5ca06",
     "norm_len": 615,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_account_view(p_user uuid, p_slot integer)",
+   "name": "hr_account_view",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-23-hunt-party.sql",
+    "2026-11-03-hero-slots-gold.sql"
+   ],
+   "live": {
+    "md5": "657213ed5acd6cf0aca541112fba6355",
+    "norm_len": 788,
+    "measured": "2026-10-21",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "657213ed5acd6cf0aca541112fba6355",
+    "norm_len": 788,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -357,17 +380,18 @@
    "touched_by": [
     "2026-09-08-hero-slot-buy.sql",
     "2026-10-19-account-wallet.sql",
-    "2026-10-23-demolition-hero-slots-gold.sql"
+    "2026-10-23-demolition-hero-slots-gold.sql",
+    "2026-11-03-hero-slots-gold.sql"
    ],
    "live": {
-    "md5": "96a3e4e424e0cf602055d0baff659361",
-    "norm_len": 6551,
+    "md5": "a01ccc2bebe78b4948a14453e99853a7",
+    "norm_len": 7322,
     "measured": "2026-10-21",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "96a3e4e424e0cf602055d0baff659361",
-    "norm_len": 6551,
+    "md5": "a01ccc2bebe78b4948a14453e99853a7",
+    "norm_len": 7322,
     "source": "computed-from-replay"
    },
    "agree": true

@@ -186,6 +186,16 @@ export class AccountSession {
     return out;
   }
 
+  /** A player's problem report, through the bug-report bridge (it names the reporter from the token,
+      stores and rate-limits). { ok, status, retryAfterS }: the bridge's word ('accepted', 'stored',
+      'duplicate', 'rate_limited', 'unauthenticated', ...) or the link's ('network', 'no_token'). Moves nothing. */
+  async reportProblem(body) {
+    const ans = await this.server.report(body);
+    const b = ans.body && typeof ans.body === 'object' ? ans.body : {};
+    return { ok: !!(ans.ok && b.ok === true), status: typeof b.status === 'string' ? b.status : ans.error || 'network',
+      retryAfterS: Number.isFinite(b.retry_after_s) ? b.retry_after_s : null };
+  }
+
   /** Ask the server to make the hero in an owned slot with its name and colours ({ head, body, legs, feet }
       dye indices). { ok } or { ok:false, reason, nameReason }: the server's verdict, never the client's. */
   create(slot, name, colors) {

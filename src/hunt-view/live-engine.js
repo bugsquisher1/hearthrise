@@ -271,6 +271,8 @@ export function createLiveEngine(o) {
     },
     /** A prediction that holds a world but cannot step it (out of seeds: restart it eased, never fed; or ended). */
     stalled: () => !!st && (st.starved || st.ended === true),
+    /** The swing the prediction runs next (null without one): read by a hang report, never by the hunt. */
+    swingIndex: () => (st ? (st.world ? st.world.swing : st.worldSwing) : null),
     /** How far (ms) the prediction's next boundary lies behind `serverNowMs` (0 when it is up to date or not running). */
     behindMs: (serverNowMs) => (st && !st.starved && !st.ended && Number.isFinite(serverNowMs) ? Math.max(0, serverNowMs - st.next) : 0),
     /**

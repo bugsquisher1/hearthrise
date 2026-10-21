@@ -346,21 +346,10 @@ export const ABILITY_DIR = 'assets/icons-bundle/pixel/abilities/';
 export const ABILITY_ART = Object.freeze(['challenge', 'flame_strike', 'power_strike', 'hunters_mark', 'flame_volley', 'precision_shot',
   'fireball', 'frost_lance', 'arcane_barrier', 'greater_mend', 'circle_of_renewal', 'natures_wrath']);
 
-/* ART REUSE: an item with no icon of its own yet shows another item's pixel icon (id -> the id whose
-   <id>.png it shows). The practice armour (designer 2026-10-21) wears the leather set's art until the
-   Art Director paints it; painting one means adding its file and deleting its row here
-   (tests/pixel-icons.mjs 'reuse' refuses an id with both, or a row pointing at no icon). */
-export const PIXEL_ART_REUSE = Object.freeze({
-  practice_cap: 'leather_helmet',
-  practice_jerkin: 'leather_body',
-  practice_leggings: 'leather_pants',
-  practice_boots: 'leather_boots',
-});
-
-/** `<PIXEL_DIR><id>.png` for every id given (or the icon it reuses, PIXEL_ART_REUSE). */
+/** `<PIXEL_DIR><id>.png` for every id given. */
 export function pixelIconMap(ids) {
   const out = {};
-  (ids || []).forEach((id) => { out[id] = PIXEL_DIR + fileFor(Object.prototype.hasOwnProperty.call(PIXEL_ART_REUSE, id) ? PIXEL_ART_REUSE[id] : id); });
+  (ids || []).forEach((id) => { out[id] = PIXEL_DIR + fileFor(id); });
   return out;
 }
 

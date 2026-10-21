@@ -206,13 +206,6 @@ export const ITEMS={
   practice_wand:{n:'Practice Wand',icon:'🪄',v:0,bop:true,type:'weapon',slot:'weapon',weaponType:'magic',discipline:'destruction',atkB:4,strB:4,magicAtkB:4,magicStrB:4,tier:1,rarity:'common',reqSkill:'magic',reqLv:1},
   practice_spellbook:{n:'Practice Spellbook',icon:'📕',v:0,bop:true,type:'offhand',slot:'shield',offhand:'spellbook',discipline:'destruction',magicAtkB:1,magicStrB:2,defB:1,tier:1,rarity:'common',reqSkill:'magic',reqLv:1},
   practice_staff:{n:'Practice Staff',icon:'🔮',v:0,bop:true,type:'weapon',slot:'weapon',weaponType:'magic',discipline:'restoration',twoHanded:true,atkB:3,strB:5,magicAtkB:3,magicStrB:5,tier:1,rarity:'common',reqSkill:'magic',reqLv:1},
-  /* THE PRACTICE ARMOUR (designer 2026-10-21 addendum: a starter-weapon Melee died to the solo Sewer in 2.4 min).
-     Worn at creation (start-kit.js START_EQUIPMENT), one set for every weapon. Medium (leather) weight adds neither
-     HP nor mana, and defB only, no attack, crit or magic modifier, so no role is favoured. Kit-only, bound, worth 0. */
-  practice_cap:{n:'Practice Cap',icon:'🎽',v:0,bop:true,type:'armor',slot:'helmet',defB:2,armourClass:'leather',tier:1,rarity:'common',reqSkill:'defense',reqLv:1},
-  practice_jerkin:{n:'Practice Jerkin',icon:'🎽',v:0,bop:true,type:'armor',slot:'body',defB:3,armourClass:'leather',tier:1,rarity:'common',reqSkill:'defense',reqLv:1},
-  practice_leggings:{n:'Practice Leggings',icon:'🎽',v:0,bop:true,type:'armor',slot:'pants',defB:2,armourClass:'leather',tier:1,rarity:'common',reqSkill:'defense',reqLv:1},
-  practice_boots:{n:'Practice Boots',icon:'🥾',v:0,bop:true,type:'armor',slot:'boots',defB:2,armourClass:'leather',tier:1,rarity:'common',reqSkill:'defense',reqLv:1},
   iron_sword:{n:'Iron Sword',icon:'⚔️',v:200,type:'weapon',slot:'weapon',weaponType:'sword',atkB:7,strB:6},
   steel_sword:{n:'Steel Sword',icon:'⚔️',v:800,type:'weapon',slot:'weapon',weaponType:'sword',atkB:12,strB:10},
   rune_sword:{n:'Rune Sword',icon:'⚔️',v:5000,type:'weapon',slot:'weapon',weaponType:'sword',atkB:25,strB:20},

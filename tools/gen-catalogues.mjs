@@ -49,10 +49,7 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
 /* THE PRACTICE KIT (lane b-hero-creation, 2026-10-20): 2026-10-27-core-catalogue.generated.sql is APPLIED
    history; the nine practice_* items and the start kit that grants them (every starter weapon set) land in
    this forward file, the same full delete+insert replace. */
-/* THE PRACTICE ARMOUR (lane c-starter-armour, 2026-10-21): 2026-11-02-hero-kit-catalogue.generated.sql is
-   APPLIED history; the four bound practice_cap/jerkin/leggings/boots and the start kit that wears them land in
-   this forward file, the same full delete+insert replace. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2026-11-03-hero-kit-catalogue.generated.sql');
+const OUT = join(ROOT, 'supabase', 'migrations', '2026-11-02-hero-kit-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already
@@ -698,13 +695,6 @@ begin
       or not exists (select 1 from public.hr_item_slots p
                       where p.item_id = e.item_id and p.equip_slot = e.equip_slot);
   if v_bad > 0 then raise exception '% starting equipment rows name an illegal item/slot pair', v_bad; end if;
-  -- The worn kit landed whole, and every worn piece is the bound, worthless practice kit (a new hero mints no gold).
-  if (select count(*) from public.hr_start_equipment) <> ${startEquipment.length} then
-    raise exception 'hr_start_equipment has % rows, generator emitted ${startEquipment.length}', (select count(*) from public.hr_start_equipment);
-  end if;
-  select count(*) into v_bad from public.hr_start_equipment e join public.hr_items i on i.item_id = e.item_id
-   where i.tradeable or i.value <> 0;
-  if v_bad > 0 then raise exception '% worn start-kit pieces are tradeable or carry a value', v_bad; end if;
 
   select count(*) into v_bad from public.hr_start_skill_xp s
    where not exists (select 1 from public.hr_skills k where k.skill_id = s.skill_id);

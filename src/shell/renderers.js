@@ -14,7 +14,6 @@ import { renderPartyPanel } from './widgets/party-panel.js?v=0.2.22';
 import { renderAnalyzer } from './widgets/analyzer.js?v=0.2.22';
 import { renderActionBar } from './widgets/action-bar.js?v=0.2.22';
 import { renderConfigureAction } from './windows/configure-action.js?v=0.2.22';
-import { renderHuntSettings } from './windows/hunt-settings.js?v=0.2.22';
 import { renderChat } from './windows/chat.js?v=0.2.22';
 import { renderFriends } from './windows/friends.js?v=0.2.22';
 import { renderInspect } from './windows/inspect.js?v=0.2.22';
@@ -46,7 +45,6 @@ export const WINDOW_RENDERERS = Object.freeze({
   characters: renderCharacters,
   'hunt-summary': renderHuntSummary,
   hud: renderHudSettings,
-  'hunt-settings': renderHuntSettings,
   'configure-action': renderConfigureAction,
   chat: renderChat,
   friends: renderFriends,

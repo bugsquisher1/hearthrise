@@ -93,6 +93,7 @@
     "drink_pct": 30,
     "supply_source": "mine",
     "on_empty": "switch",
+    "gold_floor": 300,
     "slots": [
       {
         "action": {

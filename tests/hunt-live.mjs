@@ -39,6 +39,10 @@
 //   LV-W  A RESTARTED INSTANCE (no world, swing counter kept) predicts from its first swing and
 //         its first commit matches (v0.2.20: the browser asked for seed 0 of a list from 40 and
 //         never started).
+//   LV-S  A SETUP CHANGED MID-HUNT, BROWSER CLOSED (r10, Andy): with nobody watching, settings
+//         changed while the hunt runs reach the server's next commit (the hero unit carries them);
+//         every start point keeps one setup until it changes (live-engine.js sameSetup: no restart
+//         per commit) and names the new one after (the viewed half: tests/hunt-scene-live.mjs LV-14).
 //   LV-R  RECONCILE: a prediction forced off the server's world is judged
 //         `diverged` at the next commit, and the reseed eases every unit onto its true
 //         tile with no frame moving a unit more than one tile.
@@ -342,6 +346,35 @@ function rules(M) {
     ok('LV-W', E.running() && ran >= 8 && v === 'match', `a restarted instance's prediction ran ${ran} swing(s) (running ${E.running()}) and its commit read ${v}, want 8+ and match`);
   }
 
+  { // LV-S: a setup changed mid-hunt with the browser closed (server commits only).
+    const NEW = { stance: 'offensive', distance: 3, chase: false, target_mode: 'weakest' };
+    const mis = [memberOf(M, 'a', 0, 'tank', 6), memberOf(M, 'b', 1, 'melee_dps', 6)];
+    const srv = server(M, mis);
+    const E = M.LE.createLiveEngine({ items: M.ITEMS, monsters: M.MONSTERS });
+    for (let t = T0 + 16000; t <= T0 + 48000; t += 16000) srv.commit(t);
+    E.seed(srv.live('a'));
+    const unitOf = (key) => {
+      const w = srv.inst.world ? M.WS.decode(JSON.parse(srv.inst.world)) : null;
+      const m = mis.find((x) => x.key === key);
+      return w && m ? w.units.find((u) => u.id === m.unitId) : null;
+    };
+    srv.commit(T0 + 64000);
+    const kept = E.sameSetup(srv.live('a'));
+    /* the viewer's own hero (a) and a peer's (b, frozen in a's start point) change their settings */
+    mis[0].hero = M.SPAWN.heroSetup({ weaponType: 'sword', options: NEW, bar: [], partyRoles: ['tank', 'melee_dps'] });
+    const ownNew = !E.sameSetup(srv.live('a'));
+    E.seed(srv.live('a'));
+    mis[1].hero = M.SPAWN.heroSetup({ weaponType: 'hammer', options: { stance: 'defensive' }, bar: [], partyRoles: ['tank', 'melee_dps'] });
+    const peerNew = !E.sameSetup(srv.live('a'));
+    srv.commit(T0 + 80000);
+    const u = unitOf('a:0'), p = unitOf('b:0');
+    ok('LV-S', kept, 'a start point with no setup change reads as a new setup (the browser would restart every commit)');
+    ok('LV-S', ownNew && peerNew, `a start point after a setup change reads as the same setup (own ${!ownNew}, peer ${!peerNew})`);
+    ok('LV-S', !!u && u.stance === NEW.stance && u.dist === NEW.distance && u.chase === NEW.chase && u.tmode === NEW.target_mode,
+      `with the browser closed the next commit left the hero unit at ${JSON.stringify(u && { stance: u.stance, dist: u.dist, chase: u.chase, tmode: u.tmode })}`);
+    ok('LV-S', !!p && p.stance === 'defensive', `the peer's unit after its change stands ${p && p.stance}`);
+  }
+
   { // LV-R
     const mis = [memberOf(M, 'a', 0, 'tank', 6)];
     const tl = M.TL.createTimeline({ delayMs: 100, maxSteps: 256 });
@@ -403,6 +436,8 @@ const MUTANTS = [
   ['a second tank holds where it stands (LV-T)', 'src/core/hunt/roles.js', "  if (!mons.some((m) => m.target === h.id)) { closeIn(inst, h, unitById(inst, h.target) || nearestTo(mons, h)); return; }\n", '', /^LV-T/],
   ['a fresh world counts from 0, not the instance swing (LV-W)', 'src/hunt-view/live-engine.js', '      worldSwing: s.worldSwing },', '      worldSwing: 0 },', /^LV-W/],
   ['members run in another order than the server (LV-D)', 'src/hunt-view/live-engine.js', '.slice().sort((a, b) => (a.key < b.key ? -1 : 1))', '.slice().reverse()', /^LV-D/],
+  ['a setup change is not written onto a standing hero (LV-S)', 'src/core/combat-sim.js', 'if (s.stance !== undefined) u.stance = s.stance;', 'void 0;', /^LV-S/],
+  ['every start point reads as the setup already run (LV-S)', 'src/hunt-view/live-engine.js', 'setupOf(live) === st.setup,', 'true,', /^LV-S/],
   ['the browser drops the leader flag of a peer (LV-K)', 'src/core/member.js', '    hero: f.hero || {},', '    hero: Object.assign({}, f.hero, { lead: false }),', /^LV-K/],
 ];
 

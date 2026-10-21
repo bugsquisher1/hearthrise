@@ -27,7 +27,7 @@ import { bagOf } from '../../session/item-sections.js?v=0.2.22';
 import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.22';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.22';
 import { actionIconHtml } from '../widgets/bits.js?v=0.2.22';
-import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, storeOf } from '../bar-draft.js?v=0.2.22';
+import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, storeOf, supplyDefault } from '../bar-draft.js?v=0.2.22';
 import { TABS, tabOf, choicesFor, actionName, factsOf, carried, supplyLines, setupWords } from '../action-facts.js?v=0.2.22';
 
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
@@ -179,7 +179,11 @@ renderConfigureAction.act = function actConfigureAction(ctx, body, action, ev, t
   if (action === 'cfg' && ev.type === 'click') {
     const x = t.getAttribute('data-x');
     if (x === 'tab') VIEW.set(cs, t.getAttribute('data-tab'));
-    else if (x === 'pick') d.action = { type: t.getAttribute('data-type'), id: t.getAttribute('data-id') };
+    else if (x === 'pick') {
+      d.action = { type: t.getAttribute('data-type'), id: t.getAttribute('data-id') };
+      /* A food or drink slot with no condition yet starts at HP below 50% / mana below 30%. */
+      if (!d.conditions.length) d.conditions = supplyDefault(d.action);
+    }
     else if (x === 'add' && d.conditions.length < MAX_CONDITIONS) d.conditions.push(blankCondition());
     else if (x === 'drop' && c) d.conditions.splice(Number(t.getAttribute('data-i')), 1);
     else if ((x === 'inc' || x === 'dec') && c) nudge(c, x === 'inc' ? 1 : -1);

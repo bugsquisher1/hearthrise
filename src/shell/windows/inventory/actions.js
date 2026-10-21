@@ -82,9 +82,16 @@ function send(st, repaint, fn, busy, done) {
 
 function goldNow(cs) { const s = cs.read('state'); return s && Number.isSafeInteger(s.gold) ? s.gold : null; }
 
-/** Wear `id` in `slot`, or take the slot's piece off (`id` null): ONE `equip` intent. */
+/** Wear `id` in `slot`, or take the slot's piece off (`id` null): ONE `equip` intent. From the press until the
+    server's envelope lands, the slot and the stack moving carry the pending mark (`sc.wearing`, display only:
+    the doll, the stats and the bag change only from that envelope). */
 function wear(st, repaint, slot, id) {
-  return send(st, repaint, () => st.cs.edgeIntent('equip', { equip: equipOps(slot, id, st.eq) }), id ? 'Equipping…' : 'Taking it off…');
+  const sc = st.sc;
+  if (sc.pending) return Promise.resolve({ ok: false, error: 'busy' });
+  sc.wearing = { slot, item: id || null };
+  return send(st, repaint, async () => {
+    try { return await st.cs.edgeIntent('equip', { equip: equipOps(slot, id, st.eq) }); } finally { sc.wearing = null; }
+  }, id ? 'Equipping…' : 'Taking it off…');
 }
 
 function doPrimary(st, id, repaint) {

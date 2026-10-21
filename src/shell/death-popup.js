@@ -85,7 +85,9 @@ export function deathWords(cs, d) {
     what: story && story.deaths.length ? story.deaths[0] : '',
     /* xp null: the server has not priced it (an older row); say nothing rather than guess. */
     lost: Object.keys(row.xpLost).length ? 'Dying cost ' + xpWords(row.xpLost) + '.' : row.xp === null ? '' : 'Dying cost no XP.',
-    saved: row.saved === null ? 'No Blessing was active. A Blessing (Services) lowers what dying costs.'
+    /* undefined: the server did not say whether a Blessing was used, so nothing is said about one. */
+    saved: row.saved === undefined ? ''
+      : row.saved === null ? 'No Blessing was active. A Blessing (Services) lowers what dying costs.'
       : Object.keys(row.saved).length ? 'Your Blessing kept ' + xpWords(row.saved) + ', and is now used up.' : 'Your Blessing is now used up.',
     town: who + ' is back in town with full health and mana.',
   };

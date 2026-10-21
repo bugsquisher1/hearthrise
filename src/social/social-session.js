@@ -10,7 +10,9 @@
 //   friends     FriendStore (src/social/friends.js)
 //   blocks      BlockStore (src/social/blocks.js)
 //   start()     the first reads, then hr_social_state every CHAT_LIMITS.friendsPollMs
-//               (the friends' online state, and this account's presence stamp)
+//               (the friends' online state, and this account's presence stamp),
+//               each followed by the players-online count
+//   online      PlayersOnline (src/social/players-online.js): the server's count
 //   inspect(t)  hr_inspect for a target; the answer is `inspected` until the next
 //   menuProviders()  this system's right-click entries (src/data/social-menu.js
 //               rows), for the shell's one context menu
@@ -22,6 +24,7 @@ import { WhisperStore } from './whispers.js?v=0.2.24';
 import { FriendStore } from './friends.js?v=0.2.24';
 import { BlockStore } from './blocks.js?v=0.2.24';
 import { inspectOf } from './inspect.js?v=0.2.24';
+import { PlayersOnline } from './players-online.js?v=0.2.24';
 
 export class SocialSession {
   /**
@@ -44,6 +47,8 @@ export class SocialSession {
     this.blocks = new BlockStore({ account: o.account, reread,
       onBlocked: (id) => { this.chat.hideFrom(id); this.whispers.hideFrom(id); } });
     this._offs = [this.chat.subscribe(() => this._changed()), this.whispers.subscribe(() => this._changed())];
+    /* The server's count of players online, asked right after each presence stamp (players-online.js). */
+    this.online = new PlayersOnline({ server: o.account.server, changed: () => this._changed() });
   }
 
   subscribe(fn) { this._listeners.add(fn); return () => this._listeners.delete(fn); }
@@ -56,10 +61,16 @@ export class SocialSession {
   start() {
     if (this._poll !== null) return;
     const set = this._timers.setTimer || ((fn, ms) => setInterval(fn, ms));
-    this._poll = set(() => { this.reread(); }, CHAT_LIMITS.friendsPollMs);
+    this._poll = set(() => { this._presence(); }, CHAT_LIMITS.friendsPollMs);
     this.chat.start();
     this.whispers.load();
-    this.reread();
+    this._presence();
+  }
+
+  /* One social poll: the friends read (it stamps this account present), then the online count. */
+  async _presence() {
+    try { await this.reread(); } catch (e) { /* the count is still asked; the next poll re-reads */ }
+    return this.online.ask();
   }
 
   /** hr_social_state: friends, requests and blocks, replaced whole. */
@@ -118,6 +129,7 @@ export class SocialSession {
     if (this._poll !== null) clear(this._poll);
     this._poll = null;
     for (const off of this._offs) off();
+    this.online.destroy();
     this.chat.destroy();
     this.whispers.destroy();
     this._listeners.clear();

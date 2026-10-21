@@ -32,6 +32,7 @@ import { renderAlerts } from './widgets/alerts.js?v=0.2.24';
 import { renderHuntSummary } from './windows/hunt-summary.js?v=0.2.24';
 import { renderReport } from './windows/report.js?v=0.2.24';
 import { renderDeath } from './windows/death.js?v=0.2.24';
+import { renderOnline } from './widgets/online.js?v=0.2.24';
 
 /* A renderer with `.patch` is a component: built once, then patched in place (src/shell/shell.js). */
 export const WINDOW_RENDERERS = Object.freeze({
@@ -63,4 +64,5 @@ export const WIDGET_RENDERERS = Object.freeze({
   party: renderPartyPanel,
   analyzer: renderAnalyzer,
   'action-bar': renderActionBar,
+  online: renderOnline,
 });

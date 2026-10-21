@@ -325,13 +325,16 @@ export class CharacterSession {
   /**
    * An item intent through the engine. The body carries names and counts only
    * (EDGE_INTENTS); the price, the stock and the result are the server's, and
-   * the screen changes only from the re-read envelope.
+   * the screen changes only from the server's envelope. The engine answers every
+   * intent with the whole envelope (hr_state_of, read after its own commit), so
+   * that answer is applied as it stands: ONE round trip (tracker r16, "equipping
+   * answers at once"). An answer without one, or older than the record, re-reads.
    */
   async edgeIntent(verb, fields) {
     if (this._closed) return { ok: false, error: 'closed' };
     const body = edgeBody(this.slot, verb, fields, newIdem());
     if (!body) return { ok: false, error: 'bad_intent' };
-    return this._ask(verb, () => this._server.accrue(body));
+    return this._ask(verb, () => this._server.accrue(body), true);
   }
 
   /** Lock (or unlock) an item so no bulk sale can take it; the server keeps the lock. */
@@ -466,14 +469,16 @@ export class CharacterSession {
 
   /* ONE ASK, tracked (intent-ledger.js) from the send until the re-read envelope is applied: the
      pressed control shows it in flight (src/shell/press-ack.js) and clears on the server's word. */
-  _ask(verb, send) { return this.intents.track(verb, async () => this._settled(await send())); }
+  _ask(verb, send, carries) { return this.intents.track(verb, async () => this._settled(await send(), carries === true)); }
 
-  /* An intent's answer: on ok the whole character is re-read, so the screen shows the server's result. */
-  async _settled(ans) {
+  /* An intent's answer: on ok the screen shows the server's result. `carries`: the answer is the engine's,
+     whose body IS the whole envelope; it is applied as it stands (envelope.js refuses a malformed or stale
+     one), and only then, or for any other answer, the whole character is re-read. */
+  async _settled(ans, carries) {
     if (this._closed) return { ok: false, error: 'closed' };
     /* below_range: the server admitted a hunt under its level floor (the floor is a warning, Tyler 10-18). */
     if (ans.ok && ans.body && ans.body.ok === true && ans.body.below_range === true) { await this.load(); return { ok: true, belowRange: true }; }
-    if (ans.ok && ans.body && ans.body.ok === true) { await this.load(); return { ok: true }; }
+    if (ans.ok && ans.body && ans.body.ok === true) { if (!(carries && this._take(ans.body, 'load'))) await this.load(); return { ok: true }; }
     const b = ans.body && typeof ans.body === 'object' ? ans.body : {};
     /* The server's validation detail (which slot, which condition, which field) goes back to the editor as sent. */
     return { ok: false, error: (typeof b.error === 'string' && b.error) || ans.error || 'refused',

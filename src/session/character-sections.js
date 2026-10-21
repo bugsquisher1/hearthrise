@@ -102,7 +102,8 @@ const xpMap = (o) => {
 };
 
 /** `death_log`: [{ id, atMs, hunt, session, monster, xp, xpLost, saved }] newest first, or null.
- *  saved: the XP a Blessing kept ({} = it kept nothing), null when no Blessing was used. All the server's. */
+ *  saved: the XP a Blessing kept ({} = it kept nothing), null when no Blessing was used, undefined when the
+ *  server did not say (a row from before 2026-11-07-death-popup-blessing.sql). All the server's. */
 export function deathLogOf(cs) {
   const d = read(cs, 'death_log');
   if (!Array.isArray(d)) return null;
@@ -112,7 +113,8 @@ export function deathLogOf(cs) {
     const at = typeof r.at === 'string' ? Date.parse(r.at) : NaN;
     if (!Number.isFinite(at)) continue;
     out.push({ id: r.id, atMs: at, hunt: id(r.hunt), session: typeof r.session === 'string' && SESSION.test(r.session) ? r.session : null,
-      monster: id(r.monster), xp: nat(r.xp), xpLost: xpMap(r.xp_lost), saved: isObj(r.saved) ? xpMap(r.saved) : null });
+      monster: id(r.monster), xp: nat(r.xp), xpLost: xpMap(r.xp_lost),
+      saved: !('saved' in r) ? undefined : isObj(r.saved) ? xpMap(r.saved) : null });
   }
   return out;
 }

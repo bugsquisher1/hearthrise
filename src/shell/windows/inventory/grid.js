@@ -78,6 +78,7 @@ function patchPocket(li, r, st) {
   cls(li, 'is-new', fresh);
   cls(li, 'is-locked', locked);
   cls(li, 'is-cur', st.sc.cursor === r.id);
+  cls(li, 'is-wearing', !!st.sc.wearing && st.sc.wearing.item === r.id);   // being put on (actions.js wear)
   attr(li, 'aria-selected', String(st.sc.sel.has(r.id)));
   text(li.querySelector('.hw-barkey'), bi >= 0 ? barKeyLabel(bi) : '');
   attr(li, 'aria-label', itemName(r.id) + (r.qty > 1 ? ', ' + whole(r.qty) : '') + (locked ? ', locked' : '') + (fresh ? ', new' : ''));

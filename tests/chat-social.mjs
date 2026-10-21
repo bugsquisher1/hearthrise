@@ -68,10 +68,10 @@ const row = (o) => Object.assign({ id: '00000000-0000-4000-8000-' + String(++seq
 
 async function load(base) {
   const u = (p) => pathToFileURL(join(base, p)).href;
-  const [lines, store, wh, menu, prov, friends, fwin, rt, chans] = await Promise.all(['src/social/chat-lines.js', 'src/social/social-session.js',
+  const [lines, store, wh, menu, prov, friends, fwin, rt, chans, online] = await Promise.all(['src/social/chat-lines.js', 'src/social/social-session.js',
     'src/social/whispers.js', 'src/shell/context-menu.js', 'src/shell/menu-providers.js', 'src/social/friends.js', 'src/shell/windows/friends.js',
-    'src/social/realtime.js', 'src/data/chat-channels.js'].map((p) => import(u(p))));
-  return { lines, store, wh, menu, prov, friends, fwin, rt, chans };
+    'src/social/realtime.js', 'src/data/chat-channels.js', 'src/social/players-online.js'].map((p) => import(u(p))));
+  return { lines, store, wh, menu, prov, friends, fwin, rt, chans, online };
 }
 
 /* ── PURE ── */
@@ -226,6 +226,31 @@ async function pureRules(M) {
     const away = list.find((x) => x.name === 'Away');
     if (!away || M.fwin.doingWords(away) !== 'Offline · In town') fail('FR-1 an offline friend reads ' + JSON.stringify(away && M.fwin.doingWords(away)));
     if (list.length !== 2 || !/^Online · Hunting in /.test(words) || f.incoming().length !== 1) fail('FR-1 friends read ' + JSON.stringify(list) + ' "' + words + '"');
+  }
+  // ON-1 (tracker r16): the online count is the server's answer, asked right after the presence stamp on every
+  // social poll, REPLACED by each answer; a failed or malformed answer shows a dash, never the last number.
+  {
+    let answer = { ok: true, online: 3 };
+    const { acct, calls } = fakeAccount({ hr_players_online: () => answer });
+    let poll = null;
+    const soc = new M.store.SocialSession({ account: acct, realtime: fakeRealtime(), timers: { setTimer: (fn) => { poll = fn; return 1; }, clearTimer: () => {} } });
+    soc.start();
+    for (let i = 0; i < 5; i++) await tick();
+    const order = calls.map((c) => c.name).filter((n) => n === 'hr_social_state' || n === 'hr_players_online');
+    if (order.join(',') !== 'hr_social_state,hr_players_online') fail('ON-1 the first poll asked ' + order.join(',') + ' (the count must follow the presence stamp)');
+    if (soc.online.count !== 3 || M.online.onlineWords(soc.online.count) !== '3 online') fail('ON-1 the server said 3, the counter reads ' + M.online.onlineWords(soc.online.count));
+    if (calls.find((c) => c.name === 'hr_players_online' && Object.keys(c.args || {}).length)) fail('ON-1 the count ask carries arguments (a count needs none)');
+    answer = { ok: false, error: 'rate_limited' };
+    poll(); for (let i = 0; i < 5; i++) await tick();
+    if (soc.online.count !== null || M.online.onlineWords(null) !== '— online') fail('ON-1 a refused ask kept the old count ' + soc.online.count);
+    answer = { ok: true, online: 'many' };
+    poll(); for (let i = 0; i < 5; i++) await tick();
+    if (soc.online.count !== null) fail('ON-1 a malformed count was shown: ' + soc.online.count);
+    answer = { ok: true, online: 1204 };
+    poll(); for (let i = 0; i < 5; i++) await tick();
+    if (M.online.onlineWords(soc.online.count) !== '1,204 online') fail('ON-1 the next answer did not replace the dash: ' + M.online.onlineWords(soc.online.count));
+    soc.destroy();
+    if (soc.online.count !== null) fail('ON-1 a destroyed session still shows a count');
   }
   return fails;
 }

@@ -43,8 +43,8 @@ begin
     raise exception 'PIN: hr_death_log_view(uuid, int) is missing'; end if;
   if to_regclass('public.player_ledger_session') is null then
     raise exception 'PIN: player_ledger_session (session_id, id) is missing: the Blessing read would scan the ledger'; end if;
-  if strpos((select prosrc from pg_proc where oid = 'public.hr_blessing_take(uuid,integer,uuid,jsonb,timestamp with time zone)'::regprocedure),
-            '''blessing_used'', jsonb_build_object(''reason'', ''blessing_used'', ''tiers'', to_jsonb(v_tiers), ''permille'', v_pm, ''saved'', v_saved), p_session') = 0 then
+  select prosrc into v_src from pg_proc where oid = 'public.hr_blessing_take(uuid,integer,uuid,jsonb,timestamp with time zone)'::regprocedure;
+  if strpos(v_src, 'values (p_user, p_slot, ''hunt'', ''blessing_used'',') = 0 or strpos(v_src, '''saved'', v_saved), p_session);') = 0 then
     raise exception 'PIN: hr_blessing_take no longer journals {saved} under intent blessing_used with the session: re-derive the read'; end if;
   select prosrc into v_src from pg_proc where oid = 'public.hr_death_log_view(uuid,integer)'::regprocedure;
   v_def := md5(regexp_replace(pg_get_functiondef('public.hr_death_log_view(uuid,integer)'::regprocedure), '[[:space:]]+', ' ', 'g'));
@@ -101,11 +101,11 @@ begin
     perform set_config('request.jwt.claim.sub', v_uid::text, true);
     if coalesce(public.hr_create_character(0)->>'ok', '') <> 'true' then raise exception 'VERIFY(a): the probe character was not made'; end if;
     -- Two ended hunts, each with one death; the newer one used a Blessing.
-    insert into public.hunt_sessions (user_id, slot, hunt_id, hunt_from, settled_to, next_swing_at, ended_at, end_reason)
-      values (v_uid, 0, 'deathpopupprobe', now() - interval '2 hours', now() - interval '90 minutes', now(), now() - interval '90 minutes', 'died')
+    insert into public.hunt_sessions (user_id, slot, hunt_id, entered_at, hunt_from, settled_to, next_swing_at, ended_at, end_reason)
+      values (v_uid, 0, 'deathpopupprobe', now() - interval '2 hours', now() - interval '2 hours', now() - interval '90 minutes', now(), now() - interval '90 minutes', 'died')
       returning id into v_s1;
-    insert into public.hunt_sessions (user_id, slot, hunt_id, hunt_from, settled_to, next_swing_at, ended_at, end_reason)
-      values (v_uid, 0, 'deathpopupprobe', now() - interval '1 hour', now() - interval '5 minutes', now(), now() - interval '5 minutes', 'died')
+    insert into public.hunt_sessions (user_id, slot, hunt_id, entered_at, hunt_from, settled_to, next_swing_at, ended_at, end_reason)
+      values (v_uid, 0, 'deathpopupprobe', now() - interval '1 hour', now() - interval '1 hour', now() - interval '5 minutes', now(), now() - interval '5 minutes', 'died')
       returning id into v_s2;
     insert into public.hunt_session_events (session_id, user_id, slot, type, at, data) values
       (v_s1, v_uid, 0, 'death', now() - interval '90 minutes', '{"monster": "rat", "xp": 40, "xp_lost": {"level": 30, "melee": 10}}'),

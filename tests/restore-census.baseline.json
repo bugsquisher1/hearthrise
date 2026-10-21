@@ -1188,6 +1188,10 @@
    "replay": 409,
    "note": "Generated catalogue (2026-10-10-rally-action-times.generated.sql, tools/gen-rally-action-times.mjs --check in CI): the paced seconds one gather/artisan action is worth in rally points (b568). Server-owned reference data derived from src/data; rebuilt from repo, never restored."
   },
+  "hr_players_online_cache": {
+   "class": "operational",
+   "note": "2026-11-07-players-online.sql, one row seeded. The shared players-online count and when it was taken, recomputed by hr_players_online from social_presence at most every 15 s. A cache of a count, never player value: a rebuild's seeded row is stale by construction (taken at -infinity), so the first ask recounts."
+  },
   "hr_rate_counters": {
    "class": "operational",
    "note": "Unlogged rate-limit counters. 1,012 in production, 9 in a rebuild (the migrations' own self-checks spend budget). Losing them resets every rate window to empty — the correct failure direction, and self-healing within a minute. UNLOGGED means they do not survive a crash by design, so nothing may depend on them."

@@ -29,7 +29,7 @@ export function scratchOf(cs) {
   let s = SCRATCH.get(cs);
   if (!s) {
     s = { tab: 'bag', query: '', sel: new Set(), cursor: null, anchor: null, menu: null, confirm: null, slot: null,
-      pending: false, msg: '', shownNew: new Set(), press: null, pressed: false };
+      pending: false, wearing: null, msg: '', shownNew: new Set(), press: null, pressed: false };
     SCRATCH.set(cs, s);
   }
   return s;

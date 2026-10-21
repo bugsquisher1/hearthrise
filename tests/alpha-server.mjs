@@ -400,8 +400,11 @@ const MUTANTS = [
     find: "       and r.loot_rule in ('sell', 'ignore') and not r.locked", repl: "       and r.loot_rule in ('sell', 'ignore')" },
   { arm: 'A-NO-SUPPLY', file: '2026-11-02-shop-no-supplies.sql', why: 'the shop section lists the supplies again',
     find: "from public.hr_shop_supply_offers o where o.kind = 'tool'), '[]'::jsonb),", repl: "from public.hr_shop_supply_offers o), '[]'::jsonb)," },
-  { arm: 'A-NO-SUPPLY', file: '2026-11-02-shop-no-supplies.sql', why: 'the refill door stays open',
-    find: "drop function if exists public.hr_shop_refill(integer, bigint, uuid);", repl: "select 1;" },
+  /* The refill survives WITH its baseline row: the defect grant hygiene cannot see (a door kept but
+     unlisted is hygiene's catch — every later self-check that asserts hygiene refuses that chain). */
+  { arm: 'A-NO-SUPPLY', file: '2026-11-02-shop-no-supplies.sql', why: 'the refill door stays open (and stays on the baseline)',
+    find: "drop function if exists public.hr_shop_refill(integer, bigint, uuid);\ndrop function if exists public.hr_shop_refill_quote(uuid, integer);\ndrop function if exists public.hr_restock_set(integer, jsonb, uuid);\ndelete from public.hr_client_rpc_baseline where proname in ('hr_shop_refill', 'hr_restock_set');",
+    repl: "drop function if exists public.hr_shop_refill_quote(uuid, integer);\ndrop function if exists public.hr_restock_set(integer, jsonb, uuid);\ndelete from public.hr_client_rpc_baseline where proname in ('hr_restock_set');" },
   /* Planted in the LAST alpha catalogue (the 11-03 forward file rewrites every offer row the 10-25 file wrote). */
   { arm: 'A-DATA', file: '2026-11-03-alpha-catalogue.generated.sql', why: 'the SQL catalogue drifts from the edge price',
     find: "  ('supply.cooked_shrimp', 'cooked_shrimp', 'food', 19),", repl: "  ('supply.cooked_shrimp', 'cooked_shrimp', 'food', 18)," },

@@ -48,6 +48,13 @@ function unitsOf(pose) {
   return out;
 }
 
+/** The pending leave's server instant (ms) of a raw `hunt` section, or null (none asked, or the hunt is over). */
+export function leaveAtOf(h) {
+  if (!isObj(h) || bool(h.ended) || !isObj(h.session) || !str(h.session.leave_at)) return null;
+  const ms = Date.parse(h.session.leave_at);
+  return Number.isFinite(ms) ? ms : null;
+}
+
 /** `hunt`: the session (and why it ended), the viewed hero's vitals and the instance's units (who is who). */
 export function huntOf(cs) {
   const h = section(cs, 'hunt');

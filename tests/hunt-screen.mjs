@@ -480,6 +480,24 @@ async function checks(overrides, shots) {
         await pushEnvelope(page, s);
         const live = await page.evaluate(() => { const n = document.querySelector('.ht-bar [data-hs-act="leave"]'); return !!n && n.getClientRects().length > 0; });
         if (!live) fails.push('HS-10 a running hunt shows no Leave hunt');
+        /* HS-10b (visual gate v0.2.23 P1): the tutorial card of a hunting hero hangs UNDER the top bar and never
+           covers it (Leave hunt is what the Cash in card points at); with a window open there is no card at all. */
+        s.env.state = Object.assign({}, s.env.state, { level_xp: 0 });
+        await pushEnvelope(page, s);
+        const withWin = await page.evaluate(() => document.querySelectorAll('.hs-pointer').length);
+        if (withWin) fails.push('HS-10b the tutorial card is drawn over an open window (' + withWin + ')');
+        for (let i = 0; i < 4 && await page.$('[data-hs-win] [data-hs-close]'); i++) { await page.click('[data-hs-win] [data-hs-close]'); await page.waitForTimeout(300); }
+        await page.waitForTimeout(500);
+        await pushEnvelope(page, s);
+        const geo = await page.evaluate(() => {
+          const ps = Array.from(document.querySelectorAll('.hs-pointer'));
+          const b = document.querySelector('.ht-bar');
+          if (!b) return { err: 'no bar' };
+          const r = b.getBoundingClientRect();
+          const hit = ps.filter((p) => { const q = p.getBoundingClientRect(); return q.left < r.right && q.right > r.left && q.top < r.bottom && q.bottom > r.top; });
+          return { n: ps.length, hit: hit.length, inBar: ps.filter((p) => p.closest('.hs-launchers')).length, wins: Array.from(document.querySelectorAll('[data-hs-win]')).map((w) => w.getAttribute('data-hs-win')) };
+        });
+        if (geo.err || geo.n !== 1 || geo.hit || geo.inBar) fails.push('HS-10b the tutorial card must be one box under the hunt bar, clear of it: ' + JSON.stringify(geo));
       } else fails.push('HS-9 the screen did not mount');
       await ctx.close();
     }
@@ -1035,7 +1053,9 @@ const MUTANTS = [
   ['the analyzer ignores the premium gate', 'src/shell/widgets/analyzer.js', 'const premium = isPremium(ctx.character);', 'const premium = true;'],
   ['the Hunts window keeps saying "On the way" while hunting', 'src/shell/windows/hunts.js', "  if (sc.msg && sc.msg === sc.enterMsg && (now || (h && h.ended))) { sc.msg = ''; sc.enterMsg = null; }\n", ''],
   ['an edge panel never steps out of the hunt bar’s way', 'src/shell/shell.js', "        for (const p of at.push) edgeEls[p.i].style.top = p.top + 'px';\n", ''],
-  ['an ended hunt still offers Leave hunt', 'src/shell/widgets/hunt-topbar.js', "  prop(leave, 'hidden', over && !leave.hasAttribute('data-pending'));\n", ''],
+  ['the hunt bar draws no tutorial card under itself', 'src/shell/widgets/hunt-topbar.js', 'const html = pointerFor(ctx);', "const html = '';"],
+  ['the tutorial card hangs over the hunt bar', 'src/styles/shell.css', '.hs-widget > .hs-pointer { left: 0; width: min(260px, 100%); }', '.hs-widget > .hs-pointer { left: 0; top: 0; width: min(260px, 100%); }'],
+  ['an ended hunt still offers Leave hunt','src/shell/widgets/hunt-topbar.js', "  prop(leave, 'hidden', over && !leave.hasAttribute('data-pending'));\n", ''],
   ['Leave hunt forgets a pending leave', 'src/shell/widgets/hunt-topbar.js', "  const cd = over ? null : ctx.character.leaveCountdown();", "  const cd = null;"],
   ['the leave countdown reads the device clock', 'src/session/character-session.js', "leaveCountdown(at, this.serverNow());", "leaveCountdown(at, Date.now());"],
   ['the countdown waits for the settle after the press', 'src/session/character-session.js', "      this._leaveAsk = leaveAskOf(ans.body.session);\n", ""],

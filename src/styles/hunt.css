@@ -74,10 +74,10 @@
 .hh-gauge-text { position: relative; display: block; padding: 0 6px; font-style: normal; font-size: var(--t-micro); line-height: 18px; font-weight: 700; color: var(--ink); paint-order: stroke fill; -webkit-text-stroke: 3px var(--bg-0); font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
 
 /* ── Top bar ── */
-.ht-bar { display: flex; align-items: center; gap: 8px; padding: 4px 6px 4px 10px; background: var(--world-hud-bg); border: 4px solid transparent; border-image: url('../../assets/ui/frame-iron-thin.png') 2 / 4px stretch; image-rendering: pixelated; }
+.ht-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 4px 6px 4px 10px; background: var(--world-hud-bg); border: 4px solid transparent; border-image: url('../../assets/ui/frame-iron-thin.png') 2 / 4px stretch; image-rendering: pixelated; }
 .ht-ground { font-family: var(--f-label); font-weight: 700; font-size: var(--t-small); letter-spacing: .04em; color: var(--gold-2); white-space: nowrap; }
 .ht-clock { font-variant-numeric: lining-nums tabular-nums; color: var(--ink-2); font-size: var(--t-micro); white-space: nowrap; padding-right: 4px; margin-right: 2px; border-right: 1px solid var(--line-soft); }
-.ht-bar .hh-intent-msg { max-width: 220px; }
+.ht-bar .hh-intent-msg { max-width: none; flex-basis: 100%; }
 /* The pending leave's countdown beside Leave hunt: gold label text (the bar's own ground-name ink), tabular seconds. */
 .ht-leaving { font-family: var(--f-label); font-weight: 700; font-size: var(--t-small); color: var(--gold-2); font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
 

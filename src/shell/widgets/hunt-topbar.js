@@ -16,6 +16,7 @@ import { clock } from '../../render/format.js?v=0.2.22';
 import { takeFresh } from '../../hunt-view/summary-recorder.js?v=0.2.22';
 import { track } from '../../net/observability.js?v=0.2.22';
 import { refusalText } from '../intent-words.js?v=0.2.22';
+import { pointerFor } from '../launcher.js?v=0.2.22';
 
 /* The pending leave's line, per CharacterSession.leaveCountdown phase (null: the press is still out). */
 const LEAVING = Object.freeze({ asked: 'Leaving…', now: 'Leaving now…', late: 'Still processing your leave…' });
@@ -62,6 +63,12 @@ renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
   prop(leave, 'hidden', over && !leave.hasAttribute('data-pending'));
   prop(el.querySelector('[data-hs-act="details"]'), 'hidden', over);
   prop(el.querySelector('.ht-clock'), 'hidden', over);
+  /* The tutorial card hangs UNDER this bar while a hunt is open (the launcher's would cover Leave hunt). */
+  const html = pointerFor(ctx);
+  const have = el.querySelector(':scope > .hs-pointer');
+  const id = (/data-tutorial="([a-z_]+)"/.exec(html) || [])[1] || null;
+  if (have && have.getAttribute('data-tutorial') !== id) have.remove();
+  if (id && !(have && have.getAttribute('data-tutorial') === id)) el.insertAdjacentHTML('beforeend', html);
 };
 
 renderHuntTopbar.act = async function actHuntTopbar(ctx, el, action, ev, btn) {

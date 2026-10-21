@@ -34,6 +34,8 @@
   background: var(--modal-bg); border-left: 2px solid var(--gold); box-shadow: 0 6px 16px color-mix(in srgb, var(--world-shadow) 50%, transparent);
   font-size: var(--t-micro); line-height: 1.35; color: var(--ink-2); pointer-events: none;
 }
+/* In a hunt the card hangs under the hunt top bar (hunt-topbar.js), inside that widget's own box. */
+.hs-widget > .hs-pointer { left: 0; width: min(260px, 100%); }
 .hs-pointer b { display: block; color: var(--gold-2); }
 .hs-pointer::before { content: ''; position: absolute; top: -6px; left: 14px; border: 6px solid transparent; border-top: 0; border-bottom-color: var(--gold); }
 .hs-launch:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -4px; }

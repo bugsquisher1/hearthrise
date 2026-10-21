@@ -365,3 +365,17 @@
   .hw-alert-list { width: 300px; }
   .hw-alert { font-size: var(--t-micro); padding: 2px 2px 2px 6px; }
 }
+
+/* ── Report a problem (src/shell/windows/report.js): one text box, the details ride along ── */
+.rp { display: flex; flex-direction: column; gap: 8px; }
+.rp-text { box-sizing: border-box; width: 100%; min-height: 128px; resize: vertical; padding: 8px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg-0); color: var(--ink); font-family: var(--f-ui); font-size: var(--t-small); line-height: 1.4; }
+.rp-text:focus { outline: 2px solid var(--gold); outline-offset: -1px; }
+.rp-text::placeholder { color: var(--ink-3); }
+.rp-shot { display: flex; align-items: center; gap: 6px; font-size: var(--t-small); color: var(--ink-2); }
+.rp-shot[hidden] { display: none; }
+.rp-shot input { accent-color: var(--gold); }
+.rp-what { margin: 0; }
+.rp-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.rp-said { flex: 1; min-width: 0; margin: 0; font-size: var(--t-small); color: var(--ink-2); }
+.rp[data-state="sent"] .rp-said { color: var(--green); }
+.rp[data-state="failed"] .rp-said { color: var(--red); }

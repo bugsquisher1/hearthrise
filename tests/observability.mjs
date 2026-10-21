@@ -5,7 +5,7 @@
 //   node tests/observability.mjs           the checks
 //   node tests/observability.mjs --mutate  every planted defect must turn a check RED
 //
-// mutant-anchors: src/net/observability.js src/net/observability-config.js src/app/boot.js src/shell/windows/chat.js src/shell/widgets/hunt-topbar.js play.html
+// mutant-anchors: src/net/observability.js src/net/diagnostics.js src/net/observability-config.js src/app/boot.js src/shell/windows/chat.js src/shell/widgets/hunt-topbar.js play.html
 //
 // play.html in a real Chromium with the REAL vendored Sentry and PostHog SDKs,
 // supabase-js and the REST paths stubbed (tests/_client-harness.mjs). The page is
@@ -30,6 +30,13 @@
 //         reported once with how long it stalled when the next start point lands,
 //         and each reseed with the reseed count; the per-load cap holds
 //   OB-8  the vendored SDKs are byte-for-byte the pinned hashes in the config
+//   OB-9  (node) the send gate: one error looped 100 times sends SEND_LIMITS.perFingerprint,
+//         100 different errors stop at SEND_LIMITS.perLoad, network weather sends
+//         nothing, the hang message passes a full gate
+//   OB-10 the hang: a main-thread stall over 3 s with the tab visible sends ONE Sentry
+//         message naming the open hunt and its live engine (node: a hidden tab and a
+//         second stall send none; browser: a real 4 s busy loop reaches Sentry), and two
+//         alternating looped console.errors reach Sentry 5 times each (the real SDK)
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { launchOptions } from './_chrome.mjs';
@@ -70,6 +77,10 @@ function posthogEvents(req) {
 }
 
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
+/* The event inside a Sentry envelope body, and its own first line (breadcrumbs carry earlier logs, so a
+   body that merely CONTAINS a string is not an event about it). */
+const sentryEvent = (b) => b.split('\n').map((l) => { try { return JSON.parse(l); } catch { return null; } }).find((j) => j && (j.exception || j.message || j.logentry)) || null;
+const sentryLine = (b) => { const e = sentryEvent(b); return e ? String(e.message || (e.logentry && e.logentry.message) || (e.exception && e.exception.values && e.exception.values[0].value) || '') : ''; };
 const until = async (fn, ms = 10000) => { const t = Date.now() + ms; while (Date.now() < t) { if (fn()) return true; await new Promise((r) => setTimeout(r, 100)); } return false; };
 
 async function page(browser, base, o) {
@@ -172,6 +183,22 @@ async function browserChecks(overrides) {
         if (!ev || !ev.user || ev.user.id !== UID || Object.keys(ev.user).some((k) => k !== 'id' && k !== 'ip_address') || b.includes('qa@example.test')) { fails.push('OB-2 a Sentry event carries more than the account id: ' + JSON.stringify(ev && ev.user)); break; }
         if (ev.release !== VERSION || ev.environment !== 'production') { fails.push('OB-2 a Sentry event release/environment: ' + JSON.stringify([ev.release, ev.environment])); break; }
       }
+      /* OB-10: a loop of two alternating errors (Sentry's own dedupe only drops a repeat of the LAST
+         event) is cut to SEND_LIMITS.perFingerprint each; a real stall sends the hang message once. */
+      await pg.evaluate(() => { for (let i = 0; i < 40; i++) console.error('obs-probe loop ' + (i % 2 ? 'A' : 'B')); });
+      await pg.waitForTimeout(1500);
+      const loops = ['A', 'B'].map((k) => seen.sentry.filter((b) => sentryLine(b) === 'obs-probe loop ' + k).length);
+      if (loops.some((n) => n !== 5)) fails.push('OB-10 a looped console.error reached Sentry ' + loops.join(' and ') + ' times, want 5 each');
+      await pg.evaluate(() => { const t = performance.now(); while (performance.now() - t < 4200) { /* the stall */ } });
+      const stalled = () => seen.sentry.filter((b) => /^The page stalled/.test(sentryLine(b))).map(sentryEvent);
+      if (!(await until(() => stalled().length > 0))) fails.push('OB-10 a 4 s main-thread stall never reached Sentry');
+      else {
+        await pg.waitForTimeout(1500);
+        const hang = stalled();
+        const hunt = hang[0].extra && Array.isArray(hang[0].extra.hunts) ? hang[0].extra.hunts[0] : null;
+        if (hang.length !== 1 || JSON.stringify(hang[0].fingerprint) !== '["main-thread-hang"]' || !hunt || hunt.hunt !== HUNT.hunt.hunt_id)
+          fails.push('OB-10 the hang message: ' + hang.length + ' sent, fingerprint ' + JSON.stringify(hang[0].fingerprint) + ', hunt ' + JSON.stringify(hunt));
+      }
       if (!(await wait(pg, () => document.querySelector('[data-hs-widget="hunt-topbar"] [data-hs-act="leave"]:not([hidden])')))) fails.push('OB-4 the hunt never showed its Leave button');
       else await pg.click('[data-hs-widget="hunt-topbar"] [data-hs-act="leave"]');
       const ev = (n) => seen.events.find((e) => e && e.event === n);
@@ -218,18 +245,23 @@ async function nodeChecks(root) {
   const OBS = await import(u('src/net/observability.js') + '&run=' + (++RUNS));
   const CS = await import(u('src/session/character-session.js'));
   const events = [];
-  let tick = null;
+  const timers = {};
   let clock = 1000;
   const sdk = { init: () => sdk, capture: (n, p) => events.push([n, p]), identify() {}, reset() {}, startSessionRecording() {}, stopSessionRecording() {} };
-  const sentry = { init() {}, setUser() {}, captureException() {}, captureConsoleIntegration: () => ({ name: 'CaptureConsole' }) };
+  const messages = [];
+  let opts = null;
+  const sentry = { init(o) { opts = o; }, setUser() {}, captureException() {}, captureMessage: (m, c) => messages.push([m, c]),
+    captureConsoleIntegration: () => ({ name: 'CaptureConsole' }) };
   const win = {
     location: { hostname: 'hearthrise.net', search: '', href: 'https://hearthrise.net/play.html' },
     performance: { now: () => clock }, addEventListener() {}, removeEventListener() {},
-    setInterval: (fn) => { tick = fn; return 1; },
-    document: { createElement: () => ({}), head: { appendChild(s) { if (/posthog/.test(s.src)) win.posthog = sdk; else win.Sentry = sentry; s.onload(); } } },
+    setInterval: (fn, ms) => { timers[ms] = fn; return 1; },
+    document: { visibilityState: 'visible', createElement: () => ({}), head: { appendChild(s) { if (/posthog/.test(s.src)) win.posthog = sdk; else win.Sentry = sentry; s.onload(); } } },
   };
   const obs = OBS.startObservability(win);
-  if (!obs.send || !tick) { fails.push('OB-7 the module did not start on hearthrise.net'); return fails; }
+  const tick = timers[1000];
+  const beat = timers[500];
+  if (!obs.send || !tick || !beat || !opts) { fails.push('OB-7 the module did not start on hearthrise.net'); return fails; }
   let body = null;
   const cs = new CS.CharacterSession({ slot: 0, uid: UID, server: { rpc: async () => ({ ok: true, body }) }, setTimer: () => 0, clearTimer() {} });
   let running = true;
@@ -248,6 +280,36 @@ async function nodeChecks(root) {
   for (let i = 0; i < 80; i++) cs._emit('reseed');
   if (events.filter(([n]) => n === 'live_view_stall').length !== 50) fails.push('OB-7 the per-load cap did not hold: ' + events.filter(([n]) => n === 'live_view_stall').length);
   if (events.filter(([n]) => n === 'hunt_started').length !== 1) fails.push('OB-7 hunt_started ' + events.filter(([n]) => n === 'hunt_started').length + ' times for one seen start');
+
+  /* OB-10 (node): a hidden tab's late timer is not a hang; the first visible stall over 3 s is, once. */
+  win.document.visibilityState = 'hidden'; clock += 6000; beat();
+  win.document.visibilityState = 'visible'; clock += 500; beat();
+  if (messages.length) fails.push('OB-10 a hidden tab\'s late timer was reported as a hang');
+  clock += 4500; beat();
+  clock += 9000; beat();
+  const hangs = messages.filter(([m]) => /stalled/.test(m));
+  if (hangs.length !== 1) fails.push('OB-10 ' + hangs.length + ' hang message(s) for two stalls, want exactly 1');
+  else {
+    const c = hangs[0][1] || {};
+    const h = c.extra && Array.isArray(c.extra.hunts) ? c.extra.hunts[0] : null;
+    if (!c.fingerprint || c.fingerprint[0] !== 'main-thread-hang' || !c.extra || c.extra.stall_ms !== 4000 || !c.extra.version)
+      fails.push('OB-10 the hang message carries ' + JSON.stringify(c).slice(0, 200));
+    if (!h || h.hunt !== HUNT.hunt.hunt_id || h.session !== HUNT.hunt.session_id || !('swing' in h) || !('running' in h) || !h.stats)
+      fails.push('OB-10 the hang message does not name the open hunt and its engine: ' + JSON.stringify(h));
+  }
+
+  /* OB-9: the send gate, through the beforeSend Sentry is given. */
+  const err = (value, fn) => ({ exception: { values: [{ type: 'Error', value, stacktrace: { frames: [{ filename: 'https://hearthrise.net/src/x.js?v=1', function: fn }] } }] } });
+  const pass = (e) => opts.beforeSend(e) !== null;
+  if (pass({ exception: { values: [{ type: 'TypeError', value: 'Failed to fetch' }] } }) || pass({ message: 'Auto refresh tick failed with error. This is likely a transient error. TypeError: Failed to fetch' }))
+    fails.push('OB-9 network weather was sent');
+  let n = 0;
+  for (let i = 0; i < 100; i++) if (pass(err('boom at swing ' + i, 'loop'))) n++;
+  if (n !== OBS.SEND_LIMITS.perFingerprint) fails.push('OB-9 one error looped 100 times sent ' + n + ', want ' + OBS.SEND_LIMITS.perFingerprint);
+  const word = (i) => String.fromCharCode(97 + (i % 26)) + String.fromCharCode(97 + Math.floor(i / 26));
+  for (let i = 0; i < 100; i++) if (pass(err('different ' + word(i), 'f' + word(i)))) n++;
+  if (n !== OBS.SEND_LIMITS.perLoad) fails.push('OB-9 100 different errors took the load to ' + n + ' sent, want the ceiling ' + OBS.SEND_LIMITS.perLoad);
+  if (!pass({ message: 'The page stalled for 4.0 s', fingerprint: ['main-thread-hang'] })) fails.push('OB-9 the hang message was held back by the full gate');
   return fails;
 }
 
@@ -288,6 +350,12 @@ const MUTANTS = [
   ['the chat is not masked', 'src/shell/windows/chat.js', 'class="hc-chat ph-mask"', 'class="hc-chat"'],
   ['the CSP drops the PostHog host', 'play.html', ' https://us.i.posthog.com ', ' '],
   ['a starved live view goes unreported', 'src/net/observability.js', 'else if (w.open && w.running && !running && w.starvedAt === null)', 'else if (false)'],
+  ['one error loops into Sentry', 'src/net/observability.js', 'if (n > limits.perFingerprint) { held++; return null; }', 'if (false) { held++; return null; }'],
+  ['no ceiling per page load', 'src/net/observability.js', 'if (!hang && sent >= limits.perLoad)', 'if (false)'],
+  ['network weather is sent', 'src/net/observability.js', 'if (WEATHER.some((r) => r.test(headline(event)))) return null;', ''],
+  ['a hang is never reported', 'src/net/diagnostics.js', 'if (late > DIAG.HANG_MS) for', 'if (false) for'],
+  ['a hidden tab counts as a hang', 'src/net/diagnostics.js', 'if (!visible() || late < DIAG.JANK_MS', 'if (late < DIAG.JANK_MS'],
+  ['every stall sends a hang', 'src/net/observability.js', 'if (st.hung) return;', ''],
   ['a vendored SDK is swapped', 'src/net/observability-config.js', "integrity: 'sha384-yR8W", "integrity: 'sha384-xR8W"],
 ];
 
@@ -295,7 +363,7 @@ async function main() {
   if (!process.argv.includes('--mutate')) {
     const fails = await checks(null);
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'observability: ' + fails.length + ' check(s) RED' : 'observability: both SDKs wired and masked on hearthrise.net; nothing loads or sends on localhost or with ?noanalytics=1; the named events and the live-view stall arrive');
+    console.log(fails.length ? 'observability: ' + fails.length + ' check(s) RED' : 'observability: both SDKs wired and masked on hearthrise.net; nothing loads or sends on localhost or with ?noanalytics=1; the named events and the live-view stall arrive; each error is sent at most 5 times and 25 in all; one hang message names the open hunt');
     process.exit(fails.length ? 1 : 0);
   }
   let bad = 0;

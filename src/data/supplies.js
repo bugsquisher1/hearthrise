@@ -173,11 +173,12 @@ export const BAG_GUIDE_BY_HUNT = Object.freeze({
      --report, 3 seeds): a full party's Ranger fires about 700 bolts and its casters about
      700 Fire Runes an hour, and a party with a Healer eats almost nothing; a solo Melee
      hero eats about 250 heals an hour. Three hours, rounded. Iron Bolts need Ranged 15;
-     below that the free Bronze Arrows stand in. */
+     below that the free Bronze Arrows stand in. No Sewer spell spends a rune since Fireball
+     went rune-free (designer 2026-10-21), so the magic bag carries the free Air Rune rung. */
   millrace_sewer: Object.freeze({ tier: 1,
     melee: melee('cooked_shrimp', 150),
     ranged: ranged('cooked_shrimp', 150, 'iron_bolts', 2100),
-    magic: magic('cooked_shrimp', 120, 'turnip_juice', 90, 'fire_rune', 1500) }),
+    magic: magic('cooked_shrimp', 120, 'turnip_juice', 90, 'air_rune', 0) }),
   /* The Meadowbrook Thicket (2026-10-18), PLAYED once on the real settle (tests/hunt-core/forest-cave.mjs
      --play): a solo melee hero at the floor ate about 1,460 g of store heals in 30 minutes, which is about
      180 shrimp over three hours at the kit's heal; the wolves' raw meat cooks back into the same bag. */

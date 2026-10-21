@@ -10,9 +10,9 @@ const WINDOW = [
   ev('dmg', 200, { u: 1, t: 8, amount: 3, ability: 'rend', element: 'physical' }),
   ev('status_tick', 300, { t: 8, status: 'bleed', amount: 2, element: 'physical' }),
   ev('dmg', 300, { u: 1, t: 8, amount: 2, ability: 'bleed', element: 'physical' }),
-  ev('dmg', 400, { u: 2, t: 9, amount: 4, ability: 'firebolt', element: 'fire' }),
+  ev('dmg', 400, { u: 2, t: 9, amount: 4, ability: 'firebolt', element: 'ember' }),
   ev('dmg', 500, { u: 8, t: 1, amount: 2 }),
-  ev('dmg', 600, { u: 9, t: 2, amount: 6, element: 'nature' }),
+  ev('dmg', 600, { u: 9, t: 2, amount: 6, element: 'poison' }),
   ev('kill', 700, { u: 1, t: 8, gold: 7, loot: { rat_tail: 1, bones: 2 } }),
   ev('xp', 700, { u: 1, amount: 10, raw: 5 }),
   ev('xp', 700, { u: 2, amount: 5 }),
@@ -40,8 +40,8 @@ const cases = {
     const a = heroes[1]; const b = heroes[2];
     const checks = [
       [a.dealt.total, 10], [a.dealt.byAbility.basic, 5], [a.dealt.byAbility.rend, 3], [a.dealt.byAbility.bleed, 2],
-      [a.dealt.byElement.physical, 10], [b.dealt.byElement.fire, 4], [a.taken.byMonster.rat, 2], [a.taken.byElement.physical, 2],
-      [b.taken.byMonster.slime, 6], [b.taken.byElement.nature, 6], [a.kills, 1], [a.gold, 7], [a.loot.bones, 2], [a.loot.rat_tail, 1],
+      [a.dealt.byElement.physical, 10], [b.dealt.byElement.ember, 4], [a.taken.byMonster.rat, 2], [a.taken.byElement.physical, 2],
+      [b.taken.byMonster.slime, 6], [b.taken.byElement.poison, 6], [a.kills, 1], [a.gold, 7], [a.loot.bones, 2], [a.loot.rat_tail, 1],
       [a.xp, 10], [a.rawXp, 5], [b.xp, 5], [b.rawXp, 5], [b.magicXp, 15], [b.healed.total, 9], [b.healed.bySource.mend, 9],
       [b.deaths, 1], [b.kills, 0],
     ];

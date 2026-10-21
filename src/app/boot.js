@@ -43,6 +43,7 @@ import { createSocialRealtime } from '../social/realtime.js?v=0.2.23';
 import { SocialSession } from '../social/social-session.js?v=0.2.23';
 import { escapeHtml as esc } from '../utils/dom.js?v=0.2.23';
 import { startObservability, track } from '../net/observability.js?v=0.2.23';
+import { startDiagnostics } from '../net/diagnostics.js?v=0.2.23';
 import { mountPressAck } from '../shell/press-ack.js?v=0.2.23';
 import { liveOverlayWanted, mountLiveOverlay } from './live-overlay.js?v=0.2.23';
 
@@ -62,7 +63,10 @@ function channelFor(client, auth) {
 }
 
 function startApp(win) {
-  /* Errors and replays (src/net/observability.js): telemetry only, nothing sent off hearthrise.net. */
+  /* What this load saw go wrong (src/net/diagnostics.js), on every host: a player's report attaches it.
+     First, so its console copy sits under Sentry's. Then errors and replays (src/net/observability.js):
+     telemetry only, nothing sent off hearthrise.net. */
+  startDiagnostics(win);
   const obs = startObservability(win);
   const doc = win.document;
   const root = doc.getElementById('app');

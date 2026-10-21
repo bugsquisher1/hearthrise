@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/hunt-view/scene.js — THE LIVE HUNT, ONE FRAME AT A TIME (parity VW-*, FX-*).
 //
-// PURE. The character's timeline (timeline.js: the server's track and events)
+// PURE (but liveSceneOf, which keeps each character's one scene: S5). The character's timeline (timeline.js: the server's track and events)
 // plus the snapshot sections (hunt, party: REPLACED by every envelope) go in;
 // out comes the state src/world/core/compose.js draws: the viewed hero, every
 // other unit, the floating numbers, the effects and the bleed badges.
@@ -19,6 +19,14 @@
 //   S3 numbers are the server's: HP and mana bars read the snapshot sections,
 //      never a tally of the events; a float is only ever the event's own number.
 //   S4 bounded: at most MAX_FX effects and MAX_FLOATS floats live at once.
+//   S5 ONE SCENE PER CHARACTER AND HUNT (liveSceneOf): the scene remembers what it
+//      has played (deaths, bleed stacks, effects), and a World pane is remounted on
+//      every switch of the viewed character, so the scene is the character's, never
+//      the pane's (Andy 10-21: "tab away to another character while monsters are
+//      dead ... they jump back").
+//   S6 A UNIT DIES ONCE: a second kill of a unit drawn dead never restarts its fall,
+//      and a corpse lies the way it fell (it never turns to face what it last swung
+//      at: Andy 10-21 "saw a corpse twitch again once dead").
 // ════════════════════════════════════════════════════════════════════════
 import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX } from '../data/hunt-vfx.js?v=0.2.23';
 import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.23';
@@ -62,14 +70,38 @@ function facingOf(dx, dy) {
 }
 
 /**
+ * YOUR OWN OTHER HEROES IN THE PARTY (seat -> sprite id): each wears what its own session holds from
+ * the server (its `outfit` section: hero-look.js heroSprite, the look its own view draws it in), not the
+ * role's default (Andy 10-21: "the other character in party/hunt shows the standard knight").
+ * @param {object} cs  the viewed CharacterSession
+ * @param {() => object[]} [peers]  the account's open CharacterSessions
+ * @param {Map} people  partyPeopleOf(cs): seat -> { id, slot }
+ */
+function ownLooks(cs, peers, people) {
+  const out = new Map();
+  if (typeof peers !== 'function' || !cs || typeof cs.uid !== 'string' || !people.size) return out;
+  const me = cs.uid.toLowerCase();
+  const open = peers() || [];
+  for (const [seat, who] of people) {
+    if (String(who.id).toLowerCase() !== me || who.slot === cs.slot) continue;
+    const peer = open.find((x) => x && x !== cs && x.slot === who.slot);
+    if (peer) out.set(seat, heroSprite(peer));
+  }
+  return out;
+}
+
+/**
  * What the scene reads from ONE character, every frame (the snapshot, never cached).
  * @param {object} cs  a CharacterSession
+ * @param {() => object[]} [peers]  the account's open CharacterSessions (own heroes' looks)
  */
-export function readHunt(cs) {
+export function readHunt(cs, peers) {
   const h = huntOf(cs);
   const p = partyOf(cs);
+  const people = partyPeopleOf(cs);
+  const looks = ownLooks(cs, peers, people);
   const heroes = new Map();
-  for (const m of p ? p.members : []) if (m.unit !== null) heroes.set(m.unit, m);
+  for (const m of p ? p.members : []) if (m.unit !== null) heroes.set(m.unit, looks.has(m.seat) ? Object.assign({}, m, { look: looks.get(m.seat) }) : m);
   /* THE LIVE VIEW knows every hero of the instance before the snapshot does (its own units): each
      is the party member of its seat, so every member is drawn as a hero from the first swing. */
   /* (a prediction out of seeds still names its heroes: heroUnits() is [] only with no prediction at all) */
@@ -77,13 +109,14 @@ export function readHunt(cs) {
   for (const x of live) {
     if (x.unit === null || heroes.has(x.unit)) continue;
     const m = p ? p.members.find((y) => y.seat === x.seat) : null;
-    heroes.set(x.unit, Object.assign({}, m || { name: 'Hero', seat: x.seat, role: x.role }, { unit: x.unit, role: (m && m.role) || x.role }));
+    heroes.set(x.unit, Object.assign({}, m || { name: 'Hero', seat: x.seat, role: x.role }, { unit: x.unit, role: (m && m.role) || x.role },
+      looks.has(x.seat) ? { look: looks.get(x.seat) } : null));
   }
   const selfLive = live.find((x) => x.self);
   return {
     units: h ? h.units : new Map(),
     heroes,
-    people: partyPeopleOf(cs),
+    people,
     viewed: h && h.hero.unit !== null ? h.hero.unit : selfLive && selfLive.unit !== null ? selfLive.unit : p ? p.self : null,
     viewedShield: h ? h.hero.shield : null,
     entrance: h ? entranceOf(h.huntId) : null,
@@ -109,6 +142,7 @@ export function createHuntScene(o) {
   const keys = new Set();
   let fx = [], floats = [];
   const flash = new Map(), dead = new Map(), swing = new Map(), bleed = new Map(), cycle = new Map(), target = new Map(), risen = new Map();
+  const lie = new Map();   // S6: unit -> { dir, diag }, the facing a unit fell with
   const fresh = () => o.read();
   let read = fresh();
 
@@ -119,7 +153,7 @@ export function createHuntScene(o) {
      snapshot dropped it). Unknown is null and the unit is not drawn (never a stub box). */
   const spriteOf = (u) => {
     if (u === read.viewed && read.look) return read.look;
-    if (isHero(u)) { const m = read.heroes.get(u); return outfitSprite(m && m.outfit, m && m.role); }
+    if (isHero(u)) { const m = read.heroes.get(u); return (m && m.look) || outfitSprite(m && m.outfit, m && m.role); }
     return (read.units.get(u) || {}).kind || (typeof tl.kindOf === 'function' ? tl.kindOf(u) : null) || null;
   };
   const unnamed = new Set();
@@ -192,6 +226,8 @@ export function createHuntScene(o) {
         break;
       }
       case 'kill':
+        /* S6: a unit dies once. A restart re-runs a death the screen already played under another id. */
+        if (!isHero(ev.t) && dead.has(ev.t)) return true;
         if (!isHero(ev.t)) {
           dead.set(ev.t, start);
           const loot = ev.loot && typeof ev.loot === 'object' ? Object.entries(ev.loot) : [];
@@ -264,7 +300,7 @@ export function createHuntScene(o) {
       const q = tl.positionAt(s.t, now);
       if (q && (q.x !== p.x || q.y !== p.y)) { hx = q.x - p.x; hy = q.y - p.y; }
     }
-    const { dir, diag } = facingOf(hx, hy);
+    let { dir, diag } = facingOf(hx, hy);
     let alpha = 1, grey = 0, under = false, corpse = null;
     const rose = risen.get(u);
     if (rose !== undefined) { if (now - rose >= SCENE_TIMING.riseMs) risen.delete(u); else alpha = Math.max(0, now - rose) / SCENE_TIMING.riseMs; }
@@ -274,12 +310,14 @@ export function createHuntScene(o) {
          reads it) finishes its step dead */
       const hpNow = typeof tl.hpAt === 'function' ? tl.hpAt(u, now) : null;
       const gone = hpNow ? hpNow.hp <= 0 : (read.units.get(u) || {}).hp === 0;
-      if (p.moving && !gone) dead.delete(u);
-      else {
+      if (p.moving && !gone) { dead.delete(u); lie.delete(u); } else {
         const age = now - died;
         if (age >= SCENE_TIMING.corpseMs) return null;
         if (age >= 0) {
           under = true;
+          /* S6: it lies the way it fell */
+          if (!lie.has(u)) lie.set(u, { dir, diag });
+          ({ dir, diag } = lie.get(u));
           /* VW-05: the sprite's own death clip, then its corpse frame; only art without them greys. */
           corpse = corpseFrame(id, clips, dir, age);
           if (!corpse) grey = Math.min(1, age / SCENE_TIMING.deathFadeMs);
@@ -344,9 +382,9 @@ export function createHuntScene(o) {
     const units = [];
     const ids = tl.units();
     /* S4: per-unit state never outlives the unit's track (a long hunt respawns thousands). */
-    if (flash.size + dead.size + swing.size + bleed.size + cycle.size + target.size + risen.size > PRUNE_AT) {
+    if (flash.size + dead.size + swing.size + bleed.size + cycle.size + target.size + risen.size + lie.size > PRUNE_AT) {
       const live = new Set(ids);
-      for (const m of [flash, dead, swing, bleed, cycle, target, risen]) for (const k of m.keys()) if (!live.has(k)) m.delete(k);
+      for (const m of [flash, dead, swing, bleed, cycle, target, risen, lie]) for (const k of m.keys()) if (!live.has(k)) m.delete(k);
     }
     for (const u of ids) {
       const d = unitAt(u, now);
@@ -399,7 +437,7 @@ export function createHuntScene(o) {
       const t = Number.isFinite(now) ? now : null;
       for (const u of alive) {
         if (!dead.has(u)) continue;
-        dead.delete(u); flash.delete(u);
+        dead.delete(u); flash.delete(u); lie.delete(u);
         if (t !== null) risen.set(u, t);
       }
       if (t === null) return;
@@ -408,4 +446,32 @@ export function createHuntScene(o) {
     /** For tests: how many effects and floats are live, and the keys played. */
     stats: () => ({ fx: fx.length, floats: floats.length, played: keys.size }),
   };
+}
+
+/* S5: CharacterSession -> { key, scene, off }. Weak: a closed character takes its scene with it. */
+const SCENES = new WeakMap();
+
+/**
+ * THE CHARACTER'S ONE LIVE SCENE for the hunt `key` names (its map and session): made on the first
+ * view, subscribed to the character's timeline from then on, and handed to every World pane that shows
+ * the character, so a switch away and back keeps every death, bleed stack and effect it played (S5).
+ * A new key (another hunt) replaces it.
+ * @param {object} cs  a CharacterSession
+ * @param {{key: string, book: object, peers?: () => object[]}} o
+ */
+export function liveSceneOf(cs, o) {
+  const had = SCENES.get(cs);
+  if (had && had.key === o.key) return had.scene;
+  endLiveScene(cs);
+  const scene = createHuntScene({ timeline: cs.timeline, book: o.book, read: () => readHunt(cs, o.peers) });
+  SCENES.set(cs, { key: o.key, scene, off: cs.timeline.subscribe((ev) => scene.onEvent(ev, cs.now())) });
+  return scene;
+}
+
+/** The character's hunt is over (or shows no live scene): its scene stops listening and is forgotten. */
+export function endLiveScene(cs) {
+  const had = cs && SCENES.get(cs);
+  if (!had) return;
+  had.off();
+  SCENES.delete(cs);
 }

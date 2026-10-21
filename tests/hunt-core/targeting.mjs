@@ -106,18 +106,67 @@ const cases = {
     if (near.target !== 1) return 'an on-screen monster off the tank was not Challenged';
     if (far.target !== 2) return 'a monster beyond the Challenge radius was pulled';
     if (sc.events.filter((e) => e.type === 'challenge' && e.u === 1).length !== 1) return 'expected one challenge event';
-    near.target = 2;
-    const steps = CHALLENGE.cooldownMs / 100;
-    for (let i = 1; i < steps; i++) {
-      M.targeting.chooseTargets(inst, sc2(M, 1));
-      if (near.target === 1) return 'Challenged again ' + i * 100 + ' ms into an ' + CHALLENGE.cooldownMs + ' ms cooldown';
+    if (!sc.events.some((e) => e.type === 'cast' && e.u === 1 && e.ability === 'challenge')) return 'the auto-Challenge is not a cast of the challenge ability';
+    near.target = 2; near.holdMs = 0;
+    const cdMs = M.abilityData.ABILITIES.challenge.cdMs;
+    for (let i = 1; i < cdMs / 100; i++) {
+      M.targeting.chooseTargets(inst, sc2(M, 1, i * 100));
+      if (near.target === 1) return 'Challenged again ' + i * 100 + ' ms into an ' + cdMs + ' ms cooldown';
     }
-    M.targeting.chooseTargets(inst, sc2(M, 1));
+    M.targeting.chooseTargets(inst, sc2(M, 1, cdMs));
     if (near.target !== 1) return 'no Challenge once the cooldown ran out';
     const dps = H(M, 1, 11, 3, 'melee_dps');
     const i2 = fight(M, [dps, H(M, 2, 16, 5, 'ranger'), E(M, 3, 0, 15, 5, 2)], { leader: 1 });
     M.targeting.chooseTargets(i2, sc2(M, 1));
     return i2.world.units[2].target === 2 ? null : 'a leader who is not a tank Challenged';
+  },
+  /* TG-08 with TWO tanks (Andy 2026-10-21: "Challenge spell not changing monster target. 2nd char
+     doesn't increase.. Defense is still 1"): the second tank's Challenge takes the pack off the leader
+     and HOLDS it for CHALLENGE.holdMs (the leader's own Challenge waits), then the leader takes it back. */
+  'two-tanks-trade-the-pack': (M) => {
+    const { holdMs } = M.roleData.CHALLENGE;
+    const k1 = H(M, 1, 11, 3, 'tank'); const k2 = H(M, 2, 13, 5, 'tank');
+    const a = E(M, 3, 0, 12, 3, 1); const b = E(M, 4, 0, 12, 4, 1);
+    const inst = fight(M, [k1, k2, a, b], { leader: 1 });
+    const sc = sc2(M, 1, 0);
+    M.targeting.chooseTargets(inst, sc);
+    if (!sc.events.some((e) => e.type === 'cast' && e.u === 2 && e.ability === 'challenge')) return 'the second tank never cast Challenge';
+    if (a.target !== 2 || b.target !== 2) return 'the second tank\'s Challenge did not take the pack (targets ' + a.target + ',' + b.target + ')';
+    for (let t = 100; t < holdMs; t += 100) {
+      M.targeting.chooseTargets(inst, sc2(M, 1, t));
+      if (a.target !== 2 || b.target !== 2) return 'the leader took the pack back ' + t + ' ms into the second tank\'s ' + holdMs + ' ms hold';
+    }
+    const back = sc2(M, 1, holdMs);
+    M.targeting.chooseTargets(inst, back);
+    if (a.target !== 1 || b.target !== 1) return 'the leader did not take the pack back once the hold ran out';
+    return back.events.some((e) => e.type === 'cast' && e.u === 1 && e.ability === 'challenge') ? null : 'the leader took the pack without a Challenge cast';
+  },
+  /* TG-01 ties (Andy 2026-10-21: "Strongest and follow player both seem to just target the first creature"):
+     monsters a mode cannot tell apart fall to the NEARER, not to the first spawned. */
+  'mode-ties-fall-to-nearest': (M) => {
+    const u = H(M, 1, 11, 3, 'ranger');
+    const far = E(M, 2, 0, 16, 5, 9, { hp: 20, maxHp: 20 }); const near = E(M, 3, 0, 13, 3, 9, { hp: 20, maxHp: 20 });
+    const inst = fight(M, [u, far, near, H(M, 9, 17, 2, 'tank')], { leader: 9 });
+    for (const mode of ['strongest', 'weakest', 'highest_pct', 'follow']) {
+      const got = ids(M.targeting.pickTargets(inst, u, { tmode: mode }));
+      if (got !== '3,2') return mode + ': two equal monsters ordered ' + got + ', not nearest first (3,2)';
+    }
+    return null;
+  },
+  /* A MELEE hero no monster is on takes its MARK, the first its Target setting names, not the first
+     monster that happens to stand beside it; it keeps the one it stands beside until that one falls. */
+  'melee-takes-its-mark': (M) => {
+    const k = H(M, 1, 12, 3, 'tank');
+    const d = H(M, 2, 14, 5, 'melee_dps', { tmode: 'strongest' });
+    const rat = E(M, 3, 0, 15, 5, 1, { hp: 9, maxHp: 9 }); const big = E(M, 4, 0, 13, 3, 1, { hp: 60, maxHp: 60 });
+    const inst = fight(M, [k, d, rat, big], { leader: 1 });
+    M.movement.occupancy(inst);
+    M.targeting.chooseTargets(inst, sc2(M, 1));
+    if (d.target !== 4) return '"Strongest" took ' + d.target + ' (the monster beside it), not its mark 4';
+    d.x = 14; d.y = 4; d.fx = 14; d.fy = 4;
+    inst.world.units.push(E(M, 5, 0, 17, 2, 1, { hp: 100, maxHp: 100 }));
+    M.targeting.chooseTargets(inst, sc2(M, 1));
+    return d.target === 4 ? null : 'beside its mark it switched to ' + d.target;
   },
 };
 
@@ -131,12 +180,18 @@ const mutants = [
     edits: [[T, 'return inR.find((m) => elementOn(m, u.element) > 0) || inR[0] || null;', 'return inR.find((m) => elementOn(m, u.element) > 0) || null;']] },
   { name: 'the leader\'s target is not remembered', case: 'follow-uses-leader-last',
     edits: [['src/core/hunt/damage.js', 'if (inst.world.leader === u.id) inst.world.leaderLast = aim.id;', '']] },
-  { name: 'a fallen target is kept', case: 'monster-retargets-on-death', edits: [[T, 'if (!t || !t.alive) retarget(', 'if (!t) retarget(']] },
+  { name: 'a fallen target is kept', case: 'monster-retargets-on-death', edits: [[T, 'if (!t || !t.alive) { retarget(', 'if (!t) { retarget(']] },
   { name: 'peel ignores the roll', case: 'peel-seeded', edits: [[T, ' || sc.rng.int(1, 1000) > row.peel) return null;', ') return null;']] },
   { name: 'every role peels', case: 'peel-seeded', edits: [[T, "if (!row || !row.peel || !k || k === hero) return null;", 'if (!row || !k || k === hero) return null;']] },
   { name: 'the Challenge has no radius', case: 'challenge-when-monster-off-tank', edits: [[T, ' && cheb(m, k) <= CHALLENGE.radius);', ');']] },
-  { name: 'the Challenge has no cooldown', case: 'challenge-when-monster-off-tank', edits: [[T, '  k.chalMs = CHALLENGE.cooldownMs;', '  k.chalMs = 0;']] },
-  { name: 'any role Challenges', case: 'challenge-when-monster-off-tank', edits: [[T, "if (!k || !roleOf(k) || !roleOf(k).tank) return;", 'if (!k || !roleOf(k)) return;']] },
+  { name: 'the Challenge has no cooldown', case: 'challenge-when-monster-off-tank', edits: [[T, '[CHALLENGE_ROW.id]: sc.atMs + CHALLENGE_ROW.cdMs', '[CHALLENGE_ROW.id]: sc.atMs']] },
+  { name: 'any role Challenges', case: 'challenge-when-monster-off-tank', edits: [[T, 'if (!row || !row.tank || !k.alive) return [];', 'if (!row || !k.alive) return [];']] },
+  { name: 'a Challenge holds nothing', case: 'two-tanks-trade-the-pack', edits: [[T, 'm.queued = false; m.holdMs = CHALLENGE.holdMs; }', 'm.queued = false; }']] },
+  { name: 'only the leader Challenges (live v0.2.22)', case: 'two-tanks-trade-the-pack',
+    edits: [[T, 'if (!challengeReady(k, sc.atMs) ||', 'if (k !== leaderOf(inst) || !challengeReady(k, sc.atMs) ||']] },
+  { name: 'ties fall to id (live v0.2.22)', case: 'mode-ties-fall-to-nearest', edits: [[T, 'cmp(a, b) || dist2(a, unit) - dist2(b, unit) || a.id - b.id', 'cmp(a, b) || a.id - b.id']] },
+  { name: 'a melee hits whatever stands beside it (live v0.2.22)', case: 'melee-takes-its-mark', edits: [[T, 'const b = marks ? null : basicTarget(inst, u);', 'const b = basicTarget(inst, u);']] },
+  { name: 'a melee drops the target it stands beside', case: 'melee-takes-its-mark', edits: [[T, '(inRange(inst, u, cur) || enRoute)) continue;', 'enRoute) continue;']] },
 ];
 
 await suite('hunt-core/targeting', cases, mutants);

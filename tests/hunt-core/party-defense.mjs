@@ -16,13 +16,32 @@ import { makeReport, ROOT, plant } from './fixtures/h1.js';
 
 const { loadPlay, PLAY_TREES } = await import(pathToFileURL(join(ROOT, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
 
-/** The case on a play runner `P`: answers the failure or null. */
+/** The case on a play runner `P`: answers the failure or null.
+    ONE HOLDER A LAP (designer 2026-10-21, Option A; live v0.2.24: the two tanks traded the pack every 8 s,
+    "monsters are retargeting onto the secondary member often"): over several laps of the route no monster is
+    ever turned onto a second tank within a lap (every `target` event of a lap names one tank at most), and the
+    holder rotating lap by lap gives each tank at least a quarter of the pair's Defense XP. */
+const ROUTE0 = (await import(pathToFileURL(join(ROOT, 'src/data/hunt-grounds.js')).href)).HUNT_GROUNDS.millrace_sewer.route[0];
 function secondTankDefense(P, quiet) {
-  const x = P.run('millrace_sewer', 15, ['tank', 'tank'], { spanMs: 600000 });
+  let lap = -1, laps = 0, mixed = 0;
+  const lapTanks = [];
+  const x = P.run('millrace_sewer', 15, ['tank', 'tank'], { spanMs: 1800000, onWindow: (out) => {
+    const tanks = new Set(out.members.map((p) => p.hunt.unit_id));
+    for (const e of out.events || []) {
+      if (e.type === 'pull' && e.pocket === ROUTE0) { lap++; laps++; lapTanks[lap] = new Set(); }
+      if (e.type === 'target' && tanks.has(e.t) && lap >= 0) {
+        lapTanks[lap].add(e.t);
+        if (lapTanks[lap].size > 1) mixed++;
+      }
+    }
+  } });
   const d = x.heroes.map((k) => Math.round((x.heroXp[k] || {}).defense || 0));
   const all = d[0] + d[1];
-  if (!quiet) console.log('  second-tank-defense: Sewer, two L15 tanks, 10 min, browser closed: Defense XP ' + d.join(' / ') + ', falls ' + x.falls);
+  if (!quiet) console.log('  second-tank-defense: Sewer, two L15 tanks, 30 min, browser closed: ' + laps + ' laps, holders by lap ['
+    + lapTanks.map((s) => [...s].join('+') || 'leader').join(', ') + '], ' + mixed + ' mid-lap steal(s); Defense XP ' + d.join(' / ') + ', falls ' + x.falls);
   if (x.falls) return 'a tank fell in the measurement (' + x.ended.join(', ') + ')';
+  if (laps < 3) return 'CONTROL: only ' + laps + ' lap(s) in 30 min';
+  if (mixed) return mixed + ' time(s) a monster was turned onto a second tank within one lap';
   if (!(all > 0)) return 'neither tank earned Defense XP';
   return d.every((n) => n >= all / 4) ? null : 'Defense XP ' + d.join(' / ') + ': a tank earned under a quarter of the pair\'s';
 }
@@ -75,8 +94,10 @@ for (const mu of LONE_MUTANTS) {
 }
 
 const MUTANTS = [
-  { name: 'a held monster is Challenged straight back (live v0.2.22)',
-    edits: [['src/core/hunt/targeting.js', 'm.target !== k.id && !(m.holdMs > 0) && cheb(m, k)', 'm.target !== k.id && cheb(m, k)']] },
+  { name: 'a non-holder steals from the holder (the v0.2.24 trade)',
+    edits: [['src/core/hunt/targeting.js', ' && (holds || onNonTank(m)));', ');']] },
+  { name: 'the holder never rotates (the second tank never trains)',
+    edits: [['src/core/hunt/targeting.js', 'return tanks[(first + runs) % tanks.length];', 'return tanks[first];']] },
   { name: 'a monster blow at an armoured hero pays no Defense',
     edits: [['src/core/hunt-rewards.js', "  if (!m || m.armoured !== true || !attacker || attacker.side !== 'mon') return 0;", '  return 0;']] },
 ];

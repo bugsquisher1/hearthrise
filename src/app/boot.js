@@ -17,10 +17,14 @@
 //
 // THE CLOSED GAME: the server refuses a non-allowlisted account (403
 // hr_closed); the first such answer replaces everything with the closed notice.
+//
+// A DEAD SESSION (a refresh the server refuses, or a sign-out in another tab)
+// closes every character and lands on sign-in with one plain line; nothing is
+// retried in the background.
 // ════════════════════════════════════════════════════════════════════════
 
 import { SUPABASE_CONFIG, createSupabaseClient } from '../net/supabase-bootstrap.js?v=0.2.21';
-import { createAuth } from '../net/auth.js?v=0.2.21';
+import { createAuth, AUTH_COPY } from '../net/auth.js?v=0.2.21';
 import { SESSION_CONFIG } from '../session/config.js?v=0.2.21';
 import { createServerLink } from '../session/server.js?v=0.2.21';
 import { AccountSession } from '../session/account-session.js?v=0.2.21';
@@ -57,7 +61,7 @@ function startApp(win) {
   const HS = win.HearthriseStorage;
   const store = SESSION_CONFIG.authStore === 'tab' ? HS.session : HS;
   const client = createSupabaseClient(win.supabase, store, SESSION_CONFIG.authKey);
-  const auth = createAuth({ client, device: HS, tab: HS.session, redirectTo: win.location.origin + win.location.pathname });
+  const auth = createAuth({ client, device: HS, tab: HS.session, redirectTo: win.location.origin + win.location.pathname, doc });
   let account = null;
   let alerts = null;
   let pane = null;
@@ -96,6 +100,19 @@ function startApp(win) {
       + '<button type="button" class="auth-link" data-app="sign-out">Sign out</button></p></div></main>';
   }
 
+  /* The session ended under the game: close everything, then say so on the sign-in screen. */
+  async function sessionEnded() {
+    if (!account) return;
+    if (alerts) { alerts.destroy(); alerts = null; }
+    const a = account;
+    account = null;
+    obs.forget();
+    await a.signOut();
+    showAuth('sign-in');
+    const m = root.querySelector('.auth-message');
+    if (m) m.textContent = AUTH_COPY.signedOut;
+  }
+
   async function signOut() {
     if (alerts) { alerts.destroy(); alerts = null; }
     if (account) { const a = account; account = null; await a.signOut(); } else await auth.signOut();
@@ -107,7 +124,7 @@ function startApp(win) {
     if (!auth.userId()) { showAuth('sign-in'); return; }
     if (account) return;
     obs.identify(auth.userId());
-    const server = createServerLink({ url: SUPABASE_CONFIG.url, anonKey: SUPABASE_CONFIG.anonKey, token: auth.token });
+    const server = createServerLink({ url: SUPABASE_CONFIG.url, anonKey: SUPABASE_CONFIG.anonKey, token: auth.freshToken, renew: auth.renewToken });
     account = new AccountSession({ auth, server, tab: HS.session, channel: channelFor(client, auth),
       social: (acc) => new SocialSession({ account: acc, realtime: createSocialRealtime(client, auth.token) }) });
     account.subscribe((why) => {
@@ -228,7 +245,7 @@ function startApp(win) {
 
   auth.onChange((ev) => {
     if (ev === 'recovery') showAuth('set-password');
-    else if (ev === 'signed-out' && account) { account = null; obs.forget(); showAuth('sign-in'); }
+    else if (ev === 'signed-out' || ev === 'expired') sessionEnded();
   });
 
   auth.refresh().then(() => {

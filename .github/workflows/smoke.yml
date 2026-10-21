@@ -27,6 +27,12 @@ on:
       - '**/*.md'
   pull_request:
   workflow_dispatch:
+  # THE NIGHTLY MUTATION SWEEP (CLAUDE.md §3.6/§4, Tyler 2026-10-21): the whole
+  # matrix, every --mutate/--selftest, on main once a night at 08:00 UTC (01:00
+  # Pacific; clear of the 00:00-00:10 UTC day boundary). A red nightly blocks the
+  # next release until fixed.
+  schedule:
+    - cron: '0 8 * * *'
 
 # ── LEAST PRIVILEGE FOR THE WORKFLOW TOKEN (2026-08-23, open-beta hardening) ──
 # The repository is PUBLIC and hearthrise.net is served from main, so the

@@ -496,7 +496,11 @@ async function checks(overrides, shots) {
            chance and hide a close that waits a whole poll */
         sc.env.hunt = Object.assign({}, sc.env.hunt, { session: Object.assign({}, sc.env.hunt.session, { hunt_from: new Date(sc.clock() + 3600000).toISOString() }) });
         sc.onLeave = () => {
-          if (leaveAt === null) leaveAt = sc.clock() + 6000;
+          /* 5.5 s ahead, not 6: the page's clock is measured from answers (timeline.js T3: the client's
+             receive instant less the server's stamp), so it always runs a few ms to a few hundred behind
+             the server's; with leave_at a whole 6 s out, a read a hair after the answer saw 5.97 s left and
+             any lag over 30 ms read "Leaving in 7s" (1 run in 3). Half a second keeps the read in 4-6 s. */
+          if (leaveAt === null) leaveAt = sc.clock() + 5500;
           const session = Object.assign({}, sc.env.hunt.session, { id: sc.env.hunt.session_id, leave_at: new Date(leaveAt).toISOString(), phase: 'leaving' });
           sc.env.hunt = Object.assign({}, sc.env.hunt, { session });
           slowUntil = Date.now() + 2500;

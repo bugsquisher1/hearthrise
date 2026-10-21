@@ -40,7 +40,7 @@
 // mutant-anchors: .github/workflows/smoke.yml tools/lib/guard-deps.mjs tools/guard-anchors.mjs
 // ════════════════════════════════════════════════════════════════════════
 import { spawnSync, execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { join, dirname, normalize } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
@@ -49,6 +49,7 @@ import {
   PROOF_FLAG, GATE_PREFIX, unwrapGate, guardFileOf, touchedBy, guardSources, changedFiles, cacheBusterOnly,
 } from './lib/guard-deps.mjs';
 import { scopedProofs } from './guard-anchors.mjs';
+import { scopeMutants, splitMutants, parseMutants } from './lib/mutant-scope.mjs';
 import { parseWorkflow, flatSteps } from '../tests/run-ci-local.mjs';
 import { isMain } from '../tests/_is-main.mjs';
 
@@ -199,6 +200,7 @@ export function planFor(env, { extraGuards = [] } = {}) {
       if (why) plan.selected[g] = why;
     }
   }
+  if (existsSync(cache)) plan.cachePath = cache;
   return plan;
 }
 
@@ -213,7 +215,12 @@ function gate(argv) {
     return 0;
   }
   console.log(`mutant-gate: RUN   ${cmd} — ${d.why}`);
-  const r = spawnSync(argv[0] === 'node' ? process.execPath : argv[0], argv.slice(1), { stdio: 'inherit', cwd: process.cwd() });
+  /* The diff goes with it, so a guard with a long mutant list runs only the mutants the
+     diff touches (tools/lib/mutant-scope.mjs); the full sweep hands over no scope. */
+  const env = { ...process.env };
+  delete env.HR_MUTANT_SCOPE;
+  if (!plan.full && plan.cachePath) env.HR_MUTANT_SCOPE = plan.cachePath;
+  const r = spawnSync(argv[0] === 'node' ? process.execPath : argv[0], argv.slice(1), { stdio: 'inherit', cwd: process.cwd(), env });
   if (r.error) { console.error(`mutant-gate: could not start ${argv[0]}: ${r.error.message}`); return 2; }
   return r.status === null ? 1 : r.status;
 }
@@ -324,6 +331,43 @@ async function selftest() {
     else { bad++; console.log(`  MISSED   ${label} — every property still held`); }
   }
 
+  /* hunt-screen's mutant scope (tools/lib/mutant-scope.mjs): an edit to analyzer.js runs exactly
+     the mutants that patch analyzer.js; an edited entry runs that entry; any other edit to the
+     guard or a tests/ helper it loads runs all; no scope runs all. */
+  {
+    const HS = 'tests/hunt-screen.mjs';
+    const head = readFileSync(join(ROOT, HS), 'utf8').replace(/\r\n/g, '\n');
+    const list = parseMutants(splitMutants(head).block);
+    const sources = guardSources(ROOT);
+    const ANALYZER = 'src/shell/widgets/analyzer.js';
+    const want = list.filter((m) => m[1] === ANALYZER).map((m) => m[0]);
+    const victim = list.find((m) => m[1] !== ANALYZER);
+    const edited = head.replace(JSON.stringify(victim[0]).slice(1, -1), `${victim[0]} (old)`);
+    const harnessEdit = head.replace('const MUTANTS = [', '// an older harness\nconst MUTANTS = [');
+    const run = (fn, changed, baseSource) => fn({ guard: HS, root: ROOT, changed, base: null, headSource: head, baseSource, sources });
+    const same = (s, names) => !s.all && s.keep.size === names.length && names.every((n) => s.keep.has(n));
+    const scopeChecks = (fn) => [
+      [want.length > 0 && same(run(fn, [ANALYZER]), want), `an edit to ${ANALYZER} runs only its ${want.length} analyzer mutant(s) of ${list.length}`],
+      [same(run(fn, [HS], edited), [victim[0]]), 'an edited (renamed) mutant entry runs that mutant alone'],
+      [run(fn, [HS], harnessEdit).all, 'an edit to hunt-screen outside MUTANTS runs every mutant'],
+      [run(fn, ['tests/_client-harness.mjs']).all, 'an edit to tests/_client-harness.mjs (the harness it imports) runs every mutant'],
+      [run(fn, null).all, 'no scope (nightly, manual, local) runs every mutant'],
+      [same(run(fn, ['src/shell/chat.js']), []), 'an edit no mutant patches runs none'],
+    ];
+    for (const [ok, label] of scopeChecks(scopeMutants)) { if (!ok) bad++; console.log(`  ${ok ? 'ok      ' : 'FAILED  '} scope: ${label}`); }
+    const scopeMutantsOf = [
+      ['every mutant runs whatever the diff', () => ({ all: true, why: 'mutant' })],
+      ['the patched file is never read', (o) => scopeMutants({ ...o, changed: o.changed && o.changed.filter((f) => f.startsWith('tests/')) })],
+      ['an edited entry is not compared with the base', (o) => scopeMutants({ ...o, baseSource: o.headSource })],
+      ['the harness is ignored', (o) => { const s = scopeMutants(o); return s.all && o.changed ? { all: false, keep: new Set(), why: new Map() } : s; }],
+    ];
+    for (const [label, fn] of scopeMutantsOf) {
+      const missed = scopeChecks(fn).every(([ok]) => ok);
+      if (missed) bad++;
+      console.log(`  ${missed ? 'MISSED  ' : 'CAUGHT  '} scope mutant: ${label}`);
+    }
+  }
+
   /* The cache-buster: a release's `?v=` bump is not a change; anything else in the same file is. */
   const hdr = (p) => `diff --git a/${p} b/${p}\nindex 1..2 100644\n--- a/${p}\n+++ b/${p}\n`;
   const bump = `${hdr('src/a.js')}@@ -1 +1 @@\n-import x from './b.js?v=0.2.22';\n+import x from './b.js?v=0.2.23';\n`
@@ -367,6 +411,14 @@ async function selftest() {
       }],
       ['a plain run on an empty diff runs', () => cli(['node', probe], env('')).status === 3],
       ['the nightly runs the untouched proof', () => cli(['node', probe, '--mutate'], env('', { GITHUB_EVENT_NAME: 'schedule' })).status === 7],
+      ['a gated run hands the guard its diff (HR_MUTANT_SCOPE); the nightly hands none', () => {
+        const sp = join(dir, 'probe-scope.mjs');
+        writeFileSync(sp, 'import { readFileSync } from "node:fs";\nconst p = process.env.HR_MUTANT_SCOPE;\n'
+          + 'process.exit(!p ? 6 : JSON.parse(readFileSync(p, "utf8")).changed.length === 1 ? 5 : 4);\n');
+        const k = sp.replace(/\\/g, '/');
+        return cli(['node', sp, '--mutate'], env(k)).status === 5
+          && cli(['node', sp, '--mutate'], env(k, { GITHUB_EVENT_NAME: 'schedule', HR_MUTANT_SCOPE: join(dir, 'stale.json') })).status === 6;
+      }],
       ['a push whose base cannot be found fails safe to the full sweep', () => {
         const e = env('', { GITHUB_SHA: 'selftest-nobase', GITHUB_EVENT_PATH: join(dir, 'missing.json') });
         delete e.HR_MUTANT_GATE_FILES;

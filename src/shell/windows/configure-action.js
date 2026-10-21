@@ -22,13 +22,15 @@
 // ════════════════════════════════════════════════════════════════════════
 import { METRICS, OPERATORS, MAX_CONDITIONS } from '../../data/condition-metrics.js?v=0.2.23';
 import { STATUSES } from '../../data/statuses.js?v=0.2.23';
-import { settingsOf } from '../../session/hunt-sections.js?v=0.2.23';
+import { settingsOf, huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.23';
+import { vitalsOf } from '../../session/party-sections.js?v=0.2.23';
+import { biggestBlowOn } from '../../core/hunt/pull-cycle.js?v=0.2.23';
 import { bagOf } from '../../session/item-sections.js?v=0.2.23';
 import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.23';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.23';
 import { actionIconHtml } from '../widgets/bits.js?v=0.2.23';
 import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, storeOf, supplyDefault } from '../bar-draft.js?v=0.2.23';
-import { TABS, tabOf, choicesFor, actionName, factsOf, carried, supplyLines, setupWords } from '../action-facts.js?v=0.2.23';
+import { TABS, tabOf, choicesFor, actionName, factsOf, carried, supplyLines, setupWords, healWarning } from '../action-facts.js?v=0.2.23';
 
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
 const options = (pairs) => pairs.map(([v, l]) => '<option value="' + esc(v) + '">' + esc(l) + '</option>').join('');
@@ -63,7 +65,7 @@ export function renderConfigureAction() {
     + '<div class="hc-detail"><div class="hc-detail-head"><span class="hc-detail-icon"></span><b class="hc-name"></b></div>'
     + '<p class="hc-type"></p><p class="hc-cost"></p><ul class="hc-facts"></ul><p class="hc-req"></p></div></div>'
     + '<div class="hc-conds-head"><h3 class="hs-sub">Conditions</h3>' + btn('add', '+ Add condition') + '</div>'
-    + '<p class="hs-note hc-rule"></p>'
+    + '<p class="hs-note hc-rule"></p><p class="hc-warn" role="note"></p>'
     + '<ol class="hc-conds">' + conds + '</ol>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p>'
     + '<div class="hc-foot">' + btn('clear', 'Empty slot') + btn('cancel', 'Cancel') + btn('save', 'Save', ' is-primary') + '</div>'
@@ -149,6 +151,10 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   const n = d.conditions.length;
   text(root.querySelector('.hc-rule'), n ? 'All conditions must match (up to ' + MAX_CONDITIONS + ').'
     : (d.action.id ? setupWords(d, set) : 'No conditions: the action’s own trigger.'));
+  /* The heal warning: the hero's hunt (running, else the last one) at the party's size, the server's max HP. */
+  const h = huntOf(cs), p = partyOf(cs);
+  const blow = h && h.huntId ? biggestBlowOn(h.huntId, p ? p.members.length : 1) : null;
+  text(root.querySelector('.hc-warn'), healWarning(d, set, blow, vitalsOf(cs).hpMax));
   root.querySelectorAll('.hc-cond').forEach((row, i) => patchCond(row, d.conditions[i], i, s, ctx.doc));
   const msg = root.querySelector('.hh-intent-msg');
   text(msg, s.msg);

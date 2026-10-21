@@ -7,7 +7,7 @@
 //   node tests/hunt-screen.mjs --shots <dir>  also write the visual-gate screenshots
 //                                             (1440x900 and 922x423)
 //
-// mutant-anchors: src/render/images.js src/world/atlas.js src/session/character-session.js src/session/hunt-leave.js src/session/hunt-poll.js src/shell/windows/hunts.js src/shell/widgets/hunt-topbar.js src/render/paint.js src/shell/shell.js src/shell/widgets/ src/shell/windows/ src/session/hunt-sections.js src/data/combat-text.js src/data/condition-metrics.js
+// mutant-anchors: src/render/images.js src/world/atlas.js src/session/character-session.js src/session/hunt-leave.js src/session/hunt-poll.js src/shell/windows/hunts.js src/shell/widgets/hunt-topbar.js src/render/paint.js src/shell/shell.js src/shell/widgets/ src/shell/windows/ src/session/hunt-sections.js src/data/combat-text.js src/data/condition-metrics.js src/shell/action-facts.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character's envelope is tests/fixtures/hunt-envelope.json.
@@ -75,6 +75,9 @@
 //   HS-22 THE PHONE BAR (922x423), in a hunt and in town: at most 100 px tall, the alerts dock
 //         above its top, and the fight settings are a slide-out sheet (shut until the bar's
 //         button opens it, then on top of everything, shut again on Escape)
+//   HS-23 THE HEAL WARNING: a heal slot whose HP % is fewer HP than the hunt's biggest blow at the
+//         party's size says so in Configure action ("The Rat King can hit 75. Heal at 30% = 66 HP.");
+//         it hides at a safe threshold and for a solo hero (who skips the King's hall)
 //   HS-21 THE COOLDOWN EMBER: the hero's played cast cools that ability's slot for its
 //         catalogue cooldown; the ember rises and the seconds fall as it runs out
 // ════════════════════════════════════════════════════════════════════════
@@ -441,6 +444,25 @@ async function checks(overrides, shots) {
             taken: p.querySelector('.ha-tab[data-tab="taken"]').getClientRects().length > 0, more: p.querySelector('.ha-more').getClientRects().length > 0 };
         });
         if (!paid.waste || !paid.taken || paid.more) fails.push('HS-4 a premium character does not see every analyzer row: ' + JSON.stringify(paid));
+        /* Designer 2026-10-21: before 10 minutes the server sends no rate (per_hour null, the Level eta null):
+           the totals still show, the rates give way to one line, and Next level in says when. */
+        s.env.hunt_analyzer.hero.per_hour = null;
+        s.env.hunt_analyzer.hero.level.eta_h = null;
+        await pushEnvelope(page, s);
+        const early = await page.evaluate(() => {
+          const p = document.querySelector('.ha-analyzer');
+          const shown = (el) => !!el && el.getClientRects().length > 0;
+          return { kills: p.querySelector('[data-sec="totals"] [data-stat="kills"]').textContent, rates: shown(p.querySelector('[data-sec="rates"] .ha-stats')),
+            line: shown(p.querySelector('.ha-later')) ? p.querySelector('.ha-later').textContent : null, next: p.querySelector('[data-clock="next"]').textContent };
+        });
+        if (!/\d/.test(early.kills) || early.rates || early.line !== 'Per hour after 10 min.' || early.next !== 'after 10 min') {
+          fails.push('HS-4 a session under 10 minutes (per_hour null) did not show totals plus "Per hour after 10 min.": ' + JSON.stringify(early));
+        }
+        s.env.hunt_analyzer = clone(FIXTURE.hunt_analyzer);
+        await pushEnvelope(page, s);
+        const later = await page.evaluate(() => document.querySelector('[data-sec="rates"] .ha-stats').getClientRects().length > 0
+          && document.querySelector('.ha-later').getClientRects().length === 0);
+        if (!later) fails.push('HS-4 once the server sent rates, the per-hour rows did not come back');
         await page.keyboard.press('Escape');
         await wait(page, () => document.querySelector('[data-hs-win="settings"] input[data-float]'));
         await page.waitForTimeout(300);
@@ -705,6 +727,29 @@ async function checks(overrides, shots) {
       await ctx.close();
     }
 
+    { // HS-23 THE HEAL WARNING (designer 2026-10-21, Andy died in the Sewer healing at 40%)
+      const { ctx, page, s, up } = await open({ prep: (st) => { st.env.hunt.hunt_id = 'millrace_sewer'; } });
+      if (up) {
+        await page.click('.hb-slot[data-slot="2"]');
+        await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .hc-title'), null, 3000);
+        const warn = () => page.evaluate(() => { const w = document.querySelector('.hc-warn'); return w && w.getClientRects().length ? w.textContent : ''; });
+        /* Wheat Bread at HP 50% or below of 220 = 110 HP: above the King's 75, nothing to say. */
+        const safe = await warn();
+        await page.fill('.hc-cond[data-cond="0"] [data-f="value"]', '30');
+        await page.dispatchEvent('.hc-cond[data-cond="0"] [data-f="value"]', 'change');
+        const shown = await warn();
+        if (safe !== '' || shown !== 'The Rat King can hit 75. Heal at 30% = 66 HP.') {
+          fails.push('HS-23 the heal warning did not follow the threshold in a party of two: at 50% "' + safe + '", at 30% "' + shown + '"');
+        }
+        /* Alone the King's hall is skipped (minParty 2): the biggest blow is a Cistern Spider's 48, under 66. */
+        s.env.party.members = [s.env.party.members[0]];
+        await pushEnvelope(page, s);
+        const solo = await warn();
+        if (solo !== '') fails.push('HS-23 a solo hero (who never meets the Rat King) was warned: "' + solo + '"');
+      } else fails.push('HS-23 the screen did not mount on the Sewer');
+      await ctx.close();
+    }
+
     { // HS-19 drag on the bar: onto an empty slot it moves; onto an action a menu (Swap / Insert / cancel); one intent per choice; the status line clears
       const { ctx, page, s, up } = await open();
       if (up) {
@@ -916,8 +961,10 @@ async function checks(overrides, shots) {
       await page.click('.hc-tab[data-tab="items"]');
       await page.click('.hc-choice[data-id="food"]');
       const note = await page.evaluate(() => ({ choice: document.querySelector('.hc-choice[data-id="food"] .hc-choice-note').textContent,
-        facts: document.querySelector('.hc-facts').textContent }));
+        facts: document.querySelector('.hc-facts').textContent, type: document.querySelector('.hc-type').textContent }));
       if (!/store from \d+ g each/.test(note.choice) || !/paid as used/.test(note.facts)) fails.push('HS-8 Any food does not show the store price paid as used: ' + JSON.stringify(note));
+      /* Designer 2026-10-21: "your best food first" misled Andy; the engine eats the SMALLEST own food that covers the gap (action-rules.js). */
+      if (note.type !== 'Food: your own food first, the smallest that covers what you are missing, then the store’s, restoring health.') fails.push('HS-8 Any food does not say which food it eats: ' + JSON.stringify(note.type));
       /* A food slot starts at HP below 50% (Eat at is gone); the player moves it to 60. */
       if ((await page.$$eval('.hc-cond.is-on', (n) => n.length)) !== 1) fails.push('HS-8 a new food slot does not start with its HP condition');
       await page.fill('.hc-cond[data-cond="0"] [data-f="value"]', '60');
@@ -1099,6 +1146,10 @@ const MUTANTS = [
     ["else if (key === 'stance') attr(el, 'aria-pressed', String(v === el.getAttribute('data-val')));", "else if (key === 'stance') attr(el, 'aria-pressed', String(pending ? root.__want === el : v === el.getAttribute('data-val')));"]]],
   ['controls stay on while an intent is in flight', 'src/shell/widgets/settings-intent.js', "prop(el, 'disabled', pending || v === null);", "prop(el, 'disabled', v === null);"],
   ['the analyzer ignores the premium gate', 'src/shell/widgets/analyzer.js', 'const premium = isPremium(ctx.character);', 'const premium = true;'],
+  ['a null per_hour shows dashes, not "Per hour after 10 min."', 'src/shell/widgets/analyzer.js', "prop(sec.querySelector('.ha-later'), 'hidden', v.rated);", "prop(sec.querySelector('.ha-later'), 'hidden', true);"],
+  ['Any food says it eats the best food first', 'src/shell/action-facts.js', 'your own \' + a.id + \' first, the smallest that covers what you are missing, then the store’s', 'your best \' + a.id + \' first'],
+  ['Configure action never warns a heal slot', 'src/shell/windows/configure-action.js', "healWarning(d, set, blow, vitalsOf(cs).hpMax)", "''"],
+  ['the heal warning reads the whole ground whatever the party size', 'src/shell/windows/configure-action.js', 'biggestBlowOn(h.huntId, p ? p.members.length : 1)', 'biggestBlowOn(h.huntId, 4)'],
   ['the Hunts window keeps saying "On the way" while hunting', 'src/shell/windows/hunts.js', "  if (sc.msg && sc.msg === sc.enterMsg && (now || (h && h.ended))) { sc.msg = ''; sc.enterMsg = null; }\n", ''],
   ['an edge panel never steps out of the hunt bar’s way', 'src/shell/shell.js', "        for (const p of at.push) edgeEls[p.i].style.top = p.top + 'px';\n", ''],
   ['the hunt bar draws no tutorial card under itself', 'src/shell/widgets/hunt-topbar.js', 'const html = pointerFor(ctx);', "const html = '';"],

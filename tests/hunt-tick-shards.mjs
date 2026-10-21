@@ -166,6 +166,21 @@ async function packAndSettle(db, M, n, o = {}) {
 }
 
 const ARMS = {
+  /* The file re-applies (the Coordinator's retry, a rebuild) byte-identically: its §0 admits its own
+     body, the dial and its CHECK are not doubled, and the installed definitions and ACLs do not move. */
+  IDEM: async (db) => {
+    const problems = [];
+    const look = async () => JSON.stringify(await q(db, `
+      select p.oid::regprocedure::text as fn, md5(pg_get_functiondef(p.oid)) as def, p.proacl::text as acl
+        from pg_proc p where p.oid in ('public.hr_tick_cron_run()'::regprocedure, 'public.hr_hunt_roster_sharded(text,integer,integer)'::regprocedure)
+      union all
+      select 'ck', pg_get_constraintdef(c.oid), count(*) over ()::text from pg_constraint c where c.conname = 'hr_tick_config_hunt_body_max_ck'
+      order by 1`));
+    const before = await look();
+    try { await db.exec(readFileSync(join(ROOT, 'supabase', 'migrations', MIG), 'utf8')); } catch (e) { return [`the second apply raised: ${String(e.message).slice(0, 300)}`]; }
+    if (await look() !== before) problems.push('the second apply moved a definition, an ACL or the CHECK');
+    return problems;
+  },
   'PACK-LEASE-SETTLE': async (db, M) => inTx(db, async () => (await packAndSettle(db, M, N_GUARD)).problems),
 
   BUDGET: async (db, M) => inTx(db, async () => {

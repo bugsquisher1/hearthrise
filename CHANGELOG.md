@@ -5,6 +5,18 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.22 — 2026-10-21 (Smooth hunts, better loot)
+
+**Hunts no longer freeze.** The picture used to stop for a moment every few seconds and then rush to catch up; it now keeps moving. A monster you kill stays down, health bars never go black, and monsters no longer pop back up after dying.
+
+**Much better loot.** Low-level gear drops far more often, including bodies and legs, which had no source before; a new hero should fill every gear slot within a few hours of hunting. The Sewer now pays well over its supply cost instead of losing gold.
+
+**Make your hero.** Creating a hero opens a short step: pick a name and the colours of their head, body, legs and feet, then enter town. Every new hero starts with all six practice weapon sets, so you can try every role.
+
+**The Shop sells gear and tools.** Food, drink, ammo and runes are no longer sold in the Shop: pick them on your action bar and they are paid for as you use them.
+
+**Also:** a "Leaving in Ns" countdown when you leave a hunt, every hero you play stands in town, item pictures stop flickering, and an expired login no longer breaks the game.
+
 ## v0.2.21 — 2026-10-20 (Party pulls)
 
 **The party leader sets the pull.** In a party, the leader picks how many monsters come at once, and every respawn follows that pick. A boss never shows up twice in the same pull, and a full pull no longer blocks the leader from reaching it.

@@ -111,7 +111,7 @@ async function checks(overrides) {
           fails.push('SV-3 the tiers read ' + JSON.stringify(rows));
         }
         const note = await txt(page, '.hw-bless-note');
-        if (!/Free until combat level 30/.test(note || '') || !/uses them all up/.test(note || '')) fails.push('SV-3 the note reads ' + JSON.stringify(note));
+        if (!/Free below Level 30./.test(note || '') || !/uses them all up/.test(note || '')) fails.push('SV-3 the note reads ' + JSON.stringify(note));
         await press(page, '[data-hs-win="services"] [data-hs-act="bless"][data-tier="2"]', 'SV-3');
         await wait(page, () => !document.querySelector('[data-hs-win="services"] .hw-services.is-pending'), null, 4000);
         const bl = sent(s, 'hr_blessing_buy');

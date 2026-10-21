@@ -80,6 +80,23 @@ const cases = {
     if (hs.purse !== 1000 - price || hs.tally.bought[STORE_FOOD] !== 1) return 'the purse or the tally is wrong: purse ' + hs.purse + ' ' + JSON.stringify(hs.tally);
     return null;
   },
+  /* A FOOD THE PURSE CANNOT BUY ENDS THE HUNT ONLY WHEN NO SLOT CAN FEED (lane b-supplies-bury): slot 1 names
+     the store's food, the purse is short of it, slot 2 names the own Cooked Shrimp. Slot 2 eats and the hunt goes
+     on; with the shrimp gone and still no gold, the hunt ends gold_out. */
+  'short-store-slot-falls-through': (M) => {
+    const hs = supplySession(M, { bag: { cooked_shrimp: { loaded: 1 } }, purse: 1 });
+    const below = [{ metric: 'self_hp_pct', op: 'lt', value: 80 }];
+    const slots = M.conditions.heroSlots([{ action: { type: 'consume', id: STORE_FOOD }, conditions: below, join: 'and' },
+      { action: { type: 'consume', id: 'cooked_shrimp' }, conditions: below, join: 'and' }], null);
+    const { h, inst, sc } = oneHero(M, { hp: 50 }, { hs, slots });
+    M.consumables.consume(inst, sc);
+    const first = eats(sc)[0];
+    if (!first || first.item !== 'cooked_shrimp' || first.source !== 'own') return 'slot 2 did not feed the hero past the unaffordable slot 1: ' + JSON.stringify(first);
+    if (hs.goldOut) return 'an unaffordable slot ended the hunt while slot 2 could still feed';
+    h.otHp = null; h.hp = 50; sc.atMs = 5000;
+    M.consumables.consume(inst, sc);
+    return hs.goldOut === true ? null : 'with no slot able to feed and no gold, the hunt did not end gold_out';
+  },
   /* SLOT 1 FIRST (Tyler 10-18): two slots whose conditions both pass and that both can act — the
      earlier slot fires and the later one does not; swap their places and the other one fires. */
   'slot-one-first': (M) => {
@@ -339,7 +356,10 @@ const mutants = [
   { name: 'an empty stack stops eating (the store never takes over)', case: 'never-stops-when-out',
     edits: [['src/core/action-rules.js', "    if (!storeAllowed(hs)) return { why: 'store_off' };", "    if (hs) return { why: 'store_off' };"]] },
   { name: 'a store use the purse cannot pay ends nothing', case: 'never-stops-when-out',
-    edits: [['src/core/hunt/consumables.js', "      if (w.why === 'gold_short') { if (w.kind === 'food') hero.hs.goldOut = true; return { why: 'gold_short' }; }", "      if (w.why === 'gold_short') return { why: 'gold_short' };"]] },
+    edits: [['src/core/hunt/consumables.js', "      if (w.why === 'gold_short') { if (w.kind === 'food') starved = true; return { why: 'gold_short' }; }", "      if (w.why === 'gold_short') return { why: 'gold_short' };"]] },
+  { name: 'the first unaffordable food ends the hunt (slot 2 never asked)', case: 'short-store-slot-falls-through',
+    edits: [['src/core/hunt/consumables.js', "      if (w.why === 'gold_short') { if (w.kind === 'food') starved = true; return { why: 'gold_short' }; }",
+      "      if (w.why === 'gold_short') { if (w.kind === 'food') hero.hs.goldOut = true; return { why: 'gold_short' }; }"]] },
   { name: 'the last slot is tried first', case: 'slot-one-first',
     edits: [['src/core/hunt/conditions.js', '  for (const row of rows) {\n    const t = testSlot(inst, u, h, row.slot);', '  for (const row of rows.slice().reverse()) {\n    const t = testSlot(inst, u, h, row.slot);']] },
   { name: 'a store use is free', case: 'configured-store-slot',

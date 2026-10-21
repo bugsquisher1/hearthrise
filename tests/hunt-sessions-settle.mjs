@@ -847,6 +847,11 @@ async function character(db, M, uid, o) {
     await db.query('update public.player_state set last_activity_kind = $2, last_activity_id = $3 where user_id = $1 and slot = 0',
       [uid, o.lastActivity.kind, o.lastActivity.id]);
   }
+  /* A town activity RUNNING when the hero presses Enter (burying, fishing): the enter must stop it. */
+  if (o.running) {
+    await db.query('update public.player_state set active_kind = $2, active_id = $3, active_since = now(), accrued_to = now() where user_id = $1 and slot = 0',
+      [uid, o.running.kind, o.running.id]);
+  }
 }
 
 /* A hunter: one character (or, with o.party, every character of a party) on mill_cellar `minutesAgo` minutes ago. */
@@ -1156,6 +1161,14 @@ const DB_ARMS = {
     await run(db, M, from, ticksOf(90000, 120000));
     const s = await snapshot(db, sid);
     if (s.session.end_reason !== 'stamina' || s.active !== 'gather:shrimp_s') problems.push(`an automatic end left the character ${s.active} after ${s.session.end_reason}`);
+    /* ENTER STOPS BURYING, like fishing (Andy live 10-21: "burying locks an action"): ONE hunt_enter intent with a
+       bury running enters the hunt (hunter throws on a refusal), the bury yields, journalled with what it was. */
+    await db.query('rollback'); await db.query('begin');
+    const b = await hunter(db, M, { ...STRONG, running: { kind: 'artisan', id: 'bury_bones' } });
+    const yielded = await one(db, `select l.meta from public.player_ledger l where l.user_id = $1 and l.intent = 'activity_yield' order by l.id desc limit 1`, [UID]);
+    const st = await one(db, 'select active_kind from public.player_state where user_id = $1 and slot = 0', [UID]);
+    if (!b.sid || st === 'artisan') problems.push(`Enter left the hero burying (${st})`);
+    if (!yielded || yielded.kind !== 'artisan' || yielded.id !== 'bury_bones') problems.push(`the bury's stop was not journalled: ${JSON.stringify(yielded)}`);
     return problems;
   }),
   DEATHXP: async (db, M) => inTx(db, async () => {
@@ -1603,7 +1616,7 @@ const MUTANTS = [
   { arm: 'SUPPLY-RULE', name: '[C2 own first] the resolver reaches for the store before the own stack', file: 'src/core/action-rules.js',
     from: "    const own = pickOwn(hs, want, n);", to: "    const own = storeAllowed(hs) ? null : pickOwn(hs, want, n);" },
   { arm: 'SUPPLY-RULE', name: 'an unaffordable drink ends the hunt gold_out', file: 'src/core/hunt/consumables.js',
-    from: "if (w.why === 'gold_short') { if (w.kind === 'food') hero.hs.goldOut = true; return { why: 'gold_short' }; }", to: "if (w.why === 'gold_short') { hero.hs.goldOut = true; return { why: 'gold_short' }; }" },
+    from: "if (w.why === 'gold_short') { if (w.kind === 'food') starved = true; return { why: 'gold_short' }; }", to: "if (w.why === 'gold_short') { starved = true; return { why: 'gold_short' }; }" },
   { arm: 'SPLIT', name: 'the remainder of a split is lost', file: 'src/core/party-split.js',
     from: '  out[0] += t - each * k;', to: '' },
   { arm: 'SPLIT', name: 'every item goes to the first hero', file: 'src/core/party-split.js',

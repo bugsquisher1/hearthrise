@@ -74,8 +74,11 @@ function lineHtml() {
 }
 
 function patchList(ul, items, key, fill, ctx) {
+  /* keep: a line that leaves (a loot line between envelopes, the hero/party toggle) comes back as
+     the same node, its icon never fetched again; its keys are items, monsters and abilities. */
   rows(ul, items, {
     key,
+    keep: true,
     build: (it) => {
       const li = element(ctx.doc, lineHtml());
       if (it.item) li.querySelector('.ha-ico').innerHTML = itemIconHtml(ctx.glyphs, it.item);

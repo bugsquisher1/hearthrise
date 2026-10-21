@@ -26,7 +26,7 @@ import { CONSUME_KINDS, ATTACK_KINDS } from '../../data/condition-metrics.js?v=0
 import { huntOf, settingsOf, staminaOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.21';
 import { bagOf } from '../../session/item-sections.js?v=0.2.21';
 import { townVitalsOf } from '../../session/character-sections.js?v=0.2.21';
-import { text, cls, attr } from '../../render/paint.js?v=0.2.21';
+import { text, cls, attr, element, keyedChild } from '../../render/paint.js?v=0.2.21';
 import { whole, pct, hoursMinutes } from '../../render/format.js?v=0.2.21';
 import { glyphSvg } from '../launcher.js?v=0.2.21';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.21';
@@ -76,7 +76,9 @@ function patchSlot(li, s, w, ctx, bag, conflict) {
   const key = s.empty ? '' : s.action.type + ':' + s.action.id;
   if (li.getAttribute('data-item') !== key) {
     attr(li, 'data-item', key);
-    li.querySelector('.hb-slot-ico').innerHTML = s.empty ? '' : actionIconHtml(ctx.glyphs, s.action);
+    /* The slot keeps the icon node of each action it has shown: a slot the server empties for one
+       envelope and fills again shows the same <img>, never a new image request. */
+    keyedChild(li.querySelector('.hb-slot-ico'), key, () => element(ctx.doc, actionIconHtml(ctx.glyphs, s.action)));
     attr(li, 'draggable', s.empty ? null : 'true');
   }
   const st = s.empty ? null : storeOf(s.action);

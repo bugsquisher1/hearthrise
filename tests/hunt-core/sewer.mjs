@@ -312,11 +312,16 @@ const cases = {
     const env = (levelXp, hunt, slots) => ({ state: { level_xp: levelXp },
       ...(hunt ? { hunt: { session_id: 's1', hunt_id: hunt, ended: false, session: {}, hero: {}, pose: { units: [] } } } : {}),
       hunt_settings: { preset: 1, slots: slots || [] } });
-    const cardOf = (e) => {
-      const ctx = { character: { read: (k) => e[k] }, glyphs: {}, wm: { openIds: () => [], rows: () => [], row: () => null } };
+    /* `opts.open`: window ids open; `opts.bar`: the hunt top bar is on screen (it draws the card itself). */
+    const cardOf = (e, opts = {}) => {
+      const ctx = { character: { read: (k) => e[k] }, glyphs: {}, hud: { isShown: (id) => id === 'hunt-topbar' && !!opts.bar },
+        wm: { openIds: () => opts.open || [], rows: () => [], row: () => null } };
       const m = /data-tutorial="([a-z_]+)"/.exec(renderLaunchers(ctx));
       return m ? m[1] : null;
     };
+    /* Gate v0.2.23 P1: no card over an open window (any window), none in the launcher row during a hunt. */
+    if (cardOf(env(0), { open: ['inventory'] })) return 'the launcher draws the card over an open window';
+    if (cardOf(env(0, 'mill_cellar'), { bar: true })) return 'the launcher draws the card in a hunt, over the hunt bar';
     const floor = M.xp.charXpForLevel(M.HUNTS.millrace_sewer.band[0]);
     const got = [cardOf(env(0)), cardOf(env(0, 'mill_cellar')), cardOf(env(floor, 'mill_cellar')), cardOf(env(floor))].join(',');
     const want = 'to_the_cellar,first_kill,leave_cellar,set_the_bar';
@@ -326,8 +331,11 @@ const cases = {
 
 const mutants = [
   { name: 'the launcher shows only the first card', case: 'tutorial-launcher-card',
-    edits: [['src/shell/launcher.js', 'const card = tutorialCardOf(cs);', 'const card = tutorialCardOf(cs) && HUNT_TUTORIAL[0];'],
-      ['src/shell/launcher.js', "import { tutorialCardOf }", "import { HUNT_TUTORIAL } from '../data/hunt-tutorial.js?v=0.2.22';\nimport { tutorialCardOf }"]] },
+    edits: [['src/shell/launcher.js', 'const card = tutorialCardOf(cs);', "const card = tutorialCardOf(cs) && { id: 'to_the_cellar', title: 'a', text: 'b' };"]] },
+  { name: 'the pointer is drawn over an open window', case: 'tutorial-launcher-card',
+    edits: [['src/shell/launcher.js', 'ctx.wm.openIds().length > 0', 'ctx.wm.row(ctx.wm.openIds()[0] || "") && ctx.wm.row(ctx.wm.openIds()[0]).modal']] },
+  { name: 'the launcher keeps the pointer in a hunt (over Leave hunt)', case: 'tutorial-launcher-card',
+    edits: [['src/shell/launcher.js', "(ctx.hud && ctx.hud.isShown('hunt-topbar') ? '' : pointerFor(ctx))", 'pointerFor(ctx)']] },
   { name: 'the card never advances past the first unmet step', case: 'tutorial-walk-through',
     edits: [['src/data/hunt-tutorial.js', 'if (!isDone(r.done, facts, openedIn)) return r;', 'return r;']] },
   { name: 'the first kill does not finish its card', case: 'tutorial-walk-through',

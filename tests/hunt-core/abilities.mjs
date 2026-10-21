@@ -145,7 +145,8 @@ const cases = {
   },
   /* AB-03 / AB-08: Challenge pulls every engaged monster that is not on the tank. */
   'taunt-pulls-back': (M) => {
-    const { w, inst, sc } = melee(M, ['challenge']);
+    /* The Challenge is a tank's (targeting.js challengeable): the bar slot and the auto-cast share one reach. */
+    const { w, inst, sc } = melee(M, ['challenge'], { role: 'tank' });
     w.units.push(hero(M, 2, 11, 3, { hp: 50, maxHp: 50 }));
     w.units.sort((a, b) => a.id - b.id);
     w.units.find((u) => u.id === 10).target = 2;
@@ -210,7 +211,7 @@ const mutants = [
   { name: 'a heal is not capped at the missing HP', case: 'heal-capped',
     edits: [['src/core/hunt/abilities.js', '  const got = Math.max(0, Math.min(n, int(t.maxHp) - int(t.hp)));', '  const got = Math.max(0, n);']] },
   { name: 'Challenge pulls nothing', case: 'taunt-pulls-back',
-    edits: [['src/core/hunt/abilities.js', '      for (const m of engaged(inst)) if (m.target !== u.id) m.target = u.id;', '']] },
+    edits: [['src/core/hunt/abilities.js', "    case 'taunt': challengeFrom(inst, sc, u); break;", "    case 'taunt': break;"]] },
   { name: 'fractional mana is dropped every sub-step', case: 'mana-regen',
     edits: [['src/core/hunt/abilities.js', '  u.manaMilli -= whole * 1000;', '  u.manaMilli = 0;']] },
   { name: 'the lanes are not persisted', case: 'clocks-survive-a-cut',

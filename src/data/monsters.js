@@ -691,7 +691,7 @@ export const MONSTERS = {
   cistern_spider: { name: 'Cistern Spider', icon: '🕷️', tier: 1, level: 20, cls: 'vermin', family: 'Vermin', formation: true,
     /* one override (element): venomous, so poison is a resist, not an immunity. */
     elementResist: ['poison'], elementImmune: [],
-    hp: 90, atk: 9, def: 6, xp: 704, gp: [36, 90], speed: 3600,
+    hp: 90, atk: 13, def: 6, xp: 704, gp: [36, 90], speed: 3600,
     drops: [{ id: 'silk_thread', ch: .3 }, { id: 'venom_sac', ch: .1 }, { id: 'iron_sword', ch: .048, gear: true }] },
   kobold_tosher: { name: 'Kobold Tosher', icon: '🦎', tier: 1, level: 13, cls: 'humanoid', family: 'Humanoid', formation: true,
     hp: 55, atk: 7, def: 1, xp: 192, gp: [9, 25], speed: 3200,

@@ -12,6 +12,10 @@
 //   gather-nodes        each node is a real TREES/ROCKS row of its skill, opens within 20 of the band top,
 //                       stands on its map with its sprite, and a pocket's nodes cover the top gather share
 //   walk-art            every creature of both grounds idles and walks in all 8 facings in a loaded atlas
+//   thicket-solo-starter-kit  a new hero alone at the Thicket's floor (the solo-first ground, band 5-15), wearing
+//                       ONLY the start kit (practice sword, shield and the practice armour), plays the hour on the
+//                       real settle (play-ground.mjs) with no death and at least +25% over its store bill (a
+//                       minimum), on each of the designer's six seeds (designer pass 2026-10-21, Tyler: solo first)
 //
 // `--play` runs each ground ONCE on the real engine (supabase/functions/hr-accrue accrueHunt, the world
 // tick's settle): a fresh solo hero from the start kit in the forest, a four-hero party in the cave,
@@ -27,6 +31,9 @@ const NEW = ['meadowbrook_thicket', 'coppercap_warrens'];
 const BRIDGE = { meadowbrook_thicket: [[28, 5], [29, 5], [30, 5], [31, 5], [32, 5]], coppercap_warrens: [[51, 20], [51, 21], [51, 22]] };
 const MID_DENSITY = 4;
 const RING8 = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
+/* The designer's six hunt seeds (pass 2026-10-21) and the margin floor (+25%, a minimum: Tyler 10-18/10-20). */
+const STARTER_SEEDS = Object.freeze(['-4611686018427387904', '1234567890123', '-987654321987', '42', '7777777777777', '-31415926535']);
+const STARTER_MARGIN_MIN = 25;
 
 async function load(root) {
   const imp = (p) => import(pathToFileURL(join(root, p)).href + V);
@@ -35,6 +42,7 @@ async function load(root) {
     grounds: await imp('src/data/hunt-grounds.js'), hunts: await imp('src/data/hunts.js'), MONSTERS: (await imp('src/data/monsters.js')).MONSTERS,
     maps: await imp('src/data/world/maps/index.js'), terrain: await imp('src/data/world/terrain.js'), mapc: await imp('src/world/core/map-compile.js'),
     sets: await imp('src/data/world/atlas-sets.js'), gathering: await imp('src/data/gathering.js'), budget: await imp('src/data/world/art-budget.js'),
+    kit: await imp('src/data/start-kit.js'),
   };
 }
 
@@ -245,7 +253,30 @@ const cases = {
   },
 };
 
+/* THE SOLO-FIRST GROUND, PLAYED FROM THE START KIT (async: the real settle). */
+cases['thicket-solo-starter-kit'] = async (M) => {
+  const { loadPlay } = await import(pathToFileURL(join(M.root, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
+  const P = await loadPlay(M.root);
+  const floor = M.hunts.HUNT_INDEX[M.grounds.HUNT_GROUNDS.meadowbrook_thicket.hunt].band[0];
+  const bad = [], seen = [];
+  for (const secret of STARTER_SEEDS) {
+    const x = P.run('meadowbrook_thicket', floor, ['tank'], { spanMs: 3600000, equipment: M.kit.START_EQUIPMENT, secret });
+    const m = x.store > 0 ? (x.income / x.store - 1) * 100 : Infinity;
+    seen.push((x.totals.falls ? 'died ' + (x.playedMs / 60000).toFixed(1) + 'm' : 'lived') + ' ' + (Number.isFinite(m) ? (m >= 0 ? '+' : '') + Math.round(m) + '%' : 'no bill'));
+    if (x.totals.falls || x.playedMs < 3600000) bad.push('seed ' + secret + ': ended after ' + (x.playedMs / 60000).toFixed(1) + ' min with ' + x.totals.falls + ' death(s) (' + x.ended.join(', ') + ')');
+    else if (m < STARTER_MARGIN_MIN) bad.push('seed ' + secret + ': ' + Math.round(m) + '% over the store bill, under +' + STARTER_MARGIN_MIN + '%');
+  }
+  console.log('    thicket solo, start kit only (' + Object.values(M.kit.START_EQUIPMENT).join(', ') + ') at L' + floor + ', ' + STARTER_SEEDS.length + ' seeds: ' + seen.join(' | '));
+  return bad.length ? 'a start-kit Melee at the Thicket floor: ' + bad.join('; ') : null;
+};
+
 const mutants = [
+  /* The two rules of the start-kit case: no death (the wolves hit like a Sewer spider) and the margin floor (the
+     store heal priced x100). The armour alone is not load-bearing here: weapon + shield also live all six seeds. */
+  { name: 'the Thicket wolves hit like a Sewer spider (atk 4 -> 13)', case: 'thicket-solo-starter-kit',
+    edits: [['src/data/monsters.js', 'hp: 14, atk: 4, def: 1, xp: 52, gp: [2, 5], speed: 4200,', 'hp: 14, atk: 13, def: 1, xp: 52, gp: [2, 5], speed: 4200,']] },
+  { name: 'the tier-1 store heal priced x100 (the bill eats the margin)', case: 'thicket-solo-starter-kit',
+    edits: [['src/data/supply-basics.js', "heal('salted_shrimp', 'Salted Shrimp', 'cooked_shrimp', 72, 14, [1])", "heal('salted_shrimp', 'Salted Shrimp', 'cooked_shrimp', 72, 1400, [1])"]] },
   { name: 'a pack tile moved into the thicket', case: 'packs-on-the-map',
     edits: [['src/data/hunt-grounds.js', "box([5, 13, 21, 24], [15, 19],", "box([5, 13, 21, 24], [21, 15],"]] },
   { name: 'a prop dropped into a full box', case: 'packs-on-the-map',
@@ -267,7 +298,7 @@ const mutants = [
 
 function plant(edits) {
   const root = mkdtempSync(join(tmpdir(), 'hunt-forest-cave-'));
-  for (const d of ['src/core', 'src/data', 'src/world', 'assets/world']) cpSync(join(ROOT, d), join(root, d), { recursive: true });
+  for (const d of ['src/core', 'src/data', 'src/world', 'assets/world', 'supabase/functions/hr-accrue', 'tests/hunt-core/fixtures/play-ground.mjs']) cpSync(join(ROOT, d), join(root, d), { recursive: true });
   cpSync(join(ROOT, 'src/build-info.js'), join(root, 'src/build-info.js'));
   for (const [file, from, to] of edits) {
     const f = join(root, file);
@@ -288,7 +319,7 @@ if (process.argv.includes('--play')) {
 }
 for (const [cn, fn] of Object.entries(cases)) {
   let why = null;
-  try { why = fn(M); } catch (e) { why = 'threw ' + (e && e.stack || e); }
+  try { why = await fn(M); } catch (e) { why = 'threw ' + (e && e.stack || e); }
   R.ok(!why, cn + ': ' + why);
 }
 for (const mu of mutants) {
@@ -297,7 +328,7 @@ for (const mu of mutants) {
   try {
     let why = null;
     const PM = await load(p.root);
-    try { why = cases[mu.case](PM); } catch (e) { why = 'threw ' + e.message; }
+    try { why = await cases[mu.case](PM); } catch (e) { why = 'threw ' + e.message; }
     R.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
   } finally { p.done(); }
 }

@@ -39,6 +39,7 @@ import { createAlertCenter } from '../shell/alerts.js?v=0.2.21';
 import { createSocialRealtime } from '../social/realtime.js?v=0.2.21';
 import { SocialSession } from '../social/social-session.js?v=0.2.21';
 import { escapeHtml as esc } from '../utils/dom.js?v=0.2.21';
+import { startObservability, track } from '../net/observability.js?v=0.2.21';
 
 const DISCORD = 'https://discord.gg/eJrUSUJM3M';
 
@@ -56,6 +57,8 @@ function channelFor(client, auth) {
 }
 
 function startApp(win) {
+  /* Errors and replays (src/net/observability.js): telemetry only, nothing sent off hearthrise.net. */
+  const obs = startObservability(win);
   const doc = win.document;
   const root = doc.getElementById('app');
   const HS = win.HearthriseStorage;
@@ -83,6 +86,7 @@ function startApp(win) {
 
   function showAuth(mode) {
     clear();
+    obs.screen('auth');
     root.className = 'app is-auth';
     const box = doc.createElement('main');
     box.className = 'auth';
@@ -92,6 +96,7 @@ function startApp(win) {
 
   function showClosed() {
     clear();
+    obs.screen('closed');
     root.className = 'app is-auth';
     root.innerHTML = '<main class="auth">' + AUTH_BRAND + '<div class="auth-card">'
       + '<h1 class="auth-title">Hearthrise is a new game in development. Follow Discord for the first playtest.</h1>'
@@ -106,6 +111,7 @@ function startApp(win) {
     if (alerts) { alerts.destroy(); alerts = null; }
     const a = account;
     account = null;
+    obs.forget();
     await a.signOut();
     showAuth('sign-in');
     const m = root.querySelector('.auth-message');
@@ -115,12 +121,14 @@ function startApp(win) {
   async function signOut() {
     if (alerts) { alerts.destroy(); alerts = null; }
     if (account) { const a = account; account = null; await a.signOut(); } else await auth.signOut();
+    obs.forget();
     showAuth('sign-in');
   }
 
   async function startAccount() {
     if (!auth.userId()) { showAuth('sign-in'); return; }
     if (account) return;
+    obs.identify(auth.userId());
     const server = createServerLink({ url: SUPABASE_CONFIG.url, anonKey: SUPABASE_CONFIG.anonKey, token: auth.freshToken, renew: auth.renewToken });
     account = new AccountSession({ auth, server, tab: HS.session, channel: channelFor(client, auth),
       social: (acc) => new SocialSession({ account: acc, realtime: createSocialRealtime(client, auth.token) }) });
@@ -135,6 +143,7 @@ function startApp(win) {
 
   async function showCharacters() {
     clear();
+    obs.screen('characters');
     root.className = 'app is-auth';
     root.innerHTML = '<main class="auth">' + AUTH_BRAND + '<div class="auth-card"><h1 class="auth-title">Your characters</h1>'
       + '<p class="auth-lead" role="status">Reading your characters…</p></div></main>';
@@ -169,7 +178,7 @@ function startApp(win) {
       slot,
       colorOf: (t) => tokens.getPropertyValue('--' + t),
       create: (name, colors) => account.create(slot, name, colors),
-      done: () => play(slot),
+      done: () => { track('character_created'); play(slot); },
       back: () => showCharacters(),
     });
   }
@@ -192,6 +201,7 @@ function startApp(win) {
   async function showGame() {
     if (!strip) {
       clear();
+      obs.screen('game');
       root.className = 'app is-game';
       const nav = doc.createElement('nav');
       const main = doc.createElement('main');

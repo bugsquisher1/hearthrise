@@ -51,7 +51,7 @@ function tabsOf(social) {
 
 /** The skeleton (built once). */
 export function renderChat() {
-  return '<div class="hc-chat">'
+  return '<div class="hc-chat ph-mask">'
     + '<div class="hc-tabs" role="tablist" aria-label="Channels"></div>'
     + '<div class="hc-pane is-talk"><div class="hc-logs"></div>'
     + '<button type="button" class="hc-pill" data-hs-act="to-bottom" hidden>New messages</button>'

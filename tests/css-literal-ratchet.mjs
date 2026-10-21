@@ -154,6 +154,10 @@ export function measure(root) {
     for (const p of walk(srcDir)) {
       if (!p.endsWith('.js')) continue;
       const rel = 'src/' + relative(srcDir, p).split(sep).join('/');
+      /* src/vendor/ is third-party, pinned by sha384 (src/net/observability-config.js): it cannot
+         take our tokens, and its colours are its own disabled UI (PostHog's toolbar, surveys).
+         Out of scope as in tests/platform-seam.mjs and the run-smoke supply-chain guard. */
+      if (rel.startsWith('src/vendor/')) continue;
       const r = countJs(readFileSync(p, 'utf8'));
       if (r.literals) js[rel] = { literals: r.literals };
     }

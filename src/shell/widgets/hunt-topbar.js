@@ -14,6 +14,7 @@ import { huntOf, analyzerOf } from '../../session/hunt-sections.js?v=0.2.21';
 import { text, prop, attr } from '../../render/paint.js?v=0.2.21';
 import { clock } from '../../render/format.js?v=0.2.21';
 import { takeFresh } from '../../hunt-view/summary-recorder.js?v=0.2.21';
+import { track } from '../../net/observability.js?v=0.2.21';
 
 /* The pending leave's line, per CharacterSession.leaveCountdown phase (null: the press is still out). */
 const LEAVING = Object.freeze({ asked: 'Leaving…', now: 'Leaving now…', late: 'Still processing your leave…' });
@@ -67,6 +68,7 @@ renderHuntTopbar.act = async function actHuntTopbar(ctx, el, action, ev, btn) {
   if (action === 'summary') { ctx.show('hunt-summary'); return; }
   if (action === 'details') { ctx.show('analyzer'); return; }
   if (action !== 'leave' || btn.hasAttribute('data-pending') || btn.hasAttribute('data-leaving')) return;
+  track('leave_hunt_clicked');
   attr(btn, 'data-pending', true);
   renderHuntTopbar.patch(el, ctx);
   const r = await ctx.character.leaveHunt();

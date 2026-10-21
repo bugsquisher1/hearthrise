@@ -43,7 +43,7 @@
 -- seeded rows move (restore-census re-pinned).
 --
 -- ── ORDER ───────────────────────────────────────────────────────────────────
--- After 2026-11-03-alpha-catalogue.generated.sql, BEFORE
+-- After 2026-11-04-party-outfits.sql (the v0.2.24 chain, applied), BEFORE
 -- 2026-11-07-hunt-sessions-catalogue.generated.sql (which drops the tier columns
 -- this file stops reading; it refuses to apply until this one has). The hr-accrue
 -- edge of this lane deploys BEFORE this file (it reads no `shop`, names the items).

@@ -931,12 +931,12 @@
   },
   "hr_hunt_action_ids": {
    "class": "seeded",
-   "replay": 51,
+   "replay": 60,
    "note": "Catalogue (2026-10-25-action-conditions.sql §1, rows pinned equal to src/data by tests/hunt-core/conditions.mjs sql-rows): the consume and attack_with_item ids a slot may name (condition-metrics.js CONSUME_KINDS, consumables.js own rows, supplies.js ammo). Rebuilt from repo, never restored; nothing player-owned. If it came back empty every conditional bar edit is refused (catalogue_missing / bad_metric), loud, never a wrong grant."
   },
   "hr_hunt_basic_supplies": {
    "class": "seeded",
-   "replay": 18,
+   "replay": 19,
    "note": "Generated catalogue (2026-10-22-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check): the store's per-use supplies (src/data/supply-basics.js). Rebuilt from repo, never restored."
   },
   "hr_hunt_boss_reward": {

@@ -40,12 +40,12 @@
 //                 left and destroyed when it closes
 // ════════════════════════════════════════════════════════════════════════
 
-import { SESSION_CONFIG } from './config.js?v=0.2.23';
-import { CharacterSession } from './character-session.js?v=0.2.23';
-import { TownPresence } from './town-presence.js?v=0.2.23';
-import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.23';
-import { charLevelFromXp } from '../core/xp.js?v=0.2.23';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.23';
+import { SESSION_CONFIG } from './config.js?v=0.2.24';
+import { CharacterSession } from './character-session.js?v=0.2.24';
+import { TownPresence } from './town-presence.js?v=0.2.24';
+import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.24';
+import { charLevelFromXp } from '../core/xp.js?v=0.2.24';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.24';
 
 /** This tab's session id: made once per tab, kept across a reload, new for a new tab. */
 export function tabSessionId(tab, cfg = SESSION_CONFIG, make) {

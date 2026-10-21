@@ -13,17 +13,17 @@
 // PURE ESM, Node + Deno + browser.
 // ============================================================================
 
-import { DEFAULT_PROFILE, equipmentStats, armorSetBonus, playerCombatRolls, weaknessInfo } from './combat.js?v=0.2.23';
-import { makeBonus, EMPTY_PERKS } from './perks.js?v=0.2.23';
-import { companionBonus } from './companion-perk.js?v=0.2.23';
-import { buffQueueFromServer, buffBonusFor } from './buffs.js?v=0.2.23';
-import { grantXp, normaliseXpFrac } from './progression.js?v=0.2.23';
-import { charLevelFromXp, levelsOf } from './xp.js?v=0.2.23';
-import { vitalsOf, wearsArmour } from './vitals.js?v=0.2.23';
-import { newHuntSession } from './action-rules.js?v=0.2.23';
-import { makeGoalCounter, makeBestiaryCounter, makeCollectionCounter } from './goals.js?v=0.2.23';
-import { HUNT_ROLES } from '../data/hunt-roles.js?v=0.2.23';
-import { MONSTERS } from '../data/monsters.js?v=0.2.23';
+import { DEFAULT_PROFILE, equipmentStats, armorSetBonus, playerCombatRolls, weaknessInfo } from './combat.js?v=0.2.24';
+import { makeBonus, EMPTY_PERKS } from './perks.js?v=0.2.24';
+import { companionBonus } from './companion-perk.js?v=0.2.24';
+import { buffQueueFromServer, buffBonusFor } from './buffs.js?v=0.2.24';
+import { grantXp, normaliseXpFrac } from './progression.js?v=0.2.24';
+import { charLevelFromXp, levelsOf } from './xp.js?v=0.2.24';
+import { vitalsOf, wearsArmour } from './vitals.js?v=0.2.24';
+import { newHuntSession } from './action-rules.js?v=0.2.24';
+import { makeGoalCounter, makeBestiaryCounter, makeCollectionCounter } from './goals.js?v=0.2.24';
+import { HUNT_ROLES } from '../data/hunt-roles.js?v=0.2.24';
+import { MONSTERS } from '../data/monsters.js?v=0.2.24';
 
 /* A finite, non-negative number or the fallback (every number that crosses in from a row). */
 function nat(v, fallback) {

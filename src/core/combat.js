@@ -17,12 +17,12 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { levelOf } from './xp.js?v=0.2.23';
+import { levelOf } from './xp.js?v=0.2.24';
 import {
   baneIndex, baneMultFor, classOfMonster, MAX_COMBINED_DAMAGE_MULT,
-} from './bane.js?v=0.2.23';
-import { elementMultFor, MAX_TOTAL_DAMAGE_MULT } from './elements.js?v=0.2.23';
-import { ELEMENT_PERMILLE } from '../data/elements.js?v=0.2.23';
+} from './bane.js?v=0.2.24';
+import { elementMultFor, MAX_TOTAL_DAMAGE_MULT } from './elements.js?v=0.2.24';
+import { ELEMENT_PERMILLE } from '../data/elements.js?v=0.2.24';
 /* The bestiary CHARM and TROPHY combat multipliers are gone (closed rebuild,
    demolition safety review item 9: trophies stay as claims and display; the
    ladders no longer price a fight). A monster's drops are its own row's. */

@@ -165,7 +165,8 @@ export function healWarning(w, set, blow, hpMax) {
   const c = effective(w, set).find((x) => x.metric === 'self_hp_pct' && (x.op === 'lt' || x.op === 'lte') && Number.isFinite(x.value));
   if (!c) return '';
   const at = Math.floor((hpMax * c.value) / 100);
-  return at < blow.hit ? 'The ' + blow.name + ' can hit ' + blow.hit + '. Heal at ' + c.value + '% = ' + at + ' HP.' : '';
+  return at < blow.hit ? 'The ' + blow.name + ' can hit for ' + blow.hit + '. At ' + c.value + '% you have ' + at + ' HP, so one hit can kill you before you '
+    + (w.action.type === 'consume' ? 'eat' : 'heal') + '.' : '';
 }
 const condKey = (c) => JSON.stringify([c.metric, c.op, c.value, c.subject || null]);
 /* A passes whenever B passes: A's conditions are all among B's (both "all of"), or A has none. */

@@ -37,6 +37,8 @@ import { stepCost } from '../core/hunt/grid.js?v=0.2.23';
 
 /* How many swings of world hashes are kept to judge a server commit against. */
 const KEEP_HASHES = 64;
+/* The most swings one call runs (a frame's advance, a catch-up): never an unbounded loop on the main thread. */
+const MAX_SWINGS_PER_CALL = 64;
 /* A party member's purse is withheld by the server: never let the prediction end its hunt for gold. */
 const UNKNOWN_PURSE = Number.MAX_SAFE_INTEGER;
 
@@ -131,6 +133,12 @@ export function createLiveEngine(o) {
     const sim = simulateHuntInstance({ world: s.world, nextSwingAtMs: at, members: s.sides.map((x) => x.member),
       worldSwing: s.worldSwing },
     { toMs: at + 1, tickMs: COMBAT_BALANCE.tickMs, seed, ground: s.where.ground, grid: s.where.grid, monsters, items });
+    /* THE INSTANCE HAS ENDED (every member left: a death and the party's end with it, a leave, stamina):
+       the engine runs no swing and its clock stands. A prediction that kept calling it never caught up:
+       64 empty swings a frame, then a catch-up whose loop never ended (live v0.2.22, Andy: the tab froze
+       when the tank died, and again on every reload until the server closed the hunt). It stops here and
+       holds its world until the server's answer ends the hunt (live-link.js off). */
+    if (!(sim.nextSwingAtMs > at)) { s.ended = true; const e = new Error('live: the instance has ended'); e.ended = true; throw e; }
     s.world = sim.world;
     s.next = sim.nextSwingAtMs;
     if (s.world) {
@@ -162,9 +170,9 @@ export function createLiveEngine(o) {
     const until = serverNowMs + Math.max(0, Math.floor(Number(aheadMs) || 0));
     const pos = new Map(), killed = new Set(), hp = {}, kills = [], track = [], events = [];
     for (const u of (st.world ? st.world.units : [])) if (u.alive) pos.set(u.id, [u.x, u.y]);
-    while (st.next <= until) {
+    for (let n = 0; st.next <= until && n < MAX_SWINGS_PER_CALL; n++) {
       let tl;
-      try { tl = swing(st); } catch (e) { if (e && e.starved) { st.starved = true; break; } throw e; }
+      try { tl = swing(st); } catch (e) { if (e && e.starved) st.starved = true; if (e && (e.starved || e.ended)) break; throw e; }
       for (const [k, v] of Object.entries(tl.hunt_units || {})) hp[k] = v.slice();
       for (const s of tl.hunt_track) { if (s.atMs <= until) pos.set(s.u, [s.x, s.y]); else track.push(s); }
       for (const ev of tl.hunt_events) {
@@ -197,7 +205,9 @@ export function createLiveEngine(o) {
      */
     sameSetup: (live) => !!st && !!live && Array.isArray(live.members) && setupOf(live) === st.setup,
     /** Is a prediction running? */
-    running: () => !!st && !st.starved,
+    running: () => !!st && !st.starved && !st.ended,
+    /** Did the prediction run to the instance's end (every member left)? It holds its world and runs nothing more. */
+    ended: () => !!st && st.ended === true,
     /** The viewed character's unit in the instance (null before the first swing places it). */
     selfUnit: () => (st ? (st.sides.find((x) => x.mi && x.mi.self) || {}).member?.unitId ?? st.self : null),
     /** Every hero of the instance: [{ unit, seat, self, role }] (unit null before its first swing). */
@@ -210,11 +220,11 @@ export function createLiveEngine(o) {
      * `feed` (timeline.ingest's shape). Answers how many swings ran.
      */
     advance(serverNowMs, feed) {
-      if (!st || st.starved || !Number.isFinite(serverNowMs)) return 0;
+      if (!st || st.starved || st.ended || !Number.isFinite(serverNowMs)) return 0;
       let n = 0;
-      while (st.next <= serverNowMs && n < 64) {
+      while (st.next <= serverNowMs && n < MAX_SWINGS_PER_CALL) {
         let tl;
-        try { tl = swing(st); } catch (e) { if (e && e.starved) { st.starved = true; break; } throw e; }
+        try { tl = swing(st); } catch (e) { if (e && e.starved) st.starved = true; if (e && (e.starved || e.ended)) break; throw e; }
         n++;
         feed({ track: tl.hunt_track, events: tl.hunt_events, units: tl.hunt_units, fromMs: tl.hunt_from_ms });
       }
@@ -259,23 +269,23 @@ export function createLiveEngine(o) {
       st = s;
       return fastForward(serverNowMs, aheadMs);
     },
-    /** A prediction that ran out of seeds (it holds a world, but cannot step it): restart it eased, never fed. */
-    stalled: () => !!st && st.starved,
+    /** A prediction that holds a world but cannot step it (out of seeds: restart it eased, never fed; or ended). */
+    stalled: () => !!st && (st.starved || st.ended === true),
     /** How far (ms) the prediction's next boundary lies behind `serverNowMs` (0 when it is up to date or not running). */
-    behindMs: (serverNowMs) => (st && !st.starved && Number.isFinite(serverNowMs) ? Math.max(0, serverNowMs - st.next) : 0),
+    behindMs: (serverNowMs) => (st && !st.starved && !st.ended && Number.isFinite(serverNowMs) ? Math.max(0, serverNowMs - st.next) : 0),
     /**
      * A prediction more than a swing behind (a background tab's paused frame loop): its missed swings are
      * already in the past, so they are run without being played and the caller eases onto the result
      * (reseed's answer shape), instead of feeding them and drawing their end at once.
      */
-    catchUp(serverNowMs, aheadMs) { return st && !st.starved ? fastForward(serverNowMs, aheadMs) : null; },
+    catchUp(serverNowMs, aheadMs) { return st && !st.starved && !st.ended ? fastForward(serverNowMs, aheadMs) : null; },
     /**
      * The server instant the look-ahead runs out: the boundary of the first swing it holds no combat
      * seed for (null when not running). The session asks for more before it comes (live-link.js
      * refillDelayMs), so the prediction never stands waiting for seeds.
      */
     seededUntil() {
-      if (!st || st.starved) return null;
+      if (!st || st.starved || st.ended) return null;
       const swing = st.world ? st.world.swing : st.worldSwing;
       return st.next + (st.seeds.from + st.seeds.list.length - swing) * COMBAT_BALANCE.tickMs;
     },

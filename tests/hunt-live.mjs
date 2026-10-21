@@ -66,6 +66,7 @@ const T0 = Date.UTC(2026, 9, 19, 15, 33, 17, 447);
 async function load(base) {
   const u = (p) => import(pathToFileURL(join(base, p)).href);
   return {
+    base,
     AC: await u(FN + '/accrual.js'),
     HS: await u(FN + '/hunt-settle.js'),
     LE: await u('src/hunt-view/live-engine.js'),
@@ -336,6 +337,62 @@ function rules(M) {
     }
   }
 
+  { // LV-E: THE HUNT ENDS IN THE BROWSER WITHOUT FREEZING IT (Andy, live v0.2.22: "crashing in Coppercap Warrens
+    // when my tank dies ... both games freeze ... refresh doesn't work"). Every member of the instance left (the
+    // tank died, the party's hunt with it): the engine's clock stands, and the live view must stop there, not run
+    // empty swings forever. The real LiveLink frame step, VIEWED (the death played live) and on a RELOAD (a start
+    // point from before the death, caught up across it), runs in a child process: a frame that never returns is
+    // a timeout there, not a hung test.
+    const mis = [memberOf(M, 'a', 0, 'tank', 3), memberOf(M, 'b', 1, 'melee_dps', 30)];
+    for (const m of mis) m.huntId = 'coppercap_warrens';
+    mis[0].hp = 30;
+    const where = M.HG.huntGroundOf('coppercap_warrens');
+    const ctl = M.AC.accrueHunt({ instance: { id: 'i-live', nextSwingAtMs: T0, world: null, worldSwing: 0 }, window: { fromMs: T0, toMs: T0 + 16000 },
+      secret: SECRET, ground: where.ground, grid: where.grid, items: M.ITEMS, monsters: M.MONSTERS, members: clone(mis) });
+    const why = ctl.members.map((p) => p.hunt && p.hunt.ended && p.hunt.ended.reason).join(',');
+    ok('LV-E', why === 'died,party_member_died', `the fixture's tank did not die with its partner's hunt ended after it (ends: ${why})`);
+    const code = `
+      import { pathToFileURL } from 'node:url';
+      import { join } from 'node:path';
+      const o = JSON.parse(process.env.LV_E);
+      const { HARNESS: H } = await import(o.test);
+      const M = await H.load(o.base);
+      const { LiveLink } = await import(pathToFileURL(join(o.base, 'src/session/live-link.js')).href);
+      const mis = o.mis;
+      const srv = H.server(M, mis, { hunt: 'coppercap_warrens' });
+      const start = srv.live('b');   // the server never settles: the start point stays the one before the death
+      const play = (from, toMs) => {
+        let clock = from;
+        const link = new LiveLink({ timeline: M.TL.createTimeline(), now: () => clock, emit: () => {} });
+        link.from({ hunt_live: start, hunt_server_now_ms: from });
+        let worst = 0, swings = 0, frames = 0;
+        for (; clock <= toMs; clock += 16) {
+          const t = performance.now();
+          swings += link.advance(clock);
+          worst = Math.max(worst, performance.now() - t); frames++;
+        }
+        return { worst: Math.round(worst * 10) / 10, swings, frames, ended: link.ended(), running: link.running(), stats: link.stats };
+      };
+      const viewed = play(o.T0, o.T0 + 20000);
+      const reload = play(o.T0 + 20000, o.T0 + 22000);
+      console.log(JSON.stringify({ viewed, reload }));`;
+    const { spawnSync } = process.getBuiltinModule('node:child_process');
+    const ch = spawnSync(process.execPath, ['--input-type=module', '-e', code], { encoding: 'utf8', timeout: 20000,
+      env: Object.assign({}, process.env, { LV_E: JSON.stringify({ test: import.meta.url, base: M.base || ROOT, mis, T0 }) }) });
+    const line = (ch.stdout || '').trim().split('\n').pop();
+    let r = null;
+    try { r = JSON.parse(line); } catch { r = null; }
+    if (!r) ok('LV-E', false, ch.error && ch.error.code === 'ETIMEDOUT' ? 'the live view froze: a frame step after the tank died never returned within 20 s'
+      : 'the live view child failed: ' + String(ch.stderr || ch.error || '').trim().slice(0, 300));
+    else {
+      console.log(`  LV-E tank died: viewed ${r.viewed.frames} frames, ${r.viewed.swings} swing(s) run, slowest frame ${r.viewed.worst} ms, ended ${r.viewed.ended}; reload 20 s later: slowest frame ${r.reload.worst} ms, ended ${r.reload.ended}`);
+      ok('LV-E', r.viewed.ended && !r.viewed.running && r.reload.ended && !r.reload.running,
+        `after the tank died the prediction reads ended ${r.viewed.ended} / running ${r.viewed.running} (viewed), ${r.reload.ended} / ${r.reload.running} (reload), want ended and not running`);
+      ok('LV-E', r.viewed.swings <= 3, `the viewed live view ran ${r.viewed.swings} swings for a hunt that ended at its second boundary (empty swings after the end)`);
+      ok('LV-E', r.viewed.worst < 50 && r.reload.worst < 50, `a frame step took ${r.viewed.worst} ms (viewed) / ${r.reload.worst} ms (reload), budget 50 ms`);
+    }
+  }
+
   { // LV-W: a RESTARTED instance (no world, its swing counter kept: hr_hunt_start) runs live from its first swing
     const mis = [memberOf(M, 'a', 0, 'tank', 6)];
     const srv = server(M, mis);
@@ -454,6 +511,7 @@ const MUTANTS = [
   ['a peer row carries its full setup (LV-P)', 'supabase/functions/hr-accrue/hunt-settle.js', '      if (!self) {', '      if (false) {', /^LV-P/],
   ['the look-ahead is its own number at the edge (LV-H)', 'supabase/functions/hr-accrue/hunt-settle.js', 'export const LIVE_SEEDS = HUNT_TUNING.liveSeeds;', 'export const LIVE_SEEDS = 64;', /^LV-H/],
   ['a second tank holds where it stands (LV-T)', 'src/core/hunt/roles.js', "  if (!mons.some((m) => m.target === h.id)) { closeIn(inst, h, unitById(inst, h.target) || nearestTo(mons, h)); return; }\n", '', /^LV-T/],
+  ['an ended instance keeps the prediction swinging (LV-E)', 'src/hunt-view/live-engine.js', 'if (!(sim.nextSwingAtMs > at)) {', 'if (false) {', /^LV-E/],
   ['a fresh world counts from 0, not the instance swing (LV-W)', 'src/hunt-view/live-engine.js', '      worldSwing: s.worldSwing },', '      worldSwing: 0 },', /^LV-W/],
   ['members run in another order than the server (LV-D)', 'src/hunt-view/live-engine.js', '.slice().sort((a, b) => (a.key < b.key ? -1 : 1))', '.slice().reverse()', /^LV-D/],
   ['a setup change is not written onto a standing hero (LV-S)', 'src/core/combat-sim.js', 'if (s.stance !== undefined) u.stance = s.stance;', 'void 0;', /^LV-S/],

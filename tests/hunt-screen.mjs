@@ -4,10 +4,11 @@
 //
 //   node tests/hunt-screen.mjs                the rules
 //   node tests/hunt-screen.mjs --mutate       every planted defect must turn a rule RED
+//   node tests/hunt-screen.mjs --mutate --shard=K/N   only every Nth mutant from the Kth (CI splits them)
 //   node tests/hunt-screen.mjs --shots <dir>  also write the visual-gate screenshots
 //                                             (1440x900 and 922x423)
 //
-// mutant-anchors: src/render/images.js src/world/atlas.js src/session/character-session.js src/session/hunt-leave.js src/session/hunt-poll.js src/shell/windows/hunts.js src/shell/widgets/hunt-topbar.js src/render/paint.js src/shell/shell.js src/shell/widgets/ src/shell/windows/ src/session/hunt-sections.js src/data/combat-text.js src/data/condition-metrics.js
+// mutant-anchors: src/render/images.js src/world/atlas.js src/session/character-session.js src/session/hunt-leave.js src/session/hunt-poll.js src/shell/windows/hunts.js src/shell/widgets/hunt-topbar.js src/render/paint.js src/shell/shell.js src/shell/widgets/ src/shell/windows/ src/session/hunt-sections.js src/data/combat-text.js src/data/condition-metrics.js src/shell/action-facts.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character's envelope is tests/fixtures/hunt-envelope.json.
@@ -75,6 +76,9 @@
 //   HS-22 THE PHONE BAR (922x423), in a hunt and in town: at most 100 px tall, the alerts dock
 //         above its top, and the fight settings are a slide-out sheet (shut until the bar's
 //         button opens it, then on top of everything, shut again on Escape)
+//   HS-23 THE HEAL WARNING: a heal slot whose HP % is fewer HP than the hunt's biggest blow at the
+//         party's size says so in Configure action ("The Rat King can hit 75. Heal at 30% = 66 HP.");
+//         it hides at a safe threshold and for a solo hero (who skips the King's hall)
 //   HS-21 THE COOLDOWN EMBER: the hero's played cast cools that ability's slot for its
 //         catalogue cooldown; the ember rises and the seconds fall as it runs out
 // ════════════════════════════════════════════════════════════════════════
@@ -441,6 +445,25 @@ async function checks(overrides, shots) {
             taken: p.querySelector('.ha-tab[data-tab="taken"]').getClientRects().length > 0, more: p.querySelector('.ha-more').getClientRects().length > 0 };
         });
         if (!paid.waste || !paid.taken || paid.more) fails.push('HS-4 a premium character does not see every analyzer row: ' + JSON.stringify(paid));
+        /* Designer 2026-10-21: before 10 minutes the server sends no rate (per_hour null, the Level eta null):
+           the totals still show, the rates give way to one line, and Next level in says when. */
+        s.env.hunt_analyzer.hero.per_hour = null;
+        s.env.hunt_analyzer.hero.level.eta_h = null;
+        await pushEnvelope(page, s);
+        const early = await page.evaluate(() => {
+          const p = document.querySelector('.ha-analyzer');
+          const shown = (el) => !!el && el.getClientRects().length > 0;
+          return { kills: p.querySelector('[data-sec="totals"] [data-stat="kills"]').textContent, rates: shown(p.querySelector('[data-sec="rates"] .ha-stats')),
+            line: shown(p.querySelector('.ha-later')) ? p.querySelector('.ha-later').textContent : null, next: p.querySelector('[data-clock="next"]').textContent };
+        });
+        if (!/\d/.test(early.kills) || early.rates || early.line !== 'Per hour after 10 min.' || early.next !== 'after 10 min') {
+          fails.push('HS-4 a session under 10 minutes (per_hour null) did not show totals plus "Per hour after 10 min.": ' + JSON.stringify(early));
+        }
+        s.env.hunt_analyzer = clone(FIXTURE.hunt_analyzer);
+        await pushEnvelope(page, s);
+        const later = await page.evaluate(() => document.querySelector('[data-sec="rates"] .ha-stats').getClientRects().length > 0
+          && document.querySelector('.ha-later').getClientRects().length === 0);
+        if (!later) fails.push('HS-4 once the server sent rates, the per-hour rows did not come back');
         await page.keyboard.press('Escape');
         await wait(page, () => document.querySelector('[data-hs-win="settings"] input[data-float]'));
         await page.waitForTimeout(300);
@@ -702,6 +725,29 @@ async function checks(overrides, shots) {
           if (shots) await page.screenshot({ path: join(shots, 'hunt-1440x900-configure-action.png') });
         }
       } else fails.push('HS-7 the screen did not mount');
+      await ctx.close();
+    }
+
+    { // HS-23 THE HEAL WARNING (designer 2026-10-21, Andy died in the Sewer healing at 40%)
+      const { ctx, page, s, up } = await open({ prep: (st) => { st.env.hunt.hunt_id = 'millrace_sewer'; } });
+      if (up) {
+        await page.click('.hb-slot[data-slot="2"]');
+        await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .hc-title'), null, 3000);
+        const warn = () => page.evaluate(() => { const w = document.querySelector('.hc-warn'); return w && w.getClientRects().length ? w.textContent : ''; });
+        /* Wheat Bread at HP 50% or below of 220 = 110 HP: above the King's 75, nothing to say. */
+        const safe = await warn();
+        await page.fill('.hc-cond[data-cond="0"] [data-f="value"]', '30');
+        await page.dispatchEvent('.hc-cond[data-cond="0"] [data-f="value"]', 'change');
+        const shown = await warn();
+        if (safe !== '' || shown !== 'The Rat King can hit 75. Heal at 30% = 66 HP.') {
+          fails.push('HS-23 the heal warning did not follow the threshold in a party of two: at 50% "' + safe + '", at 30% "' + shown + '"');
+        }
+        /* Alone the King's hall is skipped (minParty 2): the biggest blow is a Cistern Spider's 48, under 66. */
+        s.env.party.members = [s.env.party.members[0]];
+        await pushEnvelope(page, s);
+        const solo = await warn();
+        if (solo !== '') fails.push('HS-23 a solo hero (who never meets the Rat King) was warned: "' + solo + '"');
+      } else fails.push('HS-23 the screen did not mount on the Sewer');
       await ctx.close();
     }
 
@@ -1112,6 +1158,10 @@ const MUTANTS = [
     ["else if (key === 'stance') attr(el, 'aria-pressed', String(v === el.getAttribute('data-val')));", "else if (key === 'stance') attr(el, 'aria-pressed', String(pending ? root.__want === el : v === el.getAttribute('data-val')));"]]],
   ['controls stay on while an intent is in flight', 'src/shell/widgets/settings-intent.js', "prop(el, 'disabled', pending || v === null);", "prop(el, 'disabled', v === null);"],
   ['the analyzer ignores the premium gate', 'src/shell/widgets/analyzer.js', 'const premium = isPremium(ctx.character);', 'const premium = true;'],
+  ['a null per_hour shows dashes, not "Per hour after 10 min."', 'src/shell/widgets/analyzer.js', "prop(sec.querySelector('.ha-later'), 'hidden', v.rated);", "prop(sec.querySelector('.ha-later'), 'hidden', true);"],
+  ['Any food says it eats the best food first', 'src/shell/action-facts.js', 'your own \' + a.id + \' first, the smallest that covers what you are missing, then the store’s', 'your best \' + a.id + \' first'],
+  ['Configure action never warns a heal slot', 'src/shell/windows/configure-action.js', "healWarning(d, set, blow, vitalsOf(cs).hpMax)", "''"],
+  ['the heal warning reads the whole ground whatever the party size', 'src/shell/windows/configure-action.js', 'biggestBlowOn(h.huntId, p ? p.members.length : 1)', 'biggestBlowOn(h.huntId, 4)'],
   ['the Hunts window keeps saying "On the way" while hunting', 'src/shell/windows/hunts.js', "  if (sc.msg && sc.msg === sc.enterMsg && (now || (h && h.ended))) { sc.msg = ''; sc.enterMsg = null; }\n", ''],
   ['an edge panel never steps out of the hunt bar’s way', 'src/shell/shell.js', "        for (const p of at.push) edgeEls[p.i].style.top = p.top + 'px';\n", ''],
   ['the hunt bar draws no tutorial card under itself', 'src/shell/widgets/hunt-topbar.js', 'const html = pointerFor(ctx);', "const html = '';"],
@@ -1187,11 +1237,21 @@ async function main() {
       : 'hunt-screen: panels mount; patch in place; intents only; the analyzer is the server’s; badge defaults; each log line once' + (shots ? ' (shots in ' + shots + ')' : ''));
     process.exit(fails.length ? 1 : 0);
   }
+  /* --shard=K/N (2026-10-21): the mutants split round-robin over N CI jobs (in-page-3/4/5). Each mutant
+     is one clean boot of the whole page (~60 s on a runner since the action bar's rules), so 61 of them
+     outgrew one job's budget. Every shard is registered in tests/ci-shape.baseline.json, so a dropped
+     shard is loud; a shard that selects nothing is red. */
+  const sh = process.argv.find((a) => a.startsWith('--shard='));
+  const sm = sh ? /^--shard=(\d+)\/(\d+)$/.exec(sh) : null;
+  if (sh && (!sm || +sm[1] < 1 || +sm[1] > +sm[2])) { console.log('  ✗ bad ' + sh + ' (want --shard=K/N, 1 <= K <= N)'); process.exit(1); }
+  const mine = sm ? MUTANTS.filter((_, i) => i % +sm[2] === +sm[1] - 1) : MUTANTS;
+  if (!mine.length) { console.log('  ✗ ' + sh + ' selects no mutant'); process.exit(1); }
+  const tag = sm ? ' (shard ' + sm[1] + '/' + sm[2] + ')' : '';
   const clean = await checks(null, null);
   if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
   console.log('  ✓ clean control green');
   let bad = 0;
-  for (const [name, file, from, to] of MUTANTS) {
+  for (const [name, file, from, to] of mine) {
     let text = await readFile(join(ROOT, file), 'utf8');
     const pairs = Array.isArray(from) ? from : [[from, to]];
     const missing = pairs.find(([x]) => !text.includes(x));
@@ -1201,7 +1261,7 @@ async function main() {
     if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
     else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
   }
-  console.log(bad ? 'hunt-screen --mutate: ' + bad + ' escaped' : 'hunt-screen --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught');
+  console.log(bad ? 'hunt-screen --mutate' + tag + ': ' + bad + ' escaped' : 'hunt-screen --mutate' + tag + ': ' + mine.length + '/' + mine.length + ' mutants caught');
   process.exit(bad ? 1 : 0);
 }
 main();

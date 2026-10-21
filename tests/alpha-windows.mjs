@@ -610,7 +610,7 @@ const MUTANTS = [
   ['Stop does not collect', 'src/shell/windows/inventory/bury.js', "cs.edgeIntent('set_activity', { activity: { kind: 'idle' } })", "Promise.resolve({ ok: true })"],
   ['the Burying line ignores the server pointer', 'src/shell/windows/inventory/bury.js', "  if (r) return buryingWord(r) + ' ' + itemName(r.input) + '. Your Prayer XP and bag update when it is done.';", "  if (r) return '';"],
   ['the skills are one window again', 'src/shell/windows/skills.js', "export const renderTradeSkills = skillsWindow([['gather', 'Gathering'], ['artisan', 'Crafting']]);", "export const renderTradeSkills = skillsWindow([['combat', 'Combat'], ['gather', 'Gathering'], ['artisan', 'Crafting']]);"],
-  ['a new player gets no pointer to Hunts', 'src/shell/launcher.js', "+ pointerFor(ctx, open) + '</nav>'", "+ '</nav>'"],
+  ['a new player gets no pointer to Hunts', 'src/shell/launcher.js', "+ (ctx.hud && ctx.hud.isShown('hunt-topbar') ? '' : pointerFor(ctx)) + '</nav>'", "+ '</nav>'"],
   ['edgeBody lets an unlisted field through', 'src/session/edge-intents.js', '  for (const k of Object.keys(fields)) if (!allowed.includes(k)) return null;\n', ''],
 ];
 /* The doll mutant needs the want set where an equip is asked: plant it beside the intent. */

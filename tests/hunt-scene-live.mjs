@@ -34,7 +34,8 @@
 //         character's (liveSceneOf): a monster drawn dead is never drawn standing again, no corpse
 //         replays its fall or turns.
 //   LV-16 A UNIT DIES ONCE (a second kill never restarts the fall) AND LIES THE WAY IT FELL.
-//   LV-17 YOUR OTHER HERO IN THE PARTY wears its own outfit (its session's server `outfit`), not the role's.
+//   LV-17 EVERY PARTY MEMBER WEARS ITS OUTFIT: your other hero its session's server `outfit`, another
+//         player's hero the party section's member `outfit` (2026-11-04-party-outfits.sql), never the role's.
 //   LV-4  THE PAGE (headless Chrome, the real client, the same server answers): the hunt
 //         draws, no page error, and the frame loop holds budget against the frozen sim
 //         (prototypes/hunt-sim) measured the same way.
@@ -104,7 +105,8 @@ function envFor(nowMs, enteredMs, heroes, fromMs) {
      switchAt    [from, to] server ms: another character is viewed. Its World pane is unmounted (no frame,
                  no engine step; the polls go on) and mounted again at `to`: the scene is the one each
                  mount takes from scene.js liveSceneOf, as src/world/world-boot.js does
-     people      the party_people section (seat -> user, slot); peers: the account's other sessions */
+     people      the party_people section (seat -> user, slot); peers: the account's other sessions
+     outfits     { seat: outfit }: the party section's member `outfit` ({ id, colors }) by seat */
 async function playLive(M, LM, book, mis, spanMs, onFrame, opt) {
   const o = opt || {};
   const T0 = LIVE_H.T0;
@@ -116,7 +118,11 @@ async function playLive(M, LM, book, mis, spanMs, onFrame, opt) {
   const heroes = () => mis.map((m, i) => ({ unit: m.unitId ?? (i === 0 ? null : null), name: 'Hero ' + (i + 1), weapon: 'sword' }));
   let version = LIVE.version, lastCommit = T0;
   const windows = new WeakSet();
-  const env = () => Object.assign(envFor(clock.t + OFF, entered, heroes(), T0), { version: ++version }, o.people ? { party_people: clone(o.people) } : null);
+  const env = () => {
+    const e = Object.assign(envFor(clock.t + OFF, entered, heroes(), T0), { version: ++version }, o.people ? { party_people: clone(o.people) } : null);
+    for (const m of e.party.members) if (o.outfits && o.outfits[m.seat]) m.outfit = clone(o.outfits[m.seat]);
+    return e;
+  };
   const late = [];
   const wait = (body) => (o.latencyMs ? new Promise((r) => late.push({ at: clock.t + o.latencyMs, r, body })) : body);
   const server = {
@@ -567,24 +573,29 @@ async function nodeRules(M) {
     ok('LV-16', dirs.size === 1, `the corpse turned as the hero walked around it: facings ${[...dirs].join(',')}`);
   }
 
-  { // LV-17 YOUR OTHER HERO IN THE PARTY WEARS ITS OUTFIT (Andy 10-21: "my outfit shows fine, but the other
-    // character in party/hunt shows the standard knight"): the seat the server names as this account's other
-    // open character is drawn in that character's own outfit (its server `outfit` section), never the role's.
-    const UID = '11111111-2222-3333-4444-555555555555';
-    const mis = [LIVE_H.memberOf(LM, 'a', 0, 'tank', 6), LIVE_H.memberOf(LM, 'b', 1, 'tank', 6)];
+  { // LV-17 EVERY PARTY MEMBER WEARS ITS OUTFIT (Andy 10-21: "my outfit shows fine, but the other character in
+    // party/hunt shows the standard knight"). Seat 1 is this account's other open character: drawn in that
+    // character's own outfit (its server `outfit` section). Seat 2 is ANOTHER PLAYER: drawn in the outfit the
+    // party section names for it (2026-11-04-party-outfits.sql member `outfit`). Both are tanks, whose role
+    // default is the knight, so neither can pass by falling back to it.
+    const UID = '11111111-2222-3333-4444-555555555555', THEM = '99999999-8888-4777-8666-555555555555';
+    const mis = [LIVE_H.memberOf(LM, 'a', 0, 'tank', 6), LIVE_H.memberOf(LM, 'b', 1, 'tank', 6), LIVE_H.memberOf(LM, 'c', 2, 'tank', 6)];
     const other = { slot: 1, uid: UID, read: (k) => (k === 'outfit' ? { worn: 'witch', colors: {}, owned: ['witch'] } : undefined) };
-    let frames = 0, dressed = 0;
-    const ids = new Set();
+    const want = { 1: 'outfit_witch', 2: 'outfit_ranger' };
+    const frames = { 1: 0, 2: 0 }, dressed = { 1: 0, 2: 0 }, ids = { 1: new Set(), 2: new Set() };
     await playLive(M, LM, book, mis, 30000, ({ s, f, T0, cs: c }) => {
       if (s < T0 + 2000) return;
-      const u = (c.live.heroUnits().find((x) => x.seat === 1) || {}).unit;
-      const d = f.units.find((x) => x.unit === u);
-      if (!d) return;
-      frames++; ids.add(d.id);
-      if (d.id === 'outfit_witch') dressed++;
-    }, { people: [{ seat: 0, user: UID, slot: 0, name: 'Hero 1' }, { seat: 1, user: UID, slot: 1, name: 'Hero 2' }],
-      peers: () => [other] });
-    ok('LV-17', frames > 0 && dressed === frames, `your other hero (seat 1) was drawn as ${[...ids].join('/')} in ${frames - dressed} of ${frames} frames (want outfit_witch)`);
+      for (const seat of [1, 2]) {
+        const u = (c.live.heroUnits().find((x) => x.seat === seat) || {}).unit;
+        const d = f.units.find((x) => x.unit === u);
+        if (!d) continue;
+        frames[seat]++; ids[seat].add(d.id);
+        if (d.id === want[seat]) dressed[seat]++;
+      }
+    }, { people: [{ seat: 0, user: UID, slot: 0, name: 'Hero 1' }, { seat: 1, user: UID, slot: 1, name: 'Hero 2' }, { seat: 2, user: THEM, slot: 0, name: 'Mira' }],
+      peers: () => [other], outfits: { 2: { id: 'ranger', colors: { body: 3 } } } });
+    ok('LV-17', frames[1] > 0 && dressed[1] === frames[1], `your other hero (seat 1) was drawn as ${[...ids[1]].join('/')} in ${frames[1] - dressed[1]} of ${frames[1]} frames (want outfit_witch)`);
+    ok('LV-17', frames[2] > 0 && dressed[2] === frames[2], `another player's hero (seat 2) was drawn as ${[...ids[2]].join('/')} in ${frames[2] - dressed[2]} of ${frames[2]} frames (want outfit_ranger, its party-section outfit)`);
   }
 
   { // LV-14 A SETUP CHANGED MID-HUNT, VIEWED (r10, Andy 10-20: "only takes effect for the next hunt"). The
@@ -754,6 +765,7 @@ const MUTANTS = [
   ['each World pane makes its own live scene (LV-15)', 'src/hunt-view/scene.js', '  if (had && had.key === o.key) return had.scene;\n', '', /^LV-15/],
   ['a second kill of a corpse plays its fall again (LV-16)', 'src/hunt-view/scene.js', '        if (!isHero(ev.t) && dead.has(ev.t)) return true;\n', '', /^LV-16/],
   ['a corpse turns to face what it last swung at (LV-16)', 'src/hunt-view/scene.js', '          ({ dir, diag } = lie.get(u));\n', '', /^LV-16/],
+  ['another player\'s party outfit is not read (LV-17)', 'src/session/hunt-sections.js', 'outfit: outfitIdOf(m.outfit),', 'outfit: null,', /^LV-17/],
   ['your other hero in the party wears the role\'s outfit (LV-17)', 'src/hunt-view/scene.js', 'return (m && m.look) || outfitSprite(m && m.outfit, m && m.role);', 'return outfitSprite(m && m.outfit, m && m.role);', /^LV-17/],
   ['a waiting prediction takes the server window too (LV-10)', 'src/session/character-session.js', '    if (this.live.running() || this.live.stalled()) {', '    if (this.live.running()) {', /^LV-10/],
   ["the last hunt's units are kept (LV-9)", 'src/session/character-session.js', 'if (sid !== null && sid !== this._huntSid) { this.liveLink.off(); this.timeline.clear(); }', '', /^LV-9/],

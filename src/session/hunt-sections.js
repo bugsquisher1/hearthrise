@@ -136,12 +136,17 @@ export function settingsOf(cs) {
   };
 }
 
+/* The outfit a member wears, as the party section names it ({ id, colors }: 2026-11-04-party-outfits.sql,
+   the walker's shape in town), or null: the hunt draws it in its role's outfit then. */
+const OUTFIT_ID = /^[a-z0-9_]{1,32}$/;
+const outfitIdOf = (o) => (isObj(o) && typeof o.id === 'string' && OUTFIT_ID.test(o.id) ? o.id : null);
+
 /* A party member. `unit` is its hero in the hunt instance, null while the party is in town (it is
    listed all the same: the Party panel shows the party wherever it is). */
 function memberOf(m) {
   if (!isObj(m) || int(m.seat) === null) return null;
   return {
-    unit: int(m.unit), seat: m.seat, name: str(m.name) || 'Hero', level: int(m.level), outfit: str(m.outfit),
+    unit: int(m.unit), seat: m.seat, name: str(m.name) || 'Hero', level: int(m.level), outfit: outfitIdOf(m.outfit),
     role: roleForWeapon(str(m.weapon), str(m.role_pick)),
     hp: num(m.hp), hpMax: num(m.hp_max), mana: num(m.mana), manaMax: num(m.mana_max), staminaMs: num(m.stamina_ms),
     dealt: num(m.dealt), healed: num(m.healed), dps: num(m.dps), hps: num(m.hps),

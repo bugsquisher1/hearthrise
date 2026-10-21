@@ -8,7 +8,7 @@
 //                                              --sizes 1440x900,922x423 narrow it); prints, never fails
 //   node tests/perf-budget.mjs --mutate        every planted defect must turn the budget RED
 //
-// mutant-anchors: src/world/world-boot.js src/shell/widgets/analyzer.js src/hunt-view/combat-log.js
+// mutant-anchors: src/world/world-boot.js src/world/render/canvas-backend.js src/app/world-pane.js src/shell/widgets/analyzer.js src/shell/shell.js src/session/character-session.js src/hunt-view/combat-log.js
 // mutant-writes-tree: no — probes and mutants are served from memory (tests/_client-harness.mjs serve overrides)
 //
 // THE SCENARIO (Andy, Firefox, live v0.2.23: "the page is slowing down", "the analyser seems to have slowed
@@ -40,6 +40,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const LIVE = JSON.parse(readFileSync(join(ROOT, 'tests/fixtures/hunt-envelope-live.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const HUNT = 'millrace_sewer';
+const WEAPON = Object.freeze({ melee_dps: 'hammer', ranger: 'ranged', tank: 'sword' });
 const TICK_MS = 10000;   // the server's settle cadence (pg_cron, live-world-decision)
 
 /* THE BUDGETS (Chromium, 1440x900, the 3-minute CI scenario), from the measured numbers plus margin. */
@@ -53,6 +54,8 @@ const BUDGET = Object.freeze({
   addedPerMin: 3000,       // DOM nodes added per minute (a per-frame rebuild adds tens of thousands)
   analyzerBehindMs: 2500,  // the analyzer's session clock against the hunt's real elapsed time
   analyzerBackMs: 1500,    // the clock never runs backwards more than this
+  paintsPerAnswer: 1.1,    // shell repaints per applied answer (one answer, one paint)
+  drawsInAnswers: 2,       // World canvas draws made INSIDE an applied answer while the loop runs (it paints next frame)
 });
 
 /* ── the page's probes (served copies only: the shipped files never carry them) ── */
@@ -66,6 +69,8 @@ const PROBES = [
   ['src/world/world-boot.js', '    last = t;\n    step(dt);', '    last = t;\n    window.__perf.time(\'frame\', () => step(dt));'],
   ['src/shell/shell.js', 'const ticker = host.setInterval(patchComponents, DISPLAY_TICK_MS);',
     'const ticker = host.setInterval(() => window.__perf.time(\'shellTick\', patchComponents), DISPLAY_TICK_MS);'],
+  ['src/shell/shell.js', '    paint() { paintWidgets(); for (const id of wm.openIds()) if (WINDOW_RENDERERS[id] && WINDOW_RENDERERS[id].patch) refresh(id); },',
+    '    paint() { window.__perf.time(\'shellPaint\', () => { paintWidgets(); for (const id of wm.openIds()) if (WINDOW_RENDERERS[id] && WINDOW_RENDERERS[id].patch) refresh(id); }); },'],
   ['src/session/character-session.js', '  _take(body, why) {\n',
     '  _take(body, why) { return window.__perf.time(\'envelope\', () => this.__take(body, why)); }\n  __take(body, why) {\n'],
   ['src/shell/widgets/analyzer.js', 'renderAnalyzer.patch = function patchAnalyzer(el, ctx) {\n',
@@ -78,6 +83,17 @@ const MUTANTS = [
     '  function step(dt) {\n    const G = view();\n', '  function step(dt) {\n    chrome.innerHTML = chrome.innerHTML;\n    const G = view();\n', /^(dom|fps|long)/],
   ['an unbounded log (the combat log keeps every line, rendered in the log)', 'src/hunt-view/combat-log.js',
     '    if (lines.length > LOG_MAX_LINES) lines.splice(0, lines.length - LOG_MAX_LINES);\n', '', /^(heap|dom)/],
+  ['every answer repaints the shell and draws the World again inside it (live v0.2.23)', 'src/app/world-pane.js',
+    'const offChar = character.subscribe(() => { if (!queued) { queued = true; queueMicrotask(repaint); } });',
+    'const offChar = character.subscribe(() => { if (runtime) runtime.sync(); shell.paint(); });', /^repaint/],
+  ['the World draws a frame on every answer although its loop runs', 'src/world/world-boot.js',
+    "if (panel.classList.contains('active') && !(running && live())) {", "if (panel.classList.contains('active')) {", /^repaint/],
+  ["the analyzer clock runs from each answer's arrival (live v0.2.23)", 'src/shell/widgets/analyzer.js',
+    "clock(sessionClockMs(a, serverNowOf(ctx.character)))", "clock(a.sessionMs === null ? null : a.sessionMs + live)", /^analyzer/],
+  ['a shadow mask kept although a monster moved', 'src/world/render/canvas-backend.js',
+    "else if (sh.type === 'ellipse') k += '|e' + sh.cx + ',' + sh.cy + ',' + sh.w + ',' + sh.h;", "else if (sh.type === 'ellipse') k += '|e';", /^PB-PIX/, 'pix'],
+  ["the light layer kept although the hero's lamp moved", 'src/world/render/canvas-backend.js',
+    "for (const p of points) sig += '|' + p.x + ',' + p.y + ',' + p.r + ',' + tone('light-' + p.tint);", "for (const p of points) sig += '|' + p.r;", /^PB-PIX/, 'pix'],
 ];
 
 /** The served copy of the client: every probe planted once (an anchor that moved is a harness error), then `extra`. */
@@ -97,7 +113,11 @@ export function planted(extra) {
 const INIT = `(() => {
   const P = window.__perf = { t: Object.create(null), c: Object.create(null), frames: new Float64Array(120000), nf: 0,
     marks: [], samples: [], dom: [], added: 0, long: [], path: [], trackOn: false };
-  P.time = (k, fn) => { const a = performance.now(); try { return fn(); } finally { const d = performance.now() - a;
+  /* depth: a canvas draw or a shell paint INSIDE an applied answer is counted apart (one answer, one paint, no draw) */
+  const depth = Object.create(null);
+  P.time = (k, fn) => { const a = performance.now(); depth[k] = (depth[k] || 0) + 1;
+    if (depth.envelope && k !== 'envelope' && !document.hidden) P.count(k + 'InEnvelope');
+    try { return fn(); } finally { depth[k]--; const d = performance.now() - a;
     const r = P.t[k] || (P.t[k] = { n: 0, ms: 0, max: 0, over: 0 }); r.n++; r.ms += d; if (d > r.max) r.max = d; if (d > 16) r.over++; } };
   P.count = (k) => { P.c[k] = (P.c[k] || 0) + 1; };
   P.mark = (name) => P.marks.push([performance.now(), name]);
@@ -128,12 +148,12 @@ const INIT = `(() => {
 })();`;
 
 /* ── the scripted server ── */
-async function makeServer() {
+async function makeServer(second = 'melee_dps') {
   const H = await import('./_client-harness.mjs');
   const LM = await LIVE_H.load(ROOT);
   const T0 = LIVE_H.T0;
   const UID = H.UID;
-  const mis = [LIVE_H.memberOf(LM, UID, 0, 'tank', 14), LIVE_H.memberOf(LM, UID, 1, 'melee_dps', 14)];
+  const mis = [LIVE_H.memberOf(LM, UID, 0, 'tank', 14), LIVE_H.memberOf(LM, UID, 1, second, 14)];
   mis[1].key = UID + ':1'; mis[1].slot = 1;
   for (const m of mis) { m.huntId = HUNT; m.hero = Object.assign({}, m.hero, { density: 8 }); }
   const srv = LIVE_H.server(LM, mis, { hunt: HUNT });
@@ -193,7 +213,9 @@ async function makeServer() {
     const view = { kills: t.kills, xp: { level: t.xp }, gold: t.gold, waste: 0, balance: t.gold,
       per_hour: (now - start) >= 600000 ? { xp: Math.round(t.xp / wallH), gold: Math.round(t.gold / wallH), waste: 0, balance: Math.round(t.gold / wallH) } : null,
       supplies: { own: {}, store: {} }, loot: {} };
-    return { session: { ended_at: S.ended ? iso(S.endedAt) : null }, hunt_ms: huntMs, wall_ms: now - start, hero: view, party: view };
+    /* the shape of hr_hunt_analyzer_of: hunt_ms is hunted time up to the session's settled_to (hr_hunt_view) */
+    return { session: { ended_at: S.ended ? iso(S.endedAt) : null, hunt_from: iso(start), settled_to: iso(S.ended ? S.endedAt : shift(srv.inst.settled_to_ms)) },
+      hunt_ms: huntMs, wall_ms: now - start, hero: view, party: view };
   };
   const env = (slot) => {
     const now = Date.now();
@@ -211,7 +233,7 @@ async function makeServer() {
       e.state.active_kind = 'idle'; e.state.active_id = null;
     }
     e.party = { id: PARTY, max: 2, hunt: HUNT, open: false, self: unit(slot), leader: unit(0), self_seat: slot, leader_seat: 0,
-      members: [0, 1].map((i) => Object.assign(clone(LIVE.party.members[0]), { seat: i, unit: unit(i), name: NAMES[i], weapon: i ? 'hammer' : 'sword', hunting: !S.ended })) };
+      members: [0, 1].map((i) => Object.assign(clone(LIVE.party.members[0]), { seat: i, unit: unit(i), name: NAMES[i], weapon: i ? WEAPON[second] : 'sword', hunting: !S.ended })) };
     e.party_people = [0, 1].map((i) => ({ seat: i, user: UID, slot: i, name: NAMES[i] }));
     e.hunt_analyzer = analyzer(slot, now);
     e.party_invites = S.storm ? Array.from({ length: 5 }, () => ({ id: randomUUID(), hunt: HUNT, from: 'Mira' })) : [];
@@ -230,11 +252,80 @@ async function makeServer() {
   return { H, start, S, answer, close: () => clearInterval(timer), deathIn: (ms) => { S.killAt = back(Date.now() + ms); } };
 }
 
+/* ── PB-PIX: A KEPT MASK IS THE MASK A REDRAW MAKES ──
+   The World's shadow mask and light layer are re-drawn only when their inputs change
+   (canvas-backend.js, signatures). Two backends on the same Sewer frames, one as shipped and one
+   that re-draws both masks every frame, must paint the SAME pixels on every frame: the hero
+   standing (masks kept), walking (re-drawn), a monster walking past while the hero stands, and the
+   idle clips ticking on. */
+const PIX_PAGE = `<!doctype html><html><head><link rel="stylesheet" href="/src/styles/tokens.css"></head>
+<body style="margin:0"><div id="a" style="position:absolute;left:0;top:0;width:720px;height:420px"></div>
+<div id="b" style="position:absolute;left:0;top:430px;width:720px;height:420px"></div>
+<script type="module">
+  const q = location.search;
+  const [{ createCanvasBackend: A }, { createCanvasBackend: B }, { loadAtlases }, { compileMap }, { WORLD_MAPS }, TER, { STUB_SPRITE }, { BUILD }] = await Promise.all([
+    import('/src/world/render/canvas-backend.js' + q), import('/src/world/render/canvas-backend.redraw.js' + q), import('/src/world/atlas.js' + q),
+    import('/src/world/core/map-compile.js' + q), import('/src/data/world/maps/index.js' + q), import('/src/data/world/terrain.js' + q),
+    import('/src/world/core/book.js' + q), import('/src/build-info.js' + q)]);
+  const { book, images } = await loadAtlases({ doc: document, version: BUILD.cache });
+  const sprites = new Proxy(book.sprites, { get: (t, k) => t[k] || STUB_SPRITE });
+  const tables = { materials: TER.MATERIALS, sprites, openClasses: TER.OPEN_CLASSES, lights: TER.LIGHTS };
+  const styles = getComputedStyle(document.body);
+  const css = (n) => styles.getPropertyValue(n).trim();
+  const map = compileMap(WORLD_MAPS.find((m) => m.id === '${HUNT}'), tables);
+  const mk = (F, id) => { const b = F({ win: window, doc: document, book, images, tables, css }); b.mount(document.getElementById(id)); b.setMap(map); return b; };
+  const a = mk(A, 'a'), b = mk(B, 'b');
+  const px = (id) => { const c = document.querySelector('#' + id + ' canvas'); return c.getContext('2d').getImageData(0, 0, c.width, c.height).data; };
+  const out = { frames: 0, differ: [], kept: 0 };
+  let hx = 20, hy = 18, rx = 14, t = 0;
+  for (let i = 0; i < 160; i++) {
+    t += 50;
+    if (i >= 40 && i < 80) hx += 0.05;          // the hero walks (both masks follow the view)
+    if (i >= 100 && i < 140) rx += 0.1;         // a monster walks past while the hero stands
+    const state = { hero: { x: hx, y: hy, anim: i >= 40 && i < 80 ? 'walk' : 'idle', dir: 'e' },
+      units: [{ id: 'drain_rat', x: rx, y: 19, anim: i >= 100 && i < 140 ? 'walk' : 'idle', dir: 'e' }, { id: 'drain_rat', x: 23, y: 17, anim: 'idle', dir: 's' }], t };
+    a.sync(state); b.sync(state);
+    const pa = px('a'), pb = px('b');
+    let n = 0; for (let k = 0; k < pa.length; k++) if (pa[k] !== pb[k]) n++;
+    if (n) out.differ.push([i, n]);
+    out.frames++;
+  }
+  out.kept = a.snapshot().masks;
+  window.__pix = out;
+</script></body></html>`;
+
+/** PB-PIX in `browser`: the shipped backend vs one that re-draws both masks each frame, frame by frame. */
+async function pixelRule(browser, extra) {
+  const pw = await import('playwright');
+  const H = await import('./_client-harness.mjs');
+  const files = planted(extra);
+  const src = files['src/world/render/canvas-backend.js'] ?? readFileSync(join(ROOT, 'src/world/render/canvas-backend.js'), 'utf8');
+  const redraw = src.replace('if (sig !== shadeSig) {', 'if (true) {').replace('if (sig !== litSig) {', 'if (true) {');
+  if (redraw === src || redraw.split('if (true) {').length !== 3) return ['PB-PIX harness: the mask signature checks in canvas-backend.js are not found'];
+  const { server, port } = await H.serve(Object.assign({}, files, { 'perf-pix.html': PIX_PAGE, 'src/world/render/canvas-backend.redraw.js': redraw }));
+  const launch = browser === 'chromium' ? (await import('./_chrome.mjs')).launchOptions({ headless: true }) : { headless: true };
+  const b = await pw[browser].launch(launch);
+  try {
+    const page = await (await b.newContext({ viewport: { width: 760, height: 860 } })).newPage();
+    const errs = [];
+    page.on('pageerror', (e) => errs.push(e.message));
+    await page.goto('http://127.0.0.1:' + port + '/perf-pix.html?v=pix');
+    await page.waitForFunction(() => window.__pix || null, null, { timeout: 60000 }).catch(() => null);
+    const r = await page.evaluate(() => window.__pix || null);
+    if (!r) return ['PB-PIX the page never finished: ' + errs.join(' | ')];
+    console.log(`  PB-PIX ${browser}: ${r.frames} frames, masks drawn ${r.kept.shadow} shadow / ${r.kept.light} light, kept ${r.kept.kept}; ${r.differ.length} frame(s) differ`);
+    const f = [];
+    if (r.differ.length) f.push(`PB-PIX a kept mask painted different pixels from a re-drawn one on ${r.differ.length} frame(s) (first: frame ${r.differ[0][0]}, ${r.differ[0][1]} bytes)`);
+    if (!(r.kept.kept > 0)) f.push('PB-PIX no mask was ever kept: the World re-draws both masks every frame');
+    return f;
+  } finally { await b.close(); server.close(); }
+}
+
 /* ── one run ── */
 async function scenario(o) {
   const pw = await import('playwright');
   const engine = pw[o.browser];
-  const srv = await makeServer();
+  const srv = await makeServer(o.second);
   const { server, port } = await srv.H.serve(o.overrides);
   const launch = o.browser === 'chromium' ? (await import('./_chrome.mjs')).launchOptions({ headless: true }) : { headless: true };
   const browser = await engine.launch(launch);
@@ -265,7 +356,13 @@ async function scenario(o) {
     await page.click('[data-app="play"][data-slot="0"]');
     await page.waitForSelector('.hs-launchers');
     const showAnalyzer = async () => { if (await page.$('.ha-analyzer') === null || !(await page.isVisible('.ha-analyzer'))) { const b = await page.$('[data-hs-act="details"]'); if (b) await b.click(); } };
+    /* the combat log open on its tab (players watch it fight): its lines are the page's longest list */
+    const showLog = async () => {
+      if (!(await page.isVisible('.hc-chat').catch(() => false))) await page.click('[data-hs-open="chat"]').catch((e) => errors.push('chat: ' + e.message.split('\n')[0]));
+      await page.click('.hc-chat [data-hs-act="tab"][data-tab="combat"]').catch(() => null);
+    };
     await page.waitForTimeout(15000);   // warm-up: atlases, the first start point, both heroes open
+    await showLog();
     await showAnalyzer();
     await page.waitForTimeout(1000);
     const w0 = await page.evaluate(() => { const P = window.__perf; P.mark('start'); P.added = 0;
@@ -276,11 +373,12 @@ async function scenario(o) {
     const at = async (ms) => { const d = t0 + ms - Date.now(); if (d > 0) await page.waitForTimeout(d); };
     const tab = (slot) => page.click('.char-tab[data-slot="' + slot + '"]').catch((e) => errors.push('switch: ' + e.message.split('\n')[0]));
     await at(D * 0.15); await page.evaluate(() => window.__perf.mark('switch B')); await tab(1);
-    await at(D * 0.25); await page.evaluate(() => window.__perf.mark('switch A')); await tab(0); await showAnalyzer();
+    await at(D * 0.25); await page.evaluate(() => window.__perf.mark('switch A')); await tab(0); await showLog(); await showAnalyzer();
     await at(D * 0.35); await page.evaluate(() => window.__perf.mark('storm')); srv.S.storm = true;
     await at(D * 0.35 + 20000); srv.S.storm = false; await page.evaluate(() => window.__perf.mark('storm end'));
     await at(D * 0.5); await page.evaluate(() => window.__perf.hide(true));
     await at(D * 0.5 + HID); await page.evaluate(() => window.__perf.hide(false));
+    if (o.viewAtDeath) { await at(D * 0.7 - 3000); await tab(o.viewAtDeath); }
     await at(D * 0.7); await page.evaluate(() => { window.__perf.trackOn = true; window.__perf.mark('death'); });
     srv.deathIn(0);
     await at(D);
@@ -360,6 +458,7 @@ function analyse(out, w0, o, srv) {
     longTasks: out.long.filter((l) => l[0] >= w0.t).length,
     engine: per('engine'), scene: per('scene'), draw: per('draw'), frame: per('frame'), envelope: per('envelope'), shellTick: per('shellTick'),
     domStart: w0.nodes, domEnd: out.nodes, domGrowth: out.nodes - w0.nodes, addedPerMin: Math.round(out.added / minutes),
+    paintsPerAnswer: out.t.envelope && out.t.shellPaint ? +(out.t.shellPaint.n / out.t.envelope.n).toFixed(2) : null, drawsInAnswers: out.c.drawInEnvelope || 0,
     analyzerPerMin: Math.round((out.c.analyzer || 0) / minutes), analyzerBehindMs: Math.round(behind), analyzerBackMs: Math.round(backMs), analyzerBacks: backs, analyzerStillMs: stillMax,
     path: out.path, marks: out.marks, runAway, samples: out.samples, dom: out.dom,
   };
@@ -378,6 +477,8 @@ function budgetFails(m) {
   if (!(m.addedPerMin <= b.addedPerMin)) f.push(`dom churn: ${m.addedPerMin} nodes added per minute (budget ${b.addedPerMin})`);
   if (!(m.analyzerBehindMs <= b.analyzerBehindMs)) f.push(`analyzer clock up to ${m.analyzerBehindMs} ms behind the hunt (budget ${b.analyzerBehindMs})`);
   if (!(m.analyzerBackMs <= b.analyzerBackMs)) f.push(`analyzer clock ran back ${m.analyzerBackMs} ms (${m.analyzerBacks}x; budget ${b.analyzerBackMs})`);
+  if (!(m.paintsPerAnswer <= b.paintsPerAnswer)) f.push(`repaint: ${m.paintsPerAnswer} shell paints per server answer (budget ${b.paintsPerAnswer})`);
+  if (!(m.drawsInAnswers <= b.drawsInAnswers)) f.push(`repaint: ${m.drawsInAnswers} World draws inside server answers (budget ${b.drawsInAnswers})`);
   return f;
 }
 
@@ -386,6 +487,7 @@ function row(m) {
   return `${m.browser.padEnd(8)} ${m.size.padEnd(8)} fps ${m.fpsMedian}/${m.fpsP5} long ${m.longFrames} worst ${Math.round(m.worstFrame)} resume ${Math.round(m.resumeWorst)} lt ${m.longTasks}`
     + ` | engine ${ms(m.engine)} scene ${ms(m.scene)} draw ${ms(m.draw)} frame ${ms(m.frame)} env ${ms(m.envelope)} (${m.envelope ? m.envelope.n : 0}) tick ${ms(m.shellTick)}`
     + ` | heap ${m.heapMb === null ? 'n/a' : m.heapMb.toFixed(1) + 'MB'} dom ${m.domStart}->${m.domEnd} +${m.addedPerMin}/min`
+    + ` | paint/answer ${m.paintsPerAnswer} draws-in-answers ${m.drawsInAnswers}`
     + ` | analyzer ${m.analyzerPerMin}/min behind ${m.analyzerBehindMs} back ${m.analyzerBackMs}x${m.analyzerBacks} still ${m.analyzerStillMs}`;
 }
 
@@ -395,8 +497,8 @@ async function main() {
   if (process.argv.includes('--mutate')) {
     let escaped = 0;
     for (const mt of MUTANTS) {
-      const m = await scenario({ browser: 'chromium', width: 1440, height: 900, minutes: 3, hiddenMs: 30000, overrides: planted([mt]) });
-      const fails = budgetFails(m);
+      const fails = mt[5] === 'pix' ? await pixelRule('chromium', [mt])
+        : budgetFails(await scenario({ browser: 'chromium', width: 1440, height: 900, minutes: 2, hiddenMs: 20000, overrides: planted([mt]) }));
       const hit = fails.some((x) => mt[4].test(x));
       console.log(`  ${hit ? 'caught ' : 'ESCAPED'} ${mt[0]} :: ${fails.join(' | ') || 'green'}`);
       if (!hit) escaped++;
@@ -419,10 +521,14 @@ async function main() {
     if (dump) (await import('node:fs')).writeFileSync(dump, JSON.stringify(all));
     process.exit(0);
   }
-  const m = await scenario({ browser: arg('--browser', 'chromium'), width: 1440, height: 900, minutes: Number(arg('--minutes', '3')), hiddenMs: 30000, overrides: planted(), profile: arg('--profile', null) });
+  const browser = arg('--browser', 'chromium');
+  const pix = await pixelRule(browser);
+  if (process.argv.includes('--pix')) { for (const f of pix) console.log('  ✗ ' + f); process.exit(pix.length ? 1 : 0); }
+  const m = await scenario({ browser, width: 1440, height: 900, minutes: Number(arg('--minutes', '3')), hiddenMs: 30000, overrides: planted(), profile: arg('--profile', null),
+    second: arg('--second', 'melee_dps'), viewAtDeath: Number(arg('--view-death', '0')) });
   console.log(row(m));
   if (arg('--dump', null)) (await import('node:fs')).writeFileSync(arg('--dump', null), JSON.stringify(m));
-  const fails = budgetFails(m);
+  const fails = pix.concat(budgetFails(m));
   for (const f of fails) console.log('  ✗ ' + f);
   console.log(fails.length ? `perf-budget: ${fails.length} budget(s) RED` : 'perf-budget: the hunt page holds its frame, heap, DOM and analyzer budget (Sewer party, density 8, switch, alerts, hidden tab, death)');
   process.exit(fails.length ? 1 : 0);

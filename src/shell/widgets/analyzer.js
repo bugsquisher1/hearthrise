@@ -19,11 +19,12 @@
 //   Session / Taken / Dealt   the three tabs (AW-05)
 //   sections fold (AW-11); lists are keyed rows (AW-12)
 //
-// The session clock runs between envelopes from the server's session_ms and
-// the moment that envelope arrived (display only; the next envelope replaces
-// it). The view, tab and folds are display scratch on the panel.
+// The session clock runs between envelopes on the SERVER's clock from the
+// instant its hunt_ms was settled to (hunt-sections.js sessionClockMs), so it
+// never steps back; display only, the next envelope replaces it. The view, tab
+// and folds are display scratch on the panel.
 // ════════════════════════════════════════════════════════════════════════
-import { analyzerOf, isPremium } from '../../session/hunt-sections.js?v=0.2.24';
+import { analyzerOf, isPremium, sessionClockMs, serverNowOf } from '../../session/hunt-sections.js?v=0.2.24';
 import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.24';
 import { whole, gold, clock } from '../../render/format.js?v=0.2.24';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.24';
@@ -146,7 +147,7 @@ renderAnalyzer.patch = function patchAnalyzer(el, ctx) {
   cls(panel, 'is-ended', a.ended);
   const since = ctx.character.receivedAt;
   const live = !a.ended && Number.isFinite(since) ? Math.max(0, ctx.now() - since) : 0;
-  text(panel.querySelector('[data-clock="session"]'), clock(a.sessionMs === null ? null : a.sessionMs + live));
+  text(panel.querySelector('[data-clock="session"]'), clock(sessionClockMs(a, serverNowOf(ctx.character))));
   if (premium) text(panel.querySelector('[data-clock="next"]'), !a.hero.rated ? 'after ' + Math.round(ANALYZER_RATE_AFTER_MS / 60000) + ' min'
     : clock(a.nextLevelMs === null ? null : Math.max(0, a.nextLevelMs - live)));
   patchView(panel, scope === 'party' ? a.party : a.hero, ctx, premium);

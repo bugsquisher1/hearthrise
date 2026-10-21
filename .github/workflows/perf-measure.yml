@@ -2,24 +2,40 @@
 # perf-measure — THE HUNT PAGE'S FRAME / HEAP / DOM TABLE IN FIREFOX AND CHROMIUM.
 #
 # tests/perf-budget.mjs --measure: the 10-minute Sewer party scenario (density 8,
-# hero switch, alert storm, analyzer open, 60 s hidden tab, tank death) in each
-# browser at desktop 1440x900 and the landscape phone 922x423. A MEASUREMENT,
-# never a gate: the budget itself (Chromium, 3 minutes) runs in smoke.yml's
-# in-page-2 job. Firefox lives here because Andy plays in it and the Windows
-# boxes the lanes run on cannot launch Playwright's Firefox.
+# hero switch, alert storm, analyzer and combat log open, 60 s hidden tab, tank
+# death) in each browser at desktop 1440x900 and the landscape phone 922x423.
+# A MEASUREMENT, never a gate: the budget itself (Chromium, 3 minutes) runs in
+# smoke.yml. Firefox is measured here because Andy plays in it and the Windows
+# box the lanes run on cannot launch Playwright's Firefox.
 #
-# Each cell prints one row and uploads its numbers (perf-<browser>-<size>.json).
+# `base` (optional): a commit whose src/ is measured too, with the same scenario
+# (the "before" of a before/after table). Each cell prints one row and uploads
+# its numbers (perf-<tree>-<browser>-<size>.json).
 # ============================================================================
 name: perf-measure
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      base:
+        description: 'a commit whose src/ is measured as "before" (blank: none)'
+        required: false
+        default: ''
+      minutes:
+        description: 'scenario length'
+        required: false
+        default: '10'
   push:
     branches: ['lane/a-firefox-perf']
     paths: ['tests/perf-budget.mjs', '.github/workflows/perf-measure.yml', 'src/**']
 
 permissions:
   contents: read
+
+# one measurement per branch at a time: a newer push replaces the run in flight
+concurrency:
+  group: perf-measure-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   measure:
@@ -30,23 +46,36 @@ jobs:
       matrix:
         browser: [chromium, firefox]
         size: ['1440x900', '922x423']
+        tree: [after, before]
+    env:
+      BASE: ${{ github.event.inputs.base || (github.event_name == 'push' && '7e262b83e') || '' }}
+      MINUTES: ${{ github.event.inputs.minutes || '10' }}
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          fetch-depth: 0
+      - name: The "before" tree (src/ of the base commit, this scenario)
+        if: ${{ matrix.tree == 'before' }}
+        run: |
+          if [ -z "$BASE" ]; then echo "no base: nothing to measure"; exit 0; fi
+          git checkout "$BASE" -- src
       - uses: actions/setup-node@v4
+        if: ${{ matrix.tree == 'after' || env.BASE != '' }}
         with:
           node-version: '20'
       - name: Install Playwright + ${{ matrix.browser }}
+        if: ${{ matrix.tree == 'after' || env.BASE != '' }}
         run: |
           npm install --no-audit --no-fund
           npx playwright install --with-deps ${{ matrix.browser }}
-      - name: Measure (10 minutes)
-        run: node tests/perf-budget.mjs --measure --minutes 10 --browsers ${{ matrix.browser }} --sizes ${{ matrix.size }} --dump perf-${{ matrix.browser }}-${{ matrix.size }}.json
+      - name: Measure
+        if: ${{ matrix.tree == 'after' || env.BASE != '' }}
+        run: node tests/perf-budget.mjs --measure --minutes "$MINUTES" --browsers ${{ matrix.browser }} --sizes ${{ matrix.size }} --dump perf-${{ matrix.tree }}-${{ matrix.browser }}-${{ matrix.size }}.json
       - name: Upload the numbers
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && (matrix.tree == 'after' || env.BASE != '') }}
         uses: actions/upload-artifact@v4
         with:
-          name: perf-${{ matrix.browser }}-${{ matrix.size }}
+          name: perf-${{ matrix.tree }}-${{ matrix.browser }}-${{ matrix.size }}
           path: perf-*.json
           retention-days: 7

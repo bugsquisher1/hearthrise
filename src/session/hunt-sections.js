@@ -236,5 +236,25 @@ export function analyzerOf(cs) {
   const lvEta = isObj(a.hero.level) ? num(a.hero.level.eta_h) : null;
   const next = lvEta !== null && lvEta > 0 ? Math.round(lvEta * 3600000) : null;
   const sess = isObj(a.session) ? a.session : {};
-  return { sessionMs: num(a.hunt_ms), nextLevelMs: next, ended: typeof sess.ended_at === 'string', hero, party: viewOf(a.party) };
+  const settled = str(sess.settled_to) ? Date.parse(sess.settled_to) : NaN;
+  return { sessionMs: num(a.hunt_ms), settledMs: Number.isFinite(settled) ? settled : null, nextLevelMs: next,
+    ended: typeof sess.ended_at === 'string', hero, party: viewOf(a.party) };
+}
+
+/** A character's server clock now (ms), or null before it has one or for a reader without one. */
+export const serverNowOf = (cs) => (cs && typeof cs.serverNow === 'function' ? cs.serverNow() : null);
+
+/**
+ * THE HUNT'S SESSION CLOCK (ms) at the server instant `serverNowMs` (CharacterSession.serverNow): the
+ * server's `hunt_ms` is the time hunted up to its last settle (`settled_to`), so the clock runs on from
+ * THAT instant on the server's clock. Every answer restates the same instant, so the clock never steps
+ * back (live v0.2.23, Andy: it ran from the answer's arrival and fell back by the settle lag, up to 10 s,
+ * on every answer between settles). An ended hunt, or no server clock yet, reads `hunt_ms` as sent. Pure.
+ * @param {ReturnType<typeof analyzerOf>} a
+ * @param {number|null} serverNowMs
+ */
+export function sessionClockMs(a, serverNowMs) {
+  if (!a || a.sessionMs === null) return null;
+  if (a.ended || a.settledMs === null || !Number.isFinite(serverNowMs)) return a.sessionMs;
+  return a.sessionMs + Math.max(0, serverNowMs - a.settledMs);
 }

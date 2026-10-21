@@ -72,8 +72,11 @@ export class LiveLink {
       /* A start point the prediction agrees with hands it the next seeds. A character whose own poll
          never lands the settle (another client of the party settled first: its answers are start
          points, never commits) lived on its first 16 swings, froze, then jumped (live v0.2.20). */
+      /* A SETUP CHANGED MID-HUNT (r10, Andy): a start point whose heroes fight with other settings or
+         another bar is restarted from even when its world agrees: the server settles from that world with
+         the new setup, and the prediction kept the old one on screen until a later commit diverged. */
       const i = body.hunt_live.instance;
-      if (this.engine.running()
+      if (this.engine.running() && this.engine.sameSetup(body.hunt_live)
         && this._judge({ world_swing: i.world_swing, world_hash: i.world_hash, seeds: body.hunt_live.seeds }) === 'match') return;
       /* Off the server's world: restart from it, eased (never fed: the swings it runs to catch up are
          already in the past). */
@@ -90,6 +93,9 @@ export class LiveLink {
   }
 
   _judge(hc) { const v = this.engine.reconcile(hc); if (Object.hasOwn(this.stats, v)) this.stats[v]++; return v; }
+
+  /** A setup intent the server took mid-hunt: ask for a start point at once (it carries the new setup). */
+  ask() { if (this.engine.running() || this.engine.stalled()) { this.want = true; this._tries = 0; } }
 
   /** An ask that brought no answer at all: the next one waits twice as long (askDelayMs). */
   missed() { if (this.want) this._tries++; else if (this.engine.running()) this._short++; }

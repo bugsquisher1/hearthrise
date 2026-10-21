@@ -26,6 +26,10 @@
 //         at the instant shown (never a grey empty bar).
 //   LV-6  A PARTY: both heroes of a two-member instance are drawn for the whole run.
 //   LV-3  REGEN IN REAL UNITS: +HP/s and +mana/s at the engine's in-fight rates.
+//   LV-14 A SETUP CHANGED MID-HUNT, VIEWED (r10, Andy): settings sent while the hunt runs reach
+//         the server's next settle (its hero unit carries them), and the browser restarts its
+//         prediction with them within a second of the answer, so no later commit diverges
+//         (the browser-closed half: tests/hunt-live.mjs LV-S, tests/hunt-sessions-settle.mjs SETTINGS).
 //   LV-4  THE PAGE (headless Chrome, the real client, the same server answers): the hunt
 //         draws, no page error, and the frame loop holds budget against the frozen sim
 //         (prototypes/hunt-sim) measured the same way.
@@ -89,6 +93,7 @@ function envFor(nowMs, enteredMs, heroes, fromMs) {
      latencyMs   every hr-accrue answer lands this long after the ask (live: 0.7-1.0 s)
      seedless    (n) => true: the n-th hr-accrue answer brings no start point and no commit (a
                  refused or replayed settle: about half the answers on live v0.2.21)
+     rpc         (name, args) => answer: an intent answered by the test (LV-14), else a read
      hold        [from, to] server ms: no poll answers (the network is gone)
      pause       [from, to] server ms: the frame loop stops (a background tab) */
 async function playLive(M, LM, book, mis, spanMs, onFrame, opt) {
@@ -106,7 +111,8 @@ async function playLive(M, LM, book, mis, spanMs, onFrame, opt) {
   const late = [];
   const wait = (body) => (o.latencyMs ? new Promise((r) => late.push({ at: clock.t + o.latencyMs, r, body })) : body);
   const server = {
-    rpc: async () => ({ ok: true, body: env() }),
+    /* `rpc` (name, args) => answer or undefined: an intent the test answers itself (LV-14), else a read */
+    rpc: async (name, args) => (o.rpc && o.rpc(name, args)) || { ok: true, body: env() },
     accrue: async () => { const n = asked++; return wait(o.seedless && o.seedless(n) ? { ok: true, body: Object.assign(env(), { accrued: false, settled: false, reason: 'replayed' }) } : answer()); },
   };
   let asked = 0;
@@ -150,6 +156,8 @@ async function playLive(M, LM, book, mis, spanMs, onFrame, opt) {
     for (let i = 0; i < timers.length && !held; i++) {
       if (timers[i] && timers[i].at <= clock.t) { const t = timers[i]; timers[i] = null; t.fn(); await new Promise((r) => setImmediate(r)); }
     }
+    /* an intent the test sent (`rpc`) is answered and re-read on the frame it lands, as a browser would */
+    if (o.rpc) for (let k = 0; k < 4; k++) await new Promise((r) => setImmediate(r));
     /* `pause` [from, to] (server ms): the frame loop stops (a background tab: no frame, no engine step) */
     if (o.pause && s >= o.pause[0] && s < o.pause[1]) continue;
     cs.liveAdvance(clock.t);
@@ -487,6 +495,44 @@ async function nodeRules(M) {
     ok('LV-13', gone && gone.under, 'a rat drawn standing that the restart no longer has was still drawn standing');
   }
 
+  { // LV-14 A SETUP CHANGED MID-HUNT, VIEWED (r10, Andy 10-20: "only takes effect for the next hunt"). The
+    // server reads the action set afresh at every settle (hunt-settle.js memberInput), so the change reaches
+    // the next commit; the browser kept predicting with the old setup until a later commit diverged.
+    const NEW = { stance: 'offensive', distance: 3, chase: false, target_mode: 'weakest' };
+    const mis = [LIVE_H.memberOf(LM, 'a', 0, 'tank', 6)];
+    let last = null, sent = null, done = false, answered = null, reseedAt = null, before = null, after = null, server = null;
+    const cs = await playLive(M, LM, book, mis, 90000, ({ s, cs: c, T0, srv }) => {
+      server = srv;
+      /* sent just after a commit, so the ask it makes lands below the settle floor: a start point whose
+         world the prediction agrees with, carrying the new setup (the case the old view ignored) */
+      if (sent === null && s >= T0 + 40000 && c.liveStats().match > (last ?? Infinity)) {
+        sent = s; before = c.liveStats();
+        c.setHuntOptions(0, NEW).then((r) => { done = r.ok === true; });
+      }
+      if (s >= T0 + 40000 && last === null) last = c.liveStats().match;
+      if (done && answered === null) answered = s;
+      if (answered !== null && reseedAt === null && c.liveStats().reseeds > before.reseeds) reseedAt = s;
+    }, { rpc: (name, args) => {
+      if (name !== 'hr_action_set_options') return undefined;
+      /* the server stores the options; its next settle reads them (the stub's commits read `mis`) */
+      mis[0].hero = LM.SPAWN.heroSetup({ weaponType: 'sword', options: Object.assign({}, args.p_opts), bar: [], partyRoles: ['tank', 'melee_dps'] });
+      return { ok: true, body: { ok: true, preset: 0, options: args.p_opts } };
+    } });
+    after = cs.liveStats();
+    const w = server && server.inst.world ? LM.WS.decode(JSON.parse(server.inst.world)) : null;
+    const u = w && w.units.find((x) => x.side === 'hero');
+    ok('LV-14', answered !== null, 'CONTROL: the settings intent was never answered');
+    ok('LV-14', !!u && u.stance === NEW.stance && u.dist === NEW.distance && u.chase === NEW.chase && u.tmode === NEW.target_mode,
+      `the server's hero unit after the change carries ${JSON.stringify(u && { stance: u.stance, dist: u.dist, chase: u.chase, tmode: u.tmode })}`);
+    /* The floor has no start point until the instance's next boundary (hunt-settle.js not_due): one swing, then the ask. */
+    const budget = LM.CB.tickMs + 1000;
+    ok('LV-14', reseedAt !== null && reseedAt - answered <= budget,
+      `after the settings answer the browser restarted its prediction ${reseedAt === null ? 'never' : Math.round(reseedAt - answered) + ' ms later'} (budget ${budget})`);
+    ok('LV-14', before && after && after.diverged === before.diverged && after.match > before.match,
+      `commits after the change: ${after.match - before.match} matched, ${after.diverged - before.diverged} diverged (the prediction ran the old setup)`);
+    console.log(`  LV-14 mid-hunt setup: restarted ${reseedAt === null ? 'never' : Math.round(reseedAt - answered) + ' ms'} after the answer; commits after it matched ${after.match - before.match}, diverged ${after.diverged - before.diverged}`);
+  }
+
   { // LV-3
     const cs = new M.C.CharacterSession({ slot: 0, uid: '11111111-2222-3333-4444-555555555555',
       server: { rpc: async () => ({ ok: true, body: clone(LIVE) }), accrue: async () => ({ ok: true, body: { ok: true, accrued: false } }) },
@@ -574,7 +620,7 @@ async function pageRules() {
     await page.waitForSelector('.hs-launchers');
     await page.waitForTimeout(3000);
     const game = await measureFrames(page);
-    const text = await page.evaluate(() => (document.querySelector('[data-regen="hp"]') || {}).textContent || '');
+    const text = await page.evaluate(() => (document.querySelector('.hb-hub [data-r="hp"]') || {}).textContent || '');
     if (process.env.HR_SHOTS) await page.screenshot({ path: join(process.env.HR_SHOTS, 'hunt-live.png') });
     const simPage = await (await browser.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
     await simPage.route('**/*', (r) => (r.request().url().startsWith('http://127.0.0.1:') ? r.continue() : r.fulfill({ status: 204, body: '' })));
@@ -604,6 +650,8 @@ const MUTANTS = [
   ["a bar is the snapshot's HP (LV-5)", 'src/hunt-view/scene.js', "const played = typeof tl.hpAt !== 'function' ? null : tl.hpAt(u, now);", 'const played = null;', /^LV-5/],
   ['steps drawn at their sub-step stamp over one tile time (LV-2)', 'src/hunt-view/live-engine.js', '    timeSteps(tl.hunt_track, (id) => speeds.get(id), s.drawn);\n', '', /^LV-2/],
   ['the live ask gives up after two tries (LV-7)', 'src/session/live-link.js', '    return Math.min(SESSION_CONFIG.huntPollMs, Math.max(back, until));', '    return this._tries > 2 ? null : SESSION_CONFIG.liveAskMs;', /^LV-7/],
+  ['a start point with a new setup is ignored when its world agrees (LV-14)', 'src/session/live-link.js', 'if (this.engine.running() && this.engine.sameSetup(body.hunt_live)', 'if (this.engine.running()', /^LV-14/],
+  ['a mid-hunt settings answer asks for nothing (LV-14)', 'src/session/character-session.js', ' && this._huntOpen()) this.liveLink.ask();', ' && false) this.liveLink.ask();', /^LV-14/],
   ["a matching start point's seeds are dropped (LV-8)", 'src/session/live-link.js', '&& this._judge({ world_swing: i.world_swing, world_hash: i.world_hash, seeds: body.hunt_live.seeds }) ===', '&& this.engine.check({ world_swing: i.world_swing, world_hash: i.world_hash }) ===', /^LV-8/],
   ['missed swings are played at once (LV-10)', 'src/session/live-link.js', '    if (this.engine.behindMs(now) > this._tl.delayMs()) {', '    if (false) {', /^LV-10/],
   ['the poll waits for the ordinary poll however short the look-ahead (LV-11)', 'src/session/hunt-poll.js', ', liveLink.refillDelayMs() ?? SESSION_CONFIG.huntPollMs);', ', SESSION_CONFIG.huntPollMs);', /^LV-11/],

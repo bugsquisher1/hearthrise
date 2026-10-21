@@ -244,7 +244,10 @@ export class CharacterSession {
    */
   async setHuntOptions(preset, opts) {
     if (this._closed) return { ok: false, error: 'closed' };
-    return this._settled(await this._server.rpc('hr_action_set_options', { p_slot: this.slot, p_preset: preset, p_opts: opts, p_idem: newIdem() }));
+    const ans = await this._server.rpc('hr_action_set_options', { p_slot: this.slot, p_preset: preset, p_opts: opts, p_idem: newIdem() });
+    /* Mid-hunt the next settle runs the new setup: the live view asks for a start point carrying it at once (r10). */
+    if (ans.ok && ans.body && ans.body.ok === true && this._huntOpen()) this.liveLink.ask();
+    return this._settled(ans);
   }
 
   /**

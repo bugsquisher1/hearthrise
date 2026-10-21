@@ -4,7 +4,7 @@
 // Tyler 10-18: "players should spend their time making interesting decisions,
 // not repeating decisions they've already made". When a hunt ends the player
 // sees ONE card with what it came to and the next move at hand:
-//   duration, kills, XP, gold, top loot, supplies used (bag vs store), the end
+//   duration, kills, XP, gold, balance per hour (raw XP per hour: premium), top loot, supplies used (bag vs store), the end
 //   reason in plain words, and the death explanation (death-explain.js);
 //   Hunt again   ONE hr_hunt_enter with the same ground, action set, limits and
 //                bag. The party is the server's, the checks are the server's.
@@ -32,7 +32,9 @@ observeSessions(attach);
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pending: false, msg: '', pick: null }; SCRATCH.set(cs, s); } return s; };
 /* ── The window ── */
-const STATS = Object.freeze([['ms', 'Time', clock], ['kills', 'Monsters', whole], ['xp', 'XP', whole], ['gold', 'Gold', gold]]);
+/* Balance per hour shows for everyone; raw XP per hour only when the server sent it (premium, the 10-19 analyzer ruling). */
+const STATS = Object.freeze([['ms', 'Time', clock], ['kills', 'Monsters', whole], ['xp', 'XP', whole], ['gold', 'Gold', gold],
+  ['balanceH', 'Balance per hour', gold], ['rawXpH', 'Raw XP per hour', whole, true]]);
 
 /** The skeleton (built once). */
 export function renderHuntSummary() {
@@ -84,7 +86,11 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
   if (cur) {
     text(root.querySelector('.hsum-title'), groundName(cur) + (cur.at ? ' · ' + dayTime(cur.at) : ''));
     text(root.querySelector('.hsum-reason'), cur.reason ? endWords(cur.reason) : 'The hunt ended.');
-    for (const [k, , fmt] of STATS) { const dd = root.querySelector('[data-stat="' + k + '"]'); text(dd, fmt(cur[k])); }
+    for (const [k, , fmt, onlySent] of STATS) {
+      const dd = root.querySelector('[data-stat="' + k + '"]');
+      text(dd, fmt(cur[k]));
+      prop(dd.parentNode, 'hidden', !!onlySent && (cur[k] === null || cur[k] === undefined));
+    }
     const loot = cur.loot.map(([it, n]) => whole(n) + ' × ' + itemName(it));
     cls(root.querySelector('.hsum-h-loot'), 'is-on', loot.length > 0);
     lines(root.querySelector('.hsum-loot'), ctx.doc, loot);

@@ -543,7 +543,8 @@
   "player_hunt_presets",
   "player_hunt_active",
   "character_names",
-  "player_blessings"
+  "player_blessings",
+  "hunt_bests"
  ],
  "_player_value_tables_why": [
   "THE CLASS OF THESE IS NOT NEGOTIABLE: restore_only, always. They hold a",
@@ -1272,7 +1273,7 @@
   },
   "hr_state_sections": {
    "class": "seeded",
-   "replay": 19,
+   "replay": 20,
    "note": "The X7 state-section registry (2026-10-23-character-premium.sql and the S1 files): one row per hr_state_of section and its projector. Seeded by the migrations that register a section; rebuilt from repo, never restored."
   },
   "hr_tick_cohort": {
@@ -1380,6 +1381,11 @@
    "class": "restore_only",
    "wiped_at_cutover": false,
    "note": "PLAYER VALUE — the packed supplies of every hunt: items that LEFT player_inventory (matched ledger pairs) and come back only through this row. Losing it loses the items. qty_left >= 0 CHECK; written only by the hunt-session RPCs."
+  },
+  "hunt_bests": {
+   "class": "restore_only",
+   "wiped_at_cutover": false,
+   "note": "PLAYER-SCOPED (2026-11-04-hunt-bests.sql): each character's best XP per hour and best balance per hour per hunt ground, solo and party apart, folded once per finished session of 10 min or more by the hr_hunt_best_on_end trigger (hr_hunt_best_fold). NOT recomputable after the fact: hr_hunt_open_session keeps only the last sessions_kept (20) sessions per character, so a rebuild that returned it empty loses every older personal best for good (display only: no value, gate, rank or spend reads it; the hunt picker shows No hunt of 10 min yet until the next qualifying hunt). Written only by hr_hunt_best_fold; RLS on, no policy, no client grant."
   },
   "hunt_instances": {
    "class": "restore_only",

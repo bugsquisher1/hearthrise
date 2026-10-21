@@ -15,6 +15,8 @@
 //                        or '' for a ground with no party-only pocket
 //   packFor(bag)        what the hunt carries: the bag's own hunt supplies,
 //                        every stack, at most the server's line cap
+//   bestWords(b, hunt)  this hero's personal bests on the ground, alone and
+//                        in a party, from the server's `hunt_bests` section
 // Nothing here is a gate: the server checks the band, the stamina and the
 // stock when the player presses Enter, and says why it refuses.
 // ════════════════════════════════════════════════════════════════════════
@@ -23,6 +25,7 @@ import { HUNT_INDEX } from '../data/hunts.js?v=0.2.23';
 import { MONSTERS } from '../data/monsters.js?v=0.2.23';
 import { SUPPLIES } from '../data/supplies.js?v=0.2.23';
 import { SESSION_LIMITS } from '../data/hunt-sessions.js?v=0.2.23';
+import { whole, gold } from '../render/format.js?v=0.2.23';
 
 const PACK_QTY_MAX = 100000;
 const COUNT_WORDS = Object.freeze(['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight']);
@@ -103,6 +106,20 @@ export function recommendedHunt(level, partySize = 1, rows = huntRows()) {
 /** A party ground seen by a lone hero: "Best with a party of 2–4"; else null. */
 export function groupWords(r, partySize) {
   return r.groupFit === 'party' && (Number(partySize) || 1) < 2 ? 'Best with a party of 2–' + Math.max(2, r.heroes) : null;
+}
+
+/**
+ * THIS hero's personal bests on a ground, in words, from the server's `hunt_bests` section
+ * (hunt-sections.js huntBestsOf): one line alone, one in a party, each "12,400 XP per hour ·
+ * balance 3,100 gp per hour", or "No hunt of 10 min yet" (the server's qualifying length).
+ * Null when the server sent no section: nothing is invented.
+ */
+export function bestWords(bests, hunt) {
+  if (!bests) return null;
+  const g = bests.grounds[hunt] || {};
+  const none = 'No hunt of ' + Math.round(bests.minMs / 60000) + ' min yet';
+  const line = (b) => (b ? whole(b.xpH) + ' XP per hour · balance ' + gold(b.balanceH) + ' per hour' : none);
+  return { solo: 'Best alone: ' + line(g.solo), party: 'Best in a party: ' + line(g.party) };
 }
 
 /** Who may come: "1 hero" or "1 to 4 heroes". */

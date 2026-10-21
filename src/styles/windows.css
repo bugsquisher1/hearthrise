@@ -256,6 +256,10 @@
 .hw-hunt-warn:empty { display: none; }
 .hw-hunt-pack { font-size: var(--t-micro); color: var(--ink-2); }
 .hw-hunt-pack:empty { display: none; }
+/* This hero's personal bests on the ground (the server's hunt_bests), alone and in a party. */
+.hw-hunt-best { display: flex; flex-direction: column; gap: 1px; margin-top: 2px; }
+.hw-hunt-best[hidden] { display: none; }
+.hw-hunt-best small { font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
 .hw-density { display: none; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 .hw-density.is-on { display: flex; }
 .hw-density-label { font-size: var(--t-small); color: var(--ink-2); }

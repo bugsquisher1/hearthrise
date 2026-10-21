@@ -2,6 +2,12 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-10-21 · lane/b-death-equip-online (death popup r15, instant equip + players online r16)
+1. *The engine's answer IS the envelope.* Every hr-accrue intent returns hr_state_of after its commit, yet the client re-read hr_load after each: two round trips per equip. edgeIntent now applies the answer (envelope.js still refuses stale/malformed); RPC answers always re-read (session-core EQUIP-1 pins both).
+2. *A counter must not stamp the world tick's signal.* player_state.last_seen_at changes how often hunts flush; the prior WIP stamped it. Presence for a count gets its own home (character_presence) and a shared 15 s cached count, so 10x players costs one row read per ask.
+3. *A popup and an auto-open collide.* The hunt summary auto-opened on any ended hunt; a death now yields to the death popup, whose Hunt summary button opens it. Dismissal ids live in the residue's alerts.seen so the alert centre and the popup agree on "already shown".
+4. *Run the widget layout at 922x423 before choosing a corner.* bottom-left was clear on desktop and under the action bar on the phone; the counter is off by default there.
+
 ## 2026-10-21 · lane/b-bug-report (Sentry send gate + hang signal, Report a problem window)
 1. *An empty Sentry is not a quiet game.* Rate-limited events keep no content, so the flood cannot be named from Sentry; the game only sent from v0.2.22 (10-21 ~09:40 UTC), so a week of drops and zero accepted point at the plan's quota, not a loop. The send gate (5 per error, 25 per load, network weather dropped) makes any future loop bounded either way.
 2. *A hang throws nothing.* src/net/diagnostics.js measures a 500 ms heartbeat's lateness (visible tab, < 2 min = not a sleeping laptop); one Sentry message per load names each open hunt's swing and engine state. A loop that never returns still cannot report itself (needs a Worker watchdog).

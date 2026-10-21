@@ -25,6 +25,8 @@
 //   DP-2 AWAY      the hero died while the browser was closed: the first load opens the
 //                  popup with the server's cost; Hunt summary closes it, opens the hunt
 //                  summary and stores the dismissal
+//   DP-3 OLDER ROW a death row from before the server half (no `saved`, no `session`) still
+//                  opens the popup with its cost and says nothing about a Blessing
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -71,14 +73,14 @@ async function pure(base) {
 }
 function fail(list, msg) { list.push(msg); }
 
-function dead(env) {
+function dead(env, row) {
   env.hunt.ended = true;
   env.hunt.session = Object.assign({}, env.hunt.session, { end_reason: 'died', ended_at: '2026-10-17T12:30:00Z', phase: 'ended' });
-  env.death_log = [clone(ROW)];
+  env.death_log = [clone(row || ROW)];
 }
-function scripted(died) {
+function scripted(died, row) {
   const s = { env: clone(FIXTURE.characters), version: 1, calls: [], residue: { 0: {}, 1: {} } };
-  if (died) dead(s.env[0]);
+  if (died) dead(s.env[0], row);
   s.next = (slot) => Object.assign(clone(s.env[slot]), { version: ++s.version, client_state: clone(s.residue[slot] || {}) });
   return s;
 }
@@ -210,6 +212,18 @@ async function pageRules(overrides, shots) {
           if (!seenOf(s2).includes(SEEN)) fails.push('DP-2 [' + tag + '] Hunt summary did not store the dismissal');
         }
         await c.ctx.close();
+        /* DP-3 AN OLDER SERVER: a death row with no `saved` key (before 2026-11-07-death-popup-blessing.sql) says
+           nothing about a Blessing; every other line is still the row's. */
+        const older = clone(ROW); delete older.saved; delete older.session;
+        const d = await fresh(scripted(true, older));
+        if (!d.ok || !(await popWaits(d.page))) fails.push('DP-3 [' + tag + '] an older server\'s death row opened no popup');
+        else {
+          await d.page.waitForTimeout(300);
+          const r = await popRead(d.page);
+          if (r.saved !== '') fails.push('DP-3 [' + tag + '] a row with no Blessing key reads ' + JSON.stringify(r.saved));
+          if (r.lost !== WANT.lost || r.killed !== WANT.killed) fails.push('DP-3 [' + tag + '] an older row reads ' + JSON.stringify([r.killed, r.lost]));
+        }
+        await d.ctx.close();
         if (errors.length) fails.push('DP [' + tag + '] console errors: ' + errors.slice(0, 3).join(' | '));
       } catch (e) {
         fails.push('DP [' + tag + '] threw: ' + String(e && e.message).split('\n')[0]);

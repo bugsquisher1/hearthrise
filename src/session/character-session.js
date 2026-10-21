@@ -470,8 +470,8 @@ export class CharacterSession {
   _ask(verb, send, carries) { return this.intents.track(verb, async () => this._settled(await send(), carries === true)); }
 
   /* An intent's answer: on ok the screen shows the server's result. `carries`: the answer is the engine's,
-     whose body IS the whole envelope; it is applied as it stands (envelope.js refuses a malformed or stale
-     one), and only then, or for any other answer, the whole character is re-read. */
+     whose body IS the whole envelope; it is applied as it stands. When envelope.js refuses it (malformed,
+     stale), or for any other answer, the whole character is re-read. */
   async _settled(ans, carries) {
     if (this._closed) return { ok: false, error: 'closed' };
     /* below_range: the server admitted a hunt under its level floor (the floor is a warning, Tyler 10-18). */

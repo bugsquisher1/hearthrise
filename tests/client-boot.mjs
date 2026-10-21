@@ -5,7 +5,7 @@
 //   node tests/client-boot.mjs           the boot checks
 //   node tests/client-boot.mjs --mutate  every planted defect must turn a check RED
 //
-// mutant-anchors: src/app/boot.js src/app/world-pane.js src/net/auth.js index.html
+// mutant-anchors: src/app/boot.js src/app/slot-offer.js src/app/world-pane.js src/net/auth.js index.html
 //
 // The server is stubbed at the edges the client really uses: supabase-js (the
 // vendored UMD is replaced by a fake whose auth keeps its session in the
@@ -34,6 +34,11 @@
 //        on Confirm): nothing is sent until Enter town, then ONE hr_create_hero for
 //        that slot with the typed name and the picked colours plays it, and after a
 //        reload both heroes list by name
+//   B-11 BUY A HERO SLOT (tracker r45; Tyler 10-17: up to five, for gold): the roster offers the
+//        server's next slot at the server's price, paid from the richest hero by default; a
+//        hero short of gold cannot press it; one press sends ONE hr_buy_hero_slot (slot, payer,
+//        key, no price) and the button is off until the answer; the roster is re-read (the new
+//        empty slot offers Create hero, the next price shows); at five slots there is no offer
 //   B-10 A SESSION THAT ENDS UNDER THE GAME (live 2026-10-20: a dead token sent 805 times):
 //        every call answers 401 and the refresh is refused -> the sign-in screen with
 //        "You were signed out. Sign in again.", no session copy left, and the dead
@@ -66,10 +71,21 @@ async function stubServer(page, o) {
         o.heroes[body.p_slot] = body.p_name;
         return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, slot: body.p_slot, name: body.p_name, created: true }) });
       }
+      if (name === 'hr_buy_hero_slot') {   // B-11: the purchase, slow enough to see the button off
+        o.bought.push(body);
+        await new Promise((res) => setTimeout(res, 500));
+        o.gold[body.p_slot] -= o.ladder[body.p_slot_id];
+        o.slots.push(body.p_slot_id);
+        return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, slot_id: body.p_slot_id, hero_slots: o.slots }) });
+      }
       const slot = name === 'hr_load' ? body.p_slot : body.slot;
+      const slots = o.slots || [0, 1];
+      const next = o.ladder ? Object.keys(o.ladder).map(Number).find((k) => !slots.includes(k)) : undefined;
+      const account = Object.assign({ max_concurrent: 4 }, o.ladder ? { hero_slots_max: 5, hero_slot_offer: next === undefined ? null : { slot_id: next, cost_gold: o.ladder[next] } } : {});
       if (name === 'hr_load' || name === 'hr-accrue') {
-        const b = o.heroes[slot] ? envelope(slot, 1, { name: o.heroes[slot], state: { active_kind: 'idle', gold: 0, level_xp: 21591 } })
-          : { ok: false, error: 'no_character', hero_slots: [0, 1] };
+        const b = o.heroes[slot] ? envelope(slot, 1, { name: o.heroes[slot], hero_slots: slots, account,
+          state: { active_kind: 'idle', gold: o.gold ? o.gold[slot] : 0, level_xp: 21591 } })
+          : { ok: false, error: 'no_character', hero_slots: slots };
         return r.fulfill({ contentType: 'application/json', body: JSON.stringify(name === 'hr-accrue' ? Object.assign({ accrued: true }, b) : b) });
       }
     }
@@ -208,6 +224,42 @@ async function checks(overrides) {
       await ctx.close();
     }
 
+    { // B-11 buy a hero slot with one hero's gold, at the server's price; none at the cap
+      const o = { heroes: { 0: 'Tester', 1: 'Fennick' }, created: [], bought: [], slots: [0, 1], gold: { 0: 80000, 1: 100 }, ladder: { 2: 75000, 3: 250000, 4: 750000 } };
+      const { ctx, page, errors } = await fresh(o);
+      await page.goto(base + '/play.html', { waitUntil: 'load' });
+      await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
+      await page.fill('input[name=email]', 'qa@example.test');
+      await page.fill('input[name=password]', 'not-a-real-password');
+      await page.click('.auth-submit');
+      const shown = await wait(page, () => document.querySelector('[data-app="buy-slot"]'));
+      const btn = () => page.evaluate(() => { const b = document.querySelector('[data-app="buy-slot"]');
+        return b ? { text: b.textContent.trim(), off: b.disabled, pay: b.getAttribute('data-pay'), short: (document.querySelector('.slot-offer-short') || {}).textContent || '' } : null; });
+      const b0 = shown ? await btn() : null;
+      if (!b0 || b0.text !== 'Buy a hero slot — 75,000 gold' || b0.off || b0.pay !== '0') fails.push('B-11 the offer reads ' + JSON.stringify(b0) + ' (expected the server price 75,000, paid by the richest hero, lit)');
+      else {
+        await page.selectOption('[data-app="slot-payer"]', '1');
+        const b1 = await btn();
+        if (!b1 || !b1.off || b1.pay !== '1' || !/Fennick needs 74,900 more gold/.test(b1.short)) fails.push('B-11 a hero 74,900 short reads ' + JSON.stringify(b1));
+        await page.selectOption('[data-app="slot-payer"]', '0');
+        await page.click('[data-app="buy-slot"]');
+        const b2 = await btn();
+        if (!b2 || !b2.off || b2.text !== 'Buying…') fails.push('B-11 while the purchase is out the button reads ' + JSON.stringify(b2));
+        const reread = await wait(page, () => document.querySelectorAll('.char-row').length === 3 && document.querySelector('[data-app="create"][data-slot="2"]'));
+        const sent = o.bought[0] || {};
+        if (o.bought.length !== 1 || sent.p_slot_id !== 2 || sent.p_slot !== 0 || typeof sent.p_idem !== 'string' || Object.keys(sent).some((k) => /price|cost|gold/.test(k)))
+          fails.push('B-11 the press sent ' + JSON.stringify(o.bought));
+        const b3 = await btn();
+        if (!reread || !b3 || b3.text !== 'Buy a hero slot — 250,000 gold') fails.push('B-11 after the purchase the roster reads ' + JSON.stringify(b3) + (reread ? '' : ' with no new empty slot'));
+        o.slots.push(3, 4);
+        await page.reload({ waitUntil: 'load' });
+        await wait(page, () => document.querySelectorAll('.char-row').length === 5);
+        if ((await page.$$('.char-row')).length !== 5 || await page.$('[data-app="buy-slot"]')) fails.push('B-11 at five slots the roster still offers a slot, or does not list five');
+      }
+      if (errors.length) fails.push('B-11 console errors: ' + errors.slice(0, 3).join(' | '));
+      await ctx.close();
+    }
+
     { // B-10 a refused refresh lands on sign-in, once, with no retry loop
       const o = { revoked: false, dead: 0 };
       const { ctx, page } = await fresh(o);
@@ -250,6 +302,10 @@ async function checks(overrides) {
 }
 
 const MUTANTS = [
+  ['no hero slot is offered', 'src/app/slot-offer.js', "  if (!offer || !payers.length) return '';", "  return '';"],
+  ['the buy button stays lit while buying', 'src/app/slot-offer.js', "(o.pending || short > 0 ? ' disabled' : '')", "(short > 0 ? ' disabled' : '')"],
+  ['a hero short of gold can press buy', 'src/app/slot-offer.js', "(o.pending || short > 0 ? ' disabled' : '')", "(o.pending ? ' disabled' : '')"],
+  ['a bought slot is not re-read', 'src/app/boot.js', "if (r.ok) { track('hero_slot_bought'); await showCharacters(", "if (r.ok) { track('hero_slot_bought'); drawSlotOffer(); void ("],
   ['the notice page boots the app', 'index.html', '</body>', '<script type="module" src="src/app/boot.js?v=1"></script></body>'],
   ['sign-out leaves the session copies', 'src/net/auth.js', '      for (const k of store.keys()) if (k === cfg.authKey', '      for (const k of []) if (k === cfg.authKey'],
   ['the world pane never mounts the shell', 'src/app/world-pane.js', "  shell = mountShell(stage, {", "  shell = { onInset: () => () => {}, paint() {}, destroy() {} }; void ({"],

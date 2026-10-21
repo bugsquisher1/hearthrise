@@ -40,6 +40,9 @@
 //   ACC-2  the roster is the server's owned slots (hero_slots), bounded; a slot whose
 //          character has no name (hr_load needs_name) reads as unnamed, not as a hero;
 //          create is ONE hr_create_hero with the name, the four colours and an idem key
+//   ACC-5  a hero slot is bought at the SERVER's offer (account.hero_slot_offer; none at the cap or
+//          unstated): ONE hr_buy_hero_slot with the slot, the paying hero and a fresh idem key, no
+//          price; a refusal comes back by name (short_by kept); a yes re-reads the open paying hero
 //   ACC-3  the closed-game answer (403 hr_closed) is noticed, never retried as play
 //   NET-1  the engine is asked in the database's region (forceFunctionRegion from SUPABASE_CONFIG)
 //   OUT-1  sign-out clears every copy of the session (device + tab, sb-*, retired keys, tab id) and closes every character
@@ -95,6 +98,8 @@ function fakeServer(bySlot, o = {}) {
       if (name === 'hr_load') return answer(bySlot[args.p_slot] || { ok: false, error: 'no_character' });
       if (name === 'hr_put_client_state') return answer({ ok: true });
       if (name === 'hr_create_hero') return answer(args.p_name === 'Taken' ? { ok: false, error: 'name_taken' } : { ok: true, slot: args.p_slot, name: args.p_name, created: true });
+      if (name === 'hr_buy_hero_slot') return answer(args.p_slot === 1 ? { ok: false, error: 'insufficient_gold', short_by: 400 }
+        : { ok: true, slot_id: args.p_slot_id, gold: 5, hero_slots: [0, 1, 2], hero_slot_offer: { slot_id: 3, cost_gold: 250000 }, hero_slots_max: 5 });
       return answer({ ok: false, error: 'unknown' });
     },
     accrue: async (body) => { calls.push(['accrue', body]); return answer(Object.assign({ accrued: true }, bySlot[body.slot])); },
@@ -516,8 +521,8 @@ async function rules(M) {
       3: { ok: false, error: 'needs_name', hero_slots: [0, 2, 3] } });
     const acc = mkAccount(srv);
     const r = await acc.roster();
-    if (JSON.stringify(r) !== JSON.stringify([{ slot: 0, exists: true, unnamed: false, name: 'Tester', level: 10 }, { slot: 2, exists: true, unnamed: false, name: null, level: null },
-      { slot: 3, exists: false, unnamed: true, name: null, level: null }])) return 'roster was ' + JSON.stringify(r);
+    if (JSON.stringify(r) !== JSON.stringify([{ slot: 0, exists: true, unnamed: false, name: 'Tester', level: 10, gold: 1 }, { slot: 2, exists: true, unnamed: false, name: null, level: null, gold: 1 },
+      { slot: 3, exists: false, unnamed: true, name: null, level: null, gold: null }])) return 'roster was ' + JSON.stringify(r);
     srv.calls.length = 0;
     const ok = await acc.create(3, 'Fennick', { head: 1, body: 2, legs: 3, feet: 4 });
     const no = await acc.create(3, 'Taken', { head: 1, body: 2, legs: 3, feet: 4 });
@@ -526,6 +531,32 @@ async function rules(M) {
       || JSON.stringify(sent[0].p_colors) !== '{"head":1,"body":2,"legs":3,"feet":4}' || typeof sent[0].p_idem !== 'string' || sent[0].p_idem === sent[1].p_idem
       || Object.keys(sent[0]).some((k) => /price|gold|item/.test(k))) return 'create sent ' + JSON.stringify(sent) + ' -> ' + JSON.stringify([ok, no]);
     return true;
+  });
+  await t('ACC-5', async () => {
+    const offer = (o) => ({ account: { max_concurrent: 4, hero_slot_offer: o, hero_slots_max: 5 } });
+    /* the offer is the server's, bounded; none at the cap, none unstated, none malformed */
+    const none = [offer(null), offer({ slot_id: 2, cost_gold: 0 }), offer({ slot_id: 9, cost_gold: 75000 }), offer({ slot_id: 2, cost_gold: '75000' }), {}];
+    for (const extra of none) {
+      const acc = mkAccount(fakeServer({ 0: env(1, extra) }));
+      await acc.roster();
+      if (acc.slotOffer !== null) return 'an offer was read from ' + JSON.stringify(extra) + ': ' + JSON.stringify(acc.slotOffer);
+    }
+    const srv = fakeServer({ 0: env(1, Object.assign({ hero_slots: [0, 1], name: 'Tester', state: { gold: 80000 } }, offer({ slot_id: 2, cost_gold: 75000 }))),
+      1: env(1, { name: 'Fennick', state: { gold: 10 } }) });
+    const acc = mkAccount(srv);
+    const r = await acc.roster();
+    if (JSON.stringify(acc.slotOffer) !== '{"slotId":2,"cost":75000,"max":5}' || r[0].gold !== 80000 || r[1].gold !== 10) return 'the roster read ' + JSON.stringify([acc.slotOffer, r]);
+    await acc.open(0);
+    srv.calls.length = 0;
+    const yes = await acc.buySlot(2, 0);
+    const no = await acc.buySlot(2, 1);
+    const bad = await acc.buySlot(2, 'x');
+    const sent = srv.calls.filter((c) => c[0] === 'hr_buy_hero_slot').map((c) => c[1]);
+    if (!yes.ok || no.ok || no.reason !== 'insufficient_gold' || no.shortBy !== 400 || bad.ok || sent.length !== 2) return 'buySlot answered ' + JSON.stringify([yes, no, bad, sent]);
+    if (Object.keys(sent[0]).sort().join() !== 'p_idem,p_slot,p_slot_id' || sent[0].p_slot_id !== 2 || sent[0].p_slot !== 0
+      || typeof sent[0].p_idem !== 'string' || sent[0].p_idem === sent[1].p_idem) return 'buySlot sent ' + JSON.stringify(sent);
+    if (!srv.calls.some((c) => c[0] === 'hr_load' && c[1].p_slot === 0)) return 'the paying hero was not re-read after the purchase';
+    return JSON.stringify(acc.slotOffer) === '{"slotId":3,"cost":250000,"max":5}' || 'after the purchase the offer is ' + JSON.stringify(acc.slotOffer);
   });
   await t('ACC-3', async () => {
     if (!S.isClosedAnswer(403, { code: 'hr_closed' }) || S.isClosedAnswer(403, { code: 'other' }) || S.isClosedAnswer(200, { code: 'hr_closed' })) return 'isClosedAnswer is wrong';
@@ -694,6 +725,9 @@ const MUTANTS = [
   ['no state accepted', 'src/session/envelope.js', "if (!isObj(env.state)) return keep('incomplete');", ''],
   ['residue unfiltered', 'src/session/residue.js', '  for (const f of RESIDUE_FIELDS) if (Object.prototype.hasOwnProperty.call(bag, f)) out[f] = sanitizeResidueField(f, bag[f]);', '  Object.assign(out, bag);'],
   ['one topic for every slot', 'src/session/character-session.js', "return 'hr:' + uid.toLowerCase() + ':' + slot;", "return 'hr:' + uid.toLowerCase();"],
+  ['the slot offer is made up on this side', 'src/session/account-session.js', '    || !Number.isSafeInteger(o.cost_gold) || o.cost_gold < 1) return null;', '    || false) return null;'],
+  ['a slot purchase sends a price', 'src/session/account-session.js', "{ p_slot_id: slotId, p_slot: paySlot, p_idem: newIdem() }", "{ p_slot_id: slotId, p_slot: paySlot, p_price: this.slotOffer && this.slotOffer.cost, p_idem: newIdem() }"],
+  ['the paying hero keeps its old gold', 'src/session/account-session.js', '      if (cs) await cs.load();\n', ''],
   ['limit off by one', 'src/session/account-session.js', 'if (this._chars.size >= this.limit())', 'if (this._chars.size > this.limit())'],
   ['the client ceiling stands in for the server', 'src/session/account-session.js', 'return Math.min(this.config.maxConcurrentCharacters, this._limit === null ? 1 : this._limit);', 'return this.config.maxConcurrentCharacters;'],
   ['the server limit is ignored above one', 'src/session/account-session.js', 'return Math.min(this.config.maxConcurrentCharacters, this._limit === null ? 1 : this._limit);', 'return Math.min(this.config.maxConcurrentCharacters, this._limit === null ? 1 : this.config.maxConcurrentCharacters);'],

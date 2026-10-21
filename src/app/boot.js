@@ -4,6 +4,8 @@
 //   boot → auth (src/net/auth.js over the one supabase-js client)
 //        → AccountSession (src/session/account-session.js): one per login
 //        → the characters screen: the account's slots, read from the server
+//          and, under them, the next hero slot for sale at the server's price, paid
+//          from one hero's gold (src/app/slot-offer.js; ONE intent, re-read on its answer)
 //        → an empty (or unnamed) slot opens the creation step (src/app/hero-create.js):
 //          name + four colours, ONE intent; the hero enters town on the server's yes
 //        → the game: the character strip (src/app/character-strip.js; up to the
@@ -35,6 +37,7 @@ import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.22';
 import { mountWorldPane } from './world-pane.js?v=0.2.22';
 import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.22';
 import { renderHeroCreate } from './hero-create.js?v=0.2.22';
+import { slotOfferHtml, slotRefusalText, pickPayer } from './slot-offer.js?v=0.2.22';
 import { createAlertCenter } from '../shell/alerts.js?v=0.2.22';
 import { createSocialRealtime } from '../social/realtime.js?v=0.2.22';
 import { SocialSession } from '../social/social-session.js?v=0.2.22';
@@ -73,6 +76,9 @@ function startApp(win) {
   let openAfter = null;
   let creating = null;
   let rosterSlots = [];   // the account's existing characters, as the roster last read them
+  let roster = [];        // the roster rows the characters screen shows (the server's, as last read)
+  let slotPay = null;     // the hero picked to pay for a hero slot (a pick, never a number)
+  let slotBuying = false; // a hero-slot purchase is in flight: the button stays off until the answer
 
   const recovering = /type=recovery/.test(win.location.hash);
 
@@ -141,19 +147,20 @@ function startApp(win) {
     await showCharacters();
   }
 
-  async function showCharacters() {
+  async function showCharacters(note) {
     clear();
     obs.screen('characters');
     root.className = 'app is-auth';
     root.innerHTML = '<main class="auth">' + AUTH_BRAND + '<div class="auth-card"><h1 class="auth-title">Your characters</h1>'
       + '<p class="auth-lead" role="status">Reading your characters…</p></div></main>';
     const a = account;
-    const roster = await a.roster();
+    const read = await a.roster();
     if (a !== account || a.closedGame) return;
+    roster = read;
     rosterSlots = roster.filter((r) => r.exists).map((r) => r.slot);
     const open = new Set(a.characters().map((c) => c.slot));
     /* Each owned slot: its hero by name and Level (the server's), or an empty slot to create in.
-       Every account owns two (Tyler 10-17); slots it has not bought are not shown until buying them is built. */
+       Every account owns two (Tyler 10-17); the next one for sale is offered under the list. */
     const rows = roster.map((r) => '<li class="char-row"><span class="char-name">'
       + (r.exists ? esc(r.name || 'Unnamed hero') + (r.level ? ' <small class="char-level">Level ' + r.level + '</small>' : '') : r.unnamed ? 'Unnamed hero' : 'Empty slot')
       + '</span>'
@@ -164,8 +171,31 @@ function startApp(win) {
     root.querySelector('.auth-card').innerHTML = '<h1 class="auth-title">Your characters</h1>'
       + '<p class="auth-lead">Signed in as ' + esc(auth.email() || 'you') + '. ' + (a.limit() > 1 ? 'Up to ' + a.limit() + ' can play at once.' : 'One can play at a time.') + '</p>'
       + '<ul class="char-list">' + (rows || '<li class="char-row">The server did not answer. Reload to try again.</li>') + '</ul>'
-      + '<p class="auth-message" role="status" aria-live="polite"></p>'
+      + '<div class="slot-offer-mount">' + slotOfferHtml(a.slotOffer, roster, { payer: slotPay, pending: slotBuying }) + '</div>'
+      + '<p class="auth-message' + (note ? ' is-good' : '') + '" role="status" aria-live="polite">' + esc(note || '') + '</p>'
       + '<p class="auth-links"><button type="button" class="auth-link" data-app="sign-out">Sign out</button></p>';
+  }
+
+  /* The offer block alone, redrawn for a new payer pick or while a purchase is in flight. */
+  function drawSlotOffer() {
+    const m = root.querySelector('.slot-offer-mount');
+    if (m && account) m.innerHTML = slotOfferHtml(account.slotOffer, roster, { payer: slotPay, pending: slotBuying });
+  }
+
+  /* ONE purchase: the button is off until the server answers; a yes re-reads the roster from the server. */
+  async function buySlot(slotId, paySlot) {
+    if (slotBuying || !account || !Number.isInteger(slotId) || !Number.isInteger(paySlot)) return;
+    const a = account;
+    slotBuying = true;
+    drawSlotOffer();
+    const r = await a.buySlot(slotId, paySlot);
+    slotBuying = false;
+    if (a !== account || a.closedGame) return;
+    if (r.ok) { track('hero_slot_bought'); await showCharacters('Hero slot bought. Create your new hero in it.'); return; }
+    drawSlotOffer();
+    const m = root.querySelector('.auth-message');
+    const payer = roster.find((x) => x.slot === paySlot);
+    if (m) { m.classList.remove('is-good'); m.textContent = slotRefusalText(r, payer && payer.name); }
   }
 
   /* The creation step over the characters card: the hero enters town only on the server's yes. */
@@ -254,6 +284,13 @@ function startApp(win) {
     else if (what === 'show') goTo(slot, null);
     else if (what === 'all') { if (pane) pane.shell.toggle('characters'); }
     else if (what === 'create') showCreate(slot);
+    else if (what === 'buy-slot') buySlot(Number(t.getAttribute('data-slot-id')), Number(t.getAttribute('data-pay')));
+  });
+  root.addEventListener('change', (e) => {
+    const t = e.target.closest('[data-app="slot-payer"]');
+    if (!t || slotBuying) return;
+    slotPay = pickPayer(roster.filter((r) => r.exists && Number.isSafeInteger(r.gold)), Number(t.value));
+    drawSlotOffer();
   });
 
   auth.onChange((ev) => {

@@ -97,6 +97,22 @@
 .char-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 48px; border-top: 1px solid var(--line-soft); }
 .char-name { font-weight: 700; }
 .char-level { margin-left: .5em; font-weight: 400; color: var(--ink-2); }
+/* The next hero slot for sale (src/app/slot-offer.js): price, payer, one button. */
+.slot-offer { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line-soft); }
+.slot-offer-lead, .slot-offer-from, .slot-offer-short { margin: 0; font-size: var(--t-small); line-height: 1.4; }
+.slot-offer-lead { color: var(--ink); }
+.slot-offer-from { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; color: var(--ink-2); }
+.slot-offer-short { color: var(--ink-3); }
+.slot-offer-payer {
+  font-family: var(--f-ui); font-size: var(--t-small);
+  min-height: 32px; padding: 0 8px;
+  color: var(--ink); background: var(--bg-0);
+  border: 1px solid var(--line-soft); border-radius: var(--r-sm);
+}
+.slot-offer-payer:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .slot-offer { gap: 4px; padding-top: 6px; }
+}
 
 .char-strip {
   display: flex;

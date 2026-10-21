@@ -158,8 +158,12 @@
 .ha-none.is-on { display: block; }
 
 /* ── The action bar: vitals, 2 x 10 priority slots, the set's plaque ── */
-/* An open tooltip or drop menu lifts the bar's widget over its siblings (the alert stack drew over the slot's name and why). */
-.hs-widget:has(.hb-tip.is-on, .hb-drop.is-on) { z-index: 1; }
+/* AN OPEN TOOLTIP, DROP MENU OR PANEL SHEET IS ON TOP (v0.2.23 gate: the alert stack drew over the slot's name
+   and why). The bar's widget rises over its sibling widgets' own cards (the hunt bar's pointer is z 5), and the
+   world HUD over the screen layer (.hs-screen, z 6: the alerts and the launcher row) while one is open and no
+   window is: an open window (Configure action above all) stays over the bar. */
+.hs-widget:has(.hb-tip.is-on, .hb-drop.is-on, .hb-plaque.is-open) { z-index: 6; }
+.hs-shell:not(:has(.hs-win:not(.is-leaving))) > .hs-hud:has(.hb-tip.is-on, .hb-drop.is-on, .hb-plaque.is-open) { z-index: 7; }
 .hb-bar { position: relative; display: flex; align-items: center; gap: 10px; padding: 6px 8px; background: var(--world-hud-bg); border: 4px solid transparent; border-image: url('../../assets/ui/frame-iron-thin.png') 2 / 4px stretch; image-rendering: pixelated; }
 .hb-slots { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(5, 40px); grid-auto-rows: 40px; gap: 4px; }
 /* A slot is a well cut into the plate: dark on its upper-left inner edge, lit
@@ -186,6 +190,9 @@
 /* The panel at the far right (Tyler 10-19: everything Hunt settings held, on the bar): the set, target, stance, chase and distance. */
 .hb-plaque { position: relative; width: 228px; display: flex; flex-direction: column; gap: 3px; }
 .hb-pl-row { display: flex; align-items: center; gap: 6px; min-height: 30px; }
+/* The rows past the set's own sit in .hb-pl-more: part of the panel on a desktop, a sheet on a phone. */
+.hb-pl-more { display: contents; }
+.hb-plaque .hb-more, .hb-pl-head { display: none; }
 .hb-label { flex: none; font-family: var(--f-label); font-size: var(--t-micro); color: var(--ink-3); letter-spacing: .04em; }
 .hb-set { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
 .hb-pl-row .hh-select { flex: 1; min-width: 0; min-height: 30px; }
@@ -413,14 +420,31 @@
   .hp-party { width: 200px; }
   .hp-portrait { width: 28px; height: 28px; }
   .hp-role { display: none; }
+  /* THE PHONE BAR (v0.2.23 gate: 874 x 178 hid the hero): one row at most 96 px tall. The hub runs
+     HP · the medal · MP with the sockets beside the readouts; the panel keeps the set and its buttons,
+     and the rest of it slides out as a sheet from the right (.hb-more). */
   .hb-bar { gap: 6px; padding: 4px; max-width: calc(100vw - 16px); }
-  .hb-hub { grid-template-columns: 64px 88px 64px; grid-template-rows: 44px 44px auto; }
-  .hb-medal, .hb-arcs { width: 88px; height: 88px; }
+  .hb-hub { grid-template-columns: auto auto 64px auto auto; grid-template-rows: auto auto; align-content: center; grid-template-areas: "food hp medal mp charm" "food hp medal stam charm"; column-gap: 6px; }
+  .hb-read.is-mana { align-self: end; }
+  .hb-stam { justify-self: start; align-self: start; }
+  .hb-medal, .hb-arcs { width: 64px; height: 64px; }
+  .hb-medal-in small:first-child { display: none; }
+  .hb-read.is-hp, .hb-socket { align-self: center; }
+  .hb-socket-ico, .hb-socket-ico .hh-icon { width: 28px; height: 28px; }
   .hb-socket-k { display: none; }
   .hb-slots { grid-template-columns: repeat(5, 36px); grid-auto-rows: 36px; gap: 3px; }
-  .hb-plaque { width: 232px; }
+  .hb-plaque { width: auto; max-width: 150px; }
   .hb-plaque .hb-label { display: none; }
-  .hb-plaque .is-gold .hb-label { display: inline; }
+  .hb-plaque .hb-more { display: inline-flex; }
+  .hb-pl-more { position: fixed; top: 0; right: 0; bottom: 0; width: 280px; display: flex; flex-direction: column; justify-content: center; gap: 8px; padding: 12px;
+    background: var(--modal-bg); border-left: 4px solid transparent; border-image: url('../../assets/ui/frame-iron-thin.png') 2 / 4px stretch; image-rendering: pixelated;
+    transform: translateX(100%); visibility: hidden; transition: transform 160ms ease-out, visibility 0s linear 160ms; }
+  .hb-plaque.is-open .hb-pl-more { transform: none; visibility: visible; transition: transform 160ms ease-out; }
+  .hb-pl-head { display: flex; align-items: center; justify-content: space-between; color: var(--ink); }
+  .hb-pl-more .hb-label { display: inline; }
+  .hb-pl-more .hb-pl-row, .hb-pl-more .hh-seg, .hb-pl-more .hh-select { min-height: 40px; }
+  /* A short screen: the tooltip runs wide instead of tall, so it never climbs into the top strip. */
+  .hb-tip { width: 440px; }
   .hc-cfg .hh-seg, .hc-cfg .hh-select, .hc-cfg .hh-num, .hc-cfg .hh-tool { min-height: 40px; }
   .hc-list { max-height: 140px; }
   .ht-bar { gap: 6px; padding: 2px 4px; }

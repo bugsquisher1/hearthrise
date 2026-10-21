@@ -32,7 +32,9 @@ export const HUD_WIDGETS = Object.freeze([
   Object.freeze({
     id: 'alerts', label: 'Alerts', layer: 'screen', anchor: 'ml', dx: 12, dy: 0,
     min: Object.freeze([240, 8]), opacity: 1, visible: true, removable: true, when: 'always',
-    phone: Object.freeze({ dx: 4 }),
+    /* On a phone the stack docks above the bottom bar (at most 96 px tall, tests/hunt-screen.mjs HS-22)
+       and grows upward, never over the bar or its drop menu. */
+    phone: Object.freeze({ anchor: 'bl', dx: 4, dy: 104 }),
   }),
   /* The hunt screen (HUNT_SCREEN_SPEC §1.4): built once, patched in place. */
   Object.freeze({

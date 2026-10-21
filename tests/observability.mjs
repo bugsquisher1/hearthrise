@@ -76,7 +76,11 @@ async function page(browser, base, o) {
   /* A desktop Chrome's user agent and no webdriver flag: PostHog drops an automated browser as a bot. */
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 },
     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36' });
-  await ctx.addInitScript(() => Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false }));
+  /* ...and no 'HeadlessChrome' brand: a newer headless Chromium announces it in userAgentData, which PostHog also reads. */
+  await ctx.addInitScript(() => {
+    Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false });
+    Object.defineProperty(Navigator.prototype, 'userAgentData', { get: () => undefined });
+  });
   const pg = await ctx.newPage();
   const seen = { scripts: [], sentry: [], posthog: [], events: [], errors: [], csp: [] };
   pg.on('console', (m) => { if (m.type() === 'error' && /Content Security Policy/i.test(m.text())) seen.csp.push(m.text()); });
@@ -95,7 +99,7 @@ async function page(browser, base, o) {
   });
   let v = 0;
   await pg.route('https://nezapsylztqbbwuwembx.supabase.co/**', (r) => {
-    const name = r.request().url().split('/').pop();
+    const name = r.request().url().split('?')[0].split('/').pop();
     if (name === 'hr_hunt_leave') { o.left = true; return r.fulfill({ contentType: 'application/json', body: '{"ok":true}' }); }
     if (name === 'hr_load' || name === 'hr-accrue') {
       v++;

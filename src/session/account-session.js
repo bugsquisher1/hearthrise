@@ -16,7 +16,9 @@
 //                 (its name and combat level), read from the server (hr_load
 //                 per owned slot; `hero_slots`: slot 0 and the starter slots
 //                 every account owns, plus any bought)
-//   create(slot)  ask the server to make a character in an empty owned slot
+//   create(slot, name, colors)  ask the server to make the hero in an owned slot:
+//                 ONE intent (hr_create_hero) with its name and four dye indices;
+//                 a slot holding an unnamed character (roster `unnamed`) is named by it
 //   open(slot)    a CharacterSession for the slot: loaded, then connected
 //   close(slot)   leave and forget one character
 //   view(slot)    show another open character (viewed); nothing else moves
@@ -33,10 +35,11 @@
 //                 left and destroyed when it closes
 // ════════════════════════════════════════════════════════════════════════
 
-import { SESSION_CONFIG } from './config.js?v=0.2.9';
-import { CharacterSession } from './character-session.js?v=0.2.9';
-import { TownPresence } from './town-presence.js?v=0.2.9';
-import { charLevelFromXp } from '../core/xp.js?v=0.2.9';
+import { SESSION_CONFIG } from './config.js?v=0.2.22';
+import { CharacterSession } from './character-session.js?v=0.2.22';
+import { TownPresence } from './town-presence.js?v=0.2.22';
+import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.22';
+import { charLevelFromXp } from '../core/xp.js?v=0.2.22';
 
 /** This tab's session id: made once per tab, kept across a reload, new for a new tab. */
 export function tabSessionId(tab, cfg = SESSION_CONFIG, make) {
@@ -63,6 +66,18 @@ export function heroOf(body) {
   return { name, level: Number.isSafeInteger(lx) && lx >= 0 ? charLevelFromXp(lx) : null };
 }
 
+function newIdem() {
+  const c = globalThis.crypto;
+  return c && typeof c.randomUUID === 'function' ? c.randomUUID() : Date.now() + '-' + Math.floor(Math.random() * 1e9);
+}
+
+/** Does a `hunt` section say the server holds a hunt OPEN? The section names the newest session
+    even after it ended (hr_hunt_section_view: `ended: true`), so its presence alone is not hunting:
+    a hero back from a hunt stands in town again. Pure. */
+function huntOpenIn(h) {
+  return !!h && typeof h === 'object' && typeof h.session_id === 'string' && h.ended !== true;
+}
+
 /** The owned slots an envelope's `hero_slots` names, bounded to the server's range. Pure. */
 function ownedSlots(heroSlots, cfg = SESSION_CONFIG) {
   const out = new Set([0]);
@@ -74,7 +89,7 @@ export class AccountSession {
   /**
    * @param {object} o
    * @param {object} o.auth        createAuth(...) — signed in
-   * @param {object} o.server      createServerLink(...) using auth.token
+   * @param {object} o.server      createServerLink(...) using auth.freshToken / auth.renewToken
    * @param {object} [o.tab]       the tab store (HearthriseStorage.session)
    * @param {Function} [o.channel] (topic, onMessage, onStatus) => leave
    * @param {object} [o.config]
@@ -130,7 +145,8 @@ export class AccountSession {
     if (ans && ans.closed && !this.closedGame) { this.closedGame = true; this._emit('closed-game'); }
   }
 
-  /** [{ slot, exists, name, level }] for every slot this account owns. */
+  /** [{ slot, exists, unnamed, name, level }] for every slot this account owns. `unnamed`: the server
+      holds a character there that may not enter the world until it is named (hr_load needs_name). */
   async roster() {
     const first = await this.server.rpc('hr_load', { p_slot: 0 });
     this._noteClosed(first);
@@ -142,16 +158,19 @@ export class AccountSession {
     for (const slot of owned) {
       const ans = slot === 0 ? first : await this.server.rpc('hr_load', { p_slot: slot });
       this._noteClosed(ans);
-      out.push(Object.assign({ slot, exists: !!(ans.ok && ans.body && ans.body.ok === true) }, heroOf(ans.ok ? ans.body : null)));
+      out.push(Object.assign({ slot, exists: !!(ans.ok && ans.body && ans.body.ok === true),
+        unnamed: !!(ans.ok && ans.body && ans.body.error === 'needs_name') }, heroOf(ans.ok ? ans.body : null)));
     }
     return out;
   }
 
-  /** Ask the server to make the character in an owned slot (idempotent: an existing one answers ok). */
-  async create(slot) {
-    const ans = await this.server.rpc('hr_create_character', { p_slot: slot });
+  /** Ask the server to make the hero in an owned slot with its name and colours ({ head, body, legs, feet }
+      dye indices). { ok } or { ok:false, reason, nameReason }: the server's verdict, never the client's. */
+  async create(slot, name, colors) {
+    const ans = await this.server.rpc('hr_create_hero', { p_slot: slot, p_name: String(name || '').slice(0, 40), p_colors: colors, p_idem: newIdem() });
     this._noteClosed(ans);
-    return { ok: !!(ans.ok && ans.body && ans.body.ok === true), reason: (ans.body && ans.body.error) || ans.error || null };
+    const b = ans.body;
+    return { ok: !!(ans.ok && b && b.ok === true), reason: (b && b.error) || ans.error || null, nameReason: (b && b.reason) || null };
   }
 
   /** Open (load + connect) one character. { ok, session } or { ok:false, reason }. */
@@ -172,13 +191,33 @@ export class AccountSession {
       return { ok: false, reason };
     }
     cs.connect();
+    /* Playing = standing in town for everyone (Tyler 2026-10-19), viewed or not: a body from the
+       moment it opens (a reload or login too), at the town's arrival tile, while it is not hunting. */
+    const town = WORLD_MAPS.find((m) => m.id === SCENE_MAPS.town);
+    const arrival = town && town.start ? { map: town.id, x: town.start[0], y: town.start[1], gx: town.start[0], gy: town.start[1], dir: 's' } : null;
     this._towns.set(slot, new TownPresence({ server: this.server, slot, self: () => this.userId,
       hidden: (id) => !!(this.social && this.social.blocks && this.social.blocks.has(id)),
+      busy: () => huntOpenIn(cs.read('hunt')), arrival,
       timers: this._timers.setInterval ? { setTimer: this._timers.setInterval, clearTimer: this._timers.clearInterval } : null }));
+    this._towns.get(slot).stand();
     if (this.viewed === null) this.viewed = slot;
     this._emit('opened', slot);
     if (this.social) this.social.start();
     return { ok: true, session: cs };
+  }
+
+  /**
+   * Open the account's other characters (`slots`, the roster's existing ones) up to the server's
+   * limit, never changing the viewed one: everyone the account plays stands in town after a
+   * reload or login, not only the one on screen. Returns the slots now open.
+   */
+  async openOthers(slots) {
+    for (const slot of Array.isArray(slots) ? slots : []) {
+      if (!Number.isInteger(slot) || this._chars.has(slot)) continue;
+      if (this._chars.size >= this.limit()) break;
+      await this.open(slot);
+    }
+    return this.characters().map((c) => c.slot);
   }
 
   /**

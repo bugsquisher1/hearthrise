@@ -14,6 +14,9 @@
 export const SUPABASE_CONFIG = Object.freeze({
   url: 'https://nezapsylztqbbwuwembx.supabase.co',
   anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5lemFwc3lsenRxYmJ3dXdlbWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4MzM0NzYsImV4cCI6MjA5MzQwOTQ3Nn0.pd7ZT9M7dd8CtyQPLafCNib9m3S6BSVLRCfvZgql1MM',
+  /* The database is in us-west-2. An Edge Function left to the nearest region runs a coast away
+     from it and pays that distance on every sequential query of a settle (p50 4 s vs 1 s, 2026-10-20). */
+  functionRegion: 'us-west-2',
 });
 
 /** A supabase-js storage adapter over one HearthriseStorage store. */

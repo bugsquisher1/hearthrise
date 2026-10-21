@@ -18,8 +18,8 @@
 // read makes that ROW null, not the whole section.
 // ════════════════════════════════════════════════════════════════════════
 
-import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.9';
-import { VITALS } from '../data/core-model.js?v=0.2.9';
+import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.22';
+import { VITALS } from '../data/core-model.js?v=0.2.22';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -48,6 +48,13 @@ function unitsOf(pose) {
   return out;
 }
 
+/** The pending leave's server instant (ms) of a raw `hunt` section, or null (none asked, or the hunt is over). */
+export function leaveAtOf(h) {
+  if (!isObj(h) || bool(h.ended) || !isObj(h.session) || !str(h.session.leave_at)) return null;
+  const ms = Date.parse(h.session.leave_at);
+  return Number.isFinite(ms) ? ms : null;
+}
+
 /** `hunt`: the session (and why it ended), the viewed hero's vitals and the instance's units (who is who). */
 export function huntOf(cs) {
   const h = section(cs, 'hunt');
@@ -58,6 +65,8 @@ export function huntOf(cs) {
     huntId: str(h.hunt_id),
     ended: bool(h.ended),
     endReason: isObj(h.session) ? str(h.session.end_reason) : null,
+    /* When the hunt's engine starts (the end of the travel, hr_hunt_travel): before it the hero walks. */
+    huntFromMs: isObj(h.session) && str(h.session.hunt_from) ? Date.parse(h.session.hunt_from) || null : null,
     units: unitsOf(h.pose),
     hero: {
       unit: int(hero.unit), name: str(hero.name), level: int(hero.level),
@@ -117,6 +126,8 @@ export function settingsOf(cs) {
     targetMode: str(s.target_mode), stance: str(s.stance), distance: int(s.distance),
     chase: typeof s.chase === 'boolean' ? s.chase : null,
     foodPct: int(s.food_pct), drinkPct: int(s.drink_pct), supplySource: str(s.supply_source), onEmpty: str(s.on_empty),
+    /* The gold the store never spends below (hunt_settings.gold_floor; null until hr_hunt_settings_view projects it). */
+    goldFloor: int(s.gold_floor),
     /* Monster density (the pick; the settle clamps it to the ground) and the gathering share (INERT until gathering lands). */
     density: int(s.density), gatherShare: int(s.gather_share), gatherInert: s.gather_inert === true,
     stopRules: list(s.stop_rules, (r) => (isObj(r) && Array.isArray(r.conditions) ? { conditions: list(r.conditions, conditionOf, 4), join: JOIN.test(String(r.join)) ? r.join : 'and', forMs: int(r.forMs) || 0 } : null), 3),
@@ -125,10 +136,12 @@ export function settingsOf(cs) {
   };
 }
 
+/* A party member. `unit` is its hero in the hunt instance, null while the party is in town (it is
+   listed all the same: the Party panel shows the party wherever it is). */
 function memberOf(m) {
-  if (!isObj(m) || int(m.unit) === null) return null;
+  if (!isObj(m) || int(m.seat) === null) return null;
   return {
-    unit: m.unit, seat: int(m.seat), name: str(m.name) || 'Hero', level: int(m.level), outfit: str(m.outfit),
+    unit: int(m.unit), seat: m.seat, name: str(m.name) || 'Hero', level: int(m.level), outfit: str(m.outfit),
     role: roleForWeapon(str(m.weapon), str(m.role_pick)),
     hp: num(m.hp), hpMax: num(m.hp_max), mana: num(m.mana), manaMax: num(m.mana_max), staminaMs: num(m.stamina_ms),
     dealt: num(m.dealt), healed: num(m.healed), dps: num(m.dps), hps: num(m.hps),
@@ -142,7 +155,7 @@ export function partyOf(cs) {
   if (!p) return null;
   const members = list(p.members, memberOf, 8);
   if (!members.length) return null;
-  return { leader: int(p.leader), self: int(p.self), open: p.open !== false, members };
+  return { leader: int(p.leader), self: int(p.self), leaderSeat: int(p.leader_seat), selfSeat: int(p.self_seat), open: p.open !== false, members };
 }
 
 /** `premium`: is THIS character premium right now, as the server says. Fails safe to false. */

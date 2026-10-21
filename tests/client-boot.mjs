@@ -29,12 +29,18 @@
 //        errors; the rules of each panel are tests/hunt-screen.mjs
 //   B-9  ONE HERO, TWO SLOTS (Tyler live 10-18: no way to create a character; ruling
 //        10-17: every account starts with two): the screen names the hero and its
-//        Level, the empty owned slot offers Create character, Create is ONE
-//        hr_create_character for that slot and plays it, and after a reload both
-//        heroes list by name
+//        Level, the empty owned slot offers Create hero, which opens the creation
+//        step (Tyler 2026-10-20: a name and four colours, the hero enters town only
+//        on Confirm): nothing is sent until Enter town, then ONE hr_create_hero for
+//        that slot with the typed name and the picked colours plays it, and after a
+//        reload both heroes list by name
+//   B-10 A SESSION THAT ENDS UNDER THE GAME (live 2026-10-20: a dead token sent 805 times):
+//        every call answers 401 and the refresh is refused -> the sign-in screen with
+//        "You were signed out. Sign in again.", no session copy left, and the dead
+//        session sends no more than a handful of calls
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
-import { launchOptions } from './_chrome.mjs';
+import { leaseBrowser } from './_chrome.mjs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
@@ -51,10 +57,15 @@ async function stubServer(page, o) {
   await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
     const url = r.request().url();
     const body = JSON.parse(r.request().postData() || '{}');
+    if (o.revoked) { o.dead++; return r.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ code: 'UNAUTHORIZED_ASYMMETRIC_JWT' }) }); }
     if (o.closed) return r.fulfill({ status: 403, contentType: 'application/json', body: JSON.stringify({ code: 'hr_closed', message: 'closed' }) });
-    if (o.heroes) {   // a stateful account: { slot: name } heroes; hr_create_character adds one
-      const name = url.split('/').pop();
-      if (name === 'hr_create_character') { o.created.push(body.p_slot); o.heroes[body.p_slot] = 'New hero'; return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, slot: body.p_slot, created: true }) }); }
+    if (o.heroes) {   // a stateful account: { slot: name } heroes; hr_create_hero adds one, named
+      const name = url.split('?')[0].split('/').pop();
+      if (name === 'hr_create_hero') {
+        o.created.push({ slot: body.p_slot, name: body.p_name, colors: body.p_colors });
+        o.heroes[body.p_slot] = body.p_name;
+        return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, slot: body.p_slot, name: body.p_name, created: true }) });
+      }
       const slot = name === 'hr_load' ? body.p_slot : body.slot;
       if (name === 'hr_load' || name === 'hr-accrue') {
         const b = o.heroes[slot] ? envelope(slot, 1, { name: o.heroes[slot], state: { active_kind: 'idle', gold: 0, level_xp: 21591 } })
@@ -63,7 +74,7 @@ async function stubServer(page, o) {
       }
     }
     if (url.endsWith('/rpc/hr_load')) return r.fulfill({ contentType: 'application/json', body: JSON.stringify(o.hunt ? Object.assign({}, HUNT, { version: 1 }) : envelope(body.p_slot, 1)) });
-    if (url.endsWith('/functions/v1/hr-accrue')) return r.fulfill({ contentType: 'application/json', body: JSON.stringify(Object.assign({ accrued: true }, o.hunt ? Object.assign({}, HUNT, { version: 2 }) : envelope(body.slot, 2))) });
+    if (url.split('?')[0].endsWith('/functions/v1/hr-accrue')) return r.fulfill({ contentType: 'application/json', body: JSON.stringify(Object.assign({ accrued: true }, o.hunt ? Object.assign({}, HUNT, { version: 2 }) : envelope(body.slot, 2))) });
     return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true }) });
   });
   await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
@@ -75,7 +86,7 @@ async function checks(overrides) {
   const fails = [];
   const { server, port } = await serve(overrides);
   const base = 'http://127.0.0.1:' + port;
-  const browser = await chromium.launch(launchOptions({ headless: true }));
+  const browser = await leaseBrowser(chromium);
   try {
     const fresh = async (o = {}) => {
       const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
@@ -93,7 +104,7 @@ async function checks(overrides) {
       const n = await page.evaluate(() => ({ link: !!document.querySelector('a[href="https://discord.gg/eJrUSUJM3M"]'),
         text: document.body.innerText, scripts: Array.from(document.scripts).map((s) => s.getAttribute('src')) }));
       if (!n.link || !/Discord gets the [a-z ]*date first/i.test(n.text)) fails.push('N-1 the notice page lost its copy or Discord link');
-      if (n.scripts.some((s) => !/^src\/platform\/sw-killswitch\.js\?v=\d[\d.]*$/.test(String(s)))) fails.push('N-1 the notice page loads an app script: ' + n.scripts.join(', '));
+      if (n.scripts.some((s) => !/^src\/platform\/(https-upgrade|sw-killswitch)\.js\?v=\d[\d.]*$/.test(String(s)))) fails.push('N-1 the notice page loads an app script: ' + n.scripts.join(', '));
       const hs = await page.request.get(base + '/prototypes/hunt-sim/');
       if (hs.status() !== 200) fails.push('N-1 /prototypes/hunt-sim/ answered ' + hs.status());
       if (errors.length) fails.push('N-1 console errors: ' + errors.join(' | '));
@@ -158,7 +169,7 @@ async function checks(overrides) {
       await ctx.close();
     }
 
-    { // B-9 one hero, two owned slots: name + level, Create character, both after a reload
+    { // B-9 one hero, two owned slots: name + level, Create hero (name + colours), both after a reload
       const o = { heroes: { 0: 'Tester' }, created: [] };
       const { ctx, page, errors } = await fresh(o);
       await page.goto(base + '/play.html', { waitUntil: 'load' });
@@ -168,19 +179,56 @@ async function checks(overrides) {
       await page.click('.auth-submit');
       await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
       const rows = await page.evaluate(() => Array.from(document.querySelectorAll('.char-row')).map((li) => li.textContent.replace(/\s+/g, ' ').trim()));
-      if (rows.length !== 2 || !/^Tester Level 10 ?Play$/.test(rows[0]) || !/Create character$/.test(rows[1]) || !(await page.$('[data-app="create"][data-slot="1"]')))
+      if (rows.length !== 2 || !/^Tester Level 10 ?Play$/.test(rows[0]) || !/Create hero$/.test(rows[1]) || !(await page.$('[data-app="create"][data-slot="1"]')))
         fails.push('B-9 one hero and an empty owned slot list as ' + JSON.stringify(rows));
       else {
         await page.click('[data-app="create"][data-slot="1"]');
+        /* The creation step: a name, four colour rows and a preview; nothing is sent before Enter town. */
+        const step = await wait(page, () => document.querySelector('.hc-name') && document.querySelectorAll('.hc-region').length === 4 && document.querySelector('.hc-preview'));
+        if (!step) fails.push('B-9 Create did not open the creation step (sent ' + JSON.stringify(o.created) + ')');
+        else {
+          await page.click('.hc-dye[data-hc-region="body"][data-hc-dye="6"]');
+          await page.click('.hc-confirm');
+          const short = await page.evaluate(() => document.querySelector('.auth-message').textContent);
+          if (o.created.length || !/3 letters/.test(short)) fails.push('B-9 the creation step sent ' + JSON.stringify(o.created) + ' / said "' + short + '" for an empty name');
+          await page.fill('.hc-name', 'Fennick');
+          await page.click('.hc-confirm');
+        }
         const played = await wait(page, () => document.querySelector('#panel-world[data-slot="1"]'));
-        if (JSON.stringify(o.created) !== '[1]' || !played) fails.push('B-9 Create sent ' + JSON.stringify(o.created) + (played ? '' : ' and did not play the new hero'));
+        const c = o.created[0];
+        if (o.created.length !== 1 || c.slot !== 1 || c.name !== 'Fennick' || !c.colors || c.colors.body !== 6 || Object.keys(c.colors).join() !== 'head,body,legs,feet' || !played)
+          fails.push('B-9 Enter town sent ' + JSON.stringify(o.created) + (played ? '' : ' and did not play the new hero'));
         await page.reload({ waitUntil: 'load' });
         await wait(page, () => document.querySelectorAll('[data-app="play"]').length === 2 || document.querySelector('.hs-launchers'));
         if (!(await page.$('[data-app="play"][data-slot="1"]'))) { await page.click('[data-app="characters"]').catch(() => {}); await wait(page, () => document.querySelectorAll('[data-app="play"]').length === 2); }
         const after = await page.evaluate(() => Array.from(document.querySelectorAll('.char-row .char-name')).map((n) => n.textContent.replace(/\s+/g, ' ').trim()));
-        if (after.length !== 2 || !/^Tester/.test(after[0]) || !/^New hero/.test(after[1])) fails.push('B-9 after a reload the heroes list as ' + JSON.stringify(after));
+        if (after.length !== 2 || !/^Tester/.test(after[0]) || !/^Fennick/.test(after[1])) fails.push('B-9 after a reload the heroes list as ' + JSON.stringify(after));
       }
       if (errors.length) fails.push('B-9 console errors: ' + errors.slice(0, 3).join(' | '));
+      await ctx.close();
+    }
+
+    { // B-10 a refused refresh lands on sign-in, once, with no retry loop
+      const o = { revoked: false, dead: 0 };
+      const { ctx, page } = await fresh(o);
+      await page.goto(base + '/play.html', { waitUntil: 'load' });
+      await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
+      await page.fill('input[name=email]', 'qa@example.test');
+      await page.fill('input[name=password]', 'not-a-real-password');
+      await page.click('.auth-submit');
+      await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
+      await page.click('[data-app="play"][data-slot="0"]');
+      await wait(page, () => document.querySelector('#panel-world[data-slot="0"]'));
+      await page.waitForTimeout(300);
+      o.revoked = true;
+      /* a frame that skips versions makes the character ask the engine (hr-accrue) */
+      await page.evaluate((uid) => { window.__refuseRefresh = true; window.__hub.send('hr:' + uid + ':0', { t: 'delta', frame: 9, patch: { state: { active_kind: 'idle', gold: 9 } } }); }, UID);
+      const out = await wait(page, () => document.querySelector('form[data-auth="sign-in"]') && /You were signed out\. Sign in again\./.test(document.body.innerText));
+      if (!out) fails.push('B-10 a refused refresh did not land on sign-in with "You were signed out. Sign in again."');
+      await page.waitForTimeout(1500);
+      if (o.dead > 3) fails.push('B-10 the dead session sent ' + o.dead + ' calls');
+      const left = await page.evaluate(() => [...Object.keys(localStorage), ...Object.keys(sessionStorage)].filter((k) => k === 'hr-auth' || k === 'hr-tab-id'));
+      if (out && left.length) fails.push('B-10 session copies left after the session ended: ' + left.join(', '));
       await ctx.close();
     }
 
@@ -210,6 +258,9 @@ const MUTANTS = [
   ['the hunt panels never mount', 'src/data/hud-widgets.js', 'min: Object.freeze([320, 64]), opacity: 1, visible: true', 'min: Object.freeze([320, 64]), opacity: 1, visible: false'],
   ['every hero is "Character N" again', 'src/app/boot.js', "(r.exists ? esc(r.name || 'Unnamed hero')", "(r.exists ? 'Character ' + (r.slot + 1)"],
   ['an empty owned slot offers no Create', 'src/app/boot.js', 'class="auth-submit" data-app="create" data-slot="', 'class="auth-submit" data-app="nothing" data-slot="'],
+  ['Create skips the name and colours step', 'src/app/boot.js', "else if (what === 'create') showCreate(slot);",
+    "else if (what === 'create') account.create(slot, 'New hero', { head: 13, body: 5, legs: 3, feet: 0 }).then(() => play(slot));"],
+  ['a dead session stays in the game', 'src/app/boot.js', "else if (ev === 'signed-out' || ev === 'expired') sessionEnded();", "else if (ev === 'signed-out') sessionEnded();"],
   ['the closed answer is ignored', 'src/app/boot.js', "if (why === 'closed-game') showClosed();", "if (why === 'never') showClosed();"],
 ];
 
@@ -217,7 +268,7 @@ async function main() {
   if (!process.argv.includes('--mutate')) {
     const fails = await checks(null);
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'client-boot: ' + fails.length + ' check(s) RED' : 'client-boot: both pages boot; sign-in, play, two characters, one hero + Create in the second slot, sign-out, reset and closed all hold');
+    console.log(fails.length ? 'client-boot: ' + fails.length + ' check(s) RED' : 'client-boot: both pages boot; sign-in, play, two characters, one hero + a named, coloured hero created in the second slot, sign-out, a dead session, reset and closed all hold');
     process.exit(fails.length ? 1 : 0);
   }
   let bad = 0;

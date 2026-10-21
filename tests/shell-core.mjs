@@ -11,7 +11,7 @@
 //   W  windows: the cap of three (oldest closes), the 60% dock, Esc (top window,
 //      then the escape row), focus order, the phone's single sheet, keys
 //      (B/C/K/H/L/M/Enter on the spec catalogue; ignored while typing or chorded),
-//      the 120 ms close and reduced motion, float/dock, the inset rect
+//      the 120 ms close and reduced motion, float/dock, no window in the camera inset
 //   H  HUD: defaults per size class, show/hide (never the launchers), opacity
 //      clamp, persisted per size class, Reset touches only this class, a saved
 //      layout survives a reload, `when: hunt`, placement by anchor
@@ -91,7 +91,6 @@ async function runTests(mods) {
     eq(wm.openIds(), ['bag', 'equip'], 'two windows fit 60% of 1440');
     wm.open('market');                              // + 448 = 1208 > 864: the oldest docked goes
     eq(wm.openIds(), ['equip', 'market'], 'crossing 60% closes the oldest docked window');
-    ok(wm.inset().right <= 1440 * 0.6, 'the inset must stay inside 60%');
   });
   t('W3 Esc closes the top window, then opens Settings', () => {
     const { wm } = harness(WM);
@@ -119,7 +118,6 @@ async function runTests(mods) {
     const { wm } = harness(WM, { phone: true, width: 922 });
     wm.open('bag'); wm.open('equip');
     eq(wm.openIds(), ['equip'], 'the phone shows one sheet');
-    eq(wm.inset().right, Math.min(400, Math.round(922 * 0.48)), 'the sheet width is min(400, 48vw)');
     ok(wm.float('equip', { x: 10, y: 10 }) === false, 'nothing floats on the phone');
     const p = wm.layout()[0];
     ok(p.phone && p.width === null, 'the phone sheet takes its width from CSS');
@@ -183,21 +181,19 @@ async function runTests(mods) {
     wm.float('bag', { x: 100, y: 50 });
     const f = wm.layout().find((p) => p.id === 'bag');
     ok(!f.docked && f.x === 100 && f.y === 50, 'a floated window sits where it was put');
-    eq(wm.inset().right, 12 + 400 + 8 + 340, 'a floating window leaves its slot empty: the inset is the docked one, which did not move');
+    eq(wm.layout().find((p) => p.id === 'equip').right, 12 + 400 + 8, 'a floating window leaves its slot empty: the docked one did not move');
     wm.dock('bag');
     ok(wm.layout().find((p) => p.id === 'bag').docked, 'dock() returns it');
   });
-  t('W10b a modal row opens centred: never docked, never in the inset, never a phone sheet', () => {
+  t('W10b a modal row opens centred: never docked, never a phone sheet', () => {
     const windows = SPEC_WINDOWS.concat([{ id: 'cfg', label: 'Configure action', key: 'q', glyph: 'uiTarget', width: 560, object: 'plain', modal: true }]);
     for (const phone of [false, true]) {
       const { wm } = harness(WM, { width: 1440, windows, phone });
       wm.open('bag');
-      const before = wm.inset().right;
       wm.open('cfg');
       const at = Object.fromEntries(wm.layout().map((p) => [p.id, p]));
       ok(at.cfg && at.cfg.modal && !at.cfg.docked, (phone ? 'phone' : 'desktop') + ': the modal row is centred, not docked');
       ok(!!at.bag, (phone ? 'phone' : 'desktop') + ': the window under the modal stays open');
-      eq(wm.inset().right, before, (phone ? 'phone' : 'desktop') + ': the modal adds nothing to the camera inset');
       ok(wm.float('cfg', { x: 5, y: 5 }) === false, 'a modal never floats');
     }
   });
@@ -210,7 +206,6 @@ async function runTests(mods) {
     eq(rights(), before, 'focusing a window moved the dock');
     wm.close('skills'); flush();
     eq(rights(), { bag: before.bag, equip: before.equip }, 'closing the middle window moved the others');
-    eq(wm.inset().right, before.equip + 340, 'the inset still covers the left-most window');
     wm.open('skills');
     eq(rights(), before, 'a reopened window did not go back to its own slot');
     wm.close('skills'); wm.close('bag'); flush(); wm.open('skills');
@@ -219,15 +214,11 @@ async function runTests(mods) {
     wm.close('equip'); flush(); wm.open('home');
     eq(rights().home, before.equip, 'a new window takes the first free gap');
   });
-  t('W11 the inset is published with its rect, only when it changes', () => {
+  t('W11 windows are never in the camera inset: the manager publishes none and the HUD inset ignores them', () => {
     const { wm, events } = harness(WM, { width: 1440 });
     wm.open('bag');
-    const e = events[events.length - 1];
-    ok(e.insetChanged, 'opening a docked window changes the inset');
-    eq(e.inset.rect, { x: 1440 - 412, y: 0, width: 412, height: 860 }, 'the covered rect');
-    wm.focus('bag');
-    wm.handleKey(key('Escape'));
-    ok(events[events.length - 1].insetChanged && wm.inset().right === 0, 'closing uncovers the World');
+    ok(!('inset' in events[events.length - 1]) && typeof wm.inset === 'undefined', 'a window must not publish a camera inset (Tyler 2026-10-19: windows float over the World)');
+    eq(HUD.hudInsetOf([], { width: 1000, height: 600 }, 420), { left: 0, right: 0, top: 0, bottom: 0 }, 'the HUD inset takes no window strip');
   });
   t('W12 the catalogue is validated', () => {
     const bad = [
@@ -300,7 +291,7 @@ async function runTests(mods) {
     eq(HUD.placeWidget({ anchor: 'mc', dx: 0, dy: 0 }, box, size), { left: 400, top: 275 }, 'mc');
     eq(HUD.placeWidget({ anchor: 'tc', dx: 0, dy: 0 }, { width: 150, height: 600 }, size), { left: 0, top: 0 }, 'too wide pins left');
   });
-  t('H9 a docked bottom bar of height h moves the World inset by h (and the dock adds its strip)', () => {
+  t('H9 a docked bottom bar of height h moves the World inset by h ', () => {
     const box = { width: 1000, height: 600 };
     const bar = (h) => ({ anchor: 'bc', rect: { left: 300, top: 600 - 8 - h, width: 400, height: h } });
     const a = HUD.hudInsetOf([bar(82)], box, 0), b = HUD.hudInsetOf([bar(122)], box, 0);
@@ -308,8 +299,23 @@ async function runTests(mods) {
     eq(b.bottom - a.bottom, 40, 'a 40 px taller bar moves the inset by 40');
     eq(HUD.hudInsetOf([], box, 0), { left: 0, right: 0, top: 0, bottom: 0 }, 'no widget, no inset');
     const all = HUD.hudInsetOf([bar(82), { anchor: 'tc', rect: { left: 400, top: 8, width: 200, height: 40 } },
-      { anchor: 'tl', rect: { left: 12, top: 12, width: 250, height: 200 } }, { anchor: 'tr', rect: { left: 700, top: 12, width: 260, height: 300 } }], box, 420);
-    eq(all, { left: 262, right: 420, top: 48, bottom: 90 }, 'top bar, party, analyzer beside a wider dock');
+      { anchor: 'tl', rect: { left: 12, top: 12, width: 250, height: 200 } }, { anchor: 'tr', rect: { left: 700, top: 12, width: 260, height: 300 } }], box);
+    eq(all, { left: 262, right: 300, top: 48, bottom: 90 }, 'top bar, party, analyzer');
+  });
+  t('H10 a centred widget never overlaps an edge widget: it moves along its row, else they step below it', () => {
+    const party = { left: 12, top: 12, width: 258, height: 250 }, an = { left: 720, top: 12, width: 285, height: 550 };
+    const over = (a, q) => a.left < q.left + q.width && a.left + a.width > q.left && a.top < q.top + q.height && a.top + a.height > q.top;
+    /* room in the row: it slides clear, nothing is pushed */
+    let r = { left: 400, top: 8, width: 300, height: 40 };
+    let at = HUD.clearOfEdges(r, [party, an], 1200, 12);
+    ok(!at.push.length && !over(Object.assign({}, r, { left: at.left }), party) && !over(Object.assign({}, r, { left: at.left }), an), 'a bar with room must slide clear: ' + JSON.stringify(at));
+    /* 1440x900 with a window docked (Tyler 10-19): no left clears both; the one it still hits steps below it */
+    r = { left: 280, top: 8, width: 450, height: 40 };
+    at = HUD.clearOfEdges(r, [party, an], 1010, 12);
+    const placed = Object.assign({}, r, { left: at.left });
+    const moved = [party, an].map((q, i) => { const p = at.push.find((x) => x.i === i); return p ? Object.assign({}, q, { top: p.top }) : q; });
+    ok(moved.every((q) => !over(placed, q)), 'the bar still overlaps an edge widget: ' + JSON.stringify(at));
+    eq(at.push.map((p) => p.i), [1], 'only the analyzer (the one nearest the centre spot) steps down');
   });
   t('H8 the contract is validated', () => {
     const bad = [W({ anchor: 'xx' }), W({ layer: 'sky' }), W({ opacity: 0.2 }), W({ when: 'night' }), W({ removable: false, visible: false }), W({ phone: { min: [1, 1] } })];
@@ -366,6 +372,7 @@ const MUTANTS = [
   { test: 'H2', file: HUD_FILE, from: 'const clampOpacity = (v) => Math.max(OPACITY_MIN, Math.min(OPACITY_MAX, Number(v)));', to: 'const clampOpacity = (v) => Number(v);' },
   { test: 'H3', file: HUD_FILE, from: 'if (!row.removable) L.visible = true;', to: '' },
   { test: 'H4', file: HUD_FILE, from: "for (const k of SIZE_CLASSES) if (k !== cls && isObj(all[k])) next[k] = all[k];\n    store.write(next);\n    load();", to: 'store.write({});\n    load();' },
+  { test: 'H10', file: HUD_FILE, from: "return { left: Math.round(left), push: hits(left).map(({ i }) => ({ i, top: Math.round(r.top + r.height + gap) })) };", to: 'return { left: Math.round(r.left), push: [] };' },
   { test: 'H9', file: HUD_FILE, from: "if (v === 'b') out.bottom = Math.max(out.bottom, box.height - r.top);", to: "if (v === 'b') out.bottom = Math.max(out.bottom, 0);" },
   { test: 'R1', file: 'src/session/residue.js', from: "  hudLayout: sanitizeHudLayout,", to: '  hudLayout: (v) => v,' },
   { test: 'R2', file: HUD_FILE, from: "write(next) { if (character) character.setResidue('hudLayout', next); },", to: 'write(next) {},' },

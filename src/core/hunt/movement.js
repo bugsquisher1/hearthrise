@@ -23,10 +23,10 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.9';
-import { walkable, astar, cheb, stepCost, tileKey } from './grid.js?v=0.2.9';
-import { leashAllows, inArea } from './leash.js?v=0.2.9';
-import { trackStep } from './events.js?v=0.2.9';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.22';
+import { walkable, astar, cheb, stepCost, tileKey } from './grid.js?v=0.2.22';
+import { leashAllows, inArea } from './leash.js?v=0.2.22';
+import { trackStep } from './events.js?v=0.2.22';
 
 /* What this module keeps on the persisted world (world-state.js encodes it). */
 export const PERSISTED = Object.freeze({
@@ -77,6 +77,11 @@ function blocks(inst, u, x, y) {
 function plan(inst, u, gx, gy, avoid) {
   const veto = (x, y) => !leashAllows(inst, u, x, y) || (avoid ? avoid(x, y) : false);
   return astar(inst.grid, u.x, u.y, gx, gy, veto, HUNT_TUNING.pathNodeCap);
+}
+
+/** Is there a way to (gx, gy) for `u` round every monster standing now (occupancy fresh)? */
+export function reachable(inst, u, gx, gy) {
+  return !!plan(inst, u, gx, gy, (x, y) => blocks(inst, u, x, y));
 }
 
 /** Aim `u` at (gx, gy). The same goal keeps its path (MV-01); no path = stand. */

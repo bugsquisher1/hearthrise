@@ -13,9 +13,9 @@
 // players there); a reload forgets it, which is correct for a view. tests/world-no-authority.mjs fails the build
 // on any other write to G.
 // ════════════════════════════════════════════════════════════════════════
-import { SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.9';
-import { sceneFor } from './core/scene-route.js?v=0.2.9';
-import { HUNT_MAP_INDEX } from './hunt-maps.js?v=0.2.9';
+import { SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.22';
+import { sceneFor } from './core/scene-route.js?v=0.2.22';
+import { HUNT_MAP_INDEX } from './hunt-maps.js?v=0.2.22';
 
 /** The display scratch, created on first use. The world's only write to G. */
 export function worldOf(G) {
@@ -39,6 +39,11 @@ export function notePos(G, map, x, y) {
   const w = worldOf(G);
   if (!w.pos || w.pos.map !== map) w.pos = { map, x, y };
   else { w.pos.x = x; w.pos.y = y; }
+}
+
+/** Forget where the hero stood (it went hunting): back in town it arrives at the map's start. */
+export function forgetPos(G) {
+  delete worldOf(G).pos;
 }
 
 /** What the server last said the hero is doing: { kind: 'combat', id } or null. */

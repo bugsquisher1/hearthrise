@@ -20,7 +20,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { OUTFITS } from './hunt-outfits.js?v=0.2.9';
+import { OUTFITS } from './hunt-outfits.js?v=0.2.22';
 
 export const OUTFIT_ROWS = Object.freeze({
   knight: Object.freeze({ label: 'Knight', premium: false, regions: Object.freeze([]) }),
@@ -35,6 +35,14 @@ export const OUTFIT_ROWS = Object.freeze({
 
 /* A region's name in the picker. */
 export const REGION_LABEL = Object.freeze({ hat: 'Hat', robe: 'Robe', trim: 'Trim', head: 'Head', body: 'Body', legs: 'Legs', feet: 'Feet' });
+
+/* THE STANDARD HERO's recolour regions, in picker order (Tyler 2026-10-20: a new hero picks a
+   colour for each at creation). The server's hr_base_regions() (2026-11-02-hero-creation.sql) is
+   held equal by tests/hero-creation.mjs. A saved colour is a dye INDEX, like an outfit's. */
+export const BASE_REGIONS = Object.freeze(['head', 'body', 'legs', 'feet']);
+
+/* The colours the creation step opens on (dye indices): a blue hood, a red tunic, brown legs, dark boots. */
+export const BASE_DEFAULT_COLORS = Object.freeze({ head: 13, body: 5, legs: 3, feet: 0 });
 
 /* How many dyes there are. Dye N's colour is the token --dye-N (src/styles/tokens.css):
    each a world palette colour, held equal to the server's rows by tests/character-window.mjs. */
@@ -58,5 +66,10 @@ export function validate() {
     if (r.regions.length > MASK_COLOURS.length) out.push(id + ': more regions than mask colours');
   }
   if (!Number.isInteger(DYE_COUNT) || DYE_COUNT < 1 || DYE_COUNT > 64) out.push('DYE_COUNT must be 1..64');
+  for (const g of BASE_REGIONS) {
+    if (!REGION_LABEL[g]) out.push('base region ' + g + ' has no label');
+    const d = BASE_DEFAULT_COLORS[g];
+    if (!Number.isInteger(d) || d < 0 || d >= DYE_COUNT) out.push('base region ' + g + ' opens on no dye');
+  }
   return out;
 }

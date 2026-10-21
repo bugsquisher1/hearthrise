@@ -458,10 +458,15 @@ async function run(mutate) {
     ok(refused.length > 0,
       'G0-CONTROL: every authored offer is sellable, so the offer_unsupported refusal below proves '
       + 'nothing about the eligibility predicate');
-    ok(eligible.length + refused.length === shops.SHOP_OFFERS.length,
+    /* The supply price list (food, drink, ammo) is not on sale (Tyler 2026-10-20) and is refused BY NAME:
+       it counts on the refused side, every row of it `supplies_not_sold`, none eligible. */
+    const supplies = shops.SUPPLY_PRICE_LIST.map((o) => o.id);
+    ok(eligible.length + refused.length === shops.SHOP_OFFERS.length + supplies.length,
       `G0: ${eligible.length} eligible + ${refused.length} refused != ${shops.SHOP_OFFERS.length} `
-      + 'authored offers. The classification must be TOTAL — an offer in neither set is an offer '
+      + `authored offers + ${supplies.length} supplies not sold. The classification must be TOTAL — an offer in neither set is an offer `
       + 'nothing has an opinion about.');
+    ok(supplies.length > 0 && supplies.every((id) => cat.OFFER_REFUSALS[id] === 'supplies_not_sold' && !cat.GOLD_OFFERS[id]),
+      'G0: a food, drink or ammo offer is sellable through shop_buy (the Shop sells no supplies)');
     ok(Object.getPrototypeOf(cat.GOLD_OFFERS) === null,
       'G0: GOLD_OFFERS has a prototype — `constructor` and `__proto__` would resolve through it');
     ok(Object.getPrototypeOf(cat.OFFER_REFUSALS) === null, 'G0: OFFER_REFUSALS has a prototype');

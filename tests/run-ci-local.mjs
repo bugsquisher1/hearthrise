@@ -356,7 +356,8 @@ export function parallelism(argv, job) {
   return { n };
 }
 
-const BROWSER_JOB = 'in-page';
+/* The browser families (in-page, in-page-2 since 2026-10-20, in-page-3 since 2026-10-21): each needs Chromium, so they run last, alone, here. */
+const isBrowserJob = (j) => j === 'in-page' || /^in-page-\d+$/.test(j);
 
 function git(args, cwd = ROOT) {
   return spawnSync('git', args, { cwd, encoding: 'utf8' });
@@ -398,7 +399,7 @@ async function runParallel(live, n) {
   const cache = join(ROOT, 'tests', '.pglite-cache');
   await mkdir(cache, { recursive: true });
   const order = [...new Set(live.map((p) => p.job))];
-  const pooled = order.filter((j) => j !== BROWSER_JOB);
+  const pooled = order.filter((j) => !isBrowserJob(j));
   const results = new Map(order.map((j) => [j, []]));
   const trees = [];
   console.log(`  parallel: ${pooled.length} families, ${n} at a time, each in a checkout of HEAD under .ci-local/`);
@@ -439,13 +440,13 @@ async function runParallel(live, n) {
   }
   await dropTrees(trees);
   // The browser family: last, alone, in this tree, output inherited as before.
-  for (const p of live.filter((s) => s.job === BROWSER_JOB)) {
+  for (const p of live.filter((s) => isBrowserJob(s.job))) {
     for (const cmd of p.cmds) {
       const started = Date.now();
       console.log(`\n> [${p.job}] ${p.name}\n  $ ${cmd}\n`);
       const r = runCommand(cmd);
       const secs = ((Date.now() - started) / 1000).toFixed(1);
-      results.get(BROWSER_JOB).push({ job: p.job, step: p.name, cmd, status: r.status, secs, error: r.error, soft: !!p.soft });
+      results.get(p.job).push({ job: p.job, step: p.name, cmd, status: r.status, secs, error: r.error, soft: !!p.soft });
     }
   }
   console.log(`  per-family logs: ${join(base, 'logs')}`);

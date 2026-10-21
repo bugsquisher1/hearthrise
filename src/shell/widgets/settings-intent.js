@@ -12,10 +12,10 @@
 //
 // Controls are marked `data-opt="<key>"`; buttons carry `data-val`.
 // ════════════════════════════════════════════════════════════════════════
-import { TARGET_MODES, HUNT_STANCES, HERO_DISTANCE } from '../../data/rule-subjects.js?v=0.2.9';
-import { settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.9';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.9';
-import { text, attr, prop, cls } from '../../render/paint.js?v=0.2.9';
+import { TARGET_MODES, HUNT_STANCES, HERO_DISTANCE } from '../../data/rule-subjects.js?v=0.2.22';
+import { settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.22';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.22';
+import { text, attr, prop, cls } from '../../render/paint.js?v=0.2.22';
 
 /* Words for the server's refusal codes; anything else reads as a plain "not saved". */
 const REFUSAL = Object.freeze({
@@ -62,7 +62,7 @@ export function patchControls(root, cs) {
   }
   /* "Follow the leader" names the leader when there is one (HS-02). */
   const follow = root.querySelector('select[data-opt="target_mode"] option[value="follow"]');
-  const lead = party && party.members.find((m) => m.unit === party.leader);
+  const lead = party && party.members.find((m) => m.seat === party.leaderSeat);
   if (follow) text(follow, lead && party.members.length > 1 ? 'Follow ' + lead.name : TARGET_MODES.follow.label);
   cls(root, 'is-pending', pending);
 }

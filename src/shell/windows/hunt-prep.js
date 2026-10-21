@@ -4,25 +4,21 @@
 // Tyler 10-18: "players should spend their time making interesting decisions,
 // not repeating decisions they've already made". So a hunt setup is saved
 // once and put back with one press:
-//   Presets    the server's saved setups (`hunt_presets`): the action set, the
-//              worn gear and the restock targets. Use = ONE hr_hunt_preset_apply
-//              (the server wears the gear from the bag, switches the set and
-//              the targets); Save here = ONE hr_hunt_preset_save of what the
+//   Presets    the server's saved setups (`hunt_presets`): the action set and
+//              the worn gear. Use = ONE hr_hunt_preset_apply (the server wears
+//              the gear from the bag and switches the set); Save here = ONE hr_hunt_preset_save of what the
 //              character has now (the server snapshots its own state, the
 //              client sends a slot number and a name).
 //   Ready?     every open character's checklist (src/shell/readiness.js), with
-//              what is short in one line ("Druid: 0 drinks"), and that
-//              character's one-tap refill when the server has quoted one.
+//              what is short in one line. Supplies are never bought here: the
+//              action bar pays the store per use (Tyler 2026-10-20).
 // Built once, patched in place; every control is off while an intent is in
 // flight, and changes show only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { presetsOf, shopOf } from '../../session/item-sections.js?v=0.2.9';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.9';
-import { whole, gold } from '../../render/format.js?v=0.2.9';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.9';
-import { itemName } from '../widgets/bits.js?v=0.2.9';
-import { runIntent } from '../intent-words.js?v=0.2.9';
-import { readinessOf, readinessLine } from '../readiness.js?v=0.2.9';
+import { presetsOf } from '../../session/item-sections.js?v=0.2.22';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.22';
+import { runIntent } from '../intent-words.js?v=0.2.22';
+import { readinessOf, readinessLine } from '../readiness.js?v=0.2.22';
 
 const MAX_PRESETS = 8;
 const SCRATCH = new WeakMap();
@@ -33,7 +29,7 @@ export function renderHuntPrep() {
   return '<div class="hw-prep">'
     + '<h3 class="hw-ledger-head is-on">Ready to hunt?</h3><ul class="hw-ready"></ul>'
     + '<h3 class="hw-ledger-head is-on">Saved setups</h3>'
-    + '<p class="hs-note">A setup keeps this character’s action set, worn gear and restock targets. Use it to put all three back in one press.</p>'
+    + '<p class="hs-note">A setup keeps this character’s action set and worn gear. Use it to put both back in one press.</p>'
     + '<ul class="hw-ledger hw-presets"></ul><p class="hh-empty hw-presets-none"></p>'
     + '<div class="hw-add"><input type="text" class="hh-num hw-preset-name" maxlength="24" placeholder="Name this setup" aria-label="Setup name" data-hs-act="preset-name">'
     + '<button type="button" class="hh-tool" data-hs-act="save-new">Save current setup</button></div>'
@@ -41,8 +37,7 @@ export function renderHuntPrep() {
 }
 
 function readyRow(ctx) {
-  return element(ctx.doc, '<li class="hw-ready-row"><p class="hw-ready-line"><b></b></p><ul class="hw-checks"></ul>'
-    + '<button type="button" class="hh-tool hw-ready-fix" data-hs-act="refill"></button></li>');
+  return element(ctx.doc, '<li class="hw-ready-row"><p class="hw-ready-line"><b></b></p><ul class="hw-checks"></ul></li>');
 }
 
 renderHuntPrep.patch = function patchHuntPrep(body, ctx) {
@@ -62,13 +57,6 @@ renderHuntPrep.patch = function patchHuntPrep(body, ctx) {
         build: () => element(ctx.doc, '<li class="hw-check"></li>'),
         patch: (cli, c) => { text(cli, c.text); cls(cli, 'is-short', !c.ok); },
       });
-      const quote = (shopOf(x.cs) || {}).refill;
-      const buys = quote ? quote.lines.filter((l) => l.buy > 0) : [];
-      const fix = li.querySelector('.hw-ready-fix');
-      fix.setAttribute('data-slot', String(x.cs.slot));
-      cls(fix, 'is-on', buys.length > 0);
-      text(fix, buys.length ? 'Refill ' + buys.map((l) => whole(l.buy) + ' ' + itemName(l.item)).join(', ') + ' · ' + gold(quote.total) : '');
-      prop(fix, 'disabled', sc.pending || !buys.length);
     },
   });
   const presets = presetsOf(cs);
@@ -79,8 +67,8 @@ renderHuntPrep.patch = function patchHuntPrep(body, ctx) {
       + '<button type="button" class="hh-tool hw-use" data-hs-act="apply" data-preset="' + p.preset + '">Use</button></li>'),
     patch: (li, p) => {
       text(li.querySelector('b'), p.name);
-      const gearN = Object.keys(p.gear).length, rs = Object.keys(p.restock).length;
-      text(li.querySelector('small'), (p.actionSet !== null ? 'Action set ' + (p.actionSet + 1) + ' · ' : '') + gearN + (gearN === 1 ? ' piece' : ' pieces') + ' of gear · ' + rs + (rs === 1 ? ' supply' : ' supplies') + ' to restock');
+      const gearN = Object.keys(p.gear).length;
+      text(li.querySelector('small'), (p.actionSet !== null ? 'Action set ' + (p.actionSet + 1) + ' · ' : '') + gearN + (gearN === 1 ? ' piece' : ' pieces') + ' of gear');
       for (const b of li.querySelectorAll('button')) prop(b, 'disabled', sc.pending);
     },
   });
@@ -111,12 +99,6 @@ renderHuntPrep.act = function actHuntPrep(ctx, body, action, ev, t) {
     const name = input.value.trim() || 'Setup ' + (free + 1);
     if (free >= MAX_PRESETS) return true;
     runIntent(sc, repaint, () => cs.savePreset(free, name), 'Saving…', () => { input.value = ''; return 'Saved ' + name + '.'; });
-    return true;
-  }
-  if (action === 'refill') {
-    const peer = ctx.peers().find((p) => String(p.slot) === t.getAttribute('data-slot'));
-    const quote = peer && (shopOf(peer) || {}).refill;
-    if (quote) runIntent(sc, repaint, () => peer.refill(quote.total), 'Refilling…', () => 'Refilled.');
     return true;
   }
   return false;

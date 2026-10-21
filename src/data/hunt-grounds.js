@@ -78,16 +78,21 @@
 // anchor), the Kobold Tosher (picks the outfalls for scrap) and the Rat King (a knot
 // of rats under a crown hammered from drain grates). hp/atk/def/xp/speed are the hunt
 // sim's measured rows (prototypes/hunt-sim/BALANCE_RULINGS.md, rounds 1-2 and the
-// 10-16 party test). ECONOMY (Tyler 2026-10-18, superseding 10-14's break-even: every hunt
-// is a decent profit inside its range; store prices stay, income rises): coin + commons
-// (vendor bid) land at +30% over the store bill, the designer's pick inside Tyler's
-// 25-35%: a three-hour bag then returns about an hour of supplies, enough to feel and
-// too little to farm past the range. Rares (the Crown Shard, the Alpha Fang, the totems)
-// are upside on top. ONE real-settle play per hunt, store-only supplies, per hero-hour
-// (tests/hunt-core/forest-cave.mjs --play): Sewer +26% (party of four at ~20), Thicket
-// +31% (solo ~10), Warrens +30% (four at ~40); the Mill Cellar +166% on a 1.2k bill (its
-// rows are the game's shared tier-1 rows; unchanged). Below the range every hunt LOSES
-// gold (-36% to -45%). The coin is final in the rows: no engine multiplies it (DM-16).
+// 10-16 party test). ECONOMY (Tyler 2026-10-20: +25-35% over the store bill is a MINIMUM
+// at the band FLOOR, never a cap; the starter grounds keep their higher gold): coin +
+// commons (vendor bid) against the store bill, per hero, in the floor's FIRST hour (the
+// hunt levels the hero after that), measured on the real settle by
+// tests/hunt-core/drop-tables.mjs every run: the Sewer +32% (a solo Melee at 8 in the
+// smiths' ladder kit: its coin rose x1.8), the Warrens +32% (four at 32 in their own-tier
+// set: x1.25, at the hunt's tier-4 store food), the Thicket and the Mill Cellar far above
+// (their coin unchanged). A Mage or Healer pays for drinks far past any coin today (the
+// Sewer's party at 8: about 9,000 g an hour each): that is the drink and ability bill, not
+// the loot (CONFLICTS.md 2026-10-20). EQUIPMENT (Tyler 10-14/10-20): every monster here
+// carries one gear row (monsters.js `gear`); each ground but the cellar covers weapon,
+// helmet, body, legs and boots, about every 1.3 h per hero at a low floor (bronze in the
+// Thicket and the Sewer's lower rooms, iron above them), the Warrens' steel about every
+// 8 h. ONE rare carrier per ground (the Rat King's Crown Shard, Old Grayjaw's Alpha Fang,
+// the Chief's War Crown, 10-20 h per hero). The coin is final in the rows (DM-16).
 //
 // PARTY SCALING (BALANCE_RULINGS 2026-10-16, the party-size test): a fixed pack
 // is trivial for four heroes and lethal at the boss for one, so a pack's HP is
@@ -102,9 +107,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.9';
-import { HUNT_INDEX } from './hunts.js?v=0.2.9';
-import { MONSTERS } from './monsters.js?v=0.2.9';
+import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.22';
+import { HUNT_INDEX } from './hunts.js?v=0.2.22';
+import { MONSTERS } from './monsters.js?v=0.2.22';
 
 const pocket = (room, ...spawns) => Object.freeze({ room: Object.freeze(room),
   spawns: Object.freeze(spawns.map(([monster, x, y]) => Object.freeze({ monster, x, y }))) });
@@ -303,7 +308,9 @@ export const SOLO_HEALER_FLOOR = Object.freeze({ role: 'healer', elementPermille
 /* MONSTER DENSITY (Tyler 2026-10-18): a hero picks how many monsters a pull brings
    (0 = the room as built). The server stores the pick inside DENSITY_PICK and the
    settle CLAMPS it to the ground's `densityMax` for the party's size (a row's array,
-   one entry per party size 1..4); a party takes the smallest pick among its members.
+   one entry per party size 1..4). IN A PARTY THE LEADER CHOOSES (Tyler 2026-10-20:
+   "There should be a party leader that chooses the hunt settings"): the leader's
+   pick is the pull for every member, the others' picks have no say (partyPick).
    EVERY ground's max is at least DENSITY_FULL_BOX (Tyler: "a full box", all 8 tiles
    round the tank taken); a row may allow more. The values above 8 are ASSUMED. */
 export const DENSITY_FULL_BOX = 8;
@@ -312,13 +319,23 @@ export const DENSITY_FULL_BOX = 8;
 export const GROUP_FITS = Object.freeze(['solo', 'party', 'both']);
 export const DENSITY_PICK = Object.freeze({ min: 0, max: 16 });
 
-/** The density an instance spawns at: the members' smallest pick, clamped to the ground's max for its size. */
-export function densityFor(ground, partySize, picks) {
+/** The density an instance spawns at: the pick (partyPick's, for a party) clamped to the ground's max
+    for its size; 0 (as built) for no pick. */
+export function densityFor(ground, partySize, pick) {
   const n = Math.min(PARTY_SCALE.maxHeroes, Math.max(1, Math.floor(Number(partySize) || 1)));
   const max = Array.isArray(ground && ground.densityMax) ? ground.densityMax[n - 1] : DENSITY_FULL_BOX;
-  const want = (picks || []).filter(Number.isInteger);
-  const pick = want.length ? Math.min(...want) : 0;
-  return Math.max(0, Math.min(max, pick, DENSITY_PICK.max));
+  const p = Number.isInteger(pick) && pick > 0 ? pick : 0;
+  return Math.max(0, Math.min(max, p, DENSITY_PICK.max));
+}
+
+/** THE PULL'S PICK: of `heroes` ([{ density, lead, seat }]) the one that leads the party (`lead`: the
+    party's crowned seat, hunt_parties.leader, read per member as hr_hunt_instance_read `leads`), else
+    (a solo hero, or a party whose leader is not on the instance) the lowest seat's. Its pick alone counts. */
+export function partyPick(heroes) {
+  const list = (heroes || []).filter(Boolean);
+  const lead = list.find((h) => h.lead === true)
+    || list.slice().sort((a, b) => (Number(a.seat) || 0) - (Number(b.seat) || 0))[0];
+  return lead && Number.isInteger(lead.density) && lead.density > 0 ? lead.density : 0;
 }
 
 /** The HP scale (permille) for a pack in an instance of `partySize` heroes. */
@@ -357,8 +374,28 @@ export function packAt(ground, p, level) {
   const pk = ground.pockets[p];
   const d = ground.density;
   if (!d || !pk.pack) return pk.spawns.slice();
-  const lv = Math.max(1, Math.min(d.max, Math.floor(Number(level) || 1)));
-  return pk.pack.slice(0, lv);
+  return pullRows(ground, p, Math.max(1, Math.min(d.max, Math.floor(Number(level) || 1))));
+}
+
+const isBoss = (s) => !!(MONSTERS[s.monster] && MONSTERS[s.monster].boss === true);
+
+/** THE ROWS A PULL OF `size` SPAWNS in pocket `p` (pull-cycle.js spawnPack; `size` = the settle's density,
+    0 = the pocket as built, its `spawns`). The pocket's authored rows come first (a box's `pack`, else its
+    `spawns`); past them the extra slots cycle its FILL rows (a box's `pack` past its `spawns`, else the
+    pocket's own rows), never a boss: A BOSS NEVER REPEATS INSIDE A PULL (designer ruling 2026-10-20: a
+    named leader such as the den's Old Grayjaw stands in the as-built head only). A pocket with no non-boss
+    row keeps its as-built pack at any size. */
+export function pullRows(ground, p, size) {
+  const pk = ground.pockets[p];
+  const n = Math.floor(Number(size) || 0);
+  const rows = pk.pack || pk.spawns;
+  if (n <= 0 || !rows.some((s) => !isBoss(s))) return pk.spawns.slice();
+  if (n <= rows.length) return rows.slice(0, n);
+  const extra = (pk.pack ? pk.pack.slice(pk.spawns.length) : rows).filter((s) => !isBoss(s));
+  const fill = extra.length ? extra : rows.filter((s) => !isBoss(s));
+  const out = rows.slice();
+  for (let i = 0; out.length < n; i++) out.push(fill[i % fill.length]);
+  return out;
 }
 
 /** A ground's gather nodes, each with its kind resolved (empty for a ground with none). INERT until the gather engine lands. */

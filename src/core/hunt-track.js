@@ -1,5 +1,5 @@
 // ============================================================================
-// supabase/functions/hr-accrue/hunt-track.js — WHAT THE CLIENT PLAYS BACK
+// src/core/hunt-track.js — WHAT THE CLIENT PLAYS BACK
 // (HUNT_SCREEN_SPEC §1.5: `hunt_track`, `hunt_events`).
 //
 // A settle's RESPONSE carries the window's track (unit tile steps with their
@@ -23,10 +23,14 @@
 // across two overlapping responses. Visual timeline only: never authority (the
 // state sections are), never stored.
 //
-// PURE ESM, Node + Deno. No `?v=` (not under src/**).
+// Moved from supabase/functions/hr-accrue/hunt-track.js (option B, 2026-10-19): the browser's live
+// engine cuts its own swings into the same playback shape, so an event has the same id on both sides,
+// and hashes its world the same way to reconcile with the server's (worldHash).
+//
+// PURE ESM, Node + Deno + browser.
 // ============================================================================
 
-import { EVENT_VERSION } from '../../../src/core/hunt/events.js';
+import { EVENT_VERSION } from './hunt/events.js?v=0.2.22';
 
 export const MAX_STEPS = 4000;
 export const MAX_EVENTS = 2000;
@@ -63,12 +67,32 @@ export function huntPlayback(track, events, fromMs, toMs) {
  * `hunt_events` (each with its stable id), `hunt_server_now_ms` (the database clock the window
  * was read at, so the client measures its offset), and `hunt_cut` (what the bound dropped).
  */
-export function huntTimeline(track, events, fromMs, toMs, serverNowMs) {
+export function huntTimeline(track, events, fromMs, toMs, serverNowMs, units) {
   const pb = huntPlayback(track, events, fromMs, toMs);
   return {
+    /* the window's monsters, { id: [kind, maxHp, hp at the window's start or spawn] }, and that
+       start: named, sized and filled even after the snapshot drops them */
+    hunt_units: units && typeof units === 'object' ? units : {},
+    hunt_from_ms: pb.from,
     hunt_track: pb.steps.map(([u, x, y, atMs]) => ({ u, x, y, atMs })),
     hunt_events: pb.events,
     hunt_server_now_ms: Math.floor(Number(serverNowMs) || 0),
     hunt_cut: pb.cut,
   };
+}
+
+/**
+ * THE RECONCILE KEY of an instance world: FNV-1a 32 over the stored text (world-state.js encode,
+ * compact JSON). The server sends it with each commit; the browser compares the hash of its own
+ * predicted world at the same swing and re-seeds when they differ. Not a security digest: it only
+ * detects divergence, and the server's world is always the one kept.
+ */
+export function worldHash(text) {
+  if (typeof text !== 'string') return null;
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(16).padStart(8, '0');
 }

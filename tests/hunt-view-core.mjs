@@ -188,7 +188,7 @@ const MUTANTS = [
   ['an event is delivered twice', 'src/hunt-view/timeline.js', '      if (seen.has(k)) continue;\n', ''],
   ['the clock offset jumps to each batch', 'src/hunt-view/timeline.js', 'offset = offset === null ? m : offset + (m - offset) * cfg.skew;', 'offset = m;'],
   ['a new envelope clears the timeline', 'src/session/character-session.js', '  _play(body) {\n', '  _play(body) {\n    this.timeline = createTimeline();\n'],
-  ['a gap invents motion', 'src/hunt-view/timeline.js', 'const f = Math.min(1, (t - cur.atMs) / cfg.tileMs);', 'const f = (t - cur.atMs) / cfg.tileMs;'],
+  ['a gap invents motion', 'src/hunt-view/timeline.js', 'const f = Math.min(1, (t - cur.atMs) / (cur.dur || cfg.tileMs));', 'const f = (t - cur.atMs) / (cur.dur || cfg.tileMs);'],
   ['a pose teleports', 'src/hunt-view/timeline.js', 'const at = last ? Math.max(pose.at_ms, last.atMs + cfg.tileMs) : pose.at_ms;', 'if (a) a.length = 0;\n      const at = pose.at_ms;'],
   ['the timeline lands in the record', 'src/session/envelope.js', '!TIMELINE_KEYS.includes(k) && ', ''],
   ['the analyzer is merged, not replaced', 'src/session/hunt-sections.js', "  const a = section(cs, 'hunt_analyzer');\n", "  const a = section(cs, 'hunt_analyzer') || globalThis.__lastA;\n  globalThis.__lastA = a;\n"],

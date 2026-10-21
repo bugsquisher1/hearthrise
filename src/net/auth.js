@@ -19,11 +19,28 @@
 // THE RECOVERY LINK: a password-reset email opens the client with a recovery
 // token in the URL; supabase-js signs the link in and reports PASSWORD_RECOVERY,
 // which the app turns into the set-new-password screen (onChange 'recovery').
+//
+// THE TOKEN EVERY SERVER CALL CARRIES (live 2026-10-20: one player's tabs sent a
+// token dead for 14 h, 805 times). supabase-js stops its refresh timer while a
+// tab is hidden, so the cached access token went stale and every hunt poll from
+// a background tab was refused (401) and the live view starved. Now:
+//   freshToken()    a token valid for at least TOKEN_MARGIN_MS more; a stale one
+//                   is refreshed first. One refresh at a time, shared by every
+//                   caller in the tab (all CharacterSessions use one link).
+//   renewToken(bad) after a 401: a newer token if one already arrived, else one
+//                   forced refresh (shared the same way).
+//   A refresh the server refuses ends the session: the token is gone, every later
+//   call sends nothing (no request without a token), and onChange hears
+//   'expired' so the app shows sign-in. A refresh lost to the network keeps the
+//   session and simply sends nothing this time.
+//   Waking a hidden tab checks the token before anything else is sent.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SESSION_CONFIG } from '../session/config.js?v=0.2.9';
+import { SESSION_CONFIG } from '../session/config.js?v=0.2.22';
 
 export const MIN_PASSWORD = 8;
+/** A token closer than this to its expiry is refreshed before it is sent. */
+export const TOKEN_MARGIN_MS = 60000;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const AUTH_COPY = Object.freeze({
@@ -37,10 +54,12 @@ export const AUTH_COPY = Object.freeze({
   passwordSet: 'Your new password is saved. You are signed in.',
   passwordFailed: 'That reset link has expired. Ask for a new one from the sign-in screen.',
   network: 'Could not reach the server. Check your connection and try again.',
+  signedOut: 'You were signed out. Sign in again.',
 });
 
 const fail = (message) => ({ ok: false, message });
 const isNetwork = (e) => !!e && (e.status === 0 || /fetch|network/i.test(String(e.message || '')));
+const isRetryable = (e) => isNetwork(e) || (!!e && e.name === 'AuthRetryableFetchError');
 
 /**
  * @param {object} o
@@ -49,15 +68,73 @@ const isNetwork = (e) => !!e && (e.status === 0 || /fetch|network/i.test(String(
  * @param {object} o.tab         HearthriseStorage.session (tab store)
  * @param {string} o.redirectTo  where a reset or confirmation email sends the player back
  * @param {object} [o.config]    defaults to SESSION_CONFIG
+ * @param {object} [o.doc]       the document, to check the token when a hidden tab wakes
+ * @param {() => number} [o.now] the clock, for tests
  */
 export function createAuth(o) {
   const cfg = o.config || SESSION_CONFIG;
   const auth = o.client.auth;
+  const now = o.now || (() => Date.now());
   let session = null;
+  let renewing = null;
+  const changeFns = new Set();
+  const tell = (ev) => { for (const fn of Array.from(changeFns)) { try { fn(ev); } catch (e) { console.error('[auth] a listener failed', e); } } };
 
   async function refresh() {
     try { const { data } = await auth.getSession(); session = (data && data.session) || null; } catch (e) { session = null; }
     return session;
+  }
+
+  const tokenOf = (s) => (s && s.access_token) || null;
+  const lasts = (s) => !!tokenOf(s) && (!s.expires_at || s.expires_at * 1000 - now() > TOKEN_MARGIN_MS);
+
+  /* The session is over: forget it here and tell the app once. */
+  function expire() {
+    if (!session) return null;
+    session = null;
+    tell('expired');
+    return null;
+  }
+
+  /* One refresh at a time for the tab. `force` skips the stored copy (it is the one the server refused). */
+  function renew(force) {
+    if (renewing) return renewing;
+    const p = (async () => {
+      try {
+        if (!force) {
+          /* getSession re-reads the shared store (another tab may have refreshed already) and refreshes a stale one. */
+          const { data } = await auth.getSession();
+          const s = (data && data.session) || null;
+          if (lasts(s)) { session = s; return tokenOf(s); }
+        }
+        const { data, error } = await auth.refreshSession();
+        const s = (data && data.session) || null;
+        if (lasts(s)) { session = s; return tokenOf(s); }
+        if (error && isRetryable(error)) return null;
+        return expire();
+      } catch (e) {
+        return isRetryable(e) ? null : expire();
+      }
+    })();
+    renewing = p;
+    p.then(() => { if (renewing === p) renewing = null; });
+    return p;
+  }
+
+  async function freshToken() {
+    if (lasts(session)) return tokenOf(session);
+    if (!session) return null;
+    return renew(false);
+  }
+
+  async function renewToken(bad) {
+    if (!session) return null;
+    if (lasts(session) && tokenOf(session) !== bad) return tokenOf(session);
+    return renew(true);
+  }
+
+  if (o.doc && typeof o.doc.addEventListener === 'function') {
+    o.doc.addEventListener('visibilitychange', () => { if (o.doc.visibilityState === 'visible') freshToken(); });
   }
 
   /** Every key on this device that can hold a token or a tab session. */
@@ -75,7 +152,9 @@ export function createAuth(o) {
     session: () => session,
     userId: () => (session && session.user && session.user.id) || null,
     email: () => (session && session.user && session.user.email) || null,
-    token: () => (session && session.access_token) || null,
+    token: () => tokenOf(session),
+    freshToken,
+    renewToken,
 
     async signIn(email, password) {
       const e = String(email || '').trim();
@@ -131,8 +210,9 @@ export function createAuth(o) {
       clearCopies();
     },
 
-    /** fn('signed-in' | 'signed-out' | 'recovery' | 'refreshed') on every auth event. */
+    /** fn('signed-in' | 'signed-out' | 'recovery' | 'refreshed' | 'expired') on every auth event. */
     onChange(fn) {
+      changeFns.add(fn);
       const { data } = auth.onAuthStateChange((event, s) => {
         session = s || null;
         if (event === 'PASSWORD_RECOVERY') fn('recovery');
@@ -140,7 +220,7 @@ export function createAuth(o) {
         else if (event === 'TOKEN_REFRESHED') fn('refreshed');
         else if (s && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'USER_UPDATED')) fn('signed-in');
       });
-      return () => { try { data.subscription.unsubscribe(); } catch (e) { /* gone */ } };
+      return () => { changeFns.delete(fn); try { data.subscription.unsubscribe(); } catch (e) { /* gone */ } };
     },
   };
 }

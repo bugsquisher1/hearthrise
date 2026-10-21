@@ -1,5 +1,5 @@
 // ============================================================================
-// supabase/functions/hr-accrue/hunt-ground.js — WHERE A HUNT IS FOUGHT, SERVER-SIDE.
+// src/core/hunt-ground.js — WHERE A HUNT IS FOUGHT (the edge settle and the browser's live view).
 //
 // A hunt runs only on a ground (src/data/hunt-grounds.js, HUNT_SCREEN_SPEC
 // §1.2): the pockets, packs, route and respawn of the world the engine steps.
@@ -16,13 +16,16 @@
 // `maskHash` is the contract), the server walks through a barrel the client
 // draws. Open item, stated in the S1 report; no ground ships today.
 //
-// PURE ESM, Node + Deno. No `?v=` (not under src/**).
+// Moved from supabase/functions/hr-accrue/hunt-ground.js (option B, 2026-10-19): the browser runs
+// the same instance for the viewed character, on the same grid.
+//
+// PURE ESM, Node + Deno + browser.
 // ============================================================================
 
-import { HUNT_GROUNDS } from '../../../src/data/hunt-grounds.js';
-import { WORLD_MAPS } from '../../../src/data/world/maps/index.js';
-import { MATERIALS } from '../../../src/data/world/terrain.js';
-import { makeGrid } from '../../../src/core/hunt/grid.js';
+import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.22';
+import { WORLD_MAPS } from '../data/world/maps/index.js?v=0.2.22';
+import { MATERIALS } from '../data/world/terrain.js?v=0.2.22';
+import { makeGrid } from './hunt/grid.js?v=0.2.22';
 
 /** The walkable grid of world map `mapId` (materials only), or null. */
 export function gridOfMap(mapId) {

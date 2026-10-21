@@ -8,19 +8,12 @@
 // the decoded images by set. A set that fails is logged and left out — its
 // sprites draw as stubs — so a slow or broken asset never blanks the pane.
 // ════════════════════════════════════════════════════════════════════════
-import { ATLAS_SETS } from '../data/world/atlas-sets.js?v=0.2.9';
-import { atlasPaths } from '../data/world/art-budget.js?v=0.2.9';
-import { createBook } from './core/book.js?v=0.2.9';
-
-function loadImage(doc, src) {
-  return new Promise((resolve, reject) => {
-    const img = doc.createElement('img');
-    img.decoding = 'async';
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error('image ' + src + ' did not load'));
-    img.src = src;
-  });
-}
+import { ATLAS_SETS } from '../data/world/atlas-sets.js?v=0.2.22';
+import { atlasPaths } from '../data/world/art-budget.js?v=0.2.22';
+import { createBook } from './core/book.js?v=0.2.22';
+/* Each atlas image loads once per page (src/render/images.js): a remounted pane and the Character
+   window's outfit preview reuse the decoded image instead of fetching it again. */
+import { heldImage } from '../render/images.js?v=0.2.22';
 
 /**
  * @param {{doc: Document, version: number|string}} o
@@ -54,7 +47,7 @@ export async function loadAtlasSet(o, set) {
   const p = atlasPaths(set);
   const [manifest, image] = await Promise.all([
     import(url(p.manifest), { with: { type: 'json' } }).then((mod) => mod.default),
-    loadImage(o.doc, url(p.image)),
+    heldImage(o.doc, url(p.image)),
   ]);
   return { manifest, image };
 }

@@ -27,6 +27,27 @@ export function launchOptions(extra = {}, env = process.env, exists = existsSync
   return p ? { ...extra, executablePath: p } : { ...extra };
 }
 
+/* ONE CHROMIUM PER RUN (2026-10-20). A page runner's --mutate arm calls its checks
+   once per mutant, and each call launched (and closed) its own browser. Each call
+   now LEASES the run's one browser. Isolation is the context — browser.newContext()
+   has its own cookies, storage, HTTP cache and service workers — which every runner
+   already opens per page; a lease's close() closes exactly the contexts it opened.
+   A browser that died is relaunched. It goes down with the process: Playwright kills
+   the browsers it launched on exit, and every runner ends in process.exit. */
+let shared = null;
+export async function leaseBrowser(chromium, extra = { headless: true }) {
+  let browser = shared && await shared.catch(() => null);
+  if (!browser || !browser.isConnected()) {
+    shared = chromium.launch(launchOptions(extra));
+    browser = await shared;
+  }
+  const mine = new Set();
+  return {
+    newContext: async (o) => { const c = await browser.newContext(o); mine.add(c); return c; },
+    close: async () => { for (const c of mine) await c.close().catch(() => {}); mine.clear(); },
+  };
+}
+
 function selftest() {
   const fails = [];
   const check = (name, ok, got) => { console.log(`${ok ? '✓' : '✗'} ${name}${ok ? '' : ` — got ${got}`}`); if (!ok) fails.push(name); };

@@ -3,12 +3,12 @@
 // voice, original IP. Surfaced in the item detail/tooltip (the "what is it" line).
 // SAFE TO EXTEND: an item with no entry here just shows no flavour line — nothing breaks.
 
-import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.9';
-import { SLOT_DESC } from './slot-ladders.js?v=0.2.9';
-import { LIB2_DESC } from './library2-items.js?v=0.2.9';
-import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.9';
-import { CHAMPION_DESC } from './champions.js?v=0.2.9';
-import { DRINK_DESC } from './drinks.js?v=0.2.9';
+import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.22';
+import { SLOT_DESC } from './slot-ladders.js?v=0.2.22';
+import { LIB2_DESC } from './library2-items.js?v=0.2.22';
+import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.22';
+import { CHAMPION_DESC } from './champions.js?v=0.2.22';
+import { DRINK_DESC } from './drinks.js?v=0.2.22';
 
 export const ITEM_DESC = {
   /* Mage = wand + spellbook; Healer = staff (Tyler 2026-10-19). */
@@ -256,6 +256,15 @@ export const ITEM_DESC = {
   'normal_plank': 'A plain sawn plank, basic stock for crafting and building',
   'oak_log': 'A sturdy oak log, sawn into planks or burned for fuel',
   'oak_plank': 'A solid oak plank, dependable timber for crafted goods',
+  'practice_sword': 'With the Practice Shield it makes you the tank, holding the monsters on you. A blunted drill-yard blade',
+  'practice_shield': 'Worn with a one-handed sword it makes you the tank. Ash boards, scarred from the drill yard',
+  'practice_hatchets': 'A pair of light axes, one in each hand: wield them to fight as a melee damage dealer',
+  'practice_club': 'Swing it with both hands to fight as a melee damage dealer. Seasoned ash, all weight and no edge',
+  'practice_bow': 'Wield it to fight as a ranger, shooting from a distance. Strung light for a first season',
+  'practice_crossbow': 'Wield it to fight as a ranger, shooting from a distance. A small cocking crossbow, steady in the hand',
+  'practice_wand': 'With the Practice Spellbook it makes you a mage, casting harm from range. Plain birch',
+  'practice_spellbook': 'Carried beside a wand, it holds the first spells a mage learns',
+  'practice_staff': 'Wield it to fight as a healer, keeping your party standing. Straight hazel',
   'oak_practice_blade': 'Hide-wrapped oak blade from the drill yard; it teaches the swing, not the kill',
   'oak_rod':'Sturdy oak rod that lands bigger catches from deeper water',
   'oak_staff': 'Sturdy oak staff that steadies a growing healer and their mending',

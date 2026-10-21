@@ -50,12 +50,66 @@ import { accrueHunt } from './accrual.js';
 import { engineInputsFromEnvelope } from './envelope.js';
 import { intentIdFor } from './intents.js';
 import { readTickPerks } from './tick-reads.js';
-import { huntGroundOf } from './hunt-ground.js';
-import { huntTimeline } from './hunt-track.js';
+import { huntGroundOf } from '../../../src/core/hunt-ground.js';
+import { huntTimeline, worldHash } from '../../../src/core/hunt-track.js';
 import { ITEMS } from '../../../src/data/items.js';
+import { HUNT_TUNING } from '../../../src/data/hunt-tuning.js';
 import { MONSTERS } from '../../../src/data/monsters.js';
 import { roleWeaponOf } from '../../../src/data/hunt-roles.js';
 import { heroSetup } from '../../../src/core/hunt-spawn.js';
+import { memberSide, frozenOf } from '../../../src/core/member.js';
+import { seederFor } from './hunt-seed.js';
+
+/* THE LIVE VIEW (option B, Tyler 2026-10-19). The browser runs the SAME instance engine
+   (src/core/combat-sim.js, the member assembly src/core/member.js) for the VIEWED character,
+   display only, and the server confirms. `hunt_live` is what it needs to start from the instance's
+   last settled point: the stored world (and its hash), the instance clocks, every member's engine
+   input and the next LIVE_SEEDS combat-swing seeds. THE DROP STREAM ('r') IS NEVER SENT: the
+   browser cannot foresee loot, and shows none until a server envelope confirms it. A party
+   member's purse is withheld (null); its skills, gear and bar are sent (the shared instance needs
+   them; listed for the reopen Security review in docs/design/ARCHITECTURE_CONTRACTS.md §L). Prediction
+   only: nothing the browser simulates is spent or credited (CLAUDE.md §1, §6). */
+/* The look-ahead is ONE data constant the browser reads too (src/data/hunt-tuning.js liveSeeds). */
+export const LIVE_SEEDS = HUNT_TUNING.liveSeeds;
+/** The next LIVE_SEEDS combat-swing seeds from world swing `from` (domain 's' only, never 'r'). */
+export function liveSeeds(inst, from) {
+  const seed = seederFor(String(inst.secret || ''), String(inst.id));
+  const list = [];
+  for (let i = 0; i < LIVE_SEEDS; i++) list.push(seed('s', from + i));
+  return { domain: 's', from, list };
+}
+export function huntLive(inst, members, user, slot) {
+  const from = Math.max(0, Math.floor(Number(inst.world_swing) || 0));
+  const world = typeof inst.world === 'string' ? inst.world : null;
+  return {
+    v: 1,
+    instance: { id: String(inst.id), hunt: String(inst.hunt), world, world_hash: worldHash(world),
+      settled_to_ms: Number(inst.settled_to_ms), next_swing_at_ms: Number(inst.next_swing_at_ms), world_swing: from },
+    seeds: liveSeeds(inst, from),
+    members: members.map((m) => {
+      const self = String(m.user) === String(user) && Number(m.slot) === Number(slot);
+      /* THE VIEWER'S OWN member: its full engine input. EVERY OTHER member: only its frozen numbers
+         (src/core/member.js frozenOf; Tyler 2026-10-20: no skills, gear, perks, premium or bestiary). */
+      if (!self) {
+        return { key: m.key, seat: m.seat, unitId: m.unitId, self: false,
+          frozen: frozenOf(memberSide(m, { items: ITEMS }), kindsOf(inst, world), Number(inst.next_swing_at_ms)) };
+      }
+      return { key: m.key, seat: m.seat, unitId: m.unitId, self, huntSession: m.huntSession,
+        skills: m.skills, levelXp: m.levelXp, xpFrac: m.xpFrac, hp: m.hp, gold: m.gold,
+        equipment: m.equipment, buffs: m.buffs, perks: m.perks, hero: m.hero };
+    }),
+  };
+}
+
+/* The monster kinds a peer's rolls are frozen against: every kind the ground's pockets field,
+   and any standing in the stored world. */
+function kindsOf(inst, worldText) {
+  const out = new Set();
+  const where = huntGroundOf(String(inst.hunt));
+  for (const p of (where && where.ground.pockets) || []) for (const sp of [...(p.spawns || []), ...(p.pack || [])]) if (sp && MONSTERS[sp.monster]) out.add(sp.monster);
+  if (worldText) for (const u of JSON.parse(worldText).u || []) for (const v of u) if (typeof v === 'string' && MONSTERS[v]) out.add(v);
+  return Array.from(out).sort();
+}
 
 /* THE PLAYER DOOR'S FLOOR (hunt_settle, a hunter's accrue, a purchase's
    collect): a settle asked for inside this of the last one prices nothing and
@@ -72,6 +126,15 @@ export const HUNT_DEGRADABLE = Object.freeze([
   'too_many_item_kinds', 'too_many_progress_ops', 'bank_full', 'daily_budget',
 ]);
 export const HUNT_MAX_DEGRADE = 3;
+
+/* THE PER-CALL SIMULATED SPAN (P1 2026-10-20: 546 WORKER_RESOURCE_LIMIT). A
+   settle simulates at most this much of the instance's backlog; the rest stays
+   owed on its unmoved settled_to and the next fire takes the next slice (90x
+   real time at a 10 s tick). Without it an instance whose commit is refused
+   (session_moved, a tally error) re-simulates a window that grows 10 s every
+   fire, up to accrual.js HUNT_MAX_WINDOW_MS (6 h), twice per fire on a retry,
+   until the worker's CPU budget kills the whole tick and every hunt in it. */
+export const HUNT_SETTLE_SPAN_MS = 15 * 60000;
 /* Refusals that mean "someone else moved the instance under us". */
 const RETRYABLE = Object.freeze(['session_moved', 'version_conflict']);
 
@@ -192,7 +255,11 @@ async function settleOnce(o, mode) {
         status: 200,
         body: { ...(res.state || {}), ok: true, settled: !replayed, hunt_settle: own.hunt_settle || null,
           session: own.session || null, instance: res.instance || null,
-          ...(o.project === true ? huntTimeline(p.out.track, p.out.events, fromMs, p.out.settledTo, plan.nowMs) : {}),
+          ...(o.project === true ? huntTimeline(p.out.track, p.out.events, fromMs, p.out.settledTo, plan.nowMs, p.out.units) : {}),
+          /* THE RECONCILE KEY of the world this commit stored: the live view compares its own. */
+          ...(o.live === true ? { hunt_check: { world_swing: p.out.worldSwingTo, settled_to_ms: p.out.settledTo, world_hash: worldHash(p.out.world),
+            /* the next combat seeds from the stored world: a matching prediction runs on with them */
+            seeds: liveSeeds(plan.inst, p.out.worldSwingTo) } } : {}),
           ...(degraded ? { degraded } : {}) },
       };
     }
@@ -248,7 +315,8 @@ export async function readHuntSettle(o, mode) {
   if (!(nowMs > fromMs)) return notDue;
   const minMs = Number.isFinite(Number(o.minWindowMs)) ? Math.max(0, Number(o.minWindowMs))
     : (mode === 'settle' ? HUNT_SETTLE_MIN_MS : 0);
-  if (!pending && nowMs - fromMs < minMs) {
+  const below = !pending && nowMs - fromMs < minMs;
+  if (below && o.live !== true) {
     return { answer: { outcome: 'nothing', reason: 'below_min_span', status: 200,
       body: { ok: true, settled: false, reason: 'below_min_span', ...env } } };
   }
@@ -258,10 +326,17 @@ export async function readHuntSettle(o, mode) {
   for (const m of r.members) members.push(await memberInput(exec, m, inst));
   const partyRoles = members.map((m) => m._role).filter(Boolean);
   for (const m of members) {
-    m.hero = heroSetup({ weaponType: m._weaponType, options: m._options, bar: m._bar, partyRoles });
+    m.hero = heroSetup({ weaponType: m._weaponType, options: m._options, bar: m._bar, partyRoles, lead: m._leads });
     if (!m.hero) return { answer: { outcome: 'refused', reason: 'no_role', ...refusal(409, 'no_role') } };
   }
-  const toMs = Number.isFinite(Number(o.atMs)) ? Math.min(nowMs, Math.floor(Number(o.atMs))) : nowMs;
+  /* Below the floor a player door that asked for the live view gets the instance's start point
+     instead of a settle: nothing is priced or written. */
+  if (below) {
+    return { answer: { outcome: 'nothing', reason: 'below_min_span', status: 200,
+      body: { ok: true, settled: false, reason: 'below_min_span', ...env, hunt_live: huntLive(inst, members, user, slot) } } };
+  }
+  const endMs = Number.isFinite(Number(o.atMs)) ? Math.min(nowMs, Math.floor(Number(o.atMs))) : nowMs;
+  const toMs = Math.min(endMs, fromMs + HUNT_SETTLE_SPAN_MS);
   if (!(toMs > fromMs)) return notDue;
   return { env, inst, members, where, fromMs, toMs, nowMs };
 }
@@ -271,7 +346,8 @@ export async function readHuntSettle(o, mode) {
 export async function proposeHuntSettle(plan, toMs, attempt) {
   const { inst, members, where, fromMs } = plan;
   const out = accrueHunt({
-    instance: { id: String(inst.id), nextSwingAtMs: Number(inst.next_swing_at_ms), world: inst.world || null },
+    instance: { id: String(inst.id), nextSwingAtMs: Number(inst.next_swing_at_ms), world: inst.world || null,
+      worldSwing: Number(inst.world_swing) || 0 },
     window: { fromMs, toMs }, secret: String(inst.secret || ''),
     ground: where.ground, grid: where.grid, items: ITEMS, monsters: MONSTERS, members,
   });
@@ -311,7 +387,13 @@ async function memberInput(exec, m, inst) {
     equipment: e.equipment, inventory: e.inventory, buffs: e.buffs,
     deathsTodayBefore: e.deathsTodayBefore, deathsLifetimeBefore: e.deathsLifetimeBefore,
     hearthfindReady: e.hearthfindReady, perks,
+    /* THE ACCOUNT BESTIARY's relic multipliers, from this member's OWN hr_state_of
+       (account_bestiary.relic_mult: { monster kind: mult }), never from the request */
+    relicMults: env.account_bestiary && typeof env.account_bestiary === 'object' && env.account_bestiary.relic_mult
+      && typeof env.account_bestiary.relic_mult === 'object' ? env.account_bestiary.relic_mult : null,
     _weaponType: weaponType, _options: options, _bar: m.session.bar, _role: pre ? pre.role : null,
+    /* THE PARTY LEADER (hr_hunt_instance_read `leads`, 2026-11-01-party-leader-density.sql): its density is the pull. */
+    _leads: m.leads === true,
   };
 }
 
@@ -373,7 +455,7 @@ export function parseHunts(raw) {
    window's timeline (./hunt-track.js huntTimeline: hunt_track, hunt_events, hunt_server_now_ms). */
 export async function runHuntVerb(o) {
   const v = await settleHunt({
-    exec: o.exec, user: o.user, slot: o.slot, mode: 'settle', bucket: o.bucket, project: true,
+    exec: o.exec, user: o.user, slot: o.slot, mode: 'settle', bucket: o.bucket, project: true, live: true,
   });
   return { status: v.status, body: { ...v.body, verb: o.verb } };
 }

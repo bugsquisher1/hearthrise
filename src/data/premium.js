@@ -9,9 +9,10 @@
 //
 // What premium grants, as data the server reads through the generated
 // catalogue (tools/gen-hunt-sessions.mjs):
-//   analyzer   the hunt analyzer is readable (hr_hunt_analyzer, the
+//   analyzer   the WHOLE hunt analyzer is readable (hr_hunt_analyzer, the
 //              `hunt_analyzer` section). The server RECORDS every session's
-//              stats for every character; only the read is gated (spec §3.6 #5).
+//              stats for every character; everyone reads the basic block, premium
+//              the rest (Tyler 2026-10-19; 2026-10-26-hunt-analyzer-basic.sql).
 //   stamina    the 12 h cap. The caps themselves live in ONE place,
 //              src/data/hunt-sessions.js STAMINA_MAX_MS { free, premium }.
 //   outfits    premium outfits (the outfit lane reads this flag; nothing here

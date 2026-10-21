@@ -21,7 +21,7 @@
 // The list is REPLACED by each answer, never merged; an answer older than
 // staleMs shows nobody rather than people who may have left.
 // ════════════════════════════════════════════════════════════════════════
-import { TOWN_PRESENCE, TOWN_DIRS } from '../data/town-presence.js?v=0.2.9';
+import { TOWN_PRESENCE, TOWN_DIRS } from '../data/town-presence.js?v=0.2.22';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAP_ID = /^[a-z0-9_]{1,40}$/;
@@ -60,6 +60,8 @@ export class TownPresence {
    * @param {number} o.slot              the character this presence speaks for
    * @param {() => string|null} o.self   this account's id (never drawn as a walker)
    * @param {(id: string) => boolean} [o.hidden]  a player this account has blocked
+   * @param {() => boolean} [o.busy]     this character is out hunting (a parked body leaves town)
+   * @param {object} [o.arrival]         the town's arrival place {map, x, y, gx, gy, dir}: where an unviewed body stands
    * @param {{setTimer?: Function, clearTimer?: Function}} [o.timers]  interval timers (tests)
    * @param {() => number} [o.now]       ms clock
    * @param {object} [o.limits]          TOWN_PRESENCE
@@ -69,6 +71,7 @@ export class TownPresence {
     this._slot = o.slot;
     this._self = o.self || (() => null);
     this._hidden = o.hidden || (() => false);
+    this._busy = o.busy || (() => false);
     this._set = (o.timers && o.timers.setTimer) || ((fn, ms) => setInterval(fn, ms));
     this._clear = (o.timers && o.timers.clearTimer) || ((h) => clearInterval(h));
     this._now = o.now || (() => Date.now());
@@ -85,6 +88,9 @@ export class TownPresence {
     this._out = false;       // the server holds a body for this character
     this._listeners = new Set();
     this._dead = false;
+    this._parked = false;    // not on screen, still standing in town (another character is viewed)
+    this._home = null;       // where a parked body stands again once a hunt ends
+    this._arrival = placeOf(o.arrival);   // the town's arrival tile (a hero back from a hunt arrives there)
   }
 
   subscribe(fn) { this._listeners.add(fn); return () => this._listeners.delete(fn); }
@@ -93,7 +99,13 @@ export class TownPresence {
   /** The town map on screen for this character, or null (home, hunt, pane closed): null leaves town. */
   show(map) {
     const m = typeof map === 'string' && MAP_ID.test(map) ? map : null;
-    if (m === this._map || this._dead) return;
+    if (this._dead) return;
+    if (m === this._map) {
+      /* viewed again in the town it stands in: read the people again */
+      if (m && this._parked) { this._parked = false; this.read(); this._changed(); }
+      return;
+    }
+    this._parked = false;
     this._map = m;
     this._walkers = []; this._readAt = null; this._want = null;
     if (this._timer !== null) { this._clear(this._timer); this._timer = null; }
@@ -135,7 +147,45 @@ export class TownPresence {
     return true;
   }
 
+  /**
+   * The World stopped showing this character (another one is viewed) while it stands in town:
+   * it STAYS there for everyone (Tyler 2026-10-19), so its body keeps its keepalive and only the
+   * reads stop. It leaves when it starts a hunt (busy) or closes (destroy).
+   */
+  park() {
+    if (this._dead || this._parked) return;
+    /* viewed while out of town (a hunt, the home): unviewed, it stands at the arrival tile once not hunting */
+    if (!this._map) { this.stand(); return; }
+    this._parked = true;
+    this._home = this._want || this._sent;
+    this._walkers = []; this._readAt = null;
+    this._changed();
+  }
+
+  /**
+   * A character that is playing but not on screen stands in town at `place` (the arrival tile by
+   * default) from the moment it opens (boot, reload, login) or stops being viewed, parked:
+   * keepalives, no reads. While it hunts the server holds no body for it; when the hunt ends it
+   * stands at `place` again. Viewing it (show(map)) takes over.
+   */
+  stand(place = this._arrival) {
+    const p = placeOf(place);
+    if (!p || this._dead || this._map) return false;
+    this._map = p.map;
+    this._parked = true;
+    this._home = p;
+    /* first body on the first tick (≤ pollMs): a view of it in the same breath publishes its own tile */
+    this._timer = this._set(() => this._tick(), this.limits.pollMs);
+    return true;
+  }
+
   _tick() {
+    if (this._parked) {
+      if (this._busy()) { this._home = this._home || this._want || this._sent; this._leave(); return; }
+      if (!this._want && this._home) this._want = this._home;
+      if (this._want && this._now() - this._sentAt >= this.limits.keepaliveMs) this._flush(true);
+      return;
+    }
     if (this._want && this._now() - this._sentAt >= this.limits.keepaliveMs) this._flush(true);
     this.read();
   }
@@ -143,7 +193,7 @@ export class TownPresence {
   /** One hr_town_walkers read for the shown map; the list is replaced by the answer. */
   async read() {
     const map = this._map;
-    if (!map || this._reading || this._dead) return false;
+    if (!map || this._reading || this._dead || this._parked) return false;
     this._reading = true;
     let ans;
     try { ans = await this._server.rpc('hr_town_walkers', { p_map: map }); } finally { this._reading = false; }
@@ -155,8 +205,12 @@ export class TownPresence {
     const list = [];
     for (const raw of Array.isArray(b.walkers) ? b.walkers : []) {
       const w = walkerOf(raw);
-      if (!w || w.id === self || seen.has(w.id)) continue;
-      seen.add(w.id);
+      /* Only THIS character is not a walker: the viewer's other characters are people in town too
+         (Tyler 2026-10-19), so a walker is its user AND its slot. */
+      if (!w) continue;
+      const key = w.id + ':' + w.slot;
+      if ((w.id === self && w.slot === this._slot) || seen.has(key)) continue;
+      seen.add(key);
       list.push(w);
       if (list.length >= this.limits.cap) break;
     }

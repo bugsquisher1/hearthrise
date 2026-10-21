@@ -78,6 +78,8 @@
 .ht-ground { font-family: var(--f-label); font-weight: 700; font-size: var(--t-small); letter-spacing: .04em; color: var(--gold-2); white-space: nowrap; }
 .ht-clock { font-variant-numeric: lining-nums tabular-nums; color: var(--ink-2); font-size: var(--t-micro); white-space: nowrap; padding-right: 4px; margin-right: 2px; border-right: 1px solid var(--line-soft); }
 .ht-bar .hh-intent-msg { max-width: 220px; }
+/* The pending leave's countdown beside Leave hunt: gold label text (the bar's own ground-name ink), tabular seconds. */
+.ht-leaving { font-family: var(--f-label); font-weight: 700; font-size: var(--t-small); color: var(--gold-2); font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
 
 /* ── Party board ── */
 .hp-party { width: 250px; }
@@ -105,6 +107,11 @@
 .hp-stats dd { margin: 0; font-weight: 700; font-variant-numeric: lining-nums tabular-nums; }
 .hp-foot { margin: 8px 0 0; padding-top: 6px; border-top: 1px solid var(--line-soft); font-size: var(--t-micro); color: var(--ink-3); }
 .hp-party.is-empty .hp-foot { display: none; }
+.hp-acts { display: flex; gap: 6px; margin-top: 8px; }
+.hp-acts.is-off { display: none; }
+.hp-kick { margin-left: auto; }
+.hp-m.is-away { opacity: .7; }
+.hp-msg:empty { display: none; }
 
 /* ── Analyzer ── */
 .ha-analyzer { width: 290px; max-height: min(560px, calc(100vh - 200px)); }

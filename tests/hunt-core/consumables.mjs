@@ -107,17 +107,36 @@ const cases = {
     if (M.AR.endReasonAt(hs, 60000) !== 'gold_out') return 'an empty purse did not end the hunt gold_out (' + M.AR.endReasonAt(hs, 60000) + ')';
     return null;
   },
-  /* CO-06: food and drink share ONE lane; nothing else fires inside it. */
+  /* CO-06 (Tyler 2026-10-19): food and drink share ONE 2 s cooldown; nothing else fires inside it, and under
+     both thresholds the default bar eats first (eat-at stands before drink-at). */
   'one-shared-lane': (M) => {
+    const lane = M.CD.CONSUMABLE_RULES.laneMs;
+    if (lane !== 2000) return 'the shared food-and-drink cooldown is ' + lane + ' ms, Tyler ruled 2 s';
     const { h, inst, sc } = oneHero(M, { hp: 10, mana: 5 }, { hs: supplySession(M, { bag: { cooked_shrimp: { loaded: 5 } } }) });
-    steps(inst, sc, consume(M), 10, 0);
+    steps(inst, sc, consume(M), lane / 100, 0);
     const uses = sc.events.filter((e) => e.type === 'eat' || e.type === 'drink');
-    if (uses.length !== 1) return uses.length + ' uses inside one ' + M.CD.CONSUMABLE_RULES.laneMs + ' ms lane';
-    if (uses[0].type !== 'drink') return 'under both thresholds the hero ' + uses[0].type + ' first; drink comes first';
-    sc.atMs = M.CD.CONSUMABLE_RULES.laneMs;
+    if (uses.length !== 1) return uses.length + ' uses inside one ' + lane + ' ms cooldown';
+    if (uses[0].type !== 'eat') return 'under both thresholds the hero ' + uses[0].type + ' first; the default bar eats first';
+    sc.atMs = lane;
     M.consumables.consume(inst, sc);
     const after = sc.events.filter((e) => e.type === 'eat' || e.type === 'drink');
-    return after.length === 2 && after[1].type === 'eat' && h.laneAt === 2 * M.CD.CONSUMABLE_RULES.laneMs ? null : 'the lane did not reopen for food at ' + M.CD.CONSUMABLE_RULES.laneMs + ' ms';
+    return after.length === 2 && h.laneAt === 2 * lane ? null : 'the shared cooldown did not reopen at ' + lane + ' ms (' + after.length + ' uses)';
+  },
+  /* NO STARVING (Tyler 2026-10-19): drinks always fire too, yet a hero below eat-at AND drink-at on the default
+     bar, with plenty of both, eats at least once every 2 s cooldown for 20 s; above eat-at it drinks, and a
+     drink fires while its own over-time half still runs (replacing it). */
+  'drink-never-starves-food': (M) => {
+    const lane = M.CD.CONSUMABLE_RULES.laneMs;
+    const { h, inst, sc } = oneHero(M, { hp: 10, maxHp: 10000, mana: 5, maxMana: 10000 }, { hs: supplySession(M, { purse: 1e6 }) });
+    for (let t = 0; t < 20000; t += 100) { sc.atMs = t; M.consumables.consume(inst, sc); }
+    const e = eats(sc).map((x) => x.atMs);
+    if (e.length < 20000 / lane) return 'a hungry, thirsty hero ate ' + e.length + ' times in 20 s (want one every ' + lane + ' ms)';
+    if (e.some((at, i) => i && at - e[i - 1] > lane)) return 'a gap between meals passed one cooldown: ' + JSON.stringify(e);
+    const b = oneHero(M, { hp: 100, mana: 5, maxMana: 10000 }, { hs: supplySession(M, { purse: 1e6 }) });
+    for (let t = 0; t <= lane; t += 100) { b.sc.atMs = t; M.consumables.consume(b.inst, b.sc); }
+    const d = drinks(b.sc);
+    if (d.length !== 2 || d[1].atMs !== lane) return 'a thirsty hero drank at ' + JSON.stringify(d.map((x) => x.atMs)) + '; the second drink must fire at ' + lane + ' while the first still ticks';
+    return Array.isArray(b.h.otMana) && b.h.otMana[2] === 6 ? null : 'the second drink did not replace the over-time half: ' + JSON.stringify(b.h.otMana);
   },
   /* §3.4 #4, spec §5 #10: default thresholds drink < 30%, food < 50%; per-hero settings override. */
   'thresholds': (M) => {
@@ -175,14 +194,17 @@ const cases = {
     M.consumables.consume(inst, sc);
     if (eats(sc).length !== 1) return 'a second food fired inside the shared lane';
     const before = h.hp;
-    const firstTick = Math.floor((heals - half) / 6);
+    /* The first trout's ticks that landed by the reopen (one a second, the first at 1 s). */
+    const later = heals - half; const n = 6; const landedTicks = lane / M.CD.CONSUMABLE_RULES.overTimeTickMs;
+    const firstTicks = Array.from({ length: landedTicks }, (_, i) => Math.floor((later - Math.floor(later / n) * i) / (n - i))).reduce((a, b) => a + b, 0);
+    const tickedBefore = before - 40 - half;
     sc.atMs = lane;
     M.consumables.consume(inst, sc);
     if (eats(sc).length !== 2) return 'the second food did not fire while the first over-time half ran (' + eats(sc).length + ' eaten)';
-    if (h.hp !== before + firstTick + half) return 'at the reopen HP went ' + before + ' -> ' + h.hp + ', want the tick ' + firstTick + ' and the instant ' + half;
+    if (h.hp !== 40 + half + firstTicks + half) return 'at the reopen HP went ' + before + ' -> ' + h.hp + ', want the first trout\'s ' + landedTicks + ' ticks (' + firstTicks + ', ' + tickedBefore + ' before) and the instant ' + half;
     if (!Array.isArray(h.otHp) || h.otHp[0] !== heals - half || h.otHp[2] !== 6) return 'the second over-time half did not replace the first: ' + JSON.stringify(h.otHp);
     steps(inst, sc, consume(M), 80, lane + 100);
-    const want = 40 + half + firstTick + heals;
+    const want = 40 + half + firstTicks + heals;
     if (h.hp !== want) return 'after both trout HP is ' + h.hp + ', want ' + want + ' (the first over-time half is replaced, never stacked)';
     const t = M.tally.tallyEvents(sc.events, M.tally.rosterOf(w)).heroes[1];
     return t && t.healed.total === h.hp - 40 ? null : 'tally.healed ' + JSON.stringify(t && t.healed) + ' is not the ' + (h.hp - 40) + ' HP restored';
@@ -246,6 +268,13 @@ const mutants = [
     edits: [['src/core/hunt/conditions.js', '  for (const row of rows) {\n    const t = testSlot(inst, u, h, row.slot);', '  for (const row of rows.slice().reverse()) {\n    const t = testSlot(inst, u, h, row.slot);']] },
   { name: 'a store use is free', case: 'configured-store-slot',
     edits: [['src/core/action-rules.js', '    hs.purse = Math.max(0, int(hs.purse, 0)) - b.price;', '    hs.purse = Math.max(0, int(hs.purse, 0));']] },
+  { name: 'the default bar drinks first (a drink starves food)', case: 'drink-never-starves-food',
+    edits: [['src/core/hunt/conditions.js', "  Object.freeze({ id: 'd_food', action: Object.freeze({ type: 'consume', id: 'food' }), conditions: Object.freeze([]), join: 'and' }),\n  Object.freeze({ id: 'd_drink', action: Object.freeze({ type: 'consume', id: 'drink' }), conditions: Object.freeze([]), join: 'and' }),",
+      "  Object.freeze({ id: 'd_drink', action: Object.freeze({ type: 'consume', id: 'drink' }), conditions: Object.freeze([]), join: 'and' }),\n  Object.freeze({ id: 'd_food', action: Object.freeze({ type: 'consume', id: 'food' }), conditions: Object.freeze([]), join: 'and' }),"]] },
+  { name: 'a drink waits for its running over-time half', case: 'drink-never-starves-food',
+    edits: [['src/core/hunt/consumables.js', "  const stat = CONSUMABLE_KINDS[kind].stat;\n  if (!CONSUME_KINDS[id])", "  const stat = CONSUMABLE_KINDS[kind].stat;\n  if (kind === 'drink' && u[OT_KEY[stat]]) return { kind, why: 'ticking' };\n  if (!CONSUME_KINDS[id])"]] },
+  { name: 'the shared cooldown back at 1 s', case: 'one-shared-lane',
+    edits: [['src/data/consumables.js', '  laneMs: 2000,', '  laneMs: 1000,']] },
   { name: 'food and drink each keep their own lane', case: 'one-shared-lane',
     edits: [['src/core/hunt/consumables.js', '    if (int(u.laneAt) > sc.atMs) continue;\n    const hero = heroes', '    const hero = heroes']] },
   { name: 'food eats at its threshold, not under it', case: 'thresholds',
@@ -261,13 +290,11 @@ const mutants = [
   { name: 'the over-time ticks are not credited', case: 'tally-healed-is-hp-restored',
     edits: [['src/core/hunt/consumables.js', "      if (stat === 'hp') healed(u, landed, item, sc);\n", '']] },
   { name: 'food waits for the running over-time half', case: 'food-during-over-time',
-    edits: [['src/core/hunt/consumables.js', "  if (kind === 'drink' && u[OT_KEY[stat]]) return", "  if (u[OT_KEY[stat]]) return"]] },
-  { name: 'a drink always fires (it holds the shared lane every second and starves food)', case: 'one-shared-lane',
-    edits: [['src/core/hunt/consumables.js', "  if (kind === 'drink' && u[OT_KEY[stat]]) return", "  if (false && u[OT_KEY[stat]]) return"]] },
+    edits: [['src/core/hunt/consumables.js', "  const stat = CONSUMABLE_KINDS[kind].stat;\n  if (!CONSUME_KINDS[id])", "  const stat = CONSUMABLE_KINDS[kind].stat;\n  if (kind === 'food' && u[OT_KEY[stat]]) return { kind, why: 'ticking' };\n  if (!CONSUME_KINDS[id])"]] },
   { name: 'a second over-time half stacks on the first', case: 'food-during-over-time',
     edits: [['src/core/hunt/consumables.js', '  u[OT_KEY[stat]] = later > 0 ? [later,', '  u[OT_KEY[stat]] = later > 0 ? [later + (Array.isArray(u[OT_KEY[stat]]) ? u[OT_KEY[stat]][0] : 0),']] },
   { name: 'food waits after an ability heal', case: 'eat-right-after-a-heal',
-    edits: [['src/core/hunt/consumables.js', "  if (kind === 'drink' && u[OT_KEY[stat]]) return { kind, why: 'ticking' };\n", "  if (kind === 'drink' && u[OT_KEY[stat]]) return { kind, why: 'ticking' };\n  if (kind === 'food' && Number.isInteger(u.healedAt)) return { kind, why: 'healed' };\n"]] },
+    edits: [['src/core/hunt/consumables.js', "  const stat = CONSUMABLE_KINDS[kind].stat;\n  if (!CONSUME_KINDS[id])", "  const stat = CONSUMABLE_KINDS[kind].stat;\n  if (kind === 'food' && Number.isInteger(u.healedAt)) return { kind, why: 'healed' };\n  if (!CONSUME_KINDS[id])"]] },
   { name: 'the over-time half is not persisted', case: 'over-time-survives-a-cut',
     edits: [['src/core/hunt/consumables.js', "  unit: Object.freeze([['laneAt', 'int'], ['otHp', 'json'], ['otMana', 'json'], ['healedAt', 'int?']]),",
       "  unit: Object.freeze([['laneAt', 'int'], ['otMana', 'json'], ['healedAt', 'int?']]),"]] },

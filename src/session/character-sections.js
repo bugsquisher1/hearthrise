@@ -7,7 +7,7 @@
 // a number the server did not send is never invented (CLAUDE.md §6).
 //
 // What 2026-10-27-core-bodies.sql projects (hr_state_sections rows):
-//   character_sheet { level, max_hp, bestiary: { slain, total }, fresh,
+//   character_sheet { level, max_hp, max_mana, bestiary: { slain, total }, fresh,
 //                     combat: <the engine's sheet while fresh, else null>, computed_at }
 //     combat        { role, weapon_type, level, max_hp, max_mana, regen_pct, move_speed,
 //                     damage: { min, max }, accuracy_pct, crit_pct, defence, set,
@@ -18,7 +18,7 @@
 //                   its progress are read off it on the shared curve (src/core/xp.js, the
 //                   curve hr_char_level uses), never counted in the browser.
 // ════════════════════════════════════════════════════════════════════════
-import { charLevelFromXp, charXpForLevel } from '../core/xp.js?v=0.2.9';
+import { charLevelFromXp, charXpForLevel } from '../core/xp.js?v=0.2.22';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -51,7 +51,7 @@ export function characterSheetOf(cs) {
   if (!isObj(s)) return null;
   const b = isObj(s.bestiary) ? s.bestiary : null;
   return {
-    level: nat(s.level), maxHp: nat(s.max_hp),
+    level: nat(s.level), maxHp: nat(s.max_hp), maxMana: nat(s.max_mana),
     bestiary: b && nat(b.slain) !== null && nat(b.total) ? { slain: b.slain, total: b.total } : null,
     fresh: s.fresh === true,
     combat: s.fresh === true ? combatOf(s.combat) : null,
@@ -66,6 +66,20 @@ export function levelOf(cs) {
   const level = charLevelFromXp(xp);
   const lo = charXpForLevel(level);
   return { xp, level, into: xp - lo, need: charXpForLevel(level + 1) - lo };
+}
+
+/**
+ * The vitals strip OUT OF A HUNT (in town, or after a hunt ended): HP from `state.hp`, max HP and
+ * max mana from the server's `vitals`, and mana FULL (mana lives only inside a hunt instance; out of
+ * one there is nothing spending it). { hp, hpMax, mana, manaMax, level, xpPct }, or null.
+ */
+export function townVitalsOf(cs) {
+  const st = read(cs, 'state');
+  const v = read(cs, 'vitals');
+  if (!isObj(st) || !isObj(v) || nat(v.max_hp) === null) return null;
+  const lv = levelOf(cs);
+  return { hp: nat(st.hp), hpMax: v.max_hp, mana: nat(v.max_mana), manaMax: nat(v.max_mana), level: nat(v.level),
+    xpPct: lv && lv.need > 0 ? Math.max(0, Math.min(1, lv.into / lv.need)) : null };
 }
 
 /** `outfit`: { worn, colors, owned: Set }, or null. */

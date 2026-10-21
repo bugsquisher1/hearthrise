@@ -34,7 +34,7 @@ import { TREES, ROCKS, FISH_SPOTS, EQUIP_SLOTS, expandItemSlot }
 import { indexGatherNodes } from '../../../src/core/skill-sim.js';
 import { ARTISAN_RECIPES } from '../../../src/data/recipes.js';
 import { indexArtisanRecipes, payableRecipeIndex } from '../../../src/core/artisan-sim.js';
-import { SHOP_OFFERS } from '../../../src/data/shops.js';
+import { SHOP_OFFERS, SUPPLY_PRICE_LIST } from '../../../src/data/shops.js';
 import { ITEMS } from '../../../src/data/items.js';
 import { catalogueGet } from './intents.js';
 import { cheapestShopUnitPrice } from '../../../src/core/shop-buyback.js';
@@ -236,6 +236,11 @@ for (const o of SHOP_OFFERS) {
     grant: Object.freeze(o.grant.map((g) => Object.freeze({ id: g.id, amount: g.amount }))),
   });
 }
+/* THE SHOP SELLS NO SUPPLIES (Tyler 2026-10-20): a food, drink or ammo offer is refused BY NAME, never
+   sold. Those come from the action bar at the store price per use (hr_hunt_basic_supplies). */
+for (const o of SUPPLY_PRICE_LIST) {
+  if (o && typeof o.id === 'string' && !(o.id in goldOffers)) offerRefusals[o.id] = 'supplies_not_sold';
+}
 
 /**
  * Every offer this build can sell for gold: `{ [offerId]: {id, gold, grant} }`.
@@ -302,8 +307,10 @@ export const VENDOR_RAW_RATE = 0.20;
    Game Designer's, mirrored here, never chosen here. */
 export const SHOP_BUYBACK_RATE = 0.5;
 
-/** `{ [itemId]: cheapest gold per unit }` over every single-item gold offer. */
-export const SHOP_UNIT_PRICE = cheapestShopUnitPrice(SHOP_OFFERS);
+/** `{ [itemId]: cheapest gold per unit }` over every single-item gold offer, plus the supply price
+    list the Shop no longer sells (Tyler 2026-10-20: no supplies in the Shop). Retiring those offers
+    is not a balance change: the vendor's bid for crafted food, drink and ammo stays where it was. */
+export const SHOP_UNIT_PRICE = cheapestShopUnitPrice([...SHOP_OFFERS, ...SUPPLY_PRICE_LIST]);
 
 /**
  * What the NPC vendor pays for ONE `id`. 0 means "the vendor does not buy it",

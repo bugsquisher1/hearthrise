@@ -49,7 +49,7 @@
 //         Inspect shows the worn items; zero console errors throughout
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
-import { launchOptions } from './_chrome.mjs';
+import { leaseBrowser } from './_chrome.mjs';
 import { readFile, mkdir } from 'node:fs/promises';
 import { mkdtempSync, cpSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -245,7 +245,7 @@ async function stub(page, s) {
   await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
   await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
   await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
-    const name = r.request().url().split('/').pop();
+    const name = r.request().url().split('?')[0].split('/').pop();
     const body = JSON.parse(r.request().postData() || '{}');
     s.calls.push({ name, body });
     const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
@@ -264,7 +264,7 @@ async function pageRules(overrides, shots) {
   const fails = [];
   const { server, port } = await serve(overrides);
   const base = 'http://127.0.0.1:' + port;
-  const browser = await chromium.launch(launchOptions({ headless: true }));
+  const browser = await leaseBrowser(chromium);
   try {
     for (const vp of [{ width: 1440, height: 900 }, { width: 922, height: 423 }]) {
       const tag = vp.width + 'x' + vp.height;
@@ -331,7 +331,8 @@ async function pageRules(overrides, shots) {
       await page.keyboard.press('w');
       const blurred = await page.evaluate(() => ({ active: document.activeElement && document.activeElement.className, keys: window.__keys.slice() }));
       if (/hc-field/.test(blurred.active || '') || !blurred.keys.some((k) => k.k === 'w' && !k.field)) fails.push('CW-3 [' + tag + '] after Esc, W did not reach the page: ' + JSON.stringify(blurred));
-      // CW-5: right-click on the World's canvas — a party member (Mira, stamped from party_people), a monster, the ground
+      // CW-5: right-click on the World's canvas — a party member (Mira, stamped from party_people: no Invite to party, she is
+      // already in it, 2026-10-20), a monster, the ground
       const scan = await page.evaluate(() => {
         const cv = document.querySelector('.world-canvas');
         if (!cv) return null;
@@ -350,7 +351,7 @@ async function pageRules(overrides, shots) {
       });
       if (!scan) fails.push('CW-5 [' + tag + '] no world canvas');
       else {
-        if (scan.seen.Mira !== 'Inspect gear|Message|Add friend|Invite to party|Block') fails.push('CW-5 [' + tag + '] right-click on Mira gave ' + JSON.stringify(scan.seen));
+        if (scan.seen.Mira !== 'Inspect gear|Message|Add friend|Block') fails.push('CW-5 [' + tag + '] right-click on Mira gave ' + JSON.stringify(scan.seen));
         const looks = Object.entries(scan.seen).filter(([, v]) => v === 'Look');
         if (!looks.length) fails.push('CW-5 [' + tag + '] no monster answered Look: ' + JSON.stringify(scan.seen));
         if (!scan.ground) fails.push('CW-5 [' + tag + '] every point opened a menu (the ground must open nothing)');
@@ -362,7 +363,7 @@ async function pageRules(overrides, shots) {
       else {
         await nameBox.click({ button: 'right' });
         const menu = await page.evaluate(() => { const m = document.querySelector('.hw-menu.is-on'); return m ? { items: Array.from(m.querySelectorAll('.hw-mi')).map((b) => b.textContent), top: m.parentElement === document.body } : null; });
-        if (!menu || menu.items.join('|') !== 'Inspect gear|Message|Add friend|Invite to party|Block' || !menu.top) fails.push('CW-4 [' + tag + '] the menu is ' + JSON.stringify(menu));
+        if (!menu || menu.items.join('|') !== 'Inspect gear|Message|Add friend|Block' || !menu.top) fails.push('CW-4 [' + tag + '] the menu is ' + JSON.stringify(menu));
         if (shots) await page.screenshot({ path: join(shots, 'chat-menu-' + tag + '.png') });
         await page.evaluate(() => { window.__stage = 0; const st = document.querySelector('.world-stage'); if (st) st.addEventListener('click', () => { window.__stage++; }); });
         await page.click('.hw-menu.is-on .hw-mi >> text=Inspect gear');

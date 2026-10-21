@@ -24,7 +24,7 @@
 // A later lane that swaps one of these systems must keep its arrow alive.
 //
 //   LOOP-1, a fresh character from the real start kit
-//    1    log in                    hr_create_character <- src/data/start-kit.js   all
+//    1    log in                    hr_create_hero <- src/data/start-kit.js        all
 //    2    fish                      set_activity gather:shrimp_s, settle            3
 //    3    cook a heal               set_activity artisan:cook_shrimp, settle        6
 //    4    the NPC prices food per use hr_hunt_basic_supplies: the tier-1 shop heal   6
@@ -56,7 +56,7 @@
 //    9    reload                    hr_load == the last envelope                    -
 //
 //   LOOP-3, a CRAFTED supply beats its basic (master plan M3: the hybrid supply)
-//    1    a fresh character         hr_create_character                             2
+//    1    a fresh character         hr_create_hero                                  2
 //    2    fish                      gather:shrimp_s                                 3
 //    3    cook                      artisan:cook_shrimp                             5
 //    4    the crafted heal is better hr_items heals vs hr_hunt_basic_supplies:      5
@@ -155,9 +155,9 @@ const MUTATIONS = {
       + "payableRecipeIndex(ARTISAN_RECIPES_ALL)).filter(([, r]) => r.skill !== 'cooking'));",
   },
   hunt_drops_nothing: {
-    file: 'accrual.js', by: 'LOOP-1 step 6',
+    file: '../../../src/core/member.js', by: 'LOOP-1 step 6',
     why: 'kills stop dropping loot server-side: the hunt pays XP and nothing to sell',
-    /* Re-anchored lane S1: the hunt's loot sink is accrual.js memberSide addItem. */
+    /* Re-anchored: the hunt's loot sink is memberSide's addItem (src/core/member.js since option B). */
     find: '      itemDelta[id] = (itemDelta[id] || 0) + n;\n      hs.tally.loot[id] = (hs.tally.loot[id] || 0) + n;',
     repl: '      return;',
   },
@@ -263,7 +263,8 @@ async function makeServer(db, M) {
     async create(uid, name) {
       await db.query('insert into auth.users(id) values ($1) on conflict (id) do nothing', [uid]);
       await db.query('insert into profiles(id, display_name) values ($1,$2) on conflict (id) do nothing', [uid, name]);
-      return asUser(uid, async () => (await q('select public.hr_create_character(0) r'))[0].r);
+      /* The one creation door (2026-11-02-hero-creation.sql): a hero with no name does not enter the world. */
+      return asUser(uid, async () => (await q("select public.hr_create_hero(0, $1, '{\"head\": 13, \"body\": 5, \"legs\": 3, \"feet\": 0}'::jsonb, gen_random_uuid()) r", [name]))[0].r);
     },
     /** THE RELOAD: hr_load as `authenticated`, the read the client boots from. */
     async load(uid) {
@@ -405,7 +406,7 @@ async function huntWindow(S, uid, mins, t) {
   await S.elapse(uid, mins * MIN);
   let c = null;
   let paid = false;
-  for (let k = 0; k < 8; k++) {
+  for (let k = 0; k < 200; k++) {   // successive fires: a settle simulates at most HUNT_SETTLE_SPAN_MS
     c = await S.huntSettle(uid);
     if (c.outcome === 'paid') paid = true;
     const sess = await S.session(uid);
@@ -520,7 +521,7 @@ function makePlayer(S, uid) {
       p.env = await readBack(S, uid, t, `enter ${hunt}`, null);
       return r;
     },
-    /** Leave the hunt: settle first (so it closes at once), then the RPC. */
+    /** Leave the hunt: settle, ask to leave, let the look-ahead pass, settle again (it closes then). */
     async leave(t) {
       await S.huntSettle(uid);
       /* A hunt that ended on its own (stamina, gold, falls) has already walked home: nothing to leave. */
@@ -528,7 +529,8 @@ function makePlayer(S, uid) {
       if (open && open.ended_at) { t.note(`already ended ${open.end_reason}`); p.env = p.seen = await readBack(S, uid, t, 'leave', null); return { ok: true, ended: open.end_reason }; }
       const r = await S.rpc(uid, 'select public.hr_hunt_leave(0, $1::uuid) r', [uuid()]);
       t.ok(r && r.ok === true, `hr_hunt_leave refused: ${brief(r)}`);
-      if (r.pending) await S.huntSettle(uid);
+      /* A leave PENDS past the live look-ahead (2026-10-31-live-horizon.sql, 32 s): let it pass, then settle. */
+      if (r.pending) { await S.elapse(uid, 40); await S.huntSettle(uid); }
       const sess = await S.session(uid);
       t.ok(sess && sess.ended_at, `the hunt did not close on leave (${brief(sess)})`);
       p.env = p.seen = await readBack(S, uid, t, 'leave', null);
@@ -551,7 +553,7 @@ async function loop1(S, M, tag, rows) {
 
   await step(1, 'start kit', async (t) => {
     const cr = await S.create(p.uid, `Loop1${tag}`);
-    t.ok(cr && cr.ok === true, `hr_create_character refused: ${brief(cr)}`);
+    t.ok(cr && cr.ok === true, `hr_create_hero refused: ${brief(cr)}`);
     p.env = p.seen = await readBack(S, p.uid, t, 'first load', null);
     const e = p.env;
     t.ok(num(e.state.gold) === START_KIT.currency.gold, `gold ${e.state.gold}, the kit says ${START_KIT.currency.gold}`);
@@ -735,7 +737,7 @@ async function loop2(S, M, tag, rows) {
 
   await step(1, 'a Level-16 character', async (t) => {
     const cr = await S.create(p.uid, `Loop2${tag}`);
-    t.ok(cr && cr.ok === true, `hr_create_character refused: ${brief(cr)}`);
+    t.ok(cr && cr.ok === true, `hr_create_hero refused: ${brief(cr)}`);
     for (const sk of ['melee', 'defense']) {
       await S.q('update public.player_skills set xp = $3 where user_id=$1 and slot=0 and skill_id=$2', [p.uid, sk, skillXpForLevel(sk, MID_LEVEL)]);
     }
@@ -769,8 +771,10 @@ async function loop2(S, M, tag, rows) {
        the hero's option (spec §3.8). */
     /* …and chooses "Use Store Supplies" (Master Design Reference §4): the store
        is never used without the player's choice. */
-    const pick = await S.rpc(p.uid, `select public.hr_action_set_options(0, 0, '{"supply_source":"store"}'::jsonb, $1::uuid) r`, [uuid()]);
-    t.ok(pick && pick.ok === true && pick.options && pick.options.supply_source === 'store', `the supplies choice was refused: ${brief(pick)}`);
+    /* …and eats at 80% HP: a Combat 40 hero in the sewer drops under the default 50% only a few times
+       an hour (3 meals on one dice stream, 0 on another), so the default left this step to the dice. */
+    const pick = await S.rpc(p.uid, `select public.hr_action_set_options(0, 0, '{"supply_source":"store","food_below_pct":80}'::jsonb, $1::uuid) r`, [uuid()]);
+    t.ok(pick && pick.ok === true && pick.options && pick.options.supply_source === 'store' && pick.options.food_below_pct === 80, `the supplies choice was refused: ${brief(pick)}`);
     food = { item: '*heal_shop' };
   });
 
@@ -826,7 +830,7 @@ async function loop3(S, M, tag, rows) {
 
   await step(1, 'a fresh character', async (t) => {
     const cr = await S.create(p.uid, `Loop3${tag}`);
-    t.ok(cr && cr.ok === true, `hr_create_character refused: ${brief(cr)}`);
+    t.ok(cr && cr.ok === true, `hr_create_hero refused: ${brief(cr)}`);
     p.env = p.seen = await readBack(S, p.uid, t, 'first load', null);
   });
 
@@ -884,7 +888,7 @@ async function loop4(S, M, tag, rows) {
 
   await step(1, 'a night on Mill Cellar with the kit', async (t) => {
     const cr = await S.create(p.uid, `Loop4${tag}`);
-    t.ok(cr && cr.ok === true, `hr_create_character refused: ${brief(cr)}`);
+    t.ok(cr && cr.ok === true, `hr_create_hero refused: ${brief(cr)}`);
     p.env = await readBack(S, p.uid, t, 'first load', null);
     await p.enter(t, 'mill_cellar', { cooked_shrimp: inv(p.env, 'cooked_shrimp') });
     night = await p.hunt(t, NIGHT_MIN);
@@ -899,20 +903,23 @@ async function loop4(S, M, tag, rows) {
     t.note(`ended ${reason}`);
   });
 
-  await step(3, 'back to work: fishing again', async (t) => {
-    const want = `${DEFAULT_RESUME.kind}:${DEFAULT_RESUME.id}`;
+  /* A hero that never chose an activity goes idle after the hunt (live v0.2.11: it used to start fishing,
+     invisibly); only an activity the player chose resumes (DEFAULT_RESUME is null). */
+  await step(3, 'back in town: idle, nothing started behind the player', async (t) => {
     const now = await S.load(p.uid);
-    t.ok(`${now.state.active_kind}:${now.state.active_id}` === want,
-      `after the hunt the pointer is ${now.state.active_kind}:${now.state.active_id}, not ${want}`);
+    t.ok(DEFAULT_RESUME === null && now.state.active_kind === 'idle',
+      `after the hunt the pointer is ${now.state.active_kind}:${now.state.active_id}, not idle`);
     const r = await S.q(`select meta from public.player_ledger where user_id = $1 and kind = 'hunt' and intent = 'resume'
                           order by id desc limit 1`, [p.uid]);
-    t.ok(r[0] && r[0].meta && r[0].meta.resumed === true, `the resume was not journalled: ${brief(r[0])}`);
+    t.ok(r[0] && r[0].meta && r[0].meta.resumed === false, `the resume was not journalled as nothing resumed: ${brief(r[0])}`);
     p.env = now;
   });
 
   await step(4, 'never stranded: fishing pays, food can be bought', async (t) => {
+    /* The player picks fishing itself (nothing resumes behind it). */
+    await p.act(t, 'set_activity gather:shrimp_s', { verb: 'set_activity', activity: { kind: 'gather', id: 'shrimp_s' } });
     const before = await p.settleAfter(t, 'fishing after the hunt', 20);
-    t.ok(inv(p.env, 'shrimp') > inv(before, 'shrimp'), 'the resumed fishing paid nothing');
+    t.ok(inv(p.env, 'shrimp') > inv(before, 'shrimp'), 'fishing after the hunt paid nothing');
     const o = cheapestFood(M);
     if (o) {
       t.ok(num(p.env.state.gold) >= o.gold, `the player has ${p.env.state.gold} gold and the cheapest food costs ${o.gold}`);
@@ -939,7 +946,7 @@ async function loop5(S, M, tag, rows) {
 
   await step(1, 'a Combat-99 character', async (t) => {
     const cr = await S.create(p.uid, `Loop5${tag}`);
-    t.ok(cr && cr.ok === true, `hr_create_character refused: ${brief(cr)}`);
+    t.ok(cr && cr.ok === true, `hr_create_hero refused: ${brief(cr)}`);
     for (const sk of ['melee', 'defense']) {
       await S.q('update public.player_skills set xp = $3 where user_id=$1 and slot=0 and skill_id=$2', [p.uid, sk, skillXpForLevel(sk, 99)]);
     }

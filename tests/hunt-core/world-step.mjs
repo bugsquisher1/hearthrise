@@ -47,6 +47,19 @@ const cases = {
     if (m.hs.endedAtMs % 2000 !== 0 || m.hs.endedAtMs <= T0) return 'the end is not on a swing boundary: ' + m.hs.endedAtMs;
     return fx.world.swing < 50 ? null : 'the world kept stepping all 50 boundaries after its only hero died';
   },
+  /* AN END IS WHERE IT IS, HOWEVER THE WINDOWS FALL (TICK-1, BOTH-PATH): a window cut just after the death
+     (its end stamped after the loop) and one span (its end met at the boundary) leave the instance on the same
+     swing and clock: the world is never stepped once more after its last member ended. */
+  'death-split-parity': (M) => {
+    const mk = () => spanFixture(M, 7, { spanMs: 100000, members: [member(M, 'a', { unitId: 1, hp: 3, maxHp: 3, acc: 50, maxHit: 1, levelXp: 20000 })] });
+    const one = runSpan(M, mk(), []);
+    const death = JSON.parse(one).memberEvents.find((e) => e.type === 'death');
+    if (!death) return 'the fixture hero never died: the case would prove nothing';
+    for (const d of [100, 1500, 1900]) {
+      if (runSpan(M, mk(), [death.atMs + d]) !== one) return 'a window cut ' + d + ' ms after the death left the instance elsewhere than one span did';
+    }
+    return null;
+  },
   /* ONE DEATH ENDS THE PARTY (Tyler 2026-10-19): the survivor ends `party_member_died` at its boundary and pays nothing. */
   'party-death-ends-everyone': (M) => {
     const fx = spanFixture(M, 7, { spanMs: 100000, members: [member(M, 'a', { unitId: 1, seat: 0, hp: 3, maxHp: 3, acc: 50, maxHit: 1, levelXp: 20000 }),
@@ -97,6 +110,8 @@ const mutants = [
     edits: [['src/core/combat-sim.js', '        for (const other of members) if (other !== m && !other.left && !other.hs.died) other.hs.partyDied = true;\n', '']] },
   { name: 'the swing seed is indexed per window', case: 'split-parity',
     edits: [['src/core/combat-sim.js', "rng: createRng(seedOf(ctx, 's', sw))", "rng: createRng(seedOf(ctx, 's', swings))"]] },
+  { name: 'the world steps once more after its last member ended', case: 'death-split-parity',
+    edits: [['src/core/combat-sim.js', '    if (!members.some((m) => !m.left) && atMs > startMs) break;\n', '']] },
   { name: 'a sub-step that is not a whole number', case: 'substeps-divide-swing',
     edits: [['src/core/hunt/world-step.js', ' || swingMs % s !== 0) {', ') {']] },
 ];

@@ -76,7 +76,8 @@ if (process.argv.includes('--selftest')) {
     let i = 0;
     for (const m of MUTANTS) {
       const base = join(tmp, String(i++));
-      for (const d of ['src/data', 'src/shell', 'src/utils', 'src/session', 'src/render', 'src/hunt-view', 'src/core', 'src/social', 'src/world']) { mkdirSync(join(base, d), { recursive: true }); cpSync(join(ROOT, d), join(base, d), { recursive: true }); }
+      for (const d of ['src/data', 'src/shell', 'src/utils', 'src/session', 'src/render', 'src/hunt-view', 'src/core', 'src/social', 'src/world', 'src/net', 'src/platform']) { mkdirSync(join(base, d), { recursive: true }); cpSync(join(ROOT, d), join(base, d), { recursive: true }); }
+      cpSync(join(ROOT, 'src/build-info.js'), join(base, 'src/build-info.js'));   // src/net/observability.js reads the version
       const p = join(base, m.file), src = readFileSync(p, 'utf8');
       if (!src.includes(m.from)) { console.error('selftest anchor missing for: ' + m.name); process.exit(2); }
       writeFileSync(p, src.replace(m.from, m.to));

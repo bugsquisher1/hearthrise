@@ -12,10 +12,8 @@
 // balance. The server's `premium` section adds the rest — next-level ETA, raw
 // XP, waste, damage taken and dealt (the two tabs) and the party breakdown. A
 // free character's premium nodes are hidden AND never written, and one quiet
-// line says "More detail with premium." No upsell beyond that line. (Until the
-// server's projection sends free characters their basic block, a free
-// character's analyzer waits: 2026-10-23-hunt-analyzer-v2.sql projects it only
-// for premium.)
+// line says "More detail with premium." No upsell beyond that line. The server
+// sends a free character only the basic block (2026-10-26-hunt-analyzer-basic.sql).
 //
 //   This hero / Party   which of the server's two views is shown (AW-04)
 //   Session / Taken / Dealt   the three tabs (AW-05)
@@ -25,11 +23,11 @@
 // the moment that envelope arrived (display only; the next envelope replaces
 // it). The view, tab and folds are display scratch on the panel.
 // ════════════════════════════════════════════════════════════════════════
-import { analyzerOf, isPremium } from '../../session/hunt-sections.js?v=0.2.9';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.9';
-import { whole, gold, clock } from '../../render/format.js?v=0.2.9';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.9';
-import { panelHtml, itemIconHtml, itemName, monsterName, abilityName, elementName } from './bits.js?v=0.2.9';
+import { analyzerOf, isPremium } from '../../session/hunt-sections.js?v=0.2.22';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.22';
+import { whole, gold, clock } from '../../render/format.js?v=0.2.22';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.22';
+import { panelHtml, itemIconHtml, itemName, monsterName, abilityName, elementName } from './bits.js?v=0.2.22';
 
 const TABS = Object.freeze([['session', 'Session'], ['taken', 'Taken'], ['dealt', 'Dealt']]);
 /* What only a premium character sees: these stats (section.stat), and every section off the Session tab. */
@@ -76,8 +74,11 @@ function lineHtml() {
 }
 
 function patchList(ul, items, key, fill, ctx) {
+  /* keep: a line that leaves (a loot line between envelopes, the hero/party toggle) comes back as
+     the same node, its icon never fetched again; its keys are items, monsters and abilities. */
   rows(ul, items, {
     key,
+    keep: true,
     build: (it) => {
       const li = element(ctx.doc, lineHtml());
       if (it.item) li.querySelector('.ha-ico').innerHTML = itemIconHtml(ctx.glyphs, it.item);

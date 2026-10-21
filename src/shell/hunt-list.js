@@ -6,22 +6,23 @@
 // new ground is a data row and shows up here with nothing else to edit.
 //   huntRows()          [{ hunt, name, theme, band, heroes, packs, packMin,
 //                          packMax, respawnS, boss }] in band order
-//   densityWords(row)   "2 packs of 2 · back in 30 s"
+//   densityWords(row, n)  "6 packs of 7 · back in 60 s": the pull size the
+//                        server spawns at density `n` (the pick clamped to the
+//                        ground); the room as built only at 0
 //   bandWords(row, lv)  "Level 1 to 8" (+ ", you are 3" when known)
 //   partyNote(hunt)     the ground's party rule in words, from ITS row (the
 //                        pocket carrying minParty and the boss standing in it),
 //                        or '' for a ground with no party-only pocket
-//   packFor(bag, rules) what the hunt carries: the bag's own hunt supplies,
-//                        each up to its remembered restock target (all of it
-//                        when it has none), at most the server's line cap
+//   packFor(bag)        what the hunt carries: the bag's own hunt supplies,
+//                        every stack, at most the server's line cap
 // Nothing here is a gate: the server checks the band, the stamina and the
 // stock when the player presses Enter, and says why it refuses.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS, PARTY_SCALE } from '../data/hunt-grounds.js?v=0.2.9';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.9';
-import { MONSTERS } from '../data/monsters.js?v=0.2.9';
-import { SUPPLIES } from '../data/supplies.js?v=0.2.9';
-import { SESSION_LIMITS } from '../data/hunt-sessions.js?v=0.2.9';
+import { HUNT_GROUNDS, PARTY_SCALE } from '../data/hunt-grounds.js?v=0.2.22';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.22';
+import { MONSTERS } from '../data/monsters.js?v=0.2.22';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.22';
+import { SESSION_LIMITS } from '../data/hunt-sessions.js?v=0.2.22';
 
 const PACK_QTY_MAX = 100000;
 const COUNT_WORDS = Object.freeze(['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight']);
@@ -55,10 +56,17 @@ export function huntRows() {
   return out.sort((a, b) => a.band[0] - b.band[0] || (a.name < b.name ? -1 : 1));
 }
 
-/** How crowded a ground is, in words: its packs, their size, the boss, the respawn. */
-export function densityWords(r) {
-  const size = r.packMin === r.packMax ? String(r.packMin) : r.packMin + ' to ' + r.packMax;
-  return r.packs + (r.packs === 1 ? ' pack of ' : ' packs of ') + size + (r.boss ? ', a boss' : '') + ' · back in ' + r.respawnS + ' s';
+/**
+ * How crowded a ground is, in words: its packs, their size, the boss, the respawn. `n` is the
+ * density the server spawns this ground at (hunt-grounds.js densityFor of the pick: every pack
+ * holds n; in a party the leader's pick), 0 or unknown = the room as built.
+ */
+export function densityWords(r, n) {
+  const built = r.packMin === r.packMax ? String(r.packMin) : r.packMin + ' to ' + r.packMax;
+  const picked = Number.isInteger(n) && n > 0;
+  const packs = r.packs + (r.packs === 1 ? ' pack' : ' packs');
+  const size = picked ? ' of ' + n : ' of ' + built;
+  return packs + size + (r.boss ? ', a boss' : '') + ' · back in ' + r.respawnS + ' s';
 }
 
 /** The ground's level band in words, and where the character stands when its level is known. */
@@ -103,18 +111,15 @@ export function heroWords(r) {
 }
 
 /**
- * What a hunt carries from the bag: every hunt supply the bag holds, up to its
- * restock target when the player has set one (the remembered decision), else
- * the whole stack. Largest stacks first when there are more kinds than the
- * server takes lines.
+ * What a hunt carries from the bag: every hunt supply the bag holds, the whole
+ * stack (own stock is used first, then the store per use). Largest stacks first
+ * when there are more kinds than the server takes lines.
  * @param {{id: string, qty: number}[]|null} bag
- * @param {{restock: object}|null} rules
  * @returns {{item: string, qty: number}[]}
  */
-export function packFor(bag, rules) {
-  const restock = (rules && rules.restock) || {};
+export function packFor(bag) {
   return (bag || []).filter((r) => SUPPLIES[r.id])
-    .map((r) => ({ item: r.id, qty: Math.min(PACK_QTY_MAX, restock[r.id] > 0 ? Math.min(r.qty, restock[r.id]) : r.qty) }))
+    .map((r) => ({ item: r.id, qty: Math.min(PACK_QTY_MAX, r.qty) }))
     .filter((l) => l.qty > 0)
     .sort((a, b) => b.qty - a.qty || (a.item < b.item ? -1 : 1))
     .slice(0, SESSION_LIMITS.bagLines);

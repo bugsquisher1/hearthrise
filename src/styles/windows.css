@@ -35,7 +35,6 @@
 .hw-line-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .hw-line-name b { font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hw-line-name small { font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
-.hw-line.is-short .hw-line-name small { color: var(--red); }
 .hw-primary {
   display: none; min-height: 36px; padding: 0 16px;
   border: 0; border-radius: var(--r);
@@ -287,12 +286,9 @@
 
 /* ── The shop and hunt prep ── */
 .hw-qty { width: 64px; }
-.hw-target { display: flex; align-items: center; gap: 4px; font-size: var(--t-micro); color: var(--ink-3); }
 .hw-add { display: flex; gap: 6px; align-items: center; margin-top: 8px; }
 .hw-add .hh-select { flex: 1; min-width: 0; }
 .hw-add .hw-preset-name { flex: 1; width: auto; }
-.hw-refill { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line-soft); }
-.hw-refill-what { margin: 0; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-ready { margin: 0 0 6px; padding: 0; list-style: none; }
 .hw-ready-row { padding: 6px 0 8px; border-top: 1px solid var(--line-soft); }
 .hw-ready-line { margin: 0; color: var(--red); }
@@ -300,8 +296,6 @@
 .hw-checks { margin: 4px 0 0; padding: 0 0 0 14px; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-check.is-short { color: var(--red); }
 .hw-use { color: var(--gold-2); }
-.hw-ready-fix { display: none; margin-top: 6px; }
-.hw-ready-fix.is-on { display: inline-block; }
 
 /* ── Phone, landscape: the one sheet; the same density, tighter rhythm ── */
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
@@ -320,26 +314,10 @@
   .hw-tip { width: 240px; }
 }
 
-/* ── The party (src/shell/windows/party.js): seats as a ledger, the leader's crown, the finder ── */
-.hw-party .hw-party-in { display: none; }
-.hw-party.is-in .hw-party-in { display: block; }
-.hw-party.is-in .hw-party-out { display: none; }
-.hw-party-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0 2px 4px; }
-.hw-party-title { font-family: var(--f-label); font-weight: 700; color: var(--ink); }
-.hw-party-sub { font-size: var(--t-micro); color: var(--ink-3); }
-.hw-seats { margin: 0; padding: 0; list-style: none; }
+/* ── The Party window (src/shell/windows/party.js): invites and the finder; role glyphs ── */
 .hw-roleglyph { width: 32px; height: 32px; display: grid; place-items: center; flex: none; color: var(--ink-2); background: var(--bg-1); box-shadow: var(--hw-well); }
 .hw-roleglyph .hs-glyph { width: 20px; height: 20px; }
-.hw-seat.is-self .hw-roleglyph { color: var(--gold-2); }
-.hw-crown { display: none; color: var(--gold); }
-.hw-crown.is-on { display: inline-flex; }
-.hw-crown .hs-glyph { width: 16px; height: 16px; }
-.hw-seat-state { font-size: var(--t-micro); color: var(--ink-3); min-width: 4.5em; text-align: right; }
-.hw-kick { display: none; }
-.hw-kick.is-on { display: inline-block; }
-.hw-party .hw-tools .hw-primary:not(.is-on) { display: none; }
 .hw-find-party .hh-select { flex: 1 1 0; }
-.hw-add .hw-invite-name { flex: 1; width: auto; min-width: 0; }
 .hw-found-roles { display: flex; gap: 2px; }
 .hw-found-roles .hw-roleglyph { width: 24px; height: 24px; }
 .hw-found-roles .hw-roleglyph .hs-glyph { width: 14px; height: 14px; }

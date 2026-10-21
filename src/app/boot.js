@@ -4,6 +4,8 @@
 //   boot → auth (src/net/auth.js over the one supabase-js client)
 //        → AccountSession (src/session/account-session.js): one per login
 //        → the characters screen: the account's slots, read from the server
+//        → an empty (or unnamed) slot opens the creation step (src/app/hero-create.js):
+//          name + four colours, ONE intent; the hero enters town on the server's yes
 //        → the game: the character strip (src/app/character-strip.js; up to the
 //          server's concurrent limit, each its own CharacterSession), built
 //          once, and the World pane with the shell over it for the VIEWED
@@ -17,21 +19,27 @@
 //
 // THE CLOSED GAME: the server refuses a non-allowlisted account (403
 // hr_closed); the first such answer replaces everything with the closed notice.
+//
+// A DEAD SESSION (a refresh the server refuses, or a sign-out in another tab)
+// closes every character and lands on sign-in with one plain line; nothing is
+// retried in the background.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPABASE_CONFIG, createSupabaseClient } from '../net/supabase-bootstrap.js?v=0.2.9';
-import { createAuth } from '../net/auth.js?v=0.2.9';
-import { SESSION_CONFIG } from '../session/config.js?v=0.2.9';
-import { createServerLink } from '../session/server.js?v=0.2.9';
-import { AccountSession } from '../session/account-session.js?v=0.2.9';
-import { FRAME_EVENT } from '../session/character-session.js?v=0.2.9';
-import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.9';
-import { mountWorldPane } from './world-pane.js?v=0.2.9';
-import { mountCharacterStrip } from './character-strip.js?v=0.2.9';
-import { createAlertCenter } from '../shell/alerts.js?v=0.2.9';
-import { createSocialRealtime } from '../social/realtime.js?v=0.2.9';
-import { SocialSession } from '../social/social-session.js?v=0.2.9';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.9';
+import { SUPABASE_CONFIG, createSupabaseClient } from '../net/supabase-bootstrap.js?v=0.2.22';
+import { createAuth, AUTH_COPY } from '../net/auth.js?v=0.2.22';
+import { SESSION_CONFIG } from '../session/config.js?v=0.2.22';
+import { createServerLink } from '../session/server.js?v=0.2.22';
+import { AccountSession } from '../session/account-session.js?v=0.2.22';
+import { FRAME_EVENT } from '../session/character-session.js?v=0.2.22';
+import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.22';
+import { mountWorldPane } from './world-pane.js?v=0.2.22';
+import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.22';
+import { renderHeroCreate } from './hero-create.js?v=0.2.22';
+import { createAlertCenter } from '../shell/alerts.js?v=0.2.22';
+import { createSocialRealtime } from '../social/realtime.js?v=0.2.22';
+import { SocialSession } from '../social/social-session.js?v=0.2.22';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.22';
+import { startObservability, track } from '../net/observability.js?v=0.2.22';
 
 const DISCORD = 'https://discord.gg/eJrUSUJM3M';
 
@@ -41,29 +49,36 @@ function channelFor(client, auth) {
     try { client.realtime.setAuth(auth.token()); } catch (e) { /* the join reports it */ }
     const ch = client.channel(topic, { config: { private: true } });
     ch.on('broadcast', { event: FRAME_EVENT }, (m) => onMessage(m && m.payload));
-    ch.subscribe((status) => onStatus(status));
-    return () => { client.removeChannel(ch); };
+    /* Left once; a status after the leave (removeChannel's own CLOSED) is not reported back. */
+    let left = false;
+    ch.subscribe((status) => { if (!left) onStatus(status); });
+    return () => { if (left) return; left = true; client.removeChannel(ch); };
   };
 }
 
 function startApp(win) {
+  /* Errors and replays (src/net/observability.js): telemetry only, nothing sent off hearthrise.net. */
+  const obs = startObservability(win);
   const doc = win.document;
   const root = doc.getElementById('app');
   const HS = win.HearthriseStorage;
   const store = SESSION_CONFIG.authStore === 'tab' ? HS.session : HS;
   const client = createSupabaseClient(win.supabase, store, SESSION_CONFIG.authKey);
-  const auth = createAuth({ client, device: HS, tab: HS.session, redirectTo: win.location.origin + win.location.pathname });
+  const auth = createAuth({ client, device: HS, tab: HS.session, redirectTo: win.location.origin + win.location.pathname, doc });
   let account = null;
   let alerts = null;
   let pane = null;
   let strip = null;
   let paneSeq = 0;
   let openAfter = null;
+  let creating = null;
+  let rosterSlots = [];   // the account's existing characters, as the roster last read them
 
   const recovering = /type=recovery/.test(win.location.hash);
 
   function clear() {
     paneSeq++;
+    if (creating) { creating.destroy(); creating = null; }
     if (pane) { pane.destroy(); pane = null; }
     if (strip) { strip.destroy(); strip = null; }
     root.innerHTML = '';
@@ -71,6 +86,7 @@ function startApp(win) {
 
   function showAuth(mode) {
     clear();
+    obs.screen('auth');
     root.className = 'app is-auth';
     const box = doc.createElement('main');
     box.className = 'auth';
@@ -80,6 +96,7 @@ function startApp(win) {
 
   function showClosed() {
     clear();
+    obs.screen('closed');
     root.className = 'app is-auth';
     root.innerHTML = '<main class="auth">' + AUTH_BRAND + '<div class="auth-card">'
       + '<h1 class="auth-title">Hearthrise is a new game in development. Follow Discord for the first playtest.</h1>'
@@ -88,16 +105,31 @@ function startApp(win) {
       + '<button type="button" class="auth-link" data-app="sign-out">Sign out</button></p></div></main>';
   }
 
+  /* The session ended under the game: close everything, then say so on the sign-in screen. */
+  async function sessionEnded() {
+    if (!account) return;
+    if (alerts) { alerts.destroy(); alerts = null; }
+    const a = account;
+    account = null;
+    obs.forget();
+    await a.signOut();
+    showAuth('sign-in');
+    const m = root.querySelector('.auth-message');
+    if (m) m.textContent = AUTH_COPY.signedOut;
+  }
+
   async function signOut() {
     if (alerts) { alerts.destroy(); alerts = null; }
     if (account) { const a = account; account = null; await a.signOut(); } else await auth.signOut();
+    obs.forget();
     showAuth('sign-in');
   }
 
   async function startAccount() {
     if (!auth.userId()) { showAuth('sign-in'); return; }
     if (account) return;
-    const server = createServerLink({ url: SUPABASE_CONFIG.url, anonKey: SUPABASE_CONFIG.anonKey, token: auth.token });
+    obs.identify(auth.userId());
+    const server = createServerLink({ url: SUPABASE_CONFIG.url, anonKey: SUPABASE_CONFIG.anonKey, token: auth.freshToken, renew: auth.renewToken });
     account = new AccountSession({ auth, server, tab: HS.session, channel: channelFor(client, auth),
       social: (acc) => new SocialSession({ account: acc, realtime: createSocialRealtime(client, auth.token) }) });
     account.subscribe((why) => {
@@ -111,27 +143,44 @@ function startApp(win) {
 
   async function showCharacters() {
     clear();
+    obs.screen('characters');
     root.className = 'app is-auth';
     root.innerHTML = '<main class="auth">' + AUTH_BRAND + '<div class="auth-card"><h1 class="auth-title">Your characters</h1>'
       + '<p class="auth-lead" role="status">Reading your characters…</p></div></main>';
     const a = account;
     const roster = await a.roster();
     if (a !== account || a.closedGame) return;
+    rosterSlots = roster.filter((r) => r.exists).map((r) => r.slot);
     const open = new Set(a.characters().map((c) => c.slot));
     /* Each owned slot: its hero by name and Level (the server's), or an empty slot to create in.
        Every account owns two (Tyler 10-17); slots it has not bought are not shown until buying them is built. */
     const rows = roster.map((r) => '<li class="char-row"><span class="char-name">'
-      + (r.exists ? esc(r.name || 'Unnamed hero') + (r.level ? ' <small class="char-level">Level ' + r.level + '</small>' : '') : 'Empty slot')
+      + (r.exists ? esc(r.name || 'Unnamed hero') + (r.level ? ' <small class="char-level">Level ' + r.level + '</small>' : '') : r.unnamed ? 'Unnamed hero' : 'Empty slot')
       + '</span>'
       + (r.exists
         ? '<button type="button" class="auth-submit" data-app="play" data-slot="' + r.slot + '">' + (open.has(r.slot) ? 'Show' : 'Play') + '</button>'
-        : '<button type="button" class="auth-submit" data-app="create" data-slot="' + r.slot + '">Create character</button>')
+        : '<button type="button" class="auth-submit" data-app="create" data-slot="' + r.slot + '">' + (r.unnamed ? 'Name hero' : 'Create hero') + '</button>')
       + '</li>').join('');
     root.querySelector('.auth-card').innerHTML = '<h1 class="auth-title">Your characters</h1>'
       + '<p class="auth-lead">Signed in as ' + esc(auth.email() || 'you') + '. ' + (a.limit() > 1 ? 'Up to ' + a.limit() + ' can play at once.' : 'One can play at a time.') + '</p>'
       + '<ul class="char-list">' + (rows || '<li class="char-row">The server did not answer. Reload to try again.</li>') + '</ul>'
       + '<p class="auth-message" role="status" aria-live="polite"></p>'
       + '<p class="auth-links"><button type="button" class="auth-link" data-app="sign-out">Sign out</button></p>';
+  }
+
+  /* The creation step over the characters card: the hero enters town only on the server's yes. */
+  function showCreate(slot) {
+    clear();
+    root.className = 'app is-auth';
+    root.innerHTML = '<main class="auth">' + AUTH_BRAND + '<div class="auth-card is-create"></div></main>';
+    const tokens = win.getComputedStyle(doc.documentElement);
+    creating = renderHeroCreate(root.querySelector('.auth-card'), {
+      slot,
+      colorOf: (t) => tokens.getPropertyValue('--' + t),
+      create: (name, colors) => account.create(slot, name, colors),
+      done: () => { track('character_created'); play(slot); },
+      back: () => showCharacters(),
+    });
   }
 
   async function play(slot) {
@@ -144,12 +193,15 @@ function startApp(win) {
     }
     account.view(slot);
     await showGame();
+    /* the account's other characters play too (in town for everyone), unviewed */
+    if (account) await account.openOthers(rosterSlots);
   }
 
   /* The game screen: the strip once, then the viewed character's pane. */
   async function showGame() {
     if (!strip) {
       clear();
+      obs.screen('game');
       root.className = 'app is-game';
       const nav = doc.createElement('nav');
       const main = doc.createElement('main');
@@ -176,6 +228,9 @@ function startApp(win) {
       peers: () => (acc ? acc.characters() : [cs]) });
     if (seq !== paneSeq) { p.destroy(); return; }
     pane = Object.assign(p, { slot: cs.slot });
+    /* The strip's tabs open the viewed shell's one player menu (Invite to party / Leave party for own characters). */
+    const nav = root.querySelector('nav.char-strip');
+    if (nav && p.shell && p.shell.menu) p.shell.menu.attach(nav, stripTargetOf);
     if (strip) strip.patch();
     if (want) pane.shell.open(want);
   }
@@ -198,19 +253,12 @@ function startApp(win) {
     else if (what === 'play') play(slot);
     else if (what === 'show') goTo(slot, null);
     else if (what === 'all') { if (pane) pane.shell.toggle('characters'); }
-    else if (what === 'create') {
-      account.create(slot).then(async (r) => {
-        if (r.ok) { play(slot); return; }
-        await showCharacters();
-        const m = root.querySelector('.auth-message');
-        if (m) m.textContent = r.reason === 'slot_not_owned' ? 'That slot is not yours yet.' : 'The character could not be made. Try again in a minute.';
-      });
-    }
+    else if (what === 'create') showCreate(slot);
   });
 
   auth.onChange((ev) => {
     if (ev === 'recovery') showAuth('set-password');
-    else if (ev === 'signed-out' && account) { account = null; showAuth('sign-in'); }
+    else if (ev === 'signed-out' || ev === 'expired') sessionEnded();
   });
 
   auth.refresh().then(() => {

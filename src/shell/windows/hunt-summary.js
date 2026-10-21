@@ -8,7 +8,6 @@
 //   reason in plain words, and the death explanation (death-explain.js);
 //   Hunt again   ONE hr_hunt_enter with the same ground, action set, limits and
 //                bag. The party is the server's, the checks are the server's.
-//   Restock      opens Hunt prep (its one-tap refill)
 //   Open bag     opens the Bag
 // The last HISTORY_MAX hunts are kept per character in the display-only
 // residue (`huntSummaries`) and listed under the card.
@@ -18,14 +17,14 @@
 // when the session ends. Numbers come from the server's sections only.
 // Built once, patched in place (src/render/paint.js).
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.9';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.9';
-import { whole, gold, clock } from '../../render/format.js?v=0.2.9';
-import { itemName } from '../widgets/bits.js?v=0.2.9';
-import { runIntent } from '../intent-words.js?v=0.2.9';
-import { endedSessionOf, sanitizeSummaries, huntAgainOf, endWords } from '../../hunt-view/summary-model.js?v=0.2.9';
-import { observeSessions } from '../../session/character-session.js?v=0.2.9';
-import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.9';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.22';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.22';
+import { whole, gold, clock } from '../../render/format.js?v=0.2.22';
+import { itemName } from '../widgets/bits.js?v=0.2.22';
+import { runIntent } from '../intent-words.js?v=0.2.22';
+import { endedSessionOf, sanitizeSummaries, huntAgainOf, endWords } from '../../hunt-view/summary-model.js?v=0.2.22';
+import { observeSessions } from '../../session/character-session.js?v=0.2.22';
+import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.22';
 
 /* Every character the account opens is recorded from its first envelope, so no hunt event is played unseen. */
 observeSessions(attach);
@@ -45,7 +44,6 @@ export function renderHuntSummary() {
     + '<dl class="hsum-stats">' + STATS.map(([k, label]) => '<div class="hsum-stat"><dt>' + label + '</dt><dd data-stat="' + k + '"></dd></div>').join('') + '</dl>'
     + '<div class="hsum-actions">'
     + '<button type="button" class="hh-tool is-primary" data-hs-act="again">Hunt again</button>'
-    + '<button type="button" class="hh-tool" data-hs-act="restock">Restock</button>'
     + '<button type="button" class="hh-tool" data-hs-act="bag">Open bag</button></div>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p>'
     + '<h4 class="hw-ledger-head hsum-h-loot">Top loot</h4><ul class="hsum-list hsum-loot"></ul>'
@@ -122,7 +120,6 @@ renderHuntSummary.act = function actHuntSummary(ctx, body, action, ev, t) {
   const sc = scratchOf(cs);
   const repaint = () => renderHuntSummary.patch(body, ctx);
   if (action === 'pick') { sc.pick = t.getAttribute('data-id'); sc.msg = ''; repaint(); return true; }
-  if (action === 'restock') { ctx.show('hunt-prep'); return true; }
   if (action === 'bag') { ctx.show('bag'); return true; }
   if (action === 'again') {
     const list = summariesOf(cs);

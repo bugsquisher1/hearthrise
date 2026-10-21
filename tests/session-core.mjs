@@ -5,8 +5,8 @@
 //   node tests/session-core.mjs           the rules (pure node, no network)
 //   node tests/session-core.mjs --mutate  every planted defect must turn a rule RED
 //
-// mutant-anchors: src/session/ src/net/auth.js
-// mutant-writes-tree: no — mutants are planted into a temp copy of src/session + src/net/auth.js + src/hunt-view/timeline.js + src/data/town-presence.js
+// mutant-anchors: src/session/ src/net/auth.js src/net/supabase-bootstrap.js
+// mutant-writes-tree: no — mutants are planted into a temp copy of src/session + src/net/auth.js + src/net/supabase-bootstrap.js + src/hunt-view + src/data + src/core
 //
 //   ENV-1  a full envelope REPLACES the record: a key the new one lacks is gone
 //   ENV-2  an older envelope is refused; the same version restates
@@ -19,21 +19,38 @@
 //   ISO-2  a frame for one character changes only that one
 //   CHAN-1 every join of a character's topic re-reads the character once (hello); a dropped
 //          channel is left and re-joined after a backoff
+//   CHAN-3 a leave from inside the channel's own status callback (removeChannel echoes CLOSED)
+//          leaves once and schedules one reconnect, never recursing (live v0.2.6)
 //   CHAN-2 a frame that skips versions asks for one hello (the gap is closed, not guessed)
 //   HELLO-1 an idle settle answer ({accrued:false}) is never applied as the character: the full read follows
 //   HUNT-1 while the server holds a hunt open the character asks the hunter's settle every huntPollMs
 //          (attended): the track reaches the timeline; the envelope that says it ended stops the asking
 //   HUNT-2 a pending leave is settled at once (away-owed time) and its envelope replaces the open hunt
+//   LEAVE-1 a pending leave's close is re-read a hair after the SERVER's leave_at (server clock), moving
+//          an armed poll earlier; the closing envelope ends the hunt and the re-reads stop
+//   LEAVE-2 a refused settle after a pending leave is followed by the plain read (leave_at is shown)
+//   LEAVE-3 the countdown starts from the leave's own answer (the settle after it still out): whole
+//          seconds >= 1 to leave_at, then "now" (never 0 or negative), then "late" a leaveLateMs past
+//          it, and the close is still asked while it is late; the next hunt shows none
 //   ACC-1  at most the server's concurrent limit open (within the tab's ceiling); close frees a place
 //   ACC-4  the limit is the SERVER's (account.max_concurrent): a smaller one holds, an unstated one
 //          allows one character, a larger one is capped by the tab's ceiling
 //   VIEW-2 switching the viewed character touches no CharacterSession: records, statuses, topics,
 //          listeners and the server calls of every character are exactly as before
-//   ACC-2  the roster is the server's owned slots (hero_slots), bounded
+//   ACC-2  the roster is the server's owned slots (hero_slots), bounded; a slot whose
+//          character has no name (hr_load needs_name) reads as unnamed, not as a hero;
+//          create is ONE hr_create_hero with the name, the four colours and an idem key
 //   ACC-3  the closed-game answer (403 hr_closed) is noticed, never retried as play
+//   NET-1  the engine is asked in the database's region (forceFunctionRegion from SUPABASE_CONFIG)
 //   OUT-1  sign-out clears every copy of the session (device + tab, sb-*, retired keys, tab id) and closes every character
 //   TAB-1  the tab id is stable within a tab and new for a new tab
 //   COPY-1 sign-up/reset copy never reveals whether an email has an account; no "open beta"/"invite code"
+//   TOK-1  a token about to expire is refreshed BEFORE the call; the call carries the new one
+//          (live 2026-10-20: a background tab sent a token dead for 14 h, 805 times)
+//   TOK-2  a 401 renews the token once and retries that call once, never more
+//   TOK-3  a refresh the server refuses ends the session: 'expired' once, and no further call is sent
+//   TOK-4  two characters in one tab share ONE refresh
+//   TOK-5  waking a hidden tab checks the token before the next call
 //   VIEW-1 the world view reads only the character's record and its own scratch
 // ════════════════════════════════════════════════════════════════════════
 import { mkdtempSync, cpSync, readFileSync, writeFileSync, rmSync, mkdirSync } from 'node:fs';
@@ -52,6 +69,7 @@ async function load(base) {
     A: await import(u('src/session/account-session.js')),
     S: await import(u('src/session/server.js')),
     AU: await import(u('src/net/auth.js')),
+    NB: await import(u('src/net/supabase-bootstrap.js')),
     CFG: await import(u('src/session/config.js')),
   };
 }
@@ -76,7 +94,7 @@ function fakeServer(bySlot, o = {}) {
       if (o.closed) return { ok: false, status: 403, body: { code: 'hr_closed' }, closed: true };
       if (name === 'hr_load') return answer(bySlot[args.p_slot] || { ok: false, error: 'no_character' });
       if (name === 'hr_put_client_state') return answer({ ok: true });
-      if (name === 'hr_create_character') return answer({ ok: true, slot: args.p_slot, created: true });
+      if (name === 'hr_create_hero') return answer(args.p_name === 'Taken' ? { ok: false, error: 'name_taken' } : { ok: true, slot: args.p_slot, name: args.p_name, created: true });
       return answer({ ok: false, error: 'unknown' });
     },
     accrue: async (body) => { calls.push(['accrue', body]); return answer(Object.assign({ accrued: true }, bySlot[body.slot])); },
@@ -97,7 +115,7 @@ const timers = { setTimer: () => 0, clearTimer: () => {} };
 async function rules(M) {
   const fails = [];
   const t = async (id, fn) => { try { const r = await fn(); if (r !== true) fails.push(id + ': ' + r); } catch (e) { fails.push(id + ': threw ' + e.message); } };
-  const { E, R, C, A, S, AU, CFG } = M;
+  const { E, R, C, A, S, AU, NB, CFG } = M;
 
   await t('ENV-1', () => {
     const a = E.applyEnvelope(null, env(3, { skills: { mining: 5 }, buffs: [1] })).record;
@@ -201,6 +219,22 @@ async function rules(M) {
     pending[0]();
     return hub.topics.has(topic) || 'the reconnect did not re-join the topic';
   });
+  /* CHAN-3 (live v0.2.6, RangeError in _onChannel): supabase's removeChannel reports CLOSED to the
+     channel's own status callback, synchronously; leaving from inside that callback must not recurse. */
+  await t('CHAN-3', async () => {
+    const srv = fakeServer({ 0: env(1) });
+    let status = null, leaves = 0;
+    const echoing = (topic, onMessage, onStatus) => { status = onStatus; return () => { leaves++; if (leaves > 50) throw new RangeError('Maximum call stack size exceeded'); onStatus('CLOSED'); }; };
+    const pending = [];
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, channel: echoing,
+      setTimer: (fn) => { pending.push(fn); return pending.length; }, clearTimer: () => {} });
+    await cs.load(); cs.connect();
+    try { status('CHANNEL_ERROR'); } catch (e) { return 'a channel error recursed: ' + e.message; }
+    if (leaves !== 1) return 'the channel was left ' + leaves + ' times for one error';
+    if (pending.length !== 1) return 'one drop scheduled ' + pending.length + ' reconnects';
+    cs.close();
+    return leaves === 1 || 'close left an already-left channel again';
+  });
   await t('CHAN-2', async () => {
     const srv = fakeServer({ 0: env(1) });
     const hub = fakeHub();
@@ -238,17 +272,42 @@ async function rules(M) {
     const armed = [];
     const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, setTimer: (fn, ms) => { armed.push({ fn, ms }); return armed.length; }, clearTimer: () => {} });
     await cs.load();
-    if (armed.length !== 1 || armed[0].ms !== CFG.SESSION_CONFIG.huntPollMs) return 'an open hunt did not arm one re-read at huntPollMs: ' + JSON.stringify(armed.map((a) => a.ms));
+    /* The live view (option B) asks at once for its start point (liveAskMs); each answer without one
+       doubles the wait, up to the ordinary huntPollMs settle (live-link.js askDelayMs). */
+    if (armed.length !== 1 || armed[0].ms !== CFG.SESSION_CONFIG.liveAskMs) return 'an open hunt did not ask at once for its live start point: ' + JSON.stringify(armed.map((a) => a.ms));
     armed.shift().fn();
     await new Promise((r) => setImmediate(r));
     if (calls.join(',') !== 'hr_load,accrue:0') return 'the re-read did not ask the hunter\'s settle for the slot: ' + calls.join(',');
     if (!cs.timeline.units().includes(1)) return 'the settle\'s track never reached the timeline';
     if (armed.length !== 1) return 'the re-read did not re-arm while the hunt is open (' + armed.length + ')';
+    const waits = [];
+    for (let i = 0; i < 12 && armed.length === 1 && armed[0].ms < CFG.SESSION_CONFIG.huntPollMs; i++) { waits.push(armed[0].ms); armed.shift().fn(); await new Promise((r) => setImmediate(r)); }
+    if (waits.some((w, i) => i > 0 && w !== Math.min(CFG.SESSION_CONFIG.huntPollMs, waits[i - 1] * 2))) return 'the asks for a live start point did not double: ' + waits.join(',');
+    /* it never gives up while the hunt is open: it backs off all the way to the ordinary poll (v0.2.20 stopped after two) */
+    if (!(waits[waits.length - 1] * 2 >= CFG.SESSION_CONFIG.huntPollMs)) return 'the asks for a live start point gave up before backing off to huntPollMs: ' + waits.join(',');
+    if (armed.length !== 1 || armed[0].ms !== CFG.SESSION_CONFIG.huntPollMs) return 'without a live start point the ordinary re-read did not resume at huntPollMs: ' + JSON.stringify(armed.map((a) => a.ms));
     next = env(3, { hunt: { session_id: 'h1', hunt_id: 'mill_cellar', ended: true } });
     armed.shift().fn();
     await new Promise((r) => setImmediate(r));
     if (!cs.record.data.hunt.ended) return 'the ended hunt did not replace the open one';
     return armed.length === 0 || 'an ended hunt kept re-reading';
+  });
+  /* HUNT-1F (live v0.2.20, the http origin's blocked calls): an ask for the live start point that brings
+     NO answer backs off like one that brings no start point; it never re-arms every liveAskMs forever. */
+  await t('HUNT-1F', async () => {
+    const open = (v) => env(v, { hunt: { session_id: 'h1', hunt_id: 'mill_cellar', ended: false } });
+    const srv = {
+      rpc: async () => ({ ok: true, status: 200, body: open(1), closed: false }),
+      accrue: async () => ({ ok: false, status: 0, body: null, closed: false, error: 'network' }),
+    };
+    const armed = [];
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, setTimer: (fn, ms) => { armed.push({ fn, ms }); return armed.length; }, clearTimer: () => {} });
+    await cs.load();
+    const waits = [];
+    for (let i = 0; i < 8 && armed.length; i++) { waits.push(armed[0].ms); armed.shift().fn(); await new Promise((r) => setImmediate(r)); }
+    const live = CFG.SESSION_CONFIG.liveAskMs;
+    return (waits.length === 8 && waits[0] === live && waits[3] >= live * 8 && waits[7] === CFG.SESSION_CONFIG.huntPollMs)
+      || 'failed asks did not back off to the ordinary poll: ' + waits.join(',');
   });
   /* HUNT-2 (AWAY / pending leave, live v0.2.1 "Leave hunt does nothing"): a leave with hunting time owed
      answers `pending`; the hunter's settle that follows ends it, and that envelope REPLACES the open hunt. */
@@ -268,6 +327,133 @@ async function rules(M) {
     if (!r.ok) return 'the pending leave answered ' + JSON.stringify(r);
     if (calls.join(',') !== 'hr_load,hr_hunt_leave,accrue') return 'a pending leave was not settled at once: ' + calls.join(',');
     return (cs.record.data.hunt.ended === true && cs.record.data.state.active_kind === 'idle') || 'the client still holds the hunt open after the leave';
+  });
+
+  /* LEAVE-1 (live v0.2.20 "Leave hunt is very buggy and delayed"): a leave pends until the server's
+     leave_at (2026-10-31-live-horizon.sql). The re-read that closes it is timed by THAT instant on the
+     SERVER's clock (a hair after it), moving an armed huntPollMs re-read earlier: never a whole poll
+     after the close, and never read off the device clock (the server here runs years ahead of it). */
+  await t('LEAVE-1', async () => {
+    const S0 = Date.parse('2031-01-01T00:00:00Z');
+    let clientT = 0, stage = 'open';
+    const iso = (ms) => new Date(ms).toISOString();
+    const hunt = (leaveAt, ended) => ({ session_id: 'h1', hunt_id: 'mill_cellar', ended: !!ended,
+      session: { id: 'h1', leave_at: leaveAt === null ? null : iso(leaveAt), phase: leaveAt === null ? 'hunting' : 'leaving' } });
+    let v = 1;
+    const body = () => stage === 'ended'
+      ? env(++v, { now: iso(S0 + clientT), hunt: hunt(null, true), state: { gold: 1, active_kind: 'idle' } })
+      : env(++v, { now: iso(S0 + clientT), hunt: hunt(stage === 'leaving' ? S0 + 7000 : null) });
+    const calls = [];
+    const srv = {
+      rpc: async (name) => {
+        calls.push(name);
+        if (name === 'hr_hunt_leave') { stage = 'leaving'; return { ok: true, status: 200, body: { ok: true, pending: true }, closed: false }; }
+        return { ok: true, status: 200, body: body(), closed: false };
+      },
+      accrue: async () => { calls.push('accrue'); return { ok: true, status: 200, body: Object.assign({ accrued: true }, body()), closed: false }; },
+    };
+    const armed = [];
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, now: () => clientT,
+      setTimer: (fn, ms) => { armed.push({ fn, ms, live: true }); return armed.length; },
+      clearTimer: (id) => { if (armed[id - 1]) armed[id - 1].live = false; } });
+    const fire = async () => { const a = armed.filter((x) => x.live); if (a.length !== 1) return false; a[0].live = false; a[0].fn(); await new Promise((r) => setImmediate(r)); return true; };
+    await cs.load();
+    /* the live view's start-point asks back off first (live-link.js askDelayMs), up to the ordinary poll */
+    for (let i = 0; i < 12; i++) {
+      const a = armed.filter((x) => x.live);
+      if (a.length === 1 && a[0].ms === CFG.SESSION_CONFIG.huntPollMs) break;
+      if (!(await fire())) return 'the live ask did not arm once';
+    }
+    let live = armed.filter((x) => x.live);
+    if (live.length !== 1 || live[0].ms !== CFG.SESSION_CONFIG.huntPollMs) return 'no ordinary re-read before the leave: ' + JSON.stringify(live.map((x) => x.ms));
+    clientT = 1000;
+    if (!(await cs.leaveHunt()).ok) return 'the pending leave was refused';
+    if (Math.round(cs.serverNow()) !== S0 + 1000) return 'the server clock is not the server’s: ' + cs.serverNow();
+    live = armed.filter((x) => x.live);
+    const want = 6000 + CFG.SESSION_CONFIG.leaveSlackMs;
+    if (live.length !== 1 || live[0].ms !== want) return 'the close is not asked a hair after the server’s leave_at (want ' + want + ' ms): ' + JSON.stringify(live.map((x) => x.ms));
+    clientT = 1000 + want;
+    stage = 'ended';
+    if (!(await fire())) return 'the closing re-read did not run';
+    if (cs.record.data.hunt.ended !== true) return 'the close at leave_at did not end the hunt on screen';
+    return armed.filter((x) => x.live).length === 0 || 'an ended hunt kept re-reading';
+  });
+
+  /* LEAVE-2: the settle after a pending leave can be refused (the accrue bucket, a dropped request);
+     the plain read still brings the server's leave_at, so the button counts down instead of offering
+     Leave hunt again until the next poll. */
+  await t('LEAVE-2', async () => {
+    const calls = [];
+    let leaving = false;
+    const hunt = () => ({ session_id: 'h1', hunt_id: 'mill_cellar', ended: false,
+      session: { id: 'h1', leave_at: leaving ? '2031-01-01T00:00:07.000Z' : null } });
+    let v = 1;
+    const srv = {
+      rpc: async (name) => {
+        calls.push(name);
+        if (name === 'hr_hunt_leave') { leaving = true; return { ok: true, status: 200, body: { ok: true, pending: true }, closed: false }; }
+        return { ok: true, status: 200, body: env(++v, { now: '2031-01-01T00:00:01.000Z', hunt: hunt() }), closed: false };
+      },
+      accrue: async () => { calls.push('accrue'); return { ok: false, status: 429, body: { ok: false, error: 'rate_limited' }, closed: false }; },
+    };
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, ...timers });
+    await cs.load();
+    if (!(await cs.leaveHunt()).ok) return 'the pending leave was refused';
+    if (calls.join(',') !== 'hr_load,hr_hunt_leave,accrue,hr_load') return 'a refused settle was not followed by the plain read: ' + calls.join(',');
+    return cs.record.data.hunt.session.leave_at === '2031-01-01T00:00:07.000Z' || 'the record does not carry the server’s leave_at';
+  });
+
+  /* LEAVE-3 (Tyler 10-20: "a countdown so they know it's not just stuck"): the number shows one round
+     trip after the press, from hr_hunt_leave's own answer (the session it set leave_at on), while the
+     settle that follows is still out; it never reads 0 or below; past leave_at it is "now", and a
+     leaveLateMs past it "late", with the close still being asked. */
+  await t('LEAVE-3', async () => {
+    const S0 = Date.parse('2031-01-01T00:00:00Z');
+    const iso = (ms) => new Date(ms).toISOString();
+    let clientT = 0, v = 1, release = null, sid = 'h1';
+    const hunt = (leaveAt) => ({ session_id: sid, hunt_id: 'mill_cellar', ended: false,
+      session: { id: sid, leave_at: leaveAt === null ? null : iso(leaveAt), phase: leaveAt === null ? 'hunting' : 'leaving' } });
+    const LEAVE_AT = S0 + 7000;
+    let leaving = false;
+    const body = () => env(++v, { now: iso(S0 + clientT), hunt: hunt(leaving ? LEAVE_AT : null) });
+    const srv = {
+      rpc: async (name) => {
+        if (name === 'hr_hunt_leave') { leaving = true; return { ok: true, status: 200, body: { ok: true, pending: true, session: hunt(LEAVE_AT).session }, closed: false }; }
+        return { ok: true, status: 200, body: body(), closed: false };
+      },
+      /* the settle after the leave hangs until released (a slow edge answer) */
+      accrue: () => new Promise((ok) => { release = () => ok({ ok: true, status: 200, body: Object.assign({ accrued: true }, body()), closed: false }); }),
+    };
+    const armed = [];
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, now: () => clientT,
+      setTimer: (fn, ms) => { armed.push({ fn, ms, live: true }); return armed.length; },
+      clearTimer: (id) => { if (armed[id - 1]) armed[id - 1].live = false; } });
+    await cs.load();
+    if (cs.leaveCountdown() !== null) return 'a countdown before any leave: ' + JSON.stringify(cs.leaveCountdown());
+    clientT = 1000;
+    const pending = cs.leaveHunt();
+    for (let i = 0; i < 5 && !release; i++) await new Promise((r) => setImmediate(r));
+    if (!release) return 'the settle after the leave was never asked';
+    const first = cs.leaveCountdown();
+    if (!first || first.phase !== 'counting' || first.s !== 6) return 'no countdown while the settle after the leave is out (want 6 s): ' + JSON.stringify(first);
+    const at = (t) => { clientT = t; return cs.leaveCountdown(); };
+    const seen = [];
+    for (const t2 of [1001, 5999, 6001, 6999, 7000, 7001, 9000, 22999, 23000, 40000]) seen.push([t2, at(t2)]);
+    const bad = seen.find(([, c]) => !c || (c.phase === 'counting' && !(c.s >= 1)));
+    if (bad) return 'the countdown read 0 or less (or vanished): ' + JSON.stringify(bad);
+    const ph = Object.fromEntries(seen.map(([t2, c]) => [t2, c.phase === 'counting' ? c.s : c.phase]));
+    const want = { 1001: 6, 5999: 2, 6001: 1, 6999: 1, 7000: 'now', 7001: 'now', 9000: 'now', 22999: 'now', 23000: 'late', 40000: 'late' };
+    for (const k of Object.keys(want)) if (ph[k] !== want[k]) return 'the countdown at ' + k + ' ms reads ' + JSON.stringify(ph[k]) + ' (want ' + JSON.stringify(want[k]) + ')';
+    /* LATE: the settle answers, the hunt is still open; the close goes on being asked */
+    release();
+    await pending;
+    const live = armed.filter((x) => x.live);
+    if (live.length !== 1) return 'a late leave stopped asking for the close: ' + JSON.stringify(live.map((x) => x.ms));
+    if (cs.leaveCountdown().phase !== 'late') return 'the late leave lost its phase: ' + JSON.stringify(cs.leaveCountdown());
+    /* THE NEXT HUNT: a leave's answer is its own session's only; a new hunt shows no countdown */
+    sid = 'h2'; leaving = false;
+    await cs.load();
+    return cs.leaveCountdown() === null || 'a new hunt shows the last hunt’s leave countdown: ' + JSON.stringify(cs.leaveCountdown());
   });
 
   const mkAccount = (srv, o = {}) => {
@@ -326,9 +512,20 @@ async function rules(M) {
   });
   await t('ACC-2', async () => {
     /* each hero by its server name and its Level from the server's Level XP (21,591 = Level 10, CORE_MODEL.md §2) */
-    const acc = mkAccount(fakeServer({ 0: env(1, { hero_slots: [0, 2, 99, -1, 'x'], name: 'Tester', state: { gold: 1, level_xp: 21591 } }), 2: env(1) }));
+    const srv = fakeServer({ 0: env(1, { hero_slots: [0, 2, 3, 99, -1, 'x'], name: 'Tester', state: { gold: 1, level_xp: 21591 } }), 2: env(1),
+      3: { ok: false, error: 'needs_name', hero_slots: [0, 2, 3] } });
+    const acc = mkAccount(srv);
     const r = await acc.roster();
-    return JSON.stringify(r) === JSON.stringify([{ slot: 0, exists: true, name: 'Tester', level: 10 }, { slot: 2, exists: true, name: null, level: null }]) || 'roster was ' + JSON.stringify(r);
+    if (JSON.stringify(r) !== JSON.stringify([{ slot: 0, exists: true, unnamed: false, name: 'Tester', level: 10 }, { slot: 2, exists: true, unnamed: false, name: null, level: null },
+      { slot: 3, exists: false, unnamed: true, name: null, level: null }])) return 'roster was ' + JSON.stringify(r);
+    srv.calls.length = 0;
+    const ok = await acc.create(3, 'Fennick', { head: 1, body: 2, legs: 3, feet: 4 });
+    const no = await acc.create(3, 'Taken', { head: 1, body: 2, legs: 3, feet: 4 });
+    const sent = srv.calls.filter((c) => c[0] === 'hr_create_hero').map((c) => c[1]);
+    if (!ok.ok || no.ok || no.reason !== 'name_taken' || sent.length !== 2 || sent[0].p_slot !== 3 || sent[0].p_name !== 'Fennick'
+      || JSON.stringify(sent[0].p_colors) !== '{"head":1,"body":2,"legs":3,"feet":4}' || typeof sent[0].p_idem !== 'string' || sent[0].p_idem === sent[1].p_idem
+      || Object.keys(sent[0]).some((k) => /price|gold|item/.test(k))) return 'create sent ' + JSON.stringify(sent) + ' -> ' + JSON.stringify([ok, no]);
+    return true;
   });
   await t('ACC-3', async () => {
     if (!S.isClosedAnswer(403, { code: 'hr_closed' }) || S.isClosedAnswer(403, { code: 'other' }) || S.isClosedAnswer(200, { code: 'hr_closed' })) return 'isClosedAnswer is wrong';
@@ -337,6 +534,15 @@ async function rules(M) {
     const r = await acc.roster();
     const o = await acc.open(0);
     return (acc.closedGame && heard === 1 && r.length === 0 && !o.ok) || 'the closed game was not noticed';
+  });
+  await t('NET-1', async () => {
+    const urls = [];
+    const fetch = async (url) => { urls.push(url); return { ok: true, status: 200, json: async () => ({ ok: true }) }; };
+    const link = S.createServerLink({ url: NB.SUPABASE_CONFIG.url, anonKey: 'anon', token: () => 'jwt', fetch });
+    await link.accrue({ slot: 0 });
+    if (NB.SUPABASE_CONFIG.functionRegion !== 'us-west-2') return 'the function region is not the database\'s (us-west-2): ' + NB.SUPABASE_CONFIG.functionRegion;
+    const want = NB.SUPABASE_CONFIG.url + '/functions/v1/hr-accrue?forceFunctionRegion=' + NB.SUPABASE_CONFIG.functionRegion;
+    return urls[0] === want || 'accrue fetched ' + urls[0] + ', not ' + want;
   });
 
   await t('OUT-1', async () => {
@@ -377,6 +583,92 @@ async function rules(M) {
     const all = Object.values(AU.AUTH_COPY).join(' ');
     return !/open beta|invite code/i.test(all) || 'retired copy (open beta / invite code) is back';
   });
+
+  /* THE TOKEN (TOK-*): the real createAuth over a fake supabase-js auth, the real server link over a fake fetch. */
+  const T0 = 1_800_000_000_000;
+  const sess = (tok, expMs) => ({ access_token: tok, refresh_token: 'r-' + tok, expires_at: Math.floor(expMs / 1000), user: { id: UID, email: 'qa@x.co' } });
+  const tokenRig = (o = {}) => {
+    const clock = { t: T0 };
+    let stored = o.start || sess('A', T0 + 3600e3);
+    const n = { get: 0, refresh: 0 };
+    const doc = { visibilityState: 'visible', fns: [], addEventListener(ev, fn) { if (ev === 'visibilitychange') this.fns.push(fn); },
+      wake() { this.visibilityState = 'visible'; for (const f of this.fns) f(); } };
+    const client = { auth: {
+      getSession: async () => { n.get++; return { data: { session: stored } }; },
+      refreshSession: async () => {
+        n.refresh++;
+        await new Promise((r) => setImmediate(r));
+        if (o.refuse) return { data: { session: null, user: null }, error: { name: 'AuthApiError', status: 400, message: 'Invalid Refresh Token: Already Used' } };
+        stored = sess('B', clock.t + 3600e3);
+        return { data: { session: stored }, error: null };
+      },
+      signOut: async () => {}, onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }) } };
+    const auth = AU.createAuth({ client, device: memStore(), tab: memStore(), redirectTo: 'https://x/', doc, now: () => clock.t });
+    const sent = [];
+    const fetch = async (url, init) => {
+      const tok = init.headers.Authorization.slice(7);
+      sent.push(tok);
+      const dead = (o.dead || ['A']).includes(tok) && (o.reject401 || tok !== 'B');
+      return { ok: !dead, status: dead ? 401 : 200, json: async () => (dead ? { code: 'UNAUTHORIZED' } : { ok: true, accrued: true, version: 1, state: { gold: 1 } }) };
+    };
+    const server = S.createServerLink({ url: 'https://p', anonKey: 'anon', token: auth.freshToken, renew: auth.renewToken, fetch });
+    const heard = [];
+    auth.onChange((ev) => heard.push(ev));
+    return { clock, auth, server, sent, n, doc, heard };
+  };
+
+  await t('TOK-1', async () => {
+    const r = tokenRig({ start: sess('A', T0 + 3600e3) });
+    await r.auth.refresh();
+    r.clock.t = T0 + 3600e3 - 30e3;   // 30 s left: inside the margin
+    const ans = await r.server.accrue({ slot: 0 });
+    if (r.sent.join() !== 'B') return 'the call sent ' + JSON.stringify(r.sent) + ', not the refreshed token alone';
+    return (ans.ok && r.n.refresh === 1) || 'the stale token was not refreshed exactly once before the call (' + r.n.refresh + ')';
+  });
+  await t('TOK-2', async () => {
+    const r = tokenRig();
+    await r.auth.refresh();
+    const ans = await r.server.rpc('hr_load', { p_slot: 0 });
+    if (r.sent.join() !== 'A,B' || !ans.ok) return 'a 401 was not renewed and retried once: sent ' + JSON.stringify(r.sent);
+    if (r.n.refresh !== 1) return 'a 401 refreshed ' + r.n.refresh + ' times';
+    const r2 = tokenRig({ dead: ['A', 'B'], reject401: true });
+    await r2.auth.refresh();
+    const a2 = await r2.server.accrue({ slot: 0 });
+    return (r2.sent.length === 2 && a2.status === 401) || 'a 401 on the retry was retried again: sent ' + JSON.stringify(r2.sent);
+  });
+  await t('TOK-3', async () => {
+    const r = tokenRig({ refuse: true });
+    await r.auth.refresh();
+    await r.server.accrue({ slot: 0 });   // 401 → refresh refused
+    for (let i = 0; i < 10; i++) await r.server.accrue({ slot: 0 });
+    if (r.sent.length !== 1) return 'a dead session sent ' + r.sent.length + ' calls';
+    if (r.heard.filter((e) => e === 'expired').length !== 1) return 'the app heard expired ' + r.heard.filter((e) => e === 'expired').length + ' times';
+    if (r.auth.token() !== null) return 'the dead token is still held';
+    const s = tokenRig({ refuse: true, start: sess('A', T0 + 10e3) });
+    await s.auth.refresh();
+    for (let i = 0; i < 10; i++) await s.server.accrue({ slot: 0 });
+    return (s.sent.length === 0 && s.n.refresh === 1 && s.heard.join() === 'expired') || 'a refused pre-call refresh still sent ' + s.sent.length + ' calls / refreshed ' + s.n.refresh + ' times';
+  });
+  await t('TOK-4', async () => {
+    const r = tokenRig({ start: sess('A', T0 + 20e3) });
+    await r.auth.refresh();
+    const a = new C.CharacterSession({ slot: 0, uid: UID, server: r.server, ...timers });
+    const b = new C.CharacterSession({ slot: 1, uid: UID, server: r.server, ...timers });
+    await Promise.all([a.load(), b.load()]);
+    if (r.n.refresh !== 1) return 'two characters refreshed ' + r.n.refresh + ' times';
+    return (r.sent.length === 2 && r.sent.every((x) => x === 'B')) || 'the two characters did not both carry the one refreshed token: ' + JSON.stringify(r.sent);
+  });
+  await t('TOK-5', async () => {
+    const r = tokenRig({ start: sess('A', T0 + 3600e3) });
+    await r.auth.refresh();
+    r.doc.visibilityState = 'hidden';
+    r.clock.t = T0 + 5 * 3600e3;          // hidden for hours: supabase-js refreshed nothing
+    r.doc.wake();
+    await new Promise((res) => setImmediate(res)); await new Promise((res) => setImmediate(res));
+    if (r.n.refresh !== 1 || r.auth.token() !== 'B') return 'waking the tab did not refresh the token (' + r.n.refresh + ', ' + r.auth.token() + ')';
+    await r.server.accrue({ slot: 0 });
+    return (r.sent.join() === 'B' && r.n.refresh === 1) || 'the call after waking sent ' + JSON.stringify(r.sent);
+  });
   return fails;
 }
 
@@ -411,13 +703,31 @@ const MUTANTS = [
   ['sign-out keeps the tab id', 'src/net/auth.js', '    if (o.tab) o.tab.remove(cfg.tabKey);\n', ''],
   ['sign-out leaves characters open', 'src/session/account-session.js', '    for (const slot of Array.from(this._chars.keys())) this.close(slot);\n', ''],
   ['existing email told apart', 'src/net/auth.js', "if (error && !/already (registered|exists)/i.test(String(error.message || ''))) return fail(AUTH_COPY.signUpFailed);", 'if (error) return fail(AUTH_COPY.signUpFailed);'],
+  ['the engine runs in the players\' region', 'src/session/server.js', "post('/functions/v1/hr-accrue?forceFunctionRegion=' + SUPABASE_CONFIG.functionRegion, body)", "post('/functions/v1/hr-accrue', body)"],
+  ['the region is not the database\'s', 'src/net/supabase-bootstrap.js', "functionRegion: 'us-west-2',", "functionRegion: 'us-east-2',"],
   ['closed game ignored', 'src/session/server.js', "return status === CLOSED_STATUS && !!body", "return false && !!body"],
   ['a join sends no hello', 'src/session/character-session.js', "if (st === 'SUBSCRIBED') { this._attempt = 0; this.hello(); return; }", "if (st === 'SUBSCRIBED') { this._attempt = 0; return; }"],
+  ['a leave inside the channel callback recurses', 'src/session/character-session.js', "    const leave = this._leave;\n    this._leave = null;\n    if (leave) { try { leave(); } catch (e) { /* already gone */ } }", "    if (this._leave) { try { this._leave(); } catch (e) { /* already gone */ } this._leave = null; }"],
   ['a dropped channel is never re-joined', 'src/session/character-session.js', "this._retry = this._setTimer(() => { this._retry = null; this.connect(); }, reconnectDelay(++this._attempt));", "this._retry = null;"],
   ['a version gap is guessed, not healed', 'src/session/character-session.js', "if (before !== null && r.record.version > before + 1) this.hello();", ""],
   ['an open hunt is never re-read', 'src/session/character-session.js', "    this._emit(why);\n    this._armHuntPoll();", "    this._emit(why);"],
   ['an ended hunt keeps re-reading', 'src/session/character-session.js', "typeof h.session_id === 'string' && h.ended !== true;", "typeof h.session_id === 'string';"],
-  ['a pending leave waits for the world tick', 'src/session/character-session.js', "ans.body.pending === true) { await this.hello(); return { ok: true }; }", "ans.body.pending === true) { await this.load(); return { ok: true }; }"],
+  ['a pending leave waits for the world tick', 'src/session/character-session.js', "      if (!(await this.hello()) && !this._closed) await this.load();", "      await this.load();"],
+  ['a refused settle leaves the leave unseen', 'src/session/character-session.js', "      if (!(await this.hello()) && !this._closed) await this.load();", "      await this.hello();"],
+  ['the close waits a whole poll past leave_at', 'src/session/hunt-poll.js', "  return closeMs === null ? ms : Math.min(ms, closeMs);", "  return ms;"],
+  ['an armed poll is never moved earlier', 'src/session/hunt-poll.js', "      if (!(due < this._due)) return;", "      return;"],
+  ['the countdown waits for the settle after the leave', 'src/session/character-session.js', "      this._leaveAsk = leaveAskOf(ans.body.session);\n", ""],
+  ['the leave answer is held for another session', 'src/session/hunt-leave.js', "ask.session === h.session_id ? ask.at : null", "ask.at"],
+  ['the countdown reads 0 past leave_at', 'src/session/hunt-leave.js', "  if (left > 0) return { phase: 'counting', s: Math.ceil(left / 1000) };", "  if (left > -SESSION_CONFIG.leaveLateMs) return { phase: 'counting', s: Math.ceil(left / 1000) };"],
+  ['a late leave is never told apart', 'src/session/hunt-leave.js', "phase: left > -SESSION_CONFIG.leaveLateMs ? 'now' : 'late'", "phase: 'now'"],
+  ['the close is timed on the device clock', 'src/session/character-session.js', "  serverNow() { return this.timeline.serverNowAt(this._now()); }", "  serverNow() { return Date.now(); }"],
+  ['a stale token is sent as it is', 'src/net/auth.js', '    if (lasts(session)) return tokenOf(session);\n    if (!session) return null;', '    if (session) return tokenOf(session);\n    if (!session) return null;'],
+  ['a 401 is not renewed', 'src/session/server.js', 'if (res.status === 401 && o.renew)', 'if (false && o.renew)'],
+  ['every caller refreshes on its own', 'src/net/auth.js', '    if (renewing) return renewing;\n', ''],
+  ['a refused refresh keeps the dead session', 'src/net/auth.js', "    session = null;\n    tell('expired');", "    tell('expired');"],
+  ['waking a hidden tab checks nothing', 'src/net/auth.js', "if (o.doc.visibilityState === 'visible') freshToken();", "if (false) freshToken();"],
+  ['a failed live ask re-arms at once, forever', 'src/session/character-session.js', 'if (!took) this.liveLink.missed();', ''],
+  ['the live ask gives up after two tries', 'src/session/live-link.js', '      this.want = true;\n      this._tries++;', '      this.want = this._tries < 2;\n      if (this.want) this._tries++;'],
   ['an idle settle replaces the character', 'src/session/character-session.js', "if (ans.ok && ans.body && ans.body.accrued !== true) return this.load();", ""],
 ];
 
@@ -425,13 +735,9 @@ function copyTree(dst) {
   mkdirSync(join(dst, 'src/net'), { recursive: true });
   cpSync(join(ROOT, 'src/session'), join(dst, 'src/session'), { recursive: true });
   cpSync(join(ROOT, 'src/net/auth.js'), join(dst, 'src/net/auth.js'));
-  mkdirSync(join(dst, 'src/hunt-view'), { recursive: true });
-  cpSync(join(ROOT, 'src/hunt-view/timeline.js'), join(dst, 'src/hunt-view/timeline.js'));
-  mkdirSync(join(dst, 'src/data'), { recursive: true });
-  cpSync(join(ROOT, 'src/data/town-presence.js'), join(dst, 'src/data/town-presence.js'));   // the AccountSession's TownPresence knobs
-  mkdirSync(join(dst, 'src/core'), { recursive: true });
-  cpSync(join(ROOT, 'src/core/xp.js'), join(dst, 'src/core/xp.js'));   // the roster's Level (the shared curve)
-  for (const f of ['core-model.js', 'skills.js']) cpSync(join(ROOT, 'src/data', f), join(dst, 'src/data', f));   // xp.js's curves and skill list
+  cpSync(join(ROOT, 'src/net/supabase-bootstrap.js'), join(dst, 'src/net/supabase-bootstrap.js'));
+  /* The CharacterSession runs the live hunt view (option B), so the engine and the data come along. */
+  for (const d of ['src/hunt-view', 'src/data', 'src/core']) cpSync(join(ROOT, d), join(dst, d), { recursive: true });
 }
 
 async function main() {
@@ -439,7 +745,7 @@ async function main() {
   if (!mutate) {
     const fails = [...await rules(await load(ROOT)), ...await viewRules(ROOT)];
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (23 rules)');
+    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (33 rules)');
     process.exit(fails.length ? 1 : 0);
   }
   let bad = 0;

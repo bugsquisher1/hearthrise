@@ -10,13 +10,16 @@
 //   Start again                  that character's restart INTENT; the button
 //                                is off until the server answered, and the
 //                                alert goes once it has
+//   Join / No thanks             a party invite's answer, that character's
+//                                answerInvite INTENT, the same way (PARTY_SPEC
+//                                §1.3: the toast reaches a player anywhere)
 // ════════════════════════════════════════════════════════════════════════
-import { ALERTS_SHOWN } from '../../data/alerts.js?v=0.2.9';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.9';
-import { glyphSvg } from '../launcher.js?v=0.2.9';
-import { refusalWords } from '../intent-words.js?v=0.2.9';
+import { ALERTS_SHOWN } from '../../data/alerts.js?v=0.2.22';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.22';
+import { glyphSvg } from '../launcher.js?v=0.2.22';
+import { refusalWords } from '../intent-words.js?v=0.2.22';
 
-const OPENS = Object.freeze({ bag: 'inventory', shop: 'shop', show: null });
+const OPENS = Object.freeze({ bag: 'inventory', show: null });
 
 /** The skeleton (built once). */
 export function renderAlerts() {
@@ -26,6 +29,7 @@ export function renderAlerts() {
 function alertRow(ctx) {
   return element(ctx.doc, '<li class="hw-alert"><span class="hw-alert-glyph" aria-hidden="true"></span>'
     + '<p class="hw-alert-text"></p><button type="button" class="hh-tool hw-alert-do" data-hs-act="alert-do"></button>'
+    + '<button type="button" class="hh-tool hw-alert-no" data-hs-act="alert-no" hidden></button>'
     + '<button type="button" class="hs-close hw-alert-x" data-hs-act="alert-x" aria-label="Dismiss">' + glyphSvg(ctx.glyphs, 'uiClose') + '</button></li>');
 }
 
@@ -46,9 +50,30 @@ renderAlerts.patch = function patchAlerts(el, ctx) {
       const go = li.querySelector('.hw-alert-do');
       text(go, a.pending ? 'Sending…' : a.button);
       prop(go, 'disabled', a.pending || (a.action === 'restart' && !a.session));
+      const no = li.querySelector('.hw-alert-no');
+      prop(no, 'hidden', !a.decline);
+      text(no, a.decline || '');
+      prop(no, 'disabled', a.pending);
     },
   });
 };
+
+/*
+ * An alert's intent for its character: the line's buttons go off at once (the
+ * widget repaints here: the shell paints widgets on a character's change, not
+ * on an alert's), and the line goes only once the server said yes.
+ */
+async function settle(ctx, el, a, send) {
+  const cs = ctx.peers().find((p) => p.slot === a.slot);
+  if (!cs) return;
+  ctx.alerts.mark(a.key, true, '');
+  renderAlerts.patch(el, ctx);
+  let r;
+  try { r = await send(cs); } catch (e) { r = { ok: false, error: 'network' }; }
+  if (r.ok) ctx.alerts.dismiss(a.key);
+  else ctx.alerts.mark(a.key, false, refusalWords(r.error));
+  renderAlerts.patch(el, ctx);
+}
 
 renderAlerts.act = async function actAlerts(ctx, el, action, ev, t) {
   if (ev.type !== 'click' || !ctx.alerts) return;
@@ -56,17 +81,14 @@ renderAlerts.act = async function actAlerts(ctx, el, action, ev, t) {
   const a = ctx.alerts.list().find((x) => x.key === key);
   if (!a) return;
   if (action === 'alert-x') { ctx.alerts.dismiss(key); return; }
-  if (action !== 'alert-do' || a.pending) return;
+  if ((action !== 'alert-do' && action !== 'alert-no') || a.pending) return;
+  /* A party invite: Join / No thanks, that character's one answer. */
+  if (a.action === 'join') { if (a.invite) await settle(ctx, el, a, (cs) => cs.answerInvite(a.invite, action === 'alert-do')); return; }
+  if (action !== 'alert-do') return;
   if (a.action !== 'restart') {
     ctx.alerts.dismiss(key);
     if (ctx.goTo) ctx.goTo(a.slot, OPENS[a.action] || null);
     return;
   }
-  const cs = ctx.peers().find((p) => p.slot === a.slot);
-  if (!cs) return;
-  ctx.alerts.mark(key, true, '');
-  let r;
-  try { r = await cs.restartHunt(a.session); } catch (e) { r = { ok: false, error: 'network' }; }
-  if (r.ok) ctx.alerts.dismiss(key);
-  else ctx.alerts.mark(key, false, refusalWords(r.error));
+  await settle(ctx, el, a, (cs) => cs.restartHunt(a.session));
 };

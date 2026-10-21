@@ -16,11 +16,16 @@ const SECRET = '-4611686018427387904';
 const SPAN = 1800000;
 const COMBAT = ['melee', 'ranged', 'magic', 'defense'];
 
-export async function play(root, only) {
+/** THE RUNNER, reusable (tests/hunt-core/drop-tables.mjs): `run(huntId, L, roles, opts)` plays one ground
+    on the real settle and answers the totals, per hour and per hero, plus `items` (id -> count, the whole
+    party's credit), `heroItems` (per hero key) and `killsBy` (monster -> kills).
+    opts: { spanMs (default thirty minutes), secret (the hunt seed), monsters (a drop-table fixture) }. */
+export async function loadPlay(root) {
   const u = (p) => pathToFileURL(join(root, p)).href;
   const AC = await import(u('supabase/functions/hr-accrue/accrual.js'));
   const CAT = await import(u('supabase/functions/hr-accrue/catalogue.js'));
   const SPAWN = await import(u('src/core/hunt-spawn.js'));
+  const { roleWeaponOf } = await import(u('src/data/hunt-roles.js'));
   const GRID = await import(u('src/core/hunt/grid.js'));
   const XP = await import(u('src/core/xp.js'));
   const SB = await import(u('src/data/supply-basics.js'));
@@ -41,7 +46,13 @@ export async function play(root, only) {
   };
   const basics = {};
   for (const b of SB.BASIC_SUPPLIES) basics[b.id] = { kind: b.kind, price: b.price, heals: b.heals || 0, mana: b.mana || 0, partner: b.partner };
-  const shop = { heal: SB.basicFor('heal', 1).id, mana: SB.basicFor('mana', 1).id };
+  /* THE STORE ROW THE SERVER CHARGES: the hunt's tier (hr_hunt_travel.tier = supplies.js BAG_GUIDE_BY_HUNT,
+     tools/gen-hunt-sessions.mjs) picks the basic heal and drink, so the Warrens' bill is tier-4 food. */
+  const { BAG_GUIDE_BY_HUNT } = await import(u('src/data/supplies.js'));
+  const shopOf = (huntId) => {
+    const tier = (BAG_GUIDE_BY_HUNT[huntId] || {}).tier || 1;
+    return { heal: SB.basicFor('heal', tier).id, mana: SB.basicFor('mana', tier).id };
+  };
   /* gear by level, the smiths' ladder a player at that level wears */
   const kit = (L, role) => {
     const t = L < 15 ? 0 : L < 30 ? 1 : L < 45 ? 2 : 3;
@@ -50,42 +61,69 @@ export async function play(root, only) {
     return { weapon, body: ['bronze_platebody', 'iron_platebody', 'steel_platebody', 'mithril_platebody'][t], helmet: ['bronze_helm', 'iron_helm', 'steel_helm', 'steel_helm'][t],
       ...(role === 'ranger' ? { ammo: 'bronze_arrows' } : {}) };
   };
-  const hero = (huntId, role, i, L, roles) => {
+  /* THE FULL SET (opts.fullSet): the weapon above plus helmet, body, legs and boots of the hero's own armour line
+     (gear-tiers.js: plate for the tank, leather for the ranger, cloth for the casters) at the tier its Level wears,
+     the set the hunts' equipment drops build (tests/hunt-core/drop-tables.mjs). */
+  const fullKit = (L, role) => {
+    const t = L < 15 ? 0 : L < 30 ? 1 : L < 45 ? 2 : 3;
+    const base = kit(L, role);
+    if (role === 'tank') {
+      const m = ['bronze', 'iron', 'steel', 'mithril'][t];
+      return { ...base, helmet: m + '_helm', body: m + '_platebody', pants: m + '_platelegs', boots: m + '_boots' };
+    }
+    const line = role === 'ranger' ? ['leather', 'studded', 'boarhide', 'snakeskin'] : ['apprentice', 'adept', 'scholar', 'warlock'];
+    return { ...base, helmet: line[t] + '_helmet', body: line[t] + '_body', pants: line[t] + '_pants', boots: line[t] + '_boots' };
+  };
+  const hero = (huntId, role, i, L, roles, fullSet) => {
     /* A hero at Level L with every combat skill at L (the designer's fit: skill ~ Level through L25). */
     const skills = Object.fromEntries(COMBAT.map((k) => [k, XP.skillXpForLevel(k, L)]));
-    const equipment = kit(L, role);
+    const equipment = fullSet ? fullKit(L, role) : kit(L, role);
     return {
       key: role + i, user: role + i, slot: 0, seat: i, unitId: null, sessionId: 's-' + role + i, version: 1, huntId,
       huntSession: { id: 's-' + role + i, instanceId: IID, huntFromMs: T0, nextSwingAtMs: T0, swingIndex: 0, bag: role === 'ranger' ? { bronze_arrows: { loaded: 1 } } : {},
-        staminaMs: 12 * 3600000, staminaMaxMs: 12 * 3600000, basics, shop, goldFloor: 0, supplySource: 'mine', onEmpty: 'switch', cover: {} },
+        staminaMs: 12 * 3600000, staminaMaxMs: 12 * 3600000, basics, shop: shopOf(huntId), goldFloor: 0, supplySource: 'mine', onEmpty: 'switch', cover: {} },
       skills, levelXp: XP.charXpForLevel(L), xpFrac: null, hp: 1e9, gold: 50000, equipment,
       inventory: {}, deathsTodayBefore: 0, deathsLifetimeBefore: 0, hearthfindReady: false, perks: null,
-      hero: SPAWN.heroSetup({ weaponType: ITEMS[equipment.weapon].weaponType, options: role === 'healer' ? { role: 'healer' } : {}, bar: [], partyRoles: roles }),
+      hero: SPAWN.heroSetup({ weaponType: roleWeaponOf(ITEMS[equipment.weapon]), options: role === 'healer' ? { role: 'healer' } : {}, bar: [], partyRoles: roles }),
     };
   };
-  const run = (huntId, L, roles) => {
+  const run = (huntId, L, roles, opts = {}) => {
+    const span = opts.spanMs || SPAN, secret = opts.secret || SECRET, monsters = opts.monsters || MONSTERS;
     const ground = G.HUNT_GROUNDS[huntId], grid = gridOf(ground.map);
-    const members = roles.map((r, i) => hero(huntId, r, i, L, roles));
+    const members = roles.map((r, i) => hero(huntId, r, i, L, roles, opts.fullSet === true));
     /* common vs rare by the hunt's own drop rows: a drop at 5% or more anywhere here is a common, unless it is a
        trophy worth 100 g or more (a boss's chase item: the Crown Shard, the Alpha Fang), which is upside */
     const common = new Set();
-    for (const p of ground.pockets) for (const s of p.spawns) for (const d of MONSTERS[s.monster].drops) if (d.ch >= 0.05 && CAT.vendorPriceOf(ITEMS, d.id) < 100) common.add(d.id);
+    for (const p of ground.pockets) for (const s of p.spawns) for (const d of monsters[s.monster].drops) if (d.ch >= 0.05 && CAT.vendorPriceOf(ITEMS, d.id) < 100) common.add(d.id);
     let world = null, next = T0, played = 0;
-    const T = { xp: 0, levelXp: 0, coin: 0, commons: 0, rares: 0, store: 0, falls: 0, kills: 0, ended: [] };
-    for (let t = T0; t < T0 + SPAN; t += 600000) {
-      const out = AC.accrueHunt({ instance: { id: IID, nextSwingAtMs: next, world }, window: { fromMs: t, toMs: Math.min(T0 + SPAN, t + 600000) },
-        secret: SECRET, ground, grid, items: ITEMS, monsters: MONSTERS, members });
+    const T = { xp: 0, levelXp: 0, coin: 0, commons: 0, rares: 0, store: 0, falls: 0, kills: 0, ended: [], buys: {} };
+    const items = {}, heroItems = {}, killsBy = {};
+    for (let t = T0; t < T0 + span; t += 600000) {
+      const out = AC.accrueHunt({ instance: { id: IID, nextSwingAtMs: next, world }, window: { fromMs: t, toMs: Math.min(T0 + span, t + 600000) },
+        secret, ground, grid, items: ITEMS, monsters, members });
       if (!out.accrued) continue;
       world = out.world; next = out.settledTo; played = next - T0;
       for (const p of out.members) {
         const m = members.find((x) => x.key === p.key), h = p.hunt;
-        if (p.key === members[0].key) T.kills += p.delta.journal.meta.kills;
+        if (p.key === members[0].key) {
+          T.kills += p.delta.journal.meta.kills;
+          for (const [k, n] of Object.entries(p.delta.journal.meta.km || {})) killsBy[k] = (killsBy[k] || 0) + n;
+        }
         T.falls += (p.summary.deathLog || []).length;
         T.coin += p.delta.gold || 0;
         for (const [k, v] of Object.entries(p.delta.xp || {})) if (COMBAT.includes(k)) T.xp += v;
         T.levelXp += p.delta.level_xp || 0;
-        for (const [id, n] of Object.entries(p.delta.items || {})) T[common.has(id) ? 'commons' : 'rares'] += n * CAT.vendorPriceOf(ITEMS, id);
-        for (const [id, n] of Object.entries(h.buys || {})) T.store += n * ((SB.BASIC_INDEX[id] || {}).price || 0);
+        for (const [id, n] of Object.entries(p.delta.items || {})) {
+          T[common.has(id) ? 'commons' : 'rares'] += n * CAT.vendorPriceOf(ITEMS, id);
+          items[id] = (items[id] || 0) + n;
+          const hi = heroItems[p.key] = heroItems[p.key] || {};
+          hi[id] = (hi[id] || 0) + n;
+        }
+        for (const [id, n] of Object.entries(h.buys || {})) {
+          T.store += n * ((SB.BASIC_INDEX[id] || {}).price || 0);
+          const bk = T.buys[p.key] = T.buys[p.key] || {};
+          bk[id] = (bk[id] || 0) + n;
+        }
         if (h.ended && !m.ended) T.ended.push(p.key + ' ' + h.ended.reason);
         m.huntSession = Object.assign({}, m.huntSession, { swingIndex: h.swing_to, nextSwingAtMs: Date.parse(h.next_swing_at), staminaMs: h.stamina,
           bag: Object.fromEntries(Object.entries(m.huntSession.bag).map(([id, l]) => [id, { ...l, left: (l.left ?? l.loaded) - (h.uses[id] || 0) }])) });
@@ -97,12 +135,18 @@ export async function play(root, only) {
       if (members.every((m) => m.ended)) break;
     }
     /* per hero per hour (coin and loot are split between the party; the store bill is each hero's own) */
-    const per = 3600000 / SPAN / roles.length;
+    const per = 3600000 / span / roles.length;
     const r = (n) => Math.round(n * per);
     const income = r(T.coin + T.commons), store = r(T.store);
-    return { kills: Math.round(T.kills * 3600000 / SPAN), falls: T.falls, xp: r(T.xp), levelXp: r(T.levelXp), coin: r(T.coin), commons: r(T.commons), rares: r(T.rares), store, income,
+    return { spanMs: span, playedMs: played, totals: T, items, heroItems, killsBy, heroes: members.map((m) => m.key),
+      kills: Math.round(T.kills * 3600000 / span), falls: T.falls, xp: r(T.xp), levelXp: r(T.levelXp), coin: r(T.coin), commons: r(T.commons), rares: r(T.rares), store, income,
       margin: store ? Math.round((income / store - 1) * 100) + '%' : 'no store spend', net: income + r(T.rares) - store, ended: T.ended };
   };
+  return { run, MONSTERS, ITEMS, vendorPriceOf: CAT.vendorPriceOf, basics: SB.BASIC_INDEX };
+}
+
+export async function play(root, only) {
+  const { run } = await loadPlay(root);
   const PLAN = [
     ['mill_cellar', [['in range, combat ~6', 6, ['tank']], ['fresh kit level (combat 3)', 1, ['tank']]]],
     ['meadowbrook_thicket', [['in range, combat ~10', 10, ['tank']], ['below range (combat ~3)', 2, ['tank']]]],

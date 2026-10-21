@@ -21,19 +21,19 @@
 // keyBelongsToField (src/utils/dom.js), which the World and the window keys
 // read too — so W types while the field has focus and walks once it is left.
 // ════════════════════════════════════════════════════════════════════════
-import { CHAT_TABS, WHISPER } from '../../data/chat-channels.js?v=0.2.9';
-import { refusalWords } from '../intent-words.js?v=0.2.9';
-import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.9';
-import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.9';
-import { isWhisperTab } from '../../social/whispers.js?v=0.2.9';
-import { linkLabel } from '../../social/chat-lines.js?v=0.2.9';
-import { combatHtml, patchCombat, actCombat } from './chat-combat.js?v=0.2.9';
-import { showTip, hideTip } from './item-tip.js?v=0.2.9';
-import { rarityOf } from '../bag-model.js?v=0.2.9';
-import { glyphSvg } from '../launcher.js?v=0.2.9';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.9';
-import { escapeHtml as esc, keyBelongsToField } from '../../utils/dom.js?v=0.2.9';
-import { playerTargetOf } from '../context-menu.js?v=0.2.9';
+import { CHAT_TABS, WHISPER } from '../../data/chat-channels.js?v=0.2.22';
+import { refusalWords } from '../intent-words.js?v=0.2.22';
+import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.22';
+import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.22';
+import { isWhisperTab } from '../../social/whispers.js?v=0.2.22';
+import { linkLabel } from '../../social/chat-lines.js?v=0.2.22';
+import { combatHtml, patchCombat, actCombat } from './chat-combat.js?v=0.2.22';
+import { showTip, hideTip } from './item-tip.js?v=0.2.22';
+import { rarityOf } from '../bag-model.js?v=0.2.22';
+import { glyphSvg } from '../launcher.js?v=0.2.22';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.22';
+import { escapeHtml as esc, keyBelongsToField } from '../../utils/dom.js?v=0.2.22';
+import { playerTargetOf } from '../context-menu.js?v=0.2.22';
 
 const STATE = new WeakMap();
 const ROW = Object.freeze(Object.fromEntries(CHAT_TABS.map((t) => [t.id, t])));
@@ -51,7 +51,7 @@ function tabsOf(social) {
 
 /** The skeleton (built once). */
 export function renderChat() {
-  return '<div class="hc-chat">'
+  return '<div class="hc-chat ph-mask">'
     + '<div class="hc-tabs" role="tablist" aria-label="Channels"></div>'
     + '<div class="hc-pane is-talk"><div class="hc-logs"></div>'
     + '<button type="button" class="hc-pill" data-hs-act="to-bottom" hidden>New messages</button>'

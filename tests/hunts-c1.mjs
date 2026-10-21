@@ -156,9 +156,11 @@ async function chainArm() {
   const before = await snap();
   /* the CURRENT hunts catalogue (the earlier ones are applied history its forward file supersedes),
      then the gate, the rally pricing and the gate's chain-end restatements (the floor is a warning; the core
-     rebuild reads the gate's skill levels on each skill's own curve, 2026-10-27-core-bodies.sql) */
+     rebuild reads the gate's skill levels on each skill's own curve, 2026-10-27-core-bodies.sql), and the party flow
+     after it (2026-10-28-party-flow.sql drops the ground-less start core-bodies re-creates and restates its bodies) */
   for (const f of [HUNTS_NOW, '2026-10-20-hunts-start-gate.sql', '2026-10-20-hunts-rally-kills.sql', '2026-10-25-hunt-floor-warning.sql',
-    '2026-10-27-core-bodies.sql']) {
+    '2026-10-27-core-bodies.sql', '2026-10-28-party-flow.sql', '2026-10-29-party-security.sql',
+    '2026-10-28-hunt-enter-after-stamina.sql', '2026-10-30-party-invite-player.sql', '2026-10-30-town-activity-yields.sql']) {
     try { await db.exec(readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8')); } catch (e) {
       red.push(`C1: a second apply of ${f} raised: ${String(e.message).split(String.fromCharCode(10))[0]}`);
     }

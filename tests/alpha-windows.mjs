@@ -29,13 +29,14 @@
 //         vendor_sell_many it sends never names it
 //   AW-6  A SALE SHOWS ITS TOTAL FIRST: nothing is sent until the confirmation
 //         (which carries the total at the server's bids) is accepted
-//   AW-7  ONE-TAP REFILL: the button shows the server's quoted total before it is
-//         pressed; one press sends exactly ONE hr_shop_refill carrying that total
-//         and no purchase of its own
+//   AW-7  THE SHOP SELLS NO SUPPLIES (Tyler 2026-10-20): the Shop has Buy and Sell
+//         only (no Refill), Buy lists the tools and never a food, drink or ammo
+//         offer even when a server still sends one, Hunt prep has no refill
+//         button and the hunt summary no Restock
 //   AW-8  HUNT PREP: the readiness line names this character's shortages from the
-//         server's bag and targets; Use sends ONE hr_hunt_preset_apply
-//   AW-9  FAIL SAFE: with no bag_rules and no shop section, lock, the loot rules,
-//         sell junk and the refill stay off and the bag value reads a dash
+//         server's bag and bar; Use sends ONE hr_hunt_preset_apply
+//   AW-9  FAIL SAFE: with no bag_rules and no shop section, lock, the loot rules
+//         and sell junk stay off and the bag value reads a dash
 //   AW-10 a food stack dragged onto a bar slot is ONE hr_action_set_options with
 //         the whole bar restated and the item in that slot
 //   AW-11 the bag's keys: an arrow moves the cursor, L locks that stack with ONE
@@ -46,8 +47,8 @@
 //         the item search does not (only a text field takes the walk keys)
 //   AW-13 presses on the docked Inventory never move the hero; a press on open map does
 //   AW-14 going hunting is two presses from town: the mill hatch opens Hunts on the
-//         Mill Cellar, Enter is ONE hr_hunt_enter carrying names and counts (the bag
-//         up to its restock targets); the foot shows the spaces and the gold
+//         Mill Cellar, Enter is ONE hr_hunt_enter carrying names and counts (the
+//         bag's own supplies, whole stacks); the foot shows the spaces and the gold
 //   AW-15 one Inventory: no Gear, Bag or Find window; the item search is only in
 //         Inventory and Storage
 //   AW-16 no void: with a window docked the whole town view stays on the map; a
@@ -65,13 +66,15 @@
 //         922x423; a character that has never fought sees the pointer to Hunts
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
-import { launchOptions } from './_chrome.mjs';
+import { leaseBrowser } from './_chrome.mjs';
 import { readFile, mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
+/* The readiness line with the fixture's bag and bar (supplies are never 'short' against a restock target any more). */
+const AW8_LINE = 'Tyler: ready';
 /* The town the playtest checks walk (its size and the mill hatch, from the map row itself). */
 const TOWN_ROW = (await import(pathToFileURL(join(ROOT, 'src/data/world/maps/town_common.js')).href)).default;
 const TOWN = { w: TOWN_ROW.rows[0].length, h: TOWN_ROW.rows.length, hatch: [TOWN_ROW.exits[0].x, TOWN_ROW.exits[0].y] };
@@ -82,7 +85,7 @@ if (!PANE_SRC.includes('    runtime.sync();\n')) throw new Error('alpha-windows:
 const HOOK = { [PANE]: PANE_SRC.replace('    runtime.sync();\n', '    runtime.sync();\n    window.__world = runtime;\n') };
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
-const ITEM_RPCS = ['hr_item_lock', 'hr_loot_rule_set', 'hr_restock_set', 'hr_shop_refill', 'hr_hunt_preset_save', 'hr_hunt_preset_apply', 'hr_action_set_options', 'hr_hunt_enter', 'hr_bank_move'];
+const ITEM_RPCS = ['hr_item_lock', 'hr_loot_rule_set', 'hr_hunt_preset_save', 'hr_hunt_preset_apply', 'hr_action_set_options', 'hr_hunt_enter', 'hr_bank_move'];
 /* The windows a player opens from the launcher row, with their keys (src/data/shell-windows.js). */
 const WINDOWS = [['h', 'hunts'], ['b', 'inventory'], ['c', 'character'], ['g', 'skills-trade'], ['t', 'storage'], ['v', 'shop'], ['p', 'hunt-prep']];
 
@@ -97,7 +100,7 @@ async function stub(page, s) {
   await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
   await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
   await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
-    const name = r.request().url().split('/').pop();
+    const name = r.request().url().split('?')[0].split('/').pop();
     const body = JSON.parse(r.request().postData() || '{}');
     s.calls.push({ name, body });
     if (s.onCall) s.onCall(name, body);
@@ -166,10 +169,10 @@ async function pure() {
   if (edgeBody(0, 'shop_buy', { offer: 'supply.wheat_bread', qty: 2, price: 1 }, 'x')) fails.push('AW-0 edgeBody let a price field through');
   if (edgeBody(0, 'grant_gold', { qty: 1 }, 'x')) fails.push('AW-0 edgeBody built an unknown verb');
   if (!edgeBody(0, 'vendor_sell_many', { lines: [{ item: 'rat_tail', qty: 3 }] }, 'x')) fails.push('AW-0 edgeBody refused a well-formed sale');
-  /* AW-19: a gathering or crafting pointer from before (hr_hunt_enter refuses a hero that is not idle) still gets the Stop line. */
+  /* AW-19: a gathering or crafting pointer the server holds gets the Stop line (every kind: party-ui PI-TOWN). */
   const { buryLine } = await imp('src/shell/windows/inventory/bury.js');
-  if (!/Stop it here\.$/.test(buryLine({ read: (k) => (k === 'state' ? { active_kind: 'gather', active_id: 'copper_rock' } : null) })))
-    fails.push('AW-19 an old gathering pointer gets no Stop line, so the hero could never hunt again');
+  if (!/stop it here\.$/.test(buryLine({ read: (k) => (k === 'state' ? { active_kind: 'gather', active_id: 'copper_rock' } : null) })))
+    fails.push('AW-19 a gathering pointer gets no Stop line, so it would run unseen');
   if (edgeBody(0, 'set_activity', { activity: { kind: 'combat', id: 'rat' } }, 'x')) fails.push('AW-0 edgeBody let the client declare a fight through set_activity');
   return fails;
 }
@@ -178,7 +181,7 @@ async function checks(overrides, shots) {
   const fails = overrides ? [] : await pure();
   const { server, port } = await serve(Object.assign({}, HOOK, overrides || {}));
   const base = 'http://127.0.0.1:' + port;
-  const browser = await chromium.launch(launchOptions({ headless: true }));
+  const browser = await leaseBrowser(chromium);
   const open = async (o = {}) => {
     const ctx = await browser.newContext({ viewport: o.viewport || { width: 1440, height: 900 } });
     const page = await ctx.newPage();
@@ -300,27 +303,24 @@ async function checks(overrides, shots) {
       await ctx.close();
     }
 
-    { // AW-7 the one-tap refill; AW-8 hunt prep
-      const { ctx, page, s, up } = await open();
+    { // AW-7 no supplies in the Shop; AW-8 hunt prep
+      /* The fixture's server still offers food, drink and ammo (the pre-2026-11-02 section): the client must drop them. */
+      const tools = (e) => { e.shop = Object.assign({}, e.shop, { offers: e.shop.offers.concat([{ offer: 'supply.bronze_axe', item: 'bronze_axe', kind: 'tool', price: 120 }]) }); };
+      const { ctx, page, s, up } = await open({ mutateEnv: tools });
       if (up) {
         await openWin(page, 'v', 'shop');
-        await page.click('.hw-tab[data-tab="refill"]');
         await page.waitForTimeout(150);
-        const label = await page.evaluate(() => document.querySelector('[data-hs-act="refill"]').textContent);
-        if (label !== 'Refill · 1,160 gp') fails.push('AW-7 the refill button does not show the quoted total before the press: "' + label + '"');
-        if (shots) await shot(page, 'alpha-1440x900-shop-refill');
-        await page.click('[data-hs-act="refill"]');
-        await page.waitForTimeout(100);
-        const off = await page.evaluate(() => document.querySelector('[data-hs-act="refill"]').disabled);
-        await page.waitForTimeout(600);
-        const refills = sent(s, 'hr_shop_refill');
-        if (refills.length !== 1 || refills[0].body.p_quote_total !== 1160 || refills[0].body.p_slot !== 0) fails.push('AW-7 the refill sent ' + JSON.stringify(refills.map((c) => c.body)));
-        if (sent(s, 'hr-accrue', 'shop_buy').length) fails.push('AW-7 the refill made purchases of its own');
-        if (!off) fails.push('AW-7 the refill button stayed on while the intent was in flight');
+        const shop = await page.evaluate(() => ({ tabs: Array.from(document.querySelectorAll('.hw-shop .hw-tab')).map((b) => b.getAttribute('data-tab')),
+          lines: Array.from(document.querySelectorAll('.hw-shop [data-pane="buy"] .hw-line')).map((l) => l.getAttribute('data-item')),
+          refill: !!document.querySelector('.hw-shop [data-hs-act="refill"]') }));
+        if (shop.tabs.join() !== 'buy,sell' || shop.refill) fails.push('AW-7 the Shop still has a refill: ' + JSON.stringify(shop));
+        if (shop.lines.join() !== 'bronze_axe') fails.push('AW-7 the Shop offers ' + JSON.stringify(shop.lines) + ', not the tools alone');
+        if (shots) await shot(page, 'alpha-1440x900-shop-tools');
         await openWin(page, 'p', 'hunt-prep');
         await page.waitForTimeout(200);
+        if (await page.evaluate(() => !!document.querySelector('[data-hs-act="refill"]'))) fails.push('AW-7 Hunt prep still offers a refill');
         const line = await page.evaluate(() => document.querySelector('.hw-ready-line b').textContent);
-        if (line !== 'Tyler: 14/20 Wheat Bread, 6/10 Goldenroot Tea') fails.push('AW-8 the readiness line reads "' + line + '"');
+        if (line !== AW8_LINE) fails.push('AW-8 the readiness line reads "' + line + '"');
         if (shots) await shot(page, 'alpha-1440x900-hunt-prep');
         await page.click('[data-hs-act="apply"][data-preset="0"]');
         await page.waitForTimeout(600);
@@ -372,10 +372,6 @@ async function checks(overrides, shots) {
           rules: Array.from(document.querySelectorAll('[data-hs-act="m-rule"]')).every((b) => b.disabled),
           junk: document.querySelector('[data-hs-act="sell-junk"]').disabled, value: document.querySelector('.hw-value').textContent }));
         if (!st.lock || !st.rules || !st.junk || st.value !== 'Value –') fails.push('AW-9 without the server’s sections the bag offered ' + JSON.stringify(st));
-        await openWin(page, 'v', 'shop');
-        await page.click('.hw-tab[data-tab="refill"]');
-        const r = await page.evaluate(() => document.querySelector('[data-hs-act="refill"]').disabled);
-        if (!r) fails.push('AW-9 the refill was on with no server quote');
       } else fails.push('AW-9 the screen did not mount');
       await ctx.close();
     }
@@ -385,7 +381,7 @@ async function checks(overrides, shots) {
         for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
         e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, bank_cap: 40 });
         e.bank = { oak_logs: 12, iron_bar: 3 };
-        /* a restock target BELOW the bag's 14 bread: the hunt carries the remembered 10, not the stack */
+        /* a stale restock target BELOW the bag's 14 bread is ignored: the hunt carries the whole stack */
         e.bag_rules = Object.assign({}, e.bag_rules, { restock: { wheat_bread: 10, goldenroot_tea: 10 } });
       };
       const { ctx, page, errors, s, up } = await open({ mutateEnv: town });
@@ -445,7 +441,7 @@ async function checks(overrides, shots) {
           if (enter.length !== 1 || b.p_hunt !== 'mill_cellar' || b.p_slot !== 0 || !Array.isArray(b.p_bag) || Object.keys(b).some((k) => /price|gold|total|cost/.test(k)))
             fails.push('AW-14 Enter sent ' + JSON.stringify(enter.map((c) => c.body)));
           const bread = b && b.p_bag.find((l) => l.item === 'wheat_bread');
-          if (!bread || bread.qty !== 10) fails.push('AW-14 the hunt did not carry the bread up to its restock target: ' + JSON.stringify(b && b.p_bag));
+          if (!bread || bread.qty !== 14) fails.push('AW-14 the hunt did not carry the whole bread stack: ' + JSON.stringify(b && b.p_bag));
         }
         /* AW-16b Storage from town: a Shift-press moves a whole stack, ONE hr_bank_move (the amounts are AW-18). */
         await openWin(page, 't', 'storage');
@@ -593,15 +589,12 @@ const MUTANTS = [
   ['bag actions stay on while an intent is in flight', 'src/shell/windows/inventory/grid.js', "prop(pb, 'disabled', sc.pending || !prim);", "prop(pb, 'disabled', !prim);"],
   ['a pocket is rebuilt whenever its count changes', 'src/shell/windows/inventory/grid.js', '    key: (r) => r.id,\n    build: (r) => element(ctx.doc, pocketHtml(r.id, ctx.glyphs)),', '    key: (r) => r.id + ":" + r.qty,\n    build: (r) => element(ctx.doc, pocketHtml(r.id, ctx.glyphs)),'],
   ['a sale is sent without the confirmation', 'src/shell/windows/inventory/actions.js', '  st.sc.confirm = confirmFor(st, ids, label);\n  repaint();', '  st.sc.confirm = confirmFor(st, ids, label);\n  repaint();\n  doSell(st, repaint);'],
-  ['the refill button hides the total', 'src/shell/windows/shop.js', "text(btn, 'Refill · ' + gold(quote.total));", "text(btn, 'Refill');"],
-  ['the refill buys line by line', 'src/shell/windows/shop.js', "runIntent(sc, repaint, () => cs.refill(shop.refill.total), 'Refilling…',",
-    "runIntent(sc, repaint, () => Promise.all(shop.refill.lines.map((l) => cs.edgeIntent('shop_buy', { offer: l.offer, qty: l.buy }))).then(() => cs.refill(shop.refill.total)), 'Refilling…',"],
+  ['the Shop lists supplies again', 'src/session/item-sections.js', "const KINDS = Object.freeze(['tool']);", "const KINDS = Object.freeze(['food', 'drink', 'ammo', 'tool']);"],
   ['the doll wears the item before the server confirms', 'src/shell/windows/inventory/doll.js', '    const id = eq[s] || \'\';', "    const id = (s === 'weapon' && globalThis.__want) || eq[s] || '';"],
   ['a press on a window reaches the World', 'src/world/world-boot.js', "if (!walk || !scene || scene.kind === 'hunt' || !onWorld(e)) return;", "if (!walk || !scene || scene.kind === 'hunt') return;"],
   ['an open window takes the walk keys', 'src/world/world-boot.js', '    if (keyBelongsToField(t, e.code)) { letGo(); return; }', "    if (keyBelongsToField(t, e.code) || (t.closest && t.closest('[data-hs-win]'))) { letGo(); return; }"],
-  ['a docked window shows the void past the map', 'src/world/core/camera.js', '    if (span >= v) c = hold(', '    if (false) c = hold('],
   ['the mill hatch opens nothing', 'src/world/world-boot.js', "    hunt: (id) => emit('entrance', { hunt: id }),", '    hunt: () => false,'],
-  ['a hunt carries the whole stack past its restock target', 'src/shell/hunt-list.js', 'restock[r.id] > 0 ? Math.min(r.qty, restock[r.id]) : r.qty', 'r.qty'],
+  ['a hunt carries only part of its own stack', 'src/shell/hunt-list.js', '.map((r) => ({ item: r.id, qty: Math.min(PACK_QTY_MAX, r.qty) }))', '.map((r) => ({ item: r.id, qty: Math.min(PACK_QTY_MAX, r.qty, 10) }))'],
   ['a Shift-press in Storage moves one at a time', 'src/shell/windows/storage.js', 'move(cs, sc, repaint, id, ev.shiftKey ? row.qty : 1, action);', 'move(cs, sc, repaint, id, 1, action);'],
   ['a press in Storage moves the whole stack', 'src/shell/windows/storage.js', 'move(cs, sc, repaint, id, ev.shiftKey ? row.qty : 1, action);', 'move(cs, sc, repaint, id, row.qty, action);'],
   ['the amount picker sends the whole stack', 'src/shell/widgets/amount.js', "  return n ? clampAmount(n.value, n.getAttribute('data-max')) : 1;", "  return n ? clampAmount(n.getAttribute('data-max'), n.getAttribute('data-max')) : 1;"],
@@ -625,7 +618,7 @@ async function main() {
     const fails = await checks(null, shots);
     for (const f of fails) console.log('  ✗ ' + f);
     console.log(fails.length ? 'alpha-windows: ' + fails.length + ' rule(s) RED'
-      : 'alpha-windows: the windows open; patch in place; the server’s counts win; intents only; locks hold; totals first; one-tap refill; Hunts from the hatch in two presses; window presses and focus never steal the World; no void; storage from town; store any amount; bury pays from the server; skills split' + (shots ? ' (shots in ' + shots + ')' : ''));
+      : 'alpha-windows: the windows open; patch in place; the server’s counts win; intents only; locks hold; totals first; no supplies in the Shop; Hunts from the hatch in two presses; window presses and focus never steal the World; no void; storage from town; store any amount; bury pays from the server; skills split' + (shots ? ' (shots in ' + shots + ')' : ''));
     process.exit(fails.length ? 1 : 0);
   }
   const clean = await checks(null, null);

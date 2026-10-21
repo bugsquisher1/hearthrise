@@ -12,16 +12,21 @@
 //   A-IDEM    every S2 file RE-APPLIES at chain end byte-identically (schema
 //             inventory + every public body + the section and baseline rows);
 //   A-DATA    one price, two readers: the edge's shop_buy catalogue
-//             (src/data/shops.js -> catalogue.js GOLD_OFFERS) and the SQL
-//             hr_shop_supply_offers agree for every supply offer; the vendor
-//             never bids more than half of one (buy-then-sell loses); the
+//             (src/data/shops.js -> catalogue.js GOLD_OFFERS: the tools) and
+//             its supply price list (SUPPLY_PRICE_LIST, never sold) agree with
+//             the SQL hr_shop_supply_offers row for row; the vendor never bids
+//             more than half of one (buy-then-sell loses); the
 //             SQL stamina and blessing prices equal the data's own functions
 //             (stamina-refill.js refillPrice, blessings.js blessingPrice);
 //   A-LOCK    the REAL edge verb vendor_sell_many refuses a locked item
 //             (`item_locked`, hr_apply's, under the lock) and sells it unlocked;
-//   A-REFILL  the one-tap refill, as `authenticated`, charges exactly the
-//             edge catalogue's price for exactly max(0, target − held); a
-//             shop_buy of a supply offer through the edge charges the same unit;
+//   A-NO-SUPPLY  the Shop sells no supplies (Tyler 2026-10-20,
+//             2026-11-02-shop-no-supplies.sql): the `shop` section offers the
+//             tools only and no refill; the refill and restock verbs are gone
+//             for `authenticated`; the REAL edge shop_buy refuses a supply offer
+//             (supplies_not_sold) and moves no gold, and sells the Bronze Axe at
+//             its price. (The per-use store charge from the bar is
+//             tests/hunt-sessions-settle.mjs STORE, unchanged.)
 //   A-LOOT-AWAY / A-LOOT-ATTENDED  the loot filter in the REAL settle (tick and
 //             player door): sell = picked-up units x the vendor bid, as gold,
 //             the pickups still tallied; ignore leaves them; a locked item is kept;
@@ -32,7 +37,9 @@
 //   A-STAMINA a refill bought DURING a hunt (attended) raises the pool at the
 //             session's settled_to, and the next settles run past the old end;
 //   A-PARTY   invite by name -> accept -> the leader's one start enters both
-//             members with their OWN bags, and the instance settles them.
+//             members with their OWN bags, and the instance settles them; a kicked
+//             hunter is ended `left` at its leave and the instance settles on
+//             without it (Security reopen #2, 2026-10-29-party-security.sql).
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -56,7 +63,7 @@ async function harness() {
   const X = {
     VS: await import(u(join(FN, 'vendor-sell.js'))), SB: await import(u(join(FN, 'shop-buy.js'))),
     CAT: await import(u(join(FN, 'catalogue.js'))), SR: await import(u('src/data/stamina-refill.js')),
-    BL: await import(u('src/data/blessings.js')), SUP: await import(u('src/data/supply-basics.js')),
+    BL: await import(u('src/data/blessings.js')), SUP: await import(u('src/data/supply-basics.js')), SHOPS: await import(u('src/data/shops.js')),
     GEN: await import(u('tools/gen-alpha-catalogue.mjs')),
   };
   return { H, M, X };
@@ -96,13 +103,16 @@ const ARMS = {
   'A-DATA': async (db, { H, M, X }) => {
     const p = [];
     try { X.GEN.supplyRows(); } catch (e) { p.push('the shipped supply rows are refused: ' + e.message); }
-    const sql = await H.q(db, 'select offer_id, item_id, price from public.hr_shop_supply_offers order by offer_id');
+    const sql = await H.q(db, 'select offer_id, item_id, kind, price from public.hr_shop_supply_offers order by offer_id');
     if (sql.length !== X.SUP.SUPPLY_SHOP_OFFERS.length) p.push(`hr_shop_supply_offers has ${sql.length} rows, the data ${X.SUP.SUPPLY_SHOP_OFFERS.length}`);
+    const listed = Object.fromEntries(X.SHOPS.SUPPLY_PRICE_LIST.map((o) => [o.id, o]));
     for (const r of sql) {
-      const edge = X.CAT.GOLD_OFFERS[r.offer_id];
+      /* A tool is a shop_buy offer; a supply is only a price (the vendor's cap), refused by name. */
+      const edge = r.kind === 'tool' ? X.CAT.GOLD_OFFERS[r.offer_id] : listed[r.offer_id] && { gold: listed[r.offer_id].cost[0].amount, grant: listed[r.offer_id].grant };
       if (!edge || edge.gold !== Number(r.price) || edge.grant.length !== 1 || edge.grant[0].id !== r.item_id || edge.grant[0].amount !== 1) {
-        p.push(`${r.offer_id}: SQL ${r.price} g vs edge shop_buy ${JSON.stringify(edge)}`);
+        p.push(`${r.offer_id}: SQL ${r.price} g vs edge ${JSON.stringify(edge)}`);
       }
+      if (r.kind !== 'tool' && (X.CAT.GOLD_OFFERS[r.offer_id] || X.CAT.OFFER_REFUSALS[r.offer_id] !== 'supplies_not_sold')) p.push(`${r.offer_id}: a supply is sold by shop_buy`);
       const bid = X.CAT.vendorPriceOf(M.ITEMS, r.item_id);
       if (bid * 2 > Number(r.price)) p.push(`${r.item_id}: the vendor bids ${bid}, more than half its shop price ${r.price}`);
       const sqlBid = await H.one(db, 'select unit from public.hr_hunt_vendor_value where item_id = $1', [r.item_id]);
@@ -157,27 +167,28 @@ const ARMS = {
     return p;
   },
 
-  'A-REFILL': async (db, { H, M, X }) => {
+  'A-NO-SUPPLY': async (db, { H, M, X }) => {
     const p = [];
     const uid = H.UIDS[0];
-    const offers = X.SUP.SUPPLY_SHOP_OFFERS.slice(0, 3);
-    await H.character(db, M, uid, { inv: { [offers[0].item]: 4 }, gold: 1000000 });
-    const targets = Object.fromEntries(offers.map((o, i) => [o.item, 10 + i]));
-    if ((await asAuth(db, uid, 'select public.hr_restock_set(0, $1::jsonb, $2::uuid)', [JSON.stringify(targets), idem()])).ok !== true) return ['CONTROL: restock refused'];
-    let want = 0;
-    const have = {};
-    for (const o of offers) { have[o.item] = await qty(H, db, uid, o.item); want += Math.max(0, targets[o.item] - have[o.item]) * X.CAT.GOLD_OFFERS[o.offer].gold; }
+    const food = X.SUP.SUPPLY_SHOP_OFFERS.find((o) => o.kind === 'food');
+    const axe = X.SUP.SUPPLY_SHOP_OFFERS.find((o) => o.item === 'bronze_axe');
+    await H.character(db, M, uid, { inv: {}, gold: 100000 });
     const shop = await H.one(db, "select public.hr_state_of($1, 0)->'shop'", [uid]);
-    if (Number(shop.refill.total) !== want) p.push(`the quote is ${shop.refill.total}, the edge catalogue says ${want}`);
+    const kinds = new Set((shop && shop.offers || []).map((o) => o.kind));
+    if (!shop || 'refill' in shop || kinds.size !== 1 || !kinds.has('tool')) p.push('the shop section reads ' + JSON.stringify(shop).slice(0, 200));
+    /* The doors are gone, not merely broken: no function a client could reach (a call that fails inside is still a door). */
+    for (const fn of ['public.hr_shop_refill(integer,bigint,uuid)', 'public.hr_shop_refill_quote(uuid,integer)', 'public.hr_restock_set(integer,jsonb,uuid)']) {
+      if (await H.one(db, 'select to_regprocedure($1) is not null', [fn])) p.push(fn + ' still exists');
+    }
+    const exec = H.makeExec(db);
     const g0 = await gold(H, db, uid);
-    const r = await asAuth(db, uid, 'select public.hr_shop_refill(0, $1, $2::uuid)', [want, idem()]);
-    if (!r || r.ok !== true) p.push('the refill answered ' + JSON.stringify(r));
-    if (await gold(H, db, uid) !== g0 - want) p.push(`the refill moved ${g0 - await gold(H, db, uid)} g, not ${want}`);
-    for (const o of offers) if (await qty(H, db, uid, o.item) !== Math.max(targets[o.item], have[o.item])) p.push(`${o.item}: not filled to its target`);
-    // shop_buy of the same offer through the edge: the same unit price.
-    const g1 = await gold(H, db, uid);
-    const b = await X.SB.runShopBuy({ exec: H.makeExec(db), user: uid, slot: 0, intentId: idem(), offer: offers[1].offer, qty: 2 });
-    if (!b.body || b.body.ok !== true || await gold(H, db, uid) !== g1 - 2 * offers[1].price) p.push('shop_buy of a supply offer answered ' + JSON.stringify(b.body && { ok: b.body.ok, error: b.body.error }));
+    const r = await X.SB.runShopBuy({ exec, user: uid, slot: 0, intentId: idem(), offer: food.offer, qty: 2 });
+    if (!r.body || r.body.ok === true || r.body.reason !== 'supplies_not_sold') p.push('shop_buy of a supply answered ' + JSON.stringify(r.body).slice(0, 200));
+    if (await gold(H, db, uid) !== g0 || await qty(H, db, uid, food.item) !== 0) p.push('a refused supply purchase moved the purse or the bag');
+    const t = await X.SB.runShopBuy({ exec, user: uid, slot: 0, intentId: idem(), offer: axe.offer, qty: 1 });
+    if (!t.body || t.body.ok !== true || await gold(H, db, uid) !== g0 - axe.price || await qty(H, db, uid, 'bronze_axe') !== 1) {
+      p.push('CONTROL: the Bronze Axe did not sell at its price: ' + JSON.stringify(t.body && { ok: t.body.ok, error: t.body.error }));
+    }
     return p;
   },
 
@@ -222,20 +233,21 @@ const ARMS = {
     const ok = async (uid, sql, params) => { const r = await asAuth(db, uid, sql, params); if (!r || r.ok !== true) throw new Error(sql.slice(7, 40) + ' refused: ' + JSON.stringify(r)); return r; };
     await ok(a, 'select public.hr_character_name_set(0, $1, $2::uuid)', ['Party Leader', idem()]);
     await ok(b, 'select public.hr_character_name_set(0, $1, $2::uuid)', ['Party Member', idem()]);
-    const pid = (await ok(a, "select public.hr_hunt_party_create(0, 'mill_cellar', $1::uuid)", [idem()])).party.id;
+    /* The first invite makes the party (2026-10-28-party-flow.sql): the inviter leads, the ground is picked at Start. */
     await ok(a, 'select public.hr_hunt_party_invite(0, $1, $2::uuid)', ['party member', idem()]);
+    const pid = await H.one(db, 'select public.hr_hunt_party_of($1, 0)', [a]);
     const inv = await H.one(db, "select public.hr_state_of($1, 0)->'party_invites'", [b]);
     if (!Array.isArray(inv) || inv.length !== 1 || inv[0].from !== 'Party Leader') return ['the invitee sees ' + JSON.stringify(inv)];
     await ok(b, 'select public.hr_hunt_party_accept(0, $1::uuid, $2::uuid)', [inv[0].id, idem()]);
-    await ok(a, 'select public.hr_restock_set(0, $1::jsonb, $2::uuid)', [JSON.stringify({ [food]: 12 }), idem()]);
-    await ok(b, 'select public.hr_restock_set(0, $1::jsonb, $2::uuid)', [JSON.stringify({ [food]: 7 }), idem()]);
-    const st = await ok(a, 'select public.hr_hunt_party_start(0, $1::uuid)', [idem()]);
+    /* Each member packs its OWN supplies, whole stacks (2026-11-02-shop-no-supplies.sql hr_hunt_saved_bag). */
+    await db.query('update public.player_inventory set qty = case when user_id = $1 then 12 else 7 end where user_id = any ($2::uuid[]) and slot = 0 and item_id = $3', [a, [a, b], food]);
+    const st = await ok(a, "select public.hr_hunt_party_start(0, 'mill_cellar', $1::uuid)", [idem()]);
     if (st.entered !== 2) p.push('the start entered ' + st.entered);
     const bags = await H.q(db, `select h.user_id, b.qty_loaded from public.hunt_sessions h join public.hunt_bag b on b.session_id = h.id
                                  where h.instance_id = $1 and h.ended_at is null and b.item_id = $2`, [pid, food]);
     const bagOf = (u) => Number((bags.find((x) => x.user_id === u) || {}).qty_loaded);
     if (bagOf(a) !== 12 || bagOf(b) !== 7) p.push(`the members' bags are ${JSON.stringify(bags)}, not their own 12 / 7`);
-    if (await qty(H, db, a, food) !== 18 || await qty(H, db, b, food) !== 23) p.push('a bag was not taken from its own member');
+    if (await qty(H, db, a, food) !== 0 || await qty(H, db, b, food) !== 0) p.push('a bag was not taken from its own member');
     /* The instance settles both (client closed): backdate the arrival, tick three minutes. */
     const t = "date_trunc('second', now() - interval '6 minutes')";
     await db.query(`update public.hunt_sessions set entered_at = ${t} - interval '1 minute', hunt_from = ${t}, settled_to = ${t}, next_swing_at = ${t}
@@ -245,6 +257,26 @@ const ARMS = {
     for (const at of H.ticksOf(30000, 3 * 60000)(from)) await H.settleTo(db, M, at, { user: a });
     const swings = await H.q(db, 'select user_id, swing_index from public.hunt_sessions where instance_id = $1 and ended_at is null', [pid]);
     if (swings.length !== 2 || swings.some((s) => !(Number(s.swing_index) > 0))) p.push('the instance did not settle both members: ' + JSON.stringify(swings));
+    /* SECURITY REOPEN #2 (2026-10-29-party-security.sql): the leader kicks the HUNTING member. Minutes behind the
+       clock, its session gets leave_at; the next settle ends it `left` there, and the instance settles on with the
+       leader alone, so the kicked member is in no later split. */
+    await db.query('delete from public.hr_rate_counters');
+    const sb = await H.one(db, 'select id from public.hunt_sessions where instance_id = $1 and user_id = $2 and ended_at is null', [pid, b]);
+    const seatB = await H.one(db, 'select seat from public.hunt_party_members where party_id = $1 and user_id = $2', [pid, b]);
+    const k = await ok(a, 'select public.hr_hunt_party_kick(0, $1, $2::uuid)', [seatB, idem()]);
+    if (k.leaving !== true || await H.one(db, 'select public.hr_hunt_party_of($1, 0)', [b])) p.push('the kick did not take the hunter out: ' + JSON.stringify(k));
+    /* One transaction has one now(): the kick is put a minute back, so the settles below cross its leave and the
+       boundary after it (the engine ends a hunt at the first swing boundary at or past leave_at). */
+    await db.query("update public.hunt_sessions set leave_at = leave_at - interval '60 seconds' where id = $1 and leave_at is not null", [sb]);
+    const nowMs = Number(await H.one(db, 'select floor(extract(epoch from now()) * 1000)::bigint'));
+    const from2 = Number(await H.one(db, 'select floor(extract(epoch from settled_to) * 1000)::bigint from public.hunt_instances where id = $1', [pid]));
+    for (const at of [...H.ticksOf(30000, 4 * 60000)(from2).filter((x) => x < nowMs), nowMs]) await H.settleTo(db, M, at, { user: a });
+    const end = (await H.q(db, 'select ended_at, end_reason, leave_at, settled_to from public.hunt_sessions where id = $1', [sb]))[0];
+    if (!end || end.ended_at === null || end.end_reason !== 'left' || (end.leave_at && new Date(end.settled_to) > new Date(end.leave_at))) {
+      p.push('the kicked hunter was not ended at its leave: ' + JSON.stringify(end));
+    }
+    const open = await H.q(db, 'select user_id from public.hunt_sessions where instance_id = $1 and ended_at is null', [pid]);
+    if (open.length !== 1 || open[0].user_id !== a) p.push('after the kick the instance holds ' + JSON.stringify(open) + ', want the leader alone');
     return p;
   },
 };
@@ -355,10 +387,10 @@ async function blessArm(db, { H, M }, attended) {
 /* Each mutant: the file, its [find, replace], the arm that must go red. The file's own
    self-check is turned into an uncalled function so the defect reaches the arm. */
 const MUTANTS = [
-  { arm: 'A-LOCK', file: '2026-10-25-settle-hooks.sql', why: 'hr_apply no longer refuses a locked sale',
+  { arm: 'A-LOCK', file: '2026-10-27-core-bodies.sql', why: 'hr_apply no longer refuses a locked sale',
     find: "        if v_n < 0 and coalesce(v_this_intent, '') ~ '^vendor_sell(_many)?(:|$)' and public.hr_item_locked(v_uid, v_slot, k) then",
     repl: "        if false and coalesce(v_this_intent, '') ~ '^vendor_sell(_many)?(:|$)' and public.hr_item_locked(v_uid, v_slot, k) then" },
-  /* hr_hunt_apply_member and hr_hunt_party_start are RESTATED by the core rebuild (2026-10-27-core-bodies.sql):
+  /* hr_hunt_apply_member is RESTATED by the core rebuild (2026-10-27-core-bodies.sql):
      their mutants are planted in the bodies that run. */
   { arm: 'A-LOOT-AWAY', file: '2026-10-27-core-bodies.sql', why: 'the settle no longer runs the loot filter',
     find: "  v_loot := public.hr_hunt_loot_rules(p_user, p_slot, p_session, p_intent, p_delta->'items', v_to);", repl: '  v_loot := null;' },
@@ -366,8 +398,10 @@ const MUTANTS = [
     find: '      v_gold := v_gold + v_q * v_r.unit;', repl: '      v_gold := v_gold + 2 * v_q * v_r.unit;' },
   { arm: 'A-LOOT-AWAY', file: '2026-10-25-bag-rules.sql', why: 'the loot filter ignores a lock',
     find: "       and r.loot_rule in ('sell', 'ignore') and not r.locked", repl: "       and r.loot_rule in ('sell', 'ignore')" },
-  { arm: 'A-REFILL', file: '2026-10-25-shop-supplies.sql', why: 'the quote prices one unit short',
-    find: "  l as (select t.*, greatest(0, t.target - t.have) as buy from t)", repl: "  l as (select t.*, greatest(0, t.target - t.have - 1) as buy from t)" },
+  { arm: 'A-NO-SUPPLY', file: '2026-11-02-shop-no-supplies.sql', why: 'the shop section lists the supplies again',
+    find: "from public.hr_shop_supply_offers o where o.kind = 'tool'), '[]'::jsonb),", repl: "from public.hr_shop_supply_offers o), '[]'::jsonb)," },
+  { arm: 'A-NO-SUPPLY', file: '2026-11-02-shop-no-supplies.sql', why: 'the refill door stays open',
+    find: "drop function if exists public.hr_shop_refill(integer, bigint, uuid);", repl: "select 1;" },
   { arm: 'A-DATA', file: '2026-10-25-alpha-catalogue.generated.sql', why: 'the SQL catalogue drifts from the edge price',
     find: "  ('supply.cooked_shrimp', 'cooked_shrimp', 'food', 19),", repl: "  ('supply.cooked_shrimp', 'cooked_shrimp', 'food', 18)," },
   /* hr_stamina_refill_quote is RESTATED by the core rebuild (2026-10-27-core-bodies.sql: priced on Level):
@@ -384,9 +418,29 @@ const MUTANTS = [
      so there is no second death for the mutant to protect.) */
   { arm: 'A-BLESS-ATTENDED', file: '2026-10-25-blessings.sql', why: 'a death does not use the blessings up',
     find: '  delete from public.player_blessings where user_id = p_user and slot = p_slot and tier = any (v_tiers);', repl: '  perform 1;' },
-  { arm: 'A-PARTY', file: '2026-10-27-core-bodies.sql', why: "the shared start loads the leader's bag into every member",
+  /* hr_hunt_party_start is RESTATED last by 2026-10-30-town-activity-yields.sql (after party-flow): the mutant is planted in the body that runs. */
+  { arm: 'A-PARTY', file: '2026-10-30-town-activity-yields.sql', why: "the shared start loads the leader's bag into every member",
     find: 'public.hr_hunt_saved_bag(v_m.user_id, v_m.slot),', repl: 'public.hr_hunt_saved_bag(v_uid, p_slot),' },
 ];
+
+/** Each mutant's file must be the chain's LAST author of the function its `find` sits in (mutate the caller). */
+export function staleAnchors(mutants) {
+  const order = JSON.parse(readFileSync(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+  const text = (f) => { try { return readFileSync(MIG(f), 'utf8').replace(/\r\n/g, '\n'); } catch { return ''; } };
+  const out = [];
+  for (const mu of mutants) {
+    const body = text(mu.file);
+    const at = body.indexOf(mu.find);
+    if (at < 0) { out.push(`${mu.arm}: find not in ${mu.file}`); continue; }
+    let fn = null;
+    for (const m of body.slice(0, at).matchAll(/create\s+or\s+replace\s+function\s+(?:public\.)?(\w+)\s*\(/gi)) fn = m[1];
+    if (!fn) continue;
+    const re = new RegExp('create\\s+or\\s+replace\\s+function\\s+(?:public\\.)?' + fn + '\\s*\\(', 'i');
+    const later = order.slice(order.indexOf(mu.file) + 1).filter((f) => re.test(text(f)));
+    if (later.length) out.push(`${mu.arm}: ${fn} in ${mu.file} is restated last by ${later.at(-1)}; plant it there`);
+  }
+  return out;
+}
 
 function selfCheckOff(file) {
   const src = readFileSync(MIG(file), 'utf8').replace(/\r\n/g, '\n');
@@ -425,7 +479,13 @@ async function main() {
     console.log(bad ? `alpha-server: ${bad} of ${res.length} arms red` : `alpha-server: green — ${res.length} arms`);
     process.exit(bad ? 1 : 0);
   }
-  let missed = 0;
+  /* A mutant planted in a body a later file restates never runs (A-PARTY/A-LOCK, 2026-10-20): refuse it up front.
+     Selftest: the old party-flow anchor must be flagged, or this check is blind. */
+  const probe = staleAnchors([{ arm: 'SELFTEST', file: '2026-10-28-party-flow.sql', find: 'public.hr_hunt_saved_bag(v_m.user_id, v_m.slot),' }]);
+  if (!probe.length) { console.error('✗ ANCHOR selftest: a superseded party-flow anchor was not flagged'); process.exit(1); }
+  const stale = staleAnchors(MUTANTS);
+  for (const s of stale) console.error('✗ ANCHOR ' + s);
+  let missed = stale.length;
   for (const mu of MUTANTS) {
     let db;
     try {

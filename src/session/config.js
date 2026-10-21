@@ -39,4 +39,25 @@ export const SESSION_CONFIG = Object.freeze({
       poll plus slack, every step and blow of every window plays at its own instant. The snapshot's
       numbers (HP, loot, the bar) stay live; only the moving picture is buffered. */
   huntPlaybackDelayMs: 19000,
+  /** THE LIVE VIEW (option B): the viewed hunt runs in the browser and plays this far behind the
+      engine (a frame or so of slack for a swing simulated at its boundary). */
+  liveDelayMs: 150,
+  /** A reconcile eases each unit onto the server's world over at least this long (timeline.js T8). */
+  liveEaseMs: 250,
+  /** Without a live start point, ask this soon (the floor answers with hunt_live, writing nothing),
+      doubling per answer that brought none, up to huntPollMs, and never before the hunt's first
+      boundary (src/session/live-link.js askDelayMs). */
+  liveAskMs: 300,
+  /** A PENDING LEAVE closes at the server's leave_at: the hunter's settle is asked this long after it
+      (clock slack), not up to a huntPollMs later; the settle closes it then (hunt-settle.js: a pending
+      leave is never held back by the floor). */
+  leaveSlackMs: 400,
+  /** ...and, if that settle did not close it yet, asked again this often until leaveLateMs past leave_at
+      (then the ordinary poll goes on asking, and the hunt bar says it is still being processed). */
+  leaveRetryMs: 2000,
+  leaveLateMs: 16000,
+  /** THE LOOK-AHEAD KEPT FULL: ask for the next combat seeds this long before the prediction would run
+      out of them (src/session/live-link.js refillDelayMs): four swings, room for an answer that brings
+      none and one retry. */
+  liveRefillMs: 8000,
 });

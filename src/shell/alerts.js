@@ -8,14 +8,16 @@
 //           (timeline.onArrive, so a character that is not on screen still
 //           tells), id = the server's own event id
 //   death   the hunt section ending `died` / `party_member_died`, id = session
-//   low     a restock target under LOW_SUPPLY_PCT of itself, or a bar supply
-//           at zero, while hunting; id = session + item. Never for a resource
+//   low     a bar supply at zero for a hero set to end its hunt on empty, while hunting; id = session + item. Never for a resource
 //           the hero does not use (a drink for a hero with no mana pool), and
 //           never "out of" while the store pays per use (supply_source `store`
 //           or on_empty `switch`: HUNT_SCREEN_SPEC §3.4 rule 7, the hunt never
 //           stops for lack of stock). A bar slot may name a KIND (`food`,
 //           `drink`): its stock is every bag stack of that kind.
 //   ended   the hunt section saying `ended`, id = session
+//   invite  a party invite waiting for the character (`party_invites`), id =
+//           the server's invite id; Join / No thanks answer it, and it goes
+//           when the server no longer lists it (answered anywhere, expired)
 //
 // THE RULE: an alert fires ONCE per event id. The ids already shown are kept
 // in memory for the page and in the character's residue (`alerts.seen`,
@@ -24,15 +26,14 @@
 // Nothing here gates or spends anything; the "Start again" button is an
 // intent (CharacterSession.restartHunt) like every other.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERT_INDEX, LOW_SUPPLY_PCT } from '../data/alerts.js?v=0.2.9';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.9';
-import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.9';
-import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.9';
-import { bagOf, rulesOf, nameOf } from '../session/item-sections.js?v=0.2.9';
-import { huntName } from '../session/party-sections.js?v=0.2.9';
-import { itemName } from './widgets/bits.js?v=0.2.9';
-import { whole } from '../render/format.js?v=0.2.9';
-import { CONSUMABLES, CONSUMABLE_KINDS } from '../data/consumables.js?v=0.2.9';
+import { ALERT_INDEX } from '../data/alerts.js?v=0.2.22';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.22';
+import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.22';
+import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.22';
+import { bagOf, nameOf } from '../session/item-sections.js?v=0.2.22';
+import { huntName, invitesOf } from '../session/party-sections.js?v=0.2.22';
+import { itemName } from './widgets/bits.js?v=0.2.22';
+import { CONSUMABLES, CONSUMABLE_KINDS } from '../data/consumables.js?v=0.2.22';
 
 const residueOf = (cs) => {
   const r = cs && cs.record && cs.record.residue && cs.record.residue.alerts;
@@ -58,7 +59,7 @@ export function setAlertShown(cs, kind, on) {
 /* What a consume names: a kind ('food' | 'drink') or an item, and which kind it is (null = neither). */
 const kindOf = (id) => (CONSUMABLE_KINDS[id] ? id : CONSUMABLES[id] ? CONSUMABLES[id].kind : null);
 
-/* The low-supply items of a hunting character: restock targets under the share, and bar supplies at zero. */
+/* The low-supply items of a hunting character: bar supplies at zero (no shop sells supplies; Tyler 2026-10-20). */
 function lowItems(cs, hero) {
   const bag = bagOf(cs);
   if (!bag) return [];
@@ -70,13 +71,8 @@ function lowItems(cs, hero) {
   const have = new Map(bag.map((r) => [r.id, r.qty]));
   const stock = (id) => (CONSUMABLE_KINDS[id] ? bag.reduce((n, r) => n + (kindOf(r.id) === id ? r.qty : 0), 0) : have.get(id) || 0);
   const out = new Map();
-  const rules = rulesOf(cs);
-  if (rules) for (const [id, target] of Object.entries(rules.restock)) {
-    const n = have.get(id) || 0;
-    if (uses(id) && n * 100 < target * LOW_SUPPLY_PCT && !(storePays && n === 0)) out.set(id, { item: id, have: n, target });
-  }
   if (s && !storePays) for (const sl of s.slots) {
-    if (!sl.empty && sl.action.type === 'consume' && uses(sl.item) && !(stock(sl.item) > 0) && !out.has(sl.item)) out.set(sl.item, { item: sl.item, have: 0, target: null });
+    if (!sl.empty && sl.action.type === 'consume' && uses(sl.item) && !(stock(sl.item) > 0) && !out.has(sl.item)) out.set(sl.item, { item: sl.item });
   }
   return Array.from(out.values());
 }
@@ -88,9 +84,10 @@ const supplyWords = (id) => (id === 'food' ? 'food' : id === 'drink' ? 'drinks' 
  * @returns {{id: string, kind: string, text: string, session: string|null, item?: string}[]}
  */
 function candidatesOf(cs) {
+  const out = (invitesOf(cs) || []).map((i) => ({ id: 'invite:' + i.id, kind: 'invite', session: null, invite: i.id,
+    text: i.from + ' invites ' + who(cs) + ' to their party.' }));
   const h = huntOf(cs);
-  if (!h) return [];
-  const out = [];
+  if (!h) return out;
   const where = huntName(h.huntId);
   /* A death ends the hunt (CORE_MODEL.md §4): the death alert stands in for the ended one. */
   if (h.ended && h.endReason === 'died') out.push({ id: 'death:' + h.sessionId, kind: 'death', session: h.sessionId,
@@ -100,7 +97,7 @@ function candidatesOf(cs) {
   else if (h.ended) out.push({ id: 'ended:' + h.sessionId, kind: 'ended', session: h.sessionId, text: who(cs) + '’s hunt in ' + where + ' has ended.' });
   else for (const l of lowItems(cs, h.hero)) {
     out.push({ id: 'low:' + h.sessionId + ':' + l.item, kind: 'low', session: h.sessionId, item: l.item,
-      text: who(cs) + ' is ' + (l.have === 0 ? 'out of ' : 'low on ') + supplyWords(l.item) + (l.target ? ' (' + whole(l.have) + ' of ' + whole(l.target) + ').' : '.') });
+      text: who(cs) + ' is out of ' + supplyWords(l.item) + '.' });
   }
   return out;
 }
@@ -133,7 +130,7 @@ export function createAlertCenter(account) {
     mine.add(c.id);
     if (!alertShown(cs, c.kind)) return false;
     const kind = ALERT_INDEX[c.kind];
-    alerts.unshift(Object.assign({ key: 'a' + (++n), slot: cs.slot, action: kind.action, button: kind.button, glyph: kind.glyph, pending: false, msg: '' }, c));
+    alerts.unshift(Object.assign({ key: 'a' + (++n), slot: cs.slot, action: kind.action, button: kind.button, decline: kind.decline || null, glyph: kind.glyph, pending: false, msg: '' }, c));
     if (alerts.length > 32) alerts.length = 32;
     const r = residueOf(cs);
     cs.setResidue('alerts', { off: Array.isArray(r.off) ? r.off : [], seen: (Array.isArray(stored) ? stored : []).concat(c.id).slice(-ALERTS_SEEN_MAX) });
@@ -142,7 +139,13 @@ export function createAlertCenter(account) {
 
   function scan(cs) {
     let any = false;
-    for (const c of candidatesOf(cs)) any = fire(cs, c) || any;
+    const now = candidatesOf(cs);
+    for (const c of now) any = fire(cs, c) || any;
+    /* An invite the server no longer lists (answered elsewhere, expired, its party gone) leaves the lines. */
+    const live = new Set(now.filter((c) => c.kind === 'invite').map((c) => c.id));
+    for (let i = alerts.length - 1; i >= 0; i--) {
+      if (alerts[i].slot === cs.slot && alerts[i].kind === 'invite' && !live.has(alerts[i].id)) { alerts.splice(i, 1); any = true; }
+    }
     if (any) changed();
   }
 

@@ -24,14 +24,24 @@
 //         144 fps loop give the same units, walk frames, facings, floats and effects
 //   SC-5  EVERY EVENT TYPE IS MAPPED (FX-05): each EVENT_TYPES key has an
 //         EVENT_FX row or an explicit null, every effect named exists in the vfx
-//         atlas, every outfit walks in all eight facings in the hunt atlas
+//         atlas, every outfit walks in all eight facings in the hunt atlas, every
+//         ranged role's basic attack has a shipped bolt and every role a basic hit
 //   SC-6  THE FRAME DRAWS IT: hunt-set sprites (never a stub) with the diagonal
 //         frame of a diagonal step, vfx-set effects, the hit target flashed, a
-//         corpse sorted beneath the standing, HP bars only when not full
+//         corpse playing its death clip then lying as its corpse frame beneath the standing,
+//         HP bars only when not full, a wand's and a staff's basic attack
+//         drawn as its own bolt flying to the target, then its hit
 //   SC-7  FLOAT TOGGLES: the bleed badge shows over a boss and not over a
 //         regular monster by default; a hidden float type never shows
+//   SC-11 A KILL MID-STEP: a rat killed while it walks finishes the step dead and lies
+//         as its corpse with no bar (it was drawn standing at 0 HP for ever)
 //   SC-8  BOUNDED: a unit the pose stops listing is forgotten once its corpse
 //         time has passed, so a long hunt's frame does not grow with its kills
+//   SC-9  ONE LOOK: the viewed hero wears the outfit the server says it chose (the
+//         same sprite the town draws, session/hero-look.js), never its weapon
+//         role's default — a druid-clad sword hero never flips to the knight
+//   SC-10 NO SPIN: a hero standing between swings keeps facing its target; it
+//         never turns back to its last walk heading and round again each swing
 // ════════════════════════════════════════════════════════════════════════
 import { mkdtempSync, cpSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -50,6 +60,7 @@ async function load(base) {
     S: await u('src/hunt-view/scene.js'),
     F: await u('src/hunt-view/float-prefs.js'),
     X: await u('src/data/hunt-vfx.js'),
+    R: await u('src/data/hunt-roles.js'),
     O: await u('src/data/hunt-outfits.js'),
     E: await u('src/core/hunt/events.js'),
     B: await u('src/world/core/book.js'),
@@ -220,6 +231,28 @@ async function rules(M) {
       ok('SC-5', !short.length, 'outfit ' + o + ' (' + id + ') lacks walk/idle in ' + short.join(','));
     }
     for (const r of Object.keys(M.O.ROLE_OUTFIT)) ok('SC-5', !!M.O.OUTFITS[M.O.ROLE_OUTFIT[r]], 'role ' + r + ' defaults to an outfit that does not ship');
+    /* every ranged role's basic attack has a bolt and a hit, both shipped (FX-07: a wand or a staff showed nothing) */
+    const plays = (id) => !!(id && vfx[id] && vfx[id].anims.play && vfx[id].anims.play.dirs.s.length);
+    for (const [r, row] of Object.entries(M.R.HUNT_ROLES)) {
+      const bolt = (M.X.PROJECTILE.role || {})[r];
+      if (!row.melee) ok('SC-5', plays(bolt), 'ranged role ' + r + ' has no shipped bolt: ' + bolt);
+      ok('SC-5', plays(M.X.HIT_FX.role[r]), 'role ' + r + ' has no shipped basic hit: ' + M.X.HIT_FX.role[r]);
+    }
+  }
+
+  { // SC-6: a caster's basic attack flies its own bolt to the target, then draws its hit there (the wand's, the staff's)
+    for (const [weapon, want, bolt] of [['wand', 'fx_wand_bolt_impact', 'fx_wand_bolt'], ['staff', 'fx_staff_bolt_impact', 'fx_staff_bolt']]) {
+      const clock = { t: C0 };
+      const body = envelope(7, S0);
+      body.party.members[1].weapon = weapon;
+      const cs = session(M, clock, [body]);
+      await cs.load();
+      const v = viewer(M, cs);
+      const seen = new Set();
+      for (let s = S0 - 350; s <= S0 - 350 + M.X.PROJECTILE.flightMs + 200; s += 10) for (const e of v.at(at(s)).fx) seen.add(e.id);
+      ok('SC-6', seen.has(want), 'a ' + weapon + "'s basic hit must draw " + want + ' on the rat, drew ' + JSON.stringify(Array.from(seen)));
+      ok('SC-6', seen.has(bolt), 'a ' + weapon + "'s basic attack must fly " + bolt + ' to the rat, drew ' + JSON.stringify(Array.from(seen)));
+    }
   }
 
   { // SC-6, SC-7: the composed frame
@@ -250,8 +283,13 @@ async function rules(M) {
     const list2 = compose(late, 0);
     const ci = list2.sprites.findIndex((d) => d.id === 'rat');
     const firstStanding = list2.sprites.findIndex((d) => d.kind === 'unit' && d.id !== 'rat');
-    ok('SC-6', corpse && corpse.grey === 1 && corpse.alpha < 1 && ci >= 0 && ci < firstStanding,
-      'the rat must lie grey beneath the standing, got ' + JSON.stringify({ grey: corpse && corpse.grey, alpha: corpse && corpse.alpha, ci, firstStanding }));
+    /* VW-05: a corpse plays the rat's own death clip, then lies as its corpse frame (never a greyed idle), beneath the standing. */
+    const rat = M.manifests.hunt.sprites.rat.anims;
+    const clipCells = (a) => Object.values((rat[a] && rat[a].dirs) || {}).flat();
+    const drawn = ci >= 0 ? list2.sprites[ci] : null;
+    ok('SC-6', corpse && (corpse.anim === 'death' || corpse.anim === 'corpse') && corpse.grey === 0 && ci >= 0 && ci < firstStanding
+      && drawn && drawn.set === 'hunt' && clipCells(corpse.anim).some(([x, y]) => x === drawn.sx && y === drawn.sy),
+      'the rat must lie as its death/corpse frame beneath the standing, got ' + JSON.stringify({ anim: corpse && corpse.anim, grey: corpse && corpse.grey, ci, firstStanding, at: drawn && [drawn.set, drawn.sx, drawn.sy] }));
     const tankBar = unitOf(late, 1);
     ok('SC-6', boss && Math.abs(boss.bar - 80 / 120) < 1e-9 && tankBar && Math.abs(tankBar.bar - 180 / 220) < 1e-9 && Math.abs(tankBar.mana - 40 / 60) < 1e-9 && unitOf(late, 2).bar === undefined,
       'bars are the snapshot\'s and only when not full: ' + JSON.stringify({ boss: boss && boss.bar, tank: tankBar && [tankBar.bar, tankBar.mana], ranger: unitOf(late, 2).bar }));
@@ -277,6 +315,28 @@ async function rules(M) {
       'a unit gone from the pose must be forgotten after its corpse time: ' + JSON.stringify(cs.timeline.units()));
   }
 
+  { // SC-9: the viewed hero's look is the server's chosen outfit, in the hunt as in town
+    const clock = { t: C0 };
+    const body = envelope(7, S0);
+    body.outfit = { worn: 'druid', owned: ['knight', 'druid'], colors: {} };
+    const cs = session(M, clock, [body]);
+    await cs.load();
+    const v = viewer(M, cs);
+    const ids = new Set();
+    for (let s = S0 - 900; s <= S0 + 2000; s += 50) { const h = unitOf(v.at(at(s)), 1); if (h) ids.add(h.id); }
+    ok('SC-9', ids.size === 1 && ids.has('outfit_druid'), 'the viewed hero chose the druid outfit but was drawn as ' + JSON.stringify(Array.from(ids)));
+  }
+
+  { // SC-10: standing between swings, the hero keeps facing what it swung at
+    const clock = { t: C0 };
+    const cs = session(M, clock, [envelope(7, S0)]);
+    await cs.load();
+    const v = viewer(M, cs);
+    const seen = new Set();
+    for (let s = S0 + 150; s <= S0 + 2500; s += 50) { const h = unitOf(v.at(at(s)), 1); if (h && h.anim !== 'walk') seen.add(h.dir + '/' + h.diag); }
+    ok('SC-10', seen.size === 1 && seen.has('e/null'), 'the tank stood by the rat it struck (east) but turned ' + JSON.stringify(Array.from(seen)));
+  }
+
   { // SC-7: a hidden type never shows
     const clock = { t: C0 };
     const body = envelope(7, S0);
@@ -288,23 +348,43 @@ async function rules(M) {
     const fl = v.at(at(S0 - 350 + 220 + 40)).floats;
     ok('SC-7', !fl.some((x) => x.kind === 'hit'), 'damage dealt is switched off but floated: ' + JSON.stringify(fl));
   }
+
+  { // SC-11: the rat starts a step 50 ms before the blow that kills it
+    const clock = { t: C0 };
+    const body = envelope(7, S0);
+    body.hunt_track = body.hunt_track.filter((st) => st.u !== 101).concat([{ u: 101, x: 14, y: 9, atMs: S0 - 1000 }, { u: 101, x: 14, y: 10, atMs: S0 + 250 }]);
+    const cs = session(M, clock, [body]);
+    await cs.load();
+    const v = viewer(M, cs);
+    const seen = [];
+    for (let s = S0 + 200; s <= S0 + 1500; s += 25) { const d = unitOf(v.at(at(s)), 101); if (d && s > S0 + 300) seen.push(d); }
+    const up = seen.filter((d) => !d.under || d.bar !== undefined);
+    ok('SC-11', seen.length > 0 && up.length === 0, 'a rat killed mid-step was drawn standing in ' + up.length + ' of ' + seen.length + ' frames: ' + JSON.stringify(up[0] || null));
+  }
   return fails;
 }
 
 const MUTANTS = [
-  ['the walk frame counts frames drawn', 'src/hunt-view/scene.js', 'const frame = moving ? Math.floor((p.d * walk.fps * tl.tileMs) / 1000) : 0;', 'globalThis.__n = (globalThis.__n || 0) + 1;\n    const frame = moving ? globalThis.__n % 6 : 0;'],
+  ['the walk frame counts frames drawn', 'src/hunt-view/scene.js', 'const frame = corpse ? corpse.frame : moving ? Math.floor((p.d * walk.fps * tl.tileMs) / 1000) : 0;', 'globalThis.__n = (globalThis.__n || 0) + 1;\n    const frame = corpse ? corpse.frame : moving ? globalThis.__n % 6 : 0;'],
+  ['a monster killed mid-step stands up again', 'src/hunt-view/scene.js', '      if (p.moving && !gone) dead.delete(u);', '      if (p.moving) dead.delete(u);'],
   ['an event plays twice', 'src/hunt-view/scene.js', '    if (!ev || keys.has(ev.key)) return false;\n', '    if (!ev) return false;\n'],
   ['an effect starts when it is delivered', 'src/hunt-view/scene.js', 'const start = tl.clientAt(ev.atMs) ?? now;', 'const start = now;'],
-  ['playback runs ahead of the track', 'src/hunt-view/timeline.js', 'const f = Math.min(1, (t - cur.atMs) / cfg.tileMs);', 'const f = (t - cur.atMs + 200) / cfg.tileMs;'],
+  ['playback runs ahead of the track', 'src/hunt-view/timeline.js', 'const f = Math.min(1, (t - cur.atMs) / (cur.dur || cfg.tileMs));', 'const f = (t - cur.atMs + 200) / (cur.dur || cfg.tileMs);'],
   ['an event type left unmapped', 'src/data/hunt-vfx.js', '  eat: null, drink: null,', '  drink: null,'],
   ['an effect the atlas lacks', 'src/data/hunt-vfx.js', "heal: row({ fx: 'fx_nature_heal_motes'", "heal: row({ fx: 'fx_heal_glow'"],
+  ["a wand's basic hit shows nothing", 'src/data/hunt-vfx.js', "mage: 'fx_wand_bolt_impact'", 'mage: null'],
+  ["a staff's bolt is missing", 'src/data/hunt-vfx.js', "healer: 'fx_staff_bolt' }", 'healer: null }'],
   ['the diagonal is dropped', 'src/hunt-view/scene.js', 'const diag = ax && ay && ', 'const diag = false && '],
   ['no flash on a hit', 'src/hunt-view/scene.js', '    flash.set(ev.t, land);\n', ''],
   ['a corpse stands among the living', 'src/world/core/compose.js', "bias: u.under ? -UNDER : 0,", 'bias: 0,'],
   ['the bleed badge ignores the toggle', 'src/hunt-view/scene.js', "(hero || read.shown('bleed_badge', isBoss(u)))", '(true)'],
   ['a float ignores its toggle', 'src/hunt-view/scene.js', '    if (!read.shown(type, isBoss(u))) return;\n', ''],
   ['a gone unit is kept for ever', 'src/hunt-view/timeline.js', 'if (!listed.has(u) && a[a.length - 1].atMs < pose.at_ms - cfg.forgetMs) steps.delete(u);', ''],
-  ['bars from the events, not the snapshot', 'src/hunt-view/scene.js', 'const hp = hero ? m && m.hp : (read.units.get(u) || {}).hp;', 'const hp = 1;'],
+  ['bars from the events, not the snapshot', 'src/hunt-view/scene.js', 'const hp = played ? played.hp : hero ? m && m.hp : (read.units.get(u) || {}).hp;', 'const hp = 1;'],
+  ["only a ranger's shot flies (a caster's bolt is dropped)", 'src/hunt-view/scene.js', 'const bolt = Object.hasOwn(PROJECTILE.ability, ev.ability) ? PROJECTILE.ability[ev.ability] : PROJECTILE.role[role] || null;', "const bolt = role === 'ranger' ? PROJECTILE.role.ranger : null;"],
+  ['the hunt draws the role default, not the chosen outfit', 'src/hunt-view/scene.js', '    if (u === read.viewed && read.look) return read.look;', 'if (false) return read.look;'],
+  ['a standing hero turns back to its walk heading after a swing', 'src/hunt-view/scene.js', 'if (!p.moving && s && now - s.at >= 0) {', 'if (!p.moving && s && now - s.at >= 0 && now - s.at < 700) {'],
+  ['a corpse greys its idle instead of its death clip', 'src/hunt-view/scene.js', '          corpse = corpseFrame(id, clips, dir, age);', '          corpse = null;'],
 ];
 
 async function main() {

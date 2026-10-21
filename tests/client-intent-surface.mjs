@@ -38,7 +38,7 @@ const LINK = 'src/session/server.js';
 /* The client's whole RPC surface, each with what it is for. */
 export const CLIENT_RPCS = Object.freeze({
   hr_load: 'the full read of one character (CharacterSession.load)',
-  hr_create_character: 'make the character in an owned slot (AccountSession.create)',
+  hr_create_hero: 'make the hero in an owned slot with its name and four dye indices, all or nothing (AccountSession.create)',
   hr_put_client_state: 'the allowlisted display residue (CharacterSession.flushResidue)',
   hr_action_set_options: 'the per-hero hunt settings intent, catalogue-validated and refused not clamped (CharacterSession.setHuntOptions)',
   hr_action_set_copy: 'copy one character\'s hunt settings onto another of the caller\'s characters; moves no value (CharacterSession.copyHuntSettingsTo)',
@@ -49,13 +49,10 @@ export const CLIENT_RPCS = Object.freeze({
   /* The alpha windows (2026-10-18; CONFLICTS.md): staged for the server lane, refused as http_404 until it lands. */
   hr_item_lock: 'lock or unlock an item so no bulk sale can name it (CharacterSession.lockItem)',
   hr_loot_rule_set: 'keep / sell / ignore an item on pickup, applied by the server (CharacterSession.setLootRule)',
-  hr_restock_set: 'the remembered restock targets, counts only (CharacterSession.setRestock)',
-  hr_shop_refill: 'the one-tap refill at server prices, refused if the quoted total moved (CharacterSession.refill)',
-  hr_hunt_preset_save: 'snapshot the action set, gear and restock targets as a setup (CharacterSession.savePreset)',
+  hr_hunt_preset_save: 'snapshot the action set and gear as a setup (CharacterSession.savePreset)',
   hr_hunt_preset_apply: 'put a saved setup back on (CharacterSession.applyPreset)',
   hr_account_items: 'where an item is across this account, a read (AccountSession.findItems)',
   /* The party (S1, 2026-10-23-hunt-party.sql): slot + party id or seat only; no user id crosses. */
-  hr_hunt_party_create: 'open a party on a hunt ground, this character leads (CharacterSession.createParty)',
   hr_hunt_party_join: 'take a free seat in an open party by its id (CharacterSession.joinParty)',
   hr_hunt_party_leave: 'leave this character’s party (CharacterSession.leaveParty)',
   hr_hunt_party_kick: 'the leader removes the member in a seat (CharacterSession.kickSeat)',
@@ -64,11 +61,17 @@ export const CLIENT_RPCS = Object.freeze({
   hr_hunt_party_invite: 'invite a character by its display name; the server resolves it (CharacterSession.inviteByName)',
   hr_hunt_party_accept: 'accept an invite to this character by its id (CharacterSession.answerInvite)',
   hr_hunt_party_decline: 'decline an invite to this character by its id (CharacterSession.answerInvite)',
-  hr_hunt_party_start: 'the leader starts the party hunt, each member on its own saved setup (CharacterSession.startPartyHunt)',
+  hr_hunt_party_start: 'the leader picks the ground and starts the party hunt, each member on its own saved setup, all or none (party-intents.js startPartyHunt)',
+  /* The one-way party flow (2026-10-28-party-flow.sql): an own character by slot, the leader's disband; slot only, no user id. */
+  hr_hunt_party_invite_own: 'seat one of this account’s own characters, by slot, in this character’s party at once (party-intents.js inviteOwn)',
+  hr_hunt_party_disband: 'the leader closes its party in town (party-intents.js disbandParty)',
+  hr_hunt_party_invite_player: 'invite the player a menu targets by the server account id it carries (+ slot); same checks as the named invite (party-intents.js invitePlayer)',
+  hr_hunt_party_list: 'the leader shows or hides its party in the finder, a yes/no (party-intents.js listParty)',
   hr_hunt_restart: 'go back to the hunt that just ended on that session’s own setup (CharacterSession.restartHunt)',
   /* Lane S2's Services window: each sends the server's own QUOTE (refused quote_changed otherwise), never a price of its own. */
   hr_stamina_refill: 'buy the next stamina refill at the quoted price (CharacterSession.buyStamina)',
   hr_blessing_buy: 'buy one blessing tier at the quoted price, 0 under the free level (CharacterSession.buyBlessing)',
+  hr_bestiary_activate: 'activate a bestiary stage for one monster kind at the quoted fee (CharacterSession.activateBestiaryStage; lane c-bestiary)',
   hr_character_name_set: 'claim this character’s own name, checked by the server (CharacterSession.setName)',
   /* The social side (2026-10-25-chat-channels.sql, 2026-10-25-social.sql): a slot, a channel KIND, a body,
      a target (a user id or a claimed name) and a yes/no — never a name, level, zone or role of the sender. */
@@ -180,7 +183,7 @@ if (process.argv.includes('--selftest')) {
     ['a second fetch', plant('src/app/world-pane.js', "fetch('/rest/v1/rpc/hr_load');"), 'IS-3'],
     ['a table read through supabase-js', plant('src/app/boot.js', "client.from('player_state').select('*');"), 'IS-3'],
     ['an RPC through supabase-js', plant('src/app/boot.js', "client.rpc('hr_load', { p_slot: 0 });"), 'IS-3'],
-    ['a stale allow entry (the reader of hr_create_character gone)', { ...real, 'src/session/account-session.js': real['src/session/account-session.js'].split("'hr_create_character'").join("'hr_create_characterX'") }, 'IS-'],
+    ['a stale allow entry (the reader of hr_create_hero gone)', { ...real, 'src/session/account-session.js': real['src/session/account-session.js'].split("'hr_create_hero'").join("'hr_create_heroX'") }, 'IS-'],
     ['negative control: an RPC named in a comment', plant('src/app/boot.js', "// server.rpc('hr_vendor_sell')"), null],
   ];
   let bad = 0;

@@ -982,15 +982,16 @@ async function runOn(db, patches) {
    for "the mutation never happened". */
 const MUTATIONS = [
   /* Re-anchored lane C2 (closed rebuild): a fight is a hunt session, so the
-     combat handlers are accrueHunt's (supabase/functions/hr-accrue/accrual.js). */
+     combat handlers are accrueHunt's, assembled by src/core/member.js memberSide (option B,
+     2026-10-19: one assembly for the edge settle and the browser's live view). */
   { name: 'M1 combat: the updateDaily handler is removed (today\'s shipped behaviour)',
-    file: 'accrual', from: "    updateDaily(type, amt) { goals.daily(type, amt == null ? 1 : amt); },\n    updateQuest(type, amt, meta) {\n",
+    file: 'member', from: "    updateDaily(type, amt) { goals.daily(type, amt == null ? 1 : amt); },\n    updateQuest(type, amt, meta) {\n",
     to: "    updateQuest(type, amt, meta) {\n" },
   { name: 'M2 combat: the updateQuest handler is removed',
-    file: 'accrual', from: "    updateQuest(type, amt, meta) {\n      goals.quest(type, amt == null ? 1 : amt);\n      bestiary.record(type, amt == null ? 1 : amt, meta);\n    },\n  };",
+    file: 'member', from: "    updateQuest(type, amt, meta) {\n      goals.quest(type, amt == null ? 1 : amt);\n      bestiary.record(type, amt == null ? 1 : amt, meta);\n    },\n  };",
     to: "  };" },
   { name: 'M11 combat: the BESTIARY listener is removed (goals stay correct, per-monster vanishes)',
-    file: 'accrual', from: "      bestiary.record(type, amt == null ? 1 : amt, meta);\n    },\n  };",
+    file: 'member', from: "      bestiary.record(type, amt == null ? 1 : amt, meta);\n    },\n  };",
     to: "    },\n  };" },
   /* b461 moved both anchors: the modal-goal emit (goal-period.js) now sits
      immediately after each goalProgressOps push, so the distinctive text that
@@ -1027,8 +1028,8 @@ const MUTATIONS = [
     file: 'goals', from: "               add: clamp(type, daily[type], 'daily'), state: 'active' });",
     to: "               add: clamp(type, daily[type], 'daily'), state: 'claimed' });" },
   { name: 'M12 combat: the COLLECTION listener is removed (loot vanishes from the log)',
-    /* Re-anchored lane S1: the combat loot sink is accrueHunt's memberSide addItem. */
-    file: 'accrual', from: "      if (hs.cover[id]) hs.cover[id].avail += n;\n      collection.record(id, n);\n",
+    /* Re-anchored lane S1: the combat loot sink is memberSide's addItem (src/core/member.js since option B). */
+    file: 'member', from: "      if (hs.cover[id]) hs.cover[id].avail += n;\n      collection.record(id, n);\n",
     to: "      if (hs.cover[id]) hs.cover[id].avail += n;\n" },
   /* (M14, the STATE goal-type mutant, retired with the client on 2026-10-17: the only
      state goal — the property step — was authored by the old client, so no authored
@@ -1045,6 +1046,7 @@ const MUTATIONS = [
 
 const ENGINE_PATH = join(ROOT, 'supabase', 'functions', 'hr-accrue', 'accrual.js');
 const GOALS_PATH = join(ROOT, 'src', 'core', 'goals.js');
+const MEMBER_PATH = join(ROOT, 'src', 'core', 'member.js');
 
 /* Load a MUTATED copy of the engine + goals module pair.
 
@@ -1075,9 +1077,13 @@ async function loadMutant(m) {
   }
   let goalsSrc = await readFile(GOALS_PATH, 'utf8');
   let engineSrc = await readFile(ENGINE_PATH, 'utf8');
+  let memberSrc = await readFile(MEMBER_PATH, 'utf8');
   if (m.file === 'goals') {
     if (!goalsSrc.includes(m.from)) throw new Error(`MUTATION HARNESS: ${m.name} — anchor not found in goals.js`);
     if (!CONTROL) goalsSrc = goalsSrc.replace(m.from, m.to);
+  } else if (m.file === 'member') {
+    if (!memberSrc.includes(m.from)) throw new Error(`MUTATION HARNESS: ${m.name} — anchor not found in member.js`);
+    if (!CONTROL) memberSrc = memberSrc.replace(m.from, m.to);
   } else {
     if (!engineSrc.includes(m.from)) throw new Error(`MUTATION HARNESS: ${m.name} — anchor not found in accrual.js`);
     if (!CONTROL) engineSrc = engineSrc.replace(m.from, m.to);
@@ -1086,9 +1092,19 @@ async function loadMutant(m) {
   const goalsFile = join(tmpdir(), `hr-goals-mutant-${stamp}.mjs`);
   await writeFile(goalsFile, goalsSrc, 'utf8');
   const goalsUrl = pathToFileURL(goalsFile).href;
+  /* The member assembly imports the goals module too: its copy reads the same (possibly mutant) one. */
+  memberSrc = memberSrc
+    .replace(/from '\.\/goals\.js\?v=[^']*'/g, `from '${goalsUrl}'`)
+    .replace(/from '\.\//g, `from '${rootUrl}src/core/`)
+    .replace(/from '\.\.\/data\//g, `from '${rootUrl}src/data/`);
+  if (/from '\.\.?\//.test(memberSrc)) throw new Error('MUTATION HARNESS: a relative import survived the member rewrite');
+  const memberFile = join(tmpdir(), `hr-member-mutant-${stamp}.mjs`);
+  await writeFile(memberFile, memberSrc, 'utf8');
+  const memberUrl = pathToFileURL(memberFile).href;
 
   engineSrc = engineSrc
     .replace(/from '\.\.\/\.\.\/\.\.\/src\/core\/goals\.js'/g, `from '${goalsUrl}'`)
+    .replace(/from '\.\.\/\.\.\/\.\.\/src\/core\/member\.js'/g, `from '${memberUrl}'`)
     .replace(/from '\.\.\/\.\.\/\.\.\/src\//g, `from '${rootUrl}src/`)
     .replace(/from '\.\//g, `from '${fnUrl}`);
   if (/from '\.\.?\//.test(engineSrc)) {
@@ -1104,6 +1120,7 @@ async function loadMutant(m) {
     return { engine: em.computeAccrual, mod: em, goals: gm };
   } finally {
     await unlink(goalsFile).catch(() => {});
+    await unlink(memberFile).catch(() => {});
     await unlink(engineFile).catch(() => {});
   }
 }

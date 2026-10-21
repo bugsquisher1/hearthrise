@@ -7,7 +7,7 @@
 //   node tests/character-window.mjs --shots <dir>  also write the visual-gate screenshots
 //                                                  (1440x900 and 922x423)
 //
-// mutant-anchors: src/shell/windows/character/sheet.js src/shell/windows/character/index.js src/shell/windows/character/outfit.js src/session/character-sections.js src/shell/windows/skills.js src/data/item-uses.js src/data/skill-unlocks.js supabase/functions/hr-accrue/character-sheet.js src/core/progression.js
+// mutant-anchors: src/shell/windows/character/sheet.js src/shell/windows/character/index.js src/shell/windows/character/outfit.js src/session/character-sections.js src/shell/windows/skills.js src/styles/character.css src/data/item-uses.js src/data/skill-unlocks.js supabase/functions/hr-accrue/character-sheet.js src/core/progression.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character is tests/fixtures/alpha-envelope.json plus the three sections
@@ -28,12 +28,13 @@
 //         server's outfit until the re-read; a premium outfit not owned can be
 //         tried on and never saved
 //   CW-5  THE DEATH LOG is the server's rows: who killed the hero, where, the XP
+//   CW-7  the sheet lays out from the window's own width: every vital row whole, none over the identity
 //   CW-6  THE SKILLS: Gathering and crafting lists no combat skill; the combat
 //         ledger is the Character window's; an unlock line names each thing and
 //         its kind ("Bronze Axe (woodcutting tool)")
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
-import { launchOptions } from './_chrome.mjs';
+import { leaseBrowser } from './_chrome.mjs';
 import { readFile, mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -52,6 +53,7 @@ function withSections(env, o = {}) {
   env.character_sheet = { level: 21, max_hp: 24, bestiary: { slain: 7, total: 119 }, fresh: o.fresh !== false,
     combat: o.fresh === false ? null : Object.assign(clone(COMBAT), o.combat || {}), computed_at: '2026-10-18T10:00:00Z' };
   if (o.dropMana && env.character_sheet.combat) delete env.character_sheet.combat.max_mana;
+  if (o.dropMana && env.hunt && env.hunt.hero) delete env.hunt.hero.mana_max;
   env.outfit = { worn: 'berserker', colors: {}, owned: ['knight', 'berserker', 'ranger', 'sorcerer', 'druid'] };
   env.death_log = [{ id: 901, at: '2026-10-18T09:30:00Z', hunt: 'mill_cellar', monster: 'rat_king', xp: 140, xp_lost: { level: 90, melee: 50 } },
     { id: 877, at: '2026-10-17T20:00:00Z', hunt: 'mill_cellar', monster: 'rat', xp: 0, xp_lost: null }];
@@ -68,7 +70,7 @@ async function stub(page, s) {
   await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
   await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
   await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
-    const name = r.request().url().split('/').pop();
+    const name = r.request().url().split('?')[0].split('/').pop();
     const body = JSON.parse(r.request().postData() || '{}');
     s.calls.push({ name, body });
     const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
@@ -77,6 +79,9 @@ async function stub(page, s) {
     if (name === 'hr-accrue') {
       /* The sheet verb answers at the SAME version (the put moves no version) and, here, still stale. */
       if (body.verb === 'sheet') { await new Promise((ok) => setTimeout(ok, s.sheetDelay || 200)); return json(Object.assign(clone(s.env), { version: s.version, verb: 'sheet', client_state: clone(s.residue) })); }
+      /* A plain ask under the settle floor writes nothing and restates the version (hunt-settle.js
+         below_min_span): the open hunt's live ask re-asks with back-off until a start point comes. */
+      if (!body.verb) return json(Object.assign(clone(s.env), { ok: true, settled: false, reason: 'below_min_span', version: s.version, client_state: clone(s.residue) }));
       return json(Object.assign({ accrued: true }, s.next()));
     }
     if (name === 'hr_outfit_set') { await new Promise((ok) => setTimeout(ok, 300)); return json({ ok: true }); }
@@ -139,7 +144,7 @@ async function checks(overrides, shots) {
   const fails = overrides ? [] : await pure();
   const { server, port } = await serve(overrides || {});
   const base = 'http://127.0.0.1:' + port;
-  const browser = await chromium.launch(launchOptions({ headless: true }));
+  const browser = await leaseBrowser(chromium);
   const open = async (o = {}) => {
     const ctx = await browser.newContext({ viewport: o.viewport || { width: 1440, height: 900 } });
     const page = await ctx.newPage();
@@ -167,7 +172,7 @@ async function checks(overrides, shots) {
         /* CW-2: exactly the section's numbers. */
         const L = await lines(page);
         const want = { Damage: '1–17', 'Hit chance': '74.5% against no armour', 'Critical chance': '4.5%', Defence: '23', 'Max mana': '60', 'Max health': '24',
-          Regeneration: '101.9% of the base rate (Prayer)', 'Home and renown': '+2%', Total: '+2%' };
+          Regeneration: '+1.9% (Prayer)', 'Home and renown': '+2%', Total: '+2%' };
         for (const [k, v] of Object.entries(want)) if (L[k] !== v) fails.push('CW-2 ' + k + ' reads ' + JSON.stringify(L[k]) + ', the server sent ' + v);
         if ('Prayer ward' in L || 'Gear' in L || 'Food and drink' in L) fails.push('CW-3 a zero line is drawn: ' + JSON.stringify(L));
         const level = await page.evaluate(() => document.querySelector('[data-hs-win="character"] .hw-cs-lv').textContent);
@@ -177,6 +182,9 @@ async function checks(overrides, shots) {
         if (!/7 of 119 creatures slain/.test(words)) fails.push('CW-2 the bestiary line is missing');
         const combatSkills = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="character"] .hw-skill-name')).map((b) => b.textContent));
         if (!combatSkills.includes('Melee') || combatSkills.includes('Attack') || combatSkills.includes('Mining')) fails.push('CW-6 the Character window\'s skills are ' + combatSkills.join(','));
+        /* CW-6b (Tyler 10-19: "Oak Wand (staff)"): a wand reads (wand), a staff (staff), a spellbook (spellbook). */
+        const magic = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="character"] .hw-skill')).map((li) => li.textContent).find((t) => /^\s*Magic/.test(t)) || '');
+        if (!/Oak Wand \(wand\)/.test(magic) || !/Oak Staff \(staff\)/.test(magic) || !/Spellbook \(spellbook\)/.test(magic)) fails.push('CW-6 the magic unlock words are wrong: ' + JSON.stringify(magic));
         if (sheetAsks(s).length !== 1) fails.push('CW-3 one opening asked the engine ' + sheetAsks(s).length + ' time(s), not once');
         if (shots) await shot(page, 'character-1440x900-sheet');
         /* CW-2b: a new envelope replaces the numbers on the same node. */
@@ -235,8 +243,10 @@ async function checks(overrides, shots) {
         await push(page, s);
         await page.waitForTimeout(1000);
         const L = await lines(page);
-        for (const k of ['Damage', 'Hit chance', 'Critical chance', 'Defence', 'Max mana', 'Speed', 'Total']) if (k in L) fails.push('CW-3 a stale sheet still draws ' + k + ' = ' + L[k]);
+        for (const k of ['Damage', 'Hit chance', 'Critical chance', 'Defence', 'Speed', 'Total']) if (k in L) fails.push('CW-3 a stale sheet still draws ' + k + ' = ' + L[k]);
         if (L['Max health'] !== '24') fails.push('CW-3 the server-owned max health is gone with the stale sheet: ' + JSON.stringify(L));
+        /* Max mana is a vital like max health (Tyler 10-19): the server's hunt vitals carry it when the sheet is stale. */
+        if (L['Max mana'] !== '60') fails.push('CW-3 max mana went with the stale sheet instead of reading the server vitals: ' + JSON.stringify(L));
         if (sheetAsks(s).length !== 2) fails.push('CW-3 the opening plus a stale version asked the engine ' + sheetAsks(s).length + ' times, not 2');
         const ask = sheetAsks(s)[1];
         if (ask && Object.keys(ask.body).some((k) => !['slot', 'verb', 'intentId'].includes(k))) fails.push('CW-3 the sheet ask carries ' + JSON.stringify(ask.body));
@@ -266,6 +276,34 @@ async function checks(overrides, shots) {
       } else fails.push('CW-3 the no-mana character did not open');
       await ctx.close();
     }
+    { // CW-7 THE SHEET LAYS OUT FROM THE WINDOW'S OWN WIDTH: at every browser size (and a squeezed window)
+      // every vital row is drawn whole inside the window and no identity box crosses a vital box.
+      for (const vp of [[922, 423], [1280, 720], [1440, 900], [1920, 1080], [1440, 900, 300]]) {
+        const { ctx, page, up } = await open({ viewport: { width: vp[0], height: vp[1] } });
+        if (up && await openWin(page, 'c', 'character')) {
+          await waitCombat(page);
+          const r = await page.evaluate((w) => {
+            const win = document.querySelector('[data-hs-win="character"]');
+            if (w) win.style.width = w + 'px';
+            const box = (e) => e.getBoundingClientRect();
+            const W = box(win);
+            const ids = Array.from(win.querySelectorAll('.hw-cs-portrait, .hw-cs-name, .hw-cs-role, .hw-cs-lv, .hw-cs-level .hw-skill-bar, .hw-cs-lvxp')).map(box).filter((b) => b.width > 0);
+            const vit = Array.from(win.querySelectorAll('.hw-cs-vitals .hw-cs-line.is-on'));
+            const bad = [];
+            for (const v of vit) {
+              const b = box(v);
+              const name = v.querySelector('dt').textContent;
+              if (b.width < 1 || b.height < 1 || b.left < W.left - 0.5 || b.right > W.right + 0.5 || v.scrollWidth > v.clientWidth + 1) bad.push(name + ' not drawn whole');
+              for (const d of v.children) { const q = box(d); if (ids.some((i) => q.left < i.right && i.left < q.right && q.top < i.bottom && i.top < q.bottom)) bad.push(name + ' overlaps the identity'); }
+            }
+            return { n: vit.length, names: vit.map((v) => v.querySelector('dt').textContent), bad };
+          }, vp[2] || 0);
+          if (['Max health', 'Max mana', 'Regeneration', 'Speed'].some((k) => !r.names.includes(k))) fails.push('CW-7 at ' + vp.join('x') + ' only ' + r.names.join(',') + ' show');
+          if (r.bad.length) fails.push('CW-7 at ' + vp.join('x') + ': ' + r.bad.join('; '));
+        } else fails.push('CW-7 the window did not open at ' + vp.join('x'));
+        await ctx.close();
+      }
+    }
     if (shots) { // the phone size class
       const { ctx, page, up } = await open({ viewport: { width: 922, height: 423 } });
       if (up && await openWin(page, 'c', 'character')) {
@@ -290,9 +328,13 @@ async function checks(overrides, shots) {
 }
 
 const MUTANTS = [
+  ['the vitals no longer wrap under the identity', 'src/styles/character.css', '.hw-cs-vitals { flex: 1 1 260px; min-width: 0;', '.hw-cs-vitals { flex: none; grid-template-columns: auto auto !important;'],
   ['the damage is derived in the browser', 'src/shell/windows/character/sheet.js', "c && c.damage ? c.damage.min + '–' + c.damage.max : null", "c && c.damage ? '1–' + (Math.floor(c.defence * 0.35) + 2) : null"],
   ['a stale sheet keeps the last numbers', 'src/session/character-sections.js', '    combat: s.fresh === true ? combatOf(s.combat) : null,', '    combat: (globalThis.__lc = s.fresh === true ? combatOf(s.combat) : (globalThis.__lc || null)),'],
-  ['an absent stat draws a zero', 'src/shell/windows/character/sheet.js', "line(root, '[data-vital=\"mana\"]', c && c.maxMana !== null ? whole(c.maxMana) : null);", "line(root, '[data-vital=\"mana\"]', whole((c && c.maxMana) || 0));"],
+  ['an absent stat draws a zero', 'src/shell/windows/character/sheet.js', "line(root, '[data-vital=\"mana\"]', manaMax !== null ? whole(manaMax) : null);", "line(root, '[data-vital=\"mana\"]', whole(manaMax || 0));"],
+  ['a wand reads (staff) again', 'src/data/item-uses.js', "  if (it.type === 'weapon') return WEAPON_WORD[roleWeaponOf(it)] || 'weapon';", "  if (it.type === 'weapon') return ({ magic: 'staff' })[it.weaponType] || WEAPON_WORD[it.weaponType] || 'weapon';"],
+  ['a spellbook reads (offhand)', 'src/data/item-uses.js', "  if (it.slot === 'shield' && it.discipline) return 'spellbook';\n", ''],
+  ['max mana only from the engine sheet', 'src/shell/windows/character/sheet.js', ': sh && sh.maxMana !== null ? sh.maxMana : v.manaMax;', ': null;'],
   ['a leech line the engine does not have', 'src/shell/windows/character/sheet.js', "const COMBAT = Object.freeze([['damage', 'Damage'],", "const COMBAT = Object.freeze([['leech', 'Life Leech'], ['damage', 'Damage'],"],
   ['the sheet is asked for every paint', 'src/shell/windows/character/index.js', "  if (!sh || sc.sheetAsking || v === null) return;\n  if (sc.opening !== 'due' && (sh.fresh || sc.sheetAsked === v)) return;", "  if (!sh) return;"],
   ['an opening never asks the engine', 'src/shell/windows/character/index.js', "if (sc.opening !== 'due' && (sh.fresh || sc.sheetAsked === v)) return;", "if (sh.fresh || sc.sheetAsked === v) return;"],

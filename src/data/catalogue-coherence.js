@@ -26,20 +26,20 @@
 // PURE ESM. No DOM. Imports cleanly in Node, Deno and the browser.
 // ============================================================
 
-import { ITEMS } from './items.js?v=0.2.9';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.9';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.9';
-import { SKILLS_DEF } from './skills.js?v=0.2.9';
-import { SHOP_OFFERS } from './shops.js?v=0.2.9';
-import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=0.2.9';
-import { PREMIUM_LOGIN_REWARD } from './premium.js?v=0.2.9';
-import { HEARTHFIND_ITEMS } from './hearthfind.js?v=0.2.9';
-import { EFFECT_KINDS } from './item-effects.js?v=0.2.9';
-import { MONSTERS } from './monsters.js?v=0.2.9';
+import { ITEMS } from './items.js?v=0.2.22';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.22';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.22';
+import { SKILLS_DEF } from './skills.js?v=0.2.22';
+import { SHOP_OFFERS } from './shops.js?v=0.2.22';
+import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=0.2.22';
+import { PREMIUM_LOGIN_REWARD } from './premium.js?v=0.2.22';
+import { HEARTHFIND_ITEMS } from './hearthfind.js?v=0.2.22';
+import { EFFECT_KINDS } from './item-effects.js?v=0.2.22';
+import { MONSTERS } from './monsters.js?v=0.2.22';
 import {
   gatherProductIds, cropProductIds, seedIds, combatDropIds, artisanOutputIds,
   shopGrantIds, goalRewardIds,
-} from './item-authority.js?v=0.2.9';
+} from './item-authority.js?v=0.2.22';
 
 /* The data identities this module reads, re-exported so a Node guard can mutate
    the SAME objects (a bare import without the ?v= query is a second module
@@ -100,8 +100,8 @@ export const AWAITING_ROSTER = Object.freeze([
   'abyssal_greaves', 'adept_helmet', 'adept_pants', 'alphaheart_longbow', 'apprentice_body',
   'apprentice_helmet', 'apprentice_pants', 'archmage_belt', 'archmage_body', 'archmage_helmet',
   'archmage_pants', 'ashcrown_greatsword', 'boarhide_body', 'boarhide_pants', 'bone_needle',
-  'bronze_hammer', 'bronze_helm', 'bronze_knife',
-  'bronze_platebody', 'bronze_platelegs', 'chitin_belt', 'chitin_body',
+  'bronze_hammer', 'bronze_knife',
+  'bronze_platelegs', 'chitin_belt', 'chitin_body',
   'chitin_boots', 'chitin_gloves', 'chitin_helmet', 'chitin_pants', 'choirbone',
   'choirbone_gauntlets', 'copper_studs', 'crown_of_the_fallen_king', 'dawn_belt',
   'dawn_boots', 'dawn_gauntlets', 'dawn_helm', 'dawn_platebody',
@@ -112,8 +112,8 @@ export const AWAITING_ROSTER = Object.freeze([
   'duskwood_bow', 'duskwood_rod', 'duskwood_staff', 'elderscale_heart', 'elderscale_platebody',
   'ember_belt', 'ember_boots', 'ember_helm', 'ember_platebody',
   'ember_platelegs', 'ember_sword', 'ember_warhammer', 'fangdart_recurve', 'gold_amulet',
-  'gold_ring', 'heartgarnet_maul', 'hollow_sigil_ring', 'houndskin_cloak', 'iron_helm',
-  'iron_platebody', 'iron_platelegs', 'leather_body', 'leather_pants', 'lexarch_seal',
+  'gold_ring', 'heartgarnet_maul', 'hollow_sigil_ring', 'houndskin_cloak',
+  'iron_platebody', 'lexarch_seal',
   'longbow', 'maple_rod', 'maple_staff', 'mithril_helm',
   'mithril_platebody', 'mithril_platelegs', 'mithril_sword', 'mithril_warhammer',
   'nightstalker_pelt', 'oak_staff', 'plaguewarden_greaves', 'quiet_coat', 'regent_helm',
@@ -123,7 +123,7 @@ export const AWAITING_ROSTER = Object.freeze([
   'scholar_helmet', 'scholar_pants', 'slagheart_core', 'slagheart_platebody', 'snakeskin_body',
   'snakeskin_helmet', 'snakeskin_pants', 'sorcerer_body', 'sorcerer_helmet', 'sorcerer_pants',
   'spellstone_ring', 'spidereye_studs', 'steel_hammer', 'steel_knife',
-  'steel_needle', 'steel_platebody', 'steel_platelegs', 'steel_warhammer',
+  'steel_needle', 'steel_warhammer',
   'studded_body', 'studded_pants', 'verdite_blade', 'verdite_helm', 'verdite_platebody',
   'verdite_platelegs', 'void_essence', 'voidheart_robe', 'voidhide_belt', 'voidhide_body',
   'voidhide_boots', 'voidhide_gloves', 'voidhide_helmet', 'voidhide_pants', 'voidmaw_scepter',

@@ -7,9 +7,11 @@
 //
 // What the S1 server projects (supabase/migrations/2026-10-23-hunt-party.sql,
 // hr_hunt_party_view; ONE shape, also read by hunt-sections.js partyOf):
-//   party   { id, hunt, max, open, leader: unit, self: unit, leader_seat, self_seat,
+//   party   { id, hunt, max, open, listed, leader: unit, self: unit, leader_seat, self_seat,
 //             members: [{ unit, seat, hunting, name, level, weapon, role_pick, hp, hp_max, mana,
-//                         mana_max, dealt, healed, dps, hps, down, eating, drinking, aggro }] }
+//                         mana_max, dealt, healed, dps, hps, down, eating, drinking, aggro,
+//                         away, seat_ms }], leader_density }   (away / seat_ms: 2026-10-28-party-flow.sql;
+//             leader_density: the leader's density pick, 2026-11-01-party-leader-density.sql)
 //   (a solo hunt is a party of one with id null: no party membership here)
 // The finder's answer (hr_hunt_party_finder) keeps its own { seats: [{ seat, weapon, role, name }] }.
 // What this lane asks the server for (CONFLICTS.md 2026-10-18 party UI; the
@@ -23,9 +25,11 @@
 // the server's `role` is only the pick, kept when the weapon allows it.
 // ════════════════════════════════════════════════════════════════════════
 
-import { roleForWeapon, WEAPON_ROLES } from '../data/hunt-roles.js?v=0.2.9';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.9';
-import { huntOf, staminaOf } from './hunt-sections.js?v=0.2.9';
+import { roleForWeapon, WEAPON_ROLES } from '../data/hunt-roles.js?v=0.2.22';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.22';
+import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.22';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.22';
+import { huntOf, staminaOf } from './hunt-sections.js?v=0.2.22';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -47,6 +51,9 @@ function seatOf(s) {
   return {
     seat: s.seat, name: name(s.name), weapon: w, role: roleForWeapon(w, pick),
     hunting: s.hunting === true, hp: num(s.hp), hpMax: num(s.hp_max), dealt: num(s.dealt), healed: num(s.healed),
+    level: Number.isInteger(s.level) && s.level >= 0 ? s.level : null,
+    /* 2026-10-28-party-flow.sql: an away member keeps its seat for `seat_ms` more (ms; null when not away). */
+    away: s.away === true, seatMs: s.away === true && num(s.seat_ms) !== null && s.seat_ms >= 0 ? s.seat_ms : null,
   };
 }
 
@@ -62,6 +69,10 @@ export function partyMembershipOf(cs) {
     id: p.id, hunt: typeof p.hunt === 'string' && HUNT.test(p.hunt) ? p.hunt : null, max,
     leader: seatNo(p.leader_seat), me, seats,
     isLeader: seatNo(p.leader_seat) === me,
+    /* THE LEADER CHOOSES THE HUNT SETTINGS (Tyler 2026-10-20): its density pick is the party's pull,
+       shown read-only to the others; null when the server did not say. */
+    density: Number.isInteger(p.leader_density) && p.leader_density >= 0 ? p.leader_density : null,
+    leaderName: (seats.find((s) => s.seat === seatNo(p.leader_seat)) || {}).name || null,
     anyHunting: seats.some((s) => s.hunting),
     full: max !== null && seats.length >= max,
   };
@@ -111,6 +122,21 @@ export function finderRows(body) {
 /** A hunt's player-facing name. */
 export function huntName(id) { return (id && HUNT_INDEX[id] && HUNT_INDEX[id].name) || 'a hunt'; }
 
+/* A town activity in words, keyed kind:id (the catalogue the engine runs); a row it does not know falls back to its kind. */
+const TOWN_WORDS = new Map([
+  ...TREES.map((n) => ['gather:' + n.id, 'chopping the ' + n.name]),
+  ...ROCKS.map((n) => ['gather:' + n.id, 'mining the ' + n.name]),
+  ...FISH_SPOTS.map((n) => ['gather:' + n.id, 'fishing at the ' + n.name]),
+  ...Object.values(ARTISAN_RECIPES).flat().map((r) => ['artisan:' + r.id, 'working on ' + r.name]),
+]);
+const TOWN_KIND_WORDS = Object.freeze({ gather: 'gathering', artisan: 'at a workbench', training: 'training' });
+
+/** The town activity the server's pointer names ("fishing at the Shrimp Spot"), or null when there is none. Pure. */
+export function townActivityWords(st) {
+  if (!isObj(st) || !Object.prototype.hasOwnProperty.call(TOWN_KIND_WORDS, st.active_kind)) return null;
+  return TOWN_WORDS.get(st.active_kind + ':' + st.active_id) || TOWN_KIND_WORDS[st.active_kind];
+}
+
 /**
  * What a character is doing, as the server says: { kind: 'hunting'|'idle'|'busy'|'unknown', where, text }.
  * A hunt the server still holds open is "hunting"; an idle state is "in town".
@@ -122,7 +148,7 @@ export function assignmentOf(cs) {
   if (!isObj(st)) return { kind: 'unknown', where: null, text: 'Not read yet' };
   if (st.active_kind === 'combat' && typeof st.active_id === 'string') return { kind: 'hunting', where: st.active_id, text: 'Hunting in ' + huntName(st.active_id) };
   if (!st.active_kind || st.active_kind === 'idle') return { kind: 'idle', where: null, text: h && h.ended ? 'In town, the hunt is over' : 'In town, idle' };
-  const what = String(st.active_kind).replace(/_/g, ' ');
+  const what = townActivityWords(st) || String(st.active_kind).replace(/_/g, ' ');
   return { kind: 'busy', where: null, text: 'In town, ' + what };
 }
 

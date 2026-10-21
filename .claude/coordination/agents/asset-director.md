@@ -10,6 +10,9 @@ _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md
 - Verify migrations: 0 404s (`read_network_requests`), clean console, smoke 175/175.
 
 ## Log
+
+### 2026-10-21 · lane/b-supply-icons — supply icons, drinks, practice kit, Cleave
+32 icons, no PixelLab spend (pixel scripts only): 18 `pixel/supplies/` (5 salted, 6 thin mugs with N tally notches, 7 plain arrows/bolts), 6 crafted drinks redrawn as six different vessels, 7 practice-kit weapons that were byte-identical to tier-1 art, `abilities/cleave.png`. Details and rules in `ASSET_MANIFEST.md` ("Shop supply icons, drinks, practice kit, Cleave"). Learnings: (1) the ability tiles are 1024 off-palette pixels ported from the hunt sim, so a new one copies the set's frame and colours, it cannot be palette-locked; (2) a byte-identical check found the whole "reuses tier-1 art" class in one pass: `crown_shard` = `crown_of_the_fallen_king` is the last twin (KNOWN_TWINS in tests/pixel-icons.mjs; Art Director to draw it); (3) `rend` (inactive) still shows a glyph; (4) there are no basic runes in supply-basics.js, so "plain runes" has no rows.
 ### 2026-08-08 · b229 — the Stable's pet icons ("figure out what to do about pet icons")
 Worked in the `manual-stable` worktree (branch `agent-stable`). Full write-up in `ASSET_MANIFEST.md` ("b229 — the Stable's pet icons"); change contract + artist brief here.
 

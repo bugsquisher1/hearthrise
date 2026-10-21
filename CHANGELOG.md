@@ -5,6 +5,20 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.23 — 2026-10-21 (More heroes, working casters)
+
+**Buy more hero slots.** "Your characters" now sells a third, fourth and fifth hero slot for 15,000, 40,000 and 120,000 gold, paid by the hero you pick. Play up to four heroes at once.
+
+**Mages and Healers pay their way.** Mana drinks now restore twelve times as much, so a caster no longer spends every coin on drinks, and Fireball no longer needs Fire Runes, so a wand hero casts from the start. A Sewer party now hunts a full hour and every role comes out ahead.
+
+**A new action bar.** Your health, mana, food and charm sit in one hub at the centre. Drag one slot onto another to swap or insert it. A crossed-out slot tells you why it can't fire, and a cooling slot shows the seconds left. Your hunt settings (target, stance, chase and distance) now live on the bar, and changing them mid-hunt takes effect right away.
+
+**Every click answers at once.** A button shows it's working the moment you press it, then the server's answer or its reason for saying no.
+
+**Also:** the hunt analyzer's "Next level in" counts down to your next Level instead of sitting at 00:00:00, and the tutorial now walks you through all nine of its cards.
+
+**Known:** on small landscape phone screens the new action bar is too tall; a compact version is next.
+
 ## v0.2.22 — 2026-10-21 (Smooth hunts, better loot)
 
 **Hunts no longer freeze.** The picture used to stop for a moment every few seconds and then rush to catch up; it now keeps moving. A monster you kill stays down, health bars never go black, and monsters no longer pop back up after dying.

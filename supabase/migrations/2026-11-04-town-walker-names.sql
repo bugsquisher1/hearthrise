@@ -24,8 +24,8 @@
 --
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
 -- Re-apply hr_town_walkers from 2026-10-28-town-own-characters.sql.
--- ORDER: after 2026-11-06-hunt-sessions-catalogue.generated.sql (last in the chain; no object in
--- common with the 2026-11-04/05/06 catalogue files). No begin/commit.
+-- ORDER: after 2026-11-06-hunt-analyzer-min-window.sql (last in the chain; no object in
+-- common with it or the 2026-11-04/05/06 catalogue files). No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITION AND THE PIN ──────────────────────────────────────────────

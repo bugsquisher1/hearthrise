@@ -35,6 +35,8 @@ export async function loadCore(root) {
   M.HUNTS = (await imp('src/data/hunts.js')).HUNT_INDEX;
   M.RS = await imp('src/data/rule-subjects.js');
   M.C = await imp('src/core/combat.js');
+  M.vitals = await imp('src/core/vitals.js');
+  M.huntSessions = await imp('src/data/hunt-sessions.js');
   M.root = root;
   return M;
 }

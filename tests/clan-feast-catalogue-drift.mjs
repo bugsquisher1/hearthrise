@@ -131,26 +131,32 @@ async function selftest() {
      2026-09-13-reed-and-tide.sql until the core rebuild's catalogue (2026-10-27-core-catalogue.generated.sql)
      re-seeded every heal, and a typed name kept mutating a file the fold had already overridden. */
   const order = JSON.parse(await readFile(ORDER, 'utf8')).order;
-  let LAST = null;
+  const seeders = [];
   for (const f of order) {
     let t; try { t = await readFile(join(MIG_DIR, f), 'utf8'); } catch { continue; }
-    if (seedRowsIn(t).length) LAST = f;
+    if (seedRowsIn(t).length) seeders.push([f, t]);
   }
-  if (!LAST) { process.stdout.write('  FAIL  no seeding file in the apply order\n'); return 1; }
-  const real = await readFile(join(MIG_DIR, LAST), 'utf8');
+  if (!seeders.length) { process.stdout.write('  FAIL  no seeding file in the apply order\n'); return 1; }
+  const [LAST, real] = seeders[seeders.length - 1];
+  /* THE NEWEST SEED may be re-stated verbatim by several trailing files (each generated catalogue re-seeds
+     every heal): a food dropped from only the last of them is still seeded by the one before, harmlessly.
+     So "dropped" and "absent" are planted in EVERY trailing file that seeds the same rows (TAIL). */
+  const rowsKey = (t) => JSON.stringify(seedRowsIn(t).slice().sort());
+  const TAIL = [];
+  for (let i = seeders.length - 1; i >= 0 && rowsKey(seeders[i][1]) === rowsKey(real); i--) TAIL.push(seeders[i]);
   const [[id0, heals0], [id1]] = seedRowsIn(real);
   const drifted = real.replace(new RegExp(`\\(\\s*'${id0}'\\s*,\\s*\\d+\\s*\\)`), `('${id0}', ${heals0 + 1})`);
-  const dropped = real.replace(new RegExp(`\\(\\s*'${id1}'\\s*,\\s*\\d+\\s*\\)\\s*,`), '');
-  if (drifted === real || dropped === real) { process.stdout.write(`  FAIL  selftest anchors missed in ${LAST}\n`); return 1; }
+  const drop = (t) => t.replace(new RegExp(`\\(\\s*'${id1}'\\s*,\\s*\\d+\\s*\\)\\s*,`), '');
+  if (drifted === real || drop(real) === real) { process.stdout.write(`  FAIL  selftest anchors missed in ${LAST}\n`); return 1; }
+  const inTail = (fn) => Object.fromEntries(TAIL.map(([f, t]) => [f, fn(t)]));
   const arms = [
     ['control (unmutated chain)', {}, false],
     [`a heal value drifts in the newest seed (${LAST})`, { [LAST]: drifted }, true],
-    ['a food is dropped from the newest seed', { [LAST]: dropped }, true],
+    [`a food is dropped from the newest seed (${TAIL.map(([f]) => f).join(', ')})`, inTail(drop), true],
     ['a LATER file seeds a food items.js does not back',
       { [LAST]: real + "\ninsert into public.hr_feast_foods (item_id, heals) values ('not_a_food', 9)"
                      + '\n  on conflict (item_id) do update set heals = excluded.heals;\n' }, true],
-    ['the newest seed is ABSENT (the pre-b544 blind spot)',
-      { [LAST]: '-- nothing\n' }, true],
+    ['the newest seed is ABSENT (the pre-b544 blind spot)', inTail(() => '-- nothing\n'), true],
   ];
   let bad = 0;
   for (const [name, inject, mustFail] of arms) {

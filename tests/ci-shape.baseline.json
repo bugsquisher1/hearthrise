@@ -66,6 +66,8 @@
     "node tests/hunt-sessions-db.mjs --mutate": "db-replay-4",
     "node tests/name-moderation.mjs": "db-replay-4",
     "node tests/name-moderation.mjs --mutate": "db-replay-4",
+    "node tests/hero-creation.mjs": "db-replay-4",
+    "node tests/hero-creation.mjs --mutate": "db-replay-4",
     "node tests/restore-census.mjs": "db-replay-2",
     "node tests/restore-census.mjs --mutate": "db-replay-2",
     "node tests/restore-census.mjs --baseline-selftest": "db-replay-2",

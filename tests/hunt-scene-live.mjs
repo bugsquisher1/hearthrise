@@ -6,7 +6,7 @@
 //   node tests/hunt-scene-live.mjs --node     the node rules only
 //   node tests/hunt-scene-live.mjs --mutate   every planted defect must turn its rule RED
 //
-// mutant-anchors: src/session/character-session.js src/session/hunt-poll.js src/session/live-link.js src/session/config.js src/session/hunt-sections.js src/shell/widgets/vitals-hub.js src/hunt-view/scene.js src/hunt-view/timeline.js src/hunt-view/live-engine.js
+// mutant-anchors: src/session/character-session.js src/session/hunt-poll.js src/session/live-link.js src/session/config.js src/session/hunt-sections.js src/shell/widgets/vitals-hub.js src/shell/widgets/party-panel.js src/hunt-view/scene.js src/hunt-view/timeline.js src/hunt-view/live-engine.js
 // mutant-writes-tree: no — mutants are planted into a temp copy of src/
 //
 // The REAL CharacterSession, timeline, live engine and scene over a scripted
@@ -30,11 +30,13 @@
 //         the server's next settle (its hero unit carries them), and the browser restarts its
 //         prediction with them within a second of the answer, so no later commit diverges
 //         (the browser-closed half: tests/hunt-live.mjs LV-S, tests/hunt-sessions-settle.mjs SETTINGS).
-//   LV-15 SWITCHED AWAY AND BACK MID-HUNT (Andy 10-21): the pane is remounted, the scene is the
+//   LV-15 EVERY HP READOUT IS THE BAR'S: the vitals hub and the party panel read the HP the timeline
+//         plays now (hunt-sections.js liveHpOf), never the last commit's (Andy 10-21, "appeared green").
+//   LV-18 SWITCHED AWAY AND BACK MID-HUNT (Andy 10-21): the pane is remounted, the scene is the
 //         character's (liveSceneOf): a monster drawn dead is never drawn standing again, no corpse
 //         replays its fall or turns.
-//   LV-16 A UNIT DIES ONCE (a second kill never restarts the fall) AND LIES THE WAY IT FELL.
-//   LV-17 EVERY PARTY MEMBER WEARS ITS OUTFIT: your other hero its session's server `outfit`, another
+//   LV-19 A UNIT DIES ONCE (a second kill never restarts the fall) AND LIES THE WAY IT FELL.
+//   LV-20 EVERY PARTY MEMBER WEARS ITS OUTFIT: your other hero its session's server `outfit`, another
 //         player's hero the party section's member `outfit` (2026-11-04-party-outfits.sql), never the role's.
 //   LV-4  THE PAGE (headless Chrome, the real client, the same server answers): the hunt
 //         draws, no page error, and the frame loop holds budget against the frozen sim
@@ -59,6 +61,8 @@ async function load(base) {
     C: await u('src/session/character-session.js'),
     CFG: await u('src/session/config.js'),
     HSX: await u('src/session/hunt-sections.js'),
+    HUB: await u('src/shell/widgets/vitals-hub.js'),
+    PP: await u('src/shell/widgets/party-panel.js'),
     S: await u('src/hunt-view/scene.js'),
     TL: await u('src/hunt-view/timeline.js'),
     B: await u('src/world/core/book.js'),
@@ -514,7 +518,7 @@ async function nodeRules(M) {
     ok('LV-13', gone && gone.under, 'a rat drawn standing that the restart no longer has was still drawn standing');
   }
 
-  { // LV-15 SWITCHED AWAY AND BACK MID-HUNT (Andy 10-21: "When you tab away to another character while
+  { // LV-18 SWITCHED AWAY AND BACK MID-HUNT (Andy 10-21: "When you tab away to another character while
     // monsters are dead in the pull (and had disappeared), they jump back"). The World pane is remounted on
     // every switch; the scene must be the character's, so a monster drawn dead before the switch is never
     // drawn standing after it, and no corpse plays its fall a second time.
@@ -542,14 +546,14 @@ async function nodeRules(M) {
       }
     }, { switchAt: SW });
     deadBefore = [...fell.values()].filter((w) => w === 'before').length;
-    console.log(`  LV-15 switched away ${(SW[1] - SW[0]) / 1000} s mid-hunt: ${deadBefore} monster(s) dead before it, ${rose} unit-frame(s) drew a dead monster standing (${[...roseIds].slice(0, 4).join(', ')}), ${replayed} replayed a fall, ${turned} turned a corpse`);
-    ok('LV-15', deadBefore > 0 && framesAfter > 0, `CONTROL: ${deadBefore} monsters died before the switch, ${framesAfter} frames after it`);
-    ok('LV-15', rose === 0, `${rose} unit-frame(s) drew a monster standing after it was drawn dead (${[...roseIds].slice(0, 4).join(', ')})`);
-    ok('LV-15', replayed === 0, `${replayed} frame(s) played a corpse's fall again`);
-    ok('LV-15', turned === 0, `${turned} frame(s) turned a corpse to another facing`);
+    console.log(`  LV-18 switched away ${(SW[1] - SW[0]) / 1000} s mid-hunt: ${deadBefore} monster(s) dead before it, ${rose} unit-frame(s) drew a dead monster standing (${[...roseIds].slice(0, 4).join(', ')}), ${replayed} replayed a fall, ${turned} turned a corpse`);
+    ok('LV-18', deadBefore > 0 && framesAfter > 0, `CONTROL: ${deadBefore} monsters died before the switch, ${framesAfter} frames after it`);
+    ok('LV-18', rose === 0, `${rose} unit-frame(s) drew a monster standing after it was drawn dead (${[...roseIds].slice(0, 4).join(', ')})`);
+    ok('LV-18', replayed === 0, `${replayed} frame(s) played a corpse's fall again`);
+    ok('LV-18', turned === 0, `${turned} frame(s) turned a corpse to another facing`);
   }
 
-  { // LV-16 A UNIT DIES ONCE, AND LIES THE WAY IT FELL (Andy 10-21: "saw a corpse twitch again once dead"):
+  { // LV-19 A UNIT DIES ONCE, AND LIES THE WAY IT FELL (Andy 10-21: "saw a corpse twitch again once dead"):
     // a second kill of a corpse (a restart re-running a death the screen played) never restarts its fall,
     // and a corpse never turns to face the hero it last swung at as that hero walks around it.
     const OFF = 1000000, T = 60000;
@@ -568,12 +572,12 @@ async function nodeRules(M) {
     const dirs = new Set(seen.filter((x) => x !== 'gone').map((x) => x.split(':')[2]));
     let again = 0;
     for (let i = 1; i < seen.length; i++) { const [a0, f0] = seen[i - 1].split(':'), [a1, f1] = seen[i].split(':'); if ((a0 === 'corpse' && a1 === 'death') || (a0 === 'death' && a1 === 'death' && Number(f1) < Number(f0))) again++; }
-    ok('LV-16', seen.every((x) => x !== 'gone') && seen[seen.length - 1].startsWith('corpse'), `CONTROL: the rat was not drawn lying as a corpse (${seen.slice(-3).join(' ')})`);
-    ok('LV-16', again === 0, `a second kill of the corpse played its fall again (${seen.join(' ')})`);
-    ok('LV-16', dirs.size === 1, `the corpse turned as the hero walked around it: facings ${[...dirs].join(',')}`);
+    ok('LV-19', seen.every((x) => x !== 'gone') && seen[seen.length - 1].startsWith('corpse'), `CONTROL: the rat was not drawn lying as a corpse (${seen.slice(-3).join(' ')})`);
+    ok('LV-19', again === 0, `a second kill of the corpse played its fall again (${seen.join(' ')})`);
+    ok('LV-19', dirs.size === 1, `the corpse turned as the hero walked around it: facings ${[...dirs].join(',')}`);
   }
 
-  { // LV-17 EVERY PARTY MEMBER WEARS ITS OUTFIT (Andy 10-21: "my outfit shows fine, but the other character in
+  { // LV-20 EVERY PARTY MEMBER WEARS ITS OUTFIT (Andy 10-21: "my outfit shows fine, but the other character in
     // party/hunt shows the standard knight"). Seat 1 is this account's other open character: drawn in that
     // character's own outfit (its server `outfit` section). Seat 2 is ANOTHER PLAYER: drawn in the outfit the
     // party section names for it (2026-11-04-party-outfits.sql member `outfit`). Both are tanks, whose role
@@ -594,8 +598,8 @@ async function nodeRules(M) {
       }
     }, { people: [{ seat: 0, user: UID, slot: 0, name: 'Hero 1' }, { seat: 1, user: UID, slot: 1, name: 'Hero 2' }, { seat: 2, user: THEM, slot: 0, name: 'Mira' }],
       peers: () => [other], outfits: { 2: { id: 'ranger', colors: { body: 3 } } } });
-    ok('LV-17', frames[1] > 0 && dressed[1] === frames[1], `your other hero (seat 1) was drawn as ${[...ids[1]].join('/')} in ${frames[1] - dressed[1]} of ${frames[1]} frames (want outfit_witch)`);
-    ok('LV-17', frames[2] > 0 && dressed[2] === frames[2], `another player's hero (seat 2) was drawn as ${[...ids[2]].join('/')} in ${frames[2] - dressed[2]} of ${frames[2]} frames (want outfit_ranger, its party-section outfit)`);
+    ok('LV-20', frames[1] > 0 && dressed[1] === frames[1], `your other hero (seat 1) was drawn as ${[...ids[1]].join('/')} in ${frames[1] - dressed[1]} of ${frames[1]} frames (want outfit_witch)`);
+    ok('LV-20', frames[2] > 0 && dressed[2] === frames[2], `another player's hero (seat 2) was drawn as ${[...ids[2]].join('/')} in ${frames[2] - dressed[2]} of ${frames[2]} frames (want outfit_ranger, its party-section outfit)`);
   }
 
   { // LV-14 A SETUP CHANGED MID-HUNT, VIEWED (r10, Andy 10-20: "only takes effect for the next hunt"). The
@@ -647,6 +651,36 @@ async function nodeRules(M) {
     ok('LV-3', h.manaPerS !== null && Math.abs(h.manaPerS - LIVE.hunt.hero.mana_regen / 60) < 1e-9, `mana regen reads ${h.manaPerS}/s`);
     const src = readFileSync(join(M.base, 'src/shell/widgets/vitals-hub.js'), 'utf8');
     ok('LV-3', /regen\(hero\.hpPerS\)/.test(src) && /regen\(hero\.manaPerS\)/.test(src) && /'\/s'/.test(src), 'the vitals strip does not print hpPerS / manaPerS as /s');
+  }
+  { // LV-15 EVERY HP READOUT IS THE BAR'S (Andy 2026-10-21, the Warrens: "killed me while I appeared green"):
+    // the vitals hub and the party panel read the HP the timeline plays at this instant (the bar over the
+    // hero's head), not the last commit's, which is up to a commit window old.
+    const clock = { t: 1000 };
+    const cs = new M.C.CharacterSession({ slot: 0, uid: '11111111-2222-3333-4444-555555555555',
+      server: { rpc: async () => ({ ok: true, body: clone(LIVE) }), accrue: async () => ({ ok: true, body: { ok: true, accrued: false } }) },
+      setTimer: () => 0, clearTimer: () => {}, now: () => clock.t });
+    await cs.load();
+    const unit = M.HSX.huntOf(cs).hero.unit, maxHp = LIVE.hunt.hero.hp_max;
+    const S = 5000000;
+    cs.timeline.ingest({ serverNowMs: S + 1000, fromMs: S, units: { [unit]: ['hero', maxHp, maxHp] },
+      events: [{ type: 'dmg', atMs: S + 500, u: 99, t: unit, amount: 120 }] }, clock.t);
+    clock.t = 3000;
+    const live = M.HSX.liveHpOf(cs, unit);
+    ok('LV-15', live && live.hp === maxHp - 120, `the timeline plays the hero at ${live && live.hp} HP, want ${maxHp - 120}`);
+    const stub = () => {
+      const kids = new Map(), at = new Map();
+      return { textContent: '', innerHTML: '', classList: { contains: () => false, toggle() {} },
+        style: { getPropertyValue: () => '', setProperty() {}, removeProperty() {} },
+        hasAttribute: (k) => at.has(k), getAttribute: (k) => (at.has(k) ? at.get(k) : null), setAttribute: (k, v) => at.set(k, v), removeAttribute: (k) => at.delete(k),
+        querySelector(s) { if (!kids.has(s)) kids.set(s, stub()); return kids.get(s); } };
+    };
+    const el = stub();
+    M.HUB.patchHub(el, { character: cs, glyphs: {}, now: () => clock.t });
+    const shown = el.querySelector('[data-v="hp"]').textContent;
+    ok('LV-15', shown === (maxHp - 120) + '/' + maxHp, `the vitals hub reads "${shown}" HP while the bar plays ${maxHp - 120}/${maxHp}`);
+    const r = M.PP.liveRoster(cs, M.PP.rosterOf(cs));
+    const me = r.members.find((m) => m.unit === unit);
+    ok('LV-15', me && me.hp === maxHp - 120, `the party panel reads ${me && me.hp} HP for the hero while the bar plays ${maxHp - 120}`);
   }
   return fails;
 }
@@ -762,15 +796,17 @@ const MUTANTS = [
   ['a dropped event stays remembered (LV-12)', 'src/hunt-view/timeline.js', '{ seen.delete(queue[i].key); queue.splice(i, 1); }', '{ queue.splice(i, 1); }', /^LV-12/],
   ['a revived monster pops up (LV-13)', 'src/hunt-view/scene.js', '        if (t !== null) risen.set(u, t);\n', '', /^LV-13/],
   ['a monster the restart no longer has keeps standing (LV-13)', 'src/hunt-view/scene.js', '      for (const u of tl.units()) if (!alive.has(u) && !dead.has(u) && !isHero(u)) dead.set(u, t);\n', '', /^LV-13/],
-  ['each World pane makes its own live scene (LV-15)', 'src/hunt-view/scene.js', '  if (had && had.key === o.key) return had.scene;\n', '', /^LV-15/],
-  ['a second kill of a corpse plays its fall again (LV-16)', 'src/hunt-view/scene.js', '        if (!isHero(ev.t) && dead.has(ev.t)) return true;\n', '', /^LV-16/],
-  ['a corpse turns to face what it last swung at (LV-16)', 'src/hunt-view/scene.js', '          ({ dir, diag } = lie.get(u));\n', '', /^LV-16/],
-  ['another player\'s party outfit is not read (LV-17)', 'src/session/hunt-sections.js', 'outfit: outfitIdOf(m.outfit),', 'outfit: null,', /^LV-17/],
-  ['your other hero in the party wears the role\'s outfit (LV-17)', 'src/hunt-view/scene.js', 'return (m && m.look) || outfitSprite(m && m.outfit, m && m.role);', 'return outfitSprite(m && m.outfit, m && m.role);', /^LV-17/],
+  ['each World pane makes its own live scene (LV-18)', 'src/hunt-view/scene.js', '  if (had && had.key === o.key) return had.scene;\n', '', /^LV-18/],
+  ['a second kill of a corpse plays its fall again (LV-19)', 'src/hunt-view/scene.js', '        if (!isHero(ev.t) && dead.has(ev.t)) return true;\n', '', /^LV-19/],
+  ['a corpse turns to face what it last swung at (LV-19)', 'src/hunt-view/scene.js', '          ({ dir, diag } = lie.get(u));\n', '', /^LV-19/],
+  ['another player\'s party outfit is not read (LV-20)', 'src/session/hunt-sections.js', 'outfit: outfitIdOf(m.outfit),', 'outfit: null,', /^LV-20/],
+  ['your other hero in the party wears the role\'s outfit (LV-20)', 'src/hunt-view/scene.js', 'return (m && m.look) || outfitSprite(m && m.outfit, m && m.role);', 'return outfitSprite(m && m.outfit, m && m.role);', /^LV-20/],
   ['a waiting prediction takes the server window too (LV-10)', 'src/session/character-session.js', '    if (this.live.running() || this.live.stalled()) {', '    if (this.live.running()) {', /^LV-10/],
   ["the last hunt's units are kept (LV-9)", 'src/session/character-session.js', 'if (sid !== null && sid !== this._huntSid) { this.liveLink.off(); this.timeline.clear(); }', '', /^LV-9/],
   ['the per-minute figure printed as /s (LV-3)', 'src/shell/widgets/vitals-hub.js', 'regen(hero.hpPerS)', 'regen(hero.hpPerS * 60)', /^LV-3/],
   ['HP regen at the resting rate (LV-3)', 'src/session/hunt-sections.js', '* VITALS.inFightRegenPermillePerS *', '* 60 *', /^LV-3/],
+  ["the hub reads the last commit's HP (LV-15, live v0.2.22)", 'src/shell/widgets/vitals-hub.js', 'const live = hero ? liveHpOf(cs, hero.unit) : null;', 'const live = null;', /^LV-15/],
+  ["the party panel reads the last commit's HP (LV-15, live v0.2.22)", 'src/shell/widgets/party-panel.js', 'const live = m.hunting ? liveHpOf(cs, m.unit) : null;', 'const live = null;', /^LV-15/],
 ];
 
 async function mutate() {

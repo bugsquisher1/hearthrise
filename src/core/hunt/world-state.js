@@ -11,7 +11,8 @@
 // module's PERSISTED { unit, world, pack } in a fixed module order. A lane
 // adds a persisted field in its own module; nothing here changes. The SHAPE
 // fingerprint (a hash of the composed list) rides in every encoding, so a
-// world written under another field list is refused, not misread (no
+// world written under another field list is never misread: `decode` refuses
+// it, and a STORED one (`decodeStored`) restarts the instance's world (no
 // migration: CLAUDE.md §1). A field missing from encode is a world that does
 // not survive a settle cut — world-step#split-parity goes red.
 //
@@ -114,6 +115,21 @@ export function decode(enc) {
   w.units = enc.u.map((r) => unrow('unit', r));
   w.packs = enc.p.map((r) => unrow('pack', r));
   return w;
+}
+
+/**
+ * A STORED world (hunt_instances.world) for the engine: decoded when it is of this
+ * version and shape; NULL when it is a well-formed encoding written under another
+ * version or field list (a deploy that moved FIELDS). Null is a restarted instance,
+ * exactly as a party change leaves one: a fresh world counting on from the
+ * instance's stored world_swing (combat-sim.js), so the hunt keeps running instead
+ * of every settle refusing it (no migration: CLAUDE.md §1). A malformed one still
+ * throws. The edge settle and the browser's live engine both read through here.
+ */
+export function decodeStored(enc) {
+  if (enc && typeof enc === 'object' && Number.isInteger(enc.v) && Number.isInteger(enc.s)
+    && (enc.v !== WORLD_VERSION || enc.s !== SHAPE)) return null;
+  return decode(enc);
 }
 
 /** UTF-8 bytes of the encoded world as JSON text. */

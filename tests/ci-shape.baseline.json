@@ -9,6 +9,8 @@
     "node tests/client-boot.mjs --mutate": "in-page",
     "node tests/observability.mjs": "in-page",
     "node tests/observability.mjs --mutate": "in-page",
+    "node tests/report-problem.mjs": "in-page",
+    "node tests/report-problem.mjs --mutate": "in-page",
     "node tests/alpha-windows.mjs": "in-page",
     "node tests/alpha-windows.mjs --mutate": "in-page",
     "node tests/hunt-scene-live.mjs": "in-page",

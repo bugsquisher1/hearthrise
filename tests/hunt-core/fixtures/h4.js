@@ -50,7 +50,7 @@ export async function loadData(M) {
   const { pathToFileURL } = await import('node:url');
   const v = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(M.root, 'src/build-info.js'), 'utf8')) || [, ''])[1];
   const imp = (p) => import(pathToFileURL(join(M.root, p)).href + v);
-  return { CD: await imp('src/data/consumables.js'), AD: await imp('src/data/abilities.js') };
+  return { CD: await imp('src/data/consumables.js'), AD: await imp('src/data/abilities.js'), XP: await imp('src/core/xp.js') };
 }
 
 /** fixtures/h1.js `suite`, with this lane's data modules on M (M.CD, M.AD). */

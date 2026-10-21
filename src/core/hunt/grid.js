@@ -100,6 +100,40 @@ export function astar(g, sx, sy, tx, ty, blocked, cap) {
   return null;
 }
 
+/**
+ * BREADTH-FIRST to the NEAREST tile `goal(x, y)` accepts, from (sx, sy): 8 directions,
+ * no corner cutting, `blocked(x, y)` vetoes any tile but the start. One search for a
+ * set of goals (A* takes one goal; "any free tile beside this monster" is up to
+ * eight), linear in the tiles it expands. Answers the tiles to step through, start
+ * excluded: [] when the start is a goal, null when none is reached within `cap`.
+ */
+export function bfsTo(g, sx, sy, goal, blocked, cap) {
+  if (goal(sx, sy)) return [];
+  const limit = Number.isInteger(cap) && cap > 0 ? cap : HUNT_TUNING.pathNodeCap;
+  const start = tileKey(g, sx, sy);
+  const from = new Map([[start, -1]]);
+  const queue = [start];
+  for (let head = 0; head < queue.length && head < limit; head++) {
+    const k = queue[head];
+    const x = k % g.w; const y = (k - x) / g.w;
+    for (const [dx, dy] of NEIGHBOURS) {
+      const nx = x + dx; const ny = y + dy;
+      if (!walkable(g, nx, ny)) continue;
+      if (dx && dy && (!walkable(g, x + dx, y) || !walkable(g, x, y + dy))) continue;
+      const nk = tileKey(g, nx, ny);
+      if (from.has(nk) || (blocked && blocked(nx, ny))) continue;
+      from.set(nk, k);
+      if (goal(nx, ny)) {
+        const path = []; let c = nk;
+        while (c !== start) { path.push([c % g.w, (c - (c % g.w)) / g.w]); c = from.get(c); }
+        return path.reverse();
+      }
+      queue.push(nk);
+    }
+  }
+  return null;
+}
+
 /** Line of sight (Bresenham): no opaque tile strictly between a and b. */
 export function los(g, a, b) {
   let x = a.x; let y = a.y;

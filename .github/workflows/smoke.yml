@@ -268,6 +268,17 @@ jobs:
           node tests/observability.mjs
           node tests/observability.mjs --mutate
 
+      # REPORT A PROBLEM (2026-10-21): the launcher row and Settings > Help open
+      # it; Send posts ONE body to the bug-report-bridge Edge Function (stubbed)
+      # with the player's token, the character, its hunt, the envelope version,
+      # this load's console errors and a JPEG of the World; "Sent." and the rate
+      # limit read plainly. --mutate plants six defects.
+      - name: Report a problem (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/report-problem.mjs
+          node tests/report-problem.mjs --mutate
+
       # THE ALPHA WINDOWS (2026-10-18, week plan 16a + QoL 2/5): Bag, Gear,
       # Skills, Shop, Hunt prep and Find on the fixture envelope. Built once and
       # patched in place; the server's counts win; every action one intent with

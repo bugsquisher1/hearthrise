@@ -136,6 +136,20 @@ export function settingsOf(cs) {
   };
 }
 
+/**
+ * THE HP A HUNT UNIT SHOWS NOW: the character's timeline at its display clock (timeline.js
+ * hpAt, T6), the one number the hero's bar over its head reads, or null (no timeline, no
+ * unit, nothing booked yet). Every HP readout of a hunting hero reads it so none lags the
+ * bar: the envelope's `hp` is the last commit's, up to a commit window old (Andy 2026-10-21,
+ * the Warrens: the hub and the party panel showed the HP of seconds before the death).
+ */
+export function liveHpOf(cs, unit) {
+  const tl = cs && cs.timeline;
+  if (!Number.isInteger(unit) || !tl || typeof tl.hpAt !== 'function' || typeof cs.now !== 'function') return null;
+  const r = tl.hpAt(unit, cs.now());
+  return r && Number.isFinite(r.hp) && Number.isFinite(r.maxHp) && r.maxHp > 0 ? r : null;
+}
+
 /* A party member. `unit` is its hero in the hunt instance, null while the party is in town (it is
    listed all the same: the Party panel shows the party wherever it is). */
 function memberOf(m) {

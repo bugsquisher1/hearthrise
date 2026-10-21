@@ -39,6 +39,8 @@ export class LiveLink {
   }
 
   running() { return this.engine.running(); }
+  /** The prediction ran to the instance's end (every member left) and waits for the server to close the hunt. */
+  ended() { return this.engine.ended(); }
 
   /** The hunt is over (or there is none): back to the server-paced view. */
   off() {
@@ -69,7 +71,7 @@ export class LiveLink {
       this.want = false;
       /* Not started, or out of seeds: (re)start from the server's world. A start point from an older
          commit leaves the prediction behind the clock, and advance() eases it on (catchUp). */
-      if (!this.engine.running()) {
+      if (!this.engine.running() && !this.engine.ended()) {
         if (this.engine.seed(body.hunt_live)) { this._tl.setDelay(SESSION_CONFIG.liveDelayMs); this._tries = 0; this._emit('live'); }
         return;
       }
@@ -80,14 +82,16 @@ export class LiveLink {
          another bar is restarted from even when its world agrees: the server settles from that world with
          the new setup, and the prediction kept the old one on screen until a later commit diverged. */
       const i = body.hunt_live.instance;
-      if (this.engine.running() && this.engine.sameSetup(body.hunt_live)
+      /* An ENDED prediction (the hunt's end foreseen: a death, a leave) is judged the same way: a start
+         point it agrees with leaves it standing, one past or off it restarts it, eased. */
+      if (this.engine.sameSetup(body.hunt_live)
         && this._judge({ world_swing: i.world_swing, world_hash: i.world_hash, seeds: body.hunt_live.seeds }) === 'match') return;
       /* Off the server's world: restart from it, eased (never fed: the swings it runs to catch up are
          already in the past). */
       if (now !== null) { this.stats.reseeds++; this._restart((at, ahead) => this.engine.reseed(body.hunt_live, at, ahead)); }
-    } else if (body.hunt_check && this.engine.running()) {
+    } else if (body.hunt_check && (this.engine.running() || this.engine.ended())) {
       if (this._judge(body.hunt_check) !== 'match') this.want = true;
-    } else if (!this.engine.running()) {
+    } else if (!this.engine.running() && !this.engine.ended()) {
       /* No start point in this answer (not due yet, a settle, or a plain read): ask again, backing
          off to the ordinary poll (askDelayMs). Never give up while the hunt is open: a view that
          stopped asking stayed on the server-paced playback a whole poll behind (v0.2.20 start delay). */

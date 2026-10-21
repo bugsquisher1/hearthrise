@@ -31,6 +31,17 @@ const cases = {
     if (!throws(Object.assign({}, enc, { u: [enc.u[0].slice(0, -1)] }))) return 'a short unit row was decoded';
     return null;
   },
+  /* A STORED world of another field list is a restarted instance (null), never a refused settle (a frozen
+     hunt); one of this shape decodes; a malformed one of this shape still throws. */
+  'stored-another-shape-restarts': (M) => {
+    const enc = JSON.parse(JSON.stringify(M.worldstate.encode(sample(M))));
+    if (M.worldstate.decodeStored(Object.assign({}, enc, { s: (enc.s + 1) >>> 0 })) !== null) return 'a stored world of another shape did not read as a restart';
+    if (M.worldstate.decodeStored(Object.assign({}, enc, { v: enc.v + 1 })) !== null) return 'a stored world of another version did not read as a restart';
+    const back = M.worldstate.decodeStored(enc);
+    if (!back || back.swing !== 17) return 'a stored world of this shape did not decode';
+    try { M.worldstate.decodeStored(Object.assign({}, enc, { u: [enc.u[0].slice(0, -1)] })); } catch { return null; }
+    return 'a short unit row of this shape was read';
+  },
   'validate-refuses-bad-values': (M) => {
     const w = sample(M);
     w.units[0].x = 1.5;
@@ -51,6 +62,10 @@ const mutants = [
     edits: [['src/core/hunt/world-state.js', "  FIELDS[part].forEach(([name], i) => { out[name] = copy(arr[i]); });", "  FIELDS[part].forEach(([name], i) => { out[name] = name === 'prog' ? 0 : copy(arr[i]); });"]] },
   { name: 'no byte bound', case: 'bound',
     edits: [['src/core/hunt/world-state.js', '    if (bytes > HUNT_TUNING.worldMaxBytes)', '    if (false)']] },
+  { name: 'a stored world of another shape throws (a frozen hunt)', case: 'stored-another-shape-restarts',
+    edits: [['src/core/hunt/world-state.js', '    && (enc.v !== WORLD_VERSION || enc.s !== SHAPE)) return null;', '    && false) return null;']] },
+  { name: 'a malformed stored world reads as a restart', case: 'stored-another-shape-restarts',
+    edits: [['src/core/hunt/world-state.js', '  return decode(enc);\n}', '  try { return decode(enc); } catch { return null; }\n}']] },
   { name: 'two modules persist one field', case: 'fields-composed-from-modules',
     edits: [['src/core/hunt/roles.js', "unit: Object.freeze([['role', 'str'],", "unit: Object.freeze([['x', 'int'], ['role', 'str'],"]] },
 ];

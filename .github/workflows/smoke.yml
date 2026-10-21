@@ -268,6 +268,17 @@ jobs:
           node tests/observability.mjs
           node tests/observability.mjs --mutate
 
+      # REPORT A PROBLEM (2026-10-21): the launcher row and Settings > Help open
+      # it; Send posts ONE body to the bug-report-bridge Edge Function (stubbed)
+      # with the player's token, the character, its hunt, the envelope version,
+      # this load's console errors and a JPEG of the World; "Sent." and the rate
+      # limit read plainly. --mutate plants six defects.
+      - name: Report a problem (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/report-problem.mjs
+          node tests/report-problem.mjs --mutate
+
       # THE ALPHA WINDOWS (2026-10-18, week plan 16a + QoL 2/5): Bag, Gear,
       # Skills, Shop, Hunt prep and Find on the fixture envelope. Built once and
       # patched in place; the server's counts win; every action one intent with
@@ -434,9 +445,14 @@ jobs:
   # with every assertion green: hunt-screen --mutate grew to 36 mutants at ~34 s
   # each (one clean boot per mutant), 1,358-1,363 s on its own. Budget = that x2
   # = 46 min plus setup, rounded to 48.
+  # SHARDED 2026-10-21: v0.2.23 (run 39616495440) was CANCELLED at 48 min with
+  # every mutant green: 63 mutants at ~61 s each (the action bar's rules doubled
+  # a boot) = ~64 min. --mutate --shard=K/3 runs every third mutant; shards 2
+  # and 3 are in-page-4 / in-page-5 below. ~21 mutants = ~22 min a shard;
+  # budget x2 = 44, +2 for the plain run here = 46.
   in-page-3:
     runs-on: ubuntu-latest
-    timeout-minutes: 48
+    timeout-minutes: 46
 
     steps:
       - uses: actions/checkout@v4
@@ -464,7 +480,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/hunt-screen.mjs
-          node tests/hunt-screen.mjs --mutate
+          node tests/hunt-screen.mjs --mutate --shard=1/3
 
       # A failing run is far easier to diagnose with the page state attached.
       - name: Upload failure artifacts
@@ -472,6 +488,80 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: smoke-failure-in-page-3
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ── in-page-4 / in-page-5 ── HUNT SCREEN MUTANTS, SHARDS 2 AND 3 (see the
+  # note above in-page-3). Budget: ~22 min a shard x2 = 44.
+  in-page-4:
+    runs-on: ubuntu-latest
+    timeout-minutes: 44
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Hunt screen mutants, shard 2 of 3 (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/hunt-screen.mjs --mutate --shard=2/3
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-in-page-4
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  in-page-5:
+    runs-on: ubuntu-latest
+    timeout-minutes: 44
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Hunt screen mutants, shard 3 of 3 (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/hunt-screen.mjs --mutate --shard=3/3
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-in-page-5
           path: |
             tests/**/*.png
             tests/**/*.log

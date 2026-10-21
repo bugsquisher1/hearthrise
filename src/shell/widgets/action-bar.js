@@ -257,6 +257,14 @@ function setPanel(ctx, el, open) {
   attr(plaque.querySelector('.hb-more'), 'aria-expanded', String(open));
   if (!open) return;
   const doc = ctx.doc, sheet = plaque.querySelector('.hb-pl-more');
+  /* Inside the World like a window sheet (never over the top strip and its icons), and under the hunt bar
+     (Leave hunt stays in reach). Measured at each opening; a desktop shows the rows in the panel instead. */
+  const hud = el.closest('.hs-hud'), ht = hud && hud.querySelector('.ht-bar');
+  if (hud) {
+    const box = hud.getBoundingClientRect(), hb = ht && ht.getClientRects().length ? ht.getBoundingClientRect() : null;
+    sheet.style.top = Math.round(Math.max(box.top, hb ? hb.bottom + 4 : box.top)) + 'px';
+    sheet.style.bottom = Math.round(Math.max(0, doc.documentElement.clientHeight - box.bottom)) + 'px';
+  }
   const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setPanel(ctx, el, false); } };
   const onDown = (e) => { if (!sheet.contains(e.target) && !plaque.querySelector('.hb-more').contains(e.target)) setPanel(ctx, el, false); };
   doc.addEventListener('keydown', onKey, true);

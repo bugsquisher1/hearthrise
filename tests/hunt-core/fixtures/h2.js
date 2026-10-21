@@ -15,6 +15,7 @@ async function loadCore2(root) {
   const imp = (p) => import(pathToFileURL(join(root, p)).href + V);
   M.hs = await imp('src/core/hunt-spawn.js');
   M.roleData = await imp('src/data/hunt-roles.js');
+  M.abilityData = await imp('src/data/abilities.js');
   M.monData = await imp('src/data/monsters.js');
   M.sessions = await imp('src/data/hunt-sessions.js');
   M.hg = await imp('src/core/hunt-ground.js');

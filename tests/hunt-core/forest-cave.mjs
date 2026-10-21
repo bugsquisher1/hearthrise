@@ -302,8 +302,14 @@ cases['first-grounds-net-chain'] = async (M) => {
 const mutants = [
   { name: 'the Thicket wolves hit like a Sewer spider (atk 4 -> 13)', case: 'thicket-solo-starter-kit',
     edits: [['src/data/monsters.js', 'hp: 14, atk: 4, def: 1, xp: 52, gp: [2, 5], speed: 4200,', 'hp: 14, atk: 13, def: 1, xp: 52, gp: [2, 5], speed: 4200,']] },
+  /* The whole Sewer roster's coin back to its pre-x1.8 rows (the drop-tables play mutant's /1.8): the party nets under the Thicket. */
   { name: 'the Sewer coin back to its pre-x1.8 rows (the party nets under the Thicket)', case: 'first-grounds-net-chain',
-    edits: [['src/data/monsters.js', 'hp: 45, atk: 5, def: 0, xp: 154, gp: [4, 18], speed: 3400,', 'hp: 45, atk: 5, def: 0, xp: 154, gp: [1, 4], speed: 3400,']] },
+    edits: [['src/data/monsters.js', 'hp: 45, atk: 5, def: 0, xp: 154, gp: [4, 18]', 'hp: 45, atk: 5, def: 0, xp: 154, gp: [2, 10]'],
+      ['src/data/monsters.js', 'hp: 50, atk: 4, def: 0, xp: 141, gp: [4, 14]', 'hp: 50, atk: 4, def: 0, xp: 141, gp: [2, 8]'],
+      ['src/data/monsters.js', 'hp: 70, atk: 9, def: 1, xp: 288, gp: [14, 38]', 'hp: 70, atk: 9, def: 1, xp: 288, gp: [8, 21]'],
+      ['src/data/monsters.js', 'hp: 90, atk: 13, def: 6, xp: 704, gp: [36, 90]', 'hp: 90, atk: 13, def: 6, xp: 704, gp: [20, 50]'],
+      ['src/data/monsters.js', 'hp: 55, atk: 7, def: 1, xp: 192, gp: [9, 25]', 'hp: 55, atk: 7, def: 1, xp: 192, gp: [5, 14]'],
+      ['src/data/monsters.js', 'hp: 600, atk: 20, def: 4, xp: 3840, gp: [119, 238]', 'hp: 600, atk: 20, def: 4, xp: 3840, gp: [66, 132]']] },
   { name: 'a pack tile moved into the thicket', case: 'packs-on-the-map',
     edits: [['src/data/hunt-grounds.js', "box([5, 13, 21, 24], [15, 19],", "box([5, 13, 21, 24], [21, 15],"]] },
   { name: 'a prop dropped into a full box', case: 'packs-on-the-map',

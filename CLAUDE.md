@@ -97,6 +97,7 @@ The 2026-10-14 lightening is for a beta nobody plays. Before EA: the full mutati
 
 ## 4. Testing discipline
 
+- **While the game is CLOSED (Tyler, 2026-10-21):** a lane is done when the tests ITS change touches pass (one at a time, exit codes, `LANE DONE:` commit listing them); no per-lane `lane-done` and no per-lane mutation sweep. Each release set gets ONE combined `guards-for --run` (it includes the in-page suite) plus the GitHub run; the full mutation sweep runs nightly and a nightly red blocks the next release. Migrations still replay on `schema-drift` and carry their §4 self-check; §1–§2 lines unchanged. The rule below returns at the reopen / EA tightening (§3.7).
 - **A lane is done only when `node tools/lane-done.mjs` is green in its worktree** (debt ratchets, client-module-size, session-core (+--mutate), client-intent-surface, no-client-xp-mint, dead-exports, dead-css, window-globals-exist, token-single-source, css-literal-ratchet, breakpoint-guard, ci-shape, guard-hygiene, `bump-version.sh --check`). Paydown happens in the lane that wrote the code.
 - **Claims are gated on exit codes.** `( cmd || echo RED )` returns 0; run the guard, branch on `$?`, then write "green".
 - **Every fix and feature ships with its test in the same commit.** Bug → a regression test under `tests/` (the owning module's test file) that fails without the fix. Feature → a happy-path test that plays it. Details in `TESTING.md`.

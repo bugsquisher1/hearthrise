@@ -375,7 +375,11 @@
 .rp-shot[hidden] { display: none; }
 .rp-shot input { accent-color: var(--gold); }
 .rp-what { margin: 0; }
-.rp-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+/* Sticky at the sheet's foot: the answer line is on screen however tall the box is (v0.2.24 gate, 922x423). */
+.rp-foot { position: sticky; bottom: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 6px 0; background: var(--bg-1); }
 .rp-said { flex: 1; min-width: 0; margin: 0; font-size: var(--t-small); color: var(--ink-2); }
 .rp[data-state="sent"] .rp-said { color: var(--green); }
 .rp[data-state="failed"] .rp-said { color: var(--red); }
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .rp-text { height: 96px; min-height: 96px; }
+}

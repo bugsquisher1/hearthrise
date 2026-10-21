@@ -5,7 +5,7 @@
 //   node tests/report-problem.mjs           the checks
 //   node tests/report-problem.mjs --mutate  every planted defect must turn a check RED
 //
-// mutant-anchors: src/session/account-session.js src/shell/report-model.js src/shell/windows/report.js src/data/settings.js src/data/shell-windows.js
+// mutant-anchors: src/session/account-session.js src/shell/report-model.js src/shell/windows/report.js src/data/settings.js src/data/shell-windows.js src/styles/windows.css
 //
 // play.html in a real Chromium with supabase-js and the REST paths stubbed
 // (tests/_client-harness.mjs), the character in the fixture hunt. The Edge
@@ -19,6 +19,8 @@
 //         to try again and keeps the text
 //   RP-4  Settings > Help > Report a problem opens the same window
 //   RP-5  nothing on the page threw
+//   RP-6  on the phone sheet (922x423) a refusal line is wholly on screen (v0.2.24 gate:
+//         it ran below the edge)
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { launchOptions } from './_chrome.mjs';
@@ -29,46 +31,91 @@ import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 const BUILD_SRC = await readFile(join(ROOT, 'src/build-info.js'), 'utf8');
 const VERSION = /version:\s*'([^']+)'/.exec(BUILD_SRC)[1];
 const HUNT = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
+/* The same hero in town (the v0.2.24 gate met the phone sheet there): no hunt section, idle. */
+const TOWN = Object.fromEntries(Object.entries(HUNT).filter(([k]) => !/^hunt/.test(k) && k !== 'party'));
+TOWN.state = Object.assign({}, HUNT.state, { active_kind: 'idle' });
 const WIN = '[data-hs-win="report"]';
 
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
+
+const OK = { status: 200, body: { ok: true, status: 'accepted', report_id: 7, relayed: true } };
+const LIMITED = { status: 429, body: { ok: false, status: 'rate_limited', retry_after_s: 300 } };
+
+/* play.html at `viewport`, signed in and in the fixture hunt; the bridge answers `io.answer` and records into `io.sent`. */
+async function openGame(browser, port, viewport, io, fails, env = HUNT) {
+  const ctx = await browser.newContext({ viewport });
+  const pg = await ctx.newPage();
+  pg.on('pageerror', (e) => io.errors.push(e.message));
+  await pg.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
+  await pg.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
+  let v = 0;
+  await pg.route('https://nezapsylztqbbwuwembx.supabase.co/**', (r) => {
+    const name = r.request().url().split('?')[0].split('/').pop();
+    if (name === 'bug-report-bridge') {
+      io.sent.push({ auth: r.request().headers().authorization || '', body: JSON.parse(r.request().postData() || '{}') });
+      return r.fulfill({ status: io.answer.status, contentType: 'application/json', body: JSON.stringify(io.answer.body) });
+    }
+    if (name === 'hr_load' || name === 'hr-accrue') {
+      v++;
+      const b = Object.assign({}, env, { version: v });
+      return r.fulfill({ contentType: 'application/json', body: JSON.stringify(name === 'hr-accrue' ? Object.assign({ accrued: true }, b) : b) });
+    }
+    return r.fulfill({ contentType: 'application/json', body: '{"ok":true}' });
+  });
+  await pg.goto('http://127.0.0.1:' + port + '/play.html', { waitUntil: 'load' });
+  await wait(pg, () => document.querySelector('form[data-auth="sign-in"]'));
+  await pg.fill('input[name=email]', 'qa@example.test');
+  await pg.fill('input[name=password]', 'not-a-real-password');
+  await pg.click('.auth-submit');
+  if (!(await wait(pg, () => document.querySelector('[data-app="play"][data-slot="0"]')))) { fails.push('RP-1 sign-in did not reach the characters screen'); return null; }
+  await pg.click('[data-app="play"][data-slot="0"]');
+  if (!(await wait(pg, () => document.querySelector('[data-hs-open="report"]')))) { fails.push('RP-1 the launcher row has no Report a problem'); return null; }
+  return { ctx, pg };
+}
+
+/* RP-6: on the phone sheet (922x423) a refusal's line is on screen, wholly. */
+async function phoneChecks(browser, port, fails) {
+  const io = { answer: LIMITED, sent: [], errors: [] };
+  const g = await openGame(browser, port, { width: 922, height: 423 }, io, fails, TOWN);
+  if (!g) return;
+  const { ctx, pg } = g;
+  await pg.click('[data-hs-open="report"]');
+  if (!(await wait(pg, (w) => document.querySelector(w + ' .rp-text'), WIN))) { fails.push('RP-6 the launcher did not open the report sheet'); await ctx.close(); return; }
+  await pg.fill(WIN + ' .rp-text', 'A second report.');
+  await pg.click(WIN + ' [data-hs-act="send"]');
+  if (!(await wait(pg, (w) => /Try again in/.test(document.querySelector(w + ' .rp-said').textContent), WIN))) fails.push('RP-6 the phone sheet shows no refusal line');
+  else {
+    /* Where the line is, against the sheet body's visible box and the screen. */
+    const place = () => pg.evaluate((w) => {
+      const q = document.querySelector(w + ' .rp-said').getBoundingClientRect();
+      const b = document.querySelector(w + ' [data-hs-body]').getBoundingClientRect();
+      return { top: Math.round(q.top), bottom: Math.round(q.bottom), screen: innerHeight, bodyTop: Math.round(b.top), bodyBottom: Math.round(b.bottom),
+        box: Math.round(document.querySelector(w + ' .rp-text').getBoundingClientRect().height) };
+    }, WIN);
+    const shown = (r) => r.top >= Math.max(0, r.bodyTop) && r.bottom <= Math.min(r.screen, r.bodyBottom);
+    const r = await place();
+    if (!shown(r)) fails.push('RP-6 at 922x423 the refusal line runs off the screen: ' + JSON.stringify(r));
+    if (r.box > 96) fails.push('RP-6 the text box is ' + r.box + ' px tall on the phone sheet, want at most 96');
+    /* The box made tall (a player drags its corner; a wider font) and the sheet scrolled to its top: the line still shows. */
+    await pg.evaluate((w) => { document.querySelector(w + ' .rp-text').style.height = '400px'; document.querySelector(w + ' [data-hs-body]').scrollTop = 0; }, WIN);
+    const tall = await place();
+    if (!shown(tall)) fails.push('RP-6 with a tall text box the refusal line is scrolled off the sheet: ' + JSON.stringify(tall));
+  }
+  if (io.errors.length) fails.push('RP-6 page errors: ' + io.errors.slice(0, 2).join(' | '));
+  await ctx.close();
+}
 
 async function checks(overrides) {
   const fails = [];
   const { server, port } = await serve(overrides);
   const browser = await chromium.launch(launchOptions({ headless: true }));
   try {
-    const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
-    const pg = await ctx.newPage();
-    const errors = [];
-    const sent = [];
-    let answer = { status: 200, body: { ok: true, status: 'accepted', report_id: 7, relayed: true } };
-    pg.on('pageerror', (e) => errors.push(e.message));
-    await pg.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
-    await pg.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
-    let v = 0;
-    await pg.route('https://nezapsylztqbbwuwembx.supabase.co/**', (r) => {
-      const name = r.request().url().split('?')[0].split('/').pop();
-      if (name === 'bug-report-bridge') {
-        sent.push({ auth: r.request().headers().authorization || '', body: JSON.parse(r.request().postData() || '{}') });
-        return r.fulfill({ status: answer.status, contentType: 'application/json', body: JSON.stringify(answer.body) });
-      }
-      if (name === 'hr_load' || name === 'hr-accrue') {
-        v++;
-        const b = Object.assign({}, HUNT, { version: v });
-        return r.fulfill({ contentType: 'application/json', body: JSON.stringify(name === 'hr-accrue' ? Object.assign({ accrued: true }, b) : b) });
-      }
-      return r.fulfill({ contentType: 'application/json', body: '{"ok":true}' });
-    });
-    await pg.goto('http://127.0.0.1:' + port + '/play.html', { waitUntil: 'load' });
-    await wait(pg, () => document.querySelector('form[data-auth="sign-in"]'));
-    await pg.fill('input[name=email]', 'qa@example.test');
-    await pg.fill('input[name=password]', 'not-a-real-password');
-    await pg.click('.auth-submit');
-    if (!(await wait(pg, () => document.querySelector('[data-app="play"][data-slot="0"]')))) { fails.push('RP-1 sign-in did not reach the characters screen'); return fails; }
-    await pg.click('[data-app="play"][data-slot="0"]');
-    if (!(await wait(pg, () => document.querySelector('[data-hs-open="report"]')))) { fails.push('RP-1 the launcher row has no Report a problem'); return fails; }
-
+    const io = { answer: OK, sent: [], errors: [] };
+    const sent = io.sent;
+    const errors = io.errors;
+    const g = await openGame(browser, port, { width: 1280, height: 720 }, io, fails);
+    if (!g) return fails;
+    const { ctx, pg } = g;
     // RP-1
     await pg.click('[data-hs-open="report"]');
     if (!(await wait(pg, (w) => document.querySelector(w + ' .rp-text'), WIN))) { fails.push('RP-1 the launcher did not open the report window'); return fails; }
@@ -101,7 +148,7 @@ async function checks(overrides) {
     if (await pg.evaluate((w) => document.querySelector(w + ' .rp-text').value, WIN)) fails.push('RP-3 the box kept the sent text');
 
     // RP-3: the bridge's rate limit
-    answer = { status: 429, body: { ok: false, status: 'rate_limited', retry_after_s: 300 } };
+    io.answer = LIMITED;
     await pg.fill(WIN + ' .rp-text', 'A second report');
     await pg.click(WIN + ' [data-hs-act="send"]');
     if (!(await wait(pg, (w) => /Try again in 5 minutes/.test(document.querySelector(w + ' .rp-said').textContent), WIN))) fails.push('RP-3 the rate limit shows: "' + await pg.evaluate((w) => document.querySelector(w + ' .rp-said').textContent, WIN) + '"');
@@ -121,6 +168,8 @@ async function checks(overrides) {
     // RP-5
     if (errors.length) fails.push('RP-5 page errors: ' + errors.slice(0, 2).join(' | '));
     await ctx.close();
+
+    await phoneChecks(browser, port, fails);
   } finally {
     await browser.close();
     server.close();
@@ -135,6 +184,8 @@ const MUTANTS = [
   ['a refusal reads as sent', 'src/shell/windows/report.js', 'const sent = r.ok || SENT.has(r.status);', 'const sent = true;'],
   ['Settings has no way in', 'src/data/settings.js', "type: 'action', open: 'report',", "type: 'action', open: 'friends',"],
   ['the launcher row has no way in', 'src/data/shell-windows.js', "glyph: 'uiWarn', width: 420, object: 'plain' }", "glyph: 'uiWarn', width: 420, object: 'plain', launcher: false }"],
+  ['the answer line scrolls away on the phone', 'src/styles/windows.css', '.rp-foot { position: sticky; bottom: 0;', '.rp-foot {'],
+  ['the phone box keeps its desktop height', 'src/styles/windows.css', '  .rp-text { height: 96px; min-height: 96px; }', ''],
 ];
 
 async function main() {

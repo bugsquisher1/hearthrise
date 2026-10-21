@@ -750,7 +750,7 @@ export const MONSTERS = {
     /* one override (element): the polished cauldron he wears for a crown sheds frost. */
     elementResist: ['frost'],
     hp: 1100, atk: 54, def: 28, xp: 7920, gp: [95, 215], speed: 2800,
-    drops: [{ id: 'big_bones', ch: 1 }, { id: 'gold_ore', ch: .5 }, { id: 'goblin_totem', ch: .3 }, { id: 'war_crown', ch: .02 },
+    drops: [{ id: 'big_bones', ch: 1 }, { id: 'gold_ore', ch: .5 }, { id: 'goblin_totem', ch: .3 }, { id: 'war_crown', ch: .018 },
       { id: 'steel_platebody', ch: .025, gear: true }] },
 };
 

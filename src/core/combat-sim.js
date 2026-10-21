@@ -244,7 +244,7 @@ export function simulateHuntInstance(inst, ctx) {
         if (m.left || m.unitId === null) continue;
         byUnit.set(m.unitId, m);
         heroes[m.unitId] = { hs: m.hs, slots: m.hero.slots, stopRules: m.hero.stopRules, actionSet: m.hero.actionSet,
-          range: m.hero.range, rollsVs: m.rollsVs, ammo: m.hero.ammo, items: ctx.items || null,
+          range: m.hero.range, rollsVs: m.rollsVs, ammo: m.hero.ammo, items: ctx.items || null, skills: m.state.skills,
           foodBelowPct: m.hero.foodBelowPct, drinkBelowPct: m.hero.drinkBelowPct };
       }
       /* MONSTER DENSITY for the packs that spawn from here: the party leader's pick (Tyler 2026-10-20),

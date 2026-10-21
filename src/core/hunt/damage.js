@@ -14,7 +14,8 @@
 // Melee swing only standing on a tile; ranged also while moving (RO-19).
 // Dice: the swing's `s` stream, units in id order (engine contract #3).
 //
-// An ability passes its own multiplier as `ability.mult` (permille). A shield is the
+// An ability passes its own multiplier as `ability.mult` (permille); landHit folds
+// a target's mark (`markPm` until `markUntil`, abilities.js) into it. A shield is the
 // target's `shield`, persisted by abilities.js; hurt only spends it.
 //
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
@@ -78,7 +79,12 @@ export function hurt(inst, target, amount, source, element, ability) {
  */
 export function landHit(inst, sc, source, target, amount, element, ability, crit) {
   if (!target || !target.alive) return { dmg: 0, absorbed: 0, killed: false };
-  const r = hurt(inst, target, amount, source, element, ability);
+  /* A MARKED target (abilities.js: Hunter's Mark) takes markPm permille more from every blow until
+     markUntil, folded into the one multiplier hurt applies (`ability.mult`). */
+  const markPm = Number.isInteger(target.markPm) && target.markPm > 0 && target.markUntil > sc.atMs ? target.markPm : 0;
+  const base = ability && Number.isInteger(ability.mult) ? ability.mult : 1000;
+  const r = hurt(inst, target, amount, source, element,
+    markPm ? Object.assign({}, ability, { mult: Math.floor((base * (1000 + markPm)) / 1000) }) : ability);
   /* A status tick whose source has left the world lands with no dealer (u null). */
   const u = source ? source.id : null;
   if (r.immune) sc.emit(makeEvent('immune', sc.atMs, { u, t: target.id }));

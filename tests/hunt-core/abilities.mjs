@@ -221,7 +221,7 @@ const mutants = [
     edits: [['src/core/action-rules.js', "  return !!hs && (hs.supplySource === 'store' || hs.onEmpty === 'switch');",
       "  return !!hs && (hs.supplySource === 'store' || (hs.onEmpty === 'switch' && !Object.keys(hs.bag || {}).some((id) => kindOf(id) === 'ammo' && leftOf(hs, id) > 0)));"]] },
   { name: 'a rune slot buys the store rune without naming it', case: 'rune-own-then-store',
-    edits: [['src/core/hunt/abilities.js', "    const l = resolveLine(h.hs, row.rune, 1, typeof store === 'string' ? store : null);", '    const l = resolveLine(h.hs, row.rune, 1);']] },
+    edits: [['src/core/hunt/abilities.js', "    const l = resolveLine(h.hs, row.rune, typeof store === 'string' ? store : null);", '    const l = resolveLine(h.hs, row.rune);']] },
   { name: 'the mark is drawn but adds nothing', case: 'mark-adds-damage',
     edits: [['src/core/hunt/damage.js', '    markPm ? Object.assign({}, ability, { mult: Math.floor((base * (1000 + markPm)) / 1000) }) : ability);', '    ability);']] },
   { name: 'the mark never wears off', case: 'mark-adds-damage',

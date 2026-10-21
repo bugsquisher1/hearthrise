@@ -168,15 +168,19 @@ export function consume(inst, sc) {
     if (int(u.laneAt) > sc.atMs) continue;
     const hero = heroes && heroes[u.id];
     if (!hero || !hero.hs) continue;
+    let starved = false;
     const got = pickSlot(inst, u, hero, consumeOrder(u, slotsFor(hero, 'consume')), (slot) => {
       const w = slotWants(u, hero, slot.action);
-      /* A FOOD the purse cannot buy ends the hunt gold_out (a hero cannot heal);
-         a DRINK it cannot buy only goes without (mana feeds abilities, and a basic
-         swing needs none): a hunt never stops for a drink (spec §3.4 #7). */
-      if (w.why === 'gold_short') { if (w.kind === 'food') hero.hs.goldOut = true; return { why: 'gold_short' }; }
+      if (w.why === 'gold_short') { if (w.kind === 'food') starved = true; return { why: 'gold_short' }; }
       if (w.line) return w;
       return { why: 'no_stock' };
     }, sc, 'consume');
     if (got) use(u, hero, got.pick.kind, got.pick.line, sc, got);
+    /* A FOOD the purse cannot buy ends the hunt gold_out (a hero cannot heal), but only
+       when NO slot could feed the hero instead: a later slot in the player's order (a
+       cheaper store food, an own stack) still eats. A DRINK it cannot buy only goes
+       without (mana feeds abilities, a basic swing needs none): a hunt never stops for
+       a drink (spec §3.4 #7). */
+    else if (starved) hero.hs.goldOut = true;
   }
 }

@@ -16,7 +16,7 @@
 // A target is a user id or a claimed display name; the server resolves it.
 // ════════════════════════════════════════════════════════════════════════
 
-import { askVia } from '../session/intent-ledger.js?v=0.2.22';
+import { askVia } from '../session/intent-ledger.js?v=0.2.23';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const HUNT = /^[a-z0-9_]{1,64}$/;

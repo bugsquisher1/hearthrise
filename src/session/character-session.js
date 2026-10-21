@@ -47,15 +47,15 @@
 // only things it sends of its own are the allowlisted residue and intents.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyEnvelope, applyFrame, withResidue } from './envelope.js?v=0.2.22';
-import { createTimeline } from '../hunt-view/timeline.js?v=0.2.22';
-import { LiveLink } from './live-link.js?v=0.2.22';
-import { RESIDUE_FIELDS, sanitizeResidueField } from './residue.js?v=0.2.22';
-import { SESSION_CONFIG } from './config.js?v=0.2.22';
-import { edgeBody } from './edge-intents.js?v=0.2.22';
-import { leaveAskOf, pendingLeaveAt, leaveCountdown, closeInMs } from './hunt-leave.js?v=0.2.22';
-import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.22';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.22';
+import { applyEnvelope, applyFrame, withResidue } from './envelope.js?v=0.2.23';
+import { createTimeline } from '../hunt-view/timeline.js?v=0.2.23';
+import { LiveLink } from './live-link.js?v=0.2.23';
+import { RESIDUE_FIELDS, sanitizeResidueField } from './residue.js?v=0.2.23';
+import { SESSION_CONFIG } from './config.js?v=0.2.23';
+import { edgeBody } from './edge-intents.js?v=0.2.23';
+import { leaveAskOf, pendingLeaveAt, leaveCountdown, closeInMs } from './hunt-leave.js?v=0.2.23';
+import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.23';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.23';
 
 export const FRAME_EVENT = 'frame';
 

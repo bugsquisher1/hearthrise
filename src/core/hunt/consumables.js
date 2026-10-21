@@ -43,11 +43,11 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random. Draws nothing.
 // ============================================================
 
-import { CONSUMABLE_RULES as R, CONSUMABLE_KINDS, CONSUMABLES } from '../../data/consumables.js?v=0.2.22';
-import { CONSUME_KINDS } from '../../data/condition-metrics.js?v=0.2.22';
-import { slotsFor, pickSlot } from './conditions.js?v=0.2.22';
-import { resolveLine, takeLine, lineAmount } from '../action-rules.js?v=0.2.22';
-import { makeEvent } from './events.js?v=0.2.22';
+import { CONSUMABLE_RULES as R, CONSUMABLE_KINDS, CONSUMABLES } from '../../data/consumables.js?v=0.2.23';
+import { CONSUME_KINDS } from '../../data/condition-metrics.js?v=0.2.23';
+import { slotsFor, pickSlot } from './conditions.js?v=0.2.23';
+import { resolveLine, takeLine, lineAmount } from '../action-rules.js?v=0.2.23';
+import { makeEvent } from './events.js?v=0.2.23';
 
 /* An over-time half is [left, nextTickAtMs, ticksLeft, itemId], or null. `healedAt`
    is RETIRED (no rule reads it since food always fires); it stays in the world's

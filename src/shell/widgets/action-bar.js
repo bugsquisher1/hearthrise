@@ -23,24 +23,24 @@
 // Shown in town too (Tyler 10-18: set it up before leaving). Every value is
 // the server's; the bar changes only when the re-read envelope says so.
 // ════════════════════════════════════════════════════════════════════════
-import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.22';
-import { ABILITIES } from '../../data/abilities.js?v=0.2.22';
-import { CONSUME_KINDS, ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.22';
-import { huntOf, settingsOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.22';
-import { bagOf } from '../../session/item-sections.js?v=0.2.22';
-import { text, cls, attr, element, keyedChild } from '../../render/paint.js?v=0.2.22';
-import { whole } from '../../render/format.js?v=0.2.22';
-import { glyphSvg } from '../launcher.js?v=0.2.22';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.22';
-import { actionIconHtml } from './bits.js?v=0.2.22';
-import { hubHtml, patchHub } from './vitals-hub.js?v=0.2.22';
-import { openSlot, sendPlan, movePlan, swapPlan, insertPlan, serverBar, barRefusalWords, answerWithin } from '../bar-draft.js?v=0.2.22';
-import { actionName, factsOf, carried, supplyLines, setupWords, conflictsOf, reasonOf, sharedCooldownOf } from '../action-facts.js?v=0.2.22';
-import { resetConfigureView } from '../windows/configure-action.js?v=0.2.22';
-import { assignToBar, barKind } from '../bar-assign.js?v=0.2.22';
-import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.22';
-import { refusalWords } from '../intent-words.js?v=0.2.22';
-import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, goldFloorHtml, patchControls, sendOption } from './settings-intent.js?v=0.2.22';
+import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.23';
+import { ABILITIES } from '../../data/abilities.js?v=0.2.23';
+import { CONSUME_KINDS, ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.23';
+import { huntOf, settingsOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.23';
+import { bagOf } from '../../session/item-sections.js?v=0.2.23';
+import { text, cls, attr, element, keyedChild } from '../../render/paint.js?v=0.2.23';
+import { whole } from '../../render/format.js?v=0.2.23';
+import { glyphSvg } from '../launcher.js?v=0.2.23';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.23';
+import { actionIconHtml } from './bits.js?v=0.2.23';
+import { hubHtml, patchHub } from './vitals-hub.js?v=0.2.23';
+import { openSlot, sendPlan, movePlan, swapPlan, insertPlan, serverBar, barRefusalWords, answerWithin } from '../bar-draft.js?v=0.2.23';
+import { actionName, factsOf, carried, supplyLines, setupWords, conflictsOf, reasonOf, sharedCooldownOf } from '../action-facts.js?v=0.2.23';
+import { resetConfigureView } from '../windows/configure-action.js?v=0.2.23';
+import { assignToBar, barKind } from '../bar-assign.js?v=0.2.23';
+import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.23';
+import { refusalWords } from '../intent-words.js?v=0.2.23';
+import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, goldFloorHtml, patchControls, sendOption } from './settings-intent.js?v=0.2.23';
 
 const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const SLOT_DRAG = 'application/x-hr-bar-slot';
@@ -48,6 +48,7 @@ const LONG_PRESS_MS = 450;
 const KINDS = new Set(Object.keys(CONSUME_KINDS).concat(Object.keys(ATTACK_KINDS)));
 const PRESS = new WeakMap();   // the bar element -> { timer, held }
 const DROP = new WeakMap();    // the bar element -> { from, to, off } while the drop menu is open
+const PANEL = new WeakMap();   // the bar element -> the open sheet's listener cleanup (phone)
 const CASTS = new WeakMap();   // the bar element -> { cs, off, at: Map(ability -> client ms of the hero's last cast) }
 
 /* THE COOLDOWN EMBER (the sim's, Tyler 10-19): when the server's timeline plays the viewed hero's
@@ -106,12 +107,16 @@ export function renderActionBar(ctx) {
     + '<ol class="hb-slots" aria-label="Slots 6 to 10 and 16 to 20">' + side(true) + '</ol>'
     + '<div class="hb-plaque">'
     + '<div class="hb-pl-row"><span class="hb-label">Action set</span><b class="hb-set"></b>'
-    + '<button type="button" class="hh-tool" data-hs-act="setups" aria-label="Saved setups: switch or save">' + glyphSvg(g, 'uiCheck') + '</button></div>'
+    + '<button type="button" class="hh-tool" data-hs-act="setups" aria-label="Saved setups: switch or save">' + glyphSvg(g, 'uiCheck') + '</button>'
+    /* On a phone the rest of the panel is a slide-out sheet (hunt.css): this opens it. */
+    + '<button type="button" class="hh-tool hb-more" data-hs-act="panel" aria-expanded="false" aria-label="Fight settings">' + glyphSvg(g, 'uiSettings') + '</button></div>'
+    + '<div class="hb-pl-more" role="group" aria-label="Fight settings">'
+    + '<div class="hb-pl-head"><b>Fight settings</b><button type="button" class="hh-tool" data-hs-act="panel" aria-label="Close">×</button></div>'
     + '<label class="hb-pl-row"><span class="hb-label">Target</span><select class="hh-select" data-opt="target_mode" data-hs-act="opt" aria-label="Target">' + targetOptionsHtml() + '</select></label>'
     + '<div class="hb-pl-row"><span class="hh-segs hb-stance" role="group" aria-label="Stance">' + stanceButtonsHtml() + '</span></div>'
     + '<div class="hb-pl-row"><button type="button" class="hh-seg" data-opt="chase" data-hs-act="opt" aria-pressed="false" title="With chase off, the hero keeps its distance">Chase</button>'
     + '<span class="hb-label">Distance</span>' + distanceHtml() + '</div>'
-    + '<label class="hb-pl-row is-gold"><span class="hb-label">Keep at least</span>' + goldFloorHtml() + '<span class="hb-label">gold</span></label>'
+    + '<label class="hb-pl-row is-gold"><span class="hb-label">Keep at least</span>' + goldFloorHtml() + '<span class="hb-label">gold</span></label></div>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>'
     + '<div class="hb-tip" role="tooltip"></div>'
     + '<div class="hb-drop" role="menu" aria-label="Drop the action"><b class="hb-drop-t"></b>'
@@ -170,9 +175,10 @@ function showTip(el, li, ctx) {
   const tip = el.querySelector('.hb-tip');
   const i = Number(li.getAttribute('data-slot'));
   if (tip.getAttribute('data-for') !== String(i)) { tip.innerHTML = tipHtml(i, ctx); attr(tip, 'data-for', String(i)); }
-  const bar = el.querySelector('.hb-bar').getBoundingClientRect(), r = li.getBoundingClientRect();
-  tip.style.left = Math.round(Math.max(0, Math.min(bar.width - 260, r.left - bar.left - 110))) + 'px';
   cls(tip, 'is-on', true);
+  /* Its own width (wider on a phone, hunt.css), centred on the slot and kept inside the bar. */
+  const bar = el.querySelector('.hb-bar').getBoundingClientRect(), r = li.getBoundingClientRect(), w = tip.offsetWidth;
+  tip.style.left = Math.round(Math.max(0, Math.min(bar.width - w, r.left - bar.left + r.width / 2 - w / 2))) + 'px';
 }
 function hideTip(el) { const tip = el.querySelector('.hb-tip'); cls(tip, 'is-on', false); attr(tip, 'data-for', null); }
 
@@ -241,6 +247,23 @@ function runDrop(ctx, el, plan) {
     .then((r) => { text(msg, r.ok ? '' : barRefusalWords(r.error)); renderActionBar.patch(el, ctx); });
 }
 
+/* THE PANEL SHEET (phone): the bar keeps the set's name and its buttons; the rest slides out from the
+   right. Escape, its ×, or a press outside it closes it. Display only: nothing is sent. */
+function setPanel(ctx, el, open) {
+  const plaque = el.querySelector('.hb-plaque');
+  const off = PANEL.get(el);
+  if (off) { off(); PANEL.delete(el); }
+  cls(plaque, 'is-open', open);
+  attr(plaque.querySelector('.hb-more'), 'aria-expanded', String(open));
+  if (!open) return;
+  const doc = ctx.doc, sheet = plaque.querySelector('.hb-pl-more');
+  const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setPanel(ctx, el, false); } };
+  const onDown = (e) => { if (!sheet.contains(e.target) && !plaque.querySelector('.hb-more').contains(e.target)) setPanel(ctx, el, false); };
+  doc.addEventListener('keydown', onKey, true);
+  doc.addEventListener('pointerdown', onDown, true);
+  PANEL.set(el, () => { doc.removeEventListener('keydown', onKey, true); doc.removeEventListener('pointerdown', onDown, true); });
+}
+
 /* THE DROP MENU (Tyler 10-19): dropped onto an action, the dragged action's name, Swap with <target>,
    Insert here (shift the rest) — off when there is no empty slot to shift into — and Cancel; Escape or a
    press anywhere else cancels. Nothing moves until the server confirms the one intent a choice sends. */
@@ -284,6 +307,7 @@ renderActionBar.act = function actActionBar(ctx, el, action, ev, t) {
     return;
   }
   if (action === 'setups' && ev.type === 'click') { ctx.show('hunt-prep'); return; }
+  if (action === 'panel' && ev.type === 'click') { setPanel(ctx, el, !PANEL.has(el)); return; }
   if (action === 'drop' && ev.type === 'click') {
     const d = DROP.get(el);
     const x = t.getAttribute('data-x');

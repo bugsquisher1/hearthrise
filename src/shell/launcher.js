@@ -6,8 +6,8 @@
 // The row is drawn from the window catalogue, so it lists only windows that
 // exist, and it is the `launchers` HUD widget, which can never be hidden.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.22';
-import { tutorialCardOf } from '../session/tutorial-sections.js?v=0.2.22';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.23';
+import { tutorialCardOf } from '../session/tutorial-sections.js?v=0.2.23';
 
 /** The chip text for a row's shortcut key: 'b' -> 'B', 'enter' -> 'Enter'. */
 export function keyLabel(key) {

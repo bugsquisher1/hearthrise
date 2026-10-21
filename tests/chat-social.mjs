@@ -49,7 +49,7 @@
 //         Inspect shows the worn items; zero console errors throughout
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
-import { launchOptions } from './_chrome.mjs';
+import { leaseBrowser } from './_chrome.mjs';
 import { readFile, mkdir } from 'node:fs/promises';
 import { mkdtempSync, cpSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -264,7 +264,7 @@ async function pageRules(overrides, shots) {
   const fails = [];
   const { server, port } = await serve(overrides);
   const base = 'http://127.0.0.1:' + port;
-  const browser = await chromium.launch(launchOptions({ headless: true }));
+  const browser = await leaseBrowser(chromium);
   try {
     for (const vp of [{ width: 1440, height: 900 }, { width: 922, height: 423 }]) {
       const tag = vp.width + 'x' + vp.height;

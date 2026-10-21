@@ -34,7 +34,7 @@
 //        heroes list by name
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
-import { launchOptions } from './_chrome.mjs';
+import { leaseBrowser } from './_chrome.mjs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
@@ -75,7 +75,7 @@ async function checks(overrides) {
   const fails = [];
   const { server, port } = await serve(overrides);
   const base = 'http://127.0.0.1:' + port;
-  const browser = await chromium.launch(launchOptions({ headless: true }));
+  const browser = await leaseBrowser(chromium);
   try {
     const fresh = async (o = {}) => {
       const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });

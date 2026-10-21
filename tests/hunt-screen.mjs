@@ -72,6 +72,9 @@
 //         nothing moves before the server's re-read says so; the status line always comes
 //         back: cleared on the answer, the reason on a refusal, a plain line on the timeout
 //   HS-20 every struck or waiting slot says why (glyph + the tooltip's first line), one slot a reason
+//   HS-22 THE PHONE BAR (922x423), in a hunt and in town: at most 100 px tall, the alerts dock
+//         above its top, and the fight settings are a slide-out sheet (shut until the bar's
+//         button opens it, then on top of everything, shut again on Escape)
 //   HS-21 THE COOLDOWN EMBER: the hero's played cast cools that ability's slot for its
 //         catalogue cooldown; the ember rises and the seconds fall as it runs out
 // ════════════════════════════════════════════════════════════════════════
@@ -344,6 +347,7 @@ async function checks(overrides, shots) {
         s.optionsReply = { ok: true };
         const opts = await page.evaluate((p) => Array.from(new Set(Array.from(document.querySelectorAll(p + ' [data-opt]')).map((e) => e.getAttribute('data-opt')))).sort().join(), P);
         if (opts !== 'chase,distance,gold_floor,stance,target_mode') fails.push('HS-12 the panel holds ' + opts);
+        if (await page.evaluate(() => document.querySelector('.hb-plaque .hb-more').getClientRects().length > 0)) fails.push('HS-12 the phone sheet button shows on a desktop');
         await page.keyboard.press('j');
         await page.waitForTimeout(300);
         if (await page.$('[data-hs-win="hunt-settings"]')) fails.push('HS-12 a Hunt settings window still opens');
@@ -1018,6 +1022,50 @@ async function checks(overrides, shots) {
       await ctx.close();
     }
 
+    for (const town of [false, true]) { // HS-22 THE PHONE BAR at 922x423 (v0.2.23 gate: 874 x 178, 42% of the screen)
+      const tag = town ? 'in town' : 'in a hunt';
+      /* three party invites waiting: three alert lines, so the stack has a height to collide with */
+      const { ctx, page, up } = await open({ viewport: { width: 922, height: 423 }, town, prep: (sc) => {
+        sc.env.party_invites = [1, 2, 3].map((n) => ({ id: '00000000-0000-4000-8000-00000000000' + n, hunt: 'mill_cellar', from: 'Mira' }));
+      } });
+      if (up) {
+        await page.waitForTimeout(400);
+        const rect = (sel) => page.evaluate((q) => { const e = document.querySelector(q); if (!e) return null; const b = e.getBoundingClientRect(); return { top: b.top, bottom: b.bottom, left: b.left, right: b.right, h: b.height }; }, sel);
+        const bar = await rect('.hb-bar'), alerts = await rect('[data-hs-widget="alerts"]');
+        if (!bar || bar.h > 100) fails.push('HS-22 ' + tag + ' the phone bar is ' + (bar && Math.round(bar.h)) + ' px tall (want <= 100)');
+        if (!alerts || alerts.h < 60) fails.push('HS-22 ' + tag + ' CONTROL: three invites made no alert stack (' + (alerts && Math.round(alerts.h)) + ' px)');
+        else if (bar && alerts.bottom > bar.top) fails.push('HS-22 ' + tag + ' the alerts reach ' + Math.round(alerts.bottom) + ', below the bar top ' + Math.round(bar.top));
+        /* The panel keeps the set and its buttons; the rest is a sheet: shut, then open on the bar's button, on top, then shut on Escape. */
+        const onTop = () => page.evaluate(() => { const c = document.querySelector('.hb-pl-more [data-opt="target_mode"]'); const b = c.getBoundingClientRect();
+          const h = document.elementFromPoint(b.left + 6, b.top + 6); return b.width > 0 && b.right <= innerWidth && b.left >= 0 && (h === c || c.contains(h)); });
+        if (await onTop()) fails.push('HS-22 ' + tag + ' the fight settings show on the bar before its sheet is opened');
+        await page.click('.hb-plaque .hb-more');
+        await page.waitForTimeout(300);
+        if (!(await onTop())) fails.push('HS-22 ' + tag + ' the bar’s settings button did not slide the fight settings out on top');
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(300);
+        if (await onTop()) fails.push('HS-22 ' + tag + ' Escape did not close the fight settings sheet');
+        /* A slot's tooltip draws over the alert stack beside it (v0.2.23 gate P2a): every point where the two meet is the tooltip's. */
+        /* a real hover: whatever covers the slot takes it (then no tooltip, and the rule says so) */
+        await page.hover('.hb-slot[data-slot="1"]', { timeout: 3000 }).catch(() => {});
+        await page.waitForTimeout(300);
+        const tipOver = await page.evaluate(() => {
+          const t = document.querySelector('.hb-tip'), a = document.querySelector('[data-hs-widget="alerts"]');
+          if (!t.classList.contains('is-on')) return 'no tooltip';
+          t.style.pointerEvents = 'auto';
+          const tb = t.getBoundingClientRect(), ab = a.getBoundingClientRect();
+          const x0 = Math.max(tb.left, ab.left) + 4, x1 = Math.min(tb.right, ab.right) - 4, y0 = Math.max(tb.top, ab.top) + 4, y1 = Math.min(tb.bottom, ab.bottom) - 4;
+          if (!(x1 > x0 && y1 > y0)) return 'apart';
+          const out = [];
+          for (const [x, y] of [[x0, y0], [x1, y0], [x0, y1], [x1, y1]]) { const h = document.elementFromPoint(x, y); if (!t.contains(h)) out.push(String(h && h.className)); }
+          t.style.pointerEvents = '';
+          return out.length ? out.join(',') : 'ok';
+        });
+        if (!town && tipOver !== 'ok') fails.push('HS-22 the slot tooltip does not draw over the alerts: ' + tipOver);
+      } else fails.push('HS-22 the phone screen did not mount ' + tag);
+      await ctx.close();
+    }
+
     if (shots) { // the phone size class
       const { ctx, page, up } = await open({ viewport: { width: 922, height: 423 } });
       if (up) {
@@ -1108,6 +1156,10 @@ const MUTANTS = [
   ['a slot that comes back builds a new icon', 'src/render/paint.js', '  const el = k ? (m.get(k) || build()) : null;', '  const el = k ? build() : null;'],
   ['a loot line that comes back is built again', 'src/shell/widgets/analyzer.js', '    keep: true,\n', ''],
   ['an atlas is decoded once per caller', 'src/world/atlas.js', 'heldImage(o.doc, url(p.image)),', "heldImage(o.doc, url(p.image) + '&n=' + Math.random()),"],
+  ['the phone bar keeps the whole panel (HS-22)', 'src/styles/hunt.css', '  .hb-pl-more { position: fixed;', '  .hb-pl-more { display: contents; } .hb-xx { position: fixed;'],
+  ['the phone hub keeps the big medal (HS-22)', 'src/styles/hunt.css', '  .hb-medal, .hb-arcs { width: 64px; height: 64px; }', '  .hb-medal, .hb-arcs { width: 88px; height: 88px; }'],
+  ['the world HUD stays under the alerts while a tooltip is open (HS-22)', 'src/styles/hunt.css', '.hb-plaque.is-open) { z-index: 7; }', '.hb-plaque.is-open) { z-index: 2; }'],
+  ['the phone alerts stay at the middle left (HS-22)', 'src/data/hud-widgets.js', "phone: Object.freeze({ anchor: 'bl', dx: 4, dy: 104 }),", "phone: Object.freeze({ dx: 4 }),"],
   ['the bleed badge defaults on for regular monsters', 'src/data/combat-text.js', "label: 'Bleed stack count', on: on(false, true)", "label: 'Bleed stack count', on: on(true, true)"],
 ];
 

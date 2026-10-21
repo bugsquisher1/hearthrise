@@ -392,7 +392,7 @@ async function pageRules(overrides, shots) {
 const PURE_MUTANTS = [
   ['the server pick wins over the weapon', 'src/social/chat-lines.js', "role: weapon ? roleForWeapon(weapon, str(row.from_role, 32)) : null,", "role: str(row.from_role, 32) || (weapon ? roleForWeapon(weapon, null) : null),"],
   ['send names the sender', 'src/social/chat-store.js', "{ p_slot: cs.slot, p_kind: kind, p_body: body }", "{ p_slot: cs.slot, p_kind: kind, p_body: body, p_name: 'Me' }"],
-  ['a line shows before the server answers', 'src/social/chat-store.js', "    const ans = await this._account.server.rpc('hr_chat_send',", "    this._push(tab, Object.assign({}, this.lines(tab)[0], { id: 'optimistic' }), false);\n    const ans = await this._account.server.rpc('hr_chat_send',"],
+  ['a line shows before the server answers', 'src/social/chat-store.js', "    const ans = await askVia(this._account, 'chat_send',", "    this._push(tab, Object.assign({}, this.lines(tab)[0], { id: 'optimistic' }), false);\n    const ans = await askVia(this._account, 'chat_send',"],
   ['an off-screen line never counts unread', 'src/social/chat-store.js', "    if (live && !this._onScreen(tab)) this._unread.set(tab, this.unread(tab) + 1);", ''],
   ['a closed window still counts as on screen', 'src/social/chat-store.js', " && this._now() - s.at < 1000; }", "; }"],
   ['the party channel is not listened to', 'src/social/chat-store.js', "['global', 'system', this.zone, this.party]", "['global', 'system', this.zone]"],

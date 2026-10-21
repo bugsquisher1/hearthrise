@@ -110,7 +110,8 @@ function watchHunt(cs, w, now, send) {
 /* live_view_stall: `starve` ms = from the engine seen stopped (hunt still open) to its next start
    point; `reseed` ms = how long the prediction ran before the server's world corrected it. */
 function watchLive(cs, w, why, now) {
-  const running = !!(cs.live && cs.live.running());
+  /* a prediction that ran to the hunt's end (live-link.js ended) is not starving */
+  const running = !!(cs.live && (cs.live.running() || (typeof cs.live.ended === 'function' && cs.live.ended())));
   if (why === 'reseed') { w.reseeds++; w.stall('reseed', now - w.since); w.since = now; }
   else if (why === 'live') { if (w.starvedAt !== null) { w.stall('starve', now - w.starvedAt); w.starvedAt = null; } w.since = now; }
   else if (w.open && w.running && !running && w.starvedAt === null) w.starvedAt = now;

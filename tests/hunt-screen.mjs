@@ -4,6 +4,7 @@
 //
 //   node tests/hunt-screen.mjs                the rules
 //   node tests/hunt-screen.mjs --mutate       every planted defect must turn a rule RED
+//   node tests/hunt-screen.mjs --mutate --shard=K/N   only every Nth mutant from the Kth (CI splits them)
 //   node tests/hunt-screen.mjs --shots <dir>  also write the visual-gate screenshots
 //                                             (1440x900 and 922x423)
 //
@@ -1225,11 +1226,21 @@ async function main() {
       : 'hunt-screen: panels mount; patch in place; intents only; the analyzer is the server’s; badge defaults; each log line once' + (shots ? ' (shots in ' + shots + ')' : ''));
     process.exit(fails.length ? 1 : 0);
   }
+  /* --shard=K/N (2026-10-21): the mutants split round-robin over N CI jobs (in-page-3/4/5). Each mutant
+     is one clean boot of the whole page (~60 s on a runner since the action bar's rules), so 61 of them
+     outgrew one job's budget. Every shard is registered in tests/ci-shape.baseline.json, so a dropped
+     shard is loud; a shard that selects nothing is red. */
+  const sh = process.argv.find((a) => a.startsWith('--shard='));
+  const sm = sh ? /^--shard=(\d+)\/(\d+)$/.exec(sh) : null;
+  if (sh && (!sm || +sm[1] < 1 || +sm[1] > +sm[2])) { console.log('  ✗ bad ' + sh + ' (want --shard=K/N, 1 <= K <= N)'); process.exit(1); }
+  const mine = sm ? MUTANTS.filter((_, i) => i % +sm[2] === +sm[1] - 1) : MUTANTS;
+  if (!mine.length) { console.log('  ✗ ' + sh + ' selects no mutant'); process.exit(1); }
+  const tag = sm ? ' (shard ' + sm[1] + '/' + sm[2] + ')' : '';
   const clean = await checks(null, null);
   if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
   console.log('  ✓ clean control green');
   let bad = 0;
-  for (const [name, file, from, to] of MUTANTS) {
+  for (const [name, file, from, to] of mine) {
     let text = await readFile(join(ROOT, file), 'utf8');
     const pairs = Array.isArray(from) ? from : [[from, to]];
     const missing = pairs.find(([x]) => !text.includes(x));
@@ -1239,7 +1250,7 @@ async function main() {
     if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
     else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
   }
-  console.log(bad ? 'hunt-screen --mutate: ' + bad + ' escaped' : 'hunt-screen --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught');
+  console.log(bad ? 'hunt-screen --mutate' + tag + ': ' + bad + ' escaped' : 'hunt-screen --mutate' + tag + ': ' + mine.length + '/' + mine.length + ' mutants caught');
   process.exit(bad ? 1 : 0);
 }
 main();

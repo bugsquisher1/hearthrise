@@ -37,6 +37,7 @@ export const WEAPON_WORDS = Object.freeze({
   wand: 'Wand',
   sword: 'Sword',
   hammer: 'Hammer',
+  axe: 'Axes',
   neutral: 'Bare hands',
   ranged: 'Bow or crossbow',
 });

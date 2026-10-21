@@ -13,9 +13,8 @@
 //   partyNote(hunt)     the ground's party rule in words, from ITS row (the
 //                        pocket carrying minParty and the boss standing in it),
 //                        or '' for a ground with no party-only pocket
-//   packFor(bag, rules) what the hunt carries: the bag's own hunt supplies,
-//                        each up to its remembered restock target (all of it
-//                        when it has none), at most the server's line cap
+//   packFor(bag)        what the hunt carries: the bag's own hunt supplies,
+//                        every stack, at most the server's line cap
 // Nothing here is a gate: the server checks the band, the stamina and the
 // stock when the player presses Enter, and says why it refuses.
 // ════════════════════════════════════════════════════════════════════════
@@ -112,18 +111,15 @@ export function heroWords(r) {
 }
 
 /**
- * What a hunt carries from the bag: every hunt supply the bag holds, up to its
- * restock target when the player has set one (the remembered decision), else
- * the whole stack. Largest stacks first when there are more kinds than the
- * server takes lines.
+ * What a hunt carries from the bag: every hunt supply the bag holds, the whole
+ * stack (own stock is used first, then the store per use). Largest stacks first
+ * when there are more kinds than the server takes lines.
  * @param {{id: string, qty: number}[]|null} bag
- * @param {{restock: object}|null} rules
  * @returns {{item: string, qty: number}[]}
  */
-export function packFor(bag, rules) {
-  const restock = (rules && rules.restock) || {};
+export function packFor(bag) {
   return (bag || []).filter((r) => SUPPLIES[r.id])
-    .map((r) => ({ item: r.id, qty: Math.min(PACK_QTY_MAX, restock[r.id] > 0 ? Math.min(r.qty, restock[r.id]) : r.qty) }))
+    .map((r) => ({ item: r.id, qty: Math.min(PACK_QTY_MAX, r.qty) }))
     .filter((l) => l.qty > 0)
     .sort((a, b) => b.qty - a.qty || (a.item < b.item ? -1 : 1))
     .slice(0, SESSION_LIMITS.bagLines);

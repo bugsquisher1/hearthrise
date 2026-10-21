@@ -61,6 +61,12 @@ import { ITEMS } from './items.js?v=0.2.21';
 
 export const SHOPS_DIGEST = "3dd62b831e08bf6b8180fdfa08e203c68eea083199dfdb44a4082ccd36552e07";
 
+/* A supply-basics.js SUPPLY_SHOP_OFFERS row as an offer. */
+function supplyOffer(s) {
+  return { id: s.offer, table: "supply", name: ITEMS[s.item].n, cost: [{ kind: "currency", id: "gold", amount: s.price }],
+    grant: [{ kind: "item", id: s.item, amount: 1 }], repeatable: true };
+}
+
 /** Every offer whose price is fully known as data. */
 export const SHOP_OFFERS = [
   {
@@ -628,14 +634,15 @@ export const SHOP_OFFERS = [
     grant: [{ kind: "unlock", id: "worker", amount: 1 }],
     note: "and every hire after this one",
   },
-  ...SUPPLY_SHOP_OFFERS.map((s) => ({
-    id: s.offer, table: "supply",
-    name: ITEMS[s.item].n,
-    cost: [{ kind: "currency", id: "gold", amount: s.price }],
-    grant: [{ kind: "item", id: s.item, amount: 1 }],
-    repeatable: true,
-  })),
+  /* THE SHOP SELLS NO SUPPLIES (Tyler 2026-10-20, q02): it keeps gear and tools. Of the supply rows only the
+     tools (Bronze Axe, Bronze Pickaxe) are offers; food, drink and ammo come from the action bar, charged per use
+     at the store price (hr_hunt_basic_supplies), own stock first. */
+  ...SUPPLY_SHOP_OFFERS.filter((s) => s.kind === "tool").map(supplyOffer),
 ];
+
+/* The supply rows the Shop does NOT sell (food, drink, ammo): still the price list the vendor's buy-back cap
+   reads (catalogue.js SHOP_UNIT_PRICE), so retiring the offers moves no vendor bid. Never a shop_buy offer. */
+export const SUPPLY_PRICE_LIST = Object.freeze(SUPPLY_SHOP_OFFERS.filter((s) => s.kind !== "tool").map(supplyOffer));
 
 /** Where each currency lives server-side. `null` = it does not, yet. */
 export const SHOP_CURRENCIES = {
@@ -720,9 +727,9 @@ export const SHOP_TABLES = [
     "table": "supply",
     "origin": "src/data/supply-basics.js",
     "anchor": "export const SUPPLY_SHOP_OFFERS",
-    "spends_at": "hr-accrue shop_buy (one offer) and hr_shop_refill (the one-tap refill)",
-    "note": "hand-authored rows (lane S2); the server's hr_shop_supply_offers is generated from them",
-    "count": SUPPLY_SHOP_OFFERS.length
+    "spends_at": "hr-accrue shop_buy (the tools only; Tyler 2026-10-20: the Shop sells no supplies)",
+    "note": "hand-authored rows (lane S2); the server's hr_shop_supply_offers is generated from them; food, drink and ammo are SUPPLY_PRICE_LIST, never offers",
+    "count": SUPPLY_SHOP_OFFERS.filter((s) => s.kind === "tool").length
   }
 ];
 

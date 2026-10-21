@@ -5,16 +5,23 @@
 // Tyler 2026-10-20: creating a hero is a short step (a name, colours for Head,
 // Body, Legs and Feet, a preview that follows the picks), the hero enters the
 // world only once named, and every new hero owns ALL six starter weapon sets.
+// The same day (q02): the Shop sells NO supplies (food, drink, ammo); it keeps
+// gear and tools, and supplies come from the action bar at the store price per use.
 //
 //   H-D  the data: the four regions equal the server's hr_base_regions(); the
 //        six starter sets are in the kit, each plays its role, and no practice
 //        item sells or trades (a fresh account mints no gold from its kit)
 //   H-C  the client step: the preview repaints a region with the picked dye;
-//        every server refusal reads as a sentence
+//        every server refusal reads as a sentence. H-C3: the Shop has no Refill
+//        tab, Hunt prep no refill, the hunt summary no Restock, and the session
+//        drops any supply offer a server still sends (the browser half of
+//        2026-11-02-shop-no-supplies.sql; its server half is tests/alpha-server.mjs
+//        A-NO-SUPPLY, the per-use bar charge tests/hunt-sessions-settle.mjs STORE)
 //   H-S  the server, on the replayed chain as the client role: hr_create_hero
 //        names, colours and kits a hero in one intent; the six sets are owned;
 //        hr_load refuses an unnamed character (needs_name, with hero_slots);
-//        refusals create nothing; a second apply is byte-identical
+//        refusals create nothing; a second apply of this file and of
+//        2026-11-02-shop-no-supplies.sql is byte-identical
 //
 //   node tests/hero-creation.mjs            the guard
 //   node tests/hero-creation.mjs --mutate   each planted defect must turn it red
@@ -29,8 +36,13 @@ import { BASE_REGIONS, BASE_DEFAULT_COLORS } from '../src/data/outfits.js';
 import { roleForWeapon, roleWeaponOf } from '../src/data/hunt-roles.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
 import { heroCells, refusalText } from '../src/app/hero-create.js';
+import { shopOf } from '../src/session/item-sections.js';
+import { renderShop } from '../src/shell/windows/shop.js';
+import { renderHuntSummary } from '../src/shell/windows/hunt-summary.js';
+import { renderHuntPrep } from '../src/shell/windows/hunt-prep.js';
 
 const MIG = '2026-11-02-hero-creation.sql';
+const SHOP_MIG = '2026-11-02-shop-no-supplies.sql';
 /* What each starter set's weapon plays (hunt-roles.js), the set's purpose. */
 const SET_ROLE = { tank: 'tank', dual_axes: 'melee_dps', club: 'melee_dps', mage: 'mage', ranger: 'ranger', healer: 'healer' };
 
@@ -65,7 +77,12 @@ export function checkData({ items = ITEMS, inv = START_INVENTORY, eq = START_EQU
 // ── H-C ─────────────────────────────────────────────────────────────────────
 const TOKENS = { 'hero-skin': '#dcae86', 'hero-skin-shade': '#b5835f', 'hero-outline': '#17141a' };
 for (let i = 0; i < 16; i++) TOKENS['dye-' + i] = '#' + (i * 0x0f0f0f + 0x101010).toString(16).padStart(6, '0').slice(-6);
-export function checkClient({ cells = heroCells, text = refusalText } = {}) {
+/* A server that still offers supplies (the pre-2026-11-02 shop section). */
+const OLD_SHOP = { offers: [{ offer: 'supply.cooked_shrimp', item: 'cooked_shrimp', kind: 'food', price: 19 },
+  { offer: 'supply.turnip_juice', item: 'turnip_juice', kind: 'drink', price: 8 }, { offer: 'supply.barbed_arrows', item: 'barbed_arrows', kind: 'ammo', price: 2 },
+  { offer: 'supply.bronze_axe', item: 'bronze_axe', kind: 'tool', price: 120 }], bids: {}, refill: { lines: [], total: 0 } };
+const WINDOWS = { shop: renderShop, summary: renderHuntSummary, prep: renderHuntPrep };
+export function checkClient({ cells = heroCells, text = refusalText, shop = shopOf, windows = WINDOWS } = {}) {
   const out = [];
   const colorOf = (t) => TOKENS[t];
   const a = cells(BASE_DEFAULT_COLORS, colorOf);
@@ -84,6 +101,12 @@ export function checkClient({ cells = heroCells, text = refusalText } = {}) {
     if (!s || /could not be made/.test(s)) out.push(`H-C2 ${r} reads as the generic failure`);
   }
   if (!/3 letters/.test(text({ ok: false, reason: 'bad_name', nameReason: 'short' }))) out.push('H-C2 a short name does not say why');
+  // H-C3 no supplies for sale anywhere, no refill, no Restock.
+  const sh = shop({ read: (k) => (k === 'shop' ? OLD_SHOP : undefined) });
+  if (!sh || sh.offers.map((o) => o.item).join() !== 'bronze_axe' || 'refill' in sh) out.push('H-C3 the session reads the shop as ' + JSON.stringify(sh));
+  if (/data-tab="refill"|data-hs-act="refill"/.test(windows.shop())) out.push('H-C3 the Shop still has a Refill');
+  if (/data-hs-act="refill"/.test(windows.prep())) out.push('H-C3 Hunt prep still offers a refill');
+  if (/restock/i.test(windows.summary())) out.push('H-C3 the hunt summary still offers Restock');
   return out;
 }
 
@@ -106,7 +129,7 @@ export async function checkServer(mutant) {
   const out = [];
   const pairs = mutant ? [SILENCE_SELF_CHECK, ...SQL_MUTANTS[mutant].pairs] : null;
   let boot;
-  try { boot = await bootReplay(pairs ? { patches: new Map([[MIG, pairs]]), upTo: MIG } : { upTo: MIG }); }
+  try { boot = await bootReplay(pairs ? { patches: new Map([[MIG, pairs]]), upTo: MIG } : { upTo: SHOP_MIG }); }
   catch (e) {
     if (e && e.replay && mutant) return [`REPLAY: ${String(e.failures?.at(-1)?.error || e.message).slice(0, 200)}`];
     throw e;
@@ -133,12 +156,16 @@ export async function checkServer(mutant) {
   try {
     // B1: a second apply changes nothing.
     if (!mutant) {
-      const sqlText = (await readFile(join(ROOT, 'supabase', 'migrations', MIG), 'utf8')).replace(/\r\n/g, '\n');
-      const before = JSON.stringify(await inventory(db));
-      let err = null;
-      try { await db.exec(`begin;\n${sqlText}\ncommit;`); } catch (e) { err = String(e.message).split('\n')[0]; await db.exec('rollback').catch(() => {}); }
-      if (err) out.push(`H-S0 a second apply raised: ${err}`);
-      if (before !== JSON.stringify(await inventory(db))) out.push('H-S0 a second apply changed the schema');
+      const bodies = async () => JSON.stringify((await db.query(`select p.oid::regprocedure::text as f, md5(p.prosrc) as h, coalesce(p.proacl::text, '') as acl
+        from pg_proc p where p.pronamespace = 'public'::regnamespace order by 1`)).rows);
+      for (const file of [MIG, SHOP_MIG]) {
+        const sqlText = (await readFile(join(ROOT, 'supabase', 'migrations', file), 'utf8')).replace(/\r\n/g, '\n');
+        const before = JSON.stringify([await inventory(db), await bodies()]);
+        let err = null;
+        try { await db.exec(`begin;\n${sqlText}\ncommit;`); } catch (e) { err = String(e.message).split('\n')[0]; await db.exec('rollback').catch(() => {}); }
+        if (err) out.push(`H-S0 a second apply of ${file} raised: ${err}`);
+        if (before !== JSON.stringify([await inventory(db), await bodies()])) out.push(`H-S0 a second apply of ${file} changed the schema or a body`);
+      }
     }
     // H-S1 the happy path.
     const A = await mk('hc-a');
@@ -184,6 +211,8 @@ const DATA_MUTANTS = {
   hatchets_tank: { why: 'the hatchets play the tank', run: (sql) => checkData({ sql, items: Object.assign({}, ITEMS, { practice_hatchets: Object.assign({}, ITEMS.practice_hatchets, { weaponType: 'sword' }) }) }) },
   regions_drift: { why: 'the server names a fifth region', run: (sql) => checkData({ sql: sql.replace("array['head', 'body', 'legs', 'feet']::text[]", "array['head', 'body', 'legs', 'feet', 'cape']::text[]") }) },
   preview_ignores_pick: { why: 'the preview paints the default colours whatever is picked', run: () => checkClient({ cells: (c, f) => heroCells(BASE_DEFAULT_COLORS, f) }) },
+  shop_sells_food: { why: 'the session keeps a food offer a server still sends', run: () => checkClient({ shop: (cs) => ({ offers: cs.read('shop').offers, bids: new Map() }) }) },
+  summary_restock: { why: 'the hunt summary offers Restock again', run: () => checkClient({ windows: { ...WINDOWS, summary: () => renderHuntSummary() + '<button data-hs-act="restock">Restock</button>' } }) },
 };
 
 if (isMain(import.meta.url)) {
@@ -205,6 +234,6 @@ if (isMain(import.meta.url)) {
   } else {
     const problems = [...checkData({ sql }), ...checkClient(), ...await checkServer(null)];
     if (problems.length) { console.error('hero-creation: RED\n  ' + problems.join('\n  ')); process.exit(1); }
-    console.log('hero-creation: a hero is named, coloured and given all six starter sets in one intent; no name, no world; green');
+    console.log('hero-creation: a hero is named, coloured and given all six starter sets in one intent; no name, no world; the Shop sells no supplies and nothing refills; green');
   }
 }

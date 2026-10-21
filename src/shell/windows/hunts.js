@@ -10,8 +10,8 @@
 // One ruled line per hunt ground (src/shell/hunt-list.js, from the data rows):
 // its name and theme, its Level band against the character's own Level,
 // who may come, and how crowded it is. The picked line carries the window's one
-// primary, Enter, and says what the hunt will carry from the bag (the player's
-// remembered restock targets). Enter is ONE hr_hunt_enter; the server checks the band, the stamina
+// primary, Enter, and says what the hunt will carry from the bag (its own
+// supplies). Enter is ONE hr_hunt_enter; the server checks the band, the stamina
 // and the stock, and the hunt shows only from the re-read envelope. A hunt above
 // the character's level says so ("expect losses"); the floor is a warning, and
 // only the server refuses (Tyler 10-18: 15 or more levels under it).
@@ -42,7 +42,7 @@
 // density (hr_action_set_options `not_leader`).
 // ════════════════════════════════════════════════════════════════════════
 import { huntOf, settingsOf } from '../../session/hunt-sections.js?v=0.2.21';
-import { bagOf, rulesOf } from '../../session/item-sections.js?v=0.2.21';
+import { bagOf } from '../../session/item-sections.js?v=0.2.21';
 import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.21';
 import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.21';
 import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.21';
@@ -159,7 +159,7 @@ renderHunts.patch = function patchHunts(body, ctx) {
   const size = party ? party.seats.length : 1;
   const follower = !!party && !party.isLeader;
   if (!sc.pick && list.length) { const rec = recommendedHunt(level, size, list); sc.pick = rec ? rec.hunt : list[0].hunt; }
-  const pack = packFor(bagOf(cs), rulesOf(cs));
+  const pack = packFor(bagOf(cs));
   const set = settingsOf(cs);
   /* "On the way to …" is the intent's answer, not the hunt's state: once the server's hunt section
      says the hero is hunting (or the hunt is over), the line below speaks for it (Tyler 10-19). */
@@ -260,7 +260,7 @@ renderHunts.act = function actHunts(ctx, body, action, ev, t) {
   if (action === 'enter') {
     sc.pick = hunt;
     const s = settingsOf(cs);
-    const lines = packFor(bagOf(cs), rulesOf(cs));
+    const lines = packFor(bagOf(cs));
     /* A town activity never blocks a hunt: the engine settles it first (what it earned is paid), then Enter. */
     runIntent(sc, repaint, () => afterDensity(cs, sc, repaint, () => settleTownActivity(cs).then(() => cs.enterHunt(hunt, lines, s ? s.preset : 0))), 'Setting off for ' + huntName(hunt) + '…', (res) => { sc.enterMsg = 'On the way to ' + huntName(hunt) + '.' + (res && res.belowRange ? ' ' + ABOVE_LEVEL_WORDS : ''); return sc.enterMsg; });
     return true;

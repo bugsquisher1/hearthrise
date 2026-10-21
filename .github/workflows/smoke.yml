@@ -859,8 +859,10 @@ jobs:
 
       # 2026-11-02-hero-creation.sql (Tyler 2026-10-20): a hero is created with a
       # name and four colours in ONE intent, owns all six starter weapon sets
-      # (none sells), and an unnamed character does not enter the world.
-      # --mutate plants four server and five data/client defects.
+      # (none sells), and an unnamed character does not enter the world. The same
+      # guard holds the browser half of 2026-11-02-shop-no-supplies.sql (no Refill,
+      # no Restock, no supply offer); its server half is alpha-server A-NO-SUPPLY.
+      # --mutate plants four server and seven data/client defects.
       - name: Hero creation — name, colours, the practice kit, no name no world
         if: ${{ !cancelled() }}
         run: |

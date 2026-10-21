@@ -208,7 +208,11 @@ export async function bootWorld(panel, opts) {
     /* the live view's engine runs to now first (src/session/live-link.js) */
     if (typeof character.liveAdvance === 'function') character.liveAdvance(now);
     const back = typeof character.takeReseeded === 'function' ? character.takeReseeded() : null;
-    if (back) liveHunt.scene.revive(back);
+    if (back) liveHunt.scene.revive(back, now);
+    /* what the live view did (verdicts, restarts), readable from the page for a live check: data-live */
+    const ls = typeof character.liveStats === 'function' ? character.liveStats() : null;
+    const key = ls ? Object.entries(ls).map(([k, v]) => k + '=' + v).join(' ') : '';
+    if (stage && stage.dataset.live !== key) stage.dataset.live = key;
     tl.advance(now);
     const f = liveHunt.scene.frame(now);
     lastHunt = { live: true, units: f.units.map((u) => ({ id: u.id, unit: u.unit, x: u.x, y: u.y, anim: u.anim, frame: u.frame, dir: u.dir, diag: u.diag })),

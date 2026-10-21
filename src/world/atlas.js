@@ -11,16 +11,9 @@
 import { ATLAS_SETS } from '../data/world/atlas-sets.js?v=0.2.21';
 import { atlasPaths } from '../data/world/art-budget.js?v=0.2.21';
 import { createBook } from './core/book.js?v=0.2.21';
-
-function loadImage(doc, src) {
-  return new Promise((resolve, reject) => {
-    const img = doc.createElement('img');
-    img.decoding = 'async';
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error('image ' + src + ' did not load'));
-    img.src = src;
-  });
-}
+/* Each atlas image loads once per page (src/render/images.js): a remounted pane and the Character
+   window's outfit preview reuse the decoded image instead of fetching it again. */
+import { heldImage } from '../render/images.js?v=0.2.21';
 
 /**
  * @param {{doc: Document, version: number|string}} o
@@ -54,7 +47,7 @@ export async function loadAtlasSet(o, set) {
   const p = atlasPaths(set);
   const [manifest, image] = await Promise.all([
     import(url(p.manifest), { with: { type: 'json' } }).then((mod) => mod.default),
-    loadImage(o.doc, url(p.image)),
+    heldImage(o.doc, url(p.image)),
   ]);
   return { manifest, image };
 }

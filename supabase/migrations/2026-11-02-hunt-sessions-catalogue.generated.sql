@@ -8,19 +8,21 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 34f24711c69fe42091b45dfdd6d5318cc65c98b848b6d5c2a3fb0ee8c0fbdc58
+--   digest: 9af57da1fe75c94a1fe86921c37c933ad557f041c5a55248fc5516614b5f64a4
 --   59 supplies, 115 hunts (named + training), 52 limits, 11 end reasons,
 --   480 vendor values, 18 store supplies paid per use, 5 target modes,
 --   3 lanes, 14 abilities, 13 action-set options, 4 hunt grounds
 --
--- SUPERSEDES 2026-10-27-hunt-sessions-catalogue.generated.sql (applied; history,
+-- SUPERSEDES 2026-10-30-hunt-sessions-catalogue.generated.sql (applied; history,
 -- never regenerated): every table below is rewritten wholesale. Tyler's
--- 2026-10-19 tracker answers: food and drink share ONE 2 s cooldown
--- (hr_hunt_lanes 'consumable', consumables.js laneMs), and no walk until the
--- town has destinations to walk through: every hr_hunt_travel.travel_s is 0
--- (its check widens to 0..300), so a hunt's fight starts the moment it is
--- entered. Apply after 2026-10-27-core-bodies.sql (any order against
--- 2026-10-28-consume-defaults.sql).
+-- 2026-10-20 drops + profit rulings (lane/a-drop-tables): every walked
+-- ground's monster carries one equipment row, the Sewer's coin rises x1.8 and
+-- the Warrens' x1.25 (the +25% floor over the store bill), one rare carrier
+-- per ground; so hr_hunt_kill_bounds (gold_max, the per-kill item counts) and
+-- the vendor values it reads move. Lane/b-hero-creation: the six starter
+-- sets' practice weapons join hr_hunt_weapons (the hatchets play 'axe', which
+-- hr_hunt_weapon_roles maps to Melee DPS). Every other row is the 10-30 file's.
+-- Apply after 2026-11-01-party-leader-density.sql.
 --
 -- Server-only: RLS on, NO policy, no client grant (the client reads src/data).
 -- Idempotent: delete + insert; nothing references these rows by foreign key.
@@ -310,28 +312,28 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('barrow_knight', 104, 504, '{"big_bones":1,"steel_bar":1,"iron_fitting":1,"ancient_fragment":1,"mithril_gauntlets":1}'::jsonb),
   ('bear', 95, 485, '{"bear_pelt":1,"bear_claw":1,"big_bones":1,"raw_bear_meat":1}'::jsonb),
   ('bog_vine', 42, 209, '{"willow_log":1,"silk_thread":1,"moonbloom":1,"steel_gauntlets":1}'::jsonb),
-  ('briarcoat_wolf', 5, 85, '{"wolf_pelt":1,"raw_wolf_meat":1,"bones":1}'::jsonb),
+  ('briarcoat_wolf', 5, 85, '{"wolf_pelt":1,"raw_wolf_meat":1,"bones":1,"leather_pants":1}'::jsonb),
   ('broodmother', 572, 1728, '{"silk_thread":1,"spider_eye":1,"void_chitin":1,"swarm_heart":1,"shadow_thread":1,"chitinweave_cloak":1}'::jsonb),
   ('carnivorous_plant', 100, 465, '{"maple_log":1,"moonbloom":1,"goldenroot":1,"emberfruit":1}'::jsonb),
   ('carrion_swarm', 236, 857, '{"plague_ichor":1,"swarm_heart":1,"venom_sac":1}'::jsonb),
   ('cave_wyrm', 102, 515, '{"dragon_scale":1,"iron_ore":1,"mithril_ore":1,"coal":1,"snakeskin_gloves":1}'::jsonb),
   ('centipede', 40, 188, '{"void_chitin":1,"venom_sac":1,"iron_ore":1,"coal":1}'::jsonb),
   ('chained_demon', 254, 962, '{"demon_shard":1,"hell_ember":1,"death_steel":1,"iron_fitting":1,"yew_staff":1}'::jsonb),
-  ('chief_coppercap', 172, 9570, '{"big_bones":1,"gold_ore":1,"goblin_totem":1,"war_crown":1}'::jsonb),
-  ('cistern_spider', 50, 839, '{"silk_thread":1,"venom_sac":1,"spider_eye":1}'::jsonb),
+  ('chief_coppercap', 215, 9570, '{"big_bones":1,"gold_ore":1,"goblin_totem":1,"war_crown":1,"steel_platebody":1}'::jsonb),
+  ('cistern_spider', 90, 839, '{"silk_thread":1,"venom_sac":1,"iron_sword":1}'::jsonb),
   ('clay_golem', 40, 217, '{"iron_ore":1,"iron_fitting":1,"coal":1,"steel_boots":1}'::jsonb),
   ('conjurer', 118, 477, '{"magic_essence":1,"hell_ember":1,"rune_frag":1,"maple_spellbook":1,"warlock_boots":1}'::jsonb),
-  ('culvert_bat', 21, 393, '{"bat_wing":1,"bones":1,"night_fang":1}'::jsonb),
+  ('culvert_bat', 38, 393, '{"bat_wing":1,"bones":1,"iron_platelegs":1}'::jsonb),
   ('cutpurse', 6, 27, '{"rat_tail":1,"copper_ore":1,"bones":1,"apprentice_gloves":1}'::jsonb),
   ('cyclops', 246, 972, '{"troll_hide":1,"big_bones":1,"warlord_badge":1,"steel_bar":1,"rune_boots":1}'::jsonb),
   ('dark_wizard', 25, 97, '{"magic_essence":1,"rune_frag":1,"bones":1,"dark_sigil":1,"oak_wand":1,"oak_spellbook":1}'::jsonb),
   ('death_knight', 260, 1010, '{"big_bones":1,"death_steel":1,"captains_ribblade":1}'::jsonb),
   ('deserter', 46, 198, '{"iron_bar":1,"steel_bar":1,"iron_fitting":1,"bones":1,"maple_bow":1}'::jsonb),
-  ('dire_gray', 14, 221, '{"wolf_pelt":1,"raw_wolf_meat":1,"bones":1,"dire_fang":1}'::jsonb),
+  ('dire_gray', 14, 221, '{"wolf_pelt":1,"raw_wolf_meat":1,"bones":1,"leather_body":1}'::jsonb),
   ('dire_wolf', 40, 193, '{"wolf_pelt":1,"dire_fang":1,"alpha_fang":1,"raw_wolf_meat":1,"boarhide_boots":1}'::jsonb),
   ('draconia', 646, 1924, '{"dragon_bones":1,"dragon_scale":1,"dragon_gem":1,"ancient_claw":1,"dragonrib_bow":1}'::jsonb),
   ('dragon', 700, 2030, '{"dragon_bones":1,"dragon_scale":1,"dragon_gem":1,"ancient_claw":1,"marrow_cookbook":1}'::jsonb),
-  ('drain_rat', 10, 222, '{"rat_tail":1,"bones":1,"small_fang":1}'::jsonb),
+  ('drain_rat', 18, 222, '{"rat_tail":1,"bones":1,"small_fang":1,"bronze_boots":1}'::jsonb),
   ('drake', 240, 923, '{"dragon_scale":1,"dragon_bones":1,"mithril_ore":1,"steel_bar":1,"yew_bow":1}'::jsonb),
   ('drowned_dead', 96, 441, '{"grave_dust":1,"big_bones":1,"lobster":1,"abyssal_pearl":1}'::jsonb),
   ('dryad', 232, 881, '{"yew_log":1,"moonbloom":1,"runewood_log":1,"goldenroot":1}'::jsonb),
@@ -352,24 +354,24 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('gnoll_packlord', 40, 185, '{"bones":1,"goblin_ear":1,"wolf_pelt":1,"iron_ore":1,"packlord_band":1}'::jsonb),
   ('goblin', 8, 36, '{"goblin_ear":1,"bones":1,"bronze_sword":1,"goblin_totem":1}'::jsonb),
   ('goblin_brute', 42, 207, '{"goblin_ear":1,"brute_plate":1,"steel_sword":1,"goblin_totem":1}'::jsonb),
-  ('goblin_digger', 31, 1812, '{"copper_ore":1,"coal":1,"bones":1,"goblin_ear":1}'::jsonb),
-  ('goblin_scavenger', 23, 1149, '{"goblin_ear":1,"copper_ore":1,"bones":1,"coal":1}'::jsonb),
-  ('goblin_skulker', 27, 1377, '{"goblin_ear":1,"bones":1,"iron_ore":1,"goblin_totem":1}'::jsonb),
+  ('goblin_digger', 39, 1812, '{"copper_ore":1,"coal":1,"bones":1,"goblin_ear":1,"steel_helm":1}'::jsonb),
+  ('goblin_scavenger', 29, 1149, '{"goblin_ear":1,"copper_ore":1,"bones":1,"coal":1,"boarhide_boots":1}'::jsonb),
+  ('goblin_skulker', 34, 1377, '{"goblin_ear":1,"bones":1,"iron_ore":1,"steel_sword":1}'::jsonb),
   ('goblin_warlord', 100, 438, '{"brute_plate":1,"warlord_badge":1,"steel_helm":1,"warlords_torc":1}'::jsonb),
   ('grave_banshee', 286, 936, '{"wraith_veil":1,"grave_dust":1,"vamp_dust":1,"ancient_rune":1,"wraithsilk_shroud":1}'::jsonb),
-  ('gray_whelp', 3, 42, '{"raw_wolf_meat":1,"bones":1,"small_fang":1}'::jsonb),
-  ('gray_wolf', 5, 73, '{"raw_wolf_meat":1,"wolf_pelt":1,"bones":1,"small_fang":1,"bronze_boots":1}'::jsonb),
-  ('grayjaw', 16, 311, '{"wolf_pelt":1,"bones":1,"dire_fang":1,"alpha_fang":1}'::jsonb),
+  ('gray_whelp', 3, 42, '{"raw_wolf_meat":1,"bones":1,"leather_boots":1}'::jsonb),
+  ('gray_wolf', 5, 73, '{"raw_wolf_meat":1,"wolf_pelt":1,"bones":1,"leather_helmet":1}'::jsonb),
+  ('grayjaw', 16, 311, '{"wolf_pelt":1,"bones":1,"dire_fang":1,"alpha_fang":1,"shortbow":1}'::jsonb),
   ('grim_reaper', 668, 1797, '{"lich_soul":1,"death_steel":1,"hollow_sigil":1,"big_bones":1,"vamp_dust":1}'::jsonb),
   ('hellhound', 130, 513, '{"demon_shard":1,"hell_ember":1,"big_bones":1,"coal":1}'::jsonb),
   ('hive_wasp', 4, 48, '{"venom_sac":1,"silk_thread":1,"small_fang":1,"leather_helmet":1}'::jsonb),
   ('hobgoblin', 22, 89, '{"goblin_ear":1,"iron_ore":1,"iron_sword":1,"goblin_totem":1,"rat_stick":1}'::jsonb),
-  ('hobgoblin_foreman', 54, 2562, '{"big_bones":1,"iron_ore":1,"coal":1,"goblin_totem":1}'::jsonb),
+  ('hobgoblin_foreman', 67, 2562, '{"big_bones":1,"iron_ore":1,"coal":1,"goblin_totem":1,"steel_platelegs":1}'::jsonb),
   ('ice_elemental', 100, 462, '{"frostfin":1,"magic_essence":1,"mithril_ore":1}'::jsonb),
   ('imp', 6, 25, '{"demon_shard":1,"coal":1,"rune_frag":1,"apprentice_boots":1}'::jsonb),
   ('iron_colossus', 544, 1852, '{"rune_bar":1,"mithril_bar":1,"keystone":1,"iron_fitting":1,"death_steel":1}'::jsonb),
   ('kobold', 6, 28, '{"goblin_totem":1,"bones":1,"bone_chips":1,"copper_ore":1,"banded_signet":1}'::jsonb),
-  ('kobold_tosher', 14, 275, '{"bones":1,"bone_chips":1,"copper_ore":1}'::jsonb),
+  ('kobold_tosher', 25, 275, '{"bones":1,"bone_chips":1,"copper_ore":1,"bronze_platebody":1}'::jsonb),
   ('lesser_demon', 140, 565, '{"demon_shard":1,"rune_frag":1,"hell_ember":1}'::jsonb),
   ('lich', 500, 1325, '{"lich_soul":1,"ancient_rune":1,"vamp_dust":1,"hollow_sigil":1,"soul_recipe":1,"runewood_codex":1}'::jsonb),
   ('locust_swarm', 13, 65, '{"wheat":1,"silk_thread":1,"venom_sac":1,"studded_belt":1}'::jsonb),
@@ -389,7 +391,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('panther', 210, 828, '{"shadow_pelt":1,"razor_claw":1,"ruby":1,"raw_panther_meat":1,"panthers_eye_pendant":1}'::jsonb),
   ('plague_swarm', 82, 360, '{"plague_ichor":1,"venom_sac":1,"swarm_heart":1,"field_cookbook":1}'::jsonb),
   ('rat', 4, 41, '{"rat_tail":1,"small_fang":1,"wheat":1,"bones":1}'::jsonb),
-  ('rat_king', 132, 4740, '{"rat_tail":1,"bones":1,"crown_shard":1}'::jsonb),
+  ('rat_king', 238, 4740, '{"rat_tail":1,"bones":1,"crown_shard":1,"iron_helm":1}'::jsonb),
   ('revenant', 512, 1707, '{"big_bones":1,"death_steel":1,"ancient_rune":1,"grave_dust":1,"ember_gauntlets":1}'::jsonb),
   ('rock_troll', 48, 226, '{"troll_hide":1,"iron_ore":1,"coal":1,"big_bones":1,"steel_belt":1}'::jsonb),
   ('salamander', 17, 81, '{"dragon_scale":1,"coal":1,"bones":1,"studded_gloves":1}'::jsonb),
@@ -404,7 +406,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('stone_golem', 15, 87, '{"copper_ore":1,"iron_ore":1,"coal":1,"iron_gauntlets":1}'::jsonb),
   ('stonejaw', 586, 1857, '{"war_crown":1,"captain_medal":1,"death_steel":1,"warlord_badge":1}'::jsonb),
   ('storm_elemental', 548, 1673, '{"magic_essence":1,"ancient_rune":1,"dawnstone_ore":1,"rune_bar":1,"runewood_staff":1}'::jsonb),
-  ('sump_slime', 8, 216, '{"slime_gel":1,"bones":1,"sticky_core":1}'::jsonb),
+  ('sump_slime', 14, 216, '{"slime_gel":1,"bones":1,"bronze_helm":1}'::jsonb),
   ('the_silence', 614, 1716, '{"void_chitin":1,"void_core":1,"shadow_thread":1,"hollow_sigil":1}'::jsonb),
   ('the_unlit', 698, 2010, '{"void_core":1,"void_chitin":1,"hollow_sigil":1,"ancient_rune":1,"dawnstone_ore":1}'::jsonb),
   ('treant', 528, 1828, '{"duskwood_log":1,"runewood_log":1,"timber_beam":1,"moonbloom":1,"yew_log":1}'::jsonb),

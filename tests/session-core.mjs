@@ -26,6 +26,12 @@
 //   HUNT-1 while the server holds a hunt open the character asks the hunter's settle every huntPollMs
 //          (attended): the track reaches the timeline; the envelope that says it ended stops the asking
 //   HUNT-2 a pending leave is settled at once (away-owed time) and its envelope replaces the open hunt
+//   LEAVE-1 a pending leave's close is re-read a hair after the SERVER's leave_at (server clock), moving
+//          an armed poll earlier; the closing envelope ends the hunt and the re-reads stop
+//   LEAVE-2 a refused settle after a pending leave is followed by the plain read (leave_at is shown)
+//   LEAVE-3 the countdown starts from the leave's own answer (the settle after it still out): whole
+//          seconds >= 1 to leave_at, then "now" (never 0 or negative), then "late" a leaveLateMs past
+//          it, and the close is still asked while it is late; the next hunt shows none
 //   ACC-1  at most the server's concurrent limit open (within the tab's ceiling); close frees a place
 //   ACC-4  the limit is the SERVER's (account.max_concurrent): a smaller one holds, an unstated one
 //          allows one character, a larger one is capped by the tab's ceiling
@@ -39,6 +45,12 @@
 //   OUT-1  sign-out clears every copy of the session (device + tab, sb-*, retired keys, tab id) and closes every character
 //   TAB-1  the tab id is stable within a tab and new for a new tab
 //   COPY-1 sign-up/reset copy never reveals whether an email has an account; no "open beta"/"invite code"
+//   TOK-1  a token about to expire is refreshed BEFORE the call; the call carries the new one
+//          (live 2026-10-20: a background tab sent a token dead for 14 h, 805 times)
+//   TOK-2  a 401 renews the token once and retries that call once, never more
+//   TOK-3  a refresh the server refuses ends the session: 'expired' once, and no further call is sent
+//   TOK-4  two characters in one tab share ONE refresh
+//   TOK-5  waking a hidden tab checks the token before the next call
 //   VIEW-1 the world view reads only the character's record and its own scratch
 // ════════════════════════════════════════════════════════════════════════
 import { mkdtempSync, cpSync, readFileSync, writeFileSync, rmSync, mkdirSync } from 'node:fs';
@@ -317,6 +329,133 @@ async function rules(M) {
     return (cs.record.data.hunt.ended === true && cs.record.data.state.active_kind === 'idle') || 'the client still holds the hunt open after the leave';
   });
 
+  /* LEAVE-1 (live v0.2.20 "Leave hunt is very buggy and delayed"): a leave pends until the server's
+     leave_at (2026-10-31-live-horizon.sql). The re-read that closes it is timed by THAT instant on the
+     SERVER's clock (a hair after it), moving an armed huntPollMs re-read earlier: never a whole poll
+     after the close, and never read off the device clock (the server here runs years ahead of it). */
+  await t('LEAVE-1', async () => {
+    const S0 = Date.parse('2031-01-01T00:00:00Z');
+    let clientT = 0, stage = 'open';
+    const iso = (ms) => new Date(ms).toISOString();
+    const hunt = (leaveAt, ended) => ({ session_id: 'h1', hunt_id: 'mill_cellar', ended: !!ended,
+      session: { id: 'h1', leave_at: leaveAt === null ? null : iso(leaveAt), phase: leaveAt === null ? 'hunting' : 'leaving' } });
+    let v = 1;
+    const body = () => stage === 'ended'
+      ? env(++v, { now: iso(S0 + clientT), hunt: hunt(null, true), state: { gold: 1, active_kind: 'idle' } })
+      : env(++v, { now: iso(S0 + clientT), hunt: hunt(stage === 'leaving' ? S0 + 7000 : null) });
+    const calls = [];
+    const srv = {
+      rpc: async (name) => {
+        calls.push(name);
+        if (name === 'hr_hunt_leave') { stage = 'leaving'; return { ok: true, status: 200, body: { ok: true, pending: true }, closed: false }; }
+        return { ok: true, status: 200, body: body(), closed: false };
+      },
+      accrue: async () => { calls.push('accrue'); return { ok: true, status: 200, body: Object.assign({ accrued: true }, body()), closed: false }; },
+    };
+    const armed = [];
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, now: () => clientT,
+      setTimer: (fn, ms) => { armed.push({ fn, ms, live: true }); return armed.length; },
+      clearTimer: (id) => { if (armed[id - 1]) armed[id - 1].live = false; } });
+    const fire = async () => { const a = armed.filter((x) => x.live); if (a.length !== 1) return false; a[0].live = false; a[0].fn(); await new Promise((r) => setImmediate(r)); return true; };
+    await cs.load();
+    /* the live view's start-point asks back off first (live-link.js askDelayMs), up to the ordinary poll */
+    for (let i = 0; i < 12; i++) {
+      const a = armed.filter((x) => x.live);
+      if (a.length === 1 && a[0].ms === CFG.SESSION_CONFIG.huntPollMs) break;
+      if (!(await fire())) return 'the live ask did not arm once';
+    }
+    let live = armed.filter((x) => x.live);
+    if (live.length !== 1 || live[0].ms !== CFG.SESSION_CONFIG.huntPollMs) return 'no ordinary re-read before the leave: ' + JSON.stringify(live.map((x) => x.ms));
+    clientT = 1000;
+    if (!(await cs.leaveHunt()).ok) return 'the pending leave was refused';
+    if (Math.round(cs.serverNow()) !== S0 + 1000) return 'the server clock is not the server’s: ' + cs.serverNow();
+    live = armed.filter((x) => x.live);
+    const want = 6000 + CFG.SESSION_CONFIG.leaveSlackMs;
+    if (live.length !== 1 || live[0].ms !== want) return 'the close is not asked a hair after the server’s leave_at (want ' + want + ' ms): ' + JSON.stringify(live.map((x) => x.ms));
+    clientT = 1000 + want;
+    stage = 'ended';
+    if (!(await fire())) return 'the closing re-read did not run';
+    if (cs.record.data.hunt.ended !== true) return 'the close at leave_at did not end the hunt on screen';
+    return armed.filter((x) => x.live).length === 0 || 'an ended hunt kept re-reading';
+  });
+
+  /* LEAVE-2: the settle after a pending leave can be refused (the accrue bucket, a dropped request);
+     the plain read still brings the server's leave_at, so the button counts down instead of offering
+     Leave hunt again until the next poll. */
+  await t('LEAVE-2', async () => {
+    const calls = [];
+    let leaving = false;
+    const hunt = () => ({ session_id: 'h1', hunt_id: 'mill_cellar', ended: false,
+      session: { id: 'h1', leave_at: leaving ? '2031-01-01T00:00:07.000Z' : null } });
+    let v = 1;
+    const srv = {
+      rpc: async (name) => {
+        calls.push(name);
+        if (name === 'hr_hunt_leave') { leaving = true; return { ok: true, status: 200, body: { ok: true, pending: true }, closed: false }; }
+        return { ok: true, status: 200, body: env(++v, { now: '2031-01-01T00:00:01.000Z', hunt: hunt() }), closed: false };
+      },
+      accrue: async () => { calls.push('accrue'); return { ok: false, status: 429, body: { ok: false, error: 'rate_limited' }, closed: false }; },
+    };
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, ...timers });
+    await cs.load();
+    if (!(await cs.leaveHunt()).ok) return 'the pending leave was refused';
+    if (calls.join(',') !== 'hr_load,hr_hunt_leave,accrue,hr_load') return 'a refused settle was not followed by the plain read: ' + calls.join(',');
+    return cs.record.data.hunt.session.leave_at === '2031-01-01T00:00:07.000Z' || 'the record does not carry the server’s leave_at';
+  });
+
+  /* LEAVE-3 (Tyler 10-20: "a countdown so they know it's not just stuck"): the number shows one round
+     trip after the press, from hr_hunt_leave's own answer (the session it set leave_at on), while the
+     settle that follows is still out; it never reads 0 or below; past leave_at it is "now", and a
+     leaveLateMs past it "late", with the close still being asked. */
+  await t('LEAVE-3', async () => {
+    const S0 = Date.parse('2031-01-01T00:00:00Z');
+    const iso = (ms) => new Date(ms).toISOString();
+    let clientT = 0, v = 1, release = null, sid = 'h1';
+    const hunt = (leaveAt) => ({ session_id: sid, hunt_id: 'mill_cellar', ended: false,
+      session: { id: sid, leave_at: leaveAt === null ? null : iso(leaveAt), phase: leaveAt === null ? 'hunting' : 'leaving' } });
+    const LEAVE_AT = S0 + 7000;
+    let leaving = false;
+    const body = () => env(++v, { now: iso(S0 + clientT), hunt: hunt(leaving ? LEAVE_AT : null) });
+    const srv = {
+      rpc: async (name) => {
+        if (name === 'hr_hunt_leave') { leaving = true; return { ok: true, status: 200, body: { ok: true, pending: true, session: hunt(LEAVE_AT).session }, closed: false }; }
+        return { ok: true, status: 200, body: body(), closed: false };
+      },
+      /* the settle after the leave hangs until released (a slow edge answer) */
+      accrue: () => new Promise((ok) => { release = () => ok({ ok: true, status: 200, body: Object.assign({ accrued: true }, body()), closed: false }); }),
+    };
+    const armed = [];
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, now: () => clientT,
+      setTimer: (fn, ms) => { armed.push({ fn, ms, live: true }); return armed.length; },
+      clearTimer: (id) => { if (armed[id - 1]) armed[id - 1].live = false; } });
+    await cs.load();
+    if (cs.leaveCountdown() !== null) return 'a countdown before any leave: ' + JSON.stringify(cs.leaveCountdown());
+    clientT = 1000;
+    const pending = cs.leaveHunt();
+    for (let i = 0; i < 5 && !release; i++) await new Promise((r) => setImmediate(r));
+    if (!release) return 'the settle after the leave was never asked';
+    const first = cs.leaveCountdown();
+    if (!first || first.phase !== 'counting' || first.s !== 6) return 'no countdown while the settle after the leave is out (want 6 s): ' + JSON.stringify(first);
+    const at = (t) => { clientT = t; return cs.leaveCountdown(); };
+    const seen = [];
+    for (const t2 of [1001, 5999, 6001, 6999, 7000, 7001, 9000, 22999, 23000, 40000]) seen.push([t2, at(t2)]);
+    const bad = seen.find(([, c]) => !c || (c.phase === 'counting' && !(c.s >= 1)));
+    if (bad) return 'the countdown read 0 or less (or vanished): ' + JSON.stringify(bad);
+    const ph = Object.fromEntries(seen.map(([t2, c]) => [t2, c.phase === 'counting' ? c.s : c.phase]));
+    const want = { 1001: 6, 5999: 2, 6001: 1, 6999: 1, 7000: 'now', 7001: 'now', 9000: 'now', 22999: 'now', 23000: 'late', 40000: 'late' };
+    for (const k of Object.keys(want)) if (ph[k] !== want[k]) return 'the countdown at ' + k + ' ms reads ' + JSON.stringify(ph[k]) + ' (want ' + JSON.stringify(want[k]) + ')';
+    /* LATE: the settle answers, the hunt is still open; the close goes on being asked */
+    release();
+    await pending;
+    const live = armed.filter((x) => x.live);
+    if (live.length !== 1) return 'a late leave stopped asking for the close: ' + JSON.stringify(live.map((x) => x.ms));
+    if (cs.leaveCountdown().phase !== 'late') return 'the late leave lost its phase: ' + JSON.stringify(cs.leaveCountdown());
+    /* THE NEXT HUNT: a leave's answer is its own session's only; a new hunt shows no countdown */
+    sid = 'h2'; leaving = false;
+    await cs.load();
+    return cs.leaveCountdown() === null || 'a new hunt shows the last hunt’s leave countdown: ' + JSON.stringify(cs.leaveCountdown());
+  });
+
   const mkAccount = (srv, o = {}) => {
     const tab = memStore();
     const auth = { userId: () => UID, token: () => 'jwt', signOut: async () => { auth.out = true; } };
@@ -444,6 +583,92 @@ async function rules(M) {
     const all = Object.values(AU.AUTH_COPY).join(' ');
     return !/open beta|invite code/i.test(all) || 'retired copy (open beta / invite code) is back';
   });
+
+  /* THE TOKEN (TOK-*): the real createAuth over a fake supabase-js auth, the real server link over a fake fetch. */
+  const T0 = 1_800_000_000_000;
+  const sess = (tok, expMs) => ({ access_token: tok, refresh_token: 'r-' + tok, expires_at: Math.floor(expMs / 1000), user: { id: UID, email: 'qa@x.co' } });
+  const tokenRig = (o = {}) => {
+    const clock = { t: T0 };
+    let stored = o.start || sess('A', T0 + 3600e3);
+    const n = { get: 0, refresh: 0 };
+    const doc = { visibilityState: 'visible', fns: [], addEventListener(ev, fn) { if (ev === 'visibilitychange') this.fns.push(fn); },
+      wake() { this.visibilityState = 'visible'; for (const f of this.fns) f(); } };
+    const client = { auth: {
+      getSession: async () => { n.get++; return { data: { session: stored } }; },
+      refreshSession: async () => {
+        n.refresh++;
+        await new Promise((r) => setImmediate(r));
+        if (o.refuse) return { data: { session: null, user: null }, error: { name: 'AuthApiError', status: 400, message: 'Invalid Refresh Token: Already Used' } };
+        stored = sess('B', clock.t + 3600e3);
+        return { data: { session: stored }, error: null };
+      },
+      signOut: async () => {}, onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }) } };
+    const auth = AU.createAuth({ client, device: memStore(), tab: memStore(), redirectTo: 'https://x/', doc, now: () => clock.t });
+    const sent = [];
+    const fetch = async (url, init) => {
+      const tok = init.headers.Authorization.slice(7);
+      sent.push(tok);
+      const dead = (o.dead || ['A']).includes(tok) && (o.reject401 || tok !== 'B');
+      return { ok: !dead, status: dead ? 401 : 200, json: async () => (dead ? { code: 'UNAUTHORIZED' } : { ok: true, accrued: true, version: 1, state: { gold: 1 } }) };
+    };
+    const server = S.createServerLink({ url: 'https://p', anonKey: 'anon', token: auth.freshToken, renew: auth.renewToken, fetch });
+    const heard = [];
+    auth.onChange((ev) => heard.push(ev));
+    return { clock, auth, server, sent, n, doc, heard };
+  };
+
+  await t('TOK-1', async () => {
+    const r = tokenRig({ start: sess('A', T0 + 3600e3) });
+    await r.auth.refresh();
+    r.clock.t = T0 + 3600e3 - 30e3;   // 30 s left: inside the margin
+    const ans = await r.server.accrue({ slot: 0 });
+    if (r.sent.join() !== 'B') return 'the call sent ' + JSON.stringify(r.sent) + ', not the refreshed token alone';
+    return (ans.ok && r.n.refresh === 1) || 'the stale token was not refreshed exactly once before the call (' + r.n.refresh + ')';
+  });
+  await t('TOK-2', async () => {
+    const r = tokenRig();
+    await r.auth.refresh();
+    const ans = await r.server.rpc('hr_load', { p_slot: 0 });
+    if (r.sent.join() !== 'A,B' || !ans.ok) return 'a 401 was not renewed and retried once: sent ' + JSON.stringify(r.sent);
+    if (r.n.refresh !== 1) return 'a 401 refreshed ' + r.n.refresh + ' times';
+    const r2 = tokenRig({ dead: ['A', 'B'], reject401: true });
+    await r2.auth.refresh();
+    const a2 = await r2.server.accrue({ slot: 0 });
+    return (r2.sent.length === 2 && a2.status === 401) || 'a 401 on the retry was retried again: sent ' + JSON.stringify(r2.sent);
+  });
+  await t('TOK-3', async () => {
+    const r = tokenRig({ refuse: true });
+    await r.auth.refresh();
+    await r.server.accrue({ slot: 0 });   // 401 → refresh refused
+    for (let i = 0; i < 10; i++) await r.server.accrue({ slot: 0 });
+    if (r.sent.length !== 1) return 'a dead session sent ' + r.sent.length + ' calls';
+    if (r.heard.filter((e) => e === 'expired').length !== 1) return 'the app heard expired ' + r.heard.filter((e) => e === 'expired').length + ' times';
+    if (r.auth.token() !== null) return 'the dead token is still held';
+    const s = tokenRig({ refuse: true, start: sess('A', T0 + 10e3) });
+    await s.auth.refresh();
+    for (let i = 0; i < 10; i++) await s.server.accrue({ slot: 0 });
+    return (s.sent.length === 0 && s.n.refresh === 1 && s.heard.join() === 'expired') || 'a refused pre-call refresh still sent ' + s.sent.length + ' calls / refreshed ' + s.n.refresh + ' times';
+  });
+  await t('TOK-4', async () => {
+    const r = tokenRig({ start: sess('A', T0 + 20e3) });
+    await r.auth.refresh();
+    const a = new C.CharacterSession({ slot: 0, uid: UID, server: r.server, ...timers });
+    const b = new C.CharacterSession({ slot: 1, uid: UID, server: r.server, ...timers });
+    await Promise.all([a.load(), b.load()]);
+    if (r.n.refresh !== 1) return 'two characters refreshed ' + r.n.refresh + ' times';
+    return (r.sent.length === 2 && r.sent.every((x) => x === 'B')) || 'the two characters did not both carry the one refreshed token: ' + JSON.stringify(r.sent);
+  });
+  await t('TOK-5', async () => {
+    const r = tokenRig({ start: sess('A', T0 + 3600e3) });
+    await r.auth.refresh();
+    r.doc.visibilityState = 'hidden';
+    r.clock.t = T0 + 5 * 3600e3;          // hidden for hours: supabase-js refreshed nothing
+    r.doc.wake();
+    await new Promise((res) => setImmediate(res)); await new Promise((res) => setImmediate(res));
+    if (r.n.refresh !== 1 || r.auth.token() !== 'B') return 'waking the tab did not refresh the token (' + r.n.refresh + ', ' + r.auth.token() + ')';
+    await r.server.accrue({ slot: 0 });
+    return (r.sent.join() === 'B' && r.n.refresh === 1) || 'the call after waking sent ' + JSON.stringify(r.sent);
+  });
   return fails;
 }
 
@@ -487,7 +712,20 @@ const MUTANTS = [
   ['a version gap is guessed, not healed', 'src/session/character-session.js', "if (before !== null && r.record.version > before + 1) this.hello();", ""],
   ['an open hunt is never re-read', 'src/session/character-session.js', "    this._emit(why);\n    this._armHuntPoll();", "    this._emit(why);"],
   ['an ended hunt keeps re-reading', 'src/session/character-session.js', "typeof h.session_id === 'string' && h.ended !== true;", "typeof h.session_id === 'string';"],
-  ['a pending leave waits for the world tick', 'src/session/character-session.js', "ans.body.pending === true) { await this.hello(); return { ok: true }; }", "ans.body.pending === true) { await this.load(); return { ok: true }; }"],
+  ['a pending leave waits for the world tick', 'src/session/character-session.js', "      if (!(await this.hello()) && !this._closed) await this.load();", "      await this.load();"],
+  ['a refused settle leaves the leave unseen', 'src/session/character-session.js', "      if (!(await this.hello()) && !this._closed) await this.load();", "      await this.hello();"],
+  ['the close waits a whole poll past leave_at', 'src/session/hunt-poll.js', "  return closeMs === null ? ms : Math.min(ms, closeMs);", "  return ms;"],
+  ['an armed poll is never moved earlier', 'src/session/hunt-poll.js', "      if (!(due < this._due)) return;", "      return;"],
+  ['the countdown waits for the settle after the leave', 'src/session/character-session.js', "      this._leaveAsk = leaveAskOf(ans.body.session);\n", ""],
+  ['the leave answer is held for another session', 'src/session/hunt-leave.js', "ask.session === h.session_id ? ask.at : null", "ask.at"],
+  ['the countdown reads 0 past leave_at', 'src/session/hunt-leave.js', "  if (left > 0) return { phase: 'counting', s: Math.ceil(left / 1000) };", "  if (left > -SESSION_CONFIG.leaveLateMs) return { phase: 'counting', s: Math.ceil(left / 1000) };"],
+  ['a late leave is never told apart', 'src/session/hunt-leave.js', "phase: left > -SESSION_CONFIG.leaveLateMs ? 'now' : 'late'", "phase: 'now'"],
+  ['the close is timed on the device clock', 'src/session/character-session.js', "  serverNow() { return this.timeline.serverNowAt(this._now()); }", "  serverNow() { return Date.now(); }"],
+  ['a stale token is sent as it is', 'src/net/auth.js', '    if (lasts(session)) return tokenOf(session);\n    if (!session) return null;', '    if (session) return tokenOf(session);\n    if (!session) return null;'],
+  ['a 401 is not renewed', 'src/session/server.js', 'if (res.status === 401 && o.renew)', 'if (false && o.renew)'],
+  ['every caller refreshes on its own', 'src/net/auth.js', '    if (renewing) return renewing;\n', ''],
+  ['a refused refresh keeps the dead session', 'src/net/auth.js', "    session = null;\n    tell('expired');", "    tell('expired');"],
+  ['waking a hidden tab checks nothing', 'src/net/auth.js', "if (o.doc.visibilityState === 'visible') freshToken();", "if (false) freshToken();"],
   ['a failed live ask re-arms at once, forever', 'src/session/character-session.js', 'if (!took) this.liveLink.missed();', ''],
   ['the live ask gives up after two tries', 'src/session/live-link.js', '      this.want = true;\n      this._tries++;', '      this.want = this._tries < 2;\n      if (this.want) this._tries++;'],
   ['an idle settle replaces the character', 'src/session/character-session.js', "if (ans.ok && ans.body && ans.body.accrued !== true) return this.load();", ""],
@@ -507,7 +745,7 @@ async function main() {
   if (!mutate) {
     const fails = [...await rules(await load(ROOT)), ...await viewRules(ROOT)];
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (24 rules)');
+    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (33 rules)');
     process.exit(fails.length ? 1 : 0);
   }
   let bad = 0;

@@ -43,6 +43,7 @@ export const SCENE_TIMING = Object.freeze({
   corpseMs: 10000,      // how long a corpse lies
   corpseFadeMs: 2000,   // it fades out over its last 2 s
   flashMs: 120,         // a hit's white flash
+  riseMs: 400,          // a unit a reconcile finds alive after its drawn death fades back in, never pops up
   floatMs: 1000,        // a floating number's life
 });
 const MAX_FX = 96, MAX_FLOATS = 64, MAX_KEYS = 4096, PRUNE_AT = 512;
@@ -107,7 +108,7 @@ export function createHuntScene(o) {
   const tl = o.timeline, book = o.book;
   const keys = new Set();
   let fx = [], floats = [];
-  const flash = new Map(), dead = new Map(), swing = new Map(), bleed = new Map(), cycle = new Map(), target = new Map();
+  const flash = new Map(), dead = new Map(), swing = new Map(), bleed = new Map(), cycle = new Map(), target = new Map(), risen = new Map();
   const fresh = () => o.read();
   let read = fresh();
 
@@ -265,6 +266,8 @@ export function createHuntScene(o) {
     }
     const { dir, diag } = facingOf(hx, hy);
     let alpha = 1, grey = 0, under = false, corpse = null;
+    const rose = risen.get(u);
+    if (rose !== undefined) { if (now - rose >= SCENE_TIMING.riseMs) risen.delete(u); else alpha = Math.max(0, now - rose) / SCENE_TIMING.riseMs; }
     const died = dead.get(u);
     if (died !== undefined) {
       /* a unit the server walks again is not dead; one killed mid-step (HP 0 at this instant, read as its bar
@@ -341,9 +344,9 @@ export function createHuntScene(o) {
     const units = [];
     const ids = tl.units();
     /* S4: per-unit state never outlives the unit's track (a long hunt respawns thousands). */
-    if (flash.size + dead.size + swing.size + bleed.size + cycle.size + target.size > PRUNE_AT) {
+    if (flash.size + dead.size + swing.size + bleed.size + cycle.size + target.size + risen.size > PRUNE_AT) {
       const live = new Set(ids);
-      for (const m of [flash, dead, swing, bleed, cycle, target]) for (const k of m.keys()) if (!live.has(k)) m.delete(k);
+      for (const m of [flash, dead, swing, bleed, cycle, target, risen]) for (const k of m.keys()) if (!live.has(k)) m.delete(k);
     }
     for (const u of ids) {
       const d = unitAt(u, now);
@@ -384,8 +387,24 @@ export function createHuntScene(o) {
 
   return {
     onEvent, frame,
-    /** A reconcile found these units alive: a death the prediction drew is undone (no lingering corpse). */
-    revive(alive) { for (const u of alive || []) { dead.delete(u); flash.delete(u); } },
+    /**
+     * A restart of the live view (live-link.js _restart) found these units standing at `now`. The
+     * drawing follows it both ways: a monster drawn dead that the server's world holds alive fades
+     * back in (never pops up off its corpse), and a monster drawn STANDING that is no longer in that
+     * world falls where it stands (left drawn, it stood at its last tile with an empty bar).
+     */
+    revive(alive, now) {
+      if (!alive) return;
+      read = fresh();
+      const t = Number.isFinite(now) ? now : null;
+      for (const u of alive) {
+        if (!dead.has(u)) continue;
+        dead.delete(u); flash.delete(u);
+        if (t !== null) risen.set(u, t);
+      }
+      if (t === null) return;
+      for (const u of tl.units()) if (!alive.has(u) && !dead.has(u) && !isHero(u)) dead.set(u, t);
+    },
     /** For tests: how many effects and floats are live, and the keys played. */
     stats: () => ({ fx: fx.length, floats: floats.length, played: keys.size }),
   };

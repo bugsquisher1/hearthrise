@@ -150,9 +150,11 @@ function check(monsters) {
 
   for (const [mid, m] of Object.entries(monsters)) {
     const drops = m.drops || [];
-    /* (e) an unflagged salvage-shaped row: the client's dice would show it. */
+    /* (e) an unflagged salvage-shaped row: the client's dice would show it. A walked ground's EQUIPMENT SLOT
+       (`gear: true`, Tyler 10-14/10-20) is its own rule set: tests/hunt-core/drop-tables.mjs holds it (one per
+       monster, the ground's band, the pace, the faucet; the engine rolls it as band 'gear', never a reveal). */
     drops.forEach((d) => {
-      if (d && !d.salvage && !d.lucky && salvageShaped(m, d)) {
+      if (d && !d.salvage && !d.lucky && d.gear !== true && salvageShaped(m, d)) {
         ok(false, 'e', `${mid} -> ${d.id}: a salvage-shaped row without salvage:true (the client would mint it)`);
       }
     });
@@ -184,7 +186,8 @@ function check(monsters) {
       ok(!mentions(BOSSES, d.id), 'a', `${tag}: item is boss loot`);
       for (const [oid, om] of Object.entries(monsters)) {
         (om.drops || []).forEach((od, oi) => {
-          if (od && od.id === d.id && !(oid === mid && oi === i)) ok(false, 'a', `${tag}: item is also a drop of ${oid}[${oi}]`);
+          /* an equipment-slot row may share the item: its faucet is drop-tables.mjs' (pace + value cap) */
+          if (od && od.id === d.id && !(oid === mid && oi === i) && od.gear !== true) ok(false, 'a', `${tag}: item is also a drop of ${oid}[${oi}]`);
         });
       }
       /* (b) the monster */
@@ -303,6 +306,10 @@ const MUTATIONS = {
   goblin_brute_total:   { rule: 'c2', mk: () => mutated((ms) => moveSalvage(ms, 'bog_vine', 'goblin_brute')) },
   salvage_first:        { rule: 'e', mk: () => mutated((ms) => { ms.wild_boar.drops.unshift(ms.wild_boar.drops.pop()); }) },
   flag_removed:         { rule: 'e', mk: () => mutated((ms) => { delete lastOf(ms, 'wild_boar').salvage; }) },
+  /* the gear exemptions stay narrow: an equipment row that loses its flag is a salvage-shaped row again, and a
+     plain (non-gear) row sharing a salvage item is still a second source */
+  gear_flag_removed:    { rule: 'e', mk: () => mutated((ms) => { delete lastOf(ms, 'drain_rat').gear; }) },
+  plain_second_source:  { rule: 'a', mk: () => mutated((ms) => { ms.drain_rat.drops.push({ id: 'leather_belt', ch: 0.001 }); }) },
 };
 
 const argv = process.argv.slice(2);

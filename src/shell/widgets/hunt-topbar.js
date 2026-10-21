@@ -17,6 +17,7 @@ import { takeFresh } from '../../hunt-view/summary-recorder.js?v=0.2.24';
 import { track } from '../../net/observability.js?v=0.2.24';
 import { refusalText } from '../intent-words.js?v=0.2.24';
 import { pointerFor } from '../launcher.js?v=0.2.24';
+import { deathPopupOf } from '../death-popup.js?v=0.2.24';
 
 /* The pending leave's line, per CharacterSession.leaveCountdown phase (null: the press is still out). */
 const LEAVING = Object.freeze({ asked: 'Leaving…', now: 'Leaving now…', late: 'Still processing your leave…' });
@@ -36,7 +37,9 @@ export function renderHuntTopbar() {
 }
 
 renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
-  if (takeFresh(ctx.character)) queueMicrotask(() => ctx.wm.open('hunt-summary'));
+  /* A freshly ended hunt opens its summary, unless the hero died: the death popup comes first, and its
+     "Hunt summary" button opens the summary (Tyler 2026-10-19). */
+  if (takeFresh(ctx.character) && !deathPopupOf(ctx.character) && !ctx.wm.isOpen('death')) queueMicrotask(() => ctx.wm.open('hunt-summary'));
   const h = huntOf(ctx.character);
   const a = analyzerOf(ctx.character);
   const ground = h && h.huntId && HUNT_INDEX[h.huntId];

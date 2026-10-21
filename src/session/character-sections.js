@@ -13,7 +13,9 @@
 //                     damage: { min, max }, accuracy_pct, crit_pct, defence, set,
 //                     xp: { perks, buffs, combat } }
 //   outfit          { worn: id | null, colors: { region: dye index }, owned: [id] }
-//   death_log       [{ id, at, hunt, monster, xp, xp_lost }] newest first
+//   death_log       [{ id, at, hunt, session, monster, xp, xp_lost, saved }] newest first;
+//                   saved = what a Blessing kept, null when none was used
+//                   (2026-11-07-death-popup-blessing.sql)
 //   state.level_xp  the character's Level XP (kills only, CORE_MODEL.md §1): the Level and
 //                   its progress are read off it on the shared curve (src/core/xp.js, the
 //                   curve hr_char_level uses), never counted in the browser.
@@ -91,7 +93,16 @@ export function outfitOf(cs) {
   return { worn: id(o.worn), colors, owned: new Set(Array.isArray(o.owned) ? o.owned.map(id).filter(Boolean) : []) };
 }
 
-/** `death_log`: [{ id, atMs, hunt, monster, xp, xpLost }] newest first, or null. */
+const SESSION = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+/* An XP map { level|skill: xp }: positive whole numbers only. */
+const xpMap = (o) => {
+  const out = {};
+  if (isObj(o)) for (const [k, v] of Object.entries(o)) if (/^[a-z_]{1,32}$/.test(k) && nat(v)) out[k] = v;
+  return out;
+};
+
+/** `death_log`: [{ id, atMs, hunt, session, monster, xp, xpLost, saved }] newest first, or null.
+ *  saved: the XP a Blessing kept ({} = it kept nothing), null when no Blessing was used. All the server's. */
 export function deathLogOf(cs) {
   const d = read(cs, 'death_log');
   if (!Array.isArray(d)) return null;
@@ -100,9 +111,8 @@ export function deathLogOf(cs) {
     if (!isObj(r) || nat(r.id) === null) continue;
     const at = typeof r.at === 'string' ? Date.parse(r.at) : NaN;
     if (!Number.isFinite(at)) continue;
-    const lost = {};
-    if (isObj(r.xp_lost)) for (const [k, v] of Object.entries(r.xp_lost)) if (/^[a-z_]{1,32}$/.test(k) && nat(v)) lost[k] = v;
-    out.push({ id: r.id, atMs: at, hunt: id(r.hunt), monster: id(r.monster), xp: nat(r.xp), xpLost: lost });
+    out.push({ id: r.id, atMs: at, hunt: id(r.hunt), session: typeof r.session === 'string' && SESSION.test(r.session) ? r.session : null,
+      monster: id(r.monster), xp: nat(r.xp), xpLost: xpMap(r.xp_lost), saved: isObj(r.saved) ? xpMap(r.saved) : null });
   }
   return out;
 }

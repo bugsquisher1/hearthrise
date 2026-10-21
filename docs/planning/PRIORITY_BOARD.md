@@ -77,6 +77,21 @@ Other floors after the change: Sewer solo Melee +32% (no drinks, unchanged); Sew
    `practice_cap` "Practice Cap" helmet defB 2 · `practice_jerkin` "Practice Jerkin" body defB 3 · `practice_leggings` "Practice Leggings" pants defB 2 · `practice_boots` "Practice Boots" boots defB 2 (= the leather set's defence, which the starter-weapon Melee survives the solo Sewer hour in at +42%).
    They start WORN (`START_EQUIPMENT` helmet/body/pants/boots beside the practice sword and shield), so the first Sewer run needs no bag trip. ONE set serves all six weapon sets. Source: the kit only; no vendor value, bound, so no faucet. Art reuses the leather icons until the Art Director paints them.
    Also fixed on this branch: `supplies.js` BAG_GUIDE_BY_HUNT `millrace_sewer` magic ammo is 1,500 Fire Runes → the free Air Rune rung (no Sewer spell spends a rune now).
+   **Superseded by Tyler 2026-10-21:** a fresh solo Melee starts in Meadowbrook Thicket; the Sewer is the first party ground (the spider nerf is withdrawn). The tutorial chain is re-sequenced to match (`src/data/hunt-tutorial.js`). Walk-through: a solo start-kit Melee on the real settle, armour lane's kit.
+
+   | # | Card | Player does | Server fact that completes it | Minutes |
+   |---|---|---|---|---|
+   | 1 | to_the_cellar | opens Hunts, picks Mill Cellar | hunt session on `mill_cellar` | ~0.5 (a click) |
+   | 2 | first_kill | watches | kill count +1 | 0.05 (3 s) |
+   | 3 | first_level | keeps hunting | a level rose (Level 2) | 0.3 |
+   | 4 | earn_the_thicket | keeps hunting | Level ≥ 5 (Thicket floor) | ~14 more (Level 5 at 14.7) |
+   | 5 | leave_cellar | Leave hunt | session ended `left` | ~0.5 (next settle) |
+   | 6 | set_the_bar | Any food + My HP % below 60 | the stored bar holds a conditioned slot | ~1 |
+   | 7 | into_the_thicket | picks Meadowbrook Thicket | hunt session on `meadowbrook_thicket` | ~0.5 |
+   | 8 | earn_the_sewer | keeps hunting, 0 deaths in 3 h | Level ≥ 8 (Sewer floor) | 23 (Level 5 → 8) |
+   | 9 | go_below | forms a party, picks The Sewer | hunt session on `millrace_sewer` | party-dependent |
+
+   About 40 minutes of hunting to card 9. The two Sewer pull cards (first room, Rat King) are cut. The King's pocket is `minParty: 2`, so a solo hero could never finish that card. He becomes card 9's party goal in its text. The walk-through test now refuses a pull card on a party-only pocket. Mutants: the King card back; the Thicket skipped. The old card said "fire glances off him", but the engine has no basis for it: abilities use element `'fire'`/`'nature'` while monster rows and `combat.js` use `'ember'`/`'frost'`/`'poison'`, so Fireball ignores the King's ember resist. That's a Systems bug, and the text was dropped.
 3. **P2: the guided path ends after card one.** `src/shell/launcher.js` shows only `HUNT_TUTORIAL[0]`. The eight later cards never show: Sewer unlocks at 8, Leave to cash in, set the bar (Tyler: "the tutorial teaches the condition builder"), the Rat King. After the first kill nothing says what to do next. Hand-off: Systems (wiring) + Art Director (coach card).
 
 ## Backlog

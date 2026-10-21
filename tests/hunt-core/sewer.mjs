@@ -268,6 +268,9 @@ const cases = {
         if (!M.cm.METRICS.some((m) => m.id === 'self_hp_pct')) return s.id + ': the condition the card names is not in the registry';
       } else if (d.kind === 'pull') {
         if (can.inHunt !== M.grounds.HUNT_GROUNDS[d.ground].hunt) return s.id + ': not hunting ' + d.ground;
+        /* The chain is walked by a fresh SOLO hero (Tyler 2026-10-21): a party-only pocket is a card he can never finish. */
+        const pk = M.grounds.HUNT_GROUNDS[d.ground].pockets[d.pocket];
+        if (pk && (pk.minParty || 1) > 1) return s.id + ': pocket ' + d.pocket + ' of ' + d.ground + ' needs a party of ' + pk.minParty;
         const route = M.grounds.HUNT_GROUNDS[d.ground].route;
         const prev = can.pulled.length ? route.indexOf(can.pulled[can.pulled.length - 1]) : -1;
         if (route.indexOf(d.pocket) <= prev) return s.id + ': pocket ' + d.pocket + ' comes before one already reached';
@@ -352,6 +355,11 @@ const mutants = [
     edits: [['src/data/hunt-grounds.js', 'perHeroPermille: 150', 'perHeroPermille: 0']] },
   { name: 'the tutorial sends a fresh character to the sewer first', case: 'tutorial-walk-through',
     edits: [['src/data/hunt-tutorial.js', "{ kind: 'enter', hunt: 'mill_cellar' }", "{ kind: 'enter', hunt: 'millrace_sewer' }"]] },
+  { name: 'the party-only Rat King card is back in the solo chain', case: 'tutorial-walk-through',
+    edits: [['src/data/hunt-tutorial.js', "'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' }),",
+      "'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' }),\n  step('the_king', 'The Rat King', 'The last room is his.', 'world', { kind: 'pull', ground: 'millrace_sewer', pocket: 5 }),"]] },
+  { name: 'the Thicket is skipped: the cellar unlocks the sewer', case: 'tutorial-walk-through',
+    edits: [['src/data/hunt-tutorial.js', "{ kind: 'unlock', hunt: 'meadowbrook_thicket' }", "{ kind: 'unlock', hunt: 'millrace_sewer' }"]] },
   { name: 'the sewer opens to a fresh character', case: 'tutorial-walk-through',
     edits: [['src/data/hunts.js', 'band: [8, 25],', 'band: [1, 25],']] },
 ];

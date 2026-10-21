@@ -78,6 +78,8 @@
 .ht-ground { font-family: var(--f-label); font-weight: 700; font-size: var(--t-small); letter-spacing: .04em; color: var(--gold-2); white-space: nowrap; }
 .ht-clock { font-variant-numeric: lining-nums tabular-nums; color: var(--ink-2); font-size: var(--t-micro); white-space: nowrap; padding-right: 4px; margin-right: 2px; border-right: 1px solid var(--line-soft); }
 .ht-bar .hh-intent-msg { max-width: 220px; }
+/* The pending leave's countdown beside Leave hunt: gold label text (the bar's own ground-name ink), tabular seconds. */
+.ht-leaving { font-family: var(--f-label); font-weight: 700; font-size: var(--t-small); color: var(--gold-2); font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
 
 /* ── Party board ── */
 .hp-party { width: 250px; }

@@ -6,7 +6,7 @@
 //   node tests/hunt-scene-live.mjs --node     the node rules only
 //   node tests/hunt-scene-live.mjs --mutate   every planted defect must turn its rule RED
 //
-// mutant-anchors: src/session/character-session.js src/session/live-link.js src/session/config.js src/session/hunt-sections.js src/shell/widgets/action-bar.js src/hunt-view/scene.js src/hunt-view/timeline.js src/hunt-view/live-engine.js
+// mutant-anchors: src/session/character-session.js src/session/hunt-poll.js src/session/live-link.js src/session/config.js src/session/hunt-sections.js src/shell/widgets/action-bar.js src/hunt-view/scene.js src/hunt-view/timeline.js src/hunt-view/live-engine.js
 // mutant-writes-tree: no — mutants are planted into a temp copy of src/
 //
 // The REAL CharacterSession, timeline, live engine and scene over a scripted
@@ -606,7 +606,7 @@ const MUTANTS = [
   ['the live ask gives up after two tries (LV-7)', 'src/session/live-link.js', '    return Math.min(SESSION_CONFIG.huntPollMs, Math.max(back, until));', '    return this._tries > 2 ? null : SESSION_CONFIG.liveAskMs;', /^LV-7/],
   ["a matching start point's seeds are dropped (LV-8)", 'src/session/live-link.js', '&& this._judge({ world_swing: i.world_swing, world_hash: i.world_hash, seeds: body.hunt_live.seeds }) ===', '&& this.engine.check({ world_swing: i.world_swing, world_hash: i.world_hash }) ===', /^LV-8/],
   ['missed swings are played at once (LV-10)', 'src/session/live-link.js', '    if (this.engine.behindMs(now) > this._tl.delayMs()) {', '    if (false) {', /^LV-10/],
-  ['the poll waits for the ordinary poll however short the look-ahead (LV-11)', 'src/session/character-session.js', ', this.liveLink.refillDelayMs() ?? SESSION_CONFIG.huntPollMs);', ', SESSION_CONFIG.huntPollMs);', /^LV-11/],
+  ['the poll waits for the ordinary poll however short the look-ahead (LV-11)', 'src/session/hunt-poll.js', ', liveLink.refillDelayMs() ?? SESSION_CONFIG.huntPollMs);', ', SESSION_CONFIG.huntPollMs);', /^LV-11/],
   ['a death inside a catch-up is not played (LV-12)', 'src/session/live-link.js', '    for (const ev of res.kills) {', '    for (const ev of []) {', /^LV-12/],
   ['a dropped event stays remembered (LV-12)', 'src/hunt-view/timeline.js', '{ seen.delete(queue[i].key); queue.splice(i, 1); }', '{ queue.splice(i, 1); }', /^LV-12/],
   ['a revived monster pops up (LV-13)', 'src/hunt-view/scene.js', '        if (t !== null) risen.set(u, t);\n', '', /^LV-13/],

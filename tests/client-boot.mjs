@@ -180,12 +180,15 @@ async function checks(overrides) {
         await page.click('[data-app="create"][data-slot="1"]');
         /* The creation step: a name, four colour rows and a preview; nothing is sent before Enter town. */
         const step = await wait(page, () => document.querySelector('.hc-name') && document.querySelectorAll('.hc-region').length === 4 && document.querySelector('.hc-preview'));
-        await page.click('.hc-dye[data-hc-region="body"][data-hc-dye="6"]');
-        await page.click('.hc-confirm');
-        const short = await page.evaluate(() => document.querySelector('.auth-message').textContent);
-        if (!step || o.created.length || !/3 letters/.test(short)) fails.push('B-9 the creation step ' + (step ? 'sent ' + JSON.stringify(o.created) + ' / said "' + short + '" for an empty name' : 'did not open'));
-        await page.fill('.hc-name', 'Fennick');
-        await page.click('.hc-confirm');
+        if (!step) fails.push('B-9 Create did not open the creation step (sent ' + JSON.stringify(o.created) + ')');
+        else {
+          await page.click('.hc-dye[data-hc-region="body"][data-hc-dye="6"]');
+          await page.click('.hc-confirm');
+          const short = await page.evaluate(() => document.querySelector('.auth-message').textContent);
+          if (o.created.length || !/3 letters/.test(short)) fails.push('B-9 the creation step sent ' + JSON.stringify(o.created) + ' / said "' + short + '" for an empty name');
+          await page.fill('.hc-name', 'Fennick');
+          await page.click('.hc-confirm');
+        }
         const played = await wait(page, () => document.querySelector('#panel-world[data-slot="1"]'));
         const c = o.created[0];
         if (o.created.length !== 1 || c.slot !== 1 || c.name !== 'Fennick' || !c.colors || c.colors.body !== 6 || Object.keys(c.colors).join() !== 'head,body,legs,feet' || !played)

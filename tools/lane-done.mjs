@@ -23,9 +23,22 @@
 // that plants into the tree runs solo. A proof guard with no derivable or declared
 // anchor set is itself a RED step. `--scoped-only` runs just those; `--changed
 // <file> …` replaces the diff (the end-to-end arm of guard-anchors --selftest).
+//
+// THE BASE (2026-10-20). "This lane's diff" is measured from its INTEGRATION base:
+// the newest of origin/next and any local set/v* that is under HEAD and contains
+// origin/main, else origin/main (tools/guard-anchors.mjs laneBase). A lane built on
+// an unreleased set no longer re-proves the whole set: the proofs whose anchors the
+// SET moved are proven by the set's own run (the Coordinator's guards-for on the set,
+// then GitHub on next/release), so this narrows to the lane's own change, it does not
+// skip a proof. `--base <ref>` / HR_LANE_BASE=<ref> pick the base (`--base origin/main`
+// re-proves everything since main); the base used is printed.
+//
+// ONE AT A TIME (2026-10-20). A machine-wide lock (<git-common-dir>/hr-lane-done.lock,
+// tools/verdict-cache.mjs) makes a second lane-done wait for the first and then reuse
+// its cached greens instead of both starting cold. `--no-lock` opts out.
 import { spawn } from 'node:child_process';
 import { availableParallelism } from 'node:os';
-import { verdictKey, lookup, record } from './verdict-cache.mjs';
+import { verdictKey, lookup, record, acquireRunLock } from './verdict-cache.mjs';
 import { scopedProofs } from './guard-anchors.mjs';
 
 // What a chain replay reads besides its own import closure.
@@ -115,7 +128,10 @@ const argv = process.argv.slice(2);
 const FAIL_FAST = argv.includes('--fail-fast');
 const SCOPED_ONLY = argv.includes('--scoped-only');
 const chAt = argv.indexOf('--changed');
-const CHANGED = chAt >= 0 ? argv.slice(chAt + 1).filter((a) => !a.startsWith('-')) : null;
+const bAt = argv.indexOf('--base');
+const BASE = bAt >= 0 ? argv[bAt + 1] : (process.env.HR_LANE_BASE || null);
+if (bAt >= 0 && (!BASE || BASE.startsWith('-'))) { console.log('usage: --base <ref>'); process.exit(2); }
+const CHANGED = chAt >= 0 ? argv.slice(chAt + 1).filter((a, i, all) => !a.startsWith('-') && all[i - 1] !== '--base') : null;
 if (argv.includes('--no-cache')) process.env.HR_VERDICT_CACHE = '0';
 const jAt = argv.indexOf('-j');
 const POOL = jAt >= 0 && Number(argv[jAt + 1]) >= 1 ? Number(argv[jAt + 1])
@@ -135,13 +151,23 @@ function run(cmd, args) {
 let red = 0;
 let stop = false;
 
+/* A lane-done started BY a guard this run is running (guard-anchors' end-to-end arm)
+   must not wait on its own parent: the holder's PID is passed down in HR_LANE_DONE_LOCK. */
+if (!argv.includes('--no-lock') && !process.env.HR_LANE_DONE_LOCK) {
+  await acquireRunLock(undefined, { onWait: (h) => console.log(`waiting for ${h.worktree} lane-done, started `
+    + `${new Date(h.at).toTimeString().slice(0, 5)} (pid ${h.pid}; --no-lock to run alongside)`) });
+  process.env.HR_LANE_DONE_LOCK = String(process.pid);
+}
+
 /* The scoped proofs, after the fixed list; a step the list already runs is not run twice. */
-const scoped = scopedProofs(process.cwd(), { changed: CHANGED });
+const scoped = scopedProofs(process.cwd(), { changed: CHANGED, baseRef: BASE });
 const fixed = new Set(STEPS.map(([c, a]) => `${c} ${a.join(' ')}`));
 const SCOPED = scoped.steps
   .map((s) => ['node', [s.guard, ...(s.arm ? [s.arm] : [])], { inputs: [...CHAIN, 'src', ...s.anchors], solo: s.solo }])
   .filter(([c, a]) => !fixed.has(`${c} ${a.join(' ')}`));
 const PLAN = SCOPED_ONLY ? SCOPED : [...STEPS, ...SCOPED];
+console.log(CHANGED ? 'base: none (--changed names the files)'
+  : `base: ${scoped.baseRef || '?'} (${String(scoped.base).slice(0, 9)})${BASE ? '' : " — the lane's integration base; --base <ref> to change"}`);
 console.log(`scoped proofs: ${SCOPED.length} arm(s) anchored on ${(scoped.changed || []).length} changed file(s)`
   + (SCOPED.length ? ' — ' + SCOPED.map(([, a]) => a[0].replace(/^(tests|tools)\//, '')).join(', ') : ''));
 for (const p of scoped.error ? [scoped.error] : scoped.errors) {

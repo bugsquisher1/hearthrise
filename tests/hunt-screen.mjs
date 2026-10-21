@@ -52,7 +52,7 @@
 //         leader_density) with no step and sends nothing; the leader keeps its step
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
-import { launchOptions } from './_chrome.mjs';
+import { leaseBrowser } from './_chrome.mjs';
 import { readFile, mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
@@ -127,7 +127,7 @@ async function checks(overrides, shots) {
   const fails = [];
   const { server, port } = await serve(overrides);
   const base = 'http://127.0.0.1:' + port;
-  const browser = await chromium.launch(launchOptions({ headless: true }));
+  const browser = await leaseBrowser(chromium);
   const open = async (o = {}) => {
     const ctx = await browser.newContext({ viewport: o.viewport || { width: 1440, height: 900 } });
     const page = await ctx.newPage();

@@ -16,10 +16,11 @@
 //                       ONLY the start kit, plays the hour on the real settle (play-ground.mjs) with no death, on
 //                       each of the designer's six seeds (designer pass 2026-10-21, Tyler: solo first)
 //   first-grounds-net-chain  net gold per hero-hour (coin + commons - store) at each first ground's floor never
-//                       drops along the start flow, Cellar (L1, solo, start kit) -> Thicket (L5, solo, start kit)
-//                       -> Sewer (L8, party of four, the smiths' ladder kit: the drop-tables reference), the median
-//                       of the six seeds per ground; and +25% over the bill (a minimum) wherever the bill is at
-//                       least a quarter of the income (designer pass 2026-10-21)
+//                       drops along the start flow, Cellar (L1, solo) -> Thicket (L5, solo) -> Sewer (L8, party of
+//                       four), every floor in the reference kit (play-ground's smiths' ladder kit, the kit every
+//                       ground's numbers use; Coordinator 2026-10-21: the start kit is its own check above), the
+//                       median of the six seeds per ground; and +25% over the bill (a minimum) wherever the bill is
+//                       at least a quarter of the income (designer pass 2026-10-21)
 //
 // `--play` runs each ground ONCE on the real engine (supabase/functions/hr-accrue accrueHunt, the world
 // tick's settle): a fresh solo hero from the start kit in the forest, a four-hero party in the cave,
@@ -39,10 +40,9 @@ const RING8 = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1,
 const STARTER_SEEDS = Object.freeze(['-4611686018427387904', '1234567890123', '-987654321987', '42', '7777777777777', '-31415926535']);
 const STARTER_MARGIN_MIN = 25;
 const BILL_SHARE_FOR_MARGIN = 0.25;   // the margin floor applies where store >= 25% of income
-/* The start flow's grounds in order: [ground, roles, kit] (kit 'start' = start-kit.js START_EQUIPMENT, 'ladder' =
-   play-ground's smiths' ladder kit; the start-kit party wipes in the Sewer, so the party reference wears the ladder). */
-const FIRST_CHAIN = Object.freeze([['mill_cellar', ['tank'], 'start'], ['meadowbrook_thicket', ['tank'], 'start'],
-  ['millrace_sewer', ['tank', 'ranger', 'mage', 'healer'], 'ladder']]);
+/* The start flow's grounds in order: [ground, roles], each played at its floor in the reference (ladder) kit. */
+const FIRST_CHAIN = Object.freeze([['mill_cellar', ['tank']], ['meadowbrook_thicket', ['tank']],
+  ['millrace_sewer', ['tank', 'ranger', 'mage', 'healer']]]);
 const median = (a) => { const v = [...a].sort((x, y) => x - y); return v.length % 2 ? v[(v.length - 1) / 2] : (v[v.length / 2 - 1] + v[v.length / 2]) / 2; };
 
 async function load(root) {
@@ -281,18 +281,18 @@ cases['thicket-solo-starter-kit'] = async (M) => {
 cases['first-grounds-net-chain'] = async (M) => {
   const P = await playOf(M);
   const bad = [], rows = [];
-  for (const [gid, roles, kit] of FIRST_CHAIN) {
+  for (const [gid, roles] of FIRST_CHAIN) {
     const floor = floorOf(M, gid), nets = [];
     for (const secret of STARTER_SEEDS) {
-      const x = P.run(gid, floor, roles, { spanMs: 3600000, secret, ...(kit === 'start' ? { equipment: M.kit.START_EQUIPMENT } : {}) });
+      const x = P.run(gid, floor, roles, { spanMs: 3600000, secret });
       nets.push(x.income - x.store);
       if (x.store >= BILL_SHARE_FOR_MARGIN * x.income && (x.income / x.store - 1) * 100 < STARTER_MARGIN_MIN) {
         bad.push(gid + ' seed ' + secret + ': ' + Math.round((x.income / x.store - 1) * 100) + '% over a bill that is ' + Math.round(100 * x.store / x.income) + '% of income, under +' + STARTER_MARGIN_MIN + '%');
       }
     }
-    rows.push({ gid, floor, n: roles.length, kit, net: median(nets), nets });
+    rows.push({ gid, floor, n: roles.length, net: median(nets), nets });
   }
-  console.log('    net g per hero-hour at the floor (6-seed median): ' + rows.map((r) => r.gid + ' L' + r.floor + (r.n > 1 ? ' party' : ' solo') + ' ' + r.kit + ' ' + r.net + ' [' + r.nets.join(' ') + ']').join(' -> '));
+  console.log('    net g per hero-hour at the floor (6-seed median): ' + rows.map((r) => r.gid + ' L' + r.floor + (r.n > 1 ? ' party' : ' solo') + ' ' + r.net + ' [' + r.nets.join(' ') + ']').join(' -> '));
   for (let i = 1; i < rows.length; i++) {
     if (rows[i].net < rows[i - 1].net) bad.push(rows[i].gid + ' nets ' + rows[i].net + ' g/h, under ' + rows[i - 1].gid + "'s " + rows[i - 1].net + ' before it');
   }

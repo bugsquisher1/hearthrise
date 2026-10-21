@@ -19,20 +19,20 @@
 // hr_closed); the first such answer replaces everything with the closed notice.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPABASE_CONFIG, createSupabaseClient } from '../net/supabase-bootstrap.js?v=0.2.20';
-import { createAuth } from '../net/auth.js?v=0.2.20';
-import { SESSION_CONFIG } from '../session/config.js?v=0.2.20';
-import { createServerLink } from '../session/server.js?v=0.2.20';
-import { AccountSession } from '../session/account-session.js?v=0.2.20';
-import { FRAME_EVENT } from '../session/character-session.js?v=0.2.20';
-import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.20';
-import { mountWorldPane } from './world-pane.js?v=0.2.20';
-import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.20';
-import { createAlertCenter } from '../shell/alerts.js?v=0.2.20';
-import { createSocialRealtime } from '../social/realtime.js?v=0.2.20';
-import { SocialSession } from '../social/social-session.js?v=0.2.20';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.20';
-import { startObservability, track } from '../net/observability.js?v=0.2.20';
+import { SUPABASE_CONFIG, createSupabaseClient } from '../net/supabase-bootstrap.js?v=0.2.21';
+import { createAuth } from '../net/auth.js?v=0.2.21';
+import { SESSION_CONFIG } from '../session/config.js?v=0.2.21';
+import { createServerLink } from '../session/server.js?v=0.2.21';
+import { AccountSession } from '../session/account-session.js?v=0.2.21';
+import { FRAME_EVENT } from '../session/character-session.js?v=0.2.21';
+import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.21';
+import { mountWorldPane } from './world-pane.js?v=0.2.21';
+import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.21';
+import { createAlertCenter } from '../shell/alerts.js?v=0.2.21';
+import { createSocialRealtime } from '../social/realtime.js?v=0.2.21';
+import { SocialSession } from '../social/social-session.js?v=0.2.21';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.21';
+import { startObservability, track } from '../net/observability.js?v=0.2.21';
 
 const DISCORD = 'https://discord.gg/eJrUSUJM3M';
 
@@ -64,6 +64,7 @@ function startApp(win) {
   let strip = null;
   let paneSeq = 0;
   let openAfter = null;
+  let rosterSlots = [];   // the account's existing characters, as the roster last read them
 
   const recovering = /type=recovery/.test(win.location.hash);
 
@@ -127,6 +128,7 @@ function startApp(win) {
     const a = account;
     const roster = await a.roster();
     if (a !== account || a.closedGame) return;
+    rosterSlots = roster.filter((r) => r.exists).map((r) => r.slot);
     const open = new Set(a.characters().map((c) => c.slot));
     /* Each owned slot: its hero by name and Level (the server's), or an empty slot to create in.
        Every account owns two (Tyler 10-17); slots it has not bought are not shown until buying them is built. */
@@ -154,6 +156,8 @@ function startApp(win) {
     }
     account.view(slot);
     await showGame();
+    /* the account's other characters play too (in town for everyone), unviewed */
+    if (account) await account.openOthers(rosterSlots);
   }
 
   /* The game screen: the strip once, then the viewed character's pane. */

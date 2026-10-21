@@ -16,6 +16,8 @@
 // The token is asked for on every call (it refreshes); no token, no request.
 // ════════════════════════════════════════════════════════════════════════
 
+import { SUPABASE_CONFIG } from '../net/supabase-bootstrap.js?v=0.2.21';
+
 export const CLOSED_CODE = 'hr_closed';
 export const CLOSED_STATUS = 403;
 
@@ -57,6 +59,6 @@ export function createServerLink(o) {
       if (!/^[a-z_][a-z0-9_]*$/.test(String(name))) return Promise.resolve({ ok: false, status: 0, error: 'bad_rpc', closed: false });
       return post('/rest/v1/rpc/' + name, args);
     },
-    accrue: (body) => post('/functions/v1/hr-accrue', body),
+    accrue: (body) => post('/functions/v1/hr-accrue?forceFunctionRegion=' + SUPABASE_CONFIG.functionRegion, body),
   });
 }

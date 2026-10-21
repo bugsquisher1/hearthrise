@@ -23,7 +23,7 @@
 //         controls stay off and the window says the server has not priced them
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
-import { launchOptions } from './_chrome.mjs';
+import { leaseBrowser } from './_chrome.mjs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
@@ -43,7 +43,7 @@ async function stub(page, s) {
   await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
   await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
   await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
-    const name = r.request().url().split('/').pop();
+    const name = r.request().url().split('?')[0].split('/').pop();
     const body = JSON.parse(r.request().postData() || '{}');
     s.calls.push({ name, body });
     const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
@@ -67,7 +67,7 @@ async function signInAndPlay(page, base) {
 async function checks(overrides) {
   const fails = [];
   const { server, port } = await serve(overrides);
-  const browser = await chromium.launch(launchOptions({ headless: true }));
+  const browser = await leaseBrowser(chromium);
   const open = async (sections) => {
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const page = await ctx.newPage();

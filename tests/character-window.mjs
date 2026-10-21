@@ -34,7 +34,7 @@
 //         its kind ("Bronze Axe (woodcutting tool)")
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
-import { launchOptions } from './_chrome.mjs';
+import { leaseBrowser } from './_chrome.mjs';
 import { readFile, mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -70,7 +70,7 @@ async function stub(page, s) {
   await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
   await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
   await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
-    const name = r.request().url().split('/').pop();
+    const name = r.request().url().split('?')[0].split('/').pop();
     const body = JSON.parse(r.request().postData() || '{}');
     s.calls.push({ name, body });
     const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
@@ -79,6 +79,9 @@ async function stub(page, s) {
     if (name === 'hr-accrue') {
       /* The sheet verb answers at the SAME version (the put moves no version) and, here, still stale. */
       if (body.verb === 'sheet') { await new Promise((ok) => setTimeout(ok, s.sheetDelay || 200)); return json(Object.assign(clone(s.env), { version: s.version, verb: 'sheet', client_state: clone(s.residue) })); }
+      /* A plain ask under the settle floor writes nothing and restates the version (hunt-settle.js
+         below_min_span): the open hunt's live ask re-asks with back-off until a start point comes. */
+      if (!body.verb) return json(Object.assign(clone(s.env), { ok: true, settled: false, reason: 'below_min_span', version: s.version, client_state: clone(s.residue) }));
       return json(Object.assign({ accrued: true }, s.next()));
     }
     if (name === 'hr_outfit_set') { await new Promise((ok) => setTimeout(ok, 300)); return json({ ok: true }); }
@@ -141,7 +144,7 @@ async function checks(overrides, shots) {
   const fails = overrides ? [] : await pure();
   const { server, port } = await serve(overrides || {});
   const base = 'http://127.0.0.1:' + port;
-  const browser = await chromium.launch(launchOptions({ headless: true }));
+  const browser = await leaseBrowser(chromium);
   const open = async (o = {}) => {
     const ctx = await browser.newContext({ viewport: o.viewport || { width: 1440, height: 900 } });
     const page = await ctx.newPage();

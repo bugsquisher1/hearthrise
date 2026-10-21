@@ -39,17 +39,17 @@
 // window, no timers, no Math.random.
 // ============================================================
 
-import { COMBAT_BALANCE } from './combat.js?v=0.2.20';
-import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.20';
-import { createRng } from './rng.js?v=0.2.20';
-import { densityFor } from '../data/hunt-grounds.js?v=0.2.20';
-import { stepSwing } from './hunt/world-step.js?v=0.2.20';
-import { makeEvent, trackStep } from './hunt/events.js?v=0.2.20';
-import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.20';
-import { rewardSwing } from './hunt-rewards.js?v=0.2.20';
+import { COMBAT_BALANCE } from './combat.js?v=0.2.21';
+import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.21';
+import { createRng } from './rng.js?v=0.2.21';
+import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.21';
+import { stepSwing } from './hunt/world-step.js?v=0.2.21';
+import { makeEvent, trackStep } from './hunt/events.js?v=0.2.21';
+import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.21';
+import { rewardSwing } from './hunt-rewards.js?v=0.2.21';
 
 /* The engine's front door (src/core/index.js `combatSim`). */
-export { stepSwing } from './hunt/world-step.js?v=0.2.20';
+export { stepSwing } from './hunt/world-step.js?v=0.2.21';
 
 /* WHY A COMBAT SPAN STOPPED BEFORE THE WINDOW DID — the same contract
    src/core/skill-sim.js and src/core/artisan-sim.js publish under this name.
@@ -66,6 +66,10 @@ function seedOf(ctx, domain, index) {
   }
   return v;
 }
+
+/* The pull's pick of these members: the party leader's (hunt-grounds.js partyPick). The SAME call on
+   the server's settle and the browser's live view (a peer's `hero` carries `lead`, member.js FROZEN_KEYS). */
+const picker = (ms) => partyPick(ms.map((x) => ({ density: x.hero.density, lead: x.hero.lead === true, seat: x.seat })));
 
 /* A member's hero, as world-state wants it, from the member's server state. */
 function heroOf(m) {
@@ -194,7 +198,11 @@ export function simulateHuntInstance(inst, ctx) {
       m.hs.nextSwingAtMs = atMs + tick;
       if (m.unitId === null) {
         if (!world) {
-          world = newHuntWorld(ctx.ground, ctx.grid, [heroOf(m)]);
+          /* The first packs spawn at the ENTERING party's density (its leader's pick, clamped for their
+             number), the same number every respawn reads below, never the first hero's pick alone. */
+          const standing = members.filter((x) => !x.left);
+          world = newHuntWorld(ctx.ground, ctx.grid, [heroOf(m)],
+            { density: densityFor(ctx.ground, standing.length, picker(standing)) });
           /* A restarted instance's fresh world counts on from its stored swing (the seed index never repeats). */
           world.swing = Math.max(0, Math.floor(Number(inst.worldSwing) || 0));
           m.unitId = world.units[0].id; anchor(atMs); seen();
@@ -236,10 +244,10 @@ export function simulateHuntInstance(inst, ctx) {
           range: m.hero.range, rollsVs: m.rollsVs, ammo: m.hero.ammo, items: ctx.items || null,
           foodBelowPct: m.hero.foodBelowPct, drinkBelowPct: m.hero.drinkBelowPct };
       }
-      /* MONSTER DENSITY for the packs that spawn from here: the standing members' smallest
-         pick, clamped to the ground for the party's size (hunt-grounds.js densityFor). */
+      /* MONSTER DENSITY for the packs that spawn from here: the party leader's pick (Tyler 2026-10-20),
+         clamped to the ground for the party's size (hunt-grounds.js partyPick, densityFor). */
       world.density = densityFor(ctx.ground, world.units.filter((u) => u.side === 'hero').length,
-        members.filter((m) => !m.left && m.unitId !== null).map((m) => m.hero.density));
+        picker(members.filter((m) => !m.left && m.unitId !== null)));
       const r = stepSwing(world, { atMs, swingMs: tick, rng: createRng(seedOf(ctx, 's', sw)),
         ground: ctx.ground, grid: ctx.grid, heroes, ...(typeof ctx.xpMultOf === 'function' ? { xpMultOf: ctx.xpMultOf } : {}) });
       seen();

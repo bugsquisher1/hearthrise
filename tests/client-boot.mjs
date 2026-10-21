@@ -34,7 +34,7 @@
 //        heroes list by name
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
-import { launchOptions } from './_chrome.mjs';
+import { leaseBrowser } from './_chrome.mjs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
@@ -53,7 +53,7 @@ async function stubServer(page, o) {
     const body = JSON.parse(r.request().postData() || '{}');
     if (o.closed) return r.fulfill({ status: 403, contentType: 'application/json', body: JSON.stringify({ code: 'hr_closed', message: 'closed' }) });
     if (o.heroes) {   // a stateful account: { slot: name } heroes; hr_create_character adds one
-      const name = url.split('/').pop();
+      const name = url.split('?')[0].split('/').pop();
       if (name === 'hr_create_character') { o.created.push(body.p_slot); o.heroes[body.p_slot] = 'New hero'; return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, slot: body.p_slot, created: true }) }); }
       const slot = name === 'hr_load' ? body.p_slot : body.slot;
       if (name === 'hr_load' || name === 'hr-accrue') {
@@ -63,7 +63,7 @@ async function stubServer(page, o) {
       }
     }
     if (url.endsWith('/rpc/hr_load')) return r.fulfill({ contentType: 'application/json', body: JSON.stringify(o.hunt ? Object.assign({}, HUNT, { version: 1 }) : envelope(body.p_slot, 1)) });
-    if (url.endsWith('/functions/v1/hr-accrue')) return r.fulfill({ contentType: 'application/json', body: JSON.stringify(Object.assign({ accrued: true }, o.hunt ? Object.assign({}, HUNT, { version: 2 }) : envelope(body.slot, 2))) });
+    if (url.split('?')[0].endsWith('/functions/v1/hr-accrue')) return r.fulfill({ contentType: 'application/json', body: JSON.stringify(Object.assign({ accrued: true }, o.hunt ? Object.assign({}, HUNT, { version: 2 }) : envelope(body.slot, 2))) });
     return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true }) });
   });
   await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
@@ -75,7 +75,7 @@ async function checks(overrides) {
   const fails = [];
   const { server, port } = await serve(overrides);
   const base = 'http://127.0.0.1:' + port;
-  const browser = await chromium.launch(launchOptions({ headless: true }));
+  const browser = await leaseBrowser(chromium);
   try {
     const fresh = async (o = {}) => {
       const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });

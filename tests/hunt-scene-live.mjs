@@ -6,7 +6,7 @@
 //   node tests/hunt-scene-live.mjs --node     the node rules only
 //   node tests/hunt-scene-live.mjs --mutate   every planted defect must turn its rule RED
 //
-// mutant-anchors: src/session/character-session.js src/session/live-link.js src/session/config.js src/session/hunt-sections.js src/shell/widgets/action-bar.js src/hunt-view/scene.js src/hunt-view/timeline.js
+// mutant-anchors: src/session/character-session.js src/session/live-link.js src/session/config.js src/session/hunt-sections.js src/shell/widgets/action-bar.js src/hunt-view/scene.js src/hunt-view/timeline.js src/hunt-view/live-engine.js
 // mutant-writes-tree: no — mutants are planted into a temp copy of src/
 //
 // The REAL CharacterSession, timeline, live engine and scene over a scripted
@@ -40,7 +40,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
 const LIVE = JSON.parse(readFileSync(join(ROOT, 'tests/fixtures/hunt-envelope-live.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
-const BUDGET = Object.freeze({ maxStepTiles: 0.5, maxEventSpreadMs: 100, gapMedianMs: 25, simBusyFactor: 1.25, simBusySlackMs: 2 });
+const BUDGET = Object.freeze({ speedSlack: 1.05, frameStepTiles: 0.1, lagMs: 2100, maxStepTiles: 0.5, maxEventSpreadMs: 100, gapMedianMs: 25, simBusyFactor: 1.25, simBusySlackMs: 2 });
 const TRAVEL_MS = 20000;   // the server's travel time to Mill Cellar (hr_hunt_travel), as the session states it
 
 async function load(base) {
@@ -52,6 +52,9 @@ async function load(base) {
     S: await u('src/hunt-view/scene.js'),
     B: await u('src/world/core/book.js'),
     SETS: await u('src/data/world/atlas-sets.js'),
+    ROLES: await u('src/data/hunt-roles.js'),
+    GRID: await u('src/core/hunt/grid.js'),
+    HG: await u('src/core/hunt-ground.js'),
     base,
   };
 }
@@ -62,59 +65,83 @@ function bookOf(M) {
   return M.B.createBook(manifests);
 }
 
-/* The character's envelope for a hunt entered at `enteredMs` (travel TRAVEL_MS), its party listing `heroes`. */
-function envFor(nowMs, enteredMs, heroes) {
+/* The character's envelope for a hunt entered at `enteredMs` (its first boundary `fromMs`), its party listing `heroes`. */
+function envFor(nowMs, enteredMs, heroes, fromMs) {
   const e = clone(LIVE);
   e.now = new Date(nowMs).toISOString();
   e.hunt.pose = null;
   e.hunt.hero.unit = null;
   e.hunt.session.entered_at = new Date(enteredMs).toISOString();
-  e.hunt.session.hunt_from = new Date(enteredMs + TRAVEL_MS).toISOString();
+  e.hunt.session.hunt_from = new Date(fromMs ?? enteredMs + TRAVEL_MS).toISOString();
   e.party.members = heroes.map((h, i) => Object.assign(clone(LIVE.party.members[0]), { seat: i, unit: h.unit, name: h.name, weapon: h.weapon }));
   e.party.self = heroes[0].unit; e.party.leader = heroes[0].unit; e.party.max = heroes.length;
   return e;
 }
 
-/* A watched run: Enter at T0 - TRAVEL_MS, the engine starts at T0, the server answers the polls as
-   the edge does (a start point below the floor, a commit with its check past it). */
-async function playLive(M, LM, book, mis, spanMs, onFrame) {
+/* A watched run: Enter at T0 - travelMs (default TRAVEL_MS), the instance's first boundary at T0; the
+   server answers the polls as the edge does (hunt-settle.js: not_due with no start point until the
+   first boundary, a start point below the floor, a commit with its check past it). `opt`:
+     travelMs    how long before the first boundary Enter was pressed
+     viewer      whose start point the session is sent (the viewed member; default the first)
+     otherFirst  another member's client settles the instance as soon as the floor allows, so this
+                 session's polls only ever get start points (live v0.2.20: the leader's tab froze) */
+async function playLive(M, LM, book, mis, spanMs, onFrame, opt) {
+  const o = opt || {};
   const T0 = LIVE_H.T0;
   const srv = LIVE_H.server(LM, mis);
   const OFF = 3000000;
-  const entered = T0 - TRAVEL_MS;
+  const entered = T0 - (o.travelMs ?? TRAVEL_MS);
+  const viewer = o.viewer || mis[0].user;
   const clock = { t: entered - OFF };
   const heroes = () => mis.map((m, i) => ({ unit: m.unitId ?? (i === 0 ? null : null), name: 'Hero ' + (i + 1), weapon: 'sword' }));
   let version = LIVE.version, lastCommit = T0;
-  const env = () => Object.assign(envFor(clock.t + OFF, entered, heroes()), { version: ++version });
+  const windows = new WeakSet();
+  const env = () => Object.assign(envFor(clock.t + OFF, entered, heroes(), T0), { version: ++version });
   const server = {
     rpc: async () => ({ ok: true, body: env() }),
     accrue: async () => {
       const s = clock.t + OFF;
+      if (s <= srv.inst.settled_to_ms) return { ok: true, body: Object.assign(env(), { accrued: false, settled: false, reason: 'not_due' }) };
       if (s >= T0 && s - lastCommit >= 15000) {
         const c = srv.commit(s);
         lastCommit = s;
-        if (c) return { ok: true, body: Object.assign(env(), { accrued: true, settled: true, hunt_check: c.check }, c.tl) };
+        if (c) { windows.add(c.tl.hunt_track); return { ok: true, body: Object.assign(env(), { accrued: true, settled: true, hunt_check: c.check }, c.tl) }; }
       }
-      return { ok: true, body: Object.assign(env(), { accrued: false, settled: false, reason: 'below_min_span', hunt_live: srv.live(mis[0].user) }) };
+      return { ok: true, body: Object.assign(env(), { accrued: false, settled: false, reason: 'below_min_span', hunt_live: srv.live(viewer) }) };
     },
   };
   const timers = [];
   const cs = new M.C.CharacterSession({ slot: 0, uid: '11111111-2222-3333-4444-555555555555', server,
     setTimer: (fn, ms) => { timers.push({ fn, at: clock.t + ms }); return timers.length; }, clearTimer: () => {}, now: () => clock.t });
   await cs.load();
+  /* ONE POSITION SOURCE: a server window played into the timeline while a prediction exists (running,
+     or out of seeds and waiting for its restart) is a second source writing the prediction's units. */
+  const ingest = cs.timeline.ingest;
+  /* NOTHING PLAYED LATE: a batch whose steps lie more than two swings behind the server's clock is the
+     past drawn at once (a restart from an older commit fed swing by swing: the jump catchUp eases). */
+  const sources = { foreign: 0, past: 0 };
+  cs.timeline.ingest = (b, t) => {
+    if (b && windows.has(b.track) && (cs.live.running() || cs.live.stalled())) sources.foreign++;
+    const now = cs.timeline.serverNowAt(t);
+    if (b && Array.isArray(b.track) && now !== null && b.track.some((st) => st.atMs < now - 2 * LM.CB.tickMs)) sources.past++;
+    return ingest(b, t);
+  };
   const scene = M.S.createHuntScene({ timeline: cs.timeline, book, read: () => M.S.readHunt(cs) });
   const played = [];
   cs.timeline.subscribe((ev) => { played.push(ev.atMs); scene.onEvent(ev, cs.now()); });
   for (let s = entered; s < T0 + spanMs; s += 1000 / 60) {
     clock.t = s - OFF;
-    for (let i = 0; i < timers.length; i++) {
+    if (o.otherFirst && s > T0 && s - lastCommit >= 15000) { srv.commit(s); lastCommit = s; }
+    /* `hold` [from, to] (server ms): the network is gone; no poll answers until it returns */
+    const held = o.hold && s >= o.hold[0] && s < o.hold[1];
+    for (let i = 0; i < timers.length && !held; i++) {
       if (timers[i] && timers[i].at <= clock.t) { const t = timers[i]; timers[i] = null; t.fn(); await new Promise((r) => setImmediate(r)); }
     }
     cs.liveAdvance(clock.t);
     const back = cs.takeReseeded(); if (back) scene.revive(back);
     played.length = 0;
     cs.timeline.advance(clock.t);
-    onFrame({ s, f: scene.frame(clock.t), cs, played, T0, entered, mis });
+    onFrame({ s, f: scene.frame(clock.t), cs, played, T0, entered, mis, sources });
   }
   return cs;
 }
@@ -141,7 +168,7 @@ async function nodeRules(M) {
 
   { // LV-1, LV-2, LV-5
     const delay = M.CFG.SESSION_CONFIG.liveDelayMs;
-    let firstDrawn = null, firstWalk = null, travelPlate = 0, travelFrames = 0, firstMove = null, prev = null, maxStep = 0, maxBurst = 0, empty = 0, frames = 0;
+    let firstDrawn = null, firstWalk = null, travelPlate = 0, travelFrames = 0, firstMove = null, prev = null, maxStep = 0, maxSpeed = 0, maxBurst = 0, empty = 0, frames = 0;
     const kinds = new Set(); let bars = 0, badBars = 0, unnamed = 0, liveDelay = null;
     const warn = console.warn; console.warn = () => { unnamed++; };
     try {
@@ -161,6 +188,7 @@ async function nodeRules(M) {
         if (prev && h.unit === prev.unit) {
           const st = Math.hypot(h.x - prev.x, h.y - prev.y);
           maxStep = Math.max(maxStep, st);
+          maxSpeed = Math.max(maxSpeed, st * 60);   // tiles per second (frames 1/60 s apart)
           if (st > 1e-6 && firstMove === null) firstMove = s - T0;
         }
         prev = h;
@@ -183,11 +211,15 @@ async function nodeRules(M) {
     ok('LV-2', firstMove !== null && firstMove <= 1000, `the hero first moved ${firstMove} ms after the engine started (budget 1000)`);
     ok('LV-2', empty === 0, `${empty} frame(s) after the engine started drew no hero`);
     ok('LV-2', maxStep <= BUDGET.maxStepTiles, `a frame moved the hero ${maxStep.toFixed(2)} tiles (budget ${BUDGET.maxStepTiles})`);
+    /* DRAWN AT ITS OWN SPEED (live v0.2.20 "choppy"): every step rolls at the engine's speed, a diagonal
+       too, and the first step is never cut across two tiles (was 4.5 tiles/s on diagonals, 9.1 at the start). */
+    const heroSpeed = M.ROLES.HUNT_ROLES.tank.speed / 1000;
+    ok('LV-2', maxSpeed <= heroSpeed * BUDGET.speedSlack, `the hero was drawn at ${maxSpeed.toFixed(2)} tiles/s (its speed ${heroSpeed}, budget x${BUDGET.speedSlack})`);
     ok('LV-2', maxBurst <= BUDGET.maxEventSpreadMs, `one frame played ${maxBurst} ms of events at once (a burst)`);
     ok('LV-5', unnamed === 0, `${unnamed} unit(s) had no sprite (drawn as nothing; was a brown stub box)`);
     ok('LV-5', kinds.size >= 2, `only ${[...kinds].join(', ')} monsters were drawn`);
     ok('LV-5', bars > 0 && badBars === 0, `${badBars} of ${bars} monster bars were not the HP at the instant shown`);
-    console.log(`  LV-1/2 live: drawn ${firstDrawn} ms and walking ${firstWalk} ms after Enter (travel line ${travelPlate}/${travelFrames}); engine start -> first move ${firstMove} ms; ${frames} frames, max step ${maxStep.toFixed(3)} tiles, widest event frame ${maxBurst} ms, delay ${liveDelay} ms; monsters ${[...kinds].join('/')}, ${bars} bars`);
+    console.log(`  LV-1/2 live: drawn ${firstDrawn} ms and walking ${firstWalk} ms after Enter (travel line ${travelPlate}/${travelFrames}); engine start -> first move ${firstMove} ms; ${frames} frames, max step ${maxStep.toFixed(3)} tiles (${maxSpeed.toFixed(2)} tiles/s), widest event frame ${maxBurst} ms, delay ${liveDelay} ms; monsters ${[...kinds].join('/')}, ${bars} bars`);
   }
 
   { // LV-6
@@ -203,6 +235,147 @@ async function nodeRules(M) {
       else if (process.env.HR_DEBUG && frames % 300 === 0) console.log('    missing', s - T0, JSON.stringify(heroIds), [...drawn].join(','));
     });
     ok('LV-6', frames > 0 && both === frames && heroCount === 2, `both party heroes were drawn in ${both} of ${frames} frames`);
+  }
+
+  { // LV-7 START: Enter 1.5 s before the instance's first boundary (a party join, a quick re-enter): the
+    // floor answers not_due until it; the live engine must still start within a second of the boundary
+    // (v0.2.20 gave up after two asks and played the hunt a whole poll late, or never live).
+    let started = null, moved = null, prev = null;
+    await playLive(M, LM, book, [LIVE_H.memberOf(LM, 'a', 0, 'tank', 6)], 20000, ({ s, f, cs, T0 }) => {
+      if (s < T0) return;
+      if (started === null && cs.live.running()) started = Math.round(s - T0);
+      const h = f.hero;
+      if (h && prev && moved === null && Math.hypot(h.x - prev.x, h.y - prev.y) > 1e-6) moved = Math.round(s - T0);
+      prev = h;
+    }, { travelMs: 1500 });
+    console.log(`  LV-7 start: engine ${started} ms and hero moving ${moved} ms after the first boundary (Enter 1.5 s before it)`);
+    ok('LV-7', started !== null && started <= 1000 && moved !== null && moved <= 1000,
+      `entered 1.5 s before the first boundary, the live engine started ${started} ms and the hero moved ${moved} ms after it (budget 1000)`);
+  }
+
+  { // LV-8 A PARTY VIEWED IN TURN, the viewer's client never landing the settle (another member's
+    // client settles first, so this session only ever gets start points): for EACH member as the viewer,
+    // the prediction never falls behind the server's clock (no freeze) and no unit moves more than a
+    // frame's walk in one frame (no teleport). v0.2.20: the leader's tab froze, then jumped.
+    const mis = () => [LIVE_H.memberOf(LM, 'a', 0, 'tank', 6), LIVE_H.memberOf(LM, 'b', 1, 'melee_dps', 6)];
+    for (const viewer of ['a', 'b']) {
+      let lag = 0, stalled = 0, jump = 0, frames = 0; const prev = new Map();
+      await playLive(M, LM, book, mis(), 70000, ({ s, f, cs, T0 }) => {
+        if (s < T0 + 1000) return;
+        frames++;
+        const now = cs.timeline.serverNowAt(cs.now());
+        if (!cs.live.running()) stalled++;
+        else lag = Math.max(lag, now - cs.live.nextAt());
+        for (const d of [f.hero, ...f.units]) {
+          if (!d || d.under) continue;
+          const q = prev.get(d.unit);
+          if (q) jump = Math.max(jump, Math.hypot(d.x - q.x, d.y - q.y));
+          prev.set(d.unit, { x: d.x, y: d.y });
+        }
+      }, { viewer, otherFirst: true });
+      console.log(`  LV-8 viewer ${viewer} (another client settles first): ${frames} frames, ${stalled} stalled, engine lag max ${Math.round(lag)} ms, largest frame step ${jump.toFixed(3)} tiles`);
+      ok('LV-8', frames > 0 && stalled === 0 && lag <= BUDGET.lagMs, `viewer ${viewer}: the prediction stalled ${stalled} frame(s) and fell ${Math.round(lag)} ms behind the server (budget ${BUDGET.lagMs})`);
+      ok('LV-8', jump <= BUDGET.frameStepTiles, `viewer ${viewer}: a frame moved a unit ${jump.toFixed(2)} tiles (budget ${BUDGET.frameStepTiles})`);
+    }
+  }
+
+  { // LV-10 A RESUME NEVER TELEPORTS: the network drops for 40 s and the prediction runs out of seeds and
+    // stands. (own) The viewer's own settle ends the outage while the prediction waits: that commit's
+    // window (the past 40 s) must not be played into the units the prediction draws, a SECOND POSITION
+    // SOURCE (v0.2.20 fed it as the server-paced view and the hero bounced). (other) Another client kept
+    // settling through the outage, so the restart's start point is from an older commit, behind the
+    // clock: its missed swings are run unplayed and every unit eases on (timeline.js T8), never jumps.
+    for (const other of [false, true]) {
+      let stalled = 0, after = 0, jump = 0, frames = 0, foreign = 0, past = 0; const prev = new Map();
+      const warn = console.warn; console.warn = () => {};
+      try {
+        await playLive(M, LM, book, [LIVE_H.memberOf(LM, 'a', 0, 'tank', 6)], 70000, ({ s, f, cs, T0, sources }) => {
+          foreign = sources.foreign; past = sources.past;
+          if (s < T0 + 1000) return;
+          if (!cs.live.running()) stalled++;
+          const back = s >= T0 + 50000;
+          if (back) frames++;
+          for (const d of [f.hero, ...f.units]) {
+            if (!d || d.under) continue;
+            const q = prev.get(d.unit);
+            if (q && back) { const st = Math.hypot(d.x - q.x, d.y - q.y); jump = Math.max(jump, st); if (st > BUDGET.maxStepTiles) after++; }
+            prev.set(d.unit, { x: d.x, y: d.y });
+          }
+        }, { hold: [LIVE_H.T0 + 10000, LIVE_H.T0 + 50000], otherFirst: other });
+      } finally { console.warn = warn; }
+      const tag = other ? 'other' : 'own';
+      console.log(`  LV-10 (${tag}) resume after a 40 s outage: ${stalled} stalled frame(s) during it; after it ${frames} frames, largest frame step ${jump.toFixed(3)} tiles, ${foreign} server window(s) played over the prediction, ${past} batch(es) of the past played late`);
+      ok('LV-10', past === 0, `(${tag}) ${past} batch(es) of steps more than two swings old were played (the past drawn at once)`);
+      ok('LV-10', stalled > 0, `(${tag}) CONTROL: a 40 s outage never ran the look-ahead dry`);
+      ok('LV-10', foreign === 0, `(${tag}) ${foreign} server window(s) were played into the timeline while a prediction existed (a second position source)`);
+      ok('LV-10', frames > 0 && jump <= BUDGET.maxStepTiles, `(${tag}) after the outage a frame moved a unit ${jump.toFixed(2)} tiles (${after} frame step(s) over ${BUDGET.maxStepTiles}: a teleport)`);
+    }
+  }
+
+  { // LV-9 ONE HUNT AT A TIME: Mill Cellar, back to town, then the Millrace Sewer on the SAME session. No
+    // unit of the second hunt is drawn on a tile its ground cannot be walked on, and none slides across the
+    // map in one frame (v0.2.20: the last hunt's units, ids restarting at 1, stood in the new ground's walls).
+    const T0 = LIVE_H.T0, T1 = T0 + 40000, OFF = 3000000;
+    const A = LIVE_H.server(LM, [LIVE_H.memberOf(LM, 'a', 0, 'tank', 6)]);
+    const misB = [LIVE_H.memberOf(LM, 'a', 0, 'tank', 6)];
+    misB[0].huntSession = Object.assign({}, misB[0].huntSession, { id: 's-b', instanceId: 'i-b', huntFromMs: T1, nextSwingAtMs: T1 });
+    const Bs = LIVE_H.server(LM, misB, { hunt: 'millrace_sewer', id: 'i-b', t0: T1 });
+    const grid = LM.HG.huntGroundOf('millrace_sewer').grid;
+    const clock = { t: T0 - OFF }; let version = LIVE.version;
+    const phase = () => { const s = clock.t + OFF; return s < T0 + 30000 ? 'A' : s < T1 ? 'town' : 'B'; };
+    const env = () => {
+      const e = clone(LIVE); e.version = ++version; e.now = new Date(clock.t + OFF).toISOString();
+      const p = phase();
+      if (p === 'town') { e.hunt = null; return e; }
+      const srv = p === 'A' ? A : Bs;
+      e.hunt.pose = null; e.hunt.hero.unit = null; e.hunt.hunt_id = srv.inst.hunt; e.hunt.session_id = e.hunt.session.id = 'sess-' + p;
+      e.hunt.session.hunt_from = new Date(p === 'A' ? T0 : T1).toISOString();
+      e.party.members = [Object.assign(clone(LIVE.party.members[0]), { seat: 0, unit: null })]; e.party.self = null; e.party.leader = null;
+      return e;
+    };
+    const last = { A: T0, B: T1 };
+    const server = {
+      rpc: async () => ({ ok: true, body: env() }),
+      accrue: async () => {
+        const s = clock.t + OFF, p = phase();
+        if (p === 'town') return { ok: true, body: Object.assign(env(), { accrued: false }) };
+        const srv = p === 'A' ? A : Bs;
+        if (s <= srv.inst.settled_to_ms) return { ok: true, body: Object.assign(env(), { accrued: false, settled: false, reason: 'not_due' }) };
+        if (s - last[p] >= 15000) { const c = srv.commit(s); last[p] = s; if (c) return { ok: true, body: Object.assign(env(), { accrued: true, settled: true, hunt_check: c.check }, c.tl) }; }
+        return { ok: true, body: Object.assign(env(), { accrued: false, settled: false, reason: 'below_min_span', hunt_live: srv.live('a') }) };
+      },
+    };
+    const timers = [];
+    const cs = new M.C.CharacterSession({ slot: 0, uid: '11111111-2222-3333-4444-555555555555', server,
+      setTimer: (fn, ms) => { timers.push({ fn, at: clock.t + ms }); return timers.length; }, clearTimer: () => {}, now: () => clock.t });
+    await cs.load();
+    let scene = null, off = null, was = null, frames = 0, walled = 0, first = null, jump = 0; let prev = new Map();
+    const warn = console.warn; console.warn = () => {};
+    try {
+      for (let s = T0; s < T1 + 20000; s += 1000 / 60) {
+        clock.t = s - OFF;
+        const p = phase();
+        if (p !== was) { was = p; if (p !== 'A') { await cs.hello(); await new Promise((r) => setImmediate(r)); } if (off) off(); scene = null; prev = new Map(); }
+        for (let i = 0; i < timers.length; i++) if (timers[i] && timers[i].at <= clock.t) { const t = timers[i]; timers[i] = null; t.fn(); await new Promise((r) => setImmediate(r)); }
+        if (p === 'town') continue;
+        if (!scene) { const sc = M.S.createHuntScene({ timeline: cs.timeline, book, read: () => M.S.readHunt(cs) }); scene = sc; off = cs.timeline.subscribe((ev) => sc.onEvent(ev, cs.now())); }
+        cs.liveAdvance(clock.t);
+        const back = cs.takeReseeded(); if (back) scene.revive(back);
+        cs.timeline.advance(clock.t);
+        const f = scene.frame(clock.t);
+        if (p !== 'B') continue;
+        frames++;
+        for (const d of [f.hero, ...f.units]) {
+          if (!d || d.under || d.unit < 0) continue;
+          if (!M.GRID.walkable(grid, Math.round(d.x), Math.round(d.y))) { walled++; if (!first) first = d.unit + '@' + d.x.toFixed(1) + ',' + d.y.toFixed(1); }
+          const q = prev.get(d.unit); if (q) jump = Math.max(jump, Math.hypot(d.x - q.x, d.y - q.y));
+          prev.set(d.unit, { x: d.x, y: d.y });
+        }
+      }
+    } finally { console.warn = warn; }
+    console.log(`  LV-9 second hunt (Sewer after Cellar): ${frames} frames, ${walled} unit-frame(s) on a blocked tile${first ? ' (first ' + first + ')' : ''}, largest frame step ${jump.toFixed(3)} tiles`);
+    ok('LV-9', frames > 0 && walled === 0, `the second hunt drew ${walled} unit-frame(s) on tiles its ground cannot be walked on (first ${first})`);
+    ok('LV-9', jump <= BUDGET.frameStepTiles, `the second hunt moved a unit ${jump.toFixed(2)} tiles in one frame (budget ${BUDGET.frameStepTiles})`);
   }
 
   { // LV-3
@@ -276,7 +449,7 @@ async function pageRules() {
     await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: H.SDK_STUB }));
     await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
     await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
-      const name = r.request().url().split('/').pop();
+      const name = r.request().url().split('?')[0].split('/').pop();
       const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
       if (name === 'hr_load') return json(env());
       if (name === 'hr-accrue') return json(Object.assign(env(), { accrued: false, reason: 'below_min_span', hunt_live: shiftLive(srv.live('a')) }));
@@ -320,6 +493,12 @@ const MUTANTS = [
   ['the frame loop never advances the engine (LV-2)', 'src/session/live-link.js', '    return this.engine.advance(now, (b) => this._tl.ingest(b, clientNow));', '    return 0;', /^LV-2/],
   ['a monster the snapshot dropped is unnamed (LV-5)', 'src/hunt-view/scene.js', "(typeof tl.kindOf === 'function' ? tl.kindOf(u) : null)", 'null', /^LV-5/],
   ["a bar is the snapshot's HP (LV-5)", 'src/hunt-view/scene.js', "const played = typeof tl.hpAt !== 'function' ? null : tl.hpAt(u, now);", 'const played = null;', /^LV-5/],
+  ['steps drawn at their sub-step stamp over one tile time (LV-2)', 'src/hunt-view/live-engine.js', '    timeSteps(tl.hunt_track, (id) => speeds.get(id), s.drawn);\n', '', /^LV-2/],
+  ['the live ask gives up after two tries (LV-7)', 'src/session/live-link.js', '    return Math.min(SESSION_CONFIG.huntPollMs, Math.max(back, until));', '    return this._tries > 2 ? null : SESSION_CONFIG.liveAskMs;', /^LV-7/],
+  ["a matching start point's seeds are dropped (LV-8)", 'src/session/live-link.js', '&& this.engine.reconcile({ world_swing: i.world_swing, world_hash: i.world_hash, seeds: body.hunt_live.seeds }) ===', '&& this.engine.check({ world_swing: i.world_swing, world_hash: i.world_hash }) ===', /^LV-8/],
+  ['missed swings are played at once (LV-10)', 'src/session/live-link.js', '    if (this.engine.behindMs(now) > COMBAT_BALANCE.tickMs) { this._ease(this.engine.catchUp(now), now); return 0; }\n', '', /^LV-10/],
+  ['a waiting prediction takes the server window too (LV-10)', 'src/session/character-session.js', '    if (this.live.running() || this.live.stalled()) {', '    if (this.live.running()) {', /^LV-10/],
+  ["the last hunt's units are kept (LV-9)", 'src/session/character-session.js', 'if (sid !== null && sid !== this._huntSid) { this.liveLink.off(); this.timeline.clear(); }', '', /^LV-9/],
   ['the per-minute figure printed as /s (LV-3)', 'src/shell/widgets/action-bar.js', 'regen(hero.hpPerS)', 'regen(hero.hpPerS * 60)', /^LV-3/],
 ];
 

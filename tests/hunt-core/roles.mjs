@@ -1,6 +1,6 @@
 // tests/hunt-core/roles.mjs — src/core/hunt/roles.js + src/data/hunt-roles.js (spec §3.2 #1-10; parity RO-01..18).
 // Run by run-all.mjs.
-import { suite, H, E, inst2, sc2, run, world } from './fixtures/h2.js';
+import { suite, H, E, inst2, sc2, run, world, groundRow } from './fixtures/h2.js';
 
 const R = 'src/core/hunt/roles.js';
 const aggro0 = () => [{ aggro: true, holder: 1 }, { aggro: false, holder: null }, { aggro: false, holder: null }];
@@ -8,7 +8,50 @@ const fight = (M, units, o) => inst2(M, world(M, units, Object.assign({ phase: '
 const place = (M, inst) => { M.movement.occupancy(inst); const sc = sc2(M, 1); M.targeting.chooseTargets(inst, sc); M.roles.positionHeroes(inst, sc); return sc; };
 const gapOf = (inst, x, y) => Math.min(...inst.world.units.filter((u) => u.side === 'mon' && u.alive).map((m) => Math.max(Math.abs(m.x - x), Math.abs(m.y - y))));
 
+/* A room with one free tile beside the monster at (5,3) that nobody can walk to: (6,4), walled in on
+   every side and cut off from the monster's own tile by the two walls a diagonal step would clip. It is
+   the free tile NEAREST (straight line) to a hero coming from the south-east. */
+const NOTCH = Object.freeze([
+  '############', // 0
+  '#..........#', // 1
+  '#..........#', // 2
+  '#....M##...#', // 3
+  '#....#.#...#', // 4  (6,4): the unreachable tile
+  '#....###...#', // 5
+  '#..........#', // 6
+  '#..........#', // 7
+  '#..........#', // 8
+  '############', // 9
+]);
+
 const cases = {
+  /* SECONDARY HERO PATHING (Andy 2026-10-21: "if it hesitates choosing a spot (diagonal or moves after
+     killing maybe) the secondary player just stands there"). A Melee hero walks to a free tile beside its
+     target it can REACH (heroes pass through heroes; a monster blocks), and hits it. */
+  'melee-reaches-a-free-tile': (M) => {
+    const grid = M.grid.makeGrid(12, 10, (x, y) => NOTCH[y][x] !== '#', (x, y) => NOTCH[y][x] === '#');
+    const ground = groundRow({ start: [[1, 1], [2, 1]], route: [0],
+      pockets: [{ room: [1, 1, 10, 8], spawns: [{ monster: 'rat', x: 5, y: 3 }] }] });
+    const k = H(M, 1, 4, 3, 'tank');
+    const d = H(M, 2, 9, 6, 'melee_dps', { tmode: 'nearest' });
+    const m = E(M, 3, 0, 5, 3, 1, { hp: 5000, maxHp: 5000 });
+    const w = world(M, [k, d, m], { phase: 'fight', leader: 1, leaderLast: 3, packs: [{ aggro: true, holder: 1 }] });
+    const inst = { world: w, ground, grid, occ: null, makeUnit: M.worldstate.makeUnit };
+    const sc = sc2(M, 1);
+    run(M, inst, 80, sc);
+    if (Math.max(Math.abs(d.x - 5), Math.abs(d.y - 3)) > 1) return 'after 8 s the second hero stands at ' + d.x + ',' + d.y + ' (goal ' + JSON.stringify(d.goal) + '), not beside its target';
+    return sc.events.some((e) => (e.type === 'dmg' || e.type === 'miss') && e.u === 2) ? null : 'the second hero reached its target but never swung';
+  },
+  /* A SECOND TANK the pack is not on walks to its mark (its Target setting), not holding beside the
+     first monster that stands next to it. */
+  'second-tank-walks-to-its-mark': (M) => {
+    const k1 = H(M, 1, 12, 3, 'tank'); const k2 = H(M, 2, 14, 5, 'tank', { tmode: 'strongest' });
+    const rat = E(M, 3, 0, 15, 5, 1, { hp: 9, maxHp: 9, holdMs: 5000 }); const big = E(M, 4, 0, 13, 2, 1, { hp: 60, maxHp: 60, holdMs: 5000 });
+    const inst = fight(M, [k1, k2, rat, big]);
+    place(M, inst);
+    if (k2.target !== 4) return 'fixture: the second tank should mark 4, it marks ' + k2.target;
+    return k2.goal && Math.max(Math.abs(k2.goal[0] - 13), Math.abs(k2.goal[1] - 2)) === 1 ? null : 'the second tank did not walk to its mark (goal ' + JSON.stringify(k2.goal) + ')';
+  },
   /* RO-01: with a monster on him the tank stands still; none near, chase on → he steps toward the nearest; chase off → he holds. */
   'tank-holds': (M) => {
     const k = H(M, 1, 12, 3, 'tank');
@@ -146,12 +189,16 @@ const cases = {
 
 const mutants = [
   { name: 'the tank chases with a monster on him', case: 'tank-holds',
-    edits: [[R, "if (!h.chase || mons.some((m) => cheb(m, h) <= 1)) { clearGoal(h); return; }", 'if (!h.chase) { clearGoal(h); return; }']] },
+    edits: [[R, "  if (mons.some((m) => cheb(m, h) <= 1)) { clearGoal(h); return; }\n", '']] },
+  { name: 'the nearest free tile by straight line, reachable or not (live v0.2.22)', case: 'melee-reaches-a-free-tile',
+    edits: [[R, '  if (goToNearest(inst, h, beside([tgt]))) return;', "  { const t = ringFree(inst.grid, tgt, 1, h, (x, y) => !standable(inst, h, tgt.pocket, x, y)); if (t) { setGoal(inst, h, t[0], t[1]); return; } }"]] },
+  { name: 'a second tank stands by whatever is beside it (live v0.2.20)', case: 'second-tank-walks-to-its-mark',
+    edits: [[R, "  if (!h.chase) { clearGoal(h); return; }\n  /* A tank no monster", "  if (!h.chase || mons.some((m) => cheb(m, h) <= 1)) { clearGoal(h); return; }\n  /* A tank no monster"]] },
   { name: 'the farthest monster picks first', case: 'surround-then-queue',
     edits: [[R, '    .sort(([a, ta], [b, tb]) => dist2(a, ta) - dist2(b, tb) || a.id - b.id);', '    .sort(([a, ta], [b, tb]) => dist2(b, tb) - dist2(a, ta) || a.id - b.id);']] },
   { name: 'no queue: extras stand', case: 'surround-then-queue', edits: [[R, '    if (q) setGoal(inst, m, q[0], q[1]);', '']] },
   { name: 'the Melee DPS ignores the tank\'s target', case: 'melee-dps-slot',
-    edits: [[R, "closeIn(inst, h, (lt && lt.alive && mons.includes(lt)) ? lt : unitById(inst, h.target));", 'closeIn(inst, h, nearestTo(mons, h));']] },
+    edits: [[R, "closeIn(inst, h, unitById(inst, h.target));", 'closeIn(inst, h, nearestTo(mons, h));']] },
   { name: 'ranged distance measured from the leader', case: 'ranged-distance-from-own-target',
     edits: [[R, "  const tgt = unitById(inst, h.target);\n  if (!tgt) return;\n  const nearMon", "  const tgt = Object.assign({}, leaderOf(inst), { pocket: unitById(inst, h.target).pocket });\n  if (!tgt) return;\n  const nearMon"]] },
   { name: 'the spot band ignores the setting', case: 'ranged-distance-from-own-target', edits: [[R, '  const want = h.dist;\n  const living', '  const want = 6;\n  const living']] },

@@ -2,6 +2,12 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-10-21 · lane/b-bug-report (Sentry send gate + hang signal, Report a problem window)
+1. *An empty Sentry is not a quiet game.* Rate-limited events keep no content, so the flood cannot be named from Sentry; the game only sent from v0.2.22 (10-21 ~09:40 UTC), so a week of drops and zero accepted point at the plan's quota, not a loop. The send gate (5 per error, 25 per load, network weather dropped) makes any future loop bounded either way.
+2. *A hang throws nothing.* src/net/diagnostics.js measures a 500 ms heartbeat's lateness (visible tab, < 2 min = not a sleeping laptop); one Sentry message per load names each open hunt's swing and engine state. A loop that never returns still cannot report itself (needs a Worker watchdog).
+3. *Sentry breadcrumbs carry earlier console lines.* A test counting envelopes that CONTAIN a string overcounts; parse the event's own message.
+4. *Python text mode wrote CRLF again* (lesson repeated from 10-17): convert back with `sed -i 's/\r$//'` before any anchor-matching guard runs.
+
 ## 2026-10-15 — lane/s-shell-framework (World shell framework, unwired)
 - Built `src/shell/{window-manager,hud,launcher,renderers,shell}.js`, `src/data/{shell-windows,hud-widgets}.js`,
   `src/styles/shell.css`, `assets/ui/frame-iron{,-thin}.png` (copied from the approved A/B "B" samples).

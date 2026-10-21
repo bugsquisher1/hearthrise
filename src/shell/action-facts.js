@@ -101,7 +101,7 @@ export function factsOf(a) {
     const spread = 'Half lands at once, the rest over ' + secs(CONSUMABLE_RULES.overTimeMs) + ' s.';
     if (own(CONSUME_KINDS, a.id)) {
       const stat = a.id === 'drink' ? 'mana' : 'health';
-      return { type: (a.id === 'drink' ? 'Drink' : 'Food') + ': your best ' + a.id + ' first, restoring ' + stat + '.', cost: null, cooldown: null, effect: [spread], requires: null };
+      return { type: (a.id === 'drink' ? 'Drink' : 'Food') + ': your own ' + a.id + ' first, the smallest that covers what you are missing, then the store’s, restoring ' + stat + '.', cost: null, cooldown: null, effect: [spread], requires: null };
     }
     const r = CONSUMABLES[a.id];
     if (!r) return { type: null, cost: null, cooldown: null, effect: [], requires: null };
@@ -146,6 +146,27 @@ export function setupWords(w, set) {
 /* A slot's conditions as the engine tests them: its own, else its action's defaults. */
 function effective(w, set) {
   return w.conditions.length ? w.conditions : defaultConditions(w, { foodBelowPct: set && set.foodPct, drinkBelowPct: set && set.drinkPct });
+}
+
+/* A slot that heals its own hero: food (Any food or one food) or a self spell that heals. */
+function healsSelf(a) {
+  if (a.type === 'consume') return CONSUME_KINDS[a.id] === 'heal' || (!!CONSUMABLES[a.id] && CONSUMABLES[a.id].kind === 'food');
+  return a.type === 'ability' && !!ABILITIES[a.id] && ABILITIES[a.id].target === 'self' && !!ABILITIES[a.id].heal;
+}
+
+/**
+ * THE HEAL WARNING (designer ruling 2026-10-21, Andy's Sewer death): a heal slot whose HP % (its
+ * own "My HP % below" test, else the default) is fewer HP than the biggest blow the hunt can land,
+ * so one hit can kill before it fires. `blow` is pull-cycle.js biggestBlowOn, `hpMax` the server's.
+ * '' when it is safe or a number is unknown.
+ */
+export function healWarning(w, set, blow, hpMax) {
+  if (!w || !w.action || !w.action.id || !blow || !(hpMax > 0) || !healsSelf(w.action)) return '';
+  const c = effective(w, set).find((x) => x.metric === 'self_hp_pct' && (x.op === 'lt' || x.op === 'lte') && Number.isFinite(x.value));
+  if (!c) return '';
+  const at = Math.floor((hpMax * c.value) / 100);
+  return at < blow.hit ? 'The ' + blow.name + ' can hit for ' + blow.hit + '. At ' + c.value + '% you have ' + at + ' HP, so one hit can kill you before you '
+    + (w.action.type === 'consume' ? 'eat' : 'heal') + '.' : '';
 }
 const condKey = (c) => JSON.stringify([c.metric, c.op, c.value, c.subject || null]);
 /* A passes whenever B passes: A's conditions are all among B's (both "all of"), or A has none. */

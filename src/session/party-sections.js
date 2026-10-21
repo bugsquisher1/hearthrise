@@ -10,8 +10,9 @@
 //   party   { id, hunt, max, open, listed, leader: unit, self: unit, leader_seat, self_seat,
 //             members: [{ unit, seat, hunting, name, level, weapon, role_pick, hp, hp_max, mana,
 //                         mana_max, dealt, healed, dps, hps, down, eating, drinking, aggro,
-//                         away, seat_ms }], leader_density }   (away / seat_ms: 2026-10-28-party-flow.sql;
-//             leader_density: the leader's density pick, 2026-11-01-party-leader-density.sql)
+//                         away, seat_ms, outfit }], leader_density }   (away / seat_ms: 2026-10-28-party-flow.sql;
+//             leader_density: the leader's density pick, 2026-11-01-party-leader-density.sql; outfit
+//             { id, colors } or null: 2026-11-04-party-outfits.sql, read by hunt-sections.js memberOf)
 //   (a solo hunt is a party of one with id null: no party membership here)
 // The finder's answer (hr_hunt_party_finder) keeps its own { seats: [{ seat, weapon, role, name }] }.
 // What this lane asks the server for (CONFLICTS.md 2026-10-18 party UI; the

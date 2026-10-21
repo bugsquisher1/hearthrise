@@ -101,6 +101,8 @@ function contract(R, cs, body, tl) {
     need('hunt_analyzer', !m.length && a.hero.kills > 0 && !!a.party, 'analyzerOf misses ' + m.join(', ') + (a.party ? '' : ' party') + ' (kills ' + (a.hero && a.hero.kills) + ')');
     need('hunt_analyzer', Object.keys(a.hero.dealtByAbility).length > 0, 'analyzer dealt.by_ability is empty');
   }
+  // now (the bug report's envelope age, src/shell/report-model.js): the server's own instant
+  need('now', Number.isFinite(Date.parse(String(cs.read('now')))), 'cs.read("now") is ' + JSON.stringify(cs.read('now')));
   // hunt_bests (the hunt picker's personal bests): the earlier finished solo hunt, solo only
   const hb = R.HS.huntBestsOf(cs);
   const mc = hb && hb.grounds.mill_cellar;
@@ -206,7 +208,7 @@ function sheetContract(R, cs, body) {
 export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events', 'hunt_server_now_ms', 'hunt_settings', 'hunt_analyzer',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'stamina_refill', 'blessings',
-  'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests']);
+  'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'now']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',

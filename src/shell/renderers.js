@@ -30,6 +30,7 @@ import { renderParty } from './windows/party.js?v=0.2.23';
 import { renderCharacters } from './windows/characters.js?v=0.2.23';
 import { renderAlerts } from './widgets/alerts.js?v=0.2.23';
 import { renderHuntSummary } from './windows/hunt-summary.js?v=0.2.23';
+import { renderReport } from './windows/report.js?v=0.2.23';
 
 /* A renderer with `.patch` is a component: built once, then patched in place (src/shell/shell.js). */
 export const WINDOW_RENDERERS = Object.freeze({
@@ -50,6 +51,7 @@ export const WINDOW_RENDERERS = Object.freeze({
   friends: renderFriends,
   inspect: renderInspect,
   settings: renderSettings,
+  report: renderReport,
 });
 
 export const WIDGET_RENDERERS = Object.freeze({

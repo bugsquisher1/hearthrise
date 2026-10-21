@@ -49,6 +49,12 @@
 //         floor and hunting delete by user AND slot, and town_positions' primary key is
 //         (user_id, slot), as the fake server below models it (Tyler live v0.2.20: one
 //         account row meant each character overwrote the other)
+//   TW-15 WHERE THE BODY STANDS: placeOn is the body's place across a park and a show (a pane shown
+//         again starts its hero there); a parked body that went hunting stands at the arrival tile
+//   TW-14 [page] ONE ACCOUNT, TWO HEROES, SWITCHED A -> B -> A (Andy 10-21: "Not able to consistently
+//         see both characters on a map"): after every switch the viewed hero sees the other one drawn
+//         in The Common; switching never moves a hero (the one shown again stands where it stood, never
+//         at the map's start) and never resets its Town / Home pick; zero console errors
 //   TW-8  [page] in The Common a peer the server names walks beside the hero; a
 //         right-click on them opens the player menu under their name (Inspect
 //         gear, Message, Add friend, Invite to party, Block); the hero publishes
@@ -61,7 +67,7 @@ import { mkdtempSync, mkdirSync, cpSync, readFileSync, writeFileSync, rmSync } f
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
+import { ROOT, serve, SDK_STUB, UID } from './_client-harness.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -335,6 +341,29 @@ async function pureRules(M) {
     else if (!p0 || p0.x !== town.start[0] || p0.y !== town.start[1]) fail('TW-13 back from the hunt it stands at ' + JSON.stringify(p0) + ', not the arrival tile');
     a.close(0); a.close(1);
   }
+  // TW-15 (Andy 10-21: a switch put the hero back at the map's start): where the body stands is the presence's.
+  {
+    const sent = [];
+    let now = 0, hunting = false, tick15 = null;
+    const server = { rpc: (name, args) => { sent.push({ name, args }); return Promise.resolve({ ok: true, body: { ok: true, stamped: true, walkers: [] } }); } };
+    const town = M.maps.WORLD_MAPS.find((m) => m.id === M.maps.SCENE_MAPS.town);
+    const arrival = { map: town.id, x: town.start[0], y: town.start[1], gx: town.start[0], gy: town.start[1], dir: 's' };
+    const tp = new M.town.TownPresence({ server, slot: 1, self: () => TYLER, busy: () => hunting, arrival,
+      timers: { setTimer: (fn) => { tick15 = fn; return 1; }, clearTimer: () => {} }, now: () => now });
+    tp.stand();
+    if (String(tp.placeOn(town.id)) !== String(town.start)) fail('TW-15 a body standing from boot is at ' + tp.placeOn(town.id) + ', not the arrival tile');
+    tp.show(town.id); tp.publish(at(14, 9)); await settle();
+    tp.park();                    // another character is viewed
+    tp.show(town.id);             // ...and this one again
+    if (String(tp.placeOn(town.id)) !== '14,9') fail('TW-15 viewed again, the body stands at ' + tp.placeOn(town.id) + ', not where it stood (14,9)');
+    tp.park();
+    hunting = true; now += L.keepaliveMs; tick15(); await settle();
+    hunting = false; now += L.keepaliveMs; tick15(); await settle();
+    const last = sent.filter((c) => c.name === 'hr_town_move' && c.args.p_map !== null).pop();
+    if (!last || last.args.p_x !== town.start[0] || last.args.p_y !== town.start[1] || String(tp.placeOn(town.id)) !== String(town.start))
+      fail('TW-15 back from a hunt the parked body stands at ' + JSON.stringify(last && [last.args.p_x, last.args.p_y]) + ' (place ' + tp.placeOn(town.id) + '), not the arrival tile');
+    tp.destroy();
+  }
   // TW-12: the fake above keys a body by user AND slot; the real server (the chain's last word) must too.
   {
     const order = JSON.parse(readFileSync(join(ROOT, 'tests/schema-apply-order.json'), 'utf8')).order;
@@ -479,6 +508,126 @@ async function pageRules(overrides, shots) {
   function fail(m) { fails.push(m); }
 }
 
+/* ── TW-14: ONE ACCOUNT, TWO HEROES, SWITCHED A -> B -> A ON THE PAGE ── */
+const NAMES = ['Tyler', 'Fremulon'];
+
+/* The account's two heroes on one fake server that keeps one body per character (as the chain's last
+   hr_town_move does) and names each walker by its character (hr_character_name). */
+async function stubTwo(page, s) {
+  await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
+  await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
+  await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
+    const name = r.request().url().split('?')[0].split('/').pop();
+    const body = JSON.parse(r.request().postData() || '{}');
+    s.calls.push({ name, body, at: Date.now() });
+    const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
+    if (name === 'hr_load') {
+      const slot = Number.isInteger(body.p_slot) ? body.p_slot : 0;
+      return json(Object.assign(townEnvelope(NAMES[slot] || 'Hero'), { version: ++s.version, hero_slots: [0, 1], account: { max_concurrent: 2 } }));
+    }
+    if (name === 'hr-accrue') return json({ accrued: false });
+    if (name === 'hr_town_move') {
+      if (body.p_map === null) s.pos.delete(body.p_slot);
+      else s.pos.set(body.p_slot, { map: body.p_map, x: body.p_x, y: body.p_y, gx: body.p_gx, gy: body.p_gy, dir: body.p_dir });
+      return json({ ok: true, stamped: true });
+    }
+    if (name === 'hr_town_walkers') {
+      const walkers = [];
+      for (const [slot, p] of s.pos) if (p.map === body.p_map) walkers.push({ id: UID, slot, name: NAMES[slot], level: 9, role: 'tank', x: p.x, y: p.y, gx: p.gx, gy: p.gy, dir: p.dir, age_ms: 0 });
+      return json({ ok: true, map: body.p_map, cap: 40, walkers });
+    }
+    if (name === 'hr_chat_recent') return json({ ok: true, zone: 'local:town', party: null, lines: [] });
+    if (name === 'hr_social_state') return json({ ok: true, friends: [], incoming: [], outgoing: [], blocks: [] });
+    if (name === 'hr_whispers_recent') return json({ ok: true, lines: [] });
+    return json({ ok: true });
+  });
+}
+
+/* Who the World draws as a person (a right-click on every 8 px of the canvas: the player menu's titles). */
+const peopleDrawn = (page) => page.evaluate(() => {
+  const cv = document.querySelector('.world-canvas');
+  const r = cv.getBoundingClientRect();
+  const seen = new Set();
+  for (let y = r.top + 4; y < r.bottom; y += 8) for (let x = r.left + 4; x < r.right; x += 8) {
+    cv.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: x, clientY: y }));
+    const m = document.querySelector('.hw-menu.is-on');
+    if (!m) continue;
+    seen.add(m.querySelector('.hw-menu-title').textContent);
+    document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+  }
+  return [...seen];
+});
+
+async function switchRules(overrides) {
+  const fails = [];
+  const fail = (m) => fails.push(m);
+  const maps = await import(pathToFileURL(join(ROOT, 'src/data/world/maps/index.js')).href);
+  const start = maps.WORLD_MAPS.find((m) => m.id === maps.SCENE_MAPS.town).start;
+  const { server, port } = await serve(overrides);
+  const browser = await leaseBrowser(chromium);
+  try {
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const page = await ctx.newPage();
+    const errors = [];
+    page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+    page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
+    const s = { calls: [], version: 1, pos: new Map() };
+    await stubTwo(page, s);
+    await page.goto('http://127.0.0.1:' + port + '/play.html', { waitUntil: 'load' });
+    await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
+    await page.fill('input[name=email]', 'qa@example.test');
+    await page.fill('input[name=password]', 'not-a-real-password');
+    await page.click('.auth-submit');
+    await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
+    await page.click('[data-app="play"][data-slot="0"]');
+    const shows = (slot) => wait(page, (n) => !!document.querySelector('#panel-world[data-slot="' + n + '"] .world-canvas')
+      && /Common/.test((document.querySelector('#panel-world .world-title') || {}).textContent || ''), slot);
+    if (!await shows(0) || !await wait(page, () => document.querySelectorAll('.char-tab[data-slot]').length === 2)) {
+      fail('TW-14 the World did not open on The Common with both heroes in the strip'); await ctx.close(); return fails;
+    }
+    /* walk Tyler off the arrival tile: tap the ground to his side until his body stands elsewhere */
+    const own = (slot) => s.calls.filter((c) => c.name === 'hr_town_move' && c.body.p_slot === slot && c.body.p_map !== null);
+    const box = await page.locator('.world-canvas').boundingBox();
+    let placed = null;
+    for (const [dx, dy] of [[260, 80], [-260, 80], [200, -120], [-200, -120]]) {
+      await page.mouse.click(box.x + box.width / 2 + dx, box.y + box.height / 2 + dy);
+      await page.waitForTimeout(2600);
+      const p = own(0).pop();
+      if (p && (p.body.p_x !== start[0] || p.body.p_y !== start[1]) && p.body.p_x === p.body.p_gx && p.body.p_y === p.body.p_gy) { placed = [p.body.p_x, p.body.p_y]; break; }
+    }
+    if (!placed) { fail('TW-14 CONTROL: Tyler never walked off the arrival tile'); await ctx.close(); return fails; }
+    const mark = s.calls.length;
+    const sees = async (slot, other) => {
+      await page.waitForTimeout(2600);   // a walkers poll after the switch
+      const names = await peopleDrawn(page);
+      if (!names.includes(other)) fail('TW-14 viewing ' + NAMES[slot] + ' after a switch, ' + other + ' is not drawn in The Common (drawn: ' + JSON.stringify(names) + ')');
+      if (names.includes(NAMES[slot])) fail('TW-14 viewing ' + NAMES[slot] + ', the hero is drawn as a walker of its own');
+    };
+    await sees(0, 'Fremulon');
+    for (const slot of [1, 0, 1, 0]) {
+      await page.click('.char-tab[data-slot="' + slot + '"]');
+      if (!await shows(slot)) { fail('TW-14 switching to ' + NAMES[slot] + ' did not show The Common'); break; }
+      await sees(slot, NAMES[1 - slot]);
+    }
+    const moved = own(0).filter((c) => s.calls.indexOf(c) >= mark && (c.body.p_x !== placed[0] || c.body.p_y !== placed[1]));
+    if (moved.length) fail('TW-14 switching moved Tyler from ' + placed + ' to ' + moved.map((c) => c.body.p_x + ',' + c.body.p_y).join(' then ') + ' (the arrival tile is ' + start + ')');
+    /* the Town / Home pick is the hero's own: Home on Tyler, away to Fremulon and back, still Home */
+    await page.click('[data-world-choice="home"]');
+    await page.waitForTimeout(400);
+    await page.click('.char-tab[data-slot="1"]');
+    await shows(1);
+    await page.click('.char-tab[data-slot="0"]');
+    const home = await wait(page, () => !!document.querySelector('#panel-world[data-slot="0"] [data-world-choice="home"][aria-pressed="true"]'), null, 4000);
+    if (!home) fail('TW-14 Tyler was at Home; after a switch away and back the World shows ' + await page.evaluate(() => (document.querySelector('#panel-world .world-title') || {}).textContent));
+    if (errors.length) fail('TW-14 console errors: ' + errors.slice(0, 3).join(' | '));
+    await ctx.close();
+  } finally {
+    await browser.close();
+    server.close();
+  }
+  return fails;
+}
+
 /* ── THE MUTANTS: each must turn at least one rule red. ── */
 const PURE_MUTANTS = [
   ['the publish is not capped', 'src/session/town-presence.js', '    if (since < this.limits.publishMinMs) return false;\n', ''],
@@ -493,7 +642,9 @@ const PURE_MUTANTS = [
   ['the walkers are not capped', 'src/session/town-presence.js', '      if (list.length >= this.limits.cap) break;\n', ''],
   ['viewing another character leaves town', 'src/session/town-presence.js', '    this._parked = true;\n', '    this.show(null); return;\n'],
   ['a parked character never keeps alive', 'src/session/town-presence.js', '      if (this._want && this._now() - this._sentAt >= this.limits.keepaliveMs) this._flush(true);\n      return;', '      return;'],
-  ['a parked character that hunts stays in town', 'src/session/town-presence.js', '      if (this._busy()) { this._home = this._home || this._want || this._sent; this._leave(); return; }\n', ''],
+  ['a parked character that hunts stays in town', 'src/session/town-presence.js', '      if (this._busy()) { this._home = this._arrival || this._home || this._want || this._sent; this._leave(); return; }\n', ''],
+  ['back from a hunt a parked body stands where it stood before', 'src/session/town-presence.js', 'this._home = this._arrival || this._home || this._want || this._sent;', 'this._home = this._home || this._want || this._sent;'],
+  ['a shown-again body has no place', 'src/session/town-presence.js', '    return p ? [p.x, p.y] : null;\n', '    return null;\n'],
   ['an unviewed character has no body after a boot', 'src/session/account-session.js', '    this._towns.get(slot).stand();\n', ''],
   ['left mid-hunt, a character never stands in town again', 'src/session/town-presence.js', '    if (!this._map) { this.stand(); return; }\n', '    if (!this._map) return;\n'],
   ['boot opens only the viewed character', 'src/session/account-session.js', '      await this._open(slot);\n    }\n    return this.characters()', '    }\n    return this.characters()'],
@@ -504,7 +655,9 @@ const PURE_MUTANTS = [
 ];
 const PAGE_MUTANTS = [
   ['the World never tells the presence it is in town', 'src/world/world-boot.js', "      town.show(map.kind === 'town' ? map.id : null);\n", ''],
-  ['the pane never hands the World its presence', 'src/app/world-pane.js', 'runtime = await bootWorld(pane, { view, character, emit, town });', 'runtime = await bootWorld(pane, { view, character, emit });'],
+  ['the pane never hands the World its presence', 'src/app/world-pane.js', 'runtime = await bootWorld(pane, { view, character, emit, town, peers: opts.peers });', 'runtime = await bootWorld(pane, { view, character, emit, peers: opts.peers });'],
+  ['a switch starts the hero at the map start', 'src/world/world-boot.js', "const at = held ? town.placeOn(map.id) : heroPosOn(G, map.id);", 'const at = heroPosOn(G, map.id);'],
+  ['each pane mount makes a new display scratch', 'src/app/world-pane.js', '  const scratch = scratchOf(character);', "  const scratch = { choice: 'town' };"],
   ['the home scene stays in town', 'src/world/world-boot.js', "      town.show(map.kind === 'town' ? map.id : null);", "      if (map.kind === 'town') town.show(map.id);"],
 ];
 
@@ -523,13 +676,13 @@ async function main() {
   const onlyPure = process.argv.includes('--pure');
   const loadRoot = () => load(ROOT);
   if (!process.argv.includes('--mutate')) {
-    const fails = [...await pureRules(await loadRoot()), ...(onlyPure ? [] : await pageRules(null, shots))];
+    const fails = [...await pureRules(await loadRoot()), ...(onlyPure ? [] : [...await pageRules(null, shots), ...await switchRules(null)])];
     for (const f of fails) console.log('  ✗ ' + f);
     console.log(fails.length ? 'town-walk: ' + fails.length + ' rule(s) RED'
       : 'town-walk: two accounts see each other; the publish is capped; blocks hidden; leaving leaves; replaced, never merged' + (onlyPure ? '' : '; the peer walks in The Common with the one menu') + (shots ? ' (shots in ' + shots + ')' : ''));
     process.exit(fails.length ? 1 : 0);
   }
-  const clean = [...await pureRules(await loadRoot()), ...(onlyPure ? [] : await pageRules(null, null))];
+  const clean = [...await pureRules(await loadRoot()), ...(onlyPure ? [] : [...await pageRules(null, null), ...await switchRules(null)])];
   if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
   console.log('  ✓ clean control green');
   let bad = 0;
@@ -548,7 +701,8 @@ async function main() {
   for (const [name, file, from, to] of onlyPure ? [] : PAGE_MUTANTS) {
     const text = await readFile(join(ROOT, file), 'utf8');
     if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
-    const fails = await pageRules({ [file]: text.replace(from, to) }, null);
+    const over = { [file]: text.replace(from, to) };
+    const fails = [...await pageRules(over, null), ...await switchRules(over)];
     if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
     else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
   }

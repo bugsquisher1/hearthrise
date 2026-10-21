@@ -19,7 +19,8 @@ const COMBAT = ['melee', 'ranged', 'magic', 'defense'];
 /** THE RUNNER, reusable (tests/hunt-core/drop-tables.mjs): `run(huntId, L, roles, opts)` plays one ground
     on the real settle and answers the totals, per hour and per hero, plus `items` (id -> count, the whole
     party's credit), `heroItems` and `heroXp` (per hero key: item / skill -> amount) and `killsBy` (monster -> kills).
-    opts: { spanMs (default thirty minutes), secret (the hunt seed), monsters (a drop-table fixture) }. */
+    opts: { spanMs (default thirty minutes), secret (the hunt seed), monsters (a drop-table fixture), fullSet,
+    equipment (one worn set every hero wears, e.g. the start kit's) }. */
 /** The trees loadPlay reads beyond src/core and src/data: a planted copy (h1.js plant) needs them too. */
 export const PLAY_TREES = Object.freeze(['supabase/functions/hr-accrue', 'src/world/core', 'assets/world']);
 
@@ -80,10 +81,11 @@ export async function loadPlay(root) {
     const line = role === 'ranger' ? ['leather', 'studded', 'boarhide', 'snakeskin'] : ['apprentice', 'adept', 'scholar', 'warlock'];
     return { ...base, helmet: line[t] + '_helmet', body: line[t] + '_body', pants: line[t] + '_pants', boots: line[t] + '_boots' };
   };
-  const hero = (huntId, role, i, L, roles, fullSet) => {
+  const hero = (huntId, role, i, L, roles, fullSet, worn) => {
     /* A hero at Level L with every combat skill at L (the designer's fit: skill ~ Level through L25). */
     const skills = Object.fromEntries(COMBAT.map((k) => [k, XP.skillXpForLevel(k, L)]));
-    const equipment = fullSet ? fullKit(L, role) : kit(L, role);
+    /* opts.equipment: a worn set given whole (the start kit, start-kit.js START_EQUIPMENT), for every hero. */
+    const equipment = worn ? { ...worn } : fullSet ? fullKit(L, role) : kit(L, role);
     return {
       key: role + i, user: role + i, slot: 0, seat: i, unitId: null, sessionId: 's-' + role + i, version: 1, huntId,
       huntSession: { id: 's-' + role + i, instanceId: IID, huntFromMs: T0, nextSwingAtMs: T0, swingIndex: 0, bag: role === 'ranger' ? { bronze_arrows: { loaded: 1 } } : {},
@@ -96,7 +98,9 @@ export async function loadPlay(root) {
   const run = (huntId, L, roles, opts = {}) => {
     const span = opts.spanMs || SPAN, secret = opts.secret || SECRET, monsters = opts.monsters || MONSTERS;
     const ground = G.HUNT_GROUNDS[huntId], grid = gridOf(ground.map);
-    const members = roles.map((r, i) => hero(huntId, r, i, L, roles, opts.fullSet === true));
+    const members = roles.map((r, i) => hero(huntId, r, i, L, roles, opts.fullSet === true, opts.equipment || null));
+    /* opts.density: the party's monster density pick (the settle clamps it to the ground) */
+    if (Number.isInteger(opts.density)) for (const m of members) m.hero = Object.assign({}, m.hero, { density: opts.density });
     /* common vs rare by the hunt's own drop rows: a drop at 5% or more anywhere here is a common, unless it is a
        trophy worth 100 g or more (a boss's chase item: the Crown Shard, the Alpha Fang), which is upside */
     const common = new Set();
@@ -108,6 +112,8 @@ export async function loadPlay(root) {
       const out = AC.accrueHunt({ instance: { id: IID, nextSwingAtMs: next, world }, window: { fromMs: t, toMs: Math.min(T0 + span, t + 600000) },
         secret, ground, grid, items: ITEMS, monsters, members });
       if (!out.accrued) continue;
+      /* opts.onWindow(out, members): an observer of each settled window's events and members (party-defense.mjs) */
+      if (typeof opts.onWindow === 'function') opts.onWindow(out, members);
       world = out.world; next = out.settledTo; played = next - T0;
       for (const p of out.members) {
         const m = members.find((x) => x.key === p.key), h = p.hunt;

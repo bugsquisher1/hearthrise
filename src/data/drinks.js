@@ -16,8 +16,8 @@
 // vend for more than five times what the vendor pays for the crop
 // (tests/recipe-yield-guard.mjs's batch rule, held by tests/supplies-catalogue.mjs).
 //
-// ART: none of the six has painted art yet (Art Director handoff); the emoji
-// below is the fallback the item renderer already uses.
+// ART: each of the six has its own 32x32 pixel icon (assets/icons-bundle/pixel/items/<id>.png);
+// the emoji below is only the fallback the item renderer already uses.
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════

@@ -5,10 +5,12 @@
 //   node tests/hunt-screen.mjs                the rules
 //   node tests/hunt-screen.mjs --mutate       every planted defect must turn a rule RED
 //   node tests/hunt-screen.mjs --mutate --shard=K/N   only every Nth mutant from the Kth (CI splits them)
+//     (on a push, tools/mutant-gate.mjs narrows a shard to the mutants its diff touches —
+//      tools/lib/mutant-scope.mjs; the nightly runs every mutant)
 //   node tests/hunt-screen.mjs --shots <dir>  also write the visual-gate screenshots
 //                                             (1440x900 and 922x423)
 //
-// mutant-anchors: src/render/images.js src/world/atlas.js src/hunt-view/summary-model.js src/session/character-session.js src/session/hunt-leave.js src/session/hunt-poll.js src/shell/windows/hunts.js src/shell/widgets/hunt-topbar.js src/render/paint.js src/shell/shell.js src/shell/widgets/ src/shell/windows/ src/session/hunt-sections.js src/data/combat-text.js src/data/condition-metrics.js
+// mutant-anchors: src/render/images.js src/world/atlas.js src/hunt-view/summary-model.js src/session/character-session.js src/session/hunt-leave.js src/session/hunt-poll.js src/shell/windows/hunts.js src/shell/widgets/hunt-topbar.js src/render/paint.js src/shell/shell.js src/shell/widgets/ src/shell/windows/ src/session/hunt-sections.js src/data/combat-text.js src/data/condition-metrics.js src/shell/action-facts.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character's envelope is tests/fixtures/hunt-envelope.json.
@@ -76,13 +78,17 @@
 //   HS-22 THE PHONE BAR (922x423), in a hunt and in town: at most 100 px tall, the alerts dock
 //         above its top, and the fight settings are a slide-out sheet (shut until the bar's
 //         button opens it, then on top of everything, shut again on Escape)
+//   HS-23 THE HEAL WARNING: a heal slot whose HP % is fewer HP than the hunt's biggest blow at the
+//         party's size says so in Configure action's sticky foot beside Save ("The Rat King can hit for 75.
+//         At 30% you have 66 HP, so one hit can kill you before you eat."), in view at 922x423 whenever Save is;
+//         it hides at a safe threshold and for a solo hero (who skips the King's hall)
 //   HS-21 THE COOLDOWN EMBER: the hero's played cast cools that ability's slot for its
 //         catalogue cooldown; the ember rises and the seconds fall as it runs out
-//   HS-23 THE PICKER'S PERSONAL BESTS (designer 2026-10-21): each ground's card shows the
+//   HS-24 THE PICKER'S PERSONAL BESTS (designer 2026-10-21): each ground's card shows the
 //         server's hunt_bests for this hero, alone and in a party ("12,400 XP per hour ·
 //         balance 3,100 gp per hour"), "No hunt of 10 min yet" where there is none, >= 12 px,
 //         and the next envelope REPLACES them (never merged)
-//   HS-24 THE HUNT SUMMARY shows the server's balance per hour to every character, and raw
+//   HS-25 THE HUNT SUMMARY shows the server's balance per hour to every character, and raw
 //         XP per hour only when the server sent it (premium)
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
@@ -91,6 +97,7 @@ import { readFile, mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { pathToFileURL } from 'node:url';
+import { scopeMutants, gateScope } from '../tools/lib/mutant-scope.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
 /* The scene and its log play huntPlaybackDelayMs behind the server (src/session/config.js): the fixture's
@@ -450,6 +457,25 @@ async function checks(overrides, shots) {
             taken: p.querySelector('.ha-tab[data-tab="taken"]').getClientRects().length > 0, more: p.querySelector('.ha-more').getClientRects().length > 0 };
         });
         if (!paid.waste || !paid.taken || paid.more) fails.push('HS-4 a premium character does not see every analyzer row: ' + JSON.stringify(paid));
+        /* Designer 2026-10-21: before 10 minutes the server sends no rate (per_hour null, the Level eta null):
+           the totals still show, the rates give way to one line, and Next level in says when. */
+        s.env.hunt_analyzer.hero.per_hour = null;
+        s.env.hunt_analyzer.hero.level.eta_h = null;
+        await pushEnvelope(page, s);
+        const early = await page.evaluate(() => {
+          const p = document.querySelector('.ha-analyzer');
+          const shown = (el) => !!el && el.getClientRects().length > 0;
+          return { kills: p.querySelector('[data-sec="totals"] [data-stat="kills"]').textContent, rates: shown(p.querySelector('[data-sec="rates"] .ha-stats')),
+            line: shown(p.querySelector('.ha-later')) ? p.querySelector('.ha-later').textContent : null, next: p.querySelector('[data-clock="next"]').textContent };
+        });
+        if (!/\d/.test(early.kills) || early.rates || early.line !== 'Per hour after 10 min.' || early.next !== 'after 10 min') {
+          fails.push('HS-4 a session under 10 minutes (per_hour null) did not show totals plus "Per hour after 10 min.": ' + JSON.stringify(early));
+        }
+        s.env.hunt_analyzer = clone(FIXTURE.hunt_analyzer);
+        await pushEnvelope(page, s);
+        const later = await page.evaluate(() => document.querySelector('[data-sec="rates"] .ha-stats').getClientRects().length > 0
+          && document.querySelector('.ha-later').getClientRects().length === 0);
+        if (!later) fails.push('HS-4 once the server sent rates, the per-hour rows did not come back');
         await page.keyboard.press('Escape');
         await wait(page, () => document.querySelector('[data-hs-win="settings"] input[data-float]'));
         await page.waitForTimeout(300);
@@ -714,6 +740,45 @@ async function checks(overrides, shots) {
       await ctx.close();
     }
 
+    { // HS-23 THE HEAL WARNING (designer 2026-10-21, Andy died in the Sewer healing at 40%)
+      const { ctx, page, s, up } = await open({ prep: (st) => { st.env.hunt.hunt_id = 'millrace_sewer'; } });
+      if (up) {
+        await page.click('.hb-slot[data-slot="2"]');
+        await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .hc-title'), null, 3000);
+        const warn = () => page.evaluate(() => { const w = document.querySelector('.hc-warn'); return w && w.getClientRects().length ? w.textContent : ''; });
+        /* Wheat Bread at HP 50% or below of 220 = 110 HP: above the King's 75, nothing to say. */
+        const safe = await warn();
+        await page.fill('.hc-cond[data-cond="0"] [data-f="value"]', '30');
+        await page.dispatchEvent('.hc-cond[data-cond="0"] [data-f="value"]', 'change');
+        const shown = await warn();
+        if (safe !== '' || shown !== 'The Rat King can hit for 75. At 30% you have 66 HP, so one hit can kill you before you eat.') {
+          fails.push('HS-23 the heal warning did not follow the threshold in a party of two: at 50% "' + safe + '", at 30% "' + shown + '"');
+        }
+        /* Alone the King's hall is skipped (minParty 2): the biggest blow is a Cistern Spider's 48, under 66. */
+        s.env.party.members = [s.env.party.members[0]];
+        await pushEnvelope(page, s);
+        const solo = await warn();
+        if (solo !== '') fails.push('HS-23 a solo hero (who never meets the Rat King) was warned: "' + solo + '"');
+      } else fails.push('HS-23 the screen did not mount on the Sewer');
+      await ctx.close();
+    }
+    { // HS-23 at 922x423 (v0.2.24 visual gate): the warning is on screen, beside Save, never scrolled away below it
+      const { ctx, page, up } = await open({ viewport: { width: 922, height: 423 }, prep: (st) => { st.env.hunt.hunt_id = 'millrace_sewer'; } });
+      if (up) {
+        await page.click('.hb-slot[data-slot="2"]');
+        await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .hc-title'), null, 3000);
+        await page.fill('.hc-cond[data-cond="0"] [data-f="value"]', '30');
+        await page.dispatchEvent('.hc-cond[data-cond="0"] [data-f="value"]', 'change');
+        const seen = await page.evaluate(() => {
+          const inView = (el) => { const r = el && el.getBoundingClientRect(); return !!r && r.width > 0 && r.top >= 0 && r.bottom <= window.innerHeight && r.left >= 0 && r.right <= window.innerWidth; };
+          const w = document.querySelector('.hc-warn');
+          return { warn: inView(w), save: inView(document.querySelector('.hc-foot [data-x="save"]')), inFoot: !!(w && w.closest('.hc-foot')), text: w && w.textContent };
+        });
+        if (!seen.warn || !seen.save || !seen.inFoot || !/one hit can kill you/.test(String(seen.text))) fails.push('HS-23 at 922x423 the heal warning is not in view beside Save: ' + JSON.stringify(seen));
+      } else fails.push('HS-23 the screen did not mount at 922x423');
+      await ctx.close();
+    }
+
     { // HS-19 drag on the bar: onto an empty slot it moves; onto an action a menu (Swap / Insert / cancel); one intent per choice; the status line clears
       const { ctx, page, s, up } = await open();
       if (up) {
@@ -866,7 +931,7 @@ async function checks(overrides, shots) {
       await ctx.close();
     }
 
-    { // HS-23 THE PICKER'S PERSONAL BESTS are the server's (hunt_bests), replaced by each envelope; empty = "No hunt of 10 min yet"
+    { // HS-24 THE PICKER'S PERSONAL BESTS are the server's (hunt_bests), replaced by each envelope; empty = "No hunt of 10 min yet"
       const { ctx, page, s, errors, up } = await open({ town: true, prep: (sc) => {
         sc.env.hunt_bests = { min_ms: 600000, grounds: { mill_cellar: { solo: { xp_h: 12400, balance_h: 3100 } } } };
       } });
@@ -881,23 +946,23 @@ async function checks(overrides, shots) {
         await wait(page, () => document.querySelector('[data-hs-win="hunts"] .hw-hunt[data-hunt="mill_cellar"] .hw-hunt-best-solo'), null, 4000);
         const a = await card('mill_cellar');
         if (!a || a.solo !== 'Best alone: 12,400 XP per hour · balance 3,100 gp per hour' || a.party !== 'Best in a party: No hunt of 10 min yet' || !(a.px >= 12)) {
-          fails.push('HS-23 the picker card does not show the server’s personal bests: ' + JSON.stringify(a));
+          fails.push('HS-24 the picker card does not show the server’s personal bests: ' + JSON.stringify(a));
         }
         const other = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="hunts"] .hw-hunt:not([data-hunt="mill_cellar"]) .hw-hunt-best-solo')).map((n) => n.textContent));
-        if (!other.length || other.some((x) => x !== 'Best alone: No hunt of 10 min yet')) fails.push('HS-23 a ground with no best does not say so: ' + JSON.stringify(other.slice(0, 3)));
+        if (!other.length || other.some((x) => x !== 'Best alone: No hunt of 10 min yet')) fails.push('HS-24 a ground with no best does not say so: ' + JSON.stringify(other.slice(0, 3)));
         /* The next envelope REPLACES the bests (a better party hunt landed, the solo one is gone from this read). */
         s.env.hunt_bests = { min_ms: 600000, grounds: { mill_cellar: { party: { xp_h: 20500, balance_h: -450 } } } };
         await pushEnvelope(page, s);
         const b = await card('mill_cellar');
         if (!b || b.solo !== 'Best alone: No hunt of 10 min yet' || b.party !== 'Best in a party: 20,500 XP per hour · balance -450 gp per hour') {
-          fails.push('HS-23 the picker card is not replaced by the next envelope: ' + JSON.stringify(b));
+          fails.push('HS-24 the picker card is not replaced by the next envelope: ' + JSON.stringify(b));
         }
-        if (errors.length) fails.push('HS-23 console errors: ' + errors.slice(0, 3).join(' | '));
-      } else fails.push('HS-23 the screen did not mount in town');
+        if (errors.length) fails.push('HS-24 console errors: ' + errors.slice(0, 3).join(' | '));
+      } else fails.push('HS-24 the screen did not mount in town');
       await ctx.close();
     }
 
-    for (const premium of [true, false]) { // HS-24 THE HUNT SUMMARY shows the server's balance per hour to everyone; raw XP per hour only to premium
+    for (const premium of [true, false]) { // HS-25 THE HUNT SUMMARY shows the server's balance per hour to everyone; raw XP per hour only to premium
       const { ctx, page, s, up } = await open({ prep: (sc) => {
         sc.keepResidue = true;   // the stored summary is display residue: the server hands it back on a re-read
         if (premium) return;
@@ -924,8 +989,8 @@ async function checks(overrides, shots) {
         });
         const ph = FIXTURE.hunt_analyzer.hero.per_hour;
         const want = { balanceH: ph.balance.toLocaleString('en-US') + ' gp', rawXpH: premium ? ph.raw_xp.toLocaleString('en-US') : null };
-        if (!shown || got.balanceH !== want.balanceH || got.rawXpH !== want.rawXpH) fails.push('HS-24 the ' + tag + ' summary shows ' + JSON.stringify(got) + '; the server sent ' + JSON.stringify(want));
-      } else fails.push('HS-24 the ' + tag + ' screen did not mount');
+        if (!shown || got.balanceH !== want.balanceH || got.rawXpH !== want.rawXpH) fails.push('HS-25 the ' + tag + ' summary shows ' + JSON.stringify(got) + '; the server sent ' + JSON.stringify(want));
+      } else fails.push('HS-25 the ' + tag + ' screen did not mount');
       await ctx.close();
     }
 
@@ -988,8 +1053,10 @@ async function checks(overrides, shots) {
       await page.click('.hc-tab[data-tab="items"]');
       await page.click('.hc-choice[data-id="food"]');
       const note = await page.evaluate(() => ({ choice: document.querySelector('.hc-choice[data-id="food"] .hc-choice-note').textContent,
-        facts: document.querySelector('.hc-facts').textContent }));
+        facts: document.querySelector('.hc-facts').textContent, type: document.querySelector('.hc-type').textContent }));
       if (!/store from \d+ g each/.test(note.choice) || !/paid as used/.test(note.facts)) fails.push('HS-8 Any food does not show the store price paid as used: ' + JSON.stringify(note));
+      /* Designer 2026-10-21: "your best food first" misled Andy; the engine eats the SMALLEST own food that covers the gap (action-rules.js). */
+      if (note.type !== 'Food: your own food first, the smallest that covers what you are missing, then the store’s, restoring health.') fails.push('HS-8 Any food does not say which food it eats: ' + JSON.stringify(note.type));
       /* A food slot starts at HP below 50% (Eat at is gone); the player moves it to 60. */
       if ((await page.$$eval('.hc-cond.is-on', (n) => n.length)) !== 1) fails.push('HS-8 a new food slot does not start with its HP condition');
       await page.fill('.hc-cond[data-cond="0"] [data-f="value"]', '60');
@@ -1111,15 +1178,44 @@ async function checks(overrides, shots) {
         const onTop = () => page.evaluate(() => { const c = document.querySelector('.hb-pl-more [data-opt="target_mode"]'); const b = c.getBoundingClientRect();
           const h = document.elementFromPoint(b.left + 6, b.top + 6); return b.width > 0 && b.right <= innerWidth && b.left >= 0 && (h === c || c.contains(h)); });
         if (await onTop()) fails.push('HS-22 ' + tag + ' the fight settings show on the bar before its sheet is opened');
+        /* No alert over the Party panel (its HP and MP rows) */
+        const party = await rect('.hp-party');
+        if (party && alerts && !(alerts.right <= party.left || alerts.left >= party.right || alerts.bottom <= party.top || alerts.top >= party.bottom)) {
+          fails.push('HS-22 ' + tag + ' the alerts lie over the Party panel: ' + JSON.stringify([alerts, party]));
+        }
         await page.click('.hb-plaque .hb-more');
         await page.waitForTimeout(300);
         if (!(await onTop())) fails.push('HS-22 ' + tag + ' the bar’s settings button did not slide the fight settings out on top');
+        /* The sheet opens inside the World, under the hunt bar: Leave hunt and the icon row stay in reach (gate P3). */
+        const sheet = await rect('.hb-pl-more'), ht = town ? null : await rect('.ht-bar');
+        if (sheet && ht && !(sheet.top >= ht.bottom || sheet.left >= ht.right || sheet.right <= ht.left)) fails.push('HS-22 the fight settings sheet covers the hunt bar: ' + JSON.stringify([sheet, ht]));
+        if (sheet && sheet.top < 40) fails.push('HS-22 ' + tag + ' the fight settings sheet starts at ' + Math.round(sheet.top) + ', over the top strip');
         await page.keyboard.press('Escape');
         await page.waitForTimeout(300);
         if (await onTop()) fails.push('HS-22 ' + tag + ' Escape did not close the fight settings sheet');
+        /* An open window (Configure action, from a slot) has no alert drawn over it (gate P1: they hid its item names). */
+        await page.click('.hb-slot[data-slot="2"]');
+        if (await wait(page, () => document.querySelector('[data-hs-win="configure-action"]:not(.is-leaving)'), null, 3000)) {
+          await page.waitForTimeout(300);
+          const over = await page.evaluate(() => {
+            const w = document.querySelector('[data-hs-win="configure-action"]').getBoundingClientRect(), a = document.querySelector('[data-hs-widget="alerts"]');
+            const hits = [];
+            for (const line of a.querySelectorAll('*')) {
+              const b = line.getBoundingClientRect();
+              const x0 = Math.max(b.left, w.left), x1 = Math.min(b.right, w.right), y0 = Math.max(b.top, w.top), y1 = Math.min(b.bottom, w.bottom);
+              if (!(x1 > x0 && y1 > y0)) continue;
+              const h = document.elementFromPoint((x0 + x1) / 2, (y0 + y1) / 2);
+              if (a.contains(h)) hits.push(String(h.className || h.tagName));
+            }
+            return hits;
+          });
+          if (over.length) fails.push('HS-22 ' + tag + ' an alert draws over the open Configure action window: ' + over.slice(0, 3).join(','));
+          await page.keyboard.press('Escape');
+          await page.waitForTimeout(300);
+        } else fails.push('HS-22 ' + tag + ' a bar slot did not open Configure action');
         /* A slot's tooltip draws over the alert stack beside it (v0.2.23 gate P2a): every point where the two meet is the tooltip's. */
         /* a real hover: whatever covers the slot takes it (then no tooltip, and the rule says so) */
-        await page.hover('.hb-slot[data-slot="1"]', { timeout: 3000 }).catch(() => {});
+        await page.hover('.hb-slot[data-slot="8"]', { timeout: 3000 }).catch(() => {});
         await page.waitForTimeout(300);
         const tipOver = await page.evaluate(() => {
           const t = document.querySelector('.hb-tip'), a = document.querySelector('[data-hs-widget="alerts"]');
@@ -1171,6 +1267,11 @@ const MUTANTS = [
     ["else if (key === 'stance') attr(el, 'aria-pressed', String(v === el.getAttribute('data-val')));", "else if (key === 'stance') attr(el, 'aria-pressed', String(pending ? root.__want === el : v === el.getAttribute('data-val')));"]]],
   ['controls stay on while an intent is in flight', 'src/shell/widgets/settings-intent.js', "prop(el, 'disabled', pending || v === null);", "prop(el, 'disabled', v === null);"],
   ['the analyzer ignores the premium gate', 'src/shell/widgets/analyzer.js', 'const premium = isPremium(ctx.character);', 'const premium = true;'],
+  ['a null per_hour shows dashes, not "Per hour after 10 min."', 'src/shell/widgets/analyzer.js', "prop(sec.querySelector('.ha-later'), 'hidden', v.rated);", "prop(sec.querySelector('.ha-later'), 'hidden', true);"],
+  ['Any food says it eats the best food first', 'src/shell/action-facts.js', 'your own \' + a.id + \' first, the smallest that covers what you are missing, then the store’s', 'your best \' + a.id + \' first'],
+  ['Configure action never warns a heal slot', 'src/shell/windows/configure-action.js', "healWarning(d, set, blow, vitalsOf(cs).hpMax)", "''"],
+  ['the heal warning sits above the foot, scrolled away below Save at 922x423', 'src/shell/windows/configure-action.js', "'<div class=\"hc-foot\"><p class=\"hc-warn\" role=\"status\" aria-live=\"polite\"></p>'", "'<p class=\"hc-warn\" role=\"status\" aria-live=\"polite\"></p><div class=\"hc-foot\">'"],
+  ['the heal warning reads the whole ground whatever the party size', 'src/shell/windows/configure-action.js', 'biggestBlowOn(h.huntId, p ? p.members.length : 1)', 'biggestBlowOn(h.huntId, 4)'],
   ['the Hunts window keeps saying "On the way" while hunting', 'src/shell/windows/hunts.js', "  if (sc.msg && sc.msg === sc.enterMsg && (now || (h && h.ended))) { sc.msg = ''; sc.enterMsg = null; }\n", ''],
   ['an edge panel never steps out of the hunt bar’s way', 'src/shell/shell.js', "        for (const p of at.push) edgeEls[p.i].style.top = p.top + 'px';\n", ''],
   ['the hunt bar draws no tutorial card under itself', 'src/shell/widgets/hunt-topbar.js', 'const html = pointerFor(ctx);', "const html = '';"],
@@ -1231,12 +1332,14 @@ const MUTANTS = [
   ['the phone bar keeps the whole panel (HS-22)', 'src/styles/hunt.css', '  .hb-pl-more { position: fixed;', '  .hb-pl-more { display: contents; } .hb-xx { position: fixed;'],
   ['the phone hub keeps the big medal (HS-22)', 'src/styles/hunt.css', '  .hb-medal, .hb-arcs { width: 64px; height: 64px; }', '  .hb-medal, .hb-arcs { width: 88px; height: 88px; }'],
   ['the world HUD stays under the alerts while a tooltip is open (HS-22)', 'src/styles/hunt.css', '.hb-plaque.is-open) { z-index: 7; }', '.hb-plaque.is-open) { z-index: 2; }'],
-  ['the phone alerts stay at the middle left (HS-22)', 'src/data/hud-widgets.js', "phone: Object.freeze({ anchor: 'bl', dx: 4, dy: 104 }),", "phone: Object.freeze({ dx: 4 }),"],
+  ['the phone alerts dock on the left, over the Party panel (HS-22)', 'src/data/hud-widgets.js', "phone: Object.freeze({ anchor: 'br', dx: 4, dy: 104 }),", "phone: Object.freeze({ anchor: 'bl', dx: 4, dy: 160 }),"],
+  ['the phone alerts draw over an open window (HS-22)', 'src/styles/hunt.css', '  :root:has(.hs-win:not(.is-leaving)) .hs-widget.is-alerts { visibility: hidden; }', '.hs-widget.is-alerts { }'],
+  ['the fight settings sheet starts at the top of the screen (HS-22)', 'src/shell/widgets/action-bar.js', "    sheet.style.top = Math.round(Math.max(box.top, hb ? hb.bottom + 4 : box.top)) + 'px';", "    sheet.style.top = '0px';"],
   ['the bleed badge defaults on for regular monsters', 'src/data/combat-text.js', "label: 'Bleed stack count', on: on(false, true)", "label: 'Bleed stack count', on: on(true, true)"],
-  ['the picker card never shows the personal best (HS-23)', 'src/shell/windows/hunts.js', "text(li.querySelector('.hw-hunt-best-solo'), best ? best.solo : '');", "text(li.querySelector('.hw-hunt-best-solo'), '');"],
-  ['the picker merges a best the server no longer sends (HS-23)', 'src/session/hunt-sections.js', "  const b = section(cs, 'hunt_bests');\n", "  const b = section(cs, 'hunt_bests');\n  if (b && globalThis.__hb) for (const [k, v] of Object.entries(globalThis.__hb)) b.grounds[k] = Object.assign({}, v, b.grounds[k]);\n  if (b) globalThis.__hb = b.grounds;\n"],
-  ['the summary has no balance per hour (HS-24)', 'src/hunt-view/summary-model.js', 'balanceH: ph ? ph.balance : null,', 'balanceH: null,'],
-  ['a free summary shows raw XP per hour (HS-24)', 'src/shell/windows/hunt-summary.js', "prop(dd.parentNode, 'hidden', !!onlySent && (cur[k] === null || cur[k] === undefined));", "prop(dd.parentNode, 'hidden', false);"],
+  ['the picker card never shows the personal best (HS-24)', 'src/shell/windows/hunts.js', "text(li.querySelector('.hw-hunt-best-solo'), best ? best.solo : '');", "text(li.querySelector('.hw-hunt-best-solo'), '');"],
+  ['the picker merges a best the server no longer sends (HS-24)', 'src/session/hunt-sections.js', "  const b = section(cs, 'hunt_bests');\n", "  const b = section(cs, 'hunt_bests');\n  if (b && globalThis.__hb) for (const [k, v] of Object.entries(globalThis.__hb)) b.grounds[k] = Object.assign({}, v, b.grounds[k]);\n  if (b) globalThis.__hb = b.grounds;\n"],
+  ['the summary has no balance per hour (HS-25)', 'src/hunt-view/summary-model.js', 'balanceH: ph ? ph.balance : null,', 'balanceH: null,'],
+  ['a free summary shows raw XP per hour (HS-25)', 'src/shell/windows/hunt-summary.js', "prop(dd.parentNode, 'hidden', !!onlySent && (cur[k] === null || cur[k] === undefined));", "prop(dd.parentNode, 'hidden', false);"],
 ];
 
 async function main() {
@@ -1257,9 +1360,19 @@ async function main() {
   const sh = process.argv.find((a) => a.startsWith('--shard='));
   const sm = sh ? /^--shard=(\d+)\/(\d+)$/.exec(sh) : null;
   if (sh && (!sm || +sm[1] < 1 || +sm[1] > +sm[2])) { console.log('  ✗ bad ' + sh + ' (want --shard=K/N, 1 <= K <= N)'); process.exit(1); }
-  const mine = sm ? MUTANTS.filter((_, i) => i % +sm[2] === +sm[1] - 1) : MUTANTS;
-  if (!mine.length) { console.log('  ✗ ' + sh + ' selects no mutant'); process.exit(1); }
+  const shard = sm ? MUTANTS.filter((_, i) => i % +sm[2] === +sm[1] - 1) : MUTANTS;
+  if (!shard.length) { console.log('  ✗ ' + sh + ' selects no mutant'); process.exit(1); }
   const tag = sm ? ' (shard ' + sm[1] + '/' + sm[2] + ')' : '';
+  /* A push's gate hands over its diff (HR_MUTANT_SCOPE): only the mutants it can have moved run —
+     the file a mutant patches changed, or its own entry here did; any other change to this file or
+     to a tests/ helper it loads runs them all. No scope (nightly, manual, local) = all of them. */
+  const scope = scopeMutants({ guard: 'tests/hunt-screen.mjs', root: ROOT, ...gateScope() });
+  const mine = scope.all ? shard : shard.filter(([name]) => scope.keep.has(name));
+  if (!scope.all) {
+    console.log('  scope: ' + mine.length + ' of ' + shard.length + ' mutant(s)' + tag + ' touched by this diff');
+    for (const [name] of mine) console.log('    ' + name + ' — ' + scope.why.get(name));
+    if (!mine.length) { console.log('hunt-screen --mutate' + tag + ': no mutant in this shard is touched by this diff (the nightly sweep runs them)'); process.exit(0); }
+  } else if (process.env.HR_MUTANT_SCOPE) console.log('  scope: every mutant — ' + scope.why);
   const clean = await checks(null, null);
   if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
   console.log('  ✓ clean control green');

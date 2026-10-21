@@ -73,7 +73,9 @@
 -- drop trigger hr_hunt_best_on_end on public.hunt_sessions; delete from
 -- public.hr_state_sections where key = 'hunt_bests'; drop the four functions and
 -- the table; re-apply hr_hunt_analyzer_basic from 2026-10-26-hunt-analyzer-basic.sql.
--- ORDER: after 2026-11-03-alpha-catalogue.generated.sql (last in the chain).
+-- ORDER: after 2026-11-04-party-outfits.sql (last in the chain). The fold reads
+-- hr_hunt_stats_of as 2026-11-06-hunt-analyzer-min-window.sql left it (rates null
+-- under 10 min of wall time; a fold needs 10 min, so it always reads numbers).
 -- No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════
 

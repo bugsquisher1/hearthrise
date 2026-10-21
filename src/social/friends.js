@@ -16,6 +16,8 @@
 // A target is a user id or a claimed display name; the server resolves it.
 // ════════════════════════════════════════════════════════════════════════
 
+import { askVia } from '../session/intent-ledger.js?v=0.2.22';
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const HUNT = /^[a-z0-9_]{1,64}$/;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -62,19 +64,22 @@ export class FriendStore {
   isFriend(id) { return this._friends.some((f) => f.id === id); }
   asked(id) { return this._out.some((f) => f.id === id); }
 
-  async _settled(pending) {
-    const ans = await pending;
-    const b = ans.body;
-    const ok = !!(ans.ok && b && b.ok === true);
-    if (ok) await this._reread();
-    return ok ? { ok: true, state: b.state || null } : { ok: false, error: (b && typeof b.error === 'string' && b.error) || ans.error || 'refused' };
+  /* One ask (intent-ledger.js) from the send until the re-read: the pressed control waits on it. */
+  _settled(verb, send) {
+    return askVia(this._account, verb, async () => {
+      const ans = await send();
+      const b = ans.body;
+      const ok = !!(ans.ok && b && b.ok === true);
+      if (ok) await this._reread();
+      return ok ? { ok: true, state: b.state || null } : { ok: false, error: (b && typeof b.error === 'string' && b.error) || ans.error || 'refused' };
+    });
   }
 
   request(target) {
     const t = String(target || '').trim().slice(0, 40);
     if (!t) return Promise.resolve({ ok: false, error: 'no_player' });
-    return this._settled(this._account.server.rpc('hr_friend_request', { p_target: t }));
+    return this._settled('friend_request', () => this._account.server.rpc('hr_friend_request', { p_target: t }));
   }
-  answer(id, accept) { return this._settled(this._account.server.rpc('hr_friend_answer', { p_target: String(id), p_accept: accept === true })); }
-  remove(id) { return this._settled(this._account.server.rpc('hr_friend_remove', { p_target: String(id) })); }
+  answer(id, accept) { return this._settled('friend_answer', () => this._account.server.rpc('hr_friend_answer', { p_target: String(id), p_accept: accept === true })); }
+  remove(id) { return this._settled('friend_remove', () => this._account.server.rpc('hr_friend_remove', { p_target: String(id) })); }
 }

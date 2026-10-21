@@ -13,6 +13,7 @@
 //   set(target, on) ONE hr_block_set; then the SocialSession re-reads
 // ════════════════════════════════════════════════════════════════════════
 import { personOf } from './friends.js?v=0.2.22';
+import { askVia } from '../session/intent-ledger.js?v=0.2.22';
 
 export class BlockStore {
   /** @param {{ account: object, reread: () => Promise<any>, onBlocked: (id: string) => void }} o */
@@ -27,13 +28,15 @@ export class BlockStore {
   list() { return this._list.slice(); }
   has(id) { return this._list.some((b) => b.id === id); }
 
-  async set(target, on) {
-    const ans = await this._account.server.rpc('hr_block_set', { p_target: String(target || ''), p_on: on === true });
-    const b = ans.body;
-    if (!ans.ok || !b || b.ok !== true) return { ok: false, error: (b && typeof b.error === 'string' && b.error) || ans.error || 'refused' };
-    const who = personOf(b.person);
-    if (on === true && who) this._onBlocked(who.id);
-    await this._reread();
-    return { ok: true };
+  set(target, on) {
+    return askVia(this._account, 'block_set', async () => {
+      const ans = await this._account.server.rpc('hr_block_set', { p_target: String(target || ''), p_on: on === true });
+      const b = ans.body;
+      if (!ans.ok || !b || b.ok !== true) return { ok: false, error: (b && typeof b.error === 'string' && b.error) || ans.error || 'refused' };
+      const who = personOf(b.person);
+      if (on === true && who) this._onBlocked(who.id);
+      await this._reread();
+      return { ok: true };
+    });
   }
 }

@@ -43,6 +43,8 @@ import { createSocialRealtime } from '../social/realtime.js?v=0.2.22';
 import { SocialSession } from '../social/social-session.js?v=0.2.22';
 import { escapeHtml as esc } from '../utils/dom.js?v=0.2.22';
 import { startObservability, track } from '../net/observability.js?v=0.2.22';
+import { mountPressAck } from '../shell/press-ack.js?v=0.2.22';
+import { liveOverlayWanted, mountLiveOverlay } from './live-overlay.js?v=0.2.22';
 
 const DISCORD = 'https://discord.gg/eJrUSUJM3M';
 
@@ -70,6 +72,7 @@ function startApp(win) {
   const auth = createAuth({ client, device: HS, tab: HS.session, redirectTo: win.location.origin + win.location.pathname, doc });
   let account = null;
   let alerts = null;
+  let watchers = [];   // the account's page-level watchers: the press acknowledgement, ?debug=live
   let pane = null;
   let strip = null;
   let paneSeq = 0;
@@ -114,6 +117,7 @@ function startApp(win) {
   /* The session ended under the game: close everything, then say so on the sign-in screen. */
   async function sessionEnded() {
     if (!account) return;
+    endWatchers();
     if (alerts) { alerts.destroy(); alerts = null; }
     const a = account;
     account = null;
@@ -124,7 +128,10 @@ function startApp(win) {
     if (m) m.textContent = AUTH_COPY.signedOut;
   }
 
+  function endWatchers() { for (const w of watchers) w.destroy(); watchers = []; }
+
   async function signOut() {
+    endWatchers();
     if (alerts) { alerts.destroy(); alerts = null; }
     if (account) { const a = account; account = null; await a.signOut(); } else await auth.signOut();
     obs.forget();
@@ -143,6 +150,9 @@ function startApp(win) {
       else if (why === 'viewed' && strip) showPane();
     });
     alerts = createAlertCenter(account);
+    /* Every press answers at once (src/shell/press-ack.js); ?debug=live adds the corner (live-overlay.js). */
+    watchers = [mountPressAck(doc, account.intents)];
+    if (liveOverlayWanted(win.location.search)) watchers.push(mountLiveOverlay(win, account));
     account.social.chat.followAlerts(alerts);   // the alerts are also the chat's System lines
     await showCharacters();
   }

@@ -45,6 +45,7 @@ import { CharacterSession } from './character-session.js?v=0.2.22';
 import { TownPresence } from './town-presence.js?v=0.2.22';
 import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.22';
 import { charLevelFromXp } from '../core/xp.js?v=0.2.22';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.22';
 
 /** This tab's session id: made once per tab, kept across a reload, new for a new tab. */
 export function tabSessionId(tab, cfg = SESSION_CONFIG, make) {
@@ -116,6 +117,8 @@ export class AccountSession {
   constructor(o) {
     this.auth = o.auth;
     this.server = o.server;
+    /** The asks in flight (intent-ledger.js): the server link's, shared with every CharacterSession. */
+    this.intents = (o.server && o.server.intents) || createIntentLedger();
     this.config = o.config || SESSION_CONFIG;
     this.tabId = tabSessionId(o.tab, this.config);
     this._channel = o.channel || null;
@@ -185,41 +188,50 @@ export class AccountSession {
 
   /** Ask the server to make the hero in an owned slot with its name and colours ({ head, body, legs, feet }
       dye indices). { ok } or { ok:false, reason, nameReason }: the server's verdict, never the client's. */
-  async create(slot, name, colors) {
-    const ans = await this.server.rpc('hr_create_hero', { p_slot: slot, p_name: String(name || '').slice(0, 40), p_colors: colors, p_idem: newIdem() });
-    this._noteClosed(ans);
-    const b = ans.body;
-    return { ok: !!(ans.ok && b && b.ok === true), reason: (b && b.error) || ans.error || null, nameReason: (b && b.reason) || null };
+  create(slot, name, colors) {
+    return this.intents.track('create_hero', async () => {
+      const ans = await this.server.rpc('hr_create_hero', { p_slot: slot, p_name: String(name || '').slice(0, 40), p_colors: colors, p_idem: newIdem() });
+      this._noteClosed(ans);
+      const b = ans.body;
+      const ok = !!(ans.ok && b && b.ok === true);
+      return { ok, error: ok ? null : (b && b.error) || ans.error || 'refused', reason: (b && b.error) || ans.error || null, nameReason: (b && b.reason) || null };
+    });
   }
 
   /**
-   * Buy hero slot `slotId` with the gold of the hero in `paySlot`: ONE intent with its own key; the
-   * server owns the price, the ladder, the cap and the debit. On a yes the paying character, if open,
-   * is re-read so its gold is the server's. { ok } or { ok:false, reason, shortBy }.
+   * Buy hero slot `slotId` with the gold of the hero in `paySlot`: ONE intent with its own key, an ask
+   * in the intent ledger; the server owns the price, the ladder, the cap and the debit. On a yes the
+   * paying character, if open, is re-read so its gold is the server's.
+   * { ok } or { ok:false, error, reason, shortBy }.
    */
-  async buySlot(slotId, paySlot) {
+  buySlot(slotId, paySlot) {
     if (!Number.isInteger(slotId) || slotId < 1 || slotId > this.config.maxSlot
-      || !Number.isInteger(paySlot) || paySlot < 0 || paySlot > this.config.maxSlot) return { ok: false, reason: 'bad_intent', shortBy: null };
-    const ans = await this.server.rpc('hr_buy_hero_slot', { p_slot_id: slotId, p_slot: paySlot, p_idem: newIdem() });
-    this._noteClosed(ans);
-    const b = ans.body;
-    const ok = !!(ans.ok && b && b.ok === true);
-    if (ok) {
-      this.slotOffer = slotOfferOf(b, this.config);
-      const cs = this._chars.get(paySlot);
-      if (cs) await cs.load();
-    }
-    return { ok, reason: ok ? null : (b && b.error) || ans.error || 'refused',
-      shortBy: !ok && b && Number.isSafeInteger(b.short_by) ? b.short_by : null };
+      || !Number.isInteger(paySlot) || paySlot < 0 || paySlot > this.config.maxSlot) return Promise.resolve({ ok: false, error: 'bad_intent', reason: 'bad_intent', shortBy: null });
+    return this.intents.track('buy_hero_slot', async () => {
+      const ans = await this.server.rpc('hr_buy_hero_slot', { p_slot_id: slotId, p_slot: paySlot, p_idem: newIdem() });
+      this._noteClosed(ans);
+      const b = ans.body;
+      const ok = !!(ans.ok && b && b.ok === true);
+      if (ok) {
+        this.slotOffer = slotOfferOf(b, this.config);
+        const cs = this._chars.get(paySlot);
+        if (cs) await cs.load();
+      }
+      const reason = ok ? null : (b && b.error) || ans.error || 'refused';
+      return { ok, error: reason, reason, shortBy: !ok && b && Number.isSafeInteger(b.short_by) ? b.short_by : null };
+    });
   }
 
-  /** Open (load + connect) one character. { ok, session } or { ok:false, reason }. */
-  async open(slot) {
+  /** Open (load + connect) one character. { ok, session } or { ok:false, reason }. The press that asked
+      for it waits on the whole open (an ask in the intent ledger). */
+  open(slot) { return this.intents.track('open_character', () => this._open(slot)); }
+
+  async _open(slot) {
     if (this._chars.has(slot)) return { ok: true, session: this._chars.get(slot) };
     if (this._chars.size >= this.limit()) return { ok: false, reason: 'limit', limit: this.limit() };
     const uid = this.userId;
     if (!uid) return { ok: false, reason: 'signed_out' };
-    const cs = new CharacterSession({ slot, uid, server: this.server, channel: this._channel,
+    const cs = new CharacterSession({ slot, uid, server: this.server, intents: this.intents, channel: this._channel,
       setTimer: this._timers.setTimer, clearTimer: this._timers.clearTimer });
     this._chars.set(slot, cs);
     cs.subscribe((s, why) => { if (why === 'closed-game') this._noteClosed({ closed: true }); });
@@ -255,7 +267,7 @@ export class AccountSession {
     for (const slot of Array.isArray(slots) ? slots : []) {
       if (!Number.isInteger(slot) || this._chars.has(slot)) continue;
       if (this._chars.size >= this.limit()) break;
-      await this.open(slot);
+      await this._open(slot);
     }
     return this.characters().map((c) => c.slot);
   }

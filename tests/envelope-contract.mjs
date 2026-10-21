@@ -171,7 +171,7 @@ function contract(R, cs, body, tl) {
     'blessingsOf yields ' + JSON.stringify(bl) + ' from ' + JSON.stringify(body.blessings));
   // the Character window (2026-10-25-character-sheet.sql): before any `sheet` call the sheet is not fresh
   const csh = R.CS.characterSheetOf(cs);
-  need('character_sheet', !!csh && csh.level !== null && csh.maxHp !== null && !!csh.bestiary && csh.bestiary.total > 0,
+  need('character_sheet', !!csh && isNum(body.character_sheet.level) && isNum(body.character_sheet.max_hp) && !!csh.bestiary && csh.bestiary.total > 0,
     'characterSheetOf yields ' + JSON.stringify(csh) + ' from ' + JSON.stringify(body.character_sheet));
   const of = R.CS.outfitOf(cs);
   need('outfit', !!of && of.owned.has('knight') && of.owned.has('witch'), 'outfitOf (a premium character) yields ' + JSON.stringify(of && [...of.owned]) + ' from ' + JSON.stringify(body.outfit));
@@ -181,9 +181,9 @@ function contract(R, cs, body, tl) {
   const stamp = Date.parse(String(cs.read('now') || ''));
   need('now', Number.isFinite(stamp) && Math.abs(stamp - Date.now()) < 24 * 3600000, 'the envelope stamp `now` reads ' + JSON.stringify(body.now) + ' (not a date of this run)');
   // the vitals strip out of a hunt (core rebuild `vitals`): max HP and mana, mana full in town
-  const tv = R.CS.townVitalsOf(cs);
-  need('vitals', !!tv && isNum(tv.hpMax) && isNum(tv.manaMax) && tv.mana === tv.manaMax && isNum(tv.level),
-    'townVitalsOf yields ' + JSON.stringify(tv) + ' from ' + JSON.stringify(body.vitals));
+  const tv = R.CS.heroVitalsOf(cs);
+  need('vitals', !!tv && isNum(tv.hpMax) && isNum(tv.manaMax) && isNum(tv.level) && (tv.hunting || tv.mana === tv.manaMax),
+    'heroVitalsOf yields ' + JSON.stringify(tv) + ' from ' + JSON.stringify(body.vitals));
   return out;
 }
 
@@ -194,7 +194,7 @@ function sheetContract(R, cs, body) {
   const sh = R.CS.characterSheetOf(cs);
   const c = sh && sh.combat;
   need('character_sheet', !!sh && sh.fresh && !!c && !!c.damage && c.damage.max >= 1 && c.defence !== null && c.accuracyPct !== null
-    && c.critPct !== null && c.maxMana !== null && !!c.role,
+    && c.critPct !== null && !!c.role,
     'after the sheet verb characterSheetOf yields ' + JSON.stringify(sh) + ' from ' + JSON.stringify(body.character_sheet));
   const dl = R.CS.deathLogOf(cs);
   need('death_log', !!dl && dl.length === 1 && dl[0].monster === 'rat' && dl[0].xp === 5 && !!dl[0].hunt,

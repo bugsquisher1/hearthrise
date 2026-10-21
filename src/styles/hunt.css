@@ -145,6 +145,7 @@
 .ha-analyzer[data-tab="taken"] .ha-sec:not([data-tab="taken"]),
 .ha-analyzer[data-tab="dealt"] .ha-sec:not([data-tab="dealt"]) { display: none; }
 .ha-stats { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; margin: 0 0 6px; }
+.ha-stats[hidden] { display: none; }
 .ha-stats dt { color: var(--ink-2); }
 .ha-stats dd { margin: 0; font-weight: 700; text-align: right; font-variant-numeric: lining-nums tabular-nums; }
 .ha-stats dd.is-loss { color: var(--red); }
@@ -297,6 +298,8 @@
 .hc-conds-head { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--line-soft); padding-top: 6px; }
 .hc-conds-head .hs-sub { margin: 0; }
 .hc-rule { margin: 0; }
+.hc-warn { margin: 0; font-size: var(--t-small); color: var(--red); line-height: 1.45; }
+.hc-warn:empty { display: none; }
 .hc-conds { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
 .hc-cond { display: none; flex-wrap: wrap; align-items: center; gap: 4px; }
 .hc-cond.is-on { display: flex; }

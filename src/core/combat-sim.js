@@ -154,6 +154,9 @@ export function simulateHuntInstance(inst, ctx) {
   const toMs = Math.floor(Number(ctx.toMs) || 0);
   const members = inst.members;
   let world = inst.world || null;
+  /* NO WORLD, NO PLACED HERO: a unit id names a unit of a world that is gone (a stored world of
+     another field list restarts: world-state decodeStored), so every member re-enters the fresh one. */
+  if (!world) for (const m of members) m.unitId = null;
   let atMs = Math.floor(Number(inst.nextSwingAtMs));
   const startMs = atMs;
   const out = new Map(members.map((m) => [m.key, { ticks: 0, kills: 0, deaths: 0, deathLog: [],

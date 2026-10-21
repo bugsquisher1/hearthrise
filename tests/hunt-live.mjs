@@ -5,7 +5,7 @@
 //   node tests/hunt-live.mjs            the rules
 //   node tests/hunt-live.mjs --mutate   every planted defect must turn its rule RED
 //
-// mutant-anchors: src/hunt-view/live-engine.js src/core/combat-sim.js supabase/functions/hr-accrue/hunt-settle.js src/hunt-view/timeline.js src/core/hunt/roles.js src/core/member.js
+// mutant-anchors: src/hunt-view/live-engine.js src/core/combat-sim.js supabase/functions/hr-accrue/hunt-settle.js supabase/functions/hr-accrue/accrual.js src/hunt-view/timeline.js src/core/hunt/roles.js src/core/member.js
 // mutant-writes-tree: no — mutants are planted into a temp copy of src/ and the edge
 //
 // Option B (Tyler 2026-10-19). The edge settles a hunt instance in commits of at
@@ -403,6 +403,33 @@ function rules(M) {
     ok('LV-W', E.running() && ran >= 8 && v === 'match', `a restarted instance's prediction ran ${ran} swing(s) (running ${E.running()}) and its commit read ${v}, want 8+ and match`);
   }
 
+  { // LV-O: a hunt left open across a deploy that moved the world's field list (its stored world is of
+    // another shape) keeps running: the settle restarts the world from the stored swing instead of
+    // refusing every fire (a frozen hunt), and a browser opened on it predicts the same restart.
+    try {
+      const mis = [memberOf(M, 'a', 0, 'tank', 6)];
+      const srv = server(M, mis);
+      const first = srv.commit(T0 + 16000);
+      const enc = JSON.parse(srv.inst.world);
+      srv.inst.world = JSON.stringify(Object.assign({}, enc, { s: (enc.s + 1) >>> 0 }));
+      const swingBefore = srv.inst.world_swing;
+      const E = M.LE.createLiveEngine({ items: M.ITEMS, monsters: M.MONSTERS });
+      E.seed(srv.live('a'));
+      let ran = 0;
+      for (let t = T0 + 16000; t <= T0 + 32000; t += 100) ran += E.advance(t, () => {});
+      const c = srv.commit(T0 + 32000);
+      const v = c ? E.check(c.check) : null;
+      console.log(`  LV-O stored world of another shape: settle ${c ? 'accrued' : 'did not accrue'} from swing ${swingBefore} to ${c && c.check.world_swing}, browser ran ${ran} swing(s), commit ${v}`);
+      ok('LV-O', !!first && !!c && c.check.world_swing > swingBefore, 'the settle did not run on from the stored swing over a world of another shape');
+      ok('LV-O', JSON.parse(srv.inst.world).s === enc.s, 'the settle did not re-save the world under the current shape');
+      ok('LV-O', ran >= 8 && v === 'match', `the browser over the old-shape world ran ${ran} swing(s) and its commit read ${v}, want 8+ and match`);
+      const bad = (() => { try { M.WS.decodeStored({ v: enc.v, s: enc.s, w: [], u: 'x', p: [] }); return false; } catch { return true; } })();
+      ok('LV-O', bad, 'a malformed world of the current shape was read instead of refused');
+    } catch (e) {
+      ok('LV-O', false, 'a world of another shape threw: ' + String(e && e.message).slice(0, 120));
+    }
+  }
+
   { // LV-S: a setup changed mid-hunt with the browser closed (server commits only).
     const NEW = { stance: 'offensive', distance: 3, chase: false, target_mode: 'weakest' };
     const mis = [memberOf(M, 'a', 0, 'tank', 6), memberOf(M, 'b', 1, 'melee_dps', 6)];
@@ -493,6 +520,13 @@ const MUTANTS = [
   ['a second tank holds where it stands (LV-T)', 'src/core/hunt/roles.js', "  if (!mons.some((m) => m.target === h.id)) { closeIn(inst, h, unitById(inst, h.target) || nearestTo(mons, h)); return; }\n", '', /^LV-T/],
   ['an ended instance keeps the prediction swinging (LV-E)', 'src/hunt-view/live-engine.js', 'if (!(sim.nextSwingAtMs > at)) {', 'if (false) {', /^LV-E/],
   ['a fresh world counts from 0, not the instance swing (LV-W)', 'src/hunt-view/live-engine.js', '      worldSwing: s.worldSwing },', '      worldSwing: 0 },', /^LV-W/],
+  ['the settle refuses a stored world of another shape (LV-O)', 'supabase/functions/hr-accrue/accrual.js',
+    "import { encode as encodeWorldRow, decodeStored as decodeWorldRow } from '../../../src/core/hunt/world-state.js';",
+    "import { encode as encodeWorldRow, decode as decodeWorldRow } from '../../../src/core/hunt/world-state.js';", /^LV-O/],
+  ['the browser refuses a stored world of another shape (LV-O)', 'src/hunt-view/live-engine.js',
+    'decodeStored as decodeWorldRow }', 'decode as decodeWorldRow }', /^LV-O/],
+  ['a member keeps the unit id of a world that is gone (LV-O)', 'src/core/combat-sim.js',
+    '  if (!world) for (const m of members) m.unitId = null;\n', '', /^LV-O/],
   ['members run in another order than the server (LV-D)', 'src/hunt-view/live-engine.js', '.slice().sort((a, b) => (a.key < b.key ? -1 : 1))', '.slice().reverse()', /^LV-D/],
   ['a setup change is not written onto a standing hero (LV-S)', 'src/core/combat-sim.js', 'if (s.stance !== undefined) u.stance = s.stance;', 'void 0;', /^LV-S/],
   ['every start point reads as the setup already run (LV-S)', 'src/hunt-view/live-engine.js', 'setupOf(live) === st.setup,', 'true,', /^LV-S/],

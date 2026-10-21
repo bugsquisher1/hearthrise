@@ -31,6 +31,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.23';
+import { PHYSICAL, isElement } from './elements.js?v=0.2.23';
 
 export const STATUSES = Object.freeze({
   bleed: Object.freeze({
@@ -67,8 +68,8 @@ export function validateStatus(row) {
   } else {
     for (let i = 1; i < row.tierPermille.length; i++) if (row.tierPermille[i] < row.tierPermille[i - 1]) out.push(at + 'tierPermille must not fall with tier');
   }
-  /* 'physical' or an element family id; the family list itself is damage.js's one resist table (contract §1.5). */
-  if (typeof row.damageType !== 'string' || !ID.test(row.damageType)) out.push(at + 'damageType must be an element id');
+  /* 'physical' or an element id from the one vocabulary (src/data/elements.js, contract §1.5). */
+  if (row.damageType !== PHYSICAL && !isElement(row.damageType)) out.push(at + 'damageType must be physical or an element id, got ' + row.damageType);
   return out;
 }
 

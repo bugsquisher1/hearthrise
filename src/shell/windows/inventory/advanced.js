@@ -13,15 +13,15 @@
 //                   absent, never an empty placeholder.
 // Read only; every number is the envelope's.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../../../data/items.js?v=0.2.23';
-import { HUNT_ROLES } from '../../../data/hunt-roles.js?v=0.2.23';
-import { BUFFS_DEF } from '../../../core/buffs.js?v=0.2.23';
-import { buffsOf, imbuementsOf, roleOf } from '../../../session/item-sections.js?v=0.2.23';
-import { partyOf } from '../../../session/hunt-sections.js?v=0.2.23';
-import { rows, text, cls, element } from '../../../render/paint.js?v=0.2.23';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.23';
-import { itemName } from '../../widgets/bits.js?v=0.2.23';
-import { DOLL } from './doll.js?v=0.2.23';
+import { ITEMS } from '../../../data/items.js?v=0.2.24';
+import { HUNT_ROLES } from '../../../data/hunt-roles.js?v=0.2.24';
+import { BUFFS_DEF } from '../../../core/buffs.js?v=0.2.24';
+import { buffsOf, imbuementsOf, roleOf } from '../../../session/item-sections.js?v=0.2.24';
+import { partyOf } from '../../../session/hunt-sections.js?v=0.2.24';
+import { rows, text, cls, element } from '../../../render/paint.js?v=0.2.24';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.24';
+import { itemName } from '../../widgets/bits.js?v=0.2.24';
+import { DOLL } from './doll.js?v=0.2.24';
 
 const TOTALS = Object.freeze([['atkB', 'Melee accuracy'], ['strB', 'Melee damage'], ['defB', 'Defense'], ['rangeAtkB', 'Ranged'], ['magicAtkB', 'Magic']]);
 const IMBUE_WORDS = Object.freeze({ keen: 'Keen', life_leech: 'Life Leech', mana_leech: 'Mana Leech', ward: 'Ward', element_ward: 'Element Ward' });

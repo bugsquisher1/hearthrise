@@ -22,7 +22,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { ABILITIES } from './abilities.js?v=0.2.23';
+import { ABILITIES } from './abilities.js?v=0.2.24';
 
 /* Where on a unit an effect centres, as a fraction of its art height: a rat's chest is
    lower than the Rat King's, and a mark floats over whichever head it is on. */
@@ -55,7 +55,7 @@ export const HIT_FX = Object.freeze({
     precision_shot: 'fx_crossbow_bolt_impact', flame_volley: 'fx_flame_volley_puff',
     fireball: 'fx_fire_rune_burst', frost_lance: 'fx_frost_lance_shatter', natures_wrath: 'fx_natures_wrath',
   }),
-  element: Object.freeze({ fire: 'fx_flame_volley_puff', frost: 'fx_frost_lance_shatter', nature: 'fx_natures_wrath' }),
+  element: Object.freeze({ ember: 'fx_flame_volley_puff', frost: 'fx_frost_lance_shatter', poison: 'fx_natures_wrath' }),
   role: Object.freeze({
     tank: 'fx_melee_slash', melee_dps: 'fx_melee_slash', ranger: 'fx_crossbow_bolt_impact',
     mage: 'fx_wand_bolt_impact', healer: 'fx_staff_bolt_impact', monster: 'fx_melee_slash',

@@ -43,17 +43,15 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random. Draws nothing.
 // ============================================================
 
-import { CONSUMABLE_RULES as R, CONSUMABLE_KINDS, CONSUMABLES } from '../../data/consumables.js?v=0.2.23';
-import { CONSUME_KINDS } from '../../data/condition-metrics.js?v=0.2.23';
-import { slotsFor, pickSlot } from './conditions.js?v=0.2.23';
-import { resolveLine, takeLine, lineAmount } from '../action-rules.js?v=0.2.23';
-import { makeEvent } from './events.js?v=0.2.23';
+import { CONSUMABLE_RULES as R, CONSUMABLE_KINDS, CONSUMABLES } from '../../data/consumables.js?v=0.2.24';
+import { CONSUME_KINDS } from '../../data/condition-metrics.js?v=0.2.24';
+import { slotsFor, pickSlot } from './conditions.js?v=0.2.24';
+import { resolveLine, takeLine, lineAmount } from '../action-rules.js?v=0.2.24';
+import { makeEvent } from './events.js?v=0.2.24';
 
-/* An over-time half is [left, nextTickAtMs, ticksLeft, itemId], or null. `healedAt`
-   is RETIRED (no rule reads it since food always fires); it stays in the world's
-   shape only so worlds already stored still decode, until the next WORLD_VERSION. */
+/* An over-time half is [left, nextTickAtMs, ticksLeft, itemId], or null. */
 export const PERSISTED = Object.freeze({
-  unit: Object.freeze([['laneAt', 'int'], ['otHp', 'json'], ['otMana', 'json'], ['healedAt', 'int?']]),
+  unit: Object.freeze([['laneAt', 'int'], ['otHp', 'json'], ['otMana', 'json']]),
   world: Object.freeze([]),
   pack: Object.freeze([]),
 });

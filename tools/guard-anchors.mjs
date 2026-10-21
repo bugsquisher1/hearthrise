@@ -53,6 +53,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { implementsFlag } from '../tests/guard-hygiene.mjs';
 import { parseWorkflow, flatSteps } from '../tests/run-ci-local.mjs';
 import { isMain } from '../tests/_is-main.mjs';
+import { unwrapGate } from './lib/guard-deps.mjs';
 
 const ROOT = normalize(join(dirname(fileURLToPath(import.meta.url)), '..'));
 const PROOF_FLAGS = ['--selftest', '--mutate'];
@@ -280,7 +281,8 @@ function registeredProofArms(root) {
   const map = new Map();
   for (const s of flatSteps(parseWorkflow(text))) {
     for (const cmd of s.run) {
-      for (const seg of cmd.split(/&&|\|\||;/)) {
+      /* `node tools/mutant-gate.mjs node tests/x.mjs --mutate`: the arm is the wrapped command's. */
+      for (const seg of unwrapGate(cmd).split(/&&|\|\||;/)) {
         const m = /\bnode\s+((?:tests|tools)\/[\w.-]+\.mjs)((?:\s+[^\s]+)*)/.exec(seg);
         if (!m) continue;
         const flags = PROOF_FLAGS.filter((f) => new RegExp(f.replace(/-/g, '\\-') + '(?![\\w-])').test(m[2]));

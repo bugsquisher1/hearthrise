@@ -34,8 +34,9 @@
 // it must stay side-effect free.
 // ════════════════════════════════════════════════════════════════════════
 
-/** The three elements. `blight` was renamed POISON everywhere (DEC-ELEM-04). */
-export const ELEMENTS = Object.freeze(['ember', 'frost', 'poison']);
+/* The element vocabulary is src/data/elements.js's, the one copy (re-exported). */
+import { ELEMENTS, isElement } from './elements.js?v=0.2.24';
+export { ELEMENTS };
 
 /** The weapon triangle axis. NOTE: 'neutral' is deliberately absent. */
 export const WEAPON_AXES = Object.freeze(['sword', 'hammer', 'ranged', 'magic']);
@@ -164,18 +165,21 @@ export const TIER_BANDS = Object.freeze({
    Tier 1 is the Sewer; tier 3 the Coppercap Warrens (2026-10-18).
    COIN (Tyler 2026-10-20, the profit floor): the gp envelopes were re-measured when the Sewer's coin
    rose x1.8 and the Warrens' x1.25 so each earns at least +25% over its store bill at its band floor
-   (tests/hunt-core/drop-tables.mjs); still the new rows' envelope widened about 10%, never open. */
+   (tests/hunt-core/drop-tables.mjs); still the new rows' envelope widened about 10%, never open.
+   BOSS ATK (designer ruling 2026-10-21, Andy's Sewer death): a boss's blow is at most 35% of the floor
+   hero's HP (tests/hunt-core/hunt-data.mjs blow-share), so the boss atk bands top out at the ruled rows
+   (Rat King 14 = 75 of 220; Chief Coppercap 29 = 156 of 460) and reach about 10% under them. */
 export const FORMATION_BANDS = Object.freeze({
   1: Object.freeze({
     hp: [40, 100], atk: [4, 15], def: [0, 7], xp: [20, 120], gpLo: [1, 38], gpHi: [3, 94],
-    boss: Object.freeze({ hp: [400, 1200], atk: [15, 25], def: [0, 8], xp: [400, 900], gpLo: [20, 124], gpHi: [40, 247] }),
+    boss: Object.freeze({ hp: [400, 1200], atk: [12, 14], def: [0, 8], xp: [400, 900], gpLo: [20, 124], gpHi: [40, 247] }),
   }),
   /* TIER 3 (2026-10-18, the Coppercap Warrens, the second party ground): the envelope of its five goblin
      rows, widened about 10% each way, after one real-engine play by a four-hero party at combat 40
      (tests/hunt-core/forest-cave.mjs --play). A tier-3 formation row is a party's fight at combat 32-50. */
   3: Object.freeze({
     hp: [135, 330], atk: [20, 44], def: [9, 24], xp: [125, 350], gpLo: [9, 31], gpHi: [21, 72],
-    boss: Object.freeze({ hp: [1000, 1210], atk: [48, 60], def: [25, 31], xp: [1080, 1320], gpLo: [68, 100], gpHi: [155, 227] }),
+    boss: Object.freeze({ hp: [1000, 1210], atk: [26, 29], def: [25, 31], xp: [1080, 1320], gpLo: [68, 100], gpHi: [155, 227] }),
   }),
 });
 
@@ -356,8 +360,11 @@ export function auditRoster(MONSTERS) {
     if (WEAPON_AXES.indexOf(p.weaponWeak) < 0) {
       problems.push(id + ': weaponWeak "' + p.weaponWeak + '" is not a weapon axis (neutral is retired)');
     }
-    if (p.elementWeak != null && ELEMENTS.indexOf(p.elementWeak) < 0) {
+    if (p.elementWeak != null && !isElement(p.elementWeak)) {
       problems.push(id + ': elementWeak "' + p.elementWeak + '" is not an element');
+    }
+    for (const k of ['elementResist', 'elementImmune']) {
+      for (const e of p[k]) if (!isElement(e)) problems.push(id + ': ' + k + ' "' + e + '" is not an element');
     }
     if (MONSTER_CLASSES[m.cls].elementPerMonster
       && p.elementWeak == null && !p.elementImmune.length && !p.elementResist.length) {

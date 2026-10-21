@@ -343,8 +343,13 @@ export const PIXEL_DIR = 'assets/icons-bundle/pixel/items/';
    assets/icons-bundle/pixel/abilities/<id>.png (ported from the hunt sim's set,
    the same 32 px grid as the items). An ability without art shows its glyph. */
 export const ABILITY_DIR = 'assets/icons-bundle/pixel/abilities/';
-export const ABILITY_ART = Object.freeze(['challenge', 'flame_strike', 'power_strike', 'hunters_mark', 'flame_volley', 'precision_shot',
+export const ABILITY_ART = Object.freeze(['challenge', 'flame_strike', 'power_strike', 'cleave', 'hunters_mark', 'flame_volley', 'precision_shot',
   'fireball', 'frost_lance', 'arcane_barrier', 'greater_mend', 'circle_of_renewal', 'natures_wrath']);
+
+/* THE SHOP'S BASIC SUPPLIES (salted food, thin drinks, plain ammo) are not items, so they are not under
+   items/: one 32x32 pixel icon per row of src/data/supply-basics.js BASIC_SUPPLIES, <id>.png, same
+   palette and density as the items. tests/pixel-icons.mjs requires one file per row and no orphan. */
+export const SUPPLY_DIR = 'assets/icons-bundle/pixel/supplies/';
 
 /** `<PIXEL_DIR><id>.png` for every id given. */
 export function pixelIconMap(ids) {

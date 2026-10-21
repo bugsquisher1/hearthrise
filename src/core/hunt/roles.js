@@ -18,12 +18,12 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_ROLES, ROLE_ORDER, SPOT, KITE, SURROUND, AI_REPATH_MS } from '../../data/hunt-roles.js?v=0.2.23';
-import { ROLE_DEFAULTS, HERO_DISTANCE, DEFAULT_TARGET_MODE } from '../../data/rule-subjects.js?v=0.2.23';
-import { walkable, cheb, dist2, los, ringFree, tileKey } from './grid.js?v=0.2.23';
-import { inArea } from './leash.js?v=0.2.23';
-import { atRest, unitById, leaderOf, setGoal, clearGoal, candidateTiles, chooseSpot, standable } from './movement.js?v=0.2.23';
-import { roleOf, engaged, inRange } from './targeting.js?v=0.2.23';
+import { HUNT_ROLES, ROLE_ORDER, SPOT, KITE, SURROUND, AI_REPATH_MS } from '../../data/hunt-roles.js?v=0.2.24';
+import { ROLE_DEFAULTS, HERO_DISTANCE, DEFAULT_TARGET_MODE } from '../../data/rule-subjects.js?v=0.2.24';
+import { walkable, cheb, dist2, los, ringFree, tileKey } from './grid.js?v=0.2.24';
+import { inArea } from './leash.js?v=0.2.24';
+import { atRest, unitById, setGoal, clearGoal, candidateTiles, chooseSpot, standable, goToNearest } from './movement.js?v=0.2.24';
+import { roleOf, engaged, inRange, pickTargets } from './targeting.js?v=0.2.24';
 
 /* role/dist/chase/tmode: the hero's settings. queued: a monster with no surround slot.
    aiMs: ms until the unit re-picks its goal. */
@@ -117,12 +117,13 @@ function positionMonsters(inst, sc) {
    than dist + 1.5 → step to a free tile beside it. The monsters come to him. */
 function tankPos(inst, h, mons) {
   if (kites(h)) { keepDistance(inst, h, mons); return; }
-  if (!h.chase || mons.some((m) => cheb(m, h) <= 1)) { clearGoal(h); return; }
-  /* A tank no monster is coming for (a second tank: the pack is on the leader) walks to its own target
-     like any melee. The hold below is for the tank the pack walks to; without this a second tank within
-     dist + 1.5 of the fight never moved and hit only what wandered next to it (live v0.2.20, ~30% of
-     the leader's blows). */
+  if (!h.chase) { clearGoal(h); return; }
+  /* A tank no monster is on (a second tank: the pack is on the other one) walks to its own target
+     like any melee, whatever else stands beside it on the way. The hold below is for the tank the
+     pack walks to; without this a second tank within dist + 1.5 of the fight never moved and hit
+     only what wandered next to it (live v0.2.20, ~30% of the leader's blows). */
   if (!mons.some((m) => m.target === h.id)) { closeIn(inst, h, unitById(inst, h.target) || nearestTo(mons, h)); return; }
+  if (mons.some((m) => cheb(m, h) <= 1)) { clearGoal(h); return; }
   const near = nearestTo(mons, h);
   if (4 * dist2(near, h) <= (2 * h.dist + 3) * (2 * h.dist + 3) || h.aiMs > 0) return;
   h.aiMs = AI_REPATH_MS.melee;
@@ -130,23 +131,41 @@ function tankPos(inst, h, mons) {
   if (t) setGoal(inst, h, t[0], t[1]);
 }
 
-/* Melee DPS (RO-03): beside the leader's target (else its own), never the puller. */
-function meleePos(inst, h, mons, k) {
+/* Melee DPS (RO-03): beside its own mark (targeting.js; its default Target, "follow", is the
+   leader's target), never the puller. */
+function meleePos(inst, h, mons) {
   if (kites(h)) { keepDistance(inst, h, mons); return; }
   if (!h.chase) { clearGoal(h); return; }
-  const lt = k && k !== h ? unitById(inst, inst.world.leaderLast) : null;
-  closeIn(inst, h, (lt && lt.alive && mons.includes(lt)) ? lt : unitById(inst, h.target));
+  closeIn(inst, h, unitById(inst, h.target));
 }
 
-/* The walk every melee hero takes to its mark: a free tile beside `tgt` (else on its queue ring). */
+/*
+ * THE WALK EVERY MELEE HERO TAKES TO ITS MARK (Tyler 2026-10-16: heroes pass through
+ * heroes, a footprint is one tile). The nearest free tile beside `tgt` it can REACH
+ * round the monsters standing now; when the mark has none, the nearest tile beside
+ * any other engaged monster it can reach, and that monster (the first in its own
+ * Target order the tile touches) becomes its target; when nothing is reachable, the
+ * mark's queue ring. Re-aimed every AI_REPATH_MS.melee, and at once on a new target
+ * (targeting.js zeroes aiMs). Before 2026-10-21 it walked to the nearest free tile
+ * by straight-line distance, reachable or not, and a hero whose tile sat behind the
+ * pack (a diagonal past a corner, the far side after a kill) stood still all pull.
+ */
 function closeIn(inst, h, tgt) {
   if (!tgt) return;
   if (cheb(h, tgt) <= 1 && atRest(h)) { clearGoal(h); return; }
-  if (h.aiMs > 0 && h.path.length) return;
+  if (h.aiMs > 0) return;
   h.aiMs = AI_REPATH_MS.melee;
-  const free = (x, y) => !standable(inst, h, tgt.pocket, x, y);
-  const t = ringFree(inst.grid, tgt, 1, h, free) || ringFree(inst.grid, tgt, SURROUND.queueRing, h, free);
-  if (t) setGoal(inst, h, t[0], t[1]);
+  const beside = (list) => (x, y) => list.some((m) => cheb(m, { x, y }) <= 1 && (m.x !== x || m.y !== y) && standable(inst, h, m.pocket, x, y));
+  if (goToNearest(inst, h, beside([tgt]))) return;
+  const others = pickTargets(inst, h).filter((m) => m !== tgt);
+  const at = others.length ? goToNearest(inst, h, beside(others)) : null;
+  if (at) {
+    const m = others.find((o) => cheb(o, { x: at[0], y: at[1] }) <= 1);
+    if (m) h.target = m.id;
+    return;
+  }
+  const q = ringFree(inst.grid, tgt, SURROUND.queueRing, h, (x, y) => !standable(inst, h, tgt.pocket, x, y));
+  if (q) setGoal(inst, h, q[0], q[1]);
 }
 
 /* A ranged hero's distance d from its target must lie in [want - below, want + above] (tenths). */
@@ -240,13 +259,12 @@ export function positionHeroes(inst, sc) {
   positionMonsters(inst, sc);
   const fighting = inst.world.phase === 'fight';
   const mons = engaged(inst);
-  const k = leaderOf(inst);
   for (const h of inst.world.units) {
     const row = roleOf(h);
     if (!row || !h.alive) continue;
     if (!fighting || !mons.length) { h.spot = null; continue; }
     if (row.tank) tankPos(inst, h, mons);
-    else if (row.melee) meleePos(inst, h, mons, k);
+    else if (row.melee) meleePos(inst, h, mons);
     else rangedPos(inst, h, mons);
   }
 }

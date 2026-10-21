@@ -1,9 +1,15 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/data/hunt-tutorial.js — THE FIRST HUNT: CELLAR, THEN SEWER (week plan item 17)
+// src/data/hunt-tutorial.js — THE FIRST HUNTS: CELLAR, THICKET, THEN THE SEWER (week plan item 17)
 //
 // A new character's guided first minutes, one coach card at a time, in the
 // order the hunt loop is learned: go → fight → level → earn the next ground →
-// cash in → go below → move room to room → meet the boss. Each step is DONE by
+// cash in → set the bar → hunt alone in the Thicket → earn the Sewer → go below
+// with a party. Tyler 2026-10-21: a fresh solo hero starts in Meadowbrook
+// Thicket; the Sewer is the first PARTY ground (its Rat King pocket is
+// minParty 2), so no card asks a solo hero for a pull he can never make.
+// Measured pace (designer 2026-10-21, a solo start-kit Melee on the real settle):
+// Cellar first kill 3 s, Level 2 at 0.3 min, Level 5 (the Thicket) at 15 min;
+// Thicket Level 5 → 8 (the Sewer) in 23 min, 0 deaths. Each step is DONE by
 // something the SERVER reports (an envelope change or a hunt event), never by a
 // Next button, and every step is real progress, never a sandbox (the Huntera
 // quick-start model, memory `huntera-tutorial-model`, mechanics only).
@@ -29,9 +35,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from './hunts.js?v=0.2.23';
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.23';
-import { END_ORDER } from './hunt-sessions.js?v=0.2.23';
+import { HUNT_INDEX } from './hunts.js?v=0.2.24';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.24';
+import { END_ORDER } from './hunt-sessions.js?v=0.2.24';
 
 /* The surfaces a card may point at, and where each is specified. */
 export const TUTORIAL_ANCHORS = Object.freeze({
@@ -54,24 +60,24 @@ export const HUNT_TUTORIAL = Object.freeze([
   step('first_level', 'That is a level',
     'Every kill pays experience. Keep going until a skill goes up a level.',
     'hud_vitals', { kind: 'level' }),
-  step('earn_the_drain', 'Where the rats come from',
-    'They climb up through the drain in the corner, from the sewer below. Keep hunting here until The Sewer opens to you.',
-    'hud_vitals', { kind: 'unlock', hunt: 'millrace_sewer' }),
+  step('earn_the_thicket', 'Out to the brook',
+    'Keep hunting here until Meadowbrook Thicket opens to you. Gray wolves den along the brook, and it is a hunt you can take alone.',
+    'hud_vitals', { kind: 'unlock', hunt: 'meadowbrook_thicket' }),
   step('leave_cellar', 'Cash in',
     'Leave the hunt. What you looted goes to your bag when you do.',
     'hunt_topbar', { kind: 'ended', reason: 'left' }),
   step('set_the_bar', 'Tell your hero when',
-    'The sewer hits harder. Press a slot on the action bar at the bottom and choose Any food, then add a condition: My HP % below 60. Your hero eats your own food first and buys from the store when it runs out. Slot 1 is tried first.',
+    'The wolves bite harder. Press a slot on the action bar at the bottom and choose Any food, then add a condition: My HP % below 60. Your hero eats your own food first and buys from the store when it runs out. Slot 1 is tried first.',
     'action_bar', { kind: 'bar' }),
-  step('go_below', 'Into the sewer',
-    'Pick The Sewer. It is built for a party of up to four. Alone, the packs are smaller.',
+  step('into_the_thicket', 'Into the Thicket',
+    'Pick Meadowbrook Thicket. Your hero walks from clearing to clearing by itself and fights each pack it finds.',
+    'hunt_picker', { kind: 'enter', hunt: 'meadowbrook_thicket' }),
+  step('earn_the_sewer', 'Where the rats come from',
+    'The cellar rats climb up from the sewer under the town. Keep hunting the Thicket until The Sewer opens to you.',
+    'hud_vitals', { kind: 'unlock', hunt: 'millrace_sewer' }),
+  step('go_below', 'Into the sewer, together',
+    'The Sewer is a party hunt. Invite up to three friends, then pick The Sewer. The Rat King holds the last room and only comes out for a party. He sometimes drops a Crown Shard. Good hunting.',
     'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' }),
-  step('first_room', 'Room by room',
-    'Clear the rats in the first room. The party walks on to the next room by itself.',
-    'world', { kind: 'pull', ground: 'millrace_sewer', pocket: 1 }),
-  step('the_king', 'The Rat King',
-    'The last room is his. Fire glances off him and frost hurts him most. He sometimes drops a Crown Shard. That covers it. Good hunting.',
-    'world', { kind: 'pull', ground: 'millrace_sewer', pocket: 5 }),
 ]);
 
 const DONE_KINDS = Object.freeze(['enter', 'kills', 'level', 'unlock', 'ended', 'pull', 'bar']);
@@ -121,9 +127,11 @@ const pulledKinds = (ground, pocket) => {
   return [...kinds(ground.route.slice(at))].filter((k) => !before.has(k));
 };
 
-function isDone(d, facts, openedIn) {
+/* `later`: the hunts entered by the steps after this one. Being in one of them means this step's hunt was
+   passed (the chain only moves forward: Cellar -> Thicket -> Sewer), so a hero in the Sewer is not sent back. */
+function isDone(d, facts, openedIn, later) {
   switch (d.kind) {
-    case 'enter': return facts.huntId === d.hunt || (d.hunt === HUNT_TUTORIAL[0].done.hunt && facts.levelXp > 0);
+    case 'enter': return facts.huntId === d.hunt || (later && later.has(facts.huntId)) || (d.hunt === HUNT_TUTORIAL[0].done.hunt && facts.levelXp > 0);
     case 'kills': return facts.levelXp > 0;
     case 'level': return facts.charLevel >= 2 || facts.skillLevel >= 2;
     case 'unlock': return facts.charLevel >= HUNT_INDEX[d.hunt].band[0];
@@ -137,14 +145,17 @@ function isDone(d, facts, openedIn) {
   }
 }
 
-/** The tutorial card this character is on, or null (finished, or out-levelled the sewer). */
+/** The tutorial card this character is on, or null (finished, or out-levelled the last step's hunt). */
 export function currentCard(facts, rows = HUNT_TUTORIAL) {
   const last = rows[rows.length - 1].done;
-  if (last.kind === 'pull' && facts.charLevel > HUNT_INDEX[HUNT_GROUNDS[last.ground].hunt].band[1]) return null;
+  const lastHunt = last.kind === 'pull' ? HUNT_GROUNDS[last.ground].hunt : last.kind === 'enter' ? last.hunt : null;
+  if (lastHunt && facts.charLevel > HUNT_INDEX[lastHunt].band[1]) return null;
   let openedIn = null;
-  for (const r of rows) {
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
     if (r.done.kind === 'enter') openedIn = r.done.hunt;
-    if (!isDone(r.done, facts, openedIn)) return r;
+    const later = new Set(rows.slice(i + 1).filter((x) => x.done.kind === 'enter').map((x) => x.done.hunt));
+    if (!isDone(r.done, facts, openedIn, later)) return r;
   }
   return null;
 }

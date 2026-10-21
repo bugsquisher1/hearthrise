@@ -5,15 +5,16 @@
 // derived from the id; a glyph when the id is not an item), an item's name, and
 // the frame every hunt panel sits in (title, minimise). Display only.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../../data/items.js?v=0.2.23';
-import { DRINK_ITEMS } from '../../data/drinks.js?v=0.2.23';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.23';
-import { ABILITIES } from '../../data/abilities.js?v=0.2.23';
-import { PIXEL_DIR, ABILITY_DIR, ABILITY_ART } from '../../data/item-art.js?v=0.2.23';
-import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.23';
-import { glyphSvg } from '../launcher.js?v=0.2.23';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.23';
-import { text, style, attr } from '../../render/paint.js?v=0.2.23';
+import { ITEMS } from '../../data/items.js?v=0.2.24';
+import { DRINK_ITEMS } from '../../data/drinks.js?v=0.2.24';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.24';
+import { ABILITIES } from '../../data/abilities.js?v=0.2.24';
+import { PIXEL_DIR, ABILITY_DIR, ABILITY_ART, SUPPLY_DIR } from '../../data/item-art.js?v=0.2.24';
+import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.24';
+import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.24';
+import { glyphSvg } from '../launcher.js?v=0.2.24';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.24';
+import { text, style, attr } from '../../render/paint.js?v=0.2.24';
 
 /** A gauge's skeleton: kind is hp | mana | stamina | xp. */
 export function gaugeHtml(kind, label) {
@@ -50,14 +51,15 @@ export function abilityName(id) { return id === 'basic' ? 'Basic attack' : (ABIL
 /** An element or damage type, as a word. */
 export function elementName(id) { return spelled(id); }
 
-/** An item's 32 px pixel icon at x2, or the glyph `fallback` when the id is not an item. */
+/** An item's 32 px pixel icon at x2 (a shop basic supply's, from its own folder), or the glyph `fallback` when the id is neither. */
 export function itemIconHtml(glyphs, id, fallback) {
   if (ITEMS[id]) return '<img class="hh-icon" src="' + esc(PIXEL_DIR + id + '.png') + '" alt="" width="32" height="32" decoding="async">';
+  if (BASIC_INDEX[id]) return '<img class="hh-icon" src="' + esc(SUPPLY_DIR + id + '.png') + '" alt="" width="32" height="32" decoding="async">';
   return '<span class="hh-icon is-glyph">' + glyphSvg(glyphs, fallback || (DRINK_ITEMS[id] ? 'uiPotion' : 'uiChest')) + '</span>';
 }
 
 /* A glyph for an ability with no pixel tile yet, and for the slot kinds that name no one item. */
-const ACTION_GLYPH = Object.freeze({ cleave: 'uiAxe', rend: 'uiBone', food: 'uiFood', drink: 'uiPotion', loaded: 'uiArrow' });
+const ACTION_GLYPH = Object.freeze({ rend: 'uiBone', food: 'uiFood', drink: 'uiPotion', loaded: 'uiArrow' });
 
 /** A bar action's 32 px icon: the ability's pixel tile, the item's pixel icon, else a glyph. */
 export function actionIconHtml(glyphs, action) {
@@ -65,7 +67,7 @@ export function actionIconHtml(glyphs, action) {
   if (action && action.type === 'ability' && ABILITY_ART.includes(id)) {
     return '<img class="hh-icon" src="' + esc(ABILITY_DIR + id + '.png') + '" alt="" width="32" height="32" decoding="async">';
   }
-  if (ITEMS[id]) return itemIconHtml(glyphs, id);
+  if (ITEMS[id] || BASIC_INDEX[id]) return itemIconHtml(glyphs, id);
   return '<span class="hh-icon is-glyph">' + glyphSvg(glyphs, ACTION_GLYPH[id] || (action && action.type === 'ability' ? 'uiSpark' : 'uiChest')) + '</span>';
 }
 

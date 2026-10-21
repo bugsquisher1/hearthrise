@@ -12,10 +12,10 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_STANCES } from './rule-subjects.js?v=0.2.23';
-import { WEAPON_ROLES } from './hunt-roles.js?v=0.2.23';
-import { ACTION_SET_SKIPS } from './abilities.js?v=0.2.23';
-import { DENSITY_PICK } from './hunt-grounds.js?v=0.2.23';
+import { HUNT_STANCES } from './rule-subjects.js?v=0.2.24';
+import { WEAPON_ROLES } from './hunt-roles.js?v=0.2.24';
+import { ACTION_SET_SKIPS } from './abilities.js?v=0.2.24';
+import { DENSITY_PICK } from './hunt-grounds.js?v=0.2.24';
 
 /* Hours is an optional limit, off by default: the bag, stamina and death
    already bound a hunt, and a timer nobody asked for is a hunt that ends for no
@@ -160,6 +160,13 @@ export const DEATH_XP_BASE = 'total';
    ended hunt, its bag lines, tally and timeline are pruned when a new one
    starts. Its ledger rows are never touched: player_ledger is append-only. */
 export const SESSIONS_KEPT = 20;
+
+/* THE ANALYZER'S RATE WINDOW (designer ruling 2026-10-21): until a session has
+   this much wall time the server sends no rate (per_hour, every eta: null), so
+   a minute of store food never reads as -100k/h. The server's rule is
+   hr_hunt_stats_of `p_wall_h * 60 >= 10` (2026-11-06-hunt-analyzer-min-window.sql,
+   pinned equal by tests/hunt-core/hunt-data.mjs); the client only says when. */
+export const ANALYZER_RATE_AFTER_MS = 10 * 60000;
 
 /* STAMINA (Tyler 2026-10-14: "steal the stamina system, 1:1 like Huntera,
    keep it simple"; Tyler 2026-10-17: 8 h free, 12 h premium). One pool per

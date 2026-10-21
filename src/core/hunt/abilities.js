@@ -13,37 +13,42 @@
 //   and its target rule finds a target (AB-03).
 // Firing spends the mana, the rune and the shots, sets the cooldown and the
 // lane (AB-07), and applies the effect (AB-08): taunt, mark, hit (with a status
-// per hit, H3), area (+ vulnerability), cleave, shield, ally heal, party heal.
+// per hit, H3), area, cleave, shield, ally heal, party heal.
 // A heal is capped at the missing HP (AB-09).
 //
 // SEAMS to the other core lanes, called through their agreed signatures only:
 // damage.landHit (H2) for every hit (the one place a kill is handed off),
 // status.applyStatus (H3) for a status, and
-// the fields damage.js reads: `markBy`/`markUntil`, `vulnUntil`, `shield`.
+// the target's `shield`, which damage.hurt spends, and `markPm`/`markUntil`,
+// which damage.landHit reads (a marked target takes more from every blow).
 // Magic XP is H5's: each `cast` event carries `mana` and `magicXpMult`.
 //
 // INJECTED: `inst.heroes[unitId]` = { hs, slots (conditions.js heroSlots rows)
 // or bar (ability ids, the shorthand), actionSet, range (tiles; 1 = Melee),
-// ammo (the loaded ammo item id), items? (the server's item catalogue) }. A hero with no
+// ammo (the loaded ammo item id), items? (the server's item catalogue), skills? (skill
+// XP: a status's scalesWith level; a peer in the browser has none, so its bleed reads
+// level 1 and the next commit reconciles it) }. A hero with no
 // entry fires nothing. Draws: the swing's stream `sc.rng`, heroes in id order,
 // one `int` per hit roll (spec §1.1 #3).
 //
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS } from '../../data/abilities.js?v=0.2.23';
-import { resolveLine, takeLine, canAfford, shopShotFor } from '../action-rules.js?v=0.2.23';
-import { cheb, dist2, los } from './grid.js?v=0.2.23';
-import { makeEvent } from './events.js?v=0.2.23';
-import { landHit } from './damage.js?v=0.2.23';
-import { applyStatus, statusRow } from './status.js?v=0.2.23';
-import { ammoPerShot } from '../ammo.js?v=0.2.23';
-import { ITEMS } from '../../data/items.js?v=0.2.23';
-import { slotsFor, pickSlot, bestAim, itemRow } from './conditions.js?v=0.2.23';
+import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS } from '../../data/abilities.js?v=0.2.24';
+import { resolveLine, takeLine, canAfford, shopShotFor } from '../action-rules.js?v=0.2.24';
+import { cheb, dist2, los } from './grid.js?v=0.2.24';
+import { makeEvent } from './events.js?v=0.2.24';
+import { landHit } from './damage.js?v=0.2.24';
+import { challengeable, challengeFrom } from './targeting.js?v=0.2.24';
+import { applyStatus, statusRow } from './status.js?v=0.2.24';
+import { levelOf } from '../xp.js?v=0.2.24';
+import { ammoPerShot } from '../ammo.js?v=0.2.24';
+import { ITEMS } from '../../data/items.js?v=0.2.24';
+import { slotsFor, pickSlot, bestAim, itemRow } from './conditions.js?v=0.2.24';
 
 export const PERSISTED = Object.freeze({
   unit: Object.freeze([['mana', 'int'], ['maxMana', 'int'], ['manaMilli', 'int'], ['regenPm', 'int'], ['lanes', 'json'], ['cds', 'json'],
-    ['shield', 'int'], ['markBy', 'int?'], ['markUntil', 'int'], ['vulnUntil', 'int']]),
+    ['shield', 'int'], ['markPm', 'int'], ['markUntil', 'int']]),
   world: Object.freeze([]),
   pack: Object.freeze([]),
 });
@@ -74,7 +79,8 @@ function targetFor(inst, hero, h, row, sc, cx) {
   const near = mons.filter((m) => inReach(inst, hero, h.range, m)).sort(byPreference(hero));
   const pct = (u) => (int(u.maxHp) > 0 ? (int(u.hp) * 100) / int(u.maxHp) : 100);
   switch (row.target) {
-    case 'taunt': return mons.some((m) => m.target !== hero.id) ? hero : null;
+    /* The Challenge (targeting.js): the auto-cast and this slot share the ability's clock and its reach. */
+    case 'taunt': return challengeable(inst, hero).length ? hero : null;
     case 'mark': {
       const t = near.slice().sort((a, b) => (int(b.hp) - int(a.hp)) || (a.id - b.id))[0];
       return t && !(t.markUntil > sc.atMs) ? t : null;
@@ -174,24 +180,26 @@ const roll = (sc, r) => sc.rng.int(r[0], r[1]);
 function effect(inst, u, row, t, sc) {
   const el = row.element || null;
   switch (row.target) {
-    case 'taunt':
-      for (const m of engaged(inst)) if (m.target !== u.id) m.target = u.id;
-      sc.emit(makeEvent('challenge', sc.atMs, { u: u.id }));
-      break;
+    case 'taunt': challengeFrom(inst, sc, u); break;
     case 'mark':
-      t.markBy = u.id; t.markUntil = sc.atMs + row.durMs;
+      /* The marked target takes bonusPct more damage from every blow until markUntil (damage.landHit). */
+      t.markPm = row.bonusPct * 10; t.markUntil = sc.atMs + row.durMs;
       sc.emit(makeEvent('mark', sc.atMs, { u: u.id, t: t.id }));
       break;
     case 'enemy':
       for (let i = 0; i < (row.hits || 1); i++) {
         landHit(inst, sc, u, t, roll(sc, row.dmg), el, { id: row.id });
-        /* The status ROW (applyStatus refuses a look-alike) and a source by unit id. */
-        if (row.status) applyStatus(inst, t, statusRow(row.status), { u: u.id }, sc);
+        /* The status ROW (applyStatus refuses a look-alike) and its source: the unit, and the caster's
+           level in the row's scalesWith skill (Tyler 10-16: bleed scales slowly with Melee). No rune
+           carries a status tier yet (Rend's Life rune is not a supply), so the tier is 1. */
+        if (row.status) {
+          const srow = statusRow(row.status), h = inst.heroes && inst.heroes[u.id];
+          applyStatus(inst, t, srow, { u: u.id, skillLv: h && h.skills ? levelOf(h.skills, srow.scalesWith) : 0, runeTier: 1 }, sc);
+        }
       }
       break;
     case 'area':
       for (const m of engaged(inst).filter((o) => cheb(o, t) <= 1).sort((a, b) => a.id - b.id)) {
-        if (row.vuln) m.vulnUntil = sc.atMs + ABILITY_RULES.vulnMs;
         landHit(inst, sc, u, m, roll(sc, row.dmg), el, { id: row.id });
       }
       break;

@@ -325,10 +325,8 @@ export class CharacterSession {
   /**
    * An item intent through the engine. The body carries names and counts only
    * (EDGE_INTENTS); the price, the stock and the result are the server's, and
-   * the screen changes only from the server's envelope. The engine answers every
-   * intent with the whole envelope (hr_state_of, read after its own commit), so
-   * that answer is applied as it stands: ONE round trip (tracker r16, "equipping
-   * answers at once"). An answer without one, or older than the record, re-reads.
+   * the screen changes only from the server's envelope: the engine's answer IS
+   * one (hr_state_of after its commit), applied as it stands, ONE round trip (r16).
    */
   async edgeIntent(verb, fields) {
     if (this._closed) return { ok: false, error: 'closed' };

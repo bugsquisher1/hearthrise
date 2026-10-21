@@ -281,6 +281,17 @@ jobs:
           node tests/report-problem.mjs
           node tools/mutant-gate.mjs node tests/report-problem.mjs --mutate
 
+      # THE DEATH POPUP (tracker r15, Tyler 2026-10-19): a death opens a centred
+      # popup whose every line is the server's death row (where, the killer, the
+      # XP dying cost, what a Blessing kept, back in town), viewed, after a reload
+      # and on return from away; OK / Hunt summary store the dismissal so it never
+      # shows twice. --mutate plants nine defects.
+      - name: Death popup (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/death-popup.mjs
+          node tools/mutant-gate.mjs node tests/death-popup.mjs --mutate
+
       # THE ALPHA WINDOWS (2026-10-18, week plan 16a + QoL 2/5): Bag, Gear,
       # Skills, Shop, Hunt prep and Find on the fixture envelope. Built once and
       # patched in place; the server's counts win; every action one intent with

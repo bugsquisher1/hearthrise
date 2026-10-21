@@ -218,8 +218,11 @@ async function checks(overrides, shots) {
         for (let i = 0; i < 5; i++) { s.env.hunt_analyzer.hero.kills += 1; s.env.hunt_analyzer.hero.loot.rat_tail += 1; await pushEnvelope(page, s); }
         const repaintPngs = pngs.length;
         const bar = s.env.hunt_settings;
-        let rebuilt = 0;
+        let rebuilt = 0, sameNode = 0;
         for (let i = 0; i < 2; i++) {
+          /* the node itself must come back: the browser's memory cache can serve a NEW <img> of the same
+             URL without a request, so the request count alone never saw a rebuilt slot */
+          await page.evaluate(() => { const im = document.querySelector('.hb-slot[data-slot="0"] img'); if (im) im.__hs17 = true; });
           delete s.env.hunt_settings;
           await pushEnvelope(page, s);
           if (await wait(page, () => !document.querySelector('.hb-slot[data-slot="0"] img'), null, 3000)) rebuilt++;
@@ -227,6 +230,7 @@ async function checks(overrides, shots) {
           s.env.hunt_settings = bar;
           await pushEnvelope(page, s);
           await wait(page, () => !!document.querySelector('.hb-slot[data-slot="0"] img'), null, 3000);
+          if (await page.evaluate(() => { const im = document.querySelector('.hb-slot[data-slot="0"] img'); return !!im && im.__hs17 === true; })) sameNode++;
         }
         const loot = s.env.hunt_analyzer.hero.loot;
         const gel = loot.slime_gel;
@@ -248,6 +252,7 @@ async function checks(overrides, shots) {
           return a.image === b.image && b.image === c.image;
         });
         page.off('request', onReq);
+        if (sameNode !== 2) fails.push('HS-17 a slot icon that left and came back is a new <img> (' + sameNode + '/2 kept)');
         if (rebuilt !== 2) fails.push('HS-17 the bar did not empty when the server sent none (' + rebuilt + '/2), so the rebuild was never exercised');
         if (lootBack !== 2) fails.push('HS-17 the slime gel loot line did not leave and come back (' + lootBack + '/2), so its return was never exercised');
         if (repaintPngs) fails.push('HS-17 five repaints fetched images: ' + pngs.slice(0, repaintPngs).join(', '));

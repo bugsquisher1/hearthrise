@@ -276,14 +276,62 @@ const cases = {
     }
     const cellar = M.grounds.HUNT_GROUNDS.mill_cellar;
     if (cellar.hunt !== steps[0].done.hunt) return 'the first hunt is not the cellar ground';
+    /* THE CARDS ADVANCE (2026-10-21: the launcher showed only card 1, the other eight never appeared):
+       the card is the first step the SERVER's facts have not finished, so one character walked through
+       the whole chain meets every card in order. */
+    const lvl = (n) => M.xp.charXpForLevel(n);
+    const sewerBand = M.HUNTS.millrace_sewer.band[0];
+    const sewerKinds = (...ks) => new Set(ks);
+    const base = { levelXp: 0, charLevel: 1, skillLevel: 1, huntId: null, unitKinds: new Set(), barSet: false };
+    const walk = [
+      ['to_the_cellar', base],
+      ['first_kill', { ...base, huntId: 'mill_cellar' }],
+      ['first_level', { ...base, huntId: 'mill_cellar', levelXp: 3 }],
+      ['earn_the_drain', { ...base, huntId: 'mill_cellar', levelXp: 40, charLevel: 2, skillLevel: 2 }],
+      ['leave_cellar', { ...base, huntId: 'mill_cellar', levelXp: lvl(sewerBand), charLevel: sewerBand, skillLevel: 8 }],
+      ['set_the_bar', { ...base, levelXp: lvl(sewerBand), charLevel: sewerBand, skillLevel: 8 }],
+      ['go_below', { ...base, levelXp: lvl(sewerBand), charLevel: sewerBand, skillLevel: 8, barSet: true }],
+      ['first_room', { ...base, levelXp: lvl(sewerBand), charLevel: sewerBand, skillLevel: 8, barSet: true, huntId: 'millrace_sewer', unitKinds: sewerKinds('drain_rat') }],
+      ['the_king', { ...base, levelXp: lvl(sewerBand), charLevel: sewerBand, skillLevel: 8, barSet: true, huntId: 'millrace_sewer', unitKinds: sewerKinds('sump_slime') }],
+    ];
+    for (const [id, facts] of walk) {
+      const c = M.tut.currentCard(facts);
+      if (!c || c.id !== id) return 'the card for ' + id + ' came up as ' + (c && c.id);
+    }
+    if (M.tut.currentCard({ ...walk[8][1], unitKinds: sewerKinds('rat_king') })) return 'the tutorial does not end once the King is up';
+    if (M.tut.currentCard({ ...walk[5][1], charLevel: M.HUNTS.millrace_sewer.band[1] + 1 })) return 'a hero past the sewer band is still coached';
     /* The way down exists: the cellar map has an exit into the sewer map. */
     const cm = M.maps.WORLD_MAPS.find((m) => m.id === cellar.map);
     if (!cm.exits.some((e) => e.to === 'millrace_sewer')) return 'the cellar has no way down into the sewer';
     return null;
   },
+  'tutorial-launcher-card': async (M) => {
+    /* The launcher draws the card the SERVER's envelope puts the character on, not always the first one. */
+    const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
+    const { renderLaunchers } = await imp('src/shell/launcher.js');
+    const env = (levelXp, hunt, slots) => ({ state: { level_xp: levelXp },
+      ...(hunt ? { hunt: { session_id: 's1', hunt_id: hunt, ended: false, session: {}, hero: {}, pose: { units: [] } } } : {}),
+      hunt_settings: { preset: 1, slots: slots || [] } });
+    const cardOf = (e) => {
+      const ctx = { character: { read: (k) => e[k] }, glyphs: {}, wm: { openIds: () => [], rows: () => [], row: () => null } };
+      const m = /data-tutorial="([a-z_]+)"/.exec(renderLaunchers(ctx));
+      return m ? m[1] : null;
+    };
+    const floor = M.xp.charXpForLevel(M.HUNTS.millrace_sewer.band[0]);
+    const got = [cardOf(env(0)), cardOf(env(0, 'mill_cellar')), cardOf(env(floor, 'mill_cellar')), cardOf(env(floor))].join(',');
+    const want = 'to_the_cellar,first_kill,leave_cellar,set_the_bar';
+    return got === want ? null : 'the launcher showed ' + got + ', wanted ' + want;
+  },
 };
 
 const mutants = [
+  { name: 'the launcher shows only the first card', case: 'tutorial-launcher-card',
+    edits: [['src/shell/launcher.js', 'const card = tutorialCardOf(cs);', 'const card = tutorialCardOf(cs) && HUNT_TUTORIAL[0];'],
+      ['src/shell/launcher.js', "import { tutorialCardOf }", "import { HUNT_TUTORIAL } from '../data/hunt-tutorial.js?v=0.2.22';\nimport { tutorialCardOf }"]] },
+  { name: 'the card never advances past the first unmet step', case: 'tutorial-walk-through',
+    edits: [['src/data/hunt-tutorial.js', 'if (!isDone(r.done, facts, openedIn)) return r;', 'return r;']] },
+  { name: 'the first kill does not finish its card', case: 'tutorial-walk-through',
+    edits: [['src/data/hunt-tutorial.js', "case 'kills': return facts.levelXp > 0;", "case 'kills': return false;"]] },
   { name: 'a sewer spawn moved into the wall', case: 'sewer-on-the-map',
     edits: [['src/data/hunt-grounds.js', "['drain_rat', 7, 4], ['drain_rat', 8, 3]", "['drain_rat', 7, 1], ['drain_rat', 8, 3]"]] },
   { name: 'a sewer monster with no walk art', case: 'formation-rows',
@@ -304,7 +352,7 @@ const mutants = [
    a mutant that cannot load would read as caught, so every path this file imports is copied. */
 function plant(edits) {
   const root = mkdtempSync(join(tmpdir(), 'hunt-sewer-'));
-  for (const d of ['src/core', 'src/data', 'src/world', 'assets/world', 'prototypes/hunt-sim-assets/manifest.json']) cpSync(join(ROOT, d), join(root, d), { recursive: true });
+  for (const d of ['src/core', 'src/data', 'src/world', 'src/session', 'src/shell', 'src/utils', 'assets/world', 'prototypes/hunt-sim-assets/manifest.json']) cpSync(join(ROOT, d), join(root, d), { recursive: true });
   cpSync(join(ROOT, 'src/build-info.js'), join(root, 'src/build-info.js'));
   for (const [file, from, to] of edits) {
     const f = join(root, file);
@@ -335,7 +383,7 @@ if (process.argv.includes('--report')) {
 }
 for (const [cn, fn] of Object.entries(cases)) {
   let why = null;
-  try { why = fn(M); } catch (e) { why = 'threw ' + (e && e.stack || e); }
+  try { why = await fn(M); } catch (e) { why = 'threw ' + (e && e.stack || e); }
   R.ok(!why, cn + ': ' + why);
 }
 for (const mu of mutants) {
@@ -345,7 +393,7 @@ for (const mu of mutants) {
     let why = null;
     /* A planted copy that cannot even load is a broken mutant, not a caught one. */
     const PM = await load(p.root);
-    try { why = cases[mu.case](PM); } catch (e) { why = 'threw ' + e.message; }
+    try { why = await cases[mu.case](PM); } catch (e) { why = 'threw ' + e.message; }
     R.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
   } finally { p.done(); }
 }

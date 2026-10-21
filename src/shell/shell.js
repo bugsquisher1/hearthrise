@@ -43,7 +43,7 @@ import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.24';
 import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.24';
 import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.24';
 import { createWindowManager, DOCK_EDGE } from './window-manager.js?v=0.2.24';
-import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock } from './hud.js?v=0.2.24';
+import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf } from './hud.js?v=0.2.24';
 import { keyLabel, glyphSvg } from './launcher.js?v=0.2.24';
 import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.24';
 import { mountContextMenu } from './context-menu.js?v=0.2.24';
@@ -205,8 +205,8 @@ export function mountShell(root, o) {
       el.style.top = at.top + 'px';
     }
     /* A docked window never covers a widget (hud.js clearOfDock, r11): a right-anchored World widget it
-       lands on slides left of the dock, or waits hidden when no room is left; its home left is kept for
-       the camera inset. Then widgets never overlap (hud.js clearOfEdges): a centred widget that lands on
+       lands on slides left of the dock but never into the middle of the fight (hud.js stageOf), else
+       waits hidden until the dock narrows; its home left is kept for the camera inset. Then widgets never overlap (hud.js clearOfEdges): a centred widget that lands on
        an edge-anchored one, or on the dock, moves along its row to clear it, and when the row is too
        narrow the edge widgets it still hits step down below it. */
     const dock = dockRects();
@@ -218,9 +218,10 @@ export function mountShell(root, o) {
       const rel = (e) => { const q = e.getBoundingClientRect(); return { left: q.left - b.left, top: q.top - b.top, width: q.width, height: q.height }; };
       const edgeEls = els.filter((e) => !centred(e));
       const fixed = box === worldHud ? dock : [];
+      const stage = fixed.length ? [stageOf(insetNow(), { width: b.width, height: b.height })] : [];
       for (const e of edgeEls) {
         const home = rel(e);
-        const left = fixed.length && anchorOf(e)[1] === 'r' ? clearOfDock(home, fixed, edgeEls.filter((o) => o !== e).map(rel), DOCK_EDGE) : home.left;
+        const left = fixed.length && anchorOf(e)[1] === 'r' ? clearOfDock(home, fixed, edgeEls.filter((o) => o !== e).map(rel), DOCK_EDGE, stage) : home.left;
         e.classList.toggle('is-under-dock', left === null);
         if (left === home.left) { dockHome.delete(e); continue; }
         dockHome.set(e, home.left);

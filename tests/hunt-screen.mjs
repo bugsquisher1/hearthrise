@@ -75,9 +75,10 @@
 //         nothing moves before the server's re-read says so; the status line always comes
 //         back: cleared on the answer, the reason on a refusal, a plain line on the timeout
 //   HS-20 every struck or waiting slot says why (glyph + the tooltip's first line), one slot a reason
-//   HS-23 A DOCKED WINDOW NEVER COVERS THE ANALYZER (r11), at 1440x900 and 922x423: with
-//         the chat docked, then the Character window, the analyzer's box crosses no docked
-//         window (on a desktop it moves beside the dock, never hides)
+//   HS-23 A DOCKED WINDOW NEVER COVERS THE ANALYZER (r11), at 1920x1080, 1440x900 and 922x423:
+//         with the chat docked, then the Character window, the analyzer's box crosses no docked
+//         window; where the row has room right of the fight (1920 with the chat) it moves beside
+//         the dock instead of hiding; docking never moves the camera on a desktop
 //   HS-22 THE PHONE BAR (922x423), in a hunt and in town: at most 100 px tall, the alerts dock
 //         above its top, and the fight settings are a slide-out sheet (shut until the bar's
 //         button opens it, then on top of everything, shut again on Escape)
@@ -798,7 +799,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       await ctx.close();
     }
 
-    for (const vp of [{ width: 1440, height: 900 }, { width: 922, height: 423 }]) { // HS-23 a docked window never covers the analyzer (r11)
+    for (const vp of [{ width: 1920, height: 1080 }, { width: 1440, height: 900 }, { width: 922, height: 423 }]) { // HS-23 a docked window never covers the analyzer (r11)
       const phone = vp.width < 1000, tag = vp.width + 'x' + vp.height;
       /* The phone hides the analyzer by default: this player shows it (a display preference, residue hudLayout). */
       const { ctx, page, up } = await open({ viewport: vp, prep: (s) => { if (phone) s.env.client_state = { hudLayout: { phone: { analyzer: { visible: true } } } }; } });
@@ -822,10 +823,12 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           for (const end = Date.now() + LOAD_MS; ;) { r = await cover(); if ((r.n && !r.hits.length) || Date.now() > end) break; await sleep(100); }
           if (!r.n) fails.push('HS-23 at ' + tag + ' no window docked after ' + key);
           if (r.hits.length) fails.push('HS-23 at ' + tag + ' the docked ' + r.hits.join(', ') + ' covers the analyzer');
-          if (!phone && !r.shown) fails.push('HS-23 at ' + tag + ' the analyzer hid with ' + id + ' docked instead of moving beside the dock');
+          if (vp.width >= 1920 && id === 'chat' && !r.shown) fails.push('HS-23 at ' + tag + ' the analyzer hid with the chat docked instead of moving beside it');
+          if (shots) await page.screenshot({ path: join(shots, 'hunt-' + tag + '-docked-' + id + '.png') });
         }
         const insets = await page.evaluate(() => window.__insets);
-        if (insets.length) fails.push('HS-23 at ' + tag + ' docking a window moved the camera inset: ' + insets.slice(0, 2).join(' -> '));
+        /* Desktop only: the phone sheet hides the top bar's ground name (hunt.css), which moved the inset before r11 too. */
+        if (!phone && insets.length) fails.push('HS-23 at ' + tag + ' docking a window moved the camera inset: ' + insets.slice(0, 2).join(' -> '));
       } else fails.push('HS-23 the analyzer did not mount at ' + tag);
       await ctx.close();
     }

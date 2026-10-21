@@ -112,21 +112,36 @@ export function clearOfEdges(r, edges, boxWidth, gap, fixed = []) {
   return { left: Math.round(left), push: hits(left).filter(({ i }) => i < edges.length).map(({ i }) => ({ i, top: Math.round(r.top + r.height + gap) })) };
 }
 
+const STAGE_CLEAR_PX = 160;
+
+/**
+ * The middle of the stage, which a moved widget never crosses: a STAGE_CLEAR_PX square at the centre
+ * of the part of the World the HUD inset leaves (the camera frames the hero there, and windows never
+ * move it), so a widget leaving the dock never lands on the fight. Pure.
+ */
+export function stageOf(inset, box) {
+  const cx = inset.left + (box.width - inset.left - inset.right) / 2;
+  const cy = inset.top + (box.height - inset.top - inset.bottom) / 2;
+  return { left: Math.round(cx - STAGE_CLEAR_PX / 2), top: Math.round(cy - STAGE_CLEAR_PX / 2), width: STAGE_CLEAR_PX, height: STAGE_CLEAR_PX };
+}
+
 /**
  * A DOCKED WINDOW NEVER COVERS A WIDGET (r11: a window docked during a hunt sat over the analyzer).
  * A right-anchored widget `r` that a docked window lands on slides left along its row, past every
- * docked window and every other edge widget in that row, by `gap`. Windows never move the World
- * (Tyler 10-19), so the widget moves, not the window. Returns `r.left` when no docked window
- * touches it, the new left when one does, or null when no left inside the box clears them all (the
- * widget then waits hidden until the dock narrows). Rects {left, top, width, height}. Pure.
+ * docked window and every other edge widget in that row, by `gap`, but never onto a `stops` rect
+ * (stageOf: the middle of the fight). Windows never move the World (Tyler 10-19), so the widget
+ * moves, not the window. Returns `r.left` when no docked window touches it, the new left when one
+ * does, or null when no left between the dock and the stops clears them all (the widget then waits
+ * hidden until the dock narrows). Rects {left, top, width, height}. Pure.
  */
-export function clearOfDock(r, dock, others, gap) {
+export function clearOfDock(r, dock, others, gap, stops = []) {
   const inRow = (q) => q.top < r.top + r.height && q.top + q.height > r.top;
   const hit = (x, q) => inRow(q) && x < q.left + q.width + gap && q.left < x + r.width + gap;
   if (!dock.some((q) => hit(r.left, q))) return r.left;
   const all = dock.concat(others);
   let x = r.left;
   for (let n = 0; n <= all.length; n++) {
+    if (stops.some((q) => hit(x, q))) return null;
     const hits = all.filter((q) => hit(x, q));
     if (!hits.length) return Math.round(x);
     x = Math.min(...hits.map((q) => q.left)) - gap - r.width;

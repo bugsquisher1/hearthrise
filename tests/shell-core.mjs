@@ -328,6 +328,15 @@ async function runTests(mods) {
     eq(x, 1028 - 12 - 285, 'it sits right beside the dock');
     /* a dock and a party that leave no room: it waits hidden rather than sit under a window */
     eq(HUD.clearOfDock(an, [{ left: 400, top: 0, width: 1040, height: 900 }], [party], 12), null, 'no room left: null');
+    /* never onto the hero: the stage (the centre of the inset's frame) is an obstacle like a window */
+    const stage = HUD.stageOf({ left: 270, right: 297, top: 48, bottom: 195 }, { width: 1440, height: 900 });
+    eq([stage.left + stage.width / 2, stage.top + stage.height / 2], [706.5, 376.5].map(Math.round), 'the stage sits at the centre of the uncovered frame');
+    const wide = { left: 868, top: 12, width: 560, height: 700 };
+    eq(HUD.clearOfDock(an, [wide], [party], 12, [stage]), null, 'no room right of the middle at 1440: it waits hidden, never crosses the fight');
+    const wideBox = HUD.stageOf({ left: 270, right: 297, top: 48, bottom: 195 }, { width: 1920, height: 1080 });
+    const an2 = { left: 1623, top: 12, width: 285, height: 300 };
+    const z = HUD.clearOfDock(an2, [{ left: 1508, top: 12, width: 400, height: 600 }], [party], 12, [wideBox]);
+    ok(z !== null && !over(Object.assign({}, an2, { left: z }), wideBox), 'at 1920 the analyzer sits beside the chat, clear of the middle: ' + z);
     /* the centred pass clears the dock too, and never pushes a window */
     const at = HUD.clearOfEdges({ left: 570, top: 8, width: 300, height: 40 }, [party], 1440, 12, [chat]);
     ok(!over({ left: at.left, top: 8, width: 300, height: 40 }, chat) && at.push.every((p) => p.i < 1), 'the top bar must clear the dock: ' + JSON.stringify(at));

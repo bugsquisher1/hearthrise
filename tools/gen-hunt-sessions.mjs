@@ -76,7 +76,9 @@
 // the caster economy's 2026-11-03 file is history (APPLIED 2026-10-21); the one
 // element vocabulary (lane/a-spell-elements: Nature's Wrath untyped at 20 mana,
 // the dead vulnUntil out of the world's shape) starts
-// 2026-11-04-hunt-sessions-catalogue.generated.sql.
+// 2026-11-04-hunt-sessions-catalogue.generated.sql (history once written); the
+// dead effects (lane/a-dead-effects: markPm replaces markBy, healedAt leaves the
+// world's shape) start 2026-11-05-hunt-sessions-catalogue.generated.sql.
 //
 //   Regenerate:  node tools/gen-hunt-sessions.mjs
 //   Verify:      node tools/gen-hunt-sessions.mjs --check     (exit 1 on drift)
@@ -126,7 +128,7 @@ export const WORLD_FIELDS_READ = Object.freeze({
     'role', 'dist', 'chase', 'tmode', 'stance']),
   world: Object.freeze(['leader']),
 });
-export const OUT_NAME = '2026-11-04-hunt-sessions-catalogue.generated.sql';
+export const OUT_NAME = '2026-11-05-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -518,13 +520,12 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- SUPERSEDES 2026-11-03-hunt-sessions-catalogue.generated.sql (applied; history,
--- never regenerated): every table below is rewritten wholesale. The one element
--- vocabulary (designer 2026-10-21, lane/a-spell-elements): Nature's Wrath costs
--- 20 mana (was 30), so hr_hunt_abilities.mana of natures_wrath moves; the dead
--- vulnUntil leaves the unit's persisted fields, so hr_hunt_world_shape (shape,
--- fields) moves. Every other row is the 11-03 file's.
--- Apply after 2026-11-03-alpha-catalogue.generated.sql.
+-- SUPERSEDES 2026-11-04-hunt-sessions-catalogue.generated.sql (history, never
+-- regenerated): every table below is rewritten wholesale. The dead effects
+-- (lane/a-dead-effects, 2026-10-21): Hunter's Mark's markPm replaces the unread
+-- markBy and the retired healedAt leaves the unit's persisted fields, so
+-- hr_hunt_world_shape (shape, fields) moves. Every other row is the 11-04 file's.
+-- Apply right after 2026-11-04-hunt-sessions-catalogue.generated.sql.
 --
 -- Server-only: RLS on, NO policy, no client grant (the client reads src/data).
 -- Idempotent: delete + insert; nothing references these rows by foreign key.

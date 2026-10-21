@@ -48,4 +48,8 @@ export const SESSION_CONFIG = Object.freeze({
       doubling per answer that brought none, up to huntPollMs, and never before the hunt's first
       boundary (src/session/live-link.js askDelayMs). */
   liveAskMs: 300,
+  /** THE LOOK-AHEAD KEPT FULL: ask for the next combat seeds this long before the prediction would run
+      out of them (src/session/live-link.js refillDelayMs): four swings, room for an answer that brings
+      none and one retry. */
+  liveRefillMs: 8000,
 });

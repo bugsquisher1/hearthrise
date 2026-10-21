@@ -170,10 +170,11 @@ export class CharacterSession {
   _armHuntPoll() {
     if (this._closed || this._huntTimer || !this._huntOpen()) return;
     /* The live view without a start point (just entered, reloaded, or a commit it did not match)
-       asks at once; the floor then answers with hunt_live instead of a settle. */
+       asks at once; the floor then answers with hunt_live instead of a settle. A running one asks
+       before its look-ahead runs out (live-link.js refillDelayMs). */
     const h = this.read('hunt');
     const from = h && h.session && typeof h.session.hunt_from === 'string' ? Date.parse(h.session.hunt_from) : NaN;
-    const ms = this.liveLink.askDelayMs(from) ?? SESSION_CONFIG.huntPollMs;
+    const ms = Math.min(this.liveLink.askDelayMs(from) ?? SESSION_CONFIG.huntPollMs, this.liveLink.refillDelayMs() ?? SESSION_CONFIG.huntPollMs);
     this._huntTimer = this._setTimer(() => { this._huntTimer = null; this._huntPoll(); }, ms);
   }
 
@@ -227,6 +228,9 @@ export class CharacterSession {
 
   /** The frame loop's step: run the live engine to the server's clock now (the viewed character). */
   liveAdvance(clientNow) { return this.liveLink.advance(clientNow); }
+
+  /** What the live view did: verdicts of the server's commits and every restart (live-link.js stats). */
+  liveStats() { return Object.assign({}, this.liveLink.stats); }
 
   /** Units the last reseed found alive (the scene revives a corpse the prediction made), once. */
   takeReseeded() { return this.liveLink.takeReseeded(); }

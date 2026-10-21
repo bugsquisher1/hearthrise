@@ -16,7 +16,6 @@ import { createLiveEngine } from '../hunt-view/live-engine.js?v=0.2.21';
 import { ITEMS } from '../data/items.js?v=0.2.21';
 import { MONSTERS } from '../data/monsters.js?v=0.2.21';
 import { SESSION_CONFIG } from './config.js?v=0.2.21';
-import { COMBAT_BALANCE } from '../core/combat.js?v=0.2.21';
 
 export class LiveLink {
   /**
@@ -30,7 +29,11 @@ export class LiveLink {
     /** Ask the server for a start point at once (CharacterSession's poll reads it). */
     this.want = false;
     this._tries = 0;
+    this._short = 0;
     this._reseeded = null;
+    /** What the live view did (tools: the world stage's data-live): each commit's verdict, every restart. */
+    this.stats = { match: 0, diverged: 0, unknown: 0, reseeds: 0, catchUps: 0, starves: 0 };
+    this._wasStalled = false;
   }
 
   running() { return this.engine.running(); }
@@ -43,6 +46,16 @@ export class LiveLink {
 
   /** One server answer while a hunt is open. */
   from(body) {
+    const before = this.engine.seededUntil();
+    this._take(body);
+    /* An answer that left the look-ahead short makes the next early ask wait twice as long (refillDelayMs). */
+    const after = this.engine.seededUntil();
+    const now = this._tl.serverNowAt(this._now());
+    if (after !== null && (before === null || after > before)) this._short = 0;
+    else if (after !== null && now !== null && after - now < SESSION_CONFIG.liveRefillMs) this._short++;
+  }
+
+  _take(body) {
     if (!body.hunt_live && !body.hunt_check && this.engine.running()) return;
     const ms = Number.isSafeInteger(body.hunt_server_now_ms) ? body.hunt_server_now_ms
       : typeof body.now === 'string' ? Math.floor(Date.parse(body.now)) : NaN;
@@ -61,12 +74,12 @@ export class LiveLink {
          points, never commits) lived on its first 16 swings, froze, then jumped (live v0.2.20). */
       const i = body.hunt_live.instance;
       if (this.engine.running()
-        && this.engine.reconcile({ world_swing: i.world_swing, world_hash: i.world_hash, seeds: body.hunt_live.seeds }) === 'match') return;
+        && this._judge({ world_swing: i.world_swing, world_hash: i.world_hash, seeds: body.hunt_live.seeds }) === 'match') return;
       /* Off the server's world: restart from it, eased (never fed: the swings it runs to catch up are
          already in the past). */
-      this._ease(this.engine.reseed(body.hunt_live, now), now);
+      if (now !== null) { this.stats.reseeds++; this._restart((at, ahead) => this.engine.reseed(body.hunt_live, at, ahead)); }
     } else if (body.hunt_check && this.engine.running()) {
-      if (this.engine.reconcile(body.hunt_check) !== 'match') this.want = true;
+      if (this._judge(body.hunt_check) !== 'match') this.want = true;
     } else if (!this.engine.running()) {
       /* No start point in this answer (not due yet, a settle, or a plain read): ask again, backing
          off to the ordinary poll (askDelayMs). Never give up while the hunt is open: a view that
@@ -76,8 +89,26 @@ export class LiveLink {
     }
   }
 
+  _judge(hc) { const v = this.engine.reconcile(hc); if (Object.hasOwn(this.stats, v)) this.stats[v]++; return v; }
+
   /** An ask that brought no answer at all: the next one waits twice as long (askDelayMs). */
-  missed() { if (this.want) this._tries++; }
+  missed() { if (this.want) this._tries++; else if (this.engine.running()) this._short++; }
+
+  /**
+   * THE LOOK-AHEAD KEPT FULL: how soon to ask (ms) so the next combat seeds arrive before the
+   * prediction runs out (engine.seededUntil, less liveRefillMs), or null when the ordinary poll comes
+   * first. Waiting for the ordinary poll, a prediction whose answers brought no seeds (another client
+   * of the party settled first, a refused settle: about half the answers on live v0.2.21) ran dry,
+   * stood for seconds, then caught up. Each answer that leaves it short doubles the wait (liveAskMs up).
+   */
+  refillDelayMs() {
+    const end = this.engine.seededUntil();
+    const now = this._tl.serverNowAt(this._now());
+    if (end === null || now === null) return null;
+    const due = end - now - SESSION_CONFIG.liveRefillMs;
+    if (due >= SESSION_CONFIG.huntPollMs) return null;
+    return Math.min(SESSION_CONFIG.huntPollMs, Math.max(SESSION_CONFIG.liveAskMs * 2 ** Math.min(6, this._short), due));
+  }
 
   /**
    * How soon to ask for a start point (ms), or null for the ordinary poll: liveAskMs doubling per
@@ -92,11 +123,30 @@ export class LiveLink {
     return Math.min(SESSION_CONFIG.huntPollMs, Math.max(back, until));
   }
 
-  /* Ease the drawing onto a fast-forwarded prediction (timeline.js T8) and revive what it finds alive. */
-  _ease(res, now) {
-    if (!res || now === null) return;
-    this._tl.rebase(Math.floor(now), res.positions, SESSION_CONFIG.liveEaseMs);
-    this._tl.ingest({ units: res.units, fromMs: Math.floor(now) }, this._now());
+  /*
+   * RESTART THE DRAWING FROM A FAST-FORWARDED PREDICTION (timeline.js T8). `run(at, ahead)` runs the
+   * engine to the instant on screen plus the ease and answers its state there (live-engine.js
+   * fastForward). Every unit eases from where it is drawn onto where it stands when the ease ends and
+   * walks on from there with its own steps (no unit stands waiting for the next boundary); a death
+   * inside the skipped span plays now, its victim at 0 HP, so no monster is left standing.
+   */
+  _restart(run) {
+    const client = this._now();
+    const server = this._tl.serverNowAt(client);
+    if (server === null) return;
+    const at = Math.floor(server - this._tl.delayMs());
+    const ease = SESSION_CONFIG.liveEaseMs;
+    const res = run(at, ease);
+    if (!res) return;
+    const ends = new Map();
+    this._tl.rebase(at, res.positions, ease, ends);
+    for (const ev of res.kills) {
+      const when = Math.max(at + 1, ev.atMs);
+      this._tl.ingest({ units: res.fallen[ev.t] ? { [ev.t]: res.fallen[ev.t] } : undefined, fromMs: when,
+        events: [ev.atMs > at ? ev : Object.assign({}, ev, { atMs: when })] }, client);
+    }
+    this._tl.ingest({ units: res.units, fromMs: res.fromMs, events: res.events,
+      track: res.track.filter((s) => !(ends.get(s.u) >= s.atMs)) }, client);
     this._reseeded = res.alive;
     this._emit('reseed');
   }
@@ -106,10 +156,19 @@ export class LiveLink {
     if (!this.engine.running()) return 0;
     const now = this._tl.serverNowAt(clientNow);
     if (now === null) return 0;
-    /* More than a swing behind (the frame loop paused in a background tab, or a start point from the
-       last commit): the missed swings are past, so they are run unplayed and the drawing eases on. */
-    if (this.engine.behindMs(now) > COMBAT_BALANCE.tickMs) { this._ease(this.engine.catchUp(now), now); return 0; }
-    return this.engine.advance(now, (b) => this._tl.ingest(b, clientNow));
+    /* Behind the screen (a background tab's paused frame loop, a start point from the last commit, a
+       restart after the look-ahead ran dry): a swing whose start is already on screen is not fed (its
+       first steps would be drawn at once, a jump); it is run unplayed and the drawing eases on. */
+    if (this.engine.behindMs(now) > this._tl.delayMs()) {
+      this.stats.catchUps++;
+      this._restart((at, ahead) => this.engine.catchUp(at, ahead));
+      return 0;
+    }
+    const n = this.engine.advance(now, (b) => this._tl.ingest(b, clientNow));
+    const dry = this.engine.stalled();
+    if (dry && !this._wasStalled) this.stats.starves++;
+    this._wasStalled = dry;
+    return n;
   }
 
   /** Units the last reseed found alive (the scene revives a corpse the prediction made), once. */

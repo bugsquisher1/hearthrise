@@ -53,4 +53,6 @@ export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'friends', label: 'Friends', key: 'n', glyph: 'navProfile', width: 380, object: 'ledger' }),
   Object.freeze({ id: 'inspect', label: 'Inspect', key: 'i', glyph: 'navCharacter', width: 340, object: 'doll', launcher: false }),
   Object.freeze({ id: 'settings', label: 'Settings', key: 'escape', glyph: 'uiSettings', width: 540, object: 'plain', escape: true }),
+  /* A player's problem report, straight to the team through the bug-report bridge (also in Settings, Help). */
+  Object.freeze({ id: 'report', label: 'Report a problem', key: 'f', glyph: 'uiWarn', width: 420, object: 'plain' }),
 ]);

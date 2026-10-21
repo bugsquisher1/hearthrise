@@ -25,7 +25,9 @@
 //         client module reaches PostgREST tables or RPCs through supabase-js
 //         (`.from(`, `.rpc(`) — the client's only use of supabase-js is auth and
 //         the push channel;
-//   IS-4  non-vacuity: the client tree is read, and each allowed RPC is named.
+//   IS-4  non-vacuity: the client tree is read, and each allowed RPC is named;
+//   IS-6  the link reaches exactly the Edge Functions on CLIENT_FUNCTIONS (the
+//         engine, and the bug-report bridge that files a player's report).
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -92,6 +94,12 @@ export const CLIENT_RPCS = Object.freeze({
   hr_outfit_set: 'wear an owned outfit with a dye index per region; cosmetic, the server checks ownership (CharacterSession.saveOutfit)',
 });
 
+/* The Edge Functions the one link may call, each with what it is for. */
+export const CLIENT_FUNCTIONS = Object.freeze({
+  'hr-accrue': 'the engine: the character’s settle and its pinned item intents (accrue)',
+  'bug-report-bridge': 'a player’s problem report; the bridge names the reporter from the token, stores and rate-limits it (report)',
+});
+
 /* The engine's item intents the client may send, each with the ONLY fields it may carry. */
 export const CLIENT_EDGE_INTENTS = Object.freeze({
   equip: ['equip'],
@@ -154,6 +162,9 @@ export function check(files) {
     if (/\.from\(\s*['"`]/.test(code)) problems.push(`IS-3 ${f} reads or writes a table through supabase-js (.from) — every value comes from an RPC answer`);
     if (/\.\s*rpc\s*\(\s*['"`]/.test(code.replace(/\bserver\.rpc\(|this\._server\.rpc\(/g, '('))) problems.push(`IS-3 ${f} calls an RPC through supabase-js — RPCs go through ${LINK}`);
   }
+  const fns = new Set([...strip(files[LINK] || '').matchAll(/\/functions\/v1\/([a-z0-9-]+)/g)].map((m) => m[1]));
+  for (const f of fns) if (!Object.prototype.hasOwnProperty.call(CLIENT_FUNCTIONS, f)) problems.push(`IS-6 ${LINK} calls the Edge Function ${f}, which is not on CLIENT_FUNCTIONS`);
+  for (const f of Object.keys(CLIENT_FUNCTIONS)) if (!fns.has(f)) problems.push(`IS-6 CLIENT_FUNCTIONS lists ${f} and the link never calls it — a stale entry is a standing permission`);
   const n = Object.keys(files).length;
   if (n < 10 || !files[LINK]) problems.push(`IS-4 only ${n} client module(s) read — the scan is reading the wrong tree`);
   for (const r of Object.keys(CLIENT_RPCS)) if (!named.has(r)) problems.push(`IS-4 CLIENT_RPCS lists ${r} and no client module calls it — a stale entry is a standing permission`);
@@ -181,6 +192,7 @@ if (process.argv.includes('--selftest')) {
     ['the builder grew a price field', { ...real, [EDGE]: real[EDGE].replace("shop_buy: Object.freeze(['offer', 'qty']),", "shop_buy: Object.freeze(['offer', 'qty', 'price']),") }, 'IS-5'],
     ['the builder grew a verb', { ...real, [EDGE]: real[EDGE].replace("eat: Object.freeze(['item']),", "eat: Object.freeze(['item']),\n  market_buy: Object.freeze(['listing', 'qty']),") }, 'IS-5'],
     ['a pinned engine intent nobody sends', { ...real, 'src/shell/windows/inventory/actions.js': real['src/shell/windows/inventory/actions.js'].split("edgeIntent('eat'").join("edgeIntentX('eat'") }, 'IS-5'],
+    ['the link calls an Edge Function the pin does not name', plant(LINK, "const x = () => post('/functions/v1/grant-gold', {});"), 'IS-6'],
     ['a second fetch', plant('src/app/world-pane.js', "fetch('/rest/v1/rpc/hr_load');"), 'IS-3'],
     ['a table read through supabase-js', plant('src/app/boot.js', "client.from('player_state').select('*');"), 'IS-3'],
     ['an RPC through supabase-js', plant('src/app/boot.js', "client.rpc('hr_load', { p_slot: 0 });"), 'IS-3'],

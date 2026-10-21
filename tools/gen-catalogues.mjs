@@ -234,14 +234,15 @@ const startKit = {
 //   hr_apply answers `unknown_item` for — un-enchantable while looking present,
 //   which is the b341 UI-says-one-thing-engine-does-another failure class. An
 //   unauthored element that disables a control is worse than an absent control.
-const RUNE_ELEMENTS = ['ember', 'frost', 'poison'];
+/* The one vocabulary (src/data/elements.js), never a generator-private copy. */
+const { ELEMENTS: RUNE_ELEMENTS } = await imp('src/data/elements.js');
 const runes = itemIds
   .filter((id) => (ITEMS[id] || {}).tag === 'rune')
   .map((id) => {
     const el = ITEMS[id].element;
     if (!RUNE_ELEMENTS.includes(el)) {
       die(`rune "${id}" has element ${JSON.stringify(el)} — every tag:'rune' item must carry `
-        + `element:'ember'|'frost'|'poison', or hr_apply cannot resolve it`);
+        + `an element from src/data/elements.js (${RUNE_ELEMENTS.join('|')}), or hr_apply cannot resolve it`);
     }
     return { rune_id: id, element: el };
   });

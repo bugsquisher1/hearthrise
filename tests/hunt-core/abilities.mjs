@@ -109,6 +109,30 @@ const cases = {
       ? null : 'Flame Volley did not cast on a store rune and three own arrows: ' + JSON.stringify([casts(x.sc), v.tally, v.bag.iron_arrows]);
   },
   /* AB-11: an action set skips abilities (Mana train: runes; Boss: area). */
+  /* Hunter's Mark keeps its row's promise: the marked monster takes bonusPct more from every blow for durMs. */
+  'mark-adds-damage': (M) => {
+    const row = M.AD.ABILITIES.hunters_mark;
+    const x = oneHero(M, {}, { range: 7 }, [{ x: 14, y: 3, hp: 5000, maxHp: 5000 }, { x: 15, y: 3, hp: 5000, maxHp: 5000 }]);
+    const [marked, plain] = x.w.units.filter((u) => u.side === 'mon');
+    M.abilities.fire(x.inst, x.h, { row, target: marked, lines: [] }, x.sc);
+    const hit = (t, at) => { x.sc.atMs = at; return M.damage.landHit(x.inst, x.sc, x.h, t, 100, null, null).dmg; };
+    const un = hit(plain, 0), mk = hit(marked, 0);
+    const want = Math.floor((un * (1000 + row.bonusPct * 10)) / 1000);
+    if (mk !== want) return 'a marked monster took ' + mk + ' of a blow the unmarked one took ' + un + ' of, want ' + want;
+    return hit(marked, row.durMs) === un ? null : 'the mark outlived its ' + row.durMs + ' ms';
+  },
+  /* Bleed scales with the caster's level in its status row's scalesWith skill (Tyler 10-16), fixed as it lands. */
+  'bleed-scales-with-caster-skill': (M) => {
+    const rend = M.AD.ABILITIES.rend, bleed = M.status.statusRow(rend.status);
+    const lv = 40;
+    const x = oneHero(M, {}, { skills: { [bleed.scalesWith]: M.XP.skillXpForLevel(bleed.scalesWith, lv) } }, [{ x: 13, y: 3, hp: 5000, maxHp: 5000 }]);
+    x.sc.rng = rngOf(M, 5);
+    const t = x.w.units.find((u) => u.side === 'mon');
+    M.abilities.fire(x.inst, x.h, { row: rend, target: t, lines: [] }, x.sc);
+    const want = M.status.stackScale(bleed, { skillLv: lv, runeTier: 1 });
+    const got = (t.statuses || []).map((st) => st.scale);
+    return got.length && want > 1000 && got.every((s) => s === want) ? null : 'a level-' + lv + ' caster\'s bleed landed at ' + JSON.stringify(got) + ', want ' + want;
+  },
   'action-set-skips': (M) => {
     const hs = () => supplySession(M, { bag: { fire_rune: { loaded: 5 } } });
     const a = melee(M, ['flame_strike', 'power_strike'], {}, { hs: hs(), actionSet: 'mana_train' });
@@ -154,7 +178,8 @@ const cases = {
   },
   /* AB-03 / AB-08: Challenge pulls every engaged monster that is not on the tank. */
   'taunt-pulls-back': (M) => {
-    const { w, inst, sc } = melee(M, ['challenge']);
+    /* The Challenge is a tank's (targeting.js challengeable): the bar slot and the auto-cast share one reach. */
+    const { w, inst, sc } = melee(M, ['challenge'], { role: 'tank' });
     w.units.push(hero(M, 2, 11, 3, { hp: 50, maxHp: 50 }));
     w.units.sort((a, b) => a.id - b.id);
     w.units.find((u) => u.id === 10).target = 2;
@@ -197,6 +222,12 @@ const mutants = [
       "  return !!hs && (hs.supplySource === 'store' || (hs.onEmpty === 'switch' && !Object.keys(hs.bag || {}).some((id) => kindOf(id) === 'ammo' && leftOf(hs, id) > 0)));"]] },
   { name: 'a rune slot buys the store rune without naming it', case: 'rune-own-then-store',
     edits: [['src/core/hunt/abilities.js', "    const l = resolveLine(h.hs, row.rune, 1, typeof store === 'string' ? store : null);", '    const l = resolveLine(h.hs, row.rune, 1);']] },
+  { name: 'the mark is drawn but adds nothing', case: 'mark-adds-damage',
+    edits: [['src/core/hunt/damage.js', '    markPm ? Object.assign({}, ability, { mult: Math.floor((base * (1000 + markPm)) / 1000) }) : ability);', '    ability);']] },
+  { name: 'the mark never wears off', case: 'mark-adds-damage',
+    edits: [['src/core/hunt/damage.js', ' && target.markUntil > sc.atMs ?', ' ?']] },
+  { name: 'bleed lands at level 0 whatever the caster', case: 'bleed-scales-with-caster-skill',
+    edits: [['src/core/hunt/abilities.js', 'skillLv: h && h.skills ? levelOf(h.skills, srow.scalesWith) : 0,', 'skillLv: 0,']] },
   { name: 'an active ability names a rune no bag can hold', case: 'rows-validate',
     edits: [['src/data/abilities.js', "    dmg: [2, 4], hits: 2, status: 'bleed', active: false }),", "    dmg: [2, 4], hits: 2, status: 'bleed' }),"]] },
   { name: 'the bar fires its last usable ability', case: 'first-usable-in-order',
@@ -218,7 +249,7 @@ const mutants = [
   { name: 'a heal is not capped at the missing HP', case: 'heal-capped',
     edits: [['src/core/hunt/abilities.js', '  const got = Math.max(0, Math.min(n, int(t.maxHp) - int(t.hp)));', '  const got = Math.max(0, n);']] },
   { name: 'Challenge pulls nothing', case: 'taunt-pulls-back',
-    edits: [['src/core/hunt/abilities.js', '      for (const m of engaged(inst)) if (m.target !== u.id) m.target = u.id;', '']] },
+    edits: [['src/core/hunt/abilities.js', "    case 'taunt': challengeFrom(inst, sc, u); break;", "    case 'taunt': break;"]] },
   { name: 'fractional mana is dropped every sub-step', case: 'mana-regen',
     edits: [['src/core/hunt/abilities.js', '  u.manaMilli -= whole * 1000;', '  u.manaMilli = 0;']] },
   { name: 'the lanes are not persisted', case: 'clocks-survive-a-cut',

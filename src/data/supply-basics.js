@@ -48,7 +48,8 @@
 //
 // The server catalogue (lane C) is generated from BASIC_SUPPLIES; the client
 // shows `price` on the slot. tests/supplies-catalogue.mjs proves every rule
-// above. ART: none of these has an icon yet (Art Director handoff).
+// above. ART: one 32x32 pixel icon per row under assets/icons-bundle/pixel/supplies/<id>.png
+// (SUPPLY_DIR in item-art.js; tests/pixel-icons.mjs requires them).
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════

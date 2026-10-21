@@ -14,26 +14,26 @@
 // Melee swing only standing on a tile; ranged also while moving (RO-19).
 // Dice: the swing's `s` stream, units in id order (engine contract #3).
 //
-// Mark and vulnerability are abilities.js's (lane H4) statuses: an ability
-// passes its own multiplier as `ability.mult` (permille). A shield is the
+// An ability passes its own multiplier as `ability.mult` (permille); landHit folds
+// a target's mark (`markPm` until `markUntil`, abilities.js) into it. A shield is the
 // target's `shield`, persisted by abilities.js; hurt only spends it.
 //
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { MONSTERS } from '../../data/monsters.js?v=0.2.23';
-import { HUNT_STANCES, DEFAULT_STANCE } from '../../data/rule-subjects.js?v=0.2.23';
-import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js?v=0.2.23';
-import { cheb } from './grid.js?v=0.2.23';
-import { atRest, unitById } from './movement.js?v=0.2.23';
-import { makeEvent } from './events.js?v=0.2.23';
-import { roleOf, elementOn, inRange, peel, engaged } from './targeting.js?v=0.2.23';
-import { fallen, partySize } from './pull-cycle.js?v=0.2.23';
-import { shareKillXp } from './xp-share.js?v=0.2.23';
-import { payBasic } from './abilities.js?v=0.2.23';
-import { slotsFor, pickSlot, bestAim, footprintOf, inFootprint, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.23';
-import { resolveLine } from '../action-rules.js?v=0.2.23';
-import { elementWithFloor } from '../../data/hunt-grounds.js?v=0.2.23';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.24';
+import { HUNT_STANCES, DEFAULT_STANCE } from '../../data/rule-subjects.js?v=0.2.24';
+import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js?v=0.2.24';
+import { cheb } from './grid.js?v=0.2.24';
+import { atRest, unitById } from './movement.js?v=0.2.24';
+import { makeEvent } from './events.js?v=0.2.24';
+import { roleOf, elementOn, inRange, peel, engaged } from './targeting.js?v=0.2.24';
+import { fallen, partySize } from './pull-cycle.js?v=0.2.24';
+import { shareKillXp } from './xp-share.js?v=0.2.24';
+import { payBasic } from './abilities.js?v=0.2.24';
+import { slotsFor, pickSlot, bestAim, footprintOf, inFootprint, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.24';
+import { resolveLine } from '../action-rules.js?v=0.2.24';
+import { elementWithFloor } from '../../data/hunt-grounds.js?v=0.2.24';
 
 /* stance: the hero's setting. acc (permille), maxHit, def, element: its combat snapshot.
    swingLeftMs: ms until the unit may swing again. */
@@ -79,7 +79,12 @@ export function hurt(inst, target, amount, source, element, ability) {
  */
 export function landHit(inst, sc, source, target, amount, element, ability, crit) {
   if (!target || !target.alive) return { dmg: 0, absorbed: 0, killed: false };
-  const r = hurt(inst, target, amount, source, element, ability);
+  /* A MARKED target (abilities.js: Hunter's Mark) takes markPm permille more from every blow until
+     markUntil, folded into the one multiplier hurt applies (`ability.mult`). */
+  const markPm = Number.isInteger(target.markPm) && target.markPm > 0 && target.markUntil > sc.atMs ? target.markPm : 0;
+  const base = ability && Number.isInteger(ability.mult) ? ability.mult : 1000;
+  const r = hurt(inst, target, amount, source, element,
+    markPm ? Object.assign({}, ability, { mult: Math.floor((base * (1000 + markPm)) / 1000) }) : ability);
   /* A status tick whose source has left the world lands with no dealer (u null). */
   const u = source ? source.id : null;
   if (r.immune) sc.emit(makeEvent('immune', sc.atMs, { u, t: target.id }));

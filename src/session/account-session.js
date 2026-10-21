@@ -40,12 +40,12 @@
 //                 left and destroyed when it closes
 // ════════════════════════════════════════════════════════════════════════
 
-import { SESSION_CONFIG } from './config.js?v=0.2.23';
-import { CharacterSession } from './character-session.js?v=0.2.23';
-import { TownPresence } from './town-presence.js?v=0.2.23';
-import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.23';
-import { charLevelFromXp } from '../core/xp.js?v=0.2.23';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.23';
+import { SESSION_CONFIG } from './config.js?v=0.2.24';
+import { CharacterSession } from './character-session.js?v=0.2.24';
+import { TownPresence } from './town-presence.js?v=0.2.24';
+import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.24';
+import { charLevelFromXp } from '../core/xp.js?v=0.2.24';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.24';
 
 /** This tab's session id: made once per tab, kept across a reload, new for a new tab. */
 export function tabSessionId(tab, cfg = SESSION_CONFIG, make) {
@@ -184,6 +184,16 @@ export class AccountSession {
         unnamed: !!(ans.ok && ans.body && ans.body.error === 'needs_name') }, heroOf(ans.ok ? ans.body : null)));
     }
     return out;
+  }
+
+  /** A player's problem report, through the bug-report bridge (it names the reporter from the token,
+      stores and rate-limits). { ok, status, retryAfterS }: the bridge's word ('accepted', 'stored',
+      'duplicate', 'rate_limited', 'unauthenticated', ...) or the link's ('network', 'no_token'). Moves nothing. */
+  async reportProblem(body) {
+    const ans = await this.server.report(body);
+    const b = ans.body && typeof ans.body === 'object' ? ans.body : {};
+    return { ok: !!(ans.ok && b.ok === true), status: typeof b.status === 'string' ? b.status : ans.error || 'network',
+      retryAfterS: Number.isFinite(b.retry_after_s) ? b.retry_after_s : null };
   }
 
   /** Ask the server to make the hero in an owned slot with its name and colours ({ head, body, legs, feet }

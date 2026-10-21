@@ -74,11 +74,18 @@
 // (APPLIED 2026-10-20); the drop tables (lane/a-drop-tables, 2026-10-20) and the
 // practice kit's weapons (lane/b-hero-creation: hr_hunt_weapons, the hatchets
 // play 'axe' = Melee DPS) start 2026-11-02-hunt-sessions-catalogue.generated.sql;
-// 2026-11-03 (the caster economy) is history (APPLIED 2026-10-21 13:57). THE
-// PLAYER PICKS THE STORE ITEM (Tyler 2026-10-19; lane b-supplies-bury, 2026-10-21):
-// the store rows lose `tiers` and hr_hunt_travel loses `tier` (nothing reads either
-// once 2026-11-04-store-by-slot.sql, which applies FIRST, restates their readers),
-// and the Plain Fire Rune joins the store: 2026-11-04-hunt-sessions-catalogue.generated.sql.
+// the caster economy's 2026-11-03 file is history (APPLIED 2026-10-21); the one
+// element vocabulary (lane/a-spell-elements: Nature's Wrath untyped at 20 mana,
+// the dead vulnUntil out of the world's shape) starts
+// 2026-11-04-hunt-sessions-catalogue.generated.sql (history once written); the
+// dead effects (lane/a-dead-effects: markPm replaces markBy, healedAt leaves the
+// world's shape) start 2026-11-05-hunt-sessions-catalogue.generated.sql (history
+// once written); the Challenge hold (lane/a-combat-bugs: holdMs replaces chalMs in
+// the world's shape) starts 2026-11-06-hunt-sessions-catalogue.generated.sql (APPLIED
+// 2026-10-21 with v0.2.24). THE PLAYER PICKS THE STORE ITEM (Tyler 2026-10-19;
+// lane b-supplies-bury): the store rows lose `tiers`, hr_hunt_travel loses `tier`
+// and the Plain Fire Rune joins the store, once 2026-11-07-store-by-slot.sql (applied
+// FIRST) restates their readers: 2026-11-07-hunt-sessions-catalogue.generated.sql.
 //
 //   Regenerate:  node tools/gen-hunt-sessions.mjs
 //   Verify:      node tools/gen-hunt-sessions.mjs --check     (exit 1 on drift)
@@ -128,7 +135,7 @@ export const WORLD_FIELDS_READ = Object.freeze({
     'role', 'dist', 'chase', 'tmode', 'stance']),
   world: Object.freeze(['leader']),
 });
-export const OUT_NAME = '2026-11-04-hunt-sessions-catalogue.generated.sql';
+export const OUT_NAME = '2026-11-07-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -507,14 +514,14 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- SUPERSEDES 2026-11-03-hunt-sessions-catalogue.generated.sql (applied; history,
+-- SUPERSEDES 2026-11-06-hunt-sessions-catalogue.generated.sql (applied; history,
 -- never regenerated): every table below is rewritten wholesale. THE PLAYER PICKS
 -- THE STORE ITEM (Tyler 2026-10-19; lane b-supplies-bury, 2026-10-21): the store
 -- rows lose \`tiers\` and hr_hunt_travel loses \`tier\` (no hunt tier picks a
 -- store row: the bar slot names it), and the Plain Fire Rune joins the store
 -- (designer 2026-10-21: 8 g a cast, so Flame Strike and Flame Volley cast once
--- the carried Fire Runes are gone). Every other row is the 11-03 file's.
--- Apply after 2026-11-04-store-by-slot.sql (it restates the tier's last readers;
+-- the carried Fire Runes are gone). Every other row is the 11-06 file's.
+-- Apply after 2026-11-07-store-by-slot.sql (it restates the tier's last readers;
 -- the precondition below refuses this file until it has).
 
 -- ── PRECONDITION: nothing still reads the columns this file drops ──
@@ -523,7 +530,7 @@ begin
   if exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace
               and p.proname in ('hr_hunt_member_read', 'hr_hunt_settle_session')
               and (p.prosrc like '%q.tiers%' or p.prosrc like '%b.tiers%' or p.prosrc like '%v_tier%')) then
-    raise exception 'PRECONDITION: apply 2026-11-04-store-by-slot.sql first (a hunt body still reads the store tier)'; end if;
+    raise exception 'PRECONDITION: apply 2026-11-07-store-by-slot.sql first (a hunt body still reads the store tier)'; end if;
 end $$;
 --
 -- Server-only: RLS on, NO policy, no client grant (the client reads src/data).
@@ -561,7 +568,7 @@ create table if not exists public.hr_hunt_travel (
 alter table public.hr_hunt_travel drop constraint if exists hr_hunt_travel_travel_s_check;
 alter table public.hr_hunt_travel add constraint hr_hunt_travel_travel_s_check check (travel_s between 0 and 300 and travel_s % 10 = 0);
 -- THE STORE TIER is gone (Tyler 2026-10-19: the player's slot picks the store item);
--- 2026-11-04-store-by-slot.sql restated its last readers before this file.
+-- 2026-11-07-store-by-slot.sql restated its last readers before this file.
 alter table public.hr_hunt_travel drop column if exists tier;
 -- THE SPAWN CYCLE of the single-foe engine lived here (pull_size, respawn_ms);
 -- a hunt's cycle is its GROUND now (hr_hunt_grounds, the world's packs).

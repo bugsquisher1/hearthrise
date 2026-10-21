@@ -75,8 +75,8 @@
 // FAMILY_ALIAS folds the historical counts rather than stranding them.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyClassProfiles } from './monster-classes.js?v=0.2.23';
-import { MONSTER_LEVEL_BY_TIER } from './core-model.js?v=0.2.23';
+import { applyClassProfiles } from './monster-classes.js?v=0.2.24';
+import { MONSTER_LEVEL_BY_TIER } from './core-model.js?v=0.2.24';
 
 /* HUNT SPEED (HUNT_SCREEN_SPEC §3.1 #4): a row's `speed` is MILLITILES per second
    (src/data/hunt-tuning.js units; the sewer roster's values are the sim's, ASSUMED).
@@ -750,7 +750,7 @@ export const MONSTERS = {
     /* one override (element): the polished cauldron he wears for a crown sheds frost. */
     elementResist: ['frost'],
     hp: 1100, atk: 29, def: 28, xp: 7920, gp: [95, 215], speed: 2800,
-    drops: [{ id: 'big_bones', ch: 1 }, { id: 'gold_ore', ch: .5 }, { id: 'goblin_totem', ch: .3 }, { id: 'war_crown', ch: .02 },
+    drops: [{ id: 'big_bones', ch: 1 }, { id: 'gold_ore', ch: .5 }, { id: 'goblin_totem', ch: .3 }, { id: 'war_crown', ch: .018 },
       { id: 'steel_platebody', ch: .025, gear: true }] },
 };
 

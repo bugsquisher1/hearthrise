@@ -118,7 +118,7 @@ export const START_SKILL_XP = Object.freeze({});
    once they are gone slot 2 buys Salted Shrimp from the store; slot 3 buys Thin Turnip
    Juice. The fallback is the slot ORDER, which the player can see and change. The engine
    (src/core/hunt/conditions.js heroSlots) and the server (hr_hunt_settings_view,
-   2026-11-04-store-by-slot.sql, its ⟦starter-bar⟧ block, pinned by
+   2026-11-07-store-by-slot.sql, its ⟦starter-bar⟧ block, pinned by
    tests/hunt-core/conditions.mjs) place these only while the stored bar holds nothing. */
 const startSlot = (id, item, metric, value) => Object.freeze({ id, action: Object.freeze({ type: 'consume', id: item }),
   conditions: Object.freeze([Object.freeze({ metric, op: 'lt', value })]), join: 'and' });

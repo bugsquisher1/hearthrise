@@ -8,7 +8,7 @@
 // screen at the server's leave_at instead of a whole poll after it. Timing
 // only: nothing here is read as owned or spent.
 // ════════════════════════════════════════════════════════════════════════
-import { SESSION_CONFIG } from './config.js?v=0.2.23';
+import { SESSION_CONFIG } from './config.js?v=0.2.24';
 
 /**
  * How soon (ms) the next re-read is asked: the live view's start-point ask

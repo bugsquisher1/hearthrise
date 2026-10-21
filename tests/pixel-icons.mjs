@@ -18,11 +18,20 @@
 //   empty     an icon with no pixels at all
 //   switch    src/data/item-art.js lost its one switch (the client that wired it was
 //             deleted 2026-10-17; the new screens wire it again)
+//   duplicate two ids whose icon files are byte-identical: a different item wearing
+//             another's art (seven practice-kit weapons shared tier-1 art until 2026-10-21).
+//             KNOWN_TWINS lists the pairs still waiting for their own art.
+//   wiring    bits.js no longer sends a basic supply id to SUPPLY_DIR, or an ability in
+//             ABILITY_ART has no 32x32 tile
+//
+// The SAME rules (missing, orphan, size, palette, alpha, empty) also hold for the shop's
+// basic supplies: one icon per row of src/data/supply-basics.js BASIC_SUPPLIES (salted
+// food, thin drinks, plain ammo; they are not items) at assets/icons-bundle/pixel/supplies/.
 //
 // --selftest plants each defect into a copy of real shipped icons and requires it
 // to be caught BY ITS NAMED RULE; the clean copy must stay silent.
 //
-// mutant-anchors: assets/icons-bundle/pixel/items/ src/data/item-art.js art/world/palette.json
+// mutant-anchors: assets/icons-bundle/pixel/items/ assets/icons-bundle/pixel/supplies/ src/data/item-art.js art/world/palette.json
 //
 // Exit: 0 green · 1 a finding or a mutant escaped · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
@@ -35,6 +44,27 @@ import { inPalette } from '../tools/world-art/lock.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIR = 'assets/icons-bundle/pixel/items';
+const SUPPLY = 'assets/icons-bundle/pixel/supplies';
+/** Pairs of items that still share one icon, waiting for art of their own (Art Director). A new pair is a finding. */
+const KNOWN_TWINS = [['crown_of_the_fallen_king', 'crown_shard']];
+
+/** Byte-identical icon files under two ids, except the listed twins. */
+export function checkDuplicates(dir, ids, twins = KNOWN_TWINS) {
+  const out = [], seen = new Map();
+  const allowed = (a, b) => twins.some(([x, y]) => (x === a && y === b) || (x === b && y === a));
+  for (const id of ids) {
+    let bytes;
+    try { bytes = readFileSync(join(dir, id + '.png')).toString('base64'); } catch { continue; }
+    if (seen.has(bytes) && !allowed(seen.get(bytes), id)) out.push({ rule: 'duplicate', id, detail: id + '.png is byte-identical to ' + seen.get(bytes) + '.png' });
+    else if (!seen.has(bytes)) seen.set(bytes, id);
+  }
+  return out;
+}
+
+/** The supply icons in `dir` against BASIC_SUPPLIES' ids `sids`: the item rules, plus no shared art. */
+export function checkSupplies(dir, sids) {
+  return [...checkIcons(dir, sids), ...checkDuplicates(dir, sids)];
+}
 
 /** Findings for the icon folder `dir`, against the item ids `ids`. */
 export function checkIcons(dir, ids) {
@@ -74,9 +104,29 @@ export function checkSwitch(root) {
   return out;
 }
 
+/** The render seam and the ability art, from source: a supply id reaches its own folder, every ability with art has its file. */
+export async function checkWiring(root) {
+  const out = [];
+  const bits = readFileSync(join(root, 'src/shell/widgets/bits.js'), 'utf8');
+  if (!/BASIC_INDEX\[id\][\s\S]{0,120}SUPPLY_DIR \+ id/.test(bits)) out.push({ rule: 'wiring', id: 'bits.js', detail: 'itemIconHtml no longer maps a basic supply id to SUPPLY_DIR (its icon would fall back to a chest glyph)' });
+  const art = await import(pathToFileURL(join(root, 'src/data/item-art.js')).href);
+  if (art.SUPPLY_DIR !== 'assets/icons-bundle/pixel/supplies/') out.push({ rule: 'wiring', id: 'item-art.js', detail: 'SUPPLY_DIR is not assets/icons-bundle/pixel/supplies/' });
+  for (const id of art.ABILITY_ART) {
+    let img;
+    try { img = decodePNG(readFileSync(join(root, art.ABILITY_DIR, id + '.png'))); } catch (e) { out.push({ rule: 'wiring', id, detail: 'ability art listed with no decodable ' + id + '.png' }); continue; }
+    if (img.width !== 32 || img.height !== 32) out.push({ rule: 'wiring', id, detail: 'ability tile is ' + img.width + 'x' + img.height + ', want 32x32' });
+  }
+  return out;
+}
+
 async function loadIds() {
   const { ITEMS } = await import(pathToFileURL(join(ROOT, 'src/data/items.js')).href);
   return Object.keys(ITEMS);
+}
+
+async function loadSupplyIds() {
+  const { BASIC_SUPPLIES } = await import(pathToFileURL(join(ROOT, 'src/data/supply-basics.js')).href);
+  return BASIC_SUPPLIES.map((b) => b.id);
 }
 
 function report(label, findings) {
@@ -109,6 +159,34 @@ async function selftest(ids) {
     console.log(`  ${hit ? 'caught ' : 'ESCAPED'} ${rule}`);
     if (!hit) escaped++;
   }
+  // duplicate: one id wearing another's file, through the same call the real run makes
+  { const d = fresh(); copyFileSync(join(d, pick[0] + '.png'), join(d, pick[5] + '.png'));
+    const hit = checkDuplicates(d, pick, []).some((f) => f.rule === 'duplicate');
+    const allowedPair = checkDuplicates(d, pick, [[pick[0], pick[5]]]).length === 0;   // a listed twin stays silent
+    console.log(`  ${hit && allowedPair ? 'caught ' : 'ESCAPED'} duplicate`);
+    if (!(hit && allowedPair)) escaped++; }
+  // supplies: the supply folder runs the item rules (a missing file) and the duplicate rule
+  { const sids = ['sup_a', 'sup_b'];
+    const d = mkdtempSync(join(tmp, 'sup-'));
+    copyFileSync(join(real, pick[0] + '.png'), join(d, 'sup_a.png'));
+    const miss = checkSupplies(d, sids).some((f) => f.rule === 'missing' && f.id === 'sup_b');
+    copyFileSync(join(real, pick[0] + '.png'), join(d, 'sup_b.png'));
+    const dup = checkSupplies(d, sids).some((f) => f.rule === 'duplicate');
+    console.log(`  ${miss && dup ? 'caught ' : 'ESCAPED'} supplies`);
+    if (!(miss && dup)) escaped++; }
+  // wiring: a bits.js that lost the supply branch, and an ability listed with no tile, must each trip it
+  { const wroot = mkdtempSync(join(tmp, 'w-'));
+    for (const f of ['src/shell/widgets/bits.js', 'src/data/item-art.js']) { mkdirSync(join(wroot, f.replace(/\/[^/]+$/, '')), { recursive: true }); copyFileSync(join(ROOT, f), join(wroot, f)); }
+    mkdirSync(join(wroot, 'assets/icons-bundle/pixel/abilities'), { recursive: true });
+    const { ABILITY_ART } = await import(pathToFileURL(join(ROOT, 'src/data/item-art.js')).href);
+    for (const id of ABILITY_ART) copyFileSync(join(ROOT, 'assets/icons-bundle/pixel/abilities', id + '.png'), join(wroot, 'assets/icons-bundle/pixel/abilities', id + '.png'));
+    const clean2 = (await checkWiring(wroot)).length === 0;
+    rmSync(join(wroot, 'assets/icons-bundle/pixel/abilities', ABILITY_ART[0] + '.png'));
+    const noTile = (await checkWiring(wroot)).some((f) => f.rule === 'wiring' && f.id === ABILITY_ART[0]);
+    writeFileSync(join(wroot, 'src/shell/widgets/bits.js'), readFileSync(join(wroot, 'src/shell/widgets/bits.js'), 'utf8').replace('SUPPLY_DIR + id', 'PIXEL_DIR + id'));
+    const noSeam = (await checkWiring(wroot)).some((f) => f.rule === 'wiring' && f.id === 'bits.js');
+    console.log(`  ${clean2 && noTile && noSeam ? 'caught ' : 'ESCAPED'} wiring`);
+    if (!(clean2 && noTile && noSeam)) escaped++; }
   // the switch: a source with no ITEM_ART_SET must trip 'switch'
   const sroot = mkdtempSync(join(tmp, 's-'));
   mkdirSync(join(sroot, 'src/data'), { recursive: true });
@@ -117,12 +195,13 @@ async function selftest(ids) {
   console.log(`  ${sw ? 'caught ' : 'ESCAPED'} switch`);
   if (!sw) escaped++;
   rmSync(tmp, { recursive: true, force: true });
-  console.log(escaped ? `pixel-icons --selftest: RED — ${escaped} planted defect(s) escaped` : 'pixel-icons --selftest: all 7 planted defects caught; clean control silent');
+  console.log(escaped ? `pixel-icons --selftest: RED — ${escaped} planted defect(s) escaped` : 'pixel-icons --selftest: all 10 planted defects caught; clean control silent');
   process.exit(escaped ? 1 : 0);
 }
 
 const ids = await loadIds();
+const supplyIds = await loadSupplyIds();
 if (process.argv.includes('--selftest')) await selftest(ids);
-const findings = [...checkIcons(join(ROOT, DIR), ids), ...checkSwitch(ROOT)];
-report(`pixel-icons: ${ids.length} items`, findings);
+const findings = [...checkIcons(join(ROOT, DIR), ids), ...checkDuplicates(join(ROOT, DIR), ids), ...checkSupplies(join(ROOT, SUPPLY), supplyIds), ...(await checkWiring(ROOT)), ...checkSwitch(ROOT)];
+report(`pixel-icons: ${ids.length} items + ${supplyIds.length} supplies`, findings);
 process.exit(findings.length ? 1 : 0);

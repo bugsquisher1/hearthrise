@@ -4,6 +4,8 @@
 // createServerLink({ url, anonKey, token, fetch }) answers:
 //   rpc(name, args)       POST /rest/v1/rpc/<name>        (Postgres RPC)
 //   accrue(body)          POST /functions/v1/hr-accrue    (the engine's intents)
+//   report(body)          POST /functions/v1/bug-report-bridge  (a player's problem report;
+//                         the bridge names the reporter from the token, stores and rate-limits)
 //   intents               the account's asks in flight (src/session/intent-ledger.js):
 //                         its callers track each intent; the link only carries it
 // Every answer is { ok, status, body, closed } and never a throw: a network
@@ -22,8 +24,8 @@
 // was sent 805 times from a background tab).
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPABASE_CONFIG } from '../net/supabase-bootstrap.js?v=0.2.23';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.23';
+import { SUPABASE_CONFIG } from '../net/supabase-bootstrap.js?v=0.2.24';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.24';
 
 export const CLOSED_CODE = 'hr_closed';
 export const CLOSED_STATUS = 403;
@@ -75,6 +77,7 @@ export function createServerLink(o) {
       return post('/rest/v1/rpc/' + name, args);
     },
     accrue: (body) => post('/functions/v1/hr-accrue?forceFunctionRegion=' + SUPABASE_CONFIG.functionRegion, body),
+    report: (body) => post('/functions/v1/bug-report-bridge', body),
     intents: createIntentLedger(),
   });
 }

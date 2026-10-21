@@ -14,18 +14,19 @@
 // EVERY hero has mana (ruling: 100 + 10 a level for everyone): the mana arc
 // and readout always show, carrying whatever the server sends. Every number
 // is the server's (CLAUDE.md §6): HP and mana from the envelope (the hunt
-// hero while hunting; character-sections.js townVitalsOf out of one, mana
+// hero while hunting, its HP as the live timeline plays it, the same number
+// as the bar over its head; character-sections.js townVitalsOf out of one, mana
 // full there), stamina from staminaOf, regen, level and XP from the hunt section, the town's
 // Level (state.level_xp, character-sections.js levelOf). Built once, patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { CONSUMABLES } from '../../data/consumables.js?v=0.2.23';
-import { levelOf as levelRowOf, townVitalsOf } from '../../session/character-sections.js?v=0.2.23';
-import { huntOf, staminaOf } from '../../session/hunt-sections.js?v=0.2.23';
-import { bagOf } from '../../session/item-sections.js?v=0.2.23';
-import { text, attr } from '../../render/paint.js?v=0.2.23';
-import { whole, hoursMinutes } from '../../render/format.js?v=0.2.23';
-import { glyphSvg } from '../launcher.js?v=0.2.23';
-import { itemIconHtml, itemName } from './bits.js?v=0.2.23';
+import { CONSUMABLES } from '../../data/consumables.js?v=0.2.24';
+import { levelOf as levelRowOf, townVitalsOf } from '../../session/character-sections.js?v=0.2.24';
+import { huntOf, staminaOf, liveHpOf } from '../../session/hunt-sections.js?v=0.2.24';
+import { bagOf } from '../../session/item-sections.js?v=0.2.24';
+import { text, attr } from '../../render/paint.js?v=0.2.24';
+import { whole, hoursMinutes } from '../../render/format.js?v=0.2.24';
+import { glyphSvg } from '../launcher.js?v=0.2.24';
+import { itemIconHtml, itemName } from './bits.js?v=0.2.24';
 
 /* The arcs on a 100 x 100 box, centre (50, 50), radius 42: the left one from the
    bottom (111.6 deg) round to the top (248.4 deg), the right one the mirror. */
@@ -72,8 +73,10 @@ export function patchHub(el, ctx) {
   const cs = ctx.character;
   const h = huntOf(cs);
   const hero = h && !h.ended ? h.hero : null;
-  /* Out of a hunt (town, or a hunt that ended): the character's own vitals, mana full (Tyler 10-19). */
-  const v = hero || townVitalsOf(cs) || {};
+  /* Hunting, HP is the bar's over the hero's head (liveHpOf: the timeline at this instant), never the
+     last commit's. Out of a hunt (town, or a hunt that ended): the character's own vitals, mana full (Tyler 10-19). */
+  const live = hero ? liveHpOf(cs, hero.unit) : null;
+  const v = hero ? (live ? Object.assign({}, hero, { hp: live.hp, hpMax: live.maxHp }) : hero) : townVitalsOf(cs) || {};
   const stam = staminaOf(cs);
   const row = levelRowOf(cs);
   const level = hero && ok(hero.level) ? hero.level : row ? row.level : null;

@@ -44,7 +44,7 @@
 --
 -- ── ORDER ───────────────────────────────────────────────────────────────────
 -- After 2026-11-03-alpha-catalogue.generated.sql, BEFORE
--- 2026-11-04-hunt-sessions-catalogue.generated.sql (which drops the tier columns
+-- 2026-11-07-hunt-sessions-catalogue.generated.sql (which drops the tier columns
 -- this file stops reading; it refuses to apply until this one has). The hr-accrue
 -- edge of this lane deploys BEFORE this file (it reads no `shop`, names the items).
 -- REVERSIBILITY: re-apply the four bodies from their source files and the
@@ -741,7 +741,7 @@ begin
     select e into v_sl from jsonb_array_elements(v->'slots') e where e->'action'->>'id' = 'salted_shrimp';
     if not (v_sl->>'usable')::boolean or v_sl->>'why' is not null then raise exception 'VERIFY(d): the store shrimp reads %', v_sl; end if;
     -- (e) a Flame Strike slot naming the store rune is usable with no rune held (the store row is planted
-    --     if 2026-11-04-hunt-sessions-catalogue.generated.sql, which ships it, has not run yet: rolled back).
+    --     if 2026-11-07-hunt-sessions-catalogue.generated.sql, which ships it, has not run yet: rolled back).
     if v_rune is null then raise exception 'VERIFY(e): Flame Strike spends no rune'; end if;
     if not exists (select 1 from public.hr_hunt_basic_supplies where partner = v_rune) then
       if v_has_tiers then

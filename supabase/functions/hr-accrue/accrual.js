@@ -121,7 +121,7 @@ import { seederFor } from './hunt-seed.js';
 import { memberSide, bonusFor, liveBuffHost } from '../../../src/core/member.js';
 /* THE INSTANCE WORLD a settle resumes and leaves (src/core/hunt/world-state.js),
    and the analyzer's tally of what each hero dealt, took and healed. */
-import { encode as encodeWorldRow, decode as decodeWorldRow } from '../../../src/core/hunt/world-state.js';
+import { encode as encodeWorldRow, decodeStored as decodeWorldRow } from '../../../src/core/hunt/world-state.js';
 import { tallyEvents } from '../../../src/core/hunt/tally.js';
 /* RESTED XP (b437), banked SERVER-SIDE. The SAME watermarked accrual the client
    runs (src/core/rested.js) — no second formula. It draws NO rng, so appending
@@ -1127,7 +1127,10 @@ export const HUNT_MAX_WINDOW_MS = 6 * 3600000;
 /* THE WORLD ON THE WIRE (spec §1.1 engine contract #4). hunt_instances.world
    is the COMPACT JSON TEXT of world-state.encode(world) — the form its 16 KB
    bound is measured on (octet_length of that text; jsonb::text would pad every
-   separator). It arrives here as that text and leaves as that text. */
+   separator). It arrives here as that text and leaves as that text. A world
+   written under another field list (a deploy moved FIELDS) reads as null: the
+   instance restarts its world from its stored swing (world-state decodeStored)
+   rather than refusing every settle and freezing the hunt. */
 function decodeWorld(stored) {
   const enc = typeof stored === 'string' ? JSON.parse(stored) : stored;
   return decodeWorldRow(enc);

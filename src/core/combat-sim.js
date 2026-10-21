@@ -39,17 +39,17 @@
 // window, no timers, no Math.random.
 // ============================================================
 
-import { COMBAT_BALANCE } from './combat.js?v=0.2.23';
-import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.23';
-import { createRng } from './rng.js?v=0.2.23';
-import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.23';
-import { stepSwing } from './hunt/world-step.js?v=0.2.23';
-import { makeEvent, trackStep } from './hunt/events.js?v=0.2.23';
-import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.23';
-import { rewardSwing } from './hunt-rewards.js?v=0.2.23';
+import { COMBAT_BALANCE } from './combat.js?v=0.2.24';
+import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.24';
+import { createRng } from './rng.js?v=0.2.24';
+import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.24';
+import { stepSwing } from './hunt/world-step.js?v=0.2.24';
+import { makeEvent, trackStep } from './hunt/events.js?v=0.2.24';
+import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.24';
+import { rewardSwing } from './hunt-rewards.js?v=0.2.24';
 
 /* The engine's front door (src/core/index.js `combatSim`). */
-export { stepSwing } from './hunt/world-step.js?v=0.2.23';
+export { stepSwing } from './hunt/world-step.js?v=0.2.24';
 
 /* WHY A COMBAT SPAN STOPPED BEFORE THE WINDOW DID — the same contract
    src/core/skill-sim.js and src/core/artisan-sim.js publish under this name.
@@ -154,6 +154,9 @@ export function simulateHuntInstance(inst, ctx) {
   const toMs = Math.floor(Number(ctx.toMs) || 0);
   const members = inst.members;
   let world = inst.world || null;
+  /* NO WORLD, NO PLACED HERO: a unit id names a unit of a world that is gone (a stored world of
+     another field list restarts: world-state decodeStored), so every member re-enters the fresh one. */
+  if (!world) for (const m of members) m.unitId = null;
   let atMs = Math.floor(Number(inst.nextSwingAtMs));
   const startMs = atMs;
   const out = new Map(members.map((m) => [m.key, { ticks: 0, kills: 0, deaths: 0, deathLog: [],
@@ -241,7 +244,7 @@ export function simulateHuntInstance(inst, ctx) {
         if (m.left || m.unitId === null) continue;
         byUnit.set(m.unitId, m);
         heroes[m.unitId] = { hs: m.hs, slots: m.hero.slots, stopRules: m.hero.stopRules, actionSet: m.hero.actionSet,
-          range: m.hero.range, rollsVs: m.rollsVs, ammo: m.hero.ammo, items: ctx.items || null,
+          range: m.hero.range, rollsVs: m.rollsVs, ammo: m.hero.ammo, items: ctx.items || null, skills: m.state.skills,
           foodBelowPct: m.hero.foodBelowPct, drinkBelowPct: m.hero.drinkBelowPct };
       }
       /* MONSTER DENSITY for the packs that spawn from here: the party leader's pick (Tyler 2026-10-20),

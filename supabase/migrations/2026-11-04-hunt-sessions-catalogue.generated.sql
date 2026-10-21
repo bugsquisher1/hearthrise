@@ -8,29 +8,18 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 690266835fa29069b9db39b357b9de90a9adf0d6c950c925e5fbb6c9706ac831
+--   digest: b224a885f012a06b2fff2601045246ea04e51cd8c0f31149059afe1ee6eed03b
 --   59 supplies, 115 hunts (named + training), 52 limits, 11 end reasons,
---   480 vendor values, 19 store supplies paid per use, 5 target modes,
+--   480 vendor values, 18 store supplies paid per use, 5 target modes,
 --   3 lanes, 14 abilities, 13 action-set options, 4 hunt grounds
 --
 -- SUPERSEDES 2026-11-03-hunt-sessions-catalogue.generated.sql (applied; history,
--- never regenerated): every table below is rewritten wholesale. THE PLAYER PICKS
--- THE STORE ITEM (Tyler 2026-10-19; lane b-supplies-bury, 2026-10-21): the store
--- rows lose `tiers` and hr_hunt_travel loses `tier` (no hunt tier picks a
--- store row: the bar slot names it), and the Plain Fire Rune joins the store
--- (designer 2026-10-21: 8 g a cast, so Flame Strike and Flame Volley cast once
--- the carried Fire Runes are gone). Every other row is the 11-03 file's.
--- Apply after 2026-11-04-store-by-slot.sql (it restates the tier's last readers;
--- the precondition below refuses this file until it has).
-
--- ── PRECONDITION: nothing still reads the columns this file drops ──
-do $$
-begin
-  if exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace
-              and p.proname in ('hr_hunt_member_read', 'hr_hunt_settle_session')
-              and (p.prosrc like '%q.tiers%' or p.prosrc like '%b.tiers%' or p.prosrc like '%v_tier%')) then
-    raise exception 'PRECONDITION: apply 2026-11-04-store-by-slot.sql first (a hunt body still reads the store tier)'; end if;
-end $$;
+-- never regenerated): every table below is rewritten wholesale. The one element
+-- vocabulary (designer 2026-10-21, lane/a-spell-elements): Nature's Wrath costs
+-- 20 mana (was 30), so hr_hunt_abilities.mana of natures_wrath moves; the dead
+-- vulnUntil leaves the unit's persisted fields, so hr_hunt_world_shape (shape,
+-- fields) moves. Every other row is the 11-03 file's.
+-- Apply after 2026-11-03-alpha-catalogue.generated.sql.
 --
 -- Server-only: RLS on, NO policy, no client grant (the client reads src/data).
 -- Idempotent: delete + insert; nothing references these rows by foreign key.
@@ -66,9 +55,7 @@ create table if not exists public.hr_hunt_travel (
 -- An existing table (created by an applied catalogue) learns a walk of 0.
 alter table public.hr_hunt_travel drop constraint if exists hr_hunt_travel_travel_s_check;
 alter table public.hr_hunt_travel add constraint hr_hunt_travel_travel_s_check check (travel_s between 0 and 300 and travel_s % 10 = 0);
--- THE STORE TIER is gone (Tyler 2026-10-19: the player's slot picks the store item);
--- 2026-11-04-store-by-slot.sql restated its last readers before this file.
-alter table public.hr_hunt_travel drop column if exists tier;
+alter table public.hr_hunt_travel add column if not exists tier int;
 -- THE SPAWN CYCLE of the single-foe engine lived here (pull_size, respawn_ms);
 -- a hunt's cycle is its GROUND now (hr_hunt_grounds, the world's packs).
 alter table public.hr_hunt_travel drop column if exists pull_size;
@@ -92,9 +79,9 @@ create table if not exists public.hr_hunt_basic_supplies (
   partner  text not null check (partner ~ '^[a-z0-9_]{1,64}$'),
   heals    int  not null check (heals >= 0),
   mana     int  not null check (mana >= 0),
-  price    bigint not null check (price between 1 and 1000000000)
+  price    bigint not null check (price between 1 and 1000000000),
+  tiers    int[] not null
 );
-alter table public.hr_hunt_basic_supplies drop column if exists tiers;
 create table if not exists public.hr_hunt_cover_items (
   item_id text primary key check (item_id ~ '^[a-z0-9_]{1,64}$'),
   unit    bigint not null check (unit >= 1)
@@ -268,26 +255,25 @@ insert into public.hr_hunt_supplies (item_id, kind, essential, heals, buff_type)
   ('water_rune', 'ammo', true, 0, null),
   ('wheat_bread', 'heal', true, 216, null);
 delete from public.hr_hunt_basic_supplies;
-insert into public.hr_hunt_basic_supplies (basic_id, kind, partner, heals, mana, price) values
-  ('plain_barbed_arrows', 'ammo', 'barbed_arrows', 0, 0, 2),
-  ('plain_dawnpoint_arrows', 'ammo', 'dawnpoint_arrows', 0, 0, 24),
-  ('plain_emberhead_arrows', 'ammo', 'emberhead_arrows', 0, 0, 18),
-  ('plain_fire_rune', 'ammo', 'fire_rune', 0, 0, 8),
-  ('plain_iron_bolts', 'ammo', 'iron_bolts', 0, 0, 2),
-  ('plain_mithril_arrows', 'ammo', 'mithril_arrows', 0, 0, 8),
-  ('plain_rune_arrows', 'ammo', 'rune_arrows', 0, 0, 12),
-  ('plain_steel_arrows', 'ammo', 'steel_arrows', 0, 0, 4),
-  ('salted_lobster', 'heal', 'cooked_lobster', 216, 0, 180),
-  ('salted_shark', 'heal', 'cooked_shark', 396, 0, 693),
-  ('salted_shrimp', 'heal', 'cooked_shrimp', 72, 0, 14),
-  ('salted_swordfish', 'heal', 'cooked_swordfish', 288, 0, 432),
-  ('salted_trout', 'heal', 'cooked_trout', 120, 0, 40),
-  ('thin_carrot_juice', 'mana', 'carrot_juice', 0, 120, 18),
-  ('thin_emberfruit_cordial', 'mana', 'emberfruit_cordial', 0, 480, 233),
-  ('thin_goldenroot_tea', 'mana', 'goldenroot_tea', 0, 396, 138),
-  ('thin_pumpkin_cider', 'mana', 'pumpkin_cider', 0, 288, 80),
-  ('thin_tomato_juice', 'mana', 'tomato_juice', 0, 216, 45),
-  ('thin_turnip_juice', 'mana', 'turnip_juice', 0, 72, 10);
+insert into public.hr_hunt_basic_supplies (basic_id, kind, partner, heals, mana, price, tiers) values
+  ('plain_barbed_arrows', 'ammo', 'barbed_arrows', 0, 0, 2, '{}'::int[]),
+  ('plain_dawnpoint_arrows', 'ammo', 'dawnpoint_arrows', 0, 0, 24, '{}'::int[]),
+  ('plain_emberhead_arrows', 'ammo', 'emberhead_arrows', 0, 0, 18, '{}'::int[]),
+  ('plain_iron_bolts', 'ammo', 'iron_bolts', 0, 0, 2, '{}'::int[]),
+  ('plain_mithril_arrows', 'ammo', 'mithril_arrows', 0, 0, 8, '{}'::int[]),
+  ('plain_rune_arrows', 'ammo', 'rune_arrows', 0, 0, 12, '{}'::int[]),
+  ('plain_steel_arrows', 'ammo', 'steel_arrows', 0, 0, 4, '{}'::int[]),
+  ('salted_lobster', 'heal', 'cooked_lobster', 216, 0, 180, '{3}'::int[]),
+  ('salted_shark', 'heal', 'cooked_shark', 396, 0, 693, '{6}'::int[]),
+  ('salted_shrimp', 'heal', 'cooked_shrimp', 72, 0, 14, '{1}'::int[]),
+  ('salted_swordfish', 'heal', 'cooked_swordfish', 288, 0, 432, '{4,5}'::int[]),
+  ('salted_trout', 'heal', 'cooked_trout', 120, 0, 40, '{2}'::int[]),
+  ('thin_carrot_juice', 'mana', 'carrot_juice', 0, 120, 18, '{2}'::int[]),
+  ('thin_emberfruit_cordial', 'mana', 'emberfruit_cordial', 0, 480, 233, '{6}'::int[]),
+  ('thin_goldenroot_tea', 'mana', 'goldenroot_tea', 0, 396, 138, '{5}'::int[]),
+  ('thin_pumpkin_cider', 'mana', 'pumpkin_cider', 0, 288, 80, '{4}'::int[]),
+  ('thin_tomato_juice', 'mana', 'tomato_juice', 0, 216, 45, '{3}'::int[]),
+  ('thin_turnip_juice', 'mana', 'turnip_juice', 0, 72, 10, '{1}'::int[]);
 delete from public.hr_hunt_cover_items;
 -- (no item is flagged junk: sell-to-cover is inert until one is)
 delete from public.hr_hunt_lanes;
@@ -460,7 +446,7 @@ insert into public.hr_hunt_abilities (ability_id, disciplines, lane, cd_ms, mana
   ('frost_lance', array['destruction']::text[], 'offense', 6000, 20, 'frost_rune', 0, false, 9),
   ('greater_mend', array['restoration']::text[], 'heal', 2000, 25, null, 0, true, 11),
   ('hunters_mark', array['ranged']::text[], 'offense', 12000, 8, null, 0, true, 5),
-  ('natures_wrath', array['restoration']::text[], 'offense', 10000, 30, null, 0, true, 13),
+  ('natures_wrath', array['restoration']::text[], 'offense', 10000, 20, null, 0, true, 13),
   ('power_strike', array['dual_axe', 'shield']::text[], 'offense', 6000, 6, null, 0, true, 2),
   ('precision_shot', array['ranged']::text[], 'offense', 6000, 6, null, 1, true, 7),
   ('rend', array['dual_axe']::text[], 'offense', 6000, 8, 'life_rune', 0, false, 4);
@@ -577,126 +563,126 @@ insert into public.hr_hunt_roles (role, discipline) values
   ('ranger', 'ranged'),
   ('tank', 'shield');
 delete from public.hr_hunt_world_shape;
-insert into public.hr_hunt_world_shape (id, version, shape, fields) values (true, 1, 317195122, '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"chalMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"deadMs":28,"hpMilli":29,"yieldPm":30,"stance":31,"acc":32,"maxHit":33,"def":34,"element":35,"swingLeftMs":36,"mana":37,"maxMana":38,"manaMilli":39,"regenPm":40,"lanes":41,"cds":42,"shield":43,"markBy":44,"markUntil":45,"vulnUntil":46,"statuses":47,"laneAt":48,"otHp":49,"otMana":50,"healedAt":51,"ruleHold":52,"ruleWait":53},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"phase":5,"routeIdx":6,"phaseMs":7,"regroupNext":8,"runs":9,"nextId":10,"density":11,"xpGroup":12}}'::jsonb);
+insert into public.hr_hunt_world_shape (id, version, shape, fields) values (true, 1, 681263752, '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"chalMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"deadMs":28,"hpMilli":29,"yieldPm":30,"stance":31,"acc":32,"maxHit":33,"def":34,"element":35,"swingLeftMs":36,"mana":37,"maxMana":38,"manaMilli":39,"regenPm":40,"lanes":41,"cds":42,"shield":43,"markBy":44,"markUntil":45,"statuses":46,"laneAt":47,"otHp":48,"otMana":49,"healedAt":50,"ruleHold":51,"ruleWait":52},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"phase":5,"routeIdx":6,"phaseMs":7,"regroupNext":8,"runs":9,"nextId":10,"density":11,"xpGroup":12}}'::jsonb);
 delete from public.hr_premium_login_reward;
 insert into public.hr_premium_login_reward (id, item_id, qty) values (true, 'oak_practice_blade', 1);
 delete from public.hr_hunt_travel;
-insert into public.hr_hunt_travel (hunt_id, travel_s, training) values
-  ('adept', 0, true),
-  ('air_elemental', 0, true),
-  ('ancient_bear', 0, true),
-  ('archmage', 0, true),
-  ('astrologer', 0, true),
-  ('bandit_lord', 0, true),
-  ('barrow_knight', 0, true),
-  ('bear', 0, true),
-  ('bog_vine', 0, true),
-  ('bramble_edge', 0, false),
-  ('briarcoat_wolf', 0, true),
-  ('carnivorous_plant', 0, true),
-  ('carrion_swarm', 0, true),
-  ('cave_wyrm', 0, true),
-  ('centipede', 0, true),
-  ('chained_demon', 0, true),
-  ('cistern_spider', 0, true),
-  ('clay_golem', 0, true),
-  ('conjurer', 0, true),
-  ('coppercap_warrens', 0, false),
-  ('culvert_bat', 0, true),
-  ('cutpurse', 0, true),
-  ('cyclops', 0, true),
-  ('dark_wizard', 0, true),
-  ('death_knight', 0, true),
-  ('deserter', 0, true),
-  ('dire_gray', 0, true),
-  ('dire_wolf', 0, true),
-  ('drain_rat', 0, true),
-  ('drake', 0, true),
-  ('drowned_dead', 0, true),
-  ('dryad', 0, true),
-  ('earth_elemental', 0, true),
-  ('fire_devil', 0, true),
-  ('fire_elemental', 0, true),
-  ('frost_giant', 0, true),
-  ('fury', 0, true),
-  ('gargoyle', 0, true),
-  ('ghoul', 0, true),
-  ('giant_bat', 0, true),
-  ('giant_boar', 0, true),
-  ('giant_spider', 0, true),
-  ('gnoll', 0, true),
-  ('goblin', 0, true),
-  ('goblin_brute', 0, true),
-  ('goblin_digger', 0, true),
-  ('goblin_scavenger', 0, true),
-  ('goblin_skulker', 0, true),
-  ('goblin_warlord', 0, true),
-  ('goblin_warren', 0, false),
-  ('grave_banshee', 0, true),
-  ('gray_whelp', 0, true),
-  ('gray_wolf', 0, true),
-  ('grayjaw', 0, true),
-  ('hellhound', 0, true),
-  ('hive_wasp', 0, true),
-  ('hobgoblin', 0, true),
-  ('hobgoblin_foreman', 0, true),
-  ('ice_elemental', 0, true),
-  ('imp', 0, true),
-  ('kobold', 0, true),
-  ('kobold_tosher', 0, true),
-  ('lesser_demon', 0, true),
-  ('locust_swarm', 0, true),
-  ('lynx', 0, true),
-  ('magma_elemental', 0, true),
-  ('mammoth', 0, true),
-  ('mandrake', 0, true),
-  ('meadowbrook_thicket', 0, false),
-  ('mill_cellar', 0, false),
-  ('millrace_sewer', 0, false),
-  ('minotaur', 0, true),
-  ('mountain_ram', 0, true),
-  ('mountain_troll', 0, true),
-  ('nightmare', 0, true),
-  ('ogre', 0, true),
-  ('ooze', 0, true),
-  ('panther', 0, true),
-  ('plague_swarm', 0, true),
-  ('rat', 0, true),
-  ('revenant', 0, true),
-  ('ridge_camp', 0, false),
-  ('rock_troll', 0, true),
-  ('salamander', 0, true),
-  ('scarecrow', 0, true),
-  ('shadow_creeper', 0, true),
-  ('shrieker', 0, true),
-  ('skeleton', 0, true),
-  ('slime', 0, true),
-  ('small_wolf', 0, true),
-  ('stag', 0, true),
-  ('starhusk', 0, true),
-  ('stone_golem', 0, true),
-  ('storm_elemental', 0, true),
-  ('sump_slime', 0, true),
-  ('the_silence', 0, true),
-  ('vampire_bride', 0, true),
-  ('venom_spider', 0, true),
-  ('void_mote', 0, true),
-  ('void_parasite', 0, true),
-  ('war_king', 0, true),
-  ('warband_captain', 0, true),
-  ('warlock', 0, true),
-  ('watchknight', 0, true),
-  ('water_elemental', 0, true),
-  ('weak_skeleton', 0, true),
-  ('wight', 0, true),
-  ('wild_boar', 0, true),
-  ('winter_wolf', 0, true),
-  ('witchs_apprentice', 0, true),
-  ('wolf', 0, true),
-  ('wraith', 0, true),
-  ('wyrmling', 0, true),
-  ('wyvern', 0, true),
-  ('zombie', 0, true);
+insert into public.hr_hunt_travel (hunt_id, travel_s, training, tier) values
+  ('adept', 0, true, 4),
+  ('air_elemental', 0, true, 2),
+  ('ancient_bear', 0, true, 6),
+  ('archmage', 0, true, 5),
+  ('astrologer', 0, true, 5),
+  ('bandit_lord', 0, true, 5),
+  ('barrow_knight', 0, true, 4),
+  ('bear', 0, true, 4),
+  ('bog_vine', 0, true, 3),
+  ('bramble_edge', 0, false, 1),
+  ('briarcoat_wolf', 0, true, 1),
+  ('carnivorous_plant', 0, true, 4),
+  ('carrion_swarm', 0, true, 5),
+  ('cave_wyrm', 0, true, 4),
+  ('centipede', 0, true, 3),
+  ('chained_demon', 0, true, 5),
+  ('cistern_spider', 0, true, 1),
+  ('clay_golem', 0, true, 3),
+  ('conjurer', 0, true, 4),
+  ('coppercap_warrens', 0, false, 4),
+  ('culvert_bat', 0, true, 1),
+  ('cutpurse', 0, true, 1),
+  ('cyclops', 0, true, 5),
+  ('dark_wizard', 0, true, 2),
+  ('death_knight', 0, true, 5),
+  ('deserter', 0, true, 3),
+  ('dire_gray', 0, true, 2),
+  ('dire_wolf', 0, true, 3),
+  ('drain_rat', 0, true, 1),
+  ('drake', 0, true, 5),
+  ('drowned_dead', 0, true, 4),
+  ('dryad', 0, true, 5),
+  ('earth_elemental', 0, true, 3),
+  ('fire_devil', 0, true, 3),
+  ('fire_elemental', 0, true, 1),
+  ('frost_giant', 0, true, 5),
+  ('fury', 0, true, 5),
+  ('gargoyle', 0, true, 5),
+  ('ghoul', 0, true, 3),
+  ('giant_bat', 0, true, 2),
+  ('giant_boar', 0, true, 5),
+  ('giant_spider', 0, true, 4),
+  ('gnoll', 0, true, 2),
+  ('goblin', 0, true, 1),
+  ('goblin_brute', 0, true, 3),
+  ('goblin_digger', 0, true, 3),
+  ('goblin_scavenger', 0, true, 3),
+  ('goblin_skulker', 0, true, 3),
+  ('goblin_warlord', 0, true, 4),
+  ('goblin_warren', 0, false, 1),
+  ('grave_banshee', 0, true, 5),
+  ('gray_whelp', 0, true, 1),
+  ('gray_wolf', 0, true, 1),
+  ('grayjaw', 0, true, 2),
+  ('hellhound', 0, true, 4),
+  ('hive_wasp', 0, true, 1),
+  ('hobgoblin', 0, true, 2),
+  ('hobgoblin_foreman', 0, true, 3),
+  ('ice_elemental', 0, true, 4),
+  ('imp', 0, true, 1),
+  ('kobold', 0, true, 1),
+  ('kobold_tosher', 0, true, 1),
+  ('lesser_demon', 0, true, 4),
+  ('locust_swarm', 0, true, 2),
+  ('lynx', 0, true, 3),
+  ('magma_elemental', 0, true, 5),
+  ('mammoth', 0, true, 5),
+  ('mandrake', 0, true, 1),
+  ('meadowbrook_thicket', 0, false, 1),
+  ('mill_cellar', 0, false, 1),
+  ('millrace_sewer', 0, false, 1),
+  ('minotaur', 0, true, 4),
+  ('mountain_ram', 0, true, 3),
+  ('mountain_troll', 0, true, 4),
+  ('nightmare', 0, true, 2),
+  ('ogre', 0, true, 4),
+  ('ooze', 0, true, 2),
+  ('panther', 0, true, 5),
+  ('plague_swarm', 0, true, 4),
+  ('rat', 0, true, 1),
+  ('revenant', 0, true, 6),
+  ('ridge_camp', 0, false, 2),
+  ('rock_troll', 0, true, 3),
+  ('salamander', 0, true, 2),
+  ('scarecrow', 0, true, 1),
+  ('shadow_creeper', 0, true, 5),
+  ('shrieker', 0, true, 2),
+  ('skeleton', 0, true, 2),
+  ('slime', 0, true, 1),
+  ('small_wolf', 0, true, 1),
+  ('stag', 0, true, 2),
+  ('starhusk', 0, true, 5),
+  ('stone_golem', 0, true, 2),
+  ('storm_elemental', 0, true, 6),
+  ('sump_slime', 0, true, 1),
+  ('the_silence', 0, true, 6),
+  ('vampire_bride', 0, true, 6),
+  ('venom_spider', 0, true, 3),
+  ('void_mote', 0, true, 4),
+  ('void_parasite', 0, true, 6),
+  ('war_king', 0, true, 6),
+  ('warband_captain', 0, true, 5),
+  ('warlock', 0, true, 3),
+  ('watchknight', 0, true, 4),
+  ('water_elemental', 0, true, 2),
+  ('weak_skeleton', 0, true, 1),
+  ('wight', 0, true, 2),
+  ('wild_boar', 0, true, 1),
+  ('winter_wolf', 0, true, 4),
+  ('witchs_apprentice', 0, true, 1),
+  ('wolf', 0, true, 2),
+  ('wraith', 0, true, 4),
+  ('wyrmling', 0, true, 3),
+  ('wyvern', 0, true, 4),
+  ('zombie', 0, true, 3);
 delete from public.hr_hunt_limits;
 insert into public.hr_hunt_limits (key, value) values
   ('ability_ammo_max', 3),
@@ -1283,11 +1269,9 @@ begin
      or (select count(*) from public.hr_hunt_limits) <> 52
      or (select count(*) from public.hr_hunt_end_reasons) <> 11
      or (select count(*) from public.hr_hunt_vendor_value) <> 480
-     or (select count(*) from public.hr_hunt_basic_supplies) <> 19
+     or (select count(*) from public.hr_hunt_basic_supplies) <> 18
      or (select count(*) from public.hr_hunt_cover_items) <> 0
-     or exists (select 1 from information_schema.columns where table_schema = 'public'
-                 and ((table_name = 'hr_hunt_basic_supplies' and column_name = 'tiers')
-                   or (table_name = 'hr_hunt_travel' and column_name = 'tier')))
+     or (select count(*) from public.hr_hunt_travel where tier is null) <> 0
      or (select count(*) from public.hr_hunt_target_modes) <> 5
      or (select count(*) from public.hr_hunt_resumable_kinds) <> 3
      or (select count(*) from public.hr_hunt_lanes) <> 3
@@ -1304,7 +1288,7 @@ begin
      or (select count(*) from public.hr_hunt_end_reasons where resumes) <> 9 then
     raise exception 'hunt-session catalogue row counts moved from the generator''s'; end if;
   -- The world fields the party section reads by name are all there, at the generator's positions.
-  if (select fields from public.hr_hunt_world_shape) is distinct from '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"chalMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"deadMs":28,"hpMilli":29,"yieldPm":30,"stance":31,"acc":32,"maxHit":33,"def":34,"element":35,"swingLeftMs":36,"mana":37,"maxMana":38,"manaMilli":39,"regenPm":40,"lanes":41,"cds":42,"shield":43,"markBy":44,"markUntil":45,"vulnUntil":46,"statuses":47,"laneAt":48,"otHp":49,"otMana":50,"healedAt":51,"ruleHold":52,"ruleWait":53},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"phase":5,"routeIdx":6,"phaseMs":7,"regroupNext":8,"runs":9,"nextId":10,"density":11,"xpGroup":12}}'::jsonb
+  if (select fields from public.hr_hunt_world_shape) is distinct from '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"chalMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"deadMs":28,"hpMilli":29,"yieldPm":30,"stance":31,"acc":32,"maxHit":33,"def":34,"element":35,"swingLeftMs":36,"mana":37,"maxMana":38,"manaMilli":39,"regenPm":40,"lanes":41,"cds":42,"shield":43,"markBy":44,"markUntil":45,"statuses":46,"laneAt":47,"otHp":48,"otMana":49,"healedAt":50,"ruleHold":51,"ruleWait":52},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"phase":5,"routeIdx":6,"phaseMs":7,"regroupNext":8,"runs":9,"nextId":10,"density":11,"xpGroup":12}}'::jsonb
      or exists (select 1 from unnest(array['id', 'side', 'kind', 'alive', 'x', 'y', 'hp', 'maxHp', 'target', 'mana', 'maxMana', 'shield', 'otHp', 'otMana', 'role', 'dist', 'chase', 'tmode', 'stance']) n
                  where not ((select fields->'unit' from public.hr_hunt_world_shape) ? n)) then
     raise exception 'hr_hunt_world_shape.fields is not world-state.js FIELDS'; end if;

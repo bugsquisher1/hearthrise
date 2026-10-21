@@ -9,11 +9,11 @@
 // server's value stays on screen either way: nothing changed before it answered.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.23';
-import { ITEMS } from '../data/items.js?v=0.2.23';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.23';
-import { REFUSAL_WORDS, REFUSAL_FAMILIES, REFUSAL_FALLBACK } from '../data/refusal-words.js?v=0.2.23';
-import { skillsOf } from '../session/item-sections.js?v=0.2.23';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.24';
+import { ITEMS } from '../data/items.js?v=0.2.24';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.24';
+import { REFUSAL_WORDS, REFUSAL_FAMILIES, REFUSAL_FALLBACK } from '../data/refusal-words.js?v=0.2.24';
+import { skillsOf } from '../session/item-sections.js?v=0.2.24';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 

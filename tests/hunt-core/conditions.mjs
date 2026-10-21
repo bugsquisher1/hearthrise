@@ -42,7 +42,7 @@ import { supplySession } from './fixtures/h4.js';
 const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
 const MIGRATION = 'supabase/migrations/2026-10-25-action-conditions.sql';
 /* The action ids and the starter bar moved forward (Tyler 2026-10-21: a slot names ONE item; a new hero's bar). */
-const STORE_MIGRATION = 'supabase/migrations/2026-11-04-store-by-slot.sql';
+const STORE_MIGRATION = 'supabase/migrations/2026-11-07-store-by-slot.sql';
 /* The limits moved forward (Tyler 10-19: three conditions, all must match). */
 const LIMITS_MIGRATION = 'supabase/migrations/2026-10-26-bar-three-conditions.sql';
 

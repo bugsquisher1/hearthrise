@@ -1,57 +1,47 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/world/world-boot.js — THE WORLD PANE'S RUNTIME (loaded on first open).
 //
-// src/app/world-pane.js boots this for ONE CharacterSession: every read goes
-// through opts.view() (that character's view, src/app/world-view.js), never a
-// global, so two characters on one screen never share a scene.
+// src/app/world-pane.js boots this for ONE CharacterSession: every read goes through
+// opts.view() (src/app/world-view.js), never a global, so two characters never share a scene.
 //
-// THE LOOP runs on requestAnimationFrame ONLY while #panel-world is the active
-// panel AND the page is visible: switching tab or hiding the page stops it on
-// the next frame (and sync() cancels the pending one at once). 30 fps under the
-// canonical mobile query, 60 elsewhere. Each frame reads the scene from the
-// server-held state (store.js), steps the roof fades, and hands the backend
-// one state object.
+// THE LOOP runs on requestAnimationFrame ONLY while #panel-world is active AND the page is
+// visible (sync() cancels a pending frame at once); 30 fps under the mobile query, 60 elsewhere.
+// Each frame reads the scene from server-held state (store.js), steps the roof fades, and
+// hands the backend one state object.
 //
-// THE HUNT (lane W3). When the server's activity is a fight a map renders, the
-// scene is that hunt: hunt-scene.js stages the fight from the one swing
-// observer (src/render/combat-observer.js) — its snapshot every frame and every
-// beat as it happens, so swings taken while the pane was hidden are not lost.
-// The hunt's panels (analyzer, party, bars) are the shell's (src/shell/widgets/*).
-// THE LIVE HUNT: with a `hunt` section, src/hunt-view/scene.js plays the character's
-// timeline on its own clock instead; the staging above is for a fight with none.
+// THE HUNT (lane W3): a fight a map renders is staged by hunt-scene.js from the one swing
+// observer (src/render/combat-observer.js), snapshot and beats, so hidden-pane swings survive.
+// THE LIVE HUNT: with a `hunt` section, src/hunt-view/scene.js plays the timeline instead. That
+// scene is the CHARACTER'S (liveSceneOf), so a switch of the viewed character keeps its deaths.
 //
-// THE TOWN AND THE HOME (lane W4) otherwise, as the viewer picks: walk-scene.js
-// draws them from what the client holds from the server, read here into one
-// `env` per frame. A tap on the canvas walks the local hero (G._world.pos) or
-// names what it hit for the pane (opts.emit: a hunt's entrance, a station); no
-// tap sends an intent (steer-local.js runAction). On a desktop WASD / the
-// arrows walk the same feet (8 ways, stop on key-up); never while a text field
-// has focus.
-// THE TOWN'S PEOPLE: opts.town (src/session/town-presence.js) hears the town shown and the hero's place each frame, and gives the walkers.
-// A fight on a hunt no map renders shows the viewer's town or home with a slim
-// banner that names the fight and offers the hunt that IS in the World.
+// THE TOWN AND THE HOME (lane W4) otherwise: walk-scene.js draws them from one `env` per frame
+// read from server copies. A tap walks the local hero or names what it hit for the pane
+// (opts.emit); no tap sends an intent (steer-local.js). WASD / arrows walk 8 ways unless a
+// text field has focus. opts.town (src/session/town-presence.js) gives the walkers and is the
+// one record of where this body stands in town (placeOn: a switch is not a move).
+// A fight on a hunt no map renders shows town or home with a slim banner offering the mapped hunt.
 // ════════════════════════════════════════════════════════════════════════
-import { BUILD } from '../build-info.js?v=0.2.23';
-import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=0.2.23';
-import { WORLD_MAPS } from '../data/world/maps/index.js?v=0.2.23';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.23';
-import { MONSTERS } from '../data/monsters.js?v=0.2.23';
-import { compileMap } from './core/map-compile.js?v=0.2.23';
-import { STUB_SPRITE } from './core/book.js?v=0.2.23';
-import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.23';
-import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.23';
-import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.23';
-import { loadAtlases } from './atlas.js?v=0.2.23';
-import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.23';
-import { huntOfMap } from './hunt-maps.js?v=0.2.23';
-import { createHuntScene } from './hunt-scene.js?v=0.2.23';
-import { createHuntScene as createLiveHunt, readHunt } from '../hunt-view/scene.js?v=0.2.23';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.23';
-import { createWalkScene } from './walk-scene.js?v=0.2.23';
-import { homeMapFor } from './home-scene.js?v=0.2.23';
-import { runAction } from './steer-local.js?v=0.2.23';
-import { heroSprite } from '../session/hero-look.js?v=0.2.23';
-import { keyBelongsToField } from '../utils/dom.js?v=0.2.23';
+import { BUILD } from '../build-info.js?v=0.2.24';
+import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=0.2.24';
+import { WORLD_MAPS } from '../data/world/maps/index.js?v=0.2.24';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.24';
+import { MONSTERS } from '../data/monsters.js?v=0.2.24';
+import { compileMap } from './core/map-compile.js?v=0.2.24';
+import { STUB_SPRITE } from './core/book.js?v=0.2.24';
+import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.24';
+import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.24';
+import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.24';
+import { loadAtlases } from './atlas.js?v=0.2.24';
+import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.24';
+import { huntOfMap } from './hunt-maps.js?v=0.2.24';
+import { createHuntScene } from './hunt-scene.js?v=0.2.24';
+import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.24';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.24';
+import { createWalkScene } from './walk-scene.js?v=0.2.24';
+import { homeMapFor } from './home-scene.js?v=0.2.24';
+import { runAction } from './steer-local.js?v=0.2.24';
+import { heroSprite } from '../session/hero-look.js?v=0.2.24';
+import { keyBelongsToField } from '../utils/dom.js?v=0.2.24';
 
 /* THE KEYS (desktop): WASD and the arrows, by physical key (e.code, so a
    non-QWERTY layout walks with the same hand). Two held at once walk the
@@ -142,6 +132,7 @@ function createEnvReader(win, town) {
  *        character's own `_world` display scratch. There is no global state to fall back to.
  * @param {object} [opts.character]  that CharacterSession: its sections and timeline drive the live hunt
  * @param {object} [opts.town]  that character's TownPresence (account.townOf(slot)): the town's people
+ * @param {() => object[]} [opts.peers]  the account's open CharacterSessions (your other heroes' looks in a hunt)
  * @param {(kind: string, detail: object) => boolean} [opts.emit]  what a tap names: 'entrance' {hunt},
  *        'station' {skill}, 'room' {room}, 'house' {room}; true when the pane opened something
  */
@@ -164,8 +155,8 @@ export async function bootWorld(panel, opts) {
   const obs = win.HearthriseCombatObserver || null;
   let hunt = null, huntMap = null, lastHunt = null;
   const character = opts.character || null;
-  let liveHunt = null;   // { map, scene, off }: the live hunt of `character`, while it hunts
-  function endLive() { if (liveHunt) { liveHunt.off(); liveHunt = null; } }
+  /* the live hunt of `character`, while it hunts: ended here only when its hunt is over (S5) */
+  function endLive() { if (character) endLiveScene(character); }
   const unsubscribe = obs ? obs.subscribe((b) => { if (hunt) hunt.beat(b); }) : null;
   const idle = doc.createElement('div');
   idle.className = 'world-idle';
@@ -199,24 +190,20 @@ export async function bootWorld(panel, opts) {
   function liveState(sc) {
     const tl = character.timeline;
     const session = (huntOf(character) || {}).sessionId || null; // one scene per session: unit ids restart (timeline.js T10)
-    if (!liveHunt || liveHunt.map !== sc.map || liveHunt.session !== session) {
-      endLive();
-      const scene = createLiveHunt({ timeline: tl, book, read: () => readHunt(character) });
-      liveHunt = { map: sc.map, session, scene, off: tl.subscribe((ev) => scene.onEvent(ev, character.now())) };
-    }
+    const scene = liveSceneOf(character, { key: sc.map + '|' + session, book, peers: opts.peers });
     const now = character.now();
     /* the live view's engine runs to now first (src/session/live-link.js) */
     if (typeof character.liveAdvance === 'function') character.liveAdvance(now);
     const back = typeof character.takeReseeded === 'function' ? character.takeReseeded() : null;
-    if (back) liveHunt.scene.revive(back, now);
+    if (back) scene.revive(back, now);
     /* what the live view did (verdicts, restarts), readable from the page for a live check: data-live */
     const ls = typeof character.liveStats === 'function' ? character.liveStats() : null;
     const key = ls ? Object.entries(ls).map(([k, v]) => k + '=' + v).join(' ') : '';
     if (stage && stage.dataset.live !== key) stage.dataset.live = key;
     tl.advance(now);
-    const f = liveHunt.scene.frame(now);
+    const f = scene.frame(now);
     lastHunt = { live: true, units: f.units.map((u) => ({ id: u.id, unit: u.unit, x: u.x, y: u.y, anim: u.anim, frame: u.frame, dir: u.dir, diag: u.diag })),
-      hero: f.hero, floats: f.floats.length, fx: f.fx.map((e) => e.id), stats: liveHunt.scene.stats() };
+      hero: f.hero, floats: f.floats.length, fx: f.fx.map((e) => e.id), stats: scene.stats() };
     return { hero: f.hero, units: f.units, floats: f.floats, fx: f.fx };
   }
 
@@ -239,12 +226,16 @@ export async function bootWorld(panel, opts) {
   }
 
   function walkState(G, map, now) {
+    /* ONE POSITION SOURCE: in town the body's place is the TownPresence's (where everyone else sees it
+       stand, kept across a switch of the viewed character); at home it is the character's scratch */
+    const held = !!town && map.kind === 'town';
     if (!walk || walk.map !== map) {
-      walk = createWalkScene(map, { at: heroPosOn(G, map.id), sprites, openClasses: OPEN_CLASSES, maps: ROW_OF, heroSprite: () => heroSprite(character) });
+      const at = held ? town.placeOn(map.id) : heroPosOn(G, map.id);
+      walk = createWalkScene(map, { at, sprites, openClasses: OPEN_CLASSES, maps: ROW_OF, heroSprite: () => heroSprite(character) });
       if (keys.size) walk.drive(keyVector(), now);   // keys still held across a scene change keep walking
     }
     const f = walk.frame(readEnv(G, map.kind), now);
-    notePos(G, map.id, f.hero.x, f.hero.y);
+    if (!held) notePos(G, map.id, f.hero.x, f.hero.y);
     if (town) {
       town.show(map.kind === 'town' ? map.id : null);
       if (map.kind === 'town') town.publish(f.place);
@@ -438,7 +429,7 @@ export async function bootWorld(panel, opts) {
       if (raf) win.cancelAnimationFrame(raf);
       raf = 0; running = false;
       if (unsubscribe) unsubscribe();
-      endLive();
+      /* the live scene stays the character's (S5): shown again, it still knows every death it played */
       if (town) town.park();   // another character is viewed: this one stays in town
       chrome.removeEventListener('click', onChoice);
       stage.removeEventListener('click', onTap);

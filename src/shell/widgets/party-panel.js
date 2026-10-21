@@ -19,17 +19,17 @@
 // Built once; each member is a keyed row (src/render/paint.js rows), patched in
 // place. The expand toggle and the intent scratch live on the panel element.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.23';
-import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.23';
-import { partyOf } from '../../session/hunt-sections.js?v=0.2.23';
-import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.23';
-import { afterLeave, disbandParty } from '../../session/party-intents.js?v=0.2.23';
-import { runIntent } from '../intent-words.js?v=0.2.23';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.23';
-import { short, whole } from '../../render/format.js?v=0.2.23';
-import { glyphSvg } from '../launcher.js?v=0.2.23';
-import { markPlayer } from '../context-menu.js?v=0.2.23';
-import { gaugeHtml, patchGauge, panelHtml } from './bits.js?v=0.2.23';
+import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.24';
+import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.24';
+import { partyOf, liveHpOf } from '../../session/hunt-sections.js?v=0.2.24';
+import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.24';
+import { afterLeave, disbandParty } from '../../session/party-intents.js?v=0.2.24';
+import { runIntent } from '../intent-words.js?v=0.2.24';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.24';
+import { short, whole } from '../../render/format.js?v=0.2.24';
+import { glyphSvg } from '../launcher.js?v=0.2.24';
+import { markPlayer } from '../context-menu.js?v=0.2.24';
+import { gaugeHtml, patchGauge, panelHtml } from './bits.js?v=0.2.24';
 
 function memberHtml(glyphs) {
   return '<li class="hp-m">'
@@ -107,6 +107,16 @@ export function rosterOf(cs) {
   return { members, leaderSeat: h.leaderSeat, selfSeat: h.selfSeat, isLeader: false, inParty: false, anyHunting: true };
 }
 
+/** The roster with each hunting member's HP as the live timeline plays it (hunt-sections.js liveHpOf: the
+    bar over its head), never the last commit's. Exported for tests/party-ui.mjs. */
+export function liveRoster(cs, r) {
+  const members = r.members.map((m) => {
+    const live = m.hunting ? liveHpOf(cs, m.unit) : null;
+    return live ? Object.assign({}, m, { hp: live.hp, hpMax: live.maxHp }) : m;
+  });
+  return Object.assign({}, r, { members });
+}
+
 const scratch = new WeakMap();
 function scOf(el) {
   let sc = scratch.get(el);
@@ -125,7 +135,7 @@ export function renderPartyPanel() {
 }
 
 renderPartyPanel.patch = function patchPartyPanel(el, ctx) {
-  const r = rosterOf(ctx.character);
+  const r = liveRoster(ctx.character, rosterOf(ctx.character));
   const sc = scOf(el);
   const view = { leaderSeat: r.leaderSeat, selfSeat: r.selfSeat, canKick: r.inParty && r.isLeader, pending: sc.pending };
   cls(el.querySelector('.hp-party'), 'is-empty', !r.members.length);

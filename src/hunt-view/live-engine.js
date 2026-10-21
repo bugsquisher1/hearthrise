@@ -26,14 +26,14 @@
 // PURE (no DOM). The caller owns the clock.
 // ════════════════════════════════════════════════════════════════════════
 
-import { simulateHuntInstance } from '../core/combat-sim.js?v=0.2.23';
-import { memberSide, frozenSide } from '../core/member.js?v=0.2.23';
-import { huntGroundOf } from '../core/hunt-ground.js?v=0.2.23';
-import { huntTimeline, worldHash } from '../core/hunt-track.js?v=0.2.23';
-import { encode as encodeWorldRow, decode as decodeWorldRow } from '../core/hunt/world-state.js?v=0.2.23';
-import { COMBAT_BALANCE } from '../core/combat.js?v=0.2.23';
-import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.23';
-import { stepCost } from '../core/hunt/grid.js?v=0.2.23';
+import { simulateHuntInstance } from '../core/combat-sim.js?v=0.2.24';
+import { memberSide, frozenSide } from '../core/member.js?v=0.2.24';
+import { huntGroundOf } from '../core/hunt-ground.js?v=0.2.24';
+import { huntTimeline, worldHash } from '../core/hunt-track.js?v=0.2.24';
+import { encode as encodeWorldRow, decodeStored as decodeWorldRow } from '../core/hunt/world-state.js?v=0.2.24';
+import { COMBAT_BALANCE } from '../core/combat.js?v=0.2.24';
+import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.24';
+import { stepCost } from '../core/hunt/grid.js?v=0.2.24';
 
 /* How many swings of world hashes are kept to judge a server commit against. */
 const KEEP_HASHES = 64;
@@ -271,6 +271,8 @@ export function createLiveEngine(o) {
     },
     /** A prediction that holds a world but cannot step it (out of seeds: restart it eased, never fed; or ended). */
     stalled: () => !!st && (st.starved || st.ended === true),
+    /** The swing the prediction runs next (null without one): read by a hang report, never by the hunt. */
+    swingIndex: () => (st ? (st.world ? st.world.swing : st.worldSwing) : null),
     /** How far (ms) the prediction's next boundary lies behind `serverNowMs` (0 when it is up to date or not running). */
     behindMs: (serverNowMs) => (st && !st.starved && !st.ended && Number.isFinite(serverNowMs) ? Math.max(0, serverNowMs - st.next) : 0),
     /**

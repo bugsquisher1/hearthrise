@@ -374,8 +374,8 @@ const mutants = [
   { name: 'food waits after an ability heal', case: 'eat-right-after-a-heal',
     edits: [['src/core/hunt/consumables.js', "  if (!kind) return { why: 'none' };\n  const line = resolveLine(hero.hs, action.id);", "  if (!kind) return { why: 'none' };\n  if (kind === 'food' && Number.isInteger(u.healedAt)) return { kind, why: 'healed' };\n  const line = resolveLine(hero.hs, action.id);"]] },
   { name: 'the over-time half is not persisted', case: 'over-time-survives-a-cut',
-    edits: [['src/core/hunt/consumables.js', "  unit: Object.freeze([['laneAt', 'int'], ['otHp', 'json'], ['otMana', 'json'], ['healedAt', 'int?']]),",
-      "  unit: Object.freeze([['laneAt', 'int'], ['otMana', 'json'], ['healedAt', 'int?']]),"]] },
+    edits: [['src/core/hunt/consumables.js', "  unit: Object.freeze([['laneAt', 'int'], ['otHp', 'json'], ['otMana', 'json']]),",
+      "  unit: Object.freeze([['laneAt', 'int'], ['otMana', 'json']]),"]] },
 ];
 
 await suiteH4('hunt-core/consumables', cases, mutants);

@@ -103,6 +103,7 @@ function scripted() {
 }
 
 async function stub(page, s) {
+  await page.addInitScript(FETCH_TAP);
   await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
   await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
   await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
@@ -144,16 +145,38 @@ async function signInAndPlay(page, base, town) {
 /**
  * A new full envelope for the shown character, the way the live game gets one:
  * a pushed frame that skips a version makes the client re-read (hello), and
- * the scripted server answers with `s.env`. Resolves when it has been applied.
+ * the scripted server answers with `s.env`. `shows` (a page predicate, optional): resolve once the
+ * page shows the new envelope, at most 5 s (the caller's assertion judges it). Without it, resolve
+ * 200 ms after the re-read is asked, which is only for an envelope that changes nothing visible.
+ * (2026-10-21, run 39640048955 in-page-5: the clean control read HS-2's numbers 200 ms after the
+ * re-read was ASKED, before a slow runner had applied its answer: kills 164, not 170.)
  */
-async function pushEnvelope(page, s) {
+async function pushEnvelope(page, s, shows, arg) {
   const frame = s.version + 2;
   s.version = frame;
   const before = s.calls.filter((c) => c.name === 'hr-accrue').length;
   await page.evaluate(([uid, f, st]) => window.__hub.send('hr:' + uid + ':0', { t: 'delta', frame: f, patch: { state: st } }), [UID, frame, s.env.state]);
   for (let i = 0; i < 60 && s.calls.filter((c) => c.name === 'hr-accrue').length <= before; i++) await page.waitForTimeout(50);
-  await page.waitForTimeout(200);
+  if (shows) { await wait(page, shows, arg, 5000); return; }
+  /* No visible change to wait on: wait until the page has READ an answer at least this new (FETCH_TAP),
+     then for the frames that paint it. */
+  if (!await wait(page, (v) => window.__accrueV > v, frame, 5000)) console.error('  pushEnvelope: the page read no answer newer than frame ' + frame + ' in 5 s');
+  await page.evaluate(() => new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(ok, 0)))));
 }
+/* Counts, in the page, the newest envelope version the client has read from hr-accrue (pushEnvelope). */
+const FETCH_TAP = `(function () {
+  var f = window.fetch; window.__accrueV = 0;
+  window.fetch = function (u) {
+    return f.apply(this, arguments).then(function (r) {
+      if (!/\\/hr-accrue(\\?|$)/.test(String(u && u.url || u))) return r;
+      var j = r.json.bind(r);
+      r.json = function () { return j().then(function (b) { if (b && b.version > window.__accrueV) window.__accrueV = b.version; return b; }); };
+      return r;
+    });
+  };
+})();`;
+/** A pushEnvelope `shows`: the vitals hub's HP reads `v`. */
+const HUB_HP = (v) => (document.querySelector('.hb-read-v[data-v="hp"]') || {}).textContent === v;
 
 const FLOAT_IDS = ['dealt', 'taken', 'heal', 'xp', 'miss', 'supply', 'loot', 'ability', 'bleed_badge'];
 const NODES = `({ row: document.querySelector('.hp-m[data-key="0"]'), kills: document.querySelector('[data-sec="totals"] dd[data-stat="kills"]'),
@@ -204,11 +227,16 @@ async function checks(overrides, shots) {
           return paint.writes() - before;
         });
         if (idle > 6) fails.push('HS-2 idle display ticks wrote ' + idle + ' DOM changes; only the session clocks may move');
-        /* A new envelope: the hero is hurt, the kills rise. The same nodes carry the new numbers. */
+        /* A new envelope: the hero is hurt, the kills rise. The same nodes carry the new numbers. Its re-read
+           answers 600 ms late (a slow runner, pinned): the numbers are judged once shown, never on a timer
+           (run 39640048955 in-page-5 read them 200 ms after the ask: kills 164, hp 180/220). */
         s.env.party.members[0].hp = 90;
         s.env.hunt.hero.hp = 90;
         s.env.hunt_analyzer.hero.kills = 170;
-        await pushEnvelope(page, s);
+        s.accrueDelay = () => 600;
+        await pushEnvelope(page, s, () => (document.querySelector('[data-sec="totals"] dd[data-stat="kills"]') || {}).textContent === '170'
+          && (document.querySelector('.hb-read-v[data-v="hp"]') || {}).textContent === '90/220');
+        s.accrueDelay = null;
         const after = await page.evaluate((src) => {
           const now = (0, eval)(src);
           return { rebuilt: Object.keys(now).filter((k) => now[k] !== window.__nodes[k]), kills: now.kills && now.kills.textContent, hp: now.hp && now.hp.textContent };
@@ -231,7 +259,7 @@ async function checks(overrides, shots) {
         /* A melee hero the server sends no mana pool still shows its mana gauge (every hero has mana). */
         Object.assign(s.env.hunt.hero, { mana: 0, mana_max: 0, level: 25, xp_pct: 0.05, hp: 220, regen_pm: 1000, mana_regen: 18 });
         s.env.party.members[0].hp = 220;
-        await pushEnvelope(page, s);
+        await pushEnvelope(page, s, HUB_HP, '220/220');
         const h2 = await hub();
         if (h2.hp !== '220/220' || h2.mana !== '0/0' || h2.lv !== '25' || h2.xp !== 'XP 5%' || h2.hpArc !== '100' || !h2.manaShown) fails.push('HS-18 the next envelope did not replace the hub (or hid the mana gauge): ' + JSON.stringify(h2));
         /* Regen per second, one decimal: mana_regen is per MINUTE (18/min = 0.3/s); HP is the in-fight rate (220 x 3 permille x 1000 permille = 0.66/s). */
@@ -239,7 +267,7 @@ async function checks(overrides, shots) {
         if (rg[0] !== '+0.7/s' || rg[1] !== '+0.3/s') fails.push('HS-18 the hub regen reads ' + JSON.stringify(rg) + ', want ["+0.7/s","+0.3/s"]');
         Object.assign(s.env.hunt.hero, { mana: 40, mana_max: 60, hp: 180, level: 24, xp_pct: 0.62 });   // back to the fixture for the screenshots
         s.env.party.members[0].hp = 180;
-        await pushEnvelope(page, s);
+        await pushEnvelope(page, s, HUB_HP, '180/220');
         /* HS-6: the log shows each fixture event once, after a restated envelope too. */
         await page.keyboard.press('Enter');
         await wait(page, () => document.querySelector('[data-hs-win="chat"] .hc-log'));

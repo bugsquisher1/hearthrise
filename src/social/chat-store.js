@@ -22,6 +22,7 @@ import { CHAT_TABS, CHAT_LIMITS } from '../data/chat-channels.js?v=0.2.22';
 import { lineOf, systemLine, tabOfChannel, bodyOf, linkLabel } from './chat-lines.js?v=0.2.22';
 import { huntOf } from '../session/hunt-sections.js?v=0.2.22';
 import { partyMembershipOf } from '../session/party-sections.js?v=0.2.22';
+import { askVia } from '../session/intent-ledger.js?v=0.2.22';
 
 const SERVER_TABS = Object.freeze(['global', 'local', 'party', 'system']);
 const SEND_KIND = Object.freeze(Object.fromEntries(CHAT_TABS.filter((t) => t.send).map((t) => [t.id, t.send])));
@@ -187,7 +188,7 @@ export class ChatStore {
     const body = bodyOf(text, links);
     if (!body) return { ok: false, error: 'empty' };
     if (body.length > CHAT_LIMITS.bodyMax) return { ok: false, error: 'too_long' };
-    const ans = await this._account.server.rpc('hr_chat_send', { p_slot: cs.slot, p_kind: kind, p_body: body });
+    const ans = await askVia(this._account, 'chat_send', () => this._account.server.rpc('hr_chat_send', { p_slot: cs.slot, p_kind: kind, p_body: body }));
     const b = ans.body;
     if (!ans.ok || !b || b.ok !== true) return { ok: false, error: (b && typeof b.error === 'string' && b.error) || ans.error || 'refused' };
     this.draft = { text: '', links: [], rev: this.draft.rev + 1 };

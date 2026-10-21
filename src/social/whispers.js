@@ -16,6 +16,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { WHISPER, CHAT_LIMITS } from '../data/chat-channels.js?v=0.2.22';
 import { lineOf, bodyOf } from './chat-lines.js?v=0.2.22';
+import { askVia } from '../session/intent-ledger.js?v=0.2.22';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const whisperTab = (id) => WHISPER.prefix + id;
@@ -140,7 +141,7 @@ export class WhisperStore {
     const body = bodyOf(text, links);
     if (!body) return { ok: false, error: 'empty' };
     if (body.length > CHAT_LIMITS.bodyMax) return { ok: false, error: 'too_long' };
-    const ans = await a.server.rpc('hr_whisper_send', { p_slot: cs.slot, p_target: id, p_body: body });
+    const ans = await askVia(a, 'whisper_send', () => a.server.rpc('hr_whisper_send', { p_slot: cs.slot, p_target: id, p_body: body }));
     const b = ans.body;
     if (!ans.ok || !b || b.ok !== true) return { ok: false, error: (b && typeof b.error === 'string' && b.error) || ans.error || 'refused' };
     if (this._take(b.line, false)) this._changed();

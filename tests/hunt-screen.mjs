@@ -189,6 +189,9 @@ async function checks(overrides, shots) {
         const xpSum = Object.values(a.xp).reduce((x, y) => x + y, 0); /* the server sends XP per skill */
         const want = { kills: n(a.kills), xp: n(xpSum), gold: n(a.gold) + ' gp', waste: n(a.waste) + ' gp', balance: n(a.balance) + ' gp' };
         for (const k of Object.keys(want)) if (got[k] !== want[k]) fails.push('HS-4 analyzer ' + k + ' shows "' + got[k] + '"; the server sent ' + want[k]);
+        /* Tracker r44: Next level in is the LEVEL's eta (1.5 h), not a skill's: the fixture's maxed Melee carries eta_h 0 and used to pin it at 00:00:00. */
+        const nextClock = await page.evaluate(() => { const el = document.querySelector('.ha-analyzer [data-clock="next"]'); return el && el.textContent; });
+        if (!/^01:(2\d|30):\d\d$/.test(String(nextClock))) fails.push('HS-4 Next level in shows "' + nextClock + '"; the server sent a Level eta of ' + FIXTURE.hunt_analyzer.hero.level.eta_h + ' h');
         /* Idle: display ticks with nothing new write nothing but the running session clocks. */
         const idle = await page.evaluate(async () => {
           const paint = await import('/src/render/paint.js?v=0.1.0');

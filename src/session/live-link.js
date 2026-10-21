@@ -34,6 +34,8 @@ export class LiveLink {
     /** What the live view did (tools: the world stage's data-live): each commit's verdict, every restart. */
     this.stats = { match: 0, diverged: 0, unknown: 0, reseeds: 0, catchUps: 0, starves: 0 };
     this._wasStalled = false;
+    /** The server's settle watermark (ms) its last commit or start point stated: display only (?debug=live's settle lag). */
+    this.settledToMs = null;
   }
 
   running() { return this.engine.running(); }
@@ -56,6 +58,8 @@ export class LiveLink {
   }
 
   _take(body) {
+    const st = body.hunt_check ? body.hunt_check.settled_to_ms : body.hunt_live && body.hunt_live.instance ? body.hunt_live.instance.settled_to_ms : null;
+    if (Number.isSafeInteger(st) && st > 0) this.settledToMs = st;
     if (!body.hunt_live && !body.hunt_check && this.engine.running()) return;
     const ms = Number.isSafeInteger(body.hunt_server_now_ms) ? body.hunt_server_now_ms
       : typeof body.now === 'string' ? Math.floor(Date.parse(body.now)) : NaN;

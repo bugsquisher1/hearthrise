@@ -71,19 +71,19 @@ export const SHOP_OFFERS = [
   {
     id: "character_slot.2", table: "character_slot",
     name: "Character slot 3",
-    cost: [{ kind: "currency", id: "gold", amount: 75000 }],
+    cost: [{ kind: "currency", id: "gold", amount: 15000 }],
     grant: [{ kind: "unlock", id: "character_slot:2", amount: 1 }],
   },
   {
     id: "character_slot.3", table: "character_slot",
     name: "Character slot 4",
-    cost: [{ kind: "currency", id: "gold", amount: 250000 }],
+    cost: [{ kind: "currency", id: "gold", amount: 40000 }],
     grant: [{ kind: "unlock", id: "character_slot:3", amount: 1 }],
   },
   {
     id: "character_slot.4", table: "character_slot",
     name: "Character slot 5",
-    cost: [{ kind: "currency", id: "gold", amount: 750000 }],
+    cost: [{ kind: "currency", id: "gold", amount: 120000 }],
     grant: [{ kind: "unlock", id: "character_slot:4", amount: 1 }],
   },
   {

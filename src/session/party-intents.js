@@ -22,8 +22,11 @@
 // A party verb changes the records of every one of this account's characters
 // in that party, so on ok each of them (and the character that joined) is
 // RE-READ: the screen shows only the server's answer, never a prediction.
+// Each verb is ONE ask in the account's intent ledger (cs.intents, intent-ledger.js)
+// from its send until those re-reads are applied: the pressed control waits on it.
 // ════════════════════════════════════════════════════════════════════════
 import { partyMembershipOf } from './party-sections.js?v=0.2.22';
+import { askVia } from './intent-ledger.js?v=0.2.22';
 
 const HUNT_ID = /^[a-z0-9_]{1,64}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -81,15 +84,17 @@ const usable = (account, cs) => !!account && !!account.server && !!cs && cs.stat
 export async function startPartyHunt(account, cs, hunt) {
   if (!usable(account, cs) || !HUNT_ID.test(String(hunt))) return { ok: false, error: 'bad_intent', seats: [] };
   const peers = partyPeersOf(account, cs);
-  for (const o of peers) await settleTownActivity(o);
-  return settled(await account.server.rpc('hr_hunt_party_start', { p_slot: cs.slot, p_hunt: hunt, p_idem: newIdem() }), peers);
+  return askVia(cs, 'hunt_party_start', async () => {
+    for (const o of peers) await settleTownActivity(o);
+    return settled(await account.server.rpc('hr_hunt_party_start', { p_slot: cs.slot, p_hunt: hunt, p_idem: newIdem() }), peers);
+  });
 }
 
 /** The leader closes the party (in town only; the server refuses `party_hunting` otherwise). */
 export async function disbandParty(account, cs) {
   if (!usable(account, cs)) return { ok: false, error: 'bad_intent', seats: [] };
   const peers = partyPeersOf(account, cs);
-  return settled(await account.server.rpc('hr_hunt_party_disband', { p_slot: cs.slot, p_idem: newIdem() }), peers);
+  return askVia(cs, 'hunt_party_disband', async () => settled(await account.server.rpc('hr_hunt_party_disband', { p_slot: cs.slot, p_idem: newIdem() }), peers));
 }
 
 /** One of this account's own characters joins `cs`'s party at once (the party is made if `cs` has none). */
@@ -99,7 +104,7 @@ export async function inviteOwn(account, cs, otherSlot) {
   }
   const other = typeof account.character === 'function' ? account.character(otherSlot) : null;
   const peers = partyPeersOf(account, cs).concat(other ? [other] : []);
-  return settled(await account.server.rpc('hr_hunt_party_invite_own', { p_slot: cs.slot, p_other_slot: otherSlot, p_idem: newIdem() }), peers);
+  return askVia(cs, 'hunt_party_invite_own', async () => settled(await account.server.rpc('hr_hunt_party_invite_own', { p_slot: cs.slot, p_other_slot: otherSlot, p_idem: newIdem() }), peers));
 }
 
 /**
@@ -112,14 +117,14 @@ export async function invitePlayer(account, cs, userId, slot) {
     return { ok: false, error: 'bad_intent', seats: [] };
   }
   const peers = partyPeersOf(account, cs);
-  return settled(await account.server.rpc('hr_hunt_party_invite_player', { p_slot: cs.slot, p_target: String(userId), p_target_slot: Number.isInteger(slot) ? slot : null, p_idem: newIdem() }), peers);
+  return askVia(cs, 'hunt_party_invite_player', async () => settled(await account.server.rpc('hr_hunt_party_invite_player', { p_slot: cs.slot, p_target: String(userId), p_target_slot: Number.isInteger(slot) ? slot : null, p_idem: newIdem() }), peers));
 }
 
 /** The leader shows its party in the finder (`on`) or hides it; until listed, a party is joined by invite only. */
 export async function listParty(account, cs, on) {
   if (!usable(account, cs) || typeof on !== 'boolean') return { ok: false, error: 'bad_intent', seats: [] };
   const peers = partyPeersOf(account, cs);
-  return settled(await account.server.rpc('hr_hunt_party_list', { p_slot: cs.slot, p_listed: on, p_idem: newIdem() }), peers);
+  return askVia(cs, 'hunt_party_list', async () => settled(await account.server.rpc('hr_hunt_party_list', { p_slot: cs.slot, p_listed: on, p_idem: newIdem() }), peers));
 }
 
 /**
@@ -128,7 +133,9 @@ export async function listParty(account, cs, on) {
  */
 export async function afterLeave(account, cs, send) {
   const peers = partyPeersOf(account, cs).filter((o) => o !== cs);
-  const r = await send();
-  if (r && r.ok) await Promise.all(peers.filter((o) => o.status !== 'closed').map((o) => o.load()));
-  return r;
+  return askVia(cs, 'party_reread', async () => {
+    const r = await send();
+    if (r && r.ok) await Promise.all(peers.filter((o) => o.status !== 'closed').map((o) => o.load()));
+    return r;
+  });
 }

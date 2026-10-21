@@ -16,6 +16,11 @@
 //                 (its name and combat level), read from the server (hr_load
 //                 per owned slot; `hero_slots`: slot 0 and the starter slots
 //                 every account owns, plus any bought)
+//   slotOffer     the next hero slot the server sells this account ({ slotId, cost,
+//                 max }, from the envelope's `account.hero_slot_offer`), null at the
+//                 cap or before the roster has read it
+//   buySlot(slotId, paySlot)  ONE intent (hr_buy_hero_slot): buy that slot with the
+//                 gold of the hero in paySlot; the server prices, checks and debits
 //   create(slot, name, colors)  ask the server to make the hero in an owned slot:
 //                 ONE intent (hr_create_hero) with its name and four dye indices;
 //                 a slot holding an unnamed character (roster `unnamed`) is named by it
@@ -40,6 +45,7 @@ import { CharacterSession } from './character-session.js?v=0.2.22';
 import { TownPresence } from './town-presence.js?v=0.2.22';
 import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.22';
 import { charLevelFromXp } from '../core/xp.js?v=0.2.22';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.22';
 
 /** This tab's session id: made once per tab, kept across a reload, new for a new tab. */
 export function tabSessionId(tab, cfg = SESSION_CONFIG, make) {
@@ -57,13 +63,25 @@ export function accountLimitOf(read) {
   return a && typeof a === 'object' && Number.isInteger(a.max_concurrent) && a.max_concurrent >= 1 && a.max_concurrent <= 8 ? a.max_concurrent : null;
 }
 
-/** A roster row's hero, from one hr_load answer: its name and Level (the server's state.level_xp on the
-    shared curve, CORE_MODEL.md §1), or nulls. Pure. */
+/** A roster row's hero, from one hr_load answer: its name, Level (the server's state.level_xp on the
+    shared curve, CORE_MODEL.md §1) and gold (state.gold), or nulls. Pure. */
 export function heroOf(body) {
-  if (!body || body.ok !== true) return { name: null, level: null };
+  if (!body || body.ok !== true) return { name: null, level: null, gold: null };
   const name = typeof body.name === 'string' && body.name.trim() ? body.name.trim().slice(0, 40) : null;
-  const lx = body.state && typeof body.state === 'object' ? body.state.level_xp : null;
-  return { name, level: Number.isSafeInteger(lx) && lx >= 0 ? charLevelFromXp(lx) : null };
+  const st = body.state && typeof body.state === 'object' ? body.state : {};
+  const lx = st.level_xp;
+  return { name, level: Number.isSafeInteger(lx) && lx >= 0 ? charLevelFromXp(lx) : null,
+    gold: Number.isSafeInteger(st.gold) && st.gold >= 0 ? st.gold : null };
+}
+
+/** The next hero slot the server sells, from an `account` section: { slotId, cost, max }, or null
+    (at the cap, or unstated: no offer is ever made up on this side). Pure. */
+export function slotOfferOf(account, cfg = SESSION_CONFIG) {
+  const o = account && typeof account === 'object' ? account.hero_slot_offer : null;
+  if (!o || typeof o !== 'object' || !Number.isInteger(o.slot_id) || o.slot_id < 1 || o.slot_id > cfg.maxSlot
+    || !Number.isSafeInteger(o.cost_gold) || o.cost_gold < 1) return null;
+  const max = Number.isInteger(account.hero_slots_max) && account.hero_slots_max > o.slot_id ? account.hero_slots_max : null;
+  return { slotId: o.slot_id, cost: o.cost_gold, max };
 }
 
 function newIdem() {
@@ -99,6 +117,8 @@ export class AccountSession {
   constructor(o) {
     this.auth = o.auth;
     this.server = o.server;
+    /** The asks in flight (intent-ledger.js): the server link's, shared with every CharacterSession. */
+    this.intents = (o.server && o.server.intents) || createIntentLedger();
     this.config = o.config || SESSION_CONFIG;
     this.tabId = tabSessionId(o.tab, this.config);
     this._channel = o.channel || null;
@@ -108,6 +128,7 @@ export class AccountSession {
     this._listeners = new Set();
     this.closedGame = false;
     this._limit = null;
+    this.slotOffer = null;
     this.viewed = null;
     this.social = o.social ? o.social(this) : null;
   }
@@ -153,6 +174,7 @@ export class AccountSession {
     if (first.closed) return [];
     const stated = accountLimitOf((k) => (first.ok && first.body ? first.body[k] : undefined));
     if (stated !== null) this._limit = stated;
+    this.slotOffer = slotOfferOf(first.ok && first.body ? first.body.account : null, this.config);
     const owned = ownedSlots(first.ok && first.body ? first.body.hero_slots : null, this.config);
     const out = [];
     for (const slot of owned) {
@@ -166,20 +188,50 @@ export class AccountSession {
 
   /** Ask the server to make the hero in an owned slot with its name and colours ({ head, body, legs, feet }
       dye indices). { ok } or { ok:false, reason, nameReason }: the server's verdict, never the client's. */
-  async create(slot, name, colors) {
-    const ans = await this.server.rpc('hr_create_hero', { p_slot: slot, p_name: String(name || '').slice(0, 40), p_colors: colors, p_idem: newIdem() });
-    this._noteClosed(ans);
-    const b = ans.body;
-    return { ok: !!(ans.ok && b && b.ok === true), reason: (b && b.error) || ans.error || null, nameReason: (b && b.reason) || null };
+  create(slot, name, colors) {
+    return this.intents.track('create_hero', async () => {
+      const ans = await this.server.rpc('hr_create_hero', { p_slot: slot, p_name: String(name || '').slice(0, 40), p_colors: colors, p_idem: newIdem() });
+      this._noteClosed(ans);
+      const b = ans.body;
+      const ok = !!(ans.ok && b && b.ok === true);
+      return { ok, error: ok ? null : (b && b.error) || ans.error || 'refused', reason: (b && b.error) || ans.error || null, nameReason: (b && b.reason) || null };
+    });
   }
 
-  /** Open (load + connect) one character. { ok, session } or { ok:false, reason }. */
-  async open(slot) {
+  /**
+   * Buy hero slot `slotId` with the gold of the hero in `paySlot`: ONE intent with its own key, an ask
+   * in the intent ledger; the server owns the price, the ladder, the cap and the debit. On a yes the
+   * paying character, if open, is re-read so its gold is the server's.
+   * { ok } or { ok:false, error, reason, shortBy }.
+   */
+  buySlot(slotId, paySlot) {
+    if (!Number.isInteger(slotId) || slotId < 1 || slotId > this.config.maxSlot
+      || !Number.isInteger(paySlot) || paySlot < 0 || paySlot > this.config.maxSlot) return Promise.resolve({ ok: false, error: 'bad_intent', reason: 'bad_intent', shortBy: null });
+    return this.intents.track('buy_hero_slot', async () => {
+      const ans = await this.server.rpc('hr_buy_hero_slot', { p_slot_id: slotId, p_slot: paySlot, p_idem: newIdem() });
+      this._noteClosed(ans);
+      const b = ans.body;
+      const ok = !!(ans.ok && b && b.ok === true);
+      if (ok) {
+        this.slotOffer = slotOfferOf(b, this.config);
+        const cs = this._chars.get(paySlot);
+        if (cs) await cs.load();
+      }
+      const reason = ok ? null : (b && b.error) || ans.error || 'refused';
+      return { ok, error: reason, reason, shortBy: !ok && b && Number.isSafeInteger(b.short_by) ? b.short_by : null };
+    });
+  }
+
+  /** Open (load + connect) one character. { ok, session } or { ok:false, reason }. The press that asked
+      for it waits on the whole open (an ask in the intent ledger). */
+  open(slot) { return this.intents.track('open_character', () => this._open(slot)); }
+
+  async _open(slot) {
     if (this._chars.has(slot)) return { ok: true, session: this._chars.get(slot) };
     if (this._chars.size >= this.limit()) return { ok: false, reason: 'limit', limit: this.limit() };
     const uid = this.userId;
     if (!uid) return { ok: false, reason: 'signed_out' };
-    const cs = new CharacterSession({ slot, uid, server: this.server, channel: this._channel,
+    const cs = new CharacterSession({ slot, uid, server: this.server, intents: this.intents, channel: this._channel,
       setTimer: this._timers.setTimer, clearTimer: this._timers.clearTimer });
     this._chars.set(slot, cs);
     cs.subscribe((s, why) => { if (why === 'closed-game') this._noteClosed({ closed: true }); });
@@ -215,7 +267,7 @@ export class AccountSession {
     for (const slot of Array.isArray(slots) ? slots : []) {
       if (!Number.isInteger(slot) || this._chars.has(slot)) continue;
       if (this._chars.size >= this.limit()) break;
-      await this.open(slot);
+      await this._open(slot);
     }
     return this.characters().map((c) => c.slot);
   }

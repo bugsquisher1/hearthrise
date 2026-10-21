@@ -8,6 +8,9 @@
 //   sewer-full-party-loop  a four-hero party plays the real core (stepSwing) on the real map:
 //                          every pocket is pulled in route order, the Rat King dies, nobody wipes
 //   tutorial-walk-through  each step is doable from the start kit plus the steps before it
+//   sewer-solo-starter-kit a new hero alone at the Sewer's floor, wearing ONLY the start kit (practice sword,
+//                          shield and the practice armour), plays the hour on the real settle with no death
+//                          (designer pass 2026-10-21: without the armour a starter Melee died in 2.4 min)
 //
 // The loop case prints its measured clear times and kills (the evidence a balance claim needs).
 import { readFileSync, mkdtempSync, cpSync, writeFileSync, rmSync } from 'node:fs';
@@ -21,6 +24,7 @@ const SEWER = ['drain_rat', 'sump_slime', 'culvert_bat', 'cistern_spider', 'kobo
 
 async function load(root) {
   const M = await loadCore(root);
+  M.root = root;
   const imp = (p) => import(pathToFileURL(join(root, p)).href + V);
   M.maps = await imp('src/data/world/maps/index.js');
   M.terrain = await imp('src/data/world/terrain.js');
@@ -229,6 +233,20 @@ const cases = {
     if (r.wipes) return r.wipes + ' wipe(s) in a full-party loop';
     return null;
   },
+  'sewer-solo-starter-kit': async (M) => {
+    /* The real settle (play-ground.mjs: hr-accrue accrueHunt, ten-minute windows, the store bill bought per use),
+       a solo Melee at the Sewer's band floor in exactly START_EQUIPMENT. */
+    const { loadPlay } = await import(pathToFileURL(join(M.root, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
+    const P = await loadPlay(M.root);
+    const hunt = M.grounds.HUNT_GROUNDS.millrace_sewer.hunt;
+    const floor = (await import(pathToFileURL(join(M.root, 'src/data/hunts.js')).href + V)).HUNT_INDEX[hunt].band[0];
+    const x = P.run('millrace_sewer', floor, ['tank'], { spanMs: 3600000, equipment: M.kit.START_EQUIPMENT });
+    console.log('    sewer solo, start kit only (' + Object.values(M.kit.START_EQUIPMENT).join(', ') + ') at L' + floor + ': '
+      + (x.playedMs / 60000).toFixed(1) + ' min, deaths ' + x.totals.falls + ', in ' + x.income + ' vs store ' + x.store + ' g/h = ' + x.margin);
+    if (x.totals.falls) return 'a start-kit Melee died in the Sewer after ' + (x.playedMs / 60000).toFixed(1) + ' min (' + x.ended.join(', ') + ')';
+    if (x.playedMs < 3600000) return 'a start-kit Melee left the Sewer after ' + (x.playedMs / 60000).toFixed(1) + ' min (' + x.ended.join(', ') + ')';
+    return null;
+  },
   'cellar-solo-first-kill': (M) => {
     /* Tutorial step 2 on the real core: a fresh Level-1 hero (a weak swing: 60% to hit, max 2) alone in the
        cellar ground kills a rat inside two minutes and does not die. */
@@ -348,6 +366,8 @@ const mutants = [
     edits: [['src/data/monsters.js', "family: 'Vermin', formation: true, boss: true,", "family: 'Vermin', formation: true,"]] },
   { name: 'the cellar pocket holds a monster a fresh hero cannot kill', case: 'cellar-solo-first-kill',
     edits: [['src/data/hunt-grounds.js', "pocket([15, 5, 21, 10], ['rat', 18, 7], ['rat', 19, 6]),", "pocket([15, 5, 21, 10], ['rat_king', 18, 7]),"]] },
+  { name: 'the start kit wears no armour (weapon and shield only)', case: 'sewer-solo-starter-kit',
+    edits: [['src/data/start-kit.js', "  helmet: 'practice_cap',\n  body: 'practice_jerkin',\n  pants: 'practice_leggings',\n  boots: 'practice_boots',\n", '']] },
   { name: 'the party scale is flat', case: 'party-scale',
     edits: [['src/data/hunt-grounds.js', 'perHeroPermille: 150', 'perHeroPermille: 0']] },
   { name: 'the tutorial sends a fresh character to the sewer first', case: 'tutorial-walk-through',
@@ -360,7 +380,8 @@ const mutants = [
    a mutant that cannot load would read as caught, so every path this file imports is copied. */
 function plant(edits) {
   const root = mkdtempSync(join(tmpdir(), 'hunt-sewer-'));
-  for (const d of ['src/core', 'src/data', 'src/world', 'src/session', 'src/shell', 'src/utils', 'assets/world', 'prototypes/hunt-sim-assets/manifest.json']) cpSync(join(ROOT, d), join(root, d), { recursive: true });
+  for (const d of ['src/core', 'src/data', 'src/world', 'src/session', 'src/shell', 'src/utils', 'assets/world', 'prototypes/hunt-sim-assets/manifest.json',
+    'supabase/functions/hr-accrue', 'tests/hunt-core/fixtures/play-ground.mjs']) cpSync(join(ROOT, d), join(root, d), { recursive: true });
   cpSync(join(ROOT, 'src/build-info.js'), join(root, 'src/build-info.js'));
   for (const [file, from, to] of edits) {
     const f = join(root, file);

@@ -137,6 +137,12 @@ export const START_INVENTORY = Object.freeze({
 export const START_EQUIPMENT = Object.freeze({
   weapon: 'practice_sword',
   shield: 'practice_shield',
+  /* THE PRACTICE ARMOUR (designer 2026-10-21): worn from the first minute, one set for every weapon,
+     so the Sewer after the cellar needs no bag trip (items.js practice_cap/jerkin/leggings/boots). */
+  helmet: 'practice_cap',
+  body: 'practice_jerkin',
+  pants: 'practice_leggings',
+  boots: 'practice_boots',
 });
 
 /* The six starter weapon sets a new hero owns (worn or in the bag), one per way to fight.

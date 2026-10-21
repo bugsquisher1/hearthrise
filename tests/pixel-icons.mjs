@@ -16,6 +16,8 @@
 //   palette   an opaque pixel outside the locked palette
 //   alpha     a partially transparent pixel (the world's art has none)
 //   empty     an icon with no pixels at all
+//   reuse     a PIXEL_ART_REUSE row (item-art.js) that names no item, points at an id with no icon file
+//             of its own, or sits beside the id's own file (painted art must retire its reuse row)
 //   switch    src/data/item-art.js lost its one switch (the client that wired it was
 //             deleted 2026-10-17; the new screens wire it again)
 //
@@ -37,10 +39,16 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIR = 'assets/icons-bundle/pixel/items';
 
 /** Findings for the icon folder `dir`, against the item ids `ids`. */
-export function checkIcons(dir, ids) {
+export function checkIcons(dir, ids, reuse = {}) {
   const out = [];
   const files = new Set(readdirSync(dir).filter((f) => f.endsWith('.png')).map((f) => f.slice(0, -4)));
-  for (const id of ids) if (!files.has(id)) out.push({ rule: 'missing', id, detail: 'no ' + id + '.png' });
+  const reused = (id) => Object.prototype.hasOwnProperty.call(reuse, id);
+  for (const [id, to] of Object.entries(reuse)) {
+    if (!ids.includes(id)) out.push({ rule: 'reuse', id, detail: 'reuse row for no item' });
+    else if (files.has(id)) out.push({ rule: 'reuse', id, detail: id + '.png exists: delete its reuse row' });
+    else if (!ids.includes(to) || reused(to) || !files.has(to)) out.push({ rule: 'reuse', id, detail: 'reuses ' + to + ', which has no icon file of its own' });
+  }
+  for (const id of ids) if (!files.has(id) && !reused(id)) out.push({ rule: 'missing', id, detail: 'no ' + id + '.png' });
   const known = new Set(ids);
   for (const f of files) if (!known.has(f)) out.push({ rule: 'orphan', id: f, detail: f + '.png belongs to no item' });
   for (const id of ids) {
@@ -78,6 +86,9 @@ async function loadIds() {
   const { ITEMS } = await import(pathToFileURL(join(ROOT, 'src/data/items.js')).href);
   return Object.keys(ITEMS);
 }
+async function loadReuse() {
+  return (await import(pathToFileURL(join(ROOT, 'src/data/item-art.js')).href)).PIXEL_ART_REUSE || {};
+}
 
 function report(label, findings) {
   for (const f of findings.slice(0, 40)) console.error(`  [${f.rule}] ${f.id}: ${f.detail}`);
@@ -100,6 +111,11 @@ async function selftest(ids) {
     ['alpha', (d) => rewrite(d, pick[3], (img) => { img.data[firstOpaque(img) + 3] = 128; })],
     ['empty', (d) => rewrite(d, pick[4], (img) => { img.data.fill(0); })],
   ];
+  /* reuse: a row pointing at an id with no file, and a row beside the id's own file */
+  const reuseCases = [
+    ['reuse (no target icon)', { [pick[5]]: 'not_an_item' }, (d) => rmSync(join(d, pick[5] + '.png'))],
+    ['reuse (beside its own file)', { [pick[5]]: pick[0] }, () => {}],
+  ];
   let escaped = 0;
   const clean = checkIcons(fresh(), pick);
   if (clean.length) { console.error('pixel-icons --selftest: harness — the clean control is not clean: ' + JSON.stringify(clean)); process.exit(2); }
@@ -109,6 +125,16 @@ async function selftest(ids) {
     console.log(`  ${hit ? 'caught ' : 'ESCAPED'} ${rule}`);
     if (!hit) escaped++;
   }
+  for (const [name, reuse, mutate] of reuseCases) {
+    const d = fresh(); mutate(d);
+    const hit = checkIcons(d, pick, reuse).some((f) => f.rule === 'reuse');
+    console.log(`  ${hit ? 'caught ' : 'ESCAPED'} ${name}`);
+    if (!hit) escaped++;
+  }
+  // a legal reuse row (the target has its file, the id has none) stays silent
+  { const d = fresh(); rmSync(join(d, pick[5] + '.png'));
+    const legal = checkIcons(d, pick, { [pick[5]]: pick[0] });
+    if (legal.length) { console.error('pixel-icons --selftest: harness — a legal reuse row is flagged: ' + JSON.stringify(legal)); process.exit(2); } }
   // the switch: a source with no ITEM_ART_SET must trip 'switch'
   const sroot = mkdtempSync(join(tmp, 's-'));
   mkdirSync(join(sroot, 'src/data'), { recursive: true });
@@ -117,12 +143,12 @@ async function selftest(ids) {
   console.log(`  ${sw ? 'caught ' : 'ESCAPED'} switch`);
   if (!sw) escaped++;
   rmSync(tmp, { recursive: true, force: true });
-  console.log(escaped ? `pixel-icons --selftest: RED — ${escaped} planted defect(s) escaped` : 'pixel-icons --selftest: all 7 planted defects caught; clean control silent');
+  console.log(escaped ? `pixel-icons --selftest: RED — ${escaped} planted defect(s) escaped` : 'pixel-icons --selftest: all 9 planted defects caught; clean control and a legal reuse silent');
   process.exit(escaped ? 1 : 0);
 }
 
 const ids = await loadIds();
 if (process.argv.includes('--selftest')) await selftest(ids);
-const findings = [...checkIcons(join(ROOT, DIR), ids), ...checkSwitch(ROOT)];
+const findings = [...checkIcons(join(ROOT, DIR), ids, await loadReuse()), ...checkSwitch(ROOT)];
 report(`pixel-icons: ${ids.length} items`, findings);
 process.exit(findings.length ? 1 : 0);

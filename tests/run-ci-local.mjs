@@ -356,7 +356,7 @@ export function parallelism(argv, job) {
   return { n };
 }
 
-/* The browser families (in-page, in-page-2 since 2026-10-20): each needs Chromium, so they run last, alone, here. */
+/* The browser families (in-page, in-page-2 since 2026-10-20, in-page-3 since 2026-10-21): each needs Chromium, so they run last, alone, here. */
 const isBrowserJob = (j) => j === 'in-page' || /^in-page-\d+$/.test(j);
 
 function git(args, cwd = ROOT) {

@@ -773,14 +773,11 @@ Object.keys(GEAR_ITEMS).forEach((id) => {
   const generated = GEAR_ITEMS[id];
   const live = ITEMS[id];
   if (!live || live === generated) return;
-  /* EVERY field the generated rung carries that the hand-authored row does not set
-     itself (2026-10-21). The list used to be named field by field (tier, rarity,
-     reqSkill, reqLv, discipline, twoHanded) and each new line field was one more
-     thing to forget: armourClass was (max HP and mana read it, vitals.js, so iron
-     plate gave LESS max HP than bronze), and so were the line's style fields
-     (plate's rangeAtkB/magicAtkB penalty, leather's rangeAtkB/critB). The row's
-     own values (name, icon, price, stats it sets) always win. tests/catalogue-
-     coherence.mjs C8 holds every rung to its line. */
+  /* EVERY field of the generated rung the hand-authored row leaves unset (2026-10-21);
+     the row's own values always win. A field-by-field list forgot armourClass (vitals.js
+     reads it: iron plate gave LESS max HP than bronze) and the style fields (plate's
+     rangeAtkB/magicAtkB penalty, leather's rangeAtkB/critB). tests/catalogue-coherence.mjs
+     C8 holds every rung to its line. */
   for (const k of Object.keys(generated)) {
     if (live[k] == null && generated[k] != null) live[k] = generated[k];
   }

@@ -56,6 +56,7 @@ import { edgeBody } from './edge-intents.js?v=0.2.26';
 import { leaveAskOf, pendingLeaveAt, leaveCountdown, closeInMs } from './hunt-leave.js?v=0.2.26';
 import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.26';
 import { createIntentLedger } from './intent-ledger.js?v=0.2.26';
+import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.26';
 
 export const FRAME_EVENT = 'frame';
 
@@ -67,21 +68,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ITEM = /^[a-z0-9_]{1,64}$/;
 const HUNT_ID = /^[a-z0-9_]{1,64}$/;
 const LOOT_RULES = Object.freeze(['keep', 'sell', 'ignore']);
-
-/** The private push topic hr_frame_topic spells for (uid, slot), or null. Pure. */
-export function frameTopic(uid, slot, maxSlot = SESSION_CONFIG.maxSlot) {
-  if (typeof uid !== 'string' || !UUID.test(uid)) return null;
-  if (!Number.isInteger(slot) || slot < 0 || slot > maxSlot) return null;
-  return 'hr:' + uid.toLowerCase() + ':' + slot;
-}
-
-/** Exponential reconnect delay, capped, with ±20% jitter (`rand` for tests). Pure. */
-function reconnectDelay(attempt, rand, cfg = SESSION_CONFIG) {
-  const n = Math.max(1, Math.floor(Number(attempt) || 1));
-  const base = Math.min(cfg.reconnectMaxMs, cfg.reconnectMinMs * Math.pow(2, Math.min(n, 20) - 1));
-  const r = typeof rand === 'number' && rand >= 0 && rand <= 1 ? rand : Math.random();
-  return Math.round(base * (0.8 + 0.4 * r));
-}
+export { frameTopic };   // the push channel's topic rule lives in frame-channel.js
 
 function newIdem() {
   const c = globalThis.crypto;

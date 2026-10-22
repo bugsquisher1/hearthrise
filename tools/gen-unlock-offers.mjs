@@ -150,6 +150,23 @@ function assertRoomCostMatches(o, roomId) {
   }
 }
 
+/* The same two-sources proof for a property tier (designer 2026-10-22): src/data/homestead-tiers.js still asked for
+   `ashlar`, an item cut with Stonemason on 2026-10-14, while src/data/shops.js charged fittings, beams and keystones.
+   A cost the property ladder states that the server does not charge is refused here. */
+function assertPropertyCostMatches(o) {
+  const tier = TIERS[o.value];
+  const want = tier && tier.cost ? tier.cost : null;
+  if (!want) die(`PROPERTY_TIERS[${o.value}] has no cost, but the shop prices ${o.id}`);
+  const have = { gold: o.gold, ...o.items };
+  const keys = [...new Set([...Object.keys(want), ...Object.keys(have)])].sort();
+  const diff = keys
+    .filter((k) => Number(want[k] || 0) !== Number(have[k] || 0))
+    .map((k) => `${k}: homestead-tiers.js says ${want[k] ?? 0}, the offer catalogue says ${have[k] ?? 0}`);
+  const ghosts = Object.keys(want).filter((k) => k !== 'gold' && !ITEMS[k]);
+  if (ghosts.length) diff.push(`not items in src/data/items.js: ${ghosts.join(', ')}`);
+  if (diff.length) die(`${o.id} — THE PROPERTY LADDER AND THE PRICE DISAGREE:\n    ${diff.join('\n    ')}`);
+}
+
 /** The prerequisite pair for one sellable offer. */
 function prereqOf(o) {
   const ns = o.unlockId.slice(0, o.unlockId.indexOf(':'));
@@ -164,6 +181,7 @@ function prereqOf(o) {
        property tier is its own unlock id with a ONE-RUNG ladder, so
        hr_unlocks' rung check is vacuous here by construction. Stated as an
        edge, in a table, rather than as a special case in the RPC. */
+    assertPropertyCostMatches(o);
     return { tier: o.value - 1, item: null };
   }
   return die(`no prerequisite rule for namespace "${ns}" — every sellable namespace needs one, `

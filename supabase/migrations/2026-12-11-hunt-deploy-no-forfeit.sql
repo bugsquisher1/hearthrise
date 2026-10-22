@@ -41,7 +41,9 @@
 --    instance.world_shape = { v, s } of hr_hunt_world_shape, so the edge
 --    (hunt-settle.js readHuntSettle, same lane) proposes nothing while its own
 --    world-state.js WORLD_VERSION / SHAPE is not the catalogue's: an edge that
---    lands before (or after) the catalogue sends no doomed settle at all.
+--    lands before (or after) the catalogue sends no doomed settle at all, and
+--    a settle-before-mutate verb (set-activity.js collectCurrentWindow) waits
+--    for the owed window instead of mutating ahead of it.
 --    Together: the deploy is safe in EITHER order.
 -- ERROR TAXONOMY of the world check: bad_world {json | type | shape} counted
 --    (unchanged); world_shape_moved {from, to, moved_at} + counted:false, held
@@ -75,8 +77,9 @@
 -- One 60-byte row, ever. The read gains one single-row subselect per settle;
 -- the shape check reads the move row only on a world that is already refused.
 -- ORDER: after 2026-12-10-town-walker-role.sql (last APPLIED; no object in
--- common). EDGE: hr-accrue redeploys with this lane (hunt-settle.js); either
--- order against this file is safe. No begin/commit (CLAUDE.md §2).
+-- common). EDGE: hr-accrue redeploys with this lane (hunt-settle.js,
+-- set-activity.js); either order against this file is safe. Proof:
+-- tests/hunt-sessions-settle.mjs DEPLOY (+ 7 mutants). No begin/commit (CLAUDE.md §2).
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS AND THE PINS ────────────────────────────────────────────

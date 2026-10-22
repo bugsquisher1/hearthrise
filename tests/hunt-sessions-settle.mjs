@@ -188,6 +188,7 @@ async function loadEdge(root) {
     HT: await import(u('src/core/hunt-track.js')),
     IN: await import(u(join(FN, 'intents.js'))),
     TK: await import(u(join(FN, 'tick.js'))),
+    SA: await import(u(join(FN, 'set-activity.js'))),
     HSD: await import(u('src/data/hunt-sessions.js')),
     /* The client's envelope applier is read from the REAL tree (the mutant copies
        hold only the edge, src/core and src/data). */
@@ -1761,7 +1762,14 @@ const DB_ARMS = {
         problems.push(`${label}: the gap left ${await open()} open hunt(s), count ${g.refusals}, settled to ${g.toMs} (want 2, 0, ${at0})`);
       }
       if ((await recorded()) - rec0 !== want[2]) problems.push(`${label}: the gap recorded ${(await recorded()) - rec0} world refusal(s), want ${want[2]}`);
-      if (order === 'edge first') await catalogue(NEW);
+      if (order === 'edge first') {
+        /* A settle-before-mutate verb (set-activity.js collectCurrentWindow) waits for the window the gap owes
+           instead of mutating ahead of it. */
+        const env = await one(db, 'select public.hr_state_of($1::uuid, 0)', [UID]);
+        const c = await M.SA.collectCurrentWindow({ exec, user: UID, slot: 0, env, st: { active_kind: 'combat' }, nowMs: at0 + 120000, capMs: 0 });
+        if (c.outcome !== 'refused' || c.error !== 'world_shape_pending') problems.push(`${label}: a verb's settle-first in the gap answered ${c.outcome}/${c.error || c.reason}`);
+        await catalogue(NEW);
+      }
       /* Both landed: the new engine settles the whole owed window from the unmoved boundary (the OLD world restarts). */
       const done = await fire(exec, door, at0 + 120000);
       const a = await inst();
@@ -2002,6 +2010,9 @@ async function runArms(root, db, only) {
 const MUTANTS = [
   { arm: 'DEPLOY', name: '[deploy v0.2.32] the edge proposes against a catalogue of another world shape', file: join(FN, 'hunt-settle.js'),
     from: '  if (worldShapePending(inst.world_shape)) {', to: '  if (false && worldShapePending(inst.world_shape)) {' },
+  { arm: 'DEPLOY', name: '[deploy] a settle-before-mutate verb mutates ahead of the window a deploy gap owes', file: join(FN, 'set-activity.js'),
+    from: "    if ((v.outcome === 'nothing' && v.reason !== 'world_shape_pending') || v.outcome === 'none') {",
+    to: "    if (v.outcome === 'nothing' || v.outcome === 'none') {" },
   { arm: 'SPAN', name: '[546 P1] a settle simulates the whole backlog again', file: join(FN, 'hunt-settle.js'),
     from: '  const toMs = Math.min(endMs, fromMs + HUNT_SETTLE_SPAN_MS);', to: '  const toMs = endMs;' },
   { arm: 'TICK-2', name: '[C2 away ctx] the instance span runs with ctx.away again', file: join(FN, 'accrual.js'),

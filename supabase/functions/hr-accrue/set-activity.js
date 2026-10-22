@@ -641,7 +641,9 @@ export async function collectCurrentWindow(o) {
       return { outcome: 'paid', version: b.version ?? env.version,
         env: (b.state ? b : null), receipt: null };
     }
-    if (v.outcome === 'nothing' || v.outcome === 'none') {
+    /* A deploy in flight (hunt-settle.js world_shape_pending) owes a window it could not settle: the verb
+       waits for it rather than mutate ahead of it. Any other `nothing` owes nothing. */
+    if ((v.outcome === 'nothing' && v.reason !== 'world_shape_pending') || v.outcome === 'none') {
       return { outcome: 'nothing', version: env.version, reason: v.reason || 'nothing_accrued' };
     }
     return { outcome: 'refused', version: null, error: v.reason || 'hunt_settle_refused',

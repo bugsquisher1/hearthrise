@@ -88,7 +88,7 @@ renderStorage.patch = function patchStorage(body, ctx) {
   const depot = depotOf(cs);
   patchSide(root, ctx, 'bank', bank || [], q, off, depot);
   text(root.querySelector('.hw-store-room'), !depot ? '' : depot.next
-    ? 'More room comes from storage chests built at your house. Next: the ' + depot.next.name + ', ' + whole(depot.next.stacks) + ' more stacks.'
+    ? 'More room comes from storage chests, built in the House (E). Next: the ' + depot.next.name + ', ' + whole(depot.next.stacks) + ' more stacks.'
     : 'Every storage chest is built.');
   patchSide(root, ctx, 'bag', bag || [], q, off);
   cls(root, 'is-pending', sc.pending);

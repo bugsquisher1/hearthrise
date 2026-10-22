@@ -78,6 +78,7 @@ export const CLIENT_RPCS = Object.freeze({
   hr_hunt_restart: 'go back to the hunt that just ended on that session’s own setup (CharacterSession.restartHunt)',
   /* Lane S2's Services window: each sends the server's own QUOTE (refused quote_changed otherwise), never a price of its own. */
   hr_stamina_refill: 'buy the next stamina refill at the quoted price (CharacterSession.buyStamina)',
+  hr_storage_chest_build: 'build the account’s next storage chest at the quoted price; the server gates, prices and debits it (home-intents.js buildChest)',
   hr_blessing_buy: 'buy one blessing tier at the quoted price, 0 under the free level (CharacterSession.buyBlessing)',
   hr_bestiary_activate: 'activate a bestiary stage for one monster kind at the quoted fee (CharacterSession.activateBestiaryStage; lane c-bestiary)',
   hr_character_name_set: 'claim this character’s own name, checked by the server (CharacterSession.setName)',
@@ -122,6 +123,8 @@ export const CLIENT_EDGE_INTENTS = Object.freeze({
   sheet: [],
   /* the Inventory's Bury: an artisan recipe by id, or idle to stop; the engine collects before it switches (hr-accrue set-activity.js) */
   set_activity: ['activity'],
+  /* the House window: a property tier or room rung by offer id; hr_unlock_buy prices, gates and debits it (home-intents.js buyHome) */
+  unlock_buy: ['offer'],
 });
 const EDGE = 'src/session/edge-intents.js';
 const VALUE_FIELD = /price|gold|cost|total|amount|ask/i;

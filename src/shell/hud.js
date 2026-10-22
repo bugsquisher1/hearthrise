@@ -155,15 +155,15 @@ const DOCK_CAP_MIN_PX = 160;
 
 /**
  * A DOCKED WINDOW STOPS ABOVE THE BOTTOM BAR (Tyler 10-22: a Settings tab that made the docked window taller
- * pushed the action bar across the screen). A docked window `win` whose column crosses a bottom-centre widget's
+ * pushed the action bar across the screen). A docked window `pane` whose column crosses a bottom-centre widget's
  * HOME rect (`bars`) ends `gap` above the highest one, so a window that grows never moves the bar; null when no
  * bar is under it, or when the cap would leave it shorter than DOCK_CAP_MIN_PX (the bar then clears it,
  * clearOfEdges). Rects {left, top, width, height} in the shell's px. Pure.
  */
-export function dockCap(win, bars, gap) {
-  const under = bars.filter((b) => b.width > 0 && win.left < b.left + b.width + gap && b.left < win.left + win.width + gap);
+export function dockCap(pane, bars, gap) {
+  const under = bars.filter((b) => b.width > 0 && pane.left < b.left + b.width + gap && b.left < pane.left + pane.width + gap);
   if (!under.length) return null;
-  const cap = Math.round(Math.min(...under.map((b) => b.top)) - gap - win.top);
+  const cap = Math.round(Math.min(...under.map((b) => b.top)) - gap - pane.top);
   return cap >= DOCK_CAP_MIN_PX ? cap : null;
 }
 

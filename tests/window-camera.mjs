@@ -32,9 +32,9 @@
 //         figure or on the name over it) opens the player menu, and the
 //         browser's own menu is suppressed there
 //   WC-6  A DOCKED WINDOW NEVER SHOVES THE BAR (Tyler 2026-10-22: a Settings tab pushed
-//         the action bar to the far left): at 1440x900 and 922x423, with Settings open,
+//         the action bar to the far left): at 1440x900, 1920x1080 and 922x423, with Settings open,
 //         every tab leaves the action bar exactly where it stood with Settings open on
-//         its first page; at 1440x900 that is its home (bottom-centre) and the docked
+//         its first page; on desktop that is its home (bottom-centre) and the docked
 //         window ends above it
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
@@ -92,7 +92,8 @@ async function enter(browser, base, viewport) {
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
   await stub(page);
-  await page.goto(base + '/play.html', { waitUntil: 'load' });
+  /* the page load is the machine's, not a rule: a cold module graph on a slow disk took 12 s (2026-10-22) */
+  await page.goto(base + '/play.html', { waitUntil: 'load', timeout: 30000 });
   await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
   await page.fill('input[name=email]', 'qa@example.test');
   await page.fill('input[name=password]', 'not-a-real-password');
@@ -295,11 +296,14 @@ async function checks(overrides) {
       if (errors.length) fails.push('WC-3 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
-    { // WC-6 on a phone: the sheet is full height, so the bar clears it the same on every tab
-      const { ctx, page, errors, up } = await enter(browser, base, { width: 922, height: 423 });
-      if (!up) fails.push('WC-6 [922x423] the town did not mount');
-      else await settingsTabs(page, '922x423', fails, false);
-      if (errors.length) fails.push('WC-6 [922x423] console errors: ' + errors.slice(0, 3).join(' | '));
+    /* WC-6 at 1920x1080 (the bar had room left of the dock there, so it jumped across), and on a phone, where the
+       sheet is full height and the bar clears it the same on every tab */
+    for (const [vp, home] of [[{ width: 1920, height: 1080 }, true], [{ width: 922, height: 423 }, false]]) {
+      const tag = vp.width + 'x' + vp.height;
+      const { ctx, page, errors, up } = await enter(browser, base, vp);
+      if (!up) fails.push('WC-6 [' + tag + '] the town did not mount');
+      else await settingsTabs(page, tag, fails, home);
+      if (errors.length) fails.push('WC-6 [' + tag + '] console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
   } catch (e) {

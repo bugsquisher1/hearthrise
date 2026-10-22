@@ -48,8 +48,9 @@ export function createCanvasBackend(o) {
   let host = null, canvas = null, ctx = null, ro = null, onResize = null;
   let map = null, ground = null, chunks = new Map();
   let z = 2, dpr = 1, W = 1, H = 1, dirty = true, inset = cleanInset(null);
-  /* The camera's ease after an inset change (camera.js easedCam): where it stood, and when. */
-  let lastCam = null, camFrom = null, insetSince = -Infinity;
+  /* The camera's ease after an inset change (camera.js easedCam): where it stood, and when. The FIRST
+     inset is where the camera starts, never an ease: the HUD comes with the pane (a switch of the viewed hero). */
+  let lastCam = null, camFrom = null, insetSince = -Infinity, insetHeard = false;
   const reduceMotion = () => !!(win.matchMedia && win.matchMedia('(prefers-reduced-motion: reduce)').matches);
   let frames = 0, msAvg = 0, msLast = 0, last = null, lastView = null;
   /* The names drawn last frame that belong to someone, in canvas px: a press on a name picks its owner. */
@@ -479,9 +480,10 @@ export function createCanvasBackend(o) {
      * rest, so the hero is never under a window; the art still draws there.
      */
     setInset(o) {
-      const next = cleanInset(o);
+      const next = cleanInset(o), first = !insetHeard;
+      insetHeard = true;
       if (next.left === inset.left && next.right === inset.right && next.top === inset.top && next.bottom === inset.bottom) return;
-      camFrom = reduceMotion() ? null : lastCam;
+      camFrom = reduceMotion() || first ? null : lastCam;
       insetSince = win.performance.now();
       inset = next;
     },

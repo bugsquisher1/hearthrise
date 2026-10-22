@@ -261,7 +261,6 @@ export function resolveGatherTick(state, node, ctx) {
   state.stats.gathered = (state.stats.gathered || 0) + res.qty;
   const perSkill = SKILL_ACTION_STAT[skill];
   if (perSkill) state.stats[perSkill] = (state.stats[perSkill] || 0) + res.qty;
-  call(fx, 'updateDaily', 'gather', res.qty);
   call(fx, 'updateQuest', 'gather', res.qty);
   /* `res.xpAmount` is `node.xp × (1 + toolXpB)` — computed ONCE, by the
      resolver, rather than recomputed at the call site as legacy.js did. Two

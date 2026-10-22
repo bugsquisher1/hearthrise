@@ -30,6 +30,17 @@
 //         migration that restates hr_claim_quest, or re-adds its baseline row,
 //         is red here before it is ever applied.
 //
+// THE SECOND CUT (lane c-cuts-1022b, 2026-12-03-companion-claims-cut.sql): the
+// old companion PETS (COMPANIONS, the shop pet unlocks, hr_companion_equip /
+// hr_companion_grant, the engine's companion bonus layer), the engine's
+// kind='daily' counters (nothing reads them since the daily goals left), and the
+// old-client raid_claim / world_event_claim / clan_board_claim doors.
+//   OR-5  no ENGINE code (src/core/**, supabase/functions/**) proposes a
+//         kind:'daily' progress op — the premium login's clamp is the server's own
+//   OR-6  AT THE CHAIN END the last body of hr_perks_of, hr_farm_harvest,
+//         hr_farm_plant and hr_state_of reads no companion and writes no
+//         kind 'daily' row (comments are not code)
+//
 // Pure text + two data imports, no database, no network. Exit: 0 green · 1 red · 2 harness.
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -52,6 +63,12 @@ export const NAMES = [
   'priceDailyLogin', 'deriveLoginStreak', 'loginBonusDue', 'loginClaimIsStraight', 'CLAIMABLES', 'claimableFor',
   // the fox
   'fox_companion',
+  // the companion pets (src/data/companions.js, companion-unlocks.js, src/core/companion-perk.js,
+  // companion-xp.js, hr-accrue companion-catalogue.js) and the column they equipped
+  'COMPANIONS', 'COMPANION_OFFER_IDS', 'companionBonus', 'companionKeyBonus', 'companionSpanGrant',
+  'companionSpanXp', 'companionActionXp', 'isCompanionOffer', 'companion_equipped',
+  // the engine's daily counters (hr-accrue goal-period.js and the fx seam that fed them)
+  'modalGoalOps', 'updateDaily',
 ];
 /* The server half: every function and table 2026-11-30-old-rewards-cut.sql drops. */
 export const CUT_FUNCTIONS = [
@@ -65,13 +82,39 @@ export const CUT_FUNCTIONS = [
   // the goal board, dropped by 2026-10-16-goal-board-retire.sql (goal-counter-kinds guarded its lifetime-counter
   // hazard while hr_claim_goal and hr_claim_quest could pay; with both doors cut, their revival is what is guarded)
   'hr_claim_goal', 'hr_claim_goal__ungated', 'hr_goal_state', 'hr_goal_state__ungated',
+  // the second cut (2026-12-03-companion-claims-cut.sql)
+  'hr_companion_equip', 'hr_companion_grant',
+  'raid_claim', 'raid_claim__ungated', 'world_event_claim', 'world_event_claim__ungated',
+  'clan_board_claim', 'clan_board_claim__ungated',
 ];
-export const CUT_TABLES = ['hr_quest_rewards', 'hr_hunt_loot_roster', 'hr_goal_rewards'];
+export const CUT_TABLES = ['hr_quest_rewards', 'hr_hunt_loot_roster', 'hr_goal_rewards', 'hr_companion_grants', 'raid_claims'];
 /* Cut before it ever shipped (the milestones' loot roster, staged and withdrawn the same day): no file may make it. */
 export const NEVER_SHIPPED = ['table:hr_hunt_loot_roster'];
 /* The client RPCs: the old client called them by name, so no code may name them either. */
-export const CUT_RPCS = ['hr_claim_quest', 'hr_claim_milestone', 'hr_claim_rank', 'hr_claim_daily', 'hr_tally_state'];
-export const DELETED_FILES = ['src/data/goal-catalogue.js', 'src/data/collection-milestones.js', 'src/data/rewards.js'];
+export const CUT_RPCS = ['hr_claim_quest', 'hr_claim_milestone', 'hr_claim_rank', 'hr_claim_daily', 'hr_tally_state',
+  'hr_companion_equip', 'hr_companion_grant', 'raid_claim', 'world_event_claim', 'clan_board_claim'];
+export const DELETED_FILES = ['src/data/goal-catalogue.js', 'src/data/collection-milestones.js', 'src/data/rewards.js',
+  'src/data/companions.js', 'src/data/companion-unlocks.js', 'src/core/companion-perk.js', 'src/core/companion-xp.js',
+  'supabase/functions/hr-accrue/companion-catalogue.js', 'supabase/functions/hr-accrue/goal-period.js',
+  'tools/gen-companion-unlocks.mjs', 'tools/gen-companion-grants.mjs'];
+/* OR-6: the readers 2026-12-03-companion-claims-cut.sql restated whole. */
+export const CLEAN_READERS = ['hr_perks_of', 'hr_farm_harvest', 'hr_farm_plant', 'hr_state_of'];
+const ENGINE_DIRS = ['src/core/', 'supabase/functions/'];
+const DAILY_OP = /\bkind\s*:\s*(['"`])daily\1/;
+
+/** The body of the LAST create of public.<name>( in one SQL text, or null. */
+export function lastBody(sql, name) {
+  const code = sql.replace(/\r\n/g, '\n');
+  const re = new RegExp('create\\s+(?:or\\s+replace\\s+)?function\\s+public\\.' + name + '\\s*\\(', 'gi');
+  let at = -1;
+  for (let m; (m = re.exec(code));) at = m.index;
+  if (at < 0) return null;
+  const as = /\bas\s+(\$[a-z_]*\$)/i.exec(code.slice(at));
+  if (!as) return null;
+  const from = at + as.index + as[0].length;
+  const to = code.indexOf(as[1], from);
+  return to < 0 ? null : code.slice(from, to);
+}
 
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const word = (nm) => new RegExp('(^|[^\\w$])' + esc(nm) + '(?![\\w$])');
@@ -142,6 +185,18 @@ export function check(w) {
     if (!e) { if (!NEVER_SHIPPED.includes(k)) add('OR-4', `no migration in the apply order ever touches ${k} — the guard's list is stale`); continue; }
     if (e.op !== 'drop') add('OR-4', `${e.file} is the last file to touch ${k}, and it ${e.kind === 'baseline' ? 'inserts the client baseline row' : 'creates it'} — the cut must be the last word`);
   }
+  for (const [file, text] of w.files) {
+    if (!ENGINE_DIRS.some((d) => file.startsWith(d))) continue;
+    if (DAILY_OP.test(stripComments(text))) add('OR-5', `${file} proposes a kind:'daily' progress op — the daily counters were cut (nothing reads them)`);
+  }
+  for (const name of CLEAN_READERS) {
+    let body = null, from = null;
+    for (const [file, text] of w.sql) { const b = lastBody(text, name); if (b !== null) { body = b; from = file; } }
+    if (body === null) { add('OR-6', `no migration creates ${name} — the guard's list is stale`); continue; }
+    const code = body.replace(/--[^\n]*/g, '');
+    if (/companion/i.test(code)) add('OR-6', `${from} leaves ${name} reading a companion — the pets were cut`);
+    if (/'daily'/.test(code)) add('OR-6', `${from} leaves ${name} naming kind 'daily' — the daily counters were cut`);
+  }
   return problems;
 }
 
@@ -154,6 +209,7 @@ function selftest(w) {
   say(clean.length === 0, 'clean arm is green' + (clean.length ? ' → ' + clean.map((p) => p.id + ' ' + p.msg).join(' | ') : ''));
   const later = (x, body) => x.sql.push(['2099-01-01-revival.sql', body]);
   const cutFile = (x, fn) => { const i = x.sql.findIndex(([f]) => f === '2026-11-30-old-rewards-cut.sql'); x.sql[i] = [x.sql[i][0], fn(x.sql[i][1])]; };
+  const cut2 = (x, fn) => { const i = x.sql.findIndex(([f]) => f === '2026-12-03-companion-claims-cut.sql'); const b = x.sql[i][1]; const a = fn(b); if (a === b) throw new Error('cut2 plant did not change the file'); x.sql[i] = [x.sql[i][0], a]; };
   const arms = [
     ['the quest catalogue comes back in the data (QUEST_REWARDS)', 'OR-1', (x) => { x.files.set('src/data/quests.js', 'export const QUEST_REWARDS = {};\n'); }],
     ['a screen calls the milestone claim again', 'OR-1', (x) => { x.files.set('src/shell/x.js', "rpc('hr_claim_milestone', { p_slot: 0 });\n"); }],
@@ -168,6 +224,15 @@ function selftest(w) {
     ['a later migration ships the withdrawn loot roster', 'OR-4', (x) => { later(x, 'create table if not exists public.hr_hunt_loot_roster (item_id text primary key);\n'); }],
     ['the cut file forgets the rank claim', 'OR-4', (x) => { cutFile(x, (t) => t.replace('drop function if exists public.hr_claim_rank(text, integer);\n', '')); }],
     ['the cut file keeps the tally read in the baseline', 'OR-4', (x) => { cutFile(x, (t) => t.replace(", 'hr_tally_state');", ');')); }],
+    // the second cut
+    ['src/data/companions.js is restored', 'OR-2', (x) => { x.exists.add('src/data/companions.js'); }],
+    ['the engine prices a companion layer again', 'OR-1', (x) => { x.files.set('src/core/member.js', (x.files.get('src/core/member.js') || '') + '\nconst c = companionBonus(perkState);\n'); }],
+    ['a later migration restates hr_companion_equip', 'OR-4', (x) => { later(x, 'create or replace function public.hr_companion_equip(p_slot int, p_companion text, p_unequip boolean)\nreturns jsonb language sql as $$ select null::jsonb $$;\n'); }],
+    ['a later migration re-adds raid_claim to the client baseline', 'OR-4', (x) => { later(x, "insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note) values\n  ('raid_claim', 'p_scope text', 'authenticated', 'back');\n"); }],
+    ['the second cut file forgets world_event_claim__ungated', 'OR-4', (x) => { cut2(x, (t) => t.replace('drop function if exists public.world_event_claim__ungated(text, integer);\n', '')); }],
+    ['the engine proposes a kind:daily op again', 'OR-5', (x) => { x.files.set('supabase/functions/hr-accrue/accrual.js', (x.files.get('supabase/functions/hr-accrue/accrual.js') || '') + "\nprogress.push({ kind: 'daily', key: 'ev:kill_any', period: day, add: 1 });\n"); }],
+    ['a later migration restates hr_farm_plant writing a daily row', 'OR-6', (x) => { later(x, "create or replace function public.hr_farm_plant(p_slot int, p_plot_idx int, p_crop text, p_idem uuid)\nreturns jsonb language plpgsql as $$ begin insert into public.player_progress (kind) values ('daily'); return null; end $$;\n"); }],
+    ['the second cut file keeps the companion projection in hr_state_of', 'OR-6', (x) => { cut2(x, (t) => t.replace("-- restated WHOLE by 2026-12-03-companion-claims-cut.sql:", "'companions', v_st.companion_equipped,\n-- restated WHOLE by 2026-12-03-companion-claims-cut.sql:")); }],
   ];
   for (const [label, want, plant] of arms) {
     const x = clone(w); plant(x);
@@ -178,6 +243,8 @@ function selftest(w) {
     ['a JS comment naming hr_claim_quest and QUEST_REWARDS', (x) => { x.files.set('src/data/z.js', '// hr_claim_quest and QUEST_REWARDS were cut on 2026-10-22\nexport const z = 1;\n'); }],
     ['a SQL comment that says create function hr_claim_quest(', (x) => { later(x, '-- create or replace function public.hr_claim_quest( was the old body\nselect 1;\n'); }],
     ['a longer identifier (hr_claim_quest_log)', (x) => { x.files.set('src/data/z.js', 'export const hr_claim_quest_log = 1;\n'); }],
+    ["a client (not engine) file naming kind: 'daily'", (x) => { x.files.set('src/shell/z.js', "export const row = { kind: 'daily' };\n"); }],
+    ['an SQL comment in a clean reader naming companion_equipped', (x) => { later(x, "create or replace function public.hr_perks_of(p_user uuid, p_slot int)\nreturns jsonb language sql as $$\n-- companion_equipped and 'daily' were cut\nselect null::jsonb $$;\n"); }],
   ];
   for (const [label, plant] of controls) {
     const x = clone(w); plant(x);
@@ -200,7 +267,8 @@ try {
   }
   console.log(`✓ old-rewards-gone: ${w.files.size} files name none of the ${NAMES.length + CUT_RPCS.length} cut names; `
     + `${DELETED_FILES.length} files stay deleted; no companion slot or fox; ${CUT_FUNCTIONS.length} functions, `
-    + `${CUT_TABLES.length} tables and ${CUT_RPCS.length} baseline rows end the ${w.sql.length}-file chain dropped`);
+    + `${CUT_TABLES.length} tables and ${CUT_RPCS.length} baseline rows end the ${w.sql.length}-file chain dropped; `
+    + `the engine proposes no daily op; ${CLEAN_READERS.length} restated readers read no pet and write no daily row`);
 } catch (e) {
   console.error(`✗ old-rewards-gone harness error: ${e && e.stack || e}`);
   process.exit(2);

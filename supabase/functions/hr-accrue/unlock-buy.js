@@ -52,7 +52,6 @@ import { INTENT_ERRORS, catalogueGet } from './intents.js';
 import { settleBeforeMutate } from './settle-first.js';
 import { UNLOCK_OFFERS, UNLOCK_REFUSALS } from './unlock-catalogue.js';
 import { isGoldLadderOffer } from './gold-ladder-catalogue.js';
-import { isCompanionOffer } from './companion-catalogue.js';
 import { gateAndRead, refusalBody, shapeRefusal } from './spend.js';
 
 /** The verb's own name — returned in every body so one client dispatcher can
@@ -98,12 +97,9 @@ export function resolveUnlockOffer(offerId) {
      one. `{ id }` is the whole surface the commit statement binds. */
   if (isGoldLadderOffer(offerId)) return { ok: true, offer: { id: offerId } };
 
-  /* COMPANION UNLOCKS (slice 4) — same treatment, disjoint `companion.*` id
-     space. The Edge holds no price and no skill gate for these; hr_unlock_buy
-     reads all of it, including req_skill / req_skill_level, from
-     public.hr_unlock_offers under the lock. `{ id }` is the whole surface the
-     commit statement binds. */
-  if (isCompanionOffer(offerId)) return { ok: true, offer: { id: offerId } };
+  /* (The four shop companion unlocks were cut with the old pet system, Tyler
+     2026-10-22; a `companion.*` id now falls through to the catalogue and is
+     refused as unknown.) */
 
   const offer = catalogueGet(UNLOCK_OFFERS, offerId);
   if (offer) return { ok: true, offer };

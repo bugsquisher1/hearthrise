@@ -12,7 +12,6 @@
 //   property           5  src/features/homestead.js
 //   worker             6  src/features/workers.js
 //   character_slot     3  src/multi-character.js (slot 1 is a starter: owned, never sold, 2026-10-26)
-//   companion          4  src/data/companions.js
 //
 // THE LINE SHAPE — both sides of every offer
 //   { kind, id, amount }
@@ -71,32 +70,6 @@ export const SHOP_OFFERS = [
     name: "Character slot 5",
     cost: [{ kind: "currency", id: "gold", amount: 120000 }],
     grant: [{ kind: "unlock", id: "character_slot:4", amount: 1 }],
-  },
-  {
-    id: "companion.honeybee", table: "companion",
-    name: "Honeybee",
-    cost: [{ kind: "currency", id: "gold", amount: 8000 }],
-    grant: [{ kind: "unlock", id: "companion:honeybee", amount: 1 }],
-    reqSkill: "cooking", reqLv: 25,
-  },
-  {
-    id: "companion.owl", table: "companion",
-    name: "Owl",
-    cost: [{ kind: "currency", id: "gold", amount: 8000 }],
-    grant: [{ kind: "unlock", id: "companion:owl", amount: 1 }],
-    reqSkill: "prayer", reqLv: 50,
-  },
-  {
-    id: "companion.raccoon", table: "companion",
-    name: "Raccoon",
-    cost: [{ kind: "currency", id: "gold", amount: 25000 }],
-    grant: [{ kind: "unlock", id: "companion:raccoon", amount: 1 }],
-  },
-  {
-    id: "companion.sparrow", table: "companion",
-    name: "Sparrow",
-    cost: [{ kind: "currency", id: "gold", amount: 5000 }],
-    grant: [{ kind: "unlock", id: "companion:sparrow", amount: 1 }],
   },
   {
     id: "equip.apprentice_staff", table: "equip",
@@ -591,14 +564,6 @@ export const SHOP_TABLES = [
     "anchor": "const SLOT_COSTS_GOLD = [",
     "spends_at": "multi-character.js unlockSlot()",
     "count": 3
-  },
-  {
-    "table": "companion",
-    "origin": "src/data/companions.js",
-    "anchor": "source:'shop:…'",
-    "spends_at": "legacy.js _buyCompanion(id, price)",
-    "note": "price is embedded in a string, not a field",
-    "count": 4
   },
   {
     "table": "supply",

@@ -22,8 +22,6 @@ import { runAll as coreGuards } from './core-purity.mjs';
 import { runAll as accrualGuards } from './accrual-engine.mjs';
 import { autoEatAuthorityGuard } from './auto-eat-authority.mjs';
 import { perkChannelGuard } from './perk-channel.mjs';
-import { companionPerkGuard } from './companion-perk.mjs';
-import { companionXpGuard } from './companion-xp.mjs';
 import { artisanProgressGuard } from './artisan-progress-model.mjs';
 import { goalCountersGuard } from './goal-counters.mjs';
 import { inventoryCompleteGuard } from './inventory-complete-probe.mjs';
@@ -48,8 +46,6 @@ import { heroSlotBuyGuard } from './hero-slot-buy.mjs';
 import { accrueEnvelopeAwayGuard } from './accrue-envelope-away.mjs';
 import { unlockOfferOwnershipGuard } from './unlock-offer-ownership.mjs';
 import { unlockCatalogueOwnershipGuard } from './unlock-catalogue-ownership.mjs';
-import { companionGrantHardeningGuard } from './companion-grant-hardening.mjs';
-import { companionCodesSeverityGuard } from './companion-codes-severity.mjs';
 import { runAll as artisanAccrualGuards } from './artisan-accrual.mjs';
 import { runAll as activitySeamGuards } from './activity-seam.mjs';
 import { runAll as liveSettlementGuards, engineGuard as settleReport,
@@ -691,24 +687,8 @@ async function unlockModelPreflight() {
     ['gen-gold-ladders.mjs', 'Gold-ladder preflight',
       'a gold-spend ladder price, its tier gate or the bank curve moved and the generated '
       + 'migration no longer matches the game data — hr_unlock_buy charges out of that table'],
-    /* slice 4. The companion unlocks (companion.*) are generated from
-       src/data/companion-unlocks.js, drift-guarded against src/data/companions.js
-       (price + skill req per shop companion), AND the migration's hr_unlock_buy is
-       DERIVED from 2026-08-16-unlock-buy.sql plus one skill gate. A companion
-       price/skill edit, a new shop companion, OR a hand-edit of the restated body
-       fails here — hr_unlock_buy both charges out of that table and runs that body. */
-    ['gen-companion-unlocks.mjs', 'Companion-unlock preflight',
-      'a companion price or skill requirement moved, a shop companion was added, or the derived '
-      + 'hr_unlock_buy is no longer unlock-buy.sql’s body plus the one declared skill gate'],
-    /* NON-SHOP companion grants. hr_companion_grant gates out of hr_companion_grants,
-       the allowlist generated DIRECTLY from src/data/companions.js. A non-shop
-       companion added/removed, a source kind or the dragon_egg hatch item changed
-       without regenerating — or a hand-edit of the migration — fails here, because the
-       RPC refuses anything not in that catalogue and the companion:<id> hr_unlocks
-       ladders must match the grantable set. */
-    ['gen-companion-grants.mjs', 'Companion-grant preflight',
-      'a non-shop companion was added/removed, a source kind or the dragon_egg hatch item moved, '
-      + 'or the generated companion-grant migration was hand-edited'],
+    /* (The companion-unlock and companion-grant preflights left with the pet system,
+       Tyler 2026-10-22: 2026-12-03-companion-claims-cut.sql.) */
     ['derive-perks-of.mjs', 'hr_perks_of derivation',
       'the restated hr_perks_of is no longer perk-channel\'s body plus its declared patches'],
     /* b353. The same rule applied to THE DETECTOR, and the reason it is worth a
@@ -925,35 +905,8 @@ const run = async () => {
       console.log('\nPerk channel guard — an unlock row reaches burnChance with the client\'s own '
         + 'magnitude; the degrade path is inert; a forged state cannot name a number.');
     }
-    /* ── The companion perk-channel guard (2026-08-20-companion-model) ───────
-       The equipped companion's passive bonus is server-owned and byte-parity-
-       safe: a seeded fight with a companion equipped scores BYTE-IDENTICAL away
-       vs live (it draws no rng and pays on the permanent channel), the level
-       curve matches the client, and the degrade path is inert. This is the
-       AWAY-1 obligation for the companion layer. */
-    const companionProblems = await companionPerkGuard();
-    if (companionProblems.length) {
-      console.log('\nCompanion perk guard (away == live with a pet equipped) — FAILED:');
-      for (const p of companionProblems) console.log(`  ✗ ${p}`);
-      exitCode = 1;
-    } else {
-      console.log('\nCompanion perk guard — a seeded fight with a companion equipped is byte-identical '
-        + 'away vs live; the passive bonus is server-owned and draw-free.');
-    }
-    /* ── The companion XP guard ──────────────────────────────────────────
-       The per-action rule (companionActionXp / companionSpanXp) stays pinned;
-       the ENGINE writer was deleted outright in lane C2, so the guard now
-       proves no hunt, gather or bench night (attended or away) emits a
-       companion_xp op or companion_xp_frac. */
-    const companionXpProblems = companionXpGuard();
-    if (companionXpProblems.length) {
-      console.log('\nCompanion XP guard — FAILED:');
-      for (const p of companionXpProblems) console.log(`  ✗ ${p}`);
-      exitCode = 1;
-    } else {
-      console.log('\nCompanion XP guard — the per-action rule is pinned; the engine writes no companion XP '
-        + '(deleted in lane C2) on a hunt, gather or bench night, attended or away.');
-    }
+    /* (The companion perk and companion XP guards left with the pet system, Tyler
+       2026-10-22; the engine has no companion layer: src/core/member.js bonusFor.) */
     /* ── The artisan progress model guard (b352) ────────────────────────
        The two shapes that block a server-paid artisan night, end to end on a
        real PostgreSQL with the WHOLE migration chain applied — so both new
@@ -1744,66 +1697,9 @@ const run = async () => {
         + 'repair list, which is cross-checked against the apply manifest.');
     }
 
-    /* ── The three SECURITY conditions on hr_companion_grant ─────────────
-       The reseed above ARMED an already-live client-callable RPC. C1 turns the
-       storage guard's 23514 into a machine code instead of a PostgREST 500 the
-       client cannot tell from an outage; C2 ENFORCES the whelp req_item, which
-       measured its precondition and granted anyway; C3 renames the client's
-       p_source to `claimed_source` so the ledger stops presenting it as a peer
-       of the server-derived catalogue_source.
-
-       Driven through the REAL RPC on a rebuilt database, with the two arms the
-       migration's own §4 cannot run: C1's second layer with the pre-check
-       neutralised (a single backend cannot race the catalogue delete), and the
-       derivation chain — 2026-08-22-companion-grant.sql is GENERATED and still
-       carries the pre-hardening body, so re-applying it alone reverts all three
-       in silence. See tests/companion-grant-hardening.mjs. */
-    const cgHardenProblems = await companionGrantHardeningGuard();
-    if (cgHardenProblems.length) {
-      console.log('\nCompanion-grant hardening (C1 machine code · C2 req_item · C3 claimed_source) '
-        + '— FAILED:');
-      for (const p of cgHardenProblems) console.log(`  ✗ ${p}`);
-      exitCode = 1;
-    } else {
-      console.log('\nCompanion-grant hardening guard — a missing companion:<id> catalogue row '
-        + 'answers unknown_unlock:<key> on both layers without consuming the req_item, whelp is '
-        + 'refused without its dragon_egg and consumes exactly one when held, the ledger separates '
-        + 'claimed_source from catalogue_source, every other storage-guard violation still '
-        + 'propagates, and the hardening file is the manifest\'s last toucher of the RPC.');
-    }
-
-    /* ── C6: the two new refusal codes join the severity taxonomy ─────────
-       The hardening above gave hr_companion_grant two machine refusals and
-       journalled both through hr_record_rejection — which grades severity from
-       its OWN arrays, and neither code was in either, so both landed 'normal'
-       forever, at any n. Security's C6 ruling files them separately, because
-       they are separate populations: `unknown_unlock` is a destroyed unlock
-       catalogue (never player behaviour, damage on call ONE) and becomes an
-       INCIDENT on its first occurrence; `missing_req_item` is a stale client
-       once and a signature fifty times, so it ESCALATES on the existing
-       50/user/slot/day counter.
-
-       Measured through the real function AND end-to-end through the real RPC
-       with the code read off the row the verb wrote — the only thing that can
-       see the emitted code drifting from the graded code — plus the two
-       controls that make the proof non-vacuous (one occurrence must STAY
-       normal; an unclassified code must stay normal at ANY n) and a dual-shape
-       arm that applies the migration to the COMMENT-STRIPPED body production
-       actually runs. See tests/companion-codes-severity.mjs. */
-    const codeSevProblems = await companionCodesSeverityGuard();
-    if (codeSevProblems.length) {
-      console.log('\nCompanion-code severity (C6: unknown_unlock incident · missing_req_item '
-        + 'escalates) — FAILED:');
-      for (const p of codeSevProblems) console.log(`  ✗ ${p}`);
-      exitCode = 1;
-    } else {
-      console.log('\nCompanion-code severity guard — unknown_unlock is an incident on its FIRST '
-        + 'occurrence and missing_req_item stays normal on its first and escalates at '
-        + 'c_escalate_at, proven through the real hr_record_rejection and end-to-end through the '
-        + 'real hr_companion_grant; an unclassified control code stays normal at any n; every '
-        + 'incumbent code survived the patch; the ACL is unchanged across the definer-body '
-        + 'replace; and both anchors match the comment-stripped body production runs.');
-    }
+    /* (The hr_companion_grant hardening and its refusal-code severity guards left with
+       the RPC, dropped by 2026-12-03-companion-claims-cut.sql; tests/old-rewards-gone.mjs
+       keeps it dropped.) */
 
     /* ── The delta-transport guard (the 2026-08-15 P0) ───────────────────
        hr_apply had NEVER applied a delta through the Edge Function: both

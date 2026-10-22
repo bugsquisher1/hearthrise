@@ -12,6 +12,9 @@
 //   gather-nodes        each node is a real TREES/ROCKS row of its skill, opens within 20 of the band top,
 //                       stands on its map with its sprite, and a pocket's nodes cover the top gather share
 //   walk-art            every creature of both grounds idles and walks in all 8 facings in a loaded atlas
+//   shop-outfits-defense  the Shop's gear (designer 2026-10-22) sells no slot a walked ground drops, has gloves and
+//                       a belt in every weight, and a start-kit Melee at the Thicket floor who buys the heavy pair
+//                       trains Defense (0 without), lives the hour and nets more than the pair cost
 //   thicket-solo-starter-kit  a new hero alone at the Thicket's floor (the solo-first ground, band 5-15), wearing
 //                       ONLY the start kit, plays the hour on the real settle (play-ground.mjs) with no death, on
 //                       each of the designer's six seeds (designer pass 2026-10-21, Tyler: solo first)
@@ -278,6 +281,45 @@ cases['thicket-solo-starter-kit'] = async (M) => {
   console.log('    thicket solo, start kit only (' + Object.values(M.kit.START_EQUIPMENT).join(', ') + ') at L' + floor + ', ' + STARTER_SEEDS.length + ' seeds: ' + seen.join(' | '));
   return bad.length ? 'a start-kit Melee at the Thicket floor: ' + bad.join('; ') : null;
 };
+/* THE OUTFITTER (designer ruling 2026-10-22, lane/b-gold-sinks; PRIORITY_BOARD play report #5: Defense sat at 0 XP
+   after 117 kills because a new hero wears no armour, and gold bought nothing). The Shop's gear rows
+   (supply-basics.js kind 'gear'): (a) never sell a slot a walked ground drops (the Shop never competes with a drop);
+   (b) sell gloves AND a belt in each of the three weights (heavy, medium, light), so every way to fight has a first
+   armour pick; (c) played: a start-kit Melee at the Thicket floor earns no Defense XP in the hour, and the same hero
+   wearing the Shop's cheapest heavy gloves and belt earns Defense XP, lives the hour and nets more than the two
+   pieces cost (the purchase pays for itself inside the first hour). */
+cases['shop-outfits-defense'] = async (M) => {
+  const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
+  const { SUPPLY_SHOP_OFFERS } = await imp('src/data/supply-basics.js');
+  const { ITEMS } = await imp('src/data/items.js');
+  const { ARMOUR_WEIGHT } = await imp('src/data/core-model.js');
+  const gear = SUPPLY_SHOP_OFFERS.filter((o) => o.kind === 'gear');
+  const bad = [];
+  const dropped = new Map();
+  for (const g of Object.values(M.grounds.HUNT_GROUNDS)) for (const p of g.pockets) for (const s of p.spawns) {
+    for (const d of (M.MONSTERS[s.monster] || {}).drops || []) if (ITEMS[d.id] && ITEMS[d.id].slot) dropped.set(ITEMS[d.id].slot, d.id + ' (' + s.monster + ')');
+  }
+  for (const o of gear) if (dropped.has(ITEMS[o.item].slot)) bad.push(o.item + ': the Shop sells a ' + ITEMS[o.item].slot + ', which ' + dropped.get(ITEMS[o.item].slot) + ' drops');
+  for (const slot of ['gloves', 'belt']) for (const w of ['heavy', 'medium', 'light']) {
+    if (!gear.some((o) => ITEMS[o.item].slot === slot && ARMOUR_WEIGHT[ITEMS[o.item].armourClass] === w)) bad.push('no ' + w + ' ' + slot + ' in the Shop');
+  }
+  const pick = (slot) => gear.filter((o) => ITEMS[o.item].slot === slot && ARMOUR_WEIGHT[ITEMS[o.item].armourClass] === 'heavy').sort((a, b) => a.price - b.price)[0];
+  const gl = pick('gloves'), bt = pick('belt');
+  if (!gl || !bt) return bad.concat('no heavy gloves or belt to play').join('; ');
+  const P = await playOf(M);
+  const floor = floorOf(M, 'meadowbrook_thicket');
+  const defOf = (x) => Object.values(x.heroXp).reduce((s, h) => s + (h.defense || 0), 0);
+  const bare = P.run('meadowbrook_thicket', floor, ['tank'], { spanMs: 3600000, equipment: M.kit.START_EQUIPMENT, secret: STARTER_SEEDS[0] });
+  const worn = P.run('meadowbrook_thicket', floor, ['tank'], { spanMs: 3600000, equipment: { ...M.kit.START_EQUIPMENT, gloves: gl.item, belt: bt.item }, secret: STARTER_SEEDS[0] });
+  const cost = gl.price + bt.price;
+  console.log('    thicket L' + floor + ' start kit: Defense XP ' + defOf(bare) + ', net ' + bare.net + ' | + Shop ' + gl.item + ' + ' + bt.item + ' (' + cost + ' g): Defense XP '
+    + defOf(worn) + ', net ' + worn.net + ', deaths ' + worn.totals.falls);
+  if (defOf(bare) !== 0) bad.push('the bare start kit trained ' + defOf(bare) + ' Defense XP (the case assumes no armour in the kit)');
+  if (!(defOf(worn) > 0)) bad.push('the Shop gloves and belt trained no Defense');
+  if (worn.totals.falls || worn.playedMs < 3600000) bad.push('the outfitted hero did not live the hour (' + worn.ended.join(', ') + ')');
+  if (worn.net < cost) bad.push('the outfitted hour nets ' + worn.net + ' g, under the ' + cost + ' g the pieces cost');
+  return bad.length ? bad.join('; ') : null;
+};
 cases['first-grounds-net-chain'] = async (M) => {
   const P = await playOf(M);
   const bad = [], rows = [];
@@ -300,6 +342,13 @@ cases['first-grounds-net-chain'] = async (M) => {
 };
 
 const mutants = [
+  { name: 'the Shop sells a helmet the Thicket wolves drop', case: 'shop-outfits-defense',
+    edits: [['src/data/supply-basics.js', "  sell('copper_studs', 'gear', null, 120),", "  sell('copper_studs', 'gear', null, 120),\n  sell('leather_helmet', 'gear', null, 120),"]] },
+  { name: 'the Shop drops its light gloves (a caster has no first armour pick)', case: 'shop-outfits-defense',
+    edits: [['src/data/supply-basics.js', "  sell('apprentice_gloves', 'gear', null, 60),\n", '']] },
+  { name: 'gloves and belts stop counting as armour (Defense never trains from them)', case: 'shop-outfits-defense',
+    edits: [['src/data/core-model.js', "export const ARMOUR_SLOTS = Object.freeze(['helmet', 'body', 'pants', 'boots', 'gloves', 'belt']);",
+      "export const ARMOUR_SLOTS = Object.freeze(['helmet', 'body', 'pants', 'boots']);"]] },
   { name: 'the Thicket wolves hit like a Sewer spider (atk 4 -> 13)', case: 'thicket-solo-starter-kit',
     edits: [['src/data/monsters.js', 'hp: 14, atk: 4, def: 1, xp: 52, gp: [2, 5], speed: 4200,', 'hp: 14, atk: 13, def: 1, xp: 52, gp: [2, 5], speed: 4200,']] },
   /* The whole Sewer roster's coin back to its pre-x1.8 rows (the drop-tables play mutant's /1.8): the party nets under the Thicket. */

@@ -33,7 +33,7 @@
   "Classifications are AUTHORED, never generated — deciding what a restore owes",
   "a table is a judgement, and --write preserves whatever is already here."
  ],
- "generated": "2026-10-21",
+ "generated": "2026-10-22",
  "production": {
   "measured": "2026-08-30",
   "project": "nezapsylztqbbwuwembx (hearthrise-testing, Postgres 17.6, us-west-2, Micro compute)",
@@ -1243,7 +1243,7 @@
   },
   "hr_shop_supply_offers": {
    "class": "seeded",
-   "replay": 20,
+   "replay": 30,
    "note": "Generated catalogue (2026-10-25-alpha-catalogue.generated.sql, tools/gen-alpha-catalogue.mjs --check from src/data/supply-basics.js): the shop's packable supplies and their prices. Rebuilt from repo, never restored."
   },
   "hr_skill_curve": {

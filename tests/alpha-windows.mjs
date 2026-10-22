@@ -327,7 +327,9 @@ async function checks(overrides, shots) {
 
     { // AW-7 no supplies in the Shop; AW-8 hunt prep
       /* The fixture's server still offers food, drink and ammo (the pre-2026-11-02 section): the client must drop them. */
-      const tools = (e) => { e.shop = Object.assign({}, e.shop, { offers: e.shop.offers.concat([{ offer: 'supply.bronze_axe', item: 'bronze_axe', kind: 'tool', price: 120 }]) }); };
+      /* ...and lists the outfitter's gear above the tools (designer 2026-10-22, 2026-11-20-shop-outfitter.sql). */
+      const tools = (e) => { e.shop = Object.assign({}, e.shop, { offers: e.shop.offers.concat([{ offer: 'supply.bronze_axe', item: 'bronze_axe', kind: 'tool', price: 120 },
+        { offer: 'supply.leather_gloves', item: 'leather_gloves', kind: 'gear', price: 160 }]) }); };
       const { ctx, page, s, up } = await open({ mutateEnv: tools });
       if (up) {
         await openWin(page, 'v', 'shop');
@@ -336,7 +338,7 @@ async function checks(overrides, shots) {
           lines: Array.from(document.querySelectorAll('.hw-shop [data-pane="buy"] .hw-line')).map((l) => l.getAttribute('data-item')),
           refill: !!document.querySelector('.hw-shop [data-hs-act="refill"]') }));
         if (shop.tabs.join() !== 'buy,sell' || shop.refill) fails.push('AW-7 the Shop still has a refill: ' + JSON.stringify(shop));
-        if (shop.lines.join() !== 'bronze_axe') fails.push('AW-7 the Shop offers ' + JSON.stringify(shop.lines) + ', not the tools alone');
+        if (shop.lines.join() !== 'leather_gloves,bronze_axe') fails.push('AW-7 the Shop offers ' + JSON.stringify(shop.lines) + ', not the gear then the tools alone');
         if (shots) await shot(page, 'alpha-1440x900-shop-tools');
         await openWin(page, 'p', 'hunt-prep');
         await page.waitForTimeout(200);
@@ -611,7 +613,7 @@ const MUTANTS = [
   ['bag actions stay on while an intent is in flight', 'src/shell/windows/inventory/grid.js', "prop(pb, 'disabled', sc.pending || !prim);", "prop(pb, 'disabled', !prim);"],
   ['a pocket is rebuilt whenever its count changes', 'src/shell/windows/inventory/grid.js', '    key: (r) => r.id,\n    build: (r) => element(ctx.doc, pocketHtml(r.id, ctx.glyphs)),', '    key: (r) => r.id + ":" + r.qty,\n    build: (r) => element(ctx.doc, pocketHtml(r.id, ctx.glyphs)),'],
   ['a sale is sent without the confirmation', 'src/shell/windows/inventory/actions.js', '  st.sc.confirm = confirmFor(st, ids, label);\n  repaint();', '  st.sc.confirm = confirmFor(st, ids, label);\n  repaint();\n  doSell(st, repaint);'],
-  ['the Shop lists supplies again', 'src/session/item-sections.js', "const KINDS = Object.freeze(['tool']);", "const KINDS = Object.freeze(['food', 'drink', 'ammo', 'tool']);"],
+  ['the Shop lists supplies again', 'src/session/item-sections.js', "const KINDS = Object.freeze(['gear', 'tool']);", "const KINDS = Object.freeze(['food', 'drink', 'ammo', 'gear', 'tool']);"],
   ['an equip in flight is not marked', 'src/shell/windows/inventory/actions.js', '  sc.wearing = { slot, item: id || null };\n', ''],
   ['the engine answer is re-read (two round trips)', 'src/session/character-session.js', "{ if (!(carries && this._take(ans.body, 'load'))) await this.load(); return { ok: true }; }", '{ await this.load(); return { ok: true }; }'],
   ['the doll wears the item before the server confirms', 'src/shell/windows/inventory/doll.js', '    const id = eq[s] || \'\';', "    const id = (s === 'weapon' && globalThis.__want) || eq[s] || '';"],

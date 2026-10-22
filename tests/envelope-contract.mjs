@@ -156,8 +156,10 @@ function contract(R, cs, body, tl) {
   need('bag_rules', !!ru && ru.locked.has(SEED.lock) && ru.loot[SEED.loot] === 'sell',
     'rulesOf yields ' + JSON.stringify(ru && { locked: [...ru.locked], loot: ru.loot }) + ' from ' + JSON.stringify(body.bag_rules));
   const sh = R.IS.shopOf(cs);
-  /* The Shop sells tools, never supplies (2026-11-02-shop-no-supplies.sql), and quotes no refill. */
-  need('shop', !!sh && sh.offers.length > 0 && sh.offers.every((o) => o.kind === 'tool') && sh.offers.some((o) => o.item === SEED.tool)
+  /* The Shop sells tools and the outfitter's gear, never supplies (2026-11-02-shop-no-supplies.sql,
+     2026-11-20-shop-outfitter.sql), and quotes no refill. */
+  need('shop', !!sh && sh.offers.length > 0 && sh.offers.every((o) => o.kind === 'tool' || o.kind === 'gear') && sh.offers.some((o) => o.item === SEED.tool)
+    && sh.offers.some((o) => o.kind === 'gear')
     && sh.bids.size > 0 && !('refill' in body.shop),
     'shopOf yields ' + JSON.stringify(sh && { offers: sh.offers.length, bids: sh.bids.size }).slice(0, 300) + ' from ' + JSON.stringify(body.shop).slice(0, 200));
   const pr = R.IS.presetsOf(cs);

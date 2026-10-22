@@ -105,8 +105,9 @@ export function rulesOf(cs) {
   return { locked, loot };
 }
 
-/* What the Shop sells: gear and tools, never supplies (Tyler 2026-10-20). An offer of another kind is dropped. */
-const KINDS = Object.freeze(['tool']);
+/* What the Shop sells: gear and tools, never supplies (Tyler 2026-10-20; the outfitter's gear, designer 2026-10-22).
+   An offer of another kind is dropped. */
+const KINDS = Object.freeze(['gear', 'tool']);
 
 /** `shop`: the server's offers and prices and its bid for each bag item. Null = no prices yet. */
 export function shopOf(cs) {

@@ -104,11 +104,27 @@ export function basicFor(kind, huntTier) {
 // vendor pays at most half the cheapest shop price, catalogue.js
 // SHOP_BUYBACK_RATE). Every supply row has a basic. THE TIER-1 GATHERING TOOLS (Tyler
 // 10-18: the shop sells the Bronze Axe and Bronze Pickaxe; better tiers stay
-// smithing-only) are kind 'tool' with no basic, priced SHOP_TOOL_PREMIUM x book
+// smithing-only) are kind 'tool' with no basic, priced SHOP_PREMIUM x book
 // value, so the vendor's buy-back (at most half) never moves and buy-then-sell loses.
 // The server catalogue (hr_shop_supply_offers) is generated from these rows;
 // src/data/shops.js lists them as `supply.*` offers.
-export const SHOP_TOOL_PREMIUM = 2;
+//
+// THE OUTFITTER (designer ruling 2026-10-22, lane/b-gold-sinks; Tyler 2026-10-20: "the
+// Shop keeps gear and tools"). The Shop sells the small pieces NO walked hunting ground
+// drops: gloves, belt, cape, earrings, ring and necklace. Monsters drop the helmets,
+// bodies, legs, boots and weapons (Tyler 2026-10-20: gear drops are a real slot), so the
+// Shop never competes with a drop. Gloves and belts are armour: wearing one is what lets
+// Defense train (Tyler 2026-10-18), and they come in all three weights (heavy = more
+// health, medium = dodge, light = more mana; Tyler 2026-10-18), so every way to fight
+// has a first pick. Tier 1 and Level 1 only: better pieces come from drops and crafting.
+// Price = SHOP_PREMIUM x book value, the tools' rule, so the vendor's buy-back (at most
+// half the shop price) pays at most what the piece cost, halved: buy-then-sell loses.
+// tools/gen-alpha-catalogue.mjs refuses a gear row off any of these rules.
+export const SHOP_PREMIUM = 2;
+/* The kinds the Shop's Buy tab lists and `shop_buy` sells; every other row is a price only. */
+export const SHOP_SOLD_KINDS = Object.freeze(['tool', 'gear']);
+/* The slots the Shop may sell gear for: the ones no walked ground drops. */
+export const SHOP_GEAR_SLOTS = Object.freeze(['gloves', 'belt', 'cape', 'earrings', 'ring', 'necklace']);
 const sell = (item, kind, basic, price) => Object.freeze({ offer: 'supply.' + item, item, kind, basic, price });
 
 export const SUPPLY_SHOP_OFFERS = Object.freeze([
@@ -132,4 +148,15 @@ export const SUPPLY_SHOP_OFFERS = Object.freeze([
   sell('dawnpoint_arrows', 'ammo', 'plain_dawnpoint_arrows', 24),
   sell('bronze_axe', 'tool', null, 120),
   sell('bronze_pickaxe', 'tool', null, 120),
+  /* The outfitter: gloves and belt in each weight (heavy, medium, light), then the rest. */
+  sell('bronze_gauntlets', 'gear', null, 80),
+  sell('leather_gloves', 'gear', null, 160),
+  sell('apprentice_gloves', 'gear', null, 60),
+  sell('bronze_belt', 'gear', null, 220),
+  sell('leather_belt', 'gear', null, 70),
+  sell('apprentice_belt', 'gear', null, 70),
+  sell('traveler_cape', 'gear', null, 300),
+  sell('copper_studs', 'gear', null, 120),
+  sell('copper_ring', 'gear', null, 240),
+  sell('hunter_necklace', 'gear', null, 360),
 ]);

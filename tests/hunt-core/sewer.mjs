@@ -346,11 +346,19 @@ const cases = {
     if (!goal.startsWith('goal_')) return 'after the guide (Level ' + L + ', in the Sewer) the pointer shows ' + (goal || 'nothing');
     if (next && !html.includes(next.name)) return 'the what-next line does not name ' + next.name + ': ' + html;
     if (!/Next at Melee level \d+/.test(html)) return 'the what-next line does not name the sword hero\'s next Melee unlock: ' + html;
+    /* Defense at 0 XP (no armour worn: the fresh-hero play, 117 kills) points at the Shop's gloves and belts (designer
+       2026-10-22, the outfitter); once Defense has XP the line is gone. */
+    const withDef = (xp) => renderLaunchers({ character: { read: (k) => ({ ...sewerEnv, skills: { ...sewerEnv.skills, defense: { xp, level: 1 } } })[k] }, glyphs: {},
+      hud: { isShown: () => false }, wm: { openIds: () => [], rows: () => [], row: () => null } });
+    if (!withDef(0).includes('The Shop sells gloves and belts')) return 'Defense at 0 XP: the what-next line does not point at the Shop\'s armour: ' + withDef(0);
+    if (withDef(40).includes('The Shop sells gloves and belts')) return 'Defense training: the what-next line still asks for armour';
     return null;
   },
 };
 
 const mutants = [
+  { name: 'the what-next line never sees Defense (no armour hint)', case: 'tutorial-launcher-card',
+    edits: [['src/session/tutorial-sections.js', 'defenseXp: sk && sk.defense ? sk.defense.xp : null', 'defenseXp: null']] },
   { name: 'nothing to aim at after the guide (no what-next line)', case: 'tutorial-launcher-card',
     edits: [['src/session/tutorial-sections.js', '  if (card) return card;\n', '  return card;\n']] },
   { name: 'the launcher shows only the first card', case: 'tutorial-launcher-card',

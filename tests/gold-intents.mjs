@@ -680,7 +680,8 @@ async function run(mutate) {
     await grant({ gold: 100000, journal: { kind: 'admin', intent: 'fixture:seed' } });
   }
 
-  const OFFER = 'equip.hunter_necklace';
+  /* The outfitter's row since 2026-10-22 (src/data/supply-basics.js); the legacy equip.hunter_necklace is gone. */
+  const OFFER = 'supply.hunter_necklace';
   let unitGold;
   {
     unitGold = cat.GOLD_OFFERS[OFFER].gold;

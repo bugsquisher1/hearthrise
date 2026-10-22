@@ -81,7 +81,8 @@ export const CLIENT_RPCS = Object.freeze({
   hr_storage_chest_build: 'build the account’s next storage chest at the quoted price; the server gates, prices and debits it (home-intents.js buildChest)',
   hr_blessing_buy: 'buy one blessing tier at the quoted price, 0 under the free level (CharacterSession.buyBlessing)',
   hr_bestiary_activate: 'activate a bestiary stage for one monster kind at the quoted fee (CharacterSession.activateBestiaryStage; lane c-bestiary)',
-  hr_character_name_set: 'claim this character’s own name, checked by the server (CharacterSession.setName)',
+  /* Tyler 2026-10-22 (2026-12-04-hero-rename.sql): the first name is free (hr_create_hero); a change sends the QUOTED price. */
+  hr_hero_rename: 'change a named hero’s name at the price the rename section quoted; the server checks the rules, the hunt and the price (CharacterSession.renameHero)',
   /* The Farm window (P1 2026-10-22; 2026-11-26-farm-window.sql): a slot, a plot index, a crop id or the expected tier; never a price or a time. */
   hr_farm_plant: 'plant one own seed of a crop in an empty plot; level, plot tier and the plot cap are the server’s (farm-intents.js plantCrop)',
   hr_farm_water: 'water a growing plot for a 2 h double-speed window; the server refuses an open window (farm-intents.js waterPlot)',

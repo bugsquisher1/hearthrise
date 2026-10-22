@@ -80,7 +80,9 @@
 // dead effects (lane/a-dead-effects: markPm replaces markBy, healedAt leaves the
 // world's shape) start 2026-11-05-hunt-sessions-catalogue.generated.sql (history
 // once written); the Challenge hold (lane/a-combat-bugs: holdMs replaces chalMs in
-// the world's shape) starts 2026-11-06-hunt-sessions-catalogue.generated.sql.
+// the world's shape) starts 2026-11-06-hunt-sessions-catalogue.generated.sql; the four-slot drop tables
+// (lane/c-loot-loop: the imbuement items, one junk row per monster) start
+// 2026-11-08-hunt-sessions-catalogue.generated.sql (after lane/b-supplies-bury's 2026-11-07 file).
 //
 //   Regenerate:  node tools/gen-hunt-sessions.mjs
 //   Verify:      node tools/gen-hunt-sessions.mjs --check     (exit 1 on drift)
@@ -130,7 +132,7 @@ export const WORLD_FIELDS_READ = Object.freeze({
     'role', 'dist', 'chase', 'tmode', 'stance']),
   world: Object.freeze(['leader']),
 });
-export const OUT_NAME = '2026-11-06-hunt-sessions-catalogue.generated.sql';
+export const OUT_NAME = '2026-11-08-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

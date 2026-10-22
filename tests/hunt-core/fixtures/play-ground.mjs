@@ -20,7 +20,7 @@ const COMBAT = ['melee', 'ranged', 'magic', 'defense'];
     on the real settle and answers the totals, per hour and per hero, plus `items` (id -> count, the whole
     party's credit), `heroItems` and `heroXp` (per hero key: item / skill -> amount) and `killsBy` (monster -> kills).
     opts: { spanMs (default thirty minutes), secret (the hunt seed), monsters (a drop-table fixture), fullSet,
-    equipment (one worn set every hero wears, e.g. the start kit's) }. */
+    equipment (one worn set every hero wears, e.g. the start kit's; or a function (role, seat, L) -> set, one per hero) }. */
 /** The trees loadPlay reads beyond src/core and src/data: a planted copy (h1.js plant) needs them too. */
 export const PLAY_TREES = Object.freeze(['supabase/functions/hr-accrue', 'src/world/core', 'assets/world']);
 
@@ -85,7 +85,7 @@ export async function loadPlay(root) {
     /* A hero at Level L with every combat skill at L (the designer's fit: skill ~ Level through L25). */
     const skills = Object.fromEntries(COMBAT.map((k) => [k, XP.skillXpForLevel(k, L)]));
     /* opts.equipment: a worn set given whole (the start kit, start-kit.js START_EQUIPMENT), for every hero. */
-    const equipment = worn ? { ...worn } : fullSet ? fullKit(L, role) : kit(L, role);
+    const equipment = typeof worn === 'function' ? worn(role, i, L) : worn ? { ...worn } : fullSet ? fullKit(L, role) : kit(L, role);
     return {
       key: role + i, user: role + i, slot: 0, seat: i, unitId: null, sessionId: 's-' + role + i, version: 1, huntId,
       huntSession: { id: 's-' + role + i, instanceId: IID, huntFromMs: T0, nextSwingAtMs: T0, swingIndex: 0, bag: role === 'ranger' ? { bronze_arrows: { loaded: 1 } } : {},

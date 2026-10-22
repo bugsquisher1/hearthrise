@@ -216,7 +216,7 @@ export function createHuntScene(o) {
     switch (ev.type) {
       case 'dmg': num(ev.t, ev.amount, hit(ev, start)); break;
       case 'status_tick': if (Number.isFinite(ev.amount)) { num(ev.t, ev.amount, start); flash.set(ev.t, start); } break;
-      case 'miss': case 'immune': addFloat(ev.t, 'miss', ev.type === 'miss' ? 'miss' : 'immune', 'miss', start); swing.set(ev.u, { t: ev.t, at: start }); break;
+      case 'miss': case 'immune': addFloat(ev.t, 'miss', ev.type === 'immune' ? 'immune' : ev.dodge === true ? 'dodge' : 'miss', 'miss', start); swing.set(ev.u, { t: ev.t, at: start }); break;
       case 'heal': addFloat(ev.t, 'heal', '+' + ev.amount, 'heal', start); break;
       case 'cast': {
         const r = CAST_FX.ability[ev.ability] || CAST_FX.role[roleOf(ev.u)];

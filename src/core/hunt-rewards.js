@@ -16,7 +16,8 @@
 //          weapon pays nothing here. The lifetime crit count for a crit blow.
 //   dmg / miss  a monster's blow at an ARMOURED hero: Defense XP scaled by the
 //          attacker's level (MONSTERS[*].level), a blow a shield turns aside
-//          (a miss on a shield-holder) paying COMBAT_XP.blockMult times more
+//          (a miss on a shield-holder) paying COMBAT_XP.blockMult times more; a
+//          dodge pays the plain rate; a status tick (`dot`) pays nothing
 //   cast   Magic XP for the mana an ability spent (xp-share.js magicXpFor)
 //   kill   of a MONSTER: its gold and drops on the instance's `r` stream —
 //          gold split evenly, items round-robin (party-split.js, the one
@@ -128,14 +129,17 @@ export function rewardSwing(members, events, world, ctx) {
           call(m.fx, 'addXp', FAMILY_SKILL[m.family], ev.amount * COMBAT_XP.hitXpPerDamage);
         }
         if (m && ev.crit === true) { m.state.stats = m.state.stats || {}; m.state.stats.crits = (m.state.stats.crits || 0) + 1; }
-        const hit = members.get(ev.t);
+        /* A status tick (`dot`: poison, burn, bleed) is not a blow: it trains no Defense (Tyler 2026-10-22). */
+        const hit = ev.dot === true ? null : members.get(ev.t);
         const d = hit ? defenseXp(hit, unitOf(ev.u), false, ctx.monsters) : 0;
         if (d > 0) call(hit.fx, 'addXp', 'defense', d);
         break;
       }
       case 'miss': {
+        /* A DODGE (medium armour, ruling K7) is a blow aimed and turned aside by the hero's own
+           footwork: it trains Defense like any blow taken, never at a shield block's rate. */
         const aimed = members.get(ev.t);
-        const d = aimed ? defenseXp(aimed, unitOf(ev.u), true, ctx.monsters) : 0;
+        const d = aimed ? defenseXp(aimed, unitOf(ev.u), ev.dodge !== true, ctx.monsters) : 0;
         if (d > 0) call(aimed.fx, 'addXp', 'defense', d);
         break;
       }

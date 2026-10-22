@@ -20,6 +20,7 @@ import { buffQueueFromServer, buffBonusFor } from './buffs.js?v=0.2.26';
 import { grantXp, normaliseXpFrac } from './progression.js?v=0.2.26';
 import { charLevelFromXp, levelsOf } from './xp.js?v=0.2.26';
 import { vitalsOf, wearsArmour } from './vitals.js?v=0.2.26';
+import { mitigationFor, NO_MITIGATION } from './mitigation.js?v=0.2.26';
 import { newHuntSession } from './action-rules.js?v=0.2.26';
 import { makeGoalCounter, makeBestiaryCounter, makeCollectionCounter } from './goals.js?v=0.2.26';
 import { HUNT_ROLES } from '../data/hunt-roles.js?v=0.2.26';
@@ -108,8 +109,12 @@ const NEUTRAL_FOE = Object.freeze({});
 export function heroSnapshot(state, c) {
   const roll = playerCombatRolls(NEUTRAL_FOE, { eq: c.eq, equipment: c.equipment, items: c.items, skills: state.skills,
     bonus: c.bonus, setBonus: c.setBonus, profile: c.profile });
-  const def = Math.floor((Number(levelsOf(state.skills).defense) || 1) + (Number(c.eq.defB) || 0) + (Number(c.bonus('defense')) || 0));
-  return { acc: Math.round(roll.accuracy * 1000), maxHit: Math.max(1, Math.floor(roll.maxHit)), def };
+  /* `def` is the monster's TO-HIT roll: the Defense skill, the gear outside the armour weights
+     (combat.js guardB: a shield, a cape) and a defence buff. `mit` is what the armour does to a
+     blow that lands (ruling K7, src/core/mitigation.js), at the hero's Level now. */
+  const def = Math.floor((Number(levelsOf(state.skills).defense) || 1) + (Number(c.eq.guardB) || 0) + (Number(c.bonus('defense')) || 0));
+  const mit = mitigationFor(c.equipment, c.items, charLevelFromXp(state.levelXp));
+  return { acc: Math.round(roll.accuracy * 1000), maxHit: Math.max(1, Math.floor(roll.maxHit)), def, mit };
 }
 
 /* THE LOADOUT a hero fights with: the worn set's stats, its armour-set bonus
@@ -266,7 +271,8 @@ export function memberSide(mi, ctx) {
    hunt_live gives the viewer its OWN member's full setup, but every OTHER member only
    the numbers the engine needs to simulate and draw it, frozen at the block's boundary:
    its vitals, its blow and defence (the snapshot), its rolls against each monster
-   kind the ground fields, its weapon family / armour / shield, its hunt setup (role,
+   kind the ground fields (snap: acc, maxHit, def and its armour's mitigation, mitigation.js),
+   its weapon family / armour / shield, its hunt setup (role,
    settings, bar, range) and its supply session (bag counts, the store catalogue, its
    pending ends). Never its skills, gear, perks, buffs, premium, purse, cover list,
    stamina or bestiary. FROZEN_KEYS / FROZEN_SESSION_KEYS are the allowlist
@@ -291,7 +297,7 @@ export function frozenOf(side, kinds, atMs) {
   const session = {};
   for (const k of FROZEN_SESSION_KEYS) if (hs[k] !== undefined) session[k] = hs[k];
   return { hp: m.state.playerHp, maxHp: m.state.playerMaxHp, maxMana: m.state.playerMaxMana, regenPm: m.state.regenPm,
-    snap: { acc: snap.acc, maxHit: snap.maxHit, def: snap.def }, vs, family: m.family, armoured: m.armoured === true,
+    snap: { acc: snap.acc, maxHit: snap.maxHit, def: snap.def, mit: snap.mit || NO_MITIGATION }, vs, family: m.family, armoured: m.armoured === true,
     shield: m.shield === true, hero: m.hero, session };
 }
 
@@ -305,7 +311,7 @@ export function frozenSide(row) {
     levelXp: 0, gold: 0, skills: {}, stats: {}, buffs: [] };
   const hs = newHuntSession(Object.assign({}, f.session, { purse: Number.MAX_SAFE_INTEGER, cover: {}, staminaMs: null,
     tally: null, endedReason: null, endedAtMs: null }));
-  const snap = f.snap || { acc: 0, maxHit: 1, def: 0 };
+  const snap = f.snap || { acc: 0, maxHit: 1, def: 0, mit: NO_MITIGATION };
   const vs = f.vs || {};
   const member = {
     key: row.key, seat: row.seat, unitId: Number.isInteger(row.unitId) ? row.unitId : null, hs, state, fx: {},

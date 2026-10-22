@@ -257,6 +257,12 @@ async function pureRules(M) {
     answer = { ok: true, online: 1204 };
     poll(); for (let i = 0; i < 5; i++) await tick();
     if (M.online.onlineWords(soc.online.count) !== '1,204 online') fail('ON-1 the next answer did not replace the dash: ' + M.online.onlineWords(soc.online.count));
+    /* A poll whose social read fails (a session the server refused) sends no count ask and shows the dash. */
+    const asked = calls.filter((c) => c.name === 'hr_players_online').length;
+    acct.server.rpc = async (name, args) => { calls.push({ name, args }); return { ok: false, status: 401, body: null }; };
+    poll(); for (let i = 0; i < 5; i++) await tick();
+    if (calls.filter((c) => c.name === 'hr_players_online').length !== asked) fail('ON-1 a refused social read still asked the count (two dead calls a poll)');
+    if (soc.online.count !== null) fail('ON-1 a refused poll kept showing ' + soc.online.count);
     soc.destroy();
     if (soc.online.count !== null) fail('ON-1 a destroyed session still shows a count');
   }
@@ -458,6 +464,7 @@ const PURE_MUTANTS = [
   ['a friend reads online when offline', 'src/social/friends.js', "online: f.online === true,", "online: true,"],
   ['the realtime bindings are not capped', 'src/social/realtime.js', "        .slice(0, Math.max(0, CHAT_LIMITS.realtimeBindingsMax - held()));", ";"],
   ['a failed online ask keeps the last count', 'src/social/players-online.js', '    let n = null;', '    let n = this.count;'],
+  ['a refused social read still asks the count', 'src/social/social-session.js', '    if (!read) { this.online.clear(); return null; }\n', ''],
   ['the online ask names only the viewed character', 'src/social/social-session.js',
     "o.account.characters().map((cs) => cs.slot)", '[o.account.viewed]'],
   ['the ground opens a menu', 'src/shell/menu-providers.js', "    if (MONSTERS[mon]) return { kind: 'monster', id: mon, title: monsterName(mon) };", "    return { kind: 'monster', id: mon, title: String(mon) };"],

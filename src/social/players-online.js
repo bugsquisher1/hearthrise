@@ -51,5 +51,8 @@ export class PlayersOnline {
     return n;
   }
 
+  /** No fresh answer this poll (the session's read failed): show nothing rather than the last number. */
+  clear() { if (this.count !== null) { this.count = null; this._changed(); } }
+
   destroy() { this._dead = true; this.count = null; }
 }

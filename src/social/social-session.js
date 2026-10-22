@@ -70,9 +70,13 @@ export class SocialSession {
   }
 
   /* One social poll: the friends read (the account's presence for its friends), then the online count
-     (which stamps the open characters present). One after the other, never a burst of two. */
+     (which stamps the open characters present). One after the other, never a burst of two, and the count
+     only when the read answered: a session the server refused (signed out, offline) sends one call a poll,
+     never two (client-boot B-10), and shows no count. */
   async _presence() {
-    try { await this.reread(); } catch (e) { /* the count is still asked; the next poll re-reads */ }
+    let read = false;
+    try { read = await this.reread(); } catch (e) { read = false; }
+    if (!read) { this.online.clear(); return null; }
     return this.online.ask();
   }
 

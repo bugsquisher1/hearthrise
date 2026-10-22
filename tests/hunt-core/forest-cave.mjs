@@ -396,7 +396,7 @@ const mutants = [
   { name: 'the server catalogue serves a staged ground', case: 'staged-until-art',
     edits: [['tools/gen-hunt-sessions.mjs', "    grounds: OPEN_GROUNDS, worldMaxBytes:", "    grounds: HUNT_GROUNDS, worldMaxBytes:"],
       ['tools/gen-hunt-sessions.mjs', "hunts: OPEN_HUNTS, monsters: MONSTERS, items: ITEMS,", "hunts: HUNTS, monsters: MONSTERS, items: ITEMS,"],
-      ['tools/gen-hunt-sessions.mjs', "import { OPEN_GROUNDS, DENSITY_PICK, PARTY_SCALE, densityFor }", "import { HUNT_GROUNDS, OPEN_GROUNDS, DENSITY_PICK, PARTY_SCALE, densityFor }"]] },
+      ['tools/gen-hunt-sessions.mjs', "import { OPEN_GROUNDS, DENSITY_PICK, PARTY_SCALE, densityFor, reachableOf }", "import { HUNT_GROUNDS, OPEN_GROUNDS, DENSITY_PICK, PARTY_SCALE, densityFor, reachableOf }"]] },
   { name: 'the glade\'s sluicer and Rook hit like the Warrens (atk 18 -> 26)', case: 'glade-solo-floor',
     edits: [['src/data/monsters.js', 'hp: 70, atk: 18, def: 10,', 'hp: 70, atk: 26, def: 10,'], ['src/data/monsters.js', 'hp: 78, atk: 18, def: 11,', 'hp: 78, atk: 26, def: 11,']] },
   { name: 'the glade\'s coin doubled (it out-earns the Warrens)', case: 'glade-between',

@@ -383,11 +383,10 @@ export function bossRewardIds() {
 }
 
 /** Every dungeon-reward id: boss signatures ∪ the loot tables in `dungeons`
- *  (defaults to the runtime `window.DUNGEONS`, which the legacy IIFE publishes;
- *  absent in Node or pre-boot, in which case only boss signatures contribute). */
+ *  (none given: only the boss signatures contribute). */
 export function dungeonRewardIds(dungeons) {
   const s = bossRewardIds();
-  const D = dungeons || (typeof globalThis !== 'undefined' ? globalThis.DUNGEONS : null);
+  const D = dungeons || null;
   if (D && typeof D === 'object') {
     for (const k of Object.keys(D)) {
       const loot = D[k] && D[k].loot;
@@ -463,37 +462,21 @@ export function buildItemAuthority(opts) {
 }
 
 let _cache = null;
-let _cacheDungeons = undefined;   // the DUNGEONS ref the cache was built against
 
 /**
- * The cached partition, built on first use.
- *
- * ⚠ LOAD-TIMING ROBUSTNESS. The dungeon-reward exclusion reads window.DUNGEONS,
- * which the legacy IIFE publishes AFTER this module can first be called (a boot
- * device-handoff envelope reaches describeReplacement early). If the cache were
- * built once, before DUNGEONS existed, an OVERLAP id — one that is both a combat
- * drop (modeled) and dungeon loot (un-modeled), e.g. `magic_essence` — would be
- * classified OWNABLE and, once the flip armed, a dungeon-dropped copy the
- * envelope omits could be deleted. So the cache is invalidated the moment the
- * DUNGEONS reference appears or changes: the partition can only ever GROW its
- * excluded set as more grant sources come online, which is the safe direction.
+ * The cached partition, built on first use. The old client's runtime dungeon
+ * table (a `DUNGEONS` window global) is gone with that client, so only the
+ * boss signatures contribute dungeon rewards; a caller holding loot tables
+ * passes them to rebuildItemAuthority.
  */
 export function itemAuthority() {
-  const D = (typeof globalThis !== 'undefined') ? (globalThis.DUNGEONS || null) : null;
-  if (!_cache || _cacheDungeons !== D) {
-    _cache = buildItemAuthority({ dungeons: D });
-    _cacheDungeons = D;
-  }
+  if (!_cache) _cache = buildItemAuthority({ dungeons: null });
   return _cache;
 }
 
-/** Rebuild (tests, or once window.DUNGEONS has loaded). */
+/** Rebuild (tests, or with explicit dungeon loot tables). */
 export function rebuildItemAuthority(opts) {
-  opts = opts || {};
-  const D = ('dungeons' in opts) ? opts.dungeons
-    : ((typeof globalThis !== 'undefined') ? (globalThis.DUNGEONS || null) : null);
-  _cache = buildItemAuthority({ dungeons: D });
-  _cacheDungeons = D;
+  _cache = buildItemAuthority({ dungeons: (opts && opts.dungeons) || null });
   return _cache;
 }
 

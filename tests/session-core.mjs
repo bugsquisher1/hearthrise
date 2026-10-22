@@ -796,7 +796,7 @@ const MUTANTS = [
   ['a failed live ask re-arms at once, forever', 'src/session/character-session.js', 'if (!took) this.liveLink.missed();', ''],
   ['the live ask gives up after two tries', 'src/session/live-link.js', '      this.want = true;\n      this._tries++;', '      this.want = this._tries < 2;\n      if (this.want) this._tries++;'],
   ['a storage move leaves the other characters stale', 'src/session/account-session.js', '    for (const [slot, cs] of this._chars) if (slot !== from) cs.load();\n', ''],
-  ['a storage move never tells the account', 'src/session/character-session.js', "    if (r && r.ok && this._onShared) this._onShared('bank', this.slot);\n", ''],
+  ['a storage move never tells the account', 'src/session/character-session.js', "if (r && r.ok && typeof this.onShared === 'function') this.onShared('bank', this.slot); ", ''],
   ['an idle settle replaces the character','src/session/character-session.js', "if (ans.ok && ans.body && ans.body.accrued !== true) return this.load();", ""],
 ];
 

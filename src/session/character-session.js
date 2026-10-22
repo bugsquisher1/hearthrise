@@ -18,8 +18,7 @@
 //                      new settings arrive only in the re-read envelope
 //   enterHunt(h, b, p) the go-hunting INTENT (hr_hunt_enter), re-read the same way
 //   leaveHunt()        the leave INTENT (hr_hunt_leave), re-read the same way
-//   moveStorage(i,n,d) the account storage INTENT (hr_bank_move), re-read the same way;
-//                      the depot is the ACCOUNT's, so onShared('bank') re-reads the others
+//   moveStorage(i,n,d) the ACCOUNT storage INTENT (hr_bank_move), re-read; then onShared('bank', slot)
 //   edgeIntent(v, f)   an item intent through the engine (equip, sell, buy, eat;
 //                      src/session/edge-intents.js): names and counts only
 //   lockItem / setLootRule / savePreset / applyPreset
@@ -101,8 +100,6 @@ export class CharacterSession {
    * @param {(t: any) => void} [o.clearTimer]
    * @param {() => number} [o.now]   the display clock (ms) the timeline plays on
    * @param {object} [o.intents]  the account's intent ledger (default: the server link's)
-   * @param {(kind: string, slot: number) => void} [o.onShared]  told after an intent changed ACCOUNT
-   *        state every character reads (the depot: 'bank'), so the account re-reads the others
    */
   constructor(o) {
     if (!Number.isInteger(o.slot) || o.slot < 0 || o.slot > SESSION_CONFIG.maxSlot) throw new RangeError('bad slot ' + o.slot);
@@ -112,7 +109,6 @@ export class CharacterSession {
     /** The account's asks in flight (intent-ledger.js): the server link's, shared by every character. */
     this.intents = o.intents || (o.server && o.server.intents) || createIntentLedger();
     this._channel = o.channel || null;
-    this._onShared = typeof o.onShared === 'function' ? o.onShared : null;
     this._setTimer = o.setTimer || ((fn, ms) => setTimeout(fn, ms));
     this._clearTimer = o.clearTimer || ((t) => clearTimeout(t));
     this._record = null;
@@ -280,13 +276,11 @@ export class CharacterSession {
       p_bag: lines.map((l) => ({ item: l.item, qty: l.qty })), p_preset: preset, p_hours: null, p_idem: newIdem() }));
   }
 
-  /** Move a stack between the bag and the ACCOUNT's storage (hr_bank_move): `dir` is 'deposit' or 'withdraw'.
-      The storage is every character's (2026-11-10-account-depot.sql): on ok the account re-reads the others. */
+  /** Move a stack between the bag and the ACCOUNT's storage (hr_bank_move; `dir` deposit | withdraw); on ok, onShared. */
   async moveStorage(item, qty, dir) {
     if (this._closed || !ITEM.test(String(item)) || !Number.isSafeInteger(qty) || qty < 1 || qty > 1000000 || (dir !== 'deposit' && dir !== 'withdraw')) return { ok: false, error: 'bad_intent' };
-    const r = await this._ask('bank_move', () => this._server.rpc('hr_bank_move', { p_slot: this.slot, p_item: item, p_qty: qty, p_dir: dir, p_idem: newIdem() }));
-    if (r && r.ok && this._onShared) this._onShared('bank', this.slot);
-    return r;
+    return this._ask('bank_move', () => this._server.rpc('hr_bank_move', { p_slot: this.slot, p_item: item, p_qty: qty, p_dir: dir, p_idem: newIdem() }))
+      .then((r) => { if (r && r.ok && typeof this.onShared === 'function') this.onShared('bank', this.slot); return r; });
   }
 
   /**

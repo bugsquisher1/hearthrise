@@ -9,9 +9,10 @@
 //   hr_hunt_supplies       src/data/supplies.js SUPPLIES (kind, essential, heals, buff type)
 //   hr_hunt_basic_supplies src/data/supply-basics.js BASIC_SUPPLIES — the store's
 //                          supplies paid per use: kind, crafted partner, heals |
-//                          mana, gold price, the hunt tiers it serves
+//                          mana, gold price (the player's bar slot picks the row;
+//                          no row serves a hunt tier — Tyler 2026-10-19)
 //   hr_hunt_travel         src/data/hunts.js HUNTS + trainingHunt() of every
-//                          non-boss, non-champion monster (travelS, tier)
+//                          non-boss, non-champion monster (travelS)
 //   hr_hunt_target_modes   rule-subjects.js TARGET_MODES
 //   hr_hunt_resumable_kinds hunt-sessions.js RESUMABLE_KINDS ('training' reserved)
 //   hr_hunt_limits         rule-subjects.js ACTION_SET_LIMITS + HERO_DISTANCE,
@@ -80,7 +81,15 @@
 // dead effects (lane/a-dead-effects: markPm replaces markBy, healedAt leaves the
 // world's shape) start 2026-11-05-hunt-sessions-catalogue.generated.sql (history
 // once written); the Challenge hold (lane/a-combat-bugs: holdMs replaces chalMs in
-// the world's shape) starts 2026-11-06-hunt-sessions-catalogue.generated.sql.
+// the world's shape) starts 2026-11-06-hunt-sessions-catalogue.generated.sql (APPLIED
+// 2026-10-21 with v0.2.24). THE PLAYER PICKS THE STORE ITEM (Tyler 2026-10-19;
+// lane b-supplies-bury): the store rows carry no `tiers`, hr_hunt_travel no `tier`
+// and the Plain Fire Rune joins the store, once 2026-11-07-store-by-slot.sql (applied
+// FIRST) restates their readers: 2026-11-07-hunt-sessions-catalogue.generated.sql; the four-slot drop tables
+// (lane/c-loot-loop: the imbuement items, one junk row per monster) start
+// 2026-11-08-hunt-sessions-catalogue.generated.sql, after both 2026-11-07 files; Mosslight Glade's five monsters
+// (lane c-ground-16-31: their kill bounds, vendor values and training rows; the glade itself is STAGED, so no
+// hunt, travel or ground row) start 2026-11-12-hunt-sessions-catalogue.generated.sql, after the 11-08 pair.
 //
 //   Regenerate:  node tools/gen-hunt-sessions.mjs
 //   Verify:      node tools/gen-hunt-sessions.mjs --check     (exit 1 on drift)
@@ -97,10 +106,10 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
-import { HUNTS, trainingHunt } from '../src/data/hunts.js';
+import { HUNTS, OPEN_HUNTS, trainingHunt } from '../src/data/hunts.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { ITEMS } from '../src/data/items.js';
-import { SUPPLIES, COMBAT_BUFF_TYPES, BAG_GUIDE_BY_HUNT } from '../src/data/supplies.js';
+import { SUPPLIES, COMBAT_BUFF_TYPES } from '../src/data/supplies.js';
 import { BASIC_SUPPLIES } from '../src/data/supply-basics.js';
 import { DRINK_ITEMS } from '../src/data/drinks.js';
 import { ACTION_SET_LIMITS, TARGET_MODES, DEFAULT_TARGET_MODE, HERO_DISTANCE } from '../src/data/rule-subjects.js';
@@ -111,7 +120,7 @@ import { CONSUMABLE_RULES } from '../src/data/consumables.js';
 import { ABILITIES, ABILITY_LANES, ABILITY_RULES } from '../src/data/abilities.js';
 import { HUNT_ROLES, WEAPON_ROLES, roleWeaponOf } from '../src/data/hunt-roles.js';
 import { HUNT_XP } from '../src/data/hunt-xp.js';
-import { HUNT_GROUNDS, DENSITY_PICK } from '../src/data/hunt-grounds.js';
+import { OPEN_GROUNDS, DENSITY_PICK } from '../src/data/hunt-grounds.js';
 import { HUNT_TUNING } from '../src/data/hunt-tuning.js';
 import { PARTY } from '../src/data/party.js';
 import { SESSION_CONFIG } from '../src/session/config.js';
@@ -130,7 +139,7 @@ export const WORLD_FIELDS_READ = Object.freeze({
     'role', 'dist', 'chase', 'tmode', 'stance']),
   world: Object.freeze(['leader']),
 });
-export const OUT_NAME = '2026-11-06-hunt-sessions-catalogue.generated.sql';
+export const OUT_NAME = '2026-11-12-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -168,17 +177,18 @@ export function groundRows(grounds, refs = {}) {
 /** Every input, validated and normalised into sorted rows. Throws on any defect. */
 export function catalogueRows(src = {}) {
   const S = {
-    hunts: HUNTS, monsters: MONSTERS, items: ITEMS, supplies: SUPPLIES, buffTypes: COMBAT_BUFF_TYPES,
+    /* the OPEN hunts and grounds only: a staged one (hunts.js `staged`) is not served, so hr_hunt_enter refuses it */
+    hunts: OPEN_HUNTS, monsters: MONSTERS, items: ITEMS, supplies: SUPPLIES, buffTypes: COMBAT_BUFF_TYPES,
     setLimits: ACTION_SET_LIMITS, distance: HERO_DISTANCE, thresholds: THRESHOLD_PCT,
     sessionLimits: SESSION_LIMITS, endOrder: END_ORDER,
     staminaLow: STAMINA_LOW_MIN, kept: SESSIONS_KEPT, deathXpLoss: DEATH_XP_LOSS, stamina: STAMINA_MAX_MS,
     floor: GOLD_FLOOR, supplySource: SUPPLY_SOURCE, onEmpty: ON_EMPTY, setOptions: ACTION_SET_OPTIONS,
     swingIntervalMs: COMBAT_BALANCE.tickMs, valueHeadroom: VALUE_HEADROOM, defaultResume: DEFAULT_RESUME, events: EVENT_COPY,
-    basics: BASIC_SUPPLIES, huntTiers: BAG_GUIDE_BY_HUNT, drinks: DRINK_ITEMS,
+    basics: BASIC_SUPPLIES, drinks: DRINK_ITEMS,
     targetModes: TARGET_MODES, defaultTarget: DEFAULT_TARGET_MODE,
     resumable: RESUMABLE_KINDS, resumeAfter: RESUME_AFTER_END,
     consumableLaneMs: CONSUMABLE_RULES.laneMs, foodBelowPct: CONSUMABLE_RULES.foodBelowPct, drinkBelowPct: CONSUMABLE_RULES.drinkBelowPct, abilityLanes: ABILITY_LANES, abilities: ABILITIES,
-    grounds: HUNT_GROUNDS, worldMaxBytes: HUNT_TUNING.worldMaxBytes, partyMax: PARTY.maxSize,
+    grounds: OPEN_GROUNDS, worldMaxBytes: HUNT_TUNING.worldMaxBytes, partyMax: PARTY.maxSize,
     maxConcurrent: SESSION_CONFIG.maxConcurrentCharacters, maxSlot: SESSION_CONFIG.maxSlot,
     loginReward: PREMIUM_LOGIN_REWARD, worldVersion: WORLD_VERSION, worldShape: SHAPE, worldFields: WORLD_FIELDS,
     roles: HUNT_ROLES, weaponRoles: WEAPON_ROLES, manaRegenPct: ABILITY_RULES.manaRegenPctPerMin, magicXpPermille: HUNT_XP.magicXpPermillePerMana, ...src,
@@ -204,19 +214,9 @@ export function catalogueRows(src = {}) {
     if (b.kind === 'ammo' && !(own(S.supplies, b.partner) && S.supplies[b.partner].kind === 'ammo')) {
       throw new Error(`store shot ${b.id} names partner ${b.partner}, which is no packed ammo`);
     }
-    const tiers = [...(b.tiers || [])];
-    for (const t of tiers) if (!(whole(t) && t >= 1 && t <= 99)) throw new Error(`store supply ${b.id} tier ${t}`);
-    return { id: b.id, kind: b.kind, partner: b.partner, heals, mana, price: b.price, tiers };
+    if ('tiers' in b) throw new Error(`store supply ${b.id} names hunt tiers: the player's slot picks the store item, never the hunt`);
+    return { id: b.id, kind: b.kind, partner: b.partner, heals, mana, price: b.price };
   }).sort((a, b) => (a.id < b.id ? -1 : 1));
-  for (const kind of ['heal', 'mana']) {
-    const owner = new Map();
-    for (const b of basics.filter((x) => x.kind === kind)) {
-      for (const t of b.tiers) {
-        if (owner.has(t)) throw new Error(`store ${kind} tier ${t} resolves to both ${owner.get(t)} and ${b.id}`);
-        owner.set(t, b.id);
-      }
-    }
-  }
   const partners = new Map();
   for (const b of basics.filter((x) => x.kind === 'ammo')) {
     if (partners.has(b.partner)) throw new Error(`two store shots share the partner ${b.partner}`);
@@ -240,16 +240,13 @@ export function catalogueRows(src = {}) {
     if (!(whole(h.travelS) && h.travelS >= 0 && h.travelS <= 300 && h.travelS % 10 === 0)) {
       throw new Error(`hunt ${h.id} travelS ${h.travelS} is not a multiple of 10 in 0..300`);
     }
-    if (!(whole(h.tier) && h.tier >= 1 && h.tier <= 99)) throw new Error(`hunt ${h.id} has no tier (${h.tier})`);
-    travel.push({ id: h.id, s: h.travelS, training, tier: h.tier });
+    travel.push({ id: h.id, s: h.travelS, training });
   };
-  /* The TIER a store row resolves by: a named hunt's own (its bag guide), a
-     training fight's monster's. */
-  for (const h of S.hunts) addTravel({ ...h, tier: (S.huntTiers[h.id] || {}).tier }, false);
+  for (const h of S.hunts) addTravel(h, false);
   for (const id of Object.keys(S.monsters).sort()) {
     const m = S.monsters[id];
     if (m.boss || m.champion) continue;
-    addTravel({ ...trainingHunt(id, m), tier: m.tier }, true);
+    addTravel(trainingHunt(id, m), true);
   }
   travel.sort((a, b) => (a.id < b.id ? -1 : 1));
   /* THE STAMINA CAPS, in whole minutes; premium may never be below free. */
@@ -479,7 +476,7 @@ export function render(src) {
   const r = catalogueRows(src);
   const digest = createHash('sha256').update(JSON.stringify(r)).digest('hex');
   const supplyValues = r.supplies.map((s) => `  (${sq(s.id)}, ${sq(s.kind)}, ${s.essential}, ${s.heals}, ${s.bt ? sq(s.bt) : 'null'})`).join(',\n');
-  const basicValues = r.basics.map((b) => `  (${sq(b.id)}, ${sq(b.kind)}, ${sq(b.partner)}, ${b.heals}, ${b.mana}, ${b.price}, '{${b.tiers.join(',')}}'::int[])`).join(',\n');
+  const basicValues = r.basics.map((b) => `  (${sq(b.id)}, ${sq(b.kind)}, ${sq(b.partner)}, ${b.heals}, ${b.mana}, ${b.price})`).join(',\n');
   const coverValues = r.cover.map((c) => `  (${sq(c.id)}, ${c.unit})`).join(',\n');
   const eventList = r.eventTypes.map(sq).join(', ');
   const boundValues = r.killBounds.map((b) => `  (${sq(b.id)}, ${b.gold}, ${b.xp}, ${sq(JSON.stringify(b.drops))}::jsonb)`).join(',\n');
@@ -495,7 +492,7 @@ export function render(src) {
   const weaponValues = r.weapons.map((w) => `  (${sq(w.id)}, ${sq(w.t)})`).join(',\n');
   const weaponRoleValues = r.weaponRoles.map((w) => `  (${sq(w.t)}, array[${w.roles.map(sq).join(', ')}]::text[])`).join(',\n');
   const groundSpawnValues = r.groundSpawns.map((s) => `  (${sq(s.hunt)}, ${sq(s.monster)}, ${s.n})`).join(',\n');
-  const travelValues = r.travel.map((t) => `  (${sq(t.id)}, ${t.s}, ${t.training}, ${t.tier})`).join(',\n');
+  const travelValues = r.travel.map((t) => `  (${sq(t.id)}, ${t.s}, ${t.training})`).join(',\n');
   const limValues = Object.entries(r.lim).sort(([a], [b]) => (a < b ? -1 : 1)).map(([k, v]) => `  (${sq(k)}, ${v})`).join(',\n');
   const endValues = r.ends.map((e) => `  (${sq(e.r)}, ${e.i}, ${e.resumes})`).join(',\n');
   const resumableValues = r.resumable.map((k) => `  (${sq(k)})`).join(',\n');
@@ -522,13 +519,24 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- SUPERSEDES 2026-11-05-hunt-sessions-catalogue.generated.sql (history, never
--- regenerated): every table below is rewritten wholesale. The Challenge hold
--- (lane/a-combat-bugs, 2026-10-21): every tank auto-casts the one Challenge and
--- a monster it takes is held \`holdMs\` (targeting.js), which replaces the
--- leader-only clock chalMs in the unit's persisted fields, so hr_hunt_world_shape
--- (shape, fields) moves. Every other row is the 11-05 file's.
--- Apply right after 2026-11-05-hunt-sessions-catalogue.generated.sql.
+-- SUPERSEDES 2026-11-06-hunt-sessions-catalogue.generated.sql (applied; history,
+-- never regenerated): every table below is rewritten wholesale. THE PLAYER PICKS
+-- THE STORE ITEM (Tyler 2026-10-19; lane b-supplies-bury, 2026-10-21): the store
+-- rows carry no \`tiers\` and hr_hunt_travel no \`tier\` (no hunt tier picks a
+-- store row: the bar slot names it), and the Plain Fire Rune joins the store
+-- (designer 2026-10-21: 8 g a cast, so Flame Strike and Flame Volley cast once
+-- the carried Fire Runes are gone). Every other row is the 11-06 file's.
+-- Apply after 2026-11-07-store-by-slot.sql (it restates the tier's last readers;
+-- the precondition below refuses this file until it has).
+
+-- ── PRECONDITION: nothing still reads the columns this file drops ──
+do $$
+begin
+  if exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace
+              and p.proname in ('hr_hunt_member_read', 'hr_hunt_settle_session')
+              and (p.prosrc like '%q.tiers%' or p.prosrc like '%b.tiers%' or p.prosrc like '%v_tier%')) then
+    raise exception 'PRECONDITION: apply 2026-11-07-store-by-slot.sql first (a hunt body still reads the store tier)'; end if;
+end $$;
 --
 -- Server-only: RLS on, NO policy, no client grant (the client reads src/data).
 -- Idempotent: delete + insert; nothing references these rows by foreign key.
@@ -564,6 +572,11 @@ create table if not exists public.hr_hunt_travel (
 -- An existing table (created by an applied catalogue) learns a walk of 0.
 alter table public.hr_hunt_travel drop constraint if exists hr_hunt_travel_travel_s_check;
 alter table public.hr_hunt_travel add constraint hr_hunt_travel_travel_s_check check (travel_s between 0 and 300 and travel_s % 10 = 0);
+-- THE STORE TIER is unread (Tyler 2026-10-19: the player's slot picks the store item;
+-- 2026-11-07-store-by-slot.sql restated its last readers before this file). Its two columns
+-- stay, written null / empty, only because the applied 2026-10-27-core-bodies.sql re-creates a
+-- LANGUAGE sql reader of them whenever it is replayed (tests/hunts-c1.mjs C1): a dropped
+-- column would make that history unreplayable. No row carries a tier (the self-check below).
 alter table public.hr_hunt_travel add column if not exists tier int;
 -- THE SPAWN CYCLE of the single-foe engine lived here (pull_size, respawn_ms);
 -- a hunt's cycle is its GROUND now (hr_hunt_grounds, the world's packs).
@@ -588,9 +601,10 @@ create table if not exists public.hr_hunt_basic_supplies (
   partner  text not null check (partner ~ '^[a-z0-9_]{1,64}$'),
   heals    int  not null check (heals >= 0),
   mana     int  not null check (mana >= 0),
-  price    bigint not null check (price between 1 and 1000000000),
-  tiers    int[] not null
+  price    bigint not null check (price between 1 and 1000000000)
 );
+alter table public.hr_hunt_basic_supplies add column if not exists tiers int[];
+alter table public.hr_hunt_basic_supplies alter column tiers set default '{}'::int[];
 create table if not exists public.hr_hunt_cover_items (
   item_id text primary key check (item_id ~ '^[a-z0-9_]{1,64}$'),
   unit    bigint not null check (unit >= 1)
@@ -706,7 +720,7 @@ delete from public.hr_hunt_supplies;
 insert into public.hr_hunt_supplies (item_id, kind, essential, heals, buff_type) values
 ${supplyValues};
 delete from public.hr_hunt_basic_supplies;
-insert into public.hr_hunt_basic_supplies (basic_id, kind, partner, heals, mana, price, tiers) values
+insert into public.hr_hunt_basic_supplies (basic_id, kind, partner, heals, mana, price) values
 ${basicValues};
 delete from public.hr_hunt_cover_items;
 ${r.cover.length ? `insert into public.hr_hunt_cover_items (item_id, unit) values
@@ -746,7 +760,7 @@ insert into public.hr_hunt_world_shape (id, version, shape, fields) values (true
 delete from public.hr_premium_login_reward;
 insert into public.hr_premium_login_reward (id, item_id, qty) values (true, ${r.login.item ? sq(r.login.item) : 'null'}, ${r.login.qty});
 delete from public.hr_hunt_travel;
-insert into public.hr_hunt_travel (hunt_id, travel_s, training, tier) values
+insert into public.hr_hunt_travel (hunt_id, travel_s, training) values
 ${travelValues};
 delete from public.hr_hunt_limits;
 insert into public.hr_hunt_limits (key, value) values
@@ -795,7 +809,8 @@ begin
      or (select count(*) from public.hr_hunt_vendor_value) <> ${r.vendor.length}
      or (select count(*) from public.hr_hunt_basic_supplies) <> ${r.basics.length}
      or (select count(*) from public.hr_hunt_cover_items) <> ${r.cover.length}
-     or (select count(*) from public.hr_hunt_travel where tier is null) <> 0
+     or exists (select 1 from public.hr_hunt_basic_supplies where cardinality(coalesce(tiers, '{}'::int[])) > 0)
+     or exists (select 1 from public.hr_hunt_travel where tier is not null)
      or (select count(*) from public.hr_hunt_target_modes) <> ${r.targets.length}
      or (select count(*) from public.hr_hunt_resumable_kinds) <> ${r.resumable.length}
      or (select count(*) from public.hr_hunt_lanes) <> ${r.lanes.length}
@@ -889,9 +904,8 @@ function selftest() {
     'no stamina cap': () => ({ stamina: { free: 0, premium: 0 } }),
     'a store supply that is an item': () => ({ basics: [...BASIC_SUPPLIES, { ...BASIC_SUPPLIES[0], id: 'cooked_shrimp' }] }),
     'a store price that is not whole gold': () => ({ basics: BASIC_SUPPLIES.map((b, i) => (i ? b : { ...b, price: 2.5 })) }),
-    'two store heals for one tier': () => ({ basics: BASIC_SUPPLIES.map((b, i) => (i === 1 ? { ...b, tiers: [1] } : b)) }),
+    'a store row served by hunt tier': () => ({ basics: BASIC_SUPPLIES.map((b, i) => (i === 1 ? { ...b, tiers: [1] } : b)) }),
     'a store shot whose partner is no ammo': () => ({ basics: BASIC_SUPPLIES.map((b) => (b.kind === 'ammo' ? { ...b, partner: 'cooked_shrimp' } : b)) }),
-    'a named hunt with no tier': () => ({ huntTiers: {} }),
     'a supply source with no mine': () => ({ supplySource: { modes: ['store'], default: 'store' } }),
     'an on-empty default that ends the hunt': () => ({ onEmpty: { modes: ['switch', 'end'], default: 'end' } }),
     'an on-empty choice with no end opt-in': () => ({ onEmpty: { modes: ['switch'], default: 'switch' } }),

@@ -3555,6 +3555,15 @@ jobs:
           node tools/mutant-gate.mjs node tests/supplies-catalogue.mjs --selftest
           node tests/supplies-catalogue.mjs
 
+      # REFUSAL WORDS (Andy live 10-21: "Not done. The server refused it." on a
+      # requirement the server named): every code a client RPC, the edge or the
+      # client can answer with reads as plain words from ONE table.
+      - name: Refusal words - every refusal code reads in plain English
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/refusal-words.mjs --mutate
+          node tests/refusal-words.mjs
+
 
       # NO CLIENT XP MINT (b521): the same shape as the farm guard, one rung up.
       # buryBones() was `removeItem + addXp('prayer', …)` with no intent, no RPC

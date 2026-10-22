@@ -6,8 +6,20 @@ import homeCottage from './home_cottage.js?v=0.2.27';
 import millraceSewer from './millrace_sewer.js?v=0.2.27';
 import meadowbrookThicket from './meadowbrook_thicket.js?v=0.2.27';
 import coppercapWarrens from './coppercap_warrens.js?v=0.2.27';
+import mosslightGlade from './mosslight_glade.js?v=0.2.27';
 
 export const WORLD_MAPS = Object.freeze([millCellar, townCommon, homeCottage, millraceSewer, meadowbrookThicket, coppercapWarrens]);
+
+/* STAGED MAPS: a staged hunt's map (src/data/hunts.js `staged`): its grid is authored and walked by the
+   engine, its painted ground art is not done yet. No client draws it (src/world reads WORLD_MAPS only);
+   tests/world-core.mjs lints it like any map except for the ground art. It moves to WORLD_MAPS, and its
+   hunt loses `staged`, when the art lands (tests/hunt-core/forest-cave.mjs staged-until-art). */
+export const STAGED_MAPS = Object.freeze([mosslightGlade]);
+
+/** The row of map `id`, shipped or staged, or null: the engine's grid reader (src/core/hunt-ground.js). */
+export function mapRowOf(id) {
+  return WORLD_MAPS.find((m) => m.id === id) || STAGED_MAPS.find((m) => m.id === id) || null;
+}
 
 /** The map a non-hunt scene shows: the viewer's own choice of town or home. */
 export const SCENE_MAPS = Object.freeze({ town: 'town_common', home: 'home_cottage' });

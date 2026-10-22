@@ -49,11 +49,14 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
 /* THE PRACTICE KIT (lane b-hero-creation, 2026-10-20): 2026-10-27-core-catalogue.generated.sql is APPLIED
    history; the nine practice_* items and the start kit that grants them (every starter weapon set) land in
    this forward file, the same full delete+insert replace. */
-/* THE ARMOUR CLASS (lane c-armour-class, 2026-10-21): 2026-11-02-hero-kit-catalogue.generated.sql is APPLIED
-   history; sixteen armour rows that carried no armourClass (iron/steel plate and helm, bronze belt, leather
-   boots and gloves, nine uniques) gain their armour_weight, so iron plate no longer gives less max HP than
-   bronze. Same full delete+insert replace; the self-check asserts no armour-slot armour row is weightless. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2026-11-09-armour-class-catalogue.generated.sql');
+/* THE IMBUEMENT SLOT (lane c-loot-loop, 2026-10-21): 2026-11-09-armour-class-catalogue.generated.sql is
+   APPLIED history (sixteen armour rows gained their armour_weight; its self-check asserts no armour-slot
+   armour row is weightless). The eleven imbuement items (src/data/imbuements.js) land in this forward file,
+   which applies AFTER it and carries those weights: the same full delete+insert replace. */
+/* MOSSLIGHT GLADE (lane c-ground-16-31, 2026-10-21): 2026-11-08-loot-catalogue.generated.sql is history (STAGED before it);
+   the glade's five imbuement items and Rook's Whistle (hr_items), and its five monsters' activities, land in this forward
+   file, after it and carrying the same armour weights: the same full delete+insert replace. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2026-11-12-loot-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already

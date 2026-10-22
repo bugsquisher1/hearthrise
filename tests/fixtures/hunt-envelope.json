@@ -75,6 +75,7 @@
   },
   "hunt_settings": {
     "preset": 0,
+    "role": "tank",
     "presets": [
       {
         "preset": 0,
@@ -94,6 +95,27 @@
     "supply_source": "mine",
     "on_empty": "switch",
     "gold_floor": 300,
+    "store": [
+      { "id": "plain_barbed_arrows", "kind": "ammo", "partner": "barbed_arrows", "heals": 0, "mana": 0, "price": 2 },
+      { "id": "plain_iron_bolts", "kind": "ammo", "partner": "iron_bolts", "heals": 0, "mana": 0, "price": 2 },
+      { "id": "plain_steel_arrows", "kind": "ammo", "partner": "steel_arrows", "heals": 0, "mana": 0, "price": 4 },
+      { "id": "plain_fire_rune", "kind": "ammo", "partner": "fire_rune", "heals": 0, "mana": 0, "price": 8 },
+      { "id": "plain_mithril_arrows", "kind": "ammo", "partner": "mithril_arrows", "heals": 0, "mana": 0, "price": 8 },
+      { "id": "plain_rune_arrows", "kind": "ammo", "partner": "rune_arrows", "heals": 0, "mana": 0, "price": 12 },
+      { "id": "plain_emberhead_arrows", "kind": "ammo", "partner": "emberhead_arrows", "heals": 0, "mana": 0, "price": 18 },
+      { "id": "plain_dawnpoint_arrows", "kind": "ammo", "partner": "dawnpoint_arrows", "heals": 0, "mana": 0, "price": 24 },
+      { "id": "salted_shrimp", "kind": "heal", "partner": "cooked_shrimp", "heals": 72, "mana": 0, "price": 14 },
+      { "id": "salted_trout", "kind": "heal", "partner": "cooked_trout", "heals": 120, "mana": 0, "price": 40 },
+      { "id": "salted_lobster", "kind": "heal", "partner": "cooked_lobster", "heals": 216, "mana": 0, "price": 180 },
+      { "id": "salted_swordfish", "kind": "heal", "partner": "cooked_swordfish", "heals": 288, "mana": 0, "price": 432 },
+      { "id": "salted_shark", "kind": "heal", "partner": "cooked_shark", "heals": 396, "mana": 0, "price": 693 },
+      { "id": "thin_turnip_juice", "kind": "mana", "partner": "turnip_juice", "heals": 0, "mana": 72, "price": 10 },
+      { "id": "thin_carrot_juice", "kind": "mana", "partner": "carrot_juice", "heals": 0, "mana": 120, "price": 18 },
+      { "id": "thin_tomato_juice", "kind": "mana", "partner": "tomato_juice", "heals": 0, "mana": 216, "price": 45 },
+      { "id": "thin_pumpkin_cider", "kind": "mana", "partner": "pumpkin_cider", "heals": 0, "mana": 288, "price": 80 },
+      { "id": "thin_goldenroot_tea", "kind": "mana", "partner": "goldenroot_tea", "heals": 0, "mana": 396, "price": 138 },
+      { "id": "thin_emberfruit_cordial", "kind": "mana", "partner": "emberfruit_cordial", "heals": 0, "mana": 480, "price": 233 }
+    ],
     "slots": [
       {
         "action": {

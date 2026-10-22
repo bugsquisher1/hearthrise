@@ -57,6 +57,7 @@ import { leaveAskOf, pendingLeaveAt, leaveCountdown, closeInMs } from './hunt-le
 import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.27';
 import { createIntentLedger } from './intent-ledger.js?v=0.2.27';
 import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.27';
+import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.27';
 
 export const FRAME_EVENT = 'frame';
 
@@ -200,12 +201,12 @@ export class CharacterSession {
     if (sid !== null) this._huntSid = sid;
     this._liveFrom(body);
     /* ONE POSITION SOURCE: while a prediction exists, even one out of seeds waiting for its restart,
-       the server's window never writes the same units (its steps are the past, played over the
-       prediction's: two sources bouncing one hero). */
+       the server's window never writes the same units (its steps are the past, played over the prediction's:
+       two sources bouncing one hero). Only its SERVER-ONLY events (a party's rare roll) come from it. */
     if (this.live.running() || this.live.stalled()) {
-      const ms = Number.isSafeInteger(body.hunt_server_now_ms) ? body.hunt_server_now_ms
-        : typeof body.now === 'string' ? Math.floor(Date.parse(body.now)) : NaN;
-      if (Number.isSafeInteger(ms)) this.timeline.ingest({ serverNowMs: ms }, this._now());
+      const ms = Number.isSafeInteger(body.hunt_server_now_ms) ? body.hunt_server_now_ms : typeof body.now === 'string' ? Math.floor(Date.parse(body.now)) : NaN;
+      const own = Array.isArray(body.hunt_events) ? body.hunt_events.filter((e) => e && SERVER_ONLY_EVENTS.includes(e.type)) : [];
+      if (Number.isSafeInteger(ms) || own.length) this.timeline.ingest({ serverNowMs: ms, events: own }, this._now());
       return;
     }
     if (Array.isArray(body.hunt_track) || Array.isArray(body.hunt_events)) {
@@ -470,9 +471,12 @@ export class CharacterSession {
     if (ans.ok && ans.body && ans.body.ok === true) { if (!(carries && this._take(ans.body, 'load'))) await this.load(); return { ok: true }; }
     const b = ans.body && typeof ans.body === 'object' ? ans.body : {};
     /* The server's validation detail (which slot, which condition, which field) goes back to the editor as sent. */
+    /* The item a refusal names (hr_apply's detail, one level down on an edge refusal): "Needs Defense 20". */
+    const d = b.detail && typeof b.detail === 'object' ? b.detail : {};
+    const item = [d.item_id, d.detail && d.detail.item_id, b.item_id].find((x) => typeof x === 'string' && ITEM.test(x)) || null;
     return { ok: false, error: (typeof b.error === 'string' && b.error) || ans.error || 'refused',
       slot: Number.isInteger(b.slot) ? b.slot : null, condition: Number.isInteger(b.condition) ? b.condition : null,
-      field: typeof b.field === 'string' ? b.field.slice(0, 32) : null };
+      field: typeof b.field === 'string' ? b.field.slice(0, 32) : null, item };
   }
 
   _answerFailed(ans) {

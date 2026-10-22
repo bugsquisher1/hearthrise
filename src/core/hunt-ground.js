@@ -23,13 +23,13 @@
 // ============================================================================
 
 import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.27';
-import { WORLD_MAPS } from '../data/world/maps/index.js?v=0.2.27';
+import { mapRowOf } from '../data/world/maps/index.js?v=0.2.27';
 import { MATERIALS } from '../data/world/terrain.js?v=0.2.27';
 import { makeGrid } from './hunt/grid.js?v=0.2.27';
 
-/** The walkable grid of world map `mapId` (materials only), or null. */
+/** The walkable grid of world map `mapId` (materials only), shipped or staged (maps/index.js), or null. */
 export function gridOfMap(mapId) {
-  const map = WORLD_MAPS.find((m) => m.id === mapId);
+  const map = mapRowOf(mapId);
   if (!map || !Array.isArray(map.rows) || !map.rows.length) return null;
   const solid = (x, y) => {
     const mat = MATERIALS[map.legend[map.rows[y][x]]];

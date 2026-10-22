@@ -77,7 +77,7 @@ function tipFor(ctx, st, li) {
 /* ── The intents ── */
 function send(st, repaint, fn, busy, done) {
   st.sc.menu = null;
-  return runIntent(st.sc, repaint, fn, busy, done);
+  return runIntent(st.sc, repaint, fn, busy, done, st.cs);
 }
 
 function goldNow(cs) { const s = cs.read('state'); return s && Number.isSafeInteger(s.gold) ? s.gold : null; }

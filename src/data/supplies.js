@@ -192,6 +192,14 @@ export const BAG_GUIDE_BY_HUNT = Object.freeze({
     melee: melee('cooked_swordfish', 60),
     ranged: ranged('cooked_swordfish', 60, 'barbed_arrows', 5100),
     magic: magic('cooked_swordfish', 80, 'carrot_juice', 40, 'earth_rune', 4300) }),
+  /* Mosslight Glade (lane c-ground-16-31; STAGED), PLAYED on the real settle (tests/hunt-core/forest-cave.mjs
+     glade-solo-floor, six seeds): a solo Melee at the floor in the smiths' iron eats 150-250 g of store heals an
+     hour, the Thicket's leather graduate about 1,000 g; three hours of the graduate's eating in tier-2 food.
+     The ranged and magic bags are the tier-2 guide's shape, UNVERIFIED (not played). */
+  mosslight_glade: Object.freeze({ tier: 2,
+    melee: melee('cooked_trout', 90),
+    ranged: ranged('cooked_trout', 100, 'bronze_arrows', 0),
+    magic: magic('cooked_trout', 100, 'carrot_juice', 45, 'air_rune', 0) }),
 });
 
 /* A single-monster fight is guided by its monster's tier (melee measured:

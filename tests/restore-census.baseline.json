@@ -33,7 +33,7 @@
   "Classifications are AUTHORED, never generated — deciding what a restore owes",
   "a table is a judgement, and --write preserves whatever is already here."
  ],
- "generated": "2026-10-21",
+ "generated": "2026-10-22",
  "production": {
   "measured": "2026-08-30",
   "project": "nezapsylztqbbwuwembx (hearthrise-testing, Postgres 17.6, us-west-2, Micro compute)",
@@ -762,7 +762,7 @@
   },
   "hr_activities": {
    "class": "seeded",
-   "replay": 290,
+   "replay": 295,
    "note": "Generated from src/data/*.js by tools/gen-catalogues.mjs; content guarded by --check as a smoke preflight. 344 rows on 2026-08-15, 508 now. Rebuilt from repo, never restored."
   },
   "hr_blessing_rule": {
@@ -938,12 +938,12 @@
   },
   "hr_hunt_action_ids": {
    "class": "seeded",
-   "replay": 51,
+   "replay": 60,
    "note": "Catalogue (2026-10-25-action-conditions.sql §1, rows pinned equal to src/data by tests/hunt-core/conditions.mjs sql-rows): the consume and attack_with_item ids a slot may name (condition-metrics.js CONSUME_KINDS, consumables.js own rows, supplies.js ammo). Rebuilt from repo, never restored; nothing player-owned. If it came back empty every conditional bar edit is refused (catalogue_missing / bad_metric), loud, never a wrong grant."
   },
   "hr_hunt_basic_supplies": {
    "class": "seeded",
-   "replay": 18,
+   "replay": 19,
    "note": "Generated catalogue (2026-10-22-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check): the store's per-use supplies (src/data/supply-basics.js). Rebuilt from repo, never restored."
   },
   "hr_hunt_boss_reward": {
@@ -1004,7 +1004,7 @@
   },
   "hr_hunt_kill_bounds": {
    "class": "seeded",
-   "replay": 129,
+   "replay": 134,
    "note": "Generated catalogue (2026-10-22-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check): the most one kill of each monster can pay (gold, XP, drops), read by the value bound (2026-10-22-hunt-sessions-value-bound.sql). Rebuilt from repo, never restored."
   },
   "hr_hunt_lanes": {
@@ -1065,12 +1065,12 @@
   },
   "hr_hunt_travel": {
    "class": "seeded",
-   "replay": 115,
+   "replay": 120,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): every hunt a session may be entered on: the 4 named hunts and the 94 non-boss, non-champion training monsters, with their walk time. An EMPTY rebuild refuses every enter (unknown_hunt, fail closed). Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_vendor_value": {
    "class": "seeded",
-   "replay": 480,
+   "replay": 497,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): the vendor bid per item (vendorPriceOf), read only by hr_hunt_analyzer for Gold-at-vendor-value and Waste. Moves no value. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_weapon_roles": {
@@ -1110,7 +1110,7 @@
   },
   "hr_items": {
    "class": "seeded",
-   "replay": 500,
+   "replay": 517,
    "note": "Generated catalogue — the market tradeable allowlist and every item's server-side truth. 426 rows on 2026-08-15, 515 on 2026-09-06, 519 now (+4 Hearthfind trophies, 2026-09-08). Content digest guarded by tools/gen-catalogues.mjs --check as a smoke preflight."
   },
   "hr_kill_credit_log": {

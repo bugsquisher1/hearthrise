@@ -16,14 +16,17 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-export const EVENT_VERSION = 3;
+export const EVENT_VERSION = 4;
 
 /* type → its required fields. `u` acts, `t` is acted on (unit ids). */
 export const EVENT_TYPES = Object.freeze({
   /* the span (combat-sim.js simulateHuntSpan) */
   ended: Object.freeze(['reason']),
   death: Object.freeze(['monster', 'xpLost']),
-  rare_drop: Object.freeze(['item']),
+  rare_drop: Object.freeze(['item']),   // hunt-rewards.js: u the owner (server-only, SERVER_ONLY_EVENTS)
+  /* party-split.js rareRoll via hunt-rewards.js: a rare unit's roll in a party (u the winner; rolls / reroll { unit: n }).
+     SERVER-ONLY: it is drawn on the `r` stream the browser never holds (SERVER_ONLY_EVENTS). */
+  rare_roll: Object.freeze(['u', 'item', 'rolls']),
   slot_dry: Object.freeze(['item']),
   /* leash.js / pull-cycle.js */
   pack_reset: Object.freeze(['pocket']),
@@ -60,6 +63,11 @@ export const EVENT_TYPES = Object.freeze({
   /* a rule whose conditions held but whose action could not happen (why: conditions.js WAIT_WHY) */
   rule_wait: Object.freeze(['u', 't', 'rule', 'why']),
 });
+
+/* THE SERVER-ONLY EVENTS: drawn on the loot stream (`r`) the browser's prediction runs on a
+   constant, so the live view never shows its own copy (src/hunt-view/live-engine.js drops them)
+   and takes the server's from each answer instead (src/session/character-session.js). */
+export const SERVER_ONLY_EVENTS = Object.freeze(['rare_roll', 'rare_drop']);
 
 const isPrim = (v) => v === null || ['string', 'number', 'boolean'].includes(typeof v);
 const isFieldValue = (v) => isPrim(v) || (v && typeof v === 'object' && !Array.isArray(v) && Object.values(v).every(isPrim));

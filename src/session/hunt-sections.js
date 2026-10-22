@@ -94,22 +94,26 @@ function conditionOf(c) {
 }
 
 /* One bar slot: the server's action + conditions (the wire shape the editor sends back,
-   src/data/condition-metrics.js), plus its display fields (usable, mana, count). */
+   src/data/condition-metrics.js), plus its display fields (usable, why, mana, count). */
 function slotOf(s) {
   if (!isObj(s) || !isObj(s.action) || !ACTION.test(String(s.action.type)) || !str(s.action.id)) return { empty: true };
   const conditions = list(s.conditions, conditionOf, 4);
   return {
     /* `id`: the rule's STABLE id (the server's; the hunt summary names a decision by it). */
-    empty: false, id: str(s.id), item: s.action.id, action: { type: s.action.type, id: s.action.id },
+    empty: false, id: str(s.id), item: s.action.id,
+    /* `store`: the store row the PLAYER chose to back this slot (Tyler 2026-10-19), when it names one. */
+    action: Object.assign({ type: s.action.type, id: s.action.id }, str(s.action.store) ? { store: s.action.store } : {}),
     conditions, join: JOIN.test(String(s.join)) ? s.join : 'and',
     usable: s.usable !== false, mana: int(s.mana), count: int(s.count),
+    /* WHY THE SERVER STRUCK IT (hr_hunt_settings_view): none_left (own stock gone) | store_off; null when it can fire. */
+    why: str(s.why),
   };
 }
 
 /** A slot back in the wire shape (null = empty), for an intent that restates the bar. */
 export function wireSlot(s) {
   if (!s || s.empty) return null;
-  return { action: { type: s.action.type, id: s.action.id },
+  return { action: Object.assign({ type: s.action.type, id: s.action.id }, s.action.store ? { store: s.action.store } : {}),
     conditions: s.conditions.map((c) => Object.assign({ metric: c.metric, op: c.op, value: c.value }, c.subject ? { subject: c.subject } : {})),
     join: s.join };
 }
@@ -133,7 +137,18 @@ export function settingsOf(cs) {
     stopRules: list(s.stop_rules, (r) => (isObj(r) && Array.isArray(r.conditions) ? { conditions: list(r.conditions, conditionOf, 4), join: JOIN.test(String(r.join)) ? r.join : 'and', forMs: int(r.forMs) || 0 } : null), 3),
     grounds: list(s.grounds, (g) => str(g), 32),
     slots: Array.isArray(s.slots) ? s.slots.slice(0, 20).map(slotOf) : [],
+    /* The bar as the player SAVED it (hunt_settings.bar; empty for a new hero, whose shown bar is the start kit's). */
+    storedBar: Array.isArray(s.bar) ? s.bar.slice(0, 20).filter(isObj) : [],
+    /* THE STORE the slots may buy from, as the SERVER prices it (hr_hunt_basic_supplies via
+       hr_hunt_settings_view): every number the Configure action picker shows comes from here. */
+    store: list(s.store, storeRowOf, 64),
   };
+}
+
+/* One store row: { id, kind, partner, amount (HP or mana a use; 0 for ammo), price (gold a use) }. */
+function storeRowOf(b) {
+  if (!isObj(b) || !str(b.id) || !['heal', 'mana', 'ammo'].includes(b.kind) || !(int(b.price) > 0)) return null;
+  return { id: b.id, kind: b.kind, partner: str(b.partner), amount: b.kind === 'heal' ? int(b.heals) || 0 : b.kind === 'mana' ? int(b.mana) || 0 : 0, price: b.price };
 }
 
 /* The outfit a member wears, as the party section names it ({ id, colors }: 2026-11-04-party-outfits.sql,

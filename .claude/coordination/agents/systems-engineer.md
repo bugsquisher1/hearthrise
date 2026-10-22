@@ -4199,6 +4199,16 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 3. *A rule id must be what the player sees.* Defaults are placed in the first empty tablet on both sides (engine placeDefaults, SQL settings view), so a decision event's rule id is the tablet index.
 4. *HP scaling moves every pinned kill rate.* Re-pin with the rate measured and the ruled hours kept, never the other way round.
 
+## 2026-10-21 · lane/b-supplies-bury (store-by-slot, rune store, bury, refusal words, Configure action)
+1. *A dropped column makes history unreplayable.* `hunts-c1` C1 re-applies 2026-10-27-core-bodies.sql, whose LANGUAGE sql `hr_hunt_member_read` reads `hr_hunt_travel.tier`; the catalogue keeps both tier columns unwritten instead (schema digest unchanged).
+2. *A slot-order fallback needs a deferred gold_out.* An unaffordable store food marks gold_out only when no consume slot fed the hero this step; marking at the first refusal ended hunts a later own-stock slot would have fed.
+3. *Fixtures that relied on "Any food" died silently.* hunt-fixture, the settle arms and settle-hooks now name their food in a slot; a default threshold change (60%) moves economy guards (forest-cave net chain).
+4. *Python text-mode writes CRLF on Windows*; mutant anchors with "\n" then miss. Edit with node or newline=''.
+
+## 2026-10-21 · lane/a-rare-roll (party rare roll, Tyler L8)
+1. *A world field drawn on the loot stream diverges the live hash.* `rareWon` rides the world (both paths identical), but the browser runs `r` on a constant, so a party's real rare re-seeds the viewed prediction once (eased). Never hash-exclude a field to hide that; it is once per 10-20 h.
+2. *Server-only events need two seams.* The prediction filters SERVER_ONLY_EVENTS (events.js) out of its feed, and character-session ingests exactly those from the server's answer while live; otherwise a live viewer never sees them.
+3. *A new world field moves hr_hunt_world_shape.* Regenerate the STAGED hunt-sessions catalogue in the same lane; the edge deploy and that apply go together.
 
 ## 2026-10-21 · lane/a-firefox-perf (hunt page perf in Firefox/Chromium, analyzer clock, party death)
 1. *A page harness that shifts the engine's clock must shift EVERY instant.* World cooldowns, lanes and pack respawns (and a peer's frozen session) hid past 1e12 inside the start point; shifting only the top-level fields made every party prediction diverge in the harness and looked like a real bug. Shift every number past 1e12 and re-hash the world.

@@ -1,6 +1,6 @@
 // tests/hunt-core/consumables.mjs — src/core/hunt/consumables.js + src/data/consumables.js
 // (spec §3.4; parity CO-01..CO-08; the one resolver src/core/action-rules.js resolveLine). Run by run-all.mjs.
-import { suiteH4, oneHero, steps, supplySession, STORE_FOOD } from './fixtures/h4.js';
+import { suiteH4, oneHero, steps, supplySession, STORE_FOOD, STORE_DRINK } from './fixtures/h4.js';
 import { spanFixture, runSpan, member, T0 } from './fixtures/h1.js';
 
 const consume = (M) => (inst, sc) => M.consumables.consume(inst, sc);
@@ -56,12 +56,14 @@ const cases = {
     if (hs.purse !== 1000 - 15 || hs.tally.bought[STORE_FOOD] !== 1 || hs.tally.supplies.cooked_shrimp !== 1) return 'the ledger split is wrong: purse ' + hs.purse + ' ' + JSON.stringify(hs.tally);
     return null;
   },
-  /* THE CONFIGURED STORE SLOT (Configure action, lane b-condition-builder): a player's slot "Any food IF
-     My HP % at or below 80" eats the own stack first, free; once it is gone the SAME slot, under the SAME
-     condition, buys the tier's store food at the server catalogue's price; above 80% nothing fires at all. */
+  /* THE SLOT ORDER IS THE FALLBACK (Tyler 2026-10-21, designer-confirmed): slot 1 names the own Cooked Shrimp,
+     slot 2 the store's food, both "My HP % at or below 80". Slot 1 eats the own stack, free; once it is gone
+     slot 1 is out of stock and slot 2 buys the store food at the catalogue's price; above 80% nothing fires. */
   'configured-store-slot': (M) => {
     const hs = supplySession(M, { bag: { cooked_shrimp: { loaded: 1 } }, purse: 1000 });
-    const slots = M.conditions.heroSlots([{ action: { type: 'consume', id: 'food' }, conditions: [{ metric: 'self_hp_pct', op: 'lte', value: 80 }], join: 'and' }], null);
+    const at80 = [{ metric: 'self_hp_pct', op: 'lte', value: 80 }];
+    const slots = M.conditions.heroSlots([{ action: { type: 'consume', id: 'cooked_shrimp' }, conditions: at80, join: 'and' },
+      { action: { type: 'consume', id: STORE_FOOD }, conditions: at80, join: 'and' }], null);
     const { h, inst, sc } = oneHero(M, { hp: 85 }, { hs, slots });
     M.consumables.consume(inst, sc);
     if (eats(sc).length) return 'the slot fired above its condition (85% HP, condition at or below 80%)';
@@ -77,6 +79,23 @@ const cases = {
     if (!second || second.source !== 'store' || second.item !== STORE_FOOD || second.gold !== price) return 'out of own stock, the slot did not buy the store food at its price: ' + JSON.stringify(second);
     if (hs.purse !== 1000 - price || hs.tally.bought[STORE_FOOD] !== 1) return 'the purse or the tally is wrong: purse ' + hs.purse + ' ' + JSON.stringify(hs.tally);
     return null;
+  },
+  /* A FOOD THE PURSE CANNOT BUY ENDS THE HUNT ONLY WHEN NO SLOT CAN FEED (lane b-supplies-bury): slot 1 names
+     the store's food, the purse is short of it, slot 2 names the own Cooked Shrimp. Slot 2 eats and the hunt goes
+     on; with the shrimp gone and still no gold, the hunt ends gold_out. */
+  'short-store-slot-falls-through': (M) => {
+    const hs = supplySession(M, { bag: { cooked_shrimp: { loaded: 1 } }, purse: 1 });
+    const below = [{ metric: 'self_hp_pct', op: 'lt', value: 80 }];
+    const slots = M.conditions.heroSlots([{ action: { type: 'consume', id: STORE_FOOD }, conditions: below, join: 'and' },
+      { action: { type: 'consume', id: 'cooked_shrimp' }, conditions: below, join: 'and' }], null);
+    const { h, inst, sc } = oneHero(M, { hp: 50 }, { hs, slots });
+    M.consumables.consume(inst, sc);
+    const first = eats(sc)[0];
+    if (!first || first.item !== 'cooked_shrimp' || first.source !== 'own') return 'slot 2 did not feed the hero past the unaffordable slot 1: ' + JSON.stringify(first);
+    if (hs.goldOut) return 'an unaffordable slot ended the hunt while slot 2 could still feed';
+    h.otHp = null; h.hp = 50; sc.atMs = 5000;
+    M.consumables.consume(inst, sc);
+    return hs.goldOut === true ? null : 'with no slot able to feed and no gold, the hunt did not end gold_out';
   },
   /* SLOT 1 FIRST (Tyler 10-18): two slots whose conditions both pass and that both can act — the
      earlier slot fires and the later one does not; swap their places and the other one fires. */
@@ -137,6 +156,69 @@ const cases = {
     const d = drinks(b.sc);
     if (d.length !== 2 || d[1].atMs !== lane) return 'a thirsty hero drank at ' + JSON.stringify(d.map((x) => x.atMs)) + '; the second drink must fire at ' + lane + ' while the first still ticks';
     return Array.isArray(b.h.otMana) && b.h.otMana[2] === 6 ? null : 'the second drink did not replace the over-time half: ' + JSON.stringify(b.h.otMana);
+  },
+  /* LIVE 10-21 (Andy: "make sure foods are usable while the regen potion is ticking"): a player's own bar
+     with the DRINK slot first. A drink re-fired every cooldown while mana stays low held the ONE shared
+     cooldown, so a hungry hero never ate. While the drink's over-time half lands, food goes first. */
+  'food-while-a-drink-ticks': (M) => {
+    const lane = M.CD.CONSUMABLE_RULES.laneMs;
+    const slots = M.conditions.heroSlots([
+      { action: { type: 'consume', id: STORE_DRINK }, conditions: [{ metric: 'self_mana_pct', op: 'lt', value: 90 }], join: 'and' },
+      { action: { type: 'consume', id: STORE_FOOD }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 90 }], join: 'and' }], null);
+    const { inst, sc } = oneHero(M, { hp: 10, maxHp: 100000, mana: 5, maxMana: 100000 }, { hs: supplySession(M, { purse: 1e6 }), slots });
+    for (let t = 0; t < 20000; t += 100) { sc.atMs = t; M.consumables.consume(inst, sc); }
+    const e = eats(sc).map((x) => x.atMs);
+    if (!drinks(sc).length || drinks(sc)[0].atMs !== 0) return 'the bar\'s first slot (the drink) did not fire first: ' + JSON.stringify(drinks(sc).map((x) => x.atMs));
+    if (e.length < 6) return 'a hungry hero ate ' + e.length + ' times in 20 s while its drink ticked (meals at ' + JSON.stringify(e) + ')';
+    return e.some((at, i) => i && at - e[i - 1] > 2 * lane) ? 'a gap between meals passed two cooldowns: ' + JSON.stringify(e) : null;
+  },
+  /* ONE ITEM A SLOT (Tyler 2026-10-21, designer-confirmed): a crafted item comes from the hero's own stack ONLY —
+     none left, the slot is out of stock and the NEXT slot fires (no hidden store fallback); a store item is
+     bought per use, exactly that row; "Any food" is refused in plain words, never resolved. */
+  'one-item-a-slot': (M) => {
+    const hs = supplySession(M, { purse: 1e6 });
+    hs.basics.salted_trout = { kind: 'heal', price: 40, heals: 60, mana: 0, partner: 'cooked_trout' };
+    const eat = (bar) => {
+      const x = oneHero(M, { hp: 45, maxHp: 100 }, { hs, slots: M.conditions.heroSlots(bar.map((id) => ({ action: { type: 'consume', id }, conditions: [], join: 'and' })), null) });
+      M.consumables.consume(x.inst, x.sc);
+      return eats(x.sc).map((e) => e.item + ':' + e.source).join();
+    };
+    if (eat(['salted_trout']) !== 'salted_trout:store') return 'a slot naming Salted Trout ate ' + eat(['salted_trout']);
+    if (eat(['cooked_trout']) !== '') return 'a Cooked Trout slot with none left ate ' + eat(['cooked_trout']) + ' (a hidden fallback)';
+    if (eat(['cooked_trout', STORE_FOOD]) !== STORE_FOOD + ':store') return 'slot 1 out of stock, slot 2 did not fire: ' + eat(['cooked_trout', STORE_FOOD]);
+    for (const id of ['food', 'drink']) {
+      const p = M.conditions.slotProblem({ action: { type: 'consume', id }, conditions: [], join: 'and' });
+      if (!p || p.error !== 'choose_item') return 'the retired "' + id + '" slot answered ' + JSON.stringify(p) + ', not choose_item';
+    }
+    return null;
+  },
+  /* THE RUN-OUT LINE (Tyler 2026-10-21): the use that empties the hero's own stack says so, with the slot that
+     takes over (the first slot of the same kind, in bar order, that can still supply) — an engine event the
+     server's commit carries ("Cooked Shrimp ran out: slot 2 (Salted Shrimp) takes over"); with no such slot,
+     next is null (the hunt plays on unhealed). */
+  'run-out-names-the-takeover': (M) => {
+    const run = (bar) => {
+      const hs = supplySession(M, { bag: { cooked_shrimp: { loaded: 1 } }, purse: 1e6 });
+      const x = oneHero(M, { hp: 10 }, { hs, slots: M.conditions.heroSlots(bar.map((id) => id && ({ action: { type: 'consume', id }, conditions: [], join: 'and' })), null) });
+      M.consumables.consume(x.inst, x.sc);
+      return x.sc.events.filter((e) => e.type === 'slot_dry');
+    };
+    const a = run(['cooked_shrimp', STORE_DRINK, STORE_FOOD]);
+    if (a.length !== 1 || a[0].item !== 'cooked_shrimp' || a[0].next !== STORE_FOOD || a[0].slot !== 3 || a[0].u !== 1) return 'the run-out event read ' + JSON.stringify(a);
+    const b = run(['cooked_shrimp']);
+    return b.length === 1 && b[0].next === null && b[0].slot === null ? null : 'with no slot to take over the event read ' + JSON.stringify(b);
+  },
+  /* THE STARTER BAR (Tyler 2026-10-21): a NEW hero (nothing stored) runs slot 1 Cooked Shrimp (own, the kit's 20),
+     slot 2 Salted Shrimp (store), both "My HP % below 60", slot 3 Thin Turnip Juice "My mana % below 30"; a hero
+     with anything stored runs only what it stored (the game never adds a food). */
+  'starter-bar': (M) => {
+    const bar = M.conditions.heroSlots([], 'tank').filter((r) => r.slot.action.type === 'consume')
+      .map((r) => [r.slot.action.id, r.slot.conditions.map((c) => c.metric + ' ' + c.op + ' ' + c.value).join()].join(' '));
+    const want = ['cooked_shrimp self_hp_pct lt 60', 'salted_shrimp self_hp_pct lt 60', 'thin_turnip_juice self_mana_pct lt 30'];
+    if (JSON.stringify(bar) !== JSON.stringify(want)) return 'a new hero\'s food and drink are ' + JSON.stringify(bar);
+    if (M.kit.START_INVENTORY.cooked_shrimp !== 20) return 'the kit carries ' + M.kit.START_INVENTORY.cooked_shrimp + ' Cooked Shrimp, not the 20 slot 1 eats';
+    const stored = M.conditions.heroSlots([{ action: { type: 'ability', id: 'power_strike' }, conditions: [], join: 'and' }], 'tank');
+    return stored.some((r) => r.slot.action.type === 'consume') ? 'a hero with a stored bar was given a food it never chose' : null;
   },
   /* §3.4 #4, spec §5 #10: default thresholds drink < 30%, food < 50%; per-hero settings override. */
   'thresholds': (M) => {
@@ -258,21 +340,37 @@ const mutants = [
     edits: [['src/data/consumables.js', '  instantPct: 50,', '  instantPct: 100,']] },
   { name: 'the over-time half is dropped', case: 'half-now-half-over-6s',
     edits: [['src/core/hunt/consumables.js', '      const landed = raise(u, stat, part);', '      const landed = raise(u, stat, 0);']] },
-  { name: 'the store is tried before the own stack', case: 'own-first-then-store',
-    edits: [['src/core/action-rules.js', "    if (own) return { id: own, source: 'own', price: 0 };", "    if (own && !(hs.shop && hs.shop[want])) return { id: own, source: 'own', price: 0 };"]] },
+  { name: 'a crafted slot buys its store partner when empty (the hidden fallback)', case: 'one-item-a-slot',
+    edits: [['src/core/action-rules.js', "  if (c && c.source === 'own') return leftOf(hs, want) > 0 ? { id: want, source: 'own', price: 0 } : { why: 'none' };",
+      "  if (c && c.source === 'own' && !(leftOf(hs, want) > 0) && shopShotFor(hs, want)) return { id: shopShotFor(hs, want).id, source: 'store', price: shopShotFor(hs, want).price };\n  if (c && c.source === 'own') return leftOf(hs, want) > 0 ? { id: want, source: 'own', price: 0 } : { why: 'none' };"]] },
+  { name: 'the retired Any food resolves again', case: 'one-item-a-slot',
+    edits: [['src/core/hunt/conditions.js', "  if (s.action.type === 'consume' && (s.action.id === 'food' || s.action.id === 'drink')) return { error: 'choose_item' };\n", '']] },
+  { name: 'the run-out line names no takeover', case: 'run-out-names-the-takeover',
+    edits: [['src/core/hunt/consumables.js', '    const next = takeover(hero, kind, line.id);', '    const next = null;']] },
+  { name: 'the takeover is counted among the stored rows, not the bar', case: 'run-out-names-the-takeover',
+    edits: [['src/core/hunt/consumables.js', "slot: Number.isInteger(r.at) ? r.at + 1 : null };", "slot: 1 };"]] },
+  { name: 'the starter bar forgets the store shrimp', case: 'starter-bar',
+    edits: [['src/data/start-kit.js', "  startSlot('d_food_store', 'salted_shrimp', 'self_hp_pct', 60),\n", '']] },
+  { name: 'every hero gets the starter food, not only a new one', case: 'starter-bar',
+    edits: [['src/core/hunt/conditions.js', '  const fresh = !list.some(keep);', '  const fresh = !has(\'consume\');']] },
   { name: 'an empty stack stops eating (the store never takes over)', case: 'never-stops-when-out',
-    edits: [['src/core/action-rules.js', "    if (!storeAllowed(hs, want)) return { why: 'store_off' };", "    if (hs) return { why: 'store_off' };"]] },
+    edits: [['src/core/action-rules.js', "    if (!storeAllowed(hs)) return { why: 'store_off' };", "    if (hs) return { why: 'store_off' };"]] },
   { name: 'a store use the purse cannot pay ends nothing', case: 'never-stops-when-out',
-    edits: [['src/core/hunt/consumables.js', "      if (w.why === 'gold_short') { if (w.kind === 'food') hero.hs.goldOut = true; return { why: 'gold_short' }; }", "      if (w.why === 'gold_short') return { why: 'gold_short' };"]] },
+    edits: [['src/core/hunt/consumables.js', "      if (w.why === 'gold_short') { if (w.kind === 'food') starved = true; return { why: 'gold_short' }; }", "      if (w.why === 'gold_short') return { why: 'gold_short' };"]] },
+  { name: 'the first unaffordable food ends the hunt (slot 2 never asked)', case: 'short-store-slot-falls-through',
+    edits: [['src/core/hunt/consumables.js', "      if (w.why === 'gold_short') { if (w.kind === 'food') starved = true; return { why: 'gold_short' }; }",
+      "      if (w.why === 'gold_short') { if (w.kind === 'food') hero.hs.goldOut = true; return { why: 'gold_short' }; }"]] },
   { name: 'the last slot is tried first', case: 'slot-one-first',
     edits: [['src/core/hunt/conditions.js', '  for (const row of rows) {\n    const t = testSlot(inst, u, h, row.slot);', '  for (const row of rows.slice().reverse()) {\n    const t = testSlot(inst, u, h, row.slot);']] },
   { name: 'a store use is free', case: 'configured-store-slot',
     edits: [['src/core/action-rules.js', '    hs.purse = Math.max(0, int(hs.purse, 0)) - b.price;', '    hs.purse = Math.max(0, int(hs.purse, 0));']] },
-  { name: 'the default bar drinks first (a drink starves food)', case: 'drink-never-starves-food',
-    edits: [['src/core/hunt/conditions.js', "  Object.freeze({ id: 'd_food', action: Object.freeze({ type: 'consume', id: 'food' }), conditions: Object.freeze([]), join: 'and' }),\n  Object.freeze({ id: 'd_drink', action: Object.freeze({ type: 'consume', id: 'drink' }), conditions: Object.freeze([]), join: 'and' }),",
-      "  Object.freeze({ id: 'd_drink', action: Object.freeze({ type: 'consume', id: 'drink' }), conditions: Object.freeze([]), join: 'and' }),\n  Object.freeze({ id: 'd_food', action: Object.freeze({ type: 'consume', id: 'food' }), conditions: Object.freeze([]), join: 'and' }),"]] },
+  { name: 'the starter bar drinks first (a drink starves food)', case: 'starter-bar',
+    edits: [['src/data/start-kit.js', "  startSlot('d_food', 'cooked_shrimp', 'self_hp_pct', 60),\n", ''],
+      ['src/data/start-kit.js', "  startSlot('d_drink', 'thin_turnip_juice', 'self_mana_pct', 30),\n", "  startSlot('d_drink', 'thin_turnip_juice', 'self_mana_pct', 30),\n  startSlot('d_food', 'cooked_shrimp', 'self_hp_pct', 60),\n"]] },
   { name: 'a drink waits for its running over-time half', case: 'drink-never-starves-food',
-    edits: [['src/core/hunt/consumables.js', "  const stat = CONSUMABLE_KINDS[kind].stat;\n  if (!CONSUME_KINDS[id])", "  const stat = CONSUMABLE_KINDS[kind].stat;\n  if (kind === 'drink' && u[OT_KEY[stat]]) return { kind, why: 'ticking' };\n  if (!CONSUME_KINDS[id])"]] },
+    edits: [['src/core/hunt/consumables.js', "  if (!kind) return { why: 'none' };\n  const line = resolveLine(hero.hs, action.id);", "  if (!kind) return { why: 'none' };\n  if (kind === 'drink' && u.otMana) return { kind, why: 'ticking' };\n  const line = resolveLine(hero.hs, action.id);"]] },
+  { name: 'a ticking drink keeps its bar place (food starves)', case: 'food-while-a-drink-ticks',
+    edits: [['src/core/hunt/consumables.js', '  if (!Array.isArray(u.otMana)) return rows;', '  return rows;']] },
   { name: 'the shared cooldown back at 1 s', case: 'one-shared-lane',
     edits: [['src/data/consumables.js', '  laneMs: 2000,', '  laneMs: 1000,']] },
   { name: 'food and drink each keep their own lane', case: 'one-shared-lane',
@@ -284,17 +382,17 @@ const mutants = [
   { name: 'span: food credits no heal, attended or away', case: 'span-healed-attended-and-away',
     edits: [['src/core/hunt/consumables.js', "  if (landed > 0) sc.emit(makeEvent('heal'", "  if (landed < 0) sc.emit(makeEvent('heal'"]] },
   { name: 'span: the instant half is not credited', case: 'span-healed-attended-and-away',
-    edits: [['src/core/hunt/consumables.js', "  if (stat === 'hp') healed(u, landed, line.id, sc);\n  return true;", '  return true;']] },
+    edits: [['src/core/hunt/consumables.js', "  if (stat === 'hp') healed(u, landed, line.id, sc);\n  /* The hero's own stack", "  /* The hero's own stack"]] },
   { name: 'a food heals 0', case: 'tally-healed-is-hp-restored',
     edits: [['src/core/hunt/consumables.js', '  const amount = lineAmount(hero.hs, line);', '  const amount = 0 * lineAmount(hero.hs, line);']] },
   { name: 'the over-time ticks are not credited', case: 'tally-healed-is-hp-restored',
     edits: [['src/core/hunt/consumables.js', "      if (stat === 'hp') healed(u, landed, item, sc);\n", '']] },
   { name: 'food waits for the running over-time half', case: 'food-during-over-time',
-    edits: [['src/core/hunt/consumables.js', "  const stat = CONSUMABLE_KINDS[kind].stat;\n  if (!CONSUME_KINDS[id])", "  const stat = CONSUMABLE_KINDS[kind].stat;\n  if (kind === 'food' && u[OT_KEY[stat]]) return { kind, why: 'ticking' };\n  if (!CONSUME_KINDS[id])"]] },
+    edits: [['src/core/hunt/consumables.js', "  if (!kind) return { why: 'none' };\n  const line = resolveLine(hero.hs, action.id);", "  if (!kind) return { why: 'none' };\n  if (kind === 'food' && u.otHp) return { kind, why: 'ticking' };\n  const line = resolveLine(hero.hs, action.id);"]] },
   { name: 'a second over-time half stacks on the first', case: 'food-during-over-time',
     edits: [['src/core/hunt/consumables.js', '  u[OT_KEY[stat]] = later > 0 ? [later,', '  u[OT_KEY[stat]] = later > 0 ? [later + (Array.isArray(u[OT_KEY[stat]]) ? u[OT_KEY[stat]][0] : 0),']] },
   { name: 'food waits after an ability heal', case: 'eat-right-after-a-heal',
-    edits: [['src/core/hunt/consumables.js', "  const stat = CONSUMABLE_KINDS[kind].stat;\n  if (!CONSUME_KINDS[id])", "  const stat = CONSUMABLE_KINDS[kind].stat;\n  if (kind === 'food' && Number.isInteger(u.healedAt)) return { kind, why: 'healed' };\n  if (!CONSUME_KINDS[id])"]] },
+    edits: [['src/core/hunt/consumables.js', "  if (!kind) return { why: 'none' };\n  const line = resolveLine(hero.hs, action.id);", "  if (!kind) return { why: 'none' };\n  if (kind === 'food' && Number.isInteger(u.healedAt)) return { kind, why: 'healed' };\n  const line = resolveLine(hero.hs, action.id);"]] },
   { name: 'the over-time half is not persisted', case: 'over-time-survives-a-cut',
     edits: [['src/core/hunt/consumables.js', "  unit: Object.freeze([['laneAt', 'int'], ['otHp', 'json'], ['otMana', 'json']]),",
       "  unit: Object.freeze([['laneAt', 'int'], ['otMana', 'json']]),"]] },

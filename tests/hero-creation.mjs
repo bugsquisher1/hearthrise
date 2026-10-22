@@ -98,7 +98,7 @@ export function checkClient({ cells = heroCells, text = refusalText, shop = shop
   if (!a.length) out.push('H-C1 the preview paints no cell');
   for (const r of ['name_taken', 'slot_not_owned', 'rate_limited', 'already_created']) {
     const s = text({ ok: false, reason: r });
-    if (!s || /could not be made/.test(s)) out.push(`H-C2 ${r} reads as the generic failure`);
+    if (!s || /could not be made|did not go through/.test(s)) out.push(`H-C2 ${r} reads as the generic failure`);
   }
   if (!/3 letters/.test(text({ ok: false, reason: 'bad_name', nameReason: 'short' }))) out.push('H-C2 a short name does not say why');
   // H-C3 no supplies for sale anywhere, no refill, no Restock.

@@ -176,7 +176,11 @@ export function huntSpan(state, ctx, opts) {
       + (Number((ctx.eq || {}).defB) || 0) + (Number(bonus('defense')) || 0));
     return { acc: Math.round(r.accuracy * 1000), maxHit: Math.max(1, Math.floor(r.maxHit)), def };
   };
-  const hero = heroSetup({ weaponType: o.weaponType || 'sword', options: o.options || {}, bar: o.bar || [], partyRoles: [] });
+  /* A slot names ONE item (Tyler 2026-10-21; no "Any food"): a fixture fed `food` eats it from a slot of its own,
+     at the hero's eat-at, unless its bar already names a food. */
+  const bar = (o.bar || []).slice();
+  if (o.food && !bar.some((x) => x && x.action && x.action.type === 'consume')) bar.push({ action: { type: 'consume', id: o.food }, conditions: [], join: 'and' });
+  const hero = heroSetup({ weaponType: o.weaponType || 'sword', options: o.options || {}, bar, partyRoles: [] });
   const member = {
     key: 'fixture', seat: 0, unitId: null, hs, state, fx: ctx.fx || {}, family: ctx.family || o.weaponType || 'sword',
     bonus: ctx.bonus || (() => 0), weakness: ctx.weakness || (() => ({ dropMult: 1 })), snapshot: rolls,

@@ -34,6 +34,7 @@ import { encode as encodeWorldRow, decodeStored as decodeWorldRow } from '../cor
 import { COMBAT_BALANCE } from '../core/combat.js?v=0.2.27';
 import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.27';
 import { stepCost } from '../core/hunt/grid.js?v=0.2.27';
+import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.27';
 
 /* How many swings of world hashes are kept to judge a server commit against. */
 const KEEP_HASHES = 64;
@@ -43,6 +44,8 @@ const MAX_SWINGS_PER_CALL = 64;
 const UNKNOWN_PURSE = Number.MAX_SAFE_INTEGER;
 
 const isInt = (v) => Number.isSafeInteger(v);
+/* An event drawn on the loot stream this prediction runs on a constant: never shown from here (the server's comes). */
+const predicted = (ev) => !SERVER_ONLY_EVENTS.includes(ev.type);
 const encodeWorld = (w) => JSON.stringify(encodeWorldRow(w));
 /* WHAT EACH HERO FIGHTS WITH: every member's `hero` (heroSetup: target, stance, chase, distance, the bar,
    density, thresholds), the viewer's own or a peer's frozen one, by member key. The server reads it afresh
@@ -145,7 +148,7 @@ export function createLiveEngine(o) {
       s.hashes.set(s.world.swing, worldHash(encodeWorld(s.world)));
       if (s.hashes.size > KEEP_HASHES) s.hashes.delete(s.hashes.keys().next().value);
     }
-    const tl = huntTimeline(sim.track, sim.events, at, sim.nextSwingAtMs, at, sim.units);
+    const tl = huntTimeline(sim.track, sim.events.filter(predicted), at, sim.nextSwingAtMs, at, sim.units);
     const alive = new Set();
     for (const u of (s.world ? s.world.units : [])) { if (!speeds.has(u.id)) speeds.set(u.id, u.speed); alive.add(u.id); }
     timeSteps(tl.hunt_track, (id) => speeds.get(id), s.drawn);

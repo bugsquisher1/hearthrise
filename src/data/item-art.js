@@ -352,7 +352,7 @@ export const ABILITY_ART = Object.freeze(['challenge', 'flame_strike', 'power_st
 export const SUPPLY_DIR = 'assets/icons-bundle/pixel/supplies/';
 /* Supply icons drawn before their BASIC_SUPPLIES row lands (the store rune for Flame Strike). Delete the id here
    the day its row ships: the row itself then carries it. tests/pixel-icons.mjs requires the file for each. */
-export const SUPPLY_ART_AHEAD = Object.freeze(['plain_fire_rune']);
+export const SUPPLY_ART_AHEAD = Object.freeze([]);   // plain_fire_rune's row landed (supply-basics.js)
 
 /** `<PIXEL_DIR><id>.png` for every id given. */
 export function pixelIconMap(ids) {

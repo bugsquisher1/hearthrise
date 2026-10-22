@@ -20,6 +20,10 @@
 export const PARTY = Object.freeze({
   maxSize: 4,
   lootSplit: 'even_value',
+  /* THE RARE ROLL (Tyler L8 2026-10-14): each eligible hero rolls 1..sides for a rare or a
+     relic, the highest wins, ties re-roll (at most maxRounds rounds), a winner waits until
+     everyone has won (src/core/party-split.js rareRoll). */
+  rareRoll: Object.freeze({ sides: 100, maxRounds: 64 }),
   finder: Object.freeze(['weapon_type']),
 });
 
@@ -28,6 +32,8 @@ export function validate() {
   const out = [];
   if (!Number.isInteger(PARTY.maxSize) || PARTY.maxSize < 1 || PARTY.maxSize > 5) out.push('PARTY.maxSize must be a whole 1..5');
   if (PARTY.lootSplit !== 'even_value') out.push('PARTY.lootSplit must be even_value (the only split party-split.js implements)');
+  const rr = PARTY.rareRoll;
+  if (!rr || !Number.isInteger(rr.sides) || rr.sides < 2 || !Number.isInteger(rr.maxRounds) || rr.maxRounds < 1) out.push('PARTY.rareRoll needs whole sides >= 2 and maxRounds >= 1');
   if (!PARTY.finder.every((f) => f === 'weapon_type')) out.push('PARTY.finder names a filter the server does not implement');
   return out;
 }

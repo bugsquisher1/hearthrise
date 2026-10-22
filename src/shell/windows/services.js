@@ -86,7 +86,7 @@ renderServices.patch = function patchServices(body, ctx) {
   /* BLESSINGS */
   const b = blessingsOf(cs);
   text(root.querySelector('.hw-bless-note'), !b ? 'Blessings load from the server.'
-    : 'Each blessing cuts the XP a death takes; a death uses them all up.' + (b.freeUntil ? ' Free until combat level ' + b.freeUntil + '.' : ''));
+    : 'Each blessing cuts the XP a death takes; a death uses them all up.' + (b.freeUntil ? ' Free below Level ' + b.freeUntil + '.' : ''));
   const next = b ? b.tiers.find((t) => !t.held) : null;
   rows(root.querySelector('.hw-bless'), b ? b.tiers : [], {
     key: (t) => String(t.tier),

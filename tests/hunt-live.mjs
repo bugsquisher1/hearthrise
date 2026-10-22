@@ -45,6 +45,14 @@
 //         changed while the hunt runs reach the server's next commit (the hero unit carries them);
 //         every start point keeps one setup until it changes (live-engine.js sameSetup: no restart
 //         per commit) and names the new one after (the viewed half: tests/hunt-scene-live.mjs LV-14).
+//   LV-$  THE PLAYER'S STORE FOOD (Tyler 2026-10-19: the bar slot picks the store item,
+//         never the hunt): a tank with no food of its own and an "Any food" slot naming
+//         Salted Trout buys Salted Trout and nothing else, on the server's commits (the
+//         browser closed) and in the browser's prediction (viewed), every commit matching.
+//   LV-RR THE PARTY'S RARE ROLL IS THE SERVER'S (Tyler L8; rulings: loot rolls use a server-only
+//         stream): with every monster carrying rare rows, the server's commits roll rares
+//         (`rare_roll`, each Crown Shard to its winner) and the browser's prediction, which
+//         runs the loot stream on a constant, never feeds a `rare_roll` of its own.
 //   LV-G  A LONG HUNT COSTS WHAT A SHORT ONE DOES: per settle, the server's input, stored world
 //         and engine work in a 40-min hunt's last 10 min stay within 2x its first 10 min's; the
 //         browser holds at most 2x the look-ahead in combat seeds (they grew with the hunt's age).
@@ -97,7 +105,7 @@ function memberOf(M, user, seat, role, level) {
   return {
     key: user + ':0', user, slot: 0, seat, unitId: null, sessionId: 's-' + user, version: 1, huntId: 'mill_cellar',
     huntSession: { id: 's-' + user, instanceId: 'i-live', huntFromMs: T0, nextSwingAtMs: T0, swingIndex: 0, bag: { cooked_shrimp: { loaded: 30, left: 30, essential: true } },
-      staminaMs: 8 * 3600000, staminaMaxMs: 8 * 3600000, basics, shop: { heal: M.SB.basicFor('heal', 1).id, mana: M.SB.basicFor('mana', 1).id },
+      staminaMs: 8 * 3600000, staminaMaxMs: 8 * 3600000, basics,
       goldFloor: 0, supplySource: 'mine', onEmpty: 'switch', cover: {} },
     skills: { melee: M.XP.skillXpForLevel('melee', L), defense: M.XP.skillXpForLevel('defense', L), ranged: M.XP.skillXpForLevel('ranged', L), magic: 0, prayer: 0 },
     levelXp: M.XP.charXpForLevel(L), xpFrac: null, hp: 1e6, gold: 500, equipment: { weapon }, inventory: {}, buffs: [], perks: null,
@@ -119,7 +127,7 @@ function server(M, mis, o) {
     commit(to) {
       const r = M.AC.accrueHunt({ instance: { id: inst.id, nextSwingAtMs: inst.next_swing_at_ms, world: inst.world, worldSwing: inst.world_swing },
         window: { fromMs: inst.settled_to_ms, toMs: to }, secret: SECRET, ground: where.ground, grid: where.grid,
-        items: M.ITEMS, monsters: M.MONSTERS, members: mis });
+        items: M.ITEMS, monsters: (o && o.monsters) || M.MONSTERS, members: mis });
       if (!r.accrued) return null;
       const tl = M.HT.huntTimeline(r.track, r.events, inst.settled_to_ms, r.settledTo, to, r.units);
       for (const p of r.members) {
@@ -143,7 +151,7 @@ function server(M, mis, o) {
 function run(M, mis, spanMs, opt) {
   const o = opt || {};
   const srv = server(M, mis, o.server);
-  const E = M.LE.createLiveEngine({ items: M.ITEMS, monsters: M.MONSTERS });
+  const E = M.LE.createLiveEngine({ items: M.ITEMS, monsters: (o.server && o.server.monsters) || M.MONSTERS });
   E.seed(srv.live(mis[0].user));
   const fed = { steps: [], events: [] };
   const heroesSeen = new Map();
@@ -480,6 +488,21 @@ function rules(M) {
     }
   }
 
+  { // LV-RR: the party's rare roll is drawn on the server's loot stream only
+    /* The rare rows come FIRST, so the prediction's constant loot stream (its second draw is 0.0003) rolls a
+       rare of its own on most kills: the filter, not luck, is what keeps it off the screen. */
+    const rareCat = Object.fromEntries(Object.entries(M.MONSTERS).map(([id, m]) => [id,
+      { ...m, drops: [...Array.from({ length: 10 }, () => ({ id: 'crown_shard', ch: 0.05 })), ...(m.drops || [])] }]));
+    const mis = [memberOf(M, 'a', 0, 'tank', 6), memberOf(M, 'b', 1, 'melee_dps', 6)];
+    const r = run(M, mis, 160000, { server: { monsters: rareCat } });
+    const srvRolls = r.verdicts.flatMap((x) => x.tl.hunt_events.filter((e) => e.type === 'rare_roll'));
+    const fedRolls = r.fed.events.filter((e) => e.type === 'rare_roll');
+    console.log(`  LV-RR: the server rolled ${srvRolls.length} rare(s) over ${r.verdicts.length} commits; the browser fed ${fedRolls.length} roll(s) of its own; crown shards paid ${r.srv.drops.crown_shard || 0}`);
+    ok('LV-RR', srvRolls.length > 0, 'CONTROL: the server rolled no rare in 160 s with ten 5% rows on every monster');
+    ok('LV-RR', fedRolls.length === 0, `the browser's prediction fed ${fedRolls.length} rare roll(s) drawn on its constant loot stream`);
+    ok('LV-RR', (r.srv.drops.crown_shard || 0) >= srvRolls.length, `the server paid ${r.srv.drops.crown_shard || 0} Crown Shards for ${srvRolls.length} rolls`);
+  }
+
   { // LV-G: A LONG HUNT COSTS WHAT A SHORT ONE DOES (2026-10-21, a 260-min party hunt read "freezing"). Per settle, the
     // server's input (the stored world and every member's session), its output (the world it stores) and
     // the engine's work (steps + events) in the last 10 minutes of a 40-minute Sewer duo stay within 2x the first 10
@@ -628,6 +651,27 @@ function rules(M) {
     ok('LV-R', eased > 0, 'the reseed eased no unit onto the server\'s world');
     ok('LV-R', maxStep < 0.5, `a frame moved a unit ${maxStep.toFixed(2)} tiles during the reconcile (budget: under half a tile; a teleport is >= 1)`);
   }
+  { /* LV-$ the slot ORDER is the fallback, viewed and with the browser closed */
+    const mi = memberOf(M, 'a', 0, 'tank', 6);
+    mi.huntSession = Object.assign({}, mi.huntSession, { bag: { cooked_shrimp: { loaded: 3, left: 3, essential: true } } });
+    const at95 = [{ metric: 'self_hp_pct', op: 'lt', value: 95 }];
+    mi.hero = M.SPAWN.heroSetup({ weaponType: 'sword', options: {}, partyRoles: ['tank'],
+      bar: [{ action: { type: 'consume', id: 'cooked_shrimp' }, conditions: at95, join: 'and' },
+        { action: { type: 'consume', id: 'salted_trout' }, conditions: at95, join: 'and' }] });
+    const r = run(M, [mi], 160000);
+    const meals = (evs) => evs.filter((e) => e.type === 'eat').map((e) => e.item + ':' + e.source);
+    const dry = (evs) => evs.filter((e) => e.type === 'slot_dry').map((e) => [e.item, e.next, e.slot].join(','));
+    const closedEvs = r.verdicts.flatMap((x) => x.tl.hunt_events);
+    const closed = meals(closedEvs), viewed = meals(r.fed.events);
+    const bad = r.verdicts.filter((x) => x.v !== 'match');
+    const order = (m) => { const k = m.findIndex((x) => x !== 'cooked_shrimp:own'); return k === 3 && m.slice(3).every((x) => x === 'salted_trout:store'); };
+    console.log(`  LV-$: the server ate ${closed.length} meal(s) [${[...new Set(closed)].join(', ')}], the browser predicted ${viewed.length}; run-out ${JSON.stringify(dry(closedEvs))}; ${bad.length} of ${r.verdicts.length} commits off`);
+    ok('LV-$', closed.length > 3, 'CONTROL: the tank ate ' + closed.length + ' meal(s) in 160 s, not past its 3 own shrimp');
+    ok('LV-$', order(closed), 'browser closed: slot 1 (3 own shrimp) then slot 2 (Salted Trout) did not fire in order: ' + JSON.stringify(closed));
+    ok('LV-$', order(viewed), 'viewed: the browser predicted ' + JSON.stringify(viewed));
+    ok('LV-$', JSON.stringify(dry(closedEvs)) === JSON.stringify(['cooked_shrimp,salted_trout,2']), 'the server\'s run-out event read ' + JSON.stringify(dry(closedEvs)) + ', want slot 2 (Salted Trout) taking over');
+    ok('LV-$', bad.length === 0, bad.length + ' commit(s) did not match the prediction');
+  }
   return fails;
 }
 const sorted = (o) => Object.fromEntries(Object.entries(o).sort());
@@ -637,6 +681,7 @@ const MUTANTS = [
   ['a frame step stalls 60 ms every 100 frames (LV-E budget)', 'src/session/live-link.js', '  advance(clientNow) {\n',
     '  advance(clientNow) {\n    this.__n = (this.__n || 0) + 1;\n    if (this.__n % 100 === 0) { const t = performance.now(); while (performance.now() - t < 60); }\n', /^LV-E: a frame step took/],
   ['drops rolled on the combat stream (LV-L)', 'src/core/combat-sim.js', "rng: createRng(seedOf(ctx, 'r', sw))", "rng: createRng(seedOf(ctx, 's', sw))", /^LV-L/],
+  ['the prediction shows its own rare rolls (LV-RR)', 'src/hunt-view/live-engine.js', 'sim.events.filter(predicted)', 'sim.events', /^LV-RR/],
   ['the reseed teleports (LV-R)', 'src/hunt-view/timeline.js', 'const dur = Math.max(easeMs || 250, Math.ceil(dist * EASE_MS_PER_TILE));', 'const dur = 1;', /^LV-R/],
   ['every commit reads as a match (LV-R)', 'src/hunt-view/live-engine.js', "return h === hc.world_hash ? 'match' : 'diverged';", "return 'match';", /^LV-R/],
   ['a melee hero beside its target steps to another side every repath (LV-M)', 'src/core/hunt/roles.js',
@@ -660,6 +705,9 @@ const MUTANTS = [
   ['members run in another order than the server (LV-D)', 'src/hunt-view/live-engine.js', '.slice().sort((a, b) => (a.key < b.key ? -1 : 1))', '.slice().reverse()', /^LV-D/],
   ['a setup change is not written onto a standing hero (LV-S)', 'src/core/combat-sim.js', 'if (s.stance !== undefined) u.stance = s.stance;', 'void 0;', /^LV-S/],
   ['every start point reads as the setup already run (LV-S)', 'src/hunt-view/live-engine.js', 'setupOf(live) === st.setup,', 'true,', /^LV-S/],
+  ['an empty own slot buys its store partner instead of falling to slot 2 (LV-$)', 'src/core/action-rules.js',
+    "  if (c && c.source === 'own') return leftOf(hs, want) > 0 ? { id: want, source: 'own', price: 0 } : { why: 'none' };",
+    "  if (c && c.source === 'own' && !(leftOf(hs, want) > 0) && shopShotFor(hs, want)) return { id: shopShotFor(hs, want).id, source: 'store', price: shopShotFor(hs, want).price };\n  if (c && c.source === 'own') return leftOf(hs, want) > 0 ? { id: want, source: 'own', price: 0 } : { why: 'none' };", /^LV-\$/],
   ['the browser keeps every combat seed since the hunt began (LV-G)', 'src/hunt-view/live-engine.js',
     'const keepFrom = Math.max(Math.min(st.seeds.from, from), st.world ? st.world.swing : st.worldSwing);', 'const keepFrom = Math.min(st.seeds.from, from);', /^LV-G/],
   ['corpses are never cleared from the stored world (LV-G)', 'src/core/hunt/pull-cycle.js', 'if (u.deadMs >= HUNT_TUNING.corpseMs) gone = true;', 'if (false) gone = true;', /^LV-G/],

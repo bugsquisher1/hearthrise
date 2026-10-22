@@ -11,42 +11,18 @@
 // until the server has answered and the re-read envelope has replaced
 // hunt_settings (CLAUDE.md §6). A refusal names its slot and condition.
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS, OPERATORS, MAX_CONDITIONS, CONSUME_KINDS } from '../data/condition-metrics.js?v=0.2.27';
+import { METRICS, OPERATORS } from '../data/condition-metrics.js?v=0.2.27';
 import { STATUSES } from '../data/statuses.js?v=0.2.27';
 import { BAR_SLOTS, BAR_ANSWER_MS } from '../data/hunt-hud.js?v=0.2.27';
-import { BASIC_SUPPLIES } from '../data/supply-basics.js?v=0.2.27';
+import { BASIC_INDEX } from '../data/supply-basics.js?v=0.2.27';
 import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.27';
 import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.27';
+import { ABILITIES } from '../data/abilities.js?v=0.2.27';
+import { refusalWords } from './intent-words.js?v=0.2.27';
 
 export const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
 const SCRATCH = new WeakMap();   // CharacterSession -> { open: index|null, draft, error, pending, msg }
-
-/* Plain words for the server's validation codes. */
-const REFUSAL = Object.freeze({
-  bad_option: 'The server does not take bar changes yet.',
-  bad_condition: 'The server refused this condition.',
-  bad_metric: 'The server does not know this test.',
-  bad_op: 'That comparison does not fit this test.',
-  bad_value: 'That value is out of range.',
-  bad_action: 'This slot cannot do that action.',
-  bad_subject: 'That choice does not fit this test.',
-  bad_join: 'Choose all or any.',
-  bad_slot: 'The server refused this slot.',
-  too_many_slots: 'The bar is full.',
-  too_many_conditions: 'A slot takes at most ' + MAX_CONDITIONS + ' conditions.',
-  rate_limited: 'Too many changes at once. Try again in a moment.',
-  settle_first: 'The hunt is catching up. Try again in a few seconds.',
-  network: 'No connection. Nothing was changed.',
-  timeout: 'The server has not answered. The bar shows what it last confirmed.',
-  busy: 'Still saving the last change. Try again in a moment.',
-  no_room: 'No empty slot after it to shift into.',
-});
-
-/** A refused bar intent in plain words. */
-export function barRefusalWords(code) {
-  return REFUSAL[code] || 'Not saved: the server refused it.';
-}
 
 /** This character's bar edit state (created empty on first use). */
 export function draftOf(cs) {
@@ -67,7 +43,7 @@ export function openSlot(cs, i) {
   const bar = serverBar(cs);
   s.open = Number.isInteger(i) && i >= 0 && i < SLOTS ? i : null;
   const cur = bar && s.open !== null ? bar[s.open] : null;
-  s.draft = cur ? Object.assign(JSON.parse(JSON.stringify(cur)), { join: 'and' }) : { action: { type: 'consume', id: 'food' }, conditions: [], join: 'and' };
+  s.draft = cur ? Object.assign(JSON.parse(JSON.stringify(cur)), { join: 'and' }) : { action: { type: 'consume', id: null }, conditions: [], join: 'and' };
   s.error = null;
   s.msg = '';
 }
@@ -89,7 +65,7 @@ const startValue = (m) => (m.value === 'pct' ? Math.round((m.range[0] + m.range[
  */
 export function supplyDefault(a) {
   if (!a || a.type !== 'consume') return [];
-  const kind = Object.prototype.hasOwnProperty.call(CONSUME_KINDS, a.id) ? a.id : CONSUMABLES[a.id] ? CONSUMABLES[a.id].kind : null;
+  const kind = CONSUMABLES[a.id] ? CONSUMABLES[a.id].kind : null;
   if (kind === 'food') return [{ metric: 'self_hp_pct', op: 'lt', value: CONSUMABLE_RULES.foodBelowPct }];
   if (kind === 'drink') return [{ metric: 'self_mana_pct', op: 'lt', value: CONSUMABLE_RULES.drinkBelowPct }];
   return [];
@@ -111,35 +87,63 @@ export function conditionFor(metric) {
 }
 
 /**
- * THE STORE BEHIND A SLOT (Tyler 10-18; src/core/action-rules.js "THE STORE"):
- * what the server buys per use, at its NPC price, when the slot's own stock is
- * gone and the supply setting allows it. "Any food" / "Any drink" fall back to
- * the hunting ground's tier row (the cheapest is the first grounds'; `from`
- * marks a price that rises with the tier); an ammo line falls back to its plain
- * partner; one named food or drink, a rune or an ability has no store behind it.
- * Prices are the catalogue rows the server's hr_hunt_basic_supplies is
- * generated from (tests/supplies-catalogue.mjs pins them equal).
+ * THE STORE BEHIND A SLOT (Tyler 2026-10-21, designer-confirmed: a slot names ONE
+ * item, with no hidden fallback). `rows` are the SERVER's store rows
+ * (settingsOf(cs).store, hr_hunt_basic_supplies at its price), never a client
+ * copy: with no rows read yet the answer is null. What one use buys:
+ *   a store food or drink   that row, per use (it is the slot's item)
+ *   a crafted food or drink nothing: own stock only (null)
+ *   an ammo line            its plain partner once yours are gone; the loaded ammo, the matching one
+ *   a rune spell            the store rune the slot names; with none, carried runes only
+ * { id, name, price, amount } or null.
  */
-export function storeOf(a) {
-  if (!a || !a.id) return null;
-  if (a.type === 'consume' && Object.prototype.hasOwnProperty.call(CONSUME_KINDS, a.id)) {
-    const rows = BASIC_SUPPLIES.filter((b) => b.kind === CONSUME_KINDS[a.id]);
-    const low = rows.reduce((m, b) => (!m || b.price < m.price ? b : m), null);
-    return low ? { name: a.id, price: low.price, from: rows.length > 1 } : null;
+export function storeOf(a, rows) {
+  if (!a || !a.id || !Array.isArray(rows)) return null;
+  const row = (b) => ({ id: b.id, name: storeName(b.id), price: b.price, amount: b.amount });
+  if (a.type === 'consume') { const b = rows.find((r) => r.id === a.id); return b ? row(b) : null; }
+  if (a.type === 'ability') {
+    const b = a.store ? rows.find((r) => r.id === a.store) : null;
+    return b ? row(b) : null;
   }
-  if (a.type === 'attack_with_item') {
-    if (a.id === 'loaded') return { name: 'the matching plain ammo', price: null, from: false };
-    const b = BASIC_SUPPLIES.find((r) => r.kind === 'ammo' && r.partner === a.id);
-    return b ? { name: b.n, price: b.price, from: false } : null;
-  }
-  return null;
+  if (a.type === 'attack_with_item' && a.id === 'loaded') return { id: null, name: 'the matching plain ammo', price: null, amount: 0 };
+  const b = rows.find((r) => r.partner === a.id);
+  return b ? row(b) : null;
+}
+
+/* A store row's name (a label only: every number is the server's row). */
+function storeName(id) {
+  return BASIC_INDEX[id] ? BASIC_INDEX[id].n : String(id).replace(/_/g, ' ');
+}
+
+/**
+ * A RUNE SPELL'S STORE CHOICE (designer 2026-10-21: a default bar never buys a rune
+ * unseen): "Carried runes only" (`id` null) or the rune's store row at the server's
+ * price a cast. [] for every other action (a food or drink slot names its one item).
+ */
+export function storeChoices(a, rows) {
+  if (!a || !Array.isArray(rows)) return [];
+  const rune = a.type === 'ability' && ABILITIES[a.id] ? ABILITIES[a.id].rune : null;
+  if (!rune) return [];
+  const list = rows.filter((r) => r.partner === rune).map((r) => ({ id: r.id, name: storeName(r.id), price: r.price }));
+  return list.length ? [{ id: null, name: 'Carried runes only', price: null }].concat(list) : [];
+}
+
+/** A rune choice in words: "Plain Fire Rune · 8 g a cast". */
+export function storeChoiceWords(c) {
+  return c.price === null ? c.name : c.name + ' · ' + c.price + ' g a cast';
+}
+
+/** The store choice a freshly picked rune spell starts with: its rune's store row (shown, changeable), else none. */
+export function storeDefault(a, rows) {
+  const c = storeChoices(a, rows);
+  return c.length > 1 ? c[1].id : null;
 }
 
 /** The store line in words: "then the store's, from 14 g each, paid as used". */
 export function storeWords(st) {
   if (!st) return '';
   return st.price === null ? 'then the store’s ' + st.name + ', paid as used'
-    : 'then the store’s ' + st.name + ', ' + (st.from ? 'from ' : '') + st.price + ' g each, paid as used';
+    : 'then the store’s ' + st.name + ', ' + st.price + ' g each, paid as used';
 }
 
 function valueWords(c, m) {
@@ -187,7 +191,7 @@ export async function sendBar(cs, bar, repaint, onOk) {
   const r = await answerWithin(() => cs.setHuntOptions(set.preset, { slots: bar }));
   s.pending = false;
   if (r.ok) { s.msg = ''; if (onOk) onOk(); }
-  else { s.error = r; s.msg = barRefusalWords(r.error); }
+  else { s.error = r; s.msg = refusalWords(r.error); }
   repaint();
   return r;
 }

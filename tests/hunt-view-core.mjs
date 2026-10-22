@@ -231,6 +231,34 @@ async function rules(M) {
     ok('LOG-1', byKey['i:s1:2'] && byKey['i:s1:2'].type === 'taken', 'a monster hit is damage taken');
     ok('LOG-1', byKey['i:s1:4'] && byKey['i:s1:4'].type === 'loot' && /Slime Gel/.test(byKey['i:s1:4'].text), 'a kill with loot names the loot: ' + JSON.stringify(byKey['i:s1:4']));
   }
+
+  { // LOG-2: the party's rare roll (Tyler L8) reads in plain words: each roll, a tie's re-roll, the winner.
+    const n = { name: (u) => ({ 1: 'Tyler', 2: 'Andy' })[u] || 'Someone', isHero: () => true };
+    const roll = M.L.lineOf({ key: 'k1', type: 'rare_roll', atMs: 1, u: 1, item: 'crown_shard', rolls: { 1: 87, 2: 40 } }, n);
+    ok('LOG-2', roll && roll.type === 'loot' && roll.text === 'Rare roll for the Crown Shard: Tyler 87, Andy 40. Tyler wins it.', 'a rare roll reads ' + JSON.stringify(roll));
+    const tie = M.L.lineOf({ key: 'k2', type: 'rare_roll', atMs: 1, u: 2, item: 'crown_shard', rolls: { 1: 50, 2: 50 }, reroll: { 1: 12, 2: 61 } }, n);
+    ok('LOG-2', tie && tie.text === 'Rare roll for the Crown Shard: Tyler 50, Andy 50. Tie, so they roll again: Tyler 12, Andy 61. Andy wins it.', 'a tie reads ' + JSON.stringify(tie));
+    const turn = M.L.lineOf({ key: 'k3', type: 'rare_roll', atMs: 1, u: 2, item: 'crown_shard', rolls: {} }, n);
+    ok('LOG-2', turn && /^Andy takes the Crown Shard: everyone else in the party has won a rare/.test(turn.text), 'the rotation\'s turn reads ' + JSON.stringify(turn));
+  }
+
+  { // LOG-3: while the live prediction runs, a server answer's rare roll still reaches the log (the prediction
+    // cannot draw it, live-engine.js), and nothing else of that answer does (one position source).
+    const clock = { t: 500000 };
+    const { cs } = session(M, { hr_load: () => ({ ok: true, body: clone(FIXTURE) }) }, clock);
+    const log = M.L.logFor(cs);
+    await cs.load();
+    cs.live = { running: () => true, stalled: () => false };
+    cs.liveLink = { from() {}, off() {} };
+    const at = FIXTURE.hunt_server_now_ms - 200;
+    cs._play(Object.assign(clone(FIXTURE), { hunt_track: [], hunt_events: [
+      { id: at + '.0', type: 'dmg', atMs: at, u: 1, t: 101, amount: 77 },
+      { id: at + '.1', type: 'rare_roll', atMs: at, u: 1, item: 'crown_shard', rolls: { 1: 87 } }] }));
+    cs.timeline.advance(clock.t + 60000);
+    const texts = log.lines().map((l) => l.text);
+    ok('LOG-3', texts.some((x) => /^Rare roll for the Crown Shard: Tyler 87\./.test(x)), 'a live viewer never sees the server\'s rare roll: ' + JSON.stringify(texts.slice(-3)));
+    ok('LOG-3', !texts.some((x) => / for 77\./.test(x)), 'a live viewer was fed the server\'s own dmg over the prediction');
+  }
   return fails;
 }
 
@@ -250,6 +278,7 @@ const MUTANTS = [
   ['a forged toggle passes', 'src/session/residue.js', "for (const k of ['regular', 'boss']) if (typeof r[k] === 'boolean') e[k] = r[k];", 'Object.assign(e, r);'],
   ['the intent writes the record itself', 'src/session/character-session.js', "    if (ans.ok && ans.body && ans.body.ok === true) { if (!(carries && this._take(ans.body, 'load'))) await this.load(); return { ok: true }; }", "    this._record = Object.freeze(Object.assign({}, this._record));\n    if (ans.ok && ans.body && ans.body.ok === true) { if (!(carries && this._take(ans.body, 'load'))) await this.load(); return { ok: true }; }"],
   ['an ok is not re-read', 'src/session/character-session.js', "{ if (!(carries && this._take(ans.body, 'load'))) await this.load(); return { ok: true }; }", '{ return { ok: true }; }'],
+  ['a live viewer never sees the server\'s rare roll', 'src/session/character-session.js', 'body.hunt_events.filter((e) => e && SERVER_ONLY_EVENTS.includes(e.type)) : []', '[] : []'],
   ['a monster hit reads as dealt', 'src/hunt-view/combat-log.js', "return line(n.isHero(ev.u) ? 'dealt' : 'taken',", "return line('dealt',"],
 ];
 

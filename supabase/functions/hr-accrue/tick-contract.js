@@ -93,9 +93,11 @@ export function planWindows(anchorMs, fromMs, toMs, cadenceMs, tickMs) {
 /* level_xp (the core rebuild): Level XP is a signed movement credited by the hunt settle, folded by addition. */
 export const ADDITIVE_SCALAR = Object.freeze(['gold', 'level_xp']);
 export const ADDITIVE_MAP = Object.freeze(['xp', 'items']);
+/* active_left (2026-12-01-bench-count.sql): the bench run's REMAINING count, a
+   checkpoint the later window supersedes, never a movement to add. */
 export const ABSOLUTE = Object.freeze([
   'accrued_to', 'hp', 'fight', 'activity',
-  'ammo_carry', 'tool_carry',
+  'ammo_carry', 'tool_carry', 'active_left',
 ]);
 export const APPEND = Object.freeze(['deaths', 'progress', 'hearthfind']);
 /* ABSOLUTE PER KEY: a map whose every entry is a checkpoint, folded "last

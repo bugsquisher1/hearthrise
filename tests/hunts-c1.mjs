@@ -147,7 +147,10 @@ async function sqlMutants() {
 async function chainArm() {
   const red = [];
   const { bootReplay, inventory } = await import('./schema-replay.mjs');
-  const { db } = await bootReplay({});
+  /* Stopped at the CURRENT hunts catalogue (the latest file re-applied below): the second apply is
+     judged on the chain these files were written for. A later cut is not their second apply
+     (2026-11-27-account-depot.sql drops player_bank, which core-bodies' self-check reads). */
+  const { db } = await bootReplay({ upTo: HUNTS_NOW });
   const q = async (sql) => (await db.query(sql)).rows;
   const snap = async () => JSON.stringify([await inventory(db),
     await q(`select p.proname, md5(p.prosrc) h, p.proacl::text acl from pg_proc p join pg_namespace n on n.oid = p.pronamespace

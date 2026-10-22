@@ -806,13 +806,15 @@ async function checks(overrides, shots) {
       else {
         const seen = () => page.evaluate((w) => { const on = (q) => { const n = document.querySelector(w + q); return !!n && n.getClientRects().length > 0; };
           const b = document.querySelector(w + '.hs-win-body'); return [on('.hw-hunt-list'), on('.hw-hunt-detail'), on('.hw-hd-back'), b.scrollWidth <= b.clientWidth + 1].join(); }, W);
+        /* A press as the shell routes it (a DOM click): a control a mutant leaves off-screen is a rule's red, not a harness timeout. */
+        const press = (q) => page.evaluate((sel) => { const n = document.querySelector(sel); if (n) n.click(); return !!n; }, W + q);
         const s0 = await seen();
         if (shots) await shot(page, 'hunts-922x423-list');
-        await page.click(W + '.hw-hunt[data-hunt="millrace_sewer"]');
+        await press('.hw-hunt[data-hunt="millrace_sewer"]');
         await page.waitForTimeout(300);
         const s1 = await seen();
         if (shots) await shot(page, 'hunts-922x423-sewer');
-        await page.click(W + '.hw-hd-back');
+        await press('.hw-hd-back');
         await page.waitForTimeout(200);
         const s2 = await seen();
         if (s0 !== 'true,false,false,true' || s1 !== 'false,true,true,true' || s2 !== 'true,false,false,true') fails.push('AW-24 the phone sheet shows (list, page, back, fits) ' + JSON.stringify([s0, s1, s2]));

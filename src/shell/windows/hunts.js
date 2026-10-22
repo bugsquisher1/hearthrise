@@ -277,7 +277,8 @@ function patchPage(det, ctx, sc, v) {
   const enter = det.querySelector('.hw-hunt-enter');
   attr(enter, 'data-hunt', r.hunt);
   text(enter, party && !follower ? 'Start with party' : 'Enter');
-  for (const b of det.querySelectorAll('button:not([data-hs-act="back"])')) prop(b, 'disabled', sc.pending || !!now);
+  /* Enter and the pull step (Go as, Find a party and Bring are patchGo's: off for a member too). */
+  for (const b of det.querySelectorAll('.hw-hd-foot button, .hw-density button')) prop(b, 'disabled', sc.pending || !!now);
   if (follower) prop(enter, 'disabled', true);
   /* This hero's density pick per ground (hunt_density); null = the server sent none, no number shows. */
   const dn = shownDensity(sc, huntDensityOf(cs), r.hunt, size, party);

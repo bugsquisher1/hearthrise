@@ -797,7 +797,7 @@ const PURE_MUTANTS = [
   ['not ready names nobody', 'src/shell/intent-words.js', "    return 'Nobody went in: ' + seats.map((x) => x.name + ' ' + (x.error === 'hunt_open' && x.hunt && HUNT_INDEX[x.hunt]\n      ? 'is still hunting in ' + HUNT_INDEX[x.hunt].name : SEAT_WORDS[x.error] || 'is not ready')).join('; ') + '.';", "    return 'Not everyone in the party is ready.';"],
 ];
 const PAGE_MUTANTS = [
-  ['Start with party stays on while in flight', 'src/shell/windows/hunts.js', "for (const b of det.querySelectorAll('button:not([data-hs-act=\"back\"])')) prop(b, 'disabled', sc.pending || !!now);", "for (const b of det.querySelectorAll('button:not([data-hs-act=\"back\"])')) prop(b, 'disabled', !!now);"],
+  ['Start with party stays on while in flight', 'src/shell/windows/hunts.js', "for (const b of det.querySelectorAll('.hw-hd-foot button, .hw-density button')) prop(b, 'disabled', sc.pending || !!now);", "for (const b of det.querySelectorAll('.hw-hd-foot button, .hw-density button')) prop(b, 'disabled', !!now);"],
   ['a member may press Start', 'src/shell/windows/hunts.js', '  if (follower) prop(enter, \'disabled\', true);\n', ''],
   ['the strip tab is no menu target', 'src/app/character-strip.js', '  markPlayer(b, uid ? { id: uid, name: x.name, slot: x.slot } : null);', '  markPlayer(b, null);'],
   ['the invite toast cannot answer', 'src/shell/widgets/alerts.js', "  if (a.action === 'join') { if (a.invite) await settle(ctx, el, a, (cs) => cs.answerInvite(a.invite, action === 'alert-do')); return; }", "  if (a.action === 'join') return;"],

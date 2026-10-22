@@ -2,7 +2,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // tests/perf-budget.mjs — THE HUNT PAGE HOLDS ITS FRAME, HEAP AND DOM BUDGET.
 //
-//   node tests/perf-budget.mjs                 the CI run: Chromium 1440x900, a 3-minute scenario, budgets
+//   node tests/perf-budget.mjs                 the CI run: Chromium 1440x900, a 4-minute scenario, budgets
 //   node tests/perf-budget.mjs --measure       the full table: Chromium AND Firefox, 1440x900 AND 922x423,
 //                                              10 minutes each (--minutes N, --browsers chromium,firefox,
 //                                              --sizes 1440x900,922x423 narrow it); prints, never fails
@@ -35,6 +35,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { HARNESS as LIVE_H } from './hunt-live.mjs';
+import { LOG_MAX_LINES } from '../src/data/combat-text.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const LIVE = JSON.parse(readFileSync(join(ROOT, 'tests/fixtures/hunt-envelope-live.json'), 'utf8'));
@@ -43,14 +44,14 @@ const HUNT = 'millrace_sewer';
 const WEAPON = Object.freeze({ melee_dps: 'hammer', ranger: 'ranged', tank: 'sword' });
 const TICK_MS = 10000;   // the server's settle cadence (pg_cron, live-world-decision)
 
-/* THE BUDGETS (Chromium, 1440x900, the 3-minute CI scenario), from the measured numbers plus margin. */
+/* THE BUDGETS (Chromium, 1440x900, the 4-minute CI scenario), from the measured numbers plus margin. */
 const BUDGET = Object.freeze({
   fpsMedianMin: 55,        // rAF frames per second, median over 1 s buckets
   fpsP5Min: 45,            // the 5th-percentile 1 s bucket
   longFrameMs: 100,        // no gap above this outside the hidden span and its resume
   longFramesMax: 6,        // gaps > 50 ms outside the hidden span and its resume
   heapGrowthMb: 8,         // used JS heap, warm-up -> end, both after a forced GC
-  domGrowth: 150,          // elements, warm-up -> end
+  domGrowth: 150,          // elements, warm-up -> the death, the combat log's lines apart (they are capped on their own)
   addedPerMin: 3000,       // DOM nodes added per minute (a per-frame rebuild adds tens of thousands)
   analyzerBehindMs: 2500,  // the analyzer's session clock against the hunt's real elapsed time
   analyzerBackMs: 1500,    // the clock never runs backwards more than this
@@ -82,7 +83,7 @@ const MUTANTS = [
   ['a per-frame DOM rebuild (the world chrome re-rendered every frame)', 'src/world/world-boot.js',
     '  function step(dt) {\n    const G = view();\n', '  function step(dt) {\n    chrome.innerHTML = chrome.innerHTML;\n    const G = view();\n', /^(dom|fps|long)/],
   ['an unbounded log (the combat log keeps every line, rendered in the log)', 'src/hunt-view/combat-log.js',
-    '    if (lines.length > LOG_MAX_LINES) lines.splice(0, lines.length - LOG_MAX_LINES);\n', '', /^(heap|dom)/],
+    '    if (lines.length > LOG_MAX_LINES) lines.splice(0, lines.length - LOG_MAX_LINES);\n', '', /^(heap|dom)/, 'scenario', 4],
   ['every answer repaints the shell and draws the World again inside it (live v0.2.23)', 'src/app/world-pane.js',
     'const offChar = character.subscribe(() => { if (!queued) { queued = true; queueMicrotask(repaint); } });',
     'const offChar = character.subscribe(() => { if (runtime) runtime.sync(); shell.paint(); });', /^repaint/],
@@ -144,7 +145,7 @@ const INIT = `(() => {
     const q = (s) => { const e = document.querySelector(s); return e ? e.textContent : null; };
     P.samples.push([Date.now(), performance.now(), q('.ha-analyzer [data-clock="session"]'), q('.ha-analyzer [data-sec="totals"] [data-stat="kills"]'), q('.ht-clock'), (document.querySelector('[data-live]') || { dataset: {} }).dataset.live || null]);
   }, 250);
-  setInterval(() => P.dom.push([performance.now(), document.getElementsByTagName('*').length, P.added]), 2000);
+  setInterval(() => P.dom.push([performance.now(), document.getElementsByTagName('*').length, P.added, document.querySelectorAll('.hc-line').length]), 2000);
 })();`;
 
 /* ── the scripted server ── */
@@ -355,25 +356,29 @@ async function scenario(o) {
     await page.waitForSelector('[data-app="play"][data-slot="0"]');
     await page.click('[data-app="play"][data-slot="0"]');
     await page.waitForSelector('.hs-launchers');
-    const showAnalyzer = async () => { if (await page.$('.ha-analyzer') === null || !(await page.isVisible('.ha-analyzer'))) { const b = await page.$('[data-hs-act="details"]'); if (b) await b.click(); } };
+    const showAnalyzer = async () => { if (await page.$('.ha-analyzer') === null || !(await page.isVisible('.ha-analyzer'))) {
+      const b = await page.$('[data-hs-act="details"]'); if (b) await b.click({ timeout: 5000 }).catch((e) => errors.push('analyzer: ' + e.message.split('
+')[0])); } };
+    /* a phone shows one sheet at a time: there the analyzer is the one open (the combat log is the desktop's second window) */
+    const phone = o.width <= 1024 && o.height <= 540;
     /* the combat log open on its tab (players watch it fight): its lines are the page's longest list */
     const showLog = async () => {
       if (!(await page.isVisible('.hc-chat').catch(() => false))) await page.click('[data-hs-open="chat"]').catch((e) => errors.push('chat: ' + e.message.split('\n')[0]));
       await page.click('.hc-chat [data-hs-act="tab"][data-tab="combat"]').catch(() => null);
     };
     await page.waitForTimeout(15000);   // warm-up: atlases, the first start point, both heroes open
-    await showLog();
+    if (!phone) await showLog();
     await showAnalyzer();
     await page.waitForTimeout(1000);
     const w0 = await page.evaluate(() => { const P = window.__perf; P.mark('start'); P.added = 0;
-      return { t: performance.now(), nodes: document.getElementsByTagName('*').length, frames: P.nf }; });
+      return { t: performance.now(), nodes: document.getElementsByTagName('*').length, lines: document.querySelectorAll('.hc-line').length, frames: P.nf }; });
     const h0 = await heap();
     if (cdp && o.profile) { await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval', { interval: 500 }); await cdp.send('Profiler.start'); }
     const t0 = Date.now();
     const at = async (ms) => { const d = t0 + ms - Date.now(); if (d > 0) await page.waitForTimeout(d); };
     const tab = (slot) => page.click('.char-tab[data-slot="' + slot + '"]').catch((e) => errors.push('switch: ' + e.message.split('\n')[0]));
     await at(D * 0.15); await page.evaluate(() => window.__perf.mark('switch B')); await tab(1);
-    await at(D * 0.25); await page.evaluate(() => window.__perf.mark('switch A')); await tab(0); await showLog(); await showAnalyzer();
+    await at(D * 0.25); await page.evaluate(() => window.__perf.mark('switch A')); await tab(0); if (!phone) await showLog(); await showAnalyzer();
     await at(D * 0.35); await page.evaluate(() => window.__perf.mark('storm')); srv.S.storm = true;
     await at(D * 0.35 + 20000); srv.S.storm = false; await page.evaluate(() => window.__perf.mark('storm end'));
     await at(D * 0.5); await page.evaluate(() => window.__perf.hide(true));
@@ -414,6 +419,9 @@ function analyse(out, w0, o, srv) {
   const fps = Array.from(buckets.values()).slice(1, -1).sort((a, b) => a - b);
   const pct = (a, p) => (a.length ? a[Math.min(a.length - 1, Math.floor(a.length * p))] : null);
   const long = gaps.filter((g) => g > 50);
+  /* the page while it hunts: the last DOM sample before the party's death (the summary and town come after) */
+  const dm = mark('death');
+  const hunted = out.dom.filter((d) => d[0] >= w0.t && (dm === null || d[0] < dm)).pop() || null;
   const minutes = (out.now - w0.t) / 60000;
   const per = (k) => { const r = out.t[k]; return r ? { n: r.n, avg: r.ms / r.n, max: r.max, over: r.over } : null; };
   /* the analyzer: its session clock vs the hunt's real elapsed (the page and this process share the wall clock) */
@@ -457,7 +465,8 @@ function analyse(out, w0, o, srv) {
     fpsMedian: pct(fps, 0.5), fpsP5: pct(fps, 0.05), longFrames: long.length, worstFrame: gaps.length ? Math.max(...gaps) : null, resumeWorst,
     longTasks: out.long.filter((l) => l[0] >= w0.t).length,
     engine: per('engine'), scene: per('scene'), draw: per('draw'), frame: per('frame'), envelope: per('envelope'), shellTick: per('shellTick'),
-    domStart: w0.nodes, domEnd: out.nodes, domGrowth: out.nodes - w0.nodes, addedPerMin: Math.round(out.added / minutes),
+    domStart: w0.nodes, domEnd: hunted ? hunted[1] : out.nodes, domGrowth: hunted ? (hunted[1] - hunted[3]) - (w0.nodes - w0.lines) : null,
+    logLines: Math.max(0, ...out.dom.map((d) => d[3])), addedPerMin: Math.round(out.added / minutes),
     paintsPerAnswer: out.t.envelope && out.t.shellPaint ? +(out.t.shellPaint.n / out.t.envelope.n).toFixed(2) : null, drawsInAnswers: out.c.drawInEnvelope || 0,
     analyzerPerMin: Math.round((out.c.analyzer || 0) / minutes), analyzerBehindMs: Math.round(behind), analyzerBackMs: Math.round(backMs), analyzerBacks: backs, analyzerStillMs: stillMax,
     path: out.path, marks: out.marks, runAway, samples: out.samples, dom: out.dom,
@@ -473,7 +482,8 @@ function budgetFails(m) {
   if (!(m.worstFrame <= b.longFrameMs)) f.push(`long frame: worst ${Math.round(m.worstFrame)} ms outside the hidden span (budget ${b.longFrameMs})`);
   if (!(m.longFrames <= b.longFramesMax)) f.push(`long frames: ${m.longFrames} over 50 ms (budget ${b.longFramesMax})`);
   if (m.heapMb !== null && !(m.heapMb <= b.heapGrowthMb)) f.push(`heap grew ${m.heapMb.toFixed(1)} MB (budget ${b.heapGrowthMb})`);
-  if (!(m.domGrowth <= b.domGrowth)) f.push(`dom grew ${m.domGrowth} elements (budget ${b.domGrowth})`);
+  if (!(m.domGrowth <= b.domGrowth)) f.push(`dom grew ${m.domGrowth} elements while hunting, the log's lines apart (budget ${b.domGrowth})`);
+  if (!(m.logLines <= LOG_MAX_LINES)) f.push(`dom: the combat log shows ${m.logLines} lines (its cap is ${LOG_MAX_LINES})`);
   if (!(m.addedPerMin <= b.addedPerMin)) f.push(`dom churn: ${m.addedPerMin} nodes added per minute (budget ${b.addedPerMin})`);
   if (!(m.analyzerBehindMs <= b.analyzerBehindMs)) f.push(`analyzer clock up to ${m.analyzerBehindMs} ms behind the hunt (budget ${b.analyzerBehindMs})`);
   if (!(m.analyzerBackMs <= b.analyzerBackMs)) f.push(`analyzer clock ran back ${m.analyzerBackMs} ms (${m.analyzerBacks}x; budget ${b.analyzerBackMs})`);
@@ -486,7 +496,7 @@ const ms = (r) => (r ? `${r.avg.toFixed(2)}/${r.max.toFixed(1)}` : '-');
 function row(m) {
   return `${m.browser.padEnd(8)} ${m.size.padEnd(8)} fps ${m.fpsMedian}/${m.fpsP5} long ${m.longFrames} worst ${Math.round(m.worstFrame)} resume ${Math.round(m.resumeWorst)} lt ${m.longTasks}`
     + ` | engine ${ms(m.engine)} scene ${ms(m.scene)} draw ${ms(m.draw)} frame ${ms(m.frame)} env ${ms(m.envelope)} (${m.envelope ? m.envelope.n : 0}) tick ${ms(m.shellTick)}`
-    + ` | heap ${m.heapMb === null ? 'n/a' : m.heapMb.toFixed(1) + 'MB'} dom ${m.domStart}->${m.domEnd} +${m.addedPerMin}/min`
+    + ` | heap ${m.heapMb === null ? 'n/a' : m.heapMb.toFixed(1) + 'MB'} dom ${m.domStart}->${m.domEnd} (+${m.domGrowth}) log ${m.logLines} +${m.addedPerMin}/min`
     + ` | paint/answer ${m.paintsPerAnswer} draws-in-answers ${m.drawsInAnswers}`
     + ` | analyzer ${m.analyzerPerMin}/min behind ${m.analyzerBehindMs} back ${m.analyzerBackMs}x${m.analyzerBacks} still ${m.analyzerStillMs}`;
 }
@@ -498,7 +508,7 @@ async function main() {
     let escaped = 0;
     for (const mt of MUTANTS) {
       const fails = mt[5] === 'pix' ? await pixelRule('chromium', [mt])
-        : budgetFails(await scenario({ browser: 'chromium', width: 1440, height: 900, minutes: 2, hiddenMs: 20000, overrides: planted([mt]) }));
+        : budgetFails(await scenario({ browser: 'chromium', width: 1440, height: 900, minutes: mt[6] || 2, hiddenMs: 20000, overrides: planted([mt]) }));
       const hit = fails.some((x) => mt[4].test(x));
       console.log(`  ${hit ? 'caught ' : 'ESCAPED'} ${mt[0]} :: ${fails.join(' | ') || 'green'}`);
       if (!hit) escaped++;
@@ -524,7 +534,7 @@ async function main() {
   const browser = arg('--browser', 'chromium');
   const pix = await pixelRule(browser);
   if (process.argv.includes('--pix')) { for (const f of pix) console.log('  ✗ ' + f); process.exit(pix.length ? 1 : 0); }
-  const m = await scenario({ browser, width: 1440, height: 900, minutes: Number(arg('--minutes', '3')), hiddenMs: 30000, overrides: planted(), profile: arg('--profile', null),
+  const m = await scenario({ browser, width: 1440, height: 900, minutes: Number(arg('--minutes', '4')), hiddenMs: 30000, overrides: planted(), profile: arg('--profile', null),
     second: arg('--second', 'melee_dps'), viewAtDeath: Number(arg('--view-death', '0')) });
   console.log(row(m));
   if (arg('--dump', null)) (await import('node:fs')).writeFileSync(arg('--dump', null), JSON.stringify(m));

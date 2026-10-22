@@ -573,7 +573,7 @@ jobs:
   # ── perf ── THE HUNT PAGE'S FRAME, HEAP AND DOM BUDGET (2026-10-21, Andy in
   # Firefox: "the page is slowing down", "the analyser seems to have slowed
   # down"). tests/perf-budget.mjs plays the real client over the edge's own
-  # engine on The Sewer, a party of two at density 8, for 3 minutes in Chromium
+  # engine on The Sewer, a party of two at density 8, for 4 minutes in Chromium
   # 1440x900 (a hero switch, an alert storm, the analyzer and combat log open, a
   # hidden tab, the tank's death) and holds fps, long frames, heap and DOM
   # growth, one repaint per answer and the analyzer clock to budgets taken from
@@ -601,7 +601,7 @@ jobs:
           npm install --no-audit --no-fund
           npx playwright install --with-deps chromium
 
-      - name: Hunt page perf budget (play.html, Sewer party, 3 min)
+      - name: Hunt page perf budget (play.html, Sewer party, 4 min)
         if: ${{ !cancelled() }}
         run: |
           node tests/perf-budget.mjs

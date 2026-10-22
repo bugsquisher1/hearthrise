@@ -4,7 +4,7 @@
 # tests/perf-budget.mjs --measure: the 10-minute Sewer party scenario (density 8,
 # hero switch, alert storm, analyzer and combat log open, 60 s hidden tab, tank
 # death) in each browser at desktop 1440x900 and the landscape phone 922x423.
-# A MEASUREMENT, never a gate: the budget itself (Chromium, 3 minutes) runs in
+# A MEASUREMENT, never a gate: the budget itself (Chromium, 4 minutes) runs in
 # smoke.yml. Firefox is measured here because Andy plays in it and the Windows
 # box the lanes run on cannot launch Playwright's Firefox.
 #

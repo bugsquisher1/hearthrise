@@ -205,8 +205,8 @@ async function checks(overrides) {
 const MUTANTS = [
   ['the pressed control is never marked', 'src/shell/press-ack.js', 'if (p.open === 1) mark(p.el, true);', ''],
   ['the ask settles on the answer, before the re-read', 'src/session/character-session.js',
-    '_ask(verb, send) { return this.intents.track(verb, async () => this._settled(await send())); }',
-    '_ask(verb, send) { return this.intents.track(verb, send).then((a) => this._settled(a)); }'],
+    '_ask(verb, send, carries) { return this.intents.track(verb, async () => this._settled(await send(), carries === true)); }',
+    '_ask(verb, send, carries) { return this.intents.track(verb, send).then((a) => this._settled(a, carries === true)); }'],
   ['a second click in flight goes through', 'src/shell/press-ack.js', 'e.stopImmediatePropagation();\n      return;', 'return;'],
   ['the overlay shows for everyone', 'src/app/live-overlay.js', "return new URLSearchParams(String(search || '')).get('debug') === 'live';", 'return true;'],
   ['the ledger forgets to close an ask', 'src/session/intent-ledger.js', '      open.delete(entry.id);\n', ''],

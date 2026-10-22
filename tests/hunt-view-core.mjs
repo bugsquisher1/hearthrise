@@ -202,8 +202,8 @@ const MUTANTS = [
   ['a role read off the outfit', 'src/session/hunt-sections.js', 'role: roleForWeapon(str(m.weapon), str(m.role_pick)),', "role: roleForWeapon(str(m.weapon) || (m.outfit ? 'shield' : null), str(m.role_pick)),"],
   ['the bleed badge defaults on for monsters', 'src/data/combat-text.js', "label: 'Bleed stack count', on: on(false, true)", "label: 'Bleed stack count', on: on(true, true)"],
   ['a forged toggle passes', 'src/session/residue.js', "for (const k of ['regular', 'boss']) if (typeof r[k] === 'boolean') e[k] = r[k];", 'Object.assign(e, r);'],
-  ['the intent writes the record itself', 'src/session/character-session.js', "    if (ans.ok && ans.body && ans.body.ok === true) { await this.load(); return { ok: true }; }", "    this._record = Object.freeze(Object.assign({}, this._record));\n    if (ans.ok && ans.body && ans.body.ok === true) { await this.load(); return { ok: true }; }"],
-  ['an ok is not re-read', 'src/session/character-session.js', '{ await this.load(); return { ok: true }; }', '{ return { ok: true }; }'],
+  ['the intent writes the record itself', 'src/session/character-session.js', "    if (ans.ok && ans.body && ans.body.ok === true) { if (!(carries && this._take(ans.body, 'load'))) await this.load(); return { ok: true }; }", "    this._record = Object.freeze(Object.assign({}, this._record));\n    if (ans.ok && ans.body && ans.body.ok === true) { if (!(carries && this._take(ans.body, 'load'))) await this.load(); return { ok: true }; }"],
+  ['an ok is not re-read', 'src/session/character-session.js', "{ if (!(carries && this._take(ans.body, 'load'))) await this.load(); return { ok: true }; }", '{ return { ok: true }; }'],
   ['a monster hit reads as dealt', 'src/hunt-view/combat-log.js', "return line(n.isHero(ev.u) ? 'dealt' : 'taken',", "return line('dealt',"],
 ];
 

@@ -1,0 +1,4 @@
+{
+  "seq": 2410,
+  "note": "APPLIED 2026-10-06 10:31 UTC by the Coordinator via tools/apply-migration.mjs from a detached checkout of cd852ce5 (file sha256 dec60899 = lane tip). Security APPLY GO (docs/planning/SEC_FRAME_EMIT_ONLINE_2026-10-06.md, sec/frame-emit-online 1a581ee7). Landed hr_frame_send 6995575c, hr_frame_wanted b6f85c0a, hr_slot_health 9a079d4b, _alert 52e1f558, _judge aa420ea5; tick settles re-spliced from live with the origin marker. Inert while frame_push=false. Strict hygiene clean."
+}

@@ -20,7 +20,7 @@
 // hr_credit_combat_xp — client-authored, ranked.
 //
 // ── WHAT THIS DRIVES ────────────────────────────────────────────────────
-// The REAL chain (tests/schema-apply-order.json) replayed into PGlite, a real
+// The REAL chain (tests/schema-apply-order/) replayed into PGlite, a real
 // character made by hr_create_character, and the REAL rate-gated wrappers called
 // AS `authenticated` with a JWT subject:
 //   MXC-1  ATTENDED (world_event_claim), COMBAT theme (ashen_horde): the

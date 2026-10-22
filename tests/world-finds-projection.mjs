@@ -29,7 +29,7 @@
 // restatement of hr_rpc_gate, a `grant select on world_finds` in a convenience
 // sweep, a re-created wrapper without the quiet rule. So this replays the REAL
 // ordered chain (tests/schema-replay.mjs bootReplay — supabase/schema.sql plus
-// every migration in tests/schema-apply-order.json, on PGlite in process) with
+// every migration in tests/schema-apply-order/, on PGlite in process) with
 // §6 DISARMED, and proves the properties BY EXECUTION from CHAIN END:
 //
 //   1. the objects exist with the only volatility/security pair that can work

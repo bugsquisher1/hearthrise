@@ -1,0 +1,4 @@
+{
+  "seq": 2520,
+  "note": "APPLIED 2026-10-10 04:0x UTC (Coordinator, tools/apply-migration.mjs; Security GO per b566 sequence). World-tick scale S1: hr_tick_roster restated from live a7cf559e with two deltas - the claim serves only DUE characters (effective mark <= now() - flush_seconds, the edge's own flush line) and the state column is NULL (the edge never read the roster's hr_state_of; it was the whole 17 ms/row slope), and an armed character PARKED at its presence horizon (next window past real_return_at + cap AND its crossing already journalled in hr_tick_horizon_log for the current anchor) is not offered. Needs 2026-10-10-world-tick-presence-horizon.sql first. Signature, grants (hr_tick only), cursor, lease, admission and invariant 7 unchanged. No edge or client half. Security GO required before apply. After apply: live-hash-drift wants hr_tick_roster."
+}

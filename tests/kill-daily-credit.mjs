@@ -21,7 +21,7 @@
 // attended kill-30 daily sat at "30/30 · Confirming…" with no Claim.
 //
 // ── WHAT THIS FILE DRIVES ───────────────────────────────────────────────
-// The REAL migration chain from tests/schema-apply-order.json, applied verbatim
+// The REAL migration chain from tests/schema-apply-order/, applied verbatim
 // into PGlite (real PostgreSQL, in process), then a real player through the REAL
 // rate-gated hr_credit_kills as `authenticated` with a JWT subject set — and
 // then through the REAL hr_claim_goal, so the assertion is "the player can now
@@ -129,7 +129,7 @@ const MIG = '2026-09-01-kill-daily-credit.sql';
    mutations are planted HERE, not in MIG, because the catalogue and the
    once-guard live there — and because 2026-09-01-kill-goal-xp-hitpoints.sql
    (the production forward-fix, which would fail closed on a drifted row and mask
-   the mutation) sorts AFTER MIG in tests/schema-apply-order.json and is
+   the mutation) sorts AFTER MIG in tests/schema-apply-order/ and is
    therefore never applied under this guard's `upTo`. */
 const GOAL_MIG = '2026-08-23-modal-goal-claims.sql';
 

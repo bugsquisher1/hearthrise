@@ -1,0 +1,4 @@
+{
+  "seq": 2270,
+  "note": "APPLIED 2026-09-26 23:37:18 UTC by the Coordinator via tools/apply-migration.mjs from set/b556 at 6b7e2794 (Security GO sec/party-view-volatile). P1-P4 and Q1-Q4 green: hr_party_view now VOLATILE, still SECURITY DEFINER with its pinned search_path; zero client-executable STABLE/IMMUTABLE functions. Play gate: QA roster read \"1 of 4 LEADER\" live (the b553 P1 is fixed)."
+}

@@ -1,0 +1,4 @@
+{
+  "seq": 470,
+  "note": "STAGED, NOT APPLIED (the Coordinator applies). It took over from intent-key-hygiene as the last file that may replace hr_apply, and has since been SUPERSEDED in that role by 2026-08-15-gem-daily-budget.sql â€” which derives its body from THIS file. Original note:"
+}

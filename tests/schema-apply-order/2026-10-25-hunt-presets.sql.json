@@ -1,0 +1,4 @@
+{
+  "seq": 3260,
+  "note": "APPLIED 2026-10-19 02:4x UTC via tools/apply-migration.mjs (game CLOSED: on its passing self-check; Security reviews at the reopen gate; edge ad7c0c7a deployed right after). Was: STAGED (lane S2, 2026-10-18; game CLOSED: applies on its passing §4, Security reviews it with the S2 surfaces at the reopen gate; NOT APPLIED). player_hunt_presets (0..7: name, the server's snapshot of the active action set, worn set and restock targets) + player_hunt_active; hr_hunt_preset_save / hr_hunt_preset_apply (authenticated, rate bucket hunt, idempotent; apply refused hunt_open / activity_running / missing_item by name, wears the gear through ONE hr_apply {equip} journalled kind equip, switches the set and the targets). Sections hunt_presets and role {id, weapon} (hr_hunt_weapon_roles, the active set's pick). Moves no value. §4 executes save / missing / apply / busy, rolled back (HR873). After 2026-10-25-shop-supplies.sql."
+}

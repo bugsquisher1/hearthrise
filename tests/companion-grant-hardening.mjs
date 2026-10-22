@@ -50,7 +50,7 @@
 // Re-applying it alone reverts all three conditions SILENTLY — its own §5/§6
 // self-checks were written for the unhardened body and pass on it. That is the
 // b453 catalogue incident in function form. Arm 3 derives the writer list from
-// tests/schema-apply-order.json and requires the hardening file to be LAST;
+// tests/schema-apply-order/ and requires the hardening file to be LAST;
 // arm 4 performs the revert, measures it, and proves the declared repair
 // (re-apply the hardening file) restores the behaviour.
 //

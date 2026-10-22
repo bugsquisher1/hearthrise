@@ -1,0 +1,4 @@
+{
+  "seq": 3590,
+  "note": "APPLIED 2026-10-20 08:55 UTC by the Coordinator (tools/apply-migration.mjs, self-check passed; first attempt 08:25 refused on its own probe name colliding with a real character, rolled back, fixed in 0581cb478). Was: STAGED (lane/a-names-nowalk, 2026-10-19; game CLOSED: applies on its passing §4, Security reviews it in the reopen gate; NOT APPLIED). Tyler live: every hero shows as Adventurer. hr_chat_name_authority stamps hr_character_name(sender, slot); hr_chat_row renders a player line by the sender's CURRENT character name (history follows a rename); hr_social_name (walkers, whispers, friends, inspect, party seats) reads character_names first. §0 pins the three pre-images. Last in the chain."
+}

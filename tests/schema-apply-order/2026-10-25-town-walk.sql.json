@@ -1,0 +1,4 @@
+{
+  "seq": 3360,
+  "note": "APPLIED 2026-10-19 02:4x UTC via tools/apply-migration.mjs (game CLOSED: on its passing self-check; Security reviews at the reopen gate; edge ad7c0c7a deployed right after). Was: STAGED (lane/town-presence, 2026-10-18; game CLOSED: applies on its passing §6, Security reviews it with the closed-mode surfaces at the reopen gate; NOT APPLIED). Town presence gains positions: hr_town_maps (catalogue), town_positions (unlogged, one body per account, no client grant), hr_town_move (own position, catalogue-bounded, 250 ms floor, 90/min, refused while hunting) and hr_town_walkers (fresh 30 s, cap 40, never self/quiet/hunting/blocked/closed). After 2026-10-25-social.sql. ALSO (integration v0.2.1) a walker carries the outfit its character chose: ONE left join of player_outfits, owned-only through hr_outfit_owned (a lapsed premium outfit reads null), §6(a2) asserts it. Moved AFTER 2026-10-25-character-sheet.sql (§0 requires player_outfits)."
+}

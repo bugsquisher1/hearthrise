@@ -42,7 +42,7 @@ import { verdictKey, lookup, record, acquireRunLock } from './verdict-cache.mjs'
 import { scopedProofs } from './guard-anchors.mjs';
 
 // What a chain replay reads besides its own import closure.
-const CHAIN = ['supabase', 'tests/sql', 'tests/schema-apply-order.json', 'tests/schema-drift.baseline.json'];
+const CHAIN = ['supabase', 'tests/sql', 'tests/schema-apply-order', 'tests/schema-drift.baseline.json'];
 const STEPS = [
   ['bash', ['./bump-version.sh', '--check']],
   ['node', ['tests/comment-ratio-ratchet.mjs']],

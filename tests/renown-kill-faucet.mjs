@@ -48,7 +48,7 @@
 // anything. `--mutate=renown_always_zero` proves R1 is the thing catching it.
 //
 // ── WHAT THIS FILE DRIVES ───────────────────────────────────────────────
-// The REAL migration chain from tests/schema-apply-order.json, applied verbatim
+// The REAL migration chain from tests/schema-apply-order/, applied verbatim
 // into PGlite (real PostgreSQL, in process), then a real player through the REAL
 // hr_accept_bounty / hr_credit_kills / hr_claim_bounty against a REAL is_boss
 // monster — and hr_renown_of read as the engine reads it.

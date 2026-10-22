@@ -1,0 +1,4 @@
+{
+  "seq": 2530,
+  "note": "APPLIED 2026-10-10 04:0x UTC (Coordinator, tools/apply-migration.mjs; Security GO per b566 sequence). World-tick scale S2: hr_tick_config.shards (1..16, default 1), hr_tick_shard_cursor (per-shard keyset cursor; RLS forced, no grants), hr_tick_shard_of(uuid,int) (md5 bits 29-56 mod shards, no grants), hr_shard_of restated from select 0 to read the dial, hr_tick_cron_run restated from live fb4bf2ff: one roster/cursor/body/MAC/POST per shard under one lock and one bucket; holder(0) unchanged, holder(k>0) = left('cron:'||db,58)||':s'||k; body gains shard and drops the roster rows' state. Inert at shards = 1. EDGE HALF: tick.js TICK_HOLDER_SQL (raise shards only after it deploys). Security GO required before apply. After apply: live-hash-drift wants hr_tick_cron_run, hr_shard_of, hr_tick_shard_of; restore-census classifies hr_tick_shard_cursor and the new column."
+}

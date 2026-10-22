@@ -1,0 +1,4 @@
+{
+  "seq": 3240,
+  "note": "APPLIED 2026-10-19 02:4x UTC via tools/apply-migration.mjs (game CLOSED: on its passing self-check; Security reviews at the reopen gate; edge ad7c0c7a deployed right after). Was: STAGED (lane S2, 2026-10-18; game CLOSED: applies on its passing §5, Security reviews it with the S2 money surfaces at the reopen gate; NOT APPLIED). player_item_rules (lock / loot rule keep|sell|ignore / restock 0..1000); hr_item_lock, hr_loot_rule_set, hr_restock_set (authenticated, bucket hunt, idempotent); section bag_rules; the two HOOKS 2026-10-25-settle-hooks.sql calls by name: hr_item_locked and hr_hunt_loot_rules (MONEY: sell = units x hr_hunt_vendor_value through ONE hr_apply {gold, items} kind shop intent loot_sell, the daily gold budget hr_apply applies; ignore = hr_apply {items}). No function body is patched. §5 executes every verb and both hooks, rolled back (HR870). After the alpha catalogue."
+}

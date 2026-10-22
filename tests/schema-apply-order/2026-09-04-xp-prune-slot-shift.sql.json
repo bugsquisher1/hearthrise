@@ -1,0 +1,4 @@
+{
+  "seq": 1270,
+  "note": "Drift-audit residual: 2026-09-03 scheduled hr-combat-xp-credit-prune at 04:35, a slot hr-rejections-prune already holds (two DELETE jobs together on Micro). Moves it to 04:33, carrying the live command VERBATIM via cron.job lookup (never restated — the b487 stale-template class). §0 fails closed if the job is absent or 04:33 is occupied by anything else; §2 verifies exactly-one at 04:33, slot unshared, old 04:35 entry gone. Order: after 2026-09-03-crops-notnull-and-xp-prune-schedule.sql (its scheduler). Reversible: unschedule + re-schedule at 35 4 * * *."
+}

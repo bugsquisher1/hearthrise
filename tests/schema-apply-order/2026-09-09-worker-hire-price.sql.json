@@ -1,0 +1,4 @@
+{
+  "seq": 1600,
+  "note": "APPLIED 2026-09-09 (03:24 UTC) by the Coordinator via tools/apply-migration.mjs, apply result [] — Security GO (security-worker-hire-cap.md). Was: STAGED, NOT APPLIED - REVIEW ONLY; the Coordinator applies after a SECURITY GO (tools/apply-migration.mjs, one file, one"
+}

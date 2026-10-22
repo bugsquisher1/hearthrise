@@ -250,7 +250,7 @@ export function audit(sources, allowList = ALLOWED, directList = DIRECT_ALLOWED)
 }
 
 /* ── XP-5: A (b) LABEL MUST BE BACKED BY AN RPC THAT WRITES player_skills ──────
-   Static, over the REPLAY CHAIN: every file tests/schema-apply-order.json
+   Static, over the REPLAY CHAIN: every file tests/schema-apply-order/
    places, read in that order, and the LAST `create [or replace] function
    public.<name>(` body for each name is its chain-end body. A body "writes
    player_skills" if, comments stripped, it contains `insert into

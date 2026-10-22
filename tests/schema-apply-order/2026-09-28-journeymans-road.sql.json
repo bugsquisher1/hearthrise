@@ -1,0 +1,4 @@
+{
+  "seq": 2310,
+  "note": "APPLIED 2026-09-27 00:12:29 UTC by the Coordinator via tools/apply-migration.mjs from set/b556 at 6b7e2794 (Security MIGRATION GO sec/journeymans-road bec12670, JR-1 landed). P0-P5 and Q1-Q8b green: hr_quest_rewards 3 -> 8, 10 arms, landed hr_claim_quest__ungated 7a9f835c (live-hash normalised 557591ea), __ungated not client-executable, quest ledger unchanged 145, probe clean. P5: the 3 retroactive road_hunt claimants have forged_max 0. Rollback: re-apply 2026-09-06-quest-item-rewards.sql only."
+}

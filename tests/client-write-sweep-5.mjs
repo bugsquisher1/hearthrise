@@ -16,7 +16,7 @@
 //      on a table OR a matview — is NAMED and FATAL.
 //
 // Everything runs against a real PostgreSQL (PGlite/WASM, in process) with THE
-// WHOLE MIGRATION CHAIN applied verbatim from tests/schema-apply-order.json, so
+// WHOLE MIGRATION CHAIN applied verbatim from tests/schema-apply-order/, so
 // the migration's own self-verifying blocks (§0 refuse-to-install, §1 the
 // default-ACL probe, §2 the MAINTAIN post-check, §4 the MAINTAIN + matview +
 // default-ACL controls) EXECUTE on every run. Production is never touched.

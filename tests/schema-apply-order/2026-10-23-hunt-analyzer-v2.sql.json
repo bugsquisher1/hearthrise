@@ -1,0 +1,4 @@
+{
+  "seq": 3120,
+  "note": "APPLIED 2026-10-18 17:3x UTC via tools/apply-migration.mjs (game CLOSED: on its passing §4; Security reviews at the reopen gate; hunt-world-state applied together with edge 6fe9d5c6). Was: STAGED (lane/s1-hunt-server, backend-architect, 2026-10-17; game CLOSED: applies on its passing §4, Security reviews every S1 surface at the reopen gate; NOT APPLIED). The analyzer's dealt / taken / healed are persisted per session (hunt_session_tally, <= 8192 bytes, shape-checked by hr_hunt_tally_ok) from the engine's tally; every VALUE number still comes from the ledger. hr_hunt_analyzer is premium-gated (premium_required). §4 HR859."
+}

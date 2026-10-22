@@ -1,0 +1,4 @@
+{
+  "seq": 1560,
+  "note": "APPLIED 2026-09-07 (18:30 UTC) by the Coordinator via tools/apply-migration.mjs, one txn, apply result [] — hr_apply replaced (body_md5 7e8ba73b9c03d736ec588034abe2cc48, len 109980); Security GO (F1–F5) 2026-09-07; edge deploy follows the apply. Was: STAGED, NOT APPLIED - REVIEW ONLY; the Coordinator applies after a SECURITY GO (tools/apply-migration.mjs, one file, one txn). THE RULING (Principal Game Design"
+}

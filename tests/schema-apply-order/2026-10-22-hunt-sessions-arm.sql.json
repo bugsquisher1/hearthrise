@@ -1,0 +1,4 @@
+{
+  "seq": 2910,
+  "note": "APPLIED 2026-10-15 08:48 UTC (Coordinator; Security GO-WITH-CHANGES a0c1f400, items 6/10/3 verified; edge hr-accrue 98bb1d47 deployed 08:47 before delete-away). Security GO REQUIRED (lane C2; C1 Security item 1). Opens the hunt kill switch (hr_hunt_config.enabled = true). Apply IMMEDIATELY AFTER 2026-10-22-hunt-sessions-settle.sql is applied AND the hr-accrue payload carrying hunt-settle.js is live (GET payload_sha256 == pack-edge --hash); §0 refuses unless hr_hunt_apply and the hr_hunt_accrue_fence trigger exist. One idempotent UPDATE. In the replay chain so a rebuilt database comes back in the shipping (open) state. Kill: update hr_hunt_config set enabled = false."
+}

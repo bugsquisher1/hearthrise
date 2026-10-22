@@ -1,0 +1,4 @@
+{
+  "seq": 2470,
+  "note": "APPLIED 2026-10-07 02:56 UTC by the Coordinator from a detached checkout of 34de61e3 (sha256 a85838ea). Security APPLY GO (SEC_GATHER_ARM_RUNBOOK e44527a0). Landed hr_party_reap_stale a85cd02f; cron hr-party-reap */10 active; strict hygiene clean."
+}

@@ -2,7 +2,7 @@
    closed and wiped; the old knockout/recovery, combat-style and Hitpoints model is deleted outright).
 
    That file restates hr_apply and hr_state_of from the CHAIN-END text (pg_get_functiondef after every
-   file in tests/schema-apply-order.json before it) with the core model's edits. tests/run-sql-tests.mjs
+   file in tests/schema-apply-order/ before it) with the core model's edits. tests/run-sql-tests.mjs
    PART 1f-ii diffs it against the last STATIC link of each chain and fails on any removed line not
    listed here, and on any line listed here that is no longer removed. GENERATED from that same diff
    (the lane's scratch removals.mjs, run-sql-tests' own applyBody); read by Security as the exhaustive

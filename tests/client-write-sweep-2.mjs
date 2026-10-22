@@ -11,7 +11,7 @@
 //   driven for real.
 //
 // Everything runs against a real PostgreSQL (PGlite/WASM, in process) with THE
-// WHOLE MIGRATION CHAIN applied verbatim from tests/schema-apply-order.json, so
+// WHOLE MIGRATION CHAIN applied verbatim from tests/schema-apply-order/, so
 // the migration's own self-verifying blocks (§0 refuse-to-install, §2 full
 // privilege vocabulary, §3 execute-the-refusal, §4 detector-clean) EXECUTE on
 // every run of this file. Production is never touched.
@@ -549,11 +549,7 @@ async function run({ patches } = {}) {
     // of sweep files at or before this one in the apply order. The forward-looking
     // "whole programme empties the baseline" check is owned by the LAST consuming
     // batch's guard (batch 4) and by batch 5's guard.
-    const _fs = await import('node:fs/promises');
-    const _path = await import('node:path');
-    const { ROOT: _ROOT } = await import('./schema-replay.mjs');
-    const _order = JSON.parse(await _fs.readFile(
-      _path.join(_ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+    const _order = (await import('../tools/lib/apply-order.mjs')).loadApplyOrder().order;
     const _selfPos = _order.indexOf(MIG);
     const _eatenSelf = new Set();
     for (const f of sweeps) {

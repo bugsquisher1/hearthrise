@@ -1,0 +1,4 @@
+{
+  "seq": 3490,
+  "note": "APPLIED 2026-10-19 23:03 UTC by the Coordinator. Was: STAGED (lane/c-basic-analyzer, 2026-10-19; game CLOSED: applies on its passing §4, Security reviews it in the reopen gate; NOT APPLIED). Tyler 2026-10-19: every character reads the BASIC analyzer (time, kills, XP and XP/h, gold + loot and gold/h, supplies own vs store, balance); premium reads the whole v2 read. New owner-only hr_hunt_analyzer_basic (an allowlist subset); hr_hunt_analyzer and hr_hunt_analyzer_view restated, §0 pins both v2 pre-images (md5 of prosrc). After 2026-10-23-hunt-analyzer-v2.sql; ordered after the core rebuild (2026-10-27-core-wipe.sql), last in the chain."
+}

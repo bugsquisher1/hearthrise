@@ -1,0 +1,4 @@
+{
+  "seq": 2290,
+  "note": "APPLIED 2026-09-26 23:38:56 UTC by the Coordinator via tools/apply-migration.mjs from set/b556 at 6b7e2794 (Security MIGRATION GO, SL-1 landed dd186350). Pre live body 7ac28f0a/3080; landed hr_claim_milestone__ungated 1458baf3; Q1-Q4 green (probe uid clean, claim counts unchanged). Edge half deployed 2026-09-27 00:12 UTC (hr-accrue 184a155a)."
+}

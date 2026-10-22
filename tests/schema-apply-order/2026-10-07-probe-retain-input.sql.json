@@ -1,0 +1,4 @@
+{
+  "seq": 2430,
+  "note": "APPLIED 2026-10-06 21:10 UTC by the Coordinator via tools/apply-migration.mjs from a detached checkout of 75213d00 (sha256 8b46d214). Security APPLY GO docs/planning/SEC_PROBE_RETAIN_2026-10-06.md (sec/probe-retain 2eeaedfd). Landed hr_tick_probe_commit 64249830, hr_tick_probe_prune 3b79134a; strict hygiene clean."
+}

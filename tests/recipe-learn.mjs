@@ -26,7 +26,7 @@
 // a recipe whose scroll is already gone (CLAUDE.md §6, 2026-09-14).
 //
 // ── WHAT THIS GUARD DRIVES (no credentials, real PostgreSQL) ────────────────
-// The REAL migration chain from tests/schema-apply-order.json applied verbatim
+// The REAL migration chain from tests/schema-apply-order/ applied verbatim
 // into PGlite, a real character through the REAL verb, and then the REAL ENGINE
 // READER — src/core/artisan.js `gateOk`, the same pure function the away
 // simulation and the browser both call — pointed at the envelope this migration

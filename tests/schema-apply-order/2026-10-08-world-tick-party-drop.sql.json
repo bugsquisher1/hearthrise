@@ -1,0 +1,4 @@
+{
+  "seq": 2460,
+  "note": "APPLIED 2026-10-07 02:05 UTC by the Coordinator from a detached checkout of fb5e424a (sha256 913b3fa5). Security APPLY GO (SEC_GATHER_ARM_RUNBOOK 70e1a75b). Landed hr_partied 3ae4b07c, hr_party_roster 4241abd3, hr_party_sat_out 4585bc37, hr_party_tick_settle 61a739fc; strict hygiene clean."
+}

@@ -26,7 +26,7 @@
 // b484–b487 incident), so a bucket spliced BEFORE the last full def only
 // survives if the full def also lists it.
 //
-// Mechanics: walk tests/schema-apply-order.json (pre_schema + order — the
+// Mechanics: walk tests/schema-apply-order/ (pre_schema + order — the
 // canonical chain, itself guarded in sync with the migrations dir) and REPLAY
 // it in apply order, modelling the live admitted-bucket set exactly as the DB
 // would end up:
@@ -47,13 +47,13 @@ import { readFile } from 'node:fs/promises';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain } from './_is-main.mjs';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const MIGDIR = join(ROOT, 'supabase', 'migrations');
 
 export async function rpcGateBucketGuard() {
-  const manifest = JSON.parse(
-    await readFile(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8'));
+  const manifest = loadApplyOrder(ROOT);
   const order = [...(manifest.pre_schema || []), ...manifest.order];
 
   // Buckets whose refusal is INTENDED. A name added here needs a comment

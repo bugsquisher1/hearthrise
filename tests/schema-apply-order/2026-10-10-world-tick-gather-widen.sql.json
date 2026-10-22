@@ -1,0 +1,4 @@
+{
+  "seq": 2510,
+  "note": "APPLIED 2026-10-10 04:0x UTC (Coordinator, tools/apply-migration.mjs; Security GO per b566 sequence). Stage 1 of widening armed gather: hr_tick_cohort (the dial, gather 100 permille / max_owned 20 / fresh 600 s; max_owned CHECK <= 100), hr_tick_enrolment (append-only enrol/unenrol journal), hr_tick_cohort_bucket, hr_tick_enrol (owner-only, pg_cron hr-tick-enrol every minute; enrols only while gather is ARMED), hr_tick_unenrol (the cohort half of the kill), and hr_tick_stall_status restated from live 5bad87a1 + the per-character lag judge (new keys lag_judged / lag_stalled / armed[].lag only). Security GO required before apply; Game Designer ruling B1 (uncapped away pay for tick-owned gatherers) is a stage-1 gate. After apply: live-hash-drift wants hr_tick_stall_status + 3 new functions; restore-census classifies the two tables and the cron job."
+}

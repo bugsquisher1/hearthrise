@@ -1,0 +1,4 @@
+{
+  "seq": 2500,
+  "note": "APPLIED 2026-10-10 04:0x UTC (Coordinator, tools/apply-migration.mjs; Security GO per b566 sequence). The PRESENCE HORIZON (Game Designer ruling on B1): hr_return_anchor (last real return, stamped by AFTER triggers on player_state for every non-tick accrued_to move), hr_tick_horizon_log (one row per absence parked at its horizon), hr_accrue_cap_ms (hr_engine; the accrue span cap = least(hr_offline_cap_ms, R + cap - accrued_to), forfeiting a spent absence through hr_apply), hr_tick_settle restated from live e00dbf9f + (8d) past_horizon, and hr_assert_grant_hygiene link 17. EDGE HALF: hr-accrue reads hr_accrue_cap_ms at its four accrue-cap sites; apply this file FIRST, deploy that bundle after, never the reverse. Security GO required (ranked XP/yield credit). Must apply BEFORE 2026-10-10-world-tick-gather-widen.sql (its 0 refuses otherwise)."
+}

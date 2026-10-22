@@ -37,7 +37,7 @@
 //
 // NOTHING IS WRITTEN TO PRODUCTION AND NO CREDENTIAL IS READ. Every arm runs
 // against a PGlite database rebuilt from supabase/migrations in
-// tests/schema-apply-order.json order. The probe character is a synthetic uuid
+// tests/schema-apply-order/ order. The probe character is a synthetic uuid
 // `gen_random_uuid()` cannot mint; the Vault fixture holds a TEST secret.
 //
 // ── HOW pgcrypto IS PROVIDED WHERE IT IS PROVIDED (stated, not implied) ─────

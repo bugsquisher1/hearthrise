@@ -1,0 +1,4 @@
+{
+  "seq": 3270,
+  "note": "APPLIED 2026-10-19 02:4x UTC via tools/apply-migration.mjs (game CLOSED: on its passing self-check; Security reviews at the reopen gate; edge ad7c0c7a deployed right after). Was: STAGED (lane S2, 2026-10-18; game CLOSED: applies on its passing §3, Security reviews it with the S2 surfaces at the reopen gate; NOT APPLIED). PER-CHARACTER NAMES: character_names (display-name rules, unique by hr_canon_display_name, never another account's display name), hr_character_name (the hook 2026-10-25-settle-hooks.sql's three views call), hr_character_by_name, hr_character_name_set (authenticated, bucket party, idempotent), section name. hr_account_items (authenticated, bucket hunt_read): the caller's own bag / bank / worn rows matching a catalogue name, escaped pattern, <= 200. No function body is patched. Moves no value. §3 executes naming, taken names, resolution and the search, rolled back (HR874). After 2026-10-25-hunt-presets.sql."
+}

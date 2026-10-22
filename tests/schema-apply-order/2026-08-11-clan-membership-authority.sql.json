@@ -1,0 +1,4 @@
+{
+  "seq": 260,
+  "note": "Before clan-write-policy-pin and raid-claim-authority: all three once defined clan_members \"join as self\"; this file now owns the definition and the other two assert against whatever is live. Applying them the other way round silently deletes R4's timestamp pin â€” see HANDOFF, 'A LATENT BUG WORTH MORE THAN THE FEATURE THAT FOUND IT'."
+}

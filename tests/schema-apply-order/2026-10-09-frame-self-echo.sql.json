@@ -1,0 +1,4 @@
+{
+  "seq": 2490,
+  "note": "APPLIED 2026-10-10 03:58 UTC (Coordinator, tools/apply-migration.mjs; Security GO per b566 sequence). Restates hr_frame_wanted with the self-echo branch: a non-tick frame addressed to the engine requester's own (user, slot), marked by the edge with hr.frame_self, is not sent. Security GO required before apply. After apply: live-hash-drift wants ONE entry (RED untracked hr_frame_wanted, measured pre-apply on the branch)."
+}

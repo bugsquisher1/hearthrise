@@ -1,0 +1,4 @@
+{
+  "seq": 320,
+  "note": "Before apply-engine: apply-engine Â§0 fails CLOSED without hr_day_budget_check. Applying them the other way round is a refused migration, not a slow degradation."
+}

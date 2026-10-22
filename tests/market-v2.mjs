@@ -10,7 +10,7 @@
 //   coin or an item twice, in either direction.
 //
 // Everything runs for real: a real PostgreSQL (PGlite/WASM, in process) with
-// THE WHOLE MIGRATION CHAIN applied verbatim from tests/schema-apply-order.json
+// THE WHOLE MIGRATION CHAIN applied verbatim from tests/schema-apply-order/
 // — so 2026-08-17-market-v2.sql's own self-verifying blocks (§0 refuse-to-
 // install with both scan controls, §11(a)-(k) structural + source + cron +
 // immutability, and hr_assert_grant_hygiene(true)) EXECUTE on every run of this

@@ -32,7 +32,7 @@
 // A cost cap alone would pass a database publishing the wrong table.
 //
 // ── WHAT IT DRIVES ──────────────────────────────────────────────────────
-// The REAL migration chain from tests/schema-apply-order.json, replayed in
+// The REAL migration chain from tests/schema-apply-order/, replayed in
 // PGlite (real PostgreSQL, in process), then `pg_publication_tables` is read
 // out of the rebuilt catalog. The client half is a source scan of src/**,
 // vendor excluded. Both halves are mutable, because a guard that can only be

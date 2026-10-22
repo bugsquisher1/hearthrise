@@ -1,0 +1,4 @@
+{
+  "seq": 2760,
+  "note": "APPLIED 2026-10-12 07:10-07:14 UTC (Coordinator, tools/apply-migration.mjs from set/b570-bundle 97981e5e/22828d49, apply result [], Security GO 7a14e900+f83144dd+22828d49; rally first attempt failed its own GATE(c) and rolled back, fixed 22828d49); hr-accrue 30e2de70 deployed 07:2x (differential identical, --prove green); live-hash re-measured. PREVIOUS: STAGED, NOT APPLIED - REVIEW ONLY. W0 (Security P1): daily_harvest was offered and never paid (not_creditable; dynamic client plot-cap goal). Restates hr_claim_daily__ungated from its chain-end body (2026-09-04) with the harvest arm a FIXED 6 crops / 300 gold graded on the daily ev:harvest counter; pool order unchanged. Client half (legacy.js DAILY_TASK_POOL fixed row, goal-catalogue DAILY_TASK_REWARDS) in the same cut. Security GO required (gold). After apply: live-hash-drift wants hr_claim_daily__ungated."
+}

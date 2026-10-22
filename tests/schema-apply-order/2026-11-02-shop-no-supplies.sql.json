@@ -1,0 +1,4 @@
+{
+  "seq": 3670,
+  "note": "APPLIED 2026-10-21 09:35 UTC by the Coordinator. Was STAGED (lane/b-hero-creation, systems-engineer, 2026-10-20; game CLOSED: applies on its passing §3; NOT APPLIED). Tyler 2026-10-20 q02: the Shop sells no supplies. RESTATES WHOLE hr_shop_view (2026-10-25-shop-supplies.sql, §0 pinned): offers = the tools only, no refill key. DROPS hr_shop_refill (MONEY), hr_shop_refill_quote and hr_restock_set with their grants and baseline rows. hr_shop_supply_offers stays (the vendor buy-back cap reads it); the per-use store charge reads hr_hunt_basic_supplies, untouched. Moves no value. The edge refuses shop_buy of a supply offer (catalogue.js supplies_not_sold): deploy the hr-accrue payload with it. After 2026-11-02-hero-creation.sql (last)."
+}

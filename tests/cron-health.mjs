@@ -28,7 +28,7 @@
 // cannot be turned into an off switch.
 //
 // ── WHAT IT DRIVES ──────────────────────────────────────────────────────
-// The REAL migration chain from tests/schema-apply-order.json in PGlite (real
+// The REAL migration chain from tests/schema-apply-order/ in PGlite (real
 // PostgreSQL, in process). Two pieces of scaffolding, both stated rather than
 // smuggled:
 //   · `cron.job_run_details` — the replay fixture models cron.job and

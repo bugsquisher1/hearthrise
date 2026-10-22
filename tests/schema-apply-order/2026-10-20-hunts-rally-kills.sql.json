@@ -1,0 +1,4 @@
+{
+  "seq": 2820,
+  "note": "APPLIED 2026-10-14 04:35 UTC (Coordinator, tools/apply-migration.mjs from lane/c-hunts-c1 b0a42efc, apply result [], landed hr_rally_points_of md5 57402a8e78fe668ca4dc22667d1b9e9b; Security GO on b0a42efc). PREVIOUS: STAGED (lane c-hunts-c1, Security C3 of GO-WITH-CHANGES on f7be957b; Security GO required before apply). Apply AFTER 2026-10-20-hunts-start-gate.sql. Restates hr_rally_points_of WHOLE from 2026-10-10-rally-points-server.sql §3 with one change: a combat accrue row carrying meta.km ({monster_id: kills}, a named hunt) prices each monster at its hr_bounty_monsters tier when km sums exactly to meta.kills; otherwise the pre-C1 term. Training rows (no km) score as before. §4 executes a hunt row, an inflated km (ignored) and a training row; net zero. EDGE HALF: accrual.js / tick-combat.js foldCombatMeta journal km. After apply: live-hash-drift wants hr_rally_points_of."
+}

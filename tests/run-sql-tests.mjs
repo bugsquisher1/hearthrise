@@ -87,6 +87,7 @@ import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as DELETE_AWAY_REMOVALS from './chain-removals/2026-10-22-hunt-sessions-delete-away.mjs';
 import * as CORE_BODIES_REMOVALS from './chain-removals/2026-10-27-core-bodies.mjs';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const MIG = (f) => join(ROOT, 'supabase', 'migrations', f);
@@ -650,7 +651,7 @@ const ALSO_LINTED = [
 // re-derives each link and requires the result to be byte-identical.
 //
 // A new file that replaces hr_apply is appended here AND to
-// tests/schema-apply-order.json, in the same commit. If it is not, PART 1f-ii's
+// tests/schema-apply-order/, in the same commit. If it is not, PART 1f-ii's
 // last-toucher check fails by name — which is the whole point: this repo has
 // already had three migrations each defining one policy, with filename order
 // silently installing the wrong one and every self-check still passing.
@@ -716,7 +717,7 @@ const HR_APPLY_CHAIN = [
 // plus insertions. enchant adds `enchant` next to `equipment` — ZERO removals.
 //
 // A new file that replaces hr_state_of is appended here AND to
-// tests/schema-apply-order.json, in the same commit.
+// tests/schema-apply-order/, in the same commit.
 const HR_STATE_OF_CHAIN = [
   '2026-08-11-apply-engine.sql',
   '2026-08-15-auto-eat.sql',
@@ -782,11 +783,11 @@ const HR_STATE_OF_CHAIN = [
 // read and written nothing, with claim-reward's own self-check reporting
 // success, because it asserted only its own arm. That is the clan_members
 // "join as self" defect exactly, and the ordering rule in
-// schema-apply-order.json would only have caught the REVERSE order.
+// schema-apply-order/ would only have caught the REVERSE order.
 //
 // So the gate is now derived link by link like hr_apply is, and PART 1f-ii
 // grades both. A new file that replaces hr_rate_gate is appended here AND to
-// tests/schema-apply-order.json, in the same commit, and its body is extracted
+// tests/schema-apply-order/, in the same commit, and its body is extracted
 // from its predecessor's rather than retyped.
 // ── THE hr_perks_of DERIVATION CHAIN ─────────────────────────────────────
 // The third object, added 2026-08-16 with the artisan progress model, for the
@@ -811,7 +812,7 @@ const HR_STATE_OF_CHAIN = [
 // lines would have been UNDECLARED removals and failed the build.
 //
 // A new file that replaces hr_perks_of is appended here AND to
-// tests/schema-apply-order.json, in the same commit.
+// tests/schema-apply-order/, in the same commit.
 const HR_PERKS_OF_CHAIN = [
   '2026-08-15-perk-channel.sql',
   '2026-08-16-artisan-progress-model.sql',
@@ -841,7 +842,7 @@ const HR_PERKS_OF_CHAIN = [
 // declared-removals list below is EMPTY.
 //
 // A new file that replaces hr_assert_grant_hygiene is appended here AND to
-// tests/schema-apply-order.json, in the same commit.
+// tests/schema-apply-order/, in the same commit.
 // b354 adds a THIRD link and the first WRITER the engine allowlist has taken
 // since hr_apply: 2026-08-16-unlock-buy.sql records hr_unlock_buy. Its body is
 // engine-allowlist-claim-perks' — extracted by tools/derive-grant-hygiene.mjs
@@ -2074,14 +2075,14 @@ say(`── ${SPEC.fn} derivation chain (each body derived from the last, nothin
     chainOk = false;
   }
   {
-    const order = JSON.parse(await readFile(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+    const order = loadApplyOrder(ROOT).order;
     const positions = SPEC.chain.map((f) => order.indexOf(f));
     if (positions.some((p) => p < 0)) {
-      fail(`a ${SPEC.fn} file is missing from schema-apply-order.json's "order": `
+      fail(`a ${SPEC.fn} file is missing from schema-apply-order/'s "order": `
          + SPEC.chain.filter((_, i) => positions[i] < 0).join(', '));
       chainOk = false;
     } else if (Math.max(...positions) !== order.indexOf(last)) {
-      fail(`${last} is the last file in ${SPEC.chainName} but schema-apply-order.json applies another `
+      fail(`${last} is the last file in ${SPEC.chainName} but schema-apply-order/ applies another `
          + `${SPEC.fn} file AFTER it. Whichever applies last wins, and it would silently delete this `
          + "one's change while every self-check still passed.");
       chainOk = false;
@@ -2315,8 +2316,7 @@ say('── every currency delta key has a per-call clamp AND a daily ceiling (S
          function, which is the same last-toucher discipline PART 1f-ii
          enforces. */
     const budgetSql = await (async () => {
-      const order = JSON.parse(
-        await readFile(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+      const order = loadApplyOrder(ROOT).order;
       let last = '';
       for (const f of order) {
         let sql = sources.get(f);
@@ -2416,7 +2416,7 @@ say('── the clan Storehouse debits the depositor (Security P0, b366)');
   // The PUBLIC name, and NOT the __ungated one: `\s*\(` after the name is what
   // separates `clan_deposit(` from `clan_deposit__ungated(`.
   const OUTER = /create\s+or\s+replace\s+function\s+public\.clan_deposit\s*\(/i;
-  const order = JSON.parse(await readFile(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+  const order = loadApplyOrder(ROOT).order;
 
   // (i) ONE OWNER.
   const inners = [...code.entries()].filter(([, sql]) => INNER.test(sql)).map(([f]) => f);

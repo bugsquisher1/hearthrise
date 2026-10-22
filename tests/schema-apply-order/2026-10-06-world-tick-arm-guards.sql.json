@@ -1,0 +1,4 @@
+{
+  "seq": 2380,
+  "note": "APPLIED 2026-10-05 23:13 UTC by the Coordinator via tools/apply-migration.mjs from a detached checkout of 0bc5608b (file sha256 f4842350 = lane tip). Security APPLY GO (same doc, c78f4623): C1 armed settle refuses fenced_24h past the raw 24 h fence; C2 stall judge per unarmed channel. Landed hr_tick_settle 612582fc, hr_tick_stall_status ef198d66; strict hygiene clean. Nothing armed."
+}

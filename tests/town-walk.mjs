@@ -68,6 +68,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, serve, SDK_STUB, UID } from './_client-harness.mjs';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -366,7 +367,7 @@ async function pureRules(M) {
   }
   // TW-12: the fake above keys a body by user AND slot; the real server (the chain's last word) must too.
   {
-    const order = JSON.parse(readFileSync(join(ROOT, 'tests/schema-apply-order.json'), 'utf8')).order;
+    const order = loadApplyOrder(ROOT).order;
     let body = null, key = null;
     for (const file of order) {
       let sql;

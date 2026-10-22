@@ -1,0 +1,4 @@
+{
+  "seq": 2860,
+  "note": "APPLIED 2026-10-15 02:41 UTC (Coordinator; backup 2026-10-14 10:28 UTC; read-back: hr_wipe_log 1 row, ledger triggers enabled, leaderboard 0, allowlist 2, player_state 0). THE CLEAN-SLATE WIPE (Tyler 2026-10-14/15): one TRUNCATE (restrict, continue identity) of every player / old-world table (72 named; absent ones skipped), player_ledger INCLUDED (ruling in the header; its TRUNCATE guard lifted for that statement only and proven re-enabled), profiles reset to signup shape, tick cursors nulled, leaderboard_ranked refreshed, one hr_wipe_log row. ONE-SHOT: a re-apply is a no-op. Refuses unless 2026-10-21-closed-mode.sql is in AND closed_mode is on; refuses on any unclassified table naming a player. IRREVERSIBLE except by the pre-apply daily backup. Apply AFTER 2026-10-21-closed-mode.sql."
+}

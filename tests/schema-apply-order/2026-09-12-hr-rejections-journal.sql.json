@@ -1,0 +1,4 @@
+{
+  "seq": 1630,
+  "note": "APPLIED 2026-09-11 (21:33 UTC) by the Coordinator via tools/apply-migration.mjs from lane head 52b59fe5, apply result [] , landed bodies hr_detail_bound 8cb41cbf…0877/182, hr_note_rejection d377f7f8…4965/1996, hr_rejection_verb 920ab60a…780b5/381, hr_verb_bump 8c919f0d…0330/661 - Security GO-WITH-CHANGES (R1 rate_limited not journalled at the seam, R2 slot folded outside 0-5, R3 code bounded, R4 non-jsonb wrappers skipped) landed first, then GO on 52b59fe5; read-only post-apply verification 7/7 PASS (bodies, ACLs, RLS, coverage 48+7, grant hygiene, no open txn, no log errors). Previously: STAGED, NOT APPLIED - REVIEW ONLY; the Coordinator applies AFTER a Security GO (…"
+}

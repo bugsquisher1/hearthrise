@@ -1,0 +1,4 @@
+{
+  "seq": 3530,
+  "note": "APPLIED 2026-10-20 04:25 UTC by the Coordinator (tools/apply-migration.mjs, self-check passed; edge hr-accrue 73c8d5c9 deployed 04:31 + verified). Was: STAGED (lane/c-consume-cd-travel, backend-architect, 2026-10-19; game CLOSED: applies on its passing §2 self-check; NOT APPLIED). Restates hr_hunt_enter_for (2026-10-28-party-flow.sql body; apply AFTER it) and hr_hunt_new_session (2026-10-27-core-bodies.sql body) so a hunt opens no earlier than player_state.stamina_at: with travel_s 0 a leave-and-re-enter inside one swing opened behind the last settle's stamina stamp and every settle refused stamina_ahead (tests/core-loop.mjs LOOP-1 step 11 / LOOP-2 step 8). Two function bodies; no table, row or grant change. MUST apply BEFORE 2026-10-28-hunt-sessions-catalogue.generated.sql."
+}

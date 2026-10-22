@@ -1,0 +1,4 @@
+{
+  "seq": 3100,
+  "note": "APPLIED 2026-10-18 17:3x UTC via tools/apply-migration.mjs (game CLOSED: on its passing §4; Security reviews at the reopen gate; hunt-world-state applied together with edge 6fe9d5c6). Was: STAGED (lane/s1-hunt-server, backend-architect, 2026-10-17; game CLOSED: applies on its passing §4, Security reviews every S1 surface at the reopen gate; NOT APPLIED). Per-hero settings in ONE player_action_sets.options jsonb (<= 2048 bytes), validated against hr_hunt_set_options: refused, never clamped. The bar is ability ids (hr_hunt_bar_check). Restates hr_action_set_put / hr_action_set_options / hr_hunt_set_preset; drops hr_hunt_use and hr_hunt_slots_check (and their baseline row): hunts are idle (Tyler 10-16). §6 HR858."
+}

@@ -1,0 +1,4 @@
+{
+  "seq": 3380,
+  "note": "APPLIED 2026-10-19 06:52 UTC by the Coordinator (hr_hunt_conds_check md5 8d63a034860a52e5e4672c7139ce15b3); edge hr-accrue 0c0457b1 deployed + verified. Was: STAGED (lane/b-condition-builder, systems-engineer, 2026-10-19; game CLOSED: applies on its passing §3, Security reviews it with the action-engine surfaces at the reopen gate; NOT APPLIED). Tyler 10-19 (audit C2): a bar slot takes at most THREE conditions and all must match. hr_hunt_condition_limits.max_conditions 4 -> 3 (generated ⟦limits⟧ block, pinned by tests/hunt-core/conditions.mjs sql-rows); hr_hunt_conds_check restated: a slot joins only and, a stop rule keeps and | or. Moves no value. After 2026-10-25-action-conditions.sql (last in the chain). The client half (MAX_CONDITIONS 3, no join picker) and the engine mirror (src/core/hunt/conditions.js conditionsProblem) ride the same branch; the edge payload moves with conditions.js."
+}

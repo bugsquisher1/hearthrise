@@ -1,0 +1,4 @@
+{
+  "seq": 450,
+  "note": "STAGED, NOT APPLIED (the Coordinator applies), but it belongs in 'order' rather than 'excluded' because a rebuilt database SHOULD have it â€” same treatment as 2026-08-14-leaderboard-view-lockdown.sql. Last, and it has four real predecessors: accrue-gate (it replaces hr_rate_gate), catalogue (hr_activities), apply-engine (Â§0 refuses to install against an hr_apply with no intent_mismatch branch or no S5 accrued_to stamp) and character-bootstrap (Â§4 drives a real character)."
+}

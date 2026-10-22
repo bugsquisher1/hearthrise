@@ -1,0 +1,4 @@
+{
+  "seq": 660,
+  "note": "STAGED, NOT APPLIED. Drops the market_buy_offers client INSERT/DELETE policies and revokes the now-dead write grants, so the client-authored buy-offer sub-market cannot write the table under server market authority. Runs AFTER 2026-08-17-market-v2.sql; requires 2026-08-12-market-offers-authority.sql (the policies it drops). Touches no function and no other table; graded by tests/market-offers-lockdown.mjs."
+}

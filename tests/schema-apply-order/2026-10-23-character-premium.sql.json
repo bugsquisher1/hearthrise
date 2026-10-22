@@ -1,0 +1,4 @@
+{
+  "seq": 3080,
+  "note": "APPLIED 2026-10-18 17:3x UTC via tools/apply-migration.mjs (game CLOSED: on its passing §4; Security reviews at the reopen gate; hunt-world-state applied together with edge 6fe9d5c6). Was: STAGED (lane/s1-hunt-server, backend-architect, 2026-10-17; game CLOSED: applies on its passing §4, Security reviews every S1 surface at the reopen gate; NOT APPLIED). MONEY/RANKED-ADJACENT: premium per CHARACTER (player_state.premium_until), written only by hr_premium_grant (no client grant; raise-only; an admin ledger row). The stamina cap follows it (8 h free / 12 h premium, hr_stamina_cap) and hr_stamina_of / hr_stamina_view are restated piecewise. Adds the X7 state-section registry (hr_state_sections + hr_state_sections_of) and splices ONE line into hr_state_of. §5 executes on a probe character and rolls back (HR856)."
+}

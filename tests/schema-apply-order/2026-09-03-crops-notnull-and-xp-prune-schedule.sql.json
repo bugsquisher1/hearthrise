@@ -1,0 +1,4 @@
+{
+  "seq": 1260,
+  "note": "Schema-drift audit closures: constrains the hr_crops hand-patched columns (xp/yield_min/yield_max) to the repo's declared not-null+default shape (no-op on a replayed chain — that is the point: repo and prod agree by construction after it), and schedules the never-scheduled hr_combat_xp_credit_prune (04:35 UTC daily, 1-day window; the game_events growth class at 100x). Order: after 2026-08-31-combat-xp-credit.sql (needs the prune fn; §0 fails closed). Reversible: drop not null/default + cron.unschedule."
+}

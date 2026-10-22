@@ -1,0 +1,4 @@
+{
+  "seq": 2280,
+  "note": "APPLIED 2026-09-26 23:38:19 UTC by the Coordinator via tools/apply-migration.mjs from set/b556 at 6b7e2794 (Security GO sec/timberline). PRE-1..6 and POST-1..7 green: hr_activities 503 -> 508, woodcutting 12 rungs at 1/15/22/30/38/45/52/60/68/75/82/90, hr_items unchanged 538, no probe leak, hygiene clean. Edge half deployed 2026-09-27 00:12 UTC (hr-accrue 184a155a)."
+}

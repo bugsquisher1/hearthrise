@@ -1,0 +1,4 @@
+{
+  "seq": 2960,
+  "note": "APPLIED 2026-10-17 22:2x UTC via tools/apply-migration.mjs (game CLOSED: on its passing §4; Security reviews at the reopen gate). Was: STAGED (lane/demo-data 2026-10-15; Security R2; Security GO required before apply — removes item grant sources; NOT APPLIED). Deletes every hr_dungeon_loot and hr_qm_offers row (the dungeons and the Quartermaster were cut; their rows name bone_key, the blueprints, farm_deed, goblin_seal and the dungeon keys). Tables and RPCs stay for C2 to retire; with no rows they fail closed. §4 asserts both empty and no client write policy. Apply BEFORE the catalogue regen, whose §4 refuses any grant-source row naming an item missing from hr_items."
+}

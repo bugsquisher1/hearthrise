@@ -61,6 +61,7 @@ import { readFileSync } from 'node:fs';
 import { bootReplay } from './schema-replay.mjs';
 import { deriveCatalogueRows } from '../tools/catalogue-rows.mjs';
 import { isMain } from './_is-main.mjs';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 /* The fields compared per table. Adding a column to a catalogue table means
    adding it HERE too, or the new column is unguarded and silently driftable —
@@ -201,7 +202,7 @@ const GEN = '2026-08-11-catalogue.generated.sql';
 /* Found, not hard-coded: the LAST file in the apply order that seeds both arm
    anchors. A hard-coded name went stale every time a new catalogue landed. */
 const CHAIN_END = (() => {
-  const order = JSON.parse(readFileSync(new URL('./schema-apply-order.json', import.meta.url), 'utf8'));
+  const order = loadApplyOrder();
   const list = order.order || order.files || Object.values(order).find(Array.isArray);
   for (const f of [...list].reverse()) {
     let t; try { t = readFileSync(new URL('../supabase/migrations/' + f, import.meta.url), 'utf8'); } catch { continue; }

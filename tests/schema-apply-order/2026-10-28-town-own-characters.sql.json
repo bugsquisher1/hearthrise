@@ -1,0 +1,4 @@
+{
+  "seq": 3520,
+  "note": "APPLIED 2026-10-20 01:27 UTC by the Coordinator. Was: STAGED (lane/a-town-own-chars, backend-architect, 2026-10-20; game CLOSED: applies on its passing §4; NOT APPLIED). hr_town_walkers RESTATED WHOLE from 2026-10-27-core-bodies.sql with one line removed: the caller's OTHER characters are walkers too (Tyler: his second character was invisible in town); every other filter stands (fresh, not quiet, not hunting, not blocked, admitted, capped). The client drops only its own character (user AND slot) and keys walkers by user and slot (src/session/town-presence.js, src/world/town-scene.js). No grant or table change. Reversible: re-apply the core-bodies body. Last."
+}

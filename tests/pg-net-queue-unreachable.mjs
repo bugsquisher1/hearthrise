@@ -97,7 +97,7 @@
 // public.hr_tick_edge_harvest): the applied file's bytes are the record and are
 // never rewritten, so the only fix is a later file, and a per-file Q-1 stays red
 // through it. Q-1 now replays the routine's history in the APPLY ORDER
-// (tests/schema-apply-order.json: pre_schema, then order; within a file, text
+// (tests/schema-apply-order/: pre_schema, then order; within a file, text
 // order). A Q-1 finding stands unless, AFTER it, the same routine is
 //   · dropped — `drop function|procedure|routine [if exists] schema.name`,
 //     with no argument list or one whose types match the reading create's
@@ -157,12 +157,13 @@ import { readFile, readdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { isMain } from './_is-main.mjs';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
 const MIG_DIR = path.join(ROOT, 'supabase', 'migrations');
 const CONFIG_TOML = path.join(ROOT, 'supabase', 'config.toml');
-const APPLY_ORDER = path.join(ROOT, 'tests', 'schema-apply-order.json');
+const APPLY_ORDER = path.join(ROOT, 'tests', 'schema-apply-order');
 const PROJECT_URL = 'https://nezapsylztqbbwuwembx.supabase.co';
 const argv = process.argv.slice(2);
 
@@ -619,7 +620,7 @@ async function sources() {
   let order;
   let notes;
   try {
-    const j = JSON.parse(await readFile(APPLY_ORDER, 'utf8'));
+    const j = loadApplyOrder(ROOT);
     order = [...(j.pre_schema || []), ...(j.order || [])];
     notes = j._order_notes || {};
   } catch (e) {

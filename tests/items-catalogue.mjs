@@ -43,16 +43,17 @@ import { readFile } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { join, normalize } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 /* THE CATALOGUE THE CHAIN ENDS WITH. Every generated catalogue replaces hr_items whole
    (`delete from public.hr_items;` then the insert), so the server's item allowlist is the LAST
-   such file in tests/schema-apply-order.json. Until 2026-10-18 this read the frozen 08-11 root and
+   such file in tests/schema-apply-order/. Until 2026-10-18 this read the frozen 08-11 root and
    went red on the first item a forward catalogue added (crown_shard, iron_bolts,
    oak_practice_blade); gold-intents G16 had the same hard-coded name. '' (no such file) is read
    as unreadable, which the guard reports, never as green. */
 export function lastItemsCatalogue(root = ROOT) {
-  const order = JSON.parse(readFileSync(join(root, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+  const order = loadApplyOrder(root).order;
   let last = '';
   for (const file of order) {
     const rel = join('supabase', 'migrations', file);

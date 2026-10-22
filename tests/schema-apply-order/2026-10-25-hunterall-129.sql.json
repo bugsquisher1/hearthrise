@@ -1,0 +1,4 @@
+{
+  "seq": 3220,
+  "note": "APPLIED 2026-10-19 02:4x UTC via tools/apply-migration.mjs (game CLOSED: on its passing self-check; Security reviews at the reopen gate; edge ad7c0c7a deployed right after). Was: STAGED (integration v0.2.1, 2026-10-18; game CLOSED: applies on its passing self-check, Security reviews it with the closed-mode surfaces at the reopen gate; NOT APPLIED). MONEY SURFACE (a milestone reward gate): restates hr_claim_milestone__ungated VERBATIM from 2026-10-24-hunterall-119.sql (§0 md5-pinned 46f633c1 or its own image) with the hunterAll threshold 119 -> 129 for the ten Thicket + Warrens monsters (src/data/collection-milestones.js MONSTER_TOTAL). Raise-only; reward unchanged. §4 executes 128 refused / 129 reaches the retired gem credit and rolls back whole, rolled back (HR891). The CHAIN-END restatement collection-renown-claim-drift grades. After the drinks catalogue."
+}

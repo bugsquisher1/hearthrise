@@ -29,7 +29,7 @@
 // keep proving it for as long as the fence is what stands between the two.
 //
 // It writes NOTHING to production. Every arm runs against a PGlite database
-// rebuilt from supabase/migrations in tests/schema-apply-order.json order, and
+// rebuilt from supabase/migrations in tests/schema-apply-order/ order, and
 // every row is written by this file under synthetic uuids that
 // `gen_random_uuid()` cannot mint (CLAUDE.md §2 — player state is never
 // fabricated). No live credential is read and no live query is issued.

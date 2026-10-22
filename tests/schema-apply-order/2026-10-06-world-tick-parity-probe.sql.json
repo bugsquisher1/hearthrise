@@ -1,0 +1,4 @@
+{
+  "seq": 2390,
+  "note": "APPLIED 2026-10-05 23:52 UTC by the Coordinator via tools/apply-migration.mjs from a detached checkout of lane/world-tick-integrate 15606617 (file sha256 2135f265 = 011923fc), after the combined edge c38acb8e deployed 23:51 (live hash verified). Security APPLY GO (docs/planning/SEC_WORLD_TICK_PROBE_2026-10-05.md, e7c3479f). First probe closed 04:29 UTC 10-06: single span = sum of 179 shadow windows exactly."
+}

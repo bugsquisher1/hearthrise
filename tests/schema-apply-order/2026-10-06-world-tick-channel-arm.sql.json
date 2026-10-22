@@ -1,0 +1,4 @@
+{
+  "seq": 2370,
+  "note": "APPLIED 2026-10-05 22:04 UTC by the Coordinator via tools/apply-migration.mjs from a detached checkout of 4f587c45 (file sha256 88cde413 = lane tip). Security APPLY GO (docs/planning/SEC_WORLD_TICK_CHANNEL_ARM_2026-10-05.md, sec/world-tick-channel-arm 7d511f13). Inert: armed_channels {}. Post-apply verified (reliability): 8 bodies md5 = replay, cron 25/25, 0 tick ledger rows, grants exact, hr_assert_grant_hygiene(true) strict clean."
+}

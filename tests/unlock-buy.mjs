@@ -9,7 +9,7 @@
 //   request can climb that ladder or move gold twice.
 //
 // Everything runs for real: a real PostgreSQL (PGlite/WASM, in process) with
-// THE WHOLE MIGRATION CHAIN applied verbatim from tests/schema-apply-order.json
+// THE WHOLE MIGRATION CHAIN applied verbatim from tests/schema-apply-order/
 // — so 2026-08-16-unlock-offers.generated.sql's and 2026-08-16-unlock-buy.sql's
 // own self-verifying blocks (§0 refuse-to-install, §3 structural, §5 hygiene,
 // §6 behavioural) EXECUTE on every run of this file — and the real Edge module

@@ -1,0 +1,4 @@
+{
+  "seq": 340,
+  "note": "Last of the 08-11 block: it is the detector, so it must see the finished surface. It reports every un-retrofitted RPC, which makes it a second, independent check that A9 ran."
+}

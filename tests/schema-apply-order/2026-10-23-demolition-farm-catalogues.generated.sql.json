@@ -1,0 +1,4 @@
+{
+  "seq": 3000,
+  "note": "APPLIED 2026-10-17 22:2x UTC via tools/apply-migration.mjs (game CLOSED: on its passing §4; Security reviews at the reopen gate). Was: STAGED (lane/demo-data 2026-10-14; Security GO required before apply — moves a yield payload; NOT APPLIED). Master Design Reference §9: tools/gen-farm-catalogues.mjs re-emits hr_crop_plot_tier / hr_plot_tier / hr_farm_yield_perk (their sole writer; truncate + refill) with the Garden rungs and the Scarecrow at farm_yield 0; the held companion rows (bunny, squirrel) are unchanged. K1/Security R1: hr_plot_tier gains gold_cost + req_farm_level (tiers 2-5: 500/5000/25000/100000 gold at farming 5/25/45/70; §4 pins each and refuses a free or ungated tier above 1; tests/plot-tier-price-replay.mjs drives the RPC). Apply after the catalogue regen."
+}

@@ -201,7 +201,7 @@ const codeOnly = (src) => src.replace(/\r\n/g, '\n').split('\n')
 // this file cannot afford. Do not widen it to a match-all.
 //
 // The DECISION is ordering, and the order is the APPLY order
-// (tests/schema-apply-order.json), never the filename order — filename order
+// (tests/schema-apply-order/), never the filename order — filename order
 // does not replay (schema-replay.mjs header). A name is dropped only when its
 // last drop applies AFTER its last create-or-replace / patch; a name dropped
 // and later re-created (or re-created in the SAME file) stays tracked. A

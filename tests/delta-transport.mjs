@@ -84,7 +84,7 @@
 //       not define reads as `harness/runtime failure: write CONNECTION_CLOSED`
 //       — no test named, no statement named. That was b532's CI red for two
 //       days, diagnosed as a memory leak. This file now boots the WHOLE apply
-//       order (tests/schema-apply-order.json) and T9 says so by name.
+//       order (tests/schema-apply-order/) and T9 says so by name.
 //
 // ── WHAT IT DOES NOT PROVE ─────────────────────────────────────────────────
 //   · The SUPABASE POOLER. pgbouncer sits between the Edge Function and
@@ -117,7 +117,7 @@ import { isMain as isEntryModule } from './_is-main.mjs';
 const MIG = (f) => join(ROOT, 'supabase', 'migrations', f);
 const FN = (f) => join(ROOT, 'supabase', 'functions', 'hr-accrue', f);
 
-/* ── THE CHAIN: tests/schema-apply-order.json, WHOLE, NOT A HAND-PICKED SET ──
+/* ── THE CHAIN: tests/schema-apply-order/, WHOLE, NOT A HAND-PICKED SET ──
    This file used to append a 13-entry EXTRA list to the clan chain — the same
    literal tests/activity-intent.mjs keeps, copied here so that file's ordering
    could not silently change this one's. That was right about ORDER and wrong
@@ -669,7 +669,7 @@ async function run(mutate) {
           + 'T3 would drive the real collect into that absence, and over pglite-socket a SQL error '
           + 'closes the connection instead of returning 42883, so the failure would read as '
           + '`harness/runtime failure: write CONNECTION_CLOSED` and name nothing. Add the migration '
-          + 'to the apply order this file boots (tests/schema-apply-order.json).');
+          + 'to the apply order this file boots (tests/schema-apply-order/).');
       }
     }
 

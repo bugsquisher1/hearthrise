@@ -1,0 +1,4 @@
+{
+  "seq": 2550,
+  "note": "APPLIED 2026-10-10 04:0x UTC (Coordinator, tools/apply-migration.mjs; Security GO per b566 sequence). World-tick scale S4: hr_tick_roster restated from 2026-10-11-world-tick-due-roster.sql with one delta - an ARMED GATHER character with no live heartbeat (player_state.last_seen_at outside hr_frame_wanted's 75 s) is due at flush x fold_windows instead of flush, so the edge folds its windows into one settle and one ledger row. Online, shadow and combat characters keep the one-flush line. Inert at fold_windows = 1. EDGE HALF: tick.js settleFolded + tick-gather.js foldWindowIntents/coalesceProgress. Security GO required (journal shape: one row per fold). After apply: live-hash-drift wants hr_tick_roster."
+}

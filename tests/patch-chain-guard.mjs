@@ -110,10 +110,10 @@ import { join, normalize } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { isMain } from './_is-main.mjs';
+import { loadApplyOrder, writeApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const MIGRATIONS = join(ROOT, 'supabase', 'migrations');
-const APPLY_ORDER = join(ROOT, 'tests', 'schema-apply-order.json');
 const BASELINE = join(ROOT, 'tests', 'patch-chain-guard.baseline.json');
 
 /** The audit's standing rule. A chain at or past this depth must be restated. */
@@ -294,7 +294,7 @@ export function applyOrder(root) {
     ? readdirSync(join(root, 'supabase', 'migrations')).filter((f) => f.endsWith('.sql')).sort()
     : [];
   let order = [];
-  try { order = JSON.parse(readFileSync(join(root, 'tests', 'schema-apply-order.json'), 'utf8')).order || []; }
+  try { order = loadApplyOrder(root).order || []; }
   catch { order = []; }
   const known = new Set(order);
   const unordered = files.filter((f) => !known.has(f));
@@ -811,8 +811,7 @@ function selftest() {
     const writeTree = (extra = {}, ord = order) => {
       for (const f of readdirSync(mig)) rmSync(join(mig, f));
       for (const [n, t] of Object.entries({ ...files, ...extra })) writeFileSync(join(mig, n), t);
-      writeFileSync(join(tmp, 'tests', 'schema-apply-order.json'),
-        JSON.stringify({ order: [...ord, ...Object.keys(extra)] }, null, 2));
+      writeApplyOrder(tmp, { order: [...ord, ...Object.keys(extra)], _order_notes: {} });
     };
 
     writeTree();

@@ -1,0 +1,4 @@
+{
+  "seq": 460,
+  "note": "STAGED, NOT APPLIED (the Coordinator applies). LAST, and it must stay last of anything that touches hr_apply: it is a `create or replace` of the WHOLE hr_apply body, derived programmatically from 2026-08-11-apply-engine.sql (byte-identical to production, md5 917967d4bb03ca1c098b3e896a3e8317, compared 2026-08-15) and patched at four anchors. A file applied after this one that also replaces hr_apply would silently delete the C1/C3 fixes; a file applied BEFORE it that did so would be silently deleted BY it. Its Â§0 refuses to install against an hr_apply with no intent_mismatch branch, which is the closest a migration can get to 'do not replace a body you cannot account for'. Real predecessors: player-state (player_intents.slot), apply-engine (the body), character-bootstrap + catalogue (Â§4 drives two real characters)."
+}

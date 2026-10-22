@@ -1,0 +1,4 @@
+{
+  "seq": 2120,
+  "note": "APPLIED 2026-09-23 06:25:21 UTC by the Coordinator via tools/apply-migration.mjs, THIRD of the M6 five (Security R6.8). It was recorded as STAGED, NOT APPLIED - REVIEW ONLY until then. Lane C (lane/m6-hunts-backend, 2026-09-22). Adds hr_hunt_analyzer (READ-ONLY arithmetic over player_ledger combat/accrue rows since active_since; loot priced from hr_items.value, combat XP filtered by hr_skills.cat, deaths counted from the ledger's own death rows) and patches hr_state_of at the total_level anchor to project it, NULL for any character not on a combat pointer. No per-hunt counter table by design. Awaiting the security-engineer's adversarial review."
+}

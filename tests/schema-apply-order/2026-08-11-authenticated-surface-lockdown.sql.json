@@ -1,0 +1,4 @@
+{
+  "seq": 300,
+  "note": "The A9 __ungated retrofit. Every later file that references a *__ungated name depends on it, and it in turn needs every RPC it retrofits to already exist â€” so it sits after the whole clan/raid/market surface and before the 08-13 files."
+}

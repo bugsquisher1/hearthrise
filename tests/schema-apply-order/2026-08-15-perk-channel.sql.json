@@ -1,0 +1,4 @@
+{
+  "seq": 480,
+  "note": "STAGED, NOT APPLIED (the Coordinator applies). It does NOT touch hr_apply â€” its only `create or replace` is on a function it introduces â€” so it may sit before or after tool-carry, and tool-carry remains the last file that may replace hr_apply. Placed last only because it is newest. Real predecessors: player-state (player_state + player_progress + hr_create_character, which Â§4(b) drives) and accrual (the hr_engine role). âš  IT DECLARES A SEAM, `public.hr_unlock_levels(uuid,int)`, and creates it ONLY IF ABSENT â€” so the unlock-storage migration may land before OR after and whichever lands first is authoritative. Do not 'tidy' that into an unconditional create-or-replace: two files defining one object in filename order is the clan_members \"join as self\" defect that nearly shipped."
+}

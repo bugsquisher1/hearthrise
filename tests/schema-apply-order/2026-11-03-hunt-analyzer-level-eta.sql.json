@@ -1,0 +1,4 @@
+{
+  "seq": 3680,
+  "note": "APPLIED 2026-10-21 13:06 UTC by the Coordinator (landed hr_hunt_stats_of md5 03aa7bab04a1b5fa5725b2f773dd2c1d). Was STAGED, NOT APPLIED (lane/a-analyzer-next-level, 2026-11-03; game CLOSED: applies on its passing self-check; Security reviews it at the reopen gate). Tracker r44: Next level in read 00:00:00 forever (the client took the minimum of the SKILLS eta, which the server floors at 0). RESTATES WHOLE hr_hunt_stats_of (2026-10-23-hunt-analyzer-v2.sql, section 0 md5-pinned fa378ecd..., new image 03aa7bab...): the hero block gains level {xp, per_hour, eta_h} from the tally key level (Level XP) and the server Level curve, eta_h NULL (never 0) with no Level XP; the Level key leaves the skills block (it was never a skill). Read-only, no grant or signature change. After 2026-11-02-shop-no-supplies.sql (last). The client half (analyzerOf reads hero.level.eta_h) rides lane A."
+}

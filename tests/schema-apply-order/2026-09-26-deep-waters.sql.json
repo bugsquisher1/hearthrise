@@ -1,0 +1,4 @@
+{
+  "seq": 2300,
+  "note": "POST-APPLY AMENDMENT (self-check ONLY, no body/data; set/b570-bundle 2026-10-12): the one-ore-per-level self-check now excludes activity_id 'essence_rock' (the level-1 Rune Essence node added by 2026-10-16-w0e-ammo-runecraft.sql, designer ruling: essence is mined, mirroring copper). Every other duplicate node level still fails. No function body, row or grant changed; nothing re-applies to production. PREVIOUS: APPLIED 2026-09-27 00:11:08 UTC by the Coordinator via tools/apply-migration.mjs from set/b556 at 6b7e2794 (Security GO/GO/GO sec/deep-waters 336c829f). P1-P4, X1-X5 and Q1-Q6, X6-X8 green: fishing 12 -> 16, mining 12 -> 14, 6 new gather rows, heals 22/28/42/38 -> 32/38/44/50 in hr_items and hr_feast_foods, hr_items 538, activities 508 -> 514. Edge deployed in the same sitting at 00:12 (hr-accrue c799d159 -> 184a155a, verified live). Rollback SQL staged (delete 6 rows, restore 4 heals) - pair with an edge redeploy."
+}

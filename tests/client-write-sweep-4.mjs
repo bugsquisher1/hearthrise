@@ -14,7 +14,7 @@
 //   and clans — were NOT touched, because their grants are not dead.
 //
 // Everything runs against a real PostgreSQL (PGlite/WASM, in process) with THE
-// WHOLE MIGRATION CHAIN applied verbatim from tests/schema-apply-order.json, so
+// WHOLE MIGRATION CHAIN applied verbatim from tests/schema-apply-order/, so
 // the migration's own self-verifying blocks (§0 refuse-to-install including the
 // writer scan with its positive AND anchor controls, §2 full vocabulary, §3
 // execute-the-refusal on all 34 pairs, §4 detector-clean with the probe control)

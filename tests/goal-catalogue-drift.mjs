@@ -8,7 +8,7 @@
 //   (2) [retired 2026-10-17: the old client's QUEST_DEFS in src/legacy.js,
 //       deleted with that client]
 //   (3) the server's CASE catalogue, read at the CHAIN END: the LAST file in
-//       tests/schema-apply-order.json `order` that creates
+//       tests/schema-apply-order/ `order` that creates
 //       hr_claim_quest__ungated (2026-09-28-journeymans-road.sql today). Until
 //       2026-09-26 it was read from 2026-08-20 only, and a reviewer changed
 //       farmhand's gold 500 -> 5000 in the body production actually runs
@@ -55,7 +55,7 @@ export async function goalCatalogueDriftGuard(over = {}) {
   let questFile = '(override)';
   if (questSql == null) {
     const end = await chainEndMigration(QUEST_BODY_RE);
-    ok(!!end, 'CONTROL: no file in schema-apply-order.json `order` creates hr_claim_quest__ungated.');
+    ok(!!end, 'CONTROL: no file in schema-apply-order/ `order` creates hr_claim_quest__ungated.');
     questSql = end ? end.sql : '';
     questFile = end ? end.file : '(none)';
   }

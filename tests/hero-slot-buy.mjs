@@ -28,7 +28,7 @@
 //     The whole 3,100-gem ladder, bypassed by one fetch, five times over.
 //
 // ── WHAT THIS FILE DRIVES ───────────────────────────────────────────────
-// The REAL migration chain from tests/schema-apply-order.json, applied verbatim
+// The REAL migration chain from tests/schema-apply-order/, applied verbatim
 // into PGlite (real PostgreSQL, in process), then a real player through the REAL
 // rate-gated RPC as `authenticated` with a JWT subject set. It also BINDS THE
 // THREE COPIES OF THE PRICE LADDER that must never disagree:

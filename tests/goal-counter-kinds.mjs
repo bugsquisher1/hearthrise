@@ -52,7 +52,7 @@
 //     the check above is not passing because the fixture is broken;
 //   · the installed hr_claim_quest__ungated names no 'ev:planted' (with a
 //     positive control on the six keys it does name);
-//   · the migration is placed in tests/schema-apply-order.json with the exact
+//   · the migration is placed in tests/schema-apply-order/ with the exact
 //     "STAGED, NOT APPLIED - REVIEW ONLY; " prefix.
 //
 // Run GREEN:  node tests/goal-counter-kinds.mjs
@@ -62,12 +62,12 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { readFile } from 'node:fs/promises';
-import { bootReplay, MANIFEST_PATH } from './schema-replay.mjs';
+import { bootReplay, manifest } from './schema-replay.mjs';
 import { chainEndMigration } from './quest-reward-parity.mjs';
 
 const MIG = '2026-09-07-goal-counter-kind-check.sql';
 const CATALOGUE_MIG = '2026-08-23-modal-goal-claims.sql';
-/* THE QUEST BODY'S CHAIN END — the LAST file in schema-apply-order.json `order`
+/* THE QUEST BODY'S CHAIN END — the LAST file in schema-apply-order/ `order`
    that creates hr_claim_quest__ungated. It was hard-coded to 2026-09-06 until
    Journeyman's Road restated the body, which would have left the
    quest_reads_planted mutation patching a SUPERSEDED body (so the planted arm
@@ -364,7 +364,7 @@ async function runAll(db) {
   }
 
   // ── 6. THE DEPLOYMENT RECORD NAMES THE FILE ──────────────────────────────
-  const man = JSON.parse(await readFile(MANIFEST_PATH, 'utf8'));
+  const man = await manifest();
   ok(man.order.filter((f) => f === MIG).length === 1,
      `${MIG} appears exactly once in the apply order`);
   const note = (man._order_notes || {})[MIG] || '';

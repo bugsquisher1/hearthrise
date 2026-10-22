@@ -1,0 +1,4 @@
+{
+  "seq": 2940,
+  "note": "APPLIED 2026-10-17 22:2x UTC via tools/apply-migration.mjs (game CLOSED: on its passing §4; Security reviews at the reopen gate). Was: STAGED (lane/demo-data, demolition D2 2026-10-14; Security GO required before apply — MONEY SURFACE: quest item credits; NOT APPLIED). Designer ruling §6: road_forge iron_pickaxe -> 3 iron_bar, road_craft iron_axe -> 5 oak_plank, road_cook oak_rod -> 3 lobster, road_hunt bone_key -> 2 cooked_lobster; gold unchanged. UPSERT of the 8 item rows (no delete, xp column untouched); chain-end seed for tests/quest-reward-parity.mjs (bound to goal-catalogue.js QUEST_REWARDS and legacy.js QUEST_DEFS). §4 executes road_forge: refused at goal-1, exactly 3 iron bars + 700 gold at goal, replay refused, rolled back, zero leak, grant hygiene. Apply FIRST of the demolition files (the catalogue regen deletes bone_key from hr_items). No function body moves; live-hash-drift wants nothing."
+}

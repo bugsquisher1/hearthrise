@@ -1,0 +1,4 @@
+{
+  "seq": 2560,
+  "note": "APPLIED 2026-10-10 04:0x UTC (Coordinator, tools/apply-migration.mjs; Security GO per b566 sequence). Security GO required (moves XP, a ranked surface). Adds player_skills.xp_frac numeric NOT NULL DEFAULT 0 CHECK [0,1); hr_apply accepts the ABSOLUTE per-skill delta key xp_frac (validated as tool_carry: object, <= c_max_carry_skills, catalogue skills, numbers in [0,1), refused never clamped) and writes it after the XP loop; hr_state_of projects skills.<id>.frac. Engine half (src/core/progression.js grantXp fixed-point carry) proposes xp_frac only when the projection carries frac, so either deploy order is safe. No dependency on frame-self-echo or the 2026-10-10/11 world-tick files (none restates hr_apply or hr_state_of; disjoint bodies); placed last."
+}

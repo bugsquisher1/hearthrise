@@ -40,6 +40,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 const OWN = '2026-10-07-frame-emit-online-only.sql';
@@ -112,9 +113,9 @@ export function check(files) {
 }
 
 async function loadChain() {
-  const order = JSON.parse(await readFile(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8'));
+  const order = loadApplyOrder(ROOT);
   const names = order.order || order.files || order.migrations;
-  if (!Array.isArray(names)) throw Object.assign(new Error('schema-apply-order.json has no order array'), { harness: true });
+  if (!Array.isArray(names)) throw Object.assign(new Error('schema-apply-order/ has no order array'), { harness: true });
   const out = [];
   for (const name of names) {
     if (!name.endsWith('.sql')) continue;

@@ -24,7 +24,7 @@
 // clamps bounded the RATE; a bound on free money is not a refusal.
 //
 // ── WHAT THIS FILE DRIVES ───────────────────────────────────────────────
-// The REAL migration chain from tests/schema-apply-order.json, applied verbatim
+// The REAL migration chain from tests/schema-apply-order/, applied verbatim
 // into PGlite (real PostgreSQL, in process), then two REAL players through the
 // REAL A9-wrapped RPC as `authenticated` with a JWT subject set. Inventory is
 // never written by this file directly: every item the depositor owns arrives

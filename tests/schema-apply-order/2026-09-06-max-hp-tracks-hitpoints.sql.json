@@ -1,0 +1,4 @@
+{
+  "seq": 1450,
+  "note": "APPLIED 2026-09-06 (~07:1x UTC) by the Coordinator via tools/apply-migration.mjs, one txn, apply result [] — 3 functions + trigger landed; backfill corrected the 4 pre-flight rows (max gap 31); Security GO unconditional. (Was STAGED, NOT APPLIED - REVIEW ONLY; the Coordinator applies AFTER a Security GO. Fixes the server bug that player_state.max_hp never tracked the hitpoints level (created at hr_start_kit.max_hp=10 and never moved again, while the client, the cutover import and the start-kit assertion all define max HP as the hitpoints LEVEL). Installs hr_max_hp_for / hr_sync_max_hp and an AFTER INSERT OR UPDATE OF xp trigger on player_skills, so every credit site present and future is covered without restating one existing RPC body, and backfills every character from its own persisted XP. Placed LAST because it must see the final player_state/player_skills shape and hr_level_from_xp. Guard: tests/max-hp-tracks-hitpoints.mjs."
+}

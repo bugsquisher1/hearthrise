@@ -23,7 +23,7 @@
 // the same authored number.
 //   (1) src/data/goal-catalogue.js   QUEST_REWARDS[id].items   — the source
 //   (2) [retired 2026-10-17: the old client's QUEST_DEFS, deleted with it]
-//   (3) the CHAIN-END seed — the LAST file in tests/schema-apply-order.json
+//   (3) the CHAIN-END seed — the LAST file in tests/schema-apply-order/
 //                                     `order` that refills hr_quest_rewards
 //                                     (2026-09-28-journeymans-road.sql today;
 //                                     2026-09-06 until then) — what the server
@@ -55,18 +55,19 @@ import { readFile } from 'node:fs/promises';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain } from './_is-main.mjs';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 
 /* ── THE CHAIN END ───────────────────────────────────────────────────────────
-   The LAST file in schema-apply-order.json `order` whose text matches `re` —
+   The LAST file in schema-apply-order/ `order` whose text matches `re` —
    the body/seed a rebuild installs last, which is also the one production runs
    once the order is applied. Same derivation collection-renown-claim-drift uses;
    shared here so goal-catalogue-drift and goal-counter-kinds bind the SAME file
    this guard does. Returns {file, sql} or null. */
 export async function chainEndMigration(re, orderOverride) {
   const order = orderOverride
-    || JSON.parse(await readFile(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+    || loadApplyOrder(ROOT).order;
   let end = null;
   for (const f of order) {
     let txt;
@@ -81,7 +82,7 @@ export const SEED_RE = /insert into public\.hr_quest_rewards \(quest_id, items\)
 export const XP_SEED_RE = /insert into public\.hr_quest_rewards \(quest_id, xp\) values/i;
 async function xpSeedMigration() {
   const end = await chainEndMigration(XP_SEED_RE);
-  if (!end) throw new Error('no file in tests/schema-apply-order.json `order` seeds hr_quest_rewards.xp');
+  if (!end) throw new Error('no file in tests/schema-apply-order/ `order` seeds hr_quest_rewards.xp');
   return end;
 }
 export function parseXpSeed(sql) {
@@ -99,7 +100,7 @@ export function parseXpSeed(sql) {
 }
 async function seedMigration() {
   const end = await chainEndMigration(SEED_RE);
-  if (!end) throw new Error('no file in tests/schema-apply-order.json `order` seeds hr_quest_rewards');
+  if (!end) throw new Error('no file in tests/schema-apply-order/ `order` seeds hr_quest_rewards');
   return end;
 }
 
@@ -326,7 +327,7 @@ if (isMain(import.meta.url)) {
         if (problems.length) {
           for (const p of problems) process.stdout.write(`  FAIL  ${p}\n`);
           process.stdout.write(`\n${problems.length} quest-reward drift(s). The two sides are src/data/goal-catalogue.js `
-            + 'and the chain-end hr_quest_rewards seed (schema-apply-order.json).\n');
+            + 'and the chain-end hr_quest_rewards seed (schema-apply-order/).\n');
           return 1;
         }
         process.stdout.write('  ok    every quest item and XP reward agrees between data and server, and every id is real.\n\nin sync.\n');

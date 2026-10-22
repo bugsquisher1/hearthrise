@@ -1,0 +1,4 @@
+{
+  "seq": 2850,
+  "note": "APPLIED 2026-10-15 02:25 UTC (Coordinator, Security GO-WITH-CHANGES; R1 anon lockdown in; R2 proven live: a fresh non-allowlisted account got no character from hr_create_character). CLOSED MODE: hr_access_allowlist (seeded Tyler + QA through a join on auth.users, so the replay seeds nothing), hr_flags closed_mode = true (on conflict do nothing), hr_admitted / hr_access_check (invoker), the PostgREST pre-request hook (L1), an anchored splice of hr_access_check into hr_rpc_gate (L2), hr_rate_gate restated with an admitted line (L3, the edge), restrictive hr_closed_admit on the six client-writable tables (L4). Apply BEFORE 2026-10-21-closed-rebuild-wipe.sql. Reversible by one UPDATE (closed_mode = false)."
+}

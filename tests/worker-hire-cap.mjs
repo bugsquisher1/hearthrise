@@ -233,7 +233,7 @@ async function runBase(mutate) {
 async function runPreMigration() {
   const files = (await manifest()).order;
   const idx = files.indexOf(MIGRATION);
-  if (idx < 0) throw new Error(`${MIGRATION} is not in tests/schema-apply-order.json`);
+  if (idx < 0) throw new Error(`${MIGRATION} is not in tests/schema-apply-order/`);
   const { db } = await bootReplay({ upTo: files[idx - 1] });
   await armsOn(db, { expectUnpaidHireRefused: false });
 }

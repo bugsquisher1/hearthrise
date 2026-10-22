@@ -18,7 +18,7 @@
 // exists because text is not behaviour and an apply-time gate can be disarmed
 // by the next file that restates a body: it boots the REAL ordered migration
 // chain (tests/schema-replay.mjs bootReplay — supabase/schema.sql + every
-// migration in tests/schema-apply-order.json, on PGlite in process) and proves,
+// migration in tests/schema-apply-order/, on PGlite in process) and proves,
 // BY EXECUTION, with the migration's own gate DISARMED so that what turns red is
 // THIS file's measurement:
 //

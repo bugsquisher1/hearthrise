@@ -1,0 +1,4 @@
+{
+  "seq": 430,
+  "note": "STAGED, NOT APPLIED to production yet â€” in 'order' rather than 'excluded' for the same reason 2026-08-14-character-bootstrap.sql is: the replay is how a staged migration gets EXECUTED before anyone applies it, and its self-verifying block is the commit gate. It REPLACES hr_state_of, so it must sit after apply-engine; it reads hr_items.auto_eatable, so the catalogue must be regenerated (it is, in this repo) and RE-APPLIED to production before this file. APPLIED to production 2026-08-15, together with the regenerated catalogue."
+}

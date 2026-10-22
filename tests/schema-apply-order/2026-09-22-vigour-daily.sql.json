@@ -1,0 +1,4 @@
+{
+  "seq": 2110,
+  "note": "APPLIED 2026-09-23 06:25:19 UTC by the Coordinator via tools/apply-migration.mjs, SECOND of the M6 five (Security R6.8). It was recorded as STAGED, NOT APPLIED - REVIEW ONLY until then. Lane C (lane/m6-hunts-backend, 2026-09-22). Adds hr_vigour_of (READ-ONLY: derived grant = greatest(720, hr_offline_cap_ms/60000), bought minutes from the ev:vigour_refills daily row, 22h ceiling, spent from the ev:vigour_min daily row) and patches hr_state_of at the total_level anchor to project it. NO NEW TABLE, NO NEW COLUMN and NO GOLD - the refill sink is a separate file. Awaiting the security-engineer's adversarial review; the Coordinator applies, never an agent (CLAUDE.md 2)."
+}

@@ -1,0 +1,4 @@
+{
+  "seq": 2260,
+  "note": "APPLIED 2026-09-26 23:34:19 UTC by the Coordinator via tools/apply-migration.mjs from set/b556 at 6b7e2794 (Security GO-WITH-CHANGES sec/vigour-price-by-level c0f3a4ad, VP-1/VP-2 landed). Landed hr_vigour_of 7945f314, hr_vigour_refill__ungated 535a199d, hr_vigour_refill_price a307db49; P1-P4 and Q1-Q5 green; rule row 1500/450/0.5/5; hr_vigour_prices dropped; hr_vigour_of sweep 41/41 characters metered without error. Play gate: QA refill cost 6900 = next_refill_gold, one vigour ledger row -6900. Rollback staged (P5 bodies + recreate hr_vigour_prices + drops, one file). NOTE: the client refill control is NOT mounted yet (renderHuntPanel is never called) - lane/vigour-panel-mount."
+}

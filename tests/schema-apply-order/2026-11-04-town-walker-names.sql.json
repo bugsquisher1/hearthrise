@@ -1,0 +1,4 @@
+{
+  "seq": 3760,
+  "note": "APPLIED 2026-10-21 21:5x UTC by the Coordinator (v0.2.24; edge hr-accrue 139a00d4 deployed right after). Was STAGED, NOT APPLIED (lane/a-hero-switching, systems-engineer, 2026-10-21; game CLOSED: applies on its passing §4; Security reviews it at the reopen gate). Andy live v0.2.22: two heroes of one account in town wore ONE name (hr_town_walkers named each walker hr_social_name(user), the account's newest character). RESTATES WHOLE hr_town_walkers from 2026-10-28-town-own-characters.sql (§0 pins the live normalised functiondef md5 4de8976e or this file's WALKER-NAMES marker): `name` is hr_character_name(user, slot), cut to 24. No grant, filter, key or value change; §4 proves two heroes get two names and the walker keys are unchanged. After 2026-11-06-hunt-analyzer-min-window.sql (last in the chain; no object in common with it or the 2026-11-04/05/06 catalogue files)."
+}

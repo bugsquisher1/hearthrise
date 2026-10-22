@@ -1,0 +1,21 @@
+{
+  "seq": 1040,
+  "note": [
+    "P0 ACCESS CONTROL. Enforces the closed-beta invite at ACCOUNT CREATION.",
+    "Measured on production 2026-08-23: 8 accounts, 3 consumed invites - the",
+    "gate had never been enforced anywhere. Adds an AFTER INSERT trigger on",
+    "auth.users that consumes an unused code atomically with the user row, plus",
+    "public.hr_signup_gate(jsonb) for registration as the Supabase",
+    "before-user-created auth hook (ops step, see the file's tail).",
+    "LAST in the order for two reasons: it reads public.hr_rate_ok (created",
+    "earlier in the chain) and it revokes claim_beta_invite, which",
+    "2026-08-10-dr-beta-invites-base.sql grants. Running it before that file",
+    "would have the grant put back underneath it.",
+    "Its self-check inserts probe rows into auth.users and deletes them again,",
+    "asserting auth.users and the consumed-invite count are byte-identical",
+    "afterwards. It sets hearthrise.invite_gate_force so the probe is not waved",
+    "through by the operator bypass - verified by mutation: without that line",
+    "SELF-CHECK 1 fails, and without the `used_by is null` predicate SELF-CHECK",
+    "4 fails."
+  ]
+}

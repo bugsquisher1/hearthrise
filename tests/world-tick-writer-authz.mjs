@@ -31,7 +31,7 @@
 //   owned by a review, not by the release.
 //
 // It writes NOTHING to production. Every arm runs against a PGlite database
-// rebuilt from supabase/migrations in tests/schema-apply-order.json order, and
+// rebuilt from supabase/migrations in tests/schema-apply-order/ order, and
 // the probe character is a synthetic uuid that gen_random_uuid() cannot mint
 // (not a v4). No live credential is read and no live query is issued.
 //

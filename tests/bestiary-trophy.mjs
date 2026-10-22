@@ -65,7 +65,7 @@ const CLAIM_SQL_FILE = join(ROOT, 'supabase', 'migrations', '2026-09-22-trophy-c
 
 /* player_progress.key is `check (length(key) between 1 and 64)`. */
 const KEY_MAX = 64;
-/* The chain name tests/schema-apply-order.json gives the file under test. */
+/* The chain name tests/schema-apply-order/ gives the file under test. */
 const CLAIM_FILE = '2026-09-22-trophy-claim.sql';
 
 const near = (a, b) => Math.abs(a - b) < 1e-9;

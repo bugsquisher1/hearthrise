@@ -1,0 +1,4 @@
+{
+  "seq": 3330,
+  "note": "APPLIED 2026-10-19 02:4x UTC via tools/apply-migration.mjs (game CLOSED: on its passing self-check; Security reviews at the reopen gate; edge ad7c0c7a deployed right after). Was: STAGED (lane/chat phase 2, 2026-10-18; game CLOSED: applies on its passing §7, Security reviews it with the closed-mode surfaces at the reopen gate; NOT APPLIED). One table per concern: chat_whispers (participants read, realtime), friend_requests, friend_links, social_presence (no client grant), chat_blocks (client write revoked). Eight definer RPCs, closed-mode and rate gated; blocks refuse whispers, friend asks and inspect BOTH ways; inspect answers worn items only. After 2026-10-25-chat-channels.sql."
+}

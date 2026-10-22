@@ -46,6 +46,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { bootReplay, inventory, LAST_PATCHED, ROOT } from './schema-replay.mjs';
 import { isMain } from './_is-main.mjs';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const MUTATE = process.argv.includes('--mutate');
 const FN = join('supabase', 'functions', 'hr-accrue');
@@ -429,7 +430,7 @@ const MUTANTS = [
 
 /** Each mutant's file must be the chain's LAST author of the function its `find` sits in (mutate the caller). */
 export function staleAnchors(mutants) {
-  const order = JSON.parse(readFileSync(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+  const order = loadApplyOrder(ROOT).order;
   const text = (f) => { try { return readFileSync(MIG(f), 'utf8').replace(/\r\n/g, '\n'); } catch { return ''; } };
   const out = [];
   for (const mu of mutants) {

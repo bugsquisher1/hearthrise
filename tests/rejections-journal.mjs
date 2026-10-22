@@ -43,7 +43,7 @@
 //      caller sends; at most one occurrence per transaction, i.e. per request.
 //
 // ── WHAT IT DRIVES ──────────────────────────────────────────────────────
-// The REAL migration chain from tests/schema-apply-order.json, applied verbatim
+// The REAL migration chain from tests/schema-apply-order/, applied verbatim
 // into PGlite (real PostgreSQL, in process), then a real player through the
 // REAL rate-gated RPCs as `authenticated` with a JWT subject set.
 //

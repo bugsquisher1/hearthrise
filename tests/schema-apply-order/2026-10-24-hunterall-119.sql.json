@@ -1,0 +1,4 @@
+{
+  "seq": 3160,
+  "note": "APPLIED 2026-10-18 17:3x UTC via tools/apply-migration.mjs (game CLOSED: on its passing §4; Security reviews at the reopen gate; hunt-world-state applied together with edge 6fe9d5c6). Was: STAGED (lane/s1-hunt-server with the sewer-content merge, 2026-10-18; game CLOSED: applies on its passing §4, Security reviews it with the S1 surfaces at the reopen gate; NOT APPLIED). MONEY SURFACE (a milestone reward gate): restates hr_claim_milestone__ungated VERBATIM from 2026-10-16-w0f-fun-content.sql (§0 md5-pinned) with the hunterAll threshold 113 -> 119 for the six Sewer monsters (src/data/collection-milestones.js MONSTER_TOTAL). Raise-only; reward unchanged. §4 executes 118 refused / 119 pays once / replay refused, rolled back (HR861). The CHAIN-END restatement collection-renown-claim-drift grades."
+}

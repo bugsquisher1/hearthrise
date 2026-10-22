@@ -32,7 +32,7 @@
 // pass, STOP: that is a missing migration, and adding it here hides exactly
 // the failure this file exists to expose.
 //
-// ── ORDER: tests/schema-apply-order.json ────────────────────────────────────
+// ── ORDER: tests/schema-apply-order/ (one entry file per migration) ─────────
 // FILENAME ORDER DOES NOT REPLAY. Measured 2026-08-14: 23 of 41 files apply,
 // 18 fail — '2026-08-08-clan-seat-2.sql' sorts before '2026-08-08-clan-seat.sql'
 // ('-' < '.'), and five 2026-08-11 files sort before the player-state
@@ -60,6 +60,7 @@ import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { bootTemplated, prefixLength, MIN_PREFIX_FILES } from './pglite-template.mjs';
 import { isMain } from './_is-main.mjs';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 export const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 // HR_MIGRATIONS_DIR points a replay at a COPY of the chain. It exists so a
@@ -74,10 +75,17 @@ const MIGDIR = process.env.HR_MIGRATIONS_DIR
   ? normalize(process.env.HR_MIGRATIONS_DIR)
   : join(ROOT, 'supabase', 'migrations');
 
-export const MANIFEST_PATH = join(ROOT, 'tests', 'schema-apply-order.json');
-
+/* The apply order, from tests/schema-apply-order/ (one file per migration since 2026-10-21;
+   tools/lib/apply-order.mjs assembles the old single-object shape). `withManifest` lets a
+   --mutate run replay a PATCHED order in memory — it used to rewrite the tracked JSON on disk
+   and restore it in a `finally`, which a SIGKILL does not run (the S-UM-1 class above). */
+let manifestOverride = null;
 export async function manifest() {
-  return JSON.parse(await readFile(MANIFEST_PATH, 'utf8'));
+  return manifestOverride ? JSON.parse(JSON.stringify(manifestOverride)) : loadApplyOrder(ROOT);
+}
+export async function withManifest(patch, fn) {
+  manifestOverride = patch(loadApplyOrder(ROOT));
+  try { return await fn(); } finally { manifestOverride = null; }
 }
 
 /**
@@ -108,10 +116,10 @@ export async function chainFiles() {
   for (const f of onDisk) {
     if (!seen.has(f)) {
       problems.push(
-        `${f} is in supabase/migrations/ but in neither "order" nor "excluded" of\n`
-        + '    tests/schema-apply-order.json. A migration that is not placed in the apply\n'
-        + '    order would be silently omitted from any rebuild. Add it where it actually\n'
-        + '    has to run — its date is not its position.');
+        `${f} is in supabase/migrations/ but has no entry in tests/schema-apply-order/\n`
+        + '    (nor in "excluded" of its _manifest.json). A migration that is not placed in the\n'
+        + '    apply order would be silently omitted from any rebuild. Place it where it actually\n'
+        + `    has to run — its date is not its position: node tools/apply-order-split.mjs --add ${f}`);
     }
   }
   if (problems.length) {

@@ -1,0 +1,4 @@
+{
+  "seq": 3320,
+  "note": "APPLIED 2026-10-19 02:4x UTC via tools/apply-migration.mjs (game CLOSED: on its passing self-check; Security reviews at the reopen gate; edge ad7c0c7a deployed right after). Was: STAGED (lane/chat, 2026-10-18; game CLOSED: applies on its passing §6, Security reviews it with the closed-mode surfaces at the reopen gate; NOT APPLIED). Chat channels global/local/party/system: hr_chat_send is the ONE writer (the direct RLS insert is dropped); sender name/level/weapon/role, zone and party audience from the server; blocked senders hidden by a restrictive policy; item links checked against hr_items; 5/10 s + 20/min. After hunterall-119, before 2026-10-25-social.sql."
+}

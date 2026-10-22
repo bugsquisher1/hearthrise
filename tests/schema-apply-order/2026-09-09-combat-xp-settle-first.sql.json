@@ -1,0 +1,4 @@
+{
+  "seq": 1610,
+  "note": "APPLIED 2026-09-09 (15:45 UTC) by the Coordinator via tools/apply-migration.mjs, apply result [] — Security GO on the anchored patch (security-combat-xp-settle-first.md, re-read). Was: STAGED, NOT APPLIED - REVIEW ONLY; the Coordinator applies AFTER a Security GO (XP is a RANKED surface). CHAIN POSITION IS LOAD-BEARING: it "
+}

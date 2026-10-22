@@ -1,0 +1,4 @@
+{
+  "seq": 1590,
+  "note": "APPLIED 2026-09-08 (18:33:54 UTC) by the Coordinator via tools/apply-migration.mjs, one txn, apply result [] — Security GO 2026-09-08. Was: STAGED, NOT APPLIED - REVIEW ONLY. The Hearthfind (Feature Slate 2). Adds world_finds (public-read, RPC-insert-only), widens player_ledger_k"
+}

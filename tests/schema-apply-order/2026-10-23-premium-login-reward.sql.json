@@ -1,0 +1,4 @@
+{
+  "seq": 3090,
+  "note": "APPLIED 2026-10-18 17:3x UTC via tools/apply-migration.mjs (game CLOSED: on its passing §4; Security reviews at the reopen gate; hunt-world-state applied together with edge 6fe9d5c6). Was: STAGED (lane/s1-hunt-server, backend-architect, 2026-10-17; game CLOSED: applies on its passing §4, Security reviews every S1 surface at the reopen gate; NOT APPLIED). MONEY SURFACE: the daily login reward is PREMIUM ONLY (hr_login_claim refuses premium_required), one quest-ledger row per claim under the hr_claim_daily gate, a missed day never resets player_state.login_days (only goes up). Reward from hr_premium_login_reward (null item until the designer adds a training weapon with a source and a use, so it refuses). The C2 verify door stays shut (login_reward_off). §4 HR857."
+}

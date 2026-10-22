@@ -12,7 +12,7 @@
 //     TRUE again;
 //   · an inconsistent payable row (no active_since) → FALSE (fail-closed).
 //
-// Everything runs for real: the WHOLE migration chain (schema-apply-order.json)
+// Everything runs for real: the WHOLE migration chain (schema-apply-order/)
 // applied verbatim through tests/schema-replay.mjs — so 2026-08-24-inventory-
 // complete.sql's own §2 self-check EXECUTES here too — and the REAL hr_state_of
 // envelope the client will read.

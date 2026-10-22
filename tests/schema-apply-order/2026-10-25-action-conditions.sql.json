@@ -1,0 +1,4 @@
+{
+  "seq": 3200,
+  "note": "APPLIED 2026-10-19 02:4x UTC via tools/apply-migration.mjs (game CLOSED: on its passing self-check; Security reviews at the reopen gate; edge ad7c0c7a deployed right after). Was: STAGED (lane/action-engine, systems-engineer, 2026-10-18; game CLOSED: applies on its passing §9 AFTER 2026-10-25-hunt-sessions-catalogue.generated.sql (integration v0.2.1: the action engine catalogue rows ride that ONE forward file; the separate action-conditions catalogue was folded into it before any apply), Security reviews it with the S1 surfaces at the reopen gate; NOT APPLIED). The conditional action engine's server half: the condition catalogues + validator (hr_hunt_bar_check restated), hr_action_set_options restated (slots / stop_rules / grounds), NEW client verb hr_action_set_copy, hr_hunt_open_session restated (a preset per ground), hr_hunt_settle_session restated whole (+ the rule end arm), hr_hunt_settings_view restated. Moves no value."
+}

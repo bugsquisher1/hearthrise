@@ -45,7 +45,7 @@
 // adds it to the repair list, and the next regen eats its rows in silence.
 //
 // The declared list is additionally cross-checked against the manifest, so it is
-// DERIVED rather than remembered: every file in tests/schema-apply-order.json
+// DERIVED rather than remembered: every file in tests/schema-apply-order/
 // that writes hr_unlocks after the owner must appear, in manifest order.
 //
 // ── AND IT EXERCISES THE FIX ON PRODUCTION'S SHAPE (arm 5) ──────────────

@@ -52,6 +52,7 @@ import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { bootReplay, ROOT } from './schema-replay.mjs';
 import { isMain } from './_is-main.mjs';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const problems = [];
 const ok = (cond, msg) => { if (!cond) problems.push(msg); };
@@ -364,7 +365,7 @@ const CEILING_TERMS = [
 
 // ── The derivation is not hand-edited ──────────────────────────────────────
 export async function derivationGuard() {
-  const order = JSON.parse(await readFile(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8'));
+  const order = loadApplyOrder(ROOT);
   /* ── LAST TOUCHER OF hr_state_of, AND OF hr_apply UNLESS SOMETHING DERIVES
         FROM IT (b366) ────────────────────────────────────────────────────────
      This used to read "fight-carry must be LAST in the apply order", full stop,
@@ -517,8 +518,7 @@ export async function derivationGuard() {
     'SETTLE-SQL: the migration header no longer states the standing ship-order rule (catalogue '
     + 're-apply BEFORE the Edge payload). Raising a monster\'s hp payload-first 409s every combat '
     + 'window for that monster.');
-  const notes = JSON.parse(await readFile(
-    join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8'))._order_notes || {};
+  const notes = loadApplyOrder(ROOT)._order_notes || {};
   ok(/monsters\.js/.test(notes['2026-08-17-fight-carry.sql'] || ''),
     'SETTLE-SQL: _order_notes for the fight-carry migration no longer names the src/data/monsters.js '
     + 'deploy-order dependency — the apply order is where the operator reads what must run first');

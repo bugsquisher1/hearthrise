@@ -1,0 +1,4 @@
+{
+  "seq": 3110,
+  "note": "APPLIED 2026-10-18 17:3x UTC via tools/apply-migration.mjs (game CLOSED: on its passing §4; Security reviews at the reopen gate; hunt-world-state applied together with edge 6fe9d5c6). Was: STAGED (lane/s1-hunt-server, backend-architect, 2026-10-17; game CLOSED: applies on its passing §4, Security reviews every S1 surface at the reopen gate; NOT APPLIED). MONEY SURFACE: hr_hunt_settle_session restated whole. Own uses are journalled supply_own (no gold), store uses supply_buy (catalogue price) by hr_hunt_apply_member; heals_out / ammo_out are proven only when the store is closed to the hero; gold_out proven from the hero's options. No presses, no cooldowns. Text self-check."
+}

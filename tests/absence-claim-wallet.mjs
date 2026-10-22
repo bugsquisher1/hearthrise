@@ -17,13 +17,14 @@
 //
 //   A-APPLY   the file applies on the chain and its §2 passes.
 //   A-IDEM    a second apply is byte-identical (§0 accepts its own body).
-//   A-ORDER   tests/schema-apply-order.json runs it right after the wallet.
+//   A-ORDER   tests/schema-apply-order/ runs it right after the wallet.
 //
 // Exit: 0 green · 1 red · 2 harness.
 // ============================================================================
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, inventory, ROOT } from './schema-replay.mjs';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const MUTATE = process.argv.includes('--mutate') || process.argv.includes('--selftest');
 const CONTROL = Boolean(process.env.HR_MUTANT_CONTROL);
@@ -55,7 +56,7 @@ try { ({ db } = await bootReplay({ upTo: PREV })); } catch (e) {
 if (!MUTATE) {
   console.log('\nabsence-claim-wallet: gold on char_slot, the gem into the account wallet, once per account');
   const red = [];
-  const order = JSON.parse(await readFile(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+  const order = loadApplyOrder(ROOT).order;
   if (order.indexOf(MIG) !== order.indexOf(PREV) + 1) {
     red.push('A-ORDER'); console.log(`  ✗ A-ORDER — ${MIG} must run immediately after ${PREV}`);
   } else console.log('  ✓ A-ORDER — runs immediately after the wallet that drops player_state.gems');

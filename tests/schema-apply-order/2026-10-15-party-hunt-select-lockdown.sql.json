@@ -1,0 +1,4 @@
+{
+  "seq": 2620,
+  "note": "APPLIED 2026-10-10 04:0x UTC (Coordinator, tools/apply-migration.mjs; Security GO per b566 sequence). Drops the party_hunt SELECT policy \"party hunt readable by live members\" and revokes select from anon/authenticated, so stopped_by ('member_unpayable:<user uuid>') never reaches a client; hr_party_hunt_view is the only client read of a hunt. MUST apply before the party channel is armed on prod. Needs 2026-10-15-party-hunt-view.sql first. §4: zero policies, no client/engine privilege, no client-executable invoker reads it, a member is refused 42501 and still reads via the view. No tracked body moves."
+}

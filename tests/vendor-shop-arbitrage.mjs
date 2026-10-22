@@ -19,7 +19,7 @@
 //   VENDOR BID   (a) the edge: catalogue.js vendorPriceOf(ITEMS, id), the
 //                    function vendor-sell.js pays from;
 //                (b) the database: public.hr_items.value as the LAST migration
-//                    in tests/schema-apply-order.json leaves it, run through
+//                    in tests/schema-apply-order/ leaves it, run through
 //                    the same raw/rate/buy-back formula. The guard takes the HIGHER of
 //                    the two, so a drift between the payload and the catalogue
 //                    can only make it stricter.
@@ -46,11 +46,12 @@ const { GOLD_OFFERS, VENDOR_RAW_RATE, SHOP_BUYBACK_RATE, SHOP_UNIT_PRICE } = CAT
 import { ITEMS } from '../src/data/items.js';
 import { ARTISAN_RECIPES } from '../src/data/recipes.js';
 import { recipeInputs } from '../src/core/artisan.js';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 const MIG = join(ROOT, 'supabase', 'migrations');
 const readMig = (f) => readFileSync(join(MIG, f), 'utf8');
-const ORDER = JSON.parse(readFileSync(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+const ORDER = loadApplyOrder(ROOT).order;
 
 class HarnessError extends Error {}
 

@@ -110,7 +110,7 @@ const argv = process.argv.slice(2);
  * guard that could no longer go red, with a green plain run still passing next
  * to it. If a NEWER migration ever takes over hr_ledger_prune again, this
  * constant and the anchors below move to it, or the proof quietly dies the same
- * way. tests/schema-apply-order.json's note for that file records the takeover.
+ * way. tests/schema-apply-order/'s note for that file records the takeover.
  */
 const PRUNE_OWNER = '2026-09-18-ledger-rollup-currencies.sql';
 /* A mutant replays UP TO the newest file this guard's arms stand on (the 09-19

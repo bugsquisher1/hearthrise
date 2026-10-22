@@ -18,7 +18,7 @@
 //     one happened to have run first, a self-check that now raises, a file that
 //     depends on an object nobody creates — all caught, credential-free.
 //  2. A MIGRATION LEFT OUT OF THE APPLY ORDER. Every .sql in
-//     supabase/migrations/ must be placed in tests/schema-apply-order.json.
+//     supabase/migrations/ must be placed in tests/schema-apply-order/.
 //     A new file that nobody positioned fails the build rather than being
 //     silently omitted from every future rebuild.
 //  3. AN UNINTENDED SCHEMA CHANGE. The rebuilt schema is fingerprinted —
@@ -105,7 +105,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
-import { ROOT, bootReplay, inventory, CATEGORIES, manifest, QUERIES, chainFiles } from './schema-replay.mjs';
+import { ROOT, bootReplay, inventory, CATEGORIES, manifest, QUERIES, chainFiles, withManifest } from './schema-replay.mjs';
 
 const BASELINE = join(ROOT, 'tests', 'schema-drift.baseline.json');
 const argv = process.argv.slice(2);
@@ -1236,18 +1236,13 @@ async function main() {
       let caught = null;
       try {
         if (m.manifestPatch) {
-          // Mutating the manifest means mutating a file on disk; do it in a
-          // temp copy so a crashed run cannot leave the repo modified.
-          const path = join(ROOT, 'tests', 'schema-apply-order.json');
-          const original = await readFile(path, 'utf8');
+          // The patched manifest lives in memory only (schema-replay's
+          // withManifest), so a crashed run cannot leave the repo modified.
           try {
-            await writeFile(path, JSON.stringify(m.manifestPatch(JSON.parse(original)), null, 2));
-            const inv = await fingerprint();
+            const inv = await withManifest(m.manifestPatch, () => fingerprint());
             if (digest(inv) !== base.digest) caught = 'fingerprint';
           } catch (e) {
             caught = e.replay || e.harness ? 'replay' : 'replay';
-          } finally {
-            await writeFile(path, original);
           }
         } else {
           const patches = new Map(m.patches);

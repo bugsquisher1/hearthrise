@@ -1,0 +1,4 @@
+{
+  "seq": 3250,
+  "note": "APPLIED 2026-10-19 02:4x UTC via tools/apply-migration.mjs (game CLOSED: on its passing self-check; Security reviews at the reopen gate; edge ad7c0c7a deployed right after). Was: STAGED (lane S2, 2026-10-18; game CLOSED: applies on its passing §3, Security reviews it with the S2 money surfaces at the reopen gate; NOT APPLIED). MONEY SURFACE: hr_shop_refill (authenticated, rate bucket hunt) re-quotes the restock targets under the character lock (max(0, target - held) x hr_shop_supply_offers.price), refuses nothing_to_buy / quote_changed, then ONE hr_apply {gold: -total, items} journalled kind shop, intent shop_refill:<total>; idempotent on hr_apply's player_intents row. Section shop {offers, bids (hr_hunt_vendor_value for bag items), refill quote}. §3 executes quote, stale total, short purse, the buy, its replay and a met refill, rolled back (HR872). After 2026-10-25-bag-rules.sql."
+}

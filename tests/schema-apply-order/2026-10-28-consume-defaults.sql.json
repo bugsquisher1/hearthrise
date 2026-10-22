@@ -1,0 +1,4 @@
+{
+  "seq": 3550,
+  "note": "APPLIED 2026-10-20 04:25 UTC by the Coordinator (tools/apply-migration.mjs, self-check passed; edge hr-accrue 73c8d5c9 deployed 04:31 + verified). Was: STAGED (lane/c-consume-cd-travel, backend-architect, 2026-10-19; game CLOSED: applies on its passing §2 self-check; NOT APPLIED). Restates hr_hunt_settings_view (2026-10-25-action-conditions.sql §7 body) with the default consume slots eat-at (d_food) before drink-at (d_drink), the engine's order (conditions.js DEFAULT_CONSUME). One function body; no table, row or grant change. Any order against the catalogue file."
+}

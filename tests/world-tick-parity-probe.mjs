@@ -7,7 +7,7 @@
 //
 // Security ruling 1 (docs/planning/SEC_WORLD_TICK_ARM_2026-10-05.md), "What the
 // probe must NOT be allowed to write or do", proved by EXECUTION on a PGlite
-// database rebuilt from supabase/migrations in tests/schema-apply-order.json
+// database rebuilt from supabase/migrations in tests/schema-apply-order/
 // order, driving the shipped `runTick` through the same one-statement seam
 // index.ts gives it, as `hr_engine`:
 //

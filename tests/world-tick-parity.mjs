@@ -34,6 +34,7 @@ import {
   loadGatherSessions, atSpan as gAtSpan, settleGatherSession, intentValue,
   tickIntentId, GATHER_CATALOGUES,
 } from '../services/world-tick/gather.js';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const ARGS = process.argv.slice(2);
 const MUTATE = ARGS.includes('--mutate');
@@ -416,9 +417,9 @@ const MUTATION = MUTATE ? (ARGS.find((a) => MUTATIONS[a.replace(/^--/, '')]) || 
     /* THE CHAIN-END DEFINITION, NOT THE FIRST ONE (2026-10-06). A function
        restated by a later migration runs the LATER text; reading the literal
        out of the file that first created it would compare a body production
-       no longer runs. `chainEnd` walks tests/schema-apply-order.json and
+       no longer runs. `chainEnd` walks tests/schema-apply-order/ and
        returns the text of the LAST file that defines the function. */
-    const ORDER = JSON.parse(readFileSync(new URL('./schema-apply-order.json', import.meta.url), 'utf8')).order;
+    const ORDER = loadApplyOrder().order;
     const chainEnd = (fn) => {
       const re = new RegExp(`create\\s+or\\s+replace\\s+function\\s+public\\.${fn}\\s*\\(`, 'i');
       for (const f of ORDER.slice().reverse()) {

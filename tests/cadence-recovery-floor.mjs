@@ -72,11 +72,11 @@
 import { readFileSync } from 'node:fs';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const FILE = '2026-09-06-cadence-recovery-floor.sql';
 const MIG = join(ROOT, 'supabase', 'migrations', FILE);
-const ORDER_FILE = join(ROOT, 'tests', 'schema-apply-order.json');
 
 const argv = process.argv.slice(2);
 const harness = (m) => { const e = new Error(m); e.harness = true; return e; };
@@ -818,8 +818,8 @@ Object.assign(MUTATIONS, {
 
 function latestRestatement(mutate) {
   let order;
-  try { order = JSON.parse(readFileSync(ORDER_FILE, 'utf8')); }
-  catch { throw harness('tests/schema-apply-order.json is unreadable'); }
+  try { order = loadApplyOrder(ROOT); }
+  catch (e) { throw harness(`tests/schema-apply-order/ is unreadable: ${e.message}`); }
   let file = null, text = null;
   for (const f of order.order) {
     let t; try { t = readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n'); } catch { continue; }
@@ -870,10 +870,10 @@ function runStatic(text, mutate) {
   // The apply order must ACCOUNT for the file, or a rebuilt database — the
   // disaster-recovery contract — silently omits the fix.
   let order;
-  try { order = JSON.parse(readFileSync(ORDER_FILE, 'utf8')); }
-  catch { throw harness('tests/schema-apply-order.json is unreadable'); }
+  try { order = loadApplyOrder(ROOT); }
+  catch (e) { throw harness(`tests/schema-apply-order/ is unreadable: ${e.message}`); }
   const idx = order.order.indexOf(FILE);
-  ok(idx >= 0, `${FILE} is not in tests/schema-apply-order.json 'order' — a rebuilt database would not carry the floor`);
+  ok(idx >= 0, `${FILE} is not in the apply order (tests/schema-apply-order/) — a rebuilt database would not carry the floor`);
   const prev = order.order.indexOf('2026-09-06-recovering-until.sql');
   ok(prev >= 0 && idx > prev,
     'the floor is ordered BEFORE 2026-09-06-recovering-until.sql — player_state.recovering_until would not exist yet '

@@ -1,0 +1,76 @@
+{
+  "_readme": [
+    "THE APPLY ORDER OF supabase/migrations/**. This is the single source of truth",
+    "for rebuilding the database from the repo, and it is verified on every push by",
+    "tests/schema-drift.mjs (via tests/schema-replay.mjs).",
+    "",
+    "WHY THIS FILE HAS TO EXIST. Filename order does NOT replay. Measured",
+    "2026-08-14: applying supabase/schema.sql + every migration in filename order",
+    "gets 23 of 41 files in and fails the other 18. Two reasons, both structural:",
+    "  1. '2026-08-08-clan-seat-2.sql' sorts BEFORE '2026-08-08-clan-seat.sql',",
+    "     because '-' (0x2D) < '.' (0x2E). The -2 file's first act is to check that",
+    "     clan_board exists and raise if it does not, so it fails first, every time.",
+    "  2. Nine files are dated 2026-08-11 and alphabetical order puts 'accrual',",
+    "     'accrue-gate', 'anon-execute-lockdown', 'apply-engine' and",
+    "     'authenticated-surface-lockdown' all BEFORE 'player-state' â€” which is the",
+    "     foundation every one of them depends on. There is no naming scheme that",
+    "     rescues this after the fact.",
+    "Before this file, the working order existed only as a hand-maintained const",
+    "array inside tests/pglite-chain.mjs and another inside",
+    "tests/conservation-fuzz.mjs, each covering a DIFFERENT SUBSET of the",
+    "migrations, and neither one covering all of them. That means the order",
+    "required to rebuild the database was not written down anywhere.",
+    "",
+    "RULES:",
+    "  Â· Every .sql file in supabase/migrations/ must appear exactly once, across",
+    "    'pre_schema', 'order' and 'excluded'. The guard FAILS on a file that is in",
+    "    none of them â€” so a new migration cannot be silently left out of the",
+    "    rebuild. The full apply sequence is: pre_schema, then supabase/schema.sql,",
+    "    then order.",
+    "  Â· A new migration goes where it actually has to run, not where its date",
+    "    puts it.",
+    "  Â· 'excluded' is a claim that a rebuilt database is CORRECT without the file.",
+    "    Never add one to make the chain go green."
+  ],
+  "gucs": {
+    "hearthrise.beta_invites_lockdown_ok": "yes",
+    "hearthrise.market_wipe_ok": "yes",
+    "_why": [
+      "GUCs production was actually applied with, not shortcuts.",
+      "beta_invites_lockdown_ok: 2026-08-11-live-market-rls.sql Â§3b RAISES without",
+      "it, and production was applied with it set on 2026-08-13 (that is what closed",
+      "A11). A rebuild that omitted it would leave beta_invites world-readable and",
+      "the file would tell you so, loudly.",
+      "market_wipe_ok: read by 2026-08-17-market-v2.sql, which is in 'order'",
+      "(staged; it supersedes and deletes the old 2026-08-11-market-v2.sql). The",
+      "GUC gates that file's DROP...CASCADE of the live market tables."
+    ]
+  },
+  "pre_schema": [
+    "2026-08-10-dr-legacy-cloud-save.sql"
+  ],
+  "_pre_schema_why": [
+    "supabase/schema.sql creates game_saves and game_events with `create table if",
+    "not exists` as a bootstrap fallback, and its own header says they are assumed",
+    "to already exist. Those fallback definitions do not match production: different",
+    "primary key on game_saves, different COLUMN NAMES on game_events (kind vs",
+    "event_type, created_at vs occurred_at). Running the true shapes first makes",
+    "schema.sql's fallback no-op on a rebuild exactly as it no-ops on production.",
+    "The alternative â€” ALTER + rename the columns afterwards â€” is a rename on the",
+    "table holding every player's save, which cannot be rolled forward past a",
+    "failure. Ordering is reversible; that is not."
+  ],
+  "excluded": {
+    "2026-10-10-world-tick-gather-unwiden.sql": "STAGED - KILL SWITCH (cohort half) for the gather widen, apply ONLY on a runbook kill trigger, after or with 2026-10-07-world-tick-disarm.sql. One call: select public.hr_tick_unenrol('gather') - permille 0, every journal-enrolled ownership row removed and journalled unenrol, operator rows untouched. EXCLUDED: a rebuilt database has no enrolled rows, so the chain is correct without it.",
+    "2026-08-12-clan-members-rls-drop.sql": "STAGED, NOT APPLIED, and it REFUSES to apply by design: its precondition needs a real clan_ledger row of kind='member', i.e. a player who joined through clan_join(). A fresh rebuild has no such row, so the file correctly raises. That refusal is the file working, not the chain failing.",
+    "2026-09-13-town-presence-off.sql": "STAGED - KILL SWITCH, apply ONLY on incident, then re-measure restore-census. EXCLUDED from the replay chain deliberately, and the exclusion is the CLAIM this key is for: a rebuilt database must come back in the SHIPPING state - The Common ON, per 2026-09-13-town-presence-on.sql - and a chain that ran this file after it would rebuild the feature DARK while every record said it was live. One idempotent `update public.hr_flags set enabled = false, updated_at = now() where key = 'town_presence' and enabled is distinct from false`, plus a two-assertion gate: the row reads false, and hr_town_of() answers off:true read AS A SIGNED-IN CALLER (an unauthenticated read is refused and would satisfy a weaker assertion for the wrong reason). No function body, grant, policy, object or value touched. It does NOT stop hr_heartbeat - last_seen_at keeps being stamped, nothing reads it while the flag is down, and turning the flag back on repopulates the plaza on the next 25-second tick with no backfill - and it does NOT touch presence_quiet, so a player's opt-out survives the incident and the recovery. Security condition on b32a3f5a (GO-with-changes). Reversibility: re-apply 2026-09-13-town-presence-on.sql. AFTER APPLYING: move hr_flags.live_value to enabled=false in tests/restore-census.baseline.json, or the deployment record lies in the direction that costs a day of debugging.",
+    "2026-10-07-world-tick-arm-gather.sql": "STAGED - M2 ARM, apply ONLY per docs/planning/SEC_GATHER_ARM_RUNBOOK_2026-10-06.md. EXCLUDED deliberately: arming is earned on the live database's own evidence (pinned-payload probe rows, a fresh owned cohort); a rebuilt or restored database must come back DISARMED and re-earn it. The file raises anywhere that evidence is absent, by design.",
+    "2026-10-07-world-tick-disarm.sql": "STAGED - KILL SWITCH for the world-tick arm, apply ONLY on a runbook kill trigger. EXCLUDED: a rebuilt database is already disarmed (armed_channels default {}), so the chain is correct without it.",
+    "2026-10-14-world-tick-arm-combat.sql": "STAGED - M4 ARM (combat), apply ONLY per the M4 section of docs/planning/SEC_GATHER_ARM_RUNBOOK_2026-10-06.md. EXCLUDED deliberately, as the gather arm: arming is earned on the live database's own evidence (12 closed combat probes / 48 h on the pinned payload, a quiet owned sentinel); a rebuilt or restored database must come back DISARMED and re-earn it. The file raises anywhere that evidence is absent, by design. Guard: tests/world-tick-arm-combat.mjs.",
+    "2026-10-14-world-tick-disarm-combat.sql": "STAGED - KILL SWITCH for the M4 combat arm only (array_remove of combat; gather stays armed), apply ONLY on an M4 kill trigger. EXCLUDED: a rebuilt database is already disarmed.",
+    "2026-10-19-alpha-premium-grant.sql": "operator one-off: premium for closed-alpha testers heroes (Tyler 2026-10-19); touches only rows that exist on prod, a rebuilt DB is correct without it"
+  },
+  "_extra_notes": {
+    "_2026-08-15-tool-carry.sql-original": "TAKES OVER from intent-key-hygiene as the last file that may replace hr_apply: its body is the b346 body, extracted programmatically and patched at four anchors, so applying intent-key-hygiene AFTER this would silently delete the tool_carry key while the Edge Function keeps proposing it â€” every gather accrual would then 409 with unknown_delta_key and cost a whole night. Its Â§0 refuses to install against an hr_apply with no `v_prev_slot` (i.e. one older than b346), which is the closest a migration can get to 'do not replace a body you cannot account for'. It also REPLACES hr_state_of, so it must follow auto-eat.sql (whose three columns its restated body reads). Real predecessors: player-state (the table), catalogue (hr_skills, which the carry validation checks against), apply-engine + intent-key-hygiene (the body), auto-eat (hr_state_of), character-bootstrap (Â§5(b) drives a real character)."
+  }
+}

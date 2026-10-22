@@ -8,7 +8,7 @@
 //     (1) src/data/collection-milestones.js       — the single source
 //     (2) src/features/collection-log.js MILESTONES — what the player SEES
 //     (3) the CHAIN-END migration restating hr_claim_milestone__ungated (the
-//         LAST such file in tests/schema-apply-order.json `order`) — what the
+//         LAST such file in tests/schema-apply-order/ `order`) — what the
 //         server CREDITS (the CASE catalogue), plus the hunterAll threshold vs
 //         the monster-catalogue size in src/data/monsters.js.
 //   Checked both directions on id/domain/goal/gold/gems; per domain the
@@ -36,15 +36,16 @@ import { COLLECTION_MILESTONES, MONSTER_TOTAL } from '../src/data/collection-mil
 import { MONSTERS } from '../src/data/monsters.js';
 import { ITEMS } from '../src/data/items.js';
 import { isMain } from './_is-main.mjs';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-/* THE CHAIN-END SQL: the LAST file in schema-apply-order.json `order` that
+/* THE CHAIN-END SQL: the LAST file in schema-apply-order/ `order` that
    restates hr_claim_milestone__ungated — never a filename sort, never a
    hard-coded file (the old guard read 2026-08-22 forever). */
 export async function chainEndMilestoneSql(orderOverride) {
   const order = orderOverride
-    || JSON.parse(await readFile(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+    || loadApplyOrder(ROOT).order;
   const RE = /create\s+or\s+replace\s+function\s+public\.hr_claim_milestone__ungated\b/i;
   let end = null;
   for (const f of order) {
@@ -86,7 +87,7 @@ export function checkCollection({ catalogue, monsterTotal, monsters, chainEnd, i
   //  old client on 2026-10-17: the catalogue and the SQL are the two sides now.)
 
   // ── (3) the chain-end SQL CASE, both directions ─────────────────────────
-  ok(!!chainEnd, 'CONTROL: no file in schema-apply-order.json `order` restates hr_claim_milestone__ungated.');
+  ok(!!chainEnd, 'CONTROL: no file in schema-apply-order/ `order` restates hr_claim_milestone__ungated.');
   if (chainEnd) {
     const arms = parseSqlArms(chainEnd.sql);
     for (const [id, cat] of Object.entries(catalogue)) {
@@ -160,7 +161,7 @@ async function selftest() {
     if (src.split(find).length !== 2) throw new Error(`selftest anchor not unique: ${find}`);
     return src.replace(find, () => repl);
   };
-  const order = JSON.parse(await readFile(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+  const order = loadApplyOrder(ROOT).order;
   /* The two REACHABILITY arms are DERIVED from the live pool of distinct
      non-BoP drop ids, never hard-coded: a content pack that grows the pool
      (Field Salvage took it 133 -> 181) turned the old literals '141' and

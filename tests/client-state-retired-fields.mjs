@@ -38,7 +38,7 @@
 //
 // ── WHERE IT RUNS ───────────────────────────────────────────────────────────
 // Against a REAL PostgreSQL (PGlite) with the REAL migration chain from
-// tests/schema-apply-order.json applied verbatim, and through the REAL GATED
+// tests/schema-apply-order/ applied verbatim, and through the REAL GATED
 // WRAPPER public.hr_put_client_state — the same entry point the browser calls,
 // so hr_rpc_gate and the hr_note_rejection decorator are exercised rather than
 // modelled. No credentials; production untouched.

@@ -13,15 +13,16 @@
 // PRE_WALLET — the last chain position whose schema still HAS player_state.gems.
 // A historical migration's own §4 fixture inserts that column, so a guard that
 // RE-APPLIES such a file (an idempotency arm) must do it there, not at the chain
-// end where the wallet has dropped it. Derived from tests/schema-apply-order.json
+// end where the wallet has dropped it. Derived from tests/schema-apply-order/
 // (the file immediately before the wallet), never typed, so a file inserted
 // before the wallet moves it with no edit here.
 // ============================================================================
 import { readFileSync } from 'node:fs';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 export const WALLET_MIGRATION = '2026-10-19-account-wallet.sql';
 export const PRE_WALLET = (() => {
-  const order = JSON.parse(readFileSync(new URL('./schema-apply-order.json', import.meta.url), 'utf8')).order;
+  const order = loadApplyOrder().order;
   const i = order.indexOf(WALLET_MIGRATION);
   if (i < 1) throw new Error(`tests/wallet-fixture.mjs: ${WALLET_MIGRATION} is not in the apply order`);
   return order[i - 1];

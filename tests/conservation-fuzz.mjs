@@ -29,7 +29,7 @@
 //
 // ── WHERE IT RUNS ───────────────────────────────────────────────────────
 // In process, against a REAL PostgreSQL (PGlite/WASM, PG 18) with THE WHOLE
-// MIGRATION CHAIN applied verbatim, in the order tests/schema-apply-order.json
+// MIGRATION CHAIN applied verbatim, in the order tests/schema-apply-order/
 // declares — the same `bootReplay` every other chain guard uses.
 //
 // ⚠ IT USED TO APPLY A HAND-PICKED BUNDLE OF SIX FILES, AND THAT STOPPED
@@ -750,7 +750,7 @@ async function boot(injectionId) {
       const at = chain.findIndex(([n]) => n === file);
       if (at < 0) {
         process.stderr.write(`HARNESS: injection "${injectionId}" names ${file}, which is not in the `
-          + 'apply order (tests/schema-apply-order.json). A plant in a file the chain never applies\n'
+          + 'apply order (tests/schema-apply-order/). A plant in a file the chain never applies\n'
           + '  is not a plant.\n');
         process.exit(2);
       }

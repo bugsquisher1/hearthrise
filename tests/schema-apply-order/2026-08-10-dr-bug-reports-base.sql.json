@@ -1,0 +1,4 @@
+{
+  "seq": 140,
+  "note": "Reconstruction of a production object with no migration file. Must precede bug-report-relay, which ALTERs the table and creates bug_report_submit â€” which A9 then retrofits."
+}

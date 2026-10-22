@@ -3,7 +3,7 @@
    surfaces are deleted outright, never hidden).
 
    That file restates hr_apply and hr_state_of from the CHAIN-END text
-   (pg_get_functiondef after every file in tests/schema-apply-order.json, md5
+   (pg_get_functiondef after every file in tests/schema-apply-order/, md5
    pinned in its §0) with whole features cut out. tests/run-sql-tests.mjs PART
    1f-ii diffs it against the last STATIC link of each chain and fails on any
    removed line not listed here, and on any line listed here that is no longer

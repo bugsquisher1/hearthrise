@@ -1,0 +1,4 @@
+{
+  "seq": 680,
+  "note": "STAGED, NOT APPLIED (the Coordinator applies it during the freeze). LAST in the chain because it reads six catalogues (hr_items / hr_skills / hr_equip_slots / hr_item_slots / hr_crops / hr_unlocks) and calls three functions (hr_create_character, hr_state_of, hr_level_from_xp), and its Â§0 refuses to install without any of them â€” in particular without the player_progress_unlock_guard trigger that 2026-08-16-artisan-progress-model.sql installs, because the import is the first bulk writer of kind='unlock' rows this database has ever had. Graded by tests/cutover-import.mjs."
+}

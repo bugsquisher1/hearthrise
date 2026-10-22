@@ -1,0 +1,4 @@
+{
+  "seq": 2540,
+  "note": "APPLIED 2026-10-10 04:0x UTC (Coordinator, tools/apply-migration.mjs; Security GO per b566 sequence). World-tick scale S3/S4 dials: hr_tick_config.catchup_windows (1..40, default 1) and fold_windows (1..8, default 1, <= catchup_windows; 8 = the lag judge's 15 min), and hr_tick_cron_run restated from 2026-10-11-world-tick-shards.sql to post both in every body. Inert at the defaults (one window per visit, one settle per window). EDGE HALF: tick.js catch-up (S3) and ledger fold (S4). Raising either dial is a Security-gated UPDATE. After apply: live-hash-drift wants hr_tick_cron_run."
+}

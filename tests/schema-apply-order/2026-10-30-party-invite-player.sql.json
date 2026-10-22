@@ -1,0 +1,4 @@
+{
+  "seq": 3570,
+  "note": "APPLIED 2026-10-20 05:55 UTC by the Coordinator (tools/apply-migration.mjs, self-check passed). Was: STAGED, NOT APPLIED (lane/a-party-invite-menu, systems-engineer, 2026-10-20; live v0.2.11 bug: no Invite to party on an unnamed player). Moves the invite body into hr_party_invite_core (owner-only, verbatim from 2026-10-29-party-security.sql), restates hr_hunt_party_invite as name -> core (pinned on the party-security image or its own) and adds hr_hunt_party_invite_player(p_slot, p_target, p_target_slot, p_idem): invite by the account id the menu target carries; null slot = social_presence.slot, else 0. Moves no value. After 2026-10-29-party-security.sql. The client half rides the same branch and needs this applied first."
+}

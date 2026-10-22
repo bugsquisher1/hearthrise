@@ -1,0 +1,4 @@
+{
+  "seq": 440,
+  "note": "APPLIED to production 2026-08-15. Records hr_set_auto_eat in hr_client_rpc_baseline â€” the auto-eat migration granted it to authenticated without the baseline row, which is exactly what check (2) of hr_assert_grant_hygiene raises on, and that detector runs nightly on pg_cron. Must follow both auto-eat.sql (the function) and grant-hygiene.sql (the table)."
+}

@@ -61,6 +61,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { END_ORDER, EVENT_COPY } from '../src/data/hunt-sessions.js';
 import { ACTION_SET_LIMITS } from '../src/data/rule-subjects.js';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MUTATE = process.argv.includes('--mutate');
@@ -73,7 +74,7 @@ const MIG_TEXT = readFileSync(join(ROOT, 'supabase', 'migrations', MIG), 'utf8')
 const UID = '00000000-0000-4000-8000-0000000c1d01';
 /* Lane C2's file that flips the kill switch on; K1 reads which side of it the chain stopped. */
 const ARM = '2026-10-22-hunt-sessions-arm.sql';
-let chainArmed = JSON.parse(readFileSync(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order.includes(ARM);
+let chainArmed = loadApplyOrder(ROOT).order.includes(ARM);
 
 /* ── harness ─────────────────────────────────────────────────────────────── */
 async function q(db, sql, params) { return (await db.query(sql, params)).rows; }

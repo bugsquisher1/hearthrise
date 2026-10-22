@@ -1,0 +1,4 @@
+{
+  "seq": 3580,
+  "note": "APPLIED 2026-10-20 05:55 UTC by the Coordinator (tools/apply-migration.mjs, self-check passed). Was: STAGED, NOT APPLIED (lane/a-party-invite-menu, 2026-10-20; live v0.2.11 busy-in-town). Restates hr_hunt_enter_for (a gather / artisan / training pointer yields to the hunt, journalled activity_yield; hunt_open names its hunt) and hr_hunt_party_start (a not-ready seat names its hunt), both from 2026-10-28-party-flow.sql. Moves no value. After 2026-10-30-party-invite-player.sql."
+}

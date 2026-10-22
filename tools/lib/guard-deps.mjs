@@ -65,7 +65,8 @@ function importPattern(path) {
 }
 
 const isHelperModule = (p) => /^(tests|tools)\/.+\.mjs$/.test(p);
-const CHAIN_REGISTRY = new Set(['tests/schema-apply-order.json']);
+/* The apply order: one entry file per migration under tests/schema-apply-order/ (2026-10-21). */
+const isChainRegistry = (f) => f.startsWith('tests/schema-apply-order/');
 
 /**
  * Every file in `sources` the diff touches, with the reason.
@@ -88,7 +89,7 @@ export function touchedBy(changed, sources, { hubAt = Infinity, hubs = [] } = {}
     /* The chain's order file is named by the replay harness every chain guard imports; a new
        entry in it is a new migration, judged by the MIGRATION rule and guard-anchors' per-object
        migration scope — not by re-proving all ~85 replay guards. */
-    if (CHAIN_REGISTRY.has(f)) continue;
+    if (isChainRegistry(f)) continue;
     const re = refPattern(f);
     if (!re) continue;
     const hits = [...sources].filter(([t, s]) => t !== f && re.test(s)).map(([t]) => t);
@@ -102,7 +103,7 @@ export function touchedBy(changed, sources, { hubAt = Infinity, hubs = [] } = {}
     const re = importPattern(h);
     for (const [t, s] of sources) if (t !== h && re.test(s)) add(t, `imports ${basename(h)} (${pick.get(h)})`);
   }
-  if (changed.some((f) => f.startsWith('supabase/migrations/') || CHAIN_REGISTRY.has(f))) {
+  if (changed.some((f) => f.startsWith('supabase/migrations/') || isChainRegistry(f))) {
     for (const t of ['tests/schema-drift.mjs', 'tests/apply-order-honesty.mjs']) if (sources.has(t)) add(t, 'migration changed');
   }
   return pick;

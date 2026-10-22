@@ -123,6 +123,16 @@ quarter-turned; nothing is borrowed or scaled up. These are a stand-in for drawn
 a PixelLab death/attack per creature (`docs/PIXELLAB_WORKFLOW.md`) supersedes a derived row when Tyler approves a spend.
 The `hunt` atlas is 2048x1808 of its 2048x2048 cap: the next monster set goes in its own set.
 
+### Mosslight Glade set (2026-10-22, lane b-mosslight-art) — `art/world/glade`, atlas `glade`
+PixelLab, paid generations approved by Tyler 2026-10-22. Style 1, ported unscaled by `tools/world-art/port-pixellab.mjs`:
+`mosslight_ground` (painted 60x40, map `4589f28b` in the Meadowbrook's Greenhaven tileset family) and five units, each
+a Pro Flash object (8 rotations) + v3 walk (8 facings), attack (8), death (s e n w), corpse = the fall's last frame:
+`carrion_crow` (vermin_flier, `3920ce88`), `glade_poacher` (character, `3e5d4d7e`), `walking_vine` (vermin, `376e08d7`),
+`goblin_sluicer` (vermin, `41214f2a`, the Warrens' Goblin Digger as style image), `rook_poacher` (character, `ad8d1765`).
+Six item icons, `create_image_pro_flash` 32x32 on the hr-world-56-v2 palette with `alpha_fang` as the style image:
+`crow_quill`, `snare_wire`, `mosslight_tendril`, `sluice_crust`, `rooks_moss_charm`, `rooks_whistle` (their six
+KNOWN_TWINS entries are gone). Decision: **retain**; approved: Asset Director (delegated art sign-off) 2026-10-22.
+
 ### World atlas registry (2026-10-15) — every world sprite and terrain, and what happens to it
 
 The registry Tyler's PixelLab directive asks for; there is no second registry. One row per sidecar in

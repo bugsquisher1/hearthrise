@@ -88,5 +88,5 @@
     "n_directions": 8,
     "name": "S1 Carrion Crow"
   },
-  "notes": "Ported from PixelLab object 3920ce88-0ce9-4434-8ca1-f0e8c56aef4f (style 1, 48 px canvas, 8 rotations and a v3 walk) by tools/world-art/port-pixellab.mjs: pixels unscaled, each facing seated on the class anchor by whole pixels."
+  "notes": "Ported from PixelLab object 3920ce88-0ce9-4434-8ca1-f0e8c56aef4f (style 1, 48 px canvas, 8 rotations and a v3 walk) by tools/world-art/port-pixellab.mjs: pixels unscaled, each facing seated on the class anchor by whole pixels. A flier: its idle, walk and attack hover 10 px; its fall and corpse rest on the anchor row (port-pixellab.mjs)."
 }

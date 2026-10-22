@@ -85,7 +85,8 @@
     "tool": "create_object_pro_flash",
     "object": "376e08d7-9db6-4558-a023-8371912f8d99",
     "n_directions": 8,
-    "name": "S1 Walking Vine"
+    "name": "S1 Walking Vine",
+    "death_group": "08ad376f-ca8d-4662-93c6-8fda0a51aab1 (death2; the first fall 3d797439 stayed standing)"
   },
-  "notes": "Ported from PixelLab object 376e08d7-9db6-4558-a023-8371912f8d99 (style 1, 48 px canvas, 8 rotations and a v3 walk) by tools/world-art/port-pixellab.mjs: pixels unscaled, each facing seated on the class anchor by whole pixels."
+  "notes": "Ported from PixelLab object 376e08d7-9db6-4558-a023-8371912f8d99 (style 1, 48 px canvas, 8 rotations and a v3 walk) by tools/world-art/port-pixellab.mjs: pixels unscaled, each facing seated on the class anchor by whole pixels. attack/n frames 2-4 and death/s frames 2-3 were moved down 1-3 px (whole pixels) so every frame stands within 3 px of the anchor (the unit feet rule); attack/e was re-rolled once (the first had a baked flash)."
 }

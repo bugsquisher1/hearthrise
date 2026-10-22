@@ -1359,12 +1359,16 @@ const DB_ARMS = {
       /* The server froze the pick on the instance when the hunt opened (2026-11-16-hunt-density-bounds.sql). */
       const frozen = await one(db, 'select density from public.hunt_instances where id = $1', [h.inst]);
       if (frozen !== 8) problems.push(`the instance froze density ${frozen} at hunt start, want 8`);
+      /* A density key left on the action set (the hero has no row until a setup is saved): what an engine read before 2026-11-17. */
+      const staleKey = (n) => db.query(`insert into public.player_action_sets as a (user_id, slot, preset, name, slots, options)
+        values ($1, 0, 0, 'Preset 1', '[]'::jsonb, jsonb_build_object('density', $2::int))
+        on conflict (user_id, slot, preset) do update set options = a.options || excluded.options`, [UID, n]);
       await db.query('savepoint density');
       for (const [variant, door] of [['frozen', 'tick'], ['frozen', 'settle'], ['opened before the freeze', 'tick'], ['opened before the freeze', 'settle']]) {
         if (variant === 'frozen') {
           /* A pick changed after Enter (or a stale key on an action-set row) moves neither the bound nor what the engine plays. */
           await db.query(`update public.hunt_density set density = 1 where user_id = $1 and slot = 0`, [UID]);
-          await db.query(`update public.player_action_sets set options = options || '{"density": 1}'::jsonb where user_id = $1 and slot = 0`, [UID]);
+          await staleKey(1);
           const first = await settleTo(db, M, h.from + 60000);
           const w = await one(db, 'select world from public.hunt_instances where id = $1', [h.inst]);
           const played = first.res && first.res.ok === true && w ? M.WS.decode(JSON.parse(w)).density : null;
@@ -1372,6 +1376,8 @@ const DB_ARMS = {
         } else {
           /* Hank's 32c99ffe: opened before the freeze existed, so its row holds none (the bound reads the ceiling). */
           await db.query('update public.hunt_instances set density = null where id = $1', [h.inst]);
+          /* ...and its engine read the pick off the action set then (the key 2026-11-17 strips): it plays 8 against the ceiling. */
+          await staleKey(8);
         }
         let r = null;
         for (let i = 0; i < 4; i++) {

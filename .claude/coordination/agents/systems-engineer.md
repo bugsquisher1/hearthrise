@@ -4206,3 +4206,10 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 3. *A display clock anchored on "when the answer arrived" steps back whenever the server's number is older than the answer.* hunt_ms is time to the settle; run it on the server clock from settled_to.
 4. *"Ends at the next boundary" is not "stops now".* A death ended the party at each member's next swing boundary but the rest of the swing still ran: the survivor kited away. Stop the swing at the death's sub-step (world-step.js); the end stamping stays.
 5. *Python heredocs here can turn "\\n" into a real newline.* Use the Edit tool for any string with a backslash.
+
+
+## 2026-10-22 · lane/c-density-home (density's own server home, per ground; forfeit end words)
+1. *A setting in the wrong table leaks into every reader of that table.* Density sat in the action set's options, so the settings view, the party view, the freeze and copy-settings all carried it. Moving it meant restating four bodies; leaving the dead option would have kept a `not_leader` branch and a `density: null` key alive.
+2. *A per-ground cap belongs on the ground's own catalogue row, generated from the one clamp* (`densityFor`), never a second copy of the numbers: `hr_hunt_grounds.density_max` = `densityFor(g, n, DENSITY_PICK.max)` per party size.
+3. *A fixture that never saves a setup has no action-set row:* an `update ... where` on it moves nothing and a CONTROL goes red for the wrong reason. Upsert what the test means to plant.
+4. *A UI test that reads only before and after a save misses a draft leaking across lines;* read the other lines mid-draft.

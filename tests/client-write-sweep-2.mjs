@@ -549,6 +549,9 @@ async function run({ patches } = {}) {
     // of sweep files at or before this one in the apply order. The forward-looking
     // "whole programme empties the baseline" check is owned by the LAST consuming
     // batch's guard (batch 4) and by batch 5's guard.
+    const _fs = await import('node:fs/promises');
+    const _path = await import('node:path');
+    const { ROOT: _ROOT } = await import('./schema-replay.mjs');
     const _order = (await import('../tools/lib/apply-order.mjs')).loadApplyOrder().order;
     const _selfPos = _order.indexOf(MIG);
     const _eatenSelf = new Set();

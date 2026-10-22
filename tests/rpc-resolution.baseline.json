@@ -69,82 +69,7 @@
   "code": "42501",
   "shape": ""
  },
- "raid_strike(p_boss,p_clan_id,p_damage,p_max_hp,p_week)": {
-  "status": 401,
-  "code": "42501",
-  "shape": ""
- },
- "raid_claim(p_clan_id,p_scope,p_week)": {
-  "status": 404,
-  "code": "PGRST202",
-  "shape": ""
- },
- "raid_claim(p_clan_id,p_scope,p_slot,p_week)": {
-  "status": 401,
-  "code": "42501",
-  "shape": ""
- },
- "world_event_contribute(p_event_key)": {
-  "status": 401,
-  "code": "42501",
-  "shape": ""
- },
- "world_event_contribute(p_event_key,p_points)": {
-  "status": 404,
-  "code": "PGRST202",
-  "shape": ""
- },
- "world_event_join(p_event_key)": {
-  "status": 401,
-  "code": "42501",
-  "shape": ""
- },
- "world_event_claim(p_day_key)": {
-  "status": 404,
-  "code": "PGRST202",
-  "shape": ""
- },
- "world_event_claim(p_day_key,p_slot)": {
-  "status": 401,
-  "code": "42501",
-  "shape": ""
- },
- "world_event_pledge(p_event_key)": {
-  "status": 401,
-  "code": "42501",
-  "shape": ""
- },
- "world_event_pledge_settle(p_day_key)": {
-  "status": 401,
-  "code": "42501",
-  "shape": ""
- },
- "world_event_absence_claim(p_day_key)": {
-  "status": 401,
-  "code": "42501",
-  "shape": ""
- },
- "hr_rally_pledge_state()": {
-  "status": 401,
-  "code": "42501",
-  "shape": ""
- },
  "clan_contribute(p_amount,p_clan_id)": {
-  "status": 401,
-  "code": "42501",
-  "shape": ""
- },
- "clan_board_claim(p_clan_id,p_task_id)": {
-  "status": 401,
-  "code": "42501",
-  "shape": ""
- },
- "clan_board_progress(p_clan_id,p_counter,p_delta)": {
-  "status": 401,
-  "code": "42501",
-  "shape": ""
- },
- "clan_board_roll(p_clan_id)": {
   "status": 401,
   "code": "42501",
   "shape": ""
@@ -164,22 +89,7 @@
   "code": "42501",
   "shape": ""
  },
- "clan_hunt_declare(p_boss,p_clan_id,p_tier,p_week)": {
-  "status": 401,
-  "code": "42501",
-  "shape": ""
- },
  "clan_rested_grant(p_clan_id)": {
-  "status": 401,
-  "code": "42501",
-  "shape": ""
- },
- "clan_tier_up(p_clan_id)": {
-  "status": 401,
-  "code": "42501",
-  "shape": ""
- },
- "clan_tier_up(p_clan_id,p_expect_tier)": {
   "status": 401,
   "code": "42501",
   "shape": ""
@@ -210,11 +120,6 @@
   "shape": ""
  },
  "clan_vote_open(p_candidates,p_clan_id,p_hours)": {
-  "status": 401,
-  "code": "42501",
-  "shape": ""
- },
- "clan_work_complete(p_clan_id,p_order)": {
   "status": 401,
   "code": "42501",
   "shape": ""

@@ -489,8 +489,8 @@ const MUTANTS = [
      so there is no second death for the mutant to protect.) */
   { arm: 'A-BLESS-ATTENDED', file: '2026-10-25-blessings.sql', why: 'a death does not use the blessings up',
     find: '  delete from public.player_blessings where user_id = p_user and slot = p_slot and tier = any (v_tiers);', repl: '  perform 1;' },
-  /* hr_hunt_party_start is RESTATED last by 2026-10-30-town-activity-yields.sql (after party-flow): the mutant is planted in the body that runs. */
-  { arm: 'A-PARTY', file: '2026-10-30-town-activity-yields.sql', why: "the shared start loads the leader's bag into every member",
+  /* hr_hunt_party_start is RESTATED last by 2026-12-07-party-finder.sql (after town-activity-yields): the mutant is planted in the body that runs. */
+  { arm: 'A-PARTY', file: '2026-12-07-party-finder.sql', why: "the shared start loads the leader's bag into every member",
     find: 'public.hr_hunt_saved_bag(v_m.user_id, v_m.slot),', repl: 'public.hr_hunt_saved_bag(v_uid, p_slot),' },
 ];
 

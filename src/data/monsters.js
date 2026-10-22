@@ -709,8 +709,11 @@ export const MONSTERS = {
   gray_whelp: { name: 'Gray Whelp', icon: '🐺', tier: 1, level: 5, cls: 'mammal', family: 'Mammal',
     hp: 9, atk: 2, def: 0, xp: 28, gp: [1, 3], speed: 3800,
     drops: [{ id: 'raw_wolf_meat', ch: .35 }, { id: 'bones', ch: .4 }, { id: 'leather_boots', ch: .0087, gear: true }] },
+  /* gp [2, 5] -> [3, 5] (systems lane b-supplies-bury 2026-10-21, FOR THE DESIGNER'S REVIEW): the starter bar eats
+     at 60% (Tyler 10-21), so a fresh Thicket hero buys ~11 Salted Shrimp an hour, not 5, and the first-grounds net chain
+     (tests/hunt-core/forest-cave.mjs) put the Thicket under the Cellar; +0.5 g a wolf restores its margin. */
   gray_wolf: { name: 'Gray Wolf', icon: '🐺', tier: 1, level: 8, cls: 'mammal', family: 'Mammal',
-    hp: 14, atk: 4, def: 1, xp: 52, gp: [2, 5], speed: 4200,
+    hp: 14, atk: 4, def: 1, xp: 52, gp: [3, 5], speed: 4200,
     drops: [{ id: 'raw_wolf_meat', ch: .5 }, { id: 'wolf_pelt', ch: .06 }, { id: 'bones', ch: .5 },
       { id: 'leather_helmet', ch: .0071, gear: true }] },
   briarcoat_wolf: { name: 'Briarcoat Wolf', icon: '🐺', tier: 1, level: 10, cls: 'mammal', family: 'Mammal',

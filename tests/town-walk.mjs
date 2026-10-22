@@ -51,6 +51,11 @@
 //         account row meant each character overwrote the other)
 //   TW-15 WHERE THE BODY STANDS: placeOn is the body's place across a park and a show (a pane shown
 //         again starts its hero there); a parked body that went hunting stands at the arrival tile
+//   TW-16 A PEER WEARS ITS OWN LOOK (Tyler live v0.2.31: "Just defaults to the paladin"): the chain's
+//         last hr_town_walkers names a walker's role with the character's own `role` section function
+//         (the worn weapon's role), never the retired action-set pick; another player who appears is
+//         drawn in the outfit its own screen shows (its weapon's, or the one it chose), and still is
+//         after the viewer reloads
 //   TW-14 [page] ONE ACCOUNT, TWO HEROES, SWITCHED A -> B -> A (Andy 10-21: "Not able to consistently
 //         see both characters on a map"): after every switch the viewed hero sees the other one drawn
 //         in The Common; switching never moves a hero (the one shown again stands where it stood, never
@@ -63,11 +68,12 @@
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
 import { readFile, mkdir } from 'node:fs/promises';
-import { mkdtempSync, mkdirSync, cpSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, cpSync, readFileSync, writeFileSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, serve, SDK_STUB, UID } from './_client-harness.mjs';
+import { roleForWeapon as ROLE_FOR_WEAPON } from '../src/data/hunt-roles.js';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -85,9 +91,30 @@ function townEnvelope(name) {
 
 async function load(base) {
   const u = (p) => pathToFileURL(join(base, p)).href;
-  const [acct, town, data, maps] = await Promise.all(['src/session/account-session.js', 'src/session/town-presence.js',
-    'src/data/town-presence.js', 'src/data/world/maps/index.js'].map((p) => import(u(p))));
-  return { acct, town, data, maps, sql: readFileSync(join(base, 'supabase/migrations/2026-10-25-town-walk.sql'), 'utf8') };
+  const [acct, town, data, maps, cast, mapc, bookm, sets, terrain, look, roles] = await Promise.all(['src/session/account-session.js', 'src/session/town-presence.js',
+    'src/data/town-presence.js', 'src/data/world/maps/index.js', 'src/world/town-scene.js', 'src/world/core/map-compile.js', 'src/world/core/book.js',
+    'src/data/world/atlas-sets.js', 'src/data/world/terrain.js', 'src/session/hero-look.js', 'src/data/hunt-roles.js'].map((p) => import(u(p))));
+  return { base, acct, town, data, maps, cast, mapc, bookm, sets, terrain, look, roles, sql: readFileSync(join(base, 'supabase/migrations/2026-10-25-town-walk.sql'), 'utf8') };
+}
+
+/* The chain's last word on `fn` (its body, from the file the apply order applies last), and the function the
+   chain's `role` state section names. A migration copied into `base` (a mutant) is read from there. */
+function chainOf(base, fn) {
+  const order = JSON.parse(readFileSync(join(ROOT, 'tests/schema-apply-order.json'), 'utf8')).order;
+  let body = null, roleFn = null;
+  for (const file of order) {
+    const rel = join('supabase/migrations', file);
+    let sql;
+    try { sql = readFileSync(existsSync(join(base, rel)) ? join(base, rel) : join(ROOT, rel), 'utf8'); } catch { continue; }
+    const i = sql.search(new RegExp('create or replace function public\\.' + fn + '\\(', 'i'));
+    if (i >= 0) {
+      const tag = /\$[a-z_]*\$/i.exec(sql.slice(i));
+      const a = i + tag.index + tag[0].length;
+      body = sql.slice(a, sql.indexOf(tag[0], a));
+    }
+    for (const m of sql.matchAll(/\(\s*'role',\s*'(hr_[a-z_]+)'/g)) roleFn = m[1];
+  }
+  return { body, roleFn };
 }
 
 /* ── THE SHARED FAKE SERVER: hr_load, hr_town_move, hr_town_walkers, with the server's own rules ── */
@@ -98,6 +125,11 @@ function fakeWorld() {
   const calls = [];
   const hunting = new Set();   // 'uid:slot' out on a hunt (the server refuses its town body)
   const back = new Set();      // 'uid:slot' back from a hunt: its hunt section names the ENDED session
+  /* 'uid:slot' -> { weapon, outfit }: what a character holds and chose, as TW-16 reads the chain: its walker's
+     role is its own `role` section's (the worn weapon's, hunt-roles.js roleForWeapon = hr_hunt_weapon_roles), its
+     outfit the one it chose. A character with no look is the healer the older rules expect. */
+  const looks = new Map();
+  const roleOfLook = (l) => (l.weapon ? ROLE_FOR_WEAPON(l.weapon, null) : null);
   let version = 0;
   const link = (uid) => ({
     rpc: async (name, args) => {
@@ -107,6 +139,11 @@ function fakeWorld() {
         const e = hunting.has(key) ? clone(FIXTURE) : townEnvelope(names.get(uid));
         /* hr_hunt_section_view names the open OR NEWEST session: a hero home from a hunt still has one, ended */
         if (!hunting.has(key) && back.has(key)) e.hunt = Object.assign(clone(FIXTURE.hunt), { ended: true });
+        const l = looks.get(key);
+        if (l) {
+          e.role = { id: roleOfLook(l), weapon: l.weapon };
+          e.outfit = { worn: l.outfit, colors: {}, owned: l.outfit ? [l.outfit] : [] };
+        }
         return { ok: true, body: Object.assign(e, { version: ++version, account: { max_concurrent: 4 } }) };
       }
       if (name === 'hr_town_move') {
@@ -122,7 +159,9 @@ function fakeWorld() {
         for (const p of pos.values()) {
           const id = p.uid;
           if (p.map !== args.p_map || blocks.has(uid + '|' + id) || blocks.has(id + '|' + uid)) continue;
-          walkers.push({ id, slot: p.slot, name: names.get(id), level: 7, role: 'healer', x: p.x, y: p.y, gx: p.gx, gy: p.gy, dir: p.dir, age_ms: 0 });
+          const l = looks.get(id + ':' + p.slot);
+          walkers.push({ id, slot: p.slot, name: names.get(id), level: 7, role: l ? world.walkerRole(l) : 'healer',
+            outfit: l && l.outfit ? { id: l.outfit, colors: {} } : null, x: p.x, y: p.y, gx: p.gx, gy: p.gy, dir: p.dir, age_ms: 0 });
         }
         return { ok: true, body: { ok: true, map: args.p_map, cap: 40, walkers } };
       }
@@ -130,7 +169,9 @@ function fakeWorld() {
     },
     accrue: async () => ({ ok: true, body: { accrued: false } }),
   });
-  return { pos, names, blocks, calls, hunting, back, link };
+  /* the role hr_town_walkers names for a walker with a look (TW-16 sets it from the chain's body) */
+  const world = { pos, names, blocks, calls, hunting, back, looks, link, walkerRole: roleOfLook };
+  return world;
 }
 const tick = () => new Promise((ok) => setTimeout(ok, 0));
 const settle = async () => { for (let i = 0; i < 6; i++) await tick(); };
@@ -383,6 +424,62 @@ async function pureRules(M) {
       if (unscoped.length) fail('TW-12 hr_town_move reads or deletes the account\'s bodies, not the character\'s: ' + unscoped.map((l) => l.trim()).join(' | '));
     }
     if (key !== 'user_id,slot') fail('TW-12 town_positions is keyed by (' + key + '), not (user_id, slot)');
+  }
+  // TW-16 (Tyler live v0.2.31: "I can't see other players' skin choice. Just defaults to the paladin"):
+  // A PEER WEARS ITS OWN LOOK. (a) the real server: the chain's last hr_town_walkers names a walker's role with
+  // the function behind the character's OWN `role` section (its worn weapon's), never the retired action-set
+  // pick; (b) on the fake modelled on (a), another player appears in The Common drawn in the look its own screen
+  // draws it in (its weapon's outfit, or the one it chose), and after the viewer reloads it still is.
+  {
+    const { body, roleFn } = chainOf(M.base, 'hr_town_walkers');
+    const said = body && /'role',\s*public\.([a-z_]+)\(w\.user_id,\s*w\.slot\)(->>'id')?/.exec(body);
+    const sectionRole = !!said && said[1] === roleFn && !!said[2];
+    if (!body || !roleFn) fail('TW-16 the chain has no hr_town_walkers body or no `role` state section');
+    else if (!sectionRole)
+      fail('TW-16 hr_town_walkers names a walker\'s role with ' + (said ? said[0] : 'nothing') + ', not its own `role` section\'s ('
+        + roleFn + '(user, slot)->>\'id\'): every peer that chose no outfit is drawn in the wrong look');
+    const manifests = {};
+    for (const set of M.sets.ATLAS_SETS) manifests[set] = JSON.parse(readFileSync(join(ROOT, 'assets/world/atlas-' + set + '.json'), 'utf8'));
+    const book = M.bookm.createBook(manifests);
+    const common = M.mapc.compileMap(M.maps.WORLD_MAPS.find((m) => m.id === 'town_common'), { materials: M.terrain.MATERIALS, sprites: book.sprites,
+      openClasses: M.terrain.OPEN_CLASSES, treeClasses: M.terrain.TREE_CLASSES, lights: M.terrain.LIGHTS, terrains: book.terrains });
+    const world = fakeWorld();
+    /* the fake names the role the chain does: the weapon's, or (the old line) the action-set pick, null for these heroes */
+    if (!sectionRole) world.walkerRole = () => null;
+    world.looks.set(ANDY + ':0', { weapon: 'ranged', outfit: null });      // a bow, nothing chosen: the ranger's look
+    world.looks.set(ANDY + ':1', { weapon: 'sword', outfit: 'sorcerer' });  // a sword, in the Scholar's Robe it chose
+    /* Tyler's town, as his World pane holds it (one presence, one cast): draw() re-reads and returns what is
+       drawn of Andy's hero in `slot` (the sprite id), or null when he is not drawn. */
+    const viewer = async () => {
+      const T = await account(M, world, TYLER, 'Tyler', null);
+      const tt = T.townOf(0), cast = M.cast.createTownCast(common, { sprites: book.sprites });
+      tt.show('town_common'); await settle();
+      let t = 1e6;
+      const draw = async () => {
+        await tt.read();
+        const units = cast.frame(tt.walkers(), (t += 1000));
+        return (slot) => { const u = units.find((x) => x.ref && x.ref.player.id === ANDY && x.ref.player.slot === slot); return u ? u.id : null; };
+      };
+      return { T, draw };
+    };
+    const v1 = await viewer();
+    const empty = await v1.draw();
+    if (empty(0) || empty(1)) fail('TW-16 Andy is drawn before he stands in town');
+    const A = await account(M, world, ANDY, 'Andy', null);
+    if (!(await A.open(1)).ok) fail('TW-16 Andy\'s second hero did not open');
+    const own = [0, 1].map((s) => M.look.heroSprite(A.character(s)));
+    if (own[0] !== 'outfit_ranger' || own[1] !== 'outfit_sorcerer') fail('TW-16 CONTROL: Andy\'s own screen draws his heroes in ' + own.join(', '));
+    for (const s of [0, 1]) { A.townOf(s).show('town_common'); A.townOf(s).publish(at(12 + 2 * s, 9)); }
+    await settle();
+    const check = (drawn, step) => {
+      for (const s of [0, 1]) if (drawn(s) !== own[s])
+        fail('TW-16 ' + step + ', Tyler\'s town draws Andy\'s hero ' + s + ' in ' + drawn(s) + ', but Andy\'s own screen draws it in ' + own[s]);
+    };
+    check(await v1.draw(), 'once Andy appeared');
+    v1.T.close(0); await settle();
+    const v2 = await viewer();   // Tyler reloads
+    check(await v2.draw(), 'after Tyler reloaded');
+    v2.T.close(0); A.close(0); A.close(1); await settle();
   }
   // TW-5, TW-6
   {
@@ -652,6 +749,9 @@ const PURE_MUTANTS = [
   ['closing a character keeps its body in town', 'src/session/account-session.js', 'if (town) { this._towns.delete(slot); town.destroy(); }', 'void town;'],
   ['a hero back from a hunt still counts as hunting', 'src/session/account-session.js', "busy: () => huntOpenIn(cs.read('hunt')),", "busy: () => !!cs.read('hunt'),"],
   ['an ended hunt section is an open hunt', 'src/session/account-session.js', " && h.ended !== true;\n}", ';\n}'],
+  ['a walker\'s role is the retired action-set pick (live v0.2.31: every peer in plate)', 'supabase/migrations/2026-12-10-town-walker-role.sql',
+    "'role', public.hr_role_view(w.user_id, w.slot)->>'id',", "'role', public.hr_chat_role_pick(w.user_id, w.slot),"],
+  ['a walker\'s chosen outfit is dropped', 'src/session/town-presence.js', 'OUTFIT.test(w.outfit.id) ? w.outfit.id : null', 'OUTFIT.test(w.outfit.id) ? null : null'],
 ];
 const PAGE_MUTANTS = [
   ['the World never tells the presence it is in town', 'src/world/world-boot.js', "      town.show(map.kind === 'town' ? map.id : null);\n", ''],
@@ -665,7 +765,7 @@ function copySrc() {
   const tmp = mkdtempSync(join(tmpdir(), 'hr-town-'));
   cpSync(join(ROOT, 'src'), join(tmp, 'src'), { recursive: true, filter: (p) => !/[\\/]vendor[\\/]?/.test(p.slice(ROOT.length)) });
   mkdirSync(join(tmp, 'supabase/migrations'), { recursive: true });
-  cpSync(join(ROOT, 'supabase/migrations/2026-10-25-town-walk.sql'), join(tmp, 'supabase/migrations/2026-10-25-town-walk.sql'));
+  for (const f of ['2026-10-25-town-walk.sql', '2026-12-10-town-walker-role.sql']) cpSync(join(ROOT, 'supabase/migrations', f), join(tmp, 'supabase/migrations', f));
   return tmp;
 }
 

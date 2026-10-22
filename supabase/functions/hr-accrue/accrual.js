@@ -159,15 +159,8 @@ import {
      or the free fall is anchored to a day nothing else agrees about. */
   utcDayKey,
 } from '../../../src/core/goals.js';
-/* THE QUEST-MODAL DAILY COUNTERS (b461) — chopped / mined / fished / rare_drop
-   / levelup. A SECOND PROJECTION of integers this engine already computed (the
-   same values written one line away as lifetime `stat` rows), NOT a second
-   count, so a daily row and its lifetime row cannot disagree. There is
-   deliberately no `weekly` kind: a weekly total is DERIVED at claim time as the
-   sum of the ISO week's seven day rows. See goal-period.js's header for why
-   mirroring it as rows was rejected (it would double the progress ops on every
-   settle, and `progress_clamp` HALVES THE SPAN rather than failing). */
-import { modalGoalOps } from './goal-period.js';
+/* (The quest-modal kind='daily' counters, goal-period.js, were cut 2026-10-22
+   with the daily goals that read them: Tyler, "we were supposed to delete all that".) */
 /* The ONE catalogue-lookup guard in this payload. See its definition for why a
    truthiness test on a `[a-z0-9_]` id is not one. ./intents.js imports nothing,
    so this cannot cycle. */
@@ -1313,7 +1306,6 @@ function memberDelta(s, summary, fromMs, toMs, tickMs) {
   if (day) progress.push({ kind: 'stat', key: 'deaths', period: day, add: deathsN, state: 'active' });
   stat('rare_drops', stats.rareDrops);
   for (const op of goalProgressOps(s.goals, toMs, events)) progress.push(op);
-  for (const op of modalGoalOps(toMs, { rare_drops: stats.rareDrops, levelups: levelUps.length }, events)) progress.push(op);
   for (const op of bestiaryProgressOps(s.bestiary, events)) progress.push(op);
   for (const op of collectionProgressOps(s.collection, events)) progress.push(op);
 
@@ -1700,10 +1692,6 @@ function accrueGather(inp, span) {
   const itemDelta = Object.create(null);
   const events = [];
   const levelUps = [];
-  /* COMPANION XP BASIS (armed writer, b550). The count of yield addItem calls — the
-     exact seam wireAddItemForGather fires awardXpForRole('gather') on live. Not
-     the summed qty: a double-yield is ONE addItem call and one companion award,
-     the same on both sides. */
   /* THE GOAL COUNTER (b353). Same module, same shapes, same clamp as the
      combat path — one contract, not a gather-flavoured copy of one. */
   const goals = makeGoalCounter();
@@ -1741,13 +1729,11 @@ function accrueGather(inp, span) {
       itemDelta[id] = (itemDelta[id] || 0) + n;
       bag[id] = (bag[id] || 0) + n;
     },
-    /* ── THE DAILY / QUEST COUNTERS (b353) ───────────────────────────────
-       `resolveGatherTick` calls `fx.updateDaily('gather', res.qty)` and
-       `fx.updateQuest('gather', res.qty)` — the AMOUNT is the yield, not 1, so
-       a tool double moves "Gather 50 resources" by 2 exactly as it does live.
+    /* ── THE LIFETIME COUNTERS (b353; the daily arm cut 2026-10-22) ──────
+       `resolveGatherTick` calls `fx.updateQuest('gather', res.qty)` — the
+       AMOUNT is the yield, not 1, so a tool double moves the count by 2.
        Passing `amt` through rather than assuming 1 is the same defect class as
        the b352 recipe-scroll `add: 1` the parity guard caught. */
-    updateDaily(type, amt) { goals.daily(type, amt == null ? 1 : amt); },
     updateQuest(type, amt /* , meta */) { goals.quest(type, amt == null ? 1 : amt); },
     /* Still deliberately ABSENT:
          onStop       — the level gate. Handled from the SUMMARY instead (see
@@ -1856,17 +1842,6 @@ function accrueGather(inp, span) {
      combat builder states: one is the lifetime yield, one is the goal event,
      and their agreement is asserted by G3. */
   for (const op of goalProgressOps(goals, nowMs, events)) progress.push(op);
-  /* THE MODAL-GOAL DAILY COUNTERS (b461). `perSkill` is core's own
-     SKILL_ACTION_STAT value — 'chopped' | 'mined' | 'fished' — and the count
-     is the SAME integer `stat(perSkill, …)` files five lines above, so the
-     daily row and the lifetime row are one fact over two windows. A skill with
-     no per-action stat (none today) contributes nothing rather than minting a
-     key named `undefined`. */
-  {
-    const modal = { levelups: levelUps.length };
-    if (perSkill) modal[perSkill] = stats[perSkill];
-    for (const op of modalGoalOps(nowMs, modal, events)) progress.push(op);
-  }
 
   /* THE SUB-STEP REMAINDER, DEFERRED RATHER THAN FORFEITED — see
      settledWatermarkMs. No attended floor: `hr_attended_kills` is a COMBAT
@@ -2078,11 +2053,6 @@ function accrueArtisan(inp, span) {
   const itemDelta = Object.create(null);
   const events = [];
   const levelUps = [];
-  /* COMPANION XP BASIS (armed writer, b550). The count of produce addItem calls —
-     the exact seam wireAddItemForGather fires awardXpForRole('artisan') on for
-     an active recipe. A burnt_food output goes through addItem too, so a burn
-     counts on both sides; an input CONSUMED goes through removeItem, so it does
-     not. */
   /* THE GOAL COUNTER (b353). Same module, same shapes, same clamp as the other
      two paths — one contract, not an artisan-flavoured copy of one. */
   const goals = makeGoalCounter();
@@ -2140,7 +2110,6 @@ function accrueArtisan(inp, span) {
        1 per action, which is what resolveArtisanTick passes; passing it through
        rather than assuming is the same defect class as the b352 recipe-scroll
        `add: 1` the parity guard caught. */
-    updateDaily(type, amt) { goals.daily(type, amt == null ? 1 : amt); },
     updateQuest(type, amt /* , meta */) { goals.quest(type, amt == null ? 1 : amt); },
     /* WHICH ingredient ran out, captured at the stop. The client has shown that
        line since b228 ("Out of Raw Shrimp — cooking stopped") and it is the
@@ -2312,12 +2281,6 @@ function accrueArtisan(inp, span) {
      paths. `events` is passed so a clamp or an unknown type leaves a receipt
      instead of vanishing. */
   for (const op of goalProgressOps(goals, nowMs, events)) progress.push(op);
-  /* THE MODAL-GOAL DAILY COUNTERS (b461). The artisan bench produces no
-     chopped/mined/fished/rare drops, so `levelups` is the only counter this
-     path can move — one op, and only on a span that actually crossed a level.
-     The bench's own dailies (cook / smith / craft) are already carried by
-     goalProgressOps above as `ev:cooked` / `ev:smithed` / `ev:crafted`. */
-  for (const op of modalGoalOps(nowMs, { levelups: levelUps.length }, events)) progress.push(op);
 
   /* THE SUB-STEP REMAINDER, DEFERRED RATHER THAN FORFEITED — the same call the
      gather path makes, over the same `sliceSpan` primitive (artisan-sim.js:355).

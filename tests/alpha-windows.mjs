@@ -1018,11 +1018,13 @@ async function main() {
       : 'alpha-windows: the windows open; patch in place; the server’s counts win; intents only; locks hold; totals first; no supplies in the Shop; Hunts from the hatch in two presses; window presses and focus never steal the World; no void; storage from town; store any amount; storage sorts and filters; bury and cook pay from the server; skills split' + (shots ? ' (shots in ' + shots + ')' : ''));
     process.exit(fails.length ? 1 : 0);
   }
+  const mine = shardOf(MUTANTS);
+  if (!mine) { console.log('  ✗ HARNESS: bad --shard (want --shard=K/N with 1 <= K <= N)'); process.exit(2); }
   const clean = await cleanControl(() => checks(null, null));
   console.log(clean.line);
   if (clean.code) process.exit(clean.code);
   const counts = { caught: 0, harness: 0, escaped: 0 };
-  for (const [name, file, from, to] of MUTANTS) {
+  for (const [name, file, from, to] of mine) {
     const over = {};
     const plant = [[file, from, to]].concat(COMPANION[name] ? [COMPANION[name]] : []);
     let missing = null;
@@ -1035,8 +1037,19 @@ async function main() {
     const v = await judge(() => (name.startsWith('edgeBody') ? pureMutant(over[file]) : checks(over, null)));
     console.log(report(name, v, counts));
   }
-  console.log(exitOf(counts) ? 'alpha-windows --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'alpha-windows --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught, each by a named rule');
+  console.log(exitOf(counts) ? 'alpha-windows --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'alpha-windows --mutate: ' + mine.length + '/' + mine.length + ' mutants caught, each by a named rule' + (mine === MUTANTS ? '' : ' (shard of ' + MUTANTS.length + ')'));
   process.exit(exitOf(counts));
+}
+
+/* --shard=K/N: every Nth mutant from the Kth. Each mutant re-runs the whole check suite (~63 s on a runner), so CI
+   splits the --mutate over N jobs (smoke.yml in-page-10 / in-page-11; ci-shape registers each shard, so a dropped
+   one goes red there). Null for a malformed shard. */
+function shardOf(list) {
+  const a = process.argv.find((x) => x.startsWith('--shard='));
+  if (!a) return list;
+  const m = /^--shard=(\d+)\/(\d+)$/.exec(a);
+  const k = m ? +m[1] : 0, n = m ? +m[2] : 0;
+  return k >= 1 && k <= n ? list.filter((_, i) => i % n === k - 1) : null;
 }
 
 /* The edge-body mutant is a pure module: run AW-0 against the planted text. */

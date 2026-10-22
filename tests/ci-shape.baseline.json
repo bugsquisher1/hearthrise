@@ -15,6 +15,8 @@
     "node tools/mutant-gate.mjs node tests/death-popup.mjs --mutate": "in-page",
     "node tests/alpha-windows.mjs": "in-page",
     "node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate": "in-page",
+    "node tests/preset-names.mjs": "in-page",
+    "node tools/mutant-gate.mjs node tests/preset-names.mjs --mutate": "in-page",
     "node tests/hunt-scene-live.mjs": "in-page",
     "node tests/window-camera.mjs": "in-page-2",
     "node tools/mutant-gate.mjs node tests/window-camera.mjs --mutate": "in-page-2",

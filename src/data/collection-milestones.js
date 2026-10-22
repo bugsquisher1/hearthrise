@@ -27,10 +27,22 @@
 // goal by itself (gen-hunt-sessions writes the rosters).
 //
 // ── NO PREMIUM CURRENCY (Tyler L12: Crowns are never earned in play) ───────
-// The two rungs that paid gems (hunterAll 25, collect100 15) now pay their
-// gold only; no rung pays gems. The gold amounts are unchanged (Tyler's to
-// set). The gem payout could never land anyway: the wallet refuses gems
-// (2026-10-23-demolition-bounty-gems-close.sql), which rolled both claims back.
+// The two rungs that paid gems (hunterAll 25, collect100 15) now pay gold
+// only; no rung pays gems. The gem payout could never land anyway: the wallet
+// refuses gems (2026-10-23-demolition-bounty-gems-close.sql).
+//
+// ── THE GOLD IS SIZED TO THE TIME A RUNG TAKES (designer 2026-10-22) ───────
+// A new hero on the real settle (play-ground kill rates and drop tables; the
+// Cellar to L5, the Thicket to L15, the Sewer's party to L32, the Warrens'
+// after; time at the Level guard's rate) clears the rungs at about:
+//   monsters  4 / 7 / 10 / 13 / 16 / 19 kinds   0.2 / 0.2 / 3.2 / 3.2 / 23 / 23 h
+//   items     10 / 20 / 30 / 40 / 49 ids          0.2 / 3.2 / 4.5 / 23 / 60+ h
+// (the last item rung waits on the three rare carriers, 10-15 h each). The old
+// gold (2,000-50,000 and 1,000-30,000, 165,000 in all) was sized for a
+// 129-monster chase and would land in the first day. Re-golded to 20,900 in
+// all: the bonus is about 25% of the ~51,000 a hero earns by the end of the
+// monster ladder and 12% of the ~176,000 by the end of the item chase, and it
+// still rises every rung. Gold is Tyler's to change (docs/planning/PRIORITY_BOARD.md).
 //
 // PURE ESM. No DOM, no window, no I/O. Imports cleanly in Node and Deno.
 // ════════════════════════════════════════════════════════════════════════
@@ -55,15 +67,15 @@ export function goalOf(row, reach) {
 
 const rung = (domain, part, of, gold) => Object.freeze({ domain, part, of, gold });
 export const COLLECTION_MILESTONES = Object.freeze({
-  hunter10:   rung('monsters', 1, 6, 2000),
-  hunter25:   rung('monsters', 2, 6, 4000),
-  hunter40:   rung('monsters', 3, 6, 8000),
-  hunter60:   rung('monsters', 4, 6, 15000),
-  hunter85:   rung('monsters', 5, 6, 25000),
-  hunterAll:  rung('monsters', 6, 6, 50000),
-  collect25:  rung('items', 1, 5, 1000),
-  collect50:  rung('items', 2, 5, 5000),
-  collect75:  rung('items', 3, 5, 10000),
-  collect100: rung('items', 4, 5, 15000),
-  collect125: rung('items', 5, 5, 30000),
+  hunter10:   rung('monsters', 1, 6, 200),
+  hunter25:   rung('monsters', 2, 6, 400),
+  hunter40:   rung('monsters', 3, 6, 800),
+  hunter60:   rung('monsters', 4, 6, 1200),
+  hunter85:   rung('monsters', 5, 6, 2500),
+  hunterAll:  rung('monsters', 6, 6, 4000),
+  collect25:  rung('items', 1, 5, 200),
+  collect50:  rung('items', 2, 5, 600),
+  collect75:  rung('items', 3, 5, 1000),
+  collect100: rung('items', 4, 5, 2000),
+  collect125: rung('items', 5, 5, 8000),
 });

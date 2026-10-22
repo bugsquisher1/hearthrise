@@ -160,7 +160,7 @@ async function selftest() {
   const order = JSON.parse(await readFile(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
   const MUT = [
     ['hunter60 asks 7 of 6 (catalogue and SQL together): a goal above what can be met',
-      () => ({ ...base, catalogue: cat({ hunter60: { part: 7 } }), chainEnd: sql("v_part := 4; v_of := 6; v_gold := 15000;", "v_part := 7; v_of := 6; v_gold := 15000;") })],
+      () => ({ ...base, catalogue: cat({ hunter60: { part: 7 } }), chainEnd: sql("v_part := 4; v_of := 6; v_gold := 1200;", "v_part := 7; v_of := 6; v_gold := 15000;") })],
     ['the world shrinks to the Mill Cellar (3 monsters for 6 rungs)',
       () => ({ ...base, grounds: { mill_cellar: HUNT_GROUNDS.mill_cellar }, reachable: reachableHere(MONSTERS, ITEMS, { mill_cellar: HUNT_GROUNDS.mill_cellar }) })],
     ['a staged ground counted (Mosslight Glade opened in the guard, the module unchanged)',
@@ -171,11 +171,11 @@ async function selftest() {
     ['the gem credit back in the SQL body',
       () => ({ ...base, chainEnd: sql("  -- CREDIT (after the guard", "  perform public.hr_wallet_credit(auth.uid(), v_slot, 25, 'x', null);\n  -- CREDIT (after the guard") })],
     ['drop the hunter40 SQL arm', () => ({ ...base, chainEnd: { ...base.chainEnd, sql: base.chainEnd.sql.replace(/\n\s*when 'hunter40'[^\n]*/, '') } })],
-    ['collect75 gold 4000 in the SQL only', () => ({ ...base, chainEnd: sql("v_part := 3; v_of := 5; v_gold := 10000;", "v_part := 3; v_of := 5; v_gold := 4000;") })],
+    ['collect75 gold 4000 in the SQL only (the catalogue says 1000)', () => ({ ...base, chainEnd: sql("v_part := 3; v_of := 5; v_gold := 1000;", "v_part := 3; v_of := 5; v_gold := 4000;") })],
     ['the top rung is not all of it (hunterAll 5 of 6, hunter85 4 of 6)',
       () => ({ ...base, catalogue: cat({ hunterAll: { part: 5 }, hunter85: { part: 4 } }) })],
-    ['hunter60 gold 7000 everywhere (ladder gold not rising)',
-      () => ({ ...base, catalogue: cat({ hunter60: { gold: 7000 } }), chainEnd: sql("v_part := 4; v_of := 6; v_gold := 15000;", "v_part := 4; v_of := 6; v_gold := 7000;") })],
+    ['hunter60 gold 300 everywhere (ladder gold not rising)',
+      () => ({ ...base, catalogue: cat({ hunter60: { gold: 300 } }), chainEnd: sql("v_part := 4; v_of := 6; v_gold := 1200;", "v_part := 4; v_of := 6; v_gold := 300;") })],
     ['an older file picked as the chain end (2026-10-25-hunterall-129.sql)',
       async () => ({ ...base, chainEnd: await chainEndMilestoneSql(order.slice(0, order.indexOf('2026-10-25-hunterall-129.sql') + 1)) })],
     ['no file restates the function (chain end absent)', async () => ({ ...base, chainEnd: await chainEndMilestoneSql([]) })],

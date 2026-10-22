@@ -169,9 +169,29 @@ Level vs skill level ("Melee 3" beside "Lv 3") · XP (v0.2.26 mixed Level and sk
 - No rung pays premium currency (Tyler L12). The gold is unchanged.
 
 *For Tyler (money):*
-- hunterAll loses its 25 gems and collect100 loses its 15. Both pay their old gold only, 50,000 and 15,000.
+- hunterAll loses its 25 gems and collect100 loses its 15. No rung pays gems.
 - Possible non-premium extras, not built: a "Bestiary Master" title, or a trophy for the home shelf.
-- The gold amounts (2,000 to 50,000 for monsters, 1,000 to 30,000 for items) are now reachable today. This is 165,000 gold per character across the 11 rungs (104,000 monsters, 61,000 items). All but the first rung of each ladder used to be dead.
+- The gold is re-sized to the time each rung takes. The old amounts were sized for a 129-monster chase and, re-laddered, would have paid 165,000 per character inside the first day.
+- Measured on the real settle: play-ground kill rates and the drop tables. The modelled path is the Cellar to L5, the Thicket to L15, the Sewer's party to L32, then the Warrens. Time on each ground follows the Level guard's rate.
+
+| Rung | Goal (today) | Hours to clear | Gold before | Gold now |
+|---|---|---|---|---|
+| hunter10 | 4 monsters | 0.2 | 2,000 | 200 |
+| hunter25 | 7 | 0.2 | 4,000 | 400 |
+| hunter40 | 10 | 3.2 (Sewer) | 8,000 | 800 |
+| hunter60 | 13 | 3.2 | 15,000 | 1,200 |
+| hunter85 | 16 | 23 (Warrens) | 25,000 | 2,500 |
+| hunterAll | 19 | 23 | 50,000 | 4,000 |
+| collect25 | 10 items | 0.2 | 1,000 | 200 |
+| collect50 | 20 | 3.2 | 5,000 | 600 |
+| collect75 | 30 | 4.5 | 10,000 | 1,000 |
+| collect100 | 40 | 23 | 15,000 | 2,000 |
+| collect125 | 49 (all three rares) | 60+ | 30,000 | 8,000 |
+
+- New total: 20,900 per character (was 165,000).
+- By about 24 h the hero has earned about 51,000 and received 12,900 from milestones (25%). By the end of the item chase (about 176,000 earned) the milestones add 12%.
+- The gold still rises every rung.
+- Not modelled: Mosslight Glade, which is staged. When it opens it adds five monsters and its drops, and the goals rise with them.
 
 ## Designer pass 2026-10-21 (v0.2.22)
 Evidence: the real settle (`hr-accrue accrueHunt`, the `tests/hunt-core/fixtures/play-ground.mjs` runner, one fixed seed, one hour, per hero per hour), run on a scratch copy of the tree with each change planted. Not played in the browser this pass.

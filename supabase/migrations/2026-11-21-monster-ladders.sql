@@ -17,10 +17,13 @@
 -- A roster smaller than a ladder's step count refuses ('roster_too_small') rather than
 -- pay a zero or a repeated goal.
 --
--- NO PREMIUM CURRENCY (Tyler L12): no rung pays gems. hunterAll (was 25) and
--- collect100 (was 15) pay their unchanged gold only. The old gem credit could never
--- land anyway (the wallet refuses gems since 2026-10-23-demolition-bounty-gems-close
--- .sql, which rolled both claims back whole). The gold amounts are unchanged.
+-- NO PREMIUM CURRENCY (Tyler L12): no rung pays gems (hunterAll was 25, collect100
+-- 15; the wallet refused them anyway, which rolled both claims back whole).
+-- THE GOLD IS SIZED TO THE TIME A RUNG TAKES (designer, measured on the real settle;
+-- table in src/data/collection-milestones.js): the old 2,000-50,000 / 1,000-30,000
+-- were sized for a 129-monster chase; re-laddered they would land in the first day.
+-- Now the eleven rungs pay 20,900 in all (were 165,000): about a quarter of a new
+-- hero's income by the end of the monster ladder (~24 h), an eighth by the item chase.
 --
 --   §0  pins both pre-images by md5 (the hunterall-129 body; core-bodies' sheet view)
 --   §1  hr_claim_milestone__ungated: share rungs over the rosters, gold only
@@ -47,7 +50,7 @@ begin
     raise exception 'PRECONDITION: hr_claim_milestone / hr_bestiary_of / hr_collection_of missing'; end if;
   if (select md5(replace(prosrc, chr(13), '')) from pg_proc
        where oid = to_regprocedure('public.hr_claim_milestone__ungated(text,integer)'))
-     not in ('ff9bb521817f6fdde9e09a784471acb9', 'ee860d0c7427b1a287a4303a91da3035') then
+     not in ('ff9bb521817f6fdde9e09a784471acb9', '1149a0bfaf404eb374868cf84442c5d4') then
     raise exception 'monster-ladders §0: hr_claim_milestone__ungated is not the hunterall-129 post-image (or this file''s) — another lane moved it'; end if;
   if (select md5(replace(prosrc, chr(13), '')) from pg_proc
        where oid = to_regprocedure('public.hr_character_sheet_view(uuid,integer)'))
@@ -84,17 +87,17 @@ begin
   -- SERVER-OWNED CATALOGUE (kept in lockstep with src/data/collection-milestones.js):
   -- each rung is v_part of v_of of the reachable roster; no rung pays premium currency.
   case p_milestone_id
-    when 'hunter10'   then v_domain := 'monsters'; v_part := 1; v_of := 6; v_gold := 2000;
-    when 'hunter25'   then v_domain := 'monsters'; v_part := 2; v_of := 6; v_gold := 4000;
-    when 'hunter40'   then v_domain := 'monsters'; v_part := 3; v_of := 6; v_gold := 8000;
-    when 'hunter60'   then v_domain := 'monsters'; v_part := 4; v_of := 6; v_gold := 15000;
-    when 'hunter85'   then v_domain := 'monsters'; v_part := 5; v_of := 6; v_gold := 25000;
-    when 'hunterAll'  then v_domain := 'monsters'; v_part := 6; v_of := 6; v_gold := 50000;
-    when 'collect25'  then v_domain := 'items';    v_part := 1; v_of := 5; v_gold := 1000;
-    when 'collect50'  then v_domain := 'items';    v_part := 2; v_of := 5; v_gold := 5000;
-    when 'collect75'  then v_domain := 'items';    v_part := 3; v_of := 5; v_gold := 10000;
-    when 'collect100' then v_domain := 'items';    v_part := 4; v_of := 5; v_gold := 15000;
-    when 'collect125' then v_domain := 'items';    v_part := 5; v_of := 5; v_gold := 30000;
+    when 'hunter10'   then v_domain := 'monsters'; v_part := 1; v_of := 6; v_gold := 200;
+    when 'hunter25'   then v_domain := 'monsters'; v_part := 2; v_of := 6; v_gold := 400;
+    when 'hunter40'   then v_domain := 'monsters'; v_part := 3; v_of := 6; v_gold := 800;
+    when 'hunter60'   then v_domain := 'monsters'; v_part := 4; v_of := 6; v_gold := 1200;
+    when 'hunter85'   then v_domain := 'monsters'; v_part := 5; v_of := 6; v_gold := 2500;
+    when 'hunterAll'  then v_domain := 'monsters'; v_part := 6; v_of := 6; v_gold := 4000;
+    when 'collect25'  then v_domain := 'items';    v_part := 1; v_of := 5; v_gold := 200;
+    when 'collect50'  then v_domain := 'items';    v_part := 2; v_of := 5; v_gold := 600;
+    when 'collect75'  then v_domain := 'items';    v_part := 3; v_of := 5; v_gold := 1000;
+    when 'collect100' then v_domain := 'items';    v_part := 4; v_of := 5; v_gold := 2000;
+    when 'collect125' then v_domain := 'items';    v_part := 5; v_of := 5; v_gold := 8000;
     else return jsonb_build_object('ok', false, 'error', 'unknown_milestone', 'milestone', p_milestone_id);
   end case;
 
@@ -221,7 +224,7 @@ begin
       raise exception 'SELF-CHECK(c): kills off the roster counted: %', v;
     end if;
 
-    -- (d) at hunter10's goal (first ceil(R/6) roster monsters) it pays its gold and nothing else.
+    -- (d) at hunter10's goal (first ceil(R/6) roster monsters) it pays its 200 gold and nothing else.
     v_goal := (v_r + 5) / 6;
     insert into public.player_progress (user_id, slot, kind, key, value, period_key, state)
       select v_uid, v_slot, 'stat', 'ev:kill_monster:' || m, 1, '', 'active' from unnest(v_mons[1:v_goal - 1]) m;
@@ -234,8 +237,8 @@ begin
     select gold into v_g0 from public.player_state where user_id = v_uid and slot = v_slot;
     v := public.hr_claim_milestone__ungated('hunter10', v_slot);
     select gold into v_g1 from public.player_state where user_id = v_uid and slot = v_slot;
-    if coalesce(v->>'ok', '') <> 'true' or (v->>'gold')::bigint <> 2000 or v_g1 - v_g0 <> 2000 or v ? 'gems' then
-      raise exception 'SELF-CHECK(d): hunter10 at its goal did not pay exactly 2000 gold: % (% -> %)', v, v_g0, v_g1;
+    if coalesce(v->>'ok', '') <> 'true' or (v->>'gold')::bigint <> 200 or v_g1 - v_g0 <> 200 or v ? 'gems' then
+      raise exception 'SELF-CHECK(d): hunter10 at its goal did not pay exactly 200 gold: % (% -> %)', v, v_g0, v_g1;
     end if;
     if exists (select 1 from public.player_ledger where user_id = v_uid and gems_in <> 0)
        or exists (select 1 from public.account_wallet where user_id = v_uid)
@@ -250,12 +253,12 @@ begin
       raise exception 'SELF-CHECK(e): a replayed claim was not refused or moved gold: % (% -> %)', v, v_g1, v_g0;
     end if;
 
-    -- (f) the whole roster: hunterAll pays its 50000 gold (and no gems).
+    -- (f) the whole roster: hunterAll pays its 4000 gold (and no gems).
     insert into public.player_progress (user_id, slot, kind, key, value, period_key, state)
       select v_uid, v_slot, 'stat', 'ev:kill_monster:' || m, 1, '', 'active' from unnest(v_mons[v_goal + 1:v_r]) m;
     v := public.hr_claim_milestone__ungated('hunterAll', v_slot);
-    if coalesce(v->>'ok', '') <> 'true' or (v->>'gold')::bigint <> 50000 or (v->>'goal')::bigint <> v_r then
-      raise exception 'SELF-CHECK(f): hunterAll at the whole roster did not pay 50000: %', v;
+    if coalesce(v->>'ok', '') <> 'true' or (v->>'gold')::bigint <> 4000 or (v->>'goal')::bigint <> v_r then
+      raise exception 'SELF-CHECK(f): hunterAll at the whole roster did not pay 4000: %', v;
     end if;
 
     -- (g) items: collect100 (was a gem rung) pays its gold at ceil(I x 4 / 5) roster loot ids.
@@ -263,8 +266,8 @@ begin
     insert into public.player_progress (user_id, slot, kind, key, value, period_key, state)
       select v_uid, v_slot, 'stat', 'ev:loot:' || i, 1, '', 'active' from unnest(v_loot[1:v_goal]) i;
     v := public.hr_claim_milestone__ungated('collect100', v_slot);
-    if coalesce(v->>'ok', '') <> 'true' or (v->>'gold')::bigint <> 15000 or (v->>'goal')::bigint <> v_goal then
-      raise exception 'SELF-CHECK(g): collect100 at its goal did not pay 15000 gold: %', v;
+    if coalesce(v->>'ok', '') <> 'true' or (v->>'gold')::bigint <> 2000 or (v->>'goal')::bigint <> v_goal then
+      raise exception 'SELF-CHECK(g): collect100 at its goal did not pay 2000 gold: %', v;
     end if;
     v := public.hr_claim_milestone__ungated('collect125', v_slot);
     if v->>'error' <> 'incomplete' or (v->>'goal')::bigint <> v_i then

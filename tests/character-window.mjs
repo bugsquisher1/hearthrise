@@ -195,6 +195,8 @@ async function checks(overrides, shots) {
         await page.evaluate(() => { window.__dmg = document.querySelector('[data-hs-win="character"] [data-combat="damage"] dd'); });
         s.env.character_sheet.combat.damage.max = 31;
         await push(page, s);
+        /* The re-read and the repaint can land after push's fixed 500 ms on a loaded box: wait for the number (4 s). */
+        await wait(page, () => { const d = document.querySelector('[data-hs-win="character"] [data-combat="damage"] dd'); return !!d && d.textContent === '1–31'; }, null, 4000);
         const same = await page.evaluate(() => { const d = document.querySelector('[data-hs-win="character"] [data-combat="damage"] dd'); return { same: d === window.__dmg, t: d.textContent }; });
         if (same.t !== '1–31' || !same.same) fails.push('CW-2 after a new envelope the damage reads ' + same.t + (same.same ? '' : ' on a rebuilt node'));
         /* CW-4: try on an owned outfit, save: ONE intent. */

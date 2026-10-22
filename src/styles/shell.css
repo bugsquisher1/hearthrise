@@ -110,7 +110,7 @@
 .hs-name:disabled { cursor: default; }
 .hs-name-edit { display: none; width: 100%; min-width: 0; }
 .is-naming .hs-name { display: none; }
-.is-naming .hs-name-edit { display: block; }
+.is-naming .hs-name-edit { display: block; width: 100%; }
 
 /* ── The HUD layout window: one ruled line per widget, then Reset ── */
 .hs-hudset { margin: 0; padding: 0; list-style: none; }

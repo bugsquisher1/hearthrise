@@ -4206,3 +4206,10 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 3. *A display clock anchored on "when the answer arrived" steps back whenever the server's number is older than the answer.* hunt_ms is time to the settle; run it on the server clock from settled_to.
 4. *"Ends at the next boundary" is not "stops now".* A death ended the party at each member's next swing boundary but the rest of the swing still ran: the survivor kited away. Stop the swing at the death's sub-step (world-step.js); the end stamping stays.
 5. *Python heredocs here can turn "\\n" into a real newline.* Use the Edit tool for any string with a backslash.
+
+
+## 2026-10-22 · lane/b-presets-c4 (ruling C4: rename/delete saved setups, name the action set)
+1. *Read the data model before the brief's rule.* "Delete refuses the last, the active falls back" fits action sets, but no client path reaches a second action set, so every saved setup points at set 0. Built what the player can reach; the model gap went to CONFLICTS.md for the designer.
+2. *A mutant the patch heals is no mutant.* Writing the new name into the DOM before the answer was undone by the next patch (text() writes the server's name back); the honest defect is a window that keeps the typed name and shows it over the server's.
+3. *A rewritten JSON baseline re-escapes it.* JSON.stringify turned `§` into `§` on unrelated rows; insert registry rows as text.
+4. *The intent-surface guard reads literal `server.rpc('name'` calls.* A helper taking the RPC name as a variable hides it; name the parameter `server` and keep the literal.

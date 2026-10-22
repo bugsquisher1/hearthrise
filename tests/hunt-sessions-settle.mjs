@@ -1461,23 +1461,21 @@ const DB_ARMS = {
     return problems;
   }),
   /* HOLD-SEAT (Tyler 2026-10-22, the party's "One tank holds"; lane/b-tank-choice). hr_hunt_instance_read carries
-     the party's hunt_parties.hold_seat at instance.hold_seat (lane/c-hunt-screens-server, 2026-12-08-party-hold.sql:
-     FIXTURED here by injecting it into the replayed read until that file lands). The door and the tick share this
-     read; it reaches the LEADING member's hero as the seat, and no other hero's; the proposal's world holds that
-     seat's unit (holdNext, and `hold` too in a world made in this window); a seat that is no member's names no
-     unit, so the tanks take turns. */
+     the party's hunt_parties.hold_seat at instance.hold_seat (lane/c-hunt-screens-server, 2026-12-08-party-hold.sql,
+     in the replayed chain; the arm sets the column as hr_party_hold_set would, rolled back). The door and the tick
+     share this read; it reaches the LEADING member's hero as the seat, and no other hero's; the proposal's world
+     holds that seat's unit (holdNext, and `hold` too in a world made in this window); a seat that is no member's
+     names no unit, so the tanks take turns. */
   'HOLD-SEAT': async (db, M) => inTx(db, async () => {
     const problems = [];
     const h = await hunter(db, M, { party: [{ ...STRONG }, { ...STRONG }] });
     const exec = makeExec(db);
-    const withHold = (seat) => async (sql, args) => {
-      const rows = await exec(sql, args);
-      if (sql === M.HS.HUNT_READ_SQL && rows[0] && rows[0].inst && rows[0].inst.instance) rows[0].inst.instance.hold_seat = seat;
-      return rows;
-    };
+    const hold = (seat) => db.query('update public.hunt_parties set hold_seat = $2 where id = $1', [h.party, seat]);
     const at = h.from + 120000;
-    const plan = await M.HS.readHuntSettle({ exec: withHold(1), user: UIDS[0], slot: 0, grounds: groundsOf(M), atMs: at }, 'tick');
+    await hold(1);
+    const plan = await M.HS.readHuntSettle({ exec, user: UIDS[0], slot: 0, grounds: groundsOf(M), atMs: at }, 'tick');
     if (plan.answer) return [`CONTROL: the read answered ${JSON.stringify(plan.answer).slice(0, 200)}`];
+    if (plan.inst.hold_seat !== 1) return [`hr_hunt_instance_read carries instance.hold_seat ${JSON.stringify(plan.inst.hold_seat)}, not the party's 1`];
     const lead = plan.members.filter((m) => m.hero.lead === true);
     if (lead.length !== 1) return [`CONTROL: ${lead.length} leading member(s) in the party read`];
     const heroes = JSON.stringify(plan.members.map((m) => [m.seat, m.hero.lead, m.hero.hold]));
@@ -1491,7 +1489,8 @@ const DB_ARMS = {
     if (!Number.isInteger(unit) || !w) return [...problems, `CONTROL: no unit for seat 1 (${unit}) or no world proposed`];
     if (w.holdNext !== unit || (fresh && w.hold !== unit)) problems.push(`the proposed world holds ${w.hold} / next ${w.holdNext}, not seat 1's unit ${unit}${fresh ? ' (a world made in this window)' : ''}`);
     /* a hold seat that is no member's (seat 3 of a party of two): no unit, the tanks take turns */
-    const none = await M.HS.readHuntSettle({ exec: withHold(3), user: UIDS[0], slot: 0, grounds: groundsOf(M), atMs: at }, 'tick');
+    await hold(3);
+    const none = await M.HS.readHuntSettle({ exec, user: UIDS[0], slot: 0, grounds: groundsOf(M), atMs: at }, 'tick');
     const pn = none.answer ? null : await M.HS.proposeHuntSettle(none, none.toMs, 0);
     const wn = pn && pn.commit && pn.commit.settle.world ? M.WS.decode(JSON.parse(pn.commit.settle.world)) : null;
     if (!wn || wn.holdNext !== null || wn.hold !== null) problems.push(`a hold seat with no member proposed hold ${wn && wn.hold} / next ${wn && wn.holdNext}, not take turns (null)`);

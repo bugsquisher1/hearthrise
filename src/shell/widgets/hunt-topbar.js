@@ -9,14 +9,14 @@
 // close lands, and a plain "still processing" line if it is late.
 // "Ready in" and the "»" buttons of the reference are NOT built (TB-03, TB-04: purpose unknown, Tyler 10-17).
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.24';
-import { huntOf, analyzerOf } from '../../session/hunt-sections.js?v=0.2.24';
-import { text, prop, attr } from '../../render/paint.js?v=0.2.24';
-import { clock } from '../../render/format.js?v=0.2.24';
-import { takeFresh } from '../../hunt-view/summary-recorder.js?v=0.2.24';
-import { track } from '../../net/observability.js?v=0.2.24';
-import { refusalText } from '../intent-words.js?v=0.2.24';
-import { pointerFor } from '../launcher.js?v=0.2.24';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.25';
+import { huntOf, analyzerOf } from '../../session/hunt-sections.js?v=0.2.25';
+import { text, prop, attr } from '../../render/paint.js?v=0.2.25';
+import { clock } from '../../render/format.js?v=0.2.25';
+import { takeFresh } from '../../hunt-view/summary-recorder.js?v=0.2.25';
+import { track } from '../../net/observability.js?v=0.2.25';
+import { refusalText } from '../intent-words.js?v=0.2.25';
+import { pointerFor } from '../launcher.js?v=0.2.25';
 
 /* The pending leave's line, per CharacterSession.leaveCountdown phase (null: the press is still out). */
 const LEAVING = Object.freeze({ asked: 'Leaving…', now: 'Leaving now…', late: 'Still processing your leave…' });

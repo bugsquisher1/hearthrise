@@ -16,7 +16,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { BASE_REGIONS } from './outfits.js?v=0.2.24';
+import { BASE_REGIONS } from './outfits.js?v=0.2.25';
 
 export const HERO_BASE_W = 16;
 export const HERO_BASE_H = 24;

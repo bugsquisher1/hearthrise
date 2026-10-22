@@ -12,15 +12,15 @@
 // residue).
 // Built once, patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERT_KINDS } from '../../data/alerts.js?v=0.2.24';
-import { summaryOf } from '../command-model.js?v=0.2.24';
-import { alertShown, setAlertShown } from '../alerts.js?v=0.2.24';
-import { huntName } from '../../session/party-sections.js?v=0.2.24';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.24';
-import { gold, whole, hoursMinutes } from '../../render/format.js?v=0.2.24';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.24';
-import { gaugeHtml, patchGauge, patchRoleGlyph } from '../widgets/bits.js?v=0.2.24';
-import { glyphSvg } from '../launcher.js?v=0.2.24';
+import { ALERT_KINDS } from '../../data/alerts.js?v=0.2.25';
+import { summaryOf } from '../command-model.js?v=0.2.25';
+import { alertShown, setAlertShown } from '../alerts.js?v=0.2.25';
+import { huntName } from '../../session/party-sections.js?v=0.2.25';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.25';
+import { gold, whole, hoursMinutes } from '../../render/format.js?v=0.2.25';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.25';
+import { gaugeHtml, patchGauge, patchRoleGlyph } from '../widgets/bits.js?v=0.2.25';
+import { glyphSvg } from '../launcher.js?v=0.2.25';
 
 /** The skeleton (built once per opening). */
 export function renderCharacters(ctx) {

@@ -367,8 +367,39 @@ MUTATIONS.free_writes_lifetime_gate_blind = {
 const UUID = () => crypto.randomUUID();
 const N = (v) => Number(v ?? 0);
 
-/** One end-to-end run against a freshly replayed database. */
-async function run(mutate) {
+/* ── THE PINNED UTC DAY (2026-10-21) ─────────────────────────────────────
+   Every K here reads ONE UTC day: the daily row is keyed hr_utc_day_key(now()) and
+   the fixtures sit at now() - 5/10/20/30 min. A run that started at 23:59:59 or
+   in the first ten minutes after 00:00 UTC graded two days and read K11/K12 red
+   (a local run-smoke crossed midnight; measured with the clock preloaded to
+   23:59:59 and 00:00:05: both red, 00:10 green) — a clock fact, not a defect.
+   PGlite serves now() from the host's Date.now (emscripten _emscripten_date_now,
+   read at call time; tests/_utc-clock-shim.mjs measured it), so for the length
+   of ONE run the host clock is moved FORWARD, never back, to 01:00 UTC of the
+   next day whenever the real clock is inside PIN_MARGIN_MS of a midnight. It
+   still runs at real speed (interval arithmetic stays real) and is restored in
+   `finally`, so run-smoke's later guards see the real clock. This file reads no
+   JS clock of its own: Date.now is the only clock the run sees. */
+const DAY_MS = 86400000;
+const PIN_MARGIN_MS = 3600000;          // a run takes 2-20 s; one hour clears any loaded box
+/** The shift (ms, >= 0) that puts [t, t + margin] inside one UTC day, >= margin after its midnight. */
+function utcDayShift(t, margin = PIN_MARGIN_MS) {
+  const into = t - Math.floor(t / DAY_MS) * DAY_MS;   // ms since this UTC midnight
+  if (into < margin) return margin - into;            // just after midnight: on to 01:00 today
+  if (DAY_MS - into <= margin) return DAY_MS - into + margin;   // just before: on to 01:00 tomorrow
+  return 0;
+}
+async function onePinnedDay(fn) {
+  const realNow = Date.now;
+  const shift = utcDayShift(realNow());
+  if (shift) Date.now = () => realNow() + shift;
+  try { return await fn(); } finally { Date.now = realNow; }
+}
+
+/** One end-to-end run against a freshly replayed database, on one UTC day. */
+const run = (mutate) => onePinnedDay(() => runOnce(mutate));
+
+async function runOnce(mutate) {
   const problems = [];
   const ok = (cond, msg) => { if (!cond) problems.push(msg); };
 

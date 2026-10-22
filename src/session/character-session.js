@@ -47,15 +47,15 @@
 // only things it sends of its own are the allowlisted residue and intents.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyEnvelope, applyFrame, withResidue } from './envelope.js?v=0.2.24';
-import { createTimeline } from '../hunt-view/timeline.js?v=0.2.24';
-import { LiveLink } from './live-link.js?v=0.2.24';
-import { RESIDUE_FIELDS, sanitizeResidueField } from './residue.js?v=0.2.24';
-import { SESSION_CONFIG } from './config.js?v=0.2.24';
-import { edgeBody } from './edge-intents.js?v=0.2.24';
-import { leaveAskOf, pendingLeaveAt, leaveCountdown, closeInMs } from './hunt-leave.js?v=0.2.24';
-import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.24';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.24';
+import { applyEnvelope, applyFrame, withResidue } from './envelope.js?v=0.2.25';
+import { createTimeline } from '../hunt-view/timeline.js?v=0.2.25';
+import { LiveLink } from './live-link.js?v=0.2.25';
+import { RESIDUE_FIELDS, sanitizeResidueField } from './residue.js?v=0.2.25';
+import { SESSION_CONFIG } from './config.js?v=0.2.25';
+import { edgeBody } from './edge-intents.js?v=0.2.25';
+import { leaveAskOf, pendingLeaveAt, leaveCountdown, closeInMs } from './hunt-leave.js?v=0.2.25';
+import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.25';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.25';
 
 export const FRAME_EVENT = 'frame';
 
@@ -158,6 +158,9 @@ export class CharacterSession {
     this.lastVerdict = r.verdict;
     if (!r.applied) return false;
     this._record = r.record;
+    /* A residue field set here and not yet put (setResidue's debounce) is newer than the server's copy the
+       envelope carried: it stays until the put lands (a hunt's summary card no longer blinks out on a re-read). */
+    for (const [f, v] of Object.entries(this._pending)) this._record = withResidue(this._record, f, v);
     this._status = 'ready';
     this.receivedAt = this._now();
     this._play(body);

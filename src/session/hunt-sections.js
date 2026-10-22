@@ -18,8 +18,8 @@
 // read makes that ROW null, not the whole section.
 // ════════════════════════════════════════════════════════════════════════
 
-import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.24';
-import { VITALS } from '../data/core-model.js?v=0.2.24';
+import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.25';
+import { VITALS } from '../data/core-model.js?v=0.2.25';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -223,6 +223,26 @@ function viewOf(v) {
     takenByMonster: counts(tk.byMonster), takenByElement: counts(tk.byElement),
     dealtByAbility: counts(dl.byAbility), dealtByElement: counts(dl.byElement),
   };
+}
+
+/* One mode's personal best ({ xp_h, balance_h }, whole numbers an hour), or null. */
+const bestOf = (b) => (isObj(b) && int(b.xp_h) !== null && int(b.balance_h) !== null ? { xpH: b.xp_h, balanceH: b.balance_h } : null);
+
+/**
+ * `hunt_bests` (hr_hunt_bests_view): THIS hero's best XP per hour and best balance per hour on each
+ * ground, solo and party apart, from its finished hunts of at least `min_ms` (each figure its own best).
+ * { minMs, grounds: { [hunt]: { solo: {xpH, balanceH}|null, party: ...|null } } }, or null (nothing sent).
+ */
+export function huntBestsOf(cs) {
+  const b = section(cs, 'hunt_bests');
+  if (!b || int(b.min_ms) === null || b.min_ms <= 0) return null;
+  const grounds = {};
+  if (isObj(b.grounds)) {
+    for (const [hunt, m] of Object.entries(b.grounds).slice(0, 256)) {
+      if (str(hunt) && isObj(m)) grounds[hunt] = { solo: bestOf(m.solo), party: bestOf(m.party) };
+    }
+  }
+  return { minMs: b.min_ms, grounds };
 }
 
 /** `hunt_analyzer`: the server's session stats, hero and party. Null for a free character or no hunt. */

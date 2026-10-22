@@ -86,9 +86,20 @@ export function roleWeaponOf(item) {
    at most once per the `challenge` ability's cdMs (src/data/abilities.js, the one
    cooldown). No player input. The hold EQUALS the cooldown (designer 2026-10-21): a
    lone tank's pack is never free between two Challenges (a 6 s hold left it 2 s in
-   every 8 to turn on the Healer), and two tanks still trade the pack every cooldown
-   (each takes it the instant the other's hold runs out). */
-export const CHALLENGE = Object.freeze({ radius: 6, holdMs: 8000 });
+   every 8 to turn on the Healer). With two or more tanks ONE holds a lap
+   (src/core/hunt/targeting.js holderTank: designer 2026-10-21, Option A); the others
+   take only what is on a hero that is not a tank.
+   holderMinHpPm: A TANK MUCH WEAKER THAN THE PARTY'S STRONGEST NEVER HOLDS (designer
+   2026-10-21: an L9 + L19 pair at Sewer density 7 died in 2 min, the L9 holding the
+   pack every other lap). The measure is the unit's maxHp, the one the engine carries
+   (vitals.js: Level plus heavy armour): a tank holds a lap only while its maxHp is at
+   least this permille of the strongest living tank's. 900 = about 3 Levels under an
+   L19, 6 under an L50, 20 under an L200 (the gap grows with Level, as max HP does).
+   Measured at Sewer density 7 beside an L19 (play-ground.mjs, 3 seeds, 30 min): with
+   no floor an L11 (827) and an L13 (894) holding died; L15 and up lived. At 900 every
+   pair lived. The weaker tank still takes the overflow off the casters, and joins the
+   rotation once the party's shared XP levels it close enough. */
+export const CHALLENGE = Object.freeze({ radius: 6, holdMs: 8000, holderMinHpPm: 900 });
 
 /* THE RANGED SPOT (spec §3.1 #10, §5 #4, ASSUMED). A spot is valid while its
    distance d from the hero's own target is in [want - bandBelow, want + bandAbove]
@@ -137,6 +148,7 @@ export function validate() {
   }
   if (!Number.isInteger(CHALLENGE.radius) || CHALLENGE.radius < 1) out.push('CHALLENGE.radius must be a positive integer');
   if (!Number.isInteger(CHALLENGE.holdMs) || CHALLENGE.holdMs <= 0 || CHALLENGE.holdMs % 100 !== 0) out.push('CHALLENGE.holdMs must be a whole number of 100 ms sub-steps');
+  if (!Number.isInteger(CHALLENGE.holderMinHpPm) || CHALLENGE.holderMinHpPm < 0 || CHALLENGE.holderMinHpPm > 1000) out.push('CHALLENGE.holderMinHpPm is permille 0..1000');
   for (const [k, v] of Object.entries(AI_REPATH_MS)) if (!Number.isInteger(v) || v <= 0 || v % 100 !== 0) out.push('AI_REPATH_MS.' + k + ' must be a whole number of sub-steps');
   if (!Number.isInteger(SURROUND.repathMs) || SURROUND.repathMs % 100 !== 0) out.push('SURROUND.repathMs must be a whole number of sub-steps');
   if (!(SPOT.hysteresis >= 0)) out.push('SPOT.hysteresis must be >= 0');

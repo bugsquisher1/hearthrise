@@ -2,7 +2,8 @@
 // src/hunt-view/summary-model.js — THE END-OF-HUNT SUMMARY, FROM SERVER FACTS (QoL 8).
 //
 // PURE (no DOM, no clock). When a hunt's session ends (any END_ORDER reason)
-// the player gets one card: how long, kills, XP, gold, top loot, supplies used
+// the player gets one card: how long, kills, XP, gold, balance per hour (raw XP
+// per hour for premium), top loot, supplies used
 // from the bag vs the store, why it ended in plain words, and the settings to
 // go again. Every number is read off the server's own sections:
 //   `hunt`           the session (id, hunt, preset, limits, bag, tally, end_reason)
@@ -17,7 +18,7 @@
 // Reading `hunt`: the server's session record sits under `hunt.session` (the
 // section view) and, in the client fixture, flat on `hunt`. Both are read.
 // ════════════════════════════════════════════════════════════════════════
-import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.24';
+import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.25';
 
 export { sanitizeSummaries };
 
@@ -89,6 +90,7 @@ export function endedSessionOf(cs) {
  */
 export function buildSummary(s, an, deaths) {
   const hero = an && an.hero;
+  const ph = hero && hero.perHour ? hero.perHour : null;
   const t = s.tally || {};
   const dur = an && an.sessionMs !== null && an.sessionMs !== undefined ? an.sessionMs
     : s.enteredMs !== null && s.endedMs !== null ? Math.max(0, s.endedMs - s.enteredMs) : null;
@@ -99,6 +101,9 @@ export function buildSummary(s, an, deaths) {
   return sanitizeSummary({
     id: s.id, hunt: s.hunt, at: s.endedMs, reason: s.reason, ms: dur,
     kills: hero ? hero.kills : int(t.kills), xp: hero ? hero.xp : num(t.xp), gold: hero ? hero.gold : num(t.coins),
+    /* Per hour, the server's (hr_hunt_stats_of per_hour): balance for every character; raw XP only when the
+       server sent it (premium: the basic analyzer carries no raw_xp). Never divided here. */
+    balanceH: ph ? ph.balance : null, rawXpH: ph ? ph.rawXp : null,
     died: s.died, loot, supplies,
     preset: s.preset, hoursLimit: s.hoursLimit, bag: s.bag, deaths,
   });

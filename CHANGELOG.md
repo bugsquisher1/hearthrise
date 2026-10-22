@@ -5,6 +5,10 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.25 — 2026-10-21 (One tank holds)
+
+**Two tanks no longer swap the pack.** In a party with two tanks, one tank holds the monsters for a whole lap of the route; the other only pulls off monsters that go for a healer or damage dealer. The holder changes at the start of each lap, so both tanks still train Defense, and nothing swaps in the middle of a fight.
+
 ## v0.2.24 — 2026-10-21 (More heroes, working casters, steadier hunts)
 
 **Buy more hero slots.** "Your characters" now sells a third, fourth and fifth hero slot for 15,000, 40,000 and 120,000 gold, paid by the hero you pick. Play up to four heroes at once.

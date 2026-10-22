@@ -10,7 +10,7 @@
 //   node tests/hunt-screen.mjs --shots <dir>  also write the visual-gate screenshots
 //                                             (1440x900 and 922x423)
 //
-// mutant-anchors: src/shell/hud.js src/render/images.js src/world/atlas.js src/session/character-session.js src/session/hunt-leave.js src/session/hunt-poll.js src/shell/windows/hunts.js src/shell/widgets/hunt-topbar.js src/render/paint.js src/shell/shell.js src/shell/widgets/ src/shell/windows/ src/session/hunt-sections.js src/data/combat-text.js src/data/condition-metrics.js src/shell/action-facts.js
+// mutant-anchors: src/render/images.js src/world/atlas.js src/hunt-view/summary-model.js src/session/character-session.js src/session/hunt-leave.js src/session/hunt-poll.js src/shell/windows/hunts.js src/shell/widgets/hunt-topbar.js src/render/paint.js src/shell/shell.js src/shell/widgets/ src/shell/windows/ src/session/hunt-sections.js src/data/combat-text.js src/data/condition-metrics.js src/shell/action-facts.js src/shell/hud.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character's envelope is tests/fixtures/hunt-envelope.json.
@@ -75,7 +75,7 @@
 //         nothing moves before the server's re-read says so; the status line always comes
 //         back: cleared on the answer, the reason on a refusal, a plain line on the timeout
 //   HS-20 every struck or waiting slot says why (glyph + the tooltip's first line), one slot a reason
-//   HS-23 A DOCKED WINDOW NEVER COVERS THE ANALYZER (r11), at 1920x1080, 1440x900 and 922x423:
+//   HS-26 A DOCKED WINDOW NEVER COVERS THE ANALYZER (r11), at 1920x1080, 1440x900 and 922x423:
 //         with the chat docked, then the Character window, the analyzer's box crosses no docked
 //         window; where the row has room right of the fight (1920 with the chat) it moves beside
 //         the dock instead of hiding; docking never moves the camera on a desktop
@@ -88,6 +88,12 @@
 //         it hides at a safe threshold and for a solo hero (who skips the King's hall)
 //   HS-21 THE COOLDOWN EMBER: the hero's played cast cools that ability's slot for its
 //         catalogue cooldown; the ember rises and the seconds fall as it runs out
+//   HS-24 THE PICKER'S PERSONAL BESTS (designer 2026-10-21): each ground's card shows the
+//         server's hunt_bests for this hero, alone and in a party ("12,400 XP per hour ·
+//         balance 3,100 gp per hour"), "No hunt of 10 min yet" where there is none, >= 12 px,
+//         and the next envelope REPLACES them (never merged)
+//   HS-25 THE HUNT SUMMARY shows the server's balance per hour to every character, and raw
+//         XP per hour only when the server sent it (premium)
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -200,6 +206,8 @@ async function stub(page, s) {
       return json(s.optionsReply);
     }
     if (name === 'hr_hunt_leave' && s.onLeave) { await sleep(400); const out = s.onLeave(); await json(out); s.leaveAnswered = true; return undefined; }
+    /* `keepResidue`: the server keeps what hr_put_client_state sends and hands it back in every envelope (as hr_state_of does). */
+    if (name === 'hr_put_client_state' && s.keepResidue) s.env.client_state = Object.assign({}, s.env.client_state, body.p_patch);
     return json({ ok: true });
   });
 }
@@ -799,7 +807,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       await ctx.close();
     }
 
-    for (const vp of [{ width: 1920, height: 1080 }, { width: 1440, height: 900 }, { width: 922, height: 423 }]) { // HS-23 a docked window never covers the analyzer (r11)
+    for (const vp of [{ width: 1920, height: 1080 }, { width: 1440, height: 900 }, { width: 922, height: 423 }]) { // HS-26 a docked window never covers the analyzer (r11)
       const phone = vp.width < 1000, tag = vp.width + 'x' + vp.height;
       /* The phone hides the analyzer by default: this player shows it (a display preference, residue hudLayout). */
       const { ctx, page, up } = await open({ viewport: vp, prep: (s) => { if (phone) s.env.client_state = { hudLayout: { phone: { analyzer: { visible: true } } } }; } });
@@ -821,15 +829,15 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           await page.evaluate(() => document.activeElement && document.activeElement.blur && document.activeElement.blur());
           let r;
           for (const end = Date.now() + LOAD_MS; ;) { r = await cover(); if ((r.n && !r.hits.length) || Date.now() > end) break; await sleep(100); }
-          if (!r.n) fails.push('HS-23 at ' + tag + ' no window docked after ' + key);
-          if (r.hits.length) fails.push('HS-23 at ' + tag + ' the docked ' + r.hits.join(', ') + ' covers the analyzer');
-          if (vp.width >= 1920 && id === 'chat' && !r.shown) fails.push('HS-23 at ' + tag + ' the analyzer hid with the chat docked instead of moving beside it');
+          if (!r.n) fails.push('HS-26 at ' + tag + ' no window docked after ' + key);
+          if (r.hits.length) fails.push('HS-26 at ' + tag + ' the docked ' + r.hits.join(', ') + ' covers the analyzer');
+          if (vp.width >= 1920 && id === 'chat' && !r.shown) fails.push('HS-26 at ' + tag + ' the analyzer hid with the chat docked instead of moving beside it');
           if (shots) await page.screenshot({ path: join(shots, 'hunt-' + tag + '-docked-' + id + '.png') });
         }
         const insets = await page.evaluate(() => window.__insets);
         /* Desktop only: the phone sheet hides the top bar's ground name (hunt.css), which moved the inset before r11 too. */
-        if (!phone && insets.length) fails.push('HS-23 at ' + tag + ' docking a window moved the camera inset: ' + insets.slice(0, 2).join(' -> '));
-      } else fails.push('HS-23 the analyzer did not mount at ' + tag);
+        if (!phone && insets.length) fails.push('HS-26 at ' + tag + ' docking a window moved the camera inset: ' + insets.slice(0, 2).join(' -> '));
+      } else fails.push('HS-26 the analyzer did not mount at ' + tag);
       await ctx.close();
     }
 
@@ -1085,6 +1093,69 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (!/^No weapon worn/.test(none.text) || !none.off || !none.glyph) fails.push('HS-20 the no-weapon slot reads ' + JSON.stringify(none));
         await sweep('the bar with no weapon');
       } else fails.push('HS-20 the screen did not mount');
+      await ctx.close();
+    }
+
+    { // HS-24 THE PICKER'S PERSONAL BESTS are the server's (hunt_bests), replaced by each envelope; empty = "No hunt of 10 min yet"
+      const { ctx, page, s, errors, up } = await open({ town: true, prep: (sc) => {
+        sc.env.hunt_bests = { min_ms: 600000, grounds: { mill_cellar: { solo: { xp_h: 12400, balance_h: 3100 } } } };
+      } });
+      if (up) {
+        await page.keyboard.press('h');
+        const card = (hunt) => page.evaluate((h) => {
+          const li = document.querySelector('[data-hs-win="hunts"] .hw-hunt[data-hunt="' + h + '"]');
+          const t = (q) => { const n = li && li.querySelector(q); return n && n.getClientRects().length > 0 ? n.textContent : null; };
+          const px = li && li.querySelector('.hw-hunt-best-solo') ? parseFloat(getComputedStyle(li.querySelector('.hw-hunt-best-solo')).fontSize) : 0;
+          return li ? { solo: t('.hw-hunt-best-solo'), party: t('.hw-hunt-best-party'), px } : null;
+        }, hunt);
+        await wait(page, () => document.querySelector('[data-hs-win="hunts"] .hw-hunt[data-hunt="mill_cellar"] .hw-hunt-best-solo'), null, 4000);
+        const a = await card('mill_cellar');
+        if (!a || a.solo !== 'Best alone: 12,400 XP per hour · balance 3,100 gp per hour' || a.party !== 'Best in a party: No hunt of 10 min yet' || !(a.px >= 12)) {
+          fails.push('HS-24 the picker card does not show the server’s personal bests: ' + JSON.stringify(a));
+        }
+        const other = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="hunts"] .hw-hunt:not([data-hunt="mill_cellar"]) .hw-hunt-best-solo')).map((n) => n.textContent));
+        if (!other.length || other.some((x) => x !== 'Best alone: No hunt of 10 min yet')) fails.push('HS-24 a ground with no best does not say so: ' + JSON.stringify(other.slice(0, 3)));
+        /* The next envelope REPLACES the bests (a better party hunt landed, the solo one is gone from this read). */
+        s.env.hunt_bests = { min_ms: 600000, grounds: { mill_cellar: { party: { xp_h: 20500, balance_h: -450 } } } };
+        await pushEnvelope(page, s);
+        const b = await card('mill_cellar');
+        if (!b || b.solo !== 'Best alone: No hunt of 10 min yet' || b.party !== 'Best in a party: 20,500 XP per hour · balance -450 gp per hour') {
+          fails.push('HS-24 the picker card is not replaced by the next envelope: ' + JSON.stringify(b));
+        }
+        if (errors.length) fails.push('HS-24 console errors: ' + errors.slice(0, 3).join(' | '));
+      } else fails.push('HS-24 the screen did not mount in town');
+      await ctx.close();
+    }
+
+    for (const premium of [true, false]) { // HS-25 THE HUNT SUMMARY shows the server's balance per hour to everyone; raw XP per hour only to premium
+      const { ctx, page, s, up } = await open({ prep: (sc) => {
+        sc.keepResidue = true;   // the stored summary is display residue: the server hands it back on a re-read
+        if (premium) return;
+        /* A free character: the basic analyzer (2026-11-04-hunt-bests.sql) carries balance per hour, never raw XP. */
+        sc.env.premium = Object.assign({}, sc.env.premium, { active: false });
+        sc.env.hunt_analyzer.tier = 'basic';
+        delete sc.env.hunt_analyzer.hero.per_hour.raw_xp;
+        delete sc.env.hunt_analyzer.hero.per_hour.waste;
+      } });
+      const tag = premium ? 'premium' : 'free';
+      if (up) {
+        s.env.hunt = Object.assign({}, s.env.hunt, { ended: true });
+        await pushEnvelope(page, s);
+        /* A freshly ended hunt opens its summary; if it has not yet, the top bar's Summary does. */
+        if (!(await wait(page, () => document.querySelector('[data-hs-win="hunt-summary"]'), null, 2000))) await page.click('.ht-bar [data-hs-act="summary"]').catch(() => {});
+        const shown = await wait(page, () => { const d = document.querySelector('[data-hs-win="hunt-summary"] .hsum-card.is-on [data-stat="balanceH"]'); return d && d.textContent !== ''; }, null, 4000);
+        /* and it stays: a re-read after the end (before or after the residue put) keeps the card */
+        await pushEnvelope(page, s);
+        const got = await page.evaluate(() => {
+          const v = (k) => { const d = document.querySelector('[data-hs-win="hunt-summary"] [data-stat="' + k + '"]'); return d && d.parentNode.getClientRects().length > 0 ? d.textContent : null; };
+          const w = document.querySelector('[data-hs-win="hunt-summary"]');
+          return { balanceH: v('balanceH'), rawXpH: v('rawXpH'), win: !!w, card: !!(w && w.querySelector('.hsum-card.is-on')),
+            text: w ? w.textContent.slice(0, 160) : null };
+        });
+        const ph = FIXTURE.hunt_analyzer.hero.per_hour;
+        const want = { balanceH: ph.balance.toLocaleString('en-US') + ' gp', rawXpH: premium ? ph.raw_xp.toLocaleString('en-US') : null };
+        if (!shown || got.balanceH !== want.balanceH || got.rawXpH !== want.rawXpH) fails.push('HS-25 the ' + tag + ' summary shows ' + JSON.stringify(got) + '; the server sent ' + JSON.stringify(want));
+      } else fails.push('HS-25 the ' + tag + ' screen did not mount');
       await ctx.close();
     }
 
@@ -1469,8 +1540,12 @@ const MUTANTS = [
   ['the fight settings sheet starts at the top of the screen (HS-22)', 'src/shell/widgets/action-bar.js', "    sheet.style.top = Math.round(Math.max(box.top, hb ? hb.bottom + 4 : box.top)) + 'px';", "    sheet.style.top = '0px';"],
   ['a widget that grows after it is placed is never placed again (HS-22)', 'src/shell/shell.js', 'const sized = host.ResizeObserver ? ', 'const sized = false ? '],
   ['the bleed badge defaults on for regular monsters', 'src/data/combat-text.js', "label: 'Bleed stack count', on: on(false, true)", "label: 'Bleed stack count', on: on(true, true)"],
-  ['a docked window covers the analyzer again (HS-23)', 'src/shell/shell.js', "clearOfDock(home, fixed, edgeEls.filter((o) => o !== e).map(rel), DOCK_EDGE, stage) : home.left;", 'home.left : home.left;'],
-  ['the moved analyzer moves the camera (HS-23)', 'src/shell/shell.js', 'const left = dockHome.has(el) ? dockHome.get(el) : r.left - b.left;', 'const left = r.left - b.left;'],
+  ['the picker card never shows the personal best (HS-24)', 'src/shell/windows/hunts.js', "text(li.querySelector('.hw-hunt-best-solo'), best ? best.solo : '');", "text(li.querySelector('.hw-hunt-best-solo'), '');"],
+  ['the picker merges a best the server no longer sends (HS-24)', 'src/session/hunt-sections.js', "  const b = section(cs, 'hunt_bests');\n", "  const b = section(cs, 'hunt_bests');\n  if (b && globalThis.__hb) for (const [k, v] of Object.entries(globalThis.__hb)) b.grounds[k] = Object.assign({}, v, b.grounds[k]);\n  if (b) globalThis.__hb = b.grounds;\n"],
+  ['the summary has no balance per hour (HS-25)', 'src/hunt-view/summary-model.js', 'balanceH: ph ? ph.balance : null,', 'balanceH: null,'],
+  ['a free summary shows raw XP per hour (HS-25)', 'src/shell/windows/hunt-summary.js', "prop(dd.parentNode, 'hidden', !!onlySent && (cur[k] === null || cur[k] === undefined));", "prop(dd.parentNode, 'hidden', false);"],
+  ['a docked window covers the analyzer again (HS-26)', 'src/shell/shell.js', "clearOfDock(home, fixed, edgeEls.filter((o) => o !== e).map(rel), DOCK_EDGE, stage) : home.left;", 'home.left : home.left;'],
+  ['the moved analyzer moves the camera (HS-26)', 'src/shell/shell.js', 'const left = dockHome.has(el) ? dockHome.get(el) : r.left - b.left;', 'const left = r.left - b.left;'],
 ];
 
 async function main() {

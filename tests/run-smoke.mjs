@@ -1062,7 +1062,7 @@ const run = async () => {
       exitCode = 1;
     } else {
       console.log('\nCollection/renown claim drift guard — milestone + rank catalogues, client rows, '
-        + 'and the credit RPC SQL all agree on every threshold + gold + gems.');
+        + 'and the credit RPC SQL all agree on every rung (share of the reachable roster) + gold; no gems.');
     }
 
     /* tests/kill-time-drift.mjs and tests/combat-xp-cap-drift.mjs were RETIRED by the core rebuild

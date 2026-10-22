@@ -1,67 +1,69 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/data/collection-milestones.js — THE SERVER-OWNED COLLECTION-LOG CATALOGUE.
 //
-// The GOAL (a distinct-count threshold) and the GOLD/GEM REWARD for every
-// Collection-Log MILESTONE the server credits under `hr_claim_milestone`
-// (the chain-end restatement of hr_claim_milestone__ungated — today
-// supabase/migrations/2026-09-27-ledger-of-firsts.sql). This is the SINGLE
-// SOURCE for those numbers; the SQL RPC embeds a copy and
-// tests/collection-renown-claim-drift.mjs binds THREE sides so none can drift
-// in silence:
-//   (1) this module,
-//   (2) the authored client rows in src/features/collection-log.js (MILESTONES),
-//   (3) the server catalogue inside the migration SQL.
+// The GOAL and the GOLD REWARD of every Collection-Log MILESTONE the server
+// credits under `hr_claim_milestone` (the chain-end restatement of
+// hr_claim_milestone__ungated). This is the SINGLE SOURCE; the SQL RPC embeds a
+// copy of each arm and tests/collection-renown-claim-drift.mjs binds the two.
 //
 // ── WHAT THE SERVER VERIFIES ────────────────────────────────────────────────
-// A milestone is EARNED when the character's DISTINCT count in `domain` is
-// >= `threshold`, read from the server's own per-entry projection:
-//   · domain 'monsters' → count of hr_bestiary_of  rows (distinct ev:kill_monster:%)
-//   · domain 'items'    → count of hr_collection_of rows (distinct ev:loot:%)
-// The client `earned` flag is NEVER trusted; the count is re-derived server-side.
+// A milestone is EARNED when the character's DISTINCT count in `domain`, read
+// from the server's own projection and counted only over what a player can
+// meet today, reaches the rung's goal:
+//   · 'monsters' → hr_bestiary_of rows whose monster is in hr_hunt_roster
+//   · 'items'    → hr_collection_of rows whose item is in hr_hunt_loot_roster
+// The client `earned` flag is NEVER trusted.
 //
-// ── THE ONE DYNAMIC THRESHOLD ───────────────────────────────────────────────
-// `hunterAll` ("Bestiary Master") is "have you slain EVERY monster", so its
-// threshold is the SIZE of the monster catalogue, not a hand-picked number.
-// MONSTER_TOTAL below is that size (less the monsters only a STAGED ground holds),
-// DERIVED from the data and drift-guarded against the SQL CASE (the count moves →
-// the guard fails the build → the SQL CASE is restated in lockstep). This is the
-// same "scheduled debt, not discovered debt" posture the renown weight-copy uses.
+// ── THE LADDERS GROW WITH THE WORLD (designer ruling 2026-10-22, lane
+// c-monster-ladders) ──────────────────────────────────────────────────────
+// A rung is a SHARE of the reachable roster, `part` of `of`, not a fixed
+// count: its goal is ceil(reach x part / of), where reach is the number of
+// monsters (or loot ids) on the OPEN grounds (hunt-grounds.js reachableOf;
+// a staged ground is out). The old fixed goals (10..129 monsters, 25..125
+// items) were written against a 129-monster catalogue a player could never
+// meet: with 19 monsters and 49 loot ids reachable, every rung past the first
+// two could not be earned. Six monster rungs (sixths) and five item rungs
+// (fifths) step evenly to "all of them", and a new open ground raises every
+// goal by itself (gen-hunt-sessions writes the rosters).
+//
+// ── NO PREMIUM CURRENCY (Tyler L12: Crowns are never earned in play) ───────
+// The two rungs that paid gems (hunterAll 25, collect100 15) now pay their
+// gold only; no rung pays gems. The gold amounts are unchanged (Tyler's to
+// set). The gem payout could never land anyway: the wallet refuses gems
+// (2026-10-23-demolition-bounty-gems-close.sql), which rolled both claims back.
 //
 // PURE ESM. No DOM, no window, no I/O. Imports cleanly in Node and Deno.
 // ════════════════════════════════════════════════════════════════════════
 
 import { MONSTERS } from './monsters.js?v=0.2.28';
-import { STAGED_ONLY_MONSTERS } from './hunt-grounds.js?v=0.2.28';
+import { ITEMS } from './items.js?v=0.2.28';
+import { HUNT_INDEX } from './hunts.js?v=0.2.28';
+import { OPEN_GROUNDS, reachableOf } from './hunt-grounds.js?v=0.2.28';
 
-/* The monster catalogue size — the `hunterAll` threshold. Kept in lockstep with
-   the SQL CASE by tests/collection-renown-claim-drift.mjs. */
-/* W0 (2026-10-10): 108 -> 113 — the five field champions are monsters, and
-   "Bestiary Master" means every one. Raised in lockstep with the hunterAll arm
-   restated in supabase/migrations/2026-10-16-w0f-fun-content.sql §3. */
-/* 2026-10-18: 113 -> 119 — the Millrace Sewer's six formation rows (monsters.js).
-   The SQL hunterAll arm is restated by the S1 catalogue regen (lane C). */
-/* 2026-10-18: 119 -> 129 — the Meadowbrook Thicket's five wolves and the Coppercap Warrens' five goblins.
-   The SQL hunterAll arm is restated by the integrator's catalogue regen (gen-catalogues). */
-/* 2026-10-22 (lane c-collection-staged): DERIVED, not typed. The roster less the monsters that stand only on a
-   STAGED ground (hunts.js `staged`: hidden and refused, so nobody can slay them): Mosslight Glade's five leave it
-   at 129. A monster a player can meet moves it, and the drift guard then fails until the SQL CASE follows. */
-export const MONSTER_TOTAL = Object.keys(MONSTERS).length - STAGED_ONLY_MONSTERS.length;
+/** What a player can meet today: { monsters: [ids], loot: [ids] } on the open grounds. */
+export const REACHABLE = reachableOf(OPEN_GROUNDS, HUNT_INDEX, MONSTERS, ITEMS);
 
-/* LEDGER OF FIRSTS (2026-09-27, pack 3): 4 rungs → 11. Every rung added by
-   that pack is GOLD-ONLY (no new premium faucet; the drift guard pins gems 0
-   on every id outside the original four). Within each domain thresholds and
-   gold strictly increase, and every threshold is reachable: monsters ≤
-   MONSTER_TOTAL, items ≤ the distinct drop ids across MONSTERS[*].drops. */
+/** The reachable count of a domain. */
+export function reachOf(domain, reachable = REACHABLE) {
+  return domain === 'monsters' ? reachable.monsters.length : domain === 'items' ? reachable.loot.length : 0;
+}
+
+/** A rung's goal against `reach`: ceil(reach x part / of), the same integer maths as the SQL. */
+export function goalOf(row, reach) {
+  return Math.ceil((reach * row.part) / row.of);
+}
+
+const rung = (domain, part, of, gold) => Object.freeze({ domain, part, of, gold });
 export const COLLECTION_MILESTONES = Object.freeze({
-  hunter10:   Object.freeze({ domain: 'monsters', threshold: 10,            gold: 2000 }),
-  hunter25:   Object.freeze({ domain: 'monsters', threshold: 25,            gold: 4000 }),
-  hunter40:   Object.freeze({ domain: 'monsters', threshold: 40,            gold: 8000 }),
-  hunter60:   Object.freeze({ domain: 'monsters', threshold: 60,            gold: 15000 }),
-  hunter85:   Object.freeze({ domain: 'monsters', threshold: 85,            gold: 25000 }),
-  hunterAll:  Object.freeze({ domain: 'monsters', threshold: MONSTER_TOTAL, gold: 50000, gems: 25 }),
-  collect25:  Object.freeze({ domain: 'items',    threshold: 25,            gold: 1000 }),
-  collect50:  Object.freeze({ domain: 'items',    threshold: 50,            gold: 5000 }),
-  collect75:  Object.freeze({ domain: 'items',    threshold: 75,            gold: 10000 }),
-  collect100: Object.freeze({ domain: 'items',    threshold: 100,           gold: 15000, gems: 15 }),
-  collect125: Object.freeze({ domain: 'items',    threshold: 125,           gold: 30000 }),
+  hunter10:   rung('monsters', 1, 6, 2000),
+  hunter25:   rung('monsters', 2, 6, 4000),
+  hunter40:   rung('monsters', 3, 6, 8000),
+  hunter60:   rung('monsters', 4, 6, 15000),
+  hunter85:   rung('monsters', 5, 6, 25000),
+  hunterAll:  rung('monsters', 6, 6, 50000),
+  collect25:  rung('items', 1, 5, 1000),
+  collect50:  rung('items', 2, 5, 5000),
+  collect75:  rung('items', 3, 5, 10000),
+  collect100: rung('items', 4, 5, 15000),
+  collect125: rung('items', 5, 5, 30000),
 });

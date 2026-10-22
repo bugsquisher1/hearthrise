@@ -773,18 +773,17 @@ Object.keys(GEAR_ITEMS).forEach((id) => {
   const generated = GEAR_ITEMS[id];
   const live = ITEMS[id];
   if (!live || live === generated) return;
-  if (live.tier == null) live.tier = generated.tier;
-  if (live.rarity == null) live.rarity = generated.rarity;
-  if (live.reqSkill == null) live.reqSkill = generated.reqSkill;
-  if (live.reqLv == null) live.reqLv = generated.reqLv;
-  /* The armour weight (2026-10-21): max HP and mana read armourClass (vitals.js),
-     so a hand-authored twin without it (iron/steel plate and helm, bronze belt,
-     leather boots and gloves) counted as no armour and iron plate gave LESS max
-     HP than bronze. tests/catalogue-coherence.mjs C8 holds every armour row to a class. */
-  if (live.armourClass == null && generated.armourClass) live.armourClass = generated.armourClass;
-  /* The weapon's role and hands (Tyler 2026-10-19: Healer = staff, Mage = wand + spellbook). */
-  if (live.discipline == null && generated.discipline) live.discipline = generated.discipline;
-  if (live.twoHanded == null && generated.twoHanded) live.twoHanded = true;
+  /* EVERY field the generated rung carries that the hand-authored row does not set
+     itself (2026-10-21). The list used to be named field by field (tier, rarity,
+     reqSkill, reqLv, discipline, twoHanded) and each new line field was one more
+     thing to forget: armourClass was (max HP and mana read it, vitals.js, so iron
+     plate gave LESS max HP than bronze), and so were the line's style fields
+     (plate's rangeAtkB/magicAtkB penalty, leather's rangeAtkB/critB). The row's
+     own values (name, icon, price, stats it sets) always win. tests/catalogue-
+     coherence.mjs C8 holds every rung to its line. */
+  for (const k of Object.keys(generated)) {
+    if (live[k] == null && generated[k] != null) live[k] = generated[k];
+  }
 });
 
 /* ══════════════════════════════════════════════════════════════════════

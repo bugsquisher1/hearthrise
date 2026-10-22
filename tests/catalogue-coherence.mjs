@@ -34,6 +34,9 @@
 //           never falls as the tier rises inside a (class, slot);
 //       C8c a full set of tier t of a class gives at least the max HP, max mana
 //           and defence of the tier t-1 set, at tier t's Level (vitals.js).
+//       C8d a hand-authored rung keeps every field its generated rung carries
+//           (the line's style fields: plate's rangeAtkB/magicAtkB penalty,
+//           leather's rangeAtkB/critB) — its own values win, a dropped one fails.
 //
 // THE PENDING LIST is shrink-only. It names the few gaps the audit assigned to
 // OTHER W0 lanes, with the lane. An id that gains a use must be removed from it
@@ -155,6 +158,8 @@ export function armourLadderFails(items = ITEMS) {
     const gen = GEAR_ITEMS[id]; const live = items[id];
     if (!gen || gen.type !== 'armor' || !armourSlot.has(gen.slot) || !live) continue;
     if (live.armourClass !== gen.armourClass) out.push(`C8b ${id}: armourClass ${JSON.stringify(live.armourClass)} but its rung is on the ${gen.armourClass} line`);
+    const dropped = Object.keys(gen).filter((k) => gen[k] != null && live[k] == null);
+    if (dropped.length) out.push(`C8d ${id}: drops ${dropped.join(', ')}, which its ${gen.armourClass} line rung carries`);
     ((lines[gen.armourClass] ||= {})[gen.slot] ||= []).push({ id, tier: gen.tier, live });
   }
   for (const cls of Object.keys(lines)) {
@@ -275,6 +280,11 @@ function mutate() {
     const it = ITEMS.iron_platebody; const was = it.defB;
     it.defB = 5;
     return { restore: () => { it.defB = was; } };
+  });
+  run('iron plate drops the plate line magic penalty', 'C8d', () => {
+    const it = ITEMS.iron_platebody; const was = it.magicAtkB;
+    delete it.magicAtkB;
+    return { restore: () => { it.magicAtkB = was; } };
   });
   run('a tier of the plate line is missing a slot (its set gives less max HP)', 'C8c', () => {
     const was = ITEMS.iron_helm;

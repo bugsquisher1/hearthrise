@@ -718,14 +718,14 @@ export const MONSTERS = {
     /* one override (weapon): arrows snag in the burrs; a club knocks them loose. */
     weaponWeak: 'hammer', weaponResist: ['ranged'],
     hp: 16, atk: 3, def: 2, xp: 61, gp: [2, 5], speed: 2800,
-    drops: [{ id: 'wolf_pelt', ch: .25 }, { id: 'bones', ch: .5 }, { id: 'briar_burr', ch: .08 }, { id: 'leather_pants', ch: .0173, gear: true }] },
+    drops: [{ id: 'wolf_pelt', ch: .3 }, { id: 'bones', ch: .5 }, { id: 'briar_burr', ch: .08 }, { id: 'leather_pants', ch: .0173, gear: true }] },
   dire_gray: { name: 'Dire Gray', icon: '🐺', tier: 2, level: 13, cls: 'mammal', family: 'Mammal',
     hp: 28, atk: 7, def: 3, xp: 179, gp: [5, 14], speed: 3600,
     drops: [{ id: 'raw_wolf_meat', ch: .7 }, { id: 'bones', ch: 1 }, { id: 'dire_hackle', ch: .08 }, { id: 'leather_body', ch: .0346, gear: true }] },
   grayjaw: { name: 'Old Grayjaw', icon: '🐺', tier: 2, level: 15, cls: 'mammal', family: 'Mammal',
     /* the den mother under the hollow oak: the top of tier 2, the wood's hardest bite. */
     hp: 35, atk: 10, def: 4, xp: 258, gp: [6, 16], speed: 3200,
-    drops: [{ id: 'wolf_pelt', ch: .4 }, { id: 'bones', ch: 1 }, { id: 'grayjaw_whisker', ch: .15 }, { id: 'alpha_fang', ch: .003 },
+    drops: [{ id: 'wolf_pelt', ch: 1 }, { id: 'bones', ch: 1 }, { id: 'grayjaw_whisker', ch: .15 }, { id: 'alpha_fang', ch: .003 },
       { id: 'shortbow', ch: .0355, gear: true }] },
 
   /* ══ Coppercap Warrens: the goblins of the copper diggings (one family, five roles;

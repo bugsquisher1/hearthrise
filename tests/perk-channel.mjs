@@ -517,7 +517,12 @@ async function run(patch) {
   // and the Castle capstone now read 0; every speed, noBurn, craftSave and
   // buffDuration number is unchanged (P9 measures the first half, P9-S the
   // channel still spending a kept perk). A deleted source smuggled back in (CONTROL) must
-  // move nothing either.
+  // move nothing either. RE-PINNED 2026-10-22 (e99d9eac -> 2247d02f) for the room
+  // purpose ruling ONLY: the Library pays runeSpeed, the Garden farmPlots, the
+  // Trophy Room trophyMounts (three NEW keys, so the grid gained columns). Old vs
+  // new makeBonus compared over this grid on every pre-existing key: 1157 cells,
+  // 0 moved.
+  // ⚠ A FUTURE re-pin needs the same old-vs-new proof in its commit, never just the new hash.
   {
     const KEYS = [...new Set([...ALL_KEYS.filter((k) => k !== 'raidPower'),
       'allXP', 'combatXP', 'goldFind', 'gatherSpeed', 'cookSpeed', 'smithSpeed',
@@ -538,7 +543,7 @@ async function run(patch) {
       return [JSON.stringify(st), KEYS.map((k) => b(k)), n.rooms, n.plots, n.propertyTier];
     });
     const hash = createHash('sha256').update(JSON.stringify(rows)).digest('hex');
-    ok(hash === 'e99d9eac57562088c724ee1e8367090c8b8530c2d0adaa484045a96d50b57bd5',
+    ok(hash === '2247d02f15f9e54972ee7e5cd4f44431ac94b934d83d8362af458d5b28b80961',
       `P10: makeBonus over ${states.length} kept inputs x ${KEYS.length} keys hashed ${hash} — `
       + 'a kept perk number moved');
     const base = { rooms: maxRooms, propertyTier: 5 };

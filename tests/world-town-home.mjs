@@ -236,6 +236,9 @@ function check(M) {
     ok('F', mounts({ trophy: 1 }, claims).map((p) => p.id).join() === M.layouts.TROPHY_MOUNT_SPRITES[4] + ',' + M.layouts.TROPHY_MOUNT_SPRITES[1],
       'one mount per claimed trophy, by stage, highest first');
     ok('F', mounts({}, claims).length === 0 && mounts({ trophy: 1 }, null).length === 0, 'no mount before the Trophy Room is built, or while the claims are unknown');
+    // The Trophy Room's purpose (game-designer ruling 2026-10-22): each rung adds wall mounts (perks.js trophyMounts 2..6).
+    const many = { rows: Array.from({ length: 9 }, () => ({ stage: 2 })) };
+    ok('F', [1, 3, 5, 9].map((lv) => mounts({ trophy: lv }, many).length).join() === '2,4,6,6', 'the wall hangs as many trophies as the Trophy Room rung has mounts (2, 4, 6; never past the top rung)');
   });
 
   fam('H', () => {

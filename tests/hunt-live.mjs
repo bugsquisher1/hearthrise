@@ -221,6 +221,17 @@ function rules(M) {
     }
   }
 
+  { // LV-H: THE HONE, both paths (lane c-work-fixes 2026-10-22). The browser predicts the swing a whetstone
+    // wears and the bonus it then loses exactly as the server settles it: one stone worn at swing 50 of 80.
+    const mis = [Object.assign(memberOf(M, 'a', 0, 'tank', 30), { equipment: { weapon: 'bronze_sword', ammo: 'steel_whetstone' } })];
+    mis[0].huntSession.bag.steel_whetstone = { loaded: 1, left: 1 };
+    const r = run(M, mis, 160000);
+    const bad = r.verdicts.filter((x) => x.v !== 'match');
+    ok('LV-H', r.verdicts.length >= 9 && bad.length === 0, `${bad.length} of ${r.verdicts.length} commits did not match the prediction while a whetstone wore out`);
+    const left = mis[0].huntSession.bag.steel_whetstone.left;
+    ok('LV-H', left === 0, `the server left ${left} of 1 steel whetstone after 80 swings (one wears every fiftieth)`);
+  }
+
   { // LV-X: the assembled member carries relicMult (server-side drop input; 1 when absent)
     const side = (mi) => M.MB.memberSide(mi, { items: M.ITEMS }).member;
     const a = side(Object.assign(memberOf(M, 'a', 0, 'tank', 6), { relicMults: { rat: 1.25 } }));

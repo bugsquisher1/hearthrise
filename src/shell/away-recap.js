@@ -35,14 +35,14 @@ const stampOf = (cs) => {
 };
 
 /** "1 h 58 min", "25 min". */
-export function awayWords(ms) {
+function awayWords(ms) {
   const m = Math.max(0, Math.floor(ms / 60000));
   return m >= 60 ? Math.floor(m / 60) + ' h ' + (m % 60) + ' min' : m + ' min';
 }
 const signed = (n, unit) => (n >= 0 ? '+' : '−') + whole(Math.abs(n)) + ' ' + unit;
 
 /** The numbers to stamp now (server's), or null when no hunt runs or the server has not said yet. */
-export function awayStampOf(cs) {
+function awayStampOf(cs) {
   const h = huntOf(cs);
   const lv = levelOf(cs);
   const gold = goldOf(cs);

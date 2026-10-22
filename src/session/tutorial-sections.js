@@ -28,13 +28,8 @@ function tutorialFactsOf(cs) {
   };
 }
 
-/** The tutorial row this character is on, or null (none to show, or the server has not said yet). */
-export function tutorialCardOf(cs) {
-  const f = tutorialFactsOf(cs);
-  return f ? currentCard(f) : null;
-}
-
-/** The pointer line: the tutorial card while the guide runs, then the "What next" goal (src/data/hunt-tutorial.js
+/** The pointer line: the tutorial card this character is on while the guide runs (null until the server has
+ *  said), then the "What next" goal (src/data/hunt-tutorial.js
  *  nextGoal: the next ground by Level and the weapon skill's next unlock), or null until the server has said. */
 export function pointerCardOf(cs) {
   const f = tutorialFactsOf(cs);

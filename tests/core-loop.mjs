@@ -775,8 +775,11 @@ async function loop2(S, M, tag, rows) {
        is never used without the player's choice. */
     /* …and eats at 80% HP: a Combat 40 hero in the sewer drops under the default 50% only a few times
        an hour (3 meals on one dice stream, 0 on another), so the default left this step to the dice. */
-    const pick = await S.rpc(p.uid, `select public.hr_action_set_options(0, 0, '{"supply_source":"store","food_below_pct":80}'::jsonb, $1::uuid) r`, [uuid()]);
-    t.ok(pick && pick.ok === true && pick.options && pick.options.supply_source === 'store' && pick.options.food_below_pct === 80, `the supplies choice was refused: ${brief(pick)}`);
+    /* STORE BY SLOT (2026-11-07-store-by-slot.sql): the game never picks a supply, so the player's move is the
+       store's food ON THE BAR, eaten under 80% HP (the starter bar's 60% leaves a Thicket hour to the dice). */
+    const bar = [{ action: { type: 'consume', id: 'salted_shrimp' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 80 }], join: 'and' }];
+    const pick = await S.rpc(p.uid, `select public.hr_action_set_options(0, 0, $2::jsonb, $1::uuid) r`, [uuid(), JSON.stringify({ supply_source: 'store', slots: bar })]);
+    t.ok(pick && pick.ok === true && pick.options && pick.options.supply_source === 'store', `the supplies choice was refused: ${brief(pick)}`);
     food = { item: '*heal_shop' };
   });
 

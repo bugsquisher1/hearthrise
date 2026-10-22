@@ -102,3 +102,46 @@ export function gateScope(env = process.env) {
     return p && !p.full && Array.isArray(p.changed) ? { changed: p.changed, base: p.base || null } : { changed: null, base: null };
   } catch { return { changed: null, base: null }; }
 }
+
+// ── SHARDS, BALANCED BY TIME (2026-10-22) ──────────────────────────────────
+// Run 39765799475 (release/v0.2.28): in-page-3, hunt-screen --mutate shard 1/3,
+// was CANCELLED at its 46-min limit. The shards were round-robin by index, and a
+// mutant costs 2 s (caught by the first rule) to 155 s (caught only after a full
+// boot), so equal counts were never equal minutes. The plan is a longest-first
+// greedy over the measured seconds (tests/<guard>.mutant-times.json); an
+// unmeasured mutant costs the slowest measured one, so a new mutant is never
+// under-booked. Deterministic: every CI job computes the same plan from the same list.
+
+/** [{ names: string[], seconds: number }] × n — every name in exactly one shard. */
+export function planShards(names, n, seconds = {}) {
+  const known = Object.values(seconds).filter((s) => Number.isFinite(s) && s > 0);
+  const fallback = known.length ? Math.max(...known) : 60;
+  const est = (k) => (Number.isFinite(seconds[k]) && seconds[k] > 0 ? seconds[k] : fallback);
+  const order = [...names].sort((a, b) => est(b) - est(a) || (a < b ? -1 : a > b ? 1 : 0));
+  const shards = Array.from({ length: n }, () => ({ names: [], seconds: 0 }));
+  for (const k of order) {
+    let best = 0;
+    for (let i = 1; i < n; i++) if (shards[i].seconds < shards[best].seconds) best = i;
+    shards[best].names.push(k);
+    shards[best].seconds += est(k);
+  }
+  return shards;
+}
+
+/** Problems with a plan: a mutant in no shard or in two, a name that is not a mutant, an empty shard. */
+export function checkShards(names, shards) {
+  const out = [];
+  const seen = new Map();
+  shards.forEach((s, i) => {
+    if (!s.names.length) out.push(`shard ${i + 1}/${shards.length} selects no mutant`);
+    for (const k of s.names) {
+      if (seen.has(k)) out.push(`"${k}" runs in shard ${seen.get(k)} and shard ${i + 1}`);
+      else seen.set(k, i + 1);
+    }
+  });
+  const want = new Set(names);
+  for (const k of want) if (!seen.has(k)) out.push(`"${k}" runs in no shard`);
+  for (const k of seen.keys()) if (!want.has(k)) out.push(`"${k}" is planned but is not a mutant`);
+  if (want.size !== names.length) out.push('two mutants share a name (a plan by name cannot tell them apart)');
+  return out;
+}

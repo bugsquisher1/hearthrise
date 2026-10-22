@@ -5,6 +5,7 @@
 //   node tests/hunt-scene-live.mjs            the rules (node + headless Chrome)
 //   node tests/hunt-scene-live.mjs --node     the node rules only
 //   node tests/hunt-scene-live.mjs --mutate   every planted defect must turn its rule RED
+//   node tests/hunt-scene-live.mjs --mutate --only LV-22   just the mutants whose name holds that text
 //
 // mutant-anchors: src/session/character-session.js src/session/hunt-poll.js src/session/live-link.js src/session/config.js src/session/hunt-sections.js src/shell/widgets/vitals-hub.js src/shell/widgets/party-panel.js src/session/character-sections.js src/hunt-view/scene.js src/hunt-view/timeline.js src/hunt-view/live-engine.js
 // mutant-writes-tree: no — mutants are planted into a temp copy of src/
@@ -40,6 +41,9 @@
 //   LV-21 A LEVEL-UP MID-HUNT RAISES THE BAR'S MAX HP: each batch's unit book re-sizes a unit (Brannoc 10-22).
 //   LV-20 EVERY PARTY MEMBER WEARS ITS OUTFIT: your other hero its session's server `outfit`, another
 //         player's hero the party section's member `outfit` (2026-11-04-party-outfits.sql), never the role's.
+//   LV-22 THE CHALLENGE SLOT READS AS WORKING (bug #61): a tank holding every engaged monster in the live
+//         engine's world shows its Challenge slot in the quiet Holding state ("Holding the pack: nothing to
+//         Challenge"); a monster on another hero ends it.
 //   LV-4  THE PAGE (headless Chrome, the real client, the same server answers): the hunt
 //         draws, no page error, and the frame loop holds budget against the frozen sim
 //         (prototypes/hunt-sim) measured the same way.
@@ -72,6 +76,8 @@ async function load(base) {
     ROLES: await u('src/data/hunt-roles.js'),
     GRID: await u('src/core/hunt/grid.js'),
     HG: await u('src/core/hunt-ground.js'),
+    AB: await u('src/shell/widgets/action-bar.js'),
+    WS: await u('src/core/hunt/world-state.js'),
     base,
   };
 }
@@ -718,6 +724,47 @@ async function nodeRules(M) {
     ok('LV-15b', mate && mate.hp === allyMax - 70 && mate.hpMax === allyMax,
       `the party panel reads ${mate && mate.hp}/${mate && mate.hpMax} HP for the party-mate while its bar plays ${allyMax - 70}/${allyMax}`);
   }
+  { // LV-22 THE CHALLENGE SLOT READS AS WORKING (bug #61, Andy 10-22: "Challenge still not procing"). A tank holding
+    // every engaged monster has nothing to Challenge (Tyler 10-16), so the slot never fires: the bar says so. The viewed
+    // tank's Challenge slot (the fixture's slot 1) rests in the quiet Holding state, its glyph and its words, from the
+    // world the live engine runs (the server's start point); the moment a monster is on another hero it does not.
+    const clock = { t: 1000 };
+    const cs = new M.C.CharacterSession({ slot: 0, uid: '11111111-2222-3333-4444-555555555555',
+      server: { rpc: async () => ({ ok: true, body: clone(LIVE) }), accrue: async () => ({ ok: true, body: { ok: true, accrued: false } }) },
+      setTimer: () => 0, clearTimer: () => {}, now: () => clock.t });
+    await cs.load();
+    const me = M.HSX.huntOf(cs).hero.unit;
+    const seed = (target) => cs.live.seed({ v: 1, seeds: { from: 0, list: [] }, members: [],
+      instance: { id: 'i61', hunt: LIVE.hunt.hunt_id, next_swing_at_ms: 0, world_swing: 0, world_hash: 'h',
+        world: JSON.stringify(M.WS.encode(M.WS.makeWorld({ ground: LIVE.hunt.hunt_id, leader: me, units: [
+          { id: me, side: 'hero', kind: 'tank', role: 'tank', alive: true, hp: 100, maxHp: 100, x: 5, y: 5 },
+          { id: me + 1, side: 'hero', kind: 'mage', role: 'mage', alive: true, hp: 100, maxHp: 100, x: 6, y: 6 },
+          { id: me + 2, side: 'mon', kind: 'rat', pocket: 0, alive: true, hp: 9, maxHp: 9, target: me, x: 5, y: 6 },
+          { id: me + 3, side: 'mon', kind: 'rat', pocket: 0, alive: true, hp: 9, maxHp: 9, target, x: 6, y: 7 }] }))) } });
+    /* the bar on a small stub DOM: one slot (the Challenge, slot 1), every other part a stub */
+    const stub = () => {
+      const kids = new Map(), at = new Map(), cl = new Set();
+      return { textContent: '', innerHTML: '', childNodes: [], firstChild: null, style: { getPropertyValue: () => '', setProperty() {}, removeProperty() {} },
+        classList: { contains: (c) => cl.has(c), toggle(c, on) { if (on) cl.add(c); else cl.delete(c); } },
+        hasAttribute: (k) => at.has(k), getAttribute: (k) => (at.has(k) ? at.get(k) : null), setAttribute: (k, v) => at.set(k, String(v)), removeAttribute: (k) => at.delete(k),
+        replaceChildren(...c) { this.childNodes = c; this.firstChild = c[0] || null; },
+        querySelectorAll: () => [], querySelector(sel) { if (sel === '.hb-tip.is-on') return null; if (!kids.has(sel)) kids.set(sel, stub()); return kids.get(sel); } };
+    };
+    const slot = stub(); slot.setAttribute('data-slot', '0');
+    const el = stub(); el.querySelectorAll = (sel) => (sel === '.hb-slot' ? [slot] : []);
+    const ctx = { character: cs, glyphs: {}, now: () => clock.t, doc: { createElement: () => ({ set innerHTML(v) {}, content: { firstElementChild: stub() } }) } };
+    const read = () => { M.AB.renderActionBar.patch(el, ctx); return { wait: slot.classList.contains('is-wait'), off: slot.classList.contains('is-off'),
+      why: slot.querySelector('.hb-why').getAttribute('data-for'), label: slot.getAttribute('aria-label') }; };
+    if (!seed(me)) { ok('LV-22', false, 'CONTROL: the live engine did not take the start point'); }
+    else {
+      const held = read();
+      ok('LV-22', held.wait && !held.off && held.why === 'holding' && /Holding the pack: nothing to Challenge/.test(held.label || ''),
+        `a tank holding every engaged monster: its Challenge slot reads ${JSON.stringify(held)}, want the quiet Holding state`);
+      seed(me + 1);
+      const loose = read();
+      ok('LV-22', !loose.wait && loose.why !== 'holding' && !/Holding/.test(loose.label || ''), `with a monster on the mage the Challenge slot still reads ${JSON.stringify(loose)}`);
+    }
+  }
   return fails;
 }
 
@@ -815,6 +862,9 @@ async function pageRules() {
 }
 
 const MUTANTS = [
+  ['the Challenge slot never reads Holding (LV-22, bug #61)', 'src/shell/widgets/action-bar.js', '  const holding = holdsPackNow(cs, hero);', '  const holding = false;', /^LV-22/],
+  ['a tank with a monster off it reads as holding (LV-22)', 'src/hunt-view/live-engine.js',
+    '  return on.length > 0 && on.every((m) => m.target === unit) && challengeable(inst, u).length === 0;', '  return on.length > 0;', /^LV-22/],
   ['a read carries no clock (LV-0)', 'src/session/character-session.js', '      if (Number.isSafeInteger(ms)) this.timeline.ingest({ serverNowMs: ms }, this._now());\n    }\n    const h = this.read', '    }\n    const h = this.read', /^LV-0/],
   ['no stand-in before the first swing (LV-1)', 'src/hunt-view/scene.js', '    if (!hero && read.entrance) hero = (read.viewed !== null && unitAt(read.viewed, now, read.entrance)) || standIn(now);', '', /^LV-1/],
   ['the live view keeps the server-paced delay (LV-2)', 'src/session/live-link.js', 'this._tl.setDelay(SESSION_CONFIG.liveDelayMs);', 'void 0;', /^LV-2/],
@@ -851,7 +901,10 @@ const MUTANTS = [
 
 async function mutate() {
   let escaped = 0;
-  for (const [name, file, from, to, arm] of MUTANTS) {
+  /* `--only <text>`: just the mutants whose name holds <text> (a lane proves its own rule without the whole sweep) */
+  const at = process.argv.indexOf('--only');
+  const list = at > 0 ? MUTANTS.filter(([name]) => name.includes(String(process.argv[at + 1] || ''))) : MUTANTS;
+  for (const [name, file, from, to, arm] of list) {
     const base = mkdtempSync(join(tmpdir(), 'hr-hsl-'));
     try {
       cpSync(join(ROOT, 'src'), join(base, 'src'), { recursive: true });
@@ -867,7 +920,7 @@ async function mutate() {
       if (!hit) escaped++;
     } finally { rmSync(base, { recursive: true, force: true }); }
   }
-  console.log(escaped ? `hunt-scene-live --mutate: ${escaped} mutant(s) ESCAPED` : `hunt-scene-live --mutate: ${MUTANTS.length}/${MUTANTS.length} caught`);
+  console.log(escaped ? `hunt-scene-live --mutate: ${escaped} mutant(s) ESCAPED` : `hunt-scene-live --mutate: ${list.length}/${list.length} caught`);
   process.exit(escaped ? 1 : 0);
 }
 

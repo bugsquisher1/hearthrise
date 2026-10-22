@@ -35,7 +35,7 @@ import { COMBAT_BALANCE } from '../core/combat.js?v=0.2.32';
 import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.32';
 import { stepCost } from '../core/hunt/grid.js?v=0.2.32';
 import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.32';
-import { holderTank, roleOf } from '../core/hunt/targeting.js?v=0.2.32';
+import { holderTank, roleOf, engaged, challengeable } from '../core/hunt/targeting.js?v=0.2.32';
 
 /* How many swings of world hashes are kept to judge a server commit against. */
 const KEEP_HASHES = 64;
@@ -114,6 +114,19 @@ export function tankTurnsOf(world) {
     out.set(u.id, now && every ? 'every' : now ? 'now' : every ? 'later-every' : next >= 0 ? next + 1 : picked ? 'guard' : 'weak');
   }
   return out;
+}
+
+/**
+ * DOES TANK `unit` HOLD THE PACK (display only; bug #61, Andy 10-22: "Challenge never procs")? Every engaged
+ * monster of `world` is on it, so its Challenge has nothing to take (the engine's own challengeable, the
+ * reach the auto-cast and the bar slot share). False with nothing engaged, or for a hero that is no tank.
+ */
+function holdsPackOf(world, unit) {
+  const inst = { world };
+  const u = world && Array.isArray(world.units) ? world.units.find((x) => x.id === unit) : null;
+  if (!u || !u.alive || !roleOf(u) || !roleOf(u).tank) return false;
+  const on = engaged(inst);
+  return on.length > 0 && on.every((m) => m.target === unit) && challengeable(inst, u).length === 0;
 }
 
 /**
@@ -258,6 +271,8 @@ export function createLiveEngine(o) {
     /** The tanks' turns at holding the pack (tankTurnsOf) in the world this prediction runs: the server's
         start point, judged against every server commit and replaced on a mismatch. Null when none runs. */
     tankTurns: () => (st && st.world && !st.ended ? tankTurnsOf(st.world) : null),
+    /** Does tank `unit` hold every engaged monster in the world this prediction runs (holdsPackOf)? False when none runs. */
+    holdsPack: (unit) => !!st && !!st.world && !st.ended && holdsPackOf(st.world, unit),
     /** The server instant of the next swing boundary (null when not running). */
     nextAt: () => (st ? st.next : null),
     /**

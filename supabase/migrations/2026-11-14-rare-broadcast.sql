@@ -298,22 +298,39 @@ begin
     -- (e) A CLIENT CANNOT WRITE ONE: not the line, not the event, not the journal; not through hr_chat_send.
     perform set_config('request.jwt.claim.sub', v_c::text, true);
     perform set_config('request.jwt.claims', json_build_object('sub', v_c, 'role', 'authenticated')::text, true);
-    foreach v_err in array array[
-      'insert into public.chat_messages (channel, from_id, from_name, body) values (''system'', ''' || v_a || ''', ''Rbprobe1'', ''found [[item:' || v_item || ']] in [[hunt:' || v_hunt || ']].'')',
-      'insert into public.hunt_session_events (session_id, user_id, slot, type, at, data) values (''' || v_sid || ''', ''' || v_a || ''', 0, ''rare_drop'', now(), ''{"item":"' || v_item || '"}'')',
-      'insert into public.hr_world_notices (kind, event_id, session_id, user_id, slot, item_id, hunt_id, found_at, status) values (''rare_drop'', 1, ''' || v_sid || ''', ''' || v_a || ''', 0, ''' || v_item || ''', ''' || v_hunt || ''', now(), ''capped'')',
-      'update public.hr_world_notice_rules set per_char_day = 50'] loop
-      v_n := null;
-      begin
-        set local role authenticated;
-        execute v_err;
-        get diagnostics v_n = row_count;
-        reset role;
-      exception when insufficient_privilege then
-        reset role; v_n := -1;
-      end;
-      if v_n is distinct from -1 then raise exception 'rare-broadcast §4(e): an authenticated client ran: %', left(v_err, 80); end if;
-    end loop;
+    v_n := null;
+    begin
+      set local role authenticated;
+      insert into public.chat_messages (channel, from_id, from_name, from_slot, body)
+        values ('system', v_a, 'Rbprobe1', 0, 'found [[item:' || v_item || ']] in [[hunt:' || v_hunt || ']].');
+      reset role;
+      v_n := 1;
+    exception when insufficient_privilege then
+      reset role; v_n := -1;
+    end;
+    if v_n is distinct from -1 then raise exception 'rare-broadcast §4(e): an authenticated client wrote a System line'; end if;
+    v_n := null;
+    begin
+      set local role authenticated;
+      insert into public.hunt_session_events (session_id, user_id, slot, type, at, data)
+        values (v_sid, v_a, 0, 'rare_drop', now(), jsonb_build_object('item', v_item));
+      reset role;
+      v_n := 1;
+    exception when insufficient_privilege then
+      reset role; v_n := -1;
+    end;
+    if v_n is distinct from -1 then raise exception 'rare-broadcast §4(e): an authenticated client wrote a rare_drop event'; end if;
+    v_n := null;
+    begin
+      set local role authenticated;
+      insert into public.hr_world_notices (kind, event_id, session_id, user_id, slot, item_id, hunt_id, found_at, status)
+        values ('rare_drop', -1, v_sid, v_a, 0, v_item, v_hunt, now(), 'capped');
+      reset role;
+      v_n := 1;
+    exception when insufficient_privilege then
+      reset role; v_n := -1;
+    end;
+    if v_n is distinct from -1 then raise exception 'rare-broadcast §4(e): an authenticated client wrote a journal row'; end if;
     -- (closed mode refuses the stranger before the kind is read: either refusal is a refusal)
     v := null;
     begin
@@ -345,6 +362,8 @@ begin
   if has_table_privilege('authenticated', 'public.hr_world_notices', 'select')
      or has_table_privilege('anon', 'public.hr_world_notices', 'select')
      or has_table_privilege('authenticated', 'public.hr_world_notice_rules', 'select')
+     or has_table_privilege('authenticated', 'public.hr_world_notice_rules', 'update')
+     or has_table_privilege('authenticated', 'public.hr_world_notices', 'insert')
      or has_table_privilege('authenticated', 'public.hunt_session_events', 'insert')
      or has_table_privilege('authenticated', 'public.chat_messages', 'insert')
      or has_function_privilege('authenticated', 'public.hr_world_notice_rare()', 'execute')

@@ -47,12 +47,9 @@ const DIR = 'assets/icons-bundle/pixel/items';
 const SUPPLY = 'assets/icons-bundle/pixel/supplies';
 /** Pairs of items that still share one icon, waiting for art of their own (Art Director). A new pair is a finding. */
 const KNOWN_TWINS = [['crown_of_the_fallen_king', 'crown_shard'],
-  /* Mosslight Glade's five imbuement items and its rare (lane c-ground-16-31) wear the nearest existing icon until
-     the Asset Director draws their own (no generated art in that lane). */
-  ['shadow_thread', 'crow_quill'], ['copper_ring', 'snare_wire'], ['moonbloom', 'mosslight_tendril'], ['verdite_ore', 'sluice_crust'],
-  ['hunter_necklace', 'rooks_moss_charm'], ['choirbone', 'rooks_whistle'],
   /* The style ladder's two new tier-2 weapons (lane c-style-gear) wear their practice pair's icon until the Asset
-     Director draws iron heads and an oak stock (no generated art in that lane). */
+     Director draws iron heads and an oak stock (no generated art in that lane). Mosslight Glade's items have their own
+     icons since lane b-mosslight-art. */
   ['iron_hatchets', 'practice_hatchets'], ['oak_crossbow', 'practice_crossbow']];
 
 /** Byte-identical icon files under two ids, except the listed twins. */

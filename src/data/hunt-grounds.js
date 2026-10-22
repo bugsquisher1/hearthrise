@@ -63,8 +63,8 @@
 //                   Meadowbrook rises from springs under the Warrens' copper hill, and the copper water
 //                   makes the moss glow. Two banks: the Crow Field and the Poachers' Camp south, over the
 //                   goblins' sluice boards (the ONE 1-tile choke) the Sluice, the Springs, Rook's Hide (a
-//                   ruined spring-house) and Vine Hollow, back over the ford. STAGED (hunts.js) until its
-//                   style-1 art lands. Logs, and copper at the sluice.
+//                   ruined spring-house) and Vine Hollow, back over the ford. Opened when its style-1
+//                   art landed (lane b-mosslight-art). Logs, and copper at the sluice.
 // Coordinates are the world maps' tiles (src/data/world/maps/*.js); every spawn
 // and seat stands on open floor there (tests/hunt-core/sewer.mjs, forest-cave.mjs).
 //

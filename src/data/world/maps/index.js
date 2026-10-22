@@ -8,13 +8,13 @@ import meadowbrookThicket from './meadowbrook_thicket.js?v=0.2.29';
 import coppercapWarrens from './coppercap_warrens.js?v=0.2.29';
 import mosslightGlade from './mosslight_glade.js?v=0.2.29';
 
-export const WORLD_MAPS = Object.freeze([millCellar, townCommon, homeCottage, millraceSewer, meadowbrookThicket, coppercapWarrens]);
+export const WORLD_MAPS = Object.freeze([millCellar, townCommon, homeCottage, millraceSewer, meadowbrookThicket, coppercapWarrens, mosslightGlade]);
 
 /* STAGED MAPS: a staged hunt's map (src/data/hunts.js `staged`): its grid is authored and walked by the
    engine, its painted ground art is not done yet. No client draws it (src/world reads WORLD_MAPS only);
    tests/world-core.mjs lints it like any map except for the ground art. It moves to WORLD_MAPS, and its
    hunt loses `staged`, when the art lands (tests/hunt-core/forest-cave.mjs staged-until-art). */
-export const STAGED_MAPS = Object.freeze([mosslightGlade]);
+export const STAGED_MAPS = Object.freeze([]);
 
 /** The row of map `id`, shipped or staged, or null: the engine's grid reader (src/core/hunt-ground.js). */
 export function mapRowOf(id) {

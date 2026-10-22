@@ -130,14 +130,14 @@ export const HUNTS = Object.freeze([
      upstream of the Thicket, where the Meadowbrook rises from springs under the Warrens' copper hill. Solo
      first (up to three more may come). Between the Thicket's top (15) and the Warrens' floor (32), the band
      no ground served. Walked: src/data/hunt-grounds.js `mosslight_glade`. Weights are the pockets'
-     head-count at density 4; Rook the Poacher holds the ruined spring-house. STAGED: built, fitted and
-     catalogued, not listed until its style-1 art lands (see `staged` above). */
+     head-count at density 4; Rook the Poacher holds the ruined spring-house. OPEN since its style-1 art
+     landed (lane b-mosslight-art, 2026-10-22: the painted ground and the five creatures). */
   {
     id: 'mosslight_glade', name: 'Mosslight Glade', theme: 'The Meadowbrook rises here, and the copper water makes the moss glow.',
     band: [16, 31],
     spawns: [{ monster: 'carrion_crow', w: 12, rarity: 'common' }, { monster: 'walking_vine', w: 5, rarity: 'uncommon' },
       { monster: 'glade_poacher', w: 4, rarity: 'uncommon' }, { monster: 'goblin_sluicer', w: 2, rarity: 'rare' }],
-    family: 'Vermin', art: 'carrion_crow', travelS: 0, pull: 4, respawnMs: 60000, staged: true,
+    family: 'Vermin', art: 'carrion_crow', travelS: 0, pull: 4, respawnMs: 60000,
   },
 ]);
 

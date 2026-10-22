@@ -79,9 +79,11 @@
 //         back: cleared on the answer, the reason on a refusal, a plain line on the timeout
 //   HS-20 every struck or waiting slot says why (glyph + the tooltip's first line), one slot a reason
 //   HS-26 A DOCKED WINDOW NEVER COVERS THE ANALYZER (r11), at 1920x1080, 1440x900 and 922x423:
-//         with the chat docked, then the Character window, the analyzer's box crosses no docked
-//         window; where the row has room right of the fight (1920 with the chat) it moves beside
-//         the dock instead of hiding; docking never moves the camera on a desktop
+//         with Gathering and crafting docked, then the Character window, the analyzer's box crosses
+//         no docked window; where the row has room right of the fight (1920 with Gathering) it moves
+//         beside the dock instead of hiding; docking never moves the camera on a desktop. The chat
+//         is no docked window (Tyler 10-22: home bottom-left): on a desktop it opens in the World's
+//         left half, low, and never over the action bar
 //   HS-22 THE PHONE BAR (922x423), in a hunt and in town: at most 100 px tall, the alerts dock
 //         above its top, and the fight settings are a slide-out sheet (shut until the bar's
 //         button opens it, then on top of everything, shut again on Escape)
@@ -921,7 +923,21 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         });
         /* The analyzer moves, the World does not (Tyler 10-19): opening the windows publishes no new camera inset. */
         await page.evaluate(() => { window.__insets = []; window.addEventListener('hearthrise:shell-inset', (e) => window.__insets.push(JSON.stringify(e.detail))); });
-        for (const [key, id] of [['Enter', 'chat'], ['c', 'character']]) {
+        /* The chat opens at its home, bottom-left, standing above the bar where its column crosses it (never over it).
+           Its planted defects live in chat-social CW-7 (the same rule, mutation-proved there; the shards here are full). */
+        if (!phone) {
+          await page.evaluate(() => document.activeElement && document.activeElement.blur && document.activeElement.blur());
+          await page.keyboard.press('Enter');
+          await wait(page, () => document.querySelector('[data-hs-win="chat"]:not(.is-entering)'));
+          await page.waitForTimeout(300);
+          const chat = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="chat"]'), b = document.querySelector('.hb-bar');
+            if (!w || !b) return null; const q = w.getBoundingClientRect(), r = b.getBoundingClientRect();
+            return { left: q.left < innerWidth / 2, low: q.bottom > innerHeight / 2, over: q.left < r.right && r.left < q.right && q.top < r.bottom && r.top < q.bottom }; });
+          if (!chat || !chat.left || !chat.low || chat.over) fails.push('HS-26 at ' + tag + ' the chat does not open bottom-left clear of the bar: ' + JSON.stringify(chat));
+          await page.keyboard.press('Escape');
+          await wait(page, () => !document.querySelector('[data-hs-win="chat"]:not(.is-leaving)'));
+        }
+        for (const [key, id] of [['g', 'skills-trade'], ['c', 'character']]) {
           await page.evaluate(() => document.activeElement && document.activeElement.blur && document.activeElement.blur());
           await page.keyboard.press(key);
           await wait(page, (w) => document.querySelector('[data-hs-win="' + w + '"]:not(.is-entering)'), id);
@@ -930,7 +946,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           for (const end = Date.now() + LOAD_MS; ;) { r = await cover(); if ((r.n && !r.hits.length) || Date.now() > end) break; await sleep(100); }
           if (!r.n) fails.push('HS-26 at ' + tag + ' no window docked after ' + key);
           if (r.hits.length) fails.push('HS-26 at ' + tag + ' the docked ' + r.hits.join(', ') + ' covers the analyzer');
-          if (vp.width >= 1920 && id === 'chat' && !r.shown) fails.push('HS-26 at ' + tag + ' the analyzer hid with the chat docked instead of moving beside it');
+          if (vp.width >= 1920 && id === 'skills-trade' && !r.shown) fails.push('HS-26 at ' + tag + ' the analyzer hid with Gathering docked instead of moving beside it');
           if (shots) await page.screenshot({ path: join(shots, 'hunt-' + tag + '-docked-' + id + '.png') });
         }
         const insets = await page.evaluate(() => window.__insets);

@@ -111,6 +111,14 @@
 .hp-turn:empty { display: none; }
 .hp-tanks { margin: 8px 0 0; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.4; }
 .hp-tanks:empty { display: none; }
+/* Who holds the pack (party-hold.js): the leader's switch and its tanks; the others see it read-only, at full ink. */
+.hp-hold { margin: 8px 0 0; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.hp-hold[hidden], .hp-hold-tanks[hidden] { display: none; }
+.hp-hold-label { margin: 0; font-size: var(--t-micro); color: var(--ink-3); }
+.hp-hold-tanks { flex-wrap: wrap; max-width: 100%; }
+.hp-hold.is-read .hh-seg:disabled { opacity: 1; }
+.hp-hold-warn { margin: 0; font-size: var(--t-micro); color: var(--red); }
+.hp-hold-warn:empty { display: none; }
 .hp-foot { margin: 8px 0 0; padding-top: 6px; border-top: 1px solid var(--line-soft); font-size: var(--t-micro); color: var(--ink-3); }
 .hp-party.is-empty .hp-foot { display: none; }
 .hp-acts { display: flex; gap: 6px; margin-top: 8px; }

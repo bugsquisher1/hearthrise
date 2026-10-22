@@ -4,6 +4,7 @@
 //
 //   node tests/hunt-live.mjs            the rules
 //   node tests/hunt-live.mjs --mutate   every planted defect must turn its rule RED
+//   node tests/hunt-live.mjs --mutate --only LV-HOLD   just the mutants whose name holds that text
 //
 // mutant-anchors: src/hunt-view/live-engine.js src/core/combat-sim.js supabase/functions/hr-accrue/hunt-settle.js supabase/functions/hr-accrue/accrual.js src/hunt-view/timeline.js src/core/hunt/roles.js src/core/hunt/targeting.js src/core/member.js src/core/hunt/pull-cycle.js
 // mutant-writes-tree: no — mutants are planted into a temp copy of src/ and the edge
@@ -58,6 +59,9 @@
 //         browser holds at most 2x the look-ahead in combat seeds (they grew with the hunt's age).
 //   LV-Q  ONE DEATH STOPS THE PARTY: from the sub-step a hero dies nobody acts again, browser
 //         closed and viewed (live v0.2.23, Andy: "2nd char starts to run away after death").
+//   LV-HOLD ONE TANK HOLDS (Tyler 2026-10-22): the leader's pick holds every lap from the first, browser
+//         closed (the server's commits) and viewed (every commit matches; a peer's frozen hero carries
+//         `hold`); a change mid-hunt takes force at the lap boundary, never mid-lap.
 //   LV-R  RECONCILE: a prediction forced off the server's world is judged
 //         `diverged` at the next commit, and the reseed eases every unit onto its true
 //         tile with no frame moving a unit more than one tile.
@@ -412,6 +416,64 @@ function rules(M) {
       `viewed: the second tank's Challenges by lap [${laps.map((l) => l.casts2).join(', ')}]: want none in the leader's lap and the pack taken in the next`);
   }
 
+  { // LV-HOLD: ONE TANK HOLDS, BOTH PATHS (Tyler 2026-10-22, the party's "One tank holds"). Two tanks at the Sewer
+    // (d7): the viewer `a` (seat 0, the pull's leader) and the party leader `b` (seat 1), who picked ITSELF to hold
+    // every lap. BROWSER CLOSED: on the server's commits every monster swing at a tank goes to `b`, from the first
+    // lap (a world made with the pick holds it at once, never the leader's tank by turns) through the laps after.
+    // VIEWED: the viewer's browser, which holds `b` only as frozen numbers, predicts every commit (its frozen hero
+    // carries `hold`). A CHANGE MID-HUNT (b sets "Take turns") is read at the next settle and takes force only when
+    // the lap ends: world.hold stays b's until world.runs moves, then it is null.
+    const mk = () => {
+      const mis = [memberOf(M, 'a', 0, 'tank', 19), memberOf(M, 'b', 1, 'tank', 19)];
+      for (const m of mis) {
+        m.huntId = 'millrace_sewer';
+        m.hero = Object.assign({}, M.SPAWN.heroSetup({ weaponType: 'sword', options: {}, bar: [], partyRoles: ['tank', 'tank'], lead: m.user === 'b', hold: 1 }), { density: 7 });
+      }
+      return mis;
+    };
+    const swingsAt = (evs, ids) => {
+      const out = { pick: 0, other: 0 };
+      for (const e of evs) if ((e.type === 'dmg' || e.type === 'miss') && !ids.includes(e.u) && ids.includes(e.t)) out[e.t === ids[1] ? 'pick' : 'other']++;
+      return out;
+    };
+    /* browser closed: the server's commits alone, with the change to "Take turns" at 400 s (two laps begun by then) */
+    const mis = mk();
+    const srv = server(M, mis, { hunt: 'millrace_sewer' });
+    const evs = []; const seen = []; let changeAt = null;
+    for (let t = T0 + M.CB.tickMs; t <= T0 + 800000; t += M.CB.tickMs) {
+      if (t === T0 + 400000) { mis[1].hero = Object.assign({}, mis[1].hero, { hold: null }); changeAt = t; }
+      const c = srv.commit(t);
+      if (!c) break;
+      if (!srv.inst.world) { ok('LV-HOLD', false, `closed: the instance ended ${(t - T0) / 1000} s in (a hero died)`); break; }
+      const w = M.WS.decode(JSON.parse(srv.inst.world));
+      if (changeAt === null) for (const e of c.tl.hunt_events) evs.push(e);
+      seen.push({ t, runs: w.runs, hold: w.hold, holdNext: w.holdNext });
+    }
+    const ids = [mis[0].unitId, mis[1].unitId];
+    const before = seen.filter((s) => s.t < changeAt);
+    const s = swingsAt(evs, ids);
+    const lapsBefore = before.length ? before[before.length - 1].runs : 0;
+    const turnsAt = seen.filter((x, i) => i > 0 && x.runs !== seen[i - 1].runs).map((x) => (x.t - T0) / 1000 + ' s');
+    console.log(`  LV-HOLD closed: laps ended at [${turnsAt.join(', ')}], the change at ${(changeAt - T0) / 1000} s; monster swings at the pick ${s.pick}, at the leader's tank ${s.other} before it`);
+    ok('LV-HOLD', lapsBefore >= 1 && s.pick > 10 && s.other === 0, `closed: over ${lapsBefore + 1} lap(s) the monsters swung ${s.pick} times at the picked tank and ${s.other} at the other (want 2+ laps, all on the pick)`);
+    ok('LV-HOLD', before.every((x) => x.hold === ids[1] && x.holdNext === ids[1]), 'closed: before the change the pick in force was not b\'s unit at every commit: ' + JSON.stringify(before.slice(0, 3)));
+    const after = seen.filter((x) => x.t >= changeAt);
+    const lapAtChange = after.length ? after[0].runs : null;
+    const sameLap = after.filter((x) => x.runs === lapAtChange), nextLaps = after.filter((x) => x.runs > lapAtChange);
+    ok('LV-HOLD', after.length > 0 && after.every((x) => x.holdNext === null), 'closed: the settle did not read the change to "Take turns" (holdNext ' + JSON.stringify(after.map((x) => x.holdNext).slice(0, 3)) + ')');
+    ok('LV-HOLD', sameLap.length > 0 && sameLap.every((x) => x.hold === ids[1]), 'closed: the change took force mid-lap: ' + JSON.stringify(sameLap.slice(0, 3)));
+    ok('LV-HOLD', nextLaps.length > 0 && nextLaps.every((x) => x.hold === null), `closed: after the lap ended the pick in force is ${JSON.stringify(nextLaps.slice(0, 2))}, want null (no lap ended: ${nextLaps.length === 0})`);
+    /* viewed: the browser of `a` predicts the pick's laps (b's frozen hero carries hold) */
+    const vm = mk();
+    const v = run(M, vm, 240000, { server: { hunt: 'millrace_sewer' } });
+    const vs = swingsAt(v.fed.events, [vm[0].unitId, vm[1].unitId]);
+    const unmatched = v.verdicts.filter((x) => x.v !== 'match').length;
+    console.log(`  LV-HOLD viewed (browser engine, sewer d7, 240 s): monster swings at the pick ${vs.pick}, at the leader's tank ${vs.other}; ${unmatched} of ${v.verdicts.length} commits off the prediction`);
+    ok('LV-HOLD', vs.pick > 10 && vs.other === 0 && unmatched === 0 && v.verdicts.length >= 9, `viewed: ${vs.pick} swings at the pick, ${vs.other} at the other tank, ${unmatched} of ${v.verdicts.length} commits off (want all on the pick, 0 off)`);
+    const src = readFileSync(join(M.base || ROOT, FN, 'hunt-settle.js'), 'utf8');
+    ok('LV-HOLD', /_hold: Number\.isInteger\(inst\.hold_seat\)/.test(src) && /hold: m\._hold/.test(src), 'hunt-settle.js does not hand the engine hr_hunt_instance_read `hold_seat`');
+  }
+
   { // LV-Q: ONE DEATH STOPS THE WHOLE PARTY AT ONCE (Tyler 2026-10-19; live v0.2.23, Andy: "2nd char starts to run
     // away after death"). A Sewer duo at density 8 whose tank falls: from the sub-step the tank dies nobody acts again
     // (the party's hunt ends at each member's next boundary). Before: the ranger, alone and targeted, kited 5 tiles
@@ -740,11 +802,22 @@ const MUTANTS = [
   ['the browser drops the leader flag of a peer (LV-K)', 'src/core/member.js', '    hero: f.hero || {},', '    hero: Object.assign({}, f.hero, { lead: false }),', /^LV-K/],
   ["a peer's frozen numbers drop its armour (LV-A)", 'src/core/member.js', 'def: snap.def, mit: snap.mit || NO_MITIGATION }, vs,', 'def: snap.def }, vs,', /^LV-A/],
   ['the settle never puts the armour on the hero (LV-A)', 'src/core/combat-sim.js', '  u.mit = snap.mit || null;', '  u.mit = null;', /^LV-A/],
+  ["the settle never reads the leader's hold pick (LV-HOLD)", 'src/core/combat-sim.js',
+    'world.holdNext = holdPick(members.filter((m) => !m.left && m.unitId !== null));', 'world.holdNext = null;', /^LV-HOLD/],
+  ['a fresh world waits a lap for the pick (LV-HOLD)', 'src/core/combat-sim.js', '      if (fresh) { world.hold = world.holdNext; fresh = false; }\n', '', /^LV-HOLD/],
+  ['a change to the pick takes force mid-lap (LV-HOLD)', 'src/core/combat-sim.js',
+    '      if (fresh) { world.hold = world.holdNext; fresh = false; }', '      world.hold = world.holdNext; fresh = false;', /^LV-HOLD/],
+  ['the assembled hero loses the hold pick (LV-HOLD)', 'src/core/member.js', '        hold: Number.isInteger(h.hold) ? h.hold : null,\n', '', /^LV-HOLD/],
+  ['the browser drops the hold pick of a peer (LV-HOLD)', 'src/core/member.js', '    hero: f.hero || {},', '    hero: Object.assign({}, f.hero, { hold: null }),', /^LV-HOLD/],
+  ['the settle drops hr_hunt_instance_read hold_seat (LV-HOLD)', 'supabase/functions/hr-accrue/hunt-settle.js', 'lead: m._leads, hold: m._hold });', 'lead: m._leads });', /^LV-HOLD/],
 ];
 
 async function mutate() {
   let escaped = 0;
-  for (const [name, file, from, to, arm] of MUTANTS) {
+  /* `--only <text>`: just the mutants whose name holds <text> (a lane proves its own rule without the whole sweep) */
+  const at = process.argv.indexOf('--only');
+  const list = at > 0 ? MUTANTS.filter(([name]) => name.includes(String(process.argv[at + 1] || ''))) : MUTANTS;
+  for (const [name, file, from, to, arm] of list) {
     const base = mkdtempSync(join(tmpdir(), 'hr-live-'));
     try {
       cpSync(join(ROOT, 'src'), join(base, 'src'), { recursive: true });
@@ -760,7 +833,7 @@ async function mutate() {
       if (!hit) escaped++;
     } finally { rmSync(base, { recursive: true, force: true }); }
   }
-  console.log(escaped ? `hunt-live --mutate: ${escaped} ESCAPED` : `hunt-live --mutate: ${MUTANTS.length}/${MUTANTS.length} caught`);
+  console.log(escaped ? `hunt-live --mutate: ${escaped} ESCAPED` : `hunt-live --mutate: ${list.length}/${list.length} caught`);
   process.exit(escaped ? 1 : 0);
 }
 

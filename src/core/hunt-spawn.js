@@ -30,7 +30,8 @@ const disciplineBar = (d) => Object.values(ABILITIES).filter((a) => a.discipline
  * over its role's defaults for this party (`partyRoles`, roles.defaultSettings).
  * Null when the weapon has no role.
  *
- * @param o { weaponType, options (player_action_sets.options), bar (the stored slots), partyRoles, lead (leads its party) }
+ * @param o { weaponType, options (player_action_sets.options), bar (the stored slots), partyRoles, lead (leads its party),
+ *            hold (the party's hold seat: hunt_parties.hold_seat, null = take turns) }
  */
 export function heroSetup(o) {
   const opt = (o && o.options && typeof o.options === 'object') ? o.options : {};
@@ -53,6 +54,9 @@ export function heroSetup(o) {
        party only the LEADER's counts (`lead`, the server's hr_hunt_instance_read `leads`; partyPick). */
     density: Number.isInteger(opt.density) ? opt.density : 0,
     lead: o.lead === true,
+    /* WHO HOLDS THE PACK (Tyler 2026-10-22): the seat whose tank holds every lap, the leader's pick (only a
+       leading hero carries it; combat-sim.js holdPick); null = the tanks take turns. */
+    hold: o.lead === true && Number.isInteger(o.hold) && o.hold >= 0 ? o.hold : null,
     /* THE GATHERING SHARE: stored, INERT until the gathering engine lands (hunt-sessions.js GATHER_SHARE). */
     gatherShare: Number.isInteger(opt.gather_share) ? opt.gather_share : 0, gatherInert: true,
     actionSet: pick('action_set', 'hunt'),

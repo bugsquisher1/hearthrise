@@ -16,6 +16,8 @@
 //                                       carries (a name may be the "Adventurer" fallback)
 //   listParty(account, cs, on)          the leader shows the party in the
 //                                       finder or hides it (private = invite only)
+//   setHoldSeat(account, cs, seat)      the leader picks who holds the pack: a
+//                                       tank's seat, or null (take turns)
 //   afterLeave(account, cs, send)       a CharacterSession leave / kick, then
 //                                       the account's other partied characters
 //                                       re-read too
@@ -125,6 +127,17 @@ export async function listParty(account, cs, on) {
   if (!usable(account, cs) || typeof on !== 'boolean') return { ok: false, error: 'bad_intent', seats: [] };
   const peers = partyPeersOf(account, cs);
   return askVia(cs, 'hunt_party_list', async () => settled(await account.server.rpc('hr_hunt_party_list', { p_slot: cs.slot, p_listed: on, p_idem: newIdem() }), peers));
+}
+
+/**
+ * WHO HOLDS THE PACK (Tyler 2026-10-22): the leader names a tank's seat (One tank holds) or null (Take turns).
+ * The server checks the leader, the seat and that it is a tank (not_leader / bad_seat / not_a_tank); the
+ * engine applies it at the next lap.
+ */
+export async function setHoldSeat(account, cs, seat) {
+  if (!usable(account, cs) || !(seat === null || (Number.isInteger(seat) && seat >= 0 && seat <= 7))) return { ok: false, error: 'bad_intent', seats: [] };
+  const peers = partyPeersOf(account, cs);
+  return askVia(cs, 'party_hold_set', async () => settled(await account.server.rpc('hr_party_hold_set', { p_slot: cs.slot, p_seat: seat, p_idem: newIdem() }), peers));
 }
 
 /**

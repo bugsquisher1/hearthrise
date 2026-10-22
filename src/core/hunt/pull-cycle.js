@@ -170,7 +170,8 @@ function startPull(inst, sc, k, p) {
 function nextPocket(inst, k) {
   const w = inst.world;
   w.routeIdx += 1;
-  if (w.routeIdx >= routeOf(inst).length) { w.routeIdx = 0; w.runs += 1; }
+  /* THE LAP BOUNDARY: the laps run move on, and the leader's pending hold pick (targeting.js `holdNext`) takes force */
+  if (w.routeIdx >= routeOf(inst).length) { w.routeIdx = 0; w.runs += 1; w.hold = w.holdNext; }
   w.phase = PHASE.TRAVEL;
   if (k) clearGoal(k);
 }

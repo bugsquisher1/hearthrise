@@ -52,6 +52,25 @@ const cases = {
     if (!sc.events.some((e) => e.type === 'respawn')) return 'pocket 0 came back without a respawn';
     return inst.world.runs >= 1 ? null : 'the run counter did not move';
   },
+  /* ONE TANK HOLDS (Tyler 2026-10-22): the leader's pick, read by the settle into world.holdNext, takes force at
+     the LAP boundary (the moment world.runs moves), never mid-pull: through the whole first lap the pick in force
+     stays the old one, at the lap's end it is the new one. */
+  'hold-pick-turns-at-the-lap': (M) => {
+    const inst = partyWorld(M, [Object.assign({ role: 'tank' }, strong), Object.assign({ role: 'tank' }, strong)]);
+    const w = inst.world;
+    const second = w.units.find((u) => u.side === 'hero' && u.id !== w.leader);
+    w.hold = null; w.holdNext = second.id;
+    const sc = sc2(M, 5);
+    let early = null, pocketsSeen = new Set();
+    run(M, inst, 9000, sc, () => {
+      if (w.runs < 1) { pocketsSeen.add(w.routeIdx); if (w.hold !== null && early === null) early = w.routeIdx; }
+      return w.runs < 1;
+    });
+    if (w.runs < 1) return 'the fixture never finished a lap';
+    if (pocketsSeen.size < 2) return 'the fixture lap saw ' + pocketsSeen.size + ' pocket(s)';
+    if (early !== null) return 'the pick took force mid-lap (route index ' + early + ')';
+    return w.hold === second.id ? null : 'at the lap boundary the pick in force is ' + w.hold + ', not the pending ' + second.id;
+  },
   /* PC-09: a cleared pack whose timer ran out does not respawn while its pocket is mid-fight; another pocket's does. */
   'pack-not-respawn-mid-fight': (M) => {
     const inst = partyWorld(M, [{ role: 'tank' }]);
@@ -242,7 +261,9 @@ const mutants = [
     edits: [[P, '    && !!occupancy(inst) && !reachable(inst, k, k.goal[0], k.goal[1]);', ';']] },
   { name: 'a kiting leader walks into the pack', case: 'kiter-pulls-from-range',
     edits: [[P, '  if (here && kites(k) && Math.min(...mons.map((m) => cheb(m, k))) <= k.dist + 1) { startPull(inst, sc, k, p); return; }\n', '']] },
-  { name: 'the route never loops', case: 'route-loops', edits: [[P, '{ w.routeIdx = 0; w.runs += 1; }', '{ w.routeIdx = inst.ground.route.length - 1; }']] },
+  { name: 'the route never loops', case: 'route-loops', edits: [[P, '{ w.routeIdx = 0; w.runs += 1; w.hold = w.holdNext; }', '{ w.routeIdx = inst.ground.route.length - 1; }']] },
+  { name: 'the hold pick never takes force (Tyler 2026-10-22)', case: 'hold-pick-turns-at-the-lap', edits: [[P, ' w.runs += 1; w.hold = w.holdNext; }', ' w.runs += 1; }']] },
+  { name: 'the hold pick takes force mid-pull', case: 'hold-pick-turns-at-the-lap', edits: [[P, '  w.routeIdx += 1;\n', '  w.routeIdx += 1; w.hold = w.holdNext;\n']] },
   { name: 'a pack respawns mid-fight', case: 'pack-not-respawn-mid-fight', edits: [[P, '    if (w.phase === PHASE.FIGHT && pocketNow(inst) === p) continue;\n', '']] },
   { name: 'a spawn ignores who stands there', case: 'spawn-free-tile',
     edits: [[P, '  const taken = (x, y) => inst.occ.mon.has(tileKey(inst.grid, x, y)) || inst.occ.hero.has(tileKey(inst.grid, x, y)) || !inArea(inst, p, x, y);', '  const taken = (x, y) => !inArea(inst, p, x, y);']] },

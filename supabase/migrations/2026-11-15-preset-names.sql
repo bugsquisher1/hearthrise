@@ -382,7 +382,6 @@ declare
   v_hunt text := (select t.hunt_id from public.hr_hunt_travel t where not t.training order by t.hunt_id limit 1);
   v_inst constant uuid := '000000c0-0000-4000-a000-00000c4a01ff';
   v jsonb; v_i int; v_bar jsonb; v_t text;
-  set_of constant text := 'select a.options->>''target_mode'' from public.player_action_sets a where a.user_id = $1 and a.slot = 0 and a.preset = $2';
 begin
   begin
     for v_i in 1 .. 2 loop
@@ -412,14 +411,14 @@ begin
     if public.hr_hunt_active_set(v_u[1], 0) <> 2 then raise exception 'VERIFY(b): the hero is not on setup 2'; end if;
     -- (c) THE BAR EDITS THE CURRENT SETUP ONLY; Use switches back to the other bar.
     v := public.hr_action_set_options(0, 2, '{"target_mode":"nearest"}'::jsonb, gen_random_uuid());
-    execute set_of into v_t using v_u[1], 0;
+    v_t := (select a.options->>'target_mode' from public.player_action_sets a where a.user_id = v_u[1] and a.slot = 0 and a.preset = 0);
     if coalesce(v->>'ok', '') <> 'true' or v_t is distinct from 'weakest' then raise exception 'VERIFY(c): editing setup 2''s bar moved setup 0 (%)', v_t; end if;
     v := public.hr_hunt_preset_apply(0, 0, gen_random_uuid());
     if coalesce(v->>'ok', '') <> 'true' then raise exception 'VERIFY(c): Use answered %', v; end if;
     v := public.hr_state_of(v_u[1], 0)->'hunt_settings';
     if (v->>'preset')::int is distinct from 0 or v->>'target_mode' is distinct from 'weakest' then
       raise exception 'VERIFY(c): after Use the bar reads set % (target %)', v->>'preset', v->>'target_mode'; end if;
-    execute set_of into v_t using v_u[1], 2;
+    v_t := (select a.options->>'target_mode' from public.player_action_sets a where a.user_id = v_u[1] and a.slot = 0 and a.preset = 2);
     if v_t is distinct from 'nearest' then raise exception 'VERIFY(c): setup 2 lost its own bar (%)', v_t; end if;
     -- (d) ONE NAME: a setup rename names its bar; the plaque's rename names its setup; the bar never moves.
     v := public.hr_hunt_preset_rename(0, 2, '  Rat   cellar ', '000000c0-0000-4000-a000-00000c4a0103');

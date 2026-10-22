@@ -59,6 +59,10 @@
 //         moves ONE, Shift-press the whole stack, and a right-click asks how many
 //         (Enter confirms); each is ONE hr_bank_move naming exactly that count, and
 //         store 3 of 10 reads bag 7 / storage 3 from the envelope, before and after a reload
+//   AW-23 SORT AND FILTER (Tyler 10-22, "storage doesn't have a way to sort or filter"):
+//         a kind chip and the search narrow both Storage grids, Count orders by the
+//         stack, Newest puts the stack just stored first, and the chip and sort are
+//         remembered (ONE residue put naming storeView) and come back after a reload
 //   AW-19 BURY (Tyler live 10-18, "can't bury bones"): bones offer Bury all; it is
 //         ONE set_activity { kind:'artisan', id:'bury_bones' } and nothing else, the
 //         Burying line reads the server's pointer, Stop is ONE set_activity idle, and
@@ -574,7 +578,7 @@ async function checks(overrides, shots) {
       const town = (e) => {
         for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
         e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, bank_cap: 40 });
-        e.bank = { oak_logs: 12, iron_bar: 3 };
+        e.bank = { oak_logs: 12, iron_bar: 3, shrimp: 2 };
         e.inventory = Object.assign({}, e.inventory, { raw_wolf_meat: 4, raw_bear_meat: 2 });
       };
       const { ctx, page, errors, s, up } = await open({ mutateEnv: town });
@@ -620,6 +624,38 @@ async function checks(overrides, shots) {
           mv = sent(s, 'hr_bank_move').slice(1).map((c) => c.body.p_item + ':' + c.body.p_qty + ':' + c.body.p_dir);
           if (mv.join() !== 'oak_logs:1:withdraw,iron_bar:3:withdraw') fails.push('AW-18 a press then a Shift-press sent ' + JSON.stringify(mv));
           if ((await sc('bank', 'oak_logs')) !== '11') fails.push('AW-18 one oak log out leaves storage showing ' + (await sc('bank', 'oak_logs')));
+          /* AW-23 sort and filter: storage holds oak_logs 11, copper_ore 3, shrimp 2 (iron_bar went back to the bag) */
+          const W = '[data-hs-win="storage"] ';
+          const grid = (sd) => page.evaluate((x) => [...document.querySelectorAll('[data-hs-win="storage"] .hw-pockets[data-side="' + x + '"] .hw-pocket')].map((li) => li.getAttribute('data-item')).join(), sd);
+          await page.click(W + '.hw-cat[data-cat="food"]');
+          await page.waitForTimeout(200);
+          if ((await grid('bank')) !== 'shrimp' || (await grid('bag')).includes('copper_ore')) fails.push('AW-23 the Food chip shows storage ' + (await grid('bank')) + ' / bag ' + (await grid('bag')));
+          await page.click(W + '.hw-cat[data-cat="all"]');
+          await page.selectOption(W + '[data-hs-act="sort"]', 'count');
+          await page.waitForTimeout(200);
+          if ((await grid('bank')) !== 'oak_logs,copper_ore,shrimp') fails.push('AW-23 Count orders storage ' + (await grid('bank')));
+          await page.fill(W + '.hw-q', 'cop');
+          await page.waitForTimeout(200);
+          if ((await grid('bank')) !== 'copper_ore' || (await grid('bag')) !== 'copper_ore') fails.push('AW-23 the search "cop" shows storage ' + (await grid('bank')) + ' / bag ' + (await grid('bag')));
+          await page.fill(W + '.hw-q', '');
+          await page.selectOption(W + '[data-hs-act="sort"]', 'newest');
+          await page.click(W + '[data-side="bag"] .hw-pocket[data-item="iron_bar"]', { modifiers: ['Shift'] });
+          await page.waitForTimeout(700);
+          if (!(await grid('bank')).startsWith('iron_bar,')) fails.push('AW-23 Newest does not put the stack just stored first: ' + (await grid('bank')));
+          await page.click(W + '.hw-cat[data-cat="loot"]');
+          await page.selectOption(W + '[data-hs-act="sort"]', 'count');
+          await page.waitForTimeout(1900);
+          const views = sent(s, 'hr_put_client_state').map((c) => c.body.p_patch && c.body.p_patch.storeView).filter(Boolean);
+          const last = views[views.length - 1];
+          if (!last || last.cat !== 'loot' || last.sort !== 'count') fails.push('AW-23 the chip and sort were not put as storeView: ' + JSON.stringify(views));
+          if (!(await reloadAndPlay(page))) fails.push('AW-23 the reload did not come back');
+          else {
+            await openWin(page, 't', 'storage');
+            await page.waitForTimeout(300);
+            const sortNow = await page.evaluate(() => document.querySelector('[data-hs-win="storage"] [data-hs-act="sort"]').value);
+            if (sortNow !== 'count' || (await grid('bank')) !== 'copper_ore,iron_bar') fails.push('AW-23 after a reload the sort is ' + sortNow + ' and storage shows ' + (await grid('bank')));
+            await page.click(W + '.hw-cat[data-cat="all"]');
+          }
           if (shots) await shot(page, 'alpha-1440x900-storage');
         }
         /* AW-19 bury: the bones' primary is Bury all; ONE set_activity; Stop collects; the server's numbers only */
@@ -634,7 +670,7 @@ async function checks(overrides, shots) {
           if (go.length !== 1 || JSON.stringify(go[0].body.activity) !== '{"kind":"artisan","id":"bury_bones"}' || Object.keys(go[0].body).sort().join() !== 'activity,intentId,slot,verb')
             fails.push('AW-19 Bury all sent ' + JSON.stringify(go.map((c) => c.body)));
           const line = await page.evaluate(() => { const b = document.querySelector('[data-hs-win="inventory"] .hw-burying'); return b && b.classList.contains('is-on') ? b.textContent : ''; });
-          if (!/^Burying Bones\./.test(line)) fails.push('AW-19 no Burying line from the server pointer: ' + JSON.stringify(line));
+          if (!/^Burying Bones: 8 Bones left\. Your bag and Prayer XP update as it goes\./.test(line)) fails.push('AW-19 no Burying line from the server pointer: ' + JSON.stringify(line));
           if ((await count(page, 'bones')) !== '8') fails.push('AW-19 the bag painted the bury before the server paid it: bones x' + (await count(page, 'bones')));
           if (shots) await shot(page, 'alpha-1440x900-burying');
           await page.click('[data-hs-win="inventory"] [data-hs-act="bury-stop"]');
@@ -667,7 +703,7 @@ async function checks(overrides, shots) {
               const go = sent(s, 'hr-accrue', 'set_activity').slice(2);
               if (go.length !== 1 || JSON.stringify(go[0].body.activity) !== '{"kind":"artisan","id":"cook_wolf_meat"}') fails.push('AW-20 Cook all sent ' + JSON.stringify(go.map((c) => c.body)));
               const line = await page.evaluate(() => { const b = document.querySelector('[data-hs-win="inventory"] .hw-burying'); return b && b.classList.contains('is-on') ? b.textContent : ''; });
-              if (!/^Cooking Raw Wolf Meat\. Your Cooking XP/.test(line)) fails.push('AW-20 no Cooking line from the server pointer: ' + JSON.stringify(line));
+              if (!/^Cooking Raw Wolf Meat: 0 cooked so far, 4 Raw Wolf Meat left\. Your bag and Cooking XP update as it goes\./.test(line)) fails.push('AW-20 no Cooking line from the server pointer: ' + JSON.stringify(line));
               if ((await count(page, 'raw_wolf_meat')) !== '4') fails.push('AW-20 the bag painted the cook before the server did it: x' + (await count(page, 'raw_wolf_meat')));
               if (shots) await shot(page, 'alpha-1440x900-cooking');
               await page.click('[data-hs-win="inventory"] [data-hs-act="bury-stop"]');
@@ -802,15 +838,34 @@ async function checks(overrides, shots) {
         await page.waitForTimeout(800);
         let go = sent(s, 'hr-accrue', 'set_activity');
         if (go.length !== 1 || JSON.stringify(go[0].body.activity) !== '{"kind":"gather","id":"normal_tree"}') fails.push('AW-22 Start sent ' + JSON.stringify(go.map((c) => c.body)));
-        if (!/^Your hero is chopping the Normal Tree\. It keeps going while you are away/.test(await nowText())) fails.push('AW-22 no line from the server pointer: ' + JSON.stringify(await nowText()));
+        if (!/^Chopping the Normal Tree: 0 chopped so far\. It keeps going while you are away/.test(await nowText())) fails.push('AW-22 no line from the server pointer: ' + JSON.stringify(await nowText()));
         r = await rowsOf();
         if ((r.find((x) => x.id === 'normal_tree') || {}).btn !== 'Stop') fails.push('AW-22 the running tree offers no Stop');
+        /* AW-22 LIVE (Tyler 2026-10-22, "the bag needs to update in real time"): with the window open the
+           town work is re-read on its own (town-poll.js, townPollMs); the server has chopped three logs by then,
+           and the line says so from that answer, not from a guess. */
+        const asks = () => s.calls.filter((c) => c.name === 'hr-accrue' && !c.body.verb).length;
+        const asked = asks();
+        const onSet = s.onCall;
+        let chopped = false;
+        s.onCall = (name, b) => {
+          if (name === 'hr-accrue' && !b.verb && s.env.state.active_id === 'normal_tree' && !chopped) {
+            chopped = true; s.env.inventory.normal_log = (s.env.inventory.normal_log || 0) + 3;
+          }
+          onSet(name, b);
+        };
+        for (let i = 0; i < 44 && asks() === asked; i++) await page.waitForTimeout(500);
+        await page.waitForTimeout(400);
+        s.onCall = onSet;
+        if (asks() === asked) fails.push('AW-22 watched town work was never re-read (no settle asked in 22 s)');
+        else if (!/^Chopping the Normal Tree: 3 chopped so far\. /.test(await nowText())) fails.push('AW-22 after a settle mid-run the line reads ' + JSON.stringify(await nowText()));
         if (shots) await shot(page, 'work-1440x900-woodcutting');
         if (!(await reloadAndPlay(page))) fails.push('AW-22 the reload did not come back');
         else {
           await openWin(page, 'g', 'skills-trade');
           await page.waitForTimeout(300);
-          if (!/chopping the Normal Tree/.test(await nowText())) fails.push('AW-22 after a reload the work line reads ' + JSON.stringify(await nowText()));
+          /* After a reload "so far" has no start to count from: the line says what the server's bag holds. */
+          if (!/^Chopping the Normal Tree: \d+ in your bag\./.test(await nowText())) fails.push('AW-22 after a reload the work line reads ' + JSON.stringify(await nowText()));
           /* A switch straight from gathering to a bench: ONE intent (the server collects the old one first). */
           await page.click(W + ' .hw-skill[data-skill="smithing"]');
           await page.waitForTimeout(300);
@@ -831,7 +886,7 @@ async function checks(overrides, shots) {
           await page.waitForTimeout(800);
           go = sent(s, 'hr-accrue', 'set_activity');
           if (go.length !== 2 || JSON.stringify(go[1].body.activity) !== '{"kind":"artisan","id":"smelt_bronze","count":5}') fails.push('AW-22 the switch sent ' + JSON.stringify(go.map((c) => c.body)));
-          if (!/^Your hero is making Bronze Bar\. It stops when the materials run out/.test(await nowText())) fails.push('AW-22 the bench line reads ' + JSON.stringify(await nowText()));
+          if (!/^Making Bronze Bar: 0 made so far, \d+ Copper Ore left\. It stops when they run out\.$/.test(await nowText())) fails.push('AW-22 the bench line reads ' + JSON.stringify(await nowText()));
           r = await rowsOf();
           if (!/^Working on it now · 5 left · Makes 5 of up to 5 · /.test((r.find((x) => x.id === 'smelt_bronze') || {}).why)) fails.push('AW-22 the bag was spent before the server did it: ' + JSON.stringify(r.find((x) => x.id === 'smelt_bronze')));
           await page.click(W + ' .hw-work-now [data-hs-act="work-stop"]');
@@ -904,7 +959,7 @@ const MUTANTS = [
   ['a sale is sent without the confirmation', 'src/shell/windows/inventory/actions.js', '  st.sc.confirm = confirmFor(st, ids, label);\n  repaint();', '  st.sc.confirm = confirmFor(st, ids, label);\n  repaint();\n  doSell(st, repaint);'],
   ['the Shop lists supplies again', 'src/data/supply-basics.js', "export const SHOP_SOLD_KINDS = Object.freeze(['tool', 'gear', 'seed']);", "export const SHOP_SOLD_KINDS = Object.freeze(['food', 'drink', 'ammo', 'tool', 'gear', 'seed']);"],
   ['an equip in flight is not marked', 'src/shell/windows/inventory/actions.js', '  sc.wearing = { slots: [slot], items: id ? [id] : [] };\n', ''],
-  ['Equip upgrades swaps the weapon', 'src/shell/upgrade-plan.js', "const STYLE_SLOTS = new Set(['weapon', 'shield', 'ammo', 'companion']);", "const STYLE_SLOTS = new Set(['shield', 'ammo', 'companion']);"],
+  ['Equip upgrades swaps the weapon', 'src/shell/upgrade-plan.js', "const STYLE_SLOTS = new Set(['weapon', 'shield', 'ammo']);", "const STYLE_SLOTS = new Set(['shield', 'ammo']);"],
   ['Equip upgrades wears what the hero cannot use yet', 'src/shell/upgrade-plan.js', '  return !!s && Number.isInteger(s.level) && s.level >= it.reqLv;', '  return true;'],
   ['Equip upgrades marks nothing in flight', 'src/shell/widgets/upgrade-line.js', '  sc.wearing = { slots, items: slots.map((s) => plan.ops[s]) };\n', ''],
   ['Equip upgrades sends one intent per piece', 'src/shell/widgets/upgrade-line.js', "    try { return await cs.edgeIntent('equip', { equip: Object.assign({}, plan.ops) }); } finally { sc.wearing = null; }", "    try { let r; for (const s of slots) r = await cs.edgeIntent('equip', { equip: { [s]: plan.ops[s] } }); return r; } finally { sc.wearing = null; }"],
@@ -918,6 +973,7 @@ const MUTANTS = [
   ['a hunt carries only part of its own stack', 'src/shell/hunt-list.js', '.map((r) => ({ item: r.id, qty: Math.min(PACK_QTY_MAX, r.qty) }))', '.map((r) => ({ item: r.id, qty: Math.min(PACK_QTY_MAX, r.qty, 10) }))'],
   ['a Shift-press in Storage moves one at a time', 'src/shell/windows/storage.js', 'move(cs, sc, repaint, id, ev.shiftKey ? row.qty : 1, action);', 'move(cs, sc, repaint, id, 1, action);'],
   ['a press in Storage moves the whole stack', 'src/shell/windows/storage.js', 'move(cs, sc, repaint, id, ev.shiftKey ? row.qty : 1, action);', 'move(cs, sc, repaint, id, row.qty, action);'],
+  ['the Storage chip and sort are not applied', 'src/shell/windows/storage.js', '  const o = { cat: prefs.cat, query: sc.query, sort: prefs.sort,', "  const o = { cat: 'all', query: sc.query, sort: 'name',"],
   ['the amount picker sends the whole stack', 'src/shell/widgets/amount.js', "  return n ? clampAmount(n.value, n.getAttribute('data-max')) : 1;", "  return n ? clampAmount(n.getAttribute('data-max'), n.getAttribute('data-max')) : 1;"],
   ['Enter in the amount picker does nothing', 'src/shell/windows/float-menu.js', "      if (e.key === 'Enter' && def) { e.preventDefault(); e.stopPropagation(); def.click(); }\n", ''],
   ['bones offer no Bury', 'src/shell/windows/inventory/state.js', "  if (br) return ['bury', buryLabel(br, st.qty.get(id))];\n", ''],
@@ -927,7 +983,9 @@ const MUTANTS = [
   ['the client cannot declare gathering', 'src/session/edge-intents.js', "(v.kind === 'artisan' || v.kind === 'gather')", "v.kind === 'artisan'"],
   ['a work row ignores the server level', 'src/shell/town-work.js', "  if (lv < (w.row.req || 1)) return 'Needs '", "  if (false) return 'Needs '"],
   ['the running row offers no Stop', 'src/shell/windows/work.js', "text(b, running ? 'Stop' : 'Start');", "text(b, 'Start');"],
-  ['the Burying line ignores the server pointer', 'src/shell/windows/inventory/bury.js', "  if (e) return buryingWord(e) + ' ' + itemName(e.input) + '. Your ' + skillName(e.skill) + ' XP and bag update when it is done.';", "  if (e) return '';"],
+  ['the Burying line ignores the server pointer', 'src/shell/windows/inventory/bury.js', "    return buryingWord(e) + ' ' + itemName(e.input) + (how ? ': ' + how : '') + '. Your bag and ' + skillName(e.skill) + ' XP update as it goes.';", "    return '';"],
+  ['the work line says nothing of how far it has got', 'src/shell/town-work.js', "  return words.charAt(0).toUpperCase() + words.slice(1) + (how ? ': ' + how : '') + '. ' + tail;", "  return words.charAt(0).toUpperCase() + words.slice(1) + '. ' + tail;"],
+  ['a watched bench is never re-read', 'src/shell/shell.js', "(wm.isOpen('skills-trade') || wm.isOpen('inventory'))) watchTown(ctx.character);", "false) watchTown(ctx.character);"],
   ['raw food offers no Cook all', 'src/shell/bag-model.js', "      if (!r || !r.output || r.gated || kindOf(r.output) !== 'food') continue;", '      continue;'],
   ['the bench ignores the server level', 'src/shell/windows/inventory/bury.js', "  if (lv < e.recipe.req) return 'Needs '", "  if (false) return 'Needs '"],
   ['the skills are one window again', 'src/shell/windows/skills.js', "export const renderTradeSkills = skillsWindow([['gather', 'Gathering'], ['artisan', 'Crafting']]);", "export const renderTradeSkills = skillsWindow([['combat', 'Combat'], ['gather', 'Gathering'], ['artisan', 'Crafting']]);"],
@@ -945,7 +1003,7 @@ async function main() {
     const fails = await checks(null, shots);
     for (const f of fails) console.log('  ✗ ' + f);
     console.log(fails.length ? 'alpha-windows: ' + fails.length + ' rule(s) RED'
-      : 'alpha-windows: the windows open; patch in place; the server’s counts win; intents only; locks hold; totals first; no supplies in the Shop; Hunts from the hatch in two presses; window presses and focus never steal the World; no void; storage from town; store any amount; bury and cook pay from the server; skills split' + (shots ? ' (shots in ' + shots + ')' : ''));
+      : 'alpha-windows: the windows open; patch in place; the server’s counts win; intents only; locks hold; totals first; no supplies in the Shop; Hunts from the hatch in two presses; window presses and focus never steal the World; no void; storage from town; store any amount; storage sorts and filters; bury and cook pay from the server; skills split' + (shots ? ' (shots in ' + shots + ')' : ''));
     process.exit(fails.length ? 1 : 0);
   }
   const clean = await cleanControl(() => checks(null, null));

@@ -9,7 +9,7 @@
 //     weapon   body     offhand
 //     ring     legs     ring
 //     gloves   boots    earrings
-//     ammo     belt     companion
+//     ammo     belt
 // A slot press opens its line under the window: what is worn there (Take off)
 // and every bag stack that fits it with the change against the worn piece, best
 // first (Wear). A bag stack dragged onto a slot wears it; a worn piece dragged
@@ -17,16 +17,16 @@
 // `equip` intent; the doll changes only when the re-read envelope replaces
 // `equipment`.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../../../data/items.js?v=0.2.29';
-import { EQUIP_SLOT_META, expandItemSlot } from '../../../data/gathering.js?v=0.2.29';
-import { bagOf, skillsOf, shopOf } from '../../../session/item-sections.js?v=0.2.29';
-import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.29';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.29';
-import { glyphSvg } from '../../launcher.js?v=0.2.29';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.29';
-import { compare, rarityOf } from '../../bag-model.js?v=0.2.29';
-import { needOf } from '../../item-lore.js?v=0.2.29';
-import { showTip } from '../item-tip.js?v=0.2.29';
+import { ITEMS } from '../../../data/items.js?v=0.2.30';
+import { EQUIP_SLOT_META, expandItemSlot } from '../../../data/gathering.js?v=0.2.30';
+import { bagOf, skillsOf, shopOf } from '../../../session/item-sections.js?v=0.2.30';
+import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.30';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.30';
+import { glyphSvg } from '../../launcher.js?v=0.2.30';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.30';
+import { compare, rarityOf } from '../../bag-model.js?v=0.2.30';
+import { needOf } from '../../item-lore.js?v=0.2.30';
+import { showTip } from '../item-tip.js?v=0.2.30';
 
 /* Body order, row by row: [slot, label, empty glyph]. */
 export const DOLL = Object.freeze([
@@ -34,7 +34,7 @@ export const DOLL = Object.freeze([
   ['weapon', 'Weapon', 'uiSword'], ['body', 'Body', 'uiBody'], ['shield', 'Offhand', 'uiShield'],
   ['ring1', 'Ring', 'uiRing'], ['pants', 'Legs', 'uiLegs'], ['ring2', 'Ring', 'uiRing'],
   ['gloves', 'Gloves', 'uiGloves'], ['boots', 'Boots', 'uiBoots'], ['earrings', 'Earrings', 'uiGem'],
-  ['ammo', 'Ammo', 'uiArrow'], ['belt', 'Belt', 'uiBar'], ['companion', 'Companion', 'uiPaw'],
+  ['ammo', 'Ammo', 'uiArrow'], ['belt', 'Belt', 'uiBar'],
 ]);
 const SLOT_LABEL = new Map(DOLL.map(([s, l]) => [s, l]));
 export const DRAG_WORN = 'application/x-hearthrise-worn';

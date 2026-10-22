@@ -15,10 +15,11 @@
 // ── WHAT IT PROVES ─────────────────────────────────────────────────────────
 //  R5  A CLIENT-DIRECT RPC ON A STALE ROW IS REFUSED AND WRITES NOTHING. The
 //      production shape: a miner whose accrued_to is 7.25 h old claims
-//      road_forge (it grants the iron pickaxe) as `authenticated`. The answer is
+//      a bank deposit as `authenticated` (it was the road_forge quest claim until
+//      the old-client reward cut). The answer is
 //      settle_first and the character — bag, gold, version, accrued_to, progress,
 //      ledger, intents — is byte-identical afterwards; the same holds for
-//      hr_claim_daily (hr_set_auto_eat / hr_credit_kills until lane C2 dropped them), and for hr_apply (as
+//      hr_apply (as
 //      hr_engine) with a non-stamping items:+1 or a buff_apply. Once the row is
 //      settled the SAME claim pays, so the refusal is not vacuous.
 //      `--mutate=staleMs12h` raises the threshold to 12 h (§4 blinded) → RED.
@@ -133,15 +134,16 @@ async function r5(db) {
   const before = await snapshot(db);
   const client = async (sql, params) => (await asRole(db, 'authenticated', sql, params))[0].r;
 
-  const claim = await client("select public.hr_claim_quest('road_forge', 0) r");
+  /* THE CLIENT-DIRECT DOOR: a bank deposit of the food (it moves a priced input out of
+     the bag). The quest and daily claims were the doors here until the old-client reward
+     cut dropped them (2026-12-02-old-rewards-cut.sql); hr_set_auto_eat and hr_credit_kills
+     left with lane C2's drop file — the plain run is the whole chain. */
+  const DOOR = 'select public.hr_bank_move(0, $1, 1, \'deposit\', $2::uuid) r';
+  const claim = await client(DOOR, [food, crypto.randomUUID()]);
   ok(claim && claim.ok === false && claim.error === 'settle_first',
-    `R5 a 7.25 h-stale hr_claim_quest(road_forge) was not refused settle_first — got ${JSON.stringify(claim)}. `
-    + 'The claim lands the iron pickaxe first and the settle then prices the whole night at it.');
-  /* (hr_set_auto_eat and hr_credit_kills were two more doors here; lane C2's
-     drop file removes both — the plain run is the whole chain.) */
-  const others = [
-    ['hr_claim_daily', "select public.hr_claim_daily('daily_kill', 0) r"],
-  ];
+    `R5 a 7.25 h-stale hr_bank_move deposit was not refused settle_first — got ${JSON.stringify(claim)}. `
+    + 'The move lands first and the settle then prices the whole night at a bag that did not exist.');
+  const others = [];
   for (const [fn, sql] of others) {
     const r = await client(sql);
     ok(r && r.error === 'settle_first', `R5 ${fn} on the stale row answered ${JSON.stringify(r)}, not settle_first`);
@@ -173,11 +175,11 @@ async function r5(db) {
 
   /* NOT VACUOUS: the same claim on the same character, once its window is paid. */
   await db.query("update player_state set accrued_to = now() - interval '60 seconds' where user_id = $1", [UID]);
-  const paid = await client("select public.hr_claim_quest('road_forge', 0) r");
-  /* road_forge's items are read from the server's own row (the demolition re-rewarded it). */
-  const want = (await db.query("select items from public.hr_quest_rewards where quest_id = 'road_forge'")).rows[0].items;
-  ok(paid && paid.ok === true && JSON.stringify(paid.items) === JSON.stringify(want),
-    `R5 the same claim on a settled row was not paid — got ${JSON.stringify(paid)}; the refusal above proves nothing`);
+  const paid = await client(DOOR, [food, crypto.randomUUID()]);
+  const bagNow = Number((await db.query('select qty::text q from player_inventory where user_id = $1 and slot = 0 and item_id = $2',
+    [UID, food])).rows[0]?.q || 0);
+  ok(paid && paid.ok === true && bagNow === 4,
+    `R5 the same deposit on a settled row did not land (bag ${bagNow}, want 4) — got ${JSON.stringify(paid)}; the refusal above proves nothing`);
   await db.query("select set_config('request.jwt.claim.sub', '', false)");
 }
 
@@ -192,9 +194,11 @@ async function r6(db) {
   await db.query(`insert into party_hunt (party_id, active_id, accrued_to)
                   values ($1, 'r5_probe_target', now() - interval '${STALE}')`, [pid]);
   const before = await snapshot(db);
-  const client = async (sql) => (await asRole(db, 'authenticated', sql))[0].r;
+  const food = (await db.query('select item_id from player_inventory where user_id = $1 and slot = 0 order by item_id limit 1', [UID])).rows[0].item_id;
+  const client = async (sql) => (await asRole(db, 'authenticated', sql, [food, crypto.randomUUID()]))[0].r;
+  const DOOR = 'select public.hr_bank_move(0, $1, 1, \'deposit\', $2::uuid) r';
   for (const [fn, sql] of [
-    ['hr_claim_daily', "select public.hr_claim_daily('daily_kill', 0) r"],
+    ['hr_bank_move', DOOR],
   ]) {
     const r = await client(sql);
     ok(r && r.ok === false && r.error === 'party_hunt_running',
@@ -212,7 +216,7 @@ async function r6(db) {
     ok(before[k] === after[k], `R6 a refused partied call WROTE the character (${k}): ${before[k]} -> ${after[k]}`);
   }
   await db.query("update party_hunt set ended_at = now(), stopped_by = 'leader' where party_id = $1", [pid]);
-  const stopped = await client("select public.hr_claim_daily('daily_kill', 0) r");
+  const stopped = await client(DOOR);
   ok(stopped && stopped.error === 'settle_first',
     `R6 once the hunt stops the stale row must answer settle_first (the settle clears it) — got ${JSON.stringify(stopped)}`);
   await db.query("select set_config('request.jwt.claim.sub', '', false)");

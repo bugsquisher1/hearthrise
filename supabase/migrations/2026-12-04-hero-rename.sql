@@ -52,7 +52,7 @@
 -- its image); drop hr_hero_rename (+ baseline row), the `rename` section row,
 -- hr_hero_rename_quote, hr_name_held_by_other, hr_hero_rename_rule. Gold spent
 -- stays in the ledger (intent hero_rename:<canonical>).
--- ORDER: after 2026-12-01-garden-beds.sql (last in the chain). No begin/commit.
+-- ORDER: after 2026-12-02-old-rewards-cut.sql (last in the chain). No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS AND PINS ────────────────────────────────────────────────

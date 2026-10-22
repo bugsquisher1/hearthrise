@@ -3,14 +3,14 @@
 // voice, original IP. Surfaced in the item detail/tooltip (the "what is it" line).
 // SAFE TO EXTEND: an item with no entry here just shows no flavour line — nothing breaks.
 
-import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.29';
-import { SLOT_DESC } from './slot-ladders.js?v=0.2.29';
-import { LIB2_DESC } from './library2-items.js?v=0.2.29';
-import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.29';
-import { CHAMPION_DESC } from './champions.js?v=0.2.29';
-import { DRINK_DESC } from './drinks.js?v=0.2.29';
-import { IMBUE_DESC } from './imbuements.js?v=0.2.29';
-import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.29';
+import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.30';
+import { SLOT_DESC } from './slot-ladders.js?v=0.2.30';
+import { LIB2_DESC } from './library2-items.js?v=0.2.30';
+import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.30';
+import { CHAMPION_DESC } from './champions.js?v=0.2.30';
+import { DRINK_DESC } from './drinks.js?v=0.2.30';
+import { IMBUE_DESC } from './imbuements.js?v=0.2.30';
+import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.30';
 
 export const ITEM_DESC = {
   /* Mage = wand + spellbook; Healer = staff (Tyler 2026-10-19). */
@@ -193,7 +193,6 @@ export const ITEM_DESC = {
   'field_ration': 'A dense travel loaf packed for the march, refined food the castle accepts',
   /* "Deep Seam" — the nine verdite rows (alphabetical, like the rest). */
   'flux_salt': 'Bitter grey crust scraped from a deep pocket, the flux that makes verdite pour clean',
-  'fox_companion': 'A loyal fox at your side, lending a little strength and lore',
   'frostfin': 'A pale fish from ice-water depths, raw and chill, steadies you when cooked',
   'goblin_ear': 'A severed goblin ear, grisly proof of the kill, worth a few coins',
   'goblin_totem': 'A crude idol carved by goblin shamans, a warcamp trophy',

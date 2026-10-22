@@ -123,9 +123,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.29';
-import { HUNT_INDEX } from './hunts.js?v=0.2.29';
-import { MONSTERS } from './monsters.js?v=0.2.29';
+import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.30';
+import { HUNT_INDEX } from './hunts.js?v=0.2.30';
+import { MONSTERS } from './monsters.js?v=0.2.30';
 
 const pocket = (room, ...spawns) => Object.freeze({ room: Object.freeze(room),
   spawns: Object.freeze(spawns.map(([monster, x, y]) => Object.freeze({ monster, x, y }))) });
@@ -326,20 +326,17 @@ export const HUNT_GROUNDS = Object.freeze({
 /** The grounds a player can enter: every row whose hunt is not `staged` (hunts.js). The server catalogue reads these. */
 export const OPEN_GROUNDS = Object.freeze(Object.fromEntries(Object.entries(HUNT_GROUNDS).filter(([, g]) => !(HUNT_INDEX[g.hunt] && HUNT_INDEX[g.hunt].staged === true))));
 
-/** THE REACHABLE ROSTER (designer 2026-10-22, lane c-monster-ladders): what a player can actually meet and loot, from
-    `grounds` (pass OPEN_GROUNDS: a staged ground is hidden and refused). monsters = every pocket's spawns and full pack
-    plus its hunt's spawn rows; loot = every drop id those monsters can roll, a bind-on-pickup item excepted. The
-    Bestiary's total and the collection milestones count these (collection-milestones.js), and gen-hunt-sessions writes
-    them to hr_hunt_roster / hr_hunt_loot_roster, so a new open ground moves every total by itself. */
-export function reachableOf(grounds, hunts, monsters, items) {
+/** THE REACHABLE ROSTER (designer 2026-10-22, lane c-monster-ladders): what a player can actually meet, from `grounds`
+    (pass OPEN_GROUNDS: a staged ground is hidden and refused): every pocket's spawns and full pack plus its hunt's spawn
+    rows. The Bestiary's total counts these: gen-hunt-sessions writes them to hr_hunt_roster, so a new open ground moves
+    the total by itself. */
+export function reachableOf(grounds, hunts) {
   const mons = new Set();
   for (const g of Object.values(grounds)) {
     for (const p of g.pockets) for (const s of (p.pack || []).concat(p.spawns)) mons.add(s.monster);
     for (const s of ((hunts[g.hunt] || {}).spawns || [])) mons.add(s.monster);
   }
-  const loot = new Set();
-  for (const id of mons) for (const d of ((monsters[id] || {}).drops || [])) if (!(items[d.id] && items[d.id].bop)) loot.add(d.id);
-  return Object.freeze({ monsters: Object.freeze([...mons].sort()), loot: Object.freeze([...loot].sort()) });
+  return Object.freeze({ monsters: Object.freeze([...mons].sort()) });
 }
 
 /* THE PARTY SCALE (BALANCE_RULINGS 2026-10-16): pack HP x (base + perHero x party

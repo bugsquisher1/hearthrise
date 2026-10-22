@@ -40,6 +40,7 @@
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, relative, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isMain } from './_is-main.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const read = (p) => readFileSync(join(ROOT, p), 'utf8');
@@ -227,7 +228,8 @@ function selftest(w) {
   return bad ? 1 : 0;
 }
 
-try {
+/* Run only as a script: tests/old-rewards-gone.mjs imports stripComments from here. */
+if (isMain(import.meta.url)) try {
   const w = loadWorld();
   if (process.argv.includes('--selftest')) process.exit(selftest(w));
   const problems = check(w, { report: process.argv.includes('--report') });

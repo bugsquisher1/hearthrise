@@ -40,7 +40,7 @@
 //   a function that re-validates every invariant".
 // ============================================================================
 
-import { computeAccrual, PAYABLE_KINDS, ACCRUE_MIN_MS, deltaHasValue, CALLER_AUTHORITY } from './accrual.js';
+import { computeAccrual, PAYABLE_KINDS, ACCRUE_MIN_MS, accrueFloorMs, deltaHasValue, CALLER_AUTHORITY } from './accrual.js';
 /* THE ENVELOPE -> ENGINE INPUT MAP, shared with the accrue path and the world
    tick (2026-09-22). ONE field list for a two-level projection; see
    ./envelope.js. A14 and PARITY expand this spread and still compare. */
@@ -685,7 +685,8 @@ export async function collectCurrentWindow(o) {
      price, so computeAccrual would answer TOO_SOON. Answering it without the
      seed read keeps a shop tap during attended play at the cost
      it had before this ruling. Nothing is written; the window stays open. */
-  if (pointerSurvives && nowMs - accruedToMs < ACCRUE_MIN_MS) {
+  /* The floor is the accrue verb's own for this pointer (accrual.js accrueFloorMs: 15 s for town work). */
+  if (pointerSurvives && nowMs - accruedToMs < accrueFloorMs(st.active_kind)) {
     return { outcome: 'nothing', version: env.version, reason: 'below_min_span' };
   }
 

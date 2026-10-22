@@ -41,8 +41,8 @@
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPPLY_SHOP_OFFERS, SHOP_SOLD_KINDS } from './supply-basics.js?v=0.2.29';
-import { ITEMS } from './items.js?v=0.2.29';
+import { SUPPLY_SHOP_OFFERS, SHOP_SOLD_KINDS } from './supply-basics.js?v=0.2.30';
+import { ITEMS } from './items.js?v=0.2.30';
 
 export const SHOPS_DIGEST = "3dd62b831e08bf6b8180fdfa08e203c68eea083199dfdb44a4082ccd36552e07";
 
@@ -124,13 +124,6 @@ export const SHOP_OFFERS = [
     name: "Bronze Sword",
     cost: [{ kind: "currency", id: "gold", amount: 100 }],
     grant: [{ kind: "item", id: "bronze_sword", amount: 1 }],
-    repeatable: true,
-  },
-  {
-    id: "equip.fox_companion", table: "equip",
-    name: "Fox Companion",
-    cost: [{ kind: "currency", id: "gold", amount: 1200 }],
-    grant: [{ kind: "item", id: "fox_companion", amount: 1 }],
     repeatable: true,
   },
   {

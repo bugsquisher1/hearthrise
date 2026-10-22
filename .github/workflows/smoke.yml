@@ -1203,15 +1203,7 @@ jobs:
           node tests/bounty-gems-close.mjs
           node tools/mutant-gate.mjs node tests/bounty-gems-close.mjs --mutate
 
-      # 2026-10-23-demolition-login-catalogue.sql (Tyler 2026-10-17: the login reward
-      # is premium-only; premium is S1's): every day pays nothing (rewards.js is the
-      # literal) and a real hr_apply claim is refused login_reward_off, journalled,
-      # replay-safe; second apply identical. --mutate: three defects refused by its §4.
-      - name: Login reward off (premium-only), second apply identical
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/login-reward-off.mjs
-          node tools/mutant-gate.mjs node tests/login-reward-off.mjs --mutate
+      # RETIRED 2026-10-22 (old-client reward cut, Tyler): tests/login-reward-off.mjs bound src/data/rewards.js (the old login cycle, deleted); hr_login_claim_verify still refuses, asserted by 2026-12-02-old-rewards-cut.sql §4(b). tests/old-rewards-gone.mjs keeps it cut.
 
       # Lane C1 (2026-10-20-hunts-*.sql): hunts as named areas. The hunt catalogue
       # is GENERATED from src/data/hunts.js (unknown monster ids refused); the ONE
@@ -1645,14 +1637,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/collection-wire-shape.mjs
 
-      # The three-way milestone bind (catalogue / client rows / chain-end SQL)
-      # had a --selftest flag it ignored (exit 0 on the normal body). It now
-      # plants ten defects - a dropped SQL arm, client-only gold/goal/domain
-      # drift, an unreachable (or BoP-only) threshold, a new gem faucet, a stale chain end -
-      # and each must turn it red. The plain body runs inside run-smoke.mjs.
-      - name: Collection/renown claim drift - mutation proof
-        if: ${{ !cancelled() }}
-        run: node tools/mutant-gate.mjs node tests/collection-renown-claim-drift.mjs --selftest
+      # RETIRED 2026-10-22 (old-client reward cut, Tyler): tests/collection-renown-claim-drift.mjs bound the milestone and rank catalogues, both cut. tests/old-rewards-gone.mjs keeps it cut.
 
       # REALTIME COST. Measured on production 2026-09-06 over 20.25 days: the
       # Realtime WAL poller is 2,706,517 calls / 15,669 s / max 9.8 s — ~61% of
@@ -2900,16 +2885,7 @@ jobs:
           node tests/muster-chest-xp-credit.mjs
           node tools/mutant-gate.mjs node tests/muster-chest-xp-credit.mjs --selftest
 
-      # b567 (P1 class-kill + lost pay): hundred_kills' 1,500 XP was minted by the
-      # browser (hr_claim_quest wrote no XP) and the absence claim never credited
-      # its gold/gems. 2026-10-10-quest-xp-absence-pay.sql credits both inside the
-      # claim. Deltas must EQUAL the receipt; wrong user, double claim and budget
-      # refusals move nothing; every mutation has a gate-blind twin.
-      - name: Quest XP + absence gold/gems — server-credited, every mutation caught
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/quest-xp-absence-pay.mjs
-          node tools/mutant-gate.mjs node tests/quest-xp-absence-pay.mjs --selftest
+      # RETIRED 2026-10-22 (old-client reward cut, Tyler): tests/quest-xp-absence-pay.mjs proved the quest XP credit; hr_claim_quest is dropped. tests/old-rewards-gone.mjs keeps it cut.
 
       # RETIRED 2026-10-19 (core rebuild): tests/max-hp-tracks-hitpoints.mjs, the Hitpoints skill and the stored max_hp are deleted; max HP is derived from Level and armour, guarded by tests/core-curves.mjs (JS = SQL) and tests/hunt-sessions-settle.mjs MAXHP.
 
@@ -3264,29 +3240,7 @@ jobs:
           node tests/raid-band-denial.mjs
           node tools/mutant-gate.mjs node tests/raid-band-denial.mjs --selftest
 
-      # THE BACKFILLED LIFETIME PLANT COUNTER MUST STAY UNPAYABLE (Security P2 on
-      # supabase/migrations/2026-09-07-farm-plant-lifetime-counter.sql). That file
-      # backfilled a lifetime stat/'ev:planted' row for 27 (user, slot) pairs from
-      # the plant ledger - a stock of already-completed work that no catalogue
-      # grades today. Two independent paths could make it payable, and neither is
-      # covered by the other: a row in hr_goal_rewards naming a lifetime kind
-      # (now refused by a CHECK constraint), and a fifth branch in
-      # hr_claim_quest__ungated's hardcoded CASE over LIFETIME stat keys, which
-      # no constraint anywhere can reach. The guard proves the constraint EXISTS,
-      # is VALIDATED and bites (an executed counter_kind='stat' insert must raise
-      # 23514 after a control insert succeeds), that the quest body names no
-      # ev:planted, AND - the property that actually matters - drives a character
-      # holding 40x the target as a LIFETIME counter through the real
-      # hr_goal_state / hr_claim_goal and requires have=0 and a 'not_complete'
-      # refusal, with a non-vacuity arm showing the same reads do say yes to a
-      # real daily counter. 4 defects x 2 arms (gate / SEC-4-blind) plus a GREEN
-      # control that deletes the CREATE TABLE's inline check so the migration's
-      # own ADD path is exercised rather than assumed. No credentials.
-      - name: Goal counter kinds - the backfilled lifetime ev:planted stock cannot be claimed
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/goal-counter-kinds.mjs
-          node tools/mutant-gate.mjs node tests/goal-counter-kinds.mjs --selftest
+      # RETIRED 2026-10-22 (old-client reward cut, Tyler): tests/goal-counter-kinds.mjs guarded the ev:planted backfill against hr_claim_goal and hr_claim_quest; both doors are dropped, and their revival is red in old-rewards-gone OR-4. tests/old-rewards-gone.mjs keeps it cut.
 
       # ORPHAN ADOPTED. W1-W13 on the shipped hired-crew accrual engine. Its
       # header claimed run-smoke.mjs invoked it; nothing did, so thirteen
@@ -3565,26 +3519,19 @@ jobs:
 
 
 
-      # QUEST ITEM REWARDS: THE SAME NUMBER IN ALL THREE PLACES.
-      # Every quest item reward used to be PHANTOM — QUEST_DEFS authored it,
-      # completeQuest paid it with addItem() (G.inventory only) and
-      # hr_claim_quest credited gold only, so the next envelope that spoke about
-      # the id erased it. 2026-09-06-quest-item-rewards.sql moves the credit
-      # server-side, which puts the same authored number in three files:
-      # src/data/goal-catalogue.js, src/legacy.js QUEST_DEFS and the SQL seed. A
-      # one-sided edit means a player is promised 30 shrimp and paid 5 — or
-      # promised an item and paid nothing. It also refuses an authored item that
-      # is not server-credited (the phantom class being re-authored) and an id
-      # that exists in no catalogue (authored, shipped, silently skipped).
-      # Credential-free, database-free, seconds. --selftest plants all eight
-      # defect classes and requires each to be caught by a named assertion.
-      - name: Quest reward parity — data, client and server agree, every id real
+      # OLD-CLIENT REWARDS STAY CUT (Tyler 2026-10-22). The quests, collection
+      # milestones, renown rank claims, daily/weekly goals, the old login cycle and
+      # the Fox Companion with its slot were cut (2026-12-02-old-rewards-cut.sql).
+      # No shipped code names them, their data files stay deleted, and at the
+      # chain end every cut function, table and client-baseline row is dropped.
+      # Replaces quest-reward-parity, goal-catalogue-drift, quest-xp-absence-pay,
+      # collection-renown-claim-drift, login-reward-off and goal-counter-kinds.
+      # Pure text, seconds. --selftest plants thirteen revivals.
+      - name: Old-client rewards stay cut
         if: ${{ !cancelled() }}
         run: |
-          node tests/quest-reward-parity.mjs
-          node tools/mutant-gate.mjs node tests/quest-reward-parity.mjs --selftest
-          # W0: the old goals board stays cut (client, residue and chain) and
-          # the one daily list counts nothing in the browser.
+          node tests/old-rewards-gone.mjs
+          node tools/mutant-gate.mjs node tests/old-rewards-gone.mjs --selftest
 
       # DEMOLITION ABSENCE (2026-10-14 clean slate). Clans, raids, the party,
       # muster, rally, world events, renown, dailies, login streaks, deeds,
@@ -4145,6 +4092,17 @@ jobs:
       - name: World shell core - base run
         if: ${{ !cancelled() }}
         run: node tests/shell-core.mjs
+
+      # The Storage window's sort and filter (Tyler 10-22): the kind chips, the
+      # search, the five sorts and the "recently added" residue marks, on the
+      # pure models; --selftest plants 11 defects into a temp copy.
+      - name: Storage sort and filter - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/storage-view.mjs --selftest
+
+      - name: Storage sort and filter - base run
+        if: ${{ !cancelled() }}
+        run: node tests/storage-view.mjs
 
       # Every shell window/widget row has a renderer and every renderer a row.
       - name: World shell renderers - mutation proof

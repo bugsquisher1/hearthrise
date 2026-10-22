@@ -47,22 +47,22 @@
 // when present, so this loads and answers in Node and before the legacy IIFE.
 // ============================================================================
 
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.29';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.29';
-import { MONSTERS } from './monsters.js?v=0.2.29';
-import { BOSSES } from './bosses.js?v=0.2.29';
-import { ITEMS } from './items.js?v=0.2.29';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.30';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.30';
+import { MONSTERS } from './monsters.js?v=0.2.30';
+import { BOSSES } from './bosses.js?v=0.2.30';
+import { ITEMS } from './items.js?v=0.2.30';
 /* THE GRANT UNIVERSE, WIDENED (security C3). `unclassifiedGrantIds()` used to
-   walk only the four ENGINE grant sources, so an id a shop or a quest reward is
-   the ONLY source of could sit in limbo — neither ownable nor excluded — and
-   nothing failed. Both tables are ESM data, so the completeness check reads them.
-   (The Quartermaster, daily-task and raid-chest partitions were deleted with
-   their systems in the 2026-10-14 demolition.) */
-import { SHOP_OFFERS } from './shops.js?v=0.2.29';
-import { QUEST_REWARDS } from './goal-catalogue.js?v=0.2.29';
+   walk only the four ENGINE grant sources, so an id a shop is the ONLY source of
+   could sit in limbo — neither ownable nor excluded — and nothing failed. The
+   shop table is ESM data, so the completeness check reads it. (The Quartermaster,
+   daily-task and raid-chest partitions were deleted with their systems in the
+   2026-10-14 demolition; the quest rewards with the old-client reward cut of
+   2026-10-22.) */
+import { SHOP_OFFERS } from './shops.js?v=0.2.30';
 /* The BURN, from the one module that names it — src/core/artisan.js is the same
    dual-runtime code the edge cooks with, so there is no second copy of the id. */
-import { BURNT_ITEM } from '../core/artisan.js?v=0.2.29';
+import { BURNT_ITEM } from '../core/artisan.js?v=0.2.30';
 
 /* ── ARTISAN LANE CLASSIFICATION — THE FAIL-CLOSED SEAM ─────────────────────
    The audit's rule is "payable = ARTISAN_RECIPES minus cooking". A NEW artisan
@@ -342,16 +342,6 @@ export function shopGrantIds() {
   return s;
 }
 
-/** Every ITEM a quest pays out. */
-export function goalRewardIds() {
-  const s = new Set();
-  for (const k of Object.keys(QUEST_REWARDS || {})) {
-    const items = QUEST_REWARDS[k] && QUEST_REWARDS[k].items;
-    if (items) for (const id of Object.keys(items)) if (id) s.add(id);
-  }
-  return s;
-}
-
 /** Every SEED id in the crop catalogue — the plantable half of farming. */
 export function seedIds() {
   const s = new Set();
@@ -526,11 +516,10 @@ export function unclassifiedGrantIds(opts) {
   addAll(universe, cropProductIds());
   addAll(universe, dungeonRewardIds(dungeons));
   for (const skill of Object.keys(ARTISAN_RECIPES || {})) addAll(universe, artisanOutputIds(skill));
-  /* …and every NON-ENGINE grant source (security C3): shop stock, quest
-     payouts and the seeds themselves. A new row in any of those tables now has
-     to be ruled, not discovered live. */
+  /* …and every NON-ENGINE grant source (security C3): shop stock and the seeds
+     themselves. A new row in either table now has to be ruled, not discovered
+     live. */
   addAll(universe, shopGrantIds());
-  addAll(universe, goalRewardIds());
   addAll(universe, seedIds());
 
   const out = [];
@@ -628,7 +617,7 @@ if (typeof window !== 'undefined') {
     unbackedOwnableMintLanes, pendingUnbackedOwnableMints, flipArmBlockers,
     COOKING_SKILL, ARTISAN_SETTLEMENT, COOKING_SETTLEMENT_ARM_ENABLED,
     gatherProductIds, cropProductIds, combatDropIds, artisanOutputIds, seedIds,
-    shopGrantIds, goalRewardIds,
+    shopGrantIds,
     cookingOutputIds, payableArtisanOutputIds, bossRewardIds, dungeonRewardIds,
     serverConsumedIds, serverConsumedItem,
     buildItemAuthority, itemAuthority, rebuildItemAuthority,

@@ -25,6 +25,9 @@
 //   HELLO-1 an idle settle answer ({accrued:false}) is never applied as the character: the full read follows
 //   HUNT-1 while the server holds a hunt open the character asks the hunter's settle every huntPollMs
 //          (attended): the track reaches the timeline; the envelope that says it ended stops the asking
+//   TOWN-1 while the Work window or the bag watches town work (a node or a bench the server holds) the
+//          viewed character asks one settle per townPollMs, never two in flight, never for an idle hero
+//          or a hunter; the answer replaces the bag (Tyler 2026-10-22: "the bag needs to update in real time")
 //   HUNT-2 a pending leave is settled at once (away-owed time) and its envelope replaces the open hunt
 //   LEAVE-1 a pending leave's close is re-read a hair after the SERVER's leave_at (server clock), moving
 //          an armed poll earlier; the closing envelope ends the hunt and the re-reads stop
@@ -74,6 +77,7 @@ async function load(base) {
     AU: await import(u('src/net/auth.js')),
     NB: await import(u('src/net/supabase-bootstrap.js')),
     CFG: await import(u('src/session/config.js')),
+    TP: await import(u('src/session/town-poll.js')),
   };
 }
 
@@ -120,7 +124,7 @@ const timers = { setTimer: () => 0, clearTimer: () => {} };
 async function rules(M) {
   const fails = [];
   const t = async (id, fn) => { try { const r = await fn(); if (r !== true) fails.push(id + ': ' + r); } catch (e) { fails.push(id + ': threw ' + e.message); } };
-  const { E, R, C, A, S, AU, NB, CFG } = M;
+  const { E, R, C, A, S, AU, NB, CFG, TP } = M;
 
   await t('ENV-1', () => {
     const a = E.applyEnvelope(null, env(3, { skills: { mining: 5 }, buffs: [1] })).record;
@@ -323,6 +327,43 @@ async function rules(M) {
     await new Promise((r) => setImmediate(r));
     if (!cs.record.data.hunt.ended) return 'the ended hunt did not replace the open one';
     return armed.length === 0 || 'an ended hunt kept re-reading';
+  });
+  /* TOWN-1 (Tyler 2026-10-22, "the bag needs to update in real time, not when it's done"): the shell's display
+     tick calls watchTown while the Work window or the bag is open; a town pointer the server holds is re-read
+     once per townPollMs (just over the engine's 15 s town floor), and the answer replaces the bag. */
+  await t('TOWN-1', async () => {
+    let clock = 1000;
+    const work = (v, inv) => env(v, { state: { gold: 1, active_kind: 'artisan', active_id: 'cook_shrimp' }, inventory: inv });
+    const calls = [];
+    let release = null;
+    const srv = {
+      rpc: async (name) => { calls.push(name); return { ok: true, status: 200, body: work(1, { raw_shrimp: 40 }), closed: false }; },
+      accrue: async (b) => {
+        calls.push('accrue:' + b.slot);
+        await new Promise((r) => { release = r; });
+        return { ok: true, status: 200, body: Object.assign({ accrued: true }, work(2, { raw_shrimp: 28, shrimp: 12 })), closed: false };
+      },
+    };
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, now: () => clock, ...timers });
+    await cs.load();
+    clock += CFG.SESSION_CONFIG.townPollMs - 1;
+    if (TP.watchTown(cs)) return 'it asked before townPollMs had passed since the last answer';
+    clock += 1;
+    if (!TP.watchTown(cs)) return 'a watched bench was not re-read after townPollMs';
+    await new Promise((r) => setImmediate(r));
+    clock += CFG.SESSION_CONFIG.townPollMs;
+    if (TP.watchTown(cs)) return 'a second ask went out while one was in flight';
+    if (!release) return 'the ask never reached the engine: ' + calls.join(',');
+    release();
+    for (let i = 0; i < 4; i++) await new Promise((r) => setImmediate(r));
+    if (calls.join(',') !== 'hr_load,accrue:0') return 'the re-read did not ask the settle for the slot: ' + calls.join(',');
+    if (cs.read('inventory').shrimp !== 12 || cs.read('inventory').raw_shrimp !== 28) return 'the settle did not replace the bag: ' + JSON.stringify(cs.read('inventory'));
+    if (TP.watchTown(cs)) return 'it asked again at once after an answer';
+    const run = (k, id, hunt) => TP.townWorkRunning({ active_kind: k, active_id: id }, hunt || null);
+    if (run('idle', null) || run('combat', 'wolf')) return 'an idle hero or a fight is re-read as town work';
+    if (run('gather', 'normal_tree', { session_id: 'h1', ended: false })) return 'a hunter is re-read as town work (the hunt has its own re-read)';
+    if (!run('gather', 'normal_tree', { session_id: 'h1', ended: true }) || !run('artisan', 'cook_shrimp')) return 'a node or a bench after a hunt is not re-read';
+    return true;
   });
   /* HUNT-1F (live v0.2.20, the http origin's blocked calls): an ask for the live start point that brings
      NO answer backs off like one that brings no start point; it never re-arms every liveAskMs forever. */
@@ -791,6 +832,10 @@ const MUTANTS = [
   ['waking a hidden tab checks nothing', 'src/net/auth.js', "if (o.doc.visibilityState === 'visible') freshToken();", "if (false) freshToken();"],
   ['a failed live ask re-arms at once, forever', 'src/session/character-session.js', 'if (!took) this.liveLink.missed();', ''],
   ['the live ask gives up after two tries', 'src/session/live-link.js', '      this.want = true;\n      this._tries++;', '      this.want = this._tries < 2;\n      if (this.want) this._tries++;'],
+  ['a watched bench waits until it is done', 'src/session/town-poll.js', "  if (!townAskDue(townWorkRunning(cs.read('state'), cs.read('hunt')), a.busy, a.at, cs.receivedAt, now)) return false;", '  return false;'],
+  ['the town re-read asks every display tick', 'src/session/town-poll.js', '  return nowMs - since >= SESSION_CONFIG.townPollMs;', '  return true;'],
+  ['two town re-reads in flight', 'src/session/town-poll.js', '  if (!running || busy) return false;', '  if (!running) return false;'],
+  ['a hunter is re-read as town work', 'src/session/town-poll.js', "  return !(hunt && typeof hunt === 'object' && typeof hunt.session_id === 'string' && hunt.ended !== true);", '  return true;'],
   ['an idle settle replaces the character', 'src/session/character-session.js', "if (ans.ok && ans.body && ans.body.accrued !== true) return this.load();", ""],
 ];
 
@@ -808,7 +853,7 @@ async function main() {
   if (!mutate) {
     const fails = [...await rules(await load(ROOT)), ...await viewRules(ROOT)];
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (33 rules)');
+    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (34 rules)');
     process.exit(fails.length ? 1 : 0);
   }
   let bad = 0;

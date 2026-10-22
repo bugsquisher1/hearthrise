@@ -12,14 +12,17 @@
 // The server runs it. Start is ONE `set_activity` naming { kind:'gather', id:<node> }
 // or { kind:'artisan', id:<recipe> }; the engine checks the level against its own
 // catalogue (`activity_locked`), collects whatever ran before, and from then on:
-//   · a gathering node is paid by the world tick (live: hr_tick_config arms
-//     `gather`), so the bag and the skill grow on screen from the envelopes,
-//     and it keeps going with the browser closed;
-//   · a bench recipe spends the SERVER's bag at its own pace and is paid when it
-//     is collected: the stop below, the next sign-in's settle, or a hunt's start
-//     (party-intents.js settleTownActivity). It stops paying when an input runs
-//     out. A bench run is armed to stop itself a little after the bag should be
-//     spent, so the bag and the XP land on screen without a press.
+//   · both settle AS THEY GO while the Work window or the bag is open: the
+//     viewed character asks one settle per townPollMs (src/session/town-poll.js,
+//     the engine's 15 s town floor), so the bag, the skill XP and the line below
+//     ("Cooking Raw Shrimp: 12 cooked so far, 30 left.") move every settle
+//     (Tyler 2026-10-22: "the bag needs to update in real time");
+//   · unwatched, they keep running on the server and the next settle pays all of
+//     it: a watched one, the stop below, a hunt's start (party-intents.js
+//     settleTownActivity) or the next sign-in. A bench spends the SERVER's bag at
+//     its own pace and stops itself when an input runs out; a bench run is also
+//     armed to stop a little after the bag should be spent, so the "Done" words
+//     land without a press.
 // Stop is ONE `set_activity` { kind:'idle' }: the engine pays first. A start
 // while something else runs is a switch, also ONE intent (the engine collects the
 // old one first), so a player never has to stop before choosing again.
@@ -50,6 +53,8 @@ export const BENCH_INDEX = indexArtisanRecipes(ARTISAN_RECIPES);
 const SLACK_MS = 2000;
 const MAX_WAIT_MS = 30 * 60 * 1000;
 const BURNT = 'burnt_food';
+/* "12 chopped so far": what one action did, by skill (any other bench "made"). */
+const DONE_WORD = Object.freeze({ cooking: 'cooked', woodcutting: 'chopped', mining: 'mined', fishing: 'caught' });
 
 const own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
 const skillWord = (s) => (SKILLS_DEF[s] && SKILLS_DEF[s].name) || s;
@@ -103,6 +108,8 @@ function workWords(w) {
     return verb + w.row.name;
   }
   const out = productOf(w);
+  /* A dish names what goes on the fire ("cooking Raw Shrimp"), any other bench what it makes. */
+  if (out && w.skill === 'cooking') return 'cooking ' + itemName(Object.keys(recipeInputs(w.row))[0] || out);
   if (out) return 'making ' + itemName(out);
   /* A Prayer rite makes nothing: its own verb ("Bury Bones" -> "burying Bones"). */
   const [verb, ...rest] = String(w.row.name).split(' ');
@@ -196,11 +203,38 @@ export function stopWork(cs, send) {
   });
 }
 
-/** The line that says what the hero is doing in town, or '' when nothing runs. */
+/**
+ * How far the run has got, in plain words from the SERVER's bag: "12 cooked so far, 2 burnt, 30 Raw Shrimp
+ * left", "12 chopped so far". "So far" is the difference from the envelope the start answered with (this tab
+ * only); after a reload a node says what the bag holds and a bench what is left. Every settle replaces it;
+ * nothing spends it.
+ */
+export function runProgress(cs, w) {
+  if (!w) return '';
+  const bag = invOf(cs);
+  const run = RUNS.get(cs);
+  const from = run && run.from && run.from.id === w.id ? run.from : null;
+  const out = productOf(w);
+  const parts = [];
+  if (out && from) {
+    const made = Math.max(0, (bag[out] || 0) - from.made);
+    const burnt = Math.max(0, (bag[BURNT] || 0) - from.burnt);
+    parts.push(whole(made) + ' ' + (DONE_WORD[w.skill] || 'made') + ' so far');
+    if (burnt > 0) parts.push(whole(burnt) + ' burnt');
+  } else if (out && w.kind === 'gather') parts.push(whole(bag[out] || 0) + ' in your bag');
+  if (w.kind === 'artisan') {
+    const first = Object.keys(recipeInputs(w.row))[0];
+    if (first) parts.push(whole(bag[first] || 0) + ' ' + itemName(first) + ' left');
+  }
+  return parts.join(', ');
+}
+
+/** The line that says what the hero is doing in town and how far it has got, or '' when nothing runs. */
 export function nowLine(cs) {
   const w = workOf(cs);
   if (!w) return '';
-  const tail = w.kind === 'gather' ? 'It keeps going while you are away. A hunt stops it.'
-    : 'It stops when the materials run out. Your bag and XP update then, or when you stop it.';
-  return 'Your hero is ' + workWords(w) + '. ' + tail;
+  const words = workWords(w);
+  const how = runProgress(cs, w);
+  const tail = w.kind === 'gather' ? 'It keeps going while you are away. A hunt stops it.' : 'It stops when they run out.';
+  return words.charAt(0).toUpperCase() + words.slice(1) + (how ? ': ' + how : '') + '. ' + tail;
 }

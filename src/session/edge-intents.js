@@ -9,9 +9,9 @@
 //   shop_buy          { offer, qty }                                   buy a server-priced offer
 //   eat               { item }                                         eat one food now
 //   sheet             {}                                               compute the character sheet
-//   set_activity      { activity: { kind: 'artisan', id } | { kind: 'idle' } }
-//                                                                      start a bench recipe (the
-//                                                                      Inventory's Bury) / stop; the
+//   set_activity      { activity: { kind: 'gather' | 'artisan', id } | { kind: 'idle' } }
+//                                                                      start a gathering node or a bench
+//                                                                      recipe (town-work.js) / stop; the
 //                                                                      engine collects before it switches
 // EDGE_INTENTS lists them with the ONLY fields each may carry. Every field is a
 // NAME or a COUNT; no field is a price, a total or a balance, so a body built
@@ -28,7 +28,7 @@ export const EDGE_INTENTS = Object.freeze({
   eat: Object.freeze(['item']),
   /* The character sheet: the slot and nothing else (hr-accrue character-sheet.js). */
   sheet: Object.freeze([]),
-  /* Bury (and the other Prayer offerings) is the artisan recipe; idle stops it. */
+  /* Town work (src/shell/town-work.js): a gathering node or a bench recipe by id; idle stops it. */
   set_activity: Object.freeze(['activity']),
 });
 
@@ -65,11 +65,12 @@ const FIELD = Object.freeze({
   offer: (v) => (typeof v === 'string' && v.length <= 64 && OFFER.test(v) ? v : null),
   qty: (v) => (qtyOk(v) ? v : null),
   item: (v) => (typeof v === 'string' && ID.test(v) ? v : null),
-  /* Only the two declarations the client makes: a bench recipe by id, or stop. */
+  /* Only the declarations the client makes: a gathering node or a bench recipe by id, or stop. Never `combat`
+     (a hunt is hr_hunt_enter's) and never `training`. */
   activity(v) {
     if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
     if (v.kind === 'idle' && (v.id === undefined || v.id === null)) return { kind: 'idle' };
-    return v.kind === 'artisan' && typeof v.id === 'string' && ID.test(v.id) ? { kind: 'artisan', id: v.id } : null;
+    return (v.kind === 'artisan' || v.kind === 'gather') && typeof v.id === 'string' && ID.test(v.id) ? { kind: v.kind, id: v.id } : null;
   },
 });
 

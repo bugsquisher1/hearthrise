@@ -24,7 +24,7 @@ export const SKILL_GUIDE = Object.freeze({
   fishing: row('uiRod', 'Raw fish for Cooking.', 'Fish at a fishing spot.'),
   farming: row('uiSprout', 'Crops for Cooking and for drinks.', 'Plant seeds in your plots.'),
   cooking: row('uiPot', 'Food that heals and drinks that restore mana on a hunt.', 'Cook what you fish and grow.'),
-  crafting: row('uiHammer', 'Planks, leather gear and the parts other skills need.', 'Craft at the workbench.'),
-  smithing: row('uiAnvil', 'Metal bars, weapons and armour.', 'Smith at the forge.'),
+  crafting: row('uiHammer', 'Planks, arrows and bolts, and timber for building your home.', 'Saw logs and fletch at the workbench.'),
+  smithing: row('uiAnvil', 'Metal bars, axes and pickaxes, whetstones for melee, and fittings for your home.', 'Smelt ore and forge bars.'),
   runecrafting: row('uiGem', 'Runes your spells spend, better than the shop’s.', 'Bind essence into runes.'),
 });

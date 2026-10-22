@@ -19,7 +19,7 @@ import { renderFriends } from './windows/friends.js?v=0.2.28';
 import { renderInspect } from './windows/inspect.js?v=0.2.28';
 import { renderSettings } from './windows/settings.js?v=0.2.28';
 import { renderInventory } from './windows/inventory/index.js?v=0.2.28';
-import { renderTradeSkills } from './windows/skills.js?v=0.2.28';
+import { renderWork } from './windows/work.js?v=0.2.28';
 import { renderCharacter } from './windows/character/index.js?v=0.2.28';
 import { renderHunts } from './windows/hunts.js?v=0.2.28';
 import { renderStorage } from './windows/storage.js?v=0.2.28';
@@ -39,7 +39,7 @@ export const WINDOW_RENDERERS = Object.freeze({
   hunts: renderHunts,
   inventory: renderInventory,
   character: renderCharacter,
-  'skills-trade': renderTradeSkills,
+  'skills-trade': renderWork,
   storage: renderStorage,
   shop: renderShop,
   services: renderServices,

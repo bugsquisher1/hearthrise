@@ -13,6 +13,8 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **What next.** When the guide ends, it points to your next hunting ground and your weapon skill's next unlock. Reaching a new Level now shows over your hero. Coming back after a while shows what your hero did while you were away.
 
+**Work in town.** The Gathering and crafting window (G) now lets you start any gathering or crafting skill you have the level for: chop trees, mine ore, smelt bars, forge tools, cook food. Your hero keeps working while you are away, and a hunt stops it. Raw food in your bag has a Cook all button.
+
 **Numbers you can trust.** The food on the hunt bar counts what is really in your hunt bag. Max health updates as soon as you level up. Gold now means coins only; unsold loot has its own line. Bones are kept for Prayer when you sell all loot, and the hunt summary's Open bag button works.
 
 ## v0.2.27 — 2026-10-22 (Level XP and training, clearer deaths)

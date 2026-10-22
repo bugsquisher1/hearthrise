@@ -53,7 +53,10 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    history; sixteen armour rows that carried no armourClass (iron/steel plate and helm, bronze belt, leather
    boots and gloves, nine uniques) gain their armour_weight, so iron plate no longer gives less max HP than
    bronze. Same full delete+insert replace; the self-check asserts no armour-slot armour row is weightless. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2026-11-09-armour-class-catalogue.generated.sql');
+/* COAL AT ANY LEVEL (lane c-work-fixes, 2026-10-22): 2026-11-09-armour-class-catalogue.generated.sql is APPLIED
+   history; hr_activities.coal_rock opens at Mining 1 (Tyler 2026-10-14: first tiers, coal included, at any
+   level). Same full delete+insert replace. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2026-11-29-coal-any-level-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already

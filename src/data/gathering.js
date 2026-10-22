@@ -59,8 +59,17 @@ export const ROCKS=[
      conjured on the Runecrafting bench, so hired hands and the world tick work
      it like any ore and it vendors at the raw 20% bid (3 g). */
   {id:'essence_rock',name:'Rune Essence',icon:'🪨',req:1,xp:21,ms:3000,prod:'rune_essence',qty:[1,1]},
+  /* COAL AT ANY LEVEL (Tyler 2026-10-14, rulings-of-record: "first tiers, including
+     coal, are gatherable at the town edge at any level"; lane/c-work-fixes 2026-10-22).
+     It was Mining 30. A first-tier node is a SUPPLY, not an XP rung: its paced
+     XP a second sits just under Copper's (floor(38 x 0.39) / 8.8 s = 1.59 vs 1.67),
+     so a level-1 miner gains nothing by skipping the copper ladder and Iron (15)
+     stays the next XP step. ms is unchanged, so coal arrives exactly as fast as
+     before and the Rich Coal Seam (52) keeps its ~2.5x. Every coal SINK is still
+     Smithing 30+ (steel), so the self-supply rule in recipes.js holds.
+     (The Coal(10.36)-to-Dawnstone xp climb below now starts at Verdite.) */
+  {id:'coal_rock',name:'Coal Rock',icon:'⬛',req:1,xp:38,ms:5500,prod:'coal',qty:[1,1]},
   {id:'iron_rock',name:'Iron Rock',icon:'⬜',req:15,xp:40,ms:4500,prod:'iron_ore',qty:[1,1]},
-  {id:'coal_rock',name:'Coal Rock',icon:'⬛',req:30,xp:57,ms:5500,prod:'coal',qty:[1,1]},
   /* b390 (game-design / gathering-plateau ruling): xp 75 → 79. The mid-to-high
      mining band had gone FLAT — Gold(45)→Rich Coal(52)→Mithril(60) moved only
      ~10.7→10.8→11.5 xp/sec, so +15 levels bought ~+8% training speed and an

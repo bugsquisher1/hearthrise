@@ -173,9 +173,9 @@ export function currentCard(facts, rows = HUNT_TUTORIAL) {
 /* The skill the role's weapon trains (Tyler 2026-10-14: classless Melee / Ranged / Magic). */
 export const ROLE_SKILL = Object.freeze({ tank: 'melee', melee_dps: 'melee', ranger: 'ranged', mage: 'magic', healer: 'magic' });
 
-/** The playable hunts (a ground row), lowest band floor first. */
+/** The playable hunts (a ground row, not `staged`: built but not open is never a goal), lowest band floor first. */
 const groundHunts = () => Array.from(new Set(Object.values(HUNT_GROUNDS).map((g) => g.hunt)))
-  .filter((h) => HUNT_INDEX[h]).sort((a, b) => HUNT_INDEX[a].band[0] - HUNT_INDEX[b].band[0]);
+  .filter((h) => HUNT_INDEX[h] && HUNT_INDEX[h].staged !== true).sort((a, b) => HUNT_INDEX[a].band[0] - HUNT_INDEX[b].band[0]);
 
 /**
  * The goal line after the guide, or null (nothing left to name). `facts`: { charLevel, role, skillLevel }

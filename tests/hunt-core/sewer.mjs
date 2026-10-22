@@ -341,7 +341,7 @@ const cases = {
     const html = renderLaunchers({ character: { read: (k) => sewerEnv[k] }, glyphs: {}, hud: { isShown: () => false },
       wm: { openIds: () => [], rows: () => [], row: () => null } });
     const goal = (/data-tutorial="([a-z0-9_]+)"/.exec(html) || [])[1] || '';
-    const next = Object.values(M.HUNTS).filter((h) => Object.values(M.grounds.HUNT_GROUNDS).some((g) => g.hunt === h.id) && h.band[0] > L)
+    const next = Object.values(M.HUNTS).filter((h) => h.staged !== true && Object.values(M.grounds.HUNT_GROUNDS).some((g) => g.hunt === h.id) && h.band[0] > L)
       .sort((a, b) => a.band[0] - b.band[0])[0];
     if (!goal.startsWith('goal_')) return 'after the guide (Level ' + L + ', in the Sewer) the pointer shows ' + (goal || 'nothing');
     if (next && !html.includes(next.name)) return 'the what-next line does not name ' + next.name + ': ' + html;

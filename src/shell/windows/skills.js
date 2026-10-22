@@ -16,15 +16,15 @@
 // entry's tooltip. Every level and XP number is the envelope's `skills`,
 // replaced on each envelope; the windows send nothing.
 // ════════════════════════════════════════════════════════════════════════
-import { SKILLS_DEF } from '../../data/skills.js?v=0.2.24';
-import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.24';
-import { skillXpForLevel, skillCapOf } from '../../core/xp.js?v=0.2.24';
-import { nextUnlock } from '../../data/skill-unlocks.js?v=0.2.24';
-import { skillsOf } from '../../session/item-sections.js?v=0.2.24';
-import { rows, text, cls, style, attr, element } from '../../render/paint.js?v=0.2.24';
-import { whole } from '../../render/format.js?v=0.2.24';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.24';
-import { glyphSvg } from '../launcher.js?v=0.2.24';
+import { SKILLS_DEF } from '../../data/skills.js?v=0.2.25';
+import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.25';
+import { skillXpForLevel, skillCapOf } from '../../core/xp.js?v=0.2.25';
+import { nextUnlock } from '../../data/skill-unlocks.js?v=0.2.25';
+import { skillsOf } from '../../session/item-sections.js?v=0.2.25';
+import { rows, text, cls, style, attr, element } from '../../render/paint.js?v=0.2.25';
+import { whole } from '../../render/format.js?v=0.2.25';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.25';
+import { glyphSvg } from '../launcher.js?v=0.2.25';
 
 /* Is `level` the skill's last (a capped skill at its cap)? Combat skills have none. */
 const mastered = (id, level) => { const cap = skillCapOf(id); return cap !== null && level >= cap; };

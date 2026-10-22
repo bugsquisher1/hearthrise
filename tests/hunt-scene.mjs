@@ -42,6 +42,9 @@
 //         role's default — a druid-clad sword hero never flips to the knight
 //   SC-10 NO SPIN: a hero standing between swings keeps facing its target; it
 //         never turns back to its last walk heading and round again each swing
+//   SC-12 THE LEVEL-UP MOMENT: "Level N" rises over the viewed hero once when the
+//         server's Level goes up, never on a mount or reload, and not when its
+//         Combat text toggle is off (designer 2026-10-22)
 // ════════════════════════════════════════════════════════════════════════
 import { mkdtempSync, cpSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -70,6 +73,7 @@ async function load(base) {
     TER: await u('src/data/world/terrain.js'),
     SETS: await u('src/data/world/atlas-sets.js'),
     AB: await u('src/data/world/art-budget.js'),
+    XP: await u('src/core/xp.js'),
   };
   const manifests = {};
   for (const set of M.SETS.ATLAS_SETS) manifests[set] = JSON.parse(readFileSync(join(ROOT, 'assets/world/atlas-' + set + '.json'), 'utf8'));
@@ -361,6 +365,28 @@ async function rules(M) {
     const up = seen.filter((d) => !d.under || d.bar !== undefined);
     ok('SC-11', seen.length > 0 && up.length === 0, 'a rat killed mid-step was drawn standing in ' + up.length + ' of ' + seen.length + ' frames: ' + JSON.stringify(up[0] || null));
   }
+
+  { // SC-12: the level-up moment plays once when the SERVER's Level rises, never on a mount, and obeys its toggle
+    const xpAt = (L) => M.XP.charXpForLevel(L);
+    const lv = (version, serverNow, L) => { const e = envelope(version, serverNow); e.state = Object.assign({}, e.state, { level_xp: xpAt(L) }); return e; };
+    const levelFloats = (f) => f.floats.filter((x) => /^Level \d+$/.test(x.text));
+    const run = async (off) => {
+      const clock = { t: C0 };
+      const cs = session(M, clock, [lv(7, S0, 4), lv(8, S0 + 1000, 5)]);
+      await cs.load();
+      if (off) cs.setResidue('combatText', M.F.withFloat(cs, 'level', 'regular', false));
+      const v = viewer(M, cs);
+      const mount = levelFloats(v.at(at(S0 + 500)));
+      clock.t = C0 + 1000;
+      await cs.load();
+      const up = levelFloats(v.at(at(S0 + 1100)));
+      const later = levelFloats(v.at(at(S0 + 1200)));
+      return { mount, up, later };
+    };
+    const on = await run(false), off = await run(true);
+    ok('SC-12', on.mount.length === 0 && on.up.length === 1 && on.up[0].text === 'Level 5' && on.later.length === 1 && off.up.length === 0,
+      'the Level rose 4 -> 5 on the server: mount ' + JSON.stringify(on.mount) + ', after ' + JSON.stringify(on.up) + ', a frame later ' + on.later.length + ', toggle off ' + JSON.stringify(off.up));
+  }
   return fails;
 }
 
@@ -385,6 +411,9 @@ const MUTANTS = [
   ['the hunt draws the role default, not the chosen outfit', 'src/hunt-view/scene.js', '    if (u === read.viewed && read.look) return read.look;', 'if (false) return read.look;'],
   ['a standing hero turns back to its walk heading after a swing', 'src/hunt-view/scene.js', 'if (!p.moving && s && now - s.at >= 0) {', 'if (!p.moving && s && now - s.at >= 0 && now - s.at < 700) {'],
   ['a corpse greys its idle instead of its death clip', 'src/hunt-view/scene.js', '          corpse = corpseFrame(id, clips, dir, age);', '          corpse = null;'],
+  ['a Level rise plays no moment', 'src/hunt-view/scene.js', '    if (p) floats.push({ text: \'Level \' + lv,', '    if (false) floats.push({ text: \'Level \' + lv,'],
+  ['a mount plays a level-up it never saw', 'src/hunt-view/scene.js', 'const up = lastLevel !== null && lv > lastLevel;', 'const up = lv > (lastLevel || 0);'],
+  ['the level-up ignores its toggle', 'src/hunt-view/scene.js', "!read.shown('level', false)", 'false'],
 ];
 
 async function main() {

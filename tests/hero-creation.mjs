@@ -35,7 +35,8 @@ import { START_INVENTORY, START_EQUIPMENT, STARTER_SETS } from '../src/data/star
 import { BASE_REGIONS, BASE_DEFAULT_COLORS } from '../src/data/outfits.js';
 import { roleForWeapon, roleWeaponOf } from '../src/data/hunt-roles.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
-import { heroCells, refusalText } from '../src/app/hero-create.js';
+import { heroCells, refusalText, howYouFightHtml } from '../src/app/hero-create.js';
+import { HOW_YOU_FIGHT, validate as validateHowToPlay } from '../src/data/how-to-play.js';
 import { shopOf } from '../src/session/item-sections.js';
 import { renderShop } from '../src/shell/windows/shop.js';
 import { renderHuntSummary } from '../src/shell/windows/hunt-summary.js';
@@ -82,7 +83,7 @@ const OLD_SHOP = { offers: [{ offer: 'supply.cooked_shrimp', item: 'cooked_shrim
   { offer: 'supply.turnip_juice', item: 'turnip_juice', kind: 'drink', price: 8 }, { offer: 'supply.barbed_arrows', item: 'barbed_arrows', kind: 'ammo', price: 2 },
   { offer: 'supply.bronze_axe', item: 'bronze_axe', kind: 'tool', price: 120 }], bids: {}, refill: { lines: [], total: 0 } };
 const WINDOWS = { shop: renderShop, summary: renderHuntSummary, prep: renderHuntPrep };
-export function checkClient({ cells = heroCells, text = refusalText, shop = shopOf, windows = WINDOWS } = {}) {
+export function checkClient({ cells = heroCells, text = refusalText, shop = shopOf, windows = WINDOWS, howHtml = howYouFightHtml, howValidate = validateHowToPlay } = {}) {
   const out = [];
   const colorOf = (t) => TOKENS[t];
   const a = cells(BASE_DEFAULT_COLORS, colorOf);
@@ -107,6 +108,12 @@ export function checkClient({ cells = heroCells, text = refusalText, shop = shop
   if (/data-tab="refill"|data-hs-act="refill"/.test(windows.shop())) out.push('H-C3 the Shop still has a Refill');
   if (/data-hs-act="refill"/.test(windows.prep())) out.push('H-C3 Hunt prep still offers a refill');
   if (/restock/i.test(windows.summary())) out.push('H-C3 the hunt summary still offers Restock');
+  // H-C4 the step says how you fight where a newcomer looks for a class (Tyler 2026-10-22): no class, the
+  // weapon is the style, one line per way to fight naming its starter weapon, every role and starter weapon covered.
+  const how = howHtml();
+  if (!/no class to pick/i.test(how) || !/weapon you hold/i.test(how)) out.push('H-C4 the creation step does not say the weapon, not a class, sets the style');
+  for (const r of HOW_YOU_FIGHT) if (!how.includes('data-style="' + r.id + '"') || !how.includes(r.name)) out.push(`H-C4 the creation step leaves out ${r.name}`);
+  for (const p of howValidate()) out.push('H-C4 ' + p);
   return out;
 }
 
@@ -214,7 +221,8 @@ const DATA_MUTANTS = {
   preview_ignores_pick: { why: 'the preview paints the default colours whatever is picked', run: () => checkClient({ cells: (c, f) => heroCells(BASE_DEFAULT_COLORS, f) }) },
   shop_sells_food: { why: 'the session keeps a food offer a server still sends', run: () => checkClient({ shop: (cs) => ({ offers: cs.read('shop').offers, bids: new Map() }) }) },
   summary_restock: { why: 'the hunt summary offers Restock again', run: () => checkClient({ windows: { ...WINDOWS, summary: () => renderHuntSummary() + '<button data-hs-act="restock">Restock</button>' } }) },
-};
+  creation_silent_on_styles: { why: 'the creation step says nothing about how you fight', run: () => checkClient({ howHtml: () => '' }) },
+  style_row_dropped: { why: 'the staff (Healer) row leaves the how-you-fight list', run: () => checkClient({ howHtml: () => howYouFightHtml().replace(/<li data-style="heal">.*?<\/li>/, '') }) },};
 
 if (isMain(import.meta.url)) {
   const sql = (await readFile(join(ROOT, 'supabase', 'migrations', MIG), 'utf8')).replace(/\r\n/g, '\n');

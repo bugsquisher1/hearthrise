@@ -3,7 +3,11 @@
 //
 // "Creating a hero opens a short step: type a name, pick colours for Head,
 // Body, Legs and Feet, see the hero update as you pick. The hero enters town
-// only after you confirm." No role pick: the role is the weapon's.
+// only after you confirm." No role pick: the role is the weapon's, and the step
+// SAYS so where a newcomer looks for a class (Tyler 2026-10-22: explain the
+// combat styles and how they are chosen): a "How you fight" column from
+// src/data/how-to-play.js HOW_YOU_FIGHT (desktop; the phone sheet keeps the
+// lead line, and the whole list is in Settings > Help).
 //
 // The step is a form over the characters card. Nothing it holds is authority:
 // Confirm sends ONE intent (AccountSession.create → hr_create_hero) with the
@@ -14,6 +18,7 @@
 // PURE of globals: the document and the dye colours are handed in.
 // ════════════════════════════════════════════════════════════════════════
 
+import { HOW_YOU_FIGHT, HOW_YOU_FIGHT_LEAD } from '../data/how-to-play.js?v=0.2.27';
 import { BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, REGION_LABEL } from '../data/outfits.js?v=0.2.27';
 import { HERO_BASE_ROWS, HERO_BASE_W, HERO_BASE_H, HERO_BASE_LEGEND, HERO_SHADE_PERMILLE } from '../data/hero-base.js?v=0.2.27';
 
@@ -79,6 +84,14 @@ export function heroCells(colors, colorOf) {
   return out;
 }
 
+/** The "How you fight" column: the rule, then one line per way to fight. Pure. */
+export function howYouFightHtml() {
+  return '<section class="hc-how" aria-labelledby="hc-how-title"><h2 class="hc-how-title" id="hc-how-title">How you fight</h2>'
+    + '<p class="hc-how-lead">' + HOW_YOU_FIGHT_LEAD + '</p><ul class="hc-how-list">'
+    + HOW_YOU_FIGHT.map((r) => '<li data-style="' + r.id + '"><b>' + r.name + '</b> ' + r.does + ' <span class="hc-how-uses">' + r.uses + '</span></li>').join('')
+    + '</ul></section>';
+}
+
 /** Paint the preview into a canvas at PREVIEW_SCALE (whole cells, no smoothing). */
 function paintPreview(canvas, colors, colorOf) {
   const ctx = canvas && canvas.getContext ? canvas.getContext('2d') : null;
@@ -114,7 +127,7 @@ export function renderHeroCreate(card, o) {
     + '<div class="hc-form">'
     + '<label class="auth-field">Name<input type="text" class="hc-name" maxlength="20" autocomplete="off" spellcheck="false" placeholder="3 to 20 letters"></label>'
     + BASE_REGIONS.map((g) => '<fieldset class="hc-region"><legend>' + REGION_LABEL[g] + '</legend><div class="hc-dyes">' + swatches(g) + '</div></fieldset>').join('')
-    + '</div></div>'
+    + '</div>' + howYouFightHtml() + '</div>'
     + '<p class="auth-message" role="status" aria-live="polite"></p>'
     + '<button type="button" class="auth-submit hc-confirm">Enter town</button>'
     + '<p class="auth-links"><button type="button" class="auth-link hc-back">Back to your characters</button></p>';

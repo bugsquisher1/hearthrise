@@ -65,7 +65,6 @@ function countKill(m, kind) {
   st.stats = st.stats || {};
   st.stats.kills = (st.stats.kills || 0) + 1;
   m.hs.tally.kills += 1;
-  call(m.fx, 'updateDaily', 'kill_any', 1);
   call(m.fx, 'updateQuest', 'kill_any', 1, { target: kind });
   call(m.fx, 'updateQuest', 'kill_monster', 1, { target: kind });
 }

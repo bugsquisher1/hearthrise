@@ -224,7 +224,6 @@ export function memberSide(mi, ctx) {
     onHearthfind(f) { if (f && f.item) finds.push({ item: f.item, source_kind: f.kind, source_id: f.id }); },
     /* THE GOAL / BESTIARY COUNTERS, fed from the kill seams (kept separate:
        one aggregate, one per-monster count, never double-counted). */
-    updateDaily(type, amt) { goals.daily(type, amt == null ? 1 : amt); },
     updateQuest(type, amt, meta) {
       goals.quest(type, amt == null ? 1 : amt);
       bestiary.record(type, amt == null ? 1 : amt, meta);

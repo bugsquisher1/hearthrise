@@ -21,7 +21,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { SKILLS_DEF } from '../../data/skills.js?v=0.2.28';
 import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.28';
-import { recipeInputs } from '../../core/artisan.js?v=0.2.28';
+import { recipeInputs, burnPct } from '../../core/artisan.js?v=0.2.28';
 import { skillsOf } from '../../session/item-sections.js?v=0.2.28';
 import { huntOf } from '../../session/hunt-sections.js?v=0.2.28';
 import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.28';
@@ -80,7 +80,7 @@ function rowHtml(g, w) {
     + '<button type="button" class="hh-tool" data-hs-act="work-go" data-kind="' + w.kind + '" data-id="' + esc(w.id) + '"></button></li>';
 }
 
-function patchRow(li, w, cs, sc, on, hunting) {
+function patchRow(li, w, cs, sc, on, hunting, lv) {
   const inv = (cs.read('inventory')) || {};
   const each = secs(actionMs(cs, w)) + ' · ' + whole(xpEach(w)) + ' XP each';
   const out = productOf(w);
@@ -88,8 +88,11 @@ function patchRow(li, w, cs, sc, on, hunting) {
   text(li.querySelector('.hw-work-what'), gather ? itemName(out) + ' · ' + each : recipeWords(w));
   const running = !!on && on.id === w.id;
   const why = running ? '' : workBlock(cs, w, hunting);
-  /* The status line: running, why not, or what the server's bag holds / covers. */
-  const have = gather ? whole(inv[out] || 0) + ' in your bag' : 'Makes up to ' + whole(runsOf(w.row, inv) * yieldOf(w)) + ' · ' + each;
+  /* The status line: running, why not, or what the server's bag holds / covers. A dish says its burn chance at the
+     server's Cooking level ("up to": a Kitchen rung the server holds burns less). */
+  const burn = w.skill === 'cooking' && out ? burnPct(w.row, lv, 0) : 0;
+  const have = gather ? whole(inv[out] || 0) + ' in your bag'
+    : 'Makes up to ' + whole(runsOf(w.row, inv) * yieldOf(w)) + ' · ' + each + (burn ? ' · burns up to ' + burn + '%' : '');
   text(li.querySelector('.hw-work-why'), why || (running ? 'Working on it now · ' : '') + have);
   cls(li, 'is-on', running);
   cls(li, 'is-locked', !running && !!why);
@@ -155,7 +158,7 @@ renderWork.patch = function patchWork(body, ctx) {
     rows(view.querySelector('.hw-work-rows'), lv === null ? [] : rowsFor(skill, lv, inv), {
       key: (w) => w.id,
       build: (w) => element(ctx.doc, rowHtml(ctx.glyphs, w)),
-      patch: (li, w) => patchRow(li, w, cs, sc, on, hunting),
+      patch: (li, w) => patchRow(li, w, cs, sc, on, hunting, lv),
     });
   }
   text(root.querySelector('.hh-intent-msg'), sc.msg);

@@ -21,6 +21,9 @@
 // "Cooking…" line reads the server's pointer (state.active_kind / active_id),
 // so it survives a reload.
 //
+// Start, the armed stop and Stop are src/shell/town-work.js's (one path with the
+// Gathering and crafting window); this file names the stack's rite or dish.
+//
 // The engine spends the WHOLE stack: it has no "this many" for a recipe, so a
 // partial run would be a client guess at the server's clock. It is not offered.
 // ════════════════════════════════════════════════════════════════════════

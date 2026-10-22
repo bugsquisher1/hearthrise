@@ -218,8 +218,9 @@ async function pure() {
   const wcs = (lv, inv) => ({ read: (k) => (k === 'skills' ? { smithing: { xp: 0, level: lv } } : k === 'inventory' ? inv : null) });
   const bronze = workRow('artisan', 'smelt_bronze');
   const said = [workBlock(wcs(1, { copper_ore: 1 }), bronze, false), workBlock(wcs(1, { copper_ore: 2 }), bronze, true),
-    workBlock(wcs(1, {}), workRow('artisan', 'forge_bronze_axe'), false), workBlock(wcs(1, { copper_ore: 2 }), bronze, false), String(runsOf(bronze.row, { copper_ore: 11 }))];
-  if (said.join('|') !== 'Needs 2 Copper Ore (you have 1).|Not while a hunt is running.|Needs Smithing 3.||5') fails.push('AW-21 the work rows say ' + JSON.stringify(said));
+    workBlock(wcs(1, {}), workRow('artisan', 'forge_bronze_axe'), false), workBlock(wcs(1, { copper_ore: 2 }), bronze, false), String(runsOf(bronze.row, { copper_ore: 11 })),
+    workBlock(wcs(1, {}), bronze, false)];
+  if (said.join('|') !== 'Needs 2 Copper Ore (you have 1).|Not while a hunt is running.|Needs Smithing 3.||5|No Copper Ore in your bag.') fails.push('AW-21 the work rows say ' + JSON.stringify(said));
   return fails;
 }
 

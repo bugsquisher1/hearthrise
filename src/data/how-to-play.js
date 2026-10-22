@@ -60,6 +60,8 @@ export const HELP_NOTES = Object.freeze([
     'Each slot is one spell, food or drink, with up to three conditions such as My HP % below 60. The first slot that can fire, fires, so put the most important one first.'),
   note('levels', 'Level and skills',
     'Every kill pays Level XP, and each Level raises your health and mana. Melee, Ranged, Magic and Defense rise by doing them: fighting with that weapon, or taking blows in armour. Level has no cap.'),
+  note('town', 'Work in town',
+    'Between hunts your hero can chop, mine, fish, cook, smith, craft and bind runes. Open Gathering and crafting (G), press a skill and choose what to do. Gathering keeps going with the game closed; making something uses what is in your bag. A hunt stops either one.'),
   note('heroes', 'Several heroes at once',
     'Your account starts with two hero slots, and up to four heroes can play at the same time. Your own heroes join your party straight away, so one can hold the monsters while another heals.'),
   note('death', 'If your hero dies',

@@ -121,7 +121,7 @@ export function workBlock(cs, w, huntRunning) {
     const inv = invOf(cs);
     for (const [id, need] of Object.entries(recipeInputs(w.row))) {
       const have = inv[id] || 0;
-      if (have < need) return 'Needs ' + whole(need) + ' ' + itemName(id) + (have ? ' (you have ' + whole(have) + ').' : '.');
+      if (have < need) return have ? 'Needs ' + whole(need) + ' ' + itemName(id) + ' (you have ' + whole(have) + ').' : 'No ' + itemName(id) + ' in your bag.';
     }
   }
   return '';

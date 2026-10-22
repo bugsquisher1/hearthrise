@@ -181,12 +181,9 @@ export const UNREACHABLE_FATES = Object.freeze({
    Only `staged` may grow, and only with a ground whose opening the guard proves; every
    other fate is held under UNREACHABLE_CEILING. */
 export const UNREACHABLE = Object.freeze({
-  /* Mosslight Glade's drops, and what its Walking Vine's Magic Essence feeds: deep runes and the rune bar line. */
-  staged: Object.freeze([
-    'iron_platebody', 'studded_pants', 'studded_boots', 'crow_quill', 'snare_wire', 'mosslight_tendril',
-    'sluice_crust', 'rooks_moss_charm', 'rooks_whistle', 'magic_essence', 'deep_rune_blank', 'death_rune', 'blood_rune',
-    'rune_bar', 'rune_whetstone', 'dawn_whetstone', 'rune_axe', 'rune_pickaxe', 'rune_arrows', 'moonbloom_elixir',
-  ]),
+  /* Empty since Mosslight Glade opened on its art (lane b-mosslight-art, v0.2.31): its drops and the Magic Essence line
+     (deep runes, the rune bar) are reachable. A ground staged again may refill it, with the guard's proof of its opening. */
+  staged: Object.freeze([]),
   premium: Object.freeze(['oak_practice_blade']),
   /* Tier 1-3 gear and Greenhaven-fit materials (roads, greenwood, farm edge, ruins) for the region's next
      grounds. Gloves, belts and the caster's cloth line have NO reachable piece today. */

@@ -231,7 +231,7 @@ function sheetContract(R, cs, body) {
 export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events', 'hunt_server_now_ms', 'hunt_settings', 'hunt_analyzer',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'stamina_refill', 'blessings',
-  'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_density', 'depot', 'home', 'now', 'farm_land']);
+  'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_density', 'depot', 'home', 'now', 'farm_land', 'bench_run']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -385,8 +385,7 @@ const DB_MUTANTS = [
   ['outfit', 'public.hr_outfit_view(uuid,integer)', "'owned', to_jsonb(v_owned)", "'have', to_jsonb(v_owned)"],
   ['death_log', 'public.hr_death_log_view(uuid,integer)', "'monster', nullif(", "'killer', nullif("],
   ['hunt_bests', 'public.hr_hunt_bests_view(uuid,integer)', "jsonb_build_object('xp_h', b.xp_h,", "jsonb_build_object('xph', b.xp_h,"],
-  ['hunt_bests', 'public.hr_hunt_bests_view(uuid,integer)', "'min_ms', (extract(", "'minms', (extract("],
-  ['depot', 'public.hr_depot_view(uuid,integer)', "'cap', public.hr_depot_cap(p_user),", "'capacity', public.hr_depot_cap(p_user),"],
+  ['hunt_bests', 'public.hr_hunt_bests_view(uuid,integer)', "'min_ms', (extract(", "'minms', (extract("],  ['depot', 'public.hr_depot_view(uuid,integer)', "'cap', public.hr_depot_cap(p_user),", "'capacity', public.hr_depot_cap(p_user),"],
   ['home', 'public.hr_home_view(uuid,integer)', "'rooms', coalesce((select jsonb_agg(", "'room_list', coalesce((select jsonb_agg("],
   ['now', 'public.hr_state_of(uuid,integer)', "'now', now(),", "'stamp', now(),"],
 ];

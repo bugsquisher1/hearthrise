@@ -431,7 +431,8 @@ function mutate() {
   });
   const retag = (id, from, to) => ({ ...UNREACHABLE, [from]: UNREACHABLE[from].filter((x) => x !== id), [to]: [...UNREACHABLE[to], id] });
   run('a dragon material tagged as the staged ground\'s', 'C11c', () => ({ unreachable: retag('dragon_bones', 'later', 'staged') }));
-  run('the staged ground\'s essence tagged as a cut', 'C11c', () => ({ unreachable: retag('magic_essence', 'staged', 'cut') }));
+  /* Since the glade opened (v0.2.31) its essence is reachable: filed as a cut, it is a stale row (C11b). */
+  run('the open glade\'s essence tagged as a cut', 'C11b', () => ({ unreachable: retag('magic_essence', 'staged', 'cut') }));
   run('the list grows: a new out-of-reach item tagged instead of sourced', 'C11d', () => {
     const restore = farFind('__mut_far2');
     return { unreachable: { ...UNREACHABLE, cut: [...UNREACHABLE.cut, '__mut_far2'] }, restore };

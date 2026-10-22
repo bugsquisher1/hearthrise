@@ -17,7 +17,7 @@
 //         Sentry release = BUILD.version, environment production, every error
 //         sampled, no tracing, no replay; PostHog identified_only, autocapture
 //         and pageviews off, nothing kept on the device, every input masked,
-//         .ph-mask text masked
+//         .ph-mask text masked (PostHog itself starts once the account is known: OB-11)
 //   OB-2  an uncaught error, an unhandled rejection and a console.error reach
 //         Sentry (through the CSP) carrying only the account id as the user
 //   OB-3  replay is off on the sign-in and characters screens and on in the game;
@@ -37,6 +37,13 @@
 //         message naming the open hunt and its live engine (node: a hidden tab and a
 //         second stall send none; browser: a real 4 s busy loop reaches Sentry), and two
 //         alternating looped console.errors reach Sentry 5 times each (the real SDK)
+//   OB-11 PostHog never mints an anonymous id (Andy's report #61, the SDK's own warning):
+//         it does not start until the account id is known and starts WITH it as its
+//         bootstrap distinct id (node: init options, no identify(), a second account
+//         re-seeds it, nothing is sent between the two; browser, the real SDK: nothing
+//         runs on the sign-in screen, its distinct id is the account id, every body it
+//         posts carries only that id, no $identify / $anon_distinct_id, no [PostHog.js] warning;
+//         and after a sign-out and a second sign-in in one load, on a fresh session)
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { launchOptions } from './_chrome.mjs';
@@ -76,6 +83,8 @@ function posthogEvents(req) {
   try { const j = JSON.parse(text); return Array.isArray(j) ? j : Array.isArray(j.batch) ? j.batch : [j]; } catch { return []; }
 }
 
+/* Every distinct id the SDK posted: on an event (batch / snapshot) or at the top of a body (the flags call). */
+const distinctIds = (events) => events.map((e) => e && (e.distinct_id !== undefined ? e.distinct_id : e.properties && e.properties.distinct_id)).filter((x) => x !== undefined);
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 /* The event inside a Sentry envelope body, and its own first line (breadcrumbs carry earlier logs, so a
    body that merely CONTAINS a string is not an event about it). */
@@ -107,8 +116,11 @@ async function page(browser, base, o) {
     };
   });
   const pg = await ctx.newPage();
-  const seen = { scripts: [], sentry: [], posthog: [], events: [], errors: [], csp: [], harness: [] };
-  pg.on('console', (m) => { if (m.type() === 'error' && /Content Security Policy/i.test(m.text())) seen.csp.push(m.text()); });
+  const seen = { scripts: [], sentry: [], posthog: [], events: [], errors: [], csp: [], warns: [], harness: [] };
+  pg.on('console', (m) => {
+    if (m.type() === 'error' && /Content Security Policy/i.test(m.text())) seen.csp.push(m.text());
+    if (m.type() === 'warning' && /^\[PostHog\.js\]/.test(m.text())) seen.warns.push(m.text());
+  });
   pg.on('pageerror', (e) => { if (!/obs-probe/.test(e.message)) seen.errors.push(e.message); });
   pg.on('request', (r) => { if (/\/src\/vendor\/(sentry|posthog)/.test(r.url())) seen.scripts.push(r.url().replace(/^.*\/src\//, 'src/')); });
   /* Registered first, so the stubs below (registered later) win where both match. Each forward
@@ -181,30 +193,40 @@ async function browserChecks(overrides) {
       const { pg, seen, close } = await page(browser, 'http://127.0.0.1:' + port, o);
       opened.push(seen);
       await pg.goto('https://hearthrise.net/play.html', { waitUntil: 'load' });
-      const up = await wait(pg, () => window.Sentry && window.Sentry.getClient && window.Sentry.getClient() && window.posthog && window.posthog.__loaded);
-      if (!up) fails.push('OB-1 the SDKs did not start on hearthrise.net (scripts: ' + seen.scripts.join(', ') + ')');
+      /* Both SDKs' scripts are in; PostHog is NOT started (OB-11): it waits for the account id. */
+      const up = await wait(pg, () => window.Sentry && window.Sentry.getClient && window.Sentry.getClient() && window.posthog && typeof window.posthog.init === 'function');
+      if (!up) fails.push('OB-1 the SDKs did not load on hearthrise.net (scripts: ' + seen.scripts.join(', ') + ')');
       else {
+        await pg.evaluate(() => new Promise((r) => setTimeout(r, 50)));   // past the script's own load event
+        const idle = await pg.evaluate(() => ({ loaded: !!window.posthog.__loaded, id: window.posthog.get_distinct_id ? window.posthog.get_distinct_id() : null }));
+        if (idle.loaded || seen.posthog.length) fails.push('OB-11 PostHog started on the sign-in screen, before the account id was known: ' + JSON.stringify([idle, seen.posthog]));
         const c = await pg.evaluate(() => {
           const s = window.Sentry.getClient().getOptions();
-          const p = window.posthog.config;
           return { release: s.release, environment: s.environment, sampleRate: s.sampleRate, traces: s.tracesSampleRate, tracer: s.tracesSampler,
             replay: s.replaysSessionSampleRate, replayErr: s.replaysOnErrorSampleRate, pii: s.sendDefaultPii,
-            integrations: (s.integrations || []).map((i) => i.name),
-            profiles: p.person_profiles, autocapture: p.autocapture, pageview: p.capture_pageview,
-            maskInputs: p.session_recording && p.session_recording.maskAllInputs, maskText: p.session_recording && p.session_recording.maskTextSelector,
-            external: p.disable_external_dependency_loading, rec: p.disable_session_recording, persistence: p.persistence };
+            integrations: (s.integrations || []).map((i) => i.name) };
         });
         if (c.release !== VERSION || c.environment !== 'production' || c.sampleRate !== 1) fails.push('OB-1 Sentry release/environment/sampling: ' + JSON.stringify([c.release, c.environment, c.sampleRate]));
         if (c.traces !== undefined || c.tracer !== undefined || c.integrations.some((n) => /BrowserTracing|Replay/.test(n)) || c.replay || c.replayErr || c.pii) fails.push('OB-1 Sentry tracing/replay/PII is on: ' + JSON.stringify(c));
         if (!c.integrations.includes('CaptureConsole')) fails.push('OB-1 Sentry does not capture console.error: ' + c.integrations.join(','));
-        if (c.profiles !== 'identified_only' || c.autocapture !== false || c.pageview !== false || c.external !== true) fails.push('OB-1 PostHog profiles/autocapture/pageview/external: ' + JSON.stringify(c));
-        if (c.maskInputs !== true || c.maskText !== '.ph-mask, input, textarea') fails.push('OB-1 PostHog replay masking: ' + JSON.stringify([c.maskInputs, c.maskText]));
-        if (c.rec !== true) fails.push('OB-3 replay is on at the sign-in screen');
-        if (c.persistence !== 'memory') fails.push('OB-1 PostHog keeps its ids on the device: persistence ' + c.persistence);
       }
       if (seen.scripts.some((s) => !/^src\/vendor\/(sentry-browser-[\d.]+\.min|sentry-captureconsole-[\d.]+\.min|posthog-js-[\d.]+\.full\.no-external)\.js$/.test(s))) fails.push('OB-1 an SDK came from elsewhere: ' + seen.scripts.join(', '));
       if (!(await signIn(pg))) fails.push('OB-3 sign-in did not reach the characters screen');
-      if (await pg.evaluate(() => window.posthog && window.posthog.config.disable_session_recording !== true)) fails.push('OB-3 replay is on at the characters screen (it names the email)');
+      if (!(await wait(pg, () => window.posthog && window.posthog.__loaded))) fails.push('OB-11 PostHog did not start once the account was known');
+      else {
+        const c = await pg.evaluate(() => {
+          const p = window.posthog.config;
+          return { profiles: p.person_profiles, autocapture: p.autocapture, pageview: p.capture_pageview,
+            maskInputs: p.session_recording && p.session_recording.maskAllInputs, maskText: p.session_recording && p.session_recording.maskTextSelector,
+            external: p.disable_external_dependency_loading, rec: p.disable_session_recording, persistence: p.persistence,
+            boot: p.bootstrap || null, id: window.posthog.get_distinct_id() };
+        });
+        if (c.profiles !== 'identified_only' || c.autocapture !== false || c.pageview !== false || c.external !== true) fails.push('OB-1 PostHog profiles/autocapture/pageview/external: ' + JSON.stringify(c));
+        if (c.maskInputs !== true || c.maskText !== '.ph-mask, input, textarea') fails.push('OB-1 PostHog replay masking: ' + JSON.stringify([c.maskInputs, c.maskText]));
+        if (c.rec !== true) fails.push('OB-3 replay is on at the characters screen (it names the email)');
+        if (c.persistence !== 'memory') fails.push('OB-1 PostHog keeps its ids on the device: persistence ' + c.persistence);
+        if (!c.boot || c.boot.distinctID !== UID || c.boot.isIdentifiedID !== true || c.id !== UID) fails.push('OB-11 PostHog did not start with the account id as its distinct id: ' + JSON.stringify([c.boot, c.id]));
+      }
       await pg.click('[data-app="play"][data-slot="0"]');
       if (!(await wait(pg, () => window.posthog && window.posthog.config.disable_session_recording === false))) fails.push('OB-3 replay did not start on the game screen');
       await wait(pg, () => document.querySelector('[data-hs-shell]'));
@@ -256,8 +278,38 @@ async function browserChecks(overrides) {
       if (mine.some((e) => e.properties.distinct_id !== UID)) fails.push('OB-4 an event is not keyed by the account id: ' + mine.map((e) => e.properties.distinct_id).join(','));
       if (seen.events.some((e) => e && /^\$(autocapture|pageview|pageleave)$/.test(e.event))) fails.push('OB-1 PostHog sent autocapture/pageview events');
       if (JSON.stringify(seen.events).includes('qa@example.test')) fails.push('OB-4 an event carries the email');
+      /* OB-11, the real SDK: every body it posted (events, snapshots, flags) names only the account, nothing is
+         identified or merged from an anonymous id, the named events build the person, and the SDK did not warn. */
+      const ids = distinctIds(seen.events);
+      if (!ids.length || ids.some((x) => x !== UID)) fails.push('OB-11 PostHog posted a distinct id that is not the account id: ' + JSON.stringify([...new Set(ids)]));
+      if (JSON.stringify(seen.events).includes('$anon_distinct_id') || seen.events.some((e) => e && e.event === '$identify')) fails.push('OB-11 PostHog merged an anonymous id onto the person ($identify / $anon_distinct_id)');
+      if (mine.some((e) => e.properties.$process_person_profile !== true)) fails.push('OB-11 a named event does not build the person profile: ' + JSON.stringify(mine.map((e) => e.properties.$process_person_profile)));
+      if (seen.warns.length) fails.push('OB-11 PostHog warned: ' + seen.warns[0].slice(0, 200));
       if (seen.csp.length) fails.push('OB-2 the CSP blocked telemetry: ' + seen.csp[0].slice(0, 200));
       if (seen.errors.length) fails.push('OB-1..4 page errors: ' + seen.errors.slice(0, 2).join(' | '));
+      await close();
+    }
+
+    { // OB-11: sign out and in again in one load; the real SDK is re-seeded with the account id, never left to mint one
+      const { pg, seen, close } = await page(browser, 'http://127.0.0.1:' + port, { hunt: false });
+      opened.push(seen);
+      await pg.goto('https://hearthrise.net/play.html', { waitUntil: 'load' });
+      const live = () => pg.evaluate(() => (window.posthog && window.posthog.__loaded ? { id: window.posthog.get_distinct_id(), session: window.posthog.get_session_id() } : null));
+      if (!(await signIn(pg)) || !(await wait(pg, () => window.posthog && window.posthog.__loaded))) fails.push('OB-11 PostHog did not start at the first sign-in');
+      else {
+        const first = await live();
+        await pg.click('[data-app="sign-out"]');
+        if (!(await wait(pg, () => document.querySelector('form[data-auth="sign-in"]')))) fails.push('OB-11 sign-out did not reach the sign-in screen');
+        else if (!(await signIn(pg))) fails.push('OB-11 the second sign-in did not reach the characters screen');
+        else {
+          const again = await live();
+          if (!again || again.id !== UID || again.session === first.session) fails.push('OB-11 the second sign-in did not re-seed PostHog with the account id and a fresh session: ' + JSON.stringify([first, again]));
+        }
+        await until(() => seen.posthog.filter((p) => p === '/flags/').length >= 2, 8000);   // the start's flags call and the re-seed's, both posted
+        if (distinctIds(seen.events).some((x) => x !== UID)) fails.push('OB-11 PostHog posted a distinct id that is not the account id around the second sign-in: ' + JSON.stringify([...new Set(distinctIds(seen.events))]));
+        if (JSON.stringify(seen.events).includes('$anon_distinct_id') || seen.events.some((e) => e && e.event === '$identify')) fails.push('OB-11 the second sign-in merged an anonymous id onto the person');
+        if (seen.warns.length) fails.push('OB-11 PostHog warned at the second sign-in: ' + seen.warns[0].slice(0, 200));
+      }
       await close();
     }
 
@@ -297,7 +349,10 @@ async function nodeChecks(root) {
   const events = [];
   const timers = {};
   let clock = 1000;
-  const sdk = { init: () => sdk, capture: (n, p) => events.push([n, p]), identify() {}, reset() {}, startSessionRecording() {}, stopSessionRecording() {} };
+  const inits = [];
+  const calls = { identify: 0, reset: [] };
+  const sdk = { init: (key, o) => { inits.push(o); return sdk; }, capture: (n, p) => events.push([n, p]), identify() { calls.identify++; },
+    reset: (o) => { calls.reset.push(o); }, startSessionRecording() {}, stopSessionRecording() {} };
   const messages = [];
   let opts = null;
   const sentry = { init(o) { opts = o; }, setUser() {}, captureException() {}, captureMessage: (m, c) => messages.push([m, c]),
@@ -312,6 +367,14 @@ async function nodeChecks(root) {
   const tick = timers[1000];
   const beat = timers[500];
   if (!obs.send || !tick || !beat || !opts) { fails.push('OB-7 the module did not start on hearthrise.net'); return fails; }
+  /* OB-11 (node): both scripts are in, and PostHog still waits; it starts WITH the account id as its bootstrap
+     distinct id (memory persistence kept) and nobody calls identify() to merge an anonymous one. */
+  if (inits.length) fails.push('OB-11 PostHog started before the account id was known');
+  obs.identify(UID);
+  const boot = inits.length === 1 ? inits[0].bootstrap : null;
+  if (!boot || boot.distinctID !== UID || boot.isIdentifiedID !== true || inits[0].persistence !== 'memory')
+    fails.push('OB-11 PostHog did not start with the account id as its bootstrap distinct id: ' + JSON.stringify(inits.map((o) => [o.bootstrap, o.persistence])));
+  if (calls.identify) fails.push('OB-11 identify() was called ' + calls.identify + ' time(s): it merges an anonymous id onto the person');
   let body = null;
   const cs = new CS.CharacterSession({ slot: 0, uid: UID, server: { rpc: async () => ({ ok: true, body }) }, setTimer: () => 0, clearTimer() {} });
   let running = true;
@@ -360,6 +423,19 @@ async function nodeChecks(root) {
   for (let i = 0; i < 100; i++) if (pass(err('different ' + word(i), 'f' + word(i)))) n++;
   if (n !== OBS.SEND_LIMITS.perLoad) fails.push('OB-9 100 different errors took the load to ' + n + ' sent, want the ceiling ' + OBS.SEND_LIMITS.perLoad);
   if (!pass({ message: 'The page stalled for 4.0 s', fingerprint: ['main-thread-hang'] })) fails.push('OB-9 the hang message was held back by the full gate');
+
+  /* OB-11: sign out, then a second account in the same load: nothing leaves in between (no account, no
+     distinct id), and the same instance is re-seeded with the new id (never a bare reset() to an anonymous id). */
+  const UID2 = '00000000-0000-4000-8000-0000000000b2';
+  obs.forget();
+  const sent = events.length;
+  obs.track('between_accounts', {});
+  obs.identify(UID2);
+  obs.track('second_account', {});
+  const re = calls.reset;
+  if (events.length !== sent + 1 || events[events.length - 1][0] !== 'second_account') fails.push('OB-11 an event left with no account behind it, or the second account\'s did not: ' + JSON.stringify(events.slice(sent).map(([n]) => n)));
+  if (re.length !== 1 || !re[0] || !re[0].bootstrap || re[0].bootstrap.distinctID !== UID2 || re[0].bootstrap.isIdentifiedID !== true || inits.length !== 1 || calls.identify)
+    fails.push('OB-11 the second account did not re-seed PostHog with its own id: ' + JSON.stringify([re, inits.length, calls.identify]));
   return fails;
 }
 
@@ -407,6 +483,12 @@ const MUTANTS = [
   ['a hidden tab counts as a hang', 'src/net/diagnostics.js', 'if (!visible() || late < DIAG.JANK_MS', 'if (late < DIAG.JANK_MS'],
   ['every stall sends a hang', 'src/net/observability.js', 'if (st.hung) return;', ''],
   ['a vendored SDK is swapped', 'src/net/observability-config.js', "integrity: 'sha384-yR8W", "integrity: 'sha384-xR8W"],
+  ['PostHog starts without the account id as its distinct id', 'src/net/observability.js', 'bootstrap: { distinctID: uid, isIdentifiedID: true },', ''],
+  ['identify() merges an anonymous id onto the person', 'src/net/observability.js', 'if (!ph) ph = phSdk.init(cfg.posthog.key, posthogOptions(cfg, win, st.uid)) || phSdk;',
+    'if (!ph) { ph = phSdk.init(cfg.posthog.key, Object.assign(posthogOptions(cfg, win, st.uid), { bootstrap: {} })) || phSdk; ph.identify(st.uid); }'],
+  ['PostHog starts before the account is known', 'src/net/observability.js', 'if (!phSdk || !st.uid || phUid === st.uid) return;', 'if (!phSdk || (st.uid && phUid === st.uid)) return;'],
+  ['sign-out resets PostHog to an anonymous id', 'src/net/observability.js', 'st.queue.length = 0;', 'st.queue.length = 0; if (ph) safe(() => ph.reset());'],
+  ['an event leaves with no account behind it', 'src/net/observability.js', 'if (!st.uid) return;\n    const p = Object.assign', 'const p = Object.assign'],
 ];
 
 async function main() {

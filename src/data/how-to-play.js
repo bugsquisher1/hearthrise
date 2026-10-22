@@ -28,7 +28,7 @@ import { STARTER_SETS } from './start-kit.js?v=0.2.27';
 const style = (id, role, weapons, name, does, uses) => Object.freeze({ id, role, weapons: Object.freeze(weapons), name, does, uses });
 
 /* The lead line above the rows: the rule itself. */
-export const HOW_YOU_FIGHT_LEAD = 'There is no class to pick. The weapon you hold is how you fight, and all six starter weapons are in your bag. Switch whenever you like.';
+export const HOW_YOU_FIGHT_LEAD = 'There is no class to pick. The weapon you hold is how you fight, and all six starter weapons are in your bag. To switch, equip another in town.';
 
 export const HOW_YOU_FIGHT = Object.freeze([
   style('hold', 'tank', ['practice_sword', 'practice_shield'], 'Sword and shield',

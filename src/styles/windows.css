@@ -403,3 +403,36 @@
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
   .rp-text { height: 96px; min-height: 96px; }
 }
+
+/* ── The Farm (src/shell/windows/farm.js): a row of soil plots, sunk into the window, crops at ×2 ── */
+.hw-field { display: flex; flex-wrap: wrap; gap: 12px; margin: 4px 0 10px; padding: 0; list-style: none; }
+.hw-plot { width: 104px; display: flex; flex-direction: column; align-items: stretch; gap: 4px; }
+.hw-soil { width: 104px; height: 88px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 0; background: var(--scene-furrow); box-shadow: var(--hw-well); cursor: pointer; }
+.hw-soil:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
+.hw-plot.is-picked .hw-soil { outline: 2px solid var(--ink); outline-offset: 2px; }
+.hw-plot:not(.is-empty) .hw-soil { cursor: default; }
+.hw-crop .hh-icon { width: 64px; height: 64px; image-rendering: pixelated; }
+.hw-grow { display: block; height: 4px; background: var(--bg-0); }
+.hw-grow i { display: block; height: 100%; background: var(--green); }
+.hw-plot.is-ready .hw-grow i { background: var(--gold); }
+.hw-plot.is-empty .hw-grow { visibility: hidden; }
+.hw-plot-say { display: flex; flex-direction: column; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
+.hw-plot-say b { color: var(--ink); font-weight: 700; }
+.hw-plot-say b:empty { display: none; }
+.hw-plot.is-ready .hw-plot-say span { color: var(--gold-2); font-weight: 700; }
+.hw-plot .hh-tool { white-space: normal; }
+.hw-harvest { display: none; }
+.hw-harvest.is-on { display: block; }
+.hw-plot-do.is-off { visibility: hidden; }
+.hw-sow { display: none; margin-bottom: 8px; }
+.hw-sow.is-on { display: block; }
+.hw-sow [data-hs-act="shop"] { display: none; }
+.hw-sow [data-hs-act="shop"].is-on { display: inline-block; }
+.hw-sow-none:empty { display: none; }
+.hw-seeds .hw-line.is-locked .hw-line-name b { color: var(--ink-3); }
+.hw-farm.is-off .hw-tier, .hw-farm.is-off [data-hs-act="upgrade"] { display: none; }
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .hw-field { gap: 8px; }
+  .hw-plot, .hw-soil { width: 88px; }
+  .hw-soil { height: 76px; }
+}

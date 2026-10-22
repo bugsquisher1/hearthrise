@@ -81,6 +81,12 @@ export const CLIENT_RPCS = Object.freeze({
   hr_blessing_buy: 'buy one blessing tier at the quoted price, 0 under the free level (CharacterSession.buyBlessing)',
   hr_bestiary_activate: 'activate a bestiary stage for one monster kind at the quoted fee (CharacterSession.activateBestiaryStage; lane c-bestiary)',
   hr_character_name_set: 'claim this character’s own name, checked by the server (CharacterSession.setName)',
+  /* The Farm window (P1 2026-10-22; 2026-11-22-farm-window.sql): a slot, a plot index, a crop id or the expected tier; never a price or a time. */
+  hr_farm_plant: 'plant one own seed of a crop in an empty plot; level, plot tier and the plot cap are the server’s (farm-intents.js plantCrop)',
+  hr_farm_water: 'water a growing plot for a 2 h double-speed window; the server refuses an open window (farm-intents.js waterPlot)',
+  hr_farm_harvest: 'harvest a ready plot and leave it empty; readiness and the roll are the server’s (farm-intents.js harvestPlot)',
+  hr_farm_harvest_replant: 'harvest a ready plot and plant the same crop again, from an own seed or one bought at the listed Shop price (farm-intents.js harvestPlot)',
+  hr_farm_upgrade_plot: 'buy the next plot tier the client expects; the server prices it, gold first then deeds (farm-intents.js upgradePlot)',
   /* The social side (2026-10-25-chat-channels.sql, 2026-10-25-social.sql): a slot, a channel KIND, a body,
      a target (a user id or a claimed name) and a yes/no — never a name, level, zone or role of the sender. */
   hr_chat_send: 'post a line to global / local / party; the server names the sender and the channel (ChatStore.send)',

@@ -196,6 +196,10 @@ function contract(R, cs, body, tl) {
   const tv = R.CS.heroVitalsOf(cs);
   need('vitals', !!tv && isNum(tv.hpMax) && isNum(tv.manaMax) && isNum(tv.level) && (tv.hunting || tv.mana === tv.manaMax),
     'heroVitalsOf yields ' + JSON.stringify(tv) + ' from ' + JSON.stringify(body.vitals));
+  /* the Farm window (2026-11-22-farm-window.sql): a fresh hero's field — room for 2 plots at the Camp, tier 1, the tier-2 price */
+  const fl = R.FS.farmLandOf(cs, 0);
+  need('farm_land', !!fl && fl.cap >= 2 && fl.plotLevel >= 1 && fl.plots instanceof Map && (fl.plotLevel >= 5 || (!!fl.upgrade && fl.upgrade.gold > 0 && fl.upgrade.farming > 0)),
+    'farmLandOf yields ' + JSON.stringify(fl && { cap: fl.cap, plotLevel: fl.plotLevel, upgrade: fl.upgrade, plots: fl.plots.size }) + ' from ' + JSON.stringify(body.farm_land));
   return out;
 }
 
@@ -217,7 +221,7 @@ function sheetContract(R, cs, body) {
 export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events', 'hunt_server_now_ms', 'hunt_settings', 'hunt_analyzer',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'stamina_refill', 'blessings',
-  'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_density', 'now']);
+  'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_density', 'now', 'farm_land']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -271,7 +275,7 @@ async function readers(root) {
   return {
     HS: await import(u('src/session/hunt-sections.js')), IS: await import(u('src/session/item-sections.js')),
     PS: await import(u('src/session/party-sections.js')), ACC: await import(u('src/session/account-session.js')),
-    CS: await import(u('src/session/character-sections.js')),
+    CS: await import(u('src/session/character-sections.js')), FS: await import(u('src/session/farm-sections.js')),
     CFG: await import(u('src/session/config.js')), CSN: await import(u('src/session/character-session.js')),
     M: await import(u('src/data/monsters.js')),
   };

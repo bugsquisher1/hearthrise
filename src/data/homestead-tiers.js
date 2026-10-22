@@ -13,7 +13,9 @@
 // NO ASHLAR (designer 2026-10-22): the Stonemason skill and its quarried stone, blocks and ashlar were cut on
 // 2026-10-14 (src/data/stonecraft.js). The three properties that asked for ashlar ask for what the priced rows in
 // src/data/shops.js already charge: the Manor and the Keep iron fittings and timber beams, the Castle keystones.
-// tools/gen-unlock-offers.mjs now refuses a property cost that differs from its shop row (rooms were already held).
+// ONE PRICE (v0.2.30 integration, 2026-10-22): a property tier's price lives ONLY in src/data/shops.js (`property.<id>`,
+// what the server charges); this ladder states what a tier OPENS, never what it costs. tools/gen-unlock-offers.mjs refuses
+// a tier that carries a `cost` again and a bought tier with no single shop row granting it (catalogue-coherence C10).
 //
 // PURE ESM DATA. No imports, no functions, no DOM. Node and Deno both.
 // ════════════════════════════════════════════════════════════════════════
@@ -25,7 +27,6 @@ export const PROPERTY_TIERS = Object.freeze([
     "name": "Wanderer's Camp",
     "plots": 2,
     "workers": 0,
-    "cost": null,
     "rooms": []
   },
   {
@@ -33,11 +34,6 @@ export const PROPERTY_TIERS = Object.freeze([
     "name": "Hearthside Homestead",
     "plots": 4,
     "workers": 1,
-    "cost": {
-      "gold": 400,
-      "normal_log": 30,
-      "copper_ore": 20
-    },
     "rooms": [
       "kitchen",
       "garden"
@@ -48,13 +44,6 @@ export const PROPERTY_TIERS = Object.freeze([
     "name": "Fieldworth Farmstead",
     "plots": 6,
     "workers": 2,
-    "cost": {
-      "gold": 2500,
-      "oak_log": 40,
-      "copper_ore": 25,
-      "wolf_pelt": 4,
-      "cooked_shrimp": 10
-    },
     "rooms": [
       "workshop",
       "cellar",
@@ -66,14 +55,6 @@ export const PROPERTY_TIERS = Object.freeze([
     "name": "Stonecross Manor",
     "plots": 8,
     "workers": 3,
-    "cost": {
-      "gold": 10000,
-      "willow_plank": 35,
-      "iron_ore": 40,
-      "silk_thread": 8,
-      "iron_fitting": 6,
-      "timber_beam": 6
-    },
     "rooms": [
       "library"
     ]
@@ -83,15 +64,6 @@ export const PROPERTY_TIERS = Object.freeze([
     "name": "Ironvale Keep",
     "plots": 10,
     "workers": 4,
-    "cost": {
-      "gold": 40000,
-      "maple_plank": 50,
-      "steel_bar": 35,
-      "big_bones": 20,
-      "bear_pelt": 5,
-      "iron_fitting": 12,
-      "timber_beam": 12
-    },
     "rooms": [
       "shrine",
       "trophy"
@@ -102,14 +74,6 @@ export const PROPERTY_TIERS = Object.freeze([
     "name": "Hearthrise Castle",
     "plots": 12,
     "workers": 6,
-    "cost": {
-      "gold": 150000,
-      "yew_plank": 70,
-      "mithril_bar": 40,
-      "rune_bar": 8,
-      "dragon_scale": 4,
-      "keystone": 6
-    },
     "rooms": []
   }
 ]);

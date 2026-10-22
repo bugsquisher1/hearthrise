@@ -42,6 +42,8 @@
 //           leather's rangeAtkB/critB) — its own values win, a dropped one fails.
 //   C9  the start kit's farm plots equal the first property rung's (the Camp's 2;
 //       designer 2026-10-22: the property ladder grants more, the kit never does).
+//   C10 one price per property tier: src/data/shops.js property.<id> sells each tier above
+//       the Camp exactly once, for gold; homestead-tiers.js states no cost of its own.
 //
 // THE PENDING LIST is shrink-only. It names the few gaps the audit assigned to
 // OTHER W0 lanes, with the lane. An id that gains a use must be removed from it
@@ -70,6 +72,8 @@ import { PROPERTY_TIERS } from '../src/data/homestead-tiers.js';
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 /* C9's start kit: the shipped one, or a planted one (mutate() only; the data is frozen). */
 let KIT_PLANT = null;
+/* C10's ladder: the shipped one, or a planted one (mutate() only). */
+let TIERS_PLANT = null;
 const realRead = (rel) => readFileSync(join(ROOT, rel), 'utf8');
 
 /* Gaps the audit handed to another W0 lane. SHRINK-ONLY: see the header. */
@@ -164,6 +168,16 @@ export function check({ read = realRead } = {}) {
   // on a Camp that holds 2, so two rows the server's plant refuses sat in the Farm window; the ladder grants more).
   const kit = KIT_PLANT || START_CURRENCY;
   if (kit.farmPlots !== PROPERTY_TIERS[0].plots) fails.push(`C9 the start kit makes ${kit.farmPlots} farm plot(s), the ${PROPERTY_TIERS[0].name} holds ${PROPERTY_TIERS[0].plots}`);
+  // C10 — ONE PRICE per property tier: src/data/shops.js `property.<id>` (what the server charges). The ladder states no
+  // cost of its own (it drifted once: ashlar after Stonemason was cut), and every tier above the Camp is sold by one row.
+  const tiers = TIERS_PLANT || PROPERTY_TIERS;
+  tiers.forEach((t, i) => {
+    if (Object.prototype.hasOwnProperty.call(t, 'cost')) fails.push(`C10 PROPERTY_TIERS[${i}] (${t.id}) states a price: it lives only in src/data/shops.js`);
+    if (i === 0) return;
+    const sold = SHOP_OFFERS.filter((o) => (o.grant || []).some((g) => g && g.kind === 'unlock' && g.id === 'property:' + t.id && g.amount === i));
+    const gold = sold.length === 1 ? (sold[0].cost || []).find((c) => c.kind === 'currency' && c.id === 'gold') : null;
+    if (sold.length !== 1 || sold[0].id !== 'property.' + t.id || !gold || !(gold.amount > 0)) fails.push(`C10 property tier ${i} (${t.id}) is sold by ${sold.length} shop row(s), want one priced property.${t.id}`);
+  });
   return { fails, counts: { items: ids.length, skills: Object.keys(SKILLS_DEF).length, pendingUse: Object.keys(PENDING_USE).length, pendingConsumer: Object.keys(PENDING_CONSUMER).length, pendingSource: Object.keys(PENDING_SOURCE).length, awaiting: AWAITING_ROSTER.length } };
 }
 
@@ -243,6 +257,15 @@ function mutate() {
   run('the start kit makes more plots than the Camp holds', 'C9', () => {
     KIT_PLANT = Object.assign({}, START_CURRENCY, { farmPlots: PROPERTY_TIERS[0].plots + 2 });
     return { restore: () => { KIT_PLANT = null; } };
+  });
+  run('a property tier states its own price again', 'C10', () => {
+    TIERS_PLANT = PROPERTY_TIERS.map((t, i) => (i === 2 ? Object.assign({}, t, { cost: { gold: 1 } }) : t));
+    return { restore: () => { TIERS_PLANT = null; } };
+  });
+  run('a bought property tier loses its shop row', 'C10', () => {
+    const at = SHOP_OFFERS.findIndex((o) => o.id === 'property.manor');
+    const [row] = SHOP_OFFERS.splice(at, 1);
+    return { restore: () => { SHOP_OFFERS.splice(at, 0, row); } };
   });
   run('an item with no source', 'C1', () => {
     ITEMS.__mut_orphan = { n: 'Orphan', v: 1, type: 'weapon', slot: 'weapon' };

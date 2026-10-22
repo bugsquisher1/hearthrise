@@ -157,6 +157,22 @@ Level vs skill level ("Melee 3" beside "Lv 3") · XP (v0.2.26 mixed Level and sk
 ### Decision: what the game now teaches (ruled and built)
 **2026-10-22, teaching a newcomer who never played an idle game (designer, inside Tyler's 10-22 NPE ruling; lane/b-npe-teach).** (1) No class pick and no class words: hero creation carries a "How you fight" column (`src/data/how-to-play.js` HOW_YOU_FIGHT, held to `hunt-roles.js` WEAPON_ROLES): no class, the weapon you hold is the style, all six starter weapons are in the bag, equip another in town to switch; one line per style with what it does and what it uses (food; arrows or bolts; mana and drinks). The five free outfits are renamed for what they are (Plate Harness, Fur Wraps, Hooded Leathers, Scholar's Robe, Grove Robe; ids unchanged, labels are client-only) and the Outfit tab says "Looks only". (2) The idle promise is said once, at the first long wait (card "Out to the brook", ~15 min), and lives in Settings > Help: nine read-only notes (idle, closed-game hunting, stamina, weapon = style, food and drink, the bar, Level vs skills, several heroes, death). (3) Several heroes: the last guide card offers "make a second hero" as the way into the party-only Sewer (2 slots, 4 at once, own heroes join at once). (4) After the guide the pointer becomes "What next": the next ground by Level and the weapon skill's next unlock, from data. (5) Level-up: "Level N" rises over the hero when the server's Level rises (its own Combat text toggle; never on a mount). (6) "While you were away": one alert on return (10 min or more) from a residue stamp of server numbers: Levels, Level XP, gold, kills, still hunting or why it stopped. Not done here: a cooking hint (no client way to cook yet; Systems: "Cook all" on raw food like Bury all); the bar card (fixed by v0.2.28 store-by-slot, `storedBar`).
 
+**2026-10-22: the Bestiary and the collection ladders count what a player can meet, and no milestone pays gems (lane/c-monster-ladders).**
+
+*The bug:* the Bestiary total and the milestones counted the whole 129-monster catalogue, but only 19 monsters stand on open grounds and they drop only 49 items. So hunter25/40/60/85/All and collect50 to collect125 could never be earned, and the Bestiary read "x / 134". The two gem rungs (hunterAll and collect100) also rolled back whole, because the wallet refuses gems.
+
+*The ruling:* a rung is a share of the reachable roster, so a new open ground raises every goal by itself.
+- Monster rungs are sixths of `hr_hunt_roster`. Today the goals are 4 / 7 / 10 / 13 / 16 / 19.
+- Item rungs are fifths of `hr_hunt_loot_roster`. Today the goals are 10 / 20 / 30 / 40 / 49.
+- Both rosters are generated from the open grounds (`hunt-grounds.js reachableOf`, written by gen-hunt-sessions). Staged grounds are out.
+- Only kills and loot on the roster count toward a rung.
+- No rung pays premium currency (Tyler L12). The gold is unchanged.
+
+*For Tyler (money):*
+- hunterAll loses its 25 gems and collect100 loses its 15. Both pay their old gold only, 50,000 and 15,000.
+- Possible non-premium extras, not built: a "Bestiary Master" title, or a trophy for the home shelf.
+- The gold amounts (2,000 to 50,000 for monsters, 1,000 to 30,000 for items) are now reachable today. This is 165,000 gold per character across the 11 rungs (104,000 monsters, 61,000 items). All but the first rung of each ladder used to be dead.
+
 ## Designer pass 2026-10-21 (v0.2.22)
 Evidence: the real settle (`hr-accrue accrueHunt`, the `tests/hunt-core/fixtures/play-ground.mjs` runner, one fixed seed, one hour, per hero per hour), run on a scratch copy of the tree with each change planted. Not played in the browser this pass.
 

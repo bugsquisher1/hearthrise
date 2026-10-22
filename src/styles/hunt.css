@@ -167,10 +167,10 @@
 .hs-widget:has(.hb-tip.is-on, .hb-drop.is-on, .hb-plaque.is-open) { z-index: 6; }
 .hs-shell:not(:has(.hs-win:not(.is-leaving))) > .hs-hud:has(.hb-tip.is-on, .hb-drop.is-on, .hb-plaque.is-open) { z-index: 7; }
 /* THE BAR IS ONE FORGED OBJECT (Tyler 10-22: "dorky, no art to it"): a 6-art-px iron plate (bar-plate.png,
-   tools/make-hud-bar-art.mjs) with the vitals hub in a crest that rises out of it, so the bar's outline is not a
-   rectangle. The slots are sockets cut into the plate, the medallion is pixel art, every colour a token or the
-   world palette (the PNGs). The plate is opaque: the crest overlaps its frame without a seam. */
-.hb-bar { position: relative; display: flex; align-items: center; gap: 12px; padding: 4px 8px; background: var(--bg-0); border: 12px solid transparent; border-image: url('../../assets/ui/bar-plate.png') 6 / 12px stretch; image-rendering: pixelated; }
+   tools/make-hud-bar-art.mjs) whose top edge the medallion breaks, so the bar's outline is not a rectangle. The
+   slots are sockets cut into the plate, the medallion is pixel art, every colour a token or the world palette
+   (the PNGs). The plate is opaque so the world never reads through the sockets. */
+.hb-bar { position: relative; display: flex; align-items: center; gap: 12px; padding: 2px 8px; background: var(--bg-0); border: 12px solid transparent; border-image: url('../../assets/ui/bar-plate.png') 6 / 12px stretch; image-rendering: pixelated; }
 .hb-slots { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(5, 40px); grid-auto-rows: 40px; gap: 4px; }
 /* A slot is a socket cut into the plate (bar-socket.png): its upper-left wall in shadow, its lower-right lip lit
    (the light comes from the upper left, §2). The floor is a token, so hover, drop and the states still read. */
@@ -197,17 +197,17 @@
 /* The panel at the far right (Tyler 10-19: everything Hunt settings held, on the bar): the set, target, stance, chase and distance. */
 /* A groove cut down the plate (the socket's shadowed wall, bar-socket.png's left slice) parts the settings from the slots. */
 .hb-plaque { position: relative; width: 228px; display: flex; flex-direction: column; gap: 3px; padding-left: 10px; border-left: 4px solid transparent; border-image: url('../../assets/ui/bar-socket.png') 2 / 0 0 0 4px stretch; image-rendering: pixelated; }
-.hb-pl-row { display: flex; align-items: center; gap: 6px; min-height: 28px; }
+.hb-pl-row { display: flex; align-items: center; gap: 6px; min-height: 26px; }
 /* The rows past the set's own sit in .hb-pl-more: part of the panel on a desktop, a sheet on a phone. */
 .hb-pl-more { display: contents; }
 .hb-plaque .hb-more, .hb-pl-head { display: none; }
 .hb-label { flex: none; font-family: var(--f-label); font-size: var(--t-micro); color: var(--ink-3); letter-spacing: .04em; }
 .hb-set { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
-.hb-pl-row .hh-select { flex: 1; min-width: 0; min-height: 30px; }
+.hb-pl-row .hh-select { flex: 1; min-width: 0; min-height: 26px; }
 .hb-stance { display: flex; width: 100%; }
-.hb-stance .hh-seg { flex: 1 1 0; min-width: 0; padding: 0 2px; min-height: 30px; font-size: var(--t-micro); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.hb-pl-row .hh-step .hh-seg { min-height: 30px; }
-.hb-pl-row .hb-gold { flex: 1; min-width: 0; min-height: 30px; text-align: right; font-variant-numeric: lining-nums tabular-nums; }
+.hb-stance .hh-seg { flex: 1 1 0; min-width: 0; padding: 0 2px; min-height: 26px; font-size: var(--t-micro); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hb-pl-row .hh-step .hh-seg { min-height: 26px; }
+.hb-pl-row .hb-gold { flex: 1; min-width: 0; min-height: 26px; text-align: right; font-variant-numeric: lining-nums tabular-nums; }
 /* The status line floats above the panel: a message coming or going never shifts a control under the pointer. */
 .hb-plaque .hh-intent-msg { position: absolute; left: 0; right: 0; bottom: calc(100% + 8px); margin: 0; padding: 2px 6px; font-size: var(--t-micro); background: var(--world-hud-bg); pointer-events: none; }
 .hb-plaque .hh-intent-msg:empty { display: none; }
@@ -501,7 +501,7 @@
      HP · the medal · MP with the sockets beside the readouts; the panel keeps the set and its buttons,
      and the rest of it slides out as a sheet from the right (.hb-more). */
   /* The phone's plate is the window frame (frame-iron.png, 4 art px = 8 px): the desktop's 12 px plate and the
-     raised crest cost height a 423 px screen does not have. */
+     raised medallion cost height a 423 px screen does not have. */
   .hb-bar { gap: 6px; padding: 2px 4px; max-width: calc(100vw - 16px); border-width: 8px; border-image: url('../../assets/ui/frame-iron.png') 4 / 8px stretch; }
   .hb-medal, .hb-stam { top: 0; }
   .hb-hub { grid-template-columns: auto auto 64px auto auto; grid-template-rows: auto auto; align-content: center; grid-template-areas: "food hp medal mp charm" "food hp medal stam charm"; column-gap: 6px; }

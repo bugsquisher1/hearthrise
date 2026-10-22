@@ -2948,3 +2948,16 @@ disc; phone plaque 220 px. Lessons: (1) a status line that only clears in `.then
 line waiting to happen: server.js never times out, so every intent UI needs its own bound. (2) A headless Chromium
 exists in the cloud sandbox (/opt/pw-browsers, HR_CHROME): hunt-screen --shots is a real desktop + 922x423 look.
 (3) Phone stance labels at the 14.5 px floor need ~73 px each; 196 px truncated them to "Offen…".
+
+## 2026-10-22 — lane/b-ui-art-pass: the action bar gets art; why the UI reads boxy; AW-17 ruled
+Tyler: "super boxy", "the action bar is dorky, no art to it". Diagnosis and the ranked de-boxing plan are on the
+PRIORITY_BOARD (Decisions, 2026-10-22). Built: bar-plate/bar-socket/bar-medal(-sm) PNGs from
+tools/make-hud-bar-art.mjs (palette colours, --check), plate + sockets + pixel medallion breaking the plate edge;
+skill rows one line (Gathering 633 -> 486 px body) so a docked window above the bar fits at 1440x900 (AW-17 + WC-6).
+Lessons: (1) a raised "crest" box round the hub made THREE boxes, not one object: a silhouette break must come
+from a shape (the round medallion), never another rectangle. (2) The bar's height is the settings form's, not the
+art's: until the form leaves the desktop bar, the plate stays a slab (plan item 1). (3) Arithmetic first: at
+1440x900 a docked window crossing a 2-row bar cannot hold 633 px; measure the window's own waste (the XP line cost
+~150 px) before reaching for layout engine rules. (4) Bronze reads brown at x2 next to charcoal: the unfilled XP
+rim is iron, the gold arc fills it. (5) assets/ui/emblem-hearth.png is unreferenced (its tool, make-hud-emblem.mjs,
+is superseded by make-hud-bar-art.mjs): retire both in a later pass.

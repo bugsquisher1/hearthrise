@@ -2,16 +2,14 @@
 // tools/make-hud-bar-art.mjs - draws the action bar's pixel art (ART_DIRECTION §9, 2026-10-22 de-boxing pass).
 //   node tools/make-hud-bar-art.mjs            write the four PNGs into assets/ui/
 //   node tools/make-hud-bar-art.mjs --check    exit 1 if a committed PNG differs from what this draws
-// Hand-drawn by rule, hr-world-56-v2 colours only (art/world/palette.json: shadow, iron, steel, bronze, gold),
+// Hand-drawn by rule, hr-world-56-v2 colours only (art/world/palette.json: shadow, iron, steel),
 // lit from the upper left like the world, shown at the one density (x2, image-rendering: pixelated):
 //   bar-plate.png    18x18, slice 6 (12 px): the forged iron plate the bar is mounted on. A lit bevel, a two-tone
 //                    band, a dark seam and a rivet in each corner. No fill: the plate's face is the HUD token.
-//   bar-crest.png    18x18, slice 6: the raised housing round the vitals hub; the same profile, its corners
-//                    clipped one step so it reads as a forged boss rising out of the plate, not a second box.
 //   bar-socket.png   6x6, slice 2 (4 px): a slot cut into the plate. Its upper-left wall is in shadow, its
 //                    lower-right wall catches the light; no fill, so the floor stays a token (hover, drop, states).
 //   bar-medal.png    52x52 (104 px): the hub's medallion. Outer iron bezel with four steel studs, the gauge
-//                    channel the HP and mana arcs fill (r 19-23), the inner bezel, a bronze rim the XP arc gilds
+//                    channel the HP and mana arcs fill (r 19-23), the inner bezel, an iron rim the XP arc gilds
 //                    (r 14.5-16) and a sunk well for the level. bar-medal-sm.png is the same at 32x32 (64 px, phone).
 // The arcs in vitals-hub.js are drawn on a 52-unit viewBox so they land in this art's channel and rim.
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -24,7 +22,6 @@ const P = {
   out: '#0b0a0c', sh1: '#17141a',
   i0: '#2c2e33', i1: '#4a4d54', i2: '#6e727a', i3: '#969aa1',
   st1: '#5c6c7a', st3: '#c4ccd2',
-  b0: '#4a2e18', b1: '#7a4f26', b2: '#a8743a', b3: '#cfa25c',
 };
 
 function img(S) {
@@ -35,7 +32,7 @@ function img(S) {
 }
 
 /* The plate profile, outside in: outline, lit/dark bevel, two-tone band, seam, cast shadow on the face. */
-function plate(S = 18, clip = 0) {
+function plate(S = 18) {
   const im = img(S);
   for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
     const d = Math.min(x, y, S - 1 - x, S - 1 - y);
@@ -52,13 +49,6 @@ function plate(S = 18, clip = 0) {
   /* A rivet in each corner of the band: a steel head, lit upper-left, its shadow down-right. */
   for (const [x, y] of [[2, 2], [S - 4, 2], [2, S - 4], [S - 4, S - 4]]) {
     im.put(x, y, P.st3); im.put(x + 1, y, P.st1); im.put(x, y + 1, P.st1); im.put(x + 1, y + 1, P.out);
-  }
-  /* Clipped corners (the crest): the outermost `clip` steps of each corner are cut and re-outlined. */
-  for (let k = 0; k < clip; k++) for (const [cx, cy, sx, sy] of [[0, 0, 1, 1], [S - 1, 0, -1, 1], [0, S - 1, 1, -1], [S - 1, S - 1, -1, -1]]) {
-    for (let i = 0; i <= clip - k - 1; i++) im.clear(cx + sx * i, cy + sy * k);
-  }
-  if (clip) for (const [cx, cy, sx, sy] of [[0, 0, 1, 1], [S - 1, 0, -1, 1], [0, S - 1, 1, -1], [S - 1, S - 1, -1, -1]]) {
-    for (let k = 0; k <= clip; k++) im.put(cx + sx * (clip - k), cy + sy * k, P.out);
   }
   return im;
 }
@@ -93,7 +83,7 @@ function medal(S) {
     else if (d > 19.4) col = P.sh1;                                                // the gauge channel
     else if (d > 18.6) col = P.out;
     else if (d > 16.4) col = lit > 0.4 ? P.i2 : lit < -0.4 ? P.i0 : P.i1;          // inner bezel
-    else if (d > 14.4) col = lit > 0.5 ? P.b1 : P.b0;                              // the bronze rim the XP gilds
+    else if (d > 14.4) col = lit > 0.5 ? P.i1 : P.i0;                              // the iron rim the XP gilds
     else if (d > 13.4) col = P.out;
     else if (d > 12.4) col = lit > 0 ? P.out : P.i0;                               // the well's cut: shadow up-left
     else col = P.sh1;
@@ -109,8 +99,7 @@ function medal(S) {
 }
 
 export const ART = {
-  'bar-plate.png': () => plate(18, 0),
-  'bar-crest.png': () => plate(18, 2),
+  'bar-plate.png': () => plate(18),
   'bar-socket.png': socket,
   'bar-medal.png': () => medal(52),
   'bar-medal-sm.png': () => medal(32),

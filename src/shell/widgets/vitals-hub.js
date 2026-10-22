@@ -5,7 +5,7 @@
 // design; function and layout, never its code), in style-1 tokens:
 //   medallion  a pixel-art iron medallion (assets/ui/bar-medal.png, drawn by
 //              tools/make-hud-bar-art.mjs): "Lv", the level, "XP n%"; the XP arc
-//              gilds its bronze rim as the level fills
+//              gilds its iron rim as the level fills
 //   arcs       HP as a red arc on its left, mana as a blue arc on its right,
 //              both filling from the bottom, inside the art's gauge channel
 //   readouts   "HP 180/220" and its regen a second on the left, "MP 40/60" and

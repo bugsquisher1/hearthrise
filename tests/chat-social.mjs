@@ -7,7 +7,7 @@
 //   node tests/chat-social.mjs --mutate       every planted defect must turn a rule RED
 //   node tests/chat-social.mjs --shots <dir>  also write the visual-gate screenshots (1440x900, 922x423)
 //
-// mutant-anchors: src/social/ src/data/chat-channels.js src/data/shell-windows.js src/shell/window-sizes.js src/shell/windows/inventory/index.js src/styles/hunt.css src/shell/context-menu.js src/shell/menu-providers.js src/shell/windows/chat.js src/shell/windows/friends.js src/hunt-view/scene.js src/session/party-sections.js src/world/world-boot.js
+// mutant-anchors: src/social/ src/data/chat-channels.js src/data/shell-windows.js src/shell/window-sizes.js src/shell/windows/inventory/index.js src/styles/hunt.css src/shell/context-menu.js src/shell/menu-providers.js src/shell/windows/chat.js src/shell/windows/friends.js src/hunt-view/scene.js src/session/party-sections.js src/world/world-boot.js src/shell/shell.js src/shell/hud.js
 // mutant-writes-tree: no — pure mutants plant into a temp copy of src/, page mutants into served overrides
 //
 // The server half of every rule (the sender's name, level and role stamped by
@@ -69,6 +69,10 @@
 //         wider and 60 px taller with its bottom-left corner still, that size is ONE
 //         residue put (winSize.chat) and comes back after a reload; on a phone it is the
 //         right-hand sheet with no grip
+//   CW-8  [page] THE CHAT NEVER COVERS A WIDGET (v0.2.32 visual gate): at 1440x900 with a party of
+//         four (a 448 px panel top-left) the open chat overlaps no World widget, the panel is wholly on
+//         screen, and a press on its foot line or its last seat reaches the panel (the chat shrinks below it,
+//         or slides right past it when the room left is under the resize floor)
 //   CW-4  [page] the right-click menu on a name opens at page level with Inspect,
 //         Message, Add friend, Invite to party, Block (no Trade); a press on it never reaches the World;
 //         Inspect shows the worn items; zero console errors throughout
@@ -314,10 +318,16 @@ async function pureRules(M) {
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 
 /* The fixture as the S1 server sends it: members carry their seat, and party_people names each seat's account. */
-function env() {
+function env(seats = 2) {
   const e = clone(FIXTURE);
   e.party.members.forEach((m, i) => { m.seat = i; });
   e.party_people = [{ seat: 0, user: UID, slot: 0, name: 'Tyler' }, { seat: 1, user: OTHER, slot: 0, name: 'Mira' }];
+  /* CW-8: a full party (Brannoc and Fingerguns take seats 2 and 3, other accounts) */
+  for (let i = e.party.members.length; i < seats; i++) {
+    const name = ['Brannoc', 'Fingerguns'][i - 2];
+    e.party.members.push(Object.assign({}, e.party.members[1], { unit: i + 1, seat: i, name }));
+    e.party_people.push({ seat: i, user: OTHER.slice(0, -1) + i, slot: 0, name });
+  }
   return e;
 }
 
@@ -332,8 +342,8 @@ async function stub(page, s) {
     /* The residue the page put comes back in the envelope (CW-7: a size survives a reload). */
     const kept = () => ({ client_state: Object.assign({}, FIXTURE.client_state, s.residue) });
     if (name === 'hr_put_client_state') { s.residue = Object.assign({}, s.residue, body.p_patch); return json({ ok: true }); }
-    if (name === 'hr_load') return json(Object.assign(env(), kept(), { version: ++s.version }));
-    if (name === 'hr-accrue') return json(Object.assign({ accrued: true }, env(), kept(), { version: ++s.version }));
+    if (name === 'hr_load') return json(Object.assign(env(s.seats), kept(), { version: ++s.version }));
+    if (name === 'hr-accrue') return json(Object.assign({ accrued: true }, env(s.seats), kept(), { version: ++s.version }));
     if (name === 'hr_chat_recent') return json({ ok: true, zone: ZONE, party: null, lines: [row({ body: 'welcome back', created_at: '2026-10-18T08:00:00Z' })] });
     if (name === 'hr_chat_send') return json({ ok: true, line: row({ from_id: UID, from_name: 'Quill', body: body.p_body, from_weapon: 'staff', from_role: 'healer' }) });
     if (name === 'hr_social_state') return json({ ok: true, friends: [], incoming: [], outgoing: [], blocks: [] });
@@ -342,6 +352,55 @@ async function stub(page, s) {
     if (name === 'hr_inspect') return json({ ok: true, id: OTHER, name: 'Bramble', slot: 0, level: 34, weapon: 'sword', role: null, gear: [{ slot: 'weapon', item: 'bronze_sword' }] });
     return json({ ok: true });
   });
+}
+
+/* CW-8 at 1440x900: a party of four (its panel 448 px tall, top-left), the chat open at home. The chat overlaps
+   no World widget, the panel is wholly on screen, and the panel's foot and last seat are what a press there hits. */
+async function fullParty(browser, base, shots) {
+  const fails = [];
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+  page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
+  try {
+    const s = { calls: [], version: 1, seats: 4 };
+    await stub(page, s);
+    await page.goto(base + '/play.html', { waitUntil: 'load' });
+    await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
+    await page.fill('input[name=email]', 'qa@example.test');
+    await page.fill('input[name=password]', 'not-a-real-password');
+    await page.click('.auth-submit');
+    await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
+    await page.click('[data-app="play"][data-slot="0"]');
+    if (!await wait(page, () => document.querySelectorAll('[data-hs-widget="party"] .hp-m').length === 4)) { fails.push('CW-8 the four-seat party panel did not mount'); return fails; }
+    /* as CW-7 opens it: a press on the World's corner (nothing else focused, no window open), then Enter */
+    for (let i = 0; i < 5 && await page.evaluate(() => !!document.querySelector('[data-hs-win]:not(.is-leaving)')); i++) { await page.mouse.click(2, 898); await page.keyboard.press('Escape'); await page.waitForTimeout(220); }
+    await page.mouse.click(2, 898);
+    await page.keyboard.press('Enter');
+    if (!await wait(page, () => document.querySelector('[data-hs-win="chat"]:not(.is-leaving)'), null, 3000)) { fails.push('CW-8 Enter did not open the chat: ' + await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win]')).map((w) => w.getAttribute('data-hs-win') + '.' + w.className).join(' ') + ' focus ' + (document.activeElement && document.activeElement.tagName))); return fails; }
+    await page.waitForTimeout(300);
+    const got = await page.evaluate(() => {
+      const box = (e) => { const q = e.getBoundingClientRect(); return { l: q.left, t: q.top, r: q.right, b: q.bottom }; };
+      const chat = box(document.querySelector('[data-hs-win="chat"]')), sh = box(document.querySelector('[data-hs-shell]'));
+      const hit = (q) => (q.r - q.l > 0 && q.b - q.t > 0 && q.l < chat.r && chat.l < q.r && q.t < chat.b && chat.t < q.b);
+      const over = Array.from(document.querySelectorAll('[data-hs-hud="world"] [data-hs-widget]')).filter((e) => hit(box(e))).map((e) => e.getAttribute('data-hs-widget'));
+      const panel = document.querySelector('[data-hs-widget="party"]'), p = box(panel);
+      /* what a press on the panel's foot line and on its last seat lands on */
+      const on = (el) => { const q = el && el.getBoundingClientRect(); const t = q && document.elementFromPoint(q.left + q.width / 2, q.top + q.height / 2); return !!t && panel.contains(t); };
+      const rows = panel.querySelectorAll('.hp-m');
+      return { chat, panel: p, over, inside: p.l >= sh.l && p.t >= sh.t && p.r <= sh.r && p.b <= sh.b, foot: on(panel.querySelector('.hp-foot')), last: on(rows[rows.length - 1]) };
+    });
+    const r = (q) => [q.l, q.t, q.r, q.b].map(Math.round).join(',');
+    if (got.over.length) fails.push('CW-8 the chat (' + r(got.chat) + ') lies over ' + got.over.join(', ') + ' (party ' + r(got.panel) + ')');
+    if (!got.inside) fails.push('CW-8 the party panel is not wholly on screen: ' + r(got.panel));
+    if (!got.foot || !got.last) fails.push('CW-8 a press on the party panel\'s ' + (!got.foot ? 'foot' : 'last seat') + ' does not reach the panel');
+    if (shots) await page.screenshot({ path: join(shots, 'chat-party4-1440x900.png') });
+  } finally {
+    if (errors.length) fails.push('CW-8 console errors: ' + errors.slice(0, 3).join(' | '));
+    await ctx.close();
+  }
+  return fails;
 }
 
 async function pageRules(overrides, shots) {
@@ -555,6 +614,7 @@ async function pageRules(overrides, shots) {
       if (errors.length) fails.push('CW-4 [' + tag + '] console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
+    fails.push(...await fullParty(browser, base, shots));   // CW-8
   } finally {
     await browser.close();
     server.close();
@@ -603,6 +663,8 @@ const PAGE_MUTANTS = [
   ['the server ids are not read', 'src/session/party-sections.js', "    out.set(p.seat, { id: p.user, slot: Number.isInteger(p.slot) ? p.slot : null, name: name(p.name) });", "    void p;"],
   ['the World names nothing on a right-click', 'src/world/world-boot.js', "if (pick) emit('entity', { hits: pick.hits, x, y }); }", "void pick; }"],
   ['the counter does not read the server\'s count', 'src/shell/widgets/online.js', '  const s = ctx.account && ctx.account.social;', '  const s = ctx.account;'],
+  ['the chat stands over the widgets above its column (CW-8)', 'src/shell/shell.js', 'const tops = homes.length ? Array.from(', 'const tops = false ? Array.from('],
+  ['the chat keeps its height under a widget (CW-8)', 'src/shell/hud.js', 'const max = Math.min(...over.map(room), at.max === null ? Infinity : at.max);', 'const max = at.max === null ? Infinity : at.max;'],
   ['the menu is drawn inside the World', 'src/shell/windows/float-menu.js', "  doc.body.appendChild(el);\n  return el;", "  (doc.querySelector('.world-stage') || doc.body).appendChild(el);\n  return el;"],
 ];
 

@@ -415,6 +415,15 @@ async function runTests(mods) {
     /* the home window (Chat, bottom-left): over the bar's column it stands above the bar; clear of it, at home */
     eq(HUD.homeAboveBar({ left: 12, width: 400 }, [Object.assign({}, bar, { left: 235, width: 970 })], 12, 44, 900), { bottom: 900 - 820 + 12, max: 820 - 24 }, 'at 1440 the chat stands 12 px above the bar');
     eq(HUD.homeAboveBar({ left: 12, width: 400 }, [Object.assign({}, bar, { left: 475 })], 12, 44, 1080), { bottom: 44, max: null }, 'at 1920 the bar starts past it: the chat sits at home');
+    /* ...and below the widgets over its column (v0.2.32 gate: a four-seat party panel, 448 px, top-left) */
+    const party4 = { left: 12, top: 12, width: 250, height: 448 }, hbar = { left: 432, top: 8, width: 558, height: 46 };
+    eq(HUD.homeAt({ left: 12, width: 400 }, [{ left: 229, top: 695, width: 964, height: 126 }], [party4, hbar], 12, 44, { width: 1422, height: 829 }, 160),
+      { left: 12, bottom: 146, max: 211 }, 'at 1440x900 the chat shrinks to end 12 px under the panel');
+    eq(HUD.homeAt({ left: 12, width: 400 }, [{ left: 70, top: 563, width: 964, height: 126 }], [party4, hbar], 12, 44, { width: 1348, height: 697 }, 160),
+      { left: 274, bottom: 146, max: 485 }, 'at 1366x768 the room under the panel is too short: it slides right past the panel, not the far bar');
+    eq(HUD.homeAt({ left: 12, width: 400 }, [{ left: 70, top: 563, width: 964, height: 126 }], [party4], 12, 44, { width: 600, height: 697 }, 160),
+      { left: 12, bottom: 146, max: 79 }, 'no room to slide: it stays home, under the panel, however short');
+    eq(HUD.homeAt({ left: 12, width: 400 }, [], [], 12, 44, { width: 1422, height: 829 }, 160), { left: 12, bottom: 44, max: null }, 'nothing near: home, uncapped');
   });
   t('R4 winSize is an allowlisted residue field, bounded both ways', () => {
     ok(CS.RESIDUE_FIELDS.includes('winSize'), 'winSize must be in RESIDUE_FIELDS');
@@ -483,6 +492,8 @@ const MUTANTS = [
   { test: 'W15', file: WM_FILE, from: "      w: Math.round(Math.max(RESIZE_MIN.w, Math.min(Math.max(RESIZE_MIN.w, wd.width - 2 * DOCK_EDGE), w))),", to: '      w: Math.round(w),' },
   { test: 'H12', file: HUD_FILE, from: '  return cap >= DOCK_CAP_MIN_PX ? cap : null;', to: '  return null;' },
   { test: 'H12', file: HUD_FILE, from: "  return { bottom: Math.max(bottom, Math.round(boxHeight - top + gap)), max: Math.max(0, Math.round(top - 2 * gap)) };", to: '  return { bottom, max: null };' },
+  { test: 'H12', file: HUD_FILE, from: '    if (left + pane.width > box.width - gap) break;\n    at = fit(left);', to: '    break;' },
+  { test: 'H12', file: HUD_FILE, from: '    return { left, low: over.filter((q) => room(q) < minH), bottom: at.bottom, max };', to: '    return { left, low: over, bottom: at.bottom, max };' },
   { test: 'R4', file: 'src/session/residue.js', from: '  winSize: sanitizeWinSize,', to: '  winSize: (v) => v,' },
   { test: 'W13', file: WM_FILE, from: 'else if (slot.has(id)) lastAt.set(id, { right: slot.get(id) });', to: ';' },
   { test: 'W8', file: WM_FILE, from: 'return keyBelongsToField(ev.target, ev.key);', to: 'return false;' },

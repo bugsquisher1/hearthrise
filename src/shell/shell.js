@@ -42,8 +42,8 @@
 import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.32';
 import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.32';
 import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.32';
-import { createWindowManager, DOCK_EDGE, HOME_BOTTOM } from './window-manager.js?v=0.2.32';
-import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, dockCap, homeAboveBar } from './hud.js?v=0.2.32';
+import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.32';
+import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, dockCap, homeAt } from './hud.js?v=0.2.32';
 import { keyLabel, glyphSvg } from './launcher.js?v=0.2.32';
 import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.32';
 import { mountContextMenu } from './context-menu.js?v=0.2.32';
@@ -269,9 +269,16 @@ export function mountShell(root, o) {
       const v = cap === null ? '' : cap + 'px';
       if (w.style.maxHeight !== v) w.style.maxHeight = v;
     }
-    /* The home window (Chat) stands above the bar where its column crosses it, never over it (hud.js homeAboveBar). */
-    for (const w of layer.querySelectorAll('.hs-win.is-home')) {
-      const at = homeAboveBar({ left: w.offsetLeft, width: w.offsetWidth }, bars, DOCK_EDGE, HOME_BOTTOM, b.height);
+    /* The home window (Chat) stands above the bar where its column crosses it and below the widgets over its
+       column (a four-seat party panel), never over either: it shrinks, or slides right past them (hud.js homeAt).
+       Measured from its home column every time, so it comes back when the panel gets shorter. */
+    const homes = layer.querySelectorAll('.hs-win.is-home');
+    const tops = homes.length ? Array.from(worldHud.querySelectorAll('[data-hs-widget]'))
+      .filter((e) => hud.layoutOf(e.getAttribute('data-hs-widget')).anchor[0] !== 'b')
+      .map((e) => { const q = e.getBoundingClientRect(); return { left: q.left - b.left, top: q.top - b.top, width: q.width, height: q.height }; }) : [];
+    for (const w of homes) {
+      const at = homeAt({ left: DOCK_EDGE, width: w.offsetWidth }, bars, tops, DOCK_EDGE, HOME_BOTTOM, { width: b.width, height: b.height }, RESIZE_MIN.h);
+      if (w.style.left !== at.left + 'px') w.style.left = at.left + 'px';
       if (w.style.bottom !== at.bottom + 'px') w.style.bottom = at.bottom + 'px';
       const v = at.max === null ? '' : at.max + 'px';
       if (w.style.maxHeight !== v) w.style.maxHeight = v;

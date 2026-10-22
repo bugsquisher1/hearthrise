@@ -62,24 +62,17 @@ export function hurt(inst, target, amount, source, element, ability) {
   const el = source && source.side === 'hero'
     ? elementWithFloor(elementOn(target, element), source.role, partySize(inst)) : elementOn(target, element);
   if (el === 0) return { dmg: 0, absorbed: 0, killed: false, immune: true };
-  let n;
-  if (target.side === 'hero') {
-    /* A BLOW AT A HERO (ruling K7): the blow as dealt (its ability, both stances), then the
-       hero's armour in the fixed order — absorb, resistances, ward (dodge was rolled by landHit) —
-       never past the total cap (mitigation.js), then the shield below and HP. */
-    n = Math.max(0, Math.floor(amount));
-    if (ability && Number.isInteger(ability.mult)) n = Math.floor((n * ability.mult) / 1000);
-    n = Math.floor((n * stanceOf(source).dealt) / 1000);
-    n = Math.floor((n * stanceOf(target).taken) / 1000);
-    n = mitigate(n, el, target.mit);
-  } else {
-    n = Math.floor((Math.max(0, Math.floor(amount)) * el) / 1000);
-    n -= defenceReduction(MONSTERS[target.kind]);
-    if (ability && Number.isInteger(ability.mult)) n = Math.floor((n * ability.mult) / 1000);
-    n = Math.floor((n * stanceOf(source).dealt) / 1000);
-    n = Math.floor((n * stanceOf(target).taken) / 1000);
-    n = Math.max(1, n);
-  }
+  /* A monster's defence comes off a hero's blow after its element. A blow AT A HERO keeps its
+     element for the armour chain below (ruling K7). */
+  let n = Math.max(0, Math.floor(amount));
+  if (target.side === 'mon') n = Math.floor((n * el) / 1000) - defenceReduction(MONSTERS[target.kind]);
+  if (ability && Number.isInteger(ability.mult)) n = Math.floor((n * ability.mult) / 1000);
+  n = Math.floor((n * stanceOf(source).dealt) / 1000);
+  n = Math.floor((n * stanceOf(target).taken) / 1000);
+  /* THE HERO'S ARMOUR, in the fixed order (dodge was rolled by landHit): absorb, resistances,
+     ward, never past the total cap (src/core/mitigation.js), then the shield below and HP.
+     Every landed blow deals at least 1. */
+  n = target.side === 'hero' ? mitigate(n, el, target.mit) : Math.max(1, n);
   const absorbed = Number.isInteger(target.shield) && target.shield > 0 ? Math.min(target.shield, n) : 0;
   if (absorbed) target.shield -= absorbed;
   const dmg = Math.min(target.hp, n - absorbed);

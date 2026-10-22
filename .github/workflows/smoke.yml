@@ -1080,6 +1080,17 @@ jobs:
           node tests/name-moderation.mjs
           node tools/mutant-gate.mjs node tests/name-moderation.mjs --mutate
 
+      # 2026-11-19-chat-stream-safe.sql (the 10-22 playtest: a new hero's first
+      # Global showed old dev chat with profanity; Tyler streams). As the client
+      # roles: no line before the server's epoch/horizon is read (history RPCs,
+      # direct selects), a listed word is masked on write and on read with item
+      # links kept, the window is not client-movable. --mutate plants eight defects.
+      - name: Chat stream-safe — history epoch, word mask on write and read
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/chat-stream-safe.mjs
+          node tools/mutant-gate.mjs node tests/chat-stream-safe.mjs --mutate
+
       # 2026-11-02-hero-creation.sql (Tyler 2026-10-20): a hero is created with a
       # name and four colours in ONE intent, owns all six starter weapon sets
       # (none sells), and an unnamed character does not enter the world. The same

@@ -34,6 +34,12 @@
 //         never (hidden until its lane); no Message or Block on yourself; a
 //         blocked player gets Unblock; a monster gets Look
 //   FR-1  FRIENDS read as the server said: online, and what they are doing
+//   ON-1  PLAYERS ONLINE (tracker r16): the count is hr_players_online's answer, asked
+//         on each social poll naming the account's open character slots, replaced by
+//         each answer; a refused or malformed answer reads "— online", never the last
+//         number
+//   ON-2  [page] the counter reads the server's "3 online" at 12 px or more, on
+//         screen, overlapping no other widget; off by default on a phone
 //   CW-1  [page] a pushed line renders time + name [level, role glyph] + body, the
 //         name coloured by role; a link shows the catalogue name in its rarity
 //   CW-2  [page] an unread dot on a tab that got a line, cleared when shown
@@ -68,10 +74,10 @@ const row = (o) => Object.assign({ id: '00000000-0000-4000-8000-' + String(++seq
 
 async function load(base) {
   const u = (p) => pathToFileURL(join(base, p)).href;
-  const [lines, store, wh, menu, prov, friends, fwin, rt, chans] = await Promise.all(['src/social/chat-lines.js', 'src/social/social-session.js',
+  const [lines, store, wh, menu, prov, friends, fwin, rt, chans, online] = await Promise.all(['src/social/chat-lines.js', 'src/social/social-session.js',
     'src/social/whispers.js', 'src/shell/context-menu.js', 'src/shell/menu-providers.js', 'src/social/friends.js', 'src/shell/windows/friends.js',
-    'src/social/realtime.js', 'src/data/chat-channels.js'].map((p) => import(u(p))));
-  return { lines, store, wh, menu, prov, friends, fwin, rt, chans };
+    'src/social/realtime.js', 'src/data/chat-channels.js', 'src/social/players-online.js'].map((p) => import(u(p))));
+  return { lines, store, wh, menu, prov, friends, fwin, rt, chans, online };
 }
 
 /* ── PURE ── */
@@ -227,6 +233,39 @@ async function pureRules(M) {
     if (!away || M.fwin.doingWords(away) !== 'Offline · In town') fail('FR-1 an offline friend reads ' + JSON.stringify(away && M.fwin.doingWords(away)));
     if (list.length !== 2 || !/^Online · Hunting in /.test(words) || f.incoming().length !== 1) fail('FR-1 friends read ' + JSON.stringify(list) + ' "' + words + '"');
   }
+  // ON-1 (tracker r16): the online count is the server's answer, asked on every social poll naming exactly the
+  // account's open character slots (the server stamps its own of those present), REPLACED by each answer; a
+  // failed or malformed answer shows a dash, never the last number.
+  {
+    let answer = { ok: true, online: 3 };
+    const { acct, calls, cs } = fakeAccount({ hr_players_online: () => answer });
+    const second = { slot: 2, read: () => null, subscribe: () => () => {} };
+    acct.characters = () => [cs, second];
+    let poll = null;
+    const soc = new M.store.SocialSession({ account: acct, realtime: fakeRealtime(), timers: { setTimer: (fn) => { poll = fn; return 1; }, clearTimer: () => {} } });
+    soc.start();
+    for (let i = 0; i < 5; i++) await tick();
+    const asks = calls.filter((c) => c.name === 'hr_players_online');
+    if (asks.length !== 1 || JSON.stringify(asks[0].args) !== '{"p_slots":[0,2]}') fail('ON-1 the first poll asked ' + JSON.stringify(asks.map((c) => c.args)) + ' (want the open slots 0 and 2, once)');
+    if (soc.online.count !== 3 || M.online.onlineWords(soc.online.count) !== '3 online') fail('ON-1 the server said 3, the counter reads ' + M.online.onlineWords(soc.online.count));
+    answer = { ok: false, error: 'rate_limited' };
+    poll(); for (let i = 0; i < 5; i++) await tick();
+    if (soc.online.count !== null || M.online.onlineWords(null) !== '— online') fail('ON-1 a refused ask kept the old count ' + soc.online.count);
+    answer = { ok: true, online: 'many' };
+    poll(); for (let i = 0; i < 5; i++) await tick();
+    if (soc.online.count !== null) fail('ON-1 a malformed count was shown: ' + soc.online.count);
+    answer = { ok: true, online: 1204 };
+    poll(); for (let i = 0; i < 5; i++) await tick();
+    if (M.online.onlineWords(soc.online.count) !== '1,204 online') fail('ON-1 the next answer did not replace the dash: ' + M.online.onlineWords(soc.online.count));
+    /* A poll whose social read fails (a session the server refused) sends no count ask and shows the dash. */
+    const asked = calls.filter((c) => c.name === 'hr_players_online').length;
+    acct.server.rpc = async (name, args) => { calls.push({ name, args }); return { ok: false, status: 401, body: null }; };
+    poll(); for (let i = 0; i < 5; i++) await tick();
+    if (calls.filter((c) => c.name === 'hr_players_online').length !== asked) fail('ON-1 a refused social read still asked the count (two dead calls a poll)');
+    if (soc.online.count !== null) fail('ON-1 a refused poll kept showing ' + soc.online.count);
+    soc.destroy();
+    if (soc.online.count !== null) fail('ON-1 a destroyed session still shows a count');
+  }
   return fails;
 }
 
@@ -254,6 +293,7 @@ async function stub(page, s) {
     if (name === 'hr_chat_recent') return json({ ok: true, zone: ZONE, party: null, lines: [row({ body: 'welcome back', created_at: '2026-10-18T08:00:00Z' })] });
     if (name === 'hr_chat_send') return json({ ok: true, line: row({ from_id: UID, from_name: 'Quill', body: body.p_body, from_weapon: 'staff', from_role: 'healer' }) });
     if (name === 'hr_social_state') return json({ ok: true, friends: [], incoming: [], outgoing: [], blocks: [] });
+    if (name === 'hr_players_online') return json({ ok: true, online: 3 });
     if (name === 'hr_whispers_recent') return json({ ok: true, lines: [] });
     if (name === 'hr_inspect') return json({ ok: true, id: OTHER, name: 'Bramble', slot: 0, level: 34, weapon: 'sword', role: null, gear: [{ slot: 'weapon', item: 'bronze_sword' }] });
     return json({ ok: true });
@@ -283,6 +323,25 @@ async function pageRules(overrides, shots) {
       await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
       await page.click('[data-app="play"][data-slot="0"]');
       await wait(page, () => document.querySelector('[data-hs-shell]'));
+      // ON-2 (tracker r16): the counter shows the server's number, at 12 px or more, on screen and clear of every other
+      // widget; on a phone it is off by default (the action bar spans that corner; HUD layout can show it).
+      const phone = vp.height <= 540;
+      if (phone) {
+        await page.waitForTimeout(600);
+        if (await page.evaluate(() => !!document.querySelector('[data-hs-widget="online"]'))) fails.push('ON-2 [' + tag + '] the counter shows by default on a phone, over the action bar');
+      } else if (!await wait(page, () => { const n = document.querySelector('[data-hs-widget="online"] .hs-online-n'); return n && n.textContent === '3 online'; }, null, 4000)) {
+        fails.push('ON-2 [' + tag + '] the counter does not read the server\'s "3 online": ' + JSON.stringify(await page.evaluate(() => { const n = document.querySelector('[data-hs-widget="online"]'); return n && n.textContent; })));
+      } else {
+        const box = await page.evaluate(() => {
+          const el = document.querySelector('[data-hs-widget="online"]');
+          const r = el.getBoundingClientRect();
+          const hit = (q) => q.left < r.right && r.left < q.right && q.top < r.bottom && r.top < q.bottom;
+          const over = Array.from(document.querySelectorAll('[data-hs-widget]')).filter((w) => w !== el && w.offsetWidth && hit(w.getBoundingClientRect())).map((w) => w.getAttribute('data-hs-widget'));
+          return { px: parseFloat(getComputedStyle(el.querySelector('.hs-online-n')).fontSize), inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight, over };
+        });
+        if (!(box.px >= 12) || !box.inside || box.over.length) fails.push('ON-2 [' + tag + '] the counter is ' + JSON.stringify(box));
+      }
+      if (shots) await page.screenshot({ path: join(shots, 'online-' + tag + '.png') });
       await page.keyboard.press('Enter');
       if (!await wait(page, () => document.querySelector('[data-hs-win="chat"] .hc-log.is-talk.is-on li'))) { fails.push('CW-1 [' + tag + '] the chat did not open on Global with its history'); await ctx.close(); continue; }
       // CW-1
@@ -404,6 +463,10 @@ const PURE_MUTANTS = [
   ['you can block yourself', 'src/social/social-session.js', "const other = (t) => t.kind === 'player' && !!t.id && !this.isSelf(t);", "const other = (t) => t.kind === 'player' && !!t.id;"],
   ['a friend reads online when offline', 'src/social/friends.js', "online: f.online === true,", "online: true,"],
   ['the realtime bindings are not capped', 'src/social/realtime.js', "        .slice(0, Math.max(0, CHAT_LIMITS.realtimeBindingsMax - held()));", ";"],
+  ['a failed online ask keeps the last count', 'src/social/players-online.js', '    let n = null;', '    let n = this.count;'],
+  ['a refused social read still asks the count', 'src/social/social-session.js', '    if (!read) { this.online.clear(); return null; }\n', ''],
+  ['the online ask names only the viewed character', 'src/social/social-session.js',
+    "o.account.characters().map((cs) => cs.slot)", '[o.account.viewed]'],
   ['the ground opens a menu', 'src/shell/menu-providers.js', "    if (MONSTERS[mon]) return { kind: 'monster', id: mon, title: monsterName(mon) };", "    return { kind: 'monster', id: mon, title: String(mon) };"],
 ];
 const PAGE_MUTANTS = [
@@ -415,6 +478,7 @@ const PAGE_MUTANTS = [
   ['a party member is not stamped', 'src/hunt-view/scene.js', "        out.ref = { player: { id: who ? who.id : null, name: (who && who.name) || m.name, slot: who ? who.slot : null } };", "        void who;"],
   ['the server ids are not read', 'src/session/party-sections.js', "    out.set(p.seat, { id: p.user, slot: Number.isInteger(p.slot) ? p.slot : null, name: name(p.name) });", "    void p;"],
   ['the World names nothing on a right-click', 'src/world/world-boot.js', "if (pick) emit('entity', { hits: pick.hits, x, y }); }", "void pick; }"],
+  ['the counter does not read the server\'s count', 'src/shell/widgets/online.js', '  const s = ctx.account && ctx.account.social;', '  const s = ctx.account;'],
   ['the menu is drawn inside the World', 'src/shell/windows/float-menu.js', "  doc.body.appendChild(el);\n  return el;", "  (doc.querySelector('.world-stage') || doc.body).appendChild(el);\n  return el;"],
 ];
 

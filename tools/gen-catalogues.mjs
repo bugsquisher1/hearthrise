@@ -49,9 +49,10 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
 /* THE PRACTICE KIT (lane b-hero-creation, 2026-10-20): 2026-10-27-core-catalogue.generated.sql is APPLIED
    history; the nine practice_* items and the start kit that grants them (every starter weapon set) land in
    this forward file, the same full delete+insert replace. */
-/* THE IMBUEMENT SLOT (lane c-loot-loop, 2026-10-21): 2026-11-02-hero-kit-catalogue.generated.sql is APPLIED
-   history; the eleven imbuement items (src/data/imbuements.js) land in this forward file, the same full
-   delete+insert replace. */
+/* THE IMBUEMENT SLOT (lane c-loot-loop, 2026-10-21): 2026-11-09-armour-class-catalogue.generated.sql is
+   APPLIED history (sixteen armour rows gained their armour_weight; its self-check asserts no armour-slot
+   armour row is weightless). The eleven imbuement items (src/data/imbuements.js) land in this forward file,
+   which applies AFTER it and carries those weights: the same full delete+insert replace. */
 const OUT = join(ROOT, 'supabase', 'migrations', '2026-11-08-loot-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
@@ -81,6 +82,7 @@ const imp = (rel) => import(pathToFileURL(join(ROOT, rel)).href);
 const { ITEMS } = await imp('src/data/items.js');
 const { SKILLS_DEF } = await imp('src/data/skills.js');
 const { CROPS, EQUIP_SLOTS } = await imp('src/data/gathering.js');
+const { ARMOUR_SLOTS } = await imp('src/data/core-model.js');
 // b338 — what a brand new character owns. See src/data/start-kit.js for why
 // this is data rather than a literal inside hr_create_character().
 const { START_CURRENCY, START_SKILL_XP, START_INVENTORY, START_EQUIPMENT }
@@ -752,6 +754,16 @@ begin
                   jsonb_object_keys(coalesce(d.r->'items', '{}'::jsonb) || coalesce(d.r->'keys', '{}'::jsonb)) k
   ) src where not exists (select 1 from public.hr_items i where i.item_id = src.id);
   if v_bad > 0 then raise exception '% grant-source row(s) name an item missing from hr_items', v_bad; end if;
+
+  -- EVERY ARMOUR PIECE HAS A WEIGHT (2026-10-21). hr_vitals_of counts worn armour by
+  -- armour_weight, so an armour row in an armour slot with none counts as bare skin
+  -- (iron plate gave less max HP than bronze). tests/catalogue-coherence.mjs C8 is
+  -- the source-side guard; this is the landed-rows half.
+  select count(*) into v_bad from public.hr_items i
+   where i.kind = 'armor' and i.armour_weight is null
+     and exists (select 1 from public.hr_item_slots p
+                  where p.item_id = i.item_id and p.equip_slot in (${ARMOUR_SLOTS.map(q).join(', ')}));
+  if v_bad > 0 then raise exception '% armour row(s) in an armour slot carry no armour_weight', v_bad; end if;
 
   raise notice 'CATALOGUES OK — % items, % activities, % runes, digest ${DIGEST}',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),

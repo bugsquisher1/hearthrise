@@ -23,6 +23,8 @@
 //       bag; a call missing its ground sends nothing
 //   A2  an ended session stores its summary ONCE (a second envelope for it adds
 //       nothing) and the stored card carries the death explanation
+//   A3  a re-read that lands before the debounced residue put keeps the stored
+//       card (pending residue outlives a replacing envelope until it is put)
 // No ?v= on imports here (tests/**).
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, cpSync, rmSync } from 'node:fs';
@@ -141,17 +143,23 @@ async function runTests(M) {
   });
 
   const ended = (over) => Object.assign({ id: 'sess-9', ended: true, hunt: 'mill_cellar', reason: 'died', preset: 1, hoursLimit: 2, enteredMs: 1000, endedMs: 61000,
-    bag: [['wheat_bread', 20, 0], ['goldenroot_tea', 10, 1]], tally: { kills: 7, xp: 70, coins: 30, loot: { rat_tail: 4 }, supplies: { wheat_bread: 3 }, deaths: 1 }, died: 1 }, over || {});
+    bag: [['wheat_bread', 20, 0], ['goldenroot_tea', 10, 1]], tally: { kills: 7, xp: { level: 70, melee: 500, defense: 90 }, coins: 30, loot: { rat_tail: 4 }, supplies: { wheat_bread: 3 }, deaths: 1 }, died: 1 }, over || {});
 
   await t('S4 the summary reads the analyzer (own vs store) and, for a free character, the tally', () => {
-    const an = { sessionMs: 120000, hero: { kills: 164, xp: 16311, gold: 2996, supplies: [{ item: 'wheat_bread', source: 'own', count: 12 }, { item: 'wheat_bread', source: 'store', count: 4 }],
-      loot: [{ item: 'rat_tail', count: 5 }, { item: 'cheese', count: 9 }] } };
+    const an = { sessionMs: 120000, hero: { kills: 164, levelXp: 16311, trainingXp: 40210, gold: 2996, supplies: [{ item: 'wheat_bread', source: 'own', count: 12 }, { item: 'wheat_bread', source: 'store', count: 4 }],
+      loot: [{ item: 'rat_tail', count: 5 }, { item: 'cheese', count: 9 }], perHour: { levelXp: 489330, rawLevelXp: null, trainingXp: 1206300, gold: 89880, waste: null, balance: 71220 } } };
     const s = MD.buildSummary(ended(), an, ['Knight died.']);
-    eq([s.ms, s.kills, s.xp, s.gold, s.reason, s.died], [120000, 164, 16311, 2996, 'died', 1], 'the analyzer numbers');
+    /* Per hour is the server's figure (designer 2026-10-21): balance for everyone, raw XP only when sent (premium). */
+    eq([s.balanceH, s.rawXpH], [71220, null], 'a free character: the server balance per hour, no raw XP per hour');
+    const prem = MD.buildSummary(ended(), { ...an, hero: { ...an.hero, perHour: { ...an.hero.perHour, rawLevelXp: 401000 } } }, []);
+    eq([prem.balanceH, prem.rawXpH], [71220, 401000], 'a premium character: balance and raw XP per hour');
+    eq(MD.sanitizeSummaries([prem])[0].rawXpH, 401000, 'the stored card keeps the per-hour figures');
+    /* XP on the card is LEVEL XP, never Level plus training (Tyler 2026-10-22). */
+    eq([s.ms, s.kills, s.xp, s.gold, s.reason, s.died], [120000, 164, 16311, 2996, 'died', 1], 'the analyzer numbers, XP = Level XP');
     eq(s.supplies, [['wheat_bread', 'own', 12], ['wheat_bread', 'store', 4]], 'bag vs store');
     eq(s.loot[0], ['cheese', 9], 'top loot first');
     const free = MD.buildSummary(ended(), null, []);
-    eq([free.ms, free.kills, free.xp, free.gold, free.loot, free.supplies], [60000, 7, 70, 30, [['rat_tail', 4]], [['wheat_bread', 'own', 3]]], 'the free character reads the session tally');
+    eq([free.ms, free.kills, free.xp, free.gold, free.loot, free.supplies], [60000, 7, 70, 30, [['rat_tail', 4]], [['wheat_bread', 'own', 3]]], 'the free character reads the session tally (XP = its Level key, not the skills)');
   });
 
   await t('S5 Hunt again is the ended hunt\'s own settings', () => {
@@ -192,8 +200,8 @@ async function runTests(M) {
 
   await t('A2 an ended session stores its summary once, with the death explanation', async () => {
     const calls = [];
-    let v = 8;
-    const cs = sessionOn(calls, () => endedEnv(v));
+    let v = 8; let state;
+    const cs = sessionOn(calls, () => Object.assign(endedEnv(v), state ? { client_state: state } : {}));
     const store = [];
     const real = cs.setResidue.bind(cs);
     cs.setResidue = (f, val) => { store.push([f, val]); return real(f, val); };
@@ -206,9 +214,56 @@ async function runTests(M) {
     eq(store.length, 1, 'one residue write for the ended session');
     ok(store[0][1][0].id === 'sess-9' && store[0][1][0].reason === 'died', 'the card is for the ended session');
     ok(store[0][1][0].deaths.some((d) => d.includes('3 ') && d.includes('hits')), 'the card carries the explanation: ' + JSON.stringify(store[0][1][0].deaths));
-    v = 9;
+    /* The put goes and the server echoes it, then a later copy has lost the card, so the record holds no card
+       and only the recorder's own once-per-session rule can stop a second write. */
+    await cs.flushResidue();
+    state = clone(calls.find((c) => c.name === 'hr_put_client_state').args.p_patch); v = 9;
     await cs.load();
+    state = { huntSummaries: [] }; v = 10;
+    await cs.load();
+    ok(!M.REC.summariesOf(cs).length, 'the fixture lost the card (else the store check hides the once-rule)');
     eq(store.length, 1, 'a second envelope for the same session adds nothing');
+  });
+
+  await t('A3 a re-read before the residue put lands keeps the stored card (it never blinks out)', async () => {
+    const calls = [];
+    let v = 8;
+    const cs = sessionOn(calls, () => endedEnv(v));
+    const open = clone(FIX); open.version = 7; open.hunt = { session: { id: 'sess-9', hunt: 'mill_cellar', preset: 1, phase: 'hunting', bag: [], tally: {} }, pose: FIX.hunt.pose };
+    await cs._take(open, 'load');
+    ok(await cs.load(), 'the ended envelope applied');
+    ok(M.REC.summariesOf(cs).some((x) => x.id === 'sess-9'), 'the card is stored');
+    /* the server's copy (no client_state yet: the debounced put has not gone) replaces the record */
+    v = 9;
+    ok(await cs.load(), 'the re-read applied');
+    ok(M.REC.summariesOf(cs).some((x) => x.id === 'sess-9'), 'the re-read dropped the card the put had not sent yet');
+    ok(await cs.flushResidue(), 'the put goes');
+    ok(calls.some((c) => c.name === 'hr_put_client_state' && Array.isArray(c.args.p_patch.huntSummaries)), 'the put carries the card');
+  });
+
+  /* HS-25 (in-page, flaky 2026-10-22): the debounced put went, and a re-read built BEFORE the server stored it
+     answered after: its client_state has no card, and nothing was pending any more, so the card blinked out. */
+  await t('A4 a re-read that crossed the residue put in flight keeps the card until the server echoes it', async () => {
+    const calls = [];
+    let v = 8; let state;
+    const cs = sessionOn(calls, () => Object.assign(endedEnv(v), state ? { client_state: state } : {}));
+    const open = clone(FIX); open.version = 7; open.hunt = { session: { id: 'sess-9', hunt: 'mill_cellar', preset: 1, phase: 'hunting', bag: [], tally: {} }, pose: FIX.hunt.pose };
+    await cs._take(open, 'load');
+    ok(await cs.load(), 'the ended envelope applied');
+    ok(await cs.flushResidue(), 'the put goes (nothing is pending after it)');
+    const put = calls.find((c) => c.name === 'hr_put_client_state').args.p_patch;
+    v = 9;
+    ok(await cs.load(), 'a re-read that predates the put applied');
+    ok(M.REC.summariesOf(cs).some((x) => x.id === 'sess-9'), 'a re-read that crossed the put in flight dropped the card');
+    /* the server echoes it (jsonb re-orders keys: the echo is matched key order aside) */
+    const reorder = (o) => (Array.isArray(o) ? o.map(reorder) : o && typeof o === 'object' ? Object.fromEntries(Object.keys(o).reverse().map((k) => [k, reorder(o[k])])) : o);
+    state = reorder(clone(put)); v = 10;
+    ok(await cs.load(), 'the echo applied');
+    ok(M.REC.summariesOf(cs).some((x) => x.id === 'sess-9'), 'the echoed card is shown');
+    /* once echoed, the server's word is the client's again: a later copy without it (another device) is shown as sent */
+    state = { huntSummaries: [] }; v = 11;
+    ok(await cs.load(), 'the later re-read applied');
+    ok(!M.REC.summariesOf(cs).some((x) => x.id === 'sess-9'), 'an echoed field kept overriding the server forever');
   });
 
   return fails;
@@ -225,6 +280,9 @@ async function load(base) {
 }
 
 const MUTANTS = [
+  { test: 'A3', file: SESSION, from: 'for (const [f, v] of Object.entries({ ...this._sent, ...this._pending })) this._record', to: 'for (const [f, v] of Object.entries({ ...this._sent })) this._record' },
+  { test: 'A4', file: SESSION, from: 'this._pending = {}; this._sent = Object.assign({}, this._sent, patch);', to: 'this._pending = {};' },
+  { test: 'A4', file: RESIDUE, from: 'if (back === undefined || JSON.stringify(back) !== JSON.stringify(v)) out[f] = v;', to: 'out[f] = v;' },
   { test: 'D1', file: EXPLAIN, from: "parts.push(plural(g.amounts.length, g.who + ' hit', g.who + ' hits')", to: "parts.push(plural(1, g.who + ' hit', g.who + ' hits')" },
   { test: 'D1', file: EXPLAIN, from: "else if (to - lastHeal >= 3000)", to: "else if (false)" },
   { test: 'D1', file: EXPLAIN, from: "for (const o of who.others || []) if", to: "for (const o of []) if" },
@@ -238,6 +296,9 @@ const MUTANTS = [
   { test: 'S3', file: RESIDUE, from: "  huntSummaries: sanitizeSummaries,", to: "  huntSummaries: (v) => v," },
   { test: 'S4', file: MODEL, from: ".map((x) => [x.item, x.source, x.count])", to: ".map((x) => [x.item, 'own', x.count])" },
   { test: 'S4', file: MODEL, from: "loot.sort((a, b) => b[1] - a[1]);", to: '' },
+  { test: 'S4', file: MODEL, from: 'balanceH: ph ? ph.balance : null,', to: 'balanceH: ph ? ph.gold : null,' },
+  { test: 'S4', file: SUMMARIES, from: 'balanceH: num(v.balanceH), rawXpH: num(v.rawXpH),', to: 'balanceH: num(v.balanceH),' },
+  { test: 'S4', file: MODEL, from: 'isObj(t.xp) ? num(t.xp.level) : num(t.xp)', to: 'num(t.xp)' },
   { test: 'S5', file: MODEL, from: "hunt: summary.hunt, preset: summary.preset, hours: summary.hoursLimit,", to: "hunt: summary.hunt, preset: 0, hours: summary.hoursLimit," },
   { test: 'A1', file: SESSION, from: "p_hunt: a.hunt, p_bag: a.bag, p_preset: a.preset,", to: "p_hunt: a.hunt, p_bag: [], p_preset: a.preset," },
   { test: 'A1', file: SESSION, from: "if (!a || !ITEM.test(String(a.hunt)) ||", to: "if (!a ||" },

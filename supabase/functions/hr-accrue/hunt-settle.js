@@ -216,6 +216,8 @@ const refusal = (status, error, extra) => ({ status, body: { ok: false, error, .
  * @param o.grounds   test seam: { [huntId]: { ground, grid } } instead of huntGroundOf
  * @param o.atMs     test seam: end the window here instead of at the server's now
  *                    (clamped to it; production passes none)
+ * @param o.worldMaxBytes  test seam: a TIGHTER world bound (accrual.js accrueHunt
+ *                    takes the smaller; production passes none)
  * @returns {{ outcome: 'paid'|'nothing'|'none'|'refused'|'limited', reason?, status, body, ended? }}
  */
 export async function settleHunt(o) {
@@ -236,8 +238,27 @@ async function settleOnce(o, mode) {
   const { env, fromMs } = plan;
   let toMs = plan.toMs;
   let degraded = 0;
+  /* ASK FOR LESS: half the window, so fewer swings and a smaller delta (or another
+     world). The instance clock still only moves by what is settled; the rest is owed. */
+  const shorter = (err, detail) => {
+    const half = fromMs + Math.floor((toMs - fromMs) / 2);
+    if (degraded >= HUNT_MAX_DEGRADE || !(half > fromMs)) {
+      return { outcome: 'refused', reason: err, ...refusal(409, err, detail) };
+    }
+    toMs = half;
+    degraded++;
+    return null;
+  };
   for (;;) {
     const p = await proposeHuntSettle(plan, toMs, degraded);
+    if (!p.out.accrued && p.out.refused) {
+      /* THE ENGINE REFUSED THE WINDOW (accrual.js HUNT_REFUSE): nothing was
+         proposed and nothing is committed. */
+      const err = String(p.out.reason);
+      const stop = shorter(err, { detail: { world_bytes: p.out.worldBytes, world_max_bytes: p.out.worldMaxBytes } });
+      if (stop) return stop;
+      continue;
+    }
     if (!p.out.accrued) {
       return { outcome: 'nothing', reason: String(p.out.reason || 'nothing'), status: 200,
         body: { ok: true, settled: false, reason: String(p.out.reason || 'nothing'), ...env } };
@@ -264,12 +285,8 @@ async function settleOnce(o, mode) {
     }
     const err = String((res && res.error) || 'apply_failed');
     if (HUNT_DEGRADABLE.includes(err) && degraded < HUNT_MAX_DEGRADE) {
-      /* ASK FOR LESS: half the window, so fewer swings and a smaller delta. The
-         instance clock still only moves by what is settled; the rest is owed. */
-      const half = fromMs + Math.floor((toMs - fromMs) / 2);
-      if (!(half > fromMs)) return { outcome: 'refused', reason: err, ...refusal(409, err, { detail: res ?? null }) };
-      toMs = half;
-      degraded++;
+      const stop = shorter(err, { detail: res ?? null });
+      if (stop) return stop;
       continue;
     }
     return { outcome: 'refused', reason: err, ...refusal(409, err, { detail: res ?? null, stage: res && res.stage }) };
@@ -337,7 +354,7 @@ export async function readHuntSettle(o, mode) {
   const endMs = Number.isFinite(Number(o.atMs)) ? Math.min(nowMs, Math.floor(Number(o.atMs))) : nowMs;
   const toMs = Math.min(endMs, fromMs + HUNT_SETTLE_SPAN_MS);
   if (!(toMs > fromMs)) return notDue;
-  return { env, inst, members, where, fromMs, toMs, nowMs };
+  return { env, inst, members, where, fromMs, toMs, nowMs, worldMaxBytes: o.worldMaxBytes };
 }
 
 /* (2) THE PROPOSAL: the engine over [fromMs, toMs) and every member's keyed
@@ -349,6 +366,7 @@ export async function proposeHuntSettle(plan, toMs, attempt) {
       worldSwing: Number(inst.world_swing) || 0 },
     window: { fromMs, toMs }, secret: String(inst.secret || ''),
     ground: where.ground, grid: where.grid, items: ITEMS, monsters: MONSTERS, members,
+    worldMaxBytes: plan.worldMaxBytes,
   });
   if (!out.accrued) return { out, commit: null };
   const payload = [];

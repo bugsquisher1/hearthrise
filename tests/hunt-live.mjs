@@ -5,7 +5,7 @@
 //   node tests/hunt-live.mjs            the rules
 //   node tests/hunt-live.mjs --mutate   every planted defect must turn its rule RED
 //
-// mutant-anchors: src/hunt-view/live-engine.js src/core/combat-sim.js supabase/functions/hr-accrue/hunt-settle.js supabase/functions/hr-accrue/accrual.js src/hunt-view/timeline.js src/core/hunt/roles.js src/core/hunt/targeting.js src/core/member.js
+// mutant-anchors: src/hunt-view/live-engine.js src/core/combat-sim.js supabase/functions/hr-accrue/hunt-settle.js supabase/functions/hr-accrue/accrual.js src/hunt-view/timeline.js src/core/hunt/roles.js src/core/hunt/targeting.js src/core/member.js src/core/hunt/pull-cycle.js
 // mutant-writes-tree: no — mutants are planted into a temp copy of src/ and the edge
 //
 // Option B (Tyler 2026-10-19). The edge settles a hunt instance in commits of at
@@ -53,6 +53,11 @@
 //         stream): with every monster carrying rare rows, the server's commits roll rares
 //         (`rare_roll`, each Crown Shard to its winner) and the browser's prediction, which
 //         runs the loot stream on a constant, never feeds a `rare_roll` of its own.
+//   LV-G  A LONG HUNT COSTS WHAT A SHORT ONE DOES: per settle, the server's input, stored world
+//         and engine work in a 40-min hunt's last 10 min stay within 2x its first 10 min's; the
+//         browser holds at most 2x the look-ahead in combat seeds (they grew with the hunt's age).
+//   LV-Q  ONE DEATH STOPS THE PARTY: from the sub-step a hero dies nobody acts again, browser
+//         closed and viewed (live v0.2.23, Andy: "2nd char starts to run away after death").
 //   LV-R  RECONCILE: a prediction forced off the server's world is judged
 //         `diverged` at the next commit, and the reseed eases every unit onto its true
 //         tile with no frame moving a unit more than one tile.
@@ -381,6 +386,40 @@ function rules(M) {
       `viewed: the second tank's Challenges by lap [${laps.map((l) => l.casts2).join(', ')}]: want none in the leader's lap and the pack taken in the next`);
   }
 
+  { // LV-Q: ONE DEATH STOPS THE WHOLE PARTY AT ONCE (Tyler 2026-10-19; live v0.2.23, Andy: "2nd char starts to run
+    // away after death"). A Sewer duo at density 8 whose tank falls: from the sub-step the tank dies nobody acts again
+    // (the party's hunt ends at each member's next boundary). Before: the ranger, alone and targeted, kited 5 tiles
+    // away for the rest of the swing and could take blows the death had already ended. BROWSER CLOSED: the server's
+    // commits; VIEWED: the live engine's fed swings (LV-D: the same).
+    const mk = () => { const mis = [memberOf(M, 'a', 0, 'tank', 14), memberOf(M, 'b', 1, 'ranger', 14)];
+      for (const m of mis) { m.huntId = 'millrace_sewer'; m.hero = Object.assign({}, m.hero, { density: 8 }); } return mis; };
+    const after = (steps, events, ids) => {
+      const death = events.find((e) => e.type === 'kill' && ids.includes(e.t));
+      if (!death) return null;
+      return { at: death.atMs - T0, steps: steps.filter((s) => ids.includes(s.u) && s.atMs > death.atMs).length,
+        blows: events.filter((e) => e.atMs > death.atMs && (ids.includes(e.u) || ids.includes(e.t))).length };
+    };
+    const mis = mk();
+    const srv = server(M, mis, { hunt: 'millrace_sewer' });
+    const steps = [], events = [];
+    let ids = [];
+    for (let t = T0 + 10000; t <= T0 + 600000 && !mis.every((m) => m.unitId === null && m.huntSession.swingIndex > 0); t += 10000) {
+      const c = srv.commit(t);
+      if (!ids.length) ids = mis.map((m) => m.unitId);
+      if (c) { steps.push(...c.tl.hunt_track); events.push(...c.tl.hunt_events); }
+    }
+    const closed = after(steps, events, ids);
+    const vm = mk();
+    let vids = [];
+    const v = run(M, vm, closed ? closed.at + 4000 : 1000, { server: { hunt: 'millrace_sewer' }, commitMs: 10000,
+      onCommit: () => { if (!vids.length) vids = vm.map((m) => m.unitId); } });
+    const viewed = after(v.fed.steps, v.fed.events, vids);
+    console.log(`  LV-Q a Sewer duo's tank falls at ${closed && closed.at} ms: after it, closed ${closed && closed.steps} hero steps / ${closed && closed.blows} blows, viewed ${viewed && viewed.steps} / ${viewed && viewed.blows}`);
+    ok('LV-Q', !!closed && !!viewed, 'the duo never lost a hero in 10 minutes (the rule needs a death)');
+    ok('LV-Q', closed && closed.steps === 0 && closed.blows === 0, `browser closed: after the death the party took ${closed && closed.steps} steps and ${closed && closed.blows} blows`);
+    ok('LV-Q', viewed && viewed.steps === 0 && viewed.blows === 0, `viewed: after the death the party took ${viewed && viewed.steps} steps and ${viewed && viewed.blows} blows on screen`);
+  }
+
   { // LV-E: THE HUNT ENDS IN THE BROWSER WITHOUT FREEZING IT (Andy, live v0.2.22: "crashing in Coppercap Warrens
     // when my tank dies ... both games freeze ... refresh doesn't work"). Every member of the instance left (the
     // tank died, the party's hunt with it): the engine's clock stands, and the live view must stop there, not run
@@ -450,6 +489,39 @@ function rules(M) {
     ok('LV-RR', srvRolls.length > 0, 'CONTROL: the server rolled no rare in 160 s with ten 5% rows on every monster');
     ok('LV-RR', fedRolls.length === 0, `the browser's prediction fed ${fedRolls.length} rare roll(s) drawn on its constant loot stream`);
     ok('LV-RR', (r.srv.drops.crown_shard || 0) >= srvRolls.length, `the server paid ${r.srv.drops.crown_shard || 0} Crown Shards for ${srvRolls.length} rolls`);
+  }
+
+  { // LV-G: A LONG HUNT COSTS WHAT A SHORT ONE DOES (2026-10-21, a 260-min party hunt read "freezing"). Per settle, the
+    // server's input (the stored world and every member's session), its output (the world it stores) and
+    // the engine's work (steps + events) in the last 10 minutes of a 40-minute Sewer duo stay within 2x the first 10
+    // minutes'; the browser's held combat seeds stay within 2x the look-ahead at every commit (kept from the first seed
+    // ever sent, they grew by 8 every commit and each reconcile re-copied them all).
+    const mis = [memberOf(M, 'a', 0, 'tank', 30), memberOf(M, 'b', 1, 'melee_dps', 30)];
+    for (const m of mis) m.huntId = 'millrace_sewer';
+    const srv = server(M, mis, { hunt: 'millrace_sewer' });
+    const E = M.LE.createLiveEngine({ items: M.ITEMS, monsters: M.MONSTERS });
+    E.seed(srv.live('a'));
+    const SPAN = 40 * 60000, EDGE = 10 * 60000;
+    const early = { input: 0, output: 0, work: 0 }, late = { input: 0, output: 0, work: 0 };
+    let held = 0, stopped = null, worldMax = 0;
+    for (let t = T0 + 16000; t <= T0 + SPAN; t += 16000) {
+      E.advance(t, () => {});
+      const input = JSON.stringify({ w: srv.inst.world, m: mis.map((m) => m.huntSession) }).length;
+      const c = srv.commit(t);
+      if (!c) { stopped = t - T0; break; }
+      if (E.reconcile(c.check) !== 'match') E.seed(srv.live('a'));
+      held = Math.max(held, E.heldSeeds());
+      worldMax = Math.max(worldMax, srv.inst.world.length);
+      const output = srv.inst.world.length, work = c.tl.hunt_track.length + c.tl.hunt_events.length;
+      const at = t - T0 <= EDGE ? early : t - T0 > SPAN - EDGE ? late : null;
+      if (at) { at.input = Math.max(at.input, input); at.output = Math.max(at.output, output); at.work = Math.max(at.work, work); }
+    }
+    console.log(`  LV-G 40-min Sewer duo: per settle, input ${early.input} -> ${late.input} B, world ${early.output} -> ${late.output} B (max ${worldMax}), engine work ${early.work} -> ${late.work} steps+events; browser holds at most ${held} seeds (look-ahead ${M.TUNE.liveSeeds})`);
+    ok('LV-G', stopped === null, `the settle stopped answering ${stopped} ms into the hunt (a world past worldMaxBytes is refused)`);
+    for (const k of ['input', 'output', 'work']) {
+      ok('LV-G', early[k] > 0 && late[k] <= 2 * early[k], `the settle's ${k} grew with the hunt's age: ${early[k]} in the first 10 min, ${late[k]} in the last`);
+    }
+    ok('LV-G', held <= 2 * M.TUNE.liveSeeds, `the browser holds ${held} combat seeds after 40 min, over 2x the look-ahead (${M.TUNE.liveSeeds}): they grow with the hunt's age`);
   }
 
   { // LV-W: a RESTARTED instance (no world, its swing counter kept: hr_hunt_start) runs live from its first swing
@@ -605,6 +677,7 @@ const MUTANTS = [
   ['a peer row carries its full setup (LV-P)', 'supabase/functions/hr-accrue/hunt-settle.js', '      if (!self) {', '      if (false) {', /^LV-P/],
   ['the look-ahead is its own number at the edge (LV-H)', 'supabase/functions/hr-accrue/hunt-settle.js', 'export const LIVE_SEEDS = HUNT_TUNING.liveSeeds;', 'export const LIVE_SEEDS = 64;', /^LV-H/],
   ['a second tank holds where it stands (LV-T)', 'src/core/hunt/roles.js', "  if (!mons.some((m) => m.target === h.id)) { closeIn(inst, h, unitById(inst, h.target) || nearestTo(mons, h)); return; }\n", '', /^LV-T/],
+  ['the swing runs on after a hero dies (LV-Q, live v0.2.23)', 'src/core/hunt/world-step.js', '    if (heroes.some((u) => !u.alive)) break;\n', '', /^LV-Q/],
   ['an ended instance keeps the prediction swinging (LV-E)', 'src/hunt-view/live-engine.js', 'if (!(sim.nextSwingAtMs > at)) {', 'if (false) {', /^LV-E/],
   ['a fresh world counts from 0, not the instance swing (LV-W)', 'src/hunt-view/live-engine.js', '      worldSwing: s.worldSwing },', '      worldSwing: 0 },', /^LV-W/],
   ['the settle refuses a stored world of another shape (LV-O)', 'supabase/functions/hr-accrue/accrual.js',
@@ -620,6 +693,9 @@ const MUTANTS = [
   ['an empty own slot buys its store partner instead of falling to slot 2 (LV-$)', 'src/core/action-rules.js',
     "  if (c && c.source === 'own') return leftOf(hs, want) > 0 ? { id: want, source: 'own', price: 0 } : { why: 'none' };",
     "  if (c && c.source === 'own' && !(leftOf(hs, want) > 0) && shopShotFor(hs, want)) return { id: shopShotFor(hs, want).id, source: 'store', price: shopShotFor(hs, want).price };\n  if (c && c.source === 'own') return leftOf(hs, want) > 0 ? { id: want, source: 'own', price: 0 } : { why: 'none' };", /^LV-\$/],
+  ['the browser keeps every combat seed since the hunt began (LV-G)', 'src/hunt-view/live-engine.js',
+    'const keepFrom = Math.max(Math.min(st.seeds.from, from), st.world ? st.world.swing : st.worldSwing);', 'const keepFrom = Math.min(st.seeds.from, from);', /^LV-G/],
+  ['corpses are never cleared from the stored world (LV-G)', 'src/core/hunt/pull-cycle.js', 'if (u.deadMs >= HUNT_TUNING.corpseMs) gone = true;', 'if (false) gone = true;', /^LV-G/],
   ['the browser drops the leader flag of a peer (LV-K)', 'src/core/member.js', '    hero: f.hero || {},', '    hero: Object.assign({}, f.hero, { lead: false }),', /^LV-K/],
 ];
 

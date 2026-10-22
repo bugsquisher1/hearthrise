@@ -263,6 +263,33 @@ async function rules(M) {
     return calls.join(',') === 'accrue,hr_load' || 'the full read did not follow an idle settle: ' + calls.join(',');
   });
 
+  /* EQUIP-1 (tracker r16, "equipping answers at once"): an engine intent's answer IS the envelope (hr-accrue
+     answers hr_state_of after its commit): it is applied as it stands, ONE round trip, no hr_load after it.
+     An answer without an envelope, or one older than the record, still re-reads; an RPC intent always re-reads. */
+  await t('EQUIP-1', async () => {
+    const calls = [];
+    let body = Object.assign({ ok: true, verb: 'equip' }, env(5, { equipment: { weapon: 'iron_sword' } }));
+    const srv = {
+      /* An RPC intent's answer is never the character, even one shaped like an envelope. */
+      rpc: async (name) => { calls.push(name); return { ok: true, status: 200, body: name === 'hr_load' ? env(4, { equipment: {} }) : env(9, { equipment: { weapon: 'ghost' } }), closed: false }; },
+      accrue: async () => { calls.push('accrue'); return { ok: true, status: 200, body, closed: false }; },
+    };
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, ...timers });
+    await cs.load();
+    const r = await cs.edgeIntent('equip', { equip: { weapon: 'iron_sword' } });
+    if (!r.ok) return 'the equip answered ' + JSON.stringify(r);
+    if (calls.join(',') !== 'hr_load,accrue') return 'the equip cost more than one round trip: ' + calls.join(',');
+    if (cs.record.version !== 5 || cs.record.data.equipment.weapon !== 'iron_sword') return 'the equip answer was not applied';
+    body = { ok: true };
+    await cs.edgeIntent('equip', { equip: { weapon: null } });
+    if (calls.join(',') !== 'hr_load,accrue,accrue,hr_load') return 'an answer with no envelope did not re-read: ' + calls.join(',');
+    body = Object.assign({ ok: true }, env(2, { equipment: {} }));
+    await cs.edgeIntent('equip', { equip: { weapon: null } });
+    if (calls.slice(-2).join(',') !== 'accrue,hr_load' || cs.record.version === 2) return 'a stale answer was applied or not re-read: ' + calls.join(',');
+    await cs.lockItem('iron_sword', true);
+    return calls.slice(-2).join(',') === 'hr_item_lock,hr_load' || 'an RPC intent no longer re-reads: ' + calls.join(',');
+  });
+
   /* HUNT-1 (ATTENDED, live v0.2.1 "Mill Cellar shows no monsters"): frames never carry `hunt` and the world
      tick flushes a session only every 90 s, so while a hunt is open the character itself asks the hunter's
      settle (one hello per huntPollMs); the answer's track reaches the timeline, and an ended hunt stops it. */
@@ -718,13 +745,15 @@ async function viewRules(base) {
 
 /* ── THE MUTANTS: each must turn at least one rule red. ── */
 const MUTANTS = [
+  ['an engine answer costs a second round trip', 'src/session/character-session.js', "{ if (!(carries && this._take(ans.body, 'load'))) await this.load(); return { ok: true }; }", '{ await this.load(); return { ok: true }; }'],
+  ['every intent answer is taken as the envelope', 'src/session/character-session.js', '_settled(await send(), carries === true)', '_settled(await send(), true)'],
   ['merge, not replace', 'src/session/envelope.js', '  const data = {};\n  for (const k of Object.keys(env))', '  const data = Object.assign({}, current ? current.data : {});\n  for (const k of Object.keys(env))'],
   ['stale accepted', 'src/session/envelope.js', "if (current && env.version < current.version) return keep('stale');", ''],
   ['frame merges inside a key', 'src/session/envelope.js', 'data[k] = copy(f.patch[k]);', 'data[k] = copy(Object.assign({}, current.data[k], f.patch[k]));'],
   ['partial bag accepted', 'src/session/envelope.js', "&& f.patch.inventory_complete !== true) return keep('bag_incomplete');", "&& false) return keep('bag_incomplete');"],
   ['no state accepted', 'src/session/envelope.js', "if (!isObj(env.state)) return keep('incomplete');", ''],
   ['residue unfiltered', 'src/session/residue.js', '  for (const f of RESIDUE_FIELDS) if (Object.prototype.hasOwnProperty.call(bag, f)) out[f] = sanitizeResidueField(f, bag[f]);', '  Object.assign(out, bag);'],
-  ['one topic for every slot', 'src/session/character-session.js', "return 'hr:' + uid.toLowerCase() + ':' + slot;", "return 'hr:' + uid.toLowerCase();"],
+  ['one topic for every slot', 'src/session/frame-channel.js', "return 'hr:' + uid.toLowerCase() + ':' + slot;", "return 'hr:' + uid.toLowerCase();"],
   ['the slot offer is made up on this side', 'src/session/account-session.js', '    || !Number.isSafeInteger(o.cost_gold) || o.cost_gold < 1) return null;', '    || false) return null;'],
   ['a slot purchase sends a price', 'src/session/account-session.js', "{ p_slot_id: slotId, p_slot: paySlot, p_idem: newIdem() }", "{ p_slot_id: slotId, p_slot: paySlot, p_price: this.slotOffer && this.slotOffer.cost, p_idem: newIdem() }"],
   ['the paying hero keeps its old gold', 'src/session/account-session.js', '      if (cs) await cs.load();\n', ''],

@@ -7,7 +7,7 @@
 //   node tests/alpha-windows.mjs --shots <dir>  also write the visual-gate screenshots
 //                                               (1440x900 and 922x423)
 //
-// mutant-anchors: src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js
+// mutant-anchors: src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character's envelope is tests/fixtures/alpha-envelope.json.
@@ -22,8 +22,10 @@
 //         never merged upward); a stack that grew carries the "new" mark, one that
 //         shrank does not
 //   AW-4  INTENT-ONLY: Equip sends ONE `equip` intent naming the slot and item, the
-//         primary goes off at once, and the doll keeps the server's weapon until
-//         the re-read envelope says otherwise
+//         primary goes off at once, the weapon slot and the sword's stack carry the
+//         pending mark from the press until the answer (r16), the engine's answer
+//         (the whole envelope) is applied with no second round trip to hr_load, and
+//         the doll keeps the server's weapon until an envelope says otherwise
 //   AW-5  LOCK PROTECTS FROM BULK SELL: "Sell junk" over stacks that include a
 //         locked one confirms with the locked stack kept, and the ONE
 //         vendor_sell_many it sends never names it
@@ -249,9 +251,21 @@ async function checks(overrides, shots) {
         if (after.rat !== '40' || after.bones !== '2' || after.gel) fails.push('AW-3 the bag did not take the server’s new counts (rat ' + after.rat + ', bones ' + after.bones + ', slime gel still there: ' + after.gel + ')');
         /* AW-4: Equip on a bag sword is one intent, off at once, and the doll waits for the server. */
         await page.click('.hw-pocket[data-item="steel_sword"]');
+        const loadsBefore = sent(s, 'hr_load').length;
         await page.click('.hw-pick [data-hs-act="primary"]');
-        const mid = await page.evaluate(() => ({ off: document.querySelector('.hw-pick [data-hs-act="primary"]').disabled }));
+        const mid = await page.evaluate(() => ({ off: document.querySelector('.hw-pick [data-hs-act="primary"]').disabled,
+          slot: document.querySelector('.hw-slot[data-slot="weapon"]').classList.contains('is-wearing'),
+          busy: document.querySelector('.hw-slot[data-slot="weapon"]').getAttribute('aria-busy'),
+          stack: document.querySelector('.hw-pocket[data-item="steel_sword"]').classList.contains('is-wearing'),
+          others: document.querySelectorAll('.hw-slot.is-wearing, .hw-pocket.is-wearing').length }));
         if (!mid.off) fails.push('AW-4 the primary stayed on while the equip intent was in flight');
+        /* r16 "equipping answers at once": from the press, the weapon slot and the sword's stack carry the pending mark. */
+        if (!mid.slot || mid.busy !== 'true' || !mid.stack || mid.others !== 2) fails.push('AW-4 the equip in flight is not marked on its slot and stack: ' + JSON.stringify(mid));
+        await wait(page, () => !document.querySelector('.hw-pick [data-hs-act="primary"]').disabled, null, 3000);
+        await page.waitForTimeout(150);
+        /* The engine's answer IS the envelope: it is applied as it stands, with no second round trip to hr_load. */
+        if (sent(s, 'hr_load').length !== loadsBefore) fails.push('AW-4 the equip answer cost a second round trip (hr_load after the intent)');
+        if (await page.evaluate(() => document.querySelectorAll('.hw-slot.is-wearing, .hw-pocket.is-wearing').length)) fails.push('AW-4 the pending mark stayed after the server answered');
         const eq = sent(s, 'hr-accrue', 'equip');
         if (eq.length !== 1 || JSON.stringify(eq[0].body.equip) !== '{"weapon":"steel_sword"}' || eq[0].body.slot !== 0) fails.push('AW-4 Equip sent ' + JSON.stringify(eq.map((c) => c.body)));
         if (eq[0] && Object.keys(eq[0].body).some((k) => /price|gold|total|cost/.test(k))) fails.push('AW-4 the equip intent carried a value field');
@@ -596,6 +610,8 @@ const MUTANTS = [
   ['a pocket is rebuilt whenever its count changes', 'src/shell/windows/inventory/grid.js', '    key: (r) => r.id,\n    build: (r) => element(ctx.doc, pocketHtml(r.id, ctx.glyphs)),', '    key: (r) => r.id + ":" + r.qty,\n    build: (r) => element(ctx.doc, pocketHtml(r.id, ctx.glyphs)),'],
   ['a sale is sent without the confirmation', 'src/shell/windows/inventory/actions.js', '  st.sc.confirm = confirmFor(st, ids, label);\n  repaint();', '  st.sc.confirm = confirmFor(st, ids, label);\n  repaint();\n  doSell(st, repaint);'],
   ['the Shop lists supplies again', 'src/session/item-sections.js', "const KINDS = Object.freeze(['tool']);", "const KINDS = Object.freeze(['food', 'drink', 'ammo', 'tool']);"],
+  ['an equip in flight is not marked', 'src/shell/windows/inventory/actions.js', '  sc.wearing = { slot, item: id || null };\n', ''],
+  ['the engine answer is re-read (two round trips)', 'src/session/character-session.js', "{ if (!(carries && this._take(ans.body, 'load'))) await this.load(); return { ok: true }; }", '{ await this.load(); return { ok: true }; }'],
   ['the doll wears the item before the server confirms', 'src/shell/windows/inventory/doll.js', '    const id = eq[s] || \'\';', "    const id = (s === 'weapon' && globalThis.__want) || eq[s] || '';"],
   ['a press on a window reaches the World', 'src/world/world-boot.js', "if (!walk || !scene || scene.kind === 'hunt' || !onWorld(e)) return;", "if (!walk || !scene || scene.kind === 'hunt') return;"],
   ['an open window takes the walk keys', 'src/world/world-boot.js', '    if (keyBelongsToField(t, e.code)) { letGo(); return; }', "    if (keyBelongsToField(t, e.code) || (t.closest && t.closest('[data-hs-win]'))) { letGo(); return; }"],

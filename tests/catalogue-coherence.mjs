@@ -24,7 +24,19 @@
 //   C6  the Local Shop sells STARTER gear only (no tier >= 2 equippable for gold
 //       — top-10 #2: the first upgrade a player wears is one they made);
 //   C7  the Collection Log's denominator is obtainableItemIds(), and that set is
-//       the whole catalogue.
+//       the whole catalogue;
+//   C8  armour climbs (2026-10-21: iron plate gave LESS max HP than bronze, its
+//       hand-authored rows had no armourClass so vitals.js counted no armour):
+//       C8a every armour row in an ARMOUR_SLOTS slot carries an armourClass with
+//           an armour weight (core-model.js ARMOUR_WEIGHT);
+//       C8b every rung of the crafted ladder (gear-tiers.js GEAR_ITEMS ids, the
+//           hand-authored overrides included) keeps its line's class, and defB
+//           never falls as the tier rises inside a (class, slot);
+//       C8c a full set of tier t of a class gives at least the max HP, max mana
+//           and defence of the tier t-1 set, at tier t's Level (vitals.js).
+//       C8d a hand-authored rung keeps every field its generated rung carries
+//           (the line's style fields: plate's rangeAtkB/magicAtkB penalty,
+//           leather's rangeAtkB/critB) — its own values win, a dropped one fails.
 //
 // THE PENDING LIST is shrink-only. It names the few gaps the audit assigned to
 // OTHER W0 lanes, with the lane. An id that gains a use must be removed from it
@@ -37,6 +49,9 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain as isEntryModule } from './_is-main.mjs';
+import { GEAR_ITEMS } from '../src/data/gear-tiers.js';
+import { ARMOUR_WEIGHT, ARMOUR_SLOTS } from '../src/data/core-model.js';
+import { armourWeights, maxHpFor, maxManaFor } from '../src/core/vitals.js';
 import {
   itemSources, itemUses, skillConsumers, deadEffectKinds, obtainableItemIds,
   CODED_SOURCES, CODED_USES, ENGINE_SKILL_CONSUMERS, AWAITING_ROSTER,
@@ -120,7 +135,64 @@ export function check({ read = realRead } = {}) {
   // C7 — the Collection Log counts what can be got, and that is everything.
   const ob = obtainableItemIds();
   if (ob.size + awaiting.size !== ids.length) fails.push(`C7 obtainableItemIds() has ${ob.size} of ${ids.length} items (${awaiting.size} awaiting the roster) — the Collection Log would be unfinishable`);
+  // C8 — armour climbs.
+  fails.push(...armourLadderFails());
   return { fails, counts: { items: ids.length, skills: Object.keys(SKILLS_DEF).length, pendingUse: Object.keys(PENDING_USE).length, pendingConsumer: Object.keys(PENDING_CONSUMER).length, awaiting: AWAITING_ROSTER.length } };
+}
+
+/* C8. The ladder is the generated rung ids (GEAR_ITEMS) read through the LIVE rows,
+   so a hand-authored override that drops a field the generator set is judged by the
+   line it sits on. Uniques and drops off the ladder answer to C8a only: they are
+   sidegrades with their own stats, not rungs. */
+export function armourLadderFails(items = ITEMS) {
+  const out = [];
+  const armourSlot = new Set(ARMOUR_SLOTS);
+  const noClass = Object.keys(items).filter((id) => {
+    const it = items[id];
+    return it && it.type === 'armor' && armourSlot.has(it.slot) && !ARMOUR_WEIGHT[it.armourClass];
+  });
+  if (noClass.length) out.push(`C8a ${noClass.length} armour row(s) with no armourClass (max HP/mana count them as no armour): ${noClass.join(', ')}`);
+
+  const lines = {};   // class -> slot -> [{ id, tier, live }]
+  for (const id of Object.keys(GEAR_ITEMS)) {
+    const gen = GEAR_ITEMS[id]; const live = items[id];
+    if (!gen || gen.type !== 'armor' || !armourSlot.has(gen.slot) || !live) continue;
+    if (live.armourClass !== gen.armourClass) out.push(`C8b ${id}: armourClass ${JSON.stringify(live.armourClass)} but its rung is on the ${gen.armourClass} line`);
+    const dropped = Object.keys(gen).filter((k) => gen[k] != null && live[k] == null);
+    if (dropped.length) out.push(`C8d ${id}: drops ${dropped.join(', ')}, which its ${gen.armourClass} line rung carries`);
+    ((lines[gen.armourClass] ||= {})[gen.slot] ||= []).push({ id, tier: gen.tier, live });
+  }
+  for (const cls of Object.keys(lines)) {
+    const bySlot = lines[cls];
+    for (const slot of Object.keys(bySlot)) {
+      const rungs = bySlot[slot].sort((a, b) => a.tier - b.tier);
+      for (let i = 1; i < rungs.length; i++) {
+        const a = rungs[i - 1]; const b = rungs[i];
+        if ((b.live.defB || 0) < (a.live.defB || 0)) out.push(`C8b ${cls} ${slot}: ${b.id} (tier ${b.tier}, def ${b.live.defB}) is below ${a.id} (tier ${a.tier}, def ${a.live.defB})`);
+      }
+    }
+    const tiers = [...new Set(Object.values(bySlot).flat().map((r) => r.tier))].sort((a, b) => a - b);
+    const setOf = (t) => {
+      const equipment = {}; let def = 0; let lv = 1;
+      for (const slot of ARMOUR_SLOTS) {
+        const r = (bySlot[slot] || []).find((x) => x.tier === t);
+        if (!r) continue;
+        equipment[slot] = r.id; def += r.live.defB || 0; lv = Math.max(lv, Number(r.live.reqLv) || 1);
+      }
+      return { equipment, def, lv };
+    };
+    for (let i = 1; i < tiers.length; i++) {
+      const lo = setOf(tiers[i - 1]); const hi = setOf(tiers[i]);
+      const L = hi.lv;
+      const wl = armourWeights(lo.equipment, items); const wh = armourWeights(hi.equipment, items);
+      const hp = [maxHpFor(L, wl.heavy), maxHpFor(L, wh.heavy)];
+      const mana = [maxManaFor(L, wl.light), maxManaFor(L, wh.light)];
+      if (hp[1] < hp[0] || mana[1] < mana[0] || hi.def < lo.def) {
+        out.push(`C8c ${cls} tier ${tiers[i]} set at Level ${L}: ${hp[1]} max HP / ${mana[1]} mana / ${hi.def} def, below tier ${tiers[i - 1]}'s ${hp[0]} / ${mana[0]} / ${lo.def}`);
+      }
+    }
+  }
+  return out;
 }
 
 /* ── THE MUTATION PROOF ──────────────────────────────────────────────────────
@@ -194,6 +266,32 @@ function mutate() {
     return { restore: () => { delete ITEMS.__c7_probe; } };
   });
 
+  run('iron plate loses its armourClass (the 2026-10-21 bug)', 'C8a', () => {
+    const it = ITEMS.iron_platebody; const was = it.armourClass;
+    delete it.armourClass;
+    return { restore: () => { it.armourClass = was; } };
+  });
+  run('a ladder rung changes line', 'C8b', () => {
+    const it = ITEMS.steel_helm; const was = it.armourClass;
+    it.armourClass = 'leather';
+    return { restore: () => { it.armourClass = was; } };
+  });
+  run('a higher tier gives less defence', 'C8b', () => {
+    const it = ITEMS.iron_platebody; const was = it.defB;
+    it.defB = 5;
+    return { restore: () => { it.defB = was; } };
+  });
+  run('iron plate drops the plate line magic penalty', 'C8d', () => {
+    const it = ITEMS.iron_platebody; const was = it.magicAtkB;
+    delete it.magicAtkB;
+    return { restore: () => { it.magicAtkB = was; } };
+  });
+  run('a tier of the plate line is missing a slot (its set gives less max HP)', 'C8c', () => {
+    const was = ITEMS.iron_helm;
+    delete ITEMS.iron_helm;
+    return { restore: () => { ITEMS.iron_helm = was; } };
+  });
+
   let bad = 0;
   for (const [name, hit] of results) {
     console.log(`  ${hit ? 'CAUGHT ' : 'MISSED '} ${name}`);
@@ -218,7 +316,7 @@ if (isMain) {
     }
     console.log(`catalogue-coherence: OK — ${counts.items} items each with a source and a use (${counts.awaiting} held, sourceless, for the roster), `
       + `${counts.skills} skills each with a consumer, the shop sells starter gear only, `
-      + `the Collection Log counts the obtainable catalogue (pending: ${counts.pendingUse} item uses, `
+      + `the Collection Log counts the obtainable catalogue, armour climbs inside its class (pending: ${counts.pendingUse} item uses, `
       + `${counts.pendingConsumer} skill consumer, owned by other W0 lanes)`);
   } catch (e) {
     console.error('catalogue-coherence: HARNESS ERROR — ' + (e && e.stack || e));

@@ -24,8 +24,8 @@
 // was sent 805 times from a background tab).
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPABASE_CONFIG } from '../net/supabase-bootstrap.js?v=0.2.25';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.25';
+import { SUPABASE_CONFIG } from '../net/supabase-bootstrap.js?v=0.2.27';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.27';
 
 export const CLOSED_CODE = 'hr_closed';
 export const CLOSED_STATUS = 403;

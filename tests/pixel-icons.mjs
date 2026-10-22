@@ -113,7 +113,7 @@ export function checkSwitch(root) {
 export async function checkWiring(root) {
   const out = [];
   const bits = readFileSync(join(root, 'src/shell/widgets/bits.js'), 'utf8');
-  if (!/BASIC_INDEX\[id\][\s\S]{0,120}SUPPLY_DIR \+ id/.test(bits)) out.push({ rule: 'wiring', id: 'bits.js', detail: 'itemIconHtml no longer maps a basic supply id to SUPPLY_DIR (its icon would fall back to a chest glyph)' });
+  if (!/hasSupplyArt\(id\)[\s\S]{0,120}SUPPLY_DIR \+ id/.test(bits)) out.push({ rule: 'wiring', id: 'bits.js', detail: 'itemIconHtml no longer maps a basic supply id to SUPPLY_DIR (its icon would fall back to a chest glyph)' });
   const art = await import(pathToFileURL(join(root, 'src/data/item-art.js')).href);
   if (art.SUPPLY_DIR !== 'assets/icons-bundle/pixel/supplies/') out.push({ rule: 'wiring', id: 'item-art.js', detail: 'SUPPLY_DIR is not assets/icons-bundle/pixel/supplies/' });
   for (const id of art.ABILITY_ART) {
@@ -131,7 +131,9 @@ async function loadIds() {
 
 async function loadSupplyIds() {
   const { BASIC_SUPPLIES } = await import(pathToFileURL(join(ROOT, 'src/data/supply-basics.js')).href);
-  return BASIC_SUPPLIES.map((b) => b.id);
+  const { SUPPLY_ART_AHEAD } = await import(pathToFileURL(join(ROOT, 'src/data/item-art.js')).href);
+  // icons drawn ahead of their row must exist too; once the row lands the id is in BASIC_SUPPLIES and counted once
+  return [...new Set([...BASIC_SUPPLIES.map((b) => b.id), ...SUPPLY_ART_AHEAD])];
 }
 
 function report(label, findings) {

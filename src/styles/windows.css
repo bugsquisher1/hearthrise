@@ -95,6 +95,10 @@
 .hw-pocket.is-cur { outline: 2px solid var(--ink); outline-offset: 1px; }
 .hw-pocket[aria-selected="true"] { background: var(--gold-bg); box-shadow: inset 0 0 0 2px var(--ink); }
 .hw-pocket.is-drop, .hw-slot.is-drop { border-color: var(--gold-2); }
+/* An equip in flight (inventory/actions.js wear): the slot and the stack moving carry the press ring
+   (shell.css .is-sending) from the press until the server's envelope lands. Nothing else changes early. */
+.hw-pocket.is-wearing, .hw-doll .hw-slot.is-wearing { cursor: progress; outline: 2px solid var(--gold-2); outline-offset: 1px; animation: hs-sending 900ms ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .hw-pocket.is-wearing, .hw-doll .hw-slot.is-wearing { animation: none; } }
 .rar-common { --pocket-rar: var(--rar-common); }
 .rar-uncommon { --pocket-rar: var(--rar-uncommon); }
 .rar-rare { --pocket-rar: var(--rar-rare); }
@@ -256,6 +260,10 @@
 .hw-hunt-warn:empty { display: none; }
 .hw-hunt-pack { font-size: var(--t-micro); color: var(--ink-2); }
 .hw-hunt-pack:empty { display: none; }
+/* This hero's personal bests on the ground (the server's hunt_bests), alone and in a party. */
+.hw-hunt-best { display: flex; flex-direction: column; gap: 1px; margin-top: 2px; }
+.hw-hunt-best[hidden] { display: none; }
+.hw-hunt-best small { font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
 .hw-density { display: none; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 .hw-density.is-on { display: flex; }
 .hw-density-label { font-size: var(--t-small); color: var(--ink-2); }

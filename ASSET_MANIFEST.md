@@ -59,7 +59,7 @@ assets/
     ├── buildings/    10 homestead/room/plot structures (forge, farm, tower…)
     ├── pixel/items/  one 32x32 pixel-world icon per ITEMS key (<id>.png), the ACTIVE
     │                 item set since 2026-10-14; see "Pixel item icons" below
-    ├── pixel/supplies/  18 icons for the shop's basic supplies (salted food, thin drinks,
+    ├── pixel/supplies/  19 icons for the shop's basic supplies (salted food, thin drinks,
     │                 plain ammo), one per BASIC_SUPPLIES id; added 2026-10-21, see below
     ├── pixel/abilities/  32x32 framed ability tiles (13), keyed by ability id; cleave added 2026-10-21
     ├── medieval/     BlacksmithInstruments.png (anvil), Cog.png (iron_fitting,
@@ -88,10 +88,11 @@ Drawn with the pixel scripts (no PixelLab credits spent), on the locked palette,
 - `pixel/supplies/<id>.png`: one per `BASIC_SUPPLIES` row (src/data/supply-basics.js), 19 files. Not items, so not under
   `items/`. Wired by `SUPPLY_DIR` (item-art.js) and `itemIconHtml`/`actionIconHtml` (src/shell/widgets/bits.js).
   Salted food = its cooked partner's silhouette cured to a pale tan with a salt rim and crystals (reads as a different dish
-  beside the cooked one). Thin drinks = one plain wooden mug, liquid colour per tier, N carved tally notches for tier N
-  (a non-colour cue). Plain ammo = unstained ash shaft, two bone-white vanes, a bare head in its partner's metal.
-  Plain Fire Rune (2026-10-21, systems lane b-supplies-bury, for the Asset Director to review): the Fire Rune's tile
-  with its blood/cloth/gold glyph remapped to the earth ramp, an unlit carved flame (palette-legal, derived by script).
+  beside the cooked one). Thin drinks = six different plain vessels (wooden beaker, tin cup, stave tankard, clay mug,
+  sipping bowl, goblet), each with its own painted band and fill level, all wood/tin/clay so they read as store basics beside the
+  glass crafted ones. Plain ammo = unstained ash shaft, two bone-white vanes, a bare head in its partner's metal.
+  `plain_fire_rune` (the store rune for Flame Strike) = the fire rune slab as plain grey stone with the flame only scratched in
+  red. Its row has landed in supply-basics.js, so `SUPPLY_ART_AHEAD` (item-art.js) is empty.
 - The six crafted drinks (`turnip_juice` .. `emberfruit_cordial`) were one jar recoloured; each is now its own vessel
   (flask, bottle, jar, jug, teacup, decanter) with a small ingredient cue. `moonbloom_elixir` keeps the original jar.
 - Seven practice-kit items (`practice_sword/hatchets/club/bow/wand/staff/spellbook`) were byte-identical to tier-1

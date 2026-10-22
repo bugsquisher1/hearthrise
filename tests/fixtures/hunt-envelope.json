@@ -281,14 +281,15 @@
     "wall_ms": 2016000,
     "hero": {
       "kills": 164,
-      "xp": {},
-      "raw_xp": {},
+      "xp": { "level": 5400, "melee": 9100, "defense": 1300 },
+      "raw_xp": { "level": 5400, "melee": 9100, "defense": 1300 },
       "gold": 2996,
       "waste": 768,
       "balance": 2228,
       "per_hour": {
-        "xp": 29124,
-        "raw_xp": 11556,
+        "xp": 4320,
+        "raw_xp": 4320,
+        "training_xp": 8320,
         "gold": 5350,
         "waste": 1371,
         "balance": 3979
@@ -339,6 +340,12 @@
           "per_hour": 7300,
           "level": 60,
           "eta_h": 0
+        },
+        "defense": {
+          "xp": 1300,
+          "per_hour": 1020,
+          "level": 31,
+          "eta_h": 2.25
         }
       },
       "level": {
@@ -349,14 +356,15 @@
     },
     "party": {
       "kills": 164,
-      "xp": {},
-      "raw_xp": {},
+      "xp": { "level": 10800, "melee": 9100, "ranged": 7600, "defense": 1300 },
+      "raw_xp": { "level": 10800, "melee": 9100, "ranged": 7600, "defense": 1300 },
       "gold": 5992,
       "waste": 1210,
       "balance": 4782,
       "per_hour": {
-        "xp": 53780,
-        "raw_xp": 23030,
+        "xp": 8640,
+        "raw_xp": 8640,
+        "training_xp": 14320,
         "gold": 10700,
         "waste": 2160,
         "balance": 8540

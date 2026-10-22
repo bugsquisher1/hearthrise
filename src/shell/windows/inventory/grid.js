@@ -27,7 +27,7 @@ import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.28';
 import { primaryOf, junkOf, confirmWords, huntLoot } from './state.js?v=0.2.28';
 import { pocketHtml, patchCount } from './pockets.js?v=0.2.28';
 import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.28';
-import { buryLine, buryBlock, buryingOf, buryRecipeOf } from './bury.js?v=0.2.28';
+import { buryLine, buryBlock, buryRecipeOf } from './bury.js?v=0.2.28';
 
 const RULES = Object.freeze([['keep', 'Keep'], ['sell', 'Sell at the shop'], ['ignore', 'Leave it']]);
 export const KEYS = '/ search · arrows move · Enter use · Space select · Delete sell · L lock · Ctrl+A select all';
@@ -127,7 +127,7 @@ export function patchTools(root, st, ctx) {
   const pb = pick.querySelector('[data-hs-act="primary"]');
   text(pb, prim ? prim[1] : '');
   cls(pb, 'is-on', !!prim);
-  const buryWhy = prim && prim[0] === 'bury' ? (buryingOf(st.cs) ? 'Already burying. Stop it first.' : buryBlock(st.cs, buryRecipeOf(cur))) : '';
+  const buryWhy = prim && prim[0] === 'bury' ? buryBlock(st.cs, buryRecipeOf(cur)) : '';
   prop(pb, 'disabled', sc.pending || !prim);
   attr(pb, 'title', buryWhy || null);
   const line = buryLine(st.cs);

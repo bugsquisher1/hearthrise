@@ -55,7 +55,7 @@ export const HELP_NOTES = Object.freeze([
   note('weapon', 'Your weapon is how you fight',
     'There is no class. A sword and shield hold monsters on you, two axes or a club hit hard, a bow or crossbow shoots from a distance, a wand and spellbook cast spells, and a staff heals. Equip another from your bag to switch.'),
   note('supplies', 'Food and drink',
-    'Food heals and drink brings back mana. What you carry is used first, for free. Store supplies cost gold each time your hero uses one, and if the gold runs out the hunt ends.'),
+    'Food heals and drink brings back mana. What you carry is used first, for free. Store supplies cost gold each time your hero uses one, and if the gold runs out the hunt ends. Raw meat and fish cook into food: pick them in your bag and choose Cook all.'),
   note('bar', 'The action bar',
     'Each slot is one spell, food or drink, with up to three conditions such as My HP % below 60. The first slot that can fire, fires, so put the most important one first.'),
   note('levels', 'Level and skills',

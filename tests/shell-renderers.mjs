@@ -92,7 +92,7 @@ const MUTANTS = [
   { name: 'a widget renderer with no row', file: FILES.renderers, from: 'export const WIDGET_RENDERERS = Object.freeze({\n', to: 'export const WIDGET_RENDERERS = Object.freeze({\n  ghost: () => \'<p>x</p>\',\n', want: 'widget renderer `ghost`' },
   { name: 'a renderer that draws nothing', file: FILES.renderers, from: '  launchers: renderLaunchers,', to: "  launchers: () => '',", want: 'returned no markup' },
   { name: 'a button opens a window id that is no row (Open bag, 10-22)', file: 'src/shell/windows/hunt-summary.js', from: "ctx.show('inventory')", to: "ctx.show('bag')", want: 'opened id `bag`' },
-  { name: 'a row that breaks the widget contract', file: FILES.widgets, from: "anchor: 'tr'", to: "anchor: 'zz'", want: 'anchor must be' },
+  { name: 'a row that breaks the widget contract', file: FILES.widgets, from: "id: 'launchers', label: 'Menu icons', layer: 'screen', anchor: 'tr'", to: "id: 'launchers', label: 'Menu icons', layer: 'screen', anchor: 'zz'", want: 'anchor must be' },
 ];
 
 if (process.argv.includes('--selftest')) {

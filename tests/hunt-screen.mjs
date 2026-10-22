@@ -1600,7 +1600,8 @@ const MUTANTS = [
   ['the hub prints the server’s per-minute mana regen as /s', 'src/shell/widgets/vitals-hub.js', "regen(hero.manaPerS) : ''", "regen(hero.manaPerS * 60) : ''"],
   ['the hub prints regen with two decimals', 'src/shell/widgets/vitals-hub.js', "'+' + r.toFixed(1)", "'+' + r.toFixed(2)"],
   ['a struck slot carries no glyph', 'src/shell/widgets/action-bar.js', "g.innerHTML = why ? glyphSvg(ctx.glyphs, why.glyph) : '';", "g.innerHTML = why && !why.strike ? glyphSvg(ctx.glyphs, why.glyph) : '';"],
-  ['a server-refused slot is not struck', 'src/shell/action-facts.js', "  if (sl.usable === false) return { code: 'server', text: 'The server says this cannot fire now.', glyph: 'uiLock', strike: true };\n  const n =", '  const n ='],
+  /* Re-anchored 10-22 (v0.2.28 shard 2): a comment now sits between the refusal and the count; the fault is the same, the refusal dropped. */
+  ['a server-refused slot is not struck', 'src/shell/action-facts.js', "  if (sl.usable === false) return { code: 'server', text: 'The server says this cannot fire now.', glyph: 'uiLock', strike: true };\n  /* `bag` is what the hero carries now", '  /* `bag` is what the hero carries now'],
   ['the panel’s chase sends nothing', 'src/shell/widgets/settings-intent.js', "  if (key === 'chase') return s.chase === null ? null : { chase: !s.chase };", "  if (key === 'chase') return null;"],
   ['a slot short of its rune says nothing', 'src/shell/action-facts.js', '    if (r.rune && !((bag', '    if (false && r.rune && !((bag'],
   ['the hub keeps an ended hunt’s in-fight regen', 'src/shell/widgets/vitals-hub.js', '  const hero = h && !h.ended ? h.hero : null;', '  const hero = h ? h.hero : null;'],

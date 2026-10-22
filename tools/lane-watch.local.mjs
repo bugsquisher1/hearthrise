@@ -5,11 +5,13 @@
 //   node tools/lane-watch.local.mjs --all        lanes active in the last 24 h (default: 3 h)
 //   node tools/lane-watch.local.mjs lane/a-x …   only these branches
 //
-// Reads only: `git fetch` of the lane branches, GitHub's public Actions list (one call per
-// refresh, no token), and the live BUILD version. Writes nothing. Local tool, not in CI.
+// Reads only: `git fetch` of the lane branches, the smoke runs via the signed-in `gh` CLI (one
+// call per refresh; tools/lib/gh-runs.mjs — the token-free public API is only a fallback, it
+// allows 60 calls/hour and answered 403 here), and the live BUILD version. Writes nothing.
+// Local tool, not in CI.
 import { execFileSync } from 'node:child_process';
+import { listRuns, latestByBranch } from './lib/gh-runs.mjs';
 
-const REPO = 'bugsquisher1/hearthrise';
 const LIVE = 'https://hearthrise.net/src/build-info.js';
 const QUIET_MIN = 45;
 
@@ -42,16 +44,7 @@ function verdict(subjects, ageMs) {
 }
 
 async function runsByBranch() {
-  try {
-    const r = await fetch(`https://api.github.com/repos/${REPO}/actions/runs?per_page=60`, { headers: { 'User-Agent': 'lane-watch' } });
-    if (!r.ok) return { err: 'GitHub ' + r.status };
-    const map = new Map();
-    for (const w of (await r.json()).workflow_runs || []) {
-      if (w.name !== 'smoke' || map.has(w.head_branch)) continue;
-      map.set(w.head_branch, w.status === 'completed' ? (w.conclusion === 'success' ? 'green' : w.conclusion) : w.status);
-    }
-    return { map };
-  } catch (e) { return { err: 'GitHub unreachable' }; }
+  return latestByBranch(await listRuns({ limit: 60 }));
 }
 
 async function liveVersion() {

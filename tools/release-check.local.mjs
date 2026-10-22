@@ -3,28 +3,24 @@
 //   node tools/release-check.local.mjs 0.2.21          check once
 //   node tools/release-check.local.mjs 0.2.21 --wait   poll every 60 s until the run finishes and Pages serves it
 //
-// Reads only GitHub's public Actions API (no token), the live BUILD file, and the hr-accrue GET's
-// payload_sha256 compared with `node tools/pack-edge.mjs hr-accrue --hash` of this checkout.
+// Reads only GitHub Actions through the signed-in `gh` CLI (tools/lib/gh-runs.mjs; the public
+// API is only a fallback — it allows 60 calls/hour and its 403 once read as "no smoke run yet"),
+// the live BUILD file, and the hr-accrue GET's payload_sha256 compared with
+// `node tools/pack-edge.mjs hr-accrue --hash` of this checkout.
 // Prints only what is not green. Local tool, not in CI.
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { listRuns, failedJobs, branchVerdict } from './lib/gh-runs.mjs';
 
-const REPO = 'bugsquisher1/hearthrise';
 const EDGE = 'https://nezapsylztqbbwuwembx.supabase.co/functions/v1/hr-accrue';
 const ver = (process.argv[2] || '').replace(/^v/, '');
 if (!/^\d+\.\d+\.\d+$/.test(ver)) { console.error('usage: node tools/release-check.local.mjs X.Y.Z [--wait]'); process.exit(2); }
 const wait = process.argv.includes('--wait');
-const gh = async (p) => (await fetch(`https://api.github.com/repos/${REPO}${p}`, { headers: { 'User-Agent': 'release-check' } })).json();
-
 async function ciVerdict(branch) {
-  const runs = (await gh(`/actions/runs?branch=${encodeURIComponent(branch)}&per_page=5`)).workflow_runs || [];
-  const w = runs.find((r) => r.name === 'smoke');
-  if (!w) return { done: false, line: `${branch}: no smoke run yet` };
-  if (w.status !== 'completed') return { done: false, line: `${branch}: ${w.status} (${w.head_sha.slice(0, 9)})` };
-  if (w.conclusion === 'success') return { done: true, ok: true, line: `${branch}: GREEN (${w.head_sha.slice(0, 9)})` };
-  const jobs = ((await gh(`/actions/runs/${w.id}/jobs?per_page=50`)).jobs || []).filter((j) => j.conclusion !== 'success');
-  const why = jobs.map((j) => `    ✗ ${j.name}: ${(j.steps || []).filter((s) => s.conclusion === 'failure').map((s) => s.name).join(' | ') || j.conclusion}`);
-  return { done: true, ok: false, line: `${branch}: RED (${w.head_sha.slice(0, 9)}) ${w.html_url}\n` + why.join('\n') };
+  const v = branchVerdict(branch, await listRuns({ branch, limit: 5 }));
+  if (!v.done || v.ok) return v;
+  const why = (await failedJobs(v.run.id)).map((j) => `    ✗ ${j.name}: ${j.failedSteps.join(' | ') || j.conclusion}`);
+  return { ...v, line: v.line + '\n' + why.join('\n') };
 }
 
 async function liveVersion() {

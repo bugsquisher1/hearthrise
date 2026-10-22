@@ -10,7 +10,7 @@
 --    the run that holds xp_h (the "best pace" a hunt card leads with), i.e. that
 --    run's analyzer `per_hour.waste` (hr_hunt_stats_of: store supplies bought,
 --    never own stock). NULL = not known (a best whose session is gone).
--- §2 hr_hunt_best_fold RESTATED WHOLE (§0 pins the 2026-11-10 image): the fold
+-- §2 hr_hunt_best_fold RESTATED WHOLE (§0 pins the 2026-11-04 image): the fold
 --    writes supply_h beside xp_h and moves it only when xp_h moves, so the two
 --    always describe the same run. hr_hunt_bests_view RESTATED WHOLE (§0 pin):
 --    each mode object gains `supply_h` beside xp_h / balance_h.
@@ -25,8 +25,8 @@
 -- ── COST ────────────────────────────────────────────────────────────────────
 -- 8 bytes per existing best row; the fold already computed per_hour.
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
--- Re-apply hr_hunt_best_fold from 2026-11-10-hunt-xp-split.sql and
--- hr_hunt_bests_view from 2026-11-04-hunt-bests.sql; drop the column.
+-- Re-apply hr_hunt_best_fold and hr_hunt_bests_view from 2026-11-04-hunt-bests.sql;
+-- drop the column.
 -- ORDER: after 2026-12-05-hunt-setup-per-ground.sql (no object in common). No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════
 
@@ -38,7 +38,7 @@ begin
     raise exception 'PRECONDITION: hunt_bests / hr_hunt_stats_of missing'; end if;
   select replace(prosrc, chr(13), '') into v_src from pg_proc where oid = 'public.hr_hunt_best_fold(uuid)'::regprocedure;
   if md5(v_src) <> 'ed412fd5ff3f16e28fb24c7500c5890d' and strpos(v_src, 'BESTS-SUPPLY') = 0 then
-    raise exception 'PIN: hr_hunt_best_fold is neither the 2026-11-10 xp-split image (ed412fd5...) nor this file''s (md5 %)', md5(v_src); end if;
+    raise exception 'PIN: hr_hunt_best_fold is neither the 2026-11-04 hunt-bests image (ed412fd5...) nor this file''s (md5 %)', md5(v_src); end if;
   select replace(prosrc, chr(13), '') into v_src from pg_proc where oid = 'public.hr_hunt_bests_view(uuid,integer)'::regprocedure;
   if md5(v_src) <> 'a4f882fe6f1c288a13f0640b74c13451' and strpos(v_src, 'BESTS-SUPPLY') = 0 then
     raise exception 'PIN: hr_hunt_bests_view is neither the 2026-11-04 image (a4f882fe...) nor this file''s (md5 %)', md5(v_src); end if;

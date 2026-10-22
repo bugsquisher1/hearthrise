@@ -17,14 +17,14 @@
 // heroVitalsOf, the ONE reader the Character tab shares (r09: the two said Level 4
 // and 11), stamina from staminaOf, regen from the hunt section. Built once, patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { CONSUMABLES } from '../../data/consumables.js?v=0.2.25';
-import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.25';
-import { huntOf, staminaOf } from '../../session/hunt-sections.js?v=0.2.25';
-import { bagOf } from '../../session/item-sections.js?v=0.2.25';
-import { text, attr } from '../../render/paint.js?v=0.2.25';
-import { whole, hoursMinutes } from '../../render/format.js?v=0.2.25';
-import { glyphSvg } from '../launcher.js?v=0.2.25';
-import { itemIconHtml, itemName } from './bits.js?v=0.2.25';
+import { CONSUMABLES } from '../../data/consumables.js?v=0.2.26';
+import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.26';
+import { huntOf, staminaOf } from '../../session/hunt-sections.js?v=0.2.26';
+import { bagOf } from '../../session/item-sections.js?v=0.2.26';
+import { text, attr } from '../../render/paint.js?v=0.2.26';
+import { whole, hoursMinutes } from '../../render/format.js?v=0.2.26';
+import { glyphSvg } from '../launcher.js?v=0.2.26';
+import { itemIconHtml, itemName } from './bits.js?v=0.2.26';
 
 /* The arcs on a 100 x 100 box, centre (50, 50), radius 42: the left one from the
    bottom (111.6 deg) round to the top (248.4 deg), the right one the mirror. */

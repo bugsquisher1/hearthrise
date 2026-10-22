@@ -35,9 +35,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from './hunts.js?v=0.2.25';
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.25';
-import { END_ORDER } from './hunt-sessions.js?v=0.2.25';
+import { HUNT_INDEX } from './hunts.js?v=0.2.26';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.26';
+import { END_ORDER } from './hunt-sessions.js?v=0.2.26';
 
 /* The surfaces a card may point at, and where each is specified. */
 export const TUTORIAL_ANCHORS = Object.freeze({

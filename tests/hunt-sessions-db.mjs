@@ -107,9 +107,10 @@ async function installGrounds(db) {
     pockets: [{ room: [3, 1, 6, 3], spawns: [{ monster, x: 4, y: 2 }] }], route: [0], respawnMs: 60000, pullDist: 1.5 });
   const { rows, spawns } = GEN.groundRows({ db_mill_cellar: room('mill_cellar', 'rat'), db_goblin_warren: room('goblin_warren', 'goblin') });
   for (const g of rows) {
-    await db.query(`insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn_ms, seats) values ($1,$2,$3,$4,$5,$6)
+    await db.query(`insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn_ms, seats, density_max) values ($1,$2,$3,$4,$5,$6,$7::int[])
                     on conflict (hunt_id) do update set ground_id = excluded.ground_id, pockets = excluded.pockets, spawns = excluded.spawns,
-                      respawn_ms = excluded.respawn_ms, seats = excluded.seats`, [g.hunt, g.ground, g.pockets, g.spawns, g.respawn, g.seats]);
+                      respawn_ms = excluded.respawn_ms, seats = excluded.seats, density_max = excluded.density_max`,
+                    [g.hunt, g.ground, g.pockets, g.spawns, g.respawn, g.seats, g.dmax]);
     await db.query('delete from public.hr_hunt_ground_spawns where hunt_id = $1', [g.hunt]);
   }
   for (const x of spawns) await db.query('insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values ($1,$2,$3) on conflict do nothing', [x.hunt, x.monster, x.n]);
@@ -374,6 +375,9 @@ const STAGED = Object.freeze([
   ['2026-10-25-hunt-sessions-catalogue.generated.sql', '2026-10-25-action-conditions.sql'],
   /* Tyler's 2026-10-19 answers: a hunt opens no earlier than the stamina stamp (no walk hid it), the 2 s food-and-drink cooldown and no walk (the forward catalogue), eat-at before drink-at (the settings view). */
   ['2026-10-28-hunt-enter-after-stamina.sql', '2026-10-28-hunt-sessions-catalogue.generated.sql', '2026-10-28-consume-defaults.sql'],
+  /* Density's own home (lane c-density-home): the forward catalogue (density_max, no density option) and the
+     per-ground pick (hunt_density, its intent, the four restated bodies, the one-time move). */
+  ['2026-11-17-hunt-sessions-catalogue.generated.sql', '2026-11-17-hunt-density-home.sql'],
 ]);
 async function d1(db) {
   const red = [];

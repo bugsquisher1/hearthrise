@@ -250,12 +250,8 @@ export class CharacterSession {
     });
   }
 
-  /**
-   * The density pick on one ground (hr_hunt_density_set; rulings H4: per hero, per ground, never a setup).
-   * The server bounds it by that ground's max and refuses a party member's; the pick shows only from the
-   * re-read (hunt_density). A running hunt keeps the density it froze at its start.
-   * @returns {Promise<{ok: boolean, error?: string}>}
-   */
+  /** The density pick on one ground (hr_hunt_density_set; rulings H4: per hero and ground, never a setup): bounded
+      by that ground, refused to a party member, shown only from the re-read; a running hunt keeps its frozen one. */
   async setHuntDensity(hunt, density) {
     if (this._closed || !HUNT_ID.test(String(hunt)) || !Number.isInteger(density) || density < 0) return { ok: false, error: 'bad_intent' };
     return this._ask('hunt_density_set', () => this._server.rpc('hr_hunt_density_set', { p_slot: this.slot, p_hunt: hunt, p_density: density, p_idem: newIdem() }));

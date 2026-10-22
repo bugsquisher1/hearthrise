@@ -85,11 +85,11 @@ function contract(R, cs, body, tl) {
   const s = R.HS.settingsOf(cs);
   need('hunt_settings', !!s, 'settingsOf reads nothing: ' + JSON.stringify(body.hunt_settings).slice(0, 240));
   if (s) {
-    const m = missing(s, ['preset', 'targetMode', 'stance', 'distance', 'chase', 'foodPct', 'drinkPct', 'supplySource', 'onEmpty', 'density', 'gatherShare']);
+    const m = missing(s, ['preset', 'targetMode', 'stance', 'distance', 'chase', 'foodPct', 'drinkPct', 'supplySource', 'onEmpty', 'gatherShare']);
     need('hunt_settings', !m.length && Array.isArray(s.slots) && s.slots.length > 0 && s.presets.length > 0, 'settingsOf misses ' + m.join(', ') + (s.slots.length ? '' : ' slots') + (s.presets.length ? '' : ' presets'));
-    /* The action engine (2026-10-25): every slot in the wire shape, the stored density pick read back, the gathering share marked inert. */
+    /* The action engine (2026-10-25): every slot in the wire shape, the gathering share marked inert; density is no setting (hunt_density). */
     need('hunt_settings', s.slots.every((x) => x.empty || (x.action && Array.isArray(x.conditions) && (x.join === 'and' || x.join === 'or')))
-      && s.slots.some((x) => !x.empty && x.action.type === 'consume') && s.density === 2 && s.gatherInert === true && s.stopRules.length === 1,
+      && s.slots.some((x) => !x.empty && x.action.type === 'consume') && !('density' in s) && !('density' in body.hunt_settings) && s.gatherInert === true && s.stopRules.length === 1,
       'settingsOf slots / density / gather / stop rules: ' + JSON.stringify({ density: s.density, inert: s.gatherInert, stops: s.stopRules, slots: s.slots.slice(0, 3) }).slice(0, 300));
   }
   // hunt_analyzer
@@ -108,6 +108,9 @@ function contract(R, cs, body, tl) {
   const mc = hb && hb.grounds.mill_cellar;
   need('hunt_bests', !!hb && hb.minMs === 600000 && !!mc && !!mc.solo && mc.solo.xpH === 2000 && mc.solo.balanceH === 200 && mc.party === null,
     'huntBestsOf yields ' + JSON.stringify(hb) + ' from ' + JSON.stringify(body.hunt_bests));
+  // hunt_density (the hunt picker's pick per ground, 2026-11-17-hunt-density-home.sql): the hero's own 2 on its ground
+  const dm = R.HS.huntDensityOf(cs);
+  need('hunt_density', !!dm && dm.mill_cellar === 2, 'huntDensityOf yields ' + JSON.stringify(dm) + ' from ' + JSON.stringify(body.hunt_density));
   // party (the hunt panel's and the party window's readers, one shape)
   const p = R.HS.partyOf(cs);
   need('party', !!p && p.members.length === 2, 'partyOf yields ' + (p ? p.members.length : 'no') + ' members: ' + JSON.stringify(body.party).slice(0, 240));
@@ -116,8 +119,8 @@ function contract(R, cs, body, tl) {
     need('party', !m.length && p.self !== null && p.leader !== null, 'partyOf misses ' + m.join(', ') + ' self ' + p.self + ' leader ' + p.leader);
   }
   const pm = R.PS.partyMembershipOf(cs);
-  need('party', !!pm && pm.seats.length === 2 && pm.me !== null && pm.leader !== null && pm.isLeader,
-    'partyMembershipOf yields ' + JSON.stringify(pm && { seats: pm.seats.length, me: pm.me, leader: pm.leader }));
+  need('party', !!pm && pm.seats.length === 2 && pm.me !== null && pm.leader !== null && pm.isLeader && !!pm.densities && pm.densities.mill_cellar === 2,
+    'partyMembershipOf yields ' + JSON.stringify(pm && { seats: pm.seats.length, me: pm.me, leader: pm.leader, densities: pm.densities }));
   // party_people: the player menu's targets, one per seat of the real party, with the server's account ids (2026-10-25-social.sql)
   const pp = R.PS.partyPeopleOf(cs);
   need('party_people', Array.isArray(body.party_people) && pp.size === body.party_people.length && !!pm && pp.size === pm.seats.length
@@ -212,7 +215,7 @@ function sheetContract(R, cs, body) {
 export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events', 'hunt_server_now_ms', 'hunt_settings', 'hunt_analyzer',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'stamina_refill', 'blessings',
-  'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'now']);
+  'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_density', 'now']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -275,7 +278,7 @@ async function readers(root) {
 
 /* The real body: a premium two-hero party, six minutes settled, then ONE player-door settle. */
 async function realBody(db, M, H) {
-  const P = { ...H.STRONG, premium: true, options: { food_below_pct: 40, density: 2, gather_share: 10,
+  const P = { ...H.STRONG, premium: true, density: 2, options: { food_below_pct: 40, gather_share: 10,
     stop_rules: [{ conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 1 }], join: 'and', forMs: 60000 }] } };
   const h = await H.hunter(db, M, { party: [{ ...P }, { ...P }] });
   /* Monsters are units only mid-pull: sample the pose after every tick so the monster path is proven. */
@@ -338,7 +341,8 @@ const DB_MUTANTS = [
   ['stamina', 'public.hr_stamina_view(uuid,integer)', "'max_ms'", "'maxms'"],
   ['hunt_settings', 'public.hr_hunt_settings_view(uuid,integer)', "'food_pct', v_eff", "'foodpct', v_eff"],
   ['hunt_settings', 'public.hr_hunt_settings_view(uuid,integer)', "'slots', v_slots,", "'slot_list', v_slots,"],
-  ['hunt_settings', 'public.hr_hunt_settings_view(uuid,integer)', "'density', v_eff->'density',", "'monster_density', v_eff->'density',"],
+  ['hunt_density', 'public.hr_hunt_density_view(uuid,integer)', 'jsonb_object_agg(d.hunt_id, d.density order by d.hunt_id)', 'jsonb_object_agg(d.hunt_id, d.density::text order by d.hunt_id)'],
+  ['party', 'public.hr_hunt_party_view(uuid,integer)', "'leader_densities', coalesce", "'leader_density', coalesce"],
   ['hunt_settings', 'public.hr_hunt_settings_view(uuid,integer)', "'gather_share', v_eff->'gather_share',", "'gather', v_eff->'gather_share',"],
   ['hunt_analyzer', 'public.hr_hunt_analyzer_of(uuid,integer,uuid)', "'hunt_ms', floor(", "'huntms', floor("],
   ['hunt_analyzer', 'public.hr_hunt_stats_of(uuid[],numeric,uuid,integer)', "'kills', v_kills", "'kill_count', v_kills"],

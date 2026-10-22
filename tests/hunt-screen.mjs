@@ -1336,9 +1336,12 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       const picked = await page.evaluate(() => document.querySelector('.hw-hunt.is-picked').getAttribute('data-hunt'));
       const otherFacts = () => page.evaluate(() => [...document.querySelectorAll('.hw-hunt:not(.is-picked)')]
         .map((li) => li.getAttribute('data-hunt') + ': ' + li.querySelector('.hw-hunt-facts').textContent).join(' | '));
+      /* The server's pick of 1 on the picked ground only (whichever the picker recommends for this hero). */
+      s.env.hunt_density = { [picked]: 1 };
+      await pushEnvelope(page, s);
+      await wait(page, () => (document.querySelector('.hw-hunt.is-picked .hw-density .hh-step-val') || {}).textContent === '1 each', null);
       const others0 = await otherFacts();
       const d0 = await dRead();
-      if (picked !== 'mill_cellar') fails.push('HS-8 CONTROL: the fixture pick is on mill_cellar, the picker chose ' + picked);
       if (d0.v !== '1 each') fails.push('HS-8 the density does not show the server’s pick of 1: ' + d0.v);
       if (!/ packs? of 1[ ,]/.test(d0.facts)) fails.push('HS-8 the facts line does not say the pull size at the server’s pick of 1: ' + d0.facts);
       /* the save answers 4 (not the 5 asked, s.onDensity): what shows afterwards is the server's. The answer
@@ -1355,6 +1358,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       const dMid = await dRead();
       if (dMid.v !== '5 each' || dMid.pending !== 'true' || !/Saving/.test(dMid.msg)) fails.push('HS-8 four quick presses did not show 5 at once, marked unsaved: ' + JSON.stringify(dMid));
       if (!/ packs? of 5[ ,]/.test(dMid.facts)) fails.push('HS-8 the facts line does not follow the pick: ' + dMid.facts);
+      const othersMid = await otherFacts();
+      if (othersMid !== others0) fails.push('HS-8 an unsaved pick on ' + picked + ' shows on another ground: ' + others0 + ' -> ' + othersMid);
       await until(() => s.sent('hr_hunt_density_set').length > sentBefore);
       s.release('density');
       if (!(await wait(page, () => { const v = document.querySelector('.hw-hunt.is-picked .hw-density .hh-step-val'); return v.textContent === '4 each' && v.getAttribute('data-pending') === 'false'; }, null))) fails.push('HS-8 the density did not show the server’s answer of 4 after the save: ' + JSON.stringify(await dRead()));
@@ -1395,10 +1400,16 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       if (up) {
         const seat = (n, name, weapon) => ({ unit: null, seat: n, hunting: false, name, level: 20, weapon });
         s.env.party = { id: '0a47c0de-0000-4000-a000-00000000aa01', hunt: null, max: 4, open: true, listed: false, leader: null, self: null,
-          leader_seat: 1, self_seat: 0, leader_densities: { mill_cellar: 7, meadowbrook_thicket: 2 }, members: [seat(0, 'Tyler', 'shield'), seat(1, 'Fingerguns', 'bow')] };
+          leader_seat: 1, self_seat: 0, leader_densities: {}, members: [seat(0, 'Tyler', 'shield'), seat(1, 'Fingerguns', 'bow')] };
         await pushEnvelope(page, s);
         await page.keyboard.press('h');
-        const shown = await wait(page, () => { const v = document.querySelector('.hw-hunt.is-picked .hw-density.is-on .hh-step-val'); return v && /Set by/.test(v.textContent); }, null);
+        /* The leader's picks, per ground: 7 on the line the picker chose, 2 on another. */
+        await wait(page, () => document.querySelector('.hw-hunt.is-picked'), null);
+        const picked = await page.evaluate(() => document.querySelector('.hw-hunt.is-picked').getAttribute('data-hunt'));
+        const other = picked === 'meadowbrook_thicket' ? 'mill_cellar' : 'meadowbrook_thicket';
+        s.env.party = Object.assign({}, s.env.party, { leader_densities: { [picked]: 7, [other]: 2 } });
+        await pushEnvelope(page, s);
+        const shown = await wait(page, () => { const v = document.querySelector('.hw-hunt.is-picked .hw-density.is-on .hh-step-val'); return v && /Set by .*: 7 each/.test(v.textContent); }, null);
         const m = await page.evaluate(() => {
           const d = document.querySelector('.hw-hunt.is-picked .hw-density');
           const steps = [...d.querySelectorAll('[data-by]')];
@@ -1409,8 +1420,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (m.visible !== 0) fails.push('HS-14 a member\'s picker still shows ' + m.visible + ' density step(s)');
         if (!/ packs? of 7[ ,]/.test(m.facts)) fails.push('HS-14 a member\'s facts line does not say the leader\'s pull: ' + m.facts);
         /* The leader's pick is per ground too: another line reads the leader's pick THERE (2 on the Thicket). */
-        const thicket = await page.evaluate(() => (document.querySelector('.hw-hunt[data-hunt="meadowbrook_thicket"] .hw-hunt-facts') || {}).textContent || '');
-        if (!/ packs? of 2[ ,]/.test(thicket)) fails.push('HS-14 another ground does not read the leader\'s pick there: ' + thicket);
+        const there = await page.evaluate((h) => (document.querySelector('.hw-hunt[data-hunt="' + h + '"] .hw-hunt-facts') || {}).textContent || '', other);
+        if (!/ packs? of 2[ ,]/.test(there)) fails.push('HS-14 ' + other + ' does not read the leader\'s pick there: ' + there);
         const asks = () => s.calls.filter((c) => c.name === 'hr_hunt_density_set' || c.name === 'hr_action_set_options').length;
         const before = asks();
         await page.evaluate(() => { for (const b of document.querySelectorAll('.hw-hunt.is-picked .hw-density [data-by]')) b.click(); });

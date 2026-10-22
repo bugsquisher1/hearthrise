@@ -327,9 +327,11 @@ async function checks(overrides, shots) {
 
     { // AW-7 no supplies in the Shop; AW-8 hunt prep
       /* The fixture's server still offers food, drink and ammo (the pre-2026-11-02 section): the client must drop them. */
-      /* The hero is BURYING when Use is pressed (Andy live 10-21: "burying locks an action"). */
+      /* The hero is BURYING when Use is pressed (Andy live 10-21: "burying locks an action"), so in town:
+         the fixture's hunt has ended (Use is town-only since presets C4; tests/preset-names.mjs holds that rule). */
       const tools = (e) => { e.shop = Object.assign({}, e.shop, { offers: e.shop.offers.concat([{ offer: 'supply.bronze_axe', item: 'bronze_axe', kind: 'tool', price: 120 }]) });
-        e.state = Object.assign({}, e.state, { active_kind: 'artisan', active_id: 'bury_bones' }); };
+        e.state = Object.assign({}, e.state, { active_kind: 'artisan', active_id: 'bury_bones' });
+        e.hunt = Object.assign({}, e.hunt, { ended: true }); };
       const { ctx, page, s, up } = await open({ mutateEnv: tools });
       if (up) {
         await openWin(page, 'v', 'shop');

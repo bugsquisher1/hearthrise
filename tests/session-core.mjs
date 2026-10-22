@@ -59,7 +59,7 @@
 //   TOK-5  waking a hidden tab checks the token before the next call
 //   VIEW-1 the world view reads only the character's record and its own scratch
 // ════════════════════════════════════════════════════════════════════════
-import { mkdtempSync, cpSync, readFileSync, writeFileSync, rmSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, cpSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -875,13 +875,11 @@ const MUTANTS = [
   ['a hunter is re-read as town work', 'src/session/town-poll.js', "  return !(hunt && typeof hunt === 'object' && typeof hunt.session_id === 'string' && hunt.ended !== true);", '  return true;'],
 ];
 
+/* The WHOLE src tree at its own layout: the session graph reaches across src/** by relative path
+   (the live hunt view, the engine, the data, the net wiring), so a hand-kept list breaks on the
+   next new import (trophy-wire-shape, v0.2.32: residue.js -> ../data/homestead-tiers.js). */
 function copyTree(dst) {
-  mkdirSync(join(dst, 'src/net'), { recursive: true });
-  cpSync(join(ROOT, 'src/session'), join(dst, 'src/session'), { recursive: true });
-  cpSync(join(ROOT, 'src/net/auth.js'), join(dst, 'src/net/auth.js'));
-  cpSync(join(ROOT, 'src/net/supabase-bootstrap.js'), join(dst, 'src/net/supabase-bootstrap.js'));
-  /* The CharacterSession runs the live hunt view (option B), so the engine and the data come along. */
-  for (const d of ['src/hunt-view', 'src/data', 'src/core']) cpSync(join(ROOT, d), join(dst, d), { recursive: true });
+  cpSync(join(ROOT, 'src'), join(dst, 'src'), { recursive: true, filter: (s) => !/\.(png|webp|jpg|ogg|mp3)$/.test(s) });
 }
 
 async function main() {

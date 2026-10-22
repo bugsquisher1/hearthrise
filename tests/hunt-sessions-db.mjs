@@ -599,23 +599,25 @@ const BODY_MUTANTS = [
     from: "        on conflict (user_id, slot, item_id) do update set qty = pi.qty + excluded.qty;\n      perform public.hr_hunt_ledger_pair",
     to: "        on conflict (user_id, slot, item_id) do update set qty = pi.qty;\n      perform public.hr_hunt_ledger_pair" },
   /* hr_hunt_enter is the client door over hr_hunt_enter_for since 2026-10-25-party-invites.sql
-     (lane S2: one entry body for enter, the party start and hunt again), so the entry
-     mutants plant into that body; the arms still enter through hr_hunt_enter. */
-  { name: 'enter ignores an already-open session', arm: 'S1', fn: 'hr_hunt_enter_for',
-    from: '  if v_s.id is not null then\n    return jsonb_build_object(\'ok\', false, \'error\', \'hunt_open\', \'session\', v_s.id, \'hunt\', v_s.hunt_id); end if;',
+     (lane S2: one entry body for enter, the party start and hunt again), and since
+     2026-12-05-hunt-setup-per-ground.sql every refusal of that body is ONE predicate,
+     hr_hunt_enter_check, asked under its locks: the entry mutants plant into the
+     predicate; the arms still enter through hr_hunt_enter. */
+  { name: 'enter ignores an already-open session', arm: 'S1', fn: 'hr_hunt_enter_check',
+    from: '  if v_sid is not null then\n    return jsonb_build_object(\'ok\', false, \'error\', \'hunt_open\', \'session\', v_sid, \'hunt\', v_shunt); end if;',
     to: '' },
-  { name: 'enter trusts the client qty', arm: 'F1', fn: 'hr_hunt_enter_for',
+  { name: 'enter trusts the client qty', arm: 'F1', fn: 'hr_hunt_enter_check',
     from: '    if coalesce(v_have, 0) < (v_line->>\'qty\')::bigint then', to: '    if false then' },
-  { name: 'enter admits unknown bag keys (a client time)', arm: 'F1', fn: 'hr_hunt_enter_for',
+  { name: 'enter admits unknown bag keys (a client time)', arm: 'F1', fn: 'hr_hunt_enter_check',
     from: "k not in ('item', 'qty', 'essential'))", to: "k not in ('item', 'qty', 'essential', 'at'))" },
   { name: 'settle trusts a future window', arm: 'F1', fn: 'hr_hunt_settle_session',
     from: "  if v_to > now() + c_skew then perform public.hr_reject('window_in_future'); end if;", to: '' },
   { name: 'a settle refusal RETURNS instead of raising (hr_apply value kept)', arm: 'R1', fn: 'hr_hunt_settle_session',
     from: "    perform public.hr_reject('session_moved', jsonb_build_object('swing_index', v_s.swing_index)); end if;",
     to: "    return jsonb_build_object('ok', false, 'error', 'session_moved'); end if;" },
-  { name: 'enter ignores the kill switch', arm: 'K1', fn: 'hr_hunt_enter_for',
-    from: "  if not coalesce((select enabled from public.hr_hunt_config where id), false) then\n    return jsonb_build_object('ok', false, 'error', 'hunts_paused'); end if;\n  if p_hunt is null",
-    to: "  if p_hunt is null" },
+  { name: 'enter ignores the kill switch', arm: 'K1', fn: 'hr_hunt_enter_check',
+    from: "  if not coalesce((select enabled from public.hr_hunt_config where id), false) then\n    return jsonb_build_object('ok', false, 'error', 'hunts_paused'); end if;\n  if v_ground then",
+    to: "  if v_ground then" },
   { name: 'the fold reads past the high-water mark (double count)', arm: 'T1', fn: 'hr_hunt_settle_session',
     from: "    from public.player_ledger l where l.session_id = p_session and l.id > v_hwm and l.at >= v_fold_from;",
     to: "    from public.player_ledger l where l.session_id = p_session and l.id > 0 and l.at >= v_fold_from;" },

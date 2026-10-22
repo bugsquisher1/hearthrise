@@ -216,13 +216,16 @@ const main = async () => {
       if (m.file === 'index') {
         await run(mutated, ENVELOPE_JS);
       } else {
-        // The applier imports its sibling by relative path, so the mutant runs
-        // from a temp copy of src/session (never the tree).
+        // The applier's import graph reaches across src/** by relative path
+        // (residue.js -> ../data/...), so the mutant runs from a temp copy of
+        // the WHOLE src tree at its own layout (never the tree itself): the
+        // next new import resolves without touching this harness.
         const dir = await mkdtemp(join(tmpdir(), 'hr-trophy-wire-'));
         try {
-          await cp(join(ROOT, 'src', 'session'), dir, { recursive: true });
-          await writeFile(join(dir, 'envelope.js'), mutated);
-          await run(indexSrc, join(dir, 'envelope.js'));
+          await cp(join(ROOT, 'src'), join(dir, 'src'), { recursive: true, filter: (s) => !/\.(png|webp|jpg|ogg|mp3)$/.test(s) });
+          const mutantPath = join(dir, 'src', 'session', 'envelope.js');
+          await writeFile(mutantPath, mutated);
+          await run(indexSrc, mutantPath);
         } finally { await rm(dir, { recursive: true, force: true }); }
       }
     } finally {

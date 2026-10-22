@@ -4198,3 +4198,8 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 2. *A slot-order fallback needs a deferred gold_out.* An unaffordable store food marks gold_out only when no consume slot fed the hero this step; marking at the first refusal ended hunts a later own-stock slot would have fed.
 3. *Fixtures that relied on "Any food" died silently.* hunt-fixture, the settle arms and settle-hooks now name their food in a slot; a default threshold change (60%) moves economy guards (forest-cave net chain).
 4. *Python text-mode writes CRLF on Windows*; mutant anchors with "\n" then miss. Edit with node or newline=''.
+
+## 2026-10-21 · lane/a-rare-roll (party rare roll, Tyler L8)
+1. *A world field drawn on the loot stream diverges the live hash.* `rareWon` rides the world (both paths identical), but the browser runs `r` on a constant, so a party's real rare re-seeds the viewed prediction once (eased). Never hash-exclude a field to hide that; it is once per 10-20 h.
+2. *Server-only events need two seams.* The prediction filters SERVER_ONLY_EVENTS (events.js) out of its feed, and character-session ingests exactly those from the server's answer while live; otherwise a live viewer never sees them.
+3. *A new world field moves hr_hunt_world_shape.* Regenerate the STAGED hunt-sessions catalogue in the same lane; the edge deploy and that apply go together.

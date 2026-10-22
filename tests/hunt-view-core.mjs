@@ -198,6 +198,24 @@ async function rules(M) {
     const turn = M.L.lineOf({ key: 'k3', type: 'rare_roll', atMs: 1, u: 2, item: 'crown_shard', rolls: {} }, n);
     ok('LOG-2', turn && /^Andy takes the Crown Shard: everyone else in the party has won a rare/.test(turn.text), 'the rotation\'s turn reads ' + JSON.stringify(turn));
   }
+
+  { // LOG-3: while the live prediction runs, a server answer's rare roll still reaches the log (the prediction
+    // cannot draw it, live-engine.js), and nothing else of that answer does (one position source).
+    const clock = { t: 500000 };
+    const { cs } = session(M, { hr_load: () => ({ ok: true, body: clone(FIXTURE) }) }, clock);
+    const log = M.L.logFor(cs);
+    await cs.load();
+    cs.live = { running: () => true, stalled: () => false };
+    cs.liveLink = { from() {}, off() {} };
+    const at = FIXTURE.hunt_server_now_ms - 200;
+    cs._play(Object.assign(clone(FIXTURE), { hunt_track: [], hunt_events: [
+      { id: at + '.0', type: 'dmg', atMs: at, u: 1, t: 101, amount: 77 },
+      { id: at + '.1', type: 'rare_roll', atMs: at, u: 1, item: 'crown_shard', rolls: { 1: 87 } }] }));
+    cs.timeline.advance(clock.t + 60000);
+    const texts = log.lines().map((l) => l.text);
+    ok('LOG-3', texts.some((x) => /^Rare roll for the Crown Shard: Tyler 87\./.test(x)), 'a live viewer never sees the server\'s rare roll: ' + JSON.stringify(texts.slice(-3)));
+    ok('LOG-3', !texts.some((x) => / for 77\./.test(x)), 'a live viewer was fed the server\'s own dmg over the prediction');
+  }
   return fails;
 }
 
@@ -214,6 +232,7 @@ const MUTANTS = [
   ['a forged toggle passes', 'src/session/residue.js', "for (const k of ['regular', 'boss']) if (typeof r[k] === 'boolean') e[k] = r[k];", 'Object.assign(e, r);'],
   ['the intent writes the record itself', 'src/session/character-session.js', "    if (ans.ok && ans.body && ans.body.ok === true) { await this.load(); return { ok: true }; }", "    this._record = Object.freeze(Object.assign({}, this._record));\n    if (ans.ok && ans.body && ans.body.ok === true) { await this.load(); return { ok: true }; }"],
   ['an ok is not re-read', 'src/session/character-session.js', '{ await this.load(); return { ok: true }; }', '{ return { ok: true }; }'],
+  ['a live viewer never sees the server\'s rare roll', 'src/session/character-session.js', 'body.hunt_events.filter((e) => e && SERVER_ONLY_EVENTS.includes(e.type)) : []', '[] : []'],
   ['a monster hit reads as dealt', 'src/hunt-view/combat-log.js', "return line(n.isHero(ev.u) ? 'dealt' : 'taken',", "return line('dealt',"],
 ];
 

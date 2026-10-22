@@ -438,8 +438,10 @@ function rules(M) {
   }
 
   { // LV-RR: the party's rare roll is drawn on the server's loot stream only
+    /* The rare rows come FIRST, so the prediction's constant loot stream (its second draw is 0.0003) rolls a
+       rare of its own on most kills: the filter, not luck, is what keeps it off the screen. */
     const rareCat = Object.fromEntries(Object.entries(M.MONSTERS).map(([id, m]) => [id,
-      { ...m, drops: [...(m.drops || []), ...Array.from({ length: 10 }, () => ({ id: 'crown_shard', ch: 0.05 }))] }]));
+      { ...m, drops: [...Array.from({ length: 10 }, () => ({ id: 'crown_shard', ch: 0.05 })), ...(m.drops || [])] }]));
     const mis = [memberOf(M, 'a', 0, 'tank', 6), memberOf(M, 'b', 1, 'melee_dps', 6)];
     const r = run(M, mis, 160000, { server: { monsters: rareCat } });
     const srvRolls = r.verdicts.flatMap((x) => x.tl.hunt_events.filter((e) => e.type === 'rare_roll'));

@@ -210,12 +210,10 @@ export class CharacterSession {
     if (sid !== null) this._huntSid = sid;
     this._liveFrom(body);
     /* ONE POSITION SOURCE: while a prediction exists, even one out of seeds waiting for its restart,
-       the server's window never writes the same units (its steps are the past, played over the
-       prediction's: two sources bouncing one hero). */
+       the server's window never writes the same units (its steps are the past, played over the prediction's:
+       two sources bouncing one hero). Only its SERVER-ONLY events (a party's rare roll) come from it. */
     if (this.live.running() || this.live.stalled()) {
-      const ms = Number.isSafeInteger(body.hunt_server_now_ms) ? body.hunt_server_now_ms
-        : typeof body.now === 'string' ? Math.floor(Date.parse(body.now)) : NaN;
-      /* ...but the server-only events (a party's rare roll), which the prediction cannot draw, still come from it. */
+      const ms = Number.isSafeInteger(body.hunt_server_now_ms) ? body.hunt_server_now_ms : typeof body.now === 'string' ? Math.floor(Date.parse(body.now)) : NaN;
       const own = Array.isArray(body.hunt_events) ? body.hunt_events.filter((e) => e && SERVER_ONLY_EVENTS.includes(e.type)) : [];
       if (Number.isSafeInteger(ms) || own.length) this.timeline.ingest({ serverNowMs: ms, events: own }, this._now());
       return;

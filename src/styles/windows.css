@@ -289,11 +289,11 @@
 .hw-hd-theme { margin: 0; font-size: var(--t-small); line-height: 1.35; color: var(--ink-2); }
 .hw-hd-h { margin: 14px 0 6px; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
 /* Who lives here: each creature as the world draws it (×2, its idle frame), every one standing on the same
-   ground line at the tallest one's height (--stand-h, set from the drawn art), its name and how common it is
+   ground line at the tallest one's height (--stand-h, set from the drawn art; + the 2 px foot and the 1 px line), its name and how common it is
    under it. The ground line runs unbroken under a row. */
 .hw-hd-lineup { display: flex; flex-wrap: wrap; align-items: flex-start; row-gap: 12px; margin: 0; padding: 0; list-style: none; }
 .hw-hd-mon { display: flex; flex-direction: column; align-items: center; padding: 0; text-align: center; }
-.hw-hd-stand { display: flex; align-items: flex-end; justify-content: center; align-self: stretch; height: var(--stand-h, 48px); padding: 0 10px 2px; border-bottom: 1px solid var(--line); }
+.hw-hd-stand { display: flex; align-items: flex-end; justify-content: center; align-self: stretch; height: calc(var(--stand-h, 45px) + 3px); padding: 0 10px 2px; border-bottom: 1px solid var(--line); }
 .hw-hd-mon-name { margin-top: 4px; padding: 0 6px; font-size: var(--t-micro); font-weight: 700; line-height: 1.2; color: var(--ink); white-space: nowrap; }
 .hw-hd-mon-how { padding: 0 6px; font-size: var(--t-micro); line-height: 1.2; color: var(--ink-3); white-space: nowrap; }
 .hw-hd-sprite { display: block; image-rendering: pixelated; }

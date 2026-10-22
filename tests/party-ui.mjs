@@ -670,10 +670,10 @@ async function pageRules(overrides, shots) {
         /* UI-5 (Tyler 10-19): the party note is the PICKED ground's, from its row. */
         for (const hunt of ['millrace_sewer', 'coppercap_warrens', 'millrace_sewer']) {
           await page.click(W + '.hw-hunt[data-hunt="' + hunt + '"] .hw-hunt-name');
-          const got = await page.evaluate((q) => { const n = document.querySelector(q); return n && !n.hidden ? n.textContent : ''; }, W + '.hw-hunt[data-hunt="' + hunt + '"] .hw-hunt-party');
+          const got = await page.evaluate((q) => { const n = document.querySelector(q); return n && !n.hidden ? n.textContent : ''; }, W + '.hw-hunt-detail .hw-hunt-party');
           if (got !== PARTY_NOTES[hunt]) fails.push('UI-5 [' + tag + '] with ' + hunt + ' picked the note reads ' + JSON.stringify(got) + ', want ' + JSON.stringify(PARTY_NOTES[hunt]));
         }
-        const go = W + '.hw-hunt[data-hunt="millrace_sewer"] [data-hs-act="enter"]';
+        const go = W + '.hw-hunt-detail [data-hs-act="enter"]';
         const label = await page.evaluate((q) => document.querySelector(q).textContent, go);
         if (label !== 'Start with party') fails.push('UI-3 [' + tag + '] the leader’s button reads ' + JSON.stringify(label));
         await shot('hunts-leader');
@@ -741,7 +741,7 @@ async function pageRules(overrides, shots) {
         s.env[1].party = Object.assign(clone(s.env[0].party), { self_seat: 1, leader_seat: 0 });
         await pushEnvelope(page, s, 1);
         if (await openWin(page, 'h', 'hunts')) {
-          const b = await page.evaluate(() => { const e = document.querySelector('[data-hs-win="hunts"] .hw-hunt.is-picked [data-hs-act="enter"]'); return e && { off: e.disabled, text: e.textContent }; });
+          const b = await page.evaluate(() => { const e = document.querySelector('[data-hs-win="hunts"] .hw-hunt-detail [data-hs-act="enter"]'); return e && { off: e.disabled, text: e.textContent }; });
           if (!b || !b.off || b.text !== 'Enter') fails.push('UI-3 [' + tag + '] a member’s Enter reads ' + JSON.stringify(b));
         } else fails.push('UI-3 [' + tag + '] H did not open the Hunts window for character 1');
       } else fails.push('UI-3 [' + tag + '] the Party window did not open for character 1');

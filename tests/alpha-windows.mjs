@@ -7,7 +7,7 @@
 //   node tests/alpha-windows.mjs --shots <dir>  also write the visual-gate screenshots
 //                                               (1440x900 and 922x423)
 //
-// mutant-anchors: src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js src/shell/town-work.js src/shell/windows/work.js
+// mutant-anchors: src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js src/shell/town-work.js src/shell/windows/work.js src/shell/hunt-ground-facts.js src/shell/windows/hunt-detail.js src/shell/hunt-go.js src/shell/windows/party-finder.js src/data/refusal-words.js src/styles/windows.css
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character's envelope is tests/fixtures/alpha-envelope.json.
@@ -86,6 +86,28 @@
 //   AW-17 the skills are two ledgers (the combat one inside the Character window,
 //         tests/character-window.mjs) and Gathering and crafting does not scroll at
 //         922x423; a character that has never fought sees the pointer to Hunts
+// THE HUNTS WINDOW, master-detail (designer plan 2026-10-22, PRIORITY_BOARD "Hunts, Hunt
+// prep and the Party finder"), a Level 1 hero in town:
+//   AW-24 the list is one line a ground: the band in words with its tone (in range /
+//         above / far above), the solo / party glyph, the best or "New", "Fits your
+//         level" on the recommendation's line only; the picked ground's page draws who
+//         lives there from the world's style-1 idle frames at x2, standing on one ground
+//         line, common / uncommon / rare from the spawn points, the rare and its ONE
+//         carrier, the bests (one "Not hunted yet" line when none, the server's best
+//         replacing it); on the phone the list, then the page as the sheet, then back
+//   AW-25 GO AS: the setups as lines (weapon, role, the bar's first four on the setup
+//         on now; a set with no setup row is not offered); Enter as the setup on now is
+//         ONE hr_hunt_enter; as another it is ONE hr_hunt_preset_apply then ONE
+//         hr_hunt_enter naming it, from one press, every control off in flight; a
+//         refused apply enters nothing and says why in words
+//   AW-26 BEFORE YOU GO: one line per supply kind in slot order from the server's bar,
+//         bag, stamina and gold (the designer's walk-through starter bar word for word);
+//         the next envelope replaces every number; a line that stops the hunt is marked
+//   AW-27 THE PARTY PATH: a party ground's page offers Find a party (the Party window's
+//         finder on that ground and this hero's weapon: ONE read with p_hunt) and Bring
+//         your heroes (open heroes in no party); a solo ground's page offers neither
+//   AW-28 the round trip: pick a ground, Enter, hunting, back in town: Hunts still holds
+//         that ground, after a close and reopen too
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -107,6 +129,19 @@ const PANE_SRC = await readFile(join(ROOT, PANE), 'utf8');
 if (!PANE_SRC.includes('    runtime.sync();\n')) throw new Error('alpha-windows: the world-pane hook anchor moved');
 const HOOK = { [PANE]: PANE_SRC.replace('    runtime.sync();\n', '    runtime.sync();\n    window.__world = runtime;\n') };
 const clone = (o) => JSON.parse(JSON.stringify(o));
+/* The hunt rows (each ground's theme) the Hunts page draws. */
+const HUNTS = (await import(pathToFileURL(join(ROOT, 'src/data/hunts.js')).href)).HUNT_INDEX;
+/* A Level 1 hero in town (no hunt, no party, no bests yet), 30 min of stamina, two setups the server can put
+   on and a third set it cannot (no setup row): the Hunts window's fresh hero (AW-24 .. AW-28). */
+function levelOne(e) {
+  for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
+  e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, level_xp: 0 });
+  e.hunt_bests = { min_ms: 600000, grounds: {} };
+  e.stamina = { ms: 1800000, at: e.now, max_ms: 28800000, hunting: false };
+  e.hunt_presets = [{ preset: 0, name: 'Cellar rats', action_set: 0, gear: { weapon: 'iron_sword' }, restock: {} },
+    { preset: 1, name: 'Bow', action_set: 1, gear: { weapon: 'shortbow' }, restock: {} }];
+  e.hunt_settings = Object.assign({}, e.hunt_settings, { presets: [{ preset: 0, name: 'Hunt' }, { preset: 1, name: 'Bow' }, { preset: 2, name: 'Bare set' }] });
+}
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 const ITEM_RPCS = ['hr_item_lock', 'hr_loot_rule_set', 'hr_hunt_preset_save', 'hr_hunt_preset_apply', 'hr_action_set_options', 'hr_hunt_enter', 'hr_bank_move'];
 /* The windows a player opens from the launcher row, with their keys (src/data/shell-windows.js). */
@@ -148,14 +183,16 @@ async function stub(page, s) {
 
 /* A reload: the stub keeps the session, so the page comes back to the character (or its picker). */
 async function reloadAndPlay(page) {
-  await page.reload({ waitUntil: 'load' });
+  await page.reload({ waitUntil: 'domcontentloaded' });
   await wait(page, () => document.querySelector('.hs-launchers') || document.querySelector('[data-app="play"][data-slot="0"]'));
   if (!(await page.$('.hs-launchers'))) await page.click('[data-app="play"][data-slot="0"]');
   return wait(page, () => document.querySelector('.hs-launchers'));
 }
 
 async function signInAndPlay(page, base) {
-  await page.goto(base + '/play.html', { waitUntil: 'load' });
+  /* domcontentloaded, not load: on a busy box the page's 'load' (every image) outran the 6 s step timeout;
+     the sign-in form below is the readiness this needs. */
+  await page.goto(base + '/play.html', { waitUntil: 'domcontentloaded' });
   await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
   await page.fill('input[name=email]', 'qa@example.test');
   await page.fill('input[name=password]', 'not-a-real-password');
@@ -259,6 +296,56 @@ async function pure() {
     workBlock(wcs(1, {}), workRow('artisan', 'forge_bronze_axe'), false), workBlock(wcs(1, { copper_ore: 2 }), bronze, false), String(runsOf(bronze.row, { copper_ore: 11 })),
     workBlock(wcs(1, {}), bronze, false)];
   if (said.join('|') !== 'Needs 2 Copper Ore (you have 1).|Not while a hunt is running.|Needs Smithing 3.||5|No Copper Ore in your bag.') fails.push('AW-22 the work rows say ' + JSON.stringify(said));
+  return fails.concat(await huntsPure(imp));
+}
+
+/* AW-24 .. AW-27 PURE: the Hunts page's facts from the data rows and its lines from the server's sections. */
+async function huntsPure(imp) {
+  const fails = [];
+  const { residentsOf, rareOf } = await imp('src/shell/hunt-ground-facts.js');
+  const { huntRows, fitWords, bestLine, bestWords } = await imp('src/shell/hunt-list.js');
+  const { setupsOf, beforeLines, freeHeroes } = await imp('src/shell/hunt-go.js');
+  const STORE = FIXTURE.hunt_settings.store;
+  /* Who lives here: each creature's share of the ground's spawn points (Tyler 10-18: a common majority, some uncommon, a rare). */
+  const cellar = residentsOf('mill_cellar').map((m) => m.id + ':' + m.band + ':' + m.level).join();
+  if (cellar !== 'rat:common:2,slime:uncommon:2,hive_wasp:uncommon:4') fails.push('AW-24 the Mill Cellar lives as ' + cellar);
+  const thicket = residentsOf('meadowbrook_thicket').map((m) => m.id + ':' + m.band).join();
+  if (thicket !== 'gray_wolf:common,gray_whelp:common,briarcoat_wolf:uncommon,dire_gray:rare,grayjaw:rare') fails.push('AW-24 the Thicket lives as ' + thicket);
+  for (const r of huntRows()) if (!residentsOf(r.hunt).some((m) => m.band === 'common')) fails.push('AW-24 ' + r.hunt + ' has no common creature');
+  /* The rare and its ONE carrier, from the drop rows (never the equipment slot). */
+  const carriers = huntRows().map((r) => { const x = rareOf(r.hunt); return r.hunt + ':' + (x ? x.carrier.id + ':' + x.items.map((i) => i.id).join('+') : '-'); }).join();
+  if (carriers !== 'mill_cellar:slime:sticky_core,meadowbrook_thicket:grayjaw:alpha_fang,millrace_sewer:rat_king:crown_shard,mosslight_glade:rook_poacher:rooks_whistle,coppercap_warrens:chief_coppercap:war_crown')
+    fails.push('AW-24 the rares and carriers read ' + carriers);
+  /* The list line: the band against the Level in words and a tone; the best, or New. */
+  const rows = Object.fromEntries(huntRows().map((r) => [r.hunt, r]));
+  const fits = [[rows.mill_cellar, 1], [rows.meadowbrook_thicket, 1], [rows.mosslight_glade, 1], [rows.mill_cellar, 20], [rows.mill_cellar, null]].map(([r, lv]) => { const f = fitWords(r, lv); return f ? f.tone + ':' + f.words : '-'; }).join('|');
+  if (fits !== 'in:In your range|above:Above your level|far:Far above your level|below:Below your level|-') fails.push('AW-24 the band words read ' + fits);
+  const bests = { minMs: 600000, grounds: { mill_cellar: { solo: { xpH: 7141, balanceH: 1859 }, party: { xpH: 9000, balanceH: 10 } } } };
+  const lines = [bestLine(null, 'mill_cellar'), bestLine(bests, 'mill_cellar'), bestLine(bests, 'millrace_sewer')].join('|');
+  if (lines !== '|Best 9,000 Level XP/h|New') fails.push('AW-24 the list bests read ' + lines);
+  const none = bestWords({ minMs: 600000, grounds: {} }, 'mill_cellar');
+  if (none.solo || none.party || none.none !== 'Not hunted yet. A hunt of 10 min or more sets your best.') fails.push('AW-24 a ground with no best reads ' + JSON.stringify(none));
+  /* A session over plain sections, the way the envelope projects them. */
+  const slot = (type, id, count) => ({ action: { type, id }, conditions: [], join: 'and', usable: true, count });
+  const START = [slot('ability', 'power_strike'), slot('consume', 'cooked_shrimp', 20), slot('consume', 'salted_shrimp', null), slot('consume', 'thin_turnip_juice', null)];
+  const sess = (o) => { const e = Object.assign({ hunt_settings: { preset: 0, presets: [{ preset: 0, name: 'Set 1' }], slots: START, store: STORE },
+    state: { gold: 500 }, inventory: { cooked_shrimp: 20 }, stamina: { ms: 28800000, at: '2026-10-22T00:00:00Z', max_ms: 28800000 }, equipment: { weapon: 'practice_sword' } }, o); return { read: (k) => e[k] }; };
+  const say = (cs, o) => beforeLines(cs, o).map((l) => (l.short ? '!' : '') + l.text).join(' | ');
+  /* (A fresh hero's starter bar and Bring your heroes are read on the page's own modules, AW-26 / AW-27 in checks.) */
+  const bare = say(sess({ hunt_settings: { preset: 0, presets: [], slots: [slot('consume', 'cooked_shrimp', 0)], store: STORE }, state: { gold: 0 }, stamina: { ms: 0, max_ms: 28800000 } }));
+  if (bare !== '!Food: no Cooked Shrimp left. Nothing will be eaten or bought | !No stamina left: rest in town before you go.') fails.push('AW-26 an empty bar and no stamina read ' + JSON.stringify(bare));
+  const poor = say(sess({ state: { gold: 0 }, stamina: { ms: 30 * 60000, max_ms: 28800000 } }));
+  if (!/\| Stamina: 30 min left, then the hunt ends\. \| !No gold for the store: the hunt ends when your own supplies run out\.$/.test(poor)) fails.push('AW-26 low stamina and no gold read ' + JSON.stringify(poor));
+  const other = say(sess({}), { other: 'Bow' });
+  if (!/^Supplies: as Bow’s own bar sets them/.test(other)) fails.push('AW-26 another setup\'s supplies read ' + JSON.stringify(other));
+  /* Go as: the setups the server can put on, plus the one in use (its bar's first four); a set with no setup row is not offered. */
+  const setups = setupsOf(sess({ hunt_settings: { preset: 0, presets: [{ preset: 0, name: 'Hunt' }, { preset: 1, name: 'Bow' }, { preset: 2, name: 'Bare set' }], slots: FIXTURE.hunt_settings.slots, store: STORE },
+    hunt_presets: [{ preset: 1, name: 'Bow', action_set: 1, gear: { weapon: 'shortbow' } }], equipment: { weapon: 'iron_sword' } }))
+    .map((p) => [p.preset, p.name, p.inUse, p.weapon, p.roleWords, p.bar ? p.bar.length : '-'].join(':')).join('|');
+  if (setups !== '0:Hunt:true:iron_sword:Melee (shield):4|1:Bow:false:shortbow:Ranger:-') fails.push('AW-25 Go as offers ' + setups);
+  /* A closed session is no hero to bring (the open one in a party is checked on the page, AW-27). */
+  const me = { slot: 0, status: 'ready', read: () => null };
+  if (freeHeroes(me, [me, { slot: 3, status: 'closed', read: (k) => (k === 'name' ? 'Wrenna' : null) }]).length) fails.push('AW-27 Bring your heroes offers a closed session');
   return fails;
 }
 
@@ -549,7 +636,7 @@ async function checks(overrides, shots) {
         if (!opened) fails.push('AW-14 a click on the mill hatch did not open Hunts on the Mill Cellar');
         else {
           if (shots) await shot(page, 'alpha-1440x900-hunts');
-          await page.click('[data-hs-win="hunts"] .hw-hunt.is-picked .hw-hunt-enter');
+          await page.click('[data-hs-win="hunts"] .hw-hunt-detail .hw-hunt-enter');
           await page.waitForTimeout(700);
           const enter = sent(s, 'hr_hunt_enter');
           const b = enter[0] && enter[0].body;
@@ -576,6 +663,185 @@ async function checks(overrides, shots) {
         if (!/Next at level \d+: .*Bronze Axe \(woodcutting tool\)/.test(smith) || /and 1 more/.test(smith)) fails.push('AW-17 the smithing unlock does not say what it is: ' + JSON.stringify(smith));
       }
       if (errors.length) fails.push('AW-13 console errors in town: ' + errors.slice(0, 3).join(' | '));
+      await ctx.close();
+    }
+
+    { // AW-24 .. AW-27: the Hunts window, master-detail (designer plan 2026-10-22), a Level 1 hero in town
+      const { ctx, page, errors, s, up } = await open({ mutateEnv: levelOne });
+      const W = '[data-hs-win="hunts"] ';
+      if (!up || !(await openWin(page, 'h', 'hunts'))) fails.push('AW-24 the Hunts window did not open for a Level 1 hero');
+      else {
+        const drawn = await wait(page, (w) => document.querySelectorAll(w + '.hw-hd-mon.is-drawn').length === 3, W, 8000);
+        const list = await page.evaluate((w) => Array.from(document.querySelectorAll(w + '.hw-hunt')).map((li) => [li.dataset.hunt, li.classList.contains('is-picked') ? 'picked' : '',
+          li.querySelector('.hw-hunt-lv').textContent, li.querySelector('.hw-hunt-fit').getAttribute('data-tone'), li.querySelector('.hw-hunt-fit').textContent,
+          li.querySelector('.hw-hunt-fits').textContent, li.querySelector('.hw-hunt-bestline').textContent, li.querySelector('.hw-hunt-glyph').title].join(':')), W);
+        const want = ['mill_cellar:picked:Level 1–8:in:In your range:Fits your level:New:Built for one hero',
+          'meadowbrook_thicket::Level 5–15:above:Above your level::New:Built for one hero',
+          'millrace_sewer::Level 8–25:above:Above your level::New:Built for a party',
+          'mosslight_glade::Level 16–31:far:Far above your level::New:Built for one hero',
+          'coppercap_warrens::Level 32–50:far:Far above your level::New:Built for a party'];
+        if (list.join('|') !== want.join('|')) fails.push('AW-24 the list lines read ' + JSON.stringify(list));
+        /* The picked ground's page: who lives here as the world draws them, at a whole-number scale on one ground line. */
+        const page1 = () => page.evaluate((w) => {
+          const d = document.querySelector(w + '.hw-hunt-detail');
+          const vis = (q) => { const n = d.querySelector(q); return n && n.getClientRects().length ? n.textContent : null; };
+          return { name: vis('.hw-hd-name'), theme: vis('.hw-hd-theme'), rare: vis('.hw-hd-rare-name'), by: vis('.hw-hd-rare-by'),
+            mons: Array.from(d.querySelectorAll('.hw-hd-mon')).map((li) => { const c = li.querySelector('canvas'), b = c.getBoundingClientRect(), st = li.querySelector('.hw-hd-stand').getBoundingClientRect();
+              return { id: li.dataset.monster, how: li.querySelector('.hw-hd-mon-how').textContent, drawn: li.classList.contains('is-drawn'), carrier: li.classList.contains('is-carrier'),
+                w: c.width, h: c.height, cw: b.width, ch: b.height, ground: Math.round(st.bottom), inside: b.top >= st.top - 0.5 }; }),
+            bests: Array.from(d.querySelectorAll('.hw-hd-best')).filter((n) => n.getClientRects().length).map((n) => n.textContent) };
+        }, W);
+        const p = await page1();
+        if (!drawn || p.mons.some((m) => !m.drawn || !m.w || m.w % 2 || m.h % 2 || m.cw !== m.w || m.ch !== m.h)) fails.push('AW-24 the creatures are not drawn at x2 from the world art: ' + JSON.stringify(p.mons));
+        if (new Set(p.mons.map((m) => m.ground)).size !== 1 || p.mons.some((m) => !m.inside)) fails.push('AW-24 the creatures do not stand on one ground line, inside it: ' + JSON.stringify(p.mons.map((m) => [m.ground, m.inside])));
+        const mons = p.mons.map((m) => m.id + ':' + m.how + (m.carrier ? ':carrier' : '')).join('|');
+        if (p.name !== 'Mill Cellar' || p.theme !== HUNTS.mill_cellar.theme || mons !== 'rat:Level 2 · common|slime:Level 2 · uncommon:carrier|hive_wasp:Level 4 · uncommon')
+          fails.push('AW-24 the Mill Cellar page reads ' + JSON.stringify({ name: p.name, theme: p.theme, mons }));
+        if (p.rare !== 'Sticky Core' || p.by !== 'Rare drop. Carrier: Slime') fails.push('AW-24 the rare line reads ' + JSON.stringify([p.rare, p.by]));
+        if (p.bests.join('|') !== 'Not hunted yet. A hunt of 10 min or more sets your best.') fails.push('AW-24 with no best the page reads ' + JSON.stringify(p.bests));
+        if (shots) await shot(page, 'hunts-1440x900-cellar-level1');
+        /* The server's best arrives: the line and the page take it (replaced, never kept from before). */
+        s.env.hunt_bests = { min_ms: 600000, grounds: { mill_cellar: { solo: { xp_h: 7141, balance_h: 1859 } } } };
+        await pushEnvelope(page, s);
+        const best = await page.evaluate((w) => document.querySelector(w + '.hw-hunt[data-hunt="mill_cellar"] .hw-hunt-bestline').textContent, W);
+        const p2 = await page1();
+        if (best !== 'Best 7,141 Level XP/h' || p2.bests.join('|') !== 'Best alone: 7,141 Level XP per hour · balance 1,859 gp per hour') fails.push('AW-24 the server\'s best reads ' + JSON.stringify([best, p2.bests]));
+        /* AW-25 GO AS: the setups as lines, the one on now chosen; Enter as it is ONE hr_hunt_enter and no apply. */
+        const goAs = () => page.evaluate((w) => Array.from(document.querySelectorAll(w + '.hw-go')).map((b) => [b.dataset.preset, b.getAttribute('aria-checked'), b.querySelector('.hw-go-name').textContent,
+          b.querySelector('.hw-go-what').textContent, b.querySelectorAll('.hw-go-bar .hh-icon').length, (b.querySelector('.hw-go-weapon img') || {}).src ? b.querySelector('.hw-go-weapon img').getAttribute('src').split('/').pop() : ''].join(':')), W);
+        const g0 = (await goAs()).join('|');
+        if (g0 !== '0:true:Hunt:Melee (shield) · on now:4:iron_sword.png|1:false:Bow:Ranger:0:shortbow.png') fails.push('AW-25 Go as reads ' + JSON.stringify(g0));
+        /* AW-26 BEFORE YOU GO: what the bar spends, in slot order, from the server's bar, bag and gold. */
+        const before = () => page.evaluate((w) => Array.from(document.querySelectorAll(w + '.hw-before-line')).map((li) => (li.classList.contains('is-short') ? '!' : '') + li.textContent).join(' | '), W);
+        const b0 = await before();
+        if (b0 !== 'Runes: 40 Fire Rune of yours, then Plain Fire Rune from the store, 8 gp each | Food: 14 Wheat Bread of yours | Drink: 6 Goldenroot Tea of yours | Stamina: 30 min left, then the hunt ends. | Gold: 5,200 gp pays the store as you use it.')
+          fails.push('AW-26 Before you go reads ' + JSON.stringify(b0));
+        if (await page.evaluate(() => !!document.querySelector('[data-hs-win="hunts"] .hw-ready, [data-hs-win="hunts"] .hw-checks'))) fails.push('AW-26 the Hunts window still carries the readiness checklist');
+        /* The next envelope REPLACES every number (CLAUDE.md §6): fewer runes, less bread, no gold (that line now stops the hunt). */
+        s.env.inventory = Object.assign({}, s.env.inventory, { fire_rune: 3 });
+        s.env.hunt_settings = clone(s.env.hunt_settings);
+        s.env.hunt_settings.slots[2].count = 2;
+        s.env.state = Object.assign({}, s.env.state, { gold: 0 });
+        await pushEnvelope(page, s);
+        const b1 = await before();
+        if (b1 !== 'Runes: 3 Fire Rune of yours, then Plain Fire Rune from the store, 8 gp each | Food: 2 Wheat Bread of yours | Drink: 6 Goldenroot Tea of yours | Stamina: 30 min left, then the hunt ends. | !No gold for the store: the hunt ends when your own supplies run out.')
+          fails.push('AW-26 Before you go kept a number the server replaced: ' + JSON.stringify(b1));
+        /* The page's own modules (a planted defect in them is what is served): a fresh hero's starter bar (the designer's
+           walk-through row 4) and Bring your heroes (this account's other open heroes in no party). */
+        const own = await page.evaluate(async (STORE) => {
+          const m = await import('/src/shell/hunt-go.js?v=0.1.0');
+          const slot = (type, id, count) => ({ action: { type, id }, conditions: [], join: 'and', usable: true, count });
+          const sec = { hunt_settings: { preset: 0, presets: [], store: STORE, slots: [slot('ability', 'power_strike'), slot('consume', 'cooked_shrimp', 20), slot('consume', 'salted_shrimp', null), slot('consume', 'thin_turnip_juice', null)] },
+            state: { gold: 500 }, inventory: { cooked_shrimp: 20 }, equipment: {} };
+          const party = { id: '0a47c0de-0000-4000-a000-00000000aa01', members: [{ seat: 0, name: 'Mira' }], self_seat: 0, leader_seat: 0 };
+          const hero = (slot, n, p) => ({ slot, status: 'ready', read: (k) => (k === 'name' ? n : k === 'party' && p ? party : null) });
+          const me = hero(0, 'Tyler');
+          return { fresh: m.beforeLines({ read: (k) => sec[k] }).map((l) => l.text).join(' | '), free: m.freeHeroes(me, [me, hero(1, 'Mira', true), hero(2, 'Brannoc')]).map((h) => h.name).join() };
+        }, FIXTURE.hunt_settings.store);
+        if (own.fresh !== 'Food: 20 Cooked Shrimp of yours, then Salted Shrimp from the store, 14 gp each | Drink: Thin Turnip Juice from the store, 10 gp each | Gold: 500 gp pays the store as you use it.')
+          fails.push('AW-26 a fresh hero\'s Before you go reads ' + JSON.stringify(own.fresh));
+        if (own.free !== 'Brannoc') fails.push('AW-27 Bring your heroes offers ' + JSON.stringify(own.free));
+        const enters = () => sent(s, 'hr_hunt_enter').length;
+        const applies = () => sent(s, 'hr_hunt_preset_apply').length;
+        let e0 = enters(), a0 = applies();
+        await page.click(W + '.hw-hunt-detail .hw-hunt-enter');
+        for (let i = 0; i < 30 && enters() === e0; i++) await page.waitForTimeout(100);
+        await page.waitForTimeout(300);
+        const asIs = sent(s, 'hr_hunt_enter').slice(e0);
+        if (asIs.length !== 1 || asIs[0].body.p_preset !== 0 || asIs[0].body.p_hunt !== 'mill_cellar' || applies() !== a0) fails.push('AW-25 Enter as the setup on now sent ' + JSON.stringify(s.calls.slice(-3).map((c) => c.name + ':' + JSON.stringify(c.body.p_preset))));
+        /* Another setup: ONE apply, then ONE enter as it, one press; every control off while it is in flight. */
+        await page.click(W + '.hw-go[data-preset="1"]');
+        const note = await page.evaluate((w) => document.querySelector(w + '.hw-go-note').textContent, W);
+        if (note !== 'Enter puts Bow on first: its gear and its bar.' || !/^Supplies: as Bow’s own bar sets them/.test(await before())) fails.push('AW-25 choosing Bow says ' + JSON.stringify([note, await before()]));
+        e0 = enters(); a0 = applies();
+        const mark = s.calls.length;
+        await page.click(W + '.hw-hunt-detail .hw-hunt-enter');
+        const off = await page.evaluate((w) => ({ enter: document.querySelector(w + '.hw-hunt-detail .hw-hunt-enter').disabled, go: Array.from(document.querySelectorAll(w + '.hw-go')).every((b) => b.disabled) }), W);
+        if (!off.enter || !off.go) fails.push('AW-25 Enter or Go as stayed on while the press was in flight: ' + JSON.stringify(off));
+        for (let i = 0; i < 40 && enters() === e0; i++) await page.waitForTimeout(100);
+        await page.waitForTimeout(300);
+        const order = s.calls.slice(mark).filter((c) => c.name === 'hr_hunt_preset_apply' || c.name === 'hr_hunt_enter').map((c) => c.name + ':' + c.body.p_preset);
+        if (order.join() !== 'hr_hunt_preset_apply:1,hr_hunt_enter:1') fails.push('AW-25 Enter as Bow sent ' + JSON.stringify(order));
+        /* A refused apply stops there, in words: nothing is entered. */
+        s.reply = { ok: false, error: 'missing_item' };
+        await page.click(W + '.hw-go[data-preset="1"]');
+        e0 = enters();
+        await page.click(W + '.hw-hunt-detail .hw-hunt-enter');
+        for (let i = 0; i < 30 && !(await page.evaluate((w) => /not in your bag/.test(document.querySelector(w + '.hh-intent-msg').textContent), W)); i++) await page.waitForTimeout(100);
+        const said = await page.evaluate((w) => document.querySelector(w + '.hh-intent-msg').textContent, W);
+        if (enters() !== e0 || said !== 'A piece of that setup’s gear is not in your bag, so nothing was put on.') fails.push('AW-25 a refused apply entered or said ' + JSON.stringify([enters() - e0, said]));
+        s.reply = { ok: true };
+        /* AW-27 THE PARTY PATH: a party ground's page leads to a party; a solo ground's does not. */
+        const party = () => page.evaluate((w) => { const b = document.querySelector(w + '.hw-hd-party'); return b && !b.hidden ? [b.querySelector('.hw-hd-party-why').textContent, b.querySelector('.hw-find-here').textContent, b.querySelector('.hw-bring-none').textContent] : null; }, W);
+        if (await party()) fails.push('AW-27 the Mill Cellar page offers a party path');
+        await page.click(W + '.hw-hunt[data-hunt="millrace_sewer"]');
+        await wait(page, (w) => document.querySelectorAll(w + '.hw-hd-mon.is-drawn').length === 6, W, 4000);
+        const sewer = await page1();
+        if (sewer.name !== 'The Sewer' || sewer.rare !== 'Crown Shard' || !sewer.mons.some((m) => m.id === 'rat_king' && m.carrier && m.how === 'Level 25 · boss')) fails.push('AW-24 the Sewer page reads ' + JSON.stringify({ name: sewer.name, rare: sewer.rare, mons: sewer.mons.map((m) => m.id + ':' + m.how) }));
+        const pp = await party();
+        if (!pp || pp[0] !== 'Best with a party of 2–4.' || pp[1] !== 'Find a party' || !/^Your other heroes can come too/.test(pp[2])) fails.push('AW-27 the Sewer page\'s party path reads ' + JSON.stringify(pp));
+        if (shots) { await page.evaluate((w) => { const b = document.querySelector(w + '.hs-win-body'); b.scrollTop = 0; }, W); await shot(page, 'hunts-1440x900-sewer'); }
+        if (shots) { await page.evaluate((w) => { const b = document.querySelector(w + '.hs-win-body'); b.scrollTop = b.scrollHeight; }, W); await shot(page, 'hunts-1440x900-sewer-foot'); }
+        /* Find a party: the Party window, on its finder, on this ground and this hero's weapon: ONE read with p_hunt. */
+        const f0 = sent(s, 'hr_hunt_party_finder').length;
+        await page.click(W + '.hw-find-here');
+        const opened = await wait(page, () => document.querySelector('[data-hs-win="hunt-party"] [data-hs-built]'), null, 3000);
+        for (let i = 0; i < 30 && sent(s, 'hr_hunt_party_finder').length === f0; i++) await page.waitForTimeout(100);
+        const fq = sent(s, 'hr_hunt_party_finder').slice(f0).map((c) => c.body.p_hunt + ':' + c.body.p_weapon);
+        const tab = await page.evaluate(() => { const P = document.querySelector('[data-hs-win="hunt-party"]'); return P && [(P.querySelector('.hw-tab[aria-selected="true"]') || {}).dataset?.tab, P.querySelector('[data-hs-act="find-ground"]').value, P.querySelector('[data-hs-act="find-weapon"]').value].join(':'); });
+        if (!opened || fq.join() !== 'millrace_sewer:sword' || tab !== 'find:millrace_sewer:sword') fails.push('AW-27 Find a party opened ' + JSON.stringify({ opened, fq, tab }));
+      }
+      if (errors.length) fails.push('AW-24 console errors: ' + errors.slice(0, 3).join(' | '));
+      await ctx.close();
+    }
+
+    { // AW-24b the phone: the list, then the ground's page as the sheet, with the way back
+      const { ctx, page, up } = await open({ viewport: { width: 922, height: 423 }, mutateEnv: levelOne });
+      const W = '[data-hs-win="hunts"] ';
+      if (!up || !(await openWin(page, 'h', 'hunts'))) fails.push('AW-24 the Hunts sheet did not open at 922x423');
+      else {
+        const seen = () => page.evaluate((w) => { const on = (q) => { const n = document.querySelector(w + q); return !!n && n.getClientRects().length > 0; };
+          const b = document.querySelector(w + '.hs-win-body'); return [on('.hw-hunt-list'), on('.hw-hunt-detail'), on('.hw-hd-back'), b.scrollWidth <= b.clientWidth + 1].join(); }, W);
+        const s0 = await seen();
+        if (shots) await shot(page, 'hunts-922x423-list');
+        await page.click(W + '.hw-hunt[data-hunt="millrace_sewer"]');
+        await page.waitForTimeout(300);
+        const s1 = await seen();
+        if (shots) await shot(page, 'hunts-922x423-sewer');
+        await page.click(W + '.hw-hd-back');
+        await page.waitForTimeout(200);
+        const s2 = await seen();
+        if (s0 !== 'true,false,false,true' || s1 !== 'false,true,true,true' || s2 !== 'true,false,false,true') fails.push('AW-24 the phone sheet shows (list, page, back, fits) ' + JSON.stringify([s0, s1, s2]));
+      }
+      await ctx.close();
+    }
+
+    { // AW-28 THE ROUND TRIP: open Hunts, pick a ground, Enter, hunt, back in town: Hunts shows the same pick
+      const { ctx, page, s, up } = await open({ mutateEnv: levelOne });
+      const W = '[data-hs-win="hunts"] ';
+      if (!up || !(await openWin(page, 'h', 'hunts'))) fails.push('AW-28 the Hunts window did not open');
+      else {
+        await page.click(W + '.hw-hunt[data-hunt="meadowbrook_thicket"]');
+        await page.click(W + '.hw-hunt-detail .hw-hunt-enter');
+        for (let i = 0; i < 30 && !sent(s, 'hr_hunt_enter').length; i++) await page.waitForTimeout(100);
+        const go = sent(s, 'hr_hunt_enter').map((c) => c.body.p_hunt);
+        /* The server's answer: the hero is hunting there. */
+        s.env.hunt = Object.assign(clone(FIXTURE.hunt), { hunt_id: 'meadowbrook_thicket' });
+        s.env.state = Object.assign({}, s.env.state, { active_kind: 'combat', active_id: 'meadowbrook_thicket' });
+        await pushEnvelope(page, s);
+        const hunting = await wait(page, (w) => /You are hunting in Meadowbrook Thicket/.test(document.querySelector(w + '.hw-hunts-now').textContent)
+          && document.querySelector(w + '.hw-hunt-detail .hw-hunt-enter').disabled, W, 4000);
+        /* Back in town (the hunt ended): the window still holds the Thicket, ready to go again; after a close and reopen too. */
+        s.env.hunt = Object.assign({}, s.env.hunt, { ended: true });
+        s.env.state = Object.assign({}, s.env.state, { active_kind: 'idle', active_id: null });
+        await pushEnvelope(page, s);
+        /* (The hunt's end may bring its summary forward; the Hunts window is opened again as a player would.) */
+        await openWin(page, 'h', 'hunts');
+        const back = await wait(page, (w) => /^Pick a hunt/.test(document.querySelector(w + '.hw-hunts-now').textContent), W, 4000);
+        const after = await page.evaluate((w) => [(document.querySelector(w + '.hw-hunt.is-picked') || {}).dataset?.hunt, document.querySelector(w + '.hw-hd-name').textContent,
+          document.querySelector(w + '.hw-hunt-detail .hw-hunt-enter').disabled].join(':'), W);
+        if (go.join() !== 'meadowbrook_thicket' || !hunting || !back || after !== 'meadowbrook_thicket:Meadowbrook Thicket:false') fails.push('AW-28 the round trip reads ' + JSON.stringify({ go, hunting, back, after }));
+      }
       await ctx.close();
     }
 
@@ -995,6 +1261,30 @@ const MUTANTS = [
   ['the bench ignores the server level', 'src/shell/windows/inventory/bury.js', "  if (lv < e.recipe.req) return 'Needs '", "  if (false) return 'Needs '"],
   ['the skills are one window again', 'src/shell/windows/skills.js', "export const renderTradeSkills = skillsWindow([['gather', 'Gathering'], ['artisan', 'Crafting']]);", "export const renderTradeSkills = skillsWindow([['combat', 'Combat'], ['gather', 'Gathering'], ['artisan', 'Crafting']]);"],
   ['a new player gets no pointer to Hunts', 'src/shell/launcher.js', "+ (ctx.hud && ctx.hud.isShown('hunt-topbar') ? '' : pointerFor(ctx)) + '</nav>'", "+ '</nav>'"],
+  /* The Hunts window, master-detail (designer plan 2026-10-22): AW-24 .. AW-28. */
+  ['AW-24 every creature reads common', 'src/shell/hunt-ground-facts.js', "  if (share >= SHARE_BANDS.common) return 'common';", "  return 'common';"],
+  ['AW-24 the rare carrier may be the equipment slot', 'src/shell/hunt-ground-facts.js', 'const isRare = (d) => !!d && d.gear !== true && ', 'const isRare = (d) => !!d && '],
+  ['AW-24 every line says Fits your level', 'src/shell/windows/hunts.js', "fits === r.hunt ? (party ? 'Fits your party' : 'Fits your level') : ''", "(party ? 'Fits your party' : 'Fits your level')"],
+  ['AW-24 the band ignores the floor', 'src/shell/hunt-list.js', '  const warn = rangeWords(r, level);', '  const warn = null;'],
+  ['AW-24 a ground with no best says nothing', 'src/shell/hunt-list.js', 'none: solo || party ? null :', 'none: true ? null :'],
+  ['AW-24 the page shows the first ground, not the pick', 'src/shell/windows/hunts.js', '  const r = list.find((x) => x.hunt === sc.pick) || null;', '  const r = list[0] || null;'],
+  ['AW-24 the creatures are never drawn', 'src/shell/windows/hunt-detail.js', '  const ok = drawCreature(c, ART, id, { scale: SPRITE_SCALE });', '  const ok = false;'],
+  ['AW-24 each creature stands at its own height', 'src/shell/windows/hunt-detail.js', "  style(lineup, '--stand-h', tallest ? tallest + 'px' : null);\n", ''],
+  ['AW-24 the phone shows the list and the page at once', 'src/styles/windows.css', '  .hw-hunts.is-paged .hw-hunt-list { display: none; }\n', ''],
+  ['AW-25 the chosen setup is never put on', 'src/shell/windows/hunts.js', '  if (s && Number.isInteger(want) && want !== s.preset) {', '  if (false) {'],
+  ['AW-25 the setup on now is put on again', 'src/shell/windows/hunts.js', '  if (s && Number.isInteger(want) && want !== s.preset) {', '  if (s && Number.isInteger(want)) {'],
+  ['AW-25 a refused apply still enters', 'src/shell/windows/hunts.js', "    if (!a || !a.ok) return a || { ok: false, error: 'network' };\n", ''],
+  ['AW-25 Go as stays on while in flight', 'src/shell/windows/hunt-detail.js', "      prop(b, 'disabled', v.off);", "      prop(b, 'disabled', false);"],
+  ['AW-25 a missing piece reads as a bare refusal', 'src/data/refusal-words.js', "  missing_item: 'A piece of that setup’s gear is not in your bag, so nothing was put on.',\n", ''],
+  ['AW-25 Go as offers a set the server cannot put on', 'src/shell/hunt-go.js', '  const ids = new Set(saved.map((p) => p.preset).concat([s.preset]));', '  const ids = new Set(s.presets.map((p) => p.preset).concat([s.preset]));'],
+  ['AW-26 the store behind a slot is not said', 'src/shell/hunt-go.js', "  const store = st && st.price !== null ? { name: st.name, price: st.price, each: a.type === 'ability' ? 'a cast' : 'each' } : null;", '  const store = null;'],
+  ['AW-26 the gold line never shows', 'src/shell/hunt-go.js', '  if (paysStore && gp !== null) {', '  if (false) {'],
+  ['AW-26 low stamina is not said', 'src/shell/hunt-go.js', '  else if (st && st.msLeft < STAMINA_SAY_MS) {', '  else if (false) {'],
+  ['AW-26 a line that stops the hunt is not marked', 'src/shell/windows/hunt-detail.js', "cls(li, 'is-short', l.short);", "cls(li, 'is-short', false);"],
+  ['AW-27 Find a party searches every ground', 'src/shell/windows/party-finder.js', '  const hunt = sc.ground || null, weapon = sc.weapon || null;', '  const hunt = null, weapon = sc.weapon || null;'],
+  ['AW-27 the party path shows on every ground', 'src/shell/windows/hunts.js', "    partyBlock: !follower && (r.groupFit === 'party' || (party && party.isLeader)) ? {", '    partyBlock: !follower ? {'],
+  ['AW-27 Bring your heroes offers a hero already in a party', 'src/shell/hunt-go.js', ' && Number.isInteger(o.slot) && !partyMembershipOf(o))', ' && Number.isInteger(o.slot))'],
+  ['AW-28 the pick resets after a hunt', 'src/shell/windows/hunts.js', '  if (!sc.pick && list.length) sc.pick = rec.row ? rec.row.hunt : list[0].hunt;', '  if ((!sc.pick || (h && h.ended)) && list.length) sc.pick = rec.row ? rec.row.hunt : list[0].hunt;'],
   ['edgeBody lets an unlisted field through', 'src/session/edge-intents.js', '  for (const k of Object.keys(fields)) if (!allowed.includes(k)) return null;\n', ''],
 ];
 /* The doll mutant needs the want set where an equip is asked: plant it beside the intent. */
@@ -1008,7 +1298,7 @@ async function main() {
     const fails = await checks(null, shots);
     for (const f of fails) console.log('  ✗ ' + f);
     console.log(fails.length ? 'alpha-windows: ' + fails.length + ' rule(s) RED'
-      : 'alpha-windows: the windows open; patch in place; the server’s counts win; intents only; locks hold; totals first; no supplies in the Shop; Hunts from the hatch in two presses; window presses and focus never steal the World; no void; storage from town; store any amount; storage sorts and filters; bury and cook pay from the server; skills split' + (shots ? ' (shots in ' + shots + ')' : ''));
+      : 'alpha-windows: the windows open; patch in place; the server’s counts win; intents only; locks hold; totals first; no supplies in the Shop; Hunts from the hatch in two presses; Hunts is lines and a page (who lives there, go as, before you go, the party path, the round trip); window presses and focus never steal the World; no void; storage from town; store any amount; storage sorts and filters; bury and cook pay from the server; skills split' + (shots ? ' (shots in ' + shots + ')' : ''));
     process.exit(fails.length ? 1 : 0);
   }
   const clean = await cleanControl(() => checks(null, null));

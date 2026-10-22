@@ -91,7 +91,7 @@ async function run(base) {
   ok('G2', win.includes("recommendation(party ? party.seats.map((s) => (s.seat === party.me ? level : s.level)) : level, size, list)")
     && win.includes('<p class="hs-note hw-hunts-reco" hidden></p>') && win.includes('text(reco, advice);'), 'the Hunts window does not recommend by the party\'s levels or never says the note');
   ok('W2', win.includes("text(det.querySelector('.hw-hunt-warn'), rangeWords(r, level) || '');") && win.includes('<p class="hw-hunt-warn"></p>')
-    && win.includes("[heroWords(r), groupWords(r, size)].filter(Boolean).join('. ')"),
+    && win.includes("(groupWords(r, size) || heroWords(r)) + '.'"),
     'the Hunts line does not draw rangeWords');
   ok('W2', !/prop\([^)]*'disabled'[^)]*(short|rangeWords)/.test(win), 'Enter must never be disabled by the level warning (the server decides)');
   ok('W2', /res && res\.belowRange \? ' ' \+ ABOVE_LEVEL_WORDS/.test(win), 'a below_range enter does not repeat the warning');

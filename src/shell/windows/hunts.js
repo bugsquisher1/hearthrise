@@ -52,7 +52,7 @@ import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.27';
 import { itemName } from '../widgets/bits.js?v=0.2.27';
 import { runIntent, refusalText } from '../intent-words.js?v=0.2.27';
 import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.27';
-import { huntRows, densityWords, bandWords, rangeWords, groupWords, recommendedHunt, heroWords, packFor, partyNote, bestWords, ABOVE_LEVEL_WORDS } from '../hunt-list.js?v=0.2.27';
+import { huntRows, densityWords, bandWords, rangeWords, groupWords, recommendation, heroWords, packFor, partyNote, bestWords, ABOVE_LEVEL_WORDS } from '../hunt-list.js?v=0.2.27';
 
 const SCRATCH = new WeakMap();
 /* `draft` is the density shown before the server has it ({ n, preset }), `timer` its coalescing
@@ -129,7 +129,7 @@ function packWords(lines) {
 /** The skeleton (built once per opening). */
 export function renderHunts() {
   return '<div class="hw-hunts">'
-    + '<p class="hs-note hw-hunts-now"></p>'
+    + '<p class="hs-note hw-hunts-now"></p><p class="hs-note hw-hunts-reco" hidden></p>'
     + '<ul class="hw-ledger hw-hunt-list" role="listbox" aria-label="Hunts"></ul>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
 }
@@ -159,7 +159,9 @@ renderHunts.patch = function patchHunts(body, ctx) {
   const party = partyMembershipOf(cs);
   const size = party ? party.seats.length : 1;
   const follower = !!party && !party.isLeader;
-  if (!sc.pick && list.length) { const rec = recommendedHunt(level, size, list); sc.pick = rec ? rec.hunt : list[0].hunt; }
+  /* The advice reads the server's levels: this hero's, or every seat's in its party (the party's levels pick). */
+  const rec = recommendation(party ? party.seats.map((s) => (s.seat === party.me ? level : s.level)) : level, size, list);
+  if (!sc.pick && list.length) sc.pick = rec.row ? rec.row.hunt : list[0].hunt;
   const pack = packFor(bagOf(cs));
   const set = settingsOf(cs);
   /* This hero's personal bests, the server's (hunt_bests); null = the server sent none, the lines stay empty. */
@@ -172,6 +174,11 @@ renderHunts.patch = function patchHunts(body, ctx) {
     : follower ? 'Your party leader picks the hunt and starts it. You walk in with everyone, with your own setup.'
     : party ? 'Pick a hunt, then Start with party. Everyone walks in together, each with their own setup.'
     : 'Pick a hunt, then Enter. Your hero walks there and fights on its own.');
+  /* No ground built for this group holds its level: said plainly (the pick is the nearest below). */
+  const reco = root.querySelector('.hw-hunts-reco');
+  const advice = !now && !follower && rec.note ? rec.note : '';
+  text(reco, advice);
+  prop(reco, 'hidden', !advice);
   rows(root.querySelector('.hw-hunt-list'), list, {
     key: (r) => r.hunt,
     build: (r) => element(ctx.doc, lineHtml(r)),

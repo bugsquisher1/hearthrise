@@ -21,6 +21,9 @@
 //       (2026-10-25-hunt-floor-warning.sql §3, 2026-10-25-party-invites.sql §5).
 //   G1  the ONE recommendation (src/shell/hunt-list.js recommendedHunt) prefers a ground whose
 //       groupFit suits the party; a party ground tells a lone hero "Best with a party of 2–4"
+//   G2  a ground with a party-only hall (minParty: the Rat King) is a party ground: a lone hero
+//       is never recommended one; past every solo band the pick is the nearest solo ground below
+//       and the Hunts window says so plainly; a party is recommended by its seats' levels
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, mkdtempSync, cpSync, writeFileSync, rmSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -55,7 +58,29 @@ async function run(base) {
   const pg = rows.find((r) => r.groupFit === 'party');
   ok('G1', !!pg && /^Best with a party of 2–[2-5]$/.test(HL.groupWords(pg, 1) || '') && HL.groupWords(pg, 2) === null, 'a party ground does not tell a lone hero it is best with a party: ' + (pg && HL.groupWords(pg, 1)));
   ok('G1', !!party40 && HL.fitsGroup(party40, 3), 'a party of three at 40 is recommended ' + (party40 && party40.hunt));
+  /* G2 (Tyler 2026-10-21: "The Sewer is a party hunt"): a ground with a party-only hall is a party ground to
+     the advice; a lone hero is never recommended one, at any level; where no solo ground holds the level the
+     pick is the nearest solo ground below and the note says so; a party is recommended by its levels. */
+  const { HUNT_GROUNDS } = await import(pathToFileURL(join(base, 'src/data/hunt-grounds.js')).href + '?t=' + Math.random());
+  const halls = Object.values(HUNT_GROUNDS).filter((g) => g.pockets.some((p) => p.minParty)).map((g) => g.hunt);
+  ok('G2', halls.length > 0 && halls.every((h) => (rows.find((r) => r.hunt === h) || {}).groupFit === 'party'), 'a ground with a party-only hall is not a party ground to the advice: ' + halls.join(', '));
+  const solo15 = HL.recommendedHunt(15, 1, rows);
+  ok('G2', !!solo15 && HL.fitsGroup(solo15, 1) && !halls.includes(solo15.hunt), 'a lone Level-15 hero is recommended ' + (solo15 && solo15.hunt));
+  const top = Math.max(...rows.map((r) => r.band[1]));
+  for (let lv = 1; lv <= top; lv++) {
+    const r = HL.recommendation(lv, 1, rows);
+    if (!r.row || !HL.fitsGroup(r.row, 1)) { ok('G2', false, 'a lone Level-' + lv + ' hero is recommended ' + (r.row && r.row.hunt)); break; }
+    const inBand = r.row.band[0] <= lv && lv <= r.row.band[1];
+    if (!inBand && !(r.row.band[1] < lv && typeof r.note === 'string' && r.note.startsWith('No ground for one hero fits Level ' + lv + ' yet. ' + r.row.name))) {
+      ok('G2', false, 'a lone Level-' + lv + ' hero is sent to ' + r.row.hunt + ' [' + r.row.band + '] with the note ' + JSON.stringify(r.note)); break;
+    }
+    if (inBand && r.note !== null) { ok('G2', false, 'a fitting ground still carries a note at Level ' + lv); break; }
+  }
+  const duo = HL.recommendation([12, 20], 2, rows);
+  ok('G2', !!duo.row && HL.fitsGroup(duo.row, 2) && duo.row.band[0] <= 12 && 20 <= duo.row.band[1] && duo.note === null, 'a party at Levels 12 and 20 is recommended ' + (duo.row && duo.row.hunt));
   const win = read('src/shell/windows/hunts.js');
+  ok('G2', win.includes("recommendation(party ? party.seats.map((s) => (s.seat === party.me ? level : s.level)) : level, size, list)")
+    && win.includes('<p class="hs-note hw-hunts-reco" hidden></p>') && win.includes('text(reco, advice);'), 'the Hunts window does not recommend by the party\'s levels or never says the note');
   ok('W2', win.includes("text(li.querySelector('.hw-hunt-warn'), [rangeWords(r, level), groupWords(r, size)].filter(Boolean).join(' '));") && win.includes('<small class="hw-hunt-warn"></small>'),
     'the Hunts line does not draw rangeWords');
   ok('W2', !/prop\([^)]*'disabled'[^)]*(short|rangeWords)/.test(win), 'Enter must never be disabled by the level warning (the server decides)');
@@ -77,7 +102,11 @@ async function run(base) {
 }
 
 const MUTANTS = [
-  ['the recommendation ignores the group', 'src/shell/hunt-list.js', 'return best(inBand.filter((r) => fitsGroup(r, partySize))) || best(inBand)', 'return best(inBand)'],
+  ['the recommendation ignores the group', 'src/shell/hunt-list.js', 'const fit = rows.filter((r) => fitsGroup(r, partySize));', 'const fit = rows;'],
+  ['a party-only hall leaves its ground solo (the Sewer)', 'src/shell/hunt-list.js', "groupFit: g.pockets.some((p) => p.minParty) ? 'party' : g.groupFit,", 'groupFit: g.groupFit,'],
+  ['the gap falls back to a party ground in band', 'src/shell/hunt-list.js', "    return { row: below, note };\n", ''],
+  ['the gap is not said', 'src/shell/hunt-list.js', 'return { row: below, note };', 'return { row: below, note: null };'],
+  ['a party is recommended by its own hero\'s level', 'src/shell/windows/hunts.js', 'recommendation(party ? party.seats.map((s) => (s.seat === party.me ? level : s.level)) : level, size, list)', 'recommendation(level, size, list)'],
   ['a party ground never says so', 'src/shell/hunt-list.js', "r.groupFit === 'party' && (Number(partySize) || 1) < 2 ?", 'false ?'],
   ['the warning words are dropped', 'src/shell/hunt-list.js', "ABOVE_LEVEL_WORDS;\n}", "null;\n}"],
   ['the margin is ignored (everything under the floor is "too far")', 'src/shell/hunt-list.js', 'r.band[0] - level >= SESSION_LIMITS.belowRangeRefuse ?', 'true ?'],

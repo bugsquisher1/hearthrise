@@ -7,7 +7,7 @@
 //   node tests/chat-social.mjs --mutate       every planted defect must turn a rule RED
 //   node tests/chat-social.mjs --shots <dir>  also write the visual-gate screenshots (1440x900, 922x423)
 //
-// mutant-anchors: src/social/ src/shell/context-menu.js src/shell/menu-providers.js src/shell/windows/chat.js src/shell/windows/friends.js src/hunt-view/scene.js src/session/party-sections.js src/world/world-boot.js
+// mutant-anchors: src/social/ src/data/chat-channels.js src/shell/context-menu.js src/shell/menu-providers.js src/shell/windows/chat.js src/shell/windows/friends.js src/hunt-view/scene.js src/session/party-sections.js src/world/world-boot.js
 // mutant-writes-tree: no — pure mutants plant into a temp copy of src/, page mutants into served overrides
 //
 // The server half of every rule (the sender's name, level and role stamped by
@@ -35,6 +35,10 @@
 //         chat and the whispers at once
 //   LK-1  ITEM LINKS: only a catalogue id becomes a link (an unknown id is words);
 //         the body carries the id marker, at most three, never a name or rarity
+//   WN-1  A WORLD NOTICE (a System row, written only by the server: 2026-11-14-rare-broadcast.sql)
+//         reads as one sentence, the hero's name first, its item a link and its hunt
+//         marker the hunt's name; in a player's line a hunt marker stays as typed
+//   RB-1  WORLD_NOTICES.rare_drop (src/data/chat-channels.js) is the migration's seeded rule
 //   MN-1  THE MENU lists the data rows its providers allow, in row order: Trade
 //         never (hidden until its lane); no Message or Block on yourself; a
 //         blocked player gets Unblock; a monster gets Look
@@ -69,6 +73,8 @@ import { pathToFileURL } from 'node:url';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
+const { HUNT_INDEX } = await import(pathToFileURL(join(ROOT, 'src/data/hunts.js')).href);
+const NOTICE_SQL = await readFile(join(ROOT, 'supabase/migrations/2026-11-14-rare-broadcast.sql'), 'utf8');
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const OTHER = 'aaaaaaaa-0000-4000-8000-0000000000b1';
 const PARTY = 'party:dddddddd-0000-4000-8000-0000000000c1';
@@ -124,6 +130,22 @@ async function pureRules(M) {
   if (bodyOf('[Bronze Sword]', ['bronze_sword']).includes('Bronze')) fail('LK-1 the body carries the item name');
   const four = bodyOf('[Bronze Sword] [Bronze Sword] [Bronze Sword] [Bronze Sword]', ['bronze_sword', 'bronze_sword', 'bronze_sword', 'bronze_sword']);
   if ((four.match(/\[\[item:/g) || []).length !== 3) fail('LK-1 four links became ' + four);
+  // WN-1: a System row is the server's world notice, one sentence with the hero's name first
+  {
+    const n = lineOf(row({ channel: 'system', from_name: 'Mira', from_level: null, from_weapon: null, body: 'found [[item:bronze_sword]] in [[hunt:mill_cellar]].' }));
+    const words = n && n.parts.map((x) => (x.item ? '<' + x.item + '>' : x.text)).join('');
+    if (!n || n.system !== true || n.fromId !== OTHER || n.level !== null || n.role !== null || words !== 'Mira found <bronze_sword> in ' + HUNT_INDEX.mill_cellar.name + '.')
+      fail('WN-1 a world notice reads ' + JSON.stringify(n && { system: n.system, words, level: n.level }));
+    if (M.lines.tabOfChannel('system', ZONE, PARTY) !== 'system') fail('WN-1 a System row is not on the System tab');
+    const said = lineOf(row({ body: 'meet in [[hunt:mill_cellar]]' }));
+    if (!said || said.system || said.parts.map((x) => x.text || '').join('') !== 'meet in [[hunt:mill_cellar]]') fail('WN-1 a player\'s hunt marker became ' + JSON.stringify(said && said.parts));
+    /* RB-1: the data row is the migration's seeded row (src/data is the one source). */
+    const rule = M.chans.WORLD_NOTICES && M.chans.WORLD_NOTICES.rare_drop;
+    const seed = /insert into public\.hr_world_notice_rules \(kind, channel, per_char_day\) values \('rare_drop', '([a-z]+)', (\d+)\)/.exec(NOTICE_SQL);
+    const check = /if v_cap is distinct from (\d+) then/.exec(NOTICE_SQL);
+    if (!rule || !seed || !check || seed[1] !== rule.channel || Number(seed[2]) !== rule.perCharacterPerDay || Number(check[1]) !== rule.perCharacterPerDay)
+      fail('RB-1 WORLD_NOTICES.rare_drop ' + JSON.stringify(rule) + ' is not 2026-11-14-rare-broadcast.sql\'s seeded row ' + JSON.stringify(seed && seed.slice(1)));
+  }
 
   // CL-2, CL-3, UN-1 over a ChatStore
   {
@@ -466,7 +488,11 @@ const PURE_MUTANTS = [
   ['the party channel is not listened to', 'src/social/chat-store.js', "['global', 'system', this.zone, this.party]", "['global', 'system', this.zone]"],
   ['an incoming whisper counts nothing', 'src/social/whispers.js', "&& this._now() - s.at < 1000)) c.unread++;", "&& this._now() - s.at < 1000)) c.unread += 0;"],
   ['a block leaves the lines up', 'src/social/blocks.js', "    if (on === true && who) this._onBlocked(who.id);\n", ''],
-  ['an unknown id becomes a link', 'src/social/chat-lines.js', "out.push(ITEMS[m[1]] ? { item: m[1] } : { text: m[1].replace(/_/g, ' ') });", "out.push({ item: m[1] });"],
+  ['an unknown id becomes a link', 'src/social/chat-lines.js', "else out.push(ITEMS[m[2]] ? { item: m[2] } : { text: m[2].replace(/_/g, ' ') });", "else out.push({ item: m[2] });"],
+  ['a player\'s hunt marker names the hunt', 'src/social/chat-lines.js', "    if (m[1] === 'hunt' && !notice) continue;\n", ''],
+  ['a System row reads as a player line', 'src/social/chat-lines.js', "if (!whisper && row.channel === 'system') {", 'if (false) {'],
+  ['the notice drops the hero', 'src/social/chat-lines.js', "parts: [{ text: name + ' ' }].concat(partsOf(body, true))", 'parts: partsOf(body, true)'],
+  ['the notice data row drifts from the migration', 'src/data/chat-channels.js', "rare_drop: Object.freeze({ channel: 'system', perCharacterPerDay: 3 })", "rare_drop: Object.freeze({ channel: 'system', perCharacterPerDay: 4 })"],
   ['links are not capped', 'src/social/chat-lines.js', "if (n >= CHAT_LIMITS.linksMax || !ITEMS[id]) continue;", "if (!ITEMS[id]) continue;"],
   ['a hidden row is listed', 'src/shell/context-menu.js', "if (row.hidden || !row.targets.includes(target.kind)) continue;", "if (!row.targets.includes(target.kind)) continue;"],
   ['you can block yourself', 'src/social/social-session.js', "const other = (t) => t.kind === 'player' && !!t.id && !this.isSelf(t);", "const other = (t) => t.kind === 'player' && !!t.id;"],

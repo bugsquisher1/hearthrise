@@ -593,7 +593,8 @@
   "social_presence": "A presence stamp, not progress: one row per account saying when its client last polled hr_social_state. Every row is rewritten within 30 s of the player being online again, and the only thing it answers is a friend's online dot. Losing every row costs nobody anything.",
   "town_positions": "A display position, not progress: one row per account saying which town tile its hero stands on. Every row is rewritten within 10 s of the player being in town again and older than 30 s is never read. Losing every row costs nobody anything.",
   "character_presence": "A presence stamp, not progress: one row per character saying when its account's client last asked hr_players_online with it open. Every row is rewritten within 30 s of the player being online again, and the only thing it answers is the players-online count. Losing every row costs nobody anything.",
-  "hr_character_sheets": "Derived, display-only: every row is recomputed by the hr-accrue sheet verb from the character's skills, gear, style, buffs and perks (which ARE restored), and is shown only while its input fingerprint matches. Losing every row costs one recompute each, never a value."
+  "hr_character_sheets": "Derived, display-only: every row is recomputed by the hr-accrue sheet verb from the character's skills, gear, style, buffs and perks (which ARE restored), and is shown only while its input fingerprint matches. Losing every row costs one recompute each, never a value.",
+  "hr_world_notices": "The rare-drop notice journal (2026-11-14-rare-broadcast.sql). It records that a System chat line was posted for a drop, never the drop itself: the item is in player_inventory and the ledger, both on the manifest. Losing it re-opens one day of the notice cap and loses who-was-announced history, nothing a player owns."
  },
  "tables": {
   "account_gem_grants": {
@@ -1398,6 +1399,15 @@
    "class": "regenerated",
    "replay": 2,
    "note": "The audit row of the 2026-10-15 clean-slate wipe (2026-10-21-closed-rebuild-wipe.sql, one-shot). A rebuild runs that file and writes ONE row of its own — the right count with the WRONG content (the replay's own timestamp and counts, not production's 2026-10-15 02:41 UTC wipe). No player value; the production row is the only record of when the real wipe ran, so a backup is what keeps it."
+  },
+  "hr_world_notice_rules": {
+   "class": "seeded",
+   "replay": 1,
+   "note": "2026-11-14-rare-broadcast.sql: the world-notice rule (src/data/chat-channels.js WORLD_NOTICES, tests/chat-social.mjs RB-1): the channel and the per-character daily cap of rare-drop notices. Rebuilt from repo, never restored; nothing player-owned. Missing, the trigger posts nothing (fails closed)."
+  },
+  "hr_world_notices": {
+   "class": "operational",
+   "note": "2026-11-14-rare-broadcast.sql: the journal of rare-drop notices (posted / capped / quiet / refused), one row per announced event; its posted rows are the per-character daily cap's count. Losing it lets a character post at most one more day's cap of notices and drops the history of who was announced; no player value."
   },
   "hr_xp_table": {
    "class": "seeded",

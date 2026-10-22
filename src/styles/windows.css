@@ -367,7 +367,7 @@
 .hw-alerts.is-empty { display: none; }
 .hw-alert-list { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; width: 360px; max-width: calc(100vw - 24px); }
 .hw-alert {
-  display: flex; align-items: center; gap: 8px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px;
   padding: 4px 4px 4px 8px;
   background: var(--world-hud-bg); border-left: 2px solid var(--ink-3);
   font-size: var(--t-small); color: var(--ink);
@@ -377,8 +377,10 @@
 .hw-alert-glyph { display: grid; place-items: center; flex: none; color: var(--ink-2); }
 .hw-alert[data-kind="rare"] .hw-alert-glyph { color: var(--gold-2); }
 .hw-alert-glyph .hs-glyph { width: 18px; height: 18px; }
-.hw-alert-text { flex: 1; min-width: 0; margin: 0; }
-.hw-alert-do { flex: none; color: var(--gold-2); }
+/* The words take the first row beside the glyph; the buttons sit under them, right-aligned. */
+.hw-alert-text { flex: 1 1 calc(100% - 34px); min-width: 0; margin: 0; }
+.hw-alert-do { flex: none; margin-left: auto; color: var(--gold-2); }
+.hw-alert-share { flex: none; }
 .hw-alert-x { flex: none; }
 .hw-alert-x .hs-glyph { width: 14px; height: 14px; }
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {

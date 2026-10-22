@@ -16,6 +16,11 @@
 //         on screen: the one on screen gets the death popup instead, tests/death-popup.mjs) once each; a re-read,
 //         a re-sent event, a reload (the ids come back in the residue) add none; a NEW
 //         event id adds exactly one; a kind switched off adds none
+//   AL-3  THE SHAREABLE CARD: the own rare alert carries Share and the card's facts (item, hero, hunt,
+//         date); the card's icon is an integer scale of its 32 px art, every coordinate an integer,
+//         every colour a token; a party member's rare raises no line (so no Share); no other kind has a card
+//   SH-1  [page] the rare line shows Share (the invite line does not); a press makes ONE PNG card at
+//         CARD.px times its size, puts it on the clipboard and says so on the line
 //   PI-1  PARTY CONTROLS ARE INTENT-ONLY: each party verb is ONE rpc naming only the slot,
 //         ids, a seat or a name (never a user id, never a number of the server's); the record
 //         moves only from the re-read; a refusal re-reads nothing; a malformed one sends nothing
@@ -105,6 +110,8 @@ async function load(base) {
     PP: await import(u('src/shell/widgets/party-panel.js')),
     IW: await import(u('src/shell/intent-words.js')),
     BURY: await import(u('src/shell/windows/inventory/bury.js')),
+    SC: await import(u('src/shell/share-card.js')),
+    BITS: await import(u('src/shell/widgets/bits.js')),
   };
 }
 
@@ -178,6 +185,36 @@ async function pureRules(M, base) {
     await cs2.load(); await cs2.load();
     const low = centre2.list().filter((a) => a.kind === 'low');
     return (low.length === 1 && low[0].item === 'wheat_bread') || 'low supplies raised ' + low.length + ' alert(s)';
+  });
+
+  /* AL-3 THE SHAREABLE CARD (Tyler's super-rare drop moments): the hero's OWN rare alert carries Share and the
+     card's facts; the card is the item (its icon at an integer scale), the hero, the hunt and the date, every
+     colour a token; a party member's rare raises no line, so no Share for this hero; no other kind has a card. */
+  await t('AL-3', async () => {
+    const srv = fakeServer();
+    const acc = account(M, srv);
+    const centre = M.AL.createAlertCenter(acc);
+    const cs = (await acc.open(0)).session;
+    const a = centre.list().find((x) => x.kind === 'rare');
+    if (!a || a.share !== 'Share' || a.hero !== 'Tyler' || a.place !== M.PS.huntName('millrace_sewer') || a.at !== 1760702399800)
+      return 'the own rare alert reads ' + JSON.stringify(a && { share: a.share, hero: a.hero, place: a.place, at: a.at });
+    const f = M.SC.cardFacts(a);
+    if (!f || f.name !== M.BITS.itemName('sticky_core') || f.hero !== 'Tyler' || f.place !== a.place || f.date !== M.SC.cardDate(a.at) || !/\d{4}$/.test(f.date))
+      return 'the card facts are ' + JSON.stringify(f);
+    const lay = M.SC.cardLayout(f);
+    const said = lay.steps.filter((s) => s.op === 'text').map((s) => s.text);
+    for (const w of [f.name, 'Found by Tyler', 'in ' + f.place, f.date]) if (!said.includes(w)) return 'the card does not say ' + JSON.stringify(w) + ': ' + JSON.stringify(said);
+    const icon = lay.steps.find((s) => s.op === 'icon');
+    if (f.icon && (!icon || icon.size % M.SC.CARD.icon !== 0 || icon.size < M.SC.CARD.icon)) return 'the icon is drawn at ' + (icon && icon.size) + ' px, not an integer scale of ' + M.SC.CARD.icon;
+    const nums = lay.steps.flatMap((s) => ['x', 'y', 'w', 'h', 'size'].filter((k) => k in s).map((k) => s[k]));
+    if (nums.some((n) => !Number.isInteger(n))) return 'a card coordinate is not an integer: ' + JSON.stringify(nums);
+    const colours = lay.steps.flatMap((s) => ['fill', 'stroke', 'family'].filter((k) => k in s).map((k) => s[k]));
+    if (colours.some((c) => !/^--[a-z0-9-]+$/.test(c))) return 'the card names a colour that is not a token: ' + JSON.stringify(colours);
+    if (M.SC.cardFacts(Object.assign({}, a, { kind: 'invite' })) || M.SC.cardFacts(Object.assign({}, a, { item: null }))) return 'a non-rare line has a card';
+    const n = centre.list().length;
+    cs.timeline.ingest({ events: [{ id: 's1:300', type: 'rare_drop', atMs: 1760702399990, u: 2, item: 'crown_shard' }] }, 0);
+    if (centre.list().length !== n || centre.list().some((x) => x.item === 'crown_shard')) return "a party member's rare raised a line (and its Share) for this hero";
+    return true;
   });
 
   /* AL-3 (Tyler 2026-10-21): the use that empties the hero's own stack raises ONE line naming the slot that
@@ -558,6 +595,28 @@ async function pageRules(overrides, shots) {
       await shot('strip-alerts');
       await pushEnvelope(page, s, 0);
       if ((await lines()) !== 'invite,rare') fails.push('UI-2 [' + tag + '] after a re-read the alert lines are [' + (await lines()) + ']');
+      /* SH-1: Share on the rare line only; a press is ONE PNG on the clipboard, CARD.px times the card. */
+      const shares = await page.evaluate(() => Array.from(document.querySelectorAll('.hw-alert')).map((li) => {
+        const b = li.querySelector('[data-hs-act="alert-share"]');
+        return li.getAttribute('data-kind') + ':' + (b && !b.hidden ? b.textContent : '-');
+      }).sort().join(','));
+      if (shares !== 'invite:-,rare:Share') fails.push('SH-1 [' + tag + '] the Share buttons read ' + shares);
+      else {
+        await page.evaluate(() => {
+          window.__cards = [];
+          Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { write: async (items) => {
+            const blob = await items[0].getType('image/png');
+            const bmp = await createImageBitmap(blob);
+            window.__cards.push({ type: blob.type, w: bmp.width, h: bmp.height });
+          } } });
+        });
+        await page.click('.hw-alert[data-kind="rare"] [data-hs-act="alert-share"]');
+        await wait(page, () => window.__cards.length > 0 && /Card copied/.test(document.querySelector('.hw-alert[data-kind="rare"] .hw-alert-text').textContent), null, 4000);
+        const got = await page.evaluate(() => ({ cards: window.__cards, line: document.querySelector('.hw-alert[data-kind="rare"] .hw-alert-text').textContent }));
+        const card = got.cards[0];
+        if (got.cards.length !== 1 || card.type !== 'image/png' || card.w !== 840 || card.h !== 400 || !/Card copied/.test(got.line))
+          fails.push('SH-1 [' + tag + '] Share made ' + JSON.stringify(got));
+      }
       /* UI-6: the invite toast answers in place: Join / No thanks; Join is ONE accept, off while in flight. */
       const toast = '.hw-alert[data-kind="invite"]';
       const no = await page.evaluate((q) => { const b = document.querySelector(q + ' [data-hs-act="alert-no"]'); return b && !b.hidden ? b.textContent : null; }, toast);
@@ -707,6 +766,11 @@ const PURE_MUTANTS = [
   ['an alert fires on every read', 'src/shell/alerts.js', '    if (mine.has(c.id) || (Array.isArray(stored) && stored.includes(c.id))) return false;\n', ''],
   ['the shown ids are not kept for the next visit', 'src/shell/alerts.js', "    cs.setResidue('alerts', { off: Array.isArray(r.off) ? r.off : [], seen: (Array.isArray(stored) ? stored : []).concat(c.id).slice(-ALERTS_SEEN_MAX) });\n", ''],
   ['a switched-off kind still alerts', 'src/shell/alerts.js', '    if (!alertShown(cs, c.kind)) return false;\n', ''],
+  ['the rare alert has no Share', 'src/data/alerts.js', ", button: 'Open your inventory', share: 'Share' })", ", button: 'Open your inventory' })"],
+  ['the rare alert forgets where it was found', 'src/shell/alerts.js', 'place: h ? huntName(h.huntId) : null,', 'place: null,'],
+  ['the card names no hero', 'src/shell/share-card.js', "f.hero && { text: 'Found by ' + f.hero,", "false && { text: 'Found by ' + f.hero,"],
+  ['the icon is smoothed to a fractional scale', 'src/shell/share-card.js', 'size: icon * iconScale });', 'size: icon * iconScale + 3 });'],
+  ['the card paints a literal colour', 'src/shell/share-card.js', "{ op: 'rect', x: 0, y: 0, w, h, fill: '--bg-2' },", "{ op: 'rect', x: 0, y: 0, w, h, fill: '#1a1d23' },"],
   ['a party intent changes the record before the server', 'src/session/character-session.js', "  async leaveParty() {\n    if (this._closed) return { ok: false, error: 'closed' };\n",
     "  async leaveParty() {\n    if (this._closed) return { ok: false, error: 'closed' };\n    this._record = Object.freeze(Object.assign({}, this._record, { version: this._record.version }));\n"],
   ['a kick names a user', 'src/session/character-session.js', "{ p_slot: this.slot, p_seat: seat, p_idem: newIdem() }", "{ p_slot: this.slot, p_seat: seat, p_user: this.uid, p_idem: newIdem() }"],
@@ -730,6 +794,8 @@ const PAGE_MUTANTS = [
   ['a member may press Start', 'src/shell/windows/hunts.js', '      if (follower) prop(enter, \'disabled\', true);\n', ''],
   ['the strip tab is no menu target', 'src/app/character-strip.js', '  markPlayer(b, uid ? { id: uid, name: x.name, slot: x.slot } : null);', '  markPlayer(b, null);'],
   ['the invite toast cannot answer', 'src/shell/widgets/alerts.js', "  if (a.action === 'join') { if (a.invite) await settle(ctx, el, a, (cs) => cs.answerInvite(a.invite, action === 'alert-do')); return; }", "  if (a.action === 'join') return;"],
+  ['the rare line hides its Share', 'src/shell/widgets/alerts.js', "prop(share, 'hidden', !cardFacts(a) || !a.share);", "prop(share, 'hidden', true);"],
+  ['Share makes no card', 'src/shell/widgets/alerts.js', '    const r = await shareCard(ctx.doc, facts);', "    const r = { ok: false, error: 'card_failed' };"],
   ['the toast stays on while in flight', 'src/shell/widgets/alerts.js', "  ctx.alerts.mark(a.key, true, '');\n  renderAlerts.patch(el, ctx);\n", "  ctx.alerts.mark(a.key, true, '');\n"],
   ['the listing switch stays on while in flight', 'src/shell/windows/party-finder.js', "  prop(sw.querySelector('button'), 'disabled', sc.pending);", "  prop(sw.querySelector('button'), 'disabled', false);"],
   ['the leader has no listing switch', 'src/shell/windows/party-finder.js', "  prop(sw, 'hidden', !(mine && mine.isLeader));", "  prop(sw, 'hidden', true);"],

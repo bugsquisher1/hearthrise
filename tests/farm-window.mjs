@@ -103,7 +103,7 @@ async function checks(overrides) {
       else {
         if (errors.length) fails.push('FW-1 console errors: ' + errors.join(' | ').slice(0, 300));
         const plots = await page.evaluate(() => [...document.querySelectorAll('[data-hs-win="farm"] .hw-plot')].map((li) => li.querySelector('.hw-plot-say').textContent));
-        if (plots.length !== 3 || !/Turnip: 1 h 30 m/.test(plots[0]) || !/Turnip: ready/.test(plots[1]) || plots[2] !== 'Empty') fails.push('FW-1 the field reads ' + JSON.stringify(plots));
+        if (plots.length !== 3 || !/^Turnip1 h 30 m left$/.test(plots[0]) || plots[1] !== 'TurnipReady' || plots[2] !== 'Empty') fails.push('FW-1 the field reads ' + JSON.stringify(plots));
         // FW-3 (before anything changes): Harvest only on the server's ready plot
         if (await shown(page, W + '.hw-plot[data-plot="0"] .hw-harvest')) fails.push('FW-3 the growing plot shows Harvest');
         if (!(await shown(page, W + '.hw-plot[data-plot="1"] .hw-harvest'))) fails.push('FW-3 the ready plot shows no Harvest');

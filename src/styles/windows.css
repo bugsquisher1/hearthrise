@@ -406,8 +406,11 @@
 .hw-grow i { display: block; height: 100%; background: var(--green); }
 .hw-plot.is-ready .hw-grow i { background: var(--gold); }
 .hw-plot.is-empty .hw-grow { visibility: hidden; }
-.hw-plot-say { font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
-.hw-plot.is-ready .hw-plot-say { color: var(--ink); font-weight: 700; }
+.hw-plot-say { display: flex; flex-direction: column; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
+.hw-plot-say b { color: var(--ink); font-weight: 700; }
+.hw-plot-say b:empty { display: none; }
+.hw-plot.is-ready .hw-plot-say span { color: var(--gold-2); font-weight: 700; }
+.hw-plot .hh-tool { white-space: normal; }
 .hw-harvest { display: none; }
 .hw-harvest.is-on { display: block; }
 .hw-plot-do.is-off { visibility: hidden; }

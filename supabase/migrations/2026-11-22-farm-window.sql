@@ -241,6 +241,12 @@ begin
     if (v_s->>'ready')::boolean or not (v_s->>'waterable')::boolean or v_s->>'crop' <> 'turnip'
        or abs((v_s->>'ready_in_s')::bigint - (select base_hours * 3600 from public.hr_crops where crop_id = 'turnip')) > 2 then
       raise exception 'VERIFY(b): a fresh turnip reads %', v_s; end if;
+    -- (b2) watered at once: the window runs at 2x, so it is ready in HALF the crop's hours, and not waterable again.
+    if coalesce(public.hr_farm_water(0, 0, gen_random_uuid())->>'ok', '') <> 'true' then raise exception 'VERIFY(b2): the first watering was refused'; end if;
+    v_s := public.hr_farm_land_view(v_uid, 0)->'plots'->0;
+    if (v_s->>'waterable')::boolean
+       or abs((v_s->>'ready_in_s')::bigint - (select base_hours * 1800 from public.hr_crops where crop_id = 'turnip')) > 2 then
+      raise exception 'VERIFY(b2): a watered turnip reads %', v_s; end if;
     -- (c) not ready: the replant answers the harvest's refusal and moves nothing.
     v := public.hr_farm_harvest_replant(0, 0, gen_random_uuid());
     if v->>'error' is distinct from 'not_ready' then raise exception 'VERIFY(c): an unripe replant answered %', v; end if;

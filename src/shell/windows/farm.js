@@ -80,7 +80,7 @@ export function renderFarm() {
 
 function plotHtml(i) {
   return '<li class="hw-plot" data-plot="' + i + '"><button type="button" class="hw-soil" data-hs-act="plot" data-plot="' + i + '"><span class="hw-crop"></span></button>'
-    + '<span class="hw-grow" role="meter" aria-valuemin="0" aria-valuemax="100"><i></i></span><small class="hw-plot-say"></small>'
+    + '<span class="hw-grow" role="meter" aria-valuemin="0" aria-valuemax="100"><i></i></span><small class="hw-plot-say"><b></b><span></span></small>'
     + '<button type="button" class="hh-tool hw-harvest" data-hs-act="harvest" data-plot="' + i + '">Harvest</button>'
     + '<button type="button" class="hh-tool hw-plot-do" data-plot="' + i + '"></button></li>';
 }
@@ -101,8 +101,8 @@ function patchPlot(li, i, st, now) {
   style(li.querySelector('.hw-grow i'), 'width', Math.round(frac * 100) + '%');
   attr(li.querySelector('.hw-grow'), 'aria-valuenow', Math.round(frac * 100));
   attr(li.querySelector('.hw-soil'), 'aria-label', p ? cropName(p.crop) + (p.ready ? ', ready' : ', growing') : 'Empty plot ' + (i + 1) + ': plant a seed');
-  text(li.querySelector('.hw-plot-say'), !p ? 'Empty' : p.ready ? cropName(p.crop) + ': ready'
-    : ms > 0 ? cropName(p.crop) + ': ' + left(ms) : cropName(p.crop) + ': checking…');
+  text(li.querySelector('.hw-plot-say b'), p ? cropName(p.crop) : '');
+  text(li.querySelector('.hw-plot-say span'), !p ? 'Empty' : p.ready ? 'Ready' : ms > 0 ? left(ms) + ' left' : 'Checking…');
   const harvest = li.querySelector('.hw-harvest');
   cls(harvest, 'is-on', !!p && p.ready);
   prop(harvest, 'disabled', st.sc.pending);

@@ -51,6 +51,7 @@
     "node tools/mutant-gate.mjs node tests/live-hash-drift.mjs --mutate": "db-replay",
     "node tests/apply-order-honesty.mjs": "db-replay",
     "node tools/mutant-gate.mjs node tests/apply-order-honesty.mjs --selftest": "db-replay",
+    "node tests/apply-order-split.mjs": "db-replay",
     "node tests/readonly-rpc.mjs": "db-replay",
     "node tools/mutant-gate.mjs node tests/readonly-rpc.mjs --selftest": "db-replay",
     "node tools/mutant-gate.mjs node tests/readonly-rpc.mjs --mutate": "db-replay",

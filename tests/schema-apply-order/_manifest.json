@@ -1,4 +1,16 @@
 {
+  "_layout": [
+    "SINCE 2026-10-21 (r36) THE APPLY ORDER IS ONE FILE PER MIGRATION, in this directory:",
+    "  <migration>.sql.json = { \"seq\": <number>, \"note\": <string | array of lines, optional> }",
+    "Order = seq ascending (numeric), then file name. History is numbered 10, 20, ... so an",
+    "insertion fits between two neighbours (a fraction is fine). Two lanes that each add one",
+    "migration touch two different paths and merge with zero conflicts; a seq tie after such a",
+    "merge breaks by name. This _manifest.json holds everything that is not per-migration.",
+    "Place a new migration:   node tools/apply-order-split.mjs --add <file.sql> --note \"STAGED, NOT APPLIED - ...\"",
+    "Lane still on the old tests/schema-apply-order.json:   node tools/apply-order-split.mjs --migrate",
+    "Readers: tools/lib/apply-order.mjs loadApplyOrder() (the old single-object shape).",
+    "The _readme below is the history of the single file; \"this file\" there means this directory."
+  ],
   "_readme": [
     "THE APPLY ORDER OF supabase/migrations/**. This is the single source of truth",
     "for rebuilding the database from the repo, and it is verified on every push by",

@@ -13,8 +13,7 @@
 // error into "no run" — an error is printed as an error.
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { isMain } from '../../tests/_is-main.mjs';
 
 export const REPO = 'bugsquisher1/hearthrise';
 export const WORKFLOW = 'smoke';
@@ -103,7 +102,7 @@ export function latestByBranch(res) {
 }
 
 /* ── selftest: canned payloads, no network ─────────────────────────────────── */
-if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1]) && process.argv.includes('--selftest')) {
+if (isMain(import.meta.url) && process.argv.includes('--selftest')) {
   let fails = 0;
   const ok = (c, m) => { console.log((c ? '  ok   ' : '  FAIL ') + m); if (!c) fails++; };
   // What `gh run list --json databaseId,workflowName,…` printed for release/v0.2.24 on 2026-10-21.

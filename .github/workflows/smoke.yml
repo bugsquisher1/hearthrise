@@ -638,7 +638,7 @@ jobs:
       # migrations in filename order got 23 of 41 files in — and there was no
       # test that could have said so. This replays supabase/schema.sql + every
       # migration onto a real in-process PostgreSQL in the order declared by
-      # tests/schema-apply-order.json, then fingerprints the result against a
+      # tests/schema-apply-order/ (one entry per migration), then fingerprints the result against a
       # committed baseline. It ALSO fails if a new migration is not placed in
       # that order, so a file cannot be silently omitted from a rebuild.
       # No credentials; production untouched.
@@ -757,7 +757,7 @@ jobs:
           node tools/mutant-gate.mjs node tests/live-hash-drift.mjs --mutate
 
       # ...AND DOES THE DEPLOYMENT RECORD AGREE WITH THAT MEASUREMENT?
-      # The step above measures what production runs. tests/schema-apply-order.json
+      # The step above measures what production runs. tests/schema-apply-order/
       # is what an OPERATOR reads to decide what still has to be run — and on
       # 2026-09-06 its `_order_notes` said "STAGED, NOT APPLIED" for FOURTEEN
       # migrations that were measurably live, including three whose own notes
@@ -783,6 +783,18 @@ jobs:
         run: |
           node tests/apply-order-honesty.mjs
           node tools/mutant-gate.mjs node tests/apply-order-honesty.mjs --selftest
+
+      # THE APPLY ORDER MERGES WITHOUT CONFLICTS (r36, 2026-10-21). The order was
+      # one JSON every migration lane appended to, so two lanes that each added a
+      # migration always conflicted. It is now one entry file per migration under
+      # tests/schema-apply-order/. In a throwaway git repo this proves two such
+      # lanes merge with zero conflict hunks, its CONTROL proves the same two edits
+      # on the old single file DO conflict, and tools/apply-order-split.mjs
+      # --migrate converts a lane still on the old file (refusing, never picking a
+      # side, when both sides changed one note). Seconds; no credentials.
+      - name: Apply order — one file per migration, merges without conflicts
+        if: ${{ !cancelled() }}
+        run: node tests/apply-order-split.mjs
 
       # MOVED HERE FROM db-replay-2, 2026-09-26 CI REBALANCE: run 36219670449
       # (next@94767e81) was CANCELLED at db-replay-2's own 19-min timeout

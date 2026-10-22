@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // tests/apply-order-split.mjs — THE APPLY ORDER MERGES WITHOUT CONFLICTS (r36, 2026-10-21).
 //
-//   node tests/apply-order-split.mjs             the proof (credential-free, a throwaway git repo)
-//   node tests/apply-order-split.mjs --selftest  the same run; its CONTROL is the planted defect
+//   node tests/apply-order-split.mjs   the proof (credential-free, throwaway git repos); its
+//                                      planted defect is S2, the CONTROL every run carries
 //
 // tests/schema-apply-order.json was the #1 merge-conflict source: every migration lane
 // appended to the same `order` array tail and `_order_notes` object, so two lanes that each

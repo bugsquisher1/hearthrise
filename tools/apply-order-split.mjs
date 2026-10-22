@@ -17,8 +17,8 @@
 //        (seq = position × 10), verified, then the JSON is deleted.
 import { execFileSync } from 'node:child_process';
 import { readFileSync, existsSync, unlinkSync } from 'node:fs';
-import { join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
+import { isMain } from '../tests/_is-main.mjs';
 import {
   REPO_ROOT, DIR_REL, readEntries, loadApplyOrder, writeApplyOrder, writeEntry, writeManifest,
   nextSeq, sortEntries, SEQ_STEP, dirOf, entryName,
@@ -195,4 +195,4 @@ function cli() {
   process.exit(2);
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) cli();
+if (isMain(import.meta.url)) cli();

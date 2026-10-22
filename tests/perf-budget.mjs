@@ -88,7 +88,7 @@ const MUTANTS = [
     'const offChar = character.subscribe(() => { if (!queued) { queued = true; queueMicrotask(repaint); } });',
     'const offChar = character.subscribe(() => { if (runtime) runtime.sync(); shell.paint(); });', /^repaint/],
   ['the World draws a frame on every answer although its loop runs', 'src/world/world-boot.js',
-    "if (panel.classList.contains('active') && !(running && live())) {", "if (panel.classList.contains('active')) {", /^repaint/],
+    "if (panel.classList.contains('active') && !(running && live())) {", "if (panel.classList.contains('active')) {", /^repaint/, 'scenario', 4],
   ["the analyzer clock runs from each answer's arrival (live v0.2.23)", 'src/shell/widgets/analyzer.js',
     "clock(sessionClockMs(a, serverNowOf(ctx.character)))", "clock(a.sessionMs === null ? null : a.sessionMs + live)", /^analyzer/],
   ['a shadow mask kept although a monster moved', 'src/world/render/canvas-backend.js',

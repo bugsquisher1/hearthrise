@@ -581,9 +581,12 @@ jobs:
   # re-draw does. Its own job: a real-time scenario cannot share a runner's
   # CPU with another browser suite without measuring that suite instead.
   # Firefox is measured (not gated) by .github/workflows/perf-measure.yml.
+  # MEASURED locally 2026-10-21: install ~2 min, the run ~4.7 min, --mutate (7
+  # mutants: five real-time scenarios of 2-4 min, two PB-PIX) ~16 min when the
+  # gate runs it: ~23 min. Budget = x2 = 46.
   perf:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 46
 
     steps:
       - uses: actions/checkout@v4

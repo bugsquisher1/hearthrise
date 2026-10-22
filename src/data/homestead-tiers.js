@@ -414,3 +414,61 @@ export const ROOM_RUNGS = Object.freeze({
     }
   ]
 });
+
+// ── THE DEPOT'S SPACE (Tyler 2026-10-22: "space can be increased by building
+// different storage chests for the house, with gold") ─────────────────────────
+// The depot is the ACCOUNT's (supabase/migrations/2026-11-10-account-depot.sql),
+// so its space is too: DEPOT_BASE_STACKS distinct item stacks for every account,
+// plus `stacks` for each chest the account has built. NOT the bag's cap
+// (start-kit.js bankCap is each character's BAG stack cap, a different number).
+// Chests are built once each, in this order (a chest needs the one before it),
+// at the property tier `tier` asks for, for `cost` (gold + materials, paid by the
+// hero who builds it). tools/gen-storage-chests.mjs makes the server catalogue.
+// PROPOSED 2026-10-22 (backend-architect) — the game designer rules the numbers.
+export const DEPOT_BASE_STACKS = 100;
+
+export const STORAGE_CHESTS = Object.freeze([
+  {
+    "id": "millrace_crate",
+    "name": "Millrace Crate",
+    "stacks": 20,
+    "tier": 0,
+    "cost": {
+      "gold": 1500,
+      "normal_log": 40
+    }
+  },
+  {
+    "id": "thicketwood_chest",
+    "name": "Thicketwood Chest",
+    "stacks": 30,
+    "tier": 1,
+    "cost": {
+      "gold": 6000,
+      "oak_plank": 30,
+      "copper_bar": 10
+    }
+  },
+  {
+    "id": "ironbanded_strongbox",
+    "name": "Ironbanded Strongbox",
+    "stacks": 50,
+    "tier": 2,
+    "cost": {
+      "gold": 25000,
+      "iron_bar": 25,
+      "iron_fitting": 10
+    }
+  },
+  {
+    "id": "stonecross_vault",
+    "name": "Stonecross Vault",
+    "stacks": 100,
+    "tier": 3,
+    "cost": {
+      "gold": 90000,
+      "steel_bar": 30,
+      "timber_beam": 15
+    }
+  }
+]);

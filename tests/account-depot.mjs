@@ -42,7 +42,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { bootReplay, LAST_PATCHED, ROOT, inventory } from './schema-replay.mjs';
+import { bootReplay, ROOT, inventory } from './schema-replay.mjs';
 
 const MIG = '2026-11-10-account-depot.sql';
 const PREV = '2026-11-09-armour-class-catalogue.generated.sql';
@@ -156,7 +156,7 @@ async function freshItems(d, uid, n) {
 
 /** A1, A2, A4–A7 on the whole chain. */
 async function fullChainArms(mutate) {
-  const { db } = await bootReplay({ patches: mutate ? new Map([[MIG, patchList(mutate)]]) : undefined, upTo: LAST_PATCHED });
+  const { db } = await bootReplay({ patches: mutate ? new Map([[MIG, patchList(mutate)]]) : undefined, upTo: MIG });   // its own file: 2026-11-10-storage-chests.sql restates hr_bank_move after it (A4 re-applies THIS file)
   const d = drivers(db);
   const u = await d.newUser();
   const [i1, i2] = await freshItems(d, u, 2);

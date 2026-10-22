@@ -2743,6 +2743,20 @@ jobs:
           node tests/account-depot.mjs
           node tools/mutant-gate.mjs node tests/account-depot.mjs --selftest
 
+      # THE DEPOT'S SPACE (Tyler 2026-10-22): the account's base + the storage chests it
+      # built. The catalogue is generated from src/data/homestead-tiers.js (--check, its
+      # refusals --selftest); the guard drives the real hr_storage_chest_build and
+      # hr_bank_move on a replayed chain: the cap, the build (gold + materials once,
+      # journalled), every refusal moving nothing, the ACCOUNT's home tier, the lock
+      # order and the ACL. 8 mutations, the migration's own checks short-circuited.
+      - name: Storage chests — the depot's space is the account's, bought with chests
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-storage-chests.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-storage-chests.mjs --selftest
+          node tests/storage-chests.mjs
+          node tools/mutant-gate.mjs node tests/storage-chests.mjs --selftest
+
       # THE FREE CREW (live 2026-09-09, b527). hr_worker_hire read its paid crew
       # cap as coalesce(greatest(0, least(max(pp.value), 6)), 0) — and LEAST/GREATEST
       # DROP null arguments, so a player who had bought NOTHING got least(NULL,6)=6

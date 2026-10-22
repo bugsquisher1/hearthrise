@@ -32,7 +32,9 @@
 //   hr_hunt_roles          hunt-roles.js HUNT_ROLES: each role's ability discipline
 //   hr_hunt_set_options    hunt-sessions.js ACTION_SET_OPTIONS (target / limit / enum / bool)
 //   hr_hunt_grounds        hunt-grounds.js HUNT_GROUNDS: per hunt, its ground, seats,
-//   hr_hunt_ground_spawns  pockets, respawn and every spawn (the settle's kill bound)
+//   hr_hunt_ground_spawns  pockets, respawn and every spawn (the settle's kill bound),
+//                          and density_max per party size (densityFor: the per-ground
+//                          density pick's ceiling, hr_hunt_density_set)
 //   hr_hunt_world_shape    world-state.js WORLD_VERSION + SHAPE (a world encoded under
 //                          any other field list is refused by the settle) + FIELDS as
 //                          name -> column index, so SQL reads a unit's field by name
@@ -80,7 +82,9 @@
 // dead effects (lane/a-dead-effects: markPm replaces markBy, healedAt leaves the
 // world's shape) start 2026-11-05-hunt-sessions-catalogue.generated.sql (history
 // once written); the Challenge hold (lane/a-combat-bugs: holdMs replaces chalMs in
-// the world's shape) starts 2026-11-06-hunt-sessions-catalogue.generated.sql.
+// the world's shape) starts 2026-11-06-hunt-sessions-catalogue.generated.sql (APPLIED,
+// history); density's own home (lane/c-density-home: no density option, every
+// ground's density_max) starts 2026-11-17-hunt-sessions-catalogue.generated.sql.
 //
 //   Regenerate:  node tools/gen-hunt-sessions.mjs
 //   Verify:      node tools/gen-hunt-sessions.mjs --check     (exit 1 on drift)
@@ -111,7 +115,7 @@ import { CONSUMABLE_RULES } from '../src/data/consumables.js';
 import { ABILITIES, ABILITY_LANES, ABILITY_RULES } from '../src/data/abilities.js';
 import { HUNT_ROLES, WEAPON_ROLES, roleWeaponOf } from '../src/data/hunt-roles.js';
 import { HUNT_XP } from '../src/data/hunt-xp.js';
-import { HUNT_GROUNDS, DENSITY_PICK } from '../src/data/hunt-grounds.js';
+import { HUNT_GROUNDS, DENSITY_PICK, PARTY_SCALE, densityFor } from '../src/data/hunt-grounds.js';
 import { HUNT_TUNING } from '../src/data/hunt-tuning.js';
 import { PARTY } from '../src/data/party.js';
 import { SESSION_CONFIG } from '../src/session/config.js';
@@ -130,7 +134,7 @@ export const WORLD_FIELDS_READ = Object.freeze({
     'role', 'dist', 'chase', 'tmode', 'stance']),
   world: Object.freeze(['leader']),
 });
-export const OUT_NAME = '2026-11-06-hunt-sessions-catalogue.generated.sql';
+export const OUT_NAME = '2026-11-17-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -159,7 +163,13 @@ export function groundRows(grounds, refs = {}) {
       counts[s.monster] = (counts[s.monster] || 0) + 1; n++;
     }
     if (!n) throw new Error(`ground ${id} spawns nothing`);
-    rows.push({ hunt: g.hunt, ground: id, pockets: g.pockets.length, spawns: n, respawn: g.respawnMs, seats: g.start.length });
+    /* THE MOST A HERO MAY PICK here, per party size 1..PARTY_SCALE.maxHeroes (densityFor's clamp, the one
+       rule): hr_hunt_density_set refuses a pick over the largest, the instance's freeze clamps to it. */
+    const dmax = Array.from({ length: PARTY_SCALE.maxHeroes }, (_, i) => densityFor(g, i + 1, DENSITY_PICK.max));
+    if (!dmax.every((v, i) => whole(v) && v >= 0 && v <= DENSITY_PICK.max && (i === 0 || v >= dmax[i - 1]))) {
+      throw new Error(`ground ${id} density max ${dmax} is not 0..${DENSITY_PICK.max}, never falling as the party grows`);
+    }
+    rows.push({ hunt: g.hunt, ground: id, pockets: g.pockets.length, spawns: n, respawn: g.respawnMs, seats: g.start.length, dmax });
     for (const m of Object.keys(counts).sort()) spawns.push({ hunt: g.hunt, monster: m, n: counts[m] });
   }
   return { rows, spawns };
@@ -491,7 +501,7 @@ export function render(src) {
   const resumeList = r.resumable.map(sq).join(', ');
   const abilityValues = r.abilities.map((a) => `  (${sq(a.id)}, array[${a.disciplines.map(sq).join(', ')}]::text[], ${sq(a.lane)}, ${a.cd}, `
     + `${a.mana}, ${a.rune ? sq(a.rune) : 'null'}, ${a.ammo}, ${a.active}, ${a.ord})`).join(',\n');
-  const groundValues = r.grounds.map((g) => `  (${sq(g.hunt)}, ${sq(g.ground)}, ${g.pockets}, ${g.spawns}, ${g.respawn}, ${g.seats})`).join(',\n');
+  const groundValues = r.grounds.map((g) => `  (${sq(g.hunt)}, ${sq(g.ground)}, ${g.pockets}, ${g.spawns}, ${g.respawn}, ${g.seats}, '{${g.dmax.join(',')}}'::int[])`).join(',\n');
   const weaponValues = r.weapons.map((w) => `  (${sq(w.id)}, ${sq(w.t)})`).join(',\n');
   const weaponRoleValues = r.weaponRoles.map((w) => `  (${sq(w.t)}, array[${w.roles.map(sq).join(', ')}]::text[])`).join(',\n');
   const groundSpawnValues = r.groundSpawns.map((s) => `  (${sq(s.hunt)}, ${sq(s.monster)}, ${s.n})`).join(',\n');
@@ -522,13 +532,13 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- SUPERSEDES 2026-11-05-hunt-sessions-catalogue.generated.sql (history, never
--- regenerated): every table below is rewritten wholesale. The Challenge hold
--- (lane/a-combat-bugs, 2026-10-21): every tank auto-casts the one Challenge and
--- a monster it takes is held \`holdMs\` (targeting.js), which replaces the
--- leader-only clock chalMs in the unit's persisted fields, so hr_hunt_world_shape
--- (shape, fields) moves. Every other row is the 11-05 file's.
--- Apply right after 2026-11-05-hunt-sessions-catalogue.generated.sql.
+-- SUPERSEDES 2026-11-06-hunt-sessions-catalogue.generated.sql (history, never
+-- regenerated): every table below is rewritten wholesale. Density's own home
+-- (lane/c-density-home, 2026-10-22; rulings H4): density is the hero's pick PER
+-- GROUND, not an action-set option, so hr_hunt_set_options loses its density
+-- row, and every hr_hunt_grounds row gains density_max (the most a hero may pick
+-- there, per party size: hunt-grounds.js densityFor). Every other row is the
+-- 11-06 file's. Apply right before 2026-11-17-hunt-density-home.sql.
 --
 -- Server-only: RLS on, NO policy, no client grant (the client reads src/data).
 -- Idempotent: delete + insert; nothing references these rows by foreign key.
@@ -661,6 +671,14 @@ create table if not exists public.hr_hunt_grounds (
   respawn_ms int  not null check (respawn_ms between 1000 and 600000),
   seats      int  not null check (seats between 1 and 5)
 );
+-- THE MOST DENSITY A HERO MAY PICK HERE, one entry per party size 1..n (hunt-grounds.js densityFor):
+-- hr_hunt_density_set refuses a pick over the largest; the instance's freeze clamps to it. Every row
+-- carries it (the check block below); an existing table learns the column.
+alter table public.hr_hunt_grounds add column if not exists density_max int[];
+alter table public.hr_hunt_grounds drop constraint if exists hr_hunt_grounds_density_max_ck;
+alter table public.hr_hunt_grounds add constraint hr_hunt_grounds_density_max_ck check (density_max is null
+  or (cardinality(density_max) between 1 and 8 and array_position(density_max, null) is null
+      and 0 <= all (density_max) and ${DENSITY_PICK.max} >= all (density_max)));
 create table if not exists public.hr_hunt_ground_spawns (
   hunt_id    text not null references public.hr_hunt_grounds (hunt_id) on delete cascade,
   monster_id text not null check (monster_id ~ '^[a-z0-9_]{1,64}$'),
@@ -728,7 +746,7 @@ insert into public.hr_hunt_abilities (ability_id, disciplines, lane, cd_ms, mana
 ${abilityValues};
 delete from public.hr_hunt_ground_spawns;
 delete from public.hr_hunt_grounds;
-${r.grounds.length ? `insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn_ms, seats) values
+${r.grounds.length ? `insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn_ms, seats, density_max) values
 ${groundValues};
 insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values
 ${groundSpawnValues};` : '-- (no hunt ground ships yet: every hunt answers no_ground until the content lane adds one)'}
@@ -803,6 +821,7 @@ begin
      or (select count(*) from public.hr_hunt_kill_bounds) <> ${r.killBounds.length}
      or (select count(*) from public.hr_hunt_abilities) <> ${r.abilities.length}
      or (select count(*) from public.hr_hunt_grounds) <> ${r.grounds.length}
+     or (select count(*) from public.hr_hunt_grounds where density_max is null) <> 0
      or (select count(*) from public.hr_hunt_ground_spawns) <> ${r.groundSpawns.length}
      or (select count(*) from public.hr_hunt_world_shape) <> 1
      or (select count(*) from public.hr_premium_login_reward) <> 1

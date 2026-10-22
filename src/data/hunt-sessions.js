@@ -15,7 +15,6 @@
 import { HUNT_STANCES } from './rule-subjects.js?v=0.2.27';
 import { WEAPON_ROLES } from './hunt-roles.js?v=0.2.27';
 import { ACTION_SET_SKIPS } from './abilities.js?v=0.2.27';
-import { DENSITY_PICK } from './hunt-grounds.js?v=0.2.27';
 
 /* Hours is an optional limit, off by default: the bag, stamina and death
    already bound a hunt, and a timer nobody asked for is a hunt that ends for no
@@ -100,8 +99,8 @@ export const ACTION_SET_OPTIONS = Object.freeze({
   supply_source: Object.freeze({ kind: 'enum', values: SUPPLY_SOURCE.modes, default: SUPPLY_SOURCE.default }),
   on_empty: Object.freeze({ kind: 'enum', values: ON_EMPTY.modes, default: ON_EMPTY.default }),
   gold_floor: Object.freeze({ kind: 'limit', limit: 'gold_floor' }),
-  /* hunt-grounds.js DENSITY_PICK; the settle clamps it to the ground's max for the party (densityFor). */
-  density: Object.freeze({ kind: 'limit', limit: 'density', default: 0 }),
+  /* (Density is NOT an option (rulings H4): it is the hero's pick per ground, hunt_density, written by
+     hr_hunt_density_set and frozen on the instance at hunt start; 2026-11-17-hunt-density-home.sql.) */
   /* GATHER_SHARE: stored, inert. */
   gather_share: Object.freeze({ kind: 'limit', limit: 'gather_share', default: GATHER_SHARE.default }),
 });

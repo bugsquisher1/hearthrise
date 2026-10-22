@@ -262,8 +262,10 @@ const dataMutants = [
   { name: 'two helmets, no boots', case: 'slot-coverage', edit: (ms) => { gearOf(ms, 'gray_whelp').id = 'leather_helmet'; } },
 ];
 const playMutants = [
-  { name: 'the Sewer back to its old coin', rule: 'profit-floor: millrace_sewer', edit: (ms) => {
-    for (const id of ['drain_rat', 'sump_slime', 'culvert_bat', 'cistern_spider', 'kobold_tosher', 'rat_king']) ms[id].gp = ms[id].gp.map((v) => Math.max(1, Math.round(v / 1.8)));
+  /* The Sewer's coin cut to under half (armour weights, ruling K7, left the ladder-kit Melee +119% at the floor,
+     so the old /1.8 coin clears +25% by a hair: the floor still bites at /2.2, about +11%). */
+  { name: 'the Sewer coin cut to under half', rule: 'profit-floor: millrace_sewer', edit: (ms) => {
+    for (const id of ['drain_rat', 'sump_slime', 'culvert_bat', 'cistern_spider', 'kobold_tosher', 'rat_king']) ms[id].gp = ms[id].gp.map((v) => Math.max(1, Math.round(v / 2.2)));
   } },
   { name: 'the Thicket boots five times rarer', rule: 'gear-pace: meadowbrook_thicket', edit: (ms) => { gearOf(ms, 'gray_whelp').ch /= 5; } },
   { name: 'the den mother\'s fang back to 1%', rule: 'rare-pace: meadowbrook_thicket', edit: (ms) => { ms.grayjaw.drops.find((d) => d.id === 'alpha_fang').ch = 0.01; } },

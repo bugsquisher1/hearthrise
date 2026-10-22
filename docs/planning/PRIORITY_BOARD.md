@@ -30,6 +30,23 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+### 2026-10-21 Armour weights (K7, lane b-armour-weights): RULED
+**Model.** Each worn piece's armour value (`defB`) feeds its own weight's line: heavy = Absorb (share of a landed blow), medium = Dodge (the blow misses outright), light = Ward (a flat amount off each landed blow). A mixed set is exactly the sum of its pieces, no penalty. Absorb and Dodge are `maxPm × P / (P + k × Level)` against the hero's OWN Level, so own-tier armour holds its worth and an old set fades. One order in `damage.js`: dodge, absorb, resistances (the element permille), ward, then the spell shield and HP; a total cap of 60% over the chain (dodge and absorb together, and a landed blow always keeps its share). Rows: `core-model.js ARMOUR_MITIGATION` (dodge 650/0.45, absorb 750/0.7, ward 1.5 per point, cap 600). Derived, never stored: `src/core/mitigation.js`, written on the hero's unit each swing boundary; the Character sheet shows the engine's Dodge / Absorb / Ward.
+**`def` keeps one job:** the monster's to-hit roll, now Defense skill + the defence of gear OUTSIDE the weights (shield, cape) + buffs. Weighted armour left it: plate's defB put an armoured hero at the 5% to-hit floor from tier 3 up (an L40 Warrens party's Healer spent 0 g/h), so armour weight could never be a choice. Defense XP: a dodge pays the plain rate (not a shield block); a status tick (`dot`) pays none (Tyler 10-22).
+**Evidence** (real settle, one seed, one hour, per hero; before → after; tier-1 four-piece sets at L8):
+
+| Run | Deaths | Damage taken/h | Bill/h (margin) |
+|---|---|---|---|
+| Thicket solo L5, starter kit (no armour) | 0 → 0 | 7,748 → 7,748 | 290 (+573%) → same |
+| Sewer party of 4 L8, tank heavy / ranger medium / mage + healer light | 0 → 0 | tank 8,923 → 11,676 | healer 540 (+419%) → 600 (+365%) |
+| Sewer party of 4 L8, ladder kit (caster-floor reference) | 0 → 0 | tank 15,918 → 14,420 | healer 1,150 (+128%) → 1,000 (+165%) |
+| Sewer two tanks + mage + healer L8 | 0 → 0 | 6,288 + 3,557 → 8,642 + 4,222 | healer 480 (+469%) → 560 (+387%) |
+| Sewer solo Melee L8, ladder kit (profit-floor reference) | 0 → 0 | 14,485 → 14,665 | 1,550 (+101%) → 1,480 (+119%) |
+| Warrens party of 4 L32 (band floor), own-tier sets | 0 → 0 | tank 8,889 → 31,052 | tank 432 → 1,296 (+143%), healer 0 → 1,280 (+146%) |
+
+**Each weight is the best choice somewhere** (same runs, the hero swaps only its four armour pieces): heavy for the hero who takes the blows (Sewer solo Melee bill 990 vs medium 1,536 vs light 2,044; party tank's healer bill 600 vs 760 vs 1,040); medium for the Ranger (265 kills/h and 2,388 g/h net vs heavy 246 / 2,273 and light 249 / 1,697: no style penalty, ranged bonuses, dodge for stray blows); light for casters (Mage 346 kills/h vs 288/279; Healer bill 600 vs 750/800) and against many small blows (Cellar farming at L10: 913 taken vs 1,073 heavy).
+**Watch.** Tier 3 is harder at its floor (Warrens L32 tank 31k taken/h, was 9k), the intended "food is the price of fighting above your level"; a SOLO Warrens hero was already under water (−22% heavy) and is now −88% (CONFLICTS item 2, tier-4 food, still open). Party Defense XP for a holding tank is about −18% (fewer misses on a shield-holder pay the block rate). Medium's own defensive niche (no on-hit effects when a blow is dodged) arrives with the first monster that applies poison or burn. drop-tables' Sewer coin mutant moved /1.8 → /2.2: the old coin now clears +25% by a hair.
+
 ## Designer pass 2026-10-21 (v0.2.22)
 Evidence: the real settle (`hr-accrue accrueHunt`, the `tests/hunt-core/fixtures/play-ground.mjs` runner, one fixed seed, one hour, per hero per hour), run on a scratch copy of the tree with each change planted. Not played in the browser this pass.
 

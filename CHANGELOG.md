@@ -5,6 +5,16 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.29 — 2026-10-22 (Pick your supplies, loot worth fighting for)
+
+**Every bar slot names one supply.** There is no more "Any food": you pick which food, drink or rune goes in each slot, and the order of your slots is your fallback. Your own stock is used first; store items are bought as used. **If your bar had "Any food" or "Any drink", open it and pick a food and a drink again.**
+
+**Saved setups.** Each setup keeps its own bar and gear. Name it, rename it, switch to it in town, or delete it.
+
+**Loot worth the fight.** Every monster in the Thicket and the Sewer now drops coin, a junk item, bones where it has them, its own monster part, and a piece of gear. Only Old Grayjaw and the Rat King carry the rares, and in a party the rare goes to the highest roll, one winner at a time. A rare drop now gets its moment on screen.
+
+**Monsters per pull is yours to set on each hunting ground,** and a hero hunting alone is no longer sent to a party ground.
+
 ## v0.2.28 — 2026-10-22 (Easier to learn, honest numbers)
 
 **New heroes learn how to fight.** Creating a hero now explains that there is no class to pick: the weapon you hold is how you fight, and all six starter weapons are in your bag. Each style says what it does and what it uses. Outfits now have names that describe the clothes, not a class.

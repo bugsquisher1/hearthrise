@@ -70,14 +70,14 @@ begin
   if to_regclass('public.account_wallet') is null or to_regprocedure('public.hr_vitals_of(uuid,integer)') is null then
     raise exception 'PRECONDITION: apply 2026-10-19-account-wallet.sql and 2026-10-27-core-bodies.sql first'; end if;
   select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure('public.hr_state_of(uuid,integer)');
-  if v_md5 is distinct from 'acfce7c8ea82935fa64b8764161b9389' and v_md5 is distinct from '3b3cb26036747839f85fa006ffde9040' then
-    raise exception 'PIN: hr_state_of is neither the 2026-10-27 image (acfce7c8...) nor this file''s (3b3cb260...) - md5 %: another file moved it; restate from the new image', v_md5; end if;
+  if v_md5 is distinct from 'acfce7c8ea82935fa64b8764161b9389' and v_md5 is distinct from '9c717e178a19b222c8295fae65d96683' then
+    raise exception 'PIN: hr_state_of is neither the 2026-10-27 image (acfce7c8...) nor this file''s (9c717e17...) - md5 %: another file moved it; restate from the new image', v_md5; end if;
   select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure('public.hr_bank_move(integer,text,bigint,text,uuid)');
-  if v_md5 is distinct from '88bd5e89fa15b1b54400a2522f8c62d5' and v_md5 is distinct from '6aef04d74eb5d1abf6724c3693d128a9' then
-    raise exception 'PIN: hr_bank_move is neither the 2026-09-28 image (88bd5e89...) nor this file''s (6aef04d7...) - md5 %', v_md5; end if;
+  if v_md5 is distinct from '88bd5e89fa15b1b54400a2522f8c62d5' and v_md5 is distinct from '5708a43d44cc6a45df70b4d7cc974a85' then
+    raise exception 'PIN: hr_bank_move is neither the 2026-09-28 image (88bd5e89...) nor this file''s (5708a43d...) - md5 %', v_md5; end if;
   select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure('public.hr_account_items(text)');
-  if v_md5 is distinct from '31359d72f9d926f7009918da71788a25' and v_md5 is distinct from 'dadfb52f55b5141d71340a1e3d949c0f' then
-    raise exception 'PIN: hr_account_items is neither the 2026-10-25 image (31359d72...) nor this file''s (dadfb52f...) - md5 %', v_md5; end if;
+  if v_md5 is distinct from '31359d72f9d926f7009918da71788a25' and v_md5 is distinct from '00212683a678ec75d3d06e1892ee89af' then
+    raise exception 'PIN: hr_account_items is neither the 2026-10-25 image (31359d72...) nor this file''s (00212683...) - md5 %', v_md5; end if;
 end $mig$;
 
 -- ── §1 THE ACCOUNT DEPOT ─────────────────────────────────────────────────────

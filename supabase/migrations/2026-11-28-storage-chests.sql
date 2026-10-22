@@ -68,8 +68,8 @@ begin
      or to_regprocedure('public.hr_apply(uuid,integer,bigint,uuid,jsonb)') is null then
     raise exception 'PRECONDITION: the section registry, hr_hunt_lock or hr_apply is absent'; end if;
   select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure('public.hr_bank_move(integer,text,bigint,text,uuid)');
-  if v_md5 is distinct from '6aef04d74eb5d1abf6724c3693d128a9' and v_md5 is distinct from '5edf5faf84c4ea06c773fd99e2625e9d' then
-    raise exception 'PIN: hr_bank_move is neither 2026-11-27-account-depot.sql''s image (6aef04d7...) nor this file''s (5edf5faf...) - md5 %', v_md5; end if;
+  if v_md5 is distinct from '5708a43d44cc6a45df70b4d7cc974a85' and v_md5 is distinct from 'c2bc3008188b2cd0a83493b53f25edb7' then
+    raise exception 'PIN: hr_bank_move is neither 2026-11-27-account-depot.sql''s image (5708a43d...) nor this file''s (c2bc3008...) - md5 %', v_md5; end if;
 end $mig$;
 
 -- ── §1 THE ACCOUNT'S CHESTS ─────────────────────────────────────────────────

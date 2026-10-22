@@ -64,8 +64,8 @@ begin
   if to_regclass('public.hr_state_sections') is null or to_regclass('public.hr_unlock_offers') is null then
     raise exception 'PRECONDITION: the section registry or the unlock offer catalogue is absent'; end if;
   select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure('public.hr_unlock_levels(uuid,integer)');
-  if v_md5 is distinct from '67bcb81ce43f336aca23e78e40d0eebb' and v_md5 is distinct from '61c126ceea66ab3ff2d60e10c5a82d50' then
-    raise exception 'PIN: hr_unlock_levels is neither 2026-08-16-artisan-progress-model.sql''s image (67bcb81c...) nor this file''s (61c126ce...) - md5 %', v_md5; end if;
+  if v_md5 is distinct from '67bcb81ce43f336aca23e78e40d0eebb' and v_md5 is distinct from 'f5f677495032913f66bafe9720ab5107' then
+    raise exception 'PIN: hr_unlock_levels is neither 2026-08-16-artisan-progress-model.sql''s image (67bcb81c...) nor this file''s (f5f67749...) - md5 %', v_md5; end if;
   select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure('public.hr_unlock_buy(uuid,integer,bigint,uuid,text)');
   if v_md5 is distinct from '5e00a6d9dc239ea03ad10d2369844190' and strpos((select prosrc from pg_proc where oid = to_regprocedure('public.hr_unlock_buy(uuid,integer,bigint,uuid,text)')), 'HOUSE-HOME') = 0 then
     raise exception 'PIN: hr_unlock_buy is neither the settle-before-mutate image (5e00a6d9...) nor this file''s patch - md5 %', v_md5; end if;

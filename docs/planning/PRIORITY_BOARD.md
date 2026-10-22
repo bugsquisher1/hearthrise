@@ -217,6 +217,20 @@ No small lever makes a lone 32 profitable: it needs about 5× less damage per ki
 
 Every other row of the K7 table is byte-identical after the change, since only tier-3 monsters and the Warrens' store row moved. Regression: drop-tables `warrens-floor` (party of four in the ladder kit at 32 and a lone hero at soloFrom, two seeds, every role ≥ +25%). Its three mutants are each caught: food back to tier 4 (tank −26%), blows back to 5.4 (+9%), and alone from 40 (−21%). hunt-floor-warning G2 covers the card copy and has two mutants.
 
+### 2026-10-22 Store-by-slot re-measure (v0.2.30-int, lane b-v0230-balance): RULED
+**Reference bar.** Under store-by-slot an empty stored bar runs START_BAR (Salted Shrimp under 60% HP, Thin Turnip Juice under 30% mana) at every ground, so `play-ground.mjs` heroes at the Warrens ate tier-1 shrimp and the Warrens bills read near zero. The measured hero now runs the start bar's three slots at the same thresholds, naming the ground's guide food and drink (`supplies.js BAG_GUIDE_BY_HUNT`, and the store row partnered to each). Tier-1 grounds are exactly START_BAR. The Warrens bar is Salted Lobster and Thin Carrot Juice; the Glade's is Salted Trout.
+**Tier-3 blows 4.4 → 4.0** (lever 2 above). With real bills the tank eats at 60%, so the Warrens floor party in the ladder kit read −10% at its worst seed (+19% median). At 4.0 a Hobgoblin's top blow is 120, 26% of floor HP, level with tier 4.
+
+| Six seeds, real bills | Lowest seed (median) |
+|---|---|
+| Warrens party of 4 at 32, ladder kit | +77% (+112%); 5.4 would give −55% |
+| Warrens party of 4 at 32, by weight | +873% |
+| Lone hero at 45: heavy / medium / light | no bill / +33% / +87% |
+| Lone heavy hero at 40 | −36%, so soloFrom stays 45 |
+
+The K7 table on one seed, real bills: every reference row is above +25%. The lowest are solo Melee in light armour in the Sewer (+31%) and the Sewer starter party's Healer (+56%). The caster floor's Healer is +168%. The solo Sewer Melee pays 1,214 in heavy, 1,816 in medium and 2,310 in light. Each weight still wins somewhere: heavy for the solo Melee; medium for the Ranger (net 2,279 vs 2,237 in heavy and 1,572 in light); light for the Mage (346 kills/h) and the Healer (bill 600 vs 750 and 800).
+**forest-cave `glade-solo-floor` mutant recalibrated, rule unchanged.** The Sluicer and the Rook are tier 3, so 4.0, K7 and the trout bar mean a ladder-kit hero at 16 now survives Warrens-strength blows: atk 26, 30, 36, 42 and 50 each lived all six seeds, at 3–8k g/h. The floor still bites: at atk 60, 3 of 6 seeds die; at atk 72, all 6 die (1.4–30 min). The mutant is now atk 18 → 72.
+
 **2026-10-22: the Bestiary and the collection ladders count what a player can meet, and no milestone pays gems (lane/c-monster-ladders).**
 
 *The bug:* the Bestiary total and the milestones counted the whole 129-monster catalogue, but only 19 monsters stand on open grounds and they drop only 49 items. So hunter25/40/60/85/All and collect50 to collect125 could never be earned, and the Bestiary read "x / 134". The two gem rungs (hunterAll and collect100) also rolled back whole, because the wallet refuses gems.

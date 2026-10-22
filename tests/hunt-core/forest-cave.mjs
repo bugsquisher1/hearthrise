@@ -438,8 +438,12 @@ const mutants = [
     edits: [['tools/gen-hunt-sessions.mjs', "    grounds: OPEN_GROUNDS, worldMaxBytes:", "    grounds: HUNT_GROUNDS, worldMaxBytes:"],
       ['tools/gen-hunt-sessions.mjs', "hunts: OPEN_HUNTS, monsters: MONSTERS, items: ITEMS,", "hunts: HUNTS, monsters: MONSTERS, items: ITEMS,"],
       ['tools/gen-hunt-sessions.mjs', "import { OPEN_GROUNDS, DENSITY_PICK, PARTY_SCALE, densityFor, reachableOf }", "import { HUNT_GROUNDS, OPEN_GROUNDS, DENSITY_PICK, PARTY_SCALE, densityFor, reachableOf }"]] },
-  { name: 'the glade\'s sluicer and Rook hit like the Warrens (atk 18 -> 26)', case: 'glade-solo-floor',
-    edits: [['src/data/monsters.js', 'hp: 70, atk: 18, def: 10,', 'hp: 70, atk: 26, def: 10,'], ['src/data/monsters.js', 'hp: 78, atk: 18, def: 11,', 'hp: 78, atk: 26, def: 11,']] },
+  /* Recalibrated (designer 2026-10-22, armour weights K7 + tier-3 blows at 4.0 + store-by-slot bars): a ladder-kit
+     floor hero now LIVES Warrens-strength hits (atk 26, 30, 36, 42, 50 all lived six seeds of six, eating 3-8k g/h),
+     so "like the Warrens" no longer proves lethality. The floor still bites: at atk 60 three seeds of six die, at
+     72 all six (1.4-30 min). The rule is unchanged; the mutant is the lethal ground it must catch. */
+  { name: 'the glade\'s sluicer and Rook hit four times as hard (atk 18 -> 72)', case: 'glade-solo-floor',
+    edits: [['src/data/monsters.js', 'hp: 70, atk: 18, def: 10, xp: 360,', 'hp: 70, atk: 72, def: 10, xp: 360,'], ['src/data/monsters.js', 'hp: 78, atk: 18, def: 11,', 'hp: 78, atk: 72, def: 11,']] },
   { name: 'the glade\'s coin doubled (it out-earns the Warrens)', case: 'glade-between',
     edits: [['src/data/monsters.js', 'xp: 165, gp: [4, 12]', 'xp: 165, gp: [8, 24]'], ['src/data/monsters.js', 'xp: 225, gp: [6, 18]', 'xp: 225, gp: [12, 36]'],
       ['src/data/monsters.js', 'xp: 260, gp: [4, 12]', 'xp: 260, gp: [8, 24]'], ['src/data/monsters.js', 'xp: 360, gp: [14, 34]', 'xp: 360, gp: [28, 68]'],

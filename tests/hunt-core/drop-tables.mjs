@@ -356,8 +356,11 @@ const casterMutants = [
 ];
 /* The Warrens floor's levers (src/data + the tier table in src/core/combat.js): each plays on a planted copy. */
 const warrensMutants = [
-  { name: 'the Warrens store food back to tier 4', edits: [['src/data/supplies.js', '  coppercap_warrens: Object.freeze({ tier: 3,', '  coppercap_warrens: Object.freeze({ tier: 4,']] },
-  { name: 'tier-3 blows back to the flat 5.4', edits: [['src/core/combat.js', 'monsterDamageScaleByTier: Object.freeze({ 3: 4.4, 4: 4.0,', 'monsterDamageScaleByTier: Object.freeze({ 4: 4.0,']] },
+  /* Store-by-slot (v0.2.30): the measured hero's bar names the guide's food (play-ground.mjs refBar), so the mutant
+     puts the guide back on the tier-4 Swordfish, as a player stocking by the old guide would. */
+  { name: 'the Warrens store food back to tier 4', edits: [['src/data/supplies.js', "  coppercap_warrens: Object.freeze({ tier: 3,\n    melee: melee('cooked_lobster', 80),",
+    "  coppercap_warrens: Object.freeze({ tier: 4,\n    melee: melee('cooked_swordfish', 80),"]] },
+  { name: 'tier-3 blows back to the flat 5.4', edits: [['src/core/combat.js', 'monsterDamageScaleByTier: Object.freeze({ 3: 4.0, 4: 4.0,', 'monsterDamageScaleByTier: Object.freeze({ 4: 4.0,']] },
   { name: 'the card offers the Warrens alone from 40', edits: [['src/data/hunt-grounds.js', '    soloFrom: 45,', '    soloFrom: 40,']] },
 ];
 const engineMutants = [

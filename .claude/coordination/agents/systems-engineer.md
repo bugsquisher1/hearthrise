@@ -4216,3 +4216,9 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 3. *A display clock anchored on "when the answer arrived" steps back whenever the server's number is older than the answer.* hunt_ms is time to the settle; run it on the server clock from settled_to.
 4. *"Ends at the next boundary" is not "stops now".* A death ended the party at each member's next swing boundary but the rest of the swing still ran: the survivor kited away. Stop the swing at the death's sub-step (world-step.js); the end stamping stays.
 5. *Python heredocs here can turn "\\n" into a real newline.* Use the Edit tool for any string with a backslash.
+
+## 2026-10-22 · lane/b-rare-broadcast (the rare-drop broadcast + the shareable card)
+1. *Hook the event row, not the settle body.* The settle writes `rare_drop` only for an item its fold looted (ledger high-water mark), so an AFTER INSERT trigger on hunt_session_events inherits replay safety and restates nothing another lane may be restating. Journal UNIQUE (event_id) and (session, item, instant) make it idempotent against any re-writer.
+2. *A sender stamp keyed on auth.uid() is a hidden dependency for server-written lines.* hr_chat_name_authority overwrites from_id with a signed-in caller; the trigger journals `refused` rather than post under a foreign JWT (§4(d) proves it).
+3. *selfcheck-no-global-dml cannot read `execute`.* Write privilege probes as static, probe-scoped statements, one begin/exception block each.
+4. *A client-rendered marker needs a trust boundary.* `[[hunt:id]]` names a hunt only on a System row (no player can write that channel); in a player's line it stays as typed.

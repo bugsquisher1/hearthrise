@@ -8,7 +8,8 @@
 //
 // BASIC FOR EVERYONE, MORE WITH PREMIUM (Tyler 2026-10-19, replacing the 10-17
 // "only premium sees it"): every character sees the BASIC block — session time,
-// kills, Level XP and Level XP/h, loot value and gold/h, supplies spent (own vs
+// kills, Level XP and Level XP/h, gold (coin received) and loot value (unsold) apart,
+// gold + loot value an hour, supplies spent (own vs
 // store), balance. The server's `premium` section adds the rest — next-level ETA,
 // Level XP before bonuses, waste, TRAINING XP by skill (its own tab; Tyler
 // 2026-10-22: a premium tab, never a popup over the heads), damage taken and

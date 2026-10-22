@@ -91,112 +91,10 @@
   }
  ],
  [
-  "raid_strike",
-  {
-   "p_clan_id": "00000000-0000-0000-0000-000000000000",
-   "p_week": "2026-W33",
-   "p_boss": "x",
-   "p_max_hp": 1,
-   "p_damage": 1
-  }
- ],
- [
-  "raid_claim",
-  {
-   "p_scope": "solo",
-   "p_clan_id": "00000000-0000-0000-0000-000000000000",
-   "p_week": "2026-W33"
-  }
- ],
- [
-  "raid_claim",
-  {
-   "p_scope": "solo",
-   "p_clan_id": "00000000-0000-0000-0000-000000000000",
-   "p_week": "2026-W33",
-   "p_slot": 0
-  }
- ],
- [
-  "world_event_contribute",
-  {
-   "p_event_key": "x"
-  }
- ],
- [
-  "world_event_contribute",
-  {
-   "p_event_key": "x",
-   "p_points": 1
-  }
- ],
- [
-  "world_event_join",
-  {
-   "p_event_key": "x"
-  }
- ],
- [
-  "world_event_claim",
-  {
-   "p_day_key": "2026-08-11"
-  }
- ],
- [
-  "world_event_claim",
-  {
-   "p_day_key": "2026-08-11",
-   "p_slot": 0
-  }
- ],
- [
-  "world_event_pledge",
-  {
-   "p_event_key": "x"
-  }
- ],
- [
-  "world_event_pledge_settle",
-  {
-   "p_day_key": "2026-08-11"
-  }
- ],
- [
-  "world_event_absence_claim",
-  {
-   "p_day_key": "2026-08-11"
-  }
- ],
- [
-  "hr_rally_pledge_state",
-  {}
- ],
- [
   "clan_contribute",
   {
    "p_clan_id": "00000000-0000-0000-0000-000000000000",
    "p_amount": 1
-  }
- ],
- [
-  "clan_board_claim",
-  {
-   "p_clan_id": "00000000-0000-0000-0000-000000000000",
-   "p_task_id": "t"
-  }
- ],
- [
-  "clan_board_progress",
-  {
-   "p_clan_id": "00000000-0000-0000-0000-000000000000",
-   "p_counter": "c",
-   "p_delta": 1
-  }
- ],
- [
-  "clan_board_roll",
-  {
-   "p_clan_id": "00000000-0000-0000-0000-000000000000"
   }
  ],
  [
@@ -221,31 +119,9 @@
   }
  ],
  [
-  "clan_hunt_declare",
-  {
-   "p_clan_id": "00000000-0000-0000-0000-000000000000",
-   "p_week": "2026-W33",
-   "p_tier": 1,
-   "p_boss": "x"
-  }
- ],
- [
   "clan_rested_grant",
   {
    "p_clan_id": "00000000-0000-0000-0000-000000000000"
-  }
- ],
- [
-  "clan_tier_up",
-  {
-   "p_clan_id": "00000000-0000-0000-0000-000000000000"
-  }
- ],
- [
-  "clan_tier_up",
-  {
-   "p_clan_id": "00000000-0000-0000-0000-000000000000",
-   "p_expect_tier": 2
   }
  ],
  [
@@ -292,13 +168,6 @@
    "p_clan_id": "00000000-0000-0000-0000-000000000000",
    "p_candidates": [],
    "p_hours": 24
-  }
- ],
- [
-  "clan_work_complete",
-  {
-   "p_clan_id": "00000000-0000-0000-0000-000000000000",
-   "p_order": "00000000-0000-0000-0000-000000000000"
   }
  ],
  [

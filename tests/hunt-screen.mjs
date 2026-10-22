@@ -51,8 +51,9 @@
 //   HS-11 A SLOT THAT NEVER FIRES: an earlier slot with the same action under
 //         weaker conditions marks it "!" with the reason; emptying it clears that
 //   HS-12 THE BAR PANEL holds target, stance, chase, distance and the gold to keep (nothing
-//         else); each is ONE intent, shows the server value (the gold field keeps it while in
-//         flight and after a refusal), survives a reload; no Hunt settings window
+//         else), folded out from the bar's Fight settings button (shut until pressed, then on
+//         top above the bar, 2026-10-22); each is ONE intent, shows the server value (the gold
+//         field keeps it while in flight and after a refusal), survives a reload; no Hunt settings window
 //   HS-13 no two hunt panels overlap at 1440x900 or on a narrower desktop, nor with a window docked
 //   HS-14 THE LEADER CHOOSES (Tyler 2026-10-20): a party member's hunt picker shows
 //         the leader's density read-only ("Set by Fingerguns: 7 each", the server's
@@ -501,8 +502,13 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
     { // HS-3 intent-only edits on the bar's panel: confirmed, then refused; HS-12 the panel holds what Hunt settings held, and there is no Hunt settings window
       const { ctx, page, s, up } = await open();
       if (up) {
-        /* Target, stance, chase and distance live on the bar's panel (Tyler 10-19). */
+        /* Target, stance, chase and distance live on the bar's panel (Tyler 10-19), folded out above the bar from its
+           Fight settings button (2026-10-22 de-boxing): shut at first, so the bar shows only the set's row. */
         const P = '.hb-plaque';
+        const folded = () => page.evaluate(() => getComputedStyle(document.querySelector('.hb-pl-more')).visibility);
+        if (await folded() !== 'hidden') fails.push('HS-12 the fight settings show on the desktop bar before its button is pressed');
+        await page.click(P + ' .hb-more');
+        if (!(await wait(page, () => getComputedStyle(document.querySelector('.hb-pl-more')).visibility === 'visible'))) fails.push('HS-12 the bar’s Fight settings button did not fold the settings out');
         await wait(page, (p) => document.querySelector(p + ' [data-opt="stance"]:not([disabled])'), P);
         const btn = P + ' [data-opt="stance"][data-val="offensive"]';
         /* What the server says once it has saved: it saves what it confirms AT its answer (s.onOptions), so
@@ -533,7 +539,12 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         s.optionsReply = { ok: true };
         const opts = await page.evaluate((p) => Array.from(new Set(Array.from(document.querySelectorAll(p + ' [data-opt]')).map((e) => e.getAttribute('data-opt')))).sort().join(), P);
         if (opts !== 'chase,distance,gold_floor,stance,target_mode') fails.push('HS-12 the panel holds ' + opts);
-        if (await page.evaluate(() => document.querySelector('.hb-plaque .hb-more').getClientRects().length > 0)) fails.push('HS-12 the phone sheet button shows on a desktop');
+        /* The fold-out stands above the bar (never over its slots) and is on top where it stands. */
+        const fold = await page.evaluate(() => { const m = document.querySelector('.hb-pl-more'), c = m.querySelector('[data-opt="target_mode"]');
+          const r = m.getBoundingClientRect(), b = document.querySelector('.hb-bar').getBoundingClientRect(), q = c.getBoundingClientRect();
+          const h = document.elementFromPoint(q.left + 6, q.top + 6);
+          return { above: r.height > 0 && r.bottom <= b.top, top: r.top >= 0 && r.right <= innerWidth, onTop: h === c || c.contains(h) }; });
+        if (!fold.above || !fold.top || !fold.onTop) fails.push('HS-12 the fight settings fold-out is not on top above the bar: ' + JSON.stringify(fold));
         await page.keyboard.press('j');
         await page.waitForTimeout(300);
         if (await page.$('[data-hs-win="hunt-settings"]')) fails.push('HS-12 a Hunt settings window still opens');
@@ -1717,6 +1728,7 @@ const MUTANTS = [
   ['a loot line that comes back is built again', 'src/shell/widgets/analyzer.js', '    keep: true,\n', ''],
   ['an atlas is decoded once per caller', 'src/world/atlas.js', 'heldImage(o.doc, url(p.image)),', "heldImage(o.doc, url(p.image) + '&n=' + Math.random()),"],
   ['the phone bar keeps the whole panel (HS-22)', 'src/styles/hunt.css', '  .hb-pl-more { position: fixed;', '  .hb-pl-more { display: contents; } .hb-xx { position: fixed;'],
+  ['the desktop bar keeps the settings form open (HS-12)', 'src/styles/hunt.css', 'transform: translateY(8px); visibility: hidden;', 'transform: translateY(8px); visibility: visible;'],
   ['the phone hub keeps the big medal (HS-22)', 'src/styles/hunt.css', '  .hb-medal, .hb-arcs { width: 64px; height: 64px; }', '  .hb-medal, .hb-arcs { width: 88px; height: 88px; }'],
   ['the world HUD stays under the alerts while a tooltip is open (HS-22)', 'src/styles/hunt.css', '.hb-plaque.is-open) { z-index: 7; }', '.hb-plaque.is-open) { z-index: 2; }'],
   ['the phone alerts dock on the left, over the Party panel (HS-22)', 'src/data/hud-widgets.js', "phone: Object.freeze({ anchor: 'br', dx: 4, dy: 104 }),", "phone: Object.freeze({ anchor: 'bl', dx: 4, dy: 160 }),"],

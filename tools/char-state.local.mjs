@@ -10,6 +10,7 @@
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { charLevelFromXp } from '../src/core/xp.js';
 import { lagVerdict, WATCHED_SQL } from './lib/hunt-lag.mjs';
 
 const tok = readFileSync(join(homedir(), '.supabase-token'), 'utf8').trim();
@@ -37,14 +38,16 @@ const W = `user_id = ${lit(id.user_id)} and slot = ${Number(id.slot)}`;
 const U = `user_id = ${lit(id.user_id)}`;
 
 const [sheet] = await rows('hr_character_sheets', W, '', 1);
+/* The Level the game shows (r09): player_state.level_xp on the shared curve, never the cached engine sheet's. */
+const [lx] = await q(`select level_xp from public.player_state where ${W}`);
 const hunts = await q(`select s.hunt_id, s.seat, s.unit_id, to_char(s.entered_at, 'HH24:MI') entered, to_char(s.ended_at, 'HH24:MI') ended, s.end_reason,
   s.leave_at is not null leaving, round(extract(epoch from now() - i.settled_to)) lag_s
   from public.hunt_sessions s left join public.hunt_instances i on i.id = s.instance_id where s.${W.replace(' and ', ' and s.')}
   order by s.entered_at desc limit 4`);
-console.log(`${id.name} · ${String(id.user_id).slice(0, 8)} slot ${id.slot}`);
+console.log(`${id.name} · ${String(id.user_id).slice(0, 8)} slot ${id.slot}` + (lx ? ` · Level ${charLevelFromXp(Number(lx.level_xp))} (${lx.level_xp} Level XP)` : ''));
 if (sheet && sheet.sheet) { const s = typeof sheet.sheet === 'string' ? JSON.parse(sheet.sheet) : sheet.sheet;
   const v = (x) => (x && typeof x === 'object' ? JSON.stringify(x) : x);
-  console.log(`  Level ${v(s.level)} ${s.role || ''} (${s.weapon_type || '?'}) · HP ${v(s.max_hp)} · mana ${v(s.max_mana)} · dmg ${v(s.damage)} · def ${v(s.defence)} · regen ${v(s.regen_pct)}% · speed ${v(s.move_speed)}`); }
+  console.log(`  cached engine sheet (${String(sheet.computed_at || '?').slice(0, 16)}; stale once the Level or gear moved): Level ${v(s.level)} ${s.role || ''} (${s.weapon_type || '?'}) · HP ${v(s.max_hp)} · mana ${v(s.max_mana)} · dmg ${v(s.damage)} · def ${v(s.defence)} · regen ${v(s.regen_pct)}% · speed ${v(s.move_speed)}`); }
 const watched = (await q(WATCHED_SQL)).some((r) => r.u === String(id.user_id));
 console.log('Hunts:');
 for (const h of hunts) console.log(`  ${h.ended ? '   ' : 'NOW'} ${h.hunt_id} seat ${h.seat} unit ${h.unit_id} ${h.entered}–${h.ended || '…'} ${h.end_reason || ''}${h.leaving ? ' (leaving)' : ''}${h.ended ? '' : ` · server lag ${h.lag_s}s${(() => { const v = lagVerdict({ lagS: Number(h.lag_s), watched }); return v.code === 'ok' ? ' (' + v.note + ')' : ' ' + v.note; })()}`}`);

@@ -13,15 +13,13 @@
 //   sockets    Food (how many the bag holds, the best one's icon) and Charm
 // EVERY hero has mana (ruling: 100 + 10 a level for everyone): the mana arc
 // and readout always show, carrying whatever the server sends. Every number
-// is the server's (CLAUDE.md §6): HP and mana from the envelope (the hunt
-// hero while hunting, its HP as the live timeline plays it, the same number
-// as the bar over its head; character-sections.js townVitalsOf out of one, mana
-// full there), stamina from staminaOf, regen, level and XP from the hunt section, the town's
-// Level (state.level_xp, character-sections.js levelOf). Built once, patched in place.
+// is the server's (CLAUDE.md §6): Level, XP, HP and mana from character-sections.js
+// heroVitalsOf, the ONE reader the Character tab shares (r09: the two said Level 4
+// and 11), stamina from staminaOf, regen from the hunt section. Built once, patched in place.
 // ════════════════════════════════════════════════════════════════════════
 import { CONSUMABLES } from '../../data/consumables.js?v=0.2.25';
-import { levelOf as levelRowOf, townVitalsOf } from '../../session/character-sections.js?v=0.2.25';
-import { huntOf, staminaOf, liveHpOf } from '../../session/hunt-sections.js?v=0.2.25';
+import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.25';
+import { huntOf, staminaOf } from '../../session/hunt-sections.js?v=0.2.25';
 import { bagOf } from '../../session/item-sections.js?v=0.2.25';
 import { text, attr } from '../../render/paint.js?v=0.2.25';
 import { whole, hoursMinutes } from '../../render/format.js?v=0.2.25';
@@ -73,14 +71,12 @@ export function patchHub(el, ctx) {
   const cs = ctx.character;
   const h = huntOf(cs);
   const hero = h && !h.ended ? h.hero : null;
-  /* Hunting, HP is the bar's over the hero's head (liveHpOf: the timeline at this instant), never the
-     last commit's. Out of a hunt (town, or a hunt that ended): the character's own vitals, mana full (Tyler 10-19). */
-  const live = hero ? liveHpOf(cs, hero.unit) : null;
-  const v = hero ? (live ? Object.assign({}, hero, { hp: live.hp, hpMax: live.maxHp }) : hero) : townVitalsOf(cs) || {};
+  /* heroVitalsOf: hunting, HP is the bar's over the hero's head (the live timeline), never the last
+     commit's; out of a hunt, the character's own vitals with mana full (Tyler 10-19). */
+  const v = heroVitalsOf(cs);
   const stam = staminaOf(cs);
-  const row = levelRowOf(cs);
-  const level = hero && ok(hero.level) ? hero.level : row ? row.level : null;
-  const xp = hero && ok(hero.xpPct) ? hero.xpPct : row && row.need > 0 ? row.into / row.need : null;
+  const level = v.level;
+  const xp = v.xpPct;
   const pair = (cur, max) => (ok(cur) && ok(max) ? whole(cur) + '/' + whole(max) : '–');
   /* Per second, one decimal (huntOf: manaPerS is the server's per-minute mana_regen over 60, hpPerS the engine's in-fight rate). */
   const regen = (r) => (ok(r) && r > 0 ? (r < 0.05 ? '+<0.1' : '+' + r.toFixed(1)) + '/s' : '');

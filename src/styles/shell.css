@@ -22,6 +22,8 @@
 /* ── Widgets: placed by src/shell/hud.js; faded per the layout, full on hover ── */
 .hs-widget { position: absolute; pointer-events: auto; opacity: var(--hs-op, 1); transition: opacity 120ms ease-out; }
 .hs-widget:hover, .hs-widget:focus-within { opacity: 1; }
+/* No room beside the docked windows (src/shell/hud.js clearOfDock): the widget waits, never under a window. */
+.hs-widget.is-under-dock { visibility: hidden; }
 
 /* ── The launcher row: icons only, a tooltip with label and key, the open one lit gold ── */
 .hs-launchers { display: flex; align-items: stretch; height: 40px; padding-left: 10px; background: var(--bg-1); border-left: 1px solid var(--line-soft); }

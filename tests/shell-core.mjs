@@ -317,6 +317,30 @@ async function runTests(mods) {
     ok(moved.every((q) => !over(placed, q)), 'the bar still overlaps an edge widget: ' + JSON.stringify(at));
     eq(at.push.map((p) => p.i), [1], 'only the analyzer (the one nearest the centre spot) steps down');
   });
+  t('H11 a docked window never covers a right-anchored widget: it slides left of the dock, else waits hidden (r11)', () => {
+    const over = (a, q) => a.left < q.left + q.width && a.left + a.width > q.left && a.top < q.top + q.height && a.top + a.height > q.top;
+    const an = { left: 1143, top: 12, width: 285, height: 300 }, party = { left: 12, top: 12, width: 258, height: 250 };
+    const chat = { left: 1028, top: 12, width: 400, height: 600 };
+    eq(HUD.clearOfDock(an, [], [party], 12), an.left, 'no dock, no move');
+    eq(HUD.clearOfDock(an, [{ left: 1028, top: 700, width: 400, height: 100 }], [party], 12), an.left, 'a window below its row moves nothing');
+    const x = HUD.clearOfDock(an, [chat], [party], 12);
+    ok(x !== null && !over(Object.assign({}, an, { left: x }), chat) && !over(Object.assign({}, an, { left: x }), party), 'the analyzer must clear the chat and the party: ' + x);
+    eq(x, 1028 - 12 - 285, 'it sits right beside the dock');
+    /* a dock and a party that leave no room: it waits hidden rather than sit under a window */
+    eq(HUD.clearOfDock(an, [{ left: 400, top: 0, width: 1040, height: 900 }], [party], 12), null, 'no room left: null');
+    /* never onto the hero: the stage (the centre of the inset's frame) is an obstacle like a window */
+    const stage = HUD.stageOf({ left: 270, right: 297, top: 48, bottom: 195 }, { width: 1440, height: 900 });
+    eq([stage.left + stage.width / 2, stage.top + stage.height / 2], [706.5, 376.5].map(Math.round), 'the stage sits at the centre of the uncovered frame');
+    const wide = { left: 868, top: 12, width: 560, height: 700 };
+    eq(HUD.clearOfDock(an, [wide], [party], 12, [stage]), null, 'no room right of the middle at 1440: it waits hidden, never crosses the fight');
+    const wideBox = HUD.stageOf({ left: 270, right: 297, top: 48, bottom: 195 }, { width: 1920, height: 1080 });
+    const an2 = { left: 1623, top: 12, width: 285, height: 300 };
+    const z = HUD.clearOfDock(an2, [{ left: 1508, top: 12, width: 400, height: 600 }], [party], 12, [wideBox]);
+    ok(z !== null && !over(Object.assign({}, an2, { left: z }), wideBox), 'at 1920 the analyzer sits beside the chat, clear of the middle: ' + z);
+    /* the centred pass clears the dock too, and never pushes a window */
+    const at = HUD.clearOfEdges({ left: 900, top: 8, width: 300, height: 40 }, [party], 1440, 12, [chat]);
+    ok(!over({ left: at.left, top: 8, width: 300, height: 40 }, chat) && at.push.every((p) => p.i < 1), 'the top bar must clear the dock: ' + JSON.stringify(at));
+  });
   t('H8 the contract is validated', () => {
     const bad = [W({ anchor: 'xx' }), W({ layer: 'sky' }), W({ opacity: 0.2 }), W({ when: 'night' }), W({ removable: false, visible: false }), W({ phone: { min: [1, 1] } })];
     for (const r of bad) { let threw = false; try { HUD.validateWidgetRows([r]); } catch (e) { threw = true; } ok(threw, 'must refuse ' + JSON.stringify(r)); }
@@ -372,7 +396,10 @@ const MUTANTS = [
   { test: 'H2', file: HUD_FILE, from: 'const clampOpacity = (v) => Math.max(OPACITY_MIN, Math.min(OPACITY_MAX, Number(v)));', to: 'const clampOpacity = (v) => Number(v);' },
   { test: 'H3', file: HUD_FILE, from: 'if (!row.removable) L.visible = true;', to: '' },
   { test: 'H4', file: HUD_FILE, from: "for (const k of SIZE_CLASSES) if (k !== cls && isObj(all[k])) next[k] = all[k];\n    store.write(next);\n    load();", to: 'store.write({});\n    load();' },
-  { test: 'H10', file: HUD_FILE, from: "return { left: Math.round(left), push: hits(left).map(({ i }) => ({ i, top: Math.round(r.top + r.height + gap) })) };", to: 'return { left: Math.round(r.left), push: [] };' },
+  { test: 'H10', file: HUD_FILE, from: "return { left: Math.round(left), push: hits(left).filter(({ i }) => i < edges.length).map(({ i }) => ({ i, top: Math.round(r.top + r.height + gap) })) };", to: 'return { left: Math.round(r.left), push: [] };' },
+  { test: 'H11', file: HUD_FILE, from: '  if (!dock.some((q) => hit(r.left, q))) return r.left;', to: '  return r.left;' },
+  { test: 'H11', file: HUD_FILE, from: '    if (stops.some((q) => hit(x, q))) return null;\n', to: '' },
+  { test: 'H11', file: HUD_FILE, from: '  const row = edges.concat(fixed).map(', to: '  const row = edges.map(' },
   { test: 'H9', file: HUD_FILE, from: "if (v === 'b') out.bottom = Math.max(out.bottom, box.height - r.top);", to: "if (v === 'b') out.bottom = Math.max(out.bottom, 0);" },
   { test: 'R1', file: 'src/session/residue.js', from: "  hudLayout: sanitizeHudLayout,", to: '  hudLayout: (v) => v,' },
   { test: 'R2', file: HUD_FILE, from: "write(next) { if (character) character.setResidue('hudLayout', next); },", to: 'write(next) {},' },

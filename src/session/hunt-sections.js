@@ -18,8 +18,8 @@
 // read makes that ROW null, not the whole section.
 // ════════════════════════════════════════════════════════════════════════
 
-import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.25';
-import { VITALS } from '../data/core-model.js?v=0.2.25';
+import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.26';
+import { VITALS } from '../data/core-model.js?v=0.2.26';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -202,27 +202,60 @@ const total = (v) => {
 /* { item: count } as rows, largest first (ties by id). */
 const rowsOf = (o, fn) => Object.entries(counts(o)).filter(([k]) => str(k)).sort((x, y) => y[1] - x[1] || (x[0] < y[0] ? -1 : 1)).slice(0, 100).map(fn);
 
-/* One analyzer view (hr_hunt_analyzer: kills, xp {skill: n}, raw_xp {skill: n}, gold, waste, balance,
-   per_hour, supplies { own: {item: n}, store: {item: n}, store_gold }, loot {item: n}, taken / dealt
-   { total, byMonster | byAbility, byElement }). */
+/* LEVEL XP AND TRAINING XP ARE NEVER ADDED TOGETHER (Tyler 2026-10-22: "divvy up level exp vs training
+   exp"). The server's xp / raw_xp maps carry the Level under `level` and each combat skill under its id;
+   the Level's is one figure, the skills' are the training rows (premium's Training tab). */
+const levelOf = (m) => (isObj(m) ? (num(m.level) ?? 0) : null);
+const trainingOf = (m) => (isObj(m) ? Object.entries(m).filter(([k]) => k !== 'level') : []);
+
+/* One analyzer view (hr_hunt_analyzer: kills, xp {level|skill: n}, raw_xp {level|skill: n}, gold, waste,
+   balance, per_hour { xp: Level, raw_xp: Level, training_xp: the skills }, skills { skill: { per_hour } }
+   (the hero's, premium), supplies { own: {item: n}, store: {item: n}, store_gold }, loot {item: n},
+   taken / dealt { total, byMonster | byAbility, byElement }). */
 function viewOf(v) {
   if (!isObj(v)) return null;
   const ph = isObj(v.per_hour) ? v.per_hour : {};
   const sup = isObj(v.supplies) ? v.supplies : {};
   const tk = isObj(v.taken) ? v.taken : {};
   const dl = isObj(v.dealt) ? v.dealt : {};
+  const sk = isObj(v.skills) ? v.skills : {};
+  const train = trainingOf(v.xp).filter(([k, n]) => str(k) && num(n) !== null && n > 0);
   return {
-    kills: num(v.kills), xp: total(v.xp), rawXp: total(v.raw_xp), gold: num(v.gold), waste: num(v.waste), balance: num(v.balance),
+    kills: num(v.kills), levelXp: levelOf(v.xp), rawLevelXp: levelOf(v.raw_xp), gold: num(v.gold), waste: num(v.waste), balance: num(v.balance),
+    trainingXp: isObj(v.xp) ? total(Object.fromEntries(train)) : null,
+    /* Each combat skill trained this session, most first: its XP and (the hero's, rated) its XP an hour. */
+    training: train.sort((x, y) => y[1] - x[1] || (x[0] < y[0] ? -1 : 1)).slice(0, 16)
+      .map(([skill, n]) => ({ skill, xp: n, perHour: isObj(sk[skill]) ? num(sk[skill].per_hour) : null })),
     /* `rated`: the server sent rates. It sends none (per_hour null) until the session has
        ANALYZER_RATE_AFTER_MS of wall time (2026-11-06-hunt-analyzer-min-window.sql). */
     rated: isObj(v.per_hour),
-    perHour: { xp: total(ph.xp), rawXp: total(ph.raw_xp), gold: num(ph.gold), waste: num(ph.waste), balance: num(ph.balance) },
+    perHour: { levelXp: num(ph.xp), rawLevelXp: num(ph.raw_xp), trainingXp: num(ph.training_xp), gold: num(ph.gold), waste: num(ph.waste), balance: num(ph.balance) },
     supplies: rowsOf(sup.own, ([item, n]) => ({ item, source: 'own', count: n, gold: 0 }))
       .concat(rowsOf(sup.store, ([item, n]) => ({ item, source: 'store', count: n, gold: null }))),
     loot: rowsOf(v.loot, ([item, n]) => ({ item, count: n, value: null })),
     takenByMonster: counts(tk.byMonster), takenByElement: counts(tk.byElement),
     dealtByAbility: counts(dl.byAbility), dealtByElement: counts(dl.byElement),
   };
+}
+
+/* One mode's personal best ({ xp_h, balance_h }, whole numbers an hour), or null. */
+const bestOf = (b) => (isObj(b) && int(b.xp_h) !== null && int(b.balance_h) !== null ? { xpH: b.xp_h, balanceH: b.balance_h } : null);
+
+/**
+ * `hunt_bests` (hr_hunt_bests_view): THIS hero's best XP per hour and best balance per hour on each
+ * ground, solo and party apart, from its finished hunts of at least `min_ms` (each figure its own best).
+ * { minMs, grounds: { [hunt]: { solo: {xpH, balanceH}|null, party: ...|null } } }, or null (nothing sent).
+ */
+export function huntBestsOf(cs) {
+  const b = section(cs, 'hunt_bests');
+  if (!b || int(b.min_ms) === null || b.min_ms <= 0) return null;
+  const grounds = {};
+  if (isObj(b.grounds)) {
+    for (const [hunt, m] of Object.entries(b.grounds).slice(0, 256)) {
+      if (str(hunt) && isObj(m)) grounds[hunt] = { solo: bestOf(m.solo), party: bestOf(m.party) };
+    }
+  }
+  return { minMs: b.min_ms, grounds };
 }
 
 /** `hunt_analyzer`: the server's session stats, hero and party. Null for a free character or no hunt. */
@@ -236,5 +269,25 @@ export function analyzerOf(cs) {
   const lvEta = isObj(a.hero.level) ? num(a.hero.level.eta_h) : null;
   const next = lvEta !== null && lvEta > 0 ? Math.round(lvEta * 3600000) : null;
   const sess = isObj(a.session) ? a.session : {};
-  return { sessionMs: num(a.hunt_ms), nextLevelMs: next, ended: typeof sess.ended_at === 'string', hero, party: viewOf(a.party) };
+  const settled = str(sess.settled_to) ? Date.parse(sess.settled_to) : NaN;
+  return { sessionMs: num(a.hunt_ms), settledMs: Number.isFinite(settled) ? settled : null, nextLevelMs: next,
+    ended: typeof sess.ended_at === 'string', hero, party: viewOf(a.party) };
+}
+
+/** A character's server clock now (ms), or null before it has one or for a reader without one. */
+export const serverNowOf = (cs) => (cs && typeof cs.serverNow === 'function' ? cs.serverNow() : null);
+
+/**
+ * THE HUNT'S SESSION CLOCK (ms) at the server instant `serverNowMs` (CharacterSession.serverNow): the
+ * server's `hunt_ms` is the time hunted up to its last settle (`settled_to`), so the clock runs on from
+ * THAT instant on the server's clock. Every answer restates the same instant, so the clock never steps
+ * back (live v0.2.23, Andy: it ran from the answer's arrival and fell back by the settle lag, up to 10 s,
+ * on every answer between settles). An ended hunt, or no server clock yet, reads `hunt_ms` as sent. Pure.
+ * @param {ReturnType<typeof analyzerOf>} a
+ * @param {number|null} serverNowMs
+ */
+export function sessionClockMs(a, serverNowMs) {
+  if (!a || a.sessionMs === null) return null;
+  if (a.ended || a.settledMs === null || !Number.isFinite(serverNowMs)) return a.sessionMs;
+  return a.sessionMs + Math.max(0, serverNowMs - a.settledMs);
 }

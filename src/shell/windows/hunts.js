@@ -41,18 +41,18 @@
 // server's `leader_density`) with no step, and the server refuses a member's
 // density (hr_action_set_options `not_leader`).
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf, settingsOf } from '../../session/hunt-sections.js?v=0.2.25';
-import { bagOf } from '../../session/item-sections.js?v=0.2.25';
-import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.25';
-import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.25';
-import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.25';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.25';
-import { whole } from '../../render/format.js?v=0.2.25';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.25';
-import { itemName } from '../widgets/bits.js?v=0.2.25';
-import { runIntent, refusalText } from '../intent-words.js?v=0.2.25';
-import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.25';
-import { huntRows, densityWords, bandWords, rangeWords, groupWords, recommendedHunt, heroWords, packFor, partyNote, ABOVE_LEVEL_WORDS } from '../hunt-list.js?v=0.2.25';
+import { huntOf, settingsOf, huntBestsOf } from '../../session/hunt-sections.js?v=0.2.26';
+import { bagOf } from '../../session/item-sections.js?v=0.2.26';
+import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.26';
+import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.26';
+import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.26';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.26';
+import { whole } from '../../render/format.js?v=0.2.26';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.26';
+import { itemName } from '../widgets/bits.js?v=0.2.26';
+import { runIntent, refusalText } from '../intent-words.js?v=0.2.26';
+import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.26';
+import { huntRows, densityWords, bandWords, rangeWords, groupWords, recommendedHunt, heroWords, packFor, partyNote, bestWords, ABOVE_LEVEL_WORDS } from '../hunt-list.js?v=0.2.26';
 
 const SCRATCH = new WeakMap();
 /* `draft` is the density shown before the server has it ({ n, preset }), `timer` its coalescing
@@ -138,6 +138,7 @@ function lineHtml(r) {
   return '<li class="hw-hunt" role="option" data-hs-act="pick" data-hunt="' + esc(r.hunt) + '" tabindex="-1">'
     + '<span class="hw-hunt-main"><b class="hw-hunt-name">' + esc(r.name) + '</b><small class="hw-hunt-theme">' + esc(r.theme) + '</small>'
     + '<small class="hw-hunt-band"></small><small class="hw-hunt-warn"></small><small class="hw-hunt-facts"></small>'
+    + '<span class="hw-hunt-best"><small class="hw-hunt-best-solo"></small><small class="hw-hunt-best-party"></small></span>'
     + '<small class="hw-hunt-pack"></small><small class="hw-hunt-party"></small>'
     + '<span class="hw-density" role="group" aria-label="Density"><span class="hw-density-label">Density</span>'
     + '<span class="hh-step"><button type="button" class="hh-seg" data-hs-act="density" data-by="-1" data-hunt="' + esc(r.hunt) + '" aria-label="Fewer monsters">−</button>'
@@ -161,6 +162,8 @@ renderHunts.patch = function patchHunts(body, ctx) {
   if (!sc.pick && list.length) { const rec = recommendedHunt(level, size, list); sc.pick = rec ? rec.hunt : list[0].hunt; }
   const pack = packFor(bagOf(cs));
   const set = settingsOf(cs);
+  /* This hero's personal bests, the server's (hunt_bests); null = the server sent none, the lines stay empty. */
+  const bests = huntBestsOf(cs);
   /* "On the way to …" is the intent's answer, not the hunt's state: once the server's hunt section
      says the hero is hunting (or the hunt is over), the line below speaks for it (Tyler 10-19). */
   if (sc.msg && sc.msg === sc.enterMsg && (now || (h && h.ended))) { sc.msg = ''; sc.enterMsg = null; }
@@ -183,6 +186,10 @@ renderHunts.patch = function patchHunts(body, ctx) {
       /* the floor is a warning (Tyler 10-18): words only, Enter stays the server's to refuse */
       text(li.querySelector('.hw-hunt-warn'), [rangeWords(r, level), groupWords(r, size)].filter(Boolean).join(' '));
       text(li.querySelector('.hw-hunt-pack'), on ? packWords(pack) : '');
+      const best = bestWords(bests, r.hunt);
+      text(li.querySelector('.hw-hunt-best-solo'), best ? best.solo : '');
+      text(li.querySelector('.hw-hunt-best-party'), best ? best.party : '');
+      prop(li.querySelector('.hw-hunt-best'), 'hidden', !best);
       /* The picked ground's party rule, from ITS row (Tyler 10-19: the Rat King's note). */
       const note = li.querySelector('.hw-hunt-party');
       const said = on ? partyNote(r.hunt) : '';

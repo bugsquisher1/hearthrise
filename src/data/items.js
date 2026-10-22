@@ -1,14 +1,14 @@
 // ITEMS — extracted from hearthrise-phaseA.html
 
-import { GEAR_ITEMS } from './gear-tiers.js?v=0.2.25';
-import { WAVE3_ITEMS } from './wave3-uniques.js?v=0.2.25';
-import { SLOT_ITEMS } from './slot-ladders.js?v=0.2.25';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.25';
-import { LIB2_ITEMS } from './library2-items.js?v=0.2.25';
-import { STONECRAFT_ITEMS } from './stonecraft.js?v=0.2.25';
-import { BOSS_FORGE_ITEMS } from './boss-forge.js?v=0.2.25';
-import { CHAMPION_ITEMS } from './champions.js?v=0.2.25';
-import { DRINK_ITEMS } from './drinks.js?v=0.2.25';
+import { GEAR_ITEMS } from './gear-tiers.js?v=0.2.26';
+import { WAVE3_ITEMS } from './wave3-uniques.js?v=0.2.26';
+import { SLOT_ITEMS } from './slot-ladders.js?v=0.2.26';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.26';
+import { LIB2_ITEMS } from './library2-items.js?v=0.2.26';
+import { STONECRAFT_ITEMS } from './stonecraft.js?v=0.2.26';
+import { BOSS_FORGE_ITEMS } from './boss-forge.js?v=0.2.26';
+import { CHAMPION_ITEMS } from './champions.js?v=0.2.26';
+import { DRINK_ITEMS } from './drinks.js?v=0.2.26';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×
@@ -671,11 +671,11 @@ export const ITEMS={
      2026-09-12: tier 8 shares 88 rather than opening a rung above it), which is
      the form BOTH readers see: gearWieldReq prefers an explicit reqLv over the
      array, and gen-catalogues mirrors it into hr_items for hr_apply §EQUIPMENT. */
-  regent_helm:           {n:'Hollow Regent Helm',  icon:'⛑️', v:108000, type:'armor', slot:'helmet', defB:59, rarity:'unique', tier:8, reqSkill:'defense', reqLv:88},
-  slagheart_platebody:   {n:'Slagheart Platebody', icon:'🦺', v:270000, type:'armor', slot:'body',   defB:120,rarity:'unique', tier:8, reqSkill:'defense', reqLv:88},
-  abyssal_greaves:       {n:'Abyssal Greaves',     icon:'🦿', v:198000, type:'armor', slot:'pants',  defB:85, rarity:'unique', tier:8, reqSkill:'defense', reqLv:88},
-  choirbone_gauntlets:   {n:'Choirbone Gauntlets', icon:'🧤', v:63000,  type:'armor', slot:'gloves', defB:31, rarity:'unique', tier:8, reqSkill:'defense', reqLv:88},
-  warden_girdle:         {n:"Warden's Girdle",     icon:'🟫', v:72000,  type:'armor', slot:'belt',   defB:40, rarity:'unique', tier:8, reqSkill:'defense', reqLv:88},
+  regent_helm:           {n:'Hollow Regent Helm',  icon:'⛑️', v:108000, type:'armor', slot:'helmet', defB:59, armourClass:'plate', rarity:'unique', tier:8, reqSkill:'defense', reqLv:88},
+  slagheart_platebody:   {n:'Slagheart Platebody', icon:'🦺', v:270000, type:'armor', slot:'body',   defB:120,armourClass:'plate', rarity:'unique', tier:8, reqSkill:'defense', reqLv:88},
+  abyssal_greaves:       {n:'Abyssal Greaves',     icon:'🦿', v:198000, type:'armor', slot:'pants',  defB:85, armourClass:'plate', rarity:'unique', tier:8, reqSkill:'defense', reqLv:88},
+  choirbone_gauntlets:   {n:'Choirbone Gauntlets', icon:'🧤', v:63000,  type:'armor', slot:'gloves', defB:31, armourClass:'plate', rarity:'unique', tier:8, reqSkill:'defense', reqLv:88},
+  warden_girdle:         {n:"Warden's Girdle",     icon:'🟫', v:72000,  type:'armor', slot:'belt',   defB:40, armourClass:'plate', rarity:'unique', tier:8, reqSkill:'defense', reqLv:88},
   wyrmgilt_mantle:       {n:'Wyrmgilt Mantle',     icon:'🦸', v:90000,  type:'armor', slot:'cape',   defB:14, atkB:6, rarity:'unique', tier:8, reqSkill:'defense', reqLv:88},
 
   /* ── DUNGEON SIGNATURE LOOT (b268 — the boss ecosystem, increment 1) ──────
@@ -773,13 +773,14 @@ Object.keys(GEAR_ITEMS).forEach((id) => {
   const generated = GEAR_ITEMS[id];
   const live = ITEMS[id];
   if (!live || live === generated) return;
-  if (live.tier == null) live.tier = generated.tier;
-  if (live.rarity == null) live.rarity = generated.rarity;
-  if (live.reqSkill == null) live.reqSkill = generated.reqSkill;
-  if (live.reqLv == null) live.reqLv = generated.reqLv;
-  /* The weapon's role and hands (Tyler 2026-10-19: Healer = staff, Mage = wand + spellbook). */
-  if (live.discipline == null && generated.discipline) live.discipline = generated.discipline;
-  if (live.twoHanded == null && generated.twoHanded) live.twoHanded = true;
+  /* EVERY field of the generated rung the hand-authored row leaves unset (2026-10-21);
+     the row's own values always win. A field-by-field list forgot armourClass (vitals.js
+     reads it: iron plate gave LESS max HP than bronze) and the style fields (plate's
+     rangeAtkB/magicAtkB penalty, leather's rangeAtkB/critB). tests/catalogue-coherence.mjs
+     C8 holds every rung to its line. */
+  for (const k of Object.keys(generated)) {
+    if (live[k] == null && generated[k] != null) live[k] = generated[k];
+  }
 });
 
 /* ══════════════════════════════════════════════════════════════════════

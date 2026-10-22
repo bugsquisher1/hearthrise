@@ -22,6 +22,8 @@
 /* ── Widgets: placed by src/shell/hud.js; faded per the layout, full on hover ── */
 .hs-widget { position: absolute; pointer-events: auto; opacity: var(--hs-op, 1); transition: opacity 120ms ease-out; }
 .hs-widget:hover, .hs-widget:focus-within { opacity: 1; }
+/* No room beside the docked windows (src/shell/hud.js clearOfDock): the widget waits, never under a window. */
+.hs-widget.is-under-dock { visibility: hidden; }
 
 /* ── Players online (widgets/online.js): one quiet line on the world, a small green dot, the server's number ── */
 .hs-online { display: flex; align-items: center; gap: 6px; margin: 0; padding: 2px 8px; background: var(--bg-1); font-size: var(--t-micro); color: var(--ink-2); white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }

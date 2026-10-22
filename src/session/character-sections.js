@@ -20,7 +20,8 @@
 //                   its progress are read off it on the shared curve (src/core/xp.js, the
 //                   curve hr_char_level uses), never counted in the browser.
 // ════════════════════════════════════════════════════════════════════════
-import { charLevelFromXp, charXpForLevel } from '../core/xp.js?v=0.2.25';
+import { charLevelFromXp, charXpForLevel } from '../core/xp.js?v=0.2.26';
+import { huntOf, liveHpOf } from './hunt-sections.js?v=0.2.26';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -39,21 +40,20 @@ function combatOf(c) {
   const d = isObj(c.damage) ? c.damage : {};
   const x = isObj(c.xp) ? c.xp : {};
   return {
-    role: id(c.role), weaponType: id(c.weapon_type),
-    maxMana: nat(c.max_mana), moveSpeed: nat(c.move_speed),
+    role: id(c.role), weaponType: id(c.weapon_type), moveSpeed: nat(c.move_speed),
     damage: nat(d.min) !== null && nat(d.max) !== null ? { min: d.min, max: d.max } : null,
     accuracyPct: num(c.accuracy_pct), critPct: num(c.crit_pct), defence: int(c.defence), regenPct: num(c.regen_pct),
     xp: { perks: num(x.perks), buffs: num(x.buffs), combat: num(x.combat) },
   };
 }
 
-/** `character_sheet`, or null. `combat` is null until the engine's sheet is fresh. */
+/** `character_sheet`, or null. `combat` is null until the engine's sheet is fresh. Its Level and max HP
+    are NOT read: those come from heroVitalsOf, the one reader the HUD shares (r09). */
 export function characterSheetOf(cs) {
   const s = read(cs, 'character_sheet');
   if (!isObj(s)) return null;
   const b = isObj(s.bestiary) ? s.bestiary : null;
   return {
-    level: nat(s.level), maxHp: nat(s.max_hp), maxMana: nat(s.max_mana),
     bestiary: b && nat(b.slain) !== null && nat(b.total) ? { slain: b.slain, total: b.total } : null,
     fresh: s.fresh === true,
     combat: s.fresh === true ? combatOf(s.combat) : null,
@@ -71,17 +71,37 @@ export function levelOf(cs) {
 }
 
 /**
- * The vitals strip OUT OF A HUNT (in town, or after a hunt ended): HP from `state.hp`, max HP and
- * max mana from the server's `vitals`, and mana FULL (mana lives only inside a hunt instance; out of
- * one there is nothing spending it). { hp, hpMax, mana, manaMax, level, xpPct }, or null.
+ * THE HERO'S NUMBERS (r09: the Character tab said Level 4 while the HUD said 11). The ONE reader of
+ * Level, its progress, HP, max HP, mana and max mana: the HUD's vitals hub, the Character tab, the
+ * character strip, the command centre and the party panel's own seat all draw these from here, so
+ * two places can never show two numbers. Each comes from ONE server field, never a second derivation:
+ *   level, into, need, xpPct   `state.level_xp` on the shared curve (levelOf). A pushed frame restates
+ *                              `state` and never `vitals`, `hunt` or `character_sheet`, so state is
+ *                              the freshest copy of the Level the record holds.
+ *   hp, hpMax, mana, manaMax   IN A HUNT the hunt hero's (HP as the live timeline plays it: the bar
+ *                              over its head; the engine raises max HP at a Level-up mid-hunt);
+ *                              OUT OF ONE `state.hp` / `state.max_hp`, then max mana from `vitals`
+ *                              with mana FULL (mana lives only inside a hunt instance).
+ * A number the server did not send is null, never a default. Pure.
  */
-export function townVitalsOf(cs) {
+export function heroVitalsOf(cs) {
+  const lv = levelOf(cs);
+  const out = { hunting: false, level: lv ? lv.level : null, into: lv ? lv.into : null, need: lv ? lv.need : null,
+    xpPct: lv && lv.need > 0 ? Math.max(0, Math.min(1, lv.into / lv.need)) : null,
+    hp: null, hpMax: null, mana: null, manaMax: null };
+  const h = huntOf(cs);
+  const hero = h && !h.ended ? h.hero : null;
+  if (hero) {
+    const live = liveHpOf(cs, hero.unit);
+    return Object.assign(out, { hunting: true, hp: live ? live.hp : hero.hp, hpMax: live ? live.maxHp : hero.hpMax,
+      mana: hero.mana, manaMax: hero.manaMax });
+  }
   const st = read(cs, 'state');
   const v = read(cs, 'vitals');
-  if (!isObj(st) || !isObj(v) || nat(v.max_hp) === null) return null;
-  const lv = levelOf(cs);
-  return { hp: nat(st.hp), hpMax: v.max_hp, mana: nat(v.max_mana), manaMax: nat(v.max_mana), level: nat(v.level),
-    xpPct: lv && lv.need > 0 ? Math.max(0, Math.min(1, lv.into / lv.need)) : null };
+  const hpMax = isObj(st) && nat(st.max_hp) !== null ? st.max_hp : isObj(v) ? nat(v.max_hp) : null;
+  const hp = isObj(st) ? nat(st.hp) : null;
+  const manaMax = isObj(v) ? nat(v.max_mana) : null;
+  return Object.assign(out, { hp, hpMax, mana: manaMax, manaMax });
 }
 
 /** `outfit`: { worn, colors, owned: Set }, or null. */

@@ -26,14 +26,14 @@
 // PURE (no DOM). The caller owns the clock.
 // ════════════════════════════════════════════════════════════════════════
 
-import { simulateHuntInstance } from '../core/combat-sim.js?v=0.2.25';
-import { memberSide, frozenSide } from '../core/member.js?v=0.2.25';
-import { huntGroundOf } from '../core/hunt-ground.js?v=0.2.25';
-import { huntTimeline, worldHash } from '../core/hunt-track.js?v=0.2.25';
-import { encode as encodeWorldRow, decodeStored as decodeWorldRow } from '../core/hunt/world-state.js?v=0.2.25';
-import { COMBAT_BALANCE } from '../core/combat.js?v=0.2.25';
-import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.25';
-import { stepCost } from '../core/hunt/grid.js?v=0.2.25';
+import { simulateHuntInstance } from '../core/combat-sim.js?v=0.2.26';
+import { memberSide, frozenSide } from '../core/member.js?v=0.2.26';
+import { huntGroundOf } from '../core/hunt-ground.js?v=0.2.26';
+import { huntTimeline, worldHash } from '../core/hunt-track.js?v=0.2.26';
+import { encode as encodeWorldRow, decodeStored as decodeWorldRow } from '../core/hunt/world-state.js?v=0.2.26';
+import { COMBAT_BALANCE } from '../core/combat.js?v=0.2.26';
+import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.26';
+import { stepCost } from '../core/hunt/grid.js?v=0.2.26';
 
 /* How many swings of world hashes are kept to judge a server commit against. */
 const KEEP_HASHES = 64;
@@ -248,7 +248,10 @@ export function createLiveEngine(o) {
       const v = this.check(hc);
       if (v === 'match' && hc.seeds && isInt(hc.seeds.from) && Array.isArray(hc.seeds.list)) {
         const from = hc.seeds.from, list = hc.seeds.list;
-        const keepFrom = Math.min(st.seeds.from, from);
+        /* A seed below the prediction's next swing is never read again (swing() reads its own index and up),
+           so it is dropped: kept from the first seed ever sent, the list and this merge grew with the hunt's
+           age, every commit (tests/hunt-live.mjs LV-G). */
+        const keepFrom = Math.max(Math.min(st.seeds.from, from), st.world ? st.world.swing : st.worldSwing);
         const merged = [];
         for (let i = keepFrom; i < from + list.length; i++) {
           merged.push(i >= from ? list[i - from] : st.seeds.list[i - st.seeds.from]);
@@ -297,6 +300,8 @@ export function createLiveEngine(o) {
       for (const x of (st ? st.sides : [])) for (const [id, n] of Object.entries(x.itemDelta || {})) out[id] = (out[id] || 0) + n;
       return out;
     },
+    /** How many combat seeds the prediction holds (tests: bounded by the look-ahead, never by the hunt's age). */
+    heldSeeds: () => (st ? st.seeds.list.length : 0),
     /** The hash of the prediction's world at a swing (tests). */
     hashAt: (swingIndex) => (st ? st.hashes.get(swingIndex) ?? null : null),
     stop() { st = null; },

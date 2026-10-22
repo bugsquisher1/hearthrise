@@ -4198,3 +4198,11 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 2. *Defaults belong in the one system.* Eat-at / drink-at, an ability's whenBelowPct and areaMin became DEFAULT CONDITIONS of slots, so there is one decision path and the editor shows them as slots.
 3. *A rule id must be what the player sees.* Defaults are placed in the first empty tablet on both sides (engine placeDefaults, SQL settings view), so a decision event's rule id is the tablet index.
 4. *HP scaling moves every pinned kill rate.* Re-pin with the rate measured and the ruled hours kept, never the other way round.
+
+
+## 2026-10-21 · lane/a-firefox-perf (hunt page perf in Firefox/Chromium, analyzer clock, party death)
+1. *A page harness that shifts the engine's clock must shift EVERY instant.* World cooldowns, lanes and pack respawns (and a peer's frozen session) hid past 1e12 inside the start point; shifting only the top-level fields made every party prediction diverge in the harness and looked like a real bug. Shift every number past 1e12 and re-hash the world.
+2. *An emit cascade is a perf bug.* One answer emitted, its alert wrote residue (emit), the recorder wrote residue (emit): the world pane drew the canvas and repainted the shell 2-3 times per answer. Coalesce per task (queueMicrotask) where the expensive listener lives; never draw a frame synchronously when the rAF loop is already running.
+3. *A display clock anchored on "when the answer arrived" steps back whenever the server's number is older than the answer.* hunt_ms is time to the settle; run it on the server clock from settled_to.
+4. *"Ends at the next boundary" is not "stops now".* A death ended the party at each member's next swing boundary but the rest of the swing still ran: the survivor kited away. Stop the swing at the death's sub-step (world-step.js); the end stamping stays.
+5. *Python heredocs here can turn "\\n" into a real newline.* Use the Edit tool for any string with a backslash.

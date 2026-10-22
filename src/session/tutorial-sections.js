@@ -6,10 +6,10 @@
 // is the same after a reload, on another device, and while the browser was
 // closed (CLAUDE.md §6). The rules live in src/data/hunt-tutorial.js currentCard.
 // ════════════════════════════════════════════════════════════════════════
-import { currentCard } from '../data/hunt-tutorial.js?v=0.2.25';
-import { levelOf } from './character-sections.js?v=0.2.25';
-import { huntOf, settingsOf } from './hunt-sections.js?v=0.2.25';
-import { skillsOf } from './item-sections.js?v=0.2.25';
+import { currentCard } from '../data/hunt-tutorial.js?v=0.2.26';
+import { levelOf } from './character-sections.js?v=0.2.26';
+import { huntOf, settingsOf } from './hunt-sections.js?v=0.2.26';
+import { skillsOf } from './item-sections.js?v=0.2.26';
 
 /** The facts currentCard judges, or null until the server has told the Level XP. */
 function tutorialFactsOf(cs) {

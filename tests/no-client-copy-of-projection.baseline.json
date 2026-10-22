@@ -19,6 +19,7 @@
       "hero_slots",
       "hunt",
       "hunt_analyzer",
+      "hunt_bests",
       "hunt_presets",
       "hunt_settings",
       "inventory",
@@ -83,5 +84,5 @@
       "workers_accrued_to"
     ]
   },
-  "generatedAt": "2026-10-19"
+  "generatedAt": "2026-10-22"
 }

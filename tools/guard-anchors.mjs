@@ -70,7 +70,7 @@ const SKIP_DIRS = new Set(['node_modules', '.git', '.pglite-cache', '.ci-local']
 const REGEX_AFTER = new Set(['(', ',', '=', ':', '[', '!', '&', '|', '?', '{', '}', ';', '+', '-', '*', '%', '<', '>', '~', '^', '\n']);
 const REGEX_KEYWORDS = /(?:^|[^\w$])(return|typeof|case|do|else|in|of|new|delete|void|throw|yield|await)$/;
 
-function lex(src) {
+export function lex(src) {
   const strings = [];
   const regexes = [];
   let i = 0;
@@ -199,7 +199,7 @@ function directives(src) {
 }
 
 /** Every repo file (relative, forward slashes) the guard's code names. */
-function referencedFiles(root, rel, src, lexed = lex(src)) {
+export function referencedFiles(root, rel, src, lexed = lex(src)) {
   const out = new Set();
   const dir = dirname(join(root, rel));
   const add = (abs) => { if (isFile(abs)) { const r = toRel(root, abs); if (!r.startsWith('..')) out.add(r); } };

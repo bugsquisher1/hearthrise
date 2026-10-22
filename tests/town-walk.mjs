@@ -640,7 +640,7 @@ const PURE_MUTANTS = [
   ['a stale list still shows people', 'src/session/town-presence.js', ' || this._now() - this._readAt > this.limits.staleMs', ''],
   ['the list is merged, not replaced', 'src/session/town-presence.js', 'this._walkers = b.off ? [] : list;', 'this._walkers = this._walkers.concat(list);'],
   ['the walkers are not capped', 'src/session/town-presence.js', '      if (list.length >= this.limits.cap) break;\n', ''],
-  ['viewing another character leaves town', 'src/session/town-presence.js', '    this._parked = true;\n', '    this.show(null); return;\n'],
+  ['viewing another character leaves town', 'src/session/town-presence.js', '    if (!this._map) { this.stand(); return; }\n    this._parked = true;\n', '    if (!this._map) { this.stand(); return; }\n    this.show(null); return;\n'],
   ['a parked character never keeps alive', 'src/session/town-presence.js', '      if (this._want && this._now() - this._sentAt >= this.limits.keepaliveMs) this._flush(true);\n      return;', '      return;'],
   ['a parked character that hunts stays in town', 'src/session/town-presence.js', '      if (this._busy()) { this._home = this._arrival || this._home || this._want || this._sent; this._leave(); return; }\n', ''],
   ['back from a hunt a parked body stands where it stood before', 'src/session/town-presence.js', 'this._home = this._arrival || this._home || this._want || this._sent;', 'this._home = this._home || this._want || this._sent;'],

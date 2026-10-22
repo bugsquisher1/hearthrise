@@ -398,7 +398,7 @@ const MUTANTS = [
   ['C8', 'a docked HUD panel shows the void past the map', 'src/world/core/camera.js', [['    if (span >= v) c = hold(', '    if (false) c = hold(']]],
   ['C2', 'the camera rounded to art pixels', 'src/world/core/camera.js', [['const cx = Math.round(cam.x * z), cy', 'const cx = Math.round(cam.x) * z, cy']]],
   ['L1', 'the lint accepts offsets', 'src/world/core/map-compile.js', [["k !== 'id' && k !== 'x' && k !== 'y'", "k !== 'id' && k !== 'x' && k !== 'y' && k !== 'ox'"]]],
-  ['L0', 'a map row edited without its hash', 'src/data/world/maps/mill_cellar.js', [["    '###...................##',\n", "    '###.......#...........##',\n"]]],
+  ['L0', 'a map row edited without its hash', 'src/data/world/maps/mill_cellar.js', [["    '########################',\n    '###...................##',\n", "    '########################',\n    '###.......#...........##',\n"]]],
   ['P1', 'diagonals cut corners', 'src/world/core/path.js', [['if (dx && dy) return walkable', 'if (false) return walkable']]],
   ['W1', 'a lone tile stops melting', 'src/world/core/wang.js', [['up >= 3 ? 1 : 0', 'up >= 1 ? 1 : 0']]],
   ['W3', 'a fill floor hashed into seams', 'src/world/core/compose.js', [['const n = fill ? (y % fill[1]) * fill[0] + (x % fill[0]) : x * 7 + y * 13;', 'const n = x * 7 + y * 13;']]],

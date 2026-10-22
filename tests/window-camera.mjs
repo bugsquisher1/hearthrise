@@ -5,7 +5,7 @@
 //   node tests/window-camera.mjs           the rules, in a real Chromium
 //   node tests/window-camera.mjs --mutate  every planted defect must turn a rule RED
 //
-// mutant-anchors: src/shell/window-manager.js src/shell/shell.js src/world/core/camera.js src/world/render/canvas-backend.js src/styles/world.css
+// mutant-anchors: src/shell/window-manager.js src/shell/shell.js src/world/core/camera.js src/world/render/canvas-backend.js src/styles/world.css src/hunt-view/scene.js
 // mutant-writes-tree: no — mutants are served overrides
 //
 // Tyler's playtest, 2026-10-18 (v0.2.1), on play.html with supabase-js and the
@@ -36,13 +36,22 @@
 //         every tab leaves the action bar exactly where it stood with Settings open on
 //         its first page; on desktop that is its home (bottom-centre) and the docked
 //         window ends above it
+//   WC-7  THE HUNT CAMERA IS ON THE VIEWED HERO (Tyler 2026-10-22, "this is ridiculous": the
+//         viewed hero stood at the analyzer's edge, most of the World empty cave wall). At
+//         2000x790, a party of four on Coppercap Warrens, two of them this account's (Wrenna,
+//         seat 1, not the leader; tyler, seat 3): town -> hunt -> switch hero -> town -> hunt ->
+//         switch back. In every hunt the camera follows the viewed hero's unit, which stands
+//         within one tile of the middle of the World the party panel, analyzer, hunt bar and
+//         action bar leave uncovered, unless that part already meets the room's edge on the
+//         hero's side; and that part never shows past the room
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
+import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { harnessFail, judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
+import WARRENS from '../src/data/world/maps/coppercap_warrens.js';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -152,6 +161,143 @@ async function settingsTabs(page, tag, fails, home) {
   }
   await page.keyboard.press('Escape');
   await settle(page);
+}
+
+/* ── WC-7: the hunt camera ──
+   A party of four on Coppercap Warrens (Tyler's 2026-10-22 screenshot): slot 0 plays Wrenna (seat 1, not the
+   leader), slot 1 plays tyler (seat 3). Spot A is the Tool Store at the room's east edge, B the Copper Face
+   mid-room. Each slot's server answer is s.env[slot]; a pushed frame that skips a version makes it re-read. */
+const PARTY = [['Brannoc', 'shield'], ['Wrenna', 'bow'], ['Fingerguns', 'staff'], ['tyler', 'wand']];
+const SEAT_OF = { 0: 1, 1: 3 };
+const SPOTS = { A: [[52, 10], [53, 11], [50, 12], [49, 15]], B: [[37, 8], [36, 9], [34, 8], [35, 10]] };
+function huntEnvFor(slot, spot) {
+  const e = clone(FIXTURE), seat = SEAT_OF[slot], at = SPOTS[spot];
+  e.name = PARTY[seat][0];
+  e.account = { max_concurrent: 4 };
+  e.state = Object.assign({}, e.state, { active_kind: 'combat', active_id: 'coppercap_warrens' });
+  e.hunt = Object.assign({}, e.hunt, { hunt_id: 'coppercap_warrens', hero: Object.assign({}, e.hunt.hero, { unit: seat + 1, name: PARTY[seat][0] }),
+    pose: { at_ms: e.hunt.pose.at_ms, units: at.map(([x, y], i) => ({ u: i + 1, side: 'hero', x, y }))
+      .concat([{ u: 101, side: 'monster', kind: 'goblin_skulker', x: at[0][0] + 1, y: at[0][1] - 1 }]) } });
+  e.hunt_track = [];
+  e.hunt_events = [];
+  const m0 = e.party.members[0];
+  e.party = { leader: 1, self: seat + 1, self_seat: seat, leader_seat: 0, open: true,
+    members: PARTY.map(([name, weapon], i) => Object.assign({}, m0, { unit: i + 1, seat: i, name, weapon, aggro: i === 0 })) };
+  return e;
+}
+const townEnvFor = (slot) => Object.assign(townEnv(), { name: PARTY[SEAT_OF[slot]][0], account: { max_concurrent: 4 } });
+
+async function stubSlots(page, s) {
+  await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
+  await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
+  await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
+    const name = r.request().url().split('?')[0].split('/').pop();
+    const body = JSON.parse(r.request().postData() || '{}');
+    const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
+    const slot = body.p_slot ?? body.slot ?? 0;
+    const env = () => (s.env[slot] ? Object.assign(clone(s.env[slot]), { version: ++s.version }) : { ok: false, error: 'no_character' });
+    if (name === 'hr_load') return json(env());
+    if (name === 'hr-accrue') return json(s.env[slot] ? Object.assign({ accrued: true }, env()) : { accrued: false });
+    if (name === 'hr_town_walkers') return json({ ok: true, map: body.p_map, cap: 40, walkers: [] });
+    if (name === 'hr_chat_recent') return json({ ok: true, zone: 'local:town', party: null, lines: [] });
+    if (name === 'hr_social_state') return json({ ok: true, friends: [], incoming: [], outgoing: [], blocks: [] });
+    if (name === 'hr_whispers_recent') return json({ ok: true, lines: [] });
+    return json({ ok: true });
+  });
+}
+/* Both slots answer `spot` (a hunt spot, or 'town') from now on, and both re-read (each character keeps its push topic). */
+async function moveBoth(page, s, spot) {
+  for (const slot of [0, 1]) s.env[slot] = spot === 'town' ? townEnvFor(slot) : huntEnvFor(slot, spot);
+  for (const slot of [0, 1]) {
+    s.version += 2;
+    await page.evaluate(([topic, f, st]) => window.__hub.send(topic, { t: 'delta', frame: f, patch: { state: st } }), ['hr:' + UID + ':' + slot, s.version, s.env[slot].state]);
+  }
+}
+/* The World as it stands: the scene, the unit the camera follows, the viewed hero's tile on screen, the part of
+   the World the four hunt panels leave uncovered (their own boxes) and the room's edges, in client px. */
+const huntView = (page, tile) => page.evaluate(([tx, ty, mw, mh]) => {
+  const w = window.__world, s = w.stats();
+  const c = document.querySelector('#panel-world canvas').getBoundingClientRect();
+  const box = (id) => { const e = document.querySelector('[data-hs-widget="' + id + '"]'); const r = e && e.getBoundingClientRect(); return r && r.width > 0 ? r : null; };
+  const party = box('party'), an = box('analyzer'), top = box('hunt-topbar'), bar = box('action-bar');
+  const sz = 32 * s.z / s.dpr, p = w.screenOf(tx, ty), o = w.screenOf(0, 0), e = w.screenOf(mw - 1, mh - 1);
+  return { kind: s.kind, map: s.scene, unit: s.hunt && s.hunt.hero ? s.hunt.hero.unit : null, tile: sz,
+    p: p && [p.x, p.y], open: [party ? party.right : c.left, top ? top.bottom : c.top, an ? an.left : c.right, bar ? bar.top : c.bottom],
+    room: o && e && [o.x - sz / 2, o.y - sz / 2, e.x + sz / 2, e.y + sz / 2] };
+}, [tile[0], tile[1], WARRENS.rows[0].length, WARRENS.rows.length]);
+/* WC-7 on one view: `unit` is the viewed hero's, standing on `tile`. */
+function centred(v, who, unit) {
+  if (v.kind !== 'hunt' || v.map !== 'coppercap_warrens' || !v.p || !v.room) return ['WC-7 ' + who + ': the World is not on the Warrens hunt (' + v.kind + ' ' + v.map + ')'];
+  const out = [];
+  if (v.unit !== unit) out.push('WC-7 ' + who + ': the camera follows unit ' + v.unit + ', not the viewed hero (unit ' + unit + ')');
+  for (const [ax, i] of [['x', 0], ['y', 1]]) {
+    const lo = v.open[i], hi = v.open[i + 2], rlo = v.room[i], rhi = v.room[i + 2], off = v.p[i] - (lo + hi) / 2;
+    const atEdge = off > 0 ? Math.abs(hi - rhi) <= 2 : Math.abs(lo - rlo) <= 2;
+    if (Math.abs(off) > v.tile && !atEdge) out.push('WC-7 ' + who + ' stands ' + (off / v.tile).toFixed(1) + ' tiles off the middle of the uncovered World on ' + ax + ', no room edge there (uncovered ' + [lo, hi].map(Math.round) + ', room ' + [rlo, rhi].map(Math.round) + ')');
+    if (rhi - rlo > hi - lo && (lo < rlo - 2 || hi > rhi + 2)) out.push('WC-7 ' + who + ': the uncovered World shows past the room on ' + ax + ' (uncovered ' + [lo, hi].map(Math.round) + ', room ' + [rlo, rhi].map(Math.round) + ')');
+  }
+  return out;
+}
+
+async function huntCamera(browser, base) {
+  const fails = [];
+  const s = { env: { 0: townEnvFor(0), 1: townEnvFor(1) }, version: 1 };
+  const ctx = await browser.newContext({ viewport: { width: 2000, height: 790 } });
+  const page = await ctx.newPage();
+  page.setDefaultTimeout(6000);
+  const errors = [];
+  page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+  page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
+  try {
+    await stubSlots(page, s);
+    await page.goto(base + '/play.html', { waitUntil: 'load', timeout: 30000 });
+    await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
+    await page.fill('input[name=email]', 'qa@example.test');
+    await page.fill('input[name=password]', 'not-a-real-password');
+    await page.click('.auth-submit');
+    /* A press that shows slot n mounts a new pane; its runtime is the one the hook names (the old one is forgotten first). */
+    const show = async (sel, n) => {
+      await page.evaluate(() => { window.__world = null; });
+      await page.click(sel);
+      return wait(page, (k) => document.querySelector('#panel-world[data-slot="' + k + '"]') && window.__world && window.__world.stats().frames > 0 && document.querySelector('.hs-launchers'), n);
+    };
+    await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
+    await show('[data-app="play"][data-slot="0"]', 0);
+    await page.click('[data-app="characters"]');
+    await wait(page, () => document.querySelector('[data-app="play"][data-slot="1"]'));
+    await show('[data-app="play"][data-slot="1"]', 1);
+    if (!(await show('.char-tab[data-slot="0"]', 0)) || !(await wait(page, () => window.__world.stats().kind === 'town'))) { fails.push('WC-7 Wrenna\'s town did not mount'); return fails; }
+    /* A hunt view settles when the scene is the Warrens with a hero and the hunt panels are up (then the camera's ease). */
+    const inHunt = async () => {
+      const ok = await wait(page, () => { const t = window.__world.stats(); return t.kind === 'hunt' && t.scene === 'coppercap_warrens' && t.hunt && t.hunt.hero
+        && document.querySelector('[data-hs-widget="analyzer"]') && document.querySelector('[data-hs-widget="party"]'); });
+      await page.waitForTimeout(450);
+      return ok;
+    };
+    const steps = [
+      ['Wrenna, the hunt starting on screen (spot A, the east edge)', 'A', null, 0],
+      ['tyler, switched to mid-hunt (spot A)', null, 1, 1],
+      ['tyler, back in town', 'town', null, 1],
+      ['tyler, the next hunt (spot B, mid-room)', 'B', null, 1],
+      ['Wrenna, switched back mid-hunt (spot B)', null, 0, 0],
+    ];
+    let spot = null;
+    for (const [who, move, to, slot] of steps) {
+      if (move) { spot = move; await moveBoth(page, s, move); }
+      if (to !== null && !(await show('.char-tab[data-slot="' + to + '"]', to))) { fails.push('WC-7 ' + who + ': the switch did not show slot ' + to); break; }
+      if (spot === 'town') {
+        if (!(await wait(page, () => window.__world.stats().kind === 'town' && window.__world.stats().walk))) fails.push('WC-7 ' + who + ': the town did not come back');
+        continue;
+      }
+      if (!(await inHunt())) { fails.push('WC-7 ' + who + ': the Warrens hunt did not mount'); continue; }
+      const seat = SEAT_OF[slot];
+      fails.push(...centred(await huntView(page, SPOTS[spot][seat]), who, seat + 1));
+    }
+  } finally {
+    if (errors.length) fails.push('WC-7 console errors: ' + errors.slice(0, 3).join(' | '));
+    await ctx.close();
+  }
+  return fails;
 }
 
 async function checks(overrides) {
@@ -306,6 +452,7 @@ async function checks(overrides) {
       if (errors.length) fails.push('WC-6 [' + tag + '] console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
+    fails.push(...(await huntCamera(browser, base)));   // WC-7
   } catch (e) {
     /* a step that threw is HARNESS, never a rule (2026-10-22, tests/_mutant-verdict.mjs) */
     fails.push(harnessFail('a page step', e));
@@ -327,6 +474,9 @@ const MUTANTS = [
   ['the canvas shrinks beside the windows', 'src/shell/shell.js', '  function onWm() {\n', '  function onWm() {\n    doc.querySelector(\'#panel-world canvas\').style.width = wm.openIds().length ? \'60%\' : \'\';\n'],
   ['a modal evicts the oldest docked window', 'src/shell/window-manager.js', '    if (!isModal(id)) while (sheets().length >= MAX_OPEN) drop(sheets()[0]);', '    while (open.length >= MAX_OPEN) drop(open[0]);'],
   ['a name is not a target', 'src/world/render/canvas-backend.js', '      const hits = named.concat(', '      const hits = [].concat('],
+  ['the hunt camera holds the whole view on the room again: the hero hugs the analyzer (WC-7)', 'src/world/core/camera.js', "const rule = { wholeView: map.kind !== 'hunt' };", 'const rule = { wholeView: true };'],
+  ['a pane mounted mid-hunt never hears the HUD inset (WC-7)', 'src/shell/shell.js', 'insetListeners.add(fn); fn(insetNow());', 'insetListeners.add(fn);'],
+  ['the hunt camera follows the party leader, not the viewed hero (WC-7)', 'src/hunt-view/scene.js', 'viewed: h && h.hero.unit !== null ? h.hero.unit :', 'viewed: p && p.leader !== null ? p.leader :'],
 ];
 
 async function main() {
@@ -334,7 +484,7 @@ async function main() {
     const fails = await checks(null);
     for (const f of fails) console.log('  ✗ ' + f);
     console.log(fails.length ? 'window-camera: ' + fails.length + ' rule(s) RED'
-      : 'window-camera: the X closes; the dock never moves under the pointer; clicks in windows leave the World and the hero alone; windows float over the World; right-click on a player works');
+      : 'window-camera: the X closes; the dock never moves under the pointer; clicks in windows leave the World and the hero alone; windows float over the World; right-click on a player works; the hunt camera is on the viewed hero');
     process.exit(fails.length ? 1 : 0);
   }
   const clean = await cleanControl(() => checks(null));

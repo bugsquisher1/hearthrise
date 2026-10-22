@@ -10,9 +10,9 @@
 // another; a body re-renders on refresh(id). The World never pauses: windows
 // are not modal and have no backdrop.
 //
-// THE CAMERA INSET: every change to the World edges the docked HUD widgets
-// cover (the bottom bar, the top bar, the side panels; hud.js hudInsetOf) is handed to
-// onInset(fn) subscribers as {left, right, top, bottom} and dispatched as
+// THE CAMERA INSET: the World edges the docked HUD widgets cover (the bottom
+// bar, the top bar, the side panels; hud.js hudInsetOf) are handed to an
+// onInset(fn) subscriber at once, then on every change, as {left, right, top, bottom}; each change is dispatched as
 // `hearthrise:shell-inset` on the host, so the World calls its engine's
 // setInset and frames the hero and the target in the uncovered part.
 // WINDOWS ARE NEVER IN IT (Tyler 2026-10-19): they float over the World, so
@@ -421,7 +421,10 @@ export function mountShell(root, o) {
     /** Repaint the widgets and patch the open component windows (every applied envelope). */
     paint() { paintWidgets(); for (const id of wm.openIds()) if (WINDOW_RENDERERS[id] && WINDOW_RENDERERS[id].patch) refresh(id); },
     inset: () => insetNow(),
-    onInset(fn) { insetListeners.add(fn); return () => insetListeners.delete(fn); },
+    /* A subscriber hears the inset as it is NOW, then every change: the mount already published it to
+       nobody, and publishInset only repeats a change, so a pane mounted mid-hunt (a reload, a switch of
+       the viewed hero) framed the hero in the whole stage, under the party panel and the analyzer. */
+    onInset(fn) { insetListeners.add(fn); fn(insetNow()); return () => insetListeners.delete(fn); },
     menu: ctx.menu,
     destroy() {
       offDeaths(); offWm(); offHud();

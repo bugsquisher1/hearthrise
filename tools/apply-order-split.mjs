@@ -3,7 +3,8 @@
 //
 //   node tools/apply-order-split.mjs --add <file.sql> [--note "STAGED — …"]
 //        place a new migration at the end of the apply order (seq = last + 10)
-//   node tools/apply-order-split.mjs --migrate [--onto origin/main]
+//   node tools/apply-order-split.mjs --migrate [--in <lane worktree>] [--onto origin/main]
+//        (run from a checkout that HAS this tool; --in defaults to the current directory)
 //        for a LANE BRANCH that still edits the old tests/schema-apply-order.json: merges
 //        <onto> into the lane and re-expresses the lane's own edits to the old file (new
 //        entries, note changes, removals, manifest fields) as entry files. Commits the merge.
@@ -17,7 +18,7 @@
 //        (seq = position × 10), verified, then the JSON is deleted.
 import { execFileSync } from 'node:child_process';
 import { readFileSync, existsSync, unlinkSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
 import {
   REPO_ROOT, DIR_REL, readEntries, loadApplyOrder, writeApplyOrder, writeEntry, writeManifest,
@@ -136,6 +137,7 @@ export function migrate(cwd, onto = 'origin/main') {
   const base = JSON.parse(baseText);
   const lane = JSON.parse(g('show', `HEAD:${OLD_REL}`));
   const delta = laneDelta(base, lane);
+  const laneFiles = g('diff', '--name-only', mb, 'HEAD').split('\n').filter(Boolean);
 
   try { g('merge', '--no-commit', '--no-ff', onto); } catch { /* conflicts are inspected below */ }
   const conflicted = g('diff', '--name-only', '--diff-filter=U').split('\n').filter(Boolean);
@@ -149,7 +151,11 @@ export function migrate(cwd, onto = 'origin/main') {
   g('commit', '-q', '-m', `merge ${onto}; apply-order edits re-expressed as entry files\n\n`
     + `node tools/apply-order-split.mjs --migrate: +${delta.added.length} entr${delta.added.length === 1 ? 'y' : 'ies'}`
     + ` (${delta.added.join(', ') || 'none'}), ${Object.keys(delta.notes).length} note(s), -${delta.removed.length}.`);
-  return { ok: true, msg: `merged ${onto}; ${delta.added.length} added, ${Object.keys(delta.notes).length} note change(s), ${delta.removed.length} removed — committed` };
+  /* The lane's own scripts that still READ the old file would fail at run time: name them. */
+  const stillOld = laneFiles.filter((f) => /\.(m?js|ya?ml)$/.test(f) && existsSync(join(cwd, f))
+    && /schema-apply-order\.json['"`]/.test(readFileSync(join(cwd, f), 'utf8')));
+  return { ok: true, msg: `merged ${onto}; ${delta.added.length} added, ${Object.keys(delta.notes).length} note change(s), ${delta.removed.length} removed — committed`
+    + (stillOld.length ? `\nWARNING: the lane's ${stillOld.join(', ')} still name${stillOld.length === 1 ? 's' : ''} tests/schema-apply-order.json — switch to loadApplyOrder() (tools/lib/apply-order.mjs) before it merges` : '') };
 }
 
 /* ── CLI ───────────────────────────────────────────────────────────────────── */
@@ -187,11 +193,11 @@ function cli() {
     return;
   }
   if (a.includes('--migrate')) {
-    const r = migrate(process.cwd(), val('--onto') || 'origin/main');
+    const r = migrate(resolve(val('--in') || process.cwd()), val('--onto') || 'origin/main');
     (r.ok ? console.log : console.error)(r.msg);
     process.exit(r.ok ? 0 : 1);
   }
-  console.error('usage: --add <file.sql> [--note …] | --migrate [--onto REF] | --verify <old.json> | --split');
+  console.error('usage: --add <file.sql> [--note …] | --migrate [--in DIR] [--onto REF] | --verify <old.json> | --split');
   process.exit(2);
 }
 

@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
-// tests/clan-journal-guard.mjs — F1 + F3, BEHAVIOURALLY.
+// tests/clan-journal-guard.mjs — F1, BEHAVIOURALLY.
+//
+// (F3, the clan board's unattributed progress, left with the board itself:
+// 2026-12-04-world-actions-cut.sql drops clan_board_progress, Tyler 2026-10-22.
+// Its probe J6-J9 and its two mutations went with it; clan_contribute stays.)
 //
 // THE INVARIANT (Security Engineer, 2026-08-13):
 //   "every RPC that writes a shared table emits a clan_ledger row in the
@@ -42,7 +46,7 @@
 // applies each mutation in the catalogue below to the REAL migration text and
 // demands that every one is CAUGHT. An anchor that does not match exactly once
 // aborts as a HARNESS failure — a planted bug that was never planted is the
-// same defect as a probe that is always null. FOUR of the seven mutations are
+// same defect as a probe that is always null. THREE of the five mutations are
 // caught ONLY at runtime (the migration's own self-check passes on them), which
 // is what makes this file worth more than the do$$ blocks it sits on top of.
 //
@@ -63,7 +67,6 @@ const argOf = (n, d) => {
 };
 
 const DAY_CAP_GOLD = 10000000;
-const DAY_CAP_BOARD = 5000;
 
 // ════════════════════════════════════════════════════════════════════════
 // THE MUTATION CATALOGUE. `where` records whether the migration's own
@@ -99,17 +102,7 @@ const MUTATIONS = {
     ]]]],
   },
 
-  board_no_journal: {
-    what: 'clan_board_progress moves a shared counter and records nobody — F3 exactly as found',
-    where: 'gate',
-    patches: [['clan-board-attribution', [[
-      `    insert into public.clan_ledger (clan_id, user_id, kind, item_id, qty)
-      values (p_clan_id, v_uid, 'board_progress', p_counter, v_n);`,
-      `    null;  -- MUTATED board_no_journal`,
-    ]]]],
-  },
-
-  // ── The three below model the failure mode the handoff calls "a self-check
+  // ── The two below model the failure mode the handoff calls "a self-check
   //    that only tests its own file's terms cannot detect a LATER file undoing
   //    it". Each is appended to the LAST migration in the chain, so both new
   //    files apply and pass their own commit gates first.
@@ -126,39 +119,6 @@ alter table public.clan_ledger drop constraint if exists clan_ledger_kind_check;
 alter table public.clan_ledger add constraint clan_ledger_kind_check
   check (kind in ('deposit','labour','tier','withdraw','upkeep','feast','board',
                   'rested','role','member'));`,
-    ]]]],
-  },
-
-  later_file_restores_old_board_progress: {
-    what: 'a later migration create-or-replaces clan_board_progress__ungated back to the pre-fix body — unattributed and uncapped again',
-    where: 'runtime',
-    patches: [['anon-rate-gate', [[
-      `
-drop table if exists _hr_gate_buckets_before;`,
-      `
-drop table if exists _hr_gate_buckets_before;
--- MUTATED later_file_restores_old_board_progress
-create or replace function public.clan_board_progress__ungated(p_clan_id uuid, p_counter text, p_delta integer)
-returns jsonb language plpgsql security definer set search_path to 'public' as $mut$
-declare
-  c_call_clamp constant int := 500;
-  v_day  text := public.hr_utc_day_key();
-  v_week text := public.hr_utc_week_key();
-  v_n    int;
-begin
-  if auth.uid() is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
-  if p_counter is null or p_delta is null or p_delta <= 0 then
-    return jsonb_build_object('ok', false, 'error', 'bad_amount');
-  end if;
-  v_n := least(p_delta, c_call_clamp);
-  update public.clan_board b
-     set progress = least(b.target, b.progress + v_n)
-    from public.hr_castle_board_tasks t
-   where b.clan_id = p_clan_id and b.period_key in (v_day, v_week)
-     and t.task_id = b.task_id and t.counter = p_counter and b.progress < b.target;
-  return jsonb_build_object('ok', true, 'accepted', v_n,
-    'tasks', public.hr_clan_board_rows(p_clan_id, v_day, v_week));
-end $mut$;`,
     ]]]],
   },
 
@@ -268,53 +228,6 @@ begin
   select treasury into t2 from public.clans where id = c;
   return jsonb_build_object('ok', r->>'ok', 'n0', n0, 'n1', n1, 'n2', n2,
                             't0', t0, 't1', t1, 't2', t2);
-end $$;
-
--- BOARD: one clan, one member, a daily task with a target far above the cap.
-create or replace function public.__probe_board() returns jsonb
-language plpgsql as $$
-declare
-  a uuid := public.__mkuser('board');
-  -- A SECOND member for the no-op probe. Member a has already spent its
-  -- 60/minute RPC-gate budget below, and a rate_limited answer is not the
-  -- answer the no-op assertion is asking about — it would pass for the
-  -- wrong reason.
-  z uuid := public.__mkuser('board-noop');
-  c uuid; v_task text; v_counter text;
-  r_first jsonb; r_last jsonb; r_noop jsonb;
-  i int; n int; s bigint; u uuid; p bigint; n_noop int;
-begin
-  select t.task_id, t.counter into v_task, v_counter
-    from public.hr_castle_board_tasks t where t.live and not t.weekly
-    order by t.task_id limit 1;
-  insert into public.clans (name, created_by) values ('Jg Board', a) returning id into c;
-  insert into public.clan_members (clan_id, user_id, role) values (c, a, 'leader');
-  insert into public.clan_members (clan_id, user_id, role) values (c, z, 'member');
-  insert into public.clan_board (clan_id, task_id, period_key, target, progress)
-    values (c, v_task, public.hr_utc_day_key(), ${DAY_CAP_BOARD} * 100, 0);
-
-  perform set_config('request.jwt.claim.sub', a::text, true);
-  r_first := public.clan_board_progress(c, v_counter, 500);
-  for i in 1..59 loop
-    r_last := public.clan_board_progress(c, v_counter, 500);
-  end loop;
-
-  select count(*), coalesce(sum(qty),0) into n, s
-    from public.clan_ledger where clan_id = c and kind = 'board_progress';
-  select l.user_id into u from public.clan_ledger l
-    where l.clan_id = c and l.kind = 'board_progress' limit 1;
-  select progress into p from public.clan_board where clan_id = c and task_id = v_task;
-
-  delete from public.clan_ledger where clan_id = c;
-  perform set_config('request.jwt.claim.sub', z::text, true);
-  r_noop := public.clan_board_progress(c, '__no_such_counter__', 500);
-  select count(*) into n_noop
-    from public.clan_ledger where clan_id = c and kind = 'board_progress';
-  perform set_config('request.jwt.claim.sub', '', true);
-
-  return jsonb_build_object('first', r_first, 'sixtieth', r_last, 'noop', r_noop,
-    'ledger_rows', n, 'ledger_sum', s, 'ledger_attributed', u is not null,
-    'progress', p, 'noop_rows', n_noop, 'counter', v_counter);
 end $$;
 
 -- THE AUTHORITY SOURCE: can a client write the table the caps are read from?
@@ -468,22 +381,6 @@ async function run(mutationId) {
     at.ok === 'true' && at.n1 === at.n0 + 1 && at.n2 === at.n0
       && Number(at.t1) === Number(at.t0) + DAY_CAP_GOLD && Number(at.t2) === Number(at.t0),
     JSON.stringify(at));
-
-  // ── F3 ────────────────────────────────────────────────────────────────
-  const b = R((await one('select public.__probe_board() as r')).r);
-  check('J6  CONTROL · an honest 500 board submission is still accepted',
-    b.first?.ok === true && Number(b.first?.accepted) === 500,
-    JSON.stringify(b.first));
-  check('J7  the delta is journalled with a user_id and the counter name',
-    b.ledger_rows >= 1 && b.ledger_attributed === true,
-    `rows=${b.ledger_rows} attributed=${b.ledger_attributed}`);
-  check('J8  60 calls in a minute move 5,000, not 30,000, and the books agree',
-    Number(b.progress) === DAY_CAP_BOARD && Number(b.ledger_sum) === DAY_CAP_BOARD
-      && b.sixtieth?.error === 'daily_cap',
-    `progress=${b.progress} ledger=${b.ledger_sum} sixtieth=${JSON.stringify(b.sixtieth)}`);
-  check('J9  a submission that moves no task writes nothing and is charged nothing',
-    b.noop_rows === 0 && Number(b.noop?.accepted) === 0,
-    JSON.stringify(b.noop));
 
   // ── the authority source, and the vocabulary ───────────────────────────
   const lw = R((await one('select public.__probe_ledger_writable() as r')).r);

@@ -342,7 +342,7 @@ export async function readHuntSettle(o, mode) {
   for (const m of r.members) members.push(await memberInput(exec, m, inst));
   const partyRoles = members.map((m) => m._role).filter(Boolean);
   for (const m of members) {
-    m.hero = heroSetup({ weaponType: m._weaponType, options: m._options, bar: m._bar, partyRoles, lead: m._leads });
+    m.hero = heroSetup({ weaponType: m._weaponType, options: m._options, bar: m._bar, partyRoles, lead: m._leads, hold: m._hold });
     if (!m.hero) return { answer: { outcome: 'refused', reason: 'no_role', ...refusal(409, 'no_role') } };
   }
   /* Below the floor a player door that asked for the live view gets the instance's start point
@@ -411,6 +411,9 @@ async function memberInput(exec, m, inst) {
     _weaponType: weaponType, _options: options, _bar: m.session.bar, _role: pre ? pre.role : null,
     /* THE PARTY LEADER (hr_hunt_instance_read `leads`, 2026-11-01-party-leader-density.sql): its density is the pull. */
     _leads: m.leads === true,
+    /* WHO HOLDS THE PACK (Tyler 2026-10-22): the party's hold seat (hr_hunt_instance_read `hold_seat`, the server's
+       hunt_parties.hold_seat, set by the leader's hr_party_hold_set); null = the tanks take turns. */
+    _hold: Number.isInteger(inst.hold_seat) ? inst.hold_seat : null,
   };
 }
 

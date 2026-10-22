@@ -88,19 +88,30 @@ export function timeSteps(steps, speedOf, memo) {
 
 /**
  * WHO HOLDS THE PACK, LAP BY LAP (display only; bug #59, Andy 10-22: "the lead tank doesn't hold
- * aggro"). With two or more tanks ONE holds a lap and the holder moves on each lap; a tank far weaker
- * than the strongest never holds (src/core/hunt/targeting.js holderTank, both rules). Answers
- * Map(unit -> laps until it holds: 0 = this lap, or null = never, too weak) for every living tank of
- * `world`, by asking the engine's own holderTank of this lap and the next ones: never a second copy.
+ * aggro"). With two or more tanks ONE holds a lap: the leader's pick every lap (Tyler 2026-10-22,
+ * "One tank holds"), else the tanks take turns, less any far weaker than the strongest
+ * (src/core/hunt/targeting.js holderTank, every rule). Answers Map(unit -> turn) for every living
+ * tank of `world`: 'every' (holds this lap and every lap after), 'now' (this lap only),
+ * 'later-every' (every lap from the next: the leader's pick waits for the lap to end), a whole
+ * number (laps until its turn), 'guard' (another tank is the leader's pick) or 'weak' (out of the
+ * turns: too weak). Read by asking the engine's own holderTank of this lap and of the laps after it
+ * (the pending pick, world.holdNext, in force from the next), never a second copy of its rules.
  */
 export function tankTurnsOf(world) {
   const out = new Map();
   if (!world || !Array.isArray(world.units)) return out;
-  for (const u of world.units) if (u.alive && roleOf(u) && roleOf(u).tank) out.set(u.id, null);
+  const tanks = world.units.filter((u) => u.alive && roleOf(u) && roleOf(u).tank);
   const runs = isInt(world.runs) && world.runs > 0 ? world.runs : 0;
-  for (let lap = 0; lap < out.size; lap++) {
-    const h = holderTank({ world: Object.assign({}, world, { runs: runs + lap }) });
-    if (h && out.get(h.id) === null) out.set(h.id, lap);
+  const laps = [];
+  for (let lap = 0; lap <= tanks.length; lap++) {
+    const h = holderTank({ world: lap === 0 ? world : Object.assign({}, world, { runs: runs + lap, hold: world.holdNext }) });
+    laps.push(h ? h.id : null);
+  }
+  const later = laps.slice(1);
+  const picked = tanks.some((u) => u.id === world.holdNext);
+  for (const u of tanks) {
+    const now = laps[0] === u.id, every = later.length > 0 && later.every((id) => id === u.id), next = later.indexOf(u.id);
+    out.set(u.id, now && every ? 'every' : now ? 'now' : every ? 'later-every' : next >= 0 ? next + 1 : picked ? 'guard' : 'weak');
   }
   return out;
 }

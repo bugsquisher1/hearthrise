@@ -30,10 +30,13 @@ import { unitById, leaderOf } from './movement.js?v=0.2.31';
 import { makeEvent } from './events.js?v=0.2.31';
 
 /* holdMs: ms a Challenged monster stays on its challenger (no other Challenge takes it meanwhile).
-   The Challenge's cooldown is the ability's own clock (abilities.js `cds`). leaderLast: the leader's last target (TG-04). */
+   The Challenge's cooldown is the ability's own clock (abilities.js `cds`). leaderLast: the leader's last target (TG-04).
+   hold: the tank the party leader picked to hold the pack every lap (its unit; null = the tanks take turns), in
+   force this lap. holdNext: the leader's pick as the settle last read it (combat-sim.js), in force from the next
+   lap (pull-cycle.js nextPocket turns it at the lap boundary, never mid-pull). */
 export const PERSISTED = Object.freeze({
   unit: Object.freeze([['holdMs', 'int']]),
-  world: Object.freeze([['leaderLast', 'int?']]),
+  world: Object.freeze([['leaderLast', 'int?'], ['hold', 'int?'], ['holdNext', 'int?']]),
   pack: Object.freeze([]),
 });
 
@@ -121,23 +124,33 @@ export function peel(inst, sc, hero) {
    is NOT a tank (the overflow: a peel off the Healer), never one already on a tank.
    The holder rotates once a lap of the route (pull-cycle.js `runs`, which moves only
    after the last pocket's regroup, never mid-pull): the leader's tank first, then
-   the next tank by seat, so over laps every tank holds and trains Defense. */
+   the next tank by seat, so over laps every tank holds and trains Defense.
+   ONE TANK HOLDS (Tyler 2026-10-22, the party's "One tank holds"): the tank the
+   leader picked (world.hold) holds every lap while it stands in the hunt, whatever
+   the floor below; the others take only the overflow. With no pick, or once the
+   picked tank has left or fallen, the tanks still standing take turns. */
 const CHALLENGE_ROW = ABILITIES.challenge;
 const challengeReady = (k, atMs) => !(k.cds && Number.isInteger(k.cds.challenge) && k.cds.challenge > atMs);
 const isTank = (u) => !!(roleOf(u) && roleOf(u).tank);
 
 /**
- * THE LAP'S HOLDING TANK: the living tanks in seat (unit id) order, starting at the
- * leader's, rotated by the laps run. Null with no tank. A tank whose maxHp is under
- * CHALLENGE.holderMinHpPm of the strongest living tank's is not in the rotation
- * (designer 2026-10-21: an L9 holding for an L19 died). (A tank joining mid-lap, or
- * levelling past that floor, changes the rotation's length and can move the holder
- * at once: rare, and the next lap settles it.)
+ * Is tank `u` too weak to take a turn: its maxHp under CHALLENGE.holderMinHpPm of the strongest
+ * of the living tanks `living`'s (designer 2026-10-21: an L9 holding for an L19 died)?
+ */
+export const underHoldFloor = (u, living) => u.maxHp * 1000 < living.reduce((n, x) => Math.max(n, x.maxHp), 0) * CHALLENGE.holderMinHpPm;
+
+/**
+ * THE LAP'S HOLDING TANK: the leader's pick (world.hold) while it stands; else the living
+ * tanks in seat (unit id) order, starting at the leader's, rotated by the laps run, less
+ * any under the floor (underHoldFloor). Null with no tank. (A tank joining mid-lap, or
+ * levelling past that floor, changes the rotation's length and can move the holder at
+ * once: rare, and the next lap settles it.)
  */
 export function holderTank(inst) {
   const living = inst.world.units.filter((u) => u.alive && isTank(u));
-  const top = living.reduce((n, u) => Math.max(n, u.maxHp), 0);
-  const tanks = living.filter((u) => u.maxHp * 1000 >= top * CHALLENGE.holderMinHpPm).sort((a, b) => a.id - b.id);
+  const pick = Number.isInteger(inst.world.hold) ? living.find((u) => u.id === inst.world.hold) : null;
+  if (pick) return pick;
+  const tanks = living.filter((u) => !underHoldFloor(u, living)).sort((a, b) => a.id - b.id);
   if (!tanks.length) return null;
   const k = leaderOf(inst);
   const first = k ? Math.max(0, tanks.indexOf(k)) : 0;

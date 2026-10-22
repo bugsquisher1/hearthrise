@@ -106,11 +106,20 @@
 .hp-stats dt { color: var(--ink-3); }
 .hp-stats dd { margin: 0; font-weight: 700; font-variant-numeric: lining-nums tabular-nums; }
 /* The tank's turn at holding the pack (bug #59): its own line under the role; the holder's in the state gold. */
-.hp-turn { margin: 0; font-size: var(--t-micro); color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hp-turn { margin: 0; font-size: var(--t-micro); color: var(--ink-3); }
 .hp-turn.is-holding { color: var(--gold-2); }
 .hp-turn:empty { display: none; }
 .hp-tanks { margin: 8px 0 0; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.4; }
 .hp-tanks:empty { display: none; }
+/* Who holds the pack (party-hold.js): the leader's switch and its tanks; the others see it read-only, at full ink. */
+.hp-hold { margin: 8px 0 0; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.hp-hold[hidden], .hp-hold-tanks[hidden] { display: none; }
+.hp-hold-label { margin: 0; font-size: var(--t-micro); color: var(--ink-3); }
+.hp-hold-tanks { flex-wrap: wrap; max-width: 100%; }
+.hp-hold-narrow { display: none; }
+.hp-hold.is-read .hh-seg:disabled { opacity: 1; }
+.hp-hold-warn { margin: 4px 0 0; font-size: var(--t-micro); color: var(--red); }
+.hp-hold-warn:empty { display: none; }
 .hp-foot { margin: 8px 0 0; padding-top: 6px; border-top: 1px solid var(--line-soft); font-size: var(--t-micro); color: var(--ink-3); }
 .hp-party.is-empty .hp-foot { display: none; }
 .hp-acts { display: flex; gap: 6px; margin-top: 8px; }
@@ -512,6 +521,10 @@
   .hp-party { width: 200px; }
   .hp-portrait { width: 28px; height: 28px; }
   .hp-role { display: none; }
+  /* The hold switch on one line in the phone's 200 px board: the short labels (party-hold.js holdHtml). */
+  .hp-hold-wide { display: none; }
+  .hp-hold-narrow { display: inline; }
+  .hp-hold .hh-seg { white-space: nowrap; }
   /* THE PHONE BAR (v0.2.23 gate: 874 x 178 hid the hero): one row at most 96 px tall. The hub runs
      HP · the medal · MP with the sockets beside the readouts; the panel keeps the set and its buttons,
      and the rest of it slides out as a sheet from the right (.hb-more). */

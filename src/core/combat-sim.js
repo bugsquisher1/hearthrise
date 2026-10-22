@@ -71,6 +71,16 @@ function seedOf(ctx, domain, index) {
    the server's settle and the browser's live view (a peer's `hero` carries `lead`, member.js FROZEN_KEYS). */
 const picker = (ms) => partyPick(ms.map((x) => ({ density: x.hero.density, lead: x.hero.lead === true, seat: x.seat })));
 
+/* WHO HOLDS THE PACK (Tyler 2026-10-22): the seat the party leader's hero names (hunt-spawn.js heroSetup `hold`,
+   the server's hunt_parties.hold_seat) as that member's unit, or null (the tanks take turns; that seat is not in
+   the hunt). The SAME call on the server's settle and the browser's live view (a peer's `hero` carries `hold`). */
+function holdPick(ms) {
+  const lead = ms.find((x) => x.hero.lead === true);
+  const seat = lead && Number.isInteger(lead.hero.hold) ? lead.hero.hold : null;
+  const m = seat === null ? null : ms.find((x) => x.seat === seat && Number.isInteger(x.unitId));
+  return m ? m.unitId : null;
+}
+
 /* A member's hero, as world-state wants it, from the member's server state. */
 function heroOf(m) {
   const snap = m.snapshot(m.state);
@@ -157,6 +167,8 @@ export function simulateHuntInstance(inst, ctx) {
   const toMs = Math.floor(Number(ctx.toMs) || 0);
   const members = inst.members;
   let world = inst.world || null;
+  /* A world made in this call: the leader's hold pick is in force from its first lap (not only from the next). */
+  let fresh = false;
   /* NO WORLD, NO PLACED HERO: a unit id names a unit of a world that is gone (a stored world of
      another field list restarts: world-state decodeStored), so every member re-enters the fresh one. */
   if (!world) for (const m of members) m.unitId = null;
@@ -209,6 +221,7 @@ export function simulateHuntInstance(inst, ctx) {
           const standing = members.filter((x) => !x.left);
           world = newHuntWorld(ctx.ground, ctx.grid, [heroOf(m)],
             { density: densityFor(ctx.ground, standing.length, picker(standing)) });
+          fresh = true;
           /* A restarted instance's fresh world counts on from its stored swing (the seed index never repeats). */
           world.swing = Math.max(0, Math.floor(Number(inst.worldSwing) || 0));
           m.unitId = world.units[0].id; anchor(atMs); seen();
@@ -256,6 +269,10 @@ export function simulateHuntInstance(inst, ctx) {
          clamped to the ground for the party's size (hunt-grounds.js partyPick, densityFor). */
       world.density = densityFor(ctx.ground, world.units.filter((u) => u.side === 'hero').length,
         picker(members.filter((m) => !m.left && m.unitId !== null)));
+      /* THE LEADER'S HOLD PICK, read every swing; it takes force at the next lap boundary (pull-cycle.js), or at once
+         in a world just made (every member that enters with it has joined by now). */
+      world.holdNext = holdPick(members.filter((m) => !m.left && m.unitId !== null));
+      if (fresh) { world.hold = world.holdNext; fresh = false; }
       const r = stepSwing(world, { atMs, swingMs: tick, rng: createRng(seedOf(ctx, 's', sw)),
         ground: ctx.ground, grid: ctx.grid, heroes, ...(typeof ctx.xpMultOf === 'function' ? { xpMultOf: ctx.xpMultOf } : {}) });
       seen();

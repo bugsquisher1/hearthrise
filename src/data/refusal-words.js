@@ -164,6 +164,7 @@ export const REFUSAL_WORDS = Object.freeze({
   not_leader: 'Only the party leader can do that.',
   not_party_leader: 'Only the party leader can do that.',
   bad_seat: 'That seat is empty now.',
+  not_a_tank: 'Only a hero with a sword and shield can hold the pack.',
   member_hunting: 'Not while that member is hunting.',
   party_hunt_mismatch: 'Your party hunts somewhere else.',
   party_hunt: 'A party hunts one ground. Leave the party to change it.',

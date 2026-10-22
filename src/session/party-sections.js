@@ -13,6 +13,8 @@
 //                         away, seat_ms, outfit }], leader_densities }   (away / seat_ms: 2026-10-28-party-flow.sql;
 //             leader_densities: the leader's density pick per ground, 2026-11-17-hunt-density-home.sql; outfit
 //             { id, colors } or null: 2026-11-04-party-outfits.sql, read by hunt-sections.js memberOf)
+//           hold_seat: who holds the pack (Tyler 2026-10-22): a tank's seat (One tank holds) or null (Take turns),
+//             hunt_parties.hold_seat, set only by the leader's hr_party_hold_set (lane/c-hunt-screens-server)
 //   (a solo hunt is a party of one with id null: no party membership here)
 // The finder's answer (hr_hunt_party_finder) keeps its own { seats: [{ seat, weapon, role, name }] }.
 // What this lane asks the server for (CONFLICTS.md 2026-10-18 party UI; the
@@ -75,6 +77,8 @@ export function partyMembershipOf(cs) {
        pull there, shown read-only to the others ({ [hunt]: pick }, no key = 0); null when the server did not say. */
     densities: densityMapOf(p.leader_densities),
     leaderName: (seats.find((s) => s.seat === seatNo(p.leader_seat)) || {}).name || null,
+    /* WHO HOLDS THE PACK: the seat the leader picked to hold every lap, or null (the tanks take turns). */
+    holdSeat: seatNo(p.hold_seat),
     anyHunting: seats.some((s) => s.hunting),
     full: max !== null && seats.length >= max,
   };

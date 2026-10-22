@@ -16,17 +16,18 @@
 // and the roster changes only from the re-read envelopes. "DPS and HPS" shows
 // only while somebody hunts.
 //
-// THE TANKS' TURNS (bug #59, Andy 10-22): with two or more tanks in the hunt,
-// each tank's row says when it holds the pack ("Holding this lap", "Holds next
-// lap", "Too weak to hold") and one footer line explains the rotation. They come
-// from the live engine's world (live-engine.js tankTurns: the engine's own
-// holderTank over the server's start point, judged at every commit), never a
-// guess here; a seat in town, or no engine running, shows none.
+// WHO HOLDS THE PACK (bug #59, Andy 10-22; Tyler 2026-10-22): with two or more
+// tanks, each tank's row says when it holds ("Holding this lap", "Holds every
+// lap", "Guards your healer" ...), from the live engine's world (live-engine.js
+// tankTurns: the engine's own holderTank over the server's start point, judged
+// at every commit), never a guess here; a seat in town, or no engine running,
+// shows none. The leader's "Take turns | One tank holds" switch, the note under
+// the roster and the weak-pick warning are ./party-hold.js.
 //
 // Built once; each member is a keyed row (src/render/paint.js rows), patched in
 // place. The expand toggle and the intent scratch live on the panel element.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_ROLES, CHALLENGE } from '../../data/hunt-roles.js?v=0.2.31';
+import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.31';
 import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.31';
 import { partyOf, liveHpOf } from '../../session/hunt-sections.js?v=0.2.31';
 import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.31';
@@ -38,6 +39,7 @@ import { short, whole } from '../../render/format.js?v=0.2.31';
 import { glyphSvg } from '../launcher.js?v=0.2.31';
 import { markPlayer } from '../context-menu.js?v=0.2.31';
 import { gaugeHtml, patchGauge, panelHtml } from './bits.js?v=0.2.31';
+import { turnWords, holdView, holdHtml, patchHold, holdAct } from './party-hold.js?v=0.2.31';
 
 function memberHtml(glyphs) {
   return '<li class="hp-m">'
@@ -67,7 +69,7 @@ function patchMember(el, m, party, glyphs) {
   cls(el.querySelector('.hp-lead'), 'is-on', m.seat === party.leaderSeat);
   text(el.querySelector('.hp-state'), stateWords(m));
   text(el.querySelector('.hp-turn'), m.turn || '');
-  cls(el.querySelector('.hp-turn'), 'is-holding', m.holdIn === 0);
+  cls(el.querySelector('.hp-turn'), 'is-holding', m.holdIn === 'every' || m.holdIn === 'now');
   cls(el, 'is-self', m.seat === party.selfSeat);
   cls(el, 'is-away', m.away);
   const kick = el.querySelector('.hp-kick');
@@ -92,22 +94,6 @@ export function stateWords(m) {
   return m.hunting ? '' : 'In town';
 }
 
-/* A tank's row (laps until it holds: 0 this lap, null never; `rotation`: how many tanks take turns). */
-function turnWords(holdIn, rotation) {
-  if (holdIn === null) return 'Too weak to hold';
-  if (holdIn === 0) return rotation > 1 ? 'Holding this lap' : 'Holds every lap';
-  return holdIn === 1 ? 'Holds next lap' : 'Holds in ' + holdIn + ' laps';
-}
-
-/* The footer line under two or more tanks; the weak floor is the rule's own number (CHALLENGE.holderMinHpPm). */
-function tanksWords(rotation, weak) {
-  const floor = Math.round(CHALLENGE.holderMinHpPm / 10) + '%';
-  if (rotation > 1 && weak) return 'Your tanks take turns holding the pack, one lap each. A tank with under ' + floor + ' of the strongest tank’s max health never holds.';
-  if (rotation > 1) return 'Your tanks take turns holding the pack, one lap each. '
-    + (rotation === 2 ? 'The other tank pulls' : 'The other tanks pull') + ' monsters off the rest of the party.';
-  return rotation === 1 && weak ? 'Your strongest tank holds the pack every lap. A tank with under ' + floor + ' of its max health never holds.' : '';
-}
-
 /* The live engine's tank turns for this character's hunt (null: no engine, or it runs no world). */
 function turnsOf(cs) {
   const live = cs && cs.live;
@@ -118,13 +104,15 @@ const NO_HUNT = { mana: null, manaMax: null, dps: null, dealt: null, hps: null, 
 
 /**
  * The roster: the membership's seats overlaid with the hunt's member by seat, or (a solo hunt, no
- * membership) the hunt's party of one. { members, leaderSeat, selfSeat, isLeader, inParty, anyHunting }.
+ * membership) the hunt's party of one. { members, leaderSeat, selfSeat, isLeader, inParty, anyHunting, holdSeat,
+ * pullSeat (the seat of the hunt's pull leader, hunt-sections.js partyOf `leader`; null in town) }.
  * Pure; exported for tests/party-ui.mjs.
  */
 export function rosterOf(cs) {
   const p = partyMembershipOf(cs);
   const h = partyOf(cs);
   const bySeat = new Map(h ? h.members.map((m) => [m.seat, m]) : []);
+  const pullSeat = h && Number.isInteger(h.leader) ? (h.members.find((m) => m.unit === h.leader) || {}).seat ?? null : null;
   if (p) {
     const members = p.seats.map((s) => {
       const live = s.hunting ? bySeat.get(s.seat) : null;
@@ -133,26 +121,26 @@ export function rosterOf(cs) {
         hp: live ? live.hp : s.hp, hpMax: live ? live.hpMax : s.hpMax,
       });
     });
-    return { members, leaderSeat: p.leader, selfSeat: p.me, isLeader: p.isLeader, inParty: true, anyHunting: p.anyHunting };
+    return { members, leaderSeat: p.leader, selfSeat: p.me, isLeader: p.isLeader, inParty: true, anyHunting: p.anyHunting, holdSeat: p.holdSeat, pullSeat };
   }
-  if (!h) return { members: [], leaderSeat: null, selfSeat: null, isLeader: false, inParty: false, anyHunting: false };
+  if (!h) return { members: [], leaderSeat: null, selfSeat: null, isLeader: false, inParty: false, anyHunting: false, holdSeat: null, pullSeat: null };
   const members = h.members.map((m) => Object.assign({}, m, { hunting: true, away: false, seatMs: null }));
-  return { members, leaderSeat: h.leaderSeat, selfSeat: h.selfSeat, isLeader: false, inParty: false, anyHunting: true };
+  return { members, leaderSeat: h.leaderSeat, selfSeat: h.selfSeat, isLeader: false, inParty: false, anyHunting: true, holdSeat: null, pullSeat };
 }
 
 /** The roster with each hunting member's HP as the live timeline plays it (hunt-sections.js liveHpOf: the
     bar over its head), never the last commit's. The viewed character's own seat reads its Level, HP and
     mana from heroVitalsOf, the one reader the HUD and the Character tab share (r09). A hunting tank's row
     carries its turn at holding the pack (`holdIn`, `turn`) once the hunt has two or more tanks (by its unit:
-    a seat in town has none), and the roster the footer's words (`tanks`). Exported for tests/party-ui.mjs. */
+    a seat in town has none), and the roster the hold switch's view (`hold`, party-hold.js holdView).
+    Exported for tests/party-ui.mjs. */
 export function liveRoster(cs, r) {
   const all = turnsOf(cs);
   const turns = all && all.size > 1 ? all : null;   // a lone tank always holds: nothing to explain
-  let rotation = 0, weak = 0;
-  for (const v of turns ? turns.values() : []) { if (v === null) weak++; else rotation++; }
+  const healer = r.members.some((m) => m.role === 'healer');
   const members = r.members.map((row) => {
     const holdIn = turns && Number.isInteger(row.unit) && turns.has(row.unit) ? turns.get(row.unit) : undefined;
-    const m = holdIn === undefined ? row : Object.assign({}, row, { holdIn, turn: turnWords(holdIn, rotation) });
+    const m = holdIn === undefined ? row : Object.assign({}, row, { holdIn, turn: turnWords(holdIn, healer) });
     if (m.seat === r.selfSeat) {
       const v = heroVitalsOf(cs);
       return Object.assign({}, m, { level: v.level, hp: v.hp, hpMax: v.hpMax, mana: v.mana, manaMax: v.manaMax });
@@ -160,7 +148,7 @@ export function liveRoster(cs, r) {
     const live = m.hunting ? liveHpOf(cs, m.unit) : null;
     return live ? Object.assign({}, m, { hp: live.hp, hpMax: live.maxHp }) : m;
   });
-  return Object.assign({}, r, { members, tanks: members.some((m) => m.turn) ? tanksWords(rotation, weak) : '' });
+  return Object.assign({}, r, { members, hold: holdView(Object.assign({}, r, { members }), turns) });
 }
 
 const scratch = new WeakMap();
@@ -174,7 +162,7 @@ function scOf(el) {
 export function renderPartyPanel() {
   return panelHtml('hp-party', 'Party',
     '<button type="button" class="hh-tool" data-hs-act="expand" aria-pressed="false" hidden>DPS and HPS</button>',
-    '<p class="hh-empty">Not in a party.</p><ol class="hp-members"></ol><p class="hp-tanks"></p>'
+    '<p class="hh-empty">Not in a party.</p><ol class="hp-members"></ol>' + holdHtml()
     + '<div class="hp-acts"><button type="button" class="hh-tool" data-hs-act="leave" hidden>Leave party</button>'
     + '<button type="button" class="hh-tool" data-hs-act="disband" hidden>Disband</button></div>'
     + '<p class="hh-intent-msg hp-msg" role="status"></p><p class="hp-foot">Costs are personal.</p>');
@@ -201,7 +189,7 @@ renderPartyPanel.patch = function patchPartyPanel(el, ctx) {
   prop(disband, 'disabled', sc.pending);
   cls(el.querySelector('.hp-acts'), 'is-off', !r.inParty);
   text(el.querySelector('.hp-msg'), sc.msg);
-  text(el.querySelector('.hp-tanks'), r.tanks);
+  patchHold(el, r.hold, sc.pending, ctx.doc);
 };
 
 renderPartyPanel.act = function actPartyPanel(ctx, el, action, ev, btn) {
@@ -216,6 +204,7 @@ renderPartyPanel.act = function actPartyPanel(ctx, el, action, ev, btn) {
   if (!cs) return;
   const sc = scOf(el);
   const repaint = () => renderPartyPanel.patch(el, ctx);
+  if (holdAct(ctx, cs, sc, repaint, action, btn, liveRoster(cs, rosterOf(cs)).hold)) return;
   if (action === 'leave') runIntent(sc, repaint, () => afterLeave(ctx.account, cs, () => cs.leaveParty()), 'Leaving…', () => 'You left the party.');
   else if (action === 'disband') runIntent(sc, repaint, () => disbandParty(ctx.account, cs), 'Disbanding…', () => 'The party is disbanded.');
   else if (action === 'kick') {

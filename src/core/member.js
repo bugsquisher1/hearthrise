@@ -284,6 +284,7 @@ export function memberSide(mi, ctx) {
       snapshot: (st) => heroSnapshot(st, snapCtx),
       hero: { role: h.role, element: h.element || '', settings: h.settings || null,
         slots: h.slots || [], stopRules: h.stopRules || [], density: h.density || 0, lead: h.lead === true,
+        hold: Number.isInteger(h.hold) ? h.hold : null,
         actionSet: h.actionSet || 'hunt', range: h.range || 1, ammo: equipment.ammo || null,
         foodBelowPct: h.foodBelowPct, drinkBelowPct: h.drinkBelowPct },
     },

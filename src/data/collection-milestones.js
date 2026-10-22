@@ -47,10 +47,10 @@
 // PURE ESM. No DOM, no window, no I/O. Imports cleanly in Node and Deno.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MONSTERS } from './monsters.js?v=0.2.28';
-import { ITEMS } from './items.js?v=0.2.28';
-import { HUNT_INDEX } from './hunts.js?v=0.2.28';
-import { OPEN_GROUNDS, reachableOf } from './hunt-grounds.js?v=0.2.28';
+import { MONSTERS } from './monsters.js?v=0.2.29';
+import { OPEN_GROUNDS, reachableOf } from './hunt-grounds.js?v=0.2.29';
+import { ITEMS } from './items.js?v=0.2.29';
+import { HUNT_INDEX } from './hunts.js?v=0.2.29';
 
 /** What a player can meet today: { monsters: [ids], loot: [ids] } on the open grounds. */
 export const REACHABLE = reachableOf(OPEN_GROUNDS, HUNT_INDEX, MONSTERS, ITEMS);

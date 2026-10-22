@@ -475,9 +475,20 @@ jobs:
   # a boot) = ~64 min. --mutate --shard=K/3 runs every third mutant; shards 2
   # and 3 are in-page-4 / in-page-5 below. ~21 mutants = ~22 min a shard;
   # budget x2 = 44, +2 for the plain run here = 46.
+  # RE-SHARDED 2026-10-22: release/v0.2.28 (run 39765799475) CANCELLED this job
+  # at 46 min: 79 mutants, and round-robin by COUNT gave shard 1 the slow ones
+  # (a mutant costs 2-155 s: caught by the first rule, or only after a full
+  # boot). Now 7 shards balanced by MEASURED SECONDS (planShards, tools/lib/
+  # mutant-scope.mjs, over tests/hunt-screen.mutant-times.json): 5,546 s measured
+  # + 3 unmeasured booked at the slowest = ~14.7 min a shard. A job = ~3 min
+  # setup (one install took 9.5) + ~2.3 clean control + its shard (+2.3 plain
+  # run here) = ~20-22 min; budget x2 = 40, 44 here. The partition and the
+  # 18-min-a-shard cap are checked without a browser in client-guards
+  # (hunt-screen --shard-plan); a new mutant that pushes a shard over 18 min
+  # turns that red: add a shard there.
   in-page-3:
     runs-on: ubuntu-latest
-    timeout-minutes: 46
+    timeout-minutes: 44
 
     steps:
       - uses: actions/checkout@v4
@@ -505,7 +516,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/hunt-screen.mjs
-          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=1/3
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=1/7
 
       # A failing run is far easier to diagnose with the page state attached.
       - name: Upload failure artifacts
@@ -519,11 +530,11 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  # ── in-page-4 / in-page-5 ── HUNT SCREEN MUTANTS, SHARDS 2 AND 3 (see the
-  # note above in-page-3). Budget: ~22 min a shard x2 = 44.
+  # ── in-page-4 … in-page-9 ── HUNT SCREEN MUTANTS, SHARDS 2-7 (see the
+  # note above in-page-3). Budget: ~20 min a job x2 = 40.
   in-page-4:
     runs-on: ubuntu-latest
-    timeout-minutes: 44
+    timeout-minutes: 40
 
     steps:
       - uses: actions/checkout@v4
@@ -541,10 +552,10 @@ jobs:
           npm install --no-audit --no-fund
           npx playwright install --with-deps chromium
 
-      - name: Hunt screen mutants, shard 2 of 3 (play.html)
+      - name: Hunt screen mutants, shard 2 of 7 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=2/3
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=2/7
 
       - name: Upload failure artifacts
         if: failure()
@@ -559,7 +570,7 @@ jobs:
 
   in-page-5:
     runs-on: ubuntu-latest
-    timeout-minutes: 44
+    timeout-minutes: 40
 
     steps:
       - uses: actions/checkout@v4
@@ -577,16 +588,160 @@ jobs:
           npm install --no-audit --no-fund
           npx playwright install --with-deps chromium
 
-      - name: Hunt screen mutants, shard 3 of 3 (play.html)
+      - name: Hunt screen mutants, shard 3 of 7 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=3/3
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=3/7
 
       - name: Upload failure artifacts
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: smoke-failure-in-page-5
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  in-page-6:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Hunt screen mutants, shard 4 of 7 (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=4/7
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-in-page-6
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  in-page-7:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Hunt screen mutants, shard 5 of 7 (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=5/7
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-in-page-7
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  in-page-8:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Hunt screen mutants, shard 6 of 7 (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=6/7
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-in-page-8
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  in-page-9:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Hunt screen mutants, shard 7 of 7 (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=7/7
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-in-page-9
           path: |
             tests/**/*.png
             tests/**/*.log
@@ -3663,6 +3818,14 @@ jobs:
         run: |
           node tools/mutant-gate.mjs node tests/mutant-anchors.mjs --selftest
           node tests/mutant-anchors.mjs
+      # HUNT-SCREEN SHARD PLAN (2026-10-22, run 39765799475: shard 1/3 CANCELLED at
+      # 46 min). No browser: the --shard=K/N lines in this file are 1..N of one N,
+      # the time-balanced plan for N puts every hunt-screen mutant in exactly one
+      # shard, and no shard is booked over 18 min (tests/hunt-screen.mutant-times
+      # .json). Four planted defects (a dropped shard, an off-by-one plan, a mutant
+      # planned twice, a shard over budget) must each be caught in the same run.
+      - name: Hunt screen shard plan — every mutant in exactly one shard, every shard in budget
+        run: node tests/hunt-screen.mjs --shard-plan
 
       # THE MUTANT GATE (CLAUDE.md §3.6, 2026-10-21). Every --mutate/--selftest in
       # this file runs through tools/mutant-gate.mjs: on a push or PR it runs only

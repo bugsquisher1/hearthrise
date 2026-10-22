@@ -4,7 +4,8 @@
 //
 //   node tests/hunt-screen.mjs                the rules
 //   node tests/hunt-screen.mjs --mutate       every planted defect must turn a rule RED
-//   node tests/hunt-screen.mjs --mutate --shard=K/N   only every Nth mutant from the Kth (CI splits them)
+//   node tests/hunt-screen.mjs --mutate --shard=K/N   the Kth of N shards, balanced by measured seconds (CI splits them)
+//   node tests/hunt-screen.mjs --shard-plan   no browser: smoke.yml's shards partition MUTANTS within budget
 //     (on a push, tools/mutant-gate.mjs narrows a shard to the mutants its diff touches —
 //      tools/lib/mutant-scope.mjs; the nightly runs every mutant)
 //   node tests/hunt-screen.mjs --shots <dir>  also write the visual-gate screenshots
@@ -102,7 +103,7 @@ import { readFile, mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { pathToFileURL } from 'node:url';
-import { scopeMutants, gateScope } from '../tools/lib/mutant-scope.mjs';
+import { scopeMutants, gateScope, planShards, checkShards } from '../tools/lib/mutant-scope.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
 /* The scene and its log play huntPlaybackDelayMs behind the server (src/session/config.js): the fixture's
@@ -1703,7 +1704,62 @@ const MUTANTS = [
   ['the moved analyzer moves the camera (HS-26)', 'src/shell/shell.js', 'const left = dockHome.has(el) ? dockHome.get(el) : r.left - b.left;', 'const left = r.left - b.left;'],
 ];
 
+/* Seconds per mutant on a GitHub runner (tests/hunt-screen.mutant-times.json); none read = every mutant booked alike. */
+async function mutantSeconds() {
+  try { return JSON.parse(await readFile(join(ROOT, 'tests', 'hunt-screen.mutant-times.json'), 'utf8')).seconds || {}; } catch { return {}; }
+}
+
+/* A shard's booked mutant time. A job is ~3 min of setup (one install took 9.5 min on run 39765799475),
+   ~2.3 min of clean control and, in in-page-3, ~2.3 min of plain run: 18 min of mutants keeps every
+   job near 25 min and under 30 in the slow-install case. Over it, add a shard (smoke.yml + ci-shape --write). */
+const SHARD_BUDGET_S = 18 * 60;
+
+/** --shard-plan (no browser): smoke.yml registers shards 1..N of one N, the plan for that N is a
+    partition of MUTANTS, and no shard is booked over SHARD_BUDGET_S. Then four planted defects must
+    each be caught, so the check has been red. Exit code. */
+async function shardPlan() {
+  const yml = await readFile(join(ROOT, '.github', 'workflows', 'smoke.yml'), 'utf8');
+  const names = MUTANTS.map(([name]) => name);
+  const seconds = await mutantSeconds();
+  const judge = (text, plan = planShards, budget = SHARD_BUDGET_S) => {
+    const out = [];
+    const reg = [...text.matchAll(/node tests\/hunt-screen\.mjs --mutate --shard=(\d+)\/(\d+)/g)].map((m) => [+m[1], +m[2]]);
+    const ns = [...new Set(reg.map(([, n]) => n))];
+    if (ns.length !== 1) return [`smoke.yml registers hunt-screen shards of ${ns.length} different N (${ns.join(', ') || 'none'})`];
+    const n = ns[0];
+    for (let k = 1; k <= n; k++) {
+      const c = reg.filter(([x]) => x === k).length;
+      if (c !== 1) out.push(`shard ${k}/${n} is registered ${c} time(s) in smoke.yml`);
+    }
+    const p = plan(names, n, seconds);
+    out.push(...checkShards(names, p));
+    p.forEach((s, i) => { if (s.seconds > budget) out.push(`shard ${i + 1}/${n} is booked ${Math.round(s.seconds / 60)} min > ${Math.round(budget / 60)} — add a shard`); });
+    return out;
+  };
+  const real = judge(yml);
+  const reg = [...yml.matchAll(/--shard=\d+\/(\d+)/g)];
+  const n = reg.length ? +reg[0][1] : 0;
+  if (n) planShards(names, n, seconds).forEach((s, i) => console.log(`  shard ${i + 1}/${n}: ${s.names.length} mutants, ~${Math.round(s.seconds / 6) / 10} min booked`));
+  for (const f of real) console.log('  ✗ ' + f);
+  const planted = [
+    ['a shard dropped from smoke.yml', judge(yml.replace(`--shard=${n}/${n}`, '--shard-dropped'))],
+    ['the old round-robin off by one (the last mutant runs nowhere)', judge(yml, (ns, k) => Array.from({ length: k }, (_, i) => ({ names: ns.slice(0, -1).filter((_, j) => j % k === i), seconds: 0 })))],
+    ['a mutant planned twice', judge(yml, (ns, k, s) => { const p = planShards(ns, k, s); p[0].names.push(p[1].names[0]); return p; })],
+    ['a shard booked over its budget', judge(yml, planShards, 60)],
+  ];
+  let vacuous = 0;
+  for (const [label, found] of planted) {
+    if (!found.length) vacuous++;
+    console.log(`  ${found.length ? 'caught' : 'MISSED'}  planted: ${label}${found.length ? ' — ' + found[0] : ''}`);
+  }
+  const bad = real.length + vacuous;
+  console.log(bad ? `hunt-screen --shard-plan: ${real.length} problem(s), ${vacuous} planted defect(s) missed`
+    : `hunt-screen --shard-plan: ${names.length} mutants over ${n} shards, each exactly once, every shard within ${SHARD_BUDGET_S / 60} min; 4/4 planted defects caught`);
+  return bad ? 1 : 0;
+}
+
 async function main() {
+  if (process.argv.includes('--shard-plan')) process.exit(await shardPlan());
   const at = process.argv.indexOf('--shots');
   const shots = at > 0 ? resolve(process.argv[at + 1] || 'hunt-shots') : null;
   if (shots) await mkdir(shots, { recursive: true });
@@ -1714,14 +1770,24 @@ async function main() {
       : 'hunt-screen: panels mount; patch in place; intents only; the analyzer is the server’s; badge defaults; each log line once' + (shots ? ' (shots in ' + shots + ')' : ''));
     process.exit(fails.length ? 1 : 0);
   }
-  /* --shard=K/N (2026-10-21): the mutants split round-robin over N CI jobs (in-page-3/4/5). Each mutant
-     is one clean boot of the whole page (~60 s on a runner since the action bar's rules), so 61 of them
-     outgrew one job's budget. Every shard is registered in tests/ci-shape.baseline.json, so a dropped
-     shard is loud; a shard that selects nothing is red. */
+  /* --shard=K/N: the mutants split over N CI jobs (in-page-3 … in-page-9), BALANCED BY MEASURED TIME
+     (2026-10-22: round-robin by count let shard 1/3 hit its 46-min limit on run 39765799475 — a mutant
+     costs 2-155 s). planShards (tools/lib/mutant-scope.mjs) books each mutant at its seconds in
+     tests/hunt-screen.mutant-times.json; checkShards proves the plan is a partition (every mutant in
+     exactly one shard). --shard-plan checks the plan against smoke.yml without a browser. */
   const sh = process.argv.find((a) => a.startsWith('--shard='));
   const sm = sh ? /^--shard=(\d+)\/(\d+)$/.exec(sh) : null;
   if (sh && (!sm || +sm[1] < 1 || +sm[1] > +sm[2])) { console.log('  ✗ bad ' + sh + ' (want --shard=K/N, 1 <= K <= N)'); process.exit(1); }
-  const shard = sm ? MUTANTS.filter((_, i) => i % +sm[2] === +sm[1] - 1) : MUTANTS;
+  let shard = MUTANTS;
+  if (sm) {
+    const names = MUTANTS.map(([name]) => name);
+    const plan = planShards(names, +sm[2], await mutantSeconds());
+    const broken = checkShards(names, plan);
+    if (broken.length) { console.log('  ✗ the shard plan is not a partition: ' + broken.join('; ')); process.exit(1); }
+    const mineNames = new Set(plan[+sm[1] - 1].names);
+    shard = MUTANTS.filter(([name]) => mineNames.has(name));
+    console.log('  shard ' + sm[1] + '/' + sm[2] + ': ' + shard.length + ' mutant(s), ~' + Math.round(plan[+sm[1] - 1].seconds / 60) + ' min booked');
+  }
   if (!shard.length) { console.log('  ✗ ' + sh + ' selects no mutant'); process.exit(1); }
   const tag = sm ? ' (shard ' + sm[1] + '/' + sm[2] + ')' : '';
   /* A push's gate hands over its diff (HR_MUTANT_SCOPE): only the mutants it can have moved run —

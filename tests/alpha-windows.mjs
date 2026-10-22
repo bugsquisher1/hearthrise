@@ -7,7 +7,7 @@
 //   node tests/alpha-windows.mjs --shots <dir>  also write the visual-gate screenshots
 //                                               (1440x900 and 922x423)
 //
-// mutant-anchors: src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js
+// mutant-anchors: src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js src/shell/town-work.js src/shell/windows/work.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character's envelope is tests/fixtures/alpha-envelope.json.
@@ -71,6 +71,12 @@
 //   AW-21 EQUIP UPGRADES: ONE equip intent naming every strictly better piece (never the weapon
 //         or a piece above the hero's skill), its slots and stacks marked until the answer, a
 //         refusal in words with nothing moved, the Shop's offer after a gear purchase, a reload agrees
+//   AW-22 GATHERING AND CRAFTING (designer 2026-10-22: the town skills had no door):
+//         each gathering and bench skill in the ledger opens its work; a row shows what
+//         the server's level opens (and the next two, "Needs Woodcutting 15"); Start is
+//         ONE set_activity { kind:'gather'|'artisan', id }, a switch from another is ONE
+//         more (no stop first); the work line reads the server's pointer and survives a
+//         reload; Stop is ONE idle and says what the server made
 //   AW-17 the skills are two ledgers (the combat one inside the Character window,
 //         tests/character-window.mjs) and Gathering and crafting does not scroll at
 //         922x423; a character that has never fought sees the pointer to Hunts
@@ -233,6 +239,19 @@ async function pure() {
   /* Unknown skills read as "cannot wear yet". */
   const blind = plan({ weapon: 'bronze_sword' }, [['iron_helm']], null);
   if (Object.keys(blind.ops).length) fails.push('AW-21 with no server skills Equip upgrades would put on ' + ops(blind));
+  /* AW-22: town work. The client may declare a gathering node (never a fight); a skill shows what its server level opens,
+     then the next two; a row refuses in words from the server's level and bag. */
+  if (!edgeBody(0, 'set_activity', { activity: { kind: 'gather', id: 'copper_rock' } }, 'x')) fails.push('AW-22 edgeBody refused a gathering node');
+  const { rowsFor } = await imp('src/shell/windows/work.js');
+  const { workBlock, workRow, runsOf } = await imp('src/shell/town-work.js');
+  const smith = rowsFor('smithing', 1, { copper_ore: 10 }).map((w) => w.id);
+  if (smith.slice(-2).join() !== 'forge_bronze_axe,forge_bronze_pickaxe' || !smith.includes('smelt_bronze') || smith.length !== 5) fails.push('AW-22 Smithing 1 shows ' + smith.join());
+  const wcs = (lv, inv) => ({ read: (k) => (k === 'skills' ? { smithing: { xp: 0, level: lv } } : k === 'inventory' ? inv : null) });
+  const bronze = workRow('artisan', 'smelt_bronze');
+  const said = [workBlock(wcs(1, { copper_ore: 1 }), bronze, false), workBlock(wcs(1, { copper_ore: 2 }), bronze, true),
+    workBlock(wcs(1, {}), workRow('artisan', 'forge_bronze_axe'), false), workBlock(wcs(1, { copper_ore: 2 }), bronze, false), String(runsOf(bronze.row, { copper_ore: 11 })),
+    workBlock(wcs(1, {}), bronze, false)];
+  if (said.join('|') !== 'Needs 2 Copper Ore (you have 1).|Not while a hunt is running.|Needs Smithing 3.||5|No Copper Ore in your bag.') fails.push('AW-22 the work rows say ' + JSON.stringify(said));
   return fails;
 }
 
@@ -380,7 +399,9 @@ async function checks(overrides, shots) {
          outfitter's gear above the tools (designer 2026-10-22, 2026-11-24-shop-outfitter.sql). */
       const tools = (e) => { e.shop = Object.assign({}, e.shop, { offers: e.shop.offers.concat([{ offer: 'supply.bronze_axe', item: 'bronze_axe', kind: 'tool', price: 120 },
         { offer: 'supply.leather_gloves', item: 'leather_gloves', kind: 'gear', price: 160 }]) });
-        e.state = Object.assign({}, e.state, { active_kind: 'artisan', active_id: 'bury_bones' }); };
+        e.state = Object.assign({}, e.state, { active_kind: 'artisan', active_id: 'bury_bones' });
+        /* ...in town: the fixture's hunt has ended (Use is town-only since presets C4; tests/preset-names.mjs holds that rule). */
+        e.hunt = Object.assign({}, e.hunt, { ended: true }); };
       const { ctx, page, s, up } = await open({ mutateEnv: tools });
       if (up) {
         await openWin(page, 'v', 'shop');
@@ -733,6 +754,88 @@ async function checks(overrides, shots) {
       await ctx.close();
     }
 
+    { // AW-22 GATHERING AND CRAFTING: a skill opens its work; Start is ONE set_activity; the server's numbers only
+      const town = (e) => {
+        for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
+        e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null });
+      };
+      const { ctx, page, errors, s, up } = await open({ mutateEnv: town });
+      s.onCall = (name, b) => {
+        if (name !== 'hr-accrue' || b.verb !== 'set_activity') return;
+        const st = s.env.state, inv = s.env.inventory;
+        if (b.activity.kind !== 'idle') { Object.assign(st, { active_kind: b.activity.kind, active_id: b.activity.id }); return; }
+        if (st.active_id === 'smelt_bronze') { inv.bronze_bar = 5; delete inv.copper_ore; s.env.skills.smithing.xp += 39; }
+        Object.assign(st, { active_kind: 'idle', active_id: null });
+      };
+      const W = '[data-hs-win="skills-trade"]';
+      const rowsOf = () => page.evaluate((w) => Array.from(document.querySelectorAll(w + ' .hw-work.is-on .hw-work-row')).map((li) => {
+        const b = li.querySelector('button');
+        return { id: li.getAttribute('data-id'), btn: b.textContent, off: b.disabled, why: li.querySelector('.hw-work-why').textContent, what: li.querySelector('.hw-work-what').textContent };
+      }), W);
+      const nowText = () => page.evaluate((w) => { const b = document.querySelector(w + ' .hw-work-now'); return b && b.classList.contains('is-on') ? b.querySelector('.hw-burying-q').textContent : ''; }, W);
+      const msg = () => page.evaluate((w) => document.querySelector(w + ' .hh-intent-msg').textContent, W);
+      if (!up) fails.push('AW-22 the town did not mount');
+      else {
+        await openWin(page, 'g', 'skills-trade');
+        await page.waitForTimeout(300);
+        const doors = await page.evaluate((w) => Array.from(document.querySelectorAll(w + ' .hw-skill[data-hs-act="open-skill"]')).map((li) => li.getAttribute('data-skill')).join(), W);
+        if (doors !== 'woodcutting,mining,fishing,cooking,crafting,smithing,runecrafting') fails.push('AW-22 the skills that open their work: ' + doors);
+        if (shots) await shot(page, 'work-1440x900-ledger');
+        await page.click(W + ' .hw-skill[data-skill="woodcutting"]');
+        await page.waitForTimeout(300);
+        let r = await rowsOf();
+        const tree = r.find((x) => x.id === 'normal_tree'), oak = r.find((x) => x.id === 'oak_tree');
+        if (!tree || tree.off || tree.btn !== 'Start' || !/^Normal Log · [\d.]+ s · \d+ XP each$/.test(tree.what) || tree.why !== '40 in your bag') fails.push('AW-22 Woodcutting offers ' + JSON.stringify(tree));
+        if (!oak || !oak.off || oak.why !== 'Needs Woodcutting 15.') fails.push('AW-22 a tree above the server level reads ' + JSON.stringify(oak));
+        await page.click(W + ' .hw-work-row[data-id="normal_tree"] button');
+        await page.waitForTimeout(800);
+        let go = sent(s, 'hr-accrue', 'set_activity');
+        if (go.length !== 1 || JSON.stringify(go[0].body.activity) !== '{"kind":"gather","id":"normal_tree"}') fails.push('AW-22 Start sent ' + JSON.stringify(go.map((c) => c.body)));
+        if (!/^Your hero is chopping the Normal Tree\. It keeps going while you are away/.test(await nowText())) fails.push('AW-22 no line from the server pointer: ' + JSON.stringify(await nowText()));
+        r = await rowsOf();
+        if ((r.find((x) => x.id === 'normal_tree') || {}).btn !== 'Stop') fails.push('AW-22 the running tree offers no Stop');
+        if (shots) await shot(page, 'work-1440x900-woodcutting');
+        if (!(await reloadAndPlay(page))) fails.push('AW-22 the reload did not come back');
+        else {
+          await openWin(page, 'g', 'skills-trade');
+          await page.waitForTimeout(300);
+          if (!/chopping the Normal Tree/.test(await nowText())) fails.push('AW-22 after a reload the work line reads ' + JSON.stringify(await nowText()));
+          /* A switch straight from gathering to a bench: ONE intent (the server collects the old one first). */
+          await page.click(W + ' .hw-skill[data-skill="smithing"]');
+          await page.waitForTimeout(300);
+          r = await rowsOf();
+          const bar = r.find((x) => x.id === 'smelt_bronze'), axe = r.find((x) => x.id === 'forge_bronze_axe');
+          if (!bar || bar.off || !/^Makes up to 5 · [\d.]+ s · \d+ XP each$/.test(bar.why) || bar.what !== '2 Copper Ore → Bronze Bar') fails.push('AW-22 Smithing offers ' + JSON.stringify(bar));
+          if (!axe || !axe.off || axe.why !== 'Needs Smithing 3.') fails.push('AW-22 a recipe above the server level reads ' + JSON.stringify(axe));
+          if (shots) await shot(page, 'work-1440x900-smithing');
+          await page.click(W + ' .hw-work-row[data-id="smelt_bronze"] button');
+          await page.waitForTimeout(800);
+          go = sent(s, 'hr-accrue', 'set_activity');
+          if (go.length !== 2 || JSON.stringify(go[1].body.activity) !== '{"kind":"artisan","id":"smelt_bronze"}') fails.push('AW-22 the switch sent ' + JSON.stringify(go.map((c) => c.body)));
+          if (!/^Your hero is making Bronze Bar\. It stops when the materials run out/.test(await nowText())) fails.push('AW-22 the bench line reads ' + JSON.stringify(await nowText()));
+          r = await rowsOf();
+          if (!/^Working on it now · Makes up to 5 · /.test((r.find((x) => x.id === 'smelt_bronze') || {}).why)) fails.push('AW-22 the bag was spent before the server did it: ' + JSON.stringify(r.find((x) => x.id === 'smelt_bronze')));
+          await page.click(W + ' .hw-work-now [data-hs-act="work-stop"]');
+          await page.waitForTimeout(800);
+          go = sent(s, 'hr-accrue', 'set_activity');
+          if (go.length !== 3 || JSON.stringify(go[2].body.activity) !== '{"kind":"idle"}') fails.push('AW-22 Stop sent ' + JSON.stringify(go.map((c) => c.body)));
+          if ((await msg()) !== 'Done: 5 Bronze Bar, +39 Smithing XP.' || (await nowText())) fails.push('AW-22 after the server smelted them: ' + JSON.stringify(await msg()));
+        }
+      }
+      if (errors.length) fails.push('AW-22 console errors: ' + errors.slice(0, 3).join(' | '));
+      await ctx.close();
+      if (shots) { // the phone sheet
+        const ph = await open({ viewport: { width: 922, height: 423 }, mutateEnv: town });
+        if (ph.up) {
+          await openWin(ph.page, 'g', 'skills-trade');
+          await ph.page.click(W + ' .hw-skill[data-skill="cooking"]');
+          await ph.page.waitForTimeout(300);
+          await shot(ph.page, 'work-922x423-cooking');
+        }
+        await ph.ctx.close();
+      }
+    }
+
     { // AW-17 the skills are two windows and neither scrolls, on the phone too; the first-minute pointer
       /* A character that has killed nothing: Level XP 0 (the core rebuild: Level comes from kills only). */
       const fresh = (e) => { for (const k of Object.keys(e.skills)) if (['melee', 'defense', 'prayer', 'magic', 'ranged'].includes(k)) e.skills[k] = { xp: 0, level: 1 }; for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k]; e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, level_xp: 0 }); };
@@ -799,7 +902,11 @@ const MUTANTS = [
   ['Enter in the amount picker does nothing', 'src/shell/windows/float-menu.js', "      if (e.key === 'Enter' && def) { e.preventDefault(); e.stopPropagation(); def.click(); }\n", ''],
   ['bones offer no Bury', 'src/shell/windows/inventory/state.js', "  if (br) return ['bury', buryLabel(br, st.qty.get(id))];\n", ''],
   ['Bury debits the bag before the server answers', 'src/shell/windows/inventory/bury.js', "  const qty = (cs.read('inventory') || {})[id] || 0;\n", "  const qty = (cs.read('inventory') || {})[id] || 0;\n  delete cs.read('inventory')[id];\n"],
-  ['Stop does not collect', 'src/shell/windows/inventory/bury.js', "cs.edgeIntent('set_activity', { activity: { kind: 'idle' } })", "Promise.resolve({ ok: true })"],
+  ['Stop does not collect', 'src/shell/town-work.js', "cs.edgeIntent('set_activity', { activity: { kind: 'idle' } })", "Promise.resolve({ ok: true })"],
+  ['a skill opens no work', 'src/shell/windows/work.js', "attr(li, 'data-hs-act', door ? 'open-skill' : null);", "attr(li, 'data-hs-act', null);"],
+  ['the client cannot declare gathering', 'src/session/edge-intents.js', "(v.kind === 'artisan' || v.kind === 'gather')", "v.kind === 'artisan'"],
+  ['a work row ignores the server level', 'src/shell/town-work.js', "  if (lv < (w.row.req || 1)) return 'Needs '", "  if (false) return 'Needs '"],
+  ['the running row offers no Stop', 'src/shell/windows/work.js', "text(b, running ? 'Stop' : 'Start');", "text(b, 'Start');"],
   ['the Burying line ignores the server pointer', 'src/shell/windows/inventory/bury.js', "  if (e) return buryingWord(e) + ' ' + itemName(e.input) + '. Your ' + skillName(e.skill) + ' XP and bag update when it is done.';", "  if (e) return '';"],
   ['raw food offers no Cook all', 'src/shell/bag-model.js', "      if (!r || !r.output || r.gated || kindOf(r.output) !== 'food') continue;", '      continue;'],
   ['the bench ignores the server level', 'src/shell/windows/inventory/bury.js', "  if (lv < e.recipe.req) return 'Needs '", "  if (false) return 'Needs '"],

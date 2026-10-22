@@ -21,24 +21,22 @@
 // "Cooking…" line reads the server's pointer (state.active_kind / active_id),
 // so it survives a reload.
 //
+// Start, the armed stop and Stop are src/shell/town-work.js's (one path with the
+// Gathering and crafting window); this file names the stack's rite or dish.
+//
 // The engine spends the WHOLE stack: it has no "this many" for a recipe, so a
 // partial run would be a client guess at the server's clock. It is not offered.
 // ════════════════════════════════════════════════════════════════════════
-import { ARTISAN_RECIPES } from '../../../data/recipes.js?v=0.2.28';
-import { SKILLS_DEF } from '../../../data/skills.js?v=0.2.28';
-import { pacedActionMs } from '../../../core/pacing.js?v=0.2.28';
-import { recipeInputs } from '../../../core/artisan.js?v=0.2.28';
-import { whole } from '../../../render/format.js?v=0.2.28';
-import { itemName } from '../../widgets/bits.js?v=0.2.28';
-import { riteOf, cookOf } from '../../bag-model.js?v=0.2.28';
-import { skillsOf } from '../../../session/item-sections.js?v=0.2.28';
-import { huntOf } from '../../../session/hunt-sections.js?v=0.2.28';
-import { townActivityWords } from '../../../session/party-sections.js?v=0.2.28';
-
-/* A little past the paced time of the last one, so the engine has spent it before the stop collects. */
-const SLACK_MS = 2000;
-const MAX_WAIT_MS = 30 * 60 * 1000;
-const BURNT = 'burnt_food';
+import { ARTISAN_RECIPES } from '../../../data/recipes.js?v=0.2.29';
+import { SKILLS_DEF } from '../../../data/skills.js?v=0.2.29';
+import { recipeInputs } from '../../../core/artisan.js?v=0.2.29';
+import { whole } from '../../../render/format.js?v=0.2.29';
+import { itemName } from '../../widgets/bits.js?v=0.2.29';
+import { riteOf, cookOf } from '../../bag-model.js?v=0.2.29';
+import { skillsOf } from '../../../session/item-sections.js?v=0.2.29';
+import { huntOf } from '../../../session/hunt-sections.js?v=0.2.29';
+import { townActivityWords } from '../../../session/party-sections.js?v=0.2.29';
+import { startWork, stopWork, workRow } from '../../town-work.js?v=0.2.29';
 
 /** The bench entry that spends a whole stack of `id` ({ skill, recipe, input, need }), or null. */
 export function buryRecipeOf(id) { return riteOf(id) || cookOf(id); }
@@ -90,54 +88,21 @@ export function buryBlock(cs, e) {
   return '';
 }
 
-function xpOf(cs, skill) { const sk = skillsOf(cs); return sk && sk[skill] ? sk[skill].xp : null; }
-function bagOf(cs) { return (cs && cs.read('inventory')) || {}; }
-
-/* The server can refuse the recipe as `activity_locked` (above its level); for a bench that is the skill, not a hunt. */
-const benchRefusal = (r) => (r && !r.ok && r.error === 'activity_locked' ? Object.assign({}, r, { error: 'level_too_low' }) : r);
-
 /**
- * Start spending the stack `id`: ONE set_activity; the stop is armed for when
- * the stack should be done. `send(fn, busy, done)` is the window's runIntent.
+ * Start spending the stack `id`: ONE set_activity on its bench recipe, through the one town-work path
+ * (src/shell/town-work.js), which arms the stop for when the stack should be done. `send(fn, busy, done)`
+ * is the window's runIntent.
  */
 export function startBury(cs, sc, id, send, repaint) {
   const e = buryRecipeOf(id);
   if (!e) return null;
   const qty = (cs.read('inventory') || {})[id] || 0;
-  return send(() => cs.edgeIntent('set_activity', { activity: { kind: 'artisan', id: e.recipe.id } }).then(benchRefusal), 'Starting…', () => {
-    clearTimeout(sc.buryTimer);
-    const bag = bagOf(cs);
-    sc.buryFrom = { xp: xpOf(cs, e.skill), skill: e.skill, out: e.recipe.output || null, made: bag[e.recipe.output] || 0, burnt: bag[BURNT] || 0 };
-    const wait = Math.min(MAX_WAIT_MS, Math.floor(qty / e.need) * pacedActionMs(e.recipe.ms) + SLACK_MS);
-    sc.buryTimer = setTimeout(() => { if (buryingOf(cs) === e && !sc.pending) stopBury(cs, sc, send); else repaint(); }, wait);
-    return buryingWord(e) + ' ' + whole(qty) + ' ' + itemName(id) + '…';
-  });
+  return startWork(cs, workRow('artisan', e.recipe.id), send, repaint, buryingWord(e) + ' ' + whole(qty) + ' ' + itemName(id) + '…');
 }
 
-/* "Done: 7 Cooked Wolf Meat, 3 burnt, +245 Cooking XP." — every number a difference of two server envelopes. */
-function doneWords(cs, from, xpBefore) {
-  const xp = xpOf(cs, from.skill);
-  const x0 = from.xp !== null ? from.xp : xpBefore;
-  const bag = bagOf(cs);
-  const parts = [];
-  const made = from.out ? (bag[from.out] || 0) - from.made : 0;
-  const burnt = from.out ? (bag[BURNT] || 0) - from.burnt : 0;
-  if (made > 0) parts.push(whole(made) + ' ' + itemName(from.out));
-  if (burnt > 0) parts.push(whole(burnt) + ' burnt');
-  if (xp !== null && x0 !== null && xp > x0) parts.push('+' + whole(xp - x0) + ' ' + skillName(from.skill) + ' XP');
-  return parts.length ? 'Done: ' + parts.join(', ') + '.' : 'Stopped.';
-}
-
-/** Stop: ONE set_activity idle; the engine pays what was spent first. */
+/** Stop: ONE set_activity idle (town-work.js stopWork); the engine pays what was spent first. */
 export function stopBury(cs, sc, send) {
-  clearTimeout(sc.buryTimer);
-  const on = buryingOf(cs);
-  const from = sc.buryFrom || (on ? { xp: null, skill: on.skill, out: null } : null);
-  const before = from ? xpOf(cs, from.skill) : null;
-  return send(() => cs.edgeIntent('set_activity', { activity: { kind: 'idle' } }), 'Finishing…', () => {
-    sc.buryFrom = null;
-    return from ? doneWords(cs, from, before) : 'Stopped.';
-  });
+  return stopWork(cs, send);
 }
 
 /**

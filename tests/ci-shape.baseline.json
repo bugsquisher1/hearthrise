@@ -239,6 +239,8 @@
     "node tools/mutant-gate.mjs node tools/gen-storage-chests.mjs --selftest": "economy-selftests",
     "node tests/storage-chests.mjs": "economy-selftests",
     "node tools/mutant-gate.mjs node tests/storage-chests.mjs --selftest": "economy-selftests",
+    "node tests/house-home.mjs": "economy-selftests",
+    "node tools/mutant-gate.mjs node tests/house-home.mjs --selftest": "economy-selftests",
     "node tools/mutant-gate.mjs node tests/worker-hire-cap.mjs --selftest": "economy-selftests",
     "node tests/worker-hire-cap.mjs": "economy-selftests",
     "node tools/gen-hearthfind.mjs --check": "economy-selftests",

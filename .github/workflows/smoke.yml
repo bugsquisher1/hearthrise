@@ -2767,6 +2767,16 @@ jobs:
           node tests/storage-chests.mjs
           node tools/mutant-gate.mjs node tests/storage-chests.mjs --selftest
 
+      # ONE HOME PER ACCOUNT (Tyler 2026-10-15): the property and the rooms bought on one
+      # hero are every hero's (hr_unlock_levels, hr_unlock_buy's held rung and tier gate,
+      # the `home` section), never bought twice, a plot stays the character's, the home
+      # lock order and the readers' ACL. 7 mutations, the migration's own §5 short-circuited.
+      - name: House — one home per account
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/house-home.mjs
+          node tools/mutant-gate.mjs node tests/house-home.mjs --selftest
+
       # THE FREE CREW (live 2026-09-09, b527). hr_worker_hire read its paid crew
       # cap as coalesce(greatest(0, least(max(pp.value), 6)), 0) — and LEAST/GREATEST
       # DROP null arguments, so a player who had bought NOTHING got least(NULL,6)=6

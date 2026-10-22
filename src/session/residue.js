@@ -72,12 +72,16 @@ function sanitizeCombatLog(v) {
 }
 
 import { sanitizeSummaries } from './hunt-summaries.js?v=0.2.29';
+import { DEPOT_BASE_STACKS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.29';
 
 const ITEM_ID = /^[a-z0-9_]{1,64}$/;
 export const BAG_SEEN_MAX = 512;
+/* The storage's marks hold one row per stack the fullest depot can hold (every chest built), so a full
+   depot never loses a mark to the cap (src/shell/storage-model.js would re-add it on every paint). */
+export const STORE_SEEN_MAX = STORAGE_CHESTS.reduce((n, c) => n + c.stacks, DEPOT_BASE_STACKS);
 
-/** The bag's "seen" marks: item -> [the count last seen, the order it was first seen in]. */
-function sanitizeBagSeen(v) {
+/** "Seen" marks: item -> [the count last seen, the order it was first seen in], at most `max`. */
+function sanitizeSeen(v, max) {
   const out = {};
   if (!isObj(v)) return out;
   const rows = [];
@@ -90,9 +94,11 @@ function sanitizeBagSeen(v) {
   }
   /* Over the cap, the marks seen longest ago go first. */
   rows.sort((a, b) => b[2] - a[2]);
-  for (const [id, n, at] of rows.slice(0, BAG_SEEN_MAX)) out[id] = [n, at];
+  for (const [id, n, at] of rows.slice(0, max)) out[id] = [n, at];
   return out;
 }
+const sanitizeBagSeen = (v) => sanitizeSeen(v, BAG_SEEN_MAX);
+const sanitizeStoreSeen = (v) => sanitizeSeen(v, STORE_SEEN_MAX);
 
 /** The bag's remembered view: the category row and the sort (src/shell/bag-model.js ids). */
 function sanitizeBagView(v) {
@@ -101,6 +107,13 @@ function sanitizeBagView(v) {
   if (typeof v.cat === 'string' && ID.test(v.cat)) out.cat = v.cat;
   if (typeof v.sort === 'string' && ID.test(v.sort)) out.sort = v.sort;
   if (v.advanced === true) out.advanced = true;
+  return out;
+}
+
+/** The Storage window's remembered view: the category row and the sort (the same bag-model.js ids). */
+function sanitizeStoreView(v) {
+  const out = sanitizeBagView(v);
+  delete out.advanced;
   return out;
 }
 
@@ -133,6 +146,8 @@ const SANITIZERS = Object.freeze({
   combatLog: sanitizeCombatLog,     // display preference: the combat log's filters; gates and spends nothing
   bagSeen: sanitizeBagSeen,         // display state: which bag stacks carry the "new" mark; gates and spends nothing
   bagView: sanitizeBagView,         // display preference: the Inventory's category, sort and Advanced view; gates and spends nothing
+  storeView: sanitizeStoreView,     // display preference: the Storage window's category and sort; gates and spends nothing
+  storeSeen: sanitizeStoreSeen,     // display state: when each storage stack was last added to, for the Newest sort; gates and spends nothing
   alerts: sanitizeAlerts,           // display state: which alert kinds show and which events were shown; gates and spends nothing
   huntSummaries: sanitizeSummaries, // display state: the last few hunts' summary cards (src/hunt-view/summary-model.js); gates and spends nothing
   awaySeen: sanitizeAwaySeen,       // display state: the away recap's last-seen stamp (src/shell/away-recap.js); gates and spends nothing

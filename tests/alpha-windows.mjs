@@ -59,6 +59,10 @@
 //         moves ONE, Shift-press the whole stack, and a right-click asks how many
 //         (Enter confirms); each is ONE hr_bank_move naming exactly that count, and
 //         store 3 of 10 reads bag 7 / storage 3 from the envelope, before and after a reload
+//   AW-21 SORT AND FILTER (Tyler 10-22, "storage doesn't have a way to sort or filter"):
+//         a kind chip and the search narrow both Storage grids, Count orders by the
+//         stack, Newest puts the stack just stored first, and the chip and sort are
+//         remembered (ONE residue put naming storeView) and come back after a reload
 //   AW-19 BURY (Tyler live 10-18, "can't bury bones"): bones offer Bury all; it is
 //         ONE set_activity { kind:'artisan', id:'bury_bones' } and nothing else, the
 //         Burying line reads the server's pointer, Stop is ONE set_activity idle, and
@@ -574,7 +578,7 @@ async function checks(overrides, shots) {
       const town = (e) => {
         for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
         e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, bank_cap: 40 });
-        e.bank = { oak_logs: 12, iron_bar: 3 };
+        e.bank = { oak_logs: 12, iron_bar: 3, shrimp: 2 };
         e.inventory = Object.assign({}, e.inventory, { raw_wolf_meat: 4, raw_bear_meat: 2 });
       };
       const { ctx, page, errors, s, up } = await open({ mutateEnv: town });
@@ -620,6 +624,38 @@ async function checks(overrides, shots) {
           mv = sent(s, 'hr_bank_move').slice(1).map((c) => c.body.p_item + ':' + c.body.p_qty + ':' + c.body.p_dir);
           if (mv.join() !== 'oak_logs:1:withdraw,iron_bar:3:withdraw') fails.push('AW-18 a press then a Shift-press sent ' + JSON.stringify(mv));
           if ((await sc('bank', 'oak_logs')) !== '11') fails.push('AW-18 one oak log out leaves storage showing ' + (await sc('bank', 'oak_logs')));
+          /* AW-21 sort and filter: storage holds oak_logs 11, copper_ore 3, shrimp 2 (iron_bar went back to the bag) */
+          const W = '[data-hs-win="storage"] ';
+          const grid = (sd) => page.evaluate((x) => [...document.querySelectorAll('[data-hs-win="storage"] .hw-pockets[data-side="' + x + '"] .hw-pocket')].map((li) => li.getAttribute('data-item')).join(), sd);
+          await page.click(W + '.hw-cat[data-cat="food"]');
+          await page.waitForTimeout(200);
+          if ((await grid('bank')) !== 'shrimp' || (await grid('bag')).includes('copper_ore')) fails.push('AW-21 the Food chip shows storage ' + (await grid('bank')) + ' / bag ' + (await grid('bag')));
+          await page.click(W + '.hw-cat[data-cat="all"]');
+          await page.selectOption(W + '[data-hs-act="sort"]', 'count');
+          await page.waitForTimeout(200);
+          if ((await grid('bank')) !== 'oak_logs,copper_ore,shrimp') fails.push('AW-21 Count orders storage ' + (await grid('bank')));
+          await page.fill(W + '.hw-q', 'cop');
+          await page.waitForTimeout(200);
+          if ((await grid('bank')) !== 'copper_ore' || (await grid('bag')) !== 'copper_ore') fails.push('AW-21 the search "cop" shows storage ' + (await grid('bank')) + ' / bag ' + (await grid('bag')));
+          await page.fill(W + '.hw-q', '');
+          await page.selectOption(W + '[data-hs-act="sort"]', 'newest');
+          await page.click(W + '[data-side="bag"] .hw-pocket[data-item="iron_bar"]', { modifiers: ['Shift'] });
+          await page.waitForTimeout(700);
+          if (!(await grid('bank')).startsWith('iron_bar,')) fails.push('AW-21 Newest does not put the stack just stored first: ' + (await grid('bank')));
+          await page.click(W + '.hw-cat[data-cat="loot"]');
+          await page.selectOption(W + '[data-hs-act="sort"]', 'count');
+          await page.waitForTimeout(1900);
+          const views = sent(s, 'hr_put_client_state').map((c) => c.body.p_patch && c.body.p_patch.storeView).filter(Boolean);
+          const last = views[views.length - 1];
+          if (!last || last.cat !== 'loot' || last.sort !== 'count') fails.push('AW-21 the chip and sort were not put as storeView: ' + JSON.stringify(views));
+          if (!(await reloadAndPlay(page))) fails.push('AW-21 the reload did not come back');
+          else {
+            await openWin(page, 't', 'storage');
+            await page.waitForTimeout(300);
+            const sortNow = await page.evaluate(() => document.querySelector('[data-hs-win="storage"] [data-hs-act="sort"]').value);
+            if (sortNow !== 'count' || (await grid('bank')) !== 'copper_ore,iron_bar') fails.push('AW-21 after a reload the sort is ' + sortNow + ' and storage shows ' + (await grid('bank')));
+            await page.click(W + '.hw-cat[data-cat="all"]');
+          }
           if (shots) await shot(page, 'alpha-1440x900-storage');
         }
         /* AW-19 bury: the bones' primary is Bury all; ONE set_activity; Stop collects; the server's numbers only */
@@ -918,6 +954,7 @@ const MUTANTS = [
   ['a hunt carries only part of its own stack', 'src/shell/hunt-list.js', '.map((r) => ({ item: r.id, qty: Math.min(PACK_QTY_MAX, r.qty) }))', '.map((r) => ({ item: r.id, qty: Math.min(PACK_QTY_MAX, r.qty, 10) }))'],
   ['a Shift-press in Storage moves one at a time', 'src/shell/windows/storage.js', 'move(cs, sc, repaint, id, ev.shiftKey ? row.qty : 1, action);', 'move(cs, sc, repaint, id, 1, action);'],
   ['a press in Storage moves the whole stack', 'src/shell/windows/storage.js', 'move(cs, sc, repaint, id, ev.shiftKey ? row.qty : 1, action);', 'move(cs, sc, repaint, id, row.qty, action);'],
+  ['the Storage chip and sort are not applied', 'src/shell/windows/storage.js', '  const o = { cat: prefs.cat, query: sc.query, sort: prefs.sort,', "  const o = { cat: 'all', query: sc.query, sort: 'name',"],
   ['the amount picker sends the whole stack', 'src/shell/widgets/amount.js', "  return n ? clampAmount(n.value, n.getAttribute('data-max')) : 1;", "  return n ? clampAmount(n.getAttribute('data-max'), n.getAttribute('data-max')) : 1;"],
   ['Enter in the amount picker does nothing', 'src/shell/windows/float-menu.js', "      if (e.key === 'Enter' && def) { e.preventDefault(); e.stopPropagation(); def.click(); }\n", ''],
   ['bones offer no Bury', 'src/shell/windows/inventory/state.js', "  if (br) return ['bury', buryLabel(br, st.qty.get(id))];\n", ''],
@@ -945,7 +982,7 @@ async function main() {
     const fails = await checks(null, shots);
     for (const f of fails) console.log('  ✗ ' + f);
     console.log(fails.length ? 'alpha-windows: ' + fails.length + ' rule(s) RED'
-      : 'alpha-windows: the windows open; patch in place; the server’s counts win; intents only; locks hold; totals first; no supplies in the Shop; Hunts from the hatch in two presses; window presses and focus never steal the World; no void; storage from town; store any amount; bury and cook pay from the server; skills split' + (shots ? ' (shots in ' + shots + ')' : ''));
+      : 'alpha-windows: the windows open; patch in place; the server’s counts win; intents only; locks hold; totals first; no supplies in the Shop; Hunts from the hatch in two presses; window presses and focus never steal the World; no void; storage from town; store any amount; storage sorts and filters; bury and cook pay from the server; skills split' + (shots ? ' (shots in ' + shots + ')' : ''));
     process.exit(fails.length ? 1 : 0);
   }
   const clean = await cleanControl(() => checks(null, null));

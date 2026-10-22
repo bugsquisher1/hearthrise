@@ -7,7 +7,7 @@
 //   node tests/chat-social.mjs --mutate       every planted defect must turn a rule RED
 //   node tests/chat-social.mjs --shots <dir>  also write the visual-gate screenshots (1440x900, 922x423)
 //
-// mutant-anchors: src/social/ src/data/chat-channels.js src/shell/context-menu.js src/shell/menu-providers.js src/shell/windows/chat.js src/shell/windows/friends.js src/hunt-view/scene.js src/session/party-sections.js src/world/world-boot.js
+// mutant-anchors: src/social/ src/data/chat-channels.js src/data/shell-windows.js src/shell/window-sizes.js src/shell/windows/inventory/index.js src/styles/hunt.css src/shell/context-menu.js src/shell/menu-providers.js src/shell/windows/chat.js src/shell/windows/friends.js src/hunt-view/scene.js src/session/party-sections.js src/world/world-boot.js
 // mutant-writes-tree: no — pure mutants plant into a temp copy of src/, page mutants into served overrides
 //
 // The server half of every rule (the sender's name, level and role stamped by
@@ -59,6 +59,15 @@
 //         Block), a monster opens Look, the ground opens nothing, the viewed hero no menu
 //   RT-1  the realtime bindings one client holds are capped by CHAT_LIMITS.realtimeBindingsMax
 //   WT-1  a World pick becomes a stamped player, a monster, or nothing
+//   CW-6  [page] THE MENU STAYS (playtest 10-22: "right click outside of the bag is not
+//         sticking"): with the Inventory open, the menu a right-click on a chat name opens
+//         is still open after the bag's display ticks, until Esc
+//   CW-7  [page] CHAT (Tyler 2026-10-22): on desktop it opens floating at the World's
+//         bottom-left (12 px in, 44 px up, clear of Players online), see-through
+//         (background alpha under .9) with lines at 12 px or more; its grip makes it 80 px
+//         wider and 60 px taller with its bottom-left corner still, that size is ONE
+//         residue put (winSize.chat) and comes back after a reload; on a phone it is the
+//         right-hand sheet with no grip
 //   CW-4  [page] the right-click menu on a name opens at page level with Inspect,
 //         Message, Add friend, Invite to party, Block (no Trade); a press on it never reaches the World;
 //         Inspect shows the worn items; zero console errors throughout
@@ -319,8 +328,11 @@ async function stub(page, s) {
     const body = JSON.parse(r.request().postData() || '{}');
     s.calls.push({ name, body });
     const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
-    if (name === 'hr_load') return json(Object.assign(env(), { version: ++s.version }));
-    if (name === 'hr-accrue') return json(Object.assign({ accrued: true }, env(), { version: ++s.version }));
+    /* The residue the page put comes back in the envelope (CW-7: a size survives a reload). */
+    const kept = () => ({ client_state: Object.assign({}, FIXTURE.client_state, s.residue) });
+    if (name === 'hr_put_client_state') { s.residue = Object.assign({}, s.residue, body.p_patch); return json({ ok: true }); }
+    if (name === 'hr_load') return json(Object.assign(env(), kept(), { version: ++s.version }));
+    if (name === 'hr-accrue') return json(Object.assign({ accrued: true }, env(), kept(), { version: ++s.version }));
     if (name === 'hr_chat_recent') return json({ ok: true, zone: ZONE, party: null, lines: [row({ body: 'welcome back', created_at: '2026-10-18T08:00:00Z' })] });
     if (name === 'hr_chat_send') return json({ ok: true, line: row({ from_id: UID, from_name: 'Quill', body: body.p_body, from_weapon: 'staff', from_role: 'healer' }) });
     if (name === 'hr_social_state') return json({ ok: true, friends: [], incoming: [], outgoing: [], blocks: [] });
@@ -447,6 +459,23 @@ async function pageRules(overrides, shots) {
         if (!scan.ground) fails.push('CW-5 [' + tag + '] every point opened a menu (the ground must open nothing)');
         if (scan.seen.Tyler) fails.push('CW-5 [' + tag + '] the viewed hero opened a player menu on itself: ' + scan.seen.Tyler);
       }
+      // CW-6: with the bag open, a right-click menu outside it stays (the bag's display tick closed every menu)
+      if (!phone) {
+        await page.keyboard.press('b');
+        if (!await wait(page, () => document.querySelector('[data-hs-win="inventory"]:not(.is-leaving) .hw-inv'), null, 3000)) fails.push('CW-6 [' + tag + '] B did not open the Inventory');
+        const nb = await page.$('[data-hs-win="chat"] .hc-log.is-talk.is-on .hc-name[data-hs-player-id]');
+        if (!nb) fails.push('CW-6 [' + tag + '] no name to right-click beside the bag');
+        else {
+          await nb.click({ button: 'right' });
+          await page.waitForTimeout(900);
+          if (!await page.evaluate(() => !!document.querySelector('.hw-menu.is-on'))) fails.push('CW-6 [' + tag + '] the menu opened outside the bag closed by itself');
+          await page.keyboard.press('Escape');
+          if (await page.evaluate(() => !!document.querySelector('.hw-menu.is-on'))) fails.push('CW-6 [' + tag + '] Esc did not close the menu');
+        }
+        await page.mouse.click(2, vp.height - 2);
+        await page.keyboard.press('b');
+        await page.waitForTimeout(300);
+      }
       // CW-4
       const nameBox = await page.$('[data-hs-win="chat"] .hc-log.is-talk.is-on .hc-name[data-hs-player-id]');
       if (!nameBox) fails.push('CW-4 [' + tag + '] no name to right-click');
@@ -468,6 +497,55 @@ async function pageRules(overrides, shots) {
       await page.keyboard.press('n');
       if (!await wait(page, () => document.querySelector('[data-hs-win="friends"] .hf-friends .hs-blocks'), null, 3000)) fails.push('CW-4 [' + tag + '] the Friends window (with its block list) did not open on N');
       if (shots) await page.screenshot({ path: join(shots, 'friends-' + tag + '.png') });
+      // CW-7: the chat's corner, its see-through plate, its grip and the size a reload keeps
+      const closeAll = async () => { for (let i = 0; i < 5 && await page.evaluate(() => !!document.querySelector('[data-hs-win]:not(.is-leaving)')); i++) { await page.mouse.click(2, vp.height - 2); await page.keyboard.press('Escape'); await page.waitForTimeout(220); } };
+      const chatBox = () => page.evaluate(() => {
+        const w = document.querySelector('[data-hs-win="chat"]:not(.is-leaving)');
+        if (!w) return null;
+        const sh = document.querySelector('[data-hs-shell]').getBoundingClientRect(), r = w.getBoundingClientRect();
+        const bg = getComputedStyle(w).backgroundColor, m = bg.match(/\/\s*([\d.]+)\)$/) || bg.match(/rgba\([^,]+,[^,]+,[^,]+,\s*([\d.]+)\)/);
+        const line = w.querySelector('.hc-log.is-talk.is-on .hc-line'), grip = w.querySelector('.hs-grip');
+        return { left: Math.round(r.left - sh.left), right: Math.round(sh.right - r.right), bottom: Math.round(sh.bottom - r.bottom), w: Math.round(r.width), h: Math.round(r.height),
+          alpha: m ? Number(m[1]) : 1, px: line ? parseFloat(getComputedStyle(line).fontSize) : 0, floating: w.classList.contains('is-floating'), grip: !!(grip && grip.offsetWidth) };
+      });
+      await closeAll();
+      await page.keyboard.press('Enter');
+      await wait(page, () => document.querySelector('[data-hs-win="chat"]:not(.is-leaving) .hc-log.is-talk.is-on li'), null, 3000);
+      await page.waitForTimeout(300);
+      const c0 = await chatBox();
+      if (!c0) fails.push('CW-7 [' + tag + '] Enter did not open the chat');
+      else if (phone) {
+        if (c0.floating || c0.right !== 0 || c0.grip) fails.push('CW-7 [' + tag + '] the phone chat is not the right-hand sheet: ' + JSON.stringify(c0));
+      } else {
+        if (!c0.floating || c0.left !== 12 || c0.bottom !== 44) fails.push('CW-7 [' + tag + '] the chat did not open at the bottom-left: ' + JSON.stringify(c0));
+        if (!(c0.alpha < 0.9 && c0.alpha > 0.3) || !(c0.px >= 12)) fails.push('CW-7 [' + tag + '] the chat is not see-through and readable: ' + JSON.stringify(c0));
+        const g = c0.grip && await page.locator('[data-hs-win="chat"] .hs-grip').boundingBox();
+        if (!g) fails.push('CW-7 [' + tag + '] the chat has no grip');
+        else {
+          const puts0 = s.calls.filter((c) => c.name === 'hr_put_client_state').length;
+          await page.mouse.move(g.x + g.width / 2, g.y + g.height / 2);
+          await page.mouse.down();
+          await page.mouse.move(g.x + g.width / 2 + 80, g.y + g.height / 2 - 60, { steps: 6 });
+          await page.mouse.up();
+          await page.waitForTimeout(2200);
+          const c1 = await chatBox();
+          if (c1.w - c0.w !== 80 || c1.h - c0.h !== 60 || c1.left !== c0.left || c1.bottom !== c0.bottom) fails.push('CW-7 [' + tag + '] the grip did not grow the chat up and right: ' + JSON.stringify(c0) + ' -> ' + JSON.stringify(c1));
+          const puts = s.calls.filter((c) => c.name === 'hr_put_client_state').slice(puts0).filter((c) => c.body.p_patch && c.body.p_patch.winSize);
+          const want = JSON.stringify({ chat: [400 + 80, 280 + 60] });
+          if (puts.length !== 1 || JSON.stringify(puts[0].body.p_patch.winSize) !== want) fails.push('CW-7 [' + tag + '] the size was put as ' + JSON.stringify(puts.map((c) => c.body.p_patch)) + ', not ONE ' + want);
+          await page.reload({ waitUntil: 'load' });
+          await wait(page, () => document.querySelector('[data-hs-shell]') || document.querySelector('[data-app="play"][data-slot="0"]'));
+          if (!(await page.$('[data-hs-shell]'))) await page.click('[data-app="play"][data-slot="0"]');
+          await wait(page, () => document.querySelector('[data-hs-shell]'));
+          await page.waitForTimeout(400);
+          if (!await page.evaluate(() => !!document.querySelector('[data-hs-win="chat"]:not(.is-leaving)'))) await page.keyboard.press('Enter');
+          await wait(page, () => document.querySelector('[data-hs-win="chat"]:not(.is-leaving)'), null, 3000);
+          await page.waitForTimeout(300);
+          const c2 = await chatBox();
+          if (!c2 || c2.w !== c1.w || c2.h !== c1.h || c2.left !== 12 || c2.bottom !== 44) fails.push('CW-7 [' + tag + '] after a reload the chat is ' + JSON.stringify(c2) + ', not ' + JSON.stringify(c1));
+        }
+      }
+      if (shots) await page.screenshot({ path: join(shots, 'chat-home-' + tag + '.png') });
       if (errors.length) fails.push('CW-4 [' + tag + '] console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
@@ -506,6 +584,10 @@ const PURE_MUTANTS = [
   ['a re-read keeps lines the server no longer returns', 'src/social/chat-store.js', "const keep = tab === 'system' ? this.lines(tab).filter((l) => l.system) : [];", 'const keep = this.lines(tab);'],
 ];
 const PAGE_MUTANTS = [
+  ['the bag\'s repaint closes every menu', 'src/shell/windows/inventory/index.js', 'closeFloatMenu(ctx.doc, st.sc.menuOwner || null);', 'closeFloatMenu(ctx.doc);'],
+  ['the chat docks on the right', 'src/data/shell-windows.js', "height: 280, home: 'bl', resizable: true,", "height: 280, resizable: true,"],
+  ['the chat is opaque', 'src/styles/hunt.css', '.hs-win[data-hs-win="chat"] { background: var(--chat-bg); }', '.hs-win[data-hs-win="chat"] { background: var(--modal-bg); }'],
+  ['the chat size is not kept', 'src/shell/window-sizes.js', "      character.setResidue('winSize',", "      void character; void ("],
   ['the level is dropped from a line', 'src/shell/windows/chat.js', "(l.level !== null ? esc(l.level) : '')", "''"],
   ['no unread dot', 'src/shell/windows/chat.js', "cls(b, 'is-unread', t.unread > 0 && t.id !== tab);", "cls(b, 'is-unread', false);"],
   ['the field swallows every key', 'src/shell/windows/chat.js', "    if (type === 'keydown' && ev.key === 'Escape') { t.blur(); return true; }\n    return false;",

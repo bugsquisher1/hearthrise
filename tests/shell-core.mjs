@@ -11,7 +11,8 @@
 //   W  windows: the cap of three (oldest closes), the 60% dock, Esc (top window,
 //      then the escape row), focus order, the phone's single sheet, keys
 //      (B/C/K/H/L/M/Enter on the spec catalogue; ignored while typing or chorded),
-//      the 120 ms close and reduced motion, float/dock, no window in the camera inset
+//      the 120 ms close and reduced motion, float/dock, no window in the camera inset,
+//      a home-bl window (Chat) floating at the bottom-left and a resizable one's size
 //   H  HUD: defaults per size class, show/hide (never the launchers), opacity
 //      clamp, persisted per size class, Reset touches only this class, a saved
 //      layout survives a reload, `when: hunt`, placement by anchor
@@ -59,6 +60,7 @@ function harness(WMmod, opts) {
     world: () => ({ width: env.width, height: env.height }),
     reducedMotion: () => env.reduced,
     schedule: (fn, ms) => env.timers.push({ fn, ms }),
+    sizeOf: o.sizeOf,
   });
   const events = [];
   wm.subscribe((e) => events.push(e));
@@ -368,6 +370,53 @@ async function runTests(mods) {
     eq(CS.sanitizeResidueField('hudLayout', character.writes[0][1]), character.writes[0][1], 'what the HUD writes survives the bound unchanged');
   });
 
+  /* ── W15, H12, R4: the chat's corner and size (Tyler 2026-10-22), the docked window above the bar ── */
+  t('W15 a home-bl window opens floating at the bottom-left, keeps its size, and the phone keeps its sheet', () => {
+    const rows = [{ id: 'chat', label: 'Chat', key: 'enter', width: 400, height: 280, home: 'bl', resizable: true }, { id: 'bag', label: 'Bag', key: 'b', width: 400 }];
+    const at = (wm, id) => wm.layout().find((e) => e.id === id);
+    let saved = null;
+    const { wm, env } = harness(WM, { windows: rows, sizeOf: (id) => (id === 'chat' ? saved : null) });
+    wm.open('chat'); wm.open('bag');
+    const c = at(wm, 'chat');
+    eq([c.docked, c.x, c.bottom, c.width, c.height], [false, WM.DOCK_EDGE, WM.HOME_BOTTOM, 400, 280], 'the chat floats at the bottom-left at its row size');
+    eq(at(wm, 'bag').right, WM.DOCK_EDGE, 'the chat takes no dock slot: the bag docks at the edge');
+    eq(wm.setSize('chat', { w: 480, h: 340 }), { w: 480, h: 340 }, 'the grip sets the size');
+    eq([at(wm, 'chat').width, at(wm, 'chat').height, at(wm, 'chat').bottom], [480, 340, WM.HOME_BOTTOM], 'it grows from its corner');
+    eq(wm.setSize('chat', { w: 9999, h: 9999 }), { w: env.width - 2 * WM.DOCK_EDGE, h: env.height - WM.HOME_BOTTOM - WM.DOCK_EDGE }, 'never past the World');
+    eq(wm.setSize('chat', { w: 1, h: 1 }), { w: WM.RESIZE_MIN.w, h: WM.RESIZE_MIN.h }, 'never under its minimum');
+    eq(wm.setSize('bag', { w: 500, h: 500 }), null, 'a row that is not resizable has no size to set');
+    wm.close('chat'); saved = { w: 520, h: 300 };
+    wm.open('chat');
+    eq([at(wm, 'chat').bottom, at(wm, 'chat').width, at(wm, 'chat').height], [WM.HOME_BOTTOM, 520, 300], 'a reopen (a reload) is home again at the saved size');
+    wm.float('chat', { x: 300, y: 200 });
+    wm.setSize('chat', { w: 520, h: 360 }, true);
+    eq([at(wm, 'chat').x, at(wm, 'chat').y, at(wm, 'chat').bottom], [300, 140, undefined], 'dragged off home, a taller window grows up from its bottom edge');
+    env.phone = true; wm.resize(); wm.open('chat');
+    const p = at(wm, 'chat');
+    eq([p.docked, p.width, p.height, p.bottom], [true, null, null, undefined], 'the phone: the sheet, its own size');
+    eq(wm.setSize('chat', { w: 500, h: 500 }), null, 'the phone has no grip');
+    for (const bad of [{ home: 'tr', height: 200 }, { home: 'bl' }, { resizable: true }, { resizable: true, height: 200, modal: true }]) {
+      let threw = false;
+      try { WM.validateWindowRows([Object.assign({ id: 'x', label: 'X', key: 'x', width: 300 }, bad)]); } catch (e) { threw = true; }
+      ok(threw, 'must refuse ' + JSON.stringify(bad));
+    }
+  });
+  t('H12 a docked window whose column crosses the bottom bar ends above it; elsewhere it is not capped', () => {
+    const bar = { left: 470, top: 820, width: 500, height: 64 };
+    eq(HUD.dockCap({ left: 888, top: 12, width: 540, height: 600 }, [bar], 12), 820 - 12 - 12, 'over the bar: it ends 12 px above it');
+    eq(HUD.dockCap({ left: 1000, top: 12, width: 428, height: 600 }, [bar], 12), null, 'clear of the bar: no cap');
+    eq(HUD.dockCap({ left: 888, top: 12, width: 540, height: 600 }, [{ left: 470, top: 150, width: 500, height: 64 }], 12), null, 'a cap shorter than a usable window: none (the bar clears it)');
+    eq(HUD.dockCap({ left: 888, top: 12, width: 540, height: 600 }, [], 12), null, 'no bar, no cap');
+  });
+  t('R4 winSize is an allowlisted residue field, bounded both ways', () => {
+    ok(CS.RESIDUE_FIELDS.includes('winSize'), 'winSize must be in RESIDUE_FIELDS');
+    eq(CS.sanitizeResidueField('winSize', { chat: [480.4, 340], 'BAD ID': [1, 1], bag: [1, 2, 3], inv: ['a', 2], big: [1e9, -5] }), { chat: [480, 340], big: [4096, 120] }, 'shaped and clamped');
+    eq(CS.sanitizeResidueField('winSize', [1, 2]), {}, 'not a map: nothing');
+    const many = {};
+    for (let i = 0; i < 100; i++) many['w' + i] = [300, 300];
+    ok(Object.keys(CS.sanitizeResidueField('winSize', many)).length <= 16, 'the count is bounded');
+  });
+
   /* ── R3: "while you were away" (src/shell/away-recap.js, designer 2026-10-22) ── */
   t('R3 the away recap: one line of server differences on return, never on a quick reload', () => {
     const T0 = 1_800_000_000_000, H2 = 2 * 3600 * 1000;
@@ -420,7 +469,12 @@ const MUTANTS = [
   { test: 'W4', file: WM_FILE, from: "if (open[open.length - 1] !== id) { open.splice(open.indexOf(id), 1); open.push(id); emit(); }", to: '' },
   { test: 'W5', file: WM_FILE, from: 'if (isPhone() && !isModal(id)) for (const other of open.slice()) drop(other);', to: '' },
   { test: 'W10b', file: WM_FILE, from: 'const isModal = (id) => rows.get(id).modal === true;', to: 'const isModal = () => false;' },
-  { test: 'W13', file: WM_FILE, from: "else Object.assign(e, { docked: true, right: slot.has(id) ? slot.get(id) : DOCK_EDGE, width: r.width });", to: "else Object.assign(e, { docked: true, right: DOCK_EDGE + open.slice(i + 1).filter((d) => !floating.has(d)).reduce((s, d) => s + width(d) + DOCK_GAP, 0), width: r.width });" },
+  { test: 'W13', file: WM_FILE, from: "else Object.assign(e, { docked: true, right: slot.has(id) ? slot.get(id) : DOCK_EDGE,", to: "else Object.assign(e, { docked: true, right: DOCK_EDGE + open.slice(i + 1).filter((d) => !floating.has(d)).reduce((s, d) => s + width(d) + DOCK_GAP, 0)," },
+  { test: 'W15', file: WM_FILE, from: "      } else if (!was && isHome(id)) floating.set(id, { home: true });\n", to: '      }\n' },
+  { test: 'W15', file: WM_FILE, from: "    if (keepBottom && f && !f.home) f.y = Math.max(0, f.y - (now.h - before.h));", to: '' },
+  { test: 'W15', file: WM_FILE, from: "      w: Math.round(Math.max(RESIZE_MIN.w, Math.min(Math.max(RESIZE_MIN.w, wd.width - 2 * DOCK_EDGE), w))),", to: '      w: Math.round(w),' },
+  { test: 'H12', file: HUD_FILE, from: '  return cap >= DOCK_CAP_MIN_PX ? cap : null;', to: '  return null;' },
+  { test: 'R4', file: 'src/session/residue.js', from: '  winSize: sanitizeWinSize,', to: '  winSize: (v) => v,' },
   { test: 'W13', file: WM_FILE, from: 'else if (slot.has(id)) lastAt.set(id, { right: slot.get(id) });', to: ';' },
   { test: 'W8', file: WM_FILE, from: 'return keyBelongsToField(ev.target, ev.key);', to: 'return false;' },
   { test: 'W8', file: 'src/utils/dom.js', from: "  if (tag === 'select') return /^Arrow/.test(String(key || ''));", to: "  if (tag === 'select') return true;" },

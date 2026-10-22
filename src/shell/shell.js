@@ -43,13 +43,14 @@ import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.29';
 import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.29';
 import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.29';
 import { createWindowManager, DOCK_EDGE } from './window-manager.js?v=0.2.29';
-import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf } from './hud.js?v=0.2.29';
+import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, dockCap } from './hud.js?v=0.2.29';
 import { keyLabel, glyphSvg } from './launcher.js?v=0.2.29';
 import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.29';
 import { mountContextMenu } from './context-menu.js?v=0.2.29';
 import { menuProvidersOf } from './menu-providers.js?v=0.2.29';
 import { escapeHtml as esc } from '../utils/dom.js?v=0.2.29';
 import { followDeaths } from './death-popup.js?v=0.2.29';
+import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.29';
 
 /* The components' display clock: session timers and the timeline's due events (parity SH-05, DOM 4 Hz). */
 const DISPLAY_TICK_MS = 250;
@@ -93,8 +94,10 @@ export function mountShell(root, o) {
   const screenHud = screen.querySelector('[data-hs-hud="screen"]');
   const layer = shell.querySelector('[data-hs-layer]');
 
+  const sizes = sizeStore(opts.character);
   const wm = createWindowManager({
     windows: SHELL_WINDOWS,
+    sizeOf: (id) => sizes.read(id),
     isPhone: () => phoneMq.matches,
     world: () => ({ width: shell.clientWidth, height: shell.clientHeight }),
     reducedMotion,
@@ -130,7 +133,7 @@ export function mountShell(root, o) {
     el.innerHTML = '<header class="hs-win-head" data-hs-drag="' + esc(row.id) + '">' + glyphSvg(ctx.glyphs, row.glyph)
       + '<h2 class="hs-win-title">' + esc(row.label) + '</h2><kbd class="hs-key">' + esc(keyLabel(row.key)) + '</kbd>'
       + '<button type="button" class="hs-close" data-hs-close="' + esc(row.id) + '" aria-label="Close ' + esc(row.label) + '">' + glyphSvg(ctx.glyphs, 'uiClose') + '</button></header>'
-      + '<div class="hs-win-body" data-hs-body></div>';
+      + '<div class="hs-win-body" data-hs-body></div>' + gripHtml(row);
     return el;
   }
 
@@ -158,10 +161,16 @@ export function mountShell(root, o) {
       el.classList.toggle('is-top', p.top);
       el.style.zIndex = String(p.z);
       el.style.width = p.width ? p.width + 'px' : '';
+      el.style.height = p.height ? p.height + 'px' : '';
+      el.classList.toggle('is-sized', !!p.height);
       el.style.right = p.docked && !p.phone ? p.right + 'px' : '';
-      /* A modal row is centred by its own CSS (.hs-win.is-modal), on every size class. */
+      /* A modal row is centred by its own CSS (.hs-win.is-modal), on every size class; a home row (Chat) is held
+         to the World's bottom-left by its bottom edge, so a taller one grows up. */
+      const home = Number.isFinite(p.bottom);
+      el.classList.toggle('is-home', home);
       el.style.left = p.docked || p.modal ? '' : p.x + 'px';
-      el.style.top = p.docked || p.modal ? '' : p.y + 'px';
+      el.style.top = p.docked || p.modal || home ? '' : p.y + 'px';
+      el.style.bottom = home ? p.bottom + 'px' : '';
     }
   }
 
@@ -205,6 +214,7 @@ export function mountShell(root, o) {
       el.style.left = at.left + 'px';
       el.style.top = at.top + 'px';
     }
+    capDock();
     /* A docked window never covers a widget (hud.js clearOfDock, r11): a right-anchored World widget it
        lands on slides left of the dock but never into the middle of the fight (hud.js stageOf), else
        waits hidden until the dock narrows; its home left is kept for the camera inset. Then widgets never overlap (hud.js clearOfEdges): a centred widget that lands on
@@ -244,6 +254,19 @@ export function mountShell(root, o) {
     return Array.from(layer.querySelectorAll('.hs-win:not(.is-floating):not(.is-modal):not(.is-leaving)'))
       .map((w) => ({ left: w.offsetLeft, top: w.offsetTop, width: w.offsetWidth, height: w.offsetHeight }))
       .filter((q) => q.width > 0 && q.height > 0);
+  }
+  /* Desktop: a docked window whose column crosses the bottom bar's home ends above it (hud.js dockCap), so a window
+     that grows (a Settings tab) never moves the bar. The phone's sheet is full height; the bar clears it as before. */
+  function capDock() {
+    const b = shell.getBoundingClientRect();
+    const bars = phoneMq.matches ? [] : Array.from(worldHud.querySelectorAll('[data-hs-widget]'))
+      .filter((e) => hud.layoutOf(e.getAttribute('data-hs-widget')).anchor === 'bc')
+      .map((e) => { const q = e.getBoundingClientRect(); return { left: q.left - b.left, top: q.top - b.top, width: q.width, height: q.height }; });
+    for (const w of layer.querySelectorAll('.hs-win:not(.is-floating):not(.is-modal)')) {
+      const cap = bars.length ? dockCap({ left: w.offsetLeft, top: w.offsetTop, width: w.offsetWidth, height: w.offsetHeight }, bars, DOCK_EDGE) : null;
+      const v = cap === null ? '' : cap + 'px';
+      if (w.style.maxHeight !== v) w.style.maxHeight = v;
+    }
   }
   /* A widget the dock moved -> its home left: the camera inset reads it there (windows never move the World). */
   const dockHome = new WeakMap();
@@ -346,6 +369,7 @@ export function mountShell(root, o) {
     if (e.target.closest('[data-hs-close]')) return;
     const id = win.getAttribute('data-hs-win');
     wm.focus(id);
+    if (!phoneMq.matches && pressGrip(e, { wm, store: sizes, host })) return;
     const head = e.target.closest('[data-hs-drag]');
     if (!head || e.button !== 0 || phoneMq.matches || wm.row(id).modal) return;
     const b = shell.getBoundingClientRect(), r = win.getBoundingClientRect();

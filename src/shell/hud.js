@@ -150,6 +150,23 @@ export function clearOfDock(r, dock, others, gap, stops = []) {
   return null;
 }
 
+/* The shortest a docked window is capped to; under it the window keeps its height and the bar clears it instead. */
+const DOCK_CAP_MIN_PX = 160;
+
+/**
+ * A DOCKED WINDOW STOPS ABOVE THE BOTTOM BAR (Tyler 10-22: a Settings tab that made the docked window taller
+ * pushed the action bar across the screen). A docked window `win` whose column crosses a bottom-centre widget's
+ * HOME rect (`bars`) ends `gap` above the highest one, so a window that grows never moves the bar; null when no
+ * bar is under it, or when the cap would leave it shorter than DOCK_CAP_MIN_PX (the bar then clears it,
+ * clearOfEdges). Rects {left, top, width, height} in the shell's px. Pure.
+ */
+export function dockCap(win, bars, gap) {
+  const under = bars.filter((b) => b.width > 0 && win.left < b.left + b.width + gap && b.left < win.left + win.width + gap);
+  if (!under.length) return null;
+  const cap = Math.round(Math.min(...under.map((b) => b.top)) - gap - win.top);
+  return cap >= DOCK_CAP_MIN_PX ? cap : null;
+}
+
 /**
  * The World edges the docked HUD widgets cover, so the camera frames the
  * playable area above and beside them (the bottom bar must not sit over the

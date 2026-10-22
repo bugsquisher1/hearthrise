@@ -36,7 +36,7 @@
 //                                   hr_hunt_apply (one statement)
 //    7    leave the hunt            hr_hunt_leave: the bag comes home               8
 //    8    sell the loot             vendor_sell_many (catalogue.vendorPriceOf)      9
-//    9    buy an upgrade            shop_buy equip.* the character can wield        10
+//    9    buy an upgrade            shop_buy a listed gear row it can wield         10
 //   10    equip it                  equip -> hr_apply equipment                     11
 //   11    hunt again, better        a new session, the same dice, the new kit       12
 //   12    reload                    hr_load (the boot read) == the last envelope    -
@@ -697,7 +697,8 @@ const cheapestFood = (M) => foodOffers(M).sort((a, b) => a.gold - b.gold)[0] || 
 /** Every NPC equipment offer this character can wield that beats what it wears. */
 function npcUpgrades(M, env) {
   const wielded = ITEMS[env.equipment.weapon] || {};
-  return Object.values(M.cat.GOLD_OFFERS).filter((o) => o.id.startsWith('equip.') && o.grant.length === 1)
+  /* Every offer shop_buy sells is a row a Shop tab lists (lane/b-gold-sinks, 2026-10-22: the outfitter's gear). */
+  return Object.values(M.cat.GOLD_OFFERS).filter((o) => o.grant.length === 1)
     .map((o) => ({ o, id: o.grant[0].id, it: ITEMS[o.grant[0].id] || {} }))
     .filter((c) => c.it.slot && (!c.it.reqSkill || lvOf(env, c.it.reqSkill) >= num(c.it.reqLv)))
     /* A melee player upgrades melee: a bow or a staff is a new style, not a better sword. */

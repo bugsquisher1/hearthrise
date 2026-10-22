@@ -278,7 +278,7 @@ async function run(mutate) {
                   set accrued_to = now() - interval '3606.4 seconds', active_since = now() - interval '3606.4 seconds'
                 where user_id=$1 and slot=0`, [U.g]);
       await clearGate();
-      const r = await mods.sb.runShopBuy({ exec, user: U.g, slot: 0, intentId: uuid(), offer: 'seed.turnip_seed', qty: 1 });
+      const r = await mods.sb.runShopBuy({ exec, user: U.g, slot: 0, intentId: uuid(), offer: 'supply.bronze_axe', qty: 1 });
       ok(r.status === 200 && r.body.ok === true, `S2-CONTROL: the shop buy refused ${JSON.stringify(r.body).slice(0, 240)}`);
       const lag = Date.parse(r.body.now) - Number((await row(U.g)).at_ms);
       ok(lag > 6000 && lag < 12800,
@@ -292,7 +292,7 @@ async function run(mutate) {
       await miner(U.g);
       const ore0 = await qty(U.g, ORE);
       await clearGate();
-      const r = await mods.sb.runShopBuy({ exec, user: U.g, slot: 0, intentId: uuid(), offer: 'seed.turnip_seed', qty: 1 });
+      const r = await mods.sb.runShopBuy({ exec, user: U.g, slot: 0, intentId: uuid(), offer: 'supply.bronze_axe', qty: 1 });
       const moved = (await qty(U.g, ORE)) - ore0;
       ok(r.status === 200 && r.body.ok === true, `S3-CONTROL: the shop buy refused ${JSON.stringify(r.body).slice(0, 240)}`);
       const c = r.body.collected;
@@ -309,7 +309,7 @@ async function run(mutate) {
       await q('update public.player_state set gold = 0 where user_id=$1 and slot=0', [U.g]);
       const ore1 = await qty(U.g, ORE);
       await clearGate();
-      const poor = await mods.sb.runShopBuy({ exec, user: U.g, slot: 0, intentId: uuid(), offer: 'seed.turnip_seed', qty: 1 });
+      const poor = await mods.sb.runShopBuy({ exec, user: U.g, slot: 0, intentId: uuid(), offer: 'supply.bronze_axe', qty: 1 });
       const moved1 = (await qty(U.g, ORE)) - ore1;
       ok(poor.status === 409 && poor.body.ok === false,
         `S3-CONTROL: a buy with an empty purse answered ${poor.status}`);
@@ -419,7 +419,7 @@ async function run(mutate) {
           where user_id=$1 and kind in ('accrue','gather','combat','craft')`, [U.s]))[0].n);
       const ledger0 = await settleRows();
       await clearGate();
-      const r = await mods.sb.runShopBuy({ exec, user: U.s, slot: 0, intentId: uuid(), offer: 'seed.turnip_seed', qty: 1 });
+      const r = await mods.sb.runShopBuy({ exec, user: U.s, slot: 0, intentId: uuid(), offer: 'supply.bronze_axe', qty: 1 });
       const after = await row(U.s);
       const ledger1 = await settleRows();
       ok(r.status === 200 && r.body.ok === true, `S1-CONTROL: the shop buy refused ${JSON.stringify(r.body).slice(0, 240)}`);

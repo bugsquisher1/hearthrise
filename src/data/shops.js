@@ -66,7 +66,10 @@ function supplyOffer(s) {
     grant: [{ kind: "item", id: s.item, amount: 1 }], repeatable: true };
 }
 
-/** Every offer whose price is fully known as data. */
+/** Every offer whose price is fully known as data. NOT every offer is SOLD: `shop_buy` sells only the rows a
+    Shop tab lists (the supply-basics.js tool and gear rows; supabase/functions/hr-accrue/catalogue.js offerRefusal
+    refuses the rest `not_listed`, lane/b-gold-sinks 2026-10-22). The legacy equip.* and seed.* rows stay as the
+    vendor's price list (their half-price caps) and as the items' catalogued price, never as a door. */
 export const SHOP_OFFERS = [
   {
     id: "character_slot.2", table: "character_slot",
@@ -643,7 +646,7 @@ export const SHOP_TABLES = [
     "origin": "src/legacy.js",
     "anchor": "const SEED_SHOP=[",
     "spends_at": "legacy.js buyShopItem(id, qty, cost)",
-    "note": "the price is per BUNDLE of qty, not per unit",
+    "note": "the price is per BUNDLE of qty, not per unit; a vendor price list only since 2026-10-22: shop_buy refuses every seed row not_listed (no Shop tab lists it)",
     "count": 13
   },
   {
@@ -651,7 +654,7 @@ export const SHOP_TABLES = [
     "origin": "src/legacy.js",
     "anchor": "const EQUIP_SHOP=[",
     "spends_at": "legacy.js buyShopItem(id, qty, cost)",
-    "note": "the Bronze Belt, Copper Ring, Hunter Necklace, Leather Gloves and Traveler Cape rows moved to the outfitter (supply-basics.js, designer 2026-10-22); the eight left are sellable by shop_buy and listed by no Shop window (PRIORITY_BOARD backlog)",
+    "note": "the Bronze Belt, Copper Ring, Hunter Necklace, Leather Gloves and Traveler Cape rows moved to the outfitter (supply-basics.js, designer 2026-10-22); the eight left, like every seed row, are a vendor price list only: shop_buy refuses them not_listed (catalogue.js offerRefusal, 2026-10-22)",
     "count": 8
   },
   {

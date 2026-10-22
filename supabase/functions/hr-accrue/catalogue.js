@@ -35,6 +35,10 @@ import { indexGatherNodes } from '../../../src/core/skill-sim.js';
 import { ARTISAN_RECIPES } from '../../../src/data/recipes.js';
 import { indexArtisanRecipes, payableRecipeIndex } from '../../../src/core/artisan-sim.js';
 import { SHOP_OFFERS, SUPPLY_PRICE_LIST } from '../../../src/data/shops.js';
+import { SUPPLY_SHOP_OFFERS, SHOP_SOLD_KINDS } from '../../../src/data/supply-basics.js';
+
+/** The offer ids a Shop tab lists (the Gear and Tools rows hr_shop_view serves): the only ids shop_buy may sell. */
+export const SHOP_LISTED_OFFERS = Object.freeze(new Set(SUPPLY_SHOP_OFFERS.filter((s) => SHOP_SOLD_KINDS.includes(s.kind)).map((s) => s.offer)));
 import { ITEMS } from '../../../src/data/items.js';
 import { catalogueGet } from './intents.js';
 import { cheapestShopUnitPrice } from '../../../src/core/shop-buyback.js';
@@ -218,6 +222,15 @@ export function offerIneligibility(o) {
   return null;
 }
 
+/** Why `shop_buy` may not sell this offer, or null. ONLY WHAT A SHOP TAB LISTS IS SOLD (lane/b-gold-sinks,
+    2026-10-22): a price no window shows is still a price a forged intent can hit, so an eligible-shaped offer
+    that is not one of the Shop's listed rows (supply-basics.js kind tool or gear: what hr_shop_view puts on the
+    Gear and Tools tabs) is refused `not_listed`. EXPORTED so tests/gold-intents.mjs drives it with a synthetic
+    hidden offer (none is authored, so the rule would otherwise be unobservable). */
+export function offerRefusal(o) {
+  return offerIneligibility(o) || (o && SHOP_LISTED_OFFERS.has(o.id) ? null : 'not_listed');
+}
+
 const goldOffers = Object.create(null);
 const offerRefusals = Object.create(null);
 const offerIds = [];
@@ -225,7 +238,7 @@ for (const o of SHOP_OFFERS) {
   const id = o && o.id;
   if (typeof id !== 'string') continue;
   offerIds.push(id);
-  const why = offerIneligibility(o);
+  const why = offerRefusal(o);
   if (why) { offerRefusals[id] = why; continue; }
   goldOffers[id] = Object.freeze({
     id,

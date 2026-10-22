@@ -125,6 +125,19 @@ const ARMS = {
       const sqlBid = await H.one(db, 'select unit from public.hr_hunt_vendor_value where item_id = $1', [r.item_id]);
       if (sqlBid != null && Number(sqlBid) !== bid) p.push(`${r.item_id}: SQL vendor bid ${sqlBid} vs edge ${bid}`);
     }
+    /* EVERY SERVER SHOP OFFER IS LISTED BY EXACTLY ONE SHOP TAB (lane/b-gold-sinks, 2026-10-22): the ids shop_buy
+       sells are exactly the ids the `shop` section serves, and each served kind has exactly one Buy list in the
+       client's Shop window. A price no window shows is still a price a forged intent can hit. */
+    const uidL = H.UIDS[2];
+    await H.character(db, M, uidL, { inv: {} });
+    const served = ((await H.one(db, "select public.hr_state_of($1, 0)->'shop'", [uidL])) || {}).offers || [];
+    const sells = Object.keys(X.CAT.GOLD_OFFERS).sort().join(), shows = served.map((o) => o.offer).sort().join();
+    if (!sells || sells !== shows) p.push(`shop_buy sells [${sells}] but the shop section serves [${shows}]`);
+    const html = (await import(pathToFileURL(join(ROOT, 'src/shell/windows/shop.js')).href)).renderShop();
+    for (const o of served) {
+      const tabs = [...html.matchAll(/hw-buy-list" data-kind="([a-z]+)"/g)].filter((m) => m[1] === o.kind).length;
+      if (tabs !== 1) p.push(`${o.offer} (${o.kind}) is listed by ${tabs} Shop tabs, not exactly one`);
+    }
     // The SQL formulas are the data's own functions (each judged where its file is in the chain).
     const has = async (fn) => (await H.one(db, 'select to_regprocedure($1) is not null', [fn])) === true;
     if (await has('public.hr_blessing_price(integer,integer)')) for (const lv of [1, 29, 30, 31, 60, 120]) for (const t of [1, 2, 3]) {
@@ -449,6 +462,8 @@ const MUTANTS = [
   /* Planted in the LAST alpha catalogue (the 11-20 forward file rewrites every offer row the earlier files wrote). */
   { arm: 'A-DATA', file: '2026-11-20-alpha-catalogue.generated.sql', why: 'the SQL catalogue drifts from the edge price',
     find: "  ('supply.cooked_shrimp', 'cooked_shrimp', 'food', 19),", repl: "  ('supply.cooked_shrimp', 'cooked_shrimp', 'food', 18)," },
+  { arm: 'A-DATA', file: '2026-11-20-shop-outfitter.sql', why: 'shop_buy sells offers the shop section never serves (the gear hidden)',
+    find: "from public.hr_shop_supply_offers o where o.kind in ('tool', 'gear')), '[]'::jsonb),", repl: "from public.hr_shop_supply_offers o where o.kind in ('tool')), '[]'::jsonb)," },
   /* (A gear row under twice its book value is refused at APPLY, by this catalogue's own §4 and by
      2026-11-20-shop-outfitter.sql §2 (d): measured 2026-10-22, the planted chain does not boot. No arm mutant.) */
   /* hr_stamina_refill_quote is RESTATED by the core rebuild (2026-10-27-core-bodies.sql: priced on Level):

@@ -35,7 +35,8 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    Level bands (CORE_NUMBERS_2026-10-19 Q9: the cellar 1-8, the sewer 8-25) landed in 2026-10-27 (APPLIED
    history). Mosslight Glade opens on its style-1 art (lane b-mosslight-art, 2026-10-22) in this forward
    file, which rewrites the same tables. */
-export const OUT_NAME = '2026-11-13-hunts-catalogue.generated.sql';
+/* v0.2.31 integration: ONE forward file per generator after the newest APPLIED (2026-11-20): Mosslight Glade OPEN on its art (lane b-mosslight-art). */
+export const OUT_NAME = '2026-11-22-hunts-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

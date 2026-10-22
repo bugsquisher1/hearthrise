@@ -33,7 +33,7 @@
 --
 -- REVERSIBILITY: re-apply hr_apply from 2026-10-27-core-bodies.sql, delete the
 -- `bench_run` section row, drop hr_bench_run_view and the column.
--- ORDER: after 2026-11-29-coal-any-level-catalogue.generated.sql (no object in
+-- ORDER: after 2026-11-22-loot-catalogue.generated.sql (no object in
 -- common). No begin/commit. The client half (the Work window's amount picker)
 -- needs this applied and the edge carrying `count` deployed first.
 -- ════════════════════════════════════════════════════════════════════════
@@ -47,7 +47,7 @@ begin
   end if;
 end $mig$;
 comment on column public.player_state.active_left is
-  '2026-11-29-bench-count.sql: actions left on the artisan run (set by the activity statement''s count, lowered by the engine; NULL = until an input runs out).';
+  '2026-12-01-bench-count.sql: actions left on the artisan run (set by the activity statement''s count, lowered by the engine; NULL = until an input runs out).';
 
 -- ── §1 hr_apply: five anchored splices ─────────────────────────────────────
 do $mig$
@@ -64,14 +64,14 @@ $a$                  where ak <> all (array['kind','id','restart'])) then$a$,
 $a$    -- ── (4a-ii) THE GATHERING TOOL CARRY (b348)$a$,
 $a$           tool_carry   = case when p_delta ? 'tool_carry'$a$];
   a_new := array[
-$a$  -- BENCH-COUNT (2026-11-29-bench-count.sql): the run's count this apply writes.
+$a$  -- BENCH-COUNT (2026-12-01-bench-count.sql): the run's count this apply writes.
   v_bench_left int;
   c_delta_keys constant text[] := array[$a$,
 $a$    'gold','gems','hp','items','xp','equip','activity','accrued_to',
-    -- BENCH-COUNT: the engine's lowered count of a "make N" run (2026-11-29-bench-count.sql).
+    -- BENCH-COUNT: the engine's lowered count of a "make N" run (2026-12-01-bench-count.sql).
     'active_left',$a$,
 $a$                  where ak <> all (array['kind','id','restart','count'])) then$a$,
-$a$    -- ── BENCH-COUNT (2026-11-29-bench-count.sql): "make N" ─────────────────
+$a$    -- ── BENCH-COUNT (2026-12-01-bench-count.sql): "make N" ─────────────────
     -- `count` rides only an artisan statement (a whole number 1..100000); any
     -- statement without one clears the run's count. `active_left` is the
     -- engine's countdown: only on an accrual (accrued_to), never beside an
@@ -124,7 +124,7 @@ returns jsonb language sql stable set search_path = public, pg_catalog as $$
 $$;
 revoke execute on function public.hr_bench_run_view(uuid, int) from public, anon, authenticated, service_role;
 insert into public.hr_state_sections (key, fn, note) values
-  ('bench_run', 'hr_bench_run_view', '2026-11-29-bench-count.sql: actions left on this hero''s artisan run ("make N"); null = until the bag runs out')
+  ('bench_run', 'hr_bench_run_view', '2026-12-01-bench-count.sql: actions left on this hero''s artisan run ("make N"); null = until the bag runs out')
   on conflict (key) do update set fn = excluded.fn, note = excluded.note;
 
 -- ── §3 SELF-CHECK (CLAUDE.md §4), EXECUTED, every probe rolled back ──────────

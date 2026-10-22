@@ -1292,7 +1292,7 @@ function cookingSettlementGuard() {
 
 // ════════════════════════════════════════════════════════════════════════
 // ════════════════════════════════════════════════════════════════════════
-// T9. "MAKE N" (2026-11-29-bench-count.sql, lane c-work-fixes 2026-10-22).
+// T9. "MAKE N" (2026-12-01-bench-count.sql, lane c-work-fixes 2026-10-22).
 // A bench run with a count pays EXACTLY that many actions and then ends (the
 // pointer goes idle), however the settles are cut; a window short of the count
 // proposes the lowered count; a count above what the bag allows makes as many

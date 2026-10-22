@@ -386,6 +386,15 @@ jobs:
           node tests/house-window.mjs
           node tools/mutant-gate.mjs node tests/house-window.mjs --mutate
 
+      # THE FARM WINDOW (2026-10-22, lane b-farm-window): plots at the server's cap
+      # (`farm_land`), plant / water / harvest / harvest-and-replant as intents,
+      # the plot tier at its quoted price, refusals in words. --mutate plants its defects.
+      - name: Farm window (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/farm-window.mjs
+          node tools/mutant-gate.mjs node tests/farm-window.mjs --mutate
+
       # EVERY PRESS ANSWERS AT ONCE (tracker r20, r21): a press that sends an
       # ask is pending in its own frame (Play, a purchase) until the server's
       # answer AND the re-read envelope, a second click in flight reaches no

@@ -65,7 +65,8 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
 /* THE STYLE LADDER (lane c-style-gear, designer 2026-10-22): 2026-11-23 is the v0.2.30 chain (history once applied);
    Iron Hatchets and the Oak Crossbow (hr_items), the fifteen made rungs' recipes (hr_activities artisan rows), the
    club ladder two-handed and three ladder values land in this forward file, after 2026-11-29: the same full replace. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2026-11-23-loot-catalogue.generated.sql');
+/* v0.2.31 integration: ONE forward file per generator after the newest APPLIED (2026-11-20): the kit's plots, coal at any level and the style ladder in one file. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2026-11-22-loot-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already
@@ -89,7 +90,7 @@ const OUT_ITEM_BUFFS = join(ROOT, 'supabase', 'migrations',
    the Garden's farmPlots and the Trophy Room's trophyMounts; again a NEW,
    LAST-registered file, the applied 2026-10-23 one stays in the chain. */
 const OUT_ROOM_PERKS = join(ROOT, 'supabase', 'migrations',
-  '2026-11-23-room-purpose-room-perks.generated.sql');
+  '2026-11-30-room-perks-catalogue.generated.sql');   // v0.2.31 integration: ONE forward file per generator after the newest APPLIED (2026-11-20) (after house-home)
 
 const imp = (rel) => import(pathToFileURL(join(ROOT, rel)).href);
 
@@ -985,7 +986,7 @@ const sqlRoomPerks = `-- ══════════════════�
 --   rows: ${roomPerks.length} rung payloads across ${ROOM_IDS.length} rooms (${ROOM_IDS.join(', ')})
 --
 -- WHAT THIS IS FOR. hr_farm_plot_cap reads the GARDEN's \`farmPlots\` (the extra
--- farm beds every character of the account may plant; 2026-11-23-garden-beds.sql).
+-- farm beds every character of the account may plant; 2026-12-01-garden-beds.sql).
 -- hr_apply prices the CELLAR's \`buffDuration\` when it stamps a
 -- buff segment's \`until\` (2026-09-13-buff-cellar-scale.sql): the scale is read
 -- HERE, under the character lock, from the server's own row — never from the

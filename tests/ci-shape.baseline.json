@@ -24,6 +24,8 @@
     "node tools/mutant-gate.mjs node tests/services-window.mjs --mutate": "in-page-2",
     "node tests/house-window.mjs": "in-page-2",
     "node tools/mutant-gate.mjs node tests/house-window.mjs --mutate": "in-page-2",
+    "node tests/farm-window.mjs": "in-page-2",
+    "node tools/mutant-gate.mjs node tests/farm-window.mjs --mutate": "in-page-2",
     "node tests/instant-press.mjs": "in-page-2",
     "node tools/mutant-gate.mjs node tests/instant-press.mjs --mutate": "in-page-2",
     "node tools/gen-outfits.mjs --check": "in-page-2",

@@ -87,7 +87,7 @@ export function runsOf(recipe, inv) {
   return n === Infinity ? 0 : n;
 }
 
-/* ── "MAKE N" (lane c-work-fixes 2026-10-22; 2026-11-29-bench-count.sql) ──
+/* ── "MAKE N" (lane c-work-fixes 2026-10-22; 2026-12-01-bench-count.sql) ──
    A bench run can be told how many to make: the count rides the ONE set_activity and the
    server stops the bench after that many actions (player_state.active_left, projected as the
    `bench_run` section). The choices are 1, 5 or All; the default is 1 for something you WEAR

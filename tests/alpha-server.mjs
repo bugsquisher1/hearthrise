@@ -468,7 +468,7 @@ const MUTANTS = [
     find: "drop function if exists public.hr_shop_refill(integer, bigint, uuid);\ndrop function if exists public.hr_shop_refill_quote(uuid, integer);\ndrop function if exists public.hr_restock_set(integer, jsonb, uuid);\ndelete from public.hr_client_rpc_baseline where proname in ('hr_shop_refill', 'hr_restock_set');",
     repl: "drop function if exists public.hr_shop_refill_quote(uuid, integer);\ndrop function if exists public.hr_restock_set(integer, jsonb, uuid);\ndelete from public.hr_client_rpc_baseline where proname in ('hr_restock_set');" },
   /* Planted in the LAST alpha catalogue (the 11-21 forward file rewrites every offer row the earlier files wrote). */
-  { arm: 'A-DATA', file: '2026-11-23-alpha-catalogue.generated.sql', why: 'the SQL catalogue drifts from the edge price',
+  { arm: 'A-DATA', file: '2026-11-22-alpha-catalogue.generated.sql', why: 'the SQL catalogue drifts from the edge price',
     find: "  ('supply.cooked_shrimp', 'cooked_shrimp', 'food', 19),", repl: "  ('supply.cooked_shrimp', 'cooked_shrimp', 'food', 18)," },
   { arm: 'A-DATA', file: '2026-11-25-shop-seeds.sql', why: 'shop_buy sells offers the shop section never serves (the seeds hidden)',
     find: "from public.hr_shop_supply_offers o where o.kind in ('tool', 'gear', 'seed')), '[]'::jsonb),", repl: "from public.hr_shop_supply_offers o where o.kind in ('tool', 'gear')), '[]'::jsonb)," },

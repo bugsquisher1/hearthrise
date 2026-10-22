@@ -118,7 +118,7 @@ export function validateDeclaration(a) {
       detail: { why: kind === 'idle' ? 'idle takes no id' : 'this kind requires an id' },
     };
   }
-  /* "MAKE N" (2026-11-29-bench-count.sql): only a bench run takes a count, and an unreadable
+  /* "MAKE N" (2026-12-01-bench-count.sql): only a bench run takes a count, and an unreadable
      one is refused by name (request.js reads it as null) instead of running unbounded. */
   if (a.count !== undefined && (kind !== 'artisan' || a.count === null)) {
     return { ok: false, error: INTENT_ERRORS.BAD_ACTIVITY, detail: { why: kind !== 'artisan' ? 'only a bench run takes a count' : 'count is a whole number 1..100000' } };

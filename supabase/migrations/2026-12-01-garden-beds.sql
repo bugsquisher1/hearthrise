@@ -10,7 +10,7 @@
 -- allowed (rulings v2 §2: "spend gold on capacity"). The Garden sells farm BEDS:
 -- each rung lets every character of the account plant more crops at once.
 -- The numbers live in src/data/perks.js (garden farmPlots 1..5) and reach SQL
--- through hr_room_perks (2026-11-23-room-purpose-room-perks.generated.sql);
+-- through hr_room_perks (2026-11-30-room-perks-catalogue.generated.sql);
 -- nothing here restates them.
 --
 -- ── WHAT ─────────────────────────────────────────────────────────────────────
@@ -34,7 +34,7 @@
 --
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
 -- Restate hr_farm_plant with `v_plot_cap := (v_prop_tier + 1) * 2;` and drop
--- hr_farm_plot_cap. ORDER: after 2026-11-23-room-purpose-room-perks.generated.sql
+-- hr_farm_plot_cap. ORDER: after 2026-11-30-room-perks-catalogue.generated.sql
 -- (§0 fails closed without the garden rows). No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════
 
@@ -52,7 +52,7 @@ begin
   select count(*) into v_n from public.hr_room_perks
    where room_id = 'garden' and jsonb_typeof(perks->'farmPlots') = 'number';
   if v_n < 1 then
-    raise exception 'PIN: hr_room_perks has no garden farmPlots rows - apply 2026-11-23-room-purpose-room-perks.generated.sql first'; end if;
+    raise exception 'PIN: hr_room_perks has no garden farmPlots rows - apply 2026-11-30-room-perks-catalogue.generated.sql first'; end if;
   select prosrc into v_src from pg_proc where oid = 'public.hr_farm_plant(int,int,text,uuid)'::regprocedure;
   v_def := md5(regexp_replace(pg_get_functiondef('public.hr_farm_plant(int,int,text,uuid)'::regprocedure), '[[:space:]]+', ' ', 'g'));
   if v_def <> 'ed3d20468ba9b19a8472888a9125f52f' and strpos(v_src, 'GARDEN-BEDS') = 0 then

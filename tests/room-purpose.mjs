@@ -19,13 +19,13 @@
 //   RP3 NO ROOM PAYS XP OR YIELD (Master Design Reference §9), and every key a
 //       rung pays is one the engine or the House window knows.
 // The Trophy Room's mounts are proven where they are drawn: tests/world-town-home.mjs F.
-// Ships with: 2026-11-23-room-purpose-room-perks.generated.sql, 2026-11-23-garden-beds.sql.
+// Ships with: 2026-11-30-room-perks-catalogue.generated.sql, 2026-12-01-garden-beds.sql.
 // ════════════════════════════════════════════════════════════════════════
 import { bootReplay } from './schema-replay.mjs';
 import { makeBonus, normalisePerkState, ROOM_PERKS, ROOM_PERK_KEYS } from '../src/core/perks.js';
 import { actionIntervalMs, SPEED_KEYS } from '../src/core/pacing.js';
 
-const MIG = '2026-11-23-garden-beds.sql';
+const MIG = '2026-12-01-garden-beds.sql';
 const GATE_BLIND = [['  v_top int; v_g1 int;\nbegin\n', '  v_top int; v_g1 int;\nbegin\n  if true then return; end if;   -- selftest: §3 short-circuited\n']];
 const MUTATIONS = {
   garden_ignored: {

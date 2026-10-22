@@ -75,7 +75,7 @@ const FIELD = Object.freeze({
     if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
     if (v.kind === 'idle' && (v.id === undefined || v.id === null)) return { kind: 'idle' };
     if (!((v.kind === 'artisan' || v.kind === 'gather') && typeof v.id === 'string' && ID.test(v.id))) return null;
-    /* "Make N" (2026-11-29-bench-count.sql): a bench run may carry a whole count 1..100000; the server stops there. */
+    /* "Make N" (2026-12-01-bench-count.sql): a bench run may carry a whole count 1..100000; the server stops there. */
     if (v.count === undefined || v.count === null) return { kind: v.kind, id: v.id };
     return v.kind === 'artisan' && Number.isInteger(v.count) && v.count >= 1 && v.count <= 100000 ? { kind: v.kind, id: v.id, count: v.count } : null;
   },

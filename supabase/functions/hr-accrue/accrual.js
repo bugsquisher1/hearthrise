@@ -1975,7 +1975,7 @@ function accrueArtisan(inp, span) {
   const items = inp.items || {};
   const recipes = inp.recipes || {};
   const equipment = inp.equipment || {};
-  /* "MAKE N" (2026-11-29-bench-count.sql): the actions this run may still make, from the
+  /* "MAKE N" (2026-12-01-bench-count.sql): the actions this run may still make, from the
      server's own player_state.active_left (envelope.js activeLeft); null = until an input runs
      out. It caps the span like the degrade ladder's budget, and the run ENDS on the action that
      reaches it (below), so N actions are paid however the settles are cut. */

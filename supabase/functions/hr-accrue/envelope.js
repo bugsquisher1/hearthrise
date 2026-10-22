@@ -187,7 +187,7 @@ export function engineInputsFromEnvelope(env, nowMs) {
     activeSinceMs: st.active_since ? new Date(st.active_since).getTime() : null,
     activeKind: st.active_kind,
     activeId: st.active_id,
-    /* "MAKE N" (2026-11-29-bench-count.sql): the actions left on an artisan run, from the
+    /* "MAKE N" (2026-12-01-bench-count.sql): the actions left on an artisan run, from the
        `bench_run` section. Absent (a database without the section) or null = until the bag
        runs out, today's behaviour, and accrueArtisan then proposes no `active_left`. */
     activeLeft: (e.bench_run && Number.isInteger(e.bench_run.left) && e.bench_run.left > 0) ? e.bench_run.left : null,

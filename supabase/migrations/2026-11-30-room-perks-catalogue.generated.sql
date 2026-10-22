@@ -11,7 +11,7 @@
 --   rows: 40 rung payloads across 8 rooms (cellar, forge, garden, kitchen, library, shrine, trophy, workshop)
 --
 -- WHAT THIS IS FOR. hr_farm_plot_cap reads the GARDEN's `farmPlots` (the extra
--- farm beds every character of the account may plant; 2026-11-23-garden-beds.sql).
+-- farm beds every character of the account may plant; 2026-12-01-garden-beds.sql).
 -- hr_apply prices the CELLAR's `buffDuration` when it stamps a
 -- buff segment's `until` (2026-09-13-buff-cellar-scale.sql): the scale is read
 -- HERE, under the character lock, from the server's own row — never from the

@@ -155,7 +155,8 @@ export const WORLD_FIELDS_READ = Object.freeze({
 /* THE STYLE LADDER (lane c-style-gear, designer 2026-10-22): 2026-11-23 is the v0.2.30 chain (history once applied); the
    two new tier-2 weapons (Iron Hatchets, Oak Crossbow) and the made rungs' ladder values (Longbow, Oak Staff, Iron Warhammer)
    land in this forward file, applied after 2026-11-30-gear-ladder-catalogue (hr_items first): the same full replace. */
-export const OUT_NAME = '2026-11-30-hunt-sessions-catalogue.generated.sql';
+/* v0.2.31 integration: ONE forward file per generator after the newest APPLIED (2026-11-20): the rosters, the open glade and the style ladder's weapons. */
+export const OUT_NAME = '2026-11-23-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -563,7 +564,7 @@ export function render(src) {
 -- density row and every hr_hunt_grounds row gains density_max (hunt-grounds.js
 -- densityFor). ORDER: after the whole v0.2.29 chain (2026-11-07-store-by-slot.sql
 -- first: the precondition below refuses this file until it has) and
--- 2026-11-23-alpha-catalogue.generated.sql; before 2026-11-23-loot-catalogue.
+-- 2026-11-22-alpha-catalogue.generated.sql; before 2026-11-23-loot-catalogue.
 
 -- ── PRECONDITION: nothing still reads the columns this file drops ──
 do $$

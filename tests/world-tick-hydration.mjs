@@ -613,7 +613,7 @@ try {
          409 on. It cannot carry a swap arm because absent and present are the
          same answer — named here rather than silently skipped. */
       ammoCarry: { from: 'ammo_carry', level: 'state', notYetMigrated: true },
-      /* "MAKE N" (2026-11-29-bench-count.sql): the run's count rides the `bench_run` section,
+      /* "MAKE N" (2026-12-01-bench-count.sql): the run's count rides the `bench_run` section,
          read as `bench_run.left` (the probe below carries 7 so the swap arm is not vacuous). */
       activeLeft: { from: 'bench_run', level: 'top' },
     };

@@ -8,15 +8,17 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 7e5d7c5135a7b176639d62bfb05ab4b62b3d71e9b91353c765bcfec0791df6fa
---   59 supplies, 120 hunts (named + training), 52 limits, 11 end reasons,
---   497 vendor values, 19 store supplies paid per use, 5 target modes,
---   3 lanes, 14 abilities, 12 action-set options, 4 hunt grounds
+--   digest: ba254885527c058f3007614bf26082992a879282a5f02584e56ad6e72d33bce5
+--   59 supplies, 121 hunts (named + training), 52 limits, 11 end reasons,
+--   499 vendor values, 19 store supplies paid per use, 5 target modes,
+--   3 lanes, 14 abilities, 12 action-set options, 5 hunt grounds
 --
--- SUPERSEDES 2026-11-18-hunt-sessions-catalogue.generated.sql (the v0.2.29 chain;
--- history, never regenerated): every table below is rewritten wholesale, from the
--- data of every lane staged since (one file; the v0.2.30 integration collapsed the
--- never-applied 11-13 and 11-21 catalogue files into it). NEW SINCE 11-18: the
+-- SUPERSEDES 2026-11-23-hunt-sessions-catalogue.generated.sql (the v0.2.30 chain;
+-- history once applied, never regenerated): every table below is rewritten wholesale.
+-- NEW SINCE 11-23 (lane c-style-gear): the style ladder's Iron Hatchets and Oak
+-- Crossbow (hr_hunt_weapons, vendor values) and the Longbow, Oak Staff and Iron
+-- Warhammer at their ladder values. Applies after 2026-11-30-gear-ladder (hr_items). Carried from 11-23
+-- (which superseded 11-18 and collapsed 11-13 and 11-21): the
 -- reachable rosters hr_hunt_roster / hr_hunt_loot_roster (lane c-monster-ladders;
 -- read by 2026-11-24-monster-ladders.sql, after this file). Carried from 11-18:
 -- THE PLAYER PICKS THE STORE ITEM (Tyler 2026-10-19; lane b-supplies-bury): the
@@ -28,7 +30,7 @@
 -- density row and every hr_hunt_grounds row gains density_max (hunt-grounds.js
 -- densityFor). ORDER: after the whole v0.2.29 chain (2026-11-07-store-by-slot.sql
 -- first: the precondition below refuses this file until it has) and
--- 2026-11-23-alpha-catalogue.generated.sql; before 2026-11-23-loot-catalogue.
+-- 2026-11-22-alpha-catalogue.generated.sql; before 2026-11-23-loot-catalogue.
 
 -- ── PRECONDITION: nothing still reads the columns this file drops ──
 do $$
@@ -501,7 +503,8 @@ insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn
   ('coppercap_warrens', 'coppercap_warrens', 6, 18, 90000, 4, '{8,8,8,8}'::int[]),
   ('meadowbrook_thicket', 'meadowbrook_thicket', 6, 13, 60000, 2, '{8,8,8,8}'::int[]),
   ('mill_cellar', 'mill_cellar', 2, 5, 30000, 4, '{8,8,8,8}'::int[]),
-  ('millrace_sewer', 'millrace_sewer', 6, 19, 90000, 4, '{8,8,10,12}'::int[]);
+  ('millrace_sewer', 'millrace_sewer', 6, 19, 90000, 4, '{8,8,10,12}'::int[]),
+  ('mosslight_glade', 'mosslight_glade', 6, 13, 60000, 4, '{8,8,8,8}'::int[]);
 insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values
   ('coppercap_warrens', 'chief_coppercap', 1),
   ('coppercap_warrens', 'goblin_digger', 5),
@@ -521,18 +524,26 @@ insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values
   ('millrace_sewer', 'drain_rat', 6),
   ('millrace_sewer', 'kobold_tosher', 3),
   ('millrace_sewer', 'rat_king', 1),
-  ('millrace_sewer', 'sump_slime', 3);
+  ('millrace_sewer', 'sump_slime', 3),
+  ('mosslight_glade', 'carrion_crow', 6),
+  ('mosslight_glade', 'glade_poacher', 2),
+  ('mosslight_glade', 'goblin_sluicer', 1),
+  ('mosslight_glade', 'rook_poacher', 1),
+  ('mosslight_glade', 'walking_vine', 3);
 delete from public.hr_hunt_roster;
 insert into public.hr_hunt_roster (monster_id) values
   ('briarcoat_wolf'),
+  ('carrion_crow'),
   ('chief_coppercap'),
   ('cistern_spider'),
   ('culvert_bat'),
   ('dire_gray'),
   ('drain_rat'),
+  ('glade_poacher'),
   ('goblin_digger'),
   ('goblin_scavenger'),
   ('goblin_skulker'),
+  ('goblin_sluicer'),
   ('gray_whelp'),
   ('gray_wolf'),
   ('grayjaw'),
@@ -541,8 +552,10 @@ insert into public.hr_hunt_roster (monster_id) values
   ('kobold_tosher'),
   ('rat'),
   ('rat_king'),
+  ('rook_poacher'),
   ('slime'),
-  ('sump_slime');
+  ('sump_slime'),
+  ('walking_vine');
 delete from public.hr_hunt_loot_roster;
 insert into public.hr_hunt_loot_roster (item_id) values
   ('alpha_fang'),
@@ -558,6 +571,7 @@ insert into public.hr_hunt_loot_roster (item_id) values
   ('cistern_venom_gland'),
   ('coal'),
   ('copper_ore'),
+  ('crow_quill'),
   ('crown_shard'),
   ('culvert_bat_fang'),
   ('dire_hackle'),
@@ -568,6 +582,7 @@ insert into public.hr_hunt_loot_roster (item_id) values
   ('grayjaw_whisker'),
   ('iron_helm'),
   ('iron_ore'),
+  ('iron_platebody'),
   ('iron_platelegs'),
   ('iron_sword'),
   ('knotted_tails'),
@@ -576,18 +591,27 @@ insert into public.hr_hunt_loot_roster (item_id) values
   ('leather_boots'),
   ('leather_helmet'),
   ('leather_pants'),
+  ('longbow'),
+  ('magic_essence'),
+  ('mosslight_tendril'),
   ('rat_incisor'),
   ('rat_tail'),
   ('raw_wolf_meat'),
+  ('rooks_moss_charm'),
+  ('rooks_whistle'),
   ('shortbow'),
   ('silk_thread'),
   ('slime_gel'),
+  ('sluice_crust'),
   ('small_fang'),
+  ('snare_wire'),
   ('steel_helm'),
   ('steel_platebody'),
   ('steel_platelegs'),
   ('steel_sword'),
   ('sticky_core'),
+  ('studded_boots'),
+  ('studded_pants'),
   ('sump_membrane'),
   ('venom_sac'),
   ('war_crown'),
@@ -617,6 +641,7 @@ insert into public.hr_hunt_weapons (item_id, weapon_type) values
   ('emberfang_blade', 'sword'),
   ('fangdart_recurve', 'ranged'),
   ('heartgarnet_maul', 'hammer'),
+  ('iron_hatchets', 'axe'),
   ('iron_sword', 'sword'),
   ('iron_warhammer', 'hammer'),
   ('lazlos_maul', 'hammer'),
@@ -626,6 +651,7 @@ insert into public.hr_hunt_weapons (item_id, weapon_type) values
   ('maple_wand', 'wand'),
   ('mithril_sword', 'sword'),
   ('mithril_warhammer', 'hammer'),
+  ('oak_crossbow', 'ranged'),
   ('oak_practice_blade', 'sword'),
   ('oak_staff', 'staff'),
   ('oak_wand', 'wand'),
@@ -760,6 +786,7 @@ insert into public.hr_hunt_travel (hunt_id, travel_s, training) values
   ('mill_cellar', 0, false),
   ('millrace_sewer', 0, false),
   ('minotaur', 0, true),
+  ('mosslight_glade', 0, false),
   ('mountain_ram', 0, true),
   ('mountain_troll', 0, true),
   ('nightmare', 0, true),
@@ -1119,13 +1146,14 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('iron_boots', 105),
   ('iron_fitting', 480),
   ('iron_gauntlets', 90),
+  ('iron_hatchets', 130),
   ('iron_helm', 150),
   ('iron_ore', 5),
   ('iron_pickaxe', 250),
   ('iron_platebody', 400),
   ('iron_platelegs', 285),
   ('iron_sword', 200),
-  ('iron_warhammer', 550),
+  ('iron_warhammer', 145),
   ('iron_whetstone', 48),
   ('jarls_rimetorc', 3300),
   ('keystone', 3000),
@@ -1142,7 +1170,7 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('lich_soul', 160),
   ('lich_soul_soup', 1100),
   ('lobster', 20),
-  ('longbow', 400),
+  ('longbow', 135),
   ('magic_essence', 10),
   ('maple_bow', 1575),
   ('maple_log', 16),
@@ -1175,11 +1203,12 @@ insert into public.hr_hunt_vendor_value (item_id, unit) values
   ('nightstalker_pelt', 12400),
   ('normal_log', 1),
   ('normal_plank', 18),
+  ('oak_crossbow', 130),
   ('oak_log', 4),
   ('oak_plank', 55),
   ('oak_rod', 300),
   ('oak_spellbook', 105),
-  ('oak_staff', 300),
+  ('oak_staff', 130),
   ('oak_wand', 115),
   ('packlord_band', 420),
   ('panthers_eye_pendant', 13600),
@@ -1404,10 +1433,10 @@ do $$
 declare v_role text; v_t text;
 begin
   if (select count(*) from public.hr_hunt_supplies) <> 59
-     or (select count(*) from public.hr_hunt_travel) <> 120
+     or (select count(*) from public.hr_hunt_travel) <> 121
      or (select count(*) from public.hr_hunt_limits) <> 52
      or (select count(*) from public.hr_hunt_end_reasons) <> 11
-     or (select count(*) from public.hr_hunt_vendor_value) <> 497
+     or (select count(*) from public.hr_hunt_vendor_value) <> 499
      or (select count(*) from public.hr_hunt_basic_supplies) <> 19
      or (select count(*) from public.hr_hunt_cover_items) <> 0
      or exists (select 1 from public.hr_hunt_basic_supplies where cardinality(coalesce(tiers, '{}'::int[])) > 0)
@@ -1418,14 +1447,14 @@ begin
      or (select count(*) from public.hr_hunt_set_options) <> 12
      or (select count(*) from public.hr_hunt_kill_bounds) <> 134
      or (select count(*) from public.hr_hunt_abilities) <> 14
-     or (select count(*) from public.hr_hunt_grounds) <> 4
+     or (select count(*) from public.hr_hunt_grounds) <> 5
      or (select count(*) from public.hr_hunt_grounds where density_max is null) <> 0
-     or (select count(*) from public.hr_hunt_ground_spawns) <> 19
-     or (select count(*) from public.hr_hunt_roster) <> 19
-     or (select count(*) from public.hr_hunt_loot_roster) <> 49
+     or (select count(*) from public.hr_hunt_ground_spawns) <> 24
+     or (select count(*) from public.hr_hunt_roster) <> 24
+     or (select count(*) from public.hr_hunt_loot_roster) <> 60
      or (select count(*) from public.hr_hunt_world_shape) <> 1
      or (select count(*) from public.hr_premium_login_reward) <> 1
-     or (select count(*) from public.hr_hunt_weapons) <> 62
+     or (select count(*) from public.hr_hunt_weapons) <> 64
      or (select count(*) from public.hr_hunt_weapon_roles) <> 12
      or (select count(*) from public.hr_hunt_roles) <> 5
      or (select count(*) from public.hr_hunt_end_reasons where resumes) <> 9 then

@@ -45,8 +45,8 @@ const premiumTab = (tab) => tab !== 'session';
 /* Each section: its tab, its title and its body (a fixed list of stat rows, or a keyed list). A stat row is
    [key, label, format, from?]: v[key], or v[from][key]; its node is data-stat="key" (from-prefixed: "perHour.key"). */
 const SECTIONS = Object.freeze([
-  { id: 'totals', tab: 'session', title: 'Session', stats: [['kills', 'Monsters killed', whole], ['levelXp', 'Level XP', whole], ['gold', 'Gold', gold], ['waste', 'Supplies cost', gold], ['balance', 'Balance', gold]] },
-  { id: 'rates', tab: 'session', title: 'Per hour', stats: [['levelXp', 'Level XP per hour', whole, 'perHour'], ['rawLevelXp', 'Level XP per hour before bonuses', whole, 'perHour'], ['gold', 'Gold per hour', gold, 'perHour'], ['waste', 'Supplies per hour', gold, 'perHour'], ['balance', 'Balance per hour', gold, 'perHour']] },
+  { id: 'totals', tab: 'session', title: 'Session', stats: [['kills', 'Monsters killed', whole], ['levelXp', 'Level XP', whole], ['gold', 'Gold', gold], ['lootValue', 'Loot value (unsold)', gold], ['waste', 'Supplies cost', gold], ['balance', 'Balance (gold + loot value − supplies)', gold]] },
+  { id: 'rates', tab: 'session', title: 'Per hour', stats: [['levelXp', 'Level XP per hour', whole, 'perHour'], ['rawLevelXp', 'Level XP per hour before bonuses', whole, 'perHour'], ['goldAndLoot', 'Gold and loot value per hour', gold, 'perHour'], ['waste', 'Supplies per hour', gold, 'perHour'], ['balance', 'Balance per hour', gold, 'perHour']] },
   { id: 'supplies', tab: 'session', title: 'Supplies used', list: 'supplies' },
   { id: 'loot', tab: 'session', title: 'Loot collected', list: 'loot' },
   /* TRAINING (premium): what the combat skills earned from blows dealt, blows taken and mana spent — never

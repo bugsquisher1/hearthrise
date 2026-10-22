@@ -4,7 +4,7 @@
 // Tyler 10-18: "players should spend their time making interesting decisions,
 // not repeating decisions they've already made". When a hunt ends the player
 // sees ONE card with what it came to and the next move at hand:
-//   duration, kills, XP, gold, balance per hour (raw XP per hour: premium), top loot, supplies used (bag vs store), the end
+//   duration, kills, XP, gold (coin received), loot value (unsold, its own line), balance per hour (raw XP per hour: premium), top loot, supplies used (bag vs store), the end
 //   reason in plain words, and the death explanation (death-explain.js);
 //   Hunt again   ONE hr_hunt_enter with the same ground, action set, limits and
 //                bag. The party is the server's, the checks are the server's.
@@ -34,7 +34,7 @@ const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pending: fa
 /* ── The window ── */
 /* Balance per hour shows for everyone; Level XP per hour before bonuses only when the server sent it (premium, the
    10-19 analyzer ruling). XP here is LEVEL XP; training XP is the premium analyzer's Training tab (Tyler 2026-10-22). */
-const STATS = Object.freeze([['ms', 'Time', clock], ['kills', 'Monsters', whole], ['xp', 'Level XP', whole], ['gold', 'Gold', gold],
+const STATS = Object.freeze([['ms', 'Time', clock], ['kills', 'Monsters', whole], ['xp', 'Level XP', whole], ['gold', 'Gold', gold], ['lootValue', 'Loot value (unsold)', gold, true],
   ['balanceH', 'Balance per hour', gold], ['rawXpH', 'Level XP per hour before bonuses', whole, true]]);
 
 /** The skeleton (built once). */

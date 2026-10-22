@@ -19,7 +19,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { CONSUMABLES } from '../../data/consumables.js?v=0.2.27';
 import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.27';
-import { huntOf, staminaOf } from '../../session/hunt-sections.js?v=0.2.27';
+import { huntOf, huntBagOf, staminaOf } from '../../session/hunt-sections.js?v=0.2.27';
 import { bagOf } from '../../session/item-sections.js?v=0.2.27';
 import { text, attr } from '../../render/paint.js?v=0.2.27';
 import { whole, hoursMinutes } from '../../render/format.js?v=0.2.27';
@@ -52,7 +52,8 @@ export function hubHtml(glyphs) {
     + '</div>';
 }
 
-/* The bag's own food: how many in all, and the stack with the most (its icon stands for them). */
+/* The food the hero carries (an open hunt's hunt bag, else the bag): how many in all, and the stack with the most
+   (its icon stands for them). Brannoc 10-22: the bag alone read "Food ×0" mid-hunt, Enter moves the food out of it. */
 function foodOf(bag) {
   let n = 0, top = null;
   for (const l of bag || []) {
@@ -91,10 +92,12 @@ export function patchHub(el, ctx) {
   text(el.querySelector('.hb-xp'), xp === null ? '' : 'XP ' + Math.floor(Math.max(0, Math.min(1, xp)) * 100) + '%');
   attr(el.querySelector('.hb-medal'), 'title', level === null ? 'Level' : 'Level ' + level + (xp === null ? '' : ': ' + Math.floor(Math.max(0, Math.min(1, xp)) * 100) + '% of the way to ' + (level + 1)));
   text(el.querySelector('.hb-stam-v'), hoursMinutes(stam ? stam.msLeft : null));
-  const food = foodOf(bagOf(cs));
+  const carried = huntBagOf(cs);
+  const food = foodOf(carried || bagOf(cs));
   const sock = el.querySelector('.hb-socket.is-food');
   const ico = sock.querySelector('.hb-socket-ico');
   if (ico.getAttribute('data-for') !== String(food.top)) { ico.innerHTML = food.top ? itemIconHtml(ctx.glyphs, food.top) : glyphSvg(ctx.glyphs, 'uiFood'); attr(ico, 'data-for', String(food.top)); }
   text(sock.querySelector('.hb-socket-k'), 'Food ×' + whole(food.n));
-  attr(sock, 'title', food.top ? whole(food.n) + ' food in the bag (most: ' + itemName(food.top) + ')' : 'No food in the bag: Any food on the bar buys from the store as used');
+  const where = carried ? 'the hunt bag' : 'the bag';
+  attr(sock, 'title', food.top ? whole(food.n) + ' food in ' + where + ' (most: ' + itemName(food.top) + ')' : 'No food in ' + where + ': Any food on the bar buys from the store as used');
 }

@@ -303,6 +303,8 @@ jobs:
         run: |
           node tests/alpha-windows.mjs
           node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate
+          node tests/preset-names.mjs
+          node tools/mutant-gate.mjs node tests/preset-names.mjs --mutate
           node tests/hunt-scene-live.mjs
 
       # A failing run is far easier to diagnose with the page state attached.

@@ -12,7 +12,7 @@
 import { cls } from '../render/paint.js?v=0.2.27';
 import { escapeHtml as esc } from '../utils/dom.js?v=0.2.27';
 
-export const NAME_MAX = 24;
+const NAME_MAX = 24;
 
 /** The name button and its field. `act` names the press; `attrs` is extra markup (e.g. a data-preset) on both. */
 export function nameEditorHtml(act, attrs, label) {

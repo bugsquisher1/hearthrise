@@ -18,7 +18,7 @@ const MAX_SET = 4;
 const newIdem = () => globalThis.crypto.randomUUID();
 
 /** The name as sent: trimmed, at most 24 characters; '' is not sent. The server re-checks all of it. */
-export function setupName(name) {
+function setupName(name) {
   return String(name == null ? '' : name).replace(/\s+/g, ' ').trim().slice(0, 24);
 }
 
@@ -28,9 +28,10 @@ async function settled(cs, ans) {
   return { ok: false, error: (typeof b.error === 'string' && b.error) || (ans && ans.error) || 'refused' };
 }
 
-function ask(account, cs, verb, rpc, args) {
+/* One ask in the character's intent ledger; `send(server)` names its RPC (the intent-surface guard reads the names). */
+function ask(account, cs, verb, send) {
   if (!account || !account.server || !cs) return Promise.resolve({ ok: false, error: 'bad_intent' });
-  return askVia(cs, verb, async () => settled(cs, await account.server.rpc(rpc, Object.assign({ p_slot: cs.slot }, args, { p_idem: newIdem() }))));
+  return askVia(cs, verb, async () => settled(cs, await send(account.server)));
 }
 
 const okPreset = (p, max) => Number.isInteger(p) && p >= 0 && p <= max;
@@ -39,18 +40,18 @@ const okPreset = (p, max) => Number.isInteger(p) && p >= 0 && p <= max;
 export function renameSetup(account, cs, preset, name) {
   const n = setupName(name);
   if (!okPreset(preset, MAX_SETUP) || !n) return Promise.resolve({ ok: false, error: 'bad_intent' });
-  return ask(account, cs, 'hunt_preset_rename', 'hr_hunt_preset_rename', { p_preset: preset, p_name: n });
+  return ask(account, cs, 'hunt_preset_rename', (server) => server.rpc('hr_hunt_preset_rename', { p_slot: cs.slot, p_preset: preset, p_name: n, p_idem: newIdem() }));
 }
 
 /** Remove one saved setup (none left is fine: the window says so). */
 export function deleteSetup(account, cs, preset) {
   if (!okPreset(preset, MAX_SETUP)) return Promise.resolve({ ok: false, error: 'bad_intent' });
-  return ask(account, cs, 'hunt_preset_delete', 'hr_hunt_preset_delete', { p_preset: preset });
+  return ask(account, cs, 'hunt_preset_delete', (server) => server.rpc('hr_hunt_preset_delete', { p_slot: cs.slot, p_preset: preset, p_idem: newIdem() }));
 }
 
 /** Name the action set the bar shows. */
 export function renameActionSet(account, cs, preset, name) {
   const n = setupName(name);
   if (!okPreset(preset, MAX_SET) || !n) return Promise.resolve({ ok: false, error: 'bad_intent' });
-  return ask(account, cs, 'action_set_rename', 'hr_action_set_rename', { p_preset: preset, p_name: n });
+  return ask(account, cs, 'action_set_rename', (server) => server.rpc('hr_action_set_rename', { p_slot: cs.slot, p_preset: preset, p_name: n, p_idem: newIdem() }));
 }

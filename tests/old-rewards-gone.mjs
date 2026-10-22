@@ -30,6 +30,25 @@
 //         migration that restates hr_claim_quest, or re-adds its baseline row,
 //         is red here before it is ever applied.
 //
+// THE SECOND CUT (lane c-cuts-1022b, 2026-12-03-daily-claims-cut.sql): the engine's
+// kind='daily' counters (nothing reads them since the daily goals left), and the
+// old-client raid_claim / world_event_claim / clan_board_claim doors.
+//   OR-5  no ENGINE code (src/core/**, supabase/functions/**) proposes a
+//         kind:'daily' progress op — the premium login's clamp is the server's own
+//   OR-6  AT THE CHAIN END the last body of hr_farm_harvest and hr_farm_plant
+//         writes no kind 'daily' row (comments are not code)
+// (The companion pets and the premium daily login were KEPT by Tyler the same
+//  day, as bases for later: nothing here guards them out.)
+//
+// THE THIRD CUT (lane c-world-actions-cut, 2026-12-04-world-actions-cut.sql; Tyler
+// 2026-10-22 "Cut them: raid_strike, world_event_*, clan_board_*, clan_hunt_declare,
+// clan_tier_up, clan_work_complete. Redesign live world events later."): the eleven
+// old-client doors, the world events' own read hr_rally_pledge_state, the helpers and
+// tables only they used, and their baseline rows join OR-1 and OR-4. It replaces
+// raid-band-denial, muster-chest-xp-credit and absence-claim-wallet, which each
+// proved a payout rule of a door that no longer exists. Clan membership, clan chat
+// and the clan doors Tyler did not name are NOT guarded out.
+//
 // Pure text + two data imports, no database, no network. Exit: 0 green · 1 red · 2 harness.
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -52,7 +71,13 @@ export const NAMES = [
   'priceDailyLogin', 'deriveLoginStreak', 'loginBonusDue', 'loginClaimIsStraight', 'CLAIMABLES', 'claimableFor',
   // the fox
   'fox_companion',
+  // the engine's daily counters (hr-accrue goal-period.js and the fx seam that fed them)
+  'modalGoalOps', 'updateDaily',
 ];
+/* The third cut's client doors (each with an __ungated body), 2026-12-04-world-actions-cut.sql. */
+export const WORLD_ACTION_RPCS = ['raid_strike', 'clan_hunt_declare', 'clan_tier_up', 'clan_work_complete',
+  'clan_board_roll', 'clan_board_progress', 'world_event_join', 'world_event_contribute', 'world_event_pledge',
+  'world_event_pledge_settle', 'world_event_absence_claim', 'hr_rally_pledge_state'];
 /* The server half: every function and table 2026-12-02-old-rewards-cut.sql drops. */
 export const CUT_FUNCTIONS = [
   'hr_claim_quest', 'hr_claim_quest__ungated', 'hr_quest_rewards_items_ok',
@@ -65,13 +90,44 @@ export const CUT_FUNCTIONS = [
   // the goal board, dropped by 2026-10-16-goal-board-retire.sql (goal-counter-kinds guarded its lifetime-counter
   // hazard while hr_claim_goal and hr_claim_quest could pay; with both doors cut, their revival is what is guarded)
   'hr_claim_goal', 'hr_claim_goal__ungated', 'hr_goal_state', 'hr_goal_state__ungated',
+  // the second cut (2026-12-03-daily-claims-cut.sql)
+  'raid_claim', 'raid_claim__ungated', 'world_event_claim', 'world_event_claim__ungated',
+  'clan_board_claim', 'clan_board_claim__ungated',
+  // the third cut (2026-12-04-world-actions-cut.sql): the doors, then the helpers left with no caller
+  ...WORLD_ACTION_RPCS.flatMap((n) => [n, n + '__ungated']),
+  'hr_max_hunt_tier', 'hr_hunt_pool', 'hr_hunt_clamp', 'hr_utc_week_key', 'hr_week_start', 'hr_clan_board_rows',
+  'hr_rally_refresh', 'hr_rally_points_of', 'hr_rally_point_rules', 'hr_rally_pledge_char', 'hr_rally_xp_credit',
+  'hr_rally_absent_chest', 'hr_rally_chest', 'hr_rally_chest_value', 'hr_rally_day_close', 'hr_rally_day',
+  'hr_rally_slot', 'hr_rally_event_for_key', 'hr_rally_event_id', 'hr_rally_pool', 'hr_rally_theme',
 ];
-export const CUT_TABLES = ['hr_quest_rewards', 'hr_hunt_loot_roster', 'hr_goal_rewards'];
+export const CUT_TABLES = ['hr_quest_rewards', 'hr_hunt_loot_roster', 'hr_goal_rewards', 'raid_claims',
+  'raid_contributions', 'clan_raids', 'clan_board', 'hr_castle_board_tasks', 'hr_hunt_bosses', 'hr_hunt_tiers',
+  'hr_hunt_boss_reward', 'world_event_joins', 'world_event_pledges', 'world_event_totals', 'hr_rally_action_s'];
 /* Cut before it ever shipped (the milestones' loot roster, staged and withdrawn the same day): no file may make it. */
 export const NEVER_SHIPPED = ['table:hr_hunt_loot_roster'];
 /* The client RPCs: the old client called them by name, so no code may name them either. */
-export const CUT_RPCS = ['hr_claim_quest', 'hr_claim_milestone', 'hr_claim_rank', 'hr_claim_daily', 'hr_tally_state'];
-export const DELETED_FILES = ['src/data/goal-catalogue.js', 'src/data/collection-milestones.js', 'src/data/rewards.js'];
+export const CUT_RPCS = ['hr_claim_quest', 'hr_claim_milestone', 'hr_claim_rank', 'hr_claim_daily', 'hr_tally_state',
+  'raid_claim', 'world_event_claim', 'clan_board_claim', ...WORLD_ACTION_RPCS];
+export const DELETED_FILES = ['src/data/goal-catalogue.js', 'src/data/collection-milestones.js', 'src/data/rewards.js',
+  'supabase/functions/hr-accrue/goal-period.js'];
+/* OR-6: the daily writers 2026-12-03-daily-claims-cut.sql restated whole. */
+export const CLEAN_READERS = ['hr_farm_harvest', 'hr_farm_plant'];
+const ENGINE_DIRS = ['src/core/', 'supabase/functions/'];
+const DAILY_OP = /\bkind\s*:\s*(['"`])daily\1/;
+
+/** The body of the LAST create of public.<name>( in one SQL text, or null. */
+export function lastBody(sql, name) {
+  const code = sql.replace(/\r\n/g, '\n');
+  const re = new RegExp('create\\s+(?:or\\s+replace\\s+)?function\\s+public\\.' + name + '\\s*\\(', 'gi');
+  let at = -1;
+  for (let m; (m = re.exec(code));) at = m.index;
+  if (at < 0) return null;
+  const as = /\bas\s+(\$[a-z_]*\$)/i.exec(code.slice(at));
+  if (!as) return null;
+  const from = at + as.index + as[0].length;
+  const to = code.indexOf(as[1], from);
+  return to < 0 ? null : code.slice(from, to);
+}
 
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const word = (nm) => new RegExp('(^|[^\\w$])' + esc(nm) + '(?![\\w$])');
@@ -142,6 +198,17 @@ export function check(w) {
     if (!e) { if (!NEVER_SHIPPED.includes(k)) add('OR-4', `no migration in the apply order ever touches ${k} — the guard's list is stale`); continue; }
     if (e.op !== 'drop') add('OR-4', `${e.file} is the last file to touch ${k}, and it ${e.kind === 'baseline' ? 'inserts the client baseline row' : 'creates it'} — the cut must be the last word`);
   }
+  for (const [file, text] of w.files) {
+    if (!ENGINE_DIRS.some((d) => file.startsWith(d))) continue;
+    if (DAILY_OP.test(stripComments(text))) add('OR-5', `${file} proposes a kind:'daily' progress op — the daily counters were cut (nothing reads them)`);
+  }
+  for (const name of CLEAN_READERS) {
+    let body = null, from = null;
+    for (const [file, text] of w.sql) { const b = lastBody(text, name); if (b !== null) { body = b; from = file; } }
+    if (body === null) { add('OR-6', `no migration creates ${name} — the guard's list is stale`); continue; }
+    const code = body.replace(/--[^\n]*/g, '');
+    if (/'daily'/.test(code)) add('OR-6', `${from} leaves ${name} naming kind 'daily' — the daily counters were cut`);
+  }
   return problems;
 }
 
@@ -154,6 +221,8 @@ function selftest(w) {
   say(clean.length === 0, 'clean arm is green' + (clean.length ? ' → ' + clean.map((p) => p.id + ' ' + p.msg).join(' | ') : ''));
   const later = (x, body) => x.sql.push(['2099-01-01-revival.sql', body]);
   const cutFile = (x, fn) => { const i = x.sql.findIndex(([f]) => f === '2026-12-02-old-rewards-cut.sql'); x.sql[i] = [x.sql[i][0], fn(x.sql[i][1])]; };
+  const cut2 = (x, fn) => { const i = x.sql.findIndex(([f]) => f === '2026-12-03-daily-claims-cut.sql'); const b = x.sql[i][1]; const a = fn(b); if (a === b) throw new Error('cut2 plant did not change the file'); x.sql[i] = [x.sql[i][0], a]; };
+  const cut3 = (x, fn) => { const i = x.sql.findIndex(([f]) => f === '2026-12-04-world-actions-cut.sql'); if (i < 0) throw new Error('cut3: the third cut file is not in the apply order'); const b = x.sql[i][1].replace(/\r\n/g, '\n'); const a = fn(b); if (a === b) throw new Error('cut3 plant did not change the file'); x.sql[i] = [x.sql[i][0], a]; };
   const arms = [
     ['the quest catalogue comes back in the data (QUEST_REWARDS)', 'OR-1', (x) => { x.files.set('src/data/quests.js', 'export const QUEST_REWARDS = {};\n'); }],
     ['a screen calls the milestone claim again', 'OR-1', (x) => { x.files.set('src/shell/x.js', "rpc('hr_claim_milestone', { p_slot: 0 });\n"); }],
@@ -168,6 +237,20 @@ function selftest(w) {
     ['a later migration ships the withdrawn loot roster', 'OR-4', (x) => { later(x, 'create table if not exists public.hr_hunt_loot_roster (item_id text primary key);\n'); }],
     ['the cut file forgets the rank claim', 'OR-4', (x) => { cutFile(x, (t) => t.replace('drop function if exists public.hr_claim_rank(text, integer);\n', '')); }],
     ['the cut file keeps the tally read in the baseline', 'OR-4', (x) => { cutFile(x, (t) => t.replace(", 'hr_tally_state');", ');')); }],
+    // the second cut
+    ['a later migration re-adds raid_claim to the client baseline', 'OR-4', (x) => { later(x, "insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note) values\n  ('raid_claim', 'p_scope text', 'authenticated', 'back');\n"); }],
+    ['the second cut file forgets world_event_claim__ungated', 'OR-4', (x) => { cut2(x, (t) => t.replace('drop function if exists public.world_event_claim__ungated(text, integer);\n', '')); }],
+    ['the engine proposes a kind:daily op again', 'OR-5', (x) => { x.files.set('supabase/functions/hr-accrue/accrual.js', (x.files.get('supabase/functions/hr-accrue/accrual.js') || '') + "\nprogress.push({ kind: 'daily', key: 'ev:kill_any', period: day, add: 1 });\n"); }],
+    ['a later migration restates hr_farm_plant writing a daily row', 'OR-6', (x) => { later(x, "create or replace function public.hr_farm_plant(p_slot int, p_plot_idx int, p_crop text, p_idem uuid)\nreturns jsonb language plpgsql as $$ begin insert into public.player_progress (kind) values ('daily'); return null; end $$;\n"); }],
+    ['the second cut file keeps the daily harvest row', 'OR-6', (x) => { cut2(x, (s) => s.replace("values (v_uid, p_slot, 'stat', 'ev:harvest'", "values (v_uid, p_slot, 'daily', 'ev:harvest'")); }],
+    // the third cut
+    ['a screen calls world_event_join again', 'OR-1', (x) => { x.files.set('src/shell/events.js', "rpc('world_event_join', { p_event_key: k });\n"); }],
+    ['a later migration restates raid_strike__ungated', 'OR-4', (x) => { later(x, 'create or replace function public.raid_strike__ungated(p_clan_id uuid, p_week text, p_boss text, p_max_hp bigint, p_damage bigint)\nreturns jsonb language sql as $$ select null::jsonb $$;\n'); }],
+    ['a later migration recreates the world event joins table', 'OR-4', (x) => { later(x, 'create table if not exists public.world_event_joins (user_id uuid);\n'); }],
+    ['a later migration re-adds clan_tier_up to the client baseline', 'OR-4', (x) => { later(x, "insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note) values\n  ('clan_tier_up', 'p_clan_id uuid, p_expect_tier integer', 'authenticated', 'back');\n"); }],
+    ['the third cut file forgets a rally helper (hr_rally_theme)', 'OR-4', (x) => { cut3(x, (t) => t.replace('drop function if exists public.hr_rally_theme(text);\n', '')); }],
+    ['the third cut file forgets a catalogue table (hr_hunt_bosses)', 'OR-4', (x) => { cut3(x, (t) => t.replace('drop table if exists public.hr_hunt_bosses;\n', '')); }],
+    ['the third cut file keeps the clan_work_complete baseline row', 'OR-4', (x) => { cut3(x, (t) => t.replace(" 'clan_work_complete',\n", '\n')); }],
   ];
   for (const [label, want, plant] of arms) {
     const x = clone(w); plant(x);
@@ -178,6 +261,10 @@ function selftest(w) {
     ['a JS comment naming hr_claim_quest and QUEST_REWARDS', (x) => { x.files.set('src/data/z.js', '// hr_claim_quest and QUEST_REWARDS were cut on 2026-10-22\nexport const z = 1;\n'); }],
     ['a SQL comment that says create function hr_claim_quest(', (x) => { later(x, '-- create or replace function public.hr_claim_quest( was the old body\nselect 1;\n'); }],
     ['a longer identifier (hr_claim_quest_log)', (x) => { x.files.set('src/data/z.js', 'export const hr_claim_quest_log = 1;\n'); }],
+    ["a client (not engine) file naming kind: 'daily'", (x) => { x.files.set('src/shell/z.js', "export const row = { kind: 'daily' };\n"); }],
+    ["an SQL comment in a clean reader naming kind 'daily'", (x) => { later(x, "create or replace function public.hr_farm_plant(p_slot int, p_plot_idx int, p_crop text, p_idem uuid)\nreturns jsonb language sql as $$\n-- the 'daily' plant row was cut\nselect null::jsonb $$;\n"); }],
+    ['a kept clan door (clan_work_post) called from code', (x) => { x.files.set('src/shell/z.js', "rpc('clan_work_post', { p_clan_id: c });\n"); }],
+    ['a later migration restating a KEPT clan body (clan_seat_read)', (x) => { later(x, 'create or replace function public.clan_seat_read(p_clan_id uuid)\nreturns jsonb language sql as $$ select null::jsonb $$;\n'); }],
   ];
   for (const [label, plant] of controls) {
     const x = clone(w); plant(x);
@@ -200,7 +287,8 @@ try {
   }
   console.log(`✓ old-rewards-gone: ${w.files.size} files name none of the ${NAMES.length + CUT_RPCS.length} cut names; `
     + `${DELETED_FILES.length} files stay deleted; no companion slot or fox; ${CUT_FUNCTIONS.length} functions, `
-    + `${CUT_TABLES.length} tables and ${CUT_RPCS.length} baseline rows end the ${w.sql.length}-file chain dropped`);
+    + `${CUT_TABLES.length} tables and ${CUT_RPCS.length} baseline rows end the ${w.sql.length}-file chain dropped; `
+    + `the engine proposes no daily op; ${CLEAN_READERS.length} restated farm writers write no daily row`);
 } catch (e) {
   console.error(`✗ old-rewards-gone harness error: ${e && e.stack || e}`);
   process.exit(2);

@@ -24,6 +24,13 @@
 //   keys     each row's `key` toggles it; ignored while typing (src/utils/dom.js
 //            keyBelongsToField: a text field, or a select's arrows) or with a modifier.
 //   motion   a close waits MOTION_MS for the slide-out; none under reduced motion.
+//   home     a row with `home: 'bl'` (Chat, Tyler 2026-10-22) opens FLOATING at the
+//            World's bottom-left, held to that corner by its bottom edge, until it
+//            is dragged; it is never docked, so it never moves a widget or the dock.
+//   size     a row with `resizable: true` (and a `height`) takes its size from
+//            o.sizeOf(id) (the residue `winSize`, a display preference) clamped to
+//            RESIZE_MIN and the World; setSize changes it live (the shell's grip).
+//            The phone ignores both: one sheet, its own size.
 //   no inset WINDOWS FLOAT OVER THE WORLD (Tyler 2026-10-19): no window, docked,
 //            floating, modal or phone sheet, takes any of the World or moves its camera.
 //
@@ -31,13 +38,17 @@
 // size and a scheduler, so node drives every rule (tests/shell-core.mjs).
 // ════════════════════════════════════════════════════════════════════════
 
-import { keyBelongsToField } from '../utils/dom.js?v=0.2.31';
+import { keyBelongsToField } from '../utils/dom.js?v=0.2.32';
 
 export const MAX_OPEN = 3;
 export const DOCK_MAX = 0.6;
 export const DOCK_GAP = 8;
 export const DOCK_EDGE = 12;
 export const MOTION_MS = 120;
+/* The smallest a resizable window gets (its tabs and one line of field must still fit). */
+export const RESIZE_MIN = Object.freeze({ w: 280, h: 160 });
+/* A home-bl window's bottom edge above the World's: clear of the bottom-left widgets (Players online). */
+export const HOME_BOTTOM = 44;
 
 const KEY_RE = /^([a-z]|enter|escape)$/;
 
@@ -54,6 +65,10 @@ export function validateWindowRows(rows) {
     if (keys.has(r.key)) throw new Error('shell windows: key ' + r.key + ' is both ' + keys.get(r.key) + ' and ' + r.id);
     if (!(r.width > 0)) throw new Error('shell windows: ' + r.id + ' needs a positive width');
     if (r.modal !== undefined && r.modal !== true) throw new Error('shell windows: ' + r.id + ' modal is true or absent');
+    if (r.home !== undefined && r.home !== 'bl') throw new Error('shell windows: ' + r.id + " home is 'bl' or absent");
+    if (r.resizable !== undefined && r.resizable !== true) throw new Error('shell windows: ' + r.id + ' resizable is true or absent');
+    if ((r.home || r.resizable) && !(r.height > 0)) throw new Error('shell windows: ' + r.id + ' needs a positive height to sit home or resize');
+    if ((r.home || r.resizable) && r.modal) throw new Error('shell windows: ' + r.id + ' a modal neither sits home nor resizes');
     if (r.escape) escapes++;
     byId.set(r.id, r);
     keys.set(r.key, r.id);
@@ -75,6 +90,7 @@ function isTypingEvent(ev) {
  * @param {() => {width:number,height:number}} o.world  the World's size, CSS px
  * @param {() => boolean} [o.reducedMotion]
  * @param {(fn:Function, ms:number) => any} [o.schedule]
+ * @param {(id:string) => ({w:number,h:number}|null)} [o.sizeOf]  a resizable window's saved size
  */
 export function createWindowManager(o) {
   const rows = validateWindowRows(o.windows);
@@ -89,10 +105,25 @@ export function createWindowManager(o) {
   const listeners = new Set();
   const slot = new Map();        // id -> right offset (px from the World's right edge) of a docked window
   const lastAt = new Map();      // id -> { right } | { x, y }: where it was when it last closed
+  const sized = new Map();       // id -> {w, h} set live by setSize (else o.sizeOf's saved one)
+  const sizeOf = o.sizeOf || (() => null);
 
   const isModal = (id) => rows.get(id).modal === true;
   const docked = () => open.filter((id) => !floating.has(id) && !isModal(id));
-  const width = (id) => rows.get(id).width;
+  const isHome = (id) => rows.get(id).home === 'bl';
+  /* A resizable window's size: the live one, else the saved one, else the row's; clamped to RESIZE_MIN and the World. */
+  function sizeNow(id) {
+    const r = rows.get(id);
+    if (!r.resizable) return { w: r.width, h: r.height || null };
+    const s = sized.get(id) || sizeOf(id) || {};
+    const wd = world();
+    const w = Number.isFinite(s.w) ? s.w : r.width, h = Number.isFinite(s.h) ? s.h : r.height;
+    return {
+      w: Math.round(Math.max(RESIZE_MIN.w, Math.min(Math.max(RESIZE_MIN.w, wd.width - 2 * DOCK_EDGE), w))),
+      h: Math.round(Math.max(RESIZE_MIN.h, Math.min(Math.max(RESIZE_MIN.h, wd.height - HOME_BOTTOM - DOCK_EDGE), h))),
+    };
+  }
+  const width = (id) => sizeNow(id).w;
   const dockMax = () => world().width * DOCK_MAX;
 
   /* The other docked windows' occupied spans (right-edge offsets), sorted. */
@@ -135,6 +166,7 @@ export function createWindowManager(o) {
     else if (slot.has(id)) lastAt.set(id, { right: slot.get(id) });
     floating.delete(id);
     slot.delete(id);
+    sized.delete(id);   // a reopen reads the saved size (the grip saved it on release)
     leaving.delete(id);
     entering.delete(id);
   }
@@ -156,10 +188,12 @@ export function createWindowManager(o) {
     if (!reducedMotion()) entering.add(id);
     if (!isPhone() && !isModal(id)) {
       const was = lastAt.get(id);
-      if (was && Number.isFinite(was.x)) {
+      if (was && was.home) floating.set(id, { home: true });
+      else if (was && Number.isFinite(was.x)) {
         const w = world();
         floating.set(id, { x: Math.max(0, Math.min(w.width - width(id), was.x)), y: Math.max(0, Math.min(w.height - 48, was.y)) });
-      } else place(id, was ? was.right : null);
+      } else if (!was && isHome(id)) floating.set(id, { home: true });
+      else place(id, was ? was.right : null);
     }
     emit();
     return true;
@@ -215,6 +249,22 @@ export function createWindowManager(o) {
     return true;
   }
 
+  /**
+   * Resize a resizable window (desktop only) to {w, h}, clamped; returns the size it took, or null.
+   * `keepBottom`: a window placed by its top grows UP (its bottom edge stays), as the home corner does.
+   */
+  function setSize(id, size, keepBottom) {
+    if (isPhone() || !open.includes(id) || !rows.get(id).resizable || !size) return null;
+    const before = sizeNow(id);
+    sized.set(id, { w: Math.round(size.w), h: Math.round(size.h) });
+    const now = sizeNow(id);
+    sized.set(id, now);
+    const f = floating.get(id);
+    if (keepBottom && f && !f.home) f.y = Math.max(0, f.y - (now.h - before.h));
+    emit();
+    return now;
+  }
+
   function dock(id) {
     if (!floating.delete(id)) return false;
     place(id, null);
@@ -229,7 +279,7 @@ export function createWindowManager(o) {
       while (sheets.length > 1) drop(sheets.shift());
       floating.clear();
       slot.clear();
-    } else for (const id of docked()) if (!slot.has(id)) place(id, null);
+    } else for (const id of docked()) if (!slot.has(id)) { if (isHome(id)) floating.set(id, { home: true }); else place(id, null); }
     emit();
   }
 
@@ -242,8 +292,9 @@ export function createWindowManager(o) {
       const e = { id, z: 10 + i, top: i === open.length - 1, entering: entering.has(id), leaving: leaving.has(id), phone };
       if (isModal(id)) Object.assign(e, { docked: false, modal: true, width: r.width });
       else if (phone) Object.assign(e, { docked: true, right: 0, width: null });
-      else if (floating.has(id)) Object.assign(e, { docked: false, x: floating.get(id).x, y: floating.get(id).y, width: r.width });
-      else Object.assign(e, { docked: true, right: slot.has(id) ? slot.get(id) : DOCK_EDGE, width: r.width });
+      else if (floating.has(id) && floating.get(id).home) Object.assign(e, { docked: false, x: DOCK_EDGE, bottom: HOME_BOTTOM, width: width(id), height: r.resizable ? sizeNow(id).h : null });
+      else if (floating.has(id)) Object.assign(e, { docked: false, x: floating.get(id).x, y: floating.get(id).y, width: width(id), height: r.resizable ? sizeNow(id).h : null });
+      else Object.assign(e, { docked: true, right: slot.has(id) ? slot.get(id) : DOCK_EDGE, width: width(id), height: r.resizable ? sizeNow(id).h : null });
       out.push(e);
     }
     entering.clear();
@@ -253,7 +304,9 @@ export function createWindowManager(o) {
   function subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); }
 
   return {
-    open: openWindow, close, toggle, focus, float, dock, resize, handleKey, layout, subscribe,
+    open: openWindow, close, toggle, focus, float, dock, resize, setSize, handleKey, layout, subscribe,
+    /** The size a window shows at now ({w, h}; h null for a row that sizes to its content). */
+    sizeOf: (id) => (rows.has(id) ? sizeNow(id) : null),
     openIds: () => live(),
     isOpen: (id) => live().includes(id),
     row: (id) => rows.get(id) || null,

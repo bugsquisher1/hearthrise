@@ -3,10 +3,11 @@
 //
 // Ported from the hunt sim's emblem (prototypes/hunt-sim/ui.js `emblem`, our own
 // design; function and layout, never its code), in style-1 tokens:
-//   medallion  a round iron medallion: "Lv", the level, "XP n%"; a thin gold
-//              ring round it fills with the XP into the level
+//   medallion  a pixel-art iron medallion (assets/ui/bar-medal.png, drawn by
+//              tools/make-hud-bar-art.mjs): "Lv", the level, "XP n%"; the XP arc
+//              gilds its iron rim as the level fills
 //   arcs       HP as a red arc on its left, mana as a blue arc on its right,
-//              both filling from the bottom
+//              both filling from the bottom, inside the art's gauge channel
 //   readouts   "HP 180/220" and its regen a second on the left, "MP 40/60" and
 //              its regen on the right
 //   stamina    the time left under the medallion, with an hourglass
@@ -17,33 +18,32 @@
 // heroVitalsOf, the ONE reader the Character tab shares (r09: the two said Level 4
 // and 11), stamina from staminaOf, regen from the hunt section. Built once, patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { CONSUMABLES } from '../../data/consumables.js?v=0.2.31';
-import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.31';
-import { huntOf, huntBagOf, staminaOf } from '../../session/hunt-sections.js?v=0.2.31';
-import { carriedOf } from '../../session/item-sections.js?v=0.2.31';
-import { text, attr } from '../../render/paint.js?v=0.2.31';
-import { whole, hoursMinutes } from '../../render/format.js?v=0.2.31';
-import { glyphSvg } from '../launcher.js?v=0.2.31';
-import { itemIconHtml, itemName } from './bits.js?v=0.2.31';
+import { CONSUMABLES } from '../../data/consumables.js?v=0.2.32';
+import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.32';
+import { huntOf, huntBagOf, staminaOf } from '../../session/hunt-sections.js?v=0.2.32';
+import { carriedOf } from '../../session/item-sections.js?v=0.2.32';
+import { text, attr } from '../../render/paint.js?v=0.2.32';
+import { whole, hoursMinutes } from '../../render/format.js?v=0.2.32';
+import { glyphSvg } from '../launcher.js?v=0.2.32';
+import { itemIconHtml, itemName } from './bits.js?v=0.2.32';
 
-/* The arcs on a 100 x 100 box, centre (50, 50), radius 42: the left one from the
-   bottom (111.6 deg) round to the top (248.4 deg), the right one the mirror. */
-const ARC_LEFT = 'M34.55 89.05 A42 42 0 0 1 34.55 10.95';
-const ARC_RIGHT = 'M65.45 89.05 A42 42 0 0 0 65.45 10.95';
-const XP_RING = 'M50 17 A33 33 0 1 1 49.99 17';
+/* The arcs on the medallion art's own 52 x 52 grid (bar-medal.png), centre (26, 26): HP and mana at radius 21 in
+   the gauge channel (r 19.4-22.6), the left one from the bottom (111.6 deg) round to the top (248.4 deg), the
+   right one the mirror; the XP ring at radius 15.4 on the rim (r 14.4-16.4). */
+const ARC_LEFT = 'M18.28 45.53 A21 21 0 0 1 18.28 6.47';
+const ARC_RIGHT = 'M33.72 45.53 A21 21 0 0 0 33.72 6.47';
+const XP_RING = 'M26 10.6 A15.4 15.4 0 1 1 25.99 10.6';
 
 const ok = (v) => Number.isFinite(v);
 const share = (cur, max) => (ok(cur) && ok(max) && max > 0 ? Math.max(0, Math.min(1, cur / max)) : 0);
 
 /** The hub's skeleton (built once, inside the bar). */
 export function hubHtml(glyphs) {
-  const arc = (d, k) => '<path class="hb-arc-well" d="' + d + '" pathLength="100"/><path class="hb-arc is-' + k + '" d="' + d + '" pathLength="100" stroke-dasharray="0 100"/>';
+  const arc = (d, k) => '<path class="hb-arc is-' + k + '" d="' + d + '" pathLength="100" stroke-dasharray="0 100"/>';
   return '<div class="hb-hub">'
     + '<div class="hb-read is-hp" title="Health"><span class="hb-read-k">HP</span><b class="hb-read-v" data-v="hp"></b><small class="hb-read-r" data-r="hp" title="Health regained each second"></small></div>'
     + '<div class="hb-medal" role="group" aria-label="Level and experience">'
-    + '<svg class="hb-arcs" viewBox="0 0 100 100" aria-hidden="true">' + arc(ARC_LEFT, 'hp') + arc(ARC_RIGHT, 'mana')
-    + '<path class="hb-arc-well is-thin" d="' + XP_RING + '" pathLength="100"/><path class="hb-arc is-xp" d="' + XP_RING + '" pathLength="100" stroke-dasharray="0 100"/>'
-    + '<circle class="hb-disc" cx="50" cy="50" r="28"/></svg>'
+    + '<svg class="hb-arcs" viewBox="0 0 52 52" shape-rendering="crispEdges" aria-hidden="true">' + arc(ARC_LEFT, 'hp') + arc(ARC_RIGHT, 'mana') + arc(XP_RING, 'xp') + '</svg>'
     + '<span class="hb-medal-in"><small>Lv</small><b class="hb-lv"></b><small class="hb-xp"></small></span></div>'
     + '<div class="hb-read is-mana" title="Mana"><span class="hb-read-k">MP</span><b class="hb-read-v" data-v="mana"></b><small class="hb-read-r" data-r="mana" title="Mana regained each second"></small></div>'
     + '<div class="hb-stam" title="Stamina: hunting time left">' + glyphSvg(glyphs, 'uiHourglass') + '<b class="hb-stam-v"></b></div>'

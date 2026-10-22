@@ -26,20 +26,20 @@
 // open doll slot and the "new" marks. No key here is a walk key: selling is
 // Delete, so W, A, S and D always reach the World (Tyler 10-18).
 // ════════════════════════════════════════════════════════════════════════
-import { kindOf, equipSlotFor, equipOps, markSeen } from '../../bag-model.js?v=0.2.31';
-import { assignToBar, barKind, barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.31';
-import { runIntent } from '../../intent-words.js?v=0.2.31';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.31';
-import { gold } from '../../../render/format.js?v=0.2.31';
-import { itemName } from '../../widgets/bits.js?v=0.2.31';
-import { showTip, hideTip } from '../item-tip.js?v=0.2.31';
-import { openFloatMenu, closeFloatMenu } from '../float-menu.js?v=0.2.31';
-import { stateOf, scratchOf, seenOf, confirmFor, junkOf, setPref } from './state.js?v=0.2.31';
-import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.31';
-import { askElsewhere } from './elsewhere.js?v=0.2.31';
-import { skillsOf } from '../../../session/item-sections.js?v=0.2.31';
-import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury } from './bury.js?v=0.2.31';
-import { equipUpgrades } from '../../widgets/upgrade-line.js?v=0.2.31';
+import { kindOf, equipSlotFor, equipOps, markSeen } from '../../bag-model.js?v=0.2.32';
+import { assignToBar, barKind, barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.32';
+import { runIntent } from '../../intent-words.js?v=0.2.32';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.32';
+import { gold } from '../../../render/format.js?v=0.2.32';
+import { itemName } from '../../widgets/bits.js?v=0.2.32';
+import { showTip, hideTip } from '../item-tip.js?v=0.2.32';
+import { openFloatMenu, closeFloatMenu } from '../float-menu.js?v=0.2.32';
+import { stateOf, scratchOf, seenOf, confirmFor, junkOf, setPref } from './state.js?v=0.2.32';
+import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.32';
+import { askElsewhere } from './elsewhere.js?v=0.2.32';
+import { skillsOf } from '../../../session/item-sections.js?v=0.2.32';
+import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury } from './bury.js?v=0.2.32';
+import { equipUpgrades } from '../../widgets/upgrade-line.js?v=0.2.32';
 
 export const INVENTORY_EVENTS = Object.freeze(['input', 'keydown', 'contextmenu', 'pointerdown', 'pointerup', 'pointercancel',
   'dragstart', 'dragover', 'dragleave', 'drop', 'dragend', 'mouseover', 'mouseout']);
@@ -176,15 +176,17 @@ function openMenu(ctx, body, st, id, at, repaint) {
   h += item('m-link', 'Link in chat', !!(ctx.account && ctx.account.social));
   h += '<span class="hw-menu-sub">On pickup</span><span class="hw-menu-rules" role="group" aria-label="On pickup">'
     + RULE_WORDS.map(([v, w]) => item('m-rule', w, !!st.rules, ' data-rule="' + v + '" aria-pressed="' + ((st.rules && (st.rules.loot[id] || 'keep')) === v) + '"')).join('') + '</span>';
-  openFloatMenu(ctx.doc, h, at, {
+  /* The bag's own menu: its repaint closes only this one, never a menu another surface opened (float-menu.js). */
+  sc.menuOwner = {
     onAct: (action, e, b) => actInventory(ctx, body, action, e, b, repaint),
     onClose: () => { if (sc.menu) { sc.menu = null; repaint(); } },
     alive: () => body.isConnected,
-  });
+  };
+  openFloatMenu(ctx.doc, h, at, sc.menuOwner);
   repaint();
 }
 
-function closeMenu(ctx, st) { if (!st.sc.menu) return false; closeFloatMenu(ctx.doc); return true; }
+function closeMenu(ctx, st) { if (!st.sc.menu) return false; closeFloatMenu(ctx.doc, st.sc.menuOwner || null); return true; }
 
 /* ── Selection and the cursor ── */
 function toggleSel(sc, id) { if (sc.sel.has(id)) sc.sel.delete(id); else sc.sel.add(id); sc.anchor = id; }

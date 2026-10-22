@@ -9,11 +9,11 @@
 // server's value stays on screen either way: nothing changed before it answered.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.31';
-import { ITEMS } from '../data/items.js?v=0.2.31';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.31';
-import { REFUSAL_WORDS, REFUSAL_FAMILIES, REFUSAL_FALLBACK } from '../data/refusal-words.js?v=0.2.31';
-import { skillsOf } from '../session/item-sections.js?v=0.2.31';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.32';
+import { ITEMS } from '../data/items.js?v=0.2.32';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.32';
+import { REFUSAL_WORDS, REFUSAL_FAMILIES, REFUSAL_FALLBACK } from '../data/refusal-words.js?v=0.2.32';
+import { skillsOf } from '../session/item-sections.js?v=0.2.32';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 
@@ -64,6 +64,8 @@ export function refusalText(r, cs) {
     return 'Nobody went in: ' + seats.map((x) => x.name + ' ' + (x.error === 'hunt_open' && x.hunt && HUNT_INDEX[x.hunt]
       ? 'is still hunting in ' + HUNT_INDEX[x.hunt].name : SEAT_WORDS[x.error] || 'is not ready')).join('; ') + '.';
   }
+  /* A name the rules refuse for what it says, not its length (hr_validate_display_name reserved / blocked). */
+  if (r && r.error === 'bad_name' && (r.reason === 'reserved' || r.reason === 'blocked')) return refusalWords('bad_name_rule');
   if (r && r.error === 'member_hunting' && r.name) return r.name + ' is hunting. Invite them once that hunt ends.';
   if (r && (r.error === 'requirement_not_met' || r.error === 'level_too_low') && r.item) {
     const w = requirementWords(r.item, cs);

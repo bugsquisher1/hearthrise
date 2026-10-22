@@ -26,15 +26,16 @@
 // PURE (no DOM). The caller owns the clock.
 // ════════════════════════════════════════════════════════════════════════
 
-import { simulateHuntInstance } from '../core/combat-sim.js?v=0.2.31';
-import { memberSide, frozenSide } from '../core/member.js?v=0.2.31';
-import { huntGroundOf } from '../core/hunt-ground.js?v=0.2.31';
-import { huntTimeline, worldHash } from '../core/hunt-track.js?v=0.2.31';
-import { encode as encodeWorldRow, decodeStored as decodeWorldRow } from '../core/hunt/world-state.js?v=0.2.31';
-import { COMBAT_BALANCE } from '../core/combat.js?v=0.2.31';
-import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.31';
-import { stepCost } from '../core/hunt/grid.js?v=0.2.31';
-import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.31';
+import { simulateHuntInstance } from '../core/combat-sim.js?v=0.2.32';
+import { memberSide, frozenSide } from '../core/member.js?v=0.2.32';
+import { huntGroundOf } from '../core/hunt-ground.js?v=0.2.32';
+import { huntTimeline, worldHash } from '../core/hunt-track.js?v=0.2.32';
+import { encode as encodeWorldRow, decodeStored as decodeWorldRow } from '../core/hunt/world-state.js?v=0.2.32';
+import { COMBAT_BALANCE } from '../core/combat.js?v=0.2.32';
+import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.32';
+import { stepCost } from '../core/hunt/grid.js?v=0.2.32';
+import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.32';
+import { holderTank, roleOf } from '../core/hunt/targeting.js?v=0.2.32';
 
 /* How many swings of world hashes are kept to judge a server commit against. */
 const KEEP_HASHES = 64;
@@ -83,6 +84,36 @@ export function timeSteps(steps, speedOf, memo) {
     memo.set(s.u, { x: s.x, y: s.y, end, first: null });
   }
   return steps;
+}
+
+/**
+ * WHO HOLDS THE PACK, LAP BY LAP (display only; bug #59, Andy 10-22: "the lead tank doesn't hold
+ * aggro"). With two or more tanks ONE holds a lap: the leader's pick every lap (Tyler 2026-10-22,
+ * "One tank holds"), else the tanks take turns, less any far weaker than the strongest
+ * (src/core/hunt/targeting.js holderTank, every rule). Answers Map(unit -> turn) for every living
+ * tank of `world`: 'every' (holds this lap and every lap after), 'now' (this lap only),
+ * 'later-every' (every lap from the next: the leader's pick waits for the lap to end), a whole
+ * number (laps until its turn), 'guard' (another tank is the leader's pick) or 'weak' (out of the
+ * turns: too weak). Read by asking the engine's own holderTank of this lap and of the laps after it
+ * (the pending pick, world.holdNext, in force from the next), never a second copy of its rules.
+ */
+export function tankTurnsOf(world) {
+  const out = new Map();
+  if (!world || !Array.isArray(world.units)) return out;
+  const tanks = world.units.filter((u) => u.alive && roleOf(u) && roleOf(u).tank);
+  const runs = isInt(world.runs) && world.runs > 0 ? world.runs : 0;
+  const laps = [];
+  for (let lap = 0; lap <= tanks.length; lap++) {
+    const h = holderTank({ world: lap === 0 ? world : Object.assign({}, world, { runs: runs + lap, hold: world.holdNext }) });
+    laps.push(h ? h.id : null);
+  }
+  const later = laps.slice(1);
+  const picked = tanks.some((u) => u.id === world.holdNext);
+  for (const u of tanks) {
+    const now = laps[0] === u.id, every = later.length > 0 && later.every((id) => id === u.id), next = later.indexOf(u.id);
+    out.set(u.id, now && every ? 'every' : now ? 'now' : every ? 'later-every' : next >= 0 ? next + 1 : picked ? 'guard' : 'weak');
+  }
+  return out;
 }
 
 /**
@@ -172,7 +203,15 @@ export function createLiveEngine(o) {
   function fastForward(serverNowMs, aheadMs) {
     const until = serverNowMs + Math.max(0, Math.floor(Number(aheadMs) || 0));
     const pos = new Map(), killed = new Set(), hp = {}, kills = [], track = [], events = [];
-    for (const u of (st.world ? st.world.units : [])) if (u.alive) pos.set(u.id, [u.x, u.y]);
+    /* Every unit the start point's world holds is named and sized from that world, as combat-sim's own
+       unit book is at a window's start: a restart whose instant lies before the start point's next
+       boundary runs NO swing (the server settles to the boundary after its now, up to a swing ahead of
+       the instant drawn), and its units were placed with no kind; the scene could not draw them
+       ("[hunt-scene] no sprite for unit 780 (null)", Andy 10-22) until a later swing named them. */
+    for (const u of (st.world ? st.world.units : [])) {
+      if (u.alive) pos.set(u.id, [u.x, u.y]);
+      hp[u.id] = [u.kind, u.maxHp, u.hp];
+    }
     for (let n = 0; st.next <= until && n < MAX_SWINGS_PER_CALL; n++) {
       let tl;
       try { tl = swing(st); } catch (e) { if (e && e.starved) st.starved = true; if (e && (e.starved || e.ended)) break; throw e; }
@@ -216,6 +255,9 @@ export function createLiveEngine(o) {
     /** Every hero of the instance: [{ unit, seat, self, role }] (unit null before its first swing). */
     heroUnits: () => (st ? st.sides.map((x) => ({ unit: Number.isInteger(x.member.unitId) ? x.member.unitId : null,
       seat: x.mi.seat, self: x.mi.self === true, role: x.member.hero.role })) : []),
+    /** The tanks' turns at holding the pack (tankTurnsOf) in the world this prediction runs: the server's
+        start point, judged against every server commit and replaced on a mismatch. Null when none runs. */
+    tankTurns: () => (st && st.world && !st.ended ? tankTurnsOf(st.world) : null),
     /** The server instant of the next swing boundary (null when not running). */
     nextAt: () => (st ? st.next : null),
     /**

@@ -5,6 +5,20 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.32 — 2026-10-22 (Who holds the pack)
+
+**Your tanks, your call.** With two or more tanks in a party, the party panel now says who is holding the pack this lap and who holds next. The party leader chooses: tanks take turns, one lap each, or one tank holds every lap while the others guard the healer. A change starts on the next lap.
+
+**A new look for the action bar,** with fight settings that fold out of it. Chat sits bottom-left, see-through, and you can resize it. Right-click menus stay open, and opening Settings no longer moves the bar.
+
+**Rename your hero.** Your first name is free. After that a new name costs 20,000 gold plus 500 per Level.
+
+**Setups keep their gear.** The setup you are using now remembers what you wear, and switching setups puts that gear back on.
+
+**Fixed:** the tutorial pointer no longer jumps back and forth as hunts end, and creatures that sometimes drew without a picture now always have one.
+
+**Cleared out:** raid strikes, world events and clan board tasks from an earlier version of the game. Live world events will come back, built new.
+
 ## v0.2.31 — 2026-10-22 (A home, a farm, and armour that matters)
 
 **Armour you choose.** Heavy armour absorbs blows, medium armour dodges them, light armour wards them. Each suits a different way to fight, and your Character sheet shows your Dodge, Absorb and Ward.

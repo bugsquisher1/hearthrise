@@ -48,18 +48,18 @@
 // only things it sends of its own are the allowlisted residue and intents.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyEnvelope, applyFrame, withResidue } from './envelope.js?v=0.2.31';
-import { createTimeline } from '../hunt-view/timeline.js?v=0.2.31';
-import { LiveLink } from './live-link.js?v=0.2.31';
-import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.31';
-import { SESSION_CONFIG } from './config.js?v=0.2.31';
-import { edgeBody } from './edge-intents.js?v=0.2.31';
-import { leaveAskOf, pendingLeaveAt, leaveCountdown, closeInMs } from './hunt-leave.js?v=0.2.31';
-import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.31';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.31';
-import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.31';
-import { refusalOf } from './refusal.js?v=0.2.31';
-import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.31';
+import { applyEnvelope, applyFrame, withResidue } from './envelope.js?v=0.2.32';
+import { createTimeline } from '../hunt-view/timeline.js?v=0.2.32';
+import { LiveLink } from './live-link.js?v=0.2.32';
+import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.32';
+import { SESSION_CONFIG } from './config.js?v=0.2.32';
+import { edgeBody } from './edge-intents.js?v=0.2.32';
+import { leaveAskOf, pendingLeaveAt, leaveCountdown, closeInMs } from './hunt-leave.js?v=0.2.32';
+import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.32';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.32';
+import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.32';
+import { refusalOf } from './refusal.js?v=0.2.32';
+import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.32';
 
 export const FRAME_EVENT = 'frame';
 
@@ -428,11 +428,14 @@ export class CharacterSession {
     return this._ask('bestiary_activate', () => this._server.rpc('hr_bestiary_activate', { p_slot: this.slot, p_monster: monster, p_stage: stage, p_price: quotedFee, p_idem: newIdem() }));
   }
 
-  /** Claim this character's own name (the server checks the rules and that nobody else has it). */
-  async setName(name) {
+  /** Change this hero's name at the price the `rename` section quoted (Tyler 10-22: the first name is free,
+      a new one costs a lot of gold). The server checks the name rules, that nobody has it, the hunt and the
+      price, and refuses `quote_changed` rather than charge another sum. */
+  async renameHero(name, quotedPrice) {
     const n = String(name || '').trim().replace(/\s+/g, ' ');
     if (this._closed || n.length < 3 || n.length > 20) return { ok: false, error: 'bad_name' };
-    return this._ask('character_name_set', () => this._server.rpc('hr_character_name_set', { p_slot: this.slot, p_name: n, p_idem: newIdem() }));
+    if (!Number.isSafeInteger(quotedPrice) || quotedPrice < 1) return { ok: false, error: 'bad_intent' };
+    return this._ask('hero_rename', () => this._server.rpc('hr_hero_rename', { p_slot: this.slot, p_name: n, p_price: quotedPrice, p_idem: newIdem() }));
   }
 
   /**

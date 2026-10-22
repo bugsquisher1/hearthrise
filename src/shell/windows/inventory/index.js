@@ -20,15 +20,15 @@
 // (src/render/paint.js). Opening it again is what clears the "new" marks the
 // player was shown last time (the residue `bagSeen`).
 // ════════════════════════════════════════════════════════════════════════
-import { text, cls, prop, style } from '../../../render/paint.js?v=0.2.31';
-import { whole, gold } from '../../../render/format.js?v=0.2.31';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.31';
-import { closeFloatMenu } from '../float-menu.js?v=0.2.31';
-import { stateOf } from './state.js?v=0.2.31';
-import { dollHtml, slotLineHtml, patchDoll, patchSlotLine } from './doll.js?v=0.2.31';
-import { toolbarHtml, gridHtml, toolsHtml, patchToolbar, patchGrid, patchTools, KEYS } from './grid.js?v=0.2.31';
-import { advancedHtml, patchAdvanced } from './advanced.js?v=0.2.31';
-import { actInventory, commitSeen, INVENTORY_EVENTS } from './actions.js?v=0.2.31';
+import { text, cls, prop, style } from '../../../render/paint.js?v=0.2.32';
+import { whole, gold } from '../../../render/format.js?v=0.2.32';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.32';
+import { closeFloatMenu } from '../float-menu.js?v=0.2.32';
+import { stateOf } from './state.js?v=0.2.32';
+import { dollHtml, slotLineHtml, patchDoll, patchSlotLine } from './doll.js?v=0.2.32';
+import { toolbarHtml, gridHtml, toolsHtml, patchToolbar, patchGrid, patchTools, KEYS } from './grid.js?v=0.2.32';
+import { advancedHtml, patchAdvanced } from './advanced.js?v=0.2.32';
+import { actInventory, commitSeen, INVENTORY_EVENTS } from './actions.js?v=0.2.32';
 
 /** The skeleton (built once per opening). */
 export function renderInventory(ctx) {
@@ -73,7 +73,7 @@ renderInventory.patch = function patchInventory(body, ctx) {
   patchTools(root, st, ctx);
   patchAdvanced(root, st, ctx);
   cls(root, 'is-pending', st.sc.pending);
-  if (!st.sc.menu) closeFloatMenu(ctx.doc);
+  if (!st.sc.menu) closeFloatMenu(ctx.doc, st.sc.menuOwner || null);   // its own menu only: a world or chat menu stays open
 };
 
 renderInventory.events = INVENTORY_EVENTS;

@@ -767,6 +767,7 @@ body[data-theme="hearthlight"] {
   --world-bubble-ink:    #1c1712;
   --world-walk-mark:     rgba(242, 234, 216, .7);
   --world-hud-bg:        rgba(11, 12, 15, .92);   /* the HUD plate over the canvas is UI chrome: charcoal (.92: props stop reading through the analyzer's numbers) */
+  --chat-bg:             color-mix(in srgb, var(--world-hud-bg) 72%, transparent);   /* the chat over the World (Tyler 10-22): the World shows through, its lines stay readable */
   /* HUD gauge fills (src/styles/hunt.css .hh-gauge). The number on a gauge
      carries its own dark stroke, so a fill is chosen for its role and value,
      not for text contrast: hp a blood red one step under the --red text ink,

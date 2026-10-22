@@ -31,6 +31,11 @@
 //   WC-4  RIGHT-CLICK: a real right-click on another player in town (on the
 //         figure or on the name over it) opens the player menu, and the
 //         browser's own menu is suppressed there
+//   WC-6  A DOCKED WINDOW NEVER SHOVES THE BAR (Tyler 2026-10-22: a Settings tab pushed
+//         the action bar to the far left): at 1440x900, 1920x1080 and 922x423, with Settings open,
+//         every tab leaves the action bar exactly where it stood with Settings open on
+//         its first page; on desktop that is its home (bottom-centre) and the docked
+//         window ends above it
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -87,7 +92,8 @@ async function enter(browser, base, viewport) {
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
   await stub(page);
-  await page.goto(base + '/play.html', { waitUntil: 'load' });
+  /* the page load is the machine's, not a rule: a cold module graph on a slow disk took 12 s (2026-10-22) */
+  await page.goto(base + '/play.html', { waitUntil: 'load', timeout: 30000 });
   await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
   await page.fill('input[name=email]', 'qa@example.test');
   await page.fill('input[name=password]', 'not-a-real-password');
@@ -117,6 +123,36 @@ async function press(page, sel, jitter = 0) {
   await page.mouse.up();
 }
 const settle = (page) => page.waitForTimeout(350);
+
+/* WC-6: the action bar's rect, then Settings' every tab; the bar must not move. */
+const barRect = (page) => page.evaluate(() => { const b = document.querySelector('[data-hs-widget="action-bar"]'); if (!b) return null; const r = b.getBoundingClientRect(); return [r.left, r.top, r.width].map(Math.round).join(','); });
+async function settingsTabs(page, tag, fails, home) {
+  /* No window open: the bar at its home. Then Esc (with nothing open) opens Settings. */
+  for (let i = 0; i < 4 && (await page.evaluate(() => !!document.querySelector('[data-hs-win]:not(.is-leaving)'))); i++) { await page.keyboard.press('Escape'); await settle(page); }
+  const b0 = await barRect(page);
+  if (!b0) { fails.push('WC-6 [' + tag + '] no action bar'); return; }
+  await page.keyboard.press('Escape');
+  if (!(await wait(page, () => document.querySelector('[data-hs-win="settings"]:not(.is-leaving) .st-tab'), null, 3000))) { fails.push('WC-6 [' + tag + '] Esc did not open Settings'); return; }
+  await settle(page);
+  const b1 = await barRect(page);
+  if (home && b1 !== b0) fails.push('WC-6 [' + tag + '] opening Settings moved the bar: ' + b0 + ' -> ' + b1);
+  const tabs = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="settings"] .st-tab:not([hidden])')).map((t) => t.getAttribute('data-cat')));
+  if (tabs.length < 2) fails.push('WC-6 [' + tag + '] Settings shows ' + tabs.length + ' tab(s)');
+  for (const cat of tabs) {
+    const back = await page.$('[data-hs-win="settings"] .st-back');
+    if (back && await back.isVisible()) { await back.click(); await page.waitForTimeout(80); }
+    await page.click('[data-hs-win="settings"] .st-tab[data-cat="' + cat + '"]');
+    await settle(page);
+    const b = await barRect(page);
+    if (b !== b1) { fails.push('WC-6 [' + tag + '] the ' + cat + ' tab moved the bar: ' + b1 + ' -> ' + b); break; }
+    if (home) {
+      const over = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="settings"]').getBoundingClientRect(), r = document.querySelector('[data-hs-widget="action-bar"]').getBoundingClientRect(); return w.left < r.right && r.left < w.right && w.top < r.bottom && r.top < w.bottom; });
+      if (over) { fails.push('WC-6 [' + tag + '] the ' + cat + ' tab ran Settings over the bar'); break; }
+    }
+  }
+  await page.keyboard.press('Escape');
+  await settle(page);
+}
 
 async function checks(overrides) {
   const fails = [];
@@ -255,8 +291,19 @@ async function checks(overrides) {
         }
         const prevented = await page.evaluate(() => window.__ctxPrevented);
         if (!prevented.length || prevented.some((x) => !x)) fails.push('WC-4 the browser’s own menu was not suppressed on the World: ' + JSON.stringify(prevented));
+        await settingsTabs(page, '1440x900', fails, true);
       }
       if (errors.length) fails.push('WC-3 console errors: ' + errors.slice(0, 3).join(' | '));
+      await ctx.close();
+    }
+    /* WC-6 at 1920x1080 (the bar had room left of the dock there, so it jumped across), and on a phone, where the
+       sheet is full height and the bar clears it the same on every tab */
+    for (const [vp, home] of [[{ width: 1920, height: 1080 }, true], [{ width: 922, height: 423 }, false]]) {
+      const tag = vp.width + 'x' + vp.height;
+      const { ctx, page, errors, up } = await enter(browser, base, vp);
+      if (!up) fails.push('WC-6 [' + tag + '] the town did not mount');
+      else await settingsTabs(page, tag, fails, home);
+      if (errors.length) fails.push('WC-6 [' + tag + '] console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
   } catch (e) {
@@ -270,8 +317,9 @@ async function checks(overrides) {
 }
 
 const MUTANTS = [
-  ['the dock follows the focus order', 'src/shell/window-manager.js', "else Object.assign(e, { docked: true, right: slot.has(id) ? slot.get(id) : DOCK_EDGE, width: r.width });",
-    "else Object.assign(e, { docked: true, right: DOCK_EDGE + open.slice(i + 1).filter((d) => !floating.has(d)).reduce((s, d) => s + width(d) + DOCK_GAP, 0), width: r.width });"],
+  ['the dock follows the focus order', 'src/shell/window-manager.js', "else Object.assign(e, { docked: true, right: slot.has(id) ? slot.get(id) : DOCK_EDGE,",
+    "else Object.assign(e, { docked: true, right: DOCK_EDGE + open.slice(i + 1).filter((d) => !floating.has(d)).reduce((s, d) => s + width(d) + DOCK_GAP, 0),"],
+  ['a docked window that grows runs over the bar', 'src/shell/shell.js', '    capDock();\n', ''],
   ['a click that wanders a pixel drags the window off the dock', 'src/shell/shell.js', 'const DRAG_SLOP_PX = 5;', 'const DRAG_SLOP_PX = 0;'],
   ['the stage can scroll', 'src/styles/world.css', 'overflow: clip;   /* never scrollable', 'overflow: hidden;   /* never scrollable'],
   ['the pane can scroll', 'src/styles/world.css', '  overflow: clip;\n}', '  overflow: hidden;\n}'],

@@ -18,32 +18,33 @@
 //   tooltip  hover, focus or a long press: name, cost, type, cooldown, effect,
 //            then the slot's setup and any conflict (action-facts.js)
 //   panel    the setup in use (a setup owns this bar; Saved setups switch it,
-//            designer ruling 2026-10-22), target, stance, chase,
-//            distance and the gold to keep (gold_floor): each ONE intent
+//            designer ruling 2026-10-22); target, stance, chase,
+//            distance and the gold to keep (gold_floor) fold out above the
+//            bar from its Fight settings button: each ONE intent
 //            (settings-intent.js), shown from the server only once it confirms
 // Shown in town too (Tyler 10-18: set it up before leaving). Every value is
 // the server's; the bar changes only when the re-read envelope says so.
 // ════════════════════════════════════════════════════════════════════════
-import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.31';
-import { ABILITIES } from '../../data/abilities.js?v=0.2.31';
-import { huntOf, settingsOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.31';
-import { carriedOf } from '../../session/item-sections.js?v=0.2.31';
-import { text, cls, attr, element, keyedChild, prop } from '../../render/paint.js?v=0.2.31';
-import { whole } from '../../render/format.js?v=0.2.31';
-import { glyphSvg } from '../launcher.js?v=0.2.31';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.31';
-import { actionIconHtml } from './bits.js?v=0.2.31';
-import { hubHtml, patchHub } from './vitals-hub.js?v=0.2.31';
-import { openSlot, sendPlan, movePlan, swapPlan, insertPlan, serverBar, answerWithin } from '../bar-draft.js?v=0.2.31';
-import { actionName, factsOf, carried, supplyLines, setupWords, conflictsOf, reasonOf, sharedCooldownOf } from '../action-facts.js?v=0.2.31';
-import { resetConfigureView } from '../windows/configure-action.js?v=0.2.31';
-import { assignToBar, barKind } from '../bar-assign.js?v=0.2.31';
-import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.31';
-import { refusalWords } from '../intent-words.js?v=0.2.31';
-import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, goldFloorHtml, patchControls, sendOption } from './settings-intent.js?v=0.2.31';
-import { ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.31';
-import { nameEditorHtml, openNameEditor, nameKey } from '../inline-name.js?v=0.2.31';
-import { renameActionSet } from '../../session/preset-intents.js?v=0.2.31';
+import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.32';
+import { ABILITIES } from '../../data/abilities.js?v=0.2.32';
+import { huntOf, settingsOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.32';
+import { carriedOf } from '../../session/item-sections.js?v=0.2.32';
+import { text, cls, attr, element, keyedChild, prop } from '../../render/paint.js?v=0.2.32';
+import { whole } from '../../render/format.js?v=0.2.32';
+import { glyphSvg } from '../launcher.js?v=0.2.32';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.32';
+import { actionIconHtml } from './bits.js?v=0.2.32';
+import { hubHtml, patchHub } from './vitals-hub.js?v=0.2.32';
+import { openSlot, sendPlan, movePlan, swapPlan, insertPlan, serverBar, answerWithin } from '../bar-draft.js?v=0.2.32';
+import { actionName, factsOf, carried, supplyLines, setupWords, conflictsOf, reasonOf, sharedCooldownOf } from '../action-facts.js?v=0.2.32';
+import { resetConfigureView } from '../windows/configure-action.js?v=0.2.32';
+import { assignToBar, barKind } from '../bar-assign.js?v=0.2.32';
+import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.32';
+import { refusalWords } from '../intent-words.js?v=0.2.32';
+import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, goldFloorHtml, patchControls, sendOption } from './settings-intent.js?v=0.2.32';
+import { ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.32';
+import { nameEditorHtml, openNameEditor, nameKey } from '../inline-name.js?v=0.2.32';
+import { renameActionSet } from '../../session/preset-intents.js?v=0.2.32';
 
 const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const SLOT_DRAG = 'application/x-hr-bar-slot';
@@ -113,7 +114,7 @@ export function renderActionBar(ctx) {
     /* The set's name renames in place (inline-name.js; ONE hr_action_set_rename, ruling C4). */
     + '<div class="hb-pl-row"><span class="hb-label">Setup</span><span class="hb-set">' + nameEditorHtml('set-rename', '', 'New name for this setup') + '</span>'
     + '<button type="button" class="hh-tool" data-hs-act="setups" aria-label="Saved setups: switch or save">' + glyphSvg(g, 'uiCheck') + '</button>'
-    /* On a phone the rest of the panel is a slide-out sheet (hunt.css): this opens it. */
+    /* The rest of the panel folds out above the bar (a slide-out sheet on a phone, hunt.css): this opens it. */
     + '<button type="button" class="hh-tool hb-more" data-hs-act="panel" aria-expanded="false" aria-label="Fight settings">' + glyphSvg(g, 'uiSettings') + '</button></div>'
     + '<div class="hb-pl-more" role="group" aria-label="Fight settings">'
     + '<div class="hb-pl-head"><b>Fight settings</b><button type="button" class="hh-tool" data-hs-act="panel" aria-label="Close">×</button></div>'
@@ -254,8 +255,9 @@ function runDrop(ctx, el, plan) {
     .then((r) => { text(msg, r.ok ? '' : refusalWords(r.error)); renderActionBar.patch(el, ctx); });
 }
 
-/* THE PANEL SHEET (phone): the bar keeps the set's name and its buttons; the rest slides out from the
-   right. Escape, its ×, or a press outside it closes it. Display only: nothing is sent. */
+/* THE FIGHT SETTINGS FOLD-OUT: the bar keeps the set's name and its buttons; the rest folds out above the bar's
+   end on a desktop and slides out from the right on a phone (a sheet). Escape, its ×, the button again or a press
+   outside it closes it. Display only: nothing is sent. */
 function setPanel(ctx, el, open) {
   const plaque = el.querySelector('.hb-plaque');
   const off = PANEL.get(el);
@@ -264,10 +266,13 @@ function setPanel(ctx, el, open) {
   attr(plaque.querySelector('.hb-more'), 'aria-expanded', String(open));
   if (!open) return;
   const doc = ctx.doc, sheet = plaque.querySelector('.hb-pl-more');
-  /* Inside the World like a window sheet (never over the top strip and its icons), and under the hunt bar
-     (Leave hunt stays in reach). Measured at each opening; a desktop shows the rows in the panel instead. */
+  /* The phone's sheet (position: fixed, hunt.css) sits inside the World like a window sheet (never over the top
+     strip and its icons), and under the hunt bar (Leave hunt stays in reach), measured at each opening. The
+     desktop fold-out is placed by the stylesheet alone. */
   const hud = el.closest('.hs-hud'), ht = hud && hud.querySelector('.ht-bar');
-  if (hud) {
+  const sheetMode = doc.defaultView.getComputedStyle(sheet).position === 'fixed';
+  if (!sheetMode) { sheet.style.top = ''; sheet.style.bottom = ''; }
+  if (hud && sheetMode) {
     const box = hud.getBoundingClientRect(), hb = ht && ht.getClientRects().length ? ht.getBoundingClientRect() : null;
     sheet.style.top = Math.round(Math.max(box.top, hb ? hb.bottom + 4 : box.top)) + 'px';
     sheet.style.bottom = Math.round(Math.max(0, doc.documentElement.clientHeight - box.bottom)) + 'px';

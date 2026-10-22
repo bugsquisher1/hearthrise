@@ -49,13 +49,13 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { resolveArtisanAction, missingInput, recipeInputs, gateOk } from './artisan.js?v=0.2.31';
-import { bestTool, toolSpeed, toolXpB, toolDouble } from './tools.js?v=0.2.31';
-import { actionIntervalMs } from './pacing.js?v=0.2.31';
-import { CHANNEL, channelApplies, rateMult } from './away.js?v=0.2.31';
-import { sliceSpan } from './skill-sim.js?v=0.2.31';
-import { nextBuffExpiryMs, hasActiveBuff, tickBuffs, pruneBuffs } from './buffs.js?v=0.2.31';
-import { levelOf } from './xp.js?v=0.2.31';
+import { resolveArtisanAction, missingInput, recipeInputs, gateOk } from './artisan.js?v=0.2.32';
+import { bestTool, toolSpeed, toolXpB, toolDouble } from './tools.js?v=0.2.32';
+import { actionIntervalMs } from './pacing.js?v=0.2.32';
+import { CHANNEL, channelApplies, rateMult } from './away.js?v=0.2.32';
+import { sliceSpan } from './skill-sim.js?v=0.2.32';
+import { nextBuffExpiryMs, hasActiveBuff, tickBuffs, pruneBuffs } from './buffs.js?v=0.2.32';
+import { levelOf } from './xp.js?v=0.2.32';
 
 function fxOf(ctx) { return (ctx && ctx.fx) || {}; }
 function call(fx, name, ...args) {
@@ -214,12 +214,9 @@ export function resolveArtisanTick(state, recipe, ctx) {
   state.stats = state.stats || {};
   for (const k of Object.keys(res.stats)) state.stats[k] = (state.stats[k] || 0) + res.stats[k];
   /* `res.progress` is EMPTY on a burn — a "cook N dishes" goal counts
-     successful cooks only. One table (BENCH_COUNTERS), so the daily and the
-     stat cannot half-update the way b217 shipped. */
-  for (const key of res.progress) {
-    call(fx, 'updateDaily', key, 1);
-    call(fx, 'updateQuest', key, 1);
-  }
+     successful cooks only. One table (BENCH_COUNTERS). (The daily arm was cut
+     2026-10-22: nothing reads a kind='daily' counter any more.) */
+  for (const key of res.progress) call(fx, 'updateQuest', key, 1);
   if (res.burnt) call(fx, 'onBurn', recipe, res);
 
   return { outcome: res.burnt ? OUTCOME.BURN : OUTCOME.PRODUCE, res };

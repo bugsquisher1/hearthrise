@@ -14,7 +14,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MAX_CONDITIONS } from './condition-metrics.js?v=0.2.31';
+import { MAX_CONDITIONS } from './condition-metrics.js?v=0.2.32';
 
 export const REFUSAL_FALLBACK = 'That did not go through, so nothing was changed. Try again in a moment.';
 
@@ -98,6 +98,13 @@ export const REFUSAL_WORDS = Object.freeze({
   name_taken: 'That name is taken. Try another.',
   bad_name: 'Names are 3 to 20 letters, numbers and spaces.',
   needs_name: 'Name this hero first.',
+  /* A new name (2026-12-04-hero-rename.sql): the first name is free, a change costs gold. */
+  same_name: 'That is already this hero’s name.',
+  already_named: 'This hero already has a name. A new one costs gold: Characters, Rename.',
+  not_named: 'Name this hero first. The first name is free.',
+  renamed_today: 'This hero changed name today. One change a day.',
+  /* not a server code: the words for bad_name with reason reserved / blocked (intent-words.js refusalText) */
+  bad_name_rule: 'That name is not allowed. Try another.',
   already_created: 'This slot already has a hero.',
   slot_not_owned: 'That hero slot is not yours yet.',
   slot_cap: 'You have every hero slot there is.',
@@ -157,6 +164,7 @@ export const REFUSAL_WORDS = Object.freeze({
   not_leader: 'Only the party leader can do that.',
   not_party_leader: 'Only the party leader can do that.',
   bad_seat: 'That seat is empty now.',
+  not_a_tank: 'Only a hero with a sword and shield can hold the pack.',
   member_hunting: 'Not while that member is hunting.',
   party_hunt_mismatch: 'Your party hunts somewhere else.',
   party_hunt: 'A party hunts one ground. Leave the party to change it.',

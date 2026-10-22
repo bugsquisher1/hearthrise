@@ -11,7 +11,7 @@
 // no Math.random.
 // ============================================================
 
-import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.31';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.32';
 
 /* The 8 neighbours, in the one order every search uses. */
 const NEIGHBOURS = Object.freeze([[0, -1], [1, 0], [0, 1], [-1, 0], [1, -1], [1, 1], [-1, 1], [-1, -1]]);

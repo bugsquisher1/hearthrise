@@ -75,13 +75,15 @@ export const CLIENT_RPCS = Object.freeze({
   hr_hunt_party_disband: 'the leader closes its party in town (party-intents.js disbandParty)',
   hr_hunt_party_invite_player: 'invite the player a menu targets by the server account id it carries (+ slot); same checks as the named invite (party-intents.js invitePlayer)',
   hr_hunt_party_list: 'the leader shows or hides its party in the finder, a yes/no (party-intents.js listParty)',
+  hr_party_hold_set: 'the leader picks who holds the pack, a seat or null for take turns; the server checks leader, seat and tank (party-intents.js setHoldSeat; 2026-12-08-party-hold.sql)',
   hr_hunt_restart: 'go back to the hunt that just ended on that session’s own setup (CharacterSession.restartHunt)',
   /* Lane S2's Services window: each sends the server's own QUOTE (refused quote_changed otherwise), never a price of its own. */
   hr_stamina_refill: 'buy the next stamina refill at the quoted price (CharacterSession.buyStamina)',
   hr_storage_chest_build: 'build the account’s next storage chest at the quoted price; the server gates, prices and debits it (home-intents.js buildChest)',
   hr_blessing_buy: 'buy one blessing tier at the quoted price, 0 under the free level (CharacterSession.buyBlessing)',
   hr_bestiary_activate: 'activate a bestiary stage for one monster kind at the quoted fee (CharacterSession.activateBestiaryStage; lane c-bestiary)',
-  hr_character_name_set: 'claim this character’s own name, checked by the server (CharacterSession.setName)',
+  /* Tyler 2026-10-22 (2026-12-04-hero-rename.sql): the first name is free (hr_create_hero); a change sends the QUOTED price. */
+  hr_hero_rename: 'change a named hero’s name at the price the rename section quoted; the server checks the rules, the hunt and the price (CharacterSession.renameHero)',
   /* The Farm window (P1 2026-10-22; 2026-11-26-farm-window.sql): a slot, a plot index, a crop id or the expected tier; never a price or a time. */
   hr_farm_plant: 'plant one own seed of a crop in an empty plot; level, plot tier and the plot cap are the server’s (farm-intents.js plantCrop)',
   hr_farm_water: 'water a growing plot for a 2 h double-speed window; the server refuses an open window (farm-intents.js waterPlot)',

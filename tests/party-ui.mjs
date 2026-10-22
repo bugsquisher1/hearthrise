@@ -7,7 +7,7 @@
 //   node tests/party-ui.mjs --mutate       every planted defect must turn a rule RED
 //   node tests/party-ui.mjs --shots <dir>  also write the visual-gate screenshots (1440x900, 922x423)
 //
-// mutant-anchors: src/shell/alerts.js src/shell/hunt-list.js src/session/party-sections.js src/session/character-session.js src/shell/windows/party.js src/shell/windows/party-finder.js src/app/character-strip.js src/shell/widgets/alerts.js src/session/party-intents.js src/shell/intent-words.js src/shell/windows/hunts.js src/shell/windows/inventory/bury.js
+// mutant-anchors: src/hunt-view/live-engine.js src/shell/widgets/party-panel.js src/shell/widgets/party-hold.js src/data/refusal-words.js src/shell/alerts.js src/shell/hunt-list.js src/session/party-sections.js src/session/character-session.js src/shell/windows/party.js src/shell/windows/party-finder.js src/app/character-strip.js src/shell/widgets/alerts.js src/session/party-intents.js src/shell/intent-words.js src/shell/windows/hunts.js src/shell/windows/inventory/bury.js
 // mutant-writes-tree: no — pure mutants plant into a temp copy of src/, page mutants into served overrides
 //
 // The fixture is tests/fixtures/party-envelope.json (S1's `party` shape plus this lane's asks).
@@ -26,6 +26,15 @@
 //         moves only from the re-read; a refusal re-reads nothing; a malformed one sends nothing
 //   PR-1  THE ROLE IS THE WEAPON'S: seats read roleForWeapon (a pick only where the weapon
 //         allows it); no client module keeps its own weapon-to-role table
+//   PR-5  WHO HOLDS THE PACK (bug #59, Andy 10-22): with two tanks each tank's row says when it holds
+//         ("Holding this lap" / "Holds next lap" / "Too weak to hold") from the live engine's world (the
+//         engine's own holderTank), the footer explains the turns; non-tanks say nothing; the lines go in
+//         town and come back in the next hunt
+//   PR-6  THE LEADER'S CHOICE (Tyler 2026-10-22): "Take turns | One tank holds" for the leader only, ONE
+//         hr_party_hold_set per press (the pull leader's tank by default), off in flight, the server's answer
+//         shown (and after a reload), a refusal in words; every other seat read-only
+//   PR-7  ONE TANK HOLDS ON THE ROWS: "Holds every lap" / "Guards the party", a pick made mid-lap waits for
+//         the lap, a weak pick warns by name; the lines go in town and come back
 //   UI-1  the strip shows one tab per character with its name, what it is doing and its alert
 //         badge; a tab press shows that character and re-reads nobody
 //   UI-2  the alert lines show each alert once, survive a re-read without repeating, and go
@@ -113,12 +122,61 @@ async function load(base) {
     BURY: await import(u('src/shell/windows/inventory/bury.js')),
     SC: await import(u('src/shell/share-card.js')),
     BITS: await import(u('src/shell/widgets/bits.js')),
+    LE: await import(u('src/hunt-view/live-engine.js')),
+    WS: await import(u('src/core/hunt/world-state.js')),
   };
 }
 
 function account(M, srv) {
   const auth = { userId: () => UID, token: () => 'jwt', signOut: async () => {} };
   return new M.A.AccountSession({ auth, server: srv, tab: memTab(), channel: null, timers });
+}
+
+/* ── WHO HOLDS THE PACK (PR-5..7): Andy's party as live 10-22 (bug #59): Eddie L39 sword (seat 0, leader, unit 1,
+   616 HP), Hank L27 hammer, Apollo L28 wand, Fremulon L38 sword (seat 3, unit 20, 604 HP). ── */
+const ANDY_SEATS = [[0, 1, 'Eddie', 39, 'sword', 616, 'tank'], [1, 7, 'Hank', 27, 'hammer', 420, 'melee_dps'],
+  [2, 13, 'Apollo', 28, 'wand', 390, 'mage'], [3, 20, 'Fremulon', 38, 'sword', 604, 'tank']];
+const TURNS_NOTE = 'Your tanks take turns holding the pack, one lap each. The other tank pulls monsters off the rest of the party.';
+/** The party section the server projects (hunting or in town; `self` the viewer's seat, `hold` the hold seat, `frem` Fremulon's max HP). */
+function andyParty(o) {
+  const { hunting = false, self = 0, hold = null, frem = 604 } = o || {};
+  const unitOf = (u) => (hunting ? u : null);
+  return { id: '11111111-0000-4000-8000-00000000000d', hunt: 'coppercap_warrens', max: 4, open: false,
+    self: unitOf(ANDY_SEATS[self][1]), leader: unitOf(1), self_seat: self, leader_seat: 0, hold_seat: hold,
+    members: ANDY_SEATS.map(([seat, unit, name, level, weapon, hp]) => {
+      const h = seat === 3 ? frem : hp;
+      return { seat, unit: unitOf(unit), hunting, name, level, weapon, hp: h, hp_max: h, away: false };
+    }) };
+}
+/** Seed a live engine with the server's start point (hunt_live) of that party's world: lap `runs`, the pick `hold` / `holdNext`. */
+function andySeed(M, engine, o) {
+  const { runs = 0, frem = 604, hold = null, holdNext = null } = o || {};
+  return engine.seed({ v: 1, instance: { id: 'i59', hunt: 'coppercap_warrens', next_swing_at_ms: 0, world_swing: 0, world_hash: 'h',
+    world: JSON.stringify(M.WS.encode(M.WS.makeWorld({ ground: 'coppercap_warrens', leader: 1, runs, hold, holdNext,
+      units: ANDY_SEATS.map(([, id, , , , hp, role]) => ({ id, side: 'hero', kind: role, alive: true, role, hp, maxHp: id === 20 ? frem : hp })) }))) },
+    seeds: { from: 0, list: [] }, members: [] });
+}
+/** The panel on a small fake DOM: keyed rows (paint.js rows) under their hosts, one node per selector. */
+function fakeDom() {
+  const fake = () => ({ textContent: '', a: {}, kids: [], subs: new Map(), up: null,
+    style: { p: {}, getPropertyValue(k) { return this.p[k] || ''; }, setProperty(k, v) { this.p[k] = v; }, removeProperty(k) { delete this.p[k]; } },
+    classList: { s: new Set(), contains(c) { return this.s.has(c); }, toggle(c, on) { if (on) this.s.add(c); else this.s.delete(c); } },
+    getAttribute(k) { return k in this.a ? this.a[k] : null; }, setAttribute(k, v) { this.a[k] = String(v); }, hasAttribute(k) { return k in this.a; }, removeAttribute(k) { delete this.a[k]; },
+    querySelector(sel) { if (!this.subs.has(sel)) this.subs.set(sel, fake()); return this.subs.get(sel); },
+    get firstElementChild() { return this.kids[0] || this.querySelector(':first'); }, get lastElementChild() { return this.querySelector(':last'); },
+    get nextElementSibling() { return this.up ? this.up.kids[this.up.kids.indexOf(this) + 1] || null : null; },
+    insertBefore(el, ref) { el.remove(); const i = this.kids.indexOf(ref); this.kids.splice(i < 0 ? this.kids.length : i, 0, el); el.up = this; },
+    remove() { if (this.up) this.up.kids.splice(this.up.kids.indexOf(this), 1); this.up = null; } });
+  return { el: fake(), doc: { createElement: () => ({ content: { firstElementChild: fake() } }) } };
+}
+/** Patch the panel and read it: each row's name:turn, the holding rows, the note and the warning. */
+function panelShown(M, dom, ctx) {
+  M.PP.renderPartyPanel.patch(dom.el, ctx);
+  const rowsOf = dom.el.querySelector('.hp-members').kids;
+  const t = (r, sel) => r.querySelector(sel).textContent;
+  return { rows: rowsOf.map((r) => t(r, '.hp-name') + ':' + t(r, '.hp-turn')).join('|'),
+    holding: rowsOf.filter((r) => r.querySelector('.hp-turn').classList.contains('is-holding')).map((r) => t(r, '.hp-name')).join(),
+    note: dom.el.querySelector('.hp-tanks').textContent, warn: dom.el.querySelector('.hp-hold-warn').textContent };
 }
 
 async function pureRules(M, base) {
@@ -433,6 +491,162 @@ async function pureRules(M, base) {
     if (!k || k[1].p_seat !== 2 || Object.keys(k[1]).sort().join() !== 'p_idem,p_seat,p_slot') return 'Kick sent ' + JSON.stringify(srv.calls);
     if (!node('.hp-msg').textContent || node('.hp-msg').textContent === 'Removing…') return 'the refused kick has no words: ' + JSON.stringify(node('.hp-msg').textContent);
     return true;
+  });
+
+  /* PR-5 (bug #59, Andy 10-22 at the Warrens: "the lead tank doesn't hold aggro, no Challenge"): his party has TWO
+     tanks, so one holds a lap and the holder moves on each lap (targeting.js holderTank). Each tank's row says when
+     it holds, read from the live engine's world (the server's start point), never guessed; the note says why; a
+     non-tank row says nothing; a tank far weaker than the strongest says so; in town the lines go (the note stays,
+     beside the switch), and the next hunt brings them back. Andy's party as live (ANDY_SEATS). */
+  await t('PR-5', async () => {
+    const engine = M.LE.createLiveEngine({ items: {}, monsters: {} });
+    let section = andyParty({ hunting: true });
+    const cs = { read: (k) => (k === 'party' ? section : undefined), live: engine };
+    const dom = fakeDom();
+    const ctx = { character: cs, account: null, doc: dom.doc, glyphs: {} };
+    const want = (v, rows, holding, note, what) => (v.rows === rows && v.holding === holding && v.note === note) || what + ' reads ' + JSON.stringify(v);
+    if (!andySeed(M, engine, { runs: 0 })) return 'the live engine did not take the start point';
+    const lap0 = want(panelShown(M, dom, ctx), 'Eddie:Holding this lap|Hank:|Apollo:|Fremulon:Holds next lap', 'Eddie', TURNS_NOTE, "lap 0 (the leader's tank holds first)");
+    if (lap0 !== true) return lap0;
+    andySeed(M, engine, { runs: 1 });
+    const lap1 = want(panelShown(M, dom, ctx), 'Eddie:Holds next lap|Hank:|Apollo:|Fremulon:Holding this lap', 'Fremulon', TURNS_NOTE, 'lap 1 (the turn moved on)');
+    if (lap1 !== true) return lap1;
+    /* back in town: the party is listed, its tanks say nothing (the engine may still hold the last world) */
+    section = andyParty({ hunting: false });
+    const town = want(panelShown(M, dom, ctx), 'Eddie:|Hank:|Apollo:|Fremulon:', '', TURNS_NOTE, 'in town');
+    if (town !== true) return town;
+    /* the next hunt: the lines come back, from ITS start point (Fremulon now far weaker: 500 < 90% of 616) */
+    section = andyParty({ hunting: true });
+    engine.stop();
+    const none = want(panelShown(M, dom, ctx), 'Eddie:|Hank:|Apollo:|Fremulon:', '', TURNS_NOTE, 'a hunt with no engine running');
+    if (none !== true) return none;
+    andySeed(M, engine, { runs: 0, frem: 500 });
+    return want(panelShown(M, dom, ctx), 'Eddie:Holds every lap|Hank:|Apollo:|Fremulon:Too weak to hold', 'Eddie',
+      'Your strongest tank holds the pack every lap. A tank with under 90% of its max health never holds.', 'the next hunt, a weak second tank');
+  });
+
+  /* PR-6 WHO HOLDS THE PACK, THE LEADER'S CHOICE (Tyler 2026-10-22): with two or more tanks the LEADER sees
+     "Take turns | One tank holds"; "One tank holds" is ONE hr_party_hold_set naming the pull leader's tank (only
+     the slot, the seat and a key), the switch is off while it is in flight, and it shows only what the server
+     answered (hold_seat). The pick lists the party's tanks; a press on another names its seat; a refusal reads in
+     words and changes nothing; a press on what the server holds sends nothing. A reload shows the pick still set.
+     Every other seat sees the switch read-only and cannot send. */
+  await t('PR-6', async () => {
+    const srv = fakeServer();
+    srv.env[0].party = andyParty({ hunting: false });
+    srv.env[1].party = andyParty({ hunting: false, self: 3 });
+    const base = srv.rpc;
+    srv.rpc = async (name, args) => {
+      if (name !== 'hr_party_hold_set') return base(name, args);
+      srv.calls.push([name, args]);
+      if (srv.reply.ok === false) return { ok: true, status: 200, body: clone(srv.reply) };
+      for (const e of Object.values(srv.env)) if (e.party) e.party.hold_seat = args.p_seat;
+      return { ok: true, status: 200, body: { ok: true } };
+    };
+    const acc = account(M, srv);
+    const cs = (await acc.open(0)).session;
+    if (!cs) return 'the fixture character did not open';
+    const dom = fakeDom();
+    const ctx = { character: cs, account: acc, doc: dom.doc, glyphs: {} };
+    const btn = (act) => dom.el.querySelector('[data-hs-act="' + act + '"]');
+    const tanksShown = () => dom.el.querySelector('.hp-hold-tanks').kids.map((b) => b.textContent + (b.getAttribute('aria-pressed') === 'true' ? '*' : '')).join(',');
+    const press = async (act, b) => {
+      M.PP.renderPartyPanel.act(ctx, dom.el, act, { type: 'click' }, b || btn(act));
+      const inFlight = btn('hold-turns').disabled === true && btn('hold-one').disabled === true;
+      for (let i = 0; i < 40 && dom.el.querySelector('.hp-msg').textContent === 'Saving…'; i++) await new Promise((res) => setTimeout(res, 5));
+      return inFlight;
+    };
+    let v = panelShown(M, dom, ctx);
+    if (dom.el.querySelector('.hp-hold').hidden || dom.el.querySelector('.hp-hold').classList.contains('is-read')) return 'the leader of a two-tank party has no switch';
+    if (btn('hold-turns').getAttribute('aria-pressed') !== 'true' || btn('hold-one').getAttribute('aria-pressed') !== 'false' || btn('hold-one').disabled) return 'the switch does not show the server’s "Take turns"';
+    if (!dom.el.querySelector('.hp-hold-tanks').hidden || v.note !== TURNS_NOTE) return 'with "Take turns" the switch reads ' + JSON.stringify({ tanks: tanksShown(), note: v.note });
+    /* One tank holds: ONE intent naming the pull leader's tank (Eddie, seat 0), off while in flight */
+    srv.calls.length = 0;
+    srv.reply = { ok: true };
+    const off = await press('hold-one');
+    if (!off) return 'the switch stayed on while "One tank holds" was in flight';
+    const sent = srv.calls.filter((c) => c[0] === 'hr_party_hold_set');
+    if (sent.length !== 1 || Object.keys(sent[0][1]).sort().join() !== 'p_idem,p_seat,p_slot' || sent[0][1].p_seat !== 0 || sent[0][1].p_slot !== 0) return '"One tank holds" sent ' + JSON.stringify(sent);
+    if (!srv.calls.some((c) => c[0] === 'hr_load')) return 'the answer was not re-read';
+    v = panelShown(M, dom, ctx);
+    const EDDIE = 'Eddie holds the pack every lap. Fremulon takes over if Eddie leaves. Only Eddie trains Defense from holding.';
+    if (btn('hold-one').getAttribute('aria-pressed') !== 'true' || tanksShown() !== 'Eddie*,Fremulon' || v.note !== EDDIE) return 'after the answer the switch reads ' + JSON.stringify({ tanks: tanksShown(), note: v.note });
+    /* a reload: a new session over the same server shows the pick still set */
+    const acc2 = account(M, srv);
+    const cs2 = (await acc2.open(0)).session;
+    const dom2 = fakeDom();
+    const v2 = panelShown(M, dom2, { character: cs2, account: acc2, doc: dom2.doc, glyphs: {} });
+    if (dom2.el.querySelector('[data-hs-act="hold-one"]').getAttribute('aria-pressed') !== 'true' || v2.note !== EDDIE) return 'after a reload the pick reads ' + JSON.stringify(v2.note);
+    /* a refusal reads in words and changes nothing; then Fremulon by his seat */
+    const fremulon = () => dom.el.querySelector('.hp-hold-tanks').kids.find((b) => b.textContent === 'Fremulon');
+    srv.calls.length = 0;
+    srv.reply = { ok: false, error: 'not_a_tank' };
+    await press('hold-seat', fremulon());
+    v = panelShown(M, dom, ctx);
+    if (dom.el.querySelector('.hp-msg').textContent !== 'Only a hero with a sword and shield can hold the pack.') return 'the refusal reads ' + JSON.stringify(dom.el.querySelector('.hp-msg').textContent);
+    if (srv.calls.some((c) => c[0] === 'hr_load') || tanksShown() !== 'Eddie*,Fremulon') return 'a refusal changed the switch: ' + tanksShown();
+    srv.calls.length = 0;
+    srv.reply = { ok: true };
+    await press('hold-seat', fremulon());
+    const third = srv.calls.filter((c) => c[0] === 'hr_party_hold_set');
+    if (third.length !== 1 || third[0][1].p_seat !== 3) return 'a press on Fremulon sent ' + JSON.stringify(third);
+    v = panelShown(M, dom, ctx);
+    if (tanksShown() !== 'Eddie,Fremulon*' || v.note !== 'Fremulon holds the pack every lap. Eddie takes over if Fremulon leaves. Only Fremulon trains Defense from holding.') return 'after Fremulon the switch reads ' + JSON.stringify({ tanks: tanksShown(), note: v.note });
+    srv.calls.length = 0;
+    await press('hold-seat', fremulon());
+    await press('hold-one');
+    if (srv.calls.length) return 'a press on what the server already holds sent ' + JSON.stringify(srv.calls.map((c) => c[0]));
+    /* in a hunt, One tank holds names the hunt's PULL leader's tank (here Fremulon pulls), not the first by seat */
+    const pulling = Object.assign(andyParty({ hunting: true }), { leader: 20 });
+    const pv = M.PP.liveRoster({ read: (k) => (k === 'party' ? pulling : undefined) }, M.PP.rosterOf({ read: (k) => (k === 'party' ? pulling : undefined) })).hold;
+    if (pv.fallback !== 3) return 'with Fremulon pulling, One tank holds would name seat ' + pv.fallback + ', not his 3';
+    /* Take turns names no seat */
+    await press('hold-turns');
+    const turns = srv.calls.filter((c) => c[0] === 'hr_party_hold_set');
+    if (turns.length !== 1 || turns[0][1].p_seat !== null) return '"Take turns" sent ' + JSON.stringify(turns);
+    /* a member (Fremulon's own character, seat 3) sees the switch read-only and cannot send */
+    const member = (await acc.open(1)).session;
+    const dom3 = fakeDom();
+    const ctx3 = { character: member, account: acc, doc: dom3.doc, glyphs: {} };
+    panelShown(M, dom3, ctx3);
+    const mb = (act) => dom3.el.querySelector('[data-hs-act="' + act + '"]');
+    if (dom3.el.querySelector('.hp-hold').hidden || !dom3.el.querySelector('.hp-hold').classList.contains('is-read') || !mb('hold-turns').disabled || !mb('hold-one').disabled) return 'a member’s switch is not read-only';
+    srv.calls.length = 0;
+    M.PP.renderPartyPanel.act(ctx3, dom3.el, 'hold-one', { type: 'click' }, mb('hold-one'));
+    await new Promise((res) => setTimeout(res, 20));
+    return srv.calls.length === 0 || 'a member’s press sent ' + JSON.stringify(srv.calls.map((c) => c[0]));
+  });
+
+  /* PR-7 ONE TANK HOLDS, ON THE ROWS (Tyler 2026-10-22), seen by Hank (seat 1): with Fremulon picked, the live
+     engine's world says Fremulon "Holds every lap" and Eddie "Guards the party" (no healer in Andy's party); a pick
+     made mid-lap waits for the lap: the lap's holder by turns says "Holding this lap" and the pick "Holds every lap
+     from next lap". A pick far weaker than the strongest tank warns by name. In town the lines go and the switch and
+     its note stay; the next hunt brings the lines back. */
+  await t('PR-7', async () => {
+    const engine = M.LE.createLiveEngine({ items: {}, monsters: {} });
+    let section = andyParty({ hunting: true, self: 1, hold: 3 });
+    const cs = { read: (k) => (k === 'party' ? section : undefined), live: engine };
+    const dom = fakeDom();
+    const ctx = { character: cs, account: null, doc: dom.doc, glyphs: {} };
+    const FREM = 'Fremulon holds the pack every lap. Eddie takes over if Fremulon leaves. Only Fremulon trains Defense from holding.';
+    const want = (v, rows, holding, note, warn, what) => (v.rows === rows && v.holding === holding && v.note === note && v.warn === warn) || what + ' reads ' + JSON.stringify(v);
+    andySeed(M, engine, { runs: 0, hold: 20, holdNext: 20 });
+    const held = want(panelShown(M, dom, ctx), 'Eddie:Guards the party|Hank:|Apollo:|Fremulon:Holds every lap', 'Fremulon', FREM, '', 'the pick in force');
+    if (held !== true) return held;
+    andySeed(M, engine, { runs: 0, hold: null, holdNext: 20 });
+    const pending = want(panelShown(M, dom, ctx), 'Eddie:Holding this lap|Hank:|Apollo:|Fremulon:Holds every lap from next lap', 'Eddie', FREM, '', 'a pick made mid-lap');
+    if (pending !== true) return pending;
+    section = andyParty({ hunting: true, self: 1, hold: 3, frem: 500 });
+    andySeed(M, engine, { runs: 0, hold: 20, holdNext: 20, frem: 500 });
+    const weak = want(panelShown(M, dom, ctx), 'Eddie:Guards the party|Hank:|Apollo:|Fremulon:Holds every lap', 'Fremulon', FREM, 'Fremulon has much less HP than Eddie.', 'a weak pick');
+    if (weak !== true) return weak;
+    section = andyParty({ hunting: false, self: 1, hold: 3 });
+    const town = want(panelShown(M, dom, ctx), 'Eddie:|Hank:|Apollo:|Fremulon:', '', FREM, '', 'in town');
+    if (town !== true) return town;
+    if (dom.el.querySelector('.hp-hold').hidden) return 'the switch went with the hunt';
+    section = andyParty({ hunting: true, self: 1, hold: 3 });
+    andySeed(M, engine, { runs: 2, hold: 20, holdNext: 20 });
+    return want(panelShown(M, dom, ctx), 'Eddie:Guards the party|Hank:|Apollo:|Fremulon:Holds every lap', 'Fremulon', FREM, '', 'the next hunt');
   });
 
   await t('PR-1', async () => {
@@ -793,6 +1007,24 @@ const PURE_MUTANTS = [
      p is) and was "caught" only by PR-2's ENOENT crash. Same fault — a party in town is not listed — planted directly. */
   ['the roster is the hunt section only (a party in town is not listed)', 'src/shell/widgets/party-panel.js', '  if (p) {\n    const members = p.seats.map(', '  if (p) {\n    const members = p.seats.filter((s) => s.hunting).map('],
   ['an away seat reads as in town', 'src/shell/widgets/party-panel.js', "  if (m.away) return m.seatMs === null ? 'Away' : 'Away, seat kept ' + Math.max(1, Math.ceil(m.seatMs / 60000)) + ' min';\n", ''],
+  ['the party panel names no holder (bug #59)', 'src/shell/widgets/party-panel.js', '  const all = turnsOf(cs);', '  const all = null;'],
+  ['the holder ignores the laps run (bug #59)', 'src/hunt-view/live-engine.js', '{ runs: runs + lap, hold: world.holdNext }', '{ runs: lap, hold: world.holdNext }'],
+  ['a tank too weak to hold reads as waiting its turn (bug #59)', 'src/shell/widgets/party-hold.js', "  if (turn === 'weak') return 'Too weak to hold';\n", ''],
+  ["a tank's turn is never drawn on its row (bug #59)", 'src/shell/widgets/party-panel.js', "  text(el.querySelector('.hp-turn'), m.turn || '');\n", ''],
+  ['the rotation has no footer (bug #59)', 'src/shell/widgets/party-hold.js', "  text(el.querySelector('.hp-tanks'), v.show ? v.note : '');\n", ''],
+  ['One tank holds ignores who pulls', 'src/shell/widgets/party-hold.js', '(tanks.find((m) => m.seat === r.pullSeat) || tanks[0] || {})', '(tanks[0] || {})'],
+  ['One tank holds names no tank (Tyler 2026-10-22)', 'src/shell/widgets/party-hold.js', "action === 'hold-one' ? v.fallback :", "action === 'hold-one' ? null :"],
+  ['a member can change who holds', 'src/shell/widgets/party-hold.js', '  if (!v.show || !v.isLeader) return true;\n', '  if (!v.show) return true;\n'],
+  ['the hold switch stays on while in flight', 'src/shell/widgets/party-hold.js', '  const off = !v.isLeader || pending;', '  const off = !v.isLeader;'],
+  ['a press on what the server holds is sent again', 'src/shell/widgets/party-hold.js',
+    "  if ((action === 'hold-one' && v.one) || seat === now || (seat !== null && !Number.isInteger(seat))) return true;\n", "  if (seat !== null && !Number.isInteger(seat)) return true;\n"],
+  ['the pick note never names who takes over', 'src/shell/widgets/party-hold.js', "(others.length === 1 ? others[0] + ' takes over' : 'Your other tanks take turns')", "'Another tank takes over'"],
+  ['a hold press re-reads nobody', 'src/session/party-intents.js', "{ p_slot: cs.slot, p_seat: seat, p_idem: newIdem() }), peers)", "{ p_slot: cs.slot, p_seat: seat, p_idem: newIdem() }), [])"],
+  ['not_a_tank has no words of its own', 'src/data/refusal-words.js', "  not_a_tank: 'Only a hero with a sword and shield can hold the pack.',\n", ''],
+  ['the switch goes with the hunt', 'src/shell/widgets/party-hold.js', '  const show = r.inParty && tanks.length > 1;', '  const show = r.inParty && tanks.length > 1 && r.anyHunting;'],
+  ['a guarding tank reads as too weak (Tyler 2026-10-22)', 'src/hunt-view/live-engine.js', ": picked ? 'guard' : 'weak');", ": 'weak');"],
+  ['a pick made mid-lap reads as in force', 'src/hunt-view/live-engine.js', '{ runs: runs + lap, hold: world.holdNext }', '{ runs: runs + lap }'],
+  ['a weak pick raises no warning', 'src/shell/widgets/party-hold.js', '    if (own && underHoldFloor(own, known)) warn =', '    if (false) warn ='],
   ['DPS and HPS shows with nobody hunting', 'src/shell/widgets/party-panel.js', "  prop(expand, 'hidden', !r.anyHunting);", "  prop(expand, 'hidden', false);"],
   ['not ready names nobody', 'src/shell/intent-words.js', "    return 'Nobody went in: ' + seats.map((x) => x.name + ' ' + (x.error === 'hunt_open' && x.hunt && HUNT_INDEX[x.hunt]\n      ? 'is still hunting in ' + HUNT_INDEX[x.hunt].name : SEAT_WORDS[x.error] || 'is not ready')).join('; ') + '.';", "    return 'Not everyone in the party is ready.';"],
 ];

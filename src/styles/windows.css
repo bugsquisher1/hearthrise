@@ -53,6 +53,11 @@
 .hw-burying { display: none; align-items: center; gap: 6px; margin-top: 8px; padding: 6px 8px; background: var(--bg-1); box-shadow: var(--hw-well); }
 .hw-burying.is-on { display: flex; }
 .hw-burying-q { flex: 1; }
+/* "Equip upgrades": what the press puts on, in words, beside the button (src/shell/widgets/upgrade-line.js). */
+.hw-upgrade { display: none; align-items: center; gap: 8px; margin-top: 8px; padding: 6px 8px; background: var(--bg-1); box-shadow: var(--hw-well); }
+.hw-upgrade.is-on { display: flex; }
+.hw-upgrade-q { flex: 1; min-width: 0; margin: 0; color: var(--ink-2); }
+.hw-upgrade .hw-primary { display: inline-block; flex: none; }
 .hw-amt { display: flex; align-items: center; gap: 4px; padding: 4px 0; }
 .hw-amt-n { width: 6em; }
 .hw-selcount { flex: 1; font-weight: 700; font-variant-numeric: lining-nums tabular-nums; }

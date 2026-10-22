@@ -7,7 +7,7 @@
 //   node tests/alpha-windows.mjs --shots <dir>  also write the visual-gate screenshots
 //                                               (1440x900 and 922x423)
 //
-// mutant-anchors: src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js
+// mutant-anchors: src/session/character-session.js src/shell/widgets/amount.js src/shell/windows/inventory/bury.js src/shell/windows/inventory/state.js src/shell/windows/float-menu.js src/shell/bag-model.js src/session/item-sections.js src/shell/windows/inventory/grid.js src/shell/windows/inventory/actions.js src/shell/windows/shop.js src/shell/windows/inventory/doll.js src/session/edge-intents.js src/world/world-boot.js src/world/core/camera.js src/shell/windows/hunts.js src/shell/windows/storage.js src/shell/hunt-list.js src/shell/windows/skills.js src/shell/launcher.js src/shell/upgrade-plan.js src/shell/widgets/upgrade-line.js src/shell/intent-words.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character's envelope is tests/fixtures/alpha-envelope.json.
@@ -68,6 +68,9 @@
 //         set_activity { kind:'artisan', id:'cook_wolf_meat' }; the Cooking line reads the
 //         server's pointer; Stop says what the server made and burnt; the tooltip says it
 //         cooks; Sell all loot keeps it; a level under the recipe's says so in words
+//   AW-21 EQUIP UPGRADES: ONE equip intent naming every strictly better piece (never the weapon
+//         or a piece above the hero's skill), its slots and stacks marked until the answer, a
+//         refusal in words with nothing moved, the Shop's offer after a gear purchase, a reload agrees
 //   AW-17 the skills are two ledgers (the combat one inside the Character window,
 //         tests/character-window.mjs) and Gathering and crafting does not scroll at
 //         922x423; a character that has never fought sees the pointer to Hunts
@@ -114,7 +117,13 @@ async function stub(page, s) {
     const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
     if (name === 'hr_load') return json(s.next());
     if (name === 'hr-accrue') {
-      if (body.verb) { await new Promise((ok) => setTimeout(ok, s.delayMs)); return json(Object.assign({ ok: true, accrued: true }, s.next())); }
+      if (body.verb) {
+        await new Promise((ok) => setTimeout(ok, s.delayMs));
+        /* A refusal the next intent gets (AW-21), the engine's shape: nothing moved, the code says why. */
+        if (s.refuse) { const error = s.refuse; s.refuse = null; return json({ ok: false, verb: body.verb, error }); }
+        if (s.onEdge) s.onEdge(body);
+        return json(Object.assign({ ok: true, accrued: true }, s.next()));
+      }
       return json(Object.assign({ accrued: true }, s.next()));
     }
     if (ITEM_RPCS.includes(name)) { await new Promise((ok) => setTimeout(ok, s.delayMs)); return json(s.reply); }
@@ -202,6 +211,28 @@ async function pure() {
   const words = [buryBlock(cs(1, { raw_wolf_meat: 3 }), wolf), buryBlock(cs(5, { raw_wolf_meat: 3 }), wolf), buryBlock(cs(30, { wheat: 2 }), buryRecipeOf('wheat')),
     buryBlock(cs(5, { raw_wolf_meat: 3 }, { active_kind: 'artisan', active_id: 'cook_shrimp' }), wolf), buryLabel(wolf, 3)];
   if (words.join('|') !== 'Needs Cooking 5 (you have 1).||Needs 3 Wheat for one.|Already cooking. Stop it first.|Cook all') fails.push('AW-20 the bench says ' + JSON.stringify(words));
+  /* AW-21 PURE: "Equip upgrades" by the core's numbers for the CURRENT style (src/shell/upgrade-plan.js). */
+  const { upgradePlan, upgradeWords } = await imp('src/shell/upgrade-plan.js');
+  const lv1 = { defense: { level: 1 }, melee: { level: 1 }, ranged: { level: 1 }, magic: { level: 1 } };
+  const plan = (equipment, bag, skills = lv1) => upgradePlan({ equipment, bag: bag.map(([id, qty]) => ({ id, qty: qty || 1 })), skills, level: 5 });
+  const ops = (p) => JSON.stringify(Object.fromEntries(Object.entries(p.ops).sort(([a], [b]) => (a < b ? -1 : 1))));
+  /* A melee hero wears the outfitter's belt (heavy, -1 Ranged/Magic accuracy); a bow hero does not (its accuracy would drop). */
+  const sword = plan({ weapon: 'bronze_sword' }, [['leather_gloves'], ['bronze_belt']]);
+  if (ops(sword) !== '{"belt":"bronze_belt","gloves":"leather_gloves"}') fails.push('AW-21 a sword hero would put on ' + ops(sword));
+  const bow = plan({ weapon: 'shortbow' }, [['leather_gloves'], ['bronze_belt']]);
+  if (ops(bow) !== '{"gloves":"leather_gloves"}') fails.push('AW-21 a bow hero would put on ' + ops(bow) + ' (the heavy belt costs Ranged accuracy)');
+  /* Two copper rings fill both ring slots; the one-line preview names the change. */
+  const rings = plan({ weapon: 'bronze_sword' }, [['copper_ring', 2]]);
+  if (ops(rings) !== '{"ring1":"copper_ring","ring2":"copper_ring"}' || upgradeWords(rings) !== 'Wear Copper Ring ×2 (+1 Melee accuracy each).') fails.push('AW-21 two rings: ' + ops(rings) + ' / ' + upgradeWords(rings));
+  /* Never the hands: a better weapon or a shield in the bag is the player's choice of style. */
+  const hands = plan({ weapon: 'bronze_sword' }, [['iron_sword'], ['practice_shield']], { melee: { level: 99 }, defense: { level: 99 } });
+  if (Object.keys(hands.ops).length) fails.push('AW-21 Equip upgrades would change the hands: ' + ops(hands));
+  /* A worn piece is never traded away: the plate Bronze Belt (more Defense) never replaces a worn Leather Belt (its critical chance). */
+  const worn = plan({ weapon: 'bronze_sword', belt: 'leather_belt' }, [['bronze_belt']]);
+  if ('belt' in worn.ops) fails.push('AW-21 Equip upgrades traded away a worn belt: ' + ops(worn));
+  /* Unknown skills read as "cannot wear yet". */
+  const blind = plan({ weapon: 'bronze_sword' }, [['iron_helm']], null);
+  if (Object.keys(blind.ops).length) fails.push('AW-21 with no server skills Equip upgrades would put on ' + ops(blind));
   return fails;
 }
 
@@ -627,6 +658,81 @@ async function checks(overrides, shots) {
       await ctx.close();
     }
 
+    { // AW-21 EQUIP UPGRADES (gold-sinks designer + 10-22 playtest: four menus per piece): ONE equip intent naming
+      // every better piece, never the weapon or a piece the hero cannot wear yet; the slots and stacks marked until the
+      // answer; a refusal in words with nothing moved; the Shop offers it right after a gear purchase; a reload agrees
+      const town = (e) => {
+        for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
+        e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null });
+        Object.assign(e.inventory, { leather_gloves: 1, bronze_belt: 1, copper_ring: 1, steel_helm: 1 });
+        /* Melee 30: the bag's Steel Sword is better than the worn Iron Sword, and still never put on (the weapon sets the style). */
+        e.skills.melee = { xp: 4700, level: 30, frac: 0 };
+        e.shop.offers.push({ offer: 'supply.leather_gloves', item: 'leather_gloves', kind: 'gear', price: 160 });
+      };
+      const { ctx, page, errors, s, up } = await open({ mutateEnv: town });
+      /* The stateful engine: an equip moves one unit out of the bag per slot and the worn piece back in. */
+      s.onEdge = (b) => {
+        if (b.verb !== 'equip') return;
+        for (const [slot, id] of Object.entries(b.equip)) {
+          const was = s.env.equipment[slot];
+          if (was) s.env.inventory[was] = (s.env.inventory[was] || 0) + 1;
+          s.env.equipment[slot] = id;
+          if (!--s.env.inventory[id]) delete s.env.inventory[id];
+        }
+      };
+      const WANT = '{"belt":"bronze_belt","body":"iron_platebody","gloves":"leather_gloves","helmet":"iron_helm","ring2":"copper_ring"}';
+      const sorted = (o) => JSON.stringify(Object.fromEntries(Object.entries(o || {}).sort(([a], [b]) => (a < b ? -1 : 1))));
+      const msg = () => page.evaluate(() => document.querySelector('[data-hs-win="inventory"] .hh-intent-msg').textContent);
+      if (up) {
+        await openWin(page, 'b', 'inventory');
+        await page.waitForTimeout(250);
+        const pre = await page.evaluate(() => { const l = document.querySelector('.hw-inv .hw-upgrade'); return { on: l.classList.contains('is-on'), q: l.querySelector('.hw-upgrade-q').textContent, off: l.querySelector('button').disabled }; });
+        if (!pre.on || pre.off || !/^Wear Iron Helm \(\+\d+ Defense/.test(pre.q) || /Steel/.test(pre.q)) fails.push('AW-21 the preview line is wrong before the press: ' + JSON.stringify(pre));
+        /* A refusal: nothing moves, the words say why. */
+        s.refuse = 'requirement_not_met';
+        await page.click('.hw-inv [data-hs-act="equip-upgrades"]');
+        await page.waitForTimeout(50);
+        await wait(page, () => !document.querySelector('.hw-inv [data-hs-act="equip-upgrades"]').disabled, null, 3000);
+        if ((await msg()) !== 'Your skill is too low to wear that yet. Nothing was put on.') fails.push('AW-21 a level refusal reads ' + JSON.stringify(await msg()));
+        if (await page.evaluate(() => document.querySelector('.hw-slot[data-slot="helmet"]').getAttribute('data-item'))) fails.push('AW-21 the doll changed on a refusal');
+        if (shots) await shot(page, 'alpha-1440x900-equip-upgrades');
+        /* The press that lands: ONE intent, every slot and stack marked until the answer. */
+        await page.click('.hw-inv [data-hs-act="equip-upgrades"]');
+        const mid = await page.evaluate(() => ({ slots: Array.from(document.querySelectorAll('.hw-slot.is-wearing')).map((b) => b.getAttribute('data-slot')).sort().join(','),
+          stacks: document.querySelectorAll('.hw-pocket.is-wearing').length, off: document.querySelector('.hw-inv [data-hs-act="equip-upgrades"]').disabled }));
+        if (mid.slots !== 'belt,body,gloves,helmet,ring2' || mid.stacks !== 5 || !mid.off) fails.push('AW-21 the upgrades in flight are not marked on their slots and stacks: ' + JSON.stringify(mid));
+        await wait(page, () => !document.querySelector('.hw-slot.is-wearing'), null, 3000);
+        await page.waitForTimeout(200);
+        const eqs = sent(s, 'hr-accrue', 'equip');
+        if (eqs.length !== 2 || sorted(eqs[0].body.equip) !== WANT || sorted(eqs[1].body.equip) !== WANT) fails.push('AW-21 Equip upgrades sent ' + JSON.stringify(eqs.map((c) => c.body.equip)) + ', want ' + WANT + ' once per press');
+        if (eqs.some((c) => 'weapon' in c.body.equip || 'shield' in c.body.equip)) fails.push('AW-21 Equip upgrades touched the hands (the weapon sets the style)');
+        const after = await page.evaluate(() => ({ helm: document.querySelector('.hw-slot[data-slot="helmet"]').getAttribute('data-item'), weapon: document.querySelector('.hw-slot[data-slot="weapon"]').getAttribute('data-item'),
+          line: document.querySelector('.hw-inv .hw-upgrade').classList.contains('is-on') }));
+        if (after.helm !== 'iron_helm' || after.weapon !== 'iron_sword' || after.line || (await msg()) !== 'Put on 5 pieces.') fails.push('AW-21 after the server answered: ' + JSON.stringify(after) + ' ' + JSON.stringify(await msg()));
+        if (!(await reloadAndPlay(page))) fails.push('AW-21 the reload did not come back');
+        else {
+          await openWin(page, 'b', 'inventory');
+          await page.waitForTimeout(250);
+          const back = await page.evaluate(() => ({ belt: document.querySelector('.hw-slot[data-slot="belt"]').getAttribute('data-item'), line: document.querySelector('.hw-inv .hw-upgrade').classList.contains('is-on') }));
+          if (back.belt !== 'bronze_belt' || back.line) fails.push('AW-21 after a reload: ' + JSON.stringify(back));
+        }
+        /* The Shop: nothing offered until a gear purchase, then the line with the new piece. */
+        s.env.inventory.copper_ring = 1;
+        delete s.env.equipment.ring1;
+        await pushEnvelope(page, s);
+        await openWin(page, 'v', 'shop');
+        await page.waitForTimeout(200);
+        if (await page.evaluate(() => document.querySelector('.hw-shop .hw-upgrade').classList.contains('is-on'))) fails.push('AW-21 the Shop offers Equip upgrades before any gear purchase');
+        await page.click('.hw-shop [data-hs-act="buy"][data-offer="supply.leather_gloves"]');
+        await wait(page, () => document.querySelector('.hw-shop .hw-upgrade.is-on'), null, 3000);
+        const shopLine = await page.evaluate(() => document.querySelector('.hw-shop .hw-upgrade-q').textContent);
+        if (!/^Wear Copper Ring \(/.test(shopLine)) fails.push('AW-21 after a gear purchase the Shop offers ' + JSON.stringify(shopLine));
+        if (shots) await shot(page, 'alpha-1440x900-shop-upgrades');
+      } else fails.push('AW-21 the town character did not mount');
+      if (errors.length) fails.push('AW-21 console errors: ' + errors.slice(0, 3).join(' | '));
+      await ctx.close();
+    }
+
     { // AW-17 the skills are two windows and neither scrolls, on the phone too; the first-minute pointer
       /* A character that has killed nothing: Level XP 0 (the core rebuild: Level comes from kills only). */
       const fresh = (e) => { for (const k of Object.keys(e.skills)) if (['melee', 'defense', 'prayer', 'magic', 'ranged'].includes(k)) e.skills[k] = { xp: 0, level: 1 }; for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k]; e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, level_xp: 0 }); };
@@ -675,6 +781,14 @@ const MUTANTS = [
   ['a sale is sent without the confirmation', 'src/shell/windows/inventory/actions.js', '  st.sc.confirm = confirmFor(st, ids, label);\n  repaint();', '  st.sc.confirm = confirmFor(st, ids, label);\n  repaint();\n  doSell(st, repaint);'],
   ['the Shop lists supplies again', 'src/data/supply-basics.js', "export const SHOP_SOLD_KINDS = Object.freeze(['tool', 'gear', 'seed']);", "export const SHOP_SOLD_KINDS = Object.freeze(['food', 'drink', 'ammo', 'tool', 'gear', 'seed']);"],
   ['an equip in flight is not marked', 'src/shell/windows/inventory/actions.js', '  sc.wearing = { slot, item: id || null };\n', ''],
+  ['the Shop lists supplies again', 'src/session/item-sections.js', "const KINDS = Object.freeze(['gear', 'tool']);", "const KINDS = Object.freeze(['food', 'drink', 'ammo', 'gear', 'tool']);"],
+  ['an equip in flight is not marked', 'src/shell/windows/inventory/actions.js', '  sc.wearing = { slots: [slot], items: id ? [id] : [] };\n', ''],
+  ['Equip upgrades swaps the weapon', 'src/shell/upgrade-plan.js', "const STYLE_SLOTS = new Set(['weapon', 'shield', 'ammo', 'companion']);", "const STYLE_SLOTS = new Set(['shield', 'ammo', 'companion']);"],
+  ['Equip upgrades wears what the hero cannot use yet', 'src/shell/upgrade-plan.js', '  return !!s && Number.isInteger(s.level) && s.level >= it.reqLv;', '  return true;'],
+  ['Equip upgrades marks nothing in flight', 'src/shell/widgets/upgrade-line.js', '  sc.wearing = { slots, items: slots.map((s) => plan.ops[s]) };\n', ''],
+  ['Equip upgrades sends one intent per piece', 'src/shell/widgets/upgrade-line.js', "    try { return await cs.edgeIntent('equip', { equip: Object.assign({}, plan.ops) }); } finally { sc.wearing = null; }", "    try { let r; for (const s of slots) r = await cs.edgeIntent('equip', { equip: { [s]: plan.ops[s] } }); return r; } finally { sc.wearing = null; }"],
+  ['a level refusal reads as a bare refusal', 'src/shell/intent-words.js', "  requirement_not_met: 'Your skill is too low to wear that yet. Nothing was put on.',\n", ''],
+  ['the Shop never offers Equip upgrades', 'src/shell/windows/shop.js', "sc.wear = !!o && o.kind === 'gear';", 'sc.wear = false;'],
   ['the engine answer is re-read (two round trips)', 'src/session/character-session.js', "{ if (!(carries && this._take(ans.body, 'load'))) await this.load(); return { ok: true }; }", '{ await this.load(); return { ok: true }; }'],
   ['the doll wears the item before the server confirms', 'src/shell/windows/inventory/doll.js', '    const id = eq[s] || \'\';', "    const id = (s === 'weapon' && globalThis.__want) || eq[s] || '';"],
   ['a press on a window reaches the World', 'src/world/world-boot.js', "if (!walk || !scene || scene.kind === 'hunt' || !onWorld(e)) return;", "if (!walk || !scene || scene.kind === 'hunt') return;"],

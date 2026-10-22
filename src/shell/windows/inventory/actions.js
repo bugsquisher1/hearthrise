@@ -4,7 +4,9 @@
 // Every gesture that changes the game is ONE intent (CharacterSession):
 //   equip / take off       the engine's `equip`: the picked stack's primary, a
 //                          doll slot's Wear / Take off, a stack dragged onto a
-//                          slot, a worn piece dragged onto the grid
+//                          slot, a worn piece dragged onto the grid, and
+//                          "Equip upgrades" (every better piece in ONE delta,
+//                          src/shell/upgrade-plan.js)
 //   eat                    the engine's `eat`
 //   put on the bar         the whole bar restated (bar-assign.js)
 //   sell (one, the selection, junk, a category)
@@ -37,6 +39,7 @@ import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.28';
 import { askElsewhere } from './elsewhere.js?v=0.2.28';
 import { skillsOf } from '../../../session/item-sections.js?v=0.2.28';
 import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury } from './bury.js?v=0.2.28';
+import { equipUpgrades } from '../../widgets/upgrade-line.js?v=0.2.28';
 
 export const INVENTORY_EVENTS = Object.freeze(['input', 'keydown', 'contextmenu', 'pointerdown', 'pointerup', 'pointercancel',
   'dragstart', 'dragover', 'dragleave', 'drop', 'dragend', 'mouseover', 'mouseout']);
@@ -84,11 +87,11 @@ function goldNow(cs) { const s = cs.read('state'); return s && Number.isSafeInte
 
 /** Wear `id` in `slot`, or take the slot's piece off (`id` null): ONE `equip` intent. From the press until the
     server's envelope lands, the slot and the stack moving carry the pending mark (`sc.wearing`, display only:
-    the doll, the stats and the bag change only from that envelope). */
+    the doll, the stats and the bag change only from that envelope; "Equip upgrades" marks every slot it names). */
 function wear(st, repaint, slot, id) {
   const sc = st.sc;
   if (sc.pending) return Promise.resolve({ ok: false, error: 'busy' });
-  sc.wearing = { slot, item: id || null };
+  sc.wearing = { slots: [slot], items: id ? [id] : [] };
   return send(st, repaint, async () => {
     try { return await st.cs.edgeIntent('equip', { equip: equipOps(slot, id, st.eq) }); } finally { sc.wearing = null; }
   }, id ? 'Equipping…' : 'Taking it off…');
@@ -351,6 +354,7 @@ export function actInventory(ctx, body, action, ev, t, repaint) {
     case 'confirm-yes': doSell(st, repaint); return true;
     case 'confirm-no': sc.confirm = null; repaint(); return true;
     case 'bury-stop': doStopBury(st, repaint); return true;
+    case 'equip-upgrades': sc.menu = null; equipUpgrades(st.cs, sc, repaint, st.upgrade); return true;
     case 'inv': closeMenu(ctx, st); return false;
     default: break;
   }

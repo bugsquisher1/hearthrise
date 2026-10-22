@@ -207,7 +207,9 @@ async function stub(page, s) {
     }
     if (name === 'hr_hunt_leave' && s.onLeave) { await sleep(400); const out = s.onLeave(); await json(out); s.leaveAnswered = true; return undefined; }
     /* `keepResidue`: the server keeps what hr_put_client_state sends and hands it back in every envelope (as hr_state_of does). */
-    if (name === 'hr_put_client_state' && s.keepResidue) s.env.client_state = Object.assign({}, s.env.client_state, body.p_patch);
+    /* `residueLate`: the server has not stored the put yet when the next re-read is built (s.lateResidue holds it until the test lands it). */
+    if (name === 'hr_put_client_state' && s.keepResidue && s.residueLate) s.lateResidue = Object.assign({}, s.lateResidue, body.p_patch);
+    else if (name === 'hr_put_client_state' && s.keepResidue) s.env.client_state = Object.assign({}, s.env.client_state, body.p_patch);
     return json({ ok: true });
   });
 }
@@ -1151,6 +1153,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
     for (const premium of [true, false]) { // HS-25 THE HUNT SUMMARY shows the server's balance per hour to everyone; raw XP per hour only to premium
       const { ctx, page, s, up } = await open({ prep: (sc) => {
         sc.keepResidue = true;   // the stored summary is display residue: the server hands it back on a re-read
+        sc.residueLate = true;   // ...but stores each put only when the test lands it (the crossed re-read below)
         if (premium) return;
         /* A free character: the basic analyzer (2026-11-04-hunt-bests.sql) carries balance per hour, never raw XP. */
         sc.env.premium = Object.assign({}, sc.env.premium, { active: false });
@@ -1167,6 +1170,17 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const shown = await wait(page, () => { const d = document.querySelector('[data-hs-win="hunt-summary"] .hsum-card.is-on [data-stat="balanceH"]'); return d && d.textContent !== ''; }, null, 4000);
         /* and it stays: a re-read after the end (before or after the residue put) keeps the card */
         await pushEnvelope(page, s);
+        /* THE CROSSED RE-READ, forced (it was a 1-in-N flake, 2026-10-22): the put has gone (nothing is pending in
+           the page) but the server has not stored it, so the next re-read's client_state has no card. The card
+           must stay; then the server lands the put and echoes it, and it still stays. */
+        for (let i = 0; i < 100 && !s.sent('hr_put_client_state').some((c) => Array.isArray(c.body.p_patch.huntSummaries)); i++) await sleep(50);
+        const putGone = s.sent('hr_put_client_state').some((c) => Array.isArray(c.body.p_patch.huntSummaries));
+        await pushEnvelope(page, s);
+        const crossed = await page.evaluate(() => !!document.querySelector('[data-hs-win="hunt-summary"] .hsum-card.is-on'));
+        s.residueLate = false;
+        if (s.lateResidue) s.env.client_state = Object.assign({}, s.env.client_state, s.lateResidue);
+        await pushEnvelope(page, s);
+        if (!putGone || !crossed) fails.push('HS-25 the ' + tag + ' card ' + (putGone ? 'blinked out on a re-read that crossed its residue put' : 'was never put'));
         const got = await page.evaluate(() => {
           const v = (k) => { const d = document.querySelector('[data-hs-win="hunt-summary"] [data-stat="' + k + '"]'); return d && d.parentNode.getClientRects().length > 0 ? d.textContent : null; };
           const w = document.querySelector('[data-hs-win="hunt-summary"]');
@@ -1564,6 +1578,7 @@ const MUTANTS = [
   ['the picker card never shows the personal best (HS-24)', 'src/shell/windows/hunts.js', "text(li.querySelector('.hw-hunt-best-solo'), best ? best.solo : '');", "text(li.querySelector('.hw-hunt-best-solo'), '');"],
   ['the picker merges a best the server no longer sends (HS-24)', 'src/session/hunt-sections.js', "  const b = section(cs, 'hunt_bests');\n", "  const b = section(cs, 'hunt_bests');\n  if (b && globalThis.__hb) for (const [k, v] of Object.entries(globalThis.__hb)) b.grounds[k] = Object.assign({}, v, b.grounds[k]);\n  if (b) globalThis.__hb = b.grounds;\n"],
   ['the summary has no balance per hour (HS-25)', 'src/hunt-view/summary-model.js', 'balanceH: ph ? ph.balance : null,', 'balanceH: null,'],
+  ['a re-read that crossed the residue put drops the card (HS-25)', 'src/session/character-session.js', 'this._pending = {}; this._sent = Object.assign({}, this._sent, patch);', 'this._pending = {};'],
   ['a free summary shows raw XP per hour (HS-25)', 'src/shell/windows/hunt-summary.js', "prop(dd.parentNode, 'hidden', !!onlySent && (cur[k] === null || cur[k] === undefined));", "prop(dd.parentNode, 'hidden', false);"],
   ['a docked window covers the analyzer again (HS-26)', 'src/shell/shell.js', "clearOfDock(home, fixed, edgeEls.filter((o) => o !== e).map(rel), DOCK_EDGE, stage) : home.left;", 'home.left : home.left;'],
   ['the moved analyzer moves the camera (HS-26)', 'src/shell/shell.js', 'const left = dockHome.has(el) ? dockHome.get(el) : r.left - b.left;', 'const left = r.left - b.left;'],

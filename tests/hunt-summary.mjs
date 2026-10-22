@@ -200,8 +200,8 @@ async function runTests(M) {
 
   await t('A2 an ended session stores its summary once, with the death explanation', async () => {
     const calls = [];
-    let v = 8;
-    const cs = sessionOn(calls, () => endedEnv(v));
+    let v = 8; let state;
+    const cs = sessionOn(calls, () => Object.assign(endedEnv(v), state ? { client_state: state } : {}));
     const store = [];
     const real = cs.setResidue.bind(cs);
     cs.setResidue = (f, val) => { store.push([f, val]); return real(f, val); };
@@ -214,11 +214,14 @@ async function runTests(M) {
     eq(store.length, 1, 'one residue write for the ended session');
     ok(store[0][1][0].id === 'sess-9' && store[0][1][0].reason === 'died', 'the card is for the ended session');
     ok(store[0][1][0].deaths.some((d) => d.includes('3 ') && d.includes('hits')), 'the card carries the explanation: ' + JSON.stringify(store[0][1][0].deaths));
-    /* The put goes first, so the re-read below carries no card (this stub keeps nothing) and only the
-       recorder's own once-per-session rule can stop a second write. */
+    /* The put goes and the server echoes it, then a later copy has lost the card, so the record holds no card
+       and only the recorder's own once-per-session rule can stop a second write. */
     await cs.flushResidue();
-    v = 9;
+    state = clone(calls.find((c) => c.name === 'hr_put_client_state').args.p_patch); v = 9;
     await cs.load();
+    state = { huntSummaries: [] }; v = 10;
+    await cs.load();
+    ok(!M.REC.summariesOf(cs).length, 'the fixture lost the card (else the store check hides the once-rule)');
     eq(store.length, 1, 'a second envelope for the same session adds nothing');
   });
 
@@ -238,6 +241,31 @@ async function runTests(M) {
     ok(calls.some((c) => c.name === 'hr_put_client_state' && Array.isArray(c.args.p_patch.huntSummaries)), 'the put carries the card');
   });
 
+  /* HS-25 (in-page, flaky 2026-10-22): the debounced put went, and a re-read built BEFORE the server stored it
+     answered after: its client_state has no card, and nothing was pending any more, so the card blinked out. */
+  await t('A4 a re-read that crossed the residue put in flight keeps the card until the server echoes it', async () => {
+    const calls = [];
+    let v = 8; let state;
+    const cs = sessionOn(calls, () => Object.assign(endedEnv(v), state ? { client_state: state } : {}));
+    const open = clone(FIX); open.version = 7; open.hunt = { session: { id: 'sess-9', hunt: 'mill_cellar', preset: 1, phase: 'hunting', bag: [], tally: {} }, pose: FIX.hunt.pose };
+    await cs._take(open, 'load');
+    ok(await cs.load(), 'the ended envelope applied');
+    ok(await cs.flushResidue(), 'the put goes (nothing is pending after it)');
+    const put = calls.find((c) => c.name === 'hr_put_client_state').args.p_patch;
+    v = 9;
+    ok(await cs.load(), 'a re-read that predates the put applied');
+    ok(M.REC.summariesOf(cs).some((x) => x.id === 'sess-9'), 'a re-read that crossed the put in flight dropped the card');
+    /* the server echoes it (jsonb re-orders keys: the echo is matched key order aside) */
+    const reorder = (o) => (Array.isArray(o) ? o.map(reorder) : o && typeof o === 'object' ? Object.fromEntries(Object.keys(o).reverse().map((k) => [k, reorder(o[k])])) : o);
+    state = reorder(clone(put)); v = 10;
+    ok(await cs.load(), 'the echo applied');
+    ok(M.REC.summariesOf(cs).some((x) => x.id === 'sess-9'), 'the echoed card is shown');
+    /* once echoed, the server's word is the client's again: a later copy without it (another device) is shown as sent */
+    state = { huntSummaries: [] }; v = 11;
+    ok(await cs.load(), 'the later re-read applied');
+    ok(!M.REC.summariesOf(cs).some((x) => x.id === 'sess-9'), 'an echoed field kept overriding the server forever');
+  });
+
   return fails;
 }
 
@@ -252,7 +280,9 @@ async function load(base) {
 }
 
 const MUTANTS = [
-  { test: 'A3', file: SESSION, from: '    for (const [f, v] of Object.entries(this._pending)) this._record = withResidue(this._record, f, v);\n', to: '' },
+  { test: 'A3', file: SESSION, from: 'for (const [f, v] of Object.entries({ ...this._sent, ...this._pending })) this._record', to: 'for (const [f, v] of Object.entries({ ...this._sent })) this._record' },
+  { test: 'A4', file: SESSION, from: 'this._pending = {}; this._sent = Object.assign({}, this._sent, patch);', to: 'this._pending = {};' },
+  { test: 'A4', file: RESIDUE, from: 'if (back === undefined || JSON.stringify(back) !== JSON.stringify(v)) out[f] = v;', to: 'out[f] = v;' },
   { test: 'D1', file: EXPLAIN, from: "parts.push(plural(g.amounts.length, g.who + ' hit', g.who + ' hits')", to: "parts.push(plural(1, g.who + ' hit', g.who + ' hits')" },
   { test: 'D1', file: EXPLAIN, from: "else if (to - lastHeal >= 3000)", to: "else if (false)" },
   { test: 'D1', file: EXPLAIN, from: "for (const o of who.others || []) if", to: "for (const o of []) if" },

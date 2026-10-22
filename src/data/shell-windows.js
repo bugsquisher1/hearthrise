@@ -16,6 +16,9 @@
 //   object   the frame's object variant (ART_DIRECTION §6): plain | satchel | doll | ledger | deed | book
 //   launcher false keeps a window off the icon row (reached from another window)
 //   escape   true on at most one row: Esc with nothing open opens it (Settings)
+//   home     'bl': opens floating at the World's bottom-left, never docked (window-manager.js)
+//   resizable true: a grip resizes it, the size kept per character (src/shell/window-sizes.js)
+//   height   the starting height of a home or resizable row, CSS px
 //
 // The rest of the spec's catalogue (Bestiary L, Market M) lands
 // with its renderer: a launcher never opens a window that does not exist yet
@@ -53,7 +56,8 @@ export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'configure-action', label: 'Configure action', key: 'k', glyph: 'uiTarget', width: 800, object: 'plain', launcher: false, modal: true }),
   /* Tyler 2026-10-19: a death opens a centred popup (src/shell/death-popup.js opens it; its key shows the last death). */
   Object.freeze({ id: 'death', label: 'You died', key: 'x', glyph: 'uiSkull', width: 420, object: 'ledger', launcher: false, modal: true }),
-  Object.freeze({ id: 'chat', label: 'Chat', key: 'enter', glyph: 'uiChat', width: 400, object: 'plain' }),
+  /* Tyler 2026-10-22: Chat opens floating at the bottom-left (never docked) and the player resizes it (kept in the residue). */
+  Object.freeze({ id: 'chat', label: 'Chat', key: 'enter', glyph: 'uiChat', width: 400, height: 280, home: 'bl', resizable: true, object: 'plain' }),
   /* The social side (2026-10-18): friends, and a read-only look at another player's worn gear
      (opened from the player menu, so it takes no launcher icon). */
   Object.freeze({ id: 'friends', label: 'Friends', key: 'n', glyph: 'navProfile', width: 380, object: 'ledger' }),

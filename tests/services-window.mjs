@@ -18,7 +18,9 @@
 //         can be bought (at its quoted price), a later one says what it needs; the
 //         press is ONE hr_blessing_buy (tier, quoted price); "free until 30" and
 //         "uses them all up" are said
-//   SV-4  NAME: Change name sends ONE hr_character_name_set with the typed name
+//   SV-4  NO FREE NAME: the window has no name box and never sends
+//         hr_character_name_set (Tyler 10-22: a new name costs gold; it is the
+//         Characters window's Rename, tests/hero-rename-client.mjs)
 //   SV-5  FAIL SAFE: with no stamina_refill / blessings sections the purchase
 //         controls stay off and the window says the server has not priced them
 // ════════════════════════════════════════════════════════════════════════
@@ -36,7 +38,7 @@ const SECTIONS = {
     { tier: 1, permille: 320, price: 110, held: true }, { tier: 2, permille: 630, price: 165, held: false },
     { tier: 3, permille: 950, price: 220, held: false }] },
 };
-const RPCS = ['hr_stamina_refill', 'hr_blessing_buy', 'hr_character_name_set'];
+const RPCS = ['hr_stamina_refill', 'hr_blessing_buy'];
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 
 async function stub(page, s) {
@@ -117,11 +119,8 @@ async function checks(overrides) {
         const bl = sent(s, 'hr_blessing_buy');
         if (bl.length !== 1 || bl[0].body.p_tier !== 2 || bl[0].body.p_price !== 165) fails.push('SV-3 the press sent ' + JSON.stringify(bl.map((c) => c.body)));
         // SV-4
-        await page.fill('[data-hs-win="services"] [data-hs-act="name-in"]', 'Mira Vale');
-        await press(page, '[data-hs-win="services"] [data-hs-act="name"]', 'SV-4');
-        await wait(page, () => !document.querySelector('[data-hs-win="services"] .hw-services.is-pending'), null, 4000);
-        const nm = sent(s, 'hr_character_name_set');
-        if (nm.length !== 1 || nm[0].body.p_name !== 'Mira Vale') fails.push('SV-4 the name change sent ' + JSON.stringify(nm.map((c) => c.body)));
+        if (await page.evaluate(() => document.querySelectorAll('[data-hs-win="services"] input[type="text"]').length) !== 0) fails.push('SV-4 the Services window still offers a name box');
+        if (sent(s, 'hr_character_name_set').length) fails.push('SV-4 the Services window sent a free name change');
       }
       await ctx.close();
     }
@@ -157,7 +156,7 @@ async function main() {
     const fails = await checks(null);
     for (const f of fails) console.log('  ✗ ' + f);
     console.log(fails.length ? 'services-window: ' + fails.length + ' rule(s) RED'
-      : 'services-window: opens; stamina at the quoted price after a confirmation; blessings in order at their prices; name; fails safe');
+      : 'services-window: opens; stamina at the quoted price after a confirmation; blessings in order at their prices; no free name; fails safe');
     process.exit(fails.length ? 1 : 0);
   }
   const clean = await checks(null);

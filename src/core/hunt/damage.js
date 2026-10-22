@@ -24,20 +24,20 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { MONSTERS } from '../../data/monsters.js?v=0.2.31';
-import { HUNT_STANCES, DEFAULT_STANCE } from '../../data/rule-subjects.js?v=0.2.31';
-import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js?v=0.2.31';
-import { cheb } from './grid.js?v=0.2.31';
-import { atRest, unitById } from './movement.js?v=0.2.31';
-import { makeEvent } from './events.js?v=0.2.31';
-import { roleOf, elementOn, inRange, peel, engaged } from './targeting.js?v=0.2.31';
-import { fallen, partySize } from './pull-cycle.js?v=0.2.31';
-import { shareKillXp } from './xp-share.js?v=0.2.31';
-import { payBasic } from './abilities.js?v=0.2.31';
-import { slotsFor, pickSlot, bestAim, footprintOf, inFootprint, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.31';
-import { resolveLine } from '../action-rules.js?v=0.2.31';
-import { elementWithFloor } from '../../data/hunt-grounds.js?v=0.2.31';
-import { mitigate } from '../mitigation.js?v=0.2.31';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.32';
+import { HUNT_STANCES, DEFAULT_STANCE } from '../../data/rule-subjects.js?v=0.2.32';
+import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js?v=0.2.32';
+import { cheb } from './grid.js?v=0.2.32';
+import { atRest, unitById } from './movement.js?v=0.2.32';
+import { makeEvent } from './events.js?v=0.2.32';
+import { roleOf, elementOn, inRange, peel, engaged } from './targeting.js?v=0.2.32';
+import { fallen, partySize } from './pull-cycle.js?v=0.2.32';
+import { shareKillXp } from './xp-share.js?v=0.2.32';
+import { payBasic } from './abilities.js?v=0.2.32';
+import { slotsFor, pickSlot, bestAim, footprintOf, inFootprint, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.32';
+import { resolveLine } from '../action-rules.js?v=0.2.32';
+import { elementWithFloor } from '../../data/hunt-grounds.js?v=0.2.32';
+import { mitigate } from '../mitigation.js?v=0.2.32';
 
 /* stance: the hero's setting. acc (permille), maxHit, def, element: its combat snapshot.
    swingLeftMs: ms until the unit may swing again. */

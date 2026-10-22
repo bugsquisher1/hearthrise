@@ -68,13 +68,13 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { resolveGatherAction } from './progression.js?v=0.2.31';
-import { bestTool, toolSpeed, toolXpB, toolDouble } from './tools.js?v=0.2.31';
-import { actionIntervalMs, MIN_ACTION_MS, GATHER_SKILLS } from './pacing.js?v=0.2.31';
-import { CHANNEL, channelApplies, rateMult } from './away.js?v=0.2.31';
-import { nextBuffExpiryMs, hasActiveBuff, tickBuffs, pruneBuffs } from './buffs.js?v=0.2.31';
-import { levelOf } from './xp.js?v=0.2.31';
-import { resolveHearthfind } from './hearthfind.js?v=0.2.31';
+import { resolveGatherAction } from './progression.js?v=0.2.32';
+import { bestTool, toolSpeed, toolXpB, toolDouble } from './tools.js?v=0.2.32';
+import { actionIntervalMs, MIN_ACTION_MS, GATHER_SKILLS } from './pacing.js?v=0.2.32';
+import { CHANNEL, channelApplies, rateMult } from './away.js?v=0.2.32';
+import { nextBuffExpiryMs, hasActiveBuff, tickBuffs, pruneBuffs } from './buffs.js?v=0.2.32';
+import { levelOf } from './xp.js?v=0.2.32';
+import { resolveHearthfind } from './hearthfind.js?v=0.2.32';
 
 function fxOf(ctx) { return (ctx && ctx.fx) || {}; }
 function call(fx, name, ...args) {
@@ -261,7 +261,6 @@ export function resolveGatherTick(state, node, ctx) {
   state.stats.gathered = (state.stats.gathered || 0) + res.qty;
   const perSkill = SKILL_ACTION_STAT[skill];
   if (perSkill) state.stats[perSkill] = (state.stats[perSkill] || 0) + res.qty;
-  call(fx, 'updateDaily', 'gather', res.qty);
   call(fx, 'updateQuest', 'gather', res.qty);
   /* `res.xpAmount` is `node.xp × (1 + toolXpB)` — computed ONCE, by the
      resolver, rather than recomputed at the call site as legacy.js did. Two

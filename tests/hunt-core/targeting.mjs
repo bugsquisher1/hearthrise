@@ -177,6 +177,39 @@ const cases = {
     weak.maxHp = floor; weak.hp = floor; inst.world.runs = 0;
     return M.targeting.holderTank(inst) === weak ? null : 'a leading tank at the floor (' + floor + ' of 330) did not hold its lap';
   },
+  /* ONE TANK HOLDS (Tyler 2026-10-22, the party's "One tank holds"): the tank the leader picked holds every lap,
+     even one far under the floor beside the strongest (the leader's pick wins over it), takes the pack off the
+     leader's tank, and the leader's tank takes only what turns on a non-tank (the overflow off the Healer). */
+  'leader-pick-holds-every-lap': (M) => {
+    const k1 = H(M, 1, 11, 3, 'tank', { hp: 616, maxHp: 616 }); const k2 = H(M, 2, 13, 5, 'tank', { hp: 300, maxHp: 300 });
+    const healer = H(M, 5, 14, 6, 'healer');
+    const a = E(M, 3, 0, 12, 3, 1); const b = E(M, 4, 0, 12, 4, 1);
+    const inst = fight(M, [k1, k2, a, b, healer], { leader: 1, runs: 0, hold: 2, holdNext: 2 });
+    for (let runs = 0; runs < 6; runs++) {
+      inst.world.runs = runs;
+      if (M.targeting.holderTank(inst) !== k2) return 'lap ' + runs + ': the picked tank (300 max HP beside 616) did not hold';
+    }
+    inst.world.runs = 0;
+    M.targeting.chooseTargets(inst, sc2(M, 1, 0));
+    if (a.target !== 2 || b.target !== 2) return 'the pick did not take the pack off the leader’s tank (targets ' + a.target + ',' + b.target + ')';
+    /* its Challenge cooling, a monster turns on the Healer: the leader's tank takes that one, and nothing on the pick */
+    k2.cds = { challenge: 999999 }; a.holdMs = 0; b.target = 5; b.holdMs = 0; k1.cds = {};
+    M.targeting.chooseTargets(inst, sc2(M, 1, 100));
+    if (a.target !== 2) return 'the leader’s tank took a monster off the picked tank';
+    return b.target === 1 ? null : 'the overflow off the Healer went to ' + b.target + ', not the leader’s tank';
+  },
+  /* THE PICK IS GONE (it fell, or left the hunt): the tanks still standing take turns. A pick that is no tank
+     (its weapon changed) holds nothing either. */
+  'pick-gone-tanks-take-turns': (M) => {
+    const k1 = H(M, 1, 11, 3, 'tank'); const k2 = H(M, 2, 13, 5, 'tank'); const k3 = H(M, 3, 12, 6, 'tank');
+    const inst = fight(M, [k1, k2, k3], { leader: 1, runs: 0, hold: 3, holdNext: 3 });
+    if (M.targeting.holderTank(inst) !== k3) return 'the standing pick did not hold';
+    k3.alive = false;
+    const laps = [0, 1, 2, 3].map((r) => { inst.world.runs = r; return M.targeting.holderTank(inst).id; }).join(',');
+    if (laps !== '1,2,1,2') return 'with the pick fallen the laps went to ' + laps + ', not the two left by turns (1,2,1,2)';
+    k3.alive = true; k3.role = 'melee_dps'; k3.kind = 'melee_dps'; inst.world.runs = 0;
+    return M.targeting.holderTank(inst) === k1 ? null : 'a pick that is no tank held the pack';
+  },
   /* TG-01 ties (Andy 2026-10-21: "Strongest and follow player both seem to just target the first creature"):
      monsters a mode cannot tell apart fall to the NEARER, not to the first spawned. */
   'mode-ties-fall-to-nearest': (M) => {
@@ -225,9 +258,14 @@ const mutants = [
   { name: 'a Challenge holds nothing', case: 'one-holder-a-lap', edits: [[T, 'm.queued = false; m.holdMs = CHALLENGE.holdMs; }', 'm.queued = false; }']] },
   { name: 'a non-holder steals from the holder (live v0.2.24)', case: 'one-holder-a-lap', edits: [[T, ' && (holds || onNonTank(m)));', ');']] },
   { name: 'a much weaker tank holds its turn (live v0.2.25 lane: L9 + L19 died)', case: 'weak-tank-never-holds',
-    edits: [[T, '(u) => u.maxHp * 1000 >= top * CHALLENGE.holderMinHpPm', '() => true']] },
+    edits: [[T, 'living.filter((u) => !underHoldFloor(u, living))', 'living.slice()']] },
   { name: 'the weak-tank floor is strict', case: 'weak-tank-never-holds',
-    edits: [[T, 'u.maxHp * 1000 >= top * CHALLENGE.holderMinHpPm', 'u.maxHp * 1000 > top * CHALLENGE.holderMinHpPm']] },
+    edits: [[T, 'u.maxHp * 1000 < living.reduce', 'u.maxHp * 1000 <= living.reduce']] },
+  { name: 'the leader’s pick is ignored (Tyler 2026-10-22)', case: 'leader-pick-holds-every-lap', edits: [[T, '  if (pick) return pick;\n', '']] },
+  { name: 'the floor beats the leader’s pick', case: 'leader-pick-holds-every-lap',
+    edits: [[T, 'living.find((u) => u.id === inst.world.hold)', 'living.filter((u) => !underHoldFloor(u, living)).find((u) => u.id === inst.world.hold)']] },
+  { name: 'a fallen pick still holds', case: 'pick-gone-tanks-take-turns',
+    edits: [[T, 'Number.isInteger(inst.world.hold) ? living.find(', 'Number.isInteger(inst.world.hold) ? inst.world.units.find(']] },
   { name: 'the holder never rotates', case: 'one-holder-a-lap', edits: [[T, 'return tanks[(first + runs) % tanks.length];', 'return tanks[first];']] },
   { name: 'an overflow goes to whichever tank comes first by id', case: 'one-holder-a-lap',
     edits: [[T, 'for (const k of h ? [h, ...inst.world.units.filter((u) => u !== h)] : inst.world.units) {', 'for (const k of inst.world.units) {']] },

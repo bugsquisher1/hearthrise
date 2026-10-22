@@ -20,16 +20,16 @@
 //                       characters that sit in no party (own characters join at once,
 //                       PARTY_SPEC 10-19).
 // ════════════════════════════════════════════════════════════════════════
-import { settingsOf, staminaOf } from '../session/hunt-sections.js?v=0.2.31';
-import { presetsOf, equipmentOf, goldOf, nameOf, carriedOf } from '../session/item-sections.js?v=0.2.31';
-import { partyMembershipOf } from '../session/party-sections.js?v=0.2.31';
-import { ITEMS } from '../data/items.js?v=0.2.31';
-import { HUNT_ROLES, roleWeaponOf, roleForWeapon } from '../data/hunt-roles.js?v=0.2.31';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.31';
-import { ABILITIES } from '../data/abilities.js?v=0.2.31';
-import { storeOf } from './bar-draft.js?v=0.2.31';
-import { itemName } from './widgets/bits.js?v=0.2.31';
-import { whole, gold } from '../render/format.js?v=0.2.31';
+import { settingsOf, staminaOf } from '../session/hunt-sections.js?v=0.2.32';
+import { presetsOf, equipmentOf, goldOf, nameOf, carriedOf } from '../session/item-sections.js?v=0.2.32';
+import { partyMembershipOf } from '../session/party-sections.js?v=0.2.32';
+import { ITEMS } from '../data/items.js?v=0.2.32';
+import { HUNT_ROLES, roleWeaponOf, roleForWeapon } from '../data/hunt-roles.js?v=0.2.32';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.32';
+import { ABILITIES } from '../data/abilities.js?v=0.2.32';
+import { storeOf } from './bar-draft.js?v=0.2.32';
+import { itemName } from './widgets/bits.js?v=0.2.32';
+import { whole, gold } from '../render/format.js?v=0.2.32';
 
 /* How many of the bar's actions a setup line shows. */
 const SETUP_ICONS = 4;

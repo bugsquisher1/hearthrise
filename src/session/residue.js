@@ -71,8 +71,8 @@ function sanitizeCombatLog(v) {
   return out;
 }
 
-import { sanitizeSummaries } from './hunt-summaries.js?v=0.2.31';
-import { DEPOT_BASE_STACKS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.31';
+import { sanitizeSummaries } from './hunt-summaries.js?v=0.2.32';
+import { DEPOT_BASE_STACKS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.32';
 
 const ITEM_ID = /^[a-z0-9_]{1,64}$/;
 export const BAG_SEEN_MAX = 512;
@@ -139,6 +139,22 @@ function sanitizeAwaySeen(v) {
   return out;
 }
 
+/* A resizable window's size (src/shell/window-sizes.js): window id -> [width, height] in CSS px. The window
+   manager clamps it to the screen again on every read; this bounds only the shape and the count. */
+const WIN_SIZE = Object.freeze({ windows: 16, min: 120, max: 4096 });
+function sanitizeWinSize(v) {
+  const out = {};
+  if (!isObj(v)) return out;
+  let n = 0;
+  for (const id of Object.keys(v)) {
+    const r = v[id];
+    if (!/^[a-z][a-z0-9_-]{0,31}$/.test(id) || !Array.isArray(r) || r.length !== 2 || !r.every((x) => Number.isFinite(x))) continue;
+    out[id] = r.map((x) => Math.max(WIN_SIZE.min, Math.min(WIN_SIZE.max, Math.round(x))));
+    if (++n >= WIN_SIZE.windows) break;
+  }
+  return out;
+}
+
 /** field -> sanitizer. The keys ARE the allowlist. */
 const SANITIZERS = Object.freeze({
   hudLayout: sanitizeHudLayout,     // display preference: the HUD layout; gates and spends nothing
@@ -151,6 +167,7 @@ const SANITIZERS = Object.freeze({
   alerts: sanitizeAlerts,           // display state: which alert kinds show and which events were shown; gates and spends nothing
   huntSummaries: sanitizeSummaries, // display state: the last few hunts' summary cards (src/hunt-view/summary-model.js); gates and spends nothing
   awaySeen: sanitizeAwaySeen,       // display state: the away recap's last-seen stamp (src/shell/away-recap.js); gates and spends nothing
+  winSize: sanitizeWinSize,         // display preference: a resizable window's size (src/shell/window-sizes.js); gates and spends nothing
 });
 
 export const RESIDUE_FIELDS = Object.freeze(Object.keys(SANITIZERS));

@@ -19,13 +19,13 @@
 // Enter sits at the page's foot. This module draws; it holds no state and sends
 // nothing (hunts.js owns every press).
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, prop, attr, style, element } from '../../render/paint.js?v=0.2.31';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.31';
-import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.31';
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.31';
-import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-list.js?v=0.2.31';
-import { residentsOf, rareOf } from '../hunt-ground-facts.js?v=0.2.31';
-import { creatureArt, drawCreature } from '../../render/creature-sprite.js?v=0.2.31';
+import { rows, text, cls, prop, attr, style, element } from '../../render/paint.js?v=0.2.32';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.32';
+import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.32';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.32';
+import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-list.js?v=0.2.32';
+import { residentsOf, rareOf } from '../hunt-ground-facts.js?v=0.2.32';
+import { creatureArt, drawCreature } from '../../render/creature-sprite.js?v=0.2.32';
 
 /* The world's one density (ART_DIRECTION §2): every art pixel is 2x2 screen px. */
 const SPRITE_SCALE = 2;

@@ -363,13 +363,22 @@
 .hw-skill-group { margin-bottom: 2px; }
 .hw-skill-head { margin: 2px 2px 1px; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
 .hw-skill-list { display: grid; grid-template-columns: 1fr; gap: 0 12px; margin: 0; padding: 0; list-style: none; }
-.hw-skill { min-width: 0; display: flex; flex-direction: column; gap: 1px; padding: 3px 0 4px; border-top: 1px solid var(--line-soft); }
-.hw-skill-top { display: flex; align-items: center; gap: 6px; }
+/* ONE LINE A SKILL, THEN ITS UNLOCK (2026-10-22: the XP to go on a line of its own cost Gathering and crafting
+   ~130 px at 1440x900, where the docked window stops above the bar and must not scroll, AW-17): glyph, name, the
+   progress bar, the XP to go and the level on the first line; the unlock under the name. */
+.hw-skill { min-width: 0; display: grid; grid-template-columns: 18px minmax(0, max-content) minmax(24px, 1fr) auto auto; grid-template-areas: "glyph name bar xp lv" ". next next next next";
+  align-items: center; column-gap: 6px; row-gap: 1px; padding: 3px 0 4px; border-top: 1px solid var(--line-soft); }
+.hw-skill-top, .hw-skill-mid { display: contents; }
+.hw-skill-glyph { grid-area: glyph; }
+.hw-skill-name { grid-area: name; }
+.hw-skill-bar { grid-area: bar; }
+.hw-skill-xp { grid-area: xp; }
+.hw-skill-lv { grid-area: lv; min-width: 30px; text-align: right; }
+.hw-skill-next { grid-area: next; }
 .hw-skill-glyph { flex: none; display: grid; place-items: center; width: 18px; color: var(--ink-2); }
 .hw-skill-glyph .hs-glyph { width: 16px; height: 16px; }
 .hw-skill-name { flex: 1; min-width: 0; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hw-skill-lv { color: var(--gold-2); font-variant-numeric: lining-nums tabular-nums; }
-.hw-skill-mid { display: flex; align-items: center; gap: 6px; }
 .hw-skill-bar { position: relative; display: block; flex: 1; min-width: 24px; height: 4px; background: var(--bg-1); box-shadow: var(--hw-well); }
 .hw-skill-fill { position: absolute; top: 0; left: 0; bottom: 0; width: 0; background: var(--gold-3); }
 .hw-skill-xp { flex: none; }
@@ -433,7 +442,9 @@
   /* The phone has no height to spare: two skills to a row; the XP to go and the unlock share one line
      (all of the unlock in the tooltip). */
   .hw-skill-list { grid-template-columns: 1fr 1fr; }
-  .hw-skill { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 6px; row-gap: 2px; }
+  .hw-skill { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: none; column-gap: 6px; row-gap: 2px; }
+  .hw-skill-top { display: flex; align-items: center; gap: 6px; }
+  .hw-skill-glyph, .hw-skill-name, .hw-skill-bar, .hw-skill-xp, .hw-skill-lv, .hw-skill-next { grid-area: auto; }
   .hw-skill-top, .hw-skill-bar { grid-column: 1 / -1; }
   .hw-skill-mid { display: contents; }
   .hw-skill-next { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
@@ -477,6 +488,11 @@
 .hw-char-ready { color: var(--green); }
 .hw-char-ready.is-short { color: var(--red); }
 .hw-command .hw-tools .hw-primary:not(.is-on) { display: none; }
+.hw-char-do { display: flex; flex-direction: column; gap: 4px; }
+/* The rename panel (Tyler 10-22: a new name costs gold): shown only for the hero whose Rename was pressed. */
+.hw-rename { display: none; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line-soft); }
+.hw-rename.is-on { display: block; }
+.hw-rename .hw-add .hh-num { flex: 1; min-width: 0; }
 .hw-alert-kinds { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; margin: 0; padding: 0; list-style: none; }
 .hw-alert-kinds .hs-glyph { width: 16px; height: 16px; vertical-align: -3px; }
 

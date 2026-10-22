@@ -181,18 +181,23 @@ async function stub(page, s) {
   });
 }
 
+/* A (re)load waits for DOMContentLoaded (hunt-screen's LOAD-PROOF): every module script of the boot has run, so the
+   app is up and what follows waits for its STATE. Never the `load` event, which also waits for every image and the
+   font sheet, none of which a rule reads then (2026-10-22: the first goto timed out at 6 s on a loaded box, the
+   server's first answer alone taking 2.7 s). The boot gets BOOT_MS: no rule is about how fast a page boots. */
+const BOOTED = 'domcontentloaded';
+const BOOT_MS = 20000;
+
 /* A reload: the stub keeps the session, so the page comes back to the character (or its picker). */
 async function reloadAndPlay(page) {
-  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.reload({ waitUntil: BOOTED, timeout: BOOT_MS });
   await wait(page, () => document.querySelector('.hs-launchers') || document.querySelector('[data-app="play"][data-slot="0"]'));
   if (!(await page.$('.hs-launchers'))) await page.click('[data-app="play"][data-slot="0"]');
   return wait(page, () => document.querySelector('.hs-launchers'));
 }
 
 async function signInAndPlay(page, base) {
-  /* domcontentloaded, not load: on a busy box the page's 'load' (every image) outran the 6 s step timeout;
-     the sign-in form below is the readiness this needs. */
-  await page.goto(base + '/play.html', { waitUntil: 'domcontentloaded' });
+  await page.goto(base + '/play.html', { waitUntil: BOOTED, timeout: BOOT_MS });
   await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
   await page.fill('input[name=email]', 'qa@example.test');
   await page.fill('input[name=password]', 'not-a-real-password');

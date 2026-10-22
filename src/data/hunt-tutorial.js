@@ -36,12 +36,12 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from './hunts.js?v=0.2.31';
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.31';
-import { END_ORDER } from './hunt-sessions.js?v=0.2.31';
-import { nextUnlock } from './skill-unlocks.js?v=0.2.31';
-import { SKILLS_DEF } from './skills.js?v=0.2.31';
-import { CROPS } from './gathering.js?v=0.2.31';
+import { HUNT_INDEX } from './hunts.js?v=0.2.32';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.32';
+import { END_ORDER } from './hunt-sessions.js?v=0.2.32';
+import { nextUnlock } from './skill-unlocks.js?v=0.2.32';
+import { SKILLS_DEF } from './skills.js?v=0.2.32';
+import { CROPS } from './gathering.js?v=0.2.32';
 
 /* The surfaces a card may point at, and where each is specified. */
 export const TUTORIAL_ANCHORS = Object.freeze({
@@ -118,10 +118,14 @@ export function validate(rows = HUNT_TUTORIAL) {
      charLevel   the Level that XP makes
      skillLevel  the highest skill level
      huntId      the open (not ended) hunt session's hunt, or null
+     visited     Set of the hunts the server records this hero hunting: its latest session's (open or
+                 ended) and every ground it holds a personal best on (hunt_bests)
      unitKinds   Set of the monster kinds standing in the open hunt's instance (the hunt section's units)
      barSet      the stored bar holds a slot with a condition
    Every step is judged on what is true NOW, never on "since the step began",
-   and the first unmet step is the card. */
+   and the first unmet step is the card. A step about WHERE the hero is (enter, ended, pull) is
+   judged on where it has BEEN as well: going into a hunt and back out to town never moves the card
+   backward (#58, Andy 10-22: the Thicket card came back every time he left the Thicket or the Sewer). */
 /* The monster kinds that tell `pocket` (or a LATER pocket) has been pulled: kinds standing in a pocket
    at or after it on the route that no earlier pocket holds. The hunt section's units are the server's. */
 const pulledKinds = (ground, pocket) => {
@@ -131,19 +135,24 @@ const pulledKinds = (ground, pocket) => {
   return [...kinds(ground.route.slice(at))].filter((k) => !before.has(k));
 };
 
-/* `later`: the hunts entered by the steps after this one. Being in one of them means this step's hunt was
-   passed (the chain only moves forward: Cellar -> Thicket -> Sewer), so a hero in the Sewer is not sent back. */
-function isDone(d, facts, openedIn, later) {
+/* The hunts the server has seen this hero in: the open one and the `visited` record. */
+const been = (facts) => [facts.huntId, ...(facts.visited instanceof Set ? facts.visited : [])].filter((h) => HUNT_INDEX[h]);
+/* Has the hero hunted `hunt`, or a ground PAST it (a higher band floor: the chain only moves forward,
+   Cellar -> Thicket -> Sewer -> on)? `past` alone asks only for a ground past it. */
+const reached = (facts, hunt, past) => been(facts).some((h) => (!past && h === hunt) || HUNT_INDEX[h].band[0] > HUNT_INDEX[hunt].band[0]);
+
+function isDone(d, facts, openedIn) {
   switch (d.kind) {
-    case 'enter': return facts.huntId === d.hunt || (later && later.has(facts.huntId)) || (d.hunt === HUNT_TUTORIAL[0].done.hunt && facts.levelXp > 0);
+    case 'enter': return reached(facts, d.hunt) || (d.hunt === HUNT_TUTORIAL[0].done.hunt && facts.levelXp > 0);
     case 'kills': return facts.levelXp > 0;
     case 'level': return facts.charLevel >= 2 || facts.skillLevel >= 2;
     case 'unlock': return facts.charLevel >= HUNT_INDEX[d.hunt].band[0];
-    case 'ended': return facts.huntId !== openedIn;
+    /* out of that hunt now, or already hunting past it (back in it later is not a step back) */
+    case 'ended': return facts.huntId !== openedIn || (!!openedIn && reached(facts, openedIn, true));
     case 'bar': return facts.barSet;
     case 'pull': {
       const g = HUNT_GROUNDS[d.ground];
-      return facts.huntId === g.hunt && pulledKinds(g, d.pocket).some((k) => facts.unitKinds.has(k));
+      return (facts.huntId === g.hunt && pulledKinds(g, d.pocket).some((k) => facts.unitKinds.has(k))) || reached(facts, g.hunt, true);
     }
     default: return false;
   }
@@ -158,8 +167,7 @@ export function currentCard(facts, rows = HUNT_TUTORIAL) {
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i];
     if (r.done.kind === 'enter') openedIn = r.done.hunt;
-    const later = new Set(rows.slice(i + 1).filter((x) => x.done.kind === 'enter').map((x) => x.done.hunt));
-    if (!isDone(r.done, facts, openedIn, later)) return r;
+    if (!isDone(r.done, facts, openedIn)) return r;
   }
   return null;
 }

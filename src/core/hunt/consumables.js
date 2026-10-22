@@ -48,10 +48,10 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random. Draws nothing.
 // ============================================================
 
-import { CONSUMABLE_RULES as R, CONSUMABLE_KINDS, CONSUMABLES } from '../../data/consumables.js?v=0.2.31';
-import { slotsFor, pickSlot } from './conditions.js?v=0.2.31';
-import { resolveLine, takeLine, lineAmount } from '../action-rules.js?v=0.2.31';
-import { makeEvent } from './events.js?v=0.2.31';
+import { CONSUMABLE_RULES as R, CONSUMABLE_KINDS, CONSUMABLES } from '../../data/consumables.js?v=0.2.32';
+import { slotsFor, pickSlot } from './conditions.js?v=0.2.32';
+import { resolveLine, takeLine, lineAmount } from '../action-rules.js?v=0.2.32';
+import { makeEvent } from './events.js?v=0.2.32';
 
 /* An over-time half is [left, nextTickAtMs, ticksLeft, itemId], or null. */
 export const PERSISTED = Object.freeze({

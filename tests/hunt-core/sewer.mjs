@@ -8,6 +8,8 @@
 //   sewer-full-party-loop  a four-hero party plays the real core (stepSwing) on the real map:
 //                          every pocket is pulled in route order, the Rat King dies, nobody wipes
 //   tutorial-walk-through  each step is doable from the start kit plus the steps before it
+//   tutorial-never-backward  town -> Thicket -> town -> Sewer -> town -> Cellar, reloading between:
+//                          the pointer never moves back (#58, Andy 10-22)
 //
 // The loop case prints its measured clear times and kills (the evidence a balance claim needs).
 import { readFileSync, mkdtempSync, cpSync, writeFileSync, rmSync } from 'node:fs';
@@ -360,6 +362,47 @@ const cases = {
     if (withFarm(28).includes('open the Farm (J)')) return 'Farming started: the what-next line still asks for a planting';
     return null;
   },
+  'tutorial-never-backward': async (M) => {
+    /* #58 (Andy 10-22): the pointer followed WHERE the hero was, not where it had been: town -> Thicket
+       showed the Sewer card, back in town the Thicket card again; out of the Sewer, the Thicket card again.
+       One hero walked town -> Thicket -> town -> Sewer -> town -> Cellar, reloading between, through the
+       real envelope readers (src/session/tutorial-sections.js pointerCardOf): the card never moves back. */
+    const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
+    const { pointerCardOf } = await imp('src/session/tutorial-sections.js');
+    const eat = { action: { type: 'consume', id: 'cooked_shrimp' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 60 }], join: 'and' };
+    /* the server's sections: the latest hunt session (open or ended) and the personal bests (finished hunts of 10+ min) */
+    const env = (L, hunt, ended, bests) => ({ state: { level_xp: M.xp.charXpForLevel(L) },
+      ...(hunt ? { hunt: { session_id: 's-' + hunt, hunt_id: hunt, ended, session: {}, hero: {}, pose: { units: [] } } } : {}),
+      hunt_bests: { min_ms: 600000, grounds: Object.fromEntries((bests || []).map((g) => [g, { solo: { xp_h: 1, balance_h: 1 } }])) },
+      hunt_settings: { preset: 1, slots: [eat], bar: [eat], role: 'tank' }, skills: { melee: { xp: 0, level: L } } });
+    /* a reload reads the same server sections into a fresh session: nothing the browser held survives it */
+    const cardOf = (e) => { const s = JSON.parse(JSON.stringify(e)); const c = pointerCardOf({ read: (k) => s[k] }); return c ? c.id : null; };
+    const ids = M.tut.HUNT_TUTORIAL.map((s) => s.id);
+    const rank = (id) => (id && id.startsWith('goal') ? ids.length : ids.indexOf(id));
+    const T = M.HUNTS.meadowbrook_thicket.band[0], S = M.HUNTS.millrace_sewer.band[0];
+    const walk = [
+      ['town, the cellar left', env(T, 'mill_cellar', true), 'into_the_thicket'],
+      ['in the Thicket', env(T, 'meadowbrook_thicket', false), 'earn_the_sewer'],
+      ['in the Thicket, the Sewer open', env(S, 'meadowbrook_thicket', false), 'go_below'],
+      ['town, out of the Thicket', env(S, 'meadowbrook_thicket', true), 'go_below'],
+      ['reload in town', env(S, 'meadowbrook_thicket', true), 'go_below'],
+      ['in the Sewer', env(S, 'millrace_sewer', false), 'goal'],
+      ['town, out of a short Sewer hunt', env(S, 'millrace_sewer', true), 'goal'],
+      ['reload in town', env(S, 'millrace_sewer', true), 'goal'],
+      ['back in the Cellar (Thicket and Sewer bests)', env(S, 'mill_cellar', false, ['meadowbrook_thicket', 'millrace_sewer']), 'goal'],
+      ['town, out of the Cellar', env(S, 'mill_cellar', true, ['meadowbrook_thicket', 'millrace_sewer']), 'goal'],
+    ];
+    let prev = -1;
+    const seen = [];
+    for (const [where, e, want] of walk) {
+      const id = cardOf(e);
+      seen.push(where + ': ' + id);
+      if (!(id || '').startsWith(want)) return 'at "' + where + '" the pointer showed ' + id + ', wanted ' + want + ' (' + seen.join(' | ') + ')';
+      if (rank(id) < prev) return 'the pointer moved BACK at "' + where + '": ' + seen.join(' | ');
+      prev = rank(id);
+    }
+    return null;
+  },
 };
 
 const mutants = [
@@ -376,7 +419,7 @@ const mutants = [
   { name: 'the launcher keeps the pointer in a hunt (over Leave hunt)', case: 'tutorial-launcher-card',
     edits: [['src/shell/launcher.js', "(ctx.hud && ctx.hud.isShown('hunt-topbar') ? '' : pointerFor(ctx))", 'pointerFor(ctx)']] },
   { name: 'the card never advances past the first unmet step', case: 'tutorial-walk-through',
-    edits: [['src/data/hunt-tutorial.js', 'if (!isDone(r.done, facts, openedIn, later)) return r;', 'return r;']] },
+    edits: [['src/data/hunt-tutorial.js', 'if (!isDone(r.done, facts, openedIn)) return r;', 'return r;']] },
   { name: 'the first kill does not finish its card', case: 'tutorial-walk-through',
     edits: [['src/data/hunt-tutorial.js', "case 'kills': return facts.levelXp > 0;", "case 'kills': return false;"]] },
   { name: 'a sewer spawn moved into the wall', case: 'sewer-on-the-map',
@@ -395,7 +438,13 @@ const mutants = [
     edits: [['src/data/hunt-tutorial.js', "'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' }),",
       "'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' }),\n  step('the_king', 'The Rat King', 'The last room is his.', 'world', { kind: 'pull', ground: 'millrace_sewer', pocket: 5 }),"]] },
   { name: 'a hero in the sewer is sent back to the Thicket card (enter judged on the current hunt only)', case: 'tutorial-walk-through',
-    edits: [['src/data/hunt-tutorial.js', '(later && later.has(facts.huntId)) || ', '']] },
+    edits: [['src/data/hunt-tutorial.js', ' || HUNT_INDEX[h].band[0] > HUNT_INDEX[hunt].band[0]', '']] },
+  { name: 'out of a hunt, the pointer forgets it was there (#58: the Thicket card came back)', case: 'tutorial-never-backward',
+    edits: [['src/session/tutorial-sections.js', '  if (h && h.huntId) visited.add(h.huntId);\n', '']] },
+  { name: 'back in the Cellar after the Thicket, the "Cash in" card returns (#58)', case: 'tutorial-never-backward',
+    edits: [['src/data/hunt-tutorial.js', " || (!!openedIn && reached(facts, openedIn, true))", '']] },
+  { name: 'the pointer ignores the personal-best grounds (#58)', case: 'tutorial-never-backward',
+    edits: [['src/session/tutorial-sections.js', 'new Set(Object.keys((huntBestsOf(cs) || {}).grounds || {}))', 'new Set()']] },
   { name: 'the Thicket is skipped: the cellar unlocks the sewer', case: 'tutorial-walk-through',
     edits: [['src/data/hunt-tutorial.js', "{ kind: 'unlock', hunt: 'meadowbrook_thicket' }", "{ kind: 'unlock', hunt: 'millrace_sewer' }"]] },
   { name: 'the sewer opens to a fresh character', case: 'tutorial-walk-through',

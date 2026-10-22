@@ -13,19 +13,19 @@
 // PURE ESM, Node + Deno + browser.
 // ============================================================================
 
-import { DEFAULT_PROFILE, equipmentStats, armorSetBonus, playerCombatRolls, weaknessInfo } from './combat.js?v=0.2.31';
-import { makeBonus, EMPTY_PERKS } from './perks.js?v=0.2.31';
-import { companionBonus } from './companion-perk.js?v=0.2.31';
-import { buffQueueFromServer, buffBonusFor } from './buffs.js?v=0.2.31';
-import { grantXp, normaliseXpFrac } from './progression.js?v=0.2.31';
-import { charLevelFromXp, levelsOf } from './xp.js?v=0.2.31';
-import { vitalsOf, wearsArmour } from './vitals.js?v=0.2.31';
-import { newHuntSession, takeLine } from './action-rules.js?v=0.2.31';
-import { makeGoalCounter, makeBestiaryCounter, makeCollectionCounter } from './goals.js?v=0.2.31';
-import { HUNT_ROLES } from '../data/hunt-roles.js?v=0.2.31';
-import { MONSTERS } from '../data/monsters.js?v=0.2.31';
-import { honeOf, honeWornAt, ammoPerShot } from './ammo.js?v=0.2.31';
-import { mitigationFor, NO_MITIGATION } from './mitigation.js?v=0.2.31';
+import { DEFAULT_PROFILE, equipmentStats, armorSetBonus, playerCombatRolls, weaknessInfo } from './combat.js?v=0.2.32';
+import { makeBonus, EMPTY_PERKS } from './perks.js?v=0.2.32';
+import { companionBonus } from './companion-perk.js?v=0.2.32';
+import { buffQueueFromServer, buffBonusFor } from './buffs.js?v=0.2.32';
+import { grantXp, normaliseXpFrac } from './progression.js?v=0.2.32';
+import { charLevelFromXp, levelsOf } from './xp.js?v=0.2.32';
+import { vitalsOf, wearsArmour } from './vitals.js?v=0.2.32';
+import { newHuntSession, takeLine } from './action-rules.js?v=0.2.32';
+import { makeGoalCounter, makeBestiaryCounter, makeCollectionCounter } from './goals.js?v=0.2.32';
+import { HUNT_ROLES } from '../data/hunt-roles.js?v=0.2.32';
+import { MONSTERS } from '../data/monsters.js?v=0.2.32';
+import { honeOf, honeWornAt, ammoPerShot } from './ammo.js?v=0.2.32';
+import { mitigationFor, NO_MITIGATION } from './mitigation.js?v=0.2.32';
 
 /* A finite, non-negative number or the fallback (every number that crosses in from a row). */
 function nat(v, fallback) {
@@ -224,7 +224,6 @@ export function memberSide(mi, ctx) {
     onHearthfind(f) { if (f && f.item) finds.push({ item: f.item, source_kind: f.kind, source_id: f.id }); },
     /* THE GOAL / BESTIARY COUNTERS, fed from the kill seams (kept separate:
        one aggregate, one per-monster count, never double-counted). */
-    updateDaily(type, amt) { goals.daily(type, amt == null ? 1 : amt); },
     updateQuest(type, amt, meta) {
       goals.quest(type, amt == null ? 1 : amt);
       bestiary.record(type, amt == null ? 1 : amt, meta);
@@ -285,6 +284,7 @@ export function memberSide(mi, ctx) {
       snapshot: (st) => heroSnapshot(st, snapCtx),
       hero: { role: h.role, element: h.element || '', settings: h.settings || null,
         slots: h.slots || [], stopRules: h.stopRules || [], density: h.density || 0, lead: h.lead === true,
+        hold: Number.isInteger(h.hold) ? h.hold : null,
         actionSet: h.actionSet || 'hunt', range: h.range || 1, ammo: equipment.ammo || null,
         foodBelowPct: h.foodBelowPct, drinkBelowPct: h.drinkBelowPct },
     },

@@ -51,8 +51,9 @@
 //   HS-11 A SLOT THAT NEVER FIRES: an earlier slot with the same action under
 //         weaker conditions marks it "!" with the reason; emptying it clears that
 //   HS-12 THE BAR PANEL holds target, stance, chase, distance and the gold to keep (nothing
-//         else); each is ONE intent, shows the server value (the gold field keeps it while in
-//         flight and after a refusal), survives a reload; no Hunt settings window
+//         else), folded out from the bar's Fight settings button (shut until pressed, then on
+//         top above the bar, 2026-10-22); each is ONE intent, shows the server value (the gold
+//         field keeps it while in flight and after a refusal), survives a reload; no Hunt settings window
 //   HS-13 no two hunt panels overlap at 1440x900 or on a narrower desktop, nor with a window docked
 //   HS-14 THE LEADER CHOOSES (Tyler 2026-10-20): a party member's hunt picker shows
 //         the leader's density read-only ("Set by Fingerguns: 7 each", the server's
@@ -78,9 +79,11 @@
 //         back: cleared on the answer, the reason on a refusal, a plain line on the timeout
 //   HS-20 every struck or waiting slot says why (glyph + the tooltip's first line), one slot a reason
 //   HS-26 A DOCKED WINDOW NEVER COVERS THE ANALYZER (r11), at 1920x1080, 1440x900 and 922x423:
-//         with the chat docked, then the Character window, the analyzer's box crosses no docked
-//         window; where the row has room right of the fight (1920 with the chat) it moves beside
-//         the dock instead of hiding; docking never moves the camera on a desktop
+//         with Gathering and crafting docked, then the Character window, the analyzer's box crosses
+//         no docked window; where the row has room right of the fight (1920 with Gathering) it moves
+//         beside the dock instead of hiding; docking never moves the camera on a desktop. The chat
+//         is no docked window (Tyler 10-22: home bottom-left): on a desktop it opens in the World's
+//         left half, low, and never over the action bar
 //   HS-22 THE PHONE BAR (922x423), in a hunt and in town: at most 100 px tall, the alerts dock
 //         above its top, and the fight settings are a slide-out sheet (shut until the bar's
 //         button opens it, then on top of everything, shut again on Escape)
@@ -502,8 +505,13 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
     { // HS-3 intent-only edits on the bar's panel: confirmed, then refused; HS-12 the panel holds what Hunt settings held, and there is no Hunt settings window
       const { ctx, page, s, up } = await open();
       if (up) {
-        /* Target, stance, chase and distance live on the bar's panel (Tyler 10-19). */
+        /* Target, stance, chase and distance live on the bar's panel (Tyler 10-19), folded out above the bar from its
+           Fight settings button (2026-10-22 de-boxing): shut at first, so the bar shows only the set's row. */
         const P = '.hb-plaque';
+        const folded = () => page.evaluate(() => getComputedStyle(document.querySelector('.hb-pl-more')).visibility);
+        if (await folded() !== 'hidden') fails.push('HS-12 the fight settings show on the desktop bar before its button is pressed');
+        await page.click(P + ' .hb-more');
+        if (!(await wait(page, () => getComputedStyle(document.querySelector('.hb-pl-more')).visibility === 'visible'))) fails.push('HS-12 the bar’s Fight settings button did not fold the settings out');
         await wait(page, (p) => document.querySelector(p + ' [data-opt="stance"]:not([disabled])'), P);
         const btn = P + ' [data-opt="stance"][data-val="offensive"]';
         /* What the server says once it has saved: it saves what it confirms AT its answer (s.onOptions), so
@@ -534,7 +542,12 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         s.optionsReply = { ok: true };
         const opts = await page.evaluate((p) => Array.from(new Set(Array.from(document.querySelectorAll(p + ' [data-opt]')).map((e) => e.getAttribute('data-opt')))).sort().join(), P);
         if (opts !== 'chase,distance,gold_floor,stance,target_mode') fails.push('HS-12 the panel holds ' + opts);
-        if (await page.evaluate(() => document.querySelector('.hb-plaque .hb-more').getClientRects().length > 0)) fails.push('HS-12 the phone sheet button shows on a desktop');
+        /* The fold-out stands above the bar (never over its slots) and is on top where it stands. */
+        const fold = await page.evaluate(() => { const m = document.querySelector('.hb-pl-more'), c = m.querySelector('[data-opt="target_mode"]');
+          const r = m.getBoundingClientRect(), b = document.querySelector('.hb-bar').getBoundingClientRect(), q = c.getBoundingClientRect();
+          const h = document.elementFromPoint(q.left + 6, q.top + 6);
+          return { above: r.height > 0 && r.bottom <= b.top, top: r.top >= 0 && r.right <= innerWidth, onTop: h === c || c.contains(h) }; });
+        if (!fold.above || !fold.top || !fold.onTop) fails.push('HS-12 the fight settings fold-out is not on top above the bar: ' + JSON.stringify(fold));
         await page.keyboard.press('j');
         await page.waitForTimeout(300);
         if (await page.$('[data-hs-win="hunt-settings"]')) fails.push('HS-12 a Hunt settings window still opens');
@@ -911,7 +924,21 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         });
         /* The analyzer moves, the World does not (Tyler 10-19): opening the windows publishes no new camera inset. */
         await page.evaluate(() => { window.__insets = []; window.addEventListener('hearthrise:shell-inset', (e) => window.__insets.push(JSON.stringify(e.detail))); });
-        for (const [key, id] of [['Enter', 'chat'], ['c', 'character']]) {
+        /* The chat opens at its home, bottom-left, standing above the bar where its column crosses it (never over it).
+           Its planted defects live in chat-social CW-7 (the same rule, mutation-proved there; the shards here are full). */
+        if (!phone) {
+          await page.evaluate(() => document.activeElement && document.activeElement.blur && document.activeElement.blur());
+          await page.keyboard.press('Enter');
+          await wait(page, () => document.querySelector('[data-hs-win="chat"]:not(.is-entering)'));
+          await page.waitForTimeout(300);
+          const chat = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="chat"]'), b = document.querySelector('.hb-bar');
+            if (!w || !b) return null; const q = w.getBoundingClientRect(), r = b.getBoundingClientRect();
+            return { left: q.left < innerWidth / 2, low: q.bottom > innerHeight / 2, over: q.left < r.right && r.left < q.right && q.top < r.bottom && r.top < q.bottom }; });
+          if (!chat || !chat.left || !chat.low || chat.over) fails.push('HS-26 at ' + tag + ' the chat does not open bottom-left clear of the bar: ' + JSON.stringify(chat));
+          await page.keyboard.press('Escape');
+          await wait(page, () => !document.querySelector('[data-hs-win="chat"]:not(.is-leaving)'));
+        }
+        for (const [key, id] of [['g', 'skills-trade'], ['c', 'character']]) {
           await page.evaluate(() => document.activeElement && document.activeElement.blur && document.activeElement.blur());
           await page.keyboard.press(key);
           await wait(page, (w) => document.querySelector('[data-hs-win="' + w + '"]:not(.is-entering)'), id);
@@ -920,7 +947,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           for (const end = Date.now() + LOAD_MS; ;) { r = await cover(); if ((r.n && !r.hits.length) || Date.now() > end) break; await sleep(100); }
           if (!r.n) fails.push('HS-26 at ' + tag + ' no window docked after ' + key);
           if (r.hits.length) fails.push('HS-26 at ' + tag + ' the docked ' + r.hits.join(', ') + ' covers the analyzer');
-          if (vp.width >= 1920 && id === 'chat' && !r.shown) fails.push('HS-26 at ' + tag + ' the analyzer hid with the chat docked instead of moving beside it');
+          if (vp.width >= 1920 && id === 'skills-trade' && !r.shown) fails.push('HS-26 at ' + tag + ' the analyzer hid with Gathering docked instead of moving beside it');
           if (shots) await page.screenshot({ path: join(shots, 'hunt-' + tag + '-docked-' + id + '.png') });
         }
         const insets = await page.evaluate(() => window.__insets);
@@ -1732,6 +1759,7 @@ const MUTANTS = [
   ['a loot line that comes back is built again', 'src/shell/widgets/analyzer.js', '    keep: true,\n', ''],
   ['an atlas is decoded once per caller', 'src/world/atlas.js', 'heldImage(o.doc, url(p.image)),', "heldImage(o.doc, url(p.image) + '&n=' + Math.random()),"],
   ['the phone bar keeps the whole panel (HS-22)', 'src/styles/hunt.css', '  .hb-pl-more { position: fixed;', '  .hb-pl-more { display: contents; } .hb-xx { position: fixed;'],
+  ['the desktop bar keeps the settings form open (HS-12)', 'src/styles/hunt.css', 'transform: translateY(8px); visibility: hidden;', 'transform: translateY(8px); visibility: visible;'],
   ['the phone hub keeps the big medal (HS-22)', 'src/styles/hunt.css', '  .hb-medal, .hb-arcs { width: 64px; height: 64px; }', '  .hb-medal, .hb-arcs { width: 88px; height: 88px; }'],
   ['the world HUD stays under the alerts while a tooltip is open (HS-22)', 'src/styles/hunt.css', '.hb-plaque.is-open) { z-index: 7; }', '.hb-plaque.is-open) { z-index: 2; }'],
   ['the phone alerts dock on the left, over the Party panel (HS-22)', 'src/data/hud-widgets.js', "phone: Object.freeze({ anchor: 'br', dx: 4, dy: 104 }),", "phone: Object.freeze({ anchor: 'bl', dx: 4, dy: 160 }),"],
@@ -1781,12 +1809,13 @@ async function shardPlan() {
     return out;
   };
   const real = judge(yml);
-  const reg = [...yml.matchAll(/--shard=\d+\/(\d+)/g)];
+  /* hunt-screen's own shards only: smoke.yml shards other suites too (alpha-windows --shard=K/2, 2026-10-22). */
+  const reg = [...yml.matchAll(/node tests\/hunt-screen\.mjs --mutate --shard=\d+\/(\d+)/g)];
   const n = reg.length ? +reg[0][1] : 0;
   if (n) planShards(names, n, seconds).forEach((s, i) => console.log(`  shard ${i + 1}/${n}: ${s.names.length} mutants, ~${Math.round(s.seconds / 6) / 10} min booked`));
   for (const f of real) console.log('  ✗ ' + f);
   const planted = [
-    ['a shard dropped from smoke.yml', judge(yml.replace(`--shard=${n}/${n}`, '--shard-dropped'))],
+    ['a shard dropped from smoke.yml', judge(yml.replace(`hunt-screen.mjs --mutate --shard=${n}/${n}`, 'hunt-screen.mjs --mutate --shard-dropped'))],
     ['the old round-robin off by one (the last mutant runs nowhere)', judge(yml, (ns, k) => Array.from({ length: k }, (_, i) => ({ names: ns.slice(0, -1).filter((_, j) => j % k === i), seconds: 0 })))],
     ['a mutant planned twice', judge(yml, (ns, k, s) => { const p = planShards(ns, k, s); p[0].names.push(p[1].names[0]); return p; })],
     ['a shard booked over its budget', judge(yml, planShards, 60)],

@@ -46,11 +46,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIR = 'assets/icons-bundle/pixel/items';
 const SUPPLY = 'assets/icons-bundle/pixel/supplies';
 /** Pairs of items that still share one icon, waiting for art of their own (Art Director). A new pair is a finding. */
-const KNOWN_TWINS = [['crown_of_the_fallen_king', 'crown_shard'],
-  /* Mosslight Glade's five imbuement items and its rare (lane c-ground-16-31) wear the nearest existing icon until
-     the Asset Director draws their own (no generated art in that lane). */
-  ['shadow_thread', 'crow_quill'], ['copper_ring', 'snare_wire'], ['moonbloom', 'mosslight_tendril'], ['verdite_ore', 'sluice_crust'],
-  ['hunter_necklace', 'rooks_moss_charm'], ['choirbone', 'rooks_whistle']];
+const KNOWN_TWINS = [['crown_of_the_fallen_king', 'crown_shard']];
 
 /** Byte-identical icon files under two ids, except the listed twins. */
 export function checkDuplicates(dir, ids, twins = KNOWN_TWINS) {

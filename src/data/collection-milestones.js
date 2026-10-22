@@ -39,7 +39,9 @@
    The SQL hunterAll arm is restated by the S1 catalogue regen (lane C). */
 /* 2026-10-18: 119 -> 129 — the Meadowbrook Thicket's five wolves and the Coppercap Warrens' five goblins.
    The SQL hunterAll arm is restated by the integrator's catalogue regen (gen-catalogues). */
-export const MONSTER_TOTAL = 129;
+/* 2026-10-22: 129 -> 134 — Mosslight Glade's five (lane c-ground-16-31), reachable once the glade opened on its art
+   (lane b-mosslight-art). The SQL hunterAll arm is restated by supabase/migrations/2026-11-13-hunterall-134.sql. */
+export const MONSTER_TOTAL = 134;
 
 /* LEDGER OF FIRSTS (2026-09-27, pack 3): 4 rungs → 11. Every rung added by
    that pack is GOLD-ONLY (no new premium faucet; the drift guard pins gems 0

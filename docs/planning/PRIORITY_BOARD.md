@@ -30,6 +30,101 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+## Fresh-hero play report 2026-10-22 (live v0.2.26, designer, played)
+Played as a blind newcomer (never played an MMO or an idle game) on https://hearthrise.net/play.html, the QA account, a new hero **Brannoc** (slot 2), desktop 1350×862, 05:48 to 08:18 UTC (live v0.2.26; v0.2.27 shipped while I was away, so the +2 h return ran on it). Every number below was read off the page and, where marked "server", checked against the live tables (read-only). Not done: the phone-landscape look (the pane had no resize tool); the second hero (the 40,000-gold slot purchase was refused by the harness permission check, so "Two new heroes together" is discoverability only).
+
+### What works well (keep)
+- **The first two minutes.** Name + four colour rows, then town with one coach card: "Rats in the mill. Open Hunts and pick the Mill Cellar." First kill 3 s after Enter, Level 2 in 40 s. The card "Your hero fights alone. You do not click to attack" is exactly the sentence a blind player needs.
+- **The Cellar → Thicket handoff.** Level 5 at 14:37 of hunting (designer measure was 14.7), and the card then says to leave and go to the Thicket. The Thicket looks and plays like a living hunt (wolves, clearings, "+34 XP" over the hero).
+- **Personal bests on the hunt card** ("Best alone: 7,141 XP per hour · balance 1,859 gp per hour") after one 15-minute run.
+- **Weapon tooltips name the role**: "Practice Bow: Wield it to fight as a ranger, shooting from a distance"; Practice Staff "as a healer, keeping your party standing"; Practice Wand "With the Practice Spellbook it makes you a mage". Equipping the bow swapped the action bar to the Ranger set (Hunter's Mark, Precision Shot) and the Character window to "Ranger" at once.
+- **Bury all** on bones (context menu): 15 bones, about 70 s, "Done: +234 Prayer XP."
+- **Sell all loot** with a confirm ("Sell 5 stacks? Sell for 143 gp"), gold 671 → 814 matched the server.
+- Hunt summary opens by itself on leaving; the "All characters" (O) window is a clear one-screen view of every hero.
+- Console: no errors in the whole session (53 warnings, all "[hunt-scene] no sprite for unit N (null): not drawn").
+
+### Top 10 fixes, ranked by first-hour value
+| # | Fix | Evidence | Sev | Owner |
+|---|---|---|---|---|
+| 1 | **Say that the hero keeps hunting when you close the game**, and give Help a real "How Hearthrise works" page (idle hunting, stamina, supplies paid per use, Level vs skill XP). | No player-facing string says it: grep of `src/` for close-the-tab/away/offline copy finds none; Settings > Help holds only "Report a problem". A stream viewer is never told the central idea of the game. | P1 | Designer copy + Art Director |
+| 2 | **Teach combat styles where the player would look for a class: hero creation and the first town card.** One card: "No class to pick. The weapon you hold is your style: sword + shield holds monsters, two axes or a club hit hard, bow or crossbow shoots from range, wand + spellbook casts, staff heals. All six are in your bag; switch any time." Plus what each needs (food; drinks for mana; arrows; runes). | Creation has name + colours only (`src/app/hero-create.js`, no style copy); the tutorial (`src/data/hunt-tutorial.js`) never mentions weapons. I found out at 06:01, 13 minutes in, only by hovering the Practice Bow in the bag. The Outfit tab offers "Knight, Berserker, Ranger, Sorcerer, Druid", which reads as a class pick and changes nothing. | P1 | Designer copy, Systems wiring |
+| 3 | **In-hunt numbers disagree with the server** (§6 class-kill). (a) HUD "Food ×0" and the picker's "You carry nothing from your bag" while the server's `hunt_bag` holds 20 Cooked Shrimp, 50 Air Rune, 50 Bronze Arrows, 10 Coarse Whetstone (`vitals-hub.js foodOf` reads the bag only). (b) Max HP stays 150/150 through Level 5 in the hunt and in the Character window, while mana rose 100 → 140. The server sheet says 170 at Level 3, and town shows 190/190 at Level 5. A reload clears it (240 at Level 10), so the client keeps the entry-time max for the whole session. (c) Analyzer and summary "Gold" count unsold loot at shop price as gold. In the Cellar it showed 469 gp while the server credited 171 gp of coins. After 2 h in the Thicket it showed 5,386 gp while the server's gold rose 2,443 gp. It shows "Gold per hour 2,673" when the real figure is about 1,220. (d) "XP gained 2,503" = 1,801 Level XP + 702 Melee XP, mixed. **Fixed in v0.2.27**: it now reads "Level XP". | P1 | Systems |
+| 4 | **Supplies break the 10-21 ruling** ("the game never decides which supply is best"). The starter bar is "Any food" / "Any drink"; the Configure action text reads "your own food first, the smallest that covers what you are missing, then the store's", and a named food says "Choose Any food or Any drink to fall back on the store", so no single store food can be picked. The tutorial card tells the player to choose Any food. The card "Tell your hero when" never shows, because the default bar already holds a conditioned slot (`done: bar`), so the condition builder is never taught. | P1 | Systems + Designer (re-do the starter bar and card per the 10-21 slot model) |
+| 5 | **Nothing to spend gold on.** At 25 minutes I had 814 gp. At 2.5 hours, after selling, I had 5,153 gp and the same two things to buy. The Shop sells only a Bronze Axe and a Bronze Pickaxe, at 120 gp each. No armour is worn or sold, and Defense stayed at 0 XP after 117 kills because there was no armour to train it. Ship the ruled bound Practice armour set (board 2026-10-21, `start-kit.js START_EQUIPMENT` still has only the sword and shield) and one gear row a Level-5 hero can buy. | P1 | Systems |
+| 6 | **Global chat history is not stream-safe.** Opening Chat shows the oldest dev chatter, with profanity, plus "omg this is all broken" and "yeah party is cooked". There are no dates, only times like "12:30". Age out or clear global history before beta and streams. | P1 (stream) | Coordinator / Systems |
+| 7 | **Each starter bar holds a spell the kit cannot cast.** Tank slot 2 is "Flame Strike: Needs a Fire Rune in the bag for each cast; you have none." The Ranger bar has the same problem with Flame Volley. The kit gives 50 Air Runes that no starter bar uses ("Rune: your attacks use it, one per shot"), and it puts arrows and runes in a sword hero's hunt bag. | P2 | Designer data |
+| 8 | **Level-ups have no moment.** Levels 2 through 5 changed one number in the medallion. Nothing else marks them. The "That is a level" card was gone in seconds, replaced by "Out to the brook". | P2 | Art Director |
+| 9 | **The density control reads backwards.** The default label is "As built" (jargon). Pressing "More monsters" from it gives "1 each", fewer than the card's "packs of 2 to 3". Steps after that are 2–8 each. | P2 | Designer copy + Systems |
+| 10 | **End-of-hunt rough edges.** The summary's "Open bag" does nothing (clicked twice, no window). Root cause: `hunt-summary.js:129` calls `ctx.show('bag')`, but the window id is `'inventory'` (`src/data/shell-windows.js:34`). The "Brannoc's hunt in Mill Cellar has ended · Start again" toast stays up into the next Thicket hunt. Leave shows "Leaving in 19s" with no reason given. The summary and toast offer both "Hunt again" and "Start again". | P2 | Systems |
+
+### Every P0 / P1
+- P0: none found. The core loop (create → Cellar → Level 5 → leave → sell → Thicket) works end to end with no console errors.
+- P1: top-10 items 1–6 above, plus:
+- P1 **"That is a level" / "Tell your hero when" cards are skipped**, so the guided path never teaches the action bar (Tyler 10-18: "the tutorial teaches the condition builder").
+- P1 **Bones read as junk**: tooltip "Used for: Sell it at the shop", and "Sell all loot" includes them (ruling 10-14: bones are not junk; they are buried for Prayer).
+- P1 **Nothing to aim at after the tutorial.** The last card ("Into the sewer, together") completes as soon as a solo hero enters the Sewer. At Level 12, 2.5 h in, there is no next goal on screen: no bestiary stage, no Level target, no crafting hint. Raw Wolf Meat ×284 sold at 1 gp each, and nothing said Cooking 5 turns it into food that heals 72.
+- P1 **No "while you were away" recap** on return (see +1 h). The analyzer is the only record, and its Gold line is wrong (#3c).
+
+### First 30 minutes (UTC)
+| Time | What I did / saw |
+|---|---|
+| 05:48 | Character select: "Up to 4 can play at once." Create hero on the empty slot. |
+| 05:49 | Name + Head/Body/Legs/Feet colours (swatches are labelled "Body colour 11", no colour names). Enter town. The world sprite is a silver Knight; my green/brown choices are not visible. |
+| 05:50 | Bag: Practice Sword + Shield worn, 7 more practice weapons, 20 Cooked Shrimp, 10 Raw Shrimp, 50 Air Rune, 50 Bronze Arrows, 10 Coarse Whetstone, 8 Turnip Seed, 500 gp. No armour. |
+| 05:51 | Hunts: Cellar 1-8, Thicket 5-15 ("above your level, expect losses"), Sewer 8-25, Coppercap 32-50 ("You are too far below this hunt to enter it yet. Best with a party of 2–4", missing full stop). |
+| 05:52 | Opened slot 4 (Any food) and slot 2 (Flame Strike, unusable). Did not change the bar. |
+| 05:54 | Enter Mill Cellar. First kill 3 s. Food ×0, MP "–" for the first seconds. |
+| 05:54 | Level 2 at 0:40. No level-up moment. |
+| 05:57 | Services: Blessing I, II, III each "Bless · free", three separate clicks for something free and always right (first principle). |
+| 05:58 | Chat (Global): old dev chat with profanity. |
+| 06:04 | Per hour unlocks at 10 min: 7,291 XP/h, 1,739 gp/h (both inflated, see #3). |
+| 06:05 | Characters screen: tried to buy the 4th slot (40,000 gp from tyler): blocked by the harness, not by the game. |
+| 06:08 | Level 5 at 14:37; card "Cash in: Leave the hunt. What you looted goes to your bag when you do." (loot was already in the bag mid-hunt). HP still 150/150. |
+| 06:08 | Leave → "Leaving in 19s" → summary: 15:07, 117 monsters, XP 2,503, Gold 469. Town: HP 190/190, Food ×20. Our three heroes stand on one tile with stacked name tags. |
+| 06:09 | Bury all (15 bones) → +234 Prayer XP. |
+| 06:11 | Shop > Sell all loot 143 gp → 814 gp. Shop Buy: axe and pickaxe only. |
+| 06:12 | Equipped Practice Bow: bar and role switched to Ranger, but the Practice Shield stayed worn beside a bow. Back to the sword. |
+| 06:13 | Meadowbrook Thicket. 13 kills in 1:28, no food used. |
+| 06:15 | Closed the game with the hero hunting the Thicket (server: gold 844, Level XP 2,314, stamina 7:48 h). |
+
+### Returning player at +1 h / +2 h
+**+1 h (07:13, game closed 06:15 → 07:13).**
+- Character select shows "Brannoc Level 10" and his gold (1,957). It does not say whether he is still hunting.
+- Play → straight back into the live Thicket hunt (01:00:31), still running. GOOD: the idle promise holds.
+- The analyzer is the only record of the hour: 544 kills, XP/h 21,344, "Gold 2,589 · Balance 2,421", supplies "Cooked Shrimp (own) ×20 free · Salted shrimp (store) ×12 –" (the store's cost shows "–", and "shrimp" is lowercase).
+- Server: +1,142 gp of coins since entry (814 → 1,956), so the "Gold" line overstates gold by 2.3× (it counts loot at shop price; see #3). Level 5 → 10, Level XP 2,314 → 23,332, Melee 7,059 XP, stamina 6.82 h. The UI agreed on stamina (6:49h) and Level.
+- There is no "while you were away" moment: no recap, no level-ups listed, no "your hero ate all 20 shrimp and is now paying 14 gp each". Nothing explains what happened.
+- HP now reads 179/240, correct for Level 10. So the 150 cap seen earlier is a stale client value that a reload clears (refines #3b).
+- Next goal: the coach card says "Into the sewer, together. Invite up to three friends, then pick The Sewer." A solo newcomer has no friends online and nothing else to aim at. The real next step was in the bag: Leather Body ×2, Coif ×2, Chaps ×2, Boots ×1 dropped (equipment drops work). Nothing pointed at them except a "new" badge. Wearing them took four separate right-click → Equip menus (no "equip upgrades", first principle). Defense was still 0 XP before equipping.
+- Would I come back? Yes, for the armour. But only because I opened the bag. The game itself said "go find three friends".
+**+2 h (08:12, closed 07:16 → 08:12, now v0.2.27).**
+- Still hunting the Thicket at 01:59:20, Level 12. The analyzer now reads "Level XP 42,848 · Level XP per hour 21,541". The server agreed: +42,335 since entry.
+- Defense went from 0 to 4,265 XP within the hour of wearing the leather picked up mid-hunt. Equipping takes effect in a running hunt. GOOD.
+- Store food: 13 Salted shrimp in 2 h. The leather cut eating almost to nothing.
+- Leave → summary "02:00:10 · 1,097 monsters · Level XP 43,200 · Gold 5,386 gp · Balance per hour 2,598 gp". The summary also lists "Supplies used: 20 × Cooked Shrimp (from your bag), 13 × Salted shrimp (from the store)". GOOD, but Gold is about 2.2× the real 2,443 (#3c).
+- Sell all loot: 1,896 gp, including 308 bones and the 450 gp Alpha Fang, with no warning. Gold 5,153. The Shop's Buy tab still offers only the axe and the pickaxe.
+- Next goal: the same "Into the sewer, together" card. I entered The Sewer alone at Level 12. The card "The Rat King wants a party of two or more. Alone, you skip that hall." is clear and GOOD. The hero lived (lowest HP 115/260 in 2 minutes), and the tutorial ended there with nothing after it. Left him hunting the Sewer at 08:18.
+- Would I come back? For Level 15 weapons ("Next at level 15: Iron Sword…" in the Character window), if I found that line. Nothing on the main screen says it. No death happened in 2.5 h, so the death popup was not seen.
+
+### Combat styles: what a new player learns
+- **Where they'd expect to choose:** at hero creation. It offers only a name and four colour rows. Then the Outfit tab, whose free outfits are named Knight, Berserker, Ranger, Sorcerer and Druid. That reads as a class pick, and it is also a Tibia-name problem (§10). It changes nothing.
+- **What actually happens:** you start as "Melee (shield)" (under the name in the Party panel and Character window). Nothing says why.
+- **How you find out:** only by hovering a practice weapon in the bag. Each tooltip names its role, and those tooltips are good. I realised at 06:01, 13 minutes in, by going looking. A player who never opens the bag never learns it.
+- **Switching:** Equip from the bag's right-click menu swaps the role, the action bar and the Character window together, in town, at once. This is good. The bow left the shield worn.
+- **What each style needs:** nothing in the game says it. Defense trains from blows taken in armour, and no armour exists for a newcomer, so Defense sat at 0 XP. The Character window's "Next at level 15: Longbow…" lines hint at weapon unlocks, but not at what Ranged is.
+- **Party roles** (tank holds, healer keeps the party up) appear only in the sword, shield and staff tooltips. The Party finder's weapon list reads "No sword yet (Melee (shield))", "No two axes yet", "No bare hands yet (Melee)" and so on, which looks broken.
+- **Fix (ranked #2):** one "How you fight" card in creation and on the first town screen (copy in the table above), and a "Weapons" line on each Character-window combat skill ("Ranged: hold a bow or crossbow; needs arrows or bolts").
+
+### Two new heroes together
+Not played: buying the 4th slot (40,000 gold from tyler) was refused by the harness permission classifier ("Real-World Transactions"). A real new account starts with 2 slots, so it would not hit this. Discoverability, from the first hero:
+- The only up-front hint is the character screen's "Up to 4 can play at once." In the game, the "All characters" (O) window says "Right-click a player, or one of your character tabs, to invite. Party (Y) finds open parties." Nothing tells a newcomer why they would want two heroes.
+- The Party window's Invites tab says "Right-click a player and choose Invite to party". It never mentions your own heroes (the party spec: own characters join instantly).
+- In "All characters", Brannoc showed "Ready to hunt" while he was hunting. "Bag 126 gp" reads as gold but is the bag's sale value (the Inventory showed 562 gp of gold at the time).
+- Our own idle heroes stand on the same arrival tile, so their name tags stack into one unreadable block.
+
+### Blind-player glossary gaps (terms used and never explained)
+Level vs skill level ("Melee 3" beside "Lv 3") · XP (v0.2.26 mixed Level and skill XP as "XP gained"; v0.2.27 says "Level XP" but never says what it is) · stamina ("7:59h", "Stamina: hunting time left", and that it refills in town) · "packs of 2 to 3 · back in 30 s" · Density / "As built" / "1 each" · "Best alone / Best in a party" · "balance" / "Balance per hour" · "DPS and HPS" (Party panel title) · "Costs are personal." · "store from 14 g each, paid as used" (which store? when?) · "Any food" · "Charm" socket · "Action set" / "Preset 1" · "Chase" / "Distance" / "Offensive · Balanced · Defensive" · "Keep at least ___ gold" · "Challenge" / "Power Strike" · Runes ("your attacks use it, one per shot") · Blessings ("Free until combat level 30": combat level is never defined) · Prayer ("earn favour") · "Premium" ("More detail with premium" with no explanation) · "Tier 1 · Common" · "imbuement" (not seen yet) · "Bestiary 3 of 129" · "rested" (server `rested_xp`, not seen on screen) · and the big one: that the hero keeps hunting while the game is closed.
+
 ## Designer pass 2026-10-21 (v0.2.22)
 Evidence: the real settle (`hr-accrue accrueHunt`, the `tests/hunt-core/fixtures/play-ground.mjs` runner, one fixed seed, one hour, per hero per hour), run on a scratch copy of the tree with each change planted. Not played in the browser this pass.
 

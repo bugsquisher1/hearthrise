@@ -2961,3 +2961,6 @@ art's: until the form leaves the desktop bar, the plate stays a slab (plan item 
 ~150 px) before reaching for layout engine rules. (4) Bronze reads brown at x2 next to charcoal: the unfilled XP
 rim is iron, the gold arc fills it. (5) assets/ui/emblem-hearth.png is unreferenced (its tool, make-hud-emblem.mjs,
 is superseded by make-hud-bar-art.mjs): retire both in a later pass.
+Same day, plan #1 built: the fight settings fold out above the bar's end (desktop) / the sheet (phone); the bar is
+plate + sockets + medallion, 122 px (was 182). Lesson: the phone alerts dock at a FIXED 104 px over the bottom
+(hud-widgets.js phone dy), so the phone bar's height is a contract, not a free choice: 2 px of padding turned HS-22 red.

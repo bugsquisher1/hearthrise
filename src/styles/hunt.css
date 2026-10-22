@@ -511,7 +511,7 @@
      and the rest of it slides out as a sheet from the right (.hb-more). */
   /* The phone's plate is the window frame (frame-iron.png, 4 art px = 8 px): the desktop's 12 px plate and the
      raised medallion cost height a 423 px screen does not have. */
-  .hb-bar { gap: 6px; padding: 2px 4px; max-width: calc(100vw - 16px); border-width: 8px; border-image: url('../../assets/ui/frame-iron.png') 4 / 8px stretch; }
+  .hb-bar { gap: 6px; padding: 0 4px; max-width: calc(100vw - 16px); border-width: 8px; border-image: url('../../assets/ui/frame-iron.png') 4 / 8px stretch; }
   .hb-hub { margin-top: 0; grid-template-columns: auto auto 64px auto auto; grid-template-rows: auto auto; align-content: center; grid-template-areas: "food hp medal mp charm" "food hp medal stam charm"; column-gap: 6px; }
   .hb-read { display: flex; flex-direction: column; }
   .hb-read.is-hp { align-items: flex-end; }

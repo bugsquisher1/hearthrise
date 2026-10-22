@@ -18,8 +18,9 @@
 // self-verifying block EXECUTES on every run of this guard.
 //
 //     computeAccrual (real engine, real monster, real drop table)
-//       → progress ops  {kind:'daily', key:'ev:kill_any', period:'<day>'}
-//                       {kind:'stat',  key:'ev:kill_any', period:''}
+//       → progress ops  {kind:'stat',  key:'ev:kill_any', period:''}
+//         (the kind:'daily' twin was CUT 2026-10-22 with the daily goals that
+//          read it; G3/G4/G6/G11 now assert it is absent)
 //       → public.hr_apply  (those ops VERBATIM — not a copy of them)
 //       → public.player_progress   (real table, real guard trigger)
 //       → public.hr_state_of       (the envelope the client will read)
@@ -281,7 +282,9 @@ async function runOn(db, patches) {
         emitted.add(m[1]); sites++;
       }
     }
-    ok(sites >= 4,
+    /* 3 since 2026-10-22: the updateDaily twins of the kill and gather emits were cut
+       (hunt-rewards kill_any + kill_monster, skill-sim gather remain). */
+    ok(sites >= 3,
       `G2 CONTROL: only ${sites} updateDaily/updateQuest emit sites found in src/core — the scan is `
       + 'blind, and every classification check below would pass for free');
     for (const t of emitted) {
@@ -312,26 +315,18 @@ async function runOn(db, patches) {
     ok(kills > 0, `G3: the fixture killed ${kills} monsters — a night with no kills cannot show `
       + 'a counter moving, so every assertion here would be vacuous');
 
-    const day = G.utcDayKey(NOW_MS);
-    const daily = findOp(combat.delta, 'daily', 'kill_any');
+    /* THE DAILY ARM IS CUT (Tyler 2026-10-22; 2026-12-03-daily-claims-cut.sql):
+       the daily goals that read kind='daily' rows are gone, so the engine proposes
+       NONE — on any night. Only the lifetime counter moves. */
     const life = findOp(combat.delta, 'stat', 'kill_any');
-    ok(!!daily, "G3: no {kind:'daily', key:'ev:kill_any'} op in the delta — the away night pays XP "
-      + "and items and leaves 'Slay N monsters' at 0/N. That is Designer Ruling 3.1 verbatim.");
-    ok(!!life, "G3: no {kind:'stat', key:'ev:kill_any'} op — the quest counter never moves");
-    if (daily) {
-      ok(daily.add === kills,
-        `G3: the daily counter advanced by ${daily.add} for ${kills} kills — a counter that is not `
-        + 'the kill count is a counter the player can prove wrong');
-      ok(daily.period === day,
-        `G3: the daily op is filed under period ${JSON.stringify(daily.period)}, expected the `
-        + `RETURN day ${JSON.stringify(day)}`);
-      ok(daily.state === 'active',
-        `G3: the daily op carries state=${JSON.stringify(daily.state)}. Every progress op this `
-        + "engine emits names a settable state ('active'|'done') — tests/accrual-engine.mjs' SHAPE "
-        + "block asserts it, and `stat:kills` three lines away carries 'active'. The one value "
-        + "that must never appear is 'claimed': it gates a payout (review S13).");
-    }
+    ok(!opsOf(combat.delta).some((o) => o.kind === 'daily'),
+      `G3: the combat night proposed a kind='daily' op (${JSON.stringify(opsOf(combat.delta).filter((o) => o.kind === 'daily'))}) `
+      + '— the daily counters were cut; nothing reads them');
+    ok(!!life, "G3: no {kind:'stat', key:'ev:kill_any'} op — the lifetime counter never moves");
     if (life) {
+      ok(life.state === 'active',
+        `G3: the lifetime op carries state=${JSON.stringify(life.state)}. The one value that must `
+        + "never appear is 'claimed': it gates a payout (review S13).");
       ok(life.add === kills, `G3: the lifetime counter advanced by ${life.add}, expected ${kills}`);
       ok(life.period === '', 'G3: the lifetime counter is period-keyed — it would then be PRUNED '
         + 'after 31 days and every quest built on it would silently reset');
@@ -362,16 +357,14 @@ async function runOn(db, patches) {
       + 'double the yield equals the action count, and a handler that passed 1 instead of `amt` '
       + 'would be indistinguishable from a correct one. Pick a tool with a double rate.');
 
-    const daily = findOp(gather.delta, 'daily', 'gather');
     const life = findOp(gather.delta, 'stat', 'gather');
-    ok(!!daily, "G4: no {kind:'daily', key:'ev:gather'} op — a gathering night makes no progress "
-      + "on 'Gather 50 resources'");
-    ok(!!life, "G4: no {kind:'stat', key:'ev:gather'} op — the gather QUEST counter never moves");
-    ok(!daily || daily.add === qty,
-      `G4: the daily gather counter advanced by ${daily?.add} for a yield of ${qty}. The seam is `
-      + '`updateDaily(\'gather\', res.qty)` — the AMOUNT is the yield, not 1, so a tool double '
-      + 'moves the counter by 2 exactly as it does live.');
-    ok(!life || life.add === qty, `G4: the lifetime gather counter advanced by ${life?.add}, expected ${qty}`);
+    ok(!opsOf(gather.delta).some((o) => o.kind === 'daily'),
+      "G4: the gather night proposed a kind='daily' op — the daily counters were cut (2026-10-22)");
+    ok(!!life, "G4: no {kind:'stat', key:'ev:gather'} op — the gather lifetime counter never moves");
+    ok(!life || life.add === qty,
+      `G4: the lifetime gather counter advanced by ${life?.add} for a yield of ${qty}. The seam is `
+      + '`updateQuest(\'gather\', res.qty)` — the AMOUNT is the yield, not 1, so a tool double '
+      + 'moves the counter by 2.');
     const gStat = opsOf(gather.delta).find((o) => o.kind === 'stat' && o.key === 'gathered');
     ok(!!gStat && !!life && gStat.add === life.add,
       `G4: stat:gathered = ${gStat?.add} but stat:ev:gather = ${life?.add} — two paths counting `
@@ -384,20 +377,10 @@ async function runOn(db, patches) {
   {
     const cKeys = goalOps(combat.delta).map((o) => o.key).sort();
     const gKeys = goalOps(gather.delta).map((o) => o.key).sort();
-    /* b461 — THE MODAL-GOAL COUNTERS WIDEN WHAT A NIGHT MAY MOVE, and the
-       control is widened EXACTLY, not relaxed. supabase/functions/hr-accrue/
-       goal-period.js projects five more `ev:` keys off numbers the engine
-       already computed, and each night may move only its own:
-         · combat  — `rare_drops` (the same integer as stat:rare_drops) and
-                     `levelups` (level crossings this span). NEVER a gather key.
-         · gather  — the SKILL'S OWN per-action counter (`chopped` on a
-                     woodcutting node) and `levelups`. NEVER another skill's
-                     counter, and never a combat key: a mining counter on a
-                     woodcutting night is a real defect this line catches.
-       Listing them by name keeps G5 a control. `every(k => k === X)` would have
-       had to become `.length >= 0` to accommodate them, which is not a test. */
-    const C_ALLOWED = [goalKey('kill_any'), 'ev:rare_drops', 'ev:levelups'];
-    const G_ALLOWED = [goalKey('gather'), 'ev:chopped', 'ev:levelups'];
+    /* The b461 modal-goal daily keys (goal-period.js) were cut 2026-10-22 with the
+       daily goals: each night may move only its own lifetime counter. */
+    const C_ALLOWED = [goalKey('kill_any')];
+    const G_ALLOWED = [goalKey('gather')];
     ok(cKeys.every((k) => C_ALLOWED.includes(k)),
       `G5: the COMBAT night proposed goal ops ${JSON.stringify(cKeys)} — it may move only `
       + `${JSON.stringify(C_ALLOWED)}. A counter a night should not touch must stay untouched.`);
@@ -443,17 +426,17 @@ async function runOn(db, patches) {
     const day = G.utcDayKey(NOW_MS);
     const dRow = rows.get(`daily|${goalKey('kill_any')}|${day}`);
     const lRow = rows.get(`stat|${goalKey('kill_any')}|`);
-    ok(!!dRow, `G6: no daily row landed for ${goalKey('kill_any')} on ${day}`);
+    ok(!dRow, `G6: a daily row landed for ${goalKey('kill_any')} on ${day} — the daily counters were cut`);
     ok(!!lRow, `G6: no lifetime row landed for ${goalKey('kill_any')}`);
-    ok(!dRow || Number(dRow.value) === combat.summary.kills,
-      `G6: the stored daily value is ${dRow?.value}, expected ${combat.summary.kills}`);
-    ok(!dRow || dRow.state === 'active',
-      `G6: the stored daily row carries state=${JSON.stringify(dRow?.state)}, expected 'active'`);
+    ok(!lRow || Number(lRow.value) === combat.summary.kills,
+      `G6: the stored lifetime value is ${lRow?.value}, expected ${combat.summary.kills}`);
+    ok(!lRow || lRow.state === 'active',
+      `G6: the stored lifetime row carries state=${JSON.stringify(lRow?.state)}, expected 'active'`);
     // The transition that gates a payout must be unreachable from a counter op,
     // whatever this file proposes. hr_apply is the protection, not goals.js.
     {
       const forged = await apply(db, {
-        progress: [{ kind: 'daily', key: goalKey('kill_any'), period: day, add: 1, state: 'claimed' }],
+        progress: [{ kind: 'stat', key: goalKey('kill_any'), period: '', add: 1, state: 'claimed' }],
         journal: { kind: 'combat', intent: 'goal:test:claimed' },
       });
       ok(forged?.ok !== true,
@@ -497,9 +480,9 @@ async function runOn(db, patches) {
     const day = G.utcDayKey(NOW_MS);
     const seen = (kind, key, period) =>
       prog.find((p) => p.kind === kind && p.key === key && p.period === period);
-    ok(!!seen('daily', goalKey('kill_any'), day),
-      `G7: the daily counter is NOT in hr_state_of's progress envelope. It was written and cannot `
-      + 'be read, which is a counter that does not exist as far as any client is concerned.');
+    ok(!seen('daily', goalKey('kill_any'), day),
+      "G7: a kind='daily' kill counter is in hr_state_of's progress envelope — the daily counters "
+      + 'were cut (2026-10-22); nothing may write one');
     ok(!!seen('stat', goalKey('kill_any'), ''),
       'G7: the lifetime counter is not in the progress envelope');
     ok(env.progress_truncated === false,
@@ -524,6 +507,13 @@ async function runOn(db, patches) {
   // `period_key <> ''` rather than on a kind list.
   {
     const day = G.utcDayKey(NOW_MS);
+    /* The engine writes no daily counter since 2026-10-22, so the periodic row the
+       prune must sweep is planted: the one daily family left (the premium login's
+       clamp row) under an old day. */
+    await db.query(
+      `insert into public.player_progress (user_id, slot, kind, key, value, period_key, state)
+       values ($1, 0, 'daily', 'login', 1, '2026-1-1', 'claimed')
+       on conflict (user_id, slot, kind, key, period_key) do nothing`, [USER]);
     await db.query(
       `update public.player_progress set updated_at = now() - interval '90 days'
         where user_id=$1 and slot=0 and period_key <> ''`, [USER]);
@@ -532,8 +522,8 @@ async function runOn(db, patches) {
       `G8: hr_progress_prune deleted ${n.rows[0].n} rows — an aged daily counter must be swept, or `
       + 'the periodic population grows forever (600 players x 6 events x 365 days = 1.3M rows/yr)');
     const rows = await progressRows(db);
-    ok(!rows.has(`daily|${goalKey('kill_any')}|${day}`),
-      'G8: the aged daily counter survived the prune');
+    ok(!rows.has('daily|login|2026-1-1') && !rows.has(`daily|${goalKey('kill_any')}|${day}`),
+      'G8: the aged daily row survived the prune');
     ok(!!rows.get(`stat|${goalKey('kill_any')}|`),
       'G8: the prune deleted the LIFETIME counter. period_key=\'\' is the permanent population and '
       + 'must never be swept — every quest built on it would silently reset.');
@@ -585,7 +575,7 @@ async function runOn(db, patches) {
     // clamp is a comment.
     {
       const c = G.makeGoalCounter();
-      c.daily('kill_any', maxAdd + 5000);
+      c.quest('kill_any', maxAdd + 5000);
       const evs = [];
       const ops = G.goalProgressOps(c, NOW_MS, evs);
       ok(ops.length === 1 && ops[0].add === maxAdd,
@@ -598,36 +588,11 @@ async function runOn(db, patches) {
     }
   }
 
-  // ── G10 · THE DAY ANCHOR IS THE RETURN, NOT THE WINDOW ────────────────
-  // The failure this closes is specifically "the player comes back and the
-  // counter reads 0". Both window anchors reproduce it; only `nowMs` does not.
-  {
-    // A CAPPED absence: 40h away, 12h paid. Its credited window ENDED 28h ago.
-    // A GATHER night: a hunt has no cap (TICK-2 — the tick settles it as it
-    // runs), so the away cap and its day anchor live on the gather pointer.
-    const capNow = Date.UTC(2026, 7, 20, 9, 0, 0);
-    const capped = gatherNight({
-      nowMs: capNow, accruedToMs: capNow - 40 * HOUR, activeSinceMs: capNow - 40 * HOUR,
-      capMs: 12 * HOUR,
-    });
-    ok(capped.accrued === true && capped.capped === true,
-      `G10: the fixture is not capped (accrued=${capped.accrued}, capped=${capped.capped}) — the `
-      + 'whole point of it is a window that ended days before the player returned');
-    const op = findOp(capped.delta, 'daily', 'gather');
-    ok(!!op && op.period === G.utcDayKey(capNow),
-      `G10: a capped night filed its daily counter under ${JSON.stringify(op?.period)}; expected `
-      + `the RETURN day ${JSON.stringify(G.utcDayKey(capNow))}. Anchoring to the credited window `
-      + 'means a 40h absence credits a day the player can no longer see — "my night did not '
-      + 'count", which is exactly Designer Ruling 3.1.');
-    ok(!!op && op.period !== G.utcDayKey(capped.summary.windowTo),
-      `G10 CONTROL: the fixture's window end (${G.utcDayKey(capped.summary.windowTo)}) is the same `
-      + 'day as the return, so this block cannot tell the two anchors apart. Move the fixture.');
-
-    // Two returns on different days write different period keys — one rule,
-    // applied twice, and the lifetime counter is unaffected by either.
-    const d1 = findOp(gather.delta, 'daily', 'gather');
-    ok(d1.period !== op.period, 'G10: two nights returning on different UTC days share a period key');
-  }
+  // ── G10 · (retired 2026-10-22) ────────────────────────────────────────
+  // The day anchor of the kind='daily' counters: the daily arm was cut with the
+  // daily goals (2026-12-03-daily-claims-cut.sql), so there is no day key to
+  // anchor. G3/G4 assert no night proposes a daily op; tests/old-rewards-gone.mjs
+  // OR-5 keeps the engine from proposing one again.
 
   // ── G11 · THE GATHER NIGHT ROUND-TRIPS TOO ────────────────────────────
   // The gather path is a separate delta builder in accrual.js. A model wired
@@ -644,8 +609,8 @@ async function runOn(db, patches) {
     ok(Number(rows.get(`stat|${goalKey('gather')}|`)?.value) === gather.summary.gathered,
       `G11: the gather lifetime counter reads ${rows.get(`stat|${goalKey('gather')}|`)?.value}, `
       + `expected ${gather.summary.gathered}`);
-    ok(Number(rows.get(`daily|${goalKey('gather')}|${G.utcDayKey(NOW_MS)}`)?.value) === gather.summary.gathered,
-      'G11: the gather daily counter did not land at the yield');
+    ok(!rows.has(`daily|${goalKey('gather')}|${G.utcDayKey(NOW_MS)}`),
+      'G11: a gather daily counter landed — the daily counters were cut (2026-10-22)');
   }
 
   // ══════════════════════════════════════════════════════════════════════
@@ -955,34 +920,30 @@ const MUTATIONS = [
   /* Re-anchored lane C2 (closed rebuild): a fight is a hunt session, so the
      combat handlers are accrueHunt's, assembled by src/core/member.js memberSide (option B,
      2026-10-19: one assembly for the edge settle and the browser's live view). */
-  { name: 'M1 combat: the updateDaily handler is removed (today\'s shipped behaviour)',
-    file: 'member', from: "    updateDaily(type, amt) { goals.daily(type, amt == null ? 1 : amt); },\n    updateQuest(type, amt, meta) {\n",
-    to: "    updateQuest(type, amt, meta) {\n" },
+  /* The daily arm was CUT 2026-10-22 (nothing reads a kind='daily' counter): M1 now
+     plants its revival, which G3/G4 must refuse. */
+  { name: "M1 goals: the cut daily arm comes back (a kind='daily' op per event)",
+    file: 'goals', from: "    ops.push({ kind: 'stat', key: goalKey(type), period: '',",
+    to: "    ops.push({ kind: 'daily', key: goalKey(type), period: utcDayKey(nowMs)," },
   { name: 'M2 combat: the updateQuest handler is removed',
     file: 'member', from: "    updateQuest(type, amt, meta) {\n      goals.quest(type, amt == null ? 1 : amt);\n      bestiary.record(type, amt == null ? 1 : amt, meta);\n    },\n  };",
     to: "  };" },
   { name: 'M11 combat: the BESTIARY listener is removed (goals stay correct, per-monster vanishes)',
     file: 'member', from: "      bestiary.record(type, amt == null ? 1 : amt, meta);\n    },\n  };",
     to: "    },\n  };" },
-  /* b461 moved both anchors: the modal-goal emit (goal-period.js) now sits
-     immediately after each goalProgressOps push, so the distinctive text that
-     FOLLOWS the line is its own comment rather than the bestiary / delta. The
-     mutation is unchanged — delete the push, keep everything after it. */
+  /* The text that FOLLOWS each goalProgressOps push is its own comment (the
+     modal-goal emit that sat there was cut 2026-10-22). */
   /* Re-anchored lane S1: the combat delta is accrueHunt's memberDelta. */
   { name: 'M3 combat: the goal ops never reach the delta',
     file: 'accrual', from: "  for (const op of goalProgressOps(s.goals, toMs, events)) progress.push(op);\n",
     to: "" },
   { name: 'M4 gather: the goal ops never reach the delta',
-    file: 'accrual', from: "  for (const op of goalProgressOps(goals, nowMs, events)) progress.push(op);\n  /* THE MODAL-GOAL DAILY COUNTERS (b461). `perSkill` is core's own",
-    to: "\n  /* THE MODAL-GOAL DAILY COUNTERS (b461). `perSkill` is core's own" },
+    file: 'accrual', from: "  for (const op of goalProgressOps(goals, nowMs, events)) progress.push(op);\n\n  /* THE SUB-STEP REMAINDER, DEFERRED RATHER THAN FORFEITED — see",
+    to: "\n\n  /* THE SUB-STEP REMAINDER, DEFERRED RATHER THAN FORFEITED — see" },
   { name: 'M5 gather: the yield is ignored and every action counts 1',
-    file: 'accrual', from: "    updateDaily(type, amt) { goals.daily(type, amt == null ? 1 : amt); },\n    updateQuest(type, amt /* , meta */) { goals.quest(type, amt == null ? 1 : amt); },\n    /* Still deliberately ABSENT:",
-    to: "    updateDaily(type) { goals.daily(type, 1); },\n    updateQuest(type) { goals.quest(type, 1); },\n    /* Still deliberately ABSENT:" },
-  /* Re-anchored lane C2: a hunt has no cap (TICK-2), so the capped night and
-     its day anchor (G10) are the gather pointer's. */
-  { name: 'M6 gather: the daily is anchored to the credited window, not the return',
-    file: 'accrual', from: "  for (const op of goalProgressOps(goals, nowMs, events)) progress.push(op);\n  /* THE MODAL-GOAL DAILY COUNTERS (b461). `perSkill` is core's own",
-    to: "  for (const op of goalProgressOps(goals, credit.fromMs, events)) progress.push(op);\n  /* THE MODAL-GOAL DAILY COUNTERS (b461). `perSkill` is core's own" },
+    file: 'accrual', from: "    updateQuest(type, amt /* , meta */) { goals.quest(type, amt == null ? 1 : amt); },\n    /* Still deliberately ABSENT:",
+    to: "    updateQuest(type) { goals.quest(type, 1); },\n    /* Still deliberately ABSENT:" },
+  /* (M6, the daily day-anchor mutant, retired 2026-10-22 with the daily arm: G10.) */
   { name: 'M7 goals: the day key is zero-padded (the FM defect)',
     file: 'goals', from: "return `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`;",
     to: "return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;" },
@@ -996,8 +957,8 @@ const MUTATIONS = [
      by this file, which is the right place for it — and that refusal is only
      worth anything if something exercises it. */
   { name: "M10 goals: a counter op claims state='claimed'",
-    file: 'goals', from: "               add: clamp(type, daily[type], 'daily'), state: 'active' });",
-    to: "               add: clamp(type, daily[type], 'daily'), state: 'claimed' });" },
+    file: 'goals', from: "               add: clamp(type, quest[type], 'stat'), state: 'active' });",
+    to: "               add: clamp(type, quest[type], 'stat'), state: 'claimed' });" },
   { name: 'M12 combat: the COLLECTION listener is removed (loot vanishes from the log)',
     /* Re-anchored lane S1: the combat loot sink is memberSide's addItem (src/core/member.js since option B). */
     file: 'member', from: "      if (hs.cover[id]) hs.cover[id].avail += n;\n      collection.record(id, n);\n",

@@ -28,16 +28,17 @@
 //      and a corpse lies the way it fell (it never turns to face what it last swung
 //      at: Andy 10-21 "saw a corpse twitch again once dead").
 // ════════════════════════════════════════════════════════════════════════
-import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX } from '../data/hunt-vfx.js?v=0.2.27';
-import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.27';
-import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.27';
-import { partyPeopleOf } from '../session/party-sections.js?v=0.2.27';
-import { floatShown } from './float-prefs.js?v=0.2.27';
-import { heroSprite } from '../session/hero-look.js?v=0.2.27';
-import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.27';
-import { STUB_SPRITE } from '../world/core/book.js?v=0.2.27';
-import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.27';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.27';
+import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX } from '../data/hunt-vfx.js?v=0.2.28';
+import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.28';
+import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.28';
+import { partyPeopleOf } from '../session/party-sections.js?v=0.2.28';
+import { floatShown } from './float-prefs.js?v=0.2.28';
+import { heroSprite } from '../session/hero-look.js?v=0.2.28';
+import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.28';
+import { STUB_SPRITE } from '../world/core/book.js?v=0.2.28';
+import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.28';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.28';
+import { levelOf } from '../session/character-sections.js?v=0.2.28';
 
 /* The ground's first start tile, standing (the hero before its first window). */
 function entranceOf(huntId) {
@@ -53,12 +54,13 @@ export const SCENE_TIMING = Object.freeze({
   flashMs: 120,         // a hit's white flash
   riseMs: 400,          // a unit a reconcile finds alive after its drawn death fades back in, never pops up
   floatMs: 1000,        // a floating number's life
+  levelMs: 3000,        // "Level 6" over the hero when the server's Level rises (the earned moment)
 });
 const MAX_FX = 96, MAX_FLOATS = 64, MAX_KEYS = 4096, PRUNE_AT = 512;
 /* FX-01: a target's numbers cycle through four offsets so a burst never stacks into one;
    an ability's name sits above them (FX-03) and the big numbers higher still (FX-02). */
 const OFFSETS = Object.freeze([[0, 0], [7, -4], [-7, -4], [0, -9]]);
-const NAME_DY = -14, BIG_DY = -18;
+const NAME_DY = -14, BIG_DY = -18, LEVEL_DY = -30;
 
 /** The facing of a heading: the cardinal (larger axis; east/west on a tie) and the diagonal, if any. */
 function facingOf(dx, dy) {
@@ -125,6 +127,8 @@ export function readHunt(cs, peers) {
     self: p ? p.members.find((m) => m.seat === p.selfSeat) || null : null,
     /* the viewed hero's look: the ONE source the town draws it with too (chosen outfit, else role) */
     look: heroSprite(cs),
+    /* the viewed hero's Level as the server's envelope says it (the level-up moment watches it rise) */
+    level: (levelOf(cs) || {}).level ?? null,
     shown: (type, boss) => floatShown(cs, type, boss ? 'boss' : 'regular'),
   };
 }
@@ -372,12 +376,28 @@ export function createHuntScene(o) {
     return clips.corpse ? { anim: 'corpse', frame: 0 } : null;
   }
 
+  /* THE LEVEL-UP MOMENT (designer 2026-10-22: Levels 2 to 5 changed one number in the medallion and
+     nothing else). When the SERVER's Level for the viewed hero rises, "Level N" rises over the hero, in
+     the Level XP gold, bigger and slower than a "+XP". The first Level seen is the baseline, so a mount,
+     a reload or a switch of character never plays one; it is the server's number, never predicted. */
+  let lastLevel = null;
+  function levelMoment(now) {
+    const lv = read.level;
+    if (!Number.isInteger(lv)) return;
+    const up = lastLevel !== null && lv > lastLevel;
+    lastLevel = lv;
+    if (!up || read.viewed === null || !read.shown('level', false)) return;
+    const p = tl.positionAt(read.viewed, now);
+    if (p) floats.push({ text: 'Level ' + lv, kind: 'xp', x: p.x, y: p.y, dx: 0, dy: LEVEL_DY, start: now, life: SCENE_TIMING.levelMs, big: true });
+  }
+
   /**
    * The draw state at `now` (the timeline's clock).
    * @param {number} now
    */
   function frame(now) {
     read = fresh();
+    levelMoment(now);
     let hero = null;
     const units = [];
     const ids = tl.units();

@@ -18,7 +18,7 @@
 // Reading `hunt`: the server's session record sits under `hunt.session` (the
 // section view) and, in the client fixture, flat on `hunt`. Both are read.
 // ════════════════════════════════════════════════════════════════════════
-import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.27';
+import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.28';
 
 export { sanitizeSummaries };
 
@@ -113,6 +113,8 @@ export function buildSummary(s, an, deaths) {
     id: s.id, hunt: s.hunt, at: s.endedMs, reason: s.reason, forfeit: s.forfeit === true, ms: dur,
     /* `xp` is LEVEL XP only (the tally's `level` key), never Level plus training (Tyler 2026-10-22). */
     kills: hero ? hero.kills : int(t.kills), xp: hero ? hero.levelXp : isObj(t.xp) ? num(t.xp.level) : num(t.xp), gold: hero ? hero.gold : num(t.coins),
+    /* `gold` is coin received (the server's coins); the loot's shop price is its own line (Brannoc 10-22). */
+    lootValue: hero ? hero.lootValue : null,
     /* Per hour, the server's (hr_hunt_stats_of per_hour): balance for every character; Level XP before bonuses
        only when the server sent it (premium: the basic analyzer carries no raw_xp). Never divided here. */
     balanceH: ph ? ph.balance : null, rawXpH: ph ? ph.rawLevelXp : null,

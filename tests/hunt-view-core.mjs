@@ -21,6 +21,7 @@
 //   SEC-1 sections read null when absent or malformed; the next envelope without
 //         `hunt_analyzer` leaves no analyzer behind (null replaces)
 //   SEC-2 a party member's role comes from its weapon, never its outfit
+//   SEC-4 an open hunt's carried supplies are its server hunt bag (left), none once it ended
 //   SEC-3 the session clock runs on the server's clock from the settle its hunt_ms
 //         was taken at: it never steps back between settles
 //   FP-1  float defaults: the bleed badge off over regular monsters, on over
@@ -167,6 +168,13 @@ async function rules(M) {
       ok('SEC-1', a.party.training.every((r) => r.perHour === null && r.nextMs === null) && a.party.levelXp === FIXTURE.hunt_analyzer.party.xp.level,
         'the party view: its Level XP alone, per-skill rates unknown (the server sends none): ' + JSON.stringify(a.party.training));
     }
+    /* GOLD IS COIN RECEIVED (Brannoc 10-22: the analyzer and summary counted unsold loot at its shop price as gold,
+       5,386 gp shown for 2,443 gp credited): gold reads the server's coins, the loot's value is its own figure. */
+    {
+      const fx = FIXTURE.hunt_analyzer.hero;
+      ok('SEC-1', a.hero.gold === fx.coins && a.hero.gold !== fx.gold && a.hero.lootValue === fx.loot_value && a.hero.perHour.goldAndLoot === fx.per_hour.gold,
+        'gold must be the coins received and loot value its own line: ' + JSON.stringify({ gold: a.hero.gold, lootValue: a.hero.lootValue, coins: fx.coins, serverGold: fx.gold }));
+    }
     /* Tracker r44: Next level in read 00:00:00 forever. It is the Level's eta (hero.level.eta_h), never a skill's: the fixture's maxed Melee carries eta_h 0. */
     ok('SEC-1', a.nextLevelMs === Math.round(FIXTURE.hunt_analyzer.hero.level.eta_h * 3600000) && a.nextLevelMs > 0 && FIXTURE.hunt_analyzer.hero.skills.melee.eta_h === 0, 'Next level in must be the Level eta, not a maxed skill 0 (got ' + a.nextLevelMs + ')');
     for (const [i, bad] of [null, 0, 'soon'].entries()) {
@@ -174,6 +182,16 @@ async function rules(M) {
       await cs.load();
       ok('SEC-1', M.H.analyzerOf(cs).nextLevelMs === null, 'a ' + JSON.stringify(bad) + ' Level eta must read unknown (null, shown as the dash), got ' + M.H.analyzerOf(cs).nextLevelMs);
     }
+    /* SEC-4 THE HUNT BAG (Brannoc 10-22: "Food ×0" with 20 Cooked Shrimp in it): an open hunt's carried supplies are
+       the server's hunt.session.bag `left`, largest first; an empty line drops; an ended hunt carries none (null). */
+    body = clone(FIXTURE); body.version += 9;
+    body.hunt.session = { bag: [{ item: 'cooked_shrimp', left: 20, loaded: 20 }, { item: 'air_rune', left: 50, loaded: 50 }, { item: 'coarse_whetstone', left: 0, loaded: 10 }] };
+    await cs.load();
+    const hb = M.H.huntBagOf(cs);
+    ok('SEC-4', JSON.stringify(hb) === JSON.stringify([{ id: 'air_rune', qty: 50 }, { id: 'cooked_shrimp', qty: 20 }]), 'the hunt bag reads ' + JSON.stringify(hb));
+    body = clone(body); body.version += 1; body.hunt.ended = true;
+    await cs.load();
+    ok('SEC-4', M.H.huntBagOf(cs) === null, 'an ended hunt still carries ' + JSON.stringify(M.H.huntBagOf(cs)));
     body = clone(FIXTURE); body.version += 11; delete body.hunt_analyzer;
     body.party.members[0].hp = 'lots';
     await cs.load();
@@ -272,6 +290,8 @@ const MUTANTS = [
   ['the timeline lands in the record', 'src/session/envelope.js', '!TIMELINE_KEYS.includes(k) && ', ''],
   ['the analyzer is merged, not replaced', 'src/session/hunt-sections.js', "  const a = section(cs, 'hunt_analyzer');\n", "  const a = section(cs, 'hunt_analyzer') || globalThis.__lastA;\n  globalThis.__lastA = a;\n"],
   ['Level XP summed with training XP (the 10-22 report)', 'src/session/hunt-sections.js', 'levelXp: levelOf(v.xp),', 'levelXp: total(v.xp),'],
+  ['gold counts unsold loot at its shop price (SEC-1, Brannoc 10-22)', 'src/session/hunt-sections.js', 'gold: num(v.coins),', 'gold: num(v.gold),'],
+  ['the hunt bag reads what was loaded, not what is left (SEC-4)', 'src/session/hunt-sections.js', 'int(l.left) !== null && l.left > 0 ? { id: l.item, qty: l.left }', 'int(l.loaded) !== null && l.loaded > 0 ? { id: l.item, qty: l.loaded }'],
   ['a training row reads Level XP', 'src/session/hunt-sections.js', "Object.entries(m).filter(([k]) => k !== 'level')", 'Object.entries(m)'],
   ['the session clock runs from each answer (SEC-3, live v0.2.23)', 'src/session/hunt-sections.js', 'return a.sessionMs + Math.max(0, serverNowMs - a.settledMs);', 'return a.sessionMs;'],
   ['a role read off the outfit', 'src/session/hunt-sections.js', 'role: roleForWeapon(str(m.weapon), str(m.role_pick)),', "role: roleForWeapon(str(m.weapon) || (m.outfit ? 'shield' : null), str(m.role_pick)),"],

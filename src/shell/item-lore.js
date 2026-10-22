@@ -13,16 +13,16 @@
 //   needOf(id, sk)  "Needs Melee 30 (you have 20)", against the server's level
 //   flavourOf(id)   the item's one-line description, or ''
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.27';
-import { DRINK_ITEMS, DRINK_RECIPES, DRINK_DESC } from '../data/drinks.js?v=0.2.27';
-import { MONSTERS } from '../data/monsters.js?v=0.2.27';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.27';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOT_META } from '../data/gathering.js?v=0.2.27';
-import { SHOP_OFFERS } from '../data/shops.js?v=0.2.27';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.27';
-import { ITEM_DESC } from '../data/item-descriptions.js?v=0.2.27';
-import { itemName, monsterName } from './widgets/bits.js?v=0.2.27';
-import { kindOf } from './bag-model.js?v=0.2.27';
+import { ITEMS } from '../data/items.js?v=0.2.28';
+import { DRINK_ITEMS, DRINK_RECIPES, DRINK_DESC } from '../data/drinks.js?v=0.2.28';
+import { MONSTERS } from '../data/monsters.js?v=0.2.28';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.28';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOT_META } from '../data/gathering.js?v=0.2.28';
+import { SHOP_OFFERS } from '../data/shops.js?v=0.2.28';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.28';
+import { ITEM_DESC } from '../data/item-descriptions.js?v=0.2.28';
+import { itemName, monsterName } from './widgets/bits.js?v=0.2.28';
+import { kindOf, riteOf } from './bag-model.js?v=0.2.28';
 
 const skillName = (id) => (SKILLS_DEF[id] && SKILLS_DEF[id].name) || id;
 const RARITY = Object.freeze({ common: 'Common', uncommon: 'Uncommon', rare: 'Rare', epic: 'Epic', legendary: 'Legendary', mythic: 'Mythic', unique: 'Unique' });
@@ -101,6 +101,9 @@ export function usesOf(id) {
   if (k === 'ammo') out.push(/_rune$/.test(id) ? 'Spent by spells that call for it' : 'Fired from a bow, one per shot');
   if (k === 'food') out.push('Eat to heal ' + it.heals + ' health');
   if (k === 'drink') out.push('Drink to restore ' + DRINK_ITEMS[id].mana + ' mana');
+  /* An offering (bones): what the skill does with it, never "sell it" (ruling 2026-10-14, Brannoc 10-22). */
+  const rite = riteOf(id);
+  if (rite) out.push(String(rite.recipe.name).split(' ')[0] + ' it to train ' + skillName(rite.skill));
   if (!out.length) out.push('Sell it at the shop');
   return out;
 }

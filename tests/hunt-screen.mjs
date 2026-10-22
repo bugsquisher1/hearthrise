@@ -319,7 +319,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const n = (v) => v.toLocaleString('en-US');
         /* The server sends XP per key: the Level's under level, each skill's under its id. The Session block shows LEVEL XP
            alone, never Level plus training (Tyler 2026-10-22); the fixture trains two skills, so a sum would show. */
-        const want = { kills: n(a.kills), levelXp: n(a.xp.level), gold: n(a.gold) + ' gp', waste: n(a.waste) + ' gp', balance: n(a.balance) + ' gp' };
+        /* Gold is the COINS received; the loot's shop price is its own line (Brannoc 10-22: loot counted as gold). */
+        const want = { kills: n(a.kills), levelXp: n(a.xp.level), gold: n(a.coins) + ' gp', lootValue: n(a.loot_value) + ' gp', waste: n(a.waste) + ' gp', balance: n(a.balance) + ' gp' };
         for (const k of Object.keys(want)) if (got[k] !== want[k]) fails.push('HS-4 analyzer ' + k + ' shows "' + got[k] + '"; the server sent ' + want[k]);
         /* Tracker r44: Next level in is the LEVEL's eta (1.5 h), not a skill's: the fixture's maxed Melee carries eta_h 0 and used to pin it at 00:00:00. */
         const nextClock = await page.evaluate(() => { const el = document.querySelector('.ha-analyzer [data-clock="next"]'); return el && el.textContent; });
@@ -374,6 +375,17 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         /* Regen per second, one decimal: mana_regen is per MINUTE (18/min = 0.3/s); HP is the in-fight rate (220 x 3 permille x 1000 permille = 0.66/s). */
         const rg = await page.evaluate(() => [document.querySelector('[data-r="hp"]').textContent, document.querySelector('[data-r="mana"]').textContent]);
         if (rg[0] !== '+0.7/s' || rg[1] !== '+0.3/s') fails.push('HS-18 the hub regen reads ' + JSON.stringify(rg) + ', want ["+0.7/s","+0.3/s"]');
+        /* HS-18 FOOD IS THE HUNT BAG'S (Brannoc 10-22: "Food ×0" while the server's hunt bag held 20 Cooked Shrimp; Enter
+           moves the food out of the bag): the socket counts the open hunt's hunt bag, and the next envelope replaces it. */
+        const foodK = () => page.evaluate(() => document.querySelector('.hb-socket.is-food .hb-socket-k').textContent);
+        s.env.hunt = Object.assign({}, s.env.hunt, { session: { bag: [{ item: 'cooked_shrimp', left: 20, loaded: 20, essential: true }, { item: 'air_rune', left: 50, loaded: 50, essential: true }] } });
+        await pushEnvelope(page, s);
+        const f1 = await foodK();
+        s.env.hunt.session.bag[0].left = 17;
+        await pushEnvelope(page, s);
+        const f2 = await foodK();
+        if (f1 !== 'Food ×20' || f2 !== 'Food ×17') fails.push('HS-18 the food socket reads ' + JSON.stringify([f1, f2]) + ' while the hunt bag held 20 then 17 Cooked Shrimp');
+        delete s.env.hunt.session;
         Object.assign(s.env.hunt.hero, { mana: 40, mana_max: 60, hp: 180, level: 24, xp_pct: 0.62 });   // back to the fixture for the screenshots
         s.env.state = Object.assign({}, s.env.state, { level_xp: FIXTURE.state.level_xp });
         s.env.party.members[0].hp = 180;
@@ -571,7 +583,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           const shown = (el) => !!el && el.getClientRects().length > 0;
           const stat = (sec, k) => p.querySelector('[data-sec="' + sec + '"] [data-stat="' + k + '"]');
           return {
-            basic: [['totals', 'kills'], ['totals', 'levelXp'], ['totals', 'gold'], ['totals', 'balance'], ['rates', 'perHour.levelXp'], ['rates', 'perHour.gold']].map(([a, k]) => shown(stat(a, k)) && /\d/.test(stat(a, k).textContent)),
+            basic: [['totals', 'kills'], ['totals', 'levelXp'], ['totals', 'gold'], ['totals', 'lootValue'], ['totals', 'balance'], ['rates', 'perHour.levelXp'], ['rates', 'perHour.goldAndLoot']].map(([a, k]) => shown(stat(a, k)) && /\d/.test(stat(a, k).textContent)),
             /* Training XP is premium's own tab (Tyler 2026-10-22): a free character sees neither the tab nor a training number. */
             premium: [['totals', 'waste'], ['rates', 'perHour.rawLevelXp'], ['rates', 'perHour.waste'], ['training', 'trainingXp'], ['training', 'perHour.trainingXp']].map(([a, k]) => shown(stat(a, k)) || /\d/.test(stat(a, k).textContent))
               .concat([shown(p.querySelector('[data-clock="next"]')), /\d/.test(p.querySelector('[data-clock="next"]').textContent),
@@ -1600,6 +1612,7 @@ const MUTANTS = [
   ['a setting shows before the server confirms', 'src/shell/widgets/settings-intent.js', [["  attr(root, 'data-pending', true);\n", "  attr(root, 'data-pending', true);\n  root.__want = el;\n"],
     ["else if (key === 'stance') attr(el, 'aria-pressed', String(v === el.getAttribute('data-val')));", "else if (key === 'stance') attr(el, 'aria-pressed', String(pending ? root.__want === el : v === el.getAttribute('data-val')));"]]],
   ['controls stay on while an intent is in flight', 'src/shell/widgets/settings-intent.js', "prop(el, 'disabled', pending || v === null);", "prop(el, 'disabled', v === null);"],
+  ['the hub counts the bag mid-hunt, not the hunt bag (HS-18, Brannoc 10-22)', 'src/shell/widgets/vitals-hub.js', 'const food = foodOf(carried || bagOf(cs));', 'const food = foodOf(bagOf(cs));'],
   ['the analyzer ignores the premium gate', 'src/shell/widgets/analyzer.js', 'const premium = isPremium(ctx.character);', 'const premium = true;'],
   ['a null per_hour shows dashes, not "Per hour after 10 min."', 'src/shell/widgets/analyzer.js', "prop(sec.querySelector('.ha-later'), 'hidden', v.rated);", "prop(sec.querySelector('.ha-later'), 'hidden', true);"],
   ['the struck reason of a food slot ignores the server', 'src/shell/action-facts.js', "    if (sl.why === 'none_left') return", "    if (false) return"],

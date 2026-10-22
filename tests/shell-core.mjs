@@ -73,7 +73,7 @@ function memStore(initial) {
 }
 
 async function runTests(mods) {
-  const { WM, HUD, CS } = mods;
+  const { WM, HUD, CS, AR, XP } = mods;
   const fails = [];
   const t = (id, fn) => { try { fn(); } catch (e) { fails.push(id + ': ' + e.message); } };
   const eq = (a, b, msg) => { if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error(msg + ' — got ' + JSON.stringify(a) + ', want ' + JSON.stringify(b)); };
@@ -368,6 +368,37 @@ async function runTests(mods) {
     eq(CS.sanitizeResidueField('hudLayout', character.writes[0][1]), character.writes[0][1], 'what the HUD writes survives the bound unchanged');
   });
 
+  /* ── R3: "while you were away" (src/shell/away-recap.js, designer 2026-10-22) ── */
+  t('R3 the away recap: one line of server differences on return, never on a quick reload', () => {
+    const T0 = 1_800_000_000_000, H2 = 2 * 3600 * 1000;
+    const stamp = { s: 's-1', at: T0, xp: XP.charXpForLevel(5), gold: 814, kills: 100 };
+    const hero = (o) => Object.assign({ record: { residue: { awaySeen: stamp } }, writes: [],
+      setResidue(f, v) { this.writes.push([f, v]); this.record = { residue: { [f]: v } }; return true; } }, o);
+    const env = (now, ended, session = 's-1') => hero({
+      serverNow: () => now,
+      read: (k) => ({ name: 'Brannoc', state: { level_xp: XP.charXpForLevel(10) + 7, gold: 1956 },
+        hunt: { session_id: session, hunt_id: 'meadowbrook_thicket', ended: !!ended, session: ended ? { end_reason: 'stamina' } : {}, hero: {}, pose: { units: [] } },
+        hunt_analyzer: { hero: { kills: 644 } } })[k] });
+    const back = AR.awayRecapOf(env(T0 + H2));
+    ok(back && back.kind === 'away' && /While you were away \(2 h 0 min\), Brannoc hunted Meadowbrook Thicket/.test(back.text)
+      && /Level 5 to 10/.test(back.text) && /\+1,142 gold/.test(back.text) && /544 kills/.test(back.text) && /Still hunting\./.test(back.text),
+      'the return line: ' + JSON.stringify(back));
+    ok(back && back.id === 'away:s-1:' + T0, 'the line is shown once: its id carries the stamp ' + (back && back.id));
+    const ended = AR.awayRecapOf(env(T0 + H2, true));
+    ok(ended && /The hunt has ended\. Out of stamina/.test(ended.text), 'a hunt that stopped says why: ' + JSON.stringify(ended));
+    ok(AR.awayRecapOf(env(T0 + 5 * 60 * 1000)) === null, 'a reload five minutes later is not an absence');
+    ok(AR.awayRecapOf(env(T0 + H2, false, 's-2')) === null, 'another hunt is never compared with the old one');
+    /* the stamp: renewed once a minute while the hunt runs, bounded on the way in */
+    const cs = env(T0 + 30 * 1000);
+    ok(AR.stampAway(cs) === false && cs.writes.length === 0, 'a stamp 30 s old is not renewed');
+    const due = env(T0 + 90 * 1000);
+    ok(AR.stampAway(due) === true && due.writes[0][0] === 'awaySeen' && due.writes[0][1].at === T0 + 90 * 1000 && due.writes[0][1].gold === 1956,
+      'a due stamp writes the server numbers: ' + JSON.stringify(due.writes));
+    ok(CS.RESIDUE_FIELDS.includes('awaySeen'), 'awaySeen must be in RESIDUE_FIELDS');
+    eq(CS.sanitizeResidueField('awaySeen', { s: 'x; drop', at: 1, xp: 2 }), {}, 'a forged session id is dropped');
+    eq(CS.sanitizeResidueField('awaySeen', { s: 's-1', at: 5, xp: -3, gold: 9, kills: 1.5, extra: 1 }), { s: 's-1', at: 5, gold: 9 }, 'a stamp is shaped and bounded');
+  });
+
   return fails;
 }
 
@@ -377,6 +408,8 @@ async function load(base) {
     WM: await import(u(WM_FILE)),
     HUD: await import(u(HUD_FILE)),
     CS: await import(u('src/session/residue.js')),
+    AR: await import(u('src/shell/away-recap.js')),
+    XP: await import(u('src/core/xp.js')),
   };
 }
 
@@ -403,6 +436,11 @@ const MUTANTS = [
   { test: 'H9', file: HUD_FILE, from: "if (v === 'b') out.bottom = Math.max(out.bottom, box.height - r.top);", to: "if (v === 'b') out.bottom = Math.max(out.bottom, 0);" },
   { test: 'R1', file: 'src/session/residue.js', from: "  hudLayout: sanitizeHudLayout,", to: '  hudLayout: (v) => v,' },
   { test: 'R2', file: HUD_FILE, from: "write(next) { if (character) character.setResidue('hudLayout', next); },", to: 'write(next) {},' },
+  { test: 'R3', file: 'src/shell/away-recap.js', from: '  if (gone < AWAY_MIN_MS) return null;\n', to: '' },
+  { test: 'R3', file: 'src/shell/away-recap.js', from: "!was || !h || h.sessionId !== was.s ||", to: '!was || !h ||' },
+  { test: 'R3', file: 'src/shell/away-recap.js', from: "'away:' + h.sessionId.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 64) + ':' + was.at", to: "'away:' + h.sessionId.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 64) + ':' + now" },
+  { test: 'R3', file: 'src/shell/away-recap.js', from: 'if (was && was.s === next.s && next.at - was.at < STAMP_EVERY_MS) return false;', to: '' },
+  { test: 'R3', file: 'src/session/residue.js', from: '  awaySeen: sanitizeAwaySeen,', to: '  awaySeen: (v) => v,' },
 ];
 
 async function selftest() {

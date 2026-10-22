@@ -18,8 +18,8 @@
 // read makes that ROW null, not the whole section.
 // ════════════════════════════════════════════════════════════════════════
 
-import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.27';
-import { VITALS } from '../data/core-model.js?v=0.2.27';
+import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.28';
+import { VITALS } from '../data/core-model.js?v=0.2.28';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -116,6 +116,22 @@ export function wireSlot(s) {
   return { action: Object.assign({ type: s.action.type, id: s.action.id }, s.action.store ? { store: s.action.store } : {}),
     conditions: s.conditions.map((c) => Object.assign({ metric: c.metric, op: c.op, value: c.value }, c.subject ? { subject: c.subject } : {})),
     join: s.join };
+}
+
+/**
+ * THE SUPPLIES AN OPEN HUNT CARRIES, [{ id, qty }] largest first: the server's hunt bag
+ * (`hunt.session.bag`, each line's `left`). Enter MOVES the supplies out of the bag into it
+ * (hr_hunt_enter_for), so while a hunt runs the bag no longer holds them: every count of what
+ * the hero can eat or drink reads this (Brannoc 10-22: "Food ×0" with 20 Cooked Shrimp in the
+ * hunt bag). Null when no hunt is open (the bag holds them then). Replaced by each envelope. Pure.
+ */
+export function huntBagOf(cs) {
+  const h = section(cs, 'hunt');
+  if (!h || !str(h.session_id) || bool(h.ended) || !isObj(h.session) || !Array.isArray(h.session.bag)) return null;
+  return h.session.bag.slice(0, 64)
+    .map((l) => (isObj(l) && str(l.item) && int(l.left) !== null && l.left > 0 ? { id: l.item, qty: l.left } : null))
+    .filter(Boolean)
+    .sort((a, b) => b.qty - a.qty || (a.id < b.id ? -1 : 1));
 }
 
 /** `hunt_settings`: the per-hero options of the active preset, and its bar. */
@@ -225,8 +241,9 @@ const trainingOf = (m) => (isObj(m) ? Object.entries(m).filter(([k]) => k !== 'l
 /* A next-level eta in ms from the server's `eta_h` (hours) on a level or skill read; 0 (maxed) or absent reads null. */
 const etaMs = (r) => { const h = isObj(r) ? num(r.eta_h) : null; return h !== null && h > 0 ? Math.round(h * 3600000) : null; };
 
-/* One analyzer view (hr_hunt_analyzer: kills, xp {level|skill: n}, raw_xp {level|skill: n}, gold, waste,
-   balance, per_hour { xp: Level, raw_xp: Level, training_xp: the skills }, skills { skill: { per_hour } }
+/* One analyzer view (hr_hunt_analyzer: kills, xp {level|skill: n}, raw_xp {level|skill: n}, coins, loot_value,
+   gold (= coins + loot_value, gold_basis 'vendor_value'), waste, balance (= gold - waste),
+   per_hour { xp: Level, raw_xp: Level, training_xp: the skills, gold, waste, balance }, skills { skill: { per_hour } }
    (the hero's, premium), supplies { own: {item: n}, store: {item: n}, store_gold }, loot {item: n},
    taken / dealt { total, byMonster | byAbility, byElement }). */
 function viewOf(v) {
@@ -238,7 +255,11 @@ function viewOf(v) {
   const sk = isObj(v.skills) ? v.skills : {};
   const train = trainingOf(v.xp).filter(([k, n]) => str(k) && num(n) !== null && n > 0);
   return {
-    kills: num(v.kills), levelXp: levelOf(v.xp), rawLevelXp: levelOf(v.raw_xp), gold: num(v.gold), waste: num(v.waste), balance: num(v.balance),
+    /* GOLD IS COIN RECEIVED, never loot at its shop price (Brannoc 10-22: 5,386 gp shown, 2,443 gp credited). The
+       server's `gold` is coins + loot value; the loot's unsold value is its own line, and balance keeps the server's
+       definition (coins + loot value - store supplies), labelled so. */
+    kills: num(v.kills), levelXp: levelOf(v.xp), rawLevelXp: levelOf(v.raw_xp), gold: num(v.coins), lootValue: num(v.loot_value),
+    waste: num(v.waste), balance: num(v.balance),
     trainingXp: isObj(v.xp) ? total(Object.fromEntries(train)) : null,
     /* Each combat skill trained this session, most first: its XP and (the hero's, rated) its XP an hour and the
        time to its next level (the server's eta_h, hours; 0 = maxed and absent = unrated or the party's: null). */
@@ -247,7 +268,7 @@ function viewOf(v) {
     /* `rated`: the server sent rates. It sends none (per_hour null) until the session has
        ANALYZER_RATE_AFTER_MS of wall time (2026-11-06-hunt-analyzer-min-window.sql). */
     rated: isObj(v.per_hour),
-    perHour: { levelXp: num(ph.xp), rawLevelXp: num(ph.raw_xp), trainingXp: num(ph.training_xp), gold: num(ph.gold), waste: num(ph.waste), balance: num(ph.balance) },
+    perHour: { levelXp: num(ph.xp), rawLevelXp: num(ph.raw_xp), trainingXp: num(ph.training_xp), goldAndLoot: num(ph.gold), waste: num(ph.waste), balance: num(ph.balance) },
     supplies: rowsOf(sup.own, ([item, n]) => ({ item, source: 'own', count: n, gold: 0 }))
       .concat(rowsOf(sup.store, ([item, n]) => ({ item, source: 'store', count: n, gold: null }))),
     loot: rowsOf(v.loot, ([item, n]) => ({ item, count: n, value: null })),

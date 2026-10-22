@@ -309,6 +309,7 @@
         "slime_gel": 12
       },
       "loot_value": 406,
+      "coins": 2590,
       "gold_basis": "vendor_value",
       "taken": {
         "total": 850,
@@ -380,6 +381,7 @@
         "rat_tail": 62
       },
       "loot_value": 620,
+      "coins": 5372,
       "gold_basis": "vendor_value",
       "taken": {
         "total": 1200,

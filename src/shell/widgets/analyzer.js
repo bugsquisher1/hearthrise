@@ -8,7 +8,8 @@
 //
 // BASIC FOR EVERYONE, MORE WITH PREMIUM (Tyler 2026-10-19, replacing the 10-17
 // "only premium sees it"): every character sees the BASIC block — session time,
-// kills, Level XP and Level XP/h, loot value and gold/h, supplies spent (own vs
+// kills, Level XP and Level XP/h, gold (coin received) and loot value (unsold) apart,
+// gold + loot value an hour, supplies spent (own vs
 // store), balance. The server's `premium` section adds the rest — next-level ETA,
 // Level XP before bonuses, waste, TRAINING XP and next level by skill (its own tab; Tyler
 // 2026-10-22: a premium tab, never a popup over the heads), damage taken and
@@ -27,12 +28,12 @@
 // never steps back; display only, the next envelope replaces it. The view, tab
 // and folds are display scratch on the panel.
 // ════════════════════════════════════════════════════════════════════════
-import { analyzerOf, isPremium, sessionClockMs, serverNowOf } from '../../session/hunt-sections.js?v=0.2.27';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.27';
-import { whole, gold, clock, hoursMinutes } from '../../render/format.js?v=0.2.27';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.27';
-import { panelHtml, itemIconHtml, itemName, monsterName, abilityName, elementName, skillName } from './bits.js?v=0.2.27';
-import { ANALYZER_RATE_AFTER_MS } from '../../data/hunt-sessions.js?v=0.2.27';
+import { analyzerOf, isPremium, sessionClockMs, serverNowOf } from '../../session/hunt-sections.js?v=0.2.28';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.28';
+import { whole, gold, clock, hoursMinutes } from '../../render/format.js?v=0.2.28';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.28';
+import { panelHtml, itemIconHtml, itemName, monsterName, abilityName, elementName, skillName } from './bits.js?v=0.2.28';
+import { ANALYZER_RATE_AFTER_MS } from '../../data/hunt-sessions.js?v=0.2.28';
 
 /* Before the server's rate window the rates are null: the totals show, and this line says when the rest will. */
 const RATE_LATER = 'Per hour after ' + Math.round(ANALYZER_RATE_AFTER_MS / 60000) + ' min.';
@@ -45,8 +46,8 @@ const premiumTab = (tab) => tab !== 'session';
 /* Each section: its tab, its title and its body (a fixed list of stat rows, or a keyed list). A stat row is
    [key, label, format, from?]: v[key], or v[from][key]; its node is data-stat="key" (from-prefixed: "perHour.key"). */
 const SECTIONS = Object.freeze([
-  { id: 'totals', tab: 'session', title: 'Session', stats: [['kills', 'Monsters killed', whole], ['levelXp', 'Level XP', whole], ['gold', 'Gold', gold], ['waste', 'Supplies cost', gold], ['balance', 'Balance', gold]] },
-  { id: 'rates', tab: 'session', title: 'Per hour', stats: [['levelXp', 'Level XP per hour', whole, 'perHour'], ['rawLevelXp', 'Level XP per hour before bonuses', whole, 'perHour'], ['gold', 'Gold per hour', gold, 'perHour'], ['waste', 'Supplies per hour', gold, 'perHour'], ['balance', 'Balance per hour', gold, 'perHour']] },
+  { id: 'totals', tab: 'session', title: 'Session', stats: [['kills', 'Monsters killed', whole], ['levelXp', 'Level XP', whole], ['gold', 'Gold', gold], ['lootValue', 'Loot value (unsold)', gold], ['waste', 'Supplies cost', gold], ['balance', 'Balance (gold + loot value − supplies)', gold]] },
+  { id: 'rates', tab: 'session', title: 'Per hour', stats: [['levelXp', 'Level XP per hour', whole, 'perHour'], ['rawLevelXp', 'Level XP per hour before bonuses', whole, 'perHour'], ['goldAndLoot', 'Gold and loot value per hour', gold, 'perHour'], ['waste', 'Supplies per hour', gold, 'perHour'], ['balance', 'Balance per hour', gold, 'perHour']] },
   { id: 'supplies', tab: 'session', title: 'Supplies used', list: 'supplies' },
   { id: 'loot', tab: 'session', title: 'Loot collected', list: 'loot' },
   /* TRAINING (premium): what the combat skills earned from blows dealt, blows taken and mana spent — never

@@ -17,14 +17,14 @@
 // heroVitalsOf, the ONE reader the Character tab shares (r09: the two said Level 4
 // and 11), stamina from staminaOf, regen from the hunt section. Built once, patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { CONSUMABLES } from '../../data/consumables.js?v=0.2.27';
-import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.27';
-import { huntOf, staminaOf } from '../../session/hunt-sections.js?v=0.2.27';
-import { bagOf } from '../../session/item-sections.js?v=0.2.27';
-import { text, attr } from '../../render/paint.js?v=0.2.27';
-import { whole, hoursMinutes } from '../../render/format.js?v=0.2.27';
-import { glyphSvg } from '../launcher.js?v=0.2.27';
-import { itemIconHtml, itemName } from './bits.js?v=0.2.27';
+import { CONSUMABLES } from '../../data/consumables.js?v=0.2.28';
+import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.28';
+import { huntOf, huntBagOf, staminaOf } from '../../session/hunt-sections.js?v=0.2.28';
+import { carriedOf } from '../../session/item-sections.js?v=0.2.28';
+import { text, attr } from '../../render/paint.js?v=0.2.28';
+import { whole, hoursMinutes } from '../../render/format.js?v=0.2.28';
+import { glyphSvg } from '../launcher.js?v=0.2.28';
+import { itemIconHtml, itemName } from './bits.js?v=0.2.28';
 
 /* The arcs on a 100 x 100 box, centre (50, 50), radius 42: the left one from the
    bottom (111.6 deg) round to the top (248.4 deg), the right one the mirror. */
@@ -52,7 +52,8 @@ export function hubHtml(glyphs) {
     + '</div>';
 }
 
-/* The bag's own food: how many in all, and the stack with the most (its icon stands for them). */
+/* The food the hero carries (an open hunt's hunt bag, else the bag): how many in all, and the stack with the most
+   (its icon stands for them). Brannoc 10-22: the bag alone read "Food ×0" mid-hunt, Enter moves the food out of it. */
 function foodOf(bag) {
   let n = 0, top = null;
   for (const l of bag || []) {
@@ -91,10 +92,11 @@ export function patchHub(el, ctx) {
   text(el.querySelector('.hb-xp'), xp === null ? '' : 'XP ' + Math.floor(Math.max(0, Math.min(1, xp)) * 100) + '%');
   attr(el.querySelector('.hb-medal'), 'title', level === null ? 'Level' : 'Level ' + level + (xp === null ? '' : ': ' + Math.floor(Math.max(0, Math.min(1, xp)) * 100) + '% of the way to ' + (level + 1)));
   text(el.querySelector('.hb-stam-v'), hoursMinutes(stam ? stam.msLeft : null));
-  const food = foodOf(bagOf(cs));
+  const food = foodOf(carriedOf(cs));
   const sock = el.querySelector('.hb-socket.is-food');
   const ico = sock.querySelector('.hb-socket-ico');
   if (ico.getAttribute('data-for') !== String(food.top)) { ico.innerHTML = food.top ? itemIconHtml(ctx.glyphs, food.top) : glyphSvg(ctx.glyphs, 'uiFood'); attr(ico, 'data-for', String(food.top)); }
   text(sock.querySelector('.hb-socket-k'), 'Food ×' + whole(food.n));
-  attr(sock, 'title', food.top ? whole(food.n) + ' food in the bag (most: ' + itemName(food.top) + ')' : 'No food in the bag: a store food on the bar buys as used');
+  const where = huntBagOf(cs) ? 'the hunt bag' : 'the bag';
+  attr(sock, 'title', food.top ? whole(food.n) + ' food in ' + where + ' (most: ' + itemName(food.top) + ')' : 'No food in ' + where + ': a store food on the bar buys as used');
 }

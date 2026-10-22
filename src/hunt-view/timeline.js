@@ -23,7 +23,7 @@
 //      ONE walking step toward it (reconcile gently); it never teleports a unit
 //      that is mid-step and never rewrites a step already played.
 //   T6 the UNIT BOOK: each batch's `units` ({ id: [kind, maxHp, hp at the batch's start] },
-//      the settle answer's hunt_units) names and sizes a unit (a hero too) for as long as it plays, and its
+//      the settle answer's hunt_units) names and sizes a unit (a hero too), each batch re-sizing it (a Level-up raises max HP), and its
 //      bar at the instant shown is that start HP moved by the dmg / heal events at or before the
 //      instant (hpAt): the HP of the moment drawn, never the snapshot's later number.
 //   T7 a step that does not move the unit (an anchor on the tile it already holds) adds nothing.
@@ -68,7 +68,7 @@ export function createTimeline(o) {
   const queue = [];                  // events not yet played, ascending atMs
   const listeners = new Set();
   const arrivals = new Set();        // told of each NEW event at ingest (the alerts), before playback
-  const book = new Map();            // unit -> { kind, maxHp, bases: [[atMs, hp]], deltas: [[atMs, d]] } (T6)
+  const book = new Map();            // unit -> { kind, maxHp, maxAt, bases: [[atMs, hp, maxHp]], deltas: [[atMs, d]] } (T6)
 
   function measure(serverNowMs, clientNowMs) {
     if (!isInt(serverNowMs) || !Number.isFinite(clientNowMs)) return;
@@ -128,9 +128,12 @@ export function createTimeline(o) {
       const u = Number(k);
       if (!isInt(u) || !Array.isArray(v) || typeof v[0] !== 'string' || !isInt(v[1]) || v[1] <= 0) continue;
       let r = book.get(u);
-      if (!r) { r = { kind: v[0], maxHp: v[1], bases: [], deltas: [] }; book.set(u, r); }
+      if (!r) { r = { kind: v[0], maxHp: v[1], maxAt: fromMs, bases: [], deltas: [] }; book.set(u, r); }
+      /* Max HP is each batch's, never the first one's: a Level-up mid-hunt raises it (Brannoc 10-22:
+         150/150 in the hunt through Level 5 while the server held 190). The newest batch sizes the bar. */
+      if (fromMs >= r.maxAt) { r.maxHp = v[1]; r.maxAt = fromMs; }
       if (isInt(v[2]) && !r.bases.some((x) => x[0] === fromMs)) {
-        r.bases.push([fromMs, Math.max(0, Math.min(v[1], v[2]))]);
+        r.bases.push([fromMs, Math.max(0, Math.min(v[1], v[2])), v[1]]);
         r.bases.sort((x, y) => x[0] - y[0]);
         if (r.bases.length > 8) r.bases.splice(0, r.bases.length - 8);
       }
@@ -267,7 +270,9 @@ export function createTimeline(o) {
     if (!base) base = r.bases[0];
     let hp = base[1];
     for (const [at, d] of r.deltas) if (at >= base[0] && at <= t) hp += d;
-    return { hp: Math.max(0, Math.min(r.maxHp, hp)), maxHp: r.maxHp };
+    /* The max of the batch the instant falls in (its base), so a raise shows from the batch that made it. */
+    const max = base[2] || r.maxHp;
+    return { hp: Math.max(0, Math.min(max, hp)), maxHp: max };
   }
 
   /** T10: a new hunt session is a new instance whose unit ids start again at 1: forget every step,

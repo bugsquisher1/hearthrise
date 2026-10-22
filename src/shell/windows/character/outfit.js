@@ -10,16 +10,16 @@
 // owns ownership and the worn look; the draft is display scratch until the
 // re-read envelope says what is worn.
 // ════════════════════════════════════════════════════════════════════════
-import { OUTFIT_ROWS, OUTFIT_IDS, REGION_LABEL, DYE_COUNT } from '../../../data/outfits.js?v=0.2.27';
-import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.27';
-import { FACINGS } from '../../../data/world/art-budget.js?v=0.2.27';
-import { outfitOf } from '../../../session/character-sections.js?v=0.2.27';
-import { heroSprite } from '../../../session/hero-look.js?v=0.2.27';
-import { rows, text, cls, prop, attr, style, element } from '../../../render/paint.js?v=0.2.27';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.27';
-import { glyphSvg } from '../../launcher.js?v=0.2.27';
-import { hasMask } from '../../../render/outfit-sprite.js?v=0.2.27';
-import { runIntent } from '../../intent-words.js?v=0.2.27';
+import { OUTFIT_ROWS, OUTFIT_IDS, REGION_LABEL, DYE_COUNT } from '../../../data/outfits.js?v=0.2.28';
+import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.28';
+import { FACINGS } from '../../../data/world/art-budget.js?v=0.2.28';
+import { outfitOf } from '../../../session/character-sections.js?v=0.2.28';
+import { heroSprite } from '../../../session/hero-look.js?v=0.2.28';
+import { rows, text, cls, prop, attr, style, element } from '../../../render/paint.js?v=0.2.28';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.28';
+import { glyphSvg } from '../../launcher.js?v=0.2.28';
+import { hasMask } from '../../../render/outfit-sprite.js?v=0.2.28';
+import { runIntent } from '../../intent-words.js?v=0.2.28';
 
 /* The turn order of the rotate button: clockwise from facing the viewer. */
 const TURN = Object.freeze(['s', 'sw', 'w', 'nw', 'n', 'ne', 'e', 'se'].filter((d) => FACINGS.includes(d)));
@@ -36,6 +36,7 @@ export function outfitHtml(g) {
     + '<div class="hw-of-right"><div class="hw-of-tools"><label class="hw-search">' + glyphSvg(g, 'uiSearch')
     + '<input type="search" data-hs-act="of-search" placeholder="Search outfits" aria-label="Search outfits"></label>'
     + '<label class="hw-of-owned"><input type="checkbox" data-hs-act="of-owned"> Show only owned</label></div>'
+    + '<p class="hs-note hw-of-looks">Looks only. How you fight comes from the weapon you hold.</p>'
     + '<ul class="hw-of-grid"></ul><p class="hh-empty hw-of-none">No outfit matches.</p></div>'
     + '</section>';
 }

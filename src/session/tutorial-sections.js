@@ -6,10 +6,10 @@
 // is the same after a reload, on another device, and while the browser was
 // closed (CLAUDE.md §6). The rules live in src/data/hunt-tutorial.js currentCard.
 // ════════════════════════════════════════════════════════════════════════
-import { currentCard } from '../data/hunt-tutorial.js?v=0.2.27';
-import { levelOf } from './character-sections.js?v=0.2.27';
-import { huntOf, settingsOf } from './hunt-sections.js?v=0.2.27';
-import { skillsOf } from './item-sections.js?v=0.2.27';
+import { currentCard, nextGoal, ROLE_SKILL } from '../data/hunt-tutorial.js?v=0.2.28';
+import { levelOf } from './character-sections.js?v=0.2.28';
+import { huntOf, settingsOf } from './hunt-sections.js?v=0.2.28';
+import { skillsOf } from './item-sections.js?v=0.2.28';
 
 /** The facts currentCard judges, or null until the server has told the Level XP. */
 function tutorialFactsOf(cs) {
@@ -29,8 +29,16 @@ function tutorialFactsOf(cs) {
   };
 }
 
-/** The tutorial row this character is on, or null (none to show, or the server has not said yet). */
-export function tutorialCardOf(cs) {
+/** The pointer line: the tutorial card this character is on while the guide runs (null until the server has
+ *  said), then the "What next" goal (src/data/hunt-tutorial.js
+ *  nextGoal: the next ground by Level and the weapon skill's next unlock), or null until the server has said. */
+export function pointerCardOf(cs) {
   const f = tutorialFactsOf(cs);
-  return f ? currentCard(f) : null;
+  if (!f) return null;
+  const card = currentCard(f);
+  if (card) return card;
+  const role = (settingsOf(cs) || {}).role || null;
+  const sk = skillsOf(cs);
+  const skill = ROLE_SKILL[role];
+  return nextGoal({ charLevel: f.charLevel, role, skillLevel: sk && skill && sk[skill] ? sk[skill].level : null });
 }

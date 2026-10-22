@@ -12,8 +12,14 @@
 // soon"); a renderer with no row is dead code nothing can open. Both rows must
 // also pass their manager's own contract validation, and every renderer must
 // return markup for a minimal shell context.
+//
+// EVERY OPENED ID IS A ROW (Brannoc 10-22: the hunt summary's "Open bag" called
+// ctx.show('bag') while the window is 'inventory', so the button did nothing):
+// each literal id under src/ given to ctx.show / ui.open / an `open:` data field
+// is a window or a HUD widget row, and each given to wm.open a window row.
+// (src/data/world/** is excluded: a station's `open` names a world target.)
 // ════════════════════════════════════════════════════════════════════════
-import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, cpSync, rmSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, cpSync, rmSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -26,6 +32,25 @@ const FILES = {
   wm: 'src/shell/window-manager.js',
   hud: 'src/shell/hud.js',
 };
+
+/* Every literal id opened under src/ names a row (the header's EVERY OPENED ID IS A ROW). */
+function opened(base, windows, widgets, errs) {
+  const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(d, e.name)) : e.name.endsWith('.js') ? [join(d, e.name)] : []));
+  const SHOW = /\b(?:ctx\.show|ui\.open|wm\.open)\(\s*'([^']*)'|\bopen:\s*'([^']*)'/g;
+  let n = 0;
+  for (const f of walk(join(base, 'src'))) {
+    const rel = f.slice(base.length + 1).split(String.fromCharCode(92)).join('/');
+    if (rel.startsWith('src/data/world/')) continue;
+    const src = readFileSync(f, 'utf8');
+    for (const m of src.matchAll(SHOW)) {
+      const id = m[1] !== undefined ? m[1] : m[2];
+      const windowOnly = m[0].startsWith('wm.open');
+      n++;
+      if (!windows.has(id) && (windowOnly || !widgets.has(id))) errs.push('opened id `' + id + '` (' + rel + ') is no ' + (windowOnly ? 'window' : 'window or widget') + ' row');
+    }
+  }
+  if (n < 5) errs.push('opened ids: only ' + n + ' found under src/ (the scan is broken)');
+}
 
 async function check(base) {
   const u = (p) => pathToFileURL(join(base, p)).href;
@@ -42,6 +67,7 @@ async function check(base) {
   };
   pair('window', SHELL_WINDOWS, WINDOW_RENDERERS);
   pair('widget', HUD_WIDGETS, WIDGET_RENDERERS);
+  opened(base, new Set(SHELL_WINDOWS.map((r) => r.id)), new Set(HUD_WIDGETS.map((r) => r.id)), errs);
   try { WM.validateWindowRows(SHELL_WINDOWS); } catch (e) { errs.push(e.message); }
   try { HUD.validateWidgetRows(HUD_WIDGETS); } catch (e) { errs.push(e.message); }
   if (errs.length) return errs;
@@ -65,6 +91,7 @@ const MUTANTS = [
   { name: 'a window renderer with no row', file: FILES.renderers, from: 'export const WINDOW_RENDERERS = Object.freeze({\n', to: 'export const WINDOW_RENDERERS = Object.freeze({\n  ghost: () => \'<p>x</p>\',\n', want: 'window renderer `ghost`' },
   { name: 'a widget renderer with no row', file: FILES.renderers, from: 'export const WIDGET_RENDERERS = Object.freeze({\n', to: 'export const WIDGET_RENDERERS = Object.freeze({\n  ghost: () => \'<p>x</p>\',\n', want: 'widget renderer `ghost`' },
   { name: 'a renderer that draws nothing', file: FILES.renderers, from: '  launchers: renderLaunchers,', to: "  launchers: () => '',", want: 'returned no markup' },
+  { name: 'a button opens a window id that is no row (Open bag, 10-22)', file: 'src/shell/windows/hunt-summary.js', from: "ctx.show('inventory')", to: "ctx.show('bag')", want: 'opened id `bag`' },
   { name: 'a row that breaks the widget contract', file: FILES.widgets, from: "anchor: 'tr'", to: "anchor: 'zz'", want: 'anchor must be' },
 ];
 
@@ -90,5 +117,5 @@ if (process.argv.includes('--selftest')) {
 } else {
   const errs = await check(ROOT);
   if (errs.length) { console.error('shell-renderers: RED\n  ' + errs.join('\n  ')); process.exit(1); }
-  console.log('shell-renderers: every shell row has a renderer and every renderer a row');
+  console.log('shell-renderers: every shell row has a renderer, every renderer a row, every opened id a row');
 }

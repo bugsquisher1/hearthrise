@@ -15,12 +15,13 @@
 //   statLines / compare   an item's stats in words, and the change against the worn one
 //   equipSlotFor(id, eq)  the slot an item would go into
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.27';
-import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.27';
-import { MONSTERS } from '../data/monsters.js?v=0.2.27';
-import { expandItemSlot } from '../data/gathering.js?v=0.2.27';
-import { BAG_SEEN_MAX } from '../session/residue.js?v=0.2.27';
-import { itemName } from './widgets/bits.js?v=0.2.27';
+import { ITEMS } from '../data/items.js?v=0.2.28';
+import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.28';
+import { MONSTERS } from '../data/monsters.js?v=0.2.28';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.28';
+import { expandItemSlot } from '../data/gathering.js?v=0.2.28';
+import { BAG_SEEN_MAX } from '../session/residue.js?v=0.2.28';
+import { itemName } from './widgets/bits.js?v=0.2.28';
 
 /* The category row, in reading order. `all` first; the rest are kinds. */
 export const BAG_CATS = Object.freeze([
@@ -109,6 +110,27 @@ export function view(items, o) {
     name: byName,
   };
   return rows.sort(sorts[o.sort] || sorts.type);
+}
+
+let RITES = null;
+/**
+ * The recipe a skill spends this item on WITHOUT making anything (a recipe row with an `input` and no `output`:
+ * Prayer's Bury Bones, Offer Razor Claw...), or null. From the recipe rows, so a new offering needs no code.
+ */
+export function riteOf(id) {
+  if (!RITES) {
+    RITES = new Map();
+    for (const [skill, rows] of Object.entries(ARTISAN_RECIPES)) for (const r of rows || []) if (r && r.input && !r.output && !RITES.has(r.input)) RITES.set(r.input, { skill, recipe: r });
+  }
+  return RITES.get(id) || null;
+}
+
+/**
+ * The stacks "Sell all loot" sells: monster loot, never an offering a skill trains on (bones are buried for Prayer,
+ * ruling 2026-10-14; Brannoc 10-22: Sell all loot sold his bones). Ids, in the bag's order.
+ */
+export function lootToSell(items) {
+  return (items || []).filter((r) => kindOf(r.id) === 'loot' && !riteOf(r.id)).map((r) => r.id);
 }
 
 /**

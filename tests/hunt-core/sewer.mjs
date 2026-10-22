@@ -331,13 +331,31 @@ const cases = {
     const floor = M.xp.charXpForLevel(M.HUNTS.millrace_sewer.band[0]);
     const got = [cardOf(env(0)), cardOf(env(0, 'mill_cellar')), cardOf(env(floor, 'mill_cellar')), cardOf(env(floor))].join(',');
     const want = 'to_the_cellar,first_kill,leave_cellar,set_the_bar';
-    return got === want ? null : 'the launcher showed ' + got + ', wanted ' + want;
+    if (got !== want) return 'the launcher showed ' + got + ', wanted ' + want;
+    /* AFTER THE GUIDE (designer 2026-10-22: at Level 12 in the Sewer nothing said what to aim at): the pointer
+       names the next ground above the hero's Level, from the data, and the weapon skill's next unlock. */
+    const L = M.HUNTS.millrace_sewer.band[0] + 4;
+    /* the player has set the bar (a conditioned slot, shown and stored), so the guide is done */
+    const eat = { action: { type: 'consume', id: 'cooked_shrimp' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 60 }], join: 'and' };
+    const sewerEnv = { ...env(M.xp.charXpForLevel(L), 'millrace_sewer'), hunt_settings: { preset: 1, slots: [eat], bar: [eat], role: 'tank' },
+      skills: { melee: { xp: 0, level: 11 } } };
+    const html = renderLaunchers({ character: { read: (k) => sewerEnv[k] }, glyphs: {}, hud: { isShown: () => false },
+      wm: { openIds: () => [], rows: () => [], row: () => null } });
+    const goal = (/data-tutorial="([a-z0-9_]+)"/.exec(html) || [])[1] || '';
+    const next = Object.values(M.HUNTS).filter((h) => h.staged !== true && Object.values(M.grounds.HUNT_GROUNDS).some((g) => g.hunt === h.id) && h.band[0] > L)
+      .sort((a, b) => a.band[0] - b.band[0])[0];
+    if (!goal.startsWith('goal_')) return 'after the guide (Level ' + L + ', in the Sewer) the pointer shows ' + (goal || 'nothing');
+    if (next && !html.includes(next.name)) return 'the what-next line does not name ' + next.name + ': ' + html;
+    if (!/Next at Melee level \d+/.test(html)) return 'the what-next line does not name the sword hero\'s next Melee unlock: ' + html;
+    return null;
   },
 };
 
 const mutants = [
+  { name: 'nothing to aim at after the guide (no what-next line)', case: 'tutorial-launcher-card',
+    edits: [['src/session/tutorial-sections.js', '  if (card) return card;\n', '  return card;\n']] },
   { name: 'the launcher shows only the first card', case: 'tutorial-launcher-card',
-    edits: [['src/shell/launcher.js', 'const card = tutorialCardOf(cs);', "const card = tutorialCardOf(cs) && { id: 'to_the_cellar', title: 'a', text: 'b' };"]] },
+    edits: [['src/shell/launcher.js', 'const card = pointerCardOf(cs);', "const card = pointerCardOf(cs) && { id: 'to_the_cellar', title: 'a', text: 'b' };"]] },
   { name: 'the pointer is drawn over an open window', case: 'tutorial-launcher-card',
     edits: [['src/shell/launcher.js', 'ctx.wm.openIds().length > 0', 'ctx.wm.row(ctx.wm.openIds()[0] || "") && ctx.wm.row(ctx.wm.openIds()[0]).modal']] },
   { name: 'the launcher keeps the pointer in a hunt (over Leave hunt)', case: 'tutorial-launcher-card',

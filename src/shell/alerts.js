@@ -21,6 +21,8 @@
 //           stops for lack of stock). A bar slot names ONE item: its stock is
 //           that item's bag stack.
 //   ended   the hunt section saying `ended`, id = session
+//   away    "While you were away": on return, what the hunt did since this
+//           browser last showed it (away-recap.js), id = session + the stamp
 //   invite  a party invite waiting for the character (`party_invites`), id =
 //           the server's invite id; Join / No thanks answer it, and it goes
 //           when the server no longer lists it (answered anywhere, expired)
@@ -32,21 +34,24 @@
 // Nothing here gates or spends anything; the "Start again" button is an
 // intent (CharacterSession.restartHunt) like every other.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERT_INDEX } from '../data/alerts.js?v=0.2.27';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.27';
-import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.27';
-import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.27';
-import { bagOf, nameOf } from '../session/item-sections.js?v=0.2.27';
-import { huntName, invitesOf } from '../session/party-sections.js?v=0.2.27';
-import { itemName } from './widgets/bits.js?v=0.2.27';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.27';
-import { deathSeen } from './death-popup.js?v=0.2.27';
+import { ALERT_INDEX } from '../data/alerts.js?v=0.2.28';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.28';
+import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.28';
+import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.28';
+import { carriedOf, nameOf } from '../session/item-sections.js?v=0.2.28';
+import { huntName, invitesOf } from '../session/party-sections.js?v=0.2.28';
+import { itemName } from './widgets/bits.js?v=0.2.28';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.28';
+import { deathSeen } from './death-popup.js?v=0.2.28';
+import { awayRecapOf, stampAway } from './away-recap.js?v=0.2.28';
 
 const residueOf = (cs) => {
   const r = cs && cs.record && cs.record.residue && cs.record.residue.alerts;
   return r && typeof r === 'object' ? r : {};
 };
 const who = (cs) => nameOf(cs) || 'Character ' + (cs.slot + 1);
+/* The lines a new hunt retires once its session is open (the last hunt's end, death and low supply). */
+const RETIRE = new Set(['ended', 'death', 'low']);
 
 /** Which kinds this character shows (every kind unless its residue switched it off). */
 export function alertShown(cs, kind) {
@@ -68,7 +73,8 @@ const kindOf = (id) => (CONSUMABLES[id] ? CONSUMABLES[id].kind : null);
 
 /* The low-supply items of a hunting character: bar supplies at zero (no shop sells supplies; Tyler 2026-10-20). */
 function lowItems(cs, hero) {
-  const bag = bagOf(cs);
+  /* What the hero carries now: a hunt's supplies are in its hunt bag, not the bag (carriedOf). */
+  const bag = carriedOf(cs);
   if (!bag) return [];
   const s = settingsOf(cs);
   /* The store pays per use unless the hero opted into "own stock, end the hunt": running out is no event. */
@@ -164,11 +170,21 @@ export function createAlertCenter(account) {
   function scan(cs) {
     let any = false;
     const now = candidatesOf(cs, account.viewed === cs.slot);
+    /* "While you were away" (away-recap.js): judged against the last-seen stamp BEFORE it is renewed. */
+    const away = awayRecapOf(cs);
+    if (away) now.push(away);
     for (const c of now) any = fire(cs, c) || any;
+    stampAway(cs);
     /* An invite the server no longer lists (answered elsewhere, expired, its party gone) leaves the lines. */
     const live = new Set(now.filter((c) => c.kind === 'invite').map((c) => c.id));
+    /* A NEW HUNT RETIRES THE LAST ONE'S LINES (Brannoc 10-22: "has ended · Start again" stayed up into the next
+       hunt): once the server says another session is open, an ended, death or low line of an older one goes. */
+    const h = huntOf(cs);
+    const open = h && !h.ended ? h.sessionId : null;
     for (let i = alerts.length - 1; i >= 0; i--) {
-      if (alerts[i].slot === cs.slot && alerts[i].kind === 'invite' && !live.has(alerts[i].id)) { alerts.splice(i, 1); any = true; }
+      const a = alerts[i];
+      if (a.slot !== cs.slot) continue;
+      if ((a.kind === 'invite' && !live.has(a.id)) || (open && RETIRE.has(a.kind) && a.session && a.session !== open)) { alerts.splice(i, 1); any = true; }
     }
     if (any) changed();
   }

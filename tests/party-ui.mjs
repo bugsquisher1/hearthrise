@@ -44,7 +44,9 @@
 //   UI-8  the leader's Find tab carries the listing switch (a party is private until listed,
 //         Security reopen #1): it reads the server's `listed` and is ONE hr_hunt_party_list,
 //         off until the server answered
-//   AL-2  no out-of-stock warning while the store pays; none for a resource the hero does not use
+//   AL-2  no out-of-stock warning while the store pays; none for a resource the hero does not use; the
+//         hunt bag's supplies are stock mid-hunt (Brannoc 10-22)
+//   AL-3  a new hunt retires the last one's ended / death / low lines (Brannoc 10-22)
 //   UI-4  the command centre lists every open character; zero console errors throughout
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
@@ -228,7 +230,33 @@ async function pureRules(M, base) {
     const c = await lows((e) => kinds(e, 'end', true, true));
     if (!c || c.length) return 'a slot whose item is in the bag still read as out of stock: ' + JSON.stringify(c);
     const d = await lows((e) => kinds(e, 'end', false, true));
-    return (d && d.length === 1 && / is out of Cooked Shrimp\.$/.test(d[0])) || 'own stock with "end the hunt" and no food must warn once, in words: ' + JSON.stringify(d);
+    if (!(d && d.length === 1 && / is out of Cooked Shrimp\.$/.test(d[0]))) return 'own stock with "end the hunt" and no food must warn once, in words: ' + JSON.stringify(d);
+    /* Brannoc 10-22: Enter moves the food into the HUNT BAG, so the bag has none mid-hunt; the hunt bag's food is stock. */
+    const h = await lows((e) => { kinds(e, 'end', false, true); e.hunt.session = { bag: [{ item: 'cooked_shrimp', left: 20, loaded: 20 }, { item: 'goldenroot_tea', left: 5, loaded: 5 }] }; });
+    return (h && h.length === 0) || 'food in the hunt bag (none in the bag) still warned out of food: ' + JSON.stringify(h);
+  });
+
+  /* AL-3 A NEW HUNT RETIRES THE LAST ONE'S END LINE (Brannoc 10-22: "has ended · Start again" stayed up into the next
+     hunt): the ended line shows while the hunt is over, and goes once the server says another session is open. */
+  await t('AL-3', async () => {
+    const srv = fakeServer();
+    const e = srv.env[0];
+    e.hunt_events = [];
+    e.hunt.ended = true;
+    e.hunt.session = { end_reason: 'stamina', ended_at: '2026-10-17T12:30:00Z', phase: 'ended' };
+    const acc = account(M, srv);
+    const centre = M.AL.createAlertCenter(acc);
+    const cs = (await acc.open(0)).session;
+    if (!cs) return 'the fixture character did not open';
+    const ended = () => centre.list().filter((a) => a.kind === 'ended').length;
+    if (ended() !== 1) return 'the ended hunt raised ' + ended() + ' ended line(s), want 1';
+    await cs.load();
+    if (ended() !== 1) return 'a re-read of the same ended hunt dropped its line';
+    e.hunt.ended = false;
+    e.hunt.session_id = '5d1c0f2e-0000-4000-8000-000000000099';
+    e.hunt.session = { end_reason: null, ended_at: null, phase: 'hunting' };
+    await cs.load();
+    return ended() === 0 || 'the last hunt\'s "Start again" line stayed up in the next hunt';
   });
 
   await t('PI-1', async () => {
@@ -666,6 +694,8 @@ async function pageRules(overrides, shots) {
 
 /* ── THE MUTANTS: each must turn at least one rule red. ── */
 const PURE_MUTANTS = [
+  ['the last hunt\'s end line stays into the next (AL-3, Brannoc 10-22)', 'src/shell/alerts.js', '|| (open && RETIRE.has(a.kind) && a.session && a.session !== open)', ''],
+  ['the low alert counts the bag mid-hunt (AL-2, Brannoc 10-22)', 'src/session/item-sections.js', '  return huntBagOf(cs) || bagOf(cs);', '  return bagOf(cs);'],
   ['a death off screen raises no line', 'src/shell/alerts.js', '    if (!viewed && !deathSeen(cs, h.sessionId)) out.push(', '    if (false) out.push('],
   ['the store paying per use still warns out of stock', 'src/shell/alerts.js', "const storePays = !s || s.supplySource === 'store' || s.onEmpty !== 'end';", 'const storePays = false;'],
   ['a hero with no mana pool is warned about drinks', 'src/shell/alerts.js', "const uses = (id) => kindOf(id) !== 'drink' || hero.manaMax > 0;", 'const uses = () => true;'],

@@ -7,7 +7,7 @@
 // heroes, or bosses. The bleed stack badge is on over bosses and off over
 // regular monsters by default. Display only: nothing gates or spends on it.
 // ════════════════════════════════════════════════════════════════════════
-import { FLOAT_TYPES } from '../data/combat-text.js?v=0.2.27';
+import { FLOAT_TYPES } from '../data/combat-text.js?v=0.2.28';
 
 const BY_ID = new Map(FLOAT_TYPES.map((r) => [r.id, r]));
 

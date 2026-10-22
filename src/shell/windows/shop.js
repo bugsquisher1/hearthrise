@@ -13,14 +13,14 @@
 // Every control is off while an intent is in flight; counts and gold change
 // only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { shopOf, bagOf, rulesOf, goldOf } from '../../session/item-sections.js?v=0.2.27';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.27';
-import { whole, gold } from '../../render/format.js?v=0.2.27';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.27';
-import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.27';
-import { kindOf, sellPlan } from '../bag-model.js?v=0.2.27';
-import { runIntent } from '../intent-words.js?v=0.2.27';
-import { showTip, hideTip } from './item-tip.js?v=0.2.27';
+import { shopOf, bagOf, rulesOf, goldOf } from '../../session/item-sections.js?v=0.2.28';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.28';
+import { whole, gold } from '../../render/format.js?v=0.2.28';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.28';
+import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.28';
+import { kindOf, sellPlan, lootToSell } from '../bag-model.js?v=0.2.28';
+import { runIntent } from '../intent-words.js?v=0.2.28';
+import { showTip, hideTip } from './item-tip.js?v=0.2.28';
 
 const TABS = Object.freeze([['buy', 'Buy'], ['sell', 'Sell']]);
 const QTYS = Object.freeze([1, 5, 10, 25, 50, 100]);
@@ -89,7 +89,7 @@ function patchSell(root, st, ctx) {
     },
   });
   cls(root.querySelector('.hw-sell-none'), 'is-on', !list.length);
-  const loot = st.items.filter((r) => kindOf(r.id) === 'loot').map((r) => r.id);
+  const loot = lootToSell(st.items);
   const plan = sellPlan(st.items, loot, { locked, bids });
   const lb = root.querySelector('[data-hs-act="sell-loot"]');
   text(lb, 'Sell all loot' + (plan.lines.length ? ' · ' + gold(plan.total) : ''));
@@ -152,7 +152,7 @@ renderShop.act = function actShop(ctx, body, action, ev, t) {
   if (action === 'sell' || action === 'sell-loot') {
     const items = bagOf(cs) || [];
     const rules = rulesOf(cs);
-    const ids = action === 'sell' ? [t.getAttribute('data-item')] : items.filter((r) => kindOf(r.id) === 'loot').map((r) => r.id);
+    const ids = action === 'sell' ? [t.getAttribute('data-item')] : lootToSell(items);
     const plan = sellPlan(items, ids, { locked: rules ? rules.locked : null, bids: shop ? shop.bids : null });
     sc.confirm = plan.lines.length ? plan : null;
     repaint();

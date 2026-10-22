@@ -28,6 +28,7 @@
 //   stamina_refill { available, why, restore_ms, price, n, per_day }  the next refill, priced
 //   blessings      { held: [tier], permille, free_until, tiers: [{ tier, permille, price, held }] }
 // ════════════════════════════════════════════════════════════════════════
+import { huntBagOf } from './hunt-sections.js?v=0.2.28';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -46,6 +47,15 @@ export function bagOf(cs) {
   const items = [];
   for (const [id, n] of Object.entries(inv)) if (ID.test(id) && count(n) && n > 0) items.push({ id, qty: n });
   return items;
+}
+
+/**
+ * WHAT THE HERO CAN USE NOW: an open hunt's hunt bag (Enter moved its supplies out of the bag, hr_hunt_enter_for),
+ * else the bag. The ONE reader of supply stock for the bar's counts, its out-of-stock and rune reasons, the low-supply
+ * alert and the food socket (Brannoc 10-22: "Food ×0" with 20 Cooked Shrimp in the hunt bag). [{ id, qty }] or null.
+ */
+export function carriedOf(cs) {
+  return huntBagOf(cs) || bagOf(cs);
 }
 
 /** The worn set { equip_slot: item }, or null. */

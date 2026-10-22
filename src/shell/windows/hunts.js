@@ -41,18 +41,18 @@
 // server's `leader_densities`) with no step, and the server refuses a member's
 // pick (hr_hunt_density_set `not_leader`).
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf, settingsOf, huntBestsOf, huntDensityOf } from '../../session/hunt-sections.js?v=0.2.27';
-import { bagOf } from '../../session/item-sections.js?v=0.2.27';
-import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.27';
-import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.27';
-import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.27';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.27';
-import { whole } from '../../render/format.js?v=0.2.27';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.27';
-import { itemName } from '../widgets/bits.js?v=0.2.27';
-import { runIntent, refusalText } from '../intent-words.js?v=0.2.27';
-import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.27';
-import { huntRows, densityWords, bandWords, rangeWords, groupWords, recommendation, heroWords, packFor, partyNote, bestWords, ABOVE_LEVEL_WORDS } from '../hunt-list.js?v=0.2.27';
+import { huntOf, huntBagOf, settingsOf, huntBestsOf, huntDensityOf } from '../../session/hunt-sections.js?v=0.2.28';
+import { bagOf } from '../../session/item-sections.js?v=0.2.28';
+import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.28';
+import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.28';
+import { startPartyHunt, settleTownActivity } from '../../session/party-intents.js?v=0.2.28';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.28';
+import { whole } from '../../render/format.js?v=0.2.28';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.28';
+import { itemName } from '../widgets/bits.js?v=0.2.28';
+import { runIntent, refusalText } from '../intent-words.js?v=0.2.28';
+import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.28';
+import { huntRows, densityWords, bandWords, rangeWords, groupWords, heroWords, packFor, partyNote, bestWords, ABOVE_LEVEL_WORDS, recommendation } from '../hunt-list.js?v=0.2.28';
 
 const SCRATCH = new WeakMap();
 /* `draft` is the density shown before the server has it ({ hunt, n }), `timer` its coalescing
@@ -128,6 +128,12 @@ function packWords(lines) {
   return 'You carry ' + lines.map((l) => whole(l.qty) + ' ' + itemName(l.item)).join(', ') + '.';
 }
 
+/* The hunt under way: what its hunt bag holds now (the server's; Enter moved it out of the bag, Brannoc 10-22). */
+function carriedWords(lines) {
+  if (!lines.length) return 'Your hunt bag is empty.';
+  return 'Your hunt bag holds ' + lines.map((l) => whole(l.qty) + ' ' + itemName(l.id)).join(', ') + '.';
+}
+
 /** The skeleton (built once per opening). */
 export function renderHunts() {
   return '<div class="hw-hunts">'
@@ -167,6 +173,7 @@ renderHunts.patch = function patchHunts(body, ctx) {
   const pack = packFor(bagOf(cs));
   /* This hero's density pick per ground (hunt_density); null = the server sent none, no number shows. */
   const picks = huntDensityOf(cs);
+  const carried = now ? huntBagOf(cs) : null;
   /* This hero's personal bests, the server's (hunt_bests); null = the server sent none, the lines stay empty. */
   const bests = huntBestsOf(cs);
   /* "On the way to …" is the intent's answer, not the hunt's state: once the server's hunt section
@@ -195,7 +202,8 @@ renderHunts.patch = function patchHunts(body, ctx) {
       cls(band, 'is-short', short);
       /* the floor is a warning (Tyler 10-18): words only, Enter stays the server's to refuse */
       text(li.querySelector('.hw-hunt-warn'), [rangeWords(r, level), groupWords(r, size)].filter(Boolean).join(' '));
-      text(li.querySelector('.hw-hunt-pack'), on ? packWords(pack) : '');
+      /* While a hunt runs, its own line says what its hunt bag holds; no other line can be entered, so none says what it would carry. */
+      text(li.querySelector('.hw-hunt-pack'), !on ? '' : now ? (now.huntId === r.hunt && carried ? carriedWords(carried) : '') : packWords(pack));
       const best = bestWords(bests, r.hunt);
       text(li.querySelector('.hw-hunt-best-solo'), best ? best.solo : '');
       text(li.querySelector('.hw-hunt-best-party'), best ? best.party : '');

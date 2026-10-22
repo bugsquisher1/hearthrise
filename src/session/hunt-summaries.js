@@ -31,7 +31,7 @@ export function sanitizeSummary(v) {
   return {
     id: v.id, hunt: id(v.hunt), at: ms(v.at), reason, forfeit: v.forfeit === true,
     ms: num(v.ms) !== null && v.ms >= 0 ? Math.floor(v.ms) : null,
-    kills: int(v.kills), xp: num(v.xp), gold: num(v.gold), died: int(v.died),
+    kills: int(v.kills), xp: num(v.xp), gold: num(v.gold), lootValue: num(v.lootValue), died: int(v.died),
     /* The server's per-hour figures at the end (the analyzer's): balance for everyone, raw XP premium only. */
     balanceH: num(v.balanceH), rawXpH: num(v.rawXpH),
     loot: pairs(v.loot, (p) => (Array.isArray(p) && id(p[0]) && int(p[1]) !== null ? [p[0], p[1]] : null), LOOT_SHOWN),

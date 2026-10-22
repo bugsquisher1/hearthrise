@@ -822,8 +822,20 @@
    "replay": 0
   },
   "hr_chat_config": {
-   "class": "UNCLASSIFIED — decide and edit",
-   "replay": 1
+   "class": "operator_tunable",
+   "wiped_at_cutover": false,
+   "replay": 1,
+   "live_value": {
+    "measured": "2026-10-22",
+    "value": [
+     {
+      "id": true,
+      "history_hours": 24
+     }
+    ],
+    "_source": "the AUTHORED DEFAULT, measured on the replay: the table is STAGED (2026-11-19-chat-stream-safe.sql) and not yet on production. history_epoch is deliberately NOT projected: it is seeded at apply time and moved forward by the operator, so it differs from any replay by construction. Re-measure with --live-sql after the apply."
+   },
+   "note": "THE CHAT HISTORY WINDOW (2026-11-19-chat-stream-safe.sql), a singleton seeded on conflict do nothing: history_epoch (no chat or whisper line written before it is ever read; forward-only, never in the future, by trigger) and history_hours (how far back a reader sees, 24). A rebuild re-seeds the epoch at the REBUILD time, hiding every older line: the safe direction (chat is stream-safe, nothing is lost but history that the 60-day trim deletes anyway). No player value, no secret: readable by every role (the RLS floor runs with the reader rights), writable by the owner only."
   },
   "hr_client_rpc_baseline": {
    "class": "seeded",

@@ -38,7 +38,14 @@ function latestBodies(root) {
     const starts = [];
     let m;
     while ((m = re.exec(src))) starts.push([m.index, m[1].toLowerCase()]);
-    for (let i = 0; i < starts.length; i++) last.set(starts[i][1], src.slice(starts[i][0], i + 1 < starts.length ? starts[i + 1][0] : src.length));
+    for (let i = 0; i < starts.length; i++) {
+      const next = i + 1 < starts.length ? starts[i + 1][0] : src.length;
+      /* A body ends at its closing dollar quote: a self-check `do` block after the LAST function (its pg_temp
+         probes' own codes, e.g. density-bounds' probe_no_hunt) is not that function's (v0.2.28 integration). */
+      const q = /\bas\s+(\$[a-z_]*\$)/i.exec(src.slice(starts[i][0], next));
+      const close = q ? src.indexOf(q[1], starts[i][0] + q.index + q[0].length) : -1;
+      last.set(starts[i][1], src.slice(starts[i][0], close >= 0 && close < next ? close + q[1].length : next));
+    }
   }
   return last;
 }

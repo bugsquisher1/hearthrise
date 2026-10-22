@@ -1388,6 +1388,12 @@ export const MUTATIONS = [
     [ENGINE, '      const have = Math.floor(nat(bag[id], 0));',
       '      const have = Math.floor(nat(bag[id], 0)); itemDelta[id] = (itemDelta[id] || 0) - Math.min(n, have); return;'],
   ], 'production is bounded by the clock instead of by the server inventory'],
+  ['M9  "make N" never caps the run (lane c-work-fixes)', [
+    [ENGINE, '    maxActions: runCap(inp.actionBudget, left0),', '    maxActions: runCap(inp.actionBudget, null),'],
+  ], 'a Forge Bronze Pickaxe x1 spends every bar in the bag'],
+  ['M10 "make N" never counts down (lane c-work-fixes)', [
+    [ENGINE, '  if (!stopped && left1 !== null && left1 < left0) delta.active_left = left1;', '  /* MUTATED */'],
+  ], 'a run cut across settles makes N in every window'],
   ['M2  journal.kind names the activity instead of the ledger kind', [
     [ENGINE, "      kind: 'craft',", "      kind: 'artisan',"],
   ], 'player_ledger_kind_check refuses it; hr_apply answers bad_delta and the night is lost'],

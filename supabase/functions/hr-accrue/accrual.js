@@ -2364,7 +2364,7 @@ function accrueArtisan(inp, span) {
   if (stopped) delta.activity = { kind: 'idle', id: null };
   /* "MAKE N": a run still short of its count proposes the lowered count (hr_apply accepts it
      only below the stored one, on an accrual): a replayed or re-cut window cannot pay past N. */
-  else if (left1 !== null && left1 < left0) delta.active_left = left1;
+  if (!stopped && left1 !== null && left1 < left0) delta.active_left = left1;
 
   return {
     accrued: true,

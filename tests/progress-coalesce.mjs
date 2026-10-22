@@ -122,10 +122,10 @@ async function copyTree(mut) {
 
 async function load(base) {
   const at = (p) => import(pathToFileURL(join(base, p)).href);
-  const [contract, gather, xp, cxp] = await Promise.all([
-    at(C), at(G), at('src/core/xp.js'), at('src/core/companion-xp.js'),
+  const [contract, gather, xp] = await Promise.all([
+    at(C), at(G), at('src/core/xp.js'),
   ]);
-  return { contract, gather, xp, cxp };
+  return { contract, gather, xp };
 }
 
 // ── FIXTURES ───────────────────────────────────────────────────────────────
@@ -145,7 +145,7 @@ function gatherSession(M, t0, { pet = null, frac = false, node = 'normal_tree', 
 /** The named fixtures of D1 (and H1's inline half). `hf` selects the hearthfind tree. */
 const FIXTURES = [
   { id: 'gather', kind: 'gather', make: (M, t0, n) => gatherSession(M, t0, { n }) },
-  { id: 'gather+pet', kind: 'gather', pet: 'fox', make: (M, t0, n) => gatherSession(M, t0, { pet: 'fox', frac: true, n }) },
+  /* ('gather+pet' left with the companion pets, 2026-10-22: no pet can be equipped.) */
   { id: 'xp_frac', kind: 'gather', make: (M, t0, n) => gatherSession(M, t0, { frac: true, node: 'mithril_rock', skill: 'mining', lv: 61, n }) },
   { id: 'hearthfind', kind: 'gather', hf: true,
     make: (M, t0, n) => Object.assign(gatherSession(M, t0, { frac: true, n }), { hearthfindReady: true }) },
@@ -210,7 +210,7 @@ function pureArms(M, ok, log) {
   // O1 — before / after, the window Security measured.
   const t0 = Date.parse('2026-10-08T12:00:00.000Z');
   {
-    const s = gatherSession(M, t0, { pet: 'fox', frac: true });
+    const s = gatherSession(M, t0, { frac: true });   // (no pet since the 2026-10-22 cut)
     const ch = M.gather.settleGatherSession(s, t0, t0 + FLUSH_MS, GEOM);
     const it = ch.intents[0];
     const raw = rawProgress(pollsOf(ch, it)).length;
@@ -274,11 +274,12 @@ async function dbArms(db, Ms, ok, log, run) {
 
   const mkChar = async (s, pet, u) => {
     await q('insert into auth.users (id) values ($1) on conflict do nothing', [u]);
+    /* `pet` is ignored since the pets were cut (player_state_companion_cut_ck). */
     await q(`insert into public.player_state (user_id, slot, gold, hp, version, accrued_to,
-                                              active_kind, active_id, active_since, companion_equipped)
+                                              active_kind, active_id, active_since)
              values ($1, 0, 0, $2, 1, to_timestamp($3::double precision / 1000), $4, $5,
-                     to_timestamp($6::double precision / 1000), $7)`,
-    [u, s.hp, s.accruedToMs, s.activeKind, s.activeId, s.activeSinceMs, pet || null]);
+                     to_timestamp($6::double precision / 1000))`,
+    [u, s.hp, s.accruedToMs, s.activeKind, s.activeId, s.activeSinceMs]);
     return u;
   };
   /* A deterministic intent id per (comparison step), SHARED by the characters
@@ -443,48 +444,9 @@ async function dbArms(db, Ms, ok, log, run) {
   }
   if (log) log(`  · D1 replayed ${FIXTURES.length} fixtures through hr_apply`);
 
-  /* U1 AT THE CAP (Security P3, 2026-10-08). hr_apply clamps `stat
-     companion_xp:<id>` at c_companion_xp_cap PER OP and journals the clamp
-     (`cxc`: proposed / had / credited, accumulated per key). Two ops that
-     together cross the cap, raw vs coalesced into one: the CREDITED value and
-     the OVERAGE (proposed - credited) must be the same. The credited value is
-     read off the ROW: the journal's `credited` and `had` cover only the op
-     that hit the clamp (the raw pair's second), so those two differ by design. */
-  {
-    const M = Ms.main;
-    const cap = Number(M.cxp.COMPANION_XP_CAP);
-    const key = 'companion_xp:fox';
-    const raw = [{ kind: 'stat', key, period: '', add: 3, state: 'active' },
-      { kind: 'stat', key, period: '', add: 4, state: 'active' }];
-    const coal = M.contract.coalesceProgress(raw);
-    const [uRaw, uCoal] = [uid(++n + 500), uid(++n + 500)];
-    const s0 = { hp: 10, maxHp: 10, accruedToMs: t0, activeSinceMs: t0, activeKind: 'gather', activeId: 'normal_tree' };
-    const [rR, rC] = await clock(async () => {
-      for (const u of [uRaw, uCoal]) {
-        await mkChar(s0, 'fox', u);
-        await q(`insert into public.player_progress (user_id, slot, kind, key, period_key, value, state)
-                 values ($1, 0, 'stat', $2, '', $3, 'active')`, [u, key, cap - 5]);
-      }
-      const iid = intentId();
-      return [await apply(uRaw, { progress: raw }, iid), await apply(uCoal, { progress: coal }, iid)];
-    });
-    const valueOf = async (u) => Number((await q(
-      "select value from public.player_progress where user_id = $1 and kind = 'stat' and key = $2 and period_key = ''", [u, key]))[0]?.value);
-    const cxcOf = async (u) => {
-      const m = (await q("select meta from public.player_ledger where user_id = $1 and meta->'delta' ? 'cxc' order by id desc limit 1",
-        [u]))[0]?.meta || {};
-      return ((m.delta && m.delta.cxc) || {})[key] || null;
-    };
-    const [vR, vC, cR, cC] = [await valueOf(uRaw), await valueOf(uCoal), await cxcOf(uRaw), await cxcOf(uCoal)];
-    const over = (c) => (c ? Number(c.proposed) - Number(c.credited) : null);
-    const credited = (c) => (c ? Number(c.credited) : null);
-    ok('U1', coal.length === 1 && rR.ok === true && rC.ok === true && vR === cap && vC === cap
-        && cR && cC && over(cR) === over(cC) && over(cR) === 2 && vR - (cap - 5) === vC - (cap - 5),
-      `at the companion cap: raw [3, 4] and coalesced [7] both credit ${vC - (cap - 5)} (row = cap ${cap}) `
-      + `and journal the same overage ${over(cC)}`,
-      `at the companion cap: raw ${JSON.stringify({ ok: rR.ok, value: vR, cxc: cR })} vs coalesced `
-      + `${JSON.stringify({ ok: rC.ok, value: vC, cxc: cC })} (cap ${cap}; credited ${credited(cR)} / ${credited(cC)})`);
-  }
+  /* (U1 AT THE COMPANION CAP retired 2026-10-22: the pets were cut and
+     player_state_companion_cut_ck keeps every character pet-less, so hr_apply's
+     companion_xp clamp can never be reached; 2026-12-03-companion-claims-cut.sql.) */
 }
 
 // ── RUN ────────────────────────────────────────────────────────────────────

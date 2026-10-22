@@ -465,9 +465,8 @@ const SIX = [
   ['hr_load', 'select public.hr_load(0)'],
   ['hr_create_character', 'select public.hr_create_character(0)'],
   ['hr_clan_browser', 'select public.hr_clan_browser(25)'],
-  ['hr_companion_equip', "select public.hr_companion_equip(0, 'fox', true)"],
-  ['hr_companion_grant', "select public.hr_companion_grant(0, 'fox', 'shop', gen_random_uuid())"],
-  /* hr_rest left with the knockout (the core rebuild, 2026-10-27-core-schema.sql). */
+  /* hr_rest left with the knockout (the core rebuild, 2026-10-27-core-schema.sql);
+     hr_companion_equip / hr_companion_grant with the pets (2026-12-03-companion-claims-cut.sql). */
 ];
 async function a1(db) {
   const red = [];
@@ -668,12 +667,12 @@ if (!MUTATE) {
     console.log(`  ${mine.length ? 'caught ' : 'ESCAPED'} ${m.name}${mine.length ? ` (${mine[0].slice(0, 90)})` : ''}`);
     if (!mine.length) escaped++;
   }
-  /* A1 bites: hr_companion_grant re-created WITHOUT the access line (the body the
+  /* A1 bites: hr_clan_browser re-created WITHOUT the access line (the body the
      ungated file spliced, one line removed) must be red. Restored from its own definition.
-     (Was hr_rest, dropped with the knockout by the core rebuild.) */
+     (Was hr_rest, dropped with the knockout; then hr_companion_grant, dropped with the pets.) */
   {
     let red = [];
-    const def = String(await one(db, `select pg_get_functiondef('public.hr_companion_grant(integer,text,text,uuid)'::regprocedure)`)).replace(/\r/g, '');
+    const def = String(await one(db, `select pg_get_functiondef('public.hr_clan_browser(integer)'::regprocedure)`)).replace(/\r/g, '');
     try {
       const line = '  perform public.hr_access_check();\n';
       if (def.split(line).length !== 2) throw new Error('A1 mutant anchor moved');
@@ -682,8 +681,8 @@ if (!MUTATE) {
     } finally {
       await db.exec(def);   // restore the shipped body
     }
-    const caught = red.some((r) => r.startsWith('A1') && r.includes('hr_companion_grant'));
-    console.log(`  ${caught ? 'caught ' : 'ESCAPED'} A1: hr_companion_grant loses its access line${caught ? ` (${red[0].slice(0, 90)})` : ''}`);
+    const caught = red.some((r) => r.startsWith('A1') && r.includes('hr_clan_browser'));
+    console.log(`  ${caught ? 'caught ' : 'ESCAPED'} A1: hr_clan_browser loses its access line${caught ? ` (${red[0].slice(0, 90)})` : ''}`);
     if (!caught) escaped++;
   }
   /* A2 bites: hr_engine_closed answers false for everyone (the bare 429 back). */

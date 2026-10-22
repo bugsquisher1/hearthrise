@@ -57,8 +57,10 @@
 //   R3   RETIRED 2026-10-19 with the market (the self-market loop).
 //   R4   (world-tick P5 fold) — not in this file; tests/world-tick-parity.mjs.
 //   R5   a client-direct RPC on a stale row — F2 (lane C), NOT this lane. Noted.
-//   S1   a sub-minute window writes nothing: no apply, no version bump beyond
-//        the verb's own, accrued_to untouched.
+//   S1   a window under the floor writes nothing: no apply, no version bump
+//        beyond the verb's own, accrued_to untouched. The floor of a town
+//        pointer is accrual.js TOWN_SETTLE_MIN_MS (15 s, lane c-live-town-work),
+//        so the window is 10 s; it was 30 s under the old 60 s floor.
 //   S2   the settle DEFERS its sub-action remainder (the pointer survives):
 //        after a paid settle, now − accrued_to is in (0, one action).
 //   S3   the receipt reaches the client: `collected` on the body equals what
@@ -407,10 +409,10 @@ async function run(mutate) {
         + `buff must keep its full duration (${JSON.stringify(buffs)})`);
     }
 
-    // ══ S1 — A SUB-MINUTE WINDOW WRITES NOTHING ══════════════════════════
+    // ══ S1 — A WINDOW UNDER THE (15 s TOWN) FLOOR WRITES NOTHING ════════════
     {
       await miner(U.s);
-      await q(`update public.player_state set accrued_to = now() - interval '30 seconds'
+      await q(`update public.player_state set accrued_to = now() - interval '10 seconds'
                 where user_id=$1 and slot=0`, [U.s]);
       const before = await row(U.s);
       /* Rows a SETTLE writes (a window's pay), never rows a buy writes. */
@@ -424,10 +426,10 @@ async function run(mutate) {
       const ledger1 = await settleRows();
       ok(r.status === 200 && r.body.ok === true, `S1-CONTROL: the shop buy refused ${JSON.stringify(r.body).slice(0, 240)}`);
       ok(Number(after.v) === Number(before.v) + 1,
-        `S1: a buy over a 30 s window bumped version ${before.v} → ${after.v}; only the buy may write`);
+        `S1: a buy over a 10 s window bumped version ${before.v} → ${after.v}; only the buy may write`);
       ok(Math.abs(Number(after.at_ms) - Number(before.at_ms)) < 1,
-        'S1: a sub-minute window moved accrued_to — the settle wrote a window shorter than the floor');
-      ok(ledger1 === ledger0, `S1: ${ledger1 - ledger0} settle ledger row(s) for a buy over a 30 s window`);
+        'S1: a sub-floor window moved accrued_to — the settle wrote a window shorter than the floor');
+      ok(ledger1 === ledger0, `S1: ${ledger1 - ledger0} settle ledger row(s) for a buy over a 10 s window`);
       ok(r.body.collected === null, `S1: collected=${JSON.stringify(r.body.collected)} for a window that paid nothing`);
     }
 

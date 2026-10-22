@@ -92,15 +92,15 @@ export function stateWords(m) {
   return m.hunting ? '' : 'In town';
 }
 
-/* A tank's row (laps until it holds: 0 this lap, null never; `rotation`: how many tanks take turns). Exported for tests/party-ui.mjs (PR-5). */
-export function turnWords(holdIn, rotation) {
+/* A tank's row (laps until it holds: 0 this lap, null never; `rotation`: how many tanks take turns). */
+function turnWords(holdIn, rotation) {
   if (holdIn === null) return 'Too weak to hold';
   if (holdIn === 0) return rotation > 1 ? 'Holding this lap' : 'Holds every lap';
   return holdIn === 1 ? 'Holds next lap' : 'Holds in ' + holdIn + ' laps';
 }
 
-/* The footer line under two or more tanks; the weak floor is the rule's own number (CHALLENGE.holderMinHpPm). Exported for tests/party-ui.mjs (PR-5). */
-export function tanksWords(rotation, weak) {
+/* The footer line under two or more tanks; the weak floor is the rule's own number (CHALLENGE.holderMinHpPm). */
+function tanksWords(rotation, weak) {
   const floor = Math.round(CHALLENGE.holderMinHpPm / 10) + '%';
   if (rotation > 1 && weak) return 'Your tanks take turns holding the pack, one lap each. A tank with under ' + floor + ' of the strongest tank’s max health never holds.';
   if (rotation > 1) return 'Your tanks take turns holding the pack, one lap each. '
@@ -174,10 +174,10 @@ function scOf(el) {
 export function renderPartyPanel() {
   return panelHtml('hp-party', 'Party',
     '<button type="button" class="hh-tool" data-hs-act="expand" aria-pressed="false" hidden>DPS and HPS</button>',
-    '<p class="hh-empty">Not in a party.</p><ol class="hp-members"></ol>'
+    '<p class="hh-empty">Not in a party.</p><ol class="hp-members"></ol><p class="hp-tanks"></p>'
     + '<div class="hp-acts"><button type="button" class="hh-tool" data-hs-act="leave" hidden>Leave party</button>'
     + '<button type="button" class="hh-tool" data-hs-act="disband" hidden>Disband</button></div>'
-    + '<p class="hh-intent-msg hp-msg" role="status"></p><p class="hp-tanks"></p><p class="hp-foot">Costs are personal.</p>');
+    + '<p class="hh-intent-msg hp-msg" role="status"></p><p class="hp-foot">Costs are personal.</p>');
 }
 
 renderPartyPanel.patch = function patchPartyPanel(el, ctx) {

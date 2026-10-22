@@ -58,8 +58,11 @@ import { itemName } from '../widgets/bits.js?v=0.2.31';
 import { glyphSvg } from '../launcher.js?v=0.2.31';
 import { runIntent, refusalText } from '../intent-words.js?v=0.2.31';
 import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.js?v=0.2.31';
-import { huntRows, densityWords, rangeWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation } from '../hunt-list.js?v=0.2.31';
-import { detailHtml, patchGround } from './hunt-detail.js?v=0.2.31';
+import { huntRows, densityWords, rangeWords, groupWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation } from '../hunt-list.js?v=0.2.31';
+import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.31';
+import { setupsOf, beforeLines, freeHeroes } from '../hunt-go.js?v=0.2.31';
+import { inviteOwn } from '../../session/party-intents.js?v=0.2.31';
+import { openFinderOn } from './party-finder.js?v=0.2.31';
 
 const SCRATCH = new WeakMap();
 /* `draft` is the density shown before the server has it ({ hunt, n }), `timer` its coalescing
@@ -131,9 +134,28 @@ function afterDensity(cs, sc, repaint, go) {
   return saveDensity(cs, sc, repaint).then((r) => (r && r.ok === false ? r : go()));
 }
 
-function packWords(lines) {
-  if (!lines.length) return 'You carry nothing from your bag.';
-  return 'You carry ' + lines.map((l) => whole(l.qty) + ' ' + itemName(l.item)).join(', ') + '.';
+/* The setup Enter goes as: the one picked under Go as while the server still lists it, else the one in use. */
+function chosenOf(sc, setups) {
+  if (!setups || !setups.length) return null;
+  const p = setups.find((x) => x.preset === sc.goAs) || setups.find((x) => x.inUse) || setups[0];
+  return p.preset;
+}
+
+/**
+ * ENTER AS THE CHOSEN SETUP (A #1): ONE press. A town activity is settled first (what it earned is paid);
+ * when the chosen setup is not the one on, ONE hr_hunt_preset_apply puts it on (the server wears its gear
+ * and switches the bar) and a refusal stops there, in words; then `go()` (hr_hunt_enter, or the leader's start).
+ */
+async function asChosen(cs, sc, go) {
+  await settleTownActivity(cs);
+  const s = settingsOf(cs);
+  const want = chosenOf(sc, setupsOf(cs));
+  if (s && Number.isInteger(want) && want !== s.preset) {
+    const a = await cs.applyPreset(want);
+    if (!a || !a.ok) return a || { ok: false, error: 'network' };
+  }
+  sc.goAs = null;
+  return go(Number.isInteger(want) ? want : (s ? s.preset : 0));
 }
 
 /* The hunt under way: what its hunt bag holds now (the server's; Enter moved it out of the bag, Brannoc 10-22). */
@@ -148,13 +170,13 @@ export function renderHunts() {
     + '<p class="hs-note hw-hunts-now"></p><p class="hs-note hw-hunts-reco" hidden></p>'
     + '<div class="hw-hunts-cols"><ul class="hw-hunt-list" role="listbox" aria-label="Hunts"></ul>'
     + '<section class="hw-hunt-detail" aria-label="The picked hunt">' + detailHtml()
-    + '<h4 class="hw-hd-h">Each pull</h4><p class="hw-hunt-facts"></p>'
-    + '<span class="hw-density" role="group" aria-label="Density"><span class="hw-density-label">Monsters a pull</span>'
+    + '<h4 class="hw-hd-h">Each pull</h4><div class="hw-pull"><p class="hw-hunt-facts"></p>'
+    + '<span class="hw-density" role="group" aria-label="Monsters each pull">'
     + '<span class="hh-step"><button type="button" class="hh-seg" data-hs-act="density" data-by="-1" aria-label="Fewer monsters">−</button>'
     + '<output class="hh-step-val"></output>'
-    + '<button type="button" class="hh-seg" data-hs-act="density" data-by="1" aria-label="More monsters">+</button></span>'
-    + '<small class="hw-density-note"></small></span>'
-    + '<p class="hw-hunt-pack"></p>'
+    + '<button type="button" class="hh-seg" data-hs-act="density" data-by="1" aria-label="More monsters">+</button></span></span></div>'
+    + '<p class="hw-density-note"></p>'
+    + '<p class="hw-hunt-pack"></p>' + goHtml()
     + '<div class="hw-hd-foot"><p class="hh-intent-msg" role="status" aria-live="polite"></p>'
     + '<button type="button" class="hw-primary is-on hw-hunt-enter" data-hs-act="enter">Enter</button></div>'
     + '</section></div></div>';
@@ -234,9 +256,22 @@ function patchPage(det, ctx, sc, v) {
   patchGround(det, ctx, r, { level, size, bests: v.bests, repaint: () => ctx.refresh('hunts') });
   /* the floor is a warning (Tyler 10-18): words only, Enter stays the server's to refuse */
   text(det.querySelector('.hw-hunt-warn'), rangeWords(r, level) || '');
-  /* While a hunt runs, its own page says what its hunt bag holds; no other ground can be entered, so none says what it would carry. */
+  /* While a hunt runs, its own page says what its hunt bag holds (in town, Before you go says what the bar spends). */
   const carried = now ? huntBagOf(cs) : null;
-  text(det.querySelector('.hw-hunt-pack'), now ? (now.huntId === r.hunt && carried ? carriedWords(carried) : '') : packWords(packFor(bagOf(cs))));
+  text(det.querySelector('.hw-hunt-pack'), now && now.huntId === r.hunt && carried ? carriedWords(carried) : '');
+  /* GO AS, BEFORE YOU GO, WITH A PARTY: the server's setups, bar, stamina and gold, and this account's open heroes. */
+  const setups = setupsOf(cs);
+  const chosen = chosenOf(sc, setups);
+  const other = (setups || []).find((p) => p.preset === chosen && !p.inUse);
+  patchGo(det, ctx, {
+    setups, chosen, off: sc.pending || !!now || follower,
+    before: now ? [] : beforeLines(cs, other ? { other: other.name } : null),
+    partyBlock: !follower && (r.groupFit === 'party' || (party && party.isLeader)) ? {
+      why: party ? 'You lead a party of ' + party.seats.length + '.' : (groupWords(r, size) || heroWords(r)) + '.',
+      find: party ? 'Open the party finder' : 'Find a party',
+      bring: freeHeroes(cs, ctx.peers()), full: !!party && party.full,
+    } : null,
+  });
   const enter = det.querySelector('.hw-hunt-enter');
   attr(enter, 'data-hunt', r.hunt);
   text(enter, party && !follower ? 'Start with party' : 'Enter');
@@ -248,6 +283,7 @@ function patchPage(det, ctx, sc, v) {
   text(det.querySelector('.hw-hunt-facts'), densityWords(r, dn ? dn.now : null));
   cls(det.querySelector('.hw-density'), 'is-on', !!dn);
   for (const b of det.querySelectorAll('.hw-density [data-by]')) { prop(b, 'hidden', follower); attr(b, 'data-hunt', r.hunt); }
+  if (!dn) text(det.querySelector('.hw-density-note'), '');
   if (dn) {
     const val = det.querySelector('.hw-density .hh-step-val');
     const words = dn.now ? dn.now + ' each' : 'As built';
@@ -255,9 +291,9 @@ function patchPage(det, ctx, sc, v) {
     attr(val, 'data-pending', String(!follower && !!(sc.draft || sc.saving)));
     /* The size it clamps for, named: alone, or this party's seat count (the settle's clamp). */
     text(det.querySelector('.hw-density-note'), follower ? 'Your party leader sets how many monsters each pull brings.'
-      : 'How many monsters each pull brings, up to ' + dn.max
-      + (size === 1 ? ' when you hunt alone.' : ' for your party of ' + size + '. As the leader, your pick sets the pull for everyone.')
-      + ' It stays set for this hunt.');
+      : 'Up to ' + dn.max + ' a pull'
+      + (size === 1 ? ' when you hunt alone.' : ' for your party of ' + size + '. As the leader, your pick is the pull for everyone.')
+      + ' Kept for this ground.');
     prop(det.querySelector('[data-by="-1"]'), 'disabled', follower || sc.pending || !!now || dn.now <= DENSITY_PICK.min);
     prop(det.querySelector('[data-by="1"]'), 'disabled', follower || sc.pending || !!now || dn.now >= dn.max);
   }
@@ -295,19 +331,27 @@ renderHunts.act = function actHunts(ctx, body, action, ev, t) {
   }
   if (action === 'pick') { sc.pick = hunt; sc.msg = ''; sc.paged = true; repaint(); return true; }
   if (action === 'back') { sc.paged = false; repaint(); return true; }
+  /* Go as: display scratch only, until Enter sends it (nothing else reads or spends it). */
+  if (action === 'go-as') { if (!sc.pending) { sc.goAs = Number(t.getAttribute('data-preset')); sc.msg = ''; repaint(); } return true; }
+  /* Find a party: the Party window's finder, on this ground and this hero's weapon (B #3). */
+  if (action === 'find-party') { if (sc.pick) openFinderOn(ctx, cs, sc.pick); return true; }
+  if (action === 'bring') {
+    const slot = Number(t.getAttribute('data-slot'));
+    const who = freeHeroes(cs, ctx.peers()).find((x) => x.slot === slot);
+    if (who) runIntent(sc, repaint, () => inviteOwn(ctx.account, cs, slot), 'Bringing ' + who.name + '…', () => who.name + ' joined your party.', cs);
+    return true;
+  }
   if (action === 'enter' && partyMembershipOf(cs)) {
     sc.pick = hunt;
     if (!partyMembershipOf(cs).isLeader) return true;
-    runIntent(sc, repaint, () => afterDensity(cs, sc, repaint, () => startPartyHunt(ctx.account, cs, hunt)), 'Gathering the party for ' + huntName(hunt) + '…',
-      () => 'Your party is on its way to ' + huntName(hunt) + '.');
+    runIntent(sc, repaint, () => afterDensity(cs, sc, repaint, () => asChosen(cs, sc, () => startPartyHunt(ctx.account, cs, hunt))), 'Gathering the party for ' + huntName(hunt) + '…',
+      () => 'Your party is on its way to ' + huntName(hunt) + '.', cs);
     return true;
   }
   if (action === 'enter') {
     sc.pick = hunt;
-    const s = settingsOf(cs);
-    const lines = packFor(bagOf(cs));
-    /* A town activity never blocks a hunt: the engine settles it first (what it earned is paid), then Enter. */
-    runIntent(sc, repaint, () => afterDensity(cs, sc, repaint, () => settleTownActivity(cs).then(() => cs.enterHunt(hunt, lines, s ? s.preset : 0))), 'Setting off for ' + huntName(hunt) + '…', (res) => { sc.enterMsg = 'On the way to ' + huntName(hunt) + '.' + (res && res.belowRange ? ' ' + ABOVE_LEVEL_WORDS : ''); return sc.enterMsg; });
+    /* What the hunt carries is the bag's own supplies, read after any setup change has landed. */
+    runIntent(sc, repaint, () => afterDensity(cs, sc, repaint, () => asChosen(cs, sc, (preset) => cs.enterHunt(hunt, packFor(bagOf(cs)), preset))), 'Setting off for ' + huntName(hunt) + '…', (res) => { sc.enterMsg = 'On the way to ' + huntName(hunt) + '.' + (res && res.belowRange ? ' ' + ABOVE_LEVEL_WORDS : ''); return sc.enterMsg; }, cs);
     return true;
   }
   return false;

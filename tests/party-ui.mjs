@@ -809,7 +809,7 @@ const PAGE_MUTANTS = [
   ['the Party window opens on the finder with an invite waiting', 'src/shell/windows/party.js', "  const tab = sc.tab || (inv.length ? 'invites' : 'find');", "  const tab = sc.tab || 'find';"],
   ['a tab press re-reads the character', 'src/app/boot.js', "    else if (what === 'show') goTo(slot, null);", "    else if (what === 'show') { goTo(slot, null); account.character(slot).load(); }"],
   ['the strip shows no badge', 'src/app/character-strip.js', "  text(badge, x.alerts ? String(x.alerts) : '');", "  text(badge, '');"],
-  ['the finder ignores this character’s weapon', 'src/shell/windows/party-finder.js', "sc.weapon = mine && mine.weapon && WEAPON_ROLES[mine.weapon] ? mine.weapon : '';", "sc.weapon = '';"],
+  ['the finder ignores this character’s weapon', 'src/shell/windows/party-finder.js', "  return mine && mine.weapon && WEAPON_ROLES[mine.weapon] ? mine.weapon : '';", "  return '';"],
   ['the party note ignores the picked ground', 'src/shell/hunt-list.js', '  const g = Object.values(HUNT_GROUNDS).find((r) => r.hunt === hunt);', "  const g = HUNT_GROUNDS.millrace_sewer; void hunt;"],
 ];
 

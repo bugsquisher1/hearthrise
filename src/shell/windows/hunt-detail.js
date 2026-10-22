@@ -12,12 +12,16 @@
 //                   common it is (src/shell/hunt-ground-facts.js)
 //   the rare        what the ground's one rare carrier carries, named
 //   your best       the server's hunt_bests, or ONE "Not hunted yet"
-// then (src/shell/windows/hunts.js) the pull size, Go as, Before you go and Enter.
-// This module draws the ground's facts; it holds no state and sends nothing.
+// then the pull size (src/shell/windows/hunts.js) and the going-hunting part
+// (goHtml / patchGo, from src/shell/hunt-go.js): Go as (the setups as lines, the
+// one in use first choice), Before you go (what the bar spends and what it costs)
+// and, on a party ground or while leading, Find a party and Bring your heroes.
+// Enter sits at the page's foot. This module draws; it holds no state and sends
+// nothing (hunts.js owns every press).
 // ════════════════════════════════════════════════════════════════════════
 import { rows, text, cls, prop, attr, style, element } from '../../render/paint.js?v=0.2.31';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.31';
-import { itemIconHtml } from '../widgets/bits.js?v=0.2.31';
+import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.31';
 import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.31';
 import { bandWords, fitWords, heroWords, partyNote, bestWords } from '../hunt-list.js?v=0.2.31';
 import { residentsOf, rareOf } from '../hunt-ground-facts.js?v=0.2.31';
@@ -45,6 +49,69 @@ export function detailHtml() {
 
 const monHtml = (m) => '<li class="hw-hd-mon" data-monster="' + esc(m.id) + '"><span class="hw-hd-stand"><canvas class="hw-hd-sprite" aria-hidden="true"></canvas></span>'
   + '<b class="hw-hd-mon-name"></b><small class="hw-hd-mon-how"></small></li>';
+
+/**
+ * The page's going-hunting part, after the pull size: Go as (A #1), Before you go (A #5) and, on a party
+ * ground or while leading, the way to a party (B #3).
+ */
+export function goHtml() {
+  return '<h4 class="hw-hd-h">Go as</h4><div class="hw-go-list" role="radiogroup" aria-label="Go as"></div>'
+    + '<p class="hw-go-note"></p>'
+    + '<h4 class="hw-hd-h">Before you go</h4><ul class="hw-before"></ul>'
+    + '<section class="hw-hd-party" aria-label="With a party"><h4 class="hw-hd-h">With a party</h4><p class="hw-hd-party-why"></p>'
+    + '<div class="hw-hd-party-do"><button type="button" class="hh-tool hw-find-here" data-hs-act="find-party"></button><span class="hw-bring"></span></div>'
+    + '<p class="hw-bring-none"></p></section>';
+}
+
+const goLineHtml = (p) => '<button type="button" class="hw-go" role="radio" aria-checked="false" data-hs-act="go-as" data-preset="' + p.preset + '">'
+  + '<span class="hw-ico hw-go-weapon"></span><span class="hw-go-main"><b class="hw-go-name"></b><small class="hw-go-what"></small></span>'
+  + '<span class="hw-go-bar"></span></button>';
+
+/**
+ * Go as: one line per setup (`v.setups`, hunt-go.js setupsOf), the chosen one (`v.chosen`) marked; Before you
+ * go (`v.before`); and the party block (`v.partyBlock`: { why, find, bring: [{ slot, name }], none } or null).
+ * `v.off` turns every control here off (a press in flight, a hunt running, a member who cannot start).
+ */
+export function patchGo(det, ctx, v) {
+  rows(det.querySelector('.hw-go-list'), v.setups || [], {
+    key: (p) => String(p.preset),
+    build: (p) => element(ctx.doc, goLineHtml(p)),
+    patch: (b, p) => {
+      const on = p.preset === v.chosen;
+      attr(b, 'aria-checked', String(on));
+      cls(b, 'is-picked', on);
+      text(b.querySelector('.hw-go-name'), p.name);
+      text(b.querySelector('.hw-go-what'), [p.roleWords, p.inUse ? 'on now' : null].filter(Boolean).join(' · '));
+      const w = b.querySelector('.hw-go-weapon');
+      if (w.getAttribute('data-item') !== String(p.weapon)) { w.innerHTML = p.weapon ? itemIconHtml(ctx.glyphs, p.weapon) : ''; w.setAttribute('data-item', String(p.weapon)); }
+      const bar = b.querySelector('.hw-go-bar');
+      const key = p.bar ? p.bar.map((a) => a.type + ':' + a.id).join(',') : '';
+      if (bar.getAttribute('data-bar') !== key) { bar.innerHTML = p.bar ? p.bar.map((a) => actionIconHtml(ctx.glyphs, a)).join('') : ''; bar.setAttribute('data-bar', key); }
+      prop(b, 'disabled', v.off);
+    },
+  });
+  const chosen = (v.setups || []).find((p) => p.preset === v.chosen);
+  text(det.querySelector('.hw-go-note'), chosen && !chosen.inUse ? 'Enter puts ' + chosen.name + ' on first: its gear and its bar.' : '');
+  rows(det.querySelector('.hw-before'), v.before || [], {
+    key: (l) => l.id,
+    build: () => element(ctx.doc, '<li class="hw-before-line"></li>'),
+    patch: (li, l) => { text(li, l.text); cls(li, 'is-short', l.short); },
+  });
+  const pb = det.querySelector('.hw-hd-party');
+  prop(pb, 'hidden', !v.partyBlock);
+  if (!v.partyBlock) return;
+  text(pb.querySelector('.hw-hd-party-why'), v.partyBlock.why);
+  const find = pb.querySelector('.hw-find-here');
+  text(find, v.partyBlock.find);
+  prop(find, 'disabled', v.off);
+  rows(pb.querySelector('.hw-bring'), v.partyBlock.bring, {
+    key: (h) => String(h.slot),
+    build: (h) => element(ctx.doc, '<button type="button" class="hh-tool" data-hs-act="bring" data-slot="' + h.slot + '"></button>'),
+    patch: (b, h) => { text(b, 'Bring ' + h.name); prop(b, 'disabled', v.off || v.partyBlock.full); },
+  });
+  const none = pb.querySelector('.hw-bring-none');
+  text(none, v.partyBlock.bring.length ? '' : 'Your other heroes can come too: play one from Characters and it shows here. Up to four play at once.');
+}
 
 /* "Level 2 · common"; a boss says so in place of its share. */
 const howWords = (m) => (Number.isInteger(m.level) ? 'Level ' + m.level + ' · ' : '') + (m.boss ? 'boss' : m.band);

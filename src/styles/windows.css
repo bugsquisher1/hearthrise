@@ -256,7 +256,8 @@
 .hw-hunts-now, .hw-hunts-reco { margin: 0 2px 8px; }
 .hw-hunts-cols { display: grid; grid-template-columns: 276px minmax(0, 1fr); align-items: start; }
 /* The list: one line a ground, no boxes; the picked line is marked by the gold rule and a lifted ground. */
-.hw-hunt-list { margin: 0; padding: 0 12px 0 0; list-style: none; }
+/* The list stays in view while the picked ground's page scrolls beside it. */
+.hw-hunt-list { position: sticky; top: 0; margin: 0; padding: 0 12px 0 0; list-style: none; }
 .hw-hunt { display: flex; align-items: flex-start; gap: 8px; padding: 7px 6px 8px 8px; border-left: 2px solid transparent; cursor: pointer; }
 .hw-hunt:hover { background: var(--surf-panel); }
 .hw-hunt.is-picked { border-left-color: var(--gold); background: var(--bg-3); }
@@ -310,15 +311,48 @@
 .hw-hunt-party { margin: 8px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-hd-best { margin: 0; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
 .hw-hd-best[hidden], .hw-hunt-party[hidden] { display: none; }
-.hw-hunt-facts { margin: 0 0 4px; font-size: var(--t-micro); color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; }
-.hw-density { display: none; align-items: center; flex-wrap: wrap; gap: 6px; }
+/* Each pull: what the ground spawns at this pick, and the step beside it. */
+.hw-pull { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; }
+.hw-hunt-facts { flex: 1 1 auto; margin: 0; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
+.hw-density { display: none; align-items: center; }
 .hw-density.is-on { display: flex; }
-.hw-density-label { font-size: var(--t-small); color: var(--ink-2); }
 .hw-density .hh-seg { min-width: 36px; min-height: 36px; }
 .hw-density .hh-step-val { min-width: 64px; text-align: center; }
-.hw-density-note { flex-basis: 100%; font-size: var(--t-micro); color: var(--ink-3); }
+.hw-density-note { margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-3); }
+.hw-density-note:empty { display: none; }
 .hw-hunt-pack { margin: 8px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-hunt-pack:empty { display: none; }
+/* Go as: the setups as lines, chosen the way a ground is (the gold rule): the weapon's own icon, the name,
+   the role it plays, and the bar's first four actions for the setup that is on. */
+.hw-go-list { display: flex; flex-direction: column; gap: 2px; }
+.hw-go { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 48px; padding: 4px 8px 4px 6px; border: 0; border-left: 2px solid transparent; border-radius: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.hw-go:hover:not(:disabled) { background: var(--surf-panel); }
+.hw-go.is-picked { border-left-color: var(--gold); background: var(--bg-3); }
+.hw-go:disabled { cursor: default; }
+.hw-go:disabled:not(.is-picked) { opacity: .55; }
+.hw-go:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
+.hw-go .hw-go-weapon { width: 36px; height: 36px; background: var(--bg-1); box-shadow: var(--hw-well); }
+.hw-go .hw-go-weapon .hh-icon { width: 32px; height: 32px; }
+.hw-go-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.hw-go-name { font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hw-go-what { font-size: var(--t-micro); color: var(--ink-3); }
+.hw-go-bar { flex: none; display: flex; gap: 2px; }
+.hw-go-bar .hh-icon { width: 32px; height: 32px; }
+.hw-go-note { margin: 4px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
+.hw-go-note:empty { display: none; }
+/* Before you go: plain lines, what the bar spends and what it costs; a line that stops the hunt reads red. */
+.hw-before { margin: 0; padding: 0; list-style: none; }
+.hw-before-line { padding: 1px 0; font-size: var(--t-micro); line-height: 1.35; color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
+.hw-before-line.is-short { color: var(--red); }
+.hw-hd-h:has(+ .hw-before:empty) { display: none; }
+/* With a party: the way to one, from the ground that wants one. */
+.hw-hd-party[hidden] { display: none; }
+.hw-hd-party-why { margin: 0 0 6px; font-size: var(--t-micro); color: var(--ink-2); }
+.hw-hd-party-do { display: flex; flex-wrap: wrap; gap: 6px; }
+.hw-hd-party-do .hh-tool { min-height: 36px; padding: 0 10px; background: var(--bg-1); box-shadow: var(--hw-well); }
+.hw-bring { display: contents; }
+.hw-bring-none { margin: 6px 0 0; font-size: var(--t-micro); color: var(--ink-3); }
+.hw-bring-none:empty { display: none; }
 /* The one primary, held at the page's foot however far the page scrolls; the server's answer beside it. */
 /* bottom: minus the window body's own padding, so nothing scrolls past under the bar. */
 .hw-hd-foot { position: sticky; bottom: -12px; display: flex; align-items: center; gap: 10px; margin-top: 12px; padding: 8px 0 12px; border-top: 1px solid var(--line-soft); background: var(--modal-bg); }

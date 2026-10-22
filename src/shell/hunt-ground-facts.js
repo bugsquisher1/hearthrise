@@ -27,7 +27,7 @@ export const SHARE_BANDS = Object.freeze({ common: 0.25, rare: 0.10 });
 const groundOf = (hunt) => Object.values(HUNT_GROUNDS).find((g) => g.hunt === hunt) || null;
 
 /** How common a share is: 'common' | 'uncommon' | 'rare'. */
-export function shareBand(share) {
+function shareBand(share) {
   if (share >= SHARE_BANDS.common) return 'common';
   return share < SHARE_BANDS.rare ? 'rare' : 'uncommon';
 }

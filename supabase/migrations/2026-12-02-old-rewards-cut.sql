@@ -220,7 +220,9 @@ begin
      or exists (select 1 from public.account_bank where item_id = 'fox_companion')
      or exists (select 1 from public.hunt_bag where item_id = 'fox_companion')
      or exists (select 1 from public.market_listings where item_id = 'fox_companion')
-     or exists (select 1 from public.clan_stores where item_id = 'fox_companion') then
+     or exists (select 1 from public.clan_stores where item_id = 'fox_companion')
+     or exists (select 1 from public.player_item_rules where item_id = 'fox_companion') then
+    -- Also the reach proof for (e): its unscoped hr_cut_item_holders call finds only the probe's rows.
     raise exception 'old-rewards-cut §4(d): a fox row is still held'; end if;
 
   -- (e) THE CUT JOURNALS WHAT IT TAKES: a probe holding a fox in the bag (2), worn, and in

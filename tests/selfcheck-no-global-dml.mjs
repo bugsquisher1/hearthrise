@@ -902,6 +902,21 @@ export const ACKNOWLEDGED = {
       "raise exception 'VERIFY(fold): the account depot does not equal the summed character banks'; end if;",
     ],
   },
+  '2026-12-02-old-rewards-cut.sql :: call :: hr_cut_item_holders': {
+    verdict: 'staged-backfill',
+    sites: 2,
+    why: 'Section 3 is the file\'s WORK: the one-time cut of the Fox Companion from every holder '
+       + '(Tyler 2026-10-22), global by definition and journalled row by row to player_ledger / '
+       + 'clan_ledger. The second site, self-check (e), is scoped by proof: (d) first raises if ANY '
+       + 'holder table (bag, equipment, account bank, hunt bag, market, clan store, item rules) still '
+       + 'carries a fox, so the (e) call reaches the probe\'s rows alone, and the block rolls back. '
+       + '`sites` is pinned at 2.',
+    proof: [
+      "v := public.hr_cut_item_holders('fox_companion');",
+      "or exists (select 1 from public.player_item_rules where item_id = 'fox_companion') then",
+      "raise exception 'old-rewards-cut §4(d): a fox row is still held'; end if;",
+    ],
+  },
   '2026-09-18-ledger-rollup-currencies.sql :: call :: hr_ledger_prune': {
     verdict: 'scoped-by-proof',
     why: 'The function under test IS the global retention prune, so the gates cannot avoid calling '

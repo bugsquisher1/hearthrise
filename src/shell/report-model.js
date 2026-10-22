@@ -18,9 +18,9 @@
 // No identity field: the bridge names the reporter from the verified token.
 // Every bound is the bridge's own (index.ts MAX_*), so nothing is cut there.
 // ════════════════════════════════════════════════════════════════════════
-import { BUILD } from '../build-info.js?v=0.2.30';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.30';
-import { partyMembershipOf, huntName } from '../session/party-sections.js?v=0.2.30';
+import { BUILD } from '../build-info.js?v=0.2.31';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.31';
+import { partyMembershipOf, huntName } from '../session/party-sections.js?v=0.2.31';
 
 export const REPORT_LIMITS = Object.freeze({
   summary: 200, text: 4000, errors: 20, errorMsg: 500,

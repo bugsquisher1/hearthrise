@@ -292,6 +292,46 @@ jobs:
           node tests/death-popup.mjs
           node tools/mutant-gate.mjs node tests/death-popup.mjs --mutate
 
+      # A failing run is far easier to diagnose with the page state attached.
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ── in-page-10 ── THE ALPHA WINDOWS, SPLIT OUT 2026-10-22. in-page was
+  # CANCELLED at its 36-min timeout on runs 39822946872 and 39833140559 with the
+  # Alpha windows step still in its --mutate (45 mutants, ~25 s each): the
+  # telemetry, report and death-popup steps had grown in beside it. MEASURED
+  # (39833140559): in-page without it = install 29 + node suite 327 + boot 19 +
+  # observability 427 + report 82 + death popup 234 = ~19 min with setup; the
+  # Alpha windows step ran 1,058 s and was not done (~21 min est. with its
+  # --mutate, preset-names and hunt-scene-live). Budget = est. x2 = 44.
+  in-page-10:
+    runs-on: ubuntu-latest
+    timeout-minutes: 44
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
       # THE ALPHA WINDOWS (2026-10-18, week plan 16a + QoL 2/5): Bag, Gear,
       # Skills, Shop, Hunt prep and Find on the fixture envelope. Built once and
       # patched in place; the server's counts win; every action one intent with
@@ -307,12 +347,11 @@ jobs:
           node tools/mutant-gate.mjs node tests/preset-names.mjs --mutate
           node tests/hunt-scene-live.mjs
 
-      # A failing run is far easier to diagnose with the page state attached.
       - name: Upload failure artifacts
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: smoke-failure
+          name: smoke-failure-in-page-10
           path: |
             tests/**/*.png
             tests/**/*.log

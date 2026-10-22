@@ -65,16 +65,22 @@ async function run() {
   };
 
   // ── G1. SECOND APPLY IS BYTE-IDENTICAL ─────────────────────────────────
+  /* Re-applied on the chain as it stood when the file landed (upTo: MIG), not at
+     head: a later cut (2026-12-02-old-rewards-cut.sql drops hr_quest_rewards,
+     which GATE(e) reads) is not this file's second apply. G2-G4 run at head. */
   {
-    const snap = async () => JSON.stringify([await inventory(db),
-      await q(`select md5(pg_get_functiondef('${WALLET}'::regprocedure)) as h`),
-      await q('select proname, identity_args, grantee from public.hr_client_rpc_baseline order by 1, 2, 3')]);
+    const { db: db1 } = await bootReplay({ upTo: MIG });
+    const q1 = async (sql) => (await db1.query(sql)).rows;
+    const snap = async () => JSON.stringify([await inventory(db1),
+      await q1(`select md5(pg_get_functiondef('${WALLET}'::regprocedure)) as h`),
+      await q1('select proname, identity_args, grantee from public.hr_client_rpc_baseline order by 1, 2, 3')]);
     const sql = (await readFile(join(ROOT, 'supabase', 'migrations', MIG), 'utf8')).replace(/\r\n/g, '\n');
     const before = await snap();
     let err = null;
-    try { await db.exec(sql); } catch (e) { err = String(e.message).split('\n')[0]; }
+    try { await db1.exec(sql); } catch (e) { err = String(e.message).split('\n')[0]; }
     ok('G1', !err, `a second apply raised: ${err}`);
     ok('G1', before === await snap(), 'a second apply changed the schema inventory, the wallet body or the baseline');
+    await db1.close().catch(() => {});
   }
 
   // ── fixture: one real player through the real character path ───────────

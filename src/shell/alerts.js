@@ -32,7 +32,7 @@ import { ALERT_INDEX } from '../data/alerts.js?v=0.2.27';
 import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.27';
 import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.27';
 import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.27';
-import { bagOf, nameOf } from '../session/item-sections.js?v=0.2.27';
+import { carriedOf, nameOf } from '../session/item-sections.js?v=0.2.27';
 import { huntName, invitesOf } from '../session/party-sections.js?v=0.2.27';
 import { itemName } from './widgets/bits.js?v=0.2.27';
 import { CONSUMABLES, CONSUMABLE_KINDS } from '../data/consumables.js?v=0.2.27';
@@ -43,6 +43,8 @@ const residueOf = (cs) => {
   return r && typeof r === 'object' ? r : {};
 };
 const who = (cs) => nameOf(cs) || 'Character ' + (cs.slot + 1);
+/* The lines a new hunt retires once its session is open (the last hunt's end, death and low supply). */
+const RETIRE = new Set(['ended', 'death', 'low']);
 
 /** Which kinds this character shows (every kind unless its residue switched it off). */
 export function alertShown(cs, kind) {
@@ -64,7 +66,8 @@ const kindOf = (id) => (CONSUMABLE_KINDS[id] ? id : CONSUMABLES[id] ? CONSUMABLE
 
 /* The low-supply items of a hunting character: bar supplies at zero (no shop sells supplies; Tyler 2026-10-20). */
 function lowItems(cs, hero) {
-  const bag = bagOf(cs);
+  /* What the hero carries now: a hunt's supplies are in its hunt bag, not the bag (carriedOf). */
+  const bag = carriedOf(cs);
   if (!bag) return [];
   const s = settingsOf(cs);
   /* The store pays per use unless the hero opted into "own stock, end the hunt": running out is no event. */
@@ -150,8 +153,14 @@ export function createAlertCenter(account) {
     for (const c of now) any = fire(cs, c) || any;
     /* An invite the server no longer lists (answered elsewhere, expired, its party gone) leaves the lines. */
     const live = new Set(now.filter((c) => c.kind === 'invite').map((c) => c.id));
+    /* A NEW HUNT RETIRES THE LAST ONE'S LINES (Brannoc 10-22: "has ended · Start again" stayed up into the next
+       hunt): once the server says another session is open, an ended, death or low line of an older one goes. */
+    const h = huntOf(cs);
+    const open = h && !h.ended ? h.sessionId : null;
     for (let i = alerts.length - 1; i >= 0; i--) {
-      if (alerts[i].slot === cs.slot && alerts[i].kind === 'invite' && !live.has(alerts[i].id)) { alerts.splice(i, 1); any = true; }
+      const a = alerts[i];
+      if (a.slot !== cs.slot) continue;
+      if ((a.kind === 'invite' && !live.has(a.id)) || (open && RETIRE.has(a.kind) && a.session && a.session !== open)) { alerts.splice(i, 1); any = true; }
     }
     if (any) changed();
   }

@@ -230,7 +230,8 @@ export function reasonOf(sl, set, bag, hero) {
     return null;
   }
   if (sl.usable === false) return { code: 'server', text: 'The server says this cannot fire now.', glyph: 'uiLock', strike: true };
-  const n = Number.isInteger(sl.count) && !own(CONSUME_KINDS, a.id) && !own(ATTACK_KINDS, a.id) ? sl.count : carried(a, bag);
+  /* `bag` is what the hero carries now (carriedOf): in a hunt the hunt bag. The slot's `count` is the bag's, never read. */
+  const n = carried(a, bag);
   if (n === null || n > 0) return null;
   const st = storeOf(a);
   const storeOn = !!set && (set.supplySource === 'store' || set.onEmpty === 'switch');

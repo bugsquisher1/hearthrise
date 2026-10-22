@@ -176,6 +176,14 @@ async function pure() {
   if (!/stop it here\.$/.test(buryLine({ read: (k) => (k === 'state' ? { active_kind: 'gather', active_id: 'copper_rock' } : null) })))
     fails.push('AW-19 a gathering pointer gets no Stop line, so it would run unseen');
   if (edgeBody(0, 'set_activity', { activity: { kind: 'combat', id: 'rat' } }, 'x')) fails.push('AW-0 edgeBody let the client declare a fight through set_activity');
+  /* BONES ARE FOR PRAYER (ruling 2026-10-14; Brannoc 10-22: the tooltip said "Sell it at the shop" and Sell all loot sold
+     them): an item a recipe spends without making anything is kept out of Sell all loot, and its tooltip says its use. */
+  const { lootToSell } = await imp('src/shell/bag-model.js');
+  const { usesOf } = await imp('src/shell/item-lore.js');
+  const sold = lootToSell([{ id: 'bones', qty: 15 }, { id: 'rat_tail', qty: 4 }, { id: 'razor_claw', qty: 1 }]);
+  if (sold.join(',') !== 'rat_tail') fails.push('AW-0 Sell all loot would sell ' + sold.join(', ') + ' (bones and offerings are kept for Prayer)');
+  const bones = usesOf('bones');
+  if (!bones.some((l) => /^Bury it to train Prayer/.test(l)) || bones.some((l) => /sell/i.test(l))) fails.push('AW-0 the bones tooltip reads ' + JSON.stringify(bones));
   return fails;
 }
 

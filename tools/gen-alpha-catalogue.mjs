@@ -19,8 +19,9 @@
 // that is not the designer's rate (designerPrice: the basic's gold a point x the
 // item's own points; a shot at its basic's price), a duplicate item; a tool that is not a
 // tier-1 gathering tool; a GEAR row (the outfitter, designer 2026-10-22) for a slot a
-// walked ground drops (SHOP_GEAR_SLOTS), a piece above Level 1, a bound piece, or one not
-// at SHOP_PREMIUM x its book value; and any refill or blessing table its own validate() rejects.
+// walked ground drops (SHOP_GEAR_SLOTS), a piece above Level 1, a bound piece, a field-salvage
+// find, or one not at SHOP_PREMIUM x its book value; and any refill or blessing table its own
+// validate() rejects.
 // ════════════════════════════════════════════════════════════════════════
 import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -29,6 +30,7 @@ import { dirname, join } from 'node:path';
 import { SUPPLY_SHOP_OFFERS, BASIC_INDEX, SHOP_PREMIUM, SHOP_GEAR_SLOTS } from '../src/data/supply-basics.js';
 import { SUPPLIES } from '../src/data/supplies.js';
 import { ITEMS } from '../src/data/items.js';
+import { MONSTERS } from '../src/data/monsters.js';
 import { STAMINA_REFILL, validate as validateRefill } from '../src/data/stamina-refill.js';
 import { BLESSING_RULES, BLESSING_TIERS, validate as validateBlessings } from '../src/data/blessings.js';
 import { isMain } from '../tests/_is-main.mjs';
@@ -53,8 +55,11 @@ export function designerPrice(b, item) {
 }
 
 /** Validated supply offer rows, or throw. */
-export function supplyRows(offers = SUPPLY_SHOP_OFFERS, { items = ITEMS, supplies = SUPPLIES, basics = BASIC_INDEX } = {}) {
+export function supplyRows(offers = SUPPLY_SHOP_OFFERS, { items = ITEMS, supplies = SUPPLIES, basics = BASIC_INDEX, monsters = MONSTERS } = {}) {
   const seen = new Set();
+  /* item -> the monster whose field-salvage row drops it (a salvage piece is never shop stock) */
+  const salvaged = new Map();
+  for (const [mid, m] of Object.entries(monsters)) for (const d of (m && m.drops) || []) if (d && d.salvage) salvaged.set(d.id, mid);
   return offers.map((o) => {
     if (!o || !/^[a-z0-9_]{1,64}$/.test(o.item) || o.offer !== 'supply.' + o.item) throw new Error(`supply offer ${o && o.offer} is not supply.<item id>`);
     if (seen.has(o.item)) throw new Error(`supply offer ${o.item} is listed twice`);
@@ -74,6 +79,7 @@ export function supplyRows(offers = SUPPLY_SHOP_OFFERS, { items = ITEMS, supplie
       if (!SHOP_GEAR_SLOTS.includes(it.slot) || o.basic !== null) throw new Error(`gear offer ${o.item} (slot ${it.slot}) is not an outfitter slot (${SHOP_GEAR_SLOTS.join(', ')}) with no basic`);
       if ((Number(it.reqLv) || 1) > 1 || (Number(it.tier) || 1) > 1) throw new Error(`gear offer ${o.item} is above tier 1 / Level 1: better pieces come from drops and crafting`);
       if (it.bop || !(Number(it.v) > 0)) throw new Error(`gear offer ${o.item} is bound or has no book value`);
+      if (salvaged.has(o.item)) throw new Error(`gear offer ${o.item} is a field-salvage find (${salvaged.get(o.item)}): never shop stock (tests/field-salvage.mjs (a))`);
       if (o.price !== SHOP_PREMIUM * Number(it.v)) throw new Error(`gear offer ${o.item} at ${o.price} g is not ${SHOP_PREMIUM} x its book value ${it.v}`);
       return { offer: o.offer, item: o.item, kind: o.kind, price: o.price };
     }
@@ -118,8 +124,8 @@ export function render(offers = supplyRows(), r = rules()) {
 -- the envelope's quotes). Idempotent: delete + insert; nothing references these
 -- rows by foreign key. Any hand edit FAILS \`node tools/gen-alpha-catalogue.mjs --check\`.
 -- SUPERSEDES 2026-11-03-alpha-catalogue.generated.sql (applied; history, never
--- regenerated): the outfitter's ten gear rows join the tools (designer ruling
--- 2026-10-22, lane/b-gold-sinks: gloves and belts in three weights, a cape,
+-- regenerated): the outfitter's six gear rows join the tools (designer ruling
+-- 2026-10-22, lane/b-gold-sinks: leather gloves, a bronze belt, a cape,
 -- earrings, a ring and a necklace, at 2 x book value); every other row is the
 -- 11-03 file's. hr_shop_view lists them: 2026-11-20-shop-outfitter.sql.
 -- ORDER: after 2026-11-09-armour-class-catalogue.generated.sql (needs hr_items, hr_hunt_supplies).
@@ -226,6 +232,7 @@ function gearCases(base) {
   return [
     ['gear for a slot a ground drops (a helmet)', g({ item: 'leather_helmet', offer: 'supply.leather_helmet', price: v('leather_helmet') })],
     ['gear above Level 1', g({ item: 'studded_belt', offer: 'supply.studded_belt', price: v('studded_belt') })],
+    ['gear that is a field-salvage find', g({ item: 'apprentice_gloves', offer: 'supply.apprentice_gloves', price: v('apprentice_gloves') })],
     ['gear under the premium', g({ price: v(base[at].item) - 1 })],
     ['gear with a basic', g({ basic: 'salted_shrimp' })],
   ];

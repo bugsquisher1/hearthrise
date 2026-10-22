@@ -103,7 +103,7 @@ export const AWAITING_ROSTER = Object.freeze([
   'bronze_hammer', 'bronze_knife',
   'bronze_platelegs', 'chitin_belt', 'chitin_body',
   'chitin_boots', 'chitin_gloves', 'chitin_helmet', 'chitin_pants', 'choirbone',
-  'choirbone_gauntlets', 'copper_studs', 'crown_of_the_fallen_king', 'dawn_belt',
+  'choirbone_gauntlets', 'crown_of_the_fallen_king', 'dawn_belt',
   'dawn_boots', 'dawn_gauntlets', 'dawn_helm', 'dawn_platebody',
   'dawn_platelegs', 'dawn_sword', 'dawn_warhammer', 'dawnbound_amulet', 'dawnforged_signet',
   'dawnlit_mantle', 'dawnsteel_rod', 'demoncaller_staff', 'dragon_gem_earrings',

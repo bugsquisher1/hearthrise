@@ -13,7 +13,7 @@
 //                       stands on its map with its sprite, and a pocket's nodes cover the top gather share
 //   walk-art            every creature of both grounds idles and walks in all 8 facings in a loaded atlas
 //   shop-outfits-defense  the Shop's gear (designer 2026-10-22) sells no slot a walked ground drops, has gloves and
-//                       a belt in every weight, and a start-kit Melee at the Thicket floor who buys the heavy pair
+//                       a belt a new hero can afford (one medium), and a start-kit Melee at the Thicket floor who buys them
 //                       trains Defense (0 without), lives the hour and nets more than the pair cost
 //   thicket-solo-starter-kit  a new hero alone at the Thicket's floor (the solo-first ground, band 5-15), wearing
 //                       ONLY the start kit, plays the hour on the real settle (play-ground.mjs) with no death, on
@@ -284,10 +284,10 @@ cases['thicket-solo-starter-kit'] = async (M) => {
 /* THE OUTFITTER (designer ruling 2026-10-22, lane/b-gold-sinks; PRIORITY_BOARD play report #5: Defense sat at 0 XP
    after 117 kills because a new hero wears no armour, and gold bought nothing). The Shop's gear rows
    (supply-basics.js kind 'gear'): (a) never sell a slot a walked ground drops (the Shop never competes with a drop);
-   (b) sell gloves AND a belt in each of the three weights (heavy, medium, light), so every way to fight has a first
-   armour pick; (c) played: a start-kit Melee at the Thicket floor earns no Defense XP in the hour, and the same hero
-   wearing the Shop's cheapest heavy gloves and belt earns Defense XP, lives the hour and nets more than the two
-   pieces cost (the purchase pays for itself inside the first hour). */
+   (b) sell gloves AND a belt, each an armour piece a new hero's 500 starting gold can buy, and at least one of them
+   medium (neither health nor mana: right for every way to fight); (c) played: a start-kit Melee at the Thicket floor
+   earns no Defense XP in the hour, and the same hero wearing the Shop's gloves and belt earns Defense XP, lives the
+   hour and nets more than the two pieces cost (the purchase pays for itself inside the first hour). */
 cases['shop-outfits-defense'] = async (M) => {
   const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
   const { SUPPLY_SHOP_OFFERS } = await imp('src/data/supply-basics.js');
@@ -300,12 +300,11 @@ cases['shop-outfits-defense'] = async (M) => {
     for (const d of (M.MONSTERS[s.monster] || {}).drops || []) if (ITEMS[d.id] && ITEMS[d.id].slot) dropped.set(ITEMS[d.id].slot, d.id + ' (' + s.monster + ')');
   }
   for (const o of gear) if (dropped.has(ITEMS[o.item].slot)) bad.push(o.item + ': the Shop sells a ' + ITEMS[o.item].slot + ', which ' + dropped.get(ITEMS[o.item].slot) + ' drops');
-  for (const slot of ['gloves', 'belt']) for (const w of ['heavy', 'medium', 'light']) {
-    if (!gear.some((o) => ITEMS[o.item].slot === slot && ARMOUR_WEIGHT[ITEMS[o.item].armourClass] === w)) bad.push('no ' + w + ' ' + slot + ' in the Shop');
-  }
-  const pick = (slot) => gear.filter((o) => ITEMS[o.item].slot === slot && ARMOUR_WEIGHT[ITEMS[o.item].armourClass] === 'heavy').sort((a, b) => a.price - b.price)[0];
+  const armour = (o) => !!ARMOUR_WEIGHT[ITEMS[o.item].armourClass] || Number(ITEMS[o.item].defB) > 0;
+  const pick = (slot) => gear.filter((o) => ITEMS[o.item].slot === slot && armour(o) && o.price <= M.kit.START_CURRENCY.gold).sort((a, b) => a.price - b.price)[0];
   const gl = pick('gloves'), bt = pick('belt');
-  if (!gl || !bt) return bad.concat('no heavy gloves or belt to play').join('; ');
+  if (!gl || !bt) return bad.concat('the Shop sells no gloves or no belt a new hero can afford').join('; ');
+  if (![gl, bt].some((o) => ARMOUR_WEIGHT[ITEMS[o.item].armourClass] === 'medium')) bad.push('neither the Shop gloves nor belt is medium (every way to fight needs a neutral first piece)');
   const P = await playOf(M);
   const floor = floorOf(M, 'meadowbrook_thicket');
   const defOf = (x) => Object.values(x.heroXp).reduce((s, h) => s + (h.defense || 0), 0);
@@ -344,8 +343,8 @@ cases['first-grounds-net-chain'] = async (M) => {
 const mutants = [
   { name: 'the Shop sells a helmet the Thicket wolves drop', case: 'shop-outfits-defense',
     edits: [['src/data/supply-basics.js', "  sell('copper_studs', 'gear', null, 120),", "  sell('copper_studs', 'gear', null, 120),\n  sell('leather_helmet', 'gear', null, 120),"]] },
-  { name: 'the Shop drops its light gloves (a caster has no first armour pick)', case: 'shop-outfits-defense',
-    edits: [['src/data/supply-basics.js', "  sell('apprentice_gloves', 'gear', null, 60),\n", '']] },
+  { name: 'the Shop stops selling gloves (no neutral first armour piece)', case: 'shop-outfits-defense',
+    edits: [['src/data/supply-basics.js', "  sell('leather_gloves', 'gear', null, 160),\n", '']] },
   { name: 'gloves and belts stop counting as armour (Defense never trains from them)', case: 'shop-outfits-defense',
     edits: [['src/data/core-model.js', "export const ARMOUR_SLOTS = Object.freeze(['helmet', 'body', 'pants', 'boots', 'gloves', 'belt']);",
       "export const ARMOUR_SLOTS = Object.freeze(['helmet', 'body', 'pants', 'boots']);"]] },

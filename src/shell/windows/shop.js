@@ -27,7 +27,7 @@ const QTYS = Object.freeze([1, 5, 10, 25, 50, 100]);
 /* The Buy tab's two lists, by the server's offer kind: [kind, heading, the one line under it]. The gear line says
    why it is there (designer 2026-10-22: Defense trains only in armour; monsters drop the big pieces). */
 const BUY_GROUPS = Object.freeze([
-  ['gear', 'Gear', 'Gloves and belts are armour: wear one and Defense trains. Heavy adds health, light adds mana. Helmets, bodies, legs and boots come from monsters.'],
+  ['gear', 'Gear', 'Gloves and belts are armour: wear one and Defense trains. Helmets, bodies, legs and boots come from monsters.'],
   ['tool', 'Tools', ''],
 ]);
 /* A piece of gear is bought one or two at a time (two rings); tools by the stack. */

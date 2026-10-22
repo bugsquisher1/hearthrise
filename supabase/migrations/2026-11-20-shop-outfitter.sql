@@ -8,7 +8,7 @@
 -- The fresh-hero play (PRIORITY_BOARD 2026-10-22, #5): 5,153 gp at 2.5 h and the
 -- Shop sold an axe and a pickaxe; Defense sat at 0 XP after 117 kills because a
 -- new hero wears no armour. The Shop now also sells the small pieces no walked
--- ground drops (gloves and belts in three weights, a cape, earrings, a ring, a
+-- ground drops (leather gloves, a bronze belt, a cape, earrings, a ring, a
 -- necklace): the first thing gold buys, and the way Defense starts.
 --
 -- ── WHAT ─────────────────────────────────────────────────────────────────────
@@ -88,9 +88,10 @@ begin
                    where not exists (select 1 from public.hr_shop_supply_offers o
                                       where o.offer_id = e->>'offer' and o.item_id = e->>'item' and o.price = (e->>'price')::bigint)) then
       raise exception 'VERIFY(a): the shop offers %', v->'offers'; end if;
-    -- (b) the outfitter is there: gloves and belts in each weight start Defense for every way to fight
+    -- (b) the outfitter is there, with the armour that starts Defense, and the tools are still sold
     if (select count(*) from jsonb_array_elements(v->'offers') e where e->>'kind' = 'gear') < 6
        or not exists (select 1 from jsonb_array_elements(v->'offers') e where e->>'item' = 'leather_gloves')
+       or not exists (select 1 from jsonb_array_elements(v->'offers') e where e->>'item' = 'bronze_belt')
        or not exists (select 1 from jsonb_array_elements(v->'offers') e where e->>'item' = 'bronze_axe') then
       raise exception 'VERIFY(b): the outfitter or the tools are missing: %', v->'offers'; end if;
     -- (c) no supply is listed (Tyler 2026-10-20)

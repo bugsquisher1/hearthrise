@@ -6,14 +6,14 @@
 --   hr_stamina_refill_rule  src/data/stamina-refill.js STAMINA_REFILL
 --   hr_blessing_rule        src/data/blessings.js BLESSING_RULES
 --   hr_blessing_tiers       src/data/blessings.js BLESSING_TIERS
---   digest 7a32fdac19a2c2e10eb12c45c1e7004b3624d5b398e2ca151b0035c2267e8d9f
+--   digest a201c7305201121f10340259523d5227cba57651917cb5198c6ea99465cb77f7
 --
 -- Server-only: RLS on, NO policy, no client grant (the client reads src/data and
 -- the envelope's quotes). Idempotent: delete + insert; nothing references these
 -- rows by foreign key. Any hand edit FAILS `node tools/gen-alpha-catalogue.mjs --check`.
 -- SUPERSEDES 2026-11-03-alpha-catalogue.generated.sql (applied; history, never
--- regenerated): the outfitter's ten gear rows join the tools (designer ruling
--- 2026-10-22, lane/b-gold-sinks: gloves and belts in three weights, a cape,
+-- regenerated): the outfitter's six gear rows join the tools (designer ruling
+-- 2026-10-22, lane/b-gold-sinks: leather gloves, a bronze belt, a cape,
 -- earrings, a ring and a necklace, at 2 x book value); every other row is the
 -- 11-03 file's. hr_shop_view lists them: 2026-11-20-shop-outfitter.sql.
 -- ORDER: after 2026-11-09-armour-class-catalogue.generated.sql (needs hr_items, hr_hunt_supplies).
@@ -85,12 +85,8 @@ insert into public.hr_shop_supply_offers (offer_id, item_id, kind, price) values
   ('supply.dawnpoint_arrows', 'dawnpoint_arrows', 'ammo', 24),
   ('supply.bronze_axe', 'bronze_axe', 'tool', 120),
   ('supply.bronze_pickaxe', 'bronze_pickaxe', 'tool', 120),
-  ('supply.bronze_gauntlets', 'bronze_gauntlets', 'gear', 80),
   ('supply.leather_gloves', 'leather_gloves', 'gear', 160),
-  ('supply.apprentice_gloves', 'apprentice_gloves', 'gear', 60),
   ('supply.bronze_belt', 'bronze_belt', 'gear', 220),
-  ('supply.leather_belt', 'leather_belt', 'gear', 70),
-  ('supply.apprentice_belt', 'apprentice_belt', 'gear', 70),
   ('supply.traveler_cape', 'traveler_cape', 'gear', 300),
   ('supply.copper_studs', 'copper_studs', 'gear', 120),
   ('supply.copper_ring', 'copper_ring', 'gear', 240),
@@ -113,12 +109,12 @@ insert into public.hr_blessing_tiers (tier, permille, base, per_level) values
 do $chk$
 declare v_role text;
 begin
-  if (select count(*) from public.hr_shop_supply_offers) <> 30
+  if (select count(*) from public.hr_shop_supply_offers) <> 26
      or (select count(*) from public.hr_blessing_tiers) <> 3
      or (select count(*) from public.hr_stamina_refill_rule) <> 1 or (select count(*) from public.hr_blessing_rule) <> 1 then
     raise exception 'VERIFY: the alpha catalogue row counts are not the data''s'; end if;
   if (select md5(string_agg(offer_id || ':' || item_id || ':' || kind || ':' || price, ',' order by offer_id collate "C"))
-        from public.hr_shop_supply_offers) is distinct from '7d1fb3ca2a2315eb48f7dded12266147' then
+        from public.hr_shop_supply_offers) is distinct from 'f0136a95e424ce7bdcf7d723a17fd835' then
     raise exception 'VERIFY: the supply offers are not the data''s rows and prices'; end if;
   if exists (select 1 from public.hr_shop_supply_offers o
               where not exists (select 1 from public.hr_items i where i.item_id = o.item_id)
@@ -137,5 +133,5 @@ begin
        or has_table_privilege(v_role, 'public.hr_blessing_tiers', 'select,insert,update,delete') then
       raise exception 'VERIFY: % reaches an alpha catalogue table', v_role; end if;
   end loop;
-  raise notice 'alpha catalogue: % supply offers, the refill rule, % blessing tiers; all green', 30, 3;
+  raise notice 'alpha catalogue: % supply offers, the refill rule, % blessing tiers; all green', 26, 3;
 end $chk$;

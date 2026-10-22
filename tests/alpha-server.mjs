@@ -213,7 +213,7 @@ const ARMS = {
     const listed = new Map((shop && shop.offers || []).filter((o) => o.kind === 'gear').map((o) => [o.offer, Number(o.price)]));
     for (const g of gear) if (listed.get(g.offer) !== g.price) p.push(`${g.offer}: the shop section lists ${listed.get(g.offer)}, the data ${g.price}`);
     const exec = H.makeExec(db);
-    const gloves = gear.find((o) => o.item === 'bronze_gauntlets'), ring = gear.find((o) => o.item === 'copper_ring');
+    const gloves = gear.find((o) => o.item === 'leather_gloves'), ring = gear.find((o) => o.item === 'copper_ring');
     const g0 = await gold(H, db, uid);
     const b1 = await X.SB.runShopBuy({ exec, user: uid, slot: 0, intentId: idem(), offer: gloves.offer, qty: 1 });
     const b2 = await X.SB.runShopBuy({ exec, user: uid, slot: 0, intentId: idem(), offer: ring.offer, qty: 2 });

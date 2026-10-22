@@ -114,9 +114,12 @@ export function basicFor(kind, huntTier) {
 // drops: gloves, belt, cape, earrings, ring and necklace. Monsters drop the helmets,
 // bodies, legs, boots and weapons (Tyler 2026-10-20: gear drops are a real slot), so the
 // Shop never competes with a drop. Gloves and belts are armour: wearing one is what lets
-// Defense train (Tyler 2026-10-18), and they come in all three weights (heavy = more
-// health, medium = dodge, light = more mana; Tyler 2026-10-18), so every way to fight
-// has a first pick. Tier 1 and Level 1 only: better pieces come from drops and crafting.
+// Defense train (Tyler 2026-10-18). Leather Gloves are medium (dodge: neither health nor
+// mana, so they suit every way to fight); the Bronze Belt is heavy (more health, a little
+// less magic and ranged accuracy: the shield hero's pick). The light and other medium
+// tier-1 gloves and belts are not sold: they are field-salvage finds (tests/field-salvage.mjs
+// (a): a salvage piece is never shop stock). Tier 1 and Level 1 only: better pieces come
+// from drops and crafting.
 // Price = SHOP_PREMIUM x book value, the tools' rule, so the vendor's buy-back (at most
 // half the shop price) pays at most what the piece cost, halved: buy-then-sell loses.
 // tools/gen-alpha-catalogue.mjs refuses a gear row off any of these rules.
@@ -148,13 +151,9 @@ export const SUPPLY_SHOP_OFFERS = Object.freeze([
   sell('dawnpoint_arrows', 'ammo', 'plain_dawnpoint_arrows', 24),
   sell('bronze_axe', 'tool', null, 120),
   sell('bronze_pickaxe', 'tool', null, 120),
-  /* The outfitter: gloves and belt in each weight (heavy, medium, light), then the rest. */
-  sell('bronze_gauntlets', 'gear', null, 80),
+  /* The outfitter: the two armour pieces first (medium gloves for anyone, a heavy belt), then the rest. */
   sell('leather_gloves', 'gear', null, 160),
-  sell('apprentice_gloves', 'gear', null, 60),
   sell('bronze_belt', 'gear', null, 220),
-  sell('leather_belt', 'gear', null, 70),
-  sell('apprentice_belt', 'gear', null, 70),
   sell('traveler_cape', 'gear', null, 300),
   sell('copper_studs', 'gear', null, 120),
   sell('copper_ring', 'gear', null, 240),

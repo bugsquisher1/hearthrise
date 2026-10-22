@@ -1243,7 +1243,7 @@
   },
   "hr_shop_supply_offers": {
    "class": "seeded",
-   "replay": 30,
+   "replay": 26,
    "note": "Generated catalogue (2026-10-25-alpha-catalogue.generated.sql, tools/gen-alpha-catalogue.mjs --check from src/data/supply-basics.js): the shop's packable supplies and their prices. Rebuilt from repo, never restored."
   },
   "hr_skill_curve": {

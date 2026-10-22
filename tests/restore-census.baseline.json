@@ -485,6 +485,7 @@
   ]
  },
  "player_value_tables": [
+  "account_bank",
   "account_gem_grants",
   "account_wallet",
   "active_bounty",
@@ -510,7 +511,6 @@
   "party_hunt_roster_log",
   "party_member",
   "player_action_sets",
-  "player_bank",
   "player_cosmetics",
   "player_equipment",
   "player_farm",
@@ -594,6 +594,11 @@
   "hr_character_sheets": "Derived, display-only: every row is recomputed by the hr-accrue sheet verb from the character's skills, gear, style, buffs and perks (which ARE restored), and is shown only while its input fingerprint matches. Losing every row costs one recompute each, never a value."
  },
  "tables": {
+  "account_bank": {
+   "class": "restore_only",
+   "wiped_at_cutover": false,
+   "note": "PLAYER VALUE — the ACCOUNT depot (Tyler 2026-10-15 / 2026-10-22: shared by every character of the account), one row per (account, item) stack, qty > 0 enforced (a stack that reaches zero is DELETEd, so an absent row is a real zero). Written ONLY by hr_bank_move (SECURITY DEFINER) under the account depot lock; own-read RLS, no client write. Replaced the per-character player_bank by 2026-11-10-account-depot.sql (summed per item; every folded stack journalled as player_ledger intent depot_fold). Same class of object as player_inventory: a rebuild returns it EMPTY."
+  },
   "account_gem_grants": {
    "class": "restore_only",
    "wiped_at_cutover": false,
@@ -1496,11 +1501,6 @@
    "class": "restore_only",
    "wiped_at_cutover": false,
    "note": "PLAYER-SCOPED — the action-bar presets a player authored (<= 5 x 10 slots x 3 conditions). Not gold, but a rebuild returning it EMPTY silently swaps every running hunt to the default bar (it changes what a hunt eats)."
-  },
-  "player_bank": {
-   "class": "restore_only",
-   "wiped_at_cutover": false,
-   "note": "PLAYER VALUE — the character's BANK, one row per item stack, qty > 0 enforced (a stack that reaches zero is DELETEd, so an absent row is a real zero). Written ONLY by hr_bank_move (SECURITY DEFINER); no client write policy. Empty in production today only because the bank shipped 2026-08-27 and players have not filled it — it is the same class of object as player_inventory, and a rebuild returns it EMPTY. It went days with NO DR classification at all while every other player_* table was classified, which is exactly the gap this census exists to close."
   },
   "player_blessings": {
    "class": "restore_only",

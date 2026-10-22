@@ -886,7 +886,7 @@ export const ACKNOWLEDGED = {
       "'xp', round(coalesce((v_xp->>'level')::numeric, 0) / p_wall_h),",
     ],
   },
-  '2026-11-10-account-depot.sql :: call :: hr_depot_fold': {
+  '2026-11-27-account-depot.sql :: call :: hr_depot_fold': {
     verdict: 'staged-backfill',
     sites: 1,
     why: 'Section 2b is the file\'s WORK, not a self-check: the one-time fold of every character\'s '

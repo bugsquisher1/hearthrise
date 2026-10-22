@@ -424,7 +424,7 @@ export const ROOM_RUNGS = Object.freeze({
 
 // ── THE DEPOT'S SPACE (Tyler 2026-10-22: "space can be increased by building
 // different storage chests for the house, with gold") ─────────────────────────
-// The depot is the ACCOUNT's (supabase/migrations/2026-11-10-account-depot.sql),
+// The depot is the ACCOUNT's (supabase/migrations/2026-11-27-account-depot.sql),
 // so its space is too: DEPOT_BASE_STACKS distinct item stacks for every account,
 // plus `stacks` for each chest the account has built. NOT the bag's cap
 // (start-kit.js bankCap is each character's BAG stack cap, a different number).

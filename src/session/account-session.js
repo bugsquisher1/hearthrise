@@ -244,7 +244,7 @@ export class AccountSession {
     if (!uid) return { ok: false, reason: 'signed_out' };
     const cs = new CharacterSession({ slot, uid, server: this.server, intents: this.intents, channel: this._channel,
       setTimer: this._timers.setTimer, clearTimer: this._timers.clearTimer });
-    /* The storage is the ACCOUNT's (2026-11-10-account-depot.sql): a move on one character re-reads the others. */
+    /* The storage is the ACCOUNT's (2026-11-27-account-depot.sql): a move on one character re-reads the others. */
     cs.onShared = (kind, from) => this._sharedChanged(kind, from);
     this._chars.set(slot, cs);
     cs.subscribe((s, why) => { if (why === 'closed-game') this._noteClosed({ closed: true }); });

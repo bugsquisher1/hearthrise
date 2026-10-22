@@ -40,6 +40,8 @@
 //       C8d a hand-authored rung keeps every field its generated rung carries
 //           (the line's style fields: plate's rangeAtkB/magicAtkB penalty,
 //           leather's rangeAtkB/critB) — its own values win, a dropped one fails.
+//   C9  the start kit's farm plots equal the first property rung's (the Camp's 2;
+//       designer 2026-10-22: the property ladder grants more, the kit never does).
 //
 // THE PENDING LIST is shrink-only. It names the few gaps the audit assigned to
 // OTHER W0 lanes, with the lane. An id that gains a use must be removed from it
@@ -62,7 +64,12 @@ import {
   ITEMS, SKILLS_DEF, SHOP_OFFERS, SHOP_LISTED_OFFER_IDS, ARTISAN_RECIPES, MONSTERS,
 } from '../src/data/catalogue-coherence.js';
 
+import { START_CURRENCY } from '../src/data/start-kit.js';
+import { PROPERTY_TIERS } from '../src/data/homestead-tiers.js';
+
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
+/* C9's start kit: the shipped one, or a planted one (mutate() only; the data is frozen). */
+let KIT_PLANT = null;
 const realRead = (rel) => readFileSync(join(ROOT, rel), 'utf8');
 
 /* Gaps the audit handed to another W0 lane. SHRINK-ONLY: see the header. */
@@ -153,6 +160,10 @@ export function check({ read = realRead } = {}) {
   if (ob.size + awaiting.size + pendingSrc !== ids.length) fails.push(`C7 obtainableItemIds() has ${ob.size} of ${ids.length} items (${awaiting.size} awaiting the roster, ${pendingSrc} pending a source) — the Collection Log would be unfinishable`);
   // C8 — armour climbs.
   fails.push(...armourLadderFails());
+  // C9 — the start kit's farm plots are the first property rung's (designer 2026-10-22: the kit made 4 plot rows
+  // on a Camp that holds 2, so two rows the server's plant refuses sat in the Farm window; the ladder grants more).
+  const kit = KIT_PLANT || START_CURRENCY;
+  if (kit.farmPlots !== PROPERTY_TIERS[0].plots) fails.push(`C9 the start kit makes ${kit.farmPlots} farm plot(s), the ${PROPERTY_TIERS[0].name} holds ${PROPERTY_TIERS[0].plots}`);
   return { fails, counts: { items: ids.length, skills: Object.keys(SKILLS_DEF).length, pendingUse: Object.keys(PENDING_USE).length, pendingConsumer: Object.keys(PENDING_CONSUMER).length, pendingSource: Object.keys(PENDING_SOURCE).length, awaiting: AWAITING_ROSTER.length } };
 }
 
@@ -229,6 +240,10 @@ function mutate() {
   const control = check();
   if (control.fails.length) { console.error('MUTATE CONTROL: the tree is not clean:\n  ' + control.fails.join('\n  ')); process.exit(2); }
 
+  run('the start kit makes more plots than the Camp holds', 'C9', () => {
+    KIT_PLANT = Object.assign({}, START_CURRENCY, { farmPlots: PROPERTY_TIERS[0].plots + 2 });
+    return { restore: () => { KIT_PLANT = null; } };
+  });
   run('an item with no source', 'C1', () => {
     ITEMS.__mut_orphan = { n: 'Orphan', v: 1, type: 'weapon', slot: 'weapon' };
     return { restore: () => { delete ITEMS.__mut_orphan; } };

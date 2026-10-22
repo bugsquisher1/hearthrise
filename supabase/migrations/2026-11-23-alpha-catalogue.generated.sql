@@ -6,30 +6,31 @@
 --   hr_stamina_refill_rule  src/data/stamina-refill.js STAMINA_REFILL
 --   hr_blessing_rule        src/data/blessings.js BLESSING_RULES
 --   hr_blessing_tiers       src/data/blessings.js BLESSING_TIERS
---   digest a201c7305201121f10340259523d5227cba57651917cb5198c6ea99465cb77f7
+--   digest a91ee816be93c514e2419c34b5be6630abd31607ac62ce532e38418f410d3a3a
 --
 -- Server-only: RLS on, NO policy, no client grant (the client reads src/data and
 -- the envelope's quotes). Idempotent: delete + insert; nothing references these
 -- rows by foreign key. Any hand edit FAILS `node tools/gen-alpha-catalogue.mjs --check`.
--- SUPERSEDES 2026-11-03-alpha-catalogue.generated.sql (applied; history, never
--- regenerated): the outfitter's six gear rows join the tools (designer ruling
--- 2026-10-22, lane/b-gold-sinks: leather gloves, a bronze belt, a cape,
--- earrings, a ring and a necklace, at 2 x book value); every other row is the
--- 11-03 file's. hr_shop_view lists them: 2026-11-20-shop-outfitter.sql.
--- ORDER: after 2026-11-09-armour-class-catalogue.generated.sql (needs hr_items, hr_hunt_supplies).
+-- SUPERSEDES 2026-11-03-alpha-catalogue.generated.sql (applied history): the
+-- outfitter's six gear rows (lane/b-gold-sinks) and the seed counter's nine rows
+-- (designer ruling 2026-10-22, lane/b-orphan-sources: every crop's seed, one per
+-- unit, at the counter's unit price, so no vendor bid moves) join the tools; one
+-- file (the v0.2.30 integration collapsed the never-applied 11-20 and 11-21 files).
+-- hr_shop_view lists them: 2026-11-24-shop-outfitter.sql, 2026-11-25-shop-seeds.sql.
+-- ORDER: after the v0.2.29 chain (needs hr_items, hr_hunt_supplies, hr_crops); first of v0.2.30.
 -- No begin/commit (CLAUDE.md §2).
 -- ════════════════════════════════════════════════════════════════════════
 
 do $pre$
 begin
-  if to_regclass('public.hr_items') is null or to_regclass('public.hr_hunt_supplies') is null then
-    raise exception 'PRECONDITION: hr_items / hr_hunt_supplies are absent (apply the item and hunt catalogues first)'; end if;
+  if to_regclass('public.hr_items') is null or to_regclass('public.hr_hunt_supplies') is null or to_regclass('public.hr_crops') is null then
+    raise exception 'PRECONDITION: hr_items / hr_hunt_supplies / hr_crops are absent (apply the item, hunt and farm catalogues first)'; end if;
 end $pre$;
 
 create table if not exists public.hr_shop_supply_offers (
   offer_id text primary key check (offer_id ~ '^supply\.[a-z0-9_]{1,64}$'),
   item_id  text not null unique check (item_id ~ '^[a-z0-9_]{1,64}$'),
-  kind     text not null check (kind in ('food', 'drink', 'ammo', 'tool', 'gear')),
+  kind     text not null check (kind in ('food', 'drink', 'ammo', 'tool', 'gear', 'seed')),
   price    bigint not null check (price between 1 and 1000000000),
   constraint hr_shop_supply_offers_id_ck check (offer_id = 'supply.' || item_id)
 );
@@ -52,10 +53,11 @@ create table if not exists public.hr_blessing_tiers (
   base      int not null check (base > 0),
   per_level int not null check (per_level >= 0)
 );
--- The outfitter's 'gear' kind (designer 2026-10-22): the 10-25 table was created with the four kinds before it.
+-- The outfitter's 'gear' and the seed counter's 'seed' kinds (designer 2026-10-22): the 10-25 table was created
+-- with the four kinds before them.
 alter table public.hr_shop_supply_offers drop constraint if exists hr_shop_supply_offers_kind_check;
 alter table public.hr_shop_supply_offers add constraint hr_shop_supply_offers_kind_check
-  check (kind in ('food', 'drink', 'ammo', 'tool', 'gear'));
+  check (kind in ('food', 'drink', 'ammo', 'tool', 'gear', 'seed'));
 alter table public.hr_shop_supply_offers enable row level security;
 alter table public.hr_stamina_refill_rule enable row level security;
 alter table public.hr_blessing_rule enable row level security;
@@ -90,7 +92,16 @@ insert into public.hr_shop_supply_offers (offer_id, item_id, kind, price) values
   ('supply.traveler_cape', 'traveler_cape', 'gear', 300),
   ('supply.copper_studs', 'copper_studs', 'gear', 120),
   ('supply.copper_ring', 'copper_ring', 'gear', 240),
-  ('supply.hunter_necklace', 'hunter_necklace', 'gear', 360);
+  ('supply.hunter_necklace', 'hunter_necklace', 'gear', 360),
+  ('supply.turnip_seed', 'turnip_seed', 'seed', 5),
+  ('supply.carrot_seed', 'carrot_seed', 'seed', 10),
+  ('supply.wheat_seed', 'wheat_seed', 'seed', 15),
+  ('supply.potato_seed', 'potato_seed', 'seed', 20),
+  ('supply.tomato_seed', 'tomato_seed', 'seed', 30),
+  ('supply.pumpkin_seed', 'pumpkin_seed', 'seed', 50),
+  ('supply.goldenroot_seed', 'goldenroot_seed', 'seed', 150),
+  ('supply.emberfruit_seed', 'emberfruit_seed', 'seed', 300),
+  ('supply.moonbloom_seed', 'moonbloom_seed', 'seed', 800);
 
 delete from public.hr_stamina_refill_rule;
 insert into public.hr_stamina_refill_rule (id, base, per_level, max_min, per_day, step_num, step_den)
@@ -109,20 +120,24 @@ insert into public.hr_blessing_tiers (tier, permille, base, per_level) values
 do $chk$
 declare v_role text;
 begin
-  if (select count(*) from public.hr_shop_supply_offers) <> 26
+  if (select count(*) from public.hr_shop_supply_offers) <> 35
      or (select count(*) from public.hr_blessing_tiers) <> 3
      or (select count(*) from public.hr_stamina_refill_rule) <> 1 or (select count(*) from public.hr_blessing_rule) <> 1 then
     raise exception 'VERIFY: the alpha catalogue row counts are not the data''s'; end if;
   if (select md5(string_agg(offer_id || ':' || item_id || ':' || kind || ':' || price, ',' order by offer_id collate "C"))
-        from public.hr_shop_supply_offers) is distinct from 'f0136a95e424ce7bdcf7d723a17fd835' then
+        from public.hr_shop_supply_offers) is distinct from 'cdf7977aa53fd50ad0a568f80f28bd3c' then
     raise exception 'VERIFY: the supply offers are not the data''s rows and prices'; end if;
   if exists (select 1 from public.hr_shop_supply_offers o
               where not exists (select 1 from public.hr_items i where i.item_id = o.item_id)
-                 or (o.kind not in ('tool', 'gear') and not exists (select 1 from public.hr_hunt_supplies s where s.item_id = o.item_id))) then
-    raise exception 'VERIFY: a supply offer sells an item that is not a packable hunt supply (or a tool or gear)'; end if;
+                 or (o.kind not in ('tool', 'gear', 'seed') and not exists (select 1 from public.hr_hunt_supplies s where s.item_id = o.item_id))
+                 or (o.kind = 'seed' and not exists (select 1 from public.hr_crops c where c.seed_item = o.item_id))) then
+    raise exception 'VERIFY: a supply offer sells an item that is not a packable hunt supply (or a tool, gear or a crop''s seed)'; end if;
+  if exists (select 1 from public.hr_crops c where c.seed_item is not null
+              and not exists (select 1 from public.hr_shop_supply_offers o where o.kind = 'seed' and o.item_id = c.seed_item)) then
+    raise exception 'VERIFY: a crop''s seed is on no Shop row (nobody could plant it)'; end if;
   if exists (select 1 from public.hr_shop_supply_offers o join public.hr_hunt_vendor_value v on v.item_id = o.item_id
-              where o.kind in ('tool', 'gear') and v.unit * 2 > o.price) then
-    raise exception 'VERIFY: the vendor bids more than half the shop price of a tool or gear piece (buy-then-sell would pay)'; end if;
+              where o.kind in ('tool', 'gear', 'seed') and v.unit * 2 > o.price) then
+    raise exception 'VERIFY: the vendor bids more than half the shop price of a tool, gear piece or seed (buy-then-sell would pay)'; end if;
   if exists (select 1 from public.hr_blessing_tiers a join public.hr_blessing_tiers b on b.tier = a.tier + 1
               where b.permille <= a.permille or b.base <= a.base) then
     raise exception 'VERIFY: a blessing tier does not protect more and cost more than the one below it'; end if;
@@ -133,5 +148,5 @@ begin
        or has_table_privilege(v_role, 'public.hr_blessing_tiers', 'select,insert,update,delete') then
       raise exception 'VERIFY: % reaches an alpha catalogue table', v_role; end if;
   end loop;
-  raise notice 'alpha catalogue: % supply offers, the refill rule, % blessing tiers; all green', 26, 3;
+  raise notice 'alpha catalogue: % supply offers, the refill rule, % blessing tiers; all green', 35, 3;
 end $chk$;

@@ -28,7 +28,7 @@ import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-export const OUT_FILE = '2026-11-10-storage-chests-catalogue.generated.sql';
+export const OUT_FILE = '2026-11-28-storage-chests-catalogue.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_FILE);
 
 const lit = (s) => "'" + String(s).replace(/'/g, "''") + "'";
@@ -67,7 +67,7 @@ export function buildSql(H, itemIds) {
 --   Any hand edit FAILS \`node tools/gen-storage-chests.mjs --check\`.
 -- STAGED (lane/c-account-shared). The account depot's space: a base every account
 -- has, and the chests an account can build (one each, in order) to add to it.
--- Read by 2026-11-10-storage-chests.sql (hr_depot_cap, hr_storage_chest_build),
+-- Read by 2026-11-28-storage-chests.sql (hr_depot_cap, hr_storage_chest_build),
 -- which applies AFTER this file. Rows are UPSERTED (account_storage_chests
 -- references hr_storage_chests); a removed row is deleted. No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════

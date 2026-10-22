@@ -152,7 +152,7 @@ function contract(R, cs, body, tl) {
   need('state', R.IS.bagCapOf(cs) !== null, 'bagCapOf reads no state.bank_cap');
   need('buffs', Array.isArray(body.buffs) && Array.isArray(R.IS.buffsOf(cs)), 'buffsOf reads ' + JSON.stringify(body.buffs).slice(0, 160));
   need('bank', body.bank === null || Array.isArray(R.IS.bankOf(cs)), 'bankOf reads ' + JSON.stringify(body.bank).slice(0, 160));
-  // the ACCOUNT storage's space (2026-11-10-storage-chests.sql): used / cap and the next chest, the Storage window's line
+  // the ACCOUNT storage's space (2026-11-28-storage-chests.sql): used / cap and the next chest, the Storage window's line
   const dp = R.IS.depotOf(cs);
   need('depot', !!dp && dp.cap >= 1 && dp.used >= 0 && (dp.next === null || (dp.next.stacks >= 1 && dp.next.name.length > 0)),
     'depotOf yields ' + JSON.stringify(dp) + ' from ' + JSON.stringify(body.depot));
@@ -164,7 +164,7 @@ function contract(R, cs, body, tl) {
     'rulesOf yields ' + JSON.stringify(ru && { locked: [...ru.locked], loot: ru.loot }) + ' from ' + JSON.stringify(body.bag_rules));
   const sh = R.IS.shopOf(cs);
   /* The Shop sells tools, the outfitter's gear and the seed counter, never supplies (2026-11-02-shop-no-supplies.sql,
-     2026-11-20-shop-outfitter.sql, 2026-11-21-shop-seeds.sql), and quotes no refill. */
+     2026-11-24-shop-outfitter.sql, 2026-11-25-shop-seeds.sql), and quotes no refill. */
   need('shop', !!sh && sh.offers.length > 0 && sh.offers.every((o) => o.kind === 'tool' || o.kind === 'gear' || o.kind === 'seed') && sh.offers.some((o) => o.item === SEED.tool)
     && sh.offers.some((o) => o.kind === 'gear') && sh.offers.some((o) => o.kind === 'seed')
     && sh.bids.size > 0 && !('refill' in body.shop),
@@ -200,7 +200,7 @@ function contract(R, cs, body, tl) {
   const tv = R.CS.heroVitalsOf(cs);
   need('vitals', !!tv && isNum(tv.hpMax) && isNum(tv.manaMax) && isNum(tv.level) && (tv.hunting || tv.mana === tv.manaMax),
     'heroVitalsOf yields ' + JSON.stringify(tv) + ' from ' + JSON.stringify(body.vitals));
-  /* the Farm window (2026-11-22-farm-window.sql): a fresh hero's field — room for 2 plots at the Camp, tier 1, the tier-2 price */
+  /* the Farm window (2026-11-26-farm-window.sql): a fresh hero's field — room for 2 plots at the Camp, tier 1, the tier-2 price */
   const fl = R.FS.farmLandOf(cs, 0);
   need('farm_land', !!fl && fl.cap >= 2 && fl.plotLevel >= 1 && fl.plots instanceof Map && (fl.plotLevel >= 5 || (!!fl.upgrade && fl.upgrade.gold > 0 && fl.upgrade.farming > 0)),
     'farmLandOf yields ' + JSON.stringify(fl && { cap: fl.cap, plotLevel: fl.plotLevel, upgrade: fl.upgrade, plots: fl.plots.size }) + ' from ' + JSON.stringify(body.farm_land));

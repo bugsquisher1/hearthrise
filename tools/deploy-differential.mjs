@@ -242,7 +242,7 @@ const uNew = '00000000-0000-4000-8000-0000000dd002';
 const HAS_GEMS_COL = (await q(`select 1 from information_schema.columns
   where table_schema = 'public' and table_name = 'player_state' and column_name = 'gems'`)).length > 0;
 const HAS_WALLET = (await q(`select to_regclass('public.account_wallet') as t`))[0].t !== null;
-/* The depot became the ACCOUNT's (2026-11-10-account-depot.sql): player_bank folded into account_bank. */
+/* The depot became the ACCOUNT's (2026-11-27-account-depot.sql): player_bank folded into account_bank. */
 const BANK_TABLE = (await q(`select to_regclass('public.account_bank') as t`))[0].t !== null ? 'account_bank' : 'player_bank';
 const seed = async (u) => {
   await q('insert into auth.users (id) values ($1) on conflict do nothing', [u]);

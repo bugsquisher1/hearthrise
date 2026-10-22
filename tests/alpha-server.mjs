@@ -27,7 +27,7 @@
 //             (supplies_not_sold) and moves no gold, and sells the Bronze Axe at
 //             its price, and a seed from the seed counter (lane/b-orphan-sources). (The per-use store charge from the bar is
 //             tests/hunt-sessions-settle.mjs STORE, unchanged.)
-//   A-OUTFITTER  the Shop's gear (designer 2026-10-22, 2026-11-20-shop-outfitter.sql):
+//   A-OUTFITTER  the Shop's gear (designer 2026-10-22, 2026-11-24-shop-outfitter.sql):
 //             the section lists every gear row at its price, the REAL edge
 //             shop_buy sells one (and two rings in one buy) with a `shop` ledger
 //             row naming the unit, and the vendor pays at most half back.
@@ -195,7 +195,7 @@ const ARMS = {
     await H.character(db, M, uid, { inv: {}, gold: 100000 });
     const shop = await H.one(db, "select public.hr_state_of($1, 0)->'shop'", [uid]);
     const kinds = new Set((shop && shop.offers || []).map((o) => o.kind));
-    /* Tools, the outfitter's gear and the seed counter (2026-11-21-shop-seeds.sql), nothing else. */
+    /* Tools, the outfitter's gear and the seed counter (2026-11-25-shop-seeds.sql), nothing else. */
     if (!shop || 'refill' in shop || kinds.size !== 3 || !kinds.has('tool') || !kinds.has('gear') || !kinds.has('seed')) p.push('the shop section reads ' + JSON.stringify(shop).slice(0, 200));
     /* The doors are gone, not merely broken: no function a client could reach (a call that fails inside is still a door). */
     for (const fn of ['public.hr_shop_refill(integer,bigint,uuid)', 'public.hr_shop_refill_quote(uuid,integer)', 'public.hr_restock_set(integer,jsonb,uuid)']) {
@@ -221,7 +221,7 @@ const ARMS = {
     return p;
   },
 
-  /* THE OUTFITTER (designer 2026-10-22, 2026-11-20-shop-outfitter.sql): the `shop` section lists every gear row at
+  /* THE OUTFITTER (designer 2026-10-22, 2026-11-24-shop-outfitter.sql): the `shop` section lists every gear row at
      its catalogue price; the REAL edge shop_buy sells one at that price (one `shop` ledger row naming the unit), two
      rings in one buy; and selling a piece straight back to the vendor returns at most half: buy-then-sell loses. */
   'A-OUTFITTER': async (db, { H, M, X }) => {
@@ -457,10 +457,10 @@ const MUTANTS = [
     find: '      v_gold := v_gold + v_q * v_r.unit;', repl: '      v_gold := v_gold + 2 * v_q * v_r.unit;' },
   { arm: 'A-LOOT-AWAY', file: '2026-10-25-bag-rules.sql', why: 'the loot filter ignores a lock',
     find: "       and r.loot_rule in ('sell', 'ignore') and not r.locked", repl: "       and r.loot_rule in ('sell', 'ignore')" },
-  /* hr_shop_view is RESTATED last by 2026-11-21-shop-seeds.sql: its mutants are planted in the body that runs. */
-  { arm: 'A-NO-SUPPLY', file: '2026-11-21-shop-seeds.sql', why: 'the shop section lists the supplies again',
+  /* hr_shop_view is RESTATED last by 2026-11-25-shop-seeds.sql: its mutants are planted in the body that runs. */
+  { arm: 'A-NO-SUPPLY', file: '2026-11-25-shop-seeds.sql', why: 'the shop section lists the supplies again',
     find: "from public.hr_shop_supply_offers o where o.kind in ('tool', 'gear', 'seed')), '[]'::jsonb),", repl: "from public.hr_shop_supply_offers o), '[]'::jsonb)," },
-  { arm: 'A-OUTFITTER', file: '2026-11-21-shop-seeds.sql', why: 'the shop section hides the outfitter again (tools and seeds only)',
+  { arm: 'A-OUTFITTER', file: '2026-11-25-shop-seeds.sql', why: 'the shop section hides the outfitter again (tools and seeds only)',
     find: "from public.hr_shop_supply_offers o where o.kind in ('tool', 'gear', 'seed')), '[]'::jsonb),", repl: "from public.hr_shop_supply_offers o where o.kind in ('tool', 'seed')), '[]'::jsonb)," },
   /* The refill survives WITH its baseline row: the defect grant hygiene cannot see (a door kept but
      unlisted is hygiene's catch — every later self-check that asserts hygiene refuses that chain). */
@@ -468,12 +468,12 @@ const MUTANTS = [
     find: "drop function if exists public.hr_shop_refill(integer, bigint, uuid);\ndrop function if exists public.hr_shop_refill_quote(uuid, integer);\ndrop function if exists public.hr_restock_set(integer, jsonb, uuid);\ndelete from public.hr_client_rpc_baseline where proname in ('hr_shop_refill', 'hr_restock_set');",
     repl: "drop function if exists public.hr_shop_refill_quote(uuid, integer);\ndrop function if exists public.hr_restock_set(integer, jsonb, uuid);\ndelete from public.hr_client_rpc_baseline where proname in ('hr_restock_set');" },
   /* Planted in the LAST alpha catalogue (the 11-21 forward file rewrites every offer row the earlier files wrote). */
-  { arm: 'A-DATA', file: '2026-11-21-alpha-catalogue.generated.sql', why: 'the SQL catalogue drifts from the edge price',
+  { arm: 'A-DATA', file: '2026-11-23-alpha-catalogue.generated.sql', why: 'the SQL catalogue drifts from the edge price',
     find: "  ('supply.cooked_shrimp', 'cooked_shrimp', 'food', 19),", repl: "  ('supply.cooked_shrimp', 'cooked_shrimp', 'food', 18)," },
-  { arm: 'A-DATA', file: '2026-11-21-shop-seeds.sql', why: 'shop_buy sells offers the shop section never serves (the seeds hidden)',
+  { arm: 'A-DATA', file: '2026-11-25-shop-seeds.sql', why: 'shop_buy sells offers the shop section never serves (the seeds hidden)',
     find: "from public.hr_shop_supply_offers o where o.kind in ('tool', 'gear', 'seed')), '[]'::jsonb),", repl: "from public.hr_shop_supply_offers o where o.kind in ('tool', 'gear')), '[]'::jsonb)," },
   /* (A gear row under twice its book value is refused at APPLY, by this catalogue's own §4 and by
-     2026-11-20-shop-outfitter.sql §2 (d): measured 2026-10-22, the planted chain does not boot. No arm mutant. The
+     2026-11-24-shop-outfitter.sql §2 (d): measured 2026-10-22, the planted chain does not boot. No arm mutant. The
      same holds for a seed row below book value: the generator refuses it before any SQL exists.) */
   /* hr_stamina_refill_quote is RESTATED by the core rebuild (2026-10-27-core-bodies.sql: priced on Level):
      the mutant is planted in the body that runs. */

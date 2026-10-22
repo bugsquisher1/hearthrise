@@ -14,7 +14,7 @@
 -- ── WHAT ─────────────────────────────────────────────────────────────────────
 -- §1 hr_shop_view RESTATED WHOLE from 2026-11-02-shop-no-supplies.sql: `offers`
 --    lists kind 'tool' AND kind 'gear' (the rows of
---    2026-11-20-alpha-catalogue.generated.sql, generated from
+--    2026-11-23-alpha-catalogue.generated.sql, generated from
 --    src/data/supply-basics.js SUPPLY_SHOP_OFFERS). `bids` unchanged. Supplies
 --    stay unlisted (Tyler 2026-10-20).
 -- The SALE is the edge's existing shop_buy (catalogue.js GOLD_OFFERS from
@@ -32,7 +32,7 @@
 --
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
 -- Re-apply hr_shop_view from 2026-11-02-shop-no-supplies.sql §1 (tools only).
--- ORDER: after 2026-11-20-alpha-catalogue.generated.sql (the gear rows). No begin/commit.
+-- ORDER: after 2026-11-23-alpha-catalogue.generated.sql (the gear rows). No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS AND THE PIN ─────────────────────────────────────────────
@@ -64,7 +64,7 @@ returns jsonb language sql stable security definer set search_path = public, pg_
 $$;
 revoke execute on function public.hr_shop_view(uuid, int) from public, anon, authenticated, service_role;
 insert into public.hr_state_sections (key, fn, note) values
-  ('shop', 'hr_shop_view', '2026-11-20-shop-outfitter.sql: the tools and the outfitter''s gear at the catalogue price and the vendor''s bid for every bag item; no supplies, no refill')
+  ('shop', 'hr_shop_view', '2026-11-24-shop-outfitter.sql: the tools and the outfitter''s gear at the catalogue price and the vendor''s bid for every bag item; no supplies, no refill')
   on conflict (key) do update set fn = excluded.fn, note = excluded.note;
 
 -- ── §2 SELF-CHECK (CLAUDE.md §4), EXECUTED, every probe rolled back ──────────

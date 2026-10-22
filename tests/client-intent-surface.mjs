@@ -81,7 +81,7 @@ export const CLIENT_RPCS = Object.freeze({
   hr_blessing_buy: 'buy one blessing tier at the quoted price, 0 under the free level (CharacterSession.buyBlessing)',
   hr_bestiary_activate: 'activate a bestiary stage for one monster kind at the quoted fee (CharacterSession.activateBestiaryStage; lane c-bestiary)',
   hr_character_name_set: 'claim this character’s own name, checked by the server (CharacterSession.setName)',
-  /* The Farm window (P1 2026-10-22; 2026-11-22-farm-window.sql): a slot, a plot index, a crop id or the expected tier; never a price or a time. */
+  /* The Farm window (P1 2026-10-22; 2026-11-26-farm-window.sql): a slot, a plot index, a crop id or the expected tier; never a price or a time. */
   hr_farm_plant: 'plant one own seed of a crop in an empty plot; level, plot tier and the plot cap are the server’s (farm-intents.js plantCrop)',
   hr_farm_water: 'water a growing plot for a 2 h double-speed window; the server refuses an open window (farm-intents.js waterPlot)',
   hr_farm_harvest: 'harvest a ready plot and leave it empty; readiness and the roll are the server’s (farm-intents.js harvestPlot)',

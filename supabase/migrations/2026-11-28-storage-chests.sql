@@ -5,7 +5,7 @@
 -- applies on its passing §6; MONEY SURFACE (a gold + material sink), Security
 -- reviews it with the reopen gate. Contract: docs/design/ARCHITECTURE_CONTRACTS.md
 -- (Depot). Numbers: src/data/homestead-tiers.js STORAGE_CHESTS (PROPOSED, the game
--- designer rules them) via 2026-11-10-storage-chests-catalogue.generated.sql.
+-- designer rules them) via 2026-11-28-storage-chests-catalogue.generated.sql.
 --
 -- ── WHAT ─────────────────────────────────────────────────────────────────────
 -- §1 public.account_storage_chests (user_id, chest_id): the chests an ACCOUNT has
@@ -49,11 +49,11 @@
 --   stored, so a stale number cannot exist.
 --
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
--- Re-apply 2026-11-10-account-depot.sql's hr_bank_move (its §0 accepts its own
+-- Re-apply 2026-11-27-account-depot.sql's hr_bank_move (its §0 accepts its own
 -- image); drop hr_storage_chest_build (+ baseline row), the `depot` section row,
 -- hr_depot_view / hr_depot_cap / hr_account_property_tier, account_storage_chests.
 -- Gold spent is in the ledger (intent storage_chest:<id>).
--- ORDER: after 2026-11-10-storage-chests-catalogue.generated.sql. No begin/commit.
+-- ORDER: after 2026-11-28-storage-chests-catalogue.generated.sql. No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS AND PINS ────────────────────────────────────────────────
@@ -61,15 +61,15 @@ do $mig$
 declare v_md5 text;
 begin
   if to_regclass('public.account_bank') is null then
-    raise exception 'PRECONDITION: apply 2026-11-10-account-depot.sql first'; end if;
+    raise exception 'PRECONDITION: apply 2026-11-27-account-depot.sql first'; end if;
   if to_regclass('public.hr_storage_chests') is null or to_regclass('public.hr_depot_config') is null then
-    raise exception 'PRECONDITION: apply 2026-11-10-storage-chests-catalogue.generated.sql first'; end if;
+    raise exception 'PRECONDITION: apply 2026-11-28-storage-chests-catalogue.generated.sql first'; end if;
   if to_regclass('public.hr_state_sections') is null or to_regprocedure('public.hr_hunt_lock(uuid,integer)') is null
      or to_regprocedure('public.hr_apply(uuid,integer,bigint,uuid,jsonb)') is null then
     raise exception 'PRECONDITION: the section registry, hr_hunt_lock or hr_apply is absent'; end if;
   select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure('public.hr_bank_move(integer,text,bigint,text,uuid)');
   if v_md5 is distinct from '6aef04d74eb5d1abf6724c3693d128a9' and v_md5 is distinct from '5edf5faf84c4ea06c773fd99e2625e9d' then
-    raise exception 'PIN: hr_bank_move is neither 2026-11-10-account-depot.sql''s image (6aef04d7...) nor this file''s (5edf5faf...) - md5 %', v_md5; end if;
+    raise exception 'PIN: hr_bank_move is neither 2026-11-27-account-depot.sql''s image (6aef04d7...) nor this file''s (5edf5faf...) - md5 %', v_md5; end if;
 end $mig$;
 
 -- ── §1 THE ACCOUNT'S CHESTS ─────────────────────────────────────────────────
@@ -137,7 +137,7 @@ returns jsonb language sql stable security definer set search_path = public, pg_
 $$;
 revoke execute on function public.hr_depot_view(uuid, int) from public, anon, authenticated, service_role;
 insert into public.hr_state_sections (key, fn, note) values
-  ('depot', 'hr_depot_view', '2026-11-10-storage-chests.sql: the ACCOUNT depot''s used / capacity, the storage chests built and the next one to build')
+  ('depot', 'hr_depot_view', '2026-11-28-storage-chests.sql: the ACCOUNT depot''s used / capacity, the storage chests built and the next one to build')
   on conflict (key) do update set fn = excluded.fn, note = excluded.note;
 
 -- ── §3 hr_bank_move — RESTATED WHOLE: A NEW STACK FITS THE ACCOUNT'S CAPACITY ──
@@ -147,10 +147,10 @@ create or replace function public.hr_bank_move(p_slot integer, p_item text, p_qt
  security definer
  set search_path to 'public'
 as $function$
--- hr_bank_move restated WHOLE by 2026-11-10-account-depot.sql (chain depth 0) from the
+-- hr_bank_move restated WHOLE by 2026-11-27-account-depot.sql (chain depth 0) from the
 -- 2026-09-28-settle-before-mutate.sql image: the depot is public.account_bank, ONE per
 -- account, under the ACCOUNT DEPOT LOCK taken after the character lock. Restated again
--- by 2026-11-10-storage-chests.sql: a deposit that opens a new stack fits the account's
+-- by 2026-11-28-storage-chests.sql: a deposit that opens a new stack fits the account's
 -- capacity (hr_depot_cap: the base + its storage chests), never above the fuse.
 declare
   c_max_move        constant bigint := 1000000;  -- per-call blast radius (matches hr_apply c_max_item_delta)
@@ -207,7 +207,7 @@ begin
   -- ... THEN THE ACCOUNT DEPOT LOCK. Every character of the account moves through
   -- this one key, so the stack count and the withdraw's check-then-write below are
   -- exact under concurrency. Order: character -> depot -> account_bank rows; nothing
-  -- takes a character lock after it (2026-11-10-account-depot.sql header).
+  -- takes a character lock after it (2026-11-27-account-depot.sql header).
   perform pg_advisory_xact_lock(hashtextextended('hr:depot:' || v_uid::text, 0));
 
   if p_dir = 'deposit' then

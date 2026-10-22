@@ -1,5 +1,5 @@
 -- ════════════════════════════════════════════════════════════════════════
--- 2026-11-14-rare-broadcast.sql — A RARE DROP IS TOLD TO EVERY PLAYER ONLINE,
+-- 2026-11-24-rare-broadcast.sql — A RARE DROP IS TOLD TO EVERY PLAYER ONLINE,
 --   BY THE SERVER, ONCE.
 --
 -- STATUS: STAGED, NOT APPLIED. Lane lane/b-rare-broadcast (systems-engineer,

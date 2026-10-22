@@ -56,7 +56,10 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
 /* MOSSLIGHT GLADE (lane c-ground-16-31, 2026-10-21): the glade's five imbuement items and Rook's Whistle (hr_items),
    and its five monsters' activities. THE v0.2.28 INTEGRATION collapsed the never-applied 11-08 and 11-12 files into
    ONE forward file after the APPLIED 11-09, carrying its armour weights: the same full delete+insert replace. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2026-11-18-loot-catalogue.generated.sql');
+/* THE START KIT'S PLOTS (v0.2.30 integration, designer 2026-10-22): 2026-11-18 is the v0.2.29 chain (history once
+   applied); the kit's farm_plots 4 -> 2, the Camp's cap (homestead-tiers.js PROPERTY_TIERS[0].plots; catalogue-
+   coherence C9), lands in this forward file: the same full delete+insert replace. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2026-11-23-loot-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already

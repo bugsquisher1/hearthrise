@@ -346,7 +346,7 @@ async function checks(overrides, shots) {
     { // AW-7 no supplies in the Shop; AW-8 hunt prep
       /* The fixture's server still offers food, drink and ammo (the pre-2026-11-02 section): the client must drop them. */
       /* The hero is BURYING when Use is pressed (Andy live 10-21: "burying locks an action"), and the Shop lists the
-         outfitter's gear above the tools (designer 2026-10-22, 2026-11-20-shop-outfitter.sql). */
+         outfitter's gear above the tools (designer 2026-10-22, 2026-11-24-shop-outfitter.sql). */
       const tools = (e) => { e.shop = Object.assign({}, e.shop, { offers: e.shop.offers.concat([{ offer: 'supply.bronze_axe', item: 'bronze_axe', kind: 'tool', price: 120 },
         { offer: 'supply.leather_gloves', item: 'leather_gloves', kind: 'gear', price: 160 }]) });
         e.state = Object.assign({}, e.state, { active_kind: 'artisan', active_id: 'bury_bones' }); };

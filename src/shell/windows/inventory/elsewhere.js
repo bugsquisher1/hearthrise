@@ -4,7 +4,7 @@
 // Finding an item is the Inventory's own search (Tyler 10-18: not a window of
 // its own). The grid shows the matches in this bag; under it, this part lists
 // where ELSE the item is: the account's storage (ONE for every character,
-// 2026-11-10-account-depot.sql) and every other character's bag and worn set. The answer is the server's account-wide read
+// 2026-11-27-account-depot.sql) and every other character's bag and worn set. The answer is the server's account-wide read
 // (AccountSession.findItems → hr_account_items); until the server answers, or
 // while that read is not on the server yet, the lines come from the envelopes
 // of the characters open on this page, and the list says which it is showing.

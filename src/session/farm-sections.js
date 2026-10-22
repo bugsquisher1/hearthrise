@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/session/farm-sections.js — THE FIELD AS THE SERVER SEES IT, READ SAFELY.
 //
-// PURE. Reads the `farm_land` section (supabase/migrations/2026-11-22-farm-window.sql,
+// PURE. Reads the `farm_land` section (supabase/migrations/2026-11-26-farm-window.sql,
 // hr_farm_land_view) of the record a CharacterSession holds:
 //   { cap, plot_level, deeds, upgrade: { level, gold, deeds, farming } | null,
 //     plots: [{ i, crop, ready, ready_in_s, waterable, regrows_left }] }

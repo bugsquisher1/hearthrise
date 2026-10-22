@@ -4,7 +4,7 @@
 --   Any hand edit FAILS `node tools/gen-storage-chests.mjs --check`.
 -- STAGED (lane/c-account-shared). The account depot's space: a base every account
 -- has, and the chests an account can build (one each, in order) to add to it.
--- Read by 2026-11-10-storage-chests.sql (hr_depot_cap, hr_storage_chest_build),
+-- Read by 2026-11-28-storage-chests.sql (hr_depot_cap, hr_storage_chest_build),
 -- which applies AFTER this file. Rows are UPSERTED (account_storage_chests
 -- references hr_storage_chests); a removed row is deleted. No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════

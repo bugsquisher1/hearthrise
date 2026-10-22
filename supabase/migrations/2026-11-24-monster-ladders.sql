@@ -41,7 +41,7 @@
 do $$
 begin
   if to_regclass('public.hr_hunt_roster') is null or to_regclass('public.hr_hunt_loot_roster') is null then
-    raise exception 'PRECONDITION: hr_hunt_roster / hr_hunt_loot_roster missing — apply 2026-11-21-hunt-sessions-catalogue.generated.sql first'; end if;
+    raise exception 'PRECONDITION: hr_hunt_roster / hr_hunt_loot_roster missing — apply 2026-11-23-hunt-sessions-catalogue.generated.sql first'; end if;
   if (select count(*) from public.hr_hunt_roster) < 6 or (select count(*) from public.hr_hunt_loot_roster) < 5 then
     raise exception 'PRECONDITION: the rosters are smaller than the ladders (6 monster rungs, 5 item rungs)'; end if;
   if to_regprocedure('public.hr_claim_milestone(text,integer)') is null

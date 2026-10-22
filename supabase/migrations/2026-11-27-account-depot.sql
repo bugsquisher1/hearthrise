@@ -180,7 +180,7 @@ create or replace function public.hr_bank_move(p_slot integer, p_item text, p_qt
  security definer
  set search_path to 'public'
 as $function$
--- hr_bank_move restated WHOLE by 2026-11-10-account-depot.sql (chain depth 0) from the
+-- hr_bank_move restated WHOLE by 2026-11-27-account-depot.sql (chain depth 0) from the
 -- 2026-09-28-settle-before-mutate.sql image: the depot is public.account_bank, ONE per
 -- account, under the ACCOUNT DEPOT LOCK taken after the character lock. The bag side,
 -- the refusals, the idempotency and the journal are unchanged.
@@ -238,7 +238,7 @@ begin
   -- ... THEN THE ACCOUNT DEPOT LOCK. Every character of the account moves through
   -- this one key, so the stack count and the withdraw's check-then-write below are
   -- exact under concurrency. Order: character -> depot -> account_bank rows; nothing
-  -- takes a character lock after it (2026-11-10-account-depot.sql header).
+  -- takes a character lock after it (2026-11-27-account-depot.sql header).
   perform pg_advisory_xact_lock(hashtextextended('hr:depot:' || v_uid::text, 0));
 
   if p_dir = 'deposit' then
@@ -336,7 +336,7 @@ AS $function$
 -- hr_state_of restated 2026-09-14 (2026-09-14-hr-state-of-restatement.sql) — chain depth 0;
 -- restated again WHOLE by 2026-10-19-account-wallet.sql (gems + hearth_tokens read
 -- from public.account_wallet, the ACCOUNT's balance, identical on every slot).
--- restated again WHOLE by 2026-11-10-account-depot.sql: `bank` reads the ACCOUNT depot
+-- restated again WHOLE by 2026-11-27-account-depot.sql: `bank` reads the ACCOUNT depot
 -- (public.account_bank), identical on every slot. Nothing else moved.
 -- This body is AUTHORED HERE. Do not add an anchored programmatic patch to it:
 -- tests/patch-chain-guard.mjs refuses a third one, and twenty-four of them are
@@ -592,7 +592,7 @@ begin
     --    hr_bank_move, projected as a flat {item_id:qty} map beside `inventory`:
     --    the SAME map on every slot of the account. Absent row = real zero
     --    (qty>0 invariant + delete-on-zero in hr_bank_move).
-    --    introduced by 2026-08-27-bank-store.sql; account-scoped by 2026-11-10-account-depot.sql
+    --    introduced by 2026-08-27-bank-store.sql; account-scoped by 2026-11-27-account-depot.sql
     'bank', coalesce((
       select jsonb_object_agg(item_id, qty)
         from public.account_bank where user_id = p_user), '{}'::jsonb),
@@ -857,7 +857,7 @@ create or replace function public.hr_account_items(p_query text)
  security definer
  set search_path to 'public', 'pg_catalog'
 as $function$
--- restated WHOLE by 2026-11-10-account-depot.sql from the 2026-10-25-account-items.sql
+-- restated WHOLE by 2026-11-27-account-depot.sql from the 2026-10-25-account-items.sql
 -- image: the depot is ONE per account, so its rows carry slot null / name null /
 -- where 'bank' and are listed once (first), not once per character.
 declare

@@ -95,7 +95,11 @@
 // carries the items); Mosslight Glade's five monsters (lane c-ground-16-31: kill
 // bounds, vendor values, training rows; the glade is STAGED, so no hunt, travel or
 // ground row); density's own home (lane c-density-home: no density option, every
-// ground's density_max; apply right before 2026-11-17-hunt-density-home.sql).
+// ground's density_max; apply right before 2026-11-17-hunt-density-home.sql). The
+// 2026-11-18 file is the v0.2.29 chain (history once applied); the next forward file
+// is 2026-11-23-hunt-sessions-catalogue.generated.sql (the v0.2.30 integration
+// collapsed the never-applied 11-13 and 11-21 files into it): the Warrens' tier-3
+// store food (lane b-armour-weights) and the reachable rosters (lane c-monster-ladders).
 //
 //   Regenerate:  node tools/gen-hunt-sessions.mjs
 //   Verify:      node tools/gen-hunt-sessions.mjs --check     (exit 1 on drift)
@@ -147,8 +151,8 @@ export const WORLD_FIELDS_READ = Object.freeze({
 });
 /* THE REACHABLE ROSTERS (lane c-monster-ladders, 2026-10-22): hr_hunt_roster / hr_hunt_loot_roster, what a player can meet
    and loot on the open grounds (hunt-grounds.js reachableOf), start this forward file after the 11-18 one; the Bestiary's
-   total and the collection milestones read them (2026-11-21-monster-ladders.sql, applied after this file). */
-export const OUT_NAME = '2026-11-21-hunt-sessions-catalogue.generated.sql';
+   total and the collection milestones read them (2026-11-24-monster-ladders.sql, applied after this file). */
+export const OUT_NAME = '2026-11-23-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -539,10 +543,12 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- SUPERSEDES 2026-11-06-hunt-sessions-catalogue.generated.sql (applied; history,
--- never regenerated): every table below is rewritten wholesale, from the data of
--- every lane staged since (one file; the never-applied 11-07/11-08/11-12/11-17
--- catalogue files were collapsed into it in the v0.2.28 integration).
+-- SUPERSEDES 2026-11-18-hunt-sessions-catalogue.generated.sql (the v0.2.29 chain;
+-- history, never regenerated): every table below is rewritten wholesale, from the
+-- data of every lane staged since (one file; the v0.2.30 integration collapsed the
+-- never-applied 11-13 and 11-21 catalogue files into it). NEW SINCE 11-18: the
+-- reachable rosters hr_hunt_roster / hr_hunt_loot_roster (lane c-monster-ladders;
+-- read by 2026-11-24-monster-ladders.sql, after this file). Carried from 11-18:
 -- THE PLAYER PICKS THE STORE ITEM (Tyler 2026-10-19; lane b-supplies-bury): the
 -- store rows carry no \`tiers\` and hr_hunt_travel no \`tier\`, and the Plain Fire
 -- Rune joins the store (8 g a cast). The four-slot drop tables (lane c-loot-loop)
@@ -550,9 +556,9 @@ export function render(src) {
 -- no hunt, travel or ground row). Density's own home (lane c-density-home, rulings
 -- H4): density is the hero's pick PER GROUND, so hr_hunt_set_options loses its
 -- density row and every hr_hunt_grounds row gains density_max (hunt-grounds.js
--- densityFor). ORDER: after 2026-11-07-store-by-slot.sql (the precondition below
--- refuses this file until it has) and 2026-11-18-loot-catalogue.generated.sql;
--- right before 2026-11-17-hunt-density-home.sql.
+-- densityFor). ORDER: after the whole v0.2.29 chain (2026-11-07-store-by-slot.sql
+-- first: the precondition below refuses this file until it has) and
+-- 2026-11-23-alpha-catalogue.generated.sql; before 2026-11-23-loot-catalogue.
 
 -- ── PRECONDITION: nothing still reads the columns this file drops ──
 do $$

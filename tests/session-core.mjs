@@ -586,7 +586,7 @@ async function rules(M) {
     return JSON.stringify(acc.slotOffer) === '{"slotId":3,"cost":40000,"max":5}' || 'after the purchase the offer is ' + JSON.stringify(acc.slotOffer);
   });
   await t('ACC-DEPOT', async () => {
-    /* The storage is the ACCOUNT's (2026-11-10-account-depot.sql): what slot 0 puts away is in slot 1's
+    /* The storage is the ACCOUNT's (2026-11-27-account-depot.sql): what slot 0 puts away is in slot 1's
        storage at once (the account re-reads the other open characters) and after a reload. The fake
        server keeps ONE depot for both slots, as hr_bank_move / hr_state_of do. */
     const depot = {}; const bags = { 0: { rat_tail: 5 }, 1: {} }; let ver = 1;

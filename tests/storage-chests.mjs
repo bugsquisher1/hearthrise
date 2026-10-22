@@ -8,7 +8,7 @@
 //   node tests/storage-chests.mjs --selftest  every mutation must be CAUGHT
 //   node tests/storage-chests.mjs --mutate=<id>
 //
-// Ships with: supabase/migrations/2026-11-10-storage-chests.sql and its generated
+// Ships with: supabase/migrations/2026-11-28-storage-chests.sql and its generated
 // catalogue (tools/gen-storage-chests.mjs from src/data/homestead-tiers.js).
 //
 // Real RPCs on a fully replayed PGlite chain (production untouched):
@@ -37,7 +37,7 @@ import { join } from 'node:path';
 import { bootReplay, ROOT } from './schema-replay.mjs';
 import { DEPOT_BASE_STACKS, STORAGE_CHESTS } from '../src/data/homestead-tiers.js';
 
-const MIG = '2026-11-10-storage-chests.sql';
+const MIG = '2026-11-28-storage-chests.sql';
 
 const GATE_BLIND = [
   ['declare v_md5 text;\nbegin\n  if to_regclass(\'public.account_bank\') is null then',

@@ -35,7 +35,7 @@
 //         chat and the whispers at once
 //   LK-1  ITEM LINKS: only a catalogue id becomes a link (an unknown id is words);
 //         the body carries the id marker, at most three, never a name or rarity
-//   WN-1  A WORLD NOTICE (a System row, written only by the server: 2026-11-14-rare-broadcast.sql)
+//   WN-1  A WORLD NOTICE (a System row, written only by the server: 2026-11-24-rare-broadcast.sql)
 //         reads as one sentence, the hero's name first, its item a link and its hunt
 //         marker the hunt's name; in a player's line a hunt marker stays as typed
 //   RB-1  WORLD_NOTICES.rare_drop (src/data/chat-channels.js) is the migration's seeded rule
@@ -74,7 +74,7 @@ import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
 const { HUNT_INDEX } = await import(pathToFileURL(join(ROOT, 'src/data/hunts.js')).href);
-const NOTICE_SQL = await readFile(join(ROOT, 'supabase/migrations/2026-11-14-rare-broadcast.sql'), 'utf8');
+const NOTICE_SQL = await readFile(join(ROOT, 'supabase/migrations/2026-11-24-rare-broadcast.sql'), 'utf8');
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const OTHER = 'aaaaaaaa-0000-4000-8000-0000000000b1';
 const PARTY = 'party:dddddddd-0000-4000-8000-0000000000c1';
@@ -144,7 +144,7 @@ async function pureRules(M) {
     const seed = /insert into public\.hr_world_notice_rules \(kind, channel, per_char_day\) values \('rare_drop', '([a-z]+)', (\d+)\)/.exec(NOTICE_SQL);
     const check = /if v_cap is distinct from (\d+) then/.exec(NOTICE_SQL);
     if (!rule || !seed || !check || seed[1] !== rule.channel || Number(seed[2]) !== rule.perCharacterPerDay || Number(check[1]) !== rule.perCharacterPerDay)
-      fail('RB-1 WORLD_NOTICES.rare_drop ' + JSON.stringify(rule) + ' is not 2026-11-14-rare-broadcast.sql\'s seeded row ' + JSON.stringify(seed && seed.slice(1)));
+      fail('RB-1 WORLD_NOTICES.rare_drop ' + JSON.stringify(rule) + ' is not 2026-11-24-rare-broadcast.sql\'s seeded row ' + JSON.stringify(seed && seed.slice(1)));
   }
 
   // CL-2, CL-3, UN-1 over a ChatStore

@@ -11,7 +11,7 @@
 // rarity from the catalogue; an id the catalogue does not know shows as plain
 // words (a newer server than this client), never as a link.
 // A line on the System channel is the SERVER's notice (no player can write it:
-// 2026-11-14-rare-broadcast.sql): it reads as one sentence, the hero's name
+// 2026-11-24-rare-broadcast.sql): it reads as one sentence, the hero's name
 // first ("Mira found Crown Shard in The Millrace Sewer."), and only there does
 // a `[[hunt:<id>]]` marker become the hunt's name; in a player's line it is
 // left as typed.

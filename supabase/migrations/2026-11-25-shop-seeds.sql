@@ -12,9 +12,9 @@
 -- tomato, pumpkin, goldenroot, emberfruit and moonbloom could never be planted.
 --
 -- ── WHAT ─────────────────────────────────────────────────────────────────────
--- §1 hr_shop_view RESTATED WHOLE from 2026-11-20-shop-outfitter.sql: `offers`
+-- §1 hr_shop_view RESTATED WHOLE from 2026-11-24-shop-outfitter.sql: `offers`
 --    lists kind 'tool', 'gear' AND 'seed' (the nine seed rows of
---    2026-11-21-alpha-catalogue.generated.sql, generated from
+--    2026-11-23-alpha-catalogue.generated.sql, generated from
 --    src/data/supply-basics.js SUPPLY_SHOP_OFFERS). `bids` unchanged.
 -- The SALE is the edge's existing shop_buy: catalogue.js sells exactly
 -- supply-basics.js SHOP_LISTED_OFFER_IDS (now with the seeds); the client names
@@ -32,8 +32,8 @@
 -- for gold cannot become a faster gold loop than its crop's hours allow.
 --
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
--- Re-apply hr_shop_view from 2026-11-20-shop-outfitter.sql §1 (tools and gear).
--- ORDER: after 2026-11-21-alpha-catalogue.generated.sql (the seed rows). No begin/commit.
+-- Re-apply hr_shop_view from 2026-11-24-shop-outfitter.sql §1 (tools and gear).
+-- ORDER: after 2026-11-23-alpha-catalogue.generated.sql (the seed rows). No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS AND THE PIN ─────────────────────────────────────────────
@@ -45,9 +45,9 @@ begin
     raise exception 'PRECONDITION: the alpha catalogue with the seed counter''s rows (2026-11-21) or the vendor values are absent'; end if;
   select replace(prosrc, chr(13), '') into v_src from pg_proc where oid = to_regprocedure('public.hr_shop_view(uuid,integer)');
   if v_src is null then raise exception 'PRECONDITION: hr_shop_view is absent'; end if;
-  -- the 2026-11-20-shop-outfitter.sql body (tools and gear) or this file's own image
+  -- the 2026-11-24-shop-outfitter.sql body (tools and gear) or this file's own image
   if strpos(v_src, 'where o.kind in (''tool'', ''gear'')') = 0 and strpos(v_src, 'where o.kind in (''tool'', ''gear'', ''seed'')') = 0 then
-    raise exception 'PIN: hr_shop_view is not the 2026-11-20-shop-outfitter.sql body this file restates'; end if;
+    raise exception 'PIN: hr_shop_view is not the 2026-11-24-shop-outfitter.sql body this file restates'; end if;
 end $mig$;
 
 -- ── §1 THE `shop` SECTION: TOOLS, GEAR, SEEDS AND BIDS ───────────────────────
@@ -65,7 +65,7 @@ returns jsonb language sql stable security definer set search_path = public, pg_
 $$;
 revoke execute on function public.hr_shop_view(uuid, int) from public, anon, authenticated, service_role;
 insert into public.hr_state_sections (key, fn, note) values
-  ('shop', 'hr_shop_view', '2026-11-21-shop-seeds.sql: the tools, the outfitter''s gear and the seed counter at the catalogue price and the vendor''s bid for every bag item; no supplies, no refill')
+  ('shop', 'hr_shop_view', '2026-11-25-shop-seeds.sql: the tools, the outfitter''s gear and the seed counter at the catalogue price and the vendor''s bid for every bag item; no supplies, no refill')
   on conflict (key) do update set fn = excluded.fn, note = excluded.note;
 
 -- ── §2 SELF-CHECK (CLAUDE.md §4), EXECUTED, every probe rolled back ──────────

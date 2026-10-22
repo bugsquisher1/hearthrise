@@ -58,7 +58,7 @@
 --
 -- REVERSIBILITY: delete the hr_state_sections row 'farm_land', drop both
 -- functions and the baseline row. No table, column or row of player data.
--- ORDER: after 2026-11-21-shop-seeds.sql (needs the listed seed rows). No begin/commit.
+-- ORDER: after 2026-11-25-shop-seeds.sql (needs the listed seed rows). No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PINS (the live shapes this file reads; it restates no body) ───────────
@@ -75,7 +75,7 @@ begin
      or to_regclass('public.hr_crops') is null or to_regclass('public.hr_shop_supply_offers') is null then
     raise exception 'PIN: hr_state_sections, hr_plot_tier, hr_crops or hr_shop_supply_offers is missing'; end if;
   if not exists (select 1 from public.hr_shop_supply_offers where kind = 'seed') then
-    raise exception 'PIN: the Shop lists no seed (apply 2026-11-21-alpha-catalogue.generated.sql first)'; end if;
+    raise exception 'PIN: the Shop lists no seed (apply 2026-11-23-alpha-catalogue.generated.sql first)'; end if;
   if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'hr_plot_tier'
                   and column_name = 'gold_cost') then
     raise exception 'PIN: hr_plot_tier.gold_cost is missing (2026-09-06-plot-tier-reachable.sql)'; end if;
@@ -124,7 +124,7 @@ begin
 end $$;
 revoke execute on function public.hr_farm_land_view(uuid, int) from public, anon, authenticated, service_role;
 insert into public.hr_state_sections (key, fn, note) values
-  ('farm_land', 'hr_farm_land_view', '2026-11-22-farm-window.sql: the plot cap, plot tier and next tier price, deeds held, and each planted plot''s crop, readiness, seconds to ready and waterability by the server clock')
+  ('farm_land', 'hr_farm_land_view', '2026-11-26-farm-window.sql: the plot cap, plot tier and next tier price, deeds held, and each planted plot''s crop, readiness, seconds to ready and waterability by the server clock')
   on conflict (key) do update set fn = excluded.fn, note = excluded.note;
 
 -- ── §2 HARVEST, THEN PLANT THE SAME CROP AGAIN ───────────────────────────────

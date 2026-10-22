@@ -38,11 +38,11 @@ import { BLESSING_RULES, BLESSING_TIERS, validate as validateBlessings } from '.
 import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-/* THE FORWARD FILE: 2026-10-25- and 2026-11-03-alpha-catalogue.generated.sql are APPLIED history, never regenerated;
-   2026-11-20 (the outfitter's gear rows, lane/b-gold-sinks) is history once this one exists. The seed counter
-   (designer 2026-10-22, lane/b-orphan-sources) lands in this forward file, the same full delete+insert replace,
-   with the kind check widened to 'seed'. */
-export const OUT_NAME = '2026-11-21-alpha-catalogue.generated.sql';
+/* THE FORWARD FILE: 2026-10-25- and 2026-11-03-alpha-catalogue.generated.sql are APPLIED history, never regenerated.
+   The outfitter's gear rows (lane/b-gold-sinks) and the seed counter (designer 2026-10-22, lane/b-orphan-sources) land
+   in ONE forward file (the v0.2.30 integration collapsed the never-applied 11-20 and 11-21 files into it), the same
+   full delete+insert replace, with the kind check widened to 'seed'. */
+export const OUT_NAME = '2026-11-23-alpha-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 /* The shop's word for a supply kind (what the Shop window files it under). */
@@ -136,13 +136,13 @@ export function render(offers = supplyRows(), r = rules()) {
 -- Server-only: RLS on, NO policy, no client grant (the client reads src/data and
 -- the envelope's quotes). Idempotent: delete + insert; nothing references these
 -- rows by foreign key. Any hand edit FAILS \`node tools/gen-alpha-catalogue.mjs --check\`.
--- SUPERSEDES 2026-11-20-alpha-catalogue.generated.sql (history once this exists;
--- it added the outfitter's six gear rows, lane/b-gold-sinks): the seed counter's
--- nine rows join the tools and the gear (designer ruling 2026-10-22,
--- lane/b-orphan-sources: every crop's seed, one per unit, at the counter's unit
--- price, so no vendor bid moves); every other row is the 11-20 file's.
--- hr_shop_view lists them: 2026-11-21-shop-seeds.sql.
--- ORDER: after 2026-11-20-shop-outfitter.sql (needs hr_items, hr_hunt_supplies, hr_crops).
+-- SUPERSEDES 2026-11-03-alpha-catalogue.generated.sql (applied history): the
+-- outfitter's six gear rows (lane/b-gold-sinks) and the seed counter's nine rows
+-- (designer ruling 2026-10-22, lane/b-orphan-sources: every crop's seed, one per
+-- unit, at the counter's unit price, so no vendor bid moves) join the tools; one
+-- file (the v0.2.30 integration collapsed the never-applied 11-20 and 11-21 files).
+-- hr_shop_view lists them: 2026-11-24-shop-outfitter.sql, 2026-11-25-shop-seeds.sql.
+-- ORDER: after the v0.2.29 chain (needs hr_items, hr_hunt_supplies, hr_crops); first of v0.2.30.
 -- No begin/commit (CLAUDE.md §2).
 -- ════════════════════════════════════════════════════════════════════════
 

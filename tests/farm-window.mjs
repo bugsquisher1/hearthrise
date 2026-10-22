@@ -9,7 +9,7 @@
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character is tests/fixtures/alpha-envelope.json plus a `farm_land` section
-// (2026-11-22-farm-window.sql): room for 3 plots, plot 0 growing and waterable,
+// (2026-11-26-farm-window.sql): room for 3 plots, plot 0 growing and waterable,
 // plot 1 ready, plot 2 empty; 8 turnip seeds in the bag; Farming 1.
 //   FW-1  Farm opens from its key (J) with zero console errors and draws exactly
 //         the server's `cap` plots, each saying what grows in it

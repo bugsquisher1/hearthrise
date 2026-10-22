@@ -7,7 +7,7 @@
 //   node tests/account-depot.mjs --selftest  every mutation must be CAUGHT
 //   node tests/account-depot.mjs --mutate=<id>
 //
-// Ships with: supabase/migrations/2026-11-10-account-depot.sql
+// Ships with: supabase/migrations/2026-11-27-account-depot.sql
 //
 // A real character pair on a fully replayed PGlite chain (real PostgreSQL, in
 // process, production untouched):
@@ -44,7 +44,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, ROOT, inventory } from './schema-replay.mjs';
 
-const MIG = '2026-11-10-account-depot.sql';
+const MIG = '2026-11-27-account-depot.sql';
 const PREV = '2026-11-09-armour-class-catalogue.generated.sql';
 
 /* Short-circuit the migration's own §2 fold probe and §6 self-check so a planted
@@ -156,7 +156,7 @@ async function freshItems(d, uid, n) {
 
 /** A1, A2, A4–A7 on the whole chain. */
 async function fullChainArms(mutate) {
-  const { db } = await bootReplay({ patches: mutate ? new Map([[MIG, patchList(mutate)]]) : undefined, upTo: MIG });   // its own file: 2026-11-10-storage-chests.sql restates hr_bank_move after it (A4 re-applies THIS file)
+  const { db } = await bootReplay({ patches: mutate ? new Map([[MIG, patchList(mutate)]]) : undefined, upTo: MIG });   // its own file: 2026-11-28-storage-chests.sql restates hr_bank_move after it (A4 re-applies THIS file)
   const d = drivers(db);
   const u = await d.newUser();
   const [i1, i2] = await freshItems(d, u, 2);

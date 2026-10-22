@@ -42,7 +42,7 @@ export const CHAT_LIMITS = Object.freeze({
 });
 
 /* THE WORLD'S NOTICES: lines only the SERVER writes, never a player (Tyler's "super-rare drop moments": a
-   broadcast). One row per kind; supabase/migrations/2026-11-14-rare-broadcast.sql seeds hr_world_notice_rules
+   broadcast). One row per kind; supabase/migrations/2026-11-24-rare-broadcast.sql seeds hr_world_notice_rules
    from it and tests/chat-social.mjs RB-1 holds the two equal.
      channel             the chat channel a notice is written to (System: no player can write it)
      perCharacterPerDay  notices one character may post per UTC day; a streak past it is journalled, not posted */

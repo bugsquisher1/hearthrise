@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-22",
- "replay_ms": 3028,
+ "replay_ms": 39549,
  "counts": {
   "tracked_names": 154,
   "entries": 107
@@ -2564,17 +2564,18 @@
     "2026-10-25-town-walk.sql",
     "2026-10-27-core-bodies.sql",
     "2026-10-28-town-own-characters.sql",
-    "2026-11-04-town-walker-names.sql"
+    "2026-11-04-town-walker-names.sql",
+    "2026-12-10-town-walker-role.sql"
    ],
    "live": {
-    "md5": "73cf2840f18f2b102c3c386fa9e4fbac",
-    "norm_len": 2674,
+    "md5": "bf82dd4d596f135e83a7af34e1dc8483",
+    "norm_len": 2789,
     "measured": "2026-10-22",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "73cf2840f18f2b102c3c386fa9e4fbac",
-    "norm_len": 2674,
+    "md5": "bf82dd4d596f135e83a7af34e1dc8483",
+    "norm_len": 2789,
     "source": "computed-from-replay"
    },
    "agree": true

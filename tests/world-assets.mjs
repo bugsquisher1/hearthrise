@@ -69,7 +69,8 @@ import { WORLD_MAPS } from '../src/data/world/maps/index.js';
 import { ROOM_LAYOUTS, TROPHY_MOUNT_SPRITES } from '../src/data/world/house-layouts.js';
 import { OUTFITS } from '../src/data/hunt-outfits.js';
 import { HUNT_INDEX } from '../src/data/hunts.js';
-import { HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
+/* the OPEN grounds: a staged one (src/data/hunts.js `staged`) is drawn by nobody until its art lands (forest-cave.mjs staged-until-art) */
+import { OPEN_GROUNDS as HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
 
 /* ONE STYLE (tools/world-art/style1.mjs): what the renderer loads, what is in the tree, and
    everything a player can reach, read from the shipped data. */

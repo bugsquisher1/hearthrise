@@ -10,6 +10,9 @@
 //                        server spawns at density `n` (the pick clamped to the
 //                        ground); the room as built only at 0
 //   bandWords(row, lv)  "Level 1 to 8" (+ ", you are 3" when known)
+//   recommendation(levels, size)  the Hunts window's default pick for this hero
+//                        or this party's levels, and a plain note when no ground
+//                        built for the group holds them
 //   partyNote(hunt)     the ground's party rule in words, from ITS row (the
 //                        pocket carrying minParty and the boss standing in it),
 //                        or '' for a ground with no party-only pocket
@@ -46,10 +49,15 @@ export function huntRows() {
   const out = [];
   for (const g of Object.values(HUNT_GROUNDS)) {
     const h = HUNT_INDEX[g.hunt];
-    if (!h) continue;
+    /* a staged hunt (hunts.js `staged`: built, art pending) is never listed; the server refuses it too */
+    if (!h || h.staged === true) continue;
     const sizes = g.pockets.map((p) => p.spawns.length);
     out.push({
-      hunt: g.hunt, name: h.name, theme: h.theme || '', band: h.band.slice(), groupFit: g.groupFit,
+      /* A ground with a party-only hall (a minParty pocket: the Rat King) is a PARTY ground to the advice,
+         whatever its workbook column says (Tyler 2026-10-21: "The Sewer is a party hunt"): its fight is
+         built for a party, so a lone hero is never pointed at it and is told it is best with one. */
+      hunt: g.hunt, name: h.name, theme: h.theme || '', band: h.band.slice(),
+      groupFit: g.pockets.some((p) => p.minParty) ? 'party' : g.groupFit,
       heroes: Math.min(g.start.length, PARTY_SCALE.maxHeroes),
       packs: g.pockets.length, packMin: Math.min(...sizes), packMax: Math.max(...sizes),
       respawnS: Math.round(g.respawnMs / 1000),
@@ -92,15 +100,45 @@ export function fitsGroup(r, partySize) {
   return r.groupFit === 'both' || r.groupFit === ((Number(partySize) || 1) >= 2 ? 'party' : 'solo');
 }
 
+/* The party's levels in words: "Level 20", or "Levels 12 to 20" when they differ. */
+const levelsWords = (lo, hi) => (lo === hi ? 'Level ' + lo : 'Levels ' + lo + ' to ' + hi);
+
 /**
- * THE ONE RECOMMENDATION (the Hunts window's default pick; tests/core-loop.mjs plays it): the
- * highest-floor ground whose band holds `level` and whose groupFit suits `partySize`, else the
- * highest-floor ground in band, else the first ground. Advice only: every ground stays enterable.
+ * THE ONE RECOMMENDATION (the Hunts window's default pick; tests/core-loop.mjs plays it), from the
+ * rows alone. `levels` is the hero's Level, or every known Level in its party; `partySize` 1 = alone.
+ * Among the grounds whose groupFit suits the group, highest floor first:
+ *   1. one whose band holds every level;  2. one whose band holds the lowest level;
+ *   3. none holds it: the nearest one BELOW the lowest level, with a note that says so plainly
+ *      (and names a ground in band that wants a party, for a lone hero);
+ *   4. no ground suits the group at all: the highest-floor ground in band, else the first ground.
+ * A lone hero is never pointed at a party ground while a solo one exists. Advice only: every
+ * ground stays enterable, the server decides.
+ * @returns {{ row: object|null, note: string|null }}
  */
-export function recommendedHunt(level, partySize = 1, rows = huntRows()) {
-  const inBand = Number.isInteger(level) ? rows.filter((r) => r.band[0] <= level && level <= r.band[1]) : [];
-  const best = (l) => l.slice().sort((a, b) => b.band[0] - a.band[0] || (a.name < b.name ? -1 : 1))[0] || null;
-  return best(inBand.filter((r) => fitsGroup(r, partySize))) || best(inBand) || rows[0] || null;
+export function recommendation(levels, partySize = 1, rows = huntRows()) {
+  const lv = [].concat(levels).filter(Number.isInteger);
+  const best = (l) => l.slice().sort((x, y) => y.band[0] - x.band[0] || (x.name < y.name ? -1 : 1))[0] || null;
+  if (!lv.length) return { row: rows[0] || null, note: null };
+  const lo = Math.min(...lv), hi = Math.max(...lv);
+  const holds = (r, from, to) => r.band[0] <= from && to <= r.band[1];
+  const fit = rows.filter((r) => fitsGroup(r, partySize));
+  const sure = best(fit.filter((r) => holds(r, lo, hi))) || best(fit.filter((r) => holds(r, lo, lo)));
+  if (sure) return { row: sure, note: null };
+  const alone = (Number(partySize) || 1) < 2;
+  const below = fit.filter((r) => r.band[1] < lo).sort((x, y) => y.band[1] - x.band[1] || y.band[0] - x.band[0])[0];
+  if (below) {
+    const party = alone ? best(rows.filter((r) => !fitsGroup(r, 1) && holds(r, lo, lo))) : null;
+    const note = 'No ground ' + (alone ? 'for one hero' : 'for your party') + ' fits ' + levelsWords(lo, hi) + ' yet. '
+      + below.name + ' (Level ' + below.band[0] + ' to ' + below.band[1] + ') is the nearest below'
+      + (party ? '; ' + party.name + ' fits your level with a party.' : '.');
+    return { row: below, note };
+  }
+  return { row: best(rows.filter((r) => holds(r, lo, lo))) || rows[0] || null, note: null };
+}
+
+/** The recommended ground's row alone (see recommendation). */
+export function recommendedHunt(levels, partySize = 1, rows = huntRows()) {
+  return recommendation(levels, partySize, rows).row;
 }
 
 /** A party ground seen by a lone hero: "Best with a party of 2–4"; else null. */

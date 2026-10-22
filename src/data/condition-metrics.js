@@ -27,6 +27,8 @@
 // A METRIC ROW:
 //   id       the wire name
 //   label    what the editor shows
+//   say      the same test as words inside the slot sentence ("Eat Salted Trout
+//            when my HP is at or below 45%": Configure action, art direction 2026-10-21)
 //   value    'pct' | 'count' | 'bool' | 'effect' — which value picker
 //   ops      the operators it takes (keys of OPERATORS)
 //   range    [min, max] for a number value (inclusive, whole)
@@ -49,15 +51,16 @@ export const MAX_STOP_RULES = 3;
 /* A stop rule's hold, in ms: whole sub-steps, at most ten minutes. */
 export const STOP_HOLD_MS = Object.freeze({ min: 0, max: 600000, step: 100 });
 
+/* `say`: the comparison inside the slot sentence ("my HP is at or below 45%"). */
 export const OPERATORS = Object.freeze({
-  eq: Object.freeze({ label: 'is' }),
-  ne: Object.freeze({ label: 'is not' }),
-  gt: Object.freeze({ label: 'above' }),
-  gte: Object.freeze({ label: 'at or above' }),
-  lt: Object.freeze({ label: 'below' }),
-  lte: Object.freeze({ label: 'at or below' }),
-  has_effect: Object.freeze({ label: 'has' }),
-  lacks_effect: Object.freeze({ label: 'lacks' }),
+  eq: Object.freeze({ label: 'is', say: 'is' }),
+  ne: Object.freeze({ label: 'is not', say: 'is not' }),
+  gt: Object.freeze({ label: 'above', say: 'is above' }),
+  gte: Object.freeze({ label: 'at or above', say: 'is at or above' }),
+  lt: Object.freeze({ label: 'below', say: 'is below' }),
+  lte: Object.freeze({ label: 'at or below', say: 'is at or below' }),
+  has_effect: Object.freeze({ label: 'has', say: 'has' }),
+  lacks_effect: Object.freeze({ label: 'lacks', say: 'lacks' }),
 });
 
 const NUM = Object.freeze(['lt', 'lte', 'gt', 'gte', 'eq', 'ne']);
@@ -66,17 +69,17 @@ const ALLY = Object.freeze(Object.assign({ lowest: 'the lowest ally' },
   Object.fromEntries(Object.entries(HUNT_ROLES).map(([id, r]) => [id, 'the ' + r.label]))));
 
 export const METRICS = Object.freeze([
-  Object.freeze({ id: 'self_hp_pct', label: 'My HP %', value: 'pct', ops: NUM, range: Object.freeze([0, 100]) }),
-  Object.freeze({ id: 'self_mana_pct', label: 'My mana %', value: 'pct', ops: NUM, range: Object.freeze([0, 100]) }),
-  Object.freeze({ id: 'ally_hp_pct', label: 'An ally’s HP %', value: 'pct', ops: NUM, range: Object.freeze([0, 100]), subject: ALLY }),
-  Object.freeze({ id: 'ally_mana_pct', label: 'An ally’s mana %', value: 'pct', ops: NUM, range: Object.freeze([0, 100]), subject: ALLY }),
-  Object.freeze({ id: 'allies_below', label: 'Allies under', value: 'count', ops: NUM, range: Object.freeze([0, 5]),
+  Object.freeze({ id: 'self_hp_pct', label: 'My HP %', say: 'my HP', value: 'pct', ops: NUM, range: Object.freeze([0, 100]) }),
+  Object.freeze({ id: 'self_mana_pct', label: 'My mana %', say: 'my mana', value: 'pct', ops: NUM, range: Object.freeze([0, 100]) }),
+  Object.freeze({ id: 'ally_hp_pct', label: 'An ally’s HP %', say: 'the HP of', value: 'pct', ops: NUM, range: Object.freeze([0, 100]), subject: ALLY }),
+  Object.freeze({ id: 'ally_mana_pct', label: 'An ally’s mana %', say: 'the mana of', value: 'pct', ops: NUM, range: Object.freeze([0, 100]), subject: ALLY }),
+  Object.freeze({ id: 'allies_below', label: 'Allies under', say: 'allies under', value: 'count', ops: NUM, range: Object.freeze([0, 5]),
     subject: Object.freeze({ under_50: 'half health', under_60: '60% health', under_70: '70% health', under_80: '80% health', under_90: '90% health' }) }),
-  Object.freeze({ id: 'enemies_in_aoe', label: 'Monsters the area would hit', value: 'count', ops: NUM, range: Object.freeze([0, 25]), slotOnly: true }),
-  Object.freeze({ id: 'target_is_boss', label: 'My target is a boss', value: 'bool', ops: Object.freeze(['eq']) }),
-  Object.freeze({ id: 'item_qty', label: 'Left in the bag', value: 'count', ops: NUM, range: Object.freeze([0, 100000]),
+  Object.freeze({ id: 'enemies_in_aoe', label: 'Monsters the area would hit', say: 'the monsters it would hit', value: 'count', ops: NUM, range: Object.freeze([0, 25]), slotOnly: true }),
+  Object.freeze({ id: 'target_is_boss', label: 'My target is a boss', say: 'my target being a boss', value: 'bool', ops: Object.freeze(['eq']) }),
+  Object.freeze({ id: 'item_qty', label: 'Left in the bag', say: 'what is left in the bag', value: 'count', ops: NUM, range: Object.freeze([0, 100000]),
     subject: Object.freeze({ item: 'of this slot’s item', food: 'of food', drink: 'of drink', ammo: 'of the loaded ammo' }) }),
-  Object.freeze({ id: 'effect_missing', label: 'An effect', value: 'effect', ops: Object.freeze(['has_effect', 'lacks_effect']),
+  Object.freeze({ id: 'effect_missing', label: 'An effect', say: 'an effect', value: 'effect', ops: Object.freeze(['has_effect', 'lacks_effect']),
     /* Whose effect: my target, me, or the ally this slot's conditions picked (its heal target; else the lowest ally).
        The effect ids are the status registry's (statuses.js), never invented here. */
     subject: Object.freeze({ target: 'on my target', self: 'on me', ally: 'on the ally I would heal' }) }),
@@ -88,10 +91,6 @@ export const ACTION_TYPES = Object.freeze({
   consume: Object.freeze({ label: 'Eat or drink', from: 'supplies' }),
   attack_with_item: Object.freeze({ label: 'Attack with an item', from: 'ammo' }),
 });
-
-/* A consume slot may name a KIND (the best line of it: own first, then the store)
-   instead of one item. */
-export const CONSUME_KINDS = Object.freeze({ food: 'heal', drink: 'mana' });
 
 /* An attack slot may name the hero's LOADED ammo (its equipped ammo slot) instead of
    one item: the attack lane's default (the plain basic attack). */
@@ -117,7 +116,9 @@ export function validate() {
     if (m.value === 'bool' && m.ops.join() !== 'eq') out.push(at + 'a bool takes eq only');
     if (m.value === 'effect' && m.ops.some((o) => !o.endsWith('_effect'))) out.push(at + 'an effect takes has_effect / lacks_effect only');
     if (m.subject && !Object.keys(m.subject).every((k) => /^[a-z0-9_]{1,32}$/.test(k))) out.push(at + 'bad subject key');
+    if (typeof m.say !== 'string' || !m.say) out.push(at + 'no words for the slot sentence (say)');
   }
+  for (const [k, o] of Object.entries(OPERATORS)) if (typeof o.say !== 'string' || !o.say) out.push('operator ' + k + ': no words for the slot sentence (say)');
   if (!EFFECT_IDS.length) out.push('no effect ids');
   return out;
 }

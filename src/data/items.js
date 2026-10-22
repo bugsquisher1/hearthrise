@@ -9,6 +9,7 @@ import { STONECRAFT_ITEMS } from './stonecraft.js?v=0.2.28';
 import { BOSS_FORGE_ITEMS } from './boss-forge.js?v=0.2.28';
 import { CHAMPION_ITEMS } from './champions.js?v=0.2.28';
 import { DRINK_ITEMS } from './drinks.js?v=0.2.28';
+import { IMBUE_ITEMS } from './imbuements.js?v=0.2.28';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×
@@ -41,6 +42,8 @@ export const ITEMS={
   ...CHAMPION_ITEMS,
   /* The six mana drinks (src/data/drinks.js), live with the hunt's mana engine (lane S2, 2026-10-18). */
   ...DRINK_ITEMS,
+  /* The imbuement slot's items, one per monster (src/data/imbuements.js, designer 2026-10-21). New ids only. */
+  ...IMBUE_ITEMS,
 
   /* ── Gathering tools (b201, SYS-3) — OSRS-style tool ladder. ──
      type:'tool' + toolSkill + toolTier + toolSpeed. The best owned tool
@@ -92,6 +95,8 @@ export const ITEMS={
   night_fang:{n:'Night Fang',icon:'🦇',v:90},dark_sigil:{n:'Dark Sigil',icon:'🔯',v:180},venom_sac:{n:'Venom Sac',icon:'🟣',v:75},
   silk_thread:{n:'Silk Thread',icon:'🧵',v:55},spider_eye:{n:'Spider Eye',icon:'👁️',v:220},brute_plate:{n:'Brute Plate',icon:'🛡️',v:130},
   dire_fang:{n:'Dire Fang',icon:'🦷',v:150},alpha_fang:{n:'Alpha Fang',icon:'🦷',v:450},grave_dust:{n:'Grave Dust',icon:'⚱️',v:95},
+  /* Mosslight Glade's rare (lane c-ground-16-31): Rook the Poacher, the ground's one carrier. */
+  rooks_whistle:{n:'Rook\'s Whistle',icon:'🎶',v:500},
   cracked_spellstone:{n:'Cracked Spellstone',icon:'🔮',v:260},plague_ichor:{n:'Plague Ichor',icon:'🧪',v:180},swarm_heart:{n:'Swarm Heart',icon:'💚',v:650},
   warlord_badge:{n:'Warlord Badge',icon:'🎖️',v:350},bear_pelt:{n:'Bear Pelt',icon:'🐻',v:260},bear_claw:{n:'Bear Claw',icon:'爪',v:180},
   wraith_veil:{n:'Wraith Veil',icon:'👻',v:420},hell_ember:{n:'Hell Ember',icon:'🔥',v:600},shadow_thread:{n:'Shadow Thread',icon:'🧵',v:320},

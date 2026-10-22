@@ -18,11 +18,11 @@
 // an ability its own trigger (a self-shield under its row's whenBelowPct, an
 // ally heal under it for the lowest ally, an area at ABILITY_RULES.areaMin
 // monsters); food the hero's eat-at (self_hp_pct below food_below_pct) and
-// drink its drink-at. So the eat-at / drink-at options are not a second
-// system: they are the values of the default consume slots (defaultSlots).
-// Each lane with no slot of its own takes its defaults: the role's rule set
-// (src/data/rule-subjects.js ROLE_RULES) for abilities, drink then food for
-// the consumable lane, the loaded ammo for the basic attack.
+// drink its drink-at. Each lane with no slot of its own takes its defaults:
+// the role's rule set (src/data/rule-subjects.js ROLE_RULES) for abilities and
+// the loaded ammo for the basic attack. Food and drink have NONE (Tyler
+// 2026-10-21: the game never picks a supply): a new hero, whose stored bar holds
+// nothing, runs the start kit's bar (src/data/start-kit.js START_BAR).
 //
 // THE AREA FOOTPRINT (enemies_in_aoe; the area a shot or a cast hits). A
 // footprint is an n x n square of tiles placed on a candidate AIM: every
@@ -46,7 +46,7 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random. Draws nothing.
 // ============================================================
 
-import { METRICS, OPERATORS, MAX_CONDITIONS, MAX_STOP_RULES, STOP_HOLD_MS, ACTION_TYPES, CONSUME_KINDS, ATTACK_KINDS, EFFECT_IDS } from '../../data/condition-metrics.js?v=0.2.28';
+import { METRICS, OPERATORS, MAX_CONDITIONS, MAX_STOP_RULES, STOP_HOLD_MS, ACTION_TYPES, ATTACK_KINDS, EFFECT_IDS } from '../../data/condition-metrics.js?v=0.2.28';
 import { ABILITIES, ABILITY_RULES } from '../../data/abilities.js?v=0.2.28';
 import { CONSUMABLES, CONSUMABLE_RULES } from '../../data/consumables.js?v=0.2.28';
 import { SUPPLIES } from '../../data/supplies.js?v=0.2.28';
@@ -55,6 +55,8 @@ import { MONSTERS } from '../../data/monsters.js?v=0.2.28';
 import { ROLE_RULES } from '../../data/rule-subjects.js?v=0.2.28';
 import { cheb, dist2, los } from './grid.js?v=0.2.28';
 import { makeEvent } from './events.js?v=0.2.28';
+import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.28';
+import { START_BAR } from '../../data/start-kit.js?v=0.2.28';
 
 /* ruleHold: ms each stop rule has held, by its stable rule id (null = none held).
    ruleWait: the last `rule_wait` reported, per lane ('ruleId:why'), so it is reported once.
@@ -83,7 +85,8 @@ export function normalizeSlot(s) {
   if (!isObj(s) || !isObj(s.action)) return null;
   return {
     id: typeof s.id === 'string' && RULE_ID.test(s.id) ? s.id : null,
-    action: { type: String(s.action.type), id: String(s.action.id) },
+    action: { type: String(s.action.type), id: String(s.action.id),
+      ...(typeof s.action.store === 'string' ? { store: s.action.store } : {}) },
     conditions: Array.isArray(s.conditions) ? s.conditions.map((c) => (isObj(c) ? { metric: c.metric, op: c.op, value: c.value,
       ...(c.subject !== undefined && c.subject !== null ? { subject: c.subject } : {}) } : null)) : [],
     join: s.join === 'or' ? 'or' : 'and',
@@ -95,9 +98,19 @@ export function normalizeSlot(s) {
 /** The item kind an action id names, or null: abilities by row, food/drink by kind or item, ammo by supply row. */
 function actionKnown(type, id) {
   if (type === 'ability') return !!ABILITIES[id];
-  if (type === 'consume') return Object.prototype.hasOwnProperty.call(CONSUME_KINDS, id) || !!(CONSUMABLES[id] && CONSUMABLES[id].source === 'own');
+  /* ONE item, crafted or a store row (Tyler 2026-10-21: the game never picks; no "Any food"). */
+  if (type === 'consume') return Object.prototype.hasOwnProperty.call(CONSUMABLES, id);
   if (type === 'attack_with_item') return Object.prototype.hasOwnProperty.call(ATTACK_KINDS, id) || !!(SUPPLIES[id] && SUPPLIES[id].kind === 'ammo');
   return false;
+}
+
+/** THE STORE RUNE A SPELL SLOT MAY NAME (`action.store`): a rune spell's slot opts into
+    buying its rune's store row once the carried runes are gone (designer 2026-10-21: a
+    default bar never buys one unseen). Nothing else carries one: a food or drink slot
+    names its ONE item. True when `store` fits the action. */
+function storeFits(type, id, store) {
+  const b = typeof store === 'string' && Object.prototype.hasOwnProperty.call(BASIC_INDEX, store) ? BASIC_INDEX[store] : null;
+  return !!b && type === 'ability' && !!ABILITIES[id] && !!ABILITIES[id].rune && b.partner === ABILITIES[id].rune;
 }
 
 /** Why a condition is refused, or null. `stop` = in a stop rule (no slot to read). */
@@ -136,7 +149,11 @@ export function slotProblem(s) {
   if (!isObj(s) || !isObj(s.action)) return { error: 'bad_action' };
   if (Object.keys(s).some((k) => !['id', 'action', 'conditions', 'join'].includes(k))) return { error: 'bad_slot' };
   if (s.id !== undefined && !(typeof s.id === 'string' && RULE_ID.test(s.id))) return { error: 'bad_slot' };
+  /* The retired "Any food" / "Any drink": the player names the item (refused in plain words). */
+  if (s.action.type === 'consume' && (s.action.id === 'food' || s.action.id === 'drink')) return { error: 'choose_item' };
   if (!ACTION_TYPES[s.action.type] || typeof s.action.id !== 'string' || !actionKnown(s.action.type, s.action.id)) return { error: 'bad_action' };
+  if (Object.keys(s.action).some((k) => !['type', 'id', 'store'].includes(k))) return { error: 'bad_action' };
+  if (s.action.store !== undefined && !storeFits(s.action.type, s.action.id, s.action.store)) return { error: 'bad_store' };
   return conditionsProblem(s.conditions, s.join, false);
 }
 
@@ -193,14 +210,10 @@ function uniqueIds(list, prefix) {
   });
 }
 
-/* The defaults a lane takes when the bar holds no slot for it: eat-at then drink-at
-   (food first: consumables.js ALWAYS FIRES — a drink first would starve food)
-   (tablets, like a stored slot), and the basic attack with the loaded ammo, the
-   attack lane's LAST resort after every attack slot (never a tablet). */
-const DEFAULT_CONSUME = Object.freeze([
-  Object.freeze({ id: 'd_food', action: Object.freeze({ type: 'consume', id: 'food' }), conditions: Object.freeze([]), join: 'and' }),
-  Object.freeze({ id: 'd_drink', action: Object.freeze({ type: 'consume', id: 'drink' }), conditions: Object.freeze([]), join: 'and' }),
-]);
+/* The basic attack with the loaded ammo, the attack lane's LAST resort after every
+   attack slot (never a tablet). Food and drink have NO default (Tyler 2026-10-21: the
+   game never picks a supply); a NEW hero's bar is the start kit's (start-kit.js
+   START_BAR), placed only while the stored bar holds nothing at all. */
 const DEFAULT_ATTACK = Object.freeze({ id: 'd_attack', action: Object.freeze({ type: 'attack_with_item', id: 'loaded' }), conditions: Object.freeze([]), join: 'and' });
 /* The attack lane's default as a row (a bare fixture unit's only one). */
 export const DEFAULT_ATTACK_ROW = Object.freeze({ rule: DEFAULT_ATTACK.id, slot: DEFAULT_ATTACK });
@@ -230,10 +243,12 @@ export function heroSlots(stored, role, allowed) {
   const keep = (s) => !!s && !slotProblem(s) && (s.action.type !== 'ability' || !allowed || allowed(s.action.id));
   let list = uniqueIds((Array.isArray(stored) ? stored : []).map((raw) => normalizeSlot(raw)), 'e');
   const has = (lane) => list.some((s) => keep(s) && LANE_OF[s.action.type] === lane);
+  const fresh = !list.some(keep);
   if (!has('ability')) list = placeDefaults(list, (ROLE_RULES[role] || []).map(normalizeSlot).filter(keep));
-  if (!has('consume')) list = placeDefaults(list, DEFAULT_CONSUME.map(normalizeSlot));
+  if (fresh) list = placeDefaults(list, START_BAR.map(normalizeSlot));
   const out = [];
-  for (const s of list) if (keep(s)) out.push({ rule: s.id, slot: s });
+  /* `at`: the slot's place on the bar (0-based), so an event can name "slot 2". */
+  list.forEach((s, at) => { if (keep(s)) out.push({ rule: s.id, slot: s, at }); });
   out.push(DEFAULT_ATTACK_ROW);
   return out;
 }
@@ -314,6 +329,7 @@ function allyOf(cx, subject, stat) {
 }
 
 const leftOf = (hs, id) => { const l = hs && hs.bag && hs.bag[id]; return l ? Math.max(0, int(l.left)) : 0; };
+/* Every own unit of one kind ('food' | 'drink') in the bag: the item_qty metric's "of food" / "of drink". */
 function kindLeft(hs, kind) {
   let n = 0;
   for (const id of Object.keys((hs && hs.bag) || {})) {
@@ -327,7 +343,7 @@ function slotStock(cx) {
   const a = cx.slot && cx.slot.action;
   const hs = cx.h && cx.h.hs;
   if (!a) return 0;
-  if (a.type === 'consume') return CONSUME_KINDS[a.id] ? kindLeft(hs, a.id) : leftOf(hs, a.id);
+  if (a.type === 'consume') return leftOf(hs, a.id);
   if (a.type === 'attack_with_item') return leftOf(hs, a.id);
   const row = ABILITIES[a.id];
   return row && row.rune ? leftOf(hs, row.rune) : 0;
@@ -414,7 +430,7 @@ export function defaultConditions(slot, h) {
     return [];
   }
   if (a.type === 'consume') {
-    const kind = CONSUME_KINDS[a.id] || (CONSUMABLES[a.id] && (CONSUMABLES[a.id].kind === 'drink' ? 'mana' : 'heal'));
+    const kind = CONSUMABLES[a.id] && (CONSUMABLES[a.id].kind === 'drink' ? 'mana' : 'heal');
     if (kind === 'mana') return [{ metric: 'self_mana_pct', op: 'lt', value: pctOf(h && h.drinkBelowPct, CONSUMABLE_RULES.drinkBelowPct) }];
     if (kind === 'heal') return [{ metric: 'self_hp_pct', op: 'lt', value: pctOf(h && h.foodBelowPct, CONSUMABLE_RULES.foodBelowPct) }];
   }

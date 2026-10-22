@@ -246,7 +246,7 @@
 .hw-store-note { margin: 0 2px 4px; }
 
 /* ── Hunts (src/shell/windows/hunts.js): one ruled line per ground; the picked one carries Enter ── */
-.hw-hunts-now { margin: 0 2px 6px; }
+.hw-hunts-now, .hw-hunts-reco { margin: 0 2px 6px; }
 .hw-hunt-list { margin: 0; padding: 0; list-style: none; }
 .hw-hunt { display: flex; align-items: flex-start; gap: 10px; padding: 8px 6px; border-top: 1px solid var(--line-soft); border-left: 2px solid transparent; cursor: pointer; }
 .hw-hunt:hover { background: var(--bg-1); }
@@ -304,6 +304,16 @@
 .hw-checks { margin: 4px 0 0; padding: 0 0 0 14px; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-check.is-short { color: var(--red); }
 .hw-use { color: var(--gold-2); }
+/* A setup's Delete asks once: "Delete it?" in red with Keep beside it, in the place Save here and Use stood. */
+.hw-keep { display: none; }
+.hw-setup.is-arming .hw-keep { display: inline-block; }
+.hw-setup.is-arming .hw-del { color: var(--red); }
+.hw-setup.is-arming [data-hs-act="save-over"], .hw-setup.is-arming .hw-use { display: none; }
+/* The setup the hero is on: "In use" in gold, and no Delete (its place kept so the rows line up). */
+.hw-setup.is-current small { color: var(--gold-2); }
+.hw-setup.is-current .hw-del { visibility: hidden; }
+.hw-town-only { display: none; }
+.hw-town-only.is-on { display: block; }
 
 /* ── Phone, landscape: the one sheet; the same density, tighter rhythm ── */
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {

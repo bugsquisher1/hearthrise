@@ -678,53 +678,57 @@ export const MONSTERS = {
      Numbers, names and economy: the src/data/hunt-grounds.js header. ══════════ */
   drain_rat: { name: 'Drain Rat', icon: '🐀', tier: 1, level: 10, cls: 'vermin', family: 'Vermin', formation: true,
     hp: 45, atk: 5, def: 0, xp: 154, gp: [4, 18], speed: 3400,
-    drops: [{ id: 'rat_tail', ch: .9 }, { id: 'bones', ch: .35 }, { id: 'small_fang', ch: .06 },
+    drops: [{ id: 'rat_tail', ch: .9 }, { id: 'bones', ch: .35 }, { id: 'rat_incisor', ch: .08 },
       { id: 'bronze_boots', ch: .024, gear: true }] },
   sump_slime: { name: 'Sump Slime', icon: '🟢', tier: 1, level: 10, cls: 'vermin', family: 'Vermin', formation: true,
     /* one override (element): the sump shrugs off every element. */
     elementWeak: null, elementImmune: ['ember', 'frost', 'poison'],
     hp: 50, atk: 4, def: 0, xp: 141, gp: [4, 14], speed: 2400,
-    drops: [{ id: 'slime_gel', ch: .95 }, { id: 'bones', ch: .25 }, { id: 'bronze_helm', ch: .032, gear: true }] },
+    drops: [{ id: 'slime_gel', ch: .95 }, { id: 'sump_membrane', ch: .08 }, { id: 'bronze_helm', ch: .032, gear: true }] },
   culvert_bat: { name: 'Culvert Bat', icon: '🦇', tier: 1, level: 15, cls: 'vermin', family: 'Vermin', formation: true,
     hp: 70, atk: 9, def: 1, xp: 288, gp: [14, 38], speed: 4400,
-    drops: [{ id: 'bat_wing', ch: .7 }, { id: 'bones', ch: .5 }, { id: 'iron_platelegs', ch: .024, gear: true }] },
+    drops: [{ id: 'bat_wing', ch: .7 }, { id: 'bones', ch: .5 }, { id: 'culvert_bat_fang', ch: .08 }, { id: 'iron_platelegs', ch: .024, gear: true }] },
   cistern_spider: { name: 'Cistern Spider', icon: '🕷️', tier: 1, level: 20, cls: 'vermin', family: 'Vermin', formation: true,
     /* one override (element): venomous, so poison is a resist, not an immunity. */
     elementResist: ['poison'], elementImmune: [],
     hp: 90, atk: 9, def: 6, xp: 704, gp: [36, 90], speed: 3600,
-    drops: [{ id: 'silk_thread', ch: .3 }, { id: 'venom_sac', ch: .1 }, { id: 'iron_sword', ch: .048, gear: true }] },
+    drops: [{ id: 'silk_thread', ch: .3 }, { id: 'cistern_venom_gland', ch: .1 }, { id: 'iron_sword', ch: .048, gear: true }] },
   kobold_tosher: { name: 'Kobold Tosher', icon: '🦎', tier: 1, level: 13, cls: 'humanoid', family: 'Humanoid', formation: true,
     hp: 55, atk: 7, def: 1, xp: 192, gp: [9, 25], speed: 3200,
-    drops: [{ id: 'bones', ch: 1 }, { id: 'bone_chips', ch: .5 }, { id: 'copper_ore', ch: .18 },
+    /* junk: the Bone Chips it sifts out of the outfalls (the reachable source of Iron Fitting's and Prayer's chips) */
+    drops: [{ id: 'bones', ch: 1 }, { id: 'bone_chips', ch: .5 }, { id: 'kobold_scale', ch: .08 },
       { id: 'bronze_platebody', ch: .032, gear: true }] },
   rat_king: { name: 'Rat King', icon: '👑', tier: 1, level: 25, cls: 'vermin', family: 'Vermin', formation: true, boss: true,
     /* one override (element): fire glances off the knot; frost is the exam's answer. */
     elementResist: ['ember'],
     hp: 600, atk: 14, def: 4, xp: 3840, gp: [119, 238], speed: 2800,
-    drops: [{ id: 'rat_tail', ch: 1 }, { id: 'bones', ch: 1 }, { id: 'crown_shard', ch: .014 },
+    drops: [{ id: 'rat_tail', ch: 1 }, { id: 'bones', ch: 1 }, { id: 'knotted_tails', ch: .15 }, { id: 'crown_shard', ch: .014 },
       { id: 'iron_helm', ch: .026, gear: true }] },
 
   /* ══ Meadowbrook Thicket: the gray wolves (one family, five roles; a solo ground).
      Names, roles and economy: the src/data/hunt-grounds.js header. ══════════════ */
   gray_whelp: { name: 'Gray Whelp', icon: '🐺', tier: 1, level: 5, cls: 'mammal', family: 'Mammal',
     hp: 9, atk: 2, def: 0, xp: 28, gp: [1, 3], speed: 3800,
-    drops: [{ id: 'raw_wolf_meat', ch: .35 }, { id: 'bones', ch: .4 }, { id: 'leather_boots', ch: .0087, gear: true }] },
+    drops: [{ id: 'raw_wolf_meat', ch: .35 }, { id: 'bones', ch: .4 }, { id: 'whelp_milk_tooth', ch: .06 }, { id: 'leather_boots', ch: .0087, gear: true }] },
+  /* gp [2, 5] -> [3, 5] (lane b-supplies-bury; designer 2026-10-21, c-loot-loop: KEPT). Eating at 60% (Tyler 10-21) doubles a fresh
+     Thicket hero's Salted Shrimp; with only the four-slot pelts (Grayjaw always, Briarcoat 30%) the Thicket nets 1,714 g/h vs the
+     Cellar's 1,738 (forest-cave, 6-seed median), with this coin 1,777.5. Coin is the lever: the bill is coin, the Gray Wolf the most killed. */
   gray_wolf: { name: 'Gray Wolf', icon: '🐺', tier: 1, level: 8, cls: 'mammal', family: 'Mammal',
-    hp: 14, atk: 4, def: 1, xp: 52, gp: [2, 5], speed: 4200,
-    drops: [{ id: 'raw_wolf_meat', ch: .5 }, { id: 'wolf_pelt', ch: .06 }, { id: 'bones', ch: .5 },
+    hp: 14, atk: 4, def: 1, xp: 52, gp: [3, 5], speed: 4200,
+    drops: [{ id: 'raw_wolf_meat', ch: .5 }, { id: 'bones', ch: .5 }, { id: 'gray_dewclaw', ch: .08 },
       { id: 'leather_helmet', ch: .0071, gear: true }] },
   briarcoat_wolf: { name: 'Briarcoat Wolf', icon: '🐺', tier: 1, level: 10, cls: 'mammal', family: 'Mammal',
     /* one override (weapon): arrows snag in the burrs; a club knocks them loose. */
     weaponWeak: 'hammer', weaponResist: ['ranged'],
     hp: 16, atk: 3, def: 2, xp: 61, gp: [2, 5], speed: 2800,
-    drops: [{ id: 'wolf_pelt', ch: .1 }, { id: 'raw_wolf_meat', ch: .4 }, { id: 'bones', ch: .5 }, { id: 'leather_pants', ch: .0173, gear: true }] },
+    drops: [{ id: 'wolf_pelt', ch: .3 }, { id: 'bones', ch: .5 }, { id: 'briar_burr', ch: .08 }, { id: 'leather_pants', ch: .0173, gear: true }] },
   dire_gray: { name: 'Dire Gray', icon: '🐺', tier: 2, level: 13, cls: 'mammal', family: 'Mammal',
     hp: 28, atk: 7, def: 3, xp: 179, gp: [5, 14], speed: 3600,
-    drops: [{ id: 'wolf_pelt', ch: .2 }, { id: 'raw_wolf_meat', ch: .7 }, { id: 'bones', ch: 1 }, { id: 'leather_body', ch: .0346, gear: true }] },
+    drops: [{ id: 'raw_wolf_meat', ch: .7 }, { id: 'bones', ch: 1 }, { id: 'dire_hackle', ch: .08 }, { id: 'leather_body', ch: .0346, gear: true }] },
   grayjaw: { name: 'Old Grayjaw', icon: '🐺', tier: 2, level: 15, cls: 'mammal', family: 'Mammal',
     /* the den mother under the hollow oak: the top of tier 2, the wood's hardest bite. */
     hp: 35, atk: 10, def: 4, xp: 258, gp: [6, 16], speed: 3200,
-    drops: [{ id: 'wolf_pelt', ch: .4 }, { id: 'bones', ch: 1 }, { id: 'dire_fang', ch: .25 }, { id: 'alpha_fang', ch: .003 },
+    drops: [{ id: 'wolf_pelt', ch: 1 }, { id: 'bones', ch: 1 }, { id: 'grayjaw_whisker', ch: .15 }, { id: 'alpha_fang', ch: .003 },
       { id: 'shortbow', ch: .0355, gear: true }] },
 
   /* ══ Coppercap Warrens: the goblins of the copper diggings (one family, five roles;
@@ -752,6 +756,32 @@ export const MONSTERS = {
     hp: 1100, atk: 29, def: 28, xp: 7920, gp: [95, 215], speed: 2800,
     drops: [{ id: 'big_bones', ch: 1 }, { id: 'gold_ore', ch: .5 }, { id: 'goblin_totem', ch: .3 }, { id: 'war_crown', ch: .018 },
       { id: 'steel_platebody', ch: .025, gear: true }] },
+
+  /* ══ Mosslight Glade, levels 16-31, solo, mixed (lane c-ground-16-31): roles, junk and economy in the src/data/hunt-grounds.js header. ══ */
+  carrion_crow: { name: 'Carrion Crow', icon: '🐦', tier: 2, level: 16, cls: 'vermin', family: 'Vermin',
+    /* one override (weapon): a bird in the open, so an arrow brings it down and a club swings at air. */
+    weaponWeak: 'ranged', weaponResist: [],
+    hp: 30, atk: 10, def: 1, xp: 165, gp: [4, 12], speed: 4400,
+    drops: [{ id: 'bone_chips', ch: .5 }, { id: 'crow_quill', ch: .08 }, { id: 'studded_boots', ch: .0062, gear: true }] },
+  glade_poacher: { name: 'Glade Poacher', icon: '🏹', tier: 2, level: 19, cls: 'human', family: 'Human',
+    /* glass that hits like a cart: the ground's hardest blow before the sluice */
+    hp: 32, atk: 12, def: 2, xp: 225, gp: [6, 18], speed: 3400,
+    drops: [{ id: 'wolf_pelt', ch: .3 }, { id: 'bones', ch: .5 }, { id: 'snare_wire', ch: .08 }, { id: 'longbow', ch: .0186, gear: true }] },
+  walking_vine: { name: 'Walking Vine', icon: '🌿', tier: 2, level: 22, cls: 'plant', family: 'Plant',
+    /* the tank: slow and woody; a blade cuts it, an arrow sticks, fire takes it */
+    hp: 35, atk: 9, def: 4, xp: 260, gp: [4, 12], speed: 2400,
+    drops: [{ id: 'magic_essence', ch: .25 }, { id: 'mosslight_tendril', ch: .08 }, { id: 'iron_helm', ch: .0126, gear: true }] },
+  goblin_sluicer: { name: 'Goblin Sluicer', icon: '👺', tier: 3, level: 26, cls: 'humanoid', family: 'Humanoid',
+    /* one override (element): soaked from the spring run, so fire hisses off it. */
+    elementResist: ['ember'],
+    hp: 70, atk: 18, def: 10, xp: 360, gp: [14, 34], speed: 3000,
+    drops: [{ id: 'copper_ore', ch: .6 }, { id: 'bones', ch: .5 }, { id: 'sluice_crust', ch: .08 },
+      { id: 'iron_platebody', ch: .038, gear: true }] },
+  rook_poacher: { name: 'Rook the Poacher', icon: '🏹', tier: 3, level: 29, cls: 'human', family: 'Human',
+    /* the poachers' chief, camped in the ruined spring-house; the crows know his whistle. The rare carrier. */
+    hp: 78, atk: 18, def: 11, xp: 520, gp: [16, 40], speed: 3200,
+    drops: [{ id: 'raw_wolf_meat', ch: .7 }, { id: 'bones', ch: 1 }, { id: 'rooks_moss_charm', ch: .15 }, { id: 'rooks_whistle', ch: .0038 },
+      { id: 'studded_pants', ch: .038, gear: true }] },
 };
 
 /* SEAL: write each class's profile onto its members, so `m.weaponWeak` is a

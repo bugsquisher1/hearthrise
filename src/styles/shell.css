@@ -102,6 +102,16 @@
 .hs-win-body { overflow: auto; padding: 10px 12px 12px; }
 .hs-note { margin: 0 0 8px; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.4; }
 
+/* ── Rename in place (src/shell/inline-name.js): the name is a quiet button; while naming, the field takes its place ── */
+.hs-name { display: block; min-width: 0; max-width: 100%; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: text; }
+.hs-name-t { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; color: var(--ink); border-bottom: 1px dotted transparent; }
+.hs-name:hover:not(:disabled) .hs-name-t { border-bottom-color: var(--ink-3); }
+.hs-name:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 1px; }
+.hs-name:disabled { cursor: default; }
+.hs-name-edit { display: none; width: 100%; min-width: 0; }
+.is-naming .hs-name { display: none; }
+.is-naming .hs-name-edit { display: block; width: 100%; }
+
 /* ── The HUD layout window: one ruled line per widget, then Reset ── */
 .hs-hudset { margin: 0; padding: 0; list-style: none; }
 .hs-hudset-row { display: flex; align-items: center; gap: 10px; min-height: 36px; border-top: 1px solid var(--line-soft); }

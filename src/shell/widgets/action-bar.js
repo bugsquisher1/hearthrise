@@ -17,7 +17,8 @@
 //            on a slot puts it there (src/shell/bar-assign.js)
 //   tooltip  hover, focus or a long press: name, cost, type, cooldown, effect,
 //            then the slot's setup and any conflict (action-facts.js)
-//   panel    the action set (Saved setups switch it), target, stance, chase,
+//   panel    the setup in use (a setup owns this bar; Saved setups switch it,
+//            designer ruling 2026-10-22), target, stance, chase,
 //            distance and the gold to keep (gold_floor): each ONE intent
 //            (settings-intent.js), shown from the server only once it confirms
 // Shown in town too (Tyler 10-18: set it up before leaving). Every value is
@@ -27,27 +28,32 @@ import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.28';
 import { ABILITIES } from '../../data/abilities.js?v=0.2.28';
 import { huntOf, settingsOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.28';
 import { carriedOf } from '../../session/item-sections.js?v=0.2.28';
-import { text, cls, attr, element, keyedChild } from '../../render/paint.js?v=0.2.28';
+import { text, cls, attr, element, keyedChild, prop } from '../../render/paint.js?v=0.2.28';
 import { whole } from '../../render/format.js?v=0.2.28';
 import { glyphSvg } from '../launcher.js?v=0.2.28';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.28';
 import { actionIconHtml } from './bits.js?v=0.2.28';
 import { hubHtml, patchHub } from './vitals-hub.js?v=0.2.28';
-import { openSlot, sendPlan, movePlan, swapPlan, insertPlan, serverBar, barRefusalWords, answerWithin } from '../bar-draft.js?v=0.2.28';
+import { openSlot, sendPlan, movePlan, swapPlan, insertPlan, serverBar, answerWithin } from '../bar-draft.js?v=0.2.28';
 import { actionName, factsOf, carried, supplyLines, setupWords, conflictsOf, reasonOf, sharedCooldownOf } from '../action-facts.js?v=0.2.28';
 import { resetConfigureView } from '../windows/configure-action.js?v=0.2.28';
 import { assignToBar, barKind } from '../bar-assign.js?v=0.2.28';
 import { DRAG_TYPE } from '../windows/inventory/actions.js?v=0.2.28';
 import { refusalWords } from '../intent-words.js?v=0.2.28';
 import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, goldFloorHtml, patchControls, sendOption } from './settings-intent.js?v=0.2.28';
+import { ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.28';
+import { nameEditorHtml, openNameEditor, nameKey } from '../inline-name.js?v=0.2.28';
+import { renameActionSet } from '../../session/preset-intents.js?v=0.2.28';
 
 const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const SLOT_DRAG = 'application/x-hr-bar-slot';
 const LONG_PRESS_MS = 450;
+const KINDS = new Set(Object.keys(ATTACK_KINDS));
 const PRESS = new WeakMap();   // the bar element -> { timer, held }
 const DROP = new WeakMap();    // the bar element -> { from, to, off } while the drop menu is open
 const PANEL = new WeakMap();   // the bar element -> the open sheet's listener cleanup (phone)
 const CASTS = new WeakMap();   // the bar element -> { cs, off, at: Map(ability -> client ms of the hero's last cast) }
+const RENAMING = new WeakSet(); // the bar elements whose set rename is with the server (its name control stays off)
 
 /* THE COOLDOWN EMBER (the sim's, Tyler 10-19): when the server's timeline plays the viewed hero's
    `cast` of an ability, its slot cools for that ability's catalogue cooldown (cdMs, the clock the
@@ -104,7 +110,8 @@ export function renderActionBar(ctx) {
     + hubHtml(g)
     + '<ol class="hb-slots" aria-label="Slots 6 to 10 and 16 to 20">' + side(true) + '</ol>'
     + '<div class="hb-plaque">'
-    + '<div class="hb-pl-row"><span class="hb-label">Action set</span><b class="hb-set"></b>'
+    /* The set's name renames in place (inline-name.js; ONE hr_action_set_rename, ruling C4). */
+    + '<div class="hb-pl-row"><span class="hb-label">Setup</span><span class="hb-set">' + nameEditorHtml('set-rename', '', 'New name for this setup') + '</span>'
     + '<button type="button" class="hh-tool" data-hs-act="setups" aria-label="Saved setups: switch or save">' + glyphSvg(g, 'uiCheck') + '</button>'
     /* On a phone the rest of the panel is a slide-out sheet (hunt.css): this opens it. */
     + '<button type="button" class="hh-tool hb-more" data-hs-act="panel" aria-expanded="false" aria-label="Fight settings">' + glyphSvg(g, 'uiSettings') + '</button></div>'
@@ -133,9 +140,8 @@ function patchSlot(li, s, w, ctx, bag, conflict, why) {
     keyedChild(li.querySelector('.hb-slot-ico'), key, () => element(ctx.doc, actionIconHtml(ctx.glyphs, s.action)));
     attr(li, 'draggable', s.empty ? null : 'true');
   }
-  /* The count: what the hero carries now (item-sections.js carriedOf: the open hunt's hunt bag, else the bag), one item's
-     line or a kind's (Any food) lines. Never the slot's `count`: the server counts the bag, which a hunt has emptied. */
-  const n = s.empty || s.action.type === 'ability' ? null : carried(s.action, bag);
+  /* The count: the server's own count for a slot naming one item (a store item has none); the loaded ammo's is the bag's. */
+  const n = s.empty || s.action.type === 'ability' ? null : Number.isInteger(s.count) && !KINDS.has(s.action.id) ? s.count : carried(s.action, bag);
   /* WHY it cannot fire (action-facts.js reasonOf): struck when the server would not fire it, a glyph either way. */
   const out = !!why && why.strike;
   cls(li, 'is-empty', s.empty);
@@ -201,7 +207,9 @@ renderActionBar.patch = function patchActionBar(el, ctx) {
     patchCooldown(li, sl, casts, now);
   }
   const set = s && s.presets.find((p) => p.preset === s.preset);
-  text(el.querySelector('.hb-set'), set ? set.name : s ? 'Set ' + (s.preset + 1) : '–');
+  const nm = el.querySelector('.hb-set');
+  text(nm.querySelector('.hs-name-t'), set ? set.name : s ? 'Set ' + (s.preset + 1) : '–');
+  for (const c of nm.querySelectorAll('button, input')) prop(c, 'disabled', !s || RENAMING.has(el));
   patchControls(el.querySelector('.hb-plaque'), cs);
   const tip = el.querySelector('.hb-tip.is-on');
   if (tip) { const i = tip.getAttribute('data-for'); attr(tip, 'data-for', null); const li = el.querySelector('.hb-slot[data-slot="' + i + '"]'); if (li) showTip(el, li, ctx); }
@@ -233,7 +241,7 @@ function dropOnSlot(ctx, el, ev, t) {
   const id = ev.dataTransfer.getData(DRAG_TYPE);
   if (!barKind(id)) { text(msg, refusalWords('not_for_bar')); return true; }
   text(msg, 'Putting it on the bar…');
-  answerWithin(() => assignToBar(ctx.character, id, to)).then((r) => { text(msg, r.ok ? '' : r.error === 'timeout' ? barRefusalWords(r.error) : refusalWords(r.error)); repaint(); });
+  answerWithin(() => assignToBar(ctx.character, id, to)).then((r) => { text(msg, r.ok ? '' : refusalWords(r.error)); repaint(); });
   return true;
 }
 
@@ -243,7 +251,7 @@ function runDrop(ctx, el, plan) {
   const msg = el.querySelector('.hb-plaque .hh-intent-msg');
   text(msg, 'Moving it…');
   sendPlan(ctx.character, plan, () => renderActionBar.patch(el, ctx))
-    .then((r) => { text(msg, r.ok ? '' : barRefusalWords(r.error)); renderActionBar.patch(el, ctx); });
+    .then((r) => { text(msg, r.ok ? '' : refusalWords(r.error)); renderActionBar.patch(el, ctx); });
 }
 
 /* THE PANEL SHEET (phone): the bar keeps the set's name and its buttons; the rest slides out from the
@@ -298,6 +306,27 @@ function closeDropMenu(el) {
   cls(el.querySelector('.hb-drop'), 'is-on', false);
 }
 
+/* A key in the set's name field: Enter sends ONE rename of the set the bar shows (the server's preset) and the
+   field closes; the plaque keeps the old name until the re-read carries the new one. Escape puts it back. */
+function renameSet(ctx, el, ev, t) {
+  const k = nameKey(ev);
+  if (!k) return false;
+  const nm = el.querySelector('.hb-set'), name = t.value.trim(), s = settingsOf(ctx.character);
+  cls(nm, 'is-naming', false);
+  t.blur();
+  if (k !== 'commit' || !s || !name || name === nm.querySelector('.hs-name-t').textContent) return true;
+  const msg = el.querySelector('.hb-plaque .hh-intent-msg');
+  RENAMING.add(el);
+  text(msg, 'Renaming…');
+  renderActionBar.patch(el, ctx);
+  answerWithin(() => renameActionSet(ctx.account, ctx.character, s.preset, name)).then((r) => {
+    RENAMING.delete(el);
+    text(msg, r.ok ? '' : r.error === 'timeout' ? barRefusalWords(r.error) : refusalWords(r.error));
+    renderActionBar.patch(el, ctx);
+  });
+  return true;
+}
+
 function openOn(ctx, i) {
   openSlot(ctx.character, i);
   resetConfigureView(ctx.character);
@@ -313,6 +342,13 @@ renderActionBar.act = function actActionBar(ctx, el, action, ev, t) {
     sendOption(ctx, el.querySelector('.hb-plaque'), t, () => renderActionBar.patch(el, ctx));
     return;
   }
+  if (action === 'set-rename' && ev.type === 'click') {
+    const s = settingsOf(ctx.character);
+    const nm = el.querySelector('.hb-set');
+    if (s && !RENAMING.has(el)) openNameEditor(nm, nm.querySelector('.hs-name-t').textContent, () => cls(nm, 'is-naming', false));
+    return;
+  }
+  if (action === 'set-rename-key') return renameSet(ctx, el, ev, t);
   if (action === 'setups' && ev.type === 'click') { ctx.show('hunt-prep'); return; }
   if (action === 'panel' && ev.type === 'click') { setPanel(ctx, el, !PANEL.has(el)); return; }
   if (action === 'drop' && ev.type === 'click') {

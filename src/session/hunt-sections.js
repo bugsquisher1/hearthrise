@@ -94,22 +94,26 @@ function conditionOf(c) {
 }
 
 /* One bar slot: the server's action + conditions (the wire shape the editor sends back,
-   src/data/condition-metrics.js), plus its display fields (usable, mana, count). */
+   src/data/condition-metrics.js), plus its display fields (usable, why, mana, count). */
 function slotOf(s) {
   if (!isObj(s) || !isObj(s.action) || !ACTION.test(String(s.action.type)) || !str(s.action.id)) return { empty: true };
   const conditions = list(s.conditions, conditionOf, 4);
   return {
     /* `id`: the rule's STABLE id (the server's; the hunt summary names a decision by it). */
-    empty: false, id: str(s.id), item: s.action.id, action: { type: s.action.type, id: s.action.id },
+    empty: false, id: str(s.id), item: s.action.id,
+    /* `store`: the store row the PLAYER chose to back this slot (Tyler 2026-10-19), when it names one. */
+    action: Object.assign({ type: s.action.type, id: s.action.id }, str(s.action.store) ? { store: s.action.store } : {}),
     conditions, join: JOIN.test(String(s.join)) ? s.join : 'and',
     usable: s.usable !== false, mana: int(s.mana), count: int(s.count),
+    /* WHY THE SERVER STRUCK IT (hr_hunt_settings_view): none_left (own stock gone) | store_off; null when it can fire. */
+    why: str(s.why),
   };
 }
 
 /** A slot back in the wire shape (null = empty), for an intent that restates the bar. */
 export function wireSlot(s) {
   if (!s || s.empty) return null;
-  return { action: { type: s.action.type, id: s.action.id },
+  return { action: Object.assign({ type: s.action.type, id: s.action.id }, s.action.store ? { store: s.action.store } : {}),
     conditions: s.conditions.map((c) => Object.assign({ metric: c.metric, op: c.op, value: c.value }, c.subject ? { subject: c.subject } : {})),
     join: s.join };
 }
@@ -144,12 +148,23 @@ export function settingsOf(cs) {
     foodPct: int(s.food_pct), drinkPct: int(s.drink_pct), supplySource: str(s.supply_source), onEmpty: str(s.on_empty),
     /* The gold the store never spends below (hunt_settings.gold_floor; null until hr_hunt_settings_view projects it). */
     goldFloor: int(s.gold_floor),
-    /* Monster density (the pick; the settle clamps it to the ground) and the gathering share (INERT until gathering lands). */
-    density: int(s.density), gatherShare: int(s.gather_share), gatherInert: s.gather_inert === true,
+    /* The gathering share (INERT until gathering lands). Density is no setting: huntDensityOf, per ground. */
+    gatherShare: int(s.gather_share), gatherInert: s.gather_inert === true,
     stopRules: list(s.stop_rules, (r) => (isObj(r) && Array.isArray(r.conditions) ? { conditions: list(r.conditions, conditionOf, 4), join: JOIN.test(String(r.join)) ? r.join : 'and', forMs: int(r.forMs) || 0 } : null), 3),
     grounds: list(s.grounds, (g) => str(g), 32),
     slots: Array.isArray(s.slots) ? s.slots.slice(0, 20).map(slotOf) : [],
+    /* The bar as the player SAVED it (hunt_settings.bar; empty for a new hero, whose shown bar is the start kit's). */
+    storedBar: Array.isArray(s.bar) ? s.bar.slice(0, 20).filter(isObj) : [],
+    /* THE STORE the slots may buy from, as the SERVER prices it (hr_hunt_basic_supplies via
+       hr_hunt_settings_view): every number the Configure action picker shows comes from here. */
+    store: list(s.store, storeRowOf, 64),
   };
+}
+
+/* One store row: { id, kind, partner, amount (HP or mana a use; 0 for ammo), price (gold a use) }. */
+function storeRowOf(b) {
+  if (!isObj(b) || !str(b.id) || !['heal', 'mana', 'ammo'].includes(b.kind) || !(int(b.price) > 0)) return null;
+  return { id: b.id, kind: b.kind, partner: str(b.partner), amount: b.kind === 'heal' ? int(b.heals) || 0 : b.kind === 'mana' ? int(b.mana) || 0 : 0, price: b.price };
 }
 
 /* The outfit a member wears, as the party section names it ({ id, colors }: 2026-11-04-party-outfits.sql,
@@ -223,6 +238,8 @@ const rowsOf = (o, fn) => Object.entries(counts(o)).filter(([k]) => str(k)).sort
    the Level's is one figure, the skills' are the training rows (premium's Training tab). */
 const levelOf = (m) => (isObj(m) ? (num(m.level) ?? 0) : null);
 const trainingOf = (m) => (isObj(m) ? Object.entries(m).filter(([k]) => k !== 'level') : []);
+/* A next-level eta in ms from the server's `eta_h` (hours) on a level or skill read; 0 (maxed) or absent reads null. */
+const etaMs = (r) => { const h = isObj(r) ? num(r.eta_h) : null; return h !== null && h > 0 ? Math.round(h * 3600000) : null; };
 
 /* One analyzer view (hr_hunt_analyzer: kills, xp {level|skill: n}, raw_xp {level|skill: n}, coins, loot_value,
    gold (= coins + loot_value, gold_basis 'vendor_value'), waste, balance (= gold - waste),
@@ -244,9 +261,10 @@ function viewOf(v) {
     kills: num(v.kills), levelXp: levelOf(v.xp), rawLevelXp: levelOf(v.raw_xp), gold: num(v.coins), lootValue: num(v.loot_value),
     waste: num(v.waste), balance: num(v.balance),
     trainingXp: isObj(v.xp) ? total(Object.fromEntries(train)) : null,
-    /* Each combat skill trained this session, most first: its XP and (the hero's, rated) its XP an hour. */
+    /* Each combat skill trained this session, most first: its XP and (the hero's, rated) its XP an hour and the
+       time to its next level (the server's eta_h, hours; 0 = maxed and absent = unrated or the party's: null). */
     training: train.sort((x, y) => y[1] - x[1] || (x[0] < y[0] ? -1 : 1)).slice(0, 16)
-      .map(([skill, n]) => ({ skill, xp: n, perHour: isObj(sk[skill]) ? num(sk[skill].per_hour) : null })),
+      .map(([skill, n]) => ({ skill, xp: n, perHour: isObj(sk[skill]) ? num(sk[skill].per_hour) : null, nextMs: etaMs(sk[skill]) })),
     /* `rated`: the server sent rates. It sends none (per_hour null) until the session has
        ANALYZER_RATE_AFTER_MS of wall time (2026-11-06-hunt-analyzer-min-window.sql). */
     rated: isObj(v.per_hour),
@@ -279,6 +297,26 @@ export function huntBestsOf(cs) {
   return { minMs: b.min_ms, grounds };
 }
 
+/**
+ * A DENSITY MAP as the server projects it ({ [hunt]: pick }, a whole number of monsters per pull, 0 = as
+ * built), or null when it is not one. This hero's `hunt_density` and the party's `leader_densities`.
+ */
+export function densityMapOf(v) {
+  if (!isObj(v)) return null;
+  const out = {};
+  for (const [hunt, n] of Object.entries(v).slice(0, 256)) if (str(hunt) && int(n) !== null && n >= 0) out[hunt] = n;
+  return out;
+}
+
+/**
+ * `hunt_density` (hr_hunt_density_view, 2026-11-17-hunt-density-home.sql): THIS hero's density pick on
+ * each ground (rulings H4: chosen with the hunt, remembered per ground). A ground with no key is 0 (as
+ * built); null = the server sent no section, and the picker shows no number.
+ */
+export function huntDensityOf(cs) {
+  return densityMapOf(section(cs, 'hunt_density'));
+}
+
 /** `hunt_analyzer`: the server's session stats, hero and party. Null for a free character or no hunt. */
 export function analyzerOf(cs) {
   const a = section(cs, 'hunt_analyzer');
@@ -287,8 +325,7 @@ export function analyzerOf(cs) {
   if (!hero) return null;
   /* The next Level (Level is not a skill): the server's `hero.level.eta_h` (hours). Never a skill's eta, which the server
      floors at 0 once the skill is maxed; a 0 or absent eta is unknown and reads null (the widget shows the dash). */
-  const lvEta = isObj(a.hero.level) ? num(a.hero.level.eta_h) : null;
-  const next = lvEta !== null && lvEta > 0 ? Math.round(lvEta * 3600000) : null;
+  const next = etaMs(a.hero.level);
   const sess = isObj(a.session) ? a.session : {};
   const settled = str(sess.settled_to) ? Date.parse(sess.settled_to) : NaN;
   return { sessionMs: num(a.hunt_ms), settledMs: Number.isFinite(settled) ? settled : null, nextLevelMs: next,

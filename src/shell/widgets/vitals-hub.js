@@ -98,5 +98,5 @@ export function patchHub(el, ctx) {
   if (ico.getAttribute('data-for') !== String(food.top)) { ico.innerHTML = food.top ? itemIconHtml(ctx.glyphs, food.top) : glyphSvg(ctx.glyphs, 'uiFood'); attr(ico, 'data-for', String(food.top)); }
   text(sock.querySelector('.hb-socket-k'), 'Food ×' + whole(food.n));
   const where = huntBagOf(cs) ? 'the hunt bag' : 'the bag';
-  attr(sock, 'title', food.top ? whole(food.n) + ' food in ' + where + ' (most: ' + itemName(food.top) + ')' : 'No food in ' + where + ': Any food on the bar buys from the store as used');
+  attr(sock, 'title', food.top ? whole(food.n) + ' food in ' + where + ' (most: ' + itemName(food.top) + ')' : 'No food in ' + where + ': a store food on the bar buys as used');
 }

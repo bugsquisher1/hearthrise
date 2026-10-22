@@ -168,6 +168,9 @@ async function pureRules(M, base) {
     M.AL.setAlertShown(cs2, 'rare', true);
     cs2.timeline.ingest({ events: [{ id: 's1:100', type: 'rare_drop', atMs: 1760702399950, u: 1, item: 'rat_tail' }] }, 0);
     if (centre2.list().length !== 2) return 'a new rare drop id raised ' + (centre2.list().length - 1) + ' alert(s)';
+    /* A party member's rare (the settle's rare_drop names its owner, u 2) is theirs: no alert for this hero. */
+    cs2.timeline.ingest({ events: [{ id: 's1:101', type: 'rare_drop', atMs: 1760702399960, u: 2, item: 'crown_shard' }] }, 0);
+    if (centre2.list().length !== 2) return "a party member's rare drop raised an alert for this hero";
     /* A hero set to end its hunt on empty, out of the bread its bar eats (no restock targets: the Shop sells no supplies). */
     srv.env[0].hunt_settings = Object.assign({}, srv.env[0].hunt_settings, { on_empty: 'end', supply_source: 'mine',
       slots: [{ action: { type: 'consume', id: 'wheat_bread' } }].concat(Array(19).fill(null)) });
@@ -177,9 +180,30 @@ async function pureRules(M, base) {
     return (low.length === 1 && low[0].item === 'wheat_bread') || 'low supplies raised ' + low.length + ' alert(s)';
   });
 
-  /* AL-2 (Tyler 10-18, "Tester is out of Drink · Buy supplies" for a hero with no mana): a bar slot may
-     name a KIND; a hero with no mana pool is never warned about drinks; while the store pays per use
-     there is no out-of-stock warning at all (HUNT_SCREEN_SPEC §3.4 rule 7). */
+  /* AL-3 (Tyler 2026-10-21): the use that empties the hero's own stack raises ONE line naming the slot that
+     takes over, from the engine's `slot_dry` event in the server's timeline; another hero's event raises none. */
+  await t('AL-3', async () => {
+    const srv = fakeServer();
+    srv.env[0].hunt_events = [];
+    const acc = account(M, srv);
+    const centre = M.AL.createAlertCenter(acc);
+    const cs = (await acc.open(0)).session;
+    if (!cs) return 'the fixture character did not open';
+    const me = M.HS.huntOf(cs).hero.unit;
+    const base = centre.list().length;
+    cs.timeline.ingest({ events: [{ id: 's1:301', type: 'slot_dry', atMs: 1760702399960, u: me + 1, item: 'cooked_shrimp', next: 'salted_shrimp', slot: 2 }] }, 0);
+    if (centre.list().length !== base) return 'another hero\'s run-out raised an alert';
+    cs.timeline.ingest({ events: [{ id: 's1:302', type: 'slot_dry', atMs: 1760702399970, u: me, item: 'cooked_shrimp', next: 'salted_shrimp', slot: 2 }] }, 0);
+    const out = centre.list().filter((a) => a.id.startsWith('out:'));
+    if (out.length !== 1 || !/’s Cooked Shrimp ran out: slot 2 \(Salted Shrimp\) takes over\.$/.test(out[0].text)) return 'the run-out alert read ' + JSON.stringify(out.map((a) => a.text));
+    cs.timeline.ingest({ events: [{ id: 's1:303', type: 'slot_dry', atMs: 1760702399980, u: me, item: 'thin_turnip_juice', next: null, slot: null }] }, 0);
+    const none = M.AL.runOutOf(cs, { type: 'slot_dry', key: 'k', u: me, item: 'cooked_trout', next: null, slot: null });
+    return (none && /Cooked Trout ran out, and no slot takes over/.test(none.text)) || 'with no takeover the line read ' + JSON.stringify(none);
+  });
+
+  /* AL-2 (Tyler 10-18, "Tester is out of Drink · Buy supplies" for a hero with no mana): a bar slot names
+     ONE item (Tyler 2026-10-21); a hero with no mana pool is never warned about drinks; while the store pays
+     per use there is no out-of-stock warning at all (HUNT_SCREEN_SPEC §3.4 rule 7). */
   await t('AL-2', async () => {
     const lows = async (edit) => {
       const srv = fakeServer();
@@ -195,7 +219,7 @@ async function pureRules(M, base) {
     const kinds = (e, mode, food, drink) => {
       e.hunt_settings.on_empty = mode;
       e.hunt_settings.supply_source = 'mine';
-      e.hunt_settings.slots = [{ action: { type: 'consume', id: 'food' } }, { action: { type: 'consume', id: 'drink' } }].concat(Array(18).fill(null));
+      e.hunt_settings.slots = [{ action: { type: 'consume', id: 'cooked_shrimp' } }, { action: { type: 'consume', id: 'goldenroot_tea' } }].concat(Array(18).fill(null));
       for (const id of ['wheat_bread', 'cooked_shrimp']) if (!food) delete e.inventory[id];
       if (!drink) delete e.inventory.goldenroot_tea;
     };
@@ -204,9 +228,9 @@ async function pureRules(M, base) {
     const b = await lows((e) => { kinds(e, 'end', true, false); e.hunt.hero.mana_max = 0; e.hunt.hero.mana = 0; });
     if (!b || b.length) return 'a hero with no mana pool was warned about drinks: ' + JSON.stringify(b);
     const c = await lows((e) => kinds(e, 'end', true, true));
-    if (!c || c.length) return 'a kind slot with that kind in the bag still read as out of stock: ' + JSON.stringify(c);
+    if (!c || c.length) return 'a slot whose item is in the bag still read as out of stock: ' + JSON.stringify(c);
     const d = await lows((e) => kinds(e, 'end', false, true));
-    if (!(d && d.length === 1 && / is out of food\.$/.test(d[0]))) return 'own stock with "end the hunt" and no food must warn once, in words: ' + JSON.stringify(d);
+    if (!(d && d.length === 1 && / is out of Cooked Shrimp\.$/.test(d[0]))) return 'own stock with "end the hunt" and no food must warn once, in words: ' + JSON.stringify(d);
     /* Brannoc 10-22: Enter moves the food into the HUNT BAG, so the bag has none mid-hunt; the hunt bag's food is stock. */
     const h = await lows((e) => { kinds(e, 'end', false, true); e.hunt.session = { bag: [{ item: 'cooked_shrimp', left: 20, loaded: 20 }, { item: 'goldenroot_tea', left: 5, loaded: 5 }] }; });
     return (h && h.length === 0) || 'food in the hunt bag (none in the bag) still warned out of food: ' + JSON.stringify(h);
@@ -424,7 +448,7 @@ async function stub(page, s) {
   await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
     const name = r.request().url().split('?')[0].split('/').pop();
     const body = JSON.parse(r.request().postData() || '{}');
-    s.calls.push({ name, body });
+    s.calls.push({ name, body, at: Date.now() });
     const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
     if (name === 'hr_load') return json(s.env[body.p_slot] ? s.next(body.p_slot) : { ok: false, error: 'no_character' });
     if (name === 'hr-accrue') return json(Object.assign({ accrued: true }, s.next(body.slot)));
@@ -468,6 +492,19 @@ async function openWin(page, key, id) {
 }
 const sent = (s, name) => s.calls.filter((c) => c.name === name);
 
+/* A HUNTING character re-reads on its own clock (hunt-poll.js): from liveAskMs, backing off while the stub
+   sends no live start point, never sooner than the last gap. A rule that says "this press re-read nobody"
+   waits for a moment when that clock's next re-read is at least `clearMs` off, so a re-read inside its
+   window is the press's own (a lane on 2026-10-22: the poll landed 0.47 s after the tab press, ~1 run in 2). */
+async function quietHuntPoll(s, slot, clearMs = 1500) {
+  for (const until = Date.now() + 20000; Date.now() < until;) {
+    const p = sent(s, 'hr-accrue').filter((c) => c.body.slot === slot).map((c) => c.at);
+    const n = p.length;
+    if (n >= 2 && p[n - 1] + (p[n - 1] - p[n - 2]) - Date.now() >= clearMs) return;
+    await new Promise((ok) => setTimeout(ok, 25));
+  }
+}
+
 /* A new full envelope, the way the live game gets one: a frame that skips a version makes the client re-read. */
 async function pushEnvelope(page, s, slot) {
   const frame = s.version + 2;
@@ -505,6 +542,7 @@ async function pageRules(overrides, shots) {
       const t0 = tabs.find((x) => x.slot === '0'), t1 = tabs.find((x) => x.slot === '1');
       if (!t0 || t0.name !== 'Tyler' || t0.doing !== 'Hunting in The Sewer' || t0.badge !== '1') fails.push('UI-1 [' + tag + '] tab 0 reads ' + JSON.stringify(t0));
       if (!t1 || t1.name !== 'Druid' || t1.doing !== 'In town, idle' || !t1.on) fails.push('UI-1 [' + tag + '] tab 1 reads ' + JSON.stringify(t1));
+      await quietHuntPoll(s, 0);
       const loads = s.calls.length;
       await page.click('.char-tab[data-slot="0"]');
       if (!(await wait(page, () => document.querySelector('#panel-world[data-slot="0"]') && document.querySelector('.hs-launchers') && !document.querySelector('#panel-world[data-slot="1"]')))) fails.push('UI-1 [' + tag + '] the tab did not show character 0');
@@ -661,7 +699,11 @@ const PURE_MUTANTS = [
   ['a death off screen raises no line', 'src/shell/alerts.js', '    if (!viewed && !deathSeen(cs, h.sessionId)) out.push(', '    if (false) out.push('],
   ['the store paying per use still warns out of stock', 'src/shell/alerts.js', "const storePays = !s || s.supplySource === 'store' || s.onEmpty !== 'end';", 'const storePays = false;'],
   ['a hero with no mana pool is warned about drinks', 'src/shell/alerts.js', "const uses = (id) => kindOf(id) !== 'drink' || hero.manaMax > 0;", 'const uses = () => true;'],
-  ['a kind slot reads as an item no bag holds', 'src/shell/alerts.js', 'const stock = (id) => (CONSUMABLE_KINDS[id] ? bag.reduce((n, r) => n + (kindOf(r.id) === id ? r.qty : 0), 0) : have.get(id) || 0);', 'const stock = (id) => have.get(id) || 0;'],
+  ['a slot item in the bag reads as out of stock', 'src/shell/alerts.js', 'const stock = (id) => have.get(id) || 0;', 'const stock = () => 0;'],
+  ['the run-out line names no takeover', 'src/shell/alerts.js', "  const then = typeof ev.next === 'string' && Number.isInteger(ev.slot)", '  const then = false'],
+  ['another hero raises the run-out line', 'src/shell/alerts.js', ' || ev.u !== h.hero.unit) return null;', ') return null;'],
+  ["a party member's rare drop alerts this hero", 'src/shell/alerts.js', '  if (h && h.hero && Number.isInteger(ev.u) && Number.isInteger(h.hero.unit) && ev.u !== h.hero.unit) return null;\n', ''],
+  ['the run-out event raises nothing', 'src/shell/alerts.js', 'const c = rareOf(cs, ev) || runOutOf(cs, ev);', 'const c = rareOf(cs, ev);'],
   ['an alert fires on every read', 'src/shell/alerts.js', '    if (mine.has(c.id) || (Array.isArray(stored) && stored.includes(c.id))) return false;\n', ''],
   ['the shown ids are not kept for the next visit', 'src/shell/alerts.js', "    cs.setResidue('alerts', { off: Array.isArray(r.off) ? r.off : [], seen: (Array.isArray(stored) ? stored : []).concat(c.id).slice(-ALERTS_SEEN_MAX) });\n", ''],
   ['a switched-off kind still alerts', 'src/shell/alerts.js', '    if (!alertShown(cs, c.kind)) return false;\n', ''],

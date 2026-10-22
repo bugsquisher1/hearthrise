@@ -44,7 +44,8 @@ export const CLIENT_RPCS = Object.freeze({
   hr_buy_hero_slot: 'buy the next hero slot with one own hero\'s gold: the slot id, the paying hero and a key, never a price; the server prices, caps and debits (AccountSession.buySlot)',
   hr_put_client_state: 'the allowlisted display residue (CharacterSession.flushResidue)',
   hr_action_set_options: 'the per-hero hunt settings intent, catalogue-validated and refused not clamped (CharacterSession.setHuntOptions)',
-  hr_action_set_copy: 'copy one character\'s hunt settings onto another of the caller\'s characters; moves no value (CharacterSession.copyHuntSettingsTo)',
+  hr_hunt_density_set: 'the hero’s monster-density pick on one hunt ground, a ground id and a whole number; the server bounds it by that ground and refuses a party member (CharacterSession.setHuntDensity; 2026-11-17-hunt-density-home.sql)',
+  hr_action_set_copy:'copy one character\'s hunt settings onto another of the caller\'s characters; moves no value (CharacterSession.copyHuntSettingsTo)',
   hr_hunt_leave: 'leave the running hunt; the server settles and ends it (CharacterSession.leaveHunt)',
   /* Tyler's first playtest (10-18): going hunting and the home storage, both live, reviewed server verbs. */
   hr_hunt_enter: 'go hunting with names and counts of own supplies; band, stamina and stock are the server’s (CharacterSession.enterHunt; CharacterSession.huntAgain, the Hunt again card)',
@@ -54,6 +55,10 @@ export const CLIENT_RPCS = Object.freeze({
   hr_loot_rule_set: 'keep / sell / ignore an item on pickup, applied by the server (CharacterSession.setLootRule)',
   hr_hunt_preset_save: 'snapshot the action set and gear as a setup (CharacterSession.savePreset)',
   hr_hunt_preset_apply: 'put a saved setup back on (CharacterSession.applyPreset)',
+  /* Ruling C4 (2026-11-15-preset-names.sql): a slot, a preset number and a name; the server owns the name rule. */
+  hr_hunt_preset_rename: 'rename one of this character’s saved setups (preset-intents.js renameSetup)',
+  hr_hunt_preset_delete: 'remove one of this character’s saved setups (preset-intents.js deleteSetup)',
+  hr_action_set_rename: 'name the action set the bar shows (preset-intents.js renameActionSet)',
   hr_account_items: 'where an item is across this account, a read (AccountSession.findItems)',
   /* The party (S1, 2026-10-23-hunt-party.sql): slot + party id or seat only; no user id crosses. */
   hr_hunt_party_join: 'take a free seat in an open party by its id (CharacterSession.joinParty)',

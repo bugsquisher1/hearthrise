@@ -303,6 +303,8 @@ jobs:
         run: |
           node tests/alpha-windows.mjs
           node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate
+          node tests/preset-names.mjs
+          node tools/mutant-gate.mjs node tests/preset-names.mjs --mutate
           node tests/hunt-scene-live.mjs
 
       # A failing run is far easier to diagnose with the page state attached.
@@ -1079,6 +1081,17 @@ jobs:
         run: |
           node tests/name-moderation.mjs
           node tools/mutant-gate.mjs node tests/name-moderation.mjs --mutate
+
+      # 2026-11-19-chat-stream-safe.sql (the 10-22 playtest: a new hero's first
+      # Global showed old dev chat with profanity; Tyler streams). As the client
+      # roles: no line before the server's epoch/horizon is read (history RPCs,
+      # direct selects), a listed word is masked on write and on read with item
+      # links kept, the window is not client-movable. --mutate plants eight defects.
+      - name: Chat stream-safe — history epoch, word mask on write and read
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/chat-stream-safe.mjs
+          node tools/mutant-gate.mjs node tests/chat-stream-safe.mjs --mutate
 
       # 2026-11-02-hero-creation.sql (Tyler 2026-10-20): a hero is created with a
       # name and four colours in ONE intent, owns all six starter weapon sets
@@ -3554,6 +3567,15 @@ jobs:
         run: |
           node tools/mutant-gate.mjs node tests/supplies-catalogue.mjs --selftest
           node tests/supplies-catalogue.mjs
+
+      # REFUSAL WORDS (Andy live 10-21: "Not done. The server refused it." on a
+      # requirement the server named): every code a client RPC, the edge or the
+      # client can answer with reads as plain words from ONE table.
+      - name: Refusal words - every refusal code reads in plain English
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/refusal-words.mjs --mutate
+          node tests/refusal-words.mjs
 
 
       # NO CLIENT XP MINT (b521): the same shape as the farm guard, one rung up.

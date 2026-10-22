@@ -16,11 +16,15 @@ import { kindOf } from './bag-model.js?v=0.2.28';
 import { itemName } from './widgets/bits.js?v=0.2.28';
 import { storeOf } from './bar-draft.js?v=0.2.28';
 import { whole } from '../render/format.js?v=0.2.28';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.28';
 
 const PLURAL = Object.freeze({ food: 'food', drink: 'drinks', ammo: 'ammo' });
 const PLURAL_CAP = Object.freeze({ food: 'Food', drink: 'Drink', ammo: 'Ammo' });
-/* The slot ids that name a kind, not one item (condition-metrics.js CONSUME_KINDS / ATTACK_KINDS). */
-const KIND_OF_SLOT = Object.freeze({ food: 'food', drink: 'drink', loaded: 'ammo' });
+/* The slot id that names no one item: the loaded ammo (condition-metrics.js ATTACK_KINDS). */
+const KIND_OF_SLOT = Object.freeze({ loaded: 'ammo' });
+/* What kind a slot's ONE item is: a food or drink by its consumable row (crafted or store), else by the bag model. */
+const slotKind = (id) => KIND_OF_SLOT[id] || (CONSUMABLES[id] ? CONSUMABLES[id].kind : kindOf(id));
+const storeItem = (id) => !!CONSUMABLES[id] && CONSUMABLES[id].source === 'store';
 
 /**
  * @param {object} cs a CharacterSession
@@ -39,17 +43,17 @@ export function readinessOf(cs) {
   /* What the bar spends, by kind: the total in the bag of every item its slots name. */
   const s = settingsOf(cs);
   if (s) {
-    /* A slot naming Any food / Any drink, or an ammo line with a plain partner, has the store behind
+    /* A slot naming a store food or drink, or an ammo line with a plain partner, has the store behind
        it, paid per use (bar-draft.js storeOf): nobody has to buy first (Tyler 10-18). */
     const byKind = { food: new Set(), drink: new Set(), ammo: new Set() };
     const backed = {};
     const storeOn = s.supplySource === 'store' || s.onEmpty === 'switch';
     for (const sl of s.slots) {
       if (sl.empty || sl.action.type === 'ability') continue;
-      const k = KIND_OF_SLOT[sl.item] || kindOf(sl.item);
+      const k = slotKind(sl.item);
       if (!byKind[k]) continue;
-      if (!KIND_OF_SLOT[sl.item]) byKind[k].add(sl.item);
-      const st = storeOn ? storeOf(sl.action) : null;
+      if (!KIND_OF_SLOT[sl.item] && !storeItem(sl.item)) byKind[k].add(sl.item);
+      const st = storeOn ? storeOf(sl.action, s.store) : null;
       if (st && (!backed[k] || (st.price !== null && st.price < backed[k].price))) backed[k] = st;
       if (KIND_OF_SLOT[sl.item]) for (const r of bag) if (kindOf(r.id) === k) byKind[k].add(r.id);
     }
@@ -57,7 +61,7 @@ export function readinessOf(cs) {
       if (!ids.size && !backed[k]) continue;
       const n = Array.from(ids).reduce((t, id) => t + (have.get(id) || 0), 0);
       const st = backed[k];
-      const store = st ? (st.price === null ? 'then the store as used' : 'then the store, ' + (st.from ? 'from ' : '') + st.price + ' gp each as used') : '';
+      const store = st ? (st.price === null ? 'then the store as used' : 'then the store, ' + st.price + ' gp each as used') : '';
       checks.push({ id: k, ok: n > 0 || !!st, text: st ? PLURAL_CAP[k] + ': ' + (n > 0 ? whole(n) + ' of your own, ' + store : store.replace(/^then the store/, 'the store')) : whole(n) + ' ' + PLURAL[k] + ' for the bar' });
       if (n === 0 && !st) short.push('0 ' + PLURAL[k]);
     }

@@ -327,7 +327,9 @@ async function checks(overrides, shots) {
 
     { // AW-7 no supplies in the Shop; AW-8 hunt prep
       /* The fixture's server still offers food, drink and ammo (the pre-2026-11-02 section): the client must drop them. */
-      const tools = (e) => { e.shop = Object.assign({}, e.shop, { offers: e.shop.offers.concat([{ offer: 'supply.bronze_axe', item: 'bronze_axe', kind: 'tool', price: 120 }]) }); };
+      /* The hero is BURYING when Use is pressed (Andy live 10-21: "burying locks an action"). */
+      const tools = (e) => { e.shop = Object.assign({}, e.shop, { offers: e.shop.offers.concat([{ offer: 'supply.bronze_axe', item: 'bronze_axe', kind: 'tool', price: 120 }]) });
+        e.state = Object.assign({}, e.state, { active_kind: 'artisan', active_id: 'bury_bones' }); };
       const { ctx, page, s, up } = await open({ mutateEnv: tools });
       if (up) {
         await openWin(page, 'v', 'shop');
@@ -348,6 +350,10 @@ async function checks(overrides, shots) {
         await page.waitForTimeout(600);
         const ap = sent(s, 'hr_hunt_preset_apply');
         if (ap.length !== 1 || ap[0].body.p_preset !== 0) fails.push('AW-8 Use sent ' + JSON.stringify(ap.map((c) => c.body)));
+        /* A running bury yields: ONE set_activity idle (the engine pays the bones buried so far) BEFORE the apply. */
+        const order = s.calls.map((c, i) => [i, c]).filter(([, c]) => c.name === 'hr_hunt_preset_apply' || (c.name === 'hr-accrue' && c.body.verb === 'set_activity'));
+        if (order.length !== 2 || order[0][1].name !== 'hr-accrue' || JSON.stringify(order[0][1].body.activity) !== '{"kind":"idle"}')
+          fails.push('AW-8 a burying hero\'s Use did not stop the bury first: ' + JSON.stringify(order.map(([, c]) => c.name + ':' + JSON.stringify(c.body.activity || c.body.p_preset))));
         if (shots) {
           await openWin(page, 'b', 'inventory');
           await page.fill('[data-hs-win="inventory"] .hw-q', 'rat');

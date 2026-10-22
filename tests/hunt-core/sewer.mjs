@@ -45,7 +45,7 @@ async function load(root) {
 /* The walkable mask of a world map (sprites are not needed: only solid MATERIALS and solid props block,
    read from every atlas the renderer loads). */
 function maskOf(M, mapId) {
-  const row = M.maps.WORLD_MAPS.find((m) => m.id === mapId);
+  const row = M.maps.mapRowOf(mapId);   // shipped or staged (hunts.js `staged`): every ground's grid is checked
   if (!row) return null;
   const sprites = {};
   for (const set of M.sets.ATLAS_SETS) {
@@ -79,7 +79,7 @@ function session(M, p) {
       const b = M.basics.BASIC_INDEX[id];
       return [id, { kind: b.kind, price: b.price, heals: b.heals || 0, mana: b.mana || 0, partner: b.partner }];
     })),
-    shop: { heal: 'salted_shrimp', mana: 'thin_turnip_juice' }, purse: 1000000, goldFloor: 0, supplySource: 'mine', onEmpty: 'switch',
+    purse: 1000000, goldFloor: 0, supplySource: 'mine', onEmpty: 'switch',
   });
 }
 
@@ -198,7 +198,8 @@ const cases = {
     const atlas = {};
     for (const set of M.sets.ATLAS_SETS) Object.assign(atlas, JSON.parse(readFileSync(join(M.root, 'assets/world/atlas-' + set + '.json'), 'utf8')).sprites);
     const walks = (id) => !!(atlas[id] && atlas[id].anims.walk && ['s', 'e', 'n', 'w', 'se', 'sw', 'ne', 'nw'].every((d) => (atlas[id].anims.walk.dirs[d] || []).length));
-    for (const g of Object.values(M.grounds.HUNT_GROUNDS)) {
+    /* the OPEN grounds: a staged one has no art yet by definition (forest-cave.mjs staged-until-art holds it hidden) */
+    for (const g of Object.values(M.grounds.OPEN_GROUNDS)) {
       for (const p of g.pockets) for (const s of p.spawns) {
         const key = M.art.HUNT_WALK_ART[s.monster];
         if (key ? !units[key] : !walks(s.monster)) return g.id + ': ' + s.monster + ' has no walk art (PixelLab manifest or a loaded atlas)';

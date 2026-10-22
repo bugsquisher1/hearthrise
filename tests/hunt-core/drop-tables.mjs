@@ -10,6 +10,10 @@
 //                    "Rare drop" moment (src/core/drops.js)
 //   one-rare-carrier on each ground every non-equipment row at rare odds (5% or less) sits on ONE monster
 //   slot-coverage    each ground but the tutorial covers weapon, helmet, body, legs and boots
+//   four-slots       (designer 2026-10-21, src/data/imbuements.js) on every ground not IMBUE_PENDING each monster has
+//                    EXACTLY one junk row (its own product, over 15%), at most one bones row, and EXACTLY one
+//                    imbuement row: an item with `imbue` that no other monster in the game drops, at (5%, 15%], its
+//                    tier and book value from the dropper's Level; only the carrier adds rare rows
 //   profit-floor     at its band floor, in its first hour (the hunt levels the hero after that), each non-starter
 //                    ground earns coin + commons at least +25% over the store bill (a MINIMUM, Tyler 10-20)
 //   gear-pace        a fresh solo hero at the floor of the Thicket and the Sewer holds a piece in each of the five
@@ -48,6 +52,11 @@ const GEAR_TYPES = Object.freeze(['weapon', 'armor', 'offhand']);
    lucky-finds FIXTURE_EXCLUDED; xp-frac-carry's measured slime): their tables stay, so the cellar is the one ground
    the slot rules do not cover. Its Hive Wasp carries its equipment row. */
 const TUTORIAL = Object.freeze({ ground: 'mill_cellar', fixtures: Object.freeze(['rat', 'slime']) });
+/* THE FOUR-SLOT SAMPLE (designer 2026-10-21): the Thicket and the Sewer carry the imbuement slot; these grounds are the
+   next batch. SHRINK-ONLY: a ground leaves this list when its monsters get their imbuement items, and never returns. */
+const IMBUE_PENDING = Object.freeze(['mill_cellar', 'coppercap_warrens']);
+const JUNK_MIN = 0.15;          // the junk row is the creature's common product (over the uncommon band)
+const BONES = Object.freeze(['bones', 'big_bones']);
 const STARTER = Object.freeze(['mill_cellar', 'meadowbrook_thicket']);   // keep their gold (Tyler 10-20): printed, not floored
 const PARTY = Object.freeze(['tank', 'ranger', 'mage', 'healer']);
 /* WHO IS MEASURED AT THE FLOOR. The Sewer is the start flow's first real ground, entered from the cellar: a solo Melee
@@ -58,8 +67,10 @@ const REFERENCE = Object.freeze({
   meadowbrook_thicket: { roles: ['tank'], full: false },
   millrace_sewer: { roles: ['tank'], full: false },
   coppercap_warrens: { roles: PARTY, full: true },
+  /* the solo spring ground (lane c-ground-16-31): a solo Melee in the ladder kit, the Thicket graduate it is built for */
+  mosslight_glade: { roles: ['tank'], full: false },
 });
-const GEAR_RUNS = Object.freeze(['meadowbrook_thicket', 'millrace_sewer']);   // the fresh-hero grounds
+const GEAR_RUNS = Object.freeze(['meadowbrook_thicket', 'millrace_sewer', 'mosslight_glade']);   // the fresh-hero grounds
 
 async function load(root) {
   return {
@@ -67,6 +78,7 @@ async function load(root) {
     ITEMS: (await imp(root, 'src/data/items.js')).ITEMS,
     HUNTS: (await imp(root, 'src/data/hunts.js')).HUNT_INDEX,
     G: await imp(root, 'src/data/hunt-grounds.js'),
+    IMB: await imp(root, 'src/data/imbuements.js'),
     drops: await imp(root, 'src/core/drops.js'),
   };
 }
@@ -115,6 +127,29 @@ const cases = {
     for (const [gid, ground] of Object.entries(M.G.HUNT_GROUNDS)) {
       const carriers = rosterOf(ground).filter((id) => (M.MONSTERS[id].drops || []).some((d) => rareRow(M.drops, d)));
       if (carriers.length !== 1) return gid + ': ' + carriers.length + ' rare carriers (' + carriers.join(', ') + '), the ruling is one';
+    }
+    return null;
+  },
+  'four-slots'(M) {
+    const droppers = {};
+    for (const [mid, m] of Object.entries(M.MONSTERS)) for (const d of m.drops || []) (droppers[d.id] = droppers[d.id] || new Set()).add(mid);
+    for (const [gid, ground] of Object.entries(M.G.HUNT_GROUNDS)) {
+      if (IMBUE_PENDING.includes(gid)) continue;
+      for (const id of rosterOf(ground)) {
+        const m = M.MONSTERS[id], drops = m.drops || [];
+        const imbue = drops.filter((d) => M.ITEMS[d.id] && M.ITEMS[d.id].imbue);
+        if (imbue.length !== 1) return gid + ': ' + id + ' has ' + imbue.length + ' imbuement rows, the ruling is one';
+        const d = imbue[0], it = M.ITEMS[d.id];
+        if (!M.IMB.IMBUE_KINDS.includes(it.imbue.kind)) return gid + ': ' + d.id + ' feeds an unknown kind ' + it.imbue.kind;
+        if (it.imbue.tier !== M.IMB.imbueTierFor(m.level)) return gid + ': ' + d.id + ' is tier ' + it.imbue.tier + ', its dropper (Level ' + m.level + ') feeds tier ' + M.IMB.imbueTierFor(m.level);
+        if (it.v !== M.IMB.imbueValueFor(m.level) || it.raw !== true) return gid + ': ' + d.id + ' book value ' + it.v + ' (raw ' + it.raw + '), the rule is ' + M.IMB.imbueValueFor(m.level) + ', raw';
+        if (!(d.ch > M.IMB.IMBUE_DROP.above && d.ch <= M.IMB.IMBUE_DROP.max) || d.gear) return gid + ': ' + id + ' imbuement row at ' + d.ch + ', not in the uncommon band';
+        if (droppers[d.id].size !== 1) return gid + ': ' + d.id + ' is dropped by ' + [...droppers[d.id]].join(', ') + ', the ruling is one monster';
+        if (drops.filter((x) => BONES.includes(x.id)).length > 1) return gid + ': ' + id + ' has two bones rows';
+        const junk = drops.filter((x) => !isGear(x) && !BONES.includes(x.id) && x !== d && !rareRow(M.drops, x));
+        if (junk.length !== 1) return gid + ': ' + id + ' has ' + junk.length + ' junk rows (' + junk.map((x) => x.id).join(', ') + '), the ruling is one';
+        if (!(junk[0].ch > JUNK_MIN)) return gid + ': ' + id + ' junk row ' + junk[0].id + ' at ' + junk[0].ch + ', not a common';
+      }
     }
     return null;
   },
@@ -260,6 +295,12 @@ const dataMutants = [
   { name: 'the equipment flag lost (a rare reveal again)', case: 'one-rare-carrier', edit: (ms) => { delete gearOf(ms, 'culvert_bat').gear; ms.culvert_bat.drops.push({ id: 'bronze_sword', ch: 0.01, gear: true }); } },
   { name: 'a second rare carrier', case: 'one-rare-carrier', edit: (ms) => { ms.cistern_spider.drops.splice(2, 0, { id: 'spider_eye', ch: 0.035 }); } },
   { name: 'two helmets, no boots', case: 'slot-coverage', edit: (ms) => { gearOf(ms, 'gray_whelp').id = 'leather_helmet'; } },
+  { name: 'the imbuement row dropped', case: 'four-slots', edit: (ms) => { ms.drain_rat.drops = ms.drain_rat.drops.filter((d) => d.id !== 'rat_incisor'); } },
+  { name: 'one imbuement item on two monsters', case: 'four-slots', edit: (ms) => { ms.sump_slime.drops.find((d) => d.id === 'sump_membrane').id = 'rat_incisor'; } },
+  { name: 'an imbuement row at rare odds', case: 'four-slots', edit: (ms) => { ms.gray_wolf.drops.find((d) => d.id === 'gray_dewclaw').ch = 0.02; } },
+  { name: 'a second junk row back (the old free-form list)', case: 'four-slots', edit: (ms) => { ms.gray_wolf.drops.splice(1, 0, { id: 'wolf_pelt', ch: 0.06 }); } },
+  { name: 'the junk row lost', case: 'four-slots', edit: (ms) => { ms.cistern_spider.drops = ms.cistern_spider.drops.filter((d) => d.id !== 'silk_thread'); } },
+  { name: 'an imbuement item on a monster of the wrong tier', case: 'four-slots', edit: (ms) => { ms.rat_king.level = 30; } },
 ];
 const playMutants = [
   { name: 'the Sewer back to its old coin', rule: 'profit-floor: millrace_sewer', edit: (ms) => {
@@ -271,8 +312,14 @@ const playMutants = [
 ];
 /* The caster floor's levers live in src/data the engine imports: each mutant plays on a planted copy. */
 const casterMutants = [
+  /* Every store drink back (the bar's default buys the cheapest per point of them all, not one tier's). */
   { name: 'the drinks back to the old grain (a tier-1 drink 6-8 mana)', edits: [
-    ['src/data/supply-basics.js', "'turnip_juice', 72, 10, [1]", "'turnip_juice', 6, 10, [1]"],
+    ['src/data/supply-basics.js', "'turnip_juice', 72, 10)", "'turnip_juice', 6, 10)"],
+    ['src/data/supply-basics.js', "'carrot_juice', 120, 18)", "'carrot_juice', 10, 18)"],
+    ['src/data/supply-basics.js', "'tomato_juice', 216, 45)", "'tomato_juice', 18, 45)"],
+    ['src/data/supply-basics.js', "'pumpkin_cider', 288, 80)", "'pumpkin_cider', 24, 80)"],
+    ['src/data/supply-basics.js', "'goldenroot_tea', 396, 138)", "'goldenroot_tea', 33, 138)"],
+    ['src/data/supply-basics.js', "'emberfruit_cordial', 480, 233)", "'emberfruit_cordial', 40, 233)"],
     ['src/data/drinks.js', "v: 6, mana: 96 ", "v: 6, mana: 8 "]] },
   { name: 'Fireball spends a Fire Rune again (the Mage casts nothing)', edits: [
     ['src/data/abilities.js', "id: 'fireball', n: 'Fireball', disciplines: ['destruction'], lane: 'offense', cdMs: 8000, mana: 25,",

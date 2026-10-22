@@ -29,7 +29,8 @@ export function sanitizeSummary(v) {
   if (!isObj(v) || typeof v.id !== 'string' || !v.id || v.id.length > 64) return null;
   const reason = typeof v.reason === 'string' && REASON.test(v.reason) ? v.reason : null;
   return {
-    id: v.id, hunt: id(v.hunt), at: ms(v.at), reason, ms: num(v.ms) !== null && v.ms >= 0 ? Math.floor(v.ms) : null,
+    id: v.id, hunt: id(v.hunt), at: ms(v.at), reason, forfeit: v.forfeit === true,
+    ms: num(v.ms) !== null && v.ms >= 0 ? Math.floor(v.ms) : null,
     kills: int(v.kills), xp: num(v.xp), gold: num(v.gold), lootValue: num(v.lootValue), died: int(v.died),
     /* The server's per-hour figures at the end (the analyzer's): balance for everyone, raw XP premium only. */
     balanceH: num(v.balanceH), rawXpH: num(v.rawXpH),

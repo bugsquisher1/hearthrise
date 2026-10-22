@@ -251,7 +251,7 @@ export function createHuntScene(o) {
         break;
       }
       case 'eat': case 'drink': addFloat(ev.u, 'supply', itemName(ev.item), 'supply', start); break;
-      case 'rare_drop': if (read.viewed !== null) addFloat(read.viewed, 'loot', itemName(ev.item), 'loot', start, true); break;
+      case 'rare_drop': { const who = Number.isInteger(ev.u) ? ev.u : read.viewed; if (who !== null) addFloat(who, 'loot', itemName(ev.item), 'loot', start, true); break; }
       case 'status_on': if (ev.status === 'bleed') bleed.set(ev.t, Number.isInteger(ev.stacks) ? ev.stacks : (bleed.get(ev.t) || 0) + 1); break;
       case 'status_off': if (ev.status === 'bleed') bleed.delete(ev.t); break;
       case 'target': if (Number.isInteger(ev.u)) target.set(ev.u, ev.t); break;

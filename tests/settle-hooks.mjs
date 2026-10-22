@@ -51,8 +51,10 @@ const FALLER = { minutesAgo: 25, inv: {}, bag: [], gold: 0, hp: 20, options: { o
   level: 5, levelXpOver: 800, skillsXp: { melee: 400, defense: 400 } };
 /* Measured: buys store food from a 100 g purse until it runs short, and sell-to-cover then
    sells its bones (bones flagged a cover item by the arm, at 1 g). Dice rewound per arm (runArms). */
+/* Its bar buys the store's Salted Shrimp under 99% HP (a slot names ONE item; the eat-at is the slot's condition). */
 const COVERER = { minutesAgo: 25, inv: {}, bag: [], gold: 100, level: 3,
-  options: { supply_source: 'store', on_empty: 'end', food_below_pct: 99, gold_floor: 0 } };
+  options: { supply_source: 'store', on_empty: 'end', gold_floor: 0,
+    slots: [{ action: { type: 'consume', id: 'salted_shrimp' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 99 }], join: 'and' }] } };
 
 async function snap(H, db, uid, sid) {
   return {

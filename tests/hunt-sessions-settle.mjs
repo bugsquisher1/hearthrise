@@ -49,9 +49,16 @@
 //              purse; sell-to-cover sells junk only, cheapest first, above the floor.
 //   ECON-1     a fresh melee hero (0 gold, the kit's food) hunts a T1 hour on store
 //              drinks without gold_out; its kill coins pay every drink.
-//   SPLIT      party-split.js: gold even with the remainder to the first, items
+//   SPLIT      party-split.js: gold even with the remainder to the first, common items
 //              round-robin; a two-hero hunt pays both, neither more than its
-//              share plus the remainders.
+//              share plus the remainders. THE RARE ROLL (Tyler L8): a rare unit goes to
+//              the highest 1-100 roll, a tie re-rolls among the tied, a winner waits
+//              until everyone in the instance has won (a leaver dropped, a joiner
+//              eligible), solo draws no die, commons keep the round-robin; a party's
+//              rares go to the same heroes however the windows are cut (the
+//              rotation rides the world), each with its `rare_roll` event.
+//   RARE-DROP  a carrier's rare dropped in a settle is a rare_drop world event naming its hero (the
+//              timeline's alert, float and log line) and a hints.rare_drop on that hero's session, cut or not.
 //   DEATH      a killed hero DIES (Tyler 2026-10-19): one death row, no recovery
 //              line, the hunt ends `died` at its next boundary, the hero walks home
 //              at full HP, the death is priced on its Level and combat skills; the
@@ -109,6 +116,16 @@
 //              item (value_over), kills (kills_over), the world's size, shape and
 //              swing, the store without consent (store_off), the lane caps
 //              (too_many_uses), an unsold id (not_for_sale).
+//   DENSITY    P0 #57: a Level-2 club hero at Mill Cellar density 8 (the real ground),
+//              nothing landed since it opened and Leave pressed, ends through its own
+//              settle with the browser closed (tick) and viewed (player's settle), both
+//              with the density the server froze on the instance at hunt start (a later
+//              setup change moves neither the bound nor what the engine plays) and with
+//              none frozen (an instance opened before the freeze: the bound reads the ceiling).
+//   FORFEIT    the sixth refused commit in a row forfeits the window: ended `left`
+//              (Leave pressed) or `server` (browser closed) at the last accepted
+//              boundary, purse unmoved, one window_forfeit row, bag home; a landed
+//              commit starts the count over.
 //   REPLAY     the same keys re-committed answer replayed and move nothing; a
 //              stale proposal answers session_moved.
 //   SETTINGS   the hero's stored options reach its unit in the persisted world.
@@ -175,6 +192,7 @@ async function loadEdge(root) {
     CS: await import(u('src/core/combat-sim.js')),
     SPAWN: await import(u('src/core/hunt-spawn.js')),
     PS: await import(u('src/core/party-split.js')),
+    HR: await import(u('src/core/hunt-rewards.js')),
     WS: await import(u('src/core/hunt/world-state.js')),
     GRID: await import(u('src/core/hunt/grid.js')),
     VIT: await import(u('src/core/vitals.js')),
@@ -231,7 +249,8 @@ const mixedRow = () => {
 };
 /* The DB arms' settles play the ground installGround last put in the catalogue. */
 let fixtureRow = groundRow;
-const groundsOf = (M) => ({ mill_cellar: { ground: fixtureRow(), grid: gridOf(M) } });
+/* null = the REAL ground (hunt-ground.js huntGroundOf) and the chain's own catalogue row (the DENSITY arm). */
+const groundsOf = (M) => (fixtureRow ? { mill_cellar: { ground: fixtureRow(), grid: gridOf(M) } } : {});
 const deadlyOf = (M) => ({ ground: deadlyRow(), grid: gridOf(M) });
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -243,7 +262,9 @@ const SECRET = '-4611686018427387904';
 const tier1 = (M) => {
   const basics = {};
   for (const b of M.SB.BASIC_SUPPLIES) basics[b.id] = { kind: b.kind, price: b.price, heals: b.heals || 0, mana: b.mana || 0, partner: b.partner };
-  return { basics, shop: { heal: M.SB.basicFor('heal', 1).id, mana: M.SB.basicFor('mana', 1).id } };
+  /* `shop`: the rows an empty-handed tier-1 hero's need lands on (the cheapest that covers it) — expectations only;
+     the session carries no hunt-tier store (Tyler 2026-10-19: the bar's slots pick the store item). */
+  return { basics, shop: { heal: 'salted_shrimp', mana: 'thin_turnip_juice' } };
 };
 
 /* One member of an engine-arm instance, in the shape hunt-settle.js memberInput builds. */
@@ -258,7 +279,7 @@ function memberIn(M, key, o) {
     key, user: key, slot: 0, seat: x.seat || 0, unitId: x.unitId ?? null, sessionId: 's-' + key, version: 1, huntId: 'mill_cellar',
     huntSession: { id: 's-' + key, instanceId: IID, huntFromMs: T0, nextSwingAtMs: T0, swingIndex: 0,
       bag: x.bag || {}, staminaMs: x.stamina ?? 12 * 3600000, staminaMaxMs: x.staminaMax ?? 12 * 3600000,
-      basics: t.basics, shop: t.shop, goldFloor: x.floor ?? 0, supplySource: x.source || 'mine', onEmpty: x.empty || 'switch',
+      basics: t.basics, goldFloor: x.floor ?? 0, supplySource: x.source || 'mine', onEmpty: x.empty || 'switch',
       cover: x.cover || {} },
     skills, levelXp: x.levelXp ?? M.XP.charXpForLevel(L), xpFrac: null, hp: x.hp ?? 1e9, gold: x.gold ?? 0, equipment: x.equipment || {},
     inventory: {}, deathsTodayBefore: 0, deathsLifetimeBefore: 0, hearthfindReady: false, perks: null,
@@ -299,6 +320,58 @@ function runCut(M, mk, spanMs, cuts, over) {
     }
   }
   return { outs, members, world };
+}
+
+/* THE RARE ROLL (Tyler L8), on scripted dice: party-split.js rareRoll, then the one reward path
+   (hunt-rewards.js rewardSwing) for a kill that drops two commons and one rare. */
+function rareRollRules(M) {
+  const problems = [];
+  const { rareRoll } = M.PS;
+  const dice = (list) => {
+    const q = list.slice();
+    return { int: (a, b) => { if (a === b) return a; if (!q.length) throw new Error('an unscripted draw ' + a + '..' + b); return q.shift(); },
+      chance: () => true, next: () => 0.99, left: () => q.length };
+  };
+  const say = (r) => canon({ winner: r.winner, rolls: r.rolls, reroll: r.reroll, won: r.won });
+  let r = rareRoll([1, 2, 3], null, dice([40, 90, 12]));
+  if (say(r) !== canon({ winner: 2, rolls: { 1: 40, 2: 90, 3: 12 }, reroll: null, won: [2] })) problems.push('the highest roll does not win: ' + say(r));
+  let d = dice([90, 90, 12, 30, 70]);
+  r = rareRoll([1, 2, 3], null, d);
+  if (say(r) !== canon({ winner: 2, rolls: { 1: 90, 2: 90, 3: 12 }, reroll: { 1: 30, 2: 70 }, won: [2] }) || d.left()) problems.push('a tie is not re-rolled among the tied: ' + say(r));
+  r = rareRoll([1, 2, 3], [2], dice([50, 60]));
+  if (say(r) !== canon({ winner: 3, rolls: { 1: 50, 3: 60 }, reroll: null, won: [2, 3] })) problems.push('a winner rolls again before everyone has won: ' + say(r));
+  d = dice([]);
+  r = rareRoll([1, 2, 3], [2, 3], d);
+  if (say(r) !== canon({ winner: 1, rolls: {}, reroll: null, won: [2, 3, 1] })) problems.push('the last hero without a win does not take it: ' + say(r));
+  r = rareRoll([1, 2, 3], [2, 3, 1], dice([10, 20, 30]));
+  if (say(r) !== canon({ winner: 3, rolls: { 1: 10, 2: 20, 3: 30 }, reroll: null, won: [3] })) problems.push('the rotation does not start over once everyone has won: ' + say(r));
+  r = rareRoll([1, 2, 4], [2, 3], dice([5, 9]));
+  if (say(r) !== canon({ winner: 4, rolls: { 1: 5, 4: 9 }, reroll: null, won: [2, 4] })) problems.push('a leaver is kept or a joiner is not eligible: ' + say(r));
+
+  /* The reward path: commons a, b round-robin from the offset (1: unit 2 then unit 1), the rare r to the roll. */
+  const monsters = { x: { gp: [0, 0], drops: [{ id: 'a', ch: 1 }, { id: 'b', ch: 1 }, { id: 'r', ch: 0.01 }] } };
+  const kill = (heroes, script, rareWon) => {
+    const got = []; const events = [];
+    const world = { units: [...heroes.map((id) => ({ id, side: 'hero' })), { id: 9, side: 'mon', kind: 'x' }], rareWon: rareWon ?? null };
+    const members = new Map(heroes.map((id) => [id, { unitId: id, state: {}, hs: { tally: { kills: 0 } }, bonus: () => 0, weakness: () => ({ dropMult: 1 }),
+      fx: { addItem: (item) => got.push(item + '>' + id) } }]));
+    const rng = dice(script);
+    M.HR.rewardSwing(members, [{ type: 'kill', u: heroes[0], t: 9, atMs: 5000 }], world,
+      { rng, monsters, hearthfind: false, emit: (e) => { if (e.type === 'rare_roll') events.push(e); } });
+    return { got: got.join(' '), events, world, left: rng.left() };
+  };
+  const two = kill([1, 2], [1, 70, 30]);
+  if (two.got !== 'a>2 b>1 r>1') problems.push(`a party kill paid ${two.got}, want the commons round-robin (a>2 b>1) and the rare to the 70 (r>1)`);
+  const ev = two.events[0];
+  if (two.events.length !== 1 || !ev || ev.type !== 'rare_roll' || ev.u !== 1 || ev.item !== 'r' || canon(ev.rolls) !== canon({ 1: 70, 2: 30 }) || ev.atMs !== 5000) {
+    problems.push('the rare roll event is ' + canon(two.events));
+  }
+  if (canon(two.world.rareWon) !== '[1]' || two.left) problems.push(`the world's rotation is ${canon(two.world.rareWon)} (want [1]), ${two.left} draws unspent`);
+  const next = kill([1, 2], [1], [1]);
+  if (next.got !== 'a>2 b>1 r>2' || canon(next.events[0] && next.events[0].rolls) !== '{}') problems.push(`the next rare went ${next.got} (the winner must wait: r>2, no dice)`);
+  const solo = kill([1], []);
+  if (solo.got !== 'a>1 b>1 r>1' || solo.events.length || solo.world.rareWon !== null) problems.push(`a solo kill paid ${solo.got} with ${solo.events.length} roll events (the hero takes all, no die, no rotation)`);
+  return problems;
 }
 
 const ENGINE_ARMS = {
@@ -561,29 +634,31 @@ const ENGINE_ARMS = {
   'SUPPLY-RULE': async (M) => {
     const problems = [];
     const t = tier1(M);
-    const hs = (o) => M.AR.newHuntSession(Object.assign({ id: 'x', bag: {}, basics: t.basics, shop: t.shop, purse: 1000, goldFloor: 0 }, o));
+    const hs = (o) => M.AR.newHuntSession(Object.assign({ id: 'x', bag: {}, basics: t.basics, purse: 1000, goldFloor: 0 }, o));
     if (M.HSD.ON_EMPTY.default !== 'switch' || !M.HSD.ON_EMPTY.modes.includes('end')) problems.push(`ON_EMPTY is ${JSON.stringify(M.HSD.ON_EMPTY)}, not default switch with end opt-in`);
-    /* OWN FIRST, the smallest that covers, free. */
+    /* A SLOT NAMES ONE ITEM (Tyler 2026-10-21): a crafted food is the hero's own stack, free. */
     const own = hs({ bag: { cooked_shrimp: { loaded: 5 }, cooked_trout: { loaded: 5 } } });
-    const sh = M.CD.CONSUMABLES.cooked_shrimp.amount;
-    const l1 = M.AR.resolveLine(own, 'heal', sh);
-    if (l1.id !== 'cooked_shrimp' || l1.source !== 'own' || l1.price !== 0) problems.push(`own food first, the smallest that covers: ${JSON.stringify(l1)}`);
-    if (M.AR.lineAmount(own, l1) !== M.ITEMS.cooked_shrimp.heals && M.AR.lineAmount(own, l1) !== M.CD.CONSUMABLES.cooked_shrimp.amount) problems.push('an own food does not restore its item\'s amount');
+    const l1 = M.AR.resolveLine(own, 'cooked_shrimp');
+    if (l1.id !== 'cooked_shrimp' || l1.source !== 'own' || l1.price !== 0) problems.push(`a crafted food is not its own stack, free: ${JSON.stringify(l1)}`);
+    if (M.AR.lineAmount(own, l1) !== M.CD.CONSUMABLES.cooked_shrimp.amount) problems.push('an own food does not restore its item\'s amount');
     if (!M.AR.takeLine(own, l1, 0) || own.bag.cooked_shrimp.left !== 4 || own.tally.supplies.cooked_shrimp !== 1) problems.push('an own use did not leave the bag once');
-    /* Under supply_source `store` a carried line is STILL spent first (hunt-sessions.js SUPPLY_SOURCE). */
-    const l1s = M.AR.resolveLine(hs({ supplySource: 'store', bag: { cooked_shrimp: { loaded: 5 } } }), 'heal', sh);
+    /* A crafted food with none left is NONE: never a store row the slot did not name. */
+    const dryOwn = M.AR.resolveLine(hs({}), 'cooked_shrimp');
+    if (dryOwn.id || dryOwn.why !== 'none') problems.push(`an empty crafted line bought something: ${JSON.stringify(dryOwn)}`);
+    /* Under supply_source `store` a crafted slot is STILL its own stack (hunt-sessions.js SUPPLY_SOURCE). */
+    const l1s = M.AR.resolveLine(hs({ supplySource: 'store', bag: { cooked_shrimp: { loaded: 5 } } }), 'cooked_shrimp');
     if (l1s.source !== 'own') problems.push(`a store-sourced hero with food in its bag bought instead: ${JSON.stringify(l1s)}`);
-    /* THE STORE behind an empty line, under the default switch, at the catalogue price, restoring ITS amount. */
+    /* THE STORE ROW A SLOT NAMES, under the default switch, at the catalogue price, restoring ITS amount. */
     const store = hs({});
-    const l2 = M.AR.resolveLine(store, 'heal', 5);
+    const l2 = M.AR.resolveLine(store, t.shop.heal);
     const row = t.basics[t.shop.heal];
-    if (l2.source !== 'store' || l2.price !== row.price) problems.push(`an empty bag under switch did not fall to the store at its price: ${JSON.stringify(l2)}`);
+    if (l2.id !== t.shop.heal || l2.source !== 'store' || l2.price !== row.price) problems.push(`a store food slot did not buy its row at its price: ${JSON.stringify(l2)}`);
     if (M.AR.lineAmount(store, l2) !== row.heals) problems.push(`a store food restores ${M.AR.lineAmount(store, l2)}, its row says ${row.heals}`);
     if (!M.AR.takeLine(store, l2, 0) || store.purse !== 1000 - row.price || store.tally.bought[t.shop.heal] !== 1) problems.push('a store use was not paid once from the purse');
-    if (M.AR.resolveLine(hs({ onEmpty: 'end' }), 'heal', 5).source) problems.push('the store sold under the hero\'s `end`');
+    if (M.AR.resolveLine(hs({ onEmpty: 'end' }), t.shop.heal).source) problems.push('the store sold under the hero\'s `end`');
     /* A dry purse ends gold_out; the floor is kept; cover sells junk only, cheapest first. */
     const dry = hs({ purse: row.price - 1 });
-    const l3 = M.AR.resolveLine(dry, 'heal', 5);
+    const l3 = M.AR.resolveLine(dry, t.shop.heal);
     if (l3.why !== 'gold_short') problems.push(`a purse short of the price answered ${JSON.stringify(l3)}`);
     if (M.AR.canAfford(hs({ purse: 100, goldFloor: 50 }), 60)) problems.push('a use was affordable below the gold floor');
     const cov = hs({ purse: 0, cover: { a_junk: { unit: 5, avail: 10 }, b_junk: { unit: 2, avail: 10 } } });
@@ -593,16 +668,20 @@ const ENGINE_ARMS = {
     /* THE COINS REACH THE PURSE: a hero one coin short of the store's food, at full HP, can buy
        food once a kill has paid — without its coins the first meal it needs ends the hunt gold_out.
        Drain rats (Level 10) bite a Level-9 hero hard enough to need food, after a few kills; the cellar's rats never do. */
-    const out = runCut(M, () => [memberIn(M, 'a', { level: 9, gold: row.price - 1, options: { drink_below_pct: 0 } })], 1800000, [], groundWith(M, 'drain_rat'));
+    /* Its bar eats the store's food under 40% HP (no drink slot), so the first meal comes after kills have paid coins. */
+    const poorBar = [{ action: { type: 'consume', id: t.shop.heal }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 40 }], join: 'and' }];
+    const out = runCut(M, () => [memberIn(M, 'a', { level: 9, gold: row.price - 1, bar: poorBar })], 1800000, [], groundWith(M, 'drain_rat'));
     const ms = out.outs.flatMap((o) => o.members);
     /* FOOD buys only: a 6 g store drink is affordable from the purse alone (designer 2026-10-17), so a drink buy proves nothing about the coins. */
-    const tl = ms.reduce((a, x) => a + ((x.hunt.buys || {})[t.shop.heal] || 0), 0);
+    const tl = ms.reduce((a, x) => a + Object.entries(x.hunt.buys || {}).reduce((n, [id, q]) => n + ((t.basics[id] || {}).kind === 'heal' ? q : 0), 0), 0);
     const kills = ms.reduce((a, x) => a + x.delta.journal.meta.kills, 0);
     const end = ms.find((x) => x.hunt.ended);
     /* A DRINK THE PURSE CANNOT BUY ONLY GOES WITHOUT: a broke hero that wants to drink
        but never needs food hunts on (spec §3.4 #7); only an unaffordable FOOD ends gold_out.
  */
-    const thirsty = runCut(M, () => [memberIn(M, 'a', { level: 40, gold: 0, options: { drink_below_pct: 99 } })], 600000, []);
+    /* Store by slot (2026-11-07): the drink is the bar's own slot, asked for on every step (mana at or below 100%). */
+    const thirstyBar = [{ action: { type: 'consume', id: t.shop.mana }, conditions: [{ metric: 'self_mana_pct', op: 'lte', value: 100 }], join: 'and' }];
+    const thirsty = runCut(M, () => [memberIn(M, 'a', { level: 40, gold: 0, bar: thirstyBar })], 600000, []);
     const tEnd = thirsty.outs.flatMap((o) => o.members).find((x) => x.hunt.ended);
     if (tEnd && tEnd.hunt.ended.reason === 'gold_out') problems.push('a broke hero that only wanted a drink ended gold_out');
     if (!(kills > 0)) problems.push(`CONTROL: the poor hero killed nothing (${JSON.stringify(end && end.hunt.ended)}, ${ms.length} windows, ${JSON.stringify(ms.map((x) => x.hunt.buys))})`);
@@ -648,6 +727,7 @@ const ENGINE_ARMS = {
       }
     }
     if ([0, 1, 2, 3, 4].map((k) => itemOwner(k, 3, 2)).join() !== '2,0,1,2,0') problems.push('items do not go round-robin from the offset');
+    problems.push(...rareRollRules(M));
     /* Two heroes: both are paid, and neither more than its share plus the remainders (one a kill). */
     const out = runCut(M, () => [memberIn(M, 'a', { unitId: null, seat: 0, partyRoles: ['melee_dps', 'melee_dps'] }),
       memberIn(M, 'b', { unitId: null, seat: 1, partyRoles: ['melee_dps', 'melee_dps'] })], 900000, []);
@@ -662,6 +742,64 @@ const ENGINE_ARMS = {
     if (!(g.a > 0 && g.b > 0) || Math.abs(g.a - g.b) > kills) problems.push(`gold split ${JSON.stringify(g)} over ${kills} kills is not even`);
     if (!(items.a > 0 && items.b > 0)) problems.push(`loot went to one hero only: ${JSON.stringify(items)}`);
     if (ms.filter((x) => x.key === 'b').reduce((a, x) => a + x.delta.journal.meta.kills, 0) !== kills) problems.push('the two heroes journalled different kill counts for one instance');
+    /* THE RARE ROLL, BOTH PATHS: the cellar's rats carry ten 5% Crown Shard rows (each a rare). One span (the browser
+       closed) and the same hunt cut at odd instants (viewed) roll the same rares to the same heroes, each Crown Shard
+       is the roll winner's, and with two heroes the rotation alternates: a roll, then the other hero's without dice. */
+    const rat = M.MONSTERS.rat;
+    const rareCat = { ...M.MONSTERS, rat: { ...rat, drops: [...rat.drops, ...Array.from({ length: 10 }, () => ({ id: 'crown_shard', ch: 0.05 }))] } };
+    const pair = () => [memberIn(M, 'a', { unitId: null, seat: 0, partyRoles: ['melee_dps', 'melee_dps'] }),
+      memberIn(M, 'b', { unitId: null, seat: 1, partyRoles: ['melee_dps', 'melee_dps'] })];
+    const rareRun = (cuts) => {
+      const o = runCut(M, pair, 900000, cuts, { monsters: rareCat });
+      const rolls = o.outs.flatMap((x) => x.events.filter((e) => e.type === 'rare_roll'));
+      const shards = { a: 0, b: 0 };
+      for (const x of o.outs.flatMap((y) => y.members)) shards[x.key] += (x.delta.items || {}).crown_shard || 0;
+      const unitOf = Object.fromEntries(o.outs.flatMap((y) => y.members).filter((x) => Number.isInteger(x.hunt.unit_id)).map((x) => [x.hunt.unit_id, x.key]));
+      return { rolls, shards, unitOf };
+    };
+    const span = rareRun([]);
+    const viewed = rareRun([T0 + 7001, T0 + 33333, T0 + 101101, T0 + 250007, T0 + 499999, T0 + 777777]);
+    const won = { a: 0, b: 0 };
+    for (const e of span.rolls) won[span.unitOf[e.u]] = (won[span.unitOf[e.u]] || 0) + 1;
+    if (!(span.rolls.length >= 4)) problems.push(`CONTROL: the pair rolled for ${span.rolls.length} rares in 15 minutes`);
+    if (canon(won) !== canon(span.shards)) problems.push(`the Crown Shards went ${canon(span.shards)} but the rolls were won ${canon(won)}`);
+    span.rolls.forEach((e, i) => {
+      const odd = i % 2 === 1;
+      if (odd && (e.u === span.rolls[i - 1].u || canon(e.rolls) !== '{}')) problems.push(`rare roll ${i} went to ${e.u} with ${canon(e.rolls)} after ${span.rolls[i - 1].u} won (the other hero, no dice)`);
+      if (!odd && Object.keys(e.rolls).length !== 2) problems.push(`rare roll ${i} rolled ${canon(e.rolls)} (a fresh rotation: both heroes roll)`);
+    });
+    const sig = (r) => canon({ rolls: r.rolls.map((e) => [e.atMs, e.u, e.item, e.rolls, e.reroll || null]), shards: r.shards });
+    if (sig(span) !== sig(viewed)) problems.push(`the viewed cut rolled differently from one span ${firstDiff(sig(span), sig(viewed))}`);
+    return problems;
+  },
+
+  /* THE RARE-DROP MOMENT (Tyler, super-rare drop moments): a carrier's rare dropped in a settle reaches the hero
+     who owns it, as the window's world event the timeline plays (the alert, the float, the log line: rare_drop
+     with u = that hero's unit) and as the session's hint (hints.rare_drop, the journal row), whether the
+     browser was closed (one span) or viewed (cut windows). */
+  'RARE-DROP': async (M) => {
+    const problems = [];
+    const rat = M.MONSTERS.rat;
+    const rareCat = { ...M.MONSTERS, rat: { ...rat, drops: [...rat.drops, { id: 'crown_shard', ch: 0.05 }, { id: 'crown_shard', ch: 0.05 }] } };
+    const one = (cuts) => {
+      const o = runCut(M, () => [memberIn(M, 'a', { unitId: null })], 900000, cuts, { monsters: rareCat });
+      const drops = o.outs.flatMap((x) => x.events.filter((e) => e.type === 'rare_drop'));
+      const units = new Set(o.outs.flatMap((x) => x.members).map((x) => x.hunt.unit_id).filter(Number.isInteger));
+      const hints = o.outs.flatMap((x) => x.members).flatMap((x) => (x.hunt.hints && x.hunt.hints.rare_drop) || []);
+      const shards = o.outs.flatMap((x) => x.members).reduce((n, x) => n + ((x.delta.items || {}).crown_shard || 0), 0);
+      const timeline = o.outs.flatMap((x) => M.HT.huntTimeline(x.track, x.events, T0, x.settledTo, x.settledTo, x.units).hunt_events)
+        .filter((e) => e.type === 'rare_drop');
+      return { drops, units, hints, shards, timeline };
+    };
+    const span = one([]);
+    const viewed = one([T0 + 7001, T0 + 133333, T0 + 499999]);
+    if (!(span.shards >= 2)) return ['CONTROL: the hero looted ' + span.shards + ' Crown Shards in 15 minutes'];
+    if (span.drops.length !== span.shards) problems.push(span.shards + ' Crown Shards looted, ' + span.drops.length + ' rare_drop world events');
+    if (span.drops.some((e) => e.item !== 'crown_shard' || !span.units.has(e.u) || !Number.isInteger(e.atMs))) problems.push('a rare_drop does not name the hero and the item: ' + canon(span.drops[0]));
+    if (span.timeline.length !== span.drops.length || span.timeline.some((e) => typeof e.id !== 'string')) problems.push('the timeline carries ' + span.timeline.length + ' rare drops of ' + span.drops.length);
+    if (span.hints.length !== span.shards || span.hints.some((h) => h.item !== 'crown_shard' || !Number.isInteger(h.at))) problems.push('the session hints carry ' + canon(span.hints) + ' for ' + span.shards + ' shards');
+    const sig = (r) => canon(r.drops.map((e) => [e.atMs, e.u, e.item]));
+    if (sig(span) !== sig(viewed)) problems.push('the viewed cut dropped its rares differently ' + firstDiff(sig(span), sig(viewed)));
     return problems;
   },
 
@@ -794,9 +932,10 @@ async function installGround(db, row = groundRow) {
   const GEN = await import(pathToFileURL(join(ROOT, 'tools', 'gen-hunt-sessions.mjs')).href);
   const { rows, spawns } = GEN.groundRows({ h1_fixture: row() });
   for (const g of rows) {
-    await db.query(`insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn_ms, seats) values ($1,$2,$3,$4,$5,$6)
+    await db.query(`insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn_ms, seats, density_max) values ($1,$2,$3,$4,$5,$6,$7::int[])
                     on conflict (hunt_id) do update set ground_id = excluded.ground_id, pockets = excluded.pockets, spawns = excluded.spawns,
-                      respawn_ms = excluded.respawn_ms, seats = excluded.seats`, [g.hunt, g.ground, g.pockets, g.spawns, g.respawn, g.seats]);
+                      respawn_ms = excluded.respawn_ms, seats = excluded.seats, density_max = excluded.density_max`,
+                    [g.hunt, g.ground, g.pockets, g.spawns, g.respawn, g.seats, g.dmax]);
     await db.query('delete from public.hr_hunt_ground_spawns where hunt_id = $1', [g.hunt]);
   }
   for (const s of spawns) await db.query('insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values ($1,$2,$3) on conflict do nothing', [s.hunt, s.monster, s.n]);
@@ -836,16 +975,27 @@ async function character(db, M, uid, o) {
     const r = await one(db, 'select public.hr_action_set_options(0, 0, $1::jsonb, $2::uuid)', [JSON.stringify(o.options), idem()]);
     if (!r || r.ok !== true) throw new Error('options refused: ' + JSON.stringify(r));
   }
+  /* The density pick on the hunter's ground (hunt_density, 2026-11-17-hunt-density-home.sql: per ground, never a setup). */
+  if (o.density != null) {
+    await asUser(db, uid);
+    const r = await one(db, `select public.hr_hunt_density_set(0, 'mill_cellar', $1::int, $2::uuid)`, [o.density, idem()]);
+    if (!r || r.ok !== true) throw new Error('density refused: ' + JSON.stringify(r));
+  }
   if (o.premium) await db.query(`select public.hr_premium_grant($1, 0, now() + interval '30 days', 's1 probe')`, [uid]);
   if (o.lastActivity) {
     await db.query('update public.player_state set last_activity_kind = $2, last_activity_id = $3 where user_id = $1 and slot = 0',
       [uid, o.lastActivity.kind, o.lastActivity.id]);
   }
+  /* A town activity RUNNING when the hero presses Enter (burying, fishing): the enter must stop it. */
+  if (o.running) {
+    await db.query('update public.player_state set active_kind = $2, active_id = $3, active_since = now(), accrued_to = now() where user_id = $1 and slot = 0',
+      [uid, o.running.kind, o.running.id]);
+  }
 }
 
 /* A hunter: one character (or, with o.party, every character of a party) on mill_cellar `minutesAgo` minutes ago. */
 async function hunter(db, M, o) {
-  await installGround(db, o.row || (o.deadly ? deadlyRow : groundRow));
+  if (o.realGround) fixtureRow = null; else await installGround(db, o.row || (o.deadly ? deadlyRow : groundRow));
   await db.query('update public.hr_hunt_config set enabled = true where id');
   const who = o.party ? o.party : [o];
   for (let i = 0; i < who.length; i++) await character(db, M, UIDS[i], who[i]);
@@ -871,6 +1021,8 @@ async function hunter(db, M, o) {
       if (!j || j.ok !== true) throw new Error('party join refused: ' + JSON.stringify(j));
     }
   }
+  /* A caller's town-only seeding (a setup is saved in town: 2026-11-15-preset-names.sql), before anyone enters. */
+  if (typeof o.beforeEnter === 'function') await o.beforeEnter();
   const sids = [];
   for (let i = 0; i < who.length; i++) {
     await asUser(db, UIDS[i]);
@@ -1086,7 +1238,9 @@ const DB_ARMS = {
   }),
   END: async (db, M) => inTx(db, async () => {
     const problems = [];
-    const { sid, from } = await hunter(db, M, { ...WEAK, options: { on_empty: 'end', food_below_pct: 99 }, inv: { cooked_shrimp: 3 },
+    /* The bar eats the carried Cooked Shrimp under 99% HP (the eat-at is a slot condition, Tyler 2026-10-19). */
+    const eat99 = [{ action: { type: 'consume', id: 'cooked_shrimp' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 99 }], join: 'and' }];
+    const { sid, from } = await hunter(db, M, { ...WEAK, options: { on_empty: 'end', slots: eat99 }, inv: { cooked_shrimp: 3 },
       bag: [{ item: 'cooked_shrimp', qty: 3, essential: true }], lastActivity: { kind: 'gather', id: 'shrimp_s' } });
     await run(db, M, from, ticksOf(90000, SPAN_MS));
     const s = await snapshot(db, sid);
@@ -1148,6 +1302,14 @@ const DB_ARMS = {
     await run(db, M, from, ticksOf(90000, 120000));
     const s = await snapshot(db, sid);
     if (s.session.end_reason !== 'stamina' || s.active !== 'gather:shrimp_s') problems.push(`an automatic end left the character ${s.active} after ${s.session.end_reason}`);
+    /* ENTER STOPS BURYING, like fishing (Andy live 10-21: "burying locks an action"): ONE hunt_enter intent with a
+       bury running enters the hunt (hunter throws on a refusal), the bury yields, journalled with what it was. */
+    await db.query('rollback'); await db.query('begin');
+    const b = await hunter(db, M, { ...STRONG, running: { kind: 'artisan', id: 'bury_bones' } });
+    const yielded = await one(db, `select l.meta from public.player_ledger l where l.user_id = $1 and l.intent = 'activity_yield' order by l.id desc limit 1`, [UID]);
+    const st = await one(db, 'select active_kind from public.player_state where user_id = $1 and slot = 0', [UID]);
+    if (!b.sid || st === 'artisan') problems.push(`Enter left the hero burying (${st})`);
+    if (!yielded || yielded.kind !== 'artisan' || yielded.id !== 'bury_bones') problems.push(`the bury's stop was not journalled: ${JSON.stringify(yielded)}`);
     return problems;
   }),
   DEATHXP: async (db, M) => inTx(db, async () => {
@@ -1318,6 +1480,124 @@ const DB_ARMS = {
     if (soloEnv !== null) problems.push(`a character with no hunt and no party has a party section: ${JSON.stringify(soloEnv).slice(0, 200)}`);
     return problems;
   }),
+  /* P0 bug report #57 (v0.2.26): a Level-2 club hero picked density 8 at Mill Cellar; the kill bound counted
+     the ground's as-built spawns, refused the engine's own kills (22 in a 50 s window against 15), and every
+     later, longer window more so: the instance never moved and the Leave never landed. Here is that instance:
+     the real ground, nothing landed since it opened, Leave pressed. It must end through its own settle, with
+     the browser closed (the tick) and with the hunt viewed (the player's settle). */
+  DENSITY: async (db, M) => inTx(db, async () => {
+    const problems = [];
+    try {
+      const h = await hunter(db, M, { realGround: true, minutesAgo: 22, level: 2, density: 8,
+        inv: { cooked_shrimp: 30 }, bag: [{ item: 'cooked_shrimp', qty: 25 }], gold: 1000 });
+      /* Hank's weapon: the club's cleave clears a full pack at once. */
+      await db.query("delete from public.player_equipment where user_id = $1 and slot = 0 and equip_slot in ('shield', 'weapon')", [UID]);
+      await db.query("insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, 'weapon', 'practice_club')", [UID]);
+      await asUser(db, UID);
+      const lv = await one(db, 'select public.hr_hunt_leave(0, $1::uuid)', [idem()]);
+      await db.query("select set_config('request.jwt.claim.sub', '', true)");
+      if (!lv || lv.ok !== true) return ['CONTROL: the leave was refused: ' + JSON.stringify(lv)];
+      /* Pressed two minutes ago (the arm's clock is one transaction's now()). */
+      await db.query('update public.hunt_sessions set leave_at = to_timestamp($2::bigint / 1000.0) where id = $1', [h.sid, h.from + 20 * 60000]);
+      const exec = makeExec(db);
+      /* The server froze the pick on the instance when the hunt opened (2026-11-16-hunt-density-bounds.sql). */
+      const frozen = await one(db, 'select density from public.hunt_instances where id = $1', [h.inst]);
+      if (frozen !== 8) problems.push(`the instance froze density ${frozen} at hunt start, want 8`);
+      /* A density key left on the action set (the hero has no row until a setup is saved): what an engine read before 2026-11-17. */
+      const staleKey = (n) => db.query(`insert into public.player_action_sets as a (user_id, slot, preset, name, slots, options)
+        values ($1, 0, 0, 'Preset 1', '[]'::jsonb, jsonb_build_object('density', $2::int))
+        on conflict (user_id, slot, preset) do update set options = a.options || excluded.options`, [UID, n]);
+      await db.query('savepoint density');
+      for (const [variant, door] of [['frozen', 'tick'], ['frozen', 'settle'], ['opened before the freeze', 'tick'], ['opened before the freeze', 'settle']]) {
+        if (variant === 'frozen') {
+          /* A pick changed after Enter (or a stale key on an action-set row) moves neither the bound nor what the engine plays. */
+          await db.query(`update public.hunt_density set density = 1 where user_id = $1 and slot = 0`, [UID]);
+          await staleKey(1);
+          const first = await settleTo(db, M, h.from + 60000);
+          const w = await one(db, 'select world from public.hunt_instances where id = $1', [h.inst]);
+          const played = first.res && first.res.ok === true && w ? M.WS.decode(JSON.parse(w)).density : null;
+          if (played !== 8) problems.push(`${variant}/${door}: after a setup change the engine played density ${played}, not the frozen 8`);
+        } else {
+          /* Hank's 32c99ffe: opened before the freeze existed, so its row holds none (the bound reads the ceiling). */
+          await db.query('update public.hunt_instances set density = null where id = $1', [h.inst]);
+          /* ...and its engine read the pick off the action set then (the key 2026-11-17 strips): it plays 8 against the ceiling. */
+          await staleKey(8);
+        }
+        let r = null;
+        for (let i = 0; i < 4; i++) {
+          r = await M.HS.settleHunt({ exec, user: UID, slot: 0, mode: door, grounds: groundsOf(M),
+            ...(door === 'tick' ? { session: h.sid } : { minWindowMs: 0 }) });
+          if (!r || r.outcome !== 'paid' || r.ended) break;
+        }
+        const s = await snapshot(db, h.sid);
+        if (!r || r.outcome === 'refused') problems.push(`${variant}/${door}: the stuck density-8 hunt was refused ${r && r.reason}: ${JSON.stringify(r && r.body && r.body.detail).slice(0, 300)}`);
+        else if (!s.session.ended_at || !['left', 'died'].includes(s.session.end_reason)) {
+          problems.push(`${variant}/${door}: the stuck hunt did not end through its own settle (${s.session.end_reason}; ${r.outcome}/${r.reason})`);
+        }
+        /* CONTROL: a landed window carried more kills than the as-built bound allowed (density is under test). */
+        const over = await one(db, `select count(*) from public.player_ledger l, public.hr_hunt_grounds g
+          where l.session_id = $1 and l.kind <> 'hunt' and g.hunt_id = 'mill_cellar' and jsonb_typeof(l.meta->'kills') = 'number'
+            and (l.meta->>'kills')::bigint > g.spawns * ((l.meta->>'ms')::bigint / g.respawn_ms + 2)`, [h.sid]);
+        if (!(Number(over) > 0) && !problems.length) problems.push(`CONTROL ${variant}/${door}: no landed window exceeded the as-built kill bound`);
+        await db.query('rollback to savepoint density');
+      }
+    } finally { fixtureRow = groundRow; }
+    return problems;
+  }),
+  /* A REFUSED WINDOW NEVER TRAPS A HERO (2026-11-16-hunt-density-bounds.sql): the sixth refused commit in a row
+     forfeits the pending window. Nothing of it is paid; every session ends at the last accepted boundary, `left`
+     when its hero asked to leave, `server` otherwise, journalled once. A landed commit starts the count over. */
+  FORFEIT: async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const h = await hunter(db, M, { ...STRONG, minutesAgo: 10 });
+    await settleTo(db, M, h.from + 60000);
+    const gold = async () => Number(await one(db, 'select gold from public.player_state where user_id = $1 and slot = 0', [UID]));
+    const g0 = await gold();
+    const at0 = Number(await one(db, 'select floor(extract(epoch from settled_to) * 1000)::bigint from public.hunt_instances where id = $1', [h.inst]));
+    const forged = (c) => { c.members[0].delta.journal.meta.kills = 100000; };
+    const refuse = async (n, toMs = h.from + 120000) => {
+      let r = null;
+      for (let i = 0; i < n; i++) {
+        r = await settleTo(db, M, toMs, { tamper: forged });
+        if (!r.res) throw new Error(`refusal ${i + 1} of ${n} was not offered: ${JSON.stringify(r).slice(0, 200)}`);
+      }
+      return r;
+    };
+    const open = async () => (await one(db, 'select count(*) from public.hunt_sessions where id = $1 and ended_at is null', [h.sid])) > 0;
+    await db.query('savepoint forfeit');
+    /* Consecutive: five refusals, a landed window, five more: the hunt never forfeits. */
+    let r = await refuse(5);
+    if (!r.res || r.res.error !== 'kills_over' || r.res.forfeit || !(await open())) problems.push(`five refusals answered ${JSON.stringify(r.res).slice(0, 200)}`);
+    const honest = await settleTo(db, M, h.from + 120000, { raw: true });
+    if (!honest.res || honest.res.ok !== true) problems.push(`a landed window after five refusals answered ${JSON.stringify(honest.res).slice(0, 200)}`);
+    r = await refuse(5, h.from + 180000);
+    if (r.res.forfeit || !(await open())) problems.push('five refusals after a landed window forfeited the hunt (the count did not start over)');
+    await db.query('rollback to savepoint forfeit');
+    for (const [label, leave, want] of [['hunt viewed, Leave pressed', true, 'left'], ['browser closed, no Leave', false, 'server']]) {
+      if (leave) {
+        await asUser(db, UID);
+        const lv = await one(db, 'select public.hr_hunt_leave(0, $1::uuid)', [idem()]);
+        await db.query("select set_config('request.jwt.claim.sub', '', true)");
+        if (!lv || lv.ok !== true) problems.push(`${label}: the leave was refused`);
+      }
+      r = await refuse(6);
+      const s = await snapshot(db, h.sid);
+      if (!r.res || !r.res.forfeit) problems.push(`${label}: the sixth refusal answered ${JSON.stringify(r.res).slice(0, 200)}`);
+      if (s.session.end_reason !== want || Date.parse(s.session.ended_at) !== at0) {
+        problems.push(`${label}: the hunt ended ${s.session.end_reason} at ${s.session.ended_at}, want ${want} at ${new Date(at0).toISOString()}`);
+      }
+      if (await gold() !== g0) problems.push(`${label}: the forfeit moved gold ${g0} -> ${await gold()}`);
+      const rows = await q(db, `select gold, meta->>'code' code from public.player_ledger where session_id = $1 and intent = 'window_forfeit' and kind = 'hunt'`, [h.sid]);
+      if (rows.length !== 1 || Number(rows[0].gold) !== 0 || rows[0].code !== 'kills_over') problems.push(`${label}: the forfeit journalled ${JSON.stringify(rows)}`);
+      if (Object.values(s.bag || {}).some((b) => b[1] !== 0)) problems.push(`${label}: the bag did not go home ${JSON.stringify(s.bag)}`);
+      const inst = (await q(db, 'select world, refusals from public.hunt_instances where id = $1', [h.inst]))[0];
+      if (inst.world !== null || inst.refusals !== 0) problems.push(`${label}: the instance kept a world or a count`);
+      const next = await settleTo(db, M, h.from + 180000);
+      if (next.skipped !== 'no_hunt') problems.push(`${label}: a settle after the forfeit answered ${JSON.stringify(next).slice(0, 200)}`);
+      await db.query('rollback to savepoint forfeit');
+    }
+    return problems;
+  }),
   VALUE: async (db, M) => inTx(db, async () => {
     const problems = [];
     const { from } = await hunter(db, M, { ...STRONG, options: { on_empty: 'end', supply_source: 'mine' },
@@ -1343,12 +1623,15 @@ const DB_ARMS = {
       ['an id the store does not sell', (c) => { m0(c).hunt.buys = { dragon_scale: 1 }; }, 'not_for_sale'],
       ['two hundred meals in one minute (the bag holds them)', (c) => { m0(c).hunt.uses = { cooked_shrimp: 200 }; }, 'too_many_uses'],
     ];
+    /* Each forgery is judged alone (its own savepoint): six refusals in a row forfeit the window (FORFEIT). */
     for (const [label, tamper, code] of cases) {
+      await db.query('savepoint value_case');
       const x = await settleTo(db, M, from + 120000, { tamper });
       const got = x.res && x.res.error;
       if (code ? got !== code : !(x.res && x.res.ok === false)) problems.push(`${label} answered ${JSON.stringify(x.res).slice(0, 200)}, want ${code || 'a refusal'}`);
       const g = Number(await one(db, 'select gold from public.player_state where user_id = $1 and slot = 0', [UID]));
       if (g !== g0) problems.push(`${label} moved gold ${g0} -> ${g}`);
+      await db.query('rollback to savepoint value_case');
     }
     const honest = await settleTo(db, M, from + 120000, { raw: true });
     if (!honest.res || honest.res.ok !== true) problems.push(`an honest settle answered ${JSON.stringify(honest.res).slice(0, 200)}`);
@@ -1551,7 +1834,7 @@ const MUTANTS = [
   { arm: 'MAXHP', name: 'max HP is not raise-only (a vitals read may lower it)', file: 'src/core/member.js',
     from: '  state.playerMaxHp = Math.max(state.playerMaxHp || 0, v.maxHp);', to: '  state.playerMaxHp = v.maxHp - 1;' },
   { arm: 'ECON-1', name: 'the T1 store drink back at the heal\'s 15 g a point (72 mana for 1080 g): a fresh melee hero ends gold_out', file: 'src/data/supply-basics.js',
-    from: "'turnip_juice', 72, 10, [1]", to: "'turnip_juice', 72, 1080, [1]" },
+    from: "'turnip_juice', 72, 10)", to: "'turnip_juice', 72, 1080)" },
   { arm: 'WEAKNESS', name: 'a basic swing is priced on the neutral snapshot (the matched weapon pays nothing)', file: 'src/core/hunt/damage.js',
     from: "  const vs = h && t.side === 'mon' && typeof h.rollsVs === 'function' ? h.rollsVs(MONSTERS[t.kind]) : null;",
     to: "  const vs = null;" },
@@ -1572,13 +1855,13 @@ const MUTANTS = [
   { arm: 'STAMINA', name: '[C2 reads no pool] the settle reads no pool', file: join(FN, 'hunt-settle.js'),
     from: '    staminaMs: num(h.stamina_ms),', to: '    staminaMs: null,' },
   { arm: 'SUPPLY-RULE', name: '[C2 shop never buys] the store never sells', file: 'src/core/action-rules.js',
-    from: "    return canAfford(hs, b.price) ? { id, source: 'store', price: b.price } : { why: 'gold_short', id };", to: "    return { why: 'none' };" },
+    from: "    return canAfford(hs, b.price) ? { id: want, source: 'store', price: b.price } : { why: 'gold_short', id: want };", to: "    return { why: 'none' };" },
   { arm: 'SUPPLY-RULE', name: '[C2 shop heal by partner] a store food restores its crafted partner\'s amount', file: 'src/core/action-rules.js',
     from: "    return b ? Math.max(0, int(b.kind === 'mana' ? b.mana : b.heals, 0)) : 0;", to: "    return b ? (CONSUMABLES[b.partner] ? CONSUMABLES[b.partner].amount : 0) : 0;" },
   { arm: 'SUPPLY-RULE', name: '[C2 DEEPWATERS-S2] an own food restores one less than its item', file: 'src/core/action-rules.js',
     from: "  return c && c.source === 'own' ? c.amount : 0;", to: "  return c && c.source === 'own' ? c.amount - 1 : 0;" },
   { arm: 'SUPPLY-RULE', name: 'the store is open under the hero\'s end', file: 'src/core/action-rules.js',
-    from: "  if (hs.onEmpty !== 'switch') return false;", to: '' },
+    from: "  return !!hs && (hs.supplySource === 'store' || hs.onEmpty === 'switch');", to: '  return !!hs;' },
   { arm: 'SUPPLY-RULE', name: 'the default goes back to end (a hunt stops for lack of stock)', file: 'src/data/hunt-sessions.js',
     from: "export const ON_EMPTY = Object.freeze({ modes: Object.freeze(['switch', 'end']), default: 'switch' });",
     to: "export const ON_EMPTY = Object.freeze({ modes: Object.freeze(['switch', 'end']), default: 'end' });" },
@@ -1592,14 +1875,26 @@ const MUTANTS = [
     from: '  return item.junk === true;', to: '  return true;' },
   { arm: 'SUPPLY-RULE', name: '[C2 kill coins] kill coins never reach the purse', file: 'src/core/member.js',
     from: '      hs.purse = Math.max(0, Math.floor(Number(hs.purse) || 0)) + g;', to: '' },
-  { arm: 'SUPPLY-RULE', name: '[C2 own first] the resolver reaches for the store before the own stack', file: 'src/core/action-rules.js',
-    from: "    const own = pickOwn(hs, want, Math.max(1, int(need, 1)));", to: "    const own = storeAllowed(hs, want) ? null : pickOwn(hs, want, Math.max(1, int(need, 1)));" },
+  { arm: 'SUPPLY-RULE', name: '[C2 own first] a store-sourced hero skips its own stack', file: 'src/core/action-rules.js',
+    from: "  if (c && c.source === 'own') return leftOf(hs, want) > 0", to: "  if (c && c.source === 'own' && !storeAllowed(hs)) return leftOf(hs, want) > 0" },
   { arm: 'SUPPLY-RULE', name: 'an unaffordable drink ends the hunt gold_out', file: 'src/core/hunt/consumables.js',
-    from: "if (w.why === 'gold_short') { if (w.kind === 'food') hero.hs.goldOut = true; return { why: 'gold_short' }; }", to: "if (w.why === 'gold_short') { hero.hs.goldOut = true; return { why: 'gold_short' }; }" },
+    from: "if (w.why === 'gold_short') { if (w.kind === 'food') starved = true; return { why: 'gold_short' }; }", to: "if (w.why === 'gold_short') { starved = true; return { why: 'gold_short' }; }" },
   { arm: 'SPLIT', name: 'the remainder of a split is lost', file: 'src/core/party-split.js',
     from: '  out[0] += t - each * k;', to: '' },
   { arm: 'SPLIT', name: 'every item goes to the first hero', file: 'src/core/party-split.js',
     from: '  return (((o + Math.floor(Number(k))) % m) + m) % m;', to: '  return 0;' },
+  { arm: 'SPLIT', name: 'a rare goes round-robin like a common (no rare roll)', file: 'src/core/hunt-rewards.js',
+    from: '    if (ev.rare && present.length > 1) {', to: '    if (false) {' },
+  { arm: 'SPLIT', name: 'a winner may win again before everyone has', file: 'src/core/party-split.js',
+    from: '  if (ids.every((id) => had.includes(id))) had = [];', to: '  had = [];' },
+  { arm: 'SPLIT', name: 'a tie goes to the lowest unit (no re-roll)', file: 'src/core/party-split.js',
+    from: '      if (tied.length === 1 || round + 1 >= maxRounds) { winner = tied[0]; break; }', to: '      { winner = tied[0]; break; }' },
+  { arm: 'SPLIT', name: 'the rotation is not carried across a settle cut', file: 'src/core/party-split.js',
+    from: "world: Object.freeze([['rareWon', 'json']])", to: 'world: Object.freeze([])' },
+  { arm: 'RARE-DROP', name: 'a rare drop is never a world event (no alert, no float)', file: 'src/core/hunt-rewards.js',
+    from: "      if (typeof ctx.emit === 'function') ctx.emit(makeEvent('rare_drop',", to: "      if (false) ctx.emit(makeEvent('rare_drop'," },
+  { arm: 'RARE-DROP', name: 'the session never journals a rare drop (no hint)', file: join(FN, 'accrual.js'),
+    from: "    else if (e.type === 'rare_drop' && e.item) hints.rare_drop.push(", to: "    else if (false) hints.rare_drop.push(" },
   { arm: 'SPLIT', name: 'only the killer counts the kill', file: 'src/core/hunt-rewards.js',
     from: '  for (const m of present) countKill(m, kind);', to: '  countKill(lead, kind);' },
   { arm: 'DEATH', name: 'a death does not end the hunt', file: 'src/core/action-rules.js',
@@ -1660,9 +1955,8 @@ const MUTANTS = [
     to: "    m.hero = heroSetup({ weaponType: m._weaponType, options: mode === 'tick' ? {} : m._options, bar: m._bar, partyRoles, lead: m._leads });" },
   { arm: 'SETTINGS', name: 'the stored options never reach the unit', file: 'src/core/combat-sim.js',
     from: '    if (s.stance !== undefined) u.stance = s.stance;', to: '' },
-  { arm: 'OWN', name: '[probe-bar noAutoEat] the hero never eats', file: 'src/core/combat-sim.js',
-    from: '          foodBelowPct: m.hero.foodBelowPct, drinkBelowPct: m.hero.drinkBelowPct };',
-    to: '          foodBelowPct: 0, drinkBelowPct: 0 };' },
+  { arm: 'OWN', name: '[probe-bar noAutoEat] the hero never eats', file: 'src/core/hunt/consumables.js',
+    from: '    if (got) use(u, hero, got.pick.kind, got.pick.line, sc, got);', to: '    if (false) use(u, hero, got.pick.kind, got.pick.line, sc, got);' },
   { arm: 'ANALYZER', name: 'the analyzer tally is never proposed', file: join(FN, 'accrual.js'),
     from: '      analyzer: analyzerOf(sim, unitIds, summary.unitIdEver) });', to: '      analyzer: null });' },
   { arm: 'SLOT', name: '[edge-tick-gate M17] the settle reads slot 0\'s perks for every slot', file: join(FN, 'hunt-settle.js'),
@@ -1678,6 +1972,7 @@ const MUTANTS = [
 const AM = 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)';
 const AI = 'public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)';
 const SS = 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)';
+const SR = 'public.hr_hunt_settle_refused(uuid,bigint,jsonb,jsonb)';
 const DB_MUTANTS = [
   { arm: 'NO-DODGE', name: 'a leave closes the hunt at once again (the foreseen death is dodged)', fn: 'public.hr_hunt_leave(integer,uuid)',
     find: '    update public.hunt_sessions set leave_at = public.hr_hunt_live_horizon_at(v_s.settled_to), version = version + 1 where id = v_s.id;',
@@ -1688,6 +1983,19 @@ const DB_MUTANTS = [
     find: '             select max(coalesce((b.drops->>e.key)::numeric, 0)) from public.hr_hunt_kill_bounds b', replace: '             select 1000000 from public.hr_hunt_kill_bounds b' },
   { arm: 'VALUE', name: '[FRESH respawn x6] the kill bound is lifted', fn: AM,
     find: '  if v_kills > v_kmax then', replace: '  if v_kills > v_kmax * 1000 then' },
+  { arm: 'DENSITY', name: '[#57] the kill bound counts the as-built spawns again', fn: AM,
+    find: '  v_kmax := v_pass * (greatest(v_win, 0) / v_ground.respawn_ms + 2);',
+    replace: '  v_kmax := v_ground.spawns::bigint * (greatest(v_win, 0) / v_ground.respawn_ms + 2);' },
+  { arm: 'DENSITY', name: '[#57] the engine plays today\'s action-set density, not the frozen one', fn: 'public.hr_hunt_instance_read(uuid,integer)',
+    find: "|| jsonb_build_object('density', v_i.density)) end,", replace: "|| '{}'::jsonb) end," },
+  { arm: 'DENSITY', name: '[#57] the density is never frozen at hunt start', fn: 'public.hr_hunt_density_freeze()',
+    find: '   where id = new.instance_id and density is null;', replace: '   where false;' },
+  { arm: 'FORFEIT', name: '[#57] a refused window is never forfeited (the hero is trapped)', fn: SR,
+    find: '  if v_n >= c_forfeit_after then', replace: '  if false then' },
+  { arm: 'FORFEIT', name: 'a landed commit keeps the refusal count', fn: AI,
+    find: 'settled_to = v_to, next_swing_at = v_to, refusals = 0, version = version + 1', replace: 'settled_to = v_to, next_swing_at = v_to, version = version + 1' },
+  { arm: 'FORFEIT', name: 'a forfeit ends the hunt now instead of at the last accepted boundary', fn: 'public.hr_hunt_forfeit(uuid,text,jsonb)',
+    find: "    perform public.hr_hunt_close(v_s.id, v_end, v_i.settled_to, true);", replace: "    perform public.hr_hunt_close(v_s.id, v_end, now(), true);" },
   { arm: 'VALUE', name: 'the world byte bound is not asked', fn: AI,
     find: "    if octet_length(v_world) > public.hr_hunt_limit('world_max_bytes') then", replace: '    if false then' },
   { arm: 'VALUE', name: 'a world of any shape is stored', fn: AI,
@@ -1704,7 +2012,8 @@ const DB_MUTANTS = [
   { arm: 'STORE', name: 'a store use is not journalled', fn: AM,
     find: "        values (p_user, p_slot, 'hunt', 'supply_buy', -v_cost, -v_units,", replace: "        values (p_user, p_slot, 'hunt', 'supply_bought', -v_cost, -v_units," },
   { arm: 'PARTY', name: 'a settle of some members lands', fn: AI,
-    find: "    return jsonb_build_object('ok', false, 'error', 'member_set');", replace: "    null;" },
+    /* (re-anchored on 2026-11-16-hunt-density-bounds.sql: every refusal after the lock is counted) */
+    find: "    return public.hr_hunt_settle_refused(p_instance, p_world_from, v_first, jsonb_build_object('ok', false, 'error', 'member_set'));", replace: "    null;" },
   { arm: 'PARTY-VIEW', name: 'the party section keeps the old seats key for HP max', fn: 'public.hr_hunt_party_view(uuid,integer)',
     find: "'hp_max', case when", replace: "'max_hp', case when" },
   { arm: 'PARTY-VIEW', name: 'the party section does not name the world unit', fn: 'public.hr_hunt_party_view(uuid,integer)',

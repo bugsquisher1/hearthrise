@@ -9,6 +9,7 @@ import { LIB2_DESC } from './library2-items.js?v=0.2.28';
 import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.28';
 import { CHAMPION_DESC } from './champions.js?v=0.2.28';
 import { DRINK_DESC } from './drinks.js?v=0.2.28';
+import { IMBUE_DESC } from './imbuements.js?v=0.2.28';
 
 export const ITEM_DESC = {
   /* Mage = wand + spellbook; Healer = staff (Tyler 2026-10-19). */
@@ -30,6 +31,7 @@ export const ITEM_DESC = {
   ...BOSS_FORGE_DESC, // W0: the three boss-forged body pieces
   ...CHAMPION_DESC,   // W0: the five field champions' relics
   ...DRINK_DESC,      // lane S2: the six mana drinks
+  ...IMBUE_DESC,      // lane c-loot-loop: the imbuement slot's items
   'abyssal_greaves': 'Greaves quenched in abyssal pearl, warding legs beyond any forged steel',
   'abyssal_pearl': 'A cold, iridescent pearl dredged from the abyss, a rare Hunt spoil',
   'adept_belt': 'An adept\'s sash, finer cloth cinched for a caster steadier in their craft',
@@ -40,6 +42,7 @@ export const ITEM_DESC = {
   'adept_pants': 'An adept\'s robe bottoms, finer cloth woven for a caster growing into their craft',
   'alpha_cloak': 'Alpha-beast pelt worn as a cape, warding blows and sharpening the strike',
   'alpha_fang': 'The great fang of a pack alpha, a rare and coveted trophy',
+  'rooks_whistle': 'The bone whistle Rook calls the Mosslight crows with. A collector in town pays well for it',
   'ancient_claw': 'A colossal claw from something ancient, a formidable crafting trophy',
   'ancient_fragment': 'A worn shard of some forgotten relic, sought by scholars and collectors',
   'ancient_rune': 'A rune of the old tongue, humming with power, a key arcane reagent',

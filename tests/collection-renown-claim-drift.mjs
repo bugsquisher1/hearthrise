@@ -35,6 +35,8 @@ import { dirname, join } from 'node:path';
 import { COLLECTION_MILESTONES, MONSTER_TOTAL } from '../src/data/collection-milestones.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { ITEMS } from '../src/data/items.js';
+import { HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
+import { HUNT_INDEX } from '../src/data/hunts.js';
 import { isMain } from './_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -69,15 +71,25 @@ export function parseSqlArms(sql) {
 const ORIGINAL_FOUR = new Set(['hunter10', 'hunterAll', 'collect50', 'collect100']);
 
 /* The collection half, pure over its inputs so --selftest can mutate each. */
-export function checkCollection({ catalogue, monsterTotal, monsters, chainEnd, items = ITEMS }) {
+/* The monsters a player can slay, counted HERE from the raw tables (never by reading the module's own helper):
+   the roster less every monster that stands only on STAGED grounds (hunts.js `staged`: hidden and refused). */
+export function slayableCount(monsters, grounds = HUNT_GROUNDS, hunts = HUNT_INDEX) {
+  const on = (open) => new Set(Object.values(grounds).filter((g) => (hunts[g.hunt] && hunts[g.hunt].staged === true) !== open)
+    .flatMap((g) => g.pockets.flatMap((p) => [...(p.pack || []), ...p.spawns]).map((s) => s.monster)
+      .concat(((hunts[g.hunt] || {}).spawns || []).map((s) => s.monster))));
+  const open = on(true), staged = on(false);
+  return Object.keys(monsters).filter((id) => open.has(id) || !staged.has(id)).length;
+}
+
+export function checkCollection({ catalogue, monsterTotal, monsters, chainEnd, items = ITEMS, grounds = HUNT_GROUNDS, hunts = HUNT_INDEX }) {
   const problems = [];
   const ok = (cond, msg) => { if (!cond) problems.push(msg); };
   const catIds = Object.keys(catalogue);
 
   // ── MONSTER_TOTAL vs the actual catalogue ────────────────────────────────
-  const monCount = Object.keys(monsters).length;
+  const monCount = slayableCount(monsters, grounds, hunts);
   ok(monsterTotal === monCount,
-    `collection-milestones.js MONSTER_TOTAL=${monsterTotal} != src/data/monsters.js count ${monCount} — `
+    `collection-milestones.js MONSTER_TOTAL=${monsterTotal} != the ${monCount} monsters a player can slay (src/data/monsters.js less staged-only) — `
     + 'the hunterAll ("slay every monster") threshold has drifted. Update MONSTER_TOTAL AND the SQL CASE.');
   ok(catalogue.hunterAll && catalogue.hunterAll.threshold === monsterTotal,
     `hunterAll.threshold=${catalogue.hunterAll && catalogue.hunterAll.threshold} != MONSTER_TOTAL ${monsterTotal}`);
@@ -211,6 +223,15 @@ async function selftest() {
       async () => ({ ...base, chainEnd: await chainEndMilestoneSql(order.slice(0, order.indexOf('2026-08-22-collection-claim.sql') + 1)) })],
     ['no file restates the function (chain end absent)',
       async () => ({ ...base, chainEnd: await chainEndMilestoneSql([]) })],
+    /* a monster a player can meet joins the roster (a new row on an OPEN ground): the total and the SQL must follow */
+    ['a playable monster added (on the Sewer), MONSTER_TOTAL and the SQL unchanged',
+      () => ({ ...base, monsters: { ...MONSTERS, sewer_probe: { ...MONSTERS.drain_rat } },
+        grounds: { ...HUNT_GROUNDS, millrace_sewer: { ...HUNT_GROUNDS.millrace_sewer, pockets: [...HUNT_GROUNDS.millrace_sewer.pockets,
+          { room: [0, 0, 1, 1], spawns: [{ monster: 'sewer_probe', x: 0, y: 0 }] }] } } })],
+    ['a monster with no ground at all added (the old-roster shape), MONSTER_TOTAL and the SQL unchanged',
+      () => ({ ...base, monsters: { ...MONSTERS, roster_probe: { ...MONSTERS.drain_rat } } })],
+    ['the glade opened (its staged flag dropped), MONSTER_TOTAL and the SQL unchanged',
+      () => ({ ...base, hunts: { ...HUNT_INDEX, mosslight_glade: { ...HUNT_INDEX.mosslight_glade, staged: false } } })],
     ['hunter60 gold 7000 everywhere (ladder gold not increasing)',
       () => ({ ...base, catalogue: cat({ hunter60: { gold: 7000 } }),
         chainEnd: { ...base.chainEnd, sql: base.chainEnd.sql.replace("v_thresh := 60;  v_gold := 15000;", "v_thresh := 60;  v_gold := 7000;") } })],

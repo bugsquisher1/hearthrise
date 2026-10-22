@@ -4199,6 +4199,16 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 3. *A rule id must be what the player sees.* Defaults are placed in the first empty tablet on both sides (engine placeDefaults, SQL settings view), so a decision event's rule id is the tablet index.
 4. *HP scaling moves every pinned kill rate.* Re-pin with the rate measured and the ruled hours kept, never the other way round.
 
+## 2026-10-21 · lane/b-supplies-bury (store-by-slot, rune store, bury, refusal words, Configure action)
+1. *A dropped column makes history unreplayable.* `hunts-c1` C1 re-applies 2026-10-27-core-bodies.sql, whose LANGUAGE sql `hr_hunt_member_read` reads `hr_hunt_travel.tier`; the catalogue keeps both tier columns unwritten instead (schema digest unchanged).
+2. *A slot-order fallback needs a deferred gold_out.* An unaffordable store food marks gold_out only when no consume slot fed the hero this step; marking at the first refusal ended hunts a later own-stock slot would have fed.
+3. *Fixtures that relied on "Any food" died silently.* hunt-fixture, the settle arms and settle-hooks now name their food in a slot; a default threshold change (60%) moves economy guards (forest-cave net chain).
+4. *Python text-mode writes CRLF on Windows*; mutant anchors with "\n" then miss. Edit with node or newline=''.
+
+## 2026-10-21 · lane/a-rare-roll (party rare roll, Tyler L8)
+1. *A world field drawn on the loot stream diverges the live hash.* `rareWon` rides the world (both paths identical), but the browser runs `r` on a constant, so a party's real rare re-seeds the viewed prediction once (eased). Never hash-exclude a field to hide that; it is once per 10-20 h.
+2. *Server-only events need two seams.* The prediction filters SERVER_ONLY_EVENTS (events.js) out of its feed, and character-session ingests exactly those from the server's answer while live; otherwise a live viewer never sees them.
+3. *A new world field moves hr_hunt_world_shape.* Regenerate the STAGED hunt-sessions catalogue in the same lane; the edge deploy and that apply go together.
 
 ## 2026-10-21 · lane/a-firefox-perf (hunt page perf in Firefox/Chromium, analyzer clock, party death)
 1. *A page harness that shifts the engine's clock must shift EVERY instant.* World cooldowns, lanes and pack respawns (and a peer's frozen session) hid past 1e12 inside the start point; shifting only the top-level fields made every party prediction diverge in the harness and looked like a real bug. Shift every number past 1e12 and re-hash the world.
@@ -4206,3 +4216,15 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 3. *A display clock anchored on "when the answer arrived" steps back whenever the server's number is older than the answer.* hunt_ms is time to the settle; run it on the server clock from settled_to.
 4. *"Ends at the next boundary" is not "stops now".* A death ended the party at each member's next swing boundary but the rest of the swing still ran: the survivor kited away. Stop the swing at the death's sub-step (world-step.js); the end stamping stays.
 5. *Python heredocs here can turn "\\n" into a real newline.* Use the Edit tool for any string with a backslash.
+
+
+## 2026-10-22 · lane/b-presets-c4 (ruling C4: rename/delete saved setups, name the action set)
+1. *Read the data model before the brief's rule.* "Delete refuses the last, the active falls back" fits action sets, but no client path reaches a second action set, so every saved setup points at set 0. Built what the player can reach; the model gap went to CONFLICTS.md for the designer.
+2. *A mutant the patch heals is no mutant.* Writing the new name into the DOM before the answer was undone by the next patch (text() writes the server's name back); the honest defect is a window that keeps the typed name and shows it over the server's.
+3. *A rewritten JSON baseline re-escapes it.* JSON.stringify turned `§` into `§` on unrelated rows; insert registry rows as text.
+4. *The intent-surface guard reads literal `server.rpc('name'` calls.* A helper taking the RPC name as a variable hides it; name the parameter `server` and keep the literal.
+## 2026-10-22 · lane/c-density-home (density's own server home, per ground; forfeit end words)
+1. *A setting in the wrong table leaks into every reader of that table.* Density sat in the action set's options, so the settings view, the party view, the freeze and copy-settings all carried it. Moving it meant restating four bodies; leaving the dead option would have kept a `not_leader` branch and a `density: null` key alive.
+2. *A per-ground cap belongs on the ground's own catalogue row, generated from the one clamp* (`densityFor`), never a second copy of the numbers: `hr_hunt_grounds.density_max` = `densityFor(g, n, DENSITY_PICK.max)` per party size.
+3. *A fixture that never saves a setup has no action-set row:* an `update ... where` on it moves nothing and a CONTROL goes red for the wrong reason. Upsert what the test means to plant.
+4. *A UI test that reads only before and after a save misses a draft leaking across lines;* read the other lines mid-draft.

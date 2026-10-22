@@ -17,10 +17,18 @@
 // partner's ammo bonus (Combat Design Bible v1.4: "Runecrafting = a better
 // rune", basic strength below crafted; applied per shot in combat.js
 // playerCombatRolls `ammoShare`) and costs at least twice its partner's book
-// value per shot. There are no basic RUNES: the per-swing rune ladder is being
-// replaced by element families consumed by abilities (designer review K10,
-// 2026-10-15), so nothing ships only to be deleted. The free tier-1 rungs
-// (Bronze Arrows, Air Rune, Coarse Whetstone) stay ordinary packed items.
+// value per shot. A basic RUNE is the store's version of a rune an ability
+// spends (designer 2026-10-21: Plain Fire Rune, 8 g a cast, 2x the Fire Rune's
+// book; Tyler 10-15 "runes and ammo: carried first, then the store" replaces
+// the K10 no-basic-runes rule). The free tier-1 rungs (Bronze Arrows, Air Rune,
+// Coarse Whetstone) stay ordinary packed items.
+//
+// THE PLAYER PICKS THE ITEM (Tyler 2026-10-21, designer-confirmed): a bar slot
+// names ONE item. A store food or drink below is an item a slot can name, bought
+// per use; a crafted one comes from the hero's own stock only. The player builds
+// the fallback by slot order (Cooked Trout, then Salted Trout). A rune spell buys
+// its store rune only when its slot names it. The game never picks: there are no
+// per-hunt-tier store rows (the old `tiers` column is gone).
 //
 // PRICES (designer 2026-10-18, the economy rule: gold + common drops pay the
 // supplies). A basic heal costs just above its cooked partner's book value a
@@ -53,24 +61,23 @@ export const BASIC_EFFECT_SHARE = 0.75;
 /* A basic shot costs at least this many times its partner's book value. */
 export const BASIC_AMMO_PREMIUM = 2;
 
-const heal = (id, n, partner, heals, price, tiers) => Object.freeze({ id, kind: 'heal', n, partner, heals, price, tiers: Object.freeze(tiers) });
-const mana = (id, n, partner, restores, price, tiers) => Object.freeze({ id, kind: 'mana', n, partner, mana: restores, price, tiers: Object.freeze(tiers) });
-const shot = (id, n, partner, price) => Object.freeze({ id, kind: 'ammo', n, partner, price, tiers: Object.freeze([]) });
+const heal = (id, n, partner, heals, price) => Object.freeze({ id, kind: 'heal', n, partner, heals, price });
+const mana = (id, n, partner, restores, price) => Object.freeze({ id, kind: 'mana', n, partner, mana: restores, price });
+const shot = (id, n, partner, price) => Object.freeze({ id, kind: 'ammo', n, partner, price });
 
-/* id -> row. `tiers` are the hunt tiers whose "shop heal" / "shop drink" slot
-   resolves to this row; `price` is gold per use (per shot for ammo). */
+/* id -> row. `price` is gold per use (per shot for ammo, per cast for a rune). */
 export const BASIC_SUPPLIES = Object.freeze([
-  heal('salted_shrimp', 'Salted Shrimp', 'cooked_shrimp', 72, 14, [1]),
-  heal('salted_trout', 'Salted Trout', 'cooked_trout', 120, 40, [2]),
-  heal('salted_lobster', 'Salted Lobster', 'cooked_lobster', 216, 180, [3]),
-  heal('salted_swordfish', 'Salted Swordfish', 'cooked_swordfish', 288, 432, [4, 5]),
-  heal('salted_shark', 'Salted Shark', 'cooked_shark', 396, 693, [6]),
-  mana('thin_turnip_juice', 'Thin Turnip Juice', 'turnip_juice', 72, 10, [1]),
-  mana('thin_carrot_juice', 'Thin Carrot Juice', 'carrot_juice', 120, 18, [2]),
-  mana('thin_tomato_juice', 'Thin Tomato Juice', 'tomato_juice', 216, 45, [3]),
-  mana('thin_pumpkin_cider', 'Thin Pumpkin Cider', 'pumpkin_cider', 288, 80, [4]),
-  mana('thin_goldenroot_tea', 'Thin Goldenroot Tea', 'goldenroot_tea', 396, 138, [5]),
-  mana('thin_emberfruit_cordial', 'Thin Emberfruit Cordial', 'emberfruit_cordial', 480, 233, [6]),
+  heal('salted_shrimp', 'Salted Shrimp', 'cooked_shrimp', 72, 14),
+  heal('salted_trout', 'Salted Trout', 'cooked_trout', 120, 40),
+  heal('salted_lobster', 'Salted Lobster', 'cooked_lobster', 216, 180),
+  heal('salted_swordfish', 'Salted Swordfish', 'cooked_swordfish', 288, 432),
+  heal('salted_shark', 'Salted Shark', 'cooked_shark', 396, 693),
+  mana('thin_turnip_juice', 'Thin Turnip Juice', 'turnip_juice', 72, 10),
+  mana('thin_carrot_juice', 'Thin Carrot Juice', 'carrot_juice', 120, 18),
+  mana('thin_tomato_juice', 'Thin Tomato Juice', 'tomato_juice', 216, 45),
+  mana('thin_pumpkin_cider', 'Thin Pumpkin Cider', 'pumpkin_cider', 288, 80),
+  mana('thin_goldenroot_tea', 'Thin Goldenroot Tea', 'goldenroot_tea', 396, 138),
+  mana('thin_emberfruit_cordial', 'Thin Emberfruit Cordial', 'emberfruit_cordial', 480, 233),
   shot('plain_barbed_arrows', 'Plain Barbed Arrows', 'barbed_arrows', 2),
   shot('plain_iron_bolts', 'Plain Iron Bolts', 'iron_bolts', 2),
   shot('plain_steel_arrows', 'Plain Steel Arrows', 'steel_arrows', 4),
@@ -78,16 +85,13 @@ export const BASIC_SUPPLIES = Object.freeze([
   shot('plain_rune_arrows', 'Plain Rune Arrows', 'rune_arrows', 12),
   shot('plain_emberhead_arrows', 'Plain Emberhead Arrows', 'emberhead_arrows', 18),
   shot('plain_dawnpoint_arrows', 'Plain Dawnpoint Arrows', 'dawnpoint_arrows', 24),
+  shot('plain_fire_rune', 'Plain Fire Rune', 'fire_rune', 8),
 ]);
 
 /** Null-prototype index by id. */
 export const BASIC_INDEX = Object.freeze(BASIC_SUPPLIES.reduce((acc, b) => { acc[b.id] = b; return acc; },
   Object.create(null)));
 
-/** The basic heal or drink a hunt of this tier's "shop" slot fires, or null. */
-export function basicFor(kind, huntTier) {
-  return BASIC_SUPPLIES.find((b) => b.kind === kind && b.tiers.includes(huntTier)) || null;
-}
 
 // ── THE SUPPLY PRICE LIST (lane S2, 2026-10-18; Coordinator ruling: the designer's prices) ──
 // THE SHOP SELLS NO SUPPLIES (Tyler 2026-10-20, q02; the one-tap refill and its

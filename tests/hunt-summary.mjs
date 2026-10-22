@@ -19,6 +19,7 @@
 //   S4  the summary reads the server's session + analyzer (own vs store supplies)
 //       and, for a free character, the session tally
 //   S5  Hunt again's arguments are the ended hunt's own
+//   S6  a forfeited hunt (the server's `forfeit`) reads why in plain words; a plain server end keeps its own
 //   A1  Hunt again sends ONE hr_hunt_enter with the same ground, set, limits and
 //       bag; a call missing its ground sends nothing
 //   A2  an ended session stores its summary ONCE (a second envelope for it adds
@@ -171,6 +172,23 @@ async function runTests(M) {
     eq(MD.huntAgainOf(Object.assign({}, s, { hunt: null })), null, 'no ground, no card button');
   });
 
+  await t('S6 a forfeited hunt says why in plain words, never "by the server"', () => {
+    /* The server's session as hr_hunt_view projects it after hr_hunt_forfeit (2026-11-17-hunt-density-home.sql). */
+    const csOf = (session) => ({ read: (k) => (k === 'hunt' ? { session, pose: null } : null) });
+    const sess = (over) => Object.assign({ id: 'sess-f', hunt: 'mill_cellar', preset: 0, entered_at: '2026-10-18T10:00:00Z',
+      ended_at: '2026-10-18T10:20:00Z', end_reason: 'server', phase: 'ended', forfeit: true, bag: [], tally: { kills: 3, xp: 30, coins: 5 } }, over || {});
+    const card = (session) => MD.sanitizeSummaries([MD.buildSummary(MD.endedSessionOf(csOf(session)), null, [])])[0];
+    const f = card(sess());
+    eq([f.reason, f.forfeit], ['server', true], 'the stored card keeps the forfeit');
+    eq(MD.endWords(f.reason, f.forfeit), 'Your hunt was stopped because the server could not accept its last few minutes; nothing from them was counted.', 'the forfeit sentence');
+    const plain = card(sess({ forfeit: false }));
+    eq([plain.forfeit, MD.endWords(plain.reason, plain.forfeit)], [false, MD.END_WORDS.server], 'a plain server end keeps its own words');
+    const left = card(sess({ end_reason: 'left' }));
+    ok(/^You left the hunt\. .*nothing from them was counted\.$/.test(MD.endWords(left.reason, left.forfeit)), 'a forfeit after Leave says both');
+    eq(MD.endWords('died', true), MD.END_WORDS.died, 'a forfeit flag never rewrites another reason');
+    for (const w of Object.values(MD.FORFEIT_WORDS).concat(Object.values(MD.END_WORDS))) ok(!/maintenance/i.test(w), 'no maintenance claim: ' + w);
+  });
+
   const FIX = JSON.parse(readFileSync(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
   const endedEnv = (version) => {
     const e = clone(FIX);
@@ -303,6 +321,9 @@ const MUTANTS = [
   { test: 'S4', file: SUMMARIES, from: 'balanceH: num(v.balanceH), rawXpH: num(v.rawXpH),', to: 'balanceH: num(v.balanceH),' },
   { test: 'S4', file: MODEL, from: 'isObj(t.xp) ? num(t.xp.level) : num(t.xp)', to: 'num(t.xp)' },
   { test: 'S5', file: MODEL, from: "hunt: summary.hunt, preset: summary.preset, hours: summary.hoursLimit,", to: "hunt: summary.hunt, preset: 0, hours: summary.hoursLimit," },
+  { test: 'S6', file: MODEL, from: "return (forfeit === true && FORFEIT_WORDS[reason]) || END_WORDS[reason]", to: "return END_WORDS[reason]" },
+  { test: 'S6', file: MODEL, from: "    forfeit: s.forfeit === true,\n", to: '' },
+  { test: 'S6', file: SUMMARIES, from: "reason, forfeit: v.forfeit === true,", to: "reason," },
   { test: 'A1', file: SESSION, from: "p_hunt: a.hunt, p_bag: a.bag, p_preset: a.preset,", to: "p_hunt: a.hunt, p_bag: [], p_preset: a.preset," },
   { test: 'A1', file: SESSION, from: "if (!a || !ITEM.test(String(a.hunt)) ||", to: "if (!a ||" },
   { test: 'A2', file: RECORDER, from: "    if (a.done.has(s.id)) return;\n    a.done.add(s.id);", to: "    a.done.add(s.id);" },

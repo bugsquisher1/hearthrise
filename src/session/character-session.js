@@ -16,6 +16,7 @@
 //                      once, one hr_put_client_state follows per burst
 //   setHuntOptions(p, o) the hunt settings INTENT (hr_action_set_options); the
 //                      new settings arrive only in the re-read envelope
+//   setHuntDensity(h, n) the density pick on one ground (hr_hunt_density_set), re-read
 //   enterHunt(h, b, p) the go-hunting INTENT (hr_hunt_enter), re-read the same way
 //   leaveHunt()        the leave INTENT (hr_hunt_leave), re-read the same way
 //   moveStorage(i,n,d) the home storage INTENT (hr_bank_move), re-read the same way
@@ -57,6 +58,8 @@ import { leaveAskOf, pendingLeaveAt, leaveCountdown, closeInMs } from './hunt-le
 import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.28';
 import { createIntentLedger } from './intent-ledger.js?v=0.2.28';
 import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.28';
+import { refusalOf } from './refusal.js?v=0.2.28';
+import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.28';
 
 export const FRAME_EVENT = 'frame';
 
@@ -200,12 +203,12 @@ export class CharacterSession {
     if (sid !== null) this._huntSid = sid;
     this._liveFrom(body);
     /* ONE POSITION SOURCE: while a prediction exists, even one out of seeds waiting for its restart,
-       the server's window never writes the same units (its steps are the past, played over the
-       prediction's: two sources bouncing one hero). */
+       the server's window never writes the same units (its steps are the past, played over the prediction's:
+       two sources bouncing one hero). Only its SERVER-ONLY events (a party's rare roll) come from it. */
     if (this.live.running() || this.live.stalled()) {
-      const ms = Number.isSafeInteger(body.hunt_server_now_ms) ? body.hunt_server_now_ms
-        : typeof body.now === 'string' ? Math.floor(Date.parse(body.now)) : NaN;
-      if (Number.isSafeInteger(ms)) this.timeline.ingest({ serverNowMs: ms }, this._now());
+      const ms = Number.isSafeInteger(body.hunt_server_now_ms) ? body.hunt_server_now_ms : typeof body.now === 'string' ? Math.floor(Date.parse(body.now)) : NaN;
+      const own = Array.isArray(body.hunt_events) ? body.hunt_events.filter((e) => e && SERVER_ONLY_EVENTS.includes(e.type)) : [];
+      if (Number.isSafeInteger(ms) || own.length) this.timeline.ingest({ serverNowMs: ms, events: own }, this._now());
       return;
     }
     if (Array.isArray(body.hunt_track) || Array.isArray(body.hunt_events)) {
@@ -247,6 +250,13 @@ export class CharacterSession {
       if (ans.ok && ans.body && ans.body.ok === true && this._huntOpen()) this.liveLink.ask();
       return this._settled(ans);
     });
+  }
+
+  /** The density pick on one ground (hr_hunt_density_set; rulings H4: per hero and ground, never a setup): bounded
+      by that ground, refused to a party member, shown only from the re-read; a running hunt keeps its frozen one. */
+  async setHuntDensity(hunt, density) {
+    if (this._closed || !HUNT_ID.test(String(hunt)) || !Number.isInteger(density) || density < 0) return { ok: false, error: 'bad_intent' };
+    return this._ask('hunt_density_set', () => this._server.rpc('hr_hunt_density_set', { p_slot: this.slot, p_hunt: hunt, p_density: density, p_idem: newIdem() }));
   }
 
   /**
@@ -468,11 +478,7 @@ export class CharacterSession {
     /* below_range: the server admitted a hunt under its level floor (the floor is a warning, Tyler 10-18). */
     if (ans.ok && ans.body && ans.body.ok === true && ans.body.below_range === true) { await this.load(); return { ok: true, belowRange: true }; }
     if (ans.ok && ans.body && ans.body.ok === true) { if (!(carries && this._take(ans.body, 'load'))) await this.load(); return { ok: true }; }
-    const b = ans.body && typeof ans.body === 'object' ? ans.body : {};
-    /* The server's validation detail (which slot, which condition, which field) goes back to the editor as sent. */
-    return { ok: false, error: (typeof b.error === 'string' && b.error) || ans.error || 'refused',
-      slot: Number.isInteger(b.slot) ? b.slot : null, condition: Number.isInteger(b.condition) ? b.condition : null,
-      field: typeof b.field === 'string' ? b.field.slice(0, 32) : null };
+    return refusalOf(ans);   // the server's detail (slot, condition, field, item) back to the editor as sent
   }
 
   _answerFailed(ans) {

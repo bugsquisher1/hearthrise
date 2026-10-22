@@ -24,7 +24,8 @@ function tutorialFactsOf(cs) {
     skillLevel: sk ? Math.max(1, ...Object.values(sk).map((r) => r.level)) : 1,
     huntId: open ? open.huntId : null,
     unitKinds: new Set(open ? Array.from(open.units.values()).filter((u) => u.side === 'monster' && u.kind).map((u) => u.kind) : []),
-    barSet: !!st && st.slots.some((s) => !s.empty && s.conditions.length > 0),
+    /* The player SAVED a slot with a condition: the stored bar (the start kit's bar is only shown until then). */
+    barSet: !!st && st.storedBar.some((s) => s && Array.isArray(s.conditions) && s.conditions.length > 0),
   };
 }
 

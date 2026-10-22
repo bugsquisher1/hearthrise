@@ -189,7 +189,7 @@ function pickShot(inst, u, h, t, sc) {
       return { ammo: shoots ? h.ammo : null, size: 1, aim: t };
     }
     if (row.melee || !h) return null;
-    const l = resolveLine(h.hs, id, 1);
+    const l = resolveLine(h.hs, id);
     if (!l.id || l.why) return { why: l.why === 'gold_short' ? 'gold_short' : 'no_stock' };
     const size = footprintOf(slot, h);
     const aim = cx.aim && cx.aim.alive ? cx.aim : (bestAim(inst, u, row.range, size) || {}).aim;

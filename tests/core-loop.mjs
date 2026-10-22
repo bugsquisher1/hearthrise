@@ -43,7 +43,7 @@
 //   13    a settle pays once        a second settle of one window writes nothing    -
 //
 //   LOOP-2, a mid-level character (Combat 40)
-//    1    a Level-16 character      fixture levels + gold + iron kit, REAL equip    all
+//    1    a Level-15 character      fixture levels + gold + iron kit, REAL equip    all
 //    2    pick a hunt for my level  src/data/hunts.js band contains my level        4
 //    3    switch the shop heal on   hr_action_set_put: the bar buys a heal per use  4
 //                                   (master plan rows 1 and 25: off for a new bar)
@@ -585,9 +585,10 @@ async function loop1(S, M, tag, rows) {
   await step(4, 'the NPC prices food per use', async (t) => {
     /* Master plan rows 1-2 (hybrid supplies): the NPC sells a heal PER USE from
        a shop slot that shows its price; no counter sells cooked food below it. */
+    /* The store's cheapest heal per point (the bar slot picks the store food; no hunt tier does). */
     const basic = (await S.q(`select basic_id, heals, price from public.hr_hunt_basic_supplies
-                               where kind = 'heal' and 1 = any (tiers)`))[0];
-    t.ok(basic && num(basic.price) > 0 && num(basic.heals) > 0, `the server prices no tier-1 shop heal: ${brief(basic)}`);
+                               where kind = 'heal' order by price::numeric / heals, basic_id limit 1`))[0];
+    t.ok(basic && num(basic.price) > 0 && num(basic.heals) > 0, `the server prices no store heal: ${brief(basic)}`);
     const cheap = foodOffers(M).filter((o) => basic && o.gold / (o.amount * o.heals) < num(basic.price) / num(basic.heals));
     t.ok(cheap.length === 0, `a counter undercuts the shop heal: ${cheap.map((o) => o.id).join(', ')}`);
     t.note(`${basic && basic.basic_id}: ${basic && basic.heals} hp for ${basic && basic.price} g a use; ${foodOffers(M).length} counter food offer(s)`);
@@ -716,12 +717,13 @@ async function equipFromBag(p, t, slot, id) {
   if (was) t.ok(inv(p.env, was) === inv(before, was) + 1, `the old ${was} did not return to the bag`);
 }
 
-/* ══ LOOP-2 — A MID-LEVEL CHARACTER (LEVEL 16, the Sewer's band) ═════════ */
-/* Level 16 with Melee and Defense at 15 (skills trail Level, CORE_NUMBERS) in the iron kit: the lower half of the
-   Sewer's solo band (Q9: 8-25). Levels 26-50 have only the party-built Warrens (32-50) — a lone hero there is a
-   designer gap, not this loop's question. */
+/* ══ LOOP-2 — A MID-LEVEL CHARACTER (LEVEL 15, the Thicket's top) ═══════ */
+/* Level 15 with Melee and Defense at 15 (the iron kit asks 15) in the iron kit: the top of Meadowbrook
+   Thicket's solo band (5-15). The Sewer (8-25) is a party ground (Tyler 2026-10-21: "The Sewer is a party hunt"),
+   so a lone hero over 15 is told no solo ground fits yet (src/shell/hunt-list.js recommendation) — a designer
+   gap until Mosslight Glade lands, not this loop's question. */
 const MID_LEVEL = 15;
-const MID_CHAR_LEVEL = 16;
+const MID_CHAR_LEVEL = 15;
 const MID_KIT = { weapon: 'iron_sword', helmet: 'iron_helm', body: 'iron_platebody',
   boots: 'iron_boots', gloves: 'iron_gauntlets', belt: 'iron_belt' };
 const MID_GOLD = 6000;
@@ -735,7 +737,7 @@ async function loop2(S, M, tag, rows) {
   let hour = null;
   let lootGold = 0;
 
-  await step(1, 'a Level-16 character', async (t) => {
+  await step(1, 'a Level-15 character', async (t) => {
     const cr = await S.create(p.uid, `Loop2${tag}`);
     t.ok(cr && cr.ok === true, `hr_create_hero refused: ${brief(cr)}`);
     for (const sk of ['melee', 'defense']) {
@@ -773,8 +775,11 @@ async function loop2(S, M, tag, rows) {
        is never used without the player's choice. */
     /* …and eats at 80% HP: a Combat 40 hero in the sewer drops under the default 50% only a few times
        an hour (3 meals on one dice stream, 0 on another), so the default left this step to the dice. */
-    const pick = await S.rpc(p.uid, `select public.hr_action_set_options(0, 0, '{"supply_source":"store","food_below_pct":80}'::jsonb, $1::uuid) r`, [uuid()]);
-    t.ok(pick && pick.ok === true && pick.options && pick.options.supply_source === 'store' && pick.options.food_below_pct === 80, `the supplies choice was refused: ${brief(pick)}`);
+    /* STORE BY SLOT (2026-11-07-store-by-slot.sql): the game never picks a supply, so the player's move is the
+       store's food ON THE BAR, eaten under 80% HP (the starter bar's 60% leaves a Thicket hour to the dice). */
+    const bar = [{ action: { type: 'consume', id: 'salted_shrimp' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 80 }], join: 'and' }];
+    const pick = await S.rpc(p.uid, `select public.hr_action_set_options(0, 0, $2::jsonb, $1::uuid) r`, [uuid(), JSON.stringify({ supply_source: 'store', slots: bar })]);
+    t.ok(pick && pick.ok === true && pick.options && pick.options.supply_source === 'store', `the supplies choice was refused: ${brief(pick)}`);
     food = { item: '*heal_shop' };
   });
 

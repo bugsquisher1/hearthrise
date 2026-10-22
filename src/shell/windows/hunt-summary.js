@@ -86,7 +86,7 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
   cls(card, 'is-on', !!cur);
   if (cur) {
     text(root.querySelector('.hsum-title'), groundName(cur) + (cur.at ? ' · ' + dayTime(cur.at) : ''));
-    text(root.querySelector('.hsum-reason'), cur.reason ? endWords(cur.reason) : 'The hunt ended.');
+    text(root.querySelector('.hsum-reason'), cur.reason ? endWords(cur.reason, cur.forfeit) : 'The hunt ended.');
     for (const [k, , fmt, onlySent] of STATS) {
       const dd = root.querySelector('[data-stat="' + k + '"]');
       text(dd, fmt(cur[k]));
@@ -116,7 +116,7 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
       + '<button type="button" class="hh-tool" data-hs-act="pick" data-id="' + s.id.replace(/[^a-z0-9-]/gi, '') + '">Show</button></li>'),
     patch: (el, s) => {
       text(el.querySelector('b'), groundName(s));
-      text(el.querySelector('small'), [dayTime(s.at), s.kills !== null ? whole(s.kills) + ' kills' : '', s.reason ? endWords(s.reason).replace(/\.$/, '') : ''].filter(Boolean).join(' · '));
+      text(el.querySelector('small'), [dayTime(s.at), s.kills !== null ? whole(s.kills) + ' kills' : '', s.reason ? endWords(s.reason, s.forfeit).replace(/\.$/, '') : ''].filter(Boolean).join(' · '));
     },
   });
 };

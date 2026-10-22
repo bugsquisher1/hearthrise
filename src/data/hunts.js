@@ -30,6 +30,13 @@
 //             "walk time needs to be there when we have destinations to walk
 //             to through the town; until then no time needed"): the fight
 //             starts the moment the hunt is entered (tests/supplies-catalogue.mjs H1).
+//     staged  (optional) true = BUILT BUT NOT OPEN (§3.5: half-built stays hidden): its data,
+//             ground, map grid and drop tables are done and fitted, its style-1 art is not
+//             (the painted ground, the creatures' walks). The Hunts window never lists it
+//             (src/shell/hunt-list.js), its map is STAGED_MAPS (no client draws it), and
+//             gen-hunts / gen-hunt-sessions leave it out of the server catalogue, so
+//             hr_hunt_enter refuses it. Opening it = art lands + this flag goes
+//             (tests/hunt-core/forest-cave.mjs staged-until-art holds the pairing).
 //     pull    how many foes the ground shows at once (its MOB density, 1..8)
 //     respawnMs  the ground's SPAWN LIMIT: a pull is back this long after it
 //             STARTED, whatever the hero does (Security design review
@@ -119,7 +126,23 @@ export const HUNTS = Object.freeze([
       { monster: 'goblin_skulker', w: 5, rarity: 'uncommon' }, { monster: 'hobgoblin_foreman', w: 1, rarity: 'rare' }],
     family: 'Humanoid', art: 'goblin_scavenger', travelS: 0, pull: 4, respawnMs: 90000,
   },
+  /* THE SPRING GROUND (lane c-ground-16-31, designer 2026-10-21; Tyler's workbook H-003 place, levels 16-31):
+     upstream of the Thicket, where the Meadowbrook rises from springs under the Warrens' copper hill. Solo
+     first (up to three more may come). Between the Thicket's top (15) and the Warrens' floor (32), the band
+     no ground served. Walked: src/data/hunt-grounds.js `mosslight_glade`. Weights are the pockets'
+     head-count at density 4; Rook the Poacher holds the ruined spring-house. STAGED: built, fitted and
+     catalogued, not listed until its style-1 art lands (see `staged` above). */
+  {
+    id: 'mosslight_glade', name: 'Mosslight Glade', theme: 'The Meadowbrook rises here, and the copper water makes the moss glow.',
+    band: [16, 31],
+    spawns: [{ monster: 'carrion_crow', w: 12, rarity: 'common' }, { monster: 'walking_vine', w: 5, rarity: 'uncommon' },
+      { monster: 'glade_poacher', w: 4, rarity: 'uncommon' }, { monster: 'goblin_sluicer', w: 2, rarity: 'rare' }],
+    family: 'Vermin', art: 'carrion_crow', travelS: 0, pull: 4, respawnMs: 60000, staged: true,
+  },
 ]);
+
+/** The hunts a player can see and enter: every row not `staged`. */
+export const OPEN_HUNTS = Object.freeze(HUNTS.filter((h) => h.staged !== true));
 
 /** The words a player reads for a spawn's rarity. */
 export const RARITY_LABEL = Object.freeze({ common: 'Common', uncommon: 'Uncommon', rare: 'Rare' });

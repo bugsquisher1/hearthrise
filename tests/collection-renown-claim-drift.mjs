@@ -1,28 +1,29 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
-// tests/collection-renown-claim-drift.mjs — THE THREE-WAY BIND for the
-// COLLECTION-MILESTONE and RENOWN-RANK claim catalogues.
+// tests/collection-renown-claim-drift.mjs — THE COLLECTION-MILESTONE CLAIM BIND
+// (designer ruling 2026-10-22, lane c-monster-ladders: the ladders are shares of
+// what a player can MEET, and no rung pays premium currency).
 //
-// Each reward catalogue lives in THREE places that must never disagree:
-//   COLLECTION
-//     (1) src/data/collection-milestones.js       — the single source
-//     (2) src/features/collection-log.js MILESTONES — what the player SEES
-//     (3) the CHAIN-END migration restating hr_claim_milestone__ungated (the
-//         LAST such file in tests/schema-apply-order.json `order`) — what the
-//         server CREDITS (the CASE catalogue), plus the hunterAll threshold vs
-//         the monster-catalogue size in src/data/monsters.js.
-//   Checked both directions on id/domain/goal/gold/gems; per domain the
-//   thresholds AND gold strictly increase; rungs outside the original four pay
-//   0 gems; every threshold is reachable (items ≤ distinct MONSTERS drops
-//   that are not bind-on-pickup — a BoP key never makes a rung reachable,
-//   monsters ≤ MONSTER_TOTAL). `--selftest` plants each defect and must see red.
-//   RENOWN — retired with renown in the 2026-10-14 demolition (its catalogue,
-//     src/data/renown-ranks.js, was deleted). The file keeps its name and its
-//     exported guard because tests/run-smoke.mjs imports them.
-//
-// A drift means a player is shown one gold/gem number and credited another, or
-// a milestone/rank threshold the server verifies against differs from the one
-// the ladder displays. This guard fails the build on either.
+// The catalogue lives in two places that must never disagree:
+//   (1) src/data/collection-milestones.js — the single source: per rung its
+//       domain, `part` of `of` of the reachable roster, and its gold;
+//   (2) the CHAIN-END migration restating hr_claim_milestone__ungated (the LAST
+//       such file in tests/schema-apply-order.json `order`) — what the server
+//       CREDITS (its CASE arms).
+// And both must be EARNABLE today:
+//   · the reachable roster, counted HERE from the raw tables (every monster on an
+//     OPEN ground's pockets, packs and hunt spawn rows; a staged ground is out;
+//     their drops less bind-on-pickup), equals the module's REACHABLE (the rows
+//     gen-hunt-sessions writes to hr_hunt_roster / hr_hunt_loot_roster);
+//   · per domain the rungs step part 1..of with one `of`, the top rung is all of
+//     it, gold strictly rises, and every goal ceil(reach x part / of) lies in
+//     [1, reach] and strictly rises (so reach >= of): a goal above what a player
+//     can meet is red;
+//   · no rung pays premium currency (Tyler L12): no `gems` in the catalogue, no
+//     v_gems / hr_wallet_credit in the credited body.
+// `--selftest` plants each defect and must see red.
+//   RENOWN — retired in the 2026-10-14 demolition. The file keeps its name and its
+//   exported guard because tests/run-smoke.mjs imports them.
 //
 // Run standalone:  node tests/collection-renown-claim-drift.mjs
 // Also invoked as a guard by tests/run-smoke.mjs.
@@ -32,7 +33,7 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-import { COLLECTION_MILESTONES, MONSTER_TOTAL } from '../src/data/collection-milestones.js';
+import { COLLECTION_MILESTONES, REACHABLE, goalOf } from '../src/data/collection-milestones.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { ITEMS } from '../src/data/items.js';
 import { HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
@@ -43,7 +44,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 /* THE CHAIN-END SQL: the LAST file in schema-apply-order.json `order` that
    restates hr_claim_milestone__ungated — never a filename sort, never a
-   hard-coded file (the old guard read 2026-08-22 forever). */
+   hard-coded file. */
 export async function chainEndMilestoneSql(orderOverride) {
   const order = orderOverride
     || JSON.parse(await readFile(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
@@ -57,184 +58,127 @@ export async function chainEndMilestoneSql(orderOverride) {
   return end;
 }
 
+/* The credited function's body (create ... through its closing $$), so a comment elsewhere in the file never counts. */
+function bodyOf(sql) {
+  const at = sql.search(/create\s+or\s+replace\s+function\s+public\.hr_claim_milestone__ungated\b/i);
+  if (at < 0) return '';
+  const open = sql.indexOf('$$', at);
+  const close = sql.indexOf('$$', open + 2);
+  return open < 0 || close < 0 ? '' : sql.slice(open, close + 2);
+}
+
 /* The SQL CASE arms as data. */
 export function parseSqlArms(sql) {
   const out = {};
-  const re = /when\s+'([a-zA-Z0-9_]+)'\s+then\s+v_domain\s*:=\s*'([a-z]+)';\s*v_thresh\s*:=\s*(\d+);\s*v_gold\s*:=\s*(\d+);\s*v_gems\s*:=\s*(\d+);/g;
+  const re = /when\s+'([a-zA-Z0-9_]+)'\s+then\s+v_domain\s*:=\s*'([a-z]+)';\s*v_part\s*:=\s*(\d+);\s*v_of\s*:=\s*(\d+);\s*v_gold\s*:=\s*(\d+);/g;
   let m;
-  while ((m = re.exec(sql))) out[m[1]] = { domain: m[2], threshold: Number(m[3]), gold: Number(m[4]), gems: Number(m[5]) };
+  while ((m = re.exec(bodyOf(sql)))) out[m[1]] = { domain: m[2], part: Number(m[3]), of: Number(m[4]), gold: Number(m[5]) };
   return out;
 }
 
-/* The ids the ORIGINAL 2026-08-22 catalogue shipped with gems. Every other rung
-   is gold-only: no new premium-currency faucet rides a content pack. */
-const ORIGINAL_FOUR = new Set(['hunter10', 'hunterAll', 'collect50', 'collect100']);
-
-/* The collection half, pure over its inputs so --selftest can mutate each. */
-/* The monsters a player can slay, counted HERE from the raw tables (never by reading the module's own helper):
-   the roster less every monster that stands only on STAGED grounds (hunts.js `staged`: hidden and refused). */
-export function slayableCount(monsters, grounds = HUNT_GROUNDS, hunts = HUNT_INDEX) {
-  const on = (open) => new Set(Object.values(grounds).filter((g) => (hunts[g.hunt] && hunts[g.hunt].staged === true) !== open)
-    .flatMap((g) => g.pockets.flatMap((p) => [...(p.pack || []), ...p.spawns]).map((s) => s.monster)
-      .concat(((hunts[g.hunt] || {}).spawns || []).map((s) => s.monster))));
-  const open = on(true), staged = on(false);
-  return Object.keys(monsters).filter((id) => open.has(id) || !staged.has(id)).length;
+/* What a player can meet and loot, counted HERE (never through the module's helper): the open grounds' pockets, packs and
+   hunt spawn rows; a ground whose hunt is `staged` is out; the loot is their drops less bind-on-pickup. */
+export function reachableHere(monsters, items, grounds = HUNT_GROUNDS, hunts = HUNT_INDEX) {
+  const mons = new Set();
+  for (const g of Object.values(grounds)) {
+    if (hunts[g.hunt] && hunts[g.hunt].staged === true) continue;
+    for (const p of g.pockets) for (const s of [...(p.pack || []), ...p.spawns]) mons.add(s.monster);
+    for (const s of ((hunts[g.hunt] || {}).spawns || [])) mons.add(s.monster);
+  }
+  const loot = new Set();
+  for (const id of mons) for (const d of ((monsters[id] || {}).drops || [])) if (!(items[d.id] && items[d.id].bop)) loot.add(d.id);
+  return { monsters: [...mons].sort(), loot: [...loot].sort() };
 }
 
-export function checkCollection({ catalogue, monsterTotal, monsters, chainEnd, items = ITEMS, grounds = HUNT_GROUNDS, hunts = HUNT_INDEX }) {
+const DOMAINS = Object.freeze(['monsters', 'items']);
+
+export function checkCollection({ catalogue, reachable, monsters, items = ITEMS, grounds = HUNT_GROUNDS, hunts = HUNT_INDEX, chainEnd }) {
   const problems = [];
   const ok = (cond, msg) => { if (!cond) problems.push(msg); };
-  const catIds = Object.keys(catalogue);
 
-  // ── MONSTER_TOTAL vs the actual catalogue ────────────────────────────────
-  const monCount = slayableCount(monsters, grounds, hunts);
-  ok(monsterTotal === monCount,
-    `collection-milestones.js MONSTER_TOTAL=${monsterTotal} != the ${monCount} monsters a player can slay (src/data/monsters.js less staged-only) — `
-    + 'the hunterAll ("slay every monster") threshold has drifted. Update MONSTER_TOTAL AND the SQL CASE.');
-  ok(catalogue.hunterAll && catalogue.hunterAll.threshold === monsterTotal,
-    `hunterAll.threshold=${catalogue.hunterAll && catalogue.hunterAll.threshold} != MONSTER_TOTAL ${monsterTotal}`);
+  // ── the module's roster is what a player can meet ─────────────────────────
+  const here = reachableHere(monsters, items, grounds, hunts);
+  const reach = { monsters: here.monsters.length, items: here.loot.length };
+  ok(JSON.stringify(reachable.monsters) === JSON.stringify(here.monsters),
+    `collection-milestones.js REACHABLE.monsters (${reachable.monsters.length}) != the ${here.monsters.length} monsters on the open grounds`);
+  ok(JSON.stringify(reachable.loot) === JSON.stringify(here.loot),
+    `collection-milestones.js REACHABLE.loot (${reachable.loot.length}) != the ${here.loot.length} loot ids the open grounds' monsters drop`);
 
-  // (2, the client's MILESTONES rows in src/features/collection-log.js, retired with the
-  //  old client on 2026-10-17: the catalogue and the SQL are the two sides now.)
+  // ── no premium currency (Tyler L12) ────────────────────────────────────────
+  for (const [id, c] of Object.entries(catalogue)) ok(!('gems' in c) || !(c.gems > 0), `collection '${id}' pays ${c.gems} gems — Crowns are never earned in play (Tyler L12)`);
 
-  // ── (3) the chain-end SQL CASE, both directions ─────────────────────────
+  // ── the chain-end SQL CASE, both directions ────────────────────────────────
   ok(!!chainEnd, 'CONTROL: no file in schema-apply-order.json `order` restates hr_claim_milestone__ungated.');
   if (chainEnd) {
+    const body = bodyOf(chainEnd.sql);
+    ok(!/v_gems|hr_wallet_credit/.test(body), `SQL ${chainEnd.file}: the credited body still carries a gem credit (v_gems / hr_wallet_credit)`);
     const arms = parseSqlArms(chainEnd.sql);
     for (const [id, cat] of Object.entries(catalogue)) {
       const a = arms[id];
       ok(!!a, `SQL ${chainEnd.file}: hr_claim_milestone__ungated is missing/misshapen CASE arm for '${id}'.`);
       if (!a) continue;
-      ok(a.domain === cat.domain, `SQL collection '${id}' domain '${a.domain}' != catalogue '${cat.domain}'`);
-      ok(a.threshold === cat.threshold, `SQL collection '${id}' threshold ${a.threshold} != catalogue ${cat.threshold}`);
-      ok(a.gold === cat.gold, `SQL collection '${id}' gold ${a.gold} != catalogue ${cat.gold}`);
-      ok(a.gems === (cat.gems || 0), `SQL collection '${id}' gems ${a.gems} != catalogue ${cat.gems || 0}`);
+      for (const k of ['domain', 'part', 'of', 'gold']) ok(a[k] === cat[k], `SQL collection '${id}' ${k} ${a[k]} != catalogue ${cat[k]}`);
     }
     for (const id of Object.keys(arms)) ok(!!catalogue[id], `SQL ${chainEnd.file} has an arm '${id}' the catalogue does not.`);
   }
 
-  // ── LADDER SHAPE: per domain, thresholds AND gold strictly increase ─────
-  for (const d of ['monsters', 'items']) {
-    const ladder = Object.entries(catalogue).filter(([, c]) => c.domain === d)
-      .sort((x, y) => x[1].threshold - y[1].threshold);
-    for (let i = 1; i < ladder.length; i++) {
-      const [pid, p] = ladder[i - 1], [id, c] = ladder[i];
-      ok(c.threshold > p.threshold, `${d} ladder: '${id}' threshold ${c.threshold} is not above '${pid}' ${p.threshold}`);
-      ok(c.gold > p.gold, `${d} ladder: '${id}' gold ${c.gold} is not above '${pid}' ${p.gold} (thresholds ascending)`);
-    }
-  }
-  for (const [id, c] of Object.entries(catalogue)) {
-    ok(['monsters', 'items'].includes(c.domain), `collection '${id}' domain '${c.domain}' is neither monsters nor items`);
-    if (!ORIGINAL_FOUR.has(id)) ok(!(c.gems > 0), `collection '${id}' pays ${c.gems} gems — new rungs are gold-only (no new gem faucet)`);
-  }
-
-  // ── REACHABILITY ─────────────────────────────────────────────────────────
-  // Security 2026-09-26: BoP drops (dungeon keys) are excluded from the pool,
-  // so no rung can depend on a bind-on-pickup-only drop.
-  const drops = new Set();
-  for (const m of Object.values(monsters)) for (const d of (m.drops || [])) {
-    if (d && d.id && !(items[d.id] && items[d.id].bop)) drops.add(d.id);
-  }
-  for (const [id, c] of Object.entries(catalogue)) {
-    if (c.domain === 'items') ok(c.threshold <= drops.size,
-      `collection '${id}' needs ${c.threshold} distinct combat drops; only ${drops.size} non-BoP ids exist in MONSTERS[*].drops — unreachable`);
-    if (c.domain === 'monsters') ok(c.threshold <= monsterTotal,
-      `collection '${id}' needs ${c.threshold} distinct monsters; MONSTER_TOTAL is ${monsterTotal} — unreachable`);
+  // ── each ladder: part 1..of, one `of`, top = all, gold and goals rise, goals within reach ──
+  for (const [id, c] of Object.entries(catalogue)) ok(DOMAINS.includes(c.domain), `collection '${id}' domain '${c.domain}' is neither monsters nor items`);
+  for (const d of DOMAINS) {
+    const ladder = Object.entries(catalogue).filter(([, c]) => c.domain === d).sort((x, y) => x[1].part - y[1].part);
+    if (!ladder.length) continue;
+    const of = ladder[0][1].of;
+    ladder.forEach(([id, c], i) => {
+      ok(c.of === of && Number.isInteger(c.part) && c.part === i + 1, `${d} ladder: '${id}' is ${c.part} of ${c.of}, not step ${i + 1} of ${of}`);
+      const goal = goalOf(c, reach[d]);
+      ok(goal >= 1 && goal <= reach[d], `${d} ladder: '${id}' needs ${goal}, but only ${reach[d]} can be met — unreachable`);
+      if (i) {
+        const [pid, p] = ladder[i - 1];
+        ok(c.gold > p.gold, `${d} ladder: '${id}' gold ${c.gold} is not above '${pid}' ${p.gold}`);
+        ok(goal > goalOf(p, reach[d]), `${d} ladder: '${id}' needs ${goal}, no more than '${pid}' (${goalOf(p, reach[d])}): only ${reach[d]} reachable for ${of} rungs`);
+      }
+    });
+    ok(ladder[ladder.length - 1][1].part === of, `${d} ladder: the top rung is ${ladder[ladder.length - 1][1].part} of ${of}, not all of it`);
   }
   return problems;
 }
 
 export async function collectionRenownClaimDriftGuard() {
-  const problems = [];
-  problems.push(...checkCollection({
-    catalogue: COLLECTION_MILESTONES,
-    monsterTotal: MONSTER_TOTAL,
-    monsters: MONSTERS,
-    chainEnd: await chainEndMilestoneSql(),
-  }));
-
-  return problems;
+  return checkCollection({ catalogue: COLLECTION_MILESTONES, reachable: REACHABLE, monsters: MONSTERS, chainEnd: await chainEndMilestoneSql() });
 }
 
-/* ── --selftest: each planted defect must turn the collection half RED ──── */
+/* ── --selftest: each planted defect must turn the guard RED ──────────────── */
 async function selftest() {
-  const base = {
-    catalogue: COLLECTION_MILESTONES,
-    monsterTotal: MONSTER_TOTAL,
-    monsters: MONSTERS,
-    chainEnd: await chainEndMilestoneSql(),
-  };
+  const base = { catalogue: COLLECTION_MILESTONES, reachable: REACHABLE, monsters: MONSTERS, chainEnd: await chainEndMilestoneSql() };
   const baseRed = checkCollection(base);
   if (baseRed.length) { console.log('selftest: the UNMUTATED inputs are red — fix the guard first:'); baseRed.forEach((x) => console.log(`  ✗ ${x}`)); return 1; }
-  const cat = (patch) => Object.fromEntries(Object.entries(COLLECTION_MILESTONES)
-    .map(([id, c]) => [id, patch[id] ? { ...c, ...patch[id] } : c]));
-  const sub = (src, find, repl) => {
-    if (src.split(find).length !== 2) throw new Error(`selftest anchor not unique: ${find}`);
-    return src.replace(find, () => repl);
+  const cat = (patch) => Object.fromEntries(Object.entries(COLLECTION_MILESTONES).map(([id, c]) => [id, patch[id] ? { ...c, ...patch[id] } : c]));
+  const sql = (from, to) => {
+    if (base.chainEnd.sql.split(from).length !== 2) throw new Error(`selftest anchor not unique: ${from}`);
+    return { ...base.chainEnd, sql: base.chainEnd.sql.replace(from, () => to) };
   };
   const order = JSON.parse(await readFile(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
-  /* The two REACHABILITY arms are DERIVED from the live pool of distinct
-     non-BoP drop ids, never hard-coded: a content pack that grows the pool
-     (Field Salvage took it 133 -> 181) turned the old literals '141' and
-     '9 lucky ids' reachable, and the arms went MISSED. They are run on the live
-     roster AND on the roster with the salvage rows stripped, so the proof holds
-     on both sides of the pack. */
-  const poolOf = (monsters) => {
-    const ids = [];
-    for (const m of Object.values(monsters)) for (const d of (m.drops || [])) {
-      if (d && d.id && !(ITEMS[d.id] && ITEMS[d.id].bop) && !ids.includes(d.id)) ids.push(d.id);
-    }
-    /* flag the rarest rows first (lucky, then salvage), the ones a player would
-       think of as "the long chase", then anything else the count still needs */
-    const rank = (id) => (Object.values(monsters).some((m) => (m.drops || []).some((d) => d.id === id && d.lucky)) ? 0
-      : Object.values(monsters).some((m) => (m.drops || []).some((d) => d.id === id && d.salvage)) ? 1 : 2);
-    return ids.map((id, i) => ({ id, i, r: rank(id) })).sort((a, b) => a.r - b.r || a.i - b.i).map((x) => x.id);
-  };
-  const reachArms = (monsters, label) => {
-    const pool = poolOf(monsters);
-    const over = pool.length + 1;
-    const nBop = pool.length - 125 + 1;
-    const b = { ...base, monsters };
-    return [
-      [`collect125 = ${over} = pool+1 (catalogue and SQL together — unreachable; ${label})`,
-        () => ({ ...b, catalogue: cat({ collect125: { threshold: over } }),
-          chainEnd: { ...b.chainEnd, sql: b.chainEnd.sql.replace('v_thresh := 125;', `v_thresh := ${over};`) } })],
-      [`collect125 reachable only through BoP drops (${nBop} = pool-125+1 ids flagged bop; ${label})`,
-        () => {
-          const items = { ...ITEMS };
-          for (const id of pool.slice(0, nBop)) items[id] = { ...items[id], bop: true };
-          return { ...b, items };
-        }],
-    ];
-  };
-  const stripped = Object.fromEntries(Object.entries(MONSTERS)
-    .map(([id, m]) => [id, { ...m, drops: (m.drops || []).filter((d) => !d.salvage) }]));
-  const strippedRed = checkCollection({ ...base, monsters: stripped });
-  if (strippedRed.length) { console.log('selftest: the roster WITHOUT salvage rows is red — fix the guard first:'); strippedRed.forEach((x) => console.log(`  ✗ ${x}`)); return 1; }
   const MUT = [
-    ...reachArms(MONSTERS, 'live roster'),
-    ...reachArms(stripped, 'roster without salvage rows'),
-    ['drop the hunter40 SQL arm',
-      () => ({ ...base, chainEnd: { ...base.chainEnd, sql: base.chainEnd.sql.replace(/\n\s*when 'hunter40'[^\n]*/, '') } })],
-    ['collect75 gems 5 (catalogue and SQL together — a new gem faucet)',
-      () => ({ ...base, catalogue: cat({ collect75: { gems: 5 } }),
-        chainEnd: { ...base.chainEnd, sql: base.chainEnd.sql.replace(/(when 'collect75'[^\n]*v_gems := )0;/, '$15;') } })],
-    ['an older file picked as the chain end (2026-08-22)',
-      async () => ({ ...base, chainEnd: await chainEndMilestoneSql(order.slice(0, order.indexOf('2026-08-22-collection-claim.sql') + 1)) })],
-    ['no file restates the function (chain end absent)',
-      async () => ({ ...base, chainEnd: await chainEndMilestoneSql([]) })],
-    /* a monster a player can meet joins the roster (a new row on an OPEN ground): the total and the SQL must follow */
-    ['a playable monster added (on the Sewer), MONSTER_TOTAL and the SQL unchanged',
-      () => ({ ...base, monsters: { ...MONSTERS, sewer_probe: { ...MONSTERS.drain_rat } },
-        grounds: { ...HUNT_GROUNDS, millrace_sewer: { ...HUNT_GROUNDS.millrace_sewer, pockets: [...HUNT_GROUNDS.millrace_sewer.pockets,
-          { room: [0, 0, 1, 1], spawns: [{ monster: 'sewer_probe', x: 0, y: 0 }] }] } } })],
-    ['a monster with no ground at all added (the old-roster shape), MONSTER_TOTAL and the SQL unchanged',
-      () => ({ ...base, monsters: { ...MONSTERS, roster_probe: { ...MONSTERS.drain_rat } } })],
-    ['the glade opened (its staged flag dropped), MONSTER_TOTAL and the SQL unchanged',
+    ['hunter60 asks 7 of 6 (catalogue and SQL together): a goal above what can be met',
+      () => ({ ...base, catalogue: cat({ hunter60: { part: 7 } }), chainEnd: sql("v_part := 4; v_of := 6; v_gold := 1200;", "v_part := 7; v_of := 6; v_gold := 15000;") })],
+    ['the world shrinks to the Mill Cellar (3 monsters for 6 rungs)',
+      () => ({ ...base, grounds: { mill_cellar: HUNT_GROUNDS.mill_cellar }, reachable: reachableHere(MONSTERS, ITEMS, { mill_cellar: HUNT_GROUNDS.mill_cellar }) })],
+    ['a staged ground counted (Mosslight Glade opened in the guard, the module unchanged)',
       () => ({ ...base, hunts: { ...HUNT_INDEX, mosslight_glade: { ...HUNT_INDEX.mosslight_glade, staged: false } } })],
-    ['hunter60 gold 7000 everywhere (ladder gold not increasing)',
-      () => ({ ...base, catalogue: cat({ hunter60: { gold: 7000 } }),
-        chainEnd: { ...base.chainEnd, sql: base.chainEnd.sql.replace("v_thresh := 60;  v_gold := 15000;", "v_thresh := 60;  v_gold := 7000;") } })],
+    ['a monster with no ground counted by the module',
+      () => ({ ...base, reachable: { ...REACHABLE, monsters: [...REACHABLE.monsters, 'zz_ground_less'].sort() } })],
+    ['hunterAll pays 25 gems again (catalogue)', () => ({ ...base, catalogue: cat({ hunterAll: { gems: 25 } }) })],
+    ['the gem credit back in the SQL body',
+      () => ({ ...base, chainEnd: sql("  -- CREDIT (after the guard", "  perform public.hr_wallet_credit(auth.uid(), v_slot, 25, 'x', null);\n  -- CREDIT (after the guard") })],
+    ['drop the hunter40 SQL arm', () => ({ ...base, chainEnd: { ...base.chainEnd, sql: base.chainEnd.sql.replace(/\n\s*when 'hunter40'[^\n]*/, '') } })],
+    ['collect75 gold 4000 in the SQL only (the catalogue says 1000)', () => ({ ...base, chainEnd: sql("v_part := 3; v_of := 5; v_gold := 1000;", "v_part := 3; v_of := 5; v_gold := 4000;") })],
+    ['the top rung is not all of it (hunterAll 5 of 6, hunter85 4 of 6)',
+      () => ({ ...base, catalogue: cat({ hunterAll: { part: 5 }, hunter85: { part: 4 } }) })],
+    ['hunter60 gold 300 everywhere (ladder gold not rising)',
+      () => ({ ...base, catalogue: cat({ hunter60: { gold: 300 } }), chainEnd: sql("v_part := 4; v_of := 6; v_gold := 1200;", "v_part := 4; v_of := 6; v_gold := 300;") })],
+    ['an older file picked as the chain end (2026-10-25-hunterall-129.sql)',
+      async () => ({ ...base, chainEnd: await chainEndMilestoneSql(order.slice(0, order.indexOf('2026-10-25-hunterall-129.sql') + 1)) })],
+    ['no file restates the function (chain end absent)', async () => ({ ...base, chainEnd: await chainEndMilestoneSql([]) })],
   ];
   let missed = 0;
   for (const [name, mk] of MUT) {
@@ -253,7 +197,8 @@ if (isMain(import.meta.url)) {
   } else {
     collectionRenownClaimDriftGuard().then((p) => {
       if (p.length) { console.log('collection-renown-claim-drift — FAILED:'); for (const x of p) console.log(`  ✗ ${x}`); process.exit(1); }
-      console.log('collection-renown-claim-drift — the data modules and the chain-end migration SQL agree; ladders ascend and are reachable.');
+      const g = (d) => Object.values(COLLECTION_MILESTONES).filter((c) => c.domain === d).map((c) => goalOf(c, d === 'monsters' ? REACHABLE.monsters.length : REACHABLE.loot.length)).join('/');
+      console.log(`collection-renown-claim-drift — catalogue and chain-end SQL agree; ${REACHABLE.monsters.length} monsters and ${REACHABLE.loot.length} loot ids reachable; goals monsters ${g('monsters')}, items ${g('items')}; no rung pays gems.`);
     });
   }
 }

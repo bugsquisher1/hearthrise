@@ -217,6 +217,42 @@ No small lever makes a lone 32 profitable: it needs about 5× less damage per ki
 
 Every other row of the K7 table is byte-identical after the change, since only tier-3 monsters and the Warrens' store row moved. Regression: drop-tables `warrens-floor` (party of four in the ladder kit at 32 and a lone hero at soloFrom, two seeds, every role ≥ +25%). Its three mutants are each caught: food back to tier 4 (tank −26%), blows back to 5.4 (+9%), and alone from 40 (−21%). hunt-floor-warning G2 covers the card copy and has two mutants.
 
+**2026-10-22: the Bestiary and the collection ladders count what a player can meet, and no milestone pays gems (lane/c-monster-ladders).**
+
+*The bug:* the Bestiary total and the milestones counted the whole 129-monster catalogue, but only 19 monsters stand on open grounds and they drop only 49 items. So hunter25/40/60/85/All and collect50 to collect125 could never be earned, and the Bestiary read "x / 134". The two gem rungs (hunterAll and collect100) also rolled back whole, because the wallet refuses gems.
+
+*The ruling:* a rung is a share of the reachable roster, so a new open ground raises every goal by itself.
+- Monster rungs are sixths of `hr_hunt_roster`. Today the goals are 4 / 7 / 10 / 13 / 16 / 19.
+- Item rungs are fifths of `hr_hunt_loot_roster`. Today the goals are 10 / 20 / 30 / 40 / 49.
+- Both rosters are generated from the open grounds (`hunt-grounds.js reachableOf`, written by gen-hunt-sessions). Staged grounds are out.
+- Only kills and loot on the roster count toward a rung.
+- No rung pays premium currency (Tyler L12). The gold is unchanged.
+
+*For Tyler (money):*
+- hunterAll loses its 25 gems and collect100 loses its 15. No rung pays gems.
+- Possible non-premium extras, not built: a "Bestiary Master" title, or a trophy for the home shelf.
+- The gold is re-sized to the time each rung takes. The old amounts were sized for a 129-monster chase and, re-laddered, would have paid 165,000 per character inside the first day.
+- Measured on the real settle: play-ground kill rates and the drop tables. The modelled path is the Cellar to L5, the Thicket to L15, the Sewer's party to L32, then the Warrens. Time on each ground follows the Level guard's rate.
+
+| Rung | Goal (today) | Hours to clear | Gold before | Gold now |
+|---|---|---|---|---|
+| hunter10 | 4 monsters | 0.2 | 2,000 | 200 |
+| hunter25 | 7 | 0.2 | 4,000 | 400 |
+| hunter40 | 10 | 3.2 (Sewer) | 8,000 | 800 |
+| hunter60 | 13 | 3.2 | 15,000 | 1,200 |
+| hunter85 | 16 | 23 (Warrens) | 25,000 | 2,500 |
+| hunterAll | 19 | 23 | 50,000 | 4,000 |
+| collect25 | 10 items | 0.2 | 1,000 | 200 |
+| collect50 | 20 | 3.2 | 5,000 | 600 |
+| collect75 | 30 | 4.5 | 10,000 | 1,000 |
+| collect100 | 40 | 23 | 15,000 | 2,000 |
+| collect125 | 49 (all three rares) | 60+ | 30,000 | 8,000 |
+
+- New total: 20,900 per character (was 165,000).
+- By about 24 h the hero has earned about 51,000 and received 12,900 from milestones (25%). By the end of the item chase (about 176,000 earned) the milestones add 12%.
+- The gold still rises every rung.
+- Not modelled: Mosslight Glade, which is staged. When it opens it adds five monsters and its drops, and the goals rise with them.
+
 ## Designer pass 2026-10-21 (v0.2.22)
 Evidence: the real settle (`hr-accrue accrueHunt`, the `tests/hunt-core/fixtures/play-ground.mjs` runner, one fixed seed, one hour, per hero per hour), run on a scratch copy of the tree with each change planted. Not played in the browser this pass.
 

@@ -326,14 +326,21 @@ export const HUNT_GROUNDS = Object.freeze({
 /** The grounds a player can enter: every row whose hunt is not `staged` (hunts.js). The server catalogue reads these. */
 export const OPEN_GROUNDS = Object.freeze(Object.fromEntries(Object.entries(HUNT_GROUNDS).filter(([, g]) => !(HUNT_INDEX[g.hunt] && HUNT_INDEX[g.hunt].staged === true))));
 
-/** The monsters a player cannot meet because they stand ONLY on staged grounds (on a staged ground's packs or its hunt's
-    spawn rows, and on no open ground's): "slay every monster" leaves them out (collection-milestones.js MONSTER_TOTAL). */
-const monsterIdsOf = (grounds) => new Set(Object.values(grounds).flatMap((g) => g.pockets.flatMap((p) => (p.pack || []).concat(p.spawns))
-  .map((s) => s.monster).concat(((HUNT_INDEX[g.hunt] || {}).spawns || []).map((s) => s.monster))));
-export const STAGED_ONLY_MONSTERS = Object.freeze((() => {
-  const open = monsterIdsOf(OPEN_GROUNDS);
-  return [...monsterIdsOf(HUNT_GROUNDS)].filter((id) => !open.has(id)).sort();
-})());
+/** THE REACHABLE ROSTER (designer 2026-10-22, lane c-monster-ladders): what a player can actually meet and loot, from
+    `grounds` (pass OPEN_GROUNDS: a staged ground is hidden and refused). monsters = every pocket's spawns and full pack
+    plus its hunt's spawn rows; loot = every drop id those monsters can roll, a bind-on-pickup item excepted. The
+    Bestiary's total and the collection milestones count these (collection-milestones.js), and gen-hunt-sessions writes
+    them to hr_hunt_roster / hr_hunt_loot_roster, so a new open ground moves every total by itself. */
+export function reachableOf(grounds, hunts, monsters, items) {
+  const mons = new Set();
+  for (const g of Object.values(grounds)) {
+    for (const p of g.pockets) for (const s of (p.pack || []).concat(p.spawns)) mons.add(s.monster);
+    for (const s of ((hunts[g.hunt] || {}).spawns || [])) mons.add(s.monster);
+  }
+  const loot = new Set();
+  for (const id of mons) for (const d of ((monsters[id] || {}).drops || [])) if (!(items[d.id] && items[d.id].bop)) loot.add(d.id);
+  return Object.freeze({ monsters: Object.freeze([...mons].sort()), loot: Object.freeze([...loot].sort()) });
+}
 
 /* THE PARTY SCALE (BALANCE_RULINGS 2026-10-16): pack HP x (base + perHero x party
    size), in permille, party size clamped to 1..maxHeroes. 550 solo, 700 a pair,

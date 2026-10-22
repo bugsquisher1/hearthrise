@@ -71,7 +71,8 @@ export async function loadPlay(root) {
   /* gear by level, the smiths' ladder a player at that level wears */
   const kit = (L, role) => {
     const t = L < 15 ? 0 : L < 30 ? 1 : L < 45 ? 2 : 3;
-    const weapon = { tank: ['bronze_sword', 'iron_sword', 'steel_sword', 'mithril_sword'], ranger: ['shortbow', 'willow_longbow', 'maple_bow', 'maple_bow'],
+    const weapon = { tank: ['bronze_sword', 'iron_sword', 'steel_sword', 'mithril_sword'], melee_dps: ['stone_maul', 'iron_warhammer', 'steel_warhammer', 'mithril_warhammer'],
+      ranger: ['shortbow', 'willow_longbow', 'maple_bow', 'maple_bow'],
       mage: ['apprentice_wand', 'oak_wand', 'willow_wand', 'maple_wand'], healer: ['apprentice_staff', 'oak_staff', 'willow_staff', 'maple_staff'] }[role][t];
     /* A Mage is wand + spellbook (since 10-19; a staff is the Healer's: hunt-roles.js roleWeaponOf). The harness's
        "mage" held a staff until 2026-10-21, so it measured a second Healer (designer pass 2026-10-21). */

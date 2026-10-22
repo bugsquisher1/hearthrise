@@ -7,7 +7,7 @@
 //   node tests/party-ui.mjs --mutate       every planted defect must turn a rule RED
 //   node tests/party-ui.mjs --shots <dir>  also write the visual-gate screenshots (1440x900, 922x423)
 //
-// mutant-anchors: src/shell/alerts.js src/shell/hunt-list.js src/session/party-sections.js src/session/character-session.js src/shell/windows/party.js src/shell/windows/party-finder.js src/app/character-strip.js src/shell/widgets/alerts.js src/session/party-intents.js src/shell/intent-words.js src/shell/windows/hunts.js src/shell/windows/inventory/bury.js
+// mutant-anchors: src/hunt-view/live-engine.js src/shell/widgets/party-panel.js src/shell/alerts.js src/shell/hunt-list.js src/session/party-sections.js src/session/character-session.js src/shell/windows/party.js src/shell/windows/party-finder.js src/app/character-strip.js src/shell/widgets/alerts.js src/session/party-intents.js src/shell/intent-words.js src/shell/windows/hunts.js src/shell/windows/inventory/bury.js
 // mutant-writes-tree: no — pure mutants plant into a temp copy of src/, page mutants into served overrides
 //
 // The fixture is tests/fixtures/party-envelope.json (S1's `party` shape plus this lane's asks).
@@ -26,6 +26,10 @@
 //         moves only from the re-read; a refusal re-reads nothing; a malformed one sends nothing
 //   PR-1  THE ROLE IS THE WEAPON'S: seats read roleForWeapon (a pick only where the weapon
 //         allows it); no client module keeps its own weapon-to-role table
+//   PR-5  WHO HOLDS THE PACK (bug #59, Andy 10-22): with two tanks each tank's row says when it holds
+//         ("Holding this lap" / "Holds next lap" / "Too weak to hold") from the live engine's world (the
+//         engine's own holderTank), the footer explains the turns; non-tanks say nothing; the lines go in
+//         town and come back in the next hunt
 //   UI-1  the strip shows one tab per character with its name, what it is doing and its alert
 //         badge; a tab press shows that character and re-reads nobody
 //   UI-2  the alert lines show each alert once, survive a re-read without repeating, and go
@@ -113,6 +117,8 @@ async function load(base) {
     BURY: await import(u('src/shell/windows/inventory/bury.js')),
     SC: await import(u('src/shell/share-card.js')),
     BITS: await import(u('src/shell/widgets/bits.js')),
+    LE: await import(u('src/hunt-view/live-engine.js')),
+    WS: await import(u('src/core/hunt/world-state.js')),
   };
 }
 
@@ -433,6 +439,67 @@ async function pureRules(M, base) {
     if (!k || k[1].p_seat !== 2 || Object.keys(k[1]).sort().join() !== 'p_idem,p_seat,p_slot') return 'Kick sent ' + JSON.stringify(srv.calls);
     if (!node('.hp-msg').textContent || node('.hp-msg').textContent === 'Removing…') return 'the refused kick has no words: ' + JSON.stringify(node('.hp-msg').textContent);
     return true;
+  });
+
+  /* PR-5 (bug #59, Andy 10-22 at the Warrens: "the lead tank doesn't hold aggro, no Challenge"): his party has TWO
+     tanks, so one holds a lap and the holder moves on each lap (targeting.js holderTank). Each tank's row says when
+     it holds, read from the live engine's world (the server's start point), never guessed; the footer says why; a
+     non-tank row says nothing; a tank far weaker than the strongest says so; in town the lines go, and the next
+     hunt brings them back. Andy's party as live: Eddie L39 sword (seat 0, leader, unit 1, 616 HP), Hank L27 hammer,
+     Apollo L28 wand, Fremulon L38 sword (seat 3, unit 20, 604 HP). */
+  await t('PR-5', async () => {
+    const P = '11111111-0000-4000-8000-00000000000d';
+    const SEATS = [[0, 1, 'Eddie', 39, 'sword', 616, 'tank'], [1, 7, 'Hank', 27, 'hammer', 420, 'melee_dps'],
+      [2, 13, 'Apollo', 28, 'wand', 390, 'mage'], [3, 20, 'Fremulon', 38, 'sword', 604, 'tank']];
+    const party = (hunting) => ({ id: P, hunt: 'coppercap_warrens', max: 4, open: false, self: hunting ? 1 : null, leader: hunting ? 1 : null, self_seat: 0, leader_seat: 0,
+      members: SEATS.map(([seat, unit, name, level, weapon, hp]) => ({ seat, unit: hunting ? unit : null, hunting, name, level, weapon, hp, hp_max: hp, away: false })) });
+    const engine = M.LE.createLiveEngine({ items: {}, monsters: {} });
+    /* the server's start point (hunt_live) for lap `runs`, Fremulon's max HP `frem` */
+    const seed = (runs, frem = 604) => engine.seed({ v: 1, instance: { id: 'i59', hunt: 'coppercap_warrens', next_swing_at_ms: 0, world_swing: 0, world_hash: 'h',
+      world: JSON.stringify(M.WS.encode(M.WS.makeWorld({ ground: 'coppercap_warrens', leader: 1, runs,
+        units: SEATS.map(([, id, , , , hp, role]) => ({ id, side: 'hero', kind: role, alive: true, role, hp, maxHp: id === 20 ? frem : hp })) }))) },
+      seeds: { from: 0, list: [] }, members: [] });
+    let section = party(true);
+    const cs = { read: (k) => (k === 'party' ? section : undefined), live: engine };
+    /* the panel itself, on a small fake DOM: keyed rows (paint.js rows) under .hp-members, one node per selector */
+    const fake = () => { const n = { textContent: '', a: {}, kids: [], subs: new Map(), up: null, style: { p: {}, getPropertyValue(k) { return this.p[k] || ''; }, setProperty(k, v) { this.p[k] = v; }, removeProperty(k) { delete this.p[k]; } },
+      classList: { s: new Set(), contains(c) { return this.s.has(c); }, toggle(c, on) { if (on) this.s.add(c); else this.s.delete(c); } },
+      getAttribute(k) { return k in this.a ? this.a[k] : null; }, setAttribute(k, v) { this.a[k] = String(v); }, hasAttribute(k) { return k in this.a; }, removeAttribute(k) { delete this.a[k]; },
+      querySelector(sel) { if (!this.subs.has(sel)) this.subs.set(sel, fake()); return this.subs.get(sel); },
+      get firstElementChild() { return this.kids[0] || this.querySelector(':first'); }, get lastElementChild() { return this.querySelector(':last'); },
+      get nextElementSibling() { return this.up ? this.up.kids[this.up.kids.indexOf(this) + 1] || null : null; },
+      insertBefore(el, ref) { el.remove(); const i = this.kids.indexOf(ref); this.kids.splice(i < 0 ? this.kids.length : i, 0, el); el.up = this; },
+      remove() { if (this.up) this.up.kids.splice(this.up.kids.indexOf(this), 1); this.up = null; } }; return n; };
+    const el = fake();
+    const doc = { createElement: () => ({ content: { firstElementChild: fake() } }) };
+    const ctx = { character: cs, account: null, doc, glyphs: {} };
+    const shown = () => {
+      M.PP.renderPartyPanel.patch(el, ctx);
+      const rowsOf = el.querySelector('.hp-members').kids;
+      return { rows: rowsOf.map((r) => r.querySelector('.hp-name').textContent + ':' + r.querySelector('.hp-turn').textContent).join('|'),
+        holding: rowsOf.filter((r) => r.querySelector('.hp-turn').classList.contains('is-holding')).map((r) => r.querySelector('.hp-name').textContent).join(),
+        foot: el.querySelector('.hp-tanks').textContent };
+    };
+    const TURNS = 'Your tanks take turns holding the pack, one lap each. The other tank pulls monsters off the rest of the party.';
+    const want = (v, rows, holding, foot, what) => (v.rows === rows && v.holding === holding && v.foot === foot) || what + ' reads ' + JSON.stringify(v);
+    if (!seed(0)) return 'the live engine did not take the start point';
+    const lap0 = want(shown(), 'Eddie:Holding this lap|Hank:|Apollo:|Fremulon:Holds next lap', 'Eddie', TURNS, "lap 0 (the leader's tank holds first)");
+    if (lap0 !== true) return lap0;
+    seed(1);
+    const lap1 = want(shown(), 'Eddie:Holds next lap|Hank:|Apollo:|Fremulon:Holding this lap', 'Fremulon', TURNS, 'lap 1 (the turn moved on)');
+    if (lap1 !== true) return lap1;
+    /* back in town: the party is listed, its tanks say nothing (the engine may still hold the last world) */
+    section = party(false);
+    const town = want(shown(), 'Eddie:|Hank:|Apollo:|Fremulon:', '', '', 'in town');
+    if (town !== true) return town;
+    /* the next hunt: the lines come back, from ITS start point (Fremulon now far weaker: 500 < 90% of 616) */
+    section = party(true);
+    engine.stop();
+    const none = want(shown(), 'Eddie:|Hank:|Apollo:|Fremulon:', '', '', 'a hunt with no engine running');
+    if (none !== true) return none;
+    seed(0, 500);
+    return want(shown(), 'Eddie:Holds every lap|Hank:|Apollo:|Fremulon:Too weak to hold', 'Eddie',
+      'Your strongest tank holds the pack every lap. A tank with under 90% of its max health never holds.', 'the next hunt, a weak second tank');
   });
 
   await t('PR-1', async () => {
@@ -793,6 +860,11 @@ const PURE_MUTANTS = [
      p is) and was "caught" only by PR-2's ENOENT crash. Same fault — a party in town is not listed — planted directly. */
   ['the roster is the hunt section only (a party in town is not listed)', 'src/shell/widgets/party-panel.js', '  if (p) {\n    const members = p.seats.map(', '  if (p) {\n    const members = p.seats.filter((s) => s.hunting).map('],
   ['an away seat reads as in town', 'src/shell/widgets/party-panel.js', "  if (m.away) return m.seatMs === null ? 'Away' : 'Away, seat kept ' + Math.max(1, Math.ceil(m.seatMs / 60000)) + ' min';\n", ''],
+  ['the party panel names no holder (bug #59)', 'src/shell/widgets/party-panel.js', '  const all = turnsOf(cs);', '  const all = null;'],
+  ['the holder ignores the laps run (bug #59)', 'src/hunt-view/live-engine.js', '{ runs: runs + lap }', '{ runs: lap }'],
+  ['a tank too weak to hold reads as waiting its turn (bug #59)', 'src/shell/widgets/party-panel.js', "  if (holdIn === null) return 'Too weak to hold';\n", ''],
+  ["a tank's turn is never drawn on its row (bug #59)", 'src/shell/widgets/party-panel.js', "  text(el.querySelector('.hp-turn'), m.turn || '');\n", ''],
+  ['the rotation has no footer (bug #59)', 'src/shell/widgets/party-panel.js', "  text(el.querySelector('.hp-tanks'), r.tanks);\n", ''],
   ['DPS and HPS shows with nobody hunting', 'src/shell/widgets/party-panel.js', "  prop(expand, 'hidden', !r.anyHunting);", "  prop(expand, 'hidden', false);"],
   ['not ready names nobody', 'src/shell/intent-words.js', "    return 'Nobody went in: ' + seats.map((x) => x.name + ' ' + (x.error === 'hunt_open' && x.hunt && HUNT_INDEX[x.hunt]\n      ? 'is still hunting in ' + HUNT_INDEX[x.hunt].name : SEAT_WORDS[x.error] || 'is not ready')).join('; ') + '.';", "    return 'Not everyone in the party is ready.';"],
 ];

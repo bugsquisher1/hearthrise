@@ -374,11 +374,14 @@ export async function bootWorld(panel, opts) {
     step(dt);
   }
   function sync() {
-    /* One frame NOW whenever the pane is in front — loop or no loop — so the
-       canvas is sized and the scene, card and overlay are painted before (and
-       without) any requestAnimationFrame. A throw here must not leave the loop
-       state wrong, so it is reported and the loop decision still runs. */
-    if (panel.classList.contains('active')) {
+    /* One frame NOW whenever the pane is in front and its loop is not already
+       running, so the canvas is sized and the scene, card and overlay are
+       painted before (and without) any requestAnimationFrame. A running loop
+       paints the change on its next frame: a second draw in the same frame was
+       the whole cost of every server answer (tests/perf-budget.mjs). A throw
+       here must not leave the loop state wrong, so it is reported and the loop
+       decision still runs. */
+    if (panel.classList.contains('active') && !(running && live())) {
       try { step(0); } catch (e) { console.error('[world] a frame failed', e); }
     }
     if (live()) {

@@ -110,7 +110,7 @@ export function groupWords(r, partySize) {
 
 /**
  * THIS hero's personal bests on a ground, in words, from the server's `hunt_bests` section
- * (hunt-sections.js huntBestsOf): one line alone, one in a party, each "12,400 XP per hour ·
+ * (hunt-sections.js huntBestsOf): one line alone, one in a party, each "12,400 Level XP per hour ·
  * balance 3,100 gp per hour", or "No hunt of 10 min yet" (the server's qualifying length).
  * Null when the server sent no section: nothing is invented.
  */
@@ -118,7 +118,7 @@ export function bestWords(bests, hunt) {
   if (!bests) return null;
   const g = bests.grounds[hunt] || {};
   const none = 'No hunt of ' + Math.round(bests.minMs / 60000) + ' min yet';
-  const line = (b) => (b ? whole(b.xpH) + ' XP per hour · balance ' + gold(b.balanceH) + ' per hour' : none);
+  const line = (b) => (b ? whole(b.xpH) + ' Level XP per hour · balance ' + gold(b.balanceH) + ' per hour' : none);
   return { solo: 'Best alone: ' + line(g.solo), party: 'Best in a party: ' + line(g.party) };
 }
 

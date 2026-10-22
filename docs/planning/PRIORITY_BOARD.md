@@ -30,6 +30,8 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 ## Decisions
 _Tyler's rulings live in rulings-of-record; designer rulings inside them are recorded here._
 
+- **2026-10-22, Level XP and training XP apart (designer, inside Tyler's 10-22 "divvy up level exp vs training exp" + "an option tab for premium players that shows skill exp").** Cause: the analyzer's "XP gained" / "XP per hour" and the picker's best summed the Level's XP with every combat skill's; two party heroes with identical Level XP (tyler and Fingerguns, 205,093 each) read different totals because their Melee and Defense XP differ by use. Rulings: (1) every player-facing XP figure is Level XP unless it says otherwise (analyzer Session + Per hour, hunt summary card, picker personal bests, combat log "gains N Level XP"); (2) training XP (Melee, Ranged, Magic, Defense) lives only in the premium analyzer's Training tab: a total, a total per hour, and one line per skill (its XP and its XP an hour); free characters see Level XP only; (3) no skill XP ever floats over a head: the "+XP" floater is and stays Level XP (Settings label "Level XP gained"); (4) "Raw XP per hour" becomes "Level XP per hour before bonuses" (premium); (5) personal bests are Level XP per hour, and the bests already folded on the old sum are re-folded once (2026-11-10-hunt-xp-split.sql). Party role bonus (Tibia shared-XP math) parked: Tyler 10-22 "working as intended".
+
 ## Designer pass 2026-10-21 (v0.2.22)
 Evidence: the real settle (`hr-accrue accrueHunt`, the `tests/hunt-core/fixtures/play-ground.mjs` runner, one fixed seed, one hour, per hero per hour), run on a scratch copy of the tree with each change planted. Not played in the browser this pass.
 

@@ -9,6 +9,7 @@ import { ITEMS } from '../../data/items.js?v=0.2.26';
 import { DRINK_ITEMS } from '../../data/drinks.js?v=0.2.26';
 import { MONSTERS } from '../../data/monsters.js?v=0.2.26';
 import { ABILITIES } from '../../data/abilities.js?v=0.2.26';
+import { SKILLS_DEF } from '../../data/skills.js?v=0.2.26';
 import { PIXEL_DIR, ABILITY_DIR, ABILITY_ART, SUPPLY_DIR, SUPPLY_ART_AHEAD } from '../../data/item-art.js?v=0.2.26';
 import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.26';
 import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.26';
@@ -47,6 +48,9 @@ export function monsterName(id) { return (MONSTERS[id] && MONSTERS[id].name) || 
 
 /** An ability's name ('basic' is the weapon's basic attack). */
 export function abilityName(id) { return id === 'basic' ? 'Basic attack' : (ABILITIES[id] && ABILITIES[id].n) || spelled(id); }
+
+/** A skill's name (Melee, Defense…) from the skill rows. */
+export function skillName(id) { return (SKILLS_DEF[id] && SKILLS_DEF[id].name) || spelled(id); }
 
 /** An element or damage type, as a word. */
 export function elementName(id) { return spelled(id); }

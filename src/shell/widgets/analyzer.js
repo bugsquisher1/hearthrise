@@ -8,51 +8,62 @@
 //
 // BASIC FOR EVERYONE, MORE WITH PREMIUM (Tyler 2026-10-19, replacing the 10-17
 // "only premium sees it"): every character sees the BASIC block — session time,
-// kills, XP and XP/h, loot value and gold/h, supplies spent (own vs store),
-// balance. The server's `premium` section adds the rest — next-level ETA, raw
-// XP, waste, damage taken and dealt (the two tabs) and the party breakdown. A
+// kills, Level XP and Level XP/h, loot value and gold/h, supplies spent (own vs
+// store), balance. The server's `premium` section adds the rest — next-level ETA,
+// Level XP before bonuses, waste, TRAINING XP by skill (its own tab; Tyler
+// 2026-10-22: a premium tab, never a popup over the heads), damage taken and
+// dealt (two tabs) and the party breakdown. Level XP and training XP are never
+// added into one number (Tyler 2026-10-22: "so it's clear what's happening"). A
 // free character's premium nodes are hidden AND never written, and one quiet
 // line says "More detail with premium." No upsell beyond that line. The server
 // sends a free character only the basic block (2026-10-26-hunt-analyzer-basic.sql).
 //
 //   This hero / Party   which of the server's two views is shown (AW-04)
-//   Session / Taken / Dealt   the three tabs (AW-05)
+//   Session / Training / Taken / Dealt   the four tabs (AW-05; Training 2026-10-22)
 //   sections fold (AW-11); lists are keyed rows (AW-12)
 //
-// The session clock runs between envelopes from the server's session_ms and
-// the moment that envelope arrived (display only; the next envelope replaces
-// it). The view, tab and folds are display scratch on the panel.
+// The session clock runs between envelopes on the SERVER's clock from the
+// instant its hunt_ms was settled to (hunt-sections.js sessionClockMs), so it
+// never steps back; display only, the next envelope replaces it. The view, tab
+// and folds are display scratch on the panel.
 // ════════════════════════════════════════════════════════════════════════
-import { analyzerOf, isPremium } from '../../session/hunt-sections.js?v=0.2.26';
+import { analyzerOf, isPremium, sessionClockMs, serverNowOf } from '../../session/hunt-sections.js?v=0.2.26';
 import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.26';
 import { whole, gold, clock } from '../../render/format.js?v=0.2.26';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.26';
-import { panelHtml, itemIconHtml, itemName, monsterName, abilityName, elementName } from './bits.js?v=0.2.26';
+import { panelHtml, itemIconHtml, itemName, monsterName, abilityName, elementName, skillName } from './bits.js?v=0.2.26';
 import { ANALYZER_RATE_AFTER_MS } from '../../data/hunt-sessions.js?v=0.2.26';
 
 /* Before the server's rate window the rates are null: the totals show, and this line says when the rest will. */
 const RATE_LATER = 'Per hour after ' + Math.round(ANALYZER_RATE_AFTER_MS / 60000) + ' min.';
 
-const TABS = Object.freeze([['session', 'Session'], ['taken', 'Taken'], ['dealt', 'Dealt']]);
+const TABS = Object.freeze([['session', 'Session'], ['training', 'Training'], ['taken', 'Taken'], ['dealt', 'Dealt']]);
 /* What only a premium character sees: these stats (section.stat), and every section off the Session tab. */
-const PREMIUM_STATS = new Set(['totals.waste', 'rates.rawXp', 'rates.waste', 'rates.balance']);
+const PREMIUM_STATS = new Set(['totals.waste', 'rates.rawLevelXp', 'rates.waste', 'rates.balance']);
 const premiumTab = (tab) => tab !== 'session';
 
-/* Each section: its tab, its title and its body (a fixed list of stat rows, or a keyed list). */
+/* Each section: its tab, its title and its body (a fixed list of stat rows, or a keyed list). A stat row is
+   [key, label, format, from?]: v[key], or v[from][key]; its node is data-stat="key" (from-prefixed: "perHour.key"). */
 const SECTIONS = Object.freeze([
-  { id: 'totals', tab: 'session', title: 'Session', stats: [['kills', 'Monsters killed', whole], ['xp', 'XP gained', whole], ['gold', 'Gold', gold], ['waste', 'Supplies cost', gold], ['balance', 'Balance', gold]] },
-  { id: 'rates', tab: 'session', title: 'Per hour', stats: [['xp', 'XP per hour', whole, 'perHour'], ['rawXp', 'Raw XP per hour', whole, 'perHour'], ['gold', 'Gold per hour', gold, 'perHour'], ['waste', 'Supplies per hour', gold, 'perHour'], ['balance', 'Balance per hour', gold, 'perHour']] },
+  { id: 'totals', tab: 'session', title: 'Session', stats: [['kills', 'Monsters killed', whole], ['levelXp', 'Level XP', whole], ['gold', 'Gold', gold], ['waste', 'Supplies cost', gold], ['balance', 'Balance', gold]] },
+  { id: 'rates', tab: 'session', title: 'Per hour', stats: [['levelXp', 'Level XP per hour', whole, 'perHour'], ['rawLevelXp', 'Level XP per hour before bonuses', whole, 'perHour'], ['gold', 'Gold per hour', gold, 'perHour'], ['waste', 'Supplies per hour', gold, 'perHour'], ['balance', 'Balance per hour', gold, 'perHour']] },
   { id: 'supplies', tab: 'session', title: 'Supplies used', list: 'supplies' },
   { id: 'loot', tab: 'session', title: 'Loot collected', list: 'loot' },
+  /* TRAINING (premium): what the combat skills earned from blows dealt, blows taken and mana spent — never
+     part of Level XP. Per skill: this session's XP and, for this hero, its XP an hour (the party's is a sum). */
+  { id: 'training', tab: 'training', title: 'Training', stats: [['trainingXp', 'Training XP', whole], ['trainingXp', 'Training XP per hour', whole, 'perHour']] },
+  { id: 'bySkill', tab: 'training', title: 'By skill', list: 'training' },
   { id: 'byMonster', tab: 'taken', title: 'Taken from each monster', map: 'takenByMonster', name: monsterName },
   { id: 'takenEl', tab: 'taken', title: 'Taken by damage type', map: 'takenByElement', name: elementName },
   { id: 'byAbility', tab: 'dealt', title: 'Dealt by each attack', map: 'dealtByAbility', name: abilityName },
   { id: 'dealtEl', tab: 'dealt', title: 'Dealt by damage type', map: 'dealtByElement', name: elementName },
 ]);
 
+const statId = (k, from) => (from ? from + '.' + k : k);
+
 function sectionHtml(s) {
   const prem = (k) => (PREMIUM_STATS.has(s.id + '.' + k) ? ' data-premium' : '');
-  const stats = s.stats ? '<dl class="ha-stats">' + s.stats.map(([k, label]) => '<dt' + prem(k) + '>' + esc(label) + '</dt><dd data-stat="' + k + '"' + prem(k) + '></dd>').join('') + '</dl>'
+  const stats = s.stats ? '<dl class="ha-stats">' + s.stats.map(([k, label, , from]) => '<dt' + prem(k) + '>' + esc(label) + '</dt><dd data-stat="' + statId(k, from) + '"' + prem(k) + '></dd>').join('') + '</dl>'
     + (s.id === 'rates' ? '<p class="hs-note ha-later" hidden>' + esc(RATE_LATER) + '</p>' : '') : '';
   return '<section class="ha-sec" data-sec="' + s.id + '" data-tab="' + s.tab + '"' + (premiumTab(s.tab) ? ' data-premium' : '') + '>'
     + '<h3 class="ha-sec-head"><button type="button" class="ha-fold" data-hs-act="fold" aria-expanded="true">' + esc(s.title) + '</button></h3>'
@@ -97,14 +108,27 @@ function patchList(ul, items, key, fill, ctx) {
 function patchView(root, v, ctx, premium) {
   for (const s of SECTIONS) {
     const sec = root.querySelector('[data-sec="' + s.id + '"]');
-    if (!premium && premiumTab(s.tab)) continue;
+    /* A free character's premium sections hold nothing: written empty, so a hero that lost premium keeps no old figure. */
+    if (!premium && premiumTab(s.tab)) {
+      if (s.stats) for (const dd of sec.querySelectorAll('dd')) text(dd, '');
+      else patchList(sec.querySelector('.ha-list'), [], (it) => it, () => {}, ctx);
+      continue;
+    }
     if (s.stats) {
       for (const [k, , fmt, from] of s.stats) {
-        const dd = sec.querySelector('[data-stat="' + k + '"]');
+        const dd = sec.querySelector('[data-stat="' + statId(k, from) + '"]');
         text(dd, !premium && PREMIUM_STATS.has(s.id + '.' + k) ? '' : fmt(from ? v[from][k] : v[k]));
+        if (k === 'balance') cls(dd, 'is-loss', (from ? v[from][k] : v[k]) < 0);
       }
-      cls(sec.querySelector('[data-stat="balance"]'), 'is-loss', (s.id === 'totals' ? v.balance : v.perHour.balance) < 0);
       if (s.id === 'rates') { prop(sec.querySelector('.ha-stats'), 'hidden', !v.rated); prop(sec.querySelector('.ha-later'), 'hidden', v.rated); }
+    } else if (s.list === 'training') {
+      /* One line a skill: its name, this session's XP, and its XP an hour (a dash before the server's rate window,
+         and for the party, whose per-skill rate the server does not send). */
+      patchList(sec.querySelector('.ha-list'), v.training, (it) => it.skill, (li, it) => {
+        text(li.querySelector('.ha-name'), skillName(it.skill));
+        text(li.querySelector('.ha-count'), '+' + whole(it.xp));
+        text(li.querySelector('.ha-val'), it.perHour === null ? '–' : whole(it.perHour) + ' an hour');
+      }, ctx);
     } else if (s.list === 'supplies') {
       patchList(sec.querySelector('.ha-list'), v.supplies, (it) => it.item + ':' + it.source, (li, it) => {
         text(li.querySelector('.ha-name'), itemName(it.item) + (it.source === 'own' ? ' (own)' : ' (store)'));
@@ -146,7 +170,7 @@ renderAnalyzer.patch = function patchAnalyzer(el, ctx) {
   cls(panel, 'is-ended', a.ended);
   const since = ctx.character.receivedAt;
   const live = !a.ended && Number.isFinite(since) ? Math.max(0, ctx.now() - since) : 0;
-  text(panel.querySelector('[data-clock="session"]'), clock(a.sessionMs === null ? null : a.sessionMs + live));
+  text(panel.querySelector('[data-clock="session"]'), clock(sessionClockMs(a, serverNowOf(ctx.character))));
   if (premium) text(panel.querySelector('[data-clock="next"]'), !a.hero.rated ? 'after ' + Math.round(ANALYZER_RATE_AFTER_MS / 60000) + ' min'
     : clock(a.nextLevelMs === null ? null : Math.max(0, a.nextLevelMs - live)));
   patchView(panel, scope === 'party' ? a.party : a.hero, ctx, premium);

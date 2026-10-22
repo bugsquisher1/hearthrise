@@ -50,7 +50,7 @@
 import { applyEnvelope, applyFrame, withResidue } from './envelope.js?v=0.2.26';
 import { createTimeline } from '../hunt-view/timeline.js?v=0.2.26';
 import { LiveLink } from './live-link.js?v=0.2.26';
-import { RESIDUE_FIELDS, sanitizeResidueField } from './residue.js?v=0.2.26';
+import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.26';
 import { SESSION_CONFIG } from './config.js?v=0.2.26';
 import { edgeBody } from './edge-intents.js?v=0.2.26';
 import { leaveAskOf, pendingLeaveAt, leaveCountdown, closeInMs } from './hunt-leave.js?v=0.2.26';
@@ -119,7 +119,7 @@ export class CharacterSession {
     this._retry = null;
     this._residueTimer = null;
     this._leaveAsk = null;
-    this._pending = {};
+    this._pending = {}; this._sent = {};   // residue to put; residue put and not yet seen back (residue.js unconfirmedResidue)
     this._closed = false;
     this.lastVerdict = null;
     this._now = o.now || (() => (globalThis.performance ? globalThis.performance.now() : Date.now()));
@@ -158,9 +158,10 @@ export class CharacterSession {
     this.lastVerdict = r.verdict;
     if (!r.applied) return false;
     this._record = r.record;
-    /* A residue field set here and not yet put (setResidue's debounce) is newer than the server's copy the
-       envelope carried: it stays until the put lands (a hunt's summary card no longer blinks out on a re-read). */
-    for (const [f, v] of Object.entries(this._pending)) this._record = withResidue(this._record, f, v);
+    /* A residue field set here and not yet put, or put and not yet seen back, is newer than the copy this envelope
+       carried (it may predate the put): it stays until the server echoes it (the summary card never blinks out). */
+    this._sent = unconfirmedResidue(this._sent, this._record.residue);
+    for (const [f, v] of Object.entries({ ...this._sent, ...this._pending })) this._record = withResidue(this._record, f, v);
     this._status = 'ready';
     this.receivedAt = this._now();
     this._play(body);
@@ -576,7 +577,7 @@ export class CharacterSession {
     if (this._residueTimer) { this._clearTimer(this._residueTimer); this._residueTimer = null; }
     const patch = this._pending;
     if (this._closed || !Object.keys(patch).length) return false;
-    this._pending = {};
+    this._pending = {}; this._sent = Object.assign({}, this._sent, patch);
     const ans = await this._server.rpc('hr_put_client_state', { p_slot: this.slot, p_patch: patch, p_idem: newIdem() });
     if (!ans.ok && !this._closed) this._pending = Object.assign(patch, this._pending);   // kept for the next put
     return ans.ok;
@@ -591,7 +592,7 @@ export class CharacterSession {
     if (this._residueTimer) { this._clearTimer(this._residueTimer); this._residueTimer = null; }
     this._poll.stop();
     this._record = null;
-    this._pending = {};
+    this._pending = {}; this._sent = {};
     this._status = 'closed';
     this._emit('closed');
     this._listeners.clear();

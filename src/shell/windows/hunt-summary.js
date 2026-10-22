@@ -32,9 +32,10 @@ observeSessions(attach);
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pending: false, msg: '', pick: null }; SCRATCH.set(cs, s); } return s; };
 /* ── The window ── */
-/* Balance per hour shows for everyone; raw XP per hour only when the server sent it (premium, the 10-19 analyzer ruling). */
-const STATS = Object.freeze([['ms', 'Time', clock], ['kills', 'Monsters', whole], ['xp', 'XP', whole], ['gold', 'Gold', gold],
-  ['balanceH', 'Balance per hour', gold], ['rawXpH', 'Raw XP per hour', whole, true]]);
+/* Balance per hour shows for everyone; Level XP per hour before bonuses only when the server sent it (premium, the
+   10-19 analyzer ruling). XP here is LEVEL XP; training XP is the premium analyzer's Training tab (Tyler 2026-10-22). */
+const STATS = Object.freeze([['ms', 'Time', clock], ['kills', 'Monsters', whole], ['xp', 'Level XP', whole], ['gold', 'Gold', gold],
+  ['balanceH', 'Balance per hour', gold], ['rawXpH', 'Level XP per hour before bonuses', whole, true]]);
 
 /** The skeleton (built once). */
 export function renderHuntSummary() {

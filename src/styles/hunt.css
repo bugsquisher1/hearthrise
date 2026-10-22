@@ -142,6 +142,7 @@
 .ha-sec.is-folded .ha-sec-body { display: none; }
 .ha-analyzer:not([data-tab]) .ha-sec:not([data-tab="session"]),
 .ha-analyzer[data-tab="session"] .ha-sec:not([data-tab="session"]),
+.ha-analyzer[data-tab="training"] .ha-sec:not([data-tab="training"]),
 .ha-analyzer[data-tab="taken"] .ha-sec:not([data-tab="taken"]),
 .ha-analyzer[data-tab="dealt"] .ha-sec:not([data-tab="dealt"]) { display: none; }
 .ha-stats { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; margin: 0 0 6px; }

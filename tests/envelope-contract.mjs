@@ -96,8 +96,8 @@ function contract(R, cs, body, tl) {
   const a = R.HS.analyzerOf(cs);
   need('hunt_analyzer', !!a, 'analyzerOf reads nothing for a premium hunter: ' + JSON.stringify(body.hunt_analyzer).slice(0, 240));
   if (a) {
-    const m = missing(a, ['sessionMs']).concat(missing(a.hero, ['kills', 'levelXp', 'gold', 'balance']).map((k) => 'hero.' + k))
-      .concat(missing(a.hero && a.hero.perHour, ['levelXp', 'trainingXp', 'gold', 'balance']).map((k) => 'hero.per_hour.' + k));
+    const m = missing(a, ['sessionMs']).concat(missing(a.hero, ['kills', 'levelXp', 'gold', 'lootValue', 'balance']).map((k) => 'hero.' + k))
+      .concat(missing(a.hero && a.hero.perHour, ['levelXp', 'trainingXp', 'goldAndLoot', 'balance']).map((k) => 'hero.per_hour.' + k));
     need('hunt_analyzer', !m.length && a.hero.kills > 0 && !!a.party, 'analyzerOf misses ' + m.join(', ') + (a.party ? '' : ' party') + ' (kills ' + (a.hero && a.hero.kills) + ')');
     need('hunt_analyzer', Object.keys(a.hero.dealtByAbility).length > 0, 'analyzer dealt.by_ability is empty');
   }

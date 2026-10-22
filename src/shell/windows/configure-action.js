@@ -25,7 +25,7 @@ import { STATUSES } from '../../data/statuses.js?v=0.2.27';
 import { settingsOf, huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.27';
 import { vitalsOf } from '../../session/party-sections.js?v=0.2.27';
 import { biggestBlowOn } from '../../core/hunt/pull-cycle.js?v=0.2.27';
-import { bagOf } from '../../session/item-sections.js?v=0.2.27';
+import { carriedOf } from '../../session/item-sections.js?v=0.2.27';
 import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.27';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.27';
 import { actionIconHtml } from '../widgets/bits.js?v=0.2.27';
@@ -123,7 +123,7 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   if (!on) return;
   const d = s.draft;
   const off = s.pending;
-  const bag = bagOf(cs);
+  const bag = carriedOf(cs);
   const tab = VIEW.get(cs) || tabOf(d.action);
   text(root.querySelector('.hc-title'), 'Slot ' + (s.open + 1));
   text(root.querySelector('.hc-rank'), s.open === 0 ? 'Tried first' : 'Tried after slot ' + s.open);

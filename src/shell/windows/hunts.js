@@ -41,7 +41,7 @@
 // server's `leader_density`) with no step, and the server refuses a member's
 // density (hr_action_set_options `not_leader`).
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf, settingsOf, huntBestsOf } from '../../session/hunt-sections.js?v=0.2.27';
+import { huntOf, huntBagOf, settingsOf, huntBestsOf } from '../../session/hunt-sections.js?v=0.2.27';
 import { bagOf } from '../../session/item-sections.js?v=0.2.27';
 import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.27';
 import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.27';
@@ -126,6 +126,12 @@ function packWords(lines) {
   return 'You carry ' + lines.map((l) => whole(l.qty) + ' ' + itemName(l.item)).join(', ') + '.';
 }
 
+/* The hunt under way: what its hunt bag holds now (the server's; Enter moved it out of the bag, Brannoc 10-22). */
+function carriedWords(lines) {
+  if (!lines.length) return 'Your hunt bag is empty.';
+  return 'Your hunt bag holds ' + lines.map((l) => whole(l.qty) + ' ' + itemName(l.id)).join(', ') + '.';
+}
+
 /** The skeleton (built once per opening). */
 export function renderHunts() {
   return '<div class="hw-hunts">'
@@ -161,6 +167,7 @@ renderHunts.patch = function patchHunts(body, ctx) {
   const follower = !!party && !party.isLeader;
   if (!sc.pick && list.length) { const rec = recommendedHunt(level, size, list); sc.pick = rec ? rec.hunt : list[0].hunt; }
   const pack = packFor(bagOf(cs));
+  const carried = now ? huntBagOf(cs) : null;
   const set = settingsOf(cs);
   /* This hero's personal bests, the server's (hunt_bests); null = the server sent none, the lines stay empty. */
   const bests = huntBestsOf(cs);
@@ -185,7 +192,8 @@ renderHunts.patch = function patchHunts(body, ctx) {
       cls(band, 'is-short', short);
       /* the floor is a warning (Tyler 10-18): words only, Enter stays the server's to refuse */
       text(li.querySelector('.hw-hunt-warn'), [rangeWords(r, level), groupWords(r, size)].filter(Boolean).join(' '));
-      text(li.querySelector('.hw-hunt-pack'), on ? packWords(pack) : '');
+      /* While a hunt runs, its own line says what its hunt bag holds; no other line can be entered, so none says what it would carry. */
+      text(li.querySelector('.hw-hunt-pack'), !on ? '' : now ? (now.huntId === r.hunt && carried ? carriedWords(carried) : '') : packWords(pack));
       const best = bestWords(bests, r.hunt);
       text(li.querySelector('.hw-hunt-best-solo'), best ? best.solo : '');
       text(li.querySelector('.hw-hunt-best-party'), best ? best.party : '');

@@ -37,6 +37,7 @@
 //         character's (liveSceneOf): a monster drawn dead is never drawn standing again, no corpse
 //         replays its fall or turns.
 //   LV-19 A UNIT DIES ONCE (a second kill never restarts the fall) AND LIES THE WAY IT FELL.
+//   LV-21 A LEVEL-UP MID-HUNT RAISES THE BAR'S MAX HP: each batch's unit book re-sizes a unit (Brannoc 10-22).
 //   LV-20 EVERY PARTY MEMBER WEARS ITS OUTFIT: your other hero its session's server `outfit`, another
 //         player's hero the party section's member `outfit` (2026-11-04-party-outfits.sql), never the role's.
 //   LV-4  THE PAGE (headless Chrome, the real client, the same server answers): the hunt
@@ -519,6 +520,17 @@ async function nodeRules(M) {
     ok('LV-13', gone && gone.under, 'a rat drawn standing that the restart no longer has was still drawn standing');
   }
 
+  { // LV-21 A LEVEL-UP MID-HUNT RAISES THE BAR'S MAX HP (Brannoc 10-22: the hub held 150/150 through Level 5
+    // while the server and town held 190; only a reload fixed it). Each batch's unit book re-sizes the unit.
+    const OFF = 1000000, T = 50000;
+    const tl = M.TL.createTimeline({ delayMs: 0 });
+    tl.ingest({ serverNowMs: T, units: { 1: ['hero', 150, 150] }, fromMs: T, track: [{ u: 1, x: 3, y: 3, atMs: T }], events: [] }, T - OFF);
+    tl.ingest({ serverNowMs: T + 10000, units: { 1: ['hero', 190, 150] }, fromMs: T + 10000, track: [], events: [] }, T + 10000 - OFF);
+    const before = tl.hpAt(1, T + 500 - OFF), after = tl.hpAt(1, T + 10500 - OFF);
+    ok('LV-21', before && before.maxHp === 150, `before the Level-up the bar's max HP is ${before && before.maxHp}, want 150`);
+    ok('LV-21', after && after.maxHp === 190 && after.hp === 150, `after a batch raised max HP the bar reads ${after && after.hp}/${after && after.maxHp}, want 150/190`);
+  }
+
   { // LV-18 SWITCHED AWAY AND BACK MID-HUNT (Andy 10-21: "When you tab away to another character while
     // monsters are dead in the pull (and had disappeared), they jump back"). The World pane is remounted on
     // every switch; the scene must be the character's, so a monster drawn dead before the switch is never
@@ -834,6 +846,7 @@ const MUTANTS = [
   /* r09: the panel's own row reads heroVitalsOf; the commit's HP is the roster row's m.hp. */
   ["the party panel reads the last commit's HP (LV-15, live v0.2.22)", 'src/shell/widgets/party-panel.js', 'level: v.level, hp: v.hp, hpMax: v.hpMax', 'level: v.level, hp: m.hp, hpMax: m.hpMax', /^LV-15/],
   ["the party panel reads a party-mate's last-commit HP (LV-15b)", 'src/shell/widgets/party-panel.js', 'const live = m.hunting ? liveHpOf(cs, m.unit) : null;', 'const live = null;', /^LV-15b/],
+  ["the bar keeps the hunt's first max HP (LV-21, Brannoc 10-22)", 'src/hunt-view/timeline.js', '    const max = base[2] || r.maxHp;', '    const max = r.bases[0][2] || r.maxHp;', /^LV-21/],
 ];
 
 async function mutate() {

@@ -17,7 +17,8 @@
 //            on a slot puts it there (src/shell/bar-assign.js)
 //   tooltip  hover, focus or a long press: name, cost, type, cooldown, effect,
 //            then the slot's setup and any conflict (action-facts.js)
-//   panel    the action set (Saved setups switch it), target, stance, chase,
+//   panel    the setup in use (a setup owns this bar; Saved setups switch it,
+//            designer ruling 2026-10-22), target, stance, chase,
 //            distance and the gold to keep (gold_floor): each ONE intent
 //            (settings-intent.js), shown from the server only once it confirms
 // Shown in town too (Tyler 10-18: set it up before leaving). Every value is
@@ -110,7 +111,7 @@ export function renderActionBar(ctx) {
     + '<ol class="hb-slots" aria-label="Slots 6 to 10 and 16 to 20">' + side(true) + '</ol>'
     + '<div class="hb-plaque">'
     /* The set's name renames in place (inline-name.js; ONE hr_action_set_rename, ruling C4). */
-    + '<div class="hb-pl-row"><span class="hb-label">Action set</span><span class="hb-set">' + nameEditorHtml('set-rename', '', 'New name for this action set') + '</span>'
+    + '<div class="hb-pl-row"><span class="hb-label">Setup</span><span class="hb-set">' + nameEditorHtml('set-rename', '', 'New name for this setup') + '</span>'
     + '<button type="button" class="hh-tool" data-hs-act="setups" aria-label="Saved setups: switch or save">' + glyphSvg(g, 'uiCheck') + '</button>'
     /* On a phone the rest of the panel is a slide-out sheet (hunt.css): this opens it. */
     + '<button type="button" class="hh-tool hb-more" data-hs-act="panel" aria-expanded="false" aria-label="Fight settings">' + glyphSvg(g, 'uiSettings') + '</button></div>'

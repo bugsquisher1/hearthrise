@@ -309,6 +309,11 @@
 .hw-setup.is-arming .hw-keep { display: inline-block; }
 .hw-setup.is-arming .hw-del { color: var(--red); }
 .hw-setup.is-arming [data-hs-act="save-over"], .hw-setup.is-arming .hw-use { display: none; }
+/* The setup the hero is on: "In use" in gold, and no Delete (its place kept so the rows line up). */
+.hw-setup.is-current small { color: var(--gold-2); }
+.hw-setup.is-current .hw-del { visibility: hidden; }
+.hw-town-only { display: none; }
+.hw-town-only.is-on { display: block; }
 
 /* ── Phone, landscape: the one sheet; the same density, tighter rhythm ── */
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {

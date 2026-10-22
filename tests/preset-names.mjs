@@ -25,6 +25,13 @@
 //         hr_action_set_rename naming the set the server shows, and the new name
 //         stays after a reload
 //   PN-6  zero console errors
+// THE ONE-SETUP MODEL (designer ruling 2026-10-22: a setup owns its bar; the hero is on one):
+//   PN-7  THE SETUP IN USE: the row the server's hunt_settings.preset names reads
+//         "In use" and offers no Delete; the others keep theirs
+//   PN-8  SETUPS CHANGE IN TOWN: with a hunt open, Use, Save here and Save current
+//         setup are off and the window says why; once the hunt has ended, Save
+//         current setup sends ONE hr_hunt_preset_save on the first free number
+//   PN-9  FIVE AT MOST: with ACTION_SET_LIMITS.presets setups, Save current setup is off
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -105,6 +112,15 @@ async function checks(overrides) {
   try {
     await stub(page, s);
     if (!(await signIn(page, 'http://127.0.0.1:' + port)) || !(await openPrep(page))) throw new Error('the shell or Hunt prep did not open');
+    // PN-7 (the fixture's hero is on set 0)
+    const use7 = await page.evaluate((sels) => sels.map((sel) => { const li = document.querySelector(sel); return li && { cur: li.classList.contains('is-current'), small: li.querySelector('small').textContent }; }), [ROW(0), ROW(3)]);
+    if (!use7[0] || !use7[0].cur || !/^In use · /.test(use7[0].small) || use7[1].cur || /In use/.test(use7[1].small)) fails.push('PN-7 the setup in use is not marked: ' + JSON.stringify(use7));
+    if (await page.isVisible(ROW(0) + ' .hw-del') || !(await page.isVisible(ROW(3) + ' .hw-del'))) fails.push('PN-7 Delete is offered on the setup in use (or not on the other)');
+    // PN-8 (the fixture's hunt is open)
+    const off8 = await page.evaluate((sel) => ({ use: document.querySelector(sel + ' .hw-use').disabled, over: document.querySelector(sel + ' [data-hs-act="save-over"]').disabled,
+      add: document.querySelector('[data-hs-win="hunt-prep"] [data-hs-act="save-new"]').disabled,
+      why: !!document.querySelector('[data-hs-win="hunt-prep"] .hw-town-only.is-on') }), ROW(3));
+    if (!off8.use || !off8.over || !off8.add || !off8.why) fails.push('PN-8 with a hunt open the setup controls read ' + JSON.stringify(off8));
     // PN-1
     await page.click(ROW(0) + ' .hs-name');
     const field = ROW(0) + ' .hs-name-edit';
@@ -170,6 +186,24 @@ async function checks(overrides) {
     await openPrep(page);
     await page.waitForTimeout(300);
     if (!(await page.evaluate(() => /No saved setups yet/.test(document.querySelector('.hw-presets-none.is-on')?.textContent || '')))) fails.push('PN-4 none left does not say so');
+    // PN-8 back in town: the hunt has ended; setups 0 and 2 exist, so the next is number 1.
+    s.env.hunt.ended = true;
+    s.env.hunt_presets = [clone(FIXTURE.hunt_presets[0]), Object.assign(clone(FIXTURE.hunt_presets[0]), { preset: 2, name: 'Mill run' })];
+    await reload(page);
+    await openPrep(page);
+    await page.waitForTimeout(300);
+    if (await page.isVisible('[data-hs-win="hunt-prep"] .hw-town-only')) fails.push('PN-8 in town the window still says setups change in town');
+    await page.fill('[data-hs-win="hunt-prep"] .hw-preset-name', 'Thicket solo');
+    await page.click('[data-hs-win="hunt-prep"] [data-hs-act="save-new"]');
+    await page.waitForTimeout(600);
+    const sv = sent(s, 'hr_hunt_preset_save');
+    if (sv.length !== 1 || sv[0].body.p_slot !== 0 || sv[0].body.p_preset !== 1 || sv[0].body.p_name !== 'Thicket solo') fails.push('PN-8 Save current setup sent ' + JSON.stringify(sv.map((c) => c.body)));
+    // PN-9
+    s.env.hunt_presets = [0, 1, 2, 3, 4].map((n) => Object.assign(clone(FIXTURE.hunt_presets[0]), { preset: n, name: 'Setup ' + (n + 1) }));
+    await reload(page);
+    await openPrep(page);
+    await page.waitForTimeout(300);
+    if (!(await page.evaluate(() => document.querySelector('[data-hs-win="hunt-prep"] [data-hs-act="save-new"]').disabled))) fails.push('PN-9 a sixth setup can be saved');
     if (errors.length) fails.push('PN-6 console errors: ' + errors.slice(0, 3).join(' | '));
   } catch (e) {
     fails.push('PN-x a step failed: ' + String(e && e.message).split('\n')[0]);
@@ -190,7 +224,12 @@ const MUTANTS = [
   ['Escape sends the rename', 'src/shell/inline-name.js', "ev.key === 'Escape' ? 'cancel'", "ev.key === 'Escape' ? 'commit'"],
   ['a refusal loses its reason', 'src/session/preset-intents.js', "error: (typeof b.error === 'string' && b.error) || (ans && ans.error) || 'refused'", "error: 'refused'"],
   ['the plaque ignores the server\'s set name', 'src/shell/widgets/action-bar.js', "text(nm.querySelector('.hs-name-t'), set ? set.name : s ? 'Set ' + (s.preset + 1) : '–');", "text(nm.querySelector('.hs-name-t'), s ? 'Set ' + (s.preset + 1) : '–');"],
-  ['the plaque renames another set', 'src/shell/widgets/action-bar.js', 'renameActionSet(ctx.account, ctx.character, s.preset, name)', 'renameActionSet(ctx.account, ctx.character, s.preset + 1, name)'],
+  ['the setup in use offers Delete', 'src/shell/windows/hunt-prep.js', "cls(li, 'is-current', inUse);", "cls(li, 'is-current', false);"],
+  ['Use and Save stay on in a hunt', 'src/shell/windows/hunt-prep.js', "prop(b, 'disabled', sc.pending || hunting);", "prop(b, 'disabled', sc.pending);",
+    "prop(el, 'disabled', sc.pending || !presets || full || hunting);", "prop(el, 'disabled', sc.pending || !presets || full);"],
+  ['a new setup takes a used number', 'src/shell/windows/hunt-prep.js', 'while (used.has(free) && free < MAX_PRESETS) free++;', 'free = used.size;'],
+  ['a sixth setup can be saved', 'src/shell/windows/hunt-prep.js', 'const MAX_PRESETS = ACTION_SET_LIMITS.presets;', 'const MAX_PRESETS = 8;'],
+  ['the plaque renames another set','src/shell/widgets/action-bar.js', 'renameActionSet(ctx.account, ctx.character, s.preset, name)', 'renameActionSet(ctx.account, ctx.character, s.preset + 1, name)'],
 ];
 
 async function main() {
@@ -198,7 +237,7 @@ async function main() {
     const fails = await checks(null);
     for (const f of fails) console.log('  ✗ ' + f);
     console.log(fails.length ? 'preset-names: ' + fails.length + ' rule(s) RED'
-      : 'preset-names: rename is one intent shown from the server, Escape sends nothing, refusals in words, delete asks once, the bar\'s set renames; all survive a reload');
+      : 'preset-names: rename is one intent shown from the server, Escape sends nothing, refusals in words, delete asks once, the bar\'s set renames; all survive a reload; the setup in use has no Delete, setups change in town, five at most');
     process.exit(fails.length ? 1 : 0);
   }
   const clean = await checks(null);

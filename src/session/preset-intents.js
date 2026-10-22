@@ -10,11 +10,15 @@
 //   renameSetup(account, cs, preset, name)     hr_hunt_preset_rename
 //   deleteSetup(account, cs, preset)           hr_hunt_preset_delete
 //   renameActionSet(account, cs, preset, name) hr_action_set_rename (the bar's plaque)
+// A setup owns the action set of its own number (designer ruling 2026-10-22), so
+// both names are one name on the server: either verb renames both.
 // ════════════════════════════════════════════════════════════════════════
 import { askVia } from './intent-ledger.js?v=0.2.27';
+import { ACTION_SET_LIMITS } from '../data/rule-subjects.js?v=0.2.27';
 
+/* Setups saved before the one-model rule (numbers 5 to 7) can still be renamed or deleted. */
 const MAX_SETUP = 7;
-const MAX_SET = 4;
+const MAX_SET = ACTION_SET_LIMITS.presets - 1;
 const newIdem = () => globalThis.crypto.randomUUID();
 
 /** The name as sent: trimmed, at most 24 characters; '' is not sent. The server re-checks all of it. */

@@ -163,9 +163,10 @@ async function selftest() {
   const planted = async (file, from, to) => {
     const tmp = mkdtempSync(join(tmpdir(), 'hr-proj-'));
     try {
-      cpSync(join(ROOT, 'src', 'session'), join(tmp, 'src', 'session'), { recursive: true });
-      /* residue.js reads the depot/chest catalogue (src/data/homestead-tiers.js, v0.2.31). */
-      cpSync(join(ROOT, 'src', 'data'), join(tmp, 'src', 'data'), { recursive: true });
+      /* The WHOLE src tree at its own layout: the session modules import across
+         src/** by relative path (residue.js -> ../data/...), so a partial copy
+         breaks on the next new import. */
+      cpSync(join(ROOT, 'src'), join(tmp, 'src'), { recursive: true, filter: (s) => !/\.(png|webp|jpg|ogg|mp3)$/.test(s) });
       const p = join(tmp, file);
       const s = readFileSync(p, 'utf8');
       if (!s.includes(from)) throw new Error('selftest anchor missing in ' + file + ': ' + from);

@@ -422,7 +422,10 @@ async function checks(overrides, shots) {
         if (line !== AW8_LINE) fails.push('AW-8 the readiness line reads "' + line + '"');
         if (shots) await shot(page, 'alpha-1440x900-hunt-prep');
         await page.click('[data-hs-act="apply"][data-preset="0"]');
-        await page.waitForTimeout(600);
+        /* Use is TWO round trips here (stop the bury, then the apply): wait for the apply itself, not a fixed 600 ms
+           (a loaded box answered the first after it and read "Use sent []"); then let any second, wrong one land. */
+        for (let i = 0; i < 40 && !sent(s, 'hr_hunt_preset_apply').length; i++) await page.waitForTimeout(100);
+        await page.waitForTimeout(300);
         const ap = sent(s, 'hr_hunt_preset_apply');
         if (ap.length !== 1 || ap[0].body.p_preset !== 0) fails.push('AW-8 Use sent ' + JSON.stringify(ap.map((c) => c.body)));
         /* A running bury yields: ONE set_activity idle (the engine pays the bones buried so far) BEFORE the apply. */
@@ -901,7 +904,7 @@ const MUTANTS = [
   ['a sale is sent without the confirmation', 'src/shell/windows/inventory/actions.js', '  st.sc.confirm = confirmFor(st, ids, label);\n  repaint();', '  st.sc.confirm = confirmFor(st, ids, label);\n  repaint();\n  doSell(st, repaint);'],
   ['the Shop lists supplies again', 'src/data/supply-basics.js', "export const SHOP_SOLD_KINDS = Object.freeze(['tool', 'gear', 'seed']);", "export const SHOP_SOLD_KINDS = Object.freeze(['food', 'drink', 'ammo', 'tool', 'gear', 'seed']);"],
   ['an equip in flight is not marked', 'src/shell/windows/inventory/actions.js', '  sc.wearing = { slots: [slot], items: id ? [id] : [] };\n', ''],
-  ['Equip upgrades swaps the weapon', 'src/shell/upgrade-plan.js', "const STYLE_SLOTS = new Set(['weapon', 'shield', 'ammo', 'companion']);", "const STYLE_SLOTS = new Set(['shield', 'ammo', 'companion']);"],
+  ['Equip upgrades swaps the weapon', 'src/shell/upgrade-plan.js', "const STYLE_SLOTS = new Set(['weapon', 'shield', 'ammo']);", "const STYLE_SLOTS = new Set(['shield', 'ammo']);"],
   ['Equip upgrades wears what the hero cannot use yet', 'src/shell/upgrade-plan.js', '  return !!s && Number.isInteger(s.level) && s.level >= it.reqLv;', '  return true;'],
   ['Equip upgrades marks nothing in flight', 'src/shell/widgets/upgrade-line.js', '  sc.wearing = { slots, items: slots.map((s) => plan.ops[s]) };\n', ''],
   ['Equip upgrades sends one intent per piece', 'src/shell/widgets/upgrade-line.js', "    try { return await cs.edgeIntent('equip', { equip: Object.assign({}, plan.ops) }); } finally { sc.wearing = null; }", "    try { let r; for (const s of slots) r = await cs.edgeIntent('equip', { equip: { [s]: plan.ops[s] } }); return r; } finally { sc.wearing = null; }"],

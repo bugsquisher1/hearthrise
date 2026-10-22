@@ -28,7 +28,7 @@ const AMMO_FOR = Object.freeze({ arrows: 'bows', bolts: 'crossbows', rune: 'stav
 const WEAPON_WORD = Object.freeze({ sword: 'sword', hammer: 'hammer', ranged: 'bow', wand: 'wand', staff: 'staff', neutral: 'weapon' });
 /* items.js slot → the worn piece in words. */
 const SLOT_WORD = Object.freeze({ helmet: 'helmet', body: 'body armour', pants: 'leg armour', boots: 'boots', gloves: 'gloves',
-  cape: 'cape', shield: 'offhand', necklace: 'amulet', earrings: 'earrings', ring: 'ring', ring1: 'ring', ring2: 'ring', belt: 'belt', companion: 'companion' });
+  cape: 'cape', shield: 'offhand', necklace: 'amulet', earrings: 'earrings', ring: 'ring', ring1: 'ring', ring2: 'ring', belt: 'belt' });
 /* A gathering skill's nodes, by kind. */
 const NODE_WORD = Object.freeze({ woodcutting: 'tree to chop', mining: 'rock to mine', fishing: 'fishing spot', farming: 'crop to grow' });
 

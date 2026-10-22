@@ -18,7 +18,7 @@
 //   strictly better  no number lower and at least one higher, over the WHOLE worn
 //                    set (so breaking a set bonus or a -1 accuracy penalty counts)
 // WHAT IT NEVER DOES (the decisions, 2026-10-22):
-//   · never touches the weapon, the off-hand, the ammo or the companion: the
+//   · never touches the weapon, the off-hand or the ammo: the
 //     hands set the style and the role (ruling 2026-10-16) and the player picks
 //     every supply (ruling 2026-10-21)
 //   · never takes off a piece of another armour weight (the player chose heavy,
@@ -38,8 +38,8 @@ import { loadoutOf } from '../core/member.js?v=0.2.29';
 import { armourWeights, maxHpFor, maxManaFor } from '../core/vitals.js?v=0.2.29';
 import { itemName } from './widgets/bits.js?v=0.2.29';
 
-/* The slots the hands, the quiver and the companion fill: the player's own choice, never this one. */
-const STYLE_SLOTS = new Set(['weapon', 'shield', 'ammo', 'companion']);
+/* The slots the hands and the quiver fill: the player's own choice, never this one. */
+const STYLE_SLOTS = new Set(['weapon', 'shield', 'ammo']);
 /* Every other equip slot, in the catalogue's order (a new slot row joins with no code). */
 const UPGRADE_SLOTS = Object.freeze(Object.keys(EQUIP_SLOT_META).filter((s) => !STYLE_SLOTS.has(s)));
 const EPS = 1e-9;

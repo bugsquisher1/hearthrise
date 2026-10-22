@@ -233,9 +233,8 @@ export const CROPS={
   moonbloom:{name:'Moonbloom',icon:'🌸',hours:22,prod:'moonbloom',yield:[1,2],xp:7140,req:88,seed:'moonbloom_seed'},
 };
 
-/* b216: 'shield' (offhand) added. Existing saves simply have no value for it —
-   migrateEquipmentSlots fills every known slot with null — so it's save-safe. */
-export const EQUIP_SLOTS=['helmet','necklace','earrings','cape','weapon','shield','ammo','ring1','body','ring2','gloves','belt','pants','boots','companion'];
+/* The worn slots. 'companion' was cut with its one item, the Fox Companion (Tyler, 2026-10-22). */
+export const EQUIP_SLOTS=['helmet','necklace','earrings','cape','weapon','shield','ammo','ring1','body','ring2','gloves','belt','pants','boots'];
 
 /* ── AUTHORED SLOT → PLAYER SLOTS (moved here from tools/gen-catalogues.mjs,
    b366) ──────────────────────────────────────────────────────────────────────
@@ -260,5 +259,5 @@ export const EQUIP_SLOT_META={
   cape:{label:'Cape',icon:'🦸'},weapon:{label:'Weapon',icon:'⚔️'},shield:{label:'Offhand',icon:'🛡️'},ammo:{label:'Ammo',icon:'🏹'},
   ring1:{label:'Ring 1',icon:'💍'},body:{label:'Body',icon:'🦺'},ring2:{label:'Ring 2',icon:'💍'},
   gloves:{label:'Gloves',icon:'🧤'},belt:{label:'Belt',icon:'🟫'},pants:{label:'Pants',icon:'👖'},
-  boots:{label:'Boots',icon:'🥾'},companion:{label:'Companion',icon:'🐾'},
+  boots:{label:'Boots',icon:'🥾'},
 };

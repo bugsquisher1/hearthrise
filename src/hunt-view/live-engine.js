@@ -35,6 +35,7 @@ import { COMBAT_BALANCE } from '../core/combat.js?v=0.2.31';
 import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.31';
 import { stepCost } from '../core/hunt/grid.js?v=0.2.31';
 import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.31';
+import { holderTank, roleOf } from '../core/hunt/targeting.js?v=0.2.31';
 
 /* How many swings of world hashes are kept to judge a server commit against. */
 const KEEP_HASHES = 64;
@@ -83,6 +84,25 @@ export function timeSteps(steps, speedOf, memo) {
     memo.set(s.u, { x: s.x, y: s.y, end, first: null });
   }
   return steps;
+}
+
+/**
+ * WHO HOLDS THE PACK, LAP BY LAP (display only; bug #59, Andy 10-22: "the lead tank doesn't hold
+ * aggro"). With two or more tanks ONE holds a lap and the holder moves on each lap; a tank far weaker
+ * than the strongest never holds (src/core/hunt/targeting.js holderTank, both rules). Answers
+ * Map(unit -> laps until it holds: 0 = this lap, or null = never, too weak) for every living tank of
+ * `world`, by asking the engine's own holderTank of this lap and the next ones: never a second copy.
+ */
+export function tankTurnsOf(world) {
+  const out = new Map();
+  if (!world || !Array.isArray(world.units)) return out;
+  for (const u of world.units) if (u.alive && roleOf(u) && roleOf(u).tank) out.set(u.id, null);
+  const runs = isInt(world.runs) && world.runs > 0 ? world.runs : 0;
+  for (let lap = 0; lap < out.size; lap++) {
+    const h = holderTank({ world: Object.assign({}, world, { runs: runs + lap }) });
+    if (h && out.get(h.id) === null) out.set(h.id, lap);
+  }
+  return out;
 }
 
 /**
@@ -216,6 +236,9 @@ export function createLiveEngine(o) {
     /** Every hero of the instance: [{ unit, seat, self, role }] (unit null before its first swing). */
     heroUnits: () => (st ? st.sides.map((x) => ({ unit: Number.isInteger(x.member.unitId) ? x.member.unitId : null,
       seat: x.mi.seat, self: x.mi.self === true, role: x.member.hero.role })) : []),
+    /** The tanks' turns at holding the pack (tankTurnsOf) in the world this prediction runs: the server's
+        start point, judged against every server commit and replaced on a mismatch. Null when none runs. */
+    tankTurns: () => (st && st.world && !st.ended ? tankTurnsOf(st.world) : null),
     /** The server instant of the next swing boundary (null when not running). */
     nextAt: () => (st ? st.next : null),
     /**

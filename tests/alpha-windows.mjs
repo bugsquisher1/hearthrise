@@ -425,6 +425,11 @@ async function checks(overrides, shots) {
           refill: !!document.querySelector('.hw-shop [data-hs-act="refill"]') }));
         if (shop.tabs.join() !== 'buy,sell' || shop.refill) fails.push('AW-7 the Shop still has a refill: ' + JSON.stringify(shop));
         if (shop.lines.join() !== 'leather_gloves,bronze_axe') fails.push('AW-7 the Shop offers ' + JSON.stringify(shop.lines) + ', not the gear then the tools alone');
+        /* The session reader is the first filter (the Buy lists only draw their own kinds, so they mask it): it drops
+           the fixture's food, drink and ammo itself. */
+        const kept = await page.evaluate(async (offers) => (await import('/src/session/item-sections.js?v=0.1.0'))
+          .shopOf({ read: (k) => (k === 'shop' ? { offers } : null) }).offers.map((o) => o.kind), FIXTURE.shop.offers);
+        if (kept.length) fails.push('AW-7 the session keeps Shop offers of kind ' + JSON.stringify(kept) + ' the server must not sell');
         if (shots) await shot(page, 'alpha-1440x900-shop-tools');
         await openWin(page, 'p', 'hunt-prep');
         await page.waitForTimeout(200);

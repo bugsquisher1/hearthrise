@@ -28,8 +28,8 @@
 //   stamina_refill { available, why, restore_ms, price, n, per_day }  the next refill, priced
 //   blessings      { held: [tier], permille, free_until, tiers: [{ tier, permille, price, held }] }
 // ════════════════════════════════════════════════════════════════════════
-import { huntBagOf } from './hunt-sections.js?v=0.2.30';
-import { SHOP_SOLD_KINDS } from '../data/supply-basics.js?v=0.2.30';
+import { huntBagOf } from './hunt-sections.js?v=0.2.31';
+import { SHOP_SOLD_KINDS } from '../data/supply-basics.js?v=0.2.31';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;

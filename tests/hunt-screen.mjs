@@ -1546,7 +1546,9 @@ const MUTANTS = [
   ['a setting shows before the server confirms', 'src/shell/widgets/settings-intent.js', [["  attr(root, 'data-pending', true);\n", "  attr(root, 'data-pending', true);\n  root.__want = el;\n"],
     ["else if (key === 'stance') attr(el, 'aria-pressed', String(v === el.getAttribute('data-val')));", "else if (key === 'stance') attr(el, 'aria-pressed', String(pending ? root.__want === el : v === el.getAttribute('data-val')));"]]],
   ['controls stay on while an intent is in flight', 'src/shell/widgets/settings-intent.js', "prop(el, 'disabled', pending || v === null);", "prop(el, 'disabled', v === null);"],
-  ['the hub counts the bag mid-hunt, not the hunt bag (HS-18, Brannoc 10-22)', 'src/shell/widgets/vitals-hub.js', 'const food = foodOf(carried || bagOf(cs));', 'const food = foodOf(bagOf(cs));'],
+  /* Re-anchored 10-22 (v0.2.28 shard 2): the hub reads carriedOf; the fault is the bag read mid-hunt, so bagOf is imported and read. */
+  ['the hub counts the bag mid-hunt, not the hunt bag (HS-18, Brannoc 10-22)', 'src/shell/widgets/vitals-hub.js', [["import { carriedOf } from '../../session/item-sections.js", "import { carriedOf, bagOf } from '../../session/item-sections.js"],
+    ['  const food = foodOf(carriedOf(cs));', '  const food = foodOf(bagOf(cs));']]],
   ['the analyzer ignores the premium gate', 'src/shell/widgets/analyzer.js', 'const premium = isPremium(ctx.character);', 'const premium = true;'],
   ['a null per_hour shows dashes, not "Per hour after 10 min."', 'src/shell/widgets/analyzer.js', "prop(sec.querySelector('.ha-later'), 'hidden', v.rated);", "prop(sec.querySelector('.ha-later'), 'hidden', true);"],
   ['Any food says it eats the best food first', 'src/shell/action-facts.js', 'your own \' + a.id + \' first, the smallest that covers what you are missing, then the store’s', 'your best \' + a.id + \' first'],

@@ -363,6 +363,16 @@ jobs:
           node tests/services-window.mjs
           node tools/mutant-gate.mjs node tests/services-window.mjs --mutate
 
+      # THE HOUSE WINDOW (2026-10-22): the account's one home from the server
+      # (`home`, `depot`), a chest at its quoted price after a confirmation, a
+      # room rung through the engine's unlock_buy, refusals in words, fails safe.
+      # --mutate plants six defects.
+      - name: House window (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/house-window.mjs
+          node tools/mutant-gate.mjs node tests/house-window.mjs --mutate
+
       # EVERY PRESS ANSWERS AT ONCE (tracker r20, r21): a press that sends an
       # ask is pending in its own frame (Play, a purchase) until the server's
       # answer AND the re-read envelope, a second click in flight reaches no

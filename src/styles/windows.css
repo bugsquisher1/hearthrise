@@ -387,3 +387,27 @@
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
   .rp-text { height: 96px; min-height: 96px; }
 }
+
+/* ── The House (src/shell/windows/house.js): the account's estate ledger, read like a deed.
+   The numeral column is the deed's schedule; a held line is quiet, the next one carries
+   its cost as a plain list (what is short reads in the cost colour), a locked room sits
+   back. One primary: the confirmation's Pay. ── */
+.hw-house-head { display: flex; flex-direction: column; gap: 2px; margin: 0 2px 6px; }
+.hw-house-name { font-size: var(--t-lead); font-weight: 700; color: var(--ink); }
+.hw-house-note { font-size: var(--t-micro); color: var(--ink-2); }
+.hw-chest-n { font-family: var(--f-ui); font-weight: 400; letter-spacing: 0; color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; }
+.hw-estate { align-items: flex-start; padding: 6px 0; }
+.hw-estate-n { flex: none; width: 28px; padding-top: 1px; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); color: var(--ink-3); text-align: center; }
+.hw-estate .hw-line-name small { white-space: normal; }
+.hw-estate > .hh-tool { display: none; flex: none; align-self: center; }
+.hw-estate > .hh-tool.is-on { display: inline-block; }
+.hw-estate.is-held .hw-line-name b { color: var(--ink-2); }
+.hw-estate.is-next .hw-estate-n { color: var(--gold-2); }
+.hw-estate.is-locked .hw-line-name b, .hw-estate.is-locked .hw-line-name small { color: var(--ink-3); }
+.hw-mats { display: flex; flex-wrap: wrap; gap: 0 12px; margin: 2px 0 0; padding: 0; list-style: none; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
+.hw-mats:empty { display: none; }
+.hw-mat.is-short { color: var(--red); }
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .hw-estate-n { width: 20px; }
+  .hw-estate > .hh-tool { min-height: 36px; }
+}

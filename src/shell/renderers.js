@@ -25,6 +25,7 @@ import { renderHunts } from './windows/hunts.js?v=0.2.25';
 import { renderStorage } from './windows/storage.js?v=0.2.25';
 import { renderShop } from './windows/shop.js?v=0.2.25';
 import { renderServices } from './windows/services.js?v=0.2.25';
+import { renderHouse } from './windows/house.js?v=0.2.25';
 import { renderHuntPrep } from './windows/hunt-prep.js?v=0.2.25';
 import { renderParty } from './windows/party.js?v=0.2.25';
 import { renderCharacters } from './windows/characters.js?v=0.2.25';
@@ -41,6 +42,7 @@ export const WINDOW_RENDERERS = Object.freeze({
   storage: renderStorage,
   shop: renderShop,
   services: renderServices,
+  house: renderHouse,
   'hunt-prep': renderHuntPrep,
   'hunt-party': renderParty,
   characters: renderCharacters,

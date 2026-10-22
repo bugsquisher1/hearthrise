@@ -75,6 +75,17 @@ const WORDS = Object.freeze({
   bank_full: 'Your storage is full.',
   bag_full: 'Your bag is full. Make room first.',
   insufficient_bank: 'Your storage no longer has that many.',
+  /* The house (hr_unlock_buy through the engine, hr_storage_chest_build). */
+  already_owned: 'Your house already has that.',
+  rung_skipped: 'Build the rung before it first.',
+  prereq_property_tier: 'Your house is too small for that yet. Buy the next home first.',
+  prereq_item: 'That needs a plan you do not carry.',
+  unlock_daily_cap: 'That is enough building for today. Try again tomorrow.',
+  already_built: 'That chest is already built.',
+  needs_previous_chest: 'Build the chest before it first.',
+  needs_property_tier: 'Your house is too small for that chest yet.',
+  unknown_chest: 'The server does not know that chest.',
+  version_conflict: 'Your hero changed while you chose. Check the price and try again.',
   /* Chat and the social side (2026-10-25-chat-channels.sql, 2026-10-25-social.sql). */
   empty: 'Type something first.',
   too_long: 'That message is too long.',

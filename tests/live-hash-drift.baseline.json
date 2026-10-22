@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-22",
- "replay_ms": 87862,
+ "replay_ms": 2865,
  "counts": {
-  "tracked_names": 150,
-  "entries": 122
+  "tracked_names": 152,
+  "entries": 114
  },
  "functions": [
   {
@@ -147,6 +147,29 @@
    "agree": true
   },
   {
+   "sig": "hr_account_items(p_query text)",
+   "name": "hr_account_items",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-25-account-items.sql",
+    "2026-11-27-account-depot.sql"
+   ],
+   "live": {
+    "md5": "39c7d4ce1db11ed4ed089e20a636bdf6",
+    "norm_len": 1987,
+    "measured": "2026-10-22",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "39c7d4ce1db11ed4ed089e20a636bdf6",
+    "norm_len": 1987,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_account_view(p_user uuid, p_slot integer)",
    "name": "hr_account_view",
    "tracked_by": [
@@ -242,17 +265,18 @@
     "2026-10-20-hunts-start-gate.sql",
     "2026-10-22-hunt-sessions-delete-away.sql",
     "2026-10-25-settle-hooks.sql",
-    "2026-10-27-core-bodies.sql"
+    "2026-10-27-core-bodies.sql",
+    "2026-12-01-bench-count.sql"
    ],
    "live": {
-    "md5": "5c03b90a19e93087466c0e4750af3756",
-    "norm_len": 131713,
+    "md5": "c900caba8cc80b89e37c1207b3b8f040",
+    "norm_len": 133684,
     "measured": "2026-10-22",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "5c03b90a19e93087466c0e4750af3756",
-    "norm_len": 131713,
+    "md5": "c900caba8cc80b89e37c1207b3b8f040",
+    "norm_len": 133684,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -306,23 +330,26 @@
    "sig": "hr_bank_move(p_slot integer, p_item text, p_qty bigint, p_dir text, p_idem uuid)",
    "name": "hr_bank_move",
    "tracked_by": [
+    "chain",
     "pin"
    ],
    "touched_by": [
     "2026-08-27-bank-store.sql",
     "2026-09-03-intent-mismatch-class.sql",
     "2026-09-12-hr-rejections-journal.sql",
-    "2026-09-28-settle-before-mutate.sql"
+    "2026-09-28-settle-before-mutate.sql",
+    "2026-11-27-account-depot.sql",
+    "2026-11-28-storage-chests.sql"
    ],
    "live": {
-    "md5": "5c64b584891d147ef358577681ce7b3a",
-    "norm_len": 7349,
+    "md5": "719d702192fc6c5bf113355c66150d50",
+    "norm_len": 8120,
     "measured": "2026-10-22",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "5c64b584891d147ef358577681ce7b3a",
-    "norm_len": 7349,
+    "md5": "719d702192fc6c5bf113355c66150d50",
+    "norm_len": 8120,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -421,6 +448,31 @@
    "agree": true
   },
   {
+   "sig": "hr_character_sheet_view(p_user uuid, p_slot integer)",
+   "name": "hr_character_sheet_view",
+   "tracked_by": [
+    "chain",
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-25-character-sheet.sql",
+    "2026-10-27-core-bodies.sql",
+    "2026-11-24-bestiary-roster.sql"
+   ],
+   "live": {
+    "md5": "7735e63220d18f81e6f9b7036c7b8659",
+    "norm_len": 1177,
+    "measured": "2026-10-22",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "7735e63220d18f81e6f9b7036c7b8659",
+    "norm_len": 1177,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_chat_recent(p_slot integer)",
    "name": "hr_chat_recent",
    "tracked_by": [
@@ -439,204 +491,6 @@
    "replay": {
     "md5": "18f8c572d31b07a561c212556e6a5877",
     "norm_len": 2123,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_claim_daily(p_task_id text, p_slot integer)",
-   "name": "hr_claim_daily",
-   "tracked_by": [
-    "pin"
-   ],
-   "touched_by": [
-    "2026-08-20-goal-reward-rpc-credit.sql",
-    "2026-09-28-settle-before-mutate.sql"
-   ],
-   "live": {
-    "md5": "d224c6aca56fe2ca59263d3320c7ee3e",
-    "norm_len": 955,
-    "measured": "2026-10-22",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "d224c6aca56fe2ca59263d3320c7ee3e",
-    "norm_len": 955,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_claim_daily__ungated(p_task_id text, p_slot integer)",
-   "name": "hr_claim_daily__ungated",
-   "tracked_by": [
-    "chain",
-    "floor",
-    "pin"
-   ],
-   "touched_by": [
-    "2026-08-20-goal-reward-rpc-credit.sql",
-    "2026-08-29-daily-task-eligibility.sql",
-    "2026-09-04-goal-gold-retune.sql",
-    "2026-10-16-daily-harvest-credit.sql"
-   ],
-   "live": {
-    "md5": "1ebc67d277b42a65fef6441b8394893d",
-    "norm_len": 4483,
-    "measured": "2026-10-22",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "1ebc67d277b42a65fef6441b8394893d",
-    "norm_len": 4483,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_claim_milestone(p_milestone_id text, p_slot integer)",
-   "name": "hr_claim_milestone",
-   "tracked_by": [
-    "pin"
-   ],
-   "touched_by": [
-    "2026-08-22-collection-claim.sql",
-    "2026-09-28-settle-before-mutate.sql"
-   ],
-   "live": {
-    "md5": "d02168a968f90dea57b096bc46764842",
-    "norm_len": 980,
-    "measured": "2026-10-22",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "d02168a968f90dea57b096bc46764842",
-    "norm_len": 980,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_claim_milestone__ungated(p_milestone_id text, p_slot integer)",
-   "name": "hr_claim_milestone__ungated",
-   "tracked_by": [
-    "chain",
-    "pin"
-   ],
-   "touched_by": [
-    "2026-08-22-collection-claim.sql",
-    "2026-09-27-ledger-of-firsts.sql",
-    "2026-10-16-w0f-fun-content.sql",
-    "2026-10-19-account-wallet.sql",
-    "2026-10-24-hunterall-119.sql",
-    "2026-10-25-hunterall-129.sql"
-   ],
-   "live": {
-    "md5": "945758692f7afe596d5016a53f42aff9",
-    "norm_len": 4176,
-    "measured": "2026-10-22",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "945758692f7afe596d5016a53f42aff9",
-    "norm_len": 4176,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_claim_quest(p_quest_id text, p_slot integer)",
-   "name": "hr_claim_quest",
-   "tracked_by": [
-    "pin"
-   ],
-   "touched_by": [
-    "2026-08-20-goal-reward-rpc-credit.sql",
-    "2026-09-28-settle-before-mutate.sql"
-   ],
-   "live": {
-    "md5": "e1bf5a5c7e4c3fabd0a1d4dd453aeeb2",
-    "norm_len": 956,
-    "measured": "2026-10-22",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "e1bf5a5c7e4c3fabd0a1d4dd453aeeb2",
-    "norm_len": 956,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_claim_quest__ungated(p_quest_id text, p_slot integer)",
-   "name": "hr_claim_quest__ungated",
-   "tracked_by": [
-    "chain",
-    "floor",
-    "pin"
-   ],
-   "touched_by": [
-    "2026-08-20-goal-reward-rpc-credit.sql",
-    "2026-09-04-goal-gold-retune.sql",
-    "2026-09-06-quest-item-rewards.sql",
-    "2026-09-28-journeymans-road.sql",
-    "2026-10-10-quest-xp-absence-pay.sql"
-   ],
-   "live": {
-    "md5": "353a30089cd23babd3b6cb509bd36586",
-    "norm_len": 7140,
-    "measured": "2026-10-22",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "353a30089cd23babd3b6cb509bd36586",
-    "norm_len": 7140,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_claim_rank(p_rank_id text, p_slot integer)",
-   "name": "hr_claim_rank",
-   "tracked_by": [
-    "pin"
-   ],
-   "touched_by": [
-    "2026-08-22-renown-claim.sql",
-    "2026-09-28-settle-before-mutate.sql"
-   ],
-   "live": {
-    "md5": "d082086e2c32e7a185f85f446762b962",
-    "norm_len": 950,
-    "measured": "2026-10-22",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "d082086e2c32e7a185f85f446762b962",
-    "norm_len": 950,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_claim_rank__ungated(p_rank_id text, p_slot integer)",
-   "name": "hr_claim_rank__ungated",
-   "tracked_by": [
-    "pin"
-   ],
-   "touched_by": [
-    "2026-08-22-renown-claim.sql",
-    "2026-10-19-account-wallet.sql"
-   ],
-   "live": {
-    "md5": "e0b8780931f19903f82b7d5072e633b5",
-    "norm_len": 4007,
-    "measured": "2026-10-22",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "e0b8780931f19903f82b7d5072e633b5",
-    "norm_len": 4007,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -739,54 +593,6 @@
    "replay": {
     "md5": "d0d297a42f1497bfcffb12d4b8217732",
     "norm_len": 8808,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_daily_task_set(p_day_key text)",
-   "name": "hr_daily_task_set",
-   "tracked_by": [
-    "pin"
-   ],
-   "touched_by": [
-    "2026-08-20-goal-reward-rpc-credit.sql",
-    "2026-10-16-daily-harvest-credit.sql"
-   ],
-   "live": {
-    "md5": "ad371996517c1573ae629c11c9be27f7",
-    "norm_len": 1091,
-    "measured": "2026-10-22",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "ad371996517c1573ae629c11c9be27f7",
-    "norm_len": 1091,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "hr_daily_task_set_for(p_day_key text, p_user uuid, p_slot integer)",
-   "name": "hr_daily_task_set_for",
-   "tracked_by": [
-    "chain",
-    "pin"
-   ],
-   "touched_by": [
-    "2026-08-29-daily-task-eligibility.sql",
-    "2026-10-16-daily-harvest-credit.sql",
-    "2026-10-16-daily-harvest-eligibility.sql"
-   ],
-   "live": {
-    "md5": "7d50858f37b312cdd3f961180e9109cd",
-    "norm_len": 1089,
-    "measured": "2026-10-22",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "7d50858f37b312cdd3f961180e9109cd",
-    "norm_len": 1089,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -941,6 +747,7 @@
    "sig": "hr_farm_plant(p_slot integer, p_plot_idx integer, p_crop text, p_idem uuid)",
    "name": "hr_farm_plant",
    "tracked_by": [
+    "chain",
     "pin"
    ],
    "touched_by": [
@@ -949,17 +756,18 @@
     "2026-08-23-modal-goal-claims.sql",
     "2026-09-03-intent-mismatch-class.sql",
     "2026-09-07-farm-plant-lifetime-counter.sql",
-    "2026-09-12-hr-rejections-journal.sql"
+    "2026-09-12-hr-rejections-journal.sql",
+    "2026-12-01-garden-beds.sql"
    ],
    "live": {
-    "md5": "ed3d20468ba9b19a8472888a9125f52f",
-    "norm_len": 7851,
+    "md5": "f67551216c9ebc76982914b538c290be",
+    "norm_len": 7691,
     "measured": "2026-10-22",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "ed3d20468ba9b19a8472888a9125f52f",
-    "norm_len": 7851,
+    "md5": "f67551216c9ebc76982914b538c290be",
+    "norm_len": 7691,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -2458,21 +2266,24 @@
    "sig": "hr_shop_view(p_user uuid, p_slot integer)",
    "name": "hr_shop_view",
    "tracked_by": [
+    "chain",
     "pin"
    ],
    "touched_by": [
     "2026-10-25-shop-supplies.sql",
-    "2026-11-02-shop-no-supplies.sql"
+    "2026-11-02-shop-no-supplies.sql",
+    "2026-11-24-shop-outfitter.sql",
+    "2026-11-25-shop-seeds.sql"
    ],
    "live": {
-    "md5": "3e099606f716c0ccf67da73e2cc2940d",
-    "norm_len": 881,
+    "md5": "003145b069256e3ca4bca59c4884b13a",
+    "norm_len": 956,
     "measured": "2026-10-22",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "3e099606f716c0ccf67da73e2cc2940d",
-    "norm_len": 881,
+    "md5": "003145b069256e3ca4bca59c4884b13a",
+    "norm_len": 956,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -2532,17 +2343,18 @@
     "2026-10-22-hunt-sessions-delete-away.sql",
     "2026-10-22-hunt-sessions-settle.sql",
     "2026-10-23-character-premium.sql",
-    "2026-10-27-core-bodies.sql"
+    "2026-10-27-core-bodies.sql",
+    "2026-11-27-account-depot.sql"
    ],
    "live": {
-    "md5": "ae1a05ef17adeb179b74b40ee8d16222",
-    "norm_len": 29967,
+    "md5": "2e8af14f4cbeef340249849cce09b05a",
+    "norm_len": 30098,
     "measured": "2026-10-22",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "ae1a05ef17adeb179b74b40ee8d16222",
-    "norm_len": 29967,
+    "md5": "2e8af14f4cbeef340249849cce09b05a",
+    "norm_len": 30098,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -2812,17 +2624,18 @@
    "touched_by": [
     "2026-08-16-unlock-buy.sql",
     "2026-08-19-companion-unlocks.sql",
-    "2026-09-28-settle-before-mutate.sql"
+    "2026-09-28-settle-before-mutate.sql",
+    "2026-11-29-house-home.sql"
    ],
    "live": {
-    "md5": "23b42c18cc09c472287379039a60d731",
-    "norm_len": 20577,
+    "md5": "2852f708c7664e858a6b9535348ad616",
+    "norm_len": 21059,
     "measured": "2026-10-22",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "23b42c18cc09c472287379039a60d731",
-    "norm_len": 20577,
+    "md5": "2852f708c7664e858a6b9535348ad616",
+    "norm_len": 21059,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -2834,17 +2647,18 @@
     "pin"
    ],
    "touched_by": [
-    "2026-08-16-artisan-progress-model.sql"
+    "2026-08-16-artisan-progress-model.sql",
+    "2026-11-29-house-home.sql"
    ],
    "live": {
-    "md5": "11394712df724d52990bce2c6ca6c7d6",
-    "norm_len": 1235,
+    "md5": "1586b40ead4186bd20654b4c29b472e6",
+    "norm_len": 1058,
     "measured": "2026-10-22",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "11394712df724d52990bce2c6ca6c7d6",
-    "norm_len": 1235,
+    "md5": "1586b40ead4186bd20654b4c29b472e6",
+    "norm_len": 1058,
     "source": "computed-from-replay"
    },
    "agree": true

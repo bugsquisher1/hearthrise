@@ -67,6 +67,9 @@ const WORDS = Object.freeze({
   activity_locked: 'Your combat level is too low for that hunt yet.',
   activity_running: 'Your hero is busy with something else (burying, say). Stop it in the Inventory first.',
   unknown_hunt: 'The server does not know that hunt.',
+  /* The density pick per ground (hr_hunt_density_set, 2026-11-17-hunt-density-home.sql). */
+  bad_hunt: 'That hunt has no monsters to set a number for.',
+  bad_density: 'That is more monsters than this hunt allows.',
   unknown_preset: 'That action set is gone. Pick another under Saved setups.',
   unknown_supply: 'One of the things packed is not a hunt supply.',
   bad_bag: 'The packed supplies were not valid, so nothing was sent.',

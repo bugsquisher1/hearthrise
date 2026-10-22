@@ -30,7 +30,7 @@
 import { OBSERVABILITY_CONFIG } from './observability-config.js?v=0.2.27';
 import { BUILD } from '../build-info.js?v=0.2.27';
 import { observeSessions } from '../session/character-session.js?v=0.2.27';
-import { partyOf, settingsOf, huntOf } from '../session/hunt-sections.js?v=0.2.27';
+import { partyOf, huntDensityOf, huntOf } from '../session/hunt-sections.js?v=0.2.27';
 import { startDiagnostics } from './diagnostics.js?v=0.2.27';
 import { endedSessionOf } from '../hunt-view/summary-model.js?v=0.2.27';
 
@@ -176,8 +176,10 @@ function watchHunt(cs, w, now, send) {
   }
   if (open && s.id !== w.sid) {
     const party = partyOf(cs);
-    const set = settingsOf(cs);
-    send('hunt_started', { hunt: s.hunt, party_size: party ? party.members.length : 1, density: set ? set.density : null });
+    /* The hero's own pick on this ground (hunt_density; no key = 0, as built); null when the server sent none. */
+    const picks = huntDensityOf(cs);
+    send('hunt_started', { hunt: s.hunt, party_size: party ? party.members.length : 1,
+      density: picks ? (Number.isInteger(picks[s.hunt]) ? picks[s.hunt] : 0) : null });
     w.open = true; w.sid = s.id; w.reseeds = 0;
   }
 }

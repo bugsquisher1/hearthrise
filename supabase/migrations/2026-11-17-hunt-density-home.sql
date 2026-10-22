@@ -32,13 +32,16 @@
 --    and hr_hunt_density_freeze RESTATED to call it: the instance's ground's pick
 --    of the party LEADER (a party instance) or the hero, clamped to that ground's
 --    density_max and the catalogue ceiling. Frozen once at hunt start, as before.
--- §4 THREE BODIES RESTATED WHOLE (no body patching; §0 md5-pins each landed image
+-- §4 FOUR BODIES RESTATED WHOLE (no body patching; §0 md5-pins each landed image
 --    or this file's DENSITY-HOME marker):
 --    hr_action_set_options   the 2026-11-01 `not_leader` density branch goes: with
 --                            no catalogue row, `density` is refused as bad_option.
 --    hr_hunt_settings_view   the `density` key goes (it read the option row).
 --    hr_hunt_party_view      `leader_density` (one int read off the leader's preset)
 --                            becomes `leader_densities` { <hunt_id>: pick }.
+--    hr_hunt_view            the session gains `forfeit`: it ended by the refused-window
+--                            rule (hr_hunt_forfeit's `window_forfeit` ledger row), so the
+--                            hunt-end card says why in plain words, not "by the server".
 -- §5 the `hunt_density` section and the client baseline row.
 -- §6 ONCE: today's picks move home. Each character's stored density (its lowest
 --    preset holding one; the picker wrote the active preset, 0 out of a hunt) is
@@ -104,6 +107,12 @@ begin
   select prosrc into v_src from pg_proc where oid = 'public.hr_hunt_density_freeze()'::regprocedure;
   if md5(v_src) <> '6948151527ac5c27fc5927a75a00a5d7' and strpos(v_src, 'DENSITY-HOME') = 0 then
     raise exception 'PIN: hr_hunt_density_freeze is neither the density-bounds image (69481515...) nor this file''s (md5 %)', md5(v_src); end if;
+  select prosrc into v_src from pg_proc where oid = 'public.hr_hunt_view(uuid)'::regprocedure;
+  v_def := md5(regexp_replace(pg_get_functiondef('public.hr_hunt_view(uuid)'::regprocedure), '[[:space:]]+', ' ', 'g'));
+  if v_def <> '4a86aacf0117eae193a8f54596d2ca0d' and strpos(v_src, 'DENSITY-HOME') = 0 then
+    raise exception 'PIN: hr_hunt_view is neither the core-bodies image (4a86aacf...) nor this file''s (md5 %)', v_def; end if;
+  if to_regclass('public.player_ledger_session') is null then
+    raise exception 'PIN: player_ledger_session (session_id, id) is missing: the forfeit read would scan the ledger'; end if;
 end $mig$;
 
 -- ── §1 THE PICK PER GROUND ───────────────────────────────────────────────────
@@ -212,7 +221,7 @@ revoke execute on function public.hr_hunt_density_freeze() from anon, authentica
 -- The 2026-11-16 pick read the action set's preset; nothing calls it now.
 drop function if exists public.hr_hunt_density_pick(uuid, uuid, int, int);
 
--- ── §4 THE THREE BODIES ──────────────────────────────────────────────────────
+-- ── §4 THE FOUR BODIES ───────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION public.hr_action_set_options(p_slot integer, p_preset integer, p_opts jsonb, p_idem uuid)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -569,6 +578,40 @@ begin
     'listed', coalesce(v_p.listed, false), 'leader_densities', coalesce(v_ldens, '{}'::jsonb));
 end $function$;
 
+CREATE OR REPLACE FUNCTION public.hr_hunt_view(p_session uuid)
+ RETURNS jsonb
+ LANGUAGE sql
+ STABLE
+ SET search_path TO 'public', 'pg_catalog'
+AS $function$
+  -- DENSITY-HOME (2026-11-17-hunt-density-home.sql): `forfeit`, the session ended by the refused-window rule
+  -- (hr_hunt_forfeit: its `window_forfeit` ledger row; only a `server` or `left` end can carry one).
+  select jsonb_build_object(
+    'id', s.id, 'hunt', s.hunt_id, 'prev', s.prev_session_id, 'preset', s.preset,
+    'hours_limit', s.hours_limit,
+    'entered_at', s.entered_at, 'hunt_from', s.hunt_from, 'settled_to', s.settled_to,
+    'instance', s.instance_id, 'unit', s.unit_id, 'seat', s.seat,
+    'leave_at', s.leave_at, 'change_at', s.change_at, 'change_to', s.change_to,
+    'ended_at', s.ended_at, 'end_reason', s.end_reason,
+    'forfeit', s.ended_at is not null and s.end_reason in ('server', 'left') and exists (
+      select 1 from public.player_ledger l where l.session_id = s.id and l.kind = 'hunt' and l.intent = 'window_forfeit'),
+    'home_at',
+    case when s.ended_at is not null then s.ended_at + make_interval(secs => coalesce(
+      (select travel_s from public.hr_hunt_travel t where t.hunt_id = s.hunt_id), 0)) end,
+    'seen_event_id', s.seen_event_id, 'version', s.version,
+    'phase', case when s.ended_at is not null then 'ended'
+                  when s.leave_at is not null or s.change_at is not null then 'leaving'
+                  when now() < s.hunt_from then 'walking' else 'hunting' end,
+    'bag', coalesce((select jsonb_agg(jsonb_build_object('item', b.item_id, 'loaded', b.qty_loaded,
+                       'left', b.qty_left, 'essential', b.essential) order by b.item_id)
+                     from public.hunt_bag b where b.session_id = s.id), '[]'::jsonb),
+    'tally', (select jsonb_build_object('kills', t.kills, 'xp', t.xp, 'coins', t.coins, 'loot', t.loot,
+                       'supplies', t.supplies, 'deaths', t.deaths, 'paid_ms', t.paid_ms,
+                       'bought', t.bought, 'supply_gold', t.supply_gold)
+              from public.hunt_session_tally t where t.session_id = s.id))
+  from public.hunt_sessions s where s.id = p_session
+$function$;
+
 -- ── §5 THE `hunt_density` SECTION AND THE CLIENT SURFACE ─────────────────────
 insert into public.hr_state_sections (key, fn, note) values
   ('hunt_density', 'hr_hunt_density_view', '2026-11-17-hunt-density-home.sql: this hero''s monster-density pick per ground, { <hunt_id>: pick } (no key = 0, as built)')
@@ -706,7 +749,16 @@ begin
       raise exception 'VERIFY(d): a setup or pick change moved the running hunt: instance %, engine read %',
         (select density from public.hunt_instances where id = v_inst),
         public.hr_hunt_instance_read(v_a, 0)->'members'->0->'session'->'options'; end if;
-    update public.hunt_sessions set ended_at = now(), end_reason = 'left' where id = v_sid;
+    -- (d') THE FORFEIT IS NAMED: a `server` end reads forfeit only with its window_forfeit ledger row.
+    update public.hunt_sessions set ended_at = now(), end_reason = 'server' where id = v_sid;
+    if (public.hr_hunt_view(v_sid)->>'forfeit') is distinct from 'false' then
+      raise exception 'VERIFY(d''): a plain server end reads forfeit %', public.hr_hunt_view(v_sid)->'forfeit'; end if;
+    insert into public.player_ledger (user_id, slot, kind, intent, gold, qty, meta, session_id)
+      values (v_a, 0, 'hunt', 'window_forfeit', 0, 0, jsonb_build_object('reason', 'window_forfeit', 'end', 'server'), v_sid);
+    if (public.hr_hunt_view(v_sid)->>'forfeit') is distinct from 'true'
+       or (public.hr_hunt_section_view(v_a, 0)->'session'->>'forfeit') is distinct from 'true' then
+      raise exception 'VERIFY(d''): a forfeited hunt reads forfeit % (section %)', public.hr_hunt_view(v_sid)->'forfeit',
+        public.hr_hunt_section_view(v_a, 0)->'session'->'forfeit'; end if;
 
     -- (e) A PARTY PLAYS ITS LEADER'S PICK: A leads, B sits; B (whose own sewer pick is 3) opens the
     --     instance first and it freezes A's; B may not pick and reads A's picks.

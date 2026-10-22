@@ -16,6 +16,7 @@
 //                      once, one hr_put_client_state follows per burst
 //   setHuntOptions(p, o) the hunt settings INTENT (hr_action_set_options); the
 //                      new settings arrive only in the re-read envelope
+//   setHuntDensity(h, n) the density pick on one ground (hr_hunt_density_set), re-read
 //   enterHunt(h, b, p) the go-hunting INTENT (hr_hunt_enter), re-read the same way
 //   leaveHunt()        the leave INTENT (hr_hunt_leave), re-read the same way
 //   moveStorage(i,n,d) the home storage INTENT (hr_bank_move), re-read the same way
@@ -247,6 +248,17 @@ export class CharacterSession {
       if (ans.ok && ans.body && ans.body.ok === true && this._huntOpen()) this.liveLink.ask();
       return this._settled(ans);
     });
+  }
+
+  /**
+   * The density pick on one ground (hr_hunt_density_set; rulings H4: per hero, per ground, never a setup).
+   * The server bounds it by that ground's max and refuses a party member's; the pick shows only from the
+   * re-read (hunt_density). A running hunt keeps the density it froze at its start.
+   * @returns {Promise<{ok: boolean, error?: string}>}
+   */
+  async setHuntDensity(hunt, density) {
+    if (this._closed || !HUNT_ID.test(String(hunt)) || !Number.isInteger(density) || density < 0) return { ok: false, error: 'bad_intent' };
+    return this._ask('hunt_density_set', () => this._server.rpc('hr_hunt_density_set', { p_slot: this.slot, p_hunt: hunt, p_density: density, p_idem: newIdem() }));
   }
 
   /**

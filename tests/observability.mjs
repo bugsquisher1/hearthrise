@@ -248,7 +248,7 @@ async function browserChecks(overrides) {
       await until(() => ev('hunt_started') && ev('leave_hunt_clicked') && ev('hunt_ended'), 12000);
       const st = ev('hunt_started');
       const en = ev('hunt_ended');
-      if (!st || st.properties.hunt !== HUNT.hunt.hunt_id || st.properties.party_size !== HUNT.party.members.length || st.properties.density !== (HUNT.hunt_settings.density ?? null))
+      if (!st || st.properties.hunt !== HUNT.hunt.hunt_id || st.properties.party_size !== HUNT.party.members.length || st.properties.density !== (HUNT.hunt_density ? (HUNT.hunt_density[HUNT.hunt.hunt_id] ?? 0) : null))
         fails.push('OB-4 hunt_started: ' + JSON.stringify(st && { hunt: st.properties.hunt, party: st.properties.party_size, density: st.properties.density }) + ' (events: ' + seen.events.map((e) => e && e.event).join(',') + ')');
       if (!ev('leave_hunt_clicked')) fails.push('OB-4 no leave_hunt_clicked');
       if (!en || en.properties.reason !== 'left' || en.properties.seconds !== 300) fails.push('OB-4 hunt_ended: ' + JSON.stringify(en && { reason: en.properties.reason, seconds: en.properties.seconds }));

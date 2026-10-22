@@ -239,7 +239,7 @@ export const END_REASON_COPY = Object.freeze({
   hours: Object.freeze({ one: 'Your 1-hour limit was up, so you headed home.', other: 'Your {n}-hour limit was up, so you headed home.' }),
   left: Object.freeze({ one: 'You left the hunt and walked home.' }),
   changed: Object.freeze({ one: 'You moved on to {hunt}.' }),
-  server: Object.freeze({ one: 'The hunt was stopped for server maintenance. Everything you earned up to then is yours.' }),
+  server: Object.freeze({ one: 'The server ended the hunt. Everything you earned up to then is yours.' }),
 });
 
 /* The "since you last looked" strip and the timeline. The time of each line

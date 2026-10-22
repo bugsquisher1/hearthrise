@@ -29,19 +29,19 @@
 // stepper on the picked line from "as built" up to the ground's most for the
 // party's size (hunt-grounds.js densityFor). A press moves the number AT ONCE,
 // marked "Saving..." (Tyler 10-20: the round trip per press was "incredibly
-// laggy"): presses inside DENSITY_SAVE_MS coalesce into ONE hr_action_set_options
-// carrying the last value, and the server's answer (the re-read
-// hunt_settings.density) replaces the draft; a refusal shows the server's value
-// again and why. Nothing spends the draft (CLAUDE.md §6): Enter / Start with
-// party first waits for the save. Each line's facts say the pull size the
-// server spawns at that pick. The server keeps ONE pick per action set today,
-// not one per ground, so the note says it carries to the next hunt.
+// laggy"): presses inside DENSITY_SAVE_MS coalesce into ONE hr_hunt_density_set
+// carrying the last value, and the server's answer (the re-read hunt_density)
+// replaces the draft; a refusal shows the server's value again and why. Nothing
+// spends the draft (CLAUDE.md §6): Enter / Start with party first waits for the
+// save. The pick is the hero's own PER GROUND (rulings H4: remembered per hunt,
+// never part of a setup), so each line's facts say the pull size the server
+// spawns at THAT ground's pick.
 // IN A PARTY THE LEADER CHOOSES (Tyler 2026-10-20): the leader's pick is the pull
 // for everyone; a member sees it read-only ("Set by <leader>: 7 each", the
-// server's `leader_density`) with no step, and the server refuses a member's
-// density (hr_action_set_options `not_leader`).
+// server's `leader_densities`) with no step, and the server refuses a member's
+// pick (hr_hunt_density_set `not_leader`).
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf, settingsOf, huntBestsOf } from '../../session/hunt-sections.js?v=0.2.27';
+import { huntOf, settingsOf, huntBestsOf, huntDensityOf } from '../../session/hunt-sections.js?v=0.2.27';
 import { bagOf } from '../../session/item-sections.js?v=0.2.27';
 import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.27';
 import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.27';
@@ -55,7 +55,7 @@ import { HUNT_GROUNDS, densityFor, DENSITY_PICK } from '../../data/hunt-grounds.
 import { huntRows, densityWords, bandWords, rangeWords, groupWords, recommendedHunt, heroWords, packFor, partyNote, bestWords, ABOVE_LEVEL_WORDS } from '../hunt-list.js?v=0.2.27';
 
 const SCRATCH = new WeakMap();
-/* `draft` is the density shown before the server has it ({ n, preset }), `timer` its coalescing
+/* `draft` is the density shown before the server has it ({ hunt, n }), `timer` its coalescing
    wait, `saving` the save in flight (its promise: Enter waits on it). */
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pick: null, pending: false, msg: '', draft: null, timer: null, saving: null }; SCRATCH.set(cs, s); } return s; };
 /* How long the step waits for the next press before it saves (one intent for a run of presses). */
@@ -74,26 +74,28 @@ function levelOf(cs) {
   return lv ? lv.level : null;
 }
 
-/* The server's density pick as this ground would spawn it, and the most the ground allows for `size`; null = unknown. */
-function densityOf(set, hunt, size) {
-  const g = Object.values(HUNT_GROUNDS).find((x) => x.hunt === hunt);
-  if (!set || !Number.isInteger(set.density) || !g) return null;
-  const max = densityFor(g, size, DENSITY_PICK.max);
-  return { now: densityFor(g, size, set.density), max };
+const groundOf = (hunt) => Object.values(HUNT_GROUNDS).find((x) => x.hunt === hunt) || null;
+
+/* The server's pick on this ground (`picks`: { [hunt]: n }, no key = 0, as built) as the ground would spawn it,
+   and the most the ground allows for `size`; null = unknown (no section, or no ground). */
+function densityOf(picks, hunt, size) {
+  const g = groundOf(hunt);
+  if (!picks || !g) return null;
+  const pick = Number.isInteger(picks[hunt]) ? picks[hunt] : 0;
+  return { now: densityFor(g, size, pick), max: densityFor(g, size, DENSITY_PICK.max) };
 }
 
-/* The density on screen: the unsaved draft while there is one, else the server's (both clamped to the ground).
-   A party member's is its leader's (the party section's leader_density), never its own. */
-function shownDensity(sc, set, hunt, size, party) {
-  if (party && !party.isLeader) return densityOf(Number.isInteger(party.density) ? { density: party.density } : null, hunt, size);
-  const dn = densityOf(set, hunt, size);
-  if (!dn || !sc.draft) return dn;
-  const g = Object.values(HUNT_GROUNDS).find((x) => x.hunt === hunt);
-  return { now: densityFor(g, size, sc.draft.n), max: dn.max };
+/* The density on screen: this ground's unsaved draft while there is one, else the server's (both clamped to
+   the ground). A party member's is its leader's (the party section's leader_densities), never its own. */
+function shownDensity(sc, picks, hunt, size, party) {
+  if (party && !party.isLeader) return densityOf(party.densities, hunt, size);
+  const dn = densityOf(picks, hunt, size);
+  if (!dn || !sc.draft || sc.draft.hunt !== hunt) return dn;
+  return { now: densityFor(groundOf(hunt), size, sc.draft.n), max: dn.max };
 }
 
 /**
- * SAVE THE DENSITY DRAFT NOW: ONE hr_action_set_options with its value, queued behind any save in
+ * SAVE THE DENSITY DRAFT NOW: ONE hr_hunt_density_set with its ground and value, queued behind any save in
  * flight. The answer clears the draft only if no later press replaced it; a refusal says why (the
  * server's value shows again). Answers the save's result ({ ok: true } when nothing was waiting).
  */
@@ -104,7 +106,7 @@ function saveDensity(cs, sc, repaint) {
   if (!d) return sc.saving || Promise.resolve({ ok: true });
   const p = (sc.saving || Promise.resolve()).then(async () => {
     let r;
-    try { r = await cs.setHuntOptions(d.preset, { density: d.n }); } catch (e) { r = null; }
+    try { r = await cs.setHuntDensity(d.hunt, d.n); } catch (e) { r = null; }
     if (!r) r = { ok: false, error: 'network' };
     if (sc.draft === d) { sc.draft = null; sc.msg = r.ok ? '' : refusalText(r); }
     if (sc.saving === p) sc.saving = null;
@@ -161,7 +163,8 @@ renderHunts.patch = function patchHunts(body, ctx) {
   const follower = !!party && !party.isLeader;
   if (!sc.pick && list.length) { const rec = recommendedHunt(level, size, list); sc.pick = rec ? rec.hunt : list[0].hunt; }
   const pack = packFor(bagOf(cs));
-  const set = settingsOf(cs);
+  /* This hero's density pick per ground (hunt_density); null = the server sent none, no number shows. */
+  const picks = huntDensityOf(cs);
   /* This hero's personal bests, the server's (hunt_bests); null = the server sent none, the lines stay empty. */
   const bests = huntBestsOf(cs);
   /* "On the way to …" is the intent's answer, not the hunt's state: once the server's hunt section
@@ -202,8 +205,8 @@ renderHunts.patch = function patchHunts(body, ctx) {
       cls(enter, 'hh-tool', !on);
       for (const b of li.querySelectorAll('button')) prop(b, 'disabled', sc.pending || !!now);
       if (follower) prop(enter, 'disabled', true);
-      const dn = shownDensity(sc, set, r.hunt, size, party);
-      /* The pull size the server spawns at the shown pick (every line: the one pick carries to every ground). */
+      const dn = shownDensity(sc, picks, r.hunt, size, party);
+      /* The pull size the server spawns at the shown pick (each line its own ground's pick). */
       text(li.querySelector('.hw-hunt-facts'), heroWords(r) + ' · ' + densityWords(r, dn ? dn.now : null));
       cls(li.querySelector('.hw-density'), 'is-on', on && !!dn);
       for (const b of li.querySelectorAll('.hw-density [data-by]')) prop(b, 'hidden', follower);
@@ -216,7 +219,7 @@ renderHunts.patch = function patchHunts(body, ctx) {
         text(li.querySelector('.hw-density-note'), follower ? 'Your party leader sets how many monsters each pull brings.'
           : 'How many monsters each pull brings, up to ' + dn.max
           + (size === 1 ? ' when you hunt alone.' : ' for your party of ' + size + '. As the leader, your pick sets the pull for everyone.')
-          + ' It stays set for your next hunts.');
+          + ' It stays set for this hunt.');
         prop(li.querySelector('[data-by="-1"]'), 'disabled', follower || sc.pending || !!now || dn.now <= DENSITY_PICK.min);
         prop(li.querySelector('[data-by="1"]'), 'disabled', follower || sc.pending || !!now || dn.now >= dn.max);
       }
@@ -236,21 +239,23 @@ renderHunts.act = function actHunts(ctx, body, action, ev, t) {
   const repaint = () => renderHunts.patch(body, ctx);
   if (action === 'density') {
     /* The number moves on the press; the save waits DENSITY_SAVE_MS for the next press (saveDensity). */
-    const s = settingsOf(cs);
+    const picks = huntDensityOf(cs);
     const party = partyMembershipOf(cs);
     /* A member's density is its leader's: there is nothing to press (the server refuses it too). */
     if (party && !party.isLeader) return true;
     const size = party ? party.seats.length : 1;
-    const dn = shownDensity(sc, s, hunt, size, party);
+    const dn = shownDensity(sc, picks, hunt, size, party);
     const n = dn ? dn.now + Number(t.getAttribute('data-by')) : NaN;
     if (!dn || sc.pending || !(n >= DENSITY_PICK.min && n <= dn.max)) return true;
     sc.msg = '';
+    /* Another ground's draft still waiting goes now (each ground keeps its own pick). */
+    if (sc.draft && sc.draft.hunt !== hunt) saveDensity(cs, sc, repaint);
     clearTimeout(sc.timer);
     sc.timer = null;
     /* Back on the server's value with nothing in flight: nothing to save. */
-    if (n === densityOf(s, hunt, size).now && !sc.saving) sc.draft = null;
+    if (n === densityOf(picks, hunt, size).now && !sc.saving) sc.draft = null;
     else {
-      sc.draft = { n, preset: s.preset };
+      sc.draft = { hunt, n };
       sc.timer = setTimeout(() => saveDensity(cs, sc, repaint), DENSITY_SAVE_MS);
     }
     repaint();

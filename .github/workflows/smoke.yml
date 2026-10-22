@@ -2395,15 +2395,7 @@ jobs:
           node tests/closed-rebuild.mjs
           node tools/mutant-gate.mjs node tests/closed-rebuild.mjs --mutate
 
-      # Absence claim -> the account wallet (2026-10-19-absence-claim-wallet.sql,
-      # Security F1): an attended claim pays gold on the pledge's character and
-      # its gem into the wallet once per account per day; replay refused.
-      # --mutate: 6 SQL mutants, each red on its named §2 arm.
-      - name: Absence claim — gold on char_slot, the gem into the account wallet once
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/absence-claim-wallet.mjs
-          node tools/mutant-gate.mjs node tests/absence-claim-wallet.mjs --mutate
+      # RETIRED 2026-10-22 (world-actions cut, Tyler): tests/absence-claim-wallet.mjs proved world_event_absence_claim's gold/gem payout; 2026-12-04-world-actions-cut.sql drops it. tests/old-rewards-gone.mjs keeps it cut (OR-4).
 
       # NO SELF-ECHO FRAMES (2026-10-09-frame-self-echo.sql). A player's own
       # HTTP write is not pushed back to their own topic; another character's
@@ -2911,18 +2903,7 @@ jobs:
       # standing proof the plain arm carries information the proof arm does not — its
       # plain run is red on today's tree with its --selftest green beside it.
 
-      # b567 (P1 class-kill, CLAUDE.md §1): the rally chest priced up to 3,000 XP
-      # and BOTH claim RPCs returned it without writing player_skills; the browser
-      # called addXp, so combat-theme XP reached hr_credit_combat_xp client-
-      # authored. 2026-10-10-muster-chest-xp-credit.sql credits it inside the
-      # consume. Attended AND absence path x combat AND non-combat theme: the
-      # player_skills delta must EQUAL the response; xp_in journalled; replay and
-      # budget refusals move nothing. Every mutation has a gate-blind twin.
-      - name: Muster chest XP — server-credited on both paths, every mutation caught
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/muster-chest-xp-credit.mjs
-          node tools/mutant-gate.mjs node tests/muster-chest-xp-credit.mjs --selftest
+      # RETIRED 2026-10-22 (world-actions cut, Tyler): tests/muster-chest-xp-credit.mjs proved the rally chest's XP credit on world_event_claim / world_event_absence_claim; both doors and hr_rally_xp_credit are dropped (12-03, 12-04 cuts). tests/old-rewards-gone.mjs keeps them cut (OR-4).
 
       # RETIRED 2026-10-22 (old-client reward cut, Tyler): tests/quest-xp-absence-pay.mjs proved the quest XP credit; hr_claim_quest is dropped. tests/old-rewards-gone.mjs keeps it cut.
 
@@ -3268,16 +3249,7 @@ jobs:
           node tests/anon-rate-gate.mjs
           node tools/mutant-gate.mjs node tests/anon-rate-gate.mjs --selftest
 
-      # THE HUNT BAND. Proves, by running the real migration bodies on an
-      # in-process PostgreSQL, that the retired median rule DID let one member's
-      # honest good week pay a teammate nothing, that the shipped rule does not,
-      # and that a free-rider still collects nothing either way. --selftest
-      # mutates the real fix SQL five ways and demands every mutation is caught.
-      - name: Hunt band — denial before, gone after, free-rider still refused
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/raid-band-denial.mjs
-          node tools/mutant-gate.mjs node tests/raid-band-denial.mjs --selftest
+      # RETIRED 2026-10-22 (world-actions cut, Tyler): tests/raid-band-denial.mjs (+ tests/sql/raid-*.sql) proved raid_claim's band rule over raid_strike's contributions; raid_claim (12-03), raid_strike and raid_contributions (12-04) are dropped. tests/old-rewards-gone.mjs keeps them cut (OR-4).
 
       # RETIRED 2026-10-22 (old-client reward cut, Tyler): tests/goal-counter-kinds.mjs guarded the ev:planted backfill against hr_claim_goal and hr_claim_quest; both doors are dropped, and their revival is red in old-rewards-gone OR-4. tests/old-rewards-gone.mjs keeps it cut.
 

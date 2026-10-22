@@ -1002,9 +1002,21 @@ async function run(mutate) {
   // own. So the grants are REPRODUCED here, the detector must NAME all six, and
   // the revoke must make them vanish. A check that only ever sees the fixed
   // state cannot tell "it is fixed" from "it stopped looking".
-  const SIX = ['hr_castle_board_tasks', 'hr_castle_buildings', 'hr_castle_items',
+  // 2026-12-04-world-actions-cut.sql DROPS three of the six (hr_castle_board_tasks,
+  // hr_hunt_bosses, hr_hunt_tiers) with the clan board and the raid hunt, so a full-chain
+  // run probes the three that remain and a mutant run (which stops at REPLAY_UPTO, before
+  // that cut) still probes all six. The three kept catalogues must always be present, or
+  // this arm would go vacuous.
+  const KEPT = ['hr_castle_buildings', 'hr_castle_items', 'hr_castle_tiers'];
+  const ALL_SIX = ['hr_castle_board_tasks', 'hr_castle_buildings', 'hr_castle_items',
     'hr_castle_tiers', 'hr_hunt_bosses', 'hr_hunt_tiers'];
+  const present = new Set((await db.query(
+    `select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public' and c.relname = any ($1::text[])`, [ALL_SIX])).rows.map((r) => r.relname));
+  const SIX = ALL_SIX.filter((t) => present.has(t));
   try {
+    ok(KEPT.every((t) => present.has(t)), `U14: a kept catalogue is missing (${KEPT.filter((t) => !present.has(t)).join(', ')}) `
+      + '— the probe would shrink to nothing');
     const report = async () => {
       const [{ r }] = (await db.query('select public.hr_assert_grant_hygiene(false) as r')).rows;
       return JSON.stringify(r.client_truncate_grants);

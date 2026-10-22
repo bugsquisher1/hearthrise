@@ -270,8 +270,8 @@
 .hw-hunt-band, .hw-hd-band { font-size: var(--t-micro); color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; }
 .hw-hunt-fit:not(:empty)::before { content: ' · '; color: var(--ink-3); }
 /* The band against the Level: words always, the tone a second cue (in range / above / far above / below). */
-.hw-hunt-fit[data-tone="in"], .hw-hd-band[data-tone="in"] { color: var(--green); }
-.hw-hunt-fit[data-tone="above"], .hw-hunt-fit[data-tone="far"], .hw-hd-band[data-tone="above"], .hw-hd-band[data-tone="far"] { color: var(--red); }
+.hw-hunt-fit[data-tone="in"] { color: var(--green); }
+.hw-hunt-fit[data-tone="above"], .hw-hunt-fit[data-tone="far"] { color: var(--red); }
 .hw-hunt-sub { display: flex; flex-wrap: wrap; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
 .hw-hunt-fits { font-weight: 700; color: var(--gold-2); }
 .hw-hunt-fits:not(:empty) + .hw-hunt-bestline:not(:empty)::before { content: ' · '; font-weight: 400; color: var(--ink-3); white-space: pre; }
@@ -310,7 +310,7 @@
 .hw-hd-rare-by { font-size: var(--t-micro); color: var(--ink-2); }
 .hw-hunt-party { margin: 8px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-hd-best { margin: 0; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
-.hw-hd-best[hidden], .hw-hunt-party[hidden] { display: none; }
+.hw-hd-best[hidden], .hw-hunt-party[hidden], .hw-hd-bests[hidden] { display: none; }
 /* Each pull: what the ground spawns at this pick, and the step beside it. */
 .hw-pull { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; }
 .hw-hunt-facts { flex: 1 1 auto; margin: 0; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
@@ -446,7 +446,7 @@
   .hw-hunt-list { padding: 0; }
   .hw-hunt { min-height: 44px; }
   .hw-hunt-detail { display: none; padding-left: 0; border-left: 0; }
-  .hw-hunts.is-paged .hw-hunt-list { display: none; }
+  .hw-hunts.is-paged .hw-hunt-list, .hw-hunts.is-paged .hw-hunts-now.is-hint { display: none; }
   .hw-hunts.is-paged .hw-hunt-detail:not([hidden]) { display: block; }
   .hw-hd-back { display: inline-flex; align-items: center; min-height: 40px; margin: 0 0 4px -6px; }
   .hw-hd-foot { bottom: -10px; padding-bottom: 10px; }

@@ -85,9 +85,18 @@ function slotSupply(sl, s, carried) {
     return { kind, own: a.id === 'loaded' ? null : { id: a.id, n: have(a.id) }, store: off ? null : store, off };
   }
   if (a.type === 'ability' && ABILITIES[a.id] && ABILITIES[a.id].rune) {
-    return { kind: 'rune', own: { id: ABILITIES[a.id].rune, n: have(ABILITIES[a.id].rune) }, store: off ? null : store, off };
+    return { kind: 'rune', spell: ABILITIES[a.id].n, own: { id: ABILITIES[a.id].rune, n: have(ABILITIES[a.id].rune) }, store: off ? null : store, off };
   }
   return null;
+}
+
+/* What a kind with nothing usable means for the hunt. Food, drink and ammo leave the hero bare (a short
+   line); a rune spell that cannot fire only loses that spell, and says which. */
+const BARE_WORDS = Object.freeze({ food: 'Nothing will be eaten', drink: 'Nothing will be drunk', ammo: 'Nothing to shoot' });
+function bareWords(kind, parts) {
+  if (kind !== 'rune') return BARE_WORDS[kind];
+  const spells = Array.from(new Set(parts.map((p) => p.spell).filter(Boolean)));
+  return spells.length ? spells.join(' and ') + ' will not fire' : 'Nothing to cast';
 }
 
 /* One part of a supply line: "20 Cooked Shrimp of yours", "no Cooked Shrimp left", "Salted Shrimp from the store, 14 gp each". */
@@ -126,9 +135,9 @@ export function beforeLines(cs, o) {
       const words = parts.map(partWords).filter(Boolean);
       const usable = parts.some((p) => (p.own && p.own.n > 0) || p.store);
       if (parts.some((p) => p.store)) paysStore = true;
-      out.push({ id: kind, text: KIND_WORDS[kind] + ': ' + (words.length ? words.join(', then ') : 'nothing this bar can use') + (usable ? '' : '. Nothing will be eaten or bought'), short: !usable });
+      out.push({ id: kind, text: KIND_WORDS[kind] + ': ' + (words.length ? words.join(', then ') : 'nothing this bar can use') + (usable ? '' : '. ' + bareWords(kind, parts)), short: !usable && kind !== 'rune' });
     }
-    if (!kinds.size) out.push({ id: 'none', text: 'Your bar eats and drinks nothing: HP and mana come back only between fights.', short: false });
+    if (!kinds.has('food') && !kinds.has('drink')) out.push({ id: 'none', text: 'Your bar eats and drinks nothing: HP and mana come back only between fights.', short: false });
   }
   const st = staminaOf(cs);
   if (st && st.msLeft <= 0) out.push({ id: 'stamina', text: 'No stamina left: rest in town before you go.', short: true });

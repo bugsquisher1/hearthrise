@@ -216,6 +216,8 @@ renderHunts.patch = function patchHunts(body, ctx) {
     : follower ? 'Your party leader picks the hunt and starts it. You walk in with everyone, with your own setup.'
     : party ? 'Pick a hunt, then Start with party. Everyone walks in together, each with their own setup.'
     : 'Pick a hunt, then Enter. Your hero walks there and fights on its own.');
+  /* The how-to (not a running hunt) gives its room to the ground's page on the phone sheet. */
+  cls(nowEl, 'is-hint', !now);
   /* No ground built for this group holds its level: said plainly (the pick is the nearest below). */
   const reco = root.querySelector('.hw-hunts-reco');
   const advice = !now && !follower && rec.note ? rec.note : '';
@@ -329,7 +331,12 @@ renderHunts.act = function actHunts(ctx, body, action, ev, t) {
     repaint();
     return true;
   }
-  if (action === 'pick') { sc.pick = hunt; sc.msg = ''; sc.paged = true; repaint(); return true; }
+  if (action === 'pick') {
+    /* Another ground's page opens at its top, not where the last one was scrolled to. */
+    if (sc.pick !== hunt && body.scrollTop) body.scrollTop = 0;
+    sc.pick = hunt; sc.msg = ''; sc.paged = true; repaint();
+    return true;
+  }
   if (action === 'back') { sc.paged = false; repaint(); return true; }
   /* Go as: display scratch only, until Enter sends it (nothing else reads or spends it). */
   if (action === 'go-as') { if (!sc.pending) { sc.goAs = Number(t.getAttribute('data-preset')); sc.msg = ''; repaint(); } return true; }

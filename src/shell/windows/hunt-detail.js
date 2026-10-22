@@ -38,13 +38,14 @@ let loading = null;
 export function detailHtml() {
   return '<header class="hw-hd-head">'
     + '<button type="button" class="hh-tool hw-hd-back" data-hs-act="back">Back to the list</button>'
-    + '<h3 class="hw-hd-name"></h3><p class="hw-hd-band"></p><p class="hw-hd-who"></p><p class="hw-hunt-warn"></p></header>'
+    + '<h3 class="hw-hd-name"></h3><p class="hw-hd-band"><span class="hw-hd-levels"></span><span class="hw-hunt-fit"></span></p>'
+    + '<p class="hw-hd-who"></p><p class="hw-hunt-warn"></p></header>'
     + '<p class="hw-hd-theme"></p>'
     + '<h4 class="hw-hd-h">Who lives here</h4><ul class="hw-hd-lineup" aria-label="Who lives here"></ul>'
     + '<p class="hw-hd-rare"><span class="hw-ico"></span><span class="hw-hd-rare-t"><b class="hw-hd-rare-name"></b><small class="hw-hd-rare-by"></small></span></p>'
     + '<p class="hw-hunt-party" hidden></p>'
-    + '<h4 class="hw-hd-h">Your best here</h4>'
-    + '<p class="hw-hd-best hw-hunt-best-solo"></p><p class="hw-hd-best hw-hunt-best-party"></p><p class="hw-hd-best hw-hunt-best-none"></p>';
+    + '<section class="hw-hd-bests" aria-label="Your best here"><h4 class="hw-hd-h">Your best here</h4>'
+    + '<p class="hw-hd-best hw-hunt-best-solo"></p><p class="hw-hd-best hw-hunt-best-party"></p><p class="hw-hd-best hw-hunt-best-none"></p></section>';
 }
 
 const monHtml = (m) => '<li class="hw-hd-mon" data-monster="' + esc(m.id) + '"><span class="hw-hd-stand"><canvas class="hw-hd-sprite" aria-hidden="true"></canvas></span>'
@@ -138,8 +139,10 @@ export function patchGround(det, ctx, r, o) {
   text(det.querySelector('.hw-hd-name'), r.name);
   /* Under the floor the warning line under it speaks (hunts.js rangeWords); in or over the band, its words close the line. */
   const band = det.querySelector('.hw-hd-band');
-  text(band, bandWords(r, level) + (fit && (fit.tone === 'in' || fit.tone === 'below') ? ' · ' + fit.words : ''));
-  attr(band, 'data-tone', fit ? fit.tone : null);
+  text(band.querySelector('.hw-hd-levels'), bandWords(r, level));
+  const fitEl = band.querySelector('.hw-hunt-fit');
+  text(fitEl, fit && (fit.tone === 'in' || fit.tone === 'below') ? fit.words : '');
+  attr(fitEl, 'data-tone', fit ? fit.tone : null);
   text(det.querySelector('.hw-hd-who'), heroWords(r) + '.');
   text(det.querySelector('.hw-hd-theme'), (HUNT_INDEX[r.hunt] && HUNT_INDEX[r.hunt].theme) || r.theme);
   wantArt(ctx.doc, repaint);
@@ -175,6 +178,8 @@ export function patchGround(det, ctx, r, o) {
   prop(note, 'hidden', !said);
   /* This hero's bests here (the server's hunt_bests): a line per mode it has, else one "Not hunted yet". */
   const best = bestWords(bests, r.hunt);
+  /* No hunt_bests section from the server: no heading over nothing. */
+  prop(det.querySelector('.hw-hd-bests'), 'hidden', !best);
   for (const [q, v] of [['.hw-hunt-best-solo', best && best.solo], ['.hw-hunt-best-party', best && best.party], ['.hw-hunt-best-none', best && best.none]]) {
     text(det.querySelector(q), v || '');
     prop(det.querySelector(q), 'hidden', !v);

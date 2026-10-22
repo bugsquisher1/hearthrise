@@ -626,13 +626,16 @@ async function checks(overrides, shots) {
             if (await page.$('[data-hs-win="inventory"] .hw-pocket[data-item="bones"]')) fails.push('AW-19 the bones came back after a reload');
             /* AW-20 a dish above the server's Cooking level (11 < 40) says so in words and sends nothing */
             await page.click('[data-hs-win="inventory"] .hw-pocket[data-item="raw_bear_meat"]');
-            await page.click('[data-hs-win="inventory"] .hw-pick [data-hs-act="primary"]');
+            /* the control is checked, not clicked blind: raw food with no Cook all is AW-20 red BY NAME, never a click timeout (HARNESS) */
+            const bear = await page.evaluate(() => { const b = document.querySelector('[data-hs-win="inventory"] .hw-pick [data-hs-act="primary"]'); return b && !b.hidden && !b.disabled ? b.textContent : null; });
+            if (bear !== 'Cook all') fails.push('AW-20 the raw bear meat offers ' + JSON.stringify(bear) + ', not Cook all');
+            else await page.click('[data-hs-win="inventory"] .hw-pick [data-hs-act="primary"]');
             await page.waitForTimeout(300);
             const low = await page.evaluate(() => document.querySelector('[data-hs-win="inventory"] .hh-intent-msg').textContent);
-            if (low !== 'Needs Cooking 40 (you have 11).' || sent(s, 'hr-accrue', 'set_activity').length !== 2) fails.push('AW-20 Cook all above the level said ' + JSON.stringify(low));
+            if (bear === 'Cook all' && (low !== 'Needs Cooking 40 (you have 11).' || sent(s, 'hr-accrue', 'set_activity').length !== 2)) fails.push('AW-20 Cook all above the level said ' + JSON.stringify(low));
             /* AW-20 cook all: the raw meat's primary is Cook all; the same ONE set_activity; Stop says what the server made */
             await page.click('[data-hs-win="inventory"] .hw-pocket[data-item="raw_wolf_meat"]');
-            const cp = await page.evaluate(() => document.querySelector('[data-hs-win="inventory"] .hw-pick [data-hs-act="primary"]').textContent);
+            const cp = await page.evaluate(() => { const b = document.querySelector('[data-hs-win="inventory"] .hw-pick [data-hs-act="primary"]'); return b && !b.hidden && !b.disabled ? b.textContent : null; });
             if (cp !== 'Cook all') fails.push('AW-20 the raw meat offers "' + cp + '", not Cook all');
             else {
               await page.click('[data-hs-win="inventory"] .hw-pick [data-hs-act="primary"]');

@@ -4233,3 +4233,8 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 2. *A sender stamp keyed on auth.uid() is a hidden dependency for server-written lines.* hr_chat_name_authority overwrites from_id with a signed-in caller; the trigger journals `refused` rather than post under a foreign JWT (§4(d) proves it).
 3. *selfcheck-no-global-dml cannot read `execute`.* Write privilege probes as static, probe-scoped statements, one begin/exception block each.
 4. *A client-rendered marker needs a trust boundary.* `[[hunt:id]]` names a hunt only on a System row (no player can write that channel); in a player's line it stays as typed.
+## 2026-10-22 · lane/a-hunt-camera (Tyler: the viewed hero at the analyzer's edge)
+1. *A subscription that only repeats changes loses the value published before anyone listened.* The shell published the HUD inset inside mountShell; world-pane subscribed after, and publishInset dedupes, so every pane mounted mid-hunt (a reload, every hero switch) framed the hero in the whole stage. A subscriber now hears the current value at once.
+2. *A clamp that is right for one scene pins the hero in another.* NO VOID (whole view on the map) was ruled for town; in a 60-tile hunt room it pinned the hero against the analyzer anywhere within 17 tiles of the edge. The rule is per map kind in frameView, not a second camera.
+3. *Measure the inset where it arrives (the backend), not where it is computed.* Every rect looked right; the camera had {0,0,0,0}.
+4. *Anchor geometry lies on the phone.* A top-right-anchored bar was read as a full-height side panel and an off-screen panel as a left one: the inset clips to the box and picks the cheaper strip for a corner widget.

@@ -299,6 +299,8 @@
 .hw-skill[data-hs-act]:hover, .hw-skill[data-hs-act]:focus-visible { background: var(--surf-panel); }
 .hw-skill[data-hs-act]:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
 .hw-skill.is-working .hw-skill-name { color: var(--gold-2); }
+.hw-skill[data-hs-act] .hw-skill-lv::after { content: ' ›'; color: var(--ink-3); }
+.hw-work-hint { margin-bottom: 4px; }
 .hw-work { display: none; }
 .hw-work.is-on { display: block; }
 .hw-work-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
@@ -306,7 +308,7 @@
 .hw-work-row .hw-line-name small { white-space: normal; }
 .hw-work-why { color: var(--ink-3); }
 .hw-work-why:empty { display: none; }
-.hw-work-row.is-on .hw-line-name b { color: var(--gold-2); }
+.hw-work-row.is-on .hw-line-name b, .hw-work-row.is-on .hw-work-why { color: var(--gold-2); }
 .hw-work-row.is-locked .hw-ico { opacity: .5; }
 
 /* ── The shop and hunt prep ── */
@@ -338,6 +340,7 @@
   .hw-mi { min-height: 40px; }
   .hw-tip { width: 240px; }
   .hw-work-row .hh-tool, .hw-work-head .hh-tool, .hw-work-now .hh-tool { min-height: 40px; }
+  .hw-work-hint { display: none; }
 }
 
 /* ── The Party window (src/shell/windows/party.js): invites and the finder; role glyphs ── */

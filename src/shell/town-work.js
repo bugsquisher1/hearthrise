@@ -97,7 +97,7 @@ export function actionMs(cs, w) {
 export function xpEach(w) { return Math.floor(pacedXp(w.skill, w.row.xp)); }
 
 /** The verb phrase while it runs: "chopping the Normal Tree", "making Bronze Bar". */
-export function workWords(w) {
+function workWords(w) {
   if (w.kind === 'gather') {
     const verb = w.skill === 'woodcutting' ? 'chopping the ' : w.skill === 'mining' ? 'mining the ' : 'fishing at the ';
     return verb + w.row.name;
@@ -162,7 +162,8 @@ export function startWork(cs, w, send, repaint, words) {
       };
       arm();
     }
-    return words || ('Your hero is ' + workWords(w) + '.');
+    /* The work line already says what runs (nowLine); a caller with its own words (the bag's Bury all) passes them. */
+    return words || '';
   });
 }
 

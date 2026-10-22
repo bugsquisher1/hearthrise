@@ -44,7 +44,7 @@ for (const id of Object.keys(BENCH_INDEX)) push(workRow('artisan', id));
 function push(w) { if (!BY_SKILL.has(w.skill)) BY_SKILL.set(w.skill, []); BY_SKILL.get(w.skill).push(w); }
 
 /** Does this skill have a door here? (Its category is gathering or crafting and it has rows the engine runs.) */
-export function hasWork(skill) {
+function hasWork(skill) {
   const d = SKILLS_DEF[skill];
   return !!d && (d.cat === 'gather' || d.cat === 'artisan') && BY_SKILL.has(skill);
 }
@@ -82,16 +82,15 @@ function rowHtml(g, w) {
 
 function patchRow(li, w, cs, sc, on, hunting) {
   const inv = (cs.read('inventory')) || {};
-  const ms = actionMs(cs, w);
-  const each = secs(ms) + ' · ' + whole(xpEach(w)) + ' XP each';
+  const each = secs(actionMs(cs, w)) + ' · ' + whole(xpEach(w)) + ' XP each';
   const out = productOf(w);
-  text(li.querySelector('.hw-work-what'), w.kind === 'gather'
-    ? itemName(out) + ' · ' + each + ' · in your bag: ' + whole(inv[out] || 0)
-    : recipeWords(w) + ' · ' + each);
+  const gather = w.kind === 'gather';
+  text(li.querySelector('.hw-work-what'), gather ? itemName(out) + ' · ' + each : recipeWords(w));
   const running = !!on && on.id === w.id;
   const why = running ? '' : workBlock(cs, w, hunting);
-  const runs = w.kind === 'artisan' ? runsOf(w.row, inv) : 0;
-  text(li.querySelector('.hw-work-why'), running ? 'Working on it now.' : why || (w.kind === 'artisan' ? 'Uses your bag: makes up to ' + whole(runs * yieldOf(w)) + '.' : ''));
+  /* The status line: running, why not, or what the server's bag holds / covers. */
+  const have = gather ? whole(inv[out] || 0) + ' in your bag' : 'Makes up to ' + whole(runsOf(w.row, inv) * yieldOf(w)) + ' · ' + each;
+  text(li.querySelector('.hw-work-why'), why || (running ? 'Working on it now · ' : '') + have);
   cls(li, 'is-on', running);
   cls(li, 'is-locked', !running && !!why);
   const b = li.querySelector('button');
@@ -105,7 +104,7 @@ function patchRow(li, w, cs, sc, on, hunting) {
 export function renderWork() {
   return '<div class="hw-trade">'
     + '<div class="hw-burying hw-work-now" role="status"><span class="hw-burying-q"></span><button type="button" class="hh-tool" data-hs-act="work-stop">Stop</button></div>'
-    + '<div class="hw-trade-ledger">' + renderTradeSkills() + '</div>'
+    + '<div class="hw-trade-ledger"><p class="hs-note hw-work-hint">Press a skill to gather or make something with it.</p>' + renderTradeSkills() + '</div>'
     + '<section class="hw-work"><div class="hw-work-head"><button type="button" class="hh-tool" data-hs-act="work-back">‹ All skills</button>'
     + '<b class="hw-work-title"></b><b class="hw-skill-lv"></b></div>'
     + '<p class="hs-note hw-work-use"></p><ul class="hw-ledger hw-work-rows"></ul></section>'

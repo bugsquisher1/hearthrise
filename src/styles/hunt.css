@@ -298,7 +298,7 @@
 .hc-conds-head { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--line-soft); padding-top: 6px; }
 .hc-conds-head .hs-sub { margin: 0; }
 .hc-rule { margin: 0; }
-.hc-warn { margin: 0; font-size: var(--t-small); color: var(--red); line-height: 1.45; }
+.hc-warn { flex: 1 1 220px; align-self: center; margin: 0; font-size: var(--t-micro); color: var(--gold-2); line-height: 1.35; }
 .hc-warn:empty { display: none; }
 .hc-conds { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
 .hc-cond { display: none; flex-wrap: wrap; align-items: center; gap: 4px; }

@@ -120,26 +120,42 @@ const cases = {
     M.targeting.chooseTargets(i2, sc2(M, 1));
     return i2.world.units[2].target === 2 ? null : 'a leader who is not a tank Challenged';
   },
-  /* TG-08 with TWO tanks (Andy 2026-10-21: "Challenge spell not changing monster target. 2nd char
-     doesn't increase.. Defense is still 1"): the second tank's Challenge takes the pack off the leader
-     and HOLDS it for CHALLENGE.holdMs (the leader's own Challenge waits), then the leader takes it back. */
-  'two-tanks-trade-the-pack': (M) => {
-    const { holdMs } = M.roleData.CHALLENGE;
-    const k1 = H(M, 1, 11, 3, 'tank'); const k2 = H(M, 2, 13, 5, 'tank');
+  /* TG-08 with TWO tanks, ONE HOLDER A LAP (designer 2026-10-21, Option A; live v0.2.24: "monsters are
+     retargeting onto the secondary member often, until the primary uses Challenge"). Lap 0: the leader holds
+     and the second tank never takes from it; it takes only a monster on a non-tank (the overflow). Lap 1:
+     the second tank holds, takes the pack, and the leader never takes it back. */
+  'one-holder-a-lap': (M) => {
+    const k1 = H(M, 1, 11, 3, 'tank'); const k2 = H(M, 2, 13, 5, 'tank'); const healer = H(M, 5, 14, 6, 'healer');
     const a = E(M, 3, 0, 12, 3, 1); const b = E(M, 4, 0, 12, 4, 1);
-    const inst = fight(M, [k1, k2, a, b], { leader: 1 });
-    const sc = sc2(M, 1, 0);
-    M.targeting.chooseTargets(inst, sc);
-    if (!sc.events.some((e) => e.type === 'cast' && e.u === 2 && e.ability === 'challenge')) return 'the second tank never cast Challenge';
-    if (a.target !== 2 || b.target !== 2) return 'the second tank\'s Challenge did not take the pack (targets ' + a.target + ',' + b.target + ')';
-    for (let t = 100; t < holdMs; t += 100) {
-      M.targeting.chooseTargets(inst, sc2(M, 1, t));
-      if (a.target !== 2 || b.target !== 2) return 'the leader took the pack back ' + t + ' ms into the second tank\'s ' + holdMs + ' ms hold';
+    const inst = fight(M, [k1, k2, a, b, healer], { leader: 1, runs: 0 });
+    if (M.targeting.holderTank(inst) !== k1) return 'lap 0: the holder is not the leader\'s tank';
+    for (let t = 0; t <= 20000; t += 100) {
+      const sc = sc2(M, 1, t);
+      M.targeting.chooseTargets(inst, sc);
+      if (a.target !== 1 || b.target !== 1) return 'lap 0: the second tank took the leader\'s pack ' + t + ' ms in (targets ' + a.target + ',' + b.target + ')';
+      if (sc.events.some((e) => e.type === 'cast' && e.u === 2)) return 'lap 0: the second tank cast Challenge on a pack already on a tank';
     }
-    const back = sc2(M, 1, holdMs);
-    M.targeting.chooseTargets(inst, back);
-    if (a.target !== 1 || b.target !== 1) return 'the leader did not take the pack back once the hold ran out';
-    return back.events.some((e) => e.type === 'cast' && e.u === 1 && e.ability === 'challenge') ? null : 'the leader took the pack without a Challenge cast';
+    /* the overflow: the holder's Challenge is cooling, a monster turns on the Healer, the second tank takes it */
+    k1.cds = { challenge: 999999 }; b.target = 5; b.holdMs = 0;
+    M.targeting.chooseTargets(inst, sc2(M, 1, 20100));
+    if (b.target !== 2) return 'the overflow: a monster on the Healer went to ' + b.target + ', not the second tank';
+    /* it stays there its hold (the second tank trains on it), though the holder's Challenge is ready again */
+    k1.cds = {};
+    for (let t = 20200; t < 20100 + M.roleData.CHALLENGE.holdMs; t += 100) {
+      M.targeting.chooseTargets(inst, sc2(M, 1, t));
+      if (b.target !== 2) return 'the holder took the overflow back ' + (t - 20100) + ' ms into its hold';
+    }
+    /* the holder first: with both Challenges ready, an overflow goes to the holder (lap 1: the second tank) */
+    /* lap 1: the second tank holds */
+    inst.world.runs = 1; a.holdMs = 0; b.holdMs = 0; k1.cds = {}; k2.cds = {};
+    if (M.targeting.holderTank(inst) !== k2) return 'lap 1: the holder is not the next tank by seat';
+    for (let t = 30000; t <= 50000; t += 100) {
+      M.targeting.chooseTargets(inst, sc2(M, 1, t));
+      if (a.target !== 2 || b.target !== 2) return 'lap 1: the pack is on ' + a.target + ',' + b.target + ' ' + (t - 30000) + ' ms in, not on the holding second tank';
+    }
+    a.target = 5; a.holdMs = 0; b.holdMs = 0; k1.cds = {}; k2.cds = {};
+    M.targeting.chooseTargets(inst, sc2(M, 1, 50100));
+    return a.target === 2 ? null : 'lap 1: with both Challenges ready an overflow went to ' + a.target + ', not the holder';
   },
   /* TG-01 ties (Andy 2026-10-21: "Strongest and follow player both seem to just target the first creature"):
      monsters a mode cannot tell apart fall to the NEARER, not to the first spawned. */
@@ -183,12 +199,14 @@ const mutants = [
   { name: 'a fallen target is kept', case: 'monster-retargets-on-death', edits: [[T, 'if (!t || !t.alive) { retarget(', 'if (!t) { retarget(']] },
   { name: 'peel ignores the roll', case: 'peel-seeded', edits: [[T, ' || sc.rng.int(1, 1000) > row.peel) return null;', ') return null;']] },
   { name: 'every role peels', case: 'peel-seeded', edits: [[T, "if (!row || !row.peel || !k || k === hero) return null;", 'if (!row || !k || k === hero) return null;']] },
-  { name: 'the Challenge has no radius', case: 'challenge-when-monster-off-tank', edits: [[T, ' && cheb(m, k) <= CHALLENGE.radius);', ');']] },
+  { name: 'the Challenge has no radius', case: 'challenge-when-monster-off-tank', edits: [[T, ' && cheb(m, k) <= CHALLENGE.radius', '']] },
   { name: 'the Challenge has no cooldown', case: 'challenge-when-monster-off-tank', edits: [[T, '[CHALLENGE_ROW.id]: sc.atMs + CHALLENGE_ROW.cdMs', '[CHALLENGE_ROW.id]: sc.atMs']] },
-  { name: 'any role Challenges', case: 'challenge-when-monster-off-tank', edits: [[T, 'if (!row || !row.tank || !k.alive) return [];', 'if (!row || !k.alive) return [];']] },
-  { name: 'a Challenge holds nothing', case: 'two-tanks-trade-the-pack', edits: [[T, 'm.queued = false; m.holdMs = CHALLENGE.holdMs; }', 'm.queued = false; }']] },
-  { name: 'only the leader Challenges (live v0.2.22)', case: 'two-tanks-trade-the-pack',
-    edits: [[T, 'if (!challengeReady(k, sc.atMs) ||', 'if (k !== leaderOf(inst) || !challengeReady(k, sc.atMs) ||']] },
+  { name: 'any role Challenges', case: 'challenge-when-monster-off-tank', edits: [[T, 'if (!isTank(k) || !k.alive) return [];', 'if (!roleOf(k) || !k.alive) return [];']] },
+  { name: 'a Challenge holds nothing', case: 'one-holder-a-lap', edits: [[T, 'm.queued = false; m.holdMs = CHALLENGE.holdMs; }', 'm.queued = false; }']] },
+  { name: 'a non-holder steals from the holder (live v0.2.24)', case: 'one-holder-a-lap', edits: [[T, ' && (holds || onNonTank(m)));', ');']] },
+  { name: 'the holder never rotates', case: 'one-holder-a-lap', edits: [[T, 'return tanks[(first + runs) % tanks.length];', 'return tanks[first];']] },
+  { name: 'an overflow goes to whichever tank comes first by id', case: 'one-holder-a-lap',
+    edits: [[T, 'for (const k of h ? [h, ...inst.world.units.filter((u) => u !== h)] : inst.world.units) {', 'for (const k of inst.world.units) {']] },
   { name: 'ties fall to id (live v0.2.22)', case: 'mode-ties-fall-to-nearest', edits: [[T, 'cmp(a, b) || dist2(a, unit) - dist2(b, unit) || a.id - b.id', 'cmp(a, b) || a.id - b.id']] },
   { name: 'a melee hits whatever stands beside it (live v0.2.22)', case: 'melee-takes-its-mark', edits: [[T, 'const b = marks ? null : basicTarget(inst, u);', 'const b = basicTarget(inst, u);']] },
   { name: 'a melee drops the target it stands beside', case: 'melee-takes-its-mark', edits: [[T, '(inRange(inst, u, cur) || enRoute)) continue;', 'enRoute) continue;']] },

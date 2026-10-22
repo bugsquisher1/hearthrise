@@ -20,7 +20,8 @@
 //   Silk Thread  Hive Wasp (Cellar, 15%), Cistern Spider (Sewer, 30%)   cloth, wand grips, strings
 //   Bat Wing     Culvert Bat (Sewer, 70%)                               spellbook vellum, adept lining
 //   Bone Chips   Kobold Tosher (Sewer, 50%)                             the staff's bone cap
-//   Oak Plank    Woodcutting 15 oak, sawn at Crafting 15                 every tier-2 stock
+//   Oak Plank    Woodcutting 15 oak, sawn at Crafting 15                 the tier-2 wand, book, staff and bows
+//   Normal Plank Woodcutting 1, sawn at Crafting 1                       the hafts: a smith needs no Crafting 15
 //   Iron Bar     Mining 15 iron, smelted at Smithing 15                  hatchets and the club's head
 // Cloth is the caster's line from Level 1 (Defense 1 to wear): a Mage or Healer sews a robe from
 // the Cellar's silk in the first hour, as the Melee hero finds plate in the Sewer and the Ranger
@@ -61,8 +62,8 @@ const r = (id, name, icon, inputs, output, xp, req, ms) => Object.freeze({ id, n
 
 export const STYLE_GEAR_RECIPES = Object.freeze({
   smithing: Object.freeze([
-    r('forge_iron_hatchets',  'Forge Iron Hatchets',  '🪓', { iron_bar: 2, oak_plank: 1 }, 'iron_hatchets',  120, 15, 3400),
-    r('forge_iron_warhammer', 'Forge Iron Warhammer', '🔨', { iron_bar: 3, oak_plank: 1 }, 'iron_warhammer', 150, 15, 3600),
+    r('forge_iron_hatchets',  'Forge Iron Hatchets',  '🪓', { iron_bar: 2, normal_plank: 1 }, 'iron_hatchets',  120, 15, 3400),
+    r('forge_iron_warhammer', 'Forge Iron Warhammer', '🔨', { iron_bar: 3, normal_plank: 2 }, 'iron_warhammer', 150, 15, 3600),
   ]),
   crafting: Object.freeze([
     /* Tier-2 weapons: oak stock at Crafting 15, the level they are worn at. */

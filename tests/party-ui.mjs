@@ -596,6 +596,10 @@ async function pureRules(M, base) {
     await press('hold-seat', fremulon());
     await press('hold-one');
     if (srv.calls.length) return 'a press on what the server already holds sent ' + JSON.stringify(srv.calls.map((c) => c[0]));
+    /* in a hunt, One tank holds names the hunt's PULL leader's tank (here Fremulon pulls), not the first by seat */
+    const pulling = Object.assign(andyParty({ hunting: true }), { leader: 20 });
+    const pv = M.PP.liveRoster({ read: (k) => (k === 'party' ? pulling : undefined) }, M.PP.rosterOf({ read: (k) => (k === 'party' ? pulling : undefined) })).hold;
+    if (pv.fallback !== 3) return 'with Fremulon pulling, One tank holds would name seat ' + pv.fallback + ', not his 3';
     /* Take turns names no seat */
     await press('hold-turns');
     const turns = srv.calls.filter((c) => c[0] === 'hr_party_hold_set');
@@ -1008,6 +1012,7 @@ const PURE_MUTANTS = [
   ['a tank too weak to hold reads as waiting its turn (bug #59)', 'src/shell/widgets/party-hold.js', "  if (turn === 'weak') return 'Too weak to hold';\n", ''],
   ["a tank's turn is never drawn on its row (bug #59)", 'src/shell/widgets/party-panel.js', "  text(el.querySelector('.hp-turn'), m.turn || '');\n", ''],
   ['the rotation has no footer (bug #59)', 'src/shell/widgets/party-hold.js', "  text(el.querySelector('.hp-tanks'), v.show ? v.note : '');\n", ''],
+  ['One tank holds ignores who pulls', 'src/shell/widgets/party-hold.js', '(tanks.find((m) => m.seat === r.pullSeat) || tanks[0] || {})', '(tanks[0] || {})'],
   ['One tank holds names no tank (Tyler 2026-10-22)', 'src/shell/widgets/party-hold.js', "action === 'hold-one' ? v.fallback :", "action === 'hold-one' ? null :"],
   ['a member can change who holds', 'src/shell/widgets/party-hold.js', '  if (!v.show || !v.isLeader) return true;\n', '  if (!v.show) return true;\n'],
   ['the hold switch stays on while in flight', 'src/shell/widgets/party-hold.js', '  const off = !v.isLeader || pending;', '  const off = !v.isLeader;'],

@@ -104,13 +104,15 @@ const NO_HUNT = { mana: null, manaMax: null, dps: null, dealt: null, hps: null, 
 
 /**
  * The roster: the membership's seats overlaid with the hunt's member by seat, or (a solo hunt, no
- * membership) the hunt's party of one. { members, leaderSeat, selfSeat, isLeader, inParty, anyHunting, holdSeat }.
+ * membership) the hunt's party of one. { members, leaderSeat, selfSeat, isLeader, inParty, anyHunting, holdSeat,
+ * pullSeat (the seat of the hunt's pull leader, hunt-sections.js partyOf `leader`; null in town) }.
  * Pure; exported for tests/party-ui.mjs.
  */
 export function rosterOf(cs) {
   const p = partyMembershipOf(cs);
   const h = partyOf(cs);
   const bySeat = new Map(h ? h.members.map((m) => [m.seat, m]) : []);
+  const pullSeat = h && Number.isInteger(h.leader) ? (h.members.find((m) => m.unit === h.leader) || {}).seat ?? null : null;
   if (p) {
     const members = p.seats.map((s) => {
       const live = s.hunting ? bySeat.get(s.seat) : null;
@@ -119,11 +121,11 @@ export function rosterOf(cs) {
         hp: live ? live.hp : s.hp, hpMax: live ? live.hpMax : s.hpMax,
       });
     });
-    return { members, leaderSeat: p.leader, selfSeat: p.me, isLeader: p.isLeader, inParty: true, anyHunting: p.anyHunting, holdSeat: p.holdSeat };
+    return { members, leaderSeat: p.leader, selfSeat: p.me, isLeader: p.isLeader, inParty: true, anyHunting: p.anyHunting, holdSeat: p.holdSeat, pullSeat };
   }
-  if (!h) return { members: [], leaderSeat: null, selfSeat: null, isLeader: false, inParty: false, anyHunting: false, holdSeat: null };
+  if (!h) return { members: [], leaderSeat: null, selfSeat: null, isLeader: false, inParty: false, anyHunting: false, holdSeat: null, pullSeat: null };
   const members = h.members.map((m) => Object.assign({}, m, { hunting: true, away: false, seatMs: null }));
-  return { members, leaderSeat: h.leaderSeat, selfSeat: h.selfSeat, isLeader: false, inParty: false, anyHunting: true, holdSeat: null };
+  return { members, leaderSeat: h.leaderSeat, selfSeat: h.selfSeat, isLeader: false, inParty: false, anyHunting: true, holdSeat: null, pullSeat };
 }
 
 /** The roster with each hunting member's HP as the live timeline plays it (hunt-sections.js liveHpOf: the
@@ -160,7 +162,7 @@ function scOf(el) {
 export function renderPartyPanel() {
   return panelHtml('hp-party', 'Party',
     '<button type="button" class="hh-tool" data-hs-act="expand" aria-pressed="false" hidden>DPS and HPS</button>',
-    '<p class="hh-empty">Not in a party.</p><ol class="hp-members"></ol><p class="hp-tanks"></p>' + holdHtml()
+    '<p class="hh-empty">Not in a party.</p><ol class="hp-members"></ol>' + holdHtml()
     + '<div class="hp-acts"><button type="button" class="hh-tool" data-hs-act="leave" hidden>Leave party</button>'
     + '<button type="button" class="hh-tool" data-hs-act="disband" hidden>Disband</button></div>'
     + '<p class="hh-intent-msg hp-msg" role="status"></p><p class="hp-foot">Costs are personal.</p>');

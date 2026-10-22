@@ -60,8 +60,9 @@ export function holdView(r, turns) {
   const tanks = r.members.filter(isTank);
   const show = r.inParty && tanks.length > 1;
   const pick = r.holdSeat === null ? null : tanks.find((m) => m.seat === r.holdSeat) || null;
-  /* the default pick: the pull leader's tank, else the first tank by seat */
-  const fallback = (tanks.find((m) => m.seat === r.leaderSeat) || tanks[0] || {}).seat ?? null;
+  /* the default pick: the pull leader's tank (the hunt's, partyOf `leader`), else the first tank by seat, the one
+     the engine makes pull (roles.js pickLeader: the first tank to enter) */
+  const fallback = (tanks.find((m) => m.seat === r.pullSeat) || tanks[0] || {}).seat ?? null;
   let note = '', warn = '';
   if (show && pick) {
     note = holdNote(pick.name, tanks.filter((m) => m !== pick).map((m) => m.name));
@@ -76,14 +77,14 @@ export function holdView(r, turns) {
     fallback, note, warn };
 }
 
-/** The switch's skeleton (built once, inside the panel). */
+/** The switch's skeleton, then the note and the warning under it (built once, inside the panel). */
 export function holdHtml() {
   return '<div class="hp-hold" hidden><p class="hp-hold-label">Who holds the pack</p>'
     + '<span class="hh-segs hp-hold-modes" role="group" aria-label="Who holds the pack">'
     + '<button type="button" class="hh-seg" data-hs-act="hold-turns" aria-pressed="false">Take turns</button>'
     + '<button type="button" class="hh-seg" data-hs-act="hold-one" aria-pressed="false">One tank holds</button></span>'
-    + '<span class="hh-segs hp-hold-tanks" role="group" aria-label="The tank that holds"></span>'
-    + '<p class="hp-hold-warn"></p></div>';
+    + '<span class="hh-segs hp-hold-tanks" role="group" aria-label="The tank that holds"></span></div>'
+    + '<p class="hp-tanks"></p><p class="hp-hold-warn"></p>';
 }
 
 /** Patch the switch, the note and the warning from `v` (holdView); `pending`: a party intent is in flight. */
@@ -91,6 +92,7 @@ export function patchHold(el, v, pending, doc) {
   const box = el.querySelector('.hp-hold');
   prop(box, 'hidden', !v.show);
   cls(box, 'is-read', !v.isLeader);
+  text(el.querySelector('.hp-hold-label'), v.isLeader ? 'Who holds the pack' : 'Who holds the pack (the leader chooses)');
   const off = !v.isLeader || pending;
   for (const [act, on] of [['hold-turns', !v.one], ['hold-one', v.one]]) {
     const b = el.querySelector('[data-hs-act="' + act + '"]');

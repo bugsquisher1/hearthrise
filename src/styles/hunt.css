@@ -106,7 +106,7 @@
 .hp-stats dt { color: var(--ink-3); }
 .hp-stats dd { margin: 0; font-weight: 700; font-variant-numeric: lining-nums tabular-nums; }
 /* The tank's turn at holding the pack (bug #59): its own line under the role; the holder's in the state gold. */
-.hp-turn { margin: 0; font-size: var(--t-micro); color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hp-turn { margin: 0; font-size: var(--t-micro); color: var(--ink-3); }
 .hp-turn.is-holding { color: var(--gold-2); }
 .hp-turn:empty { display: none; }
 .hp-tanks { margin: 8px 0 0; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.4; }
@@ -117,7 +117,7 @@
 .hp-hold-label { margin: 0; font-size: var(--t-micro); color: var(--ink-3); }
 .hp-hold-tanks { flex-wrap: wrap; max-width: 100%; }
 .hp-hold.is-read .hh-seg:disabled { opacity: 1; }
-.hp-hold-warn { margin: 0; font-size: var(--t-micro); color: var(--red); }
+.hp-hold-warn { margin: 4px 0 0; font-size: var(--t-micro); color: var(--red); }
 .hp-hold-warn:empty { display: none; }
 .hp-foot { margin: 8px 0 0; padding-top: 6px; border-top: 1px solid var(--line-soft); font-size: var(--t-micro); color: var(--ink-3); }
 .hp-party.is-empty .hp-foot { display: none; }

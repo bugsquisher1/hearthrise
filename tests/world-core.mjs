@@ -265,6 +265,14 @@ function check(M) {
     for (const m of M.maps.WORLD_MAPS) for (const p of M.mapc.lintMap(m, tables)) ok('L0', false, p.code + ' ' + p.msg);
     for (const [kind, id] of Object.entries(M.maps.SCENE_MAPS)) ok('L0', rows[id] && rows[id].kind === kind, 'SCENE_MAPS.' + kind + ' is not a ' + kind + ' map');
     for (const m of M.maps.WORLD_MAPS) for (const h of m.hunts) ok('L0', !!M.hunts.HUNT_INDEX[h], m.id + ' renders unknown hunt ' + h);
+    /* A STAGED map (maps/index.js STAGED_MAPS: a staged hunt's, its painted ground still to come) passes every
+       rule but the ground art's: lintMap without `terrains`. Opening it is tests/hunt-core/forest-cave.mjs staged-until-art. */
+    const stagedTables = Object.assign({}, tables, { terrains: null });
+    for (const m of M.maps.STAGED_MAPS) {
+      ok('L0', !ids.includes(m.id), m.id + ' is both shipped and staged');
+      for (const p of M.mapc.lintMap(m, stagedTables)) ok('L0', false, p.code + ' ' + p.msg);
+      for (const h of m.hunts) ok('L0', !!M.hunts.HUNT_INDEX[h] && M.hunts.HUNT_INDEX[h].staged === true, m.id + ' is staged but its hunt ' + h + ' is not');
+    }
     const plant = (id, edit) => { const r = JSON.parse(JSON.stringify(rows[id] || fixtures[id])); edit(r); return M.mapc.lintMap(r, tables).map((p) => p.code); };
     const want = [
       ['a fractional object', 'L-WHOLE', 'mill_cellar', (r) => { r.objects[1].x = 4.5; }],

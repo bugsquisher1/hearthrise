@@ -87,7 +87,9 @@
 // and the Plain Fire Rune joins the store, once 2026-11-07-store-by-slot.sql (applied
 // FIRST) restates their readers: 2026-11-07-hunt-sessions-catalogue.generated.sql; the four-slot drop tables
 // (lane/c-loot-loop: the imbuement items, one junk row per monster) start
-// 2026-11-08-hunt-sessions-catalogue.generated.sql, after both 2026-11-07 files.
+// 2026-11-08-hunt-sessions-catalogue.generated.sql, after both 2026-11-07 files; Mosslight Glade's five monsters
+// (lane c-ground-16-31: their kill bounds, vendor values and training rows; the glade itself is STAGED, so no
+// hunt, travel or ground row) start 2026-11-12-hunt-sessions-catalogue.generated.sql, after the 11-08 pair.
 //
 //   Regenerate:  node tools/gen-hunt-sessions.mjs
 //   Verify:      node tools/gen-hunt-sessions.mjs --check     (exit 1 on drift)
@@ -137,7 +139,7 @@ export const WORLD_FIELDS_READ = Object.freeze({
     'role', 'dist', 'chase', 'tmode', 'stance']),
   world: Object.freeze(['leader']),
 });
-export const OUT_NAME = '2026-11-08-hunt-sessions-catalogue.generated.sql';
+export const OUT_NAME = '2026-11-12-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

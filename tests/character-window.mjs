@@ -42,6 +42,7 @@ import { readFile, mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
+import { harnessFail, judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -194,6 +195,8 @@ async function checks(overrides, shots) {
         await page.evaluate(() => { window.__dmg = document.querySelector('[data-hs-win="character"] [data-combat="damage"] dd'); });
         s.env.character_sheet.combat.damage.max = 31;
         await push(page, s);
+        /* The re-read and the repaint can land after push's fixed 500 ms on a loaded box: wait for the number (4 s). */
+        await wait(page, () => { const d = document.querySelector('[data-hs-win="character"] [data-combat="damage"] dd'); return !!d && d.textContent === '1–31'; }, null, 4000);
         const same = await page.evaluate(() => { const d = document.querySelector('[data-hs-win="character"] [data-combat="damage"] dd'); return { same: d === window.__dmg, t: d.textContent }; });
         if (same.t !== '1–31' || !same.same) fails.push('CW-2 after a new envelope the damage reads ' + same.t + (same.same ? '' : ' on a rebuilt node'));
         /* CW-4: try on an owned outfit, save: ONE intent. */
@@ -360,7 +363,8 @@ async function checks(overrides, shots) {
       await ctx.close();
     }
   } catch (e) {
-    fails.push('CW-x a step failed: ' + String(e && e.message).split('\n')[0]);
+    /* a step that threw is HARNESS, never a rule (2026-10-22, tests/_mutant-verdict.mjs) */
+    fails.push(harnessFail('a page step', e));
   } finally {
     await browser.close();
     server.close();
@@ -401,19 +405,17 @@ async function main() {
       : 'character-window: rows match the server; stats only from the server section; nothing that does not exist is drawn; one sheet ask per version; outfit save is one intent; the death log is the server\'s; skills split with named unlocks' + (shots ? ' (shots in ' + shots + ')' : ''));
     process.exit(fails.length ? 1 : 0);
   }
-  const clean = await checks(null, null);
-  if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
-  console.log('  ✓ clean control green');
-  let bad = 0;
+  const clean = await cleanControl(() => checks(null, null));
+  console.log(clean.line);
+  if (clean.code) process.exit(clean.code);
+  const counts = { caught: 0, harness: 0, escaped: 0 };
   for (const [name, file, from, to] of MUTANTS) {
     const text = await readFile(join(ROOT, file), 'utf8');
-    if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
-    const fails = await checks({ [file]: text.replace(from, to) }, null);
-    if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
-    else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+    if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
+    console.log(report(name, await judge(() => checks({ [file]: text.replace(from, to) }, null)), counts));
   }
-  console.log(bad ? 'character-window --mutate: ' + bad + ' escaped' : 'character-window --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught');
-  process.exit(bad ? 1 : 0);
+  console.log(exitOf(counts) ? 'character-window --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'character-window --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught, each by a named rule');
+  process.exit(exitOf(counts));
 }
 
 main();

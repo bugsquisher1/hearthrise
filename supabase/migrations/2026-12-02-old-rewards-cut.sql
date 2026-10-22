@@ -37,7 +37,7 @@
 -- §2 THE CLIENT SURFACE: the four authenticated baseline rows of the dropped
 --    claim RPCs and hr_tally_state's leave hr_client_rpc_baseline.
 -- §3 THE FOX COMPANION: the item and the companion equip slot left hr_items /
---    hr_item_slots / hr_equip_slots with 2026-11-23-loot-catalogue.generated.sql
+--    hr_item_slots / hr_equip_slots with 2026-11-22-loot-catalogue.generated.sql
 --    (regenerated from the data). A held fox is deleted from every place an item
 --    can rest (bag, worn, account bank, hunt bag, market listing, clan store,
 --    item rules) and each deletion is journalled (one `admin` ledger row per
@@ -60,7 +60,7 @@
 --
 -- REVERSIBILITY: re-apply the files that created each body (named in
 -- tests/live-hash-drift.baseline.json `touched_by`). No begin/commit.
--- ORDER: after 2026-11-29-house-home.sql (and after the 2026-11-23 loot
+-- ORDER: after 2026-12-01-garden-beds.sql (and after the 2026-11-22 loot
 -- catalogue, which removes the item rows). No edge deploy.
 -- ════════════════════════════════════════════════════════════════════════
 

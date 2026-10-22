@@ -386,6 +386,15 @@ jobs:
           node tests/house-window.mjs
           node tools/mutant-gate.mjs node tests/house-window.mjs --mutate
 
+      # THE FARM WINDOW (2026-10-22, lane b-farm-window): plots at the server's cap
+      # (`farm_land`), plant / water / harvest / harvest-and-replant as intents,
+      # the plot tier at its quoted price, refusals in words. --mutate plants its defects.
+      - name: Farm window (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/farm-window.mjs
+          node tools/mutant-gate.mjs node tests/farm-window.mjs --mutate
+
       # EVERY PRESS ANSWERS AT ONCE (tracker r20, r21): a press that sends an
       # ask is pending in its own frame (Play, a purchase) until the server's
       # answer AND the re-read envelope, a second click in flight reaches no
@@ -475,9 +484,20 @@ jobs:
   # a boot) = ~64 min. --mutate --shard=K/3 runs every third mutant; shards 2
   # and 3 are in-page-4 / in-page-5 below. ~21 mutants = ~22 min a shard;
   # budget x2 = 44, +2 for the plain run here = 46.
+  # RE-SHARDED 2026-10-22: release/v0.2.28 (run 39765799475) CANCELLED this job
+  # at 46 min: 79 mutants, and round-robin by COUNT gave shard 1 the slow ones
+  # (a mutant costs 2-155 s: caught by the first rule, or only after a full
+  # boot). Now 7 shards balanced by MEASURED SECONDS (planShards, tools/lib/
+  # mutant-scope.mjs, over tests/hunt-screen.mutant-times.json): 5,546 s measured
+  # + 3 unmeasured booked at the slowest = ~14.7 min a shard. A job = ~3 min
+  # setup (one install took 9.5) + ~2.3 clean control + its shard (+2.3 plain
+  # run here) = ~20-22 min; budget x2 = 40, 44 here. The partition and the
+  # 18-min-a-shard cap are checked without a browser in client-guards
+  # (hunt-screen --shard-plan); a new mutant that pushes a shard over 18 min
+  # turns that red: add a shard there.
   in-page-3:
     runs-on: ubuntu-latest
-    timeout-minutes: 46
+    timeout-minutes: 44
 
     steps:
       - uses: actions/checkout@v4
@@ -505,7 +525,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           node tests/hunt-screen.mjs
-          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=1/3
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=1/7
 
       # A failing run is far easier to diagnose with the page state attached.
       - name: Upload failure artifacts
@@ -519,11 +539,11 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  # ── in-page-4 / in-page-5 ── HUNT SCREEN MUTANTS, SHARDS 2 AND 3 (see the
-  # note above in-page-3). Budget: ~22 min a shard x2 = 44.
+  # ── in-page-4 … in-page-9 ── HUNT SCREEN MUTANTS, SHARDS 2-7 (see the
+  # note above in-page-3). Budget: ~20 min a job x2 = 40.
   in-page-4:
     runs-on: ubuntu-latest
-    timeout-minutes: 44
+    timeout-minutes: 40
 
     steps:
       - uses: actions/checkout@v4
@@ -541,10 +561,10 @@ jobs:
           npm install --no-audit --no-fund
           npx playwright install --with-deps chromium
 
-      - name: Hunt screen mutants, shard 2 of 3 (play.html)
+      - name: Hunt screen mutants, shard 2 of 7 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=2/3
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=2/7
 
       - name: Upload failure artifacts
         if: failure()
@@ -559,7 +579,7 @@ jobs:
 
   in-page-5:
     runs-on: ubuntu-latest
-    timeout-minutes: 44
+    timeout-minutes: 40
 
     steps:
       - uses: actions/checkout@v4
@@ -577,16 +597,160 @@ jobs:
           npm install --no-audit --no-fund
           npx playwright install --with-deps chromium
 
-      - name: Hunt screen mutants, shard 3 of 3 (play.html)
+      - name: Hunt screen mutants, shard 3 of 7 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=3/3
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=3/7
 
       - name: Upload failure artifacts
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: smoke-failure-in-page-5
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  in-page-6:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Hunt screen mutants, shard 4 of 7 (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=4/7
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-in-page-6
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  in-page-7:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Hunt screen mutants, shard 5 of 7 (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=5/7
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-in-page-7
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  in-page-8:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Hunt screen mutants, shard 6 of 7 (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=6/7
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-in-page-8
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  in-page-9:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Hunt screen mutants, shard 7 of 7 (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=7/7
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-in-page-9
           path: |
             tests/**/*.png
             tests/**/*.log
@@ -1039,7 +1203,7 @@ jobs:
           node tests/bounty-gems-close.mjs
           node tools/mutant-gate.mjs node tests/bounty-gems-close.mjs --mutate
 
-      # RETIRED 2026-10-22 (old-client reward cut, Tyler): tests/login-reward-off.mjs bound src/data/rewards.js (the old login cycle, deleted); hr_login_claim_verify still refuses, asserted by 2026-11-30-old-rewards-cut.sql §4(b). tests/old-rewards-gone.mjs keeps it cut.
+      # RETIRED 2026-10-22 (old-client reward cut, Tyler): tests/login-reward-off.mjs bound src/data/rewards.js (the old login cycle, deleted); hr_login_claim_verify still refuses, asserted by 2026-12-02-old-rewards-cut.sql §4(b). tests/old-rewards-gone.mjs keeps it cut.
 
       # Lane C1 (2026-10-20-hunts-*.sql): hunts as named areas. The hunt catalogue
       # is GENERATED from src/data/hunts.js (unknown monster ids refused); the ONE
@@ -2811,6 +2975,15 @@ jobs:
           node tests/house-home.mjs
           node tools/mutant-gate.mjs node tests/house-home.mjs --selftest
 
+      # ROOM PURPOSE (game-designer ruling 2026-10-22): the Library speeds rune binding
+      # through the server perk channel, the Garden adds farm beds through the real
+      # hr_farm_plant, no room pays XP or yield. 4 mutations, the migration's §3 short-circuited.
+      - name: House — every room does one thing
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/room-purpose.mjs
+          node tools/mutant-gate.mjs node tests/room-purpose.mjs --selftest
+
       # THE FREE CREW (live 2026-09-09, b527). hr_worker_hire read its paid crew
       # cap as coalesce(greatest(0, least(max(pp.value), 6)), 0) — and LEAST/GREATEST
       # DROP null arguments, so a player who had bought NOTHING got least(NULL,6)=6
@@ -3316,7 +3489,7 @@ jobs:
 
       # OLD-CLIENT REWARDS STAY CUT (Tyler 2026-10-22). The quests, collection
       # milestones, renown rank claims, daily/weekly goals, the old login cycle and
-      # the Fox Companion with its slot were cut (2026-11-30-old-rewards-cut.sql).
+      # the Fox Companion with its slot were cut (2026-12-02-old-rewards-cut.sql).
       # No shipped code names them, their data files stay deleted, and at the
       # chain end every cut function, table and client-baseline row is dropped.
       # Replaces quest-reward-parity, goal-catalogue-drift, quest-xp-absence-pay,
@@ -3536,6 +3709,15 @@ jobs:
           node tools/mutant-gate.mjs node tests/catalogue-coherence.mjs --mutate
           node tests/catalogue-coherence.mjs
 
+      # THE STYLE LADDER (designer 2026-10-22, src/data/style-gear.js): every style's practice weapon has a
+      # rung a player can reach by skill 15 that beats it, the cloth line is made at tiers 1 and 2, and no
+      # made piece sells above its inputs' book. --mutate plants nine defects, each CAUGHT by its arm.
+      - name: Style gear - every way to fight climbs
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/style-gear.mjs --mutate
+          node tests/style-gear.mjs
+
       # HUNT SESSIONS DATA (ruling HR-2026-10-14, lane D): every bag supply is
       # crafted or sold, the action-bar vocabulary is the ruling's, every hunt
       # has a walk and a sensible bag, and every end reason has plain copy.
@@ -3593,6 +3775,27 @@ jobs:
         run: |
           node tools/mutant-gate.mjs node tests/mutant-anchors.mjs --selftest
           node tests/mutant-anchors.mjs
+      # HUNT-SCREEN SHARD PLAN (2026-10-22, run 39765799475: shard 1/3 CANCELLED at
+      # 46 min). No browser: the --shard=K/N lines in this file are 1..N of one N,
+      # the time-balanced plan for N puts every hunt-screen mutant in exactly one
+      # shard, and no shard is booked over 18 min (tests/hunt-screen.mutant-times
+      # .json). Four planted defects (a dropped shard, an off-by-one plan, a mutant
+      # planned twice, a shard over budget) must each be caught in the same run.
+      - name: Hunt screen shard plan — every mutant in exactly one shard, every shard in budget
+        run: node tests/hunt-screen.mjs --shard-plan
+
+      # CATCH BY RULE (2026-10-22). alpha-windows' AW-8 click threw, its catch-all
+      # filed "AW-x a step failed", and the --mutate loop counted every later
+      # mutant "caught" through the crash. tests/_mutant-verdict.mjs is the one
+      # verdict the page-guard runners share: a catch is a NAMED rule's fail line;
+      # a throw (swallowed or not) or an unnamed line is HARNESS, exit 2, never a
+      # catch; a clean control that throws is HARNESS. Plain: every runner that
+      # imports it is off the old shapes. --selftest: a mutant whose page throws
+      # before its rule runs is HARNESS, and the old any-fail rule is caught.
+      - name: Catch by rule — a mutant is caught by a named rule, never by a crash
+        run: |
+          node tools/mutant-gate.mjs node tests/_mutant-verdict.mjs --selftest
+          node tests/_mutant-verdict.mjs
 
       # THE MUTANT GATE (CLAUDE.md §3.6, 2026-10-21). Every --mutate/--selftest in
       # this file runs through tools/mutant-gate.mjs: on a push or PR it runs only
@@ -3919,6 +4122,8 @@ jobs:
         run: |
           node tests/session-core.mjs
           node tools/mutant-gate.mjs node tests/session-core.mjs --mutate
+          node tests/new-version-banner.mjs
+          node tools/mutant-gate.mjs node tests/new-version-banner.mjs --mutate
 
       # The hunt screen's pure rules: the visual timeline (events once, a new
       # envelope never restarts an animation, gaps hold, poses are walked to),

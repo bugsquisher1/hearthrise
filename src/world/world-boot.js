@@ -9,8 +9,8 @@
 // Each frame reads the scene from server-held state (store.js), steps the roof fades, and
 // hands the backend one state object.
 //
-// THE HUNT (lane W3): a fight a map renders is staged by hunt-scene.js from the one swing
-// observer (src/render/combat-observer.js), snapshot and beats, so hidden-pane swings survive.
+// THE HUNT (lane W3): a fight a map renders with no live `hunt` section is staged by
+// hunt-scene.js from the view's bare snapshot (the old client's swing observer is gone).
 // THE LIVE HUNT: with a `hunt` section, src/hunt-view/scene.js plays the timeline instead. That
 // scene is the CHARACTER'S (liveSceneOf), so a switch of the viewed character keeps its deaths.
 //
@@ -21,27 +21,28 @@
 // one record of where this body stands in town (placeOn: a switch is not a move).
 // A fight on a hunt no map renders shows town or home with a slim banner offering the mapped hunt.
 // ════════════════════════════════════════════════════════════════════════
-import { BUILD } from '../build-info.js?v=0.2.28';
-import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=0.2.28';
-import { WORLD_MAPS } from '../data/world/maps/index.js?v=0.2.28';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.28';
-import { MONSTERS } from '../data/monsters.js?v=0.2.28';
-import { compileMap } from './core/map-compile.js?v=0.2.28';
-import { STUB_SPRITE } from './core/book.js?v=0.2.28';
-import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.28';
-import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.28';
-import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.28';
-import { loadAtlases } from './atlas.js?v=0.2.28';
-import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.28';
-import { huntOfMap } from './hunt-maps.js?v=0.2.28';
-import { createHuntScene } from './hunt-scene.js?v=0.2.28';
-import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.28';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.28';
-import { createWalkScene } from './walk-scene.js?v=0.2.28';
-import { homeMapFor } from './home-scene.js?v=0.2.28';
-import { runAction } from './steer-local.js?v=0.2.28';
-import { heroSprite } from '../session/hero-look.js?v=0.2.28';
-import { keyBelongsToField } from '../utils/dom.js?v=0.2.28';
+import { BUILD } from '../build-info.js?v=0.2.29';
+import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=0.2.29';
+import { WORLD_MAPS } from '../data/world/maps/index.js?v=0.2.29';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.29';
+import { MONSTERS } from '../data/monsters.js?v=0.2.29';
+import { compileMap } from './core/map-compile.js?v=0.2.29';
+import { STUB_SPRITE } from './core/book.js?v=0.2.29';
+import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.29';
+import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.29';
+import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.29';
+import { loadAtlases } from './atlas.js?v=0.2.29';
+import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.29';
+import { huntOfMap } from './hunt-maps.js?v=0.2.29';
+import { createHuntScene } from './hunt-scene.js?v=0.2.29';
+import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.29';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.29';
+import { createWalkScene } from './walk-scene.js?v=0.2.29';
+import { homeMapFor, homeEnv } from './home-scene.js?v=0.2.29';
+import { homeOf } from '../session/home-sections.js?v=0.2.29';
+import { runAction } from './steer-local.js?v=0.2.29';
+import { heroSprite } from '../session/hero-look.js?v=0.2.29';
+import { keyBelongsToField } from '../utils/dom.js?v=0.2.29';
 
 /* THE KEYS (desktop): WASD and the arrows, by physical key (e.code, so a
    non-QWERTY layout walks with the same hand). Two held at once walk the
@@ -59,14 +60,12 @@ const onWorld = (e) => !!(e && e.target && e.target.classList && e.target.classL
 const ROWS = new Map(WORLD_MAPS.map((m) => [m.id, m]));
 const ROW_OF = Object.fromEntries(WORLD_MAPS.map((m) => [m.id, m]));
 
-/** The fight as the client holds it, when the observer is not installed (a bare harness). */
+/** The fight as the view holds it, for a fight with no live `hunt` section (no swing beats arrive). */
 function bareSnapshot(G) {
   const n = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
   return { foe: G.activeMonster || null, foeHp: n(G.monsterHp), foeMaxHp: n(G.monsterMaxHp), heroHp: n(G.playerHp),
     heroMaxHp: n(G.playerMaxHp), kills: n(G.combatKillsThisFoe), tickMs: 0, down: null };
 }
-
-const fn = (o, k) => (o && typeof o[k] === 'function' ? o[k] : null);
 
 /** The hunt the World can show today — the first hunt map's — named from the data. */
 const OPEN_HUNT = huntOfMap(WORLD_MAPS.find((m) => m.kind === 'hunt'));
@@ -89,31 +88,22 @@ function unmappedBanner(G, sc, monsterName) {
     + '<button type="button" class="world-idle-go" data-world-go="hunt">' + esc('Hunt in the ' + OPEN_HUNT.name) + '</button>';
 }
 
-/**
- * What the town or home reads this frame, from the client's copies of server
- * state (each through the module that owns it). Every reader fails safe: an
- * unknown property rung is the first template, unknown rooms are none, an
- * unknown trophy set hangs nothing, an absent town view shows nobody. The
- * claimed-trophy wall is re-read only when the trophy mirror is replaced.
- */
-function createEnvReader(win, town) {
-  let wallOf = null, wall = null;
-  return function readEnv(G, kind) {
-    const pointer = fn(win, 'localActivityPointer') ? win.localActivityPointer() : null;
-    const I = win.HearthriseIdentity;
-    const env = { kind: (pointer && pointer.kind) || 'idle', you: (fn(I, 'displayName') && I.displayName()) || G.playerName || null,
-      canon: fn(I, 'canon') ? (n) => I.canon(String(n)) : null };
-    if (kind === 'home') {
-      const Rooms = win.HearthriseRooms, Tr = win.HearthriseTrophies;
-      env.rooms = fn(Rooms, 'roomsMap') ? Rooms.roomsMap(G) : {};
-      const known = !!fn(Tr, 'claimsKnown') && Tr.claimsKnown() === true && !!fn(Tr, 'wallRows');
-      if (!known) { wallOf = null; wall = null; } else if (wallOf !== G._bestiaryTrophies) { wallOf = G._bestiaryTrophies; wall = Tr.wallRows({ known: true, cap: 1000 }); }
-      env.trophies = wall;
-      env.roomName = (id) => (win.ROOMS && win.ROOMS[id] && win.ROOMS[id].name) || id;
-    } else {
-      env.walkers = town ? town.walkers() : [];
-    }
+/** The account's `home` section (session/home-sections.js), re-parsed only when an envelope replaces it. */
+function createHomeReader(character) {
+  let raw, env = homeEnv(null);
+  return function homeNow() {
+    const now = character && typeof character.read === 'function' ? character.read('home') : undefined;
+    if (now !== raw) { raw = now; env = homeEnv(homeOf(character)); }
     return env;
+  };
+}
+
+/** What the town or home reads this frame (fails safe: no rooms, nobody; trophies unknown → an empty-wall caption). */
+function createEnvReader(homeNow, town) {
+  return function readEnv(kind) {
+    if (kind !== 'home') return { walkers: town ? town.walkers() : [] };
+    const h = homeNow();
+    return { rooms: h.rooms, trophies: null, roomName: h.roomName };
   };
 }
 
@@ -152,12 +142,10 @@ export async function bootWorld(panel, opts) {
   stage.querySelectorAll('.world-status').forEach((el) => el.remove());
   backend.mount(stage);
 
-  const obs = win.HearthriseCombatObserver || null;
   let hunt = null, huntMap = null, lastHunt = null;
   const character = opts.character || null;
   /* the live hunt of `character`, while it hunts: ended here only when its hunt is over (S5) */
   function endLive() { if (character) endLiveScene(character); }
-  const unsubscribe = obs ? obs.subscribe((b) => { if (hunt) hunt.beat(b); }) : null;
   const idle = doc.createElement('div');
   idle.className = 'world-idle';
   idle.setAttribute('role', 'status');
@@ -173,7 +161,8 @@ export async function bootWorld(panel, opts) {
   let running = false, raf = 0, last = 0, frames = 0, scene = null, roofAlpha = {};
   let walk = null, lastWalk = null;
   const town = opts.town || null;
-  const readEnv = createEnvReader(win, town);
+  const homeNow = createHomeReader(character);
+  const readEnv = createEnvReader(homeNow, town);
 
   function paintChrome(sc) {
     stage.classList.remove('is-hot');
@@ -219,7 +208,7 @@ export async function bootWorld(panel, opts) {
       });
       huntMap = sc.map;
     }
-    const snap = obs ? obs.snapshot() : bareSnapshot(G);
+    const snap = bareSnapshot(G);
     const hs = hunt.state(snap, now, name);
     lastHunt = { foe: hs.foe, down: hs.down, floats: hs.floats.length, units: hs.units.map((u) => u.id), hero: hs.hero };
     return { hero: hs.hero && Object.assign({}, hs.hero, { id: heroSprite(character) }), units: hs.units, floats: hs.floats };
@@ -234,7 +223,7 @@ export async function bootWorld(panel, opts) {
       walk = createWalkScene(map, { at, sprites, openClasses: OPEN_CLASSES, maps: ROW_OF, heroSprite: () => heroSprite(character) });
       if (keys.size) walk.drive(keyVector(), now);   // keys still held across a scene change keep walking
     }
-    const f = walk.frame(readEnv(G, map.kind), now);
+    const f = walk.frame(readEnv(map.kind), now);
     if (!held) notePos(G, map.id, f.hero.x, f.hero.y);
     if (town) {
       town.show(map.kind === 'town' ? map.id : null);
@@ -263,8 +252,7 @@ export async function bootWorld(panel, opts) {
   const monsterName = (id) => (MONSTERS[id] && MONSTERS[id].name) || id;
   function route() {
     const G = view();
-    const P = win.HearthriseProperty;
-    const sc = readScene(G, homeMapFor(P && typeof P.serverPropertyTier === 'function' ? P.serverPropertyTier() : null));
+    const sc = readScene(G, homeMapFor(homeNow().tier));
     if (!scene || sc.map !== scene.map || sc.kind !== scene.kind) {
       if (!scene || sc.map !== scene.map) { backend.setMap(mapOf(sc.map)); roofAlpha = {}; }
       scene = sc;
@@ -280,8 +268,7 @@ export async function bootWorld(panel, opts) {
     const G = view();
     const sc = route();
     const map = mapOf(sc.map);
-    const I = win.HearthriseIdentity;
-    const name = (I && typeof I.displayName === 'function' && I.displayName()) || G.playerName || null;
+    const name = G.playerName || null;
     const now = Date.now();
     let cast;
     if (sc.kind === 'hunt') {
@@ -431,7 +418,6 @@ export async function bootWorld(panel, opts) {
     destroy() {
       if (raf) win.cancelAnimationFrame(raf);
       raf = 0; running = false;
-      if (unsubscribe) unsubscribe();
       /* the live scene stays the character's (S5): shown again, it still knows every death it played */
       if (town) town.park();   // another character is viewed: this one stays in town
       chrome.removeEventListener('click', onChoice);

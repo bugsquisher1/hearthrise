@@ -48,8 +48,8 @@ const TICK_MS = 10000;   // the server's settle cadence (pg_cron, live-world-dec
 const BUDGET = Object.freeze({
   fpsMedianMin: 55,        // rAF frames per second, median over 1 s buckets
   fpsP5Min: 45,            // the 5th-percentile 1 s bucket
-  longFrameMs: 100,        // no gap above this outside the hidden span and its resume
-  longFramesMax: 6,        // gaps > 50 ms outside the hidden span and its resume
+  longFrameMs: 100,        // no frame the PAGE held above this (its Long Tasks inside the gap), outside the hidden span and its resume
+  longFramesMax: 6,        // frames the page held > 50 ms, outside the hidden span and its resume (a whole-browser stall is reported apart)
   heapGrowthMb: 4,         // used JS heap, warm-up -> end, both after a forced GC, the probe's own records stopped and
                            // released first (2026-10-22: they were 4-7 of CI's 8.7 MB; the game measured 1.0-1.2 MB, mostly JIT code)
   domGrowth: 150,          // elements, warm-up -> the death, the combat log's lines apart (they are capped on their own)
@@ -85,6 +85,8 @@ const MUTANTS = [
     '  function step(dt) {\n    const G = view();\n', '  function step(dt) {\n    chrome.innerHTML = chrome.innerHTML;\n    const G = view();\n', /^(dom|fps|long)/],
   ['a per-frame buffer kept for ever (an unbounded push each frame; the heap measure must see it, not the probe)', 'src/world/world-boot.js',
     '  function step(dt) {\n    const G = view();\n', '  function step(dt) {\n    (globalThis.__kept || (globalThis.__kept = [])).push(new Array(128).fill(dt));\n    const G = view();\n', /^heap/, 'scenario', 4],
+  ['the frame path blocks the main thread 200 ms every 20 s (a busy loop: the page, not the runner, holds the frame)', 'src/world/world-boot.js',
+    '  function step(dt) {\n    const G = view();\n', '  function step(dt) {\n    { const b = Math.floor(performance.now() / 20000); if (b !== step.b) { step.b = b; const t = performance.now(); while (performance.now() - t < 200); } }\n    const G = view();\n', /^long frame/, 'scenario', 4],
   ['an unbounded log (the combat log keeps every line, rendered in the log)', 'src/hunt-view/combat-log.js',
     '    if (lines.length > LOG_MAX_LINES) lines.splice(0, lines.length - LOG_MAX_LINES);\n', '', /^(heap|dom)/, 'scenario', 4],
   ['every answer repaints the shell and draws the World again inside it (live v0.2.23)', 'src/app/world-pane.js',
@@ -116,7 +118,7 @@ export function planted(extra) {
 /* The page's recorder: rAF gaps, the hidden-tab emulation, the probes' clocks, DOM churn, analyzer samples. */
 const INIT = `(() => {
   const P = window.__perf = { t: Object.create(null), c: Object.create(null), frames: new Float64Array(120000), nf: 0,
-    marks: [], samples: [], dom: [], added: 0, long: [], path: [], trackOn: false, stopped: false };
+    marks: [], samples: [], dom: [], added: 0, long: [], ltOk: false, path: [], trackOn: false, stopped: false };
   /* depth: a canvas draw or a shell paint INSIDE an applied answer is counted apart (one answer, one paint, no draw) */
   const depth = Object.create(null);
   P.time = (k, fn) => { const a = performance.now(); depth[k] = (depth[k] || 0) + 1;
@@ -141,7 +143,7 @@ const INIT = `(() => {
     if (!on) { const q = Array.from(held.values()); held.clear(); for (const cb of q) raf(cb); } };
   const rec = (t) => { if (P.nf < P.frames.length) P.frames[P.nf++] = t; window.requestAnimationFrame(rec); };
   window.requestAnimationFrame(rec);
-  try { new PerformanceObserver((l) => { if (!P.stopped) for (const e of l.getEntries()) P.long.push([e.startTime, e.duration]); }).observe({ type: 'longtask', buffered: true }); } catch (e) {}
+  try { new PerformanceObserver((l) => { if (!P.stopped) for (const e of l.getEntries()) P.long.push([e.startTime, e.duration]); }).observe({ type: 'longtask', buffered: true }); P.ltOk = (PerformanceObserver.supportedEntryTypes || []).includes('longtask'); } catch (e) {}
   const mo = new MutationObserver((ms) => { for (const m of ms) P.added += m.addedNodes.length; });
   const watch = () => mo.observe(document.documentElement, { childList: true, subtree: true });
   if (document.documentElement) watch(); else document.addEventListener('DOMContentLoaded', watch);
@@ -400,7 +402,7 @@ async function scenario(o) {
     if (cdp && o.profile) (await import('node:fs')).writeFileSync(o.profile, JSON.stringify((await cdp.send('Profiler.stop')).profile));
     const h1raw = await heap();
     const out = await page.evaluate(() => { const P = window.__perf; P.stopped = true;
-      const got = { frames: Array.from(P.frames.slice(0, P.nf)), marks: P.marks, t: P.t, c: P.c, samples: P.samples, dom: P.dom, long: P.long, path: P.path,
+      const got = { frames: Array.from(P.frames.slice(0, P.nf)), marks: P.marks, t: P.t, c: P.c, samples: P.samples, dom: P.dom, long: P.long, ltOk: P.ltOk, path: P.path,
         nodes: document.getElementsByTagName('*').length, added: P.added, now: performance.now() };
       /* THE PROBE'S OWN RECORDS are not the game's heap: stopped, read out, then released before the end measure
          (the post-death path alone is thousands of per-frame unit lists, megabytes the page never holds; a record
@@ -423,13 +425,22 @@ function analyse(out, w0, o, srv) {
   const mark = (n) => (out.marks.find((m) => m[1] === n) || [null])[0];
   const hid = mark('hidden'), shown = mark('shown');
   const fr = out.frames.filter((t) => t >= w0.t);
+  /* WHAT THE PAGE CAUSED (2026-10-22, v0.2.28's CI red: a 217 ms gap while the page's own per-frame work peaked
+     at 37 ms). A gap between two frames is the page's only as far as the page's main thread was busy inside it:
+     the Long Tasks the browser reports (scripts, style, layout, paint, the page's own GC), clipped to the gap.
+     A runner that stops the whole browser shows a wall gap with no task in it: a stall, reported, not budgeted.
+     A browser without Long Tasks (Firefox in --measure) is judged on the wall gap. */
+  const lts = (out.long || []).filter((l) => l[0] + l[1] >= w0.t);
+  const busyIn = (a, b) => { let ms = 0; for (const [s, d] of lts) ms += Math.max(0, Math.min(b, s + d) - Math.max(a, s)); return Math.min(b - a, ms); };
   const gaps = [];
-  let resumeWorst = 0;
+  let resumeWorst = 0, stallWorst = 0;
   for (let i = 1; i < fr.length; i++) {
     const g = fr[i] - fr[i - 1];
     /* the hidden span itself (no frame is owed) and the 2 s after it (the resume, reported apart) */
     if (hid !== null && fr[i] >= hid && fr[i - 1] <= shown + 2000) { if (fr[i - 1] >= shown) resumeWorst = Math.max(resumeWorst, g); continue; }
-    gaps.push(g);
+    const page = out.ltOk ? (g > 50 ? busyIn(fr[i - 1], fr[i]) : g) : g;
+    if (g > 50 && page <= 50) stallWorst = Math.max(stallWorst, g);
+    gaps.push(page);
   }
   /* fps in 1 s buckets, outside the hidden span and its resume */
   const buckets = new Map();
@@ -480,7 +491,7 @@ function analyse(out, w0, o, srv) {
   }
   return {
     browser: o.browser, size: o.width + 'x' + o.height, minutes: +minutes.toFixed(2),
-    fpsMedian: pct(fps, 0.5), fpsP5: pct(fps, 0.05), longFrames: long.length, worstFrame: gaps.length ? Math.max(...gaps) : null, resumeWorst,
+    fpsMedian: pct(fps, 0.5), fpsP5: pct(fps, 0.05), longFrames: long.length, worstFrame: gaps.length ? Math.max(...gaps) : null, resumeWorst, stallWorst, pageTimed: !!out.ltOk,
     longTasks: out.long.filter((l) => l[0] >= w0.t).length,
     engine: per('engine'), scene: per('scene'), draw: per('draw'), frame: per('frame'), envelope: per('envelope'), shellTick: per('shellTick'),
     domStart: w0.nodes, domEnd: hunted ? hunted[1] : out.nodes, domGrowth: hunted ? (hunted[1] - hunted[3]) - (w0.nodes - w0.lines) : null,
@@ -497,7 +508,7 @@ function budgetFails(m) {
   if (m.errors.length) f.push('page errors: ' + m.errors.join(' | '));
   if (!(m.fpsMedian >= b.fpsMedianMin)) f.push(`fps median ${m.fpsMedian} (budget >= ${b.fpsMedianMin})`);
   if (!(m.fpsP5 >= b.fpsP5Min)) f.push(`fps p5 ${m.fpsP5} (budget >= ${b.fpsP5Min})`);
-  if (!(m.worstFrame <= b.longFrameMs)) f.push(`long frame: worst ${Math.round(m.worstFrame)} ms outside the hidden span (budget ${b.longFrameMs})`);
+  if (!(m.worstFrame <= b.longFrameMs)) f.push(`long frame: the page held a frame ${Math.round(m.worstFrame)} ms outside the hidden span (budget ${b.longFrameMs})`);
   if (!(m.longFrames <= b.longFramesMax)) f.push(`long frames: ${m.longFrames} over 50 ms (budget ${b.longFramesMax})`);
   if (m.heapMb !== null && !(m.heapMb <= b.heapGrowthMb)) f.push(`heap grew ${m.heapMb.toFixed(1)} MB (budget ${b.heapGrowthMb})`);
   if (!(m.domGrowth <= b.domGrowth)) f.push(`dom grew ${m.domGrowth} elements while hunting, the log's lines apart (budget ${b.domGrowth})`);
@@ -512,7 +523,7 @@ function budgetFails(m) {
 
 const ms = (r) => (r ? `${r.avg.toFixed(2)}/${r.max.toFixed(1)}` : '-');
 function row(m) {
-  return `${m.browser.padEnd(8)} ${m.size.padEnd(8)} fps ${m.fpsMedian}/${m.fpsP5} long ${m.longFrames} worst ${Math.round(m.worstFrame)} resume ${Math.round(m.resumeWorst)} lt ${m.longTasks}`
+  return `${m.browser.padEnd(8)} ${m.size.padEnd(8)} fps ${m.fpsMedian}/${m.fpsP5} long ${m.longFrames} worst ${Math.round(m.worstFrame)} resume ${Math.round(m.resumeWorst)} stall ${Math.round(m.stallWorst)}${m.pageTimed ? '' : ' (wall)'} lt ${m.longTasks}`
     + ` | engine ${ms(m.engine)} scene ${ms(m.scene)} draw ${ms(m.draw)} frame ${ms(m.frame)} env ${ms(m.envelope)} (${m.envelope ? m.envelope.n : 0}) tick ${ms(m.shellTick)}`
     + ` | heap ${m.heapMb === null ? 'n/a' : m.heapMb.toFixed(1) + 'MB' + (m.heapRawMb != null ? ' (with the probe records ' + m.heapRawMb.toFixed(1) + ')' : '')} dom ${m.domStart}->${m.domEnd} (+${m.domGrowth}) log ${m.logLines} +${m.addedPerMin}/min`
     + ` | paints-in-answers ${m.paintsInAnswers} draws off-loop ${m.drawsOffLoop} (in answers ${m.drawsInAnswers})`

@@ -10,7 +10,7 @@
 // the collection milestones, the renown rank claims, the daily/weekly goals, the
 // old seven-day login cycle — and so is the Fox Companion with its equip slot.
 // Rewards come back only as a deliberate new design, never by a revived row.
-// supabase/migrations/2026-11-30-old-rewards-cut.sql drops the server half and
+// supabase/migrations/2026-12-02-old-rewards-cut.sql drops the server half and
 // proves it by execution in its §4; this guard is what keeps it all gone. It
 // replaces quest-reward-parity, goal-catalogue-drift, quest-xp-absence-pay,
 // collection-renown-claim-drift, login-reward-off, goal-counter-kinds and the
@@ -70,7 +70,7 @@ export const NAMES = [
   // the engine's daily counters (hr-accrue goal-period.js and the fx seam that fed them)
   'modalGoalOps', 'updateDaily',
 ];
-/* The server half: every function and table 2026-11-30-old-rewards-cut.sql drops. */
+/* The server half: every function and table 2026-12-02-old-rewards-cut.sql drops. */
 export const CUT_FUNCTIONS = [
   'hr_claim_quest', 'hr_claim_quest__ungated', 'hr_quest_rewards_items_ok',
   'hr_claim_milestone', 'hr_claim_milestone__ungated',
@@ -208,7 +208,7 @@ function selftest(w) {
   const clean = check(w);
   say(clean.length === 0, 'clean arm is green' + (clean.length ? ' → ' + clean.map((p) => p.id + ' ' + p.msg).join(' | ') : ''));
   const later = (x, body) => x.sql.push(['2099-01-01-revival.sql', body]);
-  const cutFile = (x, fn) => { const i = x.sql.findIndex(([f]) => f === '2026-11-30-old-rewards-cut.sql'); x.sql[i] = [x.sql[i][0], fn(x.sql[i][1])]; };
+  const cutFile = (x, fn) => { const i = x.sql.findIndex(([f]) => f === '2026-12-02-old-rewards-cut.sql'); x.sql[i] = [x.sql[i][0], fn(x.sql[i][1])]; };
   const cut2 = (x, fn) => { const i = x.sql.findIndex(([f]) => f === '2026-12-03-companion-claims-cut.sql'); const b = x.sql[i][1]; const a = fn(b); if (a === b) throw new Error('cut2 plant did not change the file'); x.sql[i] = [x.sql[i][0], a]; };
   const arms = [
     ['the quest catalogue comes back in the data (QUEST_REWARDS)', 'OR-1', (x) => { x.files.set('src/data/quests.js', 'export const QUEST_REWARDS = {};\n'); }],

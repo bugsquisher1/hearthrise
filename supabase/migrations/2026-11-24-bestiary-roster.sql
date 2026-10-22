@@ -14,7 +14,7 @@
 -- collection milestones (hr_claim_milestone__ungated) over the rosters; Tyler cut the
 -- milestones with every old-client reward table (2026-10-22, "we were supposed to
 -- delete all that"), so that half and the loot roster are gone and
--- 2026-11-30-old-rewards-cut.sql drops the claim. Only the Bestiary half remains.
+-- 2026-12-02-old-rewards-cut.sql drops the claim. Only the Bestiary half remains.
 --
 --   §0  pins the sheet's pre-image by md5 (core-bodies' hr_character_sheet_view)
 --   §1  hr_character_sheet_view: bestiary { slain, total } over hr_hunt_roster

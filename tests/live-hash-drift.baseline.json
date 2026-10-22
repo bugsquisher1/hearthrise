@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-22",
- "replay_ms": 59035,
+ "replay_ms": 87862,
  "counts": {
-  "tracked_names": 149,
-  "entries": 121
+  "tracked_names": 150,
+  "entries": 122
  },
  "functions": [
   {
@@ -173,23 +173,25 @@
    "sig": "hr_action_set_options(p_slot integer, p_preset integer, p_opts jsonb, p_idem uuid)",
    "name": "hr_action_set_options",
    "tracked_by": [
-    "chain"
+    "chain",
+    "pin"
    ],
    "touched_by": [
     "2026-10-22-hunt-sessions-settle.sql",
     "2026-10-23-hunt-settings-options.sql",
     "2026-10-25-action-conditions.sql",
-    "2026-11-01-party-leader-density.sql"
+    "2026-11-01-party-leader-density.sql",
+    "2026-11-17-hunt-density-home.sql"
    ],
    "live": {
-    "md5": "cb39f11a35d8f262753972791c52850a",
-    "norm_len": 6191,
+    "md5": "29d33ecb4c29c7a354a5a00fd3a9c73b",
+    "norm_len": 5691,
     "measured": "2026-10-22",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "cb39f11a35d8f262753972791c52850a",
-    "norm_len": 6191,
+    "md5": "29d33ecb4c29c7a354a5a00fd3a9c73b",
+    "norm_len": 5691,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1164,7 +1166,8 @@
    "touched_by": [
     "2026-10-23-hunt-world-state.sql",
     "2026-10-25-settle-hooks.sql",
-    "2026-10-27-core-bodies.sql"
+    "2026-10-27-core-bodies.sql",
+    "2026-11-16-hunt-density-bounds.sql"
    ],
    "live": {
     "md5": "9878f3f0978f32b296e14617ee1135bf",
@@ -1173,12 +1176,11 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "4a92082cba40ca00cab1769ba53d0eb6",
-    "norm_len": 28861,
+    "md5": "9878f3f0978f32b296e14617ee1135bf",
+    "norm_len": 29831,
     "source": "computed-from-replay"
    },
-   "agree": false,
-   "why": "REVIEW 2026-10-22: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
+   "agree": true
   },
   {
    "sig": "hr_hunt_change(p_slot integer, p_hunt text, p_idem uuid)",
@@ -1282,6 +1284,30 @@
    "agree": true
   },
   {
+   "sig": "hr_hunt_instance_read(p_user uuid, p_slot integer)",
+   "name": "hr_hunt_instance_read",
+   "tracked_by": [
+    "chain"
+   ],
+   "touched_by": [
+    "2026-10-23-hunt-world-state.sql",
+    "2026-11-01-party-leader-density.sql",
+    "2026-11-16-hunt-density-bounds.sql"
+   ],
+   "live": {
+    "md5": "bae6a9cc2ce9747d74fe88aacfb96655",
+    "norm_len": 2736,
+    "measured": "2026-10-22",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "bae6a9cc2ce9747d74fe88aacfb96655",
+    "norm_len": 2736,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_hunt_loot_rules(p_user uuid, p_slot integer, p_session uuid, p_intent uuid, p_items jsonb, p_at timestamp with time zone)",
    "name": "hr_hunt_loot_rules",
    "tracked_by": [
@@ -1313,17 +1339,18 @@
    "touched_by": [
     "2026-10-23-hunt-world-state.sql",
     "2026-10-25-settle-hooks.sql",
-    "2026-10-27-core-bodies.sql"
+    "2026-10-27-core-bodies.sql",
+    "2026-11-07-store-by-slot.sql"
    ],
    "live": {
-    "md5": "6c0e269a82dc08acbe3881e0abaeca04",
-    "norm_len": 3458,
+    "md5": "14cd77882a9bfba0be7624652017aaf6",
+    "norm_len": 3137,
     "measured": "2026-10-22",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "6c0e269a82dc08acbe3881e0abaeca04",
-    "norm_len": 3458,
+    "md5": "14cd77882a9bfba0be7624652017aaf6",
+    "norm_len": 3137,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1490,17 +1517,18 @@
     "2026-10-27-core-bodies.sql",
     "2026-10-28-party-flow.sql",
     "2026-11-01-party-leader-density.sql",
-    "2026-11-04-party-outfits.sql"
+    "2026-11-04-party-outfits.sql",
+    "2026-11-17-hunt-density-home.sql"
    ],
    "live": {
-    "md5": "32282ccd97db15ede9258aad98fe8823",
-    "norm_len": 7182,
+    "md5": "9a6f28459263d9c0bdd571e9e5416b4e",
+    "norm_len": 7161,
     "measured": "2026-10-22",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "32282ccd97db15ede9258aad98fe8823",
-    "norm_len": 7182,
+    "md5": "9a6f28459263d9c0bdd571e9e5416b4e",
+    "norm_len": 7161,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1586,17 +1614,20 @@
     "2026-10-23-hunt-settings-options.sql",
     "2026-10-23-hunt-world-state.sql",
     "2026-10-25-action-conditions.sql",
-    "2026-10-28-consume-defaults.sql"
+    "2026-10-28-consume-defaults.sql",
+    "2026-11-07-store-by-slot.sql",
+    "2026-11-15-preset-names.sql",
+    "2026-11-17-hunt-density-home.sql"
    ],
    "live": {
-    "md5": "95adfbbd7417328bfa496de0c60c7077",
-    "norm_len": 6823,
+    "md5": "0a75868795c3cb662ce2eaa5d17529fa",
+    "norm_len": 9075,
     "measured": "2026-10-22",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "95adfbbd7417328bfa496de0c60c7077",
-    "norm_len": 6823,
+    "md5": "0a75868795c3cb662ce2eaa5d17529fa",
+    "norm_len": 9075,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1613,17 +1644,18 @@
     "2026-10-22-hunt-sessions-settle.sql",
     "2026-10-23-hunt-supply-ledger.sql",
     "2026-10-25-action-conditions.sql",
-    "2026-10-27-core-bodies.sql"
+    "2026-10-27-core-bodies.sql",
+    "2026-11-07-store-by-slot.sql"
    ],
    "live": {
-    "md5": "b530136f1ad43b044985d45b5a586fed",
-    "norm_len": 17673,
+    "md5": "675e1c7f605d91d0c7bf8af65cc006d3",
+    "norm_len": 17602,
     "measured": "2026-10-22",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "b530136f1ad43b044985d45b5a586fed",
-    "norm_len": 17673,
+    "md5": "675e1c7f605d91d0c7bf8af65cc006d3",
+    "norm_len": 17602,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1687,17 +1719,19 @@
     "2026-10-21-hunt-sessions.sql",
     "2026-10-22-hunt-sessions-settle.sql",
     "2026-10-23-hunt-world-state.sql",
-    "2026-10-27-core-bodies.sql"
+    "2026-10-27-core-bodies.sql",
+    "2026-11-17-hunt-density-home.sql",
+    "2026-11-20-hunt-forfeit-durable.sql"
    ],
    "live": {
-    "md5": "4a86aacf0117eae193a8f54596d2ca0d",
-    "norm_len": 1546,
+    "md5": "5687ada6a4c46f29ccf0e4551ceb3180",
+    "norm_len": 1877,
     "measured": "2026-10-22",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "4a86aacf0117eae193a8f54596d2ca0d",
-    "norm_len": 1546,
+    "md5": "5687ada6a4c46f29ccf0e4551ceb3180",
+    "norm_len": 1877,
     "source": "computed-from-replay"
    },
    "agree": true

@@ -45,7 +45,7 @@
 // later roll. That is what lets the away parity test compare byte for byte.
 // ============================================================
 
-import { ROOM_PERKS, ROOM_RUNG_EXTRAS, ROOM_PERK_KEYS } from '../data/perks.js?v=0.2.28';
+import { ROOM_PERKS, ROOM_RUNG_EXTRAS, ROOM_PERK_KEYS } from '../data/perks.js?v=0.2.29';
 
 export { ROOM_PERKS, ROOM_RUNG_EXTRAS, ROOM_PERK_KEYS };
 
@@ -115,8 +115,11 @@ export const PERMANENT_CAP = 0.20;
 export const TEMPORARY_CAP = 0.15;
 export const TOTAL_CAP = 0.30;
 
-/* The eight keys the budget governs — every one multiplies a RATE.
+/* The nine keys the budget governs — every one multiplies a RATE.
    Everything else a rung can pay is deliberately outside it:
+     farmPlots      capacity — a COUNT of extra farm beds (the Garden), read by
+                    SQL hr_farm_plot_cap from hr_room_perks, never a multiplier
+     trophyMounts   display — how many trophies the home's wall hangs
      farmYield      capacity — a COUNT of extra crops, not a multiplier
      noBurn         reliability — burn-proof is burn-proof; it cannot stack
                     into a faucet, and burnChance() already floors at 0
@@ -126,7 +129,7 @@ export const TOTAL_CAP = 0.30;
                     magnitude below any cap */
 export const GOVERNED = Object.freeze({
   allXP: 1, combatXP: 1, goldFind: 1,
-  gatherSpeed: 1, cookSpeed: 1, smithSpeed: 1, craftSpeed: 1, prayerSpeed: 1,
+  gatherSpeed: 1, cookSpeed: 1, smithSpeed: 1, craftSpeed: 1, prayerSpeed: 1, runeSpeed: 1,
 });
 
 export function governed(key) { return own(GOVERNED, key) && GOVERNED[key] === 1; }

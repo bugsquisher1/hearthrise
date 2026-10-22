@@ -3,7 +3,7 @@
 //
 // ⚠ 2026-10-22 (Tyler: "we were supposed to delete all that"): the DAILY half
 //   is CUT. The daily/weekly goals that read kind='daily' rows left with
-//   2026-11-30-old-rewards-cut.sql, so the engine stops writing them
+//   2026-12-02-old-rewards-cut.sql, so the engine stops writing them
 //   (2026-12-03-companion-claims-cut.sql). The counter keeps only the LIFETIME
 //   (kind='stat', period '') rows the Bestiary and the collection read; the
 //   text below that describes the daily arm is history. The one kind='daily'

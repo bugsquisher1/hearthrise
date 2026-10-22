@@ -1183,7 +1183,7 @@ const CLIENT_CALLABLE = new Map([
      creation, which is why they stay listed). Their replacement is the one
      read of the server's period counters for the daily-quest sheet and Home's
      Your week card: own character only, rate-gated (hr_tally_state 120/min),
-     baselined, NOT granted to hr_engine. 2026-11-30-old-rewards-cut.sql drops it
+     baselined, NOT granted to hr_engine. 2026-12-02-old-rewards-cut.sql drops it
      at the chain end with the daily goals (Tyler 2026-10-22); its creating files
      still grant it, so it stays listed like the two above. */
   ['hr_tally_state', ['authenticated']],

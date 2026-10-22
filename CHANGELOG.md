@@ -5,6 +5,16 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.29 — 2026-10-22 (Pick your supplies, loot worth fighting for)
+
+**Every bar slot names one supply.** There is no more "Any food": you pick which food, drink or rune goes in each slot, and the order of your slots is your fallback. Your own stock is used first; store items are bought as used. **If your bar had "Any food" or "Any drink", open it and pick a food and a drink again.**
+
+**Saved setups.** Each setup keeps its own bar and gear. Name it, rename it, switch to it in town, or delete it.
+
+**Loot worth the fight.** Every monster in the Thicket and the Sewer now drops coin, a junk item, bones where it has them, its own monster part, and a piece of gear. Only Old Grayjaw and the Rat King carry the rares, and in a party the rare goes to the highest roll, one winner at a time. A rare drop now gets its moment on screen.
+
+**Monsters per pull is yours to set on each hunting ground,** and a hero hunting alone is no longer sent to a party ground.
+
 ## v0.2.28 — 2026-10-22 (Easier to learn, honest numbers)
 
 **New heroes learn how to fight.** Creating a hero now explains that there is no class to pick: the weapon you hold is how you fight, and all six starter weapons are in your bag. Each style says what it does and what it uses. Outfits now have names that describe the clothes, not a class.
@@ -12,6 +22,8 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 **Help that helps.** Settings has a Help page with short notes on hunting, playing with the game closed, stamina, food and drink, the action bar, Level and skills, several heroes and death. The first hunt tells you your hero keeps hunting after you close the game.
 
 **What next.** When the guide ends, it points to your next hunting ground and your weapon skill's next unlock. Reaching a new Level now shows over your hero. Coming back after a while shows what your hero did while you were away.
+
+**Work in town.** The Gathering and crafting window (G) now lets you start any gathering or crafting skill you have the level for: chop trees, mine ore, smelt bars, forge tools, cook food. Your hero keeps working while you are away, and a hunt stops it. Raw food in your bag has a Cook all button.
 
 **Numbers you can trust.** The food on the hunt bar counts what is really in your hunt bag. Max health updates as soon as you level up. Gold now means coins only; unsold loot has its own line. Bones are kept for Prayer when you sell all loot, and the hunt summary's Open bag button works.
 

@@ -3,20 +3,24 @@
 //
 // The map is the template your property rung picks (house-layouts.js
 // HOUSE_TEMPLATES, read off the server's rung; unknown shows the first). The
-// furniture is a PURE function of the room rungs the client holds from the
-// server (HearthriseRooms.roomsMap — the envelope's rooms, never a local
-// guess), so each envelope REPLACES it: Kitchen 2 → 3 → {} shows the rung-2
-// set, then the rung-3 set, then signposts — nothing is ever kept from before.
-// A room at rung 0 shows a signpost to the House screen on the spot its first
-// piece will stand. The trophy wall hangs one mount per claimed bestiary
-// trophy (the server's claims, HearthriseTrophies.wallRows) once the Trophy
-// Room is built, as the Trophy Room screen lists them. Tapping a piece opens
+// furniture is a PURE function of the room rungs in the account's `home`
+// section (homeEnv over session/home-sections.js homeOf: the server's word,
+// never a local guess and never a window global), so each envelope REPLACES
+// it: Kitchen 2 → 3 → {} shows the rung-2 set, then the rung-3 set, then
+// signposts — nothing is ever kept from before. A room at rung 0 shows a
+// signpost to the House screen on the spot its first piece will stand. The
+// trophy wall hangs one mount per claimed bestiary trophy, highest stage
+// first, once the Trophy Room is built, up to the mounts its rung holds
+// (perks.js trophyMounts). The rebuilt client has no projection of the claims
+// yet (the caller passes null), so the Trophy Room's first piece carries a
+// plain caption that the wall is empty. Tapping a piece opens
 // that room's existing modal; tapping a signpost opens the House screen.
 // PURE: no DOM, no window, no G — the caller passes rungs, rows and names.
 // ════════════════════════════════════════════════════════════════════════
-import { HOUSE_TEMPLATES, ROOM_LAYOUTS, TROPHY_MOUNT_SPRITES } from '../data/world/house-layouts.js?v=0.2.28';
-import { lintMap } from './core/map-compile.js?v=0.2.28';
-import { onEdge, isCorner } from './core/grid.js?v=0.2.28';
+import { HOUSE_TEMPLATES, ROOM_LAYOUTS, TROPHY_MOUNT_SPRITES } from '../data/world/house-layouts.js?v=0.2.29';
+import { ROOM_PERKS } from '../data/perks.js?v=0.2.29';
+import { lintMap } from './core/map-compile.js?v=0.2.29';
+import { onEdge, isCorner } from './core/grid.js?v=0.2.29';
 
 /** The home map for a property rung (null = not stated yet → the first template). */
 export function homeMapFor(tier) {
@@ -25,6 +29,22 @@ export function homeMapFor(tier) {
   if (Number.isFinite(t)) for (const row of HOUSE_TEMPLATES) if (t >= row.fromTier) pick = row;
   return pick.map;
 }
+
+/**
+ * What the home reads from the account's `home` section (homeOf's shape, or
+ * null before the server sent it): the property rung (null = unknown → the
+ * first template), { roomId: rung } and each room's server name. Fails safe:
+ * no section is no rooms.
+ * @param {{tier: number, rooms: {room: string, name: string, level: number}[]}|null} home
+ */
+export function homeEnv(home) {
+  const rooms = {}, names = {};
+  for (const r of (home && Array.isArray(home.rooms) ? home.rooms : [])) { rooms[r.room] = r.level; names[r.room] = r.name; }
+  return { tier: home && Number.isFinite(home.tier) ? home.tier : null, rooms, roomName: (id) => names[id] || id };
+}
+
+/** The caption the Trophy Room's first piece carries while its wall has nothing to hang. */
+export const EMPTY_WALL = 'Trophy wall: empty for now';
 
 /** A rung as a whole number ≥ 0 (garbage reads as not built). */
 const rungOf = (v) => { const n = Math.floor(Number(v)); return Number.isFinite(n) && n > 0 ? n : 0; };
@@ -51,8 +71,16 @@ export function furnish(mapId, rooms, trophies, nameOf) {
     }
     for (const set of def.rungs.slice(0, rung)) for (const piece of set) out.push({ id: piece.id, x: piece.x, y: piece.y, ref: { room } });
   }
-  if (rungOf(have.trophy) && trophies && Array.isArray(trophies.rows)) {
-    trophies.rows.slice(0, layout.trophyMounts.length).forEach((row, i) => {
+  const trophyRung = rungOf(have.trophy);
+  const known = !!trophies && Array.isArray(trophies.rows);
+  if (trophyRung && !(known && trophies.rows.length)) {
+    const first = out.find((p) => p.ref && p.ref.room === 'trophy');
+    if (first) first.plate = { text: EMPTY_WALL, kind: 'sign' };
+  }
+  if (trophyRung && known) {
+    /* The Trophy Room's rung says how many mounts the wall has (src/data/perks.js trophyMounts). */
+    const rung = ROOM_PERKS.trophy[Math.min(trophyRung, ROOM_PERKS.trophy.length) - 1] || {};
+    trophies.rows.slice(0, Math.min(layout.trophyMounts.length, rung.trophyMounts | 0)).forEach((row, i) => {
       const [x, y] = layout.trophyMounts[i];
       out.push({ id: TROPHY_MOUNT_SPRITES[row.stage] || TROPHY_MOUNT_SPRITES[1], x, y, ref: { room: 'trophy' } });
     });

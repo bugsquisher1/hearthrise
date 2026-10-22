@@ -14,7 +14,7 @@
 -- ── WHAT ─────────────────────────────────────────────────────────────────────
 -- §1 hr_shop_view RESTATED WHOLE from 2026-11-24-shop-outfitter.sql: `offers`
 --    lists kind 'tool', 'gear' AND 'seed' (the nine seed rows of
---    2026-11-23-alpha-catalogue.generated.sql, generated from
+--    2026-11-22-alpha-catalogue.generated.sql, generated from
 --    src/data/supply-basics.js SUPPLY_SHOP_OFFERS). `bids` unchanged.
 -- The SALE is the edge's existing shop_buy: catalogue.js sells exactly
 -- supply-basics.js SHOP_LISTED_OFFER_IDS (now with the seeds); the client names
@@ -33,7 +33,7 @@
 --
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
 -- Re-apply hr_shop_view from 2026-11-24-shop-outfitter.sql §1 (tools and gear).
--- ORDER: after 2026-11-23-alpha-catalogue.generated.sql (the seed rows). No begin/commit.
+-- ORDER: after 2026-11-22-alpha-catalogue.generated.sql (the seed rows). No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS AND THE PIN ─────────────────────────────────────────────

@@ -9,11 +9,11 @@
 // (the ruined spring-house) and Vine Hollow, then back over the ford (x8-10, three wide). Every open tile
 // lies in an open 3x3 except the boards. The thicket ('#') blocks a step and a shot and counts as trees.
 //
-// ART: STAGED (src/data/hunts.js `staged`). The painted ground `mosslight_ground` does not exist yet; it is
-// painted from these rows (style 1, a spring-fed glade: dirt trail along the route, copper-green moss on
-// the north bank, a ruined stone spring-house at P4). Until it lands this map is in STAGED_MAPS: the engine
-// walks it, the lint checks everything but the ground art, and no client draws it. Every placed object is
-// an existing style-1 sprite.
+// ART (style 1): the ground is PixelLab map 4589f28b (`mosslight_ground`, art/world/glade), painted from
+// these rows in the Meadowbrook's tileset family with a dirt trail along the route; the brook keeps its
+// grassy banks (rows 19 and 23) as in the Thicket. The springs' moss, the sluice and Rook's ruined
+// spring-house are props. Every placed object is an existing style-1 sprite; the five creatures are the
+// glade set (lane b-mosslight-art, 2026-10-22).
 //
 // The pockets, packs, pull tiles and route are src/data/hunt-grounds.js `mosslight_glade`;
 // `spawns` here lists every pack tile at full density so the map lint proves each is open floor.

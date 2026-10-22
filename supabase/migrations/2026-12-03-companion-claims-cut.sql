@@ -38,7 +38,7 @@
 --    THE DAILY COUNTERS: the engine stopped writing kind='daily' ev:* rows in
 --    the same lane (src/core/goals.js, hr-accrue goal-period.js deleted); the
 --    two farm writers above were the server's. The existing ev:* daily rows are
---    deleted (pure counters: no value, no reader since 2026-11-30). The ONE
+--    deleted (pure counters: no value, no reader since 2026-12-02). The ONE
 --    kind='daily' row family left is the premium login claim's clamp ('login'),
 --    which hr_login_claim / hr_login_view own; hr_progress_prune still sweeps it.
 --
@@ -61,7 +61,7 @@ do $mig$
 declare v_md5 text;
 begin
   if to_regprocedure('public.hr_claim_quest(text,integer)') is not null then
-    raise exception 'PRECONDITION: apply 2026-11-30-old-rewards-cut.sql first'; end if;
+    raise exception 'PRECONDITION: apply 2026-12-02-old-rewards-cut.sql first'; end if;
   if exists (select 1 from public.hr_farm_yield_perk where perk_key like 'companion:%') then
     raise exception 'PRECONDITION: apply 2026-12-03-farm-catalogues.generated.sql first'; end if;
   select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure('public.hr_perks_of(uuid,integer)');
@@ -71,7 +71,7 @@ begin
   if v_md5 is distinct from '59d2d5cb5d7ed6a2e96abc555d942a7c' and v_md5 is distinct from '7bd496ab804633d56995e545d72bca00' then
     raise exception 'PIN: hr_farm_harvest is neither the pre-image nor this file''s - md5 %: restate from the new image', v_md5; end if;
   select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure('public.hr_farm_plant(integer,integer,text,uuid)');
-  if v_md5 is distinct from 'abad67807aae80d4d55f62f40ac345cd' and v_md5 is distinct from '9445505347ed801c00cea53ebd6c4b96' then
+  if v_md5 is distinct from '066ef52420b729471b12d070bdec1e2f' and v_md5 is distinct from '7ea43dd6feda66c5c3dca9c6d2b12ba6' then
     raise exception 'PIN: hr_farm_plant is neither the pre-image nor this file''s - md5 %: restate from the new image', v_md5; end if;
   select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure('public.hr_state_of(uuid,integer)');
   if v_md5 is distinct from '9c717e178a19b222c8295fae65d96683' and v_md5 is distinct from 'a1abfcafbc109dc296779677bd051f14' then
@@ -110,7 +110,7 @@ comment on column public.player_state.companion_equipped is
   'CUT 2026-10-22 (2026-12-03-companion-claims-cut.sql): always null (player_state_companion_cut_ck). '
   'Leaves with the next whole hr_apply restatement, whose dormant companion_xp branch is its last reader.';
 
--- The kind='daily' ev:* counters: no reader since 2026-11-30, no writer after this lane.
+-- The kind='daily' ev:* counters: no reader since 2026-12-02, no writer after this lane.
 delete from public.player_progress where kind = 'daily' and key like 'ev:%';
 
 -- ── §4 THE RESTATED READERS ────────────────────────────────────────────────
@@ -392,7 +392,6 @@ declare
   v_budget jsonb;
   v_cached jsonb;
   v_crop_tier int;
-  v_prop_tier int;
   v_plot_cap  int;
 begin
   if v_uid is null then return public.hr_note_rejection('farm_plant', p_slot, jsonb_build_object('ok', false, 'error', 'not_signed_in')); end if;
@@ -420,12 +419,10 @@ begin
     where user_id = v_uid and slot = p_slot for update;
   if v_state.user_id is null then return public.hr_note_rejection('farm_plant', p_slot, jsonb_build_object('ok', false, 'error', 'no_character')); end if;
 
-  -- PROPERTY PLOT CAP. propertyTier = MAX property:* unlock level via
-  -- hr_unlock_levels (the same reader hr_perks_of uses). Ladder (tier+1)*2 =
-  -- [2,4,6,8,10,12]; a fresh character has no property row → tier 0 → cap 2.
-  select coalesce(max(level) filter (where unlock_id like 'property:%'), 0)::int
-    into v_prop_tier from public.hr_unlock_levels(v_uid, p_slot);
-  v_plot_cap := (v_prop_tier + 1) * 2;
+  -- PLOT CAP (GARDEN-BEDS, 2026-11-23): the property ladder (tier+1)*2 plus the
+  -- account Garden's farm beds, one reader (hr_farm_plot_cap). A fresh
+  -- character has no property and no Garden -> cap 2.
+  v_plot_cap := public.hr_farm_plot_cap(v_uid, p_slot);
   if p_plot_idx >= v_plot_cap then
     return public.hr_note_rejection('farm_plant', p_slot, jsonb_build_object('ok', false, 'error', 'plot_cap', 'cap', v_plot_cap));
   end if;

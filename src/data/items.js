@@ -1,15 +1,15 @@
 // ITEMS — extracted from hearthrise-phaseA.html
 
-import { GEAR_ITEMS } from './gear-tiers.js?v=0.2.28';
-import { WAVE3_ITEMS } from './wave3-uniques.js?v=0.2.28';
-import { SLOT_ITEMS } from './slot-ladders.js?v=0.2.28';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.28';
-import { LIB2_ITEMS } from './library2-items.js?v=0.2.28';
-import { STONECRAFT_ITEMS } from './stonecraft.js?v=0.2.28';
-import { BOSS_FORGE_ITEMS } from './boss-forge.js?v=0.2.28';
-import { CHAMPION_ITEMS } from './champions.js?v=0.2.28';
-import { DRINK_ITEMS } from './drinks.js?v=0.2.28';
-import { IMBUE_ITEMS } from './imbuements.js?v=0.2.28';
+import { GEAR_ITEMS } from './gear-tiers.js?v=0.2.29';
+import { WAVE3_ITEMS } from './wave3-uniques.js?v=0.2.29';
+import { SLOT_ITEMS } from './slot-ladders.js?v=0.2.29';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.29';
+import { LIB2_ITEMS } from './library2-items.js?v=0.2.29';
+import { STONECRAFT_ITEMS } from './stonecraft.js?v=0.2.29';
+import { BOSS_FORGE_ITEMS } from './boss-forge.js?v=0.2.29';
+import { CHAMPION_ITEMS } from './champions.js?v=0.2.29';
+import { DRINK_ITEMS } from './drinks.js?v=0.2.29';
+import { IMBUE_ITEMS } from './imbuements.js?v=0.2.29';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×
@@ -213,11 +213,12 @@ export const ITEMS={
   steel_sword:{n:'Steel Sword',icon:'⚔️',v:800,type:'weapon',slot:'weapon',weaponType:'sword',atkB:12,strB:10},
   rune_sword:{n:'Rune Sword',icon:'⚔️',v:5000,type:'weapon',slot:'weapon',weaponType:'sword',atkB:25,strB:20},
   apprentice_staff:{n:'Apprentice Staff',icon:'🔮',v:80,type:'weapon',slot:'weapon',weaponType:'magic',atkB:3,strB:5,magicAtkB:3,magicStrB:5},
-  oak_staff:{n:'Oak Staff',icon:'🪄',v:300,type:'weapon',slot:'weapon',weaponType:'magic',atkB:6,strB:9,magicAtkB:6,magicStrB:9},
+  /* v: the ladder's generated value (designer 2026-10-22, style-gear.js SG-4: a made piece sells for no more than its inputs' book). */
+  oak_staff:{n:'Oak Staff',icon:'🪄',v:130,type:'weapon',slot:'weapon',weaponType:'magic',atkB:6,strB:9,magicAtkB:6,magicStrB:9},
   shortbow:{n:'Shortbow',icon:'🏹',v:90,type:'weapon',slot:'weapon',weaponType:'ranged',atkB:5,strB:3,rangeAtkB:5,rangeStrB:3},
-  longbow:{n:'Longbow',icon:'🏹',v:400,type:'weapon',slot:'weapon',weaponType:'ranged',atkB:9,strB:6,rangeAtkB:9,rangeStrB:6},
+  longbow:{n:'Longbow',icon:'🏹',v:135,type:'weapon',slot:'weapon',weaponType:'ranged',atkB:9,strB:6,rangeAtkB:9,rangeStrB:6},
   stone_maul:{n:'Stone Maul',icon:'🔨',v:110,type:'weapon',slot:'weapon',weaponType:'hammer',atkB:3,strB:7},
-  iron_warhammer:{n:'Iron Warhammer',icon:'🔨',v:550,type:'weapon',slot:'weapon',weaponType:'hammer',atkB:7,strB:12},
+  iron_warhammer:{n:'Iron Warhammer',icon:'🔨',v:145,type:'weapon',slot:'weapon',weaponType:'hammer',atkB:7,strB:12},
   iron_helm:{n:'Iron Helm',icon:'⛑️',v:150,type:'armor',slot:'helmet',defB:5},
   steel_helm:{n:'Steel Helm',icon:'⛑️',v:600,type:'armor',slot:'helmet',defB:10},
   iron_platebody:{n:'Iron Platebody',icon:'🦺',v:400,type:'armor',slot:'body',defB:12},

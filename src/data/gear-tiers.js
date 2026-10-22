@@ -70,8 +70,10 @@ export const WEAPON_FAMILIES = [
     names: ['Bronze Sword', 'Iron Sword', 'Steel Sword', 'Mithril Sword', 'Rune Sword', 'Emberforged Sword', 'Dawnsteel Sword'],
     ids:   ['bronze_sword', 'iron_sword', 'steel_sword', 'mithril_sword', 'rune_sword', 'ember_sword', 'dawn_sword'],
   },
+  /* THE CLUB (Tyler 2026-10-16: two-handed club = crush). The practice club is two-handed, so every
+     rung above it is too (designer 2026-10-22, the style ladder): no shield beside a crusher. */
   {
-    key: 'warhammer', label: 'Warhammer', weaponType: 'hammer', skill: 'smithing', mat: 'bar',
+    key: 'warhammer', label: 'Warhammer', weaponType: 'hammer', skill: 'smithing', mat: 'bar', twoHanded: true,
     atk: [3, 7, 9, 14, 19, 25, 32], str: [7, 12, 19, 28, 39, 52, 68],
     vmul: 110, lvOff: 8, bars: 3, planks: 2,
     names: ['Stone Maul', 'Iron Warhammer', 'Steel Warhammer', 'Mithril Warhammer', 'Rune Warhammer', 'Emberforged Warhammer', 'Dawnsteel Warhammer'],
@@ -107,6 +109,26 @@ export const WEAPON_FAMILIES = [
     vmul: 90, lvOff: 6, planks: 1, essence: 1,
     names: ['Apprentice Wand', 'Oak Wand', 'Willow Wand', 'Maple Wand', 'Yew Wand', 'Runewood Wand'],
     ids:   ['apprentice_wand', 'oak_wand', 'willow_wand', 'maple_wand', 'yew_wand', 'runewood_wand'],
+  },
+  /* THE STYLE LADDER (designer 2026-10-22, src/data/style-gear.js). Dual axes (bleed) and the crossbow had no
+     rung above the practice kit. A `null` id is a rung the PRACTICE KIT holds (tier 1: the bound practice
+     weapon), so no tier-1 copy of it is generated. A rung ships only with a source (style-gear.js recipes);
+     the steel rungs and up wait for the next batch. Hatchets: a pair, two-handed, even accuracy and damage
+     (the practice pair's 4/4 shape). Crossbow: a little less accuracy and a little more damage than the
+     bow of its tier (the practice crossbow's 4/4 against the bow's 5/3). */
+  {
+    key: 'hatchets', label: 'Hatchets', weaponType: 'axe', skill: 'smithing', mat: 'bar', twoHanded: true,
+    atk: [4, 7, 12, 18, 25, 33, 42], str: [4, 7, 11, 16, 22, 29, 38],
+    vmul: 100,
+    names: [null, 'Iron Hatchets'],
+    ids:   [null, 'iron_hatchets'],
+  },
+  {
+    key: 'crossbow', label: 'Crossbow', weaponType: 'ranged', skill: 'crafting', mat: 'plank',   // wood-named, as the bow line is
+    atk: [4, 8, 13, 19, 26, 34, 43], str: [4, 7, 11, 16, 22, 29, 37],
+    vmul: 100,
+    names: [null, 'Oak Crossbow'],
+    ids:   [null, 'oak_crossbow'],
   },
 ];
 
@@ -217,6 +239,7 @@ export const GEAR_ITEMS = (() => {
   // Weapons — every family at every tier it names.
   WEAPON_FAMILIES.forEach((fam) => {
     MATERIAL_TIERS.slice(0, fam.ids.length).forEach((mat, i) => {
+      if (!fam.ids[i]) return;   // the practice kit holds this rung
       const item = {
         n: fam.names[i],
         icon: fam.weaponType === 'ranged' ? '🏹' : fam.weaponType === 'magic' ? '🪄' : fam.weaponType === 'hammer' ? '🔨' : '⚔️',

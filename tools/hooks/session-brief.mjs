@@ -33,7 +33,7 @@ out.push(lanes.length ? 'Lanes pushed in the last 3 h:\n' + lanes.join('\n') : '
 if (existsSync(join(homedir(), '.supabase-token'))) {
   try {
     const t = execFileSync('node', ['tools/hunt-health.local.mjs'], { encoding: 'utf8', timeout: 12000, stdio: ['ignore', 'pipe', 'ignore'] });
-    const freezing = t.split('\n').filter((l) => l.includes('FREEZING'));
+    const freezing = t.split('\n').filter((l) => l.includes('FREEZING') || l.includes('STALLED'));
     out.push(freezing.length ? 'Hunts freezing now:\n' + freezing.map((l) => '  ' + l.trim().slice(0, 110)).join('\n') : 'Open hunts: none freezing.');
   } catch (e) { /* no line */ }
 }

@@ -123,6 +123,9 @@ import { memberSide, bonusFor, liveBuffHost } from '../../../src/core/member.js'
    and the analyzer's tally of what each hero dealt, took and healed. */
 import { encode as encodeWorldRow, decodeStored as decodeWorldRow } from '../../../src/core/hunt/world-state.js';
 import { tallyEvents } from '../../../src/core/hunt/tally.js';
+/* THE WORLD BOUND (hunt_instances.world <= worldMaxBytes UTF-8 bytes): the engine
+   refuses a world past it before anything is proposed (accrueHunt). */
+import { HUNT_TUNING } from '../../../src/data/hunt-tuning.js';
 /* RESTED XP (b437), banked SERVER-SIDE. The SAME watermarked accrual the client
    runs (src/core/rested.js) — no second formula. It draws NO rng, so appending
    it moves no seeded roll and away == live stays byte-identical (AWAY-1). */
@@ -435,6 +438,15 @@ export const SKIP = {
      to a pointer the server never pays (set-activity answers `hunt_required`
      before one can be declared). */
   HUNT_REQUIRED: 'hunt_required',
+  /* THE HUNT WINDOW WOULD LEAVE A WORLD PAST THE BOUND (lane c-tick-shards). The
+     world the window ends on encodes past HUNT_TUNING.worldMaxBytes (engine
+     contract #4), so accrueHunt proposes NOTHING: refused here, deterministically,
+     before any commit is built, never left to the database's CHECK (2026-10-21: a
+     63 KB world reached the commit in a mutant). ./hunt-settle.js asks for a
+     shorter window, as it does for a degradable clamp (another swing boundary is
+     another world). REFUSING: the instance keeps settled_to, swing and world, and
+     the window stays owed. Hunt-only: the pointer accrual never produces it. */
+  WORLD_TOO_LARGE: 'world_too_large',
 };
 
 /* ⚠ THE KINDS THIS ENGINE CAN PAY. THE ACTIVITY INTENT'S ALLOWLIST IS DERIVED
@@ -1137,6 +1149,9 @@ function decodeWorld(stored) {
 }
 export function encodeWorld(world) { return JSON.stringify(encodeWorldRow(world)); }
 
+/* The world bound is measured in UTF-8 bytes of the compact text (SKIP.WORLD_TOO_LARGE). */
+const utf8Bytes = (text) => new TextEncoder().encode(text).length;
+
 /* THE ANALYZER TALLY of one member's hero (src/core/hunt/tally.js): what it
    dealt, took and healed, by ability / element / monster. Display stats the
    database stores with the session; every VALUE number of the analyzer comes
@@ -1155,6 +1170,8 @@ function analyzerOf(sim, unitIds, unitId) {
  * @param inp.secret   hr_seed(null, 0, 'hunt:' || instance) as decimal text
  * @param inp.ground / inp.grid  the hunt ground row and its walkable grid
  * @param inp.items / inp.monsters  the catalogues
+ * @param inp.worldMaxBytes  TEST SEAM: a TIGHTER world bound, never a looser one
+ *        (production passes none; the bound is HUNT_TUNING.worldMaxBytes)
  * @param inp.members  [{ key, user, slot, seat, unitId, session (engine shape
  *        input), hero { role, settings, bar, actionSet, range, element,
  *        foodBelowPct, drinkBelowPct }, + the envelope inputs (skills, levelXp,
@@ -1195,9 +1212,15 @@ export function accrueHunt(inp) {
       analyzer: analyzerOf(sim, unitIds, summary.unitIdEver) });
   }
   if (!out.length) return { accrued: false, reason: SKIP.NOTHING };
+  const world = sim.world && sim.members && sides.some((s) => !s.hs.endedReason) ? encodeWorld(sim.world) : null;
+  const maxBytes = inp.worldMaxBytes == null ? HUNT_TUNING.worldMaxBytes
+    : Math.min(HUNT_TUNING.worldMaxBytes, nat(inp.worldMaxBytes, HUNT_TUNING.worldMaxBytes));
+  if (world !== null && utf8Bytes(world) > maxBytes) {
+    return { accrued: false, refused: true, reason: SKIP.WORLD_TOO_LARGE, worldBytes: utf8Bytes(world), worldMaxBytes: maxBytes };
+  }
   return {
     accrued: true,
-    world: sim.world && sim.members && sides.some((s) => !s.hs.endedReason) ? encodeWorld(sim.world) : null,
+    world,
     worldSwingFrom, worldSwingTo: sim.world ? sim.world.swing : worldSwingFrom,
     settledTo: sim.nextSwingAtMs,
     tickMs,

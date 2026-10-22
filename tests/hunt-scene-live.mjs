@@ -6,7 +6,7 @@
 //   node tests/hunt-scene-live.mjs --node     the node rules only
 //   node tests/hunt-scene-live.mjs --mutate   every planted defect must turn its rule RED
 //
-// mutant-anchors: src/session/character-session.js src/session/hunt-poll.js src/session/live-link.js src/session/config.js src/session/hunt-sections.js src/shell/widgets/vitals-hub.js src/shell/widgets/party-panel.js src/hunt-view/scene.js src/hunt-view/timeline.js src/hunt-view/live-engine.js
+// mutant-anchors: src/session/character-session.js src/session/hunt-poll.js src/session/live-link.js src/session/config.js src/session/hunt-sections.js src/shell/widgets/vitals-hub.js src/shell/widgets/party-panel.js src/session/character-sections.js src/hunt-view/scene.js src/hunt-view/timeline.js src/hunt-view/live-engine.js
 // mutant-writes-tree: no — mutants are planted into a temp copy of src/
 //
 // The REAL CharacterSession, timeline, live engine and scene over a scripted
@@ -32,6 +32,7 @@
 //         (the browser-closed half: tests/hunt-live.mjs LV-S, tests/hunt-sessions-settle.mjs SETTINGS).
 //   LV-15 EVERY HP READOUT IS THE BAR'S: the vitals hub and the party panel read the HP the timeline
 //         plays now (hunt-sections.js liveHpOf), never the last commit's (Andy 10-21, "appeared green").
+//   LV-15b the same for a hunting party-mate's row in the party panel (LV-15 reads only your own).
 //   LV-18 SWITCHED AWAY AND BACK MID-HUNT (Andy 10-21): the pane is remounted, the scene is the
 //         character's (liveSceneOf): a monster drawn dead is never drawn standing again, no corpse
 //         replays its fall or turns.
@@ -682,6 +683,29 @@ async function nodeRules(M) {
     const me = r.members.find((m) => m.unit === unit);
     ok('LV-15', me && me.hp === maxHp - 120, `the party panel reads ${me && me.hp} HP for the hero while the bar plays ${maxHp - 120}`);
   }
+  { // LV-15b ANOTHER MEMBER'S HP IS ITS BAR'S TOO: the party panel's row for a hunting party-mate reads the
+    // HP the timeline plays for that member's unit, not the party section's last commit (LV-15 reads only
+    // the viewed hero's own row, which r09 moved onto heroVitalsOf).
+    const env = clone(LIVE), ALLY = 2, allyMax = 200;
+    env.party = Object.assign({}, env.party, { max: 2, members: env.party.members.concat([Object.assign({},
+      env.party.members[0], { seat: 1, unit: ALLY, name: 'Mate', hp: allyMax, hp_max: allyMax })]) });
+    const clock = { t: 1000 };
+    const cs = new M.C.CharacterSession({ slot: 0, uid: '11111111-2222-3333-4444-555555555555',
+      server: { rpc: async () => ({ ok: true, body: clone(env) }), accrue: async () => ({ ok: true, body: { ok: true, accrued: false } }) },
+      setTimer: () => 0, clearTimer: () => {}, now: () => clock.t });
+    await cs.load();
+    const hero = M.HSX.huntOf(cs).hero.unit, heroMax = LIVE.hunt.hero.hp_max;
+    const S = 5000000;
+    cs.timeline.ingest({ serverNowMs: S + 1000, fromMs: S, units: { [hero]: ['hero', heroMax, heroMax], [ALLY]: ['hero', allyMax, allyMax] },
+      events: [{ type: 'dmg', atMs: S + 500, u: 99, t: ALLY, amount: 70 }] }, clock.t);
+    clock.t = 3000;
+    const live = M.HSX.liveHpOf(cs, ALLY);
+    ok('LV-15b', live && live.hp === allyMax - 70, `the timeline plays the party-mate at ${live && live.hp} HP, want ${allyMax - 70}`);
+    const r = M.PP.liveRoster(cs, M.PP.rosterOf(cs));
+    const mate = r.members.find((m) => m.unit === ALLY);
+    ok('LV-15b', mate && mate.hp === allyMax - 70 && mate.hpMax === allyMax,
+      `the party panel reads ${mate && mate.hp}/${mate && mate.hpMax} HP for the party-mate while its bar plays ${allyMax - 70}/${allyMax}`);
+  }
   return fails;
 }
 
@@ -805,8 +829,11 @@ const MUTANTS = [
   ["the last hunt's units are kept (LV-9)", 'src/session/character-session.js', 'if (sid !== null && sid !== this._huntSid) { this.liveLink.off(); this.timeline.clear(); }', '', /^LV-9/],
   ['the per-minute figure printed as /s (LV-3)', 'src/shell/widgets/vitals-hub.js', 'regen(hero.hpPerS)', 'regen(hero.hpPerS * 60)', /^LV-3/],
   ['HP regen at the resting rate (LV-3)', 'src/session/hunt-sections.js', '* VITALS.inFightRegenPermillePerS *', '* 60 *', /^LV-3/],
-  ["the hub reads the last commit's HP (LV-15, live v0.2.22)", 'src/shell/widgets/vitals-hub.js', 'const live = hero ? liveHpOf(cs, hero.unit) : null;', 'const live = null;', /^LV-15/],
-  ["the party panel reads the last commit's HP (LV-15, live v0.2.22)", 'src/shell/widgets/party-panel.js', 'const live = m.hunting ? liveHpOf(cs, m.unit) : null;', 'const live = null;', /^LV-15/],
+  /* r09: the hub reads heroVitalsOf, the one reader it shares with the Character tab and the party panel's own row. */
+  ["the hub reads the last commit's HP (LV-15, live v0.2.22)", 'src/session/character-sections.js', '    const live = liveHpOf(cs, hero.unit);', '    const live = null;', /^LV-15/],
+  /* r09: the panel's own row reads heroVitalsOf; the commit's HP is the roster row's m.hp. */
+  ["the party panel reads the last commit's HP (LV-15, live v0.2.22)", 'src/shell/widgets/party-panel.js', 'level: v.level, hp: v.hp, hpMax: v.hpMax', 'level: v.level, hp: m.hp, hpMax: m.hpMax', /^LV-15/],
+  ["the party panel reads a party-mate's last-commit HP (LV-15b)", 'src/shell/widgets/party-panel.js', 'const live = m.hunting ? liveHpOf(cs, m.unit) : null;', 'const live = null;', /^LV-15b/],
 ];
 
 async function mutate() {

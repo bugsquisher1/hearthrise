@@ -26,11 +26,12 @@
 // the server's `role` is only the pick, kept when the weapon allows it.
 // ════════════════════════════════════════════════════════════════════════
 
-import { roleForWeapon, WEAPON_ROLES } from '../data/hunt-roles.js?v=0.2.25';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.25';
-import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.25';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.25';
-import { huntOf, staminaOf } from './hunt-sections.js?v=0.2.25';
+import { roleForWeapon, WEAPON_ROLES } from '../data/hunt-roles.js?v=0.2.27';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.27';
+import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.27';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.27';
+import { huntOf, staminaOf } from './hunt-sections.js?v=0.2.27';
+import { heroVitalsOf } from './character-sections.js?v=0.2.27';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -153,15 +154,13 @@ export function assignmentOf(cs) {
   return { kind: 'busy', where: null, text: 'In town, ' + what };
 }
 
-/** HP, mana and stamina as the server says: the hunt hero's when hunting, else the character's own state. */
+/** HP, mana and stamina as the server says: HP and mana from character-sections.js heroVitalsOf (the
+    one reader the HUD and the Character tab share, r09), stamina from staminaOf. */
 export function vitalsOf(cs) {
-  const h = huntOf(cs);
-  const st = isObj(read(cs, 'state')) ? read(cs, 'state') : {};
-  const hero = h && !h.ended ? h.hero : null;
+  const v = heroVitalsOf(cs);
   const s = staminaOf(cs);
   return {
-    hp: hero ? hero.hp : num(st.hp), hpMax: hero ? hero.hpMax : num(st.max_hp),
-    mana: hero ? hero.mana : num(st.mana), manaMax: hero ? hero.manaMax : num(st.max_mana),
+    hp: v.hp, hpMax: v.hpMax, mana: v.mana, manaMax: v.manaMax,
     staminaMs: s ? s.msLeft : null, staminaCapMs: s ? s.capMs : null,
   };
 }

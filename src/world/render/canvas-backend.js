@@ -13,17 +13,17 @@
 //      cast silhouettes sheared by castMatrix), the y-sorted sprites, the
 //      raised layer (rock tops, capstones, roofs), then light: the map's
 //      ambient multiplied with stepped point-light pools added in, and a
-//      vignette outdoors;
+//      vignette outdoors; both masks are re-drawn only on a changed signature;
 //   2. copy it to the screen in ONE nearest-neighbour drawImage at zoom z,
 //      offset by the camera's whole-device-pixel remainder (core/camera.js);
 //   3. draw the nameplates, the walk mark and speech bubbles at SCREEN
 //      resolution so text stays crisp.
 // Colours come from --world-* tokens through `css` (the caller's token reader).
 // ════════════════════════════════════════════════════════════════════════
-import { T } from '../core/grid.js?v=0.2.25';
-import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.25';
-import { composeFrame, groundTiles } from '../core/compose.js?v=0.2.25';
-import { paintStub } from '../stub-atlas.js?v=0.2.25';
+import { T } from '../core/grid.js?v=0.2.27';
+import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.27';
+import { composeFrame, groundTiles } from '../core/compose.js?v=0.2.27';
+import { paintStub } from '../stub-atlas.js?v=0.2.27';
 
 const CHUNK = 16 * T;
 const LIGHT_BANDS = 4;   // stepped pools: pixel-art light, no airbrush
@@ -38,6 +38,12 @@ export function createCanvasBackend(o) {
   const tone = (name) => css('--world-' + name);
   const layer = () => { const c = doc.createElement('canvas'); return { c, g: c.getContext('2d') }; };
   const comp = layer(), shade = layer(), lit = layer();
+  /* THE MASKS ARE KEPT (tests/perf-budget.mjs): two full-size raster passes most frames would repeat. */
+  let shadeSig = null, litSig = null;
+  const masks = { shadow: 0, light: 0, kept: 0 };
+  /* a canvas the browser lost and gave back is blank: draw its mask again */
+  shade.c.addEventListener('contextrestored', () => { shadeSig = null; });
+  lit.c.addEventListener('contextrestored', () => { litSig = null; });
   const stubs = new Map();
   let host = null, canvas = null, ctx = null, ro = null, onResize = null;
   let map = null, ground = null, chunks = new Map();
@@ -183,7 +189,26 @@ export function createCanvasBackend(o) {
     g.globalCompositeOperation = 'source-over';
   }
 
+  /* A mask's signature: the view, its colour, and every shape (a cast by its frame) or lamp (the hero's moves). */
+  function shadeSigOf(list, view) {
+    let k = view.ox + ',' + view.oy + ',' + view.w + ',' + view.h + '|' + tone('shadow');
+    for (const sh of list.shadows) {
+      if (sh.type === 'cast') { const d = sh.sprite; k += '|c' + d.set + ',' + d.sx + ',' + d.sy + ',' + d.w + ',' + d.h + ',' + d.x + ',' + d.y + ',' + sh.m.join(','); }
+      else if (sh.type === 'ellipse') k += '|e' + sh.cx + ',' + sh.cy + ',' + sh.w + ',' + sh.h;
+      else k += '|p' + sh.pts.join(';');
+    }
+    return k;
+  }
+
   function shadows(g, list, view) {
+    const sig = shadeSigOf(list, view);
+    if (sig !== shadeSig) { shadeSig = sig; masks.shadow++; drawShadowMask(list, view); } else masks.kept++;
+    g.globalAlpha = parseFloat(tone('shadow-alpha')) || 0;
+    g.drawImage(shade.c, 0, 0);
+    g.globalAlpha = 1;
+  }
+
+  function drawShadowMask(list, view) {
     sizeTo(shade.c, view.w, view.h);
     const s = shade.g;
     s.setTransform(1, 0, 0, 1, 0, 0);
@@ -208,31 +233,34 @@ export function createCanvasBackend(o) {
     s.globalCompositeOperation = 'source-in';
     s.fillRect(0, 0, view.w, view.h);
     s.globalCompositeOperation = 'source-over';
-    g.globalAlpha = parseFloat(tone('shadow-alpha')) || 0;
-    g.drawImage(shade.c, 0, 0);
-    g.globalAlpha = 1;
+  }
+
+  function drawLight(points, view, kind) {
+    sizeTo(lit.c, view.w, view.h);
+    const l = lit.g;
+    l.globalCompositeOperation = 'source-over';
+    l.globalAlpha = 1;
+    l.fillStyle = tone('light-' + kind);
+    l.fillRect(0, 0, view.w, view.h);
+    l.globalCompositeOperation = 'lighter';
+    l.globalAlpha = 1 / (LIGHT_BANDS + 1);
+    for (const p of points) {
+      l.fillStyle = tone('light-' + p.tint);
+      for (let k = 1; k <= LIGHT_BANDS; k++) {
+        l.beginPath();
+        l.ellipse(p.x - view.ox, p.y - view.oy, p.r * k / (LIGHT_BANDS + 1), p.r * k / (LIGHT_BANDS + 1) / 1.15, 0, 0, Math.PI * 2);
+        l.fill();
+      }
+    }
+    l.globalAlpha = 1;
   }
 
   function light(g, list, view, fv) {
     const { kind, points, vignette } = list.lights;
     if (kind !== 'day' || points.length) {
-      sizeTo(lit.c, view.w, view.h);
-      const l = lit.g;
-      l.globalCompositeOperation = 'source-over';
-      l.globalAlpha = 1;
-      l.fillStyle = tone('light-' + kind);
-      l.fillRect(0, 0, view.w, view.h);
-      l.globalCompositeOperation = 'lighter';
-      l.globalAlpha = 1 / (LIGHT_BANDS + 1);
-      for (const p of points) {
-        l.fillStyle = tone('light-' + p.tint);
-        for (let k = 1; k <= LIGHT_BANDS; k++) {
-          l.beginPath();
-          l.ellipse(p.x - view.ox, p.y - view.oy, p.r * k / (LIGHT_BANDS + 1), p.r * k / (LIGHT_BANDS + 1) / 1.15, 0, 0, Math.PI * 2);
-          l.fill();
-        }
-      }
-      l.globalAlpha = 1;
+      let sig = view.ox + ',' + view.oy + ',' + view.w + ',' + view.h + '|' + kind + ':' + tone('light-' + kind);
+      for (const p of points) sig += '|' + p.x + ',' + p.y + ',' + p.r + ',' + tone('light-' + p.tint);
+      if (sig !== litSig) { litSig = sig; masks.light++; drawLight(points, view, kind); } else masks.kept++;
       g.globalCompositeOperation = 'multiply';
       g.drawImage(lit.c, 0, 0);
       g.globalCompositeOperation = 'source-over';
@@ -487,7 +515,7 @@ export function createCanvasBackend(o) {
     },
     snapshot() {
       return {
-        map: map && map.id, z, dpr, size: [W, H], frames, msAvg, msLast, inset: Object.assign({}, inset),
+        map: map && map.id, z, dpr, size: [W, H], frames, msAvg, msLast, inset: Object.assign({}, inset), masks: Object.assign({}, masks),
         heroBuilding: last ? last.heroBuilding : null,
         names: canvas ? plateHits.map((q) => {   // in CLIENT px, for a test aiming a right-click
           const r = canvas.getBoundingClientRect(), sx = r.width / W, sy = r.height / H;

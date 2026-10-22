@@ -47,12 +47,8 @@ const DIR = 'assets/icons-bundle/pixel/items';
 const SUPPLY = 'assets/icons-bundle/pixel/supplies';
 /** Pairs of items that still share one icon, waiting for art of their own (Art Director). A new pair is a finding. */
 const KNOWN_TWINS = [['crown_of_the_fallen_king', 'crown_shard'],
-  /* The imbuement slot's eleven items (src/data/imbuements.js, lane c-loot-loop 2026-10-21) wear the nearest
-     creature part until the Asset Director draws their own (no generated art in that lane). */
-  ['small_fang', 'whelp_milk_tooth'], ['razor_claw', 'gray_dewclaw'], ['sticky_core', 'briar_burr'], ['wolf_pelt', 'dire_hackle'],
-  ['silk_thread', 'grayjaw_whisker'], ['dire_fang', 'rat_incisor'], ['slime_gel', 'sump_membrane'], ['dragon_scale', 'kobold_scale'],
-  ['night_fang', 'culvert_bat_fang'], ['venom_sac', 'cistern_venom_gland'], ['rat_tail', 'knotted_tails'],
-  /* Mosslight Glade's five and its rare (lane c-ground-16-31), the same rule until the Asset Director draws them. */
+  /* Mosslight Glade's five imbuement items and its rare (lane c-ground-16-31) wear the nearest existing icon until
+     the Asset Director draws their own (no generated art in that lane). */
   ['shadow_thread', 'crow_quill'], ['copper_ring', 'snare_wire'], ['moonbloom', 'mosslight_tendril'], ['verdite_ore', 'sluice_crust'],
   ['hunter_necklace', 'rooks_moss_charm'], ['choirbone', 'rooks_whistle']];
 
@@ -116,7 +112,7 @@ export function checkSwitch(root) {
 export async function checkWiring(root) {
   const out = [];
   const bits = readFileSync(join(root, 'src/shell/widgets/bits.js'), 'utf8');
-  if (!/BASIC_INDEX\[id\][\s\S]{0,120}SUPPLY_DIR \+ id/.test(bits)) out.push({ rule: 'wiring', id: 'bits.js', detail: 'itemIconHtml no longer maps a basic supply id to SUPPLY_DIR (its icon would fall back to a chest glyph)' });
+  if (!/hasSupplyArt\(id\)[\s\S]{0,120}SUPPLY_DIR \+ id/.test(bits)) out.push({ rule: 'wiring', id: 'bits.js', detail: 'itemIconHtml no longer maps a basic supply id to SUPPLY_DIR (its icon would fall back to a chest glyph)' });
   const art = await import(pathToFileURL(join(root, 'src/data/item-art.js')).href);
   if (art.SUPPLY_DIR !== 'assets/icons-bundle/pixel/supplies/') out.push({ rule: 'wiring', id: 'item-art.js', detail: 'SUPPLY_DIR is not assets/icons-bundle/pixel/supplies/' });
   for (const id of art.ABILITY_ART) {
@@ -134,7 +130,9 @@ async function loadIds() {
 
 async function loadSupplyIds() {
   const { BASIC_SUPPLIES } = await import(pathToFileURL(join(ROOT, 'src/data/supply-basics.js')).href);
-  return BASIC_SUPPLIES.map((b) => b.id);
+  const { SUPPLY_ART_AHEAD } = await import(pathToFileURL(join(ROOT, 'src/data/item-art.js')).href);
+  // icons drawn ahead of their row must exist too; once the row lands the id is in BASIC_SUPPLIES and counted once
+  return [...new Set([...BASIC_SUPPLIES.map((b) => b.id), ...SUPPLY_ART_AHEAD])];
 }
 
 function report(label, findings) {

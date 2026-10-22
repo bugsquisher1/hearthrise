@@ -2,6 +2,12 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-10-21 · lane/b-death-equip-online (death popup r15, instant equip + players online r16)
+1. *The engine's answer IS the envelope.* Every hr-accrue intent returns hr_state_of after its commit, yet the client re-read hr_load after each: two round trips per equip. edgeIntent now applies the answer (envelope.js still refuses stale/malformed); RPC answers always re-read (session-core EQUIP-1 pins both).
+2. *A counter must not stamp the world tick's signal.* player_state.last_seen_at changes how often hunts flush; the prior WIP stamped it. Presence for a count gets its own home (character_presence) and a shared 15 s cached count, so 10x players costs one row read per ask.
+3. *A popup and an auto-open collide.* The hunt summary auto-opened on any ended hunt; a death now yields to the death popup, whose Hunt summary button opens it. Dismissal ids live in the residue's alerts.seen so the alert centre and the popup agree on "already shown".
+4. *Run the widget layout at 922x423 before choosing a corner.* bottom-left was clear on desktop and under the action bar on the phone; the counter is off by default there.
+
 ## 2026-10-21 · lane/b-bug-report (Sentry send gate + hang signal, Report a problem window)
 1. *An empty Sentry is not a quiet game.* Rate-limited events keep no content, so the flood cannot be named from Sentry; the game only sent from v0.2.22 (10-21 ~09:40 UTC), so a week of drops and zero accepted point at the plan's quota, not a loop. The send gate (5 per error, 25 per load, network weather dropped) makes any future loop bounded either way.
 2. *A hang throws nothing.* src/net/diagnostics.js measures a 500 ms heartbeat's lateness (visible tab, < 2 min = not a sleeping laptop); one Sentry message per load names each open hunt's swing and engine state. A loop that never returns still cannot report itself (needs a Worker watchdog).
@@ -4203,3 +4209,10 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 1. *A world field drawn on the loot stream diverges the live hash.* `rareWon` rides the world (both paths identical), but the browser runs `r` on a constant, so a party's real rare re-seeds the viewed prediction once (eased). Never hash-exclude a field to hide that; it is once per 10-20 h.
 2. *Server-only events need two seams.* The prediction filters SERVER_ONLY_EVENTS (events.js) out of its feed, and character-session ingests exactly those from the server's answer while live; otherwise a live viewer never sees them.
 3. *A new world field moves hr_hunt_world_shape.* Regenerate the STAGED hunt-sessions catalogue in the same lane; the edge deploy and that apply go together.
+
+## 2026-10-21 · lane/a-firefox-perf (hunt page perf in Firefox/Chromium, analyzer clock, party death)
+1. *A page harness that shifts the engine's clock must shift EVERY instant.* World cooldowns, lanes and pack respawns (and a peer's frozen session) hid past 1e12 inside the start point; shifting only the top-level fields made every party prediction diverge in the harness and looked like a real bug. Shift every number past 1e12 and re-hash the world.
+2. *An emit cascade is a perf bug.* One answer emitted, its alert wrote residue (emit), the recorder wrote residue (emit): the world pane drew the canvas and repainted the shell 2-3 times per answer. Coalesce per task (queueMicrotask) where the expensive listener lives; never draw a frame synchronously when the rAF loop is already running.
+3. *A display clock anchored on "when the answer arrived" steps back whenever the server's number is older than the answer.* hunt_ms is time to the settle; run it on the server clock from settled_to.
+4. *"Ends at the next boundary" is not "stops now".* A death ended the party at each member's next swing boundary but the rest of the swing still ran: the survivor kited away. Stop the swing at the death's sub-step (world-step.js); the end stamping stays.
+5. *Python heredocs here can turn "\\n" into a real newline.* Use the Edit tool for any string with a backslash.

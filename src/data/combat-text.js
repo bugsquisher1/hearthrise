@@ -21,7 +21,7 @@ export const FLOAT_TYPES = Object.freeze([
   Object.freeze({ id: 'dealt', label: 'Damage you deal', on: on(true, true) }),
   Object.freeze({ id: 'taken', label: 'Damage you take', on: on(true, true) }),
   Object.freeze({ id: 'heal', label: 'Healing', on: on(true, true) }),
-  Object.freeze({ id: 'xp', label: 'Experience gained', on: on(true, true) }),
+  Object.freeze({ id: 'xp', label: 'Level XP gained', on: on(true, true) }),
   Object.freeze({ id: 'miss', label: 'Misses and immune hits', on: on(true, true) }),
   Object.freeze({ id: 'supply', label: 'Food, drink and mana', on: on(true, true) }),
   Object.freeze({ id: 'loot', label: 'Loot', on: on(true, true) }),

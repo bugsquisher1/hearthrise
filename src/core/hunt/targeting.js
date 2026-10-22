@@ -20,14 +20,14 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_ROLES, CHALLENGE } from '../../data/hunt-roles.js?v=0.2.25';
-import { ABILITIES } from '../../data/abilities.js?v=0.2.25';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.25';
-import { DEFAULT_TARGET_MODE } from '../../data/rule-subjects.js?v=0.2.25';
-import { elementPermille } from '../combat.js?v=0.2.25';
-import { cheb, dist2, los } from './grid.js?v=0.2.25';
-import { unitById, leaderOf } from './movement.js?v=0.2.25';
-import { makeEvent } from './events.js?v=0.2.25';
+import { HUNT_ROLES, CHALLENGE } from '../../data/hunt-roles.js?v=0.2.27';
+import { ABILITIES } from '../../data/abilities.js?v=0.2.27';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.27';
+import { DEFAULT_TARGET_MODE } from '../../data/rule-subjects.js?v=0.2.27';
+import { elementPermille } from '../combat.js?v=0.2.27';
+import { cheb, dist2, los } from './grid.js?v=0.2.27';
+import { unitById, leaderOf } from './movement.js?v=0.2.27';
+import { makeEvent } from './events.js?v=0.2.27';
 
 /* holdMs: ms a Challenged monster stays on its challenger (no other Challenge takes it meanwhile).
    The Challenge's cooldown is the ability's own clock (abilities.js `cds`). leaderLast: the leader's last target (TG-04). */
@@ -128,12 +128,16 @@ const isTank = (u) => !!(roleOf(u) && roleOf(u).tank);
 
 /**
  * THE LAP'S HOLDING TANK: the living tanks in seat (unit id) order, starting at the
- * leader's, rotated by the laps run. Null with no tank. (A tank joining mid-lap
- * changes the rotation's length and can move the holder at once: rare, and the
- * next lap settles it.)
+ * leader's, rotated by the laps run. Null with no tank. A tank whose maxHp is under
+ * CHALLENGE.holderMinHpPm of the strongest living tank's is not in the rotation
+ * (designer 2026-10-21: an L9 holding for an L19 died). (A tank joining mid-lap, or
+ * levelling past that floor, changes the rotation's length and can move the holder
+ * at once: rare, and the next lap settles it.)
  */
 export function holderTank(inst) {
-  const tanks = inst.world.units.filter((u) => u.alive && isTank(u)).sort((a, b) => a.id - b.id);
+  const living = inst.world.units.filter((u) => u.alive && isTank(u));
+  const top = living.reduce((n, u) => Math.max(n, u.maxHp), 0);
+  const tanks = living.filter((u) => u.maxHp * 1000 >= top * CHALLENGE.holderMinHpPm).sort((a, b) => a.id - b.id);
   if (!tanks.length) return null;
   const k = leaderOf(inst);
   const first = k ? Math.max(0, tanks.indexOf(k)) : 0;

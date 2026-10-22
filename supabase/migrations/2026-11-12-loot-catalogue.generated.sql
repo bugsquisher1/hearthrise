@@ -6,7 +6,7 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: c7a3f5d35a54ac099f7525adc122ecd76226f90b8e62b32562163b11d7e649ee
+--   catalogue digest: 9e13c9bd5abc9e74e93e889bafb25d49ed90821ec04f11f4a270bbecb81bc957
 --   rows: 517 items (24 untradeable) ·
 --         291 item-slot pairs · 15 equip slots ·
 --         13 skills · 9 crops · 295 activities ·
@@ -195,7 +195,7 @@ delete from public.hr_runes;
 delete from public.hr_skill_curve;
 
 insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, req_lv, heals, auto_eatable, armour_weight, two_handed) values
-  ('abyssal_greaves','Abyssal Greaves',true,'armor',198000,'defense',88,null,false,null,false),
+  ('abyssal_greaves','Abyssal Greaves',true,'armor',198000,'defense',88,null,false,'heavy',false),
   ('abyssal_pearl','Abyssal Pearl',true,null,3400,null,null,null,false,null,false),
   ('adept_belt','Adept Sash',true,'armor',75,'defense',15,null,false,'light',false),
   ('adept_body','Adept Robe Top',true,'armor',275,'defense',15,null,false,'light',false),
@@ -250,7 +250,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('bronze_arrows','Bronze Arrows',true,'ammo',0,'ranged',1,null,false,null,false),
   ('bronze_axe','Bronze Axe',true,'tool',60,null,null,null,false,null,false),
   ('bronze_bar','Bronze Bar',true,null,32,null,null,null,false,null,false),
-  ('bronze_belt','Bronze Belt',true,'armor',110,'defense',1,null,false,null,false),
+  ('bronze_belt','Bronze Belt',true,'armor',110,'defense',1,null,false,'heavy',false),
   ('bronze_boots','Bronze Boots',true,'armor',50,'defense',1,null,false,'heavy',false),
   ('bronze_gauntlets','Bronze Gauntlets',true,'armor',40,'defense',1,null,false,'heavy',false),
   ('bronze_hammer','Bronze Hammer',true,'tool',70,null,null,null,false,null,false),
@@ -278,7 +278,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('chitin_pants','Chitin Chaps',true,'armor',2310,'defense',45,null,false,'medium',false),
   ('chitinweave_cloak','Chitinweave Cloak',true,'armor',15200,'defense',76,null,false,null,false),
   ('choirbone','Choirbone',true,null,3800,null,null,null,false,null,false),
-  ('choirbone_gauntlets','Choirbone Gauntlets',true,'armor',63000,'defense',88,null,false,null,false),
+  ('choirbone_gauntlets','Choirbone Gauntlets',true,'armor',63000,'defense',88,null,false,'heavy',false),
   ('cistern_venom_gland','Cistern Venom Gland',true,null,40,null,null,null,false,null,false),
   ('coal','Coal',true,null,40,null,null,null,false,null,false),
   ('coarse_whetstone','Coarse Whetstone',true,'ammo',0,'melee',1,null,false,null,false),
@@ -305,7 +305,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('copper_whetstone','Copper Whetstone',true,'ammo',15,'melee',15,null,false,null,false),
   ('cracked_spellstone','Cracked Spellstone',true,null,260,null,null,null,false,null,false),
   ('crow_quill','Carrion Crow Quill',true,null,32,null,null,null,false,null,false),
-  ('crown_of_the_fallen_king','Crown of the Fallen King',true,'armor',17000,'defense',85,null,false,null,false),
+  ('crown_of_the_fallen_king','Crown of the Fallen King',true,'armor',17000,'defense',85,null,false,'heavy',false),
   ('crown_shard','Crown Shard',true,null,150,null,null,null,false,null,false),
   ('culvert_bat_fang','Culvert Bat Fang',true,null,30,null,null,null,false,null,false),
   ('dark_sigil','Dark Sigil',true,null,180,null,null,null,false,null,false),
@@ -419,10 +419,10 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('iron_boots','Iron Boots',true,'armor',105,'defense',15,null,false,'heavy',false),
   ('iron_fitting','Iron Fitting',true,null,480,null,null,null,false,null,false),
   ('iron_gauntlets','Iron Gauntlets',true,'armor',90,'defense',15,null,false,'heavy',false),
-  ('iron_helm','Iron Helm',true,'armor',150,'defense',15,null,false,null,false),
+  ('iron_helm','Iron Helm',true,'armor',150,'defense',15,null,false,'heavy',false),
   ('iron_ore','Iron Ore',true,null,25,null,null,null,false,null,false),
   ('iron_pickaxe','Iron Pickaxe',true,'tool',250,null,null,null,false,null,false),
-  ('iron_platebody','Iron Platebody',true,'armor',400,'defense',15,null,false,null,false),
+  ('iron_platebody','Iron Platebody',true,'armor',400,'defense',15,null,false,'heavy',false),
   ('iron_platelegs','Iron Platelegs',true,'armor',285,'defense',15,null,false,'heavy',false),
   ('iron_sword','Iron Sword',true,'weapon',200,'melee',15,null,false,null,false),
   ('iron_warhammer','Iron Warhammer',true,'weapon',550,'melee',15,null,false,null,false),
@@ -434,8 +434,8 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('lazlos_maul','Lazlo''s Maul',true,'weapon',1650,'melee',45,null,false,null,false),
   ('leather_belt','Leather Belt',true,'armor',35,'defense',1,null,false,'medium',false),
   ('leather_body','Leather Body',true,'armor',125,'defense',1,null,false,'medium',false),
-  ('leather_boots','Leather Boots',true,'armor',90,'defense',1,null,false,null,false),
-  ('leather_gloves','Leather Gloves',true,'armor',80,'defense',1,null,false,null,false),
+  ('leather_boots','Leather Boots',true,'armor',90,'defense',1,null,false,'medium',false),
+  ('leather_gloves','Leather Gloves',true,'armor',80,'defense',1,null,false,'medium',false),
   ('leather_helmet','Leather Coif',true,'armor',50,'defense',1,null,false,'medium',false),
   ('leather_pants','Leather Chaps',true,'armor',90,'defense',1,null,false,'medium',false),
   ('lexarch_seal','Archivist Seal',true,'trophy',2200,null,null,null,false,null,false),
@@ -473,7 +473,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('moonfish','Raw Moonfish',true,null,900,null,null,288,true,null,false),
   ('mosslight_tendril','Mosslight Tendril',true,null,44,null,null,null,false,null,false),
   ('night_fang','Night Fang',true,null,90,null,null,null,false,null,false),
-  ('nightstalker_pelt','Nightstalker''s Pelt',true,'armor',12400,'defense',62,null,false,null,false),
+  ('nightstalker_pelt','Nightstalker''s Pelt',true,'armor',12400,'defense',62,null,false,'medium',false),
   ('normal_log','Normal Log',true,null,8,null,null,null,false,null,false),
   ('normal_plank','Normal Plank',true,null,18,null,null,null,false,null,false),
   ('oak_log','Oak Log',true,null,20,null,null,null,false,null,false),
@@ -487,7 +487,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('panthers_eye_pendant','Panther''s Eye Pendant',true,'jewelry',13600,'melee',68,null,false,null,false),
   ('pikeperch','Raw Pikeperch',true,null,27,null,null,96,true,null,false),
   ('plague_ichor','Plague Ichor',true,null,180,null,null,null,false,null,false),
-  ('plaguewarden_greaves','Plaguewarden Greaves',true,'armor',10800,'defense',54,null,false,null,false),
+  ('plaguewarden_greaves','Plaguewarden Greaves',true,'armor',10800,'defense',54,null,false,'heavy',false),
   ('potato','Potato',true,null,65,null,null,60,true,null,false),
   ('potato_seed','Potato Seed',true,null,20,null,null,null,false,null,false),
   ('practice_bow','Practice Bow',false,'weapon',0,'ranged',1,null,false,null,false),
@@ -511,7 +511,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('raw_panther_meat','Raw Panther Meat',true,null,8,null,null,null,false,null,false),
   ('raw_wolf_meat','Raw Wolf Meat',true,null,5,null,null,null,false,null,false),
   ('razor_claw','Razor Claw',true,null,360,null,null,null,false,null,false),
-  ('regent_helm','Hollow Regent Helm',true,'armor',108000,'defense',88,null,false,null,false),
+  ('regent_helm','Hollow Regent Helm',true,'armor',108000,'defense',88,null,false,'heavy',false),
   ('riftmaw_carapace','Riftmaw Carapace',false,'armor',83160,'defense',90,null,false,'medium',false),
   ('riftmaw_husk','Riftmaw Husk',true,null,4200,null,null,null,false,null,false),
   ('river_chowder','River Chowder',true,null,380,null,null,360,true,null,false),
@@ -563,7 +563,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('silk_thread','Silk Thread',true,null,55,null,null,null,false,null,false),
   ('silverfin','Raw Silverfin',true,null,51,null,null,120,true,null,false),
   ('slagheart_core','Slagheart Core',true,null,3200,null,null,null,false,null,false),
-  ('slagheart_platebody','Slagheart Platebody',true,'armor',270000,'defense',88,null,false,null,false),
+  ('slagheart_platebody','Slagheart Platebody',true,'armor',270000,'defense',88,null,false,'heavy',false),
   ('slime_gel','Slime Gel',true,null,5,null,null,null,false,null,false),
   ('sluice_crust','Sluice Crust',true,null,52,null,null,null,false,null,false),
   ('small_fang','Small Fang',true,null,15,null,null,null,false,null,false),
@@ -592,11 +592,11 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('steel_boots','Steel Boots',true,'armor',400,'defense',30,null,false,'heavy',false),
   ('steel_gauntlets','Steel Gauntlets',true,'armor',350,'defense',30,null,false,'heavy',false),
   ('steel_hammer','Steel Hammer',true,'tool',950,null,null,null,false,null,false),
-  ('steel_helm','Steel Helm',true,'armor',600,'defense',30,null,false,null,false),
+  ('steel_helm','Steel Helm',true,'armor',600,'defense',30,null,false,'heavy',false),
   ('steel_knife','Steel Knife',true,'tool',950,null,null,null,false,null,false),
   ('steel_needle','Steel Needle',true,'tool',950,null,null,null,false,null,false),
   ('steel_pickaxe','Steel Pickaxe',true,'tool',900,null,null,null,false,null,false),
-  ('steel_platebody','Steel Platebody',true,'armor',1500,'defense',30,null,false,null,false),
+  ('steel_platebody','Steel Platebody',true,'armor',1500,'defense',30,null,false,'heavy',false),
   ('steel_platelegs','Steel Platelegs',true,'armor',1100,'defense',30,null,false,'heavy',false),
   ('steel_sword','Steel Sword',true,'weapon',800,'melee',30,null,false,null,false),
   ('steel_warhammer','Steel Warhammer',true,'weapon',550,'melee',30,null,false,null,false),
@@ -659,7 +659,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('war_crown','War Crown',true,null,2500,null,null,null,false,null,false),
   ('warband_bulwark','Warband Bulwark',true,'armor',7000,'defense',35,null,false,null,false),
   ('warboss_standard','Warboss Standard',true,'trophy',1200,null,null,null,false,null,false),
-  ('warden_girdle','Warden''s Girdle',true,'armor',72000,'defense',88,null,false,null,false),
+  ('warden_girdle','Warden''s Girdle',true,'armor',72000,'defense',88,null,false,'heavy',false),
   ('warden_seal','Warden''s Seal',true,null,4400,null,null,null,false,null,false),
   ('warlock_belt','Warlock Sash',true,'armor',840,'defense',45,null,false,'light',false),
   ('warlock_body','Warlock Robe Top',true,'armor',3150,'defense',45,null,false,'light',false),
@@ -696,7 +696,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('worldroot_seed','Worldroot Seed',false,'trophy',0,null,null,null,false,null,false),
   ('wraith_veil','Wraith Veil',true,null,420,null,null,null,false,null,false),
   ('wraithglass_drops','Wraithglass Drops',true,'jewelry',1500,'defense',50,null,false,null,false),
-  ('wraithsilk_shroud','Wraithsilk Shroud',true,'armor',10400,'defense',52,null,false,null,false),
+  ('wraithsilk_shroud','Wraithsilk Shroud',true,'armor',10400,'defense',52,null,false,'light',false),
   ('wyrm_gilding','Wyrm Gilding',true,null,5200,null,null,null,false,null,false),
   ('wyrmgilt_mantle','Wyrmgilt Mantle',true,'armor',90000,'defense',88,null,false,null,false),
   ('wyvernhide_belt','Wyvernhide Belt',true,'armor',2520,'defense',60,null,false,'medium',false),
@@ -1898,7 +1898,7 @@ insert into public.hr_feast_foods (item_id, heals) values
 on conflict (item_id) do update set heals = excluded.heals;
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, 'c7a3f5d35a54ac099f7525adc122ecd76226f90b8e62b32562163b11d7e649ee', now())
+  values (true, '9e13c9bd5abc9e74e93e889bafb25d49ed90821ec04f11f4a270bbecb81bc957', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -2086,7 +2086,17 @@ begin
   ) src where not exists (select 1 from public.hr_items i where i.item_id = src.id);
   if v_bad > 0 then raise exception '% grant-source row(s) name an item missing from hr_items', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest c7a3f5d35a54ac099f7525adc122ecd76226f90b8e62b32562163b11d7e649ee',
+  -- EVERY ARMOUR PIECE HAS A WEIGHT (2026-10-21). hr_vitals_of counts worn armour by
+  -- armour_weight, so an armour row in an armour slot with none counts as bare skin
+  -- (iron plate gave less max HP than bronze). tests/catalogue-coherence.mjs C8 is
+  -- the source-side guard; this is the landed-rows half.
+  select count(*) into v_bad from public.hr_items i
+   where i.kind = 'armor' and i.armour_weight is null
+     and exists (select 1 from public.hr_item_slots p
+                  where p.item_id = i.item_id and p.equip_slot in ('helmet', 'body', 'pants', 'boots', 'gloves', 'belt'));
+  if v_bad > 0 then raise exception '% armour row(s) in an armour slot carry no armour_weight', v_bad; end if;
+
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 9e13c9bd5abc9e74e93e889bafb25d49ed90821ec04f11f4a270bbecb81bc957',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

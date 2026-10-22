@@ -17,16 +17,16 @@
 // `equip` intent; the doll changes only when the re-read envelope replaces
 // `equipment`.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../../../data/items.js?v=0.2.25';
-import { EQUIP_SLOT_META, expandItemSlot } from '../../../data/gathering.js?v=0.2.25';
-import { bagOf, skillsOf, shopOf } from '../../../session/item-sections.js?v=0.2.25';
-import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.25';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.25';
-import { glyphSvg } from '../../launcher.js?v=0.2.25';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.25';
-import { compare, rarityOf } from '../../bag-model.js?v=0.2.25';
-import { needOf } from '../../item-lore.js?v=0.2.25';
-import { showTip } from '../item-tip.js?v=0.2.25';
+import { ITEMS } from '../../../data/items.js?v=0.2.27';
+import { EQUIP_SLOT_META, expandItemSlot } from '../../../data/gathering.js?v=0.2.27';
+import { bagOf, skillsOf, shopOf } from '../../../session/item-sections.js?v=0.2.27';
+import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.27';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.27';
+import { glyphSvg } from '../../launcher.js?v=0.2.27';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.27';
+import { compare, rarityOf } from '../../bag-model.js?v=0.2.27';
+import { needOf } from '../../item-lore.js?v=0.2.27';
+import { showTip } from '../item-tip.js?v=0.2.27';
 
 /* Body order, row by row: [slot, label, empty glyph]. */
 export const DOLL = Object.freeze([
@@ -80,6 +80,10 @@ export function patchDoll(root, st, ctx) {
     }
     cls(b, 'is-empty', !id);
     cls(b, 'is-open', sc.slot === s);
+    /* The slot an equip is changing, from the press to the server's envelope (actions.js wear). */
+    const busy = !!sc.wearing && sc.wearing.slot === s;
+    cls(b, 'is-wearing', busy);
+    attr(b, 'aria-busy', busy ? 'true' : null);
     attr(b, 'aria-label', SLOT_LABEL.get(s) + ': ' + (id ? itemName(id) : 'empty'));
   }
 }

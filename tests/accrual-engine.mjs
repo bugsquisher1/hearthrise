@@ -1212,6 +1212,9 @@ async function shellGuard() {
        member's session) and the ground the edge builds, never hr_state_of;
        `huntOpen` is hr_hunt_open_of on the accrue/collect paths. */
     'instance', 'window', 'secret', 'ground', 'grid', 'members', 'huntOpen',
+    /* accrueHunt's world bound: HUNT_TUNING.worldMaxBytes. This key is a TEST seam that
+       can only TIGHTEN it (hunt-settle.js passes o.worldMaxBytes, which production never sets). */
+    'worldMaxBytes',
   ]);
   /* Declared by the map and NOT read by the engine. One entry, and it is
      honest: both call sites have always passed `gold` and accrual.js has never

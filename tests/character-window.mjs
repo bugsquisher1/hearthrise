@@ -7,7 +7,7 @@
 //   node tests/character-window.mjs --shots <dir>  also write the visual-gate screenshots
 //                                                  (1440x900 and 922x423)
 //
-// mutant-anchors: src/shell/windows/character/sheet.js src/shell/windows/character/index.js src/shell/windows/character/outfit.js src/session/character-sections.js src/shell/windows/skills.js src/styles/character.css src/data/item-uses.js src/data/skill-unlocks.js supabase/functions/hr-accrue/character-sheet.js src/core/progression.js
+// mutant-anchors: src/shell/widgets/vitals-hub.js src/shell/windows/character/sheet.js src/shell/windows/character/index.js src/shell/windows/character/outfit.js src/session/character-sections.js src/shell/windows/skills.js src/styles/character.css src/data/item-uses.js src/data/skill-unlocks.js supabase/functions/hr-accrue/character-sheet.js src/core/progression.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character is tests/fixtures/alpha-envelope.json plus the three sections
@@ -29,6 +29,9 @@
 //         tried on and never saved
 //   CW-5  THE DEATH LOG is the server's rows: who killed the hero, where, the XP
 //   CW-7  the sheet lays out from the window's own width: every vital row whole, none over the identity
+//   CW-8  THE TAB MATCHES THE HUD (r09: Level 4 on the tab, 11 on the HUD): the
+//         Character tab's Level, max health and max mana equal the vitals hub's,
+//         in a hunt, after a pushed frame that restates only `state`, and in town
 //   CW-6  THE SKILLS: Gathering and crafting lists no combat skill; the combat
 //         ledger is the Character window's; an unlock line names each thing and
 //         its kind ("Bronze Axe (woodcutting tool)")
@@ -171,7 +174,7 @@ async function checks(overrides, shots) {
         if (tabs.join('|') !== 'Character|Outfit|Deaths') fails.push('CW-1 the tabs are ' + tabs.join('|'));
         /* CW-2: exactly the section's numbers. */
         const L = await lines(page);
-        const want = { Damage: '1–17', 'Hit chance': '74.5% against no armour', 'Critical chance': '4.5%', Defence: '23', 'Max mana': '60', 'Max health': '24',
+        const want = { Damage: '1–17', 'Hit chance': '74.5% against no armour', 'Critical chance': '4.5%', Defence: '23', 'Max mana': '60', 'Max health': '220',
           Regeneration: '+1.9% (Prayer)', 'Home and renown': '+2%', Total: '+2%' };
         for (const [k, v] of Object.entries(want)) if (L[k] !== v) fails.push('CW-2 ' + k + ' reads ' + JSON.stringify(L[k]) + ', the server sent ' + v);
         if ('Prayer ward' in L || 'Gear' in L || 'Food and drink' in L) fails.push('CW-3 a zero line is drawn: ' + JSON.stringify(L));
@@ -244,7 +247,7 @@ async function checks(overrides, shots) {
         await page.waitForTimeout(1000);
         const L = await lines(page);
         for (const k of ['Damage', 'Hit chance', 'Critical chance', 'Defence', 'Speed', 'Total']) if (k in L) fails.push('CW-3 a stale sheet still draws ' + k + ' = ' + L[k]);
-        if (L['Max health'] !== '24') fails.push('CW-3 the server-owned max health is gone with the stale sheet: ' + JSON.stringify(L));
+        if (L['Max health'] !== '220') fails.push('CW-3 the server-owned max health is gone with the stale sheet: ' + JSON.stringify(L));
         /* Max mana is a vital like max health (Tyler 10-19): the server's hunt vitals carry it when the sheet is stale. */
         if (L['Max mana'] !== '60') fails.push('CW-3 max mana went with the stale sheet instead of reading the server vitals: ' + JSON.stringify(L));
         if (sheetAsks(s).length !== 2) fails.push('CW-3 the opening plus a stale version asked the engine ' + sheetAsks(s).length + ' times, not 2');
@@ -252,6 +255,44 @@ async function checks(overrides, shots) {
         if (ask && Object.keys(ask.body).some((k) => !['slot', 'verb', 'intentId'].includes(k))) fails.push('CW-3 the sheet ask carries ' + JSON.stringify(ask.body));
       } else fails.push('CW-3 the character did not open');
       if (errors.length) fails.push('CW-3 console errors: ' + errors.slice(0, 3).join(' | '));
+      await ctx.close();
+    }
+    { // CW-8 THE TAB MATCHES THE HUD: Level, max health and max mana, in a hunt, after a state-only frame, in town
+      const { ctx, page, errors, s, up } = await open();
+      if (up && await openWin(page, 'c', 'character')) {
+        await waitCombat(page);
+        const both = () => page.evaluate(() => {
+          const t = (q) => { const e = document.querySelector(q); return e ? e.textContent : null; };
+          const L = {};
+          for (const el of document.querySelectorAll('[data-hs-win="character"] .hw-cs-line')) if (getComputedStyle(el).display !== 'none') L[el.querySelector('dt').textContent] = el.querySelector('dd').textContent;
+          const max = (q) => { const v = t(q); return v && v.includes('/') ? v.split('/')[1].replace(/,/g, '') : null; };
+          return { tab: { level: (t('[data-hs-win="character"] .hw-cs-lv') || '').replace('Level ', ''), hp: (L['Max health'] || '').replace(/,/g, ''), mana: (L['Max mana'] || '').replace(/,/g, '') },
+            hud: { level: t('.hb-lv'), hp: max('.hb-read-v[data-v="hp"]'), mana: max('.hb-read-v[data-v="mana"]') } };
+        });
+        const same = (when, want) => both().then((r) => {
+          for (const k of ['level', 'hp', 'mana']) if (!r.tab[k] || r.tab[k] !== r.hud[k]) fails.push('CW-8 ' + when + ': the tab says ' + k + ' ' + JSON.stringify(r.tab[k]) + ', the HUD ' + JSON.stringify(r.hud[k]));
+          if (want && r.tab.level !== want) fails.push('CW-8 ' + when + ': the Level reads ' + r.tab.level + ', the server Level XP makes ' + want);
+        });
+        await same('in a hunt', '21');
+        /* A frame restates `state` only (hr_tick_config.frame_keys): the hunt hero's `level` it does not touch. */
+        s.env.state = Object.assign({}, s.env.state, { level_xp: 450000 });
+        s.version += 1;
+        await page.evaluate(([uid, f, st]) => window.__hub.send('hr:' + uid + ':0', { t: 'delta', frame: f, patch: { state: st } }), [UID, s.version, s.env.state]);
+        await page.waitForTimeout(600);
+        await same('after a state-only frame', '23');
+        /* Back in town: the character's own vitals on both. */
+        s.env.hunt = Object.assign({}, s.env.hunt, { ended: true });
+        s.env.state = Object.assign({}, s.env.state, { hp: 280, max_hp: 300 });
+        s.env.vitals = { level: 23, max_hp: 300, max_mana: 140, regen_pm: 1000 };
+        await push(page, s);
+        /* The hunt's end opens its summary in the Character window's place: open the tab again. */
+        if (!(await openWin(page, 'c', 'character'))) fails.push('CW-8 the Character window did not open in town');
+        await waitCombat(page);
+        await same('in town', '23');
+        const r = await both();
+        if (r.tab.hp !== '300' || r.tab.mana !== '140') fails.push('CW-8 in town the tab reads ' + JSON.stringify(r.tab) + ', the server sent max HP 300, max mana 140');
+      } else fails.push('CW-8 the character did not open');
+      if (errors.length) fails.push('CW-8 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
     { // CW-3c: no combat number before this opening's ask has answered (a deploy may have moved the engine)
@@ -331,10 +372,12 @@ const MUTANTS = [
   ['the vitals no longer wrap under the identity', 'src/styles/character.css', '.hw-cs-vitals { flex: 1 1 260px; min-width: 0;', '.hw-cs-vitals { flex: none; grid-template-columns: auto auto !important;'],
   ['the damage is derived in the browser', 'src/shell/windows/character/sheet.js', "c && c.damage ? c.damage.min + '–' + c.damage.max : null", "c && c.damage ? '1–' + (Math.floor(c.defence * 0.35) + 2) : null"],
   ['a stale sheet keeps the last numbers', 'src/session/character-sections.js', '    combat: s.fresh === true ? combatOf(s.combat) : null,', '    combat: (globalThis.__lc = s.fresh === true ? combatOf(s.combat) : (globalThis.__lc || null)),'],
-  ['an absent stat draws a zero', 'src/shell/windows/character/sheet.js', "line(root, '[data-vital=\"mana\"]', manaMax !== null ? whole(manaMax) : null);", "line(root, '[data-vital=\"mana\"]', whole(manaMax || 0));"],
+  ['an absent stat draws a zero', 'src/shell/windows/character/sheet.js', "line(root, '[data-vital=\"mana\"]', hv.manaMax !== null ? whole(hv.manaMax) : null);", "line(root, '[data-vital=\"mana\"]', whole(hv.manaMax || 0));"],
   ['a wand reads (staff) again', 'src/data/item-uses.js', "  if (it.type === 'weapon') return WEAPON_WORD[roleWeaponOf(it)] || 'weapon';", "  if (it.type === 'weapon') return ({ magic: 'staff' })[it.weaponType] || WEAPON_WORD[it.weaponType] || 'weapon';"],
   ['a spellbook reads (offhand)', 'src/data/item-uses.js', "  if (it.slot === 'shield' && it.discipline) return 'spellbook';\n", ''],
-  ['max mana only from the engine sheet', 'src/shell/windows/character/sheet.js', ': sh && sh.maxMana !== null ? sh.maxMana : v.manaMax;', ': null;'],
+  ['the HUD reads the hunt hero Level again (r09)', 'src/shell/widgets/vitals-hub.js', '  const level = v.level;', '  const level = hero && Number.isFinite(hero.level) ? hero.level : v.level;'],
+  ['the tab reads the sheet section max HP again (r09)', 'src/shell/windows/character/sheet.js', "line(root, '[data-vital=\"hp\"]', hv.hpMax !== null ? whole(hv.hpMax) : null);", "line(root, '[data-vital=\"hp\"]', sh && sh.fresh !== undefined ? whole(cs.read('character_sheet').max_hp) : null);"],
+  ['the tab reads the engine sheet max mana again (r09)', 'src/shell/windows/character/sheet.js', "line(root, '[data-vital=\"mana\"]', hv.manaMax !== null ? whole(hv.manaMax) : null);", "line(root, '[data-vital=\"mana\"]', c && c.role ? whole(cs.read('character_sheet').combat.max_mana) : hv.manaMax !== null ? whole(hv.manaMax) : null);"],
   ['a leech line the engine does not have', 'src/shell/windows/character/sheet.js', "const COMBAT = Object.freeze([['damage', 'Damage'],", "const COMBAT = Object.freeze([['leech', 'Life Leech'], ['damage', 'Damage'],"],
   ['the sheet is asked for every paint', 'src/shell/windows/character/index.js', "  if (!sh || sc.sheetAsking || v === null) return;\n  if (sc.opening !== 'due' && (sh.fresh || sc.sheetAsked === v)) return;", "  if (!sh) return;"],
   ['an opening never asks the engine', 'src/shell/windows/character/index.js', "if (sc.opening !== 'due' && (sh.fresh || sc.sheetAsked === v)) return;", "if (sh.fresh || sc.sheetAsked === v) return;"],

@@ -4,14 +4,15 @@
 //   node tools/hunt-health.local.mjs --watch 15 re-read every 15 s (Ctrl+C stops)
 //
 // SELECT-only through the Management API with ~/.supabase-token (read as bytes, never printed),
-// inside a READ ONLY transaction. A settle lag above the browser's look-ahead (liveSeeds x 2 s = 32 s)
-// means the live view runs dry and freezes. Local tool, not in CI.
+// inside a READ ONLY transaction. Lag verdicts: tools/lib/hunt-lag.mjs (FREEZING = a WATCHED hunt past the
+// 32 s look-ahead; STALLED = past the tick's own flush; an unwatched hunt's 0-100 s sawtooth is by design).
+// Local tool, not in CI.
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { lagVerdict, WATCHED_SQL } from './lib/hunt-lag.mjs';
 
 const REF = 'nezapsylztqbbwuwembx';
-const LOOK_AHEAD_S = 32;
 const tok = readFileSync(join(homedir(), '.supabase-token'), 'utf8').trim();
 const at = process.argv.indexOf('--watch');
 const watchS = at >= 0 ? Math.max(5, Number(process.argv[at + 1]) || 15) : 0;
@@ -27,20 +28,25 @@ async function q(sql) {
 
 const HUNTS = `select left(i.id::text, 8) inst, i.hunt_id, i.kind, count(*) heroes,
   string_agg(left(s.user_id::text, 8) || ':' || s.slot || (case when s.leave_at is not null then ' leaving' else '' end), ' ', ) who,
-  round(extract(epoch from now() - i.settled_to)) lag_s, i.world_swing, round(extract(epoch from now() - min(s.entered_at)) / 60) mins
+  round(extract(epoch from now() - i.settled_to)) lag_s, i.world_swing, array_agg(distinct s.user_id::text) users, round(extract(epoch from now() - min(s.entered_at)) / 60) mins
   from public.hunt_sessions s join public.hunt_instances i on i.id = s.instance_id
   where s.ended_at is null group by i.id order by lag_s desc`.replace(', ' + ')', ')');
 const RATE = `select left(user_id::text, 8) u, bucket, sum(n) n from public.hr_rate_counters
   where window_start > now() - interval '2 minutes' group by 1, 2 order by n desc limit 12`;
+const TICK = 'select flush_seconds, cadence_seconds from public.hr_tick_config where id';
 const REFUSED = `select left(user_id::text, 8) u, code, intent, sum(n) n, max(last_at) last from public.hr_rejections
   where day = current_date group by 1, 2, 3 order by last desc limit 10`;
 
 async function once() {
-  const [hunts, rate, refused] = await Promise.all([q(HUNTS), q(RATE), q(REFUSED)]);
+  const [hunts, rate, refused, watchedRows, tick] = await Promise.all([q(HUNTS), q(RATE), q(REFUSED), q(WATCHED_SQL), q(TICK)]);
+  const watching = new Set(watchedRows.map((r) => r.u));
+  const cfg = { flushS: Number((tick[0] || {}).flush_seconds) || 90, cadenceS: Number((tick[0] || {}).cadence_seconds) || 10 };
   console.log(`\nHunt health at ${new Date().toLocaleTimeString()}`);
   if (!hunts.length) console.log('  no open hunts');
   for (const h of hunts) {
-    const flag = Number(h.lag_s) > LOOK_AHEAD_S ? `  << FREEZING: server ${h.lag_s}s behind (look-ahead ${LOOK_AHEAD_S}s)` : '';
+    const users = Array.isArray(h.users) ? h.users : String(h.users || '').replace(/[{}]/g, '').split(',');
+    const v = lagVerdict({ lagS: Number(h.lag_s), watched: users.some((u) => watching.has(u)), ...cfg });
+    const flag = v.code === 'ok' ? `  (${v.note})` : `  << ${v.note}`;
     console.log(`  ${h.inst} ${h.hunt_id} ${h.kind} ×${h.heroes} [${h.who}] lag ${h.lag_s}s, swing ${h.world_swing}, ${h.mins} min${flag}`);
   }
   console.log('Rate counters, last 2 min: ' + (rate.length ? rate.map((r) => `${r.u} ${r.bucket}=${r.n}`).join(' · ') : 'none'));

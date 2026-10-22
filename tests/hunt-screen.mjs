@@ -1766,12 +1766,13 @@ async function shardPlan() {
     return out;
   };
   const real = judge(yml);
-  const reg = [...yml.matchAll(/--shard=\d+\/(\d+)/g)];
+  /* hunt-screen's own shards only: smoke.yml shards other suites too (alpha-windows --shard=K/2, 2026-10-22). */
+  const reg = [...yml.matchAll(/node tests\/hunt-screen\.mjs --mutate --shard=\d+\/(\d+)/g)];
   const n = reg.length ? +reg[0][1] : 0;
   if (n) planShards(names, n, seconds).forEach((s, i) => console.log(`  shard ${i + 1}/${n}: ${s.names.length} mutants, ~${Math.round(s.seconds / 6) / 10} min booked`));
   for (const f of real) console.log('  ✗ ' + f);
   const planted = [
-    ['a shard dropped from smoke.yml', judge(yml.replace(`--shard=${n}/${n}`, '--shard-dropped'))],
+    ['a shard dropped from smoke.yml', judge(yml.replace(`hunt-screen.mjs --mutate --shard=${n}/${n}`, 'hunt-screen.mjs --mutate --shard-dropped'))],
     ['the old round-robin off by one (the last mutant runs nowhere)', judge(yml, (ns, k) => Array.from({ length: k }, (_, i) => ({ names: ns.slice(0, -1).filter((_, j) => j % k === i), seconds: 0 })))],
     ['a mutant planned twice', judge(yml, (ns, k, s) => { const p = planShards(ns, k, s); p[0].names.push(p[1].names[0]); return p; })],
     ['a shard booked over its budget', judge(yml, planShards, 60)],

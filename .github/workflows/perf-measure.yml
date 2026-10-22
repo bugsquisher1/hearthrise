@@ -25,14 +25,11 @@ on:
         description: 'scenario length'
         required: false
         default: '10'
-  push:
-    branches: ['lane/a-firefox-perf']
-    paths: ['tests/perf-budget.mjs', '.github/workflows/perf-measure.yml', 'src/**']
 
 permissions:
   contents: read
 
-# one measurement per branch at a time: a newer push replaces the run in flight
+# one measurement per branch at a time: a newer dispatch replaces the run in flight
 concurrency:
   group: perf-measure-${{ github.ref }}
   cancel-in-progress: true
@@ -48,7 +45,7 @@ jobs:
         size: ['1440x900', '922x423']
         tree: [after, before]
     env:
-      BASE: ${{ github.event.inputs.base || (github.event_name == 'push' && '7e262b83e') || '' }}
+      BASE: ${{ github.event.inputs.base || '' }}
       MINUTES: ${{ github.event.inputs.minutes || '10' }}
     steps:
       - uses: actions/checkout@v4

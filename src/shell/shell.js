@@ -50,6 +50,7 @@ import { mountContextMenu } from './context-menu.js?v=0.2.30';
 import { menuProvidersOf } from './menu-providers.js?v=0.2.30';
 import { escapeHtml as esc } from '../utils/dom.js?v=0.2.30';
 import { followDeaths } from './death-popup.js?v=0.2.30';
+import { watchTown } from '../session/town-poll.js?v=0.2.30';
 
 /* The components' display clock: session timers and the timeline's due events (parity SH-05, DOM 4 Hz). */
 const DISPLAY_TICK_MS = 250;
@@ -280,6 +281,8 @@ export function mountShell(root, o) {
   /* The display tick: components patch their clocks and play the timeline's due events. */
   function patchComponents() {
     if (ctx.character && ctx.character.timeline) ctx.character.timeline.advance(ctx.now());
+    /* The Work window or the bag watches the town work: the viewed character re-reads at townPollMs (town-poll.js). */
+    if (ctx.character && (wm.isOpen('skills-trade') || wm.isOpen('inventory'))) watchTown(ctx.character);
     for (const row of hud.rows()) {
       const render = WIDGET_RENDERERS[row.id];
       const el = render.patch && (row.layer === 'screen' ? screenHud : worldHud).querySelector('[data-hs-widget="' + row.id + '"]');

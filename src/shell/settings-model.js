@@ -11,7 +11,7 @@
 //   categoriesFor(ctx, rows, cats)   the categories that have a visible row
 //   search(rows, q)        rows whose label or help holds every word of q
 // ════════════════════════════════════════════════════════════════════════
-import { floatShown, withFloat } from '../hunt-view/float-prefs.js?v=0.2.24';
+import { floatShown, withFloat } from '../hunt-view/float-prefs.js?v=0.2.25';
 
 const residueOf = (ctx) => (ctx.character && ctx.character.record && ctx.character.record.residue) || {};
 

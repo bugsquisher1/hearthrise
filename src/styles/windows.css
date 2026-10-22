@@ -252,33 +252,78 @@
 .hw-store-n { font-family: var(--f-ui); font-weight: 400; letter-spacing: 0; color: var(--ink-3); }
 .hw-store-note { margin: 0 2px 4px; }
 
-/* ── Hunts (src/shell/windows/hunts.js): one ruled line per ground; the picked one carries Enter ── */
-.hw-hunts-now, .hw-hunts-reco { margin: 0 2px 6px; }
-.hw-hunt-list { margin: 0; padding: 0; list-style: none; }
-.hw-hunt { display: flex; align-items: flex-start; gap: 10px; padding: 8px 6px; border-top: 1px solid var(--line-soft); border-left: 2px solid transparent; cursor: pointer; }
-.hw-hunt:hover { background: var(--bg-1); }
-.hw-hunt.is-picked { border-left-color: var(--gold); background: var(--bg-1); }
+/* ── Hunts (src/shell/windows/hunts.js): the grounds as lines, the picked one's page beside them ── */
+.hw-hunts-now, .hw-hunts-reco { margin: 0 2px 8px; }
+.hw-hunts-cols { display: grid; grid-template-columns: 276px minmax(0, 1fr); align-items: start; }
+/* The list: one line a ground, no boxes; the picked line is marked by the gold rule and a lifted ground. */
+.hw-hunt-list { margin: 0; padding: 0 12px 0 0; list-style: none; }
+.hw-hunt { display: flex; align-items: flex-start; gap: 8px; padding: 7px 6px 8px 8px; border-left: 2px solid transparent; cursor: pointer; }
+.hw-hunt:hover { background: var(--surf-panel); }
+.hw-hunt.is-picked { border-left-color: var(--gold); background: var(--bg-3); }
+.hw-hunt:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
+.hw-hunt-glyph { flex: none; display: grid; place-items: center; width: 20px; height: 20px; margin-top: 1px; color: var(--ink-3); }
+.hw-hunt-glyph .hs-glyph { width: 18px; height: 18px; }
+.hw-hunt.is-picked .hw-hunt-glyph { color: var(--ink-2); }
 .hw-hunt-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.hw-hunt-name { color: var(--ink); }
-.hw-hunt-theme { font-size: var(--t-micro); color: var(--ink-2); line-height: 1.3; }
-.hw-hunt-band, .hw-hunt-facts { font-size: var(--t-micro); color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; }
-.hw-hunt-band.is-short { color: var(--red); }
-.hw-hunt-warn { font-size: var(--t-micro); color: var(--red); }
+.hw-hunt-name { font-weight: 700; color: var(--ink); }
+.hw-hunt-band, .hw-hd-band { font-size: var(--t-micro); color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; }
+.hw-hunt-fit:not(:empty)::before { content: ' · '; color: var(--ink-3); }
+/* The band against the Level: words always, the tone a second cue (in range / above / far above / below). */
+.hw-hunt-fit[data-tone="in"], .hw-hd-band[data-tone="in"] { color: var(--green); }
+.hw-hunt-fit[data-tone="above"], .hw-hunt-fit[data-tone="far"], .hw-hd-band[data-tone="above"], .hw-hd-band[data-tone="far"] { color: var(--red); }
+.hw-hunt-sub { display: flex; flex-wrap: wrap; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
+.hw-hunt-fits { font-weight: 700; color: var(--gold-2); }
+.hw-hunt-fits:not(:empty) + .hw-hunt-bestline:not(:empty)::before { content: ' · '; font-weight: 400; color: var(--ink-3); white-space: pre; }
+.hw-hunt-fits:empty, .hw-hunt-bestline:empty { display: none; }
+/* The page: set off from the list by one hairline (the master-detail seam), never a card. */
+.hw-hunt-detail { min-width: 0; padding-left: 16px; border-left: 1px solid var(--line-soft); }
+.hw-hunt-detail[hidden] { display: none; }
+.hw-hd-back { display: none; }
+.hw-hd-head { margin-bottom: 6px; }
+.hw-hd-name { margin: 0; font-size: var(--t-lead); font-weight: 700; color: var(--ink); }
+.hw-hd-band, .hw-hd-who { margin: 1px 0 0; }
+.hw-hd-who { font-size: var(--t-micro); color: var(--ink-2); }
+.hw-hunt-warn { margin: 1px 0 0; font-size: var(--t-micro); color: var(--red); }
 .hw-hunt-warn:empty { display: none; }
-.hw-hunt-pack { font-size: var(--t-micro); color: var(--ink-2); }
-.hw-hunt-pack:empty { display: none; }
-/* This hero's personal bests on the ground (the server's hunt_bests), alone and in a party. */
-.hw-hunt-best { display: flex; flex-direction: column; gap: 1px; margin-top: 2px; }
-.hw-hunt-best[hidden] { display: none; }
-.hw-hunt-best small { font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
-.hw-density { display: none; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.hw-hd-theme { margin: 0; font-size: var(--t-small); line-height: 1.35; color: var(--ink-2); }
+.hw-hd-h { margin: 14px 0 6px; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
+/* Who lives here: each creature as the world draws it (×2, its idle frame), every one standing on the same
+   ground line at the tallest one's height (--stand-h, set from the drawn art), its name and how common it is
+   under it. The ground line runs unbroken under a row. */
+.hw-hd-lineup { display: flex; flex-wrap: wrap; align-items: flex-start; row-gap: 12px; margin: 0; padding: 0; list-style: none; }
+.hw-hd-mon { display: flex; flex-direction: column; align-items: center; padding: 0; text-align: center; }
+.hw-hd-stand { display: flex; align-items: flex-end; justify-content: center; align-self: stretch; height: var(--stand-h, 48px); padding: 0 10px 2px; border-bottom: 1px solid var(--line); }
+.hw-hd-mon-name { margin-top: 4px; padding: 0 6px; font-size: var(--t-micro); font-weight: 700; line-height: 1.2; color: var(--ink); white-space: nowrap; }
+.hw-hd-mon-how { padding: 0 6px; font-size: var(--t-micro); line-height: 1.2; color: var(--ink-3); white-space: nowrap; }
+.hw-hd-sprite { display: block; image-rendering: pixelated; }
+.hw-hd-mon:not(.is-drawn) .hw-hd-sprite { width: 0; height: 0; }
+.hw-hd-mon[data-band="common"] .hw-hd-mon-how { color: var(--ink-2); }
+.hw-hd-mon.is-carrier .hw-hd-mon-name { color: var(--rar-rare); }
+/* The rare and its carrier: the item's own pixel icon at ×1, its name in the rare colour. */
+.hw-hd-rare { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; }
+.hw-hd-rare[hidden] { display: none; }
+.hw-hd-rare .hw-ico { width: 36px; height: 36px; background: var(--bg-1); box-shadow: var(--hw-well); }
+.hw-hd-rare .hw-ico .hh-icon { width: 32px; height: 32px; }
+.hw-hd-rare-t { display: flex; flex-direction: column; min-width: 0; }
+.hw-hd-rare-name { font-weight: 700; color: var(--rar-rare); }
+.hw-hd-rare-by { font-size: var(--t-micro); color: var(--ink-2); }
+.hw-hunt-party { margin: 8px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
+.hw-hd-best { margin: 0; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
+.hw-hd-best[hidden], .hw-hunt-party[hidden] { display: none; }
+.hw-hunt-facts { margin: 0 0 4px; font-size: var(--t-micro); color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; }
+.hw-density { display: none; align-items: center; flex-wrap: wrap; gap: 6px; }
 .hw-density.is-on { display: flex; }
 .hw-density-label { font-size: var(--t-small); color: var(--ink-2); }
 .hw-density .hh-seg { min-width: 36px; min-height: 36px; }
 .hw-density .hh-step-val { min-width: 64px; text-align: center; }
 .hw-density-note { flex-basis: 100%; font-size: var(--t-micro); color: var(--ink-3); }
-.hw-hunt-do { flex: none; display: flex; flex-direction: column; align-items: stretch; gap: 4px; }
-.hw-hunt-do .hw-primary.is-on { display: inline-block; }
+.hw-hunt-pack { margin: 8px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
+.hw-hunt-pack:empty { display: none; }
+/* The one primary, held at the page's foot however far the page scrolls; the server's answer beside it. */
+/* bottom: minus the window body's own padding, so nothing scrolls past under the bar. */
+.hw-hd-foot { position: sticky; bottom: -12px; display: flex; align-items: center; gap: 10px; margin-top: 12px; padding: 8px 0 12px; border-top: 1px solid var(--line-soft); background: var(--modal-bg); }
+.hw-hd-foot .hh-intent-msg { flex: 1; min-width: 0; margin: 0; }
+.hw-hd-foot .hw-primary { flex: none; margin-left: auto; }
 
 /* ── The skills: two ledgers, two compact entries to a row ── */
 .hw-skill-group { margin-bottom: 2px; }
@@ -362,6 +407,15 @@
   .hw-tip { width: 240px; }
   .hw-work-row .hh-tool, .hw-work-head .hh-tool, .hw-work-now .hh-tool, .hw-work-n .hh-seg { min-height: 40px; }
   .hw-work-hint { display: none; }
+  /* Hunts on the sheet: the list first; a pick opens the ground's page in its place, with the way back on top. */
+  .hw-hunts-cols { display: block; }
+  .hw-hunt-list { padding: 0; }
+  .hw-hunt { min-height: 44px; }
+  .hw-hunt-detail { display: none; padding-left: 0; border-left: 0; }
+  .hw-hunts.is-paged .hw-hunt-list { display: none; }
+  .hw-hunts.is-paged .hw-hunt-detail:not([hidden]) { display: block; }
+  .hw-hd-back { display: inline-flex; align-items: center; min-height: 40px; margin: 0 0 4px -6px; }
+  .hw-hd-foot { bottom: -10px; padding-bottom: 10px; }
 }
 
 /* ── The Party window (src/shell/windows/party.js): invites and the finder; role glyphs ── */

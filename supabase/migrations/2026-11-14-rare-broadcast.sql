@@ -13,7 +13,7 @@
 --
 -- ── WHAT ────────────────────────────────────────────────────────────────────
 -- §1 hr_world_notice_rules — THE DATA ROW (src/data/chat-channels.js
---    WORLD_NOTICES; tests/rare-broadcast.mjs RB-1 holds the two equal): which
+--    WORLD_NOTICES; tests/chat-social.mjs RB-1 holds the two equal): which
 --    channel a world notice goes to and how many one character may post per UTC
 --    day. Server-only.
 -- §1 hr_world_notices — THE JOURNAL, one row per rare_drop event the trigger
@@ -97,7 +97,7 @@ create table if not exists public.hr_world_notice_rules (
 );
 alter table public.hr_world_notice_rules enable row level security;
 revoke all on public.hr_world_notice_rules from public, anon, authenticated, service_role;
--- src/data/chat-channels.js WORLD_NOTICES.rare_drop (tests/rare-broadcast.mjs RB-1).
+-- src/data/chat-channels.js WORLD_NOTICES.rare_drop (tests/chat-social.mjs RB-1).
 insert into public.hr_world_notice_rules (kind, channel, per_char_day) values ('rare_drop', 'system', 3)
   on conflict (kind) do update set channel = excluded.channel, per_char_day = excluded.per_char_day;
 

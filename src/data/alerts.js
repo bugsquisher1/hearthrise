@@ -15,11 +15,13 @@
 //            bag, 'restart' sends the restart intent, 'show'
 //            switches to the character, 'join' accepts a party invite
 //   decline  a second button's words (the invite's No thanks), or none
+//   share    a Share button's words: the rare find's card (src/shell/share-card.js)
 //   button   the button's words
 // ════════════════════════════════════════════════════════════════════════
 
 export const ALERT_KINDS = Object.freeze([
-  Object.freeze({ id: 'rare', label: 'Rare drops', glyph: 'uiGem', action: 'bag', button: 'Open your inventory' }),
+  /* share: a second button that makes the find's card (src/shell/share-card.js), a PNG the player copies or saves. */
+  Object.freeze({ id: 'rare', label: 'Rare drops', glyph: 'uiGem', action: 'bag', button: 'Open your inventory', share: 'Share' }),
   Object.freeze({ id: 'death', label: 'Deaths', glyph: 'uiSkull', action: 'show', button: 'See the hunt' }),
   /* Only a hero set to end its hunt on empty can run out (the store pays per use otherwise): show that hunt. */
   Object.freeze({ id: 'low', label: 'Low supplies', glyph: 'uiWarn', action: 'show', button: 'See the hunt' }),

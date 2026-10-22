@@ -10,15 +10,21 @@
 // the server checked against hr_items. The client renders a link's name and
 // rarity from the catalogue; an id the catalogue does not know shows as plain
 // words (a newer server than this client), never as a link.
+// A line on the System channel is the SERVER's notice (no player can write it:
+// 2026-11-14-rare-broadcast.sql): it reads as one sentence, the hero's name
+// first ("Mira found Crown Shard in The Millrace Sewer."), and only there does
+// a `[[hunt:<id>]]` marker become the hunt's name; in a player's line it is
+// left as typed.
 // Anything malformed is null: a line the client cannot read is not shown.
 // ════════════════════════════════════════════════════════════════════════
 import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.27';
 import { ITEMS } from '../data/items.js?v=0.2.27';
 import { CHAT_LIMITS } from '../data/chat-channels.js?v=0.2.27';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.27';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CHANNEL = /^(global|trade|system|local:[a-z0-9_]{1,64}|party:[0-9a-f-]{36})$/;
-const LINK = /\[\[item:([a-z0-9_]{1,64})\]\]/g;
+const LINK = /\[\[(item|hunt):([a-z0-9_]{1,64})\]\]/g;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const str = (v, max) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null);
 const int = (v, lo, hi) => (Number.isInteger(v) && v >= lo && v <= hi ? v : null);
@@ -31,13 +37,15 @@ export function clockOf(ms, tz) {
   return tz === 'utc' ? pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes()) : pad(d.getHours()) + ':' + pad(d.getMinutes());
 }
 
-/** A body as parts: [{ text }] and [{ item }] in order. */
-export function partsOf(body) {
+/** A body as parts: [{ text }] and [{ item }] in order. `notice`: a server notice, whose hunt markers name the hunt. */
+export function partsOf(body, notice) {
   const out = [];
   let last = 0;
   for (const m of String(body).matchAll(LINK)) {
+    if (m[1] === 'hunt' && !notice) continue;
     if (m.index > last) out.push({ text: body.slice(last, m.index) });
-    out.push(ITEMS[m[1]] ? { item: m[1] } : { text: m[1].replace(/_/g, ' ') });
+    if (m[1] === 'hunt') out.push({ text: (HUNT_INDEX[m[2]] && HUNT_INDEX[m[2]].name) || 'a hunt' });
+    else out.push(ITEMS[m[2]] ? { item: m[2] } : { text: m[2].replace(/_/g, ' ') });
     last = m.index + m[0].length;
   }
   if (last < body.length) out.push({ text: body.slice(last) });
@@ -79,13 +87,20 @@ export function lineOf(row, o = {}) {
   const at = Date.parse(row.created_at);
   if (!body || !Number.isFinite(at)) return null;
   const weapon = str(row.from_weapon, 32);
+  const name = str(row.from_name, 24) || 'Adventurer';
+  const fromId = typeof row.from_id === 'string' && UUID.test(row.from_id) ? row.from_id : null;
+  /* A System row is the server's notice: one sentence, the hero's name first, no level or role tag. */
+  if (!whisper && row.channel === 'system') {
+    return { id: row.id, channel: 'system', at, time: clockOf(at, o.tz), fromId, name, level: null, role: null,
+      slot: int(row.from_slot, 0, 32), parts: [{ text: name + ' ' }].concat(partsOf(body, true)), toId: null, toName: null, system: true };
+  }
   return {
     id: row.id,
     channel: whisper ? null : row.channel,
     at,
     time: clockOf(at, o.tz),
-    fromId: typeof row.from_id === 'string' && UUID.test(row.from_id) ? row.from_id : null,
-    name: str(row.from_name, 24) || 'Adventurer',
+    fromId,
+    name,
     level: int(row.from_level, 0, 10000),
     role: weapon ? roleForWeapon(weapon, str(row.from_role, 32)) : null,
     slot: int(row.from_slot, 0, 32),

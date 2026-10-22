@@ -1386,7 +1386,7 @@
   "hr_world_notice_rules": {
    "class": "seeded",
    "replay": 1,
-   "note": "2026-11-14-rare-broadcast.sql: the world-notice rule (src/data/chat-channels.js WORLD_NOTICES, tests/rare-broadcast.mjs RB-1): the channel and the per-character daily cap of rare-drop notices. Rebuilt from repo, never restored; nothing player-owned. Missing, the trigger posts nothing (fails closed)."
+   "note": "2026-11-14-rare-broadcast.sql: the world-notice rule (src/data/chat-channels.js WORLD_NOTICES, tests/chat-social.mjs RB-1): the channel and the per-character daily cap of rare-drop notices. Rebuilt from repo, never restored; nothing player-owned. Missing, the trigger posts nothing (fails closed)."
   },
   "hr_world_notices": {
    "class": "operational",

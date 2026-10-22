@@ -158,6 +158,9 @@ export class CharacterSession {
     this.lastVerdict = r.verdict;
     if (!r.applied) return false;
     this._record = r.record;
+    /* A residue field set here and not yet put (setResidue's debounce) is newer than the server's copy the
+       envelope carried: it stays until the put lands (a hunt's summary card no longer blinks out on a re-read). */
+    for (const [f, v] of Object.entries(this._pending)) this._record = withResidue(this._record, f, v);
     this._status = 'ready';
     this.receivedAt = this._now();
     this._play(body);

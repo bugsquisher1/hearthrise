@@ -3617,6 +3617,19 @@ jobs:
           node tools/mutant-gate.mjs node tests/mutant-anchors.mjs --selftest
           node tests/mutant-anchors.mjs
 
+      # CATCH BY RULE (2026-10-22). alpha-windows' AW-8 click threw, its catch-all
+      # filed "AW-x a step failed", and the --mutate loop counted every later
+      # mutant "caught" through the crash. tests/_mutant-verdict.mjs is the one
+      # verdict the page-guard runners share: a catch is a NAMED rule's fail line;
+      # a throw (swallowed or not) or an unnamed line is HARNESS, exit 2, never a
+      # catch; a clean control that throws is HARNESS. Plain: every runner that
+      # imports it is off the old shapes. --selftest: a mutant whose page throws
+      # before its rule runs is HARNESS, and the old any-fail rule is caught.
+      - name: Catch by rule — a mutant is caught by a named rule, never by a crash
+        run: |
+          node tools/mutant-gate.mjs node tests/_mutant-verdict.mjs --selftest
+          node tests/_mutant-verdict.mjs
+
       # THE MUTANT GATE (CLAUDE.md §3.6, 2026-10-21). Every --mutate/--selftest in
       # this file runs through tools/mutant-gate.mjs: on a push or PR it runs only
       # when the diff touches the guard, a file it loads or a file its mutants

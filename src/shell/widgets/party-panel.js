@@ -73,8 +73,8 @@ function patchMember(el, m, party, glyphs) {
   text(el.querySelector('.hp-healed'), short(m.healed));
 }
 
-/* "Away, seat kept 7 min" (the server's seat_ms, whole minutes up); else what the hunt says it is doing. */
-function stateWords(m) {
+/* "Away, seat kept 7 min" (the server's seat_ms, whole minutes up); else what the hunt says it is doing. Exported for tests/party-ui.mjs (PR-4). */
+export function stateWords(m) {
   if (m.away) return m.seatMs === null ? 'Away' : 'Away, seat kept ' + Math.max(1, Math.ceil(m.seatMs / 60000)) + ' min';
   if (m.eating) return 'Eating';
   if (m.drinking) return 'Drinking';

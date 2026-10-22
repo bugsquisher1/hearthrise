@@ -57,6 +57,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
+import { harnessFail, judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/party-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -115,7 +116,7 @@ function account(M, srv) {
 
 async function pureRules(M, base) {
   const fails = [];
-  const t = async (id, fn) => { try { const r = await fn(); if (r !== true) fails.push(id + ': ' + r); } catch (e) { fails.push(id + ': threw ' + e.message); } };
+  const t = async (id, fn) => { try { const r = await fn(); if (r !== true) fails.push(id + ': ' + r); } catch (e) { fails.push(harnessFail(id, e)); } };
 
   /* PI-TOWN (live v0.2.11, Andy: "no Stop line"): every town pointer the server holds (a resumed gather, a bench,
      training) is named on the Inventory's Stop line and in the Characters window; nothing runs unseen. */
@@ -363,6 +364,9 @@ async function pureRules(M, base) {
     if (r.members.length !== 2 || !r.inParty || !r.isLeader || r.anyHunting) return 'the town roster read ' + JSON.stringify(r);
     const mira = r.members.find((m) => m.seat === 2);
     if (!mira || !mira.away || mira.seatMs !== 420000 || mira.level !== 4) return 'the away seat lost its clock: ' + JSON.stringify(mira);
+    /* the row's words: an away seat says so with its clock, a seat in town says In town */
+    const words = r.members.map((m) => M.PP.stateWords(m));
+    if (words[0] !== 'In town' || words[1] !== 'Away, seat kept 7 min') return 'the town roster reads ' + JSON.stringify(words);
     const hunt = { id: P, hunt: 'mill_cellar', max: 3, open: true, self: 7, leader: 7, self_seat: 0, leader_seat: 0,
       members: [{ seat: 0, unit: 7, hunting: true, name: 'Tyler', level: 5, weapon: 'sword', hp: 120, hp_max: 190, mana: 30, mana_max: 140, dps: 12.5, dealt: 900 },
                 { seat: 2, unit: null, hunting: false, name: 'Mira', level: 4, weapon: 'bow', hp: 150, hp_max: 150, away: false }] };
@@ -423,7 +427,8 @@ async function pureRules(M, base) {
     if (R.roleWeaponOf(null) !== 'neutral' || role('apprentice_primer') === 'mage' && ITEMS.apprentice_primer.slot === 'weapon') return 'the spellbook or bare hands resolve wrong';
     /* The hunt-sessions catalogue the generator writes now (its newest forward file), not a dated copy. */
     const { OUT_NAME } = await import(pathToFileURL(join(ROOT, 'tools/gen-hunt-sessions.mjs')).href);
-    const sql = readFileSync(join(base, 'supabase/migrations', OUT_NAME), 'utf8');
+    /* the server catalogue is never under mutation (the mutants copy src/ only): read it from the tree */
+    const sql = readFileSync(join(ROOT, 'supabase/migrations', OUT_NAME), 'utf8');
     for (const id of [...wands, ...staves]) {
       const m = new RegExp(`\\('${id}', '([a-z_]+)'\\)`).exec(sql);
       if (!m || m[1] !== R.roleWeaponOf(ITEMS[id])) return `hr_hunt_weapons says ${id} is ${m && m[1]}, the engine says ${R.roleWeaponOf(ITEMS[id])}`;
@@ -681,7 +686,7 @@ async function pageRules(overrides, shots) {
           if (!b || !b.off || b.text !== 'Enter') fails.push('UI-3 [' + tag + '] a member’s Enter reads ' + JSON.stringify(b));
         } else fails.push('UI-3 [' + tag + '] H did not open the Hunts window for character 1');
       } else fails.push('UI-3 [' + tag + '] the Party window did not open for character 1');
-      } catch (e) { fails.push('UI-? [' + tag + '] a page step threw: ' + String(e.message).split('\n')[0]); }
+      } catch (e) { fails.push(harnessFail('[' + tag + '] a page step', e)); }
       if (errors.length) fails.push('UI-4 [' + tag + '] console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
@@ -720,7 +725,9 @@ const PURE_MUTANTS = [
   ['an own invite names a user', 'src/session/party-intents.js', '{ p_slot: cs.slot, p_other_slot: otherSlot, p_idem: newIdem() }', '{ p_slot: cs.slot, p_other_slot: otherSlot, p_user: account.userId, p_idem: newIdem() }'],
   ['an own invite re-reads only the inviter', 'src/session/party-intents.js', '  const peers = partyPeersOf(account, cs).concat(other ? [other] : []);', '  const peers = partyPeersOf(account, cs);'],
   ['an own invite to the same slot is sent', 'src/session/party-intents.js', ' || otherSlot === cs.slot) {', ') {'],
-  ['the roster is the hunt section only (a party in town is not listed)', 'src/shell/widgets/party-panel.js', '  if (p) {\n    const members = p.seats', '  if (p && h) {\n    const members = p.seats'],
+  /* Re-planted 10-22: `if (p && h)` became equivalent (partyOf now reads the same party section, so h is set whenever
+     p is) and was "caught" only by PR-2's ENOENT crash. Same fault — a party in town is not listed — planted directly. */
+  ['the roster is the hunt section only (a party in town is not listed)', 'src/shell/widgets/party-panel.js', '  if (p) {\n    const members = p.seats.map(', '  if (p) {\n    const members = p.seats.filter((s) => s.hunting).map('],
   ['an away seat reads as in town', 'src/shell/widgets/party-panel.js', "  if (m.away) return m.seatMs === null ? 'Away' : 'Away, seat kept ' + Math.max(1, Math.ceil(m.seatMs / 60000)) + ' min';\n", ''],
   ['DPS and HPS shows with nobody hunting', 'src/shell/widgets/party-panel.js', "  prop(expand, 'hidden', !r.anyHunting);", "  prop(expand, 'hidden', false);"],
   ['not ready names nobody', 'src/shell/intent-words.js', "    return 'Nobody went in: ' + seats.map((x) => x.name + ' ' + (x.error === 'hunt_open' && x.hunt && HUNT_INDEX[x.hunt]\n      ? 'is still hunting in ' + HUNT_INDEX[x.hunt].name : SEAT_WORDS[x.error] || 'is not ready')).join('; ') + '.';", "    return 'Not everyone in the party is ready.';"],
@@ -758,31 +765,27 @@ async function main() {
       : 'party-ui: alerts once per event id; party controls intent-only; roles from the weapon' + (onlyPure ? '' : '; strip, alerts, Party and command centre in the page') + (shots ? ' (shots in ' + shots + ')' : ''));
     process.exit(fails.length ? 1 : 0);
   }
-  const clean = [...await pureRules(await load(ROOT), ROOT), ...(onlyPure ? [] : await pageRules(null, null))];
-  if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
-  console.log('  ✓ clean control green');
-  let bad = 0;
+  const clean = await cleanControl(async () => [...await pureRules(await load(ROOT), ROOT), ...(onlyPure ? [] : await pageRules(null, null))]);
+  console.log(clean.line);
+  if (clean.code) process.exit(clean.code);
+  const counts = { caught: 0, harness: 0, escaped: 0 };
   for (const [name, file, from, to] of PURE_MUTANTS) {
     const tmp = copySrc();
     try {
       const text = readFileSync(join(tmp, file), 'utf8');
-      if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
+      if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
       writeFileSync(join(tmp, file), text.replace(from, to));
-      const fails = await pureRules(await load(tmp), tmp);
-      if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(':')[0] + ')');
-      else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+      console.log(report(name, await judge(async () => pureRules(await load(tmp), tmp)), counts));
     } finally { rmSync(tmp, { recursive: true, force: true }); }
   }
   for (const [name, file, from, to] of onlyPure ? [] : PAGE_MUTANTS) {
     const text = await readFile(join(ROOT, file), 'utf8');
-    if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
-    const fails = await pageRules({ [file]: text.replace(from, to) }, null);
-    if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
-    else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+    if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
+    console.log(report(name, await judge(() => pageRules({ [file]: text.replace(from, to) }, null)), counts));
   }
   const n = PURE_MUTANTS.length + (onlyPure ? 0 : PAGE_MUTANTS.length);
-  console.log(bad ? 'party-ui --mutate: ' + bad + ' escaped' : 'party-ui --mutate: ' + n + '/' + n + ' mutants caught');
-  process.exit(bad ? 1 : 0);
+  console.log(exitOf(counts) ? 'party-ui --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'party-ui --mutate: ' + n + '/' + n + ' mutants caught, each by a named rule');
+  process.exit(exitOf(counts));
 }
 
 main();

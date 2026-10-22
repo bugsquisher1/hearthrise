@@ -37,6 +37,7 @@ import { leaseBrowser } from './_chrome.mjs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
+import { harnessFail, judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -259,7 +260,8 @@ async function checks(overrides) {
       await ctx.close();
     }
   } catch (e) {
-    fails.push('WC-x a step failed: ' + String(e && e.message).split('\n')[0]);
+    /* a step that threw is HARNESS, never a rule (2026-10-22, tests/_mutant-verdict.mjs) */
+    fails.push(harnessFail('a page step', e));
   } finally {
     await browser.close();
     server.close();
@@ -287,19 +289,17 @@ async function main() {
       : 'window-camera: the X closes; the dock never moves under the pointer; clicks in windows leave the World and the hero alone; windows float over the World; right-click on a player works');
     process.exit(fails.length ? 1 : 0);
   }
-  const clean = await checks(null);
-  if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
-  console.log('  ✓ clean control green');
-  let bad = 0;
+  const clean = await cleanControl(() => checks(null));
+  console.log(clean.line);
+  if (clean.code) process.exit(clean.code);
+  const counts = { caught: 0, harness: 0, escaped: 0 };
   for (const [name, file, from, to] of MUTANTS) {
     const text = await readFile(join(ROOT, file), 'utf8');
-    if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
-    const fails = await checks({ [file]: text.replace(from, to) });
-    if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
-    else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+    if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
+    console.log(report(name, await judge(() => checks({ [file]: text.replace(from, to) })), counts));
   }
-  console.log(bad ? 'window-camera --mutate: ' + bad + ' escaped' : 'window-camera --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught');
-  process.exit(bad ? 1 : 0);
+  console.log(exitOf(counts) ? 'window-camera --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'window-camera --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught, each by a named rule');
+  process.exit(exitOf(counts));
 }
 
 main();

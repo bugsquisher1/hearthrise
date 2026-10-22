@@ -73,6 +73,7 @@ import { readFile, mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
+import { harnessFail, judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 /* The readiness line with the fixture's bag and bar (supplies are never 'short' against a restock target any more). */
@@ -603,8 +604,9 @@ async function checks(overrides, shots) {
       await ctx.close();
     }
   } catch (e) {
-    /* A rule whose control never appeared is RED, not a crashed run (a planted mutant can hide one). */
-    fails.push('AW-x a step failed: ' + String(e && e.message).split('\n')[0]);
+    /* A step that threw is HARNESS, never a rule (2026-10-22: AW-8's disabled click "caught" every later
+       mutant). A rule whose control a mutant can hide checks for the control and fails BY NAME. */
+    fails.push(harnessFail('a page step', e));
   } finally {
     await browser.close();
     server.close();
@@ -653,10 +655,10 @@ async function main() {
       : 'alpha-windows: the windows open; patch in place; the server’s counts win; intents only; locks hold; totals first; no supplies in the Shop; Hunts from the hatch in two presses; window presses and focus never steal the World; no void; storage from town; store any amount; bury pays from the server; skills split' + (shots ? ' (shots in ' + shots + ')' : ''));
     process.exit(fails.length ? 1 : 0);
   }
-  const clean = await checks(null, null);
-  if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
-  console.log('  ✓ clean control green');
-  let bad = 0;
+  const clean = await cleanControl(() => checks(null, null));
+  console.log(clean.line);
+  if (clean.code) process.exit(clean.code);
+  const counts = { caught: 0, harness: 0, escaped: 0 };
   for (const [name, file, from, to] of MUTANTS) {
     const over = {};
     const plant = [[file, from, to]].concat(COMPANION[name] ? [COMPANION[name]] : []);
@@ -666,13 +668,12 @@ async function main() {
       if (!text.includes(x)) { missing = f; break; }
       over[f] = text.replace(x, y);
     }
-    if (missing) { console.log('  ✗ ' + name + ' — anchor not found in ' + missing); bad++; continue; }
-    const fails = name.startsWith('edgeBody') ? await pureMutant(over[file]) : await checks(over, null);
-    if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
-    else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+    if (missing) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + missing); counts.harness++; continue; }
+    const v = await judge(() => (name.startsWith('edgeBody') ? pureMutant(over[file]) : checks(over, null)));
+    console.log(report(name, v, counts));
   }
-  console.log(bad ? 'alpha-windows --mutate: ' + bad + ' escaped' : 'alpha-windows --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught');
-  process.exit(bad ? 1 : 0);
+  console.log(exitOf(counts) ? 'alpha-windows --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'alpha-windows --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught, each by a named rule');
+  process.exit(exitOf(counts));
 }
 
 /* The edge-body mutant is a pure module: run AW-0 against the planted text. */

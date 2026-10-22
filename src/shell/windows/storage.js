@@ -14,17 +14,25 @@
 // nothing." Each is ONE hr_bank_move naming that exact count (the server moves
 // exactly it, under its own lock and stack fuses), every control is off
 // until the server answers, and both grids change only from the re-read
-// envelope (`bank` and `inventory`, replaced, never merged). The search is the
-// same "Find an item" as the Inventory's: it filters both grids.
+// envelope (`bank` and `inventory`, replaced, never merged). The search, the
+// kind chips and the sort are the Inventory's own (bag-model.js `view`; Tyler
+// 10-22: "storage doesn't have a way to sort or filter"): they apply to both
+// grids, and the chip and sort are remembered in the residue `storeView`. The
+// Newest sort reads `storeSeen` (storage-model.js markStored): when each
+// storage stack was last added to, kept by this character. Display only.
 // While a hunt runs the chest is at home and the hero is not: the window says
 // so and its moves stay off (the server's own rule is in CONFLICTS.md).
 // ════════════════════════════════════════════════════════════════════════
-import { bagOf, bankOf, depotOf } from '../../session/item-sections.js?v=0.2.30';
+import { bagOf, bankOf, depotOf, shopOf } from '../../session/item-sections.js?v=0.2.30';
+import { STORE_SEEN_MAX } from '../../session/residue.js?v=0.2.30';
 import { huntOf } from '../../session/hunt-sections.js?v=0.2.30';
 import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.30';
 import { whole } from '../../render/format.js?v=0.2.30';
 import { glyphSvg } from '../launcher.js?v=0.2.30';
 import { itemName } from '../widgets/bits.js?v=0.2.30';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.30';
+import { BAG_CATS, BAG_SORTS, view } from '../bag-model.js?v=0.2.30';
+import { storePrefsOf, markStored } from '../storage-model.js?v=0.2.30';
 import { runIntent } from '../intent-words.js?v=0.2.30';
 import { pocketHtml, patchCount } from './inventory/pockets.js?v=0.2.30';
 import { showTip, hideTip } from './item-tip.js?v=0.2.30';
@@ -35,14 +43,17 @@ const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { query: '', pending: false, msg: '', press: null, pressed: false }; SCRATCH.set(cs, s); } return s; };
 const LONG_PRESS_MS = 500;
 
-const match = (q) => (r) => !q || itemName(r.id).toLowerCase().includes(q);
-const byName = (a, b) => (itemName(a.id) < itemName(b.id) ? -1 : 1);
+const residueOf = (cs) => (cs && cs.record && cs.record.residue) || {};
+/* The bag's own "new" marks (the Inventory writes them); none yet reads as all seen, as the Inventory does. */
+const bagSeenOf = (cs, bag) => residueOf(cs).bagSeen || Object.fromEntries(bag.map((r) => [r.id, [r.qty, 0]]));
 
 /** The skeleton (built once per opening). */
 export function renderStorage(ctx) {
   const g = ctx.glyphs;
   return '<div class="hw-store">'
-    + '<div class="hw-find"><span class="hw-search">' + glyphSvg(g, 'uiSearch') + '<input type="search" class="hh-num hw-q" data-hs-act="search" placeholder="Find an item" aria-label="Find an item" autocomplete="off"></span></div>'
+    + '<div class="hw-find"><span class="hw-search">' + glyphSvg(g, 'uiSearch') + '<input type="search" class="hh-num hw-q" data-hs-act="search" placeholder="Find an item" aria-label="Find an item" autocomplete="off"></span>'
+    + '<label class="hw-sort"><span>Sort</span><select class="hh-select" data-hs-act="sort">' + BAG_SORTS.map(([id, l]) => '<option value="' + id + '">' + esc(l) + '</option>').join('') + '</select></label></div>'
+    + '<div class="hw-cats" role="group" aria-label="Show">' + BAG_CATS.map(([id, l]) => '<button type="button" class="hw-cat" data-hs-act="cat" data-cat="' + id + '" aria-pressed="false">' + esc(l) + '</button>').join('') + '</div>'
     + '<p class="hs-note hw-store-note"></p>'
     + '<h3 class="hw-ledger-head is-on">In storage <small class="hw-store-n" data-n="bank"></small></h3>'
     + '<ul class="hw-pockets" data-side="bank" role="listbox" aria-label="In storage"></ul><p class="hh-empty hw-store-none" data-none="bank"></p>'
@@ -52,8 +63,7 @@ export function renderStorage(ctx) {
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
 }
 
-function patchSide(root, ctx, side, list, q, off, depot) {
-  const shown = list.filter(match(q)).sort(byName);
+function patchSide(root, ctx, side, list, shown, off, depot) {
   rows(root.querySelector('.hw-pockets[data-side="' + side + '"]'), shown, {
     key: (r) => r.id,
     build: (r) => element(ctx.doc, pocketHtml(r.id, ctx.glyphs, side === 'bank' ? 'withdraw' : 'deposit')),
@@ -80,23 +90,36 @@ renderStorage.patch = function patchStorage(body, ctx) {
   const h = huntOf(cs);
   const away = !!(h && !h.ended);
   const off = sc.pending || away || !bank || !bag;
-  const q = sc.query.trim().toLowerCase();
+  const prefs = storePrefsOf(residueOf(cs));
+  /* "Recently added": mark the stacks in storage now; one residue put only when a mark changed. */
+  const marks = bank ? markStored(residueOf(cs).storeSeen || null, bank, STORE_SEEN_MAX) : null;
+  if (marks) queueMicrotask(() => cs.setResidue('storeSeen', marks));
+  const o = { cat: prefs.cat, query: sc.query, sort: prefs.sort, bids: (shopOf(cs) || {}).bids };
   const input = root.querySelector('.hw-q');
   if (ctx.doc.activeElement !== input) prop(input, 'value', sc.query);
+  prop(root.querySelector('[data-hs-act="sort"]'), 'value', prefs.sort);
+  for (const b of root.querySelectorAll('.hw-cat')) attr(b, 'aria-pressed', String(b.getAttribute('data-cat') === prefs.cat));
   text(root.querySelector('.hw-store-note'), away ? 'Your storage is at home and your hero is out hunting. Leave the hunt to use it.'
     : !bank ? 'Reading your storage…' : 'Press a stack to move one across. Shift-press moves all of it. Right-click (or hold) to choose how many.');
   const depot = depotOf(cs);
-  patchSide(root, ctx, 'bank', bank || [], q, off, depot);
+  patchSide(root, ctx, 'bank', bank || [], view(bank || [], Object.assign({ seen: marks || residueOf(cs).storeSeen || {} }, o)), off, depot);
   text(root.querySelector('.hw-store-room'), !depot ? '' : depot.next
     ? 'More room comes from storage chests, built in the House (E). Next: the ' + depot.next.name + ', ' + whole(depot.next.stacks) + ' more stacks.'
     : 'Every storage chest is built.');
-  patchSide(root, ctx, 'bag', bag || [], q, off);
+  patchSide(root, ctx, 'bag', bag || [], view(bag || [], Object.assign({ seen: bagSeenOf(cs, bag || []) }, o)), off);
   cls(root, 'is-pending', sc.pending);
   cls(root, 'is-off', off);
   text(root.querySelector('.hh-intent-msg'), sc.msg);
 };
 
 renderStorage.events = Object.freeze(['input', 'mouseover', 'mouseout', 'contextmenu', 'pointerdown', 'pointerup', 'pointercancel']);
+
+/* The chip or the sort, remembered (residue `storeView`, display only). */
+function setPref(cs, key, value) {
+  const p = storePrefsOf(residueOf(cs));
+  p[key] = value;
+  cs.setResidue('storeView', p);
+}
 
 /* ONE hr_bank_move naming exactly `qty`; both grids change only from the re-read envelope. */
 function move(cs, sc, repaint, id, qty, dir) {
@@ -127,6 +150,8 @@ renderStorage.act = function actStorage(ctx, body, action, ev, t) {
   const sc = scratchOf(cs);
   const repaint = () => renderStorage.patch(body, ctx);
   if (action === 'search' && ev.type === 'input') { sc.query = t.value.slice(0, 40); repaint(); return false; }
+  if (action === 'sort' && ev.type === 'change') { setPref(cs, 'sort', t.value); repaint(); return false; }
+  if (action === 'cat' && ev.type === 'click') { setPref(cs, 'cat', t.getAttribute('data-cat')); repaint(); return true; }
   if (action !== 'withdraw' && action !== 'deposit') return false;
   const id = t.getAttribute('data-item');
   const type = ev.type;

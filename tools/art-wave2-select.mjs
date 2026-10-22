@@ -67,7 +67,6 @@ export const WIRE = {
   deep_rune_blank: ['items', 'deep_rune_blank'],
   // b361 rejected this id as a molar. This one is a proper tapering canine.
   dire_fang: ['items', 'dire_fang'],
-  fox_companion: ['items', 'fox_companion'],
   // Was a golden FIST. Now a fractured grey chunk with gold veins.
   gold_ore: ['items', 'gold_ore'],
   granite: ['items', 'granite'],

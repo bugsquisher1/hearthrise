@@ -39,7 +39,6 @@ import { EFFECT_KINDS } from './item-effects.js?v=0.2.28';
 import { MONSTERS } from './monsters.js?v=0.2.28';
 import {
   gatherProductIds, cropProductIds, seedIds, combatDropIds, artisanOutputIds,
-  goalRewardIds,
 } from './item-authority.js?v=0.2.28';
 
 /* The data identities this module reads, re-exported so a Node guard can mutate
@@ -150,7 +149,7 @@ export const AWAITING_ROSTER = Object.freeze([
 ]);
 
 
-const EQUIP_TYPES = Object.freeze({ weapon: 1, armor: 1, jewelry: 1, ammo: 1, companion: 1 });
+const EQUIP_TYPES = Object.freeze({ weapon: 1, armor: 1, jewelry: 1, ammo: 1 });
 
 function push(map, id, label) {
   if (!id) return;
@@ -180,12 +179,11 @@ export function itemSources() {
   /* ONLY A LISTED SHOP ROW IS A SOURCE (lane/b-orphan-sources, 2026-10-22). shop_buy sells only the ids a Shop tab
      lists (catalogue.js offerRefusal: `not_listed`); the other SHOP_OFFERS rows are the vendor's price list, a door
      nobody can open. Counting them hid eleven items no player could ever obtain (the farming seeds, the apprentice
-     staff, wand and primer, the stone maul, the fox companion). */
+     staff, wand and primer, the stone maul, and the fox companion, cut 2026-10-22). */
   for (const o of SHOP_OFFERS) {
     if (!o || !SHOP_LISTED_OFFER_IDS.has(o.id)) continue;
     for (const g of o.grant || []) if (g && g.kind === 'item' && g.id) push(m, g.id, 'shop');
   }
-  addSet(m, goalRewardIds(), 'quest reward');
   addSet(m, Object.keys(START_INVENTORY), 'start kit');
   addSet(m, Object.values(START_EQUIPMENT).filter(Boolean), 'start kit');
   addSet(m, HEARTHFIND_ITEMS, 'hearthfind');

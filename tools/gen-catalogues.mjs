@@ -738,26 +738,22 @@ begin
   select count(*) into v_n from public.hr_runes;
   if v_n <> ${runes.length} then raise exception 'hr_runes has % rows, generator emitted ${runes.length}', v_n; end if;
 
-  -- NO GRANT SOURCE NAMES A DELETED ITEM (Security R2, 2026-10-15). A quest
-  -- reward, a hunt kill bound's drop or vendor value (N3, refilled just before
-  -- this file by 2026-10-23-demolition-hunt-catalogue.generated.sql), a dungeon
-  -- loot row, a Quartermaster offer or a login-cycle day naming an id hr_items
-  -- no longer holds fails with unknown_item; it is refused here instead. hr_unlock_offers is refilled
+  -- NO GRANT SOURCE NAMES A DELETED ITEM (Security R2, 2026-10-15). A hunt
+  -- kill bound's drop or vendor value (N3, refilled just before this file by
+  -- the hunt-sessions catalogue), a dungeon loot row or a Quartermaster offer
+  -- naming an id hr_items no longer holds fails with unknown_item; it is
+  -- refused here instead. (The quest rewards and the login cycle were cut with
+  -- the old-client rewards, 2026-10-22.) hr_unlock_offers is refilled
   -- AFTER this file and asserts the same of its own rows in its own §4
   -- (tools/gen-unlock-offers.mjs).
   select count(*) into v_bad from (
-    select k as id from public.hr_quest_rewards q, jsonb_object_keys(coalesce(q.items, '{}'::jsonb)) k
-    union all
-    select k from public.hr_hunt_kill_bounds b, jsonb_object_keys(coalesce(b.drops, '{}'::jsonb)) k
+    select k as id from public.hr_hunt_kill_bounds b, jsonb_object_keys(coalesce(b.drops, '{}'::jsonb)) k
     union all
     select item_id from public.hr_hunt_vendor_value
     union all
     select item_id from public.hr_dungeon_loot
     union all
     select item_id from public.hr_qm_offers
-    union all
-    select k from jsonb_array_elements(public.hr_login_catalogue()->'cycle') d(r),
-                  jsonb_object_keys(coalesce(d.r->'items', '{}'::jsonb) || coalesce(d.r->'keys', '{}'::jsonb)) k
   ) src where not exists (select 1 from public.hr_items i where i.item_id = src.id);
   if v_bad > 0 then raise exception '% grant-source row(s) name an item missing from hr_items', v_bad; end if;
 

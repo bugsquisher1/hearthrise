@@ -119,20 +119,19 @@ export const ITEMS={
      is the ungated-on-BOTH-sides shape the tier-8 uniques had. Five of the seven
      are TRADEABLE drops or storefront rows, so the market could sell them to a
      level-1 account. Ruling 2026-09-12 (game-designer, final): reqSkill =
-     `defense` for all seven (the skill their power serves — cape/ring/necklace/
-     companion are Defence-taxonomy slots here), reqLv read off the STAT rather
-     than a tier, because these rows never sat on the tier ladder:
+     `defense` for all seven (the skill their power serves — cape/ring/necklace
+     are Defence-taxonomy slots here), reqLv read off the STAT rather than a
+     tier, because these rows never sat on the tier ladder:
        alpha_cloak / gold_ring / gold_amulet → 30 (defB 5 / atkB+strB 3 / atkB 4
          +defB 2 — steel's rung, the strongest non-tier cape and jewelry shipped);
-       fox_companion → 15 (strB 2 + 2% XP, iron's rung);
        copper_ring / hunter_necklace / traveler_cape → 1. reqLv 1 restricts
          nobody (the gate is `level < req_lv`); it is the data form of "belongs to
          Defence", and it is what keeps the column NON-NULL across the whole slot
          so the server reads ONE shape instead of two (same reasoning as
          `iron_arrows` above).
-     `fox_companion` is the only `type:'companion'` row in src/data (verified by
-     grep), and legacy.js `gearWieldReq` had to learn that type before its gate
-     could paint — see the note there. */
+     The seventh, the Fox Companion (the one `type:'companion'` row and the only
+     user of the companion equipment slot), was cut with the slot (Tyler,
+     2026-10-22). */
   traveler_cape:{n:'Traveler Cape',icon:'🦸',v:150,type:'armor',slot:'cape',defB:1,reqSkill:'defense',reqLv:1},
   copper_ring:{n:'Copper Ring',icon:'💍',v:120,type:'jewelry',slot:'ring',atkB:1,strB:1,reqSkill:'defense',reqLv:1},
   hunter_necklace:{n:'Hunter Necklace',icon:'📿',v:180,type:'jewelry',slot:'necklace',atkB:2,reqSkill:'defense',reqLv:1},
@@ -178,7 +177,6 @@ export const ITEMS={
   /* Iron Bolts: against Barbed Arrows (3/3) a bolt misses more and hits harder (1/4). */
   iron_bolts:{n:'Iron Bolts',icon:'🏹',v:1,type:'ammo',slot:'ammo',tier:2,rarity:'uncommon',rangeAtkB:1,rangeStrB:4,ammoPerShot:1,reqSkill:'ranged',reqLv:15},
   iron_arrows:{n:'Iron Arrows',icon:'🏹',v:1,type:'ammo',slot:'ammo',atkB:2,critB:.01,ammoPerShot:1,reqSkill:'ranged',reqLv:1},
-  fox_companion:{n:'Fox Companion',icon:'🦊',v:600,type:'companion',slot:'companion',strB:2,reqSkill:'defense',reqLv:15},
   iron_ore:{n:'Iron Ore',icon:'⬜',v:25},
   normal_log:{n:'Normal Log',icon:'🪵',v:8},oak_log:{n:'Oak Log',icon:'🪵',v:20},
   willow_log:{n:'Willow Log',icon:'🪵',v:40},maple_log:{n:'Maple Log',icon:'🪵',v:80},

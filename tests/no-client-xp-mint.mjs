@@ -48,9 +48,8 @@
 //         names its server RPC(s), and each one's chain-end body on the replay
 //         chain writes public.player_skills (directly or via a public.* callee).
 //         --selftest relabels a client mint (b) and must go red, on synthetic
-//         chains AND on the real one (completeQuest -> hr_claim_quest on the
-//         chain without 2026-10-10-quest-xp-absence-pay.sql; payChest's old
-//         label on the chain without 2026-10-10-muster-chest-xp-credit.sql).
+//         chains AND on the real one (payChest's old label on the chain
+//         without 2026-10-10-muster-chest-xp-credit.sql).
 //   XP-6  (c) CLIENT-AUTHORED entries are a debt register pinned at
 //         MAX_CLIENT_AUTHORED_DEBT, which may only fall.
 //
@@ -468,9 +467,8 @@ async function selftest() {
       check(`passes: ${rpc} writes player_skills on the replay chain (b567)`, !!skillsWritePath(real, rpc),
         'no write path');
     }
-    check('passes: hr_claim_quest writes player_skills on the replay chain (quest XP)',
-      !!skillsWritePath(real, 'hr_claim_quest'), 'no write path');
-    // The two real (b) labels on the chain WITHOUT the migration that backs each.
+    // (hr_claim_quest's quest-XP pass and bite left with the quests, cut 2026-10-22.)
+    // The real (b) label on the chain WITHOUT the migration that backs each.
     const { chainFiles } = await import('./schema-replay.mjs');
     // `drop` is the migration that backs the label plus every later restatement
     // of the same body FROM it (b568 restates world_event_claim__ungated with the
@@ -484,9 +482,6 @@ async function selftest() {
       }
       return chainBodies(files);
     };
-    const q = auditClasses([entry('(b)', ['hr_claim_quest'])], await without('2026-10-10-quest-xp-absence-pay.sql'));
-    check('bites (real chain minus the quest-xp migration): completeQuest labelled (b) on hr_claim_quest, which then writes no XP',
-      q.problems.length === 1, JSON.stringify(q.problems));
     const before = auditClasses([entry('(b)', ['world_event_claim'])], await without('2026-10-10-muster-chest-xp-credit.sql', '2026-10-10-rally-points-server.sql', '2026-10-19-account-wallet.sql'));
     check('bites (real chain minus the b567 migration): payChest\'s old (b) label on world_event_claim',
       before.problems.length === 1, JSON.stringify(before.problems));

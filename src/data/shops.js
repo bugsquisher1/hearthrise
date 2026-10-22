@@ -127,13 +127,6 @@ export const SHOP_OFFERS = [
     repeatable: true,
   },
   {
-    id: "equip.fox_companion", table: "equip",
-    name: "Fox Companion",
-    cost: [{ kind: "currency", id: "gold", amount: 1200 }],
-    grant: [{ kind: "item", id: "fox_companion", amount: 1 }],
-    repeatable: true,
-  },
-  {
     id: "equip.leather_boots", table: "equip",
     name: "Leather Boots",
     cost: [{ kind: "currency", id: "gold", amount: 250 }],

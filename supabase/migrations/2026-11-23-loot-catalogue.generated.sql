@@ -6,9 +6,9 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 41d3d89434714081d538f39918a3ad7b6b628b2665f0b0169d7e57e80d616188
---   rows: 517 items (24 untradeable) ·
---         291 item-slot pairs · 15 equip slots ·
+--   catalogue digest: a7b78894dafd03e78c5ad4fd156dc93f1567a5087c8457778afd996a7ec9203a
+--   rows: 516 items (24 untradeable) ·
+--         290 item-slot pairs · 14 equip slots ·
 --         13 skills · 9 crops · 295 activities ·
 --         0 runes
 --
@@ -385,7 +385,6 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('fire_rune','Fire Rune',true,'ammo',4,'magic',45,null,false,null,false),
   ('fishers_pie','Fisher''s Pie',true,null,520,null,null,408,false,null,false),
   ('flux_salt','Fluxsalt',true,null,45,null,null,null,false,null,false),
-  ('fox_companion','Fox Companion',true,'companion',600,'defense',15,null,false,null,false),
   ('frostfin','Raw Frostfin',true,null,520,null,null,216,true,null,false),
   ('goblin_ear','Goblin Ear',true,null,8,null,null,null,false,null,false),
   ('goblin_totem','Goblin Totem',true,null,120,null,null,null,false,null,false),
@@ -820,7 +819,6 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('fang_studs','earrings'),
   ('fangdart_recurve','weapon'),
   ('fire_rune','ammo'),
-  ('fox_companion','companion'),
   ('gold_amulet','necklace'),
   ('gold_ring','ring1'),
   ('gold_ring','ring2'),
@@ -1020,8 +1018,7 @@ insert into public.hr_equip_slots (equip_slot, ord) values
   ('gloves',10),
   ('belt',11),
   ('pants',12),
-  ('boots',13),
-  ('companion',14);
+  ('boots',13);
 
 insert into public.hr_skills (skill_id, name, cat) values
   ('cooking','Cooking','artisan'),
@@ -1898,7 +1895,7 @@ insert into public.hr_feast_foods (item_id, heals) values
 on conflict (item_id) do update set heals = excluded.heals;
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '41d3d89434714081d538f39918a3ad7b6b628b2665f0b0169d7e57e80d616188', now())
+  values (true, 'a7b78894dafd03e78c5ad4fd156dc93f1567a5087c8457778afd996a7ec9203a', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1926,7 +1923,7 @@ do $$
 declare v_bad int; v_n int;
 begin
   select count(*) into v_n from public.hr_items;
-  if v_n <> 517 then raise exception 'hr_items has % rows, generator emitted 517', v_n; end if;
+  if v_n <> 516 then raise exception 'hr_items has % rows, generator emitted 516', v_n; end if;
   select count(*) into v_n from public.hr_items where not tradeable;
   if v_n <> 24 then
     raise exception 'untradeable count is %, generator emitted 24', v_n;
@@ -2063,26 +2060,22 @@ begin
   select count(*) into v_n from public.hr_runes;
   if v_n <> 0 then raise exception 'hr_runes has % rows, generator emitted 0', v_n; end if;
 
-  -- NO GRANT SOURCE NAMES A DELETED ITEM (Security R2, 2026-10-15). A quest
-  -- reward, a hunt kill bound's drop or vendor value (N3, refilled just before
-  -- this file by 2026-10-23-demolition-hunt-catalogue.generated.sql), a dungeon
-  -- loot row, a Quartermaster offer or a login-cycle day naming an id hr_items
-  -- no longer holds fails with unknown_item; it is refused here instead. hr_unlock_offers is refilled
+  -- NO GRANT SOURCE NAMES A DELETED ITEM (Security R2, 2026-10-15). A hunt
+  -- kill bound's drop or vendor value (N3, refilled just before this file by
+  -- the hunt-sessions catalogue), a dungeon loot row or a Quartermaster offer
+  -- naming an id hr_items no longer holds fails with unknown_item; it is
+  -- refused here instead. (The quest rewards and the login cycle were cut with
+  -- the old-client rewards, 2026-10-22.) hr_unlock_offers is refilled
   -- AFTER this file and asserts the same of its own rows in its own §4
   -- (tools/gen-unlock-offers.mjs).
   select count(*) into v_bad from (
-    select k as id from public.hr_quest_rewards q, jsonb_object_keys(coalesce(q.items, '{}'::jsonb)) k
-    union all
-    select k from public.hr_hunt_kill_bounds b, jsonb_object_keys(coalesce(b.drops, '{}'::jsonb)) k
+    select k as id from public.hr_hunt_kill_bounds b, jsonb_object_keys(coalesce(b.drops, '{}'::jsonb)) k
     union all
     select item_id from public.hr_hunt_vendor_value
     union all
     select item_id from public.hr_dungeon_loot
     union all
     select item_id from public.hr_qm_offers
-    union all
-    select k from jsonb_array_elements(public.hr_login_catalogue()->'cycle') d(r),
-                  jsonb_object_keys(coalesce(d.r->'items', '{}'::jsonb) || coalesce(d.r->'keys', '{}'::jsonb)) k
   ) src where not exists (select 1 from public.hr_items i where i.item_id = src.id);
   if v_bad > 0 then raise exception '% grant-source row(s) name an item missing from hr_items', v_bad; end if;
 
@@ -2096,7 +2089,7 @@ begin
                   where p.item_id = i.item_id and p.equip_slot in ('helmet', 'body', 'pants', 'boots', 'gloves', 'belt'));
   if v_bad > 0 then raise exception '% armour row(s) in an armour slot carry no armour_weight', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 41d3d89434714081d538f39918a3ad7b6b628b2665f0b0169d7e57e80d616188',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest a7b78894dafd03e78c5ad4fd156dc93f1567a5087c8457778afd996a7ec9203a',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

@@ -9,7 +9,7 @@
 //     weapon   body     offhand
 //     ring     legs     ring
 //     gloves   boots    earrings
-//     ammo     belt     companion
+//     ammo     belt
 // A slot press opens its line under the window: what is worn there (Take off)
 // and every bag stack that fits it with the change against the worn piece, best
 // first (Wear). A bag stack dragged onto a slot wears it; a worn piece dragged
@@ -34,7 +34,7 @@ export const DOLL = Object.freeze([
   ['weapon', 'Weapon', 'uiSword'], ['body', 'Body', 'uiBody'], ['shield', 'Offhand', 'uiShield'],
   ['ring1', 'Ring', 'uiRing'], ['pants', 'Legs', 'uiLegs'], ['ring2', 'Ring', 'uiRing'],
   ['gloves', 'Gloves', 'uiGloves'], ['boots', 'Boots', 'uiBoots'], ['earrings', 'Earrings', 'uiGem'],
-  ['ammo', 'Ammo', 'uiArrow'], ['belt', 'Belt', 'uiBar'], ['companion', 'Companion', 'uiPaw'],
+  ['ammo', 'Ammo', 'uiArrow'], ['belt', 'Belt', 'uiBar'],
 ]);
 const SLOT_LABEL = new Map(DOLL.map(([s, l]) => [s, l]));
 export const DRAG_WORN = 'application/x-hearthrise-worn';

@@ -1177,27 +1177,44 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
          between two reads on a loaded box (it was read at 0.2 s left, then over); 1 s of page time apart. */
       const { ctx, page, s, up } = await open({ clock: true });
       if (up) {
-        const delay = await page.evaluate(async () => (await import('/src/session/config.js?v=0.1.0')).SESSION_CONFIG.huntPlaybackDelayMs);
+        const { delay, cdMs } = await page.evaluate(async () => ({ delay: (await import('/src/session/config.js?v=0.1.0')).SESSION_CONFIG.huntPlaybackDelayMs,
+          cdMs: (await import('/src/data/abilities.js?v=0.1.0')).ABILITIES.power_strike.cdMs }));
         const D = Number.isFinite(delay) ? delay : 19000;
         const now = s.env.hunt_server_now_ms;
         /* A cast that plays at once (its time is already behind the playback delay) by the viewed hero (unit 1). */
         s.env.hunt_events = s.env.hunt_events.concat([{ id: 'cd:1', type: 'cast', atMs: now - D - 500, u: 1, t: 101, ability: 'power_strike' }]);
+        /* MEASURED ON THE PAGE'S OWN CLOCK (2026-10-22, P1: read 0.9 s less instead of 1.0 under load). The slot
+           repaints on the display tick AND whenever an envelope lands, which a loaded box lands at any page time,
+           so two reads 1 s apart may come from two different paints. Every paint is recorded with the page time
+           it happened at (the observer runs right after it, before the pinned clock moves). */
+        await page.evaluate(() => {
+          window.__hsCd = [];
+          const snap = () => {
+            const li = document.querySelector('.hb-slot[data-slot="0"]');
+            if (!li) return;
+            const r = { on: li.classList.contains('is-cooling'), h: parseFloat(li.querySelector('.hb-cd-ember').style.height) || 0,
+              sec: li.querySelector('.hb-cd-s').textContent, other: document.querySelector('.hb-slot[data-slot="2"]').classList.contains('is-cooling'), t: Date.now() };
+            const l = window.__hsCd[window.__hsCd.length - 1];
+            if (!l || l.on !== r.on || l.h !== r.h || l.sec !== r.sec || l.other !== r.other) window.__hsCd.push(r);
+          };
+          new MutationObserver(snap).observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true });
+        });
         await pauseClock(page);
         await pushEnvelope(page, s);
-        const read = () => page.evaluate(() => {
-          const li = document.querySelector('.hb-slot[data-slot="0"]');
-          return { on: li.classList.contains('is-cooling'), h: parseFloat(li.querySelector('.hb-cd-ember').style.height) || 0, sec: li.querySelector('.hb-cd-s').textContent,
-            other: document.querySelector('.hb-slot[data-slot="2"]').classList.contains('is-cooling') };
-        });
         const ok1 = (await drive(page, { maxMs: 1000, pred: () => document.querySelector('.hb-slot[data-slot="0"]').classList.contains('is-cooling') })).ok;
-        const a = await read();
-        await drive(page, { maxMs: 1000 });
-        const b = await read();
-        const fell = Number(a.sec) - Number(b.sec);
-        if (!ok1 || !(a.h > 0 && a.h < 100) || !(Number(a.sec) > 0 && Number(a.sec) <= 6) || a.other) fails.push('HS-21 the cast did not cool its slot with an ember: ' + JSON.stringify(a));
-        /* 1 s of page time = four display ticks (shell.js DISPLAY_TICK_MS 250), so both reads sit at the same tick
-           phase: the seconds fall by exactly 1.0 (one decimal shown) */
-        else if (!(b.h > a.h) || !(Math.abs(fell - 1) < 0.05)) fails.push('HS-21 the ember did not rise as the cooldown ran out (1 s of page time apart, want 1.0 less): ' + JSON.stringify([a, b]));
+        await drive(page, { maxMs: 1250 });
+        const all = await page.evaluate(() => window.__hsCd);
+        const cool = all.slice(Math.max(0, all.findIndex((r) => r.on)));
+        const a = cool[0] || {};
+        const z = cool[cool.length - 1] || {};
+        /* Each shown value is the time left at the page time it was shown, to its one decimal: one cast time t0 fits
+           every paint (|left - shown| <= 0.05 s), over at least 1 s of page time, and the ember only rises. */
+        let lo = -Infinity;
+        let hi = Infinity;
+        for (const r of cool) { lo = Math.max(lo, r.t - cdMs + (Number(r.sec) - 0.05) * 1000 - 0.5); hi = Math.min(hi, r.t - cdMs + (Number(r.sec) + 0.05) * 1000 + 0.5); }
+        const rises = z.h > a.h && cool.every((r, i) => r.on && (i === 0 || (r.h >= cool[i - 1].h && r.t >= cool[i - 1].t)));
+        if (!ok1 || !a.on || !(a.h > 0 && a.h < 100) || !(Number(a.sec) > 0 && Number(a.sec) <= 6) || a.other) fails.push('HS-21 the cast did not cool its slot with an ember: ' + JSON.stringify(a));
+        else if (!rises || !(z.t - a.t >= 1000) || !(lo <= hi)) fails.push('HS-21 the ember did not rise and the seconds fall with the page clock as the cooldown ran out (' + cdMs + ' ms): ' + JSON.stringify(cool.map((r) => [r.t - a.t, r.sec, r.h])));
         if (shots) await page.screenshot({ path: join(shots, 'hunt-1440x900-cooldown.png') });
       } else fails.push('HS-21 the screen did not mount');
       await ctx.close();

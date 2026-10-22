@@ -4192,3 +4192,9 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 2. *Defaults belong in the one system.* Eat-at / drink-at, an ability's whenBelowPct and areaMin became DEFAULT CONDITIONS of slots, so there is one decision path and the editor shows them as slots.
 3. *A rule id must be what the player sees.* Defaults are placed in the first empty tablet on both sides (engine placeDefaults, SQL settings view), so a decision event's rule id is the tablet index.
 4. *HP scaling moves every pinned kill rate.* Re-pin with the rate measured and the ruled hours kept, never the other way round.
+
+## 2026-10-21 · lane/b-supplies-bury (store-by-slot, rune store, bury, refusal words, Configure action)
+1. *A dropped column makes history unreplayable.* `hunts-c1` C1 re-applies 2026-10-27-core-bodies.sql, whose LANGUAGE sql `hr_hunt_member_read` reads `hr_hunt_travel.tier`; the catalogue keeps both tier columns unwritten instead (schema digest unchanged).
+2. *A slot-order fallback needs a deferred gold_out.* An unaffordable store food marks gold_out only when no consume slot fed the hero this step; marking at the first refusal ended hunts a later own-stock slot would have fed.
+3. *Fixtures that relied on "Any food" died silently.* hunt-fixture, the settle arms and settle-hooks now name their food in a slot; a default threshold change (60%) moves economy guards (forest-cave net chain).
+4. *Python text-mode writes CRLF on Windows*; mutant anchors with "\n" then miss. Edit with node or newline=''.

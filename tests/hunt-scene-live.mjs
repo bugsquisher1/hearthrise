@@ -6,7 +6,7 @@
 //   node tests/hunt-scene-live.mjs --node     the node rules only
 //   node tests/hunt-scene-live.mjs --mutate   every planted defect must turn its rule RED
 //
-// mutant-anchors: src/session/character-session.js src/session/hunt-poll.js src/session/live-link.js src/session/config.js src/session/hunt-sections.js src/shell/widgets/vitals-hub.js src/shell/widgets/party-panel.js src/hunt-view/scene.js src/hunt-view/timeline.js src/hunt-view/live-engine.js
+// mutant-anchors: src/session/character-session.js src/session/hunt-poll.js src/session/live-link.js src/session/config.js src/session/hunt-sections.js src/shell/widgets/vitals-hub.js src/shell/widgets/party-panel.js src/session/character-sections.js src/hunt-view/scene.js src/hunt-view/timeline.js src/hunt-view/live-engine.js
 // mutant-writes-tree: no — mutants are planted into a temp copy of src/
 //
 // The REAL CharacterSession, timeline, live engine and scene over a scripted
@@ -805,8 +805,10 @@ const MUTANTS = [
   ["the last hunt's units are kept (LV-9)", 'src/session/character-session.js', 'if (sid !== null && sid !== this._huntSid) { this.liveLink.off(); this.timeline.clear(); }', '', /^LV-9/],
   ['the per-minute figure printed as /s (LV-3)', 'src/shell/widgets/vitals-hub.js', 'regen(hero.hpPerS)', 'regen(hero.hpPerS * 60)', /^LV-3/],
   ['HP regen at the resting rate (LV-3)', 'src/session/hunt-sections.js', '* VITALS.inFightRegenPermillePerS *', '* 60 *', /^LV-3/],
-  ["the hub reads the last commit's HP (LV-15, live v0.2.22)", 'src/shell/widgets/vitals-hub.js', 'const live = hero ? liveHpOf(cs, hero.unit) : null;', 'const live = null;', /^LV-15/],
-  ["the party panel reads the last commit's HP (LV-15, live v0.2.22)", 'src/shell/widgets/party-panel.js', 'const live = m.hunting ? liveHpOf(cs, m.unit) : null;', 'const live = null;', /^LV-15/],
+  /* r09: the hub reads heroVitalsOf, the one reader it shares with the Character tab and the party panel's own row. */
+  ["the hub reads the last commit's HP (LV-15, live v0.2.22)", 'src/session/character-sections.js', '    const live = liveHpOf(cs, hero.unit);', '    const live = null;', /^LV-15/],
+  /* r09: the panel's own row reads heroVitalsOf; the commit's HP is the roster row's m.hp. */
+  ["the party panel reads the last commit's HP (LV-15, live v0.2.22)", 'src/shell/widgets/party-panel.js', 'level: v.level, hp: v.hp, hpMax: v.hpMax', 'level: v.level, hp: m.hp, hpMax: m.hpMax', /^LV-15/],
 ];
 
 async function mutate() {

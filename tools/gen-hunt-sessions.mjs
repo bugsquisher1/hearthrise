@@ -157,8 +157,8 @@ export const WORLD_FIELDS_READ = Object.freeze({
    land in this forward file, applied after 2026-11-30-gear-ladder-catalogue (hr_items first): the same full replace. */
 /* v0.2.31 integration: ONE forward file per generator after the newest APPLIED (2026-11-20): the roster, the open glade and the style ladder's weapons
    (2026-11-23, now history). WHO HOLDS THE PACK (lane/b-tank-choice, Tyler 2026-10-22): the world gains `hold` / `holdNext`
-   (targeting.js), so hr_hunt_world_shape changes: ONE forward file after the v0.2.31 chain (its newest file is 2026-12-02). */
-export const OUT_NAME = '2026-12-03-hunt-sessions-catalogue.generated.sql';
+   (targeting.js), so hr_hunt_world_shape changes: ONE forward file after the v0.2.32 sequence (its newest file is 2026-12-08-party-hold.sql). */
+export const OUT_NAME = '2026-12-09-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -553,7 +553,8 @@ export function render(src) {
 -- NEW SINCE 11-23 (lane b-tank-choice, Tyler 2026-10-22 "One tank holds"): the
 -- world's shape gains hold / holdNext (src/core/hunt/targeting.js), so
 -- hr_hunt_world_shape is rewritten; the hr-accrue edge carrying that world deploys
--- with this file. Carried from 11-23 (lane c-style-gear): the style ladder's Iron Hatchets and Oak
+-- with this file, which applies LAST, after 2026-12-08-party-hold.sql (the hold seat
+-- the settle reads). Carried from 11-23 (lane c-style-gear): the style ladder's Iron Hatchets and Oak
 -- Crossbow (hr_hunt_weapons, vendor values) and the Longbow, Oak Staff and Iron
 -- Warhammer at their ladder values. Applies after 2026-11-30-gear-ladder (hr_items). Carried from 11-23
 -- (which superseded 11-18 and collapsed 11-13 and 11-21): the

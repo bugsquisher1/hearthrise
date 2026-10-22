@@ -7,7 +7,10 @@
 // transform moves it. The owner hands it the menu's markup, where to stand,
 // what to do with a press, and what to do when it closes. It closes on Esc, on
 // a press outside it, when its owner's window has gone, or when the owner says
-// so. Display only: a press is passed to the owner, which sends any intent.
+// so — and ONLY its owner: one owner's repaint never closes another's menu
+// (playtest 10-22: with the bag open, a right-click menu anywhere else blinked
+// shut on the bag's next display tick). Display only: a press is passed to the
+// owner, which sends any intent.
 // ════════════════════════════════════════════════════════════════════════
 
 let OWNER = null;   // { onAct, onClose, alive }
@@ -70,8 +73,12 @@ export function openFloatMenu(doc, html, at, owner) {
   WATCH = view.setInterval(() => { if (OWNER && !OWNER.alive()) closeFloatMenu(doc); }, 300);
 }
 
-/** Close the menu (the owner's onClose runs once). */
-export function closeFloatMenu(doc) {
+/**
+ * Close the menu (the owner's onClose runs once). Given `only`, close it only while
+ * that owner holds it: an owner tidying up its own menu never closes another's.
+ */
+export function closeFloatMenu(doc, only) {
+  if (only !== undefined && (!only || OWNER !== only)) return;
   const el = doc.querySelector('.hw-menu');
   if (el) el.classList.remove('is-on');
   clearInterval(WATCH);

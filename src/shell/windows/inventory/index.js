@@ -73,7 +73,7 @@ renderInventory.patch = function patchInventory(body, ctx) {
   patchTools(root, st, ctx);
   patchAdvanced(root, st, ctx);
   cls(root, 'is-pending', st.sc.pending);
-  if (!st.sc.menu) closeFloatMenu(ctx.doc);
+  if (!st.sc.menu) closeFloatMenu(ctx.doc, st.sc.menuOwner || null);   // its own menu only: a world or chat menu stays open
 };
 
 renderInventory.events = INVENTORY_EVENTS;

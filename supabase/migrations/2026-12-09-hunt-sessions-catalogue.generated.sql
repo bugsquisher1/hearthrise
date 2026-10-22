@@ -18,7 +18,8 @@
 -- NEW SINCE 11-23 (lane b-tank-choice, Tyler 2026-10-22 "One tank holds"): the
 -- world's shape gains hold / holdNext (src/core/hunt/targeting.js), so
 -- hr_hunt_world_shape is rewritten; the hr-accrue edge carrying that world deploys
--- with this file. Carried from 11-23 (lane c-style-gear): the style ladder's Iron Hatchets and Oak
+-- with this file, which applies LAST, after 2026-12-08-party-hold.sql (the hold seat
+-- the settle reads). Carried from 11-23 (lane c-style-gear): the style ladder's Iron Hatchets and Oak
 -- Crossbow (hr_hunt_weapons, vendor values) and the Longbow, Oak Staff and Iron
 -- Warhammer at their ladder values. Applies after 2026-11-30-gear-ladder (hr_items). Carried from 11-23
 -- (which superseded 11-18 and collapsed 11-13 and 11-21): the

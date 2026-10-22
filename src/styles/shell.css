@@ -100,6 +100,12 @@
 .hs-close:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
 .hs-close .hs-glyph { width: 18px; height: 18px; }
 .hs-win-body { overflow: auto; padding: 10px 12px 12px; }
+/* A home window (Chat) is held to the World's bottom-left by its bottom edge; a sized one fills its frame.
+   Its grip sits on the frame's top-right corner: drag right to widen, up to grow taller (window-sizes.js). */
+.hs-win.is-home { top: auto; }
+.hs-win.is-sized .hs-win-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.hs-grip { position: absolute; top: -8px; right: -8px; width: 16px; height: 16px; cursor: nesw-resize; touch-action: none; border-top: 2px solid var(--line-strong); border-right: 2px solid var(--line-strong); }
+.hs-grip:hover { border-color: var(--gold); }
 .hs-note { margin: 0 0 8px; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.4; }
 
 /* ── Rename in place (src/shell/inline-name.js): the name is a quiet button; while naming, the field takes its place ── */
@@ -143,6 +149,7 @@
     border-image: url('../../assets/ui/frame-iron-thin.png') 2 / 4px stretch;
   }
   .hs-win-head { height: 40px; cursor: default; }
+  .hs-grip { display: none; }
   .hs-win-body { padding: 8px 10px 10px; }
   .st .st-tabs { width: 100%; border-right: 0; }
   .st-body { display: block; }

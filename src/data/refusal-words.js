@@ -98,6 +98,13 @@ export const REFUSAL_WORDS = Object.freeze({
   name_taken: 'That name is taken. Try another.',
   bad_name: 'Names are 3 to 20 letters, numbers and spaces.',
   needs_name: 'Name this hero first.',
+  /* A new name (2026-12-04-hero-rename.sql): the first name is free, a change costs gold. */
+  same_name: 'That is already this hero’s name.',
+  already_named: 'This hero already has a name. A new one costs gold: Characters, Rename.',
+  not_named: 'Name this hero first. The first name is free.',
+  renamed_today: 'This hero changed name today. One change a day.',
+  /* not a server code: the words for bad_name with reason reserved / blocked (intent-words.js refusalText) */
+  bad_name_rule: 'That name is not allowed. Try another.',
   already_created: 'This slot already has a hero.',
   slot_not_owned: 'That hero slot is not yours yet.',
   slot_cap: 'You have every hero slot there is.',

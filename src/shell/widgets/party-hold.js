@@ -77,12 +77,15 @@ export function holdView(r, turns) {
     fallback, note, warn };
 }
 
-/** The switch's skeleton, then the note and the warning under it (built once, inside the panel). */
+/** The switch's skeleton, then the note and the warning under it (built once, inside the panel). Each mode reads
+    in full on a desktop and short on a phone, where the board is 200 px (hunt.css, the phone query). */
 export function holdHtml() {
   return '<div class="hp-hold" hidden><p class="hp-hold-label">Who holds the pack</p>'
     + '<span class="hh-segs hp-hold-modes" role="group" aria-label="Who holds the pack">'
-    + '<button type="button" class="hh-seg" data-hs-act="hold-turns" aria-pressed="false">Take turns</button>'
-    + '<button type="button" class="hh-seg" data-hs-act="hold-one" aria-pressed="false">One tank holds</button></span>'
+    + '<button type="button" class="hh-seg" data-hs-act="hold-turns" aria-pressed="false" aria-label="Take turns">'
+    + '<span class="hp-hold-wide">Take turns</span><span class="hp-hold-narrow">Turns</span></button>'
+    + '<button type="button" class="hh-seg" data-hs-act="hold-one" aria-pressed="false" aria-label="One tank holds">'
+    + '<span class="hp-hold-wide">One tank holds</span><span class="hp-hold-narrow">One tank</span></button></span>'
     + '<span class="hh-segs hp-hold-tanks" role="group" aria-label="The tank that holds"></span></div>'
     + '<p class="hp-tanks"></p><p class="hp-hold-warn"></p>';
 }

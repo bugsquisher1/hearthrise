@@ -18,14 +18,14 @@
 // heroVitalsOf, the ONE reader the Character tab shares (r09: the two said Level 4
 // and 11), stamina from staminaOf, regen from the hunt section. Built once, patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { CONSUMABLES } from '../../data/consumables.js?v=0.2.29';
-import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.29';
-import { huntOf, huntBagOf, staminaOf } from '../../session/hunt-sections.js?v=0.2.29';
-import { carriedOf } from '../../session/item-sections.js?v=0.2.29';
-import { text, attr } from '../../render/paint.js?v=0.2.29';
-import { whole, hoursMinutes } from '../../render/format.js?v=0.2.29';
-import { glyphSvg } from '../launcher.js?v=0.2.29';
-import { itemIconHtml, itemName } from './bits.js?v=0.2.29';
+import { CONSUMABLES } from '../../data/consumables.js?v=0.2.30';
+import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.30';
+import { huntOf, huntBagOf, staminaOf } from '../../session/hunt-sections.js?v=0.2.30';
+import { carriedOf } from '../../session/item-sections.js?v=0.2.30';
+import { text, attr } from '../../render/paint.js?v=0.2.30';
+import { whole, hoursMinutes } from '../../render/format.js?v=0.2.30';
+import { glyphSvg } from '../launcher.js?v=0.2.30';
+import { itemIconHtml, itemName } from './bits.js?v=0.2.30';
 
 /* The arcs on the medallion art's own 52 x 52 grid (bar-medal.png), centre (26, 26): HP and mana at radius 21 in
    the gauge channel (r 19.4-22.6), the left one from the bottom (111.6 deg) round to the top (248.4 deg), the

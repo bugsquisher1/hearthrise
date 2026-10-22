@@ -8,12 +8,12 @@
 // the decoded images by set. A set that fails is logged and left out — its
 // sprites draw as stubs — so a slow or broken asset never blanks the pane.
 // ════════════════════════════════════════════════════════════════════════
-import { ATLAS_SETS } from '../data/world/atlas-sets.js?v=0.2.29';
-import { atlasPaths } from '../data/world/art-budget.js?v=0.2.29';
-import { createBook } from './core/book.js?v=0.2.29';
+import { ATLAS_SETS } from '../data/world/atlas-sets.js?v=0.2.30';
+import { atlasPaths } from '../data/world/art-budget.js?v=0.2.30';
+import { createBook } from './core/book.js?v=0.2.30';
 /* Each atlas image loads once per page (src/render/images.js): a remounted pane and the Character
    window's outfit preview reuse the decoded image instead of fetching it again. */
-import { heldImage } from '../render/images.js?v=0.2.29';
+import { heldImage } from '../render/images.js?v=0.2.30';
 
 /**
  * @param {{doc: Document, version: number|string}} o

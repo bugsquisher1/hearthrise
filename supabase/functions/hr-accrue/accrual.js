@@ -193,6 +193,32 @@ import {
    sub-threshold absence, and the server has no reason to inherit that. */
 export const ACCRUE_MIN_MS = 60000;
 
+/* ── THE TOWN SETTLE FLOOR (lane c-live-town-work, Tyler 2026-10-22: "the bag
+   needs to update in real time, not when it's done") ─────────────────────────
+   A town pointer (a gathering node or a bench recipe) is the `accrue` verb's
+   only payable kind today (a fight is a hunt session: SKIP.HUNT_OPEN /
+   SKIP.HUNT_REQUIRED answer before the floor). While the Work window or the bag
+   is open the client asks one settle per SESSION_CONFIG.townPollMs (16 s), the
+   way the hunt view asks hunt_settle, and the window it asks for pays from
+   15 s: the SAME player-door fuse a hunt has (hunt-settle.js HUNT_SETTLE_MIN_MS,
+   pinned equal by tests/artisan-accrual.mjs T10). It stays a SERVER constant on
+   a SERVER-literal caller: a client polling faster is answered `below_min_span`
+   and writes nothing, so the door writes at most four ledger rows a minute per
+   character, each one an aggregate of every action in its window.
+   Time is conserved exactly as at 60 s: the sub-action remainder is deferred
+   (settledWatermarkMs), so a chain of 15 s windows pays the same actions as one
+   long window, and the stop's collect pays only what is left after the last.
+   ACCRUE_MIN_MS stays 60 s as the `inventory_complete` boundary hr_state_of is
+   pinned to (tests/inventory-complete-probe.mjs): that flag now reads "no
+   window of 60 s or more is pending", the weaker reading b531 already made
+   true for a collect (see inventoryBaselineComplete). */
+export const TOWN_SETTLE_MIN_MS = 15000;
+
+/** The `accrue` caller's floor for a pointer of `activeKind`: 15 s for town work, ACCRUE_MIN_MS otherwise. */
+export function accrueFloorMs(activeKind) {
+  return activeKind === 'gather' || activeKind === 'artisan' ? TOWN_SETTLE_MIN_MS : ACCRUE_MIN_MS;
+}
+
 /**
  * Does an engine delta MOVE ANY VALUE? (b531)
  *
@@ -1084,7 +1110,7 @@ export function computeAccrual(input) {
      rows and no ledger noise. `grantMs > 0` is required either way — a
      zero-length window has nothing to simulate. */
   if (grantMs <= 0) return { accrued: false, reason: SKIP.TOO_SOON };
-  if (grantMs < ACCRUE_MIN_MS && accrualCaller(inp) === 'accrue') {
+  if (grantMs < accrueFloorMs(inp.activeKind) && accrualCaller(inp) === 'accrue') {
     return { accrued: false, reason: SKIP.TOO_SOON };
   }
   const capped = elapsedMs > grantMs;

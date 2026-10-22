@@ -26,20 +26,20 @@
 // open doll slot and the "new" marks. No key here is a walk key: selling is
 // Delete, so W, A, S and D always reach the World (Tyler 10-18).
 // ════════════════════════════════════════════════════════════════════════
-import { kindOf, equipSlotFor, equipOps, markSeen } from '../../bag-model.js?v=0.2.29';
-import { assignToBar, barKind, barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.29';
-import { runIntent } from '../../intent-words.js?v=0.2.29';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.29';
-import { gold } from '../../../render/format.js?v=0.2.29';
-import { itemName } from '../../widgets/bits.js?v=0.2.29';
-import { showTip, hideTip } from '../item-tip.js?v=0.2.29';
-import { openFloatMenu, closeFloatMenu } from '../float-menu.js?v=0.2.29';
-import { stateOf, scratchOf, seenOf, confirmFor, junkOf, setPref } from './state.js?v=0.2.29';
-import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.29';
-import { askElsewhere } from './elsewhere.js?v=0.2.29';
-import { skillsOf } from '../../../session/item-sections.js?v=0.2.29';
-import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury } from './bury.js?v=0.2.29';
-import { equipUpgrades } from '../../widgets/upgrade-line.js?v=0.2.29';
+import { kindOf, equipSlotFor, equipOps, markSeen } from '../../bag-model.js?v=0.2.30';
+import { assignToBar, barKind, barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.30';
+import { runIntent } from '../../intent-words.js?v=0.2.30';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.30';
+import { gold } from '../../../render/format.js?v=0.2.30';
+import { itemName } from '../../widgets/bits.js?v=0.2.30';
+import { showTip, hideTip } from '../item-tip.js?v=0.2.30';
+import { openFloatMenu, closeFloatMenu } from '../float-menu.js?v=0.2.30';
+import { stateOf, scratchOf, seenOf, confirmFor, junkOf, setPref } from './state.js?v=0.2.30';
+import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.30';
+import { askElsewhere } from './elsewhere.js?v=0.2.30';
+import { skillsOf } from '../../../session/item-sections.js?v=0.2.30';
+import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury } from './bury.js?v=0.2.30';
+import { equipUpgrades } from '../../widgets/upgrade-line.js?v=0.2.30';
 
 export const INVENTORY_EVENTS = Object.freeze(['input', 'keydown', 'contextmenu', 'pointerdown', 'pointerup', 'pointercancel',
   'dragstart', 'dragover', 'dragleave', 'drop', 'dragend', 'mouseover', 'mouseout']);

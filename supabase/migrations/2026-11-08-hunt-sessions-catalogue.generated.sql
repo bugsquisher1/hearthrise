@@ -8,7 +8,7 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 90db03f5be20dce2a3b2a2caccc5bcb46bf15a3b047b47ad955d2f378f3d23b6
+--   digest: e168cce3ccdd18a9132d49f7a8a774f0941835fc45e1c235d722624de561c19d
 --   59 supplies, 115 hunts (named + training), 52 limits, 11 end reasons,
 --   491 vendor values, 18 store supplies paid per use, 5 target modes,
 --   3 lanes, 14 abilities, 13 action-set options, 4 hunt grounds
@@ -368,7 +368,7 @@ insert into public.hr_hunt_kill_bounds (monster_id, gold_max, xp_max, drops) val
   ('imp', 6, 25, '{"demon_shard":1,"coal":1,"rune_frag":1,"apprentice_boots":1}'::jsonb),
   ('iron_colossus', 544, 1852, '{"rune_bar":1,"mithril_bar":1,"keystone":1,"iron_fitting":1,"death_steel":1}'::jsonb),
   ('kobold', 6, 28, '{"goblin_totem":1,"bones":1,"bone_chips":1,"copper_ore":1,"banded_signet":1}'::jsonb),
-  ('kobold_tosher', 25, 275, '{"bones":1,"copper_ore":1,"kobold_scale":1,"bronze_platebody":1}'::jsonb),
+  ('kobold_tosher', 25, 275, '{"bones":1,"bone_chips":1,"kobold_scale":1,"bronze_platebody":1}'::jsonb),
   ('lesser_demon', 140, 565, '{"demon_shard":1,"rune_frag":1,"hell_ember":1}'::jsonb),
   ('lich', 500, 1325, '{"lich_soul":1,"ancient_rune":1,"vamp_dust":1,"hollow_sigil":1,"soul_recipe":1,"runewood_codex":1}'::jsonb),
   ('locust_swarm', 13, 65, '{"wheat":1,"silk_thread":1,"venom_sac":1,"studded_belt":1}'::jsonb),

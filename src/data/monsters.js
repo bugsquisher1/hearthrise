@@ -695,7 +695,8 @@ export const MONSTERS = {
     drops: [{ id: 'silk_thread', ch: .3 }, { id: 'cistern_venom_gland', ch: .1 }, { id: 'iron_sword', ch: .048, gear: true }] },
   kobold_tosher: { name: 'Kobold Tosher', icon: '🦎', tier: 1, level: 13, cls: 'humanoid', family: 'Humanoid', formation: true,
     hp: 55, atk: 7, def: 1, xp: 192, gp: [9, 25], speed: 3200,
-    drops: [{ id: 'bones', ch: 1 }, { id: 'copper_ore', ch: .35 }, { id: 'kobold_scale', ch: .08 },
+    /* junk: the Bone Chips it sifts out of the outfalls (the reachable source of Iron Fitting's and Prayer's chips) */
+    drops: [{ id: 'bones', ch: 1 }, { id: 'bone_chips', ch: .5 }, { id: 'kobold_scale', ch: .08 },
       { id: 'bronze_platebody', ch: .032, gear: true }] },
   rat_king: { name: 'Rat King', icon: '👑', tier: 1, level: 25, cls: 'vermin', family: 'Vermin', formation: true, boss: true,
     /* one override (element): fire glances off the knot; frost is the exam's answer. */

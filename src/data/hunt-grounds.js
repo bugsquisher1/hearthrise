@@ -70,7 +70,8 @@
 // turns a blade, a hammer rings it; the Giant Ant and Tunnel Ratling folded in), the
 // Hobgoblin Foreman (the bruiser) and Chief Coppercap, who wears the warren's name.
 // Coin is final in the rows (DM-16). Drops feed what exists: wolf meat cooks, pelts
-// build rooms, ore smelts; fangs, ears and totems are the trophies (VENDOR_TRASH).
+// build rooms, ore smelts; fangs, ears and totems are the trophies (VENDOR_TRASH). In the Thicket
+// and the Sewer each monster also drops its own imbuement item (src/data/imbuements.js, the four loot slots).
 //
 // THE SEWER'S CREATURES (monsters.js, `formation: true`). Names come from the work
 // done down there: the Drain Rat, the Sump Slime, the Culvert Bat (roosts over the

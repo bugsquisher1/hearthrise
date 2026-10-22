@@ -2,7 +2,7 @@
 // src/shell/windows/shop.js — THE SHOP: A STALL LEDGER (WORLD_SHELL §4).
 //
 // Two tabs on one ledger, every price the SERVER's (`shop` section):
-//   Buy     the tools, one list (Tyler 2026-10-20: the Shop keeps gear and tools and sells
+//   Buy     gear, tools and seeds, a list each (Tyler 2026-10-20: the Shop keeps gear and tools and sells
 //           NO supplies; food, drink and ammo come from the action bar at the
 //           store price per use), each with the server's price, what is in the
 //           bag, a count and a Buy button that shows the total for that count
@@ -24,11 +24,13 @@ import { showTip, hideTip } from './item-tip.js?v=0.2.28';
 
 const TABS = Object.freeze([['buy', 'Buy'], ['sell', 'Sell']]);
 const QTYS = Object.freeze([1, 5, 10, 25, 50, 100]);
-/* The Buy tab's two lists, by the server's offer kind: [kind, heading, the one line under it]. The gear line says
+/* The Buy tab's lists, by the server's offer kind: [kind, heading, the one line under it]. The gear line says
    why it is there (designer 2026-10-22: Defense trains only in armour; monsters drop the big pieces). */
 const BUY_GROUPS = Object.freeze([
   ['gear', 'Gear', 'Gloves and belts are armour: wear one and Defense trains. Helmets, bodies, legs and boots come from monsters.'],
   ['tool', 'Tools', ''],
+  /* The seed counter (designer 2026-10-22): one seed grows one crop on a farm plot; the crop's Farming level gates the planting, not the purchase. */
+  ['seed', 'Seeds', 'One seed grows one crop on a farm plot. Each crop needs its Farming level to plant.'],
 ]);
 /* A piece of gear is bought one or two at a time (two rings); tools by the stack. */
 const QTYS_BY_KIND = Object.freeze({ gear: Object.freeze([1, 2]) });

@@ -19,6 +19,7 @@ import { MONSTERS } from '../data/monsters.js?v=0.2.28';
 import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.28';
 import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOT_META } from '../data/gathering.js?v=0.2.28';
 import { SHOP_OFFERS } from '../data/shops.js?v=0.2.28';
+import { SHOP_LISTED_OFFER_IDS } from '../data/supply-basics.js?v=0.2.28';
 import { SKILLS_DEF } from '../data/skills.js?v=0.2.28';
 import { ITEM_DESC } from '../data/item-descriptions.js?v=0.2.28';
 import { itemName, monsterName } from './widgets/bits.js?v=0.2.28';
@@ -52,7 +53,8 @@ function index() {
   for (const r of DRINK_RECIPES) recipe('cooking', r);
   for (const [nodes, skill] of [[TREES, 'woodcutting'], [ROCKS, 'mining'], [FISH_SPOTS, 'fishing']]) for (const n of nodes) if (n.prod) at(n.prod).from.push(skill);
   for (const c of Object.values(CROPS)) if (c && c.prod) at(c.prod).from.push('farming');
-  for (const o of SHOP_OFFERS) for (const g of o.grant || []) if (g.kind === 'item') at(g.id).shop = true;
+  /* Only a row a Shop tab lists is "sold at the shop": the rest are the vendor's price list (lane/b-orphan-sources). */
+  for (const o of SHOP_OFFERS) if (SHOP_LISTED_OFFER_IDS.has(o.id)) for (const g of o.grant || []) if (g.kind === 'item') at(g.id).shop = true;
   return INDEX;
 }
 

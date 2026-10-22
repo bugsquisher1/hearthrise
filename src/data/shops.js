@@ -22,7 +22,7 @@
 // EXTRACTED FROM
 //   room              40  src/legacy.js
 //   plot               4  src/legacy.js
-//   seed              13  src/legacy.js
+//   seed               4  src/legacy.js (9 seed rows moved to the seed counter, 2026-10-22)
 //   equip              8  src/legacy.js (5 rows moved to the outfitter, 2026-10-22)
 //   property           5  src/features/homestead.js
 //   worker             6  src/features/workers.js
@@ -488,13 +488,6 @@ export const SHOP_OFFERS = [
     repeatable: true,
   },
   {
-    id: "seed.carrot_seed", table: "seed",
-    name: "Carrot Seed",
-    cost: [{ kind: "currency", id: "gold", amount: 100 }],
-    grant: [{ kind: "item", id: "carrot_seed", amount: 10 }],
-    repeatable: true,
-  },
-  {
     id: "seed.coarse_whetstone", table: "seed",
     name: "Coarse Whetstone",
     cost: [{ kind: "currency", id: "gold", amount: 60 }],
@@ -502,66 +495,10 @@ export const SHOP_OFFERS = [
     repeatable: true,
   },
   {
-    id: "seed.emberfruit_seed", table: "seed",
-    name: "Emberfruit Seed",
-    cost: [{ kind: "currency", id: "gold", amount: 900 }],
-    grant: [{ kind: "item", id: "emberfruit_seed", amount: 3 }],
-    repeatable: true,
-  },
-  {
-    id: "seed.goldenroot_seed", table: "seed",
-    name: "Goldenroot Seed",
-    cost: [{ kind: "currency", id: "gold", amount: 450 }],
-    grant: [{ kind: "item", id: "goldenroot_seed", amount: 3 }],
-    repeatable: true,
-  },
-  {
-    id: "seed.moonbloom_seed", table: "seed",
-    name: "Moonbloom Seed",
-    cost: [{ kind: "currency", id: "gold", amount: 1600 }],
-    grant: [{ kind: "item", id: "moonbloom_seed", amount: 2 }],
-    repeatable: true,
-  },
-  {
-    id: "seed.potato_seed", table: "seed",
-    name: "Potato Seed",
-    cost: [{ kind: "currency", id: "gold", amount: 100 }],
-    grant: [{ kind: "item", id: "potato_seed", amount: 5 }],
-    repeatable: true,
-  },
-  {
-    id: "seed.pumpkin_seed", table: "seed",
-    name: "Pumpkin Seed",
-    cost: [{ kind: "currency", id: "gold", amount: 150 }],
-    grant: [{ kind: "item", id: "pumpkin_seed", amount: 3 }],
-    repeatable: true,
-  },
-  {
     id: "seed.rune_blank", table: "seed",
     name: "Blank Rune",
     cost: [{ kind: "currency", id: "gold", amount: 300 }],
     grant: [{ kind: "item", id: "rune_blank", amount: 18 }],
-    repeatable: true,
-  },
-  {
-    id: "seed.tomato_seed", table: "seed",
-    name: "Tomato Seed",
-    cost: [{ kind: "currency", id: "gold", amount: 150 }],
-    grant: [{ kind: "item", id: "tomato_seed", amount: 5 }],
-    repeatable: true,
-  },
-  {
-    id: "seed.turnip_seed", table: "seed",
-    name: "Turnip Seed",
-    cost: [{ kind: "currency", id: "gold", amount: 50 }],
-    grant: [{ kind: "item", id: "turnip_seed", amount: 10 }],
-    repeatable: true,
-  },
-  {
-    id: "seed.wheat_seed", table: "seed",
-    name: "Wheat Seed",
-    cost: [{ kind: "currency", id: "gold", amount: 150 }],
-    grant: [{ kind: "item", id: "wheat_seed", amount: 10 }],
     repeatable: true,
   },
   {
@@ -646,8 +583,8 @@ export const SHOP_TABLES = [
     "origin": "src/legacy.js",
     "anchor": "const SEED_SHOP=[",
     "spends_at": "legacy.js buyShopItem(id, qty, cost)",
-    "note": "the price is per BUNDLE of qty, not per unit; a vendor price list only since 2026-10-22: shop_buy refuses every seed row not_listed (no Shop tab lists it)",
-    "count": 13
+    "note": "the price is per BUNDLE of qty, not per unit; a vendor price list only since 2026-10-22: shop_buy refuses every seed row not_listed (no Shop tab lists it). The nine crop seeds moved to the seed counter (supply-basics.js kind 'seed', designer 2026-10-22, lane/b-orphan-sources) at the same unit price; the four left (air rune, bronze arrows, coarse whetstone, blank rune) are their items' vendor price only",
+    "count": 4
   },
   {
     "table": "equip",

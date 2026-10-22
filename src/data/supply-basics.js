@@ -123,9 +123,22 @@ export function basicFor(kind, huntTier) {
 // Price = SHOP_PREMIUM x book value, the tools' rule, so the vendor's buy-back (at most
 // half the shop price) pays at most what the piece cost, halved: buy-then-sell loses.
 // tools/gen-alpha-catalogue.mjs refuses a gear row off any of these rules.
+//
+// THE SEED COUNTER (designer ruling 2026-10-22, lane/b-orphan-sources; farming is in Early Access,
+// Tyler 2026-10-19). A seed is not a supply (Tyler 2026-10-20 named food, drink, ammo and runes) and
+// before this no Shop tab listed one: only the kit's 8 turnip seeds and two quest rewards could ever
+// reach a bag, so wheat, tomato, pumpkin, goldenroot, emberfruit and moonbloom were catalogued and
+// unplantable. Every crop's seed is now a Shop row, kind 'seed', one seed per unit. The price is the
+// counter's own per-seed price (the legacy seed.* bundles, unit for unit, which these rows replace:
+// one item, one price): book value for the six early seeds, so a first planting is never a gold
+// decision, and above it for the three late ones (goldenroot 150, emberfruit 300, moonbloom 800), the
+// sink an endgame farmer meets. Keeping the unit price keeps every vendor bid where it was (half the
+// cheapest shop unit, catalogue.js vendorPriceOf): buy-then-sell loses half. Farming level and plot tier
+// still gate the PLANTING (src/core/farm.js), never the purchase. tools/gen-alpha-catalogue.mjs refuses a
+// seed row for an item that is not a crop's seed, below its book value, or with a basic.
 export const SHOP_PREMIUM = 2;
 /* The kinds the Shop's Buy tab lists and `shop_buy` sells; every other row is a price only. */
-export const SHOP_SOLD_KINDS = Object.freeze(['tool', 'gear']);
+export const SHOP_SOLD_KINDS = Object.freeze(['tool', 'gear', 'seed']);
 /* The slots the Shop may sell gear for: the ones no walked ground drops. */
 export const SHOP_GEAR_SLOTS = Object.freeze(['gloves', 'belt', 'cape', 'earrings', 'ring', 'necklace']);
 const sell = (item, kind, basic, price) => Object.freeze({ offer: 'supply.' + item, item, kind, basic, price });
@@ -158,4 +171,19 @@ export const SUPPLY_SHOP_OFFERS = Object.freeze([
   sell('copper_studs', 'gear', null, 120),
   sell('copper_ring', 'gear', null, 240),
   sell('hunter_necklace', 'gear', null, 360),
+  /* The seed counter, in crop order (src/data/gathering.js CROPS). */
+  sell('turnip_seed', 'seed', null, 5),
+  sell('carrot_seed', 'seed', null, 10),
+  sell('wheat_seed', 'seed', null, 15),
+  sell('potato_seed', 'seed', null, 20),
+  sell('tomato_seed', 'seed', null, 30),
+  sell('pumpkin_seed', 'seed', null, 50),
+  sell('goldenroot_seed', 'seed', null, 150),
+  sell('emberfruit_seed', 'seed', null, 300),
+  sell('moonbloom_seed', 'seed', null, 800),
 ]);
+
+/** The offer ids a Shop tab lists: the ONLY ids `shop_buy` sells (supabase/functions/hr-accrue/catalogue.js
+    offerRefusal) and the only shop rows that count as an item's source (src/data/catalogue-coherence.js
+    itemSources, src/shell/item-lore.js). A price row no tab lists is a vendor price, never a door. */
+export const SHOP_LISTED_OFFER_IDS = Object.freeze(new Set(SUPPLY_SHOP_OFFERS.filter((s) => SHOP_SOLD_KINDS.includes(s.kind)).map((s) => s.offer)));

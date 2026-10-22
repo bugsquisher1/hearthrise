@@ -573,7 +573,8 @@ async function run(mutate) {
     /* THE RULING'S NUMBERS, per unit, as the server pays them. */
     const BUYBACK_EXPECT = {
       /* The legacy seed.* and equip.* rows are no longer sold (lane/b-gold-sinks, 2026-10-22: not_listed), but they
-         stay the vendor price list their caps are read from, so these bids do not move. */
+         stay the vendor price list their caps are read from, so these bids do not move. The nine crop seeds moved to
+         the seed counter's listed supply.* rows at the SAME unit price (lane/b-orphan-sources): their bids hold too. */
       carrot_seed: 5, potato_seed: 10, pumpkin_seed: 25, turnip_seed: 2,
       wheat_seed: 7, tomato_seed: 15, stone_maul: 70, shortbow: 60, apprentice_staff: 60,
       rune_blank: 3, goldenroot_seed: 75, emberfruit_seed: 150,
@@ -1078,7 +1079,7 @@ async function run(mutate) {
        rule is driven directly). */
     for (const id of ['equip.bronze_sword', 'equip.shortbow', 'equip.stone_maul', 'equip.apprentice_staff', 'equip.apprentice_wand',
       'equip.apprentice_primer', 'equip.leather_boots', 'equip.fox_companion', 'equip.hunter_necklace', 'equip.copper_ring',
-      'seed.potato_seed', 'seed.air_rune', 'seed.bronze_arrows', 'seed.rune_blank']) {
+      'seed.coarse_whetstone', 'seed.air_rune', 'seed.bronze_arrows', 'seed.rune_blank']) {
       const gb = Number((await state(db, UID)).gold);
       const h = await doBuy({ intentId: uuid(), offer: id, qty: 1 });
       ok(h.status === 409 && h.body.ok === false && Number((await state(db, UID)).gold) === gb,
@@ -1092,6 +1093,13 @@ async function run(mutate) {
       'G-LISTED: a hidden offer of a sellable shape reads ' + cat.offerRefusal(hidden) + ' (want not_listed)');
     ok(cat.offerRefusal({ ...hidden, id: 'supply.bronze_axe', grant: [{ kind: 'item', id: 'bronze_axe', amount: 1 }] }) === null,
       'G-LISTED-CONTROL: a listed tool reads as refused, so the check above cannot tell listed from hidden');
+    /* THE SEED COUNTER (lane/b-orphan-sources, 2026-10-22): every crop's seed is a listed, sellable row, and the
+       legacy seed.* bundle it replaced is gone (one item, one price). */
+    const { CROPS } = await import('../src/data/gathering.js');
+    for (const c of Object.values(CROPS)) {
+      ok(Boolean(cat.GOLD_OFFERS['supply.' + c.seed]) && !cat.GOLD_OFFERS['seed.' + c.seed] && !cat.OFFER_REFUSALS['seed.' + c.seed],
+        'G-SEEDS: ' + c.seed + ' is not sold by exactly its seed-counter row');
+    }
   }
 
   // ── G9. SELLING ─────────────────────────────────────────────────────────

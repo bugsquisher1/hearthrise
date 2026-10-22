@@ -68,7 +68,7 @@ renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
   /* The tutorial card hangs UNDER this bar while a hunt is open (the launcher's would cover Leave hunt). */
   const html = pointerFor(ctx);
   const have = el.querySelector(':scope > .hs-pointer');
-  const id = (/data-tutorial="([a-z_]+)"/.exec(html) || [])[1] || null;
+  const id = (/data-tutorial="([a-z0-9_]+)"/.exec(html) || [])[1] || null;
   if (have && have.getAttribute('data-tutorial') !== id) have.remove();
   if (id && !(have && have.getAttribute('data-tutorial') === id)) el.insertAdjacentHTML('beforeend', html);
 };

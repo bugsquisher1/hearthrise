@@ -26,12 +26,15 @@ function control(r) {
   if (r.type === 'choice') return '<select class="st-select" ' + sid + ' ' + label + '>' + r.options.map((o) => '<option value="' + esc(o.value) + '">' + esc(o.label) + '</option>').join('') + '</select>';
   if (r.type === 'slider') return '<input type="range" min="' + r.options.min + '" max="' + r.options.max + '" step="' + (r.options.step || 1) + '" ' + sid + ' ' + label + '>';
   if (r.type === 'action') return '<button type="button" class="hs-quiet" data-hs-act="run" data-sid="' + esc(r.id) + '">' + esc(r.label) + '</button>';
+  if (r.type === 'note') return '';
   return '<kbd class="hs-key">' + esc(keyLabel(r.key)) + '</kbd>';
 }
 
 function rowHtml(r) {
   const head = r.type === 'toggle' || r.type === 'choice' || r.type === 'slider'
     ? '<label class="st-label">' + esc(r.label) + '</label>' : '<span class="st-label">' + (r.type === 'action' ? '' : esc(r.label)) + '</span>';
+  /* A note (Help: how the game works) is read, not set: its label heads it and its help is the text. */
+  if (r.type === 'note') return '<div class="st-row is-note" data-row="' + esc(r.id) + '"><h4 class="st-label">' + esc(r.label) + '</h4><p class="st-help">' + esc(r.help) + '</p></div>';
   return '<div class="st-row" data-row="' + esc(r.id) + '" title="' + esc(r.help) + '"><div class="st-line">' + head + control(r)
     + '</div><p class="st-help">' + esc(r.help) + '</p></div>';
 }

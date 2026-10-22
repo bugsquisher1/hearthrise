@@ -62,6 +62,13 @@ async function check(base) {
   const hidden = Object.assign({}, srv, { category: 'account', visibleWhen: () => false });
   must(!M.categoriesFor(ctx, [hidden], D.SETTING_CATEGORIES).length, 'a category whose rows are all hidden must not show');
   must(D.SETTING_CATEGORIES.map((c) => c.id).join() === 'gameplay,interface,combat_text,chat_social,controls,account,help', 'categories keep the ruled order (Help, last: the problem report)');
+  /* HELP SAYS HOW THE GAME WORKS (designer 2026-10-22: Help held only "Report a problem", and nothing told a newcomer
+     the hero keeps hunting with the game closed). Read-only notes, found by search, the idle promise among them. */
+  const notes = D.SETTINGS.filter((r) => r.category === 'help' && r.type === 'note');
+  must(notes.length >= 5 && notes.every((r) => M.visible(ctx, r)), 'help notes: Help must explain the game in read-only notes, got ' + notes.length);
+  must(M.search(D.SETTINGS, 'close the game').some((r) => r.category === 'help' && r.type === 'note'), 'help notes: no note says the hero keeps hunting when you close the game');
+  must(M.search(D.SETTINGS, 'weapon').some((r) => r.category === 'help' && r.type === 'note' && /no class/i.test(r.help)), 'help notes: no note says the weapon, not a class, sets how you fight');
+  must(M.search(D.SETTINGS, 'four heroes').some((r) => r.category === 'help' && r.type === 'note'), 'help notes: no note says several heroes can play at once');
   return errs;
 }
 
@@ -70,6 +77,7 @@ const MUTANTS = [
   { name: 'a display toggle that does not persist', file: 'src/shell/settings-model.js', from: "ctx.character.setResidue('combatText'", to: "ctx.character.setResidue('zzText'", want: 'persist' },
   { name: 'a server row that is not sent', file: 'src/shell/settings-model.js', from: "if (row.scope === 'server') {", to: "if (row.scope === 'never') {", want: 'server row must call' },
   { name: 'search that ignores help text', file: 'src/shell/settings-model.js', from: "(r.label + ' ' + r.help)", to: 'r.label', want: 'search' },
+  { name: 'Help forgets how the game works', file: 'src/data/settings.js', from: '[...HELP_NOTES.map(', to: '[...[].map(', want: 'help notes' },
   { name: 'empty categories shown', file: 'src/shell/settings-model.js', from: 'return cats.filter((c) => have.has(c.id));', to: 'return cats.slice();', want: 'would render empty' },
 ];
 

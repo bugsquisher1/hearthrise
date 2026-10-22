@@ -38,6 +38,8 @@
 import { HUNT_INDEX } from './hunts.js?v=0.2.27';
 import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.27';
 import { END_ORDER } from './hunt-sessions.js?v=0.2.27';
+import { nextUnlock } from './skill-unlocks.js?v=0.2.27';
+import { SKILLS_DEF } from './skills.js?v=0.2.27';
 
 /* The surfaces a card may point at, and where each is specified. */
 export const TUTORIAL_ANCHORS = Object.freeze({
@@ -61,7 +63,7 @@ export const HUNT_TUTORIAL = Object.freeze([
     'Every kill pays experience. Keep going until a skill goes up a level.',
     'hud_vitals', { kind: 'level' }),
   step('earn_the_thicket', 'Out to the brook',
-    'Keep hunting here until Meadowbrook Thicket opens to you. Gray wolves den along the brook, and it is a hunt you can take alone.',
+    'Keep hunting here until Meadowbrook Thicket opens to you, about a quarter of an hour. You can close the game: your hero keeps hunting until its stamina runs out, and what it earns is waiting when you come back.',
     'hud_vitals', { kind: 'unlock', hunt: 'meadowbrook_thicket' }),
   step('leave_cellar', 'Cash in',
     'Leave the hunt. What you looted goes to your bag when you do.',
@@ -76,7 +78,7 @@ export const HUNT_TUTORIAL = Object.freeze([
     'The cellar rats climb up from the sewer under the town. Keep hunting the Thicket until The Sewer opens to you.',
     'hud_vitals', { kind: 'unlock', hunt: 'millrace_sewer' }),
   step('go_below', 'Into the sewer, together',
-    'The Sewer is a party hunt. Invite up to three friends, then pick The Sewer. The Rat King holds the last room and only comes out for a party. He sometimes drops a Crown Shard. Good hunting.',
+    'The Sewer is a party hunt. Invite friends, or make a second hero: up to four of your heroes can hunt at once, and your own heroes join your party straight away. Then pick The Sewer. The Rat King holds the last room and only comes out for a party.',
     'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' }),
 ]);
 
@@ -158,4 +160,48 @@ export function currentCard(facts, rows = HUNT_TUTORIAL) {
     if (!isDone(r.done, facts, openedIn, later)) return r;
   }
   return null;
+}
+
+/* ── AFTER THE GUIDE: WHAT NEXT ───────────────────────────────────────────
+   The fresh-hero play (designer 2026-10-22): at Level 12, 2.5 h in, the last card
+   was gone and nothing on screen said what to aim at. Once currentCard is null the
+   pointer shows ONE goal line, read from the same server facts plus the hero's role
+   and skills: the next hunting ground by Level (a hunt-grounds.js row, so a new
+   ground shows up here with no edit), and the next thing the weapon's skill opens
+   (skill-unlocks.js, the Character window's own "Next at level" line). Display only. */
+
+/* The skill the role's weapon trains (Tyler 2026-10-14: classless Melee / Ranged / Magic). */
+export const ROLE_SKILL = Object.freeze({ tank: 'melee', melee_dps: 'melee', ranger: 'ranged', mage: 'magic', healer: 'magic' });
+
+/** The playable hunts (a ground row, not `staged`: built but not open is never a goal), lowest band floor first. */
+const groundHunts = () => Array.from(new Set(Object.values(HUNT_GROUNDS).map((g) => g.hunt)))
+  .filter((h) => HUNT_INDEX[h] && HUNT_INDEX[h].staged !== true).sort((a, b) => HUNT_INDEX[a].band[0] - HUNT_INDEX[b].band[0]);
+
+/**
+ * The goal line after the guide, or null (nothing left to name). `facts`: { charLevel, role, skillLevel }
+ * (skillLevel: the role's skill's level, or null when unknown). Answers { id, title, text }; the id
+ * changes whenever the text does (the hunt top bar redraws on a new id).
+ */
+export function nextGoal(facts) {
+  if (!facts || !Number.isInteger(facts.charLevel)) return null;
+  const lines = [];
+  const ids = ['goal'];
+  const next = groundHunts().find((h) => HUNT_INDEX[h].band[0] > facts.charLevel);
+  if (next) {
+    const g = Object.values(HUNT_GROUNDS).find((r) => r.hunt === next);
+    const party = g.pockets.some((p) => (p.minParty || 1) > 1);
+    /* The floor is a warning, not a lock (Tyler 2026-10-18), so the line names the Level it is built for. */
+    lines.push('Next ground: ' + HUNT_INDEX[next].name + ', for Level ' + HUNT_INDEX[next].band[0] + ' and up' + (party ? ', with a party.' : '.'));
+    ids.push(next, String(HUNT_INDEX[next].band[0]));
+  }
+  const skill = ROLE_SKILL[facts.role];
+  if (skill && Number.isInteger(facts.skillLevel)) {
+    const u = nextUnlock(skill, facts.skillLevel);
+    const at = /^Next at level (\d+): /.exec(u);
+    if (at) {
+      lines.push('Next at ' + SKILLS_DEF[skill].name + ' level ' + at[1] + ': ' + u.slice(at[0].length) + '.');
+      ids.push(skill, at[1]);
+    }
+  }
+  return lines.length ? { id: ids.join('_'), title: 'What next', text: lines.join(' ') } : null;
 }

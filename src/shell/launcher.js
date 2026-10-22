@@ -7,7 +7,7 @@
 // exist, and it is the `launchers` HUD widget, which can never be hidden.
 // ════════════════════════════════════════════════════════════════════════
 import { escapeHtml as esc } from '../utils/dom.js?v=0.2.27';
-import { tutorialCardOf } from '../session/tutorial-sections.js?v=0.2.27';
+import { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.27';
 
 /** The chip text for a row's shortcut key: 'b' -> 'B', 'enter' -> 'Enter'. */
 export function keyLabel(key) {
@@ -25,14 +25,16 @@ export function glyphSvg(glyphs, key, cls) {
  * THE TUTORIAL POINTER (Tyler 10-18: "I'm confused right away"). One line under the icon row: the
  * hunt tutorial card the character is on (src/data/hunt-tutorial.js), read from what the server
  * projects (src/session/tutorial-sections.js), so it advances as the server reports each step done
- * and is the same after a reload. It is drawn only while NO window is open (it would cover the
+ * and is the same after a reload. Once the guide is done it names the next goal instead ("What next":
+ * the next ground and the weapon skill's next unlock, designer 2026-10-22), so a hero is never left
+ * with nothing to aim at. It is drawn only while NO window is open (it would cover the
  * window's title), and not here during a hunt: the hunt top bar draws it under itself
  * (src/shell/widgets/hunt-topbar.js), so it never covers Leave hunt or the analyzer. Display only.
  */
 export function pointerFor(ctx) {
   const cs = ctx.character;
   if (!cs || ctx.wm.openIds().length > 0) return '';
-  const card = tutorialCardOf(cs);
+  const card = pointerCardOf(cs);
   if (!card) return '';
   return '<p class="hs-pointer" role="note" data-tutorial="' + esc(card.id) + '"><b>' + esc(card.title) + '</b> ' + esc(card.text) + '</p>';
 }

@@ -12,7 +12,8 @@
 //   category     an id from SETTING_CATEGORIES
 //   label        the line the player reads
 //   help         one plain sentence, shown under the label and searched
-//   type         toggle | choice | slider | hotkey | action
+//   type         toggle | choice | slider | hotkey | action | note
+//                (a note is read-only: its label is a heading, its help the text)
 //   default      the value when nothing is saved (toggle: boolean; choice: an
 //                option value; slider: a number; hotkey/action: null)
 //   scope        'residue'  display only, kept in this character's residue
@@ -21,7 +22,7 @@
 //                           `intent` (a CharacterSession method); never residue
 //   bind         where the value lives: { store: 'float', type, target }
 //                | { store: 'hud', id } | { store: 'residue', field }
-//                | { store: 'none' } (hotkeys, actions)
+//                | { store: 'none' } (hotkeys, actions, notes)
 //   options      choice: [{ value, label }];  slider: { min, max, step }
 //   key          hotkey rows: the key;  action rows: `run` names a
 //                CharacterSession method, or `open` names the window it opens
@@ -37,8 +38,9 @@ import { HUD_WIDGETS } from './hud-widgets.js?v=0.2.27';
 import { SHELL_WINDOWS } from './shell-windows.js?v=0.2.27';
 import { HOTKEYS } from './hunt-hud.js?v=0.2.27';
 import { SOCIAL_SETTINGS } from './social-settings.js?v=0.2.27';
+import { HELP_NOTES } from './how-to-play.js?v=0.2.27';
 
-export const SETTING_TYPES = Object.freeze(['toggle', 'choice', 'slider', 'hotkey', 'action']);
+export const SETTING_TYPES = Object.freeze(['toggle', 'choice', 'slider', 'hotkey', 'action', 'note']);
 export const SETTING_SCOPES = Object.freeze(['residue', 'server']);
 
 const cat = (id, label, blurb) => Object.freeze({ id, label, blurb });
@@ -49,7 +51,7 @@ export const SETTING_CATEGORIES = Object.freeze([
   cat('chat_social', 'Chat & Social', 'Chat filters, blocked players and friend requests.'),
   cat('controls', 'Controls', 'Keys.'),
   cat('account', 'Account', 'Your name, password and signing out.'),
-  cat('help', 'Help', 'Tell the team when something goes wrong.'),
+  cat('help', 'Help', 'How Hearthrise works, and how to tell the team when something goes wrong.'),
 ]);
 
 const NO_BIND = Object.freeze({ store: 'none' });
@@ -90,8 +92,9 @@ const HOTKEY_ROWS = SHELL_WINDOWS.filter((w) => !w.escape).map((w) => row({
   help: 'Hunts play themselves; keys only open windows.', type: 'hotkey', key: k.key,
 })));
 
-/* ── Help: the problem report opens its own window (src/shell/windows/report.js) ── */
-const HELP_ROWS = [row({
+/* ── Help: how the game works (src/data/how-to-play.js HELP_NOTES, read-only notes the search finds),
+   then the problem report, which opens its own window (src/shell/windows/report.js) ── */
+const HELP_ROWS = [...HELP_NOTES.map((n) => row({ id: 'help.' + n.id, category: 'help', label: n.label, help: n.text, type: 'note' })), row({
   id: 'help.report', category: 'help', label: 'Report a problem',
   help: 'Write what went wrong and it goes straight to the team, with your game details attached.',
   type: 'action', open: 'report',

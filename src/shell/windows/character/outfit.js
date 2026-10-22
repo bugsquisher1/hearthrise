@@ -36,6 +36,7 @@ export function outfitHtml(g) {
     + '<div class="hw-of-right"><div class="hw-of-tools"><label class="hw-search">' + glyphSvg(g, 'uiSearch')
     + '<input type="search" data-hs-act="of-search" placeholder="Search outfits" aria-label="Search outfits"></label>'
     + '<label class="hw-of-owned"><input type="checkbox" data-hs-act="of-owned"> Show only owned</label></div>'
+    + '<p class="hs-note hw-of-looks">Looks only. How you fight comes from the weapon you hold.</p>'
     + '<ul class="hw-of-grid"></ul><p class="hh-empty hw-of-none">No outfit matches.</p></div>'
     + '</section>';
 }

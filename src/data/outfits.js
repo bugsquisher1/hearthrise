@@ -4,7 +4,10 @@
 // The sprite of each outfit is src/data/hunt-outfits.js OUTFITS (one look in
 // town and in a hunt); this file adds what the Character window and the
 // server need about it:
-//   label     its name
+//   label     its name: what the clothes ARE, never a role or class word
+//             (designer 2026-10-22: "Knight, Ranger, Sorcerer, Druid" read as a
+//             class pick at creation's next screen; a look changes nothing, the
+//             weapon is the role. The ids stay: the server keys on them.)
 //   premium   owned while the character's premium is active (PREMIUM_PERKS.outfits);
 //             a free outfit is everyone's. Ownership is the SERVER's (hr_outfit_owned).
 //   regions   the parts its art's region masks define, in picker order. An outfit
@@ -23,11 +26,11 @@
 import { OUTFITS } from './hunt-outfits.js?v=0.2.27';
 
 export const OUTFIT_ROWS = Object.freeze({
-  knight: Object.freeze({ label: 'Knight', premium: false, regions: Object.freeze([]) }),
-  berserker: Object.freeze({ label: 'Berserker', premium: false, regions: Object.freeze([]) }),
-  ranger: Object.freeze({ label: 'Ranger', premium: false, regions: Object.freeze([]) }),
-  sorcerer: Object.freeze({ label: 'Sorcerer', premium: false, regions: Object.freeze([]) }),
-  druid: Object.freeze({ label: 'Druid', premium: false, regions: Object.freeze([]) }),
+  knight: Object.freeze({ label: 'Plate Harness', premium: false, regions: Object.freeze([]) }),
+  berserker: Object.freeze({ label: 'Fur Wraps', premium: false, regions: Object.freeze([]) }),
+  ranger: Object.freeze({ label: 'Hooded Leathers', premium: false, regions: Object.freeze([]) }),
+  sorcerer: Object.freeze({ label: 'Scholar’s Robe', premium: false, regions: Object.freeze([]) }),
+  druid: Object.freeze({ label: 'Grove Robe', premium: false, regions: Object.freeze([]) }),
   brute: Object.freeze({ label: 'Quarry Brute', premium: true, regions: Object.freeze([]) }),
   witch: Object.freeze({ label: 'Hedge Witch', premium: true, regions: Object.freeze(['hat', 'robe', 'trim']) }),
   dawnward: Object.freeze({ label: 'Dawnward', premium: true, regions: Object.freeze([]) }),

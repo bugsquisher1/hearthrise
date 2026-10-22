@@ -116,6 +116,16 @@ function sanitizeAlerts(v) {
   return out;
 }
 
+/* The away recap's last-seen stamp (src/shell/away-recap.js): copies of server numbers this browser last
+   showed during a hunt, kept only to say what changed by the next visit. Display state: nothing reads it to
+   gate or spend; a forged stamp can only make that one line wrong for its own player. */
+function sanitizeAwaySeen(v) {
+  if (!isObj(v) || typeof v.s !== 'string' || !/^[A-Za-z0-9_:.-]{1,64}$/.test(v.s) || !Number.isSafeInteger(v.at) || v.at < 0) return {};
+  const out = { s: v.s, at: v.at };
+  for (const k of ['xp', 'gold', 'kills']) if (Number.isSafeInteger(v[k]) && v[k] >= 0) out[k] = v[k];
+  return out;
+}
+
 /** field -> sanitizer. The keys ARE the allowlist. */
 const SANITIZERS = Object.freeze({
   hudLayout: sanitizeHudLayout,     // display preference: the HUD layout; gates and spends nothing
@@ -125,6 +135,7 @@ const SANITIZERS = Object.freeze({
   bagView: sanitizeBagView,         // display preference: the Inventory's category, sort and Advanced view; gates and spends nothing
   alerts: sanitizeAlerts,           // display state: which alert kinds show and which events were shown; gates and spends nothing
   huntSummaries: sanitizeSummaries, // display state: the last few hunts' summary cards (src/hunt-view/summary-model.js); gates and spends nothing
+  awaySeen: sanitizeAwaySeen,       // display state: the away recap's last-seen stamp (src/shell/away-recap.js); gates and spends nothing
 });
 
 export const RESIDUE_FIELDS = Object.freeze(Object.keys(SANITIZERS));

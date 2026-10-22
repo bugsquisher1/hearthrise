@@ -232,13 +232,20 @@ declare
   c_ok constant jsonb := '{"head": 1, "body": 2, "legs": 3, "feet": 4}';
   v jsonb; v_n1 text; v_n2 text; v_missing text;
 begin
+  -- The probe names are drawn until hr_create_hero would ACCEPT them: valid (not on the
+  -- blocklist), no character's name and no account's display name. A draw the RPC refuses
+  -- would fail (a) at random (2026-10-22). Self-check only: no object changes.
   loop
     v_n1 := 'Zh' || translate(substr(md5(gen_random_uuid()::text), 1, 8), '0123456789', 'ghijklmnop');
-    exit when not exists (select 1 from public.character_names where canonical = public.hr_canon_display_name(v_n1));
+    exit when coalesce(public.hr_validate_display_name(v_n1)->>'ok', '') = 'true'
+      and not exists (select 1 from public.character_names where canonical = public.hr_canon_display_name(v_n1))
+      and not exists (select 1 from public.profiles where display_name is not null and public.hr_canon_display_name(display_name) = public.hr_canon_display_name(v_n1));
   end loop;
   loop
     v_n2 := 'Zk' || translate(substr(md5(gen_random_uuid()::text), 1, 8), '0123456789', 'ghijklmnop');
-    exit when v_n2 <> v_n1 and not exists (select 1 from public.character_names where canonical = public.hr_canon_display_name(v_n2));
+    exit when v_n2 <> v_n1 and coalesce(public.hr_validate_display_name(v_n2)->>'ok', '') = 'true'
+      and not exists (select 1 from public.character_names where canonical = public.hr_canon_display_name(v_n2))
+      and not exists (select 1 from public.profiles where display_name is not null and public.hr_canon_display_name(display_name) = public.hr_canon_display_name(v_n2));
   end loop;
   begin
     insert into public.hr_flags (key, enabled, note) values ('closed_mode', true, 'hero-creation §6')

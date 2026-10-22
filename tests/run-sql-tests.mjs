@@ -87,6 +87,7 @@ import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as DELETE_AWAY_REMOVALS from './chain-removals/2026-10-22-hunt-sessions-delete-away.mjs';
 import * as CORE_BODIES_REMOVALS from './chain-removals/2026-10-27-core-bodies.mjs';
+import * as ACCOUNT_DEPOT_REMOVALS from './chain-removals/2026-11-27-account-depot.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const MIG = (f) => join(ROOT, 'supabase', 'migrations', f);
@@ -768,6 +769,9 @@ const HR_STATE_OF_CHAIN = [
   // THE CORE REBUILD (2026-10-19): Level, vitals and the derived max HP; no recovery line or combat
   // style; removals FROZEN in tests/chain-removals/2026-10-27-core-bodies.mjs.
   '2026-10-27-core-bodies.sql',
+  // THE ACCOUNT DEPOT (2026-10-22): core-bodies' body with `bank` read from the account's depot;
+  // removals FROZEN in tests/chain-removals/2026-11-27-account-depot.mjs.
+  '2026-11-27-account-depot.sql',
 ];
 
 // ── THE hr_rate_gate DERIVATION CHAIN ────────────────────────────────────
@@ -1911,6 +1915,7 @@ say(`── ${SPEC.fn} derivation chain (each body derived from the last, nothin
     hr_state_of: {
       '2026-10-22-hunt-sessions-delete-away.sql': DELETE_AWAY_REMOVALS.HR_STATE_OF,
       '2026-10-27-core-bodies.sql': CORE_BODIES_REMOVALS.HR_STATE_OF,
+      '2026-11-27-account-depot.sql': ACCOUNT_DEPOT_REMOVALS.HR_STATE_OF,
       /* auto-eat inserts the three auto_eat_* keys after `accrued_to` — so the
          `accrued_to)` terminator gains a comma (a real line change), and the
          "server clock" and "BOUNDED (RL4)" comment blocks were reflowed/moved as

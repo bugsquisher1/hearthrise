@@ -42,6 +42,7 @@ export const ITEM_DESC = {
   'adept_pants': 'An adept\'s robe bottoms, finer cloth woven for a caster growing into their craft',
   'alpha_cloak': 'Alpha-beast pelt worn as a cape, warding blows and sharpening the strike',
   'alpha_fang': 'The great fang of a pack alpha, a rare and coveted trophy',
+  'rooks_whistle': 'The bone whistle Rook calls the Mosslight crows with. A collector in town pays well for it',
   'ancient_claw': 'A colossal claw from something ancient, a formidable crafting trophy',
   'ancient_fragment': 'A worn shard of some forgotten relic, sought by scholars and collectors',
   'ancient_rune': 'A rune of the old tongue, humming with power, a key arcane reagent',

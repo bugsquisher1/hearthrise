@@ -43,7 +43,8 @@ export function huntRows() {
   const out = [];
   for (const g of Object.values(HUNT_GROUNDS)) {
     const h = HUNT_INDEX[g.hunt];
-    if (!h) continue;
+    /* a staged hunt (hunts.js `staged`: built, art pending) is never listed; the server refuses it too */
+    if (!h || h.staged === true) continue;
     const sizes = g.pockets.map((p) => p.spawns.length);
     out.push({
       hunt: g.hunt, name: h.name, theme: h.theme || '', band: h.band.slice(), groupFit: g.groupFit,

@@ -90,6 +90,9 @@ export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_
      when the imbuement recipes land. */
   'whelp_milk_tooth', 'gray_dewclaw', 'briar_burr', 'dire_hackle', 'grayjaw_whisker', 'rat_incisor', 'sump_membrane',
   'kobold_scale', 'culvert_bat_fang', 'cistern_venom_gland', 'knotted_tails',
+  /* Mosslight Glade's five (lane c-ground-16-31), the same promise; and Rook's Whistle, the glade's rare, a
+     collector's piece like the Alpha Fang and the Crown Shard until the roster gives the rares a job. */
+  'crow_quill', 'snare_wire', 'mosslight_tendril', 'sluice_crust', 'rooks_moss_charm', 'rooks_whistle',
 ]);
 
 /* ── AWAITING THE ROSTER — catalogued, kept, and deliberately unobtainable ───
@@ -118,8 +121,8 @@ export const AWAITING_ROSTER = Object.freeze([
   'ember_belt', 'ember_boots', 'ember_helm', 'ember_platebody',
   'ember_platelegs', 'ember_sword', 'ember_warhammer', 'fangdart_recurve', 'gold_amulet',
   'gold_ring', 'heartgarnet_maul', 'hollow_sigil_ring', 'houndskin_cloak',
-  'iron_platebody', 'lexarch_seal',
-  'longbow', 'maple_rod', 'maple_staff', 'mithril_helm',
+  'lexarch_seal',
+  'maple_rod', 'maple_staff', 'mithril_helm',
   'mithril_platebody', 'mithril_platelegs', 'mithril_sword', 'mithril_warhammer',
   'nightstalker_pelt', 'oak_staff', 'plaguewarden_greaves', 'quiet_coat', 'regent_helm',
   'riftmaw_carapace', 'riftmaw_husk', 'ruby_signet', 'rubyfire_studs',
@@ -129,7 +132,7 @@ export const AWAITING_ROSTER = Object.freeze([
   'snakeskin_helmet', 'snakeskin_pants', 'sorcerer_body', 'sorcerer_helmet', 'sorcerer_pants',
   'spellstone_ring', 'spidereye_studs', 'steel_hammer', 'steel_knife',
   'steel_needle', 'steel_warhammer',
-  'studded_body', 'studded_pants', 'verdite_blade', 'verdite_helm', 'verdite_platebody',
+  'studded_body', 'verdite_blade', 'verdite_helm', 'verdite_platebody',
   'verdite_platelegs', 'void_essence', 'voidheart_robe', 'voidhide_belt', 'voidhide_body',
   'voidhide_boots', 'voidhide_gloves', 'voidhide_helmet', 'voidhide_pants', 'voidmaw_scepter',
   'voidweave_belt', 'voidweave_body', 'voidweave_boots', 'voidweave_gloves',

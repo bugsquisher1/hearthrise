@@ -55,6 +55,13 @@
 //                   party). Down through the goblins' diggings, over the Drop on a plank
 //                   bridge (the ONE 1-tile choke), back up the ore-cart ramp. Ore: Copper
 //                   at the face, Iron in the stores, Coal below the Drop, Gold in the hall.
+//   mosslight_glade      THE SPRING GROUND (designer 2026-10-21, lane c-ground-16-31; Tyler's workbook
+//                   H-003 place, levels 16-31, solo first, up to three more). Upstream of the Thicket the
+//                   Meadowbrook rises from springs under the Warrens' copper hill, and the copper water
+//                   makes the moss glow. Two banks: the Crow Field and the Poachers' Camp south, over the
+//                   goblins' sluice boards (the ONE 1-tile choke) the Sluice, the Springs, Rook's Hide (a
+//                   ruined spring-house) and Vine Hollow, back over the ford. STAGED (hunts.js) until its
+//                   style-1 art lands. Logs, and copper at the sluice.
 // Coordinates are the world maps' tiles (src/data/world/maps/*.js); every spawn
 // and seat stands on open floor there (tests/hunt-core/sewer.mjs, forest-cave.mjs).
 //
@@ -263,6 +270,42 @@ export const HUNT_GROUNDS = Object.freeze({
       ['iron_rock', 22, 30, 4], ['iron_rock', 35, 29, 4],
       /* P5 the Chief's Hall: the seam his hoard came out of */
       ['gold_rock', 2, 30, 5], ['gold_rock', 2, 34, 5],
+    ]),
+  }),
+  mosslight_glade: Object.freeze({
+    id: 'mosslight_glade', hunt: 'mosslight_glade', map: 'mosslight_glade',
+    /* the path up from the Thicket, on the west edge south of the brook */
+    start: Object.freeze([[1, 33], [1, 32], [2, 33], [1, 34]]),
+    pockets: Object.freeze([
+      /* P0 the Crow Field: where the poachers leave the carcasses, and the crows come down */
+      box([5, 25, 21, 37], [14, 30], ['carrion_crow', 'carrion_crow'], ['carrion_crow', 'glade_poacher', 'carrion_crow', 'carrion_crow', 'carrion_crow', 'glade_poacher']),
+      /* P1 the Poachers' Camp: the skinning block and the fire */
+      box([31, 27, 48, 37], [40, 32], ['glade_poacher', 'carrion_crow'], ['glade_poacher', 'carrion_crow', 'walking_vine', 'carrion_crow', 'glade_poacher', 'carrion_crow']),
+      /* P2 the Sluice, over the boards: goblins washing the Warrens' ore in the spring run */
+      box([40, 11, 52, 18], [46, 14], ['goblin_sluicer', 'carrion_crow'], ['carrion_crow', 'goblin_sluicer', 'carrion_crow', 'walking_vine', 'carrion_crow', 'glade_poacher']),
+      /* P3 the Mosslight Springs: the vines in the glowing moss (bring fire, or a blade) */
+      box([40, 1, 57, 8], [50, 4], ['walking_vine', 'walking_vine'], ['carrion_crow', 'walking_vine', 'carrion_crow', 'goblin_sluicer', 'walking_vine', 'carrion_crow']),
+      /* P4 Rook's Hide: the ruined spring-house, Rook and his two */
+      box([22, 1, 35, 12], [28, 6], ['rook_poacher', 'glade_poacher', 'carrion_crow'], ['carrion_crow', 'glade_poacher', 'carrion_crow', 'walking_vine', 'carrion_crow']),
+      /* P5 Vine Hollow, back over the ford */
+      box([3, 2, 17, 13], [10, 8], ['walking_vine', 'carrion_crow'], ['carrion_crow', 'walking_vine', 'glade_poacher', 'carrion_crow', 'carrion_crow', 'walking_vine']),
+    ]),
+    route: Object.freeze([0, 1, 2, 3, 4, 5]),
+    respawnMs: 60000, pullDist: 1.5, partyScale: true, groupFit: 'solo',
+    densityMax: Object.freeze([8, 8, 8, 8]),
+    /* a solo hero may pull up to 6, a pair the full box (the Thicket's slider: the same solo-first shape) */
+    density: density(6, 2, 8),
+    gather: gather(9000, [
+      /* P0 the Crow Field: pines by the trail */
+      ['normal_tree', 6, 26, 0], ['normal_tree', 19, 34, 0], ['normal_tree', 8, 35, 0],
+      /* P1 the Poachers' Camp: the oaks they cut for the fire */
+      ['oak_tree', 32, 28, 1], ['oak_tree', 46, 35, 1],
+      /* P2 the Sluice: the copper the goblins missed */
+      ['copper_rock', 41, 12, 2], ['copper_rock', 50, 16, 2], ['copper_rock', 52, 12, 2],
+      /* P4 Rook's Hide */
+      ['oak_tree', 24, 2, 4], ['oak_tree', 33, 10, 4],
+      /* P5 Vine Hollow */
+      ['normal_tree', 5, 4, 5], ['normal_tree', 15, 12, 5], ['oak_tree', 4, 10, 5],
     ]),
   }),
 });

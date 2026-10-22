@@ -32,7 +32,7 @@
 // kind, never an item's source. Item text promises nothing that is not built.
 //
 // THE SAMPLE (DESIGN_STANDARDS §9): Meadowbrook Thicket and the Sewer, eleven
-// monsters. The wolves are physical (Keen, Life Leech, Ward); the Sewer feeds
+// monsters, then Mosslight Glade's five (lane c-ground-16-31). The wolves are physical (Keen, Life Leech, Ward); the Sewer feeds
 // casters and elements (Mana Leech, Element Ward), so the two first grounds
 // compete on what they supply, not on numbers. The Warrens and the Mill Cellar
 // follow in the next batch (tests/hunt-core/drop-tables.mjs IMBUE_PENDING).
@@ -82,6 +82,13 @@ export const IMBUE_ITEMS = Object.freeze({
   culvert_bat_fang: row('Culvert Bat Fang', '🦇', 15, 'life_leech'),
   cistern_venom_gland: row('Cistern Venom Gland', '🟣', 20, 'element_ward'),
   knotted_tails: row('Knotted Tails', '🐀', 25, 'element_ward'),
+  /* Mosslight Glade (lane c-ground-16-31, designer 2026-10-21): crows, poachers, vines and the goblins' sluice.
+     Mixed on purpose: the hunter's Keen and Life Leech, the caster's Mana Leech, Ward and Element Ward. */
+  crow_quill: row('Carrion Crow Quill', '🪶', 16, 'keen'),
+  snare_wire: row('Poacher\'s Snare Wire', '➰', 19, 'life_leech'),
+  mosslight_tendril: row('Mosslight Tendril', '🌿', 22, 'mana_leech'),
+  sluice_crust: row('Sluice Crust', '🟩', 26, 'ward'),
+  rooks_moss_charm: row('Rook\'s Moss Charm', '🧿', 29, 'element_ward'),
 });
 
 /* The flavour lines (src/data/item-descriptions.js): what it is, where it comes from. */
@@ -97,4 +104,9 @@ export const IMBUE_DESC = Object.freeze({
   culvert_bat_fang: 'A needle fang from a Culvert Bat, the bats that roost over the channel',
   cistern_venom_gland: 'The venom gland of a Cistern Spider, still heavy with poison',
   knotted_tails: 'A knot of tails cut from the Rat King, tied too tight for any rat to pull free',
+  crow_quill: 'A stiff black flight feather from a Carrion Crow, one of the birds that follow the poachers\' kills',
+  snare_wire: 'A loop of goblin copper wire a Glade Poacher sets for the Meadowbrook wolves',
+  mosslight_tendril: 'A tendril of the spring moss a Walking Vine drags with it. It still glows a little',
+  sluice_crust: 'The green crust that dries on a Goblin Sluicer\'s pan where the copper water runs off',
+  rooks_moss_charm: 'A pouch of glowing moss Rook wears round his neck against the spring water\'s green sickness',
 });

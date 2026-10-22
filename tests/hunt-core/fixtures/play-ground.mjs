@@ -43,7 +43,7 @@ export async function loadPlay(root) {
   const sprites = {};
   for (const s of SETS.ATLAS_SETS) Object.assign(sprites, JSON.parse(readFileSync(join(root, 'assets/world/atlas-' + s + '.json'), 'utf8')).sprites);
   const gridOf = (mapId) => {
-    const row = MAPS.WORLD_MAPS.find((m) => m.id === mapId);
+    const row = MAPS.mapRowOf(mapId);   // a staged map plays too (hunts.js `staged`: fitted before its art lands)
     const map = MC.compileMap(row, { materials: TER.MATERIALS, sprites, openClasses: TER.OPEN_CLASSES, lights: {} });
     const solid = (x, y) => { const m = TER.MATERIALS[map.ground[y * map.w + x]]; return !!(m && m.solid && !m.flat); };
     return GRID.makeGrid(map.w, map.h, (x, y) => map.mask[y * map.w + x] === 0, solid);

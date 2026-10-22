@@ -51,7 +51,10 @@ const KNOWN_TWINS = [['crown_of_the_fallen_king', 'crown_shard'],
      creature part until the Asset Director draws their own (no generated art in that lane). */
   ['small_fang', 'whelp_milk_tooth'], ['razor_claw', 'gray_dewclaw'], ['sticky_core', 'briar_burr'], ['wolf_pelt', 'dire_hackle'],
   ['silk_thread', 'grayjaw_whisker'], ['dire_fang', 'rat_incisor'], ['slime_gel', 'sump_membrane'], ['dragon_scale', 'kobold_scale'],
-  ['night_fang', 'culvert_bat_fang'], ['venom_sac', 'cistern_venom_gland'], ['rat_tail', 'knotted_tails']];
+  ['night_fang', 'culvert_bat_fang'], ['venom_sac', 'cistern_venom_gland'], ['rat_tail', 'knotted_tails'],
+  /* Mosslight Glade's five and its rare (lane c-ground-16-31), the same rule until the Asset Director draws them. */
+  ['shadow_thread', 'crow_quill'], ['copper_ring', 'snare_wire'], ['moonbloom', 'mosslight_tendril'], ['verdite_ore', 'sluice_crust'],
+  ['hunter_necklace', 'rooks_moss_charm'], ['choirbone', 'rooks_whistle']];
 
 /** Byte-identical icon files under two ids, except the listed twins. */
 export function checkDuplicates(dir, ids, twins = KNOWN_TWINS) {

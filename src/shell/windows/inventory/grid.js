@@ -17,17 +17,17 @@
 // action is ONE intent with the controls off until the server answers
 // (actions.js). Patched in place (src/render/paint.js).
 // ════════════════════════════════════════════════════════════════════════
-import { BAG_CATS, BAG_SORTS, isNew, bagValue } from '../../bag-model.js?v=0.2.24';
-import { barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.24';
-import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.24';
-import { whole, gold } from '../../../render/format.js?v=0.2.24';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.24';
-import { glyphSvg } from '../../launcher.js?v=0.2.24';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.24';
-import { primaryOf, junkOf, confirmWords, huntLoot } from './state.js?v=0.2.24';
-import { pocketHtml, patchCount } from './pockets.js?v=0.2.24';
-import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.24';
-import { buryLine, buryBlock, buryingOf, buryRecipeOf } from './bury.js?v=0.2.24';
+import { BAG_CATS, BAG_SORTS, isNew, bagValue } from '../../bag-model.js?v=0.2.25';
+import { barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.25';
+import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.25';
+import { whole, gold } from '../../../render/format.js?v=0.2.25';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.25';
+import { glyphSvg } from '../../launcher.js?v=0.2.25';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.25';
+import { primaryOf, junkOf, confirmWords, huntLoot } from './state.js?v=0.2.25';
+import { pocketHtml, patchCount } from './pockets.js?v=0.2.25';
+import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.25';
+import { buryLine, buryBlock, buryingOf, buryRecipeOf } from './bury.js?v=0.2.25';
 
 const RULES = Object.freeze([['keep', 'Keep'], ['sell', 'Sell at the shop'], ['ignore', 'Leave it']]);
 export const KEYS = '/ search · arrows move · Enter use · Space select · Delete sell · L lock · Ctrl+A select all';

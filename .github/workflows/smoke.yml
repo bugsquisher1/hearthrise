@@ -3770,6 +3770,15 @@ jobs:
           node tools/mutant-gate.mjs node tests/catalogue-coherence.mjs --mutate
           node tests/catalogue-coherence.mjs
 
+      # THE STYLE LADDER (designer 2026-10-22, src/data/style-gear.js): every style's practice weapon has a
+      # rung a player can reach by skill 15 that beats it, the cloth line is made at tiers 1 and 2, and no
+      # made piece sells above its inputs' book. --mutate plants nine defects, each CAUGHT by its arm.
+      - name: Style gear - every way to fight climbs
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/style-gear.mjs --mutate
+          node tests/style-gear.mjs
+
       # HUNT SESSIONS DATA (ruling HR-2026-10-14, lane D): every bag supply is
       # crafted or sold, the action-bar vocabulary is the ruling's, every hunt
       # has a walk and a sensible bag, and every end reason has plain copy.

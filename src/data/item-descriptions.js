@@ -10,6 +10,7 @@ import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.29';
 import { CHAMPION_DESC } from './champions.js?v=0.2.29';
 import { DRINK_DESC } from './drinks.js?v=0.2.29';
 import { IMBUE_DESC } from './imbuements.js?v=0.2.29';
+import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.29';
 
 export const ITEM_DESC = {
   /* Mage = wand + spellbook; Healer = staff (Tyler 2026-10-19). */
@@ -32,6 +33,7 @@ export const ITEM_DESC = {
   ...CHAMPION_DESC,   // W0: the five field champions' relics
   ...DRINK_DESC,      // lane S2: the six mana drinks
   ...IMBUE_DESC,      // lane c-loot-loop: the imbuement slot's items
+  ...STYLE_GEAR_DESC, // lane c-style-gear: the two new tier-2 weapons
   'abyssal_greaves': 'Greaves quenched in abyssal pearl, warding legs beyond any forged steel',
   'abyssal_pearl': 'A cold, iridescent pearl dredged from the abyss, a rare Hunt spoil',
   'adept_belt': 'An adept\'s sash, finer cloth cinched for a caster steadier in their craft',

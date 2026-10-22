@@ -62,6 +62,9 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
 /* COAL AT ANY LEVEL (lane c-work-fixes, 2026-10-22): 2026-11-09-armour-class-catalogue.generated.sql is APPLIED
    history; hr_activities.coal_rock opens at Mining 1 (Tyler 2026-10-14: first tiers, coal included, at any
    level). Same full delete+insert replace. */
+/* THE STYLE LADDER (lane c-style-gear, designer 2026-10-22): 2026-11-23 is the v0.2.30 chain (history once applied);
+   Iron Hatchets and the Oak Crossbow (hr_items), the fifteen made rungs' recipes (hr_activities artisan rows), the
+   club ladder two-handed and three ladder values land in this forward file, after 2026-11-29: the same full replace. */
 const OUT = join(ROOT, 'supabase', 'migrations', '2026-11-23-loot-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational

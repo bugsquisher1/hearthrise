@@ -23,6 +23,8 @@
 //       bag; a call missing its ground sends nothing
 //   A2  an ended session stores its summary ONCE (a second envelope for it adds
 //       nothing) and the stored card carries the death explanation
+//   A3  a re-read that lands before the debounced residue put keeps the stored
+//       card (pending residue outlives a replacing envelope until it is put)
 // No ?v= on imports here (tests/**).
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, cpSync, rmSync } from 'node:fs';
@@ -145,8 +147,13 @@ async function runTests(M) {
 
   await t('S4 the summary reads the analyzer (own vs store) and, for a free character, the tally', () => {
     const an = { sessionMs: 120000, hero: { kills: 164, xp: 16311, gold: 2996, supplies: [{ item: 'wheat_bread', source: 'own', count: 12 }, { item: 'wheat_bread', source: 'store', count: 4 }],
-      loot: [{ item: 'rat_tail', count: 5 }, { item: 'cheese', count: 9 }] } };
+      loot: [{ item: 'rat_tail', count: 5 }, { item: 'cheese', count: 9 }], perHour: { xp: 489330, rawXp: null, gold: 89880, waste: null, balance: 71220 } } };
     const s = MD.buildSummary(ended(), an, ['Knight died.']);
+    /* Per hour is the server's figure (designer 2026-10-21): balance for everyone, raw XP only when sent (premium). */
+    eq([s.balanceH, s.rawXpH], [71220, null], 'a free character: the server balance per hour, no raw XP per hour');
+    const prem = MD.buildSummary(ended(), { ...an, hero: { ...an.hero, perHour: { ...an.hero.perHour, rawXp: 401000 } } }, []);
+    eq([prem.balanceH, prem.rawXpH], [71220, 401000], 'a premium character: balance and raw XP per hour');
+    eq(MD.sanitizeSummaries([prem])[0].rawXpH, 401000, 'the stored card keeps the per-hour figures');
     eq([s.ms, s.kills, s.xp, s.gold, s.reason, s.died], [120000, 164, 16311, 2996, 'died', 1], 'the analyzer numbers');
     eq(s.supplies, [['wheat_bread', 'own', 12], ['wheat_bread', 'store', 4]], 'bag vs store');
     eq(s.loot[0], ['cheese', 9], 'top loot first');
@@ -206,9 +213,28 @@ async function runTests(M) {
     eq(store.length, 1, 'one residue write for the ended session');
     ok(store[0][1][0].id === 'sess-9' && store[0][1][0].reason === 'died', 'the card is for the ended session');
     ok(store[0][1][0].deaths.some((d) => d.includes('3 ') && d.includes('hits')), 'the card carries the explanation: ' + JSON.stringify(store[0][1][0].deaths));
+    /* The put goes first, so the re-read below carries no card (this stub keeps nothing) and only the
+       recorder's own once-per-session rule can stop a second write. */
+    await cs.flushResidue();
     v = 9;
     await cs.load();
     eq(store.length, 1, 'a second envelope for the same session adds nothing');
+  });
+
+  await t('A3 a re-read before the residue put lands keeps the stored card (it never blinks out)', async () => {
+    const calls = [];
+    let v = 8;
+    const cs = sessionOn(calls, () => endedEnv(v));
+    const open = clone(FIX); open.version = 7; open.hunt = { session: { id: 'sess-9', hunt: 'mill_cellar', preset: 1, phase: 'hunting', bag: [], tally: {} }, pose: FIX.hunt.pose };
+    await cs._take(open, 'load');
+    ok(await cs.load(), 'the ended envelope applied');
+    ok(M.REC.summariesOf(cs).some((x) => x.id === 'sess-9'), 'the card is stored');
+    /* the server's copy (no client_state yet: the debounced put has not gone) replaces the record */
+    v = 9;
+    ok(await cs.load(), 'the re-read applied');
+    ok(M.REC.summariesOf(cs).some((x) => x.id === 'sess-9'), 'the re-read dropped the card the put had not sent yet');
+    ok(await cs.flushResidue(), 'the put goes');
+    ok(calls.some((c) => c.name === 'hr_put_client_state' && Array.isArray(c.args.p_patch.huntSummaries)), 'the put carries the card');
   });
 
   return fails;
@@ -225,6 +251,7 @@ async function load(base) {
 }
 
 const MUTANTS = [
+  { test: 'A3', file: SESSION, from: '    for (const [f, v] of Object.entries(this._pending)) this._record = withResidue(this._record, f, v);\n', to: '' },
   { test: 'D1', file: EXPLAIN, from: "parts.push(plural(g.amounts.length, g.who + ' hit', g.who + ' hits')", to: "parts.push(plural(1, g.who + ' hit', g.who + ' hits')" },
   { test: 'D1', file: EXPLAIN, from: "else if (to - lastHeal >= 3000)", to: "else if (false)" },
   { test: 'D1', file: EXPLAIN, from: "for (const o of who.others || []) if", to: "for (const o of []) if" },
@@ -238,6 +265,8 @@ const MUTANTS = [
   { test: 'S3', file: RESIDUE, from: "  huntSummaries: sanitizeSummaries,", to: "  huntSummaries: (v) => v," },
   { test: 'S4', file: MODEL, from: ".map((x) => [x.item, x.source, x.count])", to: ".map((x) => [x.item, 'own', x.count])" },
   { test: 'S4', file: MODEL, from: "loot.sort((a, b) => b[1] - a[1]);", to: '' },
+  { test: 'S4', file: MODEL, from: 'balanceH: ph ? ph.balance : null,', to: 'balanceH: ph ? ph.gold : null,' },
+  { test: 'S4', file: SUMMARIES, from: 'balanceH: num(v.balanceH), rawXpH: num(v.rawXpH),', to: 'balanceH: num(v.balanceH),' },
   { test: 'S5', file: MODEL, from: "hunt: summary.hunt, preset: summary.preset, hours: summary.hoursLimit,", to: "hunt: summary.hunt, preset: 0, hours: summary.hoursLimit," },
   { test: 'A1', file: SESSION, from: "p_hunt: a.hunt, p_bag: a.bag, p_preset: a.preset,", to: "p_hunt: a.hunt, p_bag: [], p_preset: a.preset," },
   { test: 'A1', file: SESSION, from: "if (!a || !ITEM.test(String(a.hunt)) ||", to: "if (!a ||" },

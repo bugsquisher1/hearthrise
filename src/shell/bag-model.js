@@ -14,12 +14,14 @@
 //   isNew / markSeen      the "new" mark (residue `bagSeen`, display only)
 //   statLines / compare   an item's stats in words, and the change against the worn one
 //   equipSlotFor(id, eq)  the slot an item would go into
+//   riteOf / cookOf       the bench recipe that spends a whole stack (Bury, Cook all)
 // ════════════════════════════════════════════════════════════════════════
 import { ITEMS } from '../data/items.js?v=0.2.28';
 import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.28';
 import { MONSTERS } from '../data/monsters.js?v=0.2.28';
 import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.28';
 import { expandItemSlot } from '../data/gathering.js?v=0.2.28';
+import { recipeInputs } from '../core/artisan.js?v=0.2.28';
 import { BAG_SEEN_MAX } from '../session/residue.js?v=0.2.28';
 import { itemName } from './widgets/bits.js?v=0.2.28';
 
@@ -120,17 +122,40 @@ let RITES = null;
 export function riteOf(id) {
   if (!RITES) {
     RITES = new Map();
-    for (const [skill, rows] of Object.entries(ARTISAN_RECIPES)) for (const r of rows || []) if (r && r.input && !r.output && !RITES.has(r.input)) RITES.set(r.input, { skill, recipe: r });
+    for (const [skill, rows] of Object.entries(ARTISAN_RECIPES)) for (const r of rows || []) if (r && r.input && !r.output && !RITES.has(r.input)) RITES.set(r.input, { skill, recipe: r, input: r.input, need: r.inputQty || 1 });
   }
   return RITES.get(id) || null;
 }
 
+let COOKS = null;
+/**
+ * The Cooking recipe that turns this one item into FOOD, or null: { skill:'cooking', recipe, input, need } (need = how many
+ * go into one dish). From the recipe rows: a cooking row with exactly one input whose output the bag files as food,
+ * not behind a recipe scroll. No id list, so a new raw meat or fish is cookable from the bag the day its row lands
+ * (playtest 10-22: Raw Wolf Meat sold for 1 gp because nothing said it cooks). The lowest-level row wins.
+ */
+export function cookOf(id) {
+  if (!COOKS) {
+    COOKS = new Map();
+    for (const r of ARTISAN_RECIPES.cooking || []) {
+      if (!r || !r.output || r.gated || kindOf(r.output) !== 'food') continue;
+      const ins = Object.entries(recipeInputs(r));
+      if (ins.length !== 1) continue;
+      const [input, need] = ins[0];
+      const had = COOKS.get(input);
+      if (!had || (r.req || 1) < (had.recipe.req || 1)) COOKS.set(input, { skill: 'cooking', recipe: r, input, need: Math.max(1, Number(need) || 1) });
+    }
+  }
+  return COOKS.get(id) || null;
+}
+
 /**
  * The stacks "Sell all loot" sells: monster loot, never an offering a skill trains on (bones are buried for Prayer,
- * ruling 2026-10-14; Brannoc 10-22: Sell all loot sold his bones). Ids, in the bag's order.
+ * ruling 2026-10-14; Brannoc 10-22: Sell all loot sold his bones) nor raw food that cooks (the same playtest's
+ * Raw Wolf Meat). Ids, in the bag's order.
  */
 export function lootToSell(items) {
-  return (items || []).filter((r) => kindOf(r.id) === 'loot' && !riteOf(r.id)).map((r) => r.id);
+  return (items || []).filter((r) => kindOf(r.id) === 'loot' && !riteOf(r.id) && !cookOf(r.id)).map((r) => r.id);
 }
 
 /**

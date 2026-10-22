@@ -12,8 +12,8 @@
 //                          after a confirmation that shows the total at the
 //                          server's bids; LOCKED stacks are never named
 //   lock, loot rule        hr_item_lock, hr_loot_rule_set
-//   bury (and stop)        the engine's `set_activity` on the item's Prayer recipe
-//                          (bury.js): the server buries the stack and pays Prayer
+//   bury / cook (and stop) the engine's `set_activity` on the item's Prayer rite or
+//                          Cooking recipe (bury.js): the server spends the stack and pays
 // While one is in flight every action control is off; the counts change only
 // when the re-read envelope replaces the bag and the worn set.
 //
@@ -36,7 +36,7 @@ import { stateOf, scratchOf, seenOf, confirmFor, junkOf, setPref } from './state
 import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.28';
 import { askElsewhere } from './elsewhere.js?v=0.2.28';
 import { skillsOf } from '../../../session/item-sections.js?v=0.2.28';
-import { buryRecipeOf, buryLabel, buryBlock, buryingOf, startBury, stopBury } from './bury.js?v=0.2.28';
+import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury } from './bury.js?v=0.2.28';
 
 export const INVENTORY_EVENTS = Object.freeze(['input', 'keydown', 'contextmenu', 'pointerdown', 'pointerup', 'pointercancel',
   'dragstart', 'dragover', 'dragleave', 'drop', 'dragend', 'mouseover', 'mouseout']);
@@ -108,9 +108,9 @@ function doPrimary(st, id, repaint) {
   else askSell(st, [id], 'Sell', repaint);
 }
 
-/* Bury the whole stack (bury.js): refused here only for what the screen already knows (a hunt, the level, a bury running). */
+/* Bury or cook the whole stack (bury.js): refused here only for what the screen already knows (a hunt, the level, one running). */
 function doBury(st, id, repaint) {
-  const why = buryingOf(st.cs) ? 'Already burying. Stop it first.' : buryBlock(st.cs, buryRecipeOf(id));
+  const why = buryBlock(st.cs, buryRecipeOf(id));
   if (why) { st.sc.menu = null; st.sc.msg = why; repaint(); return; }
   startBury(st.cs, st.sc, id, (fn, busy, done) => send(st, repaint, fn, busy, done), repaint);
 }
@@ -165,7 +165,7 @@ function openMenu(ctx, body, st, id, at, repaint) {
   if (k === 'gear') h += item('m-equip', 'Equip', !!equipSlotFor(id, st.eq));
   if (k === 'food') h += item('m-eat', 'Eat', true);
   const br = buryRecipeOf(id);
-  if (br) h += item('m-bury', buryLabel(br, st.qty.get(id) || 0), !buryingOf(st.cs) && !buryBlock(st.cs, br));
+  if (br) h += item('m-bury', buryLabel(br, st.qty.get(id) || 0), !buryBlock(st.cs, br));
   if (barKind(id)) h += item('m-bar', bi >= 0 ? 'On the bar (key ' + barKeyLabel(bi) + ')' : 'Put on the bar', !!st.bar && bi < 0);
   h += item('m-sell', locked ? 'Sell (unlock it first)' : 'Sell…', !locked && !!st.shop && st.shop.bids.has(id));
   h += item('m-lock', locked ? 'Unlock' : 'Lock', !!st.rules);

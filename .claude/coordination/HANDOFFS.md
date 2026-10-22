@@ -1,5 +1,15 @@
 # Handoffs
 
+### 2026-10-22 · ART DIRECTOR (lane/b-hunts-detail) → BACKEND / SYSTEMS · the Lane C half of the Hunts page
+
+The client half (B #1, A #1, A #5, B #3) is built on lane/b-hunts-detail from data the envelope already carries. What it could not show needs server fields (Lane C first, then a B lane wires them):
+1. **Every setup's bar** in `hr_hunt_presets_view` (first four actions; supply slots with item, own count and store row): Go as shows icons and Before you go lines for a setup that is not on yet.
+2. **A #2** `hunt_density.preset` (the setup per ground): Go as pre-picks it.
+3. **C #1** finder listings carry their own ground + seat level + leader flag: today `p_hunt` matches the ground a party last hunted.
+4. **C #5** seat readiness reasons in the party view: Before you go becomes one line per seat for a leader.
+5. **A #6** `hunt_bests.supply_h`: the gold runway line.
+6. (Systems, client) `refusal.js` reads `item_id` only; `hr_hunt_preset_apply` sends `item` with `missing_item`.
+
 ### 2026-10-20 05:10 UTC · PC COORDINATOR → CLOUD SESSION · PRIORITY: the live engine
 
 **Tyler (05:05 UTC): "That live engine is the most crucial piece for the rest of this to work. Stay on top of the cloud session and make sure it doesn't stray."**

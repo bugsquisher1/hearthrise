@@ -4,6 +4,18 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-10-22 · art-director · the Hunts page shows what the envelope cannot yet say (lane b-hunts-detail)
+
+Building the master-detail Hunts window (designer plan 2026-10-22, B #1 / A #1 / A #5 / B #3) on v0.2.31:
+
+| # | Found | Affected | Action |
+|---|---|---|---|
+| 1 | `hunt_presets` (hr_hunt_presets_view) carries name, gear and restock, never a bar. Go as can show the bar's first four actions only for the setup in use, and Before you go can only say another setup's supplies "show once it is on". | `hr_hunt_presets_view`, `src/shell/hunt-go.js` | Lane C: project each setup's first four actions and its supply slots (item, own count, store row) |
+| 2 | `hr_hunt_party_finder(p_hunt)` matches `hunt_parties.hunt_id` = the ground the party LAST hunted. Find a party now sends the ground (as briefed), so a newly listed party that has not hunted yet does not show under a ground filter. | finder RPC, `party-finder.js` | Lane C, plan C #1 (a listing carries its own ground, seat levels, leader) |
+| 3 | `hr_hunt_preset_apply` refuses `missing_item` with `item`, but `src/session/refusal.js` reads only `item_id`, so the words cannot name the missing piece. | `refusal.js` / the RPC | Systems: read `item` too, or send `item_id` |
+| 4 | The fresh hero's live default bar holds Flame Strike with no Fire Rune (designer report #7). Before you go now says it on the page: "Runes: no Fire Rune left. Flame Strike will not fire." | starter bar data | Designer (already on the board) |
+| 5 | Every alpha-windows mutant re-runs the whole page suite (87 s a run here after AW-24..28). 68 mutants on two CI shards would be ~48 min a job; sharded to three (in-page-12 added, ci-shape re-registered). | `smoke.yml`, `tests/alpha-windows.mjs` | none; a per-block mutant scope would cut it further |
+
 ## 2026-10-14 · qa-engineer · the core loop plays end to end on b580; three feel findings (lane b-loop-gate)
 
 `tests/core-loop.mjs` (nightly, `.github/workflows/nightly-loop.yml`) plays four loops on the real edge

@@ -1,5 +1,31 @@
 # Art Director — running log
 
+## 2026-10-22 - the Hunts window becomes a list and a page (lane/b-hunts-detail, from release/v0.2.31)
+
+Built the designer's 10-22 plan items B #1, A #1, A #5 and B #3, client only, from fields the
+envelope already carries. Lessons worth keeping:
+
+- **A lineup on one ground line beats portraits.** "Who lives here" draws each creature's style-1
+  idle frame from the world atlases (`src/render/creature-sprite.js`), cropped to its opaque box
+  down to the anchor row, at x2, every stand the tallest one's height. The rat reads small, the
+  Rat King big: size says danger (ART_DIRECTION §4) with no words. The painted portraits in
+  `monster-art.js` are retired style and stay off this screen. The stand height must add its own
+  padding and line (`calc(var(--stand-h) + 3px)`, border-box is global here) or the tallest
+  creature pokes 1 px out; the AW-24 "inside its stand" rule now catches that.
+- **Articles break on proper names.** "carried by the Old Grayjaw" / "the Rook the Poacher" — a
+  label ("Carrier: Rat King") reads right for every row with no per-name data.
+- **Colour the verdict, not the line.** The band reads ink-3 with only the fit word toned
+  (green in range, red above / far above); above the floor the red warning line speaks once.
+- **A master-detail page must reset scroll on a new pick** and keep the list sticky, or the
+  next ground opens mid-page beside an empty column.
+- **The sticky foot must sit at minus the scroll container's padding** (`bottom: -12px`) or text
+  scrolls visibly under the primary.
+- Every alpha-windows mutant re-runs the whole suite; my rules added ~20 s a run, so the CI
+  --mutate went to three shards (in-page-12).
+- Before you go surfaced a real data gap in its first render: the fresh hero's bar holds Flame
+  Strike with no Fire Rune. The page now says "Flame Strike will not fire" (a rune spell is not a
+  stop, so it is not red).
+
 
 ## 2026-09-13 - the combat seed empty state (branch worktree agent-af099abeec2f9cb0a, commit 94c6d401)
 

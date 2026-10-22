@@ -2,7 +2,7 @@
 // src/shell/windows/shop.js — THE SHOP: A STALL LEDGER (WORLD_SHELL §4).
 //
 // Two tabs on one ledger, every price the SERVER's (`shop` section):
-//   Buy     the tools, one list (Tyler 2026-10-20: the Shop keeps gear and tools and sells
+//   Buy     gear, tools and seeds, a list each (Tyler 2026-10-20: the Shop keeps gear and tools and sells
 //           NO supplies; food, drink and ammo come from the action bar at the
 //           store price per use), each with the server's price, what is in the
 //           bag, a count and a Buy button that shows the total for that count
@@ -24,6 +24,16 @@ import { showTip, hideTip } from './item-tip.js?v=0.2.28';
 
 const TABS = Object.freeze([['buy', 'Buy'], ['sell', 'Sell']]);
 const QTYS = Object.freeze([1, 5, 10, 25, 50, 100]);
+/* The Buy tab's lists, by the server's offer kind: [kind, heading, the one line under it]. The gear line says
+   why it is there (designer 2026-10-22: Defense trains only in armour; monsters drop the big pieces). */
+const BUY_GROUPS = Object.freeze([
+  ['gear', 'Gear', 'Gloves and belts are armour: wear one and Defense trains. Helmets, bodies, legs and boots come from monsters.'],
+  ['tool', 'Tools', ''],
+  /* The seed counter (designer 2026-10-22): one seed grows one crop on a farm plot; the crop's Farming level gates the planting, not the purchase. */
+  ['seed', 'Seeds', 'One seed grows one crop on a farm plot. Each crop needs its Farming level to plant.'],
+]);
+/* A piece of gear is bought one or two at a time (two rings); tools by the stack. */
+const QTYS_BY_KIND = Object.freeze({ gear: Object.freeze([1, 2]) });
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { tab: 'buy', qty: {}, confirm: null, pending: false, msg: '' }; SCRATCH.set(cs, s); } return s; };
 
@@ -33,7 +43,9 @@ export function renderShop() {
     + '<div class="hw-tabs" role="tablist">' + TABS.map(([id, l], i) => '<button type="button" role="tab" class="hw-tab" data-hs-act="tab" data-tab="' + id + '" aria-selected="' + (i === 0) + '">' + esc(l) + '</button>').join('') + '</div>'
     + '<p class="hw-cap"><span class="hw-gold"></span><span class="hw-shop-note"></span></p>'
     + '<section class="hw-pane" data-pane="buy">'
-    + '<h3 class="hw-ledger-head hw-buy-head">Tools</h3><ul class="hw-ledger hw-buy-list"></ul>'
+    + BUY_GROUPS.map(([kind, head, note]) => '<h3 class="hw-ledger-head hw-buy-head" data-kind="' + kind + '">' + esc(head) + '</h3>'
+      + (note ? '<p class="hw-cap hw-buy-note" data-kind="' + kind + '">' + esc(note) + '</p>' : '')
+      + '<ul class="hw-ledger hw-buy-list" data-kind="' + kind + '"></ul>').join('')
     + '<p class="hh-empty hw-buy-none">The shop has no prices for you yet.</p></section>'
     + '<section class="hw-pane" data-pane="sell">'
     + '<div class="hw-tools"><button type="button" class="hh-tool" data-hs-act="sell-loot"></button></div>'
@@ -45,28 +57,33 @@ export function renderShop() {
 }
 
 function offerRow(ctx, o) {
+  const qtys = QTYS_BY_KIND[o.kind] || QTYS;
   return element(ctx.doc, '<li class="hw-line" data-hs-act="line" data-item="' + esc(o.item) + '"><span class="hw-ico">' + itemIconHtml(ctx.glyphs, o.item) + '</span>'
     + '<span class="hw-line-name"><b>' + esc(itemName(o.item)) + '</b><small></small></span>'
-    + '<select class="hh-select hw-qty" data-hs-act="qty" data-offer="' + esc(o.offer) + '" aria-label="How many">' + QTYS.map((n) => '<option value="' + n + '">' + n + '</option>').join('') + '</select>'
+    + '<select class="hh-select hw-qty" data-hs-act="qty" data-offer="' + esc(o.offer) + '" aria-label="How many">' + qtys.map((n) => '<option value="' + n + '">' + n + '</option>').join('') + '</select>'
     + '<button type="button" class="hh-tool" data-hs-act="buy" data-offer="' + esc(o.offer) + '"></button></li>');
 }
 
 function patchBuy(root, st, ctx) {
-  /* The server's offers as the session reads them: the tools (item-sections.js shopOf drops any other kind). */
+  /* The server's offers as the session reads them: gear and tools (item-sections.js shopOf drops any other kind),
+     each kind under its own heading, in the server's order. */
   const offers = st.shop ? st.shop.offers : [];
-  cls(root.querySelector('.hw-buy-head'), 'is-on', offers.length > 0);
-  rows(root.querySelector('.hw-buy-list'), offers, {
-    key: (o) => o.offer,
-    build: (o) => offerRow(ctx, o),
-    patch: (li, o) => {
-      const n = st.sc.qty[o.offer] || 1;
-      text(li.querySelector('small'), gold(o.price) + ' each · ' + whole(st.qty.get(o.item) || 0) + ' in the bag');
-      prop(li.querySelector('select'), 'value', String(n));
-      const b = li.querySelector('[data-hs-act="buy"]');
-      text(b, 'Buy ' + n + ' · ' + gold(o.price * n));
-      prop(b, 'disabled', st.sc.pending || (st.gold !== null && st.gold < o.price * n));
-    },
-  });
+  for (const [kind] of BUY_GROUPS) {
+    const mine = offers.filter((o) => o.kind === kind);
+    for (const el of root.querySelectorAll('.hw-buy-head[data-kind="' + kind + '"], .hw-buy-note[data-kind="' + kind + '"]')) cls(el, 'is-on', mine.length > 0);
+    rows(root.querySelector('.hw-buy-list[data-kind="' + kind + '"]'), mine, {
+      key: (o) => o.offer,
+      build: (o) => offerRow(ctx, o),
+      patch: (li, o) => {
+        const n = st.sc.qty[o.offer] || 1;
+        text(li.querySelector('small'), gold(o.price) + ' each · ' + whole(st.qty.get(o.item) || 0) + ' in the bag');
+        prop(li.querySelector('select'), 'value', String(n));
+        const b = li.querySelector('[data-hs-act="buy"]');
+        text(b, 'Buy ' + n + ' · ' + gold(o.price * n));
+        prop(b, 'disabled', st.sc.pending || (st.gold !== null && st.gold < o.price * n));
+      },
+    });
+  }
   cls(root.querySelector('.hw-buy-none'), 'is-on', !offers.length);
 }
 

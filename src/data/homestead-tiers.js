@@ -10,6 +10,11 @@
 //   tools/gen-gold-ladders.mjs    the worker and farm-land caps and tier gates
 // This file is the source; change a rung here and regenerate.
 //
+// NO ASHLAR (designer 2026-10-22): the Stonemason skill and its quarried stone, blocks and ashlar were cut on
+// 2026-10-14 (src/data/stonecraft.js). The three properties that asked for ashlar ask for what the priced rows in
+// src/data/shops.js already charge: the Manor and the Keep iron fittings and timber beams, the Castle keystones.
+// tools/gen-unlock-offers.mjs now refuses a property cost that differs from its shop row (rooms were already held).
+//
 // PURE ESM DATA. No imports, no functions, no DOM. Node and Deno both.
 // ════════════════════════════════════════════════════════════════════════
 
@@ -66,7 +71,8 @@ export const PROPERTY_TIERS = Object.freeze([
       "willow_plank": 35,
       "iron_ore": 40,
       "silk_thread": 8,
-      "ashlar": 6
+      "iron_fitting": 6,
+      "timber_beam": 6
     },
     "rooms": [
       "library"
@@ -83,7 +89,8 @@ export const PROPERTY_TIERS = Object.freeze([
       "steel_bar": 35,
       "big_bones": 20,
       "bear_pelt": 5,
-      "ashlar": 12
+      "iron_fitting": 12,
+      "timber_beam": 12
     },
     "rooms": [
       "shrine",
@@ -101,7 +108,7 @@ export const PROPERTY_TIERS = Object.freeze([
       "mithril_bar": 40,
       "rune_bar": 8,
       "dragon_scale": 4,
-      "ashlar": 25
+      "keystone": 6
     },
     "rooms": []
   }

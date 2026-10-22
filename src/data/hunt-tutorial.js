@@ -179,14 +179,21 @@ const groundHunts = () => Array.from(new Set(Object.values(HUNT_GROUNDS).map((g)
   .filter((h) => HUNT_INDEX[h] && HUNT_INDEX[h].staged !== true).sort((a, b) => HUNT_INDEX[a].band[0] - HUNT_INDEX[b].band[0]);
 
 /**
- * The goal line after the guide, or null (nothing left to name). `facts`: { charLevel, role, skillLevel }
- * (skillLevel: the role's skill's level, or null when unknown). Answers { id, title, text }; the id
+ * The goal line after the guide, or null (nothing left to name). `facts`: { charLevel, role, skillLevel, defenseXp }
+ * (skillLevel: the role's skill's level, or null when unknown; defenseXp: the server's Defense XP, or null when
+ * unknown). Answers { id, title, text }; the id
  * changes whenever the text does (the hunt top bar redraws on a new id).
  */
 export function nextGoal(facts) {
   if (!facts || !Number.isInteger(facts.charLevel)) return null;
   const lines = [];
   const ids = ['goal'];
+  /* Defense at 0 XP means no armour worn (Tyler 2026-10-18: it trains only in armour). The fresh-hero play hit 117
+     kills like that; the Shop's gloves and belts are the cheapest armour (designer 2026-10-22, the outfitter). */
+  if (facts.defenseXp === 0) {
+    lines.push('Your Defense is not training: it rises only while you wear armour. The Shop sells gloves and belts.');
+    ids.push('armour');
+  }
   const next = groundHunts().find((h) => HUNT_INDEX[h].band[0] > facts.charLevel);
   if (next) {
     const g = Object.values(HUNT_GROUNDS).find((r) => r.hunt === next);

@@ -22,8 +22,8 @@
 // EXTRACTED FROM
 //   room              40  src/legacy.js
 //   plot               4  src/legacy.js
-//   seed              13  src/legacy.js
-//   equip             11  src/legacy.js
+//   seed               4  src/legacy.js (9 seed rows moved to the seed counter, 2026-10-22)
+//   equip              8  src/legacy.js (5 rows moved to the outfitter, 2026-10-22)
 //   property           5  src/features/homestead.js
 //   worker             6  src/features/workers.js
 //   character_slot     3  src/multi-character.js (slot 1 is a starter: owned, never sold, 2026-10-26)
@@ -56,7 +56,7 @@
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPPLY_SHOP_OFFERS } from './supply-basics.js?v=0.2.28';
+import { SUPPLY_SHOP_OFFERS, SHOP_SOLD_KINDS } from './supply-basics.js?v=0.2.28';
 import { ITEMS } from './items.js?v=0.2.28';
 
 export const SHOPS_DIGEST = "3dd62b831e08bf6b8180fdfa08e203c68eea083199dfdb44a4082ccd36552e07";
@@ -66,7 +66,10 @@ function supplyOffer(s) {
     grant: [{ kind: "item", id: s.item, amount: 1 }], repeatable: true };
 }
 
-/** Every offer whose price is fully known as data. */
+/** Every offer whose price is fully known as data. NOT every offer is SOLD: `shop_buy` sells only the rows a
+    Shop tab lists (the supply-basics.js tool and gear rows; supabase/functions/hr-accrue/catalogue.js offerRefusal
+    refuses the rest `not_listed`, lane/b-gold-sinks 2026-10-22). The legacy equip.* and seed.* rows stay as the
+    vendor's price list (their half-price caps) and as the items' catalogued price, never as a door. */
 export const SHOP_OFFERS = [
   {
     id: "character_slot.2", table: "character_slot",
@@ -134,24 +137,10 @@ export const SHOP_OFFERS = [
     repeatable: true,
   },
   {
-    id: "equip.bronze_belt", table: "equip",
-    name: "Bronze Belt",
-    cost: [{ kind: "currency", id: "gold", amount: 300 }],
-    grant: [{ kind: "item", id: "bronze_belt", amount: 1 }],
-    repeatable: true,
-  },
-  {
     id: "equip.bronze_sword", table: "equip",
     name: "Bronze Sword",
     cost: [{ kind: "currency", id: "gold", amount: 100 }],
     grant: [{ kind: "item", id: "bronze_sword", amount: 1 }],
-    repeatable: true,
-  },
-  {
-    id: "equip.copper_ring", table: "equip",
-    name: "Copper Ring",
-    cost: [{ kind: "currency", id: "gold", amount: 350 }],
-    grant: [{ kind: "item", id: "copper_ring", amount: 1 }],
     repeatable: true,
   },
   {
@@ -162,24 +151,10 @@ export const SHOP_OFFERS = [
     repeatable: true,
   },
   {
-    id: "equip.hunter_necklace", table: "equip",
-    name: "Hunter Necklace",
-    cost: [{ kind: "currency", id: "gold", amount: 500 }],
-    grant: [{ kind: "item", id: "hunter_necklace", amount: 1 }],
-    repeatable: true,
-  },
-  {
     id: "equip.leather_boots", table: "equip",
     name: "Leather Boots",
     cost: [{ kind: "currency", id: "gold", amount: 250 }],
     grant: [{ kind: "item", id: "leather_boots", amount: 1 }],
-    repeatable: true,
-  },
-  {
-    id: "equip.leather_gloves", table: "equip",
-    name: "Leather Gloves",
-    cost: [{ kind: "currency", id: "gold", amount: 225 }],
-    grant: [{ kind: "item", id: "leather_gloves", amount: 1 }],
     repeatable: true,
   },
   {
@@ -194,13 +169,6 @@ export const SHOP_OFFERS = [
     name: "Stone Maul",
     cost: [{ kind: "currency", id: "gold", amount: 140 }],
     grant: [{ kind: "item", id: "stone_maul", amount: 1 }],
-    repeatable: true,
-  },
-  {
-    id: "equip.traveler_cape", table: "equip",
-    name: "Traveler Cape",
-    cost: [{ kind: "currency", id: "gold", amount: 400 }],
-    grant: [{ kind: "item", id: "traveler_cape", amount: 1 }],
     repeatable: true,
   },
   {
@@ -520,13 +488,6 @@ export const SHOP_OFFERS = [
     repeatable: true,
   },
   {
-    id: "seed.carrot_seed", table: "seed",
-    name: "Carrot Seed",
-    cost: [{ kind: "currency", id: "gold", amount: 100 }],
-    grant: [{ kind: "item", id: "carrot_seed", amount: 10 }],
-    repeatable: true,
-  },
-  {
     id: "seed.coarse_whetstone", table: "seed",
     name: "Coarse Whetstone",
     cost: [{ kind: "currency", id: "gold", amount: 60 }],
@@ -534,66 +495,10 @@ export const SHOP_OFFERS = [
     repeatable: true,
   },
   {
-    id: "seed.emberfruit_seed", table: "seed",
-    name: "Emberfruit Seed",
-    cost: [{ kind: "currency", id: "gold", amount: 900 }],
-    grant: [{ kind: "item", id: "emberfruit_seed", amount: 3 }],
-    repeatable: true,
-  },
-  {
-    id: "seed.goldenroot_seed", table: "seed",
-    name: "Goldenroot Seed",
-    cost: [{ kind: "currency", id: "gold", amount: 450 }],
-    grant: [{ kind: "item", id: "goldenroot_seed", amount: 3 }],
-    repeatable: true,
-  },
-  {
-    id: "seed.moonbloom_seed", table: "seed",
-    name: "Moonbloom Seed",
-    cost: [{ kind: "currency", id: "gold", amount: 1600 }],
-    grant: [{ kind: "item", id: "moonbloom_seed", amount: 2 }],
-    repeatable: true,
-  },
-  {
-    id: "seed.potato_seed", table: "seed",
-    name: "Potato Seed",
-    cost: [{ kind: "currency", id: "gold", amount: 100 }],
-    grant: [{ kind: "item", id: "potato_seed", amount: 5 }],
-    repeatable: true,
-  },
-  {
-    id: "seed.pumpkin_seed", table: "seed",
-    name: "Pumpkin Seed",
-    cost: [{ kind: "currency", id: "gold", amount: 150 }],
-    grant: [{ kind: "item", id: "pumpkin_seed", amount: 3 }],
-    repeatable: true,
-  },
-  {
     id: "seed.rune_blank", table: "seed",
     name: "Blank Rune",
     cost: [{ kind: "currency", id: "gold", amount: 300 }],
     grant: [{ kind: "item", id: "rune_blank", amount: 18 }],
-    repeatable: true,
-  },
-  {
-    id: "seed.tomato_seed", table: "seed",
-    name: "Tomato Seed",
-    cost: [{ kind: "currency", id: "gold", amount: 150 }],
-    grant: [{ kind: "item", id: "tomato_seed", amount: 5 }],
-    repeatable: true,
-  },
-  {
-    id: "seed.turnip_seed", table: "seed",
-    name: "Turnip Seed",
-    cost: [{ kind: "currency", id: "gold", amount: 50 }],
-    grant: [{ kind: "item", id: "turnip_seed", amount: 10 }],
-    repeatable: true,
-  },
-  {
-    id: "seed.wheat_seed", table: "seed",
-    name: "Wheat Seed",
-    cost: [{ kind: "currency", id: "gold", amount: 150 }],
-    grant: [{ kind: "item", id: "wheat_seed", amount: 10 }],
     repeatable: true,
   },
   {
@@ -633,11 +538,12 @@ export const SHOP_OFFERS = [
     grant: [{ kind: "unlock", id: "worker", amount: 1 }],
     note: "and every hire after this one",
   },
-  /* The Shop sells tools, never supplies (Tyler 2026-10-20); SUPPLY_PRICE_LIST is the vendor cap's price list, never sold. */
-  ...SUPPLY_SHOP_OFFERS.filter((s) => s.kind === "tool").map(supplyOffer),
+  /* The Shop sells tools and the outfitter's gear, never supplies (Tyler 2026-10-20; designer 2026-10-22);
+     SUPPLY_PRICE_LIST is the vendor cap's price list, never sold. */
+  ...SUPPLY_SHOP_OFFERS.filter((s) => SHOP_SOLD_KINDS.includes(s.kind)).map(supplyOffer),
 ];
 
-export const SUPPLY_PRICE_LIST = Object.freeze(SUPPLY_SHOP_OFFERS.filter((s) => s.kind !== "tool").map(supplyOffer));
+export const SUPPLY_PRICE_LIST = Object.freeze(SUPPLY_SHOP_OFFERS.filter((s) => !SHOP_SOLD_KINDS.includes(s.kind)).map(supplyOffer));
 
 /** Where each currency lives server-side. `null` = it does not, yet. */
 export const SHOP_CURRENCIES = {
@@ -677,15 +583,16 @@ export const SHOP_TABLES = [
     "origin": "src/legacy.js",
     "anchor": "const SEED_SHOP=[",
     "spends_at": "legacy.js buyShopItem(id, qty, cost)",
-    "note": "the price is per BUNDLE of qty, not per unit",
-    "count": 13
+    "note": "the price is per BUNDLE of qty, not per unit; a vendor price list only since 2026-10-22: shop_buy refuses every seed row not_listed (no Shop tab lists it). The nine crop seeds moved to the seed counter (supply-basics.js kind 'seed', designer 2026-10-22, lane/b-orphan-sources) at the same unit price; the four left (air rune, bronze arrows, coarse whetstone, blank rune) are their items' vendor price only",
+    "count": 4
   },
   {
     "table": "equip",
     "origin": "src/legacy.js",
     "anchor": "const EQUIP_SHOP=[",
     "spends_at": "legacy.js buyShopItem(id, qty, cost)",
-    "count": 11
+    "note": "the Bronze Belt, Copper Ring, Hunter Necklace, Leather Gloves and Traveler Cape rows moved to the outfitter (supply-basics.js, designer 2026-10-22); the eight left, like every seed row, are a vendor price list only: shop_buy refuses them not_listed (catalogue.js offerRefusal, 2026-10-22)",
+    "count": 8
   },
   {
     "table": "property",
@@ -722,9 +629,9 @@ export const SHOP_TABLES = [
     "table": "supply",
     "origin": "src/data/supply-basics.js",
     "anchor": "export const SUPPLY_SHOP_OFFERS",
-    "spends_at": "hr-accrue shop_buy (the tools only; Tyler 2026-10-20: the Shop sells no supplies)",
-    "note": "hand-authored rows (lane S2); the server's hr_shop_supply_offers is generated from them; food, drink and ammo are SUPPLY_PRICE_LIST, never offers",
-    "count": SUPPLY_SHOP_OFFERS.filter((s) => s.kind === "tool").length
+    "spends_at": "hr-accrue shop_buy (the tools and the outfitter's gear; Tyler 2026-10-20: the Shop sells no supplies)",
+    "note": "hand-authored rows (lane S2; the outfitter, designer 2026-10-22); the server's hr_shop_supply_offers is generated from them; food, drink and ammo are SUPPLY_PRICE_LIST, never offers",
+    "count": SUPPLY_SHOP_OFFERS.filter((s) => SHOP_SOLD_KINDS.includes(s.kind)).length
   }
 ];
 

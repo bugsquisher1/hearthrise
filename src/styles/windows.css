@@ -29,6 +29,8 @@
 .hw-ledger { margin: 0 0 6px; padding: 0; list-style: none; }
 .hw-ledger-head { display: none; margin: 10px 2px 4px; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
 .hw-ledger-head.is-on { display: block; }
+.hw-cap.hw-buy-note { display: none; margin-bottom: 6px; }
+.hw-cap.hw-buy-note.is-on { display: block; }
 .hw-line { display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 2px 0; border-top: 1px solid var(--line-soft); }
 .hw-line .hw-ico { width: 40px; height: 40px; }
 .hw-line .hw-ico .hh-icon { width: 32px; height: 32px; }

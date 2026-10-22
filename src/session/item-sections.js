@@ -20,7 +20,7 @@
 //   bag_rules     { locked: [item], loot: { item: keep|sell|ignore } }   (its `restock` is not read:
 //                 restock targets drove the retired one-tap refill)
 //   shop          { offers: [{ offer, item, kind, price }], bids: { item: gold each } }
-//                   (offers: the tools only; the Shop sells no supplies, Tyler 2026-10-20)
+//                   (offers: tools, gear and seeds; the Shop sells no supplies, Tyler 2026-10-20)
 //   hunt.loot     [{ item, count }]  what this hunt has picked up (not premium-gated)
 //   hunt_presets  [{ preset, name, action_set, gear: { slot: item } }]
 //   role          { id, weapon }      the hunt role the worn weapon gives
@@ -29,6 +29,7 @@
 //   blessings      { held: [tier], permille, free_until, tiers: [{ tier, permille, price, held }] }
 // ════════════════════════════════════════════════════════════════════════
 import { huntBagOf } from './hunt-sections.js?v=0.2.28';
+import { SHOP_SOLD_KINDS } from '../data/supply-basics.js?v=0.2.28';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -105,8 +106,9 @@ export function rulesOf(cs) {
   return { locked, loot };
 }
 
-/* What the Shop sells: gear and tools, never supplies (Tyler 2026-10-20). An offer of another kind is dropped. */
-const KINDS = Object.freeze(['tool']);
+/* What the Shop sells: gear, tools and seeds, never supplies (Tyler 2026-10-20; the outfitter's gear and the seed
+   counter, designer 2026-10-22). One list, the data's (supply-basics.js SHOP_SOLD_KINDS). Another kind is dropped. */
+const KINDS = SHOP_SOLD_KINDS;
 
 /** `shop`: the server's offers and prices and its bid for each bag item. Null = no prices yet. */
 export function shopOf(cs) {

@@ -34,6 +34,8 @@ const WORDS = Object.freeze({
   not_equippable: 'That item cannot be worn.',
   wrong_slot: 'That item does not go in that slot.',
   level_too_low: 'Your skill is too low to use that yet.',
+  /* hr_apply's equip gate (reqSkill/reqLv against the server's skills). */
+  requirement_not_met: 'Your skill is too low to wear that yet. Nothing was put on.',
   no_bar: 'Start a hunt to set up the action bar.',
   bar_full: 'The action bar is full. Empty a slot first.',
   not_for_bar: 'Only food, drinks and ammo go on the action bar.',

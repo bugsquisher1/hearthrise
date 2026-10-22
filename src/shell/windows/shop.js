@@ -6,7 +6,9 @@
 //           NO supplies; food, drink and ammo come from the action bar at the
 //           store price per use), each with the server's price, what is in the
 //           bag, a count and a Buy button that shows the total for that count
-//           before it is pressed. ONE `shop_buy` { offer, qty }.
+//           before it is pressed. ONE `shop_buy` { offer, qty }. Right after a gear
+//           purchase, "Equip upgrades" offers to put on what is now better (ONE
+//           `equip`, src/shell/widgets/upgrade-line.js).
 //   Sell    every unlocked bag stack the shop bids on, loot first, one Sell per
 //           line and "Sell all loot" — each a confirmation with the total, then
 //           ONE `vendor_sell_many`. Locked stacks are listed as kept.
@@ -21,6 +23,7 @@ import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.28';
 import { kindOf, sellPlan, lootToSell } from '../bag-model.js?v=0.2.28';
 import { runIntent } from '../intent-words.js?v=0.2.28';
 import { showTip, hideTip } from './item-tip.js?v=0.2.28';
+import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.28';
 
 const TABS = Object.freeze([['buy', 'Buy'], ['sell', 'Sell']]);
 const QTYS = Object.freeze([1, 5, 10, 25, 50, 100]);
@@ -33,7 +36,7 @@ const BUY_GROUPS = Object.freeze([
 /* A piece of gear is bought one or two at a time (two rings); tools by the stack. */
 const QTYS_BY_KIND = Object.freeze({ gear: Object.freeze([1, 2]) });
 const SCRATCH = new WeakMap();
-const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { tab: 'buy', qty: {}, confirm: null, pending: false, msg: '' }; SCRATCH.set(cs, s); } return s; };
+const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { tab: 'buy', qty: {}, confirm: null, pending: false, msg: '', wear: false, wearing: null }; SCRATCH.set(cs, s); } return s; };
 
 /** The skeleton (built once per opening). */
 export function renderShop() {
@@ -44,7 +47,7 @@ export function renderShop() {
     + BUY_GROUPS.map(([kind, head, note]) => '<h3 class="hw-ledger-head hw-buy-head" data-kind="' + kind + '">' + esc(head) + '</h3>'
       + (note ? '<p class="hw-cap hw-buy-note" data-kind="' + kind + '">' + esc(note) + '</p>' : '')
       + '<ul class="hw-ledger hw-buy-list" data-kind="' + kind + '"></ul>').join('')
-    + '<p class="hh-empty hw-buy-none">The shop has no prices for you yet.</p></section>'
+    + '<p class="hh-empty hw-buy-none">The shop has no prices for you yet.</p>' + upgradeLineHtml() + '</section>'
     + '<section class="hw-pane" data-pane="sell">'
     + '<div class="hw-tools"><button type="button" class="hh-tool" data-hs-act="sell-loot"></button></div>'
     + '<ul class="hw-ledger hw-sell-list"></ul><p class="hh-empty hw-sell-none">Nothing in your bag that the shop buys.</p>'
@@ -83,6 +86,8 @@ function patchBuy(root, st, ctx) {
     });
   }
   cls(root.querySelector('.hw-buy-none'), 'is-on', !offers.length);
+  /* Right after a gear purchase: put on what is now better, without four menus (designer, gold-sinks 2026-10-22). */
+  patchUpgradeLine(root, st.sc.wear ? upgradeOf(st.cs) : { picks: [] }, st.sc.wear, st.sc.pending);
 }
 
 function patchSell(root, st, ctx) {
@@ -156,14 +161,17 @@ renderShop.act = function actShop(ctx, body, action, ev, t) {
     return false;
   }
   if (ev.type !== 'click') return false;
-  if (action === 'tab') { sc.tab = t.getAttribute('data-tab'); sc.confirm = null; sc.msg = ''; repaint(); return true; }
+  if (action === 'tab') { sc.tab = t.getAttribute('data-tab'); sc.confirm = null; sc.msg = ''; sc.wear = false; repaint(); return true; }
   if (action === 'buy') {
     const offer = t.getAttribute('data-offer');
+    const o = shop ? shop.offers.find((x) => x.offer === offer) : null;
     const before = goldOf(cs);
+    sc.wear = false;
     runIntent(sc, repaint, () => cs.edgeIntent('shop_buy', { offer, qty: sc.qty[offer] || 1 }), 'Buying…',
-      () => { const after = goldOf(cs); return before !== null && after !== null ? 'Paid ' + gold(before - after) + '.' : 'Bought.'; });
+      () => { sc.wear = !!o && o.kind === 'gear'; const after = goldOf(cs); return before !== null && after !== null ? 'Paid ' + gold(before - after) + '.' : 'Bought.'; });
     return true;
   }
+  if (action === 'equip-upgrades') { equipUpgrades(cs, sc, repaint, upgradeOf(cs)); return true; }
   if (action === 'sell' || action === 'sell-loot') {
     const items = bagOf(cs) || [];
     const rules = rulesOf(cs);

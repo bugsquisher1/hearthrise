@@ -75,6 +75,77 @@ const cases = {
     M.damage.landHit(inst, sc, m, r, 9, null, null);
     return !r.alive && r.hp === 0 && !('downMs' in r) ? null : 'the killed hero is not simply dead: ' + JSON.stringify({ alive: r.alive, hp: r.hp, downMs: r.downMs });
   },
+  /* RULING K7 (Tyler 2026-10-18): a blow at a hero meets its armour in a FIXED order: absorb (heavy), then
+     resistances, then ward (light), then the shield and HP. 100 into absorb 500 + ward 3: 100 -> 50 -> 47
+     (ward before absorb would give 48). Every landed blow deals at least 1; an unarmoured hero takes it whole. */
+  'armour-order': (M) => {
+    const inst = fight(M, []);
+    const mon = E(M, 9, 0, 13, 3, 1, { kind: 'rat' });
+    const hit = (mit, n) => { const t = H(M, 2, 12, 3, 'tank', { hp: 1000, maxHp: 1000 }); t.mit = mit; return M.damage.hurt(inst, t, n, mon, null, null).dmg; };
+    const got = hit({ dodgePm: 0, absorbPm: 500, ward: 3, keepPm: 0 }, 100);
+    if (got !== 47) return 'absorb 500 + ward 3 on a 100 blow dealt ' + got + ', want 47 (absorb, then ward)';
+    if (hit({ dodgePm: 0, absorbPm: 0, ward: 50, keepPm: 0 }, 10) !== 1) return 'a blow the ward swallows still deals 1';
+    return hit(null, 100) === 100 ? null : 'an unarmoured hero took ' + hit(null, 100) + ' of 100';
+  },
+  /* THE TOTAL CAP (ruling K7, core-model.js ARMOUR_MITIGATION.capPm): dodge, absorb and ward together never take
+     more than capPm of the damage coming at a hero. The profile holds absorb under it beside a dodge, and a landed
+     blow keeps keepPm of itself whatever the ward; a profile built from armour no hero could wear still obeys it. */
+  'armour-cap': (M) => {
+    const cap = M.coreModel.ARMOUR_MITIGATION.capPm;
+    const inst = fight(M, []);
+    const mon = E(M, 9, 0, 13, 3, 1, { kind: 'rat' });
+    const huge = M.mitigation.mitigationOf({ heavy: 100000, medium: 100000, light: 100000 }, 1);
+    if (huge.dodgePm > cap) return 'dodge ' + huge.dodgePm + ' passes the cap ' + cap;
+    /* the profile the sheet shows honours it too: dodge and absorb together leave at least 1000 - cap */
+    if ((1000 - huge.dodgePm) * (1000 - huge.absorbPm) < (1000 - cap) * 1000 - 1000) return 'the profile shows dodge ' + huge.dodgePm + ' + absorb ' + huge.absorbPm + ', past the cap ' + cap;
+    for (const n of [10, 100, 1000]) {
+      const t = H(M, 2, 12, 3, 'tank', { hp: 100000, maxHp: 100000 }); t.mit = huge;
+      const landed = M.damage.hurt(inst, t, n, mon, null, null).dmg;
+      /* the average blow that reaches HP, over dodged and landed blows alike */
+      const expected = ((1000 - huge.dodgePm) * landed) / 1000;
+      if (expected < (n * (1000 - cap)) / 1000 - 1) return 'a ' + n + ' blow: ' + landed + ' lands past dodge ' + huge.dodgePm + ', under the cap of ' + (n * (1000 - cap)) / 1000;
+    }
+    return null;
+  },
+  /* MIXED PIECES BLEND BY SLOT (ruling K7): each worn piece's armour value feeds its own weight's line and no
+     other (plate absorbs, leather dodges, cloth wards), and a mixed set is exactly the sum of its parts. */
+  'armour-blend': (M) => {
+    const I = M.ITEMS, mit = M.mitigation;
+    const pick = (cls, slot) => Object.keys(I).find((k) => I[k].armourClass === cls && I[k].slot === slot && I[k].tier === 1 && I[k].defB > 0);
+    const plate = pick('plate', 'body'), leather = pick('leather', 'pants'), cloth = pick('cloth', 'helmet');
+    if (!plate || !leather || !cloth) return 'fixture: no tier-1 plate body / leather pants / cloth helmet';
+    const v = mit.armourValues({ body: plate, pants: leather, helmet: cloth, weapon: 'practice_sword', shield: 'practice_shield' }, I);
+    if (v.heavy !== I[plate].defB || v.medium !== I[leather].defB || v.light !== I[cloth].defB) return 'armour values ' + JSON.stringify(v);
+    const p = mit.mitigationOf(v, 8);
+    const only = (w) => mit.mitigationOf(Object.assign({ heavy: 0, medium: 0, light: 0 }, { [w]: v[w] }), 8);
+    if (!(p.absorbPm > 0 && p.dodgePm > 0 && p.ward > 0)) return 'a mixed set lost a line: ' + JSON.stringify(p);
+    if (p.absorbPm !== only('heavy').absorbPm || p.dodgePm !== only('medium').dodgePm || p.ward !== only('light').ward) {
+      return 'a mixed set is not the sum of its pieces: ' + JSON.stringify([p, only('heavy'), only('medium'), only('light')]);
+    }
+    if (only('heavy').dodgePm || only('heavy').ward || only('medium').absorbPm || only('light').absorbPm) return 'a weight fed another line';
+    return mit.mitigationOf(v, 60).absorbPm < p.absorbPm ? null : 'the same plate at Level 60 absorbs no less than at 8';
+  },
+  /* DODGE, the chain's first step (ruling K7): a blow at a hero with dodge misses outright (a `miss` event marked
+     dodge, no damage) on its permille chance; a status tick is never dodged. */
+  'armour-dodge': (M) => {
+    const inst = fight(M, []);
+    const mon = E(M, 9, 0, 13, 3, 1, { kind: 'rat' });
+    const t = H(M, 2, 12, 3, 'tank', { hp: 100, maxHp: 100 });
+    t.mit = { dodgePm: 1000, absorbPm: 0, ward: 0, keepPm: 1000 };
+    const sc = sc2(M, 3);
+    const r = M.damage.landHit(inst, sc, mon, t, 9, null, null);
+    if (t.hp !== 100 || !sc.events.some((e) => e.type === 'miss' && e.t === 2 && e.dodge === true)) return 'a certain dodge landed: hp ' + t.hp + ' ' + JSON.stringify(sc.events);
+    if (!r || r.dmg !== 0) return 'a dodge answered ' + JSON.stringify(r);
+    M.damage.landHit(inst, sc, null, t, 4, null, { id: 'bleed', dot: true });
+    if (t.hp !== 96) return 'a status tick was dodged: hp ' + t.hp;
+    /* the chance is permille: 300 dodges about three blows in ten */
+    const s2 = sc2(M, 7);
+    const u = H(M, 3, 12, 4, 'tank', { hp: 1e9, maxHp: 1e9 });
+    u.mit = { dodgePm: 300, absorbPm: 0, ward: 0, keepPm: 0 };
+    for (let i = 0; i < 400; i++) M.damage.landHit(inst, s2, mon, u, 1, null, null);
+    const n = s2.events.filter((e) => e.type === 'miss' && e.dodge === true).length;
+    return n >= 90 && n <= 150 ? null : 'dodge 300 turned aside ' + n + ' of 400 blows';
+  },
   /* RO-19: ranged heroes shoot while moving; Melee only standing on a tile. */
   'ranged-fires-on-move': (M) => {
     const mk = (role, x) => {
@@ -104,12 +175,26 @@ const cases = {
 const mutants = [
   { name: 'the element is ignored', case: 'weak-resist-immune', edits: [[D, '    ? elementWithFloor(elementOn(target, element), source.role, partySize(inst)) : elementOn(target, element);', '    ? 1000 : 1000;']] },
   { name: 'immune still takes damage', case: 'weak-resist-immune', edits: [[D, '  if (el === 0) return { dmg: 0, absorbed: 0, killed: false, immune: true };', '']] },
-  { name: 'defence is ignored', case: 'def-reduction', edits: [[D, "  if (target.side === 'mon') n -= defenceReduction(MONSTERS[target.kind]);\n", '']] },
+  { name: 'defence is ignored', case: 'def-reduction', edits: [[D, " - defenceReduction(MONSTERS[target.kind]);", ';']] },
   { name: 'the dealer\'s stance is ignored', case: 'stance-dealt-and-taken', edits: [[D, '  n = Math.floor((n * stanceOf(source).dealt) / 1000);\n', '']] },
   { name: 'the target\'s stance is ignored', case: 'stance-dealt-and-taken', edits: [[D, '  n = Math.floor((n * stanceOf(target).taken) / 1000);\n', '']] },
   { name: 'the shield is ignored', case: 'shield-absorbs-first', edits: [[D, '  if (absorbed) target.shield -= absorbed;', '  if (false) target.shield -= absorbed;']] },
-  { name: 'no minimum', case: 'min-1', edits: [[D, '  n = Math.max(1, n);', '  n = Math.max(0, n);']] },
-  { name: 'dmg forgets its ability', case: 'kill-hand-off', edits: [[D, "      ability: (ability && ability.id) || 'basic', element: element || null, ...(crit ? { crit: true } : {}) }));", '      element: element || null, ...(crit ? { crit: true } : {}) }));']] },
+  { name: 'no minimum', case: 'min-1', edits: [[D, ': Math.max(1, n);', ': Math.max(0, n);']] },
+  { name: 'ward before absorb', case: 'armour-order', edits: [['src/core/mitigation.js',
+    '  let x = raw - Math.floor((raw * (m.absorbPm || 0)) / 1000);\n  x = Math.floor((x * el) / 1000);\n  x -= Math.max(0, m.ward || 0);',
+    '  let x = raw - Math.max(0, m.ward || 0);\n  x -= Math.floor((x * (m.absorbPm || 0)) / 1000);\n  x = Math.floor((x * el) / 1000);']] },
+  { name: 'a hero\'s armour is skipped', case: 'armour-order', edits: [[D, "n = target.side === 'hero' ? mitigate(n, el, target.mit) : Math.max(1, n);", 'n = Math.max(1, n);']] },
+  { name: 'a ward-swallowed blow deals 0', case: 'armour-order', edits: [['src/core/mitigation.js', '  return Math.max(1, floor, x);', '  return Math.max(0, floor, x);']] },
+  { name: 'no keep floor', case: 'armour-cap', edits: [['src/core/mitigation.js', '  return Math.max(1, floor, x);', '  return Math.max(1, x);']] },
+  { name: 'absorb ignores the dodge beside it', case: 'armour-cap', edits: [['src/core/mitigation.js', 'Math.min(1000 - keepPm, curve(M.absorb, nat(v.heavy), L))', 'curve(M.absorb, nat(v.heavy), L)']] },
+  { name: 'dodge passes the cap', case: 'armour-cap', edits: [['src/core/mitigation.js', 'const dodgePm = Math.min(cap, curve(M.dodge, nat(v.medium), L));', 'const dodgePm = curve(M.dodge, nat(v.medium), L);']] },
+  { name: 'leather feeds absorb', case: 'armour-blend', edits: [['src/data/core-model.js', "leather: 'medium'", "leather: 'heavy'"]] },
+  { name: 'armour ignores the Level', case: 'armour-blend', edits: [['src/core/mitigation.js', '(p + row.k * Math.max(1, level))', '(p + row.k)']] },
+  { name: 'a piece counts by slot, not its armour', case: 'armour-blend', edits: [['src/core/mitigation.js', 'if (w) out[w] += nat(it.defB);', 'if (w) out[w] += 1;']] },
+  { name: 'no dodge roll', case: 'armour-dodge', edits: [[D, '  if (dodgePm > 0 && sc.rng.chance(dodgePm / 1000)) {', '  if (false) {']] },
+  { name: 'a status tick is dodged', case: 'armour-dodge', edits: [[D, ' && !(ability && ability.dot) ?', ' ?']] },
+  { name: 'dodge read as percent', case: 'armour-dodge', edits: [[D, '  if (dodgePm > 0 && sc.rng.chance(dodgePm / 1000)) {', '  if (dodgePm > 0 && sc.rng.chance(dodgePm / 100)) {']] },
+  { name: 'dmg forgets its ability', case: 'kill-hand-off', edits: [[D, "      ability: (ability && ability.id) || 'basic', element: element || null, ...(crit ? { crit: true } : {}),", '      element: element || null, ...(crit ? { crit: true } : {}),']] },
   { name: 'a killed hero gets back up', case: 'kill-hand-off', edits: [['src/core/hunt/pull-cycle.js', "  if (u.side === 'mon') { u.deadMs = 0; return; }\n  u.spot = null;", "  if (u.side === 'mon') { u.deadMs = 0; return; }\n  u.alive = true; u.hp = 1; u.spot = null;"]] },
   { name: 'Melee swings on the move', case: 'ranged-fires-on-move', edits: [[D, '    if (!row || (row.melee && !atRest(u)) || !inRange(inst, u, t)) continue;', '    if (!row || !inRange(inst, u, t)) continue;']] },
   { name: 'no swing interval', case: 'swing-every-interval', edits: [[D, 'function restart(u) { u.swingLeftMs = COMBAT_BALANCE.tickMs; }', 'function restart(u) { u.swingLeftMs = 0; }']] },

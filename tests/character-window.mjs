@@ -42,6 +42,7 @@ import { readFile, mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
+import { harnessFail, judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -49,7 +50,7 @@ const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeo
 
 /* The three sections, as hr_character_sheet_view / hr_outfit_view / hr_death_log_view answer them. */
 const COMBAT = { role: 'melee_dps', weapon_type: 'sword', max_mana: 60, move_speed: 3200, damage: { min: 1, max: 17 },
-  accuracy_pct: 74.5, crit_pct: 4.5, defence: 23, regen_pct: 101.9, set: null, xp: { perks: 0.02, buffs: 0, combat: 0 } };
+  accuracy_pct: 74.5, crit_pct: 4.5, defence: 23, dodge_pct: 12.5, absorb_pct: 31, ward: 4, regen_pct: 101.9, set: null, xp: { perks: 0.02, buffs: 0, combat: 0 } };
 function withSections(env, o = {}) {
   /* The Level is read off state.level_xp on the shared curve (321,000 = Level 21, CORE_MODEL.md §2). */
   env.state = Object.assign({}, env.state, { level_xp: 321000 });
@@ -174,7 +175,7 @@ async function checks(overrides, shots) {
         if (tabs.join('|') !== 'Character|Outfit|Deaths') fails.push('CW-1 the tabs are ' + tabs.join('|'));
         /* CW-2: exactly the section's numbers. */
         const L = await lines(page);
-        const want = { Damage: '1–17', 'Hit chance': '74.5% against no armour', 'Critical chance': '4.5%', Defence: '23', 'Max mana': '60', 'Max health': '220',
+        const want = { Damage: '1–17', 'Hit chance': '74.5% against no armour', 'Critical chance': '4.5%', Defence: '23', Dodge: '12.5% of blows', Absorb: '31% of each blow', Ward: '4 off each blow', 'Max mana': '60', 'Max health': '220',
           Regeneration: '+1.9% (Prayer)', 'Home and renown': '+2%', Total: '+2%' };
         for (const [k, v] of Object.entries(want)) if (L[k] !== v) fails.push('CW-2 ' + k + ' reads ' + JSON.stringify(L[k]) + ', the server sent ' + v);
         if ('Prayer ward' in L || 'Gear' in L || 'Food and drink' in L) fails.push('CW-3 a zero line is drawn: ' + JSON.stringify(L));
@@ -194,6 +195,8 @@ async function checks(overrides, shots) {
         await page.evaluate(() => { window.__dmg = document.querySelector('[data-hs-win="character"] [data-combat="damage"] dd'); });
         s.env.character_sheet.combat.damage.max = 31;
         await push(page, s);
+        /* The re-read and the repaint can land after push's fixed 500 ms on a loaded box: wait for the number (4 s). */
+        await wait(page, () => { const d = document.querySelector('[data-hs-win="character"] [data-combat="damage"] dd'); return !!d && d.textContent === '1–31'; }, null, 4000);
         const same = await page.evaluate(() => { const d = document.querySelector('[data-hs-win="character"] [data-combat="damage"] dd'); return { same: d === window.__dmg, t: d.textContent }; });
         if (same.t !== '1–31' || !same.same) fails.push('CW-2 after a new envelope the damage reads ' + same.t + (same.same ? '' : ' on a rebuilt node'));
         /* CW-4: try on an owned outfit, save: ONE intent. */
@@ -246,7 +249,7 @@ async function checks(overrides, shots) {
         await push(page, s);
         await page.waitForTimeout(1000);
         const L = await lines(page);
-        for (const k of ['Damage', 'Hit chance', 'Critical chance', 'Defence', 'Speed', 'Total']) if (k in L) fails.push('CW-3 a stale sheet still draws ' + k + ' = ' + L[k]);
+        for (const k of ['Damage', 'Hit chance', 'Critical chance', 'Defence', 'Dodge', 'Absorb', 'Ward', 'Speed', 'Total']) if (k in L) fails.push('CW-3 a stale sheet still draws ' + k + ' = ' + L[k]);
         if (L['Max health'] !== '220') fails.push('CW-3 the server-owned max health is gone with the stale sheet: ' + JSON.stringify(L));
         /* Max mana is a vital like max health (Tyler 10-19): the server's hunt vitals carry it when the sheet is stale. */
         if (L['Max mana'] !== '60') fails.push('CW-3 max mana went with the stale sheet instead of reading the server vitals: ' + JSON.stringify(L));
@@ -360,7 +363,8 @@ async function checks(overrides, shots) {
       await ctx.close();
     }
   } catch (e) {
-    fails.push('CW-x a step failed: ' + String(e && e.message).split('\n')[0]);
+    /* a step that threw is HARNESS, never a rule (2026-10-22, tests/_mutant-verdict.mjs) */
+    fails.push(harnessFail('a page step', e));
   } finally {
     await browser.close();
     server.close();
@@ -371,6 +375,7 @@ async function checks(overrides, shots) {
 const MUTANTS = [
   ['the vitals no longer wrap under the identity', 'src/styles/character.css', '.hw-cs-vitals { flex: 1 1 260px; min-width: 0;', '.hw-cs-vitals { flex: none; grid-template-columns: auto auto !important;'],
   ['the damage is derived in the browser', 'src/shell/windows/character/sheet.js', "c && c.damage ? c.damage.min + '–' + c.damage.max : null", "c && c.damage ? '1–' + (Math.floor(c.defence * 0.35) + 2) : null"],
+  ['the absorb is derived in the browser', 'src/shell/windows/character/sheet.js', "c && c.absorbPct !== null ? c.absorbPct + '% of each blow' : null", "c && c.absorbPct !== null ? Math.round(c.defence * 1.5) + '% of each blow' : null"],
   ['a stale sheet keeps the last numbers', 'src/session/character-sections.js', '    combat: s.fresh === true ? combatOf(s.combat) : null,', '    combat: (globalThis.__lc = s.fresh === true ? combatOf(s.combat) : (globalThis.__lc || null)),'],
   ['an absent stat draws a zero', 'src/shell/windows/character/sheet.js', "line(root, '[data-vital=\"mana\"]', hv.manaMax !== null ? whole(hv.manaMax) : null);", "line(root, '[data-vital=\"mana\"]', whole(hv.manaMax || 0));"],
   ['a wand reads (staff) again', 'src/data/item-uses.js', "  if (it.type === 'weapon') return WEAPON_WORD[roleWeaponOf(it)] || 'weapon';", "  if (it.type === 'weapon') return ({ magic: 'staff' })[it.weaponType] || WEAPON_WORD[it.weaponType] || 'weapon';"],
@@ -400,19 +405,17 @@ async function main() {
       : 'character-window: rows match the server; stats only from the server section; nothing that does not exist is drawn; one sheet ask per version; outfit save is one intent; the death log is the server\'s; skills split with named unlocks' + (shots ? ' (shots in ' + shots + ')' : ''));
     process.exit(fails.length ? 1 : 0);
   }
-  const clean = await checks(null, null);
-  if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
-  console.log('  ✓ clean control green');
-  let bad = 0;
+  const clean = await cleanControl(() => checks(null, null));
+  console.log(clean.line);
+  if (clean.code) process.exit(clean.code);
+  const counts = { caught: 0, harness: 0, escaped: 0 };
   for (const [name, file, from, to] of MUTANTS) {
     const text = await readFile(join(ROOT, file), 'utf8');
-    if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
-    const fails = await checks({ [file]: text.replace(from, to) }, null);
-    if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
-    else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+    if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
+    console.log(report(name, await judge(() => checks({ [file]: text.replace(from, to) }, null)), counts));
   }
-  console.log(bad ? 'character-window --mutate: ' + bad + ' escaped' : 'character-window --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught');
-  process.exit(bad ? 1 : 0);
+  console.log(exitOf(counts) ? 'character-window --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'character-window --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught, each by a named rule');
+  process.exit(exitOf(counts));
 }
 
 main();

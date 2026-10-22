@@ -47,7 +47,7 @@ export const START_CURRENCY = Object.freeze({
   hearthTokens: 0,          // the IAP bond. NEVER minted by a PvE path.
   hp: 150,
   bankCap: 100,
-  farmPlots: 4,
+  farmPlots: 2,             // the Camp's plots (homestead-tiers.js PROPERTY_TIERS[0]); the ladder grants more
 });
 
 /* Skill XP. Absent = 0: a new character starts every skill at level 1 and its
@@ -92,18 +92,17 @@ export const START_SKILL_XP = Object.freeze({});
    5.53 -> 6.11, Wolf Cub 14.09 -> 16.39. The bridge is ~26 goblin kills, not
    ~29: still past `first_blood` and a first bounty, still gone in session one.
 
-   `shrimp` stays (8 -> 10) because it is the INPUT half of that lesson: the
-   `first_cook` quest asks for 5 dishes and `cook_shrimp` is the level-1 recipe.
-   A kit with only cooked food would hand the player the output and hide the
-   verb.
+   `shrimp` stays (8 -> 10) because it is the INPUT half of that lesson:
+   `cook_shrimp` is the level-1 recipe. A kit with only cooked food would hand
+   the player the output and hide the verb.
 
    ── W0 · NO DEAD SEED IN THE KIT (Designer, coherence audit 2026-10-09) ─────
    The kit used to carry `carrot_seed: 3`. Carrots need Farming 10 and a plot
    upgrade, so on day one they were an item the player could neither plant nor
    use. Those three seeds are turnips now (5 -> 8), which a fresh character can
-   plant on the camp's two plots the first minute. Carrot seeds arrive later as
-   the reward for the first harvest (`farmhand`, src/data/goal-catalogue.js),
-   when Farming 10 is in reach. Server half: 2026-10-16-first-day-seeds.sql.
+   plant on the camp's two plots the first minute. Carrot seeds come from the
+   seed shop once Farming 10 is in reach (the old first-harvest quest reward was
+   cut with the quests, 2026-10-22).
 
    ── W0 · EVERY STYLE STARTS SUPPLIED (coherence audit Top-10 #7, 2026-10-09) ──
    An empty ammo slot on a bow or a staff now counts as "run dry" (x0.25 max

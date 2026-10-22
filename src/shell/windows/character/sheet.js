@@ -14,25 +14,35 @@
 // Stats the engine does not have (leech, element protections, a character
 // XP bar) have no line at all.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_ROLES } from '../../../data/hunt-roles.js?v=0.2.30';
-import { characterSheetOf, heroVitalsOf } from '../../../session/character-sections.js?v=0.2.30';
-import { nameOf, bagCapOf } from '../../../session/item-sections.js?v=0.2.30';
-import { staminaOf } from '../../../session/hunt-sections.js?v=0.2.30';
-import { roleIdOf } from '../../../session/party-sections.js?v=0.2.30';
-import { text, cls, style, attr } from '../../../render/paint.js?v=0.2.30';
-import { whole, hoursMinutes } from '../../../render/format.js?v=0.2.30';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.30';
-import { combatLedger } from '../skills.js?v=0.2.30';
+import { HUNT_ROLES } from '../../../data/hunt-roles.js?v=0.2.31';
+import { characterSheetOf, heroVitalsOf } from '../../../session/character-sections.js?v=0.2.31';
+import { nameOf, bagCapOf } from '../../../session/item-sections.js?v=0.2.31';
+import { staminaOf } from '../../../session/hunt-sections.js?v=0.2.31';
+import { roleIdOf } from '../../../session/party-sections.js?v=0.2.31';
+import { text, cls, style, attr } from '../../../render/paint.js?v=0.2.31';
+import { whole, hoursMinutes } from '../../../render/format.js?v=0.2.31';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.31';
+import { combatLedger } from '../skills.js?v=0.2.31';
 
 /* [key, label] of each number line; a line shows only when its value exists. */
 const VITALS = Object.freeze([['hp', 'Max health'], ['mana', 'Max mana'], ['regen', 'Regeneration'], ['speed', 'Speed'], ['cap', 'Capacity'], ['stamina', 'Stamina']]);
-const COMBAT = Object.freeze([['damage', 'Damage'], ['accuracy', 'Hit chance'], ['crit', 'Critical chance'], ['defence', 'Defence']]);
+const COMBAT = Object.freeze([['damage', 'Damage'], ['accuracy', 'Hit chance'], ['crit', 'Critical chance'], ['defence', 'Defence'],
+  ['dodge', 'Dodge'], ['absorb', 'Absorb'], ['ward', 'Ward']]);
+/* What each armour line means, for its tooltip (ruling K7: Heavy = Absorb, Medium = Dodge, Light = Ward;
+   a blow meets them in that order: dodge, absorb, resistances, ward, then health). */
+const COMBAT_TIPS = Object.freeze({
+  defence: 'Your Defense skill, shield and cape make monsters miss more often.',
+  dodge: 'Medium armour: the chance a blow misses you completely.',
+  absorb: 'Heavy armour: the share of every blow that lands which your armour takes.',
+  ward: 'Light armour: a flat amount taken off every blow that lands. Best against many small blows.',
+});
 const XP_SOURCES = Object.freeze([['perks', 'Home and renown'], ['buffs', 'Food and drink'], ['combat', 'Combat skills only']]);
 /* What Level is, for its tooltip (CORE_MODEL.md §1-2). */
 const LEVEL_TIP = 'Level rises only from monsters you defeat. Each Level adds max health and max mana; '
   + 'heavy armour adds more health, light armour more mana. Dying costs a little Level XP, never a Level.';
 
-const lineHtml = ([k, l], kind) => '<div class="hw-cs-line" data-' + kind + '="' + k + '"><dt>' + esc(l) + '</dt><dd></dd></div>';
+const lineHtml = ([k, l], kind, tips) => '<div class="hw-cs-line" data-' + kind + '="' + k + '"'
+  + (tips && tips[k] ? ' title="' + esc(tips[k]) + '"' : '') + '><dt>' + esc(l) + '</dt><dd></dd></div>';
 const signedPct = (f) => (f > 0 ? '+' : '') + (Math.round(f * 1000) / 10) + '%';
 
 /** The Character tab's skeleton. */
@@ -46,7 +56,7 @@ export function sheetHtml() {
     + '<dl class="hw-cs-vitals">' + VITALS.map((r) => lineHtml(r, 'vital')).join('') + '</dl></header>'
     + '<div class="hw-cs-cols"><div class="hw-cs-col">' + combatLedger() + '</div>'
     + '<div class="hw-cs-col">'
-    + '<h3 class="hw-cs-head">Combat</h3><dl class="hw-cs-list hw-cs-combat">' + COMBAT.map((r) => lineHtml(r, 'combat')).join('') + '</dl>'
+    + '<h3 class="hw-cs-head">Combat</h3><dl class="hw-cs-list hw-cs-combat">' + COMBAT.map((r) => lineHtml(r, 'combat', COMBAT_TIPS)).join('') + '</dl>'
     + '<p class="hw-cs-note hw-cs-wait"></p>'
     + '<h3 class="hw-cs-head hw-cs-bhead">Bestiary</h3><div class="hw-cs-best"><span class="hw-skill-bar" role="meter" aria-label="Bestiary completion" aria-valuemin="0" aria-valuemax="100"><i class="hw-skill-fill"></i></span><small class="hw-cs-btext"></small></div>'
     + '<h3 class="hw-cs-head hw-cs-xhead">Experience bonuses</h3><dl class="hw-cs-list hw-cs-xp">' + XP_SOURCES.map((r) => lineHtml(r, 'xp')).join('')
@@ -100,6 +110,10 @@ export function patchSheet(body, ctx, drawPortrait, asked) {
   line(root, '[data-combat="accuracy"]', c && c.accuracyPct !== null ? c.accuracyPct + '% against no armour' : null);
   line(root, '[data-combat="crit"]', c && c.critPct !== null ? c.critPct + '%' : null);
   line(root, '[data-combat="defence"]', c && c.defence !== null ? whole(c.defence) : null);
+  /* The armour's mitigation (ruling K7), the engine's numbers at this Level. */
+  line(root, '[data-combat="dodge"]', c && c.dodgePct !== null ? c.dodgePct + '% of blows' : null);
+  line(root, '[data-combat="absorb"]', c && c.absorbPct !== null ? c.absorbPct + '% of each blow' : null);
+  line(root, '[data-combat="ward"]', c && c.ward !== null ? whole(c.ward) + ' off each blow' : null);
   const wait = root.querySelector('.hw-cs-wait');
   text(wait, !sh ? '' : c ? '' : 'Working out your combat numbers…');
   cls(wait, 'is-on', !!sh && !c);

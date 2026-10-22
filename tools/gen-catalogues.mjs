@@ -56,7 +56,17 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
 /* MOSSLIGHT GLADE (lane c-ground-16-31, 2026-10-21): the glade's five imbuement items and Rook's Whistle (hr_items),
    and its five monsters' activities. THE v0.2.28 INTEGRATION collapsed the never-applied 11-08 and 11-12 files into
    ONE forward file after the APPLIED 11-09, carrying its armour weights: the same full delete+insert replace. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2026-11-18-loot-catalogue.generated.sql');
+/* THE START KIT'S PLOTS (v0.2.30 integration, designer 2026-10-22): 2026-11-18 is the v0.2.29 chain (history once
+   applied); the kit's farm_plots 4 -> 2, the Camp's cap (homestead-tiers.js PROPERTY_TIERS[0].plots; catalogue-
+   coherence C9), lands in this forward file: the same full delete+insert replace. */
+/* COAL AT ANY LEVEL (lane c-work-fixes, 2026-10-22): 2026-11-09-armour-class-catalogue.generated.sql is APPLIED
+   history; hr_activities.coal_rock opens at Mining 1 (Tyler 2026-10-14: first tiers, coal included, at any
+   level). Same full delete+insert replace. */
+/* THE STYLE LADDER (lane c-style-gear, designer 2026-10-22): 2026-11-23 is the v0.2.30 chain (history once applied);
+   Iron Hatchets and the Oak Crossbow (hr_items), the fifteen made rungs' recipes (hr_activities artisan rows), the
+   club ladder two-handed and three ladder values land in this forward file, after 2026-11-29: the same full replace. */
+/* v0.2.31 integration: ONE forward file per generator after the newest APPLIED (2026-11-20): the kit's plots, coal at any level and the style ladder in one file. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2026-11-22-loot-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already
@@ -76,8 +86,11 @@ const OUT_ITEM_BUFFS = join(ROOT, 'supabase', 'migrations',
 /* DEMOLITION REGEN (2026-10-14, Master Design Reference §9): the room-perk
    catalogue is re-emitted into a NEW, LAST-registered file; the 2026-09-13 file
    stays in the chain. */
+/* ROOM PURPOSE REGEN (2026-10-22 game-designer ruling): the Library's runeSpeed,
+   the Garden's farmPlots and the Trophy Room's trophyMounts; again a NEW,
+   LAST-registered file, the applied 2026-10-23 one stays in the chain. */
 const OUT_ROOM_PERKS = join(ROOT, 'supabase', 'migrations',
-  '2026-10-23-demolition-room-perks.generated.sql');
+  '2026-11-30-room-perks-catalogue.generated.sql');   // v0.2.31 integration: ONE forward file per generator after the newest APPLIED (2026-11-20) (after house-home)
 
 const imp = (rel) => import(pathToFileURL(join(ROOT, rel)).href);
 
@@ -735,26 +748,22 @@ begin
   select count(*) into v_n from public.hr_runes;
   if v_n <> ${runes.length} then raise exception 'hr_runes has % rows, generator emitted ${runes.length}', v_n; end if;
 
-  -- NO GRANT SOURCE NAMES A DELETED ITEM (Security R2, 2026-10-15). A quest
-  -- reward, a hunt kill bound's drop or vendor value (N3, refilled just before
-  -- this file by 2026-10-23-demolition-hunt-catalogue.generated.sql), a dungeon
-  -- loot row, a Quartermaster offer or a login-cycle day naming an id hr_items
-  -- no longer holds fails with unknown_item; it is refused here instead. hr_unlock_offers is refilled
-  -- AFTER this file and asserts the same of its own rows in its own §4
-  -- (tools/gen-unlock-offers.mjs).
+  -- NO GRANT SOURCE NAMES A DELETED ITEM (Security R2, 2026-10-15). A hunt
+  -- kill bound's drop, a dungeon loot row or a Quartermaster offer naming an id
+  -- hr_items no longer holds fails with unknown_item; it is refused here
+  -- instead. (The quest rewards and the login cycle were cut with the
+  -- old-client rewards, 2026-10-22.) hr_hunt_vendor_value is NOT read here: the
+  -- hunt-sessions catalogue refills it AFTER this file (it needs this file's new
+  -- items first) and its own §4 asserts every vendor value names an hr_items row,
+  -- so an item this file deletes (the Fox Companion, 2026-10-22) leaves the
+  -- vendor table in that same pair. hr_unlock_offers is refilled AFTER this file
+  -- and asserts the same of its own rows in its own §4 (tools/gen-unlock-offers.mjs).
   select count(*) into v_bad from (
-    select k as id from public.hr_quest_rewards q, jsonb_object_keys(coalesce(q.items, '{}'::jsonb)) k
-    union all
-    select k from public.hr_hunt_kill_bounds b, jsonb_object_keys(coalesce(b.drops, '{}'::jsonb)) k
-    union all
-    select item_id from public.hr_hunt_vendor_value
+    select k as id from public.hr_hunt_kill_bounds b, jsonb_object_keys(coalesce(b.drops, '{}'::jsonb)) k
     union all
     select item_id from public.hr_dungeon_loot
     union all
     select item_id from public.hr_qm_offers
-    union all
-    select k from jsonb_array_elements(public.hr_login_catalogue()->'cycle') d(r),
-                  jsonb_object_keys(coalesce(d.r->'items', '{}'::jsonb) || coalesce(d.r->'keys', '{}'::jsonb)) k
   ) src where not exists (select 1 from public.hr_items i where i.item_id = src.id);
   if v_bad > 0 then raise exception '% grant-source row(s) name an item missing from hr_items', v_bad; end if;
 
@@ -963,16 +972,18 @@ const ROOM_IDS = [...new Set(roomPerks.map((r) => r.room_id))];
 const sqlRoomPerks = `-- ════════════════════════════════════════════════════════════════════════
 -- Hearthrise — hr_room_perks, THE ROOM RUNG → PERK CATALOGUE  (GENERATED — DO NOT EDIT)
 --
---   Generated by tools/gen-catalogues.mjs from src/data/perks.js, which is
---   itself generated by tools/gen-perks.mjs from \`const ROOMS={…}\` in
---   src/legacy.js. Any hand edit here is reverted by the next generation and
+--   Generated by tools/gen-catalogues.mjs from src/data/perks.js (hand-authored
+--   since the old client was deleted, 2026-10-17). Any hand edit here is
+--   reverted by the next generation and
 --   FAILS \`node tools/gen-catalogues.mjs --check\`, a preflight in
 --   tests/run-sql-tests.mjs and tests/run-smoke.mjs.
 --
 --   catalogue digest: ${ROOM_PERK_DIGEST}
 --   rows: ${roomPerks.length} rung payloads across ${ROOM_IDS.length} rooms (${ROOM_IDS.join(', ')})
 --
--- WHAT THIS IS FOR. hr_apply prices the CELLAR's \`buffDuration\` when it stamps a
+-- WHAT THIS IS FOR. hr_farm_plot_cap reads the GARDEN's \`farmPlots\` (the extra
+-- farm beds every character of the account may plant; 2026-12-01-garden-beds.sql).
+-- hr_apply prices the CELLAR's \`buffDuration\` when it stamps a
 -- buff segment's \`until\` (2026-09-13-buff-cellar-scale.sql): the scale is read
 -- HERE, under the character lock, from the server's own row — never from the
 -- delta, which has no key for it and is refused \`bad_buff_shape\` if it invents
@@ -1052,6 +1063,17 @@ begin
     raise exception 'the top cellar rung sells % duration, above the server cap of ${BUFF_SCALE_MAX_BONUS} '
                     '— hr_apply would clamp it and the shop line would be a lie', v_top;
   end if;
+
+  -- THE GARDEN, the second room a SQL body reads (hr_farm_plot_cap): every rung
+  -- sells a whole, positive number of beds, never fewer than the rung below.
+  select count(*) into v_bad from public.hr_room_perks g
+   where g.room_id = 'garden'
+     and (jsonb_typeof(g.perks->'farmPlots') is distinct from 'number'
+          or (g.perks->>'farmPlots')::numeric <> floor((g.perks->>'farmPlots')::numeric)
+          or (g.perks->>'farmPlots')::numeric < 1
+          or (g.perks->>'farmPlots')::numeric < coalesce((select (b.perks->>'farmPlots')::numeric
+               from public.hr_room_perks b where b.room_id = 'garden' and b.level = g.level - 1), 0));
+  if v_bad > 0 then raise exception '% garden rungs sell no whole, rising number of farm beds', v_bad; end if;
 
   -- A HOME NEVER GRANTS XP OR A RESOURCE ADVANTAGE (Master Design Reference §9,
   -- 2026-10-14; Security C3): no rung may carry an XP, yield or Rested key.

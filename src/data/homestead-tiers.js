@@ -10,6 +10,13 @@
 //   tools/gen-gold-ladders.mjs    the worker and farm-land caps and tier gates
 // This file is the source; change a rung here and regenerate.
 //
+// NO ASHLAR (designer 2026-10-22): the Stonemason skill and its quarried stone, blocks and ashlar were cut on
+// 2026-10-14 (src/data/stonecraft.js). The three properties that asked for ashlar ask for what the priced rows in
+// src/data/shops.js already charge: the Manor and the Keep iron fittings and timber beams, the Castle keystones.
+// ONE PRICE (v0.2.30 integration, 2026-10-22): a property tier's price lives ONLY in src/data/shops.js (`property.<id>`,
+// what the server charges); this ladder states what a tier OPENS, never what it costs. tools/gen-unlock-offers.mjs refuses
+// a tier that carries a `cost` again and a bought tier with no single shop row granting it (catalogue-coherence C10).
+//
 // PURE ESM DATA. No imports, no functions, no DOM. Node and Deno both.
 // ════════════════════════════════════════════════════════════════════════
 
@@ -20,7 +27,6 @@ export const PROPERTY_TIERS = Object.freeze([
     "name": "Wanderer's Camp",
     "plots": 2,
     "workers": 0,
-    "cost": null,
     "rooms": []
   },
   {
@@ -28,11 +34,6 @@ export const PROPERTY_TIERS = Object.freeze([
     "name": "Hearthside Homestead",
     "plots": 4,
     "workers": 1,
-    "cost": {
-      "gold": 400,
-      "normal_log": 30,
-      "copper_ore": 20
-    },
     "rooms": [
       "kitchen",
       "garden"
@@ -43,13 +44,6 @@ export const PROPERTY_TIERS = Object.freeze([
     "name": "Fieldworth Farmstead",
     "plots": 6,
     "workers": 2,
-    "cost": {
-      "gold": 2500,
-      "oak_log": 40,
-      "copper_ore": 25,
-      "wolf_pelt": 4,
-      "cooked_shrimp": 10
-    },
     "rooms": [
       "workshop",
       "cellar",
@@ -61,13 +55,6 @@ export const PROPERTY_TIERS = Object.freeze([
     "name": "Stonecross Manor",
     "plots": 8,
     "workers": 3,
-    "cost": {
-      "gold": 10000,
-      "willow_plank": 35,
-      "iron_ore": 40,
-      "silk_thread": 8,
-      "ashlar": 6
-    },
     "rooms": [
       "library"
     ]
@@ -77,14 +64,6 @@ export const PROPERTY_TIERS = Object.freeze([
     "name": "Ironvale Keep",
     "plots": 10,
     "workers": 4,
-    "cost": {
-      "gold": 40000,
-      "maple_plank": 50,
-      "steel_bar": 35,
-      "big_bones": 20,
-      "bear_pelt": 5,
-      "ashlar": 12
-    },
     "rooms": [
       "shrine",
       "trophy"
@@ -95,14 +74,6 @@ export const PROPERTY_TIERS = Object.freeze([
     "name": "Hearthrise Castle",
     "plots": 12,
     "workers": 6,
-    "cost": {
-      "gold": 150000,
-      "yew_plank": 70,
-      "mithril_bar": 40,
-      "rune_bar": 8,
-      "dragon_scale": 4,
-      "ashlar": 25
-    },
     "rooms": []
   }
 ]);
@@ -414,3 +385,61 @@ export const ROOM_RUNGS = Object.freeze({
     }
   ]
 });
+
+// ── THE DEPOT'S SPACE (Tyler 2026-10-22: "space can be increased by building
+// different storage chests for the house, with gold") ─────────────────────────
+// The depot is the ACCOUNT's (supabase/migrations/2026-11-27-account-depot.sql),
+// so its space is too: DEPOT_BASE_STACKS distinct item stacks for every account,
+// plus `stacks` for each chest the account has built. NOT the bag's cap
+// (start-kit.js bankCap is each character's BAG stack cap, a different number).
+// Chests are built once each, in this order (a chest needs the one before it),
+// at the property tier `tier` asks for, for `cost` (gold + materials, paid by the
+// hero who builds it). tools/gen-storage-chests.mjs makes the server catalogue.
+// PROPOSED 2026-10-22 (backend-architect) — the game designer rules the numbers.
+export const DEPOT_BASE_STACKS = 100;
+
+export const STORAGE_CHESTS = Object.freeze([
+  {
+    "id": "millrace_crate",
+    "name": "Millrace Crate",
+    "stacks": 20,
+    "tier": 0,
+    "cost": {
+      "gold": 1500,
+      "normal_log": 40
+    }
+  },
+  {
+    "id": "thicketwood_chest",
+    "name": "Thicketwood Chest",
+    "stacks": 30,
+    "tier": 1,
+    "cost": {
+      "gold": 6000,
+      "oak_plank": 30,
+      "copper_bar": 10
+    }
+  },
+  {
+    "id": "ironbanded_strongbox",
+    "name": "Ironbanded Strongbox",
+    "stacks": 50,
+    "tier": 2,
+    "cost": {
+      "gold": 25000,
+      "iron_bar": 25,
+      "iron_fitting": 10
+    }
+  },
+  {
+    "id": "stonecross_vault",
+    "name": "Stonecross Vault",
+    "stacks": 100,
+    "tier": 3,
+    "cost": {
+      "gold": 90000,
+      "steel_bar": 30,
+      "timber_beam": 15
+    }
+  }
+]);

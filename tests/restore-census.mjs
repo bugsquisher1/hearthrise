@@ -255,9 +255,9 @@ const BASELINE_MUTATIONS = {
     match: /PLAYER-VALUE TABLE DOWNGRADED/,
   },
   drop_from_player_value_manifest: {
-    what: 'player_bank is quietly removed from the player-value manifest, so a later downgrade would pass unremarked',
-    mutate: (b) => { b.player_value_tables = b.player_value_tables.filter((t) => t !== 'player_bank'); },
-    match: /PLAYER-SCOPED TABLE WITH NO RULING: public\.player_bank/,
+    what: 'account_bank is quietly removed from the player-value manifest, so a later downgrade would pass unremarked',
+    mutate: (b) => { b.player_value_tables = b.player_value_tables.filter((t) => t !== 'account_bank'); },
+    match: /PLAYER-SCOPED TABLE WITH NO RULING: public\.account_bank/,
   },
   rationale_free_classification: {
     what: 'a table is classified with no stated reasoning — a decision nobody actually made',

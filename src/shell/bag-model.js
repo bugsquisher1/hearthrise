@@ -7,8 +7,9 @@
 // adds up what the server sent, for display and for the NAMES a sale intent
 // carries; the server re-checks every line under the character lock.
 //
-//   kindOf(id)            the pocket's kind: gear, ammo, food, drink, loot, material, other
-//   view(items, o)        one category, a search, a sort (the remembered choice)
+//   kindOf(id)            the pocket's kind: gear, ammo, food, drink, loot, material, rare, other
+//   view(items, o)        one category, a search, a sort (the remembered choice; the
+//                         Inventory's and the Storage window's, each its own residue)
 //   sellPlan(items, ids)  the lines a bulk sale sends; LOCKED stacks are never named
 //   bagValue(items, bids) the bag's worth at the server's bids
 //   isNew / markSeen      the "new" mark (residue `bagSeen`, display only)
@@ -16,21 +17,24 @@
 //   equipSlotFor(id, eq)  the slot an item would go into
 //   riteOf / cookOf       the bench recipe that spends a whole stack (Bury, Cook all)
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.30';
-import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.30';
-import { MONSTERS } from '../data/monsters.js?v=0.2.30';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.30';
-import { expandItemSlot } from '../data/gathering.js?v=0.2.30';
-import { recipeInputs } from '../core/artisan.js?v=0.2.30';
-import { BAG_SEEN_MAX } from '../session/residue.js?v=0.2.30';
-import { itemName } from './widgets/bits.js?v=0.2.30';
+import { ITEMS } from '../data/items.js?v=0.2.31';
+import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.31';
+import { MONSTERS } from '../data/monsters.js?v=0.2.31';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.31';
+import { expandItemSlot } from '../data/gathering.js?v=0.2.31';
+import { recipeInputs } from '../core/artisan.js?v=0.2.31';
+import { BAG_SEEN_MAX } from '../session/residue.js?v=0.2.31';
+import { itemName } from './widgets/bits.js?v=0.2.31';
 
 /* The category row, in reading order. `all` first; the rest are kinds. */
 export const BAG_CATS = Object.freeze([
-  ['all', 'All'], ['gear', 'Gear'], ['food', 'Food'], ['drink', 'Drinks'], ['ammo', 'Ammo'],
-  ['loot', 'Loot'], ['material', 'Materials'], ['other', 'Other'],
+  ['all', 'All'], ['gear', 'Gear'], ['food', 'Food'], ['drink', 'Drinks'], ['ammo', 'Ammo & runes'],
+  ['loot', 'Loot'], ['material', 'Materials'], ['rare', 'Rare'], ['other', 'Other'],
 ]);
-export const BAG_SORTS = Object.freeze([['type', 'Type'], ['value', 'Value'], ['newest', 'Newest'], ['name', 'Name']]);
+export const BAG_SORTS = Object.freeze([['type', 'Type'], ['value', 'Value'], ['newest', 'Newest'], ['count', 'Count'], ['name', 'Name']]);
+/* A non-gear item at these rungs, or a trophy / cosmetic / quest piece, files under Rare (it is kept, not spent). */
+const RARE_RUNGS = new Set(['epic', 'legendary', 'mythic']);
+const RARE_TAGS = new Set(['trophy', 'cosmetic', 'quest']);
 const KIND_ORDER = new Map(BAG_CATS.map(([id], i) => [id, i]));
 
 let DROPS = null;
@@ -42,7 +46,16 @@ function dropSet() {
   return DROPS;
 }
 
-/** The pocket's kind, from the catalogue row. */
+let INPUTS = null;
+/* Every item some recipe spends (bars, planks, blanks...), built once from the recipe rows. */
+function inputSet() {
+  if (INPUTS) return INPUTS;
+  INPUTS = new Set();
+  for (const rows of Object.values(ARTISAN_RECIPES)) for (const r of rows || []) if (r) for (const id of Object.keys(recipeInputs(r) || {})) INPUTS.add(id);
+  return INPUTS;
+}
+
+/** The pocket's kind, from the catalogue row (and the drop and recipe rows, so a new row files itself). */
 export function kindOf(id) {
   const it = ITEMS[id];
   if (DRINK_ITEMS[id]) return 'drink';
@@ -51,7 +64,8 @@ export function kindOf(id) {
   if (it.slot) return 'gear';
   if (Number(it.heals) > 0) return 'food';
   if (dropSet().has(id)) return 'loot';
-  if (it.raw || it.tag === 'crafting-mat') return 'material';
+  if (it.raw || it.tag === 'crafting-mat' || it.seed || inputSet().has(id)) return 'material';
+  if (it.type === 'trophy' || RARE_TAGS.has(it.tag) || RARE_RUNGS.has(it.rarity)) return 'rare';
   return 'other';
 }
 
@@ -109,6 +123,7 @@ export function view(items, o) {
     type: (a, b) => KIND_ORDER.get(kindOf(a.id)) - KIND_ORDER.get(kindOf(b.id)) || byName(a, b),
     value: (a, b) => worth(b) - worth(a) || byName(a, b),
     newest: (a, b) => at(b) - at(a) || byName(a, b),
+    count: (a, b) => b.qty - a.qty || byName(a, b),
     name: byName,
   };
   return rows.sort(sorts[o.sort] || sorts.type);

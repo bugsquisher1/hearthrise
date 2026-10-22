@@ -29,6 +29,8 @@
 .hw-ledger { margin: 0 0 6px; padding: 0; list-style: none; }
 .hw-ledger-head { display: none; margin: 10px 2px 4px; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
 .hw-ledger-head.is-on { display: block; }
+.hw-cap.hw-buy-note { display: none; margin-bottom: 6px; }
+.hw-cap.hw-buy-note.is-on { display: block; }
 .hw-line { display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 2px 0; border-top: 1px solid var(--line-soft); }
 .hw-line .hw-ico { width: 40px; height: 40px; }
 .hw-line .hw-ico .hh-icon { width: 32px; height: 32px; }
@@ -51,6 +53,11 @@
 .hw-burying { display: none; align-items: center; gap: 6px; margin-top: 8px; padding: 6px 8px; background: var(--bg-1); box-shadow: var(--hw-well); }
 .hw-burying.is-on { display: flex; }
 .hw-burying-q { flex: 1; }
+/* "Equip upgrades": what the press puts on, in words, beside the button (src/shell/widgets/upgrade-line.js). */
+.hw-upgrade { display: none; align-items: center; gap: 8px; margin-top: 8px; padding: 6px 8px; background: var(--bg-1); box-shadow: var(--hw-well); }
+.hw-upgrade.is-on { display: flex; }
+.hw-upgrade-q { flex: 1; min-width: 0; margin: 0; color: var(--ink-2); }
+.hw-upgrade .hw-primary { display: inline-block; flex: none; }
 .hw-amt { display: flex; align-items: center; gap: 4px; padding: 4px 0; }
 .hw-amt-n { width: 6em; }
 .hw-selcount { flex: 1; font-weight: 700; font-variant-numeric: lining-nums tabular-nums; }
@@ -310,6 +317,10 @@
 .hw-work-why:empty { display: none; }
 .hw-work-row.is-on .hw-line-name b, .hw-work-row.is-on .hw-work-why { color: var(--gold-2); }
 .hw-work-row.is-locked .hw-ico { opacity: .5; }
+/* "Make N": the amount sits under the row's words, a quiet well (hunt.css .hh-segs); a locked row has none. */
+.hw-work-n { align-self: flex-start; margin-top: 4px; }
+.hw-work-n .hh-seg { min-width: 32px; min-height: 24px; padding: 0 6px; }
+.hw-work-row.is-locked .hw-work-n { display: none; }
 
 /* ── The shop and hunt prep ── */
 .hw-qty { width: 64px; }
@@ -349,7 +360,7 @@
   .hw-skill-next { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
   .hw-mi { min-height: 40px; }
   .hw-tip { width: 240px; }
-  .hw-work-row .hh-tool, .hw-work-head .hh-tool, .hw-work-now .hh-tool { min-height: 40px; }
+  .hw-work-row .hh-tool, .hw-work-head .hh-tool, .hw-work-now .hh-tool, .hw-work-n .hh-seg { min-height: 40px; }
   .hw-work-hint { display: none; }
 }
 
@@ -386,7 +397,7 @@
 .hw-alerts.is-empty { display: none; }
 .hw-alert-list { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; width: 360px; max-width: calc(100vw - 24px); }
 .hw-alert {
-  display: flex; align-items: center; gap: 8px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px;
   padding: 4px 4px 4px 8px;
   background: var(--world-hud-bg); border-left: 2px solid var(--ink-3);
   font-size: var(--t-small); color: var(--ink);
@@ -396,8 +407,10 @@
 .hw-alert-glyph { display: grid; place-items: center; flex: none; color: var(--ink-2); }
 .hw-alert[data-kind="rare"] .hw-alert-glyph { color: var(--gold-2); }
 .hw-alert-glyph .hs-glyph { width: 18px; height: 18px; }
-.hw-alert-text { flex: 1; min-width: 0; margin: 0; }
-.hw-alert-do { flex: none; color: var(--gold-2); }
+/* The words take the first row beside the glyph; the buttons sit under them, right-aligned. */
+.hw-alert-text { flex: 1 1 calc(100% - 34px); min-width: 0; margin: 0; }
+.hw-alert-do { flex: none; margin-left: auto; color: var(--gold-2); }
+.hw-alert-share { flex: none; }
 .hw-alert-x { flex: none; }
 .hw-alert-x .hs-glyph { width: 14px; height: 14px; }
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
@@ -421,4 +434,63 @@
 .rp[data-state="failed"] .rp-said { color: var(--red); }
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
   .rp-text { height: 96px; min-height: 96px; }
+}
+
+/* ── The Farm (src/shell/windows/farm.js): a row of soil plots, sunk into the window, crops at ×2 ── */
+.hw-field { display: flex; flex-wrap: wrap; gap: 12px; margin: 4px 0 10px; padding: 0; list-style: none; }
+.hw-plot { width: 104px; display: flex; flex-direction: column; align-items: stretch; gap: 4px; }
+.hw-soil { width: 104px; height: 88px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 0; background: var(--scene-furrow); box-shadow: var(--hw-well); cursor: pointer; }
+.hw-soil:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
+.hw-plot.is-picked .hw-soil { outline: 2px solid var(--ink); outline-offset: 2px; }
+.hw-plot:not(.is-empty) .hw-soil { cursor: default; }
+.hw-crop .hh-icon { width: 64px; height: 64px; image-rendering: pixelated; }
+.hw-grow { display: block; height: 4px; background: var(--bg-0); }
+.hw-grow i { display: block; height: 100%; background: var(--green); }
+.hw-plot.is-ready .hw-grow i { background: var(--gold); }
+.hw-plot.is-empty .hw-grow { visibility: hidden; }
+.hw-plot-say { display: flex; flex-direction: column; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
+.hw-plot-say b { color: var(--ink); font-weight: 700; }
+.hw-plot-say b:empty { display: none; }
+.hw-plot.is-ready .hw-plot-say span { color: var(--gold-2); font-weight: 700; }
+.hw-plot .hh-tool { white-space: normal; }
+.hw-harvest { display: none; }
+.hw-harvest.is-on { display: block; }
+.hw-plot-do.is-off { visibility: hidden; }
+.hw-sow { display: none; margin-bottom: 8px; }
+.hw-sow.is-on { display: block; }
+.hw-sow [data-hs-act="shop"] { display: none; }
+.hw-sow [data-hs-act="shop"].is-on { display: inline-block; }
+.hw-sow-none:empty { display: none; }
+.hw-seeds .hw-line.is-locked .hw-line-name b { color: var(--ink-3); }
+.hw-farm.is-off .hw-tier, .hw-farm.is-off [data-hs-act="upgrade"] { display: none; }
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .hw-field { gap: 8px; }
+  .hw-plot, .hw-soil { width: 88px; }
+  .hw-soil { height: 76px; }
+}
+/* ── The House (src/shell/windows/house.js): the account's estate ledger, read like a deed.
+   The numeral column is the deed's schedule; a held line is quiet, the next one carries
+   its cost as a plain list (what is short reads in the cost colour), a locked room sits
+   back. One primary: the confirmation's Pay. ── */
+.hw-house-head { display: flex; flex-direction: column; gap: 2px; margin: 0 2px 6px; }
+.hw-house-name { font-size: var(--t-lead); font-weight: 700; color: var(--ink); }
+.hw-house-note { font-size: var(--t-micro); color: var(--ink-2); }
+.hw-chest-n { font-family: var(--f-ui); font-weight: 400; letter-spacing: 0; color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; }
+.hw-estate { align-items: flex-start; padding: 6px 0; }
+.hw-estate-n { flex: none; width: 28px; padding-top: 1px; font-family: var(--f-label); font-weight: 700; font-size: var(--t-micro); color: var(--ink-3); text-align: center; }
+.hw-estate .hw-line-name small { white-space: normal; }
+.hw-estate > .hh-tool { display: none; flex: none; align-self: center; }
+.hw-estate > .hh-tool.is-on { display: inline-block; }
+.hw-estate.is-held .hw-line-name b { color: var(--ink-2); }
+.hw-estate.is-next .hw-estate-n { color: var(--gold-2); }
+.hw-estate.is-locked .hw-line-name b, .hw-estate.is-locked .hw-line-name small { color: var(--ink-3); }
+.hw-mats { display: flex; flex-wrap: wrap; gap: 0 12px; margin: 2px 0 0; padding: 0; list-style: none; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
+.hw-mats:empty { display: none; }
+.hw-mat.is-short { color: var(--red); }
+/* The ask and the server's answer stay on screen wherever the ledger is scrolled (the report window's foot). */
+.hw-house-foot { position: sticky; bottom: 0; background: var(--bg-1); }
+.hw-house-foot .hh-intent-msg { padding: 4px 2px; }
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .hw-estate-n { width: 20px; }
+  .hw-estate > .hh-tool { min-height: 36px; }
 }

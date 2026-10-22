@@ -42,12 +42,14 @@ import { pathToFileURL } from 'node:url';
 
 import {
   computeAccrual, PAYABLE_KINDS, KIND_ACCRUERS, SKIP, degradeStep,
+  TOWN_SETTLE_MIN_MS, ACCRUE_MIN_MS, accrueFloorMs, CALLER_AUTHORITY,
 } from '../supabase/functions/hr-accrue/accrual.js';
+import { HUNT_SETTLE_MIN_MS } from '../supabase/functions/hr-accrue/hunt-settle.js';
 import {
   GATHER_NODES, ARTISAN_RECIPES_ALL, ARTISAN_RECIPES_PAYABLE,
 } from '../supabase/functions/hr-accrue/catalogue.js';
 import {
-  SAFE_SKIP_REASONS, REFUSING_SKIP_REASONS, POINTER_SKIP_REASONS, mayForceCloseWindow,
+  SAFE_SKIP_REASONS, REFUSING_SKIP_REASONS, POINTER_SKIP_REASONS, mayForceCloseWindow, intentIdFor,
 } from '../supabase/functions/hr-accrue/intents.js';
 
 import {
@@ -1022,7 +1024,7 @@ function shapeGuard() {
   for (const [name, over] of [
     ['no elapsed time', { accruedToMs: NOW_MS }],
     ['a future watermark', { accruedToMs: NOW_MS + 86400000 }],
-    ['a sub-threshold absence', { accruedToMs: NOW_MS - 59_999 }],
+    ['a sub-threshold absence', { accruedToMs: NOW_MS - (TOWN_SETTLE_MIN_MS - 1) }],   // the town floor (T10)
     ['a zero cap', { capMs: 0 }],
     ['a missing active_since', { activeSinceMs: null }],
   ]) {
@@ -1291,8 +1293,169 @@ function cookingSettlementGuard() {
 }
 
 // ════════════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════════════
+// T9. "MAKE N" (2026-12-01-bench-count.sql, lane c-work-fixes 2026-10-22).
+// A bench run with a count pays EXACTLY that many actions and then ends (the
+// pointer goes idle), however the settles are cut; a window short of the count
+// proposes the lowered count; a count above what the bag allows makes as many
+// as possible and stops on the supplies; no count is today's run.
+// ════════════════════════════════════════════════════════════════════════
+function benchCountGuard() {
+  const recipe = pickRecipe('smithing', (r) => Object.keys(inputsOf(r)).length >= 1 && (r.ms || 0) >= 2000);
+  ok(!!recipe, 'T9: no fixture recipe');
+  if (!recipe) return;
+  const out = recipe.output;
+  const per = Math.max(1, Number(recipe.outputQty) || 1);
+  const big = supplyFor(recipe, 500);
+  /* (a) make 5 from a bag for 500, a 12 h window: 5 actions, the pointer ends, no countdown key. */
+  const five = call({ activeId: recipe.id, inventory: big, activeLeft: 5 });
+  ok(five.accrued && five.summary.ticks === 5 && five.delta.items && five.delta.items[out] === 5 * per,
+    `T9: make 5 paid ${five.summary && five.summary.ticks} actions / ${JSON.stringify(five.delta && five.delta.items)}`);
+  ok(five.delta && five.delta.activity && five.delta.activity.kind === 'idle' && !('active_left' in five.delta),
+    `T9: the run that reached its count did not end: ${JSON.stringify(five.delta && five.delta.activity)} / left ${five.delta && five.delta.active_left}`);
+  ok(five.delta && five.delta.journal.meta.stopped === 'count' && five.delta.journal.meta.n === 5 && five.delta.journal.meta.left === 0,
+    `T9: the journal does not say the count stopped it: ${JSON.stringify(five.delta && five.delta.journal.meta)}`);
+  /* (b) cut: make 100, a first window that fits K < 100 actions (at least the 60 s settle floor)
+     proposes 100 - K left and keeps the run; the next window, with that count, ends it at exactly 100. */
+  const step = five.tickMs;
+  const k = Math.ceil(90000 / step);
+  const w1 = call({ activeId: recipe.id, inventory: big, activeLeft: 100, nowMs: FROM_MS + k * step + Math.floor(step / 2) });
+  ok(w1.accrued && w1.summary.ticks === k && w1.delta.active_left === 100 - k && !w1.delta.activity,
+    `T9: a window of ${k} actions proposed ${JSON.stringify({ why: w1.reason, ticks: w1.summary && w1.summary.ticks, left: w1.delta && w1.delta.active_left, act: w1.delta && w1.delta.activity })}`);
+  const w2 = call({ activeId: recipe.id, inventory: big, activeLeft: 100 - k, accruedToMs: Date.parse(w1.watermark), activeSinceMs: FROM_MS });
+  ok(w2.accrued && w2.summary.ticks === 100 - k && w2.delta.activity && w2.delta.activity.kind === 'idle',
+    `T9: the second window paid ${w2.summary && w2.summary.ticks} of the ${100 - k} left and ended ${JSON.stringify(w2.delta && w2.delta.activity)}`);
+  /* (c) make 40 with a bag for 4: as many as possible (4), stopped on the supplies, pointer idle. */
+  const short = call({ activeId: recipe.id, inventory: supplyFor(recipe, 4), activeLeft: 40 });
+  ok(short.accrued && short.summary.ticks === 4 && short.delta.activity && short.delta.activity.kind === 'idle'
+    && short.summary.stoppedBy === 'supplies',
+    `T9: make 40 from a bag for 4 paid ${short.summary && short.summary.ticks} (${short.summary && short.summary.stoppedBy})`);
+  /* (d) no count: the bag bounds it (500), and no active_left key is ever proposed. */
+  const free = call({ activeId: recipe.id, inventory: supplyFor(recipe, 7) });
+  ok(free.accrued && free.summary.ticks === 7 && !('active_left' in free.delta),
+    `T9: an uncounted run paid ${free.summary && free.summary.ticks} of 7 or proposed active_left ${free.delta && free.delta.active_left}`);
+}
+
+// T10. THE WATCHED BENCH SETTLES AS IT GOES (lane c-live-town-work, Tyler
+// 2026-10-22: "the bag needs to update in real time, not when it's done").
+//
+// While the Work window or the bag is open the client asks one accrue per
+// SESSION_CONFIG.townPollMs (src/session/town-poll.js), and a town pointer's
+// accrue floor is TOWN_SETTLE_MIN_MS (15 s, the hunt door's). Four claims:
+//   T10a the floor: 15 s of a bench pays on the accrue verb, one ms less (a
+//        bench or a gathering node) pays nothing and writes nothing; it is the
+//        hunt door's number, a server constant, and the inventory_complete
+//        boundary (ACCRUE_MIN_MS) did not move with it.
+//   T10b CONSERVED: a chain of watched settles (each from the watermark the
+//        last one stamped, its delta applied to the bag) and then the stop's
+//        collect spends EXACTLY the actions and inputs one settle of the whole
+//        span spends (the browser-closed path: nobody watched, the return or
+//        the stop pays it all). Watched or not, the same bench.
+//   T10c NO DOUBLE PAY: after the chain the stop pays only the remainder (its
+//        window starts at the last settle's watermark), and a settle asked again
+//        at the same instant from the advanced watermark pays nothing.
+//   T10d REPLAY: the same window asked twice proposes the byte-identical delta
+//        under the byte-identical intent key, so hr_apply answers the second
+//        `replayed` (and a stale version is refused by its version CAS).
+// ════════════════════════════════════════════════════════════════════════
+async function watchedSettleGuard() {
+  ok(TOWN_SETTLE_MIN_MS === HUNT_SETTLE_MIN_MS,
+    `T10a: the town settle floor (${TOWN_SETTLE_MIN_MS} ms) is not the hunt door's (${HUNT_SETTLE_MIN_MS} ms)`);
+  ok(ACCRUE_MIN_MS === 60000, 'T10a: ACCRUE_MIN_MS moved — it is the inventory_complete boundary hr_state_of is pinned to');
+  ok(accrueFloorMs('artisan') === TOWN_SETTLE_MIN_MS && accrueFloorMs('gather') === TOWN_SETTLE_MIN_MS
+    && accrueFloorMs('combat') === ACCRUE_MIN_MS && accrueFloorMs('idle') === ACCRUE_MIN_MS,
+  'T10a: accrueFloorMs gives the town floor to a kind that is not town work, or withholds it from one');
+
+  const recipe = pickRecipe('cooking', (r) => !!r.output && Object.keys(inputsOf(r)).length === 1);
+  ok(!!recipe, 'T10: no one-input cooking recipe exists — the watched-settle guard is vacuous');
+  if (!recipe) return;
+  const [inId, per] = Object.entries(inputsOf(recipe))[0];
+  const RUNS = 400;
+  const bag0 = supplyFor(recipe, RUNS);
+
+  /* T10a — the floor, both sides of it, on the accrue verb (no caller = 'accrue'). */
+  const at = (ms, over) => call({ activeId: recipe.id, inventory: bag0, accruedToMs: FROM_MS, activeSinceMs: FROM_MS,
+    nowMs: FROM_MS + ms, ...over });
+  const under = at(TOWN_SETTLE_MIN_MS - 1);
+  ok(under.accrued === false && under.reason === SKIP.TOO_SOON && !under.delta,
+    `T10a: a ${TOWN_SETTLE_MIN_MS - 1} ms bench window on the accrue verb answered ${under.reason} — a client polling `
+    + 'faster than the floor must write nothing');
+  const atFloor = at(TOWN_SETTLE_MIN_MS);
+  ok(atFloor.accrued === true && atFloor.summary.ticks > 0,
+    `T10a: a ${TOWN_SETTLE_MIN_MS} ms bench window on the accrue verb paid nothing (${atFloor.reason}) — the bag `
+    + 'cannot update while the Work window watches it');
+  const node = Object.keys(GATHER_NODES)[0];
+  const g = call({ activeKind: 'gather', activeId: node, nowMs: FROM_MS + TOWN_SETTLE_MIN_MS - 1 });
+  ok(g.accrued === false && g.reason === SKIP.TOO_SOON, `T10a: a sub-floor gather window answered ${g.reason}`);
+
+  /* T10b/T10c — the watched chain: a settle every 16 s (townPollMs) for ten minutes, each from the
+     watermark the last stamped, its signed item delta applied to the bag; then the stop's collect. */
+  const POLL_MS = 16000;
+  const END_MS = FROM_MS + 10 * 60000;
+  let mark = FROM_MS;
+  const bag = { ...bag0 };
+  let ticks = 0;
+  let windows = 0;
+  const moved = {};
+  const take = (r) => {
+    for (const [id, n] of Object.entries(r.delta.items || {})) {
+      bag[id] = (bag[id] || 0) + n;
+      moved[id] = (moved[id] || 0) + n;
+      ok(bag[id] >= 0, `T10b: the watched chain drove ${id} below zero (${bag[id]})`);
+    }
+    ticks += r.summary.ticks;
+  };
+  for (let now = FROM_MS + POLL_MS; now < END_MS; now += POLL_MS) {
+    const r = call({ activeId: recipe.id, inventory: bag, accruedToMs: mark, activeSinceMs: FROM_MS, nowMs: now });
+    if (!r.accrued) continue;
+    const next = Date.parse(r.delta.accrued_to);
+    ok(next > mark && next <= now, `T10c: a watched settle stamped ${r.delta.accrued_to}, outside (${mark}, ${now}]`);
+    take(r);
+    windows++;
+    /* T10c — asked again at the same instant from the advanced watermark: nothing. */
+    const again = call({ activeId: recipe.id, inventory: bag, accruedToMs: next, activeSinceMs: FROM_MS, nowMs: now });
+    ok(again.accrued === false, `T10c: a second settle at the same instant paid ${again.summary && again.summary.ticks} more actions`);
+    mark = next;
+  }
+  ok(windows >= 30, `T10b: only ${windows} of the watched settles paid — the bag is not updating as it goes`);
+  /* The stop: ONE collect from the last watermark (set-activity's caller), the remainder only. */
+  const stop = call({ activeId: recipe.id, inventory: bag, accruedToMs: mark, activeSinceMs: FROM_MS, nowMs: END_MS,
+    caller: 'collect', callerAuthority: CALLER_AUTHORITY });
+  ok(stop.accrued === true, `T10c: the stop after the chain paid nothing (${stop.reason})`);
+  if (stop.accrued) {
+    ok(stop.summary.ticks <= Math.ceil(POLL_MS / Math.max(1, stop.tickMs)) + 1,
+      `T10c: the stop after the chain paid ${stop.summary.ticks} actions — more than the ${POLL_MS} ms since the last settle holds`);
+    take(stop);
+  }
+  /* The browser-closed path: nobody watched, the stop pays the whole span once. */
+  const once = call({ activeId: recipe.id, inventory: bag0, accruedToMs: FROM_MS, activeSinceMs: FROM_MS, nowMs: END_MS,
+    caller: 'collect', callerAuthority: CALLER_AUTHORITY });
+  ok(once.accrued === true, `T10b: the unwatched ten minutes paid nothing (${once.reason})`);
+  if (once.accrued) {
+    ok(once.summary.ticks < RUNS, 'T10b: the bag ran out — the fixture no longer measures the clock');
+    ok(ticks === once.summary.ticks,
+      `T10b: watched settles + the stop ran ${ticks} actions, one unwatched settle ran ${once.summary.ticks} — `
+      + 'watching the bench changed what it makes');
+    ok(moved[inId] === -per * ticks && (once.delta.items || {})[inId] === -per * once.summary.ticks,
+      `T10b: ${inId} moved ${moved[inId]} watched vs ${(once.delta.items || {})[inId]} unwatched for ${ticks} actions`);
+    const made = (m) => (m[recipe.output] || 0) + (m.burnt_food || 0);
+    ok(made(moved) === made(once.delta.items || {}),
+      `T10b: watched made ${made(moved)} (cooked + burnt), unwatched ${made(once.delta.items || {})}`);
+  }
+
+  /* T10d — the same window twice: the same delta under the same derived key. */
+  const a = at(TOWN_SETTLE_MIN_MS * 2);
+  const b = at(TOWN_SETTLE_MIN_MS * 2);
+  ok(a.accrued && JSON.stringify(a.delta) === JSON.stringify(b.delta), 'T10d: one window asked twice proposed two different deltas');
+  const key = (o) => intentIdFor({ user: 'u', slot: 0, watermark: new Date(FROM_MS).toISOString(), version: 7, salt: 's', attempt: 0, ...o });
+  ok(await key({}) === await key({}), 'T10d: the derived intent key is not a function of the window');
+  ok(await key({}) !== await key({ watermark: new Date(FROM_MS + TOWN_SETTLE_MIN_MS).toISOString() }),
+    'T10d: two windows share one intent key — the second settle would read as a replay and pay nothing');
+}
+
 export async function runAll() {
   problems.length = 0;
+  benchCountGuard();
   unsimulatedKindGuard();
   ladderGuard();
   parityGuard();
@@ -1301,6 +1464,7 @@ export async function runAll() {
   burnGuard();
   cookingSettlementGuard();
   shapeGuard();
+  await watchedSettleGuard();
   /* The span function itself is imported and exercised above through
      computeAccrual; assert it is the real one rather than a stub, because an
      accidental re-export of a no-op would make every "produced 0" assertion
@@ -1336,6 +1500,15 @@ const BRONZE_FLETCH = "    { id: 'fletch_bronze_arrows',    name: 'Fletch Bronze
   + 'xp: 90,  req: 5,  ms: 3200 },';
 
 export const MUTATIONS = [
+  /* T10 (lane c-live-town-work): the watched bench. */
+  ['M11 the town floor reverts to a minute', [
+    [ENGINE, "  return activeKind === 'gather' || activeKind === 'artisan' ? TOWN_SETTLE_MIN_MS : ACCRUE_MIN_MS;",
+      '  return ACCRUE_MIN_MS;'],
+  ], 'a watched bench pays once a minute: the bag does not update as it goes', /T10/],
+  ['M12 the accrue verb loses its floor', [
+    [ENGINE, "  if (grantMs < accrueFloorMs(inp.activeKind) && accrualCaller(inp) === 'accrue') {",
+      '  if (false) {'],
+  ], 'a client polling every second writes a ledger row every second', /T10a|sub-threshold/],
   /* M1 RE-ANCHORED (b569): `bag[id] = have - take;` now occurs twice in the engine
      (the combat sink grew the same removeItem), so the old anchor matched 2 lines
      and the mutant never planted. The artisan sink's `nat(bag[id], 0)` read is
@@ -1344,6 +1517,12 @@ export const MUTATIONS = [
     [ENGINE, '      const have = Math.floor(nat(bag[id], 0));',
       '      const have = Math.floor(nat(bag[id], 0)); itemDelta[id] = (itemDelta[id] || 0) - Math.min(n, have); return;'],
   ], 'production is bounded by the clock instead of by the server inventory'],
+  ['M9  "make N" never caps the run (lane c-work-fixes)', [
+    [ENGINE, '    maxActions: runCap(inp.actionBudget, left0),', '    maxActions: runCap(inp.actionBudget, null),'],
+  ], 'a Forge Bronze Pickaxe x1 spends every bar in the bag'],
+  ['M10 "make N" never counts down (lane c-work-fixes)', [
+    [ENGINE, '  if (!stopped && left1 !== null && left1 < left0) delta.active_left = left1;', '  /* MUTATED */'],
+  ], 'a run cut across settles makes N in every window'],
   ['M2  journal.kind names the activity instead of the ledger kind', [
     [ENGINE, "      kind: 'craft',", "      kind: 'artisan',"],
   ], 'player_ledger_kind_check refuses it; hr_apply answers bad_delta and the night is lost'],

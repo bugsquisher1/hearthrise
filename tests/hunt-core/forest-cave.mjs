@@ -20,6 +20,9 @@
 //                       seeds; prints the practice-sword-and-Thicket-leather graduate beside it (evidence)
 //   glade-between       at each floor (6-seed median per hero-hour): the Sewer's party < the glade solo < the Warrens'
 //                       party, in net gold AND Level XP, and the glade clears +25% over its bill (the H11 gap, 16-31)
+//   shop-outfits-defense  the Shop's gear (designer 2026-10-22) sells no slot a walked ground drops, has gloves and
+//                       a belt a new hero can afford (one medium), and a start-kit Melee at the Thicket floor who buys them
+//                       trains Defense (0 without), lives the hour and nets more than the pair cost
 //   thicket-solo-starter-kit  a new hero alone at the Thicket's floor (the solo-first ground, band 5-15), wearing
 //                       ONLY the start kit, plays the hour on the real settle (play-ground.mjs) with no death, on
 //                       each of the designer's six seeds (designer pass 2026-10-21, Tyler: solo first)
@@ -320,6 +323,44 @@ cases['thicket-solo-starter-kit'] = async (M) => {
   console.log('    thicket solo, start kit only (' + Object.values(M.kit.START_EQUIPMENT).join(', ') + ') at L' + floor + ', ' + STARTER_SEEDS.length + ' seeds: ' + seen.join(' | '));
   return bad.length ? 'a start-kit Melee at the Thicket floor: ' + bad.join('; ') : null;
 };
+/* THE OUTFITTER (designer ruling 2026-10-22, lane/b-gold-sinks; PRIORITY_BOARD play report #5: Defense sat at 0 XP
+   after 117 kills because a new hero wears no armour, and gold bought nothing). The Shop's gear rows
+   (supply-basics.js kind 'gear'): (a) never sell a slot a walked ground drops (the Shop never competes with a drop);
+   (b) sell gloves AND a belt, each an armour piece a new hero's 500 starting gold can buy, and at least one of them
+   medium (neither health nor mana: right for every way to fight); (c) played: a start-kit Melee at the Thicket floor
+   earns no Defense XP in the hour, and the same hero wearing the Shop's gloves and belt earns Defense XP, lives the
+   hour and nets more than the two pieces cost (the purchase pays for itself inside the first hour). */
+cases['shop-outfits-defense'] = async (M) => {
+  const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
+  const { SUPPLY_SHOP_OFFERS } = await imp('src/data/supply-basics.js');
+  const { ITEMS } = await imp('src/data/items.js');
+  const { ARMOUR_WEIGHT } = await imp('src/data/core-model.js');
+  const gear = SUPPLY_SHOP_OFFERS.filter((o) => o.kind === 'gear');
+  const bad = [];
+  const dropped = new Map();
+  for (const g of Object.values(M.grounds.HUNT_GROUNDS)) for (const p of g.pockets) for (const s of p.spawns) {
+    for (const d of (M.MONSTERS[s.monster] || {}).drops || []) if (ITEMS[d.id] && ITEMS[d.id].slot) dropped.set(ITEMS[d.id].slot, d.id + ' (' + s.monster + ')');
+  }
+  for (const o of gear) if (dropped.has(ITEMS[o.item].slot)) bad.push(o.item + ': the Shop sells a ' + ITEMS[o.item].slot + ', which ' + dropped.get(ITEMS[o.item].slot) + ' drops');
+  const armour = (o) => !!ARMOUR_WEIGHT[ITEMS[o.item].armourClass] || Number(ITEMS[o.item].defB) > 0;
+  const pick = (slot) => gear.filter((o) => ITEMS[o.item].slot === slot && armour(o) && o.price <= M.kit.START_CURRENCY.gold).sort((a, b) => a.price - b.price)[0];
+  const gl = pick('gloves'), bt = pick('belt');
+  if (!gl || !bt) return bad.concat('the Shop sells no gloves or no belt a new hero can afford').join('; ');
+  if (![gl, bt].some((o) => ARMOUR_WEIGHT[ITEMS[o.item].armourClass] === 'medium')) bad.push('neither the Shop gloves nor belt is medium (every way to fight needs a neutral first piece)');
+  const P = await playOf(M);
+  const floor = floorOf(M, 'meadowbrook_thicket');
+  const defOf = (x) => Object.values(x.heroXp).reduce((s, h) => s + (h.defense || 0), 0);
+  const bare = P.run('meadowbrook_thicket', floor, ['tank'], { spanMs: 3600000, equipment: M.kit.START_EQUIPMENT, secret: STARTER_SEEDS[0] });
+  const worn = P.run('meadowbrook_thicket', floor, ['tank'], { spanMs: 3600000, equipment: { ...M.kit.START_EQUIPMENT, gloves: gl.item, belt: bt.item }, secret: STARTER_SEEDS[0] });
+  const cost = gl.price + bt.price;
+  console.log('    thicket L' + floor + ' start kit: Defense XP ' + defOf(bare) + ', net ' + bare.net + ' | + Shop ' + gl.item + ' + ' + bt.item + ' (' + cost + ' g): Defense XP '
+    + defOf(worn) + ', net ' + worn.net + ', deaths ' + worn.totals.falls);
+  if (defOf(bare) !== 0) bad.push('the bare start kit trained ' + defOf(bare) + ' Defense XP (the case assumes no armour in the kit)');
+  if (!(defOf(worn) > 0)) bad.push('the Shop gloves and belt trained no Defense');
+  if (worn.totals.falls || worn.playedMs < 3600000) bad.push('the outfitted hero did not live the hour (' + worn.ended.join(', ') + ')');
+  if (worn.net < cost) bad.push('the outfitted hour nets ' + worn.net + ' g, under the ' + cost + ' g the pieces cost');
+  return bad.length ? bad.join('; ') : null;
+};
 cases['first-grounds-net-chain'] = async (M) => {
   const P = await playOf(M);
   const bad = [], rows = [];
@@ -388,21 +429,39 @@ cases['glade-between'] = async (M) => {
   return bad.length ? bad.join('; ') : null;
 };
 
+/* The glade put back to STAGED as a whole (flag + map), so the two leak mutants below have a staged hunt to leak. */
+const RESTAGE = [['src/data/hunts.js', "art: 'carrion_crow', travelS: 0, pull: 4, respawnMs: 60000,", "art: 'carrion_crow', travelS: 0, pull: 4, respawnMs: 60000, staged: true,"],
+  ['src/data/world/maps/index.js', 'meadowbrookThicket, coppercapWarrens, mosslightGlade]);', 'meadowbrookThicket, coppercapWarrens]);'],
+  ['src/data/world/maps/index.js', 'export const STAGED_MAPS = Object.freeze([]);', 'export const STAGED_MAPS = Object.freeze([mosslightGlade]);']];
 const mutants = [
-  { name: 'the glade opened before its art (staged flag dropped)', case: 'staged-until-art',
-    edits: [['src/data/hunts.js', "travelS: 0, pull: 4, respawnMs: 60000, staged: true,", "travelS: 0, pull: 4, respawnMs: 60000,"]] },
+  /* the glade is OPEN on its art (lane b-mosslight-art): it must stay open only while its painted ground ships */
+  { name: 'the glade open on a ground no atlas carries', case: 'staged-until-art',
+    edits: [['src/data/world/maps/mosslight_glade.js', "  ground: 'mosslight_ground',", "  ground: 'mosslight_ground_gone',"]] },
+  { name: 'the glade staged again while its map still ships', case: 'staged-until-art',
+    edits: [['src/data/hunts.js', "art: 'carrion_crow', travelS: 0, pull: 4, respawnMs: 60000,", "art: 'carrion_crow', travelS: 0, pull: 4, respawnMs: 60000, staged: true,"]] },
   { name: 'the Hunts window lists a staged hunt', case: 'staged-until-art',
-    edits: [['src/shell/hunt-list.js', "if (!h || h.staged === true) continue;", "if (!h) continue;"]] },
+    edits: [...RESTAGE, ['src/shell/hunt-list.js', "if (!h || h.staged === true) continue;", "if (!h) continue;"]] },
   { name: 'the server catalogue serves a staged ground', case: 'staged-until-art',
-    edits: [['tools/gen-hunt-sessions.mjs', "    grounds: OPEN_GROUNDS, worldMaxBytes:", "    grounds: HUNT_GROUNDS, worldMaxBytes:"],
+    edits: [...RESTAGE, ['tools/gen-hunt-sessions.mjs', "    grounds: OPEN_GROUNDS, worldMaxBytes:", "    grounds: HUNT_GROUNDS, worldMaxBytes:"],
       ['tools/gen-hunt-sessions.mjs', "hunts: OPEN_HUNTS, monsters: MONSTERS, items: ITEMS,", "hunts: HUNTS, monsters: MONSTERS, items: ITEMS,"],
-      ['tools/gen-hunt-sessions.mjs', "import { OPEN_GROUNDS, DENSITY_PICK, PARTY_SCALE, densityFor }", "import { HUNT_GROUNDS, OPEN_GROUNDS, DENSITY_PICK, PARTY_SCALE, densityFor }"]] },
-  { name: 'the glade\'s sluicer and Rook hit like the Warrens (atk 18 -> 26)', case: 'glade-solo-floor',
-    edits: [['src/data/monsters.js', 'hp: 70, atk: 18, def: 10,', 'hp: 70, atk: 26, def: 10,'], ['src/data/monsters.js', 'hp: 78, atk: 18, def: 11,', 'hp: 78, atk: 26, def: 11,']] },
+      ['tools/gen-hunt-sessions.mjs', "import { OPEN_GROUNDS, DENSITY_PICK, PARTY_SCALE, densityFor, reachableOf }", "import { HUNT_GROUNDS, OPEN_GROUNDS, DENSITY_PICK, PARTY_SCALE, densityFor, reachableOf }"]] },
+  /* Recalibrated (designer 2026-10-22, armour weights K7 + tier-3 blows at 4.0 + store-by-slot bars): a ladder-kit
+     floor hero now LIVES Warrens-strength hits (atk 26, 30, 36, 42, 50 all lived six seeds of six, eating 3-8k g/h),
+     so "like the Warrens" no longer proves lethality. The floor still bites: at atk 60 three seeds of six die, at
+     72 all six (1.4-30 min). The rule is unchanged; the mutant is the lethal ground it must catch. */
+  { name: 'the glade\'s sluicer and Rook hit four times as hard (atk 18 -> 72)', case: 'glade-solo-floor',
+    edits: [['src/data/monsters.js', 'hp: 70, atk: 18, def: 10, xp: 360,', 'hp: 70, atk: 72, def: 10, xp: 360,'], ['src/data/monsters.js', 'hp: 78, atk: 18, def: 11,', 'hp: 78, atk: 72, def: 11,']] },
   { name: 'the glade\'s coin doubled (it out-earns the Warrens)', case: 'glade-between',
     edits: [['src/data/monsters.js', 'xp: 165, gp: [4, 12]', 'xp: 165, gp: [8, 24]'], ['src/data/monsters.js', 'xp: 225, gp: [6, 18]', 'xp: 225, gp: [12, 36]'],
       ['src/data/monsters.js', 'xp: 260, gp: [4, 12]', 'xp: 260, gp: [8, 24]'], ['src/data/monsters.js', 'xp: 360, gp: [14, 34]', 'xp: 360, gp: [28, 68]'],
       ['src/data/monsters.js', 'xp: 520, gp: [16, 40]', 'xp: 520, gp: [32, 80]']] },
+  { name: 'the Shop sells a helmet the Thicket wolves drop', case: 'shop-outfits-defense',
+    edits: [['src/data/supply-basics.js', "  sell('copper_studs', 'gear', null, 120),", "  sell('copper_studs', 'gear', null, 120),\n  sell('leather_helmet', 'gear', null, 120),"]] },
+  { name: 'the Shop stops selling gloves (no neutral first armour piece)', case: 'shop-outfits-defense',
+    edits: [['src/data/supply-basics.js', "  sell('leather_gloves', 'gear', null, 160),\n", '']] },
+  { name: 'gloves and belts stop counting as armour (Defense never trains from them)', case: 'shop-outfits-defense',
+    edits: [['src/data/core-model.js', "export const ARMOUR_SLOTS = Object.freeze(['helmet', 'body', 'pants', 'boots', 'gloves', 'belt']);",
+      "export const ARMOUR_SLOTS = Object.freeze(['helmet', 'body', 'pants', 'boots']);"]] },
   { name: 'the Thicket wolves hit like a Sewer spider (atk 4 -> 13)', case: 'thicket-solo-starter-kit',
     edits: [['src/data/monsters.js', 'hp: 14, atk: 4, def: 1, xp: 52, gp: [3, 5], speed: 4200,', 'hp: 14, atk: 13, def: 1, xp: 52, gp: [3, 5], speed: 4200,']] },
   /* The whole Sewer roster's coin back to its pre-x1.8 rows (the drop-tables play mutant's /1.8): the party nets under the Thicket. */

@@ -39,17 +39,17 @@
 // window, no timers, no Math.random.
 // ============================================================
 
-import { COMBAT_BALANCE } from './combat.js?v=0.2.30';
-import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.30';
-import { createRng } from './rng.js?v=0.2.30';
-import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.30';
-import { stepSwing } from './hunt/world-step.js?v=0.2.30';
-import { makeEvent, trackStep } from './hunt/events.js?v=0.2.30';
-import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.30';
-import { rewardSwing } from './hunt-rewards.js?v=0.2.30';
+import { COMBAT_BALANCE } from './combat.js?v=0.2.31';
+import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.31';
+import { createRng } from './rng.js?v=0.2.31';
+import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.31';
+import { stepSwing } from './hunt/world-step.js?v=0.2.31';
+import { makeEvent, trackStep } from './hunt/events.js?v=0.2.31';
+import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.31';
+import { rewardSwing } from './hunt-rewards.js?v=0.2.31';
 
 /* The engine's front door (src/core/index.js `combatSim`). */
-export { stepSwing } from './hunt/world-step.js?v=0.2.30';
+export { stepSwing } from './hunt/world-step.js?v=0.2.31';
 
 /* WHY A COMBAT SPAN STOPPED BEFORE THE WINDOW DID — the same contract
    src/core/skill-sim.js and src/core/artisan-sim.js publish under this name.
@@ -87,6 +87,9 @@ function heroOf(m) {
 function syncUnit(u, m) {
   const snap = m.snapshot(m.state);
   u.acc = snap.acc; u.maxHit = snap.maxHit; u.def = snap.def;
+  /* THE ARMOUR'S MITIGATION (ruling K7, mitigation.js): derived from the member's gear and Level at
+     every boundary and never persisted, so a decoded world gets it back here before any blow. */
+  u.mit = snap.mit || null;
   u.maxHp = Math.max(u.maxHp, m.state.playerMaxHp);
   u.maxMana = Math.max(u.maxMana || 0, m.state.playerMaxMana || 0);
   u.regenPm = m.state.regenPm;
@@ -233,6 +236,8 @@ export function simulateHuntInstance(inst, ctx) {
         m.hs.staminaMs = staminaStep(m.hs.staminaMs, tick, true, m.hs.staminaMaxMs);
       }
       m.hs.tally.paidMs += tick; m.hs.tally.swings += 1; o.ticks += 1;
+      /* The whetstone wears on this swing (member.js wear), so the snapshot below already drops a spent one. */
+      if (typeof m.wear === 'function') m.wear(atMs);
       if (u) syncUnit(u, m);
       byUnit.set(m.unitId, m);
     }

@@ -17,25 +17,33 @@
 // item that is not a packable hunt supply (src/data/supplies.js), whose kind is
 // not the item's own, whose basic row is unknown or not its partner, a price
 // that is not the designer's rate (designerPrice: the basic's gold a point x the
-// item's own points; a shot at its basic's price), a duplicate item; and any refill or
-// blessing table its own validate() rejects.
+// item's own points; a shot at its basic's price), a duplicate item; a tool that is not a
+// tier-1 gathering tool; a GEAR row (the outfitter, designer 2026-10-22) for a slot a
+// walked ground drops (SHOP_GEAR_SLOTS), a piece above Level 1, a bound piece, a field-salvage
+// find, or one not at SHOP_PREMIUM x its book value; a SEED row (the seed counter, designer
+// 2026-10-22) for an item that is not a crop's seed, priced below its book value, or with a basic;
+// and any refill or blessing table its own validate() rejects.
 // ════════════════════════════════════════════════════════════════════════
 import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { SUPPLY_SHOP_OFFERS, BASIC_INDEX, SHOP_TOOL_PREMIUM } from '../src/data/supply-basics.js';
+import { SUPPLY_SHOP_OFFERS, BASIC_INDEX, SHOP_PREMIUM, SHOP_GEAR_SLOTS } from '../src/data/supply-basics.js';
 import { SUPPLIES } from '../src/data/supplies.js';
 import { ITEMS } from '../src/data/items.js';
+import { MONSTERS } from '../src/data/monsters.js';
+import { CROPS } from '../src/data/gathering.js';
 import { STAMINA_REFILL, validate as validateRefill } from '../src/data/stamina-refill.js';
 import { BLESSING_RULES, BLESSING_TIERS, validate as validateBlessings } from '../src/data/blessings.js';
 import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-/* THE FORWARD FILE (lane/c-caster-economy, 2026-10-21): 2026-10-25-alpha-catalogue.generated.sql is APPLIED
-   history, never regenerated; the drink price list x5/3 (designer pass 2026-10-21) lands in this forward file,
-   the same full delete+insert replace. */
-export const OUT_NAME = '2026-11-03-alpha-catalogue.generated.sql';
+/* THE FORWARD FILE: 2026-10-25- and 2026-11-03-alpha-catalogue.generated.sql are APPLIED history, never regenerated.
+   The outfitter's gear rows (lane/b-gold-sinks) and the seed counter (designer 2026-10-22, lane/b-orphan-sources) land
+   in ONE forward file (the v0.2.30 integration collapsed the never-applied 11-20 and 11-21 files into it), the same
+   full delete+insert replace, with the kind check widened to 'seed'. */
+/* v0.2.31 integration: ONE forward file per generator after the newest APPLIED (2026-11-20). */
+export const OUT_NAME = '2026-11-22-alpha-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 /* The shop's word for a supply kind (what the Shop window files it under). */
@@ -51,8 +59,11 @@ export function designerPrice(b, item) {
 }
 
 /** Validated supply offer rows, or throw. */
-export function supplyRows(offers = SUPPLY_SHOP_OFFERS, { items = ITEMS, supplies = SUPPLIES, basics = BASIC_INDEX } = {}) {
+export function supplyRows(offers = SUPPLY_SHOP_OFFERS, { items = ITEMS, supplies = SUPPLIES, basics = BASIC_INDEX, monsters = MONSTERS, crops = CROPS } = {}) {
   const seen = new Set();
+  /* item -> the monster whose field-salvage row drops it (a salvage piece is never shop stock) */
+  const salvaged = new Map();
+  for (const [mid, m] of Object.entries(monsters)) for (const d of (m && m.drops) || []) if (d && d.salvage) salvaged.set(d.id, mid);
   return offers.map((o) => {
     if (!o || !/^[a-z0-9_]{1,64}$/.test(o.item) || o.offer !== 'supply.' + o.item) throw new Error(`supply offer ${o && o.offer} is not supply.<item id>`);
     if (seen.has(o.item)) throw new Error(`supply offer ${o.item} is listed twice`);
@@ -62,7 +73,28 @@ export function supplyRows(offers = SUPPLY_SHOP_OFFERS, { items = ITEMS, supplie
       /* A tier-1 gathering tool (Tyler 10-18), at the premium floor over its book value. */
       const it = items[o.item];
       if (it.type !== 'tool' || it.toolTier !== 1 || o.basic !== null) throw new Error(`tool offer ${o.item} is not a tier-1 gathering tool with no basic`);
-      if (o.price !== SHOP_TOOL_PREMIUM * Number(it.v)) throw new Error(`tool offer ${o.item} at ${o.price} g is not ${SHOP_TOOL_PREMIUM} x its book value ${it.v}`);
+      if (o.price !== SHOP_PREMIUM * Number(it.v)) throw new Error(`tool offer ${o.item} at ${o.price} g is not ${SHOP_PREMIUM} x its book value ${it.v}`);
+      return { offer: o.offer, item: o.item, kind: o.kind, price: o.price };
+    }
+    if (o.kind === 'gear') {
+      /* The outfitter (designer 2026-10-22): a Level-1, unbound piece for a slot no walked ground drops, at the
+         premium over its book value (the vendor pays at most half the shop price: buy-then-sell loses). */
+      const it = items[o.item];
+      if (!SHOP_GEAR_SLOTS.includes(it.slot) || o.basic !== null) throw new Error(`gear offer ${o.item} (slot ${it.slot}) is not an outfitter slot (${SHOP_GEAR_SLOTS.join(', ')}) with no basic`);
+      if ((Number(it.reqLv) || 1) > 1 || (Number(it.tier) || 1) > 1) throw new Error(`gear offer ${o.item} is above tier 1 / Level 1: better pieces come from drops and crafting`);
+      if (it.bop || !(Number(it.v) > 0)) throw new Error(`gear offer ${o.item} is bound or has no book value`);
+      if (salvaged.has(o.item)) throw new Error(`gear offer ${o.item} is a field-salvage find (${salvaged.get(o.item)}): never shop stock (tests/field-salvage.mjs (a))`);
+      if (o.price !== SHOP_PREMIUM * Number(it.v)) throw new Error(`gear offer ${o.item} at ${o.price} g is not ${SHOP_PREMIUM} x its book value ${it.v}`);
+      return { offer: o.offer, item: o.item, kind: o.kind, price: o.price };
+    }
+    if (o.kind === 'seed') {
+      /* The seed counter (designer 2026-10-22): a crop's own seed, unbound, never below its book value (the vendor
+         pays at most half the cheapest shop unit, so buy-then-sell loses half). */
+      const it = items[o.item];
+      const crop = it && it.seed && own(crops, it.seed) ? crops[it.seed] : null;
+      if (!crop || crop.seed !== o.item || o.basic !== null) throw new Error(`seed offer ${o.item} is not a crop's own seed (src/data/gathering.js CROPS) with no basic`);
+      if (it.bop || !(Number(it.v) > 0)) throw new Error(`seed offer ${o.item} is bound or has no book value`);
+      if (!Number.isSafeInteger(o.price) || o.price < Number(it.v)) throw new Error(`seed offer ${o.item} at ${o.price} g is below its book value ${it.v}`);
       return { offer: o.offer, item: o.item, kind: o.kind, price: o.price };
     }
     if (!own(supplies, o.item)) throw new Error(`supply offer ${o.item} is not a packable hunt supply (src/data/supplies.js)`);
@@ -105,24 +137,26 @@ export function render(offers = supplyRows(), r = rules()) {
 -- Server-only: RLS on, NO policy, no client grant (the client reads src/data and
 -- the envelope's quotes). Idempotent: delete + insert; nothing references these
 -- rows by foreign key. Any hand edit FAILS \`node tools/gen-alpha-catalogue.mjs --check\`.
--- SUPERSEDES 2026-10-25-alpha-catalogue.generated.sql (applied; history, never
--- regenerated): the six drink rows move with the caster economy (designer pass
--- 2026-10-21: the store drinks x5/3, the price list at its ceil rule); every
--- other row is the 10-25 file's.
--- ORDER: after 2026-11-03-hunt-sessions-catalogue.generated.sql (needs hr_items, hr_hunt_supplies).
+-- SUPERSEDES 2026-11-03-alpha-catalogue.generated.sql (applied history): the
+-- outfitter's six gear rows (lane/b-gold-sinks) and the seed counter's nine rows
+-- (designer ruling 2026-10-22, lane/b-orphan-sources: every crop's seed, one per
+-- unit, at the counter's unit price, so no vendor bid moves) join the tools; one
+-- file (the v0.2.30 integration collapsed the never-applied 11-20 and 11-21 files).
+-- hr_shop_view lists them: 2026-11-24-shop-outfitter.sql, 2026-11-25-shop-seeds.sql.
+-- ORDER: after the v0.2.29 chain (needs hr_items, hr_hunt_supplies, hr_crops); first of v0.2.30.
 -- No begin/commit (CLAUDE.md §2).
 -- ════════════════════════════════════════════════════════════════════════
 
 do $pre$
 begin
-  if to_regclass('public.hr_items') is null or to_regclass('public.hr_hunt_supplies') is null then
-    raise exception 'PRECONDITION: hr_items / hr_hunt_supplies are absent (apply the item and hunt catalogues first)'; end if;
+  if to_regclass('public.hr_items') is null or to_regclass('public.hr_hunt_supplies') is null or to_regclass('public.hr_crops') is null then
+    raise exception 'PRECONDITION: hr_items / hr_hunt_supplies / hr_crops are absent (apply the item, hunt and farm catalogues first)'; end if;
 end $pre$;
 
 create table if not exists public.hr_shop_supply_offers (
   offer_id text primary key check (offer_id ~ '^supply\\.[a-z0-9_]{1,64}$'),
   item_id  text not null unique check (item_id ~ '^[a-z0-9_]{1,64}$'),
-  kind     text not null check (kind in ('food', 'drink', 'ammo', 'tool')),
+  kind     text not null check (kind in ('food', 'drink', 'ammo', 'tool', 'gear', 'seed')),
   price    bigint not null check (price between 1 and 1000000000),
   constraint hr_shop_supply_offers_id_ck check (offer_id = 'supply.' || item_id)
 );
@@ -145,6 +179,11 @@ create table if not exists public.hr_blessing_tiers (
   base      int not null check (base > 0),
   per_level int not null check (per_level >= 0)
 );
+-- The outfitter's 'gear' and the seed counter's 'seed' kinds (designer 2026-10-22): the 10-25 table was created
+-- with the four kinds before them.
+alter table public.hr_shop_supply_offers drop constraint if exists hr_shop_supply_offers_kind_check;
+alter table public.hr_shop_supply_offers add constraint hr_shop_supply_offers_kind_check
+  check (kind in ('food', 'drink', 'ammo', 'tool', 'gear', 'seed'));
 alter table public.hr_shop_supply_offers enable row level security;
 alter table public.hr_stamina_refill_rule enable row level security;
 alter table public.hr_blessing_rule enable row level security;
@@ -180,8 +219,15 @@ begin
     raise exception 'VERIFY: the supply offers are not the data''s rows and prices'; end if;
   if exists (select 1 from public.hr_shop_supply_offers o
               where not exists (select 1 from public.hr_items i where i.item_id = o.item_id)
-                 or (o.kind <> 'tool' and not exists (select 1 from public.hr_hunt_supplies s where s.item_id = o.item_id))) then
-    raise exception 'VERIFY: a supply offer sells an item that is not a packable hunt supply (or a tool)'; end if;
+                 or (o.kind not in ('tool', 'gear', 'seed') and not exists (select 1 from public.hr_hunt_supplies s where s.item_id = o.item_id))
+                 or (o.kind = 'seed' and not exists (select 1 from public.hr_crops c where c.seed_item = o.item_id))) then
+    raise exception 'VERIFY: a supply offer sells an item that is not a packable hunt supply (or a tool, gear or a crop''s seed)'; end if;
+  if exists (select 1 from public.hr_crops c where c.seed_item is not null
+              and not exists (select 1 from public.hr_shop_supply_offers o where o.kind = 'seed' and o.item_id = c.seed_item)) then
+    raise exception 'VERIFY: a crop''s seed is on no Shop row (nobody could plant it)'; end if;
+  if exists (select 1 from public.hr_shop_supply_offers o join public.hr_hunt_vendor_value v on v.item_id = o.item_id
+              where o.kind in ('tool', 'gear', 'seed') and v.unit * 2 > o.price) then
+    raise exception 'VERIFY: the vendor bids more than half the shop price of a tool, gear piece or seed (buy-then-sell would pay)'; end if;
   if exists (select 1 from public.hr_blessing_tiers a join public.hr_blessing_tiers b on b.tier = a.tier + 1
               where b.permille <= a.permille or b.base <= a.base) then
     raise exception 'VERIFY: a blessing tier does not protect more and cost more than the one below it'; end if;
@@ -197,6 +243,33 @@ end $chk$;
 `;
 }
 
+/* The outfitter's refusals, each planted on the first real gear row (designer 2026-10-22). */
+function gearCases(base) {
+  const at = base.findIndex((o) => o.kind === 'gear');
+  if (at < 0) return [['no gear row to plant on', null]];
+  const g = (patch) => base.map((o, i) => (i === at ? { ...o, ...patch } : o));
+  const v = (id) => SHOP_PREMIUM * Number(ITEMS[id].v);
+  return [
+    ['gear for a slot a ground drops (a helmet)', g({ item: 'leather_helmet', offer: 'supply.leather_helmet', price: v('leather_helmet') })],
+    ['gear above Level 1', g({ item: 'studded_belt', offer: 'supply.studded_belt', price: v('studded_belt') })],
+    ['gear that is a field-salvage find', g({ item: 'apprentice_gloves', offer: 'supply.apprentice_gloves', price: v('apprentice_gloves') })],
+    ['gear under the premium', g({ price: v(base[at].item) - 1 })],
+    ['gear with a basic', g({ basic: 'salted_shrimp' })],
+  ];
+}
+
+/* The seed counter's refusals, each planted on the first real seed row (designer 2026-10-22). */
+function seedCases(base) {
+  const at = base.findIndex((o) => o.kind === 'seed');
+  if (at < 0) return [['no seed row to plant on', null]];
+  const g = (patch) => base.map((o, i) => (i === at ? { ...o, ...patch } : o));
+  return [
+    ['a seed row for an item that is not a seed (the crop itself)', g({ item: 'turnip', offer: 'supply.turnip' })],
+    ['a seed row below its book value', g({ price: Number(ITEMS[base[at].item].v) - 1 })],
+    ['a seed row with a basic', g({ basic: 'thin_turnip_juice' })],
+  ];
+}
+
 function selftest() {
   const base = SUPPLY_SHOP_OFFERS;
   const one = (patch) => base.map((o, i) => (i === 0 ? { ...o, ...patch } : o));
@@ -208,6 +281,8 @@ function selftest() {
     ['off the designer rate', one({ price: 18 })],
     ['offer id not supply.<item>', one({ offer: 'equip.cooked_shrimp' })],
     ['duplicate item', base.concat([base[0]])],
+    ...gearCases(base),
+    ...seedCases(base),
   ];
   let bad = 0;
   for (const [why, rows] of cases) {

@@ -21,6 +21,10 @@
 //                    more than LUMP times slower than the ground's fastest (the "4 boots, 2 helmets" class)
 //   rare-pace        the carrier's rare rows land once per 10-20 hours per hero (Tyler 10-14/15)
 //   gear-faucet      the vendor value of the equipment that drops stays under FAUCET of the coin
+//   warrens-floor    CONFLICTS item 2 (designer 2026-10-21, armour weights K7): the Warrens' party of four in the
+//                    ladder kit at its floor (32) lives the hour on two seeds with every role at least +25% over its
+//                    own bill, and a lone own-tier Melee at the ground's soloFrom Level (the Level its card offers it
+//                    alone from) clears +25% on both seeds too
 //   caster-floor     the Sewer's party of four (Melee tank, Ranger, Mage with wand + book, Healer) at its floor in the
 //                    ladder kit plays the full hour with 0 deaths, the Mage casts, and EVERY role clears +25% on the
 //                    even income share against its own store bill (designer pass 2026-10-21: drinks x12 with the mana
@@ -278,6 +282,29 @@ function casterFloor(M, P, R, print) {
     + ' g/h; bill per hero/h ' + bills.map(([k, b]) => k + ' ' + Math.round(b) + (b > 0 ? ' (' + pct((share / b - 1) * 100) + ')' : '')).join(', '));
 }
 
+/* THE WARRENS FLOOR (CONFLICTS item 2): the party at 32 and a lone hero at the card's soloFrom, two seeds. */
+const WARRENS_SEEDS = Object.freeze(['-4611686018427387904', '1234567890123']);
+function warrensFloor(M, P, R, print) {
+  const gid = 'coppercap_warrens', row = M.G.HUNT_GROUNDS[gid], floor = M.HUNTS[row.hunt].band[0];
+  const margins = (x) => {
+    const T = x.totals, h = x.playedMs / H || 1, share = (T.coin + T.commons) / h / x.heroes.length;
+    return x.heroes.map((k) => { const bill = Object.entries(T.buys[k] || {}).reduce((s2, [id, q]) => s2 + q * ((P.basics[id] || {}).price || 0), 0) / h;
+      return [k, bill > 0 ? (share / bill - 1) * 100 : Infinity]; });
+  };
+  const out = [];
+  for (const secret of WARRENS_SEEDS) {
+    const party = P.run(gid, floor, PARTY, { spanMs: H, secret });
+    R.ok(party.playedMs >= H && party.totals.falls === 0, 'warrens-floor: the party of four (ladder kit) at ' + floor + ' ended after ' + (party.playedMs / 60000).toFixed(1) + ' min, ' + party.totals.falls + ' death(s)');
+    for (const [k, m] of margins(party)) R.ok(m >= MARGIN_MIN, 'warrens-floor: party ' + k + ' at ' + floor + ' earns ' + pct(m) + ', under +' + MARGIN_MIN + '%');
+    const lone = Number.isInteger(row.soloFrom) ? row.soloFrom : floor;
+    const solo = P.run(gid, lone, ['tank'], { spanMs: H, secret, fullSet: true });
+    const [, sm] = margins(solo)[0];
+    R.ok(solo.playedMs >= H && sm >= MARGIN_MIN, 'warrens-floor: a lone Melee at ' + lone + ' (the card\'s alone-from Level) earns ' + pct(sm) + ' over ' + (solo.playedMs / 60000).toFixed(0) + ' min, under +' + MARGIN_MIN + '%');
+    out.push(margins(party).map(([k, m]) => k + ' ' + pct(m)).join(', ') + ' | alone at ' + lone + ' ' + (Number.isFinite(sm) ? pct(sm) : 'no bill'));
+  }
+  if (print) console.log('  ' + gid.padEnd(20) + ' L' + floor + '  party of 4 (ladder kit) per seed: ' + out.join(' ; '));
+}
+
 /* ── MUTANTS: every case and every play rule must bite ─────────────────── */
 const clone = (MONSTERS, edit) => {
   const out = {};
@@ -303,8 +330,10 @@ const dataMutants = [
   { name: 'an imbuement item on a monster of the wrong tier', case: 'four-slots', edit: (ms) => { ms.rat_king.level = 30; } },
 ];
 const playMutants = [
-  { name: 'the Sewer back to its old coin', rule: 'profit-floor: millrace_sewer', edit: (ms) => {
-    for (const id of ['drain_rat', 'sump_slime', 'culvert_bat', 'cistern_spider', 'kobold_tosher', 'rat_king']) ms[id].gp = ms[id].gp.map((v) => Math.max(1, Math.round(v / 1.8)));
+  /* The Sewer's coin cut to under half (armour weights, ruling K7, left the ladder-kit Melee +119% at the floor,
+     so the old /1.8 coin clears +25% by a hair: the floor still bites at /2.2, about +11%). */
+  { name: 'the Sewer coin cut to under half', rule: 'profit-floor: millrace_sewer', edit: (ms) => {
+    for (const id of ['drain_rat', 'sump_slime', 'culvert_bat', 'cistern_spider', 'kobold_tosher', 'rat_king']) ms[id].gp = ms[id].gp.map((v) => Math.max(1, Math.round(v / 2.2)));
   } },
   { name: 'the Thicket boots five times rarer', rule: 'gear-pace: meadowbrook_thicket', edit: (ms) => { gearOf(ms, 'gray_whelp').ch /= 5; } },
   { name: 'the den mother\'s fang back to 1%', rule: 'rare-pace: meadowbrook_thicket', edit: (ms) => { ms.grayjaw.drops.find((d) => d.id === 'alpha_fang').ch = 0.01; } },
@@ -325,6 +354,15 @@ const casterMutants = [
     ['src/data/abilities.js', "id: 'fireball', n: 'Fireball', disciplines: ['destruction'], lane: 'offense', cdMs: 8000, mana: 25,",
       "id: 'fireball', n: 'Fireball', disciplines: ['destruction'], lane: 'offense', cdMs: 8000, mana: 25, rune: 'fire_rune',"]] },
 ];
+/* The Warrens floor's levers (src/data + the tier table in src/core/combat.js): each plays on a planted copy. */
+const warrensMutants = [
+  /* Store-by-slot (v0.2.30): the measured hero's bar names the guide's food (play-ground.mjs refBar), so the mutant
+     puts the guide back on the tier-4 Swordfish, as a player stocking by the old guide would. */
+  { name: 'the Warrens store food back to tier 4', edits: [['src/data/supplies.js', "  coppercap_warrens: Object.freeze({ tier: 3,\n    melee: melee('cooked_lobster', 80),",
+    "  coppercap_warrens: Object.freeze({ tier: 4,\n    melee: melee('cooked_swordfish', 80),"]] },
+  { name: 'tier-3 blows back to the flat 5.4', edits: [['src/core/combat.js', 'monsterDamageScaleByTier: Object.freeze({ 3: 4.0, 4: 4.0,', 'monsterDamageScaleByTier: Object.freeze({ 4: 4.0,']] },
+  { name: 'the card offers the Warrens alone from 40', edits: [['src/data/hunt-grounds.js', '    soloFrom: 45,', '    soloFrom: 40,']] },
+];
 const engineMutants = [
   { name: 'the equipment band forgotten in the engine', case: 'gear-is-no-reveal',
     edits: [['src/core/drops.js', "const band = d.gear === true ? 'gear' : dropBand(d.ch);", 'const band = dropBand(d.ch);']] },
@@ -341,6 +379,7 @@ const { loadPlay, PLAY_TREES } = await import(pathToFileURL(join(ROOT, 'tests/hu
 const P = await loadPlay(ROOT);
 await plays(M, P, M.MONSTERS, R, true);
 casterFloor(M, P, R, true);
+warrensFloor(M, P, R, true);
 
 for (const mu of dataMutants) {
   let why = null;
@@ -369,5 +408,14 @@ for (const mu of casterMutants) {
     if (MR.fails.length) console.log('  caster mutant "' + mu.name + '" caught: ' + MR.fails[0].slice(0, 140));
   } finally { p.done(); }
 }
-if (!R.fails.length) console.log('  ' + Object.keys(cases).length + ' cases + the plays, ' + (dataMutants.length + engineMutants.length + playMutants.length + casterMutants.length) + ' mutants caught');
+for (const mu of warrensMutants) {
+  const p = plant(mu.edits, PLAY_TREES);
+  try {
+    const MR = { fails: [], ok(c, msg) { if (!c) this.fails.push(msg); } };
+    warrensFloor({ ...M, G: await imp(p.root, 'src/data/hunt-grounds.js') }, await loadPlay(p.root), MR, false);
+    R.ok(MR.fails.length > 0, 'mutant "' + mu.name + '" was NOT caught by warrens-floor');
+    if (MR.fails.length) console.log('  warrens mutant "' + mu.name + '" caught: ' + MR.fails[0].slice(0, 140));
+  } finally { p.done(); }
+}
+if (!R.fails.length) console.log('  ' + Object.keys(cases).length + ' cases + the plays, ' + (dataMutants.length + engineMutants.length + playMutants.length + casterMutants.length + warrensMutants.length) + ' mutants caught');
 R.finish();

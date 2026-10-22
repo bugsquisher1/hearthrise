@@ -20,7 +20,7 @@
 //   bag_rules     { locked: [item], loot: { item: keep|sell|ignore } }   (its `restock` is not read:
 //                 restock targets drove the retired one-tap refill)
 //   shop          { offers: [{ offer, item, kind, price }], bids: { item: gold each } }
-//                   (offers: the tools only; the Shop sells no supplies, Tyler 2026-10-20)
+//                   (offers: tools, gear and seeds; the Shop sells no supplies, Tyler 2026-10-20)
 //   hunt.loot     [{ item, count }]  what this hunt has picked up (not premium-gated)
 //   hunt_presets  [{ preset, name, action_set, gear: { slot: item } }]
 //   role          { id, weapon }      the hunt role the worn weapon gives
@@ -28,7 +28,8 @@
 //   stamina_refill { available, why, restore_ms, price, n, per_day }  the next refill, priced
 //   blessings      { held: [tier], permille, free_until, tiers: [{ tier, permille, price, held }] }
 // ════════════════════════════════════════════════════════════════════════
-import { huntBagOf } from './hunt-sections.js?v=0.2.30';
+import { huntBagOf } from './hunt-sections.js?v=0.2.31';
+import { SHOP_SOLD_KINDS } from '../data/supply-basics.js?v=0.2.31';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -105,8 +106,9 @@ export function rulesOf(cs) {
   return { locked, loot };
 }
 
-/* What the Shop sells: gear and tools, never supplies (Tyler 2026-10-20). An offer of another kind is dropped. */
-const KINDS = Object.freeze(['tool']);
+/* What the Shop sells: gear, tools and seeds, never supplies (Tyler 2026-10-20; the outfitter's gear and the seed
+   counter, designer 2026-10-22). One list, the data's (supply-basics.js SHOP_SOLD_KINDS). Another kind is dropped. */
+const KINDS = SHOP_SOLD_KINDS;
 
 /** `shop`: the server's offers and prices and its bid for each bag item. Null = no prices yet. */
 export function shopOf(cs) {
@@ -149,13 +151,21 @@ export function roleOf(cs) {
   return isObj(r) && str(r.id, 32) ? { id: r.id, weapon: str(r.weapon) } : null;
 }
 
-/** `bank` (hr_state_of; written only by hr_bank_move): the home storage, [{ id, qty }], or null. */
+/** `bank` (hr_state_of; written only by hr_bank_move): the ACCOUNT's storage, [{ id, qty }], or null. */
 export function bankOf(cs) {
   const b = read(cs, 'bank');
   if (!isObj(b)) return null;
   const items = [];
   for (const [id, n] of Object.entries(b)) if (ID.test(id) && count(n) && n > 0) items.push({ id, qty: n });
   return items;
+}
+
+/** `depot` (hr_depot_view; the ACCOUNT storage's space): { used, cap, next: { name, stacks } | null }, or null. */
+export function depotOf(cs) {
+  const d = read(cs, 'depot');
+  if (!isObj(d) || count(d.used) === null || !count(d.cap)) return null;
+  const n = isObj(d.next) && str(d.next.name, 40) && count(d.next.stacks) ? { name: d.next.name, stacks: d.next.stacks } : null;
+  return { used: d.used, cap: d.cap, next: n };
 }
 
 /** `state.bank_cap`: how many stacks the bag holds (hr_apply's and hr_bank_move's bag fuse), or null. */

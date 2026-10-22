@@ -144,9 +144,11 @@ export async function runAll({ mutate } = {}) {
     const FREE_ARROW = ammoIds.find((id) => ITEMS[id].ammoPerShot === 0 && ITEMS[id].rangeStrB);
     const PAID_ARROW = ammoIds.find((id) => ITEMS[id].ammoPerShot === 1 && ITEMS[id].rangeStrB);
     const FREE_RUNE = ammoIds.find((id) => ITEMS[id].ammoPerShot === 0 && ITEMS[id].magicStrB);
-    const WHET = ammoIds.find((id) => ITEMS[id].ammoPerShot === 0 && ITEMS[id].strB);
+    /* The whetstone's first rung WEARS since c-work-fixes (2026-10-22, src/data/stonecraft.js:
+       a whetstone is melee's ceiling, R5, so no free stone): the fixture is the tier-1 stone. */
+    const WHET = ammoIds.find((id) => ITEMS[id].tier === 1 && ITEMS[id].strB);
     ok(!!FREE_ARROW && !!PAID_ARROW && !!FREE_RUNE && !!WHET,
-      `A0: the catalogue lost a fixture rung (free arrow ${FREE_ARROW}, paid ${PAID_ARROW}, free rune ${FREE_RUNE}, free whetstone ${WHET})`);
+      `A0: the catalogue lost a fixture rung (free arrow ${FREE_ARROW}, paid ${PAID_ARROW}, free rune ${FREE_RUNE}, first whetstone ${WHET})`);
     const bestOf = (type, field) => Object.keys(ITEMS)
       .filter((id) => ITEMS[id] && ITEMS[id].weaponType === type && ITEMS[id][field])
       .sort((a, b) => (ITEMS[b][field] || 0) - (ITEMS[a][field] || 0))[0];

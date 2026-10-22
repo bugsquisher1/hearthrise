@@ -21,7 +21,7 @@ export const PACE = { xp: 0.39, actionMs: 1.60 };
    dial like every artisan skill: its rates are authored pre-dial (PRAYER_BURY). */
 export const PACE_EXEMPT_SKILLS = ['farming', 'melee', 'ranged', 'magic', 'defense'];
 
-export const SPEED_KEYS = { cookSpeed: 1, smithSpeed: 1, craftSpeed: 1, prayerSpeed: 1, gatherSpeed: 1 };
+export const SPEED_KEYS = { cookSpeed: 1, smithSpeed: 1, craftSpeed: 1, prayerSpeed: 1, runeSpeed: 1, gatherSpeed: 1 };
 
 /* b227/b228 — THE FUSE, at the point of CONSUMPTION.
    A clamp inside getBonus is escaped by every wrapper above it (measured:
@@ -59,15 +59,14 @@ export const GATHER_SKILLS = ['woodcutting', 'mining', 'fishing'];
    `gatherSpeed` stack — a bench running at a gathering perk's rate, on the
    server as well as the client.
 
-   They map to `craftSpeed`, NOT to new `runeSpeed` / `masonSpeed` keys. Each
-   new key needs a ROOM RUNG to produce it and there are no more rooms, so a
-   bespoke key would be a GHOST KEY WITH NO PRODUCER — which is exactly the
-   dead-perk failure the b227 Cellar ruling was written to end. The Workshop
-   speeds the whole crafting family instead, which is a sentence a player can
-   read off the building. */
+   Every bench skill names the room that speeds it. Runecrafting is the
+   Library's (`runeSpeed`, game-designer ruling 2026-10-22: the Library is the
+   scriptorium where runes are inscribed). Stonemason has no room of its own
+   and maps to `craftSpeed` (the Workshop speeds the crafting family): a
+   bespoke key with no room rung to produce it would be a GHOST KEY. */
 const ARTISAN_SPEED_KEY = {
   cooking: 'cookSpeed', smithing: 'smithSpeed', crafting: 'craftSpeed', prayer: 'prayerSpeed',
-  runecrafting: 'craftSpeed', stonemason: 'craftSpeed',
+  runecrafting: 'runeSpeed', stonemason: 'craftSpeed',
 };
 
 /** Which perk key governs this skill's action speed. One list, so a new

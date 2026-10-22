@@ -193,6 +193,32 @@ import {
    sub-threshold absence, and the server has no reason to inherit that. */
 export const ACCRUE_MIN_MS = 60000;
 
+/* ── THE TOWN SETTLE FLOOR (lane c-live-town-work, Tyler 2026-10-22: "the bag
+   needs to update in real time, not when it's done") ─────────────────────────
+   A town pointer (a gathering node or a bench recipe) is the `accrue` verb's
+   only payable kind today (a fight is a hunt session: SKIP.HUNT_OPEN /
+   SKIP.HUNT_REQUIRED answer before the floor). While the Work window or the bag
+   is open the client asks one settle per SESSION_CONFIG.townPollMs (16 s), the
+   way the hunt view asks hunt_settle, and the window it asks for pays from
+   15 s: the SAME player-door fuse a hunt has (hunt-settle.js HUNT_SETTLE_MIN_MS,
+   pinned equal by tests/artisan-accrual.mjs T10). It stays a SERVER constant on
+   a SERVER-literal caller: a client polling faster is answered `below_min_span`
+   and writes nothing, so the door writes at most four ledger rows a minute per
+   character, each one an aggregate of every action in its window.
+   Time is conserved exactly as at 60 s: the sub-action remainder is deferred
+   (settledWatermarkMs), so a chain of 15 s windows pays the same actions as one
+   long window, and the stop's collect pays only what is left after the last.
+   ACCRUE_MIN_MS stays 60 s as the `inventory_complete` boundary hr_state_of is
+   pinned to (tests/inventory-complete-probe.mjs): that flag now reads "no
+   window of 60 s or more is pending", the weaker reading b531 already made
+   true for a collect (see inventoryBaselineComplete). */
+export const TOWN_SETTLE_MIN_MS = 15000;
+
+/** The `accrue` caller's floor for a pointer of `activeKind`: 15 s for town work, ACCRUE_MIN_MS otherwise. */
+export function accrueFloorMs(activeKind) {
+  return activeKind === 'gather' || activeKind === 'artisan' ? TOWN_SETTLE_MIN_MS : ACCRUE_MIN_MS;
+}
+
 /**
  * Does an engine delta MOVE ANY VALUE? (b531)
  *
@@ -1084,7 +1110,7 @@ export function computeAccrual(input) {
      rows and no ledger noise. `grantMs > 0` is required either way — a
      zero-length window has nothing to simulate. */
   if (grantMs <= 0) return { accrued: false, reason: SKIP.TOO_SOON };
-  if (grantMs < ACCRUE_MIN_MS && accrualCaller(inp) === 'accrue') {
+  if (grantMs < accrueFloorMs(inp.activeKind) && accrualCaller(inp) === 'accrue') {
     return { accrued: false, reason: SKIP.TOO_SOON };
   }
   const capped = elapsedMs > grantMs;
@@ -1961,12 +1987,25 @@ function accrueGather(inp, span) {
  * @param span { nowMs, grantMs, capped, credit } — computed by the shared
  *             preamble. `credit` is the WINDOW (Ruling 2).
  */
+/* The span's action cap: the degrade ladder's budget and the run's own count, whichever is
+   smaller; null when neither binds (absent and null are both "unbounded", see artisan-sim.js). */
+function runCap(budget, left) {
+  const b = (budget === null || budget === undefined) ? null : Number(budget);
+  if (b === null) return left;
+  return left === null ? b : Math.min(b, left);
+}
+
 function accrueArtisan(inp, span) {
   const { nowMs, grantMs, capped, credit } = span;
 
   const items = inp.items || {};
   const recipes = inp.recipes || {};
   const equipment = inp.equipment || {};
+  /* "MAKE N" (2026-12-01-bench-count.sql): the actions this run may still make, from the
+     server's own player_state.active_left (envelope.js activeLeft); null = until an input runs
+     out. It caps the span like the degrade ladder's budget, and the run ENDS on the action that
+     reaches it (below), so N actions are paid however the settles are cut. */
+  const left0 = Number.isInteger(inp.activeLeft) && inp.activeLeft > 0 ? inp.activeLeft : null;
   /* Equipment reaches an artisan night through exactly one channel — `xpB`,
      the same term the client's xpGrantCtx() supplies. A bench has no accuracy,
      no max hit and no swing speed. (Tool speed is not equipment: it is the best
@@ -2131,8 +2170,7 @@ function accrueArtisan(inp, span) {
        This is the ONE ctx field on this path that does not describe the player,
        and it is set from `inp.actionBudget`, which index.ts computes from the
        engine's own previous answer — never from a request body. */
-    maxActions: (inp.actionBudget === null || inp.actionBudget === undefined)
-      ? null : Number(inp.actionBudget),
+    maxActions: runCap(inp.actionBudget, left0),
     /* `minStepMs` is NOT SET, so `resolveStepMs` uses the real MIN_ACTION_MS
        floor. This object is built field by field and nothing is spread into it:
        if it were built from a request body, `minStepMs` would ride in through
@@ -2243,8 +2281,12 @@ function accrueArtisan(inp, span) {
      future accrual answering "nothing" and the player's pointer stuck on an
      activity they cannot do. Reachable through ordinary play: a night that
      exhausts its inputs and is then collected a second time. */
+  /* THE COUNT REACHED is a stop like the other two: the run is over and the pointer clears. */
+  const left1 = left0 === null ? null : Math.max(0, left0 - Math.floor(nat(summary.ticks, 0)));
+  const counted = left1 === 0;
   const stopped = summary.stoppedBy === ARTISAN_STOP.SUPPLIES
-                || summary.stoppedBy === ARTISAN_STOP.GATE;
+                || summary.stoppedBy === ARTISAN_STOP.GATE
+                || counted;
   const nothingHappened = itemKinds === 0 && Object.keys(xpDelta).length === 0 && summary.ticks === 0;
   if (nothingHappened && !stopped) return { accrued: false, reason: SKIP.NOTHING, summary };
 
@@ -2307,8 +2349,10 @@ function accrueArtisan(inp, span) {
         recipe: summary.recipeId, skill: summary.skill,
         /* WHY it stopped and on WHAT, because "the night made 200 bars and the
            bag had ore for 4,000" is only answerable from the stop. */
-        stopped: summary.stoppedBy || null,
+        stopped: counted ? 'count' : (summary.stoppedBy || null),
         out_of: stoppedInput,
+        /* "MAKE N": the count this window started from and what it left (absent on an uncounted run). */
+        ...(left0 !== null ? { n: left0, left: left1 } : {}),
         /* C5. A COMMA-JOINED STRING, not an array: T7 asserts every meta value
            is a scalar, because a nested structure in the ledger is how
            game_events became 229 MB, and the rule is worth more than the two
@@ -2345,6 +2389,9 @@ function accrueArtisan(inp, span) {
      statement and restating an unchanged pointer buys nothing but a catalogue
      lookup. */
   if (stopped) delta.activity = { kind: 'idle', id: null };
+  /* "MAKE N": a run still short of its count proposes the lowered count (hr_apply accepts it
+     only below the stored one, on an accrual): a replayed or re-cut window cannot pay past N. */
+  if (!stopped && left1 !== null && left1 < left0) delta.active_left = left1;
 
   return {
     accrued: true,

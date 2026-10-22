@@ -21,9 +21,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { ITEMS } from './items.js?v=0.2.30';
-import { HUNT_ROLES, roleForWeapon, roleWeaponOf } from './hunt-roles.js?v=0.2.30';
-import { STARTER_SETS } from './start-kit.js?v=0.2.30';
+import { ITEMS } from './items.js?v=0.2.31';
+import { HUNT_ROLES, roleForWeapon, roleWeaponOf } from './hunt-roles.js?v=0.2.31';
+import { STARTER_SETS } from './start-kit.js?v=0.2.31';
 
 const style = (id, role, weapons, name, does, uses) => Object.freeze({ id, role, weapons: Object.freeze(weapons), name, does, uses });
 
@@ -58,6 +58,12 @@ export const HELP_NOTES = Object.freeze([
     'Food heals and drink brings back mana. What you carry is used first, for free. Store supplies cost gold each time your hero uses one, and if the gold runs out the hunt ends. Raw meat and fish cook into food: pick them in your bag and choose Cook all.'),
   note('bar', 'The action bar',
     'Each slot is one spell, food or drink, with up to three conditions such as My HP % below 60. The first slot that can fire, fires, so put the most important one first.'),
+  note('gold', 'What gold is for',
+    'Store supplies cost gold as your hero uses them. In town the Shop sells gloves, belts, jewellery and tools, and Services sells extra stamina and Blessings. Save up and you can buy another hero slot.'),
+  note('armour', 'Armour and Defense',
+    'Defense rises only while your hero wears armour and takes blows. Monsters drop helmets, bodies, legs and boots; gloves and belts are armour too, and the Shop sells them. Heavy pieces add health, light pieces add mana.'),
+  note('farm', 'Your farm',
+    'Open the Farm (J) and plant a seed in an empty plot; your bag starts with turnip seeds. A crop grows while you hunt or play away, and watering makes it grow twice as fast for 2 hours. Harvest puts the same crop back in, from your own seeds or one bought at the Shop\'s price.'),
   note('levels', 'Level and skills',
     'Every kill pays Level XP, and each Level raises your health and mana. Melee, Ranged, Magic and Defense rise by doing them: fighting with that weapon, or taking blows in armour. Level has no cap.'),
   note('town', 'Work in town',

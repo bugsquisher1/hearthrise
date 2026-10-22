@@ -59,8 +59,17 @@ export const ROCKS=[
      conjured on the Runecrafting bench, so hired hands and the world tick work
      it like any ore and it vendors at the raw 20% bid (3 g). */
   {id:'essence_rock',name:'Rune Essence',icon:'🪨',req:1,xp:21,ms:3000,prod:'rune_essence',qty:[1,1]},
+  /* COAL AT ANY LEVEL (Tyler 2026-10-14, rulings-of-record: "first tiers, including
+     coal, are gatherable at the town edge at any level"; lane/c-work-fixes 2026-10-22).
+     It was Mining 30. A first-tier node is a SUPPLY, not an XP rung: its paced
+     XP a second sits just under Copper's (floor(38 x 0.39) / 8.8 s = 1.59 vs 1.67),
+     so a level-1 miner gains nothing by skipping the copper ladder and Iron (15)
+     stays the next XP step. ms is unchanged, so coal arrives exactly as fast as
+     before and the Rich Coal Seam (52) keeps its ~2.5x. Every coal SINK is still
+     Smithing 30+ (steel), so the self-supply rule in recipes.js holds.
+     (The Coal(10.36)-to-Dawnstone xp climb below now starts at Verdite.) */
+  {id:'coal_rock',name:'Coal Rock',icon:'⬛',req:1,xp:38,ms:5500,prod:'coal',qty:[1,1]},
   {id:'iron_rock',name:'Iron Rock',icon:'⬜',req:15,xp:40,ms:4500,prod:'iron_ore',qty:[1,1]},
-  {id:'coal_rock',name:'Coal Rock',icon:'⬛',req:30,xp:57,ms:5500,prod:'coal',qty:[1,1]},
   /* b390 (game-design / gathering-plateau ruling): xp 75 → 79. The mid-to-high
      mining band had gone FLAT — Gold(45)→Rich Coal(52)→Mithril(60) moved only
      ~10.7→10.8→11.5 xp/sec, so +15 levels bought ~+8% training speed and an
@@ -224,9 +233,8 @@ export const CROPS={
   moonbloom:{name:'Moonbloom',icon:'🌸',hours:22,prod:'moonbloom',yield:[1,2],xp:7140,req:88,seed:'moonbloom_seed'},
 };
 
-/* b216: 'shield' (offhand) added. Existing saves simply have no value for it —
-   migrateEquipmentSlots fills every known slot with null — so it's save-safe. */
-export const EQUIP_SLOTS=['helmet','necklace','earrings','cape','weapon','shield','ammo','ring1','body','ring2','gloves','belt','pants','boots','companion'];
+/* The worn slots. 'companion' was cut with its one item, the Fox Companion (Tyler, 2026-10-22). */
+export const EQUIP_SLOTS=['helmet','necklace','earrings','cape','weapon','shield','ammo','ring1','body','ring2','gloves','belt','pants','boots'];
 
 /* ── AUTHORED SLOT → PLAYER SLOTS (moved here from tools/gen-catalogues.mjs,
    b366) ──────────────────────────────────────────────────────────────────────
@@ -251,5 +259,5 @@ export const EQUIP_SLOT_META={
   cape:{label:'Cape',icon:'🦸'},weapon:{label:'Weapon',icon:'⚔️'},shield:{label:'Offhand',icon:'🛡️'},ammo:{label:'Ammo',icon:'🏹'},
   ring1:{label:'Ring 1',icon:'💍'},body:{label:'Body',icon:'🦺'},ring2:{label:'Ring 2',icon:'💍'},
   gloves:{label:'Gloves',icon:'🧤'},belt:{label:'Belt',icon:'🟫'},pants:{label:'Pants',icon:'👖'},
-  boots:{label:'Boots',icon:'🥾'},companion:{label:'Companion',icon:'🐾'},
+  boots:{label:'Boots',icon:'🥾'},
 };

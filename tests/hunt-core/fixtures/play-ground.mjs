@@ -20,7 +20,7 @@ const COMBAT = ['melee', 'ranged', 'magic', 'defense'];
     on the real settle and answers the totals, per hour and per hero, plus `items` (id -> count, the whole
     party's credit), `heroItems` and `heroXp` (per hero key: item / skill -> amount) and `killsBy` (monster -> kills).
     opts: { spanMs (default thirty minutes), secret (the hunt seed), monsters (a drop-table fixture), fullSet,
-    equipment (one worn set every hero wears, e.g. the start kit's) }. */
+    equipment (one worn set every hero wears, e.g. the start kit's; or a function (role, seat, L) -> set, one per hero) }. */
 /** The trees loadPlay reads beyond src/core and src/data: a planted copy (h1.js plant) needs them too. */
 export const PLAY_TREES = Object.freeze(['supabase/functions/hr-accrue', 'src/world/core', 'assets/world']);
 
@@ -50,8 +50,24 @@ export async function loadPlay(root) {
   };
   const basics = {};
   for (const b of SB.BASIC_SUPPLIES) basics[b.id] = { kind: b.kind, price: b.price, heals: b.heals || 0, mana: b.mana || 0, partner: b.partner };
-  /* THE STORE: every catalogue row; the bar's slots pick the row a use buys (Tyler 2026-10-19), with no
-     choice the cheapest that covers what the hero is missing (action-rules.js storeFor). */
+  /* THE STORE: every catalogue row; the bar's slots pick the row a use buys (Tyler 2026-10-21: a slot names ONE
+     item, the game never picks).
+     THE REFERENCE BAR (designer 2026-10-22, store-by-slot): an empty stored bar runs the start kit's (START_BAR:
+     own Cooked Shrimp, then store Salted Shrimp under 60% HP, Thin Turnip Juice under 30% mana) at every ground,
+     so a Level-32 Warrens hero ate tier-1 shrimp and every Warrens bill read near zero. A measured hero is a
+     player who stocked for the ground: the start bar's three slots, the same thresholds, naming the ground's
+     guide food and drink (supplies.js BAG_GUIDE_BY_HUNT: its cooked food, the store row partnered to it, its
+     drink's store row). Tier-1 grounds are exactly START_BAR. opts.bar (role, seat, L) -> stored bar overrides. */
+  const { BAG_GUIDE_BY_HUNT } = await import(u('src/data/supplies.js'));
+  const { START_BAR } = await import(u('src/data/start-kit.js'));
+  const storeOf = (kind, cooked) => (SB.BASIC_SUPPLIES.find((b) => b.kind === kind && b.partner === cooked) || {}).id;
+  const refBar = (huntId) => {
+    const g = BAG_GUIDE_BY_HUNT[huntId];
+    if (!g) return START_BAR.map((x) => JSON.parse(JSON.stringify(x)));
+    const food = g.melee.heal.id, drink = g.magic.mana.id;
+    const item = { d_food: food, d_food_store: storeOf('heal', food), d_drink: storeOf('mana', drink) };
+    return START_BAR.map((x) => { const y = JSON.parse(JSON.stringify(x)); if (item[y.id]) y.action.id = item[y.id]; return y; });
+  };
   /* gear by level, the smiths' ladder a player at that level wears */
   const kit = (L, role) => {
     const t = L < 15 ? 0 : L < 30 ? 1 : L < 45 ? 2 : 3;
@@ -76,25 +92,26 @@ export async function loadPlay(root) {
     const line = role === 'ranger' ? ['leather', 'studded', 'boarhide', 'snakeskin'] : ['apprentice', 'adept', 'scholar', 'warlock'];
     return { ...base, helmet: line[t] + '_helmet', body: line[t] + '_body', pants: line[t] + '_pants', boots: line[t] + '_boots' };
   };
-  const hero = (huntId, role, i, L, roles, fullSet, worn) => {
+  const hero = (huntId, role, i, L, roles, fullSet, worn, bar) => {
     /* A hero at Level L with every combat skill at L (the designer's fit: skill ~ Level through L25). */
     const skills = Object.fromEntries(COMBAT.map((k) => [k, XP.skillXpForLevel(k, L)]));
     /* opts.equipment: a worn set given whole (the start kit, start-kit.js START_EQUIPMENT), for every hero. */
-    const equipment = worn ? { ...worn } : fullSet ? fullKit(L, role) : kit(L, role);
+    const equipment = typeof worn === 'function' ? worn(role, i, L) : worn ? { ...worn } : fullSet ? fullKit(L, role) : kit(L, role);
     return {
       key: role + i, user: role + i, slot: 0, seat: i, unitId: null, sessionId: 's-' + role + i, version: 1, huntId,
       huntSession: { id: 's-' + role + i, instanceId: IID, huntFromMs: T0, nextSwingAtMs: T0, swingIndex: 0, bag: role === 'ranger' ? { bronze_arrows: { loaded: 1 } } : {},
         staminaMs: 12 * 3600000, staminaMaxMs: 12 * 3600000, basics, goldFloor: 0, supplySource: 'mine', onEmpty: 'switch', cover: {} },
       skills, levelXp: XP.charXpForLevel(L), xpFrac: null, hp: 1e9, gold: 50000, equipment,
       inventory: {}, deathsTodayBefore: 0, deathsLifetimeBefore: 0, hearthfindReady: false, perks: null,
-      hero: SPAWN.heroSetup({ weaponType: roleWeaponOf(ITEMS[equipment.weapon]), options: role === 'healer' ? { role: 'healer' } : {}, bar: [], partyRoles: roles }),
+      hero: SPAWN.heroSetup({ weaponType: roleWeaponOf(ITEMS[equipment.weapon]), options: role === 'healer' ? { role: 'healer' } : {},
+        bar: typeof bar === 'function' ? bar(role, i, L) : refBar(huntId), partyRoles: roles }),
     };
   };
   const run = (huntId, L, roles, opts = {}) => {
     const span = opts.spanMs || SPAN, secret = opts.secret || SECRET, monsters = opts.monsters || MONSTERS;
     const ground = G.HUNT_GROUNDS[huntId], grid = gridOf(ground.map);
     /* L: one Level for every hero, or one per hero in seat order (a mixed party: [9, 19]) */
-    const members = roles.map((r, i) => hero(huntId, r, i, Array.isArray(L) ? L[i] : L, roles, opts.fullSet === true, opts.equipment || null));
+    const members = roles.map((r, i) => hero(huntId, r, i, Array.isArray(L) ? L[i] : L, roles, opts.fullSet === true, opts.equipment || null, opts.bar || null));
     /* opts.density: the party's monster density pick (the settle clamps it to the ground) */
     if (Number.isInteger(opts.density)) for (const m of members) m.hero = Object.assign({}, m.hero, { density: opts.density });
     /* common vs rare by the hunt's own drop rows: a drop at 5% or more anywhere here is a common, unless it is a

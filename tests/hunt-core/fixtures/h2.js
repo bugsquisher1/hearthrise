@@ -19,6 +19,7 @@ async function loadCore2(root) {
   M.monData = await imp('src/data/monsters.js');
   M.sessions = await imp('src/data/hunt-sessions.js');
   M.hg = await imp('src/core/hunt-ground.js');
+  M.mitigation = await imp('src/core/mitigation.js');
   return M;
 }
 

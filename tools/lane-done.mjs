@@ -112,9 +112,9 @@ const STEPS = [
   // Shipped copy promises no retired capability (local save, offline mode, save files). ~600 ms.
   ['node', ['tests/retired-capability-copy.mjs']],
   ['node', ['tests/retired-capability-copy.mjs', '--selftest']],
-  // The quest/goal reward catalogue parity (data <-> chain-end SQL). Seconds, no network.
-  ['node', ['tests/quest-reward-parity.mjs']],
-  ['node', ['tests/quest-reward-parity.mjs', '--selftest']],
+  // The old-client rewards stay cut (code, data files, chain end). Seconds, no network.
+  ['node', ['tests/old-rewards-gone.mjs']],
+  ['node', ['tests/old-rewards-gone.mjs', '--selftest']],
   ['node', ['tests/ci-shape.mjs']],
   ['node', ['tests/guard-hygiene.mjs']],
   // A new guard's mutant replay must declare its scope (upTo / fullChain) where

@@ -27,8 +27,6 @@ import { companionXpGuard } from './companion-xp.mjs';
 import { artisanProgressGuard } from './artisan-progress-model.mjs';
 import { goalCountersGuard } from './goal-counters.mjs';
 import { inventoryCompleteGuard } from './inventory-complete-probe.mjs';
-import { goalCatalogueDriftGuard } from './goal-catalogue-drift.mjs';
-import { collectionRenownClaimDriftGuard } from './collection-renown-claim-drift.mjs';
 import { unlockBuyGuard } from './unlock-buy.mjs';
 import { marketV2Guard } from './market-v2.mjs';
 import { runAll as equipIntentGuards } from './equip-intent.mjs';
@@ -1029,41 +1027,9 @@ const run = async () => {
         + 'against a server that does not emit it.');
     }
 
-    /* ── The goal catalogue drift guard (b414) ──────────────────────────
-       The DAILY-TASK + QUEST gold payouts are now server-credited
-       (hr_claim_daily / hr_claim_quest). This binds the reward catalogue across
-       its three homes — src/data/goal-catalogue.js, legacy.js
-       QUEST_DEFS/DAILY_TASK_POOL, and the migration SQL — so a player can never
-       be shown one gold number and credited another, the server selection can
-       never offer a different set than the client, and no gold-bearing goal can
-       silently lose its payout under arm. */
-    const catProblems = await goalCatalogueDriftGuard();
-    if (catProblems.length) {
-      console.log('\nGoal catalogue drift guard — FAILED:');
-      for (const p of catProblems) console.log(`  ✗ ${p}`);
-      exitCode = 1;
-    } else {
-      console.log('\nGoal catalogue drift guard — catalogue, legacy.js authored rows, and the credit '
-        + 'RPC SQL all agree on every daily/quest goal + reward + the selection pool order.');
-    }
-
-    /* ── The collection-milestone + renown-rank claim drift guard ──────────
-       The COLLECTION-LOG milestone and RENOWN rank gold/gem payouts are now
-       server-credited (hr_claim_milestone / hr_claim_rank). This binds each
-       reward catalogue across its three homes — src/data/{collection-milestones,
-       renown-ranks}.js, the authored client rows (collection-log.js MILESTONES /
-       renown.js RANKS), and the migration SQL — plus the hunterAll threshold to
-       the monster-catalogue size, so a player can never be shown one reward and
-       credited another, nor a milestone/rank threshold drift from what verifies it. */
-    const crProblems = await collectionRenownClaimDriftGuard();
-    if (crProblems.length) {
-      console.log('\nCollection/renown claim drift guard — FAILED:');
-      for (const p of crProblems) console.log(`  ✗ ${p}`);
-      exitCode = 1;
-    } else {
-      console.log('\nCollection/renown claim drift guard — milestone + rank catalogues, client rows, '
-        + 'and the credit RPC SQL all agree on every threshold + gold + gems.');
-    }
+    /* The goal-catalogue and collection/renown claim drift guards were RETIRED with the old-client
+       rewards they bound (Tyler 2026-10-22: quests, milestones, renown ranks, dailies, the login cycle).
+       tests/old-rewards-gone.mjs (its own CI step) keeps them cut. */
 
     /* tests/kill-time-drift.mjs and tests/combat-xp-cap-drift.mjs were RETIRED by the core rebuild
        (2026-10-19): src/core/kill-time.js (swing speed by weapon/style, deleted with the speed mods) and

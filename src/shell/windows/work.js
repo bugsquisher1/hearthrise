@@ -19,23 +19,25 @@
 // no (a hunt running, the level, the materials); the server re-checks all of it.
 // Farming has no door here: it is grown in plots, which this window does not run.
 // ════════════════════════════════════════════════════════════════════════
-import { SKILLS_DEF } from '../../data/skills.js?v=0.2.30';
-import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.30';
-import { recipeInputs, burnPct } from '../../core/artisan.js?v=0.2.30';
-import { skillsOf } from '../../session/item-sections.js?v=0.2.30';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.30';
-import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.30';
-import { whole } from '../../render/format.js?v=0.2.30';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.30';
-import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.30';
-import { runIntent } from '../intent-words.js?v=0.2.30';
-import { renderTradeSkills } from './skills.js?v=0.2.30';
-import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf, actionMs, xpEach, workBlock, startWork, stopWork, nowLine } from '../town-work.js?v=0.2.30';
+import { SKILLS_DEF } from '../../data/skills.js?v=0.2.31';
+import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.31';
+import { recipeInputs, burnPct } from '../../core/artisan.js?v=0.2.31';
+import { skillsOf } from '../../session/item-sections.js?v=0.2.31';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.31';
+import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.31';
+import { whole } from '../../render/format.js?v=0.2.31';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.31';
+import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.31';
+import { runIntent } from '../intent-words.js?v=0.2.31';
+import { renderTradeSkills } from './skills.js?v=0.2.31';
+import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf, actionMs, xpEach, workBlock, startWork, stopWork, nowLine, BENCH_COUNTS, defaultCount, leftOf } from '../town-work.js?v=0.2.31';
 
 /* How many rows above the level a skill shows: the next things to aim at. */
 const AHEAD = 2;
 const SCRATCH = new WeakMap();
-const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { skill: null, pending: false, msg: '' }; SCRATCH.set(cs, s); } return s; };
+const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { skill: null, pending: false, msg: '', n: {} }; SCRATCH.set(cs, s); } return s; };
+/* The amount a bench row will make on its next Start (1, 5 or 'all'): the player's pick, else the row's default. */
+const countOf = (sc, w) => (Object.prototype.hasOwnProperty.call(sc.n, w.id) ? sc.n[w.id] : defaultCount(w));
 
 /* skill -> its work rows in catalogue order ({ kind, id, skill, row }), built once. */
 const BY_SKILL = new Map();
@@ -76,8 +78,12 @@ function recipeWords(w) {
 function rowHtml(g, w) {
   const icon = productOf(w) || Object.keys(recipeInputs(w.row))[0];
   return '<li class="hw-line hw-work-row" data-id="' + esc(w.id) + '"><span class="hw-ico">' + itemIconHtml(g, icon) + '</span>'
-    + '<span class="hw-line-name"><b>' + esc(w.row.name) + '</b><small class="hw-work-what"></small><small class="hw-work-why"></small></span>'
-    + '<button type="button" class="hh-tool" data-hs-act="work-go" data-kind="' + w.kind + '" data-id="' + esc(w.id) + '"></button></li>';
+    + '<span class="hw-line-name"><b>' + esc(w.row.name) + '</b><small class="hw-work-what"></small><small class="hw-work-why"></small>'
+    /* "Make N" (a bench row only), under the row's words: how many the next Start makes; the server stops the bench there. */
+    + (w.kind === 'artisan' ? '<span class="hh-segs hw-work-n" role="group" aria-label="How many to make">'
+      + BENCH_COUNTS.map((n) => '<button type="button" class="hh-seg" data-hs-act="work-n" data-id="' + esc(w.id) + '" data-n="' + n + '">'
+        + (n === 'all' ? 'All' : n) + '</button>').join('') + '</span>' : '')
+    + '</span><button type="button" class="hh-tool hw-work-go" data-hs-act="work-go" data-kind="' + w.kind + '" data-id="' + esc(w.id) + '"></button></li>';
 }
 
 function patchRow(li, w, cs, sc, on, hunting, lv) {
@@ -91,12 +97,22 @@ function patchRow(li, w, cs, sc, on, hunting, lv) {
   /* The status line: running, why not, or what the server's bag holds / covers. A dish says its burn chance at the
      server's Cooking level ("up to": a Kitchen rung the server holds burns less). */
   const burn = w.skill === 'cooking' && out ? burnPct(w.row, lv, 0) : 0;
+  const pick = gather ? 'all' : countOf(sc, w);
+  const runs = runsOf(w.row, inv);
+  const makes = (pick === 'all' ? 'Makes up to ' + whole(runs * yieldOf(w))
+    : 'Makes ' + whole(Math.min(pick, runs) * yieldOf(w)) + ' of up to ' + whole(runs * yieldOf(w)));
   const have = gather ? whole(inv[out] || 0) + ' in your bag'
-    : 'Makes up to ' + whole(runsOf(w.row, inv) * yieldOf(w)) + ' · ' + each + (burn ? ' · burns up to ' + burn + '%' : '');
-  text(li.querySelector('.hw-work-why'), why || (running ? 'Working on it now · ' : '') + have);
+    : makes + ' · ' + each + (burn ? ' · burns up to ' + burn + '%' : '');
+  /* Running: the server's count left on this run ("3 left"), or nothing when it runs until the bag is out. */
+  const left = running && !gather ? leftOf(cs) : null;
+  text(li.querySelector('.hw-work-why'), why || (running ? 'Working on it now · ' + (left !== null ? whole(left) + ' left · ' : '') : '') + have);
+  for (const s of li.querySelectorAll('.hw-work-n .hh-seg')) {
+    attr(s, 'aria-pressed', String(s.getAttribute('data-n') === String(pick)));
+    prop(s, 'disabled', sc.pending || running);
+  }
   cls(li, 'is-on', running);
   cls(li, 'is-locked', !running && !!why);
-  const b = li.querySelector('button');
+  const b = li.querySelector('.hw-work-go');
   text(b, running ? 'Stop' : 'Start');
   attr(b, 'data-hs-act', running ? 'work-stop' : 'work-go');
   attr(b, 'title', why || null);
@@ -179,13 +195,21 @@ renderWork.act = function actWork(ctx, body, action, ev, t) {
   if (action === 'open-skill') { sc.skill = t.getAttribute('data-skill'); sc.msg = ''; repaint(); return true; }
   if (action === 'work-back') { sc.skill = null; sc.msg = ''; repaint(); return true; }
   if (action === 'work-stop') { if (workOf(cs)) stopWork(cs, send); return true; }
+  if (action === 'work-n') {
+    const id = t.getAttribute('data-id');
+    const raw = t.getAttribute('data-n');
+    const n = raw === 'all' ? 'all' : Number(raw);
+    if (id && BENCH_COUNTS.includes(n)) { sc.n[id] = n; repaint(); }
+    return true;
+  }
   if (action === 'work-go') {
     const w = workRow(t.getAttribute('data-kind'), t.getAttribute('data-id'));
     if (!w) return true;
     const h = huntOf(cs);
     const why = workBlock(cs, w, !!(h && !h.ended));
     if (why) { sc.msg = why; repaint(); return true; }
-    startWork(cs, w, send, repaint);
+    const n = w.kind === 'artisan' ? countOf(sc, w) : 'all';
+    startWork(cs, w, send, repaint, undefined, n === 'all' ? null : n);
     return true;
   }
   return false;

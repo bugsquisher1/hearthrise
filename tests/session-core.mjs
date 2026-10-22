@@ -25,6 +25,9 @@
 //   HELLO-1 an idle settle answer ({accrued:false}) is never applied as the character: the full read follows
 //   HUNT-1 while the server holds a hunt open the character asks the hunter's settle every huntPollMs
 //          (attended): the track reaches the timeline; the envelope that says it ended stops the asking
+//   TOWN-1 while the Work window or the bag watches town work (a node or a bench the server holds) the
+//          viewed character asks one settle per townPollMs, never two in flight, never for an idle hero
+//          or a hunter; the answer replaces the bag (Tyler 2026-10-22: "the bag needs to update in real time")
 //   HUNT-2 a pending leave is settled at once (away-owed time) and its envelope replaces the open hunt
 //   LEAVE-1 a pending leave's close is re-read a hair after the SERVER's leave_at (server clock), moving
 //          an armed poll earlier; the closing envelope ends the hunt and the re-reads stop
@@ -60,6 +63,7 @@ import { mkdtempSync, cpSync, readFileSync, writeFileSync, rmSync, mkdirSync } f
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { harnessFail, judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -74,6 +78,7 @@ async function load(base) {
     AU: await import(u('src/net/auth.js')),
     NB: await import(u('src/net/supabase-bootstrap.js')),
     CFG: await import(u('src/session/config.js')),
+    TP: await import(u('src/session/town-poll.js')),
   };
 }
 
@@ -119,8 +124,8 @@ const timers = { setTimer: () => 0, clearTimer: () => {} };
 
 async function rules(M) {
   const fails = [];
-  const t = async (id, fn) => { try { const r = await fn(); if (r !== true) fails.push(id + ': ' + r); } catch (e) { fails.push(id + ': threw ' + e.message); } };
-  const { E, R, C, A, S, AU, NB, CFG } = M;
+  const t = async (id, fn) => { try { const r = await fn(); if (r !== true) fails.push(id + ': ' + r); } catch (e) { fails.push(harnessFail(id, e)); } };
+  const { E, R, C, A, S, AU, NB, CFG, TP } = M;
 
   await t('ENV-1', () => {
     const a = E.applyEnvelope(null, env(3, { skills: { mining: 5 }, buffs: [1] })).record;
@@ -323,6 +328,43 @@ async function rules(M) {
     await new Promise((r) => setImmediate(r));
     if (!cs.record.data.hunt.ended) return 'the ended hunt did not replace the open one';
     return armed.length === 0 || 'an ended hunt kept re-reading';
+  });
+  /* TOWN-1 (Tyler 2026-10-22, "the bag needs to update in real time, not when it's done"): the shell's display
+     tick calls watchTown while the Work window or the bag is open; a town pointer the server holds is re-read
+     once per townPollMs (just over the engine's 15 s town floor), and the answer replaces the bag. */
+  await t('TOWN-1', async () => {
+    let clock = 1000;
+    const work = (v, inv) => env(v, { state: { gold: 1, active_kind: 'artisan', active_id: 'cook_shrimp' }, inventory: inv });
+    const calls = [];
+    let release = null;
+    const srv = {
+      rpc: async (name) => { calls.push(name); return { ok: true, status: 200, body: work(1, { raw_shrimp: 40 }), closed: false }; },
+      accrue: async (b) => {
+        calls.push('accrue:' + b.slot);
+        await new Promise((r) => { release = r; });
+        return { ok: true, status: 200, body: Object.assign({ accrued: true }, work(2, { raw_shrimp: 28, shrimp: 12 })), closed: false };
+      },
+    };
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, now: () => clock, ...timers });
+    await cs.load();
+    clock += CFG.SESSION_CONFIG.townPollMs - 1;
+    if (TP.watchTown(cs)) return 'it asked before townPollMs had passed since the last answer';
+    clock += 1;
+    if (!TP.watchTown(cs)) return 'a watched bench was not re-read after townPollMs';
+    await new Promise((r) => setImmediate(r));
+    clock += CFG.SESSION_CONFIG.townPollMs;
+    if (TP.watchTown(cs)) return 'a second ask went out while one was in flight';
+    if (!release) return 'the ask never reached the engine: ' + calls.join(',');
+    release();
+    for (let i = 0; i < 4; i++) await new Promise((r) => setImmediate(r));
+    if (calls.join(',') !== 'hr_load,accrue:0') return 'the re-read did not ask the settle for the slot: ' + calls.join(',');
+    if (cs.read('inventory').shrimp !== 12 || cs.read('inventory').raw_shrimp !== 28) return 'the settle did not replace the bag: ' + JSON.stringify(cs.read('inventory'));
+    if (TP.watchTown(cs)) return 'it asked again at once after an answer';
+    const run = (k, id, hunt) => TP.townWorkRunning({ active_kind: k, active_id: id }, hunt || null);
+    if (run('idle', null) || run('combat', 'wolf')) return 'an idle hero or a fight is re-read as town work';
+    if (run('gather', 'normal_tree', { session_id: 'h1', ended: false })) return 'a hunter is re-read as town work (the hunt has its own re-read)';
+    if (!run('gather', 'normal_tree', { session_id: 'h1', ended: true }) || !run('artisan', 'cook_shrimp')) return 'a node or a bench after a hunt is not re-read';
+    return true;
   });
   /* HUNT-1F (live v0.2.20, the http origin's blocked calls): an ask for the live start point that brings
      NO answer backs off like one that brings no start point; it never re-arms every liveAskMs forever. */
@@ -585,6 +627,39 @@ async function rules(M) {
     if (!srv.calls.some((c) => c[0] === 'hr_load' && c[1].p_slot === 0)) return 'the paying hero was not re-read after the purchase';
     return JSON.stringify(acc.slotOffer) === '{"slotId":3,"cost":40000,"max":5}' || 'after the purchase the offer is ' + JSON.stringify(acc.slotOffer);
   });
+  await t('ACC-DEPOT', async () => {
+    /* The storage is the ACCOUNT's (2026-11-27-account-depot.sql): what slot 0 puts away is in slot 1's
+       storage at once (the account re-reads the other open characters) and after a reload. The fake
+       server keeps ONE depot for both slots, as hr_bank_move / hr_state_of do. */
+    const depot = {}; const bags = { 0: { rat_tail: 5 }, 1: {} }; let ver = 1;
+    const answer = (body) => ({ ok: true, status: 200, body, closed: false });
+    const srv = fakeServer({});
+    const base = srv.rpc;
+    srv.rpc = async (name, args) => {
+      if (name === 'hr_load') { srv.calls.push([name, args]); return answer(env(++ver, Object.assign({ name: 'H' + args.p_slot, inventory: { ...bags[args.p_slot] }, bank: { ...depot } }, said(4)))); }
+      if (name !== 'hr_bank_move') return base(name, args);
+      srv.calls.push([name, args]);
+      const [from, to] = args.p_dir === 'deposit' ? [bags[args.p_slot], depot] : [depot, bags[args.p_slot]];
+      if (!(from[args.p_item] >= args.p_qty)) return answer({ ok: false, error: 'insufficient_bank' });
+      from[args.p_item] -= args.p_qty; if (!from[args.p_item]) delete from[args.p_item];
+      to[args.p_item] = (to[args.p_item] || 0) + args.p_qty;
+      return answer({ ok: true, version: ++ver });
+    };
+    const acc = mkAccount(srv);
+    await acc.open(0); await acc.open(1);
+    const s1 = acc.character(1);
+    if (!acc.character(0) || !s1) return 'two characters did not open: ' + acc.characters().map((c) => c.slot);
+    const put = await acc.character(0).moveStorage('rat_tail', 3, 'deposit');
+    await new Promise((r) => setTimeout(r, 0));
+    if (!put.ok) return 'the deposit answered ' + JSON.stringify(put);
+    if (JSON.stringify(s1.read('bank')) !== '{"rat_tail":3}') return 'slot 1 still shows storage ' + JSON.stringify(s1.read('bank')) + ' after slot 0 put 3 away (not re-read)';
+    const again = mkAccount(srv);
+    await again.open(1);
+    if (JSON.stringify(again.character(1).read('bank')) !== '{"rat_tail":3}') return 'after a reload slot 1 shows storage ' + JSON.stringify(again.character(1).read('bank'));
+    const take = await again.character(1).moveStorage('rat_tail', 3, 'withdraw');
+    if (!take.ok || JSON.stringify(again.character(1).read('inventory')) !== '{"rat_tail":3}') return 'slot 1 could not take out what slot 0 put away: ' + JSON.stringify([take, again.character(1).read('inventory')]);
+    return true;
+  });
   await t('ACC-3', async () => {
     if (!S.isClosedAnswer(403, { code: 'hr_closed' }) || S.isClosedAnswer(403, { code: 'other' }) || S.isClosedAnswer(200, { code: 'hr_closed' })) return 'isClosedAnswer is wrong';
     const acc = mkAccount(fakeServer({}, { closed: true }));
@@ -791,7 +866,13 @@ const MUTANTS = [
   ['waking a hidden tab checks nothing', 'src/net/auth.js', "if (o.doc.visibilityState === 'visible') freshToken();", "if (false) freshToken();"],
   ['a failed live ask re-arms at once, forever', 'src/session/character-session.js', 'if (!took) this.liveLink.missed();', ''],
   ['the live ask gives up after two tries', 'src/session/live-link.js', '      this.want = true;\n      this._tries++;', '      this.want = this._tries < 2;\n      if (this.want) this._tries++;'],
-  ['an idle settle replaces the character', 'src/session/character-session.js', "if (ans.ok && ans.body && ans.body.accrued !== true) return this.load();", ""],
+  ['a storage move leaves the other characters stale', 'src/session/account-session.js', '    for (const [slot, cs] of this._chars) if (slot !== from) cs.load();\n', ''],
+  ['a storage move never tells the account', 'src/session/character-session.js', "if (r && r.ok && typeof this.onShared === 'function') this.onShared('bank', this.slot); ", ''],
+  ['an idle settle replaces the character','src/session/character-session.js', "if (ans.ok && ans.body && ans.body.accrued !== true) return this.load();", ""],
+  ['a watched bench waits until it is done', 'src/session/town-poll.js', "  if (!townAskDue(townWorkRunning(cs.read('state'), cs.read('hunt')), a.busy, a.at, cs.receivedAt, now)) return false;", '  return false;'],
+  ['the town re-read asks every display tick', 'src/session/town-poll.js', '  return nowMs - since >= SESSION_CONFIG.townPollMs;', '  return true;'],
+  ['two town re-reads in flight', 'src/session/town-poll.js', '  if (!running || busy) return false;', '  if (!running) return false;'],
+  ['a hunter is re-read as town work', 'src/session/town-poll.js', "  return !(hunt && typeof hunt === 'object' && typeof hunt.session_id === 'string' && hunt.ended !== true);", '  return true;'],
 ];
 
 function copyTree(dst) {
@@ -808,26 +889,24 @@ async function main() {
   if (!mutate) {
     const fails = [...await rules(await load(ROOT)), ...await viewRules(ROOT)];
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (33 rules)');
+    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (34 rules)');
     process.exit(fails.length ? 1 : 0);
   }
-  let bad = 0;
-  const clean = await rules(await load(ROOT));
-  if (clean.length) { console.log('  ✗ clean control is RED: ' + clean.join('; ')); process.exit(1); }
-  console.log('  ✓ clean control green');
+  const clean = await cleanControl(async () => rules(await load(ROOT)));
+  console.log(clean.line);
+  if (clean.code) process.exit(clean.code);
+  const counts = { caught: 0, harness: 0, escaped: 0 };
   for (const [name, file, from, to] of MUTANTS) {
     const tmp = mkdtempSync(join(tmpdir(), 'hr-session-'));
     try {
       copyTree(tmp);
       const text = readFileSync(join(tmp, file), 'utf8');
-      if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
+      if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
       writeFileSync(join(tmp, file), text.replace(from, to));
-      const fails = await rules(await load(tmp));
-      if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(':')[0] + ')');
-      else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+      console.log(report(name, await judge(async () => rules(await load(tmp))), counts));
     } finally { rmSync(tmp, { recursive: true, force: true }); }
   }
-  console.log(bad ? 'session-core --mutate: ' + bad + ' mutant(s) escaped' : 'session-core --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught');
-  process.exit(bad ? 1 : 0);
+  console.log(exitOf(counts) ? 'session-core --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'session-core --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught, each by a named rule');
+  process.exit(exitOf(counts));
 }
 main();

@@ -15,10 +15,10 @@
 // Built once, patched in place; every control is off while an intent is in
 // flight, and changes show only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { presetsOf } from '../../session/item-sections.js?v=0.2.24';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.24';
-import { runIntent } from '../intent-words.js?v=0.2.24';
-import { readinessOf, readinessLine } from '../readiness.js?v=0.2.24';
+import { presetsOf } from '../../session/item-sections.js?v=0.2.25';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.25';
+import { runIntent } from '../intent-words.js?v=0.2.25';
+import { readinessOf, readinessLine } from '../readiness.js?v=0.2.25';
 
 const MAX_PRESETS = 8;
 const SCRATCH = new WeakMap();

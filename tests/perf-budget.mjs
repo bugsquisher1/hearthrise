@@ -55,8 +55,8 @@ const BUDGET = Object.freeze({
   addedPerMin: 3000,       // DOM nodes added per minute (a per-frame rebuild adds tens of thousands)
   analyzerBehindMs: 2500,  // the analyzer's session clock against the hunt's real elapsed time
   analyzerBackMs: 1500,    // the clock never runs backwards more than this
-  paintsPerAnswer: 1.1,    // shell repaints per applied answer (one answer, one paint)
-  drawsInAnswers: 2,       // World canvas draws made INSIDE an applied answer while the loop runs (it paints next frame)
+  paintsInAnswers: 2,      // shell repaints made INSIDE an applied answer (its cascade of emits is painted once, after it)
+  drawsOffLoop: 6,         // World canvas draws outside the frame loop while it runs (mounts, a shown tab), never one per answer
 });
 
 /* ── the page's probes (served copies only: the shipped files never carry them) ── */
@@ -118,6 +118,7 @@ const INIT = `(() => {
   const depth = Object.create(null);
   P.time = (k, fn) => { const a = performance.now(); depth[k] = (depth[k] || 0) + 1;
     if (depth.envelope && k !== 'envelope' && !document.hidden) P.count(k + 'InEnvelope');
+    if (k === 'draw' && !depth.frame && !document.hidden) P.count('drawOffLoop');
     try { return fn(); } finally { depth[k]--; const d = performance.now() - a;
     const r = P.t[k] || (P.t[k] = { n: 0, ms: 0, max: 0, over: 0 }); r.n++; r.ms += d; if (d > r.max) r.max = d; if (d > 16) r.over++; } };
   P.count = (k) => { P.c[k] = (P.c[k] || 0) + 1; };
@@ -279,11 +280,13 @@ const PIX_PAGE = `<!doctype html><html><head><link rel="stylesheet" href="/src/s
   const px = (id) => { const c = document.querySelector('#' + id + ' canvas'); return c.getContext('2d').getImageData(0, 0, c.width, c.height).data; };
   const out = { frames: 0, differ: [], kept: 0 };
   let hx = 20, hy = 18, rx = 14, t = 0;
-  for (let i = 0; i < 160; i++) {
+  for (let i = 0; i < 200; i++) {
     t += 50;
     if (i >= 40 && i < 80) hx += 0.05;          // the hero walks (both masks follow the view)
     if (i >= 100 && i < 140) rx += 0.1;         // a monster walks past while the hero stands
-    const state = { hero: { x: hx, y: hy, anim: i >= 40 && i < 80 ? 'walk' : 'idle', dir: 'e' },
+    if (i === 150) { hx = 1; hy = 1; }           // into the map's corner: the camera stops at the edge...
+    if (i > 150 && i < 190) { hx += 0.04; hy += 0.02; }   // ...and the hero's lamp walks across a view that stands still
+    const state = { hero: { x: hx, y: hy, anim: (i >= 40 && i < 80) || (i > 150 && i < 190) ? 'walk' : 'idle', dir: 'e' },
       units: [{ id: 'drain_rat', x: rx, y: 19, anim: i >= 100 && i < 140 ? 'walk' : 'idle', dir: 'e' }, { id: 'drain_rat', x: 23, y: 17, anim: 'idle', dir: 's' }], t };
     a.sync(state); b.sync(state);
     const pa = px('a'), pb = px('b');
@@ -369,7 +372,7 @@ async function scenario(o) {
     if (!phone) await showLog();
     await showAnalyzer();
     await page.waitForTimeout(1000);
-    const w0 = await page.evaluate(() => { const P = window.__perf; P.mark('start'); P.added = 0;
+    const w0 = await page.evaluate(() => { const P = window.__perf; P.mark('start'); P.added = 0; P.c = Object.create(null);
       return { t: performance.now(), nodes: document.getElementsByTagName('*').length, lines: document.querySelectorAll('.hc-line').length, frames: P.nf }; });
     const h0 = await heap();
     if (cdp && o.profile) { await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval', { interval: 500 }); await cdp.send('Profiler.start'); }
@@ -466,7 +469,7 @@ function analyse(out, w0, o, srv) {
     engine: per('engine'), scene: per('scene'), draw: per('draw'), frame: per('frame'), envelope: per('envelope'), shellTick: per('shellTick'),
     domStart: w0.nodes, domEnd: hunted ? hunted[1] : out.nodes, domGrowth: hunted ? (hunted[1] - hunted[3]) - (w0.nodes - w0.lines) : null,
     logLines: Math.max(0, ...out.dom.map((d) => d[3])), addedPerMin: Math.round(out.added / minutes),
-    paintsPerAnswer: out.t.envelope && out.t.shellPaint ? +(out.t.shellPaint.n / out.t.envelope.n).toFixed(2) : null, drawsInAnswers: out.c.drawInEnvelope || 0,
+    paintsInAnswers: out.c.shellPaintInEnvelope || 0, drawsInAnswers: out.c.drawInEnvelope || 0, drawsOffLoop: out.c.drawOffLoop || 0,
     analyzerPerMin: Math.round((out.c.analyzer || 0) / minutes), analyzerBehindMs: Math.round(behind), analyzerBackMs: Math.round(backMs), analyzerBacks: backs, analyzerStillMs: stillMax,
     path: out.path, marks: out.marks, runAway, samples: out.samples, dom: out.dom,
   };
@@ -486,8 +489,8 @@ function budgetFails(m) {
   if (!(m.addedPerMin <= b.addedPerMin)) f.push(`dom churn: ${m.addedPerMin} nodes added per minute (budget ${b.addedPerMin})`);
   if (!(m.analyzerBehindMs <= b.analyzerBehindMs)) f.push(`analyzer clock up to ${m.analyzerBehindMs} ms behind the hunt (budget ${b.analyzerBehindMs})`);
   if (!(m.analyzerBackMs <= b.analyzerBackMs)) f.push(`analyzer clock ran back ${m.analyzerBackMs} ms (${m.analyzerBacks}x; budget ${b.analyzerBackMs})`);
-  if (!(m.paintsPerAnswer <= b.paintsPerAnswer)) f.push(`repaint: ${m.paintsPerAnswer} shell paints per server answer (budget ${b.paintsPerAnswer})`);
-  if (!(m.drawsInAnswers <= b.drawsInAnswers)) f.push(`repaint: ${m.drawsInAnswers} World draws inside server answers (budget ${b.drawsInAnswers})`);
+  if (!(m.paintsInAnswers <= b.paintsInAnswers)) f.push(`repaint: ${m.paintsInAnswers} shell repaints inside server answers (budget ${b.paintsInAnswers})`);
+  if (!(m.drawsOffLoop <= b.drawsOffLoop)) f.push(`repaint: ${m.drawsOffLoop} World draws outside the frame loop, ${m.drawsInAnswers} of them inside answers (budget ${b.drawsOffLoop})`);
   return f;
 }
 
@@ -496,7 +499,7 @@ function row(m) {
   return `${m.browser.padEnd(8)} ${m.size.padEnd(8)} fps ${m.fpsMedian}/${m.fpsP5} long ${m.longFrames} worst ${Math.round(m.worstFrame)} resume ${Math.round(m.resumeWorst)} lt ${m.longTasks}`
     + ` | engine ${ms(m.engine)} scene ${ms(m.scene)} draw ${ms(m.draw)} frame ${ms(m.frame)} env ${ms(m.envelope)} (${m.envelope ? m.envelope.n : 0}) tick ${ms(m.shellTick)}`
     + ` | heap ${m.heapMb === null ? 'n/a' : m.heapMb.toFixed(1) + 'MB'} dom ${m.domStart}->${m.domEnd} (+${m.domGrowth}) log ${m.logLines} +${m.addedPerMin}/min`
-    + ` | paint/answer ${m.paintsPerAnswer} draws-in-answers ${m.drawsInAnswers}`
+    + ` | paints-in-answers ${m.paintsInAnswers} draws off-loop ${m.drawsOffLoop} (in answers ${m.drawsInAnswers})`
     + ` | analyzer ${m.analyzerPerMin}/min behind ${m.analyzerBehindMs} back ${m.analyzerBackMs}x${m.analyzerBacks} still ${m.analyzerStillMs}`;
 }
 
@@ -505,14 +508,16 @@ function arg(name, dv) { const i = process.argv.indexOf(name); return i > 0 ? pr
 async function main() {
   if (process.argv.includes('--mutate')) {
     let escaped = 0;
-    for (const mt of MUTANTS) {
+    const only = arg('--only', null);   // a name fragment: prove just those mutants (a local re-check)
+    const chosen = MUTANTS.filter((mt) => !only || mt[0].includes(only));
+    for (const mt of chosen) {
       const fails = mt[5] === 'pix' ? await pixelRule('chromium', [mt])
         : budgetFails(await scenario({ browser: 'chromium', width: 1440, height: 900, minutes: mt[6] || 2, hiddenMs: 20000, overrides: planted([mt]) }));
       const hit = fails.some((x) => mt[4].test(x));
       console.log(`  ${hit ? 'caught ' : 'ESCAPED'} ${mt[0]} :: ${fails.join(' | ') || 'green'}`);
       if (!hit) escaped++;
     }
-    console.log(escaped ? `perf-budget --mutate: ${escaped} mutant(s) ESCAPED` : `perf-budget --mutate: ${MUTANTS.length}/${MUTANTS.length} caught`);
+    console.log(escaped ? `perf-budget --mutate: ${escaped} mutant(s) ESCAPED` : `perf-budget --mutate: ${chosen.length}/${chosen.length} caught`);
     process.exit(escaped ? 1 : 0);
   }
   if (process.argv.includes('--measure')) {

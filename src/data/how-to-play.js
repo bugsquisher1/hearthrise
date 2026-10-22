@@ -62,6 +62,8 @@ export const HELP_NOTES = Object.freeze([
     'Store supplies cost gold as your hero uses them. In town the Shop sells gloves, belts, jewellery and tools, and Services sells extra stamina and Blessings. Save up and you can buy another hero slot.'),
   note('armour', 'Armour and Defense',
     'Defense rises only while your hero wears armour and takes blows. Monsters drop helmets, bodies, legs and boots; gloves and belts are armour too, and the Shop sells them. Heavy pieces add health, light pieces add mana.'),
+  note('farm', 'Your farm',
+    'Open the Farm (J) and plant a seed in an empty plot; your bag starts with turnip seeds. A crop grows while you hunt or play away, and watering makes it grow twice as fast for 2 hours. Harvest puts the same crop back in, from your own seeds or one bought at the Shop\'s price.'),
   note('levels', 'Level and skills',
     'Every kill pays Level XP, and each Level raises your health and mana. Melee, Ranged, Magic and Defense rise by doing them: fighting with that weapon, or taking blows in armour. Level has no cap.'),
   note('heroes', 'Several heroes at once',

@@ -352,6 +352,11 @@ const cases = {
       hud: { isShown: () => false }, wm: { openIds: () => [], rows: () => [], row: () => null } });
     if (!withDef(0).includes('The Shop sells gloves and belts')) return 'Defense at 0 XP: the what-next line does not point at the Shop\'s armour: ' + withDef(0);
     if (withDef(40).includes('The Shop sells gloves and belts')) return 'Defense training: the what-next line still asks for armour';
+    /* Farming at 0 XP (nothing ever planted: farming sat at zero, P1 2026-10-22) points at the Farm once; one planting ends it. */
+    const withFarm = (xp) => renderLaunchers({ character: { read: (k) => ({ ...sewerEnv, skills: { ...sewerEnv.skills, farming: { xp, level: 1 } } })[k] }, glyphs: {},
+      hud: { isShown: () => false }, wm: { openIds: () => [], rows: () => [], row: () => null } });
+    if (!withFarm(0).includes('open the Farm (J)')) return 'Farming at 0 XP: the what-next line does not point at the Farm: ' + withFarm(0);
+    if (withFarm(28).includes('open the Farm (J)')) return 'Farming started: the what-next line still asks for a planting';
     return null;
   },
 };
@@ -359,6 +364,8 @@ const cases = {
 const mutants = [
   { name: 'the what-next line never sees Defense (no armour hint)', case: 'tutorial-launcher-card',
     edits: [['src/session/tutorial-sections.js', 'defenseXp: sk && sk.defense ? sk.defense.xp : null', 'defenseXp: null']] },
+  { name: 'the what-next line never sees Farming (no farm hint)', case: 'tutorial-launcher-card',
+    edits: [['src/session/tutorial-sections.js', 'farmingXp: sk && sk.farming ? sk.farming.xp : null', 'farmingXp: null']] },
   { name: 'nothing to aim at after the guide (no what-next line)', case: 'tutorial-launcher-card',
     edits: [['src/session/tutorial-sections.js', '  if (card) return card;\n', '  return card;\n']] },
   { name: 'the launcher shows only the first card', case: 'tutorial-launcher-card',

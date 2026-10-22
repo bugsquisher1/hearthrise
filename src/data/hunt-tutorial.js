@@ -40,6 +40,7 @@ import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.28';
 import { END_ORDER } from './hunt-sessions.js?v=0.2.28';
 import { nextUnlock } from './skill-unlocks.js?v=0.2.28';
 import { SKILLS_DEF } from './skills.js?v=0.2.28';
+import { CROPS } from './gathering.js?v=0.2.28';
 
 /* The surfaces a card may point at, and where each is specified. */
 export const TUTORIAL_ANCHORS = Object.freeze({
@@ -178,9 +179,9 @@ const groundHunts = () => Array.from(new Set(Object.values(HUNT_GROUNDS).map((g)
   .filter((h) => HUNT_INDEX[h] && HUNT_INDEX[h].staged !== true).sort((a, b) => HUNT_INDEX[a].band[0] - HUNT_INDEX[b].band[0]);
 
 /**
- * The goal line after the guide, or null (nothing left to name). `facts`: { charLevel, role, skillLevel, defenseXp }
- * (skillLevel: the role's skill's level, or null when unknown; defenseXp: the server's Defense XP, or null when
- * unknown). Answers { id, title, text }; the id
+ * The goal line after the guide, or null (nothing left to name). `facts`: { charLevel, role, skillLevel, defenseXp, farmingXp }
+ * (skillLevel: the role's skill's level, or null when unknown; defenseXp / farmingXp: the server's Defense / Farming XP,
+ * or null when unknown). Answers { id, title, text }; the id
  * changes whenever the text does (the hunt top bar redraws on a new id).
  */
 export function nextGoal(facts) {
@@ -192,6 +193,12 @@ export function nextGoal(facts) {
   if (facts.defenseXp === 0) {
     lines.push('Your Defense is not training: it rises only while you wear armour. The Shop sells gloves and belts.');
     ids.push('armour');
+  }
+  /* Farming at 0 XP means nothing was ever planted (P1 2026-10-22: farming sat at zero; the kit holds 8 turnip seeds).
+     Said once: the first planting pays Farming XP and the line is gone. */
+  if (facts.farmingXp === 0) {
+    lines.push('Nothing grows on your farm yet: open the Farm (J) and plant a seed. Turnips are ready in ' + CROPS.turnip.hours + ' hours, sooner if watered.');
+    ids.push('farm');
   }
   const next = groundHunts().find((h) => HUNT_INDEX[h].band[0] > facts.charLevel);
   if (next) {

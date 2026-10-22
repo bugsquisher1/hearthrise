@@ -148,6 +148,28 @@ const cases = {
     g = pay(m('sword', false, true), [{ type: 'dmg', u: 9, t: 1, amount: 3 }, { type: 'miss', u: 9, t: 1 }]);
     return g.defense ? 'an unarmoured hero trained Defense: ' + g.defense : null;
   },
+  /* RULING K7 + Tyler 2026-10-22: a DODGE (medium armour) is a blow aimed and turned aside, so it trains Defense at
+     the plain rate even on a shield-holder (a block is the shield's, not the footwork's); a status TICK (`dot`:
+     poison, burn, bleed) is not a blow and trains none. */
+  'defense-dodge-and-dot': async (M) => {
+    const rw = await import(new URL('src/core/hunt-rewards.js', 'file:///' + M.root.replace(/\\/g, '/') + '/').href + M.V);
+    const CX = M.cm.COMBAT_XP;
+    const def =M.monLevelOf(M.MONSTERS.rat) * CX.defenseXpPerLevelPermille / 1000;
+    const pay = (events) => {
+      const got = {};
+      const member = { family: 'sword', armoured: true, shield: true, bonus: () => 0, weakness: () => ({ dropMult: 1 }),
+        fx: { addXp: (k, n) => { got[k] = (got[k] || 0) + n; }, addLevelXp: () => {} }, state: { stats: {} }, hs: { tally: { kills: 0 } } };
+      const w = { units: [{ id: 1, side: 'hero', alive: true }, { id: 9, side: 'mon', kind: 'rat', alive: true, hp: 5 }] };
+      rw.rewardSwing(new Map([[1, member]]), events, w, { rng: { int: (a) => a, chance: () => false }, monsters: M.MONSTERS });
+      return got.defense || 0;
+    };
+    const dodged = pay([{ type: 'miss', u: 9, t: 1, dodge: true }]);
+    if (Math.abs(dodged - def) > 1e-9) return 'a dodge paid Defense ' + dodged + ', want the plain ' + def;
+    const tick = pay([{ type: 'dmg', u: 9, t: 1, amount: 3, ability: 'bleed', dot: true }]);
+    if (tick) return 'a status tick trained Defense: ' + tick;
+    const blow = pay([{ type: 'dmg', u: 9, t: 1, amount: 3, ability: 'basic' }]);
+    return Math.abs(blow - def) > 1e-9 ? 'CONTROL: a landed blow paid Defense ' + blow + ', want ' + def : null;
+  },
   /* AB-04: Magic XP = mana x 1.5 x the ability's multiplier. */
   'magic-xp-from-mana': (M) => {
     const f = M.xpshare.magicXpFor;
@@ -192,6 +214,10 @@ const mutants = [
     edits: [['src/core/hunt-rewards.js', '(missed && m.shield === true ? COMBAT_XP.blockMult : 1)', '1']] },
   { name: 'Defense ignores the attacker level', case: 'xp-routes',
     edits: [['src/core/hunt-rewards.js', '(lv * COMBAT_XP.defenseXpPerLevelPermille / 1000)', '(COMBAT_XP.defenseXpPerLevelPermille / 1000)']] },
+  { name: 'a dodge pays a shield block', case: 'defense-dodge-and-dot',
+    edits: [['src/core/hunt-rewards.js', "defenseXp(aimed, unitOf(ev.u), ev.dodge !== true, ctx.monsters)", "defenseXp(aimed, unitOf(ev.u), true, ctx.monsters)"]] },
+  { name: 'a status tick trains Defense', case: 'defense-dodge-and-dot',
+    edits: [['src/core/hunt-rewards.js', "const hit = ev.dot === true ? null : members.get(ev.t);", "const hit = members.get(ev.t);"]] },
   { name: 'Magic XP drifts off 1.5', case: 'magic-xp-from-mana',
     edits: [['src/data/hunt-xp.js', 'magicXpPermillePerMana: 1500,', 'magicXpPermillePerMana: 1000,']] },
 ];

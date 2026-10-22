@@ -20,7 +20,8 @@
 //                left and next fall by dtMs; a due stack ticks (left >= 0, so
 //                a 6 s stack ticks six times); the tick is round(roll x scale
 //                / 1000), dealt through damage.js landHit() as the row's
-//                damageType (bleed: physical, ST-05) with ability = status id,
+//                damageType (bleed: physical, ST-05) with ability = status id
+//                and `dot` (a tick is not a blow: it is never dodged and trains no Defense),
 //                so the one hurt() owns mitigation and landHit the `dmg` event and the
 //                kill hand-off (ST-04). Then expired stacks go; a unit that
 //                died drops all of its stacks.
@@ -102,7 +103,7 @@ export function tickStatuses(inst, sc) {
       const amount = tickAmount(roll, st.scale);
       const source = st.src === null ? null : (units.find((u) => u.id === st.src) || null);
       sc.emit(makeEvent('status_tick', sc.atMs, { t: unit.id, status: st.s, amount, element: row.damageType }));
-      landHit(inst, sc, source, unit, amount, row.damageType, { id: st.s });
+      landHit(inst, sc, source, unit, amount, row.damageType, { id: st.s, dot: true });
       if (unit.alive !== true) break;
     }
     if (unit.alive !== true) { dropAll(unit, sc); continue; }

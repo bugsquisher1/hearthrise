@@ -11,6 +11,7 @@
 //                     combat: <the engine's sheet while fresh, else null>, computed_at }
 //     combat        { role, weapon_type, level, max_hp, max_mana, regen_pct, move_speed,
 //                     damage: { min, max }, accuracy_pct, crit_pct, defence, set,
+//                     dodge_pct, absorb_pct, ward (the armour's mitigation, ruling K7),
 //                     xp: { perks, buffs, combat } }
 //   outfit          { worn: id | null, colors: { region: dye index }, owned: [id] }
 //   death_log       [{ id, at, hunt, session, monster, xp, xp_lost, saved }] newest first;
@@ -43,6 +44,7 @@ function combatOf(c) {
     role: id(c.role), weaponType: id(c.weapon_type), moveSpeed: nat(c.move_speed),
     damage: nat(d.min) !== null && nat(d.max) !== null ? { min: d.min, max: d.max } : null,
     accuracyPct: num(c.accuracy_pct), critPct: num(c.crit_pct), defence: int(c.defence), regenPct: num(c.regen_pct),
+    dodgePct: num(c.dodge_pct), absorbPct: num(c.absorb_pct), ward: nat(c.ward),
     xp: { perks: num(x.perks), buffs: num(x.buffs), combat: num(x.combat) },
   };
 }

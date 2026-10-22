@@ -156,6 +156,46 @@ Level vs skill level ("Melee 3" beside "Lv 3") · XP (v0.2.26 mixed Level and sk
 
 ### Decision: what the game now teaches (ruled and built)
 **2026-10-22, teaching a newcomer who never played an idle game (designer, inside Tyler's 10-22 NPE ruling; lane/b-npe-teach).** (1) No class pick and no class words: hero creation carries a "How you fight" column (`src/data/how-to-play.js` HOW_YOU_FIGHT, held to `hunt-roles.js` WEAPON_ROLES): no class, the weapon you hold is the style, all six starter weapons are in the bag, equip another in town to switch; one line per style with what it does and what it uses (food; arrows or bolts; mana and drinks). The five free outfits are renamed for what they are (Plate Harness, Fur Wraps, Hooded Leathers, Scholar's Robe, Grove Robe; ids unchanged, labels are client-only) and the Outfit tab says "Looks only". (2) The idle promise is said once, at the first long wait (card "Out to the brook", ~15 min), and lives in Settings > Help: nine read-only notes (idle, closed-game hunting, stamina, weapon = style, food and drink, the bar, Level vs skills, several heroes, death). (3) Several heroes: the last guide card offers "make a second hero" as the way into the party-only Sewer (2 slots, 4 at once, own heroes join at once). (4) After the guide the pointer becomes "What next": the next ground by Level and the weapon skill's next unlock, from data. (5) Level-up: "Level N" rises over the hero when the server's Level rises (its own Combat text toggle; never on a mount). (6) "While you were away": one alert on return (10 min or more) from a residue stamp of server numbers: Levels, Level XP, gold, kills, still hunting or why it stopped. Not done here: a cooking hint (no client way to cook yet; Systems: "Cook all" on raw food like Bury all); the bar card (fixed by v0.2.28 store-by-slot, `storedBar`).
+### 2026-10-21 Armour weights (K7, lane b-armour-weights): RULED
+**Model.** Each worn piece's armour value (`defB`) feeds its own weight's line: heavy = Absorb (share of a landed blow), medium = Dodge (the blow misses outright), light = Ward (a flat amount off each landed blow). A mixed set is exactly the sum of its pieces, no penalty. Absorb and Dodge are `maxPm × P / (P + k × Level)` against the hero's OWN Level, so own-tier armour holds its worth and an old set fades. One order in `damage.js`: dodge, absorb, resistances (the element permille), ward, then the spell shield and HP; a total cap of 60% over the chain (dodge and absorb together, and a landed blow always keeps its share). Rows: `core-model.js ARMOUR_MITIGATION` (dodge 650/0.45, absorb 750/0.7, ward 1.5 per point, cap 600). Derived, never stored: `src/core/mitigation.js`, written on the hero's unit each swing boundary; the Character sheet shows the engine's Dodge / Absorb / Ward.
+**`def` keeps one job:** the monster's to-hit roll, now Defense skill + the defence of gear OUTSIDE the weights (shield, cape) + buffs. Weighted armour left it: plate's defB put an armoured hero at the 5% to-hit floor from tier 3 up (an L40 Warrens party's Healer spent 0 g/h), so armour weight could never be a choice. Defense XP: a dodge pays the plain rate (not a shield block); a status tick (`dot`) pays none (Tyler 10-22).
+**Evidence** (real settle, one seed, one hour, per hero; before → after; tier-1 four-piece sets at L8):
+
+| Run | Deaths | Damage taken/h | Bill/h (margin) |
+|---|---|---|---|
+| Thicket solo L5, starter kit (no armour) | 0 → 0 | 7,748 → 7,748 | 290 (+573%) → same |
+| Sewer party of 4 L8, tank heavy / ranger medium / mage + healer light | 0 → 0 | tank 8,923 → 11,676 | healer 540 (+419%) → 600 (+365%) |
+| Sewer party of 4 L8, ladder kit (caster-floor reference) | 0 → 0 | tank 15,918 → 14,420 | healer 1,150 (+128%) → 1,000 (+165%) |
+| Sewer two tanks + mage + healer L8 | 0 → 0 | 6,288 + 3,557 → 8,642 + 4,222 | healer 480 (+469%) → 560 (+387%) |
+| Sewer solo Melee L8, ladder kit (profit-floor reference) | 0 → 0 | 14,485 → 14,665 | 1,550 (+101%) → 1,480 (+119%) |
+| Warrens party of 4 L32 (band floor), own-tier sets | 0 → 0 | tank 8,889 → 31,052 | tank 432 → 1,296 (+143%), healer 0 → 1,280 (+146%) |
+
+**Each weight is the best choice somewhere** (same runs, the hero swaps only its four armour pieces): heavy for the hero who takes the blows (Sewer solo Melee bill 990 vs medium 1,536 vs light 2,044; party tank's healer bill 600 vs 760 vs 1,040); medium for the Ranger (265 kills/h and 2,388 g/h net vs heavy 246 / 2,273 and light 249 / 1,697: no style penalty, ranged bonuses, dodge for stray blows); light for casters (Mage 346 kills/h vs 288/279; Healer bill 600 vs 750/800) and against many small blows (Cellar farming at L10: 913 taken vs 1,073 heavy).
+**Watch.** Medium's own defensive niche (a dodged blow carries no on-hit effect) arrives with the first monster that applies poison or burn. drop-tables' Sewer coin mutant moved /1.8 → /2.2: the old coin now clears +25% by a hair.
+**Defense XP for a holding tank is about −18%: intended** under Tyler's 10-22 ruling. Every blow aimed at an armoured hero still pays, hit or miss. Only the shield-block bonus (a miss on a shield-holder) now fires less often, because plate no longer turns blows aside.
+
+### 2026-10-22 Coppercap Warrens at its floor (CONFLICTS item 2): RULED
+**Cause, measured** (six seeds, real settle, L32, the own-tier steel set). The lone Melee lost money before K7 too: −38% median, at a 5% to-hit. After K7 it bills 39,312 g/h against 3,069 g/h income (−92%). The causes:
+- Monster damage. Goblins are lv 34–52 with atk 22–30 against Defense 32, so 37% of blows land. At 5.4 a Hobgoblin hits up to 162, 35% of 460 base HP, past the CORE_NUMBERS addendum's 30% for a regular.
+- Food price. The Warrens' store row was tier 4: Salted Swordfish at 1.50 g/HP, while every goblin is tier 3 (Lobster 0.83 g/HP; the Sewer's Shrimp is 0.19).
+- Not the cap or the Level scaling. Steel absorbs 53% at 32, under the 60% cap.
+- Density is not the lever either. Even one goblin at a time out-hits regen: density 1 still bills 12,960 g/h (−77%).
+
+No small lever makes a lone 32 profitable: it needs about 5× less damage per kill.
+
+**Levers, data rows:**
+1. `supplies.js` Warrens tier 4 → 3. This is the item-2 row; its bag guide moves to Cooked Lobster. Staged as `2026-11-13-hunt-sessions-catalogue.generated.sql` (one row: hr_hunt_travel coppercap_warrens 4 → 3; md5 30932fb145738707ed3706fde44d6b9e).
+2. `combat.js monsterDamageScaleByTier` 3: 4.4. This applies the addendum's own rule: a Hobgoblin's biggest blow becomes 132, 29% of floor HP.
+3. `hunt-grounds.js` Warrens `soloFrom: 45`. The card now reads "A party of 2 to 4, or alone from Level 45" instead of "Alone or with up to 3 more". It is advice like groupFit; the ground stays enterable.
+
+| Warrens, six seeds | Before K7 | K7 alone | Ruled |
+|---|---|---|---|
+| Party of 4 at 32, by weight (min margin of the worst bill) | +674% | +183% | +645% |
+| Party of 4 at 32, ladder kit | +192% | −61% | +52% |
+| Lone Melee, heavy, at 32 | −44% | −93% | −80% (not offered alone) |
+| Lone Melee at 45 (soloFrom): heavy / medium / light | — | — | no bill / +33% / +129% |
+
+Every other row of the K7 table is byte-identical after the change, since only tier-3 monsters and the Warrens' store row moved. Regression: drop-tables `warrens-floor` (party of four in the ladder kit at 32 and a lone hero at soloFrom, two seeds, every role ≥ +25%). Its three mutants are each caught: food back to tier 4 (tank −26%), blows back to 5.4 (+9%), and alone from 40 (−21%). hunt-floor-warning G2 covers the card copy and has two mutants.
 
 ## Designer pass 2026-10-21 (v0.2.22)
 Evidence: the real settle (`hr-accrue accrueHunt`, the `tests/hunt-core/fixtures/play-ground.mjs` runner, one fixed seed, one hour, per hero per hour), run on a scratch copy of the tree with each change planted. Not played in the browser this pass.

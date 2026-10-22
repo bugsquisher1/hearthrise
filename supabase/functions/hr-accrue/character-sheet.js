@@ -85,7 +85,7 @@ export function characterSheetOf(env, perks, nowMs) {
   const buffs = buffQueueFromServer(Array.isArray(env.buffs) ? env.buffs : [], nowMs);
   const perkState = perks && perks.ok === true ? perks : null;
   const bonus = bonusFor(perkState, liveBuffHost(() => buffs));
-  const snap = heroSnapshot({ skills }, { eq, equipment, items: ITEMS, bonus, setBonus, profile });
+  const snap = heroSnapshot({ skills, levelXp }, { eq, equipment, items: ITEMS, bonus, setBonus, profile });
   const roll = playerCombatRolls(NEUTRAL_FOE, { eq, equipment, items: ITEMS, skills, bonus, setBonus, profile });
   const role = roleForWeapon(roleWeaponOf(ITEMS[equipment.weapon]) || 'neutral', null);
   const row = role ? HUNT_ROLES[role] : null;
@@ -106,6 +106,12 @@ export function characterSheetOf(env, perks, nowMs) {
     accuracy_pct: round(snap.acc / 10, 1),
     crit_pct: round(roll.critChance * 100, 1),
     defence: snap.def,
+    /* WHAT THE ARMOUR DOES TO A BLOW (ruling K7, src/core/mitigation.js): the chance a blow
+       misses outright (medium), the share of a landed blow taken off (heavy), the flat amount
+       off each landed blow (light), at this Level, as the settle writes them on the hero. */
+    dodge_pct: round(snap.mit.dodgePm / 10, 1),
+    absorb_pct: round(snap.mit.absorbPm / 10, 1),
+    ward: snap.mit.ward,
     set: setBonus ? { tier: setBonus.tier, pieces: setBonus.pieces } : null,
     xp: { perks: round(lasting.all, 4), buffs: round(now.all - lasting.all, 4), combat: round(now.combat, 4) },
   };

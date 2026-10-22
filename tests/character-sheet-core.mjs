@@ -14,6 +14,9 @@
 //   CS-I1 THE SHEET READS ONLY WHAT ITS FINGERPRINT COVERS: every envelope path
 //         characterSheetOf reads is a SHEET_INPUTS path, and SHEET_INPUTS names
 //         exactly the parts hr_character_sheet_inputs fingerprints
+//   CS-M1 THE ARMOUR LINES ARE THE FIGHT'S (ruling K7): the sheet's dodge, absorb and ward
+//         are mitigation.js's profile for the worn set at the character's own Level, the
+//         one the settle writes on the hero's unit
 //   CS-V1 THE ENGINE VERSION RIDES EVERY PUT: runSheet hands the put the
 //         deployed payload hash (payload-hash.js), and the stamp the server
 //         keeps is md5(inputs || ':' || engine) (hr_character_sheet_stamp)
@@ -73,6 +76,16 @@ async function rules(root) {
   const lasting = P.xpMultiplierParts(AC.bonusFor(perks, null));
   if (Math.abs(sh.xp.perks - lasting.all) > 1e-4 || !(sh.xp.combat > 0.09) || sh.xp.buffs !== 0 || 'gear' in sh.xp) fails.push('CS-X1 the sheet\'s XP parts ' + JSON.stringify(sh.xp) + ' are not grantXp\'s (' + JSON.stringify(lasting) + ')');
   if (sh.level !== 10) fails.push('CS-X1 the sheet reads Level ' + sh.level + ' off 21,591 Level XP, not 10');
+  // CS-M1
+  const armoured = Object.assign({}, env, { state: { level_xp: 21591 }, equipment: { helmet: 'bronze_helm', body: 'leather_body', belt: 'apprentice_belt' } });
+  const sm = S.characterSheetOf(armoured, perks, Date.now());
+  const MIT = await imp('src/core/mitigation.js');
+  const { ITEMS } = await imp('src/data/items.js');
+  const want = MIT.mitigationFor(armoured.equipment, ITEMS, 10);
+  if (!(want.dodgePm > 0 && want.absorbPm > 0 && want.ward > 0)) fails.push('CS-M1 fixture: the mixed set ' + JSON.stringify(want) + ' does not use every line');
+  if (sm.dodge_pct !== want.dodgePm / 10 || sm.absorb_pct !== want.absorbPm / 10 || sm.ward !== want.ward) {
+    fails.push('CS-M1 the sheet shows dodge ' + sm.dodge_pct + '% absorb ' + sm.absorb_pct + '% ward ' + sm.ward + ', the settle fights at ' + JSON.stringify(want) + ' (Level 10)');
+  }
   // CS-I1
   const seen = new Set();
   S.characterSheetOf(recorder(JSON.parse(JSON.stringify(env)), seen), perks, Date.now());
@@ -106,6 +119,8 @@ const MUTANTS = [
   ['the sheet prices its own XP split', SHEET, "perks: round(lasting.all, 4)", "perks: round(lasting.all + now.combat, 4)"],
   ['the sheet reads a key its fingerprint misses', SHEET, "  const equipment = isObj(env.equipment) ? env.equipment : {};", "  const equipment = isObj(env.equipment) ? env.equipment : {}; void env.enchant;"],
   ['the fingerprint stops covering the buffs', BODIES, "    'buffs', coalesce((select jsonb_agg(jsonb_build_object('type', b.v->>'type',", "    'bufs', coalesce((select jsonb_agg(jsonb_build_object('type', b.v->>'type',"],
+  ['the sheet prices armour at Level 1', SHEET, "heroSnapshot({ skills, levelXp }, {", "heroSnapshot({ skills }, {"],
+  ['the sheet drops the ward', SHEET, "    ward: snap.mit.ward,", "    ward: 0,"],
   ['the put is handed a fixed engine version', SHEET, "const version = o.version || PAYLOAD_SHA256;", "const version = o.version || 'unpacked0';"],
   ['the view ignores the engine', BODIES, "    v_fresh := v_cs.engine_version = v_engine\n      and", "    v_fresh := true\n      and"],
 ];

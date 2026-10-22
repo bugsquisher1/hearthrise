@@ -3,7 +3,10 @@
 //
 // Every blow any unit lands goes through `hurt`: element (permille, 0 = immune),
 // the target's defence, the dealer's and the target's stance, minimum 1, the
-// target's shield first, then HP, and the kill hand-off. The pieces of the
+// target's shield first, then HP, and the kill hand-off. A blow AT A HERO takes
+// the armour chain of ruling K7 instead of a monster's defence: dodge (landHit),
+// absorb, resistances, ward, under one total cap (src/core/mitigation.js, the
+// profile the settle writes on the unit as `mit`). The pieces of the
 // arithmetic are src/core/combat.js's (defenceReduction, monsterAccuracy,
 // monsterMaxHit, elementPermille, rollAttack): this file adds no second copy.
 //
@@ -25,6 +28,7 @@ import { MONSTERS } from '../../data/monsters.js?v=0.2.28';
 import { HUNT_STANCES, DEFAULT_STANCE } from '../../data/rule-subjects.js?v=0.2.28';
 import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js?v=0.2.28';
 import { cheb } from './grid.js?v=0.2.28';
+import { mitigate } from '../mitigation.js?v=0.2.28';
 import { atRest, unitById } from './movement.js?v=0.2.28';
 import { makeEvent } from './events.js?v=0.2.28';
 import { roleOf, elementOn, inRange, peel, engaged } from './targeting.js?v=0.2.28';
@@ -58,12 +62,17 @@ export function hurt(inst, target, amount, source, element, ability) {
   const el = source && source.side === 'hero'
     ? elementWithFloor(elementOn(target, element), source.role, partySize(inst)) : elementOn(target, element);
   if (el === 0) return { dmg: 0, absorbed: 0, killed: false, immune: true };
-  let n = Math.floor((Math.max(0, Math.floor(amount)) * el) / 1000);
-  if (target.side === 'mon') n -= defenceReduction(MONSTERS[target.kind]);
+  /* A monster's defence comes off a hero's blow after its element. A blow AT A HERO keeps its
+     element for the armour chain below (ruling K7). */
+  let n = Math.max(0, Math.floor(amount));
+  if (target.side === 'mon') n = Math.floor((n * el) / 1000) - defenceReduction(MONSTERS[target.kind]);
   if (ability && Number.isInteger(ability.mult)) n = Math.floor((n * ability.mult) / 1000);
   n = Math.floor((n * stanceOf(source).dealt) / 1000);
   n = Math.floor((n * stanceOf(target).taken) / 1000);
-  n = Math.max(1, n);
+  /* THE HERO'S ARMOUR, in the fixed order (dodge was rolled by landHit): absorb, resistances,
+     ward, never past the total cap (src/core/mitigation.js), then the shield below and HP.
+     Every landed blow deals at least 1. */
+  n = target.side === 'hero' ? mitigate(n, el, target.mit) : Math.max(1, n);
   const absorbed = Number.isInteger(target.shield) && target.shield > 0 ? Math.min(target.shield, n) : 0;
   if (absorbed) target.shield -= absorbed;
   const dmg = Math.min(target.hp, n - absorbed);
@@ -79,6 +88,14 @@ export function hurt(inst, target, amount, source, element, ability) {
  */
 export function landHit(inst, sc, source, target, amount, element, ability, crit) {
   if (!target || !target.alive) return { dmg: 0, absorbed: 0, killed: false };
+  /* DODGE, the chain's first step (ruling K7): a BLOW at a hero wearing medium armour misses
+     outright on its dodge chance — one draw on the `s` stream, made only when the chance is above
+     zero, so a hero with no medium armour draws nothing. A status tick is not a blow (`dot`). */
+  const dodgePm = target.side === 'hero' && target.mit && !(ability && ability.dot) ? target.mit.dodgePm || 0 : 0;
+  if (dodgePm > 0 && sc.rng.chance(dodgePm / 1000)) {
+    sc.emit(makeEvent('miss', sc.atMs, { u: source ? source.id : null, t: target.id, dodge: true }));
+    return { dmg: 0, absorbed: 0, killed: false, dodged: true };
+  }
   /* A MARKED target (abilities.js: Hunter's Mark) takes markPm permille more from every blow until
      markUntil, folded into the one multiplier hurt applies (`ability.mult`). */
   const markPm = Number.isInteger(target.markPm) && target.markPm > 0 && target.markUntil > sc.atMs ? target.markPm : 0;
@@ -90,7 +107,8 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
   if (r.immune) sc.emit(makeEvent('immune', sc.atMs, { u, t: target.id }));
   else {
     sc.emit(makeEvent('dmg', sc.atMs, { u, t: target.id, amount: r.dmg,
-      ability: (ability && ability.id) || 'basic', element: element || null, ...(crit ? { crit: true } : {}) }));
+      ability: (ability && ability.id) || 'basic', element: element || null, ...(crit ? { crit: true } : {}),
+      ...(ability && ability.dot ? { dot: true } : {}) }));
   }
   if (r.killed) {
     sc.emit(makeEvent('kill', sc.atMs, { u, t: target.id }));

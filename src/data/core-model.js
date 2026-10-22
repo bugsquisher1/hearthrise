@@ -50,6 +50,29 @@ export const VITALS = Object.freeze({
 export const ARMOUR_WEIGHT = Object.freeze({ plate: 'heavy', heavy: 'heavy', leather: 'medium', medium: 'medium', cloth: 'light', light: 'light' });
 export const ARMOUR_SLOTS = Object.freeze(['helmet', 'body', 'pants', 'boots', 'gloves', 'belt']);
 
+/* WHAT ARMOUR DOES TO A BLOW (Tyler 2026-10-18, ruling K7: "Heavy = Absorb, Medium = Dodge, Light = Ward;
+   mixed pieces blend by slot share; fixed damage order dodge, absorb, resistances, ward, HP; total
+   mitigation cap"; numbers: Game Designer 2026-10-21, docs/planning/PRIORITY_BOARD.md Decisions).
+   Each worn piece's armour value (its `defB`) feeds its OWN weight's line, so a mixed set splits by
+   what each slot wears, with no mixing penalty. Measured against the hero's own Level, so
+   armour of your tier keeps its worth as you climb and an old set fades. src/core/mitigation.js
+   derives the profile; it is never stored.
+     dodge.maxPm, dodge.k   medium: the chance a blow misses you entirely,
+                            maxPm x P / (P + k x Level), P = medium armour value
+     absorb.maxPm, absorb.k heavy: the share of a landed blow the armour takes, same curve
+     ward.perPointPm        light: a flat amount off every landed blow, P x perPointPm / 1000
+                            (best against many small blows, little against one big one)
+     capPm                  THE TOTAL CAP: dodge, absorb and ward together never take more than
+                            this permille of the damage coming at you
+   The to-hit roll before the chain reads the Defense skill and the defence of gear outside the
+   armour weights (a shield, a cape): combat.js equipmentStats guardB. */
+export const ARMOUR_MITIGATION = Object.freeze({
+  dodge: Object.freeze({ maxPm: 650, k: 0.45 }),
+  absorb: Object.freeze({ maxPm: 750, k: 0.7 }),
+  ward: Object.freeze({ perPointPm: 1500 }),
+  capPm: 600,
+});
+
 /* COMBAT SKILL XP (Q4, Q5).
      hitXpPerDamage            Melee or Ranged XP per HP a hero's blow removes from
                                a monster (the weapon family decides which skill)

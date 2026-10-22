@@ -23,6 +23,7 @@ import {
 } from './bane.js?v=0.2.28';
 import { elementMultFor, MAX_TOTAL_DAMAGE_MULT } from './elements.js?v=0.2.28';
 import { ELEMENT_PERMILLE } from '../data/elements.js?v=0.2.28';
+import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.28';
 /* The bestiary CHARM and TROPHY combat multipliers are gone (closed rebuild,
    demolition safety review item 9: trophies stay as claims and display; the
    ladders no longer price a fight). A monster's drops are its own row's. */
@@ -66,8 +67,12 @@ export const COMBAT_BALANCE = {
      while monster atk grows about one a Level, so one flat 5.4 put a tier-6 blow at ~50% of an
      in-band hero's HP (a boss two-shot the Level-90 hearthfind hero). Tiers 1-3 (the EA grounds)
      keep 5.4; tiers 4-6 flatten so an in-band blow stays ~20-30% of max HP (bosses <= ~35%).
-     Damage only: accuracy still reads `atk`. A tier missing here uses monsterAttackDamageScale. */
-  monsterDamageScaleByTier: Object.freeze({ 4: 4.0, 5: 3.0, 6: 2.2 }),
+     Damage only: accuracy still reads `atk`. A tier missing here uses monsterAttackDamageScale.
+     TIER 3 at 4.4 (designer 2026-10-21, armour weights K7 + CONFLICTS item 2): the same rule at the
+     Warrens' floor. At 5.4 a Hobgoblin's 162 was 35% of a Level-32 hero's 460 HP, past the 30% the
+     rule allows a regular; 4.4 makes it 132 (29%). Measured on six seeds: the floor party's ladder
+     kit goes from -39% to +52% (min) with the tier-3 store food. */
+  monsterDamageScaleByTier: Object.freeze({ 3: 4.4, 4: 4.0, 5: 3.0, 6: 2.2 }),
   /* THE UNIVERSAL BASIC-ATTACK INTERVAL (Tyler, 2026-10-15: "2.0 s for every
      player and monster basic attack"). The ONE source, with no speed modifier
      of any kind (no gear speed, no weapon-family speed, no style speed): the
@@ -145,6 +150,10 @@ export const DEFAULT_PROFILE = {
 export function equipmentStats(equipment, items) {
   const s = {
     atkB: 0, strB: 0, defB: 0, critB: 0, weaponType: 'neutral',
+    /* THE TO-HIT DEFENCE OF WORN GEAR (ruling K7): the defB of every piece OUTSIDE the armour
+       weights (a shield, a cape, an offhand). Weighted armour's defB feeds its weight's line of
+       the chain instead (src/core/mitigation.js), never the monster's to-hit roll. */
+    guardB: 0,
     /* class → best bane multiplier, or null when no bane gear is worn. Derived
        here (rather than in weaknessInfo) because this is the ONE function that
        already walks the equipped set, and because both engines — the live tick
@@ -159,6 +168,7 @@ export function equipmentStats(equipment, items) {
     const it = items && items[id];
     if (!it) return;
     s.atkB += it.atkB || 0; s.strB += it.strB || 0; s.defB += it.defB || 0;
+    if (!ARMOUR_WEIGHT[it.armourClass]) s.guardB += it.defB || 0;
     s.critB += it.critB || 0;
     if (slot === 'weapon' && it.weaponType) s.weaponType = it.weaponType;
   });
@@ -351,14 +361,15 @@ export function playerCombatRolls(monster, ctx) {
 
 /**
  * A monster's swing at a hero: its chance to land against the hero's defence
- * (Defense level + worn defence + a defence buff) and its largest blow.
+ * (Defense level + the to-hit defence of gear outside the armour weights + a
+ * defence buff) and its largest blow.
  * @param ctx { eq, skills, bonus }
  */
 export function monsterCombatRolls(monster, ctx) {
   const c = ctx || {};
   const eq = c.eq || {};
   const bonus = typeof c.bonus === 'function' ? c.bonus : () => 0;
-  const playerDefense = levelOf(c.skills || {}, 'defense') + (eq.defB || 0) + (bonus('defense') || 0);
+  const playerDefense = levelOf(c.skills || {}, 'defense') + (eq.guardB || 0) + (bonus('defense') || 0);
   return { accuracy: monsterAccuracy(monster, playerDefense), maxHit: monsterMaxHit(monster) };
 }
 

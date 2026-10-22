@@ -473,7 +473,7 @@ function check(M) {
   return fails;
 }
 
-const COPY = ['src/world', 'src/data/world', 'src/data/hunts.js', 'src/data/hunt-outfits.js', 'src/data/town-presence.js', 'src/data/perks.js', 'src/build-info.js', 'assets/world', 'src/session'];
+const COPY = ['src/world', 'src/data/world', 'src/data/hunts.js', 'src/data/hunt-outfits.js', 'src/data/town-presence.js', 'src/data/perks.js', 'src/data/homestead-tiers.js', 'src/build-info.js', 'assets/world', 'src/session'];
 function copyTree() {
   const dir = mkdtempSync(join(tmpdir(), 'world-town-home-'));
   for (const p of COPY) {

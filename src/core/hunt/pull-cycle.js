@@ -169,15 +169,17 @@ function startPull(inst, sc, k, p) {
 }
 
 /**
- * THE PULL LEADER (Coordinator ruling 2026-10-22, bug #61; within Tyler 10-16): by role order (roles.js
- * pickLeader), except while two or more tanks take turns with no "One tank holds" pick standing: then the
- * lap's holder (targeting.js holderTank) pulls its own lap, so the off-tank never takes a pack the other
- * has just pulled. Read when the world opens, when a hero joins or leaves, and at the lap boundary
- * (nextPocket), never mid-pull.
+ * THE PULL LEADER (Coordinator rulings 2026-10-22, bug #61; within Tyler 10-16): THE HOLDER PULLS, in both
+ * modes, so no tank yanks a pack another has just pulled: the "One tank holds" pick while it stands as a
+ * living tank (targeting.js pickInForce); else, while two or more tanks take turns, the lap's holder
+ * (holderTank); else by role order (roles.js pickLeader). Read when the world opens or its pick takes force
+ * (combat-sim.js), when a hero joins or leaves, and at the lap boundary (nextPocket), never mid-pull.
  */
 export function pullLeader(inst) {
+  const pick = pickInForce(inst);
+  if (pick) return pick.id;
   const byRole = pickLeader(inst.world.units);
-  if (pickInForce(inst) || turnTanks(inst).length < 2) return byRole;
+  if (turnTanks(inst).length < 2) return byRole;
   return holderTank(inst).id;
 }
 

@@ -46,6 +46,7 @@ import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.32';
 import { stepSwing } from './hunt/world-step.js?v=0.2.32';
 import { makeEvent, trackStep } from './hunt/events.js?v=0.2.32';
 import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.32';
+import { pullLeader } from './hunt/pull-cycle.js?v=0.2.32';
 import { rewardSwing } from './hunt-rewards.js?v=0.2.32';
 
 /* The engine's front door (src/core/index.js `combatSim`). */
@@ -272,7 +273,7 @@ export function simulateHuntInstance(inst, ctx) {
       /* THE LEADER'S HOLD PICK, read every swing; it takes force at the next lap boundary (pull-cycle.js), or at once
          in a world just made (every member that enters with it has joined by now). */
       world.holdNext = holdPick(members.filter((m) => !m.left && m.unitId !== null));
-      if (fresh) { world.hold = world.holdNext; fresh = false; }
+      if (fresh) { world.hold = world.holdNext; world.leader = pullLeader({ world }); fresh = false; }
       const r = stepSwing(world, { atMs, swingMs: tick, rng: createRng(seedOf(ctx, 's', sw)),
         ground: ctx.ground, grid: ctx.grid, heroes, ...(typeof ctx.xpMultOf === 'function' ? { xpMultOf: ctx.xpMultOf } : {}) });
       seen();

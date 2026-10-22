@@ -64,8 +64,8 @@
 //         `hold`); a change mid-hunt takes force at the lap boundary, never mid-lap.
 //   LV-N  A RESTART NAMES WHAT IT PLACES (Andy 10-22, null sprites): a reseed drawn before the start
 //         point's next swing (it runs none) still gives every unit it places a kind and a bar.
-//   LV-PULL THE LAP'S HOLDER PULLS (bug #61, Andy's party): under Take turns the pull leader is the lap's
-//         holder, switched only when the lap ends; no tank yanks a pack, browser closed and viewed.
+//   LV-PULL THE HOLDER PULLS (bug #61, Andy's party): under Take turns the lap's holder, under "One tank
+//         holds" the pick, switched only when the lap ends; no tank yanks a pack, browser closed and viewed.
 //   LV-R  RECONCILE: a prediction forced off the server's world is judged
 //         `diverged` at the next commit, and the reseed eases every unit onto its true
 //         tile with no frame moving a unit more than one tile.
@@ -422,18 +422,77 @@ function rules(M) {
       `viewed: by lap [${words}]: want the leader holding the first lap and the second tank the next`);
   }
 
-  { // LV-PULL: THE LAP'S HOLDER PULLS (bug #61, Andy 10-22 at the Warrens; Coordinator ruling 2026-10-22 within Tyler
-    // 10-16). Andy's party as live: Eddie (seat 0, L40 sword tank, leads) and Fremulon (seat 1, sword tank) take turns,
-    // Apollo (seat 2, wand) fights beside them, density 5. Before: Eddie pulled every lap and Fremulon's Challenge yanked
-    // the pack off him on Fremulon's laps (6 casts a lap). BROWSER CLOSED: at every commit the pull leader is the lap's
-    // holder (it switches only when the lap ends) and every pack in a fight is held by it; the monsters swing at the
-    // lap's holder only; no tank casts Challenge, since nothing ever sits on Apollo (the control: 0 swings at him).
-    // VIEWED: Apollo's browser predicts every commit and plays the same laps.
-    const andy = () => {
+  { // LV-HOLD: ONE TANK HOLDS, BOTH PATHS (Tyler 2026-10-22, the party's "One tank holds"). Two tanks at the Sewer
+    // (d7): the viewer `a` (seat 0, the pull's leader) and the party leader `b` (seat 1), who picked ITSELF to hold
+    // every lap. BROWSER CLOSED: on the server's commits every monster swing at a tank goes to `b`, from the first
+    // lap (a world made with the pick holds it at once, never the leader's tank by turns) through the laps after.
+    // VIEWED: the viewer's browser, which holds `b` only as frozen numbers, predicts every commit (its frozen hero
+    // carries `hold`). A CHANGE MID-HUNT (b sets "Take turns") is read at the next settle and takes force only when
+    // the lap ends: world.hold stays b's until world.runs moves, then it is null.
+    const mk = () => {
+      const mis = [memberOf(M, 'a', 0, 'tank', 19), memberOf(M, 'b', 1, 'tank', 19)];
+      for (const m of mis) {
+        m.huntId = 'millrace_sewer';
+        m.hero = Object.assign({}, M.SPAWN.heroSetup({ weaponType: 'sword', options: {}, bar: [], partyRoles: ['tank', 'tank'], lead: m.user === 'b', hold: 1 }), { density: 7 });
+      }
+      return mis;
+    };
+    const swingsAt = (evs, ids) => {
+      const out = { pick: 0, other: 0 };
+      for (const e of evs) if ((e.type === 'dmg' || e.type === 'miss') && !ids.includes(e.u) && ids.includes(e.t)) out[e.t === ids[1] ? 'pick' : 'other']++;
+      return out;
+    };
+    /* browser closed: the server's commits alone, with the change to "Take turns" at 400 s (two laps begun by then) */
+    const mis = mk();
+    const srv = server(M, mis, { hunt: 'millrace_sewer' });
+    const evs = []; const seen = []; let changeAt = null;
+    for (let t = T0 + M.CB.tickMs; t <= T0 + 800000; t += M.CB.tickMs) {
+      if (t === T0 + 400000) { mis[1].hero = Object.assign({}, mis[1].hero, { hold: null }); changeAt = t; }
+      const c = srv.commit(t);
+      if (!c) break;
+      if (!srv.inst.world) { ok('LV-HOLD', false, `closed: the instance ended ${(t - T0) / 1000} s in (a hero died)`); break; }
+      const w = M.WS.decode(JSON.parse(srv.inst.world));
+      if (changeAt === null) for (const e of c.tl.hunt_events) evs.push(e);
+      seen.push({ t, runs: w.runs, hold: w.hold, holdNext: w.holdNext });
+    }
+    const ids = [mis[0].unitId, mis[1].unitId];
+    const before = seen.filter((s) => s.t < changeAt);
+    const s = swingsAt(evs, ids);
+    const lapsBefore = before.length ? before[before.length - 1].runs : 0;
+    const turnsAt = seen.filter((x, i) => i > 0 && x.runs !== seen[i - 1].runs).map((x) => (x.t - T0) / 1000 + ' s');
+    console.log(`  LV-HOLD closed: laps ended at [${turnsAt.join(', ')}], the change at ${(changeAt - T0) / 1000} s; monster swings at the pick ${s.pick}, at the leader's tank ${s.other} before it`);
+    ok('LV-HOLD', lapsBefore >= 1 && s.pick > 10 && s.other === 0, `closed: over ${lapsBefore + 1} lap(s) the monsters swung ${s.pick} times at the picked tank and ${s.other} at the other (want 2+ laps, all on the pick)`);
+    ok('LV-HOLD', before.every((x) => x.hold === ids[1] && x.holdNext === ids[1]), 'closed: before the change the pick in force was not b\'s unit at every commit: ' + JSON.stringify(before.slice(0, 3)));
+    const after = seen.filter((x) => x.t >= changeAt);
+    const lapAtChange = after.length ? after[0].runs : null;
+    const sameLap = after.filter((x) => x.runs === lapAtChange), nextLaps = after.filter((x) => x.runs > lapAtChange);
+    ok('LV-HOLD', after.length > 0 && after.every((x) => x.holdNext === null), 'closed: the settle did not read the change to "Take turns" (holdNext ' + JSON.stringify(after.map((x) => x.holdNext).slice(0, 3)) + ')');
+    ok('LV-HOLD', sameLap.length > 0 && sameLap.every((x) => x.hold === ids[1]), 'closed: the change took force mid-lap: ' + JSON.stringify(sameLap.slice(0, 3)));
+    ok('LV-HOLD', nextLaps.length > 0 && nextLaps.every((x) => x.hold === null), `closed: after the lap ended the pick in force is ${JSON.stringify(nextLaps.slice(0, 2))}, want null (no lap ended: ${nextLaps.length === 0})`);
+    /* viewed: the browser of `a` predicts the pick's laps (b's frozen hero carries hold) */
+    const vm = mk();
+    const v = run(M, vm, 240000, { server: { hunt: 'millrace_sewer' } });
+    const vs = swingsAt(v.fed.events, [vm[0].unitId, vm[1].unitId]);
+    const unmatched = v.verdicts.filter((x) => x.v !== 'match').length;
+    console.log(`  LV-HOLD viewed (browser engine, sewer d7, 240 s): monster swings at the pick ${vs.pick}, at the leader's tank ${vs.other}; ${unmatched} of ${v.verdicts.length} commits off the prediction`);
+    ok('LV-HOLD', vs.pick > 10 && vs.other === 0 && unmatched === 0 && v.verdicts.length >= 9, `viewed: ${vs.pick} swings at the pick, ${vs.other} at the other tank, ${unmatched} of ${v.verdicts.length} commits off (want all on the pick, 0 off)`);
+    const src = readFileSync(join(M.base || ROOT, FN, 'hunt-settle.js'), 'utf8');
+    ok('LV-HOLD', /_hold: Number\.isInteger\(inst\.hold_seat\)/.test(src) && /hold: m\._hold/.test(src), 'hunt-settle.js does not hand the engine hr_hunt_instance_read `hold_seat`');
+  }
+
+  { // LV-PULL: THE HOLDER PULLS (bug #61, Andy 10-22 at the Warrens; Coordinator rulings 2026-10-22 within Tyler 10-16).
+    // Andy's party as live: Eddie (seat 0, L40 sword tank, leads) and Fremulon (seat 1, sword tank), Apollo (seat 2,
+    // wand) beside them, density 5. Before: Eddie pulled every lap and the other holder's Challenge yanked the pack off
+    // him (6 casts a lap). In BOTH modes the holder now makes the pull: under "Take turns" the lap's holder, under "One
+    // tank holds: Fremulon" Fremulon every lap (a world opened with the pick pulls with it from its first lap).
+    // BROWSER CLOSED: at every commit the pull leader is the holder (it changes only when the lap ends) and every pack in
+    // a fight is held by it; the monsters swing at the holder only; no tank casts Challenge, since nothing ever sits on
+    // Apollo (the control: 0 swings at him). VIEWED: Apollo's browser predicts every commit and plays the same laps.
+    const andy = (hold) => {
       const row = (user, seat, levelXp, skills, equipment, weaponType, lead) => {
         const mi = memberOf(M, user, seat, 'tank', 6);
         mi.huntId = 'coppercap_warrens'; mi.levelXp = levelXp; mi.skills = skills; mi.equipment = equipment;
-        mi.hero = Object.assign({}, M.SPAWN.heroSetup({ weaponType, options: { stance: 'offensive' }, bar: [], partyRoles: ['tank', 'tank', 'mage'], lead }), { density: 5 });
+        mi.hero = Object.assign({}, M.SPAWN.heroSetup({ weaponType, options: { stance: 'offensive' }, bar: [], partyRoles: ['tank', 'tank', 'mage'], lead, hold }), { density: 5 });
         return mi;
       };
       const plate = { body: 'bronze_platebody', pants: 'steel_platelegs', boots: 'bronze_boots' };
@@ -457,38 +516,42 @@ function rules(M) {
       }
       return laps;
     };
-    /* browser closed */
-    const mis = andy();
-    const srv = server(M, mis, { hunt });
-    const evs = []; let wrongLeader = 0, wrongHolder = 0, commits = 0;
-    for (let t = T0 + M.CB.tickMs; t <= T0 + 600000; t += M.CB.tickMs) {
-      const c = srv.commit(t);
-      if (!c) break;
-      if (!srv.inst.world) { ok('LV-PULL', false, `closed: the instance ended ${(t - T0) / 1000} s in (a hero died)`); break; }
-      for (const e of c.tl.hunt_events) evs.push(e);
-      const w = M.WS.decode(JSON.parse(srv.inst.world));
-      const lapHolder = [mis[0].unitId, mis[1].unitId][w.runs % 2];
-      commits++;
-      if (w.leader !== lapHolder) wrongLeader++;
-      wrongHolder += w.packs.filter((pk) => pk.aggro && pk.holder !== lapHolder).length;
+    for (const [mode, hold] of [['Take turns', null], ['One tank holds: Fremulon', 1]]) {
+      /* the holder of lap i (by `runs`): the lap's turn, or Fremulon every lap */
+      const holderOf = (ids, i) => (hold === null ? ids[i % 2] : ids[1]);
+      /* browser closed */
+      const mis = andy(hold);
+      const srv = server(M, mis, { hunt });
+      const evs = []; let wrongLeader = 0, wrongHolder = 0, commits = 0;
+      for (let t = T0 + M.CB.tickMs; t <= T0 + 600000; t += M.CB.tickMs) {
+        const c = srv.commit(t);
+        if (!c) break;
+        if (!srv.inst.world) { ok('LV-PULL', false, `${mode}, closed: the instance ended ${(t - T0) / 1000} s in (a hero died)`); break; }
+        for (const e of c.tl.hunt_events) evs.push(e);
+        const w = M.WS.decode(JSON.parse(srv.inst.world));
+        const lapHolder = holderOf([mis[0].unitId, mis[1].unitId], w.runs);
+        commits++;
+        if (w.leader !== lapHolder) wrongLeader++;
+        wrongHolder += w.packs.filter((pk) => pk.aggro && pk.holder !== lapHolder).length;
+      }
+      const ids = [mis[0].unitId, mis[1].unitId, mis[2].unitId];
+      const laps = tally(evs.sort((x, y) => x.atMs - y.atMs), ids);
+      const lapWords = (ls) => ls.map((l) => ['E', 'F', 'A'].map((n, i) => n + (l.at[ids[i]] || 0)).join('/') + ' c' + l.casts).join(', ');
+      const offHolder = laps.reduce((n, l, i) => n + Object.entries(l.at).filter(([u]) => Number(u) !== holderOf(ids, i)).reduce((m, [, k]) => m + k, 0), 0);
+      const casts = laps.reduce((n, l) => n + l.casts, 0), onApollo = laps.reduce((n, l) => n + (l.at[ids[2]] || 0), 0);
+      console.log(`  LV-PULL ${mode}, closed (Andy's party, Warrens d5, 600 s): ${laps.length} lap(s) [${lapWords(laps)}]; pull leader off the holder at ${wrongLeader} of ${commits} commits, ${wrongHolder} pack(s) held by another`);
+      ok('LV-PULL', laps.length >= 3 && wrongLeader === 0 && wrongHolder === 0, `${mode}, closed: over ${laps.length} lap(s) the pull leader was not the holder at ${wrongLeader} of ${commits} commits and ${wrongHolder} pack(s) were held by another tank (want 3+ laps, 0, 0)`);
+      ok('LV-PULL', onApollo === 0 && casts === 0 && offHolder === 0, `${mode}, closed: ${casts} Challenge cast(s), ${offHolder} monster swing(s) off the holder, ${onApollo} at Apollo (want 0, 0; control 0)`);
+      /* viewed: Apollo's browser (Eddie and Fremulon are its peers: their frozen heroes) */
+      const vm = andy(hold);
+      const v = run(M, [vm[2], vm[0], vm[1]], 600000, { server: { hunt } });
+      const vids = [vm[0].unitId, vm[1].unitId, vm[2].unitId];
+      const vlaps = tally(v.fed.events.slice().sort((x, y) => x.atMs - y.atMs), vids);
+      const vOff = vlaps.reduce((n, l, i) => n + Object.entries(l.at).filter(([u]) => Number(u) !== holderOf(vids, i)).reduce((m, [, k]) => m + k, 0), 0);
+      const vCasts = vlaps.reduce((n, l) => n + l.casts, 0), unmatched = v.verdicts.filter((x) => x.v !== 'match').length;
+      console.log(`  LV-PULL ${mode}, viewed: ${vlaps.length} lap(s), ${vCasts} Challenge cast(s), ${vOff} swing(s) off the holder; ${unmatched} of ${v.verdicts.length} commits off the prediction`);
+      ok('LV-PULL', vlaps.length >= 3 && vCasts === 0 && vOff === 0 && unmatched === 0 && v.verdicts.length >= 30, `${mode}, viewed: ${vlaps.length} lap(s), ${vCasts} cast(s), ${vOff} swing(s) off the holder, ${unmatched} of ${v.verdicts.length} commits off (want 3+, 0, 0, 0)`);
     }
-    const ids = [mis[0].unitId, mis[1].unitId, mis[2].unitId];
-    const laps = tally(evs.sort((x, y) => x.atMs - y.atMs), ids);
-    const lapWords = (ls) => ls.map((l) => ['E', 'F', 'A'].map((n, i) => n + (l.at[ids[i]] || 0)).join('/') + ' c' + l.casts).join(', ');
-    const offHolder = laps.reduce((n, l, i) => n + Object.entries(l.at).filter(([u]) => Number(u) !== ids[i % 2]).reduce((m, [, k]) => m + k, 0), 0);
-    const casts = laps.reduce((n, l) => n + l.casts, 0), onApollo = laps.reduce((n, l) => n + (l.at[ids[2]] || 0), 0);
-    console.log(`  LV-PULL closed (Andy's party, Warrens d5, 600 s): ${laps.length} lap(s) [${lapWords(laps)}]; pull leader off the lap's holder at ${wrongLeader} of ${commits} commits, ${wrongHolder} pack(s) held by another`);
-    ok('LV-PULL', laps.length >= 3 && wrongLeader === 0 && wrongHolder === 0, `closed: over ${laps.length} lap(s) the pull leader was not the lap's holder at ${wrongLeader} of ${commits} commits and ${wrongHolder} pack(s) were held by another tank (want 3+ laps, 0, 0)`);
-    ok('LV-PULL', onApollo === 0 && casts === 0 && offHolder === 0, `closed: ${casts} Challenge cast(s), ${offHolder} monster swing(s) off the lap's holder, ${onApollo} at Apollo (want 0, 0; control 0)`);
-    /* viewed: Apollo's browser (Eddie and Fremulon are its peers: their frozen heroes) */
-    const vm = andy();
-    const v = run(M, [vm[2], vm[0], vm[1]], 600000, { server: { hunt } });
-    const vids = [vm[0].unitId, vm[1].unitId, vm[2].unitId];
-    const vlaps = tally(v.fed.events.slice().sort((x, y) => x.atMs - y.atMs), vids);
-    const vOff = vlaps.reduce((n, l, i) => n + Object.entries(l.at).filter(([u]) => Number(u) !== vids[i % 2]).reduce((m, [, k]) => m + k, 0), 0);
-    const vCasts = vlaps.reduce((n, l) => n + l.casts, 0), unmatched = v.verdicts.filter((x) => x.v !== 'match').length;
-    console.log(`  LV-PULL viewed: ${vlaps.length} lap(s), ${vCasts} Challenge cast(s), ${vOff} swing(s) off the lap's holder; ${unmatched} of ${v.verdicts.length} commits off the prediction`);
-    ok('LV-PULL', vlaps.length >= 3 && vCasts === 0 && vOff === 0 && unmatched === 0 && v.verdicts.length >= 30, `viewed: ${vlaps.length} lap(s), ${vCasts} cast(s), ${vOff} swing(s) off the holder, ${unmatched} of ${v.verdicts.length} commits off (want 3+, 0, 0, 0)`);
   }
 
   { // LV-Q: ONE DEATH STOPS THE WHOLE PARTY AT ONCE (Tyler 2026-10-19; live v0.2.23, Andy: "2nd char starts to run
@@ -842,11 +905,14 @@ const MUTANTS = [
   ["a peer's frozen numbers drop its armour (LV-A)", 'src/core/member.js', 'def: snap.def, mit: snap.mit || NO_MITIGATION }, vs,', 'def: snap.def }, vs,', /^LV-A/],
   ['the settle never puts the armour on the hero (LV-A)', 'src/core/combat-sim.js', '  u.mit = snap.mit || null;', '  u.mit = null;', /^LV-A/],
   ['the pull leader is back to role order (LV-PULL, bug #61)', 'src/core/hunt/pull-cycle.js', '  return holderTank(inst).id;\n', '  return byRole;\n', /^LV-PULL/],
+  ['the "One tank holds" pick does not pull (LV-PULL)', 'src/core/hunt/pull-cycle.js', '  if (pick) return pick.id;\n', '  if (pick) return pickLeader(inst.world.units);\n', /^LV-PULL/],
+  ['a world opened with a pick is pulled by role order its first lap (LV-PULL)', 'src/core/combat-sim.js',
+    'world.hold = world.holdNext; world.leader = pullLeader({ world }); fresh = false;', 'world.hold = world.holdNext; fresh = false;', /^LV-PULL/],
   ["the settle never reads the leader's hold pick (LV-HOLD)", 'src/core/combat-sim.js',
     'world.holdNext = holdPick(members.filter((m) => !m.left && m.unitId !== null));', 'world.holdNext = null;', /^LV-HOLD/],
-  ['a fresh world waits a lap for the pick (LV-HOLD)', 'src/core/combat-sim.js', '      if (fresh) { world.hold = world.holdNext; fresh = false; }\n', '', /^LV-HOLD/],
+  ['a fresh world waits a lap for the pick (LV-HOLD)', 'src/core/combat-sim.js', '      if (fresh) { world.hold = world.holdNext; world.leader = pullLeader({ world }); fresh = false; }\n', '', /^LV-HOLD/],
   ['a change to the pick takes force mid-lap (LV-HOLD)', 'src/core/combat-sim.js',
-    '      if (fresh) { world.hold = world.holdNext; fresh = false; }', '      world.hold = world.holdNext; fresh = false;', /^LV-HOLD/],
+    '      if (fresh) { world.hold = world.holdNext; world.leader = pullLeader({ world }); fresh = false; }', '      world.hold = world.holdNext; world.leader = pullLeader({ world }); fresh = false;', /^LV-HOLD/],
   ['the assembled hero loses the hold pick (LV-HOLD)', 'src/core/member.js', '        hold: Number.isInteger(h.hold) ? h.hold : null,\n', '', /^LV-HOLD/],
   ['the browser drops the hold pick of a peer (LV-HOLD)', 'src/core/member.js', '    hero: f.hero || {},', '    hero: Object.assign({}, f.hero, { hold: null }),', /^LV-HOLD/],
   ['the settle drops hr_hunt_instance_read hold_seat (LV-HOLD)', 'supabase/functions/hr-accrue/hunt-settle.js', 'lead: m._leads, hold: m._hold });', 'lead: m._leads });', /^LV-HOLD/],

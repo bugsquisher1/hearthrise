@@ -7,14 +7,14 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-10-22",
- "digest": "f2ef45ab22e651dbe9606b44093f0ff46d02950c6002a3021e2c8ffbe6a9eea3",
+ "digest": "f487c50f23c40c8d24765865827e1c2d69e2c6bf2888e961810ebd79323c65b4",
  "counts": {
   "relations": 214,
   "functions": 521,
   "policies": 129,
   "indexes": 298,
   "triggers": 35,
-  "constraints": 724,
+  "constraints": 726,
   "columns": 1233,
   "rls": 193,
   "event_triggers": 1
@@ -42,6 +42,7 @@
    "S player_ledger_id_seq",
    "S world_finds_id_seq",
    "m leaderboard_ranked",
+   "r account_bank",
    "r account_gem_grants",
    "r account_wallet",
    "r active_bounty",
@@ -207,7 +208,6 @@
    "r party_settle_boundary",
    "r party_tick_lease",
    "r player_action_sets",
-   "r player_bank",
    "r player_blessings",
    "r player_cosmetics",
    "r player_equipment",
@@ -761,6 +761,7 @@
    "world_event_pledge_settle__ungated(p_day_key text)"
   ],
   "policies": [
+   "account_bank :: account_bank own read",
    "active_bounty :: active_bounty_sel",
    "bug_reports :: bugs anyone submits",
    "bug_reports :: bugs own readable",
@@ -862,7 +863,6 @@
    "party_invite :: own party invites readable",
    "party_member :: party members readable by the party",
    "player_action_sets :: player_action_sets own read",
-   "player_bank :: player_bank own read",
    "player_cosmetics :: player_cosmetics_read_own",
    "player_equipment :: player_equipment own read",
    "player_farm :: player_farm own read",
@@ -892,6 +892,7 @@
    "world_finds :: world_finds_read"
   ],
   "indexes": [
+   "account_bank_pkey",
    "account_gem_grants_pkey",
    "account_wallet_pkey",
    "active_bounty_pkey",
@@ -1144,7 +1145,6 @@
    "party_tick_lease_owned_idx",
    "party_tick_lease_pkey",
    "player_action_sets_pkey",
-   "player_bank_pkey",
    "player_blessings_pkey",
    "player_cosmetics_pkey",
    "player_equipment_pkey",
@@ -1229,6 +1229,10 @@
    "profiles :: hr_profiles_name_restamp"
   ],
   "constraints": [
+   "account_bank :: account_bank_item_id_check",
+   "account_bank :: account_bank_pkey",
+   "account_bank :: account_bank_qty_check",
+   "account_bank :: account_bank_user_id_fkey",
    "account_gem_grants :: account_gem_grants_gems_check",
    "account_gem_grants :: account_gem_grants_grant_key_check",
    "account_gem_grants :: account_gem_grants_pkey",
@@ -1849,8 +1853,6 @@
    "player_action_sets :: player_action_sets_pkey",
    "player_action_sets :: player_action_sets_preset_check",
    "player_action_sets :: player_action_sets_slots_check",
-   "player_bank :: player_bank_pkey",
-   "player_bank :: player_bank_qty_pos",
    "player_blessings :: player_blessings_char_fk",
    "player_blessings :: player_blessings_paid_check",
    "player_blessings :: player_blessings_pkey",
@@ -1955,6 +1957,10 @@
    "world_finds :: world_finds_source_kind_check"
   ],
   "columns": [
+   "account_bank.item_id text NOT NULL",
+   "account_bank.qty bigint NOT NULL",
+   "account_bank.updated_at timestamp with time zone NOT NULL",
+   "account_bank.user_id uuid NOT NULL",
    "account_gem_grants.at timestamp with time zone NOT NULL",
    "account_gem_grants.expires_at timestamp with time zone",
    "account_gem_grants.gems bigint NOT NULL",
@@ -2957,10 +2963,6 @@
    "player_action_sets.slots jsonb NOT NULL",
    "player_action_sets.updated_at timestamp with time zone NOT NULL",
    "player_action_sets.user_id uuid NOT NULL",
-   "player_bank.item_id text NOT NULL",
-   "player_bank.qty bigint NOT NULL",
-   "player_bank.slot integer NOT NULL",
-   "player_bank.user_id uuid NOT NULL",
    "player_blessings.bought_at timestamp with time zone NOT NULL",
    "player_blessings.paid bigint NOT NULL",
    "player_blessings.slot integer NOT NULL",
@@ -3190,6 +3192,7 @@
    "world_finds.user_id uuid NOT NULL"
   ],
   "rls": [
+   "account_bank rls=true force=false",
    "account_gem_grants rls=true force=true",
    "account_wallet rls=true force=true",
    "active_bounty rls=true force=false",
@@ -3355,7 +3358,6 @@
    "party_settle_boundary rls=true force=true",
    "party_tick_lease rls=true force=true",
    "player_action_sets rls=true force=false",
-   "player_bank rls=true force=false",
    "player_blessings rls=true force=false",
    "player_cosmetics rls=true force=false",
    "player_equipment rls=true force=false",

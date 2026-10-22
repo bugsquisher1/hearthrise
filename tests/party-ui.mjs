@@ -420,7 +420,7 @@ async function stub(page, s) {
   await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', async (r) => {
     const name = r.request().url().split('?')[0].split('/').pop();
     const body = JSON.parse(r.request().postData() || '{}');
-    s.calls.push({ name, body });
+    s.calls.push({ name, body, at: Date.now() });
     const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
     if (name === 'hr_load') return json(s.env[body.p_slot] ? s.next(body.p_slot) : { ok: false, error: 'no_character' });
     if (name === 'hr-accrue') return json(Object.assign({ accrued: true }, s.next(body.slot)));
@@ -464,6 +464,19 @@ async function openWin(page, key, id) {
 }
 const sent = (s, name) => s.calls.filter((c) => c.name === name);
 
+/* A HUNTING character re-reads on its own clock (hunt-poll.js): from liveAskMs, backing off while the stub
+   sends no live start point, never sooner than the last gap. A rule that says "this press re-read nobody"
+   waits for a moment when that clock's next re-read is at least `clearMs` off, so a re-read inside its
+   window is the press's own (a lane on 2026-10-22: the poll landed 0.47 s after the tab press, ~1 run in 2). */
+async function quietHuntPoll(s, slot, clearMs = 1500) {
+  for (const until = Date.now() + 20000; Date.now() < until;) {
+    const p = sent(s, 'hr-accrue').filter((c) => c.body.slot === slot).map((c) => c.at);
+    const n = p.length;
+    if (n >= 2 && p[n - 1] + (p[n - 1] - p[n - 2]) - Date.now() >= clearMs) return;
+    await new Promise((ok) => setTimeout(ok, 25));
+  }
+}
+
 /* A new full envelope, the way the live game gets one: a frame that skips a version makes the client re-read. */
 async function pushEnvelope(page, s, slot) {
   const frame = s.version + 2;
@@ -501,6 +514,7 @@ async function pageRules(overrides, shots) {
       const t0 = tabs.find((x) => x.slot === '0'), t1 = tabs.find((x) => x.slot === '1');
       if (!t0 || t0.name !== 'Tyler' || t0.doing !== 'Hunting in The Sewer' || t0.badge !== '1') fails.push('UI-1 [' + tag + '] tab 0 reads ' + JSON.stringify(t0));
       if (!t1 || t1.name !== 'Druid' || t1.doing !== 'In town, idle' || !t1.on) fails.push('UI-1 [' + tag + '] tab 1 reads ' + JSON.stringify(t1));
+      await quietHuntPoll(s, 0);
       const loads = s.calls.length;
       await page.click('.char-tab[data-slot="0"]');
       if (!(await wait(page, () => document.querySelector('#panel-world[data-slot="0"]') && document.querySelector('.hs-launchers') && !document.querySelector('#panel-world[data-slot="1"]')))) fails.push('UI-1 [' + tag + '] the tab did not show character 0');

@@ -43,7 +43,7 @@
 //   13    a settle pays once        a second settle of one window writes nothing    -
 //
 //   LOOP-2, a mid-level character (Combat 40)
-//    1    a Level-16 character      fixture levels + gold + iron kit, REAL equip    all
+//    1    a Level-15 character      fixture levels + gold + iron kit, REAL equip    all
 //    2    pick a hunt for my level  src/data/hunts.js band contains my level        4
 //    3    switch the shop heal on   hr_action_set_put: the bar buys a heal per use  4
 //                                   (master plan rows 1 and 25: off for a new bar)
@@ -717,12 +717,13 @@ async function equipFromBag(p, t, slot, id) {
   if (was) t.ok(inv(p.env, was) === inv(before, was) + 1, `the old ${was} did not return to the bag`);
 }
 
-/* ══ LOOP-2 — A MID-LEVEL CHARACTER (LEVEL 16, the Sewer's band) ═════════ */
-/* Level 16 with Melee and Defense at 15 (skills trail Level, CORE_NUMBERS) in the iron kit: the lower half of the
-   Sewer's solo band (Q9: 8-25). Levels 26-50 have only the party-built Warrens (32-50) — a lone hero there is a
-   designer gap, not this loop's question. */
+/* ══ LOOP-2 — A MID-LEVEL CHARACTER (LEVEL 15, the Thicket's top) ═══════ */
+/* Level 15 with Melee and Defense at 15 (the iron kit asks 15) in the iron kit: the top of Meadowbrook
+   Thicket's solo band (5-15). The Sewer (8-25) is a party ground (Tyler 2026-10-21: "The Sewer is a party hunt"),
+   so a lone hero over 15 is told no solo ground fits yet (src/shell/hunt-list.js recommendation) — a designer
+   gap until Mosslight Glade lands, not this loop's question. */
 const MID_LEVEL = 15;
-const MID_CHAR_LEVEL = 16;
+const MID_CHAR_LEVEL = 15;
 const MID_KIT = { weapon: 'iron_sword', helmet: 'iron_helm', body: 'iron_platebody',
   boots: 'iron_boots', gloves: 'iron_gauntlets', belt: 'iron_belt' };
 const MID_GOLD = 6000;
@@ -736,7 +737,7 @@ async function loop2(S, M, tag, rows) {
   let hour = null;
   let lootGold = 0;
 
-  await step(1, 'a Level-16 character', async (t) => {
+  await step(1, 'a Level-15 character', async (t) => {
     const cr = await S.create(p.uid, `Loop2${tag}`);
     t.ok(cr && cr.ok === true, `hr_create_hero refused: ${brief(cr)}`);
     for (const sk of ['melee', 'defense']) {

@@ -591,14 +591,17 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           p.querySelector('.ha-tab[data-tab="training"]').click();
           await new Promise((ok) => setTimeout(ok, 50));
           const lines = Array.from(p.querySelectorAll('[data-sec="bySkill"] .ha-line')).filter((l) => l.getClientRects().length > 0)
-            .map((l) => [l.querySelector('.ha-name').textContent, l.querySelector('.ha-count').textContent, l.querySelector('.ha-val').textContent]);
+            .map((l) => [l.querySelector('.ha-name').textContent, l.querySelector('.ha-count').textContent, l.querySelector('.ha-val').textContent,
+              (l.querySelector('.ha-eta') || {}).textContent || '']);
           const total = p.querySelector('[data-sec="training"] [data-stat="trainingXp"]').textContent;
           p.querySelector('.ha-tab[data-tab="session"]').click();
           return { lines, total };
         });
         const fx = FIXTURE.hunt_analyzer.hero;
         const wantLines = Object.entries(fx.xp).filter(([k]) => k !== 'level').sort((x, y) => y[1] - x[1])
-          .map(([k, v]) => [k.charAt(0).toUpperCase() + k.slice(1), '+' + v.toLocaleString('en-US'), fx.skills[k].per_hour.toLocaleString('en-US') + ' an hour']);
+          .map(([k, v]) => [k.charAt(0).toUpperCase() + k.slice(1), '+' + v.toLocaleString('en-US'), fx.skills[k].per_hour.toLocaleString('en-US') + ' an hour',
+            /* …and its next level in, as the server sent it (eta_h hours; a maxed skill's 0 says nothing). */
+            fx.skills[k].eta_h > 0 ? 'next level in ' + Math.floor(fx.skills[k].eta_h) + ':' + String(Math.round(fx.skills[k].eta_h * 60) % 60).padStart(2, '0') + 'h' : '']);
         const wantTotal = Object.entries(fx.xp).filter(([k]) => k !== 'level').reduce((t, [, v]) => t + v, 0).toLocaleString('en-US');
         if (JSON.stringify(training.lines) !== JSON.stringify(wantLines) || training.total !== wantTotal) {
           fails.push('HS-4 the premium Training tab shows ' + JSON.stringify(training) + '; the server sent ' + JSON.stringify({ wantLines, wantTotal }));
@@ -1586,6 +1589,8 @@ const MUTANTS = [
   ['the countdown line is not shown', 'src/shell/widgets/hunt-topbar.js', "  prop(line, 'hidden', !leaving || over);", "  prop(line, 'hidden', true);"],
   ['the leave closes a whole poll late', 'src/session/hunt-poll.js', "  return closeMs === null ? ms : Math.min(ms, closeMs);", "  return ms;"],
   ['a free character gets no basic analyzer', 'src/shell/widgets/analyzer.js', 'const a = analyzerOf(ctx.character);', 'const a = premium ? analyzerOf(ctx.character) : null;'],
+  ['the Training tab drops each skill\'s next level in', 'src/shell/widgets/analyzer.js', "text(li.querySelector('.ha-eta'), it.nextMs === null ? '' : 'next level in ' + hoursMinutes(it.nextMs));", ''],
+  ['a maxed skill reads next level in 0:00h', 'src/session/hunt-sections.js', 'return h !== null && h > 0 ? Math.round(h * 3600000) : null;', 'return h !== null ? Math.round(h * 3600000) : null;'],
   ['the analyzer keeps the last numbers when the section goes', 'src/session/hunt-sections.js', "  const a = section(cs, 'hunt_analyzer');\n", "  const a = section(cs, 'hunt_analyzer') || globalThis.__lastA;\n  globalThis.__lastA = a;\n"],
   ['the metric picker is a hard-coded list', 'src/shell/windows/configure-action.js', "aria-label=\"Test ' + (i + 1) + '\">' + options(METRICS.map((m) => [m.id, m.label]))", "aria-label=\"Test ' + (i + 1) + '\">' + options([['self_hp_pct', 'My HP %'], ['self_mana_pct', 'My mana %']])"],
   ['the controls stay on while a bar intent is in flight', 'src/shell/windows/configure-action.js', '  const off = s.pending;', '  const off = false;'],

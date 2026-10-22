@@ -161,6 +161,9 @@ async function pureRules(M, base) {
     M.AL.setAlertShown(cs2, 'rare', true);
     cs2.timeline.ingest({ events: [{ id: 's1:100', type: 'rare_drop', atMs: 1760702399950, u: 1, item: 'rat_tail' }] }, 0);
     if (centre2.list().length !== 2) return 'a new rare drop id raised ' + (centre2.list().length - 1) + ' alert(s)';
+    /* A party member's rare (the settle's rare_drop names its owner, u 2) is theirs: no alert for this hero. */
+    cs2.timeline.ingest({ events: [{ id: 's1:101', type: 'rare_drop', atMs: 1760702399960, u: 2, item: 'crown_shard' }] }, 0);
+    if (centre2.list().length !== 2) return "a party member's rare drop raised an alert for this hero";
     /* A hero set to end its hunt on empty, out of the bread its bar eats (no restock targets: the Shop sells no supplies). */
     srv.env[0].hunt_settings = Object.assign({}, srv.env[0].hunt_settings, { on_empty: 'end', supply_source: 'mine',
       slots: [{ action: { type: 'consume', id: 'wheat_bread' } }].concat(Array(19).fill(null)) });
@@ -649,6 +652,7 @@ const PURE_MUTANTS = [
   ['a slot item in the bag reads as out of stock', 'src/shell/alerts.js', 'const stock = (id) => have.get(id) || 0;', 'const stock = () => 0;'],
   ['the run-out line names no takeover', 'src/shell/alerts.js', "  const then = typeof ev.next === 'string' && Number.isInteger(ev.slot)", '  const then = false'],
   ['another hero raises the run-out line', 'src/shell/alerts.js', ' || ev.u !== h.hero.unit) return null;', ') return null;'],
+  ["a party member's rare drop alerts this hero", 'src/shell/alerts.js', '  if (h && h.hero && Number.isInteger(ev.u) && Number.isInteger(h.hero.unit) && ev.u !== h.hero.unit) return null;\n', ''],
   ['the run-out event raises nothing', 'src/shell/alerts.js', 'const c = rareOf(cs, ev) || runOutOf(cs, ev);', 'const c = rareOf(cs, ev);'],
   ['an alert fires on every read', 'src/shell/alerts.js', '    if (mine.has(c.id) || (Array.isArray(stored) && stored.includes(c.id))) return false;\n', ''],
   ['the shown ids are not kept for the next visit', 'src/shell/alerts.js', "    cs.setResidue('alerts', { off: Array.isArray(r.off) ? r.off : [], seen: (Array.isArray(stored) ? stored : []).concat(c.id).slice(-ALERTS_SEEN_MAX) });\n", ''],

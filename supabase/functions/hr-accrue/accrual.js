@@ -1350,6 +1350,7 @@ export function huntProposal(hs, swingFrom, settledToMs, summary, tickMs) {
     if (!e) continue;
     if (e.type === 'slot_dry' && e.item && !(e.item in hints.slot_dry)) hints.slot_dry[e.item] = Math.floor(e.atMs);
     else if (e.type === 'death') hints.death.push(Math.floor(e.atMs));
+    else if (e.type === 'rare_drop' && e.item) hints.rare_drop.push({ item: String(e.item), at: Math.floor(e.atMs) });
   }
   const rawXp = {};
   for (const k of Object.keys(t.xp || {})) {

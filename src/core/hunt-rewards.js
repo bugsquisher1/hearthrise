@@ -102,7 +102,13 @@ function payKill(present, ids, killer, kind, ctx, yieldPm, world, atMs) {
       m = present[itemOwner(k++, present.length, offset)];
     }
     call(m.fx, 'addItem', ev.id, 1);
-    if (ev.rare) { m.state.stats = m.state.stats || {}; m.state.stats.rareDrops = (m.state.stats.rareDrops || 0) + 1; }
+    if (ev.rare) {
+      m.state.stats = m.state.stats || {}; m.state.stats.rareDrops = (m.state.stats.rareDrops || 0) + 1;
+      /* THE RARE-DROP MOMENT: a world event for the owner (the timeline: alert, float, log) and the
+         member's hint (huntProposal hints.rare_drop: the session's journal row). */
+      if (typeof ctx.emit === 'function') ctx.emit(makeEvent('rare_drop', atMs, { u: ids[present.indexOf(m)], item: ev.id }));
+      if (Array.isArray(m.hs._events)) m.hs._events.push({ type: 'rare_drop', atMs, item: ev.id });
+    }
     call(m.fx, 'onDrop', ev);
   }
   for (const m of present) countKill(m, kind);

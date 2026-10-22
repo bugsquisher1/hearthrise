@@ -57,6 +57,8 @@
 //              eligible), solo draws no die, commons keep the round-robin; a party's
 //              rares go to the same heroes however the windows are cut (the
 //              rotation rides the world), each with its `rare_roll` event.
+//   RARE-DROP  a carrier's rare dropped in a settle is a rare_drop world event naming its hero (the
+//              timeline's alert, float and log line) and a hints.rare_drop on that hero's session, cut or not.
 //   DEATH      a killed hero DIES (Tyler 2026-10-19): one death row, no recovery
 //              line, the hunt ends `died` at its next boundary, the hero walks home
 //              at full HP, the death is priced on its Level and combat skills; the
@@ -755,6 +757,36 @@ const ENGINE_ARMS = {
     });
     const sig = (r) => canon({ rolls: r.rolls.map((e) => [e.atMs, e.u, e.item, e.rolls, e.reroll || null]), shards: r.shards });
     if (sig(span) !== sig(viewed)) problems.push(`the viewed cut rolled differently from one span ${firstDiff(sig(span), sig(viewed))}`);
+    return problems;
+  },
+
+  /* THE RARE-DROP MOMENT (Tyler, super-rare drop moments): a carrier's rare dropped in a settle reaches the hero
+     who owns it, as the window's world event the timeline plays (the alert, the float, the log line: rare_drop
+     with u = that hero's unit) and as the session's hint (hints.rare_drop, the journal row), whether the
+     browser was closed (one span) or viewed (cut windows). */
+  'RARE-DROP': async (M) => {
+    const problems = [];
+    const rat = M.MONSTERS.rat;
+    const rareCat = { ...M.MONSTERS, rat: { ...rat, drops: [...rat.drops, { id: 'crown_shard', ch: 0.05 }, { id: 'crown_shard', ch: 0.05 }] } };
+    const one = (cuts) => {
+      const o = runCut(M, () => [memberIn(M, 'a', { unitId: null })], 900000, cuts, { monsters: rareCat });
+      const drops = o.outs.flatMap((x) => x.events.filter((e) => e.type === 'rare_drop'));
+      const units = new Set(o.outs.flatMap((x) => x.members).map((x) => x.hunt.unit_id).filter(Number.isInteger));
+      const hints = o.outs.flatMap((x) => x.members).flatMap((x) => (x.hunt.hints && x.hunt.hints.rare_drop) || []);
+      const shards = o.outs.flatMap((x) => x.members).reduce((n, x) => n + ((x.delta.items || {}).crown_shard || 0), 0);
+      const timeline = o.outs.flatMap((x) => M.HT.huntTimeline(x.track, x.events, T0, x.settledTo, x.settledTo, x.units).hunt_events)
+        .filter((e) => e.type === 'rare_drop');
+      return { drops, units, hints, shards, timeline };
+    };
+    const span = one([]);
+    const viewed = one([T0 + 7001, T0 + 133333, T0 + 499999]);
+    if (!(span.shards >= 2)) return ['CONTROL: the hero looted ' + span.shards + ' Crown Shards in 15 minutes'];
+    if (span.drops.length !== span.shards) problems.push(span.shards + ' Crown Shards looted, ' + span.drops.length + ' rare_drop world events');
+    if (span.drops.some((e) => e.item !== 'crown_shard' || !span.units.has(e.u) || !Number.isInteger(e.atMs))) problems.push('a rare_drop does not name the hero and the item: ' + canon(span.drops[0]));
+    if (span.timeline.length !== span.drops.length || span.timeline.some((e) => typeof e.id !== 'string')) problems.push('the timeline carries ' + span.timeline.length + ' rare drops of ' + span.drops.length);
+    if (span.hints.length !== span.shards || span.hints.some((h) => h.item !== 'crown_shard' || !Number.isInteger(h.at))) problems.push('the session hints carry ' + canon(span.hints) + ' for ' + span.shards + ' shards');
+    const sig = (r) => canon(r.drops.map((e) => [e.atMs, e.u, e.item]));
+    if (sig(span) !== sig(viewed)) problems.push('the viewed cut dropped its rares differently ' + firstDiff(sig(span), sig(viewed)));
     return problems;
   },
 
@@ -1716,6 +1748,10 @@ const MUTANTS = [
     from: '      if (tied.length === 1 || round + 1 >= maxRounds) { winner = tied[0]; break; }', to: '      { winner = tied[0]; break; }' },
   { arm: 'SPLIT', name: 'the rotation is not carried across a settle cut', file: 'src/core/party-split.js',
     from: "world: Object.freeze([['rareWon', 'json']])", to: 'world: Object.freeze([])' },
+  { arm: 'RARE-DROP', name: 'a rare drop is never a world event (no alert, no float)', file: 'src/core/hunt-rewards.js',
+    from: "      if (typeof ctx.emit === 'function') ctx.emit(makeEvent('rare_drop',", to: "      if (false) ctx.emit(makeEvent('rare_drop'," },
+  { arm: 'RARE-DROP', name: 'the session never journals a rare drop (no hint)', file: join(FN, 'accrual.js'),
+    from: "    else if (e.type === 'rare_drop' && e.item) hints.rare_drop.push(", to: "    else if (false) hints.rare_drop.push(" },
   { arm: 'SPLIT', name: 'only the killer counts the kill', file: 'src/core/hunt-rewards.js',
     from: '  for (const m of present) countKill(m, kind);', to: '  countKill(lead, kind);' },
   { arm: 'DEATH', name: 'a death does not end the hunt', file: 'src/core/action-rules.js',

@@ -710,10 +710,9 @@ export const MONSTERS = {
   gray_whelp: { name: 'Gray Whelp', icon: '🐺', tier: 1, level: 5, cls: 'mammal', family: 'Mammal',
     hp: 9, atk: 2, def: 0, xp: 28, gp: [1, 3], speed: 3800,
     drops: [{ id: 'raw_wolf_meat', ch: .35 }, { id: 'bones', ch: .4 }, { id: 'whelp_milk_tooth', ch: .06 }, { id: 'leather_boots', ch: .0087, gear: true }] },
-  /* gp [2, 5] -> [3, 5] (lane b-supplies-bury; designer ruling 2026-10-21, lane c-loot-loop: KEPT). The starter bar eats
-     at 60% (Tyler 10-21), so a fresh Thicket hero buys about twice the Salted Shrimp. With only the four-slot pelts (Grayjaw
-     always, Briarcoat 30%) the Thicket nets 1,714 g/h against the Cellar's 1,738 (forest-cave, 6-seed median); with this
-     coin it nets 1,777.5. Coin is the lever because the bill is paid in coin and the Gray Wolf is the most-killed wolf. */
+  /* gp [2, 5] -> [3, 5] (lane b-supplies-bury; designer 2026-10-21, c-loot-loop: KEPT). Eating at 60% (Tyler 10-21) doubles a fresh
+     Thicket hero's Salted Shrimp; with only the four-slot pelts (Grayjaw always, Briarcoat 30%) the Thicket nets 1,714 g/h vs the
+     Cellar's 1,738 (forest-cave, 6-seed median), with this coin 1,777.5. Coin is the lever: the bill is coin, the Gray Wolf the most killed. */
   gray_wolf: { name: 'Gray Wolf', icon: '🐺', tier: 1, level: 8, cls: 'mammal', family: 'Mammal',
     hp: 14, atk: 4, def: 1, xp: 52, gp: [3, 5], speed: 4200,
     drops: [{ id: 'raw_wolf_meat', ch: .5 }, { id: 'bones', ch: .5 }, { id: 'gray_dewclaw', ch: .08 },

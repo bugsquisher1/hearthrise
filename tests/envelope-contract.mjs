@@ -188,6 +188,10 @@ function contract(R, cs, body, tl) {
   const sr = R.IS.staminaRefillOf(cs);
   need('stamina_refill', !!sr && isNum(sr.n) && isNum(sr.perDay) && (sr.available ? isNum(sr.price) && isNum(sr.restoreMs) : typeof sr.why === 'string'),
     'staminaRefillOf yields ' + JSON.stringify(sr) + ' from ' + JSON.stringify(body.stamina_refill));
+  /* the Characters window's Rename (2026-12-04-hero-rename.sql): what a new name costs this hero now */
+  const rn = R.IS.renameOf(cs);
+  need('rename', !!rn && isNum(rn.price) && rn.price > 0 && isNum(rn.level) && typeof rn.available === 'boolean',
+    'renameOf yields ' + JSON.stringify(rn) + ' from ' + JSON.stringify(body.rename));
   const bl = R.IS.blessingsOf(cs);
   need('blessings', !!bl && isNum(bl.permille) && bl.tiers.length === 3 && bl.freeUntil !== null && bl.tiers.every((t) => isNum(t.price) && isNum(t.permille)),
     'blessingsOf yields ' + JSON.stringify(bl) + ' from ' + JSON.stringify(body.blessings));
@@ -231,7 +235,7 @@ function sheetContract(R, cs, body) {
 export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events', 'hunt_server_now_ms', 'hunt_settings', 'hunt_analyzer',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'stamina_refill', 'blessings',
-  'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_density', 'depot', 'home', 'now', 'farm_land', 'bench_run']);
+  'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_density', 'depot', 'home', 'now', 'farm_land', 'bench_run', 'rename']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -388,6 +392,7 @@ const DB_MUTANTS = [
   ['hunt_bests', 'public.hr_hunt_bests_view(uuid,integer)', "'min_ms', (extract(", "'minms', (extract("],  ['depot', 'public.hr_depot_view(uuid,integer)', "'cap', public.hr_depot_cap(p_user),", "'capacity', public.hr_depot_cap(p_user),"],
   ['home', 'public.hr_home_view(uuid,integer)', "'rooms', coalesce((select jsonb_agg(", "'room_list', coalesce((select jsonb_agg("],
   ['now', 'public.hr_state_of(uuid,integer)', "'now', now(),", "'stamp', now(),"],
+  ['rename', 'public.hr_hero_rename_quote(uuid,integer)', "'price', r.base + r.per_level * v_lv,", "'cost', r.base + r.per_level * v_lv,"],
 ];
 const EDGE_MUTANTS = [
   ['hunt_track', 'src/core/hunt-track.js', '    hunt_track: pb.steps.map(', '    track: pb.steps.map('],

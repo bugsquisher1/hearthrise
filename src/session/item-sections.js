@@ -27,6 +27,8 @@
 // The Services window's (lane S2, 2026-10-25-stamina-refill.sql / -blessings.sql):
 //   stamina_refill { available, why, restore_ms, price, n, per_day }  the next refill, priced
 //   blessings      { held: [tier], permille, free_until, tiers: [{ tier, permille, price, held }] }
+// The Characters window's (2026-12-04-hero-rename.sql):
+//   rename         { price, level, per_day, today, available, why }  what a new name costs, and whether it may
 // ════════════════════════════════════════════════════════════════════════
 import { huntBagOf } from './hunt-sections.js?v=0.2.31';
 import { SHOP_SOLD_KINDS } from '../data/supply-basics.js?v=0.2.31';
@@ -215,6 +217,16 @@ export function staminaRefillOf(cs) {
     price: q.available ? q.price : null, restoreMs: q.available ? q.restore_ms : null,
     n: q.n, perDay: q.per_day, boughtToday: Math.max(0, q.n - 1),
   };
+}
+
+const RENAME_WHY = Object.freeze(['hunt_open', 'renamed_today']);
+
+/** `rename`: what changing this hero's name costs now and whether it may, or null (Rename stays off). */
+export function renameOf(cs) {
+  const q = read(cs, 'rename');
+  if (!isObj(q) || !count(q.price) || !count(q.level) || typeof q.available !== 'boolean') return null;
+  return { price: q.price, level: q.level, available: q.available,
+    why: q.available ? null : (RENAME_WHY.includes(q.why) ? q.why : 'unavailable') };
 }
 
 /** `blessings`: the held tiers and every tier's price at this character's level, or null. */

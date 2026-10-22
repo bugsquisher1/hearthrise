@@ -68,8 +68,9 @@
 -- function, hr_hunt_setup_view and hr_hunt_enter_check; delete the `hunt_setup`
 -- section row; re-apply hr_hunt_enter_for from 2026-10-30-town-activity-yields.sql
 -- and hr_hunt_preset_apply from 2026-10-25-hunt-presets.sql; drop the column.
--- ORDER: after 2026-12-02-old-rewards-cut.sql (and the 12-03 / 12-04 lanes; no
--- object in common). No begin/commit.
+-- ORDER: after 2026-12-04-world-actions-cut.sql (the v0.2.32 set: 12-03
+-- daily-claims-cut, 12-04 hero-rename, 12-04 world-actions-cut; no object in
+-- common). No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS AND PINS (md5 of the CR-stripped prosrc: the chain-end image, or this file's own) ──

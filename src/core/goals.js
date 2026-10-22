@@ -1,6 +1,14 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/core/goals.js — THE DAILY/QUEST PROGRESS COUNTER CONTRACT.
 //
+// ⚠ 2026-10-22 (Tyler: "we were supposed to delete all that"): the DAILY half
+//   is CUT. The daily/weekly goals that read kind='daily' rows left with
+//   2026-12-02-old-rewards-cut.sql, so the engine stops writing them
+//   (2026-12-03-daily-claims-cut.sql). The counter keeps only the LIFETIME
+//   (kind='stat', period '') rows the Bestiary and the collection read; the
+//   text below that describes the daily arm is history. The one kind='daily'
+//   row left on the server is the premium login claim's own clamp.
+//
 // ⚠ THIS FILE IS THE KEY CONTRACT. If you are writing a new server intent and
 //   you need to move a daily or a quest counter, read this header and nothing
 //   else — the shapes below are what `hr_apply` accepts and what
@@ -258,7 +266,6 @@ export function utcDayKey(ms) {
  * create a row nobody can read.
  */
 export function makeGoalCounter() {
-  const daily = Object.create(null);
   const quest = Object.create(null);
   const unknown = Object.create(null);
 
@@ -277,9 +284,8 @@ export function makeGoalCounter() {
        authored goal — `updateQuest` only consults `meta.target` when the quest
        row declares `q.target`, and no authored row does. The guard asserts
        that, so this is a stated equivalence rather than an assumption. */
-    daily(type, amt) { add(daily, type, amt); },
     quest(type, amt /* , meta */) { add(quest, type, amt); },
-    counts() { return { daily: { ...daily }, quest: { ...quest } }; },
+    counts() { return { quest: { ...quest } }; },
     unknownTypes() { return { ...unknown }; },
   };
 }
@@ -318,8 +324,7 @@ export function makeGoalCounter() {
 export function goalProgressOps(counter, nowMs, events) {
   const ops = [];
   if (!counter) return ops;
-  const { daily, quest } = counter.counts();
-  const day = utcDayKey(nowMs);
+  const { quest } = counter.counts();
   const sink = Array.isArray(events) ? events : null;
 
   const clamp = (type, n, where) => {
@@ -332,18 +337,6 @@ export function goalProgressOps(counter, nowMs, events) {
      is derived from the watermark rather than from the delta, so this is not
      load-bearing for correctness — it is load-bearing for a DIFF, and a
      receipt nobody can diff is a receipt nobody checks. */
-  for (const type of Object.keys(daily).sort()) {
-    /* A missing day key means a non-finite server clock, which cannot happen
-       through index.ts (`new Date(select now())`) and would file a permanent
-       row that nothing prunes if it did. Refuse the DAILY op and keep the
-       lifetime one: under-credit, never an unsweepable row. */
-    if (!day) {
-      if (sink) sink.push({ type: 'goal_no_day_key', event: type });
-      continue;
-    }
-    ops.push({ kind: 'daily', key: goalKey(type), period: day,
-               add: clamp(type, daily[type], 'daily'), state: 'active' });
-  }
   for (const type of Object.keys(quest).sort()) {
     ops.push({ kind: 'stat', key: goalKey(type), period: '',
                add: clamp(type, quest[type], 'stat'), state: 'active' });

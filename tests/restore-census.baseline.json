@@ -1463,6 +1463,11 @@
    "wiped_at_cutover": false,
    "note": "WHICH WORLD-TICK DRIVER IS SETTLING WHICH OPEN HUNT, UNTIL WHEN — created 2026-10-22-hunt-sessions-settle.sql, ships EMPTY, one row per open session at most (deleted with its session). Written only by hr_hunt_roster (SECURITY DEFINER, hr_tick). No player value and never authority: it spares duplicate engine work only — the per-character lock and the swing-index CAS in hr_hunt_apply decide every settle. Coming back EMPTY costs nothing: the next fire leases every due session afresh. RLS enabled, zero policies, zero grants."
   },
+  "hunt_world_shape_move": {
+   "class": "operational",
+   "wiped_at_cutover": false,
+   "note": "2026-12-11-hunt-deploy-no-forfeit.sql: ONE row, the catalogue world shape (hr_hunt_world_shape), the shape it replaced and moved_at, written only by trigger hr_hunt_world_shape_move on each catalogue apply; seeded at apply with the shape in force and nothing before it. Read only by hr_hunt_apply_instance to hold (not count) a settle of the replaced shape for 30 min after a move. A rebuild reseeds it with no previous shape, which only means no deploy-gap exemption until the next move: no player value, nothing owned, ranked or traded derives from it."
+  },
   "leaderboard_meta": {
    "class": "seeded",
    "replay": 1,

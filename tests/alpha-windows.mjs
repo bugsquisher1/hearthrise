@@ -87,6 +87,7 @@ import { readFile, mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
+import { harnessFail, judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 /* The readiness line with the fixture's bag and bar (supplies are never 'short' against a restock target any more). */
@@ -395,12 +396,12 @@ async function checks(overrides, shots) {
 
     { // AW-7 no supplies in the Shop; AW-8 hunt prep
       /* The fixture's server still offers food, drink and ammo (the pre-2026-11-02 section): the client must drop them. */
-      /* The hero is BURYING when Use is pressed (Andy live 10-21: "burying locks an action"), and the Shop lists the
-         outfitter's gear above the tools (designer 2026-10-22, 2026-11-24-shop-outfitter.sql). */
+      /* The hero is BURYING when Use is pressed (Andy live 10-21: "burying locks an action"), so in town:
+         the fixture's hunt has ended (Use is town-only since presets C4; tests/preset-names.mjs holds that rule).
+         The Shop lists the outfitter's gear above the tools (designer 2026-10-22, 2026-11-24-shop-outfitter.sql). */
       const tools = (e) => { e.shop = Object.assign({}, e.shop, { offers: e.shop.offers.concat([{ offer: 'supply.bronze_axe', item: 'bronze_axe', kind: 'tool', price: 120 },
         { offer: 'supply.leather_gloves', item: 'leather_gloves', kind: 'gear', price: 160 }]) });
         e.state = Object.assign({}, e.state, { active_kind: 'artisan', active_id: 'bury_bones' });
-        /* ...in town: the fixture's hunt has ended (Use is town-only since presets C4; tests/preset-names.mjs holds that rule). */
         e.hunt = Object.assign({}, e.hunt, { ended: true }); };
       const { ctx, page, s, up } = await open({ mutateEnv: tools });
       if (up) {
@@ -644,13 +645,16 @@ async function checks(overrides, shots) {
             if (await page.$('[data-hs-win="inventory"] .hw-pocket[data-item="bones"]')) fails.push('AW-19 the bones came back after a reload');
             /* AW-20 a dish above the server's Cooking level (11 < 40) says so in words and sends nothing */
             await page.click('[data-hs-win="inventory"] .hw-pocket[data-item="raw_bear_meat"]');
-            await page.click('[data-hs-win="inventory"] .hw-pick [data-hs-act="primary"]');
+            /* the control is checked, not clicked blind: raw food with no Cook all is AW-20 red BY NAME, never a click timeout (HARNESS) */
+            const bear = await page.evaluate(() => { const b = document.querySelector('[data-hs-win="inventory"] .hw-pick [data-hs-act="primary"]'); return b && !b.hidden && !b.disabled ? b.textContent : null; });
+            if (bear !== 'Cook all') fails.push('AW-20 the raw bear meat offers ' + JSON.stringify(bear) + ', not Cook all');
+            else await page.click('[data-hs-win="inventory"] .hw-pick [data-hs-act="primary"]');
             await page.waitForTimeout(300);
             const low = await page.evaluate(() => document.querySelector('[data-hs-win="inventory"] .hh-intent-msg').textContent);
-            if (low !== 'Needs Cooking 40 (you have 11).' || sent(s, 'hr-accrue', 'set_activity').length !== 2) fails.push('AW-20 Cook all above the level said ' + JSON.stringify(low));
+            if (bear === 'Cook all' && (low !== 'Needs Cooking 40 (you have 11).' || sent(s, 'hr-accrue', 'set_activity').length !== 2)) fails.push('AW-20 Cook all above the level said ' + JSON.stringify(low));
             /* AW-20 cook all: the raw meat's primary is Cook all; the same ONE set_activity; Stop says what the server made */
             await page.click('[data-hs-win="inventory"] .hw-pocket[data-item="raw_wolf_meat"]');
-            const cp = await page.evaluate(() => document.querySelector('[data-hs-win="inventory"] .hw-pick [data-hs-act="primary"]').textContent);
+            const cp = await page.evaluate(() => { const b = document.querySelector('[data-hs-win="inventory"] .hw-pick [data-hs-act="primary"]'); return b && !b.hidden && !b.disabled ? b.textContent : null; });
             if (cp !== 'Cook all') fails.push('AW-20 the raw meat offers "' + cp + '", not Cook all');
             else {
               await page.click('[data-hs-win="inventory"] .hw-pick [data-hs-act="primary"]');
@@ -866,8 +870,9 @@ async function checks(overrides, shots) {
       await ctx.close();
     }
   } catch (e) {
-    /* A rule whose control never appeared is RED, not a crashed run (a planted mutant can hide one). */
-    fails.push('AW-x a step failed: ' + String(e && e.message).split('\n')[0]);
+    /* A step that threw is HARNESS, never a rule (2026-10-22: AW-8's disabled click "caught" every later
+       mutant). A rule whose control a mutant can hide checks for the control and fails BY NAME. */
+    fails.push(harnessFail('a page step', e));
   } finally {
     await browser.close();
     server.close();
@@ -928,10 +933,10 @@ async function main() {
       : 'alpha-windows: the windows open; patch in place; the server’s counts win; intents only; locks hold; totals first; no supplies in the Shop; Hunts from the hatch in two presses; window presses and focus never steal the World; no void; storage from town; store any amount; bury and cook pay from the server; skills split' + (shots ? ' (shots in ' + shots + ')' : ''));
     process.exit(fails.length ? 1 : 0);
   }
-  const clean = await checks(null, null);
-  if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
-  console.log('  ✓ clean control green');
-  let bad = 0;
+  const clean = await cleanControl(() => checks(null, null));
+  console.log(clean.line);
+  if (clean.code) process.exit(clean.code);
+  const counts = { caught: 0, harness: 0, escaped: 0 };
   for (const [name, file, from, to] of MUTANTS) {
     const over = {};
     const plant = [[file, from, to]].concat(COMPANION[name] ? [COMPANION[name]] : []);
@@ -941,13 +946,12 @@ async function main() {
       if (!text.includes(x)) { missing = f; break; }
       over[f] = text.replace(x, y);
     }
-    if (missing) { console.log('  ✗ ' + name + ' — anchor not found in ' + missing); bad++; continue; }
-    const fails = name.startsWith('edgeBody') ? await pureMutant(over[file]) : await checks(over, null);
-    if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
-    else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+    if (missing) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + missing); counts.harness++; continue; }
+    const v = await judge(() => (name.startsWith('edgeBody') ? pureMutant(over[file]) : checks(over, null)));
+    console.log(report(name, v, counts));
   }
-  console.log(bad ? 'alpha-windows --mutate: ' + bad + ' escaped' : 'alpha-windows --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught');
-  process.exit(bad ? 1 : 0);
+  console.log(exitOf(counts) ? 'alpha-windows --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'alpha-windows --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught, each by a named rule');
+  process.exit(exitOf(counts));
 }
 
 /* The edge-body mutant is a pure module: run AW-0 against the planted text. */

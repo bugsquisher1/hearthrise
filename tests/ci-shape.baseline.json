@@ -378,6 +378,8 @@
     "node tests/hud-layout-display-only.mjs": "client-guards",
     "node tests/session-core.mjs": "client-guards",
     "node tools/mutant-gate.mjs node tests/session-core.mjs --mutate": "client-guards",
+    "node tests/new-version-banner.mjs": "client-guards",
+    "node tools/mutant-gate.mjs node tests/new-version-banner.mjs --mutate": "client-guards",
     "node tests/hunt-view-core.mjs": "client-guards",
     "node tools/mutant-gate.mjs node tests/hunt-view-core.mjs --mutate": "client-guards",
     "node tests/hunt-scene.mjs": "client-guards",

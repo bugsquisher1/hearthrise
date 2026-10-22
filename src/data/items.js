@@ -671,11 +671,11 @@ export const ITEMS={
      2026-09-12: tier 8 shares 88 rather than opening a rung above it), which is
      the form BOTH readers see: gearWieldReq prefers an explicit reqLv over the
      array, and gen-catalogues mirrors it into hr_items for hr_apply §EQUIPMENT. */
-  regent_helm:           {n:'Hollow Regent Helm',  icon:'⛑️', v:108000, type:'armor', slot:'helmet', defB:59, rarity:'unique', tier:8, reqSkill:'defense', reqLv:88},
-  slagheart_platebody:   {n:'Slagheart Platebody', icon:'🦺', v:270000, type:'armor', slot:'body',   defB:120,rarity:'unique', tier:8, reqSkill:'defense', reqLv:88},
-  abyssal_greaves:       {n:'Abyssal Greaves',     icon:'🦿', v:198000, type:'armor', slot:'pants',  defB:85, rarity:'unique', tier:8, reqSkill:'defense', reqLv:88},
-  choirbone_gauntlets:   {n:'Choirbone Gauntlets', icon:'🧤', v:63000,  type:'armor', slot:'gloves', defB:31, rarity:'unique', tier:8, reqSkill:'defense', reqLv:88},
-  warden_girdle:         {n:"Warden's Girdle",     icon:'🟫', v:72000,  type:'armor', slot:'belt',   defB:40, rarity:'unique', tier:8, reqSkill:'defense', reqLv:88},
+  regent_helm:           {n:'Hollow Regent Helm',  icon:'⛑️', v:108000, type:'armor', slot:'helmet', defB:59, armourClass:'plate', rarity:'unique', tier:8, reqSkill:'defense', reqLv:88},
+  slagheart_platebody:   {n:'Slagheart Platebody', icon:'🦺', v:270000, type:'armor', slot:'body',   defB:120,armourClass:'plate', rarity:'unique', tier:8, reqSkill:'defense', reqLv:88},
+  abyssal_greaves:       {n:'Abyssal Greaves',     icon:'🦿', v:198000, type:'armor', slot:'pants',  defB:85, armourClass:'plate', rarity:'unique', tier:8, reqSkill:'defense', reqLv:88},
+  choirbone_gauntlets:   {n:'Choirbone Gauntlets', icon:'🧤', v:63000,  type:'armor', slot:'gloves', defB:31, armourClass:'plate', rarity:'unique', tier:8, reqSkill:'defense', reqLv:88},
+  warden_girdle:         {n:"Warden's Girdle",     icon:'🟫', v:72000,  type:'armor', slot:'belt',   defB:40, armourClass:'plate', rarity:'unique', tier:8, reqSkill:'defense', reqLv:88},
   wyrmgilt_mantle:       {n:'Wyrmgilt Mantle',     icon:'🦸', v:90000,  type:'armor', slot:'cape',   defB:14, atkB:6, rarity:'unique', tier:8, reqSkill:'defense', reqLv:88},
 
   /* ── DUNGEON SIGNATURE LOOT (b268 — the boss ecosystem, increment 1) ──────
@@ -777,6 +777,11 @@ Object.keys(GEAR_ITEMS).forEach((id) => {
   if (live.rarity == null) live.rarity = generated.rarity;
   if (live.reqSkill == null) live.reqSkill = generated.reqSkill;
   if (live.reqLv == null) live.reqLv = generated.reqLv;
+  /* The armour weight (2026-10-21): max HP and mana read armourClass (vitals.js),
+     so a hand-authored twin without it (iron/steel plate and helm, bronze belt,
+     leather boots and gloves) counted as no armour and iron plate gave LESS max
+     HP than bronze. tests/catalogue-coherence.mjs C8 holds every armour row to a class. */
+  if (live.armourClass == null && generated.armourClass) live.armourClass = generated.armourClass;
   /* The weapon's role and hands (Tyler 2026-10-19: Healer = staff, Mage = wand + spellbook). */
   if (live.discipline == null && generated.discipline) live.discipline = generated.discipline;
   if (live.twoHanded == null && generated.twoHanded) live.twoHanded = true;

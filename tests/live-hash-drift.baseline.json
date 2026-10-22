@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-22",
- "replay_ms": 32178,
+ "replay_ms": 82839,
  "counts": {
-  "tracked_names": 146,
-  "entries": 118
+  "tracked_names": 147,
+  "entries": 119
  },
  "functions": [
   {
@@ -816,6 +816,31 @@
    "agree": true
   },
   {
+   "sig": "hr_death_log_view(p_user uuid, p_slot integer)",
+   "name": "hr_death_log_view",
+   "tracked_by": [
+    "chain",
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-25-character-sheet.sql",
+    "2026-10-27-core-bodies.sql",
+    "2026-11-07-death-popup-blessing.sql"
+   ],
+   "live": {
+    "md5": "39c014b29862a18f75d20b4e59abb0bc",
+    "norm_len": 1620,
+    "measured": "2026-10-22",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "39c014b29862a18f75d20b4e59abb0bc",
+    "norm_len": 1620,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_detail_bound(p_detail jsonb)",
    "name": "hr_detail_bound",
    "tracked_by": [
@@ -1589,17 +1614,18 @@
    "touched_by": [
     "2026-10-23-hunt-analyzer-v2.sql",
     "2026-11-03-hunt-analyzer-level-eta.sql",
-    "2026-11-06-hunt-analyzer-min-window.sql"
+    "2026-11-06-hunt-analyzer-min-window.sql",
+    "2026-11-10-hunt-xp-split.sql"
    ],
    "live": {
-    "md5": "8a90f673111fe4cb4c6983fe41092484",
-    "norm_len": 4230,
+    "md5": "b0be975e4319cc4226958272ea7fdfbc",
+    "norm_len": 4475,
     "measured": "2026-10-22",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "8a90f673111fe4cb4c6983fe41092484",
-    "norm_len": 4230,
+    "md5": "b0be975e4319cc4226958272ea7fdfbc",
+    "norm_len": 4475,
     "source": "computed-from-replay"
    },
    "agree": true

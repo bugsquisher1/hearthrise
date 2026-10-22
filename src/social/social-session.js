@@ -10,18 +10,22 @@
 //   friends     FriendStore (src/social/friends.js)
 //   blocks      BlockStore (src/social/blocks.js)
 //   start()     the first reads, then hr_social_state every CHAT_LIMITS.friendsPollMs
-//               (the friends' online state, and this account's presence stamp)
+//               (the friends' online state, and this account's presence stamp),
+//               each followed by the players-online count
+//   online      PlayersOnline (src/social/players-online.js): the server's count
+//               of characters playing (it stamps this account's open ones)
 //   inspect(t)  hr_inspect for a target; the answer is `inspected` until the next
 //   menuProviders()  this system's right-click entries (src/data/social-menu.js
 //               rows), for the shell's one context menu
 //   want(tab)   ask the chat window to show a tab (a new whisper)
 // ════════════════════════════════════════════════════════════════════════
-import { CHAT_LIMITS } from '../data/chat-channels.js?v=0.2.26';
-import { ChatStore } from './chat-store.js?v=0.2.26';
-import { WhisperStore } from './whispers.js?v=0.2.26';
-import { FriendStore } from './friends.js?v=0.2.26';
-import { BlockStore } from './blocks.js?v=0.2.26';
-import { inspectOf } from './inspect.js?v=0.2.26';
+import { CHAT_LIMITS } from '../data/chat-channels.js?v=0.2.27';
+import { ChatStore } from './chat-store.js?v=0.2.27';
+import { WhisperStore } from './whispers.js?v=0.2.27';
+import { FriendStore } from './friends.js?v=0.2.27';
+import { BlockStore } from './blocks.js?v=0.2.27';
+import { inspectOf } from './inspect.js?v=0.2.27';
+import { PlayersOnline } from './players-online.js?v=0.2.27';
 
 export class SocialSession {
   /**
@@ -44,6 +48,9 @@ export class SocialSession {
     this.blocks = new BlockStore({ account: o.account, reread,
       onBlocked: (id) => { this.chat.hideFrom(id); this.whispers.hideFrom(id); } });
     this._offs = [this.chat.subscribe(() => this._changed()), this.whispers.subscribe(() => this._changed())];
+    /* The server's count of characters playing, asked on each social poll for the account's open slots (players-online.js). */
+    this.online = new PlayersOnline({ server: o.account.server, changed: () => this._changed(),
+      slots: () => (typeof o.account.characters === 'function' ? o.account.characters().map((cs) => cs.slot) : []) });
   }
 
   subscribe(fn) { this._listeners.add(fn); return () => this._listeners.delete(fn); }
@@ -56,10 +63,21 @@ export class SocialSession {
   start() {
     if (this._poll !== null) return;
     const set = this._timers.setTimer || ((fn, ms) => setInterval(fn, ms));
-    this._poll = set(() => { this.reread(); }, CHAT_LIMITS.friendsPollMs);
+    this._poll = set(() => { this._presence(); }, CHAT_LIMITS.friendsPollMs);
     this.chat.start();
     this.whispers.load();
-    this.reread();
+    this._presence();
+  }
+
+  /* One social poll: the friends read (the account's presence for its friends), then the online count
+     (which stamps the open characters present). One after the other, never a burst of two, and the count
+     only when the read answered: a session the server refused (signed out, offline) sends one call a poll,
+     never two (client-boot B-10), and shows no count. */
+  async _presence() {
+    let read = false;
+    try { read = await this.reread(); } catch (e) { read = false; }
+    if (!read) { this.online.clear(); return null; }
+    return this.online.ask();
   }
 
   /** hr_social_state: friends, requests and blocks, replaced whole. */
@@ -118,6 +136,7 @@ export class SocialSession {
     if (this._poll !== null) clear(this._poll);
     this._poll = null;
     for (const off of this._offs) off();
+    this.online.destroy();
     this.chat.destroy();
     this.whispers.destroy();
     this._listeners.clear();

@@ -24,19 +24,19 @@
 // open doll slot and the "new" marks. No key here is a walk key: selling is
 // Delete, so W, A, S and D always reach the World (Tyler 10-18).
 // ════════════════════════════════════════════════════════════════════════
-import { kindOf, equipSlotFor, equipOps, markSeen } from '../../bag-model.js?v=0.2.26';
-import { assignToBar, barKind, barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.26';
-import { runIntent } from '../../intent-words.js?v=0.2.26';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.26';
-import { gold } from '../../../render/format.js?v=0.2.26';
-import { itemName } from '../../widgets/bits.js?v=0.2.26';
-import { showTip, hideTip } from '../item-tip.js?v=0.2.26';
-import { openFloatMenu, closeFloatMenu } from '../float-menu.js?v=0.2.26';
-import { stateOf, scratchOf, seenOf, confirmFor, junkOf, setPref } from './state.js?v=0.2.26';
-import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.26';
-import { askElsewhere } from './elsewhere.js?v=0.2.26';
-import { skillsOf } from '../../../session/item-sections.js?v=0.2.26';
-import { buryRecipeOf, buryLabel, buryBlock, buryingOf, startBury, stopBury } from './bury.js?v=0.2.26';
+import { kindOf, equipSlotFor, equipOps, markSeen } from '../../bag-model.js?v=0.2.27';
+import { assignToBar, barKind, barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.27';
+import { runIntent } from '../../intent-words.js?v=0.2.27';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.27';
+import { gold } from '../../../render/format.js?v=0.2.27';
+import { itemName } from '../../widgets/bits.js?v=0.2.27';
+import { showTip, hideTip } from '../item-tip.js?v=0.2.27';
+import { openFloatMenu, closeFloatMenu } from '../float-menu.js?v=0.2.27';
+import { stateOf, scratchOf, seenOf, confirmFor, junkOf, setPref } from './state.js?v=0.2.27';
+import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.27';
+import { askElsewhere } from './elsewhere.js?v=0.2.27';
+import { skillsOf } from '../../../session/item-sections.js?v=0.2.27';
+import { buryRecipeOf, buryLabel, buryBlock, buryingOf, startBury, stopBury } from './bury.js?v=0.2.27';
 
 export const INVENTORY_EVENTS = Object.freeze(['input', 'keydown', 'contextmenu', 'pointerdown', 'pointerup', 'pointercancel',
   'dragstart', 'dragover', 'dragleave', 'drop', 'dragend', 'mouseover', 'mouseout']);
@@ -82,9 +82,16 @@ function send(st, repaint, fn, busy, done) {
 
 function goldNow(cs) { const s = cs.read('state'); return s && Number.isSafeInteger(s.gold) ? s.gold : null; }
 
-/** Wear `id` in `slot`, or take the slot's piece off (`id` null): ONE `equip` intent. */
+/** Wear `id` in `slot`, or take the slot's piece off (`id` null): ONE `equip` intent. From the press until the
+    server's envelope lands, the slot and the stack moving carry the pending mark (`sc.wearing`, display only:
+    the doll, the stats and the bag change only from that envelope). */
 function wear(st, repaint, slot, id) {
-  return send(st, repaint, () => st.cs.edgeIntent('equip', { equip: equipOps(slot, id, st.eq) }), id ? 'Equipping…' : 'Taking it off…');
+  const sc = st.sc;
+  if (sc.pending) return Promise.resolve({ ok: false, error: 'busy' });
+  sc.wearing = { slot, item: id || null };
+  return send(st, repaint, async () => {
+    try { return await st.cs.edgeIntent('equip', { equip: equipOps(slot, id, st.eq) }); } finally { sc.wearing = null; }
+  }, id ? 'Equipping…' : 'Taking it off…');
 }
 
 function doPrimary(st, id, repaint) {

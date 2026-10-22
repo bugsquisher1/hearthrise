@@ -8,6 +8,8 @@
 //           (timeline.onArrive, so a character that is not on screen still
 //           tells), id = the server's own event id
 //   death   the hunt section ending `died` / `party_member_died`, id = session
+//           (a death of the character ON SCREEN is the death popup instead,
+//           death-popup.js; one whose popup was dismissed never fires)
 //   low     a bar supply at zero for a hero set to end its hunt on empty, while hunting; id = session + item. Never for a resource
 //           the hero does not use (a drink for a hero with no mana pool), and
 //           never "out of" while the store pays per use (supply_source `store`
@@ -26,14 +28,15 @@
 // Nothing here gates or spends anything; the "Start again" button is an
 // intent (CharacterSession.restartHunt) like every other.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERT_INDEX } from '../data/alerts.js?v=0.2.26';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.26';
-import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.26';
-import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.26';
-import { bagOf, nameOf } from '../session/item-sections.js?v=0.2.26';
-import { huntName, invitesOf } from '../session/party-sections.js?v=0.2.26';
-import { itemName } from './widgets/bits.js?v=0.2.26';
-import { CONSUMABLES, CONSUMABLE_KINDS } from '../data/consumables.js?v=0.2.26';
+import { ALERT_INDEX } from '../data/alerts.js?v=0.2.27';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.27';
+import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.27';
+import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.27';
+import { bagOf, nameOf } from '../session/item-sections.js?v=0.2.27';
+import { huntName, invitesOf } from '../session/party-sections.js?v=0.2.27';
+import { itemName } from './widgets/bits.js?v=0.2.27';
+import { CONSUMABLES, CONSUMABLE_KINDS } from '../data/consumables.js?v=0.2.27';
+import { deathSeen } from './death-popup.js?v=0.2.27';
 
 const residueOf = (cs) => {
   const r = cs && cs.record && cs.record.residue && cs.record.residue.alerts;
@@ -83,15 +86,19 @@ const supplyWords = (id) => (id === 'food' ? 'food' : id === 'drink' ? 'drinks' 
  * What this character's record says happened, as candidate alerts (pure).
  * @returns {{id: string, kind: string, text: string, session: string|null, item?: string}[]}
  */
-function candidatesOf(cs) {
+function candidatesOf(cs, viewed) {
   const out = (invitesOf(cs) || []).map((i) => ({ id: 'invite:' + i.id, kind: 'invite', session: null, invite: i.id,
     text: i.from + ' invites ' + who(cs) + ' to their party.' }));
   const h = huntOf(cs);
   if (!h) return out;
   const where = huntName(h.huntId);
-  /* A death ends the hunt (CORE_MODEL.md §4): the death alert stands in for the ended one. */
-  if (h.ended && h.endReason === 'died') out.push({ id: 'death:' + h.sessionId, kind: 'death', session: h.sessionId,
-    text: END_REASON_COPY.died.one.replace('{name}', who(cs)).replace('{ground}', where) });
+  /* A death ends the hunt (CORE_MODEL.md §4): the death alert stands in for the ended one. The character
+     on screen gets the death POPUP instead (death-popup.js, Tyler 2026-10-19), and a death whose popup was
+     already dismissed never comes back as a side line. */
+  if (h.ended && h.endReason === 'died') {
+    if (!viewed && !deathSeen(cs, h.sessionId)) out.push({ id: 'death:' + h.sessionId, kind: 'death', session: h.sessionId,
+      text: END_REASON_COPY.died.one.replace('{name}', who(cs)).replace('{ground}', where) });
+  }
   else if (h.ended && h.endReason === 'party_member_died') out.push({ id: 'death:' + h.sessionId, kind: 'death', session: h.sessionId,
     text: 'A party member died in ' + where + ', so ' + who(cs) + '’s party returned to town.' });
   else if (h.ended) out.push({ id: 'ended:' + h.sessionId, kind: 'ended', session: h.sessionId, text: who(cs) + '’s hunt in ' + where + ' has ended.' });
@@ -139,7 +146,7 @@ export function createAlertCenter(account) {
 
   function scan(cs) {
     let any = false;
-    const now = candidatesOf(cs);
+    const now = candidatesOf(cs, account.viewed === cs.slot);
     for (const c of now) any = fire(cs, c) || any;
     /* An invite the server no longer lists (answered elsewhere, expired, its party gone) leaves the lines. */
     const live = new Set(now.filter((c) => c.kind === 'invite').map((c) => c.id));

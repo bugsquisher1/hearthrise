@@ -12,11 +12,11 @@
 // sends an intent or writes a number.
 // ════════════════════════════════════════════════════════════════════════
 
-import { worldViewOf } from './world-view.js?v=0.2.26';
-import { mountShell } from '../shell/shell.js?v=0.2.26';
-import { logFor } from '../hunt-view/combat-log.js?v=0.2.26';
-import { pickHunt } from '../shell/windows/hunts.js?v=0.2.26';
-import { worldTargetOf } from '../shell/menu-providers.js?v=0.2.26';
+import { worldViewOf } from './world-view.js?v=0.2.27';
+import { mountShell } from '../shell/shell.js?v=0.2.27';
+import { logFor } from '../hunt-view/combat-log.js?v=0.2.27';
+import { pickHunt } from '../shell/windows/hunts.js?v=0.2.27';
+import { worldTargetOf } from '../shell/menu-providers.js?v=0.2.27';
 
 const PANE_HTML = '<div class="world-chrome">'
   + '<span class="world-title">World</span>'
@@ -79,7 +79,7 @@ export async function mountWorldPane(host, character, o) {
 
   let runtime = null;
   try {
-    const { bootWorld } = await import('../world/world-boot.js?v=0.2.26');
+    const { bootWorld } = await import('../world/world-boot.js?v=0.2.27');
     const town = opts.account && typeof opts.account.townOf === 'function' ? opts.account.townOf(character.slot) : null;
     runtime = await bootWorld(pane, { view, character, emit, town, peers: opts.peers });
     runtime.sync();
@@ -93,12 +93,19 @@ export async function mountWorldPane(host, character, o) {
   shell = mountShell(stage, { character, screen: opts.screen || doc.body, inHunt, peers: opts.peers, account: opts.account,
     alerts: opts.alerts, goTo: opts.goTo });
   const offInset = shell.onInset((inset) => { if (runtime) runtime.setInset(inset); });
-  const offChar = character.subscribe(() => { if (runtime) runtime.sync(); shell.paint(); });
+  /* ONE REPAINT PER TASK (tests/perf-budget.mjs; live v0.2.23, Andy in Firefox): an answer emits, and
+     its listeners emit again inside it (an alert writes its residue, the summary recorder its list), so
+     one answer repainted the shell and drew the World two or three times over (16 ms an answer, 80 ms
+     in an alert burst). Every change of one task is painted once, as that task ends. */
+  let queued = false, gone = false;
+  const repaint = () => { queued = false; if (gone) return; if (runtime) runtime.sync(); shell.paint(); };
+  const offChar = character.subscribe(() => { if (!queued) { queued = true; queueMicrotask(repaint); } });
 
   return {
     runtime,
     shell,
     destroy() {
+      gone = true;
       offChar();
       offInset();
       shell.destroy();

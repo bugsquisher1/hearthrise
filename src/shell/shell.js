@@ -39,16 +39,17 @@
 //
 // Mounted by src/app/world-pane.js over one character's World.
 // ════════════════════════════════════════════════════════════════════════
-import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.26';
-import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.26';
-import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.26';
-import { createWindowManager, DOCK_EDGE } from './window-manager.js?v=0.2.26';
-import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf } from './hud.js?v=0.2.26';
-import { keyLabel, glyphSvg } from './launcher.js?v=0.2.26';
-import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.26';
-import { mountContextMenu } from './context-menu.js?v=0.2.26';
-import { menuProvidersOf } from './menu-providers.js?v=0.2.26';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.26';
+import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.27';
+import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.27';
+import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.27';
+import { createWindowManager, DOCK_EDGE } from './window-manager.js?v=0.2.27';
+import { createHud, residueStore, placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf } from './hud.js?v=0.2.27';
+import { keyLabel, glyphSvg } from './launcher.js?v=0.2.27';
+import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.27';
+import { mountContextMenu } from './context-menu.js?v=0.2.27';
+import { menuProvidersOf } from './menu-providers.js?v=0.2.27';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.27';
+import { followDeaths } from './death-popup.js?v=0.2.27';
 
 /* The components' display clock: session timers and the timeline's due events (parity SH-05, DOM 4 Hz). */
 const DISPLAY_TICK_MS = 250;
@@ -373,6 +374,8 @@ export function mountShell(root, o) {
   phoneMq.addEventListener('change', onSizeClass);
   host.addEventListener('resize', onResize);
   paintWidgets();
+  /* A death opens its popup (death-popup.js), on mount too: a death while away shows on return. */
+  const offDeaths = followDeaths(ctx);
 
   return {
     wm, hud,
@@ -386,7 +389,7 @@ export function mountShell(root, o) {
     onInset(fn) { insetListeners.add(fn); return () => insetListeners.delete(fn); },
     menu: ctx.menu,
     destroy() {
-      offWm(); offHud();
+      offDeaths(); offWm(); offHud();
       if (sized) sized.ro.disconnect();
       ctx.menu.destroy();
       host.clearInterval(ticker);

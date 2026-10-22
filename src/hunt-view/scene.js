@@ -28,16 +28,16 @@
 //      and a corpse lies the way it fell (it never turns to face what it last swung
 //      at: Andy 10-21 "saw a corpse twitch again once dead").
 // ════════════════════════════════════════════════════════════════════════
-import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX } from '../data/hunt-vfx.js?v=0.2.26';
-import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.26';
-import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.26';
-import { partyPeopleOf } from '../session/party-sections.js?v=0.2.26';
-import { floatShown } from './float-prefs.js?v=0.2.26';
-import { heroSprite } from '../session/hero-look.js?v=0.2.26';
-import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.26';
-import { STUB_SPRITE } from '../world/core/book.js?v=0.2.26';
-import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.26';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.26';
+import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX } from '../data/hunt-vfx.js?v=0.2.27';
+import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.27';
+import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.27';
+import { partyPeopleOf } from '../session/party-sections.js?v=0.2.27';
+import { floatShown } from './float-prefs.js?v=0.2.27';
+import { heroSprite } from '../session/hero-look.js?v=0.2.27';
+import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.27';
+import { STUB_SPRITE } from '../world/core/book.js?v=0.2.27';
+import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.27';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.27';
 
 /* The ground's first start tile, standing (the hero before its first window). */
 function entranceOf(huntId) {

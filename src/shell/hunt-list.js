@@ -20,12 +20,12 @@
 // Nothing here is a gate: the server checks the band, the stamina and the
 // stock when the player presses Enter, and says why it refuses.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS, PARTY_SCALE } from '../data/hunt-grounds.js?v=0.2.26';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.26';
-import { MONSTERS } from '../data/monsters.js?v=0.2.26';
-import { SUPPLIES } from '../data/supplies.js?v=0.2.26';
-import { SESSION_LIMITS } from '../data/hunt-sessions.js?v=0.2.26';
-import { whole, gold } from '../render/format.js?v=0.2.26';
+import { HUNT_GROUNDS, PARTY_SCALE } from '../data/hunt-grounds.js?v=0.2.27';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.27';
+import { MONSTERS } from '../data/monsters.js?v=0.2.27';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.27';
+import { SESSION_LIMITS } from '../data/hunt-sessions.js?v=0.2.27';
+import { whole, gold } from '../render/format.js?v=0.2.27';
 
 const PACK_QTY_MAX = 100000;
 const COUNT_WORDS = Object.freeze(['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight']);
@@ -110,7 +110,7 @@ export function groupWords(r, partySize) {
 
 /**
  * THIS hero's personal bests on a ground, in words, from the server's `hunt_bests` section
- * (hunt-sections.js huntBestsOf): one line alone, one in a party, each "12,400 XP per hour ·
+ * (hunt-sections.js huntBestsOf): one line alone, one in a party, each "12,400 Level XP per hour ·
  * balance 3,100 gp per hour", or "No hunt of 10 min yet" (the server's qualifying length).
  * Null when the server sent no section: nothing is invented.
  */
@@ -118,7 +118,7 @@ export function bestWords(bests, hunt) {
   if (!bests) return null;
   const g = bests.grounds[hunt] || {};
   const none = 'No hunt of ' + Math.round(bests.minMs / 60000) + ' min yet';
-  const line = (b) => (b ? whole(b.xpH) + ' XP per hour · balance ' + gold(b.balanceH) + ' per hour' : none);
+  const line = (b) => (b ? whole(b.xpH) + ' Level XP per hour · balance ' + gold(b.balanceH) + ' per hour' : none);
   return { solo: 'Best alone: ' + line(g.solo), party: 'Best in a party: ' + line(g.party) };
 }
 

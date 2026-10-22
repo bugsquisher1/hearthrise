@@ -1,5 +1,6 @@
 /* ══════════════════════════════════════════════════════════════════════════
-   src/styles/summary.css — the hunt summary window (QoL 8). It reuses the
+   src/styles/summary.css — the hunt summary window (QoL 8) and the death
+   popup that comes before it when a hero dies. It reuses the
    alpha windows' ledger heads and lines (windows.css) and the one gold
    primary (hunt.css .is-primary); this file only lays the card out.
    Tokens only; no per-control borders, no glow, no gradient.
@@ -18,6 +19,20 @@
 .hsum-falls li { margin-bottom: 4px; color: var(--ink); }
 .hsum-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 2px 4px; }
 .hsum-actions .hh-tool { min-height: 36px; }
+
+/* The death popup (src/shell/windows/death.js): a centred modal read top to bottom, the cost last, OK on the right. */
+.hdeath-none { display: none; }
+.hdeath.is-empty .hdeath-none { display: block; }
+.hdeath.is-empty .hdeath-card { display: none; }
+.hdeath-title { margin: 2px 2px 6px; font-family: var(--f-label); font-size: var(--t-h2); color: var(--ink); }
+.hdeath-line { display: none; margin: 0 2px 6px; font-size: var(--t-small); color: var(--ink-2); line-height: 1.45; font-variant-numeric: lining-nums tabular-nums; }
+.hdeath-line.is-on { display: block; }
+.hdeath-killed { font-weight: 700; color: var(--red); }
+.hdeath-lost { color: var(--ink); }
+.hdeath-saved { color: var(--gold); }
+.hdeath-actions { justify-content: flex-end; }
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
   .hsum-actions .hh-tool { min-height: 44px; flex: 1 1 30%; }
+  .hdeath-title { font-size: var(--t-lead); margin-bottom: 4px; }
+  .hdeath-line { font-size: var(--t-micro); margin-bottom: 4px; }
 }

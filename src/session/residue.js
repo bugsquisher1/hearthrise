@@ -71,7 +71,7 @@ function sanitizeCombatLog(v) {
   return out;
 }
 
-import { sanitizeSummaries } from './hunt-summaries.js?v=0.2.26';
+import { sanitizeSummaries } from './hunt-summaries.js?v=0.2.27';
 
 const ITEM_ID = /^[a-z0-9_]{1,64}$/;
 export const BAG_SEEN_MAX = 512;
@@ -140,5 +140,21 @@ export function residueOf(bag) {
   const out = {};
   if (!isObj(bag)) return out;
   for (const f of RESIDUE_FIELDS) if (Object.prototype.hasOwnProperty.call(bag, f)) out[f] = sanitizeResidueField(f, bag[f]);
+  return out;
+}
+
+/**
+ * The residue fields PUT but not yet seen back: `sent` (sanitizeResidueField values) minus every field
+ * the record's `residue` (residueOf: the same sanitizers, so the same key order whatever order the
+ * server's jsonb sent) now holds equal. Until a field is seen back, an envelope without it may predate
+ * the put (a re-read that crossed the put in flight), so the client keeps showing what it sent (HS-25:
+ * a premium hunt's summary card blinked out on such a re-read). A fresh object.
+ */
+export function unconfirmedResidue(sent, residue) {
+  const out = {};
+  for (const [f, v] of Object.entries(isObj(sent) ? sent : {})) {
+    const back = isObj(residue) && Object.prototype.hasOwnProperty.call(residue, f) ? residue[f] : undefined;
+    if (back === undefined || JSON.stringify(back) !== JSON.stringify(v)) out[f] = v;
+  }
   return out;
 }

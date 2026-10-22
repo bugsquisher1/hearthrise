@@ -36,7 +36,7 @@
 //   Waking a hidden tab checks the token before anything else is sent.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SESSION_CONFIG } from '../session/config.js?v=0.2.26';
+import { SESSION_CONFIG } from '../session/config.js?v=0.2.27';
 
 export const MIN_PASSWORD = 8;
 /** A token closer than this to its expiry is refreshed before it is sent. */

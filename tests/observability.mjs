@@ -92,13 +92,42 @@ async function page(browser, base, o) {
     Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false });
     Object.defineProperty(Navigator.prototype, 'userAgentData', { get: () => undefined });
   });
+  /* The telemetry posts travel WITHOUT keepalive here (every frame: Sentry takes its fetch from a fresh
+     iframe). Chrome caps a page's in-flight keepalive bytes at 64 KiB and releases them after the SDK has
+     already counted the post done; with every post routed through this process the gap is wide, so on a
+     loaded box a post (a looped error, then the 16 KB hang message) failed to fetch and was LOST, never
+     late (2026-10-22, measured: transport.send rejected "Failed to fetch"). keepalive only matters for a
+     post racing a closing tab, which no check here makes. */
+  await ctx.addInitScript(() => {
+    const F = window.fetch;
+    window.fetch = function (input, init) {
+      const url = String((input && input.url) || input);
+      if (init && init.keepalive && /\.ingest\.us\.sentry\.io\/|^https:\/\/us(?:-assets)?\.i\.posthog\.com\//.test(url)) init = Object.assign({}, init, { keepalive: false });
+      return F.call(this, input, init);
+    };
+  });
   const pg = await ctx.newPage();
-  const seen = { scripts: [], sentry: [], posthog: [], events: [], errors: [], csp: [] };
+  const seen = { scripts: [], sentry: [], posthog: [], events: [], errors: [], csp: [], harness: [] };
   pg.on('console', (m) => { if (m.type() === 'error' && /Content Security Policy/i.test(m.text())) seen.csp.push(m.text()); });
   pg.on('pageerror', (e) => { if (!/obs-probe/.test(e.message)) seen.errors.push(e.message); });
   pg.on('request', (r) => { if (/\/src\/vendor\/(sentry|posthog)/.test(r.url())) seen.scripts.push(r.url().replace(/^.*\/src\//, 'src/')); });
-  /* Registered first, so the stubs below (registered later) win where both match. */
-  await pg.route('https://hearthrise.net/**', async (r) => r.fulfill({ response: await r.fetch({ url: base + new URL(r.request().url()).pathname }) }));
+  /* Registered first, so the stubs below (registered later) win where both match. Each forward
+     is tracked: close() stops forwarding, then waits for every fetch in flight, so no fetch is
+     ever cut by the context, the browser or the server closing under it. A fetch that fails
+     while the page is live is a HARNESS failure, never a check's verdict (and never a crash). */
+  const inflight = new Set();
+  let closing = false;
+  await pg.route('https://hearthrise.net/**', async (r) => {
+    if (closing) return r.abort().catch(() => {});
+    const f = r.fetch({ url: base + new URL(r.request().url()).pathname });
+    inflight.add(f);
+    let res;
+    try { res = await f; } catch (e) {
+      if (!closing) seen.harness.push('route.fetch ' + new URL(r.request().url()).pathname + ': ' + String(e && e.message).split('\n')[0]);
+      return r.abort().catch(() => {});
+    } finally { inflight.delete(f); }
+    return r.fulfill({ response: res }).catch((e) => { if (!closing) seen.harness.push('route.fulfill: ' + String(e && e.message).split('\n')[0]); });
+  });
   await pg.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
   await pg.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
   await pg.route(SENTRY, (r) => { seen.sentry.push(r.request().postData() || ''); return r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }); });
@@ -121,7 +150,13 @@ async function page(browser, base, o) {
     }
     return r.fulfill({ contentType: 'application/json', body: '{"ok":true}' });
   });
-  return { ctx, pg, seen };
+  seen.stop = () => { closing = true; };
+  const close = async () => {
+    seen.stop();
+    await Promise.allSettled([...inflight]);
+    await ctx.close();
+  };
+  return { pg, seen, close };
 }
 
 async function signIn(pg) {
@@ -135,11 +170,16 @@ async function signIn(pg) {
 async function browserChecks(overrides) {
   const fails = [];
   const { server, port } = await serve(overrides);
+  /* No idle keep-alive timeout: the server never closes a socket route.fetch may be reusing (the
+     reuse race is an ECONNRESET under load). Its sockets close with the server, after every fetch settled. */
+  server.keepAliveTimeout = 0;
   const browser = await chromium.launch(launchOptions({ headless: true }));
+  const opened = [];
   try {
     { // OB-1 .. OB-4
       const o = { hunt: true, left: false };
-      const { ctx, pg, seen } = await page(browser, 'http://127.0.0.1:' + port, o);
+      const { pg, seen, close } = await page(browser, 'http://127.0.0.1:' + port, o);
+      opened.push(seen);
       await pg.goto('https://hearthrise.net/play.html', { waitUntil: 'load' });
       const up = await wait(pg, () => window.Sentry && window.Sentry.getClient && window.Sentry.getClient() && window.posthog && window.posthog.__loaded);
       if (!up) fails.push('OB-1 the SDKs did not start on hearthrise.net (scripts: ' + seen.scripts.join(', ') + ')');
@@ -185,9 +225,12 @@ async function browserChecks(overrides) {
       }
       /* OB-10: a loop of two alternating errors (Sentry's own dedupe only drops a repeat of the LAST
          event) is cut to SEND_LIMITS.perFingerprint each; a real stall sends the hang message once. */
-      await pg.evaluate(() => { for (let i = 0; i < 40; i++) console.error('obs-probe loop ' + (i % 2 ? 'A' : 'B')); });
-      await pg.waitForTimeout(1500);
-      const loops = ['A', 'B'].map((k) => seen.sentry.filter((b) => sentryLine(b) === 'obs-probe loop ' + k).length);
+      /* Waited for as STATE, never a fixed delay (1.5 s was a guess at how long delivery takes): both loops at their
+         cap and an end marker logged after them, which the SDK sends after the loop's own events. */
+      await pg.evaluate(() => { for (let i = 0; i < 40; i++) console.error('obs-probe loop ' + (i % 2 ? 'A' : 'B')); console.error('obs-probe loop end'); });
+      const looped = (k) => seen.sentry.filter((b) => sentryLine(b) === 'obs-probe loop ' + k).length;
+      await until(() => looped('A') >= 5 && looped('B') >= 5 && looped('end') === 1, 15000);
+      const loops = ['A', 'B'].map(looped);
       if (loops.some((n) => n !== 5)) fails.push('OB-10 a looped console.error reached Sentry ' + loops.join(' and ') + ' times, want 5 each');
       await pg.evaluate(() => { const t = performance.now(); while (performance.now() - t < 4200) { /* the stall */ } });
       const stalled = () => seen.sentry.filter((b) => /^The page stalled/.test(sentryLine(b))).map(sentryEvent);
@@ -215,11 +258,12 @@ async function browserChecks(overrides) {
       if (JSON.stringify(seen.events).includes('qa@example.test')) fails.push('OB-4 an event carries the email');
       if (seen.csp.length) fails.push('OB-2 the CSP blocked telemetry: ' + seen.csp[0].slice(0, 200));
       if (seen.errors.length) fails.push('OB-1..4 page errors: ' + seen.errors.slice(0, 2).join(' | '));
-      await ctx.close();
+      await close();
     }
 
     for (const [id, url] of [['OB-5', 'https://hearthrise.net/play.html?noanalytics=1'], ['OB-6', 'http://localhost:' + port + '/play.html']]) {
-      const { ctx, pg, seen } = await page(browser, 'http://127.0.0.1:' + port, { hunt: false });
+      const { pg, seen, close } = await page(browser, 'http://127.0.0.1:' + port, { hunt: false });
+      opened.push(seen);
       await pg.goto(url, { waitUntil: 'load' });
       await signIn(pg);
       await pg.evaluate(() => { console.error('obs-probe console'); });
@@ -227,12 +271,18 @@ async function browserChecks(overrides) {
       const g = await pg.evaluate(() => ({ s: typeof window.Sentry, p: typeof window.posthog }));
       if (seen.scripts.length || g.s !== 'undefined' || g.p !== 'undefined') fails.push(id + ' an SDK loaded: ' + JSON.stringify([seen.scripts, g]));
       if (seen.sentry.length || seen.posthog.length) fails.push(id + ' telemetry was sent: ' + seen.sentry.length + ' to Sentry, ' + seen.posthog.join(','));
-      await ctx.close();
+      await close();
     }
+  } catch (e) {
+    fails.push('OB-0 the browser checks stopped: ' + String(e && e.message).split('\n')[0]);
   } finally {
+    for (const s of opened) s.stop();
     await browser.close();
     server.close();
   }
+  /* A forward that failed while its page was live: the page saw a broken site, so no verdict above is the
+     product's. Reported as HARNESS, which --mutate never counts as a mutant's catch. */
+  for (const s of opened) for (const h of s.harness) fails.push('HARNESS ' + h);
   return fails;
 }
 
@@ -374,7 +424,10 @@ async function main() {
     const text = await readFile(join(ROOT, file), 'utf8');
     if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
     const fails = await checks({ [file]: text.replace(from, to) });
-    if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
+    /* A harness failure is not the mutant's catch: it says nothing about the planted defect. */
+    const harness = fails.filter((f) => f.startsWith('HARNESS'));
+    if (harness.length) { console.log('  ✗ ' + name + ' — harness: ' + harness[0]); bad++; }
+    else if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
     else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
   }
   console.log(bad ? 'observability --mutate: ' + bad + ' escaped' : 'observability --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught');

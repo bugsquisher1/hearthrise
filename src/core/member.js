@@ -7,7 +7,7 @@
 // VIEWED character's instance (src/hunt-view/live-engine.js, prediction only:
 // nothing it computes is spent or credited; the server's commit is the truth).
 // Moved here from accrual.js (2026-10-19, option B) so the two cannot drift.
-// Also the bonus chain (perks + timed buffs) every engine path prices
+// Also the bonus chain (perks + companion + timed buffs) every engine path prices
 // with, and the weapon family's stat profile.
 //
 // PURE ESM, Node + Deno + browser.
@@ -15,6 +15,7 @@
 
 import { DEFAULT_PROFILE, equipmentStats, armorSetBonus, playerCombatRolls, weaknessInfo } from './combat.js?v=0.2.29';
 import { makeBonus, EMPTY_PERKS } from './perks.js?v=0.2.29';
+import { companionBonus } from './companion-perk.js?v=0.2.29';
 import { buffQueueFromServer, buffBonusFor } from './buffs.js?v=0.2.29';
 import { grantXp, normaliseXpFrac } from './progression.js?v=0.2.29';
 import { charLevelFromXp, levelsOf } from './xp.js?v=0.2.29';
@@ -35,17 +36,28 @@ function nat(v, fallback) {
 /* The engine's bonus function for a given perk state. `null`/absent state →
    EMPTY_PERKS → 0 for every key.
 
+   ⚠ TWO LAYERS, SUMMED — mirroring the client's getBonus chain exactly.
    `makeBonus` is LAYER 0 (rooms/plots/property/renown), clamped by the
    PERMANENT_CAP fuse because on the server that IS the whole layer-0 chain.
-   (The old companion layer was cut with the pet system, Tyler 2026-10-22.) */
+   `companionBonus` is LAYER 1 — the equipped companion, added ON TOP of the
+   fused number precisely as src/features/companions.js wraps window.getBonus
+   with `v += cb[key]` AFTER the base returned. Folding the companion into
+   layer 0 would clamp (rooms + companion) together and disagree with the
+   client near the cap; keeping it a separate additive layer keeps the two
+   byte-identical. companionBonus draws NO rng and pays on AWAY_SCOPE.permanent
+   (true), so away and live share every seeded draw and AWAY-1 stays byte-for-
+   byte — a companion changes the totals, but away==live for the same setup.
+   EMPTY_PERKS carries no `companion`, so companionBonus returns 0 for every
+   key and this degrades to the pre-companion behaviour exactly. */
 /* The account bestiary's largest relic multiplier (stage 4, x1.25; lane c-bestiary). */
 const RELIC_MULT_MAX = 1.25;
 
 export function bonusFor(perkState, buffHost, away) {
   const base = makeBonus(perkState || EMPTY_PERKS);
-  /* ── THE TIMED CONSUMABLE QUEUE (2026-09-13) ─────────────────────────────
-     A second additive layer, mirroring the client's getBonus chain, which asks
-     the buff queue after the rooms. It is read LIVE, through
+  const comp = companionBonus(perkState || EMPTY_PERKS);
+  /* ── LAYER 2 — THE TIMED CONSUMABLE QUEUE (2026-09-13) ───────────────────
+     A third additive layer, mirroring the client's getBonus chain, which asks
+     the buff queue after rooms and companions. It is read LIVE, through
      `buffHost.buffs`, and that is the load-bearing part: the simulators DRAIN
      the queue tick by tick (combat-sim `simulateSpan`, skill/artisan
      `sliceSpan`) and REASSIGN `state.buffs` when they prune, so a captured
@@ -61,8 +73,8 @@ export function bonusFor(perkState, buffHost, away) {
      pre-2026-09-13 behaviour and the reason an Edge deployed against a database
      with no `buffs` column pays nobody. */
   const buffCtx = { away: away !== false };
-  if (!buffHost) return (key) => base(key);
-  return (key) => base(key) + buffBonusFor(buffHost.buffs, key, buffCtx);
+  if (!buffHost) return (key) => base(key) + comp(key);
+  return (key) => base(key) + comp(key) + buffBonusFor(buffHost.buffs, key, buffCtx);
 }
 
 /* THE LIVE VIEW a `bonusFor` layer-2 reads through. A getter, not the array:

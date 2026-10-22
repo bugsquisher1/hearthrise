@@ -315,7 +315,7 @@ async function runOn(db, patches) {
     ok(kills > 0, `G3: the fixture killed ${kills} monsters — a night with no kills cannot show `
       + 'a counter moving, so every assertion here would be vacuous');
 
-    /* THE DAILY ARM IS CUT (Tyler 2026-10-22; 2026-12-03-companion-claims-cut.sql):
+    /* THE DAILY ARM IS CUT (Tyler 2026-10-22; 2026-12-03-daily-claims-cut.sql):
        the daily goals that read kind='daily' rows are gone, so the engine proposes
        NONE — on any night. Only the lifetime counter moves. */
     const life = findOp(combat.delta, 'stat', 'kill_any');
@@ -590,7 +590,7 @@ async function runOn(db, patches) {
 
   // ── G10 · (retired 2026-10-22) ────────────────────────────────────────
   // The day anchor of the kind='daily' counters: the daily arm was cut with the
-  // daily goals (2026-12-03-companion-claims-cut.sql), so there is no day key to
+  // daily goals (2026-12-03-daily-claims-cut.sql), so there is no day key to
   // anchor. G3/G4 assert no night proposes a daily op; tests/old-rewards-gone.mjs
   // OR-5 keeps the engine from proposing one again.
 

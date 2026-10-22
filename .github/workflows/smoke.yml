@@ -2266,6 +2266,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tools/mutant-gate.mjs node tests/unlock-buy.mjs --selftest
 
+      - name: Companion codes severity — mutation proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/companion-codes-severity.mjs --selftest
+
       - name: Market v2 — mutation proof
         if: ${{ !cancelled() }}
         run: node tools/mutant-gate.mjs node tests/market-v2.mjs --selftest
@@ -2428,6 +2432,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tools/mutant-gate.mjs node tests/artisan-progress-model.mjs --mutate
 
+      - name: Companion grant hardening — mutation proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/companion-grant-hardening.mjs --selftest
+
       # FRACTIONAL XP IS CARRIED (2026-10-09-xp-frac-carry.sql). Batching moves
       # no unit, +2% pays on the slime, attended == away == world tick in XP AND
       # remainder, the seeded draws are unchanged, the remainder is clamped and
@@ -2455,9 +2463,18 @@ jobs:
           node tests/delta-key-allowlists.mjs
           node tools/mutant-gate.mjs node tests/delta-key-allowlists.mjs --mutate
 
-      # (Companion equip / grant hardening / code severity guards retired
-      #  2026-10-22 with the pet system: 2026-12-03-companion-claims-cut.sql;
-      #  tests/old-rewards-gone.mjs keeps the doors dropped.)
+      # EVERY WRITE OF THE EQUIPPED PET BUMPS THE ROW VERSION. hr_apply's
+      # companion_not_equipped refusal is a stall, not a bug, only because a
+      # swap turns an in-flight settle into version_conflict. CE0 the scan sees
+      # hr_companion_equip; CE1 every UPDATE/upsert SET of companion_equipped
+      # carries version = version + 1 in the same statement; CE2 no record-field,
+      # dynamic-SQL or MERGE write; CE3 no client role holds UPDATE on the column;
+      # CE4 a real equip moves version by exactly 1. --mutate: 10 mutants.
+      - name: Companion equip bumps version (base + mutate)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/companion-equip-version-bump.mjs
+          node tools/mutant-gate.mjs node tests/companion-equip-version-bump.mjs --mutate
 
       # LANE S2 (2026-10-25-*.sql): the alpha windows' and the party UI's server
       # half. The catalogue (supply offers, stamina refill, blessings) is GENERATED

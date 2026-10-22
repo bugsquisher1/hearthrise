@@ -531,10 +531,14 @@ async function run(mutate) {
        that the ladders are seeded. */
     const { GOLD_LADDER_OFFERS } = await import(
       pathToFileURL(join(ROOT, 'src', 'data', 'gold-ladders.js')).href);
-    /* (The slice-4 companion.* offers were cut with the pet system, Tyler 2026-10-22:
-       2026-12-03-companion-claims-cut.sql deletes their hr_unlock_offers rows.) */
+    /* slice 4 — a THIRD disjoint forwarded source: companion-catalogue.js
+       (companion.*), forwarded by isCompanionOffer. Same rule: a companion
+       unlock is exactly as buyable as a gold-ladder rung, so it belongs in the
+       union the SQL sellable set is measured against. */
+    const { COMPANION_OFFERS } = await import(
+      pathToFileURL(join(ROOT, 'src', 'data', 'companion-unlocks.js')).href);
     const edgeById = Object.create(null);
-    for (const r of GOLD_LADDER_OFFERS) {
+    for (const r of [...GOLD_LADDER_OFFERS, ...COMPANION_OFFERS]) {
       edgeById[r.offer_id] = { gold: r.gold, value: r.value, unlockId: r.unlock_id };
     }
     for (const id of Object.keys(cat.UNLOCK_OFFERS)) edgeById[id] = cat.UNLOCK_OFFERS[id];
@@ -654,11 +658,22 @@ async function run(mutate) {
     ok(perks.makeBonus(envPerks)('noBurn') > 0,
       'U3: a Kitchen 1 read out of the SERVER envelope produces noBurn 0 — a cooked night would '
       + "destroy input the player's Hearthstone says it keeps");
-    /* The companion channel was CUT with the pet system (Tyler 2026-10-22;
-       2026-12-03-companion-claims-cut.sql): the perk stack carries none. */
-    ok(envPerks.sources && !('companions' in envPerks.sources) && !('companion' in envPerks),
-      'U3: hr_perks_of still carries a companion channel — the pets were cut; '
-      + `got sources=${JSON.stringify(envPerks.sources)}`);
+    /* slice 4 → companion pet-model (b418). The OWNERSHIP half is server-owned
+       (seam:companion.buy → hr_unlock_buy writes a companion:<id> unlock row), and
+       the pet-perk PASSIVE-BONUS EFFECT is NOW server-owned too: hr_perks_of prices
+       the equipped companion's governed bonus from player_state.companion_equipped,
+       so sources.companions is `derived:player_state.companion_equipped`. STILL
+       DEFERRED (safe under-pays, not blockers): companion XP→level accrual (pays
+       base until a server writer lands), combat-stat pets, and RNG procs (would
+       change resolveKill draw order → break AWAY-1). ⚠ THE CLIENT ARM-GATE ON
+       seam:companion.buy IS STILL IN PLACE — un-gating needs the paired client
+       equip-wiring (call hr_companion_equip on equip) so the server learns the
+       equipped pet; without it a bought companion equips to nothing. That un-gate
+       is its own slice + security review; do NOT lift the gate on this assertion. */
+    ok(envPerks.sources && envPerks.sources.companions === 'derived:player_state.companion_equipped',
+      'U3: hr_perks_of.sources should report companions derived:player_state.companion_equipped — the '
+      + `pet-model passive-bonus half landed (b418); got ${JSON.stringify(envPerks.sources && envPerks.sources.companions)}. `
+      + 'The client arm-gate on seam:companion.buy stays until the equip-wiring slice.');
   } catch (e) { if (!(e instanceof Red)) throw e; }
 
   // ── U4 · A DOUBLE BUY IS REFUSED BY NAME, WITH GOLD MEASURED ───────────

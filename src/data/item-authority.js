@@ -39,8 +39,9 @@
 // this module reports for the security review, never a data-loss bug.
 //
 // ── COMPANION / PET PROCS ───────────────────────────────────────────────────
-// None: the old companion pets were cut (Tyler, 2026-10-22), so no companion
-// path mints inventory and there is no proc residual for the absolute replace.
+// None on the client: a companion pays only its passive keys
+// (src/core/companion-perk.js), so no companion path mints inventory and there
+// is no proc residual for the absolute replace to drop.
 //
 // PURE ESM. No DOM required to import. `window.DUNGEONS` is read lazily and only
 // when present, so this loads and answers in Node and before the legacy IIFE.

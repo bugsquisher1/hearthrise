@@ -2,8 +2,11 @@
 // src/core/hunt/xp-share.js — PER-HERO KILL XP (spec §3.5, parity XP-01..05, XP-07, AB-04)
 //
 // THE RULE (one place; a solo hunt is a party of one):
-//   base share = monster XP / heroes alive at the kill        (XP-01)
-//   hero XP    = floor(base share x that hero's multiplier)   (XP-02)
+//   base share = monster XP x (1 + party bonus) / heroes alive at the kill   (XP-01)
+//   hero XP    = floor(base share x that hero's multiplier)                  (XP-02)
+// The party bonus (Tyler 2026-10-22, shared XP after Tibia's math; numbers in
+// src/data/hunt-xp.js PARTY_XP): by the DISTINCT role groups among the living
+// heroes, +20/30/60/100% for 1-4; none for a lone hero; no level range.
 // The multiplier is read server-side and injected per hero as
 // `sc.xpMultOf(heroUnit)` (bestiary mastery, boosts, later modifiers); absent,
 // every hero's is 1 (XP-07, the bestiary-ready hook). "Raw" XP is the share
@@ -22,7 +25,7 @@
 // Draws nothing. PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_XP } from '../../data/hunt-xp.js?v=0.2.25';
+import { HUNT_XP, PARTY_XP } from '../../data/hunt-xp.js?v=0.2.25';
 import { skillLevelFromXp, charLevelFromXp } from '../xp.js?v=0.2.25';
 import { makeEvent } from './events.js?v=0.2.25';
 
@@ -43,13 +46,30 @@ const xpOf = (kill) => {
 };
 
 /**
- * THE SPLIT. `heroes` are the living heroes (objects with an integer `id`).
- * Answers { [id]: { xp, raw } }; nobody alive is nobody paid.
+ * THE PARTY BONUS for heroes playing `roles` (hunt-roles.js ids, one per hero):
+ * { permille, groups } — the distinct role groups (PARTY_XP.roleGroup; a role with
+ * no group adds none, so an unknown role never raises it) and their bonus. Fewer
+ * than PARTY_XP.minHeroes heroes is no party: permille 0. Pure; the party panel
+ * reads it to say the bonus in words (display only).
+ */
+export function partyXpBonus(roles) {
+  const list = Array.isArray(roles) ? roles : [];
+  const groups = [...new Set(list.map((r) => PARTY_XP.roleGroup[r]).filter(Boolean))]
+    .sort((a, b) => Object.keys(PARTY_XP.groupLabel).indexOf(a) - Object.keys(PARTY_XP.groupLabel).indexOf(b));
+  const permille = list.length < PARTY_XP.minHeroes ? 0 : PARTY_XP.bonusPermilleByRoles[groups.length];
+  return { permille, groups };
+}
+
+/**
+ * THE SPLIT. `heroes` are the living heroes (objects with an integer `id` and
+ * their `role`). The kill's XP x (1 + the party bonus), evenly, then each
+ * hero's own multiplier. Answers { [id]: { xp, raw } }; nobody alive is nobody paid.
  */
 function splitKillXp(xp, heroes, sc) {
   const out = {};
   if (!heroes.length || xp <= 0) return out;
-  const raw = xp / heroes.length;
+  const { permille } = partyXpBonus(heroes.map((h) => h.role));
+  const raw = (xp * (1000 + permille)) / (1000 * heroes.length);
   for (const h of heroes) out[h.id] = { xp: Math.floor(raw * multOf(sc, h) + 1e-9), raw: Math.floor(raw + 1e-9) };
   return out;
 }

@@ -63,7 +63,7 @@ import { indexArtisanRecipes, benchPayable } from '../src/core/artisan-sim.js';
 
 import {
   computeAccrual, zeroBonus, accrueWorkers,
-  ACCRUE_MIN_MS, ACCRUE_MAX_SPAN_MS, WORKER_ACCRUE_CAP_MS,
+  TOWN_SETTLE_MIN_MS, ACCRUE_MAX_SPAN_MS, WORKER_ACCRUE_CAP_MS,
 } from '../supabase/functions/hr-accrue/accrual.js';
 /* CREW-BACKLOG reads the crew's rate from the SHARED model both engines import,
    never from a number retyped here: a retuned efficiency curve must retune the
@@ -745,7 +745,8 @@ function hostileGuard() {
   for (const [name, over] of [
     ['no elapsed time', { accruedToMs: NOW_MS }],
     ['a future watermark', { accruedToMs: NOW_MS + 86400000 }],
-    ['a sub-threshold absence', { accruedToMs: NOW_MS - (ACCRUE_MIN_MS - 1) }],
+    /* A town pointer's accrue floor is TOWN_SETTLE_MIN_MS (lane c-live-town-work): one ms under it pays nothing. */
+    ['a sub-threshold absence', { accruedToMs: NOW_MS - (TOWN_SETTLE_MIN_MS - 1) }],
     ['a zero cap', { capMs: 0 }],
     ['a negative cap', { capMs: -1 }],
     ['a NaN cap', { capMs: NaN }],

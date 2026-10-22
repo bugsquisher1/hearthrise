@@ -19,7 +19,7 @@
 //   setHuntDensity(h, n) the density pick on one ground (hr_hunt_density_set), re-read
 //   enterHunt(h, b, p) the go-hunting INTENT (hr_hunt_enter), re-read the same way
 //   leaveHunt()        the leave INTENT (hr_hunt_leave), re-read the same way
-//   moveStorage(i,n,d) the home storage INTENT (hr_bank_move), re-read the same way
+//   moveStorage(i,n,d) the ACCOUNT storage INTENT (hr_bank_move), re-read; then onShared('bank', slot)
 //   edgeIntent(v, f)   an item intent through the engine (equip, sell, buy, eat;
 //                      src/session/edge-intents.js): names and counts only
 //   lockItem / setLootRule / savePreset / applyPreset
@@ -48,18 +48,18 @@
 // only things it sends of its own are the allowlisted residue and intents.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyEnvelope, applyFrame, withResidue } from './envelope.js?v=0.2.30';
-import { createTimeline } from '../hunt-view/timeline.js?v=0.2.30';
-import { LiveLink } from './live-link.js?v=0.2.30';
-import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.30';
-import { SESSION_CONFIG } from './config.js?v=0.2.30';
-import { edgeBody } from './edge-intents.js?v=0.2.30';
-import { leaveAskOf, pendingLeaveAt, leaveCountdown, closeInMs } from './hunt-leave.js?v=0.2.30';
-import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.30';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.30';
-import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.30';
-import { refusalOf } from './refusal.js?v=0.2.30';
-import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.30';
+import { applyEnvelope, applyFrame, withResidue } from './envelope.js?v=0.2.31';
+import { createTimeline } from '../hunt-view/timeline.js?v=0.2.31';
+import { LiveLink } from './live-link.js?v=0.2.31';
+import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.31';
+import { SESSION_CONFIG } from './config.js?v=0.2.31';
+import { edgeBody } from './edge-intents.js?v=0.2.31';
+import { leaveAskOf, pendingLeaveAt, leaveCountdown, closeInMs } from './hunt-leave.js?v=0.2.31';
+import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.31';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.31';
+import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.31';
+import { refusalOf } from './refusal.js?v=0.2.31';
+import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.31';
 
 export const FRAME_EVENT = 'frame';
 
@@ -274,10 +274,11 @@ export class CharacterSession {
       p_bag: lines.map((l) => ({ item: l.item, qty: l.qty })), p_preset: preset, p_hours: null, p_idem: newIdem() }));
   }
 
-  /** Move a stack between the bag and the home storage (hr_bank_move): `dir` is 'deposit' or 'withdraw'. */
+  /** Move a stack between the bag and the ACCOUNT's storage (hr_bank_move; `dir` deposit | withdraw); on ok, onShared. */
   async moveStorage(item, qty, dir) {
     if (this._closed || !ITEM.test(String(item)) || !Number.isSafeInteger(qty) || qty < 1 || qty > 1000000 || (dir !== 'deposit' && dir !== 'withdraw')) return { ok: false, error: 'bad_intent' };
-    return this._ask('bank_move', () => this._server.rpc('hr_bank_move', { p_slot: this.slot, p_item: item, p_qty: qty, p_dir: dir, p_idem: newIdem() }));
+    return this._ask('bank_move', () => this._server.rpc('hr_bank_move', { p_slot: this.slot, p_item: item, p_qty: qty, p_dir: dir, p_idem: newIdem() }))
+      .then((r) => { if (r && r.ok && typeof this.onShared === 'function') this.onShared('bank', this.slot); return r; });
   }
 
   /**

@@ -16,11 +16,12 @@
 /* The fletching ladder (arrows). Crafted gear — the generated gear-tiers
    recipes, the wave-3 uniques, the library-2 sets, the boss forge and the
    jewellery/cape rows — was deleted in the 2026-10-14 demolition. */
-import { SLOT_RECIPES } from './slot-ladders.js?v=0.2.30';
-import { ITEMS, foodClassOf } from './items.js?v=0.2.30';
-import { STONECRAFT_RECIPES } from './stonecraft.js?v=0.2.30';
-import { DRINK_RECIPES } from './drinks.js?v=0.2.30';
-import { PRAYER_BURY } from './core-model.js?v=0.2.30';
+import { SLOT_RECIPES } from './slot-ladders.js?v=0.2.31';
+import { ITEMS, foodClassOf } from './items.js?v=0.2.31';
+import { STONECRAFT_RECIPES } from './stonecraft.js?v=0.2.31';
+import { DRINK_RECIPES } from './drinks.js?v=0.2.31';
+import { PRAYER_BURY } from './core-model.js?v=0.2.31';
+import { STYLE_GEAR_RECIPES } from './style-gear.js?v=0.2.31';
 const BASE_RECIPES = {
   cooking: [
     // Fish — original starter chain
@@ -323,8 +324,9 @@ const byReq = (list) => list.slice().sort((a, b) => (a.req || 0) - (b.req || 0))
 
 export const ARTISAN_RECIPES = {
   cooking:  byReq(BASE_RECIPES.cooking.concat(DRINK_RECIPES)),
-  smithing: byReq(BASE_RECIPES.smithing),
-  crafting: byReq(BASE_RECIPES.crafting.concat(SLOT_RECIPES.crafting)),
+  /* The style ladder's made rungs (designer 2026-10-22, style-gear.js): each style's tier-2 weapon and the cloth line. */
+  smithing: byReq(BASE_RECIPES.smithing.concat(STYLE_GEAR_RECIPES.smithing)),
+  crafting: byReq(BASE_RECIPES.crafting.concat(SLOT_RECIPES.crafting, STYLE_GEAR_RECIPES.crafting)),
   prayer:   BASE_RECIPES.prayer,
   runecrafting: byReq(STONECRAFT_RECIPES.runecrafting),
 };
@@ -354,11 +356,14 @@ export const ARTISAN_CATEGORIES = {
     { key: 'smelting',   label: 'Smelting' },
     { key: 'tools',      label: 'Tools' },
     { key: 'whetstones', label: 'Whetstones' },
+    { key: 'weapons',    label: 'Weapons' },
     { key: 'castle',     label: 'Building Materials' },
   ],
   crafting: [
     { key: 'sawmill',    label: 'Sawmill' },
     { key: 'ammunition', label: 'Ammunition' },
+    { key: 'weapons',    label: 'Weapons' },
+    { key: 'armour',     label: 'Armour' },
     { key: 'castle',     label: 'Building Materials' },
   ],
   cooking: [
@@ -397,6 +402,7 @@ export function recipeCategory(skillId, recipe, items = ITEMS) {
     if (type === 'tool') return 'tools';          // axes + pickaxes
     if (/_bar$/.test(outId)) return 'smelting';   // ore → bar
     if (type === 'ammo') return 'whetstones';     // strB stones, ammo slot
+    if (type === 'weapon') return 'weapons';      // the style ladder: hatchets, the club
     if (isCastleGood(out)) return 'castle';       // Iron Fitting
     return null;
   }
@@ -404,6 +410,8 @@ export function recipeCategory(skillId, recipe, items = ITEMS) {
   if (skillId === 'crafting') {
     if (/_plank$/.test(outId)) return 'sawmill';  // log → plank
     if (type === 'ammo') return 'ammunition';
+    if (type === 'weapon' || type === 'offhand') return 'weapons';   // wand, spellbook, staff, bows
+    if (type === 'armor') return 'armour';        // the cloth line
     if (isCastleGood(out)) return 'castle';       // Timber Beam, Keystone
     return null;
   }

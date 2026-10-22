@@ -79,6 +79,7 @@ async function load(base) {
   const rows = Object.fromEntries(maps.WORLD_MAPS.map((m) => [m.id, m]));
   return { walk, town, home, steer, store, mapc, nullb, book, bookm, manifests, tables, rows, maps, terrain, stations, layouts, perks, camera, facing, choreo,
     residue: (await import(pathToFileURL(join(base, 'src/session/residue.js')).href)).RESIDUE_FIELDS,
+    homeSec: await imp('src/session/home-sections.js'),
     bootSrc: readFileSync(join(base, 'src/world/world-boot.js'), 'utf8') };
 }
 
@@ -236,6 +237,25 @@ function check(M) {
     ok('F', mounts({ trophy: 1 }, claims).map((p) => p.id).join() === M.layouts.TROPHY_MOUNT_SPRITES[4] + ',' + M.layouts.TROPHY_MOUNT_SPRITES[1],
       'one mount per claimed trophy, by stage, highest first');
     ok('F', mounts({}, claims).length === 0 && mounts({ trophy: 1 }, null).length === 0, 'no mount before the Trophy Room is built, or while the claims are unknown');
+    // The Trophy Room's purpose (game-designer ruling 2026-10-22): each rung adds wall mounts (perks.js trophyMounts 2..6).
+    const many = { rows: Array.from({ length: 9 }, () => ({ stage: 2 })) };
+    ok('F', [1, 3, 5, 9].map((lv) => mounts({ trophy: lv }, many).length).join() === '2,4,6,6', 'the wall hangs as many trophies as the Trophy Room rung has mounts (2, 4, 6; never past the top rung)');
+    // THE HOME IS THE ACCOUNT'S `home` SECTION (2026-10-22: the World read the scrapped client's
+    // HearthriseRooms global and showed no rooms whatever was bought). A stub hr_home_view answer,
+    // read the way world-boot reads it (homeOf → homeEnv), furnishes exactly its rungs.
+    const room = (id, name, level) => ({ room: id, name, level, rungs: 5, opens: 0, rung_name: null, next: null });
+    const section = { tier: 1, tiers: [], rooms: [room('kitchen', 'Kitchen', 2), room('library', 'Library', 1), room('trophy', 'Trophy Room', 1), room('cellar', 'Cellar', 0)] };
+    const env = M.home.homeEnv(M.homeSec.homeOf({ read: (k) => (k === 'home' ? section : undefined) }));
+    const lib = M.layouts.ROOM_LAYOUTS.home_cottage.rooms.library.rungs[0][0];
+    const fromServer = M.home.furnish('home_cottage', env.rooms, null, env.roomName);
+    ok('F', env.tier === 1 && got(fromServer) === want(2) && fromServer.some((p) => p.ref && p.ref.room === 'library' && p.id === lib.id && p.x === lib.x && p.y === lib.y),
+      'the server\'s home section (Kitchen 2, Library 1) must furnish those rungs: ' + JSON.stringify(env.rooms));
+    ok('F', fromServer.some((p) => p.ref && p.ref.sign === 'cellar' && p.plate && p.plate.text === 'Cellar'), 'an unbuilt room\'s signpost carries the server\'s room name');
+    const none = M.home.homeEnv(M.homeSec.homeOf({ read: () => undefined }));
+    ok('F', none.tier === null && Object.keys(none.rooms).length === 0, 'no home section is no rooms and an unknown property rung');
+    const caption = (props) => props.filter((p) => p.plate && p.plate.text === M.home.EMPTY_WALL && p.ref && p.ref.room === 'trophy').length;
+    ok('F', caption(fromServer) === 1 && caption(M.home.furnish('home_cottage', env.rooms, claims)) === 0 && caption(M.home.furnish('home_cottage', {}, null)) === 0,
+      'a built Trophy Room with nothing to hang captions its wall as empty, once; hung trophies or no room: no caption');
   });
 
   fam('H', () => {
@@ -453,7 +473,7 @@ function check(M) {
   return fails;
 }
 
-const COPY = ['src/world', 'src/data/world', 'src/data/hunts.js', 'src/data/hunt-outfits.js', 'src/data/town-presence.js', 'src/data/perks.js', 'src/build-info.js', 'assets/world', 'src/session'];
+const COPY = ['src/world', 'src/data/world', 'src/data/hunts.js', 'src/data/hunt-outfits.js', 'src/data/town-presence.js', 'src/data/perks.js', 'src/data/homestead-tiers.js', 'src/build-info.js', 'assets/world', 'src/session'];
 function copyTree() {
   const dir = mkdtempSync(join(tmpdir(), 'world-town-home-'));
   for (const p of COPY) {
@@ -488,6 +508,8 @@ const MUTANTS = [
   ['T', 'a peer ignores the outfit its character chose', 'src/world/town-scene.js', [['const id = outfitSprite(p.w.outfit, p.w.role);', 'const id = outfitSprite(null, p.w.role);']]],
   ['T', 'a peer is not stamped for the player menu', 'src/world/town-scene.js', [['ref: { player: { id: p.w.id, name: p.w.name, slot: p.w.slot } },', 'ref: null,']]],
   ['F', 'furniture merged across envelopes', 'src/world/home-scene.js', [['export function furnish(mapId, rooms, trophies, nameOf) {', 'const KEPT = new Map();\nexport function furnish(mapId, rooms, trophies, nameOf) {\n  const out0 = furnish0(mapId, rooms, trophies, nameOf);\n  for (const p of out0) if (p.ref && p.ref.room) KEPT.set(p.id + p.x + "," + p.y, p);\n  return out0.filter((p) => !(p.ref && p.ref.room)).concat([...KEPT.values()]);\n}\nfunction furnish0(mapId, rooms, trophies, nameOf) {']]],
+  ['F', 'the home reads no rungs from the server\'s section', 'src/world/home-scene.js', [['rooms[r.room] = r.level;', 'void r.level;']]],
+  ['F', 'a built Trophy Room with nothing to hang says nothing', 'src/world/home-scene.js', [["if (first) first.plate = { text: EMPTY_WALL, kind: 'sign' };", 'void first;']]],
   ['F', 'a room with a rung missing from its layout', 'src/data/world/house-layouts.js', [[", [p('basket', 6, 3)]]),", ']),']]],
   ['H', 'the hatch also moves the hero', 'src/world/steer-local.js', [["if (act.kind === 'hunt') return nav.hunt(act.hunt);", "if (act.kind === 'hunt') { nav.walk([0, 0]); return nav.hunt(act.hunt); }"]]],
   ['H', 'the hatch starts the hunt', 'src/world/world-boot.js', [["    hunt: (id) => emit('entrance', { hunt: id }),", "    hunt: (id) => { win.startHunt(id); return emit('entrance', { hunt: id }); },"]]],

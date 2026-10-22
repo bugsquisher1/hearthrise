@@ -9,7 +9,9 @@
 //   shop_buy          { offer, qty }                                   buy a server-priced offer
 //   eat               { item }                                         eat one food now
 //   sheet             {}                                               compute the character sheet
-//   set_activity      { activity: { kind: 'gather' | 'artisan', id } | { kind: 'idle' } }
+//   unlock_buy        { offer }                                        a house tier or room rung (the
+//                                                                      server prices, gates and debits it)
+//   set_activity      { activity: { kind: 'gather' | 'artisan', id, count? } | { kind: 'idle' } }  (count: a bench's "make N")
 //                                                                      start a gathering node or a bench
 //                                                                      recipe (town-work.js) / stop; the
 //                                                                      engine collects before it switches
@@ -30,6 +32,8 @@ export const EDGE_INTENTS = Object.freeze({
   sheet: Object.freeze([]),
   /* Town work (src/shell/town-work.js): a gathering node or a bench recipe by id; idle stops it. */
   set_activity: Object.freeze(['activity']),
+  /* A property tier or a room rung of the account's house, by offer id only (hr_unlock_buy prices it). */
+  unlock_buy: Object.freeze(['offer']),
 });
 
 /* The engine's own bounds (request.js MAX_SELL_LINES, MAX_QTY, CATALOGUE_ID_RE, OFFER shape). */
@@ -70,7 +74,10 @@ const FIELD = Object.freeze({
   activity(v) {
     if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
     if (v.kind === 'idle' && (v.id === undefined || v.id === null)) return { kind: 'idle' };
-    return (v.kind === 'artisan' || v.kind === 'gather') && typeof v.id === 'string' && ID.test(v.id) ? { kind: v.kind, id: v.id } : null;
+    if (!((v.kind === 'artisan' || v.kind === 'gather') && typeof v.id === 'string' && ID.test(v.id))) return null;
+    /* "Make N" (2026-12-01-bench-count.sql): a bench run may carry a whole count 1..100000; the server stops there. */
+    if (v.count === undefined || v.count === null) return { kind: v.kind, id: v.id };
+    return v.kind === 'artisan' && Number.isInteger(v.count) && v.count >= 1 && v.count <= 100000 ? { kind: v.kind, id: v.id, count: v.count } : null;
   },
 });
 

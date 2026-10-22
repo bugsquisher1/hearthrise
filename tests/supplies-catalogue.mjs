@@ -9,7 +9,8 @@
 //
 //   S1 every packed supply row names an item that exists
 //   S2 its kind is the kind the item's own data says (raw food is never one)
-//   S3 it is crafted or sold: an artisan recipe or a shop offer makes it
+//   S3 it is crafted or sold: an artisan recipe or a LISTED shop offer makes it (or it is a free kit
+//      rung that is never spent and never bought by a vendor, so it cannot be lost)
 //   S4 no id twice; S5 every item that IS a supply is listed (completeness)
 //   S6 essential: heals yes; drinks and buffs no; ammo only where an empty
 //      slot hurts
@@ -74,6 +75,7 @@ import { BUFFS_DEF } from '../src/core/buffs.js';
 import { styleNeedsAmmo } from '../src/core/ammo.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
 import { SHOP_OFFERS } from '../src/data/shops.js';
+import { START_INVENTORY } from '../src/data/start-kit.js';
 import { isMain as isEntryModule } from './_is-main.mjs';
 
 /* The rulings' own lists, typed once here so the data can be held to them. */
@@ -107,6 +109,14 @@ function crafted(sources, id) {
   return (sources.get(id) || []).some((l) => l === 'shop' || l.startsWith('made by '));
 }
 
+/* A FREE KIT RUNG (the Air Rune): in the start kit, never spent (ammoPerShot 0) and bought by no vendor (the server's
+   own vendorPriceOf is 0), so it can never leave the bag and needs no second door. Before lane/b-orphan-sources the
+   hidden seed.air_rune price row stood in as its "shop", a door shop_buy refuses (not_listed). */
+function keptForever(items, id) {
+  const it = items[id];
+  return !!it && (START_INVENTORY[id] | 0) > 0 && it.ammoPerShot === 0 && vendorPriceOf(items, id) === 0;
+}
+
 /** What one point (or one shot) of a partner costs at book value. */
 function partnerUnit(p, kind) {
   if (kind === 'heal') return p.v / p.heals;
@@ -127,7 +137,7 @@ function checkPacked(d, f) {
     if (!SUPPLY_KINDS.includes(kind)) f('S2', `supply '${id}' has unknown kind '${kind}'`);
     const real = supplyKindOf(it);
     if (real !== kind) f('S2', `supply '${id}' is listed as '${kind}' but its item data says '${real}'`);
-    if (!crafted(sources, id)) f('S3', `supply '${id}' has no recipe and no shop offer (sources: ${(sources.get(id) || []).join(', ') || 'none'})`);
+    if (!crafted(sources, id) && !keptForever(d.items, id)) f('S3', `supply '${id}' has no recipe and no shop offer (sources: ${(sources.get(id) || []).join(', ') || 'none'})`);
     const want = kind === 'heal' ? true : (kind === 'buff' || kind === 'mana') ? false
       : styleNeedsAmmo(AMMO_FAMILY[it.reqSkill] || 'sword');
     if (essential !== want) f('S6', `supply '${id}' essential=${essential}, the rule says ${want}`);
@@ -343,6 +353,9 @@ function selftest() {
     ['S3', 'a supply with no source recipe or shop', (d) => {
       ITEMS[PLANT] = { n: 'Planted Stew', v: 1, heals: 5, foodClass: 'healing' };
       d.rows = [...d.rows, ['heal', PLANT, true]];
+    }],
+    ['S3', 'the free kit rune is worth gold (it could be sold, and no door brings it back)', (d) => {
+      d.items = { ...d.items, air_rune: { ...d.items.air_rune, v: 5 } };
     }],
     ['S1', 'an unknown item id', (d) => { d.rows = [...d.rows, ['heal', 'not_an_item', true]]; }],
     ['K1', 'a kind with no shop supply paid per use', (d) => { d.basics = d.basics.filter((b) => b.kind !== 'mana'); }],

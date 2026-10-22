@@ -78,9 +78,16 @@ export const CLIENT_RPCS = Object.freeze({
   hr_hunt_restart: 'go back to the hunt that just ended on that session’s own setup (CharacterSession.restartHunt)',
   /* Lane S2's Services window: each sends the server's own QUOTE (refused quote_changed otherwise), never a price of its own. */
   hr_stamina_refill: 'buy the next stamina refill at the quoted price (CharacterSession.buyStamina)',
+  hr_storage_chest_build: 'build the account’s next storage chest at the quoted price; the server gates, prices and debits it (home-intents.js buildChest)',
   hr_blessing_buy: 'buy one blessing tier at the quoted price, 0 under the free level (CharacterSession.buyBlessing)',
   hr_bestiary_activate: 'activate a bestiary stage for one monster kind at the quoted fee (CharacterSession.activateBestiaryStage; lane c-bestiary)',
   hr_character_name_set: 'claim this character’s own name, checked by the server (CharacterSession.setName)',
+  /* The Farm window (P1 2026-10-22; 2026-11-26-farm-window.sql): a slot, a plot index, a crop id or the expected tier; never a price or a time. */
+  hr_farm_plant: 'plant one own seed of a crop in an empty plot; level, plot tier and the plot cap are the server’s (farm-intents.js plantCrop)',
+  hr_farm_water: 'water a growing plot for a 2 h double-speed window; the server refuses an open window (farm-intents.js waterPlot)',
+  hr_farm_harvest: 'harvest a ready plot and leave it empty; readiness and the roll are the server’s (farm-intents.js harvestPlot)',
+  hr_farm_harvest_replant: 'harvest a ready plot and plant the same crop again, from an own seed or one bought at the listed Shop price (farm-intents.js harvestPlot)',
+  hr_farm_upgrade_plot: 'buy the next plot tier the client expects; the server prices it, gold first then deeds (farm-intents.js upgradePlot)',
   /* The social side (2026-10-25-chat-channels.sql, 2026-10-25-social.sql): a slot, a channel KIND, a body,
      a target (a user id or a claimed name) and a yes/no — never a name, level, zone or role of the sender. */
   hr_chat_send: 'post a line to global / local / party; the server names the sender and the channel (ChatStore.send)',
@@ -116,6 +123,8 @@ export const CLIENT_EDGE_INTENTS = Object.freeze({
   sheet: [],
   /* the Inventory's Bury: an artisan recipe by id, or idle to stop; the engine collects before it switches (hr-accrue set-activity.js) */
   set_activity: ['activity'],
+  /* the House window: a property tier or room rung by offer id; hr_unlock_buy prices, gates and debits it (home-intents.js buyHome) */
+  unlock_buy: ['offer'],
 });
 const EDGE = 'src/session/edge-intents.js';
 const VALUE_FIELD = /price|gold|cost|total|amount|ask/i;

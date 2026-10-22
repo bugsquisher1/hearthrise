@@ -13,20 +13,21 @@
 //   needOf(id, sk)  "Needs Melee 30 (you have 20)", against the server's level
 //   flavourOf(id)   the item's one-line description, or ''
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.30';
-import { DRINK_ITEMS, DRINK_RECIPES, DRINK_DESC } from '../data/drinks.js?v=0.2.30';
-import { MONSTERS } from '../data/monsters.js?v=0.2.30';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.30';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOT_META } from '../data/gathering.js?v=0.2.30';
-import { SHOP_OFFERS } from '../data/shops.js?v=0.2.30';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.30';
-import { ITEM_DESC } from '../data/item-descriptions.js?v=0.2.30';
-import { itemName, monsterName } from './widgets/bits.js?v=0.2.30';
-import { kindOf, riteOf, cookOf } from './bag-model.js?v=0.2.30';
+import { ITEMS } from '../data/items.js?v=0.2.31';
+import { DRINK_ITEMS, DRINK_RECIPES, DRINK_DESC } from '../data/drinks.js?v=0.2.31';
+import { MONSTERS } from '../data/monsters.js?v=0.2.31';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.31';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOT_META } from '../data/gathering.js?v=0.2.31';
+import { SHOP_OFFERS } from '../data/shops.js?v=0.2.31';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.31';
+import { ITEM_DESC } from '../data/item-descriptions.js?v=0.2.31';
+import { itemName, monsterName } from './widgets/bits.js?v=0.2.31';
+import { kindOf, riteOf, cookOf } from './bag-model.js?v=0.2.31';
+import { SHOP_LISTED_OFFER_IDS } from '../data/supply-basics.js?v=0.2.31';
 
 const skillName = (id) => (SKILLS_DEF[id] && SKILLS_DEF[id].name) || id;
 const RARITY = Object.freeze({ common: 'Common', uncommon: 'Uncommon', rare: 'Rare', epic: 'Epic', legendary: 'Legendary', mythic: 'Mythic', unique: 'Unique' });
-const TYPE = Object.freeze({ weapon: 'Weapon', armor: 'Armour', jewelry: 'Jewellery', tool: 'Tool', companion: 'Companion', trophy: 'Trophy' });
+const TYPE = Object.freeze({ weapon: 'Weapon', armor: 'Armour', jewelry: 'Jewellery', tool: 'Tool', trophy: 'Trophy' });
 
 /** "A, B and C", or "A, B, C and 4 more" past `max`. */
 export function listWords(names, max = 3) {
@@ -52,7 +53,8 @@ function index() {
   for (const r of DRINK_RECIPES) recipe('cooking', r);
   for (const [nodes, skill] of [[TREES, 'woodcutting'], [ROCKS, 'mining'], [FISH_SPOTS, 'fishing']]) for (const n of nodes) if (n.prod) at(n.prod).from.push(skill);
   for (const c of Object.values(CROPS)) if (c && c.prod) at(c.prod).from.push('farming');
-  for (const o of SHOP_OFFERS) for (const g of o.grant || []) if (g.kind === 'item') at(g.id).shop = true;
+  /* Only a row a Shop tab lists is "sold at the shop": the rest are the vendor's price list (lane/b-orphan-sources). */
+  for (const o of SHOP_OFFERS) if (SHOP_LISTED_OFFER_IDS.has(o.id)) for (const g of o.grant || []) if (g.kind === 'item') at(g.id).shop = true;
   return INDEX;
 }
 

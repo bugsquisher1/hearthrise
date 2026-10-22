@@ -10,6 +10,9 @@
 //   itemSources()   id -> [labels]  every door an item can enter a bag through
 //   itemUses()      id -> [labels]  everything that spends, wears, eats, plants
 //                                   or redeems it
+//   reachableSources() id -> door   only the doors a player can walk through
+//                                   (open grounds, the listed shop, crafts from
+//                                   reachable inputs); UNREACHABLE tags the rest
 //   obtainableItemIds()             the Collection Log's denominator
 //   skillConsumers() skill -> [labels]  who uses what the skill makes (or, for a
 //                                   combat skill, which engine reads its level)
@@ -26,25 +29,27 @@
 // PURE ESM. No DOM. Imports cleanly in Node, Deno and the browser.
 // ============================================================
 
-import { ITEMS } from './items.js?v=0.2.30';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.30';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.30';
-import { SKILLS_DEF } from './skills.js?v=0.2.30';
-import { SHOP_OFFERS } from './shops.js?v=0.2.30';
-import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=0.2.30';
-import { PREMIUM_LOGIN_REWARD } from './premium.js?v=0.2.30';
-import { HEARTHFIND_ITEMS } from './hearthfind.js?v=0.2.30';
-import { EFFECT_KINDS } from './item-effects.js?v=0.2.30';
-import { MONSTERS } from './monsters.js?v=0.2.30';
+import { ITEMS } from './items.js?v=0.2.31';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.31';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.31';
+import { SKILLS_DEF } from './skills.js?v=0.2.31';
+import { SHOP_OFFERS } from './shops.js?v=0.2.31';
+import { SHOP_LISTED_OFFER_IDS } from './supply-basics.js?v=0.2.31';
+import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=0.2.31';
+import { PREMIUM_LOGIN_REWARD } from './premium.js?v=0.2.31';
+import { HEARTHFIND_ITEMS, HEARTHFIND_TABLE } from './hearthfind.js?v=0.2.31';
+import { EFFECT_KINDS } from './item-effects.js?v=0.2.31';
+import { MONSTERS } from './monsters.js?v=0.2.31';
+import { HUNT_GROUNDS, OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.31';
+import { HUNT_INDEX } from './hunts.js?v=0.2.31';
 import {
   gatherProductIds, cropProductIds, seedIds, combatDropIds, artisanOutputIds,
-  shopGrantIds, goalRewardIds,
-} from './item-authority.js?v=0.2.30';
+} from './item-authority.js?v=0.2.31';
 
 /* The data identities this module reads, re-exported so a Node guard can mutate
    the SAME objects (a bare import without the ?v= query is a second module
    instance, and a plant there would never reach these functions). */
-export { ITEMS, SKILLS_DEF, SHOP_OFFERS, ARTISAN_RECIPES, MONSTERS };
+export { ITEMS, SKILLS_DEF, SHOP_OFFERS, SHOP_LISTED_OFFER_IDS, ARTISAN_RECIPES, MONSTERS };
 
 /* ── SOURCES AN ENGINE HARD-CODES ───────────────────────────────────────────
    id -> { label, file, needle }. The guard reads `file` and fails unless it
@@ -105,13 +110,13 @@ export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_
    with no source is a C1 failure, not a candidate for this list. */
 export const AWAITING_ROSTER = Object.freeze([
   'oak_rod',   // the road_cook reward until the 2026-10-14 re-reward; rods have no recipe yet
-  'abyssal_greaves', 'adept_helmet', 'adept_pants', 'alphaheart_longbow', 'apprentice_body',
-  'apprentice_helmet', 'apprentice_pants', 'archmage_belt', 'archmage_body', 'archmage_helmet',
+  'abyssal_greaves', 'alphaheart_longbow',
+  'archmage_belt', 'archmage_body', 'archmage_helmet',
   'archmage_pants', 'ashcrown_greatsword', 'boarhide_body', 'boarhide_pants', 'bone_needle',
   'bronze_hammer', 'bronze_knife',
   'bronze_platelegs', 'chitin_belt', 'chitin_body',
   'chitin_boots', 'chitin_gloves', 'chitin_helmet', 'chitin_pants', 'choirbone',
-  'choirbone_gauntlets', 'copper_studs', 'crown_of_the_fallen_king', 'dawn_belt',
+  'choirbone_gauntlets', 'crown_of_the_fallen_king', 'dawn_belt',
   'dawn_boots', 'dawn_gauntlets', 'dawn_helm', 'dawn_platebody',
   'dawn_platelegs', 'dawn_sword', 'dawn_warhammer', 'dawnbound_amulet', 'dawnforged_signet',
   'dawnlit_mantle', 'dawnsteel_rod', 'demoncaller_staff', 'dragon_gem_earrings',
@@ -124,7 +129,7 @@ export const AWAITING_ROSTER = Object.freeze([
   'lexarch_seal',
   'maple_rod', 'maple_staff', 'mithril_helm',
   'mithril_platebody', 'mithril_platelegs', 'mithril_sword', 'mithril_warhammer',
-  'nightstalker_pelt', 'oak_staff', 'plaguewarden_greaves', 'quiet_coat', 'regent_helm',
+  'nightstalker_pelt', 'plaguewarden_greaves', 'quiet_coat', 'regent_helm',
   'riftmaw_carapace', 'riftmaw_husk', 'ruby_signet', 'rubyfire_studs',
   'rune_hammer', 'rune_helm', 'rune_knife', 'rune_needle', 'rune_platebody',
   'rune_platelegs', 'rune_warhammer', 'runewood_bow', 'runewood_rod', 'scholar_body',
@@ -148,8 +153,129 @@ export const AWAITING_ROSTER = Object.freeze([
   'hearth_token',
 ]);
 
+/* ── OUT OF REACH — a source on paper that no player can use (designer 2026-10-22) ──
+   itemSources() counts every door in the data, so a drop from a monster no open ground
+   spawns (most of the old catalogue's creatures), a row in a shop table the Shop does
+   not list, or a craft from such an input all read as "a source". To a player that is a
+   lie. reachableSources() keeps only the doors a player can walk through: monsters on
+   OPEN grounds, the LISTED shop table, the start kit, gathering, server quest rewards,
+   coded grants, and the crops and crafts whose every input is itself reachable.
 
-const EQUIP_TYPES = Object.freeze({ weapon: 1, armor: 1, jewelry: 1, ammo: 1, companion: 1 });
+   Each fate names the DOOR that will source its items. A planned door (`open`) is
+   PROVED by tests/catalogue-coherence.mjs C11: with every planned door open the item is
+   reachable, and with every door but its own it is not. A fate with no door is never
+   reachable, so a row there that becomes reachable is stale. Buckets: (a) belongs to a
+   planned ground or system, (b) needed now (its source is a listing away), (c) no home in
+   Early Access, listed for Tyler's keep-or-cut. */
+export const UNREACHABLE_FATES = Object.freeze({
+  staged:     Object.freeze({ bucket: 'a', door: 'its staged ground opens (Mosslight Glade, waiting on its art)', open: Object.freeze({ grounds: HUNT_GROUNDS }) }),
+  premium:    Object.freeze({ bucket: 'a', door: 'premium sells and the daily login claim pays', open: Object.freeze({ premium: true }) }),
+  greenhaven: Object.freeze({ bucket: 'a', door: 'a Greenhaven ground not yet built puts it on one of its creatures' }),
+  later:      Object.freeze({ bucket: 'c', door: 'none in Early Access: kept for a later region, or cut (Tyler)' }),
+  cut:        Object.freeze({ bucket: 'c', door: 'none: dead weight, listed for a cut (Tyler approves)' }),
+});
+
+/* SHRINK-ONLY. An id leaves its row the build it becomes reachable (C11 fails a stale row).
+   Only `staged` may grow, and only with a ground whose opening the guard proves; every
+   other fate is held under UNREACHABLE_CEILING. */
+export const UNREACHABLE = Object.freeze({
+  /* Empty since Mosslight Glade opened on its art (lane b-mosslight-art, v0.2.31): its drops and the Magic Essence line
+     (deep runes, the rune bar) are reachable. A ground staged again may refill it, with the guard's proof of its opening. */
+  staged: Object.freeze([]),
+  premium: Object.freeze(['oak_practice_blade']),
+  /* Tier 1-3 gear and Greenhaven-fit materials (roads, greenwood, farm edge, ruins) for the region's next
+     grounds. Gloves, belts and the caster's cloth line have NO reachable piece today. */
+  greenhaven: Object.freeze([
+    'bronze_gauntlets', 'iron_gauntlets', 'steel_gauntlets', 'studded_gloves', 'boarhide_gloves', 'apprentice_gloves',
+    'adept_gloves', 'scholar_gloves', 'leather_belt', 'iron_belt', 'steel_belt', 'studded_belt', 'boarhide_belt',
+    'apprentice_belt', 'adept_belt', 'scholar_belt', 'iron_boots', 'steel_boots',
+    'scholar_boots', 'studded_helmet', 'boarhide_helmet', 'willow_longbow',
+    'willow_staff', 'willow_wand', 'willow_spellbook', 'bramble_blade', 'rat_stick',
+    'fang_studs', 'wolfbone_torc', 'spidersilk_choker', 'banded_signet', 'tusker_charm', 'packlord_band',
+    'mirewort_drops', 'ancient_fragment', 'cracked_spellstone', 'grave_dust', 'razor_claw', 'bear_pelt', 'bear_claw',
+    'raw_bear_meat', 'cooked_bear_meat', 'bear_claw_pie',
+  ]),
+  /* Tier 4+ ladder rungs, the old roster's uniques, and the dragon, undead, demon, troll and void materials
+     with the late recipes they feed (Cooking 25 panther and 70+, Prayer 35+, Crafting 60 keystones). */
+  later: Object.freeze([
+    'mithril_boots', 'rune_boots', 'mithril_gauntlets', 'rune_gauntlets', 'ember_gauntlets', 'mithril_belt',
+    'rune_belt', 'snakeskin_boots', 'wyvernhide_boots', 'snakeskin_gloves', 'wyvernhide_gloves', 'snakeskin_belt',
+    'wyvernhide_belt', 'warlock_helmet', 'warlock_boots', 'sorcerer_boots', 'archmage_boots', 'warlock_gloves',
+    'sorcerer_gloves', 'archmage_gloves', 'warlock_belt', 'sorcerer_belt', 'rune_sword', 'maple_bow', 'yew_bow',
+    'yew_staff', 'runewood_staff', 'maple_wand', 'yew_wand', 'runewood_wand', 'maple_spellbook', 'yew_spellbook',
+    'runewood_codex', 'emberfang_blade', 'panthers_eye_pendant', 'wraithsilk_shroud', 'chitinweave_cloak',
+    'wraithglass_drops', 'trollhide_cape', 'shadowsilk_cape', 'warlords_torc', 'lazlos_maul', 'dragonrib_bow',
+    'void_censer', 'barrowking_mantle', 'jarls_rimetorc', 'captains_ribblade', 'chief_blade', 'alpha_cloak',
+    'keystone',
+    'dragon_bones', 'troll_hide', 'vamp_dust', 'demon_shard', 'dragon_scale', 'lich_soul', 'ancient_rune',
+    'dragon_gem', 'wraith_veil', 'void_chitin', 'void_core', 'ancient_claw', 'raw_panther_meat', 'cooked_panther_meat',
+    'hunters_feast', 'dragon_stew', 'lich_soul_soup', 'void_banquet', 'soul_recipe', 'marrow_cookbook',
+    'field_cookbook', 'emberheart',
+  ]),
+  /* Vendor trash of creatures with no home in the plan: no recipe, room or quest reads them. */
+  cut: Object.freeze([
+    'rune_frag', 'ruby', 'night_fang', 'dark_sigil', 'spider_eye', 'brute_plate', 'dire_fang', 'plague_ichor',
+    'swarm_heart', 'warlord_badge', 'hell_ember', 'shadow_thread', 'captain_medal', 'shadow_pelt', 'death_steel',
+    'hollow_sigil', 'abyssal_pearl',
+    /* A copy of the bound Practice Sword, stat for stat (designer 2026-10-22: the rung-1 copies of the practice kit are cut). */
+    'bronze_sword',
+  ]),
+});
+/* Every row outside `staged`. It only falls: lower it in the commit that sources or cuts an item. */
+/* 172 -> 140 (lane/c-style-gear's merge, 2026-10-22): the seed counter and the outfitter landed (the `farming` and
+   `shop_gear` fates closed, 33 rows; Bronze Sword left the unlisted counter for `cut`). 140 -> 134: the style
+   ladder makes six greenhaven rows (Oak Wand, Oakboard Spellbook, Iron Warhammer, Apprentice and Adept Slippers,
+   Adept Robe Top); the Longbow left `staged` (made at Crafting 15 too). */
+export const UNREACHABLE_CEILING = 134;
+
+/**
+ * id -> the first reachable door (a label). `opts` opens planned doors for C11's proof:
+ * { grounds: every ground including staged ones, premium: true }. The Shop is its LISTED rows (SHOP_LISTED_OFFER_IDS).
+ */
+export function reachableSources(opts = {}) {
+  const grounds = opts.grounds || OPEN_GROUNDS;
+  const m = new Map();
+  const put = (id, label) => { if (!id || !ITEMS[id] || m.has(id)) return false; m.set(id, label); return true; };
+  const met = new Set();
+  for (const g of Object.values(grounds)) {
+    for (const p of g.pockets || []) for (const s of (p.pack || []).concat(p.spawns || [])) met.add(s.monster);
+    for (const s of (HUNT_INDEX[g.hunt] || {}).spawns || []) met.add(s.monster);
+  }
+  for (const id of met) for (const d of (MONSTERS[id] && MONSTERS[id].drops) || []) put(d.id, 'drops from ' + id);
+  for (const o of SHOP_OFFERS) if (o && SHOP_LISTED_OFFER_IDS.has(o.id)) for (const g of o.grant || []) if (g && g.kind === 'item') put(g.id, 'shop ' + o.id);
+  for (const id of Object.keys(START_INVENTORY)) put(id, 'start kit');
+  for (const id of Object.values(START_EQUIPMENT)) put(id, 'start kit');
+  for (const id of gatherProductIds()) put(id, 'gathered');
+  for (const id of Object.keys(CODED_SOURCES)) put(id, CODED_SOURCES[id].label);
+  if (opts.premium && PREMIUM_LOGIN_REWARD.item) put(PREMIUM_LOGIN_REWARD.item, 'premium login reward');
+  for (const t of HEARTHFIND_TABLE) if (t.kind === 'node' || met.has(t.id)) put(t.item, 'hearthfind at ' + t.id);
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const k of Object.keys(CROPS)) if (m.has(CROPS[k].seed)) grew = put(CROPS[k].prod, 'harvested') || grew;
+    for (const skill of Object.keys(ARTISAN_RECIPES)) {
+      for (const r of ARTISAN_RECIPES[skill] || []) {
+        if (!r || !r.output || m.has(r.output)) continue;
+        const need = Object.keys(recipeInputs(r)).concat(r.gated ? [r.gated] : []);
+        if (need.every((id) => m.has(id))) grew = put(r.output, 'made by ' + skill) || grew;
+      }
+    }
+  }
+  return m;
+}
+
+/** The door options with every planned fate's door open, optionally all but one. */
+export function plannedDoors(except) {
+  const out = {};
+  for (const [fate, f] of Object.entries(UNREACHABLE_FATES)) {
+    if (!f.open || fate === except) continue;
+    if (f.open.grounds) out.grounds = f.open.grounds;
+    if (f.open.premium) out.premium = true;
+  }
+  return out;
+}
+
+
+const EQUIP_TYPES = Object.freeze({ weapon: 1, armor: 1, jewelry: 1, ammo: 1 });
 
 function push(map, id, label) {
   if (!id) return;
@@ -176,8 +302,14 @@ export function itemSources() {
   addSet(m, cropProductIds(), 'harvested');
   addSet(m, combatDropIds(), 'monster drop');
   for (const skill of Object.keys(ARTISAN_RECIPES)) addSet(m, artisanOutputIds(skill), 'made by ' + skill);
-  addSet(m, shopGrantIds(), 'shop');
-  addSet(m, goalRewardIds(), 'quest reward');
+  /* ONLY A LISTED SHOP ROW IS A SOURCE (lane/b-orphan-sources, 2026-10-22). shop_buy sells only the ids a Shop tab
+     lists (catalogue.js offerRefusal: `not_listed`); the other SHOP_OFFERS rows are the vendor's price list, a door
+     nobody can open. Counting them hid eleven items no player could ever obtain (the farming seeds, the apprentice
+     staff, wand and primer, the stone maul, and the fox companion, cut 2026-10-22). */
+  for (const o of SHOP_OFFERS) {
+    if (!o || !SHOP_LISTED_OFFER_IDS.has(o.id)) continue;
+    for (const g of o.grant || []) if (g && g.kind === 'item' && g.id) push(m, g.id, 'shop');
+  }
   addSet(m, Object.keys(START_INVENTORY), 'start kit');
   addSet(m, Object.values(START_EQUIPMENT).filter(Boolean), 'start kit');
   addSet(m, HEARTHFIND_ITEMS, 'hearthfind');

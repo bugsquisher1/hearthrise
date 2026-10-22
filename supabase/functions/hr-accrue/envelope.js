@@ -133,7 +133,7 @@ export const ENGINE_STATE_KEYS = Object.freeze([
    OVERRIDES these per window (the tick's watermark is the fence's mark, not
    `state.accrued_to`), which is why they are named apart from the state. */
 export const ENGINE_POINTER_KEYS = Object.freeze([
-  'accruedToMs', 'activeSinceMs', 'activeKind', 'activeId',
+  'accruedToMs', 'activeSinceMs', 'activeKind', 'activeId', 'activeLeft',
 ]);
 
 /** Every key `engineInputsFromEnvelope` produces. */
@@ -187,6 +187,10 @@ export function engineInputsFromEnvelope(env, nowMs) {
     activeSinceMs: st.active_since ? new Date(st.active_since).getTime() : null,
     activeKind: st.active_kind,
     activeId: st.active_id,
+    /* "MAKE N" (2026-12-01-bench-count.sql): the actions left on an artisan run, from the
+       `bench_run` section. Absent (a database without the section) or null = until the bag
+       runs out, today's behaviour, and accrueArtisan then proposes no `active_left`. */
+    activeLeft: (e.bench_run && Number.isInteger(e.bench_run.left) && e.bench_run.left > 0) ? e.bench_run.left : null,
 
     /* ── THE COLUMNS ON THE ROW `hr_apply` LOCKS ─────────────────────────── */
     hp: Number(st.hp) || 0,

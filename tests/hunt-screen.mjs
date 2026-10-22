@@ -104,6 +104,7 @@ import { join, resolve } from 'node:path';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { pathToFileURL } from 'node:url';
 import { scopeMutants, gateScope, planShards, checkShards } from '../tools/lib/mutant-scope.mjs';
+import { judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
 /* The scene and its log play huntPlaybackDelayMs behind the server (src/session/config.js): the fixture's
@@ -1828,21 +1829,20 @@ async function main() {
     for (const [name] of mine) console.log('    ' + name + ' — ' + scope.why.get(name));
     if (!mine.length) { console.log('hunt-screen --mutate' + tag + ': no mutant in this shard is touched by this diff (the nightly sweep runs them)'); process.exit(0); }
   } else if (process.env.HR_MUTANT_SCOPE) console.log('  scope: every mutant — ' + scope.why);
-  const clean = await checks(null, null);
-  if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
-  console.log('  ✓ clean control green');
-  let bad = 0;
+  const clean = await cleanControl(() => checks(null, null));
+  console.log(clean.line);
+  if (clean.code) process.exit(clean.code);
+  /* A mutant is caught only by a NAMED rule (HS-n); a run that throws is HARNESS, never a catch (tests/_mutant-verdict.mjs). */
+  const counts = { caught: 0, harness: 0, escaped: 0 };
   for (const [name, file, from, to] of mine) {
     let text = await readFile(join(ROOT, file), 'utf8');
     const pairs = Array.isArray(from) ? from : [[from, to]];
     const missing = pairs.find(([x]) => !text.includes(x));
-    if (missing) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
+    if (missing) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
     for (const [x, y] of pairs) text = text.replace(x, y);
-    const fails = await checks({ [file]: text }, null, { stopAtFirst: true });
-    if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
-    else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+    console.log(report(name, await judge(() => checks({ [file]: text }, null, { stopAtFirst: true })), counts));
   }
-  console.log(bad ? 'hunt-screen --mutate' + tag + ': ' + bad + ' escaped' : 'hunt-screen --mutate' + tag + ': ' + mine.length + '/' + mine.length + ' mutants caught');
-  process.exit(bad ? 1 : 0);
+  console.log(exitOf(counts) ? 'hunt-screen --mutate' + tag + ': ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'hunt-screen --mutate' + tag + ': ' + mine.length + '/' + mine.length + ' mutants caught, each by a named rule');
+  process.exit(exitOf(counts));
 }
 main();

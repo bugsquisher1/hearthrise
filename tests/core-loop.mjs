@@ -36,7 +36,7 @@
 //                                   hr_hunt_apply (one statement)
 //    7    leave the hunt            hr_hunt_leave: the bag comes home               8
 //    8    sell the loot             vendor_sell_many (catalogue.vendorPriceOf)      9
-//    9    buy an upgrade            shop_buy equip.* the character can wield        10
+//    9    buy an upgrade            shop_buy a listed gear row it can wield         10
 //   10    equip it                  equip -> hr_apply equipment                     11
 //   11    hunt again, better        a new session, the same dice, the new kit       12
 //   12    reload                    hr_load (the boot read) == the last envelope    -
@@ -98,7 +98,9 @@
 //   2. TIME. `elapse()` moves every timestamptz column of the character's
 //      player_state row, its hunt sessions and its presence anchor back by N
 //      seconds: N seconds pass for that character. The column lists are READ
-//      from the catalogue, so a new watermark is moved with the rest.
+//      from the catalogue, so a new watermark is moved with the rest. A gather's
+//      or a hunt's window then ends exactly N seconds on (the settles' nowMs /
+//      atMs), never at the wall clock the gestures ran on.
 //   3. THE RATE GATE. hr_rate_counters is cleared before each gesture: a real
 //      player's gestures are minutes apart, these are milliseconds apart.
 //   4. THE SETTLE. index.ts's `accrue` verb is Deno and cannot be imported, so
@@ -135,6 +137,11 @@ const GROUNDED = new Set(Object.values(HUNT_GROUNDS).map((g) => g.hunt));
 const FN = (f) => join(ROOT, 'supabase', 'functions', 'hr-accrue', f);
 const SEED = 0x10091;
 const MIN = 60;
+/* main()'s counting gen_random_uuid: every hunt session id must be one of these. */
+const PINNED_UUID = /^00000000-0000-4000-8000-[0-9a-f]{12}$/;
+/* A pinned window ends this long before the clock it was elapsed past, so the server's
+   now() (which ran on during the gestures) never clamps it. */
+const WINDOW_SLACK_S = 1;
 const uuid = () => crypto.randomUUID();
 const num = (v) => Number(v ?? 0);
 
@@ -170,9 +177,10 @@ const MUTATIONS = {
   shop_sells_no_gear: {
     file: 'catalogue.js', by: 'LOOP-1 step 9',
     why: 'the NPC counter stops selling equipment: gold has nothing to become',
+    /* Every offer id is `supply.*` since b-gold-sinks, so the gear is the offers whose one grant has a slot. */
     find: 'export const GOLD_OFFERS = Object.freeze(goldOffers);',
     repl: 'export const GOLD_OFFERS = Object.freeze(Object.fromEntries(Object.entries(goldOffers)'
-      + ".filter(([k]) => !k.startsWith('equip.'))));",
+      + '.filter(([, o]) => !(o.grant.length === 1 && ITEMS[o.grant[0].id] && ITEMS[o.grant[0].id].slot))));',
   },
   equip_refuses_everything: {
     file: 'equip.js', by: 'LOOP-1 step 10',
@@ -181,13 +189,13 @@ const MUTATIONS = {
     repl: '    if (fits) {',
   },
   bag_ignored: {
-    /* Re-pointed lane S1: the one supply resolver (action-rules.js resolveLine)
-       never reaches the bag, so the packed food is never eaten and the store
-       feeds the hero instead — LOOP-3 step 5's "the bag is spent first". */
+    /* Re-pointed lane S1, then a-core-loop-flake (store by slot: resolveLine's crafted
+       food is the hero's OWN line only): the one supply resolver never reaches the bag,
+       so the packed food is never eaten — LOOP-3 step 5's "the bag is spent first". */
     file: '../../../src/core/action-rules.js', by: 'LOOP-3 step 5',
     why: 'the resolver never picks a packed heal: the packed food is never eaten',
-    find: '    const own = pickOwn(hs, want, Math.max(1, int(need, 1)));',
-    repl: '    const own = null;',
+    find: "  if (c && c.source === 'own') return leftOf(hs, want) > 0 ? { id: want, source: 'own', price: 0 } : { why: 'none' };",
+    repl: "  if (c && c.source === 'own') return { why: 'none' };",
   },
   stamina_never_ends: {
     /* Lane S1: a fresh character's night now ends on stamina (its eight hours), so LOOP-4 goes red first. */
@@ -294,9 +302,15 @@ async function makeServer(db, M) {
       return asUser(uid, async () => (await q(sql, params))[0].r);
     },
     /** The hunt's settle: settleHunt, the function the world tick runs. */
-    async huntSettle(uid) {
+    async huntSettle(uid, atMs) {
       await clearGate();
-      return M.hs.settleHunt({ exec, user: uid, slot: 0, mode: 'tick' });
+      return M.hs.settleHunt({ exec, user: uid, slot: 0, mode: 'tick', ...(atMs != null ? { atMs } : {}) });
+    },
+    /** The open hunt's instance clock, ms (what the next settle starts from). */
+    async huntClock(uid) {
+      const [r] = await q(`select i.settled_to from public.hunt_instances i join public.hunt_sessions h on h.instance_id = i.id
+                            where h.user_id = $1 and h.slot = 0 and h.ended_at is null`, [uid]);
+      return r ? new Date(r.settled_to).getTime() : null;
     },
     async session(uid) {
       return (await q(`select h.*, row_to_json(t) as tally from public.hunt_sessions h
@@ -317,14 +331,17 @@ async function makeServer(db, M) {
       }
       throw Object.assign(new Error(`the harness does not route verb ${it.verb}`), { harness: true });
     },
-    /** The return settle (harness privilege 4). */
-    async settle(uid) {
+    /** The return settle (harness privilege 4), over exactly `spanMs` from accrued_to
+        when given (harness privilege 2: the window is the clock elapsed, not the wall). */
+    async settle(uid, spanMs) {
       await clearGate();
       const [read] = await exec(M.sa.READ_SQL, [uid, 0, 'accrue']);
       const env = read.state;
+      const nowMs = new Date(read.now).getTime();
+      const from = env.state && env.state.accrued_to ? new Date(env.state.accrued_to).getTime() : null;
       return M.sa.collectCurrentWindow({
         exec, user: uid, slot: 0, env, st: env.state,
-        nowMs: new Date(read.now).getTime(), capMs: Number(read.cap_ms) || 0,
+        nowMs: spanMs != null && from !== null ? Math.min(nowMs, from + spanMs) : nowMs, capMs: Number(read.cap_ms) || 0,
       });
     },
     /** The settle's own ledger row (a renown ratchet row can land after it). */
@@ -399,15 +416,21 @@ async function readBack(S, uid, t, label, envelope) {
 
 /** Fight one stretch of the open hunt and read what it paid, from the server.
     Settles in at most 6 h steps (the settle's own window fuse) until the clock
-    is caught up or the hunt ends. */
+    is caught up or the hunt ends.
+    EXACTLY `mins` OF HUNT (lane a-core-loop-flake): the settle's end is pinned
+    (settleHunt's atMs seam) to `mins` past the instance clock, never the
+    server's now(), which also counts the wall time the gestures took: on a
+    loaded box that was seconds more hunting, and a different hour. */
 async function huntWindow(S, uid, mins, t) {
   const before = await S.load(uid);
   const s0 = await S.session(uid);
-  await S.elapse(uid, mins * MIN);
+  const clock0 = await S.huntClock(uid);
+  await S.elapse(uid, mins * MIN + WINDOW_SLACK_S);
+  const endAt = clock0 === null ? null : clock0 - WINDOW_SLACK_S * 1000;
   let c = null;
   let paid = false;
   for (let k = 0; k < 200; k++) {   // successive fires: a settle simulates at most HUNT_SETTLE_SPAN_MS
-    c = await S.huntSettle(uid);
+    c = await S.huntSettle(uid, endAt);
     if (c.outcome === 'paid') paid = true;
     const sess = await S.session(uid);
     if (c.outcome !== 'paid' || (sess && sess.ended_at)) break;
@@ -493,7 +516,7 @@ function makePlayer(S, uid) {
     async settleAfter(t, what, mins) {
       const before = await S.load(uid);
       await S.elapse(uid, mins * MIN);
-      const c = await S.settle(uid);
+      const c = await S.settle(uid, mins * MIN * 1000);
       t.ok(c.outcome === 'paid', `${what}: ${mins} min settled as ${c.outcome} ${brief(c)}`);
       p.seen = c.env;
       p.env = await readBack(S, uid, t, `${what} settle`, c.env);
@@ -518,6 +541,11 @@ function makePlayer(S, uid) {
       const r = await S.rpc(uid, 'select public.hr_hunt_enter(0, $1, $2::jsonb, 0, null, $3::uuid) r',
         [hunt, JSON.stringify(lines), uuid()]);
       t.ok(r && r.ok === true, `hr_hunt_enter ${hunt} refused: ${brief(r)}`);
+      /* THE PINNED DICE REACHED THE HUNT: the session id seeds the swings (hr_seed 'hunt:' || id). */
+      const sess = await S.session(uid);
+      if (!sess || !PINNED_UUID.test(String(sess.id))) {
+        throw Object.assign(new Error(`the hunt session id ${sess && sess.id} is not the harness counter: the dice are not pinned`), { harness: true });
+      }
       p.env = await readBack(S, uid, t, `enter ${hunt}`, null);
       return r;
     },
@@ -698,7 +726,8 @@ const cheapestFood = (M) => foodOffers(M).sort((a, b) => a.gold - b.gold)[0] || 
 /** Every NPC equipment offer this character can wield that beats what it wears. */
 function npcUpgrades(M, env) {
   const wielded = ITEMS[env.equipment.weapon] || {};
-  return Object.values(M.cat.GOLD_OFFERS).filter((o) => o.id.startsWith('equip.') && o.grant.length === 1)
+  /* Every offer shop_buy sells is a row a Shop tab lists (lane/b-gold-sinks, 2026-10-22: the outfitter's gear). */
+  return Object.values(M.cat.GOLD_OFFERS).filter((o) => o.grant.length === 1)
     .map((o) => ({ o, id: o.grant[0].id, it: ITEMS[o.grant[0].id] || {} }))
     .filter((c) => c.it.slot && (!c.it.reqSkill || lvOf(env, c.it.reqSkill) >= num(c.it.reqLv)))
     /* A melee player upgrades melee: a bow or a staff is a new style, not a better sword. */
@@ -777,7 +806,9 @@ async function loop2(S, M, tag, rows) {
        an hour (3 meals on one dice stream, 0 on another), so the default left this step to the dice. */
     /* STORE BY SLOT (2026-11-07-store-by-slot.sql): the game never picks a supply, so the player's move is the
        store's food ON THE BAR, eaten under 80% HP (the starter bar's 60% leaves a Thicket hour to the dice). */
-    const bar = [{ action: { type: 'consume', id: 'salted_shrimp' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 80 }], join: 'and' }];
+    /* …and at 95% (a-core-loop-flake): at 80% a Level-15 hour in the Thicket ate 2 on the pinned dice and 0 on
+       other rolls (a cold replay's, a mutant play's), so the step still rode the dice. */
+    const bar = [{ action: { type: 'consume', id: 'salted_shrimp' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 95 }], join: 'and' }];
     const pick = await S.rpc(p.uid, `select public.hr_action_set_options(0, 0, $2::jsonb, $1::uuid) r`, [uuid(), JSON.stringify({ supply_source: 'store', slots: bar })]);
     t.ok(pick && pick.ok === true && pick.options && pick.options.supply_source === 'store', `the supplies choice was refused: ${brief(pick)}`);
     food = { item: '*heal_shop' };
@@ -867,8 +898,10 @@ async function loop3(S, M, tag, rows) {
 
   await step(5, 'the bag is spent before the shop bills a coin', async (t) => {
     /* "Use My Supplies, Switch to Store Supplies when they run out" (MDR §4). */
-    /* (food_below_pct 99: the hero eats on any wound, so the order — bag before store — is what is graded, not the dice) */
-    const pick = await S.rpc(p.uid, `select public.hr_action_set_options(0, 0, '{"supply_source":"mine","on_empty":"switch","food_below_pct":99}'::jsonb, $1::uuid) r`, [uuid()]);
+    /* STORE BY SLOT: the bar names the own Cooked Shrimp, then its store partner, both eaten under 99% HP, so the
+       order — bag before store — is what is graded, not the dice (a K7-armoured fresh hero rarely falls under 60%). */
+    const bar = ['cooked_shrimp', 'salted_shrimp'].map((id) => ({ action: { type: 'consume', id }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 99 }], join: 'and' }));
+    const pick = await S.rpc(p.uid, `select public.hr_action_set_options(0, 0, $2::jsonb, $1::uuid) r`, [uuid(), JSON.stringify({ supply_source: 'mine', on_empty: 'switch', slots: bar })]);
     t.ok(pick && pick.ok === true && pick.options && pick.options.on_empty === 'switch', `the supplies choice was refused: ${brief(pick)}`);
     const packed = inv(p.env, 'cooked_shrimp');
     await p.enter(t, 'mill_cellar', { cooked_shrimp: packed });
@@ -1045,6 +1078,14 @@ async function main() {
   await db.exec(`create sequence if not exists public.hr_test_uuid_seq;
     create or replace function pg_catalog.gen_random_uuid() returns uuid language sql volatile as
       $f$ select ('00000000-0000-4000-8000-' || lpad(to_hex(nextval('public.hr_test_uuid_seq')), 12, '0'))::uuid $f$;`);
+  /* …AND THE COUNTER MUST REACH EVERY PLAN (lane a-core-loop-flake, 2026-10-22). A COLD replay
+     (no snapshot) runs in the backend that applied the chain, whose §4 self-checks already
+     planned hr_hunt_enter_for & co. with the BUILT-IN gen_random_uuid, and the plan cache
+     tracks no dependency on a built-in function: those plans kept rolling random session ids
+     (so random hunt dice) while a warm snapshot boot, a fresh backend, used the counter. Every
+     first run after a migration change was a different hunt; LOOP-2 step 5's two heals an hour
+     went to 0 on that roll. Drop every cached plan; p.enter proves the counter reached it. */
+  await db.exec('discard plans');
 
   /* THE CLEAN RUN ALWAYS RUNS FIRST: a proof that never sees green cannot tell
      a caught dead end from its own corpse (guard-hygiene RULE 3). */

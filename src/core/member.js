@@ -13,17 +13,19 @@
 // PURE ESM, Node + Deno + browser.
 // ============================================================================
 
-import { DEFAULT_PROFILE, equipmentStats, armorSetBonus, playerCombatRolls, weaknessInfo } from './combat.js?v=0.2.30';
-import { makeBonus, EMPTY_PERKS } from './perks.js?v=0.2.30';
-import { companionBonus } from './companion-perk.js?v=0.2.30';
-import { buffQueueFromServer, buffBonusFor } from './buffs.js?v=0.2.30';
-import { grantXp, normaliseXpFrac } from './progression.js?v=0.2.30';
-import { charLevelFromXp, levelsOf } from './xp.js?v=0.2.30';
-import { vitalsOf, wearsArmour } from './vitals.js?v=0.2.30';
-import { newHuntSession } from './action-rules.js?v=0.2.30';
-import { makeGoalCounter, makeBestiaryCounter, makeCollectionCounter } from './goals.js?v=0.2.30';
-import { HUNT_ROLES } from '../data/hunt-roles.js?v=0.2.30';
-import { MONSTERS } from '../data/monsters.js?v=0.2.30';
+import { DEFAULT_PROFILE, equipmentStats, armorSetBonus, playerCombatRolls, weaknessInfo } from './combat.js?v=0.2.31';
+import { makeBonus, EMPTY_PERKS } from './perks.js?v=0.2.31';
+import { companionBonus } from './companion-perk.js?v=0.2.31';
+import { buffQueueFromServer, buffBonusFor } from './buffs.js?v=0.2.31';
+import { grantXp, normaliseXpFrac } from './progression.js?v=0.2.31';
+import { charLevelFromXp, levelsOf } from './xp.js?v=0.2.31';
+import { vitalsOf, wearsArmour } from './vitals.js?v=0.2.31';
+import { newHuntSession, takeLine } from './action-rules.js?v=0.2.31';
+import { makeGoalCounter, makeBestiaryCounter, makeCollectionCounter } from './goals.js?v=0.2.31';
+import { HUNT_ROLES } from '../data/hunt-roles.js?v=0.2.31';
+import { MONSTERS } from '../data/monsters.js?v=0.2.31';
+import { honeOf, honeWornAt, ammoPerShot } from './ammo.js?v=0.2.31';
+import { mitigationFor, NO_MITIGATION } from './mitigation.js?v=0.2.31';
 
 /* A finite, non-negative number or the fallback (every number that crosses in from a row). */
 function nat(v, fallback) {
@@ -108,8 +110,12 @@ const NEUTRAL_FOE = Object.freeze({});
 export function heroSnapshot(state, c) {
   const roll = playerCombatRolls(NEUTRAL_FOE, { eq: c.eq, equipment: c.equipment, items: c.items, skills: state.skills,
     bonus: c.bonus, setBonus: c.setBonus, profile: c.profile });
-  const def = Math.floor((Number(levelsOf(state.skills).defense) || 1) + (Number(c.eq.defB) || 0) + (Number(c.bonus('defense')) || 0));
-  return { acc: Math.round(roll.accuracy * 1000), maxHit: Math.max(1, Math.floor(roll.maxHit)), def };
+  /* `def` is the monster's TO-HIT roll: the Defense skill, the gear outside the armour weights
+     (combat.js guardB: a shield, a cape) and a defence buff. `mit` is what the armour does to a
+     blow that lands (ruling K7, src/core/mitigation.js), at the hero's Level now. */
+  const def = Math.floor((Number(levelsOf(state.skills).defense) || 1) + (Number(c.eq.guardB) || 0) + (Number(c.bonus('defense')) || 0));
+  const mit = mitigationFor(c.equipment, c.items, charLevelFromXp(state.levelXp));
+  return { acc: Math.round(roll.accuracy * 1000), maxHit: Math.max(1, Math.floor(roll.maxHit)), def, mit };
 }
 
 /* THE LOADOUT a hero fights with: the worn set's stats, its armour-set bonus
@@ -135,8 +141,9 @@ function applyVitals(state, equipment, items) {
    flows through (tests/goal-counters.mjs anchors them). */
 export function memberSide(mi, ctx) {
   const items = ctx.items;
-  const equipment = mi.equipment || {};
-  const { eq, setBonus, profile } = loadoutOf(equipment, items);
+  /* `let`: a spent whetstone swaps the loadout mid-hunt (the hone, below); the seam reads these live. */
+  let equipment = mi.equipment || {};
+  let { eq, setBonus, profile } = loadoutOf(equipment, items);
   const skills0 = {};
   for (const k in (mi.skills || {})) skills0[k] = nat(mi.skills[k], 0);
   const levelXp0 = Math.floor(nat(mi.levelXp, 0));
@@ -225,6 +232,27 @@ export function memberSide(mi, ctx) {
   };
   const h = mi.hero || {};
   const snapCtx = { eq, equipment, items, bonus, setBonus, profile };
+  /* THE HONE (src/core/ammo.js honeOf, lane c-work-fixes 2026-10-22): a whetstone is worn by this
+     hero's swing clock (honeWornAt over the persisted swing index) from the hunt's own stock, and it
+     pays its bonus only while the hunt still carries one: a spent or unpacked stone is the bare
+     loadout from that swing on. Both paths build the member here, so the server's settle and the
+     browser's live view wear the same stone on the same swing. */
+  const hone = honeOf(equipment, items);
+  const honePer = hone ? ammoPerShot(items[hone]) : 0;
+  const honeLeft = () => (hone && hs.bag[hone] ? Math.max(0, Math.floor(Number(hs.bag[hone].left) || 0)) : 0);
+  const unhone = () => {
+    equipment = Object.assign({}, equipment);
+    delete equipment.ammo;
+    ({ eq, setBonus, profile } = loadoutOf(equipment, items));
+    Object.assign(snapCtx, { eq, equipment, setBonus, profile });
+  };
+  if (hone && honeLeft() <= 0) unhone();
+  const wear = (atMs) => {
+    if (!hone || equipment.ammo !== hone) return;
+    const n = Math.min(honeLeft(), honeWornAt(hs.swingIndex, honePer));
+    for (let i = 0; i < n; i++) takeLine(hs, { id: hone, source: 'own' }, atMs);
+    if (honeLeft() <= 0) unhone();
+  };
   /* THE ENGINE SEAM a blow is priced through (tests/trophy-call-sites.mjs lifts
      and executes these two lines): the hero's rolls AGAINST the monster it
      swings at — accuracy over the monster's defence and the weapon weakness —
@@ -236,6 +264,8 @@ export function memberSide(mi, ctx) {
     mi, hs, state, fx, eq, skills0, levelXp0, levelGained: () => levelGained, xpFrac0, catalogue: items, goals, bestiary, collection, itemDelta, events, xpGained, finds,
     member: {
       key: mi.key, seat: mi.seat, unitId: Number.isInteger(mi.unitId) ? mi.unitId : null, hs, state, fx,
+      /* Wears the whetstone at this member's boundary (combat-sim, before the unit re-reads its snapshot). */
+      wear,
       /* THE XP ROUTE INPUTS (hunt-rewards.js): the weapon family, whether any armour
          is worn (Defense trains only then) and whether the hero holds a shield. */
       family: eq.weaponType,
@@ -266,7 +296,8 @@ export function memberSide(mi, ctx) {
    hunt_live gives the viewer its OWN member's full setup, but every OTHER member only
    the numbers the engine needs to simulate and draw it, frozen at the block's boundary:
    its vitals, its blow and defence (the snapshot), its rolls against each monster
-   kind the ground fields, its weapon family / armour / shield, its hunt setup (role,
+   kind the ground fields (snap: acc, maxHit, def and its armour's mitigation, mitigation.js),
+   its weapon family / armour / shield, its hunt setup (role,
    settings, bar, range) and its supply session (bag counts, the store catalogue, its
    pending ends). Never its skills, gear, perks, buffs, premium, purse, cover list,
    stamina or bestiary. FROZEN_KEYS / FROZEN_SESSION_KEYS are the allowlist
@@ -291,7 +322,7 @@ export function frozenOf(side, kinds, atMs) {
   const session = {};
   for (const k of FROZEN_SESSION_KEYS) if (hs[k] !== undefined) session[k] = hs[k];
   return { hp: m.state.playerHp, maxHp: m.state.playerMaxHp, maxMana: m.state.playerMaxMana, regenPm: m.state.regenPm,
-    snap: { acc: snap.acc, maxHit: snap.maxHit, def: snap.def }, vs, family: m.family, armoured: m.armoured === true,
+    snap: { acc: snap.acc, maxHit: snap.maxHit, def: snap.def, mit: snap.mit || NO_MITIGATION }, vs, family: m.family, armoured: m.armoured === true,
     shield: m.shield === true, hero: m.hero, session };
 }
 
@@ -305,7 +336,7 @@ export function frozenSide(row) {
     levelXp: 0, gold: 0, skills: {}, stats: {}, buffs: [] };
   const hs = newHuntSession(Object.assign({}, f.session, { purse: Number.MAX_SAFE_INTEGER, cover: {}, staminaMs: null,
     tally: null, endedReason: null, endedAtMs: null }));
-  const snap = f.snap || { acc: 0, maxHit: 1, def: 0 };
+  const snap = f.snap || { acc: 0, maxHit: 1, def: 0, mit: NO_MITIGATION };
   const vs = f.vs || {};
   const member = {
     key: row.key, seat: row.seat, unitId: Number.isInteger(row.unitId) ? row.unitId : null, hs, state, fx: {},

@@ -31,7 +31,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { ITEMS, foodClassOf } from './items.js?v=0.2.30';
+import { ITEMS, foodClassOf } from './items.js?v=0.2.31';
 
 export const SUPPLY_KINDS = Object.freeze(['heal', 'mana', 'ammo', 'buff']);
 
@@ -186,12 +186,13 @@ export const BAG_GUIDE_BY_HUNT = Object.freeze({
     melee: melee('cooked_shrimp', 180),
     ranged: ranged('cooked_shrimp', 200, 'bronze_arrows', 0),
     magic: magic('cooked_shrimp', 180, 'turnip_juice', 90, 'air_rune', 0) }),
-  /* The Coppercap Warrens (2026-10-18): its goblins are tiers 3-5, so the bag is the tier-4 guide's food;
-     the played four-hero party (combat 40) ate little because the Healer carried it. UNVERIFIED for a pair. */
-  coppercap_warrens: Object.freeze({ tier: 4,
-    melee: melee('cooked_swordfish', 60),
-    ranged: ranged('cooked_swordfish', 60, 'barbed_arrows', 5100),
-    magic: magic('cooked_swordfish', 80, 'carrot_juice', 40, 'earth_rune', 4300) }),
+  /* The Coppercap Warrens: every goblin row is tier 3 (lv 34-52), so the store food is the tier-3 row
+     (Salted Lobster, 180 g for 216 HP, 0.83 g an HP; the tier-4 Swordfish it named was 1.50 g an HP:
+     designer 2026-10-21, CONFLICTS item 2, six seeds on the real settle, PRIORITY_BOARD Decisions). */
+  coppercap_warrens: Object.freeze({ tier: 3,
+    melee: melee('cooked_lobster', 80),
+    ranged: ranged('cooked_lobster', 80, 'barbed_arrows', 5100),
+    magic: magic('cooked_lobster', 100, 'carrot_juice', 40, 'earth_rune', 4300) }),
   /* Mosslight Glade (lane c-ground-16-31; STAGED), PLAYED on the real settle (tests/hunt-core/forest-cave.mjs
      glade-solo-floor, six seeds): a solo Melee at the floor in the smiths' iron eats 150-250 g of store heals an
      hour, the Thicket's leather graduate about 1,000 g; three hours of the graduate's eating in tier-2 food.

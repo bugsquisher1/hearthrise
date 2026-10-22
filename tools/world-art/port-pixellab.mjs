@@ -218,7 +218,8 @@ function main() {
     for (const a of anims) for (const d of facingsOf(a)) {
       const imgs = a.frames[d].map((f) => decodePNG(readFileSync(f)));
       const lowest = Math.max(...imgs.map(lowestRow));
-      const dy = (flier ? ay - hover : ay) - lowest, dx = ax - Math.floor(imgs[0].width / 2);
+      /* a flier falls from its hover to the floor: its fall and corpse rest on the anchor row like every body */
+      const dy = (flier && a.name !== 'death' && a.name !== 'corpse' ? ay - hover : ay) - lowest, dx = ax - Math.floor(imgs[0].width / 2);
       imgs.forEach((img, i) => {
         const frame = createImage(fw, fh);
         blit(frame, img, 0, 0, img.width, img.height, dx, dy, true);

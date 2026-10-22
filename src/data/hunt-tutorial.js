@@ -36,11 +36,12 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from './hunts.js?v=0.2.30';
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.30';
-import { END_ORDER } from './hunt-sessions.js?v=0.2.30';
-import { nextUnlock } from './skill-unlocks.js?v=0.2.30';
-import { SKILLS_DEF } from './skills.js?v=0.2.30';
+import { HUNT_INDEX } from './hunts.js?v=0.2.31';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.31';
+import { END_ORDER } from './hunt-sessions.js?v=0.2.31';
+import { nextUnlock } from './skill-unlocks.js?v=0.2.31';
+import { SKILLS_DEF } from './skills.js?v=0.2.31';
+import { CROPS } from './gathering.js?v=0.2.31';
 
 /* The surfaces a card may point at, and where each is specified. */
 export const TUTORIAL_ANCHORS = Object.freeze({
@@ -179,14 +180,27 @@ const groundHunts = () => Array.from(new Set(Object.values(HUNT_GROUNDS).map((g)
   .filter((h) => HUNT_INDEX[h] && HUNT_INDEX[h].staged !== true).sort((a, b) => HUNT_INDEX[a].band[0] - HUNT_INDEX[b].band[0]);
 
 /**
- * The goal line after the guide, or null (nothing left to name). `facts`: { charLevel, role, skillLevel }
- * (skillLevel: the role's skill's level, or null when unknown). Answers { id, title, text }; the id
+ * The goal line after the guide, or null (nothing left to name). `facts`: { charLevel, role, skillLevel, defenseXp, farmingXp }
+ * (skillLevel: the role's skill's level, or null when unknown; defenseXp / farmingXp: the server's Defense / Farming XP,
+ * or null when unknown). Answers { id, title, text }; the id
  * changes whenever the text does (the hunt top bar redraws on a new id).
  */
 export function nextGoal(facts) {
   if (!facts || !Number.isInteger(facts.charLevel)) return null;
   const lines = [];
   const ids = ['goal'];
+  /* Defense at 0 XP means no armour worn (Tyler 2026-10-18: it trains only in armour). The fresh-hero play hit 117
+     kills like that; the Shop's gloves and belts are the cheapest armour (designer 2026-10-22, the outfitter). */
+  if (facts.defenseXp === 0) {
+    lines.push('Your Defense is not training: it rises only while you wear armour. The Shop sells gloves and belts.');
+    ids.push('armour');
+  }
+  /* Farming at 0 XP means nothing was ever planted (P1 2026-10-22: farming sat at zero; the kit holds 8 turnip seeds).
+     Said once: the first planting pays Farming XP and the line is gone. */
+  if (facts.farmingXp === 0) {
+    lines.push('Nothing grows on your farm yet: open the Farm (J) and plant a seed. Turnips are ready in ' + CROPS.turnip.hours + ' hours, sooner if watered.');
+    ids.push('farm');
+  }
   const next = groundHunts().find((h) => HUNT_INDEX[h].band[0] > facts.charLevel);
   if (next) {
     const g = Object.values(HUNT_GROUNDS).find((r) => r.hunt === next);

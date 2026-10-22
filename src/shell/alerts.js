@@ -34,16 +34,16 @@
 // Nothing here gates or spends anything; the "Start again" button is an
 // intent (CharacterSession.restartHunt) like every other.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERT_INDEX } from '../data/alerts.js?v=0.2.30';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.30';
-import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.30';
-import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.30';
-import { carriedOf, nameOf } from '../session/item-sections.js?v=0.2.30';
-import { huntName, invitesOf } from '../session/party-sections.js?v=0.2.30';
-import { itemName } from './widgets/bits.js?v=0.2.30';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.30';
-import { deathSeen } from './death-popup.js?v=0.2.30';
-import { awayRecapOf, stampAway } from './away-recap.js?v=0.2.30';
+import { ALERT_INDEX } from '../data/alerts.js?v=0.2.31';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.31';
+import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.31';
+import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.31';
+import { carriedOf, nameOf } from '../session/item-sections.js?v=0.2.31';
+import { huntName, invitesOf } from '../session/party-sections.js?v=0.2.31';
+import { itemName } from './widgets/bits.js?v=0.2.31';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.31';
+import { deathSeen } from './death-popup.js?v=0.2.31';
+import { awayRecapOf, stampAway } from './away-recap.js?v=0.2.31';
 
 const residueOf = (cs) => {
   const r = cs && cs.record && cs.record.residue && cs.record.residue.alerts;
@@ -124,8 +124,10 @@ function rareOf(cs, ev) {
   const h = huntOf(cs);
   /* a party member's rare is theirs: only this character's own hero raises it */
   if (h && h.hero && Number.isInteger(ev.u) && Number.isInteger(h.hero.unit) && ev.u !== h.hero.unit) return null;
+  /* hero, place and at are the shareable card's facts (src/shell/share-card.js): display only. */
   return { id: 'rare:' + (h ? h.sessionId : 'slot' + cs.slot) + ':' + ev.key.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 60), kind: 'rare',
-    session: h ? h.sessionId : null, item: ev.item, text: 'Rare drop for ' + who(cs) + ': ' + itemName(ev.item) + '!' };
+    session: h ? h.sessionId : null, item: ev.item, text: 'Rare drop for ' + who(cs) + ': ' + itemName(ev.item) + '!',
+    hero: who(cs), place: h ? huntName(h.huntId) : null, at: Number.isFinite(ev.atMs) ? ev.atMs : null };
 }
 
 /** The run-out alert for one arriving `slot_dry` event of this character's hero, or null. */
@@ -160,7 +162,8 @@ export function createAlertCenter(account) {
     mine.add(c.id);
     if (!alertShown(cs, c.kind)) return false;
     const kind = ALERT_INDEX[c.kind];
-    alerts.unshift(Object.assign({ key: 'a' + (++n), slot: cs.slot, action: kind.action, button: kind.button, decline: kind.decline || null, glyph: kind.glyph, pending: false, msg: '' }, c));
+    alerts.unshift(Object.assign({ key: 'a' + (++n), slot: cs.slot, action: kind.action, button: kind.button, decline: kind.decline || null,
+      share: kind.share || null, glyph: kind.glyph, pending: false, msg: '' }, c));
     if (alerts.length > 32) alerts.length = 32;
     const r = residueOf(cs);
     cs.setResidue('alerts', { off: Array.isArray(r.off) ? r.off : [], seen: (Array.isArray(stored) ? stored : []).concat(c.id).slice(-ALERTS_SEEN_MAX) });

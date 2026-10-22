@@ -28,17 +28,17 @@
 //      and a corpse lies the way it fell (it never turns to face what it last swung
 //      at: Andy 10-21 "saw a corpse twitch again once dead").
 // ════════════════════════════════════════════════════════════════════════
-import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX } from '../data/hunt-vfx.js?v=0.2.30';
-import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.30';
-import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.30';
-import { partyPeopleOf } from '../session/party-sections.js?v=0.2.30';
-import { floatShown } from './float-prefs.js?v=0.2.30';
-import { heroSprite } from '../session/hero-look.js?v=0.2.30';
-import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.30';
-import { STUB_SPRITE } from '../world/core/book.js?v=0.2.30';
-import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.30';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.30';
-import { levelOf } from '../session/character-sections.js?v=0.2.30';
+import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX } from '../data/hunt-vfx.js?v=0.2.31';
+import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.31';
+import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.31';
+import { partyPeopleOf } from '../session/party-sections.js?v=0.2.31';
+import { floatShown } from './float-prefs.js?v=0.2.31';
+import { heroSprite } from '../session/hero-look.js?v=0.2.31';
+import { abilityName, itemName } from '../shell/widgets/bits.js?v=0.2.31';
+import { STUB_SPRITE } from '../world/core/book.js?v=0.2.31';
+import { HUNT_GROUNDS } from '../data/hunt-grounds.js?v=0.2.31';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.31';
+import { levelOf } from '../session/character-sections.js?v=0.2.31';
 
 /* The ground's first start tile, standing (the hero before its first window). */
 function entranceOf(huntId) {
@@ -220,7 +220,7 @@ export function createHuntScene(o) {
     switch (ev.type) {
       case 'dmg': num(ev.t, ev.amount, hit(ev, start)); break;
       case 'status_tick': if (Number.isFinite(ev.amount)) { num(ev.t, ev.amount, start); flash.set(ev.t, start); } break;
-      case 'miss': case 'immune': addFloat(ev.t, 'miss', ev.type === 'miss' ? 'miss' : 'immune', 'miss', start); swing.set(ev.u, { t: ev.t, at: start }); break;
+      case 'miss': case 'immune': addFloat(ev.t, 'miss', ev.type === 'immune' ? 'immune' : ev.dodge === true ? 'dodge' : 'miss', 'miss', start); swing.set(ev.u, { t: ev.t, at: start }); break;
       case 'heal': addFloat(ev.t, 'heal', '+' + ev.amount, 'heal', start); break;
       case 'cast': {
         const r = CAST_FX.ability[ev.ability] || CAST_FX.role[roleOf(ev.u)];

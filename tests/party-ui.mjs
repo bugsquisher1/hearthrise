@@ -16,6 +16,11 @@
 //         on screen: the one on screen gets the death popup instead, tests/death-popup.mjs) once each; a re-read,
 //         a re-sent event, a reload (the ids come back in the residue) add none; a NEW
 //         event id adds exactly one; a kind switched off adds none
+//   AL-3  THE SHAREABLE CARD: the own rare alert carries Share and the card's facts (item, hero, hunt,
+//         date); the card's icon is an integer scale of its 32 px art, every coordinate an integer,
+//         every colour a token; a party member's rare raises no line (so no Share); no other kind has a card
+//   SH-1  [page] the rare line shows Share (the invite line does not); a press makes ONE PNG card at
+//         CARD.px times its size, puts it on the clipboard and says so on the line
 //   PI-1  PARTY CONTROLS ARE INTENT-ONLY: each party verb is ONE rpc naming only the slot,
 //         ids, a seat or a name (never a user id, never a number of the server's); the record
 //         moves only from the re-read; a refusal re-reads nothing; a malformed one sends nothing
@@ -57,6 +62,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
+import { harnessFail, judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/party-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -105,6 +111,8 @@ async function load(base) {
     PP: await import(u('src/shell/widgets/party-panel.js')),
     IW: await import(u('src/shell/intent-words.js')),
     BURY: await import(u('src/shell/windows/inventory/bury.js')),
+    SC: await import(u('src/shell/share-card.js')),
+    BITS: await import(u('src/shell/widgets/bits.js')),
   };
 }
 
@@ -115,7 +123,7 @@ function account(M, srv) {
 
 async function pureRules(M, base) {
   const fails = [];
-  const t = async (id, fn) => { try { const r = await fn(); if (r !== true) fails.push(id + ': ' + r); } catch (e) { fails.push(id + ': threw ' + e.message); } };
+  const t = async (id, fn) => { try { const r = await fn(); if (r !== true) fails.push(id + ': ' + r); } catch (e) { fails.push(harnessFail(id, e)); } };
 
   /* PI-TOWN (live v0.2.11, Andy: "no Stop line"): every town pointer the server holds (a resumed gather, a bench,
      training) is named on the Inventory's Stop line and in the Characters window; nothing runs unseen. */
@@ -178,6 +186,36 @@ async function pureRules(M, base) {
     await cs2.load(); await cs2.load();
     const low = centre2.list().filter((a) => a.kind === 'low');
     return (low.length === 1 && low[0].item === 'wheat_bread') || 'low supplies raised ' + low.length + ' alert(s)';
+  });
+
+  /* AL-3 THE SHAREABLE CARD (Tyler's super-rare drop moments): the hero's OWN rare alert carries Share and the
+     card's facts; the card is the item (its icon at an integer scale), the hero, the hunt and the date, every
+     colour a token; a party member's rare raises no line, so no Share for this hero; no other kind has a card. */
+  await t('AL-3', async () => {
+    const srv = fakeServer();
+    const acc = account(M, srv);
+    const centre = M.AL.createAlertCenter(acc);
+    const cs = (await acc.open(0)).session;
+    const a = centre.list().find((x) => x.kind === 'rare');
+    if (!a || a.share !== 'Share' || a.hero !== 'Tyler' || a.place !== M.PS.huntName('millrace_sewer') || a.at !== 1760702399800)
+      return 'the own rare alert reads ' + JSON.stringify(a && { share: a.share, hero: a.hero, place: a.place, at: a.at });
+    const f = M.SC.cardFacts(a);
+    if (!f || f.name !== M.BITS.itemName('sticky_core') || f.hero !== 'Tyler' || f.place !== a.place || f.date !== M.SC.cardDate(a.at) || !/\d{4}$/.test(f.date))
+      return 'the card facts are ' + JSON.stringify(f);
+    const lay = M.SC.cardLayout(f);
+    const said = lay.steps.filter((s) => s.op === 'text').map((s) => s.text);
+    for (const w of [f.name, 'Found by Tyler', 'in ' + f.place, f.date]) if (!said.includes(w)) return 'the card does not say ' + JSON.stringify(w) + ': ' + JSON.stringify(said);
+    const icon = lay.steps.find((s) => s.op === 'icon');
+    if (f.icon && (!icon || icon.size % M.SC.CARD.icon !== 0 || icon.size < M.SC.CARD.icon)) return 'the icon is drawn at ' + (icon && icon.size) + ' px, not an integer scale of ' + M.SC.CARD.icon;
+    const nums = lay.steps.flatMap((s) => ['x', 'y', 'w', 'h', 'size'].filter((k) => k in s).map((k) => s[k]));
+    if (nums.some((n) => !Number.isInteger(n))) return 'a card coordinate is not an integer: ' + JSON.stringify(nums);
+    const colours = lay.steps.flatMap((s) => ['fill', 'stroke', 'family'].filter((k) => k in s).map((k) => s[k]));
+    if (colours.some((c) => !/^--[a-z0-9-]+$/.test(c))) return 'the card names a colour that is not a token: ' + JSON.stringify(colours);
+    if (M.SC.cardFacts(Object.assign({}, a, { kind: 'invite' })) || M.SC.cardFacts(Object.assign({}, a, { item: null }))) return 'a non-rare line has a card';
+    const n = centre.list().length;
+    cs.timeline.ingest({ events: [{ id: 's1:300', type: 'rare_drop', atMs: 1760702399990, u: 2, item: 'crown_shard' }] }, 0);
+    if (centre.list().length !== n || centre.list().some((x) => x.item === 'crown_shard')) return "a party member's rare raised a line (and its Share) for this hero";
+    return true;
   });
 
   /* AL-3 (Tyler 2026-10-21): the use that empties the hero's own stack raises ONE line naming the slot that
@@ -363,6 +401,9 @@ async function pureRules(M, base) {
     if (r.members.length !== 2 || !r.inParty || !r.isLeader || r.anyHunting) return 'the town roster read ' + JSON.stringify(r);
     const mira = r.members.find((m) => m.seat === 2);
     if (!mira || !mira.away || mira.seatMs !== 420000 || mira.level !== 4) return 'the away seat lost its clock: ' + JSON.stringify(mira);
+    /* the row's words: an away seat says so with its clock, a seat in town says In town */
+    const words = r.members.map((m) => M.PP.stateWords(m));
+    if (words[0] !== 'In town' || words[1] !== 'Away, seat kept 7 min') return 'the town roster reads ' + JSON.stringify(words);
     const hunt = { id: P, hunt: 'mill_cellar', max: 3, open: true, self: 7, leader: 7, self_seat: 0, leader_seat: 0,
       members: [{ seat: 0, unit: 7, hunting: true, name: 'Tyler', level: 5, weapon: 'sword', hp: 120, hp_max: 190, mana: 30, mana_max: 140, dps: 12.5, dealt: 900 },
                 { seat: 2, unit: null, hunting: false, name: 'Mira', level: 4, weapon: 'bow', hp: 150, hp_max: 150, away: false }] };
@@ -423,7 +464,8 @@ async function pureRules(M, base) {
     if (R.roleWeaponOf(null) !== 'neutral' || role('apprentice_primer') === 'mage' && ITEMS.apprentice_primer.slot === 'weapon') return 'the spellbook or bare hands resolve wrong';
     /* The hunt-sessions catalogue the generator writes now (its newest forward file), not a dated copy. */
     const { OUT_NAME } = await import(pathToFileURL(join(ROOT, 'tools/gen-hunt-sessions.mjs')).href);
-    const sql = readFileSync(join(base, 'supabase/migrations', OUT_NAME), 'utf8');
+    /* the server catalogue is never under mutation (the mutants copy src/ only): read it from the tree */
+    const sql = readFileSync(join(ROOT, 'supabase/migrations', OUT_NAME), 'utf8');
     for (const id of [...wands, ...staves]) {
       const m = new RegExp(`\\('${id}', '([a-z_]+)'\\)`).exec(sql);
       if (!m || m[1] !== R.roleWeaponOf(ITEMS[id])) return `hr_hunt_weapons says ${id} is ${m && m[1]}, the engine says ${R.roleWeaponOf(ITEMS[id])}`;
@@ -558,6 +600,28 @@ async function pageRules(overrides, shots) {
       await shot('strip-alerts');
       await pushEnvelope(page, s, 0);
       if ((await lines()) !== 'invite,rare') fails.push('UI-2 [' + tag + '] after a re-read the alert lines are [' + (await lines()) + ']');
+      /* SH-1: Share on the rare line only; a press is ONE PNG on the clipboard, CARD.px times the card. */
+      const shares = await page.evaluate(() => Array.from(document.querySelectorAll('.hw-alert')).map((li) => {
+        const b = li.querySelector('[data-hs-act="alert-share"]');
+        return li.getAttribute('data-kind') + ':' + (b && !b.hidden ? b.textContent : '-');
+      }).sort().join(','));
+      if (shares !== 'invite:-,rare:Share') fails.push('SH-1 [' + tag + '] the Share buttons read ' + shares);
+      else {
+        await page.evaluate(() => {
+          window.__cards = [];
+          Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { write: async (items) => {
+            const blob = await items[0].getType('image/png');
+            const bmp = await createImageBitmap(blob);
+            window.__cards.push({ type: blob.type, w: bmp.width, h: bmp.height });
+          } } });
+        });
+        await page.click('.hw-alert[data-kind="rare"] [data-hs-act="alert-share"]');
+        await wait(page, () => window.__cards.length > 0 && /Card copied/.test(document.querySelector('.hw-alert[data-kind="rare"] .hw-alert-text').textContent), null, 4000);
+        const got = await page.evaluate(() => ({ cards: window.__cards, line: document.querySelector('.hw-alert[data-kind="rare"] .hw-alert-text').textContent }));
+        const card = got.cards[0];
+        if (got.cards.length !== 1 || card.type !== 'image/png' || card.w !== 840 || card.h !== 400 || !/Card copied/.test(got.line))
+          fails.push('SH-1 [' + tag + '] Share made ' + JSON.stringify(got));
+      }
       /* UI-6: the invite toast answers in place: Join / No thanks; Join is ONE accept, off while in flight. */
       const toast = '.hw-alert[data-kind="invite"]';
       const no = await page.evaluate((q) => { const b = document.querySelector(q + ' [data-hs-act="alert-no"]'); return b && !b.hidden ? b.textContent : null; }, toast);
@@ -681,7 +745,7 @@ async function pageRules(overrides, shots) {
           if (!b || !b.off || b.text !== 'Enter') fails.push('UI-3 [' + tag + '] a member’s Enter reads ' + JSON.stringify(b));
         } else fails.push('UI-3 [' + tag + '] H did not open the Hunts window for character 1');
       } else fails.push('UI-3 [' + tag + '] the Party window did not open for character 1');
-      } catch (e) { fails.push('UI-? [' + tag + '] a page step threw: ' + String(e.message).split('\n')[0]); }
+      } catch (e) { fails.push(harnessFail('[' + tag + '] a page step', e)); }
       if (errors.length) fails.push('UI-4 [' + tag + '] console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
@@ -707,6 +771,11 @@ const PURE_MUTANTS = [
   ['an alert fires on every read', 'src/shell/alerts.js', '    if (mine.has(c.id) || (Array.isArray(stored) && stored.includes(c.id))) return false;\n', ''],
   ['the shown ids are not kept for the next visit', 'src/shell/alerts.js', "    cs.setResidue('alerts', { off: Array.isArray(r.off) ? r.off : [], seen: (Array.isArray(stored) ? stored : []).concat(c.id).slice(-ALERTS_SEEN_MAX) });\n", ''],
   ['a switched-off kind still alerts', 'src/shell/alerts.js', '    if (!alertShown(cs, c.kind)) return false;\n', ''],
+  ['the rare alert has no Share', 'src/data/alerts.js', ", button: 'Open your inventory', share: 'Share' })", ", button: 'Open your inventory' })"],
+  ['the rare alert forgets where it was found', 'src/shell/alerts.js', 'place: h ? huntName(h.huntId) : null,', 'place: null,'],
+  ['the card names no hero', 'src/shell/share-card.js', "f.hero && { text: 'Found by ' + f.hero,", "false && { text: 'Found by ' + f.hero,"],
+  ['the icon is smoothed to a fractional scale', 'src/shell/share-card.js', 'size: icon * iconScale });', 'size: icon * iconScale + 3 });'],
+  ['the card paints a literal colour', 'src/shell/share-card.js', "{ op: 'rect', x: 0, y: 0, w, h, fill: '--bg-2' },", "{ op: 'rect', x: 0, y: 0, w, h, fill: '#1a1d23' },"],
   ['a party intent changes the record before the server', 'src/session/character-session.js', "  async leaveParty() {\n    if (this._closed) return { ok: false, error: 'closed' };\n",
     "  async leaveParty() {\n    if (this._closed) return { ok: false, error: 'closed' };\n    this._record = Object.freeze(Object.assign({}, this._record, { version: this._record.version }));\n"],
   ['a kick names a user', 'src/session/character-session.js', "{ p_slot: this.slot, p_seat: seat, p_idem: newIdem() }", "{ p_slot: this.slot, p_seat: seat, p_user: this.uid, p_idem: newIdem() }"],
@@ -720,7 +789,9 @@ const PURE_MUTANTS = [
   ['an own invite names a user', 'src/session/party-intents.js', '{ p_slot: cs.slot, p_other_slot: otherSlot, p_idem: newIdem() }', '{ p_slot: cs.slot, p_other_slot: otherSlot, p_user: account.userId, p_idem: newIdem() }'],
   ['an own invite re-reads only the inviter', 'src/session/party-intents.js', '  const peers = partyPeersOf(account, cs).concat(other ? [other] : []);', '  const peers = partyPeersOf(account, cs);'],
   ['an own invite to the same slot is sent', 'src/session/party-intents.js', ' || otherSlot === cs.slot) {', ') {'],
-  ['the roster is the hunt section only (a party in town is not listed)', 'src/shell/widgets/party-panel.js', '  if (p) {\n    const members = p.seats', '  if (p && h) {\n    const members = p.seats'],
+  /* Re-planted 10-22: `if (p && h)` became equivalent (partyOf now reads the same party section, so h is set whenever
+     p is) and was "caught" only by PR-2's ENOENT crash. Same fault — a party in town is not listed — planted directly. */
+  ['the roster is the hunt section only (a party in town is not listed)', 'src/shell/widgets/party-panel.js', '  if (p) {\n    const members = p.seats.map(', '  if (p) {\n    const members = p.seats.filter((s) => s.hunting).map('],
   ['an away seat reads as in town', 'src/shell/widgets/party-panel.js', "  if (m.away) return m.seatMs === null ? 'Away' : 'Away, seat kept ' + Math.max(1, Math.ceil(m.seatMs / 60000)) + ' min';\n", ''],
   ['DPS and HPS shows with nobody hunting', 'src/shell/widgets/party-panel.js', "  prop(expand, 'hidden', !r.anyHunting);", "  prop(expand, 'hidden', false);"],
   ['not ready names nobody', 'src/shell/intent-words.js', "    return 'Nobody went in: ' + seats.map((x) => x.name + ' ' + (x.error === 'hunt_open' && x.hunt && HUNT_INDEX[x.hunt]\n      ? 'is still hunting in ' + HUNT_INDEX[x.hunt].name : SEAT_WORDS[x.error] || 'is not ready')).join('; ') + '.';", "    return 'Not everyone in the party is ready.';"],
@@ -730,6 +801,8 @@ const PAGE_MUTANTS = [
   ['a member may press Start', 'src/shell/windows/hunts.js', '      if (follower) prop(enter, \'disabled\', true);\n', ''],
   ['the strip tab is no menu target', 'src/app/character-strip.js', '  markPlayer(b, uid ? { id: uid, name: x.name, slot: x.slot } : null);', '  markPlayer(b, null);'],
   ['the invite toast cannot answer', 'src/shell/widgets/alerts.js', "  if (a.action === 'join') { if (a.invite) await settle(ctx, el, a, (cs) => cs.answerInvite(a.invite, action === 'alert-do')); return; }", "  if (a.action === 'join') return;"],
+  ['the rare line hides its Share', 'src/shell/widgets/alerts.js', "prop(share, 'hidden', !cardFacts(a) || !a.share);", "prop(share, 'hidden', true);"],
+  ['Share makes no card', 'src/shell/widgets/alerts.js', '    const r = await shareCard(ctx.doc, facts);', "    const r = { ok: false, error: 'card_failed' };"],
   ['the toast stays on while in flight', 'src/shell/widgets/alerts.js', "  ctx.alerts.mark(a.key, true, '');\n  renderAlerts.patch(el, ctx);\n", "  ctx.alerts.mark(a.key, true, '');\n"],
   ['the listing switch stays on while in flight', 'src/shell/windows/party-finder.js', "  prop(sw.querySelector('button'), 'disabled', sc.pending);", "  prop(sw.querySelector('button'), 'disabled', false);"],
   ['the leader has no listing switch', 'src/shell/windows/party-finder.js', "  prop(sw, 'hidden', !(mine && mine.isLeader));", "  prop(sw, 'hidden', true);"],
@@ -758,31 +831,27 @@ async function main() {
       : 'party-ui: alerts once per event id; party controls intent-only; roles from the weapon' + (onlyPure ? '' : '; strip, alerts, Party and command centre in the page') + (shots ? ' (shots in ' + shots + ')' : ''));
     process.exit(fails.length ? 1 : 0);
   }
-  const clean = [...await pureRules(await load(ROOT), ROOT), ...(onlyPure ? [] : await pageRules(null, null))];
-  if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
-  console.log('  ✓ clean control green');
-  let bad = 0;
+  const clean = await cleanControl(async () => [...await pureRules(await load(ROOT), ROOT), ...(onlyPure ? [] : await pageRules(null, null))]);
+  console.log(clean.line);
+  if (clean.code) process.exit(clean.code);
+  const counts = { caught: 0, harness: 0, escaped: 0 };
   for (const [name, file, from, to] of PURE_MUTANTS) {
     const tmp = copySrc();
     try {
       const text = readFileSync(join(tmp, file), 'utf8');
-      if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
+      if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
       writeFileSync(join(tmp, file), text.replace(from, to));
-      const fails = await pureRules(await load(tmp), tmp);
-      if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(':')[0] + ')');
-      else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+      console.log(report(name, await judge(async () => pureRules(await load(tmp), tmp)), counts));
     } finally { rmSync(tmp, { recursive: true, force: true }); }
   }
   for (const [name, file, from, to] of onlyPure ? [] : PAGE_MUTANTS) {
     const text = await readFile(join(ROOT, file), 'utf8');
-    if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
-    const fails = await pageRules({ [file]: text.replace(from, to) }, null);
-    if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
-    else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+    if (!text.includes(from)) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + file); counts.harness++; continue; }
+    console.log(report(name, await judge(() => pageRules({ [file]: text.replace(from, to) }, null)), counts));
   }
   const n = PURE_MUTANTS.length + (onlyPure ? 0 : PAGE_MUTANTS.length);
-  console.log(bad ? 'party-ui --mutate: ' + bad + ' escaped' : 'party-ui --mutate: ' + n + '/' + n + ' mutants caught');
-  process.exit(bad ? 1 : 0);
+  console.log(exitOf(counts) ? 'party-ui --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'party-ui --mutate: ' + n + '/' + n + ' mutants caught, each by a named rule');
+  process.exit(exitOf(counts));
 }
 
 main();

@@ -136,7 +136,10 @@ const REQUIRED = {
   // blow (choreo.js `attack`) in all eight facings, the fall (`death`) in the four cardinals
   ...Object.fromEntries([['gray_whelp', 'forest', 'vermin'], ['gray_wolf', 'forest', 'vermin'], ['briarcoat_wolf', 'forest', 'vermin'],
     ['dire_gray', 'forest', 'beast'], ['grayjaw', 'forest', 'beast'], ['goblin_scavenger', 'warren', 'vermin'], ['goblin_skulker', 'warren', 'vermin'],
-    ['goblin_digger', 'warren', 'vermin'], ['hobgoblin_foreman', 'warren', 'character'], ['chief_coppercap', 'warren', 'brute']]
+    ['goblin_digger', 'warren', 'vermin'], ['hobgoblin_foreman', 'warren', 'character'], ['chief_coppercap', 'warren', 'brute'],
+    /* Mosslight Glade's five (lane b-mosslight-art, 2026-10-22) */
+    ['carrion_crow', 'glade', 'vermin_flier'], ['glade_poacher', 'glade', 'character'], ['walking_vine', 'glade', 'vermin'],
+    ['goblin_sluicer', 'glade', 'vermin'], ['rook_poacher', 'glade', 'character']]
     .map(([id, set, cls]) => [id, { set, class: cls, anims: ['idle', 'walk', 'attack'], dirs: FACINGS, also: { death: UNIT } }])),
   // their gather nodes (hunt-grounds.js GROUND_NODE_KINDS): a full and a spent sprite each
   ...Object.fromEntries([['mb_hollow_oak', 'sapling'], ['mb_hollow_oak_stump', 'wreck'], ['mb_oak_stump', 'wreck'], ['mb_pine_stump', 'decal'],
@@ -146,7 +149,7 @@ const REQUIRED = {
 };
 // every reachable map's ground: one painted style-1 ground each (tools/world-art/port-pixellab.mjs)
 const REQUIRED_TERRAIN = { sewer_ground: 'sewer', cellar_ground: 'mill', common_ground: 'common', cottage_ground: 'cottage',
-  meadowbrook_ground: 'forest', warrens_ground: 'warren' };
+  meadowbrook_ground: 'forest', warrens_ground: 'warren', mosslight_ground: 'glade' };
 
 // THE LIVE-GROUND CONTRACT: what a kill on a walked ground asks the renderer for. The sprite id is the
 // monster id (src/hunt-view/scene.js spriteOf, src/world/choreo.js corpses); the clips are the ones the

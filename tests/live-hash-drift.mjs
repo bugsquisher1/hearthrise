@@ -210,6 +210,11 @@ const codeOnly = (src) => src.replace(/\r\n/g, '\n').split('\n')
 // reported rather than believed (see classifyLive/classifyReplay).
 const DROP_STMT = /\bdrop\s+function\s+(?:if\s+exists\s+)?(?:public\.)?([a-z_][a-z0-9_]*)\s*(\([^()]*\))?\s*(?:cascade|restrict)?\s*'?\s*;/gi;
 const DROP_ANY = /\bdrop\s+function\b/gi;
+/* A SESSION-TEMP DROP (2026-11-27-account-depot.sql: `drop function if exists pg_temp.hr_depot_fold(uuid);`) removes a
+   scratch function the file created in pg_temp for its own work: never a public, tracked body. It is READ (so it is not
+   "a shape sweep() cannot read") and records NOTHING. Only the one-name, schema-qualified pg_temp form is accepted; a
+   multi-drop mixing pg_temp and public names still fails as unreadable. */
+const DROP_TEMP = /\bdrop\s+function\s+(?:if\s+exists\s+)?pg_temp\.[a-z_][a-z0-9_]*\s*(?:\([^()]*\))?\s*(?:cascade|restrict)?\s*'?\s*;/gi;
 
 // ── A DROP NAMES A SIGNATURE, NOT A NAME (K18, 2026-10-17) ─────────────────
 // `drop function public.x(uuid, integer)` removes ONE overload. Until this the
@@ -458,6 +463,7 @@ export async function sweep(sources) {
     // file may drop a function without ever reading a body back.
     let dropHits = 0;
     for (const m of sql.matchAll(DROP_STMT)) { addKeyed(dropsIn, m[1].toLowerCase(), f, m[2] ? argKey(m[2]) : '*'); dropHits += 1; }
+    dropHits += (sql.match(DROP_TEMP) || []).length;   // read, and deliberately not recorded (above)
     const dropMentions = (sql.match(DROP_ANY) || []).length;
     if (dropMentions !== dropHits) {
       shapeless.push(`${f}: ${dropMentions - dropHits} of ${dropMentions} "drop function" statement(s) `
@@ -1278,6 +1284,13 @@ async function selftest() {
          + 'drop function if exists public.hr_sel_x(p_slot integer), public.hr_sel_y(p_slot integer);',
       expect: 'in a shape sweep() cannot read',
     },
+    unparseable_temp_multi_drop: {
+      what: 'a multi-drop that hides a public function behind a pg_temp one: the pg_temp reader must not '
+          + 'swallow it (only the one-name pg_temp form is read)',
+      sql: "select pg_get_functiondef('public.hr_sel_x(p_slot integer)'::regprocedure);\n"
+         + 'drop function if exists pg_temp.hr_sel_tmp(uuid), public.hr_sel_x(p_slot integer);',
+      expect: 'in a shape sweep() cannot read',
+    },
     unresolvable_variable: {
       what: 'a patcher loops over signatures held somewhere sweep() cannot follow',
       sql: 'do $$ declare r record; begin\n'
@@ -1323,6 +1336,13 @@ async function selftest() {
       files: [['9000-01-a.sql', PIN], ['9000-02-drop.sql', DROP]],
       want: (t) => t.get(V) && t.get(V).dropped === '9000-02-drop.sql',
       why: 'expected sweep() to mark it dropped by 9000-02-drop.sql',
+    },
+    temp_drop_never_retires: {
+      what: 'a pg_temp drop of the SAME name (2026-11-27-account-depot.sql drops its pg_temp.hr_depot_fold scratch '
+          + 'function) is read, raises no harness error, and never retires the tracked public body',
+      files: [['9000-01-a.sql', PIN], ['9000-02-temp.sql', `drop function if exists pg_temp.${V}(uuid);`]],
+      want: (t) => t.get(V) && !t.get(V).dropped,
+      why: 'expected the public body to stay TRACKED (no .dropped mark) after a pg_temp drop of the same name',
     },
     fake_drop_recreated_later: {
       what: 'a file says drop and a LATER file re-creates the body. The chain still builds it, so '

@@ -32,6 +32,11 @@ export const SESSION_CONFIG = Object.freeze({
       (hunt-settle.js HUNT_SETTLE_MIN_MS, 15 s) so each ask pays a window; the world tick only flushes a
       session owed 90 s or more, so without this an attended hunt shows nothing for a minute and a half. */
   huntPollMs: 16000,
+  /** While the Work window or the bag is open and the hero gathers or works a bench in town, the viewed
+      character asks the engine to bring it up to date this often (src/session/town-poll.js), so the bag,
+      the skill XP and the run's progress move as it goes. Just over the engine's town floor
+      (accrual.js TOWN_SETTLE_MIN_MS, 15 s) so each ask pays a window. */
+  townPollMs: 16000,
   /** How far behind the server the hunt scene plays (src/hunt-view/timeline.js delayMs). A window's
       track and events arrive once per settle (every huntPollMs, the player door's floor), and they
       describe the PAST huntPollMs; played 600 ms behind, a whole window landed in the past at once and

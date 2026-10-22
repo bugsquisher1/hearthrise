@@ -229,6 +229,17 @@ function rules(M) {
     }
   }
 
+  { // LV-H: THE HONE, both paths (lane c-work-fixes 2026-10-22). The browser predicts the swing a whetstone
+    // wears and the bonus it then loses exactly as the server settles it: one stone worn at swing 50 of 80.
+    const mis = [Object.assign(memberOf(M, 'a', 0, 'tank', 30), { equipment: { weapon: 'bronze_sword', ammo: 'steel_whetstone' } })];
+    mis[0].huntSession.bag.steel_whetstone = { loaded: 1, left: 1 };
+    const r = run(M, mis, 160000);
+    const bad = r.verdicts.filter((x) => x.v !== 'match');
+    ok('LV-H', r.verdicts.length >= 9 && bad.length === 0, `${bad.length} of ${r.verdicts.length} commits did not match the prediction while a whetstone wore out`);
+    const left = mis[0].huntSession.bag.steel_whetstone.left;
+    ok('LV-H', left === 0, `the server left ${left} of 1 steel whetstone after 80 swings (one wears every fiftieth)`);
+  }
+
   { // LV-X: the assembled member carries relicMult (server-side drop input; 1 when absent)
     const side = (mi) => M.MB.memberSide(mi, { items: M.ITEMS }).member;
     const a = side(Object.assign(memberOf(M, 'a', 0, 'tank', 6), { relicMults: { rat: 1.25 } }));
@@ -258,6 +269,21 @@ function rules(M) {
       ok('LV-P', !text.includes(bad), 'a peer row leaks ' + bad);
     }
     ok('LV-P', !!own && !!own.skills && !!own.equipment && !!own.huntSession, "the viewer's own row is not its full setup");
+  }
+
+  { // LV-A: ARMOUR WEIGHTS, BOTH PATHS (ruling K7): the PEER tank wears a mixed set (leather dodges, a plate helm
+    // absorbs, a cloth belt wards); the server's settle lands its blows through that chain and the viewer's
+    // browser, which holds only the peer's frozen numbers, predicts every commit.
+    const mis = [memberOf(M, 'a', 0, 'melee_dps', 8), memberOf(M, 'b', 1, 'tank', 8)];
+    mis[1].equipment = { weapon: 'bronze_sword', helmet: 'bronze_helm', body: 'leather_body', pants: 'leather_pants', belt: 'apprentice_belt' };
+    let dodges = 0, peerUnit = null;
+    const r = run(M, mis, 96000, { onCommit: ({ c }) => {
+      peerUnit = mis[1].unitId;
+      dodges += c.tl.hunt_events.filter((e) => e.type === 'miss' && e.dodge === true && e.t === peerUnit).length;
+    } });
+    ok('LV-A', dodges > 0, 'the armoured peer tank dodged nothing in 96 s on the server (its armour never reached the fight)');
+    const bad = r.verdicts.filter((x) => x.v !== 'match');
+    ok('LV-A', r.verdicts.length >= 5 && bad.length === 0, `the viewer's browser did not predict the armoured peer: ${bad.length} of ${r.verdicts.length} commits diverged`);
   }
 
   { // LV-K: THE LEADER CHOOSES (Tyler 2026-10-20): the peer leader's pick is the pull, on the server and in the browser.
@@ -712,6 +738,8 @@ const MUTANTS = [
     'const keepFrom = Math.max(Math.min(st.seeds.from, from), st.world ? st.world.swing : st.worldSwing);', 'const keepFrom = Math.min(st.seeds.from, from);', /^LV-G/],
   ['corpses are never cleared from the stored world (LV-G)', 'src/core/hunt/pull-cycle.js', 'if (u.deadMs >= HUNT_TUNING.corpseMs) gone = true;', 'if (false) gone = true;', /^LV-G/],
   ['the browser drops the leader flag of a peer (LV-K)', 'src/core/member.js', '    hero: f.hero || {},', '    hero: Object.assign({}, f.hero, { lead: false }),', /^LV-K/],
+  ["a peer's frozen numbers drop its armour (LV-A)", 'src/core/member.js', 'def: snap.def, mit: snap.mit || NO_MITIGATION }, vs,', 'def: snap.def }, vs,', /^LV-A/],
+  ['the settle never puts the armour on the hero (LV-A)', 'src/core/combat-sim.js', '  u.mit = snap.mit || null;', '  u.mit = null;', /^LV-A/],
 ];
 
 async function mutate() {

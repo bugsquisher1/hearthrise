@@ -12,14 +12,17 @@
 // The server runs it. Start is ONE `set_activity` naming { kind:'gather', id:<node> }
 // or { kind:'artisan', id:<recipe> }; the engine checks the level against its own
 // catalogue (`activity_locked`), collects whatever ran before, and from then on:
-//   · a gathering node is paid by the world tick (live: hr_tick_config arms
-//     `gather`), so the bag and the skill grow on screen from the envelopes,
-//     and it keeps going with the browser closed;
-//   · a bench recipe spends the SERVER's bag at its own pace and is paid when it
-//     is collected: the stop below, the next sign-in's settle, or a hunt's start
-//     (party-intents.js settleTownActivity). It stops paying when an input runs
-//     out. A bench run is armed to stop itself a little after the bag should be
-//     spent, so the bag and the XP land on screen without a press.
+//   · both settle AS THEY GO while the Work window or the bag is open: the
+//     viewed character asks one settle per townPollMs (src/session/town-poll.js,
+//     the engine's 15 s town floor), so the bag, the skill XP and the line below
+//     ("Cooking Raw Shrimp: 12 cooked so far, 30 left.") move every settle
+//     (Tyler 2026-10-22: "the bag needs to update in real time");
+//   · unwatched, they keep running on the server and the next settle pays all of
+//     it: a watched one, the stop below, a hunt's start (party-intents.js
+//     settleTownActivity) or the next sign-in. A bench spends the SERVER's bag at
+//     its own pace and stops itself when an input runs out; a bench run is also
+//     armed to stop a little after the bag should be spent, so the "Done" words
+//     land without a press.
 // Stop is ONE `set_activity` { kind:'idle' }: the engine pays first. A start
 // while something else runs is a switch, also ONE intent (the engine collects the
 // old one first), so a player never has to stop before choosing again.
@@ -29,17 +32,17 @@
 // difference of two server envelopes. The seconds per action are the shared core's
 // interval for the tool the server says the hero holds (display only, sends nothing).
 // ════════════════════════════════════════════════════════════════════════
-import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.30';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.30';
-import { ITEMS } from '../data/items.js?v=0.2.30';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.30';
-import { indexGatherNodes, gatherIntervalMs } from '../core/skill-sim.js?v=0.2.30';
-import { indexArtisanRecipes, artisanIntervalMs } from '../core/artisan-sim.js?v=0.2.30';
-import { recipeInputs } from '../core/artisan.js?v=0.2.30';
-import { pacedXp } from '../core/pacing.js?v=0.2.30';
-import { whole } from '../render/format.js?v=0.2.30';
-import { itemName } from './widgets/bits.js?v=0.2.30';
-import { skillsOf } from '../session/item-sections.js?v=0.2.30';
+import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.31';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.31';
+import { ITEMS } from '../data/items.js?v=0.2.31';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.31';
+import { indexGatherNodes, gatherIntervalMs } from '../core/skill-sim.js?v=0.2.31';
+import { indexArtisanRecipes, artisanIntervalMs } from '../core/artisan-sim.js?v=0.2.31';
+import { recipeInputs } from '../core/artisan.js?v=0.2.31';
+import { pacedXp } from '../core/pacing.js?v=0.2.31';
+import { whole } from '../render/format.js?v=0.2.31';
+import { itemName } from './widgets/bits.js?v=0.2.31';
+import { skillsOf } from '../session/item-sections.js?v=0.2.31';
 
 /** Every gathering node the engine runs, by id: { skill, node }. The same index the server builds (hr-accrue catalogue.js). */
 export const GATHER_INDEX = indexGatherNodes({ woodcutting: TREES, mining: ROCKS, fishing: FISH_SPOTS });
@@ -50,6 +53,8 @@ export const BENCH_INDEX = indexArtisanRecipes(ARTISAN_RECIPES);
 const SLACK_MS = 2000;
 const MAX_WAIT_MS = 30 * 60 * 1000;
 const BURNT = 'burnt_food';
+/* "12 chopped so far": what one action did, by skill (any other bench "made"). */
+const DONE_WORD = Object.freeze({ cooking: 'cooked', woodcutting: 'chopped', mining: 'mined', fishing: 'caught' });
 
 const own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
 const skillWord = (s) => (SKILLS_DEF[s] && SKILLS_DEF[s].name) || s;
@@ -87,6 +92,28 @@ export function runsOf(recipe, inv) {
   return n === Infinity ? 0 : n;
 }
 
+/* ── "MAKE N" (lane c-work-fixes 2026-10-22; 2026-12-01-bench-count.sql) ──
+   A bench run can be told how many to make: the count rides the ONE set_activity and the
+   server stops the bench after that many actions (player_state.active_left, projected as the
+   `bench_run` section). The choices are 1, 5 or All; the default is 1 for something you WEAR
+   or wield (a tool, a weapon, armour: you rarely want two) and All for everything else
+   (bars, food, runes, ammo, whetstones: stock you use up). */
+export const BENCH_COUNTS = Object.freeze([1, 5, 'all']);
+
+/** The amount a bench row starts on: 1 for gear and tools, 'all' for stock. */
+export function defaultCount(w) {
+  const out = w && w.kind === 'artisan' ? productOf(w) : null;
+  const def = out ? ITEMS[out] : null;
+  const gear = !!def && (def.type === 'tool' || (typeof def.slot === 'string' && def.slot !== 'ammo'));
+  return gear ? 1 : 'all';
+}
+
+/** Actions left on the hero's bench run, from the server (`bench_run.left`), or null (until the bag runs out). */
+export function leftOf(cs) {
+  const b = cs && typeof cs.read === 'function' ? cs.read('bench_run') : null;
+  return b && Number.isInteger(b.left) && b.left > 0 ? b.left : null;
+}
+
 /** One action's time in ms, for the tool the server says the hero holds (perks only make it shorter). */
 export function actionMs(cs, w) {
   const st = { inventory: invOf(cs), equipment: eqOf(cs) };
@@ -103,6 +130,8 @@ function workWords(w) {
     return verb + w.row.name;
   }
   const out = productOf(w);
+  /* A dish names what goes on the fire ("cooking Raw Shrimp"), any other bench what it makes. */
+  if (out && w.skill === 'cooking') return 'cooking ' + itemName(Object.keys(recipeInputs(w.row))[0] || out);
   if (out) return 'making ' + itemName(out);
   /* A Prayer rite makes nothing: its own verb ("Bury Bones" -> "burying Bones"). */
   const [verb, ...rest] = String(w.row.name).split(' ');
@@ -140,16 +169,20 @@ const skillRefusal = (r) => (r && !r.ok && r.error === 'activity_locked' ? Objec
  * Start (or switch to) a work row: ONE set_activity. `send(fn, busy, done)` is the window's runIntent;
  * `repaint` repaints it when the armed stop fires while something else is in flight. Returns send's promise.
  */
-export function startWork(cs, w, send, repaint, words) {
+export function startWork(cs, w, send, repaint, words, count) {
   const run = runOf(cs);
-  return send(() => cs.edgeIntent('set_activity', { activity: { kind: w.kind, id: w.id } }).then(skillRefusal), 'Starting…', () => {
+  /* A whole count only on a bench row; anything else (All, a gathering node) runs until stopped or out. */
+  const n = w.kind === 'artisan' && Number.isInteger(count) && count > 0 ? count : null;
+  const activity = n === null ? { kind: w.kind, id: w.id } : { kind: w.kind, id: w.id, count: n };
+  return send(() => cs.edgeIntent('set_activity', { activity }).then(skillRefusal), 'Starting…', () => {
     clearTimeout(run.timer);
     run.timer = null;
     const bag = invOf(cs);
     const out = productOf(w);
     run.from = { id: w.id, xp: xpOf(cs, w.skill), skill: w.skill, out, made: out ? bag[out] || 0 : 0, burnt: bag[BURNT] || 0 };
     if (w.kind === 'artisan') {
-      const endAt = Date.now() + runsOf(w.row, bag) * actionMs(cs, w) + SLACK_MS;
+      const runs = n === null ? runsOf(w.row, bag) : Math.min(n, runsOf(w.row, bag));
+      const endAt = Date.now() + runs * actionMs(cs, w) + SLACK_MS;
       const arm = () => { run.timer = setTimeout(fire, Math.max(0, Math.min(MAX_WAIT_MS, endAt - Date.now()))); };
       /* At the end: stop (it collects). On a long run, every MAX_WAIT_MS: one settle (hello) so the bag and XP move. */
       const fire = () => {
@@ -196,11 +229,38 @@ export function stopWork(cs, send) {
   });
 }
 
-/** The line that says what the hero is doing in town, or '' when nothing runs. */
+/**
+ * How far the run has got, in plain words from the SERVER's bag: "12 cooked so far, 2 burnt, 30 Raw Shrimp
+ * left", "12 chopped so far". "So far" is the difference from the envelope the start answered with (this tab
+ * only); after a reload a node says what the bag holds and a bench what is left. Every settle replaces it;
+ * nothing spends it.
+ */
+export function runProgress(cs, w) {
+  if (!w) return '';
+  const bag = invOf(cs);
+  const run = RUNS.get(cs);
+  const from = run && run.from && run.from.id === w.id ? run.from : null;
+  const out = productOf(w);
+  const parts = [];
+  if (out && from) {
+    const made = Math.max(0, (bag[out] || 0) - from.made);
+    const burnt = Math.max(0, (bag[BURNT] || 0) - from.burnt);
+    parts.push(whole(made) + ' ' + (DONE_WORD[w.skill] || 'made') + ' so far');
+    if (burnt > 0) parts.push(whole(burnt) + ' burnt');
+  } else if (out && w.kind === 'gather') parts.push(whole(bag[out] || 0) + ' in your bag');
+  if (w.kind === 'artisan') {
+    const first = Object.keys(recipeInputs(w.row))[0];
+    if (first) parts.push(whole(bag[first] || 0) + ' ' + itemName(first) + ' left');
+  }
+  return parts.join(', ');
+}
+
+/** The line that says what the hero is doing in town and how far it has got, or '' when nothing runs. */
 export function nowLine(cs) {
   const w = workOf(cs);
   if (!w) return '';
-  const tail = w.kind === 'gather' ? 'It keeps going while you are away. A hunt stops it.'
-    : 'It stops when the materials run out. Your bag and XP update then, or when you stop it.';
-  return 'Your hero is ' + workWords(w) + '. ' + tail;
+  const words = workWords(w);
+  const how = runProgress(cs, w);
+  const tail = w.kind === 'gather' ? 'It keeps going while you are away. A hunt stops it.' : 'It stops when they run out.';
+  return words.charAt(0).toUpperCase() + words.slice(1) + (how ? ': ' + how : '') + '. ' + tail;
 }

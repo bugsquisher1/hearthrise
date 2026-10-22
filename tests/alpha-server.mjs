@@ -25,8 +25,12 @@
 //             tools only and no refill; the refill and restock verbs are gone
 //             for `authenticated`; the REAL edge shop_buy refuses a supply offer
 //             (supplies_not_sold) and moves no gold, and sells the Bronze Axe at
-//             its price. (The per-use store charge from the bar is
+//             its price, and a seed from the seed counter (lane/b-orphan-sources). (The per-use store charge from the bar is
 //             tests/hunt-sessions-settle.mjs STORE, unchanged.)
+//   A-OUTFITTER  the Shop's gear (designer 2026-10-22, 2026-11-24-shop-outfitter.sql):
+//             the section lists every gear row at its price, the REAL edge
+//             shop_buy sells one (and two rings in one buy) with a `shop` ledger
+//             row naming the unit, and the vendor pays at most half back.
 //   A-LOOT-AWAY / A-LOOT-ATTENDED  the loot filter in the REAL settle (tick and
 //             player door): sell = picked-up units x the vendor bid, as gold,
 //             the pickups still tallied; ignore leaves them; a locked item is kept;
@@ -107,16 +111,32 @@ const ARMS = {
     if (sql.length !== X.SUP.SUPPLY_SHOP_OFFERS.length) p.push(`hr_shop_supply_offers has ${sql.length} rows, the data ${X.SUP.SUPPLY_SHOP_OFFERS.length}`);
     const listed = Object.fromEntries(X.SHOPS.SUPPLY_PRICE_LIST.map((o) => [o.id, o]));
     for (const r of sql) {
-      /* A tool is a shop_buy offer; a supply is only a price (the vendor's cap), refused by name. */
-      const edge = r.kind === 'tool' ? X.CAT.GOLD_OFFERS[r.offer_id] : listed[r.offer_id] && { gold: listed[r.offer_id].cost[0].amount, grant: listed[r.offer_id].grant };
+      /* A tool or a gear piece is a shop_buy offer; a supply is only a price (the vendor's cap), refused by name. */
+      const sold = X.SUP.SHOP_SOLD_KINDS.includes(r.kind);
+      const edge = sold ? X.CAT.GOLD_OFFERS[r.offer_id] : listed[r.offer_id] && { gold: listed[r.offer_id].cost[0].amount, grant: listed[r.offer_id].grant };
       if (!edge || edge.gold !== Number(r.price) || edge.grant.length !== 1 || edge.grant[0].id !== r.item_id || edge.grant[0].amount !== 1) {
         p.push(`${r.offer_id}: SQL ${r.price} g vs edge ${JSON.stringify(edge)}`);
       }
-      if (r.kind !== 'tool' && (X.CAT.GOLD_OFFERS[r.offer_id] || X.CAT.OFFER_REFUSALS[r.offer_id] !== 'supplies_not_sold')) p.push(`${r.offer_id}: a supply is sold by shop_buy`);
+      if (!sold && (X.CAT.GOLD_OFFERS[r.offer_id] || X.CAT.OFFER_REFUSALS[r.offer_id] !== 'supplies_not_sold')) p.push(`${r.offer_id}: a supply is sold by shop_buy`);
+      /* One item, one price: no other authored offer sells a tool or gear piece (the legacy equip.* rows it replaced are gone). */
+      if (sold) for (const o of X.SHOPS.SHOP_OFFERS) if (o.id !== r.offer_id && (o.grant || []).some((g) => g.kind === 'item' && g.id === r.item_id)) p.push(`${r.item_id}: also sold by ${o.id}`);
       const bid = X.CAT.vendorPriceOf(M.ITEMS, r.item_id);
       if (bid * 2 > Number(r.price)) p.push(`${r.item_id}: the vendor bids ${bid}, more than half its shop price ${r.price}`);
       const sqlBid = await H.one(db, 'select unit from public.hr_hunt_vendor_value where item_id = $1', [r.item_id]);
       if (sqlBid != null && Number(sqlBid) !== bid) p.push(`${r.item_id}: SQL vendor bid ${sqlBid} vs edge ${bid}`);
+    }
+    /* EVERY SERVER SHOP OFFER IS LISTED BY EXACTLY ONE SHOP TAB (lane/b-gold-sinks, 2026-10-22): the ids shop_buy
+       sells are exactly the ids the `shop` section serves, and each served kind has exactly one Buy list in the
+       client's Shop window. A price no window shows is still a price a forged intent can hit. */
+    const uidL = H.UIDS[2];
+    await H.character(db, M, uidL, { inv: {} });
+    const served = ((await H.one(db, "select public.hr_state_of($1, 0)->'shop'", [uidL])) || {}).offers || [];
+    const sells = Object.keys(X.CAT.GOLD_OFFERS).sort().join(), shows = served.map((o) => o.offer).sort().join();
+    if (!sells || sells !== shows) p.push(`shop_buy sells [${sells}] but the shop section serves [${shows}]`);
+    const html = (await import(pathToFileURL(join(ROOT, 'src/shell/windows/shop.js')).href)).renderShop();
+    for (const o of served) {
+      const tabs = [...html.matchAll(/hw-buy-list" data-kind="([a-z]+)"/g)].filter((m) => m[1] === o.kind).length;
+      if (tabs !== 1) p.push(`${o.offer} (${o.kind}) is listed by ${tabs} Shop tabs, not exactly one`);
     }
     // The SQL formulas are the data's own functions (each judged where its file is in the chain).
     const has = async (fn) => (await H.one(db, 'select to_regprocedure($1) is not null', [fn])) === true;
@@ -175,7 +195,8 @@ const ARMS = {
     await H.character(db, M, uid, { inv: {}, gold: 100000 });
     const shop = await H.one(db, "select public.hr_state_of($1, 0)->'shop'", [uid]);
     const kinds = new Set((shop && shop.offers || []).map((o) => o.kind));
-    if (!shop || 'refill' in shop || kinds.size !== 1 || !kinds.has('tool')) p.push('the shop section reads ' + JSON.stringify(shop).slice(0, 200));
+    /* Tools, the outfitter's gear and the seed counter (2026-11-25-shop-seeds.sql), nothing else. */
+    if (!shop || 'refill' in shop || kinds.size !== 3 || !kinds.has('tool') || !kinds.has('gear') || !kinds.has('seed')) p.push('the shop section reads ' + JSON.stringify(shop).slice(0, 200));
     /* The doors are gone, not merely broken: no function a client could reach (a call that fails inside is still a door). */
     for (const fn of ['public.hr_shop_refill(integer,bigint,uuid)', 'public.hr_shop_refill_quote(uuid,integer)', 'public.hr_restock_set(integer,jsonb,uuid)']) {
       if (await H.one(db, 'select to_regprocedure($1) is not null', [fn])) p.push(fn + ' still exists');
@@ -189,6 +210,44 @@ const ARMS = {
     if (!t.body || t.body.ok !== true || await gold(H, db, uid) !== g0 - axe.price || await qty(H, db, uid, 'bronze_axe') !== 1) {
       p.push('CONTROL: the Bronze Axe did not sell at its price: ' + JSON.stringify(t.body && { ok: t.body.ok, error: t.body.error }));
     }
+    /* THE SEED COUNTER (designer 2026-10-22, lane/b-orphan-sources): a seed no ground grows is bought at its row's
+       price, per seed, into the bag (wheat: no kit, no quest ever paid it before). */
+    const wheat = X.SUP.SUPPLY_SHOP_OFFERS.find((o) => o.item === 'wheat_seed' && o.kind === 'seed');
+    const g1 = await gold(H, db, uid);
+    const w = wheat && await X.SB.runShopBuy({ exec, user: uid, slot: 0, intentId: idem(), offer: wheat.offer, qty: 4 });
+    if (!w || !w.body || w.body.ok !== true || await gold(H, db, uid) !== g1 - 4 * wheat.price || await qty(H, db, uid, 'wheat_seed') !== 4) {
+      p.push('the seed counter did not sell 4 Wheat Seeds at their price: ' + JSON.stringify(w && w.body && { ok: w.body.ok, error: w.body.error, reason: w.body.reason }));
+    }
+    return p;
+  },
+
+  /* THE OUTFITTER (designer 2026-10-22, 2026-11-24-shop-outfitter.sql): the `shop` section lists every gear row at
+     its catalogue price; the REAL edge shop_buy sells one at that price (one `shop` ledger row naming the unit), two
+     rings in one buy; and selling a piece straight back to the vendor returns at most half: buy-then-sell loses. */
+  'A-OUTFITTER': async (db, { H, M, X }) => {
+    const p = [];
+    const uid = H.UIDS[1];
+    const gear = X.SUP.SUPPLY_SHOP_OFFERS.filter((o) => o.kind === 'gear');
+    if (gear.length < 6) return ['CONTROL: the data holds ' + gear.length + ' gear rows'];
+    await H.character(db, M, uid, { inv: {}, gold: 5000 });
+    const shop = await H.one(db, "select public.hr_state_of($1, 0)->'shop'", [uid]);
+    const listed = new Map((shop && shop.offers || []).filter((o) => o.kind === 'gear').map((o) => [o.offer, Number(o.price)]));
+    for (const g of gear) if (listed.get(g.offer) !== g.price) p.push(`${g.offer}: the shop section lists ${listed.get(g.offer)}, the data ${g.price}`);
+    const exec = H.makeExec(db);
+    const gloves = gear.find((o) => o.item === 'leather_gloves'), ring = gear.find((o) => o.item === 'copper_ring');
+    const g0 = await gold(H, db, uid);
+    const b1 = await X.SB.runShopBuy({ exec, user: uid, slot: 0, intentId: idem(), offer: gloves.offer, qty: 1 });
+    const b2 = await X.SB.runShopBuy({ exec, user: uid, slot: 0, intentId: idem(), offer: ring.offer, qty: 2 });
+    if (!b1.body || b1.body.ok !== true || !b2.body || b2.body.ok !== true) return ['the outfitter did not sell: ' + JSON.stringify([b1.body && b1.body.error, b2.body && b2.body.error])];
+    const g1 = await gold(H, db, uid);
+    if (g1 !== g0 - gloves.price - 2 * ring.price || await qty(H, db, uid, gloves.item) !== 1 || await qty(H, db, uid, ring.item) !== 2) {
+      p.push(`the buys moved gold ${g0} -> ${g1} (want -${gloves.price + 2 * ring.price}) and the bag to ${await qty(H, db, uid, gloves.item)} / ${await qty(H, db, uid, ring.item)}`);
+    }
+    const led = await H.q(db, "select gold, meta from public.player_ledger where user_id = $1 and slot = 0 and kind = 'shop' order by id", [uid]);
+    if (led.length !== 2 || Number(led[0].meta.unit_gold) !== gloves.price || Number(led[1].meta.unit_gold) !== ring.price) p.push('the ledger reads ' + JSON.stringify(led));
+    const s = await X.VS.runVendorSell({ exec, user: uid, slot: 0, intentId: idem(), item: gloves.item, qty: 1 });
+    const back = (await gold(H, db, uid)) - g1;
+    if (!s.body || s.body.ok !== true || back <= 0 || back * 2 > gloves.price) p.push(`selling the ${gloves.item} back paid ${back} for a ${gloves.price} g buy (${JSON.stringify(s.body && s.body.error)})`);
     return p;
   },
 
@@ -398,16 +457,24 @@ const MUTANTS = [
     find: '      v_gold := v_gold + v_q * v_r.unit;', repl: '      v_gold := v_gold + 2 * v_q * v_r.unit;' },
   { arm: 'A-LOOT-AWAY', file: '2026-10-25-bag-rules.sql', why: 'the loot filter ignores a lock',
     find: "       and r.loot_rule in ('sell', 'ignore') and not r.locked", repl: "       and r.loot_rule in ('sell', 'ignore')" },
-  { arm: 'A-NO-SUPPLY', file: '2026-11-02-shop-no-supplies.sql', why: 'the shop section lists the supplies again',
-    find: "from public.hr_shop_supply_offers o where o.kind = 'tool'), '[]'::jsonb),", repl: "from public.hr_shop_supply_offers o), '[]'::jsonb)," },
+  /* hr_shop_view is RESTATED last by 2026-11-25-shop-seeds.sql: its mutants are planted in the body that runs. */
+  { arm: 'A-NO-SUPPLY', file: '2026-11-25-shop-seeds.sql', why: 'the shop section lists the supplies again',
+    find: "from public.hr_shop_supply_offers o where o.kind in ('tool', 'gear', 'seed')), '[]'::jsonb),", repl: "from public.hr_shop_supply_offers o), '[]'::jsonb)," },
+  { arm: 'A-OUTFITTER', file: '2026-11-25-shop-seeds.sql', why: 'the shop section hides the outfitter again (tools and seeds only)',
+    find: "from public.hr_shop_supply_offers o where o.kind in ('tool', 'gear', 'seed')), '[]'::jsonb),", repl: "from public.hr_shop_supply_offers o where o.kind in ('tool', 'seed')), '[]'::jsonb)," },
   /* The refill survives WITH its baseline row: the defect grant hygiene cannot see (a door kept but
      unlisted is hygiene's catch — every later self-check that asserts hygiene refuses that chain). */
   { arm: 'A-NO-SUPPLY', file: '2026-11-02-shop-no-supplies.sql', why: 'the refill door stays open (and stays on the baseline)',
     find: "drop function if exists public.hr_shop_refill(integer, bigint, uuid);\ndrop function if exists public.hr_shop_refill_quote(uuid, integer);\ndrop function if exists public.hr_restock_set(integer, jsonb, uuid);\ndelete from public.hr_client_rpc_baseline where proname in ('hr_shop_refill', 'hr_restock_set');",
     repl: "drop function if exists public.hr_shop_refill_quote(uuid, integer);\ndrop function if exists public.hr_restock_set(integer, jsonb, uuid);\ndelete from public.hr_client_rpc_baseline where proname in ('hr_restock_set');" },
-  /* Planted in the LAST alpha catalogue (the 11-03 forward file rewrites every offer row the 10-25 file wrote). */
-  { arm: 'A-DATA', file: '2026-11-03-alpha-catalogue.generated.sql', why: 'the SQL catalogue drifts from the edge price',
+  /* Planted in the LAST alpha catalogue (the 11-21 forward file rewrites every offer row the earlier files wrote). */
+  { arm: 'A-DATA', file: '2026-11-22-alpha-catalogue.generated.sql', why: 'the SQL catalogue drifts from the edge price',
     find: "  ('supply.cooked_shrimp', 'cooked_shrimp', 'food', 19),", repl: "  ('supply.cooked_shrimp', 'cooked_shrimp', 'food', 18)," },
+  { arm: 'A-DATA', file: '2026-11-25-shop-seeds.sql', why: 'shop_buy sells offers the shop section never serves (the seeds hidden)',
+    find: "from public.hr_shop_supply_offers o where o.kind in ('tool', 'gear', 'seed')), '[]'::jsonb),", repl: "from public.hr_shop_supply_offers o where o.kind in ('tool', 'gear')), '[]'::jsonb)," },
+  /* (A gear row under twice its book value is refused at APPLY, by this catalogue's own §4 and by
+     2026-11-24-shop-outfitter.sql §2 (d): measured 2026-10-22, the planted chain does not boot. No arm mutant. The
+     same holds for a seed row below book value: the generator refuses it before any SQL exists.) */
   /* hr_stamina_refill_quote is RESTATED by the core rebuild (2026-10-27-core-bodies.sql: priced on Level):
      the mutant is planted in the body that runs. */
   { arm: 'A-DATA', file: '2026-10-27-core-bodies.sql', why: 'the SQL refill skips the escalation',
@@ -490,7 +557,11 @@ async function main() {
   const stale = staleAnchors(MUTANTS);
   for (const s of stale) console.error('✗ ANCHOR ' + s);
   let missed = stale.length;
+  /* `--arm A,B`: only the mutants of those arms (a lane proving the arms its diff touches; the nightly runs all). */
+  const armAt = process.argv.indexOf('--arm');
+  const onlyArms = armAt > 0 ? String(process.argv[armAt + 1] || '').split(',') : null;
   for (const mu of MUTANTS) {
+    if (onlyArms && !onlyArms.includes(mu.arm)) continue;
     let db;
     try {
       /* A hook in a feature file is reached only through 2026-10-25-settle-hooks.sql (its caller, the

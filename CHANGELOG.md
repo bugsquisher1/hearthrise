@@ -5,6 +5,20 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.31 — 2026-10-22 (A home, a farm, and armour that matters)
+
+**Armour you choose.** Heavy armour absorbs blows, medium armour dodges them, light armour wards them. Each suits a different way to fight, and your Character sheet shows your Dodge, Absorb and Ward.
+
+**Your farm and your house.** The Farm window (J) lets you plant, water and harvest; harvesting plants the same crop again. The House window (E) shows your home, its rooms and what each does, and storage chests that give your account's shared storage more room. Storage is now shared by all your heroes and can be sorted and searched.
+
+**Gear and seeds in the Shop,** starter gear for the slots monsters never drop, and a crafted upgrade for every fighting style at skill 15. Equip upgrades wears every better piece in one press.
+
+**Mosslight Glade is open** for heroes from Level 16 to 31, upstream of the Thicket.
+
+**Town work updates as it goes:** your bag and skill XP move while you cook, smelt or chop, and you can choose how many to make. Rare drops are announced to everyone, with a card you can share.
+
+**Cleared out:** old rewards and quests from an earlier version of the game, and the fox companion.
+
 ## v0.2.30 — 2026-10-22 (Told when to reload)
 
 **The game tells you when a new version is out.** If you keep Hearthrise open while we update it, a bar at the top says a new version is out, with a Reload button. No more playing an old version against a new server.

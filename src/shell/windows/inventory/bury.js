@@ -17,7 +17,9 @@
 // station is asked for: the bench runs wherever the hero is in town (a hunt's
 // start ends it). Stop (or the timer below, when the stack should be done) is
 // ONE `set_activity` { kind:'idle' }: the engine collects before it switches,
-// and the re-read envelope replaces the bag and the skills. The "Burying…" /
+// and the re-read envelope replaces the bag and the skills. While the bag is
+// open the run settles as it goes (src/session/town-poll.js), so the line says
+// how far it has got from the server's bag ("12 cooked so far, 30 left"). The "Burying…" /
 // "Cooking…" line reads the server's pointer (state.active_kind / active_id),
 // so it survives a reload.
 //
@@ -27,16 +29,16 @@
 // The engine spends the WHOLE stack: it has no "this many" for a recipe, so a
 // partial run would be a client guess at the server's clock. It is not offered.
 // ════════════════════════════════════════════════════════════════════════
-import { ARTISAN_RECIPES } from '../../../data/recipes.js?v=0.2.30';
-import { SKILLS_DEF } from '../../../data/skills.js?v=0.2.30';
-import { recipeInputs } from '../../../core/artisan.js?v=0.2.30';
-import { whole } from '../../../render/format.js?v=0.2.30';
-import { itemName } from '../../widgets/bits.js?v=0.2.30';
-import { riteOf, cookOf } from '../../bag-model.js?v=0.2.30';
-import { skillsOf } from '../../../session/item-sections.js?v=0.2.30';
-import { huntOf } from '../../../session/hunt-sections.js?v=0.2.30';
-import { townActivityWords } from '../../../session/party-sections.js?v=0.2.30';
-import { startWork, stopWork, workRow } from '../../town-work.js?v=0.2.30';
+import { ARTISAN_RECIPES } from '../../../data/recipes.js?v=0.2.31';
+import { SKILLS_DEF } from '../../../data/skills.js?v=0.2.31';
+import { recipeInputs } from '../../../core/artisan.js?v=0.2.31';
+import { whole } from '../../../render/format.js?v=0.2.31';
+import { itemName } from '../../widgets/bits.js?v=0.2.31';
+import { riteOf, cookOf } from '../../bag-model.js?v=0.2.31';
+import { skillsOf } from '../../../session/item-sections.js?v=0.2.31';
+import { huntOf } from '../../../session/hunt-sections.js?v=0.2.31';
+import { townActivityWords } from '../../../session/party-sections.js?v=0.2.31';
+import { startWork, stopWork, workRow, workOf, runProgress } from '../../town-work.js?v=0.2.31';
 
 /** The bench entry that spends a whole stack of `id` ({ skill, recipe, input, need }), or null. */
 export function buryRecipeOf(id) { return riteOf(id) || cookOf(id); }
@@ -113,7 +115,11 @@ export function stopBury(cs, sc, send) {
  */
 export function buryLine(cs) {
   const e = buryingOf(cs);
-  if (e) return buryingWord(e) + ' ' + itemName(e.input) + '. Your ' + skillName(e.skill) + ' XP and bag update when it is done.';
+  /* How far it has got, from the server's bag (town-work.js runProgress); the open bag settles it as it goes. */
+  if (e) {
+    const how = runProgress(cs, workOf(cs));
+    return buryingWord(e) + ' ' + itemName(e.input) + (how ? ': ' + how : '') + '. Your bag and ' + skillName(e.skill) + ' XP update as it goes.';
+  }
   const s = cs && typeof cs.read === 'function' ? cs.read('state') : null;
   const words = townActivityWords(s);
   return words ? 'Your hero is ' + words + '. Starting a hunt ends it, or stop it here.' : '';

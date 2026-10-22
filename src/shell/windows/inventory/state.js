@@ -4,7 +4,8 @@
 // What the Inventory draws, gathered in one place for its skeleton, its patch
 // and its actions (index.js, grid.js, doll.js, actions.js):
 //   from the server   the bag, its stack cap, the gold, the worn set, the bag
-//                     rules, the shop's bids, the action bar, this hunt's loot
+//                     rules, the shop's bids, the action bar, this hunt's loot,
+//                     the "Equip upgrades" plan
 //                     (src/session/*-sections.js)
 //   residue           the remembered category, sort and Advanced view, and the
 //                     "new" marks
@@ -13,12 +14,13 @@
 //                     in flight. Display only: nothing reads it but this
 //                     window, nothing spends it.
 // ════════════════════════════════════════════════════════════════════════
-import { bagOf, bagCapOf, goldOf, rulesOf, shopOf, equipmentOf, huntLootOf } from '../../../session/item-sections.js?v=0.2.30';
-import { settingsOf, analyzerOf } from '../../../session/hunt-sections.js?v=0.2.30';
-import { BAG_CATS, BAG_SORTS, view, kindOf, equipSlotFor, sellPlan, junkIds } from '../../bag-model.js?v=0.2.30';
-import { barKind, barIndexOf } from '../../bar-assign.js?v=0.2.30';
-import { itemName } from '../../widgets/bits.js?v=0.2.30';
-import { buryRecipeOf, buryLabel } from './bury.js?v=0.2.30';
+import { bagOf, bagCapOf, goldOf, rulesOf, shopOf, equipmentOf, huntLootOf } from '../../../session/item-sections.js?v=0.2.31';
+import { settingsOf, analyzerOf } from '../../../session/hunt-sections.js?v=0.2.31';
+import { BAG_CATS, BAG_SORTS, view, kindOf, equipSlotFor, sellPlan, junkIds } from '../../bag-model.js?v=0.2.31';
+import { barKind, barIndexOf } from '../../bar-assign.js?v=0.2.31';
+import { itemName } from '../../widgets/bits.js?v=0.2.31';
+import { buryRecipeOf, buryLabel } from './bury.js?v=0.2.31';
+import { upgradeOf } from '../../widgets/upgrade-line.js?v=0.2.31';
 
 const SCRATCH = new WeakMap();
 const CAT_IDS = new Set(BAG_CATS.map(([id]) => id));
@@ -69,7 +71,9 @@ export function stateOf(ctx) {
   const seen = stored || Object.fromEntries(list.map((r) => [r.id, [r.qty, 0]]));
   const shown = view(list, { cat: prefs.cat, query: sc.query, sort: prefs.sort, bids: shop ? shop.bids : null, seen });
   return { cs, items: list, loaded: !!items, cap: bagCapOf(cs), gold: goldOf(cs), rules: rulesOf(cs), shop, eq: equipmentOf(cs) || {},
-    bar: settingsOf(cs), prefs, sc, seen, unmarked: !stored, shown, qty: new Map(list.map((r) => [r.id, r.qty])) };
+    bar: settingsOf(cs), prefs, sc, seen, unmarked: !stored, shown, qty: new Map(list.map((r) => [r.id, r.qty])),
+    /* What "Equip upgrades" would put on (src/shell/upgrade-plan.js), from the same server sections. */
+    upgrade: upgradeOf(cs) };
 }
 
 /** This hunt's pickups: the server's hunt loot, else the analyzer's loot list, else null. */

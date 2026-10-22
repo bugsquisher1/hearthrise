@@ -10,16 +10,24 @@
 //   Start again                  that character's restart INTENT; the button
 //                                is off until the server answered, and the
 //                                alert goes once it has
+//   Share                        a rare find's card (src/shell/share-card.js),
+//                                copied or saved; display only, no intent
 //   Join / No thanks             a party invite's answer, that character's
 //                                answerInvite INTENT, the same way (PARTY_SPEC
 //                                §1.3: the toast reaches a player anywhere)
 // ════════════════════════════════════════════════════════════════════════
-import { ALERTS_SHOWN } from '../../data/alerts.js?v=0.2.30';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.30';
-import { glyphSvg } from '../launcher.js?v=0.2.30';
-import { refusalWords } from '../intent-words.js?v=0.2.30';
+import { ALERTS_SHOWN } from '../../data/alerts.js?v=0.2.31';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.31';
+import { glyphSvg } from '../launcher.js?v=0.2.31';
+import { refusalWords } from '../intent-words.js?v=0.2.31';
+import { cardFacts, shareCard } from '../share-card.js?v=0.2.31';
 
 const OPENS = Object.freeze({ bag: 'inventory', show: null });
+/* What the line says once its card was made (src/shell/share-card.js shareCard's answer). */
+const SHARE_WORDS = Object.freeze({
+  copied: 'Card copied: paste it anywhere.', shared: 'Card shared.', saved: 'Card saved to your downloads.',
+  cancelled: '', card_failed: 'The card could not be made.',
+});
 
 /** The skeleton (built once). */
 export function renderAlerts() {
@@ -30,6 +38,7 @@ function alertRow(ctx) {
   return element(ctx.doc, '<li class="hw-alert"><span class="hw-alert-glyph" aria-hidden="true"></span>'
     + '<p class="hw-alert-text"></p><button type="button" class="hh-tool hw-alert-do" data-hs-act="alert-do"></button>'
     + '<button type="button" class="hh-tool hw-alert-no" data-hs-act="alert-no" hidden></button>'
+    + '<button type="button" class="hh-tool hw-alert-share" data-hs-act="alert-share" hidden></button>'
     + '<button type="button" class="hs-close hw-alert-x" data-hs-act="alert-x" aria-label="Dismiss">' + glyphSvg(ctx.glyphs, 'uiClose') + '</button></li>');
 }
 
@@ -54,6 +63,10 @@ renderAlerts.patch = function patchAlerts(el, ctx) {
       prop(no, 'hidden', !a.decline);
       text(no, a.decline || '');
       prop(no, 'disabled', a.pending);
+      const share = li.querySelector('.hw-alert-share');
+      prop(share, 'hidden', !cardFacts(a) || !a.share);
+      text(share, a.share || '');
+      prop(share, 'disabled', a.pending);
     },
   });
 };
@@ -81,6 +94,17 @@ renderAlerts.act = async function actAlerts(ctx, el, action, ev, t) {
   const a = ctx.alerts.list().find((x) => x.key === key);
   if (!a) return;
   if (action === 'alert-x') { ctx.alerts.dismiss(key); return; }
+  /* A rare find's card: made here, copied or saved; the line stays (the player may share it again). */
+  if (action === 'alert-share') {
+    const facts = cardFacts(a);
+    if (!facts || a.pending) return;
+    ctx.alerts.mark(a.key, true, '');
+    renderAlerts.patch(el, ctx);
+    const r = await shareCard(ctx.doc, facts);
+    ctx.alerts.mark(a.key, false, SHARE_WORDS[r.ok ? r.how : r.error] || SHARE_WORDS.card_failed);
+    renderAlerts.patch(el, ctx);
+    return;
+  }
   if ((action !== 'alert-do' && action !== 'alert-no') || a.pending) return;
   /* A party invite: Join / No thanks, that character's one answer. */
   if (a.action === 'join') { if (a.invite) await settle(ctx, el, a, (cs) => cs.answerInvite(a.invite, action === 'alert-do')); return; }

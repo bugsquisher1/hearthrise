@@ -87,9 +87,20 @@ function shippedKitSql() {
     if (!b) { const e = new Error(m[1] + ' carries no ' + t + ' rows'); e.harness = true; throw e; }
     return b[0];
   };
+  /* …and its ONE kit row (gold, hp, bank cap, farm plots), its upsert verbatim: the plots moved 4 -> 2 in a forward
+     file (2026-11-23, the Camp's cap), so the root's row would grade the old kit. */
+  const at = sql.indexOf('insert into public.hr_start_kit (');
+  if (at < 0) { const e = new Error(m[1] + ' carries no hr_start_kit row'); e.harness = true; throw e; }
+  /* As an UPDATE of the columns it states: the root's table still has max_hp (NOT NULL), which an insert would need. */
+  const stmt = sql.slice(at, sql.indexOf(';\n', at));
+  const kv = /\(([^)]*)\)\s*values\s*\(([^)]*)\)/.exec(stmt);
+  if (!kv) { const e = new Error(m[1] + ': the hr_start_kit row has no (columns) values (...) shape'); e.harness = true; throw e; }
+  const cols = kv[1].split(',').map((x) => x.trim()), vals = kv[2].split(',').map((x) => x.trim());
+  if (cols.length !== vals.length) { const e = new Error(m[1] + ': the hr_start_kit row has ' + cols.length + ' columns and ' + vals.length + ' values'); e.harness = true; throw e; }
+  const kitRow = 'update public.hr_start_kit set ' + cols.map((c, i) => c + ' = ' + vals[i]).filter((x) => !x.startsWith('only_row')).join(', ') + ' where only_row;\n';
   const p = join(mkdtempSync(join(tmpdir(), 'hr-kit-')), 'kit.sql');
   writeFileSync(p, '-- the start kit rows of ' + m[1] + '\ndelete from public.hr_start_inventory;\ndelete from public.hr_start_equipment;\n'
-    + block('hr_start_inventory') + block('hr_start_equipment'));
+    + block('hr_start_inventory') + block('hr_start_equipment') + kitRow);
   return p;
 }
 const EXTRA = [

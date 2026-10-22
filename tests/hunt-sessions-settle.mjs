@@ -346,7 +346,7 @@ function rareRollRules(M) {
       fx: { addItem: (item) => got.push(item + '>' + id) } }]));
     const rng = dice(script);
     M.HR.rewardSwing(members, [{ type: 'kill', u: heroes[0], t: 9, atMs: 5000 }], world,
-      { rng, monsters, hearthfind: false, emit: (e) => events.push(e) });
+      { rng, monsters, hearthfind: false, emit: (e) => { if (e.type === 'rare_roll') events.push(e); } });
     return { got: got.join(' '), events, world, left: rng.left() };
   };
   const two = kill([1, 2], [1, 70, 30]);

@@ -390,6 +390,14 @@
 .hc-none.is-on { display: block; }
 
 /* ── Chat: the channels, whispers and the input (src/shell/windows/chat.js) ── */
+/* Tyler 2026-10-22: the chat sits over the World, so the World shows through it (--chat-bg); its lines keep a
+   1 px shadow so they stay readable over a bright tile. Sized (desktop), the log takes the height the player gave it. */
+.hs-win[data-hs-win="chat"] { background: var(--chat-bg); }
+.hs-win[data-hs-win="chat"] .hc-log.is-talk .hc-line { text-shadow: 0 1px 0 var(--world-shadow); }
+.hs-win.is-sized .hc-chat { flex: 1; min-height: 0; }
+.hs-win.is-sized .hc-pane.is-on { min-height: 0; }
+.hs-win.is-sized .hc-logs { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.hs-win.is-sized .hc-log { flex: 1; min-height: 0; max-height: none; }
 .hc-tabs { flex-wrap: wrap; }
 .hc-tab { display: inline-flex; align-items: center; }
 .hc-tab .ha-tab { position: relative; padding: 0 9px; }
@@ -484,6 +492,8 @@
 /* ── Phone, landscape: compact bar, one swipeable slot row, plaque to the editor ── */
 @keyframes ca-sheet { from { transform: translateX(16px); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  /* The phone keeps its sheet as it was: opaque, so nothing of the bar under it reads through (see-through is desktop only). */
+  .hs-win[data-hs-win="chat"] { background: var(--modal-bg); }
   .hp-party { width: 200px; }
   .hp-portrait { width: 28px; height: 28px; }
   .hp-role { display: none; }

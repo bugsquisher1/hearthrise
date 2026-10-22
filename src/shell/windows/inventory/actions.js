@@ -176,15 +176,17 @@ function openMenu(ctx, body, st, id, at, repaint) {
   h += item('m-link', 'Link in chat', !!(ctx.account && ctx.account.social));
   h += '<span class="hw-menu-sub">On pickup</span><span class="hw-menu-rules" role="group" aria-label="On pickup">'
     + RULE_WORDS.map(([v, w]) => item('m-rule', w, !!st.rules, ' data-rule="' + v + '" aria-pressed="' + ((st.rules && (st.rules.loot[id] || 'keep')) === v) + '"')).join('') + '</span>';
-  openFloatMenu(ctx.doc, h, at, {
+  /* The bag's own menu: its repaint closes only this one, never a menu another surface opened (float-menu.js). */
+  sc.menuOwner = {
     onAct: (action, e, b) => actInventory(ctx, body, action, e, b, repaint),
     onClose: () => { if (sc.menu) { sc.menu = null; repaint(); } },
     alive: () => body.isConnected,
-  });
+  };
+  openFloatMenu(ctx.doc, h, at, sc.menuOwner);
   repaint();
 }
 
-function closeMenu(ctx, st) { if (!st.sc.menu) return false; closeFloatMenu(ctx.doc); return true; }
+function closeMenu(ctx, st) { if (!st.sc.menu) return false; closeFloatMenu(ctx.doc, st.sc.menuOwner || null); return true; }
 
 /* ── Selection and the cursor ── */
 function toggleSel(sc, id) { if (sc.sel.has(id)) sc.sel.delete(id); else sc.sel.add(id); sc.anchor = id; }

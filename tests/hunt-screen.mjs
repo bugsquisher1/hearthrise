@@ -1116,6 +1116,19 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
          point first, unpriced last; no "Any food". Salted Trout, IF My HP % below 60. */
       await page.click('.hb-slot[data-slot="5"]');
       await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .ca-rank'), null);
+      /* An empty slot opens on Spells (art spec §9). Every spell is listed, the weapon's own first; one it cannot cast
+         wears the lock, can still be picked, and the sentence says why it will stay struck (art spec §5, §8). */
+      const sp = await page.evaluate(() => ({ tab: (document.querySelector('.ca-tab[aria-selected="true"]') || { getAttribute: () => null }).getAttribute('data-tab'),
+        rows: Array.from(document.querySelectorAll('.ca-run[data-run="spells"] .ca-row')).map((b) => ({ id: b.getAttribute('data-id'),
+          locked: b.classList.contains('is-locked'), lock: getComputedStyle(b.querySelector('.ca-lock')).display !== 'none' })) }));
+      const firstLocked = sp.rows.findIndex((r) => r.locked);
+      if (sp.tab !== 'spells') fails.push('HS-8 an empty slot opened on ' + sp.tab + ', not Spells');
+      if (firstLocked < 1 || sp.rows.slice(firstLocked).some((r) => !r.locked) || sp.rows.some((r) => r.locked !== r.lock)) fails.push('HS-8 the Spells list is not castable first, then locked with the lock showing: ' + JSON.stringify(sp.rows));
+      else {
+        await page.click('.ca-run[data-run="spells"] .ca-row[data-id="' + sp.rows[firstLocked].id + '"]');
+        const why = await wait(page, () => /^Your weapon can’t cast this. The slot stays struck until you wield a .+.$/.test((document.querySelector('.ca-weapon') || {}).textContent || ''), null);
+        if (!why) fails.push('HS-8 a locked spell picked does not say why the slot will stay struck: ' + JSON.stringify(await page.evaluate(() => document.querySelector('.ca-weapon').textContent)));
+      }
       await page.click('.ca-tab[data-tab="items"]');
       const food = await page.$$eval('.ca-run[data-run="food"] .ca-list .ca-row', (n) => n.map((b) => ({ id: b.getAttribute('data-id'),
         cells: Array.from(b.querySelectorAll('.ca-c')).map((c) => c.textContent) })));
@@ -1378,6 +1391,8 @@ const MUTANTS = [
   ['a null per_hour shows dashes, not "Per hour after 10 min."', 'src/shell/widgets/analyzer.js', "prop(sec.querySelector('.ha-later'), 'hidden', v.rated);", "prop(sec.querySelector('.ha-later'), 'hidden', true);"],
   ['the struck reason of a food slot ignores the server', 'src/shell/action-facts.js', "    if (sl.why === 'none_left') return", "    if (false) return"],
   ['Configure action never warns a heal slot', 'src/shell/windows/configure-action.js', "healWarning(d, set, blow, vitalsOf(cs).hpMax)", "''"],
+  ['a spell the weapon cannot cast reads like a castable one', 'src/shell/windows/configure-action.js', "  cls(el, 'is-locked', !!r.locked);", ''],
+  ['Configure action never says a locked spell stays struck', 'src/shell/windows/configure-action.js', "  text(root.querySelector('.ca-weapon'), weaponWarning(d.action, set.role));", ''],
   ['the phone sheet cuts the heal warning to one line and says it nowhere whole', 'src/shell/windows/configure-action.js', "  text(root.querySelector('.ca-d-warn'), warn);", ''],
   ['the heal warning reads the whole ground whatever the party size', 'src/shell/windows/configure-action.js', 'biggestBlowOn(h.huntId, p ? p.members.length : 1)', 'biggestBlowOn(h.huntId, 4)'],
   ['the Hunts window keeps saying "On the way" while hunting', 'src/shell/windows/hunts.js', "  if (sc.msg && sc.msg === sc.enterMsg && (now || (h && h.ended))) { sc.msg = ''; sc.enterMsg = null; }\n", ''],

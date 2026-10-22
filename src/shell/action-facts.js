@@ -51,6 +51,15 @@ function weaponsFor(disc) {
   return w.length ? w.join(' or ') : disc;
 }
 
+/** "Your weapon can’t cast this. The slot stays struck until you wield a Sword or Shield." for a spell the
+    hero's weapon (the server's role) cannot cast; '' otherwise. A warning, never a refusal (art spec §8). */
+export function weaponWarning(a, role) {
+  const r = a && a.type === 'ability' ? ABILITIES[a.id] : null;
+  const disc = role && HUNT_ROLES[role] ? HUNT_ROLES[role].discipline : null;
+  if (!r || (disc && r.disciplines.includes(disc))) return '';
+  return 'Your weapon can’t cast this. The slot stays struck until you wield a ' + weaponsFor(r.disciplines[0]) + '.';
+}
+
 const TARGET_LINE = Object.freeze({
   taunt: 'Taunt: pulls the monsters near you onto you.',
   mark: 'Mark: marks your current target.',

@@ -77,19 +77,19 @@ const byValue = (a, b) => ((a.per === null) - (b.per === null)) || ((a.per || 0)
 export function tableOf(tab, ctx) {
   const c = ctx || {};
   const disc = c.role && HUNT_ROLES[c.role] ? HUNT_ROLES[c.role].discipline : null;
-  const mine = (a) => a.active && (!disc || a.disciplines.includes(disc));
   if (tab === 'spells' || tab === 'runes') {
     const runes = tab === 'runes';
-    const rows = Object.values(ABILITIES).filter((a) => mine(a) && (!runes || a.rune)).map((a) => {
+    /* Every spell in the game, the weapon's own first (castable, then the catalogue's order; runes cheapest
+       per cast): one the weapon cannot cast is still listed and can be picked, LOCKED (art spec §5, §8). */
+    const rows = Object.values(ABILITIES).filter((a) => a.active && (!runes || a.rune)).map((a) => {
       const p = a.rune ? partnerRow(c.store, a.rune) : null;
       return { action: { type: 'ability', id: a.id }, kind: runes ? 'runes' : 'spells', name: abilityName(a.id), store: false,
         amount: a.mana, price: p ? p.price : null, per: p ? p.price : null, carry: a.rune ? countOf(c.bag, a.rune) : null,
-        cooldown: secs(a.cdMs) + ' s', rune: a.rune ? '1 ' + itemName(a.rune) : '—', unpriced: false, none: false };
+        cooldown: secs(a.cdMs) + ' s', rune: a.rune ? '1 ' + itemName(a.rune) : '—', unpriced: false, none: false,
+        locked: !disc || !a.disciplines.includes(disc) };
     });
-    if (runes) rows.sort(byValue);
-    const empty = rows.length ? null : runes
-      ? 'No rune spells for this weapon. Each weapon has its own spells; wield another to see its rune spells.'
-      : 'No spells: wield a weapon to see its spells.';
+    rows.sort((a, b) => (a.locked - b.locked) || (runes ? byValue(a, b) : 0));
+    const empty = rows.length ? null : runes ? 'No rune spells in the game yet.' : 'No spells in the game yet.';
     return { runs: rows.length ? [{ kind: tab, label: null, cols: RUN_COLUMNS[tab], rows }] : [], empty };
   }
   const runs = [];

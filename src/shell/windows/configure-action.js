@@ -31,7 +31,8 @@ import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.24';
 import { actionIconHtml } from '../widgets/bits.js?v=0.2.24';
 import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, supplyDefault,
   storeChoices, storeChoiceWords, storeDefault } from '../bar-draft.js?v=0.2.24';
-import { TABS, tabOf, factsOf, healWarning } from '../action-facts.js?v=0.2.24';
+import { TABS, tabOf, factsOf, healWarning, weaponWarning } from '../action-facts.js?v=0.2.24';
+import { glyphSvg } from '../launcher.js?v=0.2.24';
 import { tableOf, rowIn, cellsOf, sentenceOf, compareLines, wasteLine, sourceLine, effectLine } from '../action-table.js?v=0.2.24';
 
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
@@ -39,6 +40,8 @@ const options = (pairs) => pairs.map(([v, l]) => '<option value="' + esc(v) + '"
 const VIEW = new WeakMap();   // CharacterSession -> { tab, hover } (display scratch)
 const viewOf = (cs) => { let v = VIEW.get(cs); if (!v) { v = { tab: null, hover: null }; VIEW.set(cs, v); } return v; };
 const keyOf = (a) => (a && a.id ? a.type + ':' + a.id : '');
+/* The tab of the slot type the player last picked (an empty slot opens on it, else Spells: art spec §9). */
+const LAST_TAB = new WeakMap();
 
 function tool(x, label, extra) {
   return '<button type="button" class="hh-tool' + (extra || '') + '" data-hs-act="cfg" data-x="' + x + '">' + label + '</button>';
@@ -74,6 +77,7 @@ export function renderConfigureAction() {
     + '<p class="ca-lead"><span class="ca-verb"></span> <button type="button" class="ca-item" data-hs-act="cfg" data-x="find"></button>'
     + '<span class="ca-note"></span><span class="ca-ready"></span></p>'
     + '<ol class="ca-conds">' + conds + '</ol>'
+    + '<p class="ca-weapon" role="note"></p>'
     + tool('add', '+ Add a condition', ' ca-add')
     + '<p class="ca-warn" role="note"></p></div>'
     + '<div class="ca-pick">'
@@ -125,7 +129,8 @@ function patchCond(row, c, i, s, doc) {
 /* One table row (button, role option): icon · name · four number cells. */
 function rowHtml(ctx, r) {
   return '<button type="button" class="ca-row" role="option" data-hs-act="cfg" data-x="pick" data-type="' + esc(r.action.type) + '" data-id="' + esc(r.action.id) + '">'
-    + '<span class="ca-ico">' + actionIconHtml(ctx.glyphs, r.action) + '</span><span class="ca-name"></span>'
+    + '<span class="ca-ico">' + actionIconHtml(ctx.glyphs, r.action) + '</span>'
+    + '<span class="ca-namebox"><span class="ca-name"></span><span class="ca-lock" aria-hidden="true">' + glyphSvg(ctx.glyphs, 'uiLock') + '</span></span>'
     + '<span class="ca-c" data-c="0"></span><span class="ca-c" data-c="1"></span><span class="ca-c ca-sort" data-c="2"></span><span class="ca-c" data-c="3"></span></button>';
 }
 function patchRow(el, r, picked, off) {
@@ -136,6 +141,8 @@ function patchRow(el, r, picked, off) {
   cls(el, 'is-none', !!r.none || !!r.unpriced);
   cls(el, 'is-store', r.carry === 'store');
   cls(el, 'is-mana', r.kind === 'drink' || r.kind === 'spells' || r.kind === 'runes');
+  cls(el, 'is-locked', !!r.locked);
+  attr(el, 'title', r.locked ? 'Your weapon can’t cast this' : '');
   prop(el, 'disabled', off);
 }
 
@@ -160,7 +167,7 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   const off = s.pending;
   const bag = bagOf(cs);
   const v = viewOf(cs);
-  const tab = v.tab || (d.action.id ? tabOf(d.action) : 'items');
+  const tab = v.tab || (d.action.id ? tabOf(d.action) : LAST_TAB.get(cs) || 'spells');
   const table = tableOf(tab, { role: set.role, bag, store: set.store });
   const picked = rowIn(table, d.action);
   /* THE TOP LINE */
@@ -175,6 +182,7 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   text(root.querySelector('.ca-note'), say.note ? ' ' + say.note : '');
   text(root.querySelector('.ca-ready'), d.action.id && !d.conditions.length ? ' whenever it is ready.' : '');
   root.querySelectorAll('.ca-cond').forEach((row, i) => patchCond(row, d.conditions[i], i, s, ctx.doc));
+  text(root.querySelector('.ca-weapon'), weaponWarning(d.action, set.role));
   /* The heal warning: the hero's hunt (running, else the last one) at the party's size, the server's max HP. */
   const h = huntOf(cs), p = partyOf(cs);
   const blow = h && h.huntId ? biggestBlowOn(h.huntId, p ? p.members.length : 1) : null;
@@ -272,6 +280,7 @@ renderConfigureAction.act = function actConfigureAction(ctx, body, action, ev, t
     else if (x === 'pick') {
       d.action = { type: t.getAttribute('data-type'), id: t.getAttribute('data-id') };
       v.hover = null;
+      LAST_TAB.set(cs, tabOf(d.action));
       const st = storeDefault(d.action, (settingsOf(cs) || {}).store);
       if (st) d.action.store = st;
       /* A food or drink slot with no condition yet starts at HP below 50% / mana below 30%. */

@@ -75,6 +75,7 @@
   },
   "hunt_settings": {
     "preset": 0,
+    "role": "tank",
     "presets": [
       {
         "preset": 0,

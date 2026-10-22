@@ -868,8 +868,10 @@ async function loop3(S, M, tag, rows) {
 
   await step(5, 'the bag is spent before the shop bills a coin', async (t) => {
     /* "Use My Supplies, Switch to Store Supplies when they run out" (MDR §4). */
-    /* (food_below_pct 99: the hero eats on any wound, so the order — bag before store — is what is graded, not the dice) */
-    const pick = await S.rpc(p.uid, `select public.hr_action_set_options(0, 0, '{"supply_source":"mine","on_empty":"switch","food_below_pct":99}'::jsonb, $1::uuid) r`, [uuid()]);
+    /* STORE BY SLOT: the bar names the own Cooked Shrimp, then its store partner, both eaten under 99% HP, so the
+       order — bag before store — is what is graded, not the dice (a K7-armoured fresh hero rarely falls under 60%). */
+    const bar = ['cooked_shrimp', 'salted_shrimp'].map((id) => ({ action: { type: 'consume', id }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 99 }], join: 'and' }));
+    const pick = await S.rpc(p.uid, `select public.hr_action_set_options(0, 0, $2::jsonb, $1::uuid) r`, [uuid(), JSON.stringify({ supply_source: 'mine', on_empty: 'switch', slots: bar })]);
     t.ok(pick && pick.ok === true && pick.options && pick.options.on_empty === 'switch', `the supplies choice was refused: ${brief(pick)}`);
     const packed = inv(p.env, 'cooked_shrimp');
     await p.enter(t, 'mill_cellar', { cooked_shrimp: packed });

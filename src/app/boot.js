@@ -22,6 +22,10 @@
 // THE CLOSED GAME: the server refuses a non-allowlisted account (403
 // hr_closed); the first such answer replaces everything with the closed notice.
 //
+// A NEW RELEASE (src/app/new-version.js): every screen, signed in or not, asks
+// which build the site serves; a different one raises one reload banner. An
+// answer that looks like a stale client's asks at once.
+//
 // A DEAD SESSION (a refresh the server refuses, or a sign-out in another tab)
 // closes every character and lands on sign-in with one plain line; nothing is
 // retried in the background.
@@ -46,6 +50,7 @@ import { startObservability, track } from '../net/observability.js?v=0.2.29';
 import { startDiagnostics } from '../net/diagnostics.js?v=0.2.29';
 import { mountPressAck } from '../shell/press-ack.js?v=0.2.29';
 import { liveOverlayWanted, mountLiveOverlay } from './live-overlay.js?v=0.2.29';
+import { mountNewVersion } from './new-version.js?v=0.2.29';
 
 const DISCORD = 'https://discord.gg/eJrUSUJM3M';
 
@@ -70,6 +75,7 @@ function startApp(win) {
   const obs = startObservability(win);
   const doc = win.document;
   const root = doc.getElementById('app');
+  const fresh = mountNewVersion(win);
   const HS = win.HearthriseStorage;
   const store = SESSION_CONFIG.authStore === 'tab' ? HS.session : HS;
   const client = createSupabaseClient(win.supabase, store, SESSION_CONFIG.authKey);
@@ -146,7 +152,8 @@ function startApp(win) {
     if (!auth.userId()) { showAuth('sign-in'); return; }
     if (account) return;
     obs.identify(auth.userId());
-    const server = createServerLink({ url: SUPABASE_CONFIG.url, anonKey: SUPABASE_CONFIG.anonKey, token: auth.freshToken, renew: auth.renewToken });
+    const server = createServerLink({ url: SUPABASE_CONFIG.url, anonKey: SUPABASE_CONFIG.anonKey, token: auth.freshToken, renew: auth.renewToken,
+      stale: () => fresh.check(true) });
     account = new AccountSession({ auth, server, tab: HS.session, channel: channelFor(client, auth),
       social: (acc) => new SocialSession({ account: acc, realtime: createSocialRealtime(client, auth.token) }) });
     account.subscribe((why) => {

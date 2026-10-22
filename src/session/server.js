@@ -22,6 +22,15 @@
 // (auth.renewToken) and retries that one call once; a session that cannot be
 // renewed has no token, so it sends nothing more (live 2026-10-20: a dead token
 // was sent 805 times from a background tab).
+//
+// A STALE CLIENT (Tyler, 2026-10-22): a tab still running last release's build
+// can ask in a shape the server no longer has. PostgREST answers a call whose
+// arguments match no function with PGRST202 (404); the engine answers a verb it
+// does not run with `unknown_verb`; and `version_conflict` / `*_mismatch` is what
+// an old client rubber-banding against a newer server sees on every ask. Such an
+// answer calls `o.stale()` (src/app/new-version.js check(true)): the client asks
+// which build the site serves, and only a different one raises the reload banner,
+// so a routine version_conflict on a current client shows nothing.
 // ════════════════════════════════════════════════════════════════════════
 
 import { SUPABASE_CONFIG } from '../net/supabase-bootstrap.js?v=0.2.29';
@@ -36,12 +45,36 @@ export function isClosedAnswer(status, body) {
 }
 
 /**
+ * The text of a file the site serves NOW (the page's own origin, never a cache's
+ * copy), or null. No token: src/app/new-version.js reads src/build-info.js with it
+ * on every screen, signed in or not. Never throws.
+ * @param {string} url
+ * @param {typeof fetch} [doFetch]
+ */
+export async function readServed(url, doFetch) {
+  try {
+    const res = await (doFetch || ((...a) => globalThis.fetch(...a)))(url, { cache: 'no-store' });
+    return res && res.ok ? await res.text() : null;
+  } catch (e) { return null; }
+}
+
+const STALE_CODES = new Set(['PGRST202', '42883', 'unknown_verb', 'version_conflict']);
+
+/** Could this refused answer be a stale client's (a shape the server no longer has)? Pure. */
+function looksStale(status, body) {
+  if (!body || typeof body !== 'object' || status === 0) return false;
+  const code = typeof body.code === 'string' ? body.code : typeof body.error === 'string' ? body.error : '';
+  return STALE_CODES.has(code) || /_mismatch$/.test(code);
+}
+
+/**
  * @param {object} o
  * @param {string} o.url        the project URL
  * @param {string} o.anonKey    the public anon key
  * @param {() => string|null|Promise<string|null>} o.token   the signed-in user's access token, valid for the call
  * @param {(bad: string) => string|null|Promise<string|null>} [o.renew]  a new token after a 401, or null
  * @param {typeof fetch} [o.fetch]
+ * @param {() => void} [o.stale]  told when an answer looks like a stale client's
  */
 export function createServerLink(o) {
   const base = String(o.url || '').replace(/\/+$/, '');
@@ -69,6 +102,7 @@ export function createServerLink(o) {
     let body = null;
     try { body = await res.json(); } catch (e) { body = null; }
     const closed = isClosedAnswer(res.status, body);
+    if (o.stale && !closed && looksStale(res.status, body)) { try { o.stale(); } catch (e) { /* the check reports itself */ } }
     return { ok: res.ok && !closed, status: res.status, body, closed, error: res.ok ? null : 'http_' + res.status };
   }
   return Object.freeze({

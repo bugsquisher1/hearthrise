@@ -18,8 +18,9 @@
 //   tooltip  hover, focus or a long press: name, cost, type, cooldown, effect,
 //            then the slot's setup and any conflict (action-facts.js)
 //   panel    the setup in use (a setup owns this bar; Saved setups switch it,
-//            designer ruling 2026-10-22), target, stance, chase,
-//            distance and the gold to keep (gold_floor): each ONE intent
+//            designer ruling 2026-10-22); target, stance, chase,
+//            distance and the gold to keep (gold_floor) fold out above the
+//            bar from its Fight settings button: each ONE intent
 //            (settings-intent.js), shown from the server only once it confirms
 // Shown in town too (Tyler 10-18: set it up before leaving). Every value is
 // the server's; the bar changes only when the re-read envelope says so.
@@ -113,7 +114,7 @@ export function renderActionBar(ctx) {
     /* The set's name renames in place (inline-name.js; ONE hr_action_set_rename, ruling C4). */
     + '<div class="hb-pl-row"><span class="hb-label">Setup</span><span class="hb-set">' + nameEditorHtml('set-rename', '', 'New name for this setup') + '</span>'
     + '<button type="button" class="hh-tool" data-hs-act="setups" aria-label="Saved setups: switch or save">' + glyphSvg(g, 'uiCheck') + '</button>'
-    /* On a phone the rest of the panel is a slide-out sheet (hunt.css): this opens it. */
+    /* The rest of the panel folds out above the bar (a slide-out sheet on a phone, hunt.css): this opens it. */
     + '<button type="button" class="hh-tool hb-more" data-hs-act="panel" aria-expanded="false" aria-label="Fight settings">' + glyphSvg(g, 'uiSettings') + '</button></div>'
     + '<div class="hb-pl-more" role="group" aria-label="Fight settings">'
     + '<div class="hb-pl-head"><b>Fight settings</b><button type="button" class="hh-tool" data-hs-act="panel" aria-label="Close">×</button></div>'
@@ -254,8 +255,9 @@ function runDrop(ctx, el, plan) {
     .then((r) => { text(msg, r.ok ? '' : refusalWords(r.error)); renderActionBar.patch(el, ctx); });
 }
 
-/* THE PANEL SHEET (phone): the bar keeps the set's name and its buttons; the rest slides out from the
-   right. Escape, its ×, or a press outside it closes it. Display only: nothing is sent. */
+/* THE FIGHT SETTINGS FOLD-OUT: the bar keeps the set's name and its buttons; the rest folds out above the bar's
+   end on a desktop and slides out from the right on a phone (a sheet). Escape, its ×, the button again or a press
+   outside it closes it. Display only: nothing is sent. */
 function setPanel(ctx, el, open) {
   const plaque = el.querySelector('.hb-plaque');
   const off = PANEL.get(el);
@@ -264,10 +266,13 @@ function setPanel(ctx, el, open) {
   attr(plaque.querySelector('.hb-more'), 'aria-expanded', String(open));
   if (!open) return;
   const doc = ctx.doc, sheet = plaque.querySelector('.hb-pl-more');
-  /* Inside the World like a window sheet (never over the top strip and its icons), and under the hunt bar
-     (Leave hunt stays in reach). Measured at each opening; a desktop shows the rows in the panel instead. */
+  /* The phone's sheet (position: fixed, hunt.css) sits inside the World like a window sheet (never over the top
+     strip and its icons), and under the hunt bar (Leave hunt stays in reach), measured at each opening. The
+     desktop fold-out is placed by the stylesheet alone. */
   const hud = el.closest('.hs-hud'), ht = hud && hud.querySelector('.ht-bar');
-  if (hud) {
+  const sheetMode = doc.defaultView.getComputedStyle(sheet).position === 'fixed';
+  if (!sheetMode) { sheet.style.top = ''; sheet.style.bottom = ''; }
+  if (hud && sheetMode) {
     const box = hud.getBoundingClientRect(), hb = ht && ht.getClientRects().length ? ht.getBoundingClientRect() : null;
     sheet.style.top = Math.round(Math.max(box.top, hb ? hb.bottom + 4 : box.top)) + 'px';
     sheet.style.bottom = Math.round(Math.max(0, doc.documentElement.clientHeight - box.bottom)) + 'px';

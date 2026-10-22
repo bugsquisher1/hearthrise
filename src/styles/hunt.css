@@ -166,44 +166,57 @@
    window is: an open window (Configure action above all) stays over the bar. */
 .hs-widget:has(.hb-tip.is-on, .hb-drop.is-on, .hb-plaque.is-open) { z-index: 6; }
 .hs-shell:not(:has(.hs-win:not(.is-leaving))) > .hs-hud:has(.hb-tip.is-on, .hb-drop.is-on, .hb-plaque.is-open) { z-index: 7; }
-.hb-bar { position: relative; display: flex; align-items: center; gap: 10px; padding: 6px 8px; background: var(--world-hud-bg); border: 4px solid transparent; border-image: url('../../assets/ui/frame-iron-thin.png') 2 / 4px stretch; image-rendering: pixelated; }
+/* THE BAR IS ONE FORGED OBJECT (Tyler 10-22: "dorky, no art to it"): a 6-art-px iron plate (bar-plate.png,
+   tools/make-hud-bar-art.mjs) whose top edge the medallion breaks, so the bar's outline is not a rectangle. The
+   slots are sockets cut into the plate, the medallion is pixel art, every colour a token or the world palette
+   (the PNGs). The plate is opaque so the world never reads through the sockets. */
+.hb-bar { position: relative; display: flex; align-items: center; gap: 12px; padding: 2px 8px; background: var(--bg-0); border: 12px solid transparent; border-image: url('../../assets/ui/bar-plate.png') 6 / 12px stretch; image-rendering: pixelated; }
 .hb-slots { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(5, 40px); grid-auto-rows: 40px; gap: 4px; }
-/* A slot is a well cut into the plate: dark on its upper-left inner edge, lit
-   on its lower-right one (the light comes from the upper left, §2). */
+/* A slot is a socket cut into the plate (bar-socket.png): its upper-left wall in shadow, its lower-right lip lit
+   (the light comes from the upper left, §2). The floor is a token, so hover, drop and the states still read. */
 .hb-slot { position: relative; display: grid; place-items: center; cursor: pointer;
-  background: var(--bg-1);
-  box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--world-shadow) 70%, transparent), inset -1px -1px 0 color-mix(in srgb, var(--hl) 14%, transparent); }
-.hb-slot:hover { background: var(--bg-2); }
+  background: var(--bg-2); border: 4px solid transparent; border-image: url('../../assets/ui/bar-socket.png') 2 / 4px stretch; image-rendering: pixelated; }
+.hb-slot:hover { background: var(--bg-3); }
 .hb-slot:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 1px; }
 .hb-slot.is-drop { outline: 2px solid var(--gold); outline-offset: -2px; }
 .hb-slot-ico .hs-glyph { width: 22px; height: 22px; color: var(--ink-2); }
 .hb-slot small { position: absolute; font-size: var(--t-micro); font-weight: 700; line-height: 1; font-variant-numeric: lining-nums tabular-nums; paint-order: stroke; -webkit-text-stroke: 3px var(--bg-0); }
-.hb-slot .hb-n { top: 2px; left: 2px; color: var(--ink-3); font-weight: 400; }
-.hb-count { bottom: 2px; right: 2px; color: var(--ink); }
+.hb-slot .hb-n { top: -2px; left: -2px; color: var(--ink-3); font-weight: 400; }
+.hb-count { bottom: -2px; right: -2px; color: var(--ink); }
 .hb-warn { display: none; position: absolute; top: 1px; right: 3px; font-size: var(--t-micro); line-height: 1; color: var(--gold-2); paint-order: stroke; -webkit-text-stroke: 3px var(--bg-0); }
 .hb-slot.is-blocked .hb-warn { display: block; }
 .hb-plus { display: none; font-size: var(--t-body); line-height: 1; color: var(--ink-3); }
-.hb-slot.is-empty { background: var(--bg-0); }
-.hb-slot.is-empty .hb-plus { display: block; opacity: .6; }
-.hb-slot.is-empty .hb-n { opacity: .5; }
+/* An empty socket is a dark hole: its number and "+" stay quiet until the pointer is on it. */
+.hb-slot.is-empty { background: var(--bg-1); }
+.hb-slot.is-empty .hb-plus { display: block; opacity: .35; }
+.hb-slot.is-empty .hb-n { opacity: .45; }
+.hb-slot.is-empty:hover { background: var(--bg-2); }
 .hb-slot.is-empty:hover .hb-plus, .hb-slot.is-empty:focus-visible .hb-plus { opacity: 1; color: var(--gold-2); }
 .hb-slot.is-off .hb-slot-ico { opacity: .35; }
 .hb-slot.is-off::after { content: ''; position: absolute; left: 3px; right: 3px; top: 50%; height: 2px; background: var(--red); transform: rotate(-45deg); }
-/* The panel at the far right (Tyler 10-19: everything Hunt settings held, on the bar): the set, target, stance, chase and distance. */
-.hb-plaque { position: relative; width: 228px; display: flex; flex-direction: column; gap: 3px; }
-.hb-pl-row { display: flex; align-items: center; gap: 6px; min-height: 30px; }
-/* The rows past the set's own sit in .hb-pl-more: part of the panel on a desktop, a sheet on a phone. */
-.hb-pl-more { display: contents; }
-.hb-plaque .hb-more, .hb-pl-head { display: none; }
+/* The panel at the far right (Tyler 10-19: everything Hunt settings held, reached from the bar). The bar keeps only the
+   set's name, Saved setups and the Fight settings button; target, stance, chase, distance and the gold to keep fold
+   out above the bar's end (2026-10-22 de-boxing: a web form on the plate made the bar a slab), a sheet on a phone.
+   A groove cut down the plate (the socket's shadowed wall, bar-socket.png's left slice) parts it from the slots. */
+.hb-plaque { position: relative; align-self: stretch; width: 200px; display: flex; flex-direction: column; justify-content: center; gap: 3px; padding-left: 10px; border-left: 4px solid transparent; border-image: url('../../assets/ui/bar-socket.png') 2 / 0 0 0 4px stretch; image-rendering: pixelated; }
+.hb-pl-row { display: flex; align-items: center; gap: 6px; min-height: 26px; }
+/* The fold-out: a framed panel standing above the bar's end, over the status line (it never covers the bar). */
+.hb-pl-more { position: absolute; right: -16px; bottom: calc(100% + 48px); width: 284px; display: flex; flex-direction: column; gap: 6px; padding: 6px 10px 10px; z-index: 3;
+  background: var(--modal-bg); border: 8px solid transparent; border-image: url('../../assets/ui/frame-iron.png') 4 / 8px stretch; image-rendering: pixelated;
+  transform: translateY(8px); visibility: hidden; transition: transform 120ms ease-out, visibility 0s linear 120ms; }
+.hb-plaque.is-open .hb-pl-more { transform: none; visibility: visible; transition: transform 120ms ease-out; }
+.hb-plaque .hb-more { display: inline-grid; }
+.hb-plaque.is-open .hb-more { color: var(--gold-2); }
+.hb-pl-head { display: flex; align-items: center; justify-content: space-between; min-height: 30px; font-family: var(--f-label); font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
 .hb-label { flex: none; font-family: var(--f-label); font-size: var(--t-micro); color: var(--ink-3); letter-spacing: .04em; }
 .hb-set { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
-.hb-pl-row .hh-select { flex: 1; min-width: 0; min-height: 30px; }
+.hb-pl-row .hh-select { flex: 1; min-width: 0; min-height: 26px; }
 .hb-stance { display: flex; width: 100%; }
-.hb-stance .hh-seg { flex: 1 1 0; min-width: 0; padding: 0 2px; min-height: 30px; font-size: var(--t-micro); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.hb-pl-row .hh-step .hh-seg { min-height: 30px; }
-.hb-pl-row .hb-gold { flex: 1; min-width: 0; min-height: 30px; text-align: right; font-variant-numeric: lining-nums tabular-nums; }
+.hb-stance .hh-seg { flex: 1 1 0; min-width: 0; padding: 0 2px; min-height: 26px; font-size: var(--t-micro); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hb-pl-row .hh-step .hh-seg { min-height: 26px; }
+.hb-pl-row .hb-gold { flex: 1; min-width: 0; min-height: 26px; text-align: right; font-variant-numeric: lining-nums tabular-nums; }
 /* The status line floats above the panel: a message coming or going never shifts a control under the pointer. */
-.hb-plaque .hh-intent-msg { position: absolute; left: 0; right: 0; bottom: calc(100% + 8px); margin: 0; padding: 2px 6px; font-size: var(--t-micro); background: var(--world-hud-bg); pointer-events: none; }
+.hb-plaque .hh-intent-msg { position: absolute; left: 0; right: 0; bottom: calc(100% + 20px); margin: 0; padding: 2px 6px; font-size: var(--t-micro); background: var(--world-hud-bg); pointer-events: none; }
 .hb-plaque .hh-intent-msg:empty { display: none; }
 /* Why a slot cannot fire: a small glyph on the slot, its words first in the tooltip (action-facts.js reasonOf). */
 /* Above the struck slot's red line (.hb-slot.is-off::after), and 14 px: at 12 the lock and chest blurred together. */
@@ -231,33 +244,36 @@
 .hb-tip .is-warn { color: var(--gold-2); }
 
 /* ── The vitals hub (vitals-hub.js): HP | the medallion | MP, Food and Charm under the readouts, stamina under the medallion ── */
-.hb-hub { display: grid; grid-template-columns: 72px 104px 72px; grid-template-rows: 52px 52px auto; grid-template-areas: "hp medal mp" "food medal charm" ". stam ."; column-gap: 4px; align-items: center; justify-items: center; }
-.hb-medal { grid-area: medal; position: relative; width: 104px; height: 104px; }
+/* The hub has no box of its own. Its medallion rides high, breaking the plate's top edge (the bar's outline is not
+   a rectangle) and centred on the HP and MP readouts; the stamina line rises with it. */
+.hb-hub { display: grid; grid-template-columns: 72px 104px 72px; grid-template-rows: 26px 40px 58px; grid-template-areas: ". medal ." "hp medal mp" "food stam charm"; column-gap: 4px; align-items: center; justify-items: center; margin-top: -26px; }
+/* The medallion is pixel art (bar-medal.png, 52 art px at x2): the HP and mana arcs fill its gauge channel and
+   the XP arc gilds its rim, on the art's own 52-unit grid (vitals-hub.js). */
+.hb-medal { grid-area: medal; align-self: start; position: relative; width: 104px; height: 104px; background: url('../../assets/ui/bar-medal.png') center / 100% 100% no-repeat; image-rendering: pixelated; }
 .hb-arcs { position: absolute; inset: 0; width: 104px; height: 104px; overflow: visible; }
-.hb-arc-well { fill: none; stroke: var(--bg-3); stroke-width: 8; }
-.hb-arc { fill: none; stroke-width: 6; stroke-linecap: butt; }
+.hb-arc { fill: none; stroke-width: 3.2; stroke-linecap: butt; }
 .hb-arc.is-hp { stroke: var(--hud-fill-hp); }
 .hb-arc.is-mana { stroke: var(--hud-mana-ink); }
-.hb-arc-well.is-thin { stroke-width: 3; }
 .hb-arc.is-xp { stroke: var(--gold-2); stroke-width: 2; }
-.hb-disc { fill: var(--bg-0); stroke: var(--steel); stroke-width: 1; }
 .hb-medal-in { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; pointer-events: none; }
 .hb-medal-in small { font-size: var(--t-micro); font-weight: 700; color: var(--ink-2); }
 .hb-lv { font-family: var(--f-label); font-size: var(--t-body); color: var(--gold-2); font-variant-numeric: lining-nums tabular-nums; }
-.hb-read { display: flex; flex-direction: column; line-height: 1.15; font-variant-numeric: lining-nums tabular-nums; align-self: end; }
-.hb-read.is-hp { grid-area: hp; align-items: flex-end; justify-self: end; }
-.hb-read.is-mana { grid-area: mp; align-items: flex-start; justify-self: start; }
+/* "HP 180/220" on one line, its regen under it: the readouts sit beside the medallion's lower half, inside the plate. */
+.hb-read { display: grid; grid-template-columns: auto auto; column-gap: 4px; align-items: baseline; line-height: 1.15; font-variant-numeric: lining-nums tabular-nums; }
+.hb-read-r { grid-column: 1 / -1; }
+.hb-read.is-hp { grid-area: hp; justify-items: end; justify-self: end; }
+.hb-read.is-mana { grid-area: mp; justify-items: start; justify-self: start; }
 .hb-read-k { font-size: var(--t-micro); font-weight: 700; color: var(--ink-3); }
 .hb-read-v { font-size: var(--t-small); }
 .hb-read.is-hp .hb-read-v { color: var(--hud-hp-ink); }
 .hb-read.is-mana .hb-read-v { color: var(--hud-mana-ink); }
 .hb-read-r { font-size: var(--t-micro); color: var(--ink-3); }
-.hb-stam { grid-area: stam; display: flex; align-items: center; gap: 4px; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
+.hb-stam { grid-area: stam; align-self: end; display: flex; align-items: center; gap: 4px; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
 .hb-stam .hs-glyph { width: 14px; height: 14px; color: var(--ink-3); }
-.hb-socket { display: flex; flex-direction: column; align-items: center; gap: 2px; align-self: start; }
+.hb-socket { display: flex; flex-direction: column; align-items: center; gap: 2px; align-self: end; }
 .hb-socket.is-food { grid-area: food; justify-self: end; }
 .hb-socket.is-charm { grid-area: charm; justify-self: start; }
-.hb-socket-ico { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; background: var(--bg-0); box-shadow: inset 0 0 0 1px var(--steel); }
+.hb-socket-ico { width: 40px; height: 40px; display: grid; place-items: center; background: var(--bg-1); border: 4px solid transparent; border-image: url('../../assets/ui/bar-socket.png') 2 / 4px stretch; image-rendering: pixelated; }
 .hb-socket-ico .hh-icon { width: 32px; height: 32px; }
 .hb-socket-ico .hs-glyph { width: 16px; height: 16px; color: var(--ink-3); }
 .hb-socket-k { font-size: var(--t-micro); color: var(--ink-2); white-space: nowrap; }
@@ -383,6 +399,14 @@
 .hc-none.is-on { display: block; }
 
 /* ── Chat: the channels, whispers and the input (src/shell/windows/chat.js) ── */
+/* Tyler 2026-10-22: the chat sits over the World, so the World shows through it (--chat-bg); its lines keep a
+   1 px shadow so they stay readable over a bright tile. Sized (desktop), the log takes the height the player gave it. */
+.hs-win[data-hs-win="chat"] { background: var(--chat-bg); }
+.hs-win[data-hs-win="chat"] .hc-log.is-talk .hc-line { text-shadow: 0 1px 0 var(--world-shadow); }
+.hs-win.is-sized .hc-chat { flex: 1; min-height: 0; }
+.hs-win.is-sized .hc-pane.is-on { min-height: 0; }
+.hs-win.is-sized .hc-logs { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.hs-win.is-sized .hc-log { flex: 1; min-height: 0; max-height: none; }
 .hc-tabs { flex-wrap: wrap; }
 .hc-tab { display: inline-flex; align-items: center; }
 .hc-tab .ha-tab { position: relative; padding: 0 9px; }
@@ -477,30 +501,39 @@
 /* ── Phone, landscape: compact bar, one swipeable slot row, plaque to the editor ── */
 @keyframes ca-sheet { from { transform: translateX(16px); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  /* The phone keeps its sheet as it was: opaque, so nothing of the bar under it reads through (see-through is desktop only). */
+  .hs-win[data-hs-win="chat"] { background: var(--modal-bg); }
   .hp-party { width: 200px; }
   .hp-portrait { width: 28px; height: 28px; }
   .hp-role { display: none; }
   /* THE PHONE BAR (v0.2.23 gate: 874 x 178 hid the hero): one row at most 96 px tall. The hub runs
      HP · the medal · MP with the sockets beside the readouts; the panel keeps the set and its buttons,
      and the rest of it slides out as a sheet from the right (.hb-more). */
-  .hb-bar { gap: 6px; padding: 4px; max-width: calc(100vw - 16px); }
-  .hb-hub { grid-template-columns: auto auto 64px auto auto; grid-template-rows: auto auto; align-content: center; grid-template-areas: "food hp medal mp charm" "food hp medal stam charm"; column-gap: 6px; }
-  .hb-read.is-mana { align-self: end; }
+  /* The phone's plate is the window frame (frame-iron.png, 4 art px = 8 px): the desktop's 12 px plate and the
+     raised medallion cost height a 423 px screen does not have. */
+  .hb-bar { gap: 6px; padding: 0 4px; max-width: calc(100vw - 16px); border-width: 8px; border-image: url('../../assets/ui/frame-iron.png') 4 / 8px stretch; }
+  .hb-hub { margin-top: 0; grid-template-columns: auto auto 64px auto auto; grid-template-rows: auto auto; align-content: center; grid-template-areas: "food hp medal mp charm" "food hp medal stam charm"; column-gap: 6px; }
+  .hb-read { display: flex; flex-direction: column; }
+  .hb-read.is-hp { align-items: flex-end; }
+  .hb-read.is-mana { align-items: flex-start; align-self: end; }
   .hb-stam { justify-self: start; align-self: start; }
+  .hb-medal { align-self: center; }
   .hb-medal, .hb-arcs { width: 64px; height: 64px; }
+  .hb-medal { background-image: url('../../assets/ui/bar-medal-sm.png'); }
   .hb-medal-in small:first-child { display: none; }
   .hb-read.is-hp, .hb-socket { align-self: center; }
-  .hb-socket-ico, .hb-socket-ico .hh-icon { width: 28px; height: 28px; }
+  .hb-socket-ico { width: 36px; height: 36px; }
+  .hb-socket-ico .hh-icon { width: 28px; height: 28px; }
   .hb-socket-k { display: none; }
   .hb-slots { grid-template-columns: repeat(5, 36px); grid-auto-rows: 36px; gap: 3px; }
-  .hb-plaque { width: auto; max-width: 150px; }
+  .hb-plaque { width: auto; max-width: 150px; align-self: center; }
   .hb-plaque .hb-label { display: none; }
-  .hb-plaque .hb-more { display: inline-flex; }
   .hb-pl-more { position: fixed; top: 0; right: 0; bottom: 0; width: 280px; display: flex; flex-direction: column; justify-content: center; gap: 8px; padding: 12px;
     background: var(--modal-bg); border-left: 4px solid transparent; border-image: url('../../assets/ui/frame-iron-thin.png') 2 / 4px stretch; image-rendering: pixelated;
     transform: translateX(100%); visibility: hidden; transition: transform 160ms ease-out, visibility 0s linear 160ms; }
+  .hb-pl-more { border-width: 0 0 0 4px; z-index: auto; }
   .hb-plaque.is-open .hb-pl-more { transform: none; visibility: visible; transition: transform 160ms ease-out; }
-  .hb-pl-head { display: flex; align-items: center; justify-content: space-between; color: var(--ink); }
+  .hb-pl-head { color: var(--ink); font-family: var(--f-ui); font-size: var(--t-small); letter-spacing: 0; }
   .hb-pl-more .hb-label { display: inline; }
   .hb-pl-more .hb-pl-row, .hb-pl-more .hh-seg, .hb-pl-more .hh-select { min-height: 40px; }
   /* An open window is the phone's one sheet: the alert stack (a screen widget, over the windows' layer) waits. */

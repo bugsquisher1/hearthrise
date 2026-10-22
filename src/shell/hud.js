@@ -150,6 +150,41 @@ export function clearOfDock(r, dock, others, gap, stops = []) {
   return null;
 }
 
+/* The shortest a docked window is capped to; under it the window keeps its height and the bar clears it instead. */
+const DOCK_CAP_MIN_PX = 160;
+
+/**
+ * A DOCKED WINDOW STOPS ABOVE THE BOTTOM BAR (Tyler 10-22: a Settings tab that made the docked window taller
+ * pushed the action bar across the screen). A docked window `pane` whose column crosses a bottom-centre widget's
+ * HOME rect (`bars`) ends `gap` above the highest one, so a window that grows never moves the bar; null when no
+ * bar is under it, or when the cap would leave it shorter than DOCK_CAP_MIN_PX (the bar then clears it,
+ * clearOfEdges). Rects {left, top, width, height} in the shell's px. Pure.
+ */
+export function dockCap(pane, bars, gap) {
+  const top = barTopUnder(pane, bars, gap);
+  if (top === null) return null;
+  const cap = Math.round(top - gap - pane.top);
+  return cap >= DOCK_CAP_MIN_PX ? cap : null;
+}
+
+/** The highest top of the bottom bars whose span crosses `pane`'s column (by `gap`), or null. Pure. */
+function barTopUnder(pane, bars, gap) {
+  const under = bars.filter((b) => b.width > 0 && pane.left < b.left + b.width + gap && b.left < pane.left + pane.width + gap);
+  return under.length ? Math.min(...under.map((b) => b.top)) : null;
+}
+
+/**
+ * A HOME WINDOW SITS ABOVE THE BAR (Chat at the bottom-left, Tyler 10-22): where its column crosses a
+ * bottom bar (1440x900: the bar spans 235..1205), it stands `gap` above that bar instead of at its home
+ * `bottom`, and is never taller than the room left above it. Returns {bottom, max} in the box's px
+ * (`max` null when nothing caps it), from the home `bottom` and the box's height. Pure.
+ */
+export function homeAboveBar(pane, bars, gap, bottom, boxHeight) {
+  const top = barTopUnder(pane, bars, gap);
+  if (top === null) return { bottom, max: null };
+  return { bottom: Math.max(bottom, Math.round(boxHeight - top + gap)), max: Math.max(0, Math.round(top - 2 * gap)) };
+}
+
 /**
  * The World edges the docked HUD widgets cover, so the camera frames the
  * playable area above and beside them (the bottom bar must not sit over the

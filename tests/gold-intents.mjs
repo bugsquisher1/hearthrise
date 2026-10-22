@@ -128,6 +128,12 @@ const MUTATIONS = {
     find: 'export const SHOP_BUYBACK_RATE = 0.5;',
     repl: 'export const SHOP_BUYBACK_RATE = 0.6;',
   },
+  shop_sells_unlisted: {
+    file: FN('catalogue.js'),
+    why: 'shop_buy sells an offer no Shop tab lists again (a hidden price a forged intent can hit)',
+    find: "  return offerIneligibility(o) || (o && SHOP_LISTED_OFFERS.has(o.id) ? null : 'not_listed');",
+    repl: '  return offerIneligibility(o);',
+  },
   buy_price_invented: {
     file: FN('shop-buy.js'),
     why: 'the delta stops charging the catalogue price — the server invents one, which is worse '
@@ -566,6 +572,9 @@ async function run(mutate) {
     const { ITEMS } = await import('../src/data/items.js');
     /* THE RULING'S NUMBERS, per unit, as the server pays them. */
     const BUYBACK_EXPECT = {
+      /* The legacy seed.* and equip.* rows are no longer sold (lane/b-gold-sinks, 2026-10-22: not_listed), but they
+         stay the vendor price list their caps are read from, so these bids do not move. The nine crop seeds moved to
+         the seed counter's listed supply.* rows at the SAME unit price (lane/b-orphan-sources): their bids hold too. */
       carrot_seed: 5, potato_seed: 10, pumpkin_seed: 25, turnip_seed: 2,
       wheat_seed: 7, tomato_seed: 15, stone_maul: 70, shortbow: 60, apprentice_staff: 60,
       rune_blank: 3, goldenroot_seed: 75, emberfruit_seed: 150,
@@ -669,7 +678,7 @@ async function run(mutate) {
 
   // ── G3. NO CHARACTER, then the happy path ────────────────────────────────
   {
-    const r = await doBuy({ intentId: uuid(), offer: 'equip.bronze_sword', qty: 1 });
+    const r = await doBuy({ intentId: uuid(), offer: 'supply.bronze_axe', qty: 1 });
     ok(r.status === 409 && r.body.error === 'no_character',
       `G3: an empty slot returned ${r.status} ${JSON.stringify(r.body)}`);
     ok(r.body.verb === 'shop_buy', 'G3: the refusal does not name its verb');
@@ -680,7 +689,8 @@ async function run(mutate) {
     await grant({ gold: 100000, journal: { kind: 'admin', intent: 'fixture:seed' } });
   }
 
-  const OFFER = 'equip.hunter_necklace';
+  /* The outfitter's row since 2026-10-22 (src/data/supply-basics.js); the legacy equip.hunter_necklace is gone. */
+  const OFFER = 'supply.hunter_necklace';
   let unitGold;
   {
     unitGold = cat.GOLD_OFFERS[OFFER].gold;
@@ -877,7 +887,7 @@ async function run(mutate) {
       `G6: the SAME key with a different COUNT returned ${JSON.stringify(otherQty.body).slice(0, 200)} `
       + '— expected intent_mismatch. A silent replay here charges for one sword while the client '
       + 'believes it bought five.');
-    const otherOffer = await doBuy({ intentId: key, offer: 'equip.shortbow', qty: 1 });
+    const otherOffer = await doBuy({ intentId: key, offer: 'supply.copper_ring', qty: 1 });
     ok(otherOffer.body.ok === false && otherOffer.body.error === 'intent_mismatch',
       `G6: the SAME key on a different OFFER returned ${JSON.stringify(otherOffer.body).slice(0, 200)}`);
     const crossVerb = await doSell({ intentId: key, item: 'hunter_necklace', qty: 1 });
@@ -1020,7 +1030,9 @@ async function run(mutate) {
     const lob = buy.resolveOffer('seed.cooked_lobster');
     ok(lob.ok === false && lob.error === 'unknown_offer',
       `G-PROV: the Counter still sells cooked lobster (${JSON.stringify(lob).slice(0, 160)}) — row 2 took cooked food off it`);
-    const OFF = 'seed.potato_seed'; const ITEM = 'potato_seed'; const PRICE = 100; const PER = 5;
+    /* The seed bundles are retired with every hidden offer (lane/b-gold-sinks, 2026-10-22: only a listed Shop row is
+       sold); the rule is proven on a listed one-piece row: the count multiplies the catalogue price and grant. */
+    const OFF = 'supply.copper_ring'; const ITEM = 'copper_ring'; const PRICE = 240; const PER = 1;
     const res = buy.resolveOffer(OFF);
     ok(res.ok === true && res.offer.gold === PRICE
       && JSON.stringify(res.offer.grant) === JSON.stringify([{ id: ITEM, amount: PER }]),
@@ -1060,6 +1072,34 @@ async function run(mutate) {
       `G-PROV: equip.iron_arrows answered ${arrows.status} ${JSON.stringify(arrows.body).slice(0, 200)}`);
     ok(Number((await state(db, UID)).gold) === g0 && await invOf(db, UID, 'iron_arrows') === a0,
       'G-PROV: a refused equip.iron_arrows moved gold or arrows');
+
+    /* ONLY WHAT A SHOP TAB LISTS IS SOLD (lane/b-gold-sinks, 2026-10-22). The hidden legacy equip.* and seed.* offers
+       are refused not_listed (the five outfitter items' old equip rows are gone) and move nothing. Every sellable id is a listed Gear or Tools row and every listed
+       row is sellable; a synthetic hidden offer of a sellable shape is refused not_listed (none is authored, so the
+       rule is driven directly). */
+    for (const id of ['equip.bronze_sword', 'equip.shortbow', 'equip.stone_maul', 'equip.apprentice_staff', 'equip.apprentice_wand',
+      'equip.apprentice_primer', 'equip.leather_boots', 'equip.fox_companion', 'equip.hunter_necklace', 'equip.copper_ring',
+      'seed.coarse_whetstone', 'seed.air_rune', 'seed.bronze_arrows', 'seed.rune_blank']) {
+      const gb = Number((await state(db, UID)).gold);
+      const h = await doBuy({ intentId: uuid(), offer: id, qty: 1 });
+      ok(h.status === 409 && h.body.ok === false && Number((await state(db, UID)).gold) === gb,
+        'G-LISTED: the retired hidden offer ' + id + ' answered ' + h.status + ' ' + JSON.stringify(h.body).slice(0, 160));
+    }
+    const sellable = Object.keys(cat.GOLD_OFFERS).sort().join(), listed = [...cat.SHOP_LISTED_OFFERS].sort().join();
+    ok(sellable === listed && listed.length > 0, 'G-LISTED: shop_buy sells [' + sellable + '] but the Shop lists [' + listed + ']');
+    const hidden = { id: 'equip.bronze_sword', table: 'equip', name: 'Bronze Sword', cost: [{ kind: 'currency', id: 'gold', amount: 100 }],
+      grant: [{ kind: 'item', id: 'bronze_sword', amount: 1 }], repeatable: true };
+    ok(cat.offerIneligibility(hidden) === null && cat.offerRefusal(hidden) === 'not_listed',
+      'G-LISTED: a hidden offer of a sellable shape reads ' + cat.offerRefusal(hidden) + ' (want not_listed)');
+    ok(cat.offerRefusal({ ...hidden, id: 'supply.bronze_axe', grant: [{ kind: 'item', id: 'bronze_axe', amount: 1 }] }) === null,
+      'G-LISTED-CONTROL: a listed tool reads as refused, so the check above cannot tell listed from hidden');
+    /* THE SEED COUNTER (lane/b-orphan-sources, 2026-10-22): every crop's seed is a listed, sellable row, and the
+       legacy seed.* bundle it replaced is gone (one item, one price). */
+    const { CROPS } = await import('../src/data/gathering.js');
+    for (const c of Object.values(CROPS)) {
+      ok(Boolean(cat.GOLD_OFFERS['supply.' + c.seed]) && !cat.GOLD_OFFERS['seed.' + c.seed] && !cat.OFFER_REFUSALS['seed.' + c.seed],
+        'G-SEEDS: ' + c.seed + ' is not sold by exactly its seed-counter row');
+    }
   }
 
   // ── G9. SELLING ─────────────────────────────────────────────────────────

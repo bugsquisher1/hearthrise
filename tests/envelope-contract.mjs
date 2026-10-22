@@ -152,6 +152,16 @@ function contract(R, cs, body, tl) {
   need('state', R.IS.bagCapOf(cs) !== null, 'bagCapOf reads no state.bank_cap');
   need('buffs', Array.isArray(body.buffs) && Array.isArray(R.IS.buffsOf(cs)), 'buffsOf reads ' + JSON.stringify(body.buffs).slice(0, 160));
   need('bank', body.bank === null || Array.isArray(R.IS.bankOf(cs)), 'bankOf reads ' + JSON.stringify(body.bank).slice(0, 160));
+  // the ACCOUNT storage's space (2026-11-28-storage-chests.sql): used / cap and the next chest, the Storage window's line
+  const dp = R.IS.depotOf(cs);
+  need('depot', !!dp && dp.cap >= 1 && dp.used >= 0 && (dp.next === null || (dp.next.stacks >= 1 && dp.next.name.length > 0)),
+    'depotOf yields ' + JSON.stringify(dp) + ' from ' + JSON.stringify(body.depot));
+  // the account's one house (2026-11-29-house-home.sql): the property ladder and the rooms, the House window's ledger;
+  // the storage chests ride the same depot section (src/session/home-sections.js)
+  const ho = R.HO.homeOf(cs), ch = R.HO.chestsOf(cs);
+  need('home', !!ho && ho.tier >= 0 && ho.tiers.length >= 1 && ho.tiers.every((t) => t.gold >= 1 && /^property\./.test(t.offer)) && ho.rooms.length >= 1
+    && ho.rooms.every((r) => r.rungs >= 1 && (r.next === null || /^room\./.test(r.next.offer))) && !!ch && ch.chests.length >= 1,
+    'homeOf yields ' + JSON.stringify(ho).slice(0, 200) + ' from ' + JSON.stringify(body.home).slice(0, 200));
   // ── lane S2: the alpha windows' and the party UI's sections (seeded by S2_SEED before the settle) ──
   need('name', typeof body.name === 'string' && R.IS.nameOf(cs) === SEED.name && (!h || h.hero.name === SEED.name),
     'name reads ' + JSON.stringify(R.IS.nameOf(cs)) + ' from ' + JSON.stringify(body.name) + ' (hero ' + JSON.stringify(h && h.hero.name) + ')');
@@ -159,8 +169,10 @@ function contract(R, cs, body, tl) {
   need('bag_rules', !!ru && ru.locked.has(SEED.lock) && ru.loot[SEED.loot] === 'sell',
     'rulesOf yields ' + JSON.stringify(ru && { locked: [...ru.locked], loot: ru.loot }) + ' from ' + JSON.stringify(body.bag_rules));
   const sh = R.IS.shopOf(cs);
-  /* The Shop sells tools, never supplies (2026-11-02-shop-no-supplies.sql), and quotes no refill. */
-  need('shop', !!sh && sh.offers.length > 0 && sh.offers.every((o) => o.kind === 'tool') && sh.offers.some((o) => o.item === SEED.tool)
+  /* The Shop sells tools, the outfitter's gear and the seed counter, never supplies (2026-11-02-shop-no-supplies.sql,
+     2026-11-24-shop-outfitter.sql, 2026-11-25-shop-seeds.sql), and quotes no refill. */
+  need('shop', !!sh && sh.offers.length > 0 && sh.offers.every((o) => o.kind === 'tool' || o.kind === 'gear' || o.kind === 'seed') && sh.offers.some((o) => o.item === SEED.tool)
+    && sh.offers.some((o) => o.kind === 'gear') && sh.offers.some((o) => o.kind === 'seed')
     && sh.bids.size > 0 && !('refill' in body.shop),
     'shopOf yields ' + JSON.stringify(sh && { offers: sh.offers.length, bids: sh.bids.size }).slice(0, 300) + ' from ' + JSON.stringify(body.shop).slice(0, 200));
   const pr = R.IS.presetsOf(cs);
@@ -194,6 +206,10 @@ function contract(R, cs, body, tl) {
   const tv = R.CS.heroVitalsOf(cs);
   need('vitals', !!tv && isNum(tv.hpMax) && isNum(tv.manaMax) && isNum(tv.level) && (tv.hunting || tv.mana === tv.manaMax),
     'heroVitalsOf yields ' + JSON.stringify(tv) + ' from ' + JSON.stringify(body.vitals));
+  /* the Farm window (2026-11-26-farm-window.sql): a fresh hero's field — room for 2 plots at the Camp, tier 1, the tier-2 price */
+  const fl = R.FS.farmLandOf(cs, 0);
+  need('farm_land', !!fl && fl.cap >= 2 && fl.plotLevel >= 1 && fl.plots instanceof Map && (fl.plotLevel >= 5 || (!!fl.upgrade && fl.upgrade.gold > 0 && fl.upgrade.farming > 0)),
+    'farmLandOf yields ' + JSON.stringify(fl && { cap: fl.cap, plotLevel: fl.plotLevel, upgrade: fl.upgrade, plots: fl.plots.size }) + ' from ' + JSON.stringify(body.farm_land));
   return out;
 }
 
@@ -215,7 +231,7 @@ function sheetContract(R, cs, body) {
 export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events', 'hunt_server_now_ms', 'hunt_settings', 'hunt_analyzer',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'stamina_refill', 'blessings',
-  'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_density', 'now']);
+  'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_density', 'depot', 'home', 'now', 'farm_land']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -269,7 +285,7 @@ async function readers(root) {
   return {
     HS: await import(u('src/session/hunt-sections.js')), IS: await import(u('src/session/item-sections.js')),
     PS: await import(u('src/session/party-sections.js')), ACC: await import(u('src/session/account-session.js')),
-    CS: await import(u('src/session/character-sections.js')),
+    CS: await import(u('src/session/character-sections.js')), FS: await import(u('src/session/farm-sections.js')), HO: await import(u('src/session/home-sections.js')),
     CFG: await import(u('src/session/config.js')), CSN: await import(u('src/session/character-session.js')),
     M: await import(u('src/data/monsters.js')),
   };
@@ -370,6 +386,8 @@ const DB_MUTANTS = [
   ['death_log', 'public.hr_death_log_view(uuid,integer)', "'monster', nullif(", "'killer', nullif("],
   ['hunt_bests', 'public.hr_hunt_bests_view(uuid,integer)', "jsonb_build_object('xp_h', b.xp_h,", "jsonb_build_object('xph', b.xp_h,"],
   ['hunt_bests', 'public.hr_hunt_bests_view(uuid,integer)', "'min_ms', (extract(", "'minms', (extract("],
+  ['depot', 'public.hr_depot_view(uuid,integer)', "'cap', public.hr_depot_cap(p_user),", "'capacity', public.hr_depot_cap(p_user),"],
+  ['home', 'public.hr_home_view(uuid,integer)', "'rooms', coalesce((select jsonb_agg(", "'room_list', coalesce((select jsonb_agg("],
   ['now', 'public.hr_state_of(uuid,integer)', "'now', now(),", "'stamp', now(),"],
 ];
 const EDGE_MUTANTS = [

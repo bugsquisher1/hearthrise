@@ -19,7 +19,7 @@
 // While a hunt runs the chest is at home and the hero is not: the window says
 // so and its moves stay off (the server's own rule is in CONFLICTS.md).
 // ════════════════════════════════════════════════════════════════════════
-import { bagOf, bankOf } from '../../session/item-sections.js?v=0.2.28';
+import { bagOf, bankOf, depotOf } from '../../session/item-sections.js?v=0.2.28';
 import { huntOf } from '../../session/hunt-sections.js?v=0.2.28';
 import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.28';
 import { whole } from '../../render/format.js?v=0.2.28';
@@ -46,12 +46,13 @@ export function renderStorage(ctx) {
     + '<p class="hs-note hw-store-note"></p>'
     + '<h3 class="hw-ledger-head is-on">In storage <small class="hw-store-n" data-n="bank"></small></h3>'
     + '<ul class="hw-pockets" data-side="bank" role="listbox" aria-label="In storage"></ul><p class="hh-empty hw-store-none" data-none="bank"></p>'
+    + '<p class="hs-note hw-store-room"></p>'
     + '<h3 class="hw-ledger-head is-on">In your bag <small class="hw-store-n" data-n="bag"></small></h3>'
     + '<ul class="hw-pockets" data-side="bag" role="listbox" aria-label="In your bag"></ul><p class="hh-empty hw-store-none" data-none="bag"></p>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
 }
 
-function patchSide(root, ctx, side, list, q, off) {
+function patchSide(root, ctx, side, list, q, off, depot) {
   const shown = list.filter(match(q)).sort(byName);
   rows(root.querySelector('.hw-pockets[data-side="' + side + '"]'), shown, {
     key: (r) => r.id,
@@ -63,10 +64,12 @@ function patchSide(root, ctx, side, list, q, off) {
       attr(li, 'draggable', 'false');
     },
   });
-  text(root.querySelector('[data-n="' + side + '"]'), whole(list.length) + (list.length === 1 ? ' stack' : ' stacks'));
+  /* The storage's space is the ACCOUNT's (the server's used / cap); the bag counts its own stacks. */
+  text(root.querySelector('[data-n="' + side + '"]'), side === 'bank' && depot ? whole(depot.used) + ' of ' + whole(depot.cap) + ' stacks'
+    : whole(list.length) + (list.length === 1 ? ' stack' : ' stacks'));
   const none = root.querySelector('[data-none="' + side + '"]');
   cls(none, 'is-on', !shown.length);
-  text(none, list.length ? 'Nothing here matches.' : side === 'bank' ? 'Your storage is empty. Press a stack in your bag to put it away.' : 'Your bag is empty.');
+  text(none, list.length ? 'Nothing here matches.' : side === 'bank' ? 'Your storage is empty. All your characters share it: press a stack in your bag to put it away.' : 'Your bag is empty.');
 }
 
 renderStorage.patch = function patchStorage(body, ctx) {
@@ -82,7 +85,11 @@ renderStorage.patch = function patchStorage(body, ctx) {
   if (ctx.doc.activeElement !== input) prop(input, 'value', sc.query);
   text(root.querySelector('.hw-store-note'), away ? 'Your storage is at home and your hero is out hunting. Leave the hunt to use it.'
     : !bank ? 'Reading your storage…' : 'Press a stack to move one across. Shift-press moves all of it. Right-click (or hold) to choose how many.');
-  patchSide(root, ctx, 'bank', bank || [], q, off);
+  const depot = depotOf(cs);
+  patchSide(root, ctx, 'bank', bank || [], q, off, depot);
+  text(root.querySelector('.hw-store-room'), !depot ? '' : depot.next
+    ? 'More room comes from storage chests, built in the House (E). Next: the ' + depot.next.name + ', ' + whole(depot.next.stacks) + ' more stacks.'
+    : 'Every storage chest is built.');
   patchSide(root, ctx, 'bag', bag || [], q, off);
   cls(root, 'is-pending', sc.pending);
   cls(root, 'is-off', off);

@@ -47,7 +47,7 @@ export const START_CURRENCY = Object.freeze({
   hearthTokens: 0,          // the IAP bond. NEVER minted by a PvE path.
   hp: 150,
   bankCap: 100,
-  farmPlots: 4,
+  farmPlots: 2,             // the Camp's plots (homestead-tiers.js PROPERTY_TIERS[0]); the ladder grants more
 });
 
 /* Skill XP. Absent = 0: a new character starts every skill at level 1 and its

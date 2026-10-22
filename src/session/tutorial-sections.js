@@ -40,5 +40,6 @@ export function pointerCardOf(cs) {
   const role = (settingsOf(cs) || {}).role || null;
   const sk = skillsOf(cs);
   const skill = ROLE_SKILL[role];
-  return nextGoal({ charLevel: f.charLevel, role, skillLevel: sk && skill && sk[skill] ? sk[skill].level : null });
+  return nextGoal({ charLevel: f.charLevel, role, skillLevel: sk && skill && sk[skill] ? sk[skill].level : null,
+    defenseXp: sk && sk.defense ? sk.defense.xp : null, farmingXp: sk && sk.farming ? sk.farming.xp : null });
 }

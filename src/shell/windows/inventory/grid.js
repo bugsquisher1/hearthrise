@@ -27,7 +27,8 @@ import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.28';
 import { primaryOf, junkOf, confirmWords, huntLoot } from './state.js?v=0.2.28';
 import { pocketHtml, patchCount } from './pockets.js?v=0.2.28';
 import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.28';
-import { buryLine, buryBlock, buryingOf, buryRecipeOf } from './bury.js?v=0.2.28';
+import { buryLine, buryBlock, buryRecipeOf } from './bury.js?v=0.2.28';
+import { upgradeLineHtml, patchUpgradeLine } from '../../widgets/upgrade-line.js?v=0.2.28';
 
 const RULES = Object.freeze([['keep', 'Keep'], ['sell', 'Sell at the shop'], ['ignore', 'Leave it']]);
 export const KEYS = '/ search · arrows move · Enter use · Space select · Delete sell · L lock · Ctrl+A select all';
@@ -58,6 +59,7 @@ export function toolsHtml(g) {
   return '<div class="hw-pick"><span class="hw-pick-ico"></span><span class="hw-pick-name"><b></b><small></small></span>'
     + '<button type="button" class="hw-primary" data-hs-act="primary"></button>'
     + '<button type="button" class="hh-tool hw-more" data-hs-act="more" aria-label="More for this item">' + glyphSvg(g, 'uiPlus') + '</button></div>'
+    + upgradeLineHtml()
     + '<div class="hw-burying" role="status"><span class="hw-burying-q"></span><button type="button" class="hh-tool" data-hs-act="bury-stop">Stop</button></div>'
     + '<div class="hw-bulk"><span class="hw-selcount"></span>'
     + '<button type="button" class="hh-tool" data-hs-act="sell-sel">Sell selected</button>'
@@ -78,7 +80,7 @@ function patchPocket(li, r, st) {
   cls(li, 'is-new', fresh);
   cls(li, 'is-locked', locked);
   cls(li, 'is-cur', st.sc.cursor === r.id);
-  cls(li, 'is-wearing', !!st.sc.wearing && st.sc.wearing.item === r.id);   // being put on (actions.js wear)
+  cls(li, 'is-wearing', !!st.sc.wearing && st.sc.wearing.items.includes(r.id));   // being put on (actions.js wear, Equip upgrades)
   attr(li, 'aria-selected', String(st.sc.sel.has(r.id)));
   text(li.querySelector('.hw-barkey'), bi >= 0 ? barKeyLabel(bi) : '');
   attr(li, 'aria-label', itemName(r.id) + (r.qty > 1 ? ', ' + whole(r.qty) : '') + (locked ? ', locked' : '') + (fresh ? ', new' : ''));
@@ -127,9 +129,10 @@ export function patchTools(root, st, ctx) {
   const pb = pick.querySelector('[data-hs-act="primary"]');
   text(pb, prim ? prim[1] : '');
   cls(pb, 'is-on', !!prim);
-  const buryWhy = prim && prim[0] === 'bury' ? (buryingOf(st.cs) ? 'Already burying. Stop it first.' : buryBlock(st.cs, buryRecipeOf(cur))) : '';
+  const buryWhy = prim && prim[0] === 'bury' ? buryBlock(st.cs, buryRecipeOf(cur)) : '';
   prop(pb, 'disabled', sc.pending || !prim);
   attr(pb, 'title', buryWhy || null);
+  patchUpgradeLine(root, st.upgrade, onBag, sc.pending);
   const line = buryLine(st.cs);
   const bl = root.querySelector('.hw-burying');
   cls(bl, 'is-on', !!line);

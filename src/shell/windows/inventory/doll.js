@@ -81,7 +81,7 @@ export function patchDoll(root, st, ctx) {
     cls(b, 'is-empty', !id);
     cls(b, 'is-open', sc.slot === s);
     /* The slot an equip is changing, from the press to the server's envelope (actions.js wear). */
-    const busy = !!sc.wearing && sc.wearing.slot === s;
+    const busy = !!sc.wearing && sc.wearing.slots.includes(s);
     cls(b, 'is-wearing', busy);
     attr(b, 'aria-busy', busy ? 'true' : null);
     attr(b, 'aria-label', SLOT_LABEL.get(s) + ': ' + (id ? itemName(id) : 'empty'));

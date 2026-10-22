@@ -4228,3 +4228,8 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 2. *A per-ground cap belongs on the ground's own catalogue row, generated from the one clamp* (`densityFor`), never a second copy of the numbers: `hr_hunt_grounds.density_max` = `densityFor(g, n, DENSITY_PICK.max)` per party size.
 3. *A fixture that never saves a setup has no action-set row:* an `update ... where` on it moves nothing and a CONTROL goes red for the wrong reason. Upsert what the test means to plant.
 4. *A UI test that reads only before and after a save misses a draft leaking across lines;* read the other lines mid-draft.
+## 2026-10-22 · lane/b-rare-broadcast (the rare-drop broadcast + the shareable card)
+1. *Hook the event row, not the settle body.* The settle writes `rare_drop` only for an item its fold looted (ledger high-water mark), so an AFTER INSERT trigger on hunt_session_events inherits replay safety and restates nothing another lane may be restating. Journal UNIQUE (event_id) and (session, item, instant) make it idempotent against any re-writer.
+2. *A sender stamp keyed on auth.uid() is a hidden dependency for server-written lines.* hr_chat_name_authority overwrites from_id with a signed-in caller; the trigger journals `refused` rather than post under a foreign JWT (§4(d) proves it).
+3. *selfcheck-no-global-dml cannot read `execute`.* Write privilege probes as static, probe-scoped statements, one begin/exception block each.
+4. *A client-rendered marker needs a trust boundary.* `[[hunt:id]]` names a hunt only on a System row (no player can write that channel); in a player's line it stays as typed.

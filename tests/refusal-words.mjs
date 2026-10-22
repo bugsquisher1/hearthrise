@@ -135,7 +135,7 @@ async function run(root) {
 }
 
 const MUTANTS = [
-  ['RW1', 'the Iron Platelegs code loses its line and its family', 'src/data/refusal-words.js', "  requirement_not_met: 'Your skill is too low to use that yet.',\n", ''],
+  ['RW1', 'the Iron Platelegs code loses its line and its family', 'src/data/refusal-words.js', "  requirement_not_met: 'Your skill is too low to wear that yet. Nothing was put on.',\n", ''],
   ['RW1', 'the bad_* family is gone', 'src/data/refusal-words.js', "  [/^(bad|missing)_[a-z0-9_]+$|_shape$|^unknown_(verb|op|delta_key|rpc)$/, 'That request was not valid, so nothing was changed.'],\n", ''],
   ['RW1', 'the old one-word fallback for every unlisted code', 'src/shell/intent-words.js', '  return (typeof code === \'string\' && familyWords(code)) || REFUSAL_FALLBACK;', '  return REFUSAL_FALLBACK;'],
   ['RW2', 'the fallback says nothing about what changed', 'src/data/refusal-words.js', "export const REFUSAL_FALLBACK = 'That did not go through, so nothing was changed. Try again in a moment.';", "export const REFUSAL_FALLBACK = 'Not done: the server refused it.';"],

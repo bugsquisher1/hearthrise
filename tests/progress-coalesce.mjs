@@ -264,7 +264,7 @@ const STRIP_POLL = new Set([...STRIP, 'version']);
    it carries the delta's combat xp (0 on gather) and the next delta clears it. */
 const STRIP_AWAY = new Set([...STRIP_POLL, 'combat_settle_span']);
 const clean = (o, strip = STRIP) => Object.fromEntries(Object.entries(o).filter(([k]) => !strip.has(k)).sort(([a], [b]) => (a < b ? -1 : 1)));
-const TABLES = ['player_state', 'player_inventory', 'player_skills', 'player_progress', 'player_equipment', 'player_bank'];
+const TABLES = ['player_state', 'player_inventory', 'player_skills', 'player_progress', 'player_equipment', 'account_bank'];
 
 async function dbArms(db, Ms, ok, log, run) {
   const q = async (sql, p) => (await db.query(sql, p)).rows;

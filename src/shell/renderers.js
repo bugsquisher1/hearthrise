@@ -25,6 +25,7 @@ import { renderHunts } from './windows/hunts.js?v=0.2.28';
 import { renderStorage } from './windows/storage.js?v=0.2.28';
 import { renderShop } from './windows/shop.js?v=0.2.28';
 import { renderServices } from './windows/services.js?v=0.2.28';
+import { renderHouse } from './windows/house.js?v=0.2.28';
 import { renderHuntPrep } from './windows/hunt-prep.js?v=0.2.28';
 import { renderParty } from './windows/party.js?v=0.2.28';
 import { renderCharacters } from './windows/characters.js?v=0.2.28';
@@ -33,6 +34,7 @@ import { renderHuntSummary } from './windows/hunt-summary.js?v=0.2.28';
 import { renderReport } from './windows/report.js?v=0.2.28';
 import { renderDeath } from './windows/death.js?v=0.2.28';
 import { renderOnline } from './widgets/online.js?v=0.2.28';
+import { renderFarm } from './windows/farm.js?v=0.2.28';
 
 /* A renderer with `.patch` is a component: built once, then patched in place (src/shell/shell.js). */
 export const WINDOW_RENDERERS = Object.freeze({
@@ -43,6 +45,8 @@ export const WINDOW_RENDERERS = Object.freeze({
   storage: renderStorage,
   shop: renderShop,
   services: renderServices,
+  farm: renderFarm,
+  house: renderHouse,
   'hunt-prep': renderHuntPrep,
   'hunt-party': renderParty,
   characters: renderCharacters,

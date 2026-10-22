@@ -19,7 +19,7 @@
 //   setHuntDensity(h, n) the density pick on one ground (hr_hunt_density_set), re-read
 //   enterHunt(h, b, p) the go-hunting INTENT (hr_hunt_enter), re-read the same way
 //   leaveHunt()        the leave INTENT (hr_hunt_leave), re-read the same way
-//   moveStorage(i,n,d) the home storage INTENT (hr_bank_move), re-read the same way
+//   moveStorage(i,n,d) the ACCOUNT storage INTENT (hr_bank_move), re-read; then onShared('bank', slot)
 //   edgeIntent(v, f)   an item intent through the engine (equip, sell, buy, eat;
 //                      src/session/edge-intents.js): names and counts only
 //   lockItem / setLootRule / savePreset / applyPreset
@@ -274,10 +274,11 @@ export class CharacterSession {
       p_bag: lines.map((l) => ({ item: l.item, qty: l.qty })), p_preset: preset, p_hours: null, p_idem: newIdem() }));
   }
 
-  /** Move a stack between the bag and the home storage (hr_bank_move): `dir` is 'deposit' or 'withdraw'. */
+  /** Move a stack between the bag and the ACCOUNT's storage (hr_bank_move; `dir` deposit | withdraw); on ok, onShared. */
   async moveStorage(item, qty, dir) {
     if (this._closed || !ITEM.test(String(item)) || !Number.isSafeInteger(qty) || qty < 1 || qty > 1000000 || (dir !== 'deposit' && dir !== 'withdraw')) return { ok: false, error: 'bad_intent' };
-    return this._ask('bank_move', () => this._server.rpc('hr_bank_move', { p_slot: this.slot, p_item: item, p_qty: qty, p_dir: dir, p_idem: newIdem() }));
+    return this._ask('bank_move', () => this._server.rpc('hr_bank_move', { p_slot: this.slot, p_item: item, p_qty: qty, p_dir: dir, p_idem: newIdem() }))
+      .then((r) => { if (r && r.ok && typeof this.onShared === 'function') this.onShared('bank', this.slot); return r; });
   }
 
   /**

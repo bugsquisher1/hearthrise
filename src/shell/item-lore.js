@@ -19,10 +19,11 @@ import { MONSTERS } from '../data/monsters.js?v=0.2.28';
 import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.28';
 import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOT_META } from '../data/gathering.js?v=0.2.28';
 import { SHOP_OFFERS } from '../data/shops.js?v=0.2.28';
+import { SHOP_LISTED_OFFER_IDS } from '../data/supply-basics.js?v=0.2.28';
 import { SKILLS_DEF } from '../data/skills.js?v=0.2.28';
 import { ITEM_DESC } from '../data/item-descriptions.js?v=0.2.28';
 import { itemName, monsterName } from './widgets/bits.js?v=0.2.28';
-import { kindOf, riteOf } from './bag-model.js?v=0.2.28';
+import { kindOf, riteOf, cookOf } from './bag-model.js?v=0.2.28';
 
 const skillName = (id) => (SKILLS_DEF[id] && SKILLS_DEF[id].name) || id;
 const RARITY = Object.freeze({ common: 'Common', uncommon: 'Uncommon', rare: 'Rare', epic: 'Epic', legendary: 'Legendary', mythic: 'Mythic', unique: 'Unique' });
@@ -52,7 +53,8 @@ function index() {
   for (const r of DRINK_RECIPES) recipe('cooking', r);
   for (const [nodes, skill] of [[TREES, 'woodcutting'], [ROCKS, 'mining'], [FISH_SPOTS, 'fishing']]) for (const n of nodes) if (n.prod) at(n.prod).from.push(skill);
   for (const c of Object.values(CROPS)) if (c && c.prod) at(c.prod).from.push('farming');
-  for (const o of SHOP_OFFERS) for (const g of o.grant || []) if (g.kind === 'item') at(g.id).shop = true;
+  /* Only a row a Shop tab lists is "sold at the shop": the rest are the vendor's price list (lane/b-orphan-sources). */
+  for (const o of SHOP_OFFERS) if (SHOP_LISTED_OFFER_IDS.has(o.id)) for (const g of o.grant || []) if (g.kind === 'item') at(g.id).shop = true;
   return INDEX;
 }
 
@@ -104,6 +106,9 @@ export function usesOf(id) {
   /* An offering (bones): what the skill does with it, never "sell it" (ruling 2026-10-14, Brannoc 10-22). */
   const rite = riteOf(id);
   if (rite) out.push(String(rite.recipe.name).split(' ')[0] + ' it to train ' + skillName(rite.skill));
+  /* Raw food that cooks (playtest 10-22: Raw Wolf Meat read as 1 gp loot): Cook all in the bag does it. */
+  const cook = cookOf(id);
+  if (cook) out.push('Cook it into food (' + skillName(cook.skill) + ' ' + cook.recipe.req + ')');
   if (!out.length) out.push('Sell it at the shop');
   return out;
 }

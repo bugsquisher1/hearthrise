@@ -2,11 +2,13 @@
 // src/shell/windows/shop.js — THE SHOP: A STALL LEDGER (WORLD_SHELL §4).
 //
 // Two tabs on one ledger, every price the SERVER's (`shop` section):
-//   Buy     the tools, one list (Tyler 2026-10-20: the Shop keeps gear and tools and sells
+//   Buy     gear, tools and seeds, a list each (Tyler 2026-10-20: the Shop keeps gear and tools and sells
 //           NO supplies; food, drink and ammo come from the action bar at the
 //           store price per use), each with the server's price, what is in the
 //           bag, a count and a Buy button that shows the total for that count
-//           before it is pressed. ONE `shop_buy` { offer, qty }.
+//           before it is pressed. ONE `shop_buy` { offer, qty }. Right after a gear
+//           purchase, "Equip upgrades" offers to put on what is now better (ONE
+//           `equip`, src/shell/widgets/upgrade-line.js).
 //   Sell    every unlocked bag stack the shop bids on, loot first, one Sell per
 //           line and "Sell all loot" — each a confirmation with the total, then
 //           ONE `vendor_sell_many`. Locked stacks are listed as kept.
@@ -21,11 +23,22 @@ import { itemIconHtml, itemName } from '../widgets/bits.js?v=0.2.28';
 import { kindOf, sellPlan, lootToSell } from '../bag-model.js?v=0.2.28';
 import { runIntent } from '../intent-words.js?v=0.2.28';
 import { showTip, hideTip } from './item-tip.js?v=0.2.28';
+import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.28';
 
 const TABS = Object.freeze([['buy', 'Buy'], ['sell', 'Sell']]);
 const QTYS = Object.freeze([1, 5, 10, 25, 50, 100]);
+/* The Buy tab's lists, by the server's offer kind: [kind, heading, the one line under it]. The gear line says
+   why it is there (designer 2026-10-22: Defense trains only in armour; monsters drop the big pieces). */
+const BUY_GROUPS = Object.freeze([
+  ['gear', 'Gear', 'Gloves and belts are armour: wear one and Defense trains. Helmets, bodies, legs and boots come from monsters.'],
+  ['tool', 'Tools', ''],
+  /* The seed counter (designer 2026-10-22): one seed grows one crop on a farm plot; the crop's Farming level gates the planting, not the purchase. */
+  ['seed', 'Seeds', 'One seed grows one crop on a farm plot. Each crop needs its Farming level to plant.'],
+]);
+/* A piece of gear is bought one or two at a time (two rings); tools by the stack. */
+const QTYS_BY_KIND = Object.freeze({ gear: Object.freeze([1, 2]) });
 const SCRATCH = new WeakMap();
-const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { tab: 'buy', qty: {}, confirm: null, pending: false, msg: '' }; SCRATCH.set(cs, s); } return s; };
+const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { tab: 'buy', qty: {}, confirm: null, pending: false, msg: '', wear: false, wearing: null }; SCRATCH.set(cs, s); } return s; };
 
 /** The skeleton (built once per opening). */
 export function renderShop() {
@@ -33,8 +46,10 @@ export function renderShop() {
     + '<div class="hw-tabs" role="tablist">' + TABS.map(([id, l], i) => '<button type="button" role="tab" class="hw-tab" data-hs-act="tab" data-tab="' + id + '" aria-selected="' + (i === 0) + '">' + esc(l) + '</button>').join('') + '</div>'
     + '<p class="hw-cap"><span class="hw-gold"></span><span class="hw-shop-note"></span></p>'
     + '<section class="hw-pane" data-pane="buy">'
-    + '<h3 class="hw-ledger-head hw-buy-head">Tools</h3><ul class="hw-ledger hw-buy-list"></ul>'
-    + '<p class="hh-empty hw-buy-none">The shop has no prices for you yet.</p></section>'
+    + BUY_GROUPS.map(([kind, head, note]) => '<h3 class="hw-ledger-head hw-buy-head" data-kind="' + kind + '">' + esc(head) + '</h3>'
+      + (note ? '<p class="hw-cap hw-buy-note" data-kind="' + kind + '">' + esc(note) + '</p>' : '')
+      + '<ul class="hw-ledger hw-buy-list" data-kind="' + kind + '"></ul>').join('')
+    + '<p class="hh-empty hw-buy-none">The shop has no prices for you yet.</p>' + upgradeLineHtml() + '</section>'
     + '<section class="hw-pane" data-pane="sell">'
     + '<div class="hw-tools"><button type="button" class="hh-tool" data-hs-act="sell-loot"></button></div>'
     + '<ul class="hw-ledger hw-sell-list"></ul><p class="hh-empty hw-sell-none">Nothing in your bag that the shop buys.</p>'
@@ -45,29 +60,36 @@ export function renderShop() {
 }
 
 function offerRow(ctx, o) {
+  const qtys = QTYS_BY_KIND[o.kind] || QTYS;
   return element(ctx.doc, '<li class="hw-line" data-hs-act="line" data-item="' + esc(o.item) + '"><span class="hw-ico">' + itemIconHtml(ctx.glyphs, o.item) + '</span>'
     + '<span class="hw-line-name"><b>' + esc(itemName(o.item)) + '</b><small></small></span>'
-    + '<select class="hh-select hw-qty" data-hs-act="qty" data-offer="' + esc(o.offer) + '" aria-label="How many">' + QTYS.map((n) => '<option value="' + n + '">' + n + '</option>').join('') + '</select>'
+    + '<select class="hh-select hw-qty" data-hs-act="qty" data-offer="' + esc(o.offer) + '" aria-label="How many">' + qtys.map((n) => '<option value="' + n + '">' + n + '</option>').join('') + '</select>'
     + '<button type="button" class="hh-tool" data-hs-act="buy" data-offer="' + esc(o.offer) + '"></button></li>');
 }
 
 function patchBuy(root, st, ctx) {
-  /* The server's offers as the session reads them: the tools (item-sections.js shopOf drops any other kind). */
+  /* The server's offers as the session reads them: gear and tools (item-sections.js shopOf drops any other kind),
+     each kind under its own heading, in the server's order. */
   const offers = st.shop ? st.shop.offers : [];
-  cls(root.querySelector('.hw-buy-head'), 'is-on', offers.length > 0);
-  rows(root.querySelector('.hw-buy-list'), offers, {
-    key: (o) => o.offer,
-    build: (o) => offerRow(ctx, o),
-    patch: (li, o) => {
-      const n = st.sc.qty[o.offer] || 1;
-      text(li.querySelector('small'), gold(o.price) + ' each · ' + whole(st.qty.get(o.item) || 0) + ' in the bag');
-      prop(li.querySelector('select'), 'value', String(n));
-      const b = li.querySelector('[data-hs-act="buy"]');
-      text(b, 'Buy ' + n + ' · ' + gold(o.price * n));
-      prop(b, 'disabled', st.sc.pending || (st.gold !== null && st.gold < o.price * n));
-    },
-  });
+  for (const [kind] of BUY_GROUPS) {
+    const mine = offers.filter((o) => o.kind === kind);
+    for (const el of root.querySelectorAll('.hw-buy-head[data-kind="' + kind + '"], .hw-buy-note[data-kind="' + kind + '"]')) cls(el, 'is-on', mine.length > 0);
+    rows(root.querySelector('.hw-buy-list[data-kind="' + kind + '"]'), mine, {
+      key: (o) => o.offer,
+      build: (o) => offerRow(ctx, o),
+      patch: (li, o) => {
+        const n = st.sc.qty[o.offer] || 1;
+        text(li.querySelector('small'), gold(o.price) + ' each · ' + whole(st.qty.get(o.item) || 0) + ' in the bag');
+        prop(li.querySelector('select'), 'value', String(n));
+        const b = li.querySelector('[data-hs-act="buy"]');
+        text(b, 'Buy ' + n + ' · ' + gold(o.price * n));
+        prop(b, 'disabled', st.sc.pending || (st.gold !== null && st.gold < o.price * n));
+      },
+    });
+  }
   cls(root.querySelector('.hw-buy-none'), 'is-on', !offers.length);
+  /* Right after a gear purchase: put on what is now better, without four menus (designer, gold-sinks 2026-10-22). */
+  patchUpgradeLine(root, st.sc.wear ? upgradeOf(st.cs) : { picks: [] }, st.sc.wear, st.sc.pending);
 }
 
 function patchSell(root, st, ctx) {
@@ -141,14 +163,17 @@ renderShop.act = function actShop(ctx, body, action, ev, t) {
     return false;
   }
   if (ev.type !== 'click') return false;
-  if (action === 'tab') { sc.tab = t.getAttribute('data-tab'); sc.confirm = null; sc.msg = ''; repaint(); return true; }
+  if (action === 'tab') { sc.tab = t.getAttribute('data-tab'); sc.confirm = null; sc.msg = ''; sc.wear = false; repaint(); return true; }
   if (action === 'buy') {
     const offer = t.getAttribute('data-offer');
+    const o = shop ? shop.offers.find((x) => x.offer === offer) : null;
     const before = goldOf(cs);
+    sc.wear = false;
     runIntent(sc, repaint, () => cs.edgeIntent('shop_buy', { offer, qty: sc.qty[offer] || 1 }), 'Buying…',
-      () => { const after = goldOf(cs); return before !== null && after !== null ? 'Paid ' + gold(before - after) + '.' : 'Bought.'; });
+      () => { sc.wear = !!o && o.kind === 'gear'; const after = goldOf(cs); return before !== null && after !== null ? 'Paid ' + gold(before - after) + '.' : 'Bought.'; });
     return true;
   }
+  if (action === 'equip-upgrades') { equipUpgrades(cs, sc, repaint, upgradeOf(cs)); return true; }
   if (action === 'sell' || action === 'sell-loot') {
     const items = bagOf(cs) || [];
     const rules = rulesOf(cs);

@@ -4,7 +4,8 @@
 // What the Inventory draws, gathered in one place for its skeleton, its patch
 // and its actions (index.js, grid.js, doll.js, actions.js):
 //   from the server   the bag, its stack cap, the gold, the worn set, the bag
-//                     rules, the shop's bids, the action bar, this hunt's loot
+//                     rules, the shop's bids, the action bar, this hunt's loot,
+//                     the "Equip upgrades" plan
 //                     (src/session/*-sections.js)
 //   residue           the remembered category, sort and Advanced view, and the
 //                     "new" marks
@@ -19,6 +20,7 @@ import { BAG_CATS, BAG_SORTS, view, kindOf, equipSlotFor, sellPlan, junkIds } fr
 import { barKind, barIndexOf } from '../../bar-assign.js?v=0.2.28';
 import { itemName } from '../../widgets/bits.js?v=0.2.28';
 import { buryRecipeOf, buryLabel } from './bury.js?v=0.2.28';
+import { upgradeOf } from '../../widgets/upgrade-line.js?v=0.2.28';
 
 const SCRATCH = new WeakMap();
 const CAT_IDS = new Set(BAG_CATS.map(([id]) => id));
@@ -69,7 +71,9 @@ export function stateOf(ctx) {
   const seen = stored || Object.fromEntries(list.map((r) => [r.id, [r.qty, 0]]));
   const shown = view(list, { cat: prefs.cat, query: sc.query, sort: prefs.sort, bids: shop ? shop.bids : null, seen });
   return { cs, items: list, loaded: !!items, cap: bagCapOf(cs), gold: goldOf(cs), rules: rulesOf(cs), shop, eq: equipmentOf(cs) || {},
-    bar: settingsOf(cs), prefs, sc, seen, unmarked: !stored, shown, qty: new Map(list.map((r) => [r.id, r.qty])) };
+    bar: settingsOf(cs), prefs, sc, seen, unmarked: !stored, shown, qty: new Map(list.map((r) => [r.id, r.qty])),
+    /* What "Equip upgrades" would put on (src/shell/upgrade-plan.js), from the same server sections. */
+    upgrade: upgradeOf(cs) };
 }
 
 /** This hunt's pickups: the server's hunt loot, else the analyzer's loot list, else null. */

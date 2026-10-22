@@ -95,7 +95,11 @@
 // carries the items); Mosslight Glade's five monsters (lane c-ground-16-31: kill
 // bounds, vendor values, training rows; the glade is STAGED, so no hunt, travel or
 // ground row); density's own home (lane c-density-home: no density option, every
-// ground's density_max; apply right before 2026-11-17-hunt-density-home.sql).
+// ground's density_max; apply right before 2026-11-17-hunt-density-home.sql). The
+// 2026-11-18 file is the v0.2.29 chain (history once applied); the next forward file
+// is 2026-11-23-hunt-sessions-catalogue.generated.sql (the v0.2.30 integration
+// collapsed the never-applied 11-13 and 11-21 files into it): the Warrens' tier-3
+// store food (lane b-armour-weights) and the reachable rosters (lane c-monster-ladders).
 //
 //   Regenerate:  node tools/gen-hunt-sessions.mjs
 //   Verify:      node tools/gen-hunt-sessions.mjs --check     (exit 1 on drift)
@@ -126,7 +130,7 @@ import { CONSUMABLE_RULES } from '../src/data/consumables.js';
 import { ABILITIES, ABILITY_LANES, ABILITY_RULES } from '../src/data/abilities.js';
 import { HUNT_ROLES, WEAPON_ROLES, roleWeaponOf } from '../src/data/hunt-roles.js';
 import { HUNT_XP } from '../src/data/hunt-xp.js';
-import { OPEN_GROUNDS, DENSITY_PICK, PARTY_SCALE, densityFor } from '../src/data/hunt-grounds.js';
+import { OPEN_GROUNDS, DENSITY_PICK, PARTY_SCALE, densityFor, reachableOf } from '../src/data/hunt-grounds.js';
 import { HUNT_TUNING } from '../src/data/hunt-tuning.js';
 import { PARTY } from '../src/data/party.js';
 import { SESSION_CONFIG } from '../src/session/config.js';
@@ -145,7 +149,10 @@ export const WORLD_FIELDS_READ = Object.freeze({
     'role', 'dist', 'chase', 'tmode', 'stance']),
   world: Object.freeze(['leader']),
 });
-export const OUT_NAME = '2026-11-18-hunt-sessions-catalogue.generated.sql';
+/* THE REACHABLE ROSTERS (lane c-monster-ladders, 2026-10-22): hr_hunt_roster / hr_hunt_loot_roster, what a player can meet
+   and loot on the open grounds (hunt-grounds.js reachableOf), start this forward file after the 11-18 one; the Bestiary's
+   total and the collection milestones read them (2026-11-24-monster-ladders.sql, applied after this file). */
+export const OUT_NAME = '2026-11-23-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -448,6 +455,11 @@ export function catalogueRows(src = {}) {
     throw new Error(`ON_EMPTY ${JSON.stringify(S.onEmpty)} must default to 'switch' and keep 'end' as an opt-in`);
   }
   const { rows: grounds, spawns: groundSpawns } = groundRows(S.grounds, { hunts: S.hunts.reduce((a, h) => { a[h.id] = h; return a; }, {}), monsters: S.monsters });
+  /* what a player can meet and loot on the grounds served above (a staged ground is not among them) */
+  const reach = reachableOf(S.grounds, S.hunts.reduce((a, h) => { a[h.id] = h; return a; }, {}), S.monsters, S.items);
+  for (const id of reach.monsters) if (!ID.test(id) || !own(S.monsters, id)) throw new Error(`roster monster ${id} is not a monster id`);
+  for (const id of reach.loot) if (!ID.test(id) || !own(S.items, id)) throw new Error(`roster loot ${id} is not an item id`);
+  const roster = [...reach.monsters], lootRoster = [...reach.loot];
   if (!(whole(S.worldVersion) && S.worldVersion >= 1 && whole(S.worldShape) && S.worldShape >= 0 && S.worldShape <= 0xffffffff)) {
     throw new Error(`the world shape ${S.worldVersion}/${S.worldShape} is not a version and a uint32 fingerprint`);
   }
@@ -479,7 +491,7 @@ export function catalogueRows(src = {}) {
   for (const n of WORLD_FIELDS_READ.unit) if (!own(worldFields.unit, n)) throw new Error(`world unit field ${n} (read by the party section) is not persisted`);
   for (const n of WORLD_FIELDS_READ.world) if (!own(worldFields.world, n)) throw new Error(`world field ${n} (read by the party section) is not persisted`);
   return { supplySource, onEmpty, lanes, setOptions, killBounds, supplies, travel, lim, ends, vendor, targets, resumable, basics,
-    cover, resume, eventTypes, abilities, grounds, groundSpawns, world: { v: S.worldVersion, shape: S.worldShape, fields: worldFields },
+    cover, resume, eventTypes, abilities, grounds, groundSpawns, roster, lootRoster, world: { v: S.worldVersion, shape: S.worldShape, fields: worldFields },
     login: { item: lr.item ?? null, qty: lr.qty }, weapons, weaponRoles, roleRows,
     defaultTarget: S.defaultTarget, slotsMax: S.setLimits.slots };
 }
@@ -514,7 +526,7 @@ export function render(src) {
   const CATALOGUE = ['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value',
     'hr_hunt_target_modes', 'hr_hunt_resumable_kinds', 'hr_hunt_basic_supplies', 'hr_hunt_cover_items', 'hr_hunt_lanes',
     'hr_hunt_set_options', 'hr_hunt_kill_bounds', 'hr_hunt_abilities', 'hr_hunt_grounds', 'hr_hunt_ground_spawns',
-    'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_weapons', 'hr_hunt_weapon_roles', 'hr_hunt_roles'];
+    'hr_hunt_world_shape', 'hr_premium_login_reward', 'hr_hunt_roster', 'hr_hunt_loot_roster', 'hr_hunt_weapons', 'hr_hunt_weapon_roles', 'hr_hunt_roles'];
   const tableList = CATALOGUE.map(sq).join(', ');
   return `-- ════════════════════════════════════════════════════════════════════════
 -- Hearthrise — THE HUNT SESSION CATALOGUE  (GENERATED — DO NOT EDIT)
@@ -531,10 +543,12 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- SUPERSEDES 2026-11-06-hunt-sessions-catalogue.generated.sql (applied; history,
--- never regenerated): every table below is rewritten wholesale, from the data of
--- every lane staged since (one file; the never-applied 11-07/11-08/11-12/11-17
--- catalogue files were collapsed into it in the v0.2.28 integration).
+-- SUPERSEDES 2026-11-18-hunt-sessions-catalogue.generated.sql (the v0.2.29 chain;
+-- history, never regenerated): every table below is rewritten wholesale, from the
+-- data of every lane staged since (one file; the v0.2.30 integration collapsed the
+-- never-applied 11-13 and 11-21 catalogue files into it). NEW SINCE 11-18: the
+-- reachable rosters hr_hunt_roster / hr_hunt_loot_roster (lane c-monster-ladders;
+-- read by 2026-11-24-monster-ladders.sql, after this file). Carried from 11-18:
 -- THE PLAYER PICKS THE STORE ITEM (Tyler 2026-10-19; lane b-supplies-bury): the
 -- store rows carry no \`tiers\` and hr_hunt_travel no \`tier\`, and the Plain Fire
 -- Rune joins the store (8 g a cast). The four-slot drop tables (lane c-loot-loop)
@@ -542,9 +556,9 @@ export function render(src) {
 -- no hunt, travel or ground row). Density's own home (lane c-density-home, rulings
 -- H4): density is the hero's pick PER GROUND, so hr_hunt_set_options loses its
 -- density row and every hr_hunt_grounds row gains density_max (hunt-grounds.js
--- densityFor). ORDER: after 2026-11-07-store-by-slot.sql (the precondition below
--- refuses this file until it has) and 2026-11-18-loot-catalogue.generated.sql;
--- right before 2026-11-17-hunt-density-home.sql.
+-- densityFor). ORDER: after the whole v0.2.29 chain (2026-11-07-store-by-slot.sql
+-- first: the precondition below refuses this file until it has) and
+-- 2026-11-23-alpha-catalogue.generated.sql; before 2026-11-23-loot-catalogue.
 
 -- ── PRECONDITION: nothing still reads the columns this file drops ──
 do $$
@@ -708,6 +722,14 @@ create table if not exists public.hr_hunt_ground_spawns (
 );
 -- THE WORLD'S SHAPE (world-state.js): the version and field-list fingerprint
 -- every encoded hunt_instances.world must carry.
+-- THE REACHABLE ROSTERS (hunt-grounds.js reachableOf over the open grounds): every monster a player can meet and every
+-- item those monsters can drop. The Bestiary's total and the collection milestones count only these.
+create table if not exists public.hr_hunt_roster (
+  monster_id text primary key check (monster_id ~ '^[a-z0-9_]{1,64}$')
+);
+create table if not exists public.hr_hunt_loot_roster (
+  item_id text primary key check (item_id ~ '^[a-z0-9_]{1,64}$')
+);
 create table if not exists public.hr_hunt_world_shape (
   id      boolean primary key default true check (id),
   version int    not null check (version >= 1),
@@ -771,6 +793,12 @@ ${r.grounds.length ? `insert into public.hr_hunt_grounds (hunt_id, ground_id, po
 ${groundValues};
 insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values
 ${groundSpawnValues};` : '-- (no hunt ground ships yet: every hunt answers no_ground until the content lane adds one)'}
+delete from public.hr_hunt_roster;
+insert into public.hr_hunt_roster (monster_id) values
+${r.roster.map((id) => `  (${sq(id)})`).join(',\n')};
+delete from public.hr_hunt_loot_roster;
+insert into public.hr_hunt_loot_roster (item_id) values
+${r.lootRoster.map((id) => `  (${sq(id)})`).join(',\n')};
 delete from public.hr_hunt_weapons;
 insert into public.hr_hunt_weapons (item_id, weapon_type) values
 ${weaponValues};
@@ -845,6 +873,8 @@ begin
      or (select count(*) from public.hr_hunt_grounds) <> ${r.grounds.length}
      or (select count(*) from public.hr_hunt_grounds where density_max is null) <> 0
      or (select count(*) from public.hr_hunt_ground_spawns) <> ${r.groundSpawns.length}
+     or (select count(*) from public.hr_hunt_roster) <> ${r.roster.length}
+     or (select count(*) from public.hr_hunt_loot_roster) <> ${r.lootRoster.length}
      or (select count(*) from public.hr_hunt_world_shape) <> 1
      or (select count(*) from public.hr_premium_login_reward) <> 1
      or (select count(*) from public.hr_hunt_weapons) <> ${r.weapons.length}

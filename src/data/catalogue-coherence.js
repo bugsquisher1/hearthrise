@@ -31,6 +31,7 @@ import { ARTISAN_RECIPES } from './recipes.js?v=0.2.28';
 import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.28';
 import { SKILLS_DEF } from './skills.js?v=0.2.28';
 import { SHOP_OFFERS } from './shops.js?v=0.2.28';
+import { SHOP_LISTED_OFFER_IDS } from './supply-basics.js?v=0.2.28';
 import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=0.2.28';
 import { PREMIUM_LOGIN_REWARD } from './premium.js?v=0.2.28';
 import { HEARTHFIND_ITEMS } from './hearthfind.js?v=0.2.28';
@@ -38,13 +39,13 @@ import { EFFECT_KINDS } from './item-effects.js?v=0.2.28';
 import { MONSTERS } from './monsters.js?v=0.2.28';
 import {
   gatherProductIds, cropProductIds, seedIds, combatDropIds, artisanOutputIds,
-  shopGrantIds, goalRewardIds,
+  goalRewardIds,
 } from './item-authority.js?v=0.2.28';
 
 /* The data identities this module reads, re-exported so a Node guard can mutate
    the SAME objects (a bare import without the ?v= query is a second module
    instance, and a plant there would never reach these functions). */
-export { ITEMS, SKILLS_DEF, SHOP_OFFERS, ARTISAN_RECIPES, MONSTERS };
+export { ITEMS, SKILLS_DEF, SHOP_OFFERS, SHOP_LISTED_OFFER_IDS, ARTISAN_RECIPES, MONSTERS };
 
 /* ── SOURCES AN ENGINE HARD-CODES ───────────────────────────────────────────
    id -> { label, file, needle }. The guard reads `file` and fails unless it
@@ -111,7 +112,7 @@ export const AWAITING_ROSTER = Object.freeze([
   'bronze_hammer', 'bronze_knife',
   'bronze_platelegs', 'chitin_belt', 'chitin_body',
   'chitin_boots', 'chitin_gloves', 'chitin_helmet', 'chitin_pants', 'choirbone',
-  'choirbone_gauntlets', 'copper_studs', 'crown_of_the_fallen_king', 'dawn_belt',
+  'choirbone_gauntlets', 'crown_of_the_fallen_king', 'dawn_belt',
   'dawn_boots', 'dawn_gauntlets', 'dawn_helm', 'dawn_platebody',
   'dawn_platelegs', 'dawn_sword', 'dawn_warhammer', 'dawnbound_amulet', 'dawnforged_signet',
   'dawnlit_mantle', 'dawnsteel_rod', 'demoncaller_staff', 'dragon_gem_earrings',
@@ -176,7 +177,14 @@ export function itemSources() {
   addSet(m, cropProductIds(), 'harvested');
   addSet(m, combatDropIds(), 'monster drop');
   for (const skill of Object.keys(ARTISAN_RECIPES)) addSet(m, artisanOutputIds(skill), 'made by ' + skill);
-  addSet(m, shopGrantIds(), 'shop');
+  /* ONLY A LISTED SHOP ROW IS A SOURCE (lane/b-orphan-sources, 2026-10-22). shop_buy sells only the ids a Shop tab
+     lists (catalogue.js offerRefusal: `not_listed`); the other SHOP_OFFERS rows are the vendor's price list, a door
+     nobody can open. Counting them hid eleven items no player could ever obtain (the farming seeds, the apprentice
+     staff, wand and primer, the stone maul, the fox companion). */
+  for (const o of SHOP_OFFERS) {
+    if (!o || !SHOP_LISTED_OFFER_IDS.has(o.id)) continue;
+    for (const g of o.grant || []) if (g && g.kind === 'item' && g.id) push(m, g.id, 'shop');
+  }
   addSet(m, goalRewardIds(), 'quest reward');
   addSet(m, Object.keys(START_INVENTORY), 'start kit');
   addSet(m, Object.values(START_EQUIPMENT).filter(Boolean), 'start kit');

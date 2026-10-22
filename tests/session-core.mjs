@@ -586,6 +586,39 @@ async function rules(M) {
     if (!srv.calls.some((c) => c[0] === 'hr_load' && c[1].p_slot === 0)) return 'the paying hero was not re-read after the purchase';
     return JSON.stringify(acc.slotOffer) === '{"slotId":3,"cost":40000,"max":5}' || 'after the purchase the offer is ' + JSON.stringify(acc.slotOffer);
   });
+  await t('ACC-DEPOT', async () => {
+    /* The storage is the ACCOUNT's (2026-11-27-account-depot.sql): what slot 0 puts away is in slot 1's
+       storage at once (the account re-reads the other open characters) and after a reload. The fake
+       server keeps ONE depot for both slots, as hr_bank_move / hr_state_of do. */
+    const depot = {}; const bags = { 0: { rat_tail: 5 }, 1: {} }; let ver = 1;
+    const answer = (body) => ({ ok: true, status: 200, body, closed: false });
+    const srv = fakeServer({});
+    const base = srv.rpc;
+    srv.rpc = async (name, args) => {
+      if (name === 'hr_load') { srv.calls.push([name, args]); return answer(env(++ver, Object.assign({ name: 'H' + args.p_slot, inventory: { ...bags[args.p_slot] }, bank: { ...depot } }, said(4)))); }
+      if (name !== 'hr_bank_move') return base(name, args);
+      srv.calls.push([name, args]);
+      const [from, to] = args.p_dir === 'deposit' ? [bags[args.p_slot], depot] : [depot, bags[args.p_slot]];
+      if (!(from[args.p_item] >= args.p_qty)) return answer({ ok: false, error: 'insufficient_bank' });
+      from[args.p_item] -= args.p_qty; if (!from[args.p_item]) delete from[args.p_item];
+      to[args.p_item] = (to[args.p_item] || 0) + args.p_qty;
+      return answer({ ok: true, version: ++ver });
+    };
+    const acc = mkAccount(srv);
+    await acc.open(0); await acc.open(1);
+    const s1 = acc.character(1);
+    if (!acc.character(0) || !s1) return 'two characters did not open: ' + acc.characters().map((c) => c.slot);
+    const put = await acc.character(0).moveStorage('rat_tail', 3, 'deposit');
+    await new Promise((r) => setTimeout(r, 0));
+    if (!put.ok) return 'the deposit answered ' + JSON.stringify(put);
+    if (JSON.stringify(s1.read('bank')) !== '{"rat_tail":3}') return 'slot 1 still shows storage ' + JSON.stringify(s1.read('bank')) + ' after slot 0 put 3 away (not re-read)';
+    const again = mkAccount(srv);
+    await again.open(1);
+    if (JSON.stringify(again.character(1).read('bank')) !== '{"rat_tail":3}') return 'after a reload slot 1 shows storage ' + JSON.stringify(again.character(1).read('bank'));
+    const take = await again.character(1).moveStorage('rat_tail', 3, 'withdraw');
+    if (!take.ok || JSON.stringify(again.character(1).read('inventory')) !== '{"rat_tail":3}') return 'slot 1 could not take out what slot 0 put away: ' + JSON.stringify([take, again.character(1).read('inventory')]);
+    return true;
+  });
   await t('ACC-3', async () => {
     if (!S.isClosedAnswer(403, { code: 'hr_closed' }) || S.isClosedAnswer(403, { code: 'other' }) || S.isClosedAnswer(200, { code: 'hr_closed' })) return 'isClosedAnswer is wrong';
     const acc = mkAccount(fakeServer({}, { closed: true }));
@@ -792,7 +825,9 @@ const MUTANTS = [
   ['waking a hidden tab checks nothing', 'src/net/auth.js', "if (o.doc.visibilityState === 'visible') freshToken();", "if (false) freshToken();"],
   ['a failed live ask re-arms at once, forever', 'src/session/character-session.js', 'if (!took) this.liveLink.missed();', ''],
   ['the live ask gives up after two tries', 'src/session/live-link.js', '      this.want = true;\n      this._tries++;', '      this.want = this._tries < 2;\n      if (this.want) this._tries++;'],
-  ['an idle settle replaces the character', 'src/session/character-session.js', "if (ans.ok && ans.body && ans.body.accrued !== true) return this.load();", ""],
+  ['a storage move leaves the other characters stale', 'src/session/account-session.js', '    for (const [slot, cs] of this._chars) if (slot !== from) cs.load();\n', ''],
+  ['a storage move never tells the account', 'src/session/character-session.js', "if (r && r.ok && typeof this.onShared === 'function') this.onShared('bank', this.slot); ", ''],
+  ['an idle settle replaces the character','src/session/character-session.js', "if (ans.ok && ans.body && ans.body.accrued !== true) return this.load();", ""],
 ];
 
 function copyTree(dst) {
@@ -809,7 +844,7 @@ async function main() {
   if (!mutate) {
     const fails = [...await rules(await load(ROOT)), ...await viewRules(ROOT)];
     for (const f of fails) console.log('  ✗ ' + f);
-    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (33 rules)');
+    console.log(fails.length ? 'session-core: ' + fails.length + ' rule(s) RED' : 'session-core: every session rule holds (34 rules)');
     process.exit(fails.length ? 1 : 0);
   }
   const clean = await cleanControl(async () => rules(await load(ROOT)));

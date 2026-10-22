@@ -886,6 +886,22 @@ export const ACKNOWLEDGED = {
       "'xp', round(coalesce((v_xp->>'level')::numeric, 0) / p_wall_h),",
     ],
   },
+  '2026-11-27-account-depot.sql :: call :: hr_depot_fold': {
+    verdict: 'staged-backfill',
+    sites: 1,
+    why: 'Section 2b is the file\'s WORK, not a self-check: the one-time fold of every character\'s '
+       + 'player_bank into the account depot (Tyler 2026-10-22), global by definition like the '
+       + 'acknowledged backfills above. It only INSERTS (the ledger journal and the summed account rows; '
+       + 'nothing is deleted or updated), runs once (player_bank is dropped in the same transaction; '
+       + 'a re-apply finds no player_bank and returns before it), under an ACCESS EXCLUSIVE lock, and '
+       + 'is followed by a conservation check over every user. The self-check half (2a) calls the '
+       + 'same function scoped to its own probe user and rolls back. `sites` is pinned at 1.',
+    proof: [
+      'v_n := pg_temp.hr_depot_fold(v_u);',
+      'lock table public.player_bank in access exclusive mode;',
+      "raise exception 'VERIFY(fold): the account depot does not equal the summed character banks'; end if;",
+    ],
+  },
   '2026-09-18-ledger-rollup-currencies.sql :: call :: hr_ledger_prune': {
     verdict: 'scoped-by-proof',
     why: 'The function under test IS the global retention prune, so the gates cannot avoid calling '

@@ -58,6 +58,7 @@ export function huntRows() {
          built for a party, so a lone hero is never pointed at it and is told it is best with one. */
       hunt: g.hunt, name: h.name, theme: h.theme || '', band: h.band.slice(),
       groupFit: g.pockets.some((p) => p.minParty) ? 'party' : g.groupFit,
+      soloFrom: Number.isInteger(g.soloFrom) ? g.soloFrom : null,
       heroes: Math.min(g.start.length, PARTY_SCALE.maxHeroes),
       packs: g.pockets.length, packMin: Math.min(...sizes), packMax: Math.max(...sizes),
       respawnS: Math.round(g.respawnMs / 1000),
@@ -160,8 +161,12 @@ export function bestWords(bests, hunt) {
   return { solo: 'Best alone: ' + line(g.solo), party: 'Best in a party: ' + line(g.party) };
 }
 
-/** Who may come: "1 hero" or "1 to 4 heroes". */
+/** Who may come: "One hero", "Alone or with up to 3 more", or for a party ground "A party of 2 to 4"
+    (with ", or alone from Level 45" when its row measured a lone hero's break-even, hunt-grounds.js soloFrom). */
 export function heroWords(r) {
+  if (r.groupFit === 'party' && r.heroes > 1) {
+    return 'A party of 2 to ' + r.heroes + (Number.isInteger(r.soloFrom) ? ', or alone from Level ' + r.soloFrom : '');
+  }
   return r.heroes > 1 ? 'Alone or with up to ' + (r.heroes - 1) + ' more' : 'One hero';
 }
 

@@ -9,6 +9,8 @@
 //   shop_buy          { offer, qty }                                   buy a server-priced offer
 //   eat               { item }                                         eat one food now
 //   sheet             {}                                               compute the character sheet
+//   unlock_buy        { offer }                                        a house tier or room rung (the
+//                                                                      server prices, gates and debits it)
 //   set_activity      { activity: { kind: 'artisan', id } | { kind: 'idle' } }
 //                                                                      start a bench recipe (the
 //                                                                      Inventory's Bury) / stop; the
@@ -30,6 +32,8 @@ export const EDGE_INTENTS = Object.freeze({
   sheet: Object.freeze([]),
   /* Bury (and the other Prayer offerings) is the artisan recipe; idle stops it. */
   set_activity: Object.freeze(['activity']),
+  /* A property tier or a room rung of the account's house, by offer id only (hr_unlock_buy prices it). */
+  unlock_buy: Object.freeze(['offer']),
 });
 
 /* The engine's own bounds (request.js MAX_SELL_LINES, MAX_QTY, CATALOGUE_ID_RE, OFFER shape). */

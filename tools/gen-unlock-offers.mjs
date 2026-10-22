@@ -150,6 +150,27 @@ function assertRoomCostMatches(o, roomId) {
   }
 }
 
+/* The same two-sources proof for a property tier (designer 2026-10-22): src/data/homestead-tiers.js still asked for
+   `ashlar`, an item cut with Stonemason on 2026-10-14, while src/data/shops.js charged fittings, beams and keystones.
+   A cost the property ladder states that the server does not charge is refused here. */
+/* ONE PRICE (v0.2.30 integration): the shop row IS the price. The ladder states what a tier opens and nothing else, so a
+   second copy that could drift cannot exist: a tier carrying `cost` is refused, and so is a row that grants a tier the
+   ladder does not have, under another id, for no gold, or for an item that does not exist. */
+const PROPERTY_SOLD = new Set();
+function assertPropertyCostMatches(o) {
+  const tier = TIERS[o.value];
+  if (!tier || o.value < 1) die(`${o.id} grants property tier ${o.value}, which the ladder (homestead-tiers.js PROPERTY_TIERS) does not sell`);
+  if (Object.prototype.hasOwnProperty.call(tier, 'cost')) {
+    die(`PROPERTY_TIERS[${o.value}] (${tier.id}) states a cost: a property's price lives ONLY in src/data/shops.js (${o.id})`);
+  }
+  if (o.id !== 'property.' + tier.id) die(`${o.id} grants ${tier.id} (tier ${o.value}) under another id; the row is property.${tier.id}`);
+  if (!(Number(o.gold) > 0)) die(`${o.id} costs no gold`);
+  const ghosts = Object.keys(o.items || {}).filter((k) => !ITEMS[k]);
+  if (ghosts.length) die(`${o.id} asks for items that are not in src/data/items.js: ${ghosts.join(', ')}`);
+  if (PROPERTY_SOLD.has(o.value)) die(`property tier ${o.value} (${tier.id}) is sold by two rows`);
+  PROPERTY_SOLD.add(o.value);
+}
+
 /** The prerequisite pair for one sellable offer. */
 function prereqOf(o) {
   const ns = o.unlockId.slice(0, o.unlockId.indexOf(':'));
@@ -164,6 +185,7 @@ function prereqOf(o) {
        property tier is its own unlock id with a ONE-RUNG ladder, so
        hr_unlocks' rung check is vacuous here by construction. Stated as an
        edge, in a table, rather than as a special case in the RPC. */
+    assertPropertyCostMatches(o);
     return { tier: o.value - 1, item: null };
   }
   return die(`no prerequisite rule for namespace "${ns}" — every sellable namespace needs one, `
@@ -207,6 +229,10 @@ for (const id of [...ALL_UNLOCK_OFFER_IDS].sort()) {
     req_item: pre.item,
     refusal: null,
   });
+}
+/* ONE PRICE, the other half: every tier above the Camp is bought, by exactly one row (assertPropertyCostMatches). */
+for (let t = 1; t < TIERS.length; t++) {
+  if (!PROPERTY_SOLD.has(t)) die(`property tier ${t} (${TIERS[t].id}) has no shop row in src/data/shops.js: nothing sells it`);
 }
 
 /* ── DEMOLITION REGEN (2026-10-14): THIS FILE NOW LANDS AT THE CHAIN END ─────

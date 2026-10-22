@@ -5,6 +5,16 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.28 — 2026-10-22 (Easier to learn, honest numbers)
+
+**New heroes learn how to fight.** Creating a hero now explains that there is no class to pick: the weapon you hold is how you fight, and all six starter weapons are in your bag. Each style says what it does and what it uses. Outfits now have names that describe the clothes, not a class.
+
+**Help that helps.** Settings has a Help page with short notes on hunting, playing with the game closed, stamina, food and drink, the action bar, Level and skills, several heroes and death. The first hunt tells you your hero keeps hunting after you close the game.
+
+**What next.** When the guide ends, it points to your next hunting ground and your weapon skill's next unlock. Reaching a new Level now shows over your hero. Coming back after a while shows what your hero did while you were away.
+
+**Numbers you can trust.** The food on the hunt bar counts what is really in your hunt bag. Max health updates as soon as you level up. Gold now means coins only; unsold loot has its own line. Bones are kept for Prayer when you sell all loot, and the hunt summary's Open bag button works.
+
 ## v0.2.27 — 2026-10-22 (Level XP and training, clearer deaths)
 
 **Level XP and training XP are shown apart.** The hunt analyzer, the hunt summary and the hunt list now count Level XP on its own, so two heroes in one party show the same Level XP for the same kills. Premium heroes get a new Training tab with the XP each skill earned and its pace per hour. Personal bests on the hunt list are now Level XP per hour.

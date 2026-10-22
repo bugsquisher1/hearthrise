@@ -32,9 +32,10 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* 2026-10-20 and 2026-10-24-hunts-catalogue.generated.sql are APPLIED history (the Sewer hunt
    landed in the 10-24 one); the Meadowbrook Thicket and the Coppercap Warrens (lane
    hunts-forest-cave, integration v0.2.1) landed in 2026-10-25 (APPLIED history). The core rebuild's
-   Level bands (CORE_NUMBERS_2026-10-19 Q9: the cellar 1-8, the sewer 8-25) land in this forward
+   Level bands (CORE_NUMBERS_2026-10-19 Q9: the cellar 1-8, the sewer 8-25) landed in 2026-10-27 (APPLIED
+   history). Mosslight Glade opens on its style-1 art (lane b-mosslight-art, 2026-10-22) in this forward
    file, which rewrites the same tables. */
-export const OUT_NAME = '2026-10-27-hunts-catalogue.generated.sql';
+export const OUT_NAME = '2026-11-13-hunts-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

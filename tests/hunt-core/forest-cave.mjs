@@ -388,13 +388,20 @@ cases['glade-between'] = async (M) => {
   return bad.length ? bad.join('; ') : null;
 };
 
+/* The glade put back to STAGED as a whole (flag + map), so the two leak mutants below have a staged hunt to leak. */
+const RESTAGE = [['src/data/hunts.js', "art: 'carrion_crow', travelS: 0, pull: 4, respawnMs: 60000,", "art: 'carrion_crow', travelS: 0, pull: 4, respawnMs: 60000, staged: true,"],
+  ['src/data/world/maps/index.js', 'meadowbrookThicket, coppercapWarrens, mosslightGlade]);', 'meadowbrookThicket, coppercapWarrens]);'],
+  ['src/data/world/maps/index.js', 'export const STAGED_MAPS = Object.freeze([]);', 'export const STAGED_MAPS = Object.freeze([mosslightGlade]);']];
 const mutants = [
-  { name: 'the glade opened before its art (staged flag dropped)', case: 'staged-until-art',
-    edits: [['src/data/hunts.js', "travelS: 0, pull: 4, respawnMs: 60000, staged: true,", "travelS: 0, pull: 4, respawnMs: 60000,"]] },
+  /* the glade is OPEN on its art (lane b-mosslight-art): it must stay open only while its painted ground ships */
+  { name: 'the glade open on a ground no atlas carries', case: 'staged-until-art',
+    edits: [['src/data/world/maps/mosslight_glade.js', "  ground: 'mosslight_ground',", "  ground: 'mosslight_ground_gone',"]] },
+  { name: 'the glade staged again while its map still ships', case: 'staged-until-art',
+    edits: [['src/data/hunts.js', "art: 'carrion_crow', travelS: 0, pull: 4, respawnMs: 60000,", "art: 'carrion_crow', travelS: 0, pull: 4, respawnMs: 60000, staged: true,"]] },
   { name: 'the Hunts window lists a staged hunt', case: 'staged-until-art',
-    edits: [['src/shell/hunt-list.js', "if (!h || h.staged === true) continue;", "if (!h) continue;"]] },
+    edits: [...RESTAGE, ['src/shell/hunt-list.js', "if (!h || h.staged === true) continue;", "if (!h) continue;"]] },
   { name: 'the server catalogue serves a staged ground', case: 'staged-until-art',
-    edits: [['tools/gen-hunt-sessions.mjs', "    grounds: OPEN_GROUNDS, worldMaxBytes:", "    grounds: HUNT_GROUNDS, worldMaxBytes:"],
+    edits: [...RESTAGE, ['tools/gen-hunt-sessions.mjs', "    grounds: OPEN_GROUNDS, worldMaxBytes:", "    grounds: HUNT_GROUNDS, worldMaxBytes:"],
       ['tools/gen-hunt-sessions.mjs', "hunts: OPEN_HUNTS, monsters: MONSTERS, items: ITEMS,", "hunts: HUNTS, monsters: MONSTERS, items: ITEMS,"],
       ['tools/gen-hunt-sessions.mjs', "import { OPEN_GROUNDS, DENSITY_PICK }", "import { HUNT_GROUNDS, OPEN_GROUNDS, DENSITY_PICK }"]] },
   { name: 'the glade\'s sluicer and Rook hit like the Warrens (atk 18 -> 26)', case: 'glade-solo-floor',

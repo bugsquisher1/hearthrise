@@ -9,11 +9,11 @@
 // set and the bag change only from that envelope; a refusal changes nothing
 // and says why (intent-words.js).
 // ════════════════════════════════════════════════════════════════════════
-import { bagOf, equipmentOf, skillsOf } from '../../session/item-sections.js?v=0.2.30';
-import { levelOf } from '../../session/character-sections.js?v=0.2.30';
-import { text, cls, prop, attr } from '../../render/paint.js?v=0.2.30';
-import { runIntent } from '../intent-words.js?v=0.2.30';
-import { upgradePlan, upgradeWords } from '../upgrade-plan.js?v=0.2.30';
+import { bagOf, equipmentOf, skillsOf } from '../../session/item-sections.js?v=0.2.31';
+import { levelOf } from '../../session/character-sections.js?v=0.2.31';
+import { text, cls, prop, attr } from '../../render/paint.js?v=0.2.31';
+import { runIntent } from '../intent-words.js?v=0.2.31';
+import { upgradePlan, upgradeWords } from '../upgrade-plan.js?v=0.2.31';
 
 /** This character's plan, from what the server sent (empty `ops` when nothing is better). */
 export function upgradeOf(cs) {

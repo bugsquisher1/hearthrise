@@ -22,7 +22,7 @@ import { SHOP_OFFERS } from '../data/shops.js?v=0.2.28';
 import { SKILLS_DEF } from '../data/skills.js?v=0.2.28';
 import { ITEM_DESC } from '../data/item-descriptions.js?v=0.2.28';
 import { itemName, monsterName } from './widgets/bits.js?v=0.2.28';
-import { kindOf, riteOf } from './bag-model.js?v=0.2.28';
+import { kindOf, riteOf, cookOf } from './bag-model.js?v=0.2.28';
 
 const skillName = (id) => (SKILLS_DEF[id] && SKILLS_DEF[id].name) || id;
 const RARITY = Object.freeze({ common: 'Common', uncommon: 'Uncommon', rare: 'Rare', epic: 'Epic', legendary: 'Legendary', mythic: 'Mythic', unique: 'Unique' });
@@ -104,6 +104,9 @@ export function usesOf(id) {
   /* An offering (bones): what the skill does with it, never "sell it" (ruling 2026-10-14, Brannoc 10-22). */
   const rite = riteOf(id);
   if (rite) out.push(String(rite.recipe.name).split(' ')[0] + ' it to train ' + skillName(rite.skill));
+  /* Raw food that cooks (playtest 10-22: Raw Wolf Meat read as 1 gp loot): Cook all in the bag does it. */
+  const cook = cookOf(id);
+  if (cook) out.push('Cook it into food (' + skillName(cook.skill) + ' ' + cook.recipe.req + ')');
   if (!out.length) out.push('Sell it at the shop');
   return out;
 }

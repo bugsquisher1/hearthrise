@@ -29,7 +29,8 @@
 //   view(slot)    show another open character (viewed); nothing else moves
 //   limit()       how many may play at once, as the server says
 //   findItems(q)  where an item is across this account's characters
-//                 (hr_account_items: bag, bank and worn, read by the server)
+//                 (hr_account_items: bags and worn sets by character, and the
+//                 account's one storage, slot null; read by the server)
 //   signOut()     close every character, then auth.signOut() (every copy)
 //   social        the account's chat, whispers, friends and blocks: what the
 //                 `social` factory made for it (src/social/social-session.js,
@@ -242,7 +243,7 @@ export class AccountSession {
     const uid = this.userId;
     if (!uid) return { ok: false, reason: 'signed_out' };
     const cs = new CharacterSession({ slot, uid, server: this.server, intents: this.intents, channel: this._channel,
-      setTimer: this._timers.setTimer, clearTimer: this._timers.clearTimer });
+      setTimer: this._timers.setTimer, clearTimer: this._timers.clearTimer, onShared: (kind, from) => this._sharedChanged(kind, from) });
     this._chars.set(slot, cs);
     cs.subscribe((s, why) => { if (why === 'closed-game') this._noteClosed({ closed: true }); });
     this._emit('opening', slot);   // watchers (the alerts) hear the first load's events too
@@ -296,11 +297,20 @@ export class AccountSession {
     if (!ans.ok || !b || b.ok !== true || !Array.isArray(b.rows)) return { ok: false, rows: [], error: (b && b.error) || ans.error || 'refused' };
     const rows = [];
     for (const r of b.rows.slice(0, 200)) {
-      if (!r || !Number.isInteger(r.slot) || typeof r.item !== 'string' || !/^[a-z0-9_]{1,64}$/.test(r.item)) continue;
+      if (!r || typeof r.item !== 'string' || !/^[a-z0-9_]{1,64}$/.test(r.item)) continue;
       if (!Number.isSafeInteger(r.qty) || r.qty < 1 || !['bag', 'bank', 'worn'].includes(r.where)) continue;
-      rows.push({ slot: r.slot, name: typeof r.name === 'string' ? r.name.slice(0, 40) : null, item: r.item, qty: r.qty, where: r.where });
+      /* The storage is the ACCOUNT's: its rows carry no slot (and no name); a bag or worn row names its character. */
+      if (r.where === 'bank' ? r.slot !== null : !Number.isInteger(r.slot)) continue;
+      rows.push({ slot: r.slot, name: r.where !== 'bank' && typeof r.name === 'string' ? r.name.slice(0, 40) : null, item: r.item, qty: r.qty, where: r.where });
     }
     return { ok: true, rows };
+  }
+
+  /* ACCOUNT state one character changed (the depot, 'bank'): every OTHER open character re-reads, so
+     no screen keeps a storage the server no longer holds (CLAUDE.md §6). One hr_load each, rarely. */
+  _sharedChanged(kind, from) {
+    if (kind !== 'bank') return;
+    for (const [slot, cs] of this._chars) if (slot !== from) cs.load();
   }
 
   close(slot) {

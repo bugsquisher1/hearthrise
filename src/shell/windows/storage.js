@@ -66,7 +66,7 @@ function patchSide(root, ctx, side, list, q, off) {
   text(root.querySelector('[data-n="' + side + '"]'), whole(list.length) + (list.length === 1 ? ' stack' : ' stacks'));
   const none = root.querySelector('[data-none="' + side + '"]');
   cls(none, 'is-on', !shown.length);
-  text(none, list.length ? 'Nothing here matches.' : side === 'bank' ? 'Your storage is empty. Press a stack in your bag to put it away.' : 'Your bag is empty.');
+  text(none, list.length ? 'Nothing here matches.' : side === 'bank' ? 'Your storage is empty. All your characters share it: press a stack in your bag to put it away.' : 'Your bag is empty.');
 }
 
 renderStorage.patch = function patchStorage(body, ctx) {

@@ -112,7 +112,7 @@ async function stub(page, s) {
     }
     if (ITEM_RPCS.includes(name)) { await new Promise((ok) => setTimeout(ok, s.delayMs)); return json(s.reply); }
     if (name === 'hr_put_client_state') { Object.assign(s.residue, body.p_patch || {}); return json({ ok: true }); }
-    if (name === 'hr_account_items') return json({ ok: true, rows: [{ slot: 1, name: 'Druid', item: 'rat_tail', qty: 4, where: 'bank' }] });
+    if (name === 'hr_account_items') return json({ ok: true, rows: [{ slot: null, name: null, item: 'rat_tail', qty: 4, where: 'bank' }, { slot: 1, name: 'Druid', item: 'rat_tail', qty: 2, where: 'bag' }] });
     return json({ ok: true });
   });
 }

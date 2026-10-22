@@ -1291,8 +1291,52 @@ function cookingSettlementGuard() {
 }
 
 // ════════════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════════════
+// T9. "MAKE N" (2026-12-01-bench-count.sql, lane c-work-fixes 2026-10-22).
+// A bench run with a count pays EXACTLY that many actions and then ends (the
+// pointer goes idle), however the settles are cut; a window short of the count
+// proposes the lowered count; a count above what the bag allows makes as many
+// as possible and stops on the supplies; no count is today's run.
+// ════════════════════════════════════════════════════════════════════════
+function benchCountGuard() {
+  const recipe = pickRecipe('smithing', (r) => Object.keys(inputsOf(r)).length >= 1 && (r.ms || 0) >= 2000);
+  ok(!!recipe, 'T9: no fixture recipe');
+  if (!recipe) return;
+  const out = recipe.output;
+  const per = Math.max(1, Number(recipe.outputQty) || 1);
+  const big = supplyFor(recipe, 500);
+  /* (a) make 5 from a bag for 500, a 12 h window: 5 actions, the pointer ends, no countdown key. */
+  const five = call({ activeId: recipe.id, inventory: big, activeLeft: 5 });
+  ok(five.accrued && five.summary.ticks === 5 && five.delta.items && five.delta.items[out] === 5 * per,
+    `T9: make 5 paid ${five.summary && five.summary.ticks} actions / ${JSON.stringify(five.delta && five.delta.items)}`);
+  ok(five.delta && five.delta.activity && five.delta.activity.kind === 'idle' && !('active_left' in five.delta),
+    `T9: the run that reached its count did not end: ${JSON.stringify(five.delta && five.delta.activity)} / left ${five.delta && five.delta.active_left}`);
+  ok(five.delta && five.delta.journal.meta.stopped === 'count' && five.delta.journal.meta.n === 5 && five.delta.journal.meta.left === 0,
+    `T9: the journal does not say the count stopped it: ${JSON.stringify(five.delta && five.delta.journal.meta)}`);
+  /* (b) cut: make 100, a first window that fits K < 100 actions (at least the 60 s settle floor)
+     proposes 100 - K left and keeps the run; the next window, with that count, ends it at exactly 100. */
+  const step = five.tickMs;
+  const k = Math.ceil(90000 / step);
+  const w1 = call({ activeId: recipe.id, inventory: big, activeLeft: 100, nowMs: FROM_MS + k * step + Math.floor(step / 2) });
+  ok(w1.accrued && w1.summary.ticks === k && w1.delta.active_left === 100 - k && !w1.delta.activity,
+    `T9: a window of ${k} actions proposed ${JSON.stringify({ why: w1.reason, ticks: w1.summary && w1.summary.ticks, left: w1.delta && w1.delta.active_left, act: w1.delta && w1.delta.activity })}`);
+  const w2 = call({ activeId: recipe.id, inventory: big, activeLeft: 100 - k, accruedToMs: Date.parse(w1.watermark), activeSinceMs: FROM_MS });
+  ok(w2.accrued && w2.summary.ticks === 100 - k && w2.delta.activity && w2.delta.activity.kind === 'idle',
+    `T9: the second window paid ${w2.summary && w2.summary.ticks} of the ${100 - k} left and ended ${JSON.stringify(w2.delta && w2.delta.activity)}`);
+  /* (c) make 40 with a bag for 4: as many as possible (4), stopped on the supplies, pointer idle. */
+  const short = call({ activeId: recipe.id, inventory: supplyFor(recipe, 4), activeLeft: 40 });
+  ok(short.accrued && short.summary.ticks === 4 && short.delta.activity && short.delta.activity.kind === 'idle'
+    && short.summary.stoppedBy === 'supplies',
+    `T9: make 40 from a bag for 4 paid ${short.summary && short.summary.ticks} (${short.summary && short.summary.stoppedBy})`);
+  /* (d) no count: the bag bounds it (500), and no active_left key is ever proposed. */
+  const free = call({ activeId: recipe.id, inventory: supplyFor(recipe, 7) });
+  ok(free.accrued && free.summary.ticks === 7 && !('active_left' in free.delta),
+    `T9: an uncounted run paid ${free.summary && free.summary.ticks} of 7 or proposed active_left ${free.delta && free.delta.active_left}`);
+}
+
 export async function runAll() {
   problems.length = 0;
+  benchCountGuard();
   unsimulatedKindGuard();
   ladderGuard();
   parityGuard();
@@ -1344,6 +1388,12 @@ export const MUTATIONS = [
     [ENGINE, '      const have = Math.floor(nat(bag[id], 0));',
       '      const have = Math.floor(nat(bag[id], 0)); itemDelta[id] = (itemDelta[id] || 0) - Math.min(n, have); return;'],
   ], 'production is bounded by the clock instead of by the server inventory'],
+  ['M9  "make N" never caps the run (lane c-work-fixes)', [
+    [ENGINE, '    maxActions: runCap(inp.actionBudget, left0),', '    maxActions: runCap(inp.actionBudget, null),'],
+  ], 'a Forge Bronze Pickaxe x1 spends every bar in the bag'],
+  ['M10 "make N" never counts down (lane c-work-fixes)', [
+    [ENGINE, '  if (!stopped && left1 !== null && left1 < left0) delta.active_left = left1;', '  /* MUTATED */'],
+  ], 'a run cut across settles makes N in every window'],
   ['M2  journal.kind names the activity instead of the ledger kind', [
     [ENGINE, "      kind: 'craft',", "      kind: 'artisan',"],
   ], 'player_ledger_kind_check refuses it; hr_apply answers bad_delta and the night is lost'],

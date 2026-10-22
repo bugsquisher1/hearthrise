@@ -4,7 +4,7 @@
 // CharacterSession (character-session.js connect / _onChannel) joins and drops
 // the channel; src/app/boot.js subscribes it under FRAME_EVENT.
 // ════════════════════════════════════════════════════════════════════════
-import { SESSION_CONFIG } from './config.js?v=0.2.28';
+import { SESSION_CONFIG } from './config.js?v=0.2.29';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

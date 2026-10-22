@@ -136,7 +136,7 @@ async function r5(db) {
 
   /* THE CLIENT-DIRECT DOOR: a bank deposit of the food (it moves a priced input out of
      the bag). The quest and daily claims were the doors here until the old-client reward
-     cut dropped them (2026-11-30-old-rewards-cut.sql); hr_set_auto_eat and hr_credit_kills
+     cut dropped them (2026-12-02-old-rewards-cut.sql); hr_set_auto_eat and hr_credit_kills
      left with lane C2's drop file — the plain run is the whole chain. */
   const DOOR = 'select public.hr_bank_move(0, $1, 1, \'deposit\', $2::uuid) r';
   const claim = await client(DOOR, [food, crypto.randomUUID()]);

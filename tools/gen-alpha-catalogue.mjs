@@ -42,7 +42,8 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    The outfitter's gear rows (lane/b-gold-sinks) and the seed counter (designer 2026-10-22, lane/b-orphan-sources) land
    in ONE forward file (the v0.2.30 integration collapsed the never-applied 11-20 and 11-21 files into it), the same
    full delete+insert replace, with the kind check widened to 'seed'. */
-export const OUT_NAME = '2026-11-23-alpha-catalogue.generated.sql';
+/* v0.2.31 integration: ONE forward file per generator after the newest APPLIED (2026-11-20). */
+export const OUT_NAME = '2026-11-22-alpha-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 /* The shop's word for a supply kind (what the Shop window files it under). */

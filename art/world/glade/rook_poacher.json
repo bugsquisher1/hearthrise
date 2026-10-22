@@ -1,0 +1,91 @@
+{
+  "id": "rook_poacher",
+  "class": "character",
+  "style": "s1",
+  "material": "unit",
+  "source": "rook_poacher.png",
+  "anchor_px": [
+    32,
+    58
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 5,
+      "loop": true,
+      "dirs": {
+        "s": 1,
+        "e": 1,
+        "n": 1,
+        "w": 1,
+        "se": 1,
+        "sw": 1,
+        "ne": 1,
+        "nw": 1
+      }
+    },
+    {
+      "name": "walk",
+      "fps": 10,
+      "loop": true,
+      "dirs": {
+        "s": 6,
+        "e": 6,
+        "n": 6,
+        "w": 6,
+        "se": 6,
+        "sw": 6,
+        "ne": 6,
+        "nw": 6
+      }
+    },
+    {
+      "name": "attack",
+      "fps": 10,
+      "loop": false,
+      "dirs": {
+        "s": 6,
+        "e": 6,
+        "n": 6,
+        "w": 6,
+        "se": 6,
+        "sw": 6,
+        "ne": 6,
+        "nw": 6
+      }
+    },
+    {
+      "name": "death",
+      "fps": 10,
+      "loop": false,
+      "dirs": {
+        "s": 6,
+        "e": 6,
+        "n": 6,
+        "w": 6
+      }
+    },
+    {
+      "name": "corpse",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1,
+        "e": 1,
+        "n": 1,
+        "w": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_object_pro_flash",
+    "object": "ad8d1765-5d0a-4841-a2d1-0eb846974fa0",
+    "n_directions": 8,
+    "name": "S1 Rook the Poacher"
+  },
+  "notes": "Ported from PixelLab object ad8d1765-5d0a-4841-a2d1-0eb846974fa0 (style 1, 48 px canvas, 8 rotations and a v3 walk) by tools/world-art/port-pixellab.mjs: pixels unscaled, each facing seated on the class anchor by whole pixels."
+}

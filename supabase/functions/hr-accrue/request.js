@@ -195,6 +195,9 @@ export const ACTIVITY_KINDS = Object.freeze(['idle', 'combat', 'gather', 'artisa
 export const CATALOGUE_ID_RE = /^[a-z0-9_]{1,64}$/;
 export const ACTIVITY_ID_RE = CATALOGUE_ID_RE;
 
+/** The largest "make N" a bench run takes: player_state.active_left's CHECK (2026-12-01-bench-count.sql). */
+export const BENCH_COUNT_MAX = 100000;
+
 /** A SHOP OFFER id — `equip.bronze_sword`, `room.cellar.3`. Dotted, because the
     generator builds it as `<table>.<row>`; bounded to four segments and 64
     characters for the same reason as above. Verified against all 128 authored
@@ -529,6 +532,13 @@ export function readActivity(body) {
   const out = Object.create(null);
   out.kind = (kindRaw !== null && ACTIVITY_KINDS.includes(kindRaw)) ? kindRaw : null;
   out.id = (idRaw !== null && ACTIVITY_ID_RE.test(idRaw)) ? idRaw : null;
+  /* "MAKE N" (2026-12-01-bench-count.sql): an optional whole number of actions. ABSENT is
+     `undefined` (run until the bag is out); present but not a whole number 1..BENCH_COUNT_MAX
+     is `null`, which the intent layer refuses BY NAME rather than silently running unbounded. */
+  if (Object.prototype.hasOwnProperty.call(a, 'count')) {
+    const c = a.count;
+    out.count = (Number.isInteger(c) && c >= 1 && c <= BENCH_COUNT_MAX) ? c : null;
+  }
 
   return out;
 }

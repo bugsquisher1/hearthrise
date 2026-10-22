@@ -39,17 +39,17 @@
 // window, no timers, no Math.random.
 // ============================================================
 
-import { COMBAT_BALANCE } from './combat.js?v=0.2.28';
-import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.28';
-import { createRng } from './rng.js?v=0.2.28';
-import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.28';
-import { stepSwing } from './hunt/world-step.js?v=0.2.28';
-import { makeEvent, trackStep } from './hunt/events.js?v=0.2.28';
-import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.28';
-import { rewardSwing } from './hunt-rewards.js?v=0.2.28';
+import { COMBAT_BALANCE } from './combat.js?v=0.2.29';
+import { endReasonAt, deathXpLoss, staminaStep } from './action-rules.js?v=0.2.29';
+import { createRng } from './rng.js?v=0.2.29';
+import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.29';
+import { stepSwing } from './hunt/world-step.js?v=0.2.29';
+import { makeEvent, trackStep } from './hunt/events.js?v=0.2.29';
+import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.29';
+import { rewardSwing } from './hunt-rewards.js?v=0.2.29';
 
 /* The engine's front door (src/core/index.js `combatSim`). */
-export { stepSwing } from './hunt/world-step.js?v=0.2.28';
+export { stepSwing } from './hunt/world-step.js?v=0.2.29';
 
 /* WHY A COMBAT SPAN STOPPED BEFORE THE WINDOW DID — the same contract
    src/core/skill-sim.js and src/core/artisan-sim.js publish under this name.
@@ -236,6 +236,8 @@ export function simulateHuntInstance(inst, ctx) {
         m.hs.staminaMs = staminaStep(m.hs.staminaMs, tick, true, m.hs.staminaMaxMs);
       }
       m.hs.tally.paidMs += tick; m.hs.tally.swings += 1; o.ticks += 1;
+      /* The whetstone wears on this swing (member.js wear), so the snapshot below already drops a spent one. */
+      if (typeof m.wear === 'function') m.wear(atMs);
       if (u) syncUnit(u, m);
       byUnit.set(m.unitId, m);
     }

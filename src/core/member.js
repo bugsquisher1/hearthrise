@@ -13,18 +13,19 @@
 // PURE ESM, Node + Deno + browser.
 // ============================================================================
 
-import { DEFAULT_PROFILE, equipmentStats, armorSetBonus, playerCombatRolls, weaknessInfo } from './combat.js?v=0.2.28';
-import { makeBonus, EMPTY_PERKS } from './perks.js?v=0.2.28';
-import { companionBonus } from './companion-perk.js?v=0.2.28';
-import { buffQueueFromServer, buffBonusFor } from './buffs.js?v=0.2.28';
-import { grantXp, normaliseXpFrac } from './progression.js?v=0.2.28';
-import { charLevelFromXp, levelsOf } from './xp.js?v=0.2.28';
-import { vitalsOf, wearsArmour } from './vitals.js?v=0.2.28';
-import { mitigationFor, NO_MITIGATION } from './mitigation.js?v=0.2.28';
-import { newHuntSession } from './action-rules.js?v=0.2.28';
-import { makeGoalCounter, makeBestiaryCounter, makeCollectionCounter } from './goals.js?v=0.2.28';
-import { HUNT_ROLES } from '../data/hunt-roles.js?v=0.2.28';
-import { MONSTERS } from '../data/monsters.js?v=0.2.28';
+import { DEFAULT_PROFILE, equipmentStats, armorSetBonus, playerCombatRolls, weaknessInfo } from './combat.js?v=0.2.29';
+import { makeBonus, EMPTY_PERKS } from './perks.js?v=0.2.29';
+import { companionBonus } from './companion-perk.js?v=0.2.29';
+import { buffQueueFromServer, buffBonusFor } from './buffs.js?v=0.2.29';
+import { grantXp, normaliseXpFrac } from './progression.js?v=0.2.29';
+import { charLevelFromXp, levelsOf } from './xp.js?v=0.2.29';
+import { vitalsOf, wearsArmour } from './vitals.js?v=0.2.29';
+import { newHuntSession, takeLine } from './action-rules.js?v=0.2.29';
+import { honeOf, honeWornAt, ammoPerShot } from './ammo.js?v=0.2.29';
+import { makeGoalCounter, makeBestiaryCounter, makeCollectionCounter } from './goals.js?v=0.2.29';
+import { HUNT_ROLES } from '../data/hunt-roles.js?v=0.2.29';
+import { MONSTERS } from '../data/monsters.js?v=0.2.29';
+import { mitigationFor, NO_MITIGATION } from './mitigation.js?v=0.2.29';
 
 /* A finite, non-negative number or the fallback (every number that crosses in from a row). */
 function nat(v, fallback) {
@@ -140,8 +141,9 @@ function applyVitals(state, equipment, items) {
    flows through (tests/goal-counters.mjs anchors them). */
 export function memberSide(mi, ctx) {
   const items = ctx.items;
-  const equipment = mi.equipment || {};
-  const { eq, setBonus, profile } = loadoutOf(equipment, items);
+  /* `let`: a spent whetstone swaps the loadout mid-hunt (the hone, below); the seam reads these live. */
+  let equipment = mi.equipment || {};
+  let { eq, setBonus, profile } = loadoutOf(equipment, items);
   const skills0 = {};
   for (const k in (mi.skills || {})) skills0[k] = nat(mi.skills[k], 0);
   const levelXp0 = Math.floor(nat(mi.levelXp, 0));
@@ -230,6 +232,27 @@ export function memberSide(mi, ctx) {
   };
   const h = mi.hero || {};
   const snapCtx = { eq, equipment, items, bonus, setBonus, profile };
+  /* THE HONE (src/core/ammo.js honeOf, lane c-work-fixes 2026-10-22): a whetstone is worn by this
+     hero's swing clock (honeWornAt over the persisted swing index) from the hunt's own stock, and it
+     pays its bonus only while the hunt still carries one: a spent or unpacked stone is the bare
+     loadout from that swing on. Both paths build the member here, so the server's settle and the
+     browser's live view wear the same stone on the same swing. */
+  const hone = honeOf(equipment, items);
+  const honePer = hone ? ammoPerShot(items[hone]) : 0;
+  const honeLeft = () => (hone && hs.bag[hone] ? Math.max(0, Math.floor(Number(hs.bag[hone].left) || 0)) : 0);
+  const unhone = () => {
+    equipment = Object.assign({}, equipment);
+    delete equipment.ammo;
+    ({ eq, setBonus, profile } = loadoutOf(equipment, items));
+    Object.assign(snapCtx, { eq, equipment, setBonus, profile });
+  };
+  if (hone && honeLeft() <= 0) unhone();
+  const wear = (atMs) => {
+    if (!hone || equipment.ammo !== hone) return;
+    const n = Math.min(honeLeft(), honeWornAt(hs.swingIndex, honePer));
+    for (let i = 0; i < n; i++) takeLine(hs, { id: hone, source: 'own' }, atMs);
+    if (honeLeft() <= 0) unhone();
+  };
   /* THE ENGINE SEAM a blow is priced through (tests/trophy-call-sites.mjs lifts
      and executes these two lines): the hero's rolls AGAINST the monster it
      swings at — accuracy over the monster's defence and the weapon weakness —
@@ -241,6 +264,8 @@ export function memberSide(mi, ctx) {
     mi, hs, state, fx, eq, skills0, levelXp0, levelGained: () => levelGained, xpFrac0, catalogue: items, goals, bestiary, collection, itemDelta, events, xpGained, finds,
     member: {
       key: mi.key, seat: mi.seat, unitId: Number.isInteger(mi.unitId) ? mi.unitId : null, hs, state, fx,
+      /* Wears the whetstone at this member's boundary (combat-sim, before the unit re-reads its snapshot). */
+      wear,
       /* THE XP ROUTE INPUTS (hunt-rewards.js): the weapon family, whether any armour
          is worn (Defense trains only then) and whether the hero holds a shield. */
       family: eq.weaponType,

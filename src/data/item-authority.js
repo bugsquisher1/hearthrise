@@ -47,11 +47,11 @@
 // when present, so this loads and answers in Node and before the legacy IIFE.
 // ============================================================================
 
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.28';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.28';
-import { MONSTERS } from './monsters.js?v=0.2.28';
-import { BOSSES } from './bosses.js?v=0.2.28';
-import { ITEMS } from './items.js?v=0.2.28';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.29';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.29';
+import { MONSTERS } from './monsters.js?v=0.2.29';
+import { BOSSES } from './bosses.js?v=0.2.29';
+import { ITEMS } from './items.js?v=0.2.29';
 /* THE GRANT UNIVERSE, WIDENED (security C3). `unclassifiedGrantIds()` used to
    walk only the four ENGINE grant sources, so an id a shop is the ONLY source of
    could sit in limbo — neither ownable nor excluded — and nothing failed. The
@@ -59,10 +59,10 @@ import { ITEMS } from './items.js?v=0.2.28';
    daily-task and raid-chest partitions were deleted with their systems in the
    2026-10-14 demolition; the quest rewards with the old-client reward cut of
    2026-10-22.) */
-import { SHOP_OFFERS } from './shops.js?v=0.2.28';
+import { SHOP_OFFERS } from './shops.js?v=0.2.29';
 /* The BURN, from the one module that names it — src/core/artisan.js is the same
    dual-runtime code the edge cooks with, so there is no second copy of the id. */
-import { BURNT_ITEM } from '../core/artisan.js?v=0.2.28';
+import { BURNT_ITEM } from '../core/artisan.js?v=0.2.29';
 
 /* ── ARTISAN LANE CLASSIFICATION — THE FAIL-CLOSED SEAM ─────────────────────
    The audit's rule is "payable = ARTISAN_RECIPES minus cooking". A NEW artisan
@@ -373,11 +373,10 @@ export function bossRewardIds() {
 }
 
 /** Every dungeon-reward id: boss signatures ∪ the loot tables in `dungeons`
- *  (defaults to the runtime `window.DUNGEONS`, which the legacy IIFE publishes;
- *  absent in Node or pre-boot, in which case only boss signatures contribute). */
+ *  (none given: only the boss signatures contribute). */
 export function dungeonRewardIds(dungeons) {
   const s = bossRewardIds();
-  const D = dungeons || (typeof globalThis !== 'undefined' ? globalThis.DUNGEONS : null);
+  const D = dungeons || null;
   if (D && typeof D === 'object') {
     for (const k of Object.keys(D)) {
       const loot = D[k] && D[k].loot;
@@ -453,37 +452,21 @@ export function buildItemAuthority(opts) {
 }
 
 let _cache = null;
-let _cacheDungeons = undefined;   // the DUNGEONS ref the cache was built against
 
 /**
- * The cached partition, built on first use.
- *
- * ⚠ LOAD-TIMING ROBUSTNESS. The dungeon-reward exclusion reads window.DUNGEONS,
- * which the legacy IIFE publishes AFTER this module can first be called (a boot
- * device-handoff envelope reaches describeReplacement early). If the cache were
- * built once, before DUNGEONS existed, an OVERLAP id — one that is both a combat
- * drop (modeled) and dungeon loot (un-modeled), e.g. `magic_essence` — would be
- * classified OWNABLE and, once the flip armed, a dungeon-dropped copy the
- * envelope omits could be deleted. So the cache is invalidated the moment the
- * DUNGEONS reference appears or changes: the partition can only ever GROW its
- * excluded set as more grant sources come online, which is the safe direction.
+ * The cached partition, built on first use. The old client's runtime dungeon
+ * table (a `DUNGEONS` window global) is gone with that client, so only the
+ * boss signatures contribute dungeon rewards; a caller holding loot tables
+ * passes them to rebuildItemAuthority.
  */
 export function itemAuthority() {
-  const D = (typeof globalThis !== 'undefined') ? (globalThis.DUNGEONS || null) : null;
-  if (!_cache || _cacheDungeons !== D) {
-    _cache = buildItemAuthority({ dungeons: D });
-    _cacheDungeons = D;
-  }
+  if (!_cache) _cache = buildItemAuthority({ dungeons: null });
   return _cache;
 }
 
-/** Rebuild (tests, or once window.DUNGEONS has loaded). */
+/** Rebuild (tests, or with explicit dungeon loot tables). */
 export function rebuildItemAuthority(opts) {
-  opts = opts || {};
-  const D = ('dungeons' in opts) ? opts.dungeons
-    : ((typeof globalThis !== 'undefined') ? (globalThis.DUNGEONS || null) : null);
-  _cache = buildItemAuthority({ dungeons: D });
-  _cacheDungeons = D;
+  _cache = buildItemAuthority({ dungeons: (opts && opts.dungeons) || null });
   return _cache;
 }
 

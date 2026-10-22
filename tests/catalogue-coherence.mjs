@@ -44,6 +44,16 @@
 //       designer 2026-10-22: the property ladder grants more, the kit never does).
 //   C10 one price per property tier: src/data/shops.js property.<id> sells each tier above
 //       the Camp exactly once, for gold; homestead-tiers.js states no cost of its own.
+//   C11 every source is one a player can REACH (designer 2026-10-22: 140 items dropped only
+//       from monsters no open ground spawns, and C1 counted that as a source):
+//       C11a every item with a source has a reachable one (reachableSources: open grounds,
+//           the listed shop table, kit, gathering, quests, crafts from reachable inputs),
+//           or a row in UNREACHABLE naming its fate;
+//       C11b no stale row: each tagged id is in ITEMS, has a source, is not AWAITING_ROSTER,
+//           is listed once, and is still out of reach;
+//       C11c the fate tells the truth: a planned door's items are reached with every planned
+//           door open and not without their own; a no-door fate's items are never reached;
+//       C11d the rows outside `staged` stay under UNREACHABLE_CEILING, which only falls.
 //
 // THE PENDING LIST is shrink-only. It names the few gaps the audit assigned to
 // OTHER W0 lanes, with the lane. An id that gains a use must be removed from it
@@ -62,6 +72,7 @@ import { armourWeights, maxHpFor, maxManaFor } from '../src/core/vitals.js';
 import {
   itemSources, itemUses, skillConsumers, deadEffectKinds, obtainableItemIds,
   CODED_SOURCES, CODED_USES, ENGINE_SKILL_CONSUMERS, AWAITING_ROSTER,
+  reachableSources, plannedDoors, UNREACHABLE, UNREACHABLE_FATES, UNREACHABLE_CEILING,
   // The SAME data identities the module reads (see its re-export note).
   ITEMS, SKILLS_DEF, SHOP_OFFERS, SHOP_LISTED_OFFER_IDS, ARTISAN_RECIPES, MONSTERS,
 } from '../src/data/catalogue-coherence.js';
@@ -98,7 +109,7 @@ export const PENDING_CONSUMER = Object.freeze({
 
 const EQUIP_TYPES = { weapon: 1, armor: 1, jewelry: 1, ammo: 1 };
 
-export function check({ read = realRead } = {}) {
+export function check({ read = realRead, unreachable = UNREACHABLE } = {}) {
   const fails = [];
   const ids = Object.keys(ITEMS);
   const src = itemSources();
@@ -177,7 +188,43 @@ export function check({ read = realRead } = {}) {
     const gold = sold.length === 1 ? (sold[0].cost || []).find((c) => c.kind === 'currency' && c.id === 'gold') : null;
     if (sold.length !== 1 || sold[0].id !== 'property.' + t.id || !gold || !(gold.amount > 0)) fails.push(`C10 property tier ${i} (${t.id}) is sold by ${sold.length} shop row(s), want one priced property.${t.id}`);
   });
-  return { fails, counts: { items: ids.length, skills: Object.keys(SKILLS_DEF).length, pendingUse: Object.keys(PENDING_USE).length, pendingConsumer: Object.keys(PENDING_CONSUMER).length, pendingSource: Object.keys(PENDING_SOURCE).length, awaiting: AWAITING_ROSTER.length } };
+  // C11 — a source a player can reach.
+  const far = reachFails({ src, awaiting, unreachable });
+  fails.push(...far.fails);
+  return { fails, counts: { items: ids.length, skills: Object.keys(SKILLS_DEF).length, pendingUse: Object.keys(PENDING_USE).length, pendingConsumer: Object.keys(PENDING_CONSUMER).length, pendingSource: Object.keys(PENDING_SOURCE).length, awaiting: AWAITING_ROSTER.length, ...far.counts } };
+}
+
+/* C11. Every source a player can walk through, and every out-of-reach item tagged with the door that will
+   source it, the tag proved by opening that door. */
+export function reachFails({ src = itemSources(), awaiting = new Set(AWAITING_ROSTER), unreachable = UNREACHABLE } = {}) {
+  const out = [];
+  const reach = reachableSources();
+  const fateOf = new Map();
+  const dupes = [];
+  for (const [fate, list] of Object.entries(unreachable)) {
+    if (!UNREACHABLE_FATES[fate]) out.push(`C11c unknown fate ${JSON.stringify(fate)} (fates: ${Object.keys(UNREACHABLE_FATES).join(', ')})`);
+    for (const id of list) { if (fateOf.has(id)) dupes.push(id); fateOf.set(id, fate); }
+  }
+  if (dupes.length) out.push(`C11b id(s) tagged twice: ${dupes.join(', ')}`);
+  const lies = Object.keys(ITEMS).filter((id) => src.has(id) && !reach.has(id) && !awaiting.has(id) && !fateOf.has(id));
+  if (lies.length) out.push(`C11a ${lies.length} item(s) whose every source is out of a player's reach (a monster no open ground spawns, a shop table the Shop does not list, a craft from such an input) — give one a reachable source or tag its fate in UNREACHABLE: ${lies.join(', ')}`);
+  const stale = [...fateOf.keys()].filter((id) => !ITEMS[id] || !src.has(id) || awaiting.has(id) || reach.has(id));
+  if (stale.length) out.push(`C11b stale UNREACHABLE row(s) — the id is reachable now, has no source (C1's AWAITING_ROSTER) or left ITEMS; delete the row and lower the ceiling: ${stale.join(', ')}`);
+  const all = reachableSources(plannedDoors());
+  const without = {};
+  for (const [id, fate] of fateOf) {
+    const f = UNREACHABLE_FATES[fate];
+    if (!f || reach.has(id)) continue;
+    if (f.open) {
+      without[fate] ||= reachableSources(plannedDoors(fate));
+      if (!all.has(id)) out.push(`C11c ${id} is tagged ${fate} but opening every planned door does not reach it`);
+      else if (without[fate].has(id)) out.push(`C11c ${id} is tagged ${fate} but another door reaches it (${without[fate].get(id)}): tag that door`);
+    } else if (all.has(id)) out.push(`C11c ${id} is tagged ${fate} (no door) but a planned door reaches it (${all.get(id)}): tag that door`);
+  }
+  const held = [...fateOf.values()].filter((f) => f !== 'staged').length;
+  if (held > UNREACHABLE_CEILING) out.push(`C11d ${held} out-of-reach rows outside \`staged\`, over the ceiling ${UNREACHABLE_CEILING}: the list only shrinks — source the item instead`);
+  if (held < UNREACHABLE_CEILING) out.push(`C11d ${held} out-of-reach rows outside \`staged\`, under the ceiling ${UNREACHABLE_CEILING}: lower UNREACHABLE_CEILING to ${held}`);
+  return { fails: out, counts: { outOfReach: fateOf.size, reachable: reach.size } };
 }
 
 /* C8. The ladder is the generated rung ids (GEAR_ITEMS) read through the LIVE rows,
@@ -245,7 +292,10 @@ function mutate() {
     let undo;
     try {
       undo = plant();
-      const r = check(undo && undo.read ? { read: undo.read } : {});
+      const opts = {};
+      if (undo && undo.read) opts.read = undo.read;
+      if (undo && undo.unreachable) opts.unreachable = undo.unreachable;
+      const r = check(opts);
       const hit = r.fails.some((f) => f.startsWith(arm));
       results.push([name, hit]);
     } finally { if (undo && undo.restore) undo.restore(); }
@@ -362,6 +412,31 @@ function mutate() {
     return { restore: () => { ITEMS.iron_helm = was; } };
   });
 
+  /* C11 — the out-of-reach class (designer 2026-10-22). */
+  const farFind = (id) => {
+    ITEMS[id] = { n: 'Far Find', v: 1, type: 'weapon', slot: 'weapon' };
+    MONSTERS.dragon.drops.push({ id, ch: 0.1 });
+    return () => { MONSTERS.dragon.drops.pop(); delete ITEMS[id]; };
+  };
+  run('an item whose only source is a monster no open ground spawns', 'C11a', () => ({ restore: farFind('__mut_far') }));
+  run('an out-of-reach item gains a reachable source (a stale row)', 'C11b', () => {
+    MONSTERS.slime.drops.push({ id: UNREACHABLE.cut[0], ch: 0.01 });
+    return { restore: () => { MONSTERS.slime.drops.pop(); } };
+  });
+  run('a tagged item leaves ITEMS', 'C11b', () => {
+    const id = UNREACHABLE.later[0]; const was = ITEMS[id];
+    delete ITEMS[id];
+    return { restore: () => { ITEMS[id] = was; } };
+  });
+  const retag = (id, from, to) => ({ ...UNREACHABLE, [from]: UNREACHABLE[from].filter((x) => x !== id), [to]: [...UNREACHABLE[to], id] });
+  run('a dragon material tagged as the staged ground\'s', 'C11c', () => ({ unreachable: retag('dragon_bones', 'later', 'staged') }));
+  /* Since the glade opened (v0.2.31) its essence is reachable: filed as a cut, it is a stale row (C11b). */
+  run('the open glade\'s essence tagged as a cut', 'C11b', () => ({ unreachable: retag('magic_essence', 'staged', 'cut') }));
+  run('the list grows: a new out-of-reach item tagged instead of sourced', 'C11d', () => {
+    const restore = farFind('__mut_far2');
+    return { unreachable: { ...UNREACHABLE, cut: [...UNREACHABLE.cut, '__mut_far2'] }, restore };
+  });
+
   let bad = 0;
   for (const [name, hit] of results) {
     console.log(`  ${hit ? 'CAUGHT ' : 'MISSED '} ${name}`);
@@ -386,7 +461,8 @@ if (isMain) {
     }
     console.log(`catalogue-coherence: OK — ${counts.items} items each with a source and a use (${counts.awaiting} held, sourceless, for the roster), `
       + `${counts.skills} skills each with a consumer, the shop sells starter gear only, `
-      + `the Collection Log counts the obtainable catalogue, armour climbs inside its class (pending: ${counts.pendingUse} item uses, `
+      + `the Collection Log counts the obtainable catalogue, armour climbs inside its class, `
+      + `${counts.reachable} items reachable and ${counts.outOfReach} out of reach each tagged with the door that will source it (pending: ${counts.pendingUse} item uses, `
       + `${counts.pendingConsumer} skill consumer, ${counts.pendingSource} item sources, each with its ruling and owner)`);
   } catch (e) {
     console.error('catalogue-coherence: HARNESS ERROR — ' + (e && e.stack || e));

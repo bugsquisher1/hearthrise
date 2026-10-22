@@ -870,6 +870,39 @@ const ENGINE_ARMS = {
     return problems;
   },
 
+  /* THE HONE (lane c-work-fixes 2026-10-22): a whetstone is worn by the swing clock (ammoPerShot 0.02 =
+     one stone every fiftieth swing), the same stones however the settles are cut, and its bonus stops
+     on the swing the hunt's last stone wears. Before the fix the engine wore none, at any tier. */
+  HONE: async (M) => {
+    const problems = [];
+    const MB = await import(pathToFileURL(join(M.root, 'src/core/member.js')).href);
+    const melee = (n, o) => memberIn(M, 'a', Object.assign({ role: 'melee_dps', level: 40,
+      bag: { steel_whetstone: { loaded: n, left: n } }, equipment: { weapon: 'stone_maul', ammo: 'steel_whetstone' } }, o || {}));
+    const used = (out) => out.outs.flatMap((o) => o.members).reduce((a, x) => a + (x.hunt.uses.steel_whetstone || 0), 0);
+    /* 30 min = 900 swings: 18 stones of 100, in one span and cut at odd instants (TICK-1). */
+    const one = used(runCut(M, () => [melee(100)], 1800000, []));
+    const cut = used(runCut(M, () => [melee(100)], 1800000, [T0 + 100999, T0 + 250001, T0 + 1000003]));
+    if (one !== 18) problems.push(`900 swings wore ${one} steel whetstones, not 18 (0.02 a swing)`);
+    if (cut !== one) problems.push(`the cut hunt wore ${cut} stones, the one span ${one}`);
+    /* A bag of 3 wears 3, never more. */
+    const three = used(runCut(M, () => [melee(3)], 1800000, []));
+    if (three !== 3) problems.push(`a bag of 3 stones wore ${three}`);
+    /* THE BONUS STOPS on the swing the last stone wears, and a stone not carried pays nothing. */
+    const m = MB.memberSide(melee(1, { extra: {} }), { items: M.ITEMS }).member;
+    const bare = MB.memberSide(memberIn(M, 'a', { role: 'melee_dps', level: 40, equipment: { weapon: 'stone_maul' } }), { items: M.ITEMS }).member;
+    const unpacked = MB.memberSide(melee(0, { bag: {} }), { items: M.ITEMS }).member;
+    const hit = (x) => x.snapshot(x.state).maxHit;
+    const honed = hit(m);
+    if (!(honed > hit(bare))) return problems.concat([`CONTROL: a carried steel whetstone adds no max hit (${honed} vs bare ${hit(bare)})`]);
+    m.hs.swingIndex = 49; m.wear(T0);
+    if (hit(m) !== honed || m.hs.bag.steel_whetstone.left !== 1) problems.push('swing 49 wore a stone (0.02 wears on the fiftieth)');
+    m.hs.swingIndex = 50; m.wear(T0);
+    if (m.hs.bag.steel_whetstone.left !== 0) problems.push(`swing 50 left ${m.hs.bag.steel_whetstone.left} stones of 1`);
+    if (hit(m) !== hit(bare)) problems.push(`the spent stone still pays: max hit ${hit(m)}, bare ${hit(bare)}`);
+    if (hit(unpacked) !== hit(bare)) problems.push(`an equipped but unpacked stone pays: max hit ${hit(unpacked)}, bare ${hit(bare)}`);
+    return problems;
+  },
+
   'WORLD-BOUND': async (M) => {
     const problems = [];
     const roles = ['melee_dps', 'ranger', 'mage', 'healer'];
@@ -1594,6 +1627,13 @@ const DB_ARMS = {
       if (inst.world !== null || inst.refusals !== 0) problems.push(`${label}: the instance kept a world or a count`);
       const next = await settleTo(db, M, h.from + 180000);
       if (next.skipped !== 'no_hunt') problems.push(`${label}: a settle after the forfeit answered ${JSON.stringify(next).slice(0, 200)}`);
+      /* The forfeit is the SESSION's fact, not the ledger's: it outlives the 90-day prune of its journal row
+         (2026-11-20-hunt-forfeit-durable.sql; the prune is played by deleting the row under replica mode). */
+      await db.query('set local session_replication_role = replica');
+      await db.query("delete from public.player_ledger where session_id = $1 and intent = 'window_forfeit'", [h.sid]);
+      await db.query('set local session_replication_role = origin');
+      const fv = await one(db, 'select public.hr_hunt_view($1::uuid)', [h.sid]);
+      if (!fv || fv.forfeit !== true) problems.push(`${label}: once its ledger row is pruned the forfeited hunt reads forfeit ${fv && fv.forfeit}`);
       await db.query('rollback to savepoint forfeit');
     }
     return problems;
@@ -1814,6 +1854,10 @@ const MUTANTS = [
     from: 'const fromMs = Math.floor(nat(w.fromMs, -1));', to: 'const fromMs = Math.floor(nat(inp.accruedToMs, nat(w.fromMs, -1)));' },
   { arm: 'TICK-2', name: '[C2 F11 / no_topup] a deleted read returns to the hunt settle', file: join(FN, 'hunt-settle.js'),
     from: "import { huntTimeline, worldHash } from '../../../src/core/hunt-track.js';", to: "import { huntTimeline, worldHash } from '../../../src/core/hunt-track.js';\nexport const ATTENDED_READ = 'select * from public.hr_attended_kills($1, $2, $3)';" },
+  { arm: 'HONE', name: 'the swing never wears the whetstone (a free +strB forever)', file: 'src/core/combat-sim.js',
+    from: "      if (typeof m.wear === 'function') m.wear(atMs);\n", to: '' },
+  { arm: 'HONE', name: 'a spent whetstone keeps paying its bonus', file: 'src/core/member.js',
+    from: '    if (honeLeft() <= 0) unhone();\n  };', to: '  };' },
   { arm: 'BUFF', name: 'the hunt never re-measures the buff queue (a buff never pays)', file: 'src/core/combat-sim.js',
     from: "      if (typeof m.buffsAt === 'function') m.buffsAt(atMs);\n", to: '' },
   { arm: 'BUFF', name: '[C2 buff queue at the read clock] the queue is measured once, at the window start', file: 'src/core/member.js',
@@ -1994,6 +2038,8 @@ const DB_MUTANTS = [
     find: '  if v_n >= c_forfeit_after then', replace: '  if false then' },
   { arm: 'FORFEIT', name: 'a landed commit keeps the refusal count', fn: AI,
     find: 'settled_to = v_to, next_swing_at = v_to, refusals = 0, version = version + 1', replace: 'settled_to = v_to, next_swing_at = v_to, version = version + 1' },
+  { arm: 'FORFEIT', name: 'a forfeited hunt reads forfeit from the pruned ledger again', fn: 'public.hr_hunt_view(uuid)',
+    find: "'forfeit', s.forfeit,", replace: "'forfeit', exists (select 1 from public.player_ledger l where l.session_id = s.id and l.intent = 'window_forfeit')," },
   { arm: 'FORFEIT', name: 'a forfeit ends the hunt now instead of at the last accepted boundary', fn: 'public.hr_hunt_forfeit(uuid,text,jsonb)',
     find: "    perform public.hr_hunt_close(v_s.id, v_end, v_i.settled_to, true);", replace: "    perform public.hr_hunt_close(v_s.id, v_end, now(), true);" },
   { arm: 'VALUE', name: 'the world byte bound is not asked', fn: AI,

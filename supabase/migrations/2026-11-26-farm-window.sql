@@ -75,7 +75,7 @@ begin
      or to_regclass('public.hr_crops') is null or to_regclass('public.hr_shop_supply_offers') is null then
     raise exception 'PIN: hr_state_sections, hr_plot_tier, hr_crops or hr_shop_supply_offers is missing'; end if;
   if not exists (select 1 from public.hr_shop_supply_offers where kind = 'seed') then
-    raise exception 'PIN: the Shop lists no seed (apply 2026-11-23-alpha-catalogue.generated.sql first)'; end if;
+    raise exception 'PIN: the Shop lists no seed (apply 2026-11-22-alpha-catalogue.generated.sql first)'; end if;
   if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'hr_plot_tier'
                   and column_name = 'gold_cost') then
     raise exception 'PIN: hr_plot_tier.gold_cost is missing (2026-09-06-plot-tier-reachable.sql)'; end if;

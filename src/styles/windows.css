@@ -299,6 +299,29 @@
 .hw-skill-next { white-space: normal; color: var(--ink-2); }
 .hw-skill-next:empty { display: none; }
 
+/* ── Gathering and crafting: a skill is a door to its work (src/shell/windows/work.js) ── */
+.hw-trade .hw-work-now { margin: 0 0 8px; }
+.hw-trade-ledger.is-off { display: none; }
+.hw-skill[data-hs-act] { cursor: pointer; }
+.hw-skill[data-hs-act]:hover, .hw-skill[data-hs-act]:focus-visible { background: var(--surf-panel); }
+.hw-skill[data-hs-act]:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
+.hw-skill.is-working .hw-skill-name { color: var(--gold-2); }
+.hw-skill[data-hs-act] .hw-skill-lv::after { content: ' ›'; color: var(--ink-3); }
+.hw-work-hint { margin-bottom: 4px; }
+.hw-work { display: none; }
+.hw-work.is-on { display: block; }
+.hw-work-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.hw-work-title { flex: 1; min-width: 0; color: var(--ink); }
+.hw-work-row .hw-line-name small { white-space: normal; }
+.hw-work-why { color: var(--ink-3); }
+.hw-work-why:empty { display: none; }
+.hw-work-row.is-on .hw-line-name b, .hw-work-row.is-on .hw-work-why { color: var(--gold-2); }
+.hw-work-row.is-locked .hw-ico { opacity: .5; }
+/* "Make N": the amount sits under the row's words, a quiet well (hunt.css .hh-segs); a locked row has none. */
+.hw-work-n { align-self: flex-start; margin-top: 4px; }
+.hw-work-n .hh-seg { min-width: 32px; min-height: 24px; padding: 0 6px; }
+.hw-work-row.is-locked .hw-work-n { display: none; }
+
 /* ── The shop and hunt prep ── */
 .hw-qty { width: 64px; }
 .hw-add { display: flex; gap: 6px; align-items: center; margin-top: 8px; }
@@ -337,6 +360,8 @@
   .hw-skill-next { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
   .hw-mi { min-height: 40px; }
   .hw-tip { width: 240px; }
+  .hw-work-row .hh-tool, .hw-work-head .hh-tool, .hw-work-now .hh-tool, .hw-work-n .hh-seg { min-height: 40px; }
+  .hw-work-hint { display: none; }
 }
 
 /* ── The Party window (src/shell/windows/party.js): invites and the finder; role glyphs ── */

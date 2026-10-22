@@ -382,6 +382,8 @@
     "node tests/world-town-home.mjs": "client-guards",
     "node tools/mutant-gate.mjs node tests/shell-core.mjs --selftest": "client-guards",
     "node tests/shell-core.mjs": "client-guards",
+    "node tools/mutant-gate.mjs node tests/storage-view.mjs --selftest": "client-guards",
+    "node tests/storage-view.mjs": "client-guards",
     "node tools/mutant-gate.mjs node tests/shell-renderers.mjs --selftest": "client-guards",
     "node tests/shell-renderers.mjs": "client-guards",
     "node tools/mutant-gate.mjs node tests/settings-registry.mjs --selftest": "client-guards",

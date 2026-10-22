@@ -4233,3 +4233,7 @@ guard tests/hunt-scene.mjs (SC-1..8, 13/13 mutants).
 2. *A sender stamp keyed on auth.uid() is a hidden dependency for server-written lines.* hr_chat_name_authority overwrites from_id with a signed-in caller; the trigger journals `refused` rather than post under a foreign JWT (§4(d) proves it).
 3. *selfcheck-no-global-dml cannot read `execute`.* Write privilege probes as static, probe-scoped statements, one begin/exception block each.
 4. *A client-rendered marker needs a trust boundary.* `[[hunt:id]]` names a hunt only on a System row (no player can write that channel); in a player's line it stays as typed.
+## 2026-10-22 · lane/a-v0232-reds (full-sweep reds of release/v0.2.32)
+1. *A mutant tree must be the whole src at its own layout.* Three harnesses copied hand-picked dirs (src/session, +data, +hunt-view); the next relative import (residue.js -> ../data/) broke one. Copy src minus binaries.
+2. *Re-applying an old migration over the chain end puts back bodies later files restated.* party-flow re-applied six 10-28..10-31 files: 12-07 re-signed hr_hunt_party_list, the re-applied 3-arg one made every call ambiguous, and the enter/start mutants planted bodies nothing ran. Run ONE statement on the chain end, and refuse a mutant whose function the chain end no longer runs from that file.
+3. *mutant-anchors cannot see this class:* an anchor in an old file still "matches" because the old file still exists. Only a live-body check (hunt-sessions-db reads the live def, alpha-server's staleAnchors, party-flow's prosrc compare) bites.

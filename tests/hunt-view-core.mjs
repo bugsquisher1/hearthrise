@@ -21,6 +21,8 @@
 //   SEC-1 sections read null when absent or malformed; the next envelope without
 //         `hunt_analyzer` leaves no analyzer behind (null replaces)
 //   SEC-2 a party member's role comes from its weapon, never its outfit
+//   SEC-3 the session clock runs on the server's clock from the settle its hunt_ms
+//         was taken at: it never steps back between settles
 //   FP-1  float defaults: the bleed badge off over regular monsters, on over
 //         bosses; a saved toggle wins; a forged residue is bounded
 //   INT-1 a settings change is ONE intent (hr_action_set_options with slot,
@@ -113,6 +115,34 @@ async function rules(M) {
     ok('TL-2', after && Math.abs(after.x - before.x) < 0.05 && after.moving, 'a new envelope moved a running animation from ' + JSON.stringify(before) + ' to ' + JSON.stringify(after));
     cs.timeline.advance(clock.t + 1000);
     ok('TL-2', delivered.filter((k) => k === 'i:e1').length === 1, 'a new envelope re-played an event: ' + delivered.join(','));
+  }
+
+  { // SEC-3 THE SESSION CLOCK NEVER STEPS BACK (live v0.2.23, Andy: "the analyser seems to have slowed down"):
+    // hunt_ms is hunted time up to the settle (`session.settled_to`); answers between settles restate it, later.
+    // Read from each answer's arrival the clock fell back by the settle lag on every one of them (up to 10 s).
+    const clock = { t: 100000 };
+    const T = Date.parse(FIXTURE.now);
+    let body = null;
+    const at = (serverMs, settledMs) => {
+      body = clone(FIXTURE); body.version = FIXTURE.version + Math.round(serverMs / 1000); body.now = new Date(T + serverMs).toISOString(); body.hunt_server_now_ms = T + serverMs;
+      body.hunt_analyzer.session = Object.assign({}, body.hunt_analyzer.session, { settled_to: new Date(T + settledMs).toISOString() });
+      body.hunt_analyzer.hunt_ms = 600000 + settledMs;
+    };
+    const { cs } = session(M, { hr_load: () => ({ ok: true, body: clone(body) }) }, clock);
+    const shown = [];
+    /* the server settles every 10 s; the browser's answers land every 3 s (start points, not settles) */
+    for (let s = 0; s <= 30000; s += 250) {
+      clock.t = 100000 + s;
+      if (s % 3000 === 0) { at(s, s - (s % 10000)); await cs.load(); }
+      shown.push([s, M.H.sessionClockMs(M.H.analyzerOf(cs), M.H.serverNowOf(cs))]);
+    }
+    const back = shown.filter(([, v], i) => i && v < shown[i - 1][1]);
+    const off = shown.filter(([s, v]) => Math.abs(v - (600000 + s)) > 1000);
+    ok('SEC-3', !back.length && !off.length, `the session clock stepped back ${back.length}x and was more than 1 s off the hunted time ${off.length}x (first ${JSON.stringify(back[0] || off[0])})`);
+    body.hunt_analyzer.session.ended_at = body.now; body.version += 1;
+    await cs.load();
+    clock.t += 5000;
+    ok('SEC-3', M.H.sessionClockMs(M.H.analyzerOf(cs), M.H.serverNowOf(cs)) === body.hunt_analyzer.hunt_ms, 'an ended hunt must read hunt_ms as sent');
   }
 
   { // SEC-1, SEC-2
@@ -214,6 +244,7 @@ const MUTANTS = [
   ['the analyzer is merged, not replaced', 'src/session/hunt-sections.js', "  const a = section(cs, 'hunt_analyzer');\n", "  const a = section(cs, 'hunt_analyzer') || globalThis.__lastA;\n  globalThis.__lastA = a;\n"],
   ['Level XP summed with training XP (the 10-22 report)', 'src/session/hunt-sections.js', 'levelXp: levelOf(v.xp),', 'levelXp: total(v.xp),'],
   ['a training row reads Level XP', 'src/session/hunt-sections.js', "Object.entries(m).filter(([k]) => k !== 'level')", 'Object.entries(m)'],
+  ['the session clock runs from each answer (SEC-3, live v0.2.23)', 'src/session/hunt-sections.js', 'return a.sessionMs + Math.max(0, serverNowMs - a.settledMs);', 'return a.sessionMs;'],
   ['a role read off the outfit', 'src/session/hunt-sections.js', 'role: roleForWeapon(str(m.weapon), str(m.role_pick)),', "role: roleForWeapon(str(m.weapon) || (m.outfit ? 'shield' : null), str(m.role_pick)),"],
   ['the bleed badge defaults on for monsters', 'src/data/combat-text.js', "label: 'Bleed stack count', on: on(false, true)", "label: 'Bleed stack count', on: on(true, true)"],
   ['a forged toggle passes', 'src/session/residue.js', "for (const k of ['regular', 'boss']) if (typeof r[k] === 'boolean') e[k] = r[k];", 'Object.assign(e, r);'],

@@ -2,7 +2,7 @@
 // src/shell/widgets/hunt-topbar.js — THE HUNT'S TOP BAR (parity TB-01, TB-02).
 //
 // Hunt details (shows the analyzer panel), the session clock from the
-// analyzer's server session_ms, and Leave hunt — an INTENT (hr_hunt_leave),
+// analyzer's server session_ms on the server's clock (sessionClockMs), and Leave hunt — an INTENT (hr_hunt_leave),
 // the button off from the press until the hunt is over, and beside it, in
 // gold, how long is left: "Leaving…" for the one round trip of the press,
 // "Leaving in Ns" to the server's leave_at, "Leaving now…" past it while the
@@ -10,7 +10,7 @@
 // "Ready in" and the "»" buttons of the reference are NOT built (TB-03, TB-04: purpose unknown, Tyler 10-17).
 // ════════════════════════════════════════════════════════════════════════
 import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.26';
-import { huntOf, analyzerOf } from '../../session/hunt-sections.js?v=0.2.26';
+import { huntOf, analyzerOf, sessionClockMs, serverNowOf } from '../../session/hunt-sections.js?v=0.2.26';
 import { text, prop, attr } from '../../render/paint.js?v=0.2.26';
 import { clock } from '../../render/format.js?v=0.2.26';
 import { takeFresh } from '../../hunt-view/summary-recorder.js?v=0.2.26';
@@ -41,9 +41,8 @@ renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
   const a = analyzerOf(ctx.character);
   const ground = h && h.huntId && HUNT_INDEX[h.huntId];
   text(el.querySelector('.ht-ground'), ground ? ground.name : h ? 'Hunting' : '');
-  const since = ctx.character.receivedAt;
-  const live = a && !a.ended && Number.isFinite(since) ? Math.max(0, ctx.now() - since) : 0;
-  text(el.querySelector('.ht-clock'), a && a.sessionMs !== null ? clock(a.sessionMs + live) : '');
+  const ms = sessionClockMs(a, serverNowOf(ctx.character));
+  text(el.querySelector('.ht-clock'), ms === null ? '' : clock(ms));
   const leave = el.querySelector('.is-leave');
   /* LEAVING (the leave pends until the server's leave_at, 2026-10-31-live-horizon.sql): from the press
      until the hunt is over the button is off, and the line beside it says how long is left, counted

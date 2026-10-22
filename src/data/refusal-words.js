@@ -81,7 +81,7 @@ export const REFUSAL_WORDS = Object.freeze({
   nothing_to_buy: 'There is nothing to buy.',
   duplicate_line: 'The same item is listed twice. Nothing was changed.',
   /* Gear. requirement_not_met is said with its numbers (intent-words.js requirementWords). */
-  requirement_not_met: 'Your skill is too low to use that yet.',
+  requirement_not_met: 'Your skill is too low to wear that yet. Nothing was put on.',
   level_too_low: 'Your skill is too low to use that yet.',
   unknown_equip_slot: 'That item does not go in that slot.',
   not_equippable: 'That item cannot be worn.',

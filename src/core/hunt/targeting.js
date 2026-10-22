@@ -123,8 +123,10 @@ export function peel(inst, sc, hero) {
    takes anything not on it; every other tank takes only a monster on a hero that
    is NOT a tank (the overflow: a peel off the Healer), never one already on a tank.
    The holder rotates once a lap of the route (pull-cycle.js `runs`, which moves only
-   after the last pocket's regroup, never mid-pull): the leader's tank first, then
-   the next tank by seat, so over laps every tank holds and trains Defense.
+   after the last pocket's regroup, never mid-pull): the first tank by seat (unit id)
+   first, then the next, so over laps every tank holds and trains Defense. The lap's
+   holder also PULLS its lap (pull-cycle.js pullLeader; bug #61, Andy 10-22: the
+   off-tank yanked every pack the leader had just pulled).
    ONE TANK HOLDS (Tyler 2026-10-22, the party's "One tank holds"): the tank the
    leader picked (world.hold) holds every lap while it stands in the hunt, whatever
    the floor below; the others take only the overflow. With no pick, or once the
@@ -139,23 +141,32 @@ const isTank = (u) => !!(roleOf(u) && roleOf(u).tank);
  */
 export const underHoldFloor = (u, living) => u.maxHp * 1000 < living.reduce((n, x) => Math.max(n, x.maxHp), 0) * CHALLENGE.holderMinHpPm;
 
+/** The leader's pick in force (world.hold) while it stands as a living tank, else null ("One tank holds"). */
+export function pickInForce(inst) {
+  const id = inst.world.hold;
+  return Number.isInteger(id) ? inst.world.units.find((u) => u.id === id && u.alive && isTank(u)) || null : null;
+}
+
+/** THE TANKS THAT TAKE TURNS: the living tanks in seat (unit id) order, less any under the floor (underHoldFloor). */
+export function turnTanks(inst) {
+  const living = inst.world.units.filter((u) => u.alive && isTank(u));
+  return living.filter((u) => !underHoldFloor(u, living)).sort((a, b) => a.id - b.id);
+}
+
 /**
- * THE LAP'S HOLDING TANK: the leader's pick (world.hold) while it stands; else the living
- * tanks in seat (unit id) order, starting at the leader's, rotated by the laps run, less
- * any under the floor (underHoldFloor). Null with no tank. (A tank joining mid-lap, or
- * levelling past that floor, changes the rotation's length and can move the holder at
- * once: rare, and the next lap settles it.)
+ * THE LAP'S HOLDING TANK: the leader's pick (world.hold) while it stands; else the tanks that
+ * take turns (turnTanks), the first by seat on the first lap, rotated by the laps run. Never
+ * read from the pull leader (that one follows the holder: pull-cycle.js pullLeader). Null with
+ * no tank. (A tank joining mid-lap, or levelling past the floor, changes the turns' length and
+ * can move the holder at once: rare, and the next lap settles it.)
  */
 export function holderTank(inst) {
-  const living = inst.world.units.filter((u) => u.alive && isTank(u));
-  const pick = Number.isInteger(inst.world.hold) ? living.find((u) => u.id === inst.world.hold) : null;
+  const pick = pickInForce(inst);
   if (pick) return pick;
-  const tanks = living.filter((u) => !underHoldFloor(u, living)).sort((a, b) => a.id - b.id);
+  const tanks = turnTanks(inst);
   if (!tanks.length) return null;
-  const k = leaderOf(inst);
-  const first = k ? Math.max(0, tanks.indexOf(k)) : 0;
   const runs = Number.isInteger(inst.world.runs) && inst.world.runs > 0 ? inst.world.runs : 0;
-  return tanks[(first + runs) % tanks.length];
+  return tanks[runs % tanks.length];
 }
 
 /** The monsters a Challenge by tank `k` would take now (none when `k` is not a living tank). */

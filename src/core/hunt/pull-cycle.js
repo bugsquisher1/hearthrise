@@ -34,6 +34,7 @@ import { inArea, resetPack } from './leash.js?v=0.2.32';
 import { atRest, unitById, leaderOf, setGoal, clearGoal, occupancy, reachable } from './movement.js?v=0.2.32';
 import { makeEvent, trackStep } from './events.js?v=0.2.32';
 import { pickLeader, kites } from './roles.js?v=0.2.32';
+import { holderTank, turnTanks, pickInForce } from './targeting.js?v=0.2.32';
 
 /* deadMs: a corpse's age. hpMilli: out-of-combat regen carried below one HP.
    phase / routeIdx / phaseMs / regroupNext / runs / nextId: the cycle. alive / respawnAtMs: a pack. */
@@ -167,11 +168,25 @@ function startPull(inst, sc, k, p) {
   sc.emit(makeEvent('pull', sc.atMs, { pocket: p }));
 }
 
+/**
+ * THE PULL LEADER (Coordinator ruling 2026-10-22, bug #61; within Tyler 10-16): by role order (roles.js
+ * pickLeader), except while two or more tanks take turns with no "One tank holds" pick standing: then the
+ * lap's holder (targeting.js holderTank) pulls its own lap, so the off-tank never takes a pack the other
+ * has just pulled. Read when the world opens, when a hero joins or leaves, and at the lap boundary
+ * (nextPocket), never mid-pull.
+ */
+export function pullLeader(inst) {
+  const byRole = pickLeader(inst.world.units);
+  if (pickInForce(inst) || turnTanks(inst).length < 2) return byRole;
+  return holderTank(inst).id;
+}
+
 function nextPocket(inst, k) {
   const w = inst.world;
   w.routeIdx += 1;
-  /* THE LAP BOUNDARY: the laps run move on, and the leader's pending hold pick (targeting.js `holdNext`) takes force */
-  if (w.routeIdx >= routeOf(inst).length) { w.routeIdx = 0; w.runs += 1; w.hold = w.holdNext; }
+  /* THE LAP BOUNDARY: the laps run move on, the leader's pending hold pick (targeting.js `holdNext`) takes force,
+     and the lap's holder takes the pull (pullLeader) */
+  if (w.routeIdx >= routeOf(inst).length) { w.routeIdx = 0; w.runs += 1; w.hold = w.holdNext; w.leader = pullLeader(inst); }
   w.phase = PHASE.TRAVEL;
   if (k) clearGoal(k);
 }
@@ -225,7 +240,7 @@ function tickHeroes(inst, sc) {
 export function runPhase(inst, sc) {
   if (!cycling(inst)) return;
   const w = inst.world;
-  if (!Number.isInteger(w.leader) || !unitById(inst, w.leader)) w.leader = pickLeader(w.units);
+  if (!Number.isInteger(w.leader) || !unitById(inst, w.leader)) w.leader = pullLeader(inst);
   tickHeroes(inst, sc);
   const k = leaderOf(inst);
   if (!k) return;

@@ -97,7 +97,7 @@ const MUTANTS = [
   { name: 'a non-holder steals from the holder (the v0.2.24 trade)',
     edits: [['src/core/hunt/targeting.js', ' && (holds || onNonTank(m)));', ');']] },
   { name: 'the holder never rotates (the second tank never trains)',
-    edits: [['src/core/hunt/targeting.js', 'return tanks[(first + runs) % tanks.length];', 'return tanks[first];']] },
+    edits: [['src/core/hunt/targeting.js', 'return tanks[runs % tanks.length];', 'return tanks[0];']] },
   { name: 'a monster blow at an armoured hero pays no Defense',
     edits: [['src/core/hunt-rewards.js', "  if (!m || m.armoured !== true || !attacker || attacker.side !== 'mon') return 0;", '  return 0;']] },
 ];

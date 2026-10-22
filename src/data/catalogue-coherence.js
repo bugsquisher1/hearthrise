@@ -85,6 +85,11 @@ export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_
   /* CORE REBUILD (2026-10-19): the Rat King's Crown Shard lost its Prayer offering (Tyler's
      deletion list); "a trader pays well for it" is its whole job until the roster gives it one. */
   'crown_shard',
+  /* THE IMBUEMENT SLOT (lane c-loot-loop, designer 2026-10-21; src/data/imbuements.js). One item per Thicket and
+     Sewer monster, the imbuer's input once L4 builds imbuing. Until then the vendor is their only use: SHRINK these
+     when the imbuement recipes land. */
+  'whelp_milk_tooth', 'gray_dewclaw', 'briar_burr', 'dire_hackle', 'grayjaw_whisker', 'rat_incisor', 'sump_membrane',
+  'kobold_scale', 'culvert_bat_fang', 'cistern_venom_gland', 'knotted_tails',
 ]);
 
 /* ── AWAITING THE ROSTER — catalogued, kept, and deliberately unobtainable ───

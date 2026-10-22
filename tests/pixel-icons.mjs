@@ -46,7 +46,12 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIR = 'assets/icons-bundle/pixel/items';
 const SUPPLY = 'assets/icons-bundle/pixel/supplies';
 /** Pairs of items that still share one icon, waiting for art of their own (Art Director). A new pair is a finding. */
-const KNOWN_TWINS = [['crown_of_the_fallen_king', 'crown_shard']];
+const KNOWN_TWINS = [['crown_of_the_fallen_king', 'crown_shard'],
+  /* The imbuement slot's eleven items (src/data/imbuements.js, lane c-loot-loop 2026-10-21) wear the nearest
+     creature part until the Asset Director draws their own (no generated art in that lane). */
+  ['small_fang', 'whelp_milk_tooth'], ['razor_claw', 'gray_dewclaw'], ['sticky_core', 'briar_burr'], ['wolf_pelt', 'dire_hackle'],
+  ['silk_thread', 'grayjaw_whisker'], ['dire_fang', 'rat_incisor'], ['slime_gel', 'sump_membrane'], ['dragon_scale', 'kobold_scale'],
+  ['night_fang', 'culvert_bat_fang'], ['venom_sac', 'cistern_venom_gland'], ['rat_tail', 'knotted_tails']];
 
 /** Byte-identical icon files under two ids, except the listed twins. */
 export function checkDuplicates(dir, ids, twins = KNOWN_TWINS) {

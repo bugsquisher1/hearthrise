@@ -207,6 +207,8 @@ const rowsOf = (o, fn) => Object.entries(counts(o)).filter(([k]) => str(k)).sort
    the Level's is one figure, the skills' are the training rows (premium's Training tab). */
 const levelOf = (m) => (isObj(m) ? (num(m.level) ?? 0) : null);
 const trainingOf = (m) => (isObj(m) ? Object.entries(m).filter(([k]) => k !== 'level') : []);
+/* A next-level eta in ms from the server's `eta_h` (hours) on a level or skill read; 0 (maxed) or absent reads null. */
+const etaMs = (r) => { const h = isObj(r) ? num(r.eta_h) : null; return h !== null && h > 0 ? Math.round(h * 3600000) : null; };
 
 /* One analyzer view (hr_hunt_analyzer: kills, xp {level|skill: n}, raw_xp {level|skill: n}, gold, waste,
    balance, per_hour { xp: Level, raw_xp: Level, training_xp: the skills }, skills { skill: { per_hour } }
@@ -223,9 +225,10 @@ function viewOf(v) {
   return {
     kills: num(v.kills), levelXp: levelOf(v.xp), rawLevelXp: levelOf(v.raw_xp), gold: num(v.gold), waste: num(v.waste), balance: num(v.balance),
     trainingXp: isObj(v.xp) ? total(Object.fromEntries(train)) : null,
-    /* Each combat skill trained this session, most first: its XP and (the hero's, rated) its XP an hour. */
+    /* Each combat skill trained this session, most first: its XP and (the hero's, rated) its XP an hour and the
+       time to its next level (the server's eta_h, hours; 0 = maxed and absent = unrated or the party's: null). */
     training: train.sort((x, y) => y[1] - x[1] || (x[0] < y[0] ? -1 : 1)).slice(0, 16)
-      .map(([skill, n]) => ({ skill, xp: n, perHour: isObj(sk[skill]) ? num(sk[skill].per_hour) : null })),
+      .map(([skill, n]) => ({ skill, xp: n, perHour: isObj(sk[skill]) ? num(sk[skill].per_hour) : null, nextMs: etaMs(sk[skill]) })),
     /* `rated`: the server sent rates. It sends none (per_hour null) until the session has
        ANALYZER_RATE_AFTER_MS of wall time (2026-11-06-hunt-analyzer-min-window.sql). */
     rated: isObj(v.per_hour),
@@ -266,8 +269,7 @@ export function analyzerOf(cs) {
   if (!hero) return null;
   /* The next Level (Level is not a skill): the server's `hero.level.eta_h` (hours). Never a skill's eta, which the server
      floors at 0 once the skill is maxed; a 0 or absent eta is unknown and reads null (the widget shows the dash). */
-  const lvEta = isObj(a.hero.level) ? num(a.hero.level.eta_h) : null;
-  const next = lvEta !== null && lvEta > 0 ? Math.round(lvEta * 3600000) : null;
+  const next = etaMs(a.hero.level);
   const sess = isObj(a.session) ? a.session : {};
   const settled = str(sess.settled_to) ? Date.parse(sess.settled_to) : NaN;
   return { sessionMs: num(a.hunt_ms), settledMs: Number.isFinite(settled) ? settled : null, nextLevelMs: next,

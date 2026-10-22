@@ -152,9 +152,9 @@
 .ha-stats dd.is-loss { color: var(--red); }
 .ha-list { margin: 0 0 6px; padding: 0; list-style: none; }
 .ha-line { display: flex; align-items: center; gap: 6px; min-height: 32px; }
-.ha-ico:empty { display: none; }
+.ha-ico:empty, .ha-eta:empty { display: none; }
 .ha-name { flex: 1; min-width: 0; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ha-count { color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; }
+.ha-count, .ha-eta { color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; }
 .ha-val { font-weight: 700; font-variant-numeric: lining-nums tabular-nums; }
 .ha-none { display: none; margin: 0 0 6px; color: var(--ink-3); }
 .ha-none.is-on { display: block; }

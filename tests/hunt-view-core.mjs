@@ -161,9 +161,10 @@ async function rules(M) {
       ok('SEC-1', a.hero.levelXp === fx.xp.level && a.hero.rawLevelXp === fx.raw_xp.level && train.length >= 2
         && a.hero.trainingXp === train.reduce((t, [, n]) => t + n, 0) && a.hero.perHour.trainingXp === fx.per_hour.training_xp,
         'Level XP must be the level key alone and training the skills: ' + JSON.stringify({ level: a.hero.levelXp, training: a.hero.trainingXp }));
-      ok('SEC-1', JSON.stringify(a.hero.training) === JSON.stringify(train.sort((x, y) => y[1] - x[1]).map(([skill, n]) => ({ skill, xp: n, perHour: fx.skills[skill] ? fx.skills[skill].per_hour : null }))),
+      ok('SEC-1', JSON.stringify(a.hero.training) === JSON.stringify(train.sort((x, y) => y[1] - x[1]).map(([skill, n]) => ({ skill, xp: n, perHour: fx.skills[skill] ? fx.skills[skill].per_hour : null,
+          nextMs: fx.skills[skill] && fx.skills[skill].eta_h > 0 ? Math.round(fx.skills[skill].eta_h * 3600000) : null }))),
         'the training rows must be each skill, most first, with the server\'s own rate: ' + JSON.stringify(a.hero.training));
-      ok('SEC-1', a.party.training.every((r) => r.perHour === null) && a.party.levelXp === FIXTURE.hunt_analyzer.party.xp.level,
+      ok('SEC-1', a.party.training.every((r) => r.perHour === null && r.nextMs === null) && a.party.levelXp === FIXTURE.hunt_analyzer.party.xp.level,
         'the party view: its Level XP alone, per-skill rates unknown (the server sends none): ' + JSON.stringify(a.party.training));
     }
     /* Tracker r44: Next level in read 00:00:00 forever. It is the Level's eta (hero.level.eta_h), never a skill's: the fixture's maxed Melee carries eta_h 0. */

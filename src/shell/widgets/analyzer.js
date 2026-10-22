@@ -10,7 +10,7 @@
 // "only premium sees it"): every character sees the BASIC block — session time,
 // kills, Level XP and Level XP/h, loot value and gold/h, supplies spent (own vs
 // store), balance. The server's `premium` section adds the rest — next-level ETA,
-// Level XP before bonuses, waste, TRAINING XP by skill (its own tab; Tyler
+// Level XP before bonuses, waste, TRAINING XP and next level by skill (its own tab; Tyler
 // 2026-10-22: a premium tab, never a popup over the heads), damage taken and
 // dealt (two tabs) and the party breakdown. Level XP and training XP are never
 // added into one number (Tyler 2026-10-22: "so it's clear what's happening"). A
@@ -29,7 +29,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { analyzerOf, isPremium, sessionClockMs, serverNowOf } from '../../session/hunt-sections.js?v=0.2.27';
 import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.27';
-import { whole, gold, clock } from '../../render/format.js?v=0.2.27';
+import { whole, gold, clock, hoursMinutes } from '../../render/format.js?v=0.2.27';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.27';
 import { panelHtml, itemIconHtml, itemName, monsterName, abilityName, elementName, skillName } from './bits.js?v=0.2.27';
 import { ANALYZER_RATE_AFTER_MS } from '../../data/hunt-sessions.js?v=0.2.27';
@@ -86,7 +86,7 @@ export function renderAnalyzer() {
 }
 
 function lineHtml() {
-  return '<li class="ha-line"><span class="ha-ico"></span><span class="ha-name"></span><span class="ha-count"></span><span class="ha-val"></span></li>';
+  return '<li class="ha-line"><span class="ha-ico"></span><span class="ha-name"></span><span class="ha-count"></span><span class="ha-val"></span><small class="ha-eta"></small></li>';
 }
 
 function patchList(ul, items, key, fill, ctx) {
@@ -122,12 +122,15 @@ function patchView(root, v, ctx, premium) {
       }
       if (s.id === 'rates') { prop(sec.querySelector('.ha-stats'), 'hidden', !v.rated); prop(sec.querySelector('.ha-later'), 'hidden', v.rated); }
     } else if (s.list === 'training') {
-      /* One line a skill: its name, this session's XP, and its XP an hour (a dash before the server's rate window,
-         and for the party, whose per-skill rate the server does not send). */
+      /* One line a skill: its name, this session's XP, its XP an hour (a dash before the server's rate window,
+         and for the party, whose per-skill rate the server does not send) and the server's time to its next
+         level (nothing for a maxed skill, before the rate window and for the party). As sent: the next
+         envelope replaces it, nothing counts it down. */
       patchList(sec.querySelector('.ha-list'), v.training, (it) => it.skill, (li, it) => {
         text(li.querySelector('.ha-name'), skillName(it.skill));
         text(li.querySelector('.ha-count'), '+' + whole(it.xp));
         text(li.querySelector('.ha-val'), it.perHour === null ? '–' : whole(it.perHour) + ' an hour');
+        text(li.querySelector('.ha-eta'), it.nextMs === null ? '' : 'next level in ' + hoursMinutes(it.nextMs));
       }, ctx);
     } else if (s.list === 'supplies') {
       patchList(sec.querySelector('.ha-list'), v.supplies, (it) => it.item + ':' + it.source, (li, it) => {

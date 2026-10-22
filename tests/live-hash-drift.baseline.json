@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-22",
- "replay_ms": 82839,
+ "replay_ms": 59035,
  "counts": {
-  "tracked_names": 147,
-  "entries": 119
+  "tracked_names": 149,
+  "entries": 121
  },
  "functions": [
   {
@@ -414,6 +414,29 @@
    "replay": {
     "md5": "57e74ca36e7df49c16b75cdacb64907b",
     "norm_len": 489,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_chat_recent(p_slot integer)",
+   "name": "hr_chat_recent",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-25-chat-channels.sql",
+    "2026-11-19-chat-stream-safe.sql"
+   ],
+   "live": {
+    "md5": "18f8c572d31b07a561c212556e6a5877",
+    "norm_len": 2123,
+    "measured": "2026-10-22",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "18f8c572d31b07a561c212556e6a5877",
+    "norm_len": 2123,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1144,8 +1167,8 @@
     "2026-10-27-core-bodies.sql"
    ],
    "live": {
-    "md5": "4a92082cba40ca00cab1769ba53d0eb6",
-    "norm_len": 28861,
+    "md5": "9878f3f0978f32b296e14617ee1135bf",
+    "norm_len": 29831,
     "measured": "2026-10-22",
     "source": "measured-live"
    },
@@ -1154,7 +1177,8 @@
     "norm_len": 28861,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "REVIEW 2026-10-22: live and replay disagree and nobody has said why. Strip comments from both bodies and diff them; write what actually differs here. The guard is RED until this sentence is real."
   },
   {
    "sig": "hr_hunt_change(p_slot integer, p_hunt text, p_idem uuid)",
@@ -2860,6 +2884,29 @@
    "replay": {
     "md5": "69a7af7d432dfc8a6723142ab4aa638d",
     "norm_len": 808,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_whispers_recent()",
+   "name": "hr_whispers_recent",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-25-social.sql",
+    "2026-11-19-chat-stream-safe.sql"
+   ],
+   "live": {
+    "md5": "ee501e88913a1ed1185be58dbadeda81",
+    "norm_len": 1124,
+    "measured": "2026-10-22",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "ee501e88913a1ed1185be58dbadeda81",
+    "norm_len": 1124,
     "source": "computed-from-replay"
    },
    "agree": true

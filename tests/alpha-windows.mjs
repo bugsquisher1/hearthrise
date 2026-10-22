@@ -509,7 +509,7 @@ async function checks(overrides, shots) {
         for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
         e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, bank_cap: 40 });
         e.bank = { oak_logs: 12, iron_bar: 3 };
-        e.inventory = Object.assign({}, e.inventory, { raw_wolf_meat: 4 });
+        e.inventory = Object.assign({}, e.inventory, { raw_wolf_meat: 4, raw_bear_meat: 2 });
       };
       const { ctx, page, errors, s, up } = await open({ mutateEnv: town });
       const shift = (from, to, id, n) => { from[id] -= n; if (!from[id]) delete from[id]; to[id] = (to[id] || 0) + n; };
@@ -582,6 +582,12 @@ async function checks(overrides, shots) {
             await openWin(page, 'b', 'inventory');
             await page.waitForTimeout(300);
             if (await page.$('[data-hs-win="inventory"] .hw-pocket[data-item="bones"]')) fails.push('AW-19 the bones came back after a reload');
+            /* AW-20 a dish above the server's Cooking level (11 < 40) says so in words and sends nothing */
+            await page.click('[data-hs-win="inventory"] .hw-pocket[data-item="raw_bear_meat"]');
+            await page.click('[data-hs-win="inventory"] .hw-pick [data-hs-act="primary"]');
+            await page.waitForTimeout(300);
+            const low = await page.evaluate(() => document.querySelector('[data-hs-win="inventory"] .hh-intent-msg').textContent);
+            if (low !== 'Needs Cooking 40 (you have 11).' || sent(s, 'hr-accrue', 'set_activity').length !== 2) fails.push('AW-20 Cook all above the level said ' + JSON.stringify(low));
             /* AW-20 cook all: the raw meat's primary is Cook all; the same ONE set_activity; Stop says what the server made */
             await page.click('[data-hs-win="inventory"] .hw-pocket[data-item="raw_wolf_meat"]');
             const cp = await page.evaluate(() => document.querySelector('[data-hs-win="inventory"] .hw-pick [data-hs-act="primary"]').textContent);

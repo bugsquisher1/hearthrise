@@ -4105,6 +4105,8 @@ jobs:
         run: |
           node tests/session-core.mjs
           node tools/mutant-gate.mjs node tests/session-core.mjs --mutate
+          node tests/new-version-banner.mjs
+          node tools/mutant-gate.mjs node tests/new-version-banner.mjs --mutate
 
       # The hunt screen's pure rules: the visual timeline (events once, a new
       # envelope never restarts an animation, gaps hold, poses are walked to),

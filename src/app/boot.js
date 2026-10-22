@@ -22,30 +22,35 @@
 // THE CLOSED GAME: the server refuses a non-allowlisted account (403
 // hr_closed); the first such answer replaces everything with the closed notice.
 //
+// A NEW RELEASE (src/app/new-version.js): every screen, signed in or not, asks
+// which build the site serves; a different one raises one reload banner. An
+// answer that looks like a stale client's asks at once.
+//
 // A DEAD SESSION (a refresh the server refuses, or a sign-out in another tab)
 // closes every character and lands on sign-in with one plain line; nothing is
 // retried in the background.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPABASE_CONFIG, createSupabaseClient } from '../net/supabase-bootstrap.js?v=0.2.29';
-import { createAuth, AUTH_COPY } from '../net/auth.js?v=0.2.29';
-import { SESSION_CONFIG } from '../session/config.js?v=0.2.29';
-import { createServerLink } from '../session/server.js?v=0.2.29';
-import { AccountSession } from '../session/account-session.js?v=0.2.29';
-import { FRAME_EVENT } from '../session/character-session.js?v=0.2.29';
-import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.29';
-import { mountWorldPane } from './world-pane.js?v=0.2.29';
-import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.29';
-import { renderHeroCreate } from './hero-create.js?v=0.2.29';
-import { slotOfferHtml, slotRefusalText, pickPayer } from './slot-offer.js?v=0.2.29';
-import { createAlertCenter } from '../shell/alerts.js?v=0.2.29';
-import { createSocialRealtime } from '../social/realtime.js?v=0.2.29';
-import { SocialSession } from '../social/social-session.js?v=0.2.29';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.29';
-import { startObservability, track } from '../net/observability.js?v=0.2.29';
-import { startDiagnostics } from '../net/diagnostics.js?v=0.2.29';
-import { mountPressAck } from '../shell/press-ack.js?v=0.2.29';
-import { liveOverlayWanted, mountLiveOverlay } from './live-overlay.js?v=0.2.29';
+import { SUPABASE_CONFIG, createSupabaseClient } from '../net/supabase-bootstrap.js?v=0.2.30';
+import { createAuth, AUTH_COPY } from '../net/auth.js?v=0.2.30';
+import { SESSION_CONFIG } from '../session/config.js?v=0.2.30';
+import { createServerLink } from '../session/server.js?v=0.2.30';
+import { AccountSession } from '../session/account-session.js?v=0.2.30';
+import { FRAME_EVENT } from '../session/character-session.js?v=0.2.30';
+import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.30';
+import { mountWorldPane } from './world-pane.js?v=0.2.30';
+import { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.30';
+import { renderHeroCreate } from './hero-create.js?v=0.2.30';
+import { slotOfferHtml, slotRefusalText, pickPayer } from './slot-offer.js?v=0.2.30';
+import { createAlertCenter } from '../shell/alerts.js?v=0.2.30';
+import { createSocialRealtime } from '../social/realtime.js?v=0.2.30';
+import { SocialSession } from '../social/social-session.js?v=0.2.30';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.30';
+import { startObservability, track } from '../net/observability.js?v=0.2.30';
+import { startDiagnostics } from '../net/diagnostics.js?v=0.2.30';
+import { mountPressAck } from '../shell/press-ack.js?v=0.2.30';
+import { liveOverlayWanted, mountLiveOverlay } from './live-overlay.js?v=0.2.30';
+import { mountNewVersion } from './new-version.js?v=0.2.30';
 
 const DISCORD = 'https://discord.gg/eJrUSUJM3M';
 
@@ -70,6 +75,7 @@ function startApp(win) {
   const obs = startObservability(win);
   const doc = win.document;
   const root = doc.getElementById('app');
+  const fresh = mountNewVersion(win);
   const HS = win.HearthriseStorage;
   const store = SESSION_CONFIG.authStore === 'tab' ? HS.session : HS;
   const client = createSupabaseClient(win.supabase, store, SESSION_CONFIG.authKey);
@@ -146,7 +152,8 @@ function startApp(win) {
     if (!auth.userId()) { showAuth('sign-in'); return; }
     if (account) return;
     obs.identify(auth.userId());
-    const server = createServerLink({ url: SUPABASE_CONFIG.url, anonKey: SUPABASE_CONFIG.anonKey, token: auth.freshToken, renew: auth.renewToken });
+    const server = createServerLink({ url: SUPABASE_CONFIG.url, anonKey: SUPABASE_CONFIG.anonKey, token: auth.freshToken, renew: auth.renewToken,
+      stale: () => fresh.check(true) });
     account = new AccountSession({ auth, server, tab: HS.session, channel: channelFor(client, auth),
       social: (acc) => new SocialSession({ account: acc, realtime: createSocialRealtime(client, auth.token) }) });
     account.subscribe((why) => {

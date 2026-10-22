@@ -5,6 +5,10 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.30 — 2026-10-22 (Told when to reload)
+
+**The game tells you when a new version is out.** If you keep Hearthrise open while we update it, a bar at the top says a new version is out, with a Reload button. No more playing an old version against a new server.
+
 ## v0.2.29 — 2026-10-22 (Pick your supplies, loot worth fighting for)
 
 **Every bar slot names one supply.** There is no more "Any food": you pick which food, drink or rune goes in each slot, and the order of your slots is your fallback. Your own stock is used first; store items are bought as used. **If your bar had "Any food" or "Any drink", open it and pick a food and a drink again.**

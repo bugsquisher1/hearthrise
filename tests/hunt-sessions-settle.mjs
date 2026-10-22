@@ -1594,6 +1594,13 @@ const DB_ARMS = {
       if (inst.world !== null || inst.refusals !== 0) problems.push(`${label}: the instance kept a world or a count`);
       const next = await settleTo(db, M, h.from + 180000);
       if (next.skipped !== 'no_hunt') problems.push(`${label}: a settle after the forfeit answered ${JSON.stringify(next).slice(0, 200)}`);
+      /* The forfeit is the SESSION's fact, not the ledger's: it outlives the 90-day prune of its journal row
+         (2026-11-20-hunt-forfeit-durable.sql; the prune is played by deleting the row under replica mode). */
+      await db.query('set local session_replication_role = replica');
+      await db.query("delete from public.player_ledger where session_id = $1 and intent = 'window_forfeit'", [h.sid]);
+      await db.query('set local session_replication_role = origin');
+      const fv = await one(db, 'select public.hr_hunt_view($1::uuid)', [h.sid]);
+      if (!fv || fv.forfeit !== true) problems.push(`${label}: once its ledger row is pruned the forfeited hunt reads forfeit ${fv && fv.forfeit}`);
       await db.query('rollback to savepoint forfeit');
     }
     return problems;
@@ -1994,6 +2001,8 @@ const DB_MUTANTS = [
     find: '  if v_n >= c_forfeit_after then', replace: '  if false then' },
   { arm: 'FORFEIT', name: 'a landed commit keeps the refusal count', fn: AI,
     find: 'settled_to = v_to, next_swing_at = v_to, refusals = 0, version = version + 1', replace: 'settled_to = v_to, next_swing_at = v_to, version = version + 1' },
+  { arm: 'FORFEIT', name: 'a forfeited hunt reads forfeit from the pruned ledger again', fn: 'public.hr_hunt_view(uuid)',
+    find: "'forfeit', s.forfeit,", replace: "'forfeit', exists (select 1 from public.player_ledger l where l.session_id = s.id and l.intent = 'window_forfeit')," },
   { arm: 'FORFEIT', name: 'a forfeit ends the hunt now instead of at the last accepted boundary', fn: 'public.hr_hunt_forfeit(uuid,text,jsonb)',
     find: "    perform public.hr_hunt_close(v_s.id, v_end, v_i.settled_to, true);", replace: "    perform public.hr_hunt_close(v_s.id, v_end, now(), true);" },
   { arm: 'VALUE', name: 'the world byte bound is not asked', fn: AI,

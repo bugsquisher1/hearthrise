@@ -20,6 +20,7 @@
       "hunt",
       "hunt_analyzer",
       "hunt_bests",
+      "hunt_density",
       "hunt_presets",
       "hunt_settings",
       "inventory",

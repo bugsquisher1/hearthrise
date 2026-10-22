@@ -390,9 +390,9 @@ const MUTANTS = [
   { arm: 'A-LOCK', file: '2026-10-27-core-bodies.sql', why: 'hr_apply no longer refuses a locked sale',
     find: "        if v_n < 0 and coalesce(v_this_intent, '') ~ '^vendor_sell(_many)?(:|$)' and public.hr_item_locked(v_uid, v_slot, k) then",
     repl: "        if false and coalesce(v_this_intent, '') ~ '^vendor_sell(_many)?(:|$)' and public.hr_item_locked(v_uid, v_slot, k) then" },
-  /* hr_hunt_apply_member is RESTATED by the core rebuild (2026-10-27-core-bodies.sql):
+  /* hr_hunt_apply_member is RESTATED last by 2026-11-16-hunt-density-bounds.sql (after the core rebuild):
      their mutants are planted in the bodies that run. */
-  { arm: 'A-LOOT-AWAY', file: '2026-10-27-core-bodies.sql', why: 'the settle no longer runs the loot filter',
+  { arm: 'A-LOOT-AWAY', file: '2026-11-16-hunt-density-bounds.sql', why: 'the settle no longer runs the loot filter',
     find: "  v_loot := public.hr_hunt_loot_rules(p_user, p_slot, p_session, p_intent, p_delta->'items', v_to);", repl: '  v_loot := null;' },
   { arm: 'A-LOOT-ATTENDED', file: '2026-10-25-bag-rules.sql', why: 'a sale pays twice the vendor bid',
     find: '      v_gold := v_gold + v_q * v_r.unit;', repl: '      v_gold := v_gold + 2 * v_q * v_r.unit;' },
@@ -415,8 +415,8 @@ const MUTANTS = [
   { arm: 'A-STAMINA', file: '2026-10-25-stamina-refill.sql', why: 'the refill charges and never writes the pool',
     find: "   where user_id = v_uid and slot = p_slot;\n  return jsonb_build_object('ok', true, 'version', v_a->'version', 'gold', -p_price,",
     repl: "   where false;\n  return jsonb_build_object('ok', true, 'version', v_a->'version', 'gold', -p_price," },
-  /* hr_hunt_apply_member is RESTATED by the core rebuild: the hook call is planted in the body that runs. */
-  { arm: 'A-BLESS-AWAY', file: '2026-10-27-core-bodies.sql', why: 'the death no longer applies blessings',
+  /* hr_hunt_apply_member is RESTATED last by 2026-11-16-hunt-density-bounds.sql: the hook call is planted in the body that runs. */
+  { arm: 'A-BLESS-AWAY', file: '2026-11-16-hunt-density-bounds.sql', why: 'the death no longer applies blessings',
     find: '    v_bless := public.hr_blessing_take(p_user, p_slot, p_session, v_dx, v_s.settled_to);', repl: '    v_bless := null;' },
   /* ('every fall of the window is protected, not the first' RETIRED with the core rebuild: a hunt holds one death,
      so there is no second death for the mutant to protect.) */

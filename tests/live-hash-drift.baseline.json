@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-22",
- "replay_ms": 17020,
+ "replay_ms": 87862,
  "counts": {
   "tracked_names": 150,
   "entries": 122
@@ -1720,17 +1720,18 @@
     "2026-10-22-hunt-sessions-settle.sql",
     "2026-10-23-hunt-world-state.sql",
     "2026-10-27-core-bodies.sql",
-    "2026-11-17-hunt-density-home.sql"
+    "2026-11-17-hunt-density-home.sql",
+    "2026-11-20-hunt-forfeit-durable.sql"
    ],
    "live": {
-    "md5": "a09288f2291774082406f2099c8b791b",
-    "norm_len": 1957,
+    "md5": "5687ada6a4c46f29ccf0e4551ceb3180",
+    "norm_len": 1877,
     "measured": "2026-10-22",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "a09288f2291774082406f2099c8b791b",
-    "norm_len": 1957,
+    "md5": "5687ada6a4c46f29ccf0e4551ceb3180",
+    "norm_len": 1877,
     "source": "computed-from-replay"
    },
    "agree": true

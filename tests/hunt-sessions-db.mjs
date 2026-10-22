@@ -426,7 +426,9 @@ async function g1(db) {
   const list = (re) => { const m = MIG_TEXT.match(re); return m ? [...m[1].matchAll(/'([a-z_]+)'/g)].map((x) => x[1]) : null; };
   const defs = await q(db, `select pg_get_constraintdef(c.oid) d from pg_constraint c
       where c.conrelid = 'public.hunt_sessions'::regclass and c.contype = 'c'
-        and pg_get_constraintdef(c.oid) like '%end_reason = ANY%'`);
+        and c.conname = 'hunt_sessions_end_reason_check'`);
+  /* By NAME (2026-11-20-hunt-forfeit-durable.sql): hunt_sessions_forfeit_ck also reads `end_reason = ANY` (a forfeit is
+     a 'server' or 'left' end), so a pattern found two walls; the end-reason wall is the one the catalogue restates. */
   const ends = defs.length === 1 ? [...defs[0].d.matchAll(/'([a-z_]+)'::text/g)].map((x) => x[1]) : null;
   /* The event types too: regenerated from EVENT_COPY by the C2 catalogue
      (stamina_low replaced vigour_low; `cover` joined, 2026-10-14). */

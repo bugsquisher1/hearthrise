@@ -150,8 +150,9 @@ async function resumeClock(page) { const c = CLOCKS.get(page); await page.clock.
  * Move the paused clock in `step` ms steps, ONLY while no request is out (a held stub reply does not
  * count): a slow box makes the network slow, never the page's time. Stops when `pred` (a page function)
  * holds, or after `maxMs` of virtual time. `onStep` runs before each step. -> { ok, used }
+ * A request out for `stuckMs` of real time is a stuck harness: it throws, naming it.
  */
-async function drive(page, { maxMs, pred = null, arg, step = 50, onStep = null }) {
+async function drive(page, { maxMs, pred = null, arg, step = 50, onStep = null, stuckMs = LOAD_MS }) {
   const c = CLOCKS.get(page);
   let used = 0;
   let outSince = 0;
@@ -160,9 +161,9 @@ async function drive(page, { maxMs, pred = null, arg, step = 50, onStep = null }
     if (onStep) await onStep();
     if (used >= maxMs) return { ok: !pred, used };
     if (c.out.size > c.held.size) {
-      /* A request out longer than LOAD_MS is a stuck harness, said out loud, never an endless wait. */
+      /* A request out longer than stuckMs is a stuck harness, said out loud, never an endless wait. */
       if (!outSince) outSince = Date.now();
-      else if (Date.now() - outSince > LOAD_MS) throw new Error('drive: ' + (c.out.size - c.held.size) + ' request(s) out for ' + LOAD_MS + ' ms: ' + [...c.out].filter((q) => !c.held.has(q)).map((q) => q.url().slice(-80)).join(', '));
+      else if (Date.now() - outSince > stuckMs) throw new Error('drive: ' + (c.out.size - c.held.size) + ' request(s) out for ' + stuckMs + ' ms: ' + [...c.out].filter((q) => !c.held.has(q)).map((q) => q.url().slice(-80)).join(', '));
       await sleep(10); continue;
     }
     outSince = 0;
@@ -170,6 +171,31 @@ async function drive(page, { maxMs, pred = null, arg, step = 50, onStep = null }
     c.now += step;
     used += step;
   }
+}
+
+/* A reload cancels the old document's requests, and Playwright reports NEITHER requestfinished NOR requestfailed
+   for one its route was still answering (measured 2026-10-22: a held hr-accrue released just before the reload
+   stayed "out" for good, and drive() threw at 15 s on CI). When the main frame commits a new document, every
+   request the old one had out is forgotten: the new page is not waiting on it. */
+function forgetOldDocument(c) {
+  for (const q of [...c.out]) if (q.resourceType() !== 'document') { c.out.delete(q); c.held.delete(q); }
+}
+
+/* HS-0 (node, no page): drive() still throws on a request that is really never answered, naming it, and a
+   reload forgets the old document's requests but keeps the new document's own. */
+async function driveSelfCheck() {
+  const fails = [];
+  const req = (url, type) => ({ url: () => url, resourceType: () => type });
+  const page = { clock: { runFor: async () => {} }, evaluate: async () => false };
+  const stuck = req('https://nezapsylztqbbwuwembx.supabase.co/functions/v1/hr-accrue?forceFunctionRegion=us-west-2', 'fetch');
+  CLOCKS.set(page, { paused: true, now: 0, out: new Set([stuck]), held: new Set() });
+  const got = await Promise.race([drive(page, { maxMs: 1000, stuckMs: 200 }).then(() => 'returned', (e) => String(e.message)), sleep(3000).then(() => 'still waiting after 3 s')]);
+  if (!/^drive: 1 request\(s\) out for 200 ms: .*hr-accrue/.test(got)) fails.push('HS-0 an unanswered request did not stop drive() by name: ' + got);
+  const doc = req('http://127.0.0.1/play.html', 'document');
+  const c = { out: new Set([stuck, doc]), held: new Set([stuck]) };
+  forgetOldDocument(c);
+  if (c.out.size !== 1 || !c.out.has(doc) || c.held.size !== 0) fails.push('HS-0 a reload did not forget the old document\'s requests (kept ' + c.out.size + ', held ' + c.held.size + ')');
+  return fails;
 }
 
 /** A scripted server: `env` is what hr_load and hr-accrue answer (version bumped each call). */
@@ -279,6 +305,7 @@ const STOP = Symbol('first red');
 async function checks(overrides, shots, { stopAtFirst = false } = {}) {
   const fails = [];
   if (stopAtFirst) fails.push = function (...a) { Array.prototype.push.apply(this, a); throw STOP; };
+  for (const f of await driveSelfCheck()) fails.push(f);
   const { server, port } = await serve(overrides);
   const base = 'http://127.0.0.1:' + port;
   const browser = await leaseBrowser(chromium);
@@ -297,6 +324,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       page.on('request', (q) => c.out.add(q));
       page.on('requestfinished', (q) => c.out.delete(q));
       page.on('requestfailed', (q) => c.out.delete(q));
+      page.on('framenavigated', (fr) => { if (fr === page.mainFrame()) forgetOldDocument(c); });
     }
     const s = scripted();
     if (o.prep) o.prep(s, page);

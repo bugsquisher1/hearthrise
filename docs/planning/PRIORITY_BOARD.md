@@ -45,7 +45,31 @@ _Tyler's rulings live in rulings-of-record; designer rulings inside them are rec
 | Warrens party of 4 L32 (band floor), own-tier sets | 0 → 0 | tank 8,889 → 31,052 | tank 432 → 1,296 (+143%), healer 0 → 1,280 (+146%) |
 
 **Each weight is the best choice somewhere** (same runs, the hero swaps only its four armour pieces): heavy for the hero who takes the blows (Sewer solo Melee bill 990 vs medium 1,536 vs light 2,044; party tank's healer bill 600 vs 760 vs 1,040); medium for the Ranger (265 kills/h and 2,388 g/h net vs heavy 246 / 2,273 and light 249 / 1,697: no style penalty, ranged bonuses, dodge for stray blows); light for casters (Mage 346 kills/h vs 288/279; Healer bill 600 vs 750/800) and against many small blows (Cellar farming at L10: 913 taken vs 1,073 heavy).
-**Watch.** Tier 3 is harder at its floor (Warrens L32 tank 31k taken/h, was 9k), the intended "food is the price of fighting above your level"; a SOLO Warrens hero was already under water (−22% heavy) and is now −88% (CONFLICTS item 2, tier-4 food, still open). Party Defense XP for a holding tank is about −18% (fewer misses on a shield-holder pay the block rate). Medium's own defensive niche (no on-hit effects when a blow is dodged) arrives with the first monster that applies poison or burn. drop-tables' Sewer coin mutant moved /1.8 → /2.2: the old coin now clears +25% by a hair.
+**Watch.** Medium's own defensive niche (a dodged blow carries no on-hit effect) arrives with the first monster that applies poison or burn. drop-tables' Sewer coin mutant moved /1.8 → /2.2: the old coin now clears +25% by a hair.
+**Defense XP for a holding tank is about −18%: intended** under Tyler's 10-22 ruling. Every blow aimed at an armoured hero still pays, hit or miss. Only the shield-block bonus (a miss on a shield-holder) now fires less often, because plate no longer turns blows aside.
+
+### 2026-10-22 Coppercap Warrens at its floor (CONFLICTS item 2): RULED
+**Cause, measured** (six seeds, real settle, L32, the own-tier steel set). The lone Melee lost money before K7 too: −38% median, at a 5% to-hit. After K7 it bills 39,312 g/h against 3,069 g/h income (−92%). The causes:
+- Monster damage. Goblins are lv 34–52 with atk 22–30 against Defense 32, so 37% of blows land. At 5.4 a Hobgoblin hits up to 162, 35% of 460 base HP, past the CORE_NUMBERS addendum's 30% for a regular.
+- Food price. The Warrens' store row was tier 4: Salted Swordfish at 1.50 g/HP, while every goblin is tier 3 (Lobster 0.83 g/HP; the Sewer's Shrimp is 0.19).
+- Not the cap or the Level scaling. Steel absorbs 53% at 32, under the 60% cap.
+- Density is not the lever either. Even one goblin at a time out-hits regen: density 1 still bills 12,960 g/h (−77%).
+
+No small lever makes a lone 32 profitable: it needs about 5× less damage per kill.
+
+**Levers, data rows:**
+1. `supplies.js` Warrens tier 4 → 3. This is the item-2 row; its bag guide moves to Cooked Lobster. Staged as `2026-11-13-hunt-sessions-catalogue.generated.sql` (one row: hr_hunt_travel coppercap_warrens 4 → 3; md5 30932fb145738707ed3706fde44d6b9e).
+2. `combat.js monsterDamageScaleByTier` 3: 4.4. This applies the addendum's own rule: a Hobgoblin's biggest blow becomes 132, 29% of floor HP.
+3. `hunt-grounds.js` Warrens `soloFrom: 45`. The card now reads "A party of 2 to 4, or alone from Level 45" instead of "Alone or with up to 3 more". It is advice like groupFit; the ground stays enterable.
+
+| Warrens, six seeds | Before K7 | K7 alone | Ruled |
+|---|---|---|---|
+| Party of 4 at 32, by weight (min margin of the worst bill) | +674% | +183% | +645% |
+| Party of 4 at 32, ladder kit | +192% | −61% | +52% |
+| Lone Melee, heavy, at 32 | −44% | −93% | −80% (not offered alone) |
+| Lone Melee at 45 (soloFrom): heavy / medium / light | — | — | no bill / +33% / +129% |
+
+Every other row of the K7 table is byte-identical after the change, since only tier-3 monsters and the Warrens' store row moved. Regression: drop-tables `warrens-floor` (party of four in the ladder kit at 32 and a lone hero at soloFrom, two seeds, every role ≥ +25%). Its three mutants are each caught: food back to tier 4 (tank −26%), blows back to 5.4 (+9%), and alone from 40 (−21%). hunt-floor-warning G2 covers the card copy and has two mutants.
 
 ## Designer pass 2026-10-21 (v0.2.22)
 Evidence: the real settle (`hr-accrue accrueHunt`, the `tests/hunt-core/fixtures/play-ground.mjs` runner, one fixed seed, one hour, per hero per hour), run on a scratch copy of the tree with each change planted. Not played in the browser this pass.

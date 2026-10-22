@@ -80,7 +80,9 @@
 // dead effects (lane/a-dead-effects: markPm replaces markBy, healedAt leaves the
 // world's shape) start 2026-11-05-hunt-sessions-catalogue.generated.sql (history
 // once written); the Challenge hold (lane/a-combat-bugs: holdMs replaces chalMs in
-// the world's shape) starts 2026-11-06-hunt-sessions-catalogue.generated.sql.
+// the world's shape) starts 2026-11-06-hunt-sessions-catalogue.generated.sql (history
+// once written); the Warrens' tier-3 store food (lane/b-armour-weights, CONFLICTS
+// item 2) starts 2026-11-13-hunt-sessions-catalogue.generated.sql.
 //
 //   Regenerate:  node tools/gen-hunt-sessions.mjs
 //   Verify:      node tools/gen-hunt-sessions.mjs --check     (exit 1 on drift)
@@ -130,7 +132,7 @@ export const WORLD_FIELDS_READ = Object.freeze({
     'role', 'dist', 'chase', 'tmode', 'stance']),
   world: Object.freeze(['leader']),
 });
-export const OUT_NAME = '2026-11-06-hunt-sessions-catalogue.generated.sql';
+export const OUT_NAME = '2026-11-13-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -522,12 +524,12 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- SUPERSEDES 2026-11-05-hunt-sessions-catalogue.generated.sql (history, never
--- regenerated): every table below is rewritten wholesale. The Challenge hold
--- (lane/a-combat-bugs, 2026-10-21): every tank auto-casts the one Challenge and
--- a monster it takes is held \`holdMs\` (targeting.js), which replaces the
--- leader-only clock chalMs in the unit's persisted fields, so hr_hunt_world_shape
--- (shape, fields) moves. Every other row is the 11-05 file's.
+-- SUPERSEDES 2026-11-06-hunt-sessions-catalogue.generated.sql (history, never
+-- regenerated): every table below is rewritten wholesale. The Warrens' store
+-- tier (designer 2026-10-21, CONFLICTS item 2, lane/b-armour-weights): every
+-- goblin is tier 3, so hr_hunt_travel coppercap_warrens tier 4 -> 3 and the
+-- store heal it resolves is the tier-3 Salted Lobster (180 g, 216 HP) instead
+-- of the tier-4 Salted Swordfish (432 g, 288 HP). Every other row is the 11-06 file's.
 -- Apply right after 2026-11-05-hunt-sessions-catalogue.generated.sql.
 --
 -- Server-only: RLS on, NO policy, no client grant (the client reads src/data).

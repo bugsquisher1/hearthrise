@@ -20,6 +20,9 @@
 //                 "Group fit" column; a ground the workbook does not list is 'both'). It only
 //                 orders the recommendation (src/shell/hunt-list.js recommendedHunt): a party
 //                 ground stays enterable alone, and says it is best with a party.
+//     soloFrom    (optional, a 'party' ground only) the Level from which a LONE hero breaks even
+//                 here, measured on the real settle; the Hunts card offers the ground alone
+//                 only from it ("A party of 2 to 4, or alone from Level 45"). Advice, like groupFit.
 //     leashMargin tiles a pack may step past its room (LE-05/08); absent =
 //                 HUNT_TUNING.leashMarginDefault. Read ONLY via leashMarginOf.
 //     density     (optional) THE MONSTER-DENSITY SLIDER (Tyler 10-18): { solo, perHero,
@@ -243,6 +246,11 @@ export const HUNT_GROUNDS = Object.freeze({
     ]),
     route: Object.freeze([0, 1, 2, 3, 4, 5]),
     respawnMs: 90000, pullDist: 1.5, partyScale: true, groupFit: 'party',
+    /* ALONE FROM 45 (designer 2026-10-21, CONFLICTS item 2; six seeds, the real settle, the own-tier
+       heavy set, tier-3 store food): a lone Melee at 32 bills about 14,000 g/h against 3,069 of income
+       (-78%; it was -38% before armour weights, at a 5% to-hit), at 40 still -2% median, at 45 eats no
+       store food at all. Goblins of lv 34-52 out-hit a lone hero under 45; the ground is a party's. */
+    soloFrom: 45,
     /* integration v0.2.1: the engine's density (densityFor) reads densityMax, which every ground
        holds at the full box at least (the action engine ruling); the slider caps below are the
        designer's and wait on densityCapFor being wired (CONFLICTS.md 2026-10-18 density). */
@@ -465,6 +473,11 @@ export function validateGround(row, refs) {
   if (!(typeof row.pullDist === 'number' && row.pullDist > 0 && row.pullDist <= 8)) bad('pullDist must be in (0, 8]');
   if (row.partyScale !== undefined && typeof row.partyScale !== 'boolean') bad('partyScale must be true or false');
   if (!GROUP_FITS.includes(row.groupFit)) bad('groupFit must be one of ' + GROUP_FITS.join(' / '));
+  if (row.soloFrom !== undefined) {
+    const band = (hunts[row.hunt] || {}).band || [];
+    if (row.groupFit !== 'party') bad('soloFrom is for a party ground only');
+    if (!(Number.isInteger(row.soloFrom) && row.soloFrom > band[0] && row.soloFrom <= band[1])) bad('soloFrom must be a Level inside the band, above its floor');
+  }
   (row.pockets || []).forEach((p, i) => {
     if (p && p.minParty !== undefined && !(Number.isInteger(p.minParty) && p.minParty >= 2 && p.minParty <= PARTY_SCALE.maxHeroes)) bad('pocket ' + i + ' minParty must be 2..' + PARTY_SCALE.maxHeroes);
   });

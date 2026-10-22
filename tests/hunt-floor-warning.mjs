@@ -21,6 +21,9 @@
 //       (2026-10-25-hunt-floor-warning.sql §3, 2026-10-25-party-invites.sql §5).
 //   G1  the ONE recommendation (src/shell/hunt-list.js recommendedHunt) prefers a ground whose
 //       groupFit suits the party; a party ground tells a lone hero "Best with a party of 2–4"
+//   G2  a party ground's card never offers it alone below its measured break-even (designer
+//       2026-10-21, CONFLICTS item 2): the Warrens reads "A party of 2 to 4, or alone from Level 45"
+//       and no party ground reads "Alone or with up to"; a solo or both ground still does
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, mkdtempSync, cpSync, writeFileSync, rmSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -55,6 +58,11 @@ async function run(base) {
   const pg = rows.find((r) => r.groupFit === 'party');
   ok('G1', !!pg && /^Best with a party of 2–[2-5]$/.test(HL.groupWords(pg, 1) || '') && HL.groupWords(pg, 2) === null, 'a party ground does not tell a lone hero it is best with a party: ' + (pg && HL.groupWords(pg, 1)));
   ok('G1', !!party40 && HL.fitsGroup(party40, 3), 'a party of three at 40 is recommended ' + (party40 && party40.hunt));
+  const war = rows.find((r) => r.hunt === 'coppercap_warrens');
+  ok('G2', !!war && HL.heroWords(war) === 'A party of 2 to 4, or alone from Level 45', 'the Warrens card reads ' + JSON.stringify(war && HL.heroWords(war)));
+  ok('G2', rows.filter((r) => r.groupFit === 'party').every((r) => !/^Alone/.test(HL.heroWords(r))), 'a party ground offers itself alone');
+  const solo = rows.find((r) => r.groupFit !== 'party' && r.heroes > 1);
+  ok('G2', !!solo && /^Alone or with up to \d more$/.test(HL.heroWords(solo)), 'a solo/both ground lost its offer: ' + (solo && HL.heroWords(solo)));
   const win = read('src/shell/windows/hunts.js');
   ok('W2', win.includes("text(li.querySelector('.hw-hunt-warn'), [rangeWords(r, level), groupWords(r, size)].filter(Boolean).join(' '));") && win.includes('<small class="hw-hunt-warn"></small>'),
     'the Hunts line does not draw rangeWords');
@@ -80,6 +88,8 @@ const MUTANTS = [
   ['the recommendation ignores the group', 'src/shell/hunt-list.js', 'return best(inBand.filter((r) => fitsGroup(r, partySize))) || best(inBand)', 'return best(inBand)'],
   ['a party ground never says so', 'src/shell/hunt-list.js', "r.groupFit === 'party' && (Number(partySize) || 1) < 2 ?", 'false ?'],
   ['the warning words are dropped', 'src/shell/hunt-list.js', "ABOVE_LEVEL_WORDS;\n}", "null;\n}"],
+  ['a party ground offers itself alone again', 'src/shell/hunt-list.js', "  if (r.groupFit === 'party' && r.heroes > 1) {", '  if (false) {'],
+  ['the Warrens forgets its solo break-even', 'src/data/hunt-grounds.js', '    soloFrom: 45,\n', ''],
   ['the margin is ignored (everything under the floor is "too far")', 'src/shell/hunt-list.js', 'r.band[0] - level >= SESSION_LIMITS.belowRangeRefuse ?', 'true ?'],
   ['the margin moved off Tyler\'s 15', 'src/data/hunt-sessions.js', 'belowRangeRefuse: 15,', 'belowRangeRefuse: 10,'],
   ['the window never draws the warning', 'src/shell/windows/hunts.js', "text(li.querySelector('.hw-hunt-warn'), [rangeWords(r, level), groupWords(r, size)].filter(Boolean).join(' '));", ''],

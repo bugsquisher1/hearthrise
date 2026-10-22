@@ -67,8 +67,12 @@ export const COMBAT_BALANCE = {
      while monster atk grows about one a Level, so one flat 5.4 put a tier-6 blow at ~50% of an
      in-band hero's HP (a boss two-shot the Level-90 hearthfind hero). Tiers 1-3 (the EA grounds)
      keep 5.4; tiers 4-6 flatten so an in-band blow stays ~20-30% of max HP (bosses <= ~35%).
-     Damage only: accuracy still reads `atk`. A tier missing here uses monsterAttackDamageScale. */
-  monsterDamageScaleByTier: Object.freeze({ 4: 4.0, 5: 3.0, 6: 2.2 }),
+     Damage only: accuracy still reads `atk`. A tier missing here uses monsterAttackDamageScale.
+     TIER 3 at 4.4 (designer 2026-10-21, armour weights K7 + CONFLICTS item 2): the same rule at the
+     Warrens' floor. At 5.4 a Hobgoblin's 162 was 35% of a Level-32 hero's 460 HP, past the 30% the
+     rule allows a regular; 4.4 makes it 132 (29%). Measured on six seeds: the floor party's ladder
+     kit goes from -39% to +52% (min) with the tier-3 store food. */
+  monsterDamageScaleByTier: Object.freeze({ 3: 4.4, 4: 4.0, 5: 3.0, 6: 2.2 }),
   /* THE UNIVERSAL BASIC-ATTACK INTERVAL (Tyler, 2026-10-15: "2.0 s for every
      player and monster basic attack"). The ONE source, with no speed modifier
      of any kind (no gear speed, no weapon-family speed, no style speed): the

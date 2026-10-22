@@ -7,7 +7,7 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-10-21",
- "digest": "ecdf317b31548484ac7dfba3b239652f9cff151bcca871bfd8e3a932df423547",
+ "digest": "aeba3d4f600c68c778dadd90f8198b507ee31216d0e65e200322d6a200c0efed",
  "counts": {
   "relations": 213,
   "functions": 516,
@@ -15,7 +15,7 @@
   "indexes": 297,
   "triggers": 34,
   "constraints": 718,
-  "columns": 1221,
+  "columns": 1223,
   "rls": 192,
   "event_triggers": 1
  },
@@ -2334,6 +2334,7 @@
    "hr_hunt_basic_supplies.mana integer NOT NULL",
    "hr_hunt_basic_supplies.partner text NOT NULL",
    "hr_hunt_basic_supplies.price bigint NOT NULL",
+   "hr_hunt_basic_supplies.tiers integer[] NOT NULL",
    "hr_hunt_boss_reward.boss_id text NOT NULL",
    "hr_hunt_boss_reward.material_ids text[] NOT NULL",
    "hr_hunt_boss_reward.ordinal integer NOT NULL",
@@ -2416,6 +2417,7 @@
    "hr_hunt_tiers.tier integer NOT NULL",
    "hr_hunt_tiers.war_room_req integer NOT NULL",
    "hr_hunt_travel.hunt_id text NOT NULL",
+   "hr_hunt_travel.tier integer",
    "hr_hunt_travel.training boolean NOT NULL",
    "hr_hunt_travel.travel_s integer NOT NULL",
    "hr_hunt_vendor_value.item_id text NOT NULL",

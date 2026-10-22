@@ -16,7 +16,7 @@
 -- SUPERSEDES 2026-11-06-hunt-sessions-catalogue.generated.sql (applied; history,
 -- never regenerated): every table below is rewritten wholesale. THE PLAYER PICKS
 -- THE STORE ITEM (Tyler 2026-10-19; lane b-supplies-bury, 2026-10-21): the store
--- rows lose `tiers` and hr_hunt_travel loses `tier` (no hunt tier picks a
+-- rows carry no `tiers` and hr_hunt_travel no `tier` (no hunt tier picks a
 -- store row: the bar slot names it), and the Plain Fire Rune joins the store
 -- (designer 2026-10-21: 8 g a cast, so Flame Strike and Flame Volley cast once
 -- the carried Fire Runes are gone). Every other row is the 11-06 file's.
@@ -66,9 +66,12 @@ create table if not exists public.hr_hunt_travel (
 -- An existing table (created by an applied catalogue) learns a walk of 0.
 alter table public.hr_hunt_travel drop constraint if exists hr_hunt_travel_travel_s_check;
 alter table public.hr_hunt_travel add constraint hr_hunt_travel_travel_s_check check (travel_s between 0 and 300 and travel_s % 10 = 0);
--- THE STORE TIER is gone (Tyler 2026-10-19: the player's slot picks the store item);
--- 2026-11-07-store-by-slot.sql restated its last readers before this file.
-alter table public.hr_hunt_travel drop column if exists tier;
+-- THE STORE TIER is unread (Tyler 2026-10-19: the player's slot picks the store item;
+-- 2026-11-07-store-by-slot.sql restated its last readers before this file). Its two columns
+-- stay, written null / empty, only because the applied 2026-10-27-core-bodies.sql re-creates a
+-- LANGUAGE sql reader of them whenever it is replayed (tests/hunts-c1.mjs C1): a dropped
+-- column would make that history unreplayable. No row carries a tier (the self-check below).
+alter table public.hr_hunt_travel add column if not exists tier int;
 -- THE SPAWN CYCLE of the single-foe engine lived here (pull_size, respawn_ms);
 -- a hunt's cycle is its GROUND now (hr_hunt_grounds, the world's packs).
 alter table public.hr_hunt_travel drop column if exists pull_size;
@@ -94,7 +97,8 @@ create table if not exists public.hr_hunt_basic_supplies (
   mana     int  not null check (mana >= 0),
   price    bigint not null check (price between 1 and 1000000000)
 );
-alter table public.hr_hunt_basic_supplies drop column if exists tiers;
+alter table public.hr_hunt_basic_supplies add column if not exists tiers int[];
+alter table public.hr_hunt_basic_supplies alter column tiers set default '{}'::int[];
 create table if not exists public.hr_hunt_cover_items (
   item_id text primary key check (item_id ~ '^[a-z0-9_]{1,64}$'),
   unit    bigint not null check (unit >= 1)
@@ -1285,9 +1289,8 @@ begin
      or (select count(*) from public.hr_hunt_vendor_value) <> 480
      or (select count(*) from public.hr_hunt_basic_supplies) <> 19
      or (select count(*) from public.hr_hunt_cover_items) <> 0
-     or exists (select 1 from information_schema.columns where table_schema = 'public'
-                 and ((table_name = 'hr_hunt_basic_supplies' and column_name = 'tiers')
-                   or (table_name = 'hr_hunt_travel' and column_name = 'tier')))
+     or exists (select 1 from public.hr_hunt_basic_supplies where cardinality(coalesce(tiers, '{}'::int[])) > 0)
+     or exists (select 1 from public.hr_hunt_travel where tier is not null)
      or (select count(*) from public.hr_hunt_target_modes) <> 5
      or (select count(*) from public.hr_hunt_resumable_kinds) <> 3
      or (select count(*) from public.hr_hunt_lanes) <> 3

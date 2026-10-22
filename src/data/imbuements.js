@@ -37,9 +37,8 @@
 // compete on what they supply, not on numbers. The Warrens and the Mill Cellar
 // follow in the next batch (tests/hunt-core/drop-tables.mjs IMBUE_PENDING).
 //
-// ART: each id needs a 32x32 pixel icon (tests/pixel-icons.mjs). Until the
-// Asset Director draws them, each wears the nearest existing creature part
-// (a KNOWN_TWINS pair there), never a new generated image.
+// ART: each id has its own 32x32 pixel icon at assets/icons-bundle/pixel/items/<id>.png
+// (tests/pixel-icons.mjs: palette-locked, unique, no shared art).
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════

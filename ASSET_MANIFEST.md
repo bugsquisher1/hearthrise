@@ -102,6 +102,15 @@ Drawn with the pixel scripts (no PixelLab credits spent), on the locked palette,
   `duplicate` rule (two ids with byte-identical icons) for items and supplies. One known twin remains and is listed in
   KNOWN_TWINS: `crown_shard` = `crown_of_the_fallen_king` (needs its own art).
 
+### Imbuement item icons (2026-10-21, Asset Director)
+The eleven Thicket/Sewer imbuement items (`src/data/imbuements.js`) each have their own `pixel/items/<id>.png`, drawn with a
+pixel script (no PixelLab credits): `whelp_milk_tooth` (cream baby tooth), `gray_dewclaw` (dark hooked horn, fur cuff),
+`briar_burr` (thorned seed pod, gray hair), `dire_hackle` (dark-tipped bristle fan on hide), `grayjaw_whisker` (long pale
+whisker, root bulb), `rat_incisor` (orange curved chisel tooth), `sump_membrane` (torn teal skin), `kobold_scale` (olive fan
+scale, radial ridges), `culvert_bat_fang` (needle fang, blood bead), `cistern_venom_gland` (green sac, red duct, drip),
+`knotted_tails` (pink ringed tails in a trefoil knot). Same 32x32 / palette / outline / top-left light as the creature parts.
+Their eleven KNOWN_TWINS entries are gone: the guard now enforces unique art. Wiring is unchanged (filename derives from the id).
+
 ### Live-ground monster clips (2026-10-19) — the blow, the fall and the corpse
 Every monster on Mill Cellar, Millrace Sewer, Meadowbrook Thicket and Coppercap Warrens must be drawable through a whole
 kill: idle and walk in 8 facings, `attack`, `death` and the held `corpse` in s/e/n/w (`tests/world-assets.mjs` rule `[live]`, read

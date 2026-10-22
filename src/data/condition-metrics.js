@@ -41,8 +41,8 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_ROLES } from './hunt-roles.js?v=0.2.31';
-import { STATUSES } from './statuses.js?v=0.2.31';
+import { HUNT_ROLES } from './hunt-roles.js?v=0.2.32';
+import { STATUSES } from './statuses.js?v=0.2.32';
 
 /* Three, all of which must match (Tyler's ruling, 2026-10-19 audit C2; a stop rule may still join
    "any"). The `pass` bitmask is one bit a condition. Server: 2026-10-26-bar-three-conditions.sql. */

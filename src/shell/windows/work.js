@@ -19,18 +19,18 @@
 // no (a hunt running, the level, the materials); the server re-checks all of it.
 // Farming has no door here: it is grown in plots, which this window does not run.
 // ════════════════════════════════════════════════════════════════════════
-import { SKILLS_DEF } from '../../data/skills.js?v=0.2.31';
-import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.31';
-import { recipeInputs, burnPct } from '../../core/artisan.js?v=0.2.31';
-import { skillsOf } from '../../session/item-sections.js?v=0.2.31';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.31';
-import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.31';
-import { whole } from '../../render/format.js?v=0.2.31';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.31';
-import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.31';
-import { runIntent } from '../intent-words.js?v=0.2.31';
-import { renderTradeSkills } from './skills.js?v=0.2.31';
-import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf, actionMs, xpEach, workBlock, startWork, stopWork, nowLine, BENCH_COUNTS, defaultCount, leftOf } from '../town-work.js?v=0.2.31';
+import { SKILLS_DEF } from '../../data/skills.js?v=0.2.32';
+import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.32';
+import { recipeInputs, burnPct } from '../../core/artisan.js?v=0.2.32';
+import { skillsOf } from '../../session/item-sections.js?v=0.2.32';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.32';
+import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.32';
+import { whole } from '../../render/format.js?v=0.2.32';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.32';
+import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.32';
+import { runIntent } from '../intent-words.js?v=0.2.32';
+import { renderTradeSkills } from './skills.js?v=0.2.32';
+import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf, actionMs, xpEach, workBlock, startWork, stopWork, nowLine, BENCH_COUNTS, defaultCount, leftOf } from '../town-work.js?v=0.2.32';
 
 /* How many rows above the level a skill shows: the next things to aim at. */
 const AHEAD = 2;

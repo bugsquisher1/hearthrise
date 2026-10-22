@@ -36,17 +36,17 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS } from '../../data/abilities.js?v=0.2.31';
-import { resolveLine, takeLine, canAfford, shopShotFor } from '../action-rules.js?v=0.2.31';
-import { cheb, dist2, los } from './grid.js?v=0.2.31';
-import { makeEvent } from './events.js?v=0.2.31';
-import { landHit } from './damage.js?v=0.2.31';
-import { challengeable, challengeFrom } from './targeting.js?v=0.2.31';
-import { applyStatus, statusRow } from './status.js?v=0.2.31';
-import { levelOf } from '../xp.js?v=0.2.31';
-import { ammoPerShot } from '../ammo.js?v=0.2.31';
-import { ITEMS } from '../../data/items.js?v=0.2.31';
-import { slotsFor, pickSlot, bestAim, itemRow } from './conditions.js?v=0.2.31';
+import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS } from '../../data/abilities.js?v=0.2.32';
+import { resolveLine, takeLine, canAfford, shopShotFor } from '../action-rules.js?v=0.2.32';
+import { cheb, dist2, los } from './grid.js?v=0.2.32';
+import { makeEvent } from './events.js?v=0.2.32';
+import { landHit } from './damage.js?v=0.2.32';
+import { challengeable, challengeFrom } from './targeting.js?v=0.2.32';
+import { applyStatus, statusRow } from './status.js?v=0.2.32';
+import { levelOf } from '../xp.js?v=0.2.32';
+import { ammoPerShot } from '../ammo.js?v=0.2.32';
+import { ITEMS } from '../../data/items.js?v=0.2.32';
+import { slotsFor, pickSlot, bestAim, itemRow } from './conditions.js?v=0.2.32';
 
 export const PERSISTED = Object.freeze({
   unit: Object.freeze([['mana', 'int'], ['maxMana', 'int'], ['manaMilli', 'int'], ['regenPm', 'int'], ['lanes', 'json'], ['cds', 'json'],

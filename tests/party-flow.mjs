@@ -5,8 +5,8 @@
 //   node tests/party-flow.mjs            the guard (every arm)
 //   node tests/party-flow.mjs --mutate   every planted defect must be CAUGHT by its arm
 //
-// mutant-anchors: supabase/migrations/2026-10-28-party-flow.sql supabase/migrations/2026-10-29-party-security.sql supabase/migrations/2026-10-30-party-invite-player.sql supabase/migrations/2026-10-30-town-activity-yields.sql src/shell/menu-providers.js
-// mutant-writes-tree: no — each mutant is the migration text patched in memory and applied inside a rolled-back transaction
+// mutant-anchors: supabase/migrations/2026-10-28-party-flow.sql supabase/migrations/2026-10-29-party-security.sql supabase/migrations/2026-10-30-party-invite-player.sql supabase/migrations/2026-10-30-town-activity-yields.sql supabase/migrations/2026-12-05-hunt-setup-per-ground.sql supabase/migrations/2026-12-07-party-finder.sql src/shell/menu-providers.js
+// mutant-writes-tree: no — each mutant is ONE statement of its migration, patched in memory and run on the chain end inside a rolled-back transaction
 //
 // Ships with supabase/migrations/2026-10-28-party-flow.sql (PARTY_SPEC.md,
 // Tyler 2026-10-19). Its §7 runs once, at apply; this re-runs every step of the
@@ -57,8 +57,11 @@ const INV = '2026-10-30-party-invite-player.sql';
 const TOWN = '2026-10-30-town-activity-yields.sql';
 /* 2026-10-28-hunt-enter-after-stamina.sql restates hr_hunt_enter_for between SEC and INV; TOWN pins its image. */
 const STAM = '2026-10-28-hunt-enter-after-stamina.sql';
-/* 2026-10-31-live-horizon.sql restates SEC's hr_hunt_party_kick at the chain end: --mutate re-applies it last. */
+/* 2026-10-31-live-horizon.sql restates SEC's hr_hunt_party_kick: the kick mutants plant there. */
 const LIVE = '2026-10-31-live-horizon.sql';
+/* The chain end's entry predicate (hr_hunt_enter_check) and party start / finder: their mutants plant there. */
+const SETUP = '2026-12-05-hunt-setup-per-ground.sql';
+const FINDER = '2026-12-07-party-finder.sql';
 const SRC = (f = FILE) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
 const U = ['000000c0-0000-4000-8000-0000000f1001', '000000c0-0000-4000-8000-0000000f1002', '000000c0-0000-4000-8000-0000000f1003'];
 const [A, B, C] = U;
@@ -427,7 +430,8 @@ const ARMS = {
   },
 };
 
-/* Each mutant: [find, replace] in the migration, the arm that must go red. Its §7 is made an uncalled function. */
+/* Each mutant: [find, replace] in the migration that defines the body the chain END runs, and the arm that
+   must go red. Only the statement carrying the anchor runs (see plantedStatements). */
 const MUTANTS = [
   /* The invite body that runs is 2026-10-30-party-invite-player.sql's hr_party_invite_core: its mutants plant there. */
   { arm: 'PF-INVITE', file: INV, why: 'the first invite needs a party made first',
@@ -435,17 +439,18 @@ const MUTANTS = [
     repl: "      return jsonb_build_object('ok', false, 'error', 'no_party');\n    end if;\n    select * into v_p" },
   { arm: 'PF-OWN', why: 'an own character is not seated',
     find: '  perform public.hr_party_seat_into(v_pid, p_user, p_other);', repl: '  perform 1;' },
-  /* hr_hunt_enter_for and hr_hunt_party_start run as 2026-10-30-town-activity-yields.sql restates them. */
-  { arm: 'PF-OWN', file: TOWN, why: 'a ground-less party matches any hunt',
-    find: '    if v_p.hunt_id is distinct from p_hunt then\n      return jsonb_build_object(\'ok\', false, \'error\', \'party_hunt_mismatch\'',
-    repl: '    if v_p.hunt_id <> p_hunt then\n      return jsonb_build_object(\'ok\', false, \'error\', \'party_hunt_mismatch\'' },
+  /* Every refusal of hr_hunt_enter_for is hr_hunt_enter_check's since 2026-12-05-hunt-setup-per-ground.sql;
+     hr_hunt_party_start judges each seat by hr_party_seat_ready since 2026-12-07-party-finder.sql. */
+  { arm: 'PF-OWN', file: SETUP, why: 'a ground-less party matches any hunt',
+    find: '    if v_ph is distinct from p_hunt then\n      return jsonb_build_object(\'ok\', false, \'error\', \'party_hunt_mismatch\'',
+    repl: '    if v_ph <> p_hunt then\n      return jsonb_build_object(\'ok\', false, \'error\', \'party_hunt_mismatch\'' },
   { arm: 'PF-DISBAND', why: 'the party is disbanded mid-hunt',
     find: "  if exists (select 1 from public.hunt_sessions h where h.instance_id = v_pid and h.ended_at is null) then\n    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'party_hunting')); end if;\n  delete from public.hunt_party_invites where party_id = v_pid;",
     repl: '  delete from public.hunt_party_invites where party_id = v_pid;' },
-  { arm: 'PF-START', file: TOWN, why: 'the start marches an away member in',
-    find: '      if v_m.user_id <> v_uid and public.hr_party_away(v_m.user_id, v_m.slot, v_m.joined_at) then',
-    repl: '      if false then' },
-  { arm: 'PF-START', file: TOWN, why: 'the start never writes the leader\'s ground',
+  { arm: 'PF-START', file: FINDER, why: 'the start marches an away member in',
+    find: '  if p_user is distinct from p_leader and public.hr_party_away(p_user, p_slot, p_joined) then',
+    repl: '  if false then' },
+  { arm: 'PF-START', file: FINDER, why: 'the start never writes the leader\'s ground',
     find: '    update public.hunt_parties set hunt_id = p_hunt where id = v_pid and hunt_id is distinct from p_hunt;', repl: '    perform 1;' },
   { arm: 'PF-KEEP', why: 'the sweep drops a seat the moment it is away',
     find: "returns interval language sql immutable set search_path = public, pg_catalog as $$ select interval '10 minutes' $$;",
@@ -463,12 +468,13 @@ const MUTANTS = [
 
 /* Security's reopen must-fixes (2026-10-29-party-security.sql). */
 MUTANTS.push(
-  { arm: 'PF-TOWN', file: TOWN, why: 'a gathering member refuses the start',
-    find: "  if v_st.active_kind in ('gather', 'artisan', 'training') then", repl: '  if false then' },
+  { arm: 'PF-TOWN', file: SETUP, why: 'a gathering member refuses the start',
+    find: "  if v_st.active_kind not in ('gather', 'artisan', 'training') and v_st.active_kind <> 'idle' then",
+    repl: "  if v_st.active_kind <> 'idle' then" },
   { arm: 'PF-LISTED', file: SEC, why: 'the finder’s Join seats in an unlisted party',
     find: "  if p_need_listed and not v_p.listed then return jsonb_build_object('ok', false, 'error', 'not_listed'); end if;\n", repl: '' },
-  { arm: 'PF-LISTED', file: SEC, why: 'the finder lists unlisted parties',
-    find: '     where p.closed_at is null and p.listed and (p_hunt is null', repl: '     where p.closed_at is null and (p_hunt is null' },
+  { arm: 'PF-LISTED', file: FINDER, why: 'the finder lists unlisted parties',
+    find: '               where p.closed_at is null and p.listed and (p_hunt is null', repl: '               where p.closed_at is null and (p_hunt is null' },
   { arm: 'PF-BLOCK', file: SEC, why: 'a join or an accept ignores a member’s block',
     find: "  if exists (select 1 from public.hunt_party_members m where m.party_id = p_party and m.user_id <> p_uid\n               and public.hr_social_blocked(p_uid, m.user_id)) then",
     repl: '  if false then' },
@@ -481,11 +487,43 @@ MUTANTS.push(
     repl: '      update public.hunt_sessions set leave_at = now(), version = version + 1 where id = v_s.id;\n    end if;\n  end if;\n  delete from public.hunt_party_members' },
 );
 
-function selfCheckOff(src) {
-  const m = src.match(/\n(-- (?:── )?§\d+ SELF-CHECK[^\n]*(?:\n--[^\n]*)*)\n(do \$(\w*)\$)/);
-  if (!m) throw new Error('no self-check heading in ' + FILE);
-  /* (a function replacer: a replacement STRING would read $$ as one $) */
-  return src.replace(m[1] + '\n' + m[2], () => m[1] + '\ncreate or replace function pg_temp.pf_selfcheck_off() returns void language plpgsql as $' + m[3] + '$');
+/* THE BODY THAT RUNS. A mutant runs ONE statement of its file on the chain end: the function create that carries
+   its anchor (or the anchor itself, a whole statement such as a grant). Re-applying whole files put back bodies a
+   later file restated: 2026-12-07-party-finder.sql re-signed hr_hunt_party_list, so a re-applied 3-argument one
+   made every list call ambiguous, and the enter/start mutants planted bodies nothing runs any more. A function is
+   planted only while the chain end runs THIS file's body of it; a later restatement fails the mutant by name. */
+const CREATE_FN = /create\s+or\s+replace\s+function\s+public\.(\w+)\s*\(/gi;
+function statementAt(text, at) {
+  let fn = null;
+  for (const m of text.matchAll(CREATE_FN)) {
+    if (m.index > at) break;
+    const open = /\$(\w*)\$/.exec(text.slice(m.index));
+    if (!open) continue;
+    const bodyAt = m.index + open.index + open[0].length;
+    const close = text.indexOf(open[0], bodyAt);
+    const end = close < 0 ? -1 : text.indexOf(';', close + open[0].length);
+    if (end >= at) fn = { name: m[1], start: m.index, end: end + 1, body: text.slice(bodyAt, close) };
+  }
+  return fn;
+}
+/** [{ name|null, body|null, sql }] in file order: each statement an edit touches, planted (or as shipped). */
+function plantedStatements(text, edits, plant = true) {
+  const out = new Map();
+  for (const [x, r] of edits) {
+    const at = text.indexOf(x);
+    if (at < 0 || text.indexOf(x, at + 1) >= 0) throw new Error('anchor must match exactly once: ' + x.slice(0, 60));
+    const fn = statementAt(text, at);
+    if (!fn) {
+      if (!x.trimEnd().endsWith(';')) throw new Error('an anchor outside a function must be a whole statement: ' + x.slice(0, 60));
+      out.set(at, { name: null, body: null, sql: plant ? r : x });
+      continue;
+    }
+    if (at + x.length > fn.end) throw new Error('an anchor runs past its function ' + fn.name);
+    const s = out.get(fn.start) || { name: fn.name, body: fn.body, sql: text.slice(fn.start, fn.end) };
+    if (plant) s.sql = s.sql.replace(x, () => r);
+    out.set(fn.start, s);
+  }
+  return [...out.entries()].sort((a, b) => a[0] - b[0]).map(([, s]) => s);
 }
 
 async function runArm(db, name, prelude) {
@@ -510,20 +548,30 @@ async function main() {
     await db.close().catch(() => {});
     process.exit(bad ? 1 : 0);
   }
-  /* The control: the files re-applied in order, self-checks off, nothing planted: every mutant's arm stays green. */
-  const base = { [FILE]: selfCheckOff(SRC(FILE)), [SEC]: selfCheckOff(SRC(SEC)), [INV]: selfCheckOff(SRC(INV)), [STAM]: selfCheckOff(SRC(STAM)), [TOWN]: selfCheckOff(SRC(TOWN)), [LIVE]: selfCheckOff(SRC(LIVE)) };
-  const prelude = (b) => [FILE, SEC, STAM, INV, TOWN, LIVE].map((f) => b[f]).join('\n');
   let missed = 0;
-  for (const arm of new Set(MUTANTS.map((m) => m.arm))) {
-    const p = await runArm(db, arm, prelude(base));
-    if (p.length) { console.error(`✗ CONTROL ${arm} is red with nothing planted: ${p[0]}`); missed++; }
-  }
+  /* Each mutant's statements, as shipped and planted; a function its file no longer defines at the chain end is red. */
+  const live = async (name) => (await db.query(`select replace(prosrc, chr(13), '') s from pg_proc
+                                                 where pronamespace = 'public'::regnamespace and proname = $1`, [name])).rows.map((r) => r.s);
+  const plans = [];
   for (const mu of MUTANTS) {
     const f = mu.file || FILE;
     const edits = [[mu.find, mu.repl], ...(mu.also ? [mu.also] : [])];
-    if (edits.some(([x]) => !base[f].includes(x))) { console.error(`✗ ${mu.arm} (${mu.why}): anchor not found in ${f}`); missed++; continue; }
-    const planted = Object.assign({}, base, { [f]: edits.reduce((s, [x, r]) => s.replace(x, () => r), base[f]) });
-    const p = (await runArm(db, mu.arm, prelude(planted))).filter((x) => !x.startsWith('HARNESS'));
+    let shipped; let planted;
+    try { shipped = plantedStatements(SRC(f), edits, false); planted = plantedStatements(SRC(f), edits, true); } catch (e) {
+      console.error(`✗ ${mu.arm} (${mu.why}): ${e.message} in ${f}`); missed++; continue;
+    }
+    let stale = null;
+    for (const s of shipped) if (s.name && !(await live(s.name)).includes(s.body)) stale = s.name;
+    if (stale) { console.error(`✗ ${mu.arm} (${mu.why}): the chain end runs a later body of ${stale} than ${f}'s; re-point the mutant`); missed++; continue; }
+    plans.push({ mu, shipped: shipped.map((s) => s.sql).join('\n'), planted: planted.map((s) => s.sql).join('\n') });
+  }
+  /* The control: every mutant's statements run as shipped, nothing planted: every arm stays green. */
+  for (const arm of new Set(plans.map((x) => x.mu.arm))) {
+    const p = await runArm(db, arm, plans.filter((x) => x.mu.arm === arm).map((x) => x.shipped).join('\n'));
+    if (p.length) { console.error(`✗ CONTROL ${arm} is red with nothing planted: ${p[0]}`); missed++; }
+  }
+  for (const { mu, planted } of plans) {
+    const p = (await runArm(db, mu.arm, planted)).filter((x) => !x.startsWith('HARNESS'));
     if (p.length) console.log(`✓ ${mu.arm} catches: ${mu.why} — ${p[0].slice(0, 120)}`);
     else { console.error(`✗ ${mu.arm} MISSED: ${mu.why}`); missed++; }
   }

@@ -17,6 +17,8 @@
 //           stops for lack of stock). A bar slot may name a KIND (`food`,
 //           `drink`): its stock is every bag stack of that kind.
 //   ended   the hunt section saying `ended`, id = session
+//   away    "While you were away": on return, what the hunt did since this
+//           browser last showed it (away-recap.js), id = session + the stamp
 //   invite  a party invite waiting for the character (`party_invites`), id =
 //           the server's invite id; Join / No thanks answer it, and it goes
 //           when the server no longer lists it (answered anywhere, expired)
@@ -37,6 +39,7 @@ import { huntName, invitesOf } from '../session/party-sections.js?v=0.2.27';
 import { itemName } from './widgets/bits.js?v=0.2.27';
 import { CONSUMABLES, CONSUMABLE_KINDS } from '../data/consumables.js?v=0.2.27';
 import { deathSeen } from './death-popup.js?v=0.2.27';
+import { awayRecapOf, stampAway } from './away-recap.js?v=0.2.27';
 
 const residueOf = (cs) => {
   const r = cs && cs.record && cs.record.residue && cs.record.residue.alerts;
@@ -147,7 +150,11 @@ export function createAlertCenter(account) {
   function scan(cs) {
     let any = false;
     const now = candidatesOf(cs, account.viewed === cs.slot);
+    /* "While you were away" (away-recap.js): judged against the last-seen stamp BEFORE it is renewed. */
+    const away = awayRecapOf(cs);
+    if (away) now.push(away);
     for (const c of now) any = fire(cs, c) || any;
+    stampAway(cs);
     /* An invite the server no longer lists (answered elsewhere, expired, its party gone) leaves the lines. */
     const live = new Set(now.filter((c) => c.kind === 'invite').map((c) => c.id));
     for (let i = alerts.length - 1; i >= 0; i--) {

@@ -334,7 +334,9 @@ const cases = {
     /* AFTER THE GUIDE (designer 2026-10-22: at Level 12 in the Sewer nothing said what to aim at): the pointer
        names the next ground above the hero's Level, from the data, and the weapon skill's next unlock. */
     const L = M.HUNTS.millrace_sewer.band[0] + 4;
-    const sewerEnv = { ...env(M.xp.charXpForLevel(L), 'millrace_sewer'), hunt_settings: { preset: 1, slots: [], role: 'tank' },
+    /* the player has set the bar (a conditioned slot, shown and stored), so the guide is done */
+    const eat = { action: { type: 'consume', id: 'cooked_shrimp' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 60 }], join: 'and' };
+    const sewerEnv = { ...env(M.xp.charXpForLevel(L), 'millrace_sewer'), hunt_settings: { preset: 1, slots: [eat], bar: [eat], role: 'tank' },
       skills: { melee: { xp: 0, level: 11 } } };
     const html = renderLaunchers({ character: { read: (k) => sewerEnv[k] }, glyphs: {}, hud: { isShown: () => false },
       wm: { openIds: () => [], rows: () => [], row: () => null } });

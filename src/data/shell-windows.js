@@ -46,7 +46,7 @@ export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'hunt-summary', label: 'Hunt summary', key: 'l', glyph: 'uiCheck', width: 420, object: 'ledger', launcher: false }),
   Object.freeze({ id: 'hud', label: 'HUD layout', key: 'u', glyph: 'uiSettings', width: 380, object: 'plain', launcher: false }),
   /* One bar slot: what it does and when (opened by a press on a bar slot, in town or in a hunt). */
-  Object.freeze({ id: 'configure-action', label: 'Configure action', key: 'k', glyph: 'uiTarget', width: 600, object: 'plain', launcher: false, modal: true }),
+  Object.freeze({ id: 'configure-action', label: 'Configure action', key: 'k', glyph: 'uiTarget', width: 800, object: 'plain', launcher: false, modal: true }),
   Object.freeze({ id: 'chat', label: 'Chat', key: 'enter', glyph: 'uiChat', width: 400, object: 'plain' }),
   /* The social side (2026-10-18): friends, and a read-only look at another player's worn gear
      (opened from the player menu, so it takes no launcher icon). */

@@ -35,8 +35,8 @@
 //         Save sends ONE intent with the whole bar; the slot's tooltip keeps the
 //         server's setup until the re-read envelope; a refusal shows on its condition
 //   HS-8  IN TOWN: the bar shows (no hunt vitals, a "+" on empty slots); an empty
-//         slot is set to Any food (its store price shown, paid as used) IF My HP %
-//         below 60 - ONE intent; the density step on the hunt picker answers on
+//         slot is set to Salted Trout (the Food run sorted cheapest per point, its
+//         numbers the server's) IF My HP % below 60 - ONE intent; the density step on the hunt picker answers on
 //         the press (Tyler 10-20, "incredibly laggy"): four quick + presses show
 //         the new number at once, marked Saving..., send ONE intent with the last
 //         value, and the server's answer replaces it; the line's facts say the
@@ -794,30 +794,30 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       const { ctx, page, s, up } = await open();
       if (up) {
         await page.click('.hb-slot[data-slot="2"]');
-        const opened = await wait(page, () => { const f = document.querySelector('[data-hs-win="configure-action"].is-modal .hc-cfg'); return f && !f.classList.contains('is-empty'); }, null);
+        const opened = await wait(page, () => { const f = document.querySelector('[data-hs-win="configure-action"].is-modal .ca'); return f && !f.classList.contains('is-empty'); }, null);
         if (!opened) fails.push('HS-7 pressing a bar slot did not open Configure action as a centred modal');
         else {
           const picks = await page.evaluate(async () => {
             const reg = await import('/src/data/condition-metrics.js?v=0.1.0');
-            const shown = Array.from(document.querySelectorAll('.hc-cond[data-cond="0"] [data-f="metric"] option')).map((o) => o.value);
+            const shown = Array.from(document.querySelectorAll('.ca-cond[data-cond="0"] [data-f="metric"] option')).map((o) => o.value);
             const win = document.querySelector('[data-hs-win="configure-action"]').getBoundingClientRect();
             const mid = Math.abs((win.left + win.width / 2) - window.innerWidth / 2);
-            return { ok: JSON.stringify(shown) === JSON.stringify(reg.METRICS.map((m) => m.id)), shown, title: document.querySelector('.hc-title').textContent,
-              picked: (document.querySelector('.hc-list .is-on .hc-choice-name') || {}).textContent, tab: (document.querySelector('.hc-tab[aria-selected="true"]') || {}).textContent, mid };
+            return { ok: JSON.stringify(shown) === JSON.stringify(reg.METRICS.map((m) => m.id)), shown, title: document.querySelector('.ca-rank').textContent,
+              picked: (document.querySelector('.ca-runs .ca-row.is-on .ca-name') || {}).textContent, tab: (document.querySelector('.ca-tab[aria-selected="true"]') || {}).textContent, mid };
           });
           if (!picks.ok) fails.push('HS-7 the metric picker is not the registry: ' + picks.shown.join(','));
-          if (picks.title !== 'Slot 3') fails.push('HS-7 the window opened on "' + picks.title + '", not slot 3');
+          if (!/^Slot 3 · tried after slot 2$/.test(picks.title)) fails.push('HS-7 the window opened on "' + picks.title + '", not slot 3');
           if (picks.picked !== 'Wheat Bread' || picks.tab !== 'Items') fails.push('HS-7 the server’s action is not the picked choice on its tab: ' + picks.picked + ' / ' + picks.tab);
           if (picks.mid > 30) fails.push('HS-7 the modal is not centred (' + Math.round(picks.mid) + ' px off)');
-          await page.selectOption('.hc-cond[data-cond="0"] [data-f="op"]', 'lt');
-          await page.fill('.hc-cond[data-cond="0"] [data-f="value"]', '40');
-          await page.dispatchEvent('.hc-cond[data-cond="0"] [data-f="value"]', 'change');
+          await page.selectOption('.ca-cond[data-cond="0"] [data-f="op"]', 'lt');
+          await page.fill('.ca-cond[data-cond="0"] [data-f="value"]', '40');
+          await page.dispatchEvent('.ca-cond[data-cond="0"] [data-f="value"]', 'change');
           /* the server saves slot 3's new test AT its answer, held while the in-flight state is read (as HS-3) */
           s.onOptions = (o) => { if (o.slots && o.slots[2]) s.env.hunt_settings.slots[2].conditions = o.slots[2].conditions; };
           const tipBefore = await page.evaluate(() => { const li = document.querySelector('.hb-slot[data-slot="2"]'); li.dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); return document.querySelector('.hb-tip').textContent; });
           s.holdOptions = true;
           await page.click('.hc-foot [data-x="save"]');
-          const mid = await page.evaluate(() => Array.from(document.querySelectorAll('.hc-form button, .hc-form select, .hc-form input')).every((b) => b.disabled));
+          const mid = await page.evaluate(() => Array.from(document.querySelectorAll('.ca-form button, .ca-form select, .ca-form input')).every((b) => b.disabled));
           if (!mid) fails.push('HS-7 Configure action stayed on while its intent was in flight');
           if (!/at or below 50%/.test(tipBefore)) fails.push('HS-7 the slot tooltip did not show the server’s setup: ' + tipBefore);
           await until(() => s.sent('hr_action_set_options').length >= 1);
@@ -834,11 +834,13 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           /* A refusal: shown inline on the condition the server names; the server's bar stays. */
           s.optionsReply = { ok: false, error: 'bad_value', slot: 0, condition: 0 };
           await page.click('.hb-slot[data-slot="0"]');
-          await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .hc-title'), null);
-          await page.click('.hc-conds-head [data-x="add"]');
+          await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .ca-rank'), null);
+          await page.click('.ca-add');
           await page.click('.hc-foot [data-x="save"]');
-          const shown = await wait(page, () => document.querySelector('.hc-cond[data-cond="0"]').classList.contains('is-error')
-            && document.querySelector('.hc-form .hh-intent-msg').textContent.length > 0, null);
+          const shown = await wait(page, () => document.querySelector('.ca-cond[data-cond="0"]').classList.contains('is-error')
+            && document.querySelector('.ca-msg').textContent.length > 0, null);
+          /* The refusal keeps the draft: the added condition is still there. */
+          if (shown && (await page.$$eval('.ca-cond.is-on', (n) => n.length)) < 1) fails.push('HS-7 a refusal threw the draft away');
           if (!shown) fails.push('HS-7 a server validation error was not shown on its condition');
           if (shots) await page.screenshot({ path: join(shots, 'hunt-1440x900-configure-action.png') });
         }
@@ -850,12 +852,12 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       const { ctx, page, s, up } = await open({ prep: (st) => { st.env.hunt.hunt_id = 'millrace_sewer'; } });
       if (up) {
         await page.click('.hb-slot[data-slot="2"]');
-        await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .hc-title'), null);
-        const warn = () => page.evaluate(() => { const w = document.querySelector('.hc-warn'); return w && w.getClientRects().length ? w.textContent : ''; });
+        await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .ca-rank'), null);
+        const warn = () => page.evaluate(() => { const w = document.querySelector('.ca-warn'); return w && w.getClientRects().length ? w.textContent : ''; });
         /* Wheat Bread at HP 50% or below of 220 = 110 HP: above the King's 75, nothing to say. */
         const safe = await warn();
-        await page.fill('.hc-cond[data-cond="0"] [data-f="value"]', '30');
-        await page.dispatchEvent('.hc-cond[data-cond="0"] [data-f="value"]', 'change');
+        await page.fill('.ca-cond[data-cond="0"] [data-f="value"]', '30');
+        await page.dispatchEvent('.ca-cond[data-cond="0"] [data-f="value"]', 'change');
         const shown = await warn();
         if (safe !== '' || shown !== 'The Rat King can hit for 75. At 30% you have 66 HP, so one hit can kill you before you eat.') {
           fails.push('HS-23 the heal warning did not follow the threshold in a party of two: at 50% "' + safe + '", at 30% "' + shown + '"');
@@ -868,19 +870,23 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       } else fails.push('HS-23 the screen did not mount on the Sewer');
       await ctx.close();
     }
-    { // HS-23 at 922x423 (v0.2.24 visual gate): the warning is on screen, beside Save, never scrolled away below it
+    { // HS-23 at 922x423 (v0.2.24 visual gate): the warning is on screen with Save, never scrolled away. The phone sheet
+      // keeps the sentence (and its warning, one line) above the only scrolling parts; the detail pane says it whole.
       const { ctx, page, up } = await open({ viewport: { width: 922, height: 423 }, prep: (st) => { st.env.hunt.hunt_id = 'millrace_sewer'; } });
       if (up) {
         await page.click('.hb-slot[data-slot="2"]');
-        await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .hc-title'), null);
-        await page.fill('.hc-cond[data-cond="0"] [data-f="value"]', '30');
-        await page.dispatchEvent('.hc-cond[data-cond="0"] [data-f="value"]', 'change');
+        await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .ca-rank'), null);
+        await page.fill('.ca-cond[data-cond="0"] [data-f="value"]', '30');
+        await page.dispatchEvent('.ca-cond[data-cond="0"] [data-f="value"]', 'change');
         const seen = await page.evaluate(() => {
           const inView = (el) => { const r = el && el.getBoundingClientRect(); return !!r && r.width > 0 && r.top >= 0 && r.bottom <= window.innerHeight && r.left >= 0 && r.right <= window.innerWidth; };
-          const w = document.querySelector('.hc-warn');
-          return { warn: inView(w), save: inView(document.querySelector('.hc-foot [data-x="save"]')), inFoot: !!(w && w.closest('.hc-foot')), text: w && w.textContent };
+          const w = document.querySelector('.ca-warn');
+          const whole = document.querySelector('.ca-d-warn');
+          return { warn: inView(w), save: inView(document.querySelector('.ca-foot [data-x="save"]')), text: w && w.textContent,
+            whole: whole && whole.getClientRects().length ? whole.textContent : '' };
         });
-        if (!seen.warn || !seen.save || !seen.inFoot || !/one hit can kill you/.test(String(seen.text))) fails.push('HS-23 at 922x423 the heal warning is not in view beside Save: ' + JSON.stringify(seen));
+        if (!seen.warn || !seen.save || !/one hit can kill you/.test(String(seen.text))) fails.push('HS-23 at 922x423 the heal warning is not in view with Save: ' + JSON.stringify(seen));
+        if (seen.whole !== seen.text) fails.push('HS-23 at 922x423 the detail pane does not say the whole warning: ' + JSON.stringify(seen));
       } else fails.push('HS-23 the screen did not mount at 922x423');
       await ctx.close();
     }
@@ -999,18 +1005,19 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const S = s.env.hunt_settings;
         Object.assign(S, { role: 'tank', supply_source: 'mine', on_empty: 'end' });
         s.env.hunt.hero.mana = 2;
-        S.slots[2] = Object.assign({}, S.slots[2], { count: 0 });
-        S.slots[5] = { action: { type: 'consume', id: 'food' }, conditions: [], join: 'and', usable: true, count: 0 };
+        /* The struck state of a food or drink is the SERVER's (hr_hunt_settings_view usable + why), never a browser count. */
+        S.slots[2] = Object.assign({}, S.slots[2], { count: 0, usable: false, why: 'none_left' });
+        S.slots[5] = { action: { type: 'consume', id: 'salted_shrimp' }, conditions: [], join: 'and', usable: false, why: 'store_off', count: null };
         await pushEnvelope(page, s);
         await page.waitForTimeout(300);
-        S.slots[7] = { action: { type: 'consume', id: 'food' }, conditions: [], join: 'and', usable: false, count: 3 };
+        S.slots[7] = { action: { type: 'consume', id: 'cooked_shrimp' }, conditions: [], join: 'and', usable: false, count: 3 };
         await pushEnvelope(page, s);
         await page.waitForTimeout(300);
         const want = [
           [0, 'mana', /^Needs 6 mana, you have 2\.$/, false],
-          [1, 'rune', /^Needs a Fire Rune in the bag/, true],
-          [2, 'stock', /^Out of stock and no store fallback/, true],
-          [5, 'store off', /^Out of stock, and this hero is set to end the hunt rather than buy from the store/, true],
+          [1, 'rune', /^Needs a Fire Rune for each cast: you carry none. Pick the store’s rune/, true],
+          [2, 'none left', /^None left: you carry no Wheat Bread\. The next food or drink slot fires instead\.$/, true],
+          [5, 'store off', /^This hero is set to end the hunt rather than buy from the store\.$/, true],
           [7, 'server', /^The server says this cannot fire now\.$/, true],
         ];
         /* EVERY struck or waiting slot on the bar, not only the ones named: a glyph on it, the reason as its tooltip's first line. */
@@ -1104,22 +1111,47 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       const townRg = await page.evaluate(() => [document.querySelector('[data-r="hp"]').textContent, document.querySelector('[data-r="mana"]').textContent]);
       if (townRg.join('') !== '') fails.push('HS-18 in town the hub shows a regen the server never sent: ' + JSON.stringify(townRg));
       if (shots) await page.screenshot({ path: join(shots, 'town-' + tag + '-bar.png') });
-      /* Configure an empty slot from its "+": Items, Any food (the store price shown, paid as used), IF My HP % below 60. */
+      /* Configure an empty slot from its "+": Items. THE PLAYER PICKS THE ONE ITEM (Tyler 2026-10-21): the Food run lists
+         every food with its HP a use, gold a use and gold a point from the SERVER's rows (hunt_settings.store), cheapest per
+         point first, unpriced last; no "Any food". Salted Trout, IF My HP % below 60. */
       await page.click('.hb-slot[data-slot="5"]');
-      await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .hc-title'), null);
-      await page.click('.hc-tab[data-tab="items"]');
-      await page.click('.hc-choice[data-id="food"]');
-      const note = await page.evaluate(() => ({ choice: document.querySelector('.hc-choice[data-id="food"] .hc-choice-note').textContent,
-        facts: document.querySelector('.hc-facts').textContent, type: document.querySelector('.hc-type').textContent }));
-      if (!/store from \d+ g each/.test(note.choice) || !/paid as used/.test(note.facts)) fails.push('HS-8 Any food does not show the store price paid as used: ' + JSON.stringify(note));
-      /* Designer 2026-10-21: "your best food first" misled Andy; the engine eats the SMALLEST own food that covers the gap (action-rules.js). */
-      if (note.type !== 'Food: your own food first, the smallest that covers what you are missing, then the store’s, restoring health.') fails.push('HS-8 Any food does not say which food it eats: ' + JSON.stringify(note.type));
+      await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .ca-rank'), null);
+      /* An empty slot opens on Spells (art spec §9). Every spell is listed, the weapon's own first; one it cannot cast
+         wears the lock, can still be picked, and the sentence says why it will stay struck (art spec §5, §8). */
+      const sp = await page.evaluate(() => ({ tab: (document.querySelector('.ca-tab[aria-selected="true"]') || { getAttribute: () => null }).getAttribute('data-tab'),
+        rows: Array.from(document.querySelectorAll('.ca-run[data-run="spells"] .ca-row')).map((b) => ({ id: b.getAttribute('data-id'),
+          locked: b.classList.contains('is-locked'), lock: getComputedStyle(b.querySelector('.ca-lock')).display !== 'none' })) }));
+      const firstLocked = sp.rows.findIndex((r) => r.locked);
+      if (sp.tab !== 'spells') fails.push('HS-8 an empty slot opened on ' + sp.tab + ', not Spells');
+      if (firstLocked < 1 || sp.rows.slice(firstLocked).some((r) => !r.locked) || sp.rows.some((r) => r.locked !== r.lock)) fails.push('HS-8 the Spells list is not castable first, then locked with the lock showing: ' + JSON.stringify(sp.rows));
+      else {
+        await page.click('.ca-run[data-run="spells"] .ca-row[data-id="' + sp.rows[firstLocked].id + '"]');
+        const why = await wait(page, () => /^Your weapon can’t cast this. The slot stays struck until you wield a .+.$/.test((document.querySelector('.ca-weapon') || {}).textContent || ''), null);
+        if (!why) fails.push('HS-8 a locked spell picked does not say why the slot will stay struck: ' + JSON.stringify(await page.evaluate(() => document.querySelector('.ca-weapon').textContent)));
+      }
+      await page.click('.ca-tab[data-tab="items"]');
+      const food = await page.$$eval('.ca-run[data-run="food"] .ca-list .ca-row', (n) => n.map((b) => ({ id: b.getAttribute('data-id'),
+        cells: Array.from(b.querySelectorAll('.ca-c')).map((c) => c.textContent) })));
+      const heals = FIXTURE.hunt_settings.store.filter((r) => r.kind === 'heal');
+      const priced = food.filter((r) => r.cells[2] !== '—');
+      const rowOk = (r) => { const c = heals.find((h) => h.id === r.id); return !!c && r.cells[0] === String(c.heals) && r.cells[1] === String(c.price) && r.cells[2] === (Math.round((c.price / c.heals) * 100) / 100).toFixed(2); };
+      if (food.some((r) => r.id === 'food' || r.id === 'drink')) fails.push('HS-8 the table still offers an "Any" row');
+      if (priced.length !== heals.length || !priced.every(rowOk)) fails.push('HS-8 the Food run is not the catalogue\'s HP / gold / gold a point: ' + JSON.stringify(priced));
+      else if (priced.some((r, k) => k && Number(r.cells[2]) < Number(priced[k - 1].cells[2]))) fails.push('HS-8 the Food run is not cheapest per point first: ' + JSON.stringify(priced.map((r) => r.cells[2])));
+      if (food.slice(0, priced.length).some((r) => r.cells[2] === '—')) fails.push('HS-8 an unpriced row sorts above a priced one');
+      /* Hover compares against the pick; the pick is the gold row, pinned. */
+      await page.click('.ca-run[data-run="food"] .ca-row[data-id="salted_trout"]');
+      await page.hover('.ca-run[data-run="food"] .ca-row[data-id="salted_lobster"]');
+      const cmp = await page.evaluate(() => ({ vs: document.querySelector('.ca-vs').textContent, lines: Array.from(document.querySelectorAll('.ca-cmp li')).map((l) => l.textContent),
+        pinned: (document.querySelector('.ca-pinned.is-on .ca-name') || {}).textContent, lead: document.querySelector('.ca-lead').textContent }));
+      if (cmp.vs !== 'vs your Salted Trout' || JSON.stringify(cmp.lines) !== JSON.stringify(['+96 HP a use', '+140 gold a use', '2.5× the gold per HP'])
+        || cmp.pinned !== 'Salted Trout' || !/^Eat Salted Trout/.test(cmp.lead)) fails.push('HS-8 the comparison or the sentence read ' + JSON.stringify(cmp));
       /* A food slot starts at HP below 50% (Eat at is gone); the player moves it to 60. */
-      if ((await page.$$eval('.hc-cond.is-on', (n) => n.length)) !== 1) fails.push('HS-8 a new food slot does not start with its HP condition');
-      await page.fill('.hc-cond[data-cond="0"] [data-f="value"]', '60');
-      await page.dispatchEvent('.hc-cond[data-cond="0"] [data-f="value"]', 'change');
+      if ((await page.$$eval('.ca-cond.is-on', (n) => n.length)) !== 1) fails.push('HS-8 a new food slot does not start with its HP condition');
+      await page.fill('.ca-cond[data-cond="0"] [data-f="value"]', '60');
+      await page.dispatchEvent('.ca-cond[data-cond="0"] [data-f="value"]', 'change');
       if (shots) await page.screenshot({ path: join(shots, 'town-' + tag + '-configure-action.png') });
-      const want = { action: { type: 'consume', id: 'food' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 60 }], join: 'and' };
+      const want = { action: { type: 'consume', id: 'salted_trout' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 60 }], join: 'and' };
       /* The server saves at its answer (never before the press, where a live re-read could show it early):
          the slot as sent; a density it answers with 4, not the 5 asked, so what shows after is the server's. */
       s.onOptions = (o) => {
@@ -1130,13 +1162,13 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       await until(() => s.sent('hr_action_set_options').length >= 1);
       const sent = s.calls.filter((c) => c.name === 'hr_action_set_options').map((c) => c.body.p_opts);
       if (sent.length !== 1 || JSON.stringify(sent[0].slots[5]) !== JSON.stringify(want)) fails.push('HS-8 the town save sent ' + JSON.stringify(sent).slice(0, 300));
-      const saved = await wait(page, () => /Any food/.test(document.querySelector('.hb-slot[data-slot="5"]').getAttribute('aria-label')) && !document.querySelector('[data-hs-win="configure-action"]'), null);
-      if (!saved) fails.push('HS-8 the town slot did not show the server’s Any food after it confirmed');
-      /* Nobody is told to buy first (Tyler 10-19): with Any food on the bar and an empty bag, Hunt prep reads the store per use. */
+      const saved = await wait(page, () => /Salted Trout/.test(document.querySelector('.hb-slot[data-slot="5"]').getAttribute('aria-label')) && !document.querySelector('[data-hs-win="configure-action"]'), null);
+      if (!saved) fails.push('HS-8 the town slot did not show the server’s Salted Trout after it confirmed');
+      /* Nobody is told to buy first (Tyler 10-19): with a store food on the bar and an empty bag, Hunt prep reads the store per use. */
       await page.keyboard.press('p');
-      const prep = await wait(page, () => /Food: the store, from \d+ gp each as used/.test((document.querySelector('[data-hs-win="hunt-prep"] .hw-checks') || {}).textContent || ''), null);
+      const prep = await wait(page, () => /Food: the store, 40 gp each as used/.test((document.querySelector('[data-hs-win="hunt-prep"] .hw-checks') || {}).textContent || ''), null);
       const prepText = await page.evaluate(() => (document.querySelector('[data-hs-win="hunt-prep"]') || {}).innerText || '');
-      if (!prep || /0 food/.test(prepText)) fails.push('HS-8 Hunt prep does not read the store per use for Any food: ' + prepText.slice(0, 200));
+      if (!prep || /0 food/.test(prepText)) fails.push('HS-8 Hunt prep does not read the store per use for a store food: ' + prepText.slice(0, 200));
       await page.keyboard.press('p');
       /* Density on the hunt picker: the press answers at once, a run of presses is ONE intent, the server's answer replaces the draft. */
       await page.keyboard.press('h');
@@ -1184,9 +1216,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       const back = await signInAndPlay(page, '', true);
       if (!back) fails.push('HS-8 the town did not mount after a reload');
       else {
-        const slot = await wait(page, () => /Any food/.test(document.querySelector('.hb-slot[data-slot="5"]').getAttribute('aria-label')), null);
+        const slot = await wait(page, () => /Salted Trout/.test(document.querySelector('.hb-slot[data-slot="5"]').getAttribute('aria-label')), null);
         await page.click('.hb-slot[data-slot="5"]');
-        const cond = await wait(page, () => { const n = document.querySelector('.hc-cond[data-cond="0"].is-on [data-f="value"]'); return n && n.value === '60'; }, null);
+        const cond = await wait(page, () => { const n = document.querySelector('.ca-cond[data-cond="0"].is-on [data-f="value"]'); return n && n.value === '60'; }, null);
         if (!slot || !cond) fails.push('HS-8 after a reload the slot or its condition is not the server’s');
         await page.keyboard.press('Escape');
         await page.keyboard.press('h');
@@ -1357,9 +1389,11 @@ const MUTANTS = [
   ['controls stay on while an intent is in flight', 'src/shell/widgets/settings-intent.js', "prop(el, 'disabled', pending || v === null);", "prop(el, 'disabled', v === null);"],
   ['the analyzer ignores the premium gate', 'src/shell/widgets/analyzer.js', 'const premium = isPremium(ctx.character);', 'const premium = true;'],
   ['a null per_hour shows dashes, not "Per hour after 10 min."', 'src/shell/widgets/analyzer.js', "prop(sec.querySelector('.ha-later'), 'hidden', v.rated);", "prop(sec.querySelector('.ha-later'), 'hidden', true);"],
-  ['Any food says it eats the best food first', 'src/shell/action-facts.js', 'your own \' + a.id + \' first, the smallest that covers what you are missing, then the store’s', 'your best \' + a.id + \' first'],
+  ['the struck reason of a food slot ignores the server', 'src/shell/action-facts.js', "    if (sl.why === 'none_left') return", "    if (false) return"],
   ['Configure action never warns a heal slot', 'src/shell/windows/configure-action.js', "healWarning(d, set, blow, vitalsOf(cs).hpMax)", "''"],
-  ['the heal warning sits above the foot, scrolled away below Save at 922x423', 'src/shell/windows/configure-action.js', "'<div class=\"hc-foot\"><p class=\"hc-warn\" role=\"status\" aria-live=\"polite\"></p>'", "'<p class=\"hc-warn\" role=\"status\" aria-live=\"polite\"></p><div class=\"hc-foot\">'"],
+  ['a spell the weapon cannot cast reads like a castable one', 'src/shell/windows/configure-action.js', "  cls(el, 'is-locked', !!r.locked);", ''],
+  ['Configure action never says a locked spell stays struck', 'src/shell/windows/configure-action.js', "  text(root.querySelector('.ca-weapon'), weaponWarning(d.action, set.role));", ''],
+  ['the phone sheet cuts the heal warning to one line and says it nowhere whole', 'src/shell/windows/configure-action.js', "  text(root.querySelector('.ca-d-warn'), warn);", ''],
   ['the heal warning reads the whole ground whatever the party size', 'src/shell/windows/configure-action.js', 'biggestBlowOn(h.huntId, p ? p.members.length : 1)', 'biggestBlowOn(h.huntId, 4)'],
   ['the Hunts window keeps saying "On the way" while hunting', 'src/shell/windows/hunts.js', "  if (sc.msg && sc.msg === sc.enterMsg && (now || (h && h.ended))) { sc.msg = ''; sc.enterMsg = null; }\n", ''],
   ['an edge panel never steps out of the hunt bar’s way', 'src/shell/shell.js', "        for (const p of at.push) edgeEls[p.i].style.top = p.top + 'px';\n", ''],
@@ -1378,7 +1412,8 @@ const MUTANTS = [
   ['the controls stay on while a bar intent is in flight', 'src/shell/windows/configure-action.js', '  const off = s.pending;', '  const off = false;'],
   ['a server validation error is not shown inline', 'src/shell/bar-draft.js', '  else { s.error = r;', '  else { s.error = null;'],
   ['the bar hides in town', 'src/data/hud-widgets.js', "removable: true, when: 'always',\n    phone: Object.freeze({ dy: 2 }),", "removable: true, when: 'hunt',\n    phone: Object.freeze({ dy: 2 }),"],
-  ['the store price is not shown on Any food', 'src/shell/windows/configure-action.js', "(st.from ? 'store from ' : 'store ') + st.price + ' g each'", "''"],
+  ['the Food run is sorted by name, not gold per point', 'src/shell/action-table.js', "const byValue = (a, b) => ((a.per === null) - (b.per === null)) || ((a.per || 0) - (b.per || 0))", "const byValue = (a, b) => 0 || 0"],
+  ['the comparison never shows', 'src/shell/windows/configure-action.js', '  const cmp = hover && picked && hover !== picked ? compareLines(hover, picked) : [];', '  const cmp = [];'],
   ['the density step sends no intent', 'src/shell/windows/hunts.js', '    try { r = await cs.setHuntOptions(d.preset, { density: d.n }); } catch (e) { r = null; }', '    try { r = { ok: true }; } catch (e) { r = null; }'],
   ['every density press sends its own intent', 'src/shell/windows/hunts.js', '      sc.timer = setTimeout(() => saveDensity(cs, sc, repaint), DENSITY_SAVE_MS);', '      saveDensity(cs, sc, repaint);'],
   ['the density waits for the server before it moves', 'src/shell/windows/hunts.js', '  if (!dn || !sc.draft) return dn;', '  if (dn) return dn;'],
@@ -1389,14 +1424,14 @@ const MUTANTS = [
   ['a party member keeps the density step', 'src/shell/windows/hunts.js', "prop(b, 'hidden', follower);", "prop(b, 'hidden', false);"],
   ['a blocked slot is not flagged', 'src/shell/action-facts.js', '      if (same || kind) {', '      if (false) {'],
   ['the modal docks instead of centring', 'src/shell/window-manager.js', "  const isModal = (id) => rows.get(id).modal === true;", "  const isModal = () => false;"],
-  ['Hunt prep tells a player to buy first', 'src/shell/readiness.js', '      const st = storeOn ? storeOf(sl.action) : null;', '      const st = null;'],
+  ['Hunt prep tells a player to buy first', 'src/shell/readiness.js', '      const st = storeOn ? storeOf(sl.action, s.store) : null;', '      const st = null;'],
   ['the mana gauge hides for a hero with no pool', 'src/shell/widgets/vitals-hub.js', "  fill(el.querySelector('.hb-arc.is-mana'), share(v.mana, v.manaMax));", "  fill(el.querySelector('.hb-arc.is-mana'), share(v.mana, v.manaMax));\n  el.querySelector('.hb-read.is-mana').style.display = v.manaMax > 0 ? '' : 'none';"],
   ['the hub keeps the first level it drew', 'src/shell/widgets/vitals-hub.js', '  const level = hero && ok(hero.level) ? hero.level :', '  const level = 24 || hero ? 24 :'],
   ['the HP arc does not follow the server', 'src/shell/widgets/vitals-hub.js', "  fill(el.querySelector('.hb-arc.is-hp'), share(v.hp, v.hpMax));", "  fill(el.querySelector('.hb-arc.is-hp'), 1);"],
   ['a drop onto an action moves it without asking', 'src/shell/widgets/action-bar.js', '    else openDropMenu(ctx, el, t, from, to, bar);', '    else runDrop(ctx, el, (b) => swapPlan(b, from, to));'],
   ['insert shifts past the first empty slot', 'src/shell/bar-draft.js', '  while (k < SLOTS && out[k]) k++;', '  k = SLOTS - 1;'],
-  ['the status line stays after a drop', 'src/shell/widgets/action-bar.js', ".then((r) => { text(msg, r.ok ? '' : barRefusalWords(r.error));", ".then((r) => { text(msg, r.ok ? 'Moving it…' : barRefusalWords(r.error));"],
-  ['a refused drop leaves the line on Moving it', 'src/shell/widgets/action-bar.js', ".then((r) => { text(msg, r.ok ? '' : barRefusalWords(r.error));", ".then((r) => { text(msg, r.ok ? '' : 'Moving it…');"],
+  ['the status line stays after a drop', 'src/shell/widgets/action-bar.js', ".then((r) => { text(msg, r.ok ? '' : refusalWords(r.error));", ".then((r) => { text(msg, r.ok ? 'Moving it…' : refusalWords(r.error));"],
+  ['a refused drop leaves the line on Moving it', 'src/shell/widgets/action-bar.js', ".then((r) => { text(msg, r.ok ? '' : refusalWords(r.error));", ".then((r) => { text(msg, r.ok ? '' : 'Moving it…');"],
   ['a drop the server never answers stays pending', 'src/shell/bar-draft.js', '  return Promise.race([sent, late])', '  return Promise.race([sent])'],
   /* The record is deep-frozen (envelope.js), so an optimistic move can only be a client-side overlay the bar paints from. */
   ['a drop moves the bar before the server answers', 'src/shell/widgets/action-bar.js', [

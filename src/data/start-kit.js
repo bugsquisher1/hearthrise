@@ -113,6 +113,21 @@ export const START_SKILL_XP = Object.freeze({});
    whichever weapon the player picks up first, its ammo is already in the bag.
    The same three are on the Local Shop counter (legacy.js SEED_SHOP), so a
    player who sells them is never locked out. */
+/* THE STARTER BAR (Tyler 2026-10-21, designer-confirmed): the game never picks a food or
+   drink, so a NEW hero's bar names its items. Slot 1 eats the kit's own 20 Cooked Shrimp;
+   once they are gone slot 2 buys Salted Shrimp from the store; slot 3 buys Thin Turnip
+   Juice. The fallback is the slot ORDER, which the player can see and change. The engine
+   (src/core/hunt/conditions.js heroSlots) and the server (hr_hunt_settings_view,
+   2026-11-07-store-by-slot.sql, its ⟦starter-bar⟧ block, pinned by
+   tests/hunt-core/conditions.mjs) place these only while the stored bar holds nothing. */
+const startSlot = (id, item, metric, value) => Object.freeze({ id, action: Object.freeze({ type: 'consume', id: item }),
+  conditions: Object.freeze([Object.freeze({ metric, op: 'lt', value })]), join: 'and' });
+export const START_BAR = Object.freeze([
+  startSlot('d_food', 'cooked_shrimp', 'self_hp_pct', 60),
+  startSlot('d_food_store', 'salted_shrimp', 'self_hp_pct', 60),
+  startSlot('d_drink', 'thin_turnip_juice', 'self_mana_pct', 30),
+]);
+
 export const START_INVENTORY = Object.freeze({
   turnip_seed: 8,
   shrimp: 10,

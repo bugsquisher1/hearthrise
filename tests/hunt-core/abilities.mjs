@@ -10,6 +10,8 @@ const cast = (M) => (inst, sc) => M.abilities.castAbilities(inst, sc);
 /* One hero next to one rat that targets it — a STURDY one (500 HP): since lane S1 every
    ability hit lands through damage.landHit, which hands off the kill, so a 10 HP rat
    would die to the first cast and end the fight the clocks below are measured in. */
+/* A bar slot for ability `id` that names its store rune (Configure action's choice). */
+const storeSlot = (id) => ({ action: { type: 'ability', id, store: 'plain_fire_rune' }, conditions: [], join: 'and' });
 const melee = (M, bar, over, ctx) => {
   const x = oneHero(M, over, Object.assign({ bar }, ctx || {}), [{ x: 13, y: 3, hp: 500, maxHp: 500 }]);
   x.sc.rng = rngOf(M, 1);
@@ -60,10 +62,12 @@ const cases = {
     M.abilities.castAbilities(b.inst, b.sc);
     return casts(b.sc).length === 1 && b.h.mana === 0 ? null : 'a cast with exactly its mana left ' + b.h.mana;
   },
-  /* AB-05: a rune comes from the carried line first, then the store shot behind it. */
+  /* AB-05: a rune comes from the carried line first, then the store rune the SLOT names (Tyler 2026-10-19:
+     the player picks the store item); a slot that names none spends carried runes only (designer 2026-10-21:
+     a default bar never buys one unseen). */
   'rune-own-then-store': (M) => {
     const hs = supplySession(M, { bag: { fire_rune: { loaded: 1 } }, shot: 'plain_fire_rune', ammo: 'fire_rune', purse: 50 });
-    const { inst, sc } = melee(M, ['flame_strike'], {}, { hs });
+    const { inst, sc } = melee(M, [storeSlot('flame_strike')], {}, { hs });
     M.abilities.castAbilities(inst, sc);
     if (hs.tally.supplies.fire_rune !== 1 || hs.purse !== 50) return 'the first cast did not spend the carried rune, free';
     sc.atMs = M.AD.ABILITIES.flame_strike.cdMs;
@@ -71,9 +75,38 @@ const cases = {
     if (casts(sc).length !== 2 || hs.tally.bought.plain_fire_rune !== 1 || hs.purse !== 48
       || JSON.stringify(sc.events.filter((e) => e.type === 'cast').map((e) => [e.source, e.gold])) !== '[["own",0],["store",2]]') return 'the empty rune line did not fall to the store: ' + JSON.stringify(hs.tally);
     const dry = supplySession(M, { bag: { fire_rune: { loaded: 0 } }, onEmpty: 'end' });
-    const d = melee(M, ['flame_strike'], {}, { hs: dry });
+    const d = melee(M, [storeSlot('flame_strike')], {}, { hs: dry });
     M.abilities.castAbilities(d.inst, d.sc);
-    return casts(d.sc).length === 0 ? null : 'a rune ability fired with no rune and the store off';
+    if (casts(d.sc).length) return 'a rune ability fired with no rune and the store off';
+    const bare = supplySession(M, { bag: { fire_rune: { loaded: 0 } }, shot: 'plain_fire_rune', ammo: 'fire_rune', purse: 50 });
+    const n = melee(M, ['flame_strike'], {}, { hs: bare });
+    M.abilities.castAbilities(n.inst, n.sc);
+    return casts(n.sc).length === 0 && bare.purse === 50 ? null : 'a Flame Strike slot naming no store rune bought one';
+  },
+  /* LIVE 10-21 (Andy: "Flame Strike isn't usable, not using runes from store"): the store had no rune row,
+     and the store was shut while ANY carried ammo line had a use left — the starter kit's free Bronze Arrows
+     and Coarse Whetstones never run out. Both rune abilities cast on the store's Plain Fire Rune (the real
+     catalogue row and price) with the starter kit's ammo still in the bag. */
+  'store-rune-beside-the-starter-kit': (M) => {
+    const row = M.SB.BASIC_INDEX.plain_fire_rune;
+    if (!row || row.partner !== 'fire_rune' || row.kind !== 'ammo') return 'the store has no Plain Fire Rune behind the Fire Rune';
+    const kit = () => {
+      const hs = supplySession(M, { bag: { bronze_arrows: { loaded: 50 }, air_rune: { loaded: 50 }, coarse_whetstone: { loaded: 10 }, iron_arrows: { loaded: 30 } }, purse: 1000 });
+      hs.basics.plain_fire_rune = { kind: 'ammo', price: row.price, heals: 0, mana: 0, partner: 'fire_rune' };
+      return hs;
+    };
+    const hs = kit();
+    const { inst, sc } = melee(M, [storeSlot('flame_strike')], {}, { hs });
+    M.abilities.castAbilities(inst, sc);
+    if (JSON.stringify(casts(sc)) !== '["flame_strike"]' || hs.tally.bought.plain_fire_rune !== 1 || hs.purse !== 1000 - row.price) {
+      return 'Flame Strike did not cast on a store rune beside the starter kit: ' + JSON.stringify([casts(sc), hs.tally, hs.purse]);
+    }
+    const v = kit();
+    const x = oneHero(M, {}, { hs: v, bar: [storeSlot('flame_volley')], range: 7, ammo: 'iron_arrows' }, [{ x: 15, y: 3 }, { x: 15, y: 4 }]);
+    x.sc.rng = rngOf(M, 6);
+    M.abilities.castAbilities(x.inst, x.sc);
+    return JSON.stringify(casts(x.sc)) === '["flame_volley"]' && v.tally.bought.plain_fire_rune === 1 && v.bag.iron_arrows.left === 27
+      ? null : 'Flame Volley did not cast on a store rune and three own arrows: ' + JSON.stringify([casts(x.sc), v.tally, v.bag.iron_arrows]);
   },
   /* AB-11: an action set skips abilities (Mana train: runes; Boss: area). */
   /* Hunter's Mark keeps its row's promise: the marked monster takes bonusPct more from every blow for durMs. */
@@ -184,6 +217,11 @@ const cases = {
 };
 
 const mutants = [
+  { name: 'the store is shut while another ammo line has uses (the starter-kit lock)', case: 'store-rune-beside-the-starter-kit',
+    edits: [['src/core/action-rules.js', "  return !!hs && (hs.supplySource === 'store' || hs.onEmpty === 'switch');",
+      "  return !!hs && (hs.supplySource === 'store' || (hs.onEmpty === 'switch' && !Object.keys(hs.bag || {}).some((id) => kindOf(id) === 'ammo' && leftOf(hs, id) > 0)));"]] },
+  { name: 'a rune slot buys the store rune without naming it', case: 'rune-own-then-store',
+    edits: [['src/core/hunt/abilities.js', "    const l = resolveLine(h.hs, row.rune, typeof store === 'string' ? store : null);", '    const l = resolveLine(h.hs, row.rune);']] },
   { name: 'the mark is drawn but adds nothing', case: 'mark-adds-damage',
     edits: [['src/core/hunt/damage.js', '    markPm ? Object.assign({}, ability, { mult: Math.floor((base * (1000 + markPm)) / 1000) }) : ability);', '    ability);']] },
   { name: 'the mark never wears off', case: 'mark-adds-damage',

@@ -53,7 +53,7 @@ const DISPLAY_TICK_MS = 250;
 const DRAG_SLOP_PX = 5;
 /* The DOM events a renderer may opt into with `.events` (click and change always reach `.act`). */
 const EXTRA_EVENTS = Object.freeze(['input', 'keydown', 'contextmenu', 'pointerdown', 'pointerup', 'pointercancel',
-  'dragstart', 'dragover', 'dragleave', 'drop', 'dragend', 'mouseover', 'mouseout']);
+  'dragstart', 'dragover', 'dragleave', 'drop', 'dragend', 'mouseover', 'mouseout', 'focusin']);
 
 /**
  * @param {HTMLElement} root   the World's box; the shell fills it

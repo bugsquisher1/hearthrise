@@ -585,9 +585,10 @@ async function loop1(S, M, tag, rows) {
   await step(4, 'the NPC prices food per use', async (t) => {
     /* Master plan rows 1-2 (hybrid supplies): the NPC sells a heal PER USE from
        a shop slot that shows its price; no counter sells cooked food below it. */
+    /* The store's cheapest heal per point (the bar slot picks the store food; no hunt tier does). */
     const basic = (await S.q(`select basic_id, heals, price from public.hr_hunt_basic_supplies
-                               where kind = 'heal' and 1 = any (tiers)`))[0];
-    t.ok(basic && num(basic.price) > 0 && num(basic.heals) > 0, `the server prices no tier-1 shop heal: ${brief(basic)}`);
+                               where kind = 'heal' order by price::numeric / heals, basic_id limit 1`))[0];
+    t.ok(basic && num(basic.price) > 0 && num(basic.heals) > 0, `the server prices no store heal: ${brief(basic)}`);
     const cheap = foodOffers(M).filter((o) => basic && o.gold / (o.amount * o.heals) < num(basic.price) / num(basic.heals));
     t.ok(cheap.length === 0, `a counter undercuts the shop heal: ${cheap.map((o) => o.id).join(', ')}`);
     t.note(`${basic && basic.basic_id}: ${basic && basic.heals} hp for ${basic && basic.price} g a use; ${foodOffers(M).length} counter food offer(s)`);

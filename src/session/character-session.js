@@ -476,9 +476,12 @@ export class CharacterSession {
     if (ans.ok && ans.body && ans.body.ok === true) { await this.load(); return { ok: true }; }
     const b = ans.body && typeof ans.body === 'object' ? ans.body : {};
     /* The server's validation detail (which slot, which condition, which field) goes back to the editor as sent. */
+    /* The item a refusal names (hr_apply's detail, one level down on an edge refusal): "Needs Defense 20". */
+    const d = b.detail && typeof b.detail === 'object' ? b.detail : {};
+    const item = [d.item_id, d.detail && d.detail.item_id, b.item_id].find((x) => typeof x === 'string' && ITEM.test(x)) || null;
     return { ok: false, error: (typeof b.error === 'string' && b.error) || ans.error || 'refused',
       slot: Number.isInteger(b.slot) ? b.slot : null, condition: Number.isInteger(b.condition) ? b.condition : null,
-      field: typeof b.field === 'string' ? b.field.slice(0, 32) : null };
+      field: typeof b.field === 'string' ? b.field.slice(0, 32) : null, item };
   }
 
   _answerFailed(ans) {

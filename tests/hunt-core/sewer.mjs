@@ -79,7 +79,7 @@ function session(M, p) {
       const b = M.basics.BASIC_INDEX[id];
       return [id, { kind: b.kind, price: b.price, heals: b.heals || 0, mana: b.mana || 0, partner: b.partner }];
     })),
-    shop: { heal: 'salted_shrimp', mana: 'thin_turnip_juice' }, purse: 1000000, goldFloor: 0, supplySource: 'mine', onEmpty: 'switch',
+    purse: 1000000, goldFloor: 0, supplySource: 'mine', onEmpty: 'switch',
   });
 }
 

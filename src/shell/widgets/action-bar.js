@@ -25,7 +25,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { BAR_SLOTS } from '../../data/hunt-hud.js?v=0.2.25';
 import { ABILITIES } from '../../data/abilities.js?v=0.2.25';
-import { CONSUME_KINDS, ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.25';
+import { ATTACK_KINDS } from '../../data/condition-metrics.js?v=0.2.25';
 import { huntOf, settingsOf, wireSlot } from '../../session/hunt-sections.js?v=0.2.25';
 import { bagOf } from '../../session/item-sections.js?v=0.2.25';
 import { text, cls, attr, element, keyedChild } from '../../render/paint.js?v=0.2.25';
@@ -34,7 +34,7 @@ import { glyphSvg } from '../launcher.js?v=0.2.25';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.25';
 import { actionIconHtml } from './bits.js?v=0.2.25';
 import { hubHtml, patchHub } from './vitals-hub.js?v=0.2.25';
-import { openSlot, sendPlan, movePlan, swapPlan, insertPlan, serverBar, barRefusalWords, answerWithin } from '../bar-draft.js?v=0.2.25';
+import { openSlot, sendPlan, movePlan, swapPlan, insertPlan, serverBar, answerWithin } from '../bar-draft.js?v=0.2.25';
 import { actionName, factsOf, carried, supplyLines, setupWords, conflictsOf, reasonOf, sharedCooldownOf } from '../action-facts.js?v=0.2.25';
 import { resetConfigureView } from '../windows/configure-action.js?v=0.2.25';
 import { assignToBar, barKind } from '../bar-assign.js?v=0.2.25';
@@ -45,7 +45,7 @@ import { targetOptionsHtml, stanceButtonsHtml, distanceHtml, goldFloorHtml, patc
 const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const SLOT_DRAG = 'application/x-hr-bar-slot';
 const LONG_PRESS_MS = 450;
-const KINDS = new Set(Object.keys(CONSUME_KINDS).concat(Object.keys(ATTACK_KINDS)));
+const KINDS = new Set(Object.keys(ATTACK_KINDS));
 const PRESS = new WeakMap();   // the bar element -> { timer, held }
 const DROP = new WeakMap();    // the bar element -> { from, to, off } while the drop menu is open
 const PANEL = new WeakMap();   // the bar element -> the open sheet's listener cleanup (phone)
@@ -135,7 +135,7 @@ function patchSlot(li, s, w, ctx, bag, conflict, why) {
     keyedChild(li.querySelector('.hb-slot-ico'), key, () => element(ctx.doc, actionIconHtml(ctx.glyphs, s.action)));
     attr(li, 'draggable', s.empty ? null : 'true');
   }
-  /* The count: the server's own count for a slot naming one item; a kind's (Any food) is its lines in the server's bag. */
+  /* The count: the server's own count for a slot naming one item (a store item has none); the loaded ammo's is the bag's. */
   const n = s.empty || s.action.type === 'ability' ? null : Number.isInteger(s.count) && !KINDS.has(s.action.id) ? s.count : carried(s.action, bag);
   /* WHY it cannot fire (action-facts.js reasonOf): struck when the server would not fire it, a glyph either way. */
   const out = !!why && why.strike;
@@ -234,7 +234,7 @@ function dropOnSlot(ctx, el, ev, t) {
   const id = ev.dataTransfer.getData(DRAG_TYPE);
   if (!barKind(id)) { text(msg, refusalWords('not_for_bar')); return true; }
   text(msg, 'Putting it on the bar…');
-  answerWithin(() => assignToBar(ctx.character, id, to)).then((r) => { text(msg, r.ok ? '' : r.error === 'timeout' ? barRefusalWords(r.error) : refusalWords(r.error)); repaint(); });
+  answerWithin(() => assignToBar(ctx.character, id, to)).then((r) => { text(msg, r.ok ? '' : refusalWords(r.error)); repaint(); });
   return true;
 }
 
@@ -244,7 +244,7 @@ function runDrop(ctx, el, plan) {
   const msg = el.querySelector('.hb-plaque .hh-intent-msg');
   text(msg, 'Moving it…');
   sendPlan(ctx.character, plan, () => renderActionBar.patch(el, ctx))
-    .then((r) => { text(msg, r.ok ? '' : barRefusalWords(r.error)); renderActionBar.patch(el, ctx); });
+    .then((r) => { text(msg, r.ok ? '' : refusalWords(r.error)); renderActionBar.patch(el, ctx); });
 }
 
 /* THE PANEL SHEET (phone): the bar keeps the set's name and its buttons; the rest slides out from the

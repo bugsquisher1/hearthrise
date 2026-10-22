@@ -298,9 +298,14 @@ const BASE_RECIPES = {
      catalogue MUST be applied before the client that offers the tile. `xp` and
      `ms` are NOT in hr_activities; they reach the server through the EDGE
      PAYLOAD, which imports this file (supabase/functions/hr-accrue/catalogue.js),
-     so hr-accrue must be redeployed at the same cut. */
+     so hr-accrue must be redeployed at the same cut.
+
+     BURY BONES IS FAST (designer 2026-10-21, from Andy live 10-21: "come back from a
+     few hours of hunt with like 700 bones; burying takes forever"): 1200 -> 400 ms,
+     paced x PACE.actionMs 1.6 = 640 ms a bone (was 1,920: 700 bones took 22.4 min,
+     now 7.5 min; an hour's 121 bones 77 s). Prayer XP per bone is unchanged. */
   prayer: [
-    {id:'bury_bones',     name:'Bury Bones',         icon:'🦴', input:'bones',         output:null, xp:PRAYER_BURY.recipeXp, req:1,  ms:1200},
+    {id:'bury_bones',     name:'Bury Bones',         icon:'🦴', input:'bones',         output:null, xp:PRAYER_BURY.recipeXp, req:1,  ms:400},
     {id:'bury_big',       name:'Bury Big Bones',     icon:'🦴', input:'big_bones',     output:null, xp:15,  req:15, ms:1500},
     {id:'bury_dragon',    name:'Bury Dragon Bones',  icon:'🦴', input:'dragon_bones',  output:null, xp:72,  req:35, ms:2000},
     {id:'bury_bone_chips',        name:'Sift Bone Chips',          icon:'🦴',  input:'bone_chips',   output:null, xp:105,  req:40, ms:2200},

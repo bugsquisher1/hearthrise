@@ -301,7 +301,7 @@ cases['first-grounds-net-chain'] = async (M) => {
 
 const mutants = [
   { name: 'the Thicket wolves hit like a Sewer spider (atk 4 -> 13)', case: 'thicket-solo-starter-kit',
-    edits: [['src/data/monsters.js', 'hp: 14, atk: 4, def: 1, xp: 52, gp: [2, 5], speed: 4200,', 'hp: 14, atk: 13, def: 1, xp: 52, gp: [2, 5], speed: 4200,']] },
+    edits: [['src/data/monsters.js', 'hp: 14, atk: 4, def: 1, xp: 52, gp: [3, 5], speed: 4200,', 'hp: 14, atk: 13, def: 1, xp: 52, gp: [3, 5], speed: 4200,']] },
   /* The whole Sewer roster's coin back to its pre-x1.8 rows (the drop-tables play mutant's /1.8): the party nets under the Thicket. */
   { name: 'the Sewer coin back to its pre-x1.8 rows (the party nets under the Thicket)', case: 'first-grounds-net-chain',
     edits: [['src/data/monsters.js', 'hp: 45, atk: 5, def: 0, xp: 154, gp: [4, 18]', 'hp: 45, atk: 5, def: 0, xp: 154, gp: [2, 10]'],

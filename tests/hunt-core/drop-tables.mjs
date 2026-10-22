@@ -310,8 +310,14 @@ const playMutants = [
 ];
 /* The caster floor's levers live in src/data the engine imports: each mutant plays on a planted copy. */
 const casterMutants = [
+  /* Every store drink back (the bar's default buys the cheapest per point of them all, not one tier's). */
   { name: 'the drinks back to the old grain (a tier-1 drink 6-8 mana)', edits: [
-    ['src/data/supply-basics.js', "'turnip_juice', 72, 10, [1]", "'turnip_juice', 6, 10, [1]"],
+    ['src/data/supply-basics.js', "'turnip_juice', 72, 10)", "'turnip_juice', 6, 10)"],
+    ['src/data/supply-basics.js', "'carrot_juice', 120, 18)", "'carrot_juice', 10, 18)"],
+    ['src/data/supply-basics.js', "'tomato_juice', 216, 45)", "'tomato_juice', 18, 45)"],
+    ['src/data/supply-basics.js', "'pumpkin_cider', 288, 80)", "'pumpkin_cider', 24, 80)"],
+    ['src/data/supply-basics.js', "'goldenroot_tea', 396, 138)", "'goldenroot_tea', 33, 138)"],
+    ['src/data/supply-basics.js', "'emberfruit_cordial', 480, 233)", "'emberfruit_cordial', 40, 233)"],
     ['src/data/drinks.js', "v: 6, mana: 96 ", "v: 6, mana: 8 "]] },
   { name: 'Fireball spends a Fire Rune again (the Mage casts nothing)', edits: [
     ['src/data/abilities.js', "id: 'fireball', n: 'Fireball', disciplines: ['destruction'], lane: 'offense', cdMs: 8000, mana: 25,",

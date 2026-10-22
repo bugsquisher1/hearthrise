@@ -50,13 +50,8 @@ export async function loadPlay(root) {
   };
   const basics = {};
   for (const b of SB.BASIC_SUPPLIES) basics[b.id] = { kind: b.kind, price: b.price, heals: b.heals || 0, mana: b.mana || 0, partner: b.partner };
-  /* THE STORE ROW THE SERVER CHARGES: the hunt's tier (hr_hunt_travel.tier = supplies.js BAG_GUIDE_BY_HUNT,
-     tools/gen-hunt-sessions.mjs) picks the basic heal and drink, so the Warrens' bill is tier-4 food. */
-  const { BAG_GUIDE_BY_HUNT } = await import(u('src/data/supplies.js'));
-  const shopOf = (huntId) => {
-    const tier = (BAG_GUIDE_BY_HUNT[huntId] || {}).tier || 1;
-    return { heal: SB.basicFor('heal', tier).id, mana: SB.basicFor('mana', tier).id };
-  };
+  /* THE STORE: every catalogue row; the bar's slots pick the row a use buys (Tyler 2026-10-19), with no
+     choice the cheapest that covers what the hero is missing (action-rules.js storeFor). */
   /* gear by level, the smiths' ladder a player at that level wears */
   const kit = (L, role) => {
     const t = L < 15 ? 0 : L < 30 ? 1 : L < 45 ? 2 : 3;
@@ -89,7 +84,7 @@ export async function loadPlay(root) {
     return {
       key: role + i, user: role + i, slot: 0, seat: i, unitId: null, sessionId: 's-' + role + i, version: 1, huntId,
       huntSession: { id: 's-' + role + i, instanceId: IID, huntFromMs: T0, nextSwingAtMs: T0, swingIndex: 0, bag: role === 'ranger' ? { bronze_arrows: { loaded: 1 } } : {},
-        staminaMs: 12 * 3600000, staminaMaxMs: 12 * 3600000, basics, shop: shopOf(huntId), goldFloor: 0, supplySource: 'mine', onEmpty: 'switch', cover: {} },
+        staminaMs: 12 * 3600000, staminaMaxMs: 12 * 3600000, basics, goldFloor: 0, supplySource: 'mine', onEmpty: 'switch', cover: {} },
       skills, levelXp: XP.charXpForLevel(L), xpFrac: null, hp: 1e9, gold: 50000, equipment,
       inventory: {}, deathsTodayBefore: 0, deathsLifetimeBefore: 0, hearthfindReady: false, perks: null,
       hero: SPAWN.heroSetup({ weaponType: roleWeaponOf(ITEMS[equipment.weapon]), options: role === 'healer' ? { role: 'healer' } : {}, bar: [], partyRoles: roles }),

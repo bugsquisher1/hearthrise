@@ -17,6 +17,10 @@
 //       delta.xp_frac, carried across windows (a 0.5 carried in makes 3 bones
 //       pay 47.3 -> 47 r 0.3, not 46)
 //
+//   B3  BURYING KEEPS UP WITH A HUNT (Andy live 10-21: "700 bones after a few
+//       hours, burying takes forever"; designer 2026-10-21: 400 ms authored):
+//       700 bones bury in one 8-minute window of the real accrual, all of them
+//
 //   node tests/bury-rate.mjs            run
 //   node tests/bury-rate.mjs --mutate   each planted defect must turn a claim red
 // ════════════════════════════════════════════════════════════════════════
@@ -44,9 +48,8 @@ async function load(root) {
   };
 }
 
-/* One artisan window burying `n` bones (the window is long enough for exactly n, the bag holds n). */
-function bury(M, n, frac) {
-  const ms = 3600000;
+/* One artisan window burying `n` bones (the bag holds n; the window is an hour, or `ms`). */
+function bury(M, n, frac, ms = 3600000) {
   return M.AC.computeAccrual({
     userId: UID, slot: 0, nowMs: FROM + ms, accruedToMs: FROM, activeSinceMs: FROM,
     activeKind: 'artisan', activeId: 'bury_bones', capMs: 12 * 3600000, seed: 7,
@@ -84,9 +87,16 @@ const CLAIMS = {
     }
     return out;
   },
+  B3: (M) => {
+    const r = bury(M, 700, undefined, 8 * 60000);
+    const got = r && r.delta && r.delta.items ? -(r.delta.items.bones || 0) : 0;
+    return got === 700 ? [] : [`an 8-minute window buried ${got} of 700 bones (${r && (r.reason || r.skip)}): burying cannot keep up with a hunt's bones`];
+  },
 };
 
 const MUTANTS = [
+  { claim: 'B3', name: 'Bury Bones back at 1,200 ms (700 bones in 22 minutes)', file: 'src/data/recipes.js',
+    from: "output:null, xp:PRAYER_BURY.recipeXp, req:1,  ms:400},", to: "output:null, xp:PRAYER_BURY.recipeXp, req:1,  ms:1200}," },
   { claim: 'B2', name: 'Prayer leaves the dial (a bone pays 40, the authored pre-dial value)', file: 'src/core/pacing.js',
     from: "'magic', 'defense'];", to: "'magic', 'defense', 'prayer'];" },
   { claim: 'B2', name: 'the remainder is dropped (per-grant floor)', file: 'src/core/progression.js',

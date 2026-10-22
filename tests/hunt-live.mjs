@@ -45,6 +45,10 @@
 //         changed while the hunt runs reach the server's next commit (the hero unit carries them);
 //         every start point keeps one setup until it changes (live-engine.js sameSetup: no restart
 //         per commit) and names the new one after (the viewed half: tests/hunt-scene-live.mjs LV-14).
+//   LV-$  THE PLAYER'S STORE FOOD (Tyler 2026-10-19: the bar slot picks the store item,
+//         never the hunt): a tank with no food of its own and an "Any food" slot naming
+//         Salted Trout buys Salted Trout and nothing else, on the server's commits (the
+//         browser closed) and in the browser's prediction (viewed), every commit matching.
 //   LV-R  RECONCILE: a prediction forced off the server's world is judged
 //         `diverged` at the next commit, and the reseed eases every unit onto its true
 //         tile with no frame moving a unit more than one tile.
@@ -92,7 +96,7 @@ function memberOf(M, user, seat, role, level) {
   return {
     key: user + ':0', user, slot: 0, seat, unitId: null, sessionId: 's-' + user, version: 1, huntId: 'mill_cellar',
     huntSession: { id: 's-' + user, instanceId: 'i-live', huntFromMs: T0, nextSwingAtMs: T0, swingIndex: 0, bag: { cooked_shrimp: { loaded: 30, left: 30, essential: true } },
-      staminaMs: 8 * 3600000, staminaMaxMs: 8 * 3600000, basics, shop: { heal: M.SB.basicFor('heal', 1).id, mana: M.SB.basicFor('mana', 1).id },
+      staminaMs: 8 * 3600000, staminaMaxMs: 8 * 3600000, basics,
       goldFloor: 0, supplySource: 'mine', onEmpty: 'switch', cover: {} },
     skills: { melee: M.XP.skillXpForLevel('melee', L), defense: M.XP.skillXpForLevel('defense', L), ranged: M.XP.skillXpForLevel('ranged', L), magic: 0, prayer: 0 },
     levelXp: M.XP.charXpForLevel(L), xpFrac: null, hp: 1e6, gold: 500, equipment: { weapon }, inventory: {}, buffs: [], perks: null,
@@ -544,6 +548,27 @@ function rules(M) {
     ok('LV-R', eased > 0, 'the reseed eased no unit onto the server\'s world');
     ok('LV-R', maxStep < 0.5, `a frame moved a unit ${maxStep.toFixed(2)} tiles during the reconcile (budget: under half a tile; a teleport is >= 1)`);
   }
+  { /* LV-$ the slot ORDER is the fallback, viewed and with the browser closed */
+    const mi = memberOf(M, 'a', 0, 'tank', 6);
+    mi.huntSession = Object.assign({}, mi.huntSession, { bag: { cooked_shrimp: { loaded: 3, left: 3, essential: true } } });
+    const at95 = [{ metric: 'self_hp_pct', op: 'lt', value: 95 }];
+    mi.hero = M.SPAWN.heroSetup({ weaponType: 'sword', options: {}, partyRoles: ['tank'],
+      bar: [{ action: { type: 'consume', id: 'cooked_shrimp' }, conditions: at95, join: 'and' },
+        { action: { type: 'consume', id: 'salted_trout' }, conditions: at95, join: 'and' }] });
+    const r = run(M, [mi], 160000);
+    const meals = (evs) => evs.filter((e) => e.type === 'eat').map((e) => e.item + ':' + e.source);
+    const dry = (evs) => evs.filter((e) => e.type === 'slot_dry').map((e) => [e.item, e.next, e.slot].join(','));
+    const closedEvs = r.verdicts.flatMap((x) => x.tl.hunt_events);
+    const closed = meals(closedEvs), viewed = meals(r.fed.events);
+    const bad = r.verdicts.filter((x) => x.v !== 'match');
+    const order = (m) => { const k = m.findIndex((x) => x !== 'cooked_shrimp:own'); return k === 3 && m.slice(3).every((x) => x === 'salted_trout:store'); };
+    console.log(`  LV-$: the server ate ${closed.length} meal(s) [${[...new Set(closed)].join(', ')}], the browser predicted ${viewed.length}; run-out ${JSON.stringify(dry(closedEvs))}; ${bad.length} of ${r.verdicts.length} commits off`);
+    ok('LV-$', closed.length > 3, 'CONTROL: the tank ate ' + closed.length + ' meal(s) in 160 s, not past its 3 own shrimp');
+    ok('LV-$', order(closed), 'browser closed: slot 1 (3 own shrimp) then slot 2 (Salted Trout) did not fire in order: ' + JSON.stringify(closed));
+    ok('LV-$', order(viewed), 'viewed: the browser predicted ' + JSON.stringify(viewed));
+    ok('LV-$', JSON.stringify(dry(closedEvs)) === JSON.stringify(['cooked_shrimp,salted_trout,2']), 'the server\'s run-out event read ' + JSON.stringify(dry(closedEvs)) + ', want slot 2 (Salted Trout) taking over');
+    ok('LV-$', bad.length === 0, bad.length + ' commit(s) did not match the prediction');
+  }
   return fails;
 }
 const sorted = (o) => Object.fromEntries(Object.entries(o).sort());
@@ -572,6 +597,9 @@ const MUTANTS = [
   ['members run in another order than the server (LV-D)', 'src/hunt-view/live-engine.js', '.slice().sort((a, b) => (a.key < b.key ? -1 : 1))', '.slice().reverse()', /^LV-D/],
   ['a setup change is not written onto a standing hero (LV-S)', 'src/core/combat-sim.js', 'if (s.stance !== undefined) u.stance = s.stance;', 'void 0;', /^LV-S/],
   ['every start point reads as the setup already run (LV-S)', 'src/hunt-view/live-engine.js', 'setupOf(live) === st.setup,', 'true,', /^LV-S/],
+  ['an empty own slot buys its store partner instead of falling to slot 2 (LV-$)', 'src/core/action-rules.js',
+    "  if (c && c.source === 'own') return leftOf(hs, want) > 0 ? { id: want, source: 'own', price: 0 } : { why: 'none' };",
+    "  if (c && c.source === 'own' && !(leftOf(hs, want) > 0) && shopShotFor(hs, want)) return { id: shopShotFor(hs, want).id, source: 'store', price: shopShotFor(hs, want).price };\n  if (c && c.source === 'own') return leftOf(hs, want) > 0 ? { id: want, source: 'own', price: 0 } : { why: 'none' };", /^LV-\$/],
   ['the browser drops the leader flag of a peer (LV-K)', 'src/core/member.js', '    hero: f.hero || {},', '    hero: Object.assign({}, f.hero, { lead: false }),', /^LV-K/],
 ];
 

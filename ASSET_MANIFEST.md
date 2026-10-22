@@ -85,12 +85,13 @@ armour line), then snapped in Lab to the palette (metal tiers to their own ramp)
 
 ### Shop supply icons, drinks, practice kit, Cleave (2026-10-21, Asset Director)
 Drawn with the pixel scripts (no PixelLab credits spent), on the locked palette, 32x32, dark outline, light from the upper left.
-- `pixel/supplies/<id>.png`: one per `BASIC_SUPPLIES` row (src/data/supply-basics.js), 18 files. Not items, so not under
+- `pixel/supplies/<id>.png`: one per `BASIC_SUPPLIES` row (src/data/supply-basics.js), 19 files. Not items, so not under
   `items/`. Wired by `SUPPLY_DIR` (item-art.js) and `itemIconHtml`/`actionIconHtml` (src/shell/widgets/bits.js).
   Salted food = its cooked partner's silhouette cured to a pale tan with a salt rim and crystals (reads as a different dish
   beside the cooked one). Thin drinks = one plain wooden mug, liquid colour per tier, N carved tally notches for tier N
   (a non-colour cue). Plain ammo = unstained ash shaft, two bone-white vanes, a bare head in its partner's metal.
-  There are no basic runes (supply-basics.js: the per-swing rune ladder was retired), so no plain-rune icons exist.
+  Plain Fire Rune (2026-10-21, systems lane b-supplies-bury, for the Asset Director to review): the Fire Rune's tile
+  with its blood/cloth/gold glyph remapped to the earth ramp, an unlit carved flame (palette-legal, derived by script).
 - The six crafted drinks (`turnip_juice` .. `emberfruit_cordial`) were one jar recoloured; each is now its own vessel
   (flask, bottle, jar, jug, teacup, decanter) with a small ingredient cue. `moonbloom_elixir` keeps the original jar.
 - Seven practice-kit items (`practice_sword/hatchets/club/bow/wand/staff/spellbook`) were byte-identical to tier-1

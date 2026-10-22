@@ -189,10 +189,9 @@ export function huntSessionFromRead(h, instanceId) {
        database's own hr_stamina_of / hr_stamina_cap, never a client value. */
     staminaMs: num(h.stamina_ms),
     staminaMaxMs: num(h.stamina_max_ms),
-    /* THE STORE (hr_hunt_basic_supplies) and the ids this hunt's tier resolves
-       food and drink to — catalogue rows; newHuntSession keeps well-formed ones. */
+    /* THE STORE (hr_hunt_basic_supplies) — catalogue rows; newHuntSession keeps
+       well-formed ones. The hero's bar slots choose the row a use buys. */
     basics: (h.basics && typeof h.basics === 'object') ? h.basics : {},
-    shop: (h.shop && typeof h.shop === 'object') ? h.shop : {},
     /* THE HERO'S SUPPLY SETTING, gold floor and the loot sell-to-cover may sell. */
     goldFloor: num(h.gold_floor),
     supplySource: typeof h.supply_source === 'string' ? h.supply_source : null,

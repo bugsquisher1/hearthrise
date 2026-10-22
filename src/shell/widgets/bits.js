@@ -37,7 +37,7 @@ const spelled = (id) => { const t = String(id).replace(/_/g, ' '); return t.char
 
 /** An item's player-facing name (the catalogue's), or the id spelled out. */
 export function itemName(id) {
-  const it = ITEMS[id] || DRINK_ITEMS[id];
+  const it = ITEMS[id] || DRINK_ITEMS[id] || BASIC_INDEX[id];
   return it && it.n ? it.n : spelled(id);
 }
 
@@ -59,7 +59,7 @@ export function itemIconHtml(glyphs, id, fallback) {
 }
 
 /* A glyph for an ability with no pixel tile yet, and for the slot kinds that name no one item. */
-const ACTION_GLYPH = Object.freeze({ rend: 'uiBone', food: 'uiFood', drink: 'uiPotion', loaded: 'uiArrow' });
+const ACTION_GLYPH = Object.freeze({ rend: 'uiBone', loaded: 'uiArrow' });
 
 /** A bar action's 32 px icon: the ability's pixel tile, the item's pixel icon, else a glyph. */
 export function actionIconHtml(glyphs, action) {

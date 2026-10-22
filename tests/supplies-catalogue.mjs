@@ -23,9 +23,11 @@
 //      gives 3/4 of the partner's heal or mana (an arrow: 3/4 of its ammo bonus,
 //      applied per shot by the engine), and costs more per point or per shot
 //      than the partner's book value
-//   B2 every crafted ARROW from tier 2 up has a shop version, NO rune has one
-//      (the rune system is being replaced — designer review K10, 2026-10-15),
-//      and every monster tier has exactly one shop heal and one shop drink
+//   B2 every crafted ARROW from tier 2 up has a shop version; a RUNE has one
+//      exactly when an active ability spends it (designer 2026-10-21: Plain
+//      Fire Rune; Tyler 10-15 "runes and ammo: carried first, then the store");
+//      no store row names a hunt tier (Tyler 2026-10-19: the player's slot picks
+//      the store item, never the hunt)
 //   L1 ONE food-and-drink cooldown at 2 s (Tyler 2026-10-19, consumables.js
 //      laneMs, the one source); the ability lanes are abilities.js's
 //   B4 no GOLD offer on a counter (src/data/shops.js) sells a heal or a drink
@@ -56,12 +58,12 @@ import {
   SUPPLY_KINDS, COMBAT_BUFF_TYPES, IDLE_BUFF_TYPES, SUPPLY_ROWS, MANA_SUPPLY_ROWS, SUPPLIES, HEAL_ORDER,
   supplyKindOf, BAG_TARGET_HOURS, BAG_GUIDE_BY_HUNT, BAG_GUIDE_BY_TIER, bagGuideFor,
 } from '../src/data/supplies.js';
-import { BASIC_SUPPLIES, BASIC_INDEX, BASIC_EFFECT_SHARE, BASIC_AMMO_PREMIUM, basicFor } from '../src/data/supply-basics.js';
+import { BASIC_SUPPLIES, BASIC_EFFECT_SHARE, BASIC_AMMO_PREMIUM } from '../src/data/supply-basics.js';
 import { FOOD_HEAL_SCALE } from '../src/data/core-model.js';
 import { DRINK_ITEMS, DRINK_RECIPES, DRINK_DESC } from '../src/data/drinks.js';
 import { TARGET_MODES, HUNT_STANCES, ROLE_DEFAULTS, ACTION_SET_LIMITS } from '../src/data/rule-subjects.js';
 import { CONSUMABLE_RULES } from '../src/data/consumables.js';
-import { ABILITY_LANES } from '../src/data/abilities.js';
+import { ABILITY_LANES, ABILITIES } from '../src/data/abilities.js';
 import {
   SUPPLY_SOURCE, ON_EMPTY, SESSION_LIMITS, END_ORDER, END_CARD_COPY, END_REASON_COPY, TIMELINE_COPY, EVENT_COPY,
 } from '../src/data/hunt-sessions.js';
@@ -186,7 +188,8 @@ function checkBasics(d, f) {
       if (b[key] !== S * Math.floor((p[key] / S) * BASIC_EFFECT_SHARE) || !(b[key] < p[key])) f('B1', `'${b.id}' gives ${b[key]}, not ${BASIC_EFFECT_SHARE} of '${b.partner}' (${p[key]})`);
       if (!(b.price / b[key] > partnerUnit(p, b.kind))) f('B1', `'${b.id}' costs ${(b.price / b[key]).toFixed(1)} g a point, not more than '${b.partner}' at ${partnerUnit(p, b.kind).toFixed(1)}`);
     } else {
-      if (!(p.tier >= 2) || p.reqSkill !== 'ranged') f('B1', `'${b.id}' partner '${b.partner}' is not a tier-2+ arrow`);
+      const abilityRune = p.reqSkill === 'magic' && d.runesSpent.has(b.partner);
+      if (!abilityRune && (!(p.tier >= 2) || p.reqSkill !== 'ranged')) f('B1', `'${b.id}' partner '${b.partner}' is not a tier-2+ arrow or a rune an ability spends`);
       if (b.price < BASIC_AMMO_PREMIUM * partnerUnit(p, 'ammo')) f('B1', `'${b.id}' costs ${b.price} g a shot, under ${BASIC_AMMO_PREMIUM}x '${b.partner}'`);
     }
   }
@@ -196,14 +199,11 @@ function checkBasics(d, f) {
   for (const [kind, id] of d.rows) {
     const it = d.items[id] || {};
     if (kind === 'ammo' && it.reqSkill === 'ranged' && it.tier >= 2 && !partnered.has(id)) f('B2', `crafted arrow '${id}' (tier ${it.tier}) has no shop version`);
-    if (kind === 'ammo' && it.reqSkill === 'magic' && partnered.has(id)) f('B2', `rune '${id}' has a shop version — the rune ladder is being replaced, none ships`);
+    if (kind === 'ammo' && it.reqSkill === 'magic' && partnered.has(id) && !d.runesSpent.has(id)) f('B2', `rune '${id}' has a shop version, but no active ability spends it`);
+    if (kind === 'ammo' && it.reqSkill === 'magic' && d.runesSpent.has(id) && !partnered.has(id)) f('B2', `rune '${id}' is spent by an ability and has no shop version: the ability cannot cast once the carried runes are gone`);
   }
-  const tiers = [...new Set(Object.values(MONSTERS).map((m) => m.tier).filter(Boolean))];
+  for (const b of d.basics) if ('tiers' in b || 'tier' in b) f('B2', `store row '${b.id}' names a hunt tier: the slot picks the store item, never the hunt`);
   for (const k of ['heal', 'mana']) {
-    for (const t of tiers) {
-      const n = d.basics.filter((b) => b.kind === k && b.tiers.includes(t)).length;
-      if (n !== 1) f('B2', `tier ${t} has ${n} shop ${k} rows, not exactly one`);
-    }
     const key = k === 'heal' ? 'heals' : 'mana';
     const ladder = d.basics.filter((b) => b.kind === k).sort((a, b) => a[key] - b[key]);
     for (let i = 1; i < ladder.length; i++) {
@@ -223,8 +223,10 @@ function checkBasics(d, f) {
       for (const [kind, key] of [['heal', 'heals'], ['mana', 'mana']]) {
         const pts = Number(it[key]) || 0;
         if (!(pts > 0)) continue;
+        /* Its own store row, else the store's cheapest per point of that kind (the floor a counter must not undercut). */
+        const per = (b) => b.price / b[key];
         const basic = d.basics.find((b) => b.kind === kind && b.partner === g.id)
-          || d.basics.find((b) => b.kind === kind && b.tiers.includes(Number(it.foodTier) || 1));
+          || d.basics.filter((b) => b.kind === kind).sort((a, b) => per(a) - per(b))[0];
         if (!basic) { f('B4', `${o.id} sells ${g.id} (${kind}) and no shop ${kind} prices its tier`); continue; }
         const offerPer = gold / (g.amount * pts);
         const basicPer = basic.price / basic[key];
@@ -232,7 +234,6 @@ function checkBasics(d, f) {
       }
     }
   }
-  if (d.checkValues && (basicFor('heal', 1) !== BASIC_INDEX.salted_shrimp || basicFor('mana', 6) !== BASIC_INDEX.thin_emberfruit_cordial)) f('B2', 'basicFor does not resolve a tier to its shop row');
 }
 
 function checkRules(d, f) {
@@ -330,6 +331,7 @@ const REAL = () => ({
   rows: SUPPLY_ROWS, items: ITEMS, drinks: DRINK_ITEMS, drinkRecipes: DRINK_RECIPES, basics: BASIC_SUPPLIES,
   combatBuffs: COMBAT_BUFF_TYPES, targets: TARGET_MODES, consumable: CONSUMABLE_RULES, supply: SUPPLY_SOURCE, onEmpty: ON_EMPTY,
   hunts: HUNTS, guides: BAG_GUIDE_BY_HUNT,
+  runesSpent: new Set(Object.values(ABILITIES).filter((a) => a.active && a.rune).map((a) => a.rune)),
   limits: SESSION_LIMITS, endOrder: END_ORDER, endCopy: END_REASON_COPY, checkValues: true, offers: SHOP_OFFERS,
 });
 
@@ -349,8 +351,9 @@ function selftest() {
     ['B1', 'a shop supply that is also an item', (d) => { withBasic(d, 'salted_shrimp', { id: 'cooked_trout' }); }],
     ['B1', 'a shop arrow under twice the crafted arrow per shot', (d) => { withBasic(d, 'plain_mithril_arrows', { price: 4 }); }],
     ['B2', 'a crafted arrow with no shop version', (d) => { d.basics = d.basics.filter((b) => b.id !== 'plain_dawnpoint_arrows'); }],
-    ['B2', 'a shop rune ships again', (d) => { d.basics = d.basics.concat([{ id: 'plain_fire_rune', kind: 'ammo', n: 'Plain Fire Rune', partner: 'fire_rune', price: 24, tiers: [] }]); }],
-    ['B2', 'a monster tier with no shop drink', (d) => { d.basics = d.basics.filter((b) => b.id !== 'thin_emberfruit_cordial'); }],
+    ['B2', 'a shop rune no ability spends', (d) => { d.basics = d.basics.concat([{ id: 'plain_earth_rune', kind: 'ammo', n: 'Plain Earth Rune', partner: 'earth_rune', price: 24 }]); }],
+    ['B2', 'Flame Strike\'s rune with no store row (live 10-21: Flame Strike unusable)', (d) => { d.basics = d.basics.filter((b) => b.id !== 'plain_fire_rune'); }],
+    ['B2', 'a store food served by hunt tier again', (d) => { withBasic(d, 'salted_shrimp', { tiers: [1] }); }],
     ['B4', 'the Counter sells Cooked Shrimp again (seed.cooked_shrimp, 50 g for 5: 1.25 g a point under the 2.3 g Salted Shrimp)', (d) => {
       d.offers = [...d.offers, { id: 'seed.cooked_shrimp', table: 'seed',
         cost: [{ kind: 'currency', id: 'gold', amount: 50 }], grant: [{ kind: 'item', id: 'cooked_shrimp', amount: 5 }] }];

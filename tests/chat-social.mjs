@@ -22,6 +22,11 @@
 //         body, nothing about the sender; the line shows only from the answer
 //   CL-3  CHANNELS ARE THE SERVER'S: the client listens to exactly global, system and
 //         the zone and party hr_chat_recent named; Party shows only in a party
+//   CL-4  HISTORY IS THE SERVER'S WINDOW (2026-11-19-chat-stream-safe.sql): every
+//         re-read REPLACES the server tabs with exactly the lines hr_chat_recent
+//         returned (a line older than the server's floor leaves the window), and a
+//         body renders as the server sent it (a masked word stays stars; the
+//         client never filters, restores or re-words a line)
 //   UN-1  UNREAD: a pushed line on a tab not on screen counts; on screen it does
 //         not; a window that stopped painting is not on screen
 //   WH-1  A WHISPER opens its conversation with an unread count; sending is ONE
@@ -149,8 +154,12 @@ async function pureRules(M) {
     if (!r.ok || chat.lines('global').length !== 2) fail('CL-2 the answered line did not show');
     // party → re-read → listen
     rec.party = { id: 'dddddddd-0000-4000-8000-0000000000c1', self_seat: 0, leader_seat: 0, members: [{ seat: 0, name: 'Me', weapon: 'sword' }] };
-    answers.hr_chat_recent = { ok: true, zone: 'local:town', party: PARTY, lines: [] };
+    answers.hr_chat_recent = { ok: true, zone: 'local:town', party: PARTY, lines: [row({ body: 'what the ***** happened [[item:bronze_sword]]' })] };
     await chat.refresh();
+    // CL-4
+    const win = chat.lines('global');
+    if (win.length !== 1 || win[0].parts.map((x) => x.text || '[' + x.item + ']').join('') !== 'what the ***** happened [bronze_sword]')
+      fail('CL-4 the window after a re-read is not the server lines: ' + JSON.stringify(win.map((x) => x.parts)));
     if (!chat.shows('party') || (rt.chats[rt.chats.length - 1] || []).join(',') !== 'global,system,local:town,' + PARTY) fail('CL-3 a party did not add the party channel: ' + JSON.stringify(rt.chats[rt.chats.length - 1]));
     // UN-1
     chat.view('global', true);
@@ -468,6 +477,7 @@ const PURE_MUTANTS = [
   ['the online ask names only the viewed character', 'src/social/social-session.js',
     "o.account.characters().map((cs) => cs.slot)", '[o.account.viewed]'],
   ['the ground opens a menu', 'src/shell/menu-providers.js', "    if (MONSTERS[mon]) return { kind: 'monster', id: mon, title: monsterName(mon) };", "    return { kind: 'monster', id: mon, title: String(mon) };"],
+  ['a re-read keeps lines the server no longer returns', 'src/social/chat-store.js', "const keep = tab === 'system' ? this.lines(tab).filter((l) => l.system) : [];", 'const keep = this.lines(tab);'],
 ];
 const PAGE_MUTANTS = [
   ['the level is dropped from a line', 'src/shell/windows/chat.js', "(l.level !== null ? esc(l.level) : '')", "''"],

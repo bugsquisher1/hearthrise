@@ -80,6 +80,8 @@
     "node tools/mutant-gate.mjs node tests/hunt-sessions-db.mjs --mutate": "db-replay-4",
     "node tests/name-moderation.mjs": "db-replay-4",
     "node tools/mutant-gate.mjs node tests/name-moderation.mjs --mutate": "db-replay-4",
+    "node tests/chat-stream-safe.mjs": "db-replay-4",
+    "node tools/mutant-gate.mjs node tests/chat-stream-safe.mjs --mutate": "db-replay-4",
     "node tests/hero-creation.mjs": "db-replay-4",
     "node tools/mutant-gate.mjs node tests/hero-creation.mjs --mutate": "db-replay-4",
     "node tests/restore-census.mjs": "db-replay-2",

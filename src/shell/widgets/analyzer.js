@@ -107,7 +107,12 @@ function patchList(ul, items, key, fill, ctx) {
 function patchView(root, v, ctx, premium) {
   for (const s of SECTIONS) {
     const sec = root.querySelector('[data-sec="' + s.id + '"]');
-    if (!premium && premiumTab(s.tab)) continue;
+    /* A free character's premium sections hold nothing: written empty, so a hero that lost premium keeps no old figure. */
+    if (!premium && premiumTab(s.tab)) {
+      if (s.stats) for (const dd of sec.querySelectorAll('dd')) text(dd, '');
+      else patchList(sec.querySelector('.ha-list'), [], (it) => it, () => {}, ctx);
+      continue;
+    }
     if (s.stats) {
       for (const [k, , fmt, from] of s.stats) {
         const dd = sec.querySelector('[data-stat="' + statId(k, from) + '"]');

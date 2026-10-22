@@ -295,8 +295,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const a = FIXTURE.hunt_analyzer.hero;
         const got = await page.evaluate(() => Object.fromEntries(Array.from(document.querySelectorAll('[data-sec="totals"] dd')).map((d) => [d.getAttribute('data-stat'), d.textContent])));
         const n = (v) => v.toLocaleString('en-US');
-        const xpSum = Object.values(a.xp).reduce((x, y) => x + y, 0); /* the server sends XP per skill */
-        const want = { kills: n(a.kills), xp: n(xpSum), gold: n(a.gold) + ' gp', waste: n(a.waste) + ' gp', balance: n(a.balance) + ' gp' };
+        /* The server sends XP per key: the Level's under level, each skill's under its id. The Session block shows LEVEL XP
+           alone, never Level plus training (Tyler 2026-10-22); the fixture trains two skills, so a sum would show. */
+        const want = { kills: n(a.kills), levelXp: n(a.xp.level), gold: n(a.gold) + ' gp', waste: n(a.waste) + ' gp', balance: n(a.balance) + ' gp' };
         for (const k of Object.keys(want)) if (got[k] !== want[k]) fails.push('HS-4 analyzer ' + k + ' shows "' + got[k] + '"; the server sent ' + want[k]);
         /* Tracker r44: Next level in is the LEVEL's eta (1.5 h), not a skill's: the fixture's maxed Melee carries eta_h 0 and used to pin it at 00:00:00. */
         const nextClock = await page.evaluate(() => { const el = document.querySelector('.ha-analyzer [data-clock="next"]'); return el && el.textContent; });
@@ -548,10 +549,12 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           const shown = (el) => !!el && el.getClientRects().length > 0;
           const stat = (sec, k) => p.querySelector('[data-sec="' + sec + '"] [data-stat="' + k + '"]');
           return {
-            basic: [['totals', 'kills'], ['totals', 'xp'], ['totals', 'gold'], ['totals', 'balance'], ['rates', 'xp'], ['rates', 'gold']].map(([a, k]) => shown(stat(a, k)) && /\d/.test(stat(a, k).textContent)),
-            premium: [['totals', 'waste'], ['rates', 'rawXp'], ['rates', 'waste']].map(([a, k]) => shown(stat(a, k)) || /\d/.test(stat(a, k).textContent))
+            basic: [['totals', 'kills'], ['totals', 'levelXp'], ['totals', 'gold'], ['totals', 'balance'], ['rates', 'perHour.levelXp'], ['rates', 'perHour.gold']].map(([a, k]) => shown(stat(a, k)) && /\d/.test(stat(a, k).textContent)),
+            /* Training XP is premium's own tab (Tyler 2026-10-22): a free character sees neither the tab nor a training number. */
+            premium: [['totals', 'waste'], ['rates', 'perHour.rawLevelXp'], ['rates', 'perHour.waste'], ['training', 'trainingXp'], ['training', 'perHour.trainingXp']].map(([a, k]) => shown(stat(a, k)) || /\d/.test(stat(a, k).textContent))
               .concat([shown(p.querySelector('[data-clock="next"]')), /\d/.test(p.querySelector('[data-clock="next"]').textContent),
-                shown(p.querySelector('.ha-tab[data-tab="taken"]')), shown(p.querySelector('.ha-tab[data-tab="dealt"]')), shown(p.querySelector('.ha-scope'))]),
+                shown(p.querySelector('.ha-tab[data-tab="taken"]')), shown(p.querySelector('.ha-tab[data-tab="dealt"]')), shown(p.querySelector('.ha-scope')),
+                shown(p.querySelector('.ha-tab[data-tab="training"]')), p.querySelectorAll('[data-sec="bySkill"] .ha-line').length > 0]),
             supplies: shown(p.querySelector('[data-sec="supplies"]')),
             more: shown(p.querySelector('.ha-more')) ? p.querySelector('.ha-more').textContent : null,
           };
@@ -567,6 +570,24 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
             taken: p.querySelector('.ha-tab[data-tab="taken"]').getClientRects().length > 0, more: p.querySelector('.ha-more').getClientRects().length > 0 };
         });
         if (!paid.waste || !paid.taken || paid.more) fails.push('HS-4 a premium character does not see every analyzer row: ' + JSON.stringify(paid));
+        /* Tyler 2026-10-22: premium's Training tab lists each combat skill's XP and XP an hour, apart from Level XP. */
+        const training = await page.evaluate(async () => {
+          const p = document.querySelector('.ha-analyzer');
+          p.querySelector('.ha-tab[data-tab="training"]').click();
+          await new Promise((ok) => setTimeout(ok, 50));
+          const lines = Array.from(p.querySelectorAll('[data-sec="bySkill"] .ha-line')).filter((l) => l.getClientRects().length > 0)
+            .map((l) => [l.querySelector('.ha-name').textContent, l.querySelector('.ha-count').textContent, l.querySelector('.ha-val').textContent]);
+          const total = p.querySelector('[data-sec="training"] [data-stat="trainingXp"]').textContent;
+          p.querySelector('.ha-tab[data-tab="session"]').click();
+          return { lines, total };
+        });
+        const fx = FIXTURE.hunt_analyzer.hero;
+        const wantLines = Object.entries(fx.xp).filter(([k]) => k !== 'level').sort((x, y) => y[1] - x[1])
+          .map(([k, v]) => [k.charAt(0).toUpperCase() + k.slice(1), '+' + v.toLocaleString('en-US'), fx.skills[k].per_hour.toLocaleString('en-US') + ' an hour']);
+        const wantTotal = Object.entries(fx.xp).filter(([k]) => k !== 'level').reduce((t, [, v]) => t + v, 0).toLocaleString('en-US');
+        if (JSON.stringify(training.lines) !== JSON.stringify(wantLines) || training.total !== wantTotal) {
+          fails.push('HS-4 the premium Training tab shows ' + JSON.stringify(training) + '; the server sent ' + JSON.stringify({ wantLines, wantTotal }));
+        }
         /* Designer 2026-10-21: before 10 minutes the server sends no rate (per_hour null, the Level eta null):
            the totals still show, the rates give way to one line, and Next level in says when. */
         s.env.hunt_analyzer.hero.per_hour = null;

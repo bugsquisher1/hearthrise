@@ -166,32 +166,38 @@
    window is: an open window (Configure action above all) stays over the bar. */
 .hs-widget:has(.hb-tip.is-on, .hb-drop.is-on, .hb-plaque.is-open) { z-index: 6; }
 .hs-shell:not(:has(.hs-win:not(.is-leaving))) > .hs-hud:has(.hb-tip.is-on, .hb-drop.is-on, .hb-plaque.is-open) { z-index: 7; }
-.hb-bar { position: relative; display: flex; align-items: center; gap: 10px; padding: 6px 8px; background: var(--world-hud-bg); border: 4px solid transparent; border-image: url('../../assets/ui/frame-iron-thin.png') 2 / 4px stretch; image-rendering: pixelated; }
+/* THE BAR IS ONE FORGED OBJECT (Tyler 10-22: "dorky, no art to it"): a 6-art-px iron plate (bar-plate.png,
+   tools/make-hud-bar-art.mjs) with the vitals hub in a crest that rises out of it, so the bar's outline is not a
+   rectangle. The slots are sockets cut into the plate, the medallion is pixel art, every colour a token or the
+   world palette (the PNGs). The plate is opaque: the crest overlaps its frame without a seam. */
+.hb-bar { position: relative; display: flex; align-items: center; gap: 12px; padding: 4px 8px; background: var(--bg-0); border: 12px solid transparent; border-image: url('../../assets/ui/bar-plate.png') 6 / 12px stretch; image-rendering: pixelated; }
 .hb-slots { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(5, 40px); grid-auto-rows: 40px; gap: 4px; }
-/* A slot is a well cut into the plate: dark on its upper-left inner edge, lit
-   on its lower-right one (the light comes from the upper left, §2). */
+/* A slot is a socket cut into the plate (bar-socket.png): its upper-left wall in shadow, its lower-right lip lit
+   (the light comes from the upper left, §2). The floor is a token, so hover, drop and the states still read. */
 .hb-slot { position: relative; display: grid; place-items: center; cursor: pointer;
-  background: var(--bg-1);
-  box-shadow: inset 2px 2px 0 color-mix(in srgb, var(--world-shadow) 70%, transparent), inset -1px -1px 0 color-mix(in srgb, var(--hl) 14%, transparent); }
-.hb-slot:hover { background: var(--bg-2); }
+  background: var(--bg-2); border: 4px solid transparent; border-image: url('../../assets/ui/bar-socket.png') 2 / 4px stretch; image-rendering: pixelated; }
+.hb-slot:hover { background: var(--bg-3); }
 .hb-slot:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 1px; }
 .hb-slot.is-drop { outline: 2px solid var(--gold); outline-offset: -2px; }
 .hb-slot-ico .hs-glyph { width: 22px; height: 22px; color: var(--ink-2); }
 .hb-slot small { position: absolute; font-size: var(--t-micro); font-weight: 700; line-height: 1; font-variant-numeric: lining-nums tabular-nums; paint-order: stroke; -webkit-text-stroke: 3px var(--bg-0); }
-.hb-slot .hb-n { top: 2px; left: 2px; color: var(--ink-3); font-weight: 400; }
-.hb-count { bottom: 2px; right: 2px; color: var(--ink); }
+.hb-slot .hb-n { top: -2px; left: -2px; color: var(--ink-3); font-weight: 400; }
+.hb-count { bottom: -2px; right: -2px; color: var(--ink); }
 .hb-warn { display: none; position: absolute; top: 1px; right: 3px; font-size: var(--t-micro); line-height: 1; color: var(--gold-2); paint-order: stroke; -webkit-text-stroke: 3px var(--bg-0); }
 .hb-slot.is-blocked .hb-warn { display: block; }
 .hb-plus { display: none; font-size: var(--t-body); line-height: 1; color: var(--ink-3); }
-.hb-slot.is-empty { background: var(--bg-0); }
-.hb-slot.is-empty .hb-plus { display: block; opacity: .6; }
-.hb-slot.is-empty .hb-n { opacity: .5; }
+/* An empty socket is a dark hole: its number and "+" stay quiet until the pointer is on it. */
+.hb-slot.is-empty { background: var(--bg-1); }
+.hb-slot.is-empty .hb-plus { display: block; opacity: .35; }
+.hb-slot.is-empty .hb-n { opacity: .45; }
+.hb-slot.is-empty:hover { background: var(--bg-2); }
 .hb-slot.is-empty:hover .hb-plus, .hb-slot.is-empty:focus-visible .hb-plus { opacity: 1; color: var(--gold-2); }
 .hb-slot.is-off .hb-slot-ico { opacity: .35; }
 .hb-slot.is-off::after { content: ''; position: absolute; left: 3px; right: 3px; top: 50%; height: 2px; background: var(--red); transform: rotate(-45deg); }
 /* The panel at the far right (Tyler 10-19: everything Hunt settings held, on the bar): the set, target, stance, chase and distance. */
-.hb-plaque { position: relative; width: 228px; display: flex; flex-direction: column; gap: 3px; }
-.hb-pl-row { display: flex; align-items: center; gap: 6px; min-height: 30px; }
+/* A groove cut down the plate (the socket's shadowed wall, bar-socket.png's left slice) parts the settings from the slots. */
+.hb-plaque { position: relative; width: 228px; display: flex; flex-direction: column; gap: 3px; padding-left: 10px; border-left: 4px solid transparent; border-image: url('../../assets/ui/bar-socket.png') 2 / 0 0 0 4px stretch; image-rendering: pixelated; }
+.hb-pl-row { display: flex; align-items: center; gap: 6px; min-height: 28px; }
 /* The rows past the set's own sit in .hb-pl-more: part of the panel on a desktop, a sheet on a phone. */
 .hb-pl-more { display: contents; }
 .hb-plaque .hb-more, .hb-pl-head { display: none; }
@@ -231,16 +237,17 @@
 .hb-tip .is-warn { color: var(--gold-2); }
 
 /* ── The vitals hub (vitals-hub.js): HP | the medallion | MP, Food and Charm under the readouts, stamina under the medallion ── */
+/* The hub has no box of its own. Its medallion rides high, breaking the plate's top edge (the bar's outline is not
+   a rectangle) and centred on the HP and MP readouts; the stamina line rises with it. */
 .hb-hub { display: grid; grid-template-columns: 72px 104px 72px; grid-template-rows: 52px 52px auto; grid-template-areas: "hp medal mp" "food medal charm" ". stam ."; column-gap: 4px; align-items: center; justify-items: center; }
-.hb-medal { grid-area: medal; position: relative; width: 104px; height: 104px; }
+/* The medallion is pixel art (bar-medal.png, 52 art px at x2): the HP and mana arcs fill its gauge channel and
+   the XP arc gilds its rim, on the art's own 52-unit grid (vitals-hub.js). */
+.hb-medal { grid-area: medal; position: relative; top: -26px; width: 104px; height: 104px; background: url('../../assets/ui/bar-medal.png') center / 100% 100% no-repeat; image-rendering: pixelated; }
 .hb-arcs { position: absolute; inset: 0; width: 104px; height: 104px; overflow: visible; }
-.hb-arc-well { fill: none; stroke: var(--bg-3); stroke-width: 8; }
-.hb-arc { fill: none; stroke-width: 6; stroke-linecap: butt; }
+.hb-arc { fill: none; stroke-width: 3.2; stroke-linecap: butt; }
 .hb-arc.is-hp { stroke: var(--hud-fill-hp); }
 .hb-arc.is-mana { stroke: var(--hud-mana-ink); }
-.hb-arc-well.is-thin { stroke-width: 3; }
 .hb-arc.is-xp { stroke: var(--gold-2); stroke-width: 2; }
-.hb-disc { fill: var(--bg-0); stroke: var(--steel); stroke-width: 1; }
 .hb-medal-in { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; pointer-events: none; }
 .hb-medal-in small { font-size: var(--t-micro); font-weight: 700; color: var(--ink-2); }
 .hb-lv { font-family: var(--f-label); font-size: var(--t-body); color: var(--gold-2); font-variant-numeric: lining-nums tabular-nums; }
@@ -252,12 +259,12 @@
 .hb-read.is-hp .hb-read-v { color: var(--hud-hp-ink); }
 .hb-read.is-mana .hb-read-v { color: var(--hud-mana-ink); }
 .hb-read-r { font-size: var(--t-micro); color: var(--ink-3); }
-.hb-stam { grid-area: stam; display: flex; align-items: center; gap: 4px; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
+.hb-stam { grid-area: stam; position: relative; top: -26px; display: flex; align-items: center; gap: 4px; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
 .hb-stam .hs-glyph { width: 14px; height: 14px; color: var(--ink-3); }
 .hb-socket { display: flex; flex-direction: column; align-items: center; gap: 2px; align-self: start; }
 .hb-socket.is-food { grid-area: food; justify-self: end; }
 .hb-socket.is-charm { grid-area: charm; justify-self: start; }
-.hb-socket-ico { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; background: var(--bg-0); box-shadow: inset 0 0 0 1px var(--steel); }
+.hb-socket-ico { width: 40px; height: 40px; display: grid; place-items: center; background: var(--bg-1); border: 4px solid transparent; border-image: url('../../assets/ui/bar-socket.png') 2 / 4px stretch; image-rendering: pixelated; }
 .hb-socket-ico .hh-icon { width: 32px; height: 32px; }
 .hb-socket-ico .hs-glyph { width: 16px; height: 16px; color: var(--ink-3); }
 .hb-socket-k { font-size: var(--t-micro); color: var(--ink-2); white-space: nowrap; }
@@ -483,14 +490,19 @@
   /* THE PHONE BAR (v0.2.23 gate: 874 x 178 hid the hero): one row at most 96 px tall. The hub runs
      HP · the medal · MP with the sockets beside the readouts; the panel keeps the set and its buttons,
      and the rest of it slides out as a sheet from the right (.hb-more). */
-  .hb-bar { gap: 6px; padding: 4px; max-width: calc(100vw - 16px); }
+  /* The phone's plate is the window frame (frame-iron.png, 4 art px = 8 px): the desktop's 12 px plate and the
+     raised crest cost height a 423 px screen does not have. */
+  .hb-bar { gap: 6px; padding: 2px 4px; max-width: calc(100vw - 16px); border-width: 8px; border-image: url('../../assets/ui/frame-iron.png') 4 / 8px stretch; }
+  .hb-medal, .hb-stam { top: 0; }
   .hb-hub { grid-template-columns: auto auto 64px auto auto; grid-template-rows: auto auto; align-content: center; grid-template-areas: "food hp medal mp charm" "food hp medal stam charm"; column-gap: 6px; }
   .hb-read.is-mana { align-self: end; }
   .hb-stam { justify-self: start; align-self: start; }
   .hb-medal, .hb-arcs { width: 64px; height: 64px; }
+  .hb-medal { background-image: url('../../assets/ui/bar-medal-sm.png'); }
   .hb-medal-in small:first-child { display: none; }
   .hb-read.is-hp, .hb-socket { align-self: center; }
-  .hb-socket-ico, .hb-socket-ico .hh-icon { width: 28px; height: 28px; }
+  .hb-socket-ico { width: 36px; height: 36px; }
+  .hb-socket-ico .hh-icon { width: 28px; height: 28px; }
   .hb-socket-k { display: none; }
   .hb-slots { grid-template-columns: repeat(5, 36px); grid-auto-rows: 36px; gap: 3px; }
   .hb-plaque { width: auto; max-width: 150px; }

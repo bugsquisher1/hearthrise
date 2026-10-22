@@ -12,7 +12,8 @@
 //
 // The fixture is tests/fixtures/party-envelope.json (S1's `party` shape plus this lane's asks).
 // (The 4-character limit and "a switch disturbs nobody" are session rules: tests/session-core.mjs ACC-4, VIEW-2.)
-//   AL-1  ONE ALERT PER EVENT ID: a rare drop and a death alert (the hunt ending `died`) once each; a re-read,
+//   AL-1  ONE ALERT PER EVENT ID: a rare drop and a death alert (the hunt ending `died`, for a character not
+//         on screen: the one on screen gets the death popup instead, tests/death-popup.mjs) once each; a re-read,
 //         a re-sent event, a reload (the ids come back in the residue) add none; a NEW
 //         event id adds exactly one; a kind switched off adds none
 //   PI-1  PARTY CONTROLS ARE INTENT-ONLY: each party verb is ONE rpc naming only the slot,
@@ -148,9 +149,13 @@ async function pureRules(M, base) {
     const centre2 = M.AL.createAlertCenter(acc2);
     const cs2 = (await acc2.open(0)).session;
     if (centre2.list().length) return 'a reload repeated ' + centre2.list().map((a) => a.id).join(', ');
-    /* The hero dies: the hunt ends `died` (CORE_MODEL.md §6) and ONE death alert says where. */
+    /* The hero dies: the hunt ends `died` (CORE_MODEL.md §6). On screen, the death POPUP is its (death-popup.js,
+       Tyler 2026-10-19), so no side line; off screen (another character viewed), ONE death alert says where. */
     srv.env[0].hunt.ended = true;
     srv.env[0].hunt.session = Object.assign({}, srv.env[0].hunt.session, { end_reason: 'died', ended_at: '2026-10-17T12:30:00Z', phase: 'ended' });
+    await cs2.load(); await cs2.load();
+    if (centre2.list().length) return 'the on-screen hero’s death also raised a side line: ' + JSON.stringify(centre2.list().map((a) => [a.kind, a.text]));
+    acc2.viewed = null;
     await cs2.load(); await cs2.load();
     if (centre2.list().length !== 1 || centre2.list()[0].kind !== 'death' || !/died in .* and returned to town/.test(centre2.list()[0].text)) return 'a death raised ' + JSON.stringify(centre2.list().map((a) => [a.kind, a.text]));
     srv.env[0].hunt.ended = false;
@@ -623,6 +628,7 @@ async function pageRules(overrides, shots) {
 
 /* ── THE MUTANTS: each must turn at least one rule red. ── */
 const PURE_MUTANTS = [
+  ['a death off screen raises no line', 'src/shell/alerts.js', '    if (!viewed && !deathSeen(cs, h.sessionId)) out.push(', '    if (false) out.push('],
   ['the store paying per use still warns out of stock', 'src/shell/alerts.js', "const storePays = !s || s.supplySource === 'store' || s.onEmpty !== 'end';", 'const storePays = false;'],
   ['a hero with no mana pool is warned about drinks', 'src/shell/alerts.js', "const uses = (id) => kindOf(id) !== 'drink' || hero.manaMax > 0;", 'const uses = () => true;'],
   ['a kind slot reads as an item no bag holds', 'src/shell/alerts.js', 'const stock = (id) => (CONSUMABLE_KINDS[id] ? bag.reduce((n, r) => n + (kindOf(r.id) === id ? r.qty : 0), 0) : have.get(id) || 0);', 'const stock = (id) => have.get(id) || 0;'],

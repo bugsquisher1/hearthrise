@@ -47,15 +47,16 @@
 // only things it sends of its own are the allowlisted residue and intents.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyEnvelope, applyFrame, withResidue } from './envelope.js?v=0.2.25';
-import { createTimeline } from '../hunt-view/timeline.js?v=0.2.25';
-import { LiveLink } from './live-link.js?v=0.2.25';
-import { RESIDUE_FIELDS, sanitizeResidueField } from './residue.js?v=0.2.25';
-import { SESSION_CONFIG } from './config.js?v=0.2.25';
-import { edgeBody } from './edge-intents.js?v=0.2.25';
-import { leaveAskOf, pendingLeaveAt, leaveCountdown, closeInMs } from './hunt-leave.js?v=0.2.25';
-import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.25';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.25';
+import { applyEnvelope, applyFrame, withResidue } from './envelope.js?v=0.2.27';
+import { createTimeline } from '../hunt-view/timeline.js?v=0.2.27';
+import { LiveLink } from './live-link.js?v=0.2.27';
+import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.27';
+import { SESSION_CONFIG } from './config.js?v=0.2.27';
+import { edgeBody } from './edge-intents.js?v=0.2.27';
+import { leaveAskOf, pendingLeaveAt, leaveCountdown, closeInMs } from './hunt-leave.js?v=0.2.27';
+import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.27';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.27';
+import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.27';
 
 export const FRAME_EVENT = 'frame';
 
@@ -67,21 +68,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ITEM = /^[a-z0-9_]{1,64}$/;
 const HUNT_ID = /^[a-z0-9_]{1,64}$/;
 const LOOT_RULES = Object.freeze(['keep', 'sell', 'ignore']);
-
-/** The private push topic hr_frame_topic spells for (uid, slot), or null. Pure. */
-export function frameTopic(uid, slot, maxSlot = SESSION_CONFIG.maxSlot) {
-  if (typeof uid !== 'string' || !UUID.test(uid)) return null;
-  if (!Number.isInteger(slot) || slot < 0 || slot > maxSlot) return null;
-  return 'hr:' + uid.toLowerCase() + ':' + slot;
-}
-
-/** Exponential reconnect delay, capped, with ±20% jitter (`rand` for tests). Pure. */
-function reconnectDelay(attempt, rand, cfg = SESSION_CONFIG) {
-  const n = Math.max(1, Math.floor(Number(attempt) || 1));
-  const base = Math.min(cfg.reconnectMaxMs, cfg.reconnectMinMs * Math.pow(2, Math.min(n, 20) - 1));
-  const r = typeof rand === 'number' && rand >= 0 && rand <= 1 ? rand : Math.random();
-  return Math.round(base * (0.8 + 0.4 * r));
-}
+export { frameTopic };   // the push channel's topic rule lives in frame-channel.js
 
 function newIdem() {
   const c = globalThis.crypto;
@@ -119,7 +106,7 @@ export class CharacterSession {
     this._retry = null;
     this._residueTimer = null;
     this._leaveAsk = null;
-    this._pending = {};
+    this._pending = {}; this._sent = {};   // residue to put; residue put and not yet seen back (residue.js unconfirmedResidue)
     this._closed = false;
     this.lastVerdict = null;
     this._now = o.now || (() => (globalThis.performance ? globalThis.performance.now() : Date.now()));
@@ -158,9 +145,10 @@ export class CharacterSession {
     this.lastVerdict = r.verdict;
     if (!r.applied) return false;
     this._record = r.record;
-    /* A residue field set here and not yet put (setResidue's debounce) is newer than the server's copy the
-       envelope carried: it stays until the put lands (a hunt's summary card no longer blinks out on a re-read). */
-    for (const [f, v] of Object.entries(this._pending)) this._record = withResidue(this._record, f, v);
+    /* A residue field set here and not yet put, or put and not yet seen back, is newer than the copy this envelope
+       carried (it may predate the put): it stays until the server echoes it (the summary card never blinks out). */
+    this._sent = unconfirmedResidue(this._sent, this._record.residue);
+    for (const [f, v] of Object.entries({ ...this._sent, ...this._pending })) this._record = withResidue(this._record, f, v);
     this._status = 'ready';
     this.receivedAt = this._now();
     this._play(body);
@@ -329,13 +317,14 @@ export class CharacterSession {
   /**
    * An item intent through the engine. The body carries names and counts only
    * (EDGE_INTENTS); the price, the stock and the result are the server's, and
-   * the screen changes only from the re-read envelope.
+   * the screen changes only from the server's envelope: the engine's answer IS
+   * one (hr_state_of after its commit), applied as it stands, ONE round trip (r16).
    */
   async edgeIntent(verb, fields) {
     if (this._closed) return { ok: false, error: 'closed' };
     const body = edgeBody(this.slot, verb, fields, newIdem());
     if (!body) return { ok: false, error: 'bad_intent' };
-    return this._ask(verb, () => this._server.accrue(body));
+    return this._ask(verb, () => this._server.accrue(body), true);
   }
 
   /** Lock (or unlock) an item so no bulk sale can take it; the server keeps the lock. */
@@ -470,14 +459,16 @@ export class CharacterSession {
 
   /* ONE ASK, tracked (intent-ledger.js) from the send until the re-read envelope is applied: the
      pressed control shows it in flight (src/shell/press-ack.js) and clears on the server's word. */
-  _ask(verb, send) { return this.intents.track(verb, async () => this._settled(await send())); }
+  _ask(verb, send, carries) { return this.intents.track(verb, async () => this._settled(await send(), carries === true)); }
 
-  /* An intent's answer: on ok the whole character is re-read, so the screen shows the server's result. */
-  async _settled(ans) {
+  /* An intent's answer: on ok the screen shows the server's result. `carries`: the answer is the engine's,
+     whose body IS the whole envelope; it is applied as it stands. When envelope.js refuses it (malformed,
+     stale), or for any other answer, the whole character is re-read. */
+  async _settled(ans, carries) {
     if (this._closed) return { ok: false, error: 'closed' };
     /* below_range: the server admitted a hunt under its level floor (the floor is a warning, Tyler 10-18). */
     if (ans.ok && ans.body && ans.body.ok === true && ans.body.below_range === true) { await this.load(); return { ok: true, belowRange: true }; }
-    if (ans.ok && ans.body && ans.body.ok === true) { await this.load(); return { ok: true }; }
+    if (ans.ok && ans.body && ans.body.ok === true) { if (!(carries && this._take(ans.body, 'load'))) await this.load(); return { ok: true }; }
     const b = ans.body && typeof ans.body === 'object' ? ans.body : {};
     /* The server's validation detail (which slot, which condition, which field) goes back to the editor as sent. */
     return { ok: false, error: (typeof b.error === 'string' && b.error) || ans.error || 'refused',
@@ -577,7 +568,7 @@ export class CharacterSession {
     if (this._residueTimer) { this._clearTimer(this._residueTimer); this._residueTimer = null; }
     const patch = this._pending;
     if (this._closed || !Object.keys(patch).length) return false;
-    this._pending = {};
+    this._pending = {}; this._sent = Object.assign({}, this._sent, patch);
     const ans = await this._server.rpc('hr_put_client_state', { p_slot: this.slot, p_patch: patch, p_idem: newIdem() });
     if (!ans.ok && !this._closed) this._pending = Object.assign(patch, this._pending);   // kept for the next put
     return ans.ok;
@@ -592,7 +583,7 @@ export class CharacterSession {
     if (this._residueTimer) { this._clearTimer(this._residueTimer); this._residueTimer = null; }
     this._poll.stop();
     this._record = null;
-    this._pending = {};
+    this._pending = {}; this._sent = {};
     this._status = 'closed';
     this._emit('closed');
     this._listeners.clear();

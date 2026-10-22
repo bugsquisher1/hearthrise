@@ -18,7 +18,7 @@
 // Reading `hunt`: the server's session record sits under `hunt.session` (the
 // section view) and, in the client fixture, flat on `hunt`. Both are read.
 // ════════════════════════════════════════════════════════════════════════
-import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.25';
+import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.27';
 
 export { sanitizeSummaries };
 
@@ -100,10 +100,11 @@ export function buildSummary(s, an, deaths) {
     : countPairs(t.supplies).map(([item, n]) => [item, 'own', n]);
   return sanitizeSummary({
     id: s.id, hunt: s.hunt, at: s.endedMs, reason: s.reason, ms: dur,
-    kills: hero ? hero.kills : int(t.kills), xp: hero ? hero.xp : num(t.xp), gold: hero ? hero.gold : num(t.coins),
-    /* Per hour, the server's (hr_hunt_stats_of per_hour): balance for every character; raw XP only when the
-       server sent it (premium: the basic analyzer carries no raw_xp). Never divided here. */
-    balanceH: ph ? ph.balance : null, rawXpH: ph ? ph.rawXp : null,
+    /* `xp` is LEVEL XP only (the tally's `level` key), never Level plus training (Tyler 2026-10-22). */
+    kills: hero ? hero.kills : int(t.kills), xp: hero ? hero.levelXp : isObj(t.xp) ? num(t.xp.level) : num(t.xp), gold: hero ? hero.gold : num(t.coins),
+    /* Per hour, the server's (hr_hunt_stats_of per_hour): balance for every character; Level XP before bonuses
+       only when the server sent it (premium: the basic analyzer carries no raw_xp). Never divided here. */
+    balanceH: ph ? ph.balance : null, rawXpH: ph ? ph.rawLevelXp : null,
     died: s.died, loot, supplies,
     preset: s.preset, hoursLimit: s.hoursLimit, bag: s.bag, deaths,
   });

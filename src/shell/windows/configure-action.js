@@ -20,17 +20,17 @@
 // condition. Not here yet, because the server's slot holds no field for them:
 // an Enabled switch and a slot's ignored monsters (half-built stays hidden).
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS, OPERATORS, MAX_CONDITIONS } from '../../data/condition-metrics.js?v=0.2.25';
-import { STATUSES } from '../../data/statuses.js?v=0.2.25';
-import { settingsOf, huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.25';
-import { vitalsOf } from '../../session/party-sections.js?v=0.2.25';
-import { biggestBlowOn } from '../../core/hunt/pull-cycle.js?v=0.2.25';
-import { bagOf } from '../../session/item-sections.js?v=0.2.25';
-import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.25';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.25';
-import { actionIconHtml } from '../widgets/bits.js?v=0.2.25';
-import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, storeOf, supplyDefault } from '../bar-draft.js?v=0.2.25';
-import { TABS, tabOf, choicesFor, actionName, factsOf, carried, supplyLines, setupWords, healWarning } from '../action-facts.js?v=0.2.25';
+import { METRICS, OPERATORS, MAX_CONDITIONS } from '../../data/condition-metrics.js?v=0.2.27';
+import { STATUSES } from '../../data/statuses.js?v=0.2.27';
+import { settingsOf, huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.27';
+import { vitalsOf } from '../../session/party-sections.js?v=0.2.27';
+import { biggestBlowOn } from '../../core/hunt/pull-cycle.js?v=0.2.27';
+import { bagOf } from '../../session/item-sections.js?v=0.2.27';
+import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.27';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.27';
+import { actionIconHtml } from '../widgets/bits.js?v=0.2.27';
+import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, storeOf, supplyDefault } from '../bar-draft.js?v=0.2.27';
+import { TABS, tabOf, choicesFor, actionName, factsOf, carried, supplyLines, setupWords, healWarning } from '../action-facts.js?v=0.2.27';
 
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
 const options = (pairs) => pairs.map(([v, l]) => '<option value="' + esc(v) + '">' + esc(l) + '</option>').join('');

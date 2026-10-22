@@ -17,14 +17,14 @@
 // when the session ends. Numbers come from the server's sections only.
 // Built once, patched in place (src/render/paint.js).
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.25';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.25';
-import { whole, gold, clock } from '../../render/format.js?v=0.2.25';
-import { itemName } from '../widgets/bits.js?v=0.2.25';
-import { runIntent } from '../intent-words.js?v=0.2.25';
-import { endedSessionOf, sanitizeSummaries, huntAgainOf, endWords } from '../../hunt-view/summary-model.js?v=0.2.25';
-import { observeSessions } from '../../session/character-session.js?v=0.2.25';
-import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.25';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.27';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.27';
+import { whole, gold, clock } from '../../render/format.js?v=0.2.27';
+import { itemName } from '../widgets/bits.js?v=0.2.27';
+import { runIntent } from '../intent-words.js?v=0.2.27';
+import { endedSessionOf, sanitizeSummaries, huntAgainOf, endWords } from '../../hunt-view/summary-model.js?v=0.2.27';
+import { observeSessions } from '../../session/character-session.js?v=0.2.27';
+import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.27';
 
 /* Every character the account opens is recorded from its first envelope, so no hunt event is played unseen. */
 observeSessions(attach);
@@ -32,9 +32,10 @@ observeSessions(attach);
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pending: false, msg: '', pick: null }; SCRATCH.set(cs, s); } return s; };
 /* ── The window ── */
-/* Balance per hour shows for everyone; raw XP per hour only when the server sent it (premium, the 10-19 analyzer ruling). */
-const STATS = Object.freeze([['ms', 'Time', clock], ['kills', 'Monsters', whole], ['xp', 'XP', whole], ['gold', 'Gold', gold],
-  ['balanceH', 'Balance per hour', gold], ['rawXpH', 'Raw XP per hour', whole, true]]);
+/* Balance per hour shows for everyone; Level XP per hour before bonuses only when the server sent it (premium, the
+   10-19 analyzer ruling). XP here is LEVEL XP; training XP is the premium analyzer's Training tab (Tyler 2026-10-22). */
+const STATS = Object.freeze([['ms', 'Time', clock], ['kills', 'Monsters', whole], ['xp', 'Level XP', whole], ['gold', 'Gold', gold],
+  ['balanceH', 'Balance per hour', gold], ['rawXpH', 'Level XP per hour before bonuses', whole, true]]);
 
 /** The skeleton (built once). */
 export function renderHuntSummary() {

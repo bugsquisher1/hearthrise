@@ -25,6 +25,10 @@
 /* No room beside the docked windows (src/shell/hud.js clearOfDock): the widget waits, never under a window. */
 .hs-widget.is-under-dock { visibility: hidden; }
 
+/* ── Players online (widgets/online.js): one quiet line on the world, a small green dot, the server's number ── */
+.hs-online { display: flex; align-items: center; gap: 6px; margin: 0; padding: 2px 8px; background: var(--bg-1); font-size: var(--t-micro); color: var(--ink-2); white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
+.hs-online-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+
 /* ── The launcher row: icons only, a tooltip with label and key, the open one lit gold ── */
 .hs-launchers { display: flex; align-items: stretch; height: 40px; padding-left: 10px; background: var(--bg-1); border-left: 1px solid var(--line-soft); }
 .hs-launch { position: relative; width: 40px; height: 100%; padding: 0; display: grid; place-items: center; border: 0; background: none; cursor: pointer; color: var(--ink-3); font: inherit; }

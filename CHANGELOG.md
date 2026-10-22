@@ -5,6 +5,30 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.27 — 2026-10-22 (Level XP and training, clearer deaths)
+
+**Level XP and training XP are shown apart.** The hunt analyzer, the hunt summary and the hunt list now count Level XP on its own, so two heroes in one party show the same Level XP for the same kills. Premium heroes get a new Training tab with the XP each skill earned and its pace per hour. Personal bests on the hunt list are now Level XP per hour.
+
+**A death tells you what happened.** When a hero dies you see where, what killed them, the XP each skill lost and what a Blessing kept. You see it on return too, even if you were away.
+
+**Equipping answers at once.** Wearing or removing an item shows straight away, with a small ring until the server confirms it.
+
+**See who else is playing.** A small counter shows how many heroes are playing right now (desktop).
+
+**Smoother hunts.** The hunt screen repaints once per server answer instead of several times, and the analyzer clock no longer lags or jumps back. When a hero dies, the rest of that combat round stops at once, so a party member no longer runs off after a death.
+
+## v0.2.26 — 2026-10-21 (Personal bests, sturdier iron)
+
+**Your best on every hunting ground.** Each card in the hunt list now shows your hero's best XP per hour and best balance per hour there, Solo and Party apart, from any finished hunt of 10 minutes or more. The hunt summary shows balance per hour for everyone.
+
+**Iron and steel armour now beat bronze.** Some iron and steel pieces were missing their armour type, so iron plate gave less health than bronze. Every armour piece now gets stronger as its tier goes up. Iron and steel plate also carry the same small ranged and magic accuracy cost as bronze plate.
+
+**A much weaker tank no longer holds the pack.** When two tanks share a party and one is far weaker, the stronger tank holds every lap instead of taking turns, so the weaker one stops dying at the back of the Sewer.
+
+**Steadier party hunts.** The server now spreads hunt updates by load, and the character sheet shows the same health and mana as the hunt bar. A window docked at the side no longer covers the hunt analyzer or the fight.
+
+**Six drinks you can tell apart**, with new supply icons in the bag and on the action bar.
+
 ## v0.2.25 — 2026-10-21 (One tank holds)
 
 **Two tanks no longer swap the pack.** In a party with two tanks, one tank holds the monsters for a whole lap of the route; the other only pulls off monsters that go for a healer or damage dealer. The holder changes at the start of each lap, so both tanks still train Defense, and nothing swaps in the middle of a fight.

@@ -887,6 +887,21 @@ export const ACKNOWLEDGED = {
       "raise exception 'VERIFY(fold): the account depot does not equal the summed character banks'; end if;",
     ],
   },
+  '2026-11-10-hunt-xp-split.sql :: dml :: delete hunt_bests': {
+    verdict: 'backfill',
+    sites: 1,
+    why: 'Section 2 is the file\'s WORK, not its self-check (section 3, every probe scoped to v_uid and '
+       + 'rolled back): the one-time re-fold of the personal-best AGGREGATE onto Level XP per hour (Tyler '
+       + '2026-10-22). hunt_bests is derived only from server tallies and moves no value; the fold keeps '
+       + 'greatest(), so a best that summed training XP could never be beaten by an honest Level figure '
+       + 'and must be cleared, then every kept finished session folds again through the one fold. '
+       + 'Idempotent: a re-apply deletes and re-folds the same sessions to the same rows.',
+    proof: [
+      'delete from public.hunt_bests;',
+      'perform public.hr_hunt_best_fold(v_id);',
+      "'xp', round(coalesce((v_xp->>'level')::numeric, 0) / p_wall_h),",
+    ],
+  },
   '2026-09-18-ledger-rollup-currencies.sql :: call :: hr_ledger_prune': {
     verdict: 'scoped-by-proof',
     why: 'The function under test IS the global retention prune, so the gates cannot avoid calling '

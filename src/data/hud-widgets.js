@@ -37,6 +37,14 @@ export const HUD_WIDGETS = Object.freeze([
        bar or its drop menu. While a window is open it hides (hunt.css): a phone window is the whole sheet. */
     phone: Object.freeze({ anchor: 'br', dx: 4, dy: 104 }),
   }),
+  /* Tracker r16: how many players are online, as the server counts (src/social/players-online.js).
+     One short line in the bottom-left corner of the screen, clear of the bar, the party and the alerts.
+     Off by default on a phone, where the action bar spans that corner (HUD layout can show it). */
+  Object.freeze({
+    id: 'online', label: 'Players online', layer: 'screen', anchor: 'bl', dx: 12, dy: 10,
+    min: Object.freeze([96, 22]), opacity: 0.85, visible: true, removable: true, when: 'always',
+    phone: Object.freeze({ visible: false, dx: 4, dy: 4 }),
+  }),
   /* The hunt screen (HUNT_SCREEN_SPEC §1.4): built once, patched in place. */
   Object.freeze({
     id: 'hunt-topbar', label: 'Hunt bar (top)', layer: 'world', anchor: 'tc', dx: 0, dy: 8,

@@ -89,7 +89,7 @@
 //   HS-21 THE COOLDOWN EMBER: the hero's played cast cools that ability's slot for its
 //         catalogue cooldown; the ember rises and the seconds fall as it runs out
 //   HS-24 THE PICKER'S PERSONAL BESTS (designer 2026-10-21): each ground's card shows the
-//         server's hunt_bests for this hero, alone and in a party ("12,400 XP per hour ·
+//         server's hunt_bests for this hero, alone and in a party ("12,400 Level XP per hour ·
 //         balance 3,100 gp per hour"), "No hunt of 10 min yet" where there is none, >= 12 px,
 //         and the next envelope REPLACES them (never merged)
 //   HS-25 THE HUNT SUMMARY shows the server's balance per hour to every character, and raw
@@ -114,6 +114,12 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
    answer wait) runs on the page's pinned clock (page.clock): virtual time moves only when the test moves it,
    and only while no request is out (drive), so a loaded box changes how long the run takes, not what it sees. */
 const LOAD_MS = 15000;
+/* A (re)load waits for DOMContentLoaded: every module script of the boot has run (module scripts are deferred), so
+   the app is up and what follows waits for its STATE. Never the `load` event, which also waits for every image, the
+   favicon and the font sheet, none of which a rule reads at that moment (HS-8: page.reload timed out at 30 s on a
+   loaded box waiting for it, 2026-10-22). A page on the pinned clock keeps `load`: drive() moves time only while
+   no request is out, and the images are requests. */
+const BOOTED = 'domcontentloaded';
 const wait = (page, fn, arg, ms = LOAD_MS) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
 /** Node-side: until `fn()` holds (a call reached the stub, a reply went out), or false after LOAD_MS. */
@@ -146,11 +152,18 @@ async function resumeClock(page) { const c = CLOCKS.get(page); await page.clock.
 async function drive(page, { maxMs, pred = null, arg, step = 50, onStep = null }) {
   const c = CLOCKS.get(page);
   let used = 0;
+  let outSince = 0;
   for (;;) {
     if (pred && await page.evaluate(pred, arg)) return { ok: true, used };
     if (onStep) await onStep();
     if (used >= maxMs) return { ok: !pred, used };
-    if (c.out.size > c.held.size) { await sleep(10); continue; }
+    if (c.out.size > c.held.size) {
+      /* A request out longer than LOAD_MS is a stuck harness, said out loud, never an endless wait. */
+      if (!outSince) outSince = Date.now();
+      else if (Date.now() - outSince > LOAD_MS) throw new Error('drive: ' + (c.out.size - c.held.size) + ' request(s) out for ' + LOAD_MS + ' ms: ' + [...c.out].filter((q) => !c.held.has(q)).map((q) => q.url().slice(-80)).join(', '));
+      await sleep(10); continue;
+    }
+    outSince = 0;
     await page.clock.runFor(step);
     c.now += step;
     used += step;
@@ -207,7 +220,9 @@ async function stub(page, s) {
     }
     if (name === 'hr_hunt_leave' && s.onLeave) { await sleep(400); const out = s.onLeave(); await json(out); s.leaveAnswered = true; return undefined; }
     /* `keepResidue`: the server keeps what hr_put_client_state sends and hands it back in every envelope (as hr_state_of does). */
-    if (name === 'hr_put_client_state' && s.keepResidue) s.env.client_state = Object.assign({}, s.env.client_state, body.p_patch);
+    /* `residueLate`: the server has not stored the put yet when the next re-read is built (s.lateResidue holds it until the test lands it). */
+    if (name === 'hr_put_client_state' && s.keepResidue && s.residueLate) s.lateResidue = Object.assign({}, s.lateResidue, body.p_patch);
+    else if (name === 'hr_put_client_state' && s.keepResidue) s.env.client_state = Object.assign({}, s.env.client_state, body.p_patch);
     return json({ ok: true });
   });
 }
@@ -295,8 +310,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const a = FIXTURE.hunt_analyzer.hero;
         const got = await page.evaluate(() => Object.fromEntries(Array.from(document.querySelectorAll('[data-sec="totals"] dd')).map((d) => [d.getAttribute('data-stat'), d.textContent])));
         const n = (v) => v.toLocaleString('en-US');
-        const xpSum = Object.values(a.xp).reduce((x, y) => x + y, 0); /* the server sends XP per skill */
-        const want = { kills: n(a.kills), xp: n(xpSum), gold: n(a.gold) + ' gp', waste: n(a.waste) + ' gp', balance: n(a.balance) + ' gp' };
+        /* The server sends XP per key: the Level's under level, each skill's under its id. The Session block shows LEVEL XP
+           alone, never Level plus training (Tyler 2026-10-22); the fixture trains two skills, so a sum would show. */
+        const want = { kills: n(a.kills), levelXp: n(a.xp.level), gold: n(a.gold) + ' gp', waste: n(a.waste) + ' gp', balance: n(a.balance) + ' gp' };
         for (const k of Object.keys(want)) if (got[k] !== want[k]) fails.push('HS-4 analyzer ' + k + ' shows "' + got[k] + '"; the server sent ' + want[k]);
         /* Tracker r44: Next level in is the LEVEL's eta (1.5 h), not a skill's: the fixture's maxed Melee carries eta_h 0 and used to pin it at 00:00:00. */
         const nextClock = await page.evaluate(() => { const el = document.querySelector('.ha-analyzer [data-clock="next"]'); return el && el.textContent; });
@@ -519,7 +535,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           chase: document.querySelector(p + ' [data-opt="chase"]').getAttribute('aria-pressed'), distance: document.querySelector(p + ' [data-show="distance"]').textContent }), P);
         if (shown.target !== 'weakest' || shown.chase !== String(!chase0) || shown.distance !== String(d0 + 1)) fails.push('HS-12 the panel does not show the server’s values: ' + JSON.stringify(shown));
         /* After a reload, the same values come back from the server. */
-        await page.reload({ waitUntil: 'load' });
+        await page.reload({ waitUntil: BOOTED });
         if (!(await signInAndPlay(page, ''))) fails.push('HS-12 the screen did not mount after a reload');
         else {
           const again = await page.evaluate((p) => ({ target: document.querySelector(p + ' [data-opt="target_mode"]').value, stance: (document.querySelector(p + ' [data-opt="stance"][aria-pressed="true"]') || {}).getAttribute ? document.querySelector(p + ' [data-opt="stance"][aria-pressed="true"]').getAttribute('data-val') : null,
@@ -548,10 +564,12 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           const shown = (el) => !!el && el.getClientRects().length > 0;
           const stat = (sec, k) => p.querySelector('[data-sec="' + sec + '"] [data-stat="' + k + '"]');
           return {
-            basic: [['totals', 'kills'], ['totals', 'xp'], ['totals', 'gold'], ['totals', 'balance'], ['rates', 'xp'], ['rates', 'gold']].map(([a, k]) => shown(stat(a, k)) && /\d/.test(stat(a, k).textContent)),
-            premium: [['totals', 'waste'], ['rates', 'rawXp'], ['rates', 'waste']].map(([a, k]) => shown(stat(a, k)) || /\d/.test(stat(a, k).textContent))
+            basic: [['totals', 'kills'], ['totals', 'levelXp'], ['totals', 'gold'], ['totals', 'balance'], ['rates', 'perHour.levelXp'], ['rates', 'perHour.gold']].map(([a, k]) => shown(stat(a, k)) && /\d/.test(stat(a, k).textContent)),
+            /* Training XP is premium's own tab (Tyler 2026-10-22): a free character sees neither the tab nor a training number. */
+            premium: [['totals', 'waste'], ['rates', 'perHour.rawLevelXp'], ['rates', 'perHour.waste'], ['training', 'trainingXp'], ['training', 'perHour.trainingXp']].map(([a, k]) => shown(stat(a, k)) || /\d/.test(stat(a, k).textContent))
               .concat([shown(p.querySelector('[data-clock="next"]')), /\d/.test(p.querySelector('[data-clock="next"]').textContent),
-                shown(p.querySelector('.ha-tab[data-tab="taken"]')), shown(p.querySelector('.ha-tab[data-tab="dealt"]')), shown(p.querySelector('.ha-scope'))]),
+                shown(p.querySelector('.ha-tab[data-tab="taken"]')), shown(p.querySelector('.ha-tab[data-tab="dealt"]')), shown(p.querySelector('.ha-scope')),
+                shown(p.querySelector('.ha-tab[data-tab="training"]')), p.querySelectorAll('[data-sec="bySkill"] .ha-line').length > 0]),
             supplies: shown(p.querySelector('[data-sec="supplies"]')),
             more: shown(p.querySelector('.ha-more')) ? p.querySelector('.ha-more').textContent : null,
           };
@@ -567,6 +585,24 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
             taken: p.querySelector('.ha-tab[data-tab="taken"]').getClientRects().length > 0, more: p.querySelector('.ha-more').getClientRects().length > 0 };
         });
         if (!paid.waste || !paid.taken || paid.more) fails.push('HS-4 a premium character does not see every analyzer row: ' + JSON.stringify(paid));
+        /* Tyler 2026-10-22: premium's Training tab lists each combat skill's XP and XP an hour, apart from Level XP. */
+        const training = await page.evaluate(async () => {
+          const p = document.querySelector('.ha-analyzer');
+          p.querySelector('.ha-tab[data-tab="training"]').click();
+          await new Promise((ok) => setTimeout(ok, 50));
+          const lines = Array.from(p.querySelectorAll('[data-sec="bySkill"] .ha-line')).filter((l) => l.getClientRects().length > 0)
+            .map((l) => [l.querySelector('.ha-name').textContent, l.querySelector('.ha-count').textContent, l.querySelector('.ha-val').textContent]);
+          const total = p.querySelector('[data-sec="training"] [data-stat="trainingXp"]').textContent;
+          p.querySelector('.ha-tab[data-tab="session"]').click();
+          return { lines, total };
+        });
+        const fx = FIXTURE.hunt_analyzer.hero;
+        const wantLines = Object.entries(fx.xp).filter(([k]) => k !== 'level').sort((x, y) => y[1] - x[1])
+          .map(([k, v]) => [k.charAt(0).toUpperCase() + k.slice(1), '+' + v.toLocaleString('en-US'), fx.skills[k].per_hour.toLocaleString('en-US') + ' an hour']);
+        const wantTotal = Object.entries(fx.xp).filter(([k]) => k !== 'level').reduce((t, [, v]) => t + v, 0).toLocaleString('en-US');
+        if (JSON.stringify(training.lines) !== JSON.stringify(wantLines) || training.total !== wantTotal) {
+          fails.push('HS-4 the premium Training tab shows ' + JSON.stringify(training) + '; the server sent ' + JSON.stringify({ wantLines, wantTotal }));
+        }
         /* Designer 2026-10-21: before 10 minutes the server sends no rate (per_hour null, the Level eta null):
            the totals still show, the rates give way to one line, and Next level in says when. */
         s.env.hunt_analyzer.hero.per_hour = null;
@@ -1110,7 +1146,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         }, hunt);
         await wait(page, () => document.querySelector('[data-hs-win="hunts"] .hw-hunt[data-hunt="mill_cellar"] .hw-hunt-best-solo'), null, 4000);
         const a = await card('mill_cellar');
-        if (!a || a.solo !== 'Best alone: 12,400 XP per hour · balance 3,100 gp per hour' || a.party !== 'Best in a party: No hunt of 10 min yet' || !(a.px >= 12)) {
+        if (!a || a.solo !== 'Best alone: 12,400 Level XP per hour · balance 3,100 gp per hour' || a.party !== 'Best in a party: No hunt of 10 min yet' || !(a.px >= 12)) {
           fails.push('HS-24 the picker card does not show the server’s personal bests: ' + JSON.stringify(a));
         }
         const other = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="hunts"] .hw-hunt:not([data-hunt="mill_cellar"]) .hw-hunt-best-solo')).map((n) => n.textContent));
@@ -1119,7 +1155,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         s.env.hunt_bests = { min_ms: 600000, grounds: { mill_cellar: { party: { xp_h: 20500, balance_h: -450 } } } };
         await pushEnvelope(page, s);
         const b = await card('mill_cellar');
-        if (!b || b.solo !== 'Best alone: No hunt of 10 min yet' || b.party !== 'Best in a party: 20,500 XP per hour · balance -450 gp per hour') {
+        if (!b || b.solo !== 'Best alone: No hunt of 10 min yet' || b.party !== 'Best in a party: 20,500 Level XP per hour · balance -450 gp per hour') {
           fails.push('HS-24 the picker card is not replaced by the next envelope: ' + JSON.stringify(b));
         }
         if (errors.length) fails.push('HS-24 console errors: ' + errors.slice(0, 3).join(' | '));
@@ -1130,6 +1166,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
     for (const premium of [true, false]) { // HS-25 THE HUNT SUMMARY shows the server's balance per hour to everyone; raw XP per hour only to premium
       const { ctx, page, s, up } = await open({ prep: (sc) => {
         sc.keepResidue = true;   // the stored summary is display residue: the server hands it back on a re-read
+        sc.residueLate = true;   // ...but stores each put only when the test lands it (the crossed re-read below)
         if (premium) return;
         /* A free character: the basic analyzer (2026-11-04-hunt-bests.sql) carries balance per hour, never raw XP. */
         sc.env.premium = Object.assign({}, sc.env.premium, { active: false });
@@ -1146,6 +1183,17 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const shown = await wait(page, () => { const d = document.querySelector('[data-hs-win="hunt-summary"] .hsum-card.is-on [data-stat="balanceH"]'); return d && d.textContent !== ''; }, null, 4000);
         /* and it stays: a re-read after the end (before or after the residue put) keeps the card */
         await pushEnvelope(page, s);
+        /* THE CROSSED RE-READ, forced (it was a 1-in-N flake, 2026-10-22): the put has gone (nothing is pending in
+           the page) but the server has not stored it, so the next re-read's client_state has no card. The card
+           must stay; then the server lands the put and echoes it, and it still stays. */
+        for (let i = 0; i < 100 && !s.sent('hr_put_client_state').some((c) => Array.isArray(c.body.p_patch.huntSummaries)); i++) await sleep(50);
+        const putGone = s.sent('hr_put_client_state').some((c) => Array.isArray(c.body.p_patch.huntSummaries));
+        await pushEnvelope(page, s);
+        const crossed = await page.evaluate(() => !!document.querySelector('[data-hs-win="hunt-summary"] .hsum-card.is-on'));
+        s.residueLate = false;
+        if (s.lateResidue) s.env.client_state = Object.assign({}, s.env.client_state, s.lateResidue);
+        await pushEnvelope(page, s);
+        if (!putGone || !crossed) fails.push('HS-25 the ' + tag + ' card ' + (putGone ? 'blinked out on a re-read that crossed its residue put' : 'was never put'));
         const got = await page.evaluate(() => {
           const v = (k) => { const d = document.querySelector('[data-hs-win="hunt-summary"] [data-stat="' + k + '"]'); return d && d.parentNode.getClientRects().length > 0 ? d.textContent : null; };
           const w = document.querySelector('[data-hs-win="hunt-summary"]');
@@ -1164,27 +1212,44 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
          between two reads on a loaded box (it was read at 0.2 s left, then over); 1 s of page time apart. */
       const { ctx, page, s, up } = await open({ clock: true });
       if (up) {
-        const delay = await page.evaluate(async () => (await import('/src/session/config.js?v=0.1.0')).SESSION_CONFIG.huntPlaybackDelayMs);
+        const { delay, cdMs } = await page.evaluate(async () => ({ delay: (await import('/src/session/config.js?v=0.1.0')).SESSION_CONFIG.huntPlaybackDelayMs,
+          cdMs: (await import('/src/data/abilities.js?v=0.1.0')).ABILITIES.power_strike.cdMs }));
         const D = Number.isFinite(delay) ? delay : 19000;
         const now = s.env.hunt_server_now_ms;
         /* A cast that plays at once (its time is already behind the playback delay) by the viewed hero (unit 1). */
         s.env.hunt_events = s.env.hunt_events.concat([{ id: 'cd:1', type: 'cast', atMs: now - D - 500, u: 1, t: 101, ability: 'power_strike' }]);
+        /* MEASURED ON THE PAGE'S OWN CLOCK (2026-10-22, P1: read 0.9 s less instead of 1.0 under load). The slot
+           repaints on the display tick AND whenever an envelope lands, which a loaded box lands at any page time,
+           so two reads 1 s apart may come from two different paints. Every paint is recorded with the page time
+           it happened at (the observer runs right after it, before the pinned clock moves). */
+        await page.evaluate(() => {
+          window.__hsCd = [];
+          const snap = () => {
+            const li = document.querySelector('.hb-slot[data-slot="0"]');
+            if (!li) return;
+            const r = { on: li.classList.contains('is-cooling'), h: parseFloat(li.querySelector('.hb-cd-ember').style.height) || 0,
+              sec: li.querySelector('.hb-cd-s').textContent, other: document.querySelector('.hb-slot[data-slot="2"]').classList.contains('is-cooling'), t: Date.now() };
+            const l = window.__hsCd[window.__hsCd.length - 1];
+            if (!l || l.on !== r.on || l.h !== r.h || l.sec !== r.sec || l.other !== r.other) window.__hsCd.push(r);
+          };
+          new MutationObserver(snap).observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true });
+        });
         await pauseClock(page);
         await pushEnvelope(page, s);
-        const read = () => page.evaluate(() => {
-          const li = document.querySelector('.hb-slot[data-slot="0"]');
-          return { on: li.classList.contains('is-cooling'), h: parseFloat(li.querySelector('.hb-cd-ember').style.height) || 0, sec: li.querySelector('.hb-cd-s').textContent,
-            other: document.querySelector('.hb-slot[data-slot="2"]').classList.contains('is-cooling') };
-        });
         const ok1 = (await drive(page, { maxMs: 1000, pred: () => document.querySelector('.hb-slot[data-slot="0"]').classList.contains('is-cooling') })).ok;
-        const a = await read();
-        await drive(page, { maxMs: 1000 });
-        const b = await read();
-        const fell = Number(a.sec) - Number(b.sec);
-        if (!ok1 || !(a.h > 0 && a.h < 100) || !(Number(a.sec) > 0 && Number(a.sec) <= 6) || a.other) fails.push('HS-21 the cast did not cool its slot with an ember: ' + JSON.stringify(a));
-        /* 1 s of page time = four display ticks (shell.js DISPLAY_TICK_MS 250), so both reads sit at the same tick
-           phase: the seconds fall by exactly 1.0 (one decimal shown) */
-        else if (!(b.h > a.h) || !(Math.abs(fell - 1) < 0.05)) fails.push('HS-21 the ember did not rise as the cooldown ran out (1 s of page time apart, want 1.0 less): ' + JSON.stringify([a, b]));
+        await drive(page, { maxMs: 1250 });
+        const all = await page.evaluate(() => window.__hsCd);
+        const cool = all.slice(Math.max(0, all.findIndex((r) => r.on)));
+        const a = cool[0] || {};
+        const z = cool[cool.length - 1] || {};
+        /* Each shown value is the time left at the page time it was shown, to its one decimal: one cast time t0 fits
+           every paint (|left - shown| <= 0.05 s), over at least 1 s of page time, and the ember only rises. */
+        let lo = -Infinity;
+        let hi = Infinity;
+        for (const r of cool) { lo = Math.max(lo, r.t - cdMs + (Number(r.sec) - 0.05) * 1000 - 0.5); hi = Math.min(hi, r.t - cdMs + (Number(r.sec) + 0.05) * 1000 + 0.5); }
+        const rises = z.h > a.h && cool.every((r, i) => r.on && (i === 0 || (r.h >= cool[i - 1].h && r.t >= cool[i - 1].t)));
+        if (!ok1 || !a.on || !(a.h > 0 && a.h < 100) || !(Number(a.sec) > 0 && Number(a.sec) <= 6) || a.other) fails.push('HS-21 the cast did not cool its slot with an ember: ' + JSON.stringify(a));
+        else if (!rises || !(z.t - a.t >= 1000) || !(lo <= hi)) fails.push('HS-21 the ember did not rise and the seconds fall with the page clock as the cooldown ran out (' + cdMs + ' ms): ' + JSON.stringify(cool.map((r) => [r.t - a.t, r.sec, r.h])));
         if (shots) await page.screenshot({ path: join(shots, 'hunt-1440x900-cooldown.png') });
       } else fails.push('HS-21 the screen did not mount');
       await ctx.close();
@@ -1294,7 +1359,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       if (!refused) fails.push('HS-8 a refused density save does not show the server’s 4 and why: ' + JSON.stringify(await dRead()));
       s.optionsReply = { ok: true };
       /* Reload: the slot and the density come back from the server, nothing from the browser. */
-      await page.reload({ waitUntil: 'load' });
+      await page.reload({ waitUntil: BOOTED });
       const back = await signInAndPlay(page, '', true);
       if (!back) fails.push('HS-8 the town did not mount after a reload');
       else {
@@ -1543,6 +1608,7 @@ const MUTANTS = [
   ['the picker card never shows the personal best (HS-24)', 'src/shell/windows/hunts.js', "text(li.querySelector('.hw-hunt-best-solo'), best ? best.solo : '');", "text(li.querySelector('.hw-hunt-best-solo'), '');"],
   ['the picker merges a best the server no longer sends (HS-24)', 'src/session/hunt-sections.js', "  const b = section(cs, 'hunt_bests');\n", "  const b = section(cs, 'hunt_bests');\n  if (b && globalThis.__hb) for (const [k, v] of Object.entries(globalThis.__hb)) b.grounds[k] = Object.assign({}, v, b.grounds[k]);\n  if (b) globalThis.__hb = b.grounds;\n"],
   ['the summary has no balance per hour (HS-25)', 'src/hunt-view/summary-model.js', 'balanceH: ph ? ph.balance : null,', 'balanceH: null,'],
+  ['a re-read that crossed the residue put drops the card (HS-25)', 'src/session/character-session.js', 'this._pending = {}; this._sent = Object.assign({}, this._sent, patch);', 'this._pending = {};'],
   ['a free summary shows raw XP per hour (HS-25)', 'src/shell/windows/hunt-summary.js', "prop(dd.parentNode, 'hidden', !!onlySent && (cur[k] === null || cur[k] === undefined));", "prop(dd.parentNode, 'hidden', false);"],
   ['a docked window covers the analyzer again (HS-26)', 'src/shell/shell.js', "clearOfDock(home, fixed, edgeEls.filter((o) => o !== e).map(rel), DOCK_EDGE, stage) : home.left;", 'home.left : home.left;'],
   ['the moved analyzer moves the camera (HS-26)', 'src/shell/shell.js', 'const left = dockHome.has(el) ? dockHome.get(el) : r.left - b.left;', 'const left = r.left - b.left;'],

@@ -15,12 +15,12 @@
 //   statLines / compare   an item's stats in words, and the change against the worn one
 //   equipSlotFor(id, eq)  the slot an item would go into
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.25';
-import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.25';
-import { MONSTERS } from '../data/monsters.js?v=0.2.25';
-import { expandItemSlot } from '../data/gathering.js?v=0.2.25';
-import { BAG_SEEN_MAX } from '../session/residue.js?v=0.2.25';
-import { itemName } from './widgets/bits.js?v=0.2.25';
+import { ITEMS } from '../data/items.js?v=0.2.27';
+import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.27';
+import { MONSTERS } from '../data/monsters.js?v=0.2.27';
+import { expandItemSlot } from '../data/gathering.js?v=0.2.27';
+import { BAG_SEEN_MAX } from '../session/residue.js?v=0.2.27';
+import { itemName } from './widgets/bits.js?v=0.2.27';
 
 /* The category row, in reading order. `all` first; the rest are kinds. */
 export const BAG_CATS = Object.freeze([

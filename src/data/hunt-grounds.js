@@ -76,6 +76,11 @@
 // Goblin Archer until monsters can shoot), the Goblin Digger (the tank: its copper pot
 // turns a blade, a hammer rings it; the Giant Ant and Tunnel Ratling folded in), the
 // Hobgoblin Foreman (the bruiser) and Chief Coppercap, who wears the warren's name.
+// THE GLADE (mixed, Tyler 10-20; designer 2026-10-21): the Carrion Crow (swarm; follows the poachers' kills,
+// arrows bring it down), the Glade Poacher (glass that hits hard; skins the Meadowbrook wolves), the Walking
+// Vine (the tank: slow, a blade or fire answers it), the Goblin Sluicer (the bruiser; pans the Warrens' copper,
+// soaked so fire hisses off it) and Rook the Poacher (the rare carrier, in his spring-house). Economy and the
+// fit: docs/planning/PRIORITY_BOARD.md Decisions 2026-10-21, tests/hunt-core/forest-cave.mjs glade-*.
 // Coin is final in the rows (DM-16). Drops feed what exists: wolf meat cooks, pelts
 // build rooms, ore smelts; fangs, ears and totems are the trophies (VENDOR_TRASH). In the Thicket
 // and the Sewer each monster also drops its own imbuement item (src/data/imbuements.js, the four loot slots).

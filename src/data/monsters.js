@@ -757,31 +757,24 @@ export const MONSTERS = {
     drops: [{ id: 'big_bones', ch: 1 }, { id: 'gold_ore', ch: .5 }, { id: 'goblin_totem', ch: .3 }, { id: 'war_crown', ch: .018 },
       { id: 'steel_platebody', ch: .025, gear: true }] },
 
-  /* ══ Mosslight Glade: where the Meadowbrook rises (a solo ground, levels 16-31; lane c-ground-16-31).
-     Mixed on purpose (Tyler 10-20): the crows and poachers who work the Thicket's wolves, the vines of the
-     spring moss, and the goblins who wash the Warrens' ore in the springs. Names, roles and economy: the
-     src/data/hunt-grounds.js header. Four slots each (src/data/imbuements.js); Rook carries the rare. ══ */
+  /* ══ Mosslight Glade, levels 16-31, solo, mixed (lane c-ground-16-31): roles, junk and economy in the src/data/hunt-grounds.js header. ══ */
   carrion_crow: { name: 'Carrion Crow', icon: '🐦', tier: 2, level: 16, cls: 'vermin', family: 'Vermin',
     /* one override (weapon): a bird in the open, so an arrow brings it down and a club swings at air. */
     weaponWeak: 'ranged', weaponResist: [],
     hp: 30, atk: 10, def: 1, xp: 165, gp: [4, 12], speed: 4400,
-    /* junk: the Bone Chips it picks off the poachers' carcasses (Smithing's Iron Fitting, Prayer) */
     drops: [{ id: 'bone_chips', ch: .5 }, { id: 'crow_quill', ch: .08 }, { id: 'studded_boots', ch: .0062, gear: true }] },
   glade_poacher: { name: 'Glade Poacher', icon: '🏹', tier: 2, level: 19, cls: 'human', family: 'Human',
     /* glass that hits like a cart: the ground's hardest blow before the sluice */
     hp: 32, atk: 12, def: 2, xp: 225, gp: [6, 18], speed: 3400,
-    /* junk: the pelts it takes off the Meadowbrook wolves (rooms) */
     drops: [{ id: 'wolf_pelt', ch: .3 }, { id: 'bones', ch: .5 }, { id: 'snare_wire', ch: .08 }, { id: 'longbow', ch: .0186, gear: true }] },
   walking_vine: { name: 'Walking Vine', icon: '🌿', tier: 2, level: 22, cls: 'plant', family: 'Plant',
     /* the tank: slow and woody; a blade cuts it, an arrow sticks, fire takes it */
     hp: 35, atk: 9, def: 4, xp: 260, gp: [4, 12], speed: 2400,
-    /* junk: the glow wrung out of the spring moss it wears, Magic Essence (Runecrafting) */
     drops: [{ id: 'magic_essence', ch: .25 }, { id: 'mosslight_tendril', ch: .08 }, { id: 'iron_helm', ch: .0126, gear: true }] },
   goblin_sluicer: { name: 'Goblin Sluicer', icon: '👺', tier: 3, level: 26, cls: 'humanoid', family: 'Humanoid',
     /* one override (element): soaked from the spring run, so fire hisses off it. */
     elementResist: ['ember'],
     hp: 70, atk: 18, def: 10, xp: 360, gp: [14, 34], speed: 3000,
-    /* junk: the copper it pans out of the springs, carried down from the Coppercap Warrens (Smithing) */
     drops: [{ id: 'copper_ore', ch: .6 }, { id: 'bones', ch: .5 }, { id: 'sluice_crust', ch: .08 },
       { id: 'iron_platebody', ch: .038, gear: true }] },
   rook_poacher: { name: 'Rook the Poacher', icon: '🏹', tier: 3, level: 29, cls: 'human', family: 'Human',

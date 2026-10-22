@@ -10,6 +10,7 @@
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { lagVerdict, WATCHED_SQL } from './lib/hunt-lag.mjs';
 
 const tok = readFileSync(join(homedir(), '.supabase-token'), 'utf8').trim();
 const [who, slotArg] = process.argv.slice(2);
@@ -44,8 +45,9 @@ console.log(`${id.name} · ${String(id.user_id).slice(0, 8)} slot ${id.slot}`);
 if (sheet && sheet.sheet) { const s = typeof sheet.sheet === 'string' ? JSON.parse(sheet.sheet) : sheet.sheet;
   const v = (x) => (x && typeof x === 'object' ? JSON.stringify(x) : x);
   console.log(`  Level ${v(s.level)} ${s.role || ''} (${s.weapon_type || '?'}) · HP ${v(s.max_hp)} · mana ${v(s.max_mana)} · dmg ${v(s.damage)} · def ${v(s.defence)} · regen ${v(s.regen_pct)}% · speed ${v(s.move_speed)}`); }
+const watched = (await q(WATCHED_SQL)).some((r) => r.u === String(id.user_id));
 console.log('Hunts:');
-for (const h of hunts) console.log(`  ${h.ended ? '   ' : 'NOW'} ${h.hunt_id} seat ${h.seat} unit ${h.unit_id} ${h.entered}–${h.ended || '…'} ${h.end_reason || ''}${h.leaving ? ' (leaving)' : ''}${h.ended ? '' : ` · server lag ${h.lag_s}s${Number(h.lag_s) > 32 ? ' FREEZING' : ''}`}`);
+for (const h of hunts) console.log(`  ${h.ended ? '   ' : 'NOW'} ${h.hunt_id} seat ${h.seat} unit ${h.unit_id} ${h.entered}–${h.ended || '…'} ${h.end_reason || ''}${h.leaving ? ' (leaving)' : ''}${h.ended ? '' : ` · server lag ${h.lag_s}s${(() => { const v = lagVerdict({ lagS: Number(h.lag_s), watched }); return v.code === 'ok' ? ' (' + v.note + ')' : ' ' + v.note; })()}`}`);
 for (const [label, table, where, order] of [['Party', 'hunt_party_members', W, ''], ['Hunt presets', 'player_hunt_presets', W, ''],
   ['Refusals today', 'hr_rejections', W + ' and day = current_date', 'last_at desc'], ['Ledger (last 5)', 'player_ledger', W, '1 desc']]) {
   const r = await rows(table, where, order, 5);

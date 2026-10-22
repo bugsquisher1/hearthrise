@@ -389,6 +389,11 @@
 .hw-char-ready { color: var(--green); }
 .hw-char-ready.is-short { color: var(--red); }
 .hw-command .hw-tools .hw-primary:not(.is-on) { display: none; }
+.hw-char-do { display: flex; flex-direction: column; gap: 4px; }
+/* The rename panel (Tyler 10-22: a new name costs gold): shown only for the hero whose Rename was pressed. */
+.hw-rename { display: none; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line-soft); }
+.hw-rename.is-on { display: block; }
+.hw-rename .hw-add .hh-num { flex: 1; min-width: 0; }
 .hw-alert-kinds { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; margin: 0; padding: 0; list-style: none; }
 .hw-alert-kinds .hs-glyph { width: 16px; height: 16px; vertical-align: -3px; }
 

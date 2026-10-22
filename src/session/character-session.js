@@ -428,11 +428,14 @@ export class CharacterSession {
     return this._ask('bestiary_activate', () => this._server.rpc('hr_bestiary_activate', { p_slot: this.slot, p_monster: monster, p_stage: stage, p_price: quotedFee, p_idem: newIdem() }));
   }
 
-  /** Claim this character's own name (the server checks the rules and that nobody else has it). */
-  async setName(name) {
+  /** Change this hero's name at the price the `rename` section quoted (Tyler 10-22: the first name is free,
+      a new one costs a lot of gold). The server checks the name rules, that nobody has it, the hunt and the
+      price, and refuses `quote_changed` rather than charge another sum. */
+  async renameHero(name, quotedPrice) {
     const n = String(name || '').trim().replace(/\s+/g, ' ');
     if (this._closed || n.length < 3 || n.length > 20) return { ok: false, error: 'bad_name' };
-    return this._ask('character_name_set', () => this._server.rpc('hr_character_name_set', { p_slot: this.slot, p_name: n, p_idem: newIdem() }));
+    if (!Number.isSafeInteger(quotedPrice) || quotedPrice < 1) return { ok: false, error: 'bad_intent' };
+    return this._ask('hero_rename', () => this._server.rpc('hr_hero_rename', { p_slot: this.slot, p_name: n, p_price: quotedPrice, p_idem: newIdem() }));
   }
 
   /**

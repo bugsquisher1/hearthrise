@@ -3006,6 +3006,21 @@ jobs:
           node tests/storage-chests.mjs
           node tools/mutant-gate.mjs node tests/storage-chests.mjs --selftest
 
+      # A HERO'S NAME (Tyler 2026-10-22): the first name is free, a change costs gold.
+      # The guard drives the real hr_hero_rename / hr_character_name_set on a replayed
+      # chain: the price row = src/data/hero-rename.js, the Level quote, every refusal
+      # moving nothing (gold, rules, taken, display name, hunt, other user), one charge,
+      # one ledger row, the replay free, one a day, the ACL. 8 mutations, §6 short-
+      # circuited. The client half (one priced intent, the section read safely, the
+      # refusal words, no free path) is pure node.
+      - name: Hero rename — the first name is free, a new one costs gold
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/hero-rename.mjs
+          node tools/mutant-gate.mjs node tests/hero-rename.mjs --selftest
+          node tests/hero-rename-client.mjs
+          node tools/mutant-gate.mjs node tests/hero-rename-client.mjs --mutate
+
       # ONE HOME PER ACCOUNT (Tyler 2026-10-15): the property and the rooms bought on one
       # hero are every hero's (hr_unlock_levels, hr_unlock_buy's held rung and tier gate,
       # the `home` section), never bought twice, a plot stays the character's, the home

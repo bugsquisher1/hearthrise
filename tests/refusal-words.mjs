@@ -141,7 +141,7 @@ const MUTANTS = [
   ['RW2', 'the fallback says nothing about what changed', 'src/data/refusal-words.js', "export const REFUSAL_FALLBACK = 'That did not go through, so nothing was changed. Try again in a moment.';", "export const REFUSAL_FALLBACK = 'Not done: the server refused it.';"],
   ['RW3', 'the requirement is not said with its numbers', 'src/shell/intent-words.js', '    const w = requirementWords(r.item, cs);', '    const w = null;'],
   ['RW3', 'the hero\'s own level is not read', 'src/shell/intent-words.js', '  const sk = cs ? skillsOf(cs) : null;', '  const sk = null;'],
-  ['RW4', 'the session drops the item', 'src/session/refusal.js', '    field: typeof b.field === \'string\' ? b.field.slice(0, 32) : null, item };', '    field: typeof b.field === \'string\' ? b.field.slice(0, 32) : null };'],
+  ['RW4', 'the session drops the item', 'src/session/refusal.js', '    field: typeof b.field === \'string\' ? b.field.slice(0, 32) : null, item,\n', '    field: typeof b.field === \'string\' ? b.field.slice(0, 32) : null,\n'],
 ];
 
 if (process.argv.includes('--mutate')) {

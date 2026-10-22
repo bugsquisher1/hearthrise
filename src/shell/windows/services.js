@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/shell/windows/services.js — SERVICES: STAMINA, BLESSINGS, A NAME (lane S2).
+// src/shell/windows/services.js — SERVICES: STAMINA AND BLESSINGS (lane S2).
 //
-// Three services the town sells, every number the SERVER's:
+// Two services the town sells, every number the SERVER's:
 //   Stamina    the next refill as the server prices it (`stamina_refill`): how
 //              long it restores, its gold, and which purchase of today it is.
 //              Buy opens a confirmation with that price; one press sends ONE
@@ -11,11 +11,12 @@
 //              at this character's level ("free until 30"), and that a death
 //              uses them up. Only the next missing tier can be bought: ONE
 //              hr_blessing_buy (tier, quoted price).
-//   Name       this character's own name: ONE hr_character_name_set.
+// A hero's name is changed on the Characters window (characters.js, a paid
+// hr_hero_rename since 2026-12-04-hero-rename.sql), not here.
 // Every control is off while an intent is in flight; nothing changes on
 // screen until the re-read envelope says so.
 // ════════════════════════════════════════════════════════════════════════
-import { staminaRefillOf, blessingsOf, goldOf, nameOf } from '../../session/item-sections.js?v=0.2.29';
+import { staminaRefillOf, blessingsOf, goldOf } from '../../session/item-sections.js?v=0.2.29';
 import { staminaOf } from '../../session/hunt-sections.js?v=0.2.29';
 import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.29';
 import { whole, gold } from '../../render/format.js?v=0.2.29';
@@ -45,10 +46,6 @@ export function renderServices() {
     + '<h3 class="hs-sub">Blessings</h3>'
     + '<p class="hs-note hw-bless-note"></p>'
     + '<ul class="hw-ledger hw-bless"></ul>'
-    + '<h3 class="hs-sub">Name</h3>'
-    + '<p class="hs-note hw-name-now"></p>'
-    + '<div class="hw-add"><input type="text" class="hh-num hw-name-in" maxlength="20" placeholder="New name" data-hs-act="name-in" aria-label="New name">'
-    + '<button type="button" class="hh-tool" data-hs-act="name">Change name</button></div>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
 }
 
@@ -99,10 +96,6 @@ renderServices.patch = function patchServices(body, ctx) {
       prop(btn, 'disabled', t.held || !next || next.tier !== t.tier || sc.pending || (purse !== null && purse < t.price));
     },
   });
-  /* NAME */
-  const name = nameOf(cs);
-  text(root.querySelector('.hw-name-now'), name ? 'Players see this character as ' + name + '.' : 'Choose the name players see.');
-  for (const el of root.querySelectorAll('.hw-add input, .hw-add button')) prop(el, 'disabled', sc.pending);
   text(root.querySelector('.hh-intent-msg'), sc.msg);
   cls(root, 'is-pending', sc.pending);
 };
@@ -127,11 +120,6 @@ renderServices.act = function actServices(ctx, body, action, ev, t) {
     const row = b && b.tiers.find((x) => x.tier === tier);
     if (!row || row.held) return true;
     runIntent(sc, repaint, () => cs.buyBlessing(tier, row.price), 'Blessing…', () => 'Blessing ' + ROMAN[tier] + ' is yours.');
-    return true;
-  }
-  if (action === 'name') {
-    const v = body.querySelector('[data-hs-act="name-in"]').value;
-    runIntent(sc, repaint, () => cs.setName(v), 'Saving the name…', () => 'Name changed.');
     return true;
   }
   return false;

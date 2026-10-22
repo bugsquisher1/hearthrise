@@ -58,6 +58,8 @@
 //         browser holds at most 2x the look-ahead in combat seeds (they grew with the hunt's age).
 //   LV-Q  ONE DEATH STOPS THE PARTY: from the sub-step a hero dies nobody acts again, browser
 //         closed and viewed (live v0.2.23, Andy: "2nd char starts to run away after death").
+//   LV-N  A RESTART NAMES WHAT IT PLACES (Andy 10-22, null sprites): a reseed drawn before the start
+//         point's next swing (it runs none) still gives every unit it places a kind and a bar.
 //   LV-R  RECONCILE: a prediction forced off the server's world is judged
 //         `diverged` at the next commit, and the reseed eases every unit onto its true
 //         tile with no frame moving a unit more than one tile.
@@ -651,6 +653,27 @@ function rules(M) {
     ok('LV-R', eased > 0, 'the reseed eased no unit onto the server\'s world');
     ok('LV-R', maxStep < 0.5, `a frame moved a unit ${maxStep.toFixed(2)} tiles during the reconcile (budget: under half a tile; a teleport is >= 1)`);
   }
+  { /* LV-N EVERY UNIT A RESTART PLACES IS NAMED (Andy 10-22, "[hunt-scene] no sprite for unit 780 (null)"):
+       the server settles to the boundary AFTER its now, so a restart drawn at now - liveDelay + ease
+       (live-link.js _restart) usually lies before the start point's next swing and runs none. */
+    const mis = [memberOf(M, 'a', 0, 'tank', 6)];
+    const srv = server(M, mis);
+    let restarts = 0, beforeNext = 0;
+    const unnamed = [];
+    for (let t = T0 + 16700; t <= T0 + 160700; t += 16000) {
+      srv.commit(t);
+      const live = srv.live('a');
+      const at = t - 150, ahead = 250;
+      if (at + ahead < Number(live.instance.next_swing_at_ms)) beforeNext++;
+      const res = M.LE.createLiveEngine({ items: M.ITEMS, monsters: M.MONSTERS }).reseed(live, at, ahead);
+      if (!res) continue;
+      restarts++;
+      for (const u of res.positions.keys()) if (!(res.units[u] && typeof res.units[u][0] === 'string')) unnamed.push((t - T0) + ':' + u);
+    }
+    console.log(`  LV-N: ${restarts} restart(s), ${beforeNext} before the start point's next swing; ${unnamed.length} unit(s) placed with no kind`);
+    ok('LV-N', restarts >= 9 && beforeNext >= 9, `CONTROL: ${restarts} restarts, ${beforeNext} of them before the next swing (want every one)`);
+    ok('LV-N', unnamed.length === 0, `a restart placed ${unnamed.length} unit(s) with no kind (the scene cannot draw them): ${unnamed.slice(0, 6).join(', ')}`);
+  }
   { /* LV-$ the slot ORDER is the fallback, viewed and with the browser closed */
     const mi = memberOf(M, 'a', 0, 'tank', 6);
     mi.huntSession = Object.assign({}, mi.huntSession, { bag: { cooked_shrimp: { loaded: 3, left: 3, essential: true } } });
@@ -683,6 +706,7 @@ const MUTANTS = [
   ['drops rolled on the combat stream (LV-L)', 'src/core/combat-sim.js', "rng: createRng(seedOf(ctx, 'r', sw))", "rng: createRng(seedOf(ctx, 's', sw))", /^LV-L/],
   ['the prediction shows its own rare rolls (LV-RR)', 'src/hunt-view/live-engine.js', 'sim.events.filter(predicted)', 'sim.events', /^LV-RR/],
   ['the reseed teleports (LV-R)', 'src/hunt-view/timeline.js', 'const dur = Math.max(easeMs || 250, Math.ceil(dist * EASE_MS_PER_TILE));', 'const dur = 1;', /^LV-R/],
+  ['a restart before the next swing places units with no kind (LV-N, Andy 10-22)', 'src/hunt-view/live-engine.js', '      hp[u.id] = [u.kind, u.maxHp, u.hp];\n', '', /^LV-N/],
   ['every commit reads as a match (LV-R)', 'src/hunt-view/live-engine.js', "return h === hc.world_hash ? 'match' : 'diverged';", "return 'match';", /^LV-R/],
   ['a melee hero beside its target steps to another side every repath (LV-M)', 'src/core/hunt/roles.js',
     '  if (cheb(h, tgt) <= 1 && atRest(h)) { clearGoal(h); return; }\n  if (h.aiMs > 0) return;\n  h.aiMs = AI_REPATH_MS.melee;\n  const beside = (list) => (x, y) => list.some((m) => cheb(m, { x, y }) <= 1 && (m.x !== x || m.y !== y) && standable(inst, h, m.pocket, x, y));',

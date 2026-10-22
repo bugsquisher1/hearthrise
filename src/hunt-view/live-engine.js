@@ -172,7 +172,15 @@ export function createLiveEngine(o) {
   function fastForward(serverNowMs, aheadMs) {
     const until = serverNowMs + Math.max(0, Math.floor(Number(aheadMs) || 0));
     const pos = new Map(), killed = new Set(), hp = {}, kills = [], track = [], events = [];
-    for (const u of (st.world ? st.world.units : [])) if (u.alive) pos.set(u.id, [u.x, u.y]);
+    /* Every unit the start point's world holds is named and sized from that world, as combat-sim's own
+       unit book is at a window's start: a restart whose instant lies before the start point's next
+       boundary runs NO swing (the server settles to the boundary after its now, up to a swing ahead of
+       the instant drawn), and its units were placed with no kind; the scene could not draw them
+       ("[hunt-scene] no sprite for unit 780 (null)", Andy 10-22) until a later swing named them. */
+    for (const u of (st.world ? st.world.units : [])) {
+      if (u.alive) pos.set(u.id, [u.x, u.y]);
+      hp[u.id] = [u.kind, u.maxHp, u.hp];
+    }
     for (let n = 0; st.next <= until && n < MAX_SWINGS_PER_CALL; n++) {
       let tl;
       try { tl = swing(st); } catch (e) { if (e && e.starved) st.starved = true; if (e && (e.starved || e.ended)) break; throw e; }

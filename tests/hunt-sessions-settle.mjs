@@ -129,6 +129,10 @@
 //              (Leave pressed) or `server` (browser closed) at the last accepted
 //              boundary, purse unmoved, one window_forfeit row, bag home; a landed
 //              commit starts the count over.
+//   DEPLOY     a deploy never ends a hunt: a catalogue world-shape move with the edge
+//              landing before or after it (v0.2.32 live). Catalogue first: the old
+//              engine's settles are held (never counted); edge first: the new engine
+//              proposes nothing; then the whole owed window lands, both doors, party.
 //   REPLAY     the same keys re-committed answer replayed and move nothing; a
 //              stale proposal answers session_moved.
 //   SETTINGS   the hero's stored options reach its unit in the persisted world.
@@ -1677,6 +1681,117 @@ const DB_ARMS = {
     }
     return problems;
   }),
+  /* A DEPLOY NEVER ENDS A HUNT (v0.2.32 live: the 12-09 catalogue applied 22 s before its edge and two watched
+     party hunts were forfeited on 8-9 bad_world refusals; 2026-12-11-hunt-deploy-no-forfeit.sql + hunt-settle.js).
+     A party of two on a catalogue of field list OLD; the deploy moves the catalogue to the real engine's SHAPE.
+     CATALOGUE FIRST: nine settles of the engine still writing OLD are held (never counted, nothing moves), then the
+     new engine lands the whole owed window from the unmoved boundary. EDGE FIRST: the new engine against the OLD
+     catalogue proposes nothing (no commit, no refusal row), then lands everything once the catalogue moves. Both
+     doors: the hunt viewed (the player's settle) and the browser closed (the tick). The fuse is unchanged: an
+     unknown shape counts, and the replaced one counts once the grace has passed. */
+  DEPLOY: async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const h = await hunter(db, M, { party: [{ ...STRONG }, { ...STRONG }] });
+    const exec = makeExec(db);
+    const NEW = M.WS.SHAPE;
+    const OLD = (NEW + 1) % 4294967296;
+    const catalogue = async (shape) => {
+      const [row] = await q(db, 'select version, fields from public.hr_hunt_world_shape where id');
+      await db.query('delete from public.hr_hunt_world_shape');
+      await db.query('insert into public.hr_hunt_world_shape (id, version, shape, fields) values (true, $1, $2, $3::jsonb)',
+        [row.version, shape, JSON.stringify(row.fields)]);
+    };
+    const swapS = (text, from, to) => {
+      if (typeof text !== 'string') return text;
+      const w = JSON.parse(text);
+      if (w.s === from) w.s = to;
+      return JSON.stringify(w);
+    };
+    /* THE ENGINE BEFORE THE DEPLOY: the real engine writing field list OLD and reading OLD as its own. It predates
+       the edge's shape check, so the read's world_shape never reaches it. */
+    const oldEngine = async (text, params) => {
+      if (text === M.HS.HUNT_APPLY_SQL) {
+        const st = JSON.parse(params[2]);
+        st.world = swapS(st.world, NEW, OLD);
+        params = [params[0], params[1], JSON.stringify(st), ...params.slice(3)];
+      }
+      const rows = await exec(text, params);
+      if (text === M.HS.HUNT_READ_SQL) {
+        for (const r of rows) { const i = r.inst && r.inst.instance; if (i) { i.world = swapS(i.world, OLD, NEW); delete i.world_shape; } }
+      }
+      return rows;
+    };
+    const fire = (ex, door, atMs) => M.HS.settleHunt({ exec: ex, user: UID, slot: 0, mode: door, grounds: groundsOf(M), atMs,
+      ...(door === 'tick' ? { session: h.sid } : { minWindowMs: 0, live: true, project: true }) });
+    const inst = async () => {
+      const [r] = await q(db, `select refusals, world, floor(extract(epoch from settled_to) * 1000)::bigint as to_ms
+                                 from public.hunt_instances where id = $1`, [h.inst]);
+      return { refusals: Number(r.refusals), shape: r.world ? JSON.parse(r.world).s : null, toMs: Number(r.to_ms) };
+    };
+    const open = async () => Number(await one(db, 'select count(*) from public.hunt_sessions where id = any($1::uuid[]) and ended_at is null', [h.sids]));
+    const recorded = async () => Number(await one(db, `select coalesce(sum(n), 0) from public.hr_rejections
+      where user_id = any($1::uuid[]) and code in ('bad_world', 'world_shape_moved')`, [UIDS.slice(0, 2)]));
+    const paidMs = async (sid) => Number(await one(db, `select coalesce(sum((meta->>'ms')::bigint), 0) from public.player_ledger
+      where session_id = $1 and kind = 'combat' and intent = 'accrue'`, [sid]));
+    /* THE OLD ERA: the catalogue has been OLD for hours; the old engine's windows land. */
+    await catalogue(OLD);
+    await db.query(`update public.hunt_world_shape_move set moved_at = now() - interval '2 hours' where id`);
+    for (const at of [h.from + 60000, h.from + 120000]) {
+      const r = await fire(oldEngine, 'tick', at);
+      if (r.outcome !== 'paid') return [`CONTROL: the old engine on its own catalogue answered ${r.outcome}/${r.reason}`];
+    }
+    const era = await inst();
+    const at0 = era.toMs;
+    if (at0 !== h.from + 120000 || era.shape !== OLD) return [`CONTROL: the OLD era settled to ${at0} with a world of shape ${era.shape}`];
+    await db.query('savepoint deploy');
+    for (const [order, door] of [['catalogue first', 'settle'], ['catalogue first', 'tick'], ['edge first', 'settle'], ['edge first', 'tick']]) {
+      const label = `${order} / ${door === 'tick' ? 'browser closed (tick)' : 'hunt viewed'}`;
+      const want = order === 'catalogue first' ? ['refused', 'world_shape_moved', 9] : ['nothing', 'world_shape_pending', 0];
+      if (order === 'catalogue first') await catalogue(NEW);
+      const rec0 = await recorded();
+      for (let i = 1; i <= 9; i++) {
+        const r = await fire(order === 'catalogue first' ? oldEngine : exec, door, at0 + i * 10000);
+        if (r.outcome !== want[0] || r.reason !== want[1]) {
+          problems.push(`${label}: settle ${i} in the gap answered ${r.outcome}/${r.reason}, want ${want[0]}/${want[1]}`);
+          break;
+        }
+      }
+      const g = await inst();
+      if ((await open()) !== 2 || g.refusals !== 0 || g.toMs !== at0) {
+        problems.push(`${label}: the gap left ${await open()} open hunt(s), count ${g.refusals}, settled to ${g.toMs} (want 2, 0, ${at0})`);
+      }
+      if ((await recorded()) - rec0 !== want[2]) problems.push(`${label}: the gap recorded ${(await recorded()) - rec0} world refusal(s), want ${want[2]}`);
+      if (order === 'edge first') await catalogue(NEW);
+      /* Both landed: the new engine settles the whole owed window from the unmoved boundary (the OLD world restarts). */
+      const done = await fire(exec, door, at0 + 120000);
+      const a = await inst();
+      if (done.outcome !== 'paid' || a.toMs !== at0 + 120000 || a.shape !== NEW || (await open()) !== 2) {
+        problems.push(`${label}: after the deploy the settle answered ${done.outcome}/${done.reason}, settled to ${a.toMs} `
+          + `(want ${at0 + 120000}), world shape ${a.shape}, ${await open()} open`);
+      }
+      for (const [k, sid] of h.sids.entries()) {
+        const ms = await paidMs(sid);
+        if (ms !== a.toMs - h.from) problems.push(`${label}: member ${k} was paid ${ms} ms of a ${a.toMs - h.from} ms hunt (a window lost)`);
+      }
+      const lost = await one(db, `select count(*)::int from public.player_ledger where session_id = any($1::uuid[]) and intent = 'window_forfeit'`, [h.sids]);
+      if (lost) problems.push(`${label}: ${lost} window(s) forfeited`);
+      await db.query('rollback to savepoint deploy');
+    }
+    /* THE FUSE IS UNCHANGED: an unknown field list counts; the replaced one counts once the grace has passed. */
+    await catalogue(NEW);
+    const unknown = await settleTo(db, M, at0 + 10000, { tamper: (c) => { c.settle.world = swapS(c.settle.world, NEW, (NEW + 7) % 4294967296); } });
+    if (!unknown.res || unknown.res.error !== 'bad_world' || unknown.res.refusals !== 1) {
+      problems.push(`an unknown world shape answered ${JSON.stringify(unknown.res).slice(0, 200)}, want bad_world counted`);
+    }
+    await db.query(`update public.hunt_world_shape_move set moved_at = now() - interval '31 minutes' where id`);
+    const late = await fire(oldEngine, 'tick', at0 + 10000);
+    const n = (await inst()).refusals;
+    if (late.outcome !== 'refused' || late.reason !== 'bad_world' || n !== 2) {
+      problems.push(`the replaced shape past the grace answered ${late.outcome}/${late.reason} (count ${n}), want bad_world counted`);
+    }
+    await db.query('rollback to savepoint deploy');
+    return problems;
+  }),
   VALUE: async (db, M) => inTx(db, async () => {
     const problems = [];
     const { from } = await hunter(db, M, { ...STRONG, options: { on_empty: 'end', supply_source: 'mine' },
@@ -1885,6 +2000,8 @@ async function runArms(root, db, only) {
 /* JS mutants: planted in a temp copy of the edge + src/core + src/data. A name
    in [brackets] is the C2 mutant this one re-anchors (its catch is kept). */
 const MUTANTS = [
+  { arm: 'DEPLOY', name: '[deploy v0.2.32] the edge proposes against a catalogue of another world shape', file: join(FN, 'hunt-settle.js'),
+    from: '  if (worldShapePending(inst.world_shape)) {', to: '  if (false && worldShapePending(inst.world_shape)) {' },
   { arm: 'SPAN', name: '[546 P1] a settle simulates the whole backlog again', file: join(FN, 'hunt-settle.js'),
     from: '  const toMs = Math.min(endMs, fromMs + HUNT_SETTLE_SPAN_MS);', to: '  const toMs = endMs;' },
   { arm: 'TICK-2', name: '[C2 away ctx] the instance span runs with ctx.away again', file: join(FN, 'accrual.js'),
@@ -2085,6 +2202,17 @@ const DB_MUTANTS = [
     find: "'forfeit', s.forfeit,", replace: "'forfeit', exists (select 1 from public.player_ledger l where l.session_id = s.id and l.intent = 'window_forfeit')," },
   { arm: 'FORFEIT', name: 'a forfeit ends the hunt now instead of at the last accepted boundary', fn: 'public.hr_hunt_forfeit(uuid,text,jsonb)',
     find: "    perform public.hr_hunt_close(v_s.id, v_end, v_i.settled_to, true);", replace: "    perform public.hr_hunt_close(v_s.id, v_end, now(), true);" },
+  { arm: 'DEPLOY', name: '[deploy v0.2.32] a world of the shape the catalogue just replaced counts toward the forfeit again', fn: AI,
+    find: "        return public.hr_hunt_settle_held(p_instance, p_world_from, v_first, jsonb_build_object('ok', false, 'error', 'world_shape_moved',",
+    replace: "        return public.hr_hunt_settle_refused(p_instance, p_world_from, v_first, jsonb_build_object('ok', false, 'error', 'world_shape_moved'," },
+  { arm: 'DEPLOY', name: '[deploy] the replaced shape is held forever (no grace)', fn: AI,
+    find: '      if v_move.prev_shape is not null and v_move.moved_at > now() - c_shape_grace', replace: '      if v_move.prev_shape is not null' },
+  { arm: 'DEPLOY', name: '[deploy] a world of any shape the settle names is held', fn: AI,
+    find: "         and v_wj->'v' = to_jsonb(v_move.prev_version) and v_wj->'s' = to_jsonb(v_move.prev_shape)", replace: '         and true' },
+  { arm: 'DEPLOY', name: '[deploy] the catalogue move is never recorded', fn: 'public.hr_hunt_world_shape_moved()',
+    find: '    where (m.version, m.shape) is distinct from (excluded.version, excluded.shape);', replace: '    where false;' },
+  { arm: 'DEPLOY', name: '[deploy] the engine read carries no catalogue shape', fn: 'public.hr_hunt_instance_read(uuid,integer)',
+    find: "'world_shape', (select jsonb_build_object('v', w.version, 's', w.shape) from public.hr_hunt_world_shape w where w.id),", replace: '' },
   { arm: 'VALUE', name: 'the world byte bound is not asked', fn: AI,
     find: "    if octet_length(v_world) > public.hr_hunt_limit('world_max_bytes') then", replace: '    if false then' },
   { arm: 'VALUE', name: 'a world of any shape is stored', fn: AI,

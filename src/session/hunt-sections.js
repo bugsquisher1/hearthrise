@@ -202,21 +202,34 @@ const total = (v) => {
 /* { item: count } as rows, largest first (ties by id). */
 const rowsOf = (o, fn) => Object.entries(counts(o)).filter(([k]) => str(k)).sort((x, y) => y[1] - x[1] || (x[0] < y[0] ? -1 : 1)).slice(0, 100).map(fn);
 
-/* One analyzer view (hr_hunt_analyzer: kills, xp {skill: n}, raw_xp {skill: n}, gold, waste, balance,
-   per_hour, supplies { own: {item: n}, store: {item: n}, store_gold }, loot {item: n}, taken / dealt
-   { total, byMonster | byAbility, byElement }). */
+/* LEVEL XP AND TRAINING XP ARE NEVER ADDED TOGETHER (Tyler 2026-10-22: "divvy up level exp vs training
+   exp"). The server's xp / raw_xp maps carry the Level under `level` and each combat skill under its id;
+   the Level's is one figure, the skills' are the training rows (premium's Training tab). */
+const levelOf = (m) => (isObj(m) ? (num(m.level) ?? 0) : null);
+const trainingOf = (m) => (isObj(m) ? Object.entries(m).filter(([k]) => k !== 'level') : []);
+
+/* One analyzer view (hr_hunt_analyzer: kills, xp {level|skill: n}, raw_xp {level|skill: n}, gold, waste,
+   balance, per_hour { xp: Level, raw_xp: Level, training_xp: the skills }, skills { skill: { per_hour } }
+   (the hero's, premium), supplies { own: {item: n}, store: {item: n}, store_gold }, loot {item: n},
+   taken / dealt { total, byMonster | byAbility, byElement }). */
 function viewOf(v) {
   if (!isObj(v)) return null;
   const ph = isObj(v.per_hour) ? v.per_hour : {};
   const sup = isObj(v.supplies) ? v.supplies : {};
   const tk = isObj(v.taken) ? v.taken : {};
   const dl = isObj(v.dealt) ? v.dealt : {};
+  const sk = isObj(v.skills) ? v.skills : {};
+  const train = trainingOf(v.xp).filter(([k, n]) => str(k) && num(n) !== null && n > 0);
   return {
-    kills: num(v.kills), xp: total(v.xp), rawXp: total(v.raw_xp), gold: num(v.gold), waste: num(v.waste), balance: num(v.balance),
+    kills: num(v.kills), levelXp: levelOf(v.xp), rawLevelXp: levelOf(v.raw_xp), gold: num(v.gold), waste: num(v.waste), balance: num(v.balance),
+    trainingXp: isObj(v.xp) ? total(Object.fromEntries(train)) : null,
+    /* Each combat skill trained this session, most first: its XP and (the hero's, rated) its XP an hour. */
+    training: train.sort((x, y) => y[1] - x[1] || (x[0] < y[0] ? -1 : 1)).slice(0, 16)
+      .map(([skill, n]) => ({ skill, xp: n, perHour: isObj(sk[skill]) ? num(sk[skill].per_hour) : null })),
     /* `rated`: the server sent rates. It sends none (per_hour null) until the session has
        ANALYZER_RATE_AFTER_MS of wall time (2026-11-06-hunt-analyzer-min-window.sql). */
     rated: isObj(v.per_hour),
-    perHour: { xp: total(ph.xp), rawXp: total(ph.raw_xp), gold: num(ph.gold), waste: num(ph.waste), balance: num(ph.balance) },
+    perHour: { levelXp: num(ph.xp), rawLevelXp: num(ph.raw_xp), trainingXp: num(ph.training_xp), gold: num(ph.gold), waste: num(ph.waste), balance: num(ph.balance) },
     supplies: rowsOf(sup.own, ([item, n]) => ({ item, source: 'own', count: n, gold: 0 }))
       .concat(rowsOf(sup.store, ([item, n]) => ({ item, source: 'store', count: n, gold: null }))),
     loot: rowsOf(v.loot, ([item, n]) => ({ item, count: n, value: null })),

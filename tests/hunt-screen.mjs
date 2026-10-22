@@ -89,7 +89,7 @@
 //   HS-21 THE COOLDOWN EMBER: the hero's played cast cools that ability's slot for its
 //         catalogue cooldown; the ember rises and the seconds fall as it runs out
 //   HS-24 THE PICKER'S PERSONAL BESTS (designer 2026-10-21): each ground's card shows the
-//         server's hunt_bests for this hero, alone and in a party ("12,400 XP per hour ·
+//         server's hunt_bests for this hero, alone and in a party ("12,400 Level XP per hour ·
 //         balance 3,100 gp per hour"), "No hunt of 10 min yet" where there is none, >= 12 px,
 //         and the next envelope REPLACES them (never merged)
 //   HS-25 THE HUNT SUMMARY shows the server's balance per hour to every character, and raw
@@ -1110,7 +1110,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         }, hunt);
         await wait(page, () => document.querySelector('[data-hs-win="hunts"] .hw-hunt[data-hunt="mill_cellar"] .hw-hunt-best-solo'), null, 4000);
         const a = await card('mill_cellar');
-        if (!a || a.solo !== 'Best alone: 12,400 XP per hour · balance 3,100 gp per hour' || a.party !== 'Best in a party: No hunt of 10 min yet' || !(a.px >= 12)) {
+        if (!a || a.solo !== 'Best alone: 12,400 Level XP per hour · balance 3,100 gp per hour' || a.party !== 'Best in a party: No hunt of 10 min yet' || !(a.px >= 12)) {
           fails.push('HS-24 the picker card does not show the server’s personal bests: ' + JSON.stringify(a));
         }
         const other = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="hunts"] .hw-hunt:not([data-hunt="mill_cellar"]) .hw-hunt-best-solo')).map((n) => n.textContent));
@@ -1119,7 +1119,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         s.env.hunt_bests = { min_ms: 600000, grounds: { mill_cellar: { party: { xp_h: 20500, balance_h: -450 } } } };
         await pushEnvelope(page, s);
         const b = await card('mill_cellar');
-        if (!b || b.solo !== 'Best alone: No hunt of 10 min yet' || b.party !== 'Best in a party: 20,500 XP per hour · balance -450 gp per hour') {
+        if (!b || b.solo !== 'Best alone: No hunt of 10 min yet' || b.party !== 'Best in a party: 20,500 Level XP per hour · balance -450 gp per hour') {
           fails.push('HS-24 the picker card is not replaced by the next envelope: ' + JSON.stringify(b));
         }
         if (errors.length) fails.push('HS-24 console errors: ' + errors.slice(0, 3).join(' | '));

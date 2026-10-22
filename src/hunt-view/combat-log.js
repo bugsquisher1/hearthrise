@@ -14,7 +14,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { LOG_MAX_LINES } from '../data/combat-text.js?v=0.2.25';
 import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.25';
-import { monsterName, itemName, abilityName } from '../shell/widgets/bits.js?v=0.2.25';
+import { monsterName, itemName, abilityName, skillName } from '../shell/widgets/bits.js?v=0.2.25';
 
 const LOGS = new WeakMap();
 
@@ -47,8 +47,9 @@ export function lineOf(ev, n) {
       return line(n.isHero(ev.u) ? 'dealt' : 'taken', a + ' hits ' + b + ' for ' + ev.amount + how + '.');
     }
     case 'heal': return line('heal', ev.u === ev.t ? a + ' heals for ' + ev.amount + '.' : a + ' heals ' + b + ' for ' + ev.amount + '.');
-    case 'xp': return line('xp', a + ' gains ' + ev.amount + ' XP.');
-    case 'level': return line('xp', a + ' reaches ' + String(ev.skill).replace(/_/g, ' ') + ' level ' + ev.level + '.');
+    /* A kill's XP is LEVEL XP (xp-share.js); a skill's own level-up names the skill (Tyler 2026-10-22: say which XP). */
+    case 'xp': return line('xp', a + ' gains ' + ev.amount + ' Level XP.');
+    case 'level': return line('xp', a + ' reaches ' + (ev.skill === 'level' ? 'Level ' : skillName(ev.skill) + ' level ') + ev.level + '.');
     case 'eat': case 'drink':
       return line('supply', a + (ev.type === 'eat' ? ' eats ' : ' drinks ') + itemName(ev.item) + (ev.source === 'store' ? ', bought from the store.' : ' from the bag.'));
     case 'status_on': return line('status', b + ' is ' + (ev.status === 'bleed' ? 'bleeding' : 'affected by ' + ev.status) + '.');

@@ -122,7 +122,20 @@ async function rules(M) {
     ok('SEC-1', M.H.analyzerOf(cs) === null && M.H.partyOf(cs) === null && M.H.settingsOf(cs) === null, 'an unloaded character has no sections');
     await cs.load();
     const a = M.H.analyzerOf(cs);
-    ok('SEC-1', a && a.hero.kills === FIXTURE.hunt_analyzer.hero.kills && a.hero.perHour.xp === FIXTURE.hunt_analyzer.hero.per_hour.xp, 'the analyzer must read the section as sent');
+    ok('SEC-1', a && a.hero.kills === FIXTURE.hunt_analyzer.hero.kills && a.hero.perHour.levelXp === FIXTURE.hunt_analyzer.hero.per_hour.xp, 'the analyzer must read the section as sent');
+    /* Tyler 2026-10-22: Level XP and training XP are never one number. The section's xp map carries the Level
+       under `level` and each skill under its id: Level XP is the one key, training is the rest, by skill. */
+    {
+      const fx = FIXTURE.hunt_analyzer.hero;
+      const train = Object.entries(fx.xp).filter(([k]) => k !== 'level');
+      ok('SEC-1', a.hero.levelXp === fx.xp.level && a.hero.rawLevelXp === fx.raw_xp.level && train.length >= 2
+        && a.hero.trainingXp === train.reduce((t, [, n]) => t + n, 0) && a.hero.perHour.trainingXp === fx.per_hour.training_xp,
+        'Level XP must be the level key alone and training the skills: ' + JSON.stringify({ level: a.hero.levelXp, training: a.hero.trainingXp }));
+      ok('SEC-1', JSON.stringify(a.hero.training) === JSON.stringify(train.sort((x, y) => y[1] - x[1]).map(([skill, n]) => ({ skill, xp: n, perHour: fx.skills[skill] ? fx.skills[skill].per_hour : null }))),
+        'the training rows must be each skill, most first, with the server\'s own rate: ' + JSON.stringify(a.hero.training));
+      ok('SEC-1', a.party.training.every((r) => r.perHour === null) && a.party.levelXp === FIXTURE.hunt_analyzer.party.xp.level,
+        'the party view: its Level XP alone, per-skill rates unknown (the server sends none): ' + JSON.stringify(a.party.training));
+    }
     /* Tracker r44: Next level in read 00:00:00 forever. It is the Level's eta (hero.level.eta_h), never a skill's: the fixture's maxed Melee carries eta_h 0. */
     ok('SEC-1', a.nextLevelMs === Math.round(FIXTURE.hunt_analyzer.hero.level.eta_h * 3600000) && a.nextLevelMs > 0 && FIXTURE.hunt_analyzer.hero.skills.melee.eta_h === 0, 'Next level in must be the Level eta, not a maxed skill 0 (got ' + a.nextLevelMs + ')');
     for (const [i, bad] of [null, 0, 'soon'].entries()) {
@@ -199,6 +212,8 @@ const MUTANTS = [
   ['a pose teleports', 'src/hunt-view/timeline.js', 'const at = last ? Math.max(pose.at_ms, last.atMs + cfg.tileMs) : pose.at_ms;', 'if (a) a.length = 0;\n      const at = pose.at_ms;'],
   ['the timeline lands in the record', 'src/session/envelope.js', '!TIMELINE_KEYS.includes(k) && ', ''],
   ['the analyzer is merged, not replaced', 'src/session/hunt-sections.js', "  const a = section(cs, 'hunt_analyzer');\n", "  const a = section(cs, 'hunt_analyzer') || globalThis.__lastA;\n  globalThis.__lastA = a;\n"],
+  ['Level XP summed with training XP (the 10-22 report)', 'src/session/hunt-sections.js', 'levelXp: levelOf(v.xp),', 'levelXp: total(v.xp),'],
+  ['a training row reads Level XP', 'src/session/hunt-sections.js', "Object.entries(m).filter(([k]) => k !== 'level')", 'Object.entries(m)'],
   ['a role read off the outfit', 'src/session/hunt-sections.js', 'role: roleForWeapon(str(m.weapon), str(m.role_pick)),', "role: roleForWeapon(str(m.weapon) || (m.outfit ? 'shield' : null), str(m.role_pick)),"],
   ['the bleed badge defaults on for monsters', 'src/data/combat-text.js', "label: 'Bleed stack count', on: on(false, true)", "label: 'Bleed stack count', on: on(true, true)"],
   ['a forged toggle passes', 'src/session/residue.js', "for (const k of ['regular', 'boss']) if (typeof r[k] === 'boolean') e[k] = r[k];", 'Object.assign(e, r);'],

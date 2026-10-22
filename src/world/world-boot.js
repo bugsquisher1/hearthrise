@@ -412,9 +412,10 @@ export async function bootWorld(panel, opts) {
     /**
      * The shell's docked windows: the strips of the stage they cover, in CSS px
      * ({left, right, top, bottom}; null when none). The camera frames the rest
-     * from the next frame on, so a window never covers the hero.
+     * from the next frame on, so a window never covers the hero: drawn now only
+     * when the loop is not running (sync's rule; the shell hands a new pane its inset at once).
      */
-    setInset(o) { backend.setInset(o); if (panel.classList.contains('active')) step(0); },
+    setInset(o) { backend.setInset(o); if (panel.classList.contains('active') && !(running && live())) step(0); },
     destroy() {
       if (raf) win.cancelAnimationFrame(raf);
       raf = 0; running = false;

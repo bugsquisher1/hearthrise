@@ -191,20 +191,25 @@ export function homeAboveBar(pane, bars, gap, bottom, boxHeight) {
  * bottom row of a hunt). Each widget is { anchor, rect } in the World box's
  * px: a bottom-anchored widget covers `bottom` up to its top edge; a top-centre
  * one covers `top` down to its bottom edge; a side-anchored one covers that
- * side to its inner edge. `right` starts from the docked windows' strip.
+ * side to its inner edge. Only the part of a widget inside the box covers it (a
+ * panel pushed below the phone's bar covers nothing), and a top-corner widget
+ * covers the top instead of its side when that strip hides less of the World
+ * (the phone's hunt bar, anchored top-right, is a bar, not a side panel).
  * @param {{anchor:string, rect:{left:number, top:number, width:number, height:number}}[]} widgets
  * @param {{width:number, height:number}} box
- * @param {number} [windowsRight]
  */
 export function hudInsetOf(widgets, box) {
   const out = { left: 0, right: 0, top: 0, bottom: 0 };
   for (const w of widgets) {
-    const v = w.anchor[0], h = w.anchor[1], r = w.rect;
-    if (!(r.width > 0 && r.height > 0)) continue;
-    if (v === 'b') out.bottom = Math.max(out.bottom, box.height - r.top);
-    else if (v === 't' && h === 'c') out.top = Math.max(out.top, r.top + r.height);
-    else if (h === 'l') out.left = Math.max(out.left, r.left + r.width);
-    else if (h === 'r') out.right = Math.max(out.right, box.width - r.left);
+    const v = w.anchor[0], h = w.anchor[1], q = w.rect;
+    const l = Math.max(0, q.left), t = Math.max(0, q.top);
+    const r = Math.min(box.width, q.left + q.width), b = Math.min(box.height, q.top + q.height);
+    if (!(r > l && b > t)) continue;
+    const side = h === 'l' ? r : box.width - l;
+    if (v === 'b') out.bottom = Math.max(out.bottom, box.height - t);
+    else if (v === 't' && (h === 'c' || box.width * b < side * box.height)) out.top = Math.max(out.top, b);
+    else if (h === 'l') out.left = Math.max(out.left, side);
+    else if (h === 'r') out.right = Math.max(out.right, side);
   }
   for (const k of Object.keys(out)) out[k] = Math.round(Math.max(0, Math.min(out[k], k === 'left' || k === 'right' ? box.width : box.height)));
   return out;

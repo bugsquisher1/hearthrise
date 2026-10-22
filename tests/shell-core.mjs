@@ -303,6 +303,11 @@ async function runTests(mods) {
     const all = HUD.hudInsetOf([bar(82), { anchor: 'tc', rect: { left: 400, top: 8, width: 200, height: 40 } },
       { anchor: 'tl', rect: { left: 12, top: 12, width: 250, height: 200 } }, { anchor: 'tr', rect: { left: 700, top: 12, width: 260, height: 300 } }], box);
     eq(all, { left: 262, right: 300, top: 48, bottom: 90 }, 'top bar, party, analyzer');
+    /* The phone (922x381 World): the hunt bar is anchored top-right but is a bar, and the party panel the
+       action bar pushed below it is off the World; the camera framed the hero in a 144 px strip. */
+    const phone = HUD.hudInsetOf([{ anchor: 'bc', rect: { left: 45, top: 279, width: 832, height: 91 } },
+      { anchor: 'tr', rect: { left: 388, top: 4, width: 530, height: 42 } }, { anchor: 'tl', rect: { left: 4, top: 382, width: 240, height: 388 } }], { width: 922, height: 381 });
+    eq(phone, { left: 0, right: 0, top: 46, bottom: 102 }, 'a top-corner bar covers the top; a panel off the World covers nothing');
   });
   t('H10 a centred widget never overlaps an edge widget: it moves along its row, else they step below it', () => {
     const party = { left: 12, top: 12, width: 258, height: 250 }, an = { left: 720, top: 12, width: 285, height: 550 };
@@ -491,7 +496,9 @@ const MUTANTS = [
   { test: 'H11', file: HUD_FILE, from: '  if (!dock.some((q) => hit(r.left, q))) return r.left;', to: '  return r.left;' },
   { test: 'H11', file: HUD_FILE, from: '    if (stops.some((q) => hit(x, q))) return null;\n', to: '' },
   { test: 'H11', file: HUD_FILE, from: '  const row = edges.concat(fixed).map(', to: '  const row = edges.map(' },
-  { test: 'H9', file: HUD_FILE, from: "if (v === 'b') out.bottom = Math.max(out.bottom, box.height - r.top);", to: "if (v === 'b') out.bottom = Math.max(out.bottom, 0);" },
+  { test: 'H9', file: HUD_FILE, from: "if (v === 'b') out.bottom = Math.max(out.bottom, box.height - t);", to: "if (v === 'b') out.bottom = Math.max(out.bottom, 0);" },
+  { test: 'H9', file: HUD_FILE, from: '    if (!(r > l && b > t)) continue;', to: '    if (!(q.width > 0 && q.height > 0)) continue;' },
+  { test: 'H9', file: HUD_FILE, from: "else if (v === 't' && (h === 'c' || box.width * b < side * box.height))", to: "else if (v === 't' && h === 'c')" },
   { test: 'R1', file: 'src/session/residue.js', from: "  hudLayout: sanitizeHudLayout,", to: '  hudLayout: (v) => v,' },
   { test: 'R2', file: HUD_FILE, from: "write(next) { if (character) character.setResidue('hudLayout', next); },", to: 'write(next) {},' },
   { test: 'R3', file: 'src/shell/away-recap.js', from: '  if (gone < AWAY_MIN_MS) return null;\n', to: '' },

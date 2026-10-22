@@ -407,6 +407,9 @@
 .hw-mats { display: flex; flex-wrap: wrap; gap: 0 12px; margin: 2px 0 0; padding: 0; list-style: none; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
 .hw-mats:empty { display: none; }
 .hw-mat.is-short { color: var(--red); }
+/* The ask and the server's answer stay on screen wherever the ledger is scrolled (the report window's foot). */
+.hw-house-foot { position: sticky; bottom: 0; background: var(--bg-1); }
+.hw-house-foot .hh-intent-msg { padding: 4px 2px; }
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
   .hw-estate-n { width: 20px; }
   .hw-estate > .hh-tool { min-height: 36px; }

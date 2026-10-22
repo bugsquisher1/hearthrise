@@ -49,13 +49,13 @@ function perkText(room, level) {
 const roomDoesSomething = (room) => (ROOM_PERKS[room] || []).some((m) => Object.values(m || {}).some((v) => v > 0));
 const capital = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 
-/* A step's cost against what the paying character carries: [{ key, label, short }] and whether all of it is there. */
+/* A step's cost against what the paying character carries ('Oak Log 12/40'): [{ key, label, short }] and whether all of it is there. */
 function costLines(step, purse, bag) {
   const held = new Map((bag || []).map((r) => [r.id, r.qty]));
-  const lines = [{ key: 'gold', label: gold(step.gold) + (purse === null ? '' : ' (you have ' + whole(purse) + ')'), short: purse === null || purse < step.gold }];
+  const lines = [{ key: 'gold', label: gold(step.gold) + (purse !== null && purse < step.gold ? ' (you have ' + whole(purse) + ')' : ''), short: purse === null || purse < step.gold }];
   for (const it of step.items) {
     const have = bag ? held.get(it.id) || 0 : null;
-    lines.push({ key: it.id, label: whole(it.qty) + ' ' + itemName(it.id) + (have === null ? '' : ' (' + whole(have) + ')'), short: have === null || have < it.qty });
+    lines.push({ key: it.id, label: itemName(it.id) + ' ' + (have === null ? whole(it.qty) : whole(Math.min(have, it.qty)) + '/' + whole(it.qty)), short: have === null || have < it.qty });
   }
   return { lines, afford: !lines.some((l) => l.short) };
 }
@@ -78,10 +78,10 @@ export function renderHouse() {
     + '<h3 class="hs-sub">The deed</h3><ol class="hw-ledger hw-deed" aria-label="The property"></ol>'
     + '<h3 class="hs-sub">Rooms</h3><ul class="hw-ledger hw-rooms" aria-label="Rooms"></ul>'
     + '<h3 class="hs-sub">Storage chests <small class="hw-chest-n"></small></h3><ul class="hw-ledger hw-chests" aria-label="Storage chests"></ul>'
-    + '<div class="hw-confirm" role="alertdialog" aria-label="Confirm the purchase"><p class="hw-confirm-q"></p><p class="hw-confirm-note"></p>'
+    + '<div class="hw-house-foot"><div class="hw-confirm" role="alertdialog" aria-label="Confirm the purchase"><p class="hw-confirm-q"></p><p class="hw-confirm-note"></p>'
     + '<div class="hw-confirm-do"><button type="button" class="hw-primary" data-hs-act="house-yes"></button>'
     + '<button type="button" class="hh-tool" data-hs-act="house-no">Cancel</button></div></div>'
-    + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
+    + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div></div>';
 }
 
 const LINE = (extra) => '<li class="hw-line hw-estate"><span class="hw-estate-n"></span><span class="hw-line-name"><b></b><small></small>'
@@ -139,7 +139,7 @@ renderHouse.patch = function patchHouse(body, ctx) {
       const n = r.next;
       const gated = n && n.need > home.tier;
       const line = !open ? 'Opens with the ' + tierName(r.opens) + '.'
-        : !useful ? now + '. Nothing to build here yet.'
+        : !useful ? (r.level ? now + '. ' : '') + 'Nothing to build here yet.'
           : !n ? now + (does ? ': ' + does : '') + '. Finished.'
             : now + (does ? ': ' + does : '') + '. Next: ' + (n.name || 'rung ' + n.rung) + (gated ? ', after the ' + tierName(n.need) + '.' : ', ' + perkText(r.room, n.rung) + '.');
       text(li.querySelector('.hw-estate-n'), '');
@@ -163,7 +163,7 @@ renderHouse.patch = function patchHouse(body, ctx) {
       text(li.querySelector('b'), c.name);
       const prev = chests.chests[chests.chests.indexOf(c) - 1];
       text(li.querySelector('small'), '+' + whole(c.stacks) + ' stacks. ' + (c.built ? 'Built.'
-        : isNext ? (can ? 'Ready to build.' : 'Needs the ' + tierName(c.tier) + '.') : 'After the ' + (prev ? prev.name : 'one before') + '.'));
+        : isNext ? (can ? 'Next to build.' : 'Needs the ' + tierName(c.tier) + '.') : 'After the ' + (prev ? prev.name : 'one before') + '.'));
       const afford = patchCost(ctx, li.querySelector('.hw-mats'), can ? c : null, purse, bag);
       patchAsk(li.querySelector('button'), 'chest', can ? c.chest : null, 'Build', can && afford && !sc.pending);
       cls(li, 'is-held', c.built);

@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-10-22",
- "digest": "50578d26b25e0d132e67eab626b094e5713c30f9b2cf0975800d7696abff108b",
+ "digest": "def3608ca1d1f974f58a470046e7b6b35f7d568a3ce00917211aae1271a08859",
  "counts": {
   "relations": 217,
-  "functions": 525,
+  "functions": 526,
   "policies": 130,
   "indexes": 302,
   "triggers": 35,
@@ -450,6 +450,7 @@
    "hr_heartbeat(p_slot integer)",
    "hr_heartbeat__ungated(p_slot integer)",
    "hr_hero_slots_of(p_user uuid)",
+   "hr_home_view(p_user uuid, p_slot integer)",
    "hr_hunt_accrue_fence()",
    "hr_hunt_active_set(p_user uuid, p_slot integer)",
    "hr_hunt_admit(p_user uuid, p_slot integer, p_hunt text)",

@@ -242,6 +242,8 @@ const uNew = '00000000-0000-4000-8000-0000000dd002';
 const HAS_GEMS_COL = (await q(`select 1 from information_schema.columns
   where table_schema = 'public' and table_name = 'player_state' and column_name = 'gems'`)).length > 0;
 const HAS_WALLET = (await q(`select to_regclass('public.account_wallet') as t`))[0].t !== null;
+/* The depot became the ACCOUNT's (2026-11-10-account-depot.sql): player_bank folded into account_bank. */
+const BANK_TABLE = (await q(`select to_regclass('public.account_bank') as t`))[0].t !== null ? 'account_bank' : 'player_bank';
 const seed = async (u) => {
   await q('insert into auth.users (id) values ($1) on conflict do nothing', [u]);
   await q(`insert into public.player_state (user_id, slot, gold, ${HAS_GEMS_COL ? 'gems, ' : ''}hp, max_hp, version, accrued_to,
@@ -276,7 +278,7 @@ const STRIP = new Set(['user_id', 'id', 'ts', 'at', 'created_at', 'updated_at'])
 const clean = (o) => Object.fromEntries(Object.entries(o).filter(([k]) => !STRIP.has(k)).sort(([a], [b]) => (a < b ? -1 : 1)));
 const stateOf = async (u) => {
   const out = {};
-  for (const t of ['player_state', 'player_skills', 'player_inventory', 'player_progress', 'player_equipment', 'player_bank',
+  for (const t of ['player_state', 'player_skills', 'player_inventory', 'player_progress', 'player_equipment', BANK_TABLE,
     ...(HAS_WALLET ? ['account_wallet'] : [])]) {
     out[t] = (await q(`select to_jsonb(t) as j from public.${t} t where user_id = $1`, [u])).map((r) => JSON.stringify(clean(r.j))).sort();
   }

@@ -22,16 +22,19 @@
 // ── THE ONE DYNAMIC THRESHOLD ───────────────────────────────────────────────
 // `hunterAll` ("Bestiary Master") is "have you slain EVERY monster", so its
 // threshold is the SIZE of the monster catalogue, not a hand-picked number.
-// MONSTER_TOTAL below is that size, PINNED as a server-owned constant and
-// drift-guarded against src/data/monsters.js (the count moves → the guard fails
-// the build → this constant + the SQL CASE are updated in lockstep). This is the
+// MONSTER_TOTAL below is that size (less the monsters only a STAGED ground holds),
+// DERIVED from the data and drift-guarded against the SQL CASE (the count moves →
+// the guard fails the build → the SQL CASE is restated in lockstep). This is the
 // same "scheduled debt, not discovered debt" posture the renown weight-copy uses.
 //
 // PURE ESM. No DOM, no window, no I/O. Imports cleanly in Node and Deno.
 // ════════════════════════════════════════════════════════════════════════
 
+import { MONSTERS } from './monsters.js?v=0.2.28';
+import { STAGED_ONLY_MONSTERS } from './hunt-grounds.js?v=0.2.28';
+
 /* The monster catalogue size — the `hunterAll` threshold. Kept in lockstep with
-   src/data/monsters.js Object.keys(MONSTERS).length by the drift guard. */
+   the SQL CASE by tests/collection-renown-claim-drift.mjs. */
 /* W0 (2026-10-10): 108 -> 113 — the five field champions are monsters, and
    "Bestiary Master" means every one. Raised in lockstep with the hunterAll arm
    restated in supabase/migrations/2026-10-16-w0f-fun-content.sql §3. */
@@ -39,7 +42,10 @@
    The SQL hunterAll arm is restated by the S1 catalogue regen (lane C). */
 /* 2026-10-18: 119 -> 129 — the Meadowbrook Thicket's five wolves and the Coppercap Warrens' five goblins.
    The SQL hunterAll arm is restated by the integrator's catalogue regen (gen-catalogues). */
-export const MONSTER_TOTAL = 129;
+/* 2026-10-22 (lane c-collection-staged): DERIVED, not typed. The roster less the monsters that stand only on a
+   STAGED ground (hunts.js `staged`: hidden and refused, so nobody can slay them): Mosslight Glade's five leave it
+   at 129. A monster a player can meet moves it, and the drift guard then fails until the SQL CASE follows. */
+export const MONSTER_TOTAL = Object.keys(MONSTERS).length - STAGED_ONLY_MONSTERS.length;
 
 /* LEDGER OF FIRSTS (2026-09-27, pack 3): 4 rungs → 11. Every rung added by
    that pack is GOLD-ONLY (no new premium faucet; the drift guard pins gems 0

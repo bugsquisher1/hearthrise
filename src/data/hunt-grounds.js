@@ -318,6 +318,15 @@ export const HUNT_GROUNDS = Object.freeze({
 /** The grounds a player can enter: every row whose hunt is not `staged` (hunts.js). The server catalogue reads these. */
 export const OPEN_GROUNDS = Object.freeze(Object.fromEntries(Object.entries(HUNT_GROUNDS).filter(([, g]) => !(HUNT_INDEX[g.hunt] && HUNT_INDEX[g.hunt].staged === true))));
 
+/** The monsters a player cannot meet because they stand ONLY on staged grounds (on a staged ground's packs or its hunt's
+    spawn rows, and on no open ground's): "slay every monster" leaves them out (collection-milestones.js MONSTER_TOTAL). */
+const monsterIdsOf = (grounds) => new Set(Object.values(grounds).flatMap((g) => g.pockets.flatMap((p) => (p.pack || []).concat(p.spawns))
+  .map((s) => s.monster).concat(((HUNT_INDEX[g.hunt] || {}).spawns || []).map((s) => s.monster))));
+export const STAGED_ONLY_MONSTERS = Object.freeze((() => {
+  const open = monsterIdsOf(OPEN_GROUNDS);
+  return [...monsterIdsOf(HUNT_GROUNDS)].filter((id) => !open.has(id)).sort();
+})());
+
 /* THE PARTY SCALE (BALANCE_RULINGS 2026-10-16): pack HP x (base + perHero x party
    size), in permille, party size clamped to 1..maxHeroes. 550 solo, 700 a pair,
    850 three, 1000 a full party; the Rat King scales the same way. The numbers are

@@ -114,6 +114,12 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
    answer wait) runs on the page's pinned clock (page.clock): virtual time moves only when the test moves it,
    and only while no request is out (drive), so a loaded box changes how long the run takes, not what it sees. */
 const LOAD_MS = 15000;
+/* A (re)load waits for DOMContentLoaded: every module script of the boot has run (module scripts are deferred), so
+   the app is up and what follows waits for its STATE. Never the `load` event, which also waits for every image, the
+   favicon and the font sheet, none of which a rule reads at that moment (HS-8: page.reload timed out at 30 s on a
+   loaded box waiting for it, 2026-10-22). A page on the pinned clock keeps `load`: drive() moves time only while
+   no request is out, and the images are requests. */
+const BOOTED = 'domcontentloaded';
 const wait = (page, fn, arg, ms = LOAD_MS) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
 /** Node-side: until `fn()` holds (a call reached the stub, a reply went out), or false after LOAD_MS. */
@@ -146,11 +152,18 @@ async function resumeClock(page) { const c = CLOCKS.get(page); await page.clock.
 async function drive(page, { maxMs, pred = null, arg, step = 50, onStep = null }) {
   const c = CLOCKS.get(page);
   let used = 0;
+  let outSince = 0;
   for (;;) {
     if (pred && await page.evaluate(pred, arg)) return { ok: true, used };
     if (onStep) await onStep();
     if (used >= maxMs) return { ok: !pred, used };
-    if (c.out.size > c.held.size) { await sleep(10); continue; }
+    if (c.out.size > c.held.size) {
+      /* A request out longer than LOAD_MS is a stuck harness, said out loud, never an endless wait. */
+      if (!outSince) outSince = Date.now();
+      else if (Date.now() - outSince > LOAD_MS) throw new Error('drive: ' + (c.out.size - c.held.size) + ' request(s) out for ' + LOAD_MS + ' ms: ' + [...c.out].filter((q) => !c.held.has(q)).map((q) => q.url().slice(-80)).join(', '));
+      await sleep(10); continue;
+    }
+    outSince = 0;
     await page.clock.runFor(step);
     c.now += step;
     used += step;
@@ -522,7 +535,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           chase: document.querySelector(p + ' [data-opt="chase"]').getAttribute('aria-pressed'), distance: document.querySelector(p + ' [data-show="distance"]').textContent }), P);
         if (shown.target !== 'weakest' || shown.chase !== String(!chase0) || shown.distance !== String(d0 + 1)) fails.push('HS-12 the panel does not show the server’s values: ' + JSON.stringify(shown));
         /* After a reload, the same values come back from the server. */
-        await page.reload({ waitUntil: 'load' });
+        await page.reload({ waitUntil: BOOTED });
         if (!(await signInAndPlay(page, ''))) fails.push('HS-12 the screen did not mount after a reload');
         else {
           const again = await page.evaluate((p) => ({ target: document.querySelector(p + ' [data-opt="target_mode"]').value, stance: (document.querySelector(p + ' [data-opt="stance"][aria-pressed="true"]') || {}).getAttribute ? document.querySelector(p + ' [data-opt="stance"][aria-pressed="true"]').getAttribute('data-val') : null,
@@ -1199,27 +1212,44 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
          between two reads on a loaded box (it was read at 0.2 s left, then over); 1 s of page time apart. */
       const { ctx, page, s, up } = await open({ clock: true });
       if (up) {
-        const delay = await page.evaluate(async () => (await import('/src/session/config.js?v=0.1.0')).SESSION_CONFIG.huntPlaybackDelayMs);
+        const { delay, cdMs } = await page.evaluate(async () => ({ delay: (await import('/src/session/config.js?v=0.1.0')).SESSION_CONFIG.huntPlaybackDelayMs,
+          cdMs: (await import('/src/data/abilities.js?v=0.1.0')).ABILITIES.power_strike.cdMs }));
         const D = Number.isFinite(delay) ? delay : 19000;
         const now = s.env.hunt_server_now_ms;
         /* A cast that plays at once (its time is already behind the playback delay) by the viewed hero (unit 1). */
         s.env.hunt_events = s.env.hunt_events.concat([{ id: 'cd:1', type: 'cast', atMs: now - D - 500, u: 1, t: 101, ability: 'power_strike' }]);
+        /* MEASURED ON THE PAGE'S OWN CLOCK (2026-10-22, P1: read 0.9 s less instead of 1.0 under load). The slot
+           repaints on the display tick AND whenever an envelope lands, which a loaded box lands at any page time,
+           so two reads 1 s apart may come from two different paints. Every paint is recorded with the page time
+           it happened at (the observer runs right after it, before the pinned clock moves). */
+        await page.evaluate(() => {
+          window.__hsCd = [];
+          const snap = () => {
+            const li = document.querySelector('.hb-slot[data-slot="0"]');
+            if (!li) return;
+            const r = { on: li.classList.contains('is-cooling'), h: parseFloat(li.querySelector('.hb-cd-ember').style.height) || 0,
+              sec: li.querySelector('.hb-cd-s').textContent, other: document.querySelector('.hb-slot[data-slot="2"]').classList.contains('is-cooling'), t: Date.now() };
+            const l = window.__hsCd[window.__hsCd.length - 1];
+            if (!l || l.on !== r.on || l.h !== r.h || l.sec !== r.sec || l.other !== r.other) window.__hsCd.push(r);
+          };
+          new MutationObserver(snap).observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true });
+        });
         await pauseClock(page);
         await pushEnvelope(page, s);
-        const read = () => page.evaluate(() => {
-          const li = document.querySelector('.hb-slot[data-slot="0"]');
-          return { on: li.classList.contains('is-cooling'), h: parseFloat(li.querySelector('.hb-cd-ember').style.height) || 0, sec: li.querySelector('.hb-cd-s').textContent,
-            other: document.querySelector('.hb-slot[data-slot="2"]').classList.contains('is-cooling') };
-        });
         const ok1 = (await drive(page, { maxMs: 1000, pred: () => document.querySelector('.hb-slot[data-slot="0"]').classList.contains('is-cooling') })).ok;
-        const a = await read();
-        await drive(page, { maxMs: 1000 });
-        const b = await read();
-        const fell = Number(a.sec) - Number(b.sec);
-        if (!ok1 || !(a.h > 0 && a.h < 100) || !(Number(a.sec) > 0 && Number(a.sec) <= 6) || a.other) fails.push('HS-21 the cast did not cool its slot with an ember: ' + JSON.stringify(a));
-        /* 1 s of page time = four display ticks (shell.js DISPLAY_TICK_MS 250), so both reads sit at the same tick
-           phase: the seconds fall by exactly 1.0 (one decimal shown) */
-        else if (!(b.h > a.h) || !(Math.abs(fell - 1) < 0.05)) fails.push('HS-21 the ember did not rise as the cooldown ran out (1 s of page time apart, want 1.0 less): ' + JSON.stringify([a, b]));
+        await drive(page, { maxMs: 1250 });
+        const all = await page.evaluate(() => window.__hsCd);
+        const cool = all.slice(Math.max(0, all.findIndex((r) => r.on)));
+        const a = cool[0] || {};
+        const z = cool[cool.length - 1] || {};
+        /* Each shown value is the time left at the page time it was shown, to its one decimal: one cast time t0 fits
+           every paint (|left - shown| <= 0.05 s), over at least 1 s of page time, and the ember only rises. */
+        let lo = -Infinity;
+        let hi = Infinity;
+        for (const r of cool) { lo = Math.max(lo, r.t - cdMs + (Number(r.sec) - 0.05) * 1000 - 0.5); hi = Math.min(hi, r.t - cdMs + (Number(r.sec) + 0.05) * 1000 + 0.5); }
+        const rises = z.h > a.h && cool.every((r, i) => r.on && (i === 0 || (r.h >= cool[i - 1].h && r.t >= cool[i - 1].t)));
+        if (!ok1 || !a.on || !(a.h > 0 && a.h < 100) || !(Number(a.sec) > 0 && Number(a.sec) <= 6) || a.other) fails.push('HS-21 the cast did not cool its slot with an ember: ' + JSON.stringify(a));
+        else if (!rises || !(z.t - a.t >= 1000) || !(lo <= hi)) fails.push('HS-21 the ember did not rise and the seconds fall with the page clock as the cooldown ran out (' + cdMs + ' ms): ' + JSON.stringify(cool.map((r) => [r.t - a.t, r.sec, r.h])));
         if (shots) await page.screenshot({ path: join(shots, 'hunt-1440x900-cooldown.png') });
       } else fails.push('HS-21 the screen did not mount');
       await ctx.close();
@@ -1329,7 +1359,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       if (!refused) fails.push('HS-8 a refused density save does not show the server’s 4 and why: ' + JSON.stringify(await dRead()));
       s.optionsReply = { ok: true };
       /* Reload: the slot and the density come back from the server, nothing from the browser. */
-      await page.reload({ waitUntil: 'load' });
+      await page.reload({ waitUntil: BOOTED });
       const back = await signInAndPlay(page, '', true);
       if (!back) fails.push('HS-8 the town did not mount after a reload');
       else {

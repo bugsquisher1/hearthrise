@@ -50,7 +50,8 @@ const BUDGET = Object.freeze({
   fpsP5Min: 45,            // the 5th-percentile 1 s bucket
   longFrameMs: 100,        // no gap above this outside the hidden span and its resume
   longFramesMax: 6,        // gaps > 50 ms outside the hidden span and its resume
-  heapGrowthMb: 8,         // used JS heap, warm-up -> end, both after a forced GC
+  heapGrowthMb: 4,         // used JS heap, warm-up -> end, both after a forced GC, the probe's own records stopped and
+                           // released first (2026-10-22: they were 4-7 of CI's 8.7 MB; the game measured 1.0-1.2 MB, mostly JIT code)
   domGrowth: 150,          // elements, warm-up -> the death, the combat log's lines apart (they are capped on their own)
   addedPerMin: 3000,       // DOM nodes added per minute (a per-frame rebuild adds tens of thousands)
   analyzerBehindMs: 2500,  // the analyzer's session clock against the hunt's real elapsed time
@@ -82,6 +83,8 @@ const PROBES = [
 const MUTANTS = [
   ['a per-frame DOM rebuild (the world chrome re-rendered every frame)', 'src/world/world-boot.js',
     '  function step(dt) {\n    const G = view();\n', '  function step(dt) {\n    chrome.innerHTML = chrome.innerHTML;\n    const G = view();\n', /^(dom|fps|long)/],
+  ['a per-frame buffer kept for ever (an unbounded push each frame; the heap measure must see it, not the probe)', 'src/world/world-boot.js',
+    '  function step(dt) {\n    const G = view();\n', '  function step(dt) {\n    (globalThis.__kept || (globalThis.__kept = [])).push(new Array(128).fill(dt));\n    const G = view();\n', /^heap/, 'scenario', 4],
   ['an unbounded log (the combat log keeps every line, rendered in the log)', 'src/hunt-view/combat-log.js',
     '    if (lines.length > LOG_MAX_LINES) lines.splice(0, lines.length - LOG_MAX_LINES);\n', '', /^(heap|dom)/, 'scenario', 4],
   ['every answer repaints the shell and draws the World again inside it (live v0.2.23)', 'src/app/world-pane.js',
@@ -113,7 +116,7 @@ export function planted(extra) {
 /* The page's recorder: rAF gaps, the hidden-tab emulation, the probes' clocks, DOM churn, analyzer samples. */
 const INIT = `(() => {
   const P = window.__perf = { t: Object.create(null), c: Object.create(null), frames: new Float64Array(120000), nf: 0,
-    marks: [], samples: [], dom: [], added: 0, long: [], path: [], trackOn: false };
+    marks: [], samples: [], dom: [], added: 0, long: [], path: [], trackOn: false, stopped: false };
   /* depth: a canvas draw or a shell paint INSIDE an applied answer is counted apart (one answer, one paint, no draw) */
   const depth = Object.create(null);
   P.time = (k, fn) => { const a = performance.now(); depth[k] = (depth[k] || 0) + 1;
@@ -124,7 +127,7 @@ const INIT = `(() => {
   P.count = (k) => { P.c[k] = (P.c[k] || 0) + 1; };
   P.mark = (name) => P.marks.push([performance.now(), name]);
   let tn = 0;
-  P.track = (now, f) => { if ((!P.trackOn && (tn++ % 15)) || P.path.length > 30000) return;
+  P.track = (now, f) => { if (P.stopped || (!P.trackOn && (tn++ % 15)) || P.path.length > 30000) return;
     const us = f.units.filter((u) => u.anim !== undefined).concat(f.hero ? [Object.assign({ anim: 'viewed' }, f.hero, { id: 'viewed' })] : []);
     P.path.push([performance.now(), us.map((u) => [u.unit, +(+u.x).toFixed(2), +(+u.y).toFixed(2), u.anim, u.id])]); };
   /* THE HIDDEN TAB: document.hidden flips, visibilitychange fires, requestAnimationFrame holds its callbacks. */
@@ -138,15 +141,15 @@ const INIT = `(() => {
     if (!on) { const q = Array.from(held.values()); held.clear(); for (const cb of q) raf(cb); } };
   const rec = (t) => { if (P.nf < P.frames.length) P.frames[P.nf++] = t; window.requestAnimationFrame(rec); };
   window.requestAnimationFrame(rec);
-  try { new PerformanceObserver((l) => { for (const e of l.getEntries()) P.long.push([e.startTime, e.duration]); }).observe({ type: 'longtask', buffered: true }); } catch (e) {}
+  try { new PerformanceObserver((l) => { if (!P.stopped) for (const e of l.getEntries()) P.long.push([e.startTime, e.duration]); }).observe({ type: 'longtask', buffered: true }); } catch (e) {}
   const mo = new MutationObserver((ms) => { for (const m of ms) P.added += m.addedNodes.length; });
   const watch = () => mo.observe(document.documentElement, { childList: true, subtree: true });
   if (document.documentElement) watch(); else document.addEventListener('DOMContentLoaded', watch);
-  setInterval(() => {
+  setInterval(() => { if (P.stopped) return;
     const q = (s) => { const e = document.querySelector(s); return e ? e.textContent : null; };
     P.samples.push([Date.now(), performance.now(), q('.ha-analyzer [data-clock="session"]'), q('.ha-analyzer [data-sec="totals"] [data-stat="kills"]'), q('.ht-clock'), (document.querySelector('[data-live]') || { dataset: {} }).dataset.live || null]);
   }, 250);
-  setInterval(() => P.dom.push([performance.now(), document.getElementsByTagName('*').length, P.added, document.querySelectorAll('.hc-line').length]), 2000);
+  setInterval(() => P.stopped || P.dom.push([performance.now(), document.getElementsByTagName('*').length, P.added, document.querySelectorAll('.hc-line').length]), 2000);
 })();`;
 
 /* ── the scripted server ── */
@@ -375,6 +378,11 @@ async function scenario(o) {
     const w0 = await page.evaluate(() => { const P = window.__perf; P.mark('start'); P.added = 0; P.c = Object.create(null);
       return { t: performance.now(), nodes: document.getElementsByTagName('*').length, lines: document.querySelectorAll('.hc-line').length, frames: P.nf }; });
     const h0 = await heap();
+    /* --snapshots DIR: a heap snapshot after each measure (start.heapsnapshot, end.heapsnapshot), to name a retainer. */
+    const snap = async (name) => { if (!cdp || !o.snapshots) return; const parts = []; const on = (e) => parts.push(e.chunk);
+      cdp.on('HeapProfiler.addHeapSnapshotChunk', on); await cdp.send('HeapProfiler.takeHeapSnapshot', { reportProgress: false });
+      cdp.off('HeapProfiler.addHeapSnapshotChunk', on); (await import('node:fs')).writeFileSync(join(o.snapshots, name + '.heapsnapshot'), parts.join('')); };
+    await snap('start');
     if (cdp && o.profile) { await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval', { interval: 500 }); await cdp.send('Profiler.start'); }
     const t0 = Date.now();
     const at = async (ms) => { const d = t0 + ms - Date.now(); if (d > 0) await page.waitForTimeout(d); };
@@ -390,11 +398,19 @@ async function scenario(o) {
     srv.deathIn(0);
     await at(D);
     if (cdp && o.profile) (await import('node:fs')).writeFileSync(o.profile, JSON.stringify((await cdp.send('Profiler.stop')).profile));
+    const h1raw = await heap();
+    const out = await page.evaluate(() => { const P = window.__perf; P.stopped = true;
+      const got = { frames: Array.from(P.frames.slice(0, P.nf)), marks: P.marks, t: P.t, c: P.c, samples: P.samples, dom: P.dom, long: P.long, path: P.path,
+        nodes: document.getElementsByTagName('*').length, added: P.added, now: performance.now() };
+      /* THE PROBE'S OWN RECORDS are not the game's heap: stopped, read out, then released before the end measure
+         (the post-death path alone is thousands of per-frame unit lists, megabytes the page never holds; a record
+         still running between here and the measure grew it by ~60 lists a second). */
+      P.marks = []; P.samples = []; P.dom = []; P.long = []; P.path = [];
+      return got; });
     const h1 = await heap();
-    const out = await page.evaluate(() => { const P = window.__perf;
-      return { frames: Array.from(P.frames.slice(0, P.nf)), marks: P.marks, t: P.t, c: P.c, samples: P.samples, dom: P.dom, long: P.long, path: P.path,
-        nodes: document.getElementsByTagName('*').length, added: P.added, now: performance.now() }; });
-    return Object.assign(analyse(out, w0, o, srv), { heapMb: h0 === null ? null : (h1 - h0) / 1048576, errors: errors.slice(0, 5), endedAt: srv.S.endedAt });
+    await snap('end');
+    return Object.assign(analyse(out, w0, o, srv), { heapMb: h0 === null ? null : (h1 - h0) / 1048576,
+      heapRawMb: h0 === null ? null : (h1raw - h0) / 1048576, errors: errors.slice(0, 5), endedAt: srv.S.endedAt });
   } finally {
     srv.close();
     await browser.close();
@@ -498,7 +514,7 @@ const ms = (r) => (r ? `${r.avg.toFixed(2)}/${r.max.toFixed(1)}` : '-');
 function row(m) {
   return `${m.browser.padEnd(8)} ${m.size.padEnd(8)} fps ${m.fpsMedian}/${m.fpsP5} long ${m.longFrames} worst ${Math.round(m.worstFrame)} resume ${Math.round(m.resumeWorst)} lt ${m.longTasks}`
     + ` | engine ${ms(m.engine)} scene ${ms(m.scene)} draw ${ms(m.draw)} frame ${ms(m.frame)} env ${ms(m.envelope)} (${m.envelope ? m.envelope.n : 0}) tick ${ms(m.shellTick)}`
-    + ` | heap ${m.heapMb === null ? 'n/a' : m.heapMb.toFixed(1) + 'MB'} dom ${m.domStart}->${m.domEnd} (+${m.domGrowth}) log ${m.logLines} +${m.addedPerMin}/min`
+    + ` | heap ${m.heapMb === null ? 'n/a' : m.heapMb.toFixed(1) + 'MB' + (m.heapRawMb != null ? ' (with the probe records ' + m.heapRawMb.toFixed(1) + ')' : '')} dom ${m.domStart}->${m.domEnd} (+${m.domGrowth}) log ${m.logLines} +${m.addedPerMin}/min`
     + ` | paints-in-answers ${m.paintsInAnswers} draws off-loop ${m.drawsOffLoop} (in answers ${m.drawsInAnswers})`
     + ` | analyzer ${m.analyzerPerMin}/min behind ${m.analyzerBehindMs} back ${m.analyzerBackMs}x${m.analyzerBacks} still ${m.analyzerStillMs}`;
 }
@@ -538,7 +554,7 @@ async function main() {
   const browser = arg('--browser', 'chromium');
   const pix = await pixelRule(browser);
   if (process.argv.includes('--pix')) { for (const f of pix) console.log('  ✗ ' + f); process.exit(pix.length ? 1 : 0); }
-  const m = await scenario({ browser, width: 1440, height: 900, minutes: Number(arg('--minutes', '4')), hiddenMs: 30000, overrides: planted(), profile: arg('--profile', null),
+  const m = await scenario({ browser, width: 1440, height: 900, minutes: Number(arg('--minutes', '4')), hiddenMs: 30000, overrides: planted(), profile: arg('--profile', null), snapshots: arg('--snapshots', null),
     second: arg('--second', 'melee_dps'), viewAtDeath: Number(arg('--view-death', '0')) });
   console.log(row(m));
   if (arg('--dump', null)) (await import('node:fs')).writeFileSync(arg('--dump', null), JSON.stringify(m));

@@ -436,17 +436,28 @@ function rules(M) {
       const mis = o.mis;
       const srv = H.server(M, mis, { hunt: 'coppercap_warrens' });
       const start = srv.live('b');   // the server never settles: the start point stays the one before the death
-      const play = (from, toMs) => {
+      const once = (from, toMs) => {
         let clock = from;
         const link = new LiveLink({ timeline: M.TL.createTimeline(), now: () => clock, emit: () => {} });
         link.from({ hunt_live: start, hunt_server_now_ms: from });
-        let worst = 0, swings = 0, frames = 0;
+        const ms = [];
+        let swings = 0;
         for (; clock <= toMs; clock += 16) {
           const t = performance.now();
           swings += link.advance(clock);
-          worst = Math.max(worst, performance.now() - t); frames++;
+          ms.push(performance.now() - t);
         }
-        return { worst: Math.round(worst * 10) / 10, swings, frames, ended: link.ended(), running: link.running(), stats: link.stats };
+        return { ms, swings, frames: ms.length, ended: link.ended(), running: link.running(), stats: link.stats };
+      };
+      /* A frame's cost is its FASTEST of five identical plays (the run is deterministic, frame i is the same
+         work each time). Another process taking the CPU lands on a random frame of one play, never on the same
+         frame of all five (2026-10-22: 67 ms under load, 29.7 and 7.8 ms alone); work the frame really does
+         costs it in every play. */
+      const play = (from, toMs) => {
+        const runs = [0, 1, 2, 3, 4].map(() => once(from, toMs));
+        const worst = Math.max(...runs[0].ms.map((_, i) => Math.min(...runs.map((r) => r.ms[i]))));
+        const same = runs.every((r) => r.frames === runs[0].frames && r.swings === runs[0].swings);
+        return Object.assign({}, runs[0], { ms: undefined, worst: Math.round(worst * 10) / 10, same });
       };
       const viewed = play(o.T0, o.T0 + 20000);
       const reload = play(o.T0 + 20000, o.T0 + 22000);
@@ -464,6 +475,7 @@ function rules(M) {
       ok('LV-E', r.viewed.ended && !r.viewed.running && r.reload.ended && !r.reload.running,
         `after the tank died the prediction reads ended ${r.viewed.ended} / running ${r.viewed.running} (viewed), ${r.reload.ended} / ${r.reload.running} (reload), want ended and not running`);
       ok('LV-E', r.viewed.swings <= 3, `the viewed live view ran ${r.viewed.swings} swings for a hunt that ended at its second boundary (empty swings after the end)`);
+      ok('LV-E', r.viewed.same && r.reload.same, 'the five plays of one start point did not run the same frames and swings (the fastest-of-five reading needs a deterministic play)');
       ok('LV-E', r.viewed.worst < 50 && r.reload.worst < 50, `a frame step took ${r.viewed.worst} ms (viewed) / ${r.reload.worst} ms (reload), budget 50 ms`);
     }
   }
@@ -621,6 +633,9 @@ function rules(M) {
 const sorted = (o) => Object.fromEntries(Object.entries(o).sort());
 
 const MUTANTS = [
+  /* A real per-frame slowdown: every 100th frame step does 60 ms of work, in every play (LV-E budget). */
+  ['a frame step stalls 60 ms every 100 frames (LV-E budget)', 'src/session/live-link.js', '  advance(clientNow) {\n',
+    '  advance(clientNow) {\n    this.__n = (this.__n || 0) + 1;\n    if (this.__n % 100 === 0) { const t = performance.now(); while (performance.now() - t < 60); }\n', /^LV-E: a frame step took/],
   ['drops rolled on the combat stream (LV-L)', 'src/core/combat-sim.js', "rng: createRng(seedOf(ctx, 'r', sw))", "rng: createRng(seedOf(ctx, 's', sw))", /^LV-L/],
   ['the reseed teleports (LV-R)', 'src/hunt-view/timeline.js', 'const dur = Math.max(easeMs || 250, Math.ceil(dist * EASE_MS_PER_TILE));', 'const dur = 1;', /^LV-R/],
   ['every commit reads as a match (LV-R)', 'src/hunt-view/live-engine.js', "return h === hc.world_hash ? 'match' : 'diverged';", "return 'match';", /^LV-R/],

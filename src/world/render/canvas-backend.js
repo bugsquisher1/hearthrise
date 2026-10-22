@@ -13,8 +13,7 @@
 //      cast silhouettes sheared by castMatrix), the y-sorted sprites, the
 //      raised layer (rock tops, capstones, roofs), then light: the map's
 //      ambient multiplied with stepped point-light pools added in, and a
-//      vignette outdoors. The shadow mask and the light layer are re-drawn
-//      only when their inputs changed (a signature each), else reused as is;
+//      vignette outdoors; both masks are re-drawn only on a changed signature;
 //   2. copy it to the screen in ONE nearest-neighbour drawImage at zoom z,
 //      offset by the camera's whole-device-pixel remainder (core/camera.js);
 //   3. draw the nameplates, the walk mark and speech bubbles at SCREEN
@@ -39,10 +38,7 @@ export function createCanvasBackend(o) {
   const tone = (name) => css('--world-' + name);
   const layer = () => { const c = doc.createElement('canvas'); return { c, g: c.getContext('2d') }; };
   const comp = layer(), shade = layer(), lit = layer();
-  /* THE TWO MASKS ARE KEPT WHILE THEY HOLD (tests/perf-budget.mjs): the shadow mask and the light
-     layer are each a full-size raster pass, and most frames would draw them exactly as the last one
-     did (a hero standing in a fight: the same view, the same lamps, the same silhouettes). Each is
-     re-drawn only when its own inputs changed (its signature); a kept one IS the last frame's. */
+  /* THE MASKS ARE KEPT (tests/perf-budget.mjs): two full-size raster passes most frames would repeat. */
   let shadeSig = null, litSig = null;
   const masks = { shadow: 0, light: 0, kept: 0 };
   /* a canvas the browser lost and gave back is blank: draw its mask again */
@@ -193,7 +189,7 @@ export function createCanvasBackend(o) {
     g.globalCompositeOperation = 'source-over';
   }
 
-  /* What the shadow mask is drawn from: the view, the colour, and every shape (a cast by its frame). */
+  /* A mask's signature: the view, its colour, and every shape (a cast by its frame) or lamp (the hero's moves). */
   function shadeSigOf(list, view) {
     let k = view.ox + ',' + view.oy + ',' + view.w + ',' + view.h + '|' + tone('shadow');
     for (const sh of list.shadows) {
@@ -239,7 +235,6 @@ export function createCanvasBackend(o) {
     s.globalCompositeOperation = 'source-over';
   }
 
-  /* The light layer: the ambient, then each lamp's stepped pools added in. */
   function drawLight(points, view, kind) {
     sizeTo(lit.c, view.w, view.h);
     const l = lit.g;
@@ -263,7 +258,6 @@ export function createCanvasBackend(o) {
   function light(g, list, view, fv) {
     const { kind, points, vignette } = list.lights;
     if (kind !== 'day' || points.length) {
-      /* the light layer's inputs: the view, the ambient and every lamp (the hero's moves with it) */
       let sig = view.ox + ',' + view.oy + ',' + view.w + ',' + view.h + '|' + kind + ':' + tone('light-' + kind);
       for (const p of points) sig += '|' + p.x + ',' + p.y + ',' + p.r + ',' + tone('light-' + p.tint);
       if (sig !== litSig) { litSig = sig; masks.light++; drawLight(points, view, kind); } else masks.kept++;

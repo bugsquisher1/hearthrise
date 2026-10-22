@@ -422,7 +422,10 @@ async function checks(overrides, shots) {
         if (line !== AW8_LINE) fails.push('AW-8 the readiness line reads "' + line + '"');
         if (shots) await shot(page, 'alpha-1440x900-hunt-prep');
         await page.click('[data-hs-act="apply"][data-preset="0"]');
-        await page.waitForTimeout(600);
+        /* Use is TWO round trips here (stop the bury, then the apply): wait for the apply itself, not a fixed 600 ms
+           (a loaded box answered the first after it and read "Use sent []"); then let any second, wrong one land. */
+        for (let i = 0; i < 40 && !sent(s, 'hr_hunt_preset_apply').length; i++) await page.waitForTimeout(100);
+        await page.waitForTimeout(300);
         const ap = sent(s, 'hr_hunt_preset_apply');
         if (ap.length !== 1 || ap[0].body.p_preset !== 0) fails.push('AW-8 Use sent ' + JSON.stringify(ap.map((c) => c.body)));
         /* A running bury yields: ONE set_activity idle (the engine pays the bones buried so far) BEFORE the apply. */

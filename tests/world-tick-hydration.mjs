@@ -568,6 +568,7 @@ try {
   {
     const u = U(5);
     await seedFighter(u);
+    await db.exec(`update public.player_state set active_left = 7 where user_id = '${u}' and slot = 0;`);
     const { env, nowMs } = await envelopeOf(u);
 
     /* THE DECLARED SOURCE OF EVERY KEY. `from` is the envelope NAME, `level`
@@ -612,6 +613,9 @@ try {
          409 on. It cannot carry a swap arm because absent and present are the
          same answer — named here rather than silently skipped. */
       ammoCarry: { from: 'ammo_carry', level: 'state', notYetMigrated: true },
+      /* "MAKE N" (2026-11-29-bench-count.sql): the run's count rides the `bench_run` section,
+         read as `bench_run.left` (the probe below carries 7 so the swap arm is not vacuous). */
+      activeLeft: { from: 'bench_run', level: 'top' },
     };
 
     const declared = Object.keys(SOURCES);
@@ -681,6 +685,7 @@ try {
       inventory: env.inventory, equipment: env.equipment,
       buffs: env.buffs,
       ammoCarry: null,
+      activeLeft: env.bench_run && env.bench_run.left,
     };
     const wrongValue = Object.keys(EXPECT).filter((k) => !same(hy[k], EXPECT[k]));
     judge('H5b', wrongValue.length === 0,

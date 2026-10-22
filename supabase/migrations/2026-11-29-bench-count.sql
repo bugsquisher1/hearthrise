@@ -27,7 +27,7 @@
 -- bag runs out first ("as many as possible"); a replayed settle is refused by
 -- the watermark and the version check as before, and pays nothing.
 -- hr_bench_run_view (NEW, section `bench_run` of the envelope registry):
--- { left } for an artisan pointer, else { left: null }. The engine reads it as
+-- { left } (the column; only the artisan engine and a bench row read it). The engine reads it as
 -- `activeLeft`; the Work window shows "N left".
 -- Moves no value: a count can only SHORTEN a run the bag already bounds.
 --
@@ -117,7 +117,9 @@ end $mig$;
 -- ── §2 THE ENVELOPE SECTION ────────────────────────────────────────────────
 create or replace function public.hr_bench_run_view(p_user uuid, p_slot int)
 returns jsonb language sql stable set search_path = public, pg_catalog as $$
-  select jsonb_build_object('left', case when ps.active_kind = 'artisan' then ps.active_left end)
+  -- The column as stored: only the artisan engine reads it (accrual.js accrueArtisan), and the
+  -- Work window shows it on a bench row only.
+  select jsonb_build_object('left', ps.active_left)
     from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot
 $$;
 revoke execute on function public.hr_bench_run_view(uuid, int) from public, anon, authenticated, service_role;

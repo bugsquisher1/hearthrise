@@ -114,6 +114,12 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
    answer wait) runs on the page's pinned clock (page.clock): virtual time moves only when the test moves it,
    and only while no request is out (drive), so a loaded box changes how long the run takes, not what it sees. */
 const LOAD_MS = 15000;
+/* A (re)load waits for DOMContentLoaded: every module script of the boot has run (module scripts are deferred), so
+   the app is up and what follows waits for its STATE. Never the `load` event, which also waits for every image, the
+   favicon and the font sheet, none of which a rule reads at that moment (HS-8: page.reload timed out at 30 s on a
+   loaded box waiting for it, 2026-10-22). A page on the pinned clock keeps `load`: drive() moves time only while
+   no request is out, and the images are requests. */
+const BOOTED = 'domcontentloaded';
 const wait = (page, fn, arg, ms = LOAD_MS) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
 /** Node-side: until `fn()` holds (a call reached the stub, a reply went out), or false after LOAD_MS. */
@@ -146,11 +152,18 @@ async function resumeClock(page) { const c = CLOCKS.get(page); await page.clock.
 async function drive(page, { maxMs, pred = null, arg, step = 50, onStep = null }) {
   const c = CLOCKS.get(page);
   let used = 0;
+  let outSince = 0;
   for (;;) {
     if (pred && await page.evaluate(pred, arg)) return { ok: true, used };
     if (onStep) await onStep();
     if (used >= maxMs) return { ok: !pred, used };
-    if (c.out.size > c.held.size) { await sleep(10); continue; }
+    if (c.out.size > c.held.size) {
+      /* A request out longer than LOAD_MS is a stuck harness, said out loud, never an endless wait. */
+      if (!outSince) outSince = Date.now();
+      else if (Date.now() - outSince > LOAD_MS) throw new Error('drive: ' + (c.out.size - c.held.size) + ' request(s) out for ' + LOAD_MS + ' ms: ' + [...c.out].filter((q) => !c.held.has(q)).map((q) => q.url().slice(-80)).join(', '));
+      await sleep(10); continue;
+    }
+    outSince = 0;
     await page.clock.runFor(step);
     c.now += step;
     used += step;
@@ -519,7 +532,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           chase: document.querySelector(p + ' [data-opt="chase"]').getAttribute('aria-pressed'), distance: document.querySelector(p + ' [data-show="distance"]').textContent }), P);
         if (shown.target !== 'weakest' || shown.chase !== String(!chase0) || shown.distance !== String(d0 + 1)) fails.push('HS-12 the panel does not show the server’s values: ' + JSON.stringify(shown));
         /* After a reload, the same values come back from the server. */
-        await page.reload({ waitUntil: 'load' });
+        await page.reload({ waitUntil: BOOTED });
         if (!(await signInAndPlay(page, ''))) fails.push('HS-12 the screen did not mount after a reload');
         else {
           const again = await page.evaluate((p) => ({ target: document.querySelector(p + ' [data-opt="target_mode"]').value, stance: (document.querySelector(p + ' [data-opt="stance"][aria-pressed="true"]') || {}).getAttribute ? document.querySelector(p + ' [data-opt="stance"][aria-pressed="true"]').getAttribute('data-val') : null,
@@ -1294,7 +1307,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       if (!refused) fails.push('HS-8 a refused density save does not show the server’s 4 and why: ' + JSON.stringify(await dRead()));
       s.optionsReply = { ok: true };
       /* Reload: the slot and the density come back from the server, nothing from the browser. */
-      await page.reload({ waitUntil: 'load' });
+      await page.reload({ waitUntil: BOOTED });
       const back = await signInAndPlay(page, '', true);
       if (!back) fails.push('HS-8 the town did not mount after a reload');
       else {

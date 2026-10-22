@@ -73,7 +73,9 @@
 //         the server's level opens (and the next two, "Needs Woodcutting 15"); Start is
 //         ONE set_activity { kind:'gather'|'artisan', id }, a switch from another is ONE
 //         more (no stop first); the work line reads the server's pointer and survives a
-//         reload; Stop is ONE idle and says what the server made
+//         reload; Stop is ONE idle and says what the server made; a bench row's amount
+//         (1 / 5 / All; a tool starts on 1, stock on All) rides the Start as `count` and
+//         the running row says the server's "N left"
 //   AW-17 the skills are two ledgers (the combat one inside the Character window,
 //         tests/character-window.mjs) and Gathering and crafting does not scroll at
 //         922x423; a character that has never fought sees the pointer to Hunts
@@ -647,14 +649,16 @@ async function checks(overrides, shots) {
       s.onCall = (name, b) => {
         if (name !== 'hr-accrue' || b.verb !== 'set_activity') return;
         const st = s.env.state, inv = s.env.inventory;
-        if (b.activity.kind !== 'idle') { Object.assign(st, { active_kind: b.activity.kind, active_id: b.activity.id }); return; }
+        /* "Make N": the server stores the count and projects it as bench_run.left. */
+        if (b.activity.kind !== 'idle') { Object.assign(st, { active_kind: b.activity.kind, active_id: b.activity.id }); s.env.bench_run = { left: b.activity.count || null }; return; }
         if (st.active_id === 'smelt_bronze') { inv.bronze_bar = 5; delete inv.copper_ore; s.env.skills.smithing.xp += 39; }
         Object.assign(st, { active_kind: 'idle', active_id: null });
       };
       const W = '[data-hs-win="skills-trade"]';
       const rowsOf = () => page.evaluate((w) => Array.from(document.querySelectorAll(w + ' .hw-work.is-on .hw-work-row')).map((li) => {
-        const b = li.querySelector('button');
-        return { id: li.getAttribute('data-id'), btn: b.textContent, off: b.disabled, why: li.querySelector('.hw-work-why').textContent, what: li.querySelector('.hw-work-what').textContent };
+        const b = li.querySelector('.hw-work-go');
+        const n = li.querySelector('.hw-work-n .hh-seg[aria-pressed="true"]');
+        return { id: li.getAttribute('data-id'), btn: b.textContent, off: b.disabled, why: li.querySelector('.hw-work-why').textContent, what: li.querySelector('.hw-work-what').textContent, n: n ? n.textContent : null };
       }), W);
       const nowText = () => page.evaluate((w) => { const b = document.querySelector(w + ' .hw-work-now'); return b && b.classList.contains('is-on') ? b.querySelector('.hw-burying-q').textContent : ''; }, W);
       const msg = () => page.evaluate((w) => document.querySelector(w + ' .hh-intent-msg').textContent, W);
@@ -671,7 +675,7 @@ async function checks(overrides, shots) {
         const tree = r.find((x) => x.id === 'normal_tree'), oak = r.find((x) => x.id === 'oak_tree');
         if (!tree || tree.off || tree.btn !== 'Start' || !/^Normal Log · [\d.]+ s · \d+ XP each$/.test(tree.what) || tree.why !== '40 in your bag') fails.push('AW-21 Woodcutting offers ' + JSON.stringify(tree));
         if (!oak || !oak.off || oak.why !== 'Needs Woodcutting 15.') fails.push('AW-21 a tree above the server level reads ' + JSON.stringify(oak));
-        await page.click(W + ' .hw-work-row[data-id="normal_tree"] button');
+        await page.click(W + ' .hw-work-row[data-id="normal_tree"] .hw-work-go');
         await page.waitForTimeout(800);
         let go = sent(s, 'hr-accrue', 'set_activity');
         if (go.length !== 1 || JSON.stringify(go[0].body.activity) !== '{"kind":"gather","id":"normal_tree"}') fails.push('AW-21 Start sent ' + JSON.stringify(go.map((c) => c.body)));
@@ -691,14 +695,22 @@ async function checks(overrides, shots) {
           const bar = r.find((x) => x.id === 'smelt_bronze'), axe = r.find((x) => x.id === 'forge_bronze_axe');
           if (!bar || bar.off || !/^Makes up to 5 · [\d.]+ s · \d+ XP each$/.test(bar.why) || bar.what !== '2 Copper Ore → Bronze Bar') fails.push('AW-21 Smithing offers ' + JSON.stringify(bar));
           if (!axe || !axe.off || axe.why !== 'Needs Smithing 3.') fails.push('AW-21 a recipe above the server level reads ' + JSON.stringify(axe));
+          /* "MAKE N" (lane c-work-fixes): a bar starts on All, a tool on 1; the player picks 5 and Start sends count 5. */
+          if (bar && bar.n !== 'All') fails.push('AW-21 a bar row starts on ' + bar.n + ', not All');
+          if (axe && axe.n !== '1') fails.push('AW-21 a tool row starts on ' + axe.n + ', not 1');
+          await page.click(W + ' .hw-work-row[data-id="smelt_bronze"] .hw-work-n [data-n="5"]');
+          await page.waitForTimeout(200);
+          r = await rowsOf();
+          const five = r.find((x) => x.id === 'smelt_bronze');
+          if (!five || five.n !== '5' || !/^Makes 5 of up to 5 · /.test(five.why)) fails.push('AW-21 picking 5 reads ' + JSON.stringify(five));
           if (shots) await shot(page, 'work-1440x900-smithing');
-          await page.click(W + ' .hw-work-row[data-id="smelt_bronze"] button');
+          await page.click(W + ' .hw-work-row[data-id="smelt_bronze"] .hw-work-go');
           await page.waitForTimeout(800);
           go = sent(s, 'hr-accrue', 'set_activity');
-          if (go.length !== 2 || JSON.stringify(go[1].body.activity) !== '{"kind":"artisan","id":"smelt_bronze"}') fails.push('AW-21 the switch sent ' + JSON.stringify(go.map((c) => c.body)));
+          if (go.length !== 2 || JSON.stringify(go[1].body.activity) !== '{"kind":"artisan","id":"smelt_bronze","count":5}') fails.push('AW-21 the switch sent ' + JSON.stringify(go.map((c) => c.body)));
           if (!/^Your hero is making Bronze Bar\. It stops when the materials run out/.test(await nowText())) fails.push('AW-21 the bench line reads ' + JSON.stringify(await nowText()));
           r = await rowsOf();
-          if (!/^Working on it now · Makes up to 5 · /.test((r.find((x) => x.id === 'smelt_bronze') || {}).why)) fails.push('AW-21 the bag was spent before the server did it: ' + JSON.stringify(r.find((x) => x.id === 'smelt_bronze')));
+          if (!/^Working on it now · 5 left · Makes 5 of up to 5 · /.test((r.find((x) => x.id === 'smelt_bronze') || {}).why)) fails.push('AW-21 the bag was spent before the server did it: ' + JSON.stringify(r.find((x) => x.id === 'smelt_bronze')));
           await page.click(W + ' .hw-work-now [data-hs-act="work-stop"]');
           await page.waitForTimeout(800);
           go = sent(s, 'hr-accrue', 'set_activity');

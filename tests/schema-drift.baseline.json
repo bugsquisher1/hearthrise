@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-10-22",
- "digest": "9bf8211d3f33bf9dbb3c4931a654864d5385accc811df7618db996b1c79a1a66",
+ "digest": "57004b144ca6c2d2487b1c2ff3a9a7815395127321648b5ceb04235ee376c859",
  "counts": {
   "relations": 219,
-  "functions": 527,
+  "functions": 528,
   "policies": 130,
   "indexes": 305,
   "triggers": 35,
@@ -431,6 +431,7 @@
    "hr_farm_growth_hours(p_planted timestamp with time zone, p_waterings timestamp with time zone[], p_now timestamp with time zone)",
    "hr_farm_harvest(p_slot integer, p_plot_idx integer, p_idem uuid)",
    "hr_farm_plant(p_slot integer, p_plot_idx integer, p_crop text, p_idem uuid)",
+   "hr_farm_plot_cap(p_user uuid, p_slot integer)",
    "hr_farm_upgrade_plot(p_slot integer, p_idem uuid, p_expect_level integer)",
    "hr_farm_water(p_slot integer, p_plot_idx integer, p_idem uuid)",
    "hr_flag_on(p_key text)",

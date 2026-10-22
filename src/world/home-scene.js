@@ -10,11 +10,13 @@
 // A room at rung 0 shows a signpost to the House screen on the spot its first
 // piece will stand. The trophy wall hangs one mount per claimed bestiary
 // trophy (the server's claims, HearthriseTrophies.wallRows) once the Trophy
-// Room is built, as the Trophy Room screen lists them. Tapping a piece opens
+// Room is built, up to the mounts its rung holds (perks.js trophyMounts), as
+// the Trophy Room screen lists them. Tapping a piece opens
 // that room's existing modal; tapping a signpost opens the House screen.
 // PURE: no DOM, no window, no G — the caller passes rungs, rows and names.
 // ════════════════════════════════════════════════════════════════════════
 import { HOUSE_TEMPLATES, ROOM_LAYOUTS, TROPHY_MOUNT_SPRITES } from '../data/world/house-layouts.js?v=0.2.27';
+import { ROOM_PERKS } from '../data/perks.js?v=0.2.27';
 import { lintMap } from './core/map-compile.js?v=0.2.27';
 import { onEdge, isCorner } from './core/grid.js?v=0.2.27';
 
@@ -51,8 +53,11 @@ export function furnish(mapId, rooms, trophies, nameOf) {
     }
     for (const set of def.rungs.slice(0, rung)) for (const piece of set) out.push({ id: piece.id, x: piece.x, y: piece.y, ref: { room } });
   }
-  if (rungOf(have.trophy) && trophies && Array.isArray(trophies.rows)) {
-    trophies.rows.slice(0, layout.trophyMounts.length).forEach((row, i) => {
+  const trophyRung = rungOf(have.trophy);
+  if (trophyRung && trophies && Array.isArray(trophies.rows)) {
+    /* The Trophy Room's rung says how many mounts the wall has (src/data/perks.js trophyMounts). */
+    const rung = ROOM_PERKS.trophy[Math.min(trophyRung, ROOM_PERKS.trophy.length) - 1] || {};
+    trophies.rows.slice(0, Math.min(layout.trophyMounts.length, rung.trophyMounts | 0)).forEach((row, i) => {
       const [x, y] = layout.trophyMounts[i];
       out.push({ id: TROPHY_MOUNT_SPRITES[row.stage] || TROPHY_MOUNT_SPRITES[1], x, y, ref: { room: 'trophy' } });
     });

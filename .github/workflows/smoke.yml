@@ -2839,6 +2839,15 @@ jobs:
           node tests/house-home.mjs
           node tools/mutant-gate.mjs node tests/house-home.mjs --selftest
 
+      # ROOM PURPOSE (game-designer ruling 2026-10-22): the Library speeds rune binding
+      # through the server perk channel, the Garden adds farm beds through the real
+      # hr_farm_plant, no room pays XP or yield. 4 mutations, the migration's §3 short-circuited.
+      - name: House — every room does one thing
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/room-purpose.mjs
+          node tools/mutant-gate.mjs node tests/room-purpose.mjs --selftest
+
       # THE FREE CREW (live 2026-09-09, b527). hr_worker_hire read its paid crew
       # cap as coalesce(greatest(0, least(max(pp.value), 6)), 0) — and LEAST/GREATEST
       # DROP null arguments, so a player who had bought NOTHING got least(NULL,6)=6

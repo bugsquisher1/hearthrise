@@ -31,19 +31,23 @@ const ROMAN = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { ask: null, pending: false, msg: '' }; SCRATCH.set(cs, s); } return s; };
 
-/* What a room rung does, in words (src/data/perks.js is the engine's own table). */
+/* What a room rung does, in words (src/data/perks.js is the engine's own table): a rate as a percent, a count as a count. */
+const pc = (v) => Math.round(v * 100);
 const PERK_WORDS = Object.freeze({
-  cookSpeed: (p) => 'cooking ' + p + '% faster',
-  noBurn: (p) => p + '% less burnt food',
-  smithSpeed: (p) => 'smithing ' + p + '% faster',
-  craftSpeed: (p) => 'crafting ' + p + '% faster',
-  craftSave: (p) => p + '% chance to save the materials',
-  prayerSpeed: (p) => 'prayer offerings ' + p + '% faster',
-  buffDuration: (p) => 'food and drink effects last ' + p + '% longer',
+  cookSpeed: (v) => 'cooking ' + pc(v) + '% faster',
+  noBurn: (v) => pc(v) + '% less burnt food',
+  smithSpeed: (v) => 'smithing ' + pc(v) + '% faster',
+  craftSpeed: (v) => 'crafting ' + pc(v) + '% faster',
+  craftSave: (v) => pc(v) + '% chance to save the materials',
+  prayerSpeed: (v) => 'prayer offerings ' + pc(v) + '% faster',
+  runeSpeed: (v) => 'rune binding ' + pc(v) + '% faster',
+  buffDuration: (v) => 'food and drink effects last ' + pc(v) + '% longer',
+  farmPlots: (v) => v + ' more farm ' + (v === 1 ? 'bed' : 'beds') + ' for each of your characters',
+  trophyMounts: (v) => 'a trophy wall with room for ' + v + ' bestiary trophies',
 });
 function perkText(room, level) {
   const m = (ROOM_PERKS[room] || [])[level - 1];
-  const parts = m ? Object.entries(m).filter(([k, v]) => PERK_WORDS[k] && v > 0).map(([k, v]) => PERK_WORDS[k](Math.round(v * 100))) : [];
+  const parts = m ? Object.entries(m).filter(([k, v]) => PERK_WORDS[k] && v > 0).map(([k, v]) => PERK_WORDS[k](v)) : [];
   return parts.length ? parts.join(', ') : '';
 }
 const roomDoesSomething = (room) => (ROOM_PERKS[room] || []).some((m) => Object.values(m || {}).some((v) => v > 0));

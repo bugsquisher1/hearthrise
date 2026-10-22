@@ -139,13 +139,21 @@ export function roleOf(cs) {
   return isObj(r) && str(r.id, 32) ? { id: r.id, weapon: str(r.weapon) } : null;
 }
 
-/** `bank` (hr_state_of; written only by hr_bank_move): the home storage, [{ id, qty }], or null. */
+/** `bank` (hr_state_of; written only by hr_bank_move): the ACCOUNT's storage, [{ id, qty }], or null. */
 export function bankOf(cs) {
   const b = read(cs, 'bank');
   if (!isObj(b)) return null;
   const items = [];
   for (const [id, n] of Object.entries(b)) if (ID.test(id) && count(n) && n > 0) items.push({ id, qty: n });
   return items;
+}
+
+/** `depot` (hr_depot_view; the ACCOUNT storage's space): { used, cap, next: { name, stacks } | null }, or null. */
+export function depotOf(cs) {
+  const d = read(cs, 'depot');
+  if (!isObj(d) || count(d.used) === null || !count(d.cap)) return null;
+  const n = isObj(d.next) && str(d.next.name, 40) && count(d.next.stacks) ? { name: d.next.name, stacks: d.next.stacks } : null;
+  return { used: d.used, cap: d.cap, next: n };
 }
 
 /** `state.bank_cap`: how many stacks the bag holds (hr_apply's and hr_bank_move's bag fuse), or null. */

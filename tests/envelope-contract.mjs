@@ -149,6 +149,10 @@ function contract(R, cs, body, tl) {
   need('state', R.IS.bagCapOf(cs) !== null, 'bagCapOf reads no state.bank_cap');
   need('buffs', Array.isArray(body.buffs) && Array.isArray(R.IS.buffsOf(cs)), 'buffsOf reads ' + JSON.stringify(body.buffs).slice(0, 160));
   need('bank', body.bank === null || Array.isArray(R.IS.bankOf(cs)), 'bankOf reads ' + JSON.stringify(body.bank).slice(0, 160));
+  // the ACCOUNT storage's space (2026-11-10-storage-chests.sql): used / cap and the next chest, the Storage window's line
+  const dp = R.IS.depotOf(cs);
+  need('depot', !!dp && dp.cap >= 1 && dp.used >= 0 && (dp.next === null || (dp.next.stacks >= 1 && dp.next.name.length > 0)),
+    'depotOf yields ' + JSON.stringify(dp) + ' from ' + JSON.stringify(body.depot));
   // ── lane S2: the alpha windows' and the party UI's sections (seeded by S2_SEED before the settle) ──
   need('name', typeof body.name === 'string' && R.IS.nameOf(cs) === SEED.name && (!h || h.hero.name === SEED.name),
     'name reads ' + JSON.stringify(R.IS.nameOf(cs)) + ' from ' + JSON.stringify(body.name) + ' (hero ' + JSON.stringify(h && h.hero.name) + ')');
@@ -212,7 +216,7 @@ function sheetContract(R, cs, body) {
 export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events', 'hunt_server_now_ms', 'hunt_settings', 'hunt_analyzer',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'stamina_refill', 'blessings',
-  'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'now']);
+  'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'depot', 'now']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -362,6 +366,7 @@ const DB_MUTANTS = [
   ['death_log', 'public.hr_death_log_view(uuid,integer)', "'monster', nullif(", "'killer', nullif("],
   ['hunt_bests', 'public.hr_hunt_bests_view(uuid,integer)', "jsonb_build_object('xp_h', b.xp_h,", "jsonb_build_object('xph', b.xp_h,"],
   ['hunt_bests', 'public.hr_hunt_bests_view(uuid,integer)', "'min_ms', (extract(", "'minms', (extract("],
+  ['depot', 'public.hr_depot_view(uuid,integer)', "'cap', public.hr_depot_cap(p_user),", "'capacity', public.hr_depot_cap(p_user),"],
   ['now', 'public.hr_state_of(uuid,integer)', "'now', now(),", "'stamp', now(),"],
 ];
 const EDGE_MUTANTS = [

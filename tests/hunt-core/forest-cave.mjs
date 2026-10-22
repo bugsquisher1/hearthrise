@@ -1,4 +1,4 @@
-// tests/hunt-core/forest-cave.mjs — THE MEADOWBROOK THICKET AND THE COPPERCAP WARRENS (Tyler 10-18). Run by run-all.mjs.
+// tests/hunt-core/forest-cave.mjs — THE MEADOWBROOK THICKET, THE COPPERCAP WARRENS (Tyler 10-18) AND MOSSLIGHT GLADE. Run by run-all.mjs.
 //
 //   packs-on-the-map    every pack tile at full density is open floor and listed in the map's spawns;
 //                       every pull tile has a clear 3x3 (no wall, no prop): the full box (Tyler 10-18)
@@ -11,7 +11,15 @@
 //                       density 4 with the slider), rarity labels never rank a rarer spawn above a commoner
 //   gather-nodes        each node is a real TREES/ROCKS row of its skill, opens within 20 of the band top,
 //                       stands on its map with its sprite, and a pocket's nodes cover the top gather share
-//   walk-art            every creature of both grounds idles and walks in all 8 facings in a loaded atlas
+//   staged-until-art    (Mosslight Glade, lane c-ground-16-31) a ground is OPEN only on shipped style-1 art (its map
+//                       in WORLD_MAPS on a painted ground an atlas carries; walk-art below); a STAGED one (hunts.js
+//                       `staged`) is not in the Hunts window, its map only in STAGED_MAPS, and both generators leave it
+//                       out of the server catalogue (hr_hunt_enter refuses it)
+//   walk-art            every creature of every OPEN walked ground idles and walks in all 8 facings in a loaded atlas
+//   glade-solo-floor    a solo Melee in the ladder kit at the glade's floor (L16) plays the hour with no death on the six
+//                       seeds; prints the practice-sword-and-Thicket-leather graduate beside it (evidence)
+//   glade-between       at each floor (6-seed median per hero-hour): the Sewer's party < the glade solo < the Warrens'
+//                       party, in net gold AND Level XP, and the glade clears +25% over its bill (the H11 gap, 16-31)
 //   thicket-solo-starter-kit  a new hero alone at the Thicket's floor (the solo-first ground, band 5-15), wearing
 //                       ONLY the start kit, plays the hour on the real settle (play-ground.mjs) with no death, on
 //                       each of the designer's six seeds (designer pass 2026-10-21, Tyler: solo first)
@@ -32,8 +40,9 @@ import { pathToFileURL } from 'node:url';
 import { makeReport, ROOT } from './fixtures/h1.js';
 
 const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
-const NEW = ['meadowbrook_thicket', 'coppercap_warrens'];
-const BRIDGE = { meadowbrook_thicket: [[28, 5], [29, 5], [30, 5], [31, 5], [32, 5]], coppercap_warrens: [[51, 20], [51, 21], [51, 22]] };
+const NEW = ['meadowbrook_thicket', 'coppercap_warrens', 'mosslight_glade'];
+const BRIDGE = { meadowbrook_thicket: [[28, 5], [29, 5], [30, 5], [31, 5], [32, 5]], coppercap_warrens: [[51, 20], [51, 21], [51, 22]],
+  mosslight_glade: [[44, 19], [44, 20], [44, 21], [44, 22], [44, 23]] };
 const MID_DENSITY = 4;
 const RING8 = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
 /* The designer's six hunt seeds (pass 2026-10-21) and the margin floor (+25%, a minimum: Tyler 10-18/10-20). */
@@ -64,7 +73,7 @@ function sprites(M) {
 
 /* The walkable mask of a world map (solid materials and solid props block). */
 function maskOf(M, mapId) {
-  const row = M.maps.WORLD_MAPS.find((m) => m.id === mapId);
+  const row = M.maps.mapRowOf(mapId);   // a staged map (hunts.js `staged`) is walked and checked like any other
   if (!row) return null;
   const map = M.mapc.compileMap(row, { materials: M.terrain.MATERIALS, sprites: sprites(M), openClasses: M.terrain.OPEN_CLASSES, lights: {} });
   const open = (x, y) => x >= 0 && y >= 0 && x < map.w && y < map.h && map.mask[y * map.w + x] === 0;
@@ -111,7 +120,7 @@ function headCount(M, g) {
   });
   return n;
 }
-const BOSSES = new Set(['rat_king', 'grayjaw', 'chief_coppercap']);
+const BOSSES = new Set(['rat_king', 'grayjaw', 'chief_coppercap', 'rook_poacher']);
 
 const cases = {
   'packs-on-the-map': (M) => {
@@ -248,9 +257,42 @@ const cases = {
     }
     return null;
   },
+  /* HALF-BUILT STAYS HIDDEN (§3.5; hunts.js `staged`): a ground is OPEN only with its style-1 art (its map
+     shipped in WORLD_MAPS on a painted ground an atlas carries; its creatures' walks: walk-art below), and a
+     STAGED one is listed nowhere: not in the Hunts window, its map only in STAGED_MAPS, and out of both
+     server catalogues (so hr_hunt_enter refuses it). Opening = art lands + the flag goes, together. */
+  'staged-until-art': async (M) => {
+    const terrains = {};
+    for (const set of M.sets.ATLAS_SETS) Object.assign(terrains, JSON.parse(readFileSync(join(M.root, 'assets/world/atlas-' + set + '.json'), 'utf8')).terrain || {});
+    const listed = new Set((await import(pathToFileURL(join(M.root, 'src/shell/hunt-list.js')).href + V)).huntRows().map((r) => r.hunt));
+    const gh = await import(pathToFileURL(join(M.root, 'tools/gen-hunts.mjs')).href);
+    const gs = await import(pathToFileURL(join(M.root, 'tools/gen-hunt-sessions.mjs')).href);
+    /* what the generators WRITE: hr_hunts' rows, and hr_hunt_grounds + hr_hunt_travel's named hunts */
+    const sql = gh.render();
+    const served = new Set(M.hunts.HUNTS.filter((h) => sql.includes("('" + h.id + "',")).map((h) => h.id));
+    const cat = gs.catalogueRows();
+    const travel = new Set(cat.travel.filter((t) => !t.training).map((t) => t.id));
+    const grounded = new Set(cat.grounds.filter((r) => travel.has(r.hunt)).map((r) => r.hunt));
+    for (const g of Object.values(M.grounds.HUNT_GROUNDS)) {
+      const h = M.hunts.HUNT_INDEX[g.hunt];
+      const shipped = M.maps.WORLD_MAPS.some((m) => m.id === g.map), staged = M.maps.STAGED_MAPS.some((m) => m.id === g.map);
+      if (h.staged === true) {
+        if (listed.has(h.id)) return h.id + ' is staged but the Hunts window lists it';
+        if (shipped || !staged) return h.id + ' is staged but its map ' + g.map + ' is not (only) in STAGED_MAPS';
+        if (served.has(h.id) || grounded.has(h.id)) return h.id + ' is staged but the server catalogue serves it';
+      } else {
+        if (!shipped || staged) return h.id + ' is open but its map ' + g.map + ' is not a shipped WORLD_MAPS row';
+        const row = M.maps.WORLD_MAPS.find((m) => m.id === g.map);
+        if (!terrains[row.ground]) return h.id + ' is open but its ground art ' + row.ground + ' is in no atlas';
+        if (!listed.has(h.id) || !served.has(h.id) || !grounded.has(h.id)) return h.id + ' is open but is missing from the Hunts window or a server catalogue';
+      }
+    }
+    return null;
+  },
   'walk-art': (M) => {
     const spr = sprites(M);
     for (const id of NEW) {
+      if (M.hunts.HUNT_INDEX[id].staged === true) continue;   // staged: no art yet, held by staged-until-art
       const g = M.grounds.HUNT_GROUNDS[id];
       const kinds = new Set(g.pockets.flatMap((p, i) => M.grounds.packAt(g, i, 8).map((s) => s.monster)));
       for (const k of kinds) {
@@ -299,7 +341,68 @@ cases['first-grounds-net-chain'] = async (M) => {
   return bad.length ? bad.join('; ') : null;
 };
 
+/* THE SPRING GROUND (lane c-ground-16-31): Mosslight Glade is the solo ground for 16-31, between the Sewer and the
+   Warrens. Its floor hero is the Thicket's graduate in the smiths' ladder kit (iron at 15), alone. */
+const GLADE = 'mosslight_glade';
+const LEATHER_GRADUATE = Object.freeze({ weapon: 'practice_sword', shield: 'practice_shield', helmet: 'leather_helmet', body: 'leather_body',
+  pants: 'leather_pants', boots: 'leather_boots' });
+cases['glade-solo-floor'] = async (M) => {
+  const P = await playOf(M);
+  const floor = floorOf(M, GLADE);
+  const bad = [], seen = [], grad = [];
+  for (const secret of STARTER_SEEDS) {
+    const x = P.run(GLADE, floor, ['tank'], { spanMs: 3600000, secret });
+    seen.push(x.totals.falls ? 'died ' + (x.playedMs / 60000).toFixed(1) + 'm' : 'lived');
+    if (x.totals.falls || x.playedMs < 3600000) bad.push('seed ' + secret + ': ended after ' + (x.playedMs / 60000).toFixed(1) + ' min with ' + x.totals.falls + ' death(s) (' + x.ended.join(', ') + ')');
+    /* evidence, not a gate: the start kit's sword and shield in the Thicket's leather, no smith visited */
+    const y = P.run(GLADE, floor, ['tank'], { spanMs: 3600000, secret, equipment: LEATHER_GRADUATE });
+    grad.push(y.totals.falls ? 'died ' + (y.playedMs / 60000).toFixed(1) + 'm' : 'lived');
+  }
+  console.log('    glade solo at L' + floor + ', ladder kit, ' + STARTER_SEEDS.length + ' seeds: ' + seen.join(' | '));
+  console.log('    glade solo at L' + floor + ', practice sword + Thicket leather (evidence): ' + grad.join(' | '));
+  return bad.length ? 'a ladder-kit Melee alone at the glade floor: ' + bad.join('; ') : null;
+};
+cases['glade-between'] = async (M) => {
+  const P = await playOf(M);
+  const PARTY4 = ['tank', 'ranger', 'mage', 'healer'];
+  /* each ground at its floor in its own reference (tests/hunt-core/drop-tables.mjs REFERENCE): the Sewer's party of four
+     in the ladder kit, the glade's solo Melee, the Warrens' party of four in the full own-tier set */
+  const chain = [['millrace_sewer', PARTY4, false], [GLADE, ['tank'], false], ['coppercap_warrens', PARTY4, true]];
+  const rows = [], bad = [];
+  for (const [gid, roles, fullSet] of chain) {
+    const floor = floorOf(M, gid), nets = [], xps = [];
+    for (const secret of STARTER_SEEDS) {
+      const x = P.run(gid, floor, roles, { spanMs: 3600000, secret, fullSet });
+      nets.push(x.income - x.store); xps.push(x.levelXp);
+      if (gid === GLADE && x.store >= BILL_SHARE_FOR_MARGIN * x.income && (x.income / x.store - 1) * 100 < STARTER_MARGIN_MIN) {
+        bad.push(gid + ' seed ' + secret + ': ' + Math.round((x.income / x.store - 1) * 100) + '% over its bill, under +' + STARTER_MARGIN_MIN + '%');
+      }
+    }
+    rows.push({ gid, floor, net: median(nets), xp: median(xps) });
+  }
+  console.log('    per hero-hour at the floor (6-seed median), net g | Level XP: ' + rows.map((r) => r.gid + ' L' + r.floor + ' ' + r.net + ' | ' + r.xp).join(' -> '));
+  for (let i = 1; i < rows.length; i++) {
+    if (!(rows[i].net > rows[i - 1].net)) bad.push(rows[i].gid + ' nets ' + rows[i].net + ' g/h, not above ' + rows[i - 1].gid + "'s " + rows[i - 1].net);
+    if (!(rows[i].xp > rows[i - 1].xp)) bad.push(rows[i].gid + ' gives ' + rows[i].xp + ' Level XP/h, not above ' + rows[i - 1].gid + "'s " + rows[i - 1].xp);
+  }
+  return bad.length ? bad.join('; ') : null;
+};
+
 const mutants = [
+  { name: 'the glade opened before its art (staged flag dropped)', case: 'staged-until-art',
+    edits: [['src/data/hunts.js', "travelS: 0, pull: 4, respawnMs: 60000, staged: true,", "travelS: 0, pull: 4, respawnMs: 60000,"]] },
+  { name: 'the Hunts window lists a staged hunt', case: 'staged-until-art',
+    edits: [['src/shell/hunt-list.js', "if (!h || h.staged === true) continue;", "if (!h) continue;"]] },
+  { name: 'the server catalogue serves a staged ground', case: 'staged-until-art',
+    edits: [['tools/gen-hunt-sessions.mjs', "    grounds: OPEN_GROUNDS, worldMaxBytes:", "    grounds: HUNT_GROUNDS, worldMaxBytes:"],
+      ['tools/gen-hunt-sessions.mjs', "hunts: OPEN_HUNTS, monsters: MONSTERS, items: ITEMS,", "hunts: HUNTS, monsters: MONSTERS, items: ITEMS,"],
+      ['tools/gen-hunt-sessions.mjs', "import { OPEN_GROUNDS, DENSITY_PICK }", "import { HUNT_GROUNDS, OPEN_GROUNDS, DENSITY_PICK }"]] },
+  { name: 'the glade\'s sluicer and Rook hit like the Warrens (atk 18 -> 26)', case: 'glade-solo-floor',
+    edits: [['src/data/monsters.js', 'hp: 70, atk: 18, def: 10,', 'hp: 70, atk: 26, def: 10,'], ['src/data/monsters.js', 'hp: 78, atk: 18, def: 11,', 'hp: 78, atk: 26, def: 11,']] },
+  { name: 'the glade\'s coin doubled (it out-earns the Warrens)', case: 'glade-between',
+    edits: [['src/data/monsters.js', 'xp: 165, gp: [4, 12]', 'xp: 165, gp: [8, 24]'], ['src/data/monsters.js', 'xp: 225, gp: [6, 18]', 'xp: 225, gp: [12, 36]'],
+      ['src/data/monsters.js', 'xp: 260, gp: [4, 12]', 'xp: 260, gp: [8, 24]'], ['src/data/monsters.js', 'xp: 360, gp: [14, 34]', 'xp: 360, gp: [28, 68]'],
+      ['src/data/monsters.js', 'xp: 520, gp: [16, 40]', 'xp: 520, gp: [32, 80]']] },
   { name: 'the Thicket wolves hit like a Sewer spider (atk 4 -> 13)', case: 'thicket-solo-starter-kit',
     edits: [['src/data/monsters.js', 'hp: 14, atk: 4, def: 1, xp: 52, gp: [3, 5], speed: 4200,', 'hp: 14, atk: 13, def: 1, xp: 52, gp: [3, 5], speed: 4200,']] },
   /* The whole Sewer roster's coin back to its pre-x1.8 rows (the drop-tables play mutant's /1.8): the party nets under the Thicket. */
@@ -331,7 +434,9 @@ const mutants = [
 
 function plant(edits) {
   const root = mkdtempSync(join(tmpdir(), 'hunt-forest-cave-'));
-  for (const d of ['src/core', 'src/data', 'src/world', 'assets/world', 'supabase/functions/hr-accrue', 'tests/hunt-core/fixtures/play-ground.mjs']) cpSync(join(ROOT, d), join(root, d), { recursive: true });
+  /* src/shell, src/session, the two generators and _is-main: staged-until-art reads the Hunts window and the generators */
+  for (const d of ['src/core', 'src/data', 'src/world', 'src/shell', 'src/session', 'assets/world', 'supabase/functions/hr-accrue', 'tests/hunt-core/fixtures/play-ground.mjs',
+    'tools/gen-hunts.mjs', 'tools/gen-hunt-sessions.mjs', 'tests/_is-main.mjs']) cpSync(join(ROOT, d), join(root, d), { recursive: true });
   cpSync(join(ROOT, 'src/build-info.js'), join(root, 'src/build-info.js'));
   for (const [file, from, to] of edits) {
     const f = join(root, file);

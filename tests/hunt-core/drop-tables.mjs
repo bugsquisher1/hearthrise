@@ -67,8 +67,10 @@ const REFERENCE = Object.freeze({
   meadowbrook_thicket: { roles: ['tank'], full: false },
   millrace_sewer: { roles: ['tank'], full: false },
   coppercap_warrens: { roles: PARTY, full: true },
+  /* the solo spring ground (lane c-ground-16-31): a solo Melee in the ladder kit, the Thicket graduate it is built for */
+  mosslight_glade: { roles: ['tank'], full: false },
 });
-const GEAR_RUNS = Object.freeze(['meadowbrook_thicket', 'millrace_sewer']);   // the fresh-hero grounds
+const GEAR_RUNS = Object.freeze(['meadowbrook_thicket', 'millrace_sewer', 'mosslight_glade']);   // the fresh-hero grounds
 
 async function load(root) {
   return {

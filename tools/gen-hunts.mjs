@@ -24,7 +24,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
-import { HUNTS } from '../src/data/hunts.js';
+import { HUNTS, OPEN_HUNTS } from '../src/data/hunts.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { isMain } from '../tests/_is-main.mjs';
 
@@ -78,7 +78,8 @@ export function huntRows(hunts, monsters) {
   }).sort((a, b) => (a.id < b.id ? -1 : 1));
 }
 
-export function render(hunts = HUNTS, monsters = MONSTERS) {
+/* A STAGED hunt (hunts.js `staged`: built, art pending) is not served: hr_hunts never names it. */
+export function render(hunts = OPEN_HUNTS, monsters = MONSTERS) {
   const r = huntRows(hunts, monsters);
   const digest = createHash('sha256').update(JSON.stringify(r)).digest('hex');
   const nSpawns = r.reduce((n, h) => n + h.spawns.length, 0);

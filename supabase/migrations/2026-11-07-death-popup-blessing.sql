@@ -18,7 +18,10 @@
 --   session  the hunt session the death ended (hunt_sessions.id)
 --   saved    the XP the session's Blessing kept, { level|skill: xp }, read from
 --            the 'blessing_used' ledger row of that session (index
---            player_ledger_session); null when no Blessing was used
+--            player_ledger_session); null when no Blessing was used. Only a
+--            death of the last 30 days carries it: the ledger is pruned at
+--            retain_days (tests/ledger-rollup.mjs refuses a lifetime read), so
+--            an older death omits the key rather than claim no Blessing
 -- Still the caller's own rows only (it is a section view: no grant, called by
 -- hr_state_sections_of for the owner), still the newest 30.
 --
@@ -60,15 +63,19 @@ CREATE OR REPLACE FUNCTION public.hr_death_log_view(p_user uuid, p_slot integer)
  SET search_path TO 'public', 'pg_catalog'
 AS $function$
   -- DEATH-POPUP (2026-11-07-death-popup-blessing.sql): each row names its session and what its Blessing kept.
+  -- `saved` is read from the ledger, which is pruned at retain_days: only a death of the last 30 days carries
+  -- the key (null = no Blessing was used); an older one omits it rather than claim none was used. The ledger
+  -- row is written by the settle that priced the death, at or after the death and within its window.
   select coalesce(jsonb_agg(jsonb_build_object(
            'id', d.id, 'at', d.at, 'hunt', d.hunt_id, 'session', d.session_id, 'monster', nullif(d.data->>'monster', ''),
            'xp', case when d.data ? 'xp' then (d.data->>'xp')::bigint end,
-           'xp_lost', case when jsonb_typeof(d.data->'xp_lost') = 'object' then d.data->'xp_lost' end,
-           'saved', (select case when jsonb_typeof(l.meta->'saved') = 'object' then l.meta->'saved' end
-                       from public.player_ledger l
-                      where l.session_id = d.session_id and l.user_id = p_user and l.slot = p_slot
-                        and l.intent = 'blessing_used'
-                      order by l.id limit 1))
+           'xp_lost', case when jsonb_typeof(d.data->'xp_lost') = 'object' then d.data->'xp_lost' end)
+         || case when d.at > now() - interval '30 days' then jsonb_build_object('saved',
+              (select case when jsonb_typeof(l.meta->'saved') = 'object' then l.meta->'saved' end
+                 from public.player_ledger l
+                where l.session_id = d.session_id and l.user_id = p_user and l.slot = p_slot
+                  and l.intent = 'blessing_used' and l.at >= d.at and l.at < d.at + interval '2 days'
+                order by l.id limit 1)) else '{}'::jsonb end
          order by d.at desc, d.id desc), '[]'::jsonb)
     from (select e.id, e.at, e.data, h.hunt_id, h.id as session_id
             from public.hunt_sessions h
@@ -126,6 +133,15 @@ begin
       (v_uid, 1, 'hunt', 'blessing_used', '{"saved": {"level": 1}}', v_s1);
     if jsonb_typeof(public.hr_death_log_view(v_uid, 0)->1->'saved') <> 'null' then
       raise exception 'VERIFY(c): another slot''s Blessing was read as this death''s'; end if;
+    -- (c2) a death older than 30 days (its ledger may be pruned) omits `saved` instead of claiming no Blessing.
+    insert into public.hunt_sessions (user_id, slot, hunt_id, entered_at, hunt_from, settled_to, next_swing_at, ended_at, end_reason)
+      values (v_uid, 0, 'deathpopupprobe', now() - interval '41 days', now() - interval '41 days', now() - interval '40 days', now(), now() - interval '40 days', 'died')
+      returning id into v_s1;
+    insert into public.hunt_session_events (session_id, user_id, slot, type, at, data) values
+      (v_s1, v_uid, 0, 'death', now() - interval '40 days', '{"monster": "rat", "xp": 1}');
+    v := public.hr_death_log_view(v_uid, 0);
+    if jsonb_array_length(v) <> 3 or v->2 ? 'saved' or not (v->1 ? 'saved') then
+      raise exception 'VERIFY(c2): an old death claims a Blessing answer, or a recent one lost its key: %', v; end if;
     -- (d) the envelope's section carries the new keys.
     v := public.hr_state_of(v_uid, 0);
     if (v->'death_log'->0->>'session')::uuid is distinct from v_s2 or v->'death_log'->0->'saved' <> '{"level": 57}'::jsonb then

@@ -3,7 +3,7 @@
 -- "Depot/storage should be account shared"). STAGED (lane/c-account-shared,
 -- backend-architect, 2026-10-22). Game CLOSED: applies on its passing §6;
 -- INVENTORY SURFACE (items move between a character and the account), Security
--- reviews it with the reopen gate. Design: docs/design/ACCOUNT_DEPOT.md.
+-- reviews it with the reopen gate. Contract: docs/design/ARCHITECTURE_CONTRACTS.md (Depot).
 --
 -- ── WHAT ─────────────────────────────────────────────────────────────────────
 -- §1 public.account_bank (user_id, item_id) -> qty: ONE depot per ACCOUNT. Every

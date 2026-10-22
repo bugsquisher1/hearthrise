@@ -231,6 +231,8 @@
     "node tools/mutant-gate.mjs node tests/state-of-farm-projection.mjs --selftest": "economy-selftests",
     "node tools/mutant-gate.mjs node tests/bank-cap-rungs.mjs --selftest": "economy-selftests",
     "node tests/bank-cap-rungs.mjs": "economy-selftests",
+    "node tests/account-depot.mjs": "economy-selftests",
+    "node tools/mutant-gate.mjs node tests/account-depot.mjs --selftest": "economy-selftests",
     "node tools/mutant-gate.mjs node tests/worker-hire-cap.mjs --selftest": "economy-selftests",
     "node tests/worker-hire-cap.mjs": "economy-selftests",
     "node tools/gen-hearthfind.mjs --check": "economy-selftests",

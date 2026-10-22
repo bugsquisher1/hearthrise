@@ -18,16 +18,16 @@
 // While open, a stale sheet is asked for once per record version. The answer
 // is the re-read envelope. A server without the section is never asked.
 // ════════════════════════════════════════════════════════════════════════
-import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.23';
-import { characterSheetOf } from '../../../session/character-sections.js?v=0.2.23';
-import { heroSprite } from '../../../session/hero-look.js?v=0.2.23';
-import { attr, cls } from '../../../render/paint.js?v=0.2.23';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.23';
-import { outfitArt, drawOutfit } from '../../../render/outfit-sprite.js?v=0.2.23';
-import { scratchOf } from './state.js?v=0.2.23';
-import { sheetHtml, patchSheet } from './sheet.js?v=0.2.23';
-import { outfitHtml, patchOutfit, actOutfit, draftOf, dyesOf, facingOf, PREVIEW_SCALE } from './outfit.js?v=0.2.23';
-import { deathsHtml, patchDeaths, actDeaths } from './deaths.js?v=0.2.23';
+import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.25';
+import { characterSheetOf } from '../../../session/character-sections.js?v=0.2.25';
+import { heroSprite } from '../../../session/hero-look.js?v=0.2.25';
+import { attr, cls } from '../../../render/paint.js?v=0.2.25';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.25';
+import { outfitArt, drawOutfit } from '../../../render/outfit-sprite.js?v=0.2.25';
+import { scratchOf } from './state.js?v=0.2.25';
+import { sheetHtml, patchSheet } from './sheet.js?v=0.2.25';
+import { outfitHtml, patchOutfit, actOutfit, draftOf, dyesOf, facingOf, PREVIEW_SCALE } from './outfit.js?v=0.2.25';
+import { deathsHtml, patchDeaths, actDeaths } from './deaths.js?v=0.2.25';
 
 const TABS = Object.freeze([['sheet', 'Character'], ['outfit', 'Outfit'], ['deaths', 'Deaths']]);
 const PORTRAIT_SCALE = 1;

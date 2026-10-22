@@ -21,19 +21,19 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { MONSTERS } from '../../data/monsters.js?v=0.2.23';
-import { HUNT_STANCES, DEFAULT_STANCE } from '../../data/rule-subjects.js?v=0.2.23';
-import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js?v=0.2.23';
-import { cheb } from './grid.js?v=0.2.23';
-import { atRest, unitById } from './movement.js?v=0.2.23';
-import { makeEvent } from './events.js?v=0.2.23';
-import { roleOf, elementOn, inRange, peel, engaged } from './targeting.js?v=0.2.23';
-import { fallen, partySize } from './pull-cycle.js?v=0.2.23';
-import { shareKillXp } from './xp-share.js?v=0.2.23';
-import { payBasic } from './abilities.js?v=0.2.23';
-import { slotsFor, pickSlot, bestAim, footprintOf, inFootprint, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.23';
-import { resolveLine } from '../action-rules.js?v=0.2.23';
-import { elementWithFloor } from '../../data/hunt-grounds.js?v=0.2.23';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.25';
+import { HUNT_STANCES, DEFAULT_STANCE } from '../../data/rule-subjects.js?v=0.2.25';
+import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js?v=0.2.25';
+import { cheb } from './grid.js?v=0.2.25';
+import { atRest, unitById } from './movement.js?v=0.2.25';
+import { makeEvent } from './events.js?v=0.2.25';
+import { roleOf, elementOn, inRange, peel, engaged } from './targeting.js?v=0.2.25';
+import { fallen, partySize } from './pull-cycle.js?v=0.2.25';
+import { shareKillXp } from './xp-share.js?v=0.2.25';
+import { payBasic } from './abilities.js?v=0.2.25';
+import { slotsFor, pickSlot, bestAim, footprintOf, inFootprint, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.25';
+import { resolveLine } from '../action-rules.js?v=0.2.25';
+import { elementWithFloor } from '../../data/hunt-grounds.js?v=0.2.25';
 
 /* stance: the hero's setting. acc (permille), maxHit, def, element: its combat snapshot.
    swingLeftMs: ms until the unit may swing again. */

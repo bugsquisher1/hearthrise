@@ -183,6 +183,10 @@ function contract(R, cs, body, tl) {
   const of = R.CS.outfitOf(cs);
   need('outfit', !!of && of.owned.has('knight') && of.owned.has('witch'), 'outfitOf (a premium character) yields ' + JSON.stringify(of && [...of.owned]) + ' from ' + JSON.stringify(body.outfit));
   need('death_log', Array.isArray(R.CS.deathLogOf(cs)), 'deathLogOf reads no death_log: ' + JSON.stringify(body.death_log));
+  /* `now`, the envelope's own server stamp (hr_state_of): the problem report states the envelope's
+     age from it (src/shell/report-model.js). A date, from this run's database clock. */
+  const stamp = Date.parse(String(cs.read('now') || ''));
+  need('now', Number.isFinite(stamp) && Math.abs(stamp - Date.now()) < 24 * 3600000, 'the envelope stamp `now` reads ' + JSON.stringify(body.now) + ' (not a date of this run)');
   // the vitals strip out of a hunt (core rebuild `vitals`): max HP and mana, mana full in town
   const tv = R.CS.townVitalsOf(cs);
   need('vitals', !!tv && isNum(tv.hpMax) && isNum(tv.manaMax) && tv.mana === tv.manaMax && isNum(tv.level),
@@ -358,6 +362,7 @@ const DB_MUTANTS = [
   ['death_log', 'public.hr_death_log_view(uuid,integer)', "'monster', nullif(", "'killer', nullif("],
   ['hunt_bests', 'public.hr_hunt_bests_view(uuid,integer)', "jsonb_build_object('xp_h', b.xp_h,", "jsonb_build_object('xph', b.xp_h,"],
   ['hunt_bests', 'public.hr_hunt_bests_view(uuid,integer)', "'min_ms', (extract(", "'minms', (extract("],
+  ['now', 'public.hr_state_of(uuid,integer)', "'now', now(),", "'stamp', now(),"],
 ];
 const EDGE_MUTANTS = [
   ['hunt_track', 'src/core/hunt-track.js', '    hunt_track: pb.steps.map(', '    track: pb.steps.map('],

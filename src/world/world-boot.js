@@ -1,61 +1,47 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/world/world-boot.js — THE WORLD PANE'S RUNTIME (loaded on first open).
 //
-// src/app/world-pane.js boots this for ONE CharacterSession: every read goes
-// through opts.view() (that character's view, src/app/world-view.js), never a
-// global, so two characters on one screen never share a scene.
+// src/app/world-pane.js boots this for ONE CharacterSession: every read goes through
+// opts.view() (src/app/world-view.js), never a global, so two characters never share a scene.
 //
-// THE LOOP runs on requestAnimationFrame ONLY while #panel-world is the active
-// panel AND the page is visible: switching tab or hiding the page stops it on
-// the next frame (and sync() cancels the pending one at once). 30 fps under the
-// canonical mobile query, 60 elsewhere. Each frame reads the scene from the
-// server-held state (store.js), steps the roof fades, and hands the backend
-// one state object.
+// THE LOOP runs on requestAnimationFrame ONLY while #panel-world is active AND the page is
+// visible (sync() cancels a pending frame at once); 30 fps under the mobile query, 60 elsewhere.
+// Each frame reads the scene from server-held state (store.js), steps the roof fades, and
+// hands the backend one state object.
 //
-// THE HUNT (lane W3). When the server's activity is a fight a map renders, the
-// scene is that hunt: hunt-scene.js stages the fight from the one swing
-// observer (src/render/combat-observer.js) — its snapshot every frame and every
-// beat as it happens, so swings taken while the pane was hidden are not lost.
-// The hunt's panels (analyzer, party, bars) are the shell's (src/shell/widgets/*).
-// THE LIVE HUNT: with a `hunt` section, src/hunt-view/scene.js plays the character's
-// timeline on its own clock instead; the staging above is for a fight with none. That
-// scene is the CHARACTER'S (liveSceneOf), never this pane's: a switch of the viewed
-// character remounts the pane, and a scene made here forgot every death it had played.
+// THE HUNT (lane W3): a fight a map renders is staged by hunt-scene.js from the one swing
+// observer (src/render/combat-observer.js), snapshot and beats, so hidden-pane swings survive.
+// THE LIVE HUNT: with a `hunt` section, src/hunt-view/scene.js plays the timeline instead. That
+// scene is the CHARACTER'S (liveSceneOf), so a switch of the viewed character keeps its deaths.
 //
-// THE TOWN AND THE HOME (lane W4) otherwise, as the viewer picks: walk-scene.js
-// draws them from what the client holds from the server, read here into one
-// `env` per frame. A tap on the canvas walks the local hero (G._world.pos) or
-// names what it hit for the pane (opts.emit: a hunt's entrance, a station); no
-// tap sends an intent (steer-local.js runAction). On a desktop WASD / the
-// arrows walk the same feet (8 ways, stop on key-up); never while a text field
-// has focus.
-// THE TOWN'S PEOPLE: opts.town (src/session/town-presence.js) hears the town shown and the hero's place each frame, and gives the walkers.
-// It is also the one record of where this character's body stands in town: a pane that shows the
-// character again starts its hero there (placeOn), never at the map's start (a switch is not a move).
-// A fight on a hunt no map renders shows the viewer's town or home with a slim
-// banner that names the fight and offers the hunt that IS in the World.
+// THE TOWN AND THE HOME (lane W4) otherwise: walk-scene.js draws them from one `env` per frame
+// read from server copies. A tap walks the local hero or names what it hit for the pane
+// (opts.emit); no tap sends an intent (steer-local.js). WASD / arrows walk 8 ways unless a
+// text field has focus. opts.town (src/session/town-presence.js) gives the walkers and is the
+// one record of where this body stands in town (placeOn: a switch is not a move).
+// A fight on a hunt no map renders shows town or home with a slim banner offering the mapped hunt.
 // ════════════════════════════════════════════════════════════════════════
-import { BUILD } from '../build-info.js?v=0.2.23';
-import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=0.2.23';
-import { WORLD_MAPS } from '../data/world/maps/index.js?v=0.2.23';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.23';
-import { MONSTERS } from '../data/monsters.js?v=0.2.23';
-import { compileMap } from './core/map-compile.js?v=0.2.23';
-import { STUB_SPRITE } from './core/book.js?v=0.2.23';
-import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.23';
-import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.23';
-import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.23';
-import { loadAtlases } from './atlas.js?v=0.2.23';
-import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.23';
-import { huntOfMap } from './hunt-maps.js?v=0.2.23';
-import { createHuntScene } from './hunt-scene.js?v=0.2.23';
-import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.23';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.23';
-import { createWalkScene } from './walk-scene.js?v=0.2.23';
-import { homeMapFor } from './home-scene.js?v=0.2.23';
-import { runAction } from './steer-local.js?v=0.2.23';
-import { heroSprite } from '../session/hero-look.js?v=0.2.23';
-import { keyBelongsToField } from '../utils/dom.js?v=0.2.23';
+import { BUILD } from '../build-info.js?v=0.2.25';
+import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=0.2.25';
+import { WORLD_MAPS } from '../data/world/maps/index.js?v=0.2.25';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.25';
+import { MONSTERS } from '../data/monsters.js?v=0.2.25';
+import { compileMap } from './core/map-compile.js?v=0.2.25';
+import { STUB_SPRITE } from './core/book.js?v=0.2.25';
+import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.25';
+import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.25';
+import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.25';
+import { loadAtlases } from './atlas.js?v=0.2.25';
+import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.25';
+import { huntOfMap } from './hunt-maps.js?v=0.2.25';
+import { createHuntScene } from './hunt-scene.js?v=0.2.25';
+import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.25';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.25';
+import { createWalkScene } from './walk-scene.js?v=0.2.25';
+import { homeMapFor } from './home-scene.js?v=0.2.25';
+import { runAction } from './steer-local.js?v=0.2.25';
+import { heroSprite } from '../session/hero-look.js?v=0.2.25';
+import { keyBelongsToField } from '../utils/dom.js?v=0.2.25';
 
 /* THE KEYS (desktop): WASD and the arrows, by physical key (e.code, so a
    non-QWERTY layout walks with the same hand). Two held at once walk the

@@ -2317,9 +2317,11 @@ jobs:
   # rounded up = 20 min. Re-measure from the first GitHub run and tighten.
   # + progress-coalesce (2026-10-08, measured locally): 36 s plain + 37 s
   # mutate = ~613 s (10.2 min). Budget = x2 = 20.4, rounded up to 21.
+  # + hunt-tick-shards (2026-10-21, measured locally): 12 s plain + 61 s
+  # mutate = ~686 s (11.4 min). Budget = x2 = 22.9, rounded up to 23.
   db-replay-8:
     runs-on: ubuntu-latest
-    timeout-minutes: 21
+    timeout-minutes: 23
 
     steps:
       - uses: actions/checkout@v4
@@ -2429,6 +2431,19 @@ jobs:
           node tests/hunt-sessions-settle.mjs
           node tests/hunt-sessions-settle.mjs --closed
           node tools/mutant-gate.mjs node tests/hunt-sessions-settle.mjs --mutate
+      # THE WORLD TICK'S HUNT SETTLES, PACKED BY LOAD (2026-11-04-hunt-tick-shards.sql,
+      # tick.js HUNT_BODY_BUDGET_MS, accrual.js accrueHunt's world bound): one fire
+      # over 26 due hunts queues 3 bodies of <= hunt_body_max, disjoint, each
+      # leased to its own holder; a second fire re-posts none; every body settles
+      # every hunt once through the shipped runTick; a body past its budget starts
+      # nothing; an oversized world is refused, never committed. --load is the
+      # 100-hunt measurement (local, not a gate). Measured 2026-10-21 locally:
+      # plain 12 s, --mutate (11 mutants) 61 s.
+      - name: Hunt tick shards — packed bodies, leases, budget, world bound
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/hunt-tick-shards.mjs
+          node tools/mutant-gate.mjs node tests/hunt-tick-shards.mjs --mutate
       # THE CORE MODEL (docs/design/CORE_MODEL.md, 2026-10-19): the Level curve, the
       # combat skills' uncapped curve, max HP / mana, Prayer's regen and monster levels
       # agree in JS and SQL on every boundary (core-curves, PGlite replay); the Level

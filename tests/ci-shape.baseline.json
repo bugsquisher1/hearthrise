@@ -206,6 +206,8 @@
     "node tests/hunt-sessions-settle.mjs": "db-replay-8",
     "node tests/hunt-sessions-settle.mjs --closed": "db-replay-8",
     "node tools/mutant-gate.mjs node tests/hunt-sessions-settle.mjs --mutate": "db-replay-8",
+    "node tests/hunt-tick-shards.mjs": "db-replay-8",
+    "node tools/mutant-gate.mjs node tests/hunt-tick-shards.mjs --mutate": "db-replay-8",
     "node tests/core-curves.mjs": "db-replay-8",
     "node tools/mutant-gate.mjs node tests/core-curves.mjs --selftest": "db-replay-8",
     "node tests/level-curve.mjs": "db-replay-8",

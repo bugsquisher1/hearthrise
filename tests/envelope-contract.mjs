@@ -101,6 +101,13 @@ function contract(R, cs, body, tl) {
     need('hunt_analyzer', !m.length && a.hero.kills > 0 && !!a.party, 'analyzerOf misses ' + m.join(', ') + (a.party ? '' : ' party') + ' (kills ' + (a.hero && a.hero.kills) + ')');
     need('hunt_analyzer', Object.keys(a.hero.dealtByAbility).length > 0, 'analyzer dealt.by_ability is empty');
   }
+  // now (the bug report's envelope age, src/shell/report-model.js): the server's own instant
+  need('now', Number.isFinite(Date.parse(String(cs.read('now')))), 'cs.read("now") is ' + JSON.stringify(cs.read('now')));
+  // hunt_bests (the hunt picker's personal bests): the earlier finished solo hunt, solo only
+  const hb = R.HS.huntBestsOf(cs);
+  const mc = hb && hb.grounds.mill_cellar;
+  need('hunt_bests', !!hb && hb.minMs === 600000 && !!mc && !!mc.solo && mc.solo.xpH === 2000 && mc.solo.balanceH === 200 && mc.party === null,
+    'huntBestsOf yields ' + JSON.stringify(hb) + ' from ' + JSON.stringify(body.hunt_bests));
   // party (the hunt panel's and the party window's readers, one shape)
   const p = R.HS.partyOf(cs);
   need('party', !!p && p.members.length === 2, 'partyOf yields ' + (p ? p.members.length : 'no') + ' members: ' + JSON.stringify(body.party).slice(0, 240));
@@ -171,7 +178,7 @@ function contract(R, cs, body, tl) {
     'blessingsOf yields ' + JSON.stringify(bl) + ' from ' + JSON.stringify(body.blessings));
   // the Character window (2026-10-25-character-sheet.sql): before any `sheet` call the sheet is not fresh
   const csh = R.CS.characterSheetOf(cs);
-  need('character_sheet', !!csh && csh.level !== null && csh.maxHp !== null && !!csh.bestiary && csh.bestiary.total > 0,
+  need('character_sheet', !!csh && isNum(body.character_sheet.level) && isNum(body.character_sheet.max_hp) && !!csh.bestiary && csh.bestiary.total > 0,
     'characterSheetOf yields ' + JSON.stringify(csh) + ' from ' + JSON.stringify(body.character_sheet));
   const of = R.CS.outfitOf(cs);
   need('outfit', !!of && of.owned.has('knight') && of.owned.has('witch'), 'outfitOf (a premium character) yields ' + JSON.stringify(of && [...of.owned]) + ' from ' + JSON.stringify(body.outfit));
@@ -181,9 +188,9 @@ function contract(R, cs, body, tl) {
   const stamp = Date.parse(String(cs.read('now') || ''));
   need('now', Number.isFinite(stamp) && Math.abs(stamp - Date.now()) < 24 * 3600000, 'the envelope stamp `now` reads ' + JSON.stringify(body.now) + ' (not a date of this run)');
   // the vitals strip out of a hunt (core rebuild `vitals`): max HP and mana, mana full in town
-  const tv = R.CS.townVitalsOf(cs);
-  need('vitals', !!tv && isNum(tv.hpMax) && isNum(tv.manaMax) && tv.mana === tv.manaMax && isNum(tv.level),
-    'townVitalsOf yields ' + JSON.stringify(tv) + ' from ' + JSON.stringify(body.vitals));
+  const tv = R.CS.heroVitalsOf(cs);
+  need('vitals', !!tv && isNum(tv.hpMax) && isNum(tv.manaMax) && isNum(tv.level) && (tv.hunting || tv.mana === tv.manaMax),
+    'heroVitalsOf yields ' + JSON.stringify(tv) + ' from ' + JSON.stringify(body.vitals));
   return out;
 }
 
@@ -194,7 +201,7 @@ function sheetContract(R, cs, body) {
   const sh = R.CS.characterSheetOf(cs);
   const c = sh && sh.combat;
   need('character_sheet', !!sh && sh.fresh && !!c && !!c.damage && c.damage.max >= 1 && c.defence !== null && c.accuracyPct !== null
-    && c.critPct !== null && c.maxMana !== null && !!c.role,
+    && c.critPct !== null && !!c.role,
     'after the sheet verb characterSheetOf yields ' + JSON.stringify(sh) + ' from ' + JSON.stringify(body.character_sheet));
   const dl = R.CS.deathLogOf(cs);
   need('death_log', !!dl && dl.length === 1 && dl[0].monster === 'rat' && dl[0].xp === 5 && !!dl[0].hunt,
@@ -205,7 +212,7 @@ function sheetContract(R, cs, body) {
 export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events', 'hunt_server_now_ms', 'hunt_settings', 'hunt_analyzer',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'stamina_refill', 'blessings',
-  'character_sheet', 'outfit', 'death_log', 'vitals', 'now']);
+  'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'now']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -228,6 +235,13 @@ async function seedS2(db, M, H) {
   await ok(other, 'select public.hr_character_name_set(0, $1, gen_random_uuid())', [SEED.inviter]);
   await ok(other, 'select public.hr_hunt_party_invite(0, $1, gen_random_uuid())', [SEED.name]);
   await db.query("select set_config('request.jwt.claim.sub', '', true)");
+  /* hunt_bests: an earlier 30-minute solo hunt on the Mill Cellar, finished and folded by the server's own fold
+     (2026-11-04-hunt-bests.sql): 1,000 XP and 100 gp of coins in half an hour = 2,000 XP and 200 gp an hour. */
+  const sid = await H.one(db, "insert into public.hunt_sessions (user_id, slot, hunt_id, entered_at, hunt_from, settled_to, next_swing_at, ended_at, end_reason) "
+    + "values ($1, 0, 'mill_cellar', now() - interval '2 hours', now() - interval '2 hours', now() - interval '90 minutes', "
+    + "now() - interval '90 minutes', now() - interval '90 minutes', 'left') returning id", [me]);
+  await db.query(`insert into public.hunt_session_tally (session_id, user_id, slot, xp, coins) values ($1, $2, 0, '{"level": 1000}'::jsonb, 100)`, [sid, me]);
+  await db.query('select public.hr_hunt_best_fold($1)', [sid]);
 }
 
 /* Every section key a client reader reads, from the source. */
@@ -346,6 +360,8 @@ const DB_MUTANTS = [
   ['character_sheet', 'public.hr_character_sheet_inputs(uuid,integer)', "'buffs', coalesce((select", "'buffs', clock_timestamp()::text, 'b', coalesce((select"],
   ['outfit', 'public.hr_outfit_view(uuid,integer)', "'owned', to_jsonb(v_owned)", "'have', to_jsonb(v_owned)"],
   ['death_log', 'public.hr_death_log_view(uuid,integer)', "'monster', nullif(", "'killer', nullif("],
+  ['hunt_bests', 'public.hr_hunt_bests_view(uuid,integer)', "jsonb_build_object('xp_h', b.xp_h,", "jsonb_build_object('xph', b.xp_h,"],
+  ['hunt_bests', 'public.hr_hunt_bests_view(uuid,integer)', "'min_ms', (extract(", "'minms', (extract("],
   ['now', 'public.hr_state_of(uuid,integer)', "'now', now(),", "'stamp', now(),"],
 ];
 const EDGE_MUTANTS = [

@@ -98,7 +98,8 @@ export async function loadPlay(root) {
   const run = (huntId, L, roles, opts = {}) => {
     const span = opts.spanMs || SPAN, secret = opts.secret || SECRET, monsters = opts.monsters || MONSTERS;
     const ground = G.HUNT_GROUNDS[huntId], grid = gridOf(ground.map);
-    const members = roles.map((r, i) => hero(huntId, r, i, L, roles, opts.fullSet === true, opts.equipment || null));
+    /* L: one Level for every hero, or one per hero in seat order (a mixed party: [9, 19]) */
+    const members = roles.map((r, i) => hero(huntId, r, i, Array.isArray(L) ? L[i] : L, roles, opts.fullSet === true, opts.equipment || null));
     /* opts.density: the party's monster density pick (the settle clamps it to the ground) */
     if (Number.isInteger(opts.density)) for (const m of members) m.hero = Object.assign({}, m.hero, { density: opts.density });
     /* common vs rare by the hunt's own drop rows: a drop at 5% or more anywhere here is a common, unless it is a

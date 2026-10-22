@@ -59,6 +59,9 @@ assets/
     ├── buildings/    10 homestead/room/plot structures (forge, farm, tower…)
     ├── pixel/items/  one 32x32 pixel-world icon per ITEMS key (<id>.png), the ACTIVE
     │                 item set since 2026-10-14; see "Pixel item icons" below
+    ├── pixel/supplies/  18 icons for the shop's basic supplies (salted food, thin drinks,
+    │                 plain ammo), one per BASIC_SUPPLIES id; added 2026-10-21, see below
+    ├── pixel/abilities/  32x32 framed ability tiles (13), keyed by ability id; cleave added 2026-10-21
     ├── medieval/     BlacksmithInstruments.png (anvil), Cog.png (iron_fitting,
     │                 added b224)
     └── backgrounds/  dungeon.jpg (combat/dungeon backdrop)
@@ -79,6 +82,25 @@ armour line), then snapped in Lab to the palette (metal tiers to their own ramp)
   one icon per ITEMS key, no orphans, 32x32, on-palette, no partial alpha.
 - Contact sheets (60 per sheet, read at x3): `docs/art-experiments/pixel-icons/`.
 - Out of scope: monster portraits, skill medallions, building art (unchanged).
+
+### Shop supply icons, drinks, practice kit, Cleave (2026-10-21, Asset Director)
+Drawn with the pixel scripts (no PixelLab credits spent), on the locked palette, 32x32, dark outline, light from the upper left.
+- `pixel/supplies/<id>.png`: one per `BASIC_SUPPLIES` row (src/data/supply-basics.js), 18 files. Not items, so not under
+  `items/`. Wired by `SUPPLY_DIR` (item-art.js) and `itemIconHtml`/`actionIconHtml` (src/shell/widgets/bits.js).
+  Salted food = its cooked partner's silhouette cured to a pale tan with a salt rim and crystals (reads as a different dish
+  beside the cooked one). Thin drinks = one plain wooden mug, liquid colour per tier, N carved tally notches for tier N
+  (a non-colour cue). Plain ammo = unstained ash shaft, two bone-white vanes, a bare head in its partner's metal.
+  There are no basic runes (supply-basics.js: the per-swing rune ladder was retired), so no plain-rune icons exist.
+- The six crafted drinks (`turnip_juice` .. `emberfruit_cordial`) were one jar recoloured; each is now its own vessel
+  (flask, bottle, jar, jug, teacup, decanter) with a small ingredient cue. `moonbloom_elixir` keeps the original jar.
+- Seven practice-kit items (`practice_sword/hatchets/club/bow/wand/staff/spellbook`) were byte-identical to tier-1
+  art; each now has its own ash-and-rope training look with a red rag (`practice_shield`, `practice_crossbow` were already unique).
+- `pixel/abilities/cleave.png`: the set's own frame and slate, axe and swing arc. The ability tiles are NOT on the world
+  palette (ported from the hunt sim, 1024 opaque px each); Cleave uses colours sampled from them so it matches its siblings.
+  `rend` (inactive) still shows a glyph.
+- Guard: `tests/pixel-icons.mjs` now also requires the supply folder (missing/orphan/size/palette/alpha/empty) and a
+  `duplicate` rule (two ids with byte-identical icons) for items and supplies. One known twin remains and is listed in
+  KNOWN_TWINS: `crown_shard` = `crown_of_the_fallen_king` (needs its own art).
 
 ### Live-ground monster clips (2026-10-19) — the blow, the fall and the corpse
 Every monster on Mill Cellar, Millrace Sewer, Meadowbrook Thicket and Coppercap Warrens must be drawable through a whole

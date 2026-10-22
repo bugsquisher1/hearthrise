@@ -75,8 +75,8 @@
 // FAMILY_ALIAS folds the historical counts rather than stranding them.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyClassProfiles } from './monster-classes.js?v=0.2.23';
-import { MONSTER_LEVEL_BY_TIER } from './core-model.js?v=0.2.23';
+import { applyClassProfiles } from './monster-classes.js?v=0.2.25';
+import { MONSTER_LEVEL_BY_TIER } from './core-model.js?v=0.2.25';
 
 /* HUNT SPEED (HUNT_SCREEN_SPEC §3.1 #4): a row's `speed` is MILLITILES per second
    (src/data/hunt-tuning.js units; the sewer roster's values are the sim's, ASSUMED).
@@ -691,7 +691,7 @@ export const MONSTERS = {
   cistern_spider: { name: 'Cistern Spider', icon: '🕷️', tier: 1, level: 20, cls: 'vermin', family: 'Vermin', formation: true,
     /* one override (element): venomous, so poison is a resist, not an immunity. */
     elementResist: ['poison'], elementImmune: [],
-    hp: 90, atk: 13, def: 6, xp: 704, gp: [36, 90], speed: 3600,
+    hp: 90, atk: 9, def: 6, xp: 704, gp: [36, 90], speed: 3600,
     drops: [{ id: 'silk_thread', ch: .3 }, { id: 'venom_sac', ch: .1 }, { id: 'iron_sword', ch: .048, gear: true }] },
   kobold_tosher: { name: 'Kobold Tosher', icon: '🦎', tier: 1, level: 13, cls: 'humanoid', family: 'Humanoid', formation: true,
     hp: 55, atk: 7, def: 1, xp: 192, gp: [9, 25], speed: 3200,
@@ -700,7 +700,7 @@ export const MONSTERS = {
   rat_king: { name: 'Rat King', icon: '👑', tier: 1, level: 25, cls: 'vermin', family: 'Vermin', formation: true, boss: true,
     /* one override (element): fire glances off the knot; frost is the exam's answer. */
     elementResist: ['ember'],
-    hp: 600, atk: 20, def: 4, xp: 3840, gp: [119, 238], speed: 2800,
+    hp: 600, atk: 14, def: 4, xp: 3840, gp: [119, 238], speed: 2800,
     drops: [{ id: 'rat_tail', ch: 1 }, { id: 'bones', ch: 1 }, { id: 'crown_shard', ch: .014 },
       { id: 'iron_helm', ch: .026, gear: true }] },
 
@@ -743,14 +743,14 @@ export const MONSTERS = {
     drops: [{ id: 'copper_ore', ch: .8 }, { id: 'coal', ch: .4 }, { id: 'bones', ch: .5 }, { id: 'goblin_ear', ch: .4 },
       { id: 'steel_helm', ch: .005, gear: true }] },
   hobgoblin_foreman: { name: 'Hobgoblin Foreman', icon: '👹', tier: 3, level: 46, cls: 'humanoid', family: 'Humanoid', formation: true,
-    hp: 300, atk: 40, def: 22, xp: 2112, gp: [29, 67], speed: 3000,
+    hp: 300, atk: 30, def: 22, xp: 2112, gp: [29, 67], speed: 3000,
     drops: [{ id: 'big_bones', ch: 1 }, { id: 'iron_ore', ch: .6 }, { id: 'coal', ch: .6 }, { id: 'goblin_totem', ch: .08 },
       { id: 'steel_platelegs', ch: .025, gear: true }] },
   chief_coppercap: { name: 'Chief Coppercap', icon: '👑', tier: 3, level: 52, cls: 'humanoid', family: 'Humanoid', formation: true, boss: true,
     /* one override (element): the polished cauldron he wears for a crown sheds frost. */
     elementResist: ['frost'],
-    hp: 1100, atk: 54, def: 28, xp: 7920, gp: [95, 215], speed: 2800,
-    drops: [{ id: 'big_bones', ch: 1 }, { id: 'gold_ore', ch: .5 }, { id: 'goblin_totem', ch: .3 }, { id: 'war_crown', ch: .02 },
+    hp: 1100, atk: 29, def: 28, xp: 7920, gp: [95, 215], speed: 2800,
+    drops: [{ id: 'big_bones', ch: 1 }, { id: 'gold_ore', ch: .5 }, { id: 'goblin_totem', ch: .3 }, { id: 'war_crown', ch: .018 },
       { id: 'steel_platebody', ch: .025, gear: true }] },
 };
 

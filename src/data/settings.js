@@ -32,11 +32,11 @@
 // Categories are data too, in the order the window lists them. Gameplay,
 // Chat & Social and Account stay hidden until a feature registers a row there.
 // ════════════════════════════════════════════════════════════════════════
-import { FLOAT_TYPES, FLOAT_TARGETS } from './combat-text.js?v=0.2.23';
-import { HUD_WIDGETS } from './hud-widgets.js?v=0.2.23';
-import { SHELL_WINDOWS } from './shell-windows.js?v=0.2.23';
-import { HOTKEYS } from './hunt-hud.js?v=0.2.23';
-import { SOCIAL_SETTINGS } from './social-settings.js?v=0.2.23';
+import { FLOAT_TYPES, FLOAT_TARGETS } from './combat-text.js?v=0.2.25';
+import { HUD_WIDGETS } from './hud-widgets.js?v=0.2.25';
+import { SHELL_WINDOWS } from './shell-windows.js?v=0.2.25';
+import { HOTKEYS } from './hunt-hud.js?v=0.2.25';
+import { SOCIAL_SETTINGS } from './social-settings.js?v=0.2.25';
 
 export const SETTING_TYPES = Object.freeze(['toggle', 'choice', 'slider', 'hotkey', 'action']);
 export const SETTING_SCOPES = Object.freeze(['residue', 'server']);
@@ -49,6 +49,7 @@ export const SETTING_CATEGORIES = Object.freeze([
   cat('chat_social', 'Chat & Social', 'Chat filters, blocked players and friend requests.'),
   cat('controls', 'Controls', 'Keys.'),
   cat('account', 'Account', 'Your name, password and signing out.'),
+  cat('help', 'Help', 'Tell the team when something goes wrong.'),
 ]);
 
 const NO_BIND = Object.freeze({ store: 'none' });
@@ -89,7 +90,14 @@ const HOTKEY_ROWS = SHELL_WINDOWS.filter((w) => !w.escape).map((w) => row({
   help: 'Hunts play themselves; keys only open windows.', type: 'hotkey', key: k.key,
 })));
 
-export const SETTINGS = Object.freeze([...PANEL_ROWS, ...FLOAT_ROWS, ...HOTKEY_ROWS, ...SOCIAL_SETTINGS.map(row)]);
+/* ── Help: the problem report opens its own window (src/shell/windows/report.js) ── */
+const HELP_ROWS = [row({
+  id: 'help.report', category: 'help', label: 'Report a problem',
+  help: 'Write what went wrong and it goes straight to the team, with your game details attached.',
+  type: 'action', open: 'report',
+})];
+
+export const SETTINGS = Object.freeze([...PANEL_ROWS, ...FLOAT_ROWS, ...HOTKEY_ROWS, ...SOCIAL_SETTINGS.map(row), ...HELP_ROWS]);
 
 /** Throws on the first broken row; the guard and the window both rely on it. */
 export function validateSettings(rows = SETTINGS, cats = SETTING_CATEGORIES) {

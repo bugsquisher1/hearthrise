@@ -4,9 +4,15 @@
 // Started once by src/app/boot.js. On a sending host (observability-config.js
 // `hosts`, with `enabled` on and no ?noanalytics=1) it loads the vendored SDKs
 // from our own origin and wires:
-//   Sentry   uncaught errors, unhandled rejections and console.error, every one
-//            (sampleRate 1); release = BUILD.version; no tracing, no replay;
-//            user = the account id; URLs leave without query or fragment
+//   Sentry   uncaught errors, unhandled rejections and console.error (sampleRate 1),
+//            through ONE send gate per page load (createSendGate): at most
+//            SEND_LIMITS.perFingerprint of each error and SEND_LIMITS.perLoad in all,
+//            network weather (a fetch the network dropped) not at all, so one loop
+//            can never spend the plan's quota again (2026-10-21: a week of every
+//            event refused as error_usage_exceeded); plus ONE message on the first
+//            main-thread hang (src/net/diagnostics.js onHang) with each open hunt's
+//            id, swing and live-engine state; release = BUILD.version; no tracing,
+//            no replay; user = the account id; URLs leave without query or fragment
 //   PostHog  identified_only profiles keyed by the account id, kept in memory only;
 //            no autocapture or pageviews; session replay only while the game
 //            screen shows, every input masked, chat text masked (.ph-mask),
@@ -21,16 +27,28 @@
 // from their buttons (track). Nothing here is ever read back by the game (§1).
 // ════════════════════════════════════════════════════════════════════════
 
-import { OBSERVABILITY_CONFIG } from './observability-config.js?v=0.2.23';
-import { BUILD } from '../build-info.js?v=0.2.23';
-import { observeSessions } from '../session/character-session.js?v=0.2.23';
-import { partyOf, settingsOf } from '../session/hunt-sections.js?v=0.2.23';
-import { endedSessionOf } from '../hunt-view/summary-model.js?v=0.2.23';
+import { OBSERVABILITY_CONFIG } from './observability-config.js?v=0.2.25';
+import { BUILD } from '../build-info.js?v=0.2.25';
+import { observeSessions } from '../session/character-session.js?v=0.2.25';
+import { partyOf, settingsOf, huntOf } from '../session/hunt-sections.js?v=0.2.25';
+import { startDiagnostics } from './diagnostics.js?v=0.2.25';
+import { endedSessionOf } from '../hunt-view/summary-model.js?v=0.2.25';
 
 const EARLY_MAX = 10;        // errors held while Sentry loads
 const QUEUE_MAX = 20;        // events held while PostHog loads
 const STALL_MAX = 50;        // live_view_stall per page load: a stuck loop must not spend the quota
 const STALL_POLL_MS = 1000;  // how often a running live engine is looked at (starving emits nothing)
+const HANG_PRINT = 'main-thread-hang';
+
+/** What one page load may send to Sentry: each error a few times, and a ceiling over all of them. */
+export const SEND_LIMITS = Object.freeze({ perFingerprint: 5, perLoad: 25 });
+
+/* Network weather, not a bug in the game: a fetch the network dropped (Chrome, Firefox, Safari
+   words) and supabase-js's own retry log of it. The game already shows the player a refused ask. */
+const WEATHER = [
+  /^TypeError: (?:Failed to fetch|NetworkError when attempting to fetch resource\.|Load failed)$/,
+  /^Auto refresh tick failed with error\. This is likely a transient error\./,
+];
 
 const NOOP = Object.freeze({ environment: 'dev', send: false, identify() {}, forget() {}, screen() {}, track() {} });
 let active = NOOP;
@@ -58,14 +76,71 @@ function load(doc, scripts, done, i = 0) {
   doc.head.appendChild(s);   // a blocked or missing script: the game runs without telemetry
 }
 
+/* An event's first line: the exception's type and value, else its message. */
+function headline(event) {
+  const ex = event && event.exception && Array.isArray(event.exception.values) ? event.exception.values[0] : null;
+  if (ex) return (ex.type || 'Error') + ': ' + (ex.value || '');
+  return String((event && (event.message || (event.logentry && event.logentry.message))) || '');
+}
+
+/** The same error twice has one fingerprint: its first line with numbers blurred, and where it threw. */
+function fingerprintOf(event) {
+  if (event && Array.isArray(event.fingerprint) && event.fingerprint.length) return event.fingerprint.join('|');
+  const ex = event && event.exception && Array.isArray(event.exception.values) ? event.exception.values[0] : null;
+  const frames = ex && ex.stacktrace && Array.isArray(ex.stacktrace.frames) ? ex.stacktrace.frames : [];
+  const top = frames.length ? frames[frames.length - 1] : null;
+  const where = top ? bare(top.filename).split('/').pop() + ':' + (top.function || '?') : '';
+  return headline(event).replace(/\d+/g, '#').slice(0, 200) + '|' + where;
+}
+
+/**
+ * The send gate for one page load (Sentry's beforeSend runs every event through it): network
+ * weather is dropped, each fingerprint is sent at most `perFingerprint` times and all of them at
+ * most `perLoad` times (the one hang message aside). A sent event carries its occurrence number
+ * and how many were held back before it. Answers the event, or null to drop it.
+ */
+export function createSendGate(limits = SEND_LIMITS) {
+  const seen = new Map();
+  let sent = 0;
+  let held = 0;
+  return (event) => {
+    if (WEATHER.some((r) => r.test(headline(event)))) return null;
+    const fp = fingerprintOf(event);
+    const hang = fp === HANG_PRINT;
+    if (!hang && sent >= limits.perLoad) { held++; return null; }
+    const n = (seen.get(fp) || 0) + 1;
+    seen.set(fp, n);
+    if (n > limits.perFingerprint) { held++; return null; }
+    if (!hang) sent++;
+    event.extra = Object.assign({}, event.extra, { occurrence: n, held_back: held });
+    return event;
+  };
+}
+
+/* Each open hunt this load watches, as the hang report states it. */
+function openHunts(watched) {
+  const out = [];
+  for (const cs of watched.keys()) {
+    const h = huntOf(cs);
+    if (!h || h.ended) continue;
+    const live = cs.live || {};
+    const call = (fn) => (typeof fn === 'function' ? fn() : null);
+    out.push({ slot: cs.slot, hunt: h.huntId, session: h.sessionId, version: cs.record ? cs.record.version : null,
+      swing: call(live.swingIndex), running: call(live.running), ended: call(live.ended), stalled: call(live.stalled),
+      stats: typeof cs.liveStats === 'function' ? cs.liveStats() : null });
+  }
+  return out;
+}
+
 function sentryOptions(cfg, env, S) {
+  const gate = createSendGate();
   return {
     dsn: cfg.sentry.dsn, release: BUILD.version, environment: env.environment,
     sampleRate: 1, sendDefaultPii: false, replaysSessionSampleRate: 0, replaysOnErrorSampleRate: 0,
     integrations: (defaults) => defaults.concat(typeof S.captureConsoleIntegration === 'function' ? [S.captureConsoleIntegration({ levels: ['error'] })] : []),
     beforeSend(event) {
       if (event.request) { event.request.url = bare(event.request.url); delete event.request.cookies; if (event.request.headers) delete event.request.headers.Referer; }
-      return event;
+      return gate(event);
     },
     beforeBreadcrumb(c) {
       if (c && c.category === 'navigation' && c.data) { c.data.from = bare(c.data.from); c.data.to = bare(c.data.to); }
@@ -131,7 +206,7 @@ export function startObservability(win, cfg = OBSERVABILITY_CONFIG) {
   if (!env.send) return Object.assign({}, NOOP, { environment: env.environment });
   const doc = win.document;
   const now = () => (win.performance ? win.performance.now() : Date.now());
-  const st = { uid: null, game: false, queue: [], stalls: 0 };
+  const st = { uid: null, game: false, queue: [], stalls: 0, hung: false, hang: null };
   let sentry = null;
   let ph = null;
 
@@ -151,6 +226,7 @@ export function startObservability(win, cfg = OBSERVABILITY_CONFIG) {
     sentry = S;
     if (st.uid) S.setUser({ id: st.uid });
     for (const e of early.splice(0)) safe(() => S.captureException(e));
+    if (st.hang) safe(() => st.hang(S));
   });
   load(doc, cfg.posthog.scripts, () => {
     const P = win.posthog;
@@ -177,6 +253,19 @@ export function startObservability(win, cfg = OBSERVABILITY_CONFIG) {
     }));
   });
   win.setInterval(() => { for (const [cs, w] of watched) if (w.open) safe(() => watchLive(cs, w, null, now())); }, STALL_POLL_MS);
+
+  /* THE HANG: the first main-thread stall over 3 s with the tab visible, ONCE per load. A stall
+     throws nothing, so without this a frozen tab never reached Sentry at all. */
+  startDiagnostics(win).onHang(({ ms }) => safe(() => {
+    if (st.hung) return;
+    st.hung = true;
+    const hunts = openHunts(watched);
+    send('page_hang', { ms, hunts: hunts.length });
+    st.hang = (S) => S.captureMessage('The page stalled for ' + (ms / 1000).toFixed(1) + ' s', {
+      level: 'warning', fingerprint: [HANG_PRINT], tags: { hang: 'main-thread' },
+      extra: { stall_ms: ms, version: BUILD.version, hunts } });
+    if (sentry) { const h = st.hang; st.hang = null; h(sentry); }
+  }));
 
   active = {
     environment: env.environment, send: true,

@@ -12,6 +12,15 @@
 //   gather-nodes        each node is a real TREES/ROCKS row of its skill, opens within 20 of the band top,
 //                       stands on its map with its sprite, and a pocket's nodes cover the top gather share
 //   walk-art            every creature of both grounds idles and walks in all 8 facings in a loaded atlas
+//   thicket-solo-starter-kit  a new hero alone at the Thicket's floor (the solo-first ground, band 5-15), wearing
+//                       ONLY the start kit, plays the hour on the real settle (play-ground.mjs) with no death, on
+//                       each of the designer's six seeds (designer pass 2026-10-21, Tyler: solo first)
+//   first-grounds-net-chain  net gold per hero-hour (coin + commons - store) at each first ground's floor never
+//                       drops along the start flow, Cellar (L1, solo) -> Thicket (L5, solo) -> Sewer (L8, party of
+//                       four), every floor in the reference kit (play-ground's smiths' ladder kit, the kit every
+//                       ground's numbers use; Coordinator 2026-10-21: the start kit is its own check above), the
+//                       median of the six seeds per ground; and +25% over the bill (a minimum) wherever the bill is
+//                       at least a quarter of the income (designer pass 2026-10-21)
 //
 // `--play` runs each ground ONCE on the real engine (supabase/functions/hr-accrue accrueHunt, the world
 // tick's settle): a fresh solo hero from the start kit in the forest, a four-hero party in the cave,
@@ -27,6 +36,14 @@ const NEW = ['meadowbrook_thicket', 'coppercap_warrens'];
 const BRIDGE = { meadowbrook_thicket: [[28, 5], [29, 5], [30, 5], [31, 5], [32, 5]], coppercap_warrens: [[51, 20], [51, 21], [51, 22]] };
 const MID_DENSITY = 4;
 const RING8 = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
+/* The designer's six hunt seeds (pass 2026-10-21) and the margin floor (+25%, a minimum: Tyler 10-18/10-20). */
+const STARTER_SEEDS = Object.freeze(['-4611686018427387904', '1234567890123', '-987654321987', '42', '7777777777777', '-31415926535']);
+const STARTER_MARGIN_MIN = 25;
+const BILL_SHARE_FOR_MARGIN = 0.25;   // the margin floor applies where store >= 25% of income
+/* The start flow's grounds in order: [ground, roles], each played at its floor in the reference (ladder) kit. */
+const FIRST_CHAIN = Object.freeze([['mill_cellar', ['tank']], ['meadowbrook_thicket', ['tank']],
+  ['millrace_sewer', ['tank', 'ranger', 'mage', 'healer']]]);
+const median = (a) => { const v = [...a].sort((x, y) => x - y); return v.length % 2 ? v[(v.length - 1) / 2] : (v[v.length / 2 - 1] + v[v.length / 2]) / 2; };
 
 async function load(root) {
   const imp = (p) => import(pathToFileURL(join(root, p)).href + V);
@@ -35,6 +52,7 @@ async function load(root) {
     grounds: await imp('src/data/hunt-grounds.js'), hunts: await imp('src/data/hunts.js'), MONSTERS: (await imp('src/data/monsters.js')).MONSTERS,
     maps: await imp('src/data/world/maps/index.js'), terrain: await imp('src/data/world/terrain.js'), mapc: await imp('src/world/core/map-compile.js'),
     sets: await imp('src/data/world/atlas-sets.js'), gathering: await imp('src/data/gathering.js'), budget: await imp('src/data/world/art-budget.js'),
+    kit: await imp('src/data/start-kit.js'),
   };
 }
 
@@ -245,7 +263,53 @@ const cases = {
   },
 };
 
+/* THE SOLO-FIRST GROUND, PLAYED FROM THE START KIT (async: the real settle). */
+const playOf = async (M) => (await import(pathToFileURL(join(M.root, 'tests/hunt-core/fixtures/play-ground.mjs')).href)).loadPlay(M.root);
+const floorOf = (M, gid) => M.hunts.HUNT_INDEX[M.grounds.HUNT_GROUNDS[gid].hunt].band[0];
+cases['thicket-solo-starter-kit'] = async (M) => {
+  const P = await playOf(M);
+  const floor = floorOf(M, 'meadowbrook_thicket');
+  const bad = [], seen = [];
+  for (const secret of STARTER_SEEDS) {
+    const x = P.run('meadowbrook_thicket', floor, ['tank'], { spanMs: 3600000, equipment: M.kit.START_EQUIPMENT, secret });
+    seen.push(x.totals.falls ? 'died ' + (x.playedMs / 60000).toFixed(1) + 'm' : 'lived');
+    if (x.totals.falls || x.playedMs < 3600000) bad.push('seed ' + secret + ': ended after ' + (x.playedMs / 60000).toFixed(1) + ' min with ' + x.totals.falls + ' death(s) (' + x.ended.join(', ') + ')');
+  }
+  console.log('    thicket solo, start kit only (' + Object.values(M.kit.START_EQUIPMENT).join(', ') + ') at L' + floor + ', ' + STARTER_SEEDS.length + ' seeds: ' + seen.join(' | '));
+  return bad.length ? 'a start-kit Melee at the Thicket floor: ' + bad.join('; ') : null;
+};
+cases['first-grounds-net-chain'] = async (M) => {
+  const P = await playOf(M);
+  const bad = [], rows = [];
+  for (const [gid, roles] of FIRST_CHAIN) {
+    const floor = floorOf(M, gid), nets = [];
+    for (const secret of STARTER_SEEDS) {
+      const x = P.run(gid, floor, roles, { spanMs: 3600000, secret });
+      nets.push(x.income - x.store);
+      if (x.store >= BILL_SHARE_FOR_MARGIN * x.income && (x.income / x.store - 1) * 100 < STARTER_MARGIN_MIN) {
+        bad.push(gid + ' seed ' + secret + ': ' + Math.round((x.income / x.store - 1) * 100) + '% over a bill that is ' + Math.round(100 * x.store / x.income) + '% of income, under +' + STARTER_MARGIN_MIN + '%');
+      }
+    }
+    rows.push({ gid, floor, n: roles.length, net: median(nets), nets });
+  }
+  console.log('    net g per hero-hour at the floor (6-seed median): ' + rows.map((r) => r.gid + ' L' + r.floor + (r.n > 1 ? ' party' : ' solo') + ' ' + r.net + ' [' + r.nets.join(' ') + ']').join(' -> '));
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i].net < rows[i - 1].net) bad.push(rows[i].gid + ' nets ' + rows[i].net + ' g/h, under ' + rows[i - 1].gid + "'s " + rows[i - 1].net + ' before it');
+  }
+  return bad.length ? bad.join('; ') : null;
+};
+
 const mutants = [
+  { name: 'the Thicket wolves hit like a Sewer spider (atk 4 -> 13)', case: 'thicket-solo-starter-kit',
+    edits: [['src/data/monsters.js', 'hp: 14, atk: 4, def: 1, xp: 52, gp: [2, 5], speed: 4200,', 'hp: 14, atk: 13, def: 1, xp: 52, gp: [2, 5], speed: 4200,']] },
+  /* The whole Sewer roster's coin back to its pre-x1.8 rows (the drop-tables play mutant's /1.8): the party nets under the Thicket. */
+  { name: 'the Sewer coin back to its pre-x1.8 rows (the party nets under the Thicket)', case: 'first-grounds-net-chain',
+    edits: [['src/data/monsters.js', 'hp: 45, atk: 5, def: 0, xp: 154, gp: [4, 18]', 'hp: 45, atk: 5, def: 0, xp: 154, gp: [2, 10]'],
+      ['src/data/monsters.js', 'hp: 50, atk: 4, def: 0, xp: 141, gp: [4, 14]', 'hp: 50, atk: 4, def: 0, xp: 141, gp: [2, 8]'],
+      ['src/data/monsters.js', 'hp: 70, atk: 9, def: 1, xp: 288, gp: [14, 38]', 'hp: 70, atk: 9, def: 1, xp: 288, gp: [8, 21]'],
+      ['src/data/monsters.js', 'hp: 90, atk: 9, def: 6, xp: 704, gp: [36, 90]', 'hp: 90, atk: 9, def: 6, xp: 704, gp: [20, 50]'],
+      ['src/data/monsters.js', 'hp: 55, atk: 7, def: 1, xp: 192, gp: [9, 25]', 'hp: 55, atk: 7, def: 1, xp: 192, gp: [5, 14]'],
+      ['src/data/monsters.js', 'hp: 600, atk: 14, def: 4, xp: 3840, gp: [119, 238]', 'hp: 600, atk: 14, def: 4, xp: 3840, gp: [66, 132]']] },
   { name: 'a pack tile moved into the thicket', case: 'packs-on-the-map',
     edits: [['src/data/hunt-grounds.js', "box([5, 13, 21, 24], [15, 19],", "box([5, 13, 21, 24], [21, 15],"]] },
   { name: 'a prop dropped into a full box', case: 'packs-on-the-map',
@@ -267,7 +331,7 @@ const mutants = [
 
 function plant(edits) {
   const root = mkdtempSync(join(tmpdir(), 'hunt-forest-cave-'));
-  for (const d of ['src/core', 'src/data', 'src/world', 'assets/world']) cpSync(join(ROOT, d), join(root, d), { recursive: true });
+  for (const d of ['src/core', 'src/data', 'src/world', 'assets/world', 'supabase/functions/hr-accrue', 'tests/hunt-core/fixtures/play-ground.mjs']) cpSync(join(ROOT, d), join(root, d), { recursive: true });
   cpSync(join(ROOT, 'src/build-info.js'), join(root, 'src/build-info.js'));
   for (const [file, from, to] of edits) {
     const f = join(root, file);
@@ -288,7 +352,7 @@ if (process.argv.includes('--play')) {
 }
 for (const [cn, fn] of Object.entries(cases)) {
   let why = null;
-  try { why = fn(M); } catch (e) { why = 'threw ' + (e && e.stack || e); }
+  try { why = await fn(M); } catch (e) { why = 'threw ' + (e && e.stack || e); }
   R.ok(!why, cn + ': ' + why);
 }
 for (const mu of mutants) {
@@ -297,7 +361,7 @@ for (const mu of mutants) {
   try {
     let why = null;
     const PM = await load(p.root);
-    try { why = cases[mu.case](PM); } catch (e) { why = 'threw ' + e.message; }
+    try { why = await cases[mu.case](PM); } catch (e) { why = 'threw ' + e.message; }
     R.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
   } finally { p.done(); }
 }

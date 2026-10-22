@@ -23,11 +23,15 @@
 // the moment that envelope arrived (display only; the next envelope replaces
 // it). The view, tab and folds are display scratch on the panel.
 // ════════════════════════════════════════════════════════════════════════
-import { analyzerOf, isPremium } from '../../session/hunt-sections.js?v=0.2.23';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.23';
-import { whole, gold, clock } from '../../render/format.js?v=0.2.23';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.23';
-import { panelHtml, itemIconHtml, itemName, monsterName, abilityName, elementName } from './bits.js?v=0.2.23';
+import { analyzerOf, isPremium } from '../../session/hunt-sections.js?v=0.2.25';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.25';
+import { whole, gold, clock } from '../../render/format.js?v=0.2.25';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.25';
+import { panelHtml, itemIconHtml, itemName, monsterName, abilityName, elementName } from './bits.js?v=0.2.25';
+import { ANALYZER_RATE_AFTER_MS } from '../../data/hunt-sessions.js?v=0.2.25';
+
+/* Before the server's rate window the rates are null: the totals show, and this line says when the rest will. */
+const RATE_LATER = 'Per hour after ' + Math.round(ANALYZER_RATE_AFTER_MS / 60000) + ' min.';
 
 const TABS = Object.freeze([['session', 'Session'], ['taken', 'Taken'], ['dealt', 'Dealt']]);
 /* What only a premium character sees: these stats (section.stat), and every section off the Session tab. */
@@ -48,7 +52,8 @@ const SECTIONS = Object.freeze([
 
 function sectionHtml(s) {
   const prem = (k) => (PREMIUM_STATS.has(s.id + '.' + k) ? ' data-premium' : '');
-  const stats = s.stats ? '<dl class="ha-stats">' + s.stats.map(([k, label]) => '<dt' + prem(k) + '>' + esc(label) + '</dt><dd data-stat="' + k + '"' + prem(k) + '></dd>').join('') + '</dl>' : '';
+  const stats = s.stats ? '<dl class="ha-stats">' + s.stats.map(([k, label]) => '<dt' + prem(k) + '>' + esc(label) + '</dt><dd data-stat="' + k + '"' + prem(k) + '></dd>').join('') + '</dl>'
+    + (s.id === 'rates' ? '<p class="hs-note ha-later" hidden>' + esc(RATE_LATER) + '</p>' : '') : '';
   return '<section class="ha-sec" data-sec="' + s.id + '" data-tab="' + s.tab + '"' + (premiumTab(s.tab) ? ' data-premium' : '') + '>'
     + '<h3 class="ha-sec-head"><button type="button" class="ha-fold" data-hs-act="fold" aria-expanded="true">' + esc(s.title) + '</button></h3>'
     + '<div class="ha-sec-body">' + stats + (s.stats ? '' : '<ul class="ha-list"></ul><p class="ha-none">Nothing yet.</p>') + '</div></section>';
@@ -99,6 +104,7 @@ function patchView(root, v, ctx, premium) {
         text(dd, !premium && PREMIUM_STATS.has(s.id + '.' + k) ? '' : fmt(from ? v[from][k] : v[k]));
       }
       cls(sec.querySelector('[data-stat="balance"]'), 'is-loss', (s.id === 'totals' ? v.balance : v.perHour.balance) < 0);
+      if (s.id === 'rates') { prop(sec.querySelector('.ha-stats'), 'hidden', !v.rated); prop(sec.querySelector('.ha-later'), 'hidden', v.rated); }
     } else if (s.list === 'supplies') {
       patchList(sec.querySelector('.ha-list'), v.supplies, (it) => it.item + ':' + it.source, (li, it) => {
         text(li.querySelector('.ha-name'), itemName(it.item) + (it.source === 'own' ? ' (own)' : ' (store)'));
@@ -141,7 +147,8 @@ renderAnalyzer.patch = function patchAnalyzer(el, ctx) {
   const since = ctx.character.receivedAt;
   const live = !a.ended && Number.isFinite(since) ? Math.max(0, ctx.now() - since) : 0;
   text(panel.querySelector('[data-clock="session"]'), clock(a.sessionMs === null ? null : a.sessionMs + live));
-  if (premium) text(panel.querySelector('[data-clock="next"]'), clock(a.nextLevelMs === null ? null : Math.max(0, a.nextLevelMs - live)));
+  if (premium) text(panel.querySelector('[data-clock="next"]'), !a.hero.rated ? 'after ' + Math.round(ANALYZER_RATE_AFTER_MS / 60000) + ' min'
+    : clock(a.nextLevelMs === null ? null : Math.max(0, a.nextLevelMs - live)));
   patchView(panel, scope === 'party' ? a.party : a.hero, ctx, premium);
 };
 

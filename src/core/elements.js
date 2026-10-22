@@ -39,15 +39,16 @@
 // hr-accrue Edge Function, so it must stay side-effect free.
 // ============================================================
 
-/** The three elements, mirrored from src/data/monster-classes.js ELEMENTS.
-    Kept here as its own frozen set so core has no dependency on a data module
-    (core is imported by the server, which vendors data separately). */
-export const ELEMENTS = Object.freeze(['ember', 'frost', 'poison']);
-const ELEMENT_SET = new Set(ELEMENTS);
+/* The vocabulary and its validity predicate (`isElement`, asked by the server,
+   `equipmentStats` and this module, so a fourth "element" can never leak in from
+   a forged enchant or a bad rune row) are src/data/elements.js's, the one copy;
+   re-exported so existing callers keep their import. */
+import { ELEMENTS, ELEMENT_PERMILLE, isElement } from '../data/elements.js?v=0.2.25';
+export { ELEMENTS, isElement };
 
 /** The flat damage factor an element match pays. Damage only — accuracy is
     untouched (the b343 ruling: an accuracy bonus pays melee and nobody else). */
-export const ELEMENT_BONUS = Object.freeze({ damage: 1.15 });
+export const ELEMENT_BONUS = Object.freeze({ damage: ELEMENT_PERMILLE.weak / 1000 });
 
 /** The hard ceiling on the single element factor. Applied by `elementMultFor`. */
 export const MAX_ELEMENT_MULT = 1.15;
@@ -55,13 +56,6 @@ export const MAX_ELEMENT_MULT = 1.15;
 /** The ceiling on weapon-weakness × bane × element combined. Applied inside
     `weaknessInfo`. 1.20 × 1.40 × 1.15 = 1.932 → clamped here to 1.90. */
 export const MAX_TOTAL_DAMAGE_MULT = 1.90;
-
-/** Is `e` one of the three real elements? The single validity predicate — the
-    server, `equipmentStats` and this module all ask it, so a fourth "element"
-    can never leak in from a forged enchant or a bad rune row. */
-export function isElement(e) {
-  return typeof e === 'string' && ELEMENT_SET.has(e);
-}
 
 /**
  * The element a rune binds, or null if the id is not a rune.

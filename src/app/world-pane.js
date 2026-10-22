@@ -12,11 +12,11 @@
 // sends an intent or writes a number.
 // ════════════════════════════════════════════════════════════════════════
 
-import { worldViewOf } from './world-view.js?v=0.2.23';
-import { mountShell } from '../shell/shell.js?v=0.2.23';
-import { logFor } from '../hunt-view/combat-log.js?v=0.2.23';
-import { pickHunt } from '../shell/windows/hunts.js?v=0.2.23';
-import { worldTargetOf } from '../shell/menu-providers.js?v=0.2.23';
+import { worldViewOf } from './world-view.js?v=0.2.25';
+import { mountShell } from '../shell/shell.js?v=0.2.25';
+import { logFor } from '../hunt-view/combat-log.js?v=0.2.25';
+import { pickHunt } from '../shell/windows/hunts.js?v=0.2.25';
+import { worldTargetOf } from '../shell/menu-providers.js?v=0.2.25';
 
 const PANE_HTML = '<div class="world-chrome">'
   + '<span class="world-title">World</span>'
@@ -25,6 +25,15 @@ const PANE_HTML = '<div class="world-chrome">'
   + '<button type="button" class="world-scene" data-world-choice="home" aria-pressed="false">Home</button>'
   + '</span></div>'
   + '<div class="world-stage"><p class="world-status">Loading the world…</p></div>';
+
+/* Each character's own display scratch (Town or Home, where its hero stands at home), kept across
+   mounts: the pane is remounted on every switch of the viewed character, and a scratch made per mount
+   sent the hero back to the map's start and the view back to Town. Never sent, never residue. */
+const SCRATCH = new WeakMap();
+function scratchOf(character) {
+  if (!SCRATCH.has(character)) SCRATCH.set(character, { choice: 'town' });
+  return SCRATCH.get(character);
+}
 
 /**
  * @param {HTMLElement} host            where the pane goes (the app's main box)
@@ -48,8 +57,8 @@ export async function mountWorldPane(host, character, o) {
   host.appendChild(pane);
   const stage = pane.querySelector('.world-stage');
 
-  /* The character's own display scratch: where its hero stands, town or home. Never sent. */
-  const scratch = { choice: 'town' };
+  /* The character's own display scratch (SCRATCH): Town or Home, where its hero stands at home. Never sent. */
+  const scratch = scratchOf(character);
   const view = () => worldViewOf(character.record, scratch);
 
   /* The combat log listens to the character's timeline from the start, so no line is missed while its
@@ -70,9 +79,9 @@ export async function mountWorldPane(host, character, o) {
 
   let runtime = null;
   try {
-    const { bootWorld } = await import('../world/world-boot.js?v=0.2.23');
+    const { bootWorld } = await import('../world/world-boot.js?v=0.2.25');
     const town = opts.account && typeof opts.account.townOf === 'function' ? opts.account.townOf(character.slot) : null;
-    runtime = await bootWorld(pane, { view, character, emit, town });
+    runtime = await bootWorld(pane, { view, character, emit, town, peers: opts.peers });
     runtime.sync();
   } catch (e) {
     console.error('[world] the world failed to load', e);

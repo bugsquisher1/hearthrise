@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-21",
- "replay_ms": 2435,
+ "replay_ms": 3453,
  "counts": {
   "tracked_names": 144,
   "entries": 116
@@ -1417,17 +1417,18 @@
     "2026-10-25-settle-hooks.sql",
     "2026-10-27-core-bodies.sql",
     "2026-10-28-party-flow.sql",
-    "2026-11-01-party-leader-density.sql"
+    "2026-11-01-party-leader-density.sql",
+    "2026-11-04-party-outfits.sql"
    ],
    "live": {
-    "md5": "1b6d6ca8dffcfe484da40d83f6f22237",
-    "norm_len": 6566,
+    "md5": "32282ccd97db15ede9258aad98fe8823",
+    "norm_len": 7182,
     "measured": "2026-10-21",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "1b6d6ca8dffcfe484da40d83f6f22237",
-    "norm_len": 6566,
+    "md5": "32282ccd97db15ede9258aad98fe8823",
+    "norm_len": 7182,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1537,21 +1538,23 @@
    "sig": "hr_hunt_stats_of(p_sessions uuid[], p_wall_h numeric, p_user uuid, p_slot integer)",
    "name": "hr_hunt_stats_of",
    "tracked_by": [
+    "chain",
     "pin"
    ],
    "touched_by": [
     "2026-10-23-hunt-analyzer-v2.sql",
-    "2026-11-03-hunt-analyzer-level-eta.sql"
+    "2026-11-03-hunt-analyzer-level-eta.sql",
+    "2026-11-06-hunt-analyzer-min-window.sql"
    ],
    "live": {
-    "md5": "71bd4494bf2f165c6215a6fe2c10eda6",
-    "norm_len": 4138,
+    "md5": "8a90f673111fe4cb4c6983fe41092484",
+    "norm_len": 4230,
     "measured": "2026-10-21",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "71bd4494bf2f165c6215a6fe2c10eda6",
-    "norm_len": 4138,
+    "md5": "8a90f673111fe4cb4c6983fe41092484",
+    "norm_len": 4230,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -2607,17 +2610,18 @@
    "touched_by": [
     "2026-10-25-town-walk.sql",
     "2026-10-27-core-bodies.sql",
-    "2026-10-28-town-own-characters.sql"
+    "2026-10-28-town-own-characters.sql",
+    "2026-11-04-town-walker-names.sql"
    ],
    "live": {
-    "md5": "4de8976e65a9afe69fa6edafc614690e",
-    "norm_len": 2546,
+    "md5": "73cf2840f18f2b102c3c386fa9e4fbac",
+    "norm_len": 2674,
     "measured": "2026-10-21",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "4de8976e65a9afe69fa6edafc614690e",
-    "norm_len": 2546,
+    "md5": "73cf2840f18f2b102c3c386fa9e4fbac",
+    "norm_len": 2674,
     "source": "computed-from-replay"
    },
    "agree": true

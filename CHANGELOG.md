@@ -5,19 +5,31 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
-## v0.2.23 — 2026-10-21 (More heroes, working casters)
+## v0.2.25 — 2026-10-21 (One tank holds)
+
+**Two tanks no longer swap the pack.** In a party with two tanks, one tank holds the monsters for a whole lap of the route; the other only pulls off monsters that go for a healer or damage dealer. The holder changes at the start of each lap, so both tanks still train Defense, and nothing swaps in the middle of a fight.
+
+## v0.2.24 — 2026-10-21 (More heroes, working casters, steadier hunts)
 
 **Buy more hero slots.** "Your characters" now sells a third, fourth and fifth hero slot for 15,000, 40,000 and 120,000 gold, paid by the hero you pick. Play up to four heroes at once.
 
-**Mages and Healers pay their way.** Mana drinks now restore twelve times as much, so a caster no longer spends every coin on drinks, and Fireball no longer needs Fire Runes, so a wand hero casts from the start. A Sewer party now hunts a full hour and every role comes out ahead.
+**Mages and Healers pay their way.** Mana drinks restore twelve times as much, Fireball no longer needs runes, and Nature's Wrath costs less mana and hits every monster. A Sewer party now hunts a full hour and every role comes out ahead.
 
-**A new action bar.** Your health, mana, food and charm sit in one hub at the centre. Drag one slot onto another to swap or insert it. A crossed-out slot tells you why it can't fire, and a cooling slot shows the seconds left. Your hunt settings (target, stance, chase and distance) now live on the bar, and changing them mid-hunt takes effect right away.
+**Fights that make sense.** Challenge pulls monsters onto the tank who cast it, so two tanks share the pack and both earn Defense. Targeting "Strongest" and "Follow player" pick the right monster, a second hero always walks to its target, Hunter's Mark adds its damage, and resistances now count. No boss or monster hits for more than about a third of your health at its ground's level, so the Rat King and Chief Coppercap hit much softer.
 
-**Every click answers at once.** A button shows it's working the moment you press it, then the server's answer or its reason for saying no.
+**No more freezes when a hero dies.** A party hunt no longer locks up the browser when the tank dies, and a refresh always recovers.
 
-**Also:** the hunt analyzer's "Next level in" counts down to your next Level instead of sitting at 00:00:00, and the tutorial now walks you through all nine of its cards.
+**A new action bar.** Health, mana, food and charm sit in one hub. Drag one slot onto another to swap or insert it; a crossed-out slot says why it can't fire. Hunt settings live on the bar, take effect mid-hunt, and warn you when a heal is set below the biggest hit the hunt can land.
 
-**Known:** on small landscape phone screens, alerts can sit over an open window and the bar's settings sheet covers the top strip; fixes are next.
+**Every click answers at once,** and a refused action says why in plain words.
+
+**Your heroes together.** Switching between your heroes keeps both in town, dead monsters stay dead, every hero shows their own name, and party members wear their own outfits.
+
+**A new start.** New heroes go from the Mill Cellar to Meadowbrook Thicket, then to the Sewer with a party at Level 8, and the tutorial walks you through it.
+
+**Report a problem** from the icon row (or press F): it sends your note with everything we need to find the bug.
+
+**Also:** the hunt analyzer's "Next level in" shows your Level, per-hour numbers wait for 10 minutes of hunting, burying is faster, and new icons for store food, drinks, arrows and the practice weapons.
 
 ## v0.2.22 — 2026-10-21 (Smooth hunts, better loot)
 

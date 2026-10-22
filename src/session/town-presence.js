@@ -20,8 +20,12 @@
 //                    hides that player here at once too (`hidden`).
 // The list is REPLACED by each answer, never merged; an answer older than
 // staleMs shows nobody rather than people who may have left.
+// WHERE THE BODY STANDS (placeOn) is this presence's alone: the World pane is
+// remounted on every switch of the viewed character, and a pane shown again
+// starts its hero there, never at the map's start (a switch is not a move). A
+// body back from a hunt stands at the town's arrival tile (Tyler 2026-10-19).
 // ════════════════════════════════════════════════════════════════════════
-import { TOWN_PRESENCE, TOWN_DIRS } from '../data/town-presence.js?v=0.2.23';
+import { TOWN_PRESENCE, TOWN_DIRS } from '../data/town-presence.js?v=0.2.25';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAP_ID = /^[a-z0-9_]{1,40}$/;
@@ -107,7 +111,7 @@ export class TownPresence {
     }
     this._parked = false;
     this._map = m;
-    this._walkers = []; this._readAt = null; this._want = null;
+    this._walkers = []; this._readAt = null; this._want = null; this._home = null;
     if (this._timer !== null) { this._clear(this._timer); this._timer = null; }
     if (m) {
       this._timer = this._set(() => this._tick(), this.limits.pollMs);
@@ -181,7 +185,7 @@ export class TownPresence {
 
   _tick() {
     if (this._parked) {
-      if (this._busy()) { this._home = this._home || this._want || this._sent; this._leave(); return; }
+      if (this._busy()) { this._home = this._arrival || this._home || this._want || this._sent; this._leave(); return; }
       if (!this._want && this._home) this._want = this._home;
       if (this._want && this._now() - this._sentAt >= this.limits.keepaliveMs) this._flush(true);
       return;
@@ -228,6 +232,12 @@ export class TownPresence {
 
   /** The town map this presence is on, or null. */
   map() { return this._map; }
+
+  /** Where this character's body stands on `map` ([x, y] whole tiles), or null when it is not there. */
+  placeOn(map) {
+    const p = this._map && this._map === map ? this._want || this._sent || this._home : null;
+    return p ? [p.x, p.y] : null;
+  }
 
   _leave() {
     this._want = null;

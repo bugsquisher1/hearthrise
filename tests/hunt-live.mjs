@@ -5,7 +5,7 @@
 //   node tests/hunt-live.mjs            the rules
 //   node tests/hunt-live.mjs --mutate   every planted defect must turn its rule RED
 //
-// mutant-anchors: src/hunt-view/live-engine.js src/core/combat-sim.js supabase/functions/hr-accrue/hunt-settle.js src/hunt-view/timeline.js src/core/hunt/roles.js src/core/member.js
+// mutant-anchors: src/hunt-view/live-engine.js src/core/combat-sim.js supabase/functions/hr-accrue/hunt-settle.js supabase/functions/hr-accrue/accrual.js src/hunt-view/timeline.js src/core/hunt/roles.js src/core/hunt/targeting.js src/core/member.js
 // mutant-writes-tree: no — mutants are planted into a temp copy of src/ and the edge
 //
 // Option B (Tyler 2026-10-19). The edge settles a hunt instance in commits of at
@@ -35,7 +35,9 @@
 //         one constant (src/data/hunt-tuning.js) the edge reads, and the leave horizon of
 //         2026-10-31-live-horizon.sql is exactly liveSeeds x the swing.
 //   LV-T  A SECOND TANK FIGHTS: with the pack on the leader, the second shield hero walks to its own
-//         target and lands >= 60% of the leader's blows, never 3 s+ with nothing engaged beside it.
+//         target and lands >= 60% of the leader's blows, never 3 s+ with nothing engaged beside it;
+//         ONE tank holds a lap (the monsters swing only at the lap's holder), and over two laps
+//         the browser's engine shows no mid-lap steal and the second tank taking the next lap.
 //   LV-W  A RESTARTED INSTANCE (no world, swing counter kept) predicts from its first swing and
 //         its first commit matches (v0.2.20: the browser asked for seed 0 of a list from 40 and
 //         never started).
@@ -310,14 +312,26 @@ function rules(M) {
     // lands at least 60% of the leader's blows (was 25-40%) and is never more than 3 s with no engaged
     // monster beside it while one lives (was 6-50 s).
     for (const [hunt, dens] of [['meadowbrook_thicket', 0], ['millrace_sewer', 7]]) {
-      const mis = [memberOf(M, 'a', 0, 'tank', 9), memberOf(M, 'b', 1, 'tank', 19)];
+      const mis = [memberOf(M, 'a', 0, 'tank', 19), memberOf(M, 'b', 1, 'tank', 19)];
       for (const m of mis) { m.huntId = hunt; m.hero = Object.assign({}, M.SPAWN.heroSetup({ weaponType: 'sword', options: {}, bar: [], partyRoles: ['tank', 'tank'] }), { density: dens }); }
       const srv = server(M, mis, { hunt });
-      const hits = {}; let away = 0, longest = 0;
+      const hits = {}; let away = 0, longest = 0, lap = -1, onHolder = 0, offHolder = 0;
+      const heroIds = () => [mis[0].unitId, mis[1].unitId];
+      const route0 = M.HG.huntGroundOf(hunt).ground.route[0];
       for (let t = T0 + M.CB.tickMs; t <= T0 + 120000; t += M.CB.tickMs) {
         const c = srv.commit(t);
         if (!c) break;
-        for (const e of c.tl.hunt_events) if (e.type === 'dmg') hits[e.u] = (hits[e.u] || 0) + 1;
+        for (const e of c.tl.hunt_events) {
+          if (e.type === 'dmg') hits[e.u] = (hits[e.u] || 0) + 1;
+          if (e.type === 'pull' && e.pocket === route0) lap++;
+          /* a monster's swing at a tank (landed or missed: what trains its Defense), on or off the lap's holder
+             (the leader's tank the first lap, the next by seat the one after) */
+          if ((e.type === 'dmg' || e.type === 'miss') && !heroIds().includes(e.u) && heroIds().includes(e.t) && lap >= 0) {
+            if (e.t === heroIds()[lap % 2]) onHolder++; else offHolder++;
+          }
+        }
+        /* a party whose world is gone ended (a death ends it for everyone): the two tanks did not hold 120 s */
+        if (!srv.inst.world) { ok('LV-T', false, `${hunt} d${dens}: the instance ended ${(t - T0) / 1000} s in (a hero died)`); break; }
         const w = M.WS.decode(JSON.parse(srv.inst.world));
         const engaged = w.units.filter((u) => u.side === 'mon' && u.alive && Number.isInteger(u.target));
         const h = w.units.find((u) => u.id === mis[1].unitId);
@@ -330,7 +344,33 @@ function rules(M) {
       console.log(`  LV-T ${hunt} d${dens}: leader ${a} blows, second tank ${b} (${Math.round(b / Math.max(1, a) * 100)}%), longest ${longest / 1000} s with no engaged monster beside it`);
       ok('LV-T', a > 10 && b >= a * 0.6, `${hunt} d${dens}: the second tank landed ${b} blows to the leader's ${a} (want >= 60%)`);
       ok('LV-T', longest <= 3000, `${hunt} d${dens}: the second tank stood ${longest / 1000} s with no engaged monster beside it (want <= 3 s)`);
+      /* ONE HOLDER A LAP (designer 2026-10-21, Option A; live v0.2.24: "monsters are retargeting onto the
+         secondary member often, until the primary uses Challenge"): the monsters swing only at the lap's holder
+         (no other hero is here to overflow from). */
+      console.log(`  LV-T ${hunt} d${dens}: ${lap + 1} lap(s) begun; monster swings at the lap's holder ${onHolder}, at the other tank ${offHolder}`);
+      ok('LV-T', onHolder > 10 && offHolder === 0, `${hunt} d${dens}: the monsters swung ${onHolder} times at the lap's holder and ${offHolder} at the other tank (want all on the holder)`);
     }
+    /* VIEWED: the browser's live engine shows the same holder (its events are the server's, LV-D) over two laps of
+       the Sewer: in each lap every monster turned onto a tank is turned onto ONE tank, the leader holds the first
+       lap and the second tank (its Challenge cast on the screen) the next, and every commit matches. */
+    const mis = [memberOf(M, 'a', 0, 'tank', 19), memberOf(M, 'b', 1, 'tank', 19)];
+    for (const m of mis) { m.huntId = 'millrace_sewer'; m.hero = Object.assign({}, M.SPAWN.heroSetup({ weaponType: 'sword', options: {}, bar: [], partyRoles: ['tank', 'tank'] }), { density: 7 }); }
+    const v = run(M, mis, 480000, { server: { hunt: 'millrace_sewer' } });
+    const ids = [mis[0].unitId, mis[1].unitId];
+    const route0 = M.HG.huntGroundOf('millrace_sewer').ground.route[0];
+    const laps = []; let mixed = 0;
+    for (const e of v.fed.events.slice().sort((x, y) => x.atMs - y.atMs)) {
+      if (e.type === 'pull' && e.pocket === route0) laps.push({ tanks: new Set(), casts2: 0 });
+      const lap = laps[laps.length - 1];
+      if (!lap) continue;
+      if (e.type === 'target' && ids.includes(e.t)) { lap.tanks.add(e.t); if (lap.tanks.size > 1) mixed++; }
+      if (e.type === 'cast' && e.ability === 'challenge' && e.u === ids[1]) lap.casts2++;
+    }
+    const unmatched = v.verdicts.filter((x) => x.v !== 'match').length;
+    console.log(`  LV-T viewed (browser engine, sewer d7, 480 s): ${laps.length} lap(s), holders [${laps.map((l) => [...l.tanks].join('+') || 'leader').join(', ')}], second tank's Challenges by lap [${laps.map((l) => l.casts2).join(', ')}], ${mixed} mid-lap steal(s); ${unmatched} of ${v.verdicts.length} commits off the prediction`);
+    ok('LV-T', laps.length >= 2 && mixed === 0 && unmatched === 0, `viewed: ${laps.length} lap(s), ${mixed} mid-lap steal(s), ${unmatched} commits off the prediction (want 2+, 0, 0)`);
+    ok('LV-T', laps.length >= 2 && laps[0].casts2 === 0 && laps[1].casts2 > 0 && laps[1].tanks.has(ids[1]),
+      `viewed: the second tank's Challenges by lap [${laps.map((l) => l.casts2).join(', ')}]: want none in the leader's lap and the pack taken in the next`);
   }
 
   { // LV-E: THE HUNT ENDS IN THE BROWSER WITHOUT FREEZING IT (Andy, live v0.2.22: "crashing in Coppercap Warrens
@@ -401,6 +441,33 @@ function rules(M) {
     const v = c ? E.check(c.check) : null;
     console.log(`  LV-W restarted instance (world_swing 40): ${ran} swing(s) predicted, running ${E.running()}, commit ${v}`);
     ok('LV-W', E.running() && ran >= 8 && v === 'match', `a restarted instance's prediction ran ${ran} swing(s) (running ${E.running()}) and its commit read ${v}, want 8+ and match`);
+  }
+
+  { // LV-O: a hunt left open across a deploy that moved the world's field list (its stored world is of
+    // another shape) keeps running: the settle restarts the world from the stored swing instead of
+    // refusing every fire (a frozen hunt), and a browser opened on it predicts the same restart.
+    try {
+      const mis = [memberOf(M, 'a', 0, 'tank', 6)];
+      const srv = server(M, mis);
+      const first = srv.commit(T0 + 16000);
+      const enc = JSON.parse(srv.inst.world);
+      srv.inst.world = JSON.stringify(Object.assign({}, enc, { s: (enc.s + 1) >>> 0 }));
+      const swingBefore = srv.inst.world_swing;
+      const E = M.LE.createLiveEngine({ items: M.ITEMS, monsters: M.MONSTERS });
+      E.seed(srv.live('a'));
+      let ran = 0;
+      for (let t = T0 + 16000; t <= T0 + 32000; t += 100) ran += E.advance(t, () => {});
+      const c = srv.commit(T0 + 32000);
+      const v = c ? E.check(c.check) : null;
+      console.log(`  LV-O stored world of another shape: settle ${c ? 'accrued' : 'did not accrue'} from swing ${swingBefore} to ${c && c.check.world_swing}, browser ran ${ran} swing(s), commit ${v}`);
+      ok('LV-O', !!first && !!c && c.check.world_swing > swingBefore, 'the settle did not run on from the stored swing over a world of another shape');
+      ok('LV-O', JSON.parse(srv.inst.world).s === enc.s, 'the settle did not re-save the world under the current shape');
+      ok('LV-O', ran >= 8 && v === 'match', `the browser over the old-shape world ran ${ran} swing(s) and its commit read ${v}, want 8+ and match`);
+      const bad = (() => { try { M.WS.decodeStored({ v: enc.v, s: enc.s, w: [], u: 'x', p: [] }); return false; } catch { return true; } })();
+      ok('LV-O', bad, 'a malformed world of the current shape was read instead of refused');
+    } catch (e) {
+      ok('LV-O', false, 'a world of another shape threw: ' + String(e && e.message).slice(0, 120));
+    }
   }
 
   { // LV-S: a setup changed mid-hunt with the browser closed (server commits only).
@@ -486,13 +553,22 @@ const MUTANTS = [
   ['the reseed teleports (LV-R)', 'src/hunt-view/timeline.js', 'const dur = Math.max(easeMs || 250, Math.ceil(dist * EASE_MS_PER_TILE));', 'const dur = 1;', /^LV-R/],
   ['every commit reads as a match (LV-R)', 'src/hunt-view/live-engine.js', "return h === hc.world_hash ? 'match' : 'diverged';", "return 'match';", /^LV-R/],
   ['a melee hero beside its target steps to another side every repath (LV-M)', 'src/core/hunt/roles.js',
-    '  if (cheb(h, tgt) <= 1 && atRest(h)) { clearGoal(h); return; }\n  if (h.aiMs > 0 && h.path.length) return;\n  h.aiMs = AI_REPATH_MS.melee;\n  const free = (x, y) => !standable(inst, h, tgt.pocket, x, y);',
-    '  if (h.aiMs > 0 && h.path.length) return;\n  h.aiMs = AI_REPATH_MS.melee;\n  const free = (x, y) => !standable(inst, h, tgt.pocket, x, y) || (x === h.x && y === h.y);', /^LV-M/],
+    '  if (cheb(h, tgt) <= 1 && atRest(h)) { clearGoal(h); return; }\n  if (h.aiMs > 0) return;\n  h.aiMs = AI_REPATH_MS.melee;\n  const beside = (list) => (x, y) => list.some((m) => cheb(m, { x, y }) <= 1 && (m.x !== x || m.y !== y) && standable(inst, h, m.pocket, x, y));',
+    '  if (h.aiMs > 0) return;\n  h.aiMs = AI_REPATH_MS.melee;\n  const beside = (list) => (x, y) => list.some((m) => cheb(m, { x, y }) <= 1 && (m.x !== x || m.y !== y) && standable(inst, h, m.pocket, x, y)) && (x !== h.x || y !== h.y);', /^LV-M/],
+  ['a non-holder steals from the holder (LV-T, live v0.2.24)', 'src/core/hunt/targeting.js', ' && (holds || onNonTank(m)));', ');', /^LV-T/],
+  ['the holder never rotates (LV-T)', 'src/core/hunt/targeting.js', 'return tanks[(first + runs) % tanks.length];', 'return tanks[first];', /^LV-T/],
   ['a peer row carries its full setup (LV-P)', 'supabase/functions/hr-accrue/hunt-settle.js', '      if (!self) {', '      if (false) {', /^LV-P/],
   ['the look-ahead is its own number at the edge (LV-H)', 'supabase/functions/hr-accrue/hunt-settle.js', 'export const LIVE_SEEDS = HUNT_TUNING.liveSeeds;', 'export const LIVE_SEEDS = 64;', /^LV-H/],
   ['a second tank holds where it stands (LV-T)', 'src/core/hunt/roles.js', "  if (!mons.some((m) => m.target === h.id)) { closeIn(inst, h, unitById(inst, h.target) || nearestTo(mons, h)); return; }\n", '', /^LV-T/],
   ['an ended instance keeps the prediction swinging (LV-E)', 'src/hunt-view/live-engine.js', 'if (!(sim.nextSwingAtMs > at)) {', 'if (false) {', /^LV-E/],
   ['a fresh world counts from 0, not the instance swing (LV-W)', 'src/hunt-view/live-engine.js', '      worldSwing: s.worldSwing },', '      worldSwing: 0 },', /^LV-W/],
+  ['the settle refuses a stored world of another shape (LV-O)', 'supabase/functions/hr-accrue/accrual.js',
+    "import { encode as encodeWorldRow, decodeStored as decodeWorldRow } from '../../../src/core/hunt/world-state.js';",
+    "import { encode as encodeWorldRow, decode as decodeWorldRow } from '../../../src/core/hunt/world-state.js';", /^LV-O/],
+  ['the browser refuses a stored world of another shape (LV-O)', 'src/hunt-view/live-engine.js',
+    'decodeStored as decodeWorldRow }', 'decode as decodeWorldRow }', /^LV-O/],
+  ['a member keeps the unit id of a world that is gone (LV-O)', 'src/core/combat-sim.js',
+    '  if (!world) for (const m of members) m.unitId = null;\n', '', /^LV-O/],
   ['members run in another order than the server (LV-D)', 'src/hunt-view/live-engine.js', '.slice().sort((a, b) => (a.key < b.key ? -1 : 1))', '.slice().reverse()', /^LV-D/],
   ['a setup change is not written onto a standing hero (LV-S)', 'src/core/combat-sim.js', 'if (s.stance !== undefined) u.stance = s.stance;', 'void 0;', /^LV-S/],
   ['every start point reads as the setup already run (LV-S)', 'src/hunt-view/live-engine.js', 'setupOf(live) === st.setup,', 'true,', /^LV-S/],

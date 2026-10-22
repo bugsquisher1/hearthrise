@@ -5,7 +5,13 @@
 // engaged while it holds a target) in the order its Target setting gives,
 // element-aware (TG-03). A monster keeps its target until that target falls
 // (it then turns on the pull leader, TG-05/06), a hero's attack peels it
-// (TG-07), or the tank Challenges it back (TG-08).
+// (TG-07), or a tank Challenges it (TG-08).
+//
+// A MELEE hero no monster is on walks to its MARK, the first monster its
+// Target setting names (roles.js closeIn takes the walk), and keeps a target
+// it stands beside until that target falls; a hero monsters ARE on (the
+// holding tank) hits the best of what stands beside it. A ranged hero shoots
+// the best it can reach.
 //
 // A unit with no role row (src/data/hunt-roles.js) is not driven here: it is
 // a walker the caller moves (the movement fixtures). A solo hunt is a party of
@@ -14,17 +20,19 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_ROLES, CHALLENGE } from '../../data/hunt-roles.js?v=0.2.23';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.23';
-import { DEFAULT_TARGET_MODE } from '../../data/rule-subjects.js?v=0.2.23';
-import { elementPermille } from '../combat.js?v=0.2.23';
-import { cheb, dist2, los } from './grid.js?v=0.2.23';
-import { unitById, leaderOf } from './movement.js?v=0.2.23';
-import { makeEvent } from './events.js?v=0.2.23';
+import { HUNT_ROLES, CHALLENGE } from '../../data/hunt-roles.js?v=0.2.25';
+import { ABILITIES } from '../../data/abilities.js?v=0.2.25';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.25';
+import { DEFAULT_TARGET_MODE } from '../../data/rule-subjects.js?v=0.2.25';
+import { elementPermille } from '../combat.js?v=0.2.25';
+import { cheb, dist2, los } from './grid.js?v=0.2.25';
+import { unitById, leaderOf } from './movement.js?v=0.2.25';
+import { makeEvent } from './events.js?v=0.2.25';
 
-/* chalMs: ms until the unit's Challenge is ready. leaderLast: the leader's last target (TG-04). */
+/* holdMs: ms a Challenged monster stays on its challenger (no other Challenge takes it meanwhile).
+   The Challenge's cooldown is the ability's own clock (abilities.js `cds`). leaderLast: the leader's last target (TG-04). */
 export const PERSISTED = Object.freeze({
-  unit: Object.freeze([['chalMs', 'int']]),
+  unit: Object.freeze([['holdMs', 'int']]),
   world: Object.freeze([['leaderLast', 'int?']]),
   pack: Object.freeze([]),
 });
@@ -47,9 +55,11 @@ export function inRange(inst, u, m) {
 }
 
 /* Target modes (rule-subjects.js TARGET_MODES). Each compares two monsters for hero `u`;
-   ties fall to unit id, so the order is total and the same on every runtime. */
+   ties fall to the NEARER, then to unit id, so the order is total and the same on every
+   runtime. (Ties went straight to id until 2026-10-21: a pack of one kind at full life
+   put the same first-spawned monster first for "Strongest" whoever stood where.) */
 const ORDER = Object.freeze({
-  nearest: (inst, u) => (a, b) => dist2(a, u) - dist2(b, u),
+  nearest: () => () => 0,
   weakest: () => (a, b) => a.hp - b.hp,
   /* Highest % life first, compared as integers (b.hp / b.maxHp vs a.hp / a.maxHp, cross-multiplied). */
   highest_pct: () => (a, b) => b.hp * a.maxHp - a.hp * b.maxHp,
@@ -57,7 +67,7 @@ const ORDER = Object.freeze({
   /* The leader's last target first (TG-04), then nearest. The leader itself has no one to follow. */
   follow: (inst, u) => {
     const lt = inst.world.leader !== u.id ? inst.world.leaderLast : null;
-    return (a, b) => (b.id === lt) - (a.id === lt) || dist2(a, u) - dist2(b, u);
+    return (a, b) => (b.id === lt) - (a.id === lt);
   },
 });
 
@@ -66,7 +76,7 @@ export function pickTargets(inst, unit, settings) {
   if (!unit || !roleOf(unit)) return [];
   const mode = (settings && settings.tmode) || unit.tmode;
   const cmp = (ORDER[mode] || ORDER[DEFAULT_TARGET_MODE])(inst, unit);
-  return engaged(inst).sort((a, b) => cmp(a, b) || a.id - b.id);
+  return engaged(inst).sort((a, b) => cmp(a, b) || dist2(a, unit) - dist2(b, unit) || a.id - b.id);
 }
 
 /** The basic attack's target: the first in order it can hit that its element hurts, else the first it can hit (TG-03). */
@@ -90,51 +100,120 @@ export function peel(inst, sc, hero) {
   const row = roleOf(hero);
   const k = leaderOf(inst);
   if (!row || !row.peel || !k || k === hero) return null;
-  const free = engaged(inst).filter((m) => m.target === k.id && m.queued && cheb(m, k) > 1);
+  const free = engaged(inst).filter((m) => m.target === k.id && m.queued && !(m.holdMs > 0) && cheb(m, k) > 1);
   if (!free.length || sc.rng.int(1, 1000) > row.peel) return null;
   retarget(free[0], hero.id, sc);
   return free[0];
 }
 
-/*
- * THE TANK'S AUTO-CHALLENGE (spec §3.2 #14, TG-08): whenever an engaged monster
- * within CHALLENGE.radius of the tank is not on him, he pulls every such monster
- * back, then waits CHALLENGE.cooldownMs. The challenger is the pull leader when
- * he is a tank (the tank leads by role order, so with any tank in the party he
- * is the leader); no player input.
+/* ── THE CHALLENGE (spec §3.2 #14, TG-08; Tyler 2026-10-16) ─────────────────
+   "The tank holds and auto-casts Challenge whenever an engaged on-screen monster
+   is not targeting him. Monsters can switch targets." ONE Challenge, for EVERY
+   tank in the party: the `challenge` ability (src/data/abilities.js: its cooldown
+   is the ability's cdMs, on the unit's `cds` clock, so the auto-cast and the bar
+   slot are one clock and never fire twice). It takes every engaged monster within
+   CHALLENGE.radius that is not on the tank and not HELD by another tank's
+   Challenge; each one it takes is held CHALLENGE.holdMs.
+   ONE HOLDER A LAP (designer 2026-10-21, Option A; live v0.2.24: "monsters are
+   retargeting onto the secondary member often, until the primary uses Challenge",
+   the two tanks traded the pack every 8 s): the lap's HOLDING tank (holderTank)
+   takes anything not on it; every other tank takes only a monster on a hero that
+   is NOT a tank (the overflow: a peel off the Healer), never one already on a tank.
+   The holder rotates once a lap of the route (pull-cycle.js `runs`, which moves only
+   after the last pocket's regroup, never mid-pull): the leader's tank first, then
+   the next tank by seat, so over laps every tank holds and trains Defense. */
+const CHALLENGE_ROW = ABILITIES.challenge;
+const challengeReady = (k, atMs) => !(k.cds && Number.isInteger(k.cds.challenge) && k.cds.challenge > atMs);
+const isTank = (u) => !!(roleOf(u) && roleOf(u).tank);
+
+/**
+ * THE LAP'S HOLDING TANK: the living tanks in seat (unit id) order, starting at the
+ * leader's, rotated by the laps run. Null with no tank. (A tank joining mid-lap
+ * changes the rotation's length and can move the holder at once: rare, and the
+ * next lap settles it.)
  */
-function challenge(inst, sc, k) {
-  if (!k || !roleOf(k) || !roleOf(k).tank) return;
-  if (k.chalMs > 0) k.chalMs = Math.max(0, k.chalMs - sc.dtMs);
-  if (k.chalMs > 0) return;
-  const off = engaged(inst).filter((m) => m.target !== k.id && cheb(m, k) <= CHALLENGE.radius);
-  if (!off.length) return;
-  for (const m of off) { retarget(m, k.id, sc); m.queued = false; }
-  sc.emit(makeEvent('challenge', sc.atMs, { u: k.id }));
-  k.chalMs = CHALLENGE.cooldownMs;
+export function holderTank(inst) {
+  const tanks = inst.world.units.filter((u) => u.alive && isTank(u)).sort((a, b) => a.id - b.id);
+  if (!tanks.length) return null;
+  const k = leaderOf(inst);
+  const first = k ? Math.max(0, tanks.indexOf(k)) : 0;
+  const runs = Number.isInteger(inst.world.runs) && inst.world.runs > 0 ? inst.world.runs : 0;
+  return tanks[(first + runs) % tanks.length];
+}
+
+/** The monsters a Challenge by tank `k` would take now (none when `k` is not a living tank). */
+export function challengeable(inst, k) {
+  if (!isTank(k) || !k.alive) return [];
+  const holds = holderTank(inst) === k;
+  /* a non-holder takes only what is on a hero that is not a tank */
+  const onNonTank = (m) => { const t = unitById(inst, m.target); return !!t && t.side === 'hero' && !isTank(t); };
+  return engaged(inst).filter((m) => m.target !== k.id && !(m.holdMs > 0) && cheb(m, k) <= CHALLENGE.radius && (holds || onNonTank(m)));
 }
 
 /**
- * Phase-AI hook, every sub-step: monsters whose target fell turn on the leader
- * (TG-05/06), the tank Challenges, then every hero with a role picks its target.
- * In a fight a hero with nothing in range keeps a target to walk to unless the
- * leader is on the move, when it follows the leader instead (RO-05,
- * movement.followTrail follows a hero with no target).
+ * THE CHALLENGE'S EFFECT, the one writer of a taunt: every monster `challengeable`
+ * names turns on `k`, leaves its queue and is held. Answers how many it took.
+ * Emits `target` per monster and one `challenge`; the clock is the caller's.
+ */
+export function challengeFrom(inst, sc, k) {
+  const took = challengeable(inst, k);
+  for (const m of took) { retarget(m, k.id, sc); m.queued = false; m.holdMs = CHALLENGE.holdMs; }
+  if (took.length) sc.emit(makeEvent('challenge', sc.atMs, { u: k.id }));
+  return took.length;
+}
+
+/* The auto-cast: every living tank whose Challenge is ready and finds a monster, the lap's holder
+   first (an overflow monster goes to it when it can), then the others in id order.
+   It is the ability's cast (a `cast` event: the bar's cooldown, the hunt screen's "Challenge"). */
+function autoChallenge(inst, sc) {
+  const h = holderTank(inst);
+  for (const k of h ? [h, ...inst.world.units.filter((u) => u !== h)] : inst.world.units) {
+    if (!challengeReady(k, sc.atMs) || !challengeable(inst, k).length) continue;
+    sc.emit(makeEvent('cast', sc.atMs, { u: k.id, ability: CHALLENGE_ROW.id, t: k.id, mana: 0,
+      magicXpMult: CHALLENGE_ROW.magicXpMult, source: 'own', gold: 0 }));
+    challengeFrom(inst, sc, k);
+    k.cds = Object.assign({}, k.cds || {}, { [CHALLENGE_ROW.id]: sc.atMs + CHALLENGE_ROW.cdMs });
+  }
+}
+
+/* Is any engaged monster on hero `u` (it holds them: a tank's hold, a peeled healer)? */
+const holding = (inst, u) => engaged(inst).some((m) => m.target === u.id);
+
+/**
+ * Phase-AI hook, every sub-step: holds run down, monsters whose target fell turn
+ * on the leader (TG-05/06), every tank Challenges, then every hero with a role
+ * picks its target:
+ *   a MELEE hero no monster is on (a second tank, a Melee DPS) keeps the target it
+ *   stands beside until it falls, else takes its MARK, the first its Target
+ *   setting names, wherever it stands (roles.js closeIn walks it there);
+ *   any other hero hits the best it can reach, else keeps one to walk to.
+ * A hero with nothing to hit while the leader is on the move follows him instead
+ * (RO-05, movement.followTrail follows a hero with no target).
  */
 export function chooseTargets(inst, sc) {
   const k = leaderOf(inst);
+  for (const m of inst.world.units) if (m.holdMs > 0) m.holdMs = Math.max(0, m.holdMs - sc.dtMs);
   for (const m of engaged(inst)) {
     const t = unitById(inst, m.target);
-    if (!t || !t.alive) retarget(m, k && k !== t ? k.id : null, sc);
+    if (!t || !t.alive) { retarget(m, k && k !== t ? k.id : null, sc); m.holdMs = 0; }
   }
-  challenge(inst, sc, k);
+  autoChallenge(inst, sc);
   const fighting = inst.world.phase === 'fight';
   const leaderMoving = !!k && k.path.length > 0;
   for (const u of inst.world.units) {
     if (!roleOf(u)) continue;
     if (!u.alive || !fighting) { u.target = null; continue; }
-    const b = basicTarget(inst, u);
-    const first = b || ((u === k || !leaderMoving) ? pickTargets(inst, u)[0] : null);
-    u.target = first ? first.id : null;
+    const marks = roleOf(u).melee && u.chase && !holding(inst, u);
+    const cur = marks ? unitById(inst, u.target) : null;
+    /* Kept while it stands beside it or walks a path that ends beside it (roles.js closeIn's pick). */
+    const enRoute = !!cur && !!u.goal && u.path.length > 0 && cheb({ x: u.goal[0], y: u.goal[1] }, cur) <= 1;
+    if (cur && cur.alive && Number.isInteger(cur.target) && (inRange(inst, u, cur) || enRoute)) continue;
+    const b = marks ? null : basicTarget(inst, u);
+    const all = !b && (u === k || !leaderMoving) ? pickTargets(inst, u) : [];
+    const first = b || all.find((m) => elementOn(m, u.element) > 0) || all[0] || null;
+    const id = first ? first.id : null;
+    /* A new mark is walked to at once, not after the last walk's re-aim clock (roles.js closeIn). */
+    if (marks && id !== u.target) u.aiMs = 0;
+    u.target = id;
   }
 }

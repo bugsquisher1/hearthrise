@@ -12,10 +12,10 @@
 // Prediction only: nothing here is spent, credited or shown as owned.
 // ════════════════════════════════════════════════════════════════════════
 
-import { createLiveEngine } from '../hunt-view/live-engine.js?v=0.2.23';
-import { ITEMS } from '../data/items.js?v=0.2.23';
-import { MONSTERS } from '../data/monsters.js?v=0.2.23';
-import { SESSION_CONFIG } from './config.js?v=0.2.23';
+import { createLiveEngine } from '../hunt-view/live-engine.js?v=0.2.25';
+import { ITEMS } from '../data/items.js?v=0.2.25';
+import { MONSTERS } from '../data/monsters.js?v=0.2.25';
+import { SESSION_CONFIG } from './config.js?v=0.2.25';
 
 export class LiveLink {
   /**

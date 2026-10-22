@@ -106,18 +106,83 @@ const cases = {
     if (near.target !== 1) return 'an on-screen monster off the tank was not Challenged';
     if (far.target !== 2) return 'a monster beyond the Challenge radius was pulled';
     if (sc.events.filter((e) => e.type === 'challenge' && e.u === 1).length !== 1) return 'expected one challenge event';
-    near.target = 2;
-    const steps = CHALLENGE.cooldownMs / 100;
-    for (let i = 1; i < steps; i++) {
-      M.targeting.chooseTargets(inst, sc2(M, 1));
-      if (near.target === 1) return 'Challenged again ' + i * 100 + ' ms into an ' + CHALLENGE.cooldownMs + ' ms cooldown';
+    if (!sc.events.some((e) => e.type === 'cast' && e.u === 1 && e.ability === 'challenge')) return 'the auto-Challenge is not a cast of the challenge ability';
+    near.target = 2; near.holdMs = 0;
+    const cdMs = M.abilityData.ABILITIES.challenge.cdMs;
+    for (let i = 1; i < cdMs / 100; i++) {
+      M.targeting.chooseTargets(inst, sc2(M, 1, i * 100));
+      if (near.target === 1) return 'Challenged again ' + i * 100 + ' ms into an ' + cdMs + ' ms cooldown';
     }
-    M.targeting.chooseTargets(inst, sc2(M, 1));
+    M.targeting.chooseTargets(inst, sc2(M, 1, cdMs));
     if (near.target !== 1) return 'no Challenge once the cooldown ran out';
     const dps = H(M, 1, 11, 3, 'melee_dps');
     const i2 = fight(M, [dps, H(M, 2, 16, 5, 'ranger'), E(M, 3, 0, 15, 5, 2)], { leader: 1 });
     M.targeting.chooseTargets(i2, sc2(M, 1));
     return i2.world.units[2].target === 2 ? null : 'a leader who is not a tank Challenged';
+  },
+  /* TG-08 with TWO tanks, ONE HOLDER A LAP (designer 2026-10-21, Option A; live v0.2.24: "monsters are
+     retargeting onto the secondary member often, until the primary uses Challenge"). Lap 0: the leader holds
+     and the second tank never takes from it; it takes only a monster on a non-tank (the overflow). Lap 1:
+     the second tank holds, takes the pack, and the leader never takes it back. */
+  'one-holder-a-lap': (M) => {
+    const k1 = H(M, 1, 11, 3, 'tank'); const k2 = H(M, 2, 13, 5, 'tank'); const healer = H(M, 5, 14, 6, 'healer');
+    const a = E(M, 3, 0, 12, 3, 1); const b = E(M, 4, 0, 12, 4, 1);
+    const inst = fight(M, [k1, k2, a, b, healer], { leader: 1, runs: 0 });
+    if (M.targeting.holderTank(inst) !== k1) return 'lap 0: the holder is not the leader\'s tank';
+    for (let t = 0; t <= 20000; t += 100) {
+      const sc = sc2(M, 1, t);
+      M.targeting.chooseTargets(inst, sc);
+      if (a.target !== 1 || b.target !== 1) return 'lap 0: the second tank took the leader\'s pack ' + t + ' ms in (targets ' + a.target + ',' + b.target + ')';
+      if (sc.events.some((e) => e.type === 'cast' && e.u === 2)) return 'lap 0: the second tank cast Challenge on a pack already on a tank';
+    }
+    /* the overflow: the holder's Challenge is cooling, a monster turns on the Healer, the second tank takes it */
+    k1.cds = { challenge: 999999 }; b.target = 5; b.holdMs = 0;
+    M.targeting.chooseTargets(inst, sc2(M, 1, 20100));
+    if (b.target !== 2) return 'the overflow: a monster on the Healer went to ' + b.target + ', not the second tank';
+    /* it stays there its hold (the second tank trains on it), though the holder's Challenge is ready again */
+    k1.cds = {};
+    for (let t = 20200; t < 20100 + M.roleData.CHALLENGE.holdMs; t += 100) {
+      M.targeting.chooseTargets(inst, sc2(M, 1, t));
+      if (b.target !== 2) return 'the holder took the overflow back ' + (t - 20100) + ' ms into its hold';
+    }
+    /* the holder first: with both Challenges ready, an overflow goes to the holder (lap 1: the second tank) */
+    /* lap 1: the second tank holds */
+    inst.world.runs = 1; a.holdMs = 0; b.holdMs = 0; k1.cds = {}; k2.cds = {};
+    if (M.targeting.holderTank(inst) !== k2) return 'lap 1: the holder is not the next tank by seat';
+    for (let t = 30000; t <= 50000; t += 100) {
+      M.targeting.chooseTargets(inst, sc2(M, 1, t));
+      if (a.target !== 2 || b.target !== 2) return 'lap 1: the pack is on ' + a.target + ',' + b.target + ' ' + (t - 30000) + ' ms in, not on the holding second tank';
+    }
+    a.target = 5; a.holdMs = 0; b.holdMs = 0; k1.cds = {}; k2.cds = {};
+    M.targeting.chooseTargets(inst, sc2(M, 1, 50100));
+    return a.target === 2 ? null : 'lap 1: with both Challenges ready an overflow went to ' + a.target + ', not the holder';
+  },
+  /* TG-01 ties (Andy 2026-10-21: "Strongest and follow player both seem to just target the first creature"):
+     monsters a mode cannot tell apart fall to the NEARER, not to the first spawned. */
+  'mode-ties-fall-to-nearest': (M) => {
+    const u = H(M, 1, 11, 3, 'ranger');
+    const far = E(M, 2, 0, 16, 5, 9, { hp: 20, maxHp: 20 }); const near = E(M, 3, 0, 13, 3, 9, { hp: 20, maxHp: 20 });
+    const inst = fight(M, [u, far, near, H(M, 9, 17, 2, 'tank')], { leader: 9 });
+    for (const mode of ['strongest', 'weakest', 'highest_pct', 'follow']) {
+      const got = ids(M.targeting.pickTargets(inst, u, { tmode: mode }));
+      if (got !== '3,2') return mode + ': two equal monsters ordered ' + got + ', not nearest first (3,2)';
+    }
+    return null;
+  },
+  /* A MELEE hero no monster is on takes its MARK, the first its Target setting names, not the first
+     monster that happens to stand beside it; it keeps the one it stands beside until that one falls. */
+  'melee-takes-its-mark': (M) => {
+    const k = H(M, 1, 12, 3, 'tank');
+    const d = H(M, 2, 14, 5, 'melee_dps', { tmode: 'strongest' });
+    const rat = E(M, 3, 0, 15, 5, 1, { hp: 9, maxHp: 9 }); const big = E(M, 4, 0, 13, 3, 1, { hp: 60, maxHp: 60 });
+    const inst = fight(M, [k, d, rat, big], { leader: 1 });
+    M.movement.occupancy(inst);
+    M.targeting.chooseTargets(inst, sc2(M, 1));
+    if (d.target !== 4) return '"Strongest" took ' + d.target + ' (the monster beside it), not its mark 4';
+    d.x = 14; d.y = 4; d.fx = 14; d.fy = 4;
+    inst.world.units.push(E(M, 5, 0, 17, 2, 1, { hp: 100, maxHp: 100 }));
+    M.targeting.chooseTargets(inst, sc2(M, 1));
+    return d.target === 4 ? null : 'beside its mark it switched to ' + d.target;
   },
 };
 
@@ -131,12 +196,20 @@ const mutants = [
     edits: [[T, 'return inR.find((m) => elementOn(m, u.element) > 0) || inR[0] || null;', 'return inR.find((m) => elementOn(m, u.element) > 0) || null;']] },
   { name: 'the leader\'s target is not remembered', case: 'follow-uses-leader-last',
     edits: [['src/core/hunt/damage.js', 'if (inst.world.leader === u.id) inst.world.leaderLast = aim.id;', '']] },
-  { name: 'a fallen target is kept', case: 'monster-retargets-on-death', edits: [[T, 'if (!t || !t.alive) retarget(', 'if (!t) retarget(']] },
+  { name: 'a fallen target is kept', case: 'monster-retargets-on-death', edits: [[T, 'if (!t || !t.alive) { retarget(', 'if (!t) { retarget(']] },
   { name: 'peel ignores the roll', case: 'peel-seeded', edits: [[T, ' || sc.rng.int(1, 1000) > row.peel) return null;', ') return null;']] },
   { name: 'every role peels', case: 'peel-seeded', edits: [[T, "if (!row || !row.peel || !k || k === hero) return null;", 'if (!row || !k || k === hero) return null;']] },
-  { name: 'the Challenge has no radius', case: 'challenge-when-monster-off-tank', edits: [[T, ' && cheb(m, k) <= CHALLENGE.radius);', ');']] },
-  { name: 'the Challenge has no cooldown', case: 'challenge-when-monster-off-tank', edits: [[T, '  k.chalMs = CHALLENGE.cooldownMs;', '  k.chalMs = 0;']] },
-  { name: 'any role Challenges', case: 'challenge-when-monster-off-tank', edits: [[T, "if (!k || !roleOf(k) || !roleOf(k).tank) return;", 'if (!k || !roleOf(k)) return;']] },
+  { name: 'the Challenge has no radius', case: 'challenge-when-monster-off-tank', edits: [[T, ' && cheb(m, k) <= CHALLENGE.radius', '']] },
+  { name: 'the Challenge has no cooldown', case: 'challenge-when-monster-off-tank', edits: [[T, '[CHALLENGE_ROW.id]: sc.atMs + CHALLENGE_ROW.cdMs', '[CHALLENGE_ROW.id]: sc.atMs']] },
+  { name: 'any role Challenges', case: 'challenge-when-monster-off-tank', edits: [[T, 'if (!isTank(k) || !k.alive) return [];', 'if (!roleOf(k) || !k.alive) return [];']] },
+  { name: 'a Challenge holds nothing', case: 'one-holder-a-lap', edits: [[T, 'm.queued = false; m.holdMs = CHALLENGE.holdMs; }', 'm.queued = false; }']] },
+  { name: 'a non-holder steals from the holder (live v0.2.24)', case: 'one-holder-a-lap', edits: [[T, ' && (holds || onNonTank(m)));', ');']] },
+  { name: 'the holder never rotates', case: 'one-holder-a-lap', edits: [[T, 'return tanks[(first + runs) % tanks.length];', 'return tanks[first];']] },
+  { name: 'an overflow goes to whichever tank comes first by id', case: 'one-holder-a-lap',
+    edits: [[T, 'for (const k of h ? [h, ...inst.world.units.filter((u) => u !== h)] : inst.world.units) {', 'for (const k of inst.world.units) {']] },
+  { name: 'ties fall to id (live v0.2.22)', case: 'mode-ties-fall-to-nearest', edits: [[T, 'cmp(a, b) || dist2(a, unit) - dist2(b, unit) || a.id - b.id', 'cmp(a, b) || a.id - b.id']] },
+  { name: 'a melee hits whatever stands beside it (live v0.2.22)', case: 'melee-takes-its-mark', edits: [[T, 'const b = marks ? null : basicTarget(inst, u);', 'const b = basicTarget(inst, u);']] },
+  { name: 'a melee drops the target it stands beside', case: 'melee-takes-its-mark', edits: [[T, '(inRange(inst, u, cur) || enRoute)) continue;', 'enRoute) continue;']] },
 ];
 
 await suite('hunt-core/targeting', cases, mutants);

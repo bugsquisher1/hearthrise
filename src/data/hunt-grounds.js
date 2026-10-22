@@ -107,9 +107,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.23';
-import { HUNT_INDEX } from './hunts.js?v=0.2.23';
-import { MONSTERS } from './monsters.js?v=0.2.23';
+import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.25';
+import { HUNT_INDEX } from './hunts.js?v=0.2.25';
+import { MONSTERS } from './monsters.js?v=0.2.25';
 
 const pocket = (room, ...spawns) => Object.freeze({ room: Object.freeze(room),
   spawns: Object.freeze(spawns.map(([monster, x, y]) => Object.freeze({ monster, x, y }))) });
@@ -298,6 +298,17 @@ export const MIN_PARTY_NOTE = 'The Rat King wants a party of two or more. Alone,
 export function routeFor(ground, partySize) {
   const n = Math.max(1, Math.floor(Number(partySize) || 1));
   return ground.route.filter((i) => n >= ((ground.pockets[i] && ground.pockets[i].minParty) || 1));
+}
+
+/** Every monster id a party of `partySize` can meet on `ground`: the rows of each pocket it walks
+    (routeFor), as built and at any density (pullRows only repeats a pocket's own rows). */
+export function monstersOn(ground, partySize) {
+  const out = new Set();
+  for (const i of routeFor(ground, partySize)) {
+    const pk = ground.pockets[i];
+    for (const s of (pk.pack || pk.spawns).concat(pk.spawns)) out.add(s.monster);
+  }
+  return out;
 }
 
 /* THE SOLO HEALER FLOOR (same ruling): in a party of one Healer, the Healer's blows

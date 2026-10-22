@@ -18,8 +18,8 @@
 // read makes that ROW null, not the whole section.
 // ════════════════════════════════════════════════════════════════════════
 
-import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.23';
-import { VITALS } from '../data/core-model.js?v=0.2.23';
+import { roleForWeapon } from '../data/hunt-roles.js?v=0.2.25';
+import { VITALS } from '../data/core-model.js?v=0.2.25';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -136,12 +136,31 @@ export function settingsOf(cs) {
   };
 }
 
+/* The outfit a member wears, as the party section names it ({ id, colors }: 2026-11-04-party-outfits.sql,
+   the walker's shape in town), or null: the hunt draws it in its role's outfit then. */
+const OUTFIT_ID = /^[a-z0-9_]{1,32}$/;
+const outfitIdOf = (o) => (isObj(o) && typeof o.id === 'string' && OUTFIT_ID.test(o.id) ? o.id : null);
+
+/**
+ * THE HP A HUNT UNIT SHOWS NOW: the character's timeline at its display clock (timeline.js
+ * hpAt, T6), the one number the hero's bar over its head reads, or null (no timeline, no
+ * unit, nothing booked yet). Every HP readout of a hunting hero reads it so none lags the
+ * bar: the envelope's `hp` is the last commit's, up to a commit window old (Andy 2026-10-21,
+ * the Warrens: the hub and the party panel showed the HP of seconds before the death).
+ */
+export function liveHpOf(cs, unit) {
+  const tl = cs && cs.timeline;
+  if (!Number.isInteger(unit) || !tl || typeof tl.hpAt !== 'function' || typeof cs.now !== 'function') return null;
+  const r = tl.hpAt(unit, cs.now());
+  return r && Number.isFinite(r.hp) && Number.isFinite(r.maxHp) && r.maxHp > 0 ? r : null;
+}
+
 /* A party member. `unit` is its hero in the hunt instance, null while the party is in town (it is
    listed all the same: the Party panel shows the party wherever it is). */
 function memberOf(m) {
   if (!isObj(m) || int(m.seat) === null) return null;
   return {
-    unit: int(m.unit), seat: m.seat, name: str(m.name) || 'Hero', level: int(m.level), outfit: str(m.outfit),
+    unit: int(m.unit), seat: m.seat, name: str(m.name) || 'Hero', level: int(m.level), outfit: outfitIdOf(m.outfit),
     role: roleForWeapon(str(m.weapon), str(m.role_pick)),
     hp: num(m.hp), hpMax: num(m.hp_max), mana: num(m.mana), manaMax: num(m.mana_max), staminaMs: num(m.stamina_ms),
     dealt: num(m.dealt), healed: num(m.healed), dps: num(m.dps), hps: num(m.hps),
@@ -194,6 +213,9 @@ function viewOf(v) {
   const dl = isObj(v.dealt) ? v.dealt : {};
   return {
     kills: num(v.kills), xp: total(v.xp), rawXp: total(v.raw_xp), gold: num(v.gold), waste: num(v.waste), balance: num(v.balance),
+    /* `rated`: the server sent rates. It sends none (per_hour null) until the session has
+       ANALYZER_RATE_AFTER_MS of wall time (2026-11-06-hunt-analyzer-min-window.sql). */
+    rated: isObj(v.per_hour),
     perHour: { xp: total(ph.xp), rawXp: total(ph.raw_xp), gold: num(ph.gold), waste: num(ph.waste), balance: num(ph.balance) },
     supplies: rowsOf(sup.own, ([item, n]) => ({ item, source: 'own', count: n, gold: 0 }))
       .concat(rowsOf(sup.store, ([item, n]) => ({ item, source: 'store', count: n, gold: null }))),

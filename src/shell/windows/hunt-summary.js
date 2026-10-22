@@ -127,7 +127,7 @@ renderHuntSummary.act = function actHuntSummary(ctx, body, action, ev, t) {
   const sc = scratchOf(cs);
   const repaint = () => renderHuntSummary.patch(body, ctx);
   if (action === 'pick') { sc.pick = t.getAttribute('data-id'); sc.msg = ''; repaint(); return true; }
-  if (action === 'bag') { ctx.show('bag'); return true; }
+  if (action === 'bag') { ctx.show('inventory'); return true; }
   if (action === 'again') {
     const list = summariesOf(cs);
     const cur = list.find((s) => s.id === sc.pick) || list[0];

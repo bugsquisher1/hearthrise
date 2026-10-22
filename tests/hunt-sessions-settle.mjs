@@ -679,7 +679,9 @@ const ENGINE_ARMS = {
     /* A DRINK THE PURSE CANNOT BUY ONLY GOES WITHOUT: a broke hero that wants to drink
        but never needs food hunts on (spec §3.4 #7); only an unaffordable FOOD ends gold_out.
  */
-    const thirsty = runCut(M, () => [memberIn(M, 'a', { level: 40, gold: 0, options: { drink_below_pct: 99 } })], 600000, []);
+    /* Store by slot (2026-11-07): the drink is the bar's own slot, asked for on every step (mana at or below 100%). */
+    const thirstyBar = [{ action: { type: 'consume', id: t.shop.mana }, conditions: [{ metric: 'self_mana_pct', op: 'lte', value: 100 }], join: 'and' }];
+    const thirsty = runCut(M, () => [memberIn(M, 'a', { level: 40, gold: 0, bar: thirstyBar })], 600000, []);
     const tEnd = thirsty.outs.flatMap((o) => o.members).find((x) => x.hunt.ended);
     if (tEnd && tEnd.hunt.ended.reason === 'gold_out') problems.push('a broke hero that only wanted a drink ended gold_out');
     if (!(kills > 0)) problems.push(`CONTROL: the poor hero killed nothing (${JSON.stringify(end && end.hunt.ended)}, ${ms.length} windows, ${JSON.stringify(ms.map((x) => x.hunt.buys))})`);
@@ -1019,6 +1021,8 @@ async function hunter(db, M, o) {
       if (!j || j.ok !== true) throw new Error('party join refused: ' + JSON.stringify(j));
     }
   }
+  /* A caller's town-only seeding (a setup is saved in town: 2026-11-15-preset-names.sql), before anyone enters. */
+  if (typeof o.beforeEnter === 'function') await o.beforeEnter();
   const sids = [];
   for (let i = 0; i < who.length; i++) {
     await asUser(db, UIDS[i]);
@@ -1830,7 +1834,7 @@ const MUTANTS = [
   { arm: 'MAXHP', name: 'max HP is not raise-only (a vitals read may lower it)', file: 'src/core/member.js',
     from: '  state.playerMaxHp = Math.max(state.playerMaxHp || 0, v.maxHp);', to: '  state.playerMaxHp = v.maxHp - 1;' },
   { arm: 'ECON-1', name: 'the T1 store drink back at the heal\'s 15 g a point (72 mana for 1080 g): a fresh melee hero ends gold_out', file: 'src/data/supply-basics.js',
-    from: "'turnip_juice', 72, 10, [1]", to: "'turnip_juice', 72, 1080, [1]" },
+    from: "'turnip_juice', 72, 10)", to: "'turnip_juice', 72, 1080)" },
   { arm: 'WEAKNESS', name: 'a basic swing is priced on the neutral snapshot (the matched weapon pays nothing)', file: 'src/core/hunt/damage.js',
     from: "  const vs = h && t.side === 'mon' && typeof h.rollsVs === 'function' ? h.rollsVs(MONSTERS[t.kind]) : null;",
     to: "  const vs = null;" },
@@ -1851,7 +1855,7 @@ const MUTANTS = [
   { arm: 'STAMINA', name: '[C2 reads no pool] the settle reads no pool', file: join(FN, 'hunt-settle.js'),
     from: '    staminaMs: num(h.stamina_ms),', to: '    staminaMs: null,' },
   { arm: 'SUPPLY-RULE', name: '[C2 shop never buys] the store never sells', file: 'src/core/action-rules.js',
-    from: "    return canAfford(hs, b.price) ? { id, source: 'store', price: b.price } : { why: 'gold_short', id };", to: "    return { why: 'none' };" },
+    from: "    return canAfford(hs, b.price) ? { id: want, source: 'store', price: b.price } : { why: 'gold_short', id: want };", to: "    return { why: 'none' };" },
   { arm: 'SUPPLY-RULE', name: '[C2 shop heal by partner] a store food restores its crafted partner\'s amount', file: 'src/core/action-rules.js',
     from: "    return b ? Math.max(0, int(b.kind === 'mana' ? b.mana : b.heals, 0)) : 0;", to: "    return b ? (CONSUMABLES[b.partner] ? CONSUMABLES[b.partner].amount : 0) : 0;" },
   { arm: 'SUPPLY-RULE', name: '[C2 DEEPWATERS-S2] an own food restores one less than its item', file: 'src/core/action-rules.js',
@@ -1871,8 +1875,8 @@ const MUTANTS = [
     from: '  return item.junk === true;', to: '  return true;' },
   { arm: 'SUPPLY-RULE', name: '[C2 kill coins] kill coins never reach the purse', file: 'src/core/member.js',
     from: '      hs.purse = Math.max(0, Math.floor(Number(hs.purse) || 0)) + g;', to: '' },
-  { arm: 'SUPPLY-RULE', name: '[C2 own first] the resolver reaches for the store before the own stack', file: 'src/core/action-rules.js',
-    from: "    const own = pickOwn(hs, want, n);", to: "    const own = storeAllowed(hs) ? null : pickOwn(hs, want, n);" },
+  { arm: 'SUPPLY-RULE', name: '[C2 own first] a store-sourced hero skips its own stack', file: 'src/core/action-rules.js',
+    from: "  if (c && c.source === 'own') return leftOf(hs, want) > 0", to: "  if (c && c.source === 'own' && !storeAllowed(hs)) return leftOf(hs, want) > 0" },
   { arm: 'SUPPLY-RULE', name: 'an unaffordable drink ends the hunt gold_out', file: 'src/core/hunt/consumables.js',
     from: "if (w.why === 'gold_short') { if (w.kind === 'food') starved = true; return { why: 'gold_short' }; }", to: "if (w.why === 'gold_short') { starved = true; return { why: 'gold_short' }; }" },
   { arm: 'SPLIT', name: 'the remainder of a split is lost', file: 'src/core/party-split.js',
@@ -1951,9 +1955,8 @@ const MUTANTS = [
     to: "    m.hero = heroSetup({ weaponType: m._weaponType, options: mode === 'tick' ? {} : m._options, bar: m._bar, partyRoles, lead: m._leads });" },
   { arm: 'SETTINGS', name: 'the stored options never reach the unit', file: 'src/core/combat-sim.js',
     from: '    if (s.stance !== undefined) u.stance = s.stance;', to: '' },
-  { arm: 'OWN', name: '[probe-bar noAutoEat] the hero never eats', file: 'src/core/combat-sim.js',
-    from: '          foodBelowPct: m.hero.foodBelowPct, drinkBelowPct: m.hero.drinkBelowPct };',
-    to: '          foodBelowPct: 0, drinkBelowPct: 0 };' },
+  { arm: 'OWN', name: '[probe-bar noAutoEat] the hero never eats', file: 'src/core/hunt/consumables.js',
+    from: '    if (got) use(u, hero, got.pick.kind, got.pick.line, sc, got);', to: '    if (false) use(u, hero, got.pick.kind, got.pick.line, sc, got);' },
   { arm: 'ANALYZER', name: 'the analyzer tally is never proposed', file: join(FN, 'accrual.js'),
     from: '      analyzer: analyzerOf(sim, unitIds, summary.unitIdEver) });', to: '      analyzer: null });' },
   { arm: 'SLOT', name: '[edge-tick-gate M17] the settle reads slot 0\'s perks for every slot', file: join(FN, 'hunt-settle.js'),

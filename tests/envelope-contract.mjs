@@ -232,7 +232,6 @@ async function seedS2(db, M, H) {
   await ok(me, 'select public.hr_character_name_set(0, $1, gen_random_uuid())', [SEED.name]);
   await ok(me, 'select public.hr_item_lock(0, $1, true, gen_random_uuid())', [SEED.lock]);
   await ok(me, "select public.hr_loot_rule_set(0, $1, 'sell', gen_random_uuid())", [SEED.loot]);
-  await ok(me, 'select public.hr_hunt_preset_save(0, $1, $2, gen_random_uuid())', [SEED.preset, SEED.presetName]);
   /* An invite to this character, found by its name (the first invite makes the inviter's party). */
   await H.character(db, M, other, { inv: {} });
   await ok(other, 'select public.hr_character_name_set(0, $1, gen_random_uuid())', [SEED.inviter]);
@@ -280,7 +279,12 @@ async function readers(root) {
 async function realBody(db, M, H) {
   const P = { ...H.STRONG, premium: true, density: 2, options: { food_below_pct: 40, gather_share: 10,
     stop_rules: [{ conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 1 }], join: 'and', forMs: 60000 }] } };
-  const h = await H.hunter(db, M, { party: [{ ...P }, { ...P }] });
+  /* The named setup is saved in TOWN, before the hunt opens: hr_hunt_preset_save refuses an open hunt (hunt_open). */
+  const h = await H.hunter(db, M, { party: [{ ...P }, { ...P }], beforeEnter: async () => {
+    await db.query("select set_config('request.jwt.claim.sub', $1, true)", [H.UIDS[0]]);
+    const r = await H.one(db, 'select public.hr_hunt_preset_save(0, $1, $2, gen_random_uuid())', [SEED.preset, SEED.presetName]);
+    if (!r || r.ok !== true) throw new Error('S2 seed refused: the setup save in town -> ' + JSON.stringify(r));
+  } });
   /* Monsters are units only mid-pull: sample the pose after every tick so the monster path is proven. */
   const poses = [];
   for (const t of H.ticksOf(30000, 6 * 60000)(h.from)) {

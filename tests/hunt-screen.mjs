@@ -1629,7 +1629,7 @@ const MUTANTS = [
   ['the bar hides in town', 'src/data/hud-widgets.js', "removable: true, when: 'always',\n    phone: Object.freeze({ dy: 2 }),", "removable: true, when: 'hunt',\n    phone: Object.freeze({ dy: 2 }),"],
   ['the Food run is sorted by name, not gold per point', 'src/shell/action-table.js', "const byValue = (a, b) => ((a.per === null) - (b.per === null)) || ((a.per || 0) - (b.per || 0))", "const byValue = (a, b) => 0 || 0"],
   ['the comparison never shows', 'src/shell/windows/configure-action.js', '  const cmp = hover && picked && hover !== picked ? compareLines(hover, picked) : [];', '  const cmp = [];'],
-  ['the store price is not shown on a store food', 'src/shell/action-facts.js', "out.push('Bought from the store at ' + st.price + ' g each, paid as used.');", "out.push('Bought from the store.');"],
+  ['the store price is not shown in the Food run (HS-8)', 'src/shell/action-table.js', '  const price = srv ? srv.price : null;', '  const price = null;'],
   ['the density step sends no intent', 'src/shell/windows/hunts.js', '    try { r = await cs.setHuntDensity(d.hunt, d.n); } catch (e) { r = null; }', '    try { r = { ok: true }; } catch (e) { r = null; }'],
   ['one density pick shows on every ground (the old one-pick-per-setup model)', 'src/shell/windows/hunts.js', '  const pick = Number.isInteger(picks[hunt]) ? picks[hunt] : 0;', '  const pick = Number.isInteger(picks.mill_cellar) ? picks.mill_cellar : 0;'],
   ['a ground\'s draft shows on every ground', 'src/shell/windows/hunts.js', '  if (!dn || !sc.draft || sc.draft.hunt !== hunt) return dn;', '  if (!dn || !sc.draft) return dn;'],

@@ -58,6 +58,7 @@ import { leaveAskOf, pendingLeaveAt, leaveCountdown, closeInMs } from './hunt-le
 import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.27';
 import { createIntentLedger } from './intent-ledger.js?v=0.2.27';
 import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.27';
+import { refusalOf } from './refusal.js?v=0.2.27';
 import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.27';
 
 export const FRAME_EVENT = 'frame';
@@ -477,14 +478,7 @@ export class CharacterSession {
     /* below_range: the server admitted a hunt under its level floor (the floor is a warning, Tyler 10-18). */
     if (ans.ok && ans.body && ans.body.ok === true && ans.body.below_range === true) { await this.load(); return { ok: true, belowRange: true }; }
     if (ans.ok && ans.body && ans.body.ok === true) { if (!(carries && this._take(ans.body, 'load'))) await this.load(); return { ok: true }; }
-    const b = ans.body && typeof ans.body === 'object' ? ans.body : {};
-    /* The server's validation detail (which slot, which condition, which field) goes back to the editor as sent. */
-    /* The item a refusal names (hr_apply's detail, one level down on an edge refusal): "Needs Defense 20". */
-    const d = b.detail && typeof b.detail === 'object' ? b.detail : {};
-    const item = [d.item_id, d.detail && d.detail.item_id, b.item_id].find((x) => typeof x === 'string' && ITEM.test(x)) || null;
-    return { ok: false, error: (typeof b.error === 'string' && b.error) || ans.error || 'refused',
-      slot: Number.isInteger(b.slot) ? b.slot : null, condition: Number.isInteger(b.condition) ? b.condition : null,
-      field: typeof b.field === 'string' ? b.field.slice(0, 32) : null, item };
+    return refusalOf(ans);   // the server's detail (slot, condition, field, item) back to the editor as sent
   }
 
   _answerFailed(ans) {
